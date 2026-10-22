@@ -18633,6 +18633,416 @@
       }
     },
     {
+      "component": "pkg:github/dapr/dapr",
+      "line": "1.14",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.13.0",
+            "commit": "5980602c57e360a3354d409be516b8ffc4056fd1"
+          },
+          {
+            "version": "1.13.1",
+            "commit": "1b3c48066dfcb68e0bb15e6096fcfac862375b75"
+          },
+          {
+            "version": "1.13.2",
+            "commit": "f09b193d8ac62bef6c0fd5452a00d2a49cd0d134"
+          },
+          {
+            "version": "1.13.3",
+            "commit": "4c359b561a1ce92f50b7c336daa575e196fa9464"
+          },
+          {
+            "version": "1.13.4",
+            "commit": "b18d9516f0eff06f8fdacd36e8bdf290909b05d9"
+          },
+          {
+            "version": "1.13.5",
+            "commit": "e490e58f62110ecdc430d2f39d57428729a487ea"
+          },
+          {
+            "version": "1.13.6",
+            "commit": "45a136abc41a9e4908e0c647a28361b0023a3b46"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.14.0",
+            "commit": "c1559e3ff9697578d0528ff115a8d49cbc0828a5"
+          },
+          {
+            "version": "1.14.1",
+            "commit": "81cb1f5c4709535b03799e7e1826fbab0315b90b"
+          },
+          {
+            "version": "1.14.2",
+            "commit": "1c49f256fa262c8117b88964b961e5cd70377e64"
+          },
+          {
+            "version": "1.14.3",
+            "commit": "cde4cd2d5d2196ddc6c62a0c416c5bab5f5d6fd0"
+          },
+          {
+            "version": "1.14.4",
+            "commit": "583960dc90120616124b60ad2b7820fc0b3edf44"
+          },
+          {
+            "version": "1.14.5",
+            "commit": "5966126c2cec7ed7f1a441a2281d86bc4099fc78"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.dapr",
+          "version": "2.5.0",
+          "codeDigest": "sha256:459ba9ae43baef6ddb10a7f5a8134fd21292d1123de3be7d36bc8c24273831eb"
+        },
+        "derivedAt": "2026-10-21T19:59:17Z",
+        "reviewedAt": "2026-10-21T19:59:17Z",
+        "validUntil": "2027-01-19T19:59:17Z",
+        "sources": [
+          {
+            "id": "crds-1-13-0",
+            "url": "https://github.com/dapr/dapr/blob/5980602c57e360a3354d409be516b8ffc4056fd1/charts/dapr/crds/components.yaml",
+            "revision": "5980602c57e360a3354d409be516b8ffc4056fd1",
+            "contentDigest": "sha256:9e060f1907e1b29b107ae8f26f502193156b5ecd6a6d1976fb20f9cd0575f264",
+            "startLine": 1,
+            "endLine": 98
+          },
+          {
+            "id": "crds-1-14-0",
+            "url": "https://github.com/dapr/dapr/blob/c1559e3ff9697578d0528ff115a8d49cbc0828a5/charts/dapr/crds/components.yaml",
+            "revision": "c1559e3ff9697578d0528ff115a8d49cbc0828a5",
+            "contentDigest": "sha256:9e060f1907e1b29b107ae8f26f502193156b5ecd6a6d1976fb20f9cd0575f264",
+            "startLine": 1,
+            "endLine": 98
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/dapr/dapr",
+      "line": "1.15",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.14.0",
+            "commit": "c1559e3ff9697578d0528ff115a8d49cbc0828a5"
+          },
+          {
+            "version": "1.14.1",
+            "commit": "81cb1f5c4709535b03799e7e1826fbab0315b90b"
+          },
+          {
+            "version": "1.14.2",
+            "commit": "1c49f256fa262c8117b88964b961e5cd70377e64"
+          },
+          {
+            "version": "1.14.3",
+            "commit": "cde4cd2d5d2196ddc6c62a0c416c5bab5f5d6fd0"
+          },
+          {
+            "version": "1.14.4",
+            "commit": "583960dc90120616124b60ad2b7820fc0b3edf44"
+          },
+          {
+            "version": "1.14.5",
+            "commit": "5966126c2cec7ed7f1a441a2281d86bc4099fc78"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.15.0",
+            "commit": "6e0d7ba5c0399c49811ffe6f93b71a2782273963"
+          },
+          {
+            "version": "1.15.1",
+            "commit": "2ba4bf3926c8b74182181969adafea3477b3b7ed"
+          },
+          {
+            "version": "1.15.2",
+            "commit": "2037b00892e2ae0bf3ddbe5f5e5682fc378672a9"
+          },
+          {
+            "version": "1.15.3",
+            "commit": "c3687714f9592def48b14b8300bf5170fe8a1bff"
+          },
+          {
+            "version": "1.15.4",
+            "commit": "eb94584f0e14b9fb61d2d139277c2962c1567064"
+          },
+          {
+            "version": "1.15.5",
+            "commit": "e4869dbba529d57b4807d0f13f86ce9ad089ca65"
+          },
+          {
+            "version": "1.15.6",
+            "commit": "77460fad2b0705fcb097bf54df6c19c2c67ff03e"
+          },
+          {
+            "version": "1.15.7",
+            "commit": "85f04b4e7402abeffbeed135e13f700de4dd3a0e"
+          },
+          {
+            "version": "1.15.8",
+            "commit": "bf697b8b3105f10427b326dd2f97b168c14ea2a0"
+          },
+          {
+            "version": "1.15.9",
+            "commit": "f34b87113d65884f32e0bebfdc3d722d6ee36fd8"
+          },
+          {
+            "version": "1.15.10",
+            "commit": "0f5f0b75a944d56c0b78b5d8db31c268a1f21d90"
+          },
+          {
+            "version": "1.15.11",
+            "commit": "76034a63a329003e6f56f1da7cbd9a2481469592"
+          },
+          {
+            "version": "1.15.12",
+            "commit": "61b404aa6eb0845a5a4eb766cefb64ea1d68663f"
+          },
+          {
+            "version": "1.15.13",
+            "commit": "ae09be1066fe14add621c8c0b76f3cae882e970c"
+          },
+          {
+            "version": "1.15.14",
+            "commit": "cb31ff1469888bf153e8b1c29abef373d44b2197"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.dapr",
+          "version": "2.5.0",
+          "codeDigest": "sha256:459ba9ae43baef6ddb10a7f5a8134fd21292d1123de3be7d36bc8c24273831eb"
+        },
+        "derivedAt": "2026-10-21T19:59:17Z",
+        "reviewedAt": "2026-10-21T19:59:17Z",
+        "validUntil": "2027-01-19T19:59:17Z",
+        "sources": [
+          {
+            "id": "crds-1-14-0",
+            "url": "https://github.com/dapr/dapr/blob/c1559e3ff9697578d0528ff115a8d49cbc0828a5/charts/dapr/crds/components.yaml",
+            "revision": "c1559e3ff9697578d0528ff115a8d49cbc0828a5",
+            "contentDigest": "sha256:9e060f1907e1b29b107ae8f26f502193156b5ecd6a6d1976fb20f9cd0575f264",
+            "startLine": 1,
+            "endLine": 98
+          },
+          {
+            "id": "crds-1-15-0",
+            "url": "https://github.com/dapr/dapr/blob/6e0d7ba5c0399c49811ffe6f93b71a2782273963/charts/dapr/crds/components.yaml",
+            "revision": "6e0d7ba5c0399c49811ffe6f93b71a2782273963",
+            "contentDigest": "sha256:47acb92af4b4c403832c0d7acc32cab2d72c58be630dc7fe0cdbed702c3b1434",
+            "startLine": 1,
+            "endLine": 102
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/dapr/dapr",
+      "line": "1.16",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.15.0",
+            "commit": "6e0d7ba5c0399c49811ffe6f93b71a2782273963"
+          },
+          {
+            "version": "1.15.1",
+            "commit": "2ba4bf3926c8b74182181969adafea3477b3b7ed"
+          },
+          {
+            "version": "1.15.2",
+            "commit": "2037b00892e2ae0bf3ddbe5f5e5682fc378672a9"
+          },
+          {
+            "version": "1.15.3",
+            "commit": "c3687714f9592def48b14b8300bf5170fe8a1bff"
+          },
+          {
+            "version": "1.15.4",
+            "commit": "eb94584f0e14b9fb61d2d139277c2962c1567064"
+          },
+          {
+            "version": "1.15.5",
+            "commit": "e4869dbba529d57b4807d0f13f86ce9ad089ca65"
+          },
+          {
+            "version": "1.15.6",
+            "commit": "77460fad2b0705fcb097bf54df6c19c2c67ff03e"
+          },
+          {
+            "version": "1.15.7",
+            "commit": "85f04b4e7402abeffbeed135e13f700de4dd3a0e"
+          },
+          {
+            "version": "1.15.8",
+            "commit": "bf697b8b3105f10427b326dd2f97b168c14ea2a0"
+          },
+          {
+            "version": "1.15.9",
+            "commit": "f34b87113d65884f32e0bebfdc3d722d6ee36fd8"
+          },
+          {
+            "version": "1.15.10",
+            "commit": "0f5f0b75a944d56c0b78b5d8db31c268a1f21d90"
+          },
+          {
+            "version": "1.15.11",
+            "commit": "76034a63a329003e6f56f1da7cbd9a2481469592"
+          },
+          {
+            "version": "1.15.12",
+            "commit": "61b404aa6eb0845a5a4eb766cefb64ea1d68663f"
+          },
+          {
+            "version": "1.15.13",
+            "commit": "ae09be1066fe14add621c8c0b76f3cae882e970c"
+          },
+          {
+            "version": "1.15.14",
+            "commit": "cb31ff1469888bf153e8b1c29abef373d44b2197"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.16.0",
+            "commit": "b68296042c975d4ede1ed93ec6b0a579c2b6a020"
+          },
+          {
+            "version": "1.16.1",
+            "commit": "133e3847acd3bba2f0a22f9e82af25ef6a63f5a3"
+          },
+          {
+            "version": "1.16.2",
+            "commit": "3c7722a8c5648354e24256993caf047bc8c80666"
+          },
+          {
+            "version": "1.16.3",
+            "commit": "08ccc4577dc702ca35116465ce0b7d7ee89f9b8e"
+          },
+          {
+            "version": "1.16.4",
+            "commit": "448c44d71cfa3de827a6eade70aea320351cab64"
+          },
+          {
+            "version": "1.16.5",
+            "commit": "f167add0ab641afa210d61771820d0d178bc41ae"
+          },
+          {
+            "version": "1.16.6",
+            "commit": "b16d781bfa9c6bb7e324775492d0901ce97b397e"
+          },
+          {
+            "version": "1.16.7",
+            "commit": "f47f8e13a6e39869ac2b01fe984ad2177e357445"
+          },
+          {
+            "version": "1.16.8",
+            "commit": "9f4e6018a5eed51ee33a54e5852bb2174c2fec61"
+          },
+          {
+            "version": "1.16.9",
+            "commit": "fb9d5d6a77cb78485fe6500a4b8a5786472a4726"
+          },
+          {
+            "version": "1.16.10",
+            "commit": "f6cdf5f17cdb5076cfd2869d05667aa3a450280b"
+          },
+          {
+            "version": "1.16.11",
+            "commit": "9642b3355bd310b7aab5c0c6349b2638358742e0"
+          },
+          {
+            "version": "1.16.12",
+            "commit": "0d27b2af09d5da02a3bce2391e90f4c78610a416"
+          },
+          {
+            "version": "1.16.13",
+            "commit": "0519ae37d5b930c513ce35c658db2b0c5f90ea68"
+          },
+          {
+            "version": "1.16.14",
+            "commit": "e1b37f40873ec5006933dc694eee305b5dbb984e"
+          },
+          {
+            "version": "1.16.15",
+            "commit": "5a94c6cd5e1ef15fef032d466d5b356598c2142d"
+          },
+          {
+            "version": "1.16.16",
+            "commit": "2ff5df81f29a48987f47841ddc4826534dc2e3e0"
+          },
+          {
+            "version": "1.16.17",
+            "commit": "08ef8c127ebb4e1d23aae6400c101ad99b8abf13"
+          },
+          {
+            "version": "1.16.18",
+            "commit": "4507f15568a248e53a8b98bea7a1fac408993b45"
+          },
+          {
+            "version": "1.16.19",
+            "commit": "035274a88581a52198d6cce9649e436e1c10b00a"
+          },
+          {
+            "version": "1.16.20",
+            "commit": "702022c168f037997f88053a16e595fc0a871994"
+          },
+          {
+            "version": "1.16.21",
+            "commit": "6a474a4812ffa985ef1d10e37a77309c57cd5a6f"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.dapr",
+          "version": "2.5.0",
+          "codeDigest": "sha256:459ba9ae43baef6ddb10a7f5a8134fd21292d1123de3be7d36bc8c24273831eb"
+        },
+        "derivedAt": "2026-10-21T19:59:17Z",
+        "reviewedAt": "2026-10-21T19:59:17Z",
+        "validUntil": "2027-01-19T19:59:17Z",
+        "sources": [
+          {
+            "id": "crds-1-15-0",
+            "url": "https://github.com/dapr/dapr/blob/6e0d7ba5c0399c49811ffe6f93b71a2782273963/charts/dapr/crds/components.yaml",
+            "revision": "6e0d7ba5c0399c49811ffe6f93b71a2782273963",
+            "contentDigest": "sha256:47acb92af4b4c403832c0d7acc32cab2d72c58be630dc7fe0cdbed702c3b1434",
+            "startLine": 1,
+            "endLine": 102
+          },
+          {
+            "id": "crds-1-16-0",
+            "url": "https://github.com/dapr/dapr/blob/b68296042c975d4ede1ed93ec6b0a579c2b6a020/charts/dapr/crds/components.yaml",
+            "revision": "b68296042c975d4ede1ed93ec6b0a579c2b6a020",
+            "contentDigest": "sha256:47acb92af4b4c403832c0d7acc32cab2d72c58be630dc7fe0cdbed702c3b1434",
+            "startLine": 1,
+            "endLine": 102
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/kedacore/keda",
       "line": "2.17",
       "factFamily": "crd.custom_resource_versions",
@@ -19898,6 +20308,304 @@
             "contentDigest": "sha256:2f6e07fc68bf3927580b13909396f5a642f77a8c56dbc26a53ee150ae7f372da",
             "startLine": 1,
             "endLine": 121
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/tektoncd/pipeline",
+      "line": "1.13",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.12.0",
+            "commit": "779855823c07604cefd5181a803cbb27d61fb480"
+          },
+          {
+            "version": "1.12.1",
+            "commit": "f6ecc126c3ae9c41ebabfa325fb3234b1742c61b"
+          },
+          {
+            "version": "1.12.2",
+            "commit": "a1fc4054fb3c2c5963ddc25d1c40ca5208480ea4"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.13.0",
+            "commit": "31e722655767d364a6ec07728ce7658743141fa1"
+          },
+          {
+            "version": "1.13.1",
+            "commit": "e32fe4d00076efcaf58a124bc5fb3ea06fa761aa"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.tekton",
+          "version": "2.5.0",
+          "codeDigest": "sha256:17d4757647aee574d7382447284051e2d0fc2f0f65b0098f4135bd7d693173f7"
+        },
+        "derivedAt": "2026-10-21T20:08:37Z",
+        "reviewedAt": "2026-10-21T20:08:37Z",
+        "validUntil": "2027-01-19T20:08:37Z",
+        "sources": [
+          {
+            "id": "crds-1-12-0",
+            "url": "https://github.com/tektoncd/pipeline/blob/779855823c07604cefd5181a803cbb27d61fb480/config/300-crds/300-customrun.yaml",
+            "revision": "779855823c07604cefd5181a803cbb27d61fb480",
+            "contentDigest": "sha256:3d72dbef5a711344e445a20ac6ae222487126239ee9cbbebbe5d0d6cff3d7ea6",
+            "startLine": 1,
+            "endLine": 834
+          },
+          {
+            "id": "crds-1-13-0",
+            "url": "https://github.com/tektoncd/pipeline/blob/31e722655767d364a6ec07728ce7658743141fa1/config/300-crds/300-customrun.yaml",
+            "revision": "31e722655767d364a6ec07728ce7658743141fa1",
+            "contentDigest": "sha256:3d72dbef5a711344e445a20ac6ae222487126239ee9cbbebbe5d0d6cff3d7ea6",
+            "startLine": 1,
+            "endLine": 834
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/tektoncd/pipeline",
+      "line": "1.14",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.13.0",
+            "commit": "31e722655767d364a6ec07728ce7658743141fa1"
+          },
+          {
+            "version": "1.13.1",
+            "commit": "e32fe4d00076efcaf58a124bc5fb3ea06fa761aa"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.14.0",
+            "commit": "8afd0f7d5aae3504267eb42bf342847911b7b4d1"
+          },
+          {
+            "version": "1.14.1",
+            "commit": "aa28e09810a679c1282095ae604afb1f5488e162"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.tekton",
+          "version": "2.5.0",
+          "codeDigest": "sha256:17d4757647aee574d7382447284051e2d0fc2f0f65b0098f4135bd7d693173f7"
+        },
+        "derivedAt": "2026-10-21T20:08:37Z",
+        "reviewedAt": "2026-10-21T20:08:37Z",
+        "validUntil": "2027-01-19T20:08:37Z",
+        "sources": [
+          {
+            "id": "crds-1-13-0",
+            "url": "https://github.com/tektoncd/pipeline/blob/31e722655767d364a6ec07728ce7658743141fa1/config/300-crds/300-customrun.yaml",
+            "revision": "31e722655767d364a6ec07728ce7658743141fa1",
+            "contentDigest": "sha256:3d72dbef5a711344e445a20ac6ae222487126239ee9cbbebbe5d0d6cff3d7ea6",
+            "startLine": 1,
+            "endLine": 834
+          },
+          {
+            "id": "crds-1-14-0",
+            "url": "https://github.com/tektoncd/pipeline/blob/8afd0f7d5aae3504267eb42bf342847911b7b4d1/config/300-crds/300-customrun.yaml",
+            "revision": "8afd0f7d5aae3504267eb42bf342847911b7b4d1",
+            "contentDigest": "sha256:3d72dbef5a711344e445a20ac6ae222487126239ee9cbbebbe5d0d6cff3d7ea6",
+            "startLine": 1,
+            "endLine": 834
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/tektoncd/pipeline",
+      "line": "1.15",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.14.0",
+            "commit": "8afd0f7d5aae3504267eb42bf342847911b7b4d1"
+          },
+          {
+            "version": "1.14.1",
+            "commit": "aa28e09810a679c1282095ae604afb1f5488e162"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.15.0",
+            "commit": "70f730815249a12aa725266fba7f3ff39653aaea"
+          },
+          {
+            "version": "1.15.1",
+            "commit": "7289f7d7e1ee24cbc84a58b9f763e3869db8ab2e"
+          },
+          {
+            "version": "1.15.2",
+            "commit": "b1e03372cff88a1b9b3620095c7b41a60b2bcdd4"
+          },
+          {
+            "version": "1.15.3",
+            "commit": "64924d47bc91bbe197b1465bb4f83be6dee8c83d"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.tekton",
+          "version": "2.5.0",
+          "codeDigest": "sha256:17d4757647aee574d7382447284051e2d0fc2f0f65b0098f4135bd7d693173f7"
+        },
+        "derivedAt": "2026-10-21T20:08:37Z",
+        "reviewedAt": "2026-10-21T20:08:37Z",
+        "validUntil": "2027-01-19T20:08:37Z",
+        "sources": [
+          {
+            "id": "crds-1-14-0",
+            "url": "https://github.com/tektoncd/pipeline/blob/8afd0f7d5aae3504267eb42bf342847911b7b4d1/config/300-crds/300-customrun.yaml",
+            "revision": "8afd0f7d5aae3504267eb42bf342847911b7b4d1",
+            "contentDigest": "sha256:3d72dbef5a711344e445a20ac6ae222487126239ee9cbbebbe5d0d6cff3d7ea6",
+            "startLine": 1,
+            "endLine": 834
+          },
+          {
+            "id": "crds-1-15-0",
+            "url": "https://github.com/tektoncd/pipeline/blob/70f730815249a12aa725266fba7f3ff39653aaea/config/300-crds/300-customrun.yaml",
+            "revision": "70f730815249a12aa725266fba7f3ff39653aaea",
+            "contentDigest": "sha256:3d72dbef5a711344e445a20ac6ae222487126239ee9cbbebbe5d0d6cff3d7ea6",
+            "startLine": 1,
+            "endLine": 834
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/tektoncd/pipeline",
+      "line": "1.16",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.15.0",
+            "commit": "70f730815249a12aa725266fba7f3ff39653aaea"
+          },
+          {
+            "version": "1.15.1",
+            "commit": "7289f7d7e1ee24cbc84a58b9f763e3869db8ab2e"
+          },
+          {
+            "version": "1.15.2",
+            "commit": "b1e03372cff88a1b9b3620095c7b41a60b2bcdd4"
+          },
+          {
+            "version": "1.15.3",
+            "commit": "64924d47bc91bbe197b1465bb4f83be6dee8c83d"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.16.0",
+            "commit": "63c28f04184a855dc9af5b501ac22fce289692dc"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.tekton",
+          "version": "2.5.0",
+          "codeDigest": "sha256:17d4757647aee574d7382447284051e2d0fc2f0f65b0098f4135bd7d693173f7"
+        },
+        "derivedAt": "2026-10-21T20:08:37Z",
+        "reviewedAt": "2026-10-21T20:08:37Z",
+        "validUntil": "2027-01-19T20:08:37Z",
+        "sources": [
+          {
+            "id": "crds-1-15-0",
+            "url": "https://github.com/tektoncd/pipeline/blob/70f730815249a12aa725266fba7f3ff39653aaea/config/300-crds/300-customrun.yaml",
+            "revision": "70f730815249a12aa725266fba7f3ff39653aaea",
+            "contentDigest": "sha256:3d72dbef5a711344e445a20ac6ae222487126239ee9cbbebbe5d0d6cff3d7ea6",
+            "startLine": 1,
+            "endLine": 834
+          },
+          {
+            "id": "crds-1-16-0",
+            "url": "https://github.com/tektoncd/pipeline/blob/63c28f04184a855dc9af5b501ac22fce289692dc/config/300-crds/300-customrun.yaml",
+            "revision": "63c28f04184a855dc9af5b501ac22fce289692dc",
+            "contentDigest": "sha256:3d72dbef5a711344e445a20ac6ae222487126239ee9cbbebbe5d0d6cff3d7ea6",
+            "startLine": 1,
+            "endLine": 834
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/tektoncd/pipeline",
+      "line": "1.17",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.16.0",
+            "commit": "63c28f04184a855dc9af5b501ac22fce289692dc"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.17.0",
+            "commit": "61e02215132ce7bef054ff7e1fb074f217716c1a"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.tekton",
+          "version": "2.5.0",
+          "codeDigest": "sha256:17d4757647aee574d7382447284051e2d0fc2f0f65b0098f4135bd7d693173f7"
+        },
+        "derivedAt": "2026-10-21T20:08:37Z",
+        "reviewedAt": "2026-10-21T20:08:37Z",
+        "validUntil": "2027-01-19T20:08:37Z",
+        "sources": [
+          {
+            "id": "crds-1-16-0",
+            "url": "https://github.com/tektoncd/pipeline/blob/63c28f04184a855dc9af5b501ac22fce289692dc/config/300-crds/300-customrun.yaml",
+            "revision": "63c28f04184a855dc9af5b501ac22fce289692dc",
+            "contentDigest": "sha256:3d72dbef5a711344e445a20ac6ae222487126239ee9cbbebbe5d0d6cff3d7ea6",
+            "startLine": 1,
+            "endLine": 834
+          },
+          {
+            "id": "crds-1-17-0",
+            "url": "https://github.com/tektoncd/pipeline/blob/61e02215132ce7bef054ff7e1fb074f217716c1a/config/300-crds/300-customrun.yaml",
+            "revision": "61e02215132ce7bef054ff7e1fb074f217716c1a",
+            "contentDigest": "sha256:3d72dbef5a711344e445a20ac6ae222487126239ee9cbbebbe5d0d6cff3d7ea6",
+            "startLine": 1,
+            "endLine": 834
           }
         ]
       }
