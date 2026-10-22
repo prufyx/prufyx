@@ -30,6 +30,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `kueue` | community | `component.kueue.custom_resource_versions_set` | `kueue.x-k8s.io` |
 | `kuma` | CNCF | `component.kuma.custom_resource_versions_set` | `kuma.io` |
 | `kyverno` | CNCF | `component.kyverno.custom_resource_versions_set` | `kyverno.io`, `policies.kyverno.io`, `reports.kyverno.io`, `wgpolicyk8s.io` |
+| `logging-operator-kube-logging` | CNCF | `component.logging_operator_kube_logging.custom_resource_versions_set` | `logging-extensions.banzaicloud.io`, `logging.banzaicloud.io` |
 | `longhorn` | CNCF | `component.longhorn.custom_resource_versions_set` | `longhorn.io` |
 | `metallb` | CNCF | `component.metallb.custom_resource_versions_set` | `metallb.io` |
 | `mongodb-kubernetes` | community | `component.mongodb_kubernetes.custom_resource_versions_set` | `ai.mongodb.com`, `mongodb.com`, `mongodbcommunity.mongodb.com` |
@@ -40,6 +41,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `prometheus-operator` | community | `component.prometheus_operator.custom_resource_versions_set` | `monitoring.coreos.com` |
 | `rancher` | community | `component.rancher.custom_resource_versions_set` | `auditlog.cattle.io`, `catalog.cattle.io`, `management.cattle.io`, `operation.cattle.io`, `plan.cattle.io`, `provisioning.cattle.io`, `rke.cattle.io`, `scc.cattle.io`, `telemetry.cattle.io` |
 | `rook` | CNCF | `component.rook.custom_resource_versions_set` | `ceph.rook.io`, `objectbucket.io` |
+| `schemahero` | CNCF | `component.schemahero.custom_resource_versions_set` | `databases.schemahero.io`, `schemas.schemahero.io` |
 | `strimzi` | CNCF | `component.strimzi.custom_resource_versions_set` | `core.strimzi.io`, `kafka.strimzi.io` |
 | `submariner` | CNCF | `component.submariner.custom_resource_versions_set` | `submariner.io` |
 | `tekton` | CNCF | `component.tekton.custom_resource_versions_set` | `resolution.tekton.dev`, `tekton.dev` |
