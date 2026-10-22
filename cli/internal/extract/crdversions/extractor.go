@@ -28,6 +28,7 @@ import (
 	"sync"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/customresources"
 	"github.com/prufyx/prufyx/cli/internal/extract"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 )
@@ -282,6 +283,10 @@ type Inventory struct {
 	Paths    []PathRecord `json:"paths"`
 	Files    []FileRecord `json:"files"`
 	CRDs     []CRD        `json:"crds"`
+	// Foreign names the definitions found under the listed paths that were
+	// left out because the reviewed custom-resource table assigns their
+	// group to another project; absent when there are none.
+	Foreign []string `json:"foreign,omitempty"`
 	// Remote records where the definitions were read when the release
 	// installs from another repository; absent otherwise.
 	Remote *RemoteRecord `json:"remote,omitempty"`
@@ -389,7 +394,7 @@ func readInventory(r extract.PinnedReader, repo extract.RepoRef, t Target, commi
 	if err != nil {
 		return inv, err
 	}
-	if _, err := readDefinitions(r, repo, commit, files, inv, nil); err != nil {
+	if _, err := readDefinitions(r, repo, commit, files, inv, nil, t.Project); err != nil {
 		return inv, err
 	}
 	// The other install channels, each read in full: a definition is
@@ -399,7 +404,7 @@ func readInventory(r extract.PinnedReader, repo extract.RepoRef, t Target, commi
 		ci := &Inventory{Paths: []PathRecord{}, Files: []FileRecord{}, CRDs: []CRD{}}
 		cfiles, err := listPaths(r, repo, commit, ch.Paths, ci)
 		if err == nil {
-			_, err = readDefinitions(r, repo, commit, cfiles, ci, nil)
+			_, err = readDefinitions(r, repo, commit, cfiles, ci, nil, t.Project)
 		}
 		if err != nil {
 			if p, ok := asProblem(err); ok {
@@ -460,8 +465,12 @@ type origin struct {
 
 // readDefinitions reads the listed files of repo at commit into inv, in path
 // order, and checks that no definition is repeated. other is nil for the
-// release's own repository.
-func readDefinitions(r extract.PinnedReader, repo extract.RepoRef, commit string, files []string, inv *Inventory, other *origin) (*Inventory, error) {
+// release's own repository. A definition whose group the reviewed
+// custom-resource table assigns to another project is not this project's
+// (a bundled copy of another project's CRDs): it is left out of the
+// inventory, and recorded by name in inv.Foreign.
+func readDefinitions(r extract.PinnedReader, repo extract.RepoRef, commit string, files []string, inv *Inventory, other *origin, project string) (*Inventory, error) {
+	owners := customresources.DefaultIndex()
 	sort.Strings(files)
 	byName := map[string]string{}
 	byKind := map[string]string{}
@@ -485,6 +494,10 @@ func readDefinitions(r extract.PinnedReader, repo extract.RepoRef, commit string
 			return inv, err
 		}
 		for _, c := range crds {
+			if owner, attribution := owners.Owner(c.Group); attribution == customresources.Owned && owner != project {
+				inv.Foreign = append(inv.Foreign, c.Name)
+				continue
+			}
 			if other != nil {
 				c.Repo, c.Commit = other.repo.Key, other.commit
 			}
@@ -506,6 +519,7 @@ func readDefinitions(r extract.PinnedReader, repo extract.RepoRef, commit string
 		return inv, problemf("no CustomResourceDefinition under the listed paths: an absence of removals cannot be told from a moved manifest")
 	}
 	sort.Slice(inv.CRDs, func(i, j int) bool { return inv.CRDs[i].Name < inv.CRDs[j].Name })
+	sort.Strings(inv.Foreign)
 	return inv, nil
 }
 
