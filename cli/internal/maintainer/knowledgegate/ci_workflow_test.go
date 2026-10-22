@@ -251,6 +251,8 @@ func TestCIShardsAreComplete(t *testing.T) {
 		"dropped shard": strings.Replace(string(raw), "shard: [1, 2, 3]", "shard: [1, 2]", 1),
 		"total differs": strings.Replace(string(raw), `SHARDS: "3"`, `SHARDS: "4"`, 1),
 		"no shard env":  strings.Replace(string(raw), `"${SHARD}" "${SHARDS}"`, `"1" "3"`, 1),
+		"shard pinned":  strings.Replace(string(raw), "SHARD: ${{ matrix.shard }}", `SHARD: "1"`, 1),
+		"step SHARDS":   strings.Replace(string(raw), "SHARD: ${{ matrix.shard }}", "SHARD: ${{ matrix.shard }}\n          SHARDS: \"1\"", 1),
 	}
 	for name, text := range broken {
 		if text == string(raw) {
@@ -277,6 +279,12 @@ func ciShardProblems(raw []byte) []string {
 				uses = true
 				if !strings.Contains(st.Run, `"${SHARD}" "${SHARDS}"`) {
 					problems = append(problems, "job "+id+" must pass the matrix shard and SHARDS to the shard script")
+				}
+				if strings.ReplaceAll(st.Env["SHARD"], " ", "") != "${{matrix.shard}}" {
+					problems = append(problems, "job "+id+" must set the step env SHARD to ${{ matrix.shard }}")
+				}
+				if _, ok := st.Env["SHARDS"]; ok || strings.Contains(st.Run, "SHARDS=") {
+					problems = append(problems, "job "+id+" must not override SHARDS in the shard step")
 				}
 			}
 		}
@@ -310,6 +318,85 @@ func ciShardProblems(raw []byte) []string {
 	}
 	if sharded == 0 {
 		problems = append(problems, "no job uses the shard script; the guard reads the wrong file")
+	}
+	return problems
+}
+
+// TestCICoreGroupsAreComplete: the "rest" group of test-core is computed by
+// excluding CORE_GROUPED, so CORE_GROUPED must be exactly the packages of the
+// other groups, and exactly one group may be the catch-all (empty packages).
+func TestCICoreGroupsAreComplete(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join(repoRoot, ".github", "workflows", "ci.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range ciCoreGroupProblems(raw) {
+		t.Error(p)
+	}
+	text := string(raw)
+	broken := map[string]string{
+		"package dropped from an include": strings.Replace(text, "packages: ./internal/maintainer/evidencereattest/\n", "packages: \"\"\n", 1),
+		"package not excluded":            strings.Replace(text, "        ./internal/maintainer/evidencereattest/\n        ./cmd/prufyx-maintainer/", "        ./cmd/prufyx-maintainer/", 1),
+		"no catch-all":                    strings.Replace(text, `packages: ""`, "packages: ./internal/x/", 1),
+	}
+	for name, mutated := range broken {
+		if mutated == text {
+			t.Fatalf("%s: the mutation changed nothing", name)
+		}
+		if len(ciCoreGroupProblems([]byte(mutated))) == 0 {
+			t.Errorf("%s: broken core groups accepted", name)
+		}
+	}
+}
+
+func ciCoreGroupProblems(raw []byte) []string {
+	var wf struct {
+		Jobs map[string]struct {
+			Env      map[string]string `yaml:"env"`
+			Strategy struct {
+				Matrix struct {
+					Include []struct {
+						Packages string `yaml:"packages"`
+					} `yaml:"include"`
+				} `yaml:"matrix"`
+			} `yaml:"strategy"`
+		} `yaml:"jobs"`
+	}
+	if err := yaml.Unmarshal(raw, &wf); err != nil {
+		return []string{"ci.yml does not parse: " + err.Error()}
+	}
+	job, ok := wf.Jobs["test-core"]
+	if !ok {
+		return []string{"no test-core job"}
+	}
+	var problems []string
+	grouped := map[string]bool{}
+	for _, f := range strings.Fields(job.Env["CORE_GROUPED"]) {
+		grouped[f] = true
+	}
+	union := map[string]bool{}
+	catchAll := 0
+	for _, inc := range job.Strategy.Matrix.Include {
+		if strings.TrimSpace(inc.Packages) == "" {
+			catchAll++
+			continue
+		}
+		for _, f := range strings.Fields(inc.Packages) {
+			union[f] = true
+		}
+	}
+	if catchAll != 1 {
+		problems = append(problems, "test-core needs exactly one catch-all include (empty packages), has "+strconv.Itoa(catchAll))
+	}
+	for pkg := range union {
+		if !grouped[pkg] {
+			problems = append(problems, "test-core: "+pkg+" is in a group but not in CORE_GROUPED, so the catch-all runs it twice")
+		}
+	}
+	for pkg := range grouped {
+		if !union[pkg] {
+			problems = append(problems, "test-core: "+pkg+" is in CORE_GROUPED but in no group, so no job runs it")
+		}
 	}
 	return problems
 }

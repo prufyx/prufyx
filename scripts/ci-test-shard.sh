@@ -47,6 +47,12 @@ if [ "${total}" -lt 1 ] || [ "${index}" -lt 1 ] || [ "${index}" -gt "${total}" ]
 fi
 
 listing=$(go test -list '.*' "${common[@]+"${common[@]}"}" "${pkg}")
+unknown=$(printf '%s\n' "${listing}" | grep -vE '^(Test|Example|Fuzz)[A-Za-z0-9_]*$|^Benchmark|^ok[[:space:]]|^\?[[:space:]]|^$' || true)
+if [ -n "${unknown}" ]; then
+  echo "go test -list printed lines this script does not understand; failing closed:" >&2
+  printf '%s\n' "${unknown}" >&2
+  exit 1
+fi
 all=$(printf '%s\n' "${listing}" | grep -E '^(Test|Example|Fuzz)[A-Za-z0-9_]*$' | LC_ALL=C sort -u || true)
 if [ -z "${all}" ]; then
   echo "go test -list reported no tests for ${pkg}" >&2

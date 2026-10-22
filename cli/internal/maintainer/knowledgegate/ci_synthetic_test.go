@@ -66,6 +66,9 @@ func TestCISyntheticPackagesAreCovered(t *testing.T) {
 	// script; together they must list every package with a tagged file.
 	var tagged []string
 	for _, line := range strings.Split(string(raw), "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "#") {
+			continue
+		}
 		if (strings.Contains(line, "go test") || strings.Contains(line, "ci-test-shard.sh")) && strings.Contains(line, "-tags "+tag) {
 			tagged = append(tagged, line)
 		}
