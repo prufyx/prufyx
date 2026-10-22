@@ -1,7 +1,7 @@
 verdict,rule_id,project,file,line,kind,namespace,name,title,fix
 BLOCKED,,,,,,,,BLOCKED: 1 problem must be fixed; 1 area was not checked,
 BLOCKED,kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0,kubernetes,applyset.yaml,1,CronJob,default,nightly-report,Kubernetes 1.25 stops serving CronJob through batch/v1beta1,"Migrate the named CronJob manifests to batch/v1. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately."
-GAP,,kubernetes,,,,,,"no reviewed list of the API versions Kubernetes 1.25 serves; 2 manifest(s) cannot be checked; check them against the API reference of that Kubernetes release by hand, or request coverage: https://github.com/prufyx/prufyx/issues/new?template=project-knowledge.yml",
+GAP,,kubernetes,,,,,,"1 manifest(s) use API versions not in the Kubernetes 1.25 served list, stable (GA) versions only; check those API versions against the Kubernetes 1.25 API reference by hand",
 PASS,kubernetes.served-api-removal.autoscaling-v2beta1.1-24-0-to-1-25-0,kubernetes,,,,,,,
 PASS,kubernetes.served-api-removal.discovery-k8s-io-v1beta1.1-24-0-to-1-25-0,kubernetes,,,,,,,
 PASS,kubernetes.served-api-removal.events-k8s-io-v1beta1.1-24-0-to-1-25-0,kubernetes,,,,,,,

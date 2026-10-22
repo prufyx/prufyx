@@ -65,8 +65,10 @@ func newServedFakeSource(t *testing.T) *servedFakeSource {
 	}
 }
 
-// servedPackDir copies the shipped CNCF pack and the registry files the
-// loader reads beside it into a temporary directory.
+// servedPackDir copies the shipped CNCF pack, without its served-API list
+// section and under the level below it, and the registry files the loader
+// reads beside it into a temporary directory. The tests build lists into
+// that pack; the shipped lists are not their input.
 func servedPackDir(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -75,11 +77,31 @@ func servedPackDir(t *testing.T) string {
 		if err != nil {
 			t.Fatal(err)
 		}
+		if name == "rules.json" {
+			raw = servedFreePack(t, raw)
+		}
 		if err := os.WriteFile(filepath.Join(dir, name), raw, 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
 	return filepath.Join(dir, "rules.json")
+}
+
+// servedFreePack is the pack without a servedAPIs member, under the schema
+// the build raises it from.
+func servedFreePack(t *testing.T, raw []byte) []byte {
+	t.Helper()
+	pk, err := extractpack.ParsePack(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	delete(pk.Members, servedapis.PackMember)
+	pk.Members["schema"] = json.RawMessage(`"prufyx.io/cncf-source-rule-pack/v1alpha4"`)
+	out, err := pk.Render()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
 }
 
 func runServed(t *testing.T, src servedSource, args ...string) (string, error) {

@@ -59,6 +59,12 @@ func Reviewed(pack []byte) ([]byte, error) {
 	if err := dropRuleAttestations(p); err != nil {
 		return nil, err
 	}
+	// The served-API lists came after the supersede: the pack as it was
+	// has none, and is at the line attestation schema again.
+	if _, ok := p.Members["servedAPIs"]; ok {
+		delete(p.Members, "servedAPIs")
+		p.Members["schema"] = json.RawMessage(`"prufyx.io/cncf-source-rule-pack/v1alpha4"`)
+	}
 	return p.Render()
 }
 

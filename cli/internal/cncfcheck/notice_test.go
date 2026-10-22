@@ -282,6 +282,7 @@ func TestExternalPackRefusesNotices(t *testing.T) {
 	}
 	pack := base.pack
 	pack.Revision, pack.Schema = "1", packSchemaNotice
+	pack.ServedAPIs = nil
 	pack.Entries = []Entry{syntheticNoticeEntry()}
 	if !validPackSchema(pack) {
 		t.Fatal("fixture schema is not the notice level")

@@ -11,7 +11,7 @@ kubernetes 1.24.17 -> 1.25.3: 1 hop (no reviewed path policy)
                       source: https://github.com/kubernetes/kubernetes/blob/a866cbe2e5bbaa01cfd5e969aa3e033f3282a8a2/api/openapi-spec/swagger.json lines 1-81603; revision a866cbe2e5bbaa01cfd5e969aa3e033f3282a8a2; digest sha256:96354682390d446dde77eb2246fe022baa89697133a8248612ca2573e4a12120
 
 NOT CHECKED (1)
-  kubernetes   no reviewed list of the API versions Kubernetes 1.25 serves; 2 manifest(s) cannot be checked - check them against the API reference of that Kubernetes release by hand, or request coverage: https://github.com/prufyx/prufyx/issues/new?template=project-knowledge.yml
+  kubernetes   1 manifest(s) use API versions not in the Kubernetes 1.25 served list, stable (GA) versions only - check those API versions against the Kubernetes 1.25 API reference by hand
 
 PASSED (6)
   kubernetes 1.24.17 -> 1.25.3   kubernetes.served-api-removal.autoscaling-v2beta1.1-24-0-to-1-25-0
