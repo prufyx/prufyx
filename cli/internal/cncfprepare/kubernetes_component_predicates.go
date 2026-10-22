@@ -25,6 +25,10 @@ type k8sResult struct {
 	present, resolved bool
 }
 
+// k8sEveryLine marks a predicate that applies to the transition across any
+// single minor line; the published rule's own subject says which ones.
+const k8sEveryLine = ""
+
 var (
 	k8sGateScopes          = []string{K8sScopeAPIServer, K8sScopeControllerManager, K8sScopeScheduler, K8sScopeKubelet, K8sScopeKubeProxy}
 	k8sCloudProviderScopes = []string{K8sScopeAPIServer, K8sScopeControllerManager, K8sScopeKubelet}
@@ -121,6 +125,12 @@ var k8sComponentPredicates = []k8sPredicate{
 	{Fact: "component.kubernetes.in_tree_portworx_volume_plugin_removed", Line: "1.36", Reads: k8sPodScopes,
 		Eval: k8sPodsMatch(k8sVolumeSource("portworxVolume"))},
 
+	// Version skew (kubernetes.io/releases/version-skew-policy): the kubelet
+	// may be up to three minor versions older than kube-apiserver (two below
+	// 1.25) and must not be newer. The caller declares the lowest kubelet
+	// version; absent that declaration the fact is unknown.
+	{Fact: KubernetesKubeletSkewFact, Line: k8sEveryLine, Reads: nil, Eval: k8sKubeletSkewUnsupported},
+
 	{Fact: "component.kubernetes.kubelet_cadvisor_flags_removed", Line: "1.37", Reads: []string{K8sScopeKubelet},
 		Eval: k8sFlagsPresent([]string{K8sScopeKubelet}, "application-metrics-count-limit", "boot-id-file", "container-hints", "containerd", "containerd-namespace", "enable-load-reader", "event-storage-age-limit", "event-storage-event-limit", "global-housekeeping-interval", "log-cadvisor-usage", "machine-id-file", "storage-driver-user", "storage-driver-password", "storage-driver-host", "storage-driver-db", "storage-driver-table", "storage-driver-secure", "storage-driver-buffer-duration")},
 	{Fact: "component.kubernetes.kcm_concurrent_service_syncs_removed", Line: "1.37", Reads: []string{K8sScopeControllerManager},
@@ -129,6 +139,30 @@ var k8sComponentPredicates = []k8sPredicate{
 		Eval: k8sKubeadmAPIVersion("kubeadm.k8s.io/v1beta3")},
 	{Fact: "component.kubernetes.feature_gates_sidecarcontainers_removed", Line: "1.37", Reads: k8sGateScopes,
 		Eval: k8sGatesPresent("SidecarContainers")},
+}
+
+// KubernetesKubeletSkewFact is true when the declared lowest kubelet version is
+// outside the version-skew window of the target control plane version.
+const KubernetesKubeletSkewFact = "component.kubernetes.kubelet_version_skew_unsupported_for_target"
+
+// k8sKubeletSkewUnsupported evaluates the skew fact. It needs the declared
+// minimum kubelet version on the same major as the target; without either the
+// result stays unresolved. The policy is minor-based and the patch level is
+// ignored. The lowest kubelet is too old when it is more than three minor
+// versions behind the target (two when it is older than 1.25). The highest
+// kubelet (the declared maximum, else the minimum) is too new when its minor is
+// above the target's.
+func k8sKubeletSkewUnsupported(m *k8sComponentModel) k8sResult {
+	if !m.minKubeletOK || !m.maxKubeletOK || !m.targetOK || m.minKubelet[0] != m.target[0] || m.maxKubelet[0] != m.target[0] {
+		return k8sResult{}
+	}
+	lowest, highest, target := m.minKubelet[1], m.maxKubelet[1], m.target[1]
+	lag := uint64(3)
+	if lowest < 25 {
+		lag = 2
+	}
+	tooOld := target >= lowest && target-lowest > lag
+	return k8sResult{present: highest > target || tooOld, resolved: true}
 }
 
 // KubernetesComponentConfigFacts returns every fact the adapter can evaluate for
@@ -140,7 +174,7 @@ func KubernetesComponentConfigFacts(from, to string) []string {
 	}
 	facts := make([]string, 0)
 	for _, predicate := range k8sComponentPredicates {
-		if predicate.Line == line {
+		if predicate.Line == line || predicate.Line == k8sEveryLine {
 			facts = append(facts, predicate.Fact)
 		}
 	}

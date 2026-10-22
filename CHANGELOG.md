@@ -689,6 +689,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   signer, key id and validity before it asks for the batch id, and applies the
   gate's changed-path rule. See
   [knowledge-gate.md](cli/docs/knowledge-gate.md#batch-approvals).
+- Component-configuration selection: optional `declarations.minimumKubeletVersion`
+  and `declarations.maximumKubeletVersion` (strict `x.y.z`, the maximum needs the
+  minimum and is not below it) and the registered fact
+  `component.kubernetes.kubelet_version_skew_unsupported_for_target`, true when the
+  lowest kubelet is more than three minor versions older than the target (two
+  below 1.25) or the highest is newer. No published rule reads the fact yet. See
+  [kubernetes-component-config.md](cli/docs/kubernetes-component-config.md).
 
 - `prufyx-maintainer knowledge-publish release`: one offline, deterministic step
   that builds a signed knowledge-database release (TUF targets, snapshot and

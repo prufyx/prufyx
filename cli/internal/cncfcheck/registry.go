@@ -129,6 +129,7 @@ func packagedDefinitions() []constraintengine.FactDefinition {
 		{ID: "component.kubernetes.kube_scheduler_feature_gates_set", Component: "pkg:github/kubernetes/kubernetes", Type: constraintengine.FactSet, EnumTokens: nil},
 		{ID: "component.kubernetes.kubelet_feature_gates_set", Component: "pkg:github/kubernetes/kubernetes", Type: constraintengine.FactSet, EnumTokens: nil},
 		{ID: "component.kubernetes.kube_proxy_feature_gates_set", Component: "pkg:github/kubernetes/kubernetes", Type: constraintengine.FactSet, EnumTokens: nil},
+		{ID: "component.kubernetes.kubelet_version_skew_unsupported_for_target", Component: "pkg:github/kubernetes/kubernetes", Type: constraintengine.FactBool, EnumTokens: nil},
 		{ID: "component.kubeedge.distribution", Component: "pkg:github/kubeedge/kubeedge", Type: constraintengine.FactEnum, EnumTokens: []string{"custom_build", "official_upstream"}},
 		{ID: "component.kubeedge.effective_argv_complete", Component: "pkg:github/kubeedge/kubeedge", Type: constraintengine.FactBool, EnumTokens: nil},
 		{ID: "component.kubeedge.execution_surface", Component: "pkg:github/kubeedge/kubeedge", Type: constraintengine.FactEnum, EnumTokens: []string{"keadm_init", "other"}},
