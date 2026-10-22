@@ -393,7 +393,7 @@ func parseTriple(s string, _ bool, _ string) (Semver, error) {
 	if n[0] != 1 {
 		return Semver{}, fmt.Errorf("%w: upstream major must be 1", ErrMalformed)
 	}
-	return Semver{n[0], n[1], n[2], true}, nil
+	return Semver{Major: n[0], Minor: n[1], Patch: n[2], PatchKnown: true}, nil
 }
 
 func parseOpenShift(raw string, table OpenShiftMap) (Version, error) {

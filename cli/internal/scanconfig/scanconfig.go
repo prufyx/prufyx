@@ -23,6 +23,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/intake"
+	"github.com/prufyx/prufyx/cli/internal/k8sversion"
 )
 
 const (
@@ -304,7 +305,9 @@ func parseVersions(value any, path string) (map[string]string, error) {
 			return nil, fail("unknown project %s under %s", echo(slug), path)
 		}
 		version, ok := m[slug].(string)
-		if !ok || !validVersion(version) {
+		// Only Kubernetes takes a pre-release X.Y.0-(alpha|beta|rc).N; every
+		// other project stays strict X.Y.Z.
+		if !ok || !(validVersion(version) || slug == "kubernetes" && preRelease(version)) {
 			return nil, fail("%s must be a version X.Y.Z", echo(join(path, slug)))
 		}
 		out[slug] = version
@@ -330,6 +333,12 @@ func validVersion(version string) bool {
 		}
 	}
 	return true
+}
+
+// preRelease reports a Kubernetes pre-release version X.Y.0-(alpha|beta|rc).N.
+func preRelease(version string) bool {
+	_, ok := k8sversion.ParsePreRelease(version)
+	return ok
 }
 
 func parseDeclarations(value any) (DeclarationSet, error) {

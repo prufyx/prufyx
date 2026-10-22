@@ -304,7 +304,7 @@ func validScopeBlock(scope *ScopeCompleteness, claims []Claim, engineDigest stri
 		if !componentRE.MatchString(component.Component) || (index > 0 && scope.Components[index-1].Component >= component.Component) {
 			return false
 		}
-		if !validVersion(component.From) || !validVersion(component.To) {
+		if !validSideVersion(component.Component, component.From) || !validSideVersion(component.Component, component.To) {
 			return false
 		}
 		for position, ruleID := range component.EvaluatedRuleIDs {

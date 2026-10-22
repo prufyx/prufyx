@@ -144,9 +144,11 @@ func (c CrossingSpec) Cap() string {
 // contains reports the crossing region: from < C <= to < Cap, both versions
 // valid. A downgrade, an equal pair and an unparseable version never match.
 func (c CrossingSpec) contains(from, to string) bool {
-	below, ok1 := compareVersions(from, c.Change.Version)
-	reached, ok2 := compareVersions(to, c.Change.Version)
-	capped, ok3 := compareVersions(to, c.Cap())
+	// A pre-release is inside its own line (LineFloor); the strict order
+	// reads the versions as they are.
+	below, ok1 := compareVersions(LineFloor(from), c.Change.Version)
+	reached, ok2 := compareVersions(LineFloor(to), c.Change.Version)
+	capped, ok3 := compareVersions(LineFloor(to), c.Cap())
 	strict, ok4 := compareVersions(from, to)
 	return ok1 && ok2 && ok3 && ok4 && below < 0 && reached >= 0 && capped < 0 && strict < 0
 }
@@ -436,11 +438,11 @@ func validCrossingClaims(report Report) bool {
 		change, changeOK := parseVersion(match.Change)
 		_, capOK := parseVersion(match.CappedAt)
 		above, aboveOK := compareVersions(match.CappedAt, match.Change)
-		if !validVersion(match.AnchorFrom) || !validVersion(match.AnchorTo) || !changeOK || !minorStart(change) || !capOK || !aboveOK || above <= 0 {
+		if !validAnchorVersion(match.AnchorFrom) || !validAnchorVersion(match.AnchorTo) || !changeOK || !minorStart(change) || !capOK || !aboveOK || above <= 0 {
 			return false
 		}
-		below, ok1 := compareVersions(match.AnchorFrom, match.Change)
-		reached, ok2 := compareVersions(match.AnchorTo, match.Change)
+		below, ok1 := compareVersions(LineFloor(match.AnchorFrom), match.Change)
+		reached, ok2 := compareVersions(LineFloor(match.AnchorTo), match.Change)
 		if !ok1 || !ok2 || below >= 0 || reached < 0 {
 			return false
 		}

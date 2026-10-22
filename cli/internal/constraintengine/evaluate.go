@@ -432,7 +432,7 @@ func validClaimMatches(report Report) bool {
 		if (report.EngineContractDigest != engineContractDigestRanged() && report.EngineContractDigest != engineContractDigestSet() && report.EngineContractDigest != engineContractDigestNotice() && report.EngineContractDigest != engineContractDigestBasis() && !atLeastSeverityContract(report.EngineContractDigest)) || match.Mode != subjectMatchModeRange || claim.Status == "UNKNOWN" && claim.ReasonCode == "RULE_TRANSITION_NOT_REVIEWED" {
 			return false
 		}
-		if !validVersion(match.AnchorFrom) || !validVersion(match.AnchorTo) || !inBound(match.AnchorFrom, match.From) || !inBound(match.AnchorTo, match.To) {
+		if !validAnchorVersion(match.AnchorFrom) || !validAnchorVersion(match.AnchorTo) || !inBound(match.AnchorFrom, match.From) || !inBound(match.AnchorTo, match.To) {
 			return false
 		}
 		if c, ok := compareVersions(match.From.Lt, match.To.Gte); !ok || c > 0 {

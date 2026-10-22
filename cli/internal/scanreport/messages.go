@@ -54,6 +54,9 @@ const (
 	GapLineListedRule          GapKey = ReasonLineNotAttested + "/listed-rule"
 	GapLineUnlistedRule        GapKey = ReasonLineNotAttested + "/unlisted-rule"
 	GapLineNoRules             GapKey = ReasonLineNotAttested + "/no-rules"
+	// GapVersionPreRelease: an end of the hop is a pre-release, which no
+	// reviewed rule covers; the hop is never passed.
+	GapVersionPreRelease GapKey = ReasonLineNotAttested + "/pre-release"
 	GapIntermediateLine        GapKey = ReasonIntermediateLineNotCovered
 	GapIntermediateMajor       GapKey = ReasonIntermediateLineNotCovered + "/major-line"
 	GapNoReviewedPathPolicy    GapKey = ReasonNoReviewedPathPolicy
@@ -168,6 +171,8 @@ var gapMessages = map[GapKey]gapMessage{
 		"check the %[1]s %[2]s release notes by hand, and report the inconsistent review", 3},
 	GapLineNoRules: {"%[1]s removes API versions on the way to %[2]s that no reviewed rule covers yet",
 		"check the %[1]s release notes for removed APIs by hand up to %[2]s", 2},
+	GapVersionPreRelease: {"Kubernetes %[1]s is a pre-release; no reviewed rule covers a pre-release, so nothing is passed",
+		"scan again against the GA release once it is out, or check the release notes by hand", 1},
 	GapIntermediateLine: {"rule %[1]s applies to only some releases of this hop's release lines",
 		"scan the hop with exact versions, or request a rule that covers whole lines: " + RequestCoverageURL, 1},
 	GapIntermediateMajor: {"a whole major release line cannot be evaluated",
@@ -562,6 +567,10 @@ const (
 // the community catalog (a project outside the embedded CNCF landscape
 // catalog) it checks: the catalog is stated in every output format.
 const NoteCommunityCatalog = "note: %s is in the community catalog (not in the embedded CNCF landscape catalog; no CNCF status asserted)"
+
+// NotePreRelease is the note a report carries for a pre-release Kubernetes
+// version it was given, in every output format.
+const NotePreRelease = "Kubernetes %s is a pre-release; findings are provisional until the GA release"
 
 // UsageCommunityComponent refuses a project of the community catalog
 // (outside the embedded CNCF landscape catalog): its custom-resource version

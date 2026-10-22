@@ -82,7 +82,7 @@ func validateSide(side inputSide, registry Registry) error {
 		return fmt.Errorf("component count: %w", ErrInvalid)
 	}
 	for i, component := range side.Components {
-		if !componentRE.MatchString(component.Component) || !validVersion(component.Version) || (i > 0 && side.Components[i-1].Component >= component.Component) {
+		if !componentRE.MatchString(component.Component) || !validSideVersion(component.Component, component.Version) || (i > 0 && side.Components[i-1].Component >= component.Component) {
 			return fmt.Errorf("component identity or order: %w", ErrInvalid)
 		}
 		if len(component.Facts) > maxFacts {

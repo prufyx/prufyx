@@ -229,6 +229,11 @@
         },
         "covered": {
           "type": "boolean"
+        },
+        "versionStage": {
+          "enum": [
+            "prerelease"
+          ]
         }
       }
     },
