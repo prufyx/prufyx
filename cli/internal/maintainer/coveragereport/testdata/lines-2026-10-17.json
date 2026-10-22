@@ -1684,6 +1684,7 @@
       }
     },
     "cert-manager": {
+      "component": "pkg:github/cert-manager/cert-manager",
       "priority": true,
       "lines": [
         "0.1",
