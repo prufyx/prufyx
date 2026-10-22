@@ -8,6 +8,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/distribution"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
+	"github.com/prufyx/prufyx/cli/internal/servedapis"
 	"github.com/prufyx/prufyx/cli/internal/upgradepath"
 )
 
@@ -22,8 +23,8 @@ func PolicyCitationItem(r upgradepath.Record) CitationItem {
 }
 
 // PackCitationItems lists every source-bearing item of a whole pack: its
-// rules, line attestations, path policies and distribution records and
-// applicability statements. The pack sections are located exactly as the
+// rules, line attestations, path policies, distribution records and
+// applicability statements and served-API lists. The pack sections are located exactly as the
 // pack loader locates them (lineattest.PackMemberSection), so a malformed
 // pack is an error, never a pack "without" the section.
 func PackCitationItems(pack []byte) ([]CitationItem, error) {
@@ -81,6 +82,18 @@ func PackCitationItems(pack []byte) ([]CitationItem, error) {
 		}
 		for _, a := range parsed.Applicability {
 			items = append(items, CitationItem{Record: true, ID: "applicability " + a.Distribution + " " + a.Family, Sources: a.Evidence.Sources})
+		}
+	}
+	if section, present, err = lineattest.PackMemberSection(pack, servedapis.PackMember); err != nil {
+		return nil, err
+	}
+	if present {
+		lists, err := servedapis.Parse(section)
+		if err != nil {
+			return nil, err
+		}
+		for _, l := range lists {
+			items = append(items, CitationItem{Record: true, ID: "servedList " + l.Component + " " + l.Line, Sources: l.Evidence.Sources})
 		}
 	}
 	return items, nil
