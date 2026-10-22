@@ -40,12 +40,17 @@ func rederive(ctx context.Context, src Source, catalog map[string]extractcli.Spe
 		admitted[spec.Name] = spec.Entry
 	}
 	groups := map[rederiveKey][]*Change{}
+	var servedChanges []*Change
 	for _, c := range changes {
 		var x *constraintengine.Extractor
 		var derivedAt, validUntil string
 		switch {
 		case c.rhead != nil:
 			x, derivedAt, validUntil = c.rhead.Extractor, c.rhead.DerivedAt, c.rhead.ValidUntil
+			if c.rhead.served != nil {
+				servedChanges = append(servedChanges, c)
+				continue
+			}
 			if c.rhead.attestation == nil {
 				c.fail("no extractor derives path policies")
 				continue
@@ -68,6 +73,7 @@ func rederive(ctx context.Context, src Source, catalog map[string]extractcli.Spe
 		keys = append(keys, k)
 	}
 	sort.Slice(keys, func(i, j int) bool { return fmt.Sprint(keys[i]) < fmt.Sprint(keys[j]) })
+	rederiveServed(ctx, src, servedChanges)
 	for _, k := range keys {
 		group := groups[k]
 		entries, attestations, err := rederiveGroup(ctx, src, catalog, concurrency, k)

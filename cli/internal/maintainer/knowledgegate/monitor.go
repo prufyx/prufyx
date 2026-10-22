@@ -173,7 +173,7 @@ const BreakerWithdrawRecords = "withdrawal-records"
 // withdrawsRecord reports whether a record change switches a record off:
 // a line attestation removed or a path policy withdrawn.
 func withdrawsRecord(c *Change) bool {
-	return c.Class == ClassTightening && (containsKind(c.Kinds, KindWithdraw) || (c.Section == sectionAttestations && containsKind(c.Kinds, KindRemove)))
+	return c.Class == ClassTightening && (containsKind(c.Kinds, KindWithdraw) || ((c.Section == sectionAttestations || c.Section == sectionServed) && containsKind(c.Kinds, KindRemove)))
 }
 
 // recordBreaker is the pack breaker for records: a change that switches

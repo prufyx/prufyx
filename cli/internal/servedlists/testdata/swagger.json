@@ -1,0 +1,55 @@
+{
+  "swagger": "2.0",
+  "info": {"title": "Synthetic", "version": "v1.31.0"},
+  "paths": {
+    "/api/v1/namespaces/{namespace}/pods": {
+      "get": {"x-kubernetes-action": "list", "x-kubernetes-group-version-kind": {"group": "", "version": "v1", "kind": "Pod"}},
+      "post": {"x-kubernetes-action": "post", "x-kubernetes-group-version-kind": {"group": "", "version": "v1", "kind": "Pod"}},
+      "parameters": [{"name": "namespace", "in": "path"}]
+    },
+    "/api/v1/namespaces/{namespace}/pods/{name}": {
+      "put": {"x-kubernetes-action": "put", "x-kubernetes-group-version-kind": {"group": "", "version": "v1", "kind": "Pod"}},
+      "delete": {"x-kubernetes-action": "delete", "x-kubernetes-group-version-kind": {"group": "", "version": "v1", "kind": "Deleted"}}
+    },
+    "/api/v1/namespaces/{namespace}/pods/{name}/eviction": {
+      "post": {"x-kubernetes-action": "post", "x-kubernetes-group-version-kind": {"group": "policy", "version": "v1", "kind": "Eviction"}}
+    },
+    "/api/v1/watch/namespaces/{namespace}/pods": {
+      "post": {"x-kubernetes-action": "post", "x-kubernetes-group-version-kind": {"group": "", "version": "v1", "kind": "WatchOnly"}}
+    },
+    "/apis/apps/v1/namespaces/{namespace}/deployments": {
+      "post": {"x-kubernetes-action": "post", "x-kubernetes-group-version-kind": {"group": "apps", "version": "v1", "kind": "Deployment"}}
+    },
+    "/apis/apps/v1/namespaces/{namespace}/deployments/{name}": {
+      "put": {"x-kubernetes-action": "put", "x-kubernetes-group-version-kind": {"group": "apps", "version": "v1", "kind": "Deployment"}}
+    },
+    "/apis/apps/v1/namespaces/{namespace}/deployments/{name}/scale": {
+      "put": {"x-kubernetes-action": "put", "x-kubernetes-group-version-kind": {"group": "autoscaling", "version": "v1", "kind": "Scale"}}
+    },
+    "/apis/apps/v1/namespaces/{namespace}/deployments/{name}/status": {
+      "put": {"x-kubernetes-action": "put", "x-kubernetes-group-version-kind": {"group": "apps", "version": "v1", "kind": "DeploymentStatusOnly"}}
+    },
+    "/apis/batch/v1beta1/namespaces/{namespace}/cronjobs": {
+      "post": {"x-kubernetes-action": "post", "x-kubernetes-group-version-kind": {"group": "batch", "version": "v1beta1", "kind": "CronJob"}}
+    },
+    "/apis/example.io/v1alpha1/foos": {
+      "post": {"x-kubernetes-action": "post", "x-kubernetes-group-version-kind": {"group": "example.io", "version": "v1alpha1", "kind": "Foo"}}
+    },
+    "/apis/storage.k8s.io/v1/storageclasses": {
+      "post": {"x-kubernetes-action": "post", "x-kubernetes-group-version-kind": {"group": "storage.k8s.io", "version": "v1", "kind": "StorageClass"}}
+    },
+    "/apis/storage.k8s.io/v1/storageclasses/{name}": {
+      "put": {"x-kubernetes-action": "put", "x-kubernetes-group-version-kind": {"group": "storage.k8s.io", "version": "v1", "kind": "StorageClass"}}
+    },
+    "/apis/example.io/v1/widgets/{namespace}": {
+      "put": {"x-kubernetes-action": "put", "x-kubernetes-group-version-kind": {"group": "example.io", "version": "v1", "kind": "Widget"}}
+    },
+    "/apis/example.io/v1/gadgets": {
+      "get": {"x-kubernetes-action": "list", "x-kubernetes-group-version-kind": {"group": "example.io", "version": "v1", "kind": "Gadget"}},
+      "post": {"x-kubernetes-action": "connect", "x-kubernetes-group-version-kind": {"group": "example.io", "version": "v1", "kind": "GadgetConnect"}}
+    },
+    "/version/": {
+      "get": {"x-kubernetes-action": "get"}
+    }
+  }
+}

@@ -147,6 +147,11 @@ func (r ApprovalRecord) validate() error {
 		if r.Scope != RegistryApprovalScope || r.RuleID != RegistryApprovalID || r.BaseDigest == ApprovalBaseAbsent {
 			return errors.New("approval record field out of range")
 		}
+	case ApprovalSubjectServed:
+		// The member is introduced where the base has none: no base digest.
+		if r.Scope != ServedApprovalScope || r.RuleID != ServedApprovalID || r.BaseDigest != ApprovalBaseAbsent {
+			return errors.New("approval record field out of range")
+		}
 	default:
 		return errors.New("approval record field out of range")
 	}

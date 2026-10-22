@@ -223,6 +223,10 @@ func (r *Report) recordCheck(cls *Classification, statements map[string]statemen
 		if c.OK && c.Member == registryMember {
 			admitted[c.Pack+"\x00"+RegistryApprovalID] = c
 		}
+		if c.OK && c.Section == sectionServed && r.servedIntroduced[c.Pack] {
+			// The introduction was admitted with this approval.
+			admitted[c.Pack+"\x00"+ServedApprovalID] = &Change{Pack: c.Pack, RuleID: ServedApprovalID, OK: true, Proof: ProofApproval}
+		}
 	}
 	packs := map[string]bool{}
 	for _, spec := range opts.Layout.Packs {

@@ -183,6 +183,9 @@ type Report struct {
 	// registryDigest change admitted with an owner approval: that pack is
 	// admitted and attested under them.
 	registryDefinitions map[string][]constraintengine.FactDefinition
+	// servedIntroduced names the packs whose servedAPIs member this change
+	// introduces with an owner approval (admitServedIntroduction).
+	servedIntroduced map[string]bool
 	// batch is the decision on the batch approval the change adds (nil:
 	// none).
 	batch *batchResult
@@ -477,6 +480,14 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 			// A record: mechanical ones only by re-derivation, never
 			// through a statement or an approval.
 			switch {
+			case c.rhead != nil && c.rhead.served != nil:
+				// Re-derived from the line's pinned specification, never
+				// through a statement or an approval.
+				if err := servedPre(c, opts); err != nil {
+					c.fail(err.Error())
+					continue
+				}
+				mechanical = append(mechanical, c)
 			case c.rhead != nil && c.rhead.mechanical() && c.Section != sectionAttestations:
 				c.fail("no extractor derives path policies: a mechanical path policy cannot be re-derived")
 			case c.rhead != nil && c.rhead.mechanical():
@@ -535,6 +546,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	}
 	rederive(ctx, opts.Source, opts.Catalog, opts.Concurrency, opts.Layout, mechanical)
 	emptyListPost(cls.Changes, opts)
+	r.servedIntroduced = admitServedIntroduction(cls, opts, loadKeys, approvals)
 	for _, c := range removals {
 		admitSupersede(c, opts)
 	}
@@ -668,7 +680,7 @@ func (r *Report) rederiveAll(ctx context.Context, cls *Classification, rederived
 		// the pack is in force.
 		for _, id := range h.RecordOrder {
 			rec := h.Records[id]
-			if !rec.mechanical() || rec.attestation == nil || done[spec.Name+"\x00"+id] {
+			if !rec.mechanical() || (rec.attestation == nil && rec.served == nil) || done[spec.Name+"\x00"+id] {
 				continue
 			}
 			if x := rec.Extractor; x != nil && !opts.Shard.Has(x.ID) {
@@ -680,9 +692,11 @@ func (r *Report) rederiveAll(ctx context.Context, cls *Classification, rederived
 	}
 	rederive(ctx, opts.Source, opts.Catalog, opts.Concurrency, opts.Layout, all)
 	var failed []string
-	attestations := 0
+	attestations, served := 0, 0
 	for _, c := range all {
-		if c.rhead != nil {
+		if c.rhead != nil && c.rhead.served != nil {
+			served++
+		} else if c.rhead != nil {
 			attestations++
 		}
 		if !c.OK {
@@ -698,6 +712,9 @@ func (r *Report) rederiveAll(ctx context.Context, cls *Classification, rederived
 	records := ""
 	if attestations > 0 {
 		records = fmt.Sprintf(" (%d of them line attestations)", attestations)
+	}
+	if served > 0 {
+		records += fmt.Sprintf(" (%d of them served-API lists)", served)
 	}
 	r.add("rederive-all", len(failed) == 0, "%d mechanical rules re-derived, %d failed%s%s%s", len(all), len(failed), records, shardNote, listDetail(failed))
 }

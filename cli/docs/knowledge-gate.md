@@ -54,7 +54,8 @@ classification rules (see [Line attestations and path
 policies](#line-attestations-and-path-policies)). A change to any other
 top-level pack member (`schema`, `revision`, the policy and digest members, or
 a new member) is a loosening change that this version of the gate never
-admits. A reattestation statement must therefore keep the pack's `revision`,
+admits. The one exception is the `servedAPIs` member, see [Served-API
+lists](#served-api-lists). A reattestation statement must therefore keep the pack's `revision`,
 and adding the first record of a section, or removing the last one, changes
 the pack's `schema` and is not admitted either. In the community pack the
 record sections have no classification rules.
@@ -144,7 +145,7 @@ engine reads them; a pack whose records cannot be read is refused.
 
 | Class | What qualifies |
 | --- | --- |
-| Tightening | removing a line attestation (its line becomes a gap again); withdrawing a path policy (`evidence.state` `active` → `withdrawn`); moving a record's `evidence.validUntil` earlier. Every other byte of the record must stay the same. |
+| Tightening | removing a line attestation or a served-API list (its line becomes a gap again); withdrawing a path policy (`evidence.state` `active` → `withdrawn`); moving a record's `evidence.validUntil` earlier. Every other byte of the record must stay the same. |
 | Loosening | anything else: a new record (also a path policy that is already withdrawn), a renewal, any change to a record's content, and removing a path policy (without a record a path is planned as one direct hop; withdraw it instead) |
 
 A loosening record change is admitted only with one of these proofs:
@@ -156,6 +157,7 @@ A loosening record change is admitted only with one of these proofs:
 | reviewed path policy, changed otherwise | never |
 | mechanical line attestation | the extractor named in `evidence.extractor`, as compiled into the gate, derives exactly this attestation (canonical JSON) from upstream bytes pinned by commit SHA, with the record's own `derivedAt` and lease, under the same 24-hour derivation-time bound as a mechanical rule. A statement or an approval never admits one. |
 | mechanical path policy | never: no extractor derives path policies |
+| served-API list | basis mechanical only, and `servedlists` as compiled into the gate re-derives exactly this record (canonical JSON): the cited source is the one specification, `api/openapi-spec/swagger.json` of `github.com/kubernetes/kubernetes`, at the commit the tag `v<line>.0` points at, its `sha256` is `contentDigest`, and `derivedAt` is within the 24-hour bound. A list naming an API the removal table marks as removed at or before its line is refused. Any other basis is never admitted, with or without an approval. |
 
 **Cross-check of a reviewed line attestation.** A line attestation states that
 the rules it lists are all the pack's rules for one line and fact family. The
@@ -667,7 +669,7 @@ prufyx-maintainer approval sign \
 | `--key FILE` | the private key file: a regular file owned by you with no group or other permission (mode `0600` or `0400`), not a symbolic link, with no symbolic link in its path and only one hard link |
 | `--key-stdin` | read the private key from standard input instead; standard input must be a pipe (a terminal, another device or a redirected file is refused; give a file with `--key`) |
 | `--output` | the approval file to create; its path must end in `<pack>/<rule id>.json` (the gate reads `cli/knowledge/approvals/<pack>/<rule id>.json`); an existing file or link there is never replaced, no directory in the path may be a symbolic link, missing directories are created, and the file gets mode `0644` |
-| `--subject` | what the approval is for: `rule` (the default), `lineAttestation`, `repinBaseline` or `registryDigest` |
+| `--subject` | what the approval is for: `rule` (the default), `lineAttestation`, `repinBaseline`, `registryDigest` or `servedAPIs` |
 | `--record` | with `--subject lineAttestation`, in place of `--rule`: the line attestation's record ID; the proposed pack must hold it with evidence basis `reviewed`, it must differ from the base record, the base record must not be mechanical, and the change must loosen (a change that only shortens `validUntil` is refused) |
 
 A line attestation approval names `"subject": "lineAttestation"` and the
@@ -789,6 +791,27 @@ prufyx-maintainer approval verify --subject registryDigest --pack cncf \
 `--base-root` and `--head-root` belong to `--subject registryDigest` (and
 `--base-root` to `verify` of the record subjects); the rule, record and baseline
 flags are refused with it.
+
+## Served-API lists
+
+A served-API list (`servedAPIs` pack member) is a record keyed by
+`served-list.` and 24 hex digits. Each list is re-derived from the pinned
+OpenAPI specification by the `k8s.served-api-list` deriver compiled into the
+gate (its code digest covers `internal/servedlists` and `internal/servedapis`);
+the tag-to-commit check binds a list to its line. `rederive-all` re-derives
+unchanged lists too. A list is derived with a lease of 89 days.
+
+The first change that adds the member (the base has none) also needs an owner
+approval of subject `servedAPIs`, `ruleId` `member.servedAPIs`, `scope`
+`servedAPIs` and no base digest, at
+`cli/knowledge/approvals/<pack>/member.servedAPIs.json`. It verifies under the
+base's pinned owner keys and binds the statement
+`prufyx.io/served-api-lists-introduction/v1`: the deriver identity, every list's
+component, line, record ID and digest of its canonical bytes, and the digests of
+the base and head pack files. Once the member is in the base, lists are added,
+renewed and removed with no approval. Sign with
+`approval sign --subject servedAPIs --pack cncf --base-root DIR --head-root DIR`
+(the other options as for `registryDigest`).
 
 ## Batch approvals
 

@@ -18,11 +18,13 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencerepin"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/repinbaselines"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/rulecheck"
+	"github.com/prufyx/prufyx/cli/internal/servedapis"
 	"github.com/prufyx/prufyx/cli/internal/upgradepath"
 )
 
-// Records are the line attestations (lineattest.PackMember) and upgrade-path
-// policies (upgradepath.PackMember) a rule pack may carry besides its rules.
+// Records are the line attestations (lineattest.PackMember), upgrade-path
+// policies (upgradepath.PackMember) and served-API lists (servedapis.PackMember)
+// a rule pack may carry besides its rules.
 // The gate diffs them one record at a time, keyed by the record ID evidence
 // repin and evidence reattest use (evidencerepin.LineAttestationRecordID,
 // evidencerepin.PathPolicyRecordID), never by position.
@@ -52,11 +54,18 @@ import (
 //     scope, its base state), plus the cross-check against the attesting
 //     extractor's own derivation of the line (crossCheckAttestation);
 //   - any other reviewed path policy change: not admitted.
+//   - a served-API list (servedapis.PackMember): only basis mechanical, re-derived
+//     byte-identically from the line's pinned OpenAPI specification by the
+//     deriver compiled into this binary (servedlists, see served_gate.go); a
+//     removed list is tightening; no other basis is admitted, with or without
+//     an approval. The first introduction of the member also needs an owner
+//     approval (admitServedIntroduction).
 
 // Record sections.
 const (
 	sectionAttestations = lineattest.PackMember
 	sectionPolicies     = upgradepath.PackMember
+	sectionServed       = servedapis.PackMember
 )
 
 // Approval subjects.
@@ -88,6 +97,7 @@ type record struct {
 
 	attestation *lineattest.LineAttestation
 	policy      *upgradepath.Record
+	served      *servedapis.Record
 }
 
 func (r *record) mechanical() bool { return r.Basis == constraintengine.BasisMechanical }
@@ -175,6 +185,32 @@ func loadRecords(raw []byte) (map[string]*record, []string, error) {
 			}
 		}
 	}
+	section, present, err = lineattest.PackMemberSection(raw, sectionServed)
+	if err != nil {
+		return nil, nil, err
+	}
+	if present {
+		lists, err := servedapis.Parse(section)
+		if err != nil {
+			return nil, nil, err
+		}
+		items, err := splitRecords(section, len(lists))
+		if err != nil {
+			return nil, nil, err
+		}
+		for i := range lists {
+			l := lists[i]
+			r := &record{
+				ID: evidencerepin.ServedListRecordID(l.Component, l.Line), Section: sectionServed,
+				Project: evidencerepin.RecordProjectServedLists, Scope: "served list " + l.Component + " " + l.Line, Raw: items[i], served: &l,
+				Basis: constraintengine.EffectiveBasis(l.Evidence.Basis), State: upgradepath.StateActive,
+				Extractor: l.Evidence.Extractor, DerivedAt: l.Evidence.DerivedAt, ReviewedAt: l.Evidence.ReviewedAt, ValidUntil: l.Evidence.ValidUntil,
+			}
+			if err := add(r); err != nil {
+				return nil, nil, err
+			}
+		}
+	}
 	return out, order, nil
 }
 
@@ -190,7 +226,7 @@ func splitRecords(section json.RawMessage, want int) ([]json.RawMessage, error) 
 // recordSection reports whether member is a record section the pack's
 // records are diffed for.
 func recordSection(spec PackSpec, member string) bool {
-	return spec.Records && (member == sectionAttestations || member == sectionPolicies)
+	return spec.Records && (member == sectionAttestations || member == sectionPolicies || member == sectionServed)
 }
 
 // diffRecords classifies every record of one section that differs between
@@ -225,7 +261,7 @@ func diffRecords(base, head *loadedPack, section string) []*Change {
 			c.Class, c.Kinds = ClassLoosening, []string{KindNew}
 		case h == nil:
 			c.Project, c.Basis = b.Project, b.Basis
-			if section == sectionAttestations {
+			if section == sectionAttestations || section == sectionServed {
 				c.Class, c.Kinds = ClassTightening, []string{KindRemove}
 			} else {
 				c.Class, c.Kinds = ClassLoosening, []string{KindRemove}
