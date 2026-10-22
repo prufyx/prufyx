@@ -274,7 +274,7 @@ stale). The method and the full per-project table are in the
 [coverage report guide](cli/docs/coverage-report.md).
 
 In plain terms: the rules are exact, reviewed transitions, mostly for older
-releases. No upgrade between two release lines is decided as a whole yet, and
+releases. No upgrade between two release lines is decided as a whole yet.
 Reviewed Kubernetes API removals exist for upgrades to 1.22, 1.25-1.27, 1.29,
 1.32-1.34 and 1.37, plus the in-tree dockershim removal in 1.24.
 
