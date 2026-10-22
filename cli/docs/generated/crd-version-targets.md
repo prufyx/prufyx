@@ -20,7 +20,7 @@ The reviewed targets of the `crd.version-removal` extractor
 | `crd.version-removal.eck-operator` | community | `github.com/elastic/cloud-on-k8s` | `vX.Y.Z` | 3.0 | no | `config/crds/v1/all-crds.yaml` | 1 |
 | `crd.version-removal.external-secrets` | CNCF | `github.com/external-secrets/external-secrets` | `vX.Y.Z` | 2.7 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crds/bases` | 0 |
 | `crd.version-removal.gateway-api` | community | `github.com/kubernetes-sigs/gateway-api` | `vX.Y.Z` | 1.1 | no | channel `standard` (declared): files matching `^[^.][^/]*\.ya?ml$` in `config/crd/standard`; channel `experimental`, read only to keep the versions it still serves out of rules: files matching `^[^.][^/]*\.ya?ml$` in `config/crd/experimental` | 0 |
-| `crd.version-removal.istio` | CNCF | `github.com/istio/istio` | `X.Y.Z` | 1.26 | yes | `manifests/charts/base/files/crd-all.gen.yaml` | 7 |
+| `crd.version-removal.istio` | CNCF | `github.com/istio/istio` | `X.Y.Z` | 1.26 | yes | `manifests/charts/base/files/crd-all.gen.yaml` | 8 |
 | `crd.version-removal.k8gb` | CNCF | `github.com/k8gb-io/k8gb` | `vX.Y.Z` | 0.16 | no | files matching `^k8gb\.[^/]*\.ya?ml$` in `chart/k8gb/crd` | 0 |
 | `crd.version-removal.k8up` | CNCF | `github.com/k8up-io/k8up` | `vX.Y.Z` | 2.11 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/apiextensions.k8s.io/v1` | 0 |
 | `crd.version-removal.karmada` | CNCF | `github.com/karmada-io/karmada` | `vX.Y.Z` | 1.14 | no | files matching `^[^.][^/]*\.ya?ml$` anywhere under `charts/karmada/_crds/bases`, files matching `^[^.][^/]*\.ya?ml$` in `operator/config/crds` (when present) | 0 |
