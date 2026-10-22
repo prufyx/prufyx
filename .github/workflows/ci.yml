@@ -43,6 +43,10 @@ jobs:
         working-directory: cli
         run: go vet ./...
 
+      - name: Vet the synthetic-knowledge packages
+        working-directory: cli
+        run: go vet -tags prufyx_synthetic_knowledge ./internal/cncfcheck/ ./internal/communityapp/ ./internal/extract/extractpack/ ./internal/onecommand/ ./internal/scanrun/ ./internal/maintainer/knowledgegate/ ./internal/maintainer/knowledgetargets/ ./internal/maintainer/knowledgerelease/
+
       - name: Check knowledge target sizes
         # Fails when any per-project CNCF knowledge target or the index
         # reaches 80% of the 1 MiB per-target cap, when the single-target
@@ -79,9 +83,29 @@ jobs:
           scripts/preview-coverage.sh --check
 
   test-core:
-    name: Test (all packages except knowledgegate)
+    # Sharded by package group so the slowest packages run side by side. The
+    # last group ("rest") is every package that is in no other group and is not
+    # the knowledgegate package (which has its own sharded job), so a new
+    # package is always tested.
+    name: Test (${{ matrix.group }})
     runs-on: ubuntu-24.04
     timeout-minutes: 40
+    env:
+      # Every explicitly grouped package; the "rest" group excludes these.
+      CORE_GROUPED: >-
+        ./internal/maintainer/evidencereattest/
+        ./cmd/prufyx-maintainer/ ./cmd/prufyx-community/
+        ./internal/cncfcheck/ ./internal/communityapp/
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - group: core-evidence
+            packages: ./internal/maintainer/evidencereattest/
+          - group: core-commands
+            packages: ./cmd/prufyx-maintainer/ ./cmd/prufyx-community/ ./internal/cncfcheck/ ./internal/communityapp/
+          - group: core-rest
+            packages: ""
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -96,27 +120,47 @@ jobs:
 
       - name: Test
         working-directory: cli
+        env:
+          GROUP: ${{ matrix.group }}
+          GROUP_PACKAGES: ${{ matrix.packages }}
         # Some packages exceed go test's default 10-minute limit on hosted runners; keep a generous limit.
         # The knowledgegate package has its own job (test-knowledgegate).
         run: |
           set -euo pipefail
-          packages=$(go list ./... | grep -v '/internal/maintainer/knowledgegate$')
+          if [ -n "${GROUP_PACKAGES}" ]; then
+            # shellcheck disable=SC2086
+            packages=$(go list ${GROUP_PACKAGES})
+          else
+            # shellcheck disable=SC2086
+            grouped=$(go list ${CORE_GROUPED})
+            packages=$(go list ./... | grep -v '/internal/maintainer/knowledgegate$' | grep -vxF "${grouped}")
+          fi
+          echo "${GROUP}: $(printf '%s\n' "${packages}" | grep -c .) packages"
           # shellcheck disable=SC2086
-          go test -timeout 60m -covermode=atomic -coverprofile=coverage-core.out ${packages}
+          go test -timeout 60m -covermode=atomic -coverprofile="coverage-${GROUP}.out" ${packages}
 
       - name: Upload coverage profile
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: coverage-core
-          path: cli/coverage-core.out
+          name: coverage-${{ matrix.group }}
+          path: cli/coverage-${{ matrix.group }}.out
           retention-days: 14
           if-no-files-found: error
           overwrite: true
 
   test-knowledgegate:
-    name: Test (knowledgegate)
+    # The package is slow on its own, so its tests are spread over SHARDS jobs
+    # by scripts/ci-test-shard.sh (every test is in exactly one shard;
+    # TestCIShardsAreComplete keeps the matrix and SHARDS in step).
+    name: Test (knowledgegate ${{ matrix.shard }}/3)
     runs-on: ubuntu-24.04
     timeout-minutes: 40
+    env:
+      SHARDS: "3"
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -131,19 +175,26 @@ jobs:
 
       - name: Test
         working-directory: cli
-        run: go test -timeout 40m -covermode=atomic -coverprofile=coverage-knowledgegate.out ./internal/maintainer/knowledgegate/
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: ../scripts/ci-test-shard.sh "${SHARD}" "${SHARDS}" ./internal/maintainer/knowledgegate/ -- -timeout 40m -covermode=atomic -coverprofile="coverage-knowledgegate-${SHARD}.out"
 
       - name: Upload coverage profile
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: coverage-knowledgegate
-          path: cli/coverage-knowledgegate.out
+          name: coverage-knowledgegate-${{ matrix.shard }}
+          path: cli/coverage-knowledgegate-${{ matrix.shard }}.out
           retention-days: 14
           if-no-files-found: error
           overwrite: true
 
-  test-synthetic:
-    name: Test (synthetic knowledge)
+  # The tagged suite (build tag prufyx_synthetic_knowledge) is split over three
+  # job kinds so the slow knowledgegate package does not hold up the others.
+  # Every package with a tagged file is listed in exactly one of them, and no
+  # run has a -run or -skip filter in this file
+  # (TestCISyntheticPackagesAreCovered fails when a package is missing).
+  test-synthetic-a:
+    name: Test (synthetic knowledge, cncfcheck and community)
     runs-on: ubuntu-24.04
     timeout-minutes: 75
     steps:
@@ -160,12 +211,57 @@ jobs:
 
       - name: Test command routes against synthetic knowledge
         working-directory: cli
-        # Every package with a prufyx_synthetic_knowledge file is listed, and the
-        # run has no -run filter, so a tagged test is never skipped for its name
-        # (TestCISyntheticPackagesAreCovered fails when a package is missing).
         run: |
-          go vet -tags prufyx_synthetic_knowledge ./internal/cncfcheck/ ./internal/communityapp/ ./internal/extract/extractpack/ ./internal/onecommand/ ./internal/scanrun/ ./internal/maintainer/knowledgegate/ ./internal/maintainer/knowledgetargets/ ./internal/maintainer/knowledgerelease/
-          go test -timeout 60m -tags prufyx_synthetic_knowledge ./internal/cncfcheck/ ./internal/communityapp/ ./internal/extract/extractpack/ ./internal/onecommand/ ./internal/scanrun/ ./internal/maintainer/knowledgegate/ ./internal/maintainer/knowledgetargets/ ./internal/maintainer/knowledgerelease/
+          go test -timeout 60m -tags prufyx_synthetic_knowledge ./internal/cncfcheck/ ./internal/communityapp/ ./internal/onecommand/
+
+  test-synthetic-b:
+    name: Test (synthetic knowledge, extract, scan and release)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+
+      - name: Test command routes against synthetic knowledge
+        working-directory: cli
+        run: |
+          go test -timeout 60m -tags prufyx_synthetic_knowledge ./internal/extract/extractpack/ ./internal/scanrun/ ./internal/maintainer/knowledgetargets/ ./internal/maintainer/knowledgerelease/
+
+  test-synthetic-knowledgegate:
+    name: Test (synthetic knowledge, knowledgegate ${{ matrix.shard }}/3)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    env:
+      SHARDS: "3"
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+
+      - name: Test command routes against synthetic knowledge
+        working-directory: cli
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: ../scripts/ci-test-shard.sh "${SHARD}" "${SHARDS}" ./internal/maintainer/knowledgegate/ -tags prufyx_synthetic_knowledge -- -timeout 60m
 
   build-test:
     # Fan-in: the required check keeps its name. It passes only when every
@@ -174,7 +270,7 @@ jobs:
     name: Build, vet, test
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    needs: [lint-build, test-core, test-knowledgegate, test-synthetic]
+    needs: [lint-build, test-core, test-knowledgegate, test-synthetic-a, test-synthetic-b, test-synthetic-knowledgegate]
     if: always()
     steps:
       - name: Require every shard to succeed

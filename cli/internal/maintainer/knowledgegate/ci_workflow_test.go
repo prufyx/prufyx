@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -32,6 +33,9 @@ type ciWorkflowJob struct {
 	Needs           ciStringList      `yaml:"needs"`
 	Steps           []ciWorkflowStep  `yaml:"steps"`
 	Env             map[string]string `yaml:"env"`
+	Strategy        struct {
+		Matrix map[string]any `yaml:"matrix"`
+	} `yaml:"strategy"`
 }
 
 type ciWorkflowStep struct {
@@ -61,7 +65,9 @@ func (l *ciStringList) UnmarshalYAML(n *yaml.Node) error {
 	return nil
 }
 
-var ciGoTestRe = regexp.MustCompile(`(^|[\s;&|(])go test(\s|$)`)
+// ciGoTestRe matches a step line that runs go test, directly or through the
+// shard script (scripts/ci-test-shard.sh runs go test for one shard of a package).
+var ciGoTestRe = regexp.MustCompile(`(^|[\s;&|(])(go test|(\S*/)?ci-test-shard\.sh)(\s|$)`)
 
 // ciFanInProblems returns every way the ci.yml text lets a test job skip the
 // required check.
@@ -228,4 +234,82 @@ jobs:
 			t.Errorf("%s: broken fan-in accepted", name)
 		}
 	}
+}
+
+// TestCIShardsAreComplete: a job that runs scripts/ci-test-shard.sh must run
+// every shard 1..SHARDS. A matrix that drops a shard, or a SHARDS value that
+// differs from the matrix, would leave tests that no job runs.
+func TestCIShardsAreComplete(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join(repoRoot, ".github", "workflows", "ci.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range ciShardProblems(raw) {
+		t.Error(p)
+	}
+	broken := map[string]string{
+		"dropped shard": strings.Replace(string(raw), "shard: [1, 2, 3]", "shard: [1, 2]", 1),
+		"total differs": strings.Replace(string(raw), `SHARDS: "3"`, `SHARDS: "4"`, 1),
+		"no shard env":  strings.Replace(string(raw), `"${SHARD}" "${SHARDS}"`, `"1" "3"`, 1),
+	}
+	for name, text := range broken {
+		if text == string(raw) {
+			t.Fatalf("%s: the mutation changed nothing", name)
+		}
+		if len(ciShardProblems([]byte(text))) == 0 {
+			t.Errorf("%s: broken shard matrix accepted", name)
+		}
+	}
+}
+
+// ciShardProblems returns every way a sharded job can leave tests unrun.
+func ciShardProblems(raw []byte) []string {
+	var wf ciWorkflowFile
+	if err := yaml.Unmarshal(raw, &wf); err != nil {
+		return []string{"ci.yml does not parse: " + err.Error()}
+	}
+	var problems []string
+	sharded := 0
+	for id, job := range wf.Jobs {
+		uses := false
+		for _, st := range job.Steps {
+			if strings.Contains(st.Run, "ci-test-shard.sh") {
+				uses = true
+				if !strings.Contains(st.Run, `"${SHARD}" "${SHARDS}"`) {
+					problems = append(problems, "job "+id+" must pass the matrix shard and SHARDS to the shard script")
+				}
+			}
+		}
+		if !uses {
+			continue
+		}
+		sharded++
+		total, err := strconv.Atoi(job.Env["SHARDS"])
+		if err != nil || total < 2 {
+			problems = append(problems, "job "+id+" needs env SHARDS of at least 2")
+			continue
+		}
+		list, _ := job.Strategy.Matrix["shard"].([]any)
+		seen := map[int]bool{}
+		for _, v := range list {
+			n, ok := v.(int)
+			if !ok {
+				problems = append(problems, "job "+id+" has a non-integer shard in its matrix")
+				continue
+			}
+			seen[n] = true
+		}
+		if len(list) != total || len(seen) != total {
+			problems = append(problems, "job "+id+" matrix lists a different number of shards than SHARDS")
+		}
+		for i := 1; i <= total; i++ {
+			if !seen[i] {
+				problems = append(problems, "job "+id+" matrix lacks shard "+strconv.Itoa(i))
+			}
+		}
+	}
+	if sharded == 0 {
+		problems = append(problems, "no job uses the shard script; the guard reads the wrong file")
+	}
+	return problems
 }
