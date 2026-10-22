@@ -38,7 +38,7 @@ func readme(date, proj, pairs, ab, s, g string) string {
 	return r.Replace(readmeTmpl)
 }
 
-func rules(entries string, lines string) string {
+func fixtureRules(entries string, lines string) string {
 	return `{"entries":[` + entries + `],"lineAttestations":[` + lines + `]}`
 }
 
@@ -54,9 +54,9 @@ const k8s = "kubernetes/kubernetes"
 
 func fromFiles() map[string]string {
 	return map[string]string{
-		cncfRulesPath: rules(strings.Join([]string{entry("a", "a.1"), entry("a", "a.2"), entry("b", "b.1")}, ","),
+		cncfRulesPath: fixtureRules(strings.Join([]string{entry("a", "a.1"), entry("a", "a.2"), entry("b", "b.1")}, ","),
 			strings.Join([]string{att(k8s, "1.36"), att("x/lib", "1.9")}, ",")),
-		projectRulesPath: rules("", ""),
+		projectRulesPath: fixtureRules("", ""),
 		inventoryPath: `{"counts":{"selectedSourceProjects":2,"selectedSourceOnlyProjects":0,"executableProjects":2,"cncfSourceRules":3,"cncfRuleProjects":2,"communityProjectSourceRules":0,"communityProjectRuleProjects":0},
 "projects":[{"projectID":"a","displayName":"A","supportState":"executable"},{"projectID":"b","displayName":"B","supportState":"selected_source_only"}],"withdrawnRules":[]}`,
 		readmePath: readme("2026-10-08", "70", "350", "10", "40", "300"),
@@ -65,9 +65,9 @@ func fromFiles() map[string]string {
 
 func toFiles() map[string]string {
 	return map[string]string{
-		cncfRulesPath: rules(strings.Join([]string{entry("a", "a.1"), entry("a", "a.3"), entry("b", "b.1"), entry("c", "c.1"), entry("c", "c.2")}, ","),
+		cncfRulesPath: fixtureRules(strings.Join([]string{entry("a", "a.1"), entry("a", "a.3"), entry("b", "b.1"), entry("c", "c.1"), entry("c", "c.2")}, ","),
 			strings.Join([]string{att(k8s, "1.36"), att(k8s, "1.37"), att("x/lib", "1.9"), att("x/lib", "1.10")}, ",")),
-		projectRulesPath: rules(entry("d", "d.1"), ""),
+		projectRulesPath: fixtureRules(entry("d", "d.1"), ""),
 		inventoryPath: `{"counts":{"selectedSourceProjects":5,"selectedSourceOnlyProjects":1,"executableProjects":4,"cncfSourceRules":4,"cncfRuleProjects":3,"communityProjectSourceRules":1,"communityProjectRuleProjects":1},
 "projects":[{"projectID":"a","displayName":"A","supportState":"executable"},{"projectID":"b","displayName":"B","supportState":"executable_with_selected_source_records"},
 {"projectID":"c","displayName":"C","supportState":"executable"},{"projectID":"d","displayName":"D","supportState":"executable"},{"projectID":"e","displayName":"E","supportState":"selected_source_only"}],
