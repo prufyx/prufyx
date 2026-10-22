@@ -374,7 +374,7 @@ func evaluateItem(item Item, raw []byte, now time.Time, selected knowledge.Verif
 			return result
 		}
 		result.Report = append(json.RawMessage(nil), sealed...)
-		return fromClaims(result, cncfClaimViews(report.Check.Claims))
+		return fromClaims(result, provisional(cncfClaimViews(report.Check.Claims), report.Check))
 	}
 	report, err := projectcheck.Check(item.Project, raw, now)
 	if err != nil {
@@ -402,7 +402,7 @@ func evaluateItem(item Item, raw []byte, now time.Time, selected knowledge.Verif
 		return result
 	}
 	result.Report = append(json.RawMessage(nil), sealed...)
-	result = fromClaims(result, communityClaimViews(report.Check.Claims))
+	result = fromClaims(result, provisional(communityClaimViews(report.Check.Claims), report.Check))
 	result.notes = claimNotes(report.Check.Claims)
 	return result
 }
@@ -431,7 +431,7 @@ func evaluateExternalCNCF(result ItemResult, item Item, raw []byte, selected kno
 	result.Report = append(json.RawMessage(nil), sealed...)
 	age := report.KnowledgeAge()
 	result.age = &age
-	result = fromClaims(result, cncfClaimViews(report.Check.Check.Claims))
+	result = fromClaims(result, provisional(cncfClaimViews(report.Check.Check.Claims), report.Check.Check))
 	result.notes = claimNotes(report.Check.Check.Claims)
 	return result
 }
@@ -475,6 +475,21 @@ func communityClaimViews(claims []constraintengine.Claim) []claimView {
 			continue
 		}
 		views = append(views, claimView{Status: claim.Status, ReasonCode: claim.ReasonCode, EvidenceFreshness: claim.EvidenceFreshness})
+	}
+	return views
+}
+
+// provisional downgrades every PASS to UNKNOWN when the report was decided on
+// a Kubernetes pre-release, as the check routes do: batch labels none, so it
+// never passes one. A blocker stays a blocker.
+func provisional(views []claimView, check constraintengine.Report) []claimView {
+	if !check.HasPreReleaseInput() {
+		return views
+	}
+	for i := range views {
+		if views[i].Status == "PASS" {
+			views[i].Status, views[i].ReasonCode = "UNKNOWN", "PRE_RELEASE_INPUT"
+		}
 	}
 	return views
 }
