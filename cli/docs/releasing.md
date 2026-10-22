@@ -31,7 +31,20 @@ attestation and the `SHA256SUMS` of a version must stay one-to-one.
 3. Check the embedded rule expiry dates against the planned publication date.
    After a rule expires its verdict is `UNKNOWN` by design, so a release
    published shortly before an expiry date ships rules that are about to lapse.
-4. Create an annotated tag on that commit and push only the tag:
+4. Before the first tag push, the owner creates the GitHub environment
+   `release`. Settings > Environments > New environment > `release`, then:
+
+   - Required reviewers: the owner (1 reviewer).
+   - Leave "Prevent self-review" OFF. The owner pushes the tag, so with it ON
+     nobody could approve the run.
+   - Deployment branches and tags: Selected branches and tags. Add a rule
+     with Ref type Tag and pattern `v*`.
+   - No secrets and no variables.
+
+   Create the environment before the first run. If it does not exist, GitHub
+   creates the referenced environment automatically with no protection rules,
+   and the approval gate does not exist.
+5. Create an annotated tag on that commit and push only the tag:
 
    ```sh
    git fetch origin main
@@ -39,12 +52,16 @@ attestation and the `SHA256SUMS` of a version must stay one-to-one.
    git push origin v0.0.1-alpha.1
    ```
 
-5. Watch the `Release` workflow. When it succeeds it leaves a **draft** GitHub
-   release. Nothing is public until a maintainer publishes the draft.
-6. Before publishing, download the draft's assets and run the verification
+6. Watch the `Release` workflow. The "Checksums and provenance" job waits for
+   the owner's approval. Approve it within 7 days of the tag push: the build
+   artifacts are kept 7 days (`retention-days: 7` in `release.yml`), and after
+   that the run fails and the tag must be redone. When the run succeeds it
+   leaves a **draft** GitHub release. Nothing is public until a maintainer
+   publishes the draft.
+7. Before publishing, download the draft's assets and run the verification
    steps below against them. A tag with a hyphen (`-alpha.1`) is created as a
    pre-release by the workflow; keep that flag when publishing.
-7. Publish the draft. Then run the verification once more from the public
+8. Publish the draft. Then run the verification once more from the public
    download URLs, and run `scripts/action/install.sh` through the composite
    action with `version: <tag>` on a throwaway repository.
 
@@ -70,7 +87,12 @@ The workflow has three jobs. Third-party actions are pinned by commit SHA.
 2. **Checksums and provenance.** Downloads all archives, writes `SHA256SUMS`
    (sha256sum format, one line per archive), and creates a GitHub build
    provenance attestation (`actions/attest-build-provenance`) for every
-   `.tar.gz`. `SHA256SUMS` itself is not an attested subject.
+   `.tar.gz`. `SHA256SUMS` itself is not an attested subject. This job runs in
+   the protected GitHub environment `release`: it waits until the owner, the
+   environment's only required reviewer, approves the run, and the
+   environment admits only tags matching `v*` as deployment refs. The draft
+   release job needs this job, so nothing is attested or drafted without that
+   approval.
 3. **Draft release.** Creates a draft release for the tag with the archives and
    `SHA256SUMS` attached, using `cli/docs/release-notes-<tag>.md` as the text and
    marking hyphenated tags as pre-releases.
