@@ -129,6 +129,15 @@ func TestOnboardingAttestRefusals(t *testing.T) {
 		f.sign(t, rec)
 		requireFail(t, f.gate(t), "never turned on for attestation by a batch")
 	})
+	t.Run("a target with a dev-only Makefile target", func(t *testing.T) {
+		f := attestFixture(t, func(target map[string]any) {
+			target["devOnlyMakeTargets"] = []any{map[string]any{"makefile": "Makefile", "target": "dev-lab", "reason": "a local lab for development", "evidence": "the target only starts a local lab cluster and nothing else runs it"}}
+		})
+		f.refresh()
+		rec, _ := f.tryRecord(t)
+		f.sign(t, rec)
+		requireFail(t, f.gate(t), "never turned on for attestation by a batch")
+	})
 	t.Run("the pair does not attest", func(t *testing.T) {
 		f := attestFixture(t, nil)
 		// A stray definition outside the listed path keeps the scan from
