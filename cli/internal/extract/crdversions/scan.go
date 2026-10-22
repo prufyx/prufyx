@@ -377,6 +377,9 @@ type blobInfo struct {
 	// directives removed (nil when the bytes hold no template syntax or no
 	// kind name).
 	template *templateRead
+	// include is the bytes read as a template of the spec-include shape
+	// (specinclude.go); nil when they are not one.
+	include *specIncludeShape
 	// legacy are the definitions of bytes that hold
 	// apiextensions.k8s.io/v1beta1 definitions, all strictly read (nil
 	// otherwise); legacyProblem is why such bytes could not be read.
@@ -624,7 +627,25 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 		}
 	}
 	defDirs := definitionDirs(files, infos, inv)
+	// The files that templates of the spec-include shape include are read
+	// with the template, not as files of their own.
+	claimed := map[string]bool{}
 	for i, f := range files {
+		if infos[i].include == nil {
+			continue
+		}
+		inc, err := readSpecInclude(r, repo, commit, f.path, infos[i].include)
+		if err != nil {
+			return nil, err
+		}
+		if inc != nil {
+			claimed[inc.Path] = true
+		}
+	}
+	for i, f := range files {
+		if claimed[f.path] {
+			continue
+		}
 		fd, found, err := x.classify(r, repo, commit, f, infos[i], inv, defDirs)
 		if err != nil {
 			return nil, err
@@ -783,6 +804,7 @@ func summarize(kind int, data []byte) *blobInfo {
 		}
 		if info.words > 0 && bytes.Contains(data, []byte(templateMarker)) {
 			info.template = readTemplate(data)
+			info.include = parseSpecIncludeTemplate(data)
 		}
 		if info.words > 0 && info.template == nil {
 			summarizeUnread(data, info)
@@ -1771,6 +1793,16 @@ func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commi
 		external = info.kust.remote
 	}
 	tpl := info.template
+	viaInclude := false
+	if info.unread != "" && info.include != nil {
+		inc, err := readSpecInclude(r, repo, commit, f.path, info.include)
+		if err != nil {
+			return fd, false, err
+		}
+		if inc != nil {
+			tpl, viaInclude = &templateRead{crds: inc.CRDs}, true
+		}
+	}
 	switch {
 	case info.unread != "" && tpl != nil && tpl.unread == "" && len(tpl.crds) > 0:
 		// A templated file whose definitions its literal lines determine:
@@ -1862,7 +1894,11 @@ func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commi
 		// A declared copy keeps its class: copy, or the conflict or extra
 		// definition the reviewer's claim does not hold for.
 	case fromTemplate && fd.Class == ClassCopy:
-		fd = namedCopy(fd, ClassTemplatedCopy, crds, "with its template directives removed (a condition around the whole file, directives in metadata) and its expressions in metadata and spec.conversion read as placeholders, a copy of the listed paths")
+		detail := "with its template directives removed (a condition around the whole file, directives in metadata) and its expressions in metadata and spec.conversion read as placeholders, a copy of the listed paths"
+		if viaInclude {
+			detail = "joined with the spec file it includes, a copy of the listed paths"
+		}
+		fd = namedCopy(fd, ClassTemplatedCopy, crds, detail)
 	case fromTemplate:
 		// Nobody claims an unreviewed template is a copy: one that is not
 		// is never taken for a conflict or an extra definition.

@@ -1,6 +1,6 @@
 # Extractor `crd.version-removal`
 
-Version 2.6.0. Derives `forbid_set_member` rules for custom-resource
+Version 2.7.0. Derives `forbid_set_member` rules for custom-resource
 versions that a project's release line no longer serves, from the
 CustomResourceDefinition manifests the project ships in its repository. It is
 deterministic, reads only upstream source pinned by full commit SHA, and
@@ -185,6 +185,57 @@ Through the offline factory mirror (or a fixture tree), never the network.
   validation rule, a flow collection or another kind of document is one
   more). Text that only decodes to `{{` (an escape, a line continuation) holds
   none in its bytes and is not template syntax.
+- **A header template with an included spec.** Some Helm charts keep a
+  definition's header in `<chart>/templates/<file>.yaml` and its body (the
+  `spec`) in a plain file of the chart. The template is not YAML, so it is
+  unreadable, with one exception: it is read when it has exactly this shape,
+  line by line (not decoded as YAML):
+
+  ```
+  apiVersion: apiextensions.k8s.io/v1
+  kind: CustomResourceDefinition
+  metadata:
+    annotations:
+      example.org/key: {{ include "chart.helper" . }}
+    labels:
+      {{- include "chart.labels" . | nindent 4 }}
+    name: widgets.example.org
+  spec:
+    {{ tpl (.Files.Get "hack/widgets_spec.yaml") . | nindent 2 }}
+  ```
+
+  The metadata block holds a literal `name` (`<plural>.<group>`) and, under
+  `annotations` and `labels`, literal entries, entries whose whole value is
+  one `include "<name>" .` action, and lines that are one
+  `include "<name>" . | nindent 4` action. The template ends with `spec:` and
+  the one `tpl` line (`{{-` and `-}}` trimming and spaces as Helm accepts
+  them). Nothing else is read: no `if`, `range`, `with`, `define`, `template`,
+  second `include` or `tpl`, no `{{` in any other place, no tab, no blank
+  line, and at most 16 KiB and 128 lines. The file named by `.Files.Get` is
+  relative to the chart directory (the nearest directory above the template
+  that holds `Chart.yaml`, with the template below its `templates/`): no
+  leading `/`, no `..`, no wildcard, brace or backslash, already in its
+  cleaned form; every step of the path must be a directory and the file a
+  regular file of the same commit (a symbolic link or submodule refuses it).
+  It must be the bare spec: one document, no `apiVersion`, `kind` or
+  `metadata`, within the 8 MiB bound, and with `{{` only as the whole value
+  of `name` or `namespace` of `spec.conversion.webhook.clientConfig.service`,
+  alone or in matching quotes; that value is a release or chart name, a
+  quoted field, or, in quotes, a reference to a chart value
+  (`'{{ .Values.service }}'`). The template's header and the spec are joined
+  into one definition and read by the reader of every other manifest, so the
+  versions, `served` and `storage` mean what they mean in a plain file, and
+  the name must be `<names.plural>.<group>` of the spec. The definition's path
+  and its lines are those of the included file, the file the versions are
+  written in. The inventory lists both files (path and sha256). A template
+  that is refused, for any of these reasons, or that another listed path
+  also defines, or whose included file another template includes or the
+  target lists, is unreadable as before. In the full-tree scan the included
+  file is read with its template and is not a file of its own; a template of
+  this shape outside the listed paths that joins to a copy of the listed
+  definitions is a `templated-copy`. The tpl reading assumes that the
+  helpers named by `include` render single-line text; their output is not
+  read.
 - **Each `apiextensions.k8s.io/v1` CustomResourceDefinition**: its name,
   group, kind, plural and scope, and for every entry of `spec.versions` the
   name, `served` and `storage` flags and the lines of the entry and of its two
@@ -654,6 +705,12 @@ version must come from a full run of that project's id with this build (which
 then carries the id's own digest), not from an edit of a record that carries
 the old shared digest. From then on, a change to one target only requires
 re-deriving the records of that target's id.
+## Changes from version 2.6.0
+
+Version 2.7.0 reads a header template with an included spec file (above).
+Output is unchanged for every target and file none of this applies to, except
+the extractor version and the code digest.
+
 ## Changes from version 2.5.0
 
 Version 2.6.0 adds the `releaseScheme` member of a target, with the one value
