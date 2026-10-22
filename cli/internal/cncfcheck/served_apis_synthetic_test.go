@@ -40,12 +40,13 @@ func TestServedAPIsSectionAdmission(t *testing.T) {
 		t.Fatal("a list for another line")
 	}
 	restore()
-	// After restore the embedded pack carries none.
+	// After restore the embedded pack is back: the shipped list for the line
+	// (if any) is not the synthetic one.
 	k, err = LoadScanKnowledge()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := k.ServedAPIsFor("pkg:github/kubernetes/kubernetes", "1.29", now); ok {
+	if status, ok := k.ServedAPIsFor("pkg:github/kubernetes/kubernetes", "1.29", now); ok && len(status.Record.APIs) == 1 && status.Record.APIs[0] == "v1 ConfigMap" {
 		t.Fatal("served list left behind")
 	}
 	// A component the catalog has no project for: the whole pack is refused.

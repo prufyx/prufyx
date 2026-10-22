@@ -9,6 +9,7 @@ package scanrun
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -143,6 +144,9 @@ func TestScanFirstPassFromPackRecords(t *testing.T) {
 // TestScanFirstPassNeedsEveryRecord: each record missing, stale, incomplete
 // or for another line keeps the answer UNKNOWN with a named gap.
 func TestScanFirstPassNeedsEveryRecord(t *testing.T) {
+	// What the shipped knowledge answers before any synthetic record is
+	// installed; it carries served lists of its own.
+	shipped := scanHop(t, mustEmbedded(t), cronjobV1)
 	cases := []struct {
 		name           string
 		set            recordSet
@@ -182,11 +186,10 @@ func TestScanFirstPassNeedsEveryRecord(t *testing.T) {
 	// A line attestation that leaves out a rule of its line is refused by
 	// the pack loader: the whole pack, not just the record.
 	installRecords(t, recordSet{attestation: true, served: true, refused: true, attestationRules: func([]string) []string { return nil }})
-	// After a refused pack nothing is left behind: the knowledge carries no
-	// served list and behaves exactly as today. The shipped pack attests
-	// line 1.29 itself, so only the served list is missing.
-	if result := scanHop(t, mustEmbedded(t), cronjobV1); result.Exit != scanreport.ExitUnknown || !hasGap(result.Report, "API_VERSION_NOT_REVIEWED", "") || hasGap(result.Report, "LINE_NOT_ATTESTED", "") {
-		t.Fatalf("shipped knowledge: exit %d gaps %v", result.Exit, gapReasons(result.Report))
+	// After a refused pack nothing is left behind: the knowledge answers
+	// exactly as the shipped knowledge did before the pack was offered.
+	if result := scanHop(t, mustEmbedded(t), cronjobV1); result.Exit != shipped.Exit || !slices.Equal(gapReasons(result.Report), gapReasons(shipped.Report)) {
+		t.Fatalf("shipped knowledge: exit %d gaps %v, before: exit %d gaps %v", result.Exit, gapReasons(result.Report), shipped.Exit, gapReasons(shipped.Report))
 	}
 }
 
