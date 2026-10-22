@@ -85,7 +85,7 @@ func TestPackNoticeLevel(t *testing.T) {
 			notices = append(notices, claim)
 		}
 	}
-	if len(notices) != 1 || notices[0].Status != constraintengine.StatusNotice || len(report.Check.Claims) != 27+kubernetesRuleExtra()+kubeletSkewRules || report.Check.EngineContractDigest != constraintengine.EngineContractDigestNotice() || ClaimExit(report) != 11 {
+	if len(notices) != 1 || notices[0].Status != constraintengine.StatusNotice || len(report.Check.Claims) != 27+kubernetesRuleExtra()+kubeletSkewRules+controlPlaneSkipRules || report.Check.EngineContractDigest != constraintengine.EngineContractDigestNotice() || ClaimExit(report) != 11 {
 		t.Fatalf("claims=%+v exit=%d", report.Check.Claims, ClaimExit(report))
 	}
 	if _, err := MarshalReport(report); err != nil {
@@ -96,6 +96,11 @@ func TestPackNoticeLevel(t *testing.T) {
 // kubeletSkewRules is how many reviewed kubelet version-skew rules the
 // embedded pack holds (1.32 to 1.37); they join every Kubernetes selection.
 const kubeletSkewRules = 5
+
+// controlPlaneSkipRules is how many control-plane no-minor-skip rules the
+// embedded pack holds (1.29 to 1.37); they join every generic Kubernetes
+// selection.
+const controlPlaneSkipRules = 28
 
 // kubernetesRuleExtra is how many more Kubernetes verdict rules the embedded
 // pack holds once the mechanical rules replace the reviewed ones.
@@ -226,8 +231,8 @@ func TestNoticeNeverChangesRuleSelection(t *testing.T) {
 				t.Fatalf("family=%v: claim %+v", familySelector, claim)
 			}
 		}
-		if !familySelector && len(verdicts) != 26+kubernetesRuleExtra()+kubeletSkewRules {
-			t.Fatalf("generic selection holds %d verdict claims, want the %d Kubernetes rules", len(verdicts), 26+kubernetesRuleExtra()+kubeletSkewRules)
+		if !familySelector && len(verdicts) != 26+kubernetesRuleExtra()+kubeletSkewRules+controlPlaneSkipRules {
+			t.Fatalf("generic selection holds %d verdict claims, want the %d Kubernetes rules", len(verdicts), 26+kubernetesRuleExtra()+kubeletSkewRules+controlPlaneSkipRules)
 		}
 		if len(with.Check.Claims) == len(verdicts) || ClaimExit(with) != ClaimExit(without) {
 			t.Fatalf("family=%v: notices=%d exit %d vs %d", familySelector, len(with.Check.Claims)-len(verdicts), ClaimExit(with), ClaimExit(without))

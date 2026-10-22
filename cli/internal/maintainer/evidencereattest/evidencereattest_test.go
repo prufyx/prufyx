@@ -1838,6 +1838,7 @@ func TestPrepareAndVerifyStayWithinStaggerCapOnRealPacks(t *testing.T) {
 		}
 		worklistRaw := marshalWorklist(t, wl)
 		items := len(doc.Entries) + len(doc.records)
+		renewedTotal := 0
 		for wave := minWave; wave <= maxWave; wave++ {
 			prepared := withSampleRecords(t, PrepareOptions{
 				WorklistRaw: worklistRaw, PackName: tc.pack, PackPath: tc.path, PackRaw: raw, Chain: &Chain{},
@@ -1860,9 +1861,12 @@ func TestPrepareAndVerifyStayWithinStaggerCapOnRealPacks(t *testing.T) {
 				t.Fatalf("%s wave %d: Verify rejected Prepare's own output (%d renewed): %v", tc.pack, wave, res.EligibleRuleCount, err)
 			}
 			t.Logf("%s wave %d: renewed %d of %d rules and records, not extended %d, cap %d", tc.pack, wave, res.EligibleRuleCount, items, res.NotExtendedRuleCount, staggerCap(items))
-			if wave == 3 && res.EligibleRuleCount == 0 {
-				t.Fatalf("%s: expected at least one rule renewed", tc.pack)
-			}
+			renewedTotal += res.EligibleRuleCount
+		}
+		// The cap grows with the pack, so a late wave may find nothing
+		// left to renew; the waves together must still renew something.
+		if renewedTotal == 0 {
+			t.Fatalf("%s: expected at least one rule renewed", tc.pack)
 		}
 	}
 }

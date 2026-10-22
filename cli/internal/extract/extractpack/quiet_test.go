@@ -90,7 +90,8 @@ func TestQuietOnlySkipsLinesThePackHasRulesFor(t *testing.T) {
 	mustModifyPack(t, pack, func(es []map[string]any) []map[string]any {
 		for _, e := range es {
 			rule, _ := e["rule"].(map[string]any)
-			if sub, _ := rule["subject"].(map[string]any); sub != nil && sub["to"] == "1.32.0" {
+			id, _ := rule["id"].(string)
+			if sub, _ := rule["subject"].(map[string]any); sub != nil && sub["to"] == "1.32.0" && !strings.HasPrefix(id, "kubernetes.control-plane-no-minor-skip.") {
 				c := map[string]any{}
 				b, _ := json.Marshal(e)
 				_ = json.Unmarshal(b, &c)

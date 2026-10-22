@@ -8097,6 +8097,1798 @@
     },
     {
       "project": "kubernetes",
+      "description": "Kubernetes 1.29 to 1.31 skips minor versions of kube-apiserver, which the upstream version-skew policy does not allow, even in single-instance clusters. This check reads only the declared control plane versions; it does not observe nodes or highly available control planes. BLOCKED means outside the upstream version-skew policy, not a broken cluster.",
+      "requiredFacts": [],
+      "rule": {
+        "id": "kubernetes.control-plane-no-minor-skip.1-29-0-to-1-31-0",
+        "operator": "require_intermediate_version",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.29.0",
+          "to": "1.31.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.29.0",
+            "lt": "1.30.0"
+          },
+          "to": {
+            "gte": "1.31.0",
+            "lt": "1.32.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            }
+          ]
+        },
+        "intermediate": "1.30.0",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T12:00:00Z",
+          "validUntil": "2027-01-20T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-website-version-skew-policy",
+              "url": "https://github.com/kubernetes/website/blob/2f160d9ce5f5808e98eac26a1bc05e4894b0c269/content/en/releases/version-skew-policy.md",
+              "revision": "2f160d9ce5f5808e98eac26a1bc05e4894b0c269",
+              "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Upgrade kube-apiserver one minor version at a time: through 1.30 in order, scanning each hop. BLOCKED means outside the upstream version-skew policy, not a broken cluster."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.29 to 1.32 skips minor versions of kube-apiserver, which the upstream version-skew policy does not allow, even in single-instance clusters. This check reads only the declared control plane versions; it does not observe nodes or highly available control planes. BLOCKED means outside the upstream version-skew policy, not a broken cluster.",
+      "requiredFacts": [],
+      "rule": {
+        "id": "kubernetes.control-plane-no-minor-skip.1-29-0-to-1-32-0",
+        "operator": "require_intermediate_version",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.29.0",
+          "to": "1.32.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.29.0",
+            "lt": "1.30.0"
+          },
+          "to": {
+            "gte": "1.32.0",
+            "lt": "1.33.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            }
+          ]
+        },
+        "intermediate": "1.30.0",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T12:00:00Z",
+          "validUntil": "2027-01-20T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-website-version-skew-policy",
+              "url": "https://github.com/kubernetes/website/blob/2f160d9ce5f5808e98eac26a1bc05e4894b0c269/content/en/releases/version-skew-policy.md",
+              "revision": "2f160d9ce5f5808e98eac26a1bc05e4894b0c269",
+              "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Upgrade kube-apiserver one minor version at a time: through 1.30, 1.31 in order, scanning each hop. BLOCKED means outside the upstream version-skew policy, not a broken cluster."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.29 to 1.33 skips minor versions of kube-apiserver, which the upstream version-skew policy does not allow, even in single-instance clusters. This check reads only the declared control plane versions; it does not observe nodes or highly available control planes. BLOCKED means outside the upstream version-skew policy, not a broken cluster.",
+      "requiredFacts": [],
+      "rule": {
+        "id": "kubernetes.control-plane-no-minor-skip.1-29-0-to-1-33-0",
+        "operator": "require_intermediate_version",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.29.0",
+          "to": "1.33.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.29.0",
+            "lt": "1.30.0"
+          },
+          "to": {
+            "gte": "1.33.0",
+            "lt": "1.34.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            }
+          ]
+        },
+        "intermediate": "1.30.0",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T12:00:00Z",
+          "validUntil": "2027-01-20T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-website-version-skew-policy",
+              "url": "https://github.com/kubernetes/website/blob/2f160d9ce5f5808e98eac26a1bc05e4894b0c269/content/en/releases/version-skew-policy.md",
+              "revision": "2f160d9ce5f5808e98eac26a1bc05e4894b0c269",
+              "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Upgrade kube-apiserver one minor version at a time: through 1.30, 1.31, 1.32 in order, scanning each hop. BLOCKED means outside the upstream version-skew policy, not a broken cluster."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.29 to 1.34 skips minor versions of kube-apiserver, which the upstream version-skew policy does not allow, even in single-instance clusters. This check reads only the declared control plane versions; it does not observe nodes or highly available control planes. BLOCKED means outside the upstream version-skew policy, not a broken cluster.",
+      "requiredFacts": [],
+      "rule": {
+        "id": "kubernetes.control-plane-no-minor-skip.1-29-0-to-1-34-0",
+        "operator": "require_intermediate_version",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.29.0",
+          "to": "1.34.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.29.0",
+            "lt": "1.30.0"
+          },
+          "to": {
+            "gte": "1.34.0",
+            "lt": "1.35.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            }
+          ]
+        },
+        "intermediate": "1.30.0",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T12:00:00Z",
+          "validUntil": "2027-01-20T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-website-version-skew-policy",
+              "url": "https://github.com/kubernetes/website/blob/2f160d9ce5f5808e98eac26a1bc05e4894b0c269/content/en/releases/version-skew-policy.md",
+              "revision": "2f160d9ce5f5808e98eac26a1bc05e4894b0c269",
+              "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Upgrade kube-apiserver one minor version at a time: through 1.30, 1.31, 1.32, 1.33 in order, scanning each hop. BLOCKED means outside the upstream version-skew policy, not a broken cluster."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.29 to 1.35 skips minor versions of kube-apiserver, which the upstream version-skew policy does not allow, even in single-instance clusters. This check reads only the declared control plane versions; it does not observe nodes or highly available control planes. BLOCKED means outside the upstream version-skew policy, not a broken cluster.",
+      "requiredFacts": [],
+      "rule": {
+        "id": "kubernetes.control-plane-no-minor-skip.1-29-0-to-1-35-0",
+        "operator": "require_intermediate_version",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.29.0",
+          "to": "1.35.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.29.0",
+            "lt": "1.30.0"
+          },
+          "to": {
+            "gte": "1.35.0",
+            "lt": "1.36.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            }
+          ]
+        },
+        "intermediate": "1.30.0",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T12:00:00Z",
+          "validUntil": "2027-01-20T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-website-version-skew-policy",
+              "url": "https://github.com/kubernetes/website/blob/2f160d9ce5f5808e98eac26a1bc05e4894b0c269/content/en/releases/version-skew-policy.md",
+              "revision": "2f160d9ce5f5808e98eac26a1bc05e4894b0c269",
+              "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Upgrade kube-apiserver one minor version at a time: through 1.30, 1.31, 1.32, 1.33, 1.34 in order, scanning each hop. BLOCKED means outside the upstream version-skew policy, not a broken cluster."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.29 to 1.36 skips minor versions of kube-apiserver, which the upstream version-skew policy does not allow, even in single-instance clusters. This check reads only the declared control plane versions; it does not observe nodes or highly available control planes. BLOCKED means outside the upstream version-skew policy, not a broken cluster.",
+      "requiredFacts": [],
+      "rule": {
+        "id": "kubernetes.control-plane-no-minor-skip.1-29-0-to-1-36-0",
+        "operator": "require_intermediate_version",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.29.0",
+          "to": "1.36.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.29.0",
+            "lt": "1.30.0"
+          },
+          "to": {
+            "gte": "1.36.0",
+            "lt": "1.37.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            }
+          ]
+        },
+        "intermediate": "1.30.0",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T12:00:00Z",
+          "validUntil": "2027-01-20T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-website-version-skew-policy",
+              "url": "https://github.com/kubernetes/website/blob/2f160d9ce5f5808e98eac26a1bc05e4894b0c269/content/en/releases/version-skew-policy.md",
+              "revision": "2f160d9ce5f5808e98eac26a1bc05e4894b0c269",
+              "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Upgrade kube-apiserver one minor version at a time: through 1.30, 1.31, 1.32, 1.33, 1.34, 1.35 in order, scanning each hop. BLOCKED means outside the upstream version-skew policy, not a broken cluster."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.29 to 1.37 skips minor versions of kube-apiserver, which the upstream version-skew policy does not allow, even in single-instance clusters. This check reads only the declared control plane versions; it does not observe nodes or highly available control planes. BLOCKED means outside the upstream version-skew policy, not a broken cluster.",
+      "requiredFacts": [],
+      "rule": {
+        "id": "kubernetes.control-plane-no-minor-skip.1-29-0-to-1-37-0",
+        "operator": "require_intermediate_version",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.29.0",
+          "to": "1.37.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.29.0",
+            "lt": "1.30.0"
+          },
+          "to": {
+            "gte": "1.37.0",
+            "lt": "1.38.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            }
+          ]
+        },
+        "intermediate": "1.30.0",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T12:00:00Z",
+          "validUntil": "2027-01-20T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-website-version-skew-policy",
+              "url": "https://github.com/kubernetes/website/blob/2f160d9ce5f5808e98eac26a1bc05e4894b0c269/content/en/releases/version-skew-policy.md",
+              "revision": "2f160d9ce5f5808e98eac26a1bc05e4894b0c269",
+              "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Upgrade kube-apiserver one minor version at a time: through 1.30, 1.31, 1.32, 1.33, 1.34, 1.35, 1.36 in order, scanning each hop. BLOCKED means outside the upstream version-skew policy, not a broken cluster."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.30 to 1.32 skips minor versions of kube-apiserver, which the upstream version-skew policy does not allow, even in single-instance clusters. This check reads only the declared control plane versions; it does not observe nodes or highly available control planes. BLOCKED means outside the upstream version-skew policy, not a broken cluster.",
+      "requiredFacts": [],
+      "rule": {
+        "id": "kubernetes.control-plane-no-minor-skip.1-30-0-to-1-32-0",
+        "operator": "require_intermediate_version",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.30.0",
+          "to": "1.32.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.30.0",
+            "lt": "1.31.0"
+          },
+          "to": {
+            "gte": "1.32.0",
+            "lt": "1.33.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            }
+          ]
+        },
+        "intermediate": "1.31.0",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T12:00:00Z",
+          "validUntil": "2027-01-20T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-website-version-skew-policy",
+              "url": "https://github.com/kubernetes/website/blob/2f160d9ce5f5808e98eac26a1bc05e4894b0c269/content/en/releases/version-skew-policy.md",
+              "revision": "2f160d9ce5f5808e98eac26a1bc05e4894b0c269",
+              "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Upgrade kube-apiserver one minor version at a time: through 1.31 in order, scanning each hop. BLOCKED means outside the upstream version-skew policy, not a broken cluster."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.30 to 1.33 skips minor versions of kube-apiserver, which the upstream version-skew policy does not allow, even in single-instance clusters. This check reads only the declared control plane versions; it does not observe nodes or highly available control planes. BLOCKED means outside the upstream version-skew policy, not a broken cluster.",
+      "requiredFacts": [],
+      "rule": {
+        "id": "kubernetes.control-plane-no-minor-skip.1-30-0-to-1-33-0",
+        "operator": "require_intermediate_version",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.30.0",
+          "to": "1.33.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.30.0",
+            "lt": "1.31.0"
+          },
+          "to": {
+            "gte": "1.33.0",
+            "lt": "1.34.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            }
+          ]
+        },
+        "intermediate": "1.31.0",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T12:00:00Z",
+          "validUntil": "2027-01-20T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-website-version-skew-policy",
+              "url": "https://github.com/kubernetes/website/blob/2f160d9ce5f5808e98eac26a1bc05e4894b0c269/content/en/releases/version-skew-policy.md",
+              "revision": "2f160d9ce5f5808e98eac26a1bc05e4894b0c269",
+              "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Upgrade kube-apiserver one minor version at a time: through 1.31, 1.32 in order, scanning each hop. BLOCKED means outside the upstream version-skew policy, not a broken cluster."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.30 to 1.34 skips minor versions of kube-apiserver, which the upstream version-skew policy does not allow, even in single-instance clusters. This check reads only the declared control plane versions; it does not observe nodes or highly available control planes. BLOCKED means outside the upstream version-skew policy, not a broken cluster.",
+      "requiredFacts": [],
+      "rule": {
+        "id": "kubernetes.control-plane-no-minor-skip.1-30-0-to-1-34-0",
+        "operator": "require_intermediate_version",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.30.0",
+          "to": "1.34.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.30.0",
+            "lt": "1.31.0"
+          },
+          "to": {
+            "gte": "1.34.0",
+            "lt": "1.35.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            }
+          ]
+        },
+        "intermediate": "1.31.0",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T12:00:00Z",
+          "validUntil": "2027-01-20T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-website-version-skew-policy",
+              "url": "https://github.com/kubernetes/website/blob/2f160d9ce5f5808e98eac26a1bc05e4894b0c269/content/en/releases/version-skew-policy.md",
+              "revision": "2f160d9ce5f5808e98eac26a1bc05e4894b0c269",
+              "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Upgrade kube-apiserver one minor version at a time: through 1.31, 1.32, 1.33 in order, scanning each hop. BLOCKED means outside the upstream version-skew policy, not a broken cluster."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.30 to 1.35 skips minor versions of kube-apiserver, which the upstream version-skew policy does not allow, even in single-instance clusters. This check reads only the declared control plane versions; it does not observe nodes or highly available control planes. BLOCKED means outside the upstream version-skew policy, not a broken cluster.",
+      "requiredFacts": [],
+      "rule": {
+        "id": "kubernetes.control-plane-no-minor-skip.1-30-0-to-1-35-0",
+        "operator": "require_intermediate_version",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.30.0",
+          "to": "1.35.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.30.0",
+            "lt": "1.31.0"
+          },
+          "to": {
+            "gte": "1.35.0",
+            "lt": "1.36.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            }
+          ]
+        },
+        "intermediate": "1.31.0",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T12:00:00Z",
+          "validUntil": "2027-01-20T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-website-version-skew-policy",
+              "url": "https://github.com/kubernetes/website/blob/2f160d9ce5f5808e98eac26a1bc05e4894b0c269/content/en/releases/version-skew-policy.md",
+              "revision": "2f160d9ce5f5808e98eac26a1bc05e4894b0c269",
+              "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Upgrade kube-apiserver one minor version at a time: through 1.31, 1.32, 1.33, 1.34 in order, scanning each hop. BLOCKED means outside the upstream version-skew policy, not a broken cluster."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.30 to 1.36 skips minor versions of kube-apiserver, which the upstream version-skew policy does not allow, even in single-instance clusters. This check reads only the declared control plane versions; it does not observe nodes or highly available control planes. BLOCKED means outside the upstream version-skew policy, not a broken cluster.",
+      "requiredFacts": [],
+      "rule": {
+        "id": "kubernetes.control-plane-no-minor-skip.1-30-0-to-1-36-0",
+        "operator": "require_intermediate_version",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.30.0",
+          "to": "1.36.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.30.0",
+            "lt": "1.31.0"
+          },
+          "to": {
+            "gte": "1.36.0",
+            "lt": "1.37.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            }
+          ]
+        },
+        "intermediate": "1.31.0",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T12:00:00Z",
+          "validUntil": "2027-01-20T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-website-version-skew-policy",
+              "url": "https://github.com/kubernetes/website/blob/2f160d9ce5f5808e98eac26a1bc05e4894b0c269/content/en/releases/version-skew-policy.md",
+              "revision": "2f160d9ce5f5808e98eac26a1bc05e4894b0c269",
+              "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Upgrade kube-apiserver one minor version at a time: through 1.31, 1.32, 1.33, 1.34, 1.35 in order, scanning each hop. BLOCKED means outside the upstream version-skew policy, not a broken cluster."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.30 to 1.37 skips minor versions of kube-apiserver, which the upstream version-skew policy does not allow, even in single-instance clusters. This check reads only the declared control plane versions; it does not observe nodes or highly available control planes. BLOCKED means outside the upstream version-skew policy, not a broken cluster.",
+      "requiredFacts": [],
+      "rule": {
+        "id": "kubernetes.control-plane-no-minor-skip.1-30-0-to-1-37-0",
+        "operator": "require_intermediate_version",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.30.0",
+          "to": "1.37.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.30.0",
+            "lt": "1.31.0"
+          },
+          "to": {
+            "gte": "1.37.0",
+            "lt": "1.38.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            }
+          ]
+        },
+        "intermediate": "1.31.0",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T12:00:00Z",
+          "validUntil": "2027-01-20T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-website-version-skew-policy",
+              "url": "https://github.com/kubernetes/website/blob/2f160d9ce5f5808e98eac26a1bc05e4894b0c269/content/en/releases/version-skew-policy.md",
+              "revision": "2f160d9ce5f5808e98eac26a1bc05e4894b0c269",
+              "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Upgrade kube-apiserver one minor version at a time: through 1.31, 1.32, 1.33, 1.34, 1.35, 1.36 in order, scanning each hop. BLOCKED means outside the upstream version-skew policy, not a broken cluster."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.31 to 1.33 skips minor versions of kube-apiserver, which the upstream version-skew policy does not allow, even in single-instance clusters. This check reads only the declared control plane versions; it does not observe nodes or highly available control planes. BLOCKED means outside the upstream version-skew policy, not a broken cluster.",
+      "requiredFacts": [],
+      "rule": {
+        "id": "kubernetes.control-plane-no-minor-skip.1-31-0-to-1-33-0",
+        "operator": "require_intermediate_version",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.31.0",
+          "to": "1.33.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.31.0",
+            "lt": "1.32.0"
+          },
+          "to": {
+            "gte": "1.33.0",
+            "lt": "1.34.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            }
+          ]
+        },
+        "intermediate": "1.32.0",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T12:00:00Z",
+          "validUntil": "2027-01-20T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-website-version-skew-policy",
+              "url": "https://github.com/kubernetes/website/blob/2f160d9ce5f5808e98eac26a1bc05e4894b0c269/content/en/releases/version-skew-policy.md",
+              "revision": "2f160d9ce5f5808e98eac26a1bc05e4894b0c269",
+              "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Upgrade kube-apiserver one minor version at a time: through 1.32 in order, scanning each hop. BLOCKED means outside the upstream version-skew policy, not a broken cluster."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.31 to 1.34 skips minor versions of kube-apiserver, which the upstream version-skew policy does not allow, even in single-instance clusters. This check reads only the declared control plane versions; it does not observe nodes or highly available control planes. BLOCKED means outside the upstream version-skew policy, not a broken cluster.",
+      "requiredFacts": [],
+      "rule": {
+        "id": "kubernetes.control-plane-no-minor-skip.1-31-0-to-1-34-0",
+        "operator": "require_intermediate_version",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.31.0",
+          "to": "1.34.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.31.0",
+            "lt": "1.32.0"
+          },
+          "to": {
+            "gte": "1.34.0",
+            "lt": "1.35.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            }
+          ]
+        },
+        "intermediate": "1.32.0",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T12:00:00Z",
+          "validUntil": "2027-01-20T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-website-version-skew-policy",
+              "url": "https://github.com/kubernetes/website/blob/2f160d9ce5f5808e98eac26a1bc05e4894b0c269/content/en/releases/version-skew-policy.md",
+              "revision": "2f160d9ce5f5808e98eac26a1bc05e4894b0c269",
+              "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Upgrade kube-apiserver one minor version at a time: through 1.32, 1.33 in order, scanning each hop. BLOCKED means outside the upstream version-skew policy, not a broken cluster."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.31 to 1.35 skips minor versions of kube-apiserver, which the upstream version-skew policy does not allow, even in single-instance clusters. This check reads only the declared control plane versions; it does not observe nodes or highly available control planes. BLOCKED means outside the upstream version-skew policy, not a broken cluster.",
+      "requiredFacts": [],
+      "rule": {
+        "id": "kubernetes.control-plane-no-minor-skip.1-31-0-to-1-35-0",
+        "operator": "require_intermediate_version",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.31.0",
+          "to": "1.35.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.31.0",
+            "lt": "1.32.0"
+          },
+          "to": {
+            "gte": "1.35.0",
+            "lt": "1.36.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            }
+          ]
+        },
+        "intermediate": "1.32.0",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T12:00:00Z",
+          "validUntil": "2027-01-20T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-website-version-skew-policy",
+              "url": "https://github.com/kubernetes/website/blob/2f160d9ce5f5808e98eac26a1bc05e4894b0c269/content/en/releases/version-skew-policy.md",
+              "revision": "2f160d9ce5f5808e98eac26a1bc05e4894b0c269",
+              "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Upgrade kube-apiserver one minor version at a time: through 1.32, 1.33, 1.34 in order, scanning each hop. BLOCKED means outside the upstream version-skew policy, not a broken cluster."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.31 to 1.36 skips minor versions of kube-apiserver, which the upstream version-skew policy does not allow, even in single-instance clusters. This check reads only the declared control plane versions; it does not observe nodes or highly available control planes. BLOCKED means outside the upstream version-skew policy, not a broken cluster.",
+      "requiredFacts": [],
+      "rule": {
+        "id": "kubernetes.control-plane-no-minor-skip.1-31-0-to-1-36-0",
+        "operator": "require_intermediate_version",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.31.0",
+          "to": "1.36.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.31.0",
+            "lt": "1.32.0"
+          },
+          "to": {
+            "gte": "1.36.0",
+            "lt": "1.37.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            }
+          ]
+        },
+        "intermediate": "1.32.0",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T12:00:00Z",
+          "validUntil": "2027-01-20T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-website-version-skew-policy",
+              "url": "https://github.com/kubernetes/website/blob/2f160d9ce5f5808e98eac26a1bc05e4894b0c269/content/en/releases/version-skew-policy.md",
+              "revision": "2f160d9ce5f5808e98eac26a1bc05e4894b0c269",
+              "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Upgrade kube-apiserver one minor version at a time: through 1.32, 1.33, 1.34, 1.35 in order, scanning each hop. BLOCKED means outside the upstream version-skew policy, not a broken cluster."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.31 to 1.37 skips minor versions of kube-apiserver, which the upstream version-skew policy does not allow, even in single-instance clusters. This check reads only the declared control plane versions; it does not observe nodes or highly available control planes. BLOCKED means outside the upstream version-skew policy, not a broken cluster.",
+      "requiredFacts": [],
+      "rule": {
+        "id": "kubernetes.control-plane-no-minor-skip.1-31-0-to-1-37-0",
+        "operator": "require_intermediate_version",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.31.0",
+          "to": "1.37.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.31.0",
+            "lt": "1.32.0"
+          },
+          "to": {
+            "gte": "1.37.0",
+            "lt": "1.38.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            }
+          ]
+        },
+        "intermediate": "1.32.0",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T12:00:00Z",
+          "validUntil": "2027-01-20T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-website-version-skew-policy",
+              "url": "https://github.com/kubernetes/website/blob/2f160d9ce5f5808e98eac26a1bc05e4894b0c269/content/en/releases/version-skew-policy.md",
+              "revision": "2f160d9ce5f5808e98eac26a1bc05e4894b0c269",
+              "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Upgrade kube-apiserver one minor version at a time: through 1.32, 1.33, 1.34, 1.35, 1.36 in order, scanning each hop. BLOCKED means outside the upstream version-skew policy, not a broken cluster."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.32 to 1.34 skips minor versions of kube-apiserver, which the upstream version-skew policy does not allow, even in single-instance clusters. This check reads only the declared control plane versions; it does not observe nodes or highly available control planes. BLOCKED means outside the upstream version-skew policy, not a broken cluster.",
+      "requiredFacts": [],
+      "rule": {
+        "id": "kubernetes.control-plane-no-minor-skip.1-32-0-to-1-34-0",
+        "operator": "require_intermediate_version",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.32.0",
+          "to": "1.34.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.32.0",
+            "lt": "1.33.0"
+          },
+          "to": {
+            "gte": "1.34.0",
+            "lt": "1.35.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            }
+          ]
+        },
+        "intermediate": "1.33.0",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T12:00:00Z",
+          "validUntil": "2027-01-20T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-website-version-skew-policy",
+              "url": "https://github.com/kubernetes/website/blob/2f160d9ce5f5808e98eac26a1bc05e4894b0c269/content/en/releases/version-skew-policy.md",
+              "revision": "2f160d9ce5f5808e98eac26a1bc05e4894b0c269",
+              "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Upgrade kube-apiserver one minor version at a time: through 1.33 in order, scanning each hop. BLOCKED means outside the upstream version-skew policy, not a broken cluster."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.32 to 1.35 skips minor versions of kube-apiserver, which the upstream version-skew policy does not allow, even in single-instance clusters. This check reads only the declared control plane versions; it does not observe nodes or highly available control planes. BLOCKED means outside the upstream version-skew policy, not a broken cluster.",
+      "requiredFacts": [],
+      "rule": {
+        "id": "kubernetes.control-plane-no-minor-skip.1-32-0-to-1-35-0",
+        "operator": "require_intermediate_version",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.32.0",
+          "to": "1.35.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.32.0",
+            "lt": "1.33.0"
+          },
+          "to": {
+            "gte": "1.35.0",
+            "lt": "1.36.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            }
+          ]
+        },
+        "intermediate": "1.33.0",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T12:00:00Z",
+          "validUntil": "2027-01-20T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-website-version-skew-policy",
+              "url": "https://github.com/kubernetes/website/blob/2f160d9ce5f5808e98eac26a1bc05e4894b0c269/content/en/releases/version-skew-policy.md",
+              "revision": "2f160d9ce5f5808e98eac26a1bc05e4894b0c269",
+              "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Upgrade kube-apiserver one minor version at a time: through 1.33, 1.34 in order, scanning each hop. BLOCKED means outside the upstream version-skew policy, not a broken cluster."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.32 to 1.36 skips minor versions of kube-apiserver, which the upstream version-skew policy does not allow, even in single-instance clusters. This check reads only the declared control plane versions; it does not observe nodes or highly available control planes. BLOCKED means outside the upstream version-skew policy, not a broken cluster.",
+      "requiredFacts": [],
+      "rule": {
+        "id": "kubernetes.control-plane-no-minor-skip.1-32-0-to-1-36-0",
+        "operator": "require_intermediate_version",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.32.0",
+          "to": "1.36.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.32.0",
+            "lt": "1.33.0"
+          },
+          "to": {
+            "gte": "1.36.0",
+            "lt": "1.37.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            }
+          ]
+        },
+        "intermediate": "1.33.0",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T12:00:00Z",
+          "validUntil": "2027-01-20T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-website-version-skew-policy",
+              "url": "https://github.com/kubernetes/website/blob/2f160d9ce5f5808e98eac26a1bc05e4894b0c269/content/en/releases/version-skew-policy.md",
+              "revision": "2f160d9ce5f5808e98eac26a1bc05e4894b0c269",
+              "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Upgrade kube-apiserver one minor version at a time: through 1.33, 1.34, 1.35 in order, scanning each hop. BLOCKED means outside the upstream version-skew policy, not a broken cluster."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.32 to 1.37 skips minor versions of kube-apiserver, which the upstream version-skew policy does not allow, even in single-instance clusters. This check reads only the declared control plane versions; it does not observe nodes or highly available control planes. BLOCKED means outside the upstream version-skew policy, not a broken cluster.",
+      "requiredFacts": [],
+      "rule": {
+        "id": "kubernetes.control-plane-no-minor-skip.1-32-0-to-1-37-0",
+        "operator": "require_intermediate_version",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.32.0",
+          "to": "1.37.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.32.0",
+            "lt": "1.33.0"
+          },
+          "to": {
+            "gte": "1.37.0",
+            "lt": "1.38.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            }
+          ]
+        },
+        "intermediate": "1.33.0",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T12:00:00Z",
+          "validUntil": "2027-01-20T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-website-version-skew-policy",
+              "url": "https://github.com/kubernetes/website/blob/2f160d9ce5f5808e98eac26a1bc05e4894b0c269/content/en/releases/version-skew-policy.md",
+              "revision": "2f160d9ce5f5808e98eac26a1bc05e4894b0c269",
+              "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Upgrade kube-apiserver one minor version at a time: through 1.33, 1.34, 1.35, 1.36 in order, scanning each hop. BLOCKED means outside the upstream version-skew policy, not a broken cluster."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.33 to 1.35 skips minor versions of kube-apiserver, which the upstream version-skew policy does not allow, even in single-instance clusters. This check reads only the declared control plane versions; it does not observe nodes or highly available control planes. BLOCKED means outside the upstream version-skew policy, not a broken cluster.",
+      "requiredFacts": [],
+      "rule": {
+        "id": "kubernetes.control-plane-no-minor-skip.1-33-0-to-1-35-0",
+        "operator": "require_intermediate_version",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.33.0",
+          "to": "1.35.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.33.0",
+            "lt": "1.34.0"
+          },
+          "to": {
+            "gte": "1.35.0",
+            "lt": "1.36.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            }
+          ]
+        },
+        "intermediate": "1.34.0",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T12:00:00Z",
+          "validUntil": "2027-01-20T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-website-version-skew-policy",
+              "url": "https://github.com/kubernetes/website/blob/2f160d9ce5f5808e98eac26a1bc05e4894b0c269/content/en/releases/version-skew-policy.md",
+              "revision": "2f160d9ce5f5808e98eac26a1bc05e4894b0c269",
+              "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Upgrade kube-apiserver one minor version at a time: through 1.34 in order, scanning each hop. BLOCKED means outside the upstream version-skew policy, not a broken cluster."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.33 to 1.36 skips minor versions of kube-apiserver, which the upstream version-skew policy does not allow, even in single-instance clusters. This check reads only the declared control plane versions; it does not observe nodes or highly available control planes. BLOCKED means outside the upstream version-skew policy, not a broken cluster.",
+      "requiredFacts": [],
+      "rule": {
+        "id": "kubernetes.control-plane-no-minor-skip.1-33-0-to-1-36-0",
+        "operator": "require_intermediate_version",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.33.0",
+          "to": "1.36.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.33.0",
+            "lt": "1.34.0"
+          },
+          "to": {
+            "gte": "1.36.0",
+            "lt": "1.37.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            }
+          ]
+        },
+        "intermediate": "1.34.0",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T12:00:00Z",
+          "validUntil": "2027-01-20T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-website-version-skew-policy",
+              "url": "https://github.com/kubernetes/website/blob/2f160d9ce5f5808e98eac26a1bc05e4894b0c269/content/en/releases/version-skew-policy.md",
+              "revision": "2f160d9ce5f5808e98eac26a1bc05e4894b0c269",
+              "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Upgrade kube-apiserver one minor version at a time: through 1.34, 1.35 in order, scanning each hop. BLOCKED means outside the upstream version-skew policy, not a broken cluster."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.33 to 1.37 skips minor versions of kube-apiserver, which the upstream version-skew policy does not allow, even in single-instance clusters. This check reads only the declared control plane versions; it does not observe nodes or highly available control planes. BLOCKED means outside the upstream version-skew policy, not a broken cluster.",
+      "requiredFacts": [],
+      "rule": {
+        "id": "kubernetes.control-plane-no-minor-skip.1-33-0-to-1-37-0",
+        "operator": "require_intermediate_version",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.33.0",
+          "to": "1.37.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.33.0",
+            "lt": "1.34.0"
+          },
+          "to": {
+            "gte": "1.37.0",
+            "lt": "1.38.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            }
+          ]
+        },
+        "intermediate": "1.34.0",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T12:00:00Z",
+          "validUntil": "2027-01-20T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-website-version-skew-policy",
+              "url": "https://github.com/kubernetes/website/blob/2f160d9ce5f5808e98eac26a1bc05e4894b0c269/content/en/releases/version-skew-policy.md",
+              "revision": "2f160d9ce5f5808e98eac26a1bc05e4894b0c269",
+              "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Upgrade kube-apiserver one minor version at a time: through 1.34, 1.35, 1.36 in order, scanning each hop. BLOCKED means outside the upstream version-skew policy, not a broken cluster."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.34 to 1.36 skips minor versions of kube-apiserver, which the upstream version-skew policy does not allow, even in single-instance clusters. This check reads only the declared control plane versions; it does not observe nodes or highly available control planes. BLOCKED means outside the upstream version-skew policy, not a broken cluster.",
+      "requiredFacts": [],
+      "rule": {
+        "id": "kubernetes.control-plane-no-minor-skip.1-34-0-to-1-36-0",
+        "operator": "require_intermediate_version",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.34.0",
+          "to": "1.36.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.34.0",
+            "lt": "1.35.0"
+          },
+          "to": {
+            "gte": "1.36.0",
+            "lt": "1.37.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            }
+          ]
+        },
+        "intermediate": "1.35.0",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T12:00:00Z",
+          "validUntil": "2027-01-20T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-website-version-skew-policy",
+              "url": "https://github.com/kubernetes/website/blob/2f160d9ce5f5808e98eac26a1bc05e4894b0c269/content/en/releases/version-skew-policy.md",
+              "revision": "2f160d9ce5f5808e98eac26a1bc05e4894b0c269",
+              "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Upgrade kube-apiserver one minor version at a time: through 1.35 in order, scanning each hop. BLOCKED means outside the upstream version-skew policy, not a broken cluster."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.34 to 1.37 skips minor versions of kube-apiserver, which the upstream version-skew policy does not allow, even in single-instance clusters. This check reads only the declared control plane versions; it does not observe nodes or highly available control planes. BLOCKED means outside the upstream version-skew policy, not a broken cluster.",
+      "requiredFacts": [],
+      "rule": {
+        "id": "kubernetes.control-plane-no-minor-skip.1-34-0-to-1-37-0",
+        "operator": "require_intermediate_version",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.34.0",
+          "to": "1.37.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.34.0",
+            "lt": "1.35.0"
+          },
+          "to": {
+            "gte": "1.37.0",
+            "lt": "1.38.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            }
+          ]
+        },
+        "intermediate": "1.35.0",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T12:00:00Z",
+          "validUntil": "2027-01-20T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-website-version-skew-policy",
+              "url": "https://github.com/kubernetes/website/blob/2f160d9ce5f5808e98eac26a1bc05e4894b0c269/content/en/releases/version-skew-policy.md",
+              "revision": "2f160d9ce5f5808e98eac26a1bc05e4894b0c269",
+              "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Upgrade kube-apiserver one minor version at a time: through 1.35, 1.36 in order, scanning each hop. BLOCKED means outside the upstream version-skew policy, not a broken cluster."
+      }
+    },
+    {
+      "project": "kubernetes",
+      "description": "Kubernetes 1.35 to 1.37 skips minor versions of kube-apiserver, which the upstream version-skew policy does not allow, even in single-instance clusters. This check reads only the declared control plane versions; it does not observe nodes or highly available control planes. BLOCKED means outside the upstream version-skew policy, not a broken cluster.",
+      "requiredFacts": [],
+      "rule": {
+        "id": "kubernetes.control-plane-no-minor-skip.1-35-0-to-1-37-0",
+        "operator": "require_intermediate_version",
+        "subject": {
+          "component": "pkg:github/kubernetes/kubernetes",
+          "from": "1.35.0",
+          "to": "1.37.0"
+        },
+        "range": {
+          "from": {
+            "gte": "1.35.0",
+            "lt": "1.36.0"
+          },
+          "to": {
+            "gte": "1.37.0",
+            "lt": "1.38.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "kubernetes-website-version-skew-policy"
+            }
+          ]
+        },
+        "intermediate": "1.36.0",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T12:00:00Z",
+          "validUntil": "2027-01-20T12:00:00Z",
+          "sources": [
+            {
+              "id": "kubernetes-website-version-skew-policy",
+              "url": "https://github.com/kubernetes/website/blob/2f160d9ce5f5808e98eac26a1bc05e4894b0c269/content/en/releases/version-skew-policy.md",
+              "revision": "2f160d9ce5f5808e98eac26a1bc05e4894b0c269",
+              "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
+              "startLine": 189,
+              "endLine": 193
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Upgrade kube-apiserver one minor version at a time: through 1.36 in order, scanning each hop. BLOCKED means outside the upstream version-skew policy, not a broken cluster."
+      }
+    },
+    {
+      "project": "kubernetes",
       "description": "Kubernetes in-tree dockershim removal only; CRI endpoint health and runtime compatibility are unverified.",
       "requiredFacts": [
         {

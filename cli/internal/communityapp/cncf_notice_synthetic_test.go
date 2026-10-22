@@ -46,7 +46,7 @@ func TestSyntheticNoticeThroughTheCommandRoute(t *testing.T) {
 	}{
 		// No verdict rule reviews 1.38.0 -> 1.39.0: every Kubernetes rule is
 		// still reported as not reviewed, exactly as without the notice.
-		{"a notice for an unreviewed pair keeps the unreviewed answer", []cncfcheck.Entry{notice}, ExitUnknown, true, 27 + kubernetesRuleExtra() + kubeletSkewRules},
+		{"a notice for an unreviewed pair keeps the unreviewed answer", []cncfcheck.Entry{notice}, ExitUnknown, true, 27 + kubernetesRuleExtra() + kubeletSkewRules + controlPlaneSkipRules},
 		{"a notice beside a pass keeps the pass", []cncfcheck.Entry{notice, pass}, 0, false, 2},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

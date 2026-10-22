@@ -187,6 +187,22 @@ A missing source is never read as absence. In particular:
   Source: the upstream version-skew policy
   (`content/en/releases/version-skew-policy.md` in kubernetes/website at the
   pinned commit 2f160d9ce5f5808e98eac26a1bc05e4894b0c269, lines 53-56).
+- Control-plane minor skips: 28 reviewed rules, one per pair of a start line
+  1.29 to 1.35 and a target line two or more lines above it up to 1.37, say
+  that `kube-apiserver` must not skip minor versions when upgrading (even in
+  single-instance clusters). A direct jump such as `--from 1.33.2 --to 1.37.1`
+  is BLOCKED, and the next action names the order to follow (1.34, 1.35, 1.36),
+  one hop at a time. The rules read the declared control plane versions only:
+  no fact, no node and no highly available control plane is observed, and
+  BLOCKED means outside the upstream version-skew policy, not a broken
+  cluster. A patch jump inside a line and a one-minor hop are not theirs;
+  pairs outside the table (a start below 1.29, a target above 1.37) stay
+  UNKNOWN. They read no fact, so the generic `check cncf --project kubernetes
+  --from --to` decides them; the native-input family selection does not run
+  them. Source: the same upstream page, lines 189-193. The same page says in
+  its upgrade-order section (lines 178-179) that kubelets are "within 2 minor
+  versions" of the new API server, while lines 53-56 allow three; the kubelet
+  rules above cite lines 53-56.
 - `--distribution` other than `official_upstream` keeps every fact unknown:
   vendor builds may keep removed settings.
 
