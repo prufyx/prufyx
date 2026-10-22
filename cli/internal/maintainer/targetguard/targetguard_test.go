@@ -731,3 +731,57 @@ func TestDefinesNoneIsNarrowing(t *testing.T) {
 		t.Fatalf("changed %d exclusions, Diff lists %d", n, got)
 	}
 }
+
+// Listing a dev-only Makefile target loosens the install-surface guard: a
+// new (makefile, target) pair is listed as narrowing and needs a reviewed
+// removals entry. Dropping the entry, or rewording its reason or evidence,
+// lists nothing.
+func TestDevOnlyMakeIsLoosening(t *testing.T) {
+	entry := func(makefile, target, text string) crdversions.DevOnlyMake {
+		return crdversions.DevOnlyMake{Makefile: makefile, Target: target, Reason: "starts a local lab " + text, Evidence: "the target only applies the lab kustomization to a local cluster " + text}
+	}
+	with := func(entries ...crdversions.DevOnlyMake) Inputs {
+		in := mustLoad(t, realTree(t), false)
+		in.Targets[0].DevOnlyMake = entries
+		return in
+	}
+	project := mustLoad(t, realTree(t), false).Targets[0].Project
+	listed := func(base, head Inputs) []string {
+		var out []string
+		for _, r := range Diff(base, head) {
+			if r.Kind == KindNarrowed && strings.HasPrefix(r.Detail, "devOnlyMake:") {
+				if r.Project != project {
+					t.Fatalf("removal for %s, want %s", r.Project, project)
+				}
+				out = append(out, r.Detail)
+			}
+		}
+		return out
+	}
+	cases := []struct {
+		name       string
+		base, head Inputs
+		want       []string
+	}{
+		{"an entry is added", with(), with(entry("Makefile", "dev-lab", "")), []string{"devOnlyMake:Makefile:dev-lab"}},
+		{"a second entry is added", with(entry("Makefile", "dev-lab", "")), with(entry("Makefile", "dev-lab", ""), entry("hack/dev.mk", "dev-lab", "")), []string{"devOnlyMake:hack/dev.mk:dev-lab"}},
+		{"the same name in another Makefile", with(entry("Makefile", "dev-lab", "")), with(entry("hack/Makefile", "dev-lab", "")), []string{"devOnlyMake:hack/Makefile:dev-lab"}},
+		{"a target is renamed", with(entry("Makefile", "dev-lab", "")), with(entry("Makefile", "dev-lab2", "")), []string{"devOnlyMake:Makefile:dev-lab2"}},
+		{"an entry is removed", with(entry("Makefile", "dev-lab", "")), with(), nil},
+		{"the text changes", with(entry("Makefile", "dev-lab", "")), with(entry("Makefile", "dev-lab", "again")), nil},
+		{"nothing changes", with(entry("Makefile", "dev-lab", "")), with(entry("Makefile", "dev-lab", "")), nil},
+		{"none on either side", with(), with(), nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := listed(tc.base, tc.head); strings.Join(got, "\n") != strings.Join(tc.want, "\n") {
+				t.Fatalf("listed %q, want %q", got, tc.want)
+			}
+			// The guard refuses the added entry until the removals list names it.
+			found := CheckRemovals(tc.base, tc.head)
+			if (len(tc.want) > 0) != strings.Contains(checks(found), CheckRemovalUnlisted) {
+				t.Fatalf("findings %s for %q", checks(found), tc.want)
+			}
+		})
+	}
+}
