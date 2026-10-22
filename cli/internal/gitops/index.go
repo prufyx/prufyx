@@ -522,7 +522,7 @@ func isEncrypted(v map[string]any) bool {
 }
 
 func hasCiphertext(v any, depth int) bool {
-	if depth > intake.MaxDepth+2 {
+	if depth > intake.MaxManifestDepth+2 {
 		return false
 	}
 	switch t := v.(type) {

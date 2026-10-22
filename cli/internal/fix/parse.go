@@ -196,7 +196,7 @@ var errStrict = errors.New("outside the strict YAML subset")
 // only, unique also when compared without case; untagged timestamps read as
 // text; numbers kept as their written text.
 func strictValue(node *yaml.Node, depth int) (any, error) {
-	if depth > intake.MaxDepth || node == nil || node.Anchor != "" || node.Alias != nil || node.Kind == yaml.AliasNode {
+	if depth > intake.MaxManifestDepth || node == nil || node.Anchor != "" || node.Alias != nil || node.Kind == yaml.AliasNode {
 		return nil, errStrict
 	}
 	switch node.Kind {

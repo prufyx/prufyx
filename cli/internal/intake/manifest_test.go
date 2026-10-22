@@ -148,7 +148,7 @@ func TestDecodeTemplating(t *testing.T) {
 
 func TestDecodeBounds(t *testing.T) {
 	var deep strings.Builder
-	for i := 0; i < MaxDepth+2; i++ {
+	for i := 0; i < MaxManifestDepth+2; i++ {
 		deep.WriteString(strings.Repeat(" ", i) + "a:\n")
 	}
 	docs := strings.Repeat("apiVersion: v1\nkind: Pod\n---\n", MaxDocuments+1)
@@ -165,5 +165,44 @@ func TestDecodeDeterministic(t *testing.T) {
 	b, _ := Decode("x", in)
 	if !reflect.DeepEqual(a, b) {
 		t.Fatal("not deterministic")
+	}
+}
+
+// A published CustomResourceDefinition nests its schema deeper than the
+// component-configuration depth: cert-manager's Challenge CRD is 38 levels
+// deep and must be read, while the manifest bound still refuses more.
+func TestDecodeAcceptsDeepCRDSchema(t *testing.T) {
+	crd := func(levels int) string {
+		var b strings.Builder
+		b.WriteString("apiVersion: apiextensions.k8s.io/v1\nkind: CustomResourceDefinition\nmetadata:\n  name: widgets.example.test\nspec:\n  versions:\n  - name: v1\n    schema:\n      openAPIV3Schema:\n")
+		indent := 8
+		for i := 0; i < levels; i++ {
+			b.WriteString(strings.Repeat(" ", indent) + "properties:\n")
+			b.WriteString(strings.Repeat(" ", indent+2) + "x:\n")
+			indent += 4
+		}
+		b.WriteString(strings.Repeat(" ", indent) + "type: string\n")
+		return b.String()
+	}
+	if _, err := Decode("deep-crd.yaml", []byte(crd(17))); err != nil {
+		t.Fatalf("a CRD schema 38 levels deep was refused: %v", err)
+	}
+	if _, err := Decode("too-deep-crd.yaml", []byte(crd(MaxManifestDepth))); err == nil {
+		t.Fatal("a schema deeper than MaxManifestDepth was accepted")
+	}
+}
+
+func TestDecodeAcceptsExactlyMaxManifestDepth(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("apiVersion: v1\nkind: Pod\nmetadata:\n  name: p\n")
+	// metadata is level 2; fill with nested maps until the document is
+	// exactly MaxManifestDepth levels deep.
+	b.WriteString("spec:\n")
+	for i := 0; i < MaxManifestDepth-2; i++ {
+		b.WriteString(strings.Repeat(" ", (i+1)*2) + "a:\n")
+	}
+	b.WriteString(strings.Repeat(" ", (MaxManifestDepth-1)*2) + "z: 1\n")
+	if _, err := Decode("max-depth.yaml", []byte(b.String())); err != nil {
+		t.Fatalf("a manifest exactly MaxManifestDepth deep was refused: %v", err)
 	}
 }

@@ -162,7 +162,7 @@ func TestOpenLimits(t *testing.T) {
 	}
 	// Depth keeps its bound and is a decode error, not a limit.
 	deep := filepath.Join(t.TempDir(), "deep.yaml")
-	write(t, deep, nested(MaxDepth+2), 0o600)
+	write(t, deep, nested(MaxManifestDepth+2), 0o600)
 	if _, err := Open([]string{deep}, Options{}); !errors.Is(err, ErrDecode) {
 		t.Fatalf("depth: %v", err)
 	}
