@@ -54,9 +54,6 @@ const (
 	GapLineListedRule          GapKey = ReasonLineNotAttested + "/listed-rule"
 	GapLineUnlistedRule        GapKey = ReasonLineNotAttested + "/unlisted-rule"
 	GapLineNoRules             GapKey = ReasonLineNotAttested + "/no-rules"
-	// GapVersionPreRelease: an end of the hop is a pre-release, which no
-	// reviewed rule covers; the hop is never passed.
-	GapVersionPreRelease GapKey = ReasonLineNotAttested + "/pre-release"
 	GapIntermediateLine        GapKey = ReasonIntermediateLineNotCovered
 	GapIntermediateMajor       GapKey = ReasonIntermediateLineNotCovered + "/major-line"
 	GapNoReviewedPathPolicy    GapKey = ReasonNoReviewedPathPolicy
@@ -82,6 +79,9 @@ const (
 	// GapAPIVersionNotServedCrossed: the removal is on a release line the
 	// upgrade enters, and no reviewed rule decided the object.
 	GapAPIVersionNotServedCrossed GapKey = ReasonAPIVersionNotServed + "/crossed-undecided"
+	// GapVersionPreRelease: an end of the hop is a pre-release, which no
+	// reviewed rule covers; the hop is never passed.
+	GapVersionPreRelease GapKey = ReasonLineNotAttested + "/pre-release"
 	// GapStepNotDecided: the step that enters a line did not decide an object.
 	GapStepNotDecided GapKey = ReasonRuleNotDecided + "/entered-line"
 	// GapLineNoScanRules: a line the upgrade enters removed API versions that

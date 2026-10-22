@@ -232,6 +232,7 @@ func kubernetesListPagination(root map[string]any) (bool, bool) {
 	}
 	return paginated, true
 }
+
 // validKubernetesVersion is X.Y.Z, or a Kubernetes pre-release
 // X.Y.0-(alpha|beta|rc).N.
 func validKubernetesVersion(value string) bool {

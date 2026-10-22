@@ -209,15 +209,15 @@ func TestK8sRemovalSelectionCrossesTheMinorLine(t *testing.T) {
 		}
 	}
 	for _, pair := range [][2]string{
-		{"1.25.1", "1.25.4"},  // same-line patch upgrade
-		{"1.25.0", "1.25.3"},  // same-line, at the target line already
-		{"1.23.99", "1.25.3"}, // multi-minor jump
-		{"1.24.17", "1.26.0"}, // multi-minor jump
-		{"1.25.3", "1.24.17"}, // downgrade
-		{"1.24.5", "1.24.5"},  // equal
-		{"0.24.0", "1.25.0"},  // major crossing
-		{"1.24.0", "2.25.0"},  // major crossing
-		{"v1.24.0", "1.25.3"}, // not a release version
+		{"1.25.1", "1.25.4"},      // same-line patch upgrade
+		{"1.25.0", "1.25.3"},      // same-line, at the target line already
+		{"1.23.99", "1.25.3"},     // multi-minor jump
+		{"1.24.17", "1.26.0"},     // multi-minor jump
+		{"1.25.3", "1.24.17"},     // downgrade
+		{"1.24.5", "1.24.5"},      // equal
+		{"0.24.0", "1.25.0"},      // major crossing
+		{"1.24.0", "2.25.0"},      // major crossing
+		{"v1.24.0", "1.25.3"},     // not a release version
 		{"1.25.0-rc.1", "1.25.0"}, // same line: a pre-release is on its own line
 		{"1.24.0", "1.25.0-rc.1+x"},
 		{"1.24.0", "1.25.1-rc.1"},
