@@ -522,10 +522,10 @@ func TestOfflineCommandAgainstAGitBase(t *testing.T) {
 		t.Fatalf("removal without entry: %d %s", code, out)
 	}
 	edit(t, tree, GuardPath, func(doc map[string]any) {
-		doc["removals"] = []any{
+		doc["removals"] = append(doc["removals"].([]any),
 			map[string]any{"kind": KindProject, "project": "cilium", "detail": "", "reason": "upstream archived the project"},
 			map[string]any{"kind": KindTarget, "project": "cilium", "detail": "", "reason": "upstream archived the project"},
-		}
+		)
 	})
 	write(tree)
 	if code, out := run("--base-ref", base); code != 0 {
@@ -653,21 +653,23 @@ func TestRemovalAgainAfterRestoreNeedsTheNextSeq(t *testing.T) {
 	entry := func(seq int) Removal {
 		return Removal{Kind: KindProject, Project: "tekton", Seq: seq, Reason: "reviewed: the upstream dropped it"}
 	}
+	// The list is append-only: the entries the real tree already holds stay.
+	listed := func(es ...Removal) []Removal { return append(append([]Removal(nil), full.Guard.Removals...), es...) }
 	// First removal: seq 0.
-	removed.Guard.Removals = []Removal{entry(0)}
+	removed.Guard.Removals = listed(entry(0))
 	if got := CheckRemovals(full, removed); len(got) != 0 {
 		t.Fatalf("first removal: %s", checks(got))
 	}
 	// Restored (base has seq 0 and the row), removed again: seq 0 is spent.
 	restored := full
-	restored.Guard.Removals = []Removal{entry(0)}
+	restored.Guard.Removals = listed(entry(0))
 	wantCheck(t, CheckRemovals(restored, removed), CheckRemovalUnlisted, "tekton")
-	removed.Guard.Removals = []Removal{entry(0), entry(1)}
+	removed.Guard.Removals = listed(entry(0), entry(1))
 	if got := CheckRemovals(restored, removed); len(got) != 0 {
 		t.Fatalf("second removal with seq 1: %s", checks(got))
 	}
 	// A seq that skips ahead is a stale pre-approval.
-	removed.Guard.Removals = []Removal{entry(0), entry(2)}
+	removed.Guard.Removals = listed(entry(0), entry(2))
 	wantCheck(t, CheckRemovals(restored, removed), CheckRemovalStale, "tekton")
 }
 
