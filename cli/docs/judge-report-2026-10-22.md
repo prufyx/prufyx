@@ -49,7 +49,8 @@ validation rows (13286) is larger than the number of claims.
 Period: 2026-10-10 to 2026-10-21. Prufyx commit used by the runner:
 `196702e743ef86c51dd11e70a7a6ad0034bf5371`.
 
-Kind node images (by digest):
+Kind node images (by digest). [kind-val](kind-val.md) lists only the 1.36 and
+1.37 digests as examples; the other six are pipeline-reported.
 
 | Line | Image |
 |---|---|
