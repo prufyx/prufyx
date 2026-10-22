@@ -354,11 +354,7 @@ func ciCoreGroupProblems(raw []byte) []string {
 		Jobs map[string]struct {
 			Env      map[string]string `yaml:"env"`
 			Strategy struct {
-				Matrix struct {
-					Include []struct {
-						Packages string `yaml:"packages"`
-					} `yaml:"include"`
-				} `yaml:"matrix"`
+				Matrix map[string]any `yaml:"matrix"`
 			} `yaml:"strategy"`
 		} `yaml:"jobs"`
 	}
@@ -376,12 +372,15 @@ func ciCoreGroupProblems(raw []byte) []string {
 	}
 	union := map[string]bool{}
 	catchAll := 0
-	for _, inc := range job.Strategy.Matrix.Include {
-		if strings.TrimSpace(inc.Packages) == "" {
+	includes, _ := job.Strategy.Matrix["include"].([]any)
+	for _, item := range includes {
+		inc, _ := item.(map[string]any)
+		packages, _ := inc["packages"].(string)
+		if strings.TrimSpace(packages) == "" {
 			catchAll++
 			continue
 		}
-		for _, f := range strings.Fields(inc.Packages) {
+		for _, f := range strings.Fields(packages) {
 			union[f] = true
 		}
 	}
