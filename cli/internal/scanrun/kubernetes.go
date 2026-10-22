@@ -1105,7 +1105,7 @@ func visitsIntermediate(plan upgradepath.Plan, rule cncfcheck.ScanRule) bool {
 		return false
 	}
 	for _, hop := range plan.Hops[:len(plan.Hops)-1] {
-		if _, to, ok := hopLines(hop); ok && to == want {
+		if _, stop, ok := hopLines(hop); ok && stop == want {
 			return true
 		}
 	}
