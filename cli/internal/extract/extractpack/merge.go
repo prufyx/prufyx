@@ -44,6 +44,9 @@ func attAllowed(rep *Report) map[string]bool {
 	for _, k := range rep.AttAdded {
 		out[k] = true
 	}
+	for _, k := range rep.AttRenewed {
+		out[k] = true
+	}
 	return out
 }
 
@@ -114,17 +117,31 @@ func merge(base *Pack, run *Run, rep *Report) (*Pack, map[string]bool, error) {
 			return nil, nil, err
 		}
 		if old, ok := idx[a.Key()]; ok {
-			if !bytes.Equal(old, c) {
+			if bytes.Equal(old, c) {
+				rep.AttUnchanged = append(rep.AttUnchanged, attKeyString(a))
+				continue
+			}
+			at := -1
+			if run.renew {
+				for i := range merged {
+					if merged[i].Key() == a.Key() && renewable(merged[i], a) {
+						at = i
+					}
+				}
+			}
+			if at < 0 {
 				return nil, nil, fmt.Errorf("%w: the attestation for %s is in the pack with different content (a renewal is not an apply)", ErrCollision, attKeyString(a))
 			}
-			rep.AttUnchanged = append(rep.AttUnchanged, attKeyString(a))
+			merged[at] = a
+			idx[a.Key()] = c
+			rep.AttRenewed = append(rep.AttRenewed, attKeyString(a))
 			continue
 		}
 		idx[a.Key()] = c
 		merged = append(merged, a)
 		rep.AttAdded = append(rep.AttAdded, attKeyString(a))
 	}
-	if len(rep.AttAdded) > 0 {
+	if len(rep.AttAdded) > 0 || len(rep.AttRenewed) > 0 {
 		raw, err := lineattest.Marshal(merged)
 		if err != nil {
 			return nil, nil, fmt.Errorf("%w: lineAttestations: %v", ErrAdmission, err)
@@ -284,8 +301,76 @@ func withdrawalOnly(a, b []byte) bool {
 	return ok1 && ok2 && stateA == "active" && stateB == "withdrawn" && bytes.Equal(sa, sb)
 }
 
+// renewable reports whether nw may replace old, the attestation of the same
+// key: both are mechanical, derived by the same extractor at different builds
+// (version or code digest), nw's derivedAt is later, the scope, completeness
+// and rule ids are identical, and the releases only extend (every release of
+// old is in nw in the same order). Sources and validUntil may change.
+func renewable(old, nw lineattest.LineAttestation) bool {
+	oe, ne := old.Evidence, nw.Evidence
+	if oe.Basis != "mechanical" || ne.Basis != "mechanical" || oe.Extractor == nil || ne.Extractor == nil {
+		return false
+	}
+	if oe.Extractor.ID != ne.Extractor.ID || (oe.Extractor.Version == ne.Extractor.Version && oe.Extractor.CodeDigest == ne.Extractor.CodeDigest) {
+		return false
+	}
+	if old.Key() != nw.Key() || old.Completeness != nw.Completeness || !equalIDs(old.RuleIDs, nw.RuleIDs) {
+		return false
+	}
+	od, err1 := time.Parse(time.RFC3339, oe.DerivedAt)
+	nd, err2 := time.Parse(time.RFC3339, ne.DerivedAt)
+	if err1 != nil || err2 != nil || !nd.After(od) {
+		return false
+	}
+	if old.Releases == nil {
+		return true
+	}
+	if nw.Releases == nil {
+		return false
+	}
+	return releasesExtend(old.Releases.From, nw.Releases.From) && releasesExtend(old.Releases.To, nw.Releases.To)
+}
+
+func equalIDs(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// releasesExtend reports whether every release of old is in nw, in the same
+// order (nw may have more).
+func releasesExtend(old, nw []lineattest.Release) bool {
+	j := 0
+	for _, o := range old {
+		for j < len(nw) && nw[j] != o {
+			j++
+		}
+		if j == len(nw) {
+			return false
+		}
+		j++
+	}
+	return true
+}
+
+// renewalOnly reports whether two marshalled attestations of one key are a
+// renewal (see renewable).
+func renewalOnly(a, b []byte) bool {
+	var x, y lineattest.LineAttestation
+	if json.Unmarshal(a, &x) != nil || json.Unmarshal(b, &y) != nil {
+		return false
+	}
+	return renewable(x, y)
+}
+
 // attestationsExtend reports whether after holds every attestation of
-// before unchanged, and every other one is allowed.
+// before unchanged (or, for an allowed key, renewed), and every other one is allowed.
 func attestationsExtend(before, after json.RawMessage, allowed map[string]bool) bool {
 	var b, a []lineattest.LineAttestation
 	var err error
@@ -306,7 +391,7 @@ func attestationsExtend(before, after json.RawMessage, allowed map[string]bool) 
 	for _, x := range a {
 		c, _ := json.Marshal(x)
 		if oc, ok := old[x.Key()]; ok {
-			if !bytes.Equal(oc, c) {
+			if !bytes.Equal(oc, c) && !(allowed[x.Key().String()] && renewalOnly(oc, c)) {
 				return false
 			}
 			seen++

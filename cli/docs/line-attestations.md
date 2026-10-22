@@ -331,6 +331,24 @@ Attestations expire like rules, and must be renewed the same way.
   `validUntil` and nothing else changed. A new extractor version or build also changes
   `evidence.extractor`, which is a loosening change but not a plain renewal. `extract verify` proves it is reproducible from the pinned bytes.
   A person does not renew a mechanical attestation.
+- **Mechanical, at a new extractor build**: when the extractor's code digest
+  or version has moved, re-derive and apply with
+  `extract apply --renew-attestations`. The run's attestation then replaces
+  the stored one of the same component, line and family, in place, if and only
+  if both are mechanical, the extractor id is the same, the code digest or
+  version differs, the run's `derivedAt` is later, and component, line, fact
+  family, completeness and `ruleIds` are identical. `releases` may only grow
+  (every stored version and commit stays, in order; new patch releases are
+  appended); `sources` and the lease may change. Anything else stays a
+  collision, as without the flag; an identical re-run changes nothing. The
+  flag does not renew rules and does not combine with `--withdraw`,
+  `--rules-only` or `--quiet-lines-only`. The gate sees one loosening change
+  per record and admits it only under the conditions of a new mechanical
+  attestation (re-derived byte for byte by the gate's own extractor build, its
+  digest, `derivedAt` within 24 hours, `validUntil` more than 14 days away,
+  complete releases). Each record counts toward the 200-per-change and
+  50-per-day loosening caps and toward the weekly stagger cap, so set
+  `--lease-days` per target to spread `validUntil` over ISO weeks.
 - **Reviewed**: renewed by an automated `evidence reattest` statement, when
   `evidence repin` finds every cited source unchanged on its release line, at
   most twice in a row (see

@@ -202,6 +202,9 @@ type Run struct {
 	Manifest     extract.Manifest
 	Entries      []json.RawMessage // candidates.json
 	Attestations []lineattest.LineAttestation
+	// renew lets merge replace a mechanical attestation by one re-derived at
+	// another extractor build (Options.RenewAttestations).
+	renew bool
 }
 
 // LoadRun reads a run directory written by "extract run". It requires the
@@ -294,6 +297,7 @@ type Report struct {
 	Unchanged    []string // rule ids already present with identical content
 	Withdrawn    []string // rule ids set to withdrawn
 	AttAdded     []string // attestation keys added
+	AttRenewed   []string // attestation keys replaced by a re-derivation (--renew-attestations)
 	AttUnchanged []string
 	AttSkipped   []string // "<key>: <reason>" for run attestations --quiet-lines-only left out
 	SchemaFrom   string
@@ -321,6 +325,11 @@ type Options struct {
 	// QuietOnly applies only the run's empty-list line attestations whose
 	// scope has no rule in the pack, and no rules at all.
 	QuietOnly bool
+	// RenewAttestations lets the run's mechanical attestations replace those
+	// of the same key that an earlier build of the same extractor derived
+	// (see renewable). Rules are never renewed. It does not combine with
+	// Withdraw, RulesOnly or QuietOnly.
+	RenewAttestations bool
 	// SchemaLevels bounds how many schema levels above the pack's own a merge
 	// may move to (default 12).
 	SchemaLevels int
@@ -348,6 +357,12 @@ func Apply(opts Options) (*Report, error) {
 		return nil, err
 	}
 	rep := &Report{}
+	if opts.RenewAttestations {
+		if opts.Withdraw || opts.RulesOnly || opts.QuietOnly {
+			return nil, errors.New("extract apply: --renew-attestations does not combine with --withdraw, --rules-only or --quiet-lines-only")
+		}
+		run.renew = true
+	}
 	if opts.RulesOnly {
 		if opts.Withdraw {
 			return nil, errors.New("extract apply: --rules-only does not combine with --withdraw")
@@ -372,7 +387,7 @@ func Apply(opts Options) (*Report, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(allowed) == 0 && len(rep.AttAdded) == 0 {
+	if len(allowed) == 0 && len(rep.AttAdded) == 0 && len(rep.AttRenewed) == 0 {
 		return rep, nil
 	}
 	admit := opts.Admit
@@ -417,6 +432,7 @@ func Apply(opts Options) (*Report, error) {
 	sort.Strings(rep.Unchanged)
 	sort.Strings(rep.Withdrawn)
 	sort.Strings(rep.AttAdded)
+	sort.Strings(rep.AttRenewed)
 	sort.Strings(rep.AttUnchanged)
 	if rep.Changed {
 		if err := writeAtomic(opts.PackPath, out); err != nil {
