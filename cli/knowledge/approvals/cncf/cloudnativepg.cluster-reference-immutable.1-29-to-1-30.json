@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:a06ec189e35f0b2c9a9bb5a4783379b28527e2c1e5dcc6851dbd9d0914380b52",
+    "candidateDigest": "sha256:d28826647d63ab6bcf61137fdd2ff4f7b972c931aa22debc66a8fd25ec9e0530",
+    "candidateId": "pr-64",
+    "decidedAt": "2026-10-22T06:23:48Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "cloudnativepg.cluster-reference-immutable.1-29-to-1-30"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "pME/ORlv5YF86KPhDN8KwXNq5Mjst6nYZfGC/iihWJLQf9FNNcbV8sKHAZm/H6B29Hrdr92T1fb285BcIo8sCA=="
+}
