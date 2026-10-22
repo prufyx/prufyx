@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
+	"github.com/prufyx/prufyx/cli/internal/upgradepath"
 )
 
 // A manifest object at an API version the target line does not serve never
@@ -28,15 +30,24 @@ func basisBelowPack() string {
 	return "mechanical"
 }
 
+// noPathPolicy is knowledge without any upgrade-path policy: the embedded
+// pack's Kubernetes record is left out, so an upgrade across lines stays one
+// whole-upgrade hop with the gap NO_REVIEWED_PATH_POLICY.
+type noPathPolicy struct{ Knowledge }
+
+func (noPathPolicy) PathPolicyFor(string, time.Time) upgradepath.Status { return upgradepath.Status{} }
+
 // embeddedOnly is the knowledge the shipped binary uses, with nothing added
-// (no line review, no path policy, no served list).
+// (no line review, no path policy, no served list). The shipped pack carries
+// the Kubernetes path policy, so it is taken out here: these tests state what
+// an upgrade across skipped lines answers while no policy plans the lines.
 func embeddedOnly(t *testing.T) Knowledge {
 	t.Helper()
 	knowledge, err := LoadEmbedded()
 	if err != nil {
 		t.Fatal(err)
 	}
-	return knowledge
+	return noPathPolicy{knowledge}
 }
 
 // notPassLike fails when the report reads like a pass while a manifest is

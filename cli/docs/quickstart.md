@@ -367,7 +367,7 @@ Verified output:
 ```
 BLOCKED: 1 problem must be fixed; 1 area was not checked
 
-kubernetes 1.24.17 -> 1.25.3: 1 hop (no reviewed path policy)
+kubernetes 1.24.17 -> 1.25.3: 1 hop (path policy sequential_minor)
   1.24.17 -> 1.25.3   Kubernetes 1.25 stops serving CronJob through batch/v1beta1
                       applyset.yaml:2  CronJob default/nightly-report
                       fix: Migrate the named CronJob manifests to batch/v1. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
@@ -384,9 +384,9 @@ evaluated at 2026-11-20T00:00:00Z; input sha256:cac5facf042643aa2ca473b53dbc8e3d
 The exit code is `10`, and the finding names the file, the line of the
 object's `apiVersion`, its kind and its name. Every area that was not checked
 is listed with what to do about it. A jump across several minor lines, such as
-`--to kubernetes=1.30.4`, exits `11` with the gap `NO_REVIEWED_PATH_POLICY`
-until the knowledge carries a reviewed upgrade-path policy for Kubernetes: scan
-each minor upgrade instead. See [`scan.md`](scan.md) for every flag, the
+`--to kubernetes=1.30.4`, is planned one minor line at a time under the
+reviewed Kubernetes upgrade-path policy: each line is a hop of its own, and the
+report says `path policy sequential_minor`. See [`scan.md`](scan.md) for every flag, the
 gaps, `--redact`, JSON output and `prufyx.yaml`.
 
 ## 8. Where to go next

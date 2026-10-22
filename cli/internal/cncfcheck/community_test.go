@@ -748,7 +748,7 @@ func TestCommunityAttestation(t *testing.T) {
 		if err := strictJSON(raw, &p); err != nil {
 			t.Fatal(err)
 		}
-		p.LineAttestations, p.ServedAPIs = section, nil
+		p.LineAttestations, p.PathPolicies, p.ServedAPIs = section, nil, nil
 		out, err := json.Marshal(p)
 		if err != nil {
 			t.Fatal(err)

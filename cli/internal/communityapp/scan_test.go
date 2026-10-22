@@ -41,10 +41,11 @@ func TestScanCommand(t *testing.T) {
 	if code != ExitBlocked || err != nil || report.Verdict != scanreport.VerdictBlocked || report.Provenance.NetworkUsed {
 		t.Fatalf("json: %d %v", code, err)
 	}
-	// An upgrade that skips release lines still blocks on the reviewed
-	// removal of a line it enters (it used to answer "NO BLOCKERS FOUND").
+	// An upgrade that skips release lines is planned line by line under the
+	// reviewed Kubernetes path policy, and blocks on the reviewed removal of
+	// the line it enters (it used to answer "NO BLOCKERS FOUND").
 	code, stdout, _ = runScan(t, append([]string{path, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4"}, declared...)...)
-	if code != ExitBlocked || !strings.HasPrefix(stdout, "BLOCKED: 1 problem must be fixed; 2 areas were not checked\n") || !strings.Contains(stdout, "Decided on the step 1.24.17 -> 1.25") {
+	if code != ExitBlocked || !strings.HasPrefix(stdout, "BLOCKED: 1 problem must be fixed; 1 area was not checked\n") || !strings.Contains(stdout, "kubernetes 1.24.17 -> 1.30.4: 6 hops (path policy sequential_minor)") {
 		t.Fatalf("skipped lines: %d\n%s", code, stdout)
 	}
 	// Removed at or before the current line: no rule decides it, and the

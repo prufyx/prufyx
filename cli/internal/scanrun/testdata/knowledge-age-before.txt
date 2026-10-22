@@ -1,6 +1,6 @@
 BLOCKED: 1 problem must be fixed; 1 area was not checked
 
-kubernetes 1.24.17 -> 1.25.3: 1 hop (no reviewed path policy)
+kubernetes 1.24.17 -> 1.25.3: 1 hop (path policy sequential_minor)
   hop 1 1.24.17 -> 1.25.3: BLOCKED
   1.24.17 -> 1.25.3   Kubernetes 1.25 stops serving CronJob through batch/v1beta1
                       applyset.yaml:1  CronJob default/nightly-report

@@ -79,9 +79,16 @@ func TestScanQuickstartMigrated(t *testing.T) {
 	}
 	golden(t, "quickstart-migrated-unknown.txt", scanreport.Human(unknown.Report, scanreport.HumanOptions{}))
 
+	// The shipped knowledge carries the Kubernetes path policy, the line
+	// attestations and the served lists: nothing is missing for this scope.
 	embedded := run(nil)
-	if embedded.Exit != scanreport.ExitUnknown || !reflect.DeepEqual(gapReasons(embedded.Report), []string{"NO_REVIEWED_PATH_POLICY"}) {
+	if embedded.Exit != scanreport.ExitPass || len(gapReasons(embedded.Report)) != 0 {
 		t.Fatalf("embedded knowledge: exit %d gaps %v", embedded.Exit, gapReasons(embedded.Report))
+	}
+	// Without the policy the lines in between are not planned.
+	noPolicy := run(noPathPolicy{LoadEmbeddedForTest(t)})
+	if noPolicy.Exit != scanreport.ExitUnknown || !reflect.DeepEqual(gapReasons(noPolicy.Report), []string{"NO_REVIEWED_PATH_POLICY"}) {
+		t.Fatalf("embedded knowledge without the path policy: exit %d gaps %v", noPolicy.Exit, gapReasons(noPolicy.Report))
 	}
 }
 

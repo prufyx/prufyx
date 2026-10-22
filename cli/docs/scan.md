@@ -41,7 +41,7 @@ prufyx scan applyset.yaml --from kubernetes=1.24.17 --to kubernetes=1.25.3 \
 ```
 BLOCKED: 1 problem must be fixed; 1 area was not checked
 
-kubernetes 1.24.17 -> 1.25.3: 1 hop (no reviewed path policy)
+kubernetes 1.24.17 -> 1.25.3: 1 hop (path policy sequential_minor)
   1.24.17 -> 1.25.3   Kubernetes 1.25 stops serving CronJob through batch/v1beta1
                       applyset.yaml:1  CronJob default/nightly-report
                       fix: Migrate the named CronJob manifests to batch/v1. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.

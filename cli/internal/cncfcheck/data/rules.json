@@ -21761,6 +21761,27 @@
       }
     }
   ],
+  "pathPolicies": [
+    {
+      "component": "pkg:github/kubernetes/kubernetes",
+      "policy": "sequential_minor",
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-10-22T12:00:00Z",
+        "validUntil": "2027-01-20T12:00:00Z",
+        "sources": [
+          {
+            "id": "kubernetes-website-version-skew-upgrade-order",
+            "url": "https://github.com/kubernetes/website/blob/2f160d9ce5f5808e98eac26a1bc05e4894b0c269/content/en/releases/version-skew-policy.md",
+            "revision": "2f160d9ce5f5808e98eac26a1bc05e4894b0c269",
+            "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
+            "startLine": 189,
+            "endLine": 193
+          }
+        ]
+      }
+    }
+  ],
   "servedAPIs": [
     {
       "component": "pkg:github/kubernetes/kubernetes",
