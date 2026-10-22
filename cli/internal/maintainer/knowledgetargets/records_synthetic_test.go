@@ -51,7 +51,14 @@ func install(t *testing.T, records cncfcheck.SyntheticRecords) {
 func TestBuildCarriesRecordsAndCheckSizeMeasuresThem(t *testing.T) {
 	var plain int64
 	{
+		// The baseline is the pack with no records at all: the shipped pack
+		// carries served lists of its own.
+		restore, err := cncfcheck.UseSyntheticRecords(nil, nil, cncfcheck.SyntheticRecords{})
+		if err != nil {
+			t.Fatal(err)
+		}
 		_, projects, err := Build("7", nil)
+		restore()
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -55,7 +55,7 @@
             {
               "level": "warning",
               "message": {
-                "text": "no reviewed list of the API versions Kubernetes 1.25 serves; 2 manifest(s) cannot be checked - check them against the API reference of that Kubernetes release by hand, or request coverage: https://github.com/prufyx/prufyx/issues/new?template=project-knowledge.yml"
+                "text": "1 manifest(s) use API versions not in the Kubernetes 1.25 served list, stable (GA) versions only - check those API versions against the Kubernetes 1.25 API reference by hand"
               },
               "descriptor": {
                 "id": "API_VERSION_NOT_REVIEWED"
@@ -111,7 +111,7 @@
           "ruleIndex": 1,
           "level": "warning",
           "message": {
-            "text": "no reviewed list of the API versions Kubernetes 1.25 serves; 2 manifest(s) cannot be checked - check them against the API reference of that Kubernetes release by hand, or request coverage: https://github.com/prufyx/prufyx/issues/new?template=project-knowledge.yml"
+            "text": "1 manifest(s) use API versions not in the Kubernetes 1.25 served list, stable (GA) versions only - check those API versions against the Kubernetes 1.25 API reference by hand"
           },
           "locations": [
             {

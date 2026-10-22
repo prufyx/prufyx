@@ -141,6 +141,27 @@ func embeddedPack(t *testing.T) []byte {
 	return raw
 }
 
+// embeddedPackWithoutServedLists is the embedded rule pack without its
+// served-API lists, at the line attestation schema the pack had before them.
+// The tests that drop a project from the pack build on it: a list of the
+// dropped project would otherwise still decide its manifests.
+func embeddedPackWithoutServedLists(t *testing.T) []byte {
+	t.Helper()
+	var pack map[string]any
+	decoder := json.NewDecoder(bytes.NewReader(embeddedPack(t)))
+	decoder.UseNumber()
+	if err := decoder.Decode(&pack); err != nil {
+		t.Fatal(err)
+	}
+	delete(pack, "servedAPIs")
+	pack["schema"] = "prufyx.io/cncf-source-rule-pack/v1alpha4"
+	out, err := json.Marshal(pack)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
 // editPack rewrites the pack's entries with edit; an entry for which edit
 // returns false is dropped.
 func editPack(t *testing.T, raw []byte, edit func(project string, rule map[string]any) bool) []byte {
@@ -467,7 +488,7 @@ func TestScanStoreWithdrawnRule(t *testing.T) {
 // for is not checked at all: one named gap, the component not covered, no
 // path, and nothing from the embedded knowledge.
 func TestScanStoreProjectAbsent(t *testing.T) {
-	pack := editPack(t, embeddedPack(t), func(project string, _ map[string]any) bool { return project != kubernetesSlug })
+	pack := editPack(t, embeddedPackWithoutServedLists(t), func(project string, _ map[string]any) bool { return project != kubernetesSlug })
 	// Without the Kubernetes rules no rule has a reviewed range, so the
 	// pack takes the exact-only schema.
 	// A pack that still carries line attestations (other components attest
@@ -839,7 +860,7 @@ func TestScanStoreRefusesOtherKnowledge(t *testing.T) {
 // Kubernetes: one named gap, the component not covered, no path, and
 // nothing from the embedded knowledge.
 func TestScanStoreCustomResourceProjectAbsent(t *testing.T) {
-	pack := withoutComponentRecords(t, editPack(t, embeddedPack(t), func(project string, _ map[string]any) bool { return project != "strimzi" }), "pkg:github/strimzi/strimzi-kafka-operator")
+	pack := withoutComponentRecords(t, editPack(t, embeddedPackWithoutServedLists(t), func(project string, _ map[string]any) bool { return project != "strimzi" }), "pkg:github/strimzi/strimzi-kafka-operator")
 	fixture := newStoreFixture(t, cncfknowledge.LayoutPerProject)
 	fixture.importPack(pack, "8")
 	opened, err := OpenStore(fixture.store, []string{"strimzi"})

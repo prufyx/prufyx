@@ -80,7 +80,7 @@ func TestScanQuickstartMigrated(t *testing.T) {
 	golden(t, "quickstart-migrated-unknown.txt", scanreport.Human(unknown.Report, scanreport.HumanOptions{}))
 
 	embedded := run(nil)
-	if embedded.Exit != scanreport.ExitUnknown || !reflect.DeepEqual(gapReasons(embedded.Report), []string{"API_VERSION_NOT_REVIEWED", "NO_REVIEWED_PATH_POLICY"}) {
+	if embedded.Exit != scanreport.ExitUnknown || !reflect.DeepEqual(gapReasons(embedded.Report), []string{"NO_REVIEWED_PATH_POLICY"}) {
 		t.Fatalf("embedded knowledge: exit %d gaps %v", embedded.Exit, gapReasons(embedded.Report))
 	}
 }

@@ -20,6 +20,13 @@ func TestServedAPIsSectionAdmission(t *testing.T) {
 	section := func(component string) json.RawMessage {
 		return json.RawMessage(`[{"component":"` + component + `","line":"1.29","completeness":"COMPLETE_SERVED_API_LIST_FOR_LINE","apis":["v1 ConfigMap"],"evidence":` + servedEvidence + `}]`)
 	}
+	now := time.Date(2026, 10, 4, 0, 0, 0, 0, time.UTC)
+	// The shipped list for the line, taken before any synthetic record.
+	shippedKnowledge, err := LoadScanKnowledge()
+	if err != nil {
+		t.Fatal(err)
+	}
+	shipped, shippedOK := shippedKnowledge.ServedAPIsFor("pkg:github/kubernetes/kubernetes", "1.29", now)
 	restore, err := UseSyntheticRecords(nil, nil, SyntheticRecords{ServedAPIs: section("pkg:github/kubernetes/kubernetes")})
 	if err != nil {
 		t.Fatal(err)
@@ -32,7 +39,6 @@ func TestServedAPIsSectionAdmission(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	now := time.Date(2026, 10, 4, 0, 0, 0, 0, time.UTC)
 	if status, ok := k.ServedAPIsFor("pkg:github/kubernetes/kubernetes", "1.29", now); !ok || !status.Current() || status.Record.APIs[0] != "v1 ConfigMap" {
 		t.Fatalf("%+v %v", status, ok)
 	}
@@ -40,13 +46,14 @@ func TestServedAPIsSectionAdmission(t *testing.T) {
 		t.Fatal("a list for another line")
 	}
 	restore()
-	// After restore the embedded pack carries none.
+	// After restore the embedded pack is back: the list for the line is the
+	// one taken before the synthetic records were installed.
 	k, err = LoadScanKnowledge()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := k.ServedAPIsFor("pkg:github/kubernetes/kubernetes", "1.29", now); ok {
-		t.Fatal("served list left behind")
+	if status, ok := k.ServedAPIsFor("pkg:github/kubernetes/kubernetes", "1.29", now); ok != shippedOK || (ok && (len(status.Record.APIs) != len(shipped.Record.APIs) || status.Record.Evidence.ValidUntil != shipped.Record.Evidence.ValidUntil)) {
+		t.Fatalf("served list after restore %+v (%v), shipped %+v (%v)", status, ok, shipped, shippedOK)
 	}
 	// A component the catalog has no project for: the whole pack is refused.
 	if restore, err := UseSyntheticRecords(nil, nil, SyntheticRecords{ServedAPIs: json.RawMessage(strings.Replace(string(section("pkg:github/kubernetes/kubernetes")), "kubernetes/kubernetes", "nobody/nothing", 1))}); err == nil {

@@ -9,6 +9,7 @@ package scanrun
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -143,6 +144,9 @@ func TestScanFirstPassFromPackRecords(t *testing.T) {
 // TestScanFirstPassNeedsEveryRecord: each record missing, stale, incomplete
 // or for another line keeps the answer UNKNOWN with a named gap.
 func TestScanFirstPassNeedsEveryRecord(t *testing.T) {
+	// What the shipped knowledge answers before any synthetic record is
+	// installed; it carries served lists of its own.
+	shipped := scanHop(t, mustEmbedded(t), cronjobV1)
 	cases := []struct {
 		name           string
 		set            recordSet
@@ -182,11 +186,18 @@ func TestScanFirstPassNeedsEveryRecord(t *testing.T) {
 	// A line attestation that leaves out a rule of its line is refused by
 	// the pack loader: the whole pack, not just the record.
 	installRecords(t, recordSet{attestation: true, served: true, refused: true, attestationRules: func([]string) []string { return nil }})
-	// After a refused pack nothing is left behind: the knowledge carries no
-	// served list and behaves exactly as today. The shipped pack attests
-	// line 1.29 itself, so only the served list is missing.
-	if result := scanHop(t, mustEmbedded(t), cronjobV1); result.Exit != scanreport.ExitUnknown || !hasGap(result.Report, "API_VERSION_NOT_REVIEWED", "") || hasGap(result.Report, "LINE_NOT_ATTESTED", "") {
-		t.Fatalf("shipped knowledge: exit %d gaps %v", result.Exit, gapReasons(result.Report))
+	// After a refused pack nothing is left behind: the knowledge answers
+	// exactly as the shipped knowledge did before the pack was offered.
+	after := scanHop(t, mustEmbedded(t), cronjobV1)
+	if after.Exit != shipped.Exit || !slices.Equal(gapReasons(after.Report), gapReasons(shipped.Report)) {
+		t.Fatalf("shipped knowledge: exit %d gaps %v, before: exit %d gaps %v", after.Exit, gapReasons(after.Report), shipped.Exit, gapReasons(shipped.Report))
+	}
+	// The shipped answer is a PASS without gaps, so exit and gaps cannot
+	// show a leftover synthetic pack: the served list the answer names must
+	// be the shipped one, digest and validity window included.
+	before, now := shipped.Report.Paths[0].ServedList, after.Report.Paths[0].ServedList
+	if before == nil || now == nil || *before != *now {
+		t.Fatalf("served list after a refused pack %+v, shipped %+v", now, before)
 	}
 }
 

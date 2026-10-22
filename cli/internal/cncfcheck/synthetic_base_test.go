@@ -16,7 +16,7 @@ import (
 // the result. They need a base that uses no feature of its own above the
 // ranged level, so the level they assert is the level of the feature they
 // add. syntheticBase is that base, taken from the shipped pack: the shipped
-// rules without the set rules, without the line attestation section, under
+// rules without the set rules, without the line attestation and served-API list sections, under
 // the ranged schema. It is not a copy of an older pack: every other shipped
 // rule is in it, byte for byte.
 //
@@ -32,7 +32,7 @@ import (
 func syntheticBase(t *testing.T) rulePack {
 	t.Helper()
 	pack := shippedPack(t)
-	if len(pack.PathPolicies) != 0 || len(pack.Distributions) != 0 || len(pack.ServedAPIs) != 0 {
+	if len(pack.PathPolicies) != 0 || len(pack.Distributions) != 0 {
 		t.Fatal("the shipped pack carries a section syntheticBase does not reduce")
 	}
 	entries := make([]Entry, 0, len(pack.Entries))
@@ -41,7 +41,7 @@ func syntheticBase(t *testing.T) rulePack {
 			entries = append(entries, entry)
 		}
 	}
-	pack.Entries, pack.LineAttestations, pack.Schema = entries, nil, packSchemaRanged
+	pack.Entries, pack.LineAttestations, pack.ServedAPIs, pack.Schema = entries, nil, nil, packSchemaRanged
 	if schema, err := requiredPackSchema(pack); err != nil || schema != packSchemaRanged {
 		t.Fatalf("the reduced shipped pack needs schema %s (%v), not the ranged one: syntheticBase must learn the new feature", schema, err)
 	}
@@ -118,7 +118,7 @@ func syntheticBaseExternalBundle(t *testing.T, revision string) []byte {
 		t.Fatalf("rules-only envelope over syntheticBase refused: %v", err)
 	}
 	shipped := shippedPack(t)
-	if len(shipped.LineAttestations) == 0 && len(shipped.Entries) == len(pack.Entries) {
+	if len(shipped.LineAttestations) == 0 && len(shipped.ServedAPIs) == 0 && len(shipped.Entries) == len(pack.Entries) {
 		exported, err := ExportEmbeddedExternalBundle(revision)
 		if err != nil || !bytes.Equal(exported, raw) {
 			t.Fatalf("the export of a section-free shipped pack differs from the rules-only envelope: %v", err)
@@ -128,16 +128,20 @@ func syntheticBaseExternalBundle(t *testing.T, revision string) []byte {
 }
 
 // shippedSchemaLevel is the pack schema the shipped pack must carry, stated
-// by the test from what the shipped bytes hold: the line attestation level
-// when it carries line attestations, else the set level when it holds a set
+// by the test from what the shipped bytes hold: the served-API level when it
+// carries served-API lists, else the line attestation level when it carries
+// line attestations, else the set level when it holds a set
 // rule, else the ranged level (its Kubernetes removal rules carry ranges).
 // Any other section fails the test, so a new shipped feature is stated here
 // on purpose.
 func shippedSchemaLevel(t *testing.T) string {
 	t.Helper()
 	pack := shippedPack(t)
-	if len(pack.PathPolicies) != 0 || len(pack.Distributions) != 0 || len(pack.ServedAPIs) != 0 {
+	if len(pack.PathPolicies) != 0 || len(pack.Distributions) != 0 {
 		t.Fatal("the shipped pack carries a section shippedSchemaLevel does not state")
+	}
+	if len(pack.ServedAPIs) != 0 {
+		return packSchemaServedAPIs
 	}
 	if len(pack.LineAttestations) != 0 {
 		return packSchemaAttested
