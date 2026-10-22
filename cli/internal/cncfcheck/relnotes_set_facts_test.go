@@ -21,7 +21,7 @@ import (
 type relnotesSetFact struct {
 	project   string // fact id segment and catalog slug
 	component string
-	kind      string // cli_flags_set, config_keys_set, runtime_keys_set
+	kind      string // cli_flags_set, config_keys_set
 	member    string // a synthetic member in the canonical spelling
 	desc      string
 }
@@ -29,28 +29,20 @@ type relnotesSetFact struct {
 const (
 	descFlags   = "Command-line flags the deployment passes: long names without leading dashes (--web.enable-lifecycle is web.enable-lifecycle); values are not part of the set."
 	descConfig  = "Configuration keys the deployment sets: dotted key paths from the document root (server.tls.enabled); values are not part of the set."
-	descRuntime = "Envoy runtime keys the deployment sets: the full runtime key (envoy.reloadable_features.example); values are not part of the set."
 )
 
 func relnotesSetFacts() []relnotesSetFact {
 	projects := []struct{ project, component string }{
-		{"prometheus", "pkg:github/prometheus/prometheus"},
-		{"envoy", "pkg:github/envoyproxy/envoy"},
-		{"containerd", "pkg:github/containerd/containerd"},
-		{"coredns", "pkg:github/coredns/coredns"},
 		{"falco", "pkg:github/falcosecurity/falco"},
-		{"fluentd", "pkg:github/fluent/fluentd"},
 		{"thanos", "pkg:github/thanos-io/thanos"},
-		{"vitess", "pkg:github/vitessio/vitess"},
+		{"cortex", "pkg:github/cortexproject/cortex"},
+		{"cilium", "pkg:github/cilium/cilium"},
 	}
 	var out []relnotesSetFact
 	for _, p := range projects {
 		out = append(out,
 			relnotesSetFact{p.project, p.component, "cli_flags_set", "synthetic-removed-flag", descFlags},
 			relnotesSetFact{p.project, p.component, "config_keys_set", "synthetic.removed.key", descConfig})
-		if p.project == "envoy" {
-			out = append(out, relnotesSetFact{p.project, p.component, "runtime_keys_set", "envoy.reloadable_features.synthetic_removed", descRuntime})
-		}
 	}
 	return out
 }
@@ -98,8 +90,8 @@ func relnotesCrossingEntry(f relnotesSetFact) Entry {
 func TestRelnotesSetFactsCrossingOnlyRuleAtV1alpha11(t *testing.T) {
 	t.Parallel()
 	facts := relnotesSetFacts()
-	if len(facts) != 17 {
-		t.Fatalf("%d relnotes set facts, want 17 (8 projects x flags and config keys, plus envoy runtime keys)", len(facts))
+	if len(facts) != 8 {
+		t.Fatalf("%d relnotes set facts, want 8 (4 projects x flags and config keys)", len(facts))
 	}
 	extra := relnotesDefinitions()
 	var entries []Entry

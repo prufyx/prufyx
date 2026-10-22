@@ -202,7 +202,7 @@ func TestEmbeddedKnowledgeSetRulesReadCustomResourceSets(t *testing.T) {
 	} {
 		charts[id] = true
 	}
-	// The command-line flag, config key and runtime key sets of the relnotes
+	// The command-line flag and config key sets of the relnotes
 	// projects (relnotes_set_facts_test.go): caller-supplied, no scan route.
 	relnotes := map[string]bool{}
 	for _, f := range relnotesSetFacts() {
