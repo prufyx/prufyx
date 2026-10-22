@@ -1734,7 +1734,7 @@ func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commi
 		case len(g.crds) > 0:
 			// Definitions compressed into the source (velero install):
 			// compared definition by definition like a YAML file.
-			fd = compareDefinitions(fd, g.crds, inv, x.target.Project)
+			fd = compareDefinitions(fd, g.crds, inv, x.attribution())
 		case g.kinds > 0:
 			fd.Class, fd.Detail = ClassReference, "gzip-compressed string literals hold the CustomResourceDefinition kind but define none at the top level"
 		default:
@@ -1838,7 +1838,7 @@ func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commi
 		}
 		return placed(fd, f.at), true, nil
 	}
-	fd = compareDefinitions(fd, crds, inv, x.target.Project)
+	fd = compareDefinitions(fd, crds, inv, x.attribution())
 	switch {
 	case fromTemplate && f.at.copies:
 		// A declared copy keeps its class: copy, or the conflict or extra
@@ -1866,13 +1866,13 @@ func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commi
 }
 
 // compareDefinitions classifies the definitions of one file against the
-// inventory: copy, extra or conflict. A definition of a group the reviewed
+// inventory: copy, extra or conflict. A definition of a group and kind the reviewed
 // table assigns to another project is not the project's: it is left out (a
 // file of such definitions only is a copy), as the inventory leaves it out.
-func compareDefinitions(fd Finding, crds []CRD, inv *Inventory, project string) Finding {
+func compareDefinitions(fd Finding, crds []CRD, inv *Inventory, at attribution) Finding {
 	own := make([]CRD, 0, len(crds))
 	for _, c := range crds {
-		if !foreignGroup(c.Group, project) {
+		if !at.foreign(c.Group, c.Kind) {
 			own = append(own, c)
 		}
 	}

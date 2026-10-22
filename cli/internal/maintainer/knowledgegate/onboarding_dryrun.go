@@ -142,13 +142,13 @@ var groupSourceRE = regexp.MustCompile(`^https://github\.com/([A-Za-z0-9][A-Za-z
 
 // onboardingDryRun runs O6 for one project and returns the REST requests it
 // used.
-func onboardingDryRun(ctx context.Context, src Source, concurrency int, target crdversions.Target, row customresources.Project, p OnboardingProject, now time.Time) (int64, error) {
+func onboardingDryRun(ctx context.Context, src Source, concurrency int, target crdversions.Target, index customresources.Index, row customresources.Project, p OnboardingProject, now time.Time) (int64, error) {
 	stats, ok := src.(statsSource)
 	if src == nil || !ok {
 		return 0, errors.New("no upstream source that counts its requests is configured (use --source github); an onboarding batch is admitted only on the gate's own dry run")
 	}
 	b := &budgetSource{src: src, stats: stats, start: stats.Stats().APIRequests}
-	used, err := dryRun(ctx, b, concurrency, target, row, p, now)
+	used, err := dryRun(ctx, b, concurrency, target, index, row, p, now)
 	if err == nil && b.used() > OnboardingRESTBudget {
 		err = fmt.Errorf("the dry run used %d GitHub REST requests, over the budget of %d", b.used(), OnboardingRESTBudget)
 	}
@@ -158,12 +158,12 @@ func onboardingDryRun(ctx context.Context, src Source, concurrency int, target c
 	return used, err
 }
 
-func dryRun(ctx context.Context, b *budgetSource, concurrency int, target crdversions.Target, row customresources.Project, p OnboardingProject, now time.Time) (int64, error) {
+func dryRun(ctx context.Context, b *budgetSource, concurrency int, target crdversions.Target, index customresources.Index, row customresources.Project, p OnboardingProject, now time.Time) (int64, error) {
 	repo, err := extract.ParseRepo(target.Repo)
 	if err != nil {
 		return 0, err
 	}
-	ex := &newestPairOnly{Extractor: crdversions.NewConcurrent(target, max(concurrency, 1))}
+	ex := &newestPairOnly{Extractor: crdversions.NewConcurrent(target, max(concurrency, 1)).WithIndex(index)}
 	out, err := extract.Run(ctx, ex, b, b, extract.Options{Repo: repo, DerivedAt: now.UTC().Truncate(time.Second)})
 	if err != nil {
 		return b.used(), fmt.Errorf("the dry run failed: %v", logSafe(err.Error()))

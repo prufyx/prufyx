@@ -9,6 +9,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/customresources"
 	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
 )
 
@@ -130,13 +131,14 @@ func runOnboarding(ctx context.Context, opts Options, cls *Classification, chang
 		return fail("O7: %s", why)
 	}
 	rows := projectsBySlug(st.head.projects)
+	index := customresources.NewIndex(st.head.projects)
 	for _, p := range rec.Projects {
 		file := crdversions.TargetFileName(p.Slug)
 		target, err := crdversions.LoadTarget(file, st.head.targets[file])
 		if err != nil {
 			return fail("O6: %s: %s", logSafe(p.Slug), logSafe(err.Error()))
 		}
-		used, err := onboardingDryRun(ctx, opts.Source, opts.Concurrency, target, rows[p.Slug], p, opts.Now)
+		used, err := onboardingDryRun(ctx, opts.Source, opts.Concurrency, target, index, rows[p.Slug], p, opts.Now)
 		res.restRequests[p.Slug] = used
 		if err != nil {
 			return fail("O6: %s: %s", logSafe(p.Slug), err.Error())
