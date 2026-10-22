@@ -166,6 +166,22 @@ func TestQuoteMayContainInternalLookingText(t *testing.T) {
 	}
 }
 
+func TestUpstreamPathWithHomeSegmentIsNotInternal(t *testing.T) {
+	d := fixture(t, func(d string) { rewrite(t, d, "scan-notes.json", `"note": "`, `"note": "see pkg/home/handler.go and `) })
+	findings, _ := Validate(d)
+	if contains(findings, "internal/owner-environment") {
+		t.Fatalf("pkg/home/ must not be flagged: %v", findings)
+	}
+}
+
+func TestNewlineInPlainStringRefused(t *testing.T) {
+	d := fixture(t, func(d string) { rewrite(t, d, "scan-notes.json", `"note": "`, `"note": "a\r\nb `) })
+	findings, _ := Validate(d)
+	if !contains(findings, "control character") {
+		t.Fatalf("want control character finding: %v", findings)
+	}
+}
+
 func TestValidateRejectsNonDirectory(t *testing.T) {
 	if _, err := Validate(filepath.Join(fixture(t, nil), "project.json")); err == nil {
 		t.Fatal("want an error for a file path")

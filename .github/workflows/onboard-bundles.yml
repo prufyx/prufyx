@@ -63,6 +63,7 @@ jobs:
           dirs=()
           while IFS= read -r path; do
             [ -n "${path}" ] || continue
+            [ -e "${path}" ] || { echo "${path}: removed, skipped"; continue; }
             rel="${path#contrib/onboard-bundles/}"
             case "${rel}" in
               README.md) continue ;;

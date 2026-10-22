@@ -14,7 +14,8 @@ instead; a pull request is for people who can also supply the bundle files.
 
 One bundle per project, in `contrib/onboard-bundles/<slug>/`. The slug is the
 project slug in `project.json` and matches `^[a-z0-9][a-z0-9-]{0,62}$`. A
-project that already has a bundle or is already onboarded is refused.
+bundle for a project that is already onboarded, or already has a bundle, is
+refused in review.
 
 | File | Required | Holds |
 | --- | --- | --- |

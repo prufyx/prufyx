@@ -63,14 +63,14 @@ var secretRE = []*regexp.Regexp{
 }
 
 var internalRE = []*regexp.Regexp{
-	regexp.MustCompile(`/Users/[^/\s]+`),
-	regexp.MustCompile(`/home/[^/\s]+`),
+	regexp.MustCompile(`(?:^|[\s"'=:(])/Users/[^/\s]+`),
+	regexp.MustCompile(`(?:^|[\s"'=:(])/home/[^/\s]+`),
 	regexp.MustCompile(`\b(?:10\.\d{1,3}|192\.168|172\.(?:1[6-9]|2\d|3[01]))\.\d{1,3}\.\d{1,3}\b`),
 	regexp.MustCompile(`\.claude\b|\.ssh\b|\.kube\b|(?i:\bkubeconfig\b)`),
 }
 
 var (
-	ctrlRE      = regexp.MustCompile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+	ctrlRE      = regexp.MustCompile("[\x00-\x08\x0a-\x1f\x7f]")
 	quotePathRE = regexp.MustCompile(`^leads\.json\.leads\[\d+\]\.quote\.text$`)
 )
 
