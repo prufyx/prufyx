@@ -59,6 +59,9 @@ func TestApplyCommand(t *testing.T) {
 		{"apply", "--out", dir, "--pack", pack, "extra"},
 		{"apply", "--out", filepath.Join(t.TempDir(), "nope"), "--pack", pack},
 		{"apply", "--out", dir, "--pack", filepath.Join(t.TempDir(), "nope.json")},
+		{"apply", "--out", dir, "--pack", pack, "--renew-attestations", "--withdraw"},
+		{"apply", "--out", dir, "--pack", pack, "--renew-attestations", "--rules-only"},
+		{"apply", "--out", dir, "--pack", pack, "--renew-attestations", "--quiet-lines-only"},
 	} {
 		if code, _, _ := run(args...); code != 2 {
 			t.Fatalf("%v: exit %d", args, code)

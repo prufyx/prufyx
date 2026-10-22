@@ -17,9 +17,10 @@ func cmdApply(args []string, existing []string, stdout, stderr io.Writer) (int, 
 	f := flag.NewFlagSet("extract apply", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
 	var runDir, pack string
-	var withdraw, rulesOnly, quietOnly bool
+	var withdraw, rulesOnly, quietOnly, renew bool
 	f.BoolVar(&rulesOnly, "rules-only", false, "apply the run's rules only: no attestations, no schema change")
 	f.BoolVar(&quietOnly, "quiet-lines-only", false, "apply only the run's empty-list line attestations for lines the pack holds no rule for; no rules")
+	f.BoolVar(&renew, "renew-attestations", false, "replace the pack's mechanical attestations of the same extractor that the run re-derived at a newer build (same scope, completeness and rule ids; releases may only grow; later derivedAt); rules are never renewed")
 	f.StringVar(&runDir, "out", "", "run output directory (from extract run)")
 	f.StringVar(&pack, "pack", "", "rule pack file to edit in place")
 	f.BoolVar(&withdraw, "withdraw", false, "withdraw the rules the run no longer produces instead of adding its rules")
@@ -32,7 +33,10 @@ func cmdApply(args []string, existing []string, stdout, stderr io.Writer) (int, 
 	if quietOnly && (withdraw || rulesOnly) {
 		return 2, errors.New("command rejected: --quiet-lines-only does not combine with --withdraw or --rules-only\n" + usage)
 	}
-	rep, err := extractpack.Apply(extractpack.Options{PackPath: pack, RunDir: runDir, Withdraw: withdraw, RulesOnly: rulesOnly, QuietOnly: quietOnly, ExistingRules: existing})
+	if renew && (withdraw || rulesOnly || quietOnly) {
+		return 2, errors.New("command rejected: --renew-attestations does not combine with --withdraw, --rules-only or --quiet-lines-only\n" + usage)
+	}
+	rep, err := extractpack.Apply(extractpack.Options{PackPath: pack, RunDir: runDir, Withdraw: withdraw, RulesOnly: rulesOnly, QuietOnly: quietOnly, RenewAttestations: renew, ExistingRules: existing})
 	if errors.Is(err, extractpack.ErrStale) {
 		fmt.Fprintf(stderr, "extract: %v\n", err)
 		return 3, nil
@@ -53,6 +57,12 @@ func cmdApply(args []string, existing []string, stdout, stderr io.Writer) (int, 
 	}
 	for _, k := range rep.AttAdded {
 		fmt.Fprintln(stdout, "attested "+k)
+	}
+	if len(rep.AttRenewed) > 0 {
+		fmt.Fprintf(stdout, "renewed %d attestation(s)\n", len(rep.AttRenewed))
+		for _, k := range rep.AttRenewed {
+			fmt.Fprintln(stdout, "renewed "+k)
+		}
 	}
 	for _, k := range rep.AttSkipped {
 		fmt.Fprintln(stdout, "skipped "+k)
