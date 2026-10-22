@@ -578,9 +578,14 @@ func (st *onboardingState) checkProject(p OnboardingProject, baseRows, headRows 
 	if len(p.Facts) != 1 || p.Facts[0] != row.FactID() {
 		bad("O5: the facts must be exactly %s", row.FactID())
 	}
-	if head.Catalog != crdversions.CatalogCNCF || row.Catalog != customresources.CatalogCNCF {
-		bad("O4: only a CNCF catalog project is onboarded by a batch")
+	if head.Catalog != string(row.Catalog) {
+		bad("O4: the target and the table row name different catalogs")
 	}
+	if p.Catalog != string(row.Catalog) {
+		bad("O4: the batch names another catalog than the table row's")
+	}
+	// Defence in depth: targets.go and customresources.go already force the
+	// target and the row to agree, so this is not expected to fire.
 	if head.FactProject != row.FactProject || head.Component != row.Component {
 		bad("O4: the target and the table row name different facts or components")
 	}
@@ -592,8 +597,21 @@ func (st *onboardingState) checkProject(p OnboardingProject, baseRows, headRows 
 		if _, ok := baseRows[p.Slug]; ok {
 			bad("O4: kind new, but the base table already holds the project")
 		}
-		if _, ok := st.landscape[p.Slug]; !ok {
-			bad("O4: the project is not in the CNCF landscape catalog")
+		_, inLandscape := st.landscape[p.Slug]
+		switch row.Catalog {
+		case customresources.CatalogCommunity:
+			// A community project is outside the landscape: its identity is
+			// the table row's upstream record, which the target must name.
+			if inLandscape {
+				bad("O4: a community catalog project may not be in the CNCF landscape catalog")
+			}
+			if row.Upstream.Repository == "" || "https://"+head.Repo != row.Upstream.Repository {
+				bad("O4: the target repository %s is not the table row's upstream repository", logSafe(head.Repo))
+			}
+		default:
+			if !inLandscape {
+				bad("O4: the project is not in the CNCF landscape catalog")
+			}
 		}
 		if head.Attest {
 			bad("O4: a new target may not attest; attestation is turned on by a later batch for a project of the base")
@@ -607,10 +625,12 @@ func (st *onboardingState) checkProject(p OnboardingProject, baseRows, headRows 
 			// admitted blind by an onboarding batch.
 			bad("O4: a new target may not exclude files from the full-tree scan (%d exclusions); exclusions are reviewed per project", len(head.Exclude))
 		}
-		if repo := st.landscape[p.Slug]; repo != "https://"+head.Repo {
+		if repo := st.landscape[p.Slug]; row.Catalog != customresources.CatalogCommunity && repo != "https://"+head.Repo {
 			bad("O4: the target repository %s is not the landscape repository %s", logSafe(head.Repo), logSafe(repo))
 		}
 		for _, g := range row.Groups {
+			// Defence in depth: the table does not load with such a group
+			// unless a reviewed ownership record lists it.
 			if customresources.ReservedNamespace(g.Name) || customresources.KubernetesGroup(g.Name) {
 				bad("O4: the group %s is reserved; a reserved group is recorded on its own, never in an onboarding batch", logSafe(g.Name))
 			}

@@ -148,7 +148,8 @@ type Report struct {
 	LinesSnapshot *SnapshotInfo `json:"linesSnapshot,omitempty"`
 	Declared      *DeclaredInfo `json:"declared,omitempty"`
 	// PackProjects is the number of projects with a valid rule or
-	// attestation in the pack, whether or not lines are known for them.
+	// attestation in the pack, whether or not lines are known for them. A
+	// community project counts only through a current attestation.
 	PackProjects int    `json:"packProjectsCovered"`
 	Fleet        Totals `json:"fleet"`
 	Priority     Totals `json:"priorityProjects"`
@@ -158,8 +159,8 @@ type Report struct {
 	Families         []Family  `json:"families"`
 	Projects         []Project `json:"projects"`
 	// WithoutLines lists projects with a valid rule or attestation but no
-	// lines in the snapshot. Their pairs are unknown, never counted as
-	// covered.
+	// lines in the snapshot (a community project: a current attestation).
+	// Their pairs are unknown, never counted as covered.
 	WithoutLines []string `json:"projectsWithoutLines"`
 	// ExpiringProjects lists projects with an entry expiring within 14 days.
 	ExpiringProjects []string `json:"expiringProjects"`
@@ -401,7 +402,7 @@ func Compute(in Input) (Report, error) {
 		}
 	}
 	for project := range covered {
-		if customresources.IsCommunity(project) {
+		if customresources.IsCommunity(project) && validAtt[project] == 0 {
 			continue
 		}
 		report.PackProjects++
@@ -582,7 +583,7 @@ func Compute(in Input) (Report, error) {
 	}
 	report.WithoutLines = []string{}
 	for project := range covered {
-		if !withLines[project] && !customresources.IsCommunity(project) {
+		if !withLines[project] && (!customresources.IsCommunity(project) || validAtt[project] > 0) {
 			report.WithoutLines = append(report.WithoutLines, project)
 		}
 	}

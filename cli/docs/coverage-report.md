@@ -80,6 +80,9 @@ Lines are `major.minor`, ascending and unique. `priority`, `component` and
 attestations). Unknown members are rejected. A project with rules but no entry
 is listed under `projectsWithoutLines`; its pairs are unknown and are never
 counted as covered.
+A community-catalog project that has a valid rule but no valid line
+attestation is neither counted in `packProjectsCovered` nor listed under
+`projectsWithoutLines`.
 
 `releases` maps a line to the final releases of that line, ascending
 (`"releases": {"1.28": ["1.28.0", "1.28.1"]}`). Every key must be a listed

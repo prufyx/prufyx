@@ -92,6 +92,18 @@ they name the releases the derivation read, and cover a hop only between two
 of them, so a release published later is a gap until the attestation is
 renewed.
 
+A community-catalog project of the table is a member of the family like a CNCF
+one: membership follows the table row, not the catalog. A row whose component
+the table lists twice, or that is not a valid component, admits nothing.
+The attestations of a community project are stored in the CNCF rule pack,
+next to its rules (the community-corpus pack and its record sections are not
+used for them), and are admitted by the same proofs. The per-change cap
+(200) and the daily limit (50) count every loosening record of every pack
+together. An attestation also names the code digest of the extractor that
+derived it, so after an extractor change a record with the old digest no
+longer feeds the `complete` predicate of the ALL window until it is derived
+again. Only that predicate reads the code digest; the A/B status does not.
+
 A rule **belongs** to a family when its subject is one of the family's
 components and it reads at least one of that component's facts in the
 family, as its condition, set condition or an applicability condition. A rule that reads one family fact

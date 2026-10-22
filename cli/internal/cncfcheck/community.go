@@ -31,12 +31,11 @@ import (
 //   - a community project is known to a scan only when the knowledge holds
 //     data for it (a rule or a record); without data every route answers as
 //     it did before the community knowledge step;
-//   - line attestations, upgrade-path policies and served-API lists are
-//     admitted by the same checks as for a CNCF project, and those checks
-//     do not admit a community component yet (lineattest families list no
-//     community project, path policies and served-API lists name catalog
-//     subjects only): a community project cannot attest until the reviewed
-//     path that admits its line reviews exists.
+//   - line attestations are admitted by the same checks as for a CNCF
+//     project, beside the project's rules in the CNCF pack (the line-review
+//     family lists every table row); upgrade-path policies and served-API
+//     lists name catalog subjects only and do not admit a community
+//     component.
 const (
 	// ExternalCommunityTargetPrefix is the TUF target path prefix of the
 	// per-project targets of community projects.

@@ -255,7 +255,7 @@ func (r OnboardingRecord) validate() error {
 
 func (p OnboardingProject) validate() error {
 	bad := errors.New("project field out of range")
-	if !onboardingSlugRE.MatchString(p.Slug) || len(p.Slug) > 100 || p.Catalog != "cncf" {
+	if !onboardingSlugRE.MatchString(p.Slug) || len(p.Slug) > 100 || (p.Catalog != "cncf" && p.Catalog != "community") {
 		return bad
 	}
 	if p.Kind != OnboardingKindNew && p.Kind != OnboardingKindAttest {

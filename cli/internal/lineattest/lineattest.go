@@ -193,15 +193,12 @@ var families = map[string]Family{
 	},
 }
 
-// customResourceMembers maps each CNCF catalog project's component to
-// exactly its set fact. A component the table lists twice maps to no fact,
-// so a table that does not name one fact per component admits nothing for
-// it. A community project is never a member: the knowledge can carry its
-// rules and a per-project target for it, but a line review of a community
-// project is refused (here, in the pack's admission, and in the gate) until
-// the reviewed path that admits it exists: a change of this function, of the
-// extractor's refusal to attest a community target, and of the gate's
-// attestation proof, reviewed together.
+// customResourceMembers maps each table project's component to exactly its
+// set fact, whatever its catalog. A component the table lists twice maps to
+// no fact, so a table that does not name one fact per component admits
+// nothing for it. A community project is a member like any other: its rules
+// and its line attestations live in the CNCF pack beside its table row, and
+// the row's set fact is what admits it.
 func customResourceMembers(projects []customresources.Project) map[string]*regexp.Regexp {
 	out := map[string]*regexp.Regexp{}
 	seen := map[string]int{}
@@ -209,7 +206,7 @@ func customResourceMembers(projects []customresources.Project) map[string]*regex
 		seen[p.Component]++
 	}
 	for _, p := range projects {
-		if seen[p.Component] != 1 || p.Community() || !constraintengine.ValidComponent(p.Component) {
+		if seen[p.Component] != 1 || !constraintengine.ValidComponent(p.Component) {
 			continue
 		}
 		out[p.Component] = regexp.MustCompile(`^` + regexp.QuoteMeta(p.FactID()) + `$`)

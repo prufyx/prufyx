@@ -716,10 +716,10 @@ func TestCommunityStoreScanKnowledge(t *testing.T) {
 	}
 }
 
-// Community data cannot attest: a line attestation of a community component
-// is refused wherever an attestation is admitted, until the reviewed path
-// exists; the same attestation for a CNCF component is admitted.
-func TestCommunityCannotAttestYet(t *testing.T) {
+// A community component attests like a CNCF one: its attestation is valid,
+// and the pack that holds it beside the community rule is admitted at the
+// community schema level (the highest level its features need).
+func TestCommunityAttestation(t *testing.T) {
 	t.Parallel()
 	attestation := func(component string) lineattest.LineAttestation {
 		a := lineattest.LineAttestation{
@@ -733,18 +733,12 @@ func TestCommunityCannotAttestYet(t *testing.T) {
 		}
 		return a
 	}
-	// The attestation itself is refused for a community component, as it is
-	// for any component outside its family (lineattest), and valid for a
-	// CNCF custom-resource component.
-	if err := attestation(crdStrimziComponent).Validate(); err != nil {
-		t.Fatalf("CNCF custom-resource attestation invalid: %v", err)
-	}
 	for _, p := range customresources.CommunityProjects() {
-		if err := attestation(p.Component).Validate(); err == nil {
-			t.Fatalf("%s: community attestation is valid", p.Slug)
+		if err := attestation(p.Component).Validate(); err != nil {
+			t.Fatalf("%s: community attestation invalid: %v", p.Slug, err)
 		}
-		if family, _ := lineattest.LookupFamily(lineattest.FamilyCustomResourceVersions); family.Admits(p.Component) {
-			t.Fatalf("%s: the family admits a community component", p.Slug)
+		if family, _ := lineattest.LookupFamily(lineattest.FamilyCustomResourceVersions); !family.Admits(p.Component) {
+			t.Fatalf("%s: the family does not admit a community component", p.Slug)
 		}
 	}
 	pack := func(schema string, section []byte, entries ...Entry) []byte {
@@ -765,30 +759,59 @@ func TestCommunityCannotAttestYet(t *testing.T) {
 	if _, err := assembleWith(pack(packSchemaAttested, section(t, attestation(crdStrimziComponent))), compiledDefinitions()); err != nil {
 		t.Fatalf("CNCF custom-resource attestation refused: %v", err)
 	}
-	for _, p := range customresources.CommunityProjects() {
-		// Without a community entry the pack is at the attested level; with
-		// one it is at the community level. Either way it is refused.
-		if _, err := assembleWith(pack(packSchemaAttested, rawSection(t, attestation(p.Component))), compiledDefinitions()); !errors.Is(err, ErrIntegrity) {
-			t.Fatalf("%s: community attestation admitted: %v", p.Slug, err)
+	// A community rule forces the community level, and a record section on
+	// top of it keeps that level. The record is the quiet line 1.3: the
+	// rule of the pack is for line 1.2, which a record of 1.3 does not list.
+	quiet := func(component string) lineattest.LineAttestation {
+		a := attestation(component)
+		a.Line = "1.3"
+		a.Releases = &lineattest.Releases{
+			From: []lineattest.Release{{Version: "1.2.0", Commit: strings.Repeat("3", 40)}},
+			To:   []lineattest.Release{{Version: "1.3.0", Commit: strings.Repeat("4", 40)}},
 		}
-		if p.Slug == communitySlug {
-			if _, err := assembleWith(pack(packSchemaCommunity, rawSection(t, attestation(p.Component)), communityEntry()), compiledDefinitions()); !errors.Is(err, ErrIntegrity) {
-				t.Fatalf("%s: community attestation next to a community rule admitted: %v", p.Slug, err)
-			}
-		}
+		return a
 	}
-	// The same refusal holds for a community envelope: a records envelope
-	// whose attestation names the community component is not admitted.
+	rawComm := rawSection(t, quiet(communityComponent))
+	if schema, err := requiredPackSchema(mustPack(t, pack(packSchemaCommunity, rawComm, communityEntry()))); err != nil || schema != packSchemaCommunity {
+		t.Fatalf("required schema %q: %v", schema, err)
+	}
+	if _, err := assembleWith(pack(packSchemaCommunity, rawComm, communityEntry()), compiledDefinitions()); err != nil {
+		t.Fatalf("community attestation next to a community rule refused: %v", err)
+	}
+	// The schema must be exactly the required level, in both directions.
+	if _, err := assembleWith(pack(packSchemaAttested, rawComm, communityEntry()), compiledDefinitions()); !errors.Is(err, ErrIntegrity) {
+		t.Fatalf("community rule and attestation under the attested level admitted: %v", err)
+	}
+	// A record of line 1.2 must list the community rule of that line, which
+	// is not line-wide (no range): the pack check holds for a community
+	// component as for any.
+	if _, err := assembleWith(pack(packSchemaCommunity, rawSection(t, attestation(communityComponent)), communityEntry()), compiledDefinitions()); !errors.Is(err, ErrIntegrity) {
+		t.Fatalf("a record that omits the rule of its line admitted: %v", err)
+	}
+	// The records envelope admits it too.
 	b := communityBundle(t)
-	attested := rulePack{Schema: packSchemaCommunity, Revision: "7", PolicyID: b.pack.PolicyID, PolicyDigest: b.pack.PolicyDigest, LandscapeFileDigest: b.pack.LandscapeFileDigest, RegistryDigest: b.pack.RegistryDigest, Entries: []Entry{communityEntry()}, LineAttestations: rawSection(t, attestation(communityComponent))}
-	if err := admitExternalRecords(b, mustMarshal(t, attested), attested); !errors.Is(err, ErrIntegrity) {
-		t.Fatalf("community attestation in an envelope admitted: %v", err)
+	attested := rulePack{Schema: packSchemaCommunity, Revision: "7", PolicyID: b.pack.PolicyID, PolicyDigest: b.pack.PolicyDigest, LandscapeFileDigest: b.pack.LandscapeFileDigest, RegistryDigest: b.pack.RegistryDigest, Entries: []Entry{communityEntry()}, LineAttestations: rawComm}
+	if err := admitExternalRecords(b, mustMarshal(t, attested), attested); err != nil {
+		t.Fatalf("community attestation in an envelope refused: %v", err)
+	}
+	// An attestation of a component no table row names is still refused.
+	if _, err := assembleWith(pack(packSchemaCommunity, rawSection(t, quiet("pkg:github/example/no-such-row")), communityEntry()), compiledDefinitions()); !errors.Is(err, ErrIntegrity) {
+		t.Fatalf("attestation of an unlisted component admitted: %v", err)
 	}
 	// Path policies and served-API lists name catalog subjects of the
 	// landscape only.
 	if _, err := admitPathPolicies([]byte(`[{"component":"`+communityComponent+`"}]`), true, b.landscape.Projects); err == nil {
 		t.Fatal("a path policy for a community component admitted")
 	}
+}
+
+func mustPack(t *testing.T, raw []byte) rulePack {
+	t.Helper()
+	var p rulePack
+	if err := strictJSON(raw, &p); err != nil {
+		t.Fatal(err)
+	}
+	return p
 }
 
 // rawSection renders an attestation section without the validity check that

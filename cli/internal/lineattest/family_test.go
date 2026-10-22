@@ -46,7 +46,8 @@ func setRule(id, component, fact, from, to string, ranged bool) json.RawMessage 
 }
 
 // The custom-resource family's members are exactly the projects of the
-// reviewed custom-resource table, each with exactly its own set fact.
+// reviewed custom-resource table, whatever their catalog, each with exactly
+// its own set fact.
 func TestCustomResourceFamilyMembersAreTheReviewedTable(t *testing.T) {
 	f, ok := LookupFamily(FamilyCustomResourceVersions)
 	if !ok || !f.ReleaseScoped() || !f.fromPreviousLine || f.Scope() == "" {
@@ -56,12 +57,10 @@ func TestCustomResourceFamilyMembersAreTheReviewedTable(t *testing.T) {
 	community := 0
 	for _, p := range customresources.Projects() {
 		if p.Community() {
-			// A community project is registered but never attested.
 			community++
-			if f.Admits(p.Component) || f.Covers(p.Component, p.FactID()) {
-				t.Fatalf("community project %s is a family member", p.Slug)
+			if !f.Admits(p.Component) || !f.Covers(p.Component, p.FactID()) {
+				t.Fatalf("community project %s is not a family member", p.Slug)
 			}
-			continue
 		}
 		want = append(want, p.Component)
 		if !f.Covers(p.Component, p.FactID()) {
@@ -97,6 +96,28 @@ func TestCustomResourceFamilyMembersAreTheReviewedTable(t *testing.T) {
 	dup := customResourceMembers([]customresources.Project{{Slug: "a", FactProject: "a", Component: strimzi}, {Slug: "b", FactProject: "b", Component: strimzi}})
 	if len(dup) != 0 {
 		t.Fatalf("duplicate component admitted: %v", dup)
+	}
+}
+
+// A community component is admitted like a CNCF one, and a community
+// component the table lists twice admits nothing.
+func TestCommunityComponentIsAMember(t *testing.T) {
+	for _, p := range customresources.CommunityProjects() {
+		a := crdAttestation("a.rule")
+		a.Component = p.Component
+		if err := a.Validate(); err != nil {
+			t.Fatalf("%s: community attestation invalid: %v", p.Slug, err)
+		}
+	}
+	const comp = "pkg:github/example/synthetic-community"
+	row := func(slug string) customresources.Project {
+		return customresources.Project{Slug: slug, FactProject: slug, Component: comp, Catalog: customresources.CatalogCommunity}
+	}
+	if got := customResourceMembers([]customresources.Project{row("a")}); len(got) != 1 || got[comp] == nil {
+		t.Fatalf("single community row not admitted: %v", got)
+	}
+	if got := customResourceMembers([]customresources.Project{row("a"), row("b")}); len(got) != 0 {
+		t.Fatalf("duplicate community component admitted: %v", got)
 	}
 }
 

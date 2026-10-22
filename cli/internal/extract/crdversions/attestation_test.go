@@ -21,11 +21,20 @@ func attestingTarget(exclude ...Exclusion) Target {
 	return tg
 }
 
-// communityTarget is a synthetic community catalog target. Even with the
-// attest flag forced on (the loader refuses it), it never attests.
+// communityTarget is a synthetic community catalog target with the attest
+// flag on. It attests like a CNCF one when its component is a member of the
+// custom-resource family (a row of the reviewed table).
 func communityTarget() Target {
 	tg := synthTarget()
 	tg.Catalog, tg.Attest = CatalogCommunity, true
+	return tg
+}
+
+// communityNoRow is a community target that attests but whose component no
+// row of the reviewed table names.
+func communityNoRow() Target {
+	tg := communityTarget()
+	tg.Project, tg.Repo, tg.Component, tg.FactProject = "no-such-row", "github.com/example/no-such-row", "pkg:github/example/no-such-row", "no_such_row"
 	return tg
 }
 
@@ -117,9 +126,9 @@ func TestNotAttested(t *testing.T) {
 		"target does not attest": {synthTarget(), []release{
 			{"v1.0.0", map[string]string{"deploy/crds/a.yaml": alpha}}, {"v1.1.0", map[string]string{"deploy/crds/a.yaml": alpha}},
 		}, "1.0.0", "1.1.0", "attest is off"},
-		"community target": {communityTarget(), []release{
+		"community target without a table row": {communityNoRow(), []release{
 			{"v1.0.0", map[string]string{"deploy/crds/a.yaml": alpha}}, {"v1.1.0", map[string]string{"deploy/crds/a.yaml": alpha}},
-		}, "1.0.0", "1.1.0", "community catalog"},
+		}, "1.0.0", "1.1.0", "does not cover"},
 		"flapping version": {attestingTarget(), []release{
 			{"v1.0.0", map[string]string{"deploy/crds/a.yaml": crd("Alpha", "v1alpha1", "v1")}},
 			{"v1.1.0", map[string]string{"deploy/crds/a.yaml": crd("Alpha", "v1")}},
@@ -164,6 +173,28 @@ func TestNotAttested(t *testing.T) {
 	}
 }
 
+// A community target whose component has a table row attests exactly like a
+// CNCF one: the catalog plays no part in the extractor's decision.
+func TestCommunityTargetAttests(t *testing.T) {
+	alpha := crd("Alpha", "v1beta1", "v1")
+	out := runSynth(t, communityTarget(), newSynth(
+		release{"v1.0.0", map[string]string{"deploy/crds/a.yaml": alpha}}, release{"v1.1.0", map[string]string{"deploy/crds/a.yaml": alpha}},
+	))
+	if a := pairAttestation(t, out, "1.0.0", "1.1.0"); a.Status != extract.PairAttested || len(out.Attestations) != 1 {
+		t.Fatalf("quiet pair of a community target %+v", a)
+	}
+}
+
+// The loader accepts a community target that attests; the table row that
+// admits it is checked where the target is used (family, gate).
+func TestCommunityAttestTargetLoads(t *testing.T) {
+	raw := `{"schema":"` + TargetSchema + `","target":{"project":"synth-community","catalog":"community","name":"Synth","repo":"github.com/example/synth-community","component":"pkg:github/example/synth-community","factProject":"synth_community","tagPrefixes":["v"],"minFrom":"1.0","attest":true,"paths":[{"path":"deploy/crds","directory":true,"match":"^[^.][^/]*\\.ya?ml$","guard":"(?i)crd"}]}}`
+	tg, err := LoadTarget(TargetFileName("synth-community"), []byte(raw))
+	if err != nil || tg.Catalog != CatalogCommunity || !tg.Attest {
+		t.Fatalf("target %+v: %v", tg, err)
+	}
+}
+
 // A withheld pair is never attested.
 func TestWithheldPairIsNotAttested(t *testing.T) {
 	out := runSynth(t, attestingTarget(), newSynth(
@@ -199,16 +230,15 @@ func TestRealTargetsAttestOnlyWhatTheyMay(t *testing.T) {
 // registered CNCF catalog components. A registered target that does not
 // attest yet is data, not code: attestation is turned on for it by a change
 // of its own target file, which the knowledge gate admits only for a project
-// of the base whose newest pair the gate sees attest. A community target
-// never attests (the loader refuses it) and the family never admits its
-// component: its line reviews have no knowledge target yet.
+// of the base whose newest pair the gate sees attest. A community target is
+// a member like any other when its project has a table row.
 func TestAttestingTargetsAreTheRegisteredProjects(t *testing.T) {
 	family, _ := lineattest.LookupFamily(lineattest.FamilyCustomResourceVersions)
 	for _, tg := range Targets {
 		p, registered := customresources.ProjectFor(tg.Project)
 		if tg.Catalog == CatalogCommunity {
-			if !registered || !p.Community() || tg.Attest || family.Admits(tg.Component) {
-				t.Fatalf("%s: community target: registered %v, attest %v, family admits %v", tg.Project, registered, tg.Attest, family.Admits(tg.Component))
+			if !registered || !p.Community() || !family.Admits(tg.Component) {
+				t.Fatalf("%s: community target: registered %v, family admits %v", tg.Project, registered, family.Admits(tg.Component))
 			}
 			continue
 		}

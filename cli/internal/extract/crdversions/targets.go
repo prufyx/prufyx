@@ -398,12 +398,6 @@ func (tj targetJSON) target() (Target, error) {
 		// catalog project, so one target has exactly one spelling.
 		return t, fmt.Errorf("catalog %q: omit it for a CNCF catalog project or name %q", tj.Catalog, CatalogCommunity)
 	}
-	if t.Catalog == CatalogCommunity && t.Attest {
-		// A community project's line reviews are refused by the line-review
-		// family until the reviewed path that admits them exists (the
-		// family lists no community component), so it never attests.
-		return t, fmt.Errorf("a community catalog target does not attest")
-	}
 	switch {
 	case !projectRE.MatchString(t.Project) || len(t.ExtractorID()) > 128:
 		return t, fmt.Errorf("project slug")

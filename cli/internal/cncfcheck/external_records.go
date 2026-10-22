@@ -93,8 +93,7 @@ func admitExternalRecords(base bundle, packRaw json.RawMessage, pack rulePack) e
 		}
 		// Every attestation names a catalog subject component (a landscape
 		// project's, or a community project's); the family check in
-		// lineattest already limits which components it may name, and
-		// names no community project yet.
+		// lineattest already limits which components it may name.
 		subjects := subjectComponents(base.knowledgeProjects())
 		components, err := sectionComponents(section)
 		if err != nil {

@@ -737,7 +737,7 @@ func TestTargetsAreCatalogProjects(t *testing.T) {
 			// nor its slug is a CNCF catalog one.
 			community++
 			p, ok := customresources.ProjectFor(tg.Project)
-			if !ok || !p.Community() || p.Upstream.Repository != "https://"+tg.Repo || p.Upstream.Name != tg.Name || tg.Attest {
+			if !ok || !p.Community() || p.Upstream.Repository != "https://"+tg.Repo || p.Upstream.Name != tg.Name {
 				t.Fatalf("%s: community target without its community table entry (%+v)", tg.Project, p)
 			}
 			if slices.Contains(components, tg.Component) {

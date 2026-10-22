@@ -31,9 +31,15 @@ const (
 // directory path, no exclusions, remote source or channels.
 func atPick(t *testing.T) (crdversions.Target, customresources.Project) {
 	t.Helper()
+	return atPickIn(t, crdversions.CatalogCNCF)
+}
+
+// atPickIn is atPick for a target of the given catalog.
+func atPickIn(t *testing.T, catalog string) (crdversions.Target, customresources.Project) {
+	t.Helper()
 	for _, tg := range crdversions.Targets {
 		row, registered := customresources.ProjectFor(tg.Project)
-		if tg.Attest || !registered || tg.Catalog != crdversions.CatalogCNCF || tg.Remote != nil || len(tg.Channels) > 0 || len(tg.Exclude) > 0 || len(tg.Paths) != 1 || !tg.Paths[0].Dir || tg.Paths[0].Recursive || len(tg.TagPrefixes) == 0 {
+		if tg.Attest || !registered || tg.Catalog != catalog || tg.Remote != nil || len(tg.Channels) > 0 || len(tg.Exclude) > 0 || len(tg.Paths) != 1 || !tg.Paths[0].Dir || tg.Paths[0].Recursive || len(tg.TagPrefixes) == 0 {
 			continue
 		}
 		return tg, row
@@ -46,7 +52,13 @@ func atPick(t *testing.T) (crdversions.Target, customresources.Project) {
 // synthetic upstream fixture; edit changes the head target document too.
 func attestFixture(t *testing.T, edit func(target map[string]any)) *onboardingFixture {
 	t.Helper()
-	tg, row := atPick(t)
+	return attestFixtureIn(t, crdversions.CatalogCNCF, edit)
+}
+
+// attestFixtureIn is attestFixture for a project of the given catalog.
+func attestFixtureIn(t *testing.T, catalog string, edit func(target map[string]any)) *onboardingFixture {
+	t.Helper()
+	tg, row := atPickIn(t, catalog)
 	base, head := trees(t)
 	onboardingRepoFiles(t, base)
 	onboardingRepoFiles(t, head)
@@ -85,6 +97,7 @@ func attestFixture(t *testing.T, edit func(target map[string]any)) *onboardingFi
 	}
 	p := f.project(tg.Project, OnboardingKindAttest, groups...)
 	p.Facts = []string{row.FactID()}
+	p.Catalog = string(row.Catalog)
 	p.Proof.Pair = OnboardingPair{FromCommit: atFrom, FromTag: fromTag, ToCommit: atTo, ToTag: toTag}
 	f.draft = onboardingDraft{BatchID: "ob-20261003-1", CandidateID: "pr-2", Projects: []OnboardingProject{p}}
 	return f
