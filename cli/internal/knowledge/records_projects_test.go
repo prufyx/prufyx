@@ -77,17 +77,24 @@ func relabelProject(t *testing.T, indexRaw []byte, project string, raw []byte, i
 		t.Fatal(err)
 	}
 	document.Revision = indexRevision
-	records := false
+	records, community := false, false
 	for i := range document.Projects {
 		e := &document.Projects[i]
 		if e.Project == project {
 			e.Length, e.Digest, e.Revision, e.RuleDigest, e.EvidenceExpiresAt, e.Records = int64(len(raw)), digestBytes(raw), entryRevision, admission.RuleDigest, admission.EvidenceExpiresAt, admission.HasRecords
 		}
 		records = records || e.Records
+		community = community || e.Catalog != ""
 	}
+	// The schema is the lowest one that carries every member of the
+	// entries; the shipped pack holds community data, so its index is the
+	// community one.
 	document.Schema = cncfcheck.ExternalIndexSchema
 	if records {
 		document.Schema = cncfcheck.ExternalIndexSchemaRecords
+	}
+	if community {
+		document.Schema = cncfcheck.ExternalIndexSchemaCommunity
 	}
 	out, err := json.Marshal(document)
 	if err != nil {
@@ -107,8 +114,18 @@ func TestConstraintsProjectsCarryRecords(t *testing.T) {
 	f := newProjectsFixture(t)
 	targets := targetsFromPack(t, packWithServedList(t), "5")
 	index := targets[ConstraintsProjectsIndexTargetPath]
-	if !bytes.Contains(index, []byte(cncfcheck.ExternalIndexSchemaRecords)) {
-		t.Fatal("the index is not a records index")
+	var indexDocument struct {
+		Projects []cncfcheck.ExternalIndexEntry `json:"projects"`
+	}
+	if err := json.Unmarshal(index, &indexDocument); err != nil {
+		t.Fatal(err)
+	}
+	kubernetesRecords := false
+	for _, e := range indexDocument.Projects {
+		kubernetesRecords = kubernetesRecords || (e.Project == "kubernetes" && e.Records)
+	}
+	if !kubernetesRecords {
+		t.Fatal("the index does not mark the kubernetes target as carrying records")
 	}
 	if _, err := f.importPackage(f.write(t, knowledgefixture.ProjectsPackage{Targets: targets})); err != nil {
 		t.Fatalf("records package refused: %v", err)

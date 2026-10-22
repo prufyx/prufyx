@@ -43,7 +43,48 @@ func communityEntry() Entry {
 	return Entry{Project: communitySlug, Description: "Synthetic test-only CRD version removal of a community project.", RequiredFacts: []Fact{{Side: "proposed", ID: communityFact, Component: communityComponent, Type: constraintengine.FactSet, Description: "Custom-resource versions of the Gateway API custom resources."}}, Rule: json.RawMessage(rule)}
 }
 
-// communityPack is the embedded pack plus entries under schema.
+// shippedCommunitySlug is the one community project the shipped pack holds
+// data for (CRD line attestations, no rule entries). Every other community
+// project of the table has none, and communityPack leaves this one out so the
+// tests below start from a pack without community data.
+const shippedCommunitySlug = "mongodb-kubernetes"
+
+// withoutCommunityAttestations drops the line attestations of every
+// community component from the section.
+func withoutCommunityAttestations(t *testing.T, section json.RawMessage) json.RawMessage {
+	t.Helper()
+	if len(section) == 0 {
+		return section
+	}
+	community := map[string]bool{}
+	for _, p := range customresources.CommunityProjects() {
+		community[p.Component] = true
+	}
+	var items []json.RawMessage
+	if err := json.Unmarshal(section, &items); err != nil {
+		t.Fatal(err)
+	}
+	kept := make([]json.RawMessage, 0, len(items))
+	for _, item := range items {
+		var shape struct {
+			Component string `json:"component"`
+		}
+		if err := json.Unmarshal(item, &shape); err != nil {
+			t.Fatal(err)
+		}
+		if !community[shape.Component] {
+			kept = append(kept, item)
+		}
+	}
+	out, err := json.Marshal(kept)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+// communityPack is the embedded pack, without the shipped community
+// attestations, plus entries under schema.
 func communityPack(t *testing.T, schema string, entries ...Entry) []byte {
 	t.Helper()
 	raw, err := packagedFiles.ReadFile("data/rules.json")
@@ -54,6 +95,7 @@ func communityPack(t *testing.T, schema string, entries ...Entry) []byte {
 	if err := strictJSON(raw, &pack); err != nil {
 		t.Fatal(err)
 	}
+	pack.LineAttestations = withoutCommunityAttestations(t, pack.LineAttestations)
 	pack.Entries = append(pack.Entries, entries...)
 	sort.SliceStable(pack.Entries, func(i, j int) bool { return ruleID(t, pack.Entries[i]) < ruleID(t, pack.Entries[j]) })
 	pack.Schema = schema
@@ -112,8 +154,11 @@ func TestCommunityIdentitiesOfTheShippedTable(t *testing.T) {
 	}
 }
 
-// With the shipped knowledge a community project is unknown to every route:
-// no data, not checkable, not in a scan snapshot, not in the index.
+// With the shipped knowledge a community project without data is unknown to
+// every route: no data, not checkable, not in a scan snapshot, not in the
+// index. The one community project the pack holds attestations for
+// (shippedCommunitySlug) is the only exception and is known as community,
+// never as CNCF.
 func TestCommunityIsInertWithShippedKnowledge(t *testing.T) {
 	t.Parallel()
 	b, err := load()
@@ -127,7 +172,21 @@ func TestCommunityIsInertWithShippedKnowledge(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sawShipped := false
 	for _, p := range customresources.CommunityProjects() {
+		if p.Slug == shippedCommunitySlug {
+			sawShipped = true
+			if !b.communityHasData(p.Slug) || !b.hasCheckableProject(p.Slug) || !b.hasKnowledgeProject(p.Slug) {
+				t.Fatalf("%s: data %v checkable %v", p.Slug, b.communityHasData(p.Slug), b.hasCheckableProject(p.Slug))
+			}
+			if component, ok := k.Component(p.Slug); !ok || component != p.Component || k.Catalog(p.Slug) != CatalogCommunity {
+				t.Fatalf("%s: scan knowledge component %q %v catalog %q", p.Slug, component, ok, k.Catalog(p.Slug))
+			}
+			if has, err := CommunityProjectHasData(p.Slug); err != nil || !has {
+				t.Fatalf("%s: embedded data %v %v", p.Slug, has, err)
+			}
+			continue
+		}
 		if b.communityHasData(p.Slug) || b.hasCheckableProject(p.Slug) || b.hasKnowledgeProject(p.Slug) != true {
 			t.Fatalf("%s: data %v checkable %v", p.Slug, b.communityHasData(p.Slug), b.hasCheckableProject(p.Slug))
 		}
@@ -144,22 +203,36 @@ func TestCommunityIsInertWithShippedKnowledge(t *testing.T) {
 			t.Fatalf("%s: catalogue %v", p.Slug, err)
 		}
 	}
+	if !sawShipped {
+		t.Fatalf("%s is not a community project of the table", shippedCommunitySlug)
+	}
 	for _, slug := range k.Projects() {
 		if isCommunitySlug(slug) {
 			t.Fatalf("scan catalogue lists community project %s", slug)
 		}
 	}
-	// The index and targets of the shipped pack carry no community project
-	// and no catalog member, at the same schema as before.
+	// The index of the shipped pack carries the one community project with
+	// data and no other, under the community schema; every other entry is a
+	// CNCF project without a catalog label.
 	index, targets, err := BuildEmbeddedExternalTargets("1", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Contains(index.Bytes, []byte(`"catalog"`)) || bytes.Contains(index.Bytes, []byte("/v3")) {
-		t.Fatalf("index: %s", index.Bytes)
+	var document externalIndexDocument
+	if err := json.Unmarshal(index.Bytes, &document); err != nil {
+		t.Fatal(err)
+	}
+	if document.Schema != ExternalIndexSchemaCommunity {
+		t.Fatalf("index schema %s", document.Schema)
+	}
+	for _, entry := range document.Projects {
+		community := entry.Project == shippedCommunitySlug
+		if community != (entry.Catalog == CatalogCommunity) || community != strings.HasPrefix(entry.TargetPath, ExternalCommunityTargetPrefix) {
+			t.Fatalf("index entry %+v", entry)
+		}
 	}
 	for _, target := range targets {
-		if strings.HasPrefix(target.Path, ExternalCommunityTargetPrefix) {
+		if strings.HasPrefix(target.Path, ExternalCommunityTargetPrefix) && target.Path != ProjectTargetPath(shippedCommunitySlug) {
 			t.Fatalf("community target %s from the shipped pack", target.Path)
 		}
 	}
@@ -602,19 +675,14 @@ func TestCommunityIndexRefusals(t *testing.T) {
 	}
 	// The index of a pack without a community entry is the v1 or v2 index
 	// and carries no catalog member.
-	plain, _ := buildCommunityTargets(t, mustLoad(t))
-	if bytes.Contains(plain.Bytes, []byte(`"catalog"`)) || bytes.Contains(plain.Bytes, []byte(ExternalIndexSchemaCommunity)) {
-		t.Fatalf("plain index: %s", plain.Bytes)
-	}
-}
-
-func mustLoad(t *testing.T) bundle {
-	t.Helper()
-	b, err := load()
+	plainBundle, err := assembleWith(communityPack(t, shippedSchemaLevel(t)), compiledDefinitions())
 	if err != nil {
 		t.Fatal(err)
 	}
-	return b
+	plain, _ := buildCommunityTargets(t, plainBundle)
+	if bytes.Contains(plain.Bytes, []byte(`"catalog"`)) || bytes.Contains(plain.Bytes, []byte(ExternalIndexSchemaCommunity)) {
+		t.Fatalf("plain index: %s", plain.Bytes)
+	}
 }
 
 // A community project is known to a scan once the knowledge holds data for

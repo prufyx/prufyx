@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfknowledge"
 	"github.com/prufyx/prufyx/cli/internal/customresources"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
@@ -16,7 +17,9 @@ import (
 
 // With the shipped knowledge a community project is refused exactly as it
 // was before the community knowledge step: the same message, whichever route
-// names it (flag, configuration file, knowledge database).
+// names it (flag, configuration file, knowledge database). A community
+// project the shipped knowledge holds data for is the exception: it is not
+// refused as a project without data.
 func TestScanCommunityComponentWithoutDataIsRefusedAsBefore(t *testing.T) {
 	if len(customresources.CommunityProjects()) == 0 {
 		t.Fatal("no community project")
@@ -25,8 +28,22 @@ func TestScanCommunityComponentWithoutDataIsRefusedAsBefore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	noData := 0
 	for _, p := range customresources.CommunityProjects() {
 		want := scanreport.Text(scanreport.UsageCommunityComponent, quote(p.Slug))
+		has, err := cncfcheck.CommunityProjectHasData(p.Slug)
+		if err != nil {
+			t.Fatalf("%s: %v", p.Slug, err)
+		}
+		if has {
+			_, err := scan(t, embedded, args([]string{"missing.yaml"}, "--to", p.Slug+"=1.3.0")...)
+			var u *UsageError
+			if !errors.As(err, &u) || u.Error() == want || strings.Contains(u.Error(), "community catalog") {
+				t.Fatalf("%s has data: %v, must not be refused as a project without data", p.Slug, err)
+			}
+			continue
+		}
+		noData++
 		for name, extra := range map[string][]string{
 			"to":   {"--to", p.Slug + "=1.3.0"},
 			"from": {"--from", p.Slug + "=1.2.0", "--to", "kubernetes=1.30.0"},
@@ -46,6 +63,9 @@ func TestScanCommunityComponentWithoutDataIsRefusedAsBefore(t *testing.T) {
 				t.Fatalf("%s config: %v, want %q", p.Slug, err, want)
 			}
 		})
+	}
+	if noData == 0 {
+		t.Fatal("every community project has data: this test needs one without")
 	}
 	// An unknown name stays unknown, and a CNCF name is not touched.
 	_, err = scan(t, embedded, args([]string{"missing.yaml"}, "--to", "no-such-project=1.0.0")...)
