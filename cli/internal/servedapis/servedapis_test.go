@@ -78,3 +78,21 @@ func TestParseRejects(t *testing.T) {
 		t.Error("trailing data accepted")
 	}
 }
+
+func TestParseAcceptsPartialCompleteness(t *testing.T) {
+	raw := strings.Replace(doc("1.29", `["v1 ConfigMap"]`), Completeness, CompletenessPartial, 1)
+	records, err := Parse([]byte("[" + raw + "]"))
+	if err != nil || records[0].Completeness != CompletenessPartial {
+		t.Fatalf("%+v %v", records, err)
+	}
+}
+
+func TestSourceFiles(t *testing.T) {
+	dir, files := SourceFiles()
+	if dir != "servedapis" {
+		t.Fatalf("dir %q", dir)
+	}
+	if _, err := files.Open("servedapis.go"); err != nil {
+		t.Fatal(err)
+	}
+}

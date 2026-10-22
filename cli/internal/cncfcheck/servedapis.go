@@ -74,3 +74,11 @@ func (k *ScanKnowledge) ServedAPIsFor(component, line string, now time.Time) (se
 	}
 	return b.servedAPIs.For(component, line, now)
 }
+
+// ServedListNamesRemovedAPI reports whether a served list names an API the
+// removal table marks as removed at or before its line: the check pack
+// admission applies, for the knowledge gate to apply before a list is
+// admitted.
+func ServedListNamesRemovedAPI(record servedapis.Record) bool {
+	return namesRemovedAPI(record, k8sremovals.AdmissionRemovedVersions())
+}

@@ -28,6 +28,8 @@ type recordSet struct {
 	servedWindow, policyWindow  [2]string
 	attestationRules            func([]string) []string
 	extraServed                 []string
+	// partial marks the served list as covering stable versions only.
+	partial bool
 	// requireBasis is passed to scan as --require-basis when not empty.
 	requireBasis string
 	// refused: the loader must refuse the pack; installRecords returns nil.
@@ -83,8 +85,12 @@ func installRecords(t *testing.T, set recordSet) Knowledge {
 		pairs = append(pairs, set.extraServed...)
 		sort.Strings(pairs)
 		encodedPairs, _ := json.Marshal(pairs)
+		completeness := servedapis.Completeness
+		if set.partial {
+			completeness = servedapis.CompletenessPartial
+		}
 		records.ServedAPIs = json.RawMessage(fmt.Sprintf(`[{"component":%q,"line":"1.29","completeness":%q,"apis":%s,"evidence":%s}]`,
-			kubernetesKey, servedapis.Completeness, encodedPairs, evidence(set.servedWindow)))
+			kubernetesKey, completeness, encodedPairs, evidence(set.servedWindow)))
 	}
 	restore, err := cncfcheck.UseSyntheticRecords(nil, nil, records)
 	if err != nil {
@@ -240,5 +246,37 @@ func TestScanServedListNamingRemovedAPIIsRefused(t *testing.T) {
 	installRecords(t, recordSet{attestation: true, served: true, extraServed: removed, refused: true})
 	if result := scanHop(t, mustEmbedded(t), cronjobV1+"---\n"+removedObject); result.Exit == scanreport.ExitPass || result.Report.Verdict == scanreport.VerdictPass {
 		t.Fatalf("exit %d verdict %s", result.Exit, result.Report.Verdict)
+	}
+}
+
+// TestScanPartialServedList: a list that covers stable versions only keeps a
+// beta built-in object UNKNOWN with text that says so, never BLOCKED or PASS;
+// the listed GA objects stay usable and the report marks the list partial.
+func TestScanPartialServedList(t *testing.T) {
+	const beta = "---\napiVersion: admissionregistration.k8s.io/v1beta1\nkind: ValidatingAdmissionPolicy\nmetadata: {name: a}\n"
+	partial := recordSet{attestation: true, served: true, partial: true}
+
+	result := scanHop(t, installRecords(t, partial), cronjobV1+beta)
+	if result.Exit != scanreport.ExitUnknown || result.Report.Verdict == scanreport.VerdictPass || len(result.Report.Findings) != 0 {
+		t.Fatalf("exit %d verdict %s findings %v", result.Exit, result.Report.Verdict, result.Report.Findings)
+	}
+	if !hasGap(result.Report, "API_VERSION_NOT_REVIEWED", "stable (GA) versions only") {
+		t.Fatalf("no partial-list gap: %+v", result.Report.Gaps)
+	}
+
+	// GA objects the partial list names stay usable, and the pass names the
+	// list as partial.
+	result = scanHop(t, installRecords(t, partial), cronjobV1)
+	if result.Exit != scanreport.ExitPass {
+		t.Fatalf("listed GA objects: exit %d gaps %v", result.Exit, gapReasons(result.Report))
+	}
+	if served := result.Report.Paths[0].ServedList; served == nil || !served.Partial {
+		t.Fatalf("served list %+v", served)
+	}
+
+	// The same beta object beside a complete list keeps the plain text.
+	result = scanHop(t, installRecords(t, recordSet{attestation: true, served: true}), cronjobV1+beta)
+	if !hasGap(result.Report, "API_VERSION_NOT_REVIEWED", "does not list as served") || hasGap(result.Report, "API_VERSION_NOT_REVIEWED", "stable (GA)") {
+		t.Fatalf("complete list gaps: %+v", result.Report.Gaps)
 	}
 }

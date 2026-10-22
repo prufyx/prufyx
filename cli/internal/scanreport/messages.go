@@ -85,6 +85,7 @@ const (
 	// scan has no removal rules for.
 	GapLineNoScanRules         GapKey = ReasonRuleNotDecided + "/no-line-rules"
 	GapAPIVersionNotListed     GapKey = ReasonAPIVersionNotReviewed + "/not-listed"
+	GapNotListedPartial        GapKey = ReasonAPIVersionNotReviewed + "/not-listed-partial"
 	GapAPIVersionNoServedList  GapKey = ReasonAPIVersionNotReviewed + "/no-served-list"
 	GapLineUndecidedFact       GapKey = ReasonLineNotAttested + "/undecided-fact"
 	GapAPIVersionNotReviewed   GapKey = ReasonAPIVersionNotReviewed
@@ -222,6 +223,8 @@ var gapMessages = map[GapKey]gapMessage{
 	GapAPIVersionNotServedCrossed: {"%[1]d manifest(s) use API versions Kubernetes %[2]s does not serve, removed on a line this upgrade enters",
 		"no reviewed rule decided them; migrate them to a served API version before upgrading, and the gaps for the step that enters the line say why", 2},
 	GapAPIVersionNotListed: {"%[1]d manifest(s) use API versions that the review of Kubernetes %[2]s does not list as served",
+		"check those API versions against the Kubernetes %[2]s API reference by hand", 2},
+	GapNotListedPartial: {"%[1]d manifest(s) use API versions not in the Kubernetes %[2]s served list, stable (GA) versions only",
 		"check those API versions against the Kubernetes %[2]s API reference by hand", 2},
 	GapAPIVersionNoServedList: {"no reviewed list of the API versions Kubernetes %[2]s serves; %[1]d manifest(s) cannot be checked",
 		"check them against the API reference of that Kubernetes release by hand, or request coverage: " + RequestCoverageURL, 2},

@@ -543,10 +543,17 @@ The external knowledge target format carries served lists in the kubernetes
 project target (a records envelope; see
 [Records in project targets](cncf-knowledge-per-project.md#records-in-project-targets)),
 and a scan with `--knowledge-db` reads them from the database exactly as it
-reads them from the embedded pack. `evidence repin`, `evidence reattest` and
-the support inventory refuse a pack with the member, and the knowledge gate
-treats any change to it as a change to a top-level pack member, which it
-never admits.
+reads them from the embedded pack. `evidence repin` and `evidence reattest`
+read them as records, and the support inventory refuses a pack with the member.
+The knowledge gate admits a list only when it re-derives it from the line's
+OpenAPI specification (see [knowledge-gate.md](knowledge-gate.md#served-api-lists)).
+
+The derived list names stable (GA) versions only, so it is marked
+`PARTIAL_STABLE_SERVED_API_LIST_FOR_LINE`: the specification lists beta and
+alpha versions that a default build does not serve. A built-in object whose
+pair is absent from a partial list is `API_VERSION_NOT_REVIEWED` (never
+`BLOCKED` or a pass), and the gap says the list holds stable (GA) versions only.
+`paths[].servedList.partial` is `true` for such a list.
 
 ## JSON
 

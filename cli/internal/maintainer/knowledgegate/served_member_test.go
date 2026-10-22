@@ -12,11 +12,11 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/servedapis"
 )
 
-// A served-API list section is a top-level pack member, so adding, changing
-// or removing one is a pack-member change: classified as loosening and never
-// admitted, even when the section itself is valid and the pack carries the
-// right schema. The section here is test data, not knowledge.
-func TestServedAPIsSectionIsAPackMemberChange(t *testing.T) {
+// A served-API list is a record of its own section: adding or changing one is a
+// loosening record change, removing one is tightening. A list of any basis but
+// mechanical is never admitted, even when the section itself is valid and the
+// pack carries the right schema. The section here is test data, not knowledge.
+func TestServedAPIsSectionIsRecordsNotAPackMember(t *testing.T) {
 	t.Parallel()
 	revision := strings.Repeat("a", 40)
 	record := func(apis ...string) []servedapis.Record {
@@ -60,14 +60,28 @@ func TestServedAPIsSectionIsAPackMemberChange(t *testing.T) {
 			found := false
 			for _, c := range cls.Changes {
 				if c.Member == servedapis.PackMember {
-					found = true
-					if c.Class != ClassLoosening || len(c.Kinds) != 1 || c.Kinds[0] != KindPackMember {
-						t.Fatalf("served-list change classified %+v", c)
-					}
+					t.Fatalf("the section is classified as a pack member: %+v", c)
+				}
+				if c.Section != servedapis.PackMember {
+					continue
+				}
+				found = true
+				wantClass, wantKind := ClassLoosening, KindNew
+				switch name {
+				case "changed":
+					wantKind = KindModify
+				case "removed":
+					wantClass, wantKind = ClassTightening, KindRemove
+				}
+				if c.Class != wantClass || !containsKind(c.Kinds, wantKind) {
+					t.Fatalf("served-list change classified %+v", c)
 				}
 			}
 			if !found {
-				t.Fatalf("no %s change classified: %+v", servedapis.PackMember, cls.Changes)
+				t.Fatalf("no %s record change classified: %+v", servedapis.PackMember, cls.Changes)
+			}
+			if name == "removed" {
+				return
 			}
 			r, blocked := tryGate(t, Options{Base: base, Head: head, Author: DefaultBotLogin})
 			if !blocked {
@@ -77,7 +91,7 @@ func TestServedAPIsSectionIsAPackMemberChange(t *testing.T) {
 				if r.AutoMerge.Eligible {
 					t.Fatal("a served-list section change is eligible for automatic merging")
 				}
-				requireFail(t, r, "the top-level member "+servedapis.PackMember+" changed")
+				requireFail(t, r, "is admitted only when the gate re-derives it")
 			}
 		})
 	}
