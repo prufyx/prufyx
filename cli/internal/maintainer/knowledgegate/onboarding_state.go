@@ -273,6 +273,80 @@ func (st *onboardingState) allowedPaths(rec OnboardingRecord, batchPath string) 
 	return allowed
 }
 
+// groupListing is one project's listing of an API group in the head table.
+type groupListing struct {
+	slug  string
+	kinds []string
+}
+
+// newRowGroups are the groups, by name, that a new project of the batch lists
+// with kinds in the head table: the groups the batch may share.
+func newRowGroups(rec OnboardingRecord, headRows map[string]customresources.Project) map[string]bool {
+	out := map[string]bool{}
+	for _, p := range rec.Projects {
+		row, ok := headRows[p.Slug]
+		if p.Kind != OnboardingKindNew || !ok {
+			continue
+		}
+		for _, g := range row.Groups {
+			if len(g.Kinds) > 0 {
+				out[g.Name] = true
+			}
+		}
+	}
+	return out
+}
+
+// kindsChange is one listing an amendment gives kinds.
+type kindsChange struct {
+	Slug, Group string
+	Kinds       []string
+}
+
+// kindsAmendment reports whether the head row of an existing project is its
+// base row with kinds added to whole listings of groups the batch shares
+// (the groups of sharing), and nothing else. The kinds only narrow what the
+// listing attributes: an object of a kind no project lists is attributed to
+// none and keeps every set incomplete.
+func kindsAmendment(base, head customresources.Project, sharing map[string]bool) ([]kindsChange, bool) {
+	if len(base.Groups) != len(head.Groups) {
+		return nil, false
+	}
+	rest := head
+	rest.Groups = make([]customresources.Group, len(head.Groups))
+	var changes []kindsChange
+	for i, g := range head.Groups {
+		rest.Groups[i] = g
+		b := base.Groups[i]
+		if !reflect.DeepEqual(b.Kinds, g.Kinds) {
+			if b.Kinds != nil || len(g.Kinds) == 0 || !sharing[g.Name] {
+				return nil, false
+			}
+			changes = append(changes, kindsChange{Slug: head.Slug, Group: g.Name, Kinds: g.Kinds})
+		}
+		rest.Groups[i].Kinds = b.Kinds
+	}
+	return changes, len(changes) > 0 && reflect.DeepEqual(base, rest)
+}
+
+// amendments are the kinds the batch adds to existing rows, ordered by slug
+// and group. check refuses every other change of an existing row.
+func (st *onboardingState) amendments(rec OnboardingRecord) []kindsChange {
+	baseRows, headRows := projectsBySlug(st.base.projects), projectsBySlug(st.head.projects)
+	sharing := newRowGroups(rec, headRows)
+	var out []kindsChange
+	for _, p := range st.head.projects {
+		b, ok := baseRows[p.Slug]
+		if !ok || reflect.DeepEqual(b, p) {
+			continue
+		}
+		if changes, ok := kindsAmendment(b, p, sharing); ok {
+			out = append(out, changes...)
+		}
+	}
+	return out
+}
+
 func projectsBySlug(list []customresources.Project) map[string]customresources.Project {
 	out := map[string]customresources.Project{}
 	for _, p := range list {
@@ -372,13 +446,16 @@ func (st *onboardingState) check(rec OnboardingRecord, batchPath string) []strin
 	if !reflect.DeepEqual(st.base.reserved, st.head.reserved) {
 		bad("O4: the reserved groups of the custom-resource table changed; a reserved group is recorded on its own, never in an onboarding batch")
 	}
+	sharing := newRowGroups(rec, headRows)
 	for slug, b := range baseRows {
 		h, ok := headRows[slug]
 		switch {
 		case !ok:
 			bad("O2: the table row of %s is removed", logSafe(slug))
 		case !reflect.DeepEqual(b, h):
-			bad("O2: the table row of %s changes; an onboarding batch only adds rows", logSafe(slug))
+			if _, ok := kindsAmendment(b, h, sharing); !ok {
+				bad("O2: the table row of %s changes; an onboarding batch only adds rows, and amends a row only by adding kinds to a whole listing of a group a new project of the batch shares", logSafe(slug))
+			}
 		}
 	}
 	for slug := range headRows {
@@ -411,10 +488,10 @@ func (st *onboardingState) check(rec OnboardingRecord, batchPath string) []strin
 			bad("O4: the fact project %s is used by %s", logSafe(fp), logSafe(strings.Join(owners, ", ")))
 		}
 	}
-	groupOwners := map[string][]string{}
+	groupOwners := map[string][]groupListing{}
 	for _, p := range st.head.projects {
 		for _, g := range p.Groups {
-			groupOwners[g.Name] = append(groupOwners[g.Name], p.Slug)
+			groupOwners[g.Name] = append(groupOwners[g.Name], groupListing{slug: p.Slug, kinds: g.Kinds})
 		}
 	}
 	baseDefs := map[string]constraintengine.FactDefinition{}
@@ -463,7 +540,7 @@ func (st *onboardingState) check(rec OnboardingRecord, batchPath string) []strin
 
 // checkProject runs O3 (artifacts) and O4 (what the base's loaders read)
 // for one project.
-func (st *onboardingState) checkProject(p OnboardingProject, baseRows, headRows map[string]customresources.Project, groupOwners map[string][]string) []string {
+func (st *onboardingState) checkProject(p OnboardingProject, baseRows, headRows map[string]customresources.Project, groupOwners map[string][]groupListing) []string {
 	ol := st.layout.Onboarding
 	var problems []string
 	bad := func(format string, args ...any) {
@@ -537,8 +614,20 @@ func (st *onboardingState) checkProject(p OnboardingProject, baseRows, headRows 
 			if customresources.ReservedNamespace(g.Name) || customresources.KubernetesGroup(g.Name) {
 				bad("O4: the group %s is reserved; a reserved group is recorded on its own, never in an onboarding batch", logSafe(g.Name))
 			}
+			// A shared group is allowed when every listing of it, the new
+			// row's own included, names kinds. The head table has loaded, so
+			// the kind sets are disjoint (Validate).
 			if owners := groupOwners[g.Name]; len(owners) != 1 {
-				bad("O4: the group %s is shared with %s; a shared group is decided by a person", logSafe(g.Name), logSafe(strings.Join(owners, ", ")))
+				var slugs, whole []string
+				for _, l := range owners {
+					slugs = append(slugs, l.slug)
+					if len(l.kinds) == 0 {
+						whole = append(whole, l.slug)
+					}
+				}
+				if len(whole) > 0 {
+					bad("O4: the group %s is shared with %s, and the listing of %s names no kinds; a shared group is listed with disjoint kinds by every project", logSafe(g.Name), logSafe(strings.Join(slugs, ", ")), logSafe(strings.Join(whole, ", ")))
+				}
 			}
 		}
 	case OnboardingKindAttest:

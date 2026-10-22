@@ -77,3 +77,17 @@ func TestCRDTargetsRendersRemoteChannelsAndEscapes(t *testing.T) {
 		}
 	}
 }
+
+// A listing with kinds shows them; a table without kinds renders as before.
+func TestCustomResourcesRendersKinds(t *testing.T) {
+	src := "https://github.com/x/a/blob/0123456789abcdef0123456789abcdef01234567/crds/a.yaml"
+	row := func(kinds []string) []customresources.Project {
+		return []customresources.Project{{Slug: "a", Catalog: customresources.CatalogCNCF, FactProject: "a", Component: "pkg:github/x/a", Groups: []customresources.Group{{Name: "a.example.io", Source: src, Kinds: kinds}}}}
+	}
+	if out := CustomResources(row(nil), nil); !strings.Contains(out, "| `a.example.io` |") {
+		t.Fatalf("whole listing rendered unexpectedly:\n%s", out)
+	}
+	if out := CustomResources(row([]string{"Alpha", "Beta"}), nil); !strings.Contains(out, "| `a.example.io` (Alpha, Beta) |") {
+		t.Fatalf("kinds not rendered:\n%s", out)
+	}
+}

@@ -59,6 +59,9 @@ func TestLoadTableRefusesBadDocuments(t *testing.T) {
 		t.Fatalf("no project %s", slug)
 		return nil
 	}
+	group := func(d map[string]any, slug string) map[string]any {
+		return project(d, slug)["groups"].([]any)[0].(map[string]any)
+	}
 	if _, _, err := LoadTable(mutate(func(map[string]any) {})); err != nil {
 		t.Fatalf("round trip refused: %v", err)
 	}
@@ -69,6 +72,11 @@ func TestLoadTableRefusesBadDocuments(t *testing.T) {
 	}{
 		{"wrong schema", mutate(func(d map[string]any) { d["schema"] = "prufyx.io/custom-resource-table/v0" }), "schema"},
 		{"unknown field", mutate(func(d map[string]any) { project(d, "antrea")["kinds"] = []any{} }), "unknown field"},
+		{"empty kinds", mutate(func(d map[string]any) { group(d, "antrea")["kinds"] = []any{} }), "does not validate"},
+		{"bad kind", mutate(func(d map[string]any) { group(d, "antrea")["kinds"] = []any{"Bad kind"} }), "does not validate"},
+		{"unsorted kinds", mutate(func(d map[string]any) { group(d, "antrea")["kinds"] = []any{"Beta", "Alpha"} }), "does not validate"},
+		{"duplicate kinds", mutate(func(d map[string]any) { group(d, "antrea")["kinds"] = []any{"Alpha", "Alpha"} }), "does not validate"},
+		{"kinds of a reserved group", mutate(func(d map[string]any) { group(d, "kueue")["kinds"] = []any{"Workload"} }), "does not validate"},
 		{"trailing data", append(append([]byte(nil), tableJSON...), []byte("{}")...), "trailing data"},
 		{"no projects", mutate(func(d map[string]any) { d["projects"] = []any{} }), "no projects"},
 		{"cncf with upstream", mutate(func(d map[string]any) {
@@ -86,5 +94,36 @@ func TestLoadTableRefusesBadDocuments(t *testing.T) {
 		if _, _, err := LoadTable(tc.raw); err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("%s: %v, want %q", tc.name, err, tc.want)
 		}
+	}
+}
+
+// A listing with kinds survives the strict loader and the canonical encoder
+// byte for byte, a listing without kinds encodes without the member, and the
+// strict loader reads kinds back non-nil.
+func TestTableKindsRoundTrip(t *testing.T) {
+	src := func(slug string) string {
+		return "https://github.com/x/" + slug + "/blob/0123456789abcdef0123456789abcdef01234567/crds/" + slug + ".yaml"
+	}
+	projects := []Project{
+		{Slug: "a", Catalog: CatalogCNCF, FactProject: "a", Component: "pkg:github/x/a", Groups: []Group{{Name: "shared.example.io", Source: src("a"), Kinds: []string{"Alpha", "Beta"}}, {Name: "whole.example.io", Source: src("a")}}},
+		{Slug: "b", Catalog: CatalogCNCF, FactProject: "b", Component: "pkg:github/x/b", Groups: []Group{{Name: "shared.example.io", Source: src("b"), Kinds: []string{"Gamma"}}}},
+	}
+	raw, err := CanonicalTable(projects, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := strings.Count(string(raw), `"kinds"`); n != 2 {
+		t.Fatalf("%d kinds members in\n%s", n, raw)
+	}
+	loaded, _, err := LoadTable(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	again, err := CanonicalTable(loaded, nil)
+	if err != nil || !bytes.Equal(raw, again) {
+		t.Fatalf("round trip differs: %v", err)
+	}
+	if loaded[0].Groups[1].Kinds != nil || len(loaded[0].Groups[0].Kinds) != 2 {
+		t.Fatalf("kinds read back as %v / %v", loaded[0].Groups[0].Kinds, loaded[0].Groups[1].Kinds)
 	}
 }

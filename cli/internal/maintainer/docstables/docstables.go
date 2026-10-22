@@ -54,7 +54,11 @@ func CustomResources(projects []customresources.Project, reserved []customresour
 		}
 		groups := make([]string, 0, len(p.Groups))
 		for _, g := range p.Groups {
-			groups = append(groups, code(g.Name))
+			entry := code(g.Name)
+			if len(g.Kinds) > 0 {
+				entry += " (" + cell(strings.Join(g.Kinds, ", ")) + ")"
+			}
+			groups = append(groups, entry)
 		}
 		fmt.Fprintf(&b, "| %s | %s | %s | %s |\n", code(p.Slug), catalog, code(p.FactID()), strings.Join(groups, ", "))
 	}
