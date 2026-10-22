@@ -1,5 +1,13 @@
 {
   "schema": "prufyx.io/custom-resource-guard/v1",
-  "removals": [],
+  "removals": [
+    {
+      "kind": "target-narrowed",
+      "project": "istio",
+      "detail": "exclude:samples/security/spire/spire-quickstart.yaml@github.com/istio/istio",
+      "seq": 0,
+      "reason": "Sample manifest of a third-party system (SPIRE, group spire.spiffe.io), applied by hand from the sample README; read at 1.26.0 and 1.31.2: no chart, Makefile, kustomization or Go source refers to it and the istio definitions are in manifests/charts/base/files/crd-all.gen.yaml."
+    }
+  ],
   "noTarget": []
 }
