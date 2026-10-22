@@ -8,6 +8,7 @@
     "factProject": "longhorn",
     "tagPrefixes": ["v"],
     "minFrom": "1.8",
+    "attest": true,
     "paths": [
       {"path": "deploy/longhorn.yaml"}
     ],

@@ -223,6 +223,7 @@ func TestGateRefusesCRDRulesOfUnregisteredProject(t *testing.T) {
 		t.Fatalf("longhorn target %v, registered %v", ok, cncfcheck.RegisteredFact(tg.FactID()))
 	}
 	tg.FactProject = "longhorn_unregistered"
+	tg.Attest = false // the real target attests; this test checks rules only
 	if cncfcheck.RegisteredFact(tg.FactID()) {
 		t.Fatalf("%s is registered", tg.FactID())
 	}

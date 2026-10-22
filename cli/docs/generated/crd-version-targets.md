@@ -31,7 +31,7 @@ The reviewed targets of the `crd.version-removal` extractor
 | `crd.version-removal.kuma` | CNCF | `github.com/kumahq/kuma` | `vX.Y.Z`, then `X.Y.Z` | 2.9 | yes | files matching `^[^.][^/]*\.ya?ml$` in `deployments/charts/kuma/crds` | 2 |
 | `crd.version-removal.kyverno` | CNCF | `github.com/kyverno/kyverno` | `vX.Y.Z` | 1.14 | no | files matching `^[^.][^/]*\.ya?ml$` anywhere under `config/crds` | 5 |
 | `crd.version-removal.logging-operator-kube-logging` | CNCF | `github.com/kube-logging/logging-operator` | `X.Y.Z` | 6.4 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
-| `crd.version-removal.longhorn` | CNCF | `github.com/longhorn/longhorn` | `vX.Y.Z` | 1.8 | no | `deploy/longhorn.yaml` | 1 |
+| `crd.version-removal.longhorn` | CNCF | `github.com/longhorn/longhorn` | `vX.Y.Z` | 1.8 | yes | `deploy/longhorn.yaml` | 1 |
 | `crd.version-removal.metallb` | CNCF | `github.com/metallb/metallb` | `vX.Y.Z` | 0.13 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.mongodb-kubernetes` | community | `github.com/mongodb/mongodb-kubernetes` | `X.Y.Z` | 1.8 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.node-feature-discovery` | community | `github.com/kubernetes-sigs/node-feature-discovery` | `vX.Y.Z` | 0.14 | no | `deployment/base/nfd-crds/nfd-api-crds.yaml` | 0 |
