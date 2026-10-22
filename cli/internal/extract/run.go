@@ -383,9 +383,13 @@ func stampAttestation(c AttestationCandidate, rec *Recorder, repo RepoRef, tags 
 
 // releaseTagged reports whether some recorded tag names the release's
 // version, with at most a non-numeric prefix ("v1.2.3", "1.2.3"), at the
-// release's commit.
+// release's commit. The calver-edge scheme also spells a release as
+// "<version>-edge" (26.3.2-edge).
 func releaseTagged(tags []Tag, rel lineattest.Release) bool {
 	for _, t := range tags {
+		if t.Name == rel.Version+"-edge" && t.Commit == rel.Commit {
+			return true
+		}
 		prefix, ok := strings.CutSuffix(t.Name, rel.Version)
 		if !ok || t.Commit != rel.Commit {
 			continue

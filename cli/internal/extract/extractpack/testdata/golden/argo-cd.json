@@ -18,9 +18,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:0e2d8e0e98aeed19b9616a11f96d90d820029bc50cc725752bad77808e27ac3e",
+            "codeDigest": "sha256:88ed6e57829b23e03d1076bf03c5f1d9b76ed5c5d09cdc3b9ad2088112b33629",
             "id": "crd.version-removal.argo-cd",
-            "version": "2.5.0"
+            "version": "2.6.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -113,9 +113,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:0e2d8e0e98aeed19b9616a11f96d90d820029bc50cc725752bad77808e27ac3e",
+            "codeDigest": "sha256:88ed6e57829b23e03d1076bf03c5f1d9b76ed5c5d09cdc3b9ad2088112b33629",
             "id": "crd.version-removal.argo-cd",
-            "version": "2.5.0"
+            "version": "2.6.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -199,9 +199,9 @@
         "basis": "mechanical",
         "derivedAt": "2026-10-04T00:00:00Z",
         "extractor": {
-          "codeDigest": "sha256:0e2d8e0e98aeed19b9616a11f96d90d820029bc50cc725752bad77808e27ac3e",
+          "codeDigest": "sha256:88ed6e57829b23e03d1076bf03c5f1d9b76ed5c5d09cdc3b9ad2088112b33629",
           "id": "crd.version-removal.argo-cd",
-          "version": "2.5.0"
+          "version": "2.6.0"
         },
         "reviewedAt": "2026-10-04T00:00:00Z",
         "sources": [
@@ -256,9 +256,9 @@
         "basis": "mechanical",
         "derivedAt": "2026-10-04T00:00:00Z",
         "extractor": {
-          "codeDigest": "sha256:0e2d8e0e98aeed19b9616a11f96d90d820029bc50cc725752bad77808e27ac3e",
+          "codeDigest": "sha256:88ed6e57829b23e03d1076bf03c5f1d9b76ed5c5d09cdc3b9ad2088112b33629",
           "id": "crd.version-removal.argo-cd",
-          "version": "2.5.0"
+          "version": "2.6.0"
         },
         "reviewedAt": "2026-10-04T00:00:00Z",
         "sources": [

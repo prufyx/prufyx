@@ -18,9 +18,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:899d7212f29859fee67db165c35942161f4ba59df0feae1738c5bb2256d39288",
+            "codeDigest": "sha256:692fe966d387424f0fa2a56a5ff16b6118bc2faae4e89f631a9029fa13477031",
             "id": "crd.version-removal.strimzi",
-            "version": "2.5.0"
+            "version": "2.6.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -113,9 +113,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:899d7212f29859fee67db165c35942161f4ba59df0feae1738c5bb2256d39288",
+            "codeDigest": "sha256:692fe966d387424f0fa2a56a5ff16b6118bc2faae4e89f631a9029fa13477031",
             "id": "crd.version-removal.strimzi",
-            "version": "2.5.0"
+            "version": "2.6.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -208,9 +208,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:899d7212f29859fee67db165c35942161f4ba59df0feae1738c5bb2256d39288",
+            "codeDigest": "sha256:692fe966d387424f0fa2a56a5ff16b6118bc2faae4e89f631a9029fa13477031",
             "id": "crd.version-removal.strimzi",
-            "version": "2.5.0"
+            "version": "2.6.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -303,9 +303,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:899d7212f29859fee67db165c35942161f4ba59df0feae1738c5bb2256d39288",
+            "codeDigest": "sha256:692fe966d387424f0fa2a56a5ff16b6118bc2faae4e89f631a9029fa13477031",
             "id": "crd.version-removal.strimzi",
-            "version": "2.5.0"
+            "version": "2.6.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -398,9 +398,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:899d7212f29859fee67db165c35942161f4ba59df0feae1738c5bb2256d39288",
+            "codeDigest": "sha256:692fe966d387424f0fa2a56a5ff16b6118bc2faae4e89f631a9029fa13477031",
             "id": "crd.version-removal.strimzi",
-            "version": "2.5.0"
+            "version": "2.6.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -493,9 +493,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:899d7212f29859fee67db165c35942161f4ba59df0feae1738c5bb2256d39288",
+            "codeDigest": "sha256:692fe966d387424f0fa2a56a5ff16b6118bc2faae4e89f631a9029fa13477031",
             "id": "crd.version-removal.strimzi",
-            "version": "2.5.0"
+            "version": "2.6.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -588,9 +588,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:899d7212f29859fee67db165c35942161f4ba59df0feae1738c5bb2256d39288",
+            "codeDigest": "sha256:692fe966d387424f0fa2a56a5ff16b6118bc2faae4e89f631a9029fa13477031",
             "id": "crd.version-removal.strimzi",
-            "version": "2.5.0"
+            "version": "2.6.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -683,9 +683,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:899d7212f29859fee67db165c35942161f4ba59df0feae1738c5bb2256d39288",
+            "codeDigest": "sha256:692fe966d387424f0fa2a56a5ff16b6118bc2faae4e89f631a9029fa13477031",
             "id": "crd.version-removal.strimzi",
-            "version": "2.5.0"
+            "version": "2.6.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -780,9 +780,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:899d7212f29859fee67db165c35942161f4ba59df0feae1738c5bb2256d39288",
+            "codeDigest": "sha256:692fe966d387424f0fa2a56a5ff16b6118bc2faae4e89f631a9029fa13477031",
             "id": "crd.version-removal.strimzi",
-            "version": "2.5.0"
+            "version": "2.6.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -877,9 +877,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:899d7212f29859fee67db165c35942161f4ba59df0feae1738c5bb2256d39288",
+            "codeDigest": "sha256:692fe966d387424f0fa2a56a5ff16b6118bc2faae4e89f631a9029fa13477031",
             "id": "crd.version-removal.strimzi",
-            "version": "2.5.0"
+            "version": "2.6.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [

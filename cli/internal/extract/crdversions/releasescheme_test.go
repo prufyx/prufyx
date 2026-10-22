@@ -170,7 +170,7 @@ func TestCalverDeriveAndAttest(t *testing.T) {
 	alpha := map[string]string{"deploy/crds/a.yaml": crd("Alpha", "v1beta1", "v1")}
 	out := runSynth(t, calverSynthTarget(), newSynth(
 		release{"edge-25.11.1", alpha}, release{"edge-25.12.1", alpha}, release{"edge-25.12.2", alpha},
-		release{"edge-26.1.1", alpha}, release{"edge-26.2.1", alpha}, release{"26.4.1-edge", alpha},
+		release{"26.1.1-edge", alpha}, release{"26.2.1-edge", alpha}, release{"26.4.1-edge", alpha},
 	))
 	for _, c := range []struct {
 		from, to, status string
