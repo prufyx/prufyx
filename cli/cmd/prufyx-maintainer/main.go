@@ -103,6 +103,8 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return runSupportInventory(args[1:], stderr)
 	case "docs-tables":
 		return runDocsTables(args[1:])
+	case "release-notes":
+		return runReleaseNotes(args[1:], stdout)
 	case "release-gate":
 		return runReleaseGate(args[1:])
 	case "staging-receipt":
@@ -204,7 +206,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 		}
 		return nil
 	case "help", "-h", "--help":
-		fmt.Fprintln(stdout, "usage: prufyx-maintainer <project|contribution|contribution-candidates|selected-source-import|source-corpus|corpus-attestation|review-record|public-source-capture|evidence|factory|extract|consensus|served-lists|chart-versions|gate|approval|rule|target-check|coverage|export-knowledge|knowledge-targets|package-knowledge|knowledge-publish|knowledge-sign|support-inventory|docs-tables|release-gate|staging-receipt|release|local-kind|release-*> [options]")
+		fmt.Fprintln(stdout, "usage: prufyx-maintainer <project|contribution|contribution-candidates|selected-source-import|source-corpus|corpus-attestation|review-record|public-source-capture|evidence|factory|extract|consensus|served-lists|chart-versions|gate|approval|rule|target-check|coverage|export-knowledge|knowledge-targets|package-knowledge|knowledge-publish|knowledge-sign|support-inventory|docs-tables|release-notes|release-gate|staging-receipt|release|local-kind|release-*> [options]")
 		return nil
 	default:
 		return usageError()
