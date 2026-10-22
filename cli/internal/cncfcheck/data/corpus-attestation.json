@@ -2,7 +2,7 @@
   "schema": "prufyx.io/cncf-corpus-attestation/v1alpha1",
   "attestation": "COMPLETE_REVIEWED_RULES_FOR_LISTED_COMPONENTS",
   "revision": "cncf-2026-09-13.8",
-  "packDigest": "sha256:4798d687e1680cc93cb0827634daa52f7f13091878edb66f2e1b00d9fb1a8e2e",
+  "packDigest": "sha256:d6bc7242f349df8e70f1b58ead4e49e72aa81afa28b0f53ab8f466c95efcdf0d",
   "ruleSetDigest": "sha256:d468a920300ec92c9464561f460c1d1128117b86f6a32d5b168730566090a9ec",
   "ruleCount": 208,
   "components": [
