@@ -62,21 +62,28 @@ func TestCISyntheticPackagesAreCovered(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Every line that runs the tagged suite, directly or through the shard
+	// script; together they must list every package with a tagged file.
 	var tagged []string
 	for _, line := range strings.Split(string(raw), "\n") {
-		if strings.Contains(line, "go test") && strings.Contains(line, "-tags "+tag) {
+		if strings.HasPrefix(strings.TrimSpace(line), "#") {
+			continue
+		}
+		if (strings.Contains(line, "go test") || strings.Contains(line, "ci-test-shard.sh")) && strings.Contains(line, "-tags "+tag) {
 			tagged = append(tagged, line)
 		}
 	}
-	if len(tagged) != 1 {
-		t.Fatalf("ci.yml must have exactly one tagged go test line, has %d", len(tagged))
+	if len(tagged) == 0 {
+		t.Fatal("ci.yml has no tagged go test line")
 	}
-	line := tagged[0]
-	if strings.Contains(line, " -run ") || strings.Contains(line, " -skip ") {
-		t.Fatalf("the tagged run is filtered by test name: %s", strings.TrimSpace(line))
+	for _, line := range tagged {
+		if strings.Contains(line, " -run ") || strings.Contains(line, " -skip ") {
+			t.Fatalf("the tagged run is filtered by test name: %s", strings.TrimSpace(line))
+		}
 	}
+	listed := strings.Join(tagged, " ") + " "
 	for pkg := range packages {
-		if !strings.Contains(line+" ", " "+pkg+" ") {
+		if !strings.Contains(listed, " "+pkg+" ") {
 			t.Errorf("package %s has tagged files, but the tagged CI run does not list it", pkg)
 		}
 	}
