@@ -406,7 +406,7 @@ func Supersede(opts Options) (*SupersedeReport, error) {
 	}
 	ropts := opts
 	ropts.PackPath = restPath
-	if err := checkCandidates(base, head, added, ropts, baseRaw); err != nil {
+	if err := checkCandidates(head, added, nil, ropts, ""); err != nil {
 		return nil, err
 	}
 	out, err := head.Render()
@@ -464,7 +464,7 @@ func auditSupersede(base, final *Pack, removed, added map[string]bool) error {
 			return fmt.Errorf("%w: rule %s is not in the pack", ErrForeignChange, id)
 		}
 	}
-	if err := audit(rest, final, added, nil, false); err != nil {
+	if err := audit(rest, final, added, nil, nil, false); err != nil {
 		return err
 	}
 	for name, bv := range base.Members {

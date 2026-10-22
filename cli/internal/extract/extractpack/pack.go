@@ -298,6 +298,7 @@ type Report struct {
 	Withdrawn    []string // rule ids set to withdrawn
 	AttAdded     []string // attestation keys added
 	AttRenewed   []string // attestation keys replaced by a re-derivation (--renew-attestations)
+	RenewedRules []string // rule ids replaced in place by a re-derivation (--renew-attestations)
 	AttUnchanged []string
 	AttSkipped   []string // "<key>: <reason>" for run attestations --quiet-lines-only left out
 	SchemaFrom   string
@@ -325,10 +326,10 @@ type Options struct {
 	// QuietOnly applies only the run's empty-list line attestations whose
 	// scope has no rule in the pack, and no rules at all.
 	QuietOnly bool
-	// RenewAttestations lets the run's mechanical attestations replace those
-	// of the same key that an earlier build of the same extractor derived
-	// (see renewable). Rules are never renewed. It does not combine with
-	// Withdraw, RulesOnly or QuietOnly.
+	// RenewAttestations lets the run's mechanical attestations and rules
+	// replace those of the same key or id that an earlier build of the same
+	// extractor derived (see renewable and ruleRenewable). It does not combine
+	// with Withdraw, RulesOnly or QuietOnly.
 	RenewAttestations bool
 	// SchemaLevels bounds how many schema levels above the pack's own a merge
 	// may move to (default 12).
@@ -387,7 +388,7 @@ func Apply(opts Options) (*Report, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(allowed) == 0 && len(rep.AttAdded) == 0 && len(rep.AttRenewed) == 0 {
+	if len(allowed) == 0 && len(rep.RenewedRules) == 0 && len(rep.AttAdded) == 0 && len(rep.AttRenewed) == 0 {
 		return rep, nil
 	}
 	admit := opts.Admit
@@ -395,7 +396,7 @@ func Apply(opts Options) (*Report, error) {
 		admit = AdmitFiles
 	}
 	if !opts.Withdraw {
-		if err := checkCandidates(base, head, allowed, opts, baseRaw); err != nil {
+		if err := checkCandidates(head, allowed, ruleRenewed(rep), opts, run.Manifest.Extractor.ID); err != nil {
 			return nil, err
 		}
 	}
@@ -424,13 +425,14 @@ func Apply(opts Options) (*Report, error) {
 		return nil, err
 	}
 	rep.SchemaTo = schemaOf(final)
-	if err := audit(base, final, allowed, attAllowed(rep), opts.Withdraw); err != nil {
+	if err := audit(base, final, allowed, ruleRenewed(rep), attAllowed(rep), opts.Withdraw); err != nil {
 		return nil, err
 	}
 	rep.Changed = !bytes.Equal(out, baseRaw)
 	sort.Strings(rep.Added)
 	sort.Strings(rep.Unchanged)
 	sort.Strings(rep.Withdrawn)
+	sort.Strings(rep.RenewedRules)
 	sort.Strings(rep.AttAdded)
 	sort.Strings(rep.AttRenewed)
 	sort.Strings(rep.AttUnchanged)

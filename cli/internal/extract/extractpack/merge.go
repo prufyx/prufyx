@@ -39,6 +39,14 @@ func clonePack(p *Pack) *Pack {
 
 func attKeyString(a lineattest.LineAttestation) string { return a.Key().String() }
 
+func ruleRenewed(rep *Report) map[string]bool {
+	out := map[string]bool{}
+	for _, id := range rep.RenewedRules {
+		out[id] = true
+	}
+	return out
+}
+
 func attAllowed(rep *Report) map[string]bool {
 	out := map[string]bool{}
 	for _, k := range rep.AttAdded {
@@ -52,11 +60,14 @@ func attAllowed(rep *Report) map[string]bool {
 
 // merge adds the run's rules and attestations. A rule or attestation that
 // exists with identical content is left alone; one that exists with
-// different content is a collision.
+// different content is a collision, except a mechanical rule or attestation
+// the run re-derived at another extractor build when the run asks to renew
+// (see ruleRenewable and renewable): that one replaces the stored one in place.
 func merge(base *Pack, run *Run, rep *Report) (*Pack, map[string]bool, error) {
 	head := clonePack(base)
 	byID := map[string][]byte{}
-	for _, e := range base.Entries {
+	at := map[string]int{} // rule id -> position in head.Entries
+	for i, e := range base.Entries {
 		v, err := viewOf(e)
 		if err != nil {
 			return nil, nil, err
@@ -69,6 +80,7 @@ func merge(base *Pack, run *Run, rep *Report) (*Pack, map[string]bool, error) {
 			return nil, nil, fmt.Errorf("%w: rule id %s appears twice", ErrPack, v.Rule.ID)
 		}
 		byID[v.Rule.ID] = c
+		at[v.Rule.ID] = i
 	}
 	allowed := map[string]bool{}
 	for _, e := range run.Entries {
@@ -81,13 +93,20 @@ func merge(base *Pack, run *Run, rep *Report) (*Pack, map[string]bool, error) {
 			return nil, nil, err
 		}
 		if old, ok := byID[v.Rule.ID]; ok {
-			if !bytes.Equal(old, c) {
+			if bytes.Equal(old, c) {
+				rep.Unchanged = append(rep.Unchanged, v.Rule.ID)
+				continue
+			}
+			if !run.renew || !ruleRenewable(head.Entries[at[v.Rule.ID]], e) {
 				return nil, nil, fmt.Errorf("%w: rule %s is in the pack with different content", ErrCollision, v.Rule.ID)
 			}
-			rep.Unchanged = append(rep.Unchanged, v.Rule.ID)
+			head.Entries[at[v.Rule.ID]] = e
+			byID[v.Rule.ID] = c
+			rep.RenewedRules = append(rep.RenewedRules, v.Rule.ID)
 			continue
 		}
 		byID[v.Rule.ID] = c
+		at[v.Rule.ID] = len(head.Entries)
 		head.Entries = append(head.Entries, e)
 		allowed[v.Rule.ID] = true
 		rep.Added = append(rep.Added, v.Rule.ID)
@@ -204,9 +223,12 @@ func withdraw(base *Pack, run *Run, rep *Report) (*Pack, map[string]bool, error)
 }
 
 // audit compares the result with the base and refuses any difference other
-// than the allowed ones: new rules (add mode) or state-only changes
-// (withdraw mode), new attestations, and the pack schema (add mode).
-func audit(base, head *Pack, allowed map[string]bool, allowedAtt map[string]bool, withdrawMode bool) error {
+// than the allowed ones: new rules (add mode), renewed mechanical rules (add
+// mode, see ruleRenewalOnly) or state-only changes (withdraw mode), new
+// attestations, and the pack schema (add mode). A rule id twice in either
+// pack is refused: a result that appends where it should replace is not
+// hidden by a lookup keyed on the id.
+func audit(base, head *Pack, allowed, renewed map[string]bool, allowedAtt map[string]bool, withdrawMode bool) error {
 	canonByID := func(p *Pack) (map[string][]byte, error) {
 		out := map[string][]byte{}
 		for _, e := range p.Entries {
@@ -217,6 +239,9 @@ func audit(base, head *Pack, allowed map[string]bool, allowedAtt map[string]bool
 			c, err := canon(e)
 			if err != nil {
 				return nil, err
+			}
+			if _, dup := out[v.Rule.ID]; dup {
+				return nil, fmt.Errorf("%w: rule id %s appears twice", ErrForeignChange, v.Rule.ID)
 			}
 			out[v.Rule.ID] = c
 		}
@@ -238,9 +263,13 @@ func audit(base, head *Pack, allowed map[string]bool, allowedAtt map[string]bool
 		if bytes.Equal(bc, hc) {
 			continue
 		}
-		if !withdrawMode || !allowed[id] || !withdrawalOnly(bc, hc) {
-			return fmt.Errorf("%w: rule %s", ErrForeignChange, id)
+		if withdrawMode && allowed[id] && withdrawalOnly(bc, hc) {
+			continue
 		}
+		if !withdrawMode && renewed[id] && ruleRenewalOnly(bc, hc) {
+			continue
+		}
+		return fmt.Errorf("%w: rule %s", ErrForeignChange, id)
 	}
 	for id := range h {
 		if _, ok := b[id]; !ok && (withdrawMode || !allowed[id]) {
@@ -300,6 +329,97 @@ func withdrawalOnly(a, b []byte) bool {
 	sb, stateB, ok2 := strip(b)
 	return ok1 && ok2 && stateA == "active" && stateB == "withdrawn" && bytes.Equal(sa, sb)
 }
+
+// ruleParts is an entry split for the rule renewal predicate: the provenance
+// fields a renewal may change, and the canonical bytes of everything else.
+type ruleParts struct {
+	state, basis        string
+	extID, extVersion   string
+	extDigest           string
+	derivedAt, reviewed string
+	validUntil          string
+	sourceIDs           map[string]bool
+	rest                []byte
+}
+
+func partsOf(raw []byte) (ruleParts, bool) {
+	var p ruleParts
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber()
+	var g map[string]any
+	if dec.Decode(&g) != nil {
+		return p, false
+	}
+	rule, _ := g["rule"].(map[string]any)
+	ev, _ := rule["evidence"].(map[string]any)
+	ext, _ := ev["extractor"].(map[string]any)
+	if ev == nil || ext == nil {
+		return p, false
+	}
+	str := func(m map[string]any, k string) string { s, _ := m[k].(string); return s }
+	p.state, p.basis = str(ev, "state"), str(ev, "basis")
+	p.extID, p.extVersion, p.extDigest = str(ext, "id"), str(ext, "version"), str(ext, "codeDigest")
+	p.derivedAt, p.reviewed, p.validUntil = str(ev, "derivedAt"), str(ev, "reviewedAt"), str(ev, "validUntil")
+	srcs, _ := ev["sources"].([]any)
+	p.sourceIDs = map[string]bool{}
+	for _, s := range srcs {
+		m, _ := s.(map[string]any)
+		id := str(m, "id")
+		if id == "" {
+			return p, false
+		}
+		p.sourceIDs[id] = true
+	}
+	for _, k := range []string{"extractor", "derivedAt", "reviewedAt", "validUntil", "sources"} {
+		delete(ev, k)
+	}
+	rest, err := extract.Canonical(g)
+	if err != nil {
+		return p, false
+	}
+	p.rest = rest
+	return p, true
+}
+
+// ruleRenewable reports whether the run's entry nw may replace old, the entry
+// of the same rule id: both are active mechanical rules of the same extractor
+// derived at different builds (version or code digest), the entries are
+// identical once rule.evidence.{extractor, derivedAt, reviewedAt, validUntil,
+// sources} are removed, the source ids are the same set, nw's derivedAt is
+// strictly later than old's (an unreadable one fails), nw's reviewedAt is its
+// derivedAt and its validUntil is later than its derivedAt.
+func ruleRenewable(old, nw []byte) bool {
+	o, ok1 := partsOf(old)
+	n, ok2 := partsOf(nw)
+	if !ok1 || !ok2 {
+		return false
+	}
+	if o.basis != "mechanical" || n.basis != "mechanical" || o.state != "active" || n.state != "active" {
+		return false
+	}
+	if o.extID == "" || o.extID != n.extID || (o.extVersion == n.extVersion && o.extDigest == n.extDigest) {
+		return false
+	}
+	if !bytes.Equal(o.rest, n.rest) || len(o.sourceIDs) != len(n.sourceIDs) {
+		return false
+	}
+	for id := range o.sourceIDs {
+		if !n.sourceIDs[id] {
+			return false
+		}
+	}
+	od, err1 := time.Parse(time.RFC3339, o.derivedAt)
+	nd, err2 := time.Parse(time.RFC3339, n.derivedAt)
+	nv, err3 := time.Parse(time.RFC3339, n.validUntil)
+	if err1 != nil || err2 != nil || err3 != nil || !nd.After(od) || n.reviewed != n.derivedAt || !nv.After(nd) {
+		return false
+	}
+	return true
+}
+
+// ruleRenewalOnly reports whether two canonical entries of one rule id are a
+// renewal (see ruleRenewable).
+func ruleRenewalOnly(a, b []byte) bool { return ruleRenewable(a, b) }
 
 // renewable reports whether nw may replace old, the attestation of the same
 // key: both are mechanical, derived by the same extractor at different builds
@@ -404,15 +524,18 @@ func attestationsExtend(before, after json.RawMessage, allowed map[string]bool) 
 	return seen == len(b)
 }
 
-// checkCandidates runs rulecheck over the rules the merge adds.
-func checkCandidates(base, head *Pack, allowed map[string]bool, opts Options, _ []byte) error {
+// checkCandidates runs rulecheck over the rules the merge adds and the rules
+// it renews. A renewed rule is in the pack already, so its id is not a
+// published-id collision, and only when the packs hold that id as an active
+// mechanical rule of the run's extractor; every other check applies to it.
+func checkCandidates(head *Pack, allowed, renewed map[string]bool, opts Options, extractorID string) error {
 	var added []json.RawMessage
 	for _, e := range head.Entries {
 		v, err := viewOf(e)
 		if err != nil {
 			return err
 		}
-		if allowed[v.Rule.ID] {
+		if allowed[v.Rule.ID] || renewed[v.Rule.ID] {
 			added = append(added, e)
 		}
 	}
@@ -424,7 +547,17 @@ func checkCandidates(base, head *Pack, allowed map[string]bool, opts Options, _ 
 		return err
 	}
 	existing := append(append([]string(nil), opts.ExistingRules...), opts.PackPath)
-	res, err := rulecheck.Validate(raw, rulecheck.Options{AllowRange: true, ExistingRulesPaths: existing})
+	renewable := map[string]bool{}
+	if len(renewed) > 0 {
+		in, err := rulecheck.RenewableIn(existing, extractorID)
+		if err != nil {
+			return fmt.Errorf("%w: rulecheck: %v", ErrAdmission, err)
+		}
+		for id := range renewed {
+			renewable[id] = in[id]
+		}
+	}
+	res, err := rulecheck.Validate(raw, rulecheck.Options{AllowRange: true, ExistingRulesPaths: existing, RenewableIDs: renewable})
 	if err != nil {
 		return fmt.Errorf("%w: rulecheck: %v", ErrAdmission, err)
 	}

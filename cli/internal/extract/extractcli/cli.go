@@ -32,7 +32,7 @@ import (
 const usage = `usage:
   prufyx-maintainer extract run    --extractor ID (--mirror-state DIR | --fixture DIR) --out DIR [--derived-at RFC3339] [--lease-days N] [--concurrency N] [--wants-out FILE]
   prufyx-maintainer extract verify --extractor ID (--mirror-state DIR | --fixture DIR) --out DIR [--concurrency N]
-  prufyx-maintainer extract apply  --out DIR --pack FILE [--withdraw | --rules-only | --quiet-lines-only | --renew-attestations]   (exit 3: the run does not supersede a rule it would withdraw)
+  prufyx-maintainer extract apply  --out DIR --pack FILE [--withdraw | --rules-only | --quiet-lines-only | --renew-attestations (renews mechanical rules and attestations)]   (exit 3: the run does not supersede a rule it would withdraw)
   prufyx-maintainer extract supersede --out DIR --pack FILE   (replaces the reviewed rules the run covers; exit 3: refused, nothing written)
   prufyx-maintainer extract inventory --extractor ID (--mirror-state DIR | --fixture DIR) --repo OWNER/NAME --commit SHA
   prufyx-maintainer extract oracle --extractor ID --out DIR --expected FILE
@@ -233,7 +233,12 @@ func cmdRun(args []string, existing []string, now func() time.Time, stdout io.Wr
 		wants = &wantsReader{inner: src, missing: map[wantKey]bool{}, absent: map[string]bool{}, listed: map[string][]string{}}
 		reader = wants
 	}
-	out, err := Derive(ctx, ex, src, reader, extract.Options{Repo: repo, DerivedAt: at, Lease: time.Duration(leaseDays) * 24 * time.Hour, ExistingRules: existing})
+	published, done, err := withoutRenewable(existing, ex.ID())
+	if err != nil {
+		return 2, err
+	}
+	defer done()
+	out, err := Derive(ctx, ex, src, reader, extract.Options{Repo: repo, DerivedAt: at, Lease: time.Duration(leaseDays) * 24 * time.Hour, ExistingRules: published})
 	if wants != nil && len(wants.missing) > 0 {
 		// Whatever the run did next, it read stand-in bytes for the
 		// missing files: nothing it derived is written.
@@ -285,7 +290,12 @@ func cmdVerify(args []string, existing []string, stdout io.Writer) (int, error) 
 	}
 	ctx, stop := signalContext()
 	defer stop()
-	problems, err := VerifyRun(ctx, ex, src, src, c.out, existing)
+	published, done, err := withoutRenewable(existing, ex.ID())
+	if err != nil {
+		return 2, err
+	}
+	defer done()
+	problems, err := VerifyRun(ctx, ex, src, src, c.out, published)
 	if err != nil {
 		return 2, err
 	}

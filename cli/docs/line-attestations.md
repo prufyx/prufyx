@@ -341,7 +341,7 @@ Attestations expire like rules, and must be renewed the same way.
   (every stored version and commit stays, in order; new patch releases are
   appended); `sources` and the lease may change. Anything else stays a
   collision, as without the flag; an identical re-run changes nothing. The
-  flag does not renew rules and does not combine with `--withdraw`,
+  flag also renews rules (next item) and does not combine with `--withdraw`,
   `--rules-only` or `--quiet-lines-only`. The gate sees one loosening change
   per record and admits it only under the conditions of a new mechanical
   attestation (re-derived byte for byte by the gate's own extractor build, its
@@ -349,6 +349,32 @@ Attestations expire like rules, and must be renewed the same way.
   complete releases). Each record counts toward the 200-per-change and
   50-per-day loosening caps and toward the weekly stagger cap, so set
   `--lease-days` per target to spread `validUntil` over ISO weeks.
+- **Mechanical rules, at a new extractor build**: the same flag renews the
+  run's rules. A rule whose id is already in the pack is replaced in place
+  (the entry keeps its position) if and only if both entries are active,
+  mechanical rules of the same extractor id derived at different builds
+  (version or code digest); the entries are byte-identical once
+  `rule.evidence.extractor`, `derivedAt`, `reviewedAt`, `validUntil` and
+  `sources` are removed; the stored and the run's sources have the same set of
+  source ids (URLs, revisions, digests and cited spans may change); the run's
+  entry has a `derivedAt` strictly later than the stored entry's, `reviewedAt`
+  equal to its `derivedAt`, and a `validUntil` after it. A withdrawn or
+  reviewed stored rule, a changed body, another extractor and unreadable
+  timestamps are a collision, as without the flag. `extract run` does not
+  refuse such ids as taken when the packs hold them as active mechanical rules
+  of the same extractor; every other check still applies, and `extract apply`
+  re-validates the renewed entries with `rule validate`, with only that id
+  check lifted for them. `extract apply` lists them as `renewed N rule(s)`,
+  and a run that only renews still writes the pack. If the source ids differ
+  there is no producer path: the owner edits the entry by hand, and the gate
+  admits any mechanical change that its own build re-derives byte for byte
+  within 24 hours. The gate sees a rule with an identical body and changed
+  evidence as a loosening change (renew, re-pin or basis change), proven by
+  re-deriving it at the gate's own build within 24 hours of `extract run`, with
+  no approval. Each renewed rule counts toward the 200-per-change,
+  50-per-day (automation-authored commits only) and weekly stagger caps.
+  Scheduled `--rederive-all` runs fail for a rule left at an old extractor
+  digest, which is why such rules must be renewed after an extractor change.
 - **Reviewed**: renewed by an automated `evidence reattest` statement, when
   `evidence repin` finds every cited source unchanged on its release line, at
   most twice in a row (see

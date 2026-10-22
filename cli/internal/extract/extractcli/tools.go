@@ -20,7 +20,7 @@ func cmdApply(args []string, existing []string, stdout, stderr io.Writer) (int, 
 	var withdraw, rulesOnly, quietOnly, renew bool
 	f.BoolVar(&rulesOnly, "rules-only", false, "apply the run's rules only: no attestations, no schema change")
 	f.BoolVar(&quietOnly, "quiet-lines-only", false, "apply only the run's empty-list line attestations for lines the pack holds no rule for; no rules")
-	f.BoolVar(&renew, "renew-attestations", false, "replace the pack's mechanical attestations of the same extractor that the run re-derived at a newer build (same scope, completeness and rule ids; releases may only grow; later derivedAt); rules are never renewed")
+	f.BoolVar(&renew, "renew-attestations", false, "renew mechanical rules and attestations: replace the pack's mechanical attestations and rules of the same extractor that the run re-derived at a newer build (attestations: same scope, completeness and rule ids, releases may only grow; rules: identical but for the provenance fields, same source ids; later derivedAt)")
 	f.StringVar(&runDir, "out", "", "run output directory (from extract run)")
 	f.StringVar(&pack, "pack", "", "rule pack file to edit in place")
 	f.BoolVar(&withdraw, "withdraw", false, "withdraw the rules the run no longer produces instead of adding its rules")
@@ -62,6 +62,12 @@ func cmdApply(args []string, existing []string, stdout, stderr io.Writer) (int, 
 		fmt.Fprintf(stdout, "renewed %d attestation(s)\n", len(rep.AttRenewed))
 		for _, k := range rep.AttRenewed {
 			fmt.Fprintln(stdout, "renewed "+k)
+		}
+	}
+	if len(rep.RenewedRules) > 0 {
+		fmt.Fprintf(stdout, "renewed %d rule(s)\n", len(rep.RenewedRules))
+		for _, id := range rep.RenewedRules {
+			fmt.Fprintln(stdout, "renewed rule "+id)
 		}
 	}
 	for _, k := range rep.AttSkipped {

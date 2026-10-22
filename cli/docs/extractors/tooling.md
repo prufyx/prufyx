@@ -18,7 +18,7 @@ Exit codes of the `extract` subcommands:
 ## `extract apply`
 
 ```
-prufyx-maintainer extract apply --out DIR --pack FILE [--withdraw | --rules-only | --quiet-lines-only]
+prufyx-maintainer extract apply --out DIR --pack FILE [--withdraw | --rules-only | --quiet-lines-only | --renew-attestations]
 ```
 
 `--out DIR` is the directory of an `extract run`; `--pack FILE` is a rule pack
@@ -36,9 +36,12 @@ merged into the pack:
   candidates' ids must be exactly the ids the manifest's derived pairs list.
 - A rule whose id is already in the pack with identical content is left alone.
   A rule whose id is in the pack with different content refuses the whole
-  merge, whoever wrote the other rule (a later derivation of the same rule is
-  a renewal, which `extract apply` does not do). The same holds for an
-  attestation with the same component, line and fact family.
+  merge, whoever wrote the other rule. The same holds for an attestation with
+  the same component, line and fact family. The one exception is
+  `--renew-attestations`: it renews mechanical rules and attestations that
+  the same extractor derived at an earlier build, replacing them in place under
+  the conditions in [line attestations: renewal](../line-attestations.md#renewal).
+  It does not combine with `--withdraw`, `--rules-only` or `--quiet-lines-only`.
 - The result is rendered with the pack's members in their fixed order, entries
   sorted by project and rule id, two-space indentation and a final newline.
   An entry the run did not touch keeps its bytes, so merging a run that adds
