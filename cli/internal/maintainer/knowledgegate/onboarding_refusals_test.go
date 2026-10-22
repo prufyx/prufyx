@@ -253,6 +253,11 @@ func TestOnboardingRefusals(t *testing.T) {
 				tg["devOnlyMakeTargets"] = []any{map[string]any{"makefile": "Makefile", "target": "dev-lab", "reason": "a local lab for development", "evidence": "the target only starts a local lab cluster and nothing else runs it"}}
 			})
 		}), nil, "may not list dev-only Makefile targets"},
+		{"O4 chart dependency", blind(func(t *testing.T, f *onboardingFixture) {
+			editTarget(t, f, func(tg map[string]any) {
+				tg["chartDependencies"] = []any{map[string]any{"chart": "deploy/chart", "name": "api", "repository": "https://example.org/charts", "reason": "the packaged chart ships definitions", "evidence": "a reviewer read the packaged chart and its definitions", "pins": []any{map[string]any{"version": "1.0.0", "url": "https://example.org/charts/api-1.0.0.tgz", "sha256": strings.Repeat("a", 64)}}}}
+			})
+		}), nil, "may not list chart dependencies"},
 		{"O4 a new target attests", blind(func(t *testing.T, f *onboardingFixture) {
 			editTarget(t, f, func(tg map[string]any) { tg["attest"] = true })
 		}), nil, "a new target may not attest"},

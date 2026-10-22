@@ -138,6 +138,15 @@ func TestOnboardingAttestRefusals(t *testing.T) {
 		f.sign(t, rec)
 		requireFail(t, f.gate(t), "never turned on for attestation by a batch")
 	})
+	t.Run("a target with a chart dependency", func(t *testing.T) {
+		f := attestFixture(t, func(target map[string]any) {
+			target["chartDependencies"] = []any{map[string]any{"chart": "deploy/chart", "name": "api", "repository": "https://example.org/charts", "reason": "the packaged chart ships definitions", "evidence": "a reviewer read the packaged chart and its definitions", "pins": []any{map[string]any{"version": "1.0.0", "url": "https://example.org/charts/api-1.0.0.tgz", "sha256": strings.Repeat("a", 64)}}}}
+		})
+		f.refresh()
+		rec, _ := f.tryRecord(t)
+		f.sign(t, rec)
+		requireFail(t, f.gate(t), "never turned on for attestation by a batch")
+	})
 	t.Run("the pair does not attest", func(t *testing.T) {
 		f := attestFixture(t, nil)
 		// A stray definition outside the listed path keeps the scan from

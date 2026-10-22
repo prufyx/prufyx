@@ -163,8 +163,35 @@ func narrowed(b, h crdversions.Target) []string {
 			out = append(out, "devOnlyMake:"+d.Makefile+":"+d.Target)
 		}
 	}
+	out = append(out, chartDependencyChanges(b.ChartDependencies, h.ChartDependencies)...)
 	out = append(out, remoteChanges(b.Remote, h.Remote)...)
 	sort.Strings(out)
+	return out
+}
+
+// chartDependencyChanges lists the pins of a chart dependency that make the
+// scan accept more: a pin whose entry (chart, name, repository) or version is
+// new, and a pin whose url or sha256 changed. Removing a pin or an entry, or
+// rewording its reason or evidence, is not listed.
+func chartDependencyChanges(b, h []crdversions.ChartDependency) []string {
+	base := map[string]crdversions.DependencyPin{}
+	for _, d := range b {
+		for _, p := range d.Pins {
+			base[d.Chart+"\x00"+d.Name+"\x00"+d.Repository+"\x00"+p.Version] = p
+		}
+	}
+	var out []string
+	for _, d := range h {
+		for _, p := range d.Pins {
+			name := d.Chart + ":" + d.Name + "@" + p.Version
+			switch bp, ok := base[d.Chart+"\x00"+d.Name+"\x00"+d.Repository+"\x00"+p.Version]; {
+			case !ok:
+				out = append(out, "chartDependency:"+name)
+			case bp.URL != p.URL || bp.SHA256 != p.SHA256:
+				out = append(out, "chartDependencyChanged:"+name)
+			}
+		}
+	}
 	return out
 }
 

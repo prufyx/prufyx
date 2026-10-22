@@ -785,3 +785,66 @@ func TestDevOnlyMakeIsLoosening(t *testing.T) {
 		})
 	}
 }
+
+// Listing a pinned chart dependency makes the scan read (and accept) more: a
+// new entry, a new pin and a changed url, sha256 or repository of a pin are
+// listed as narrowing and need a reviewed removals entry. Dropping a pin or an
+// entry, or rewording its text, lists nothing.
+func TestChartDependencyIsLoosening(t *testing.T) {
+	const (
+		d1 = "1111111111111111111111111111111111111111111111111111111111111111"
+		d2 = "2222222222222222222222222222222222222222222222222222222222222222"
+	)
+	dep := func(repo, text string, pins ...crdversions.DependencyPin) crdversions.ChartDependency {
+		return crdversions.ChartDependency{Chart: "charts/app", Name: "api", Repository: repo, Reason: "the packaged chart ships definitions " + text, Evidence: "a reviewer read the packaged chart and its definitions " + text, Pins: pins}
+	}
+	pin := func(version, digest string) crdversions.DependencyPin {
+		return crdversions.DependencyPin{Version: version, URL: "https://example.org/api-" + version + ".tgz", SHA256: digest}
+	}
+	with := func(deps ...crdversions.ChartDependency) Inputs {
+		in := mustLoad(t, realTree(t), false)
+		in.Targets[0].ChartDependencies = deps
+		return in
+	}
+	project := mustLoad(t, realTree(t), false).Targets[0].Project
+	listed := func(base, head Inputs) []string {
+		var out []string
+		for _, r := range Diff(base, head) {
+			if r.Kind == KindNarrowed && strings.HasPrefix(r.Detail, "chartDependency") {
+				if r.Project != project {
+					t.Fatalf("removal for %s, want %s", r.Project, project)
+				}
+				out = append(out, r.Detail)
+			}
+		}
+		return out
+	}
+	const repo = "https://example.org/charts"
+	cases := []struct {
+		name       string
+		base, head Inputs
+		want       []string
+	}{
+		{"an entry is added", with(), with(dep(repo, "", pin("1.0.0", d1))), []string{"chartDependency:charts/app:api@1.0.0"}},
+		{"a pin is added", with(dep(repo, "", pin("1.0.0", d1))), with(dep(repo, "", pin("1.0.0", d1), pin("1.1.0", d2))), []string{"chartDependency:charts/app:api@1.1.0"}},
+		{"a sha256 changes", with(dep(repo, "", pin("1.0.0", d1))), with(dep(repo, "", pin("1.0.0", d2))), []string{"chartDependencyChanged:charts/app:api@1.0.0"}},
+		{"a url changes", with(dep(repo, "", pin("1.0.0", d1))), with(dep(repo, "", crdversions.DependencyPin{Version: "1.0.0", URL: "https://example.org/other/api-1.0.0.tgz", SHA256: d1})), []string{"chartDependencyChanged:charts/app:api@1.0.0"}},
+		{"the repository changes", with(dep(repo, "", pin("1.0.0", d1))), with(dep(repo+"/", "", pin("1.0.0", d1))), []string{"chartDependency:charts/app:api@1.0.0"}},
+		{"a pin is removed", with(dep(repo, "", pin("1.0.0", d1), pin("1.1.0", d2))), with(dep(repo, "", pin("1.0.0", d1))), nil},
+		{"an entry is removed", with(dep(repo, "", pin("1.0.0", d1))), with(), nil},
+		{"the text changes", with(dep(repo, "", pin("1.0.0", d1))), with(dep(repo, "again", pin("1.0.0", d1))), nil},
+		{"nothing changes", with(dep(repo, "", pin("1.0.0", d1))), with(dep(repo, "", pin("1.0.0", d1))), nil},
+		{"none on either side", with(), with(), nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := listed(tc.base, tc.head); strings.Join(got, "\n") != strings.Join(tc.want, "\n") {
+				t.Fatalf("listed %q, want %q", got, tc.want)
+			}
+			found := CheckRemovals(tc.base, tc.head)
+			if (len(tc.want) > 0) != strings.Contains(checks(found), CheckRemovalUnlisted) {
+				t.Fatalf("findings %s for %q", checks(found), tc.want)
+			}
+		})
+	}
+}

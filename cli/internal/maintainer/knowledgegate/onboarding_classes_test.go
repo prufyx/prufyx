@@ -159,6 +159,9 @@ var obRefusedClasses = map[string]string{
 	crdversions.ClassPrePatchCopy:   "a copy under a reviewed pre-patch exclusion: a batch's target has no exclusion",
 	crdversions.ClassPrePatch:       "a kustomization of a reviewed pre-patch exclusion: a batch's target has no exclusion",
 	crdversions.ClassNoDefinition:   "a file under a reviewed exclusion that defines nothing: a batch's target has no exclusion",
+
+	crdversions.ClassDependencyExtra:      "a definition of a pinned chart dependency: a batch's target lists no chart dependency",
+	crdversions.ClassDependencyAPIService: "an API service named by a pinned chart dependency: a batch's target lists no chart dependency",
 }
 
 func TestOnboardingRefusedFindingClasses(t *testing.T) {
