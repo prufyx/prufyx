@@ -12,6 +12,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencerepin"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
+	"github.com/prufyx/prufyx/cli/internal/servedapis"
 	"github.com/prufyx/prufyx/cli/internal/upgradepath"
 )
 
@@ -36,6 +37,8 @@ type packDocument struct {
 	// ever differ between a prior and a next pack (see renewRecords, V10).
 	LineAttestations json.RawMessage `json:"lineAttestations,omitempty"`
 	PathPolicies     json.RawMessage `json:"pathPolicies,omitempty"`
+	// ServedAPIs is the served-API list section (servedapis.PackMember).
+	ServedAPIs json.RawMessage `json:"servedAPIs,omitempty"`
 
 	// records holds the records of both sections in section order, as
 	// evidencerepin.PackRecords located and parsed them. It is never
@@ -165,7 +168,7 @@ func loadRecords(raw []byte, doc *packDocument) error {
 	for _, member := range []struct {
 		name  string
 		field json.RawMessage
-	}{{lineattest.PackMember, doc.LineAttestations}, {upgradepath.PackMember, doc.PathPolicies}} {
+	}{{lineattest.PackMember, doc.LineAttestations}, {upgradepath.PackMember, doc.PathPolicies}, {servedapis.PackMember, doc.ServedAPIs}} {
 		section, present, err := lineattest.PackMemberSection(raw, member.name)
 		if err != nil || present != (member.field != nil) || !bytes.Equal(section, member.field) {
 			return fmt.Errorf("%w: pack section %s", ErrRejected, member.name)
@@ -270,6 +273,9 @@ func renewRecords(doc packDocument, renew map[string]recordDates) (packDocument,
 	}
 	if changed[evidencerepin.RecordProjectPathPolicies] {
 		doc.PathPolicies = join(sections[evidencerepin.RecordProjectPathPolicies])
+	}
+	if changed[evidencerepin.RecordProjectServedLists] {
+		doc.ServedAPIs = join(sections[evidencerepin.RecordProjectServedLists])
 	}
 	return doc, renewed, nil
 }

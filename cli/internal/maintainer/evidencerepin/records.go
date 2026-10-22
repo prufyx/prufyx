@@ -22,7 +22,7 @@ import (
 // monitored for drift like a rule's, under a record ID that stands in for a
 // rule ID wherever a worklist or a re-attestation statement names one.
 //
-// A record ID is "line-attestation." or "path-policy." followed by 24 hex
+// A record ID is "line-attestation.", "path-policy." or "served-list." followed by 24 hex
 // digits of a domain-separated sha256 over the record's scope. It matches
 // the rule ID syntax (so review records and file names can carry it) but
 // is derived from the scope alone, so it is stable across renewals. A pack
@@ -34,6 +34,7 @@ const (
 	// for a rule's project on a record's citations.
 	RecordProjectLineAttestations = "line-attestations"
 	RecordProjectPathPolicies     = "path-policies"
+	RecordProjectServedLists      = "served-lists"
 
 	recordIDDomain = "prufyx.io/pack-record-id/v1\x00"
 )
@@ -42,6 +43,12 @@ const (
 // (component, factFamily, line).
 func LineAttestationRecordID(component, factFamily, line string) string {
 	return "line-attestation." + recordIDHash("line-attestation", component, factFamily, line)
+}
+
+// ServedListRecordID is the record ID of the served-API list for (component,
+// line).
+func ServedListRecordID(component, line string) string {
+	return "served-list." + recordIDHash("served-list", component, line)
 }
 
 // PathPolicyRecordID is the record ID of a component's path-policy record.
@@ -54,7 +61,7 @@ const recordIDHexDigits = 24
 // IsRecordID reports whether id has the shape of a record ID: one of the two
 // prefixes followed by exactly 24 lowercase hex digits.
 func IsRecordID(id string) bool {
-	for _, prefix := range []string{"line-attestation.", "path-policy."} {
+	for _, prefix := range []string{"line-attestation.", "path-policy.", "served-list."} {
 		if rest, ok := strings.CutPrefix(id, prefix); ok {
 			return len(rest) == recordIDHexDigits && strings.Trim(rest, "0123456789abcdef") == ""
 		}
@@ -70,7 +77,7 @@ func CheckPackEntry(project, ruleID string) error {
 	if IsRecordID(ruleID) {
 		return fmt.Errorf("%w: rule %s has the shape of a record ID", errRejected, ruleID)
 	}
-	if project == RecordProjectLineAttestations || project == RecordProjectPathPolicies {
+	if project == RecordProjectLineAttestations || project == RecordProjectPathPolicies || project == RecordProjectServedLists {
 		return fmt.Errorf("%w: rule %s has the project of a record, %s", errRejected, ruleID, project)
 	}
 	return nil
@@ -156,12 +163,6 @@ func readPackRecords(raw []byte, attestationID func(component, factFamily, line 
 	} else if present {
 		return nil, fmt.Errorf("%w: the pack carries distribution records, whose citations are not monitored yet", errRejected)
 	}
-	// Served-API lists are not renewed by the weekly re-attestation yet.
-	if _, present, err := lineattest.PackMemberSection(raw, servedapis.PackMember); err != nil {
-		return nil, err
-	} else if present {
-		return nil, fmt.Errorf("%w: the pack carries served-API lists, whose citations are not monitored yet", errRejected)
-	}
 	section, present, err := lineattest.PackMemberSection(raw, lineattest.PackMember)
 	if err != nil {
 		return nil, err
@@ -203,6 +204,28 @@ func readPackRecords(raw []byte, attestationID func(component, factFamily, line 
 				Scope: "path policy " + r.Component, Raw: items[i],
 				Basis: r.Evidence.Basis, ReviewedAt: r.Evidence.ReviewedAt, ValidUntil: r.Evidence.ValidUntil,
 				State: r.Evidence.State, Sources: sourceRefs(r.Evidence.Sources), Mechanical: r.Evidence.Basis == constraintengine.BasisMechanical,
+			})
+		}
+	}
+	section, present, err = lineattest.PackMemberSection(raw, servedapis.PackMember)
+	if err != nil {
+		return nil, err
+	}
+	if present {
+		lists, err := servedapis.Parse(section)
+		if err != nil {
+			return nil, err
+		}
+		items, err := splitSection(section, len(lists))
+		if err != nil {
+			return nil, err
+		}
+		for i, l := range lists {
+			out = append(out, PackRecord{
+				ID: ServedListRecordID(l.Component, l.Line), Project: RecordProjectServedLists,
+				Scope: "served list " + l.Component + " " + l.Line, Raw: items[i],
+				Basis: l.Evidence.Basis, ReviewedAt: l.Evidence.ReviewedAt, ValidUntil: l.Evidence.ValidUntil,
+				State: upgradepath.StateActive, Sources: sourceRefs(l.Evidence.Sources), Mechanical: l.Evidence.Basis == constraintengine.BasisMechanical,
 			})
 		}
 	}

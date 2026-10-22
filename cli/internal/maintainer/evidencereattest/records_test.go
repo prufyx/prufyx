@@ -14,6 +14,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencerepin"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/reviewrecord"
+	"github.com/prufyx/prufyx/cli/internal/servedapis"
 )
 
 // Line attestations and path-policy records renew like rules: these tests
@@ -1301,5 +1302,50 @@ func TestMechanicalRuleMovedAfterTheChainHeadDoesNotStopAHumanBatch(t *testing.T
 	})
 	if err == nil || !strings.Contains(err.Error(), "truncated") {
 		t.Fatalf("a reviewed rule moved after the chain head must still stop: %v", err)
+	}
+}
+
+// A served-API list is a record: the pack loads with it, it is renewed with
+// the two date values changed and nothing else, and V10 holds.
+func TestServedListRenewsLikeARecord(t *testing.T) {
+	raw := buildRecordPack(t, recordPackSpec{at: baseNow, attestation: dueAt(baseNow), policy: dueAt(baseNow), ruleDue: true, pad: 30})
+	var doc map[string]any
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	doc["servedAPIs"] = []any{map[string]any{
+		"component": recordComponent, "line": "1.37", "completeness": servedapis.Completeness,
+		"apis": []string{"apps/v1 Deployment", "v1 ConfigMap"},
+		"evidence": map[string]any{
+			"basis": "reviewed", "reviewedAt": rfc3339(baseNow.Add(-30 * 24 * time.Hour)), "validUntil": rfc3339(baseNow.Add(7 * 24 * time.Hour)),
+			"sources": []any{recordSourceMap("k8s-openapi-1-37", "kubernetes", strings.Repeat("f", 40), 1, 93000)},
+		},
+	}}
+	prior, err := json.Marshal(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	priorDoc, err := loadPack(prior)
+	if err != nil {
+		t.Fatalf("a pack with a served list does not load: %v", err)
+	}
+	id := evidencerepin.ServedListRecordID(recordComponent, "1.37")
+	renewed, _, err := renewRecords(priorDoc, map[string]recordDates{id: {rfc3339(baseNow), rfc3339(baseNow.Add(80 * 24 * time.Hour))}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Equal(renewed.ServedAPIs, priorDoc.ServedAPIs) || !bytes.Contains(renewed.ServedAPIs, []byte(rfc3339(baseNow.Add(80*24*time.Hour)))) {
+		t.Fatalf("the served list was not renewed: %s", renewed.ServedAPIs)
+	}
+	if !bytes.Equal(renewed.LineAttestations, priorDoc.LineAttestations) || !bytes.Equal(renewed.PathPolicies, priorDoc.PathPolicies) {
+		t.Fatal("renewing a served list changed another section")
+	}
+	if err := checkV10(priorDoc, renewed); err != nil {
+		t.Fatalf("V10 on a renewed served list: %v", err)
+	}
+	stripped := priorDoc
+	stripped.ServedAPIs = nil
+	if err := checkV10(priorDoc, stripped); err == nil {
+		t.Fatal("V10 accepted a pack that dropped the served-list section")
 	}
 }
