@@ -210,16 +210,31 @@ func (t RuleTransition) IsAnchor(from, to string) bool { return from == t.From &
 // Contains reports gte <= version < lt. An invalid version is never inside.
 func (b VersionBound) Contains(version string) bool { return inBound(version, b) }
 
-// SameVersion reports that two valid release versions are equal.
+// SameVersion reports that two valid release versions are equal. A
+// pre-release is not a release version: use CompareVersions for one.
 func SameVersion(left, right string) bool {
-	c, ok := compareVersions(left, right)
+	c, ok := compareReleaseVersions(left, right)
 	return ok && c == 0
 }
 
 // VersionLess reports left < right for two valid release versions.
 func VersionLess(left, right string) bool {
-	c, ok := compareVersions(left, right)
+	c, ok := compareReleaseVersions(left, right)
 	return ok && c < 0
+}
+
+// CompareVersions orders two versions as SemVer 2.0 does: X.Y.Z, or for
+// Kubernetes a pre-release X.Y.0-(alpha|beta|rc).N, which is below its
+// release. ok is false when either is neither. Callers that take only release
+// versions use SameVersion and VersionLess.
+func CompareVersions(left, right string) (int, bool) { return compareVersions(left, right) }
+
+// compareReleaseVersions is compareVersions for two X.Y.Z versions only.
+func compareReleaseVersions(left, right string) (int, bool) {
+	if !validVersion(left) || !validVersion(right) {
+		return 0, false
+	}
+	return compareVersions(left, right)
 }
 
 func inBound(version string, bound VersionBound) bool {

@@ -24,8 +24,18 @@ func TestCompareVersionsPreReleaseOrder(t *testing.T) {
 			}
 		}
 	}
-	if !VersionLess("1.38.0-alpha.2", "1.38.0") || SameVersion("1.38.0-rc.1", "1.38.0") || !SameVersion("1.38.0-rc.1", "1.38.0-rc.1") {
-		t.Fatal("exported comparisons disagree with the order")
+	if c, ok := CompareVersions("1.38.0-alpha.2", "1.38.0"); !ok || c != -1 {
+		t.Fatal("CompareVersions disagrees with the order")
+	}
+	// SameVersion and VersionLess keep the release grammar: callers use
+	// SameVersion(v, v) as the test for a release version.
+	for _, v := range []string{"1.38.0-alpha.2", "1.38.0-rc.1"} {
+		if SameVersion(v, v) || VersionLess(v, "1.38.0") || VersionLess("1.37.0", v) {
+			t.Errorf("%s is not a release version", v)
+		}
+	}
+	if !SameVersion("1.38.0", "1.38.0") || !VersionLess("1.37.9", "1.38.0") {
+		t.Fatal("release comparison changed")
 	}
 }
 

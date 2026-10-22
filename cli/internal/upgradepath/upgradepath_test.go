@@ -190,7 +190,8 @@ func endpointBelow(a, b Endpoint) bool {
 		}
 		return e.Line + ".4294967295.4294967295"
 	}
-	return constraintengine.VersionLess(high(a), low(b))
+	c, ok := constraintengine.CompareVersions(high(a), low(b))
+	return ok && c < 0
 }
 
 func TestPlanPathProperty(t *testing.T) {
@@ -272,7 +273,7 @@ func FuzzPlanPath(f *testing.F) {
 			}
 			return
 		}
-		if !constraintengine.VersionLess(from, to) {
+		if c, ok := constraintengine.CompareVersions(from, to); !ok || c >= 0 {
 			t.Fatalf("%q -> %q planned without being an upgrade", from, to)
 		}
 		checkPlanShape(t, plan, from, to)
