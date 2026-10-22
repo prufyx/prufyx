@@ -265,7 +265,7 @@ func TestSupportInventory_ReadsEveryPackSchemaLevel(t *testing.T) {
 			addSetRule(p)
 			p["distributions"], p["lineAttestations"], p["pathPolicies"] = levelDistributions(), levelAttestations(), levelPolicies()
 		}, want: schemas[8], refusal: "does not list distribution records"},
-		{name: "served-API lists", edit: func(p map[string]any) { p["servedAPIs"] = levelServedAPIs() }, want: schemas[9], refusal: "does not list served-API lists"},
+		{name: "served-API lists", edit: func(p map[string]any) { p["servedAPIs"] = levelServedAPIs() }, want: schemas[9], unchanged: true},
 		{name: "set notice", edit: func(p map[string]any) { addRule(p, levelSetNoticeRule()) }, want: schemas[13], refusal: "does not list notices"},
 		{name: "ranged chart rule", edit: func(p map[string]any) { addRule(p, levelRangedChartRule()) }, want: schemas[14]},
 	} {

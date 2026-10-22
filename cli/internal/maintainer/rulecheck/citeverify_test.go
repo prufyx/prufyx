@@ -17,6 +17,8 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/lineattest"
+	"github.com/prufyx/prufyx/cli/internal/servedapis"
 )
 
 const (
@@ -436,6 +438,37 @@ func TestPackCitationItems(t *testing.T) {
 		if _, err := PackCitationItems([]byte(bad)); err == nil {
 			t.Errorf("%s: want an error", name)
 		}
+	}
+}
+
+// A served-API list is a source-bearing record: its specification citation
+// is listed, and a malformed list is an error, never a pack "without" one.
+func TestPackCitationItemsServedLists(t *testing.T) {
+	// rulecheck cannot import the deriver (it imports the extract framework,
+	// which imports rulecheck), so the record is written out.
+	at := "2026-10-23T10:00:00Z"
+	rec := servedapis.Record{
+		Component: servedapis.KubernetesComponent, Line: "1.31", Completeness: servedapis.CompletenessPartial, APIs: []string{"v1 Pod"},
+		Evidence: lineattest.Evidence{
+			Basis: constraintengine.BasisMechanical, Extractor: &constraintengine.Extractor{ID: "k8s.served-api-list", Version: "1.0.0", CodeDigest: "sha256:" + strings.Repeat("cd", 32)},
+			DerivedAt: at, ReviewedAt: at, ValidUntil: "2027-01-20T10:00:00Z",
+			Sources: []constraintengine.SourceEvidence{constraintengineSource(citeCommit, "sha256:"+strings.Repeat("ab", 32))},
+		},
+	}
+	section, err := servedapis.Marshal([]servedapis.Record{rec})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pack := `{"entries":[{"rule":{"id":"r.one"}}],"servedAPIs":` + string(section) + `}`
+	items, err := PackCitationItems([]byte(pack))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 2 || items[1].ID != "servedList pkg:github/kubernetes/kubernetes 1.31" || !items[1].Record || len(items[1].Sources) != 1 || items[1].Sources[0].Revision != citeCommit {
+		t.Fatalf("items %+v", items)
+	}
+	if _, err := PackCitationItems([]byte(`{"entries":[{"rule":{"id":"r.one"}}],"servedAPIs":[{"component":"x"}]}`)); err == nil {
+		t.Fatal("a malformed served list was accepted")
 	}
 }
 

@@ -813,6 +813,38 @@ renewed and removed with no approval. Sign with
 `approval sign --subject servedAPIs --pack cncf --base-root DIR --head-root DIR`
 (the other options as for `registryDigest`).
 
+### Building the lists: `served-lists build`
+
+```sh
+prufyx-maintainer served-lists build --pack cli/internal/cncfcheck/data/rules.json \
+  --lines 1.19-1.37 --now 2026-10-23T10:00:00Z
+```
+
+The maintainer command derives the list of every requested line with the same
+`servedlists` code the gate runs, reads the specification from GitHub at the
+commit the line's `v<line>.0` tag points at (`--source github`, the default;
+`--source fixture:DIR` reads an offline tree in the layout of
+`extract.FixtureReader`), and writes the pack's `servedAPIs` member with the
+rewrite the other pack tools use. It sets the schema to the lowest level the
+engine loader admits (`v1alpha10` for a pack without a higher-level feature)
+and changes no other byte of the pack. A pack that is not already in canonical
+form is refused, so is a request outside the lines the pack's Kubernetes rules
+and attestations cover (a range must lie inside them; one uncovered line is
+built only as the single item of `--lines`, for example `--lines 1.38`). A list of a line not
+requested is kept; a list of a requested line is replaced. The run is
+sequential, stops at the first error and writes nothing unless every line was
+derived. The same inputs and `--now` give the same bytes. `GITHUB_TOKEN` (or
+`GH_TOKEN`) raises the API rate limit; a run is capped at 400 API requests.
+
+`--now` is each list's `derivedAt`, and the gate admits a derivation only within
+24 hours of its own clock. For the first introduction: generate the lists, sign
+the introduction approval (`approval sign --subject servedAPIs`, which names
+every list's digest), and push within 24 hours; derive again, and sign again,
+when the window has passed. All lists of one run have the same `validUntil`
+(`--now` plus 89 days) and so fall in one ISO week; the record stagger cap
+(15 percent of the pack's rules and records per ISO week) must have room for
+them in that week.
+
 ## Batch approvals
 
 A batch approval admits up to 50 reviewed entries of one change (rules and

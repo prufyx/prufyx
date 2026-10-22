@@ -9,6 +9,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Maintainer command `prufyx-maintainer served-lists build --pack FILE --lines 1.19-1.37 --now RFC3339`
+  derives the served-API lists of Kubernetes lines from the pinned upstream
+  OpenAPI specification (the code the knowledge gate re-derives with) and writes
+  them as the pack's `servedAPIs` member, moving the pack schema to the level
+  they need. The support inventory accepts a pack with the member (it lists
+  nothing for it), and `rule verify-citations` includes the lists' sources. No
+  pack data changes.
 - `scripts/kind-val.sh --name-prefix P` names the clusters `P-<line>` (default `prufyx-kind`, unchanged), so several runs (each with its own prefix and `--out`) can share one Docker host; their cluster creations take turns where `flock` exists (`--create-lock`).
 - CNCF knowledge: 13 custom-resource version-removal rules (`crd.version-removal`)
   for Crossplane (2), Kyverno (1) and Strimzi (10), each forbidding a

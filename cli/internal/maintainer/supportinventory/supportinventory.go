@@ -567,8 +567,8 @@ type packLevel struct {
 // cncfPackLevels mirrors the CNCF pack loader's feature-level table, in
 // ascending level; a pack using none of the features carries
 // cncfPackSchema. A new pack feature adds one row here, as in the loader.
-// Line attestations and path policies add no capability to the inventory
-// (they are not checks), so only their schema level is read.
+// Line attestations, path policies and served-API lists add no capability to
+// the inventory (they are not checks), so only their schema level is read.
 const cncfPackSchema = "prufyx.io/cncf-source-rule-pack/v1alpha1"
 
 var cncfPackLevels = []packLevel{
@@ -704,9 +704,6 @@ func genericProjectsWith(rules map[string]any, identities map[string]identity, c
 	// as checked for every distribution, so it refuses such a pack.
 	if _, ok := rules[distribution.PackMember]; ok {
 		return nil, 0, nil, none, invalid("the inventory does not list distribution records yet")
-	}
-	if _, ok := rules[servedapis.PackMember]; ok {
-		return nil, 0, nil, none, invalid("the inventory does not list served-API lists yet")
 	}
 	entries, ok := array(rules["entries"])
 	if !ok || len(entries) == 0 {
