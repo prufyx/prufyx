@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "absent",
+    "candidateDigest": "sha256:7f0bc4899d32aa6176da3aab2a910fe3a55134a0c4365bab13358592aa806c7f",
+    "candidateId": "pr-157",
+    "decidedAt": "2026-10-22T12:40:56Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "openfga.playground-preshared-authn.1-13-1-to-1-14-0"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "WedV3YE9ot0g+j/w5bb6ZgFAZlWROmy/M98RMqoehR8CQCH83VyJHriUc93uCfjpjtoBic6qmzV1tT6NWrbBCw=="
+}

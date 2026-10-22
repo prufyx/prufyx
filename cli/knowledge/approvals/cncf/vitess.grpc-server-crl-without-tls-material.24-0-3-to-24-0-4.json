@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "absent",
+    "candidateDigest": "sha256:f9c7a6cfd7805090ea2bc760fe2d416b0a05e63932e857f362ea827d6b6fe124",
+    "candidateId": "pr-157",
+    "decidedAt": "2026-10-22T12:41:01Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "vitess.grpc-server-crl-without-tls-material.24-0-3-to-24-0-4"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "chTbEQ+r4uoCpLVT+nTxruAYdqB1G0SuySKrlrB6LWoO8QKACw2hQ9eI9yll/QoPzclqkG7dGVnO5USOp1h1Ag=="
+}
