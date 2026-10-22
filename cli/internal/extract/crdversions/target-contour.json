@@ -23,13 +23,13 @@
       {
         "path": "examples/optional-features/kustomization.yaml",
         "repo": "github.com/projectcontour/contour",
-        "reason": "a kustomization that takes the rendered Gateway manifest and appends --disable-feature arguments to the Contour container; it defines and patches no definition",
-        "evidence": "Read at v1.28.0 and v1.33.7: the file lists ../render/contour-gateway.yaml as its only resource and its patches add container arguments (--disable-feature=...) to the Contour Deployment; no patch targets a CustomResourceDefinition."
+        "reason": "a kustomization that takes the rendered Gateway manifest, adds --disable-feature arguments to the Contour Deployment and deletes whole definitions of features that are switched off; it changes no version or served flag",
+        "evidence": "Read at v1.28.0 and v1.33.7: its only resource is ../render/contour-gateway.yaml; its patches append --disable-feature arguments to the Deployment contour and five patches with $patch: delete remove whole definitions (extensionservices.projectcontour.io and the grpcroutes, tlsroutes, tcproutes and udproutes definitions of gateway.networking.k8s.io); no patch edits a version or a served flag, and it renders no definition that the rendered manifest lacks."
       },
       {
         "path": "examples/render/",
         "repo": "github.com/projectcontour/contour",
-        "reason": "rendered install manifests; their definitions are the Contour definitions and the Gateway API definitions of the listed paths (checked as copies)",
+        "reason": "rendered install manifests; their definitions are the Contour definitions and the bundled Gateway API definitions of the listed paths (checked as copies)",
         "evidence": "Not trusted, checked: at every tag each file is read and its definitions are compared with the listed paths (versions, served flags); a mismatch, another definition or an unreadable file blocks attestation.",
         "copies": true
       }
