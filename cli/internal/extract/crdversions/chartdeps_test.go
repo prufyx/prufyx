@@ -391,6 +391,7 @@ func TestChartDependencyBlocking(t *testing.T) {
 		{"a kustomization", map[string]string{"kustomization.yaml": "resources:\n- a.yaml\n"}, ClassUnread, nil},
 		{"a template source", map[string]string{"templates/_crd.tpl": "kind: CustomResourceDefinition\n"}, ClassUnsupported, nil},
 		{"a packaged chart", map[string]string{"charts/deep-1.0.0.tgz": "x"}, ClassUnread, nil},
+		{"a v1beta1 copy", map[string]string{"templates/crds/alpha.yaml": "apiVersion: apiextensions.k8s.io/v1beta1\nkind: CustomResourceDefinition\nmetadata:\n  name: alphas." + synthGroup + "\nspec:\n  group: " + synthGroup + "\n  names:\n    kind: Alpha\n    plural: alphas\n  scope: Namespaced\n  version: v1\n"}, ClassUnread, nil},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
