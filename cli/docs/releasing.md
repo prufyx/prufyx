@@ -25,9 +25,46 @@ attestation and the `SHA256SUMS` of a version must stay one-to-one.
    defense in depth only: the tagged commit carries its own copy of the
    workflow, so the real boundary is a repository tag ruleset on `refs/tags/v*`
    (only the owner may create such tags).
-2. Update the release notes file `cli/docs/release-notes-<tag>.md` in a normal
-   pull request before tagging. The workflow uses this file as the draft
-   release text and fails before building anything if it is missing.
+2. Generate the CHANGELOG entry and the release notes from the tree diff, in
+   a normal pull request, before tagging. Both state exactly what the release
+   adds since the previous tag: projects added to the catalogue, rules per
+   project, line attestations and Kubernetes minors, owner-approved onboarding
+   batches, the README coverage figures (A+B, S, G) and the merged pull
+   requests. Nobody types these figures; the maintainer subcommand computes
+   them from the data files of the two revisions (`rules.json` of the CNCF and
+   community packs, the generated support inventory, `cli/knowledge/onboarding`
+   and the README coverage block that `scripts/readme-coverage.sh` writes) and
+   evaluates no rule. Freeze data merges first, then, with `<prev>` the
+   previous tag and `<head>` the `main` commit that holds the last data merge:
+
+   ```sh
+   cd cli
+   go run ./cmd/prufyx-maintainer release-notes --repo .. --from <prev> --to <head> --to-label <tag> --level 4 --into ../CHANGELOG.md
+   go run ./cmd/prufyx-maintainer release-notes --repo .. --from <prev> --to <head> --to-label <tag> --into docs/release-notes-<tag>.md
+   ```
+
+   For the second command, first create `docs/release-notes-<tag>.md` with the
+   hand-written text and an empty marker pair. `--into` rewrites only the text between the
+   `<!-- release-notes:begin -->` and `<!-- release-notes:end -->` lines of the
+   file and refuses a file without exactly one such pair. In `CHANGELOG.md`
+   rename `## [Unreleased]` to `## [<version>] - <date>`, keep the generated
+   block, and open a new `## [Unreleased]` section with its own marker pair.
+   The release notes file is `cli/docs/release-notes-<tag>.md`: hand-written
+   text above the marker pair (what the build is, its limits; see
+   `release-notes-v0.0.1-alpha.1.md`) and the generated block inside it. The
+   workflow uses this file as the draft release text and fails before building
+   anything if it is missing. The generator prints counts and lists only: it
+   does not say a project is safe, a catalogued project is not tested
+   coverage, and decided is not safe. Do not add claims to the generated block;
+   add them above the markers, from the same commands, or not at all. Read the
+   result before merging: a figure shown as `n/a` means a data file or the
+   README block was missing in one revision.
+
+   After the pull request merges, tag the merge commit. Before the tag push,
+   run both commands again with `--to <tagged commit>` and the same `--to-label`; `git diff` must show
+   only the commit hash in the first line of each generated block. Any other
+   difference means a data file changed after the freeze: commit the
+   regenerated files in a new pull request and tag after it.
 3. Check the embedded rule expiry dates against the planned publication date.
    After a rule expires its verdict is `UNKNOWN` by design, so a release
    published shortly before an expiry date ships rules that are about to lapse.
