@@ -248,6 +248,11 @@ func TestOnboardingRefusals(t *testing.T) {
 				tg["exclude"] = []any{map[string]any{"path": "hack/crds/", "repo": obRepo, "reason": "helper manifests only", "evidence": "the directory holds helper manifests that are never installed by anyone"}}
 			})
 		}), nil, "may not exclude files"},
+		{"O4 dev-only Makefile target", blind(func(t *testing.T, f *onboardingFixture) {
+			editTarget(t, f, func(tg map[string]any) {
+				tg["devOnlyMakeTargets"] = []any{map[string]any{"makefile": "Makefile", "target": "dev-lab", "reason": "a local lab for development", "evidence": "the target only starts a local lab cluster and nothing else runs it"}}
+			})
+		}), nil, "may not list dev-only Makefile targets"},
 		{"O4 a new target attests", blind(func(t *testing.T, f *onboardingFixture) {
 			editTarget(t, f, func(tg map[string]any) { tg["attest"] = true })
 		}), nil, "a new target may not attest"},

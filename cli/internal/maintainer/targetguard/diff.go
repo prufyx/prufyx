@@ -151,6 +151,18 @@ func narrowed(b, h crdversions.Target) []string {
 			out = append(out, "excludeChanged:"+name)
 		}
 	}
+	// A dev-only Makefile target entry loosens the install-surface guard: a
+	// new (makefile, target) pair is listed. Removing one, or rewording its
+	// reason or evidence, is not.
+	baseDev := map[string]bool{}
+	for _, d := range b.DevOnlyMake {
+		baseDev[d.Makefile+"\x00"+d.Target] = true
+	}
+	for _, d := range h.DevOnlyMake {
+		if !baseDev[d.Makefile+"\x00"+d.Target] {
+			out = append(out, "devOnlyMake:"+d.Makefile+":"+d.Target)
+		}
+	}
 	out = append(out, remoteChanges(b.Remote, h.Remote)...)
 	sort.Strings(out)
 	return out

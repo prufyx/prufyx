@@ -530,6 +530,9 @@ func (st *onboardingState) checkProject(p OnboardingProject, baseRows, headRows 
 			// admitted blind by an onboarding batch.
 			bad("O4: a new target may not exclude files from the full-tree scan (%d exclusions); exclusions are reviewed per project", len(head.Exclude))
 		}
+		if len(head.DevOnlyMake) > 0 {
+			bad("O4: a new target may not list dev-only Makefile targets (%d); they loosen the install-surface guard and are reviewed per project", len(head.DevOnlyMake))
+		}
 		if repo := st.landscape[p.Slug]; repo != "https://"+head.Repo {
 			bad("O4: the target repository %s is not the landscape repository %s", logSafe(head.Repo), logSafe(repo))
 		}
@@ -551,8 +554,8 @@ func (st *onboardingState) checkProject(p OnboardingProject, baseRows, headRows 
 			bad("O4: the base target does not load: %v", logSafe(err.Error()))
 			return problems
 		}
-		if len(head.Exclude) > 0 || head.Remote != nil || len(head.Channels) > 0 || head.DeclaredChannel != "" {
-			bad("O4: a target with scan exclusions, a remote source or install channels is never turned on for attestation by a batch (%d exclusions)", len(head.Exclude))
+		if len(head.Exclude) > 0 || len(head.DevOnlyMake) > 0 || head.Remote != nil || len(head.Channels) > 0 || head.DeclaredChannel != "" {
+			bad("O4: a target with scan exclusions, dev-only Makefile targets, a remote source or install channels is never turned on for attestation by a batch (%d exclusions, %d dev-only targets)", len(head.Exclude), len(head.DevOnlyMake))
 		}
 		if base.Attest || !head.Attest {
 			bad("O4: kind attest turns attestation on: the base target must not attest and the head target must")
