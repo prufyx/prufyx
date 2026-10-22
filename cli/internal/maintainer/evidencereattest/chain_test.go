@@ -651,14 +651,18 @@ func withoutMechanicalRules(t *testing.T, raw []byte) []byte {
 		var e struct {
 			Rule struct {
 				Evidence struct {
-					Basis string `json:"basis"`
+					Basis      string `json:"basis"`
+					ReviewedAt string `json:"reviewedAt"`
 				} `json:"evidence"`
 			} `json:"rule"`
 		}
 		if err := json.Unmarshal(entry, &e); err != nil {
 			t.Fatal(err)
 		}
-		if e.Rule.Evidence.Basis != "mechanical" {
+		// A reviewed rule that is newer than the simulated chain's start
+		// would need its own review record (V5); the simulation covers
+		// the rules reviewed before it starts.
+		if e.Rule.Evidence.Basis != "mechanical" && e.Rule.Evidence.ReviewedAt <= "2026-10-12T12:00:00Z" {
 			kept = append(kept, entry)
 		}
 	}
