@@ -25,6 +25,7 @@ const approvalUsage = `usage: prufyx-maintainer approval <sign|verify|public-key
               --keys FILE --keys-digest sha256:... --identity LOGIN --candidate-id ID
               (--key FILE | --key-stdin) --output FILE [--subject rule]
   sign        --subject lineAttestation --record ID (in place of --rule ID; the other options as above)
+  sign        --subject pathPolicy --record ID (a NEW reviewed path policy; the other options as for lineAttestation)
   sign        --subject repinBaseline --repository OWNER/REPO --head-baselines FILE [--base-baselines FILE]
               --keys FILE --keys-digest sha256:... --identity LOGIN --candidate-id ID
               (--key FILE | --key-stdin) --output FILE
@@ -33,6 +34,7 @@ const approvalUsage = `usage: prufyx-maintainer approval <sign|verify|public-key
   verify      --subject lineAttestation --record ID --base-root DIR (in place of --rule ID; the other
               options as above; --base-root is the base checkout, whose approvals are checked for
               single use and forward-only decisions)
+  verify      --subject pathPolicy --record ID --base-root DIR (as for lineAttestation)
   sign        --subject registryDigest --pack cncf --base-root DIR --head-root DIR
               --keys FILE --keys-digest sha256:... --identity LOGIN --candidate-id ID
               (--key FILE | --key-stdin) --output FILE (run a build of the base: its compiled
@@ -197,9 +199,9 @@ type subjectFlags struct {
 }
 
 func (s *subjectFlags) register(f *flag.FlagSet) {
-	f.StringVar(&s.subject, "subject", ApprovalSubjectRule, "what the approval is for: rule, lineAttestation, repinBaseline, registryDigest or servedAPIs")
+	f.StringVar(&s.subject, "subject", ApprovalSubjectRule, "what the approval is for: rule, lineAttestation, pathPolicy, repinBaseline, registryDigest or servedAPIs")
 	f.StringVar(&s.headRoot, "head-root", "", "registryDigest, servedAPIs: the head checkout (the change as proposed)")
-	f.StringVar(&s.record, "record", "", "lineAttestation: the line attestation record ID (in place of --rule)")
+	f.StringVar(&s.record, "record", "", "lineAttestation, pathPolicy: the record ID (in place of --rule)")
 	f.StringVar(&s.repository, "repository", "", "repinBaseline: the repository (owner/repo), spelled as its entry spells it")
 	f.StringVar(&s.baseBaselines, "base-baselines", "", "repinBaseline: the baseline file as it is on the base branch (omit when the base has none)")
 	f.StringVar(&s.headBaselines, "head-baselines", "", "repinBaseline: the baseline file as the change proposes it")
@@ -216,7 +218,7 @@ func (s *subjectFlags) loadBaseline() (ApprovalSubject, ApprovalKeys, error) {
 		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--repository, --head-baselines, --keys and --keys-digest are required"}
 	}
 	if s.pack != "" || s.rule != "" || s.record != "" || s.basePack != "" || s.headPack != "" {
-		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--pack, --rule, --record, --base-pack and --head-pack belong to --subject rule or lineAttestation"}
+		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--pack, --rule, --record, --base-pack and --head-pack belong to --subject rule, lineAttestation or pathPolicy"}
 	}
 	keysRaw, err := readBoundedFile(s.keys, maxApprovalBytes*4)
 	if err != nil {
@@ -258,8 +260,10 @@ func (s *subjectFlags) load(layout Layout) (ApprovalSubject, ApprovalKeys, error
 		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--subject rule takes --rule ID, not --record"}
 	case s.subject == ApprovalSubjectLineAttestation && (s.record == "" || s.rule != ""):
 		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--subject lineAttestation takes --record ID, not --rule"}
-	case s.subject != ApprovalSubjectRule && s.subject != ApprovalSubjectLineAttestation:
-		return ApprovalSubject{}, ApprovalKeys{}, fmt.Errorf("--subject %q is not supported (supported: rule, lineAttestation, repinBaseline); --subject registryDigest takes --pack, --base-root and --head-root", s.subject)
+	case s.subject == ApprovalSubjectPathPolicy && (s.record == "" || s.rule != ""):
+		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--subject pathPolicy takes --record ID, not --rule"}
+	case s.subject != ApprovalSubjectRule && s.subject != ApprovalSubjectLineAttestation && s.subject != ApprovalSubjectPathPolicy:
+		return ApprovalSubject{}, ApprovalKeys{}, fmt.Errorf("--subject %q is not supported (supported: rule, lineAttestation, pathPolicy, repinBaseline); --subject registryDigest takes --pack, --base-root and --head-root", s.subject)
 	case s.repository != "" || s.baseBaselines != "" || s.headBaselines != "":
 		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--repository, --base-baselines and --head-baselines belong to --subject repinBaseline"}
 	}
@@ -294,6 +298,8 @@ func (s *subjectFlags) load(layout Layout) (ApprovalSubject, ApprovalKeys, error
 	var subject ApprovalSubject
 	if s.subject == ApprovalSubjectLineAttestation {
 		subject, err = AttestationApprovalSubject(*spec, base, head, s.record)
+	} else if s.subject == ApprovalSubjectPathPolicy {
+		subject, err = PathPolicyApprovalSubject(*spec, base, head, s.record)
 	} else {
 		subject, err = RuleApprovalSubject(*spec, base, head, s.rule)
 	}
@@ -376,7 +382,7 @@ func (s *subjectFlags) checkBaseRoot(layout Layout, baseRoot string) error {
 		}
 		return nil
 	}
-	if s.subject == ApprovalSubjectLineAttestation {
+	if s.subject == ApprovalSubjectLineAttestation || s.subject == ApprovalSubjectPathPolicy {
 		for _, spec := range layout.Packs {
 			if spec.Name == s.pack {
 				return same("--base-pack", s.basePack, spec.Path, true)
@@ -491,6 +497,8 @@ func printApproval(w io.Writer, rec ApprovalRecord, key ApprovalKey) {
 		fmt.Fprintf(w, "  subject    repinBaseline %s\n", rec.Scope)
 	case ApprovalSubjectLineAttestation:
 		fmt.Fprintf(w, "  subject    line attestation %s/%s (%s)\n", rec.Pack, rec.RuleID, rec.Scope)
+	case ApprovalSubjectPathPolicy:
+		fmt.Fprintf(w, "  subject    new path policy %s/%s (%s)\n", rec.Pack, rec.RuleID, rec.Scope)
 	case ApprovalSubjectRegistry:
 		fmt.Fprintf(w, "  subject    fact registry addition %s/%s\n", rec.Pack, rec.RuleID)
 	case ApprovalSubjectServed:
@@ -511,7 +519,7 @@ func cmdApprovalVerify(args []string, env approvalEnv, layout Layout, stdout io.
 	f := flag.NewFlagSet("approval verify", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
 	s.register(f)
-	f.StringVar(&s.baseRoot, "base-root", "", "lineAttestation, repinBaseline, registryDigest, servedAPIs: the base checkout, whose approvals the gate checks for single use and forward-only decisions")
+	f.StringVar(&s.baseRoot, "base-root", "", "lineAttestation, pathPolicy, repinBaseline, registryDigest, servedAPIs: the base checkout, whose approvals the gate checks for single use and forward-only decisions")
 	f.StringVar(&approval, "approval", "", "the approval file")
 	f.StringVar(&now, "now", "", "the clock, RFC 3339 UTC (default: now)")
 	if err := parseApprovalFlags(f, args); err != nil {
@@ -528,12 +536,12 @@ func cmdApprovalVerify(args []string, env approvalEnv, layout Layout, stdout io.
 		}
 	}
 	baseRoot := s.baseRoot
-	checksBase := s.subject == ApprovalSubjectLineAttestation || s.subject == ApprovalSubjectRepinBaseline || s.subject == ApprovalSubjectRegistry || s.subject == ApprovalSubjectServed
+	checksBase := s.subject == ApprovalSubjectLineAttestation || s.subject == ApprovalSubjectPathPolicy || s.subject == ApprovalSubjectRepinBaseline || s.subject == ApprovalSubjectRegistry || s.subject == ApprovalSubjectServed
 	switch {
 	case checksBase && baseRoot == "":
 		return 2, usageError{"--base-root is required: the gate refuses an approval the base already holds or has superseded, and verify must say so before it says OK"}
 	case !checksBase && baseRoot != "":
-		return 2, usageError{"--base-root belongs to --subject lineAttestation, repinBaseline, registryDigest or servedAPIs"}
+		return 2, usageError{"--base-root belongs to --subject lineAttestation, pathPolicy, repinBaseline, registryDigest or servedAPIs"}
 	}
 	subject, keys, err := s.load(layout)
 	if err != nil {

@@ -180,7 +180,9 @@ The external knowledge target format carries path policies in a records
 envelope: `knowledge-targets build` puts each policy in the target of the
 project whose component it names (see
 [Records in project targets](cncf-knowledge-per-project.md#records-in-project-targets)).
-A `v1alpha1` envelope with `pathPolicies` is refused. A reviewed record is renewed by
+A `v1alpha1` envelope with `pathPolicies` is refused. A new reviewed record enters the pack with an owner approval for exactly that
+record (subject `pathPolicy`; the knowledge gate refuses it in any other way);
+it is then renewed by
 an automated `evidence reattest` statement, at most twice in a row, when its
 citations are unchanged on their release lines (see
 [evidence-reattestation.md](evidence-reattestation.md#line-attestations-and-path-policies));

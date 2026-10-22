@@ -372,8 +372,8 @@ func TestApprovalSignSubjectRefusals(t *testing.T) {
 	t.Parallel()
 	t.Run("unsupported subject kind", func(t *testing.T) {
 		f := newRuleFixture(t)
-		requireCode(t, runApproval(t, f.key.pemKey(t), signNow, append(f.signArgs("--key-stdin"), "--subject", "pathPolicy")...), 2, "not supported")
-		if _, _, err := SignApproval(SignApprovalOptions{Subject: ApprovalSubject{Kind: "pathPolicy"}}); err == nil {
+		requireCode(t, runApproval(t, f.key.pemKey(t), signNow, append(f.signArgs("--key-stdin"), "--subject", "somethingElse")...), 2, "not supported")
+		if _, _, err := SignApproval(SignApprovalOptions{Subject: ApprovalSubject{Kind: "somethingElse"}}); err == nil {
 			t.Fatal("unsupported subject kind signed")
 		}
 	})

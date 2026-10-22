@@ -53,7 +53,10 @@ import (
 //     owner approval for exactly this record (subject lineAttestation, its
 //     scope, its base state), plus the cross-check against the attesting
 //     extractor's own derivation of the line (crossCheckAttestation);
-//   - any other reviewed path policy change: not admitted.
+//   - basis reviewed path policy, new (no record in the base): a signed owner
+//     approval for exactly this record (subject pathPolicy, baseDigest
+//     absent), never together with a batch;
+//   - any other reviewed path policy change: renewal only, else not admitted.
 //   - a served-API list (servedapis.PackMember): only basis mechanical, re-derived
 //     byte-identically from the line's pinned OpenAPI specification by the
 //     deriver compiled into this binary (servedlists, see served_gate.go); a
@@ -73,6 +76,9 @@ const (
 	// ApprovalSubjectLineAttestation marks an owner approval for one line
 	// attestation record. A rule approval has no subject.
 	ApprovalSubjectLineAttestation = "lineAttestation"
+	// ApprovalSubjectPathPolicy marks an owner approval for one NEW reviewed
+	// path policy record: its base state is always absent.
+	ApprovalSubjectPathPolicy = "pathPolicy"
 )
 
 // record is one line attestation or path-policy record of a pack, keyed by
@@ -420,9 +426,17 @@ func admitRecord(c *Change, stmt statementResult, loadKeys func() (*ApprovalKeys
 		c.OK, c.Proof = true, ProofReattestation
 		return
 	}
+	subject := ApprovalSubjectLineAttestation
 	if c.Section != sectionAttestations {
-		c.fail("a reviewed path policy changes only by renewal through a verified reattestation statement: " + strings.Join(reasons, "; "))
-		return
+		if batch != nil {
+			c.fail("a change carrying a batch approval admits no path policy; a new reviewed path policy needs its own owner approval in a change without a batch")
+			return
+		}
+		if c.rbase != nil {
+			c.fail("a reviewed path policy changes only by renewal through a verified reattestation statement: " + strings.Join(reasons, "; "))
+			return
+		}
+		subject = ApprovalSubjectPathPolicy
 	}
 	approvalPath := opts.Layout.ApprovalDir + "/" + c.Pack + "/" + c.RuleID + ".json"
 	raw, err := opts.Head.ReadOptional(approvalPath, maxApprovalBytes+1)
@@ -447,15 +461,21 @@ func admitRecord(c *Change, stmt statementResult, loadKeys func() (*ApprovalKeys
 		if c.rbase != nil {
 			base = c.rbase.Canonical
 		}
-		if err := VerifyRecordApproval(raw, *keys, c.Pack, ApprovalSubjectLineAttestation, c.RuleID, h.Scope, base, h.Canonical, opts.Now); err != nil {
+		if err := VerifyRecordApproval(raw, *keys, c.Pack, subject, c.RuleID, h.Scope, base, h.Canonical, opts.Now); err != nil {
 			reasons = append(reasons, err.Error())
 			break
 		}
-		if err := crossCheck(c.Pack, h); err != nil {
-			reasons = append(reasons, "cross-check with the extractor: "+err.Error())
-			break
+		if subject == ApprovalSubjectLineAttestation {
+			if err := crossCheck(c.Pack, h); err != nil {
+				reasons = append(reasons, "cross-check with the extractor: "+err.Error())
+				break
+			}
 		}
 		c.OK, c.Proof = true, ProofApproval
+		return
+	}
+	if subject == ApprovalSubjectPathPolicy {
+		c.fail("a new reviewed path policy is admitted only with an owner approval for exactly this record: " + strings.Join(reasons, "; "))
 		return
 	}
 	c.fail("a reviewed line attestation may change only by renewal through a verified reattestation statement, or with an owner approval and the extractor cross-check: " + strings.Join(reasons, "; "))
