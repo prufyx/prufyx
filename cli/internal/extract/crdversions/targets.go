@@ -484,6 +484,15 @@ func (tj targetJSON) target() (Target, error) {
 		if ej.Repo != t.Repo {
 			return t, fmt.Errorf("exclusion %q names repository %q, not %s", ej.Path, ej.Repo, t.Repo)
 		}
+		if ej.Defines != "" {
+			// An earlier entry that covers it would place its files, and
+			// the claim would never be checked.
+			for _, other := range tj.Exclude[:i] {
+				if exclusionMatches(other.Path, ej.Path) || exclusionMatches(other.Path, path.Dir(ej.Path)+"/") {
+					return t, fmt.Errorf("exclusion %q: defines none under the exclusion %q, which would place its files", ej.Path, other.Path)
+				}
+			}
+		}
 		if ej.PrePatch != "" {
 			// The rendering is compared with the declared definitions of
 			// the repository itself: a target with other channels or a
