@@ -71,6 +71,13 @@ jobs:
           done
           exit "${status}"
 
+      - name: Check generated coverage text
+        # README.md coverage block and the CNCF-SOURCE-PREVIEW.md rule counts
+        # must match the embedded knowledge and the generated inventory.
+        run: |
+          scripts/readme-coverage.sh --check
+          scripts/preview-coverage.sh --check
+
   test-core:
     name: Test (all packages except knowledgegate)
     runs-on: ubuntu-24.04
