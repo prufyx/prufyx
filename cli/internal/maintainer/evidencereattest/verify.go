@@ -377,7 +377,7 @@ func rulesByID(doc packDocument) (map[string]json.RawMessage, error) {
 // records were parsed strictly and re-checked against its rules on load
 // (loadRecords).
 func checkV10(priorDoc, nextDoc packDocument) error {
-	if (priorDoc.LineAttestations == nil) != (nextDoc.LineAttestations == nil) || (priorDoc.PathPolicies == nil) != (nextDoc.PathPolicies == nil) {
+	if (priorDoc.LineAttestations == nil) != (nextDoc.LineAttestations == nil) || (priorDoc.PathPolicies == nil) != (nextDoc.PathPolicies == nil) || (priorDoc.ServedAPIs == nil) != (nextDoc.ServedAPIs == nil) {
 		return fmt.Errorf("%w: V10: a record section is present in only one of the prior and next packs", ErrRejected)
 	}
 	if len(priorDoc.records) != len(nextDoc.records) {
