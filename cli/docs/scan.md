@@ -123,7 +123,15 @@ otherwise, also for a hop inside one line such as `1.38.0-alpha.2 -> 1.38.0`.
 The report says so: the inventory entry carries `versionStage: "prerelease"`,
 the notes carry "Kubernetes 1.38.0-alpha.2 is a pre-release; findings are
 provisional until the GA release", and a gap with reason `LINE_NOT_ATTESTED`
-explains the undecided hops. Run the scan again against the GA release.
+explains the undecided hops. SARIF carries the component names under the run
+property `preRelease`. Run the scan again against the GA release.
+
+A reviewed rule written for a whole release line applies to a pre-release of
+that line as if it were the line's first release (`X.Y.0`): a rule that blocks
+`1.37.5 -> 1.38.0` also blocks `1.37.5 -> 1.38.0-alpha.1`, and a dependency
+bound such as "Kubernetes gte 1.38.0" is met by `1.38.0-alpha.2`. This errs
+towards reporting a blocker, never towards a pass. `prepare cncf` refuses a
+pre-release, and `check cncf` never exits 0 for a report decided on one.
 
 ## Knowledge database
 

@@ -158,7 +158,7 @@ func evaluateMatchedRule(input inputDocument, rule rule, claim Claim) Claim {
 			claim.NextAction = chartSubjectAction(transition{})
 			return claim
 		}
-		comparison, comparable := compareVersions(component.Version, rule.Dependency.Version)
+		comparison, comparable := compareVersions(LineFloor(component.Version), rule.Dependency.Version)
 		if !comparable {
 			// A version the engine cannot compare proves neither side of
 			// the bound: never BLOCKED (nor UNSUPPORTED), never PASS.

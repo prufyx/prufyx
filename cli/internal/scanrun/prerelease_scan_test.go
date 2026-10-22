@@ -63,6 +63,10 @@ func TestScanPreReleaseNeverPasses(t *testing.T) {
 			if !strings.Contains(encoded, `"versionStage":"prerelease"`) {
 				t.Fatal("JSON report lacks versionStage")
 			}
+			sarif, err := scanreport.SARIF(report)
+			if err != nil || !strings.Contains(string(sarif), `"preRelease": [`) {
+				t.Fatalf("SARIF run properties lack preRelease: %v", err)
+			}
 			// The human and Markdown outputs carry the same statement.
 			for _, out := range [][]byte{scanreport.Human(report, scanreport.HumanOptions{}), scanreport.Markdown(report, scanreport.MarkdownOptions{})} {
 				if !strings.Contains(string(out), "is a pre-release; findings are provisional until the GA release") {

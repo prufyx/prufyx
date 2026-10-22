@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/currentbundle"
 )
 
@@ -94,6 +95,10 @@ func (r runtime) prepareCNCF(args []string) int {
 	format := fs.String("format", "human", "human, json or input")
 	if duplicateFlags(args) || fs.Parse(args) != nil {
 		return r.usage("invalid CNCF preparation arguments; use --help")
+	}
+	// A pre-release is read by prufyx scan only, which never passes it.
+	if constraintengine.PreRelease(*from) || constraintengine.PreRelease(*to) {
+		return r.usage("prepare cncf takes release versions X.Y.Z; a Kubernetes pre-release is accepted by prufyx scan only")
 	}
 	if *project != "cilium" && anyFlagProvided(args, "cilium-config-map", "cilium-config-map-digest", "cilium-config-complete", "cilium-config-precedence-resolved", "cilium-distribution") {
 		return r.usage("Cilium ConfigMap flags require Cilium preparation")

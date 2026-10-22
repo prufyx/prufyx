@@ -857,6 +857,29 @@ func compareVersions(left, right string) (int, bool) {
 	return 0, true
 }
 
+// HasPreReleaseInput reports that a claim of the report was decided on a
+// pre-release version: the declared pair a range or crossing disclosure holds,
+// or the component scope. A route that cannot label a pre-release must not
+// pass such a report.
+func (r Report) HasPreReleaseInput() bool {
+	for _, claim := range r.Claims {
+		if m := claim.SubjectMatch; m != nil && (PreRelease(m.AnchorFrom) || PreRelease(m.AnchorTo)) {
+			return true
+		}
+		if m := claim.CrossingMatch; m != nil && (PreRelease(m.AnchorFrom) || PreRelease(m.AnchorTo)) {
+			return true
+		}
+	}
+	if r.ScopeCompleteness != nil {
+		for _, c := range r.ScopeCompleteness.Components {
+			if PreRelease(c.From) || PreRelease(c.To) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // EvidenceBasisLine is the one-line human statement of how the claim's rule
 // was produced and, for a basis that limits it, what the rule may decide.
 // It is presentation only. An absent basis means a maintainer reviewed the

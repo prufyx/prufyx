@@ -193,3 +193,18 @@ func TestKyvernoPreparationDoesNotSucceedWhenOutputFails(t *testing.T) {
 		}
 	}
 }
+
+// A Kubernetes pre-release is read by prufyx scan only: the native prepare
+// route refuses it with a usage error and prints nothing.
+func TestPrepareRefusesAPreRelease(t *testing.T) {
+	t.Parallel()
+	raw := []byte(`{"apiVersion":"batch/v1","kind":"CronJob","metadata":{"name":"c"}}`)
+	path := writeCNCFFile(t, "cronjob.json", raw, 0o600)
+	for _, c := range [][2]string{{"1.24.17", "1.25.0-rc.1"}, {"1.24.0-alpha.1", "1.25.0"}} {
+		code, output, stderr := runCNCFCLI(t, "prepare", "cncf", "--project", "kubernetes", "--input", path, "--from", c[0], "--to", c[1],
+			"--distribution", "official_upstream", "--resource-scope-complete", "--target-api-apply-required", "--format", "json")
+		if code == 0 || output != "" || !strings.Contains(stderr, "pre-release") {
+			t.Errorf("%s -> %s: code %d output %q stderr %q", c[0], c[1], code, output, stderr)
+		}
+	}
+}

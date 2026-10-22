@@ -586,7 +586,7 @@ const (
 	UsageBadValue         = "invalid value for %s; use prufyx scan --help"
 	UsageRepeated         = "%s given more than once"
 	UsageComponentVersion = "%s takes COMPONENT=VERSION, for example kubernetes=1.30.4"
-	UsageVersion          = "version %s of %s is not X.Y.Z"
+	UsageVersion          = "version %s of %s is not X.Y.Z (kubernetes also takes X.Y.0-alpha.N, X.Y.0-beta.N or X.Y.0-rc.N)"
 	UsageUnknownComponent = "unknown component %s; closest: %s"
 	// UsageUnknownComponentNoMatch is the same refusal when no known
 	// component is near the name.
