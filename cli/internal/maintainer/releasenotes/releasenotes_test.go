@@ -297,3 +297,45 @@ func TestGitTreesAndMergedPRs(t *testing.T) {
 }
 
 func isNotExist(err error) bool { return strings.Contains(err.Error(), fs.ErrNotExist.Error()) }
+
+func TestReplaceBlock(t *testing.T) {
+	doc := "# Changelog\n\n## [Unreleased]\n\n" + MarkerBegin + "\nold\nlines\n" + MarkerEnd + "\n\n### Added\n"
+	got, err := ReplaceBlock(doc, "new block\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "# Changelog\n\n## [Unreleased]\n\n" + MarkerBegin + "\n\nnew block\n\n" + MarkerEnd + "\n\n### Added\n"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	again, err := ReplaceBlock(got, "new block\n")
+	if err != nil || again != got {
+		t.Errorf("update is not idempotent: %q, %v", again, err)
+	}
+	for name, bad := range map[string]string{
+		"no markers":    "# Changelog\n",
+		"end first":     MarkerEnd + "\n" + MarkerBegin + "\n",
+		"only begin":    MarkerBegin + "\n",
+		"two begins":    MarkerBegin + "\n" + MarkerBegin + "\n" + MarkerEnd + "\n",
+		"two ends":      MarkerBegin + "\n" + MarkerEnd + "\n" + MarkerEnd + "\n",
+		"inline marker": "text " + MarkerBegin + "\n" + MarkerEnd + "\n",
+	} {
+		if _, err := ReplaceBlock(bad, "x"); err == nil {
+			t.Errorf("%s: no error", name)
+		}
+	}
+}
+
+func TestRenderLevelAndCommits(t *testing.T) {
+	a, _ := ReadSnapshot(DirTree{writeTree(t, fromFiles())})
+	b, _ := ReadSnapshot(DirTree{writeTree(t, toFiles())})
+	out := Render(a, b, Options{FromLabel: "v1", ToLabel: "main", FromCommit: "aaa", ToCommit: "bbb", Level: 4, PRNote: "No git."})
+	for _, want := range []string{"Changes from `v1` (aaa) to `main` (bbb)", "\n#### Summary\n", "\n#### Merged pull requests\n\nNo git."} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output lacks %q\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "\n### ") {
+		t.Error("a level 3 heading remains")
+	}
+}

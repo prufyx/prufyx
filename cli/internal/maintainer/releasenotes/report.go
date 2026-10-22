@@ -16,12 +16,19 @@ type Options struct {
 	// PRs is nil with a non-empty PRNote when the pull requests are unknown.
 	PRs    []PR
 	PRNote string
+	// FromCommit and ToCommit, when set, name the commits the labels resolve to.
+	FromCommit string
+	ToCommit   string
+	// Level is the heading level of the sections: 3 (default) or 4, for a
+	// CHANGELOG entry whose own categories are level 3.
+	Level int
 }
 
 // Render writes the Markdown for the changes from one snapshot to the next.
 func Render(from, to *Snapshot, o Options) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "Changes from `%s` to `%s`, computed by `prufyx-maintainer release-notes` from the data files of the two trees. No figure or list below is typed by hand.\n\n", o.FromLabel, o.ToLabel)
+	fmt.Fprintf(&b, "Changes from `%s`%s to `%s`%s, computed by `prufyx-maintainer release-notes` from the data files of the two trees. No figure or list below is typed by hand.\n\n",
+		o.FromLabel, commitNote(o.FromCommit), o.ToLabel, commitNote(o.ToCommit))
 	for _, m := range from.Missing {
 		fmt.Fprintf(&b, "- `%s` does not exist in `%s`; it counts as empty there.\n", m, o.FromLabel)
 	}
@@ -41,7 +48,18 @@ func Render(from, to *Snapshot, o Options) string {
 	b.WriteString("A catalogued project is not tested coverage: a catalogue entry says Prufyx holds retained public sources for the project, and only an executable check can block an upgrade. ")
 	b.WriteString("Decided means a valid rule or attestation covers every version of both release lines, so the answer is BLOCKED or UNKNOWN, never a whole-upgrade PASS; decided is not safe. ")
 	b.WriteString("An exact-pair rule decides only the versions it names. A line attestation says which rules were derived for a release line, not that an upgrade into it is safe. The metrics are defined in `cli/docs/coverage-report.md`.\n")
-	return b.String()
+	out := b.String()
+	if o.Level == 4 {
+		out = strings.ReplaceAll(out, "\n### ", "\n#### ")
+	}
+	return out
+}
+
+func commitNote(c string) string {
+	if c == "" {
+		return ""
+	}
+	return " (" + c + ")"
 }
 
 func delta(a, b int) string {
@@ -191,7 +209,7 @@ func onboarding(b *strings.Builder, from, to *Snapshot) {
 		return
 	}
 	b.WriteString(strings.Join(items, "\n") + "\n\n")
-	b.WriteString("Only approved batches are counted. A project entry names the project and the proof pair of versions the batch rests on.\n\n")
+	b.WriteString("Only approved batches are counted. A project entry names the project and the proof pair of versions the batch rests on; it does not by itself add a project to the catalogue (see the catalogue list above).\n\n")
 }
 
 func rules(b *strings.Builder, from, to *Snapshot) {

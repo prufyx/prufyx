@@ -34,6 +34,16 @@ func TestReleaseNotesDirectories(t *testing.T) {
 			t.Errorf("output lacks %q\n%s", want, out.String())
 		}
 	}
+	cl := filepath.Join(t.TempDir(), "CHANGELOG.md")
+	if err := os.WriteFile(cl, []byte("## [Unreleased]\n\n<!-- release-notes:begin -->\nstale\n<!-- release-notes:end -->\n\n### Added\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := run([]string{"release-notes", "--from-dir", from, "--to-dir", to, "--into", cl, "--level", "4"}, &out, &errOut); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(cl); !strings.Contains(string(b), "#### Summary") || strings.Contains(string(b), "stale") || !strings.HasSuffix(string(b), "### Added\n") {
+		t.Errorf("changelog = %q", b)
+	}
 	outFile := filepath.Join(t.TempDir(), "notes.md")
 	if err := run([]string{"release-notes", "--from-dir", from, "--to-dir", to, "--out", outFile}, &out, &errOut); err != nil {
 		t.Fatal(err)
@@ -51,6 +61,8 @@ func TestReleaseNotesUsageErrors(t *testing.T) {
 		{"release-notes", "--from-dir", "x"},
 		{"release-notes", "--from", "v1", "extra"},
 		{"release-notes", "--from", "-x"},
+		{"release-notes", "--from-dir", "x", "--to-dir", "y", "--level", "5"},
+		{"release-notes", "--from-dir", "x", "--to-dir", "y", "--out", "a", "--into", "b"},
 	} {
 		var out, errOut bytes.Buffer
 		if err := run(args, &out, &errOut); err == nil {

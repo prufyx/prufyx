@@ -11,7 +11,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/maintainer/releasenotes"
 )
 
-const releaseNotesUsage = "release-notes: usage: prufyx-maintainer release-notes (--from REV [--to REV] [--repo DIR] | --from-dir DIR --to-dir DIR) [--out FILE]"
+const releaseNotesUsage = "release-notes: usage: prufyx-maintainer release-notes (--from REV [--to REV] [--repo DIR] | --from-dir DIR --to-dir DIR) [--level 3|4] [--out FILE | --into FILE]"
 
 // runReleaseNotes prints, as Markdown, what the data files of one tree add to
 // another: projects, rules, line attestations, onboarding batches and the
@@ -26,7 +26,9 @@ func runReleaseNotes(args []string, stdout io.Writer) error {
 	fromDir := flags.String("from-dir", "", "previous tree as a directory (instead of --from)")
 	toDir := flags.String("to-dir", "", "tree to describe as a directory (instead of --to)")
 	out := flags.String("out", "", "write the Markdown to this file (default: stdout)")
-	if err := flags.Parse(args); err != nil || flags.NArg() != 0 {
+	into := flags.String("into", "", "replace the block between the "+releasenotes.MarkerBegin+" and "+releasenotes.MarkerEnd+" lines of this Markdown file")
+	level := flags.Int("level", 3, "heading level of the sections: 3, or 4 under the level-3 categories of a CHANGELOG entry")
+	if err := flags.Parse(args); err != nil || flags.NArg() != 0 || (*out != "" && *into != "") || (*level != 3 && *level != 4) {
 		return &commandError{code: 2, message: releaseNotesUsage, err: err}
 	}
 	var from, to releasenotes.Tree
@@ -36,6 +38,13 @@ func runReleaseNotes(args []string, stdout io.Writer) error {
 		from = releasenotes.GitTree{Repo: *repo, Rev: *fromRev}
 		to = releasenotes.GitTree{Repo: *repo, Rev: *toRev}
 		opts.FromLabel, opts.ToLabel = *fromRev, *toRev
+		var err error
+		if opts.FromCommit, err = releasenotes.Commit(*repo, *fromRev); err != nil {
+			return &commandError{code: 2, message: "release-notes: cannot resolve --from", err: err}
+		}
+		if opts.ToCommit, err = releasenotes.Commit(*repo, *toRev); err != nil {
+			return &commandError{code: 2, message: "release-notes: cannot resolve --to", err: err}
+		}
 		prs, err := releasenotes.MergedPRs(*repo, *fromRev, *toRev)
 		if err != nil {
 			return &commandError{code: 2, message: "release-notes: cannot list the merged pull requests", err: err}
@@ -57,7 +66,22 @@ func runReleaseNotes(args []string, stdout io.Writer) error {
 	if err != nil {
 		return &commandError{code: 2, message: "release-notes: cannot read the tree to describe", err: err}
 	}
+	opts.Level = *level
 	text := releasenotes.Render(a, b, opts)
+	if *into != "" {
+		doc, err := os.ReadFile(*into)
+		if err != nil {
+			return &commandError{code: 2, message: "release-notes: cannot read the file", err: err}
+		}
+		updated, err := releasenotes.ReplaceBlock(string(doc), text)
+		if err != nil {
+			return &commandError{code: 2, message: "release-notes: " + err.Error(), err: err}
+		}
+		if err := os.WriteFile(*into, []byte(updated), 0o644); err != nil {
+			return &commandError{code: 2, message: "release-notes: cannot write the file", err: err}
+		}
+		return nil
+	}
 	if *out == "" {
 		_, err = io.WriteString(stdout, text)
 	} else {
