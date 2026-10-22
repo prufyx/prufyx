@@ -12,6 +12,14 @@
     "paths": [
       {"path": "manifests/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
     ],
-    "exclude": []
+    "exclude": [
+      {"path": "applicationset/examples/", "repo": "github.com/argoproj/argo-cd", "reason": "example ApplicationSet inputs (kustomizations and manifests of sample add-ons) shown in the ApplicationSet documentation; no Argo CD install definition", "evidence": "Read at 3.0.0 and 3.5.6: referenced only by docs/operator-manual/applicationset/*.md (links and git generator path examples) and cmd/argocd/commands/applicationset_test.go; no Makefile, Dockerfile, manifests or hack file names it."},
+      {"path": "examples/known-hosts/", "repo": "github.com/argoproj/argo-cd", "reason": "example kustomization that overlays the known hosts configmap; not an install definition", "evidence": "Read at 3.0.0 and 3.5.6: a kustomization.yaml with two patch manifests and a README; no Makefile, Dockerfile, manifests, hack, docs or Go file names the directory."},
+      {"path": "reposerver/repository/testdata/", "repo": "github.com/argoproj/argo-cd", "reason": "fixtures of the repo-server unit tests (Helm charts and manifests rendered by the tests)", "evidence": "Read at 3.0.0 and 3.5.6: reposerver/repository/repository_test.go opens them by relative path (testdata/helm-with-dependencies, testdata/helm-with-local-dependency, ...); .gitignore and sonar-project.properties list the directory; no Makefile, Dockerfile, manifests or hack file installs from it."},
+      {"path": "resource_customizations/apiextensions.k8s.io/CustomResourceDefinition/testdata/", "repo": "github.com/argoproj/argo-cd", "reason": "input documents of the health-check test of the built-in CustomResourceDefinition resource customization", "evidence": "Read at 3.0.0 and 3.5.6: the health.lua next to the directory is exercised by health_test.yaml, which names these files; they are status fixtures of CustomResourceDefinitions, not definitions Argo CD installs; no Makefile, Dockerfile, manifests or hack file names the directory."},
+      {"path": "util/cmp/testdata/", "repo": "github.com/argoproj/argo-cd", "reason": "fixtures of the config management plugin unit tests", "evidence": "Read at 3.0.0 and 3.5.6: opened by relative path from the tests in util/cmp; no Makefile, Dockerfile, manifests or hack file names the directory."},
+      {"path": "util/helm/testdata/", "repo": "github.com/argoproj/argo-cd", "reason": "fixtures of the Helm helper unit tests (charts, dependencies and CustomResourceDefinitions in a chart crds directory)", "evidence": "Read at 3.0.0 and 3.5.6: opened by relative path from the tests in util/helm and by reposerver/repository/repository_test.go (../../util/helm/testdata/dependency); no Makefile, Dockerfile, manifests or hack file names the directory."},
+      {"path": "util/io/files/testdata/", "repo": "github.com/argoproj/argo-cd", "reason": "fixtures of the file helper unit tests", "evidence": "Read at 3.0.0 and 3.5.6: opened by relative path from the tests in util/io/files; no Makefile, Dockerfile, manifests or hack file names the directory."}
+    ]
   }
 }

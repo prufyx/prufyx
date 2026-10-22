@@ -7,6 +7,55 @@
       "detail": "exclude:samples/security/spire/spire-quickstart.yaml@github.com/istio/istio",
       "seq": 0,
       "reason": "Sample manifest of a third-party system (SPIRE, group spire.spiffe.io), applied by hand from the sample README; read at 1.26.0 and 1.31.2: no chart, Makefile, kustomization or Go source refers to it and the istio definitions are in manifests/charts/base/files/crd-all.gen.yaml."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "argo-cd",
+      "detail": "exclude:applicationset/examples/@github.com/argoproj/argo-cd",
+      "seq": 0,
+      "reason": "Example ApplicationSet inputs shown in the ApplicationSet documentation (kustomizations and manifests of sample add-ons); read at 3.0.0 and 3.5.6: no Makefile, Dockerfile, manifests or hack file installs from it and the Argo CD definitions are in manifests/crds."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "argo-cd",
+      "detail": "exclude:examples/known-hosts/@github.com/argoproj/argo-cd",
+      "seq": 0,
+      "reason": "Example kustomization for the known hosts configmap; read at 3.0.0 and 3.5.6: no Makefile, Dockerfile, manifests or hack file installs from it and the Argo CD definitions are in manifests/crds."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "argo-cd",
+      "detail": "exclude:reposerver/repository/testdata/@github.com/argoproj/argo-cd",
+      "seq": 0,
+      "reason": "Fixtures of the repo-server unit tests; read at 3.0.0 and 3.5.6: no Makefile, Dockerfile, manifests or hack file installs from it and the Argo CD definitions are in manifests/crds."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "argo-cd",
+      "detail": "exclude:resource_customizations/apiextensions.k8s.io/CustomResourceDefinition/testdata/@github.com/argoproj/argo-cd",
+      "seq": 0,
+      "reason": "Status fixtures of the CustomResourceDefinition health-check test; read at 3.0.0 and 3.5.6: no Makefile, Dockerfile, manifests or hack file installs from it and the Argo CD definitions are in manifests/crds."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "argo-cd",
+      "detail": "exclude:util/cmp/testdata/@github.com/argoproj/argo-cd",
+      "seq": 0,
+      "reason": "Fixtures of the config management plugin unit tests; read at 3.0.0 and 3.5.6: no Makefile, Dockerfile, manifests or hack file installs from it and the Argo CD definitions are in manifests/crds."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "argo-cd",
+      "detail": "exclude:util/helm/testdata/@github.com/argoproj/argo-cd",
+      "seq": 0,
+      "reason": "Fixtures of the Helm helper unit tests; read at 3.0.0 and 3.5.6: no Makefile, Dockerfile, manifests or hack file installs from it and the Argo CD definitions are in manifests/crds."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "argo-cd",
+      "detail": "exclude:util/io/files/testdata/@github.com/argoproj/argo-cd",
+      "seq": 0,
+      "reason": "Fixtures of the file helper unit tests; read at 3.0.0 and 3.5.6: no Makefile, Dockerfile, manifests or hack file installs from it and the Argo CD definitions are in manifests/crds."
     }
   ],
   "noTarget": []

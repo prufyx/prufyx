@@ -8,7 +8,7 @@ The reviewed targets of the `crd.version-removal` extractor
 | Extractor id | Catalog | Repository | Release tags | First pair from | Attests lines | CRD manifests | Reviewed exclusions |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `crd.version-removal.antrea` | CNCF | `github.com/antrea-io/antrea` | `vX.Y.Z` | 2.2 | no | files matching `^[^.][^/]*\.ya?ml$` in `build/charts/antrea/crds`, files matching `^[^.][^/]*\.ya?ml$` in `multicluster/config/crd/bases` (when present) | 0 |
-| `crd.version-removal.argo-cd` | CNCF | `github.com/argoproj/argo-cd` | `vX.Y.Z` | 3.0 | yes | files matching `^[^.][^/]*\.ya?ml$` in `manifests/crds` | 0 |
+| `crd.version-removal.argo-cd` | CNCF | `github.com/argoproj/argo-cd` | `vX.Y.Z` | 3.0 | yes | files matching `^[^.][^/]*\.ya?ml$` in `manifests/crds` | 7 |
 | `crd.version-removal.cert-manager` | CNCF | `github.com/cert-manager/cert-manager` | `vX.Y.Z` | 1.16 | yes | files matching `^[^.][^/]*\.ya?ml$` in `deploy/crds` | 2 |
 | `crd.version-removal.cilium` | CNCF | `github.com/cilium/cilium` | `vX.Y.Z` | 1.15 | yes | files matching `^[^.][^/]*\.ya?ml$` in `pkg/k8s/apis/cilium.io/client/crds/v2`, files matching `^[^.][^/]*\.ya?ml$` in `pkg/k8s/apis/cilium.io/client/crds/v2alpha1` | 0 |
 | `crd.version-removal.cloudnativepg` | CNCF | `github.com/cloudnative-pg/cloudnative-pg` | `vX.Y.Z` | 1.25 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
