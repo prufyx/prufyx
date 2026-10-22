@@ -1,6 +1,6 @@
 # Extractor `crd.version-removal`
 
-Version 2.5.0. Derives `forbid_set_member` rules for custom-resource
+Version 2.6.0. Derives `forbid_set_member` rules for custom-resource
 versions that a project's release line no longer serves, from the
 CustomResourceDefinition manifests the project ships in its repository. It is
 deterministic, reads only upstream source pinned by full commit SHA, and
@@ -119,6 +119,34 @@ anchor transition. A repository with an unacknowledged tag alarm yields no
 pairs.
 
 For each pair the extractor reads **every final release of both lines**.
+
+### Release scheme `calver-edge`
+
+A target names either `tagPrefixes` or `releaseScheme`, never both. The only
+scheme is `calver-edge`, for a project that ships edge releases named for the
+calendar month. The set is closed in code, and so is the set of components it
+may be used for (`lineattest.CalverComponent`): a new scheme or project is a
+reviewed code change, not a data change. Two spellings are releases, and
+nothing else is:
+
+```
+edge-YY.M.N        edge-26.2.5
+YY.M.N-edge        26.10.4-edge
+```
+
+`YY` is two digits (the year 2010 or later), `M` is 1 to 12 and `N` is 1 to 999,
+all without leading zeros, so `edge-25.03.1` is not a release (the line it
+would belong to starts at its next tag). A release candidate
+(`edge-26.3.2-rc1`), a foreign prefix (`v26.3.2-edge`), a plain `26.3.2` and
+every other shape are ignored. The records carry the engine version `YY.M.N`
+(`26.10.4`), never the tag's decoration; the tag names stay in the proof as
+provenance. A line is the calendar month `YY.M`, and the line before `YY.1` is
+`(YY-1).12`. A month in which nothing was released is not a line, so the
+pair across it is a skipped-minor hop and is not attested. A version tagged
+under both spellings at different commits makes its line unusable, as for two
+prefixes. A pair of a calendar target in which a definition loses a served
+version is withheld: rule ranges are about minor lines of one major, and a
+calendar line has none.
 
 ## What it reads at each release
 
@@ -621,6 +649,14 @@ version must come from a full run of that project's id with this build (which
 then carries the id's own digest), not from an edit of a record that carries
 the old shared digest. From then on, a change to one target only requires
 re-deriving the records of that target's id.
+## Changes from version 2.5.0
+
+Version 2.6.0 adds the `releaseScheme` member of a target, with the one value
+`calver-edge` (above), and the calendar previous line of a line attestation
+(see [../line-attestations.md](../line-attestations.md)). No target uses it
+yet. Output is unchanged for every target and file none of these applies to,
+except the extractor version and the code digest.
+
 ## Changes from version 2.4.0
 
 Version 2.5.0 adds the `prePatch` member of a reviewed exclusion and the

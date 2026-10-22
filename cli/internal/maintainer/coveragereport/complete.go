@@ -28,6 +28,7 @@ const (
 	whySnapshotHole      = "snapshot-hole"
 	whyNoFamily          = "no-registered-family"
 	whyChartLines        = "chart-lines-unmapped"
+	whyCalendarLines     = "calendar-lines"
 	whyTooFewLines       = "too-few-lines"
 	whyInvalidDecl       = "invalid-declaration"
 	whyUndeclared        = "undeclared-pairs"
@@ -209,7 +210,13 @@ func (c *completer) evaluate(slug string, pl ProjectLines, window []string) *Com
 			why[whySnapshotHole] = true
 		}
 	}
-	for i := 0; i+1 < len(window); i++ {
+	if pl.Scheme != "" {
+		// A calendar project skips months legitimately, so a gap between
+		// two lines is no sign of a missing line: no hole can be told, and
+		// the project is never complete.
+		why[whyCalendarLines] = true
+	}
+	for i := 0; pl.Scheme == "" && i+1 < len(window); i++ {
 		a1, a2, ok1 := lineParts(window[i])
 		b1, b2, ok2 := lineParts(window[i+1])
 		// Inside a major the next line is the next minor; a new major follows
@@ -355,7 +362,7 @@ func (c *completer) attested(slug string, r registration, pl ProjectLines, from,
 	if !ok {
 		return false
 	}
-	if previous, ok := previousLine(to); !ok || !sameLine(previous, from) {
+	if previous, ok := lineattest.PreviousLine(r.component, to); !ok || !sameLine(previous, from) {
 		return false
 	}
 	for _, a := range c.atts {
@@ -370,7 +377,7 @@ func (c *completer) attested(slug string, r registration, pl ProjectLines, from,
 		}
 		for _, id := range a.RuleIDs {
 			rule := c.byID[id]
-			if rule == nil || rule.project != slug || !rule.valid || !family.CoversLine(rule.tr, to) {
+			if rule == nil || rule.project != slug || !rule.valid || !family.CoversLine(r.component, rule.tr, to) {
 				return false
 			}
 			var shape struct {

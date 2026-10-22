@@ -15,10 +15,12 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 )
 
@@ -35,6 +37,10 @@ type ProjectLines struct {
 	Component string `json:"component,omitempty"`
 	// Priority marks the project as part of the priority portfolio.
 	Priority bool `json:"priority,omitempty"`
+	// Scheme is the optional release scheme of the project's tags
+	// (crdversions.SchemeCalverEdge); absent means final semver tags. A
+	// scheme project's lines are calendar months YY.M.
+	Scheme string `json:"scheme,omitempty"`
 	// Lines are the minor release lines that have at least one final
 	// release, ascending ("1.28"), without duplicates.
 	Lines []string `json:"lines"`
@@ -86,9 +92,18 @@ func ParseLines(raw []byte) (LinesFile, error) {
 		if !slugRE.MatchString(slug) {
 			return LinesFile{}, fmt.Errorf("%w: lines: bad project slug", ErrInvalid)
 		}
+		if p.Scheme != "" && !slices.Contains(crdversions.ReleaseSchemes, p.Scheme) {
+			return LinesFile{}, fmt.Errorf("%w: lines: %s: unknown scheme %q", ErrInvalid, slug, p.Scheme)
+		}
 		for i, line := range p.Lines {
 			if !lineattest.ValidLine(line) {
 				return LinesFile{}, fmt.Errorf("%w: lines: %s: bad line %q", ErrInvalid, slug, line)
+			}
+			if p.Scheme != "" {
+				// A calendar line has a month; any other number is no line.
+				if !lineattest.ValidCalverLine(line) {
+					return LinesFile{}, fmt.Errorf("%w: lines: %s: %q is not a calendar line", ErrInvalid, slug, line)
+				}
 			}
 			if i > 0 && !lineattest.LineLess(p.Lines[i-1], line) {
 				return LinesFile{}, fmt.Errorf("%w: lines: %s: lines must be strictly ascending", ErrInvalid, slug)
@@ -160,10 +175,23 @@ var (
 	custodianTagRE = regexp.MustCompile(`^v?0\.9\.([1-9][0-9]{0,8}|0)(?:\.(?:0|[1-9][0-9]{0,8}))?$`)
 )
 
+// schemeOf is the release scheme of a project's tags: the one its reviewed
+// crd.version-removal target names, "" for final semver tags.
+func schemeOf(project string) string {
+	if t, ok := crdversions.TargetFor(project); ok {
+		return t.ReleaseScheme
+	}
+	return ""
+}
+
 // LineOfTag maps a tag to the release line of a final release. ok is false
 // for a pre-release, a snapshot or any spelling this reviewed table does not
 // know: such a tag adds no line (fail closed).
 func LineOfTag(project, tag string) (string, bool) {
+	return lineOfTag(project, schemeOf(project), tag)
+}
+
+func lineOfTag(project, scheme, tag string) (string, bool) {
 	tag = strings.TrimSuffix(strings.TrimPrefix(tag, "refs/tags/"), "^{}")
 	switch project {
 	case "linkerd":
@@ -177,6 +205,12 @@ func LineOfTag(project, tag string) (string, bool) {
 		}
 		return "", false
 	}
+	if scheme == crdversions.SchemeCalverEdge {
+		if v, _, ok := crdversions.CalverEdgeRelease(tag); ok {
+			return lineattest.LineOf(v)
+		}
+		return "", false
+	}
 	if m := finalTagRE.FindStringSubmatch(tag); m != nil {
 		return m[1] + "." + m[2], true
 	}
@@ -187,11 +221,15 @@ func LineOfTag(project, tag string) (string, bool) {
 // projects whose tags are the release version ("v1.2.3" -> "1.2.3"). A project
 // with its own tag scheme (linkerd, cloud-custodian) lists no releases, so a
 // release-scoped attestation of it can never be compared and never completes.
-func releaseOfTag(project, tag string) (string, bool) {
+func releaseOfTag(project, scheme, tag string) (string, bool) {
 	if project == "linkerd" || project == "cloud-custodian" {
 		return "", false
 	}
 	tag = strings.TrimSuffix(strings.TrimPrefix(tag, "refs/tags/"), "^{}")
+	if scheme == crdversions.SchemeCalverEdge {
+		v, _, ok := crdversions.CalverEdgeRelease(tag)
+		return v, ok
+	}
 	if m := finalTagRE.FindStringSubmatch(tag); m != nil {
 		return m[1] + "." + m[2] + "." + m[3], true
 	}
@@ -203,6 +241,12 @@ func releaseOfTag(project, tag string) (string, bool) {
 // is the last field). Blank lines and lines starting with # are skipped.
 // Priority marks the projects of the priority portfolio.
 func LinesFromTags(listings map[string][]byte, priority map[string]bool, capturedOn string) (LinesFile, error) {
+	return linesFromTags(listings, priority, schemeOf, capturedOn)
+}
+
+// linesFromTags is LinesFromTags with the release scheme of each project
+// given by scheme.
+func linesFromTags(listings map[string][]byte, priority map[string]bool, scheme func(string) string, capturedOn string) (LinesFile, error) {
 	f := LinesFile{Schema: LinesSchema, CapturedOn: capturedOn, Projects: map[string]ProjectLines{}}
 	for project, raw := range listings {
 		if !slugRE.MatchString(project) {
@@ -217,9 +261,9 @@ func LinesFromTags(listings map[string][]byte, priority map[string]bool, capture
 			}
 			fields := strings.Fields(text)
 			tag := fields[len(fields)-1]
-			if line, ok := LineOfTag(project, tag); ok {
+			if line, ok := lineOfTag(project, scheme(project), tag); ok {
 				seen[line] = true
-				if v, ok := releaseOfTag(project, tag); ok {
+				if v, ok := releaseOfTag(project, scheme(project), tag); ok {
 					if releases[line] == nil {
 						releases[line] = map[string]bool{}
 					}
@@ -232,7 +276,7 @@ func LinesFromTags(listings map[string][]byte, priority map[string]bool, capture
 			lines = append(lines, line)
 		}
 		sort.Slice(lines, func(i, j int) bool { return lineattest.LineLess(lines[i], lines[j]) })
-		pl := ProjectLines{Priority: priority[project], Lines: lines}
+		pl := ProjectLines{Priority: priority[project], Scheme: scheme(project), Lines: lines}
 		for line, set := range releases {
 			list := make([]string, 0, len(set))
 			for v := range set {

@@ -316,7 +316,7 @@ func TestEmittedRulesAreLineWide(t *testing.T) {
 			}
 			n++
 			tr := constraintengine.RuleTransition{Component: e.Rule.Subject.Component, From: e.Rule.Subject.From, To: e.Rule.Subject.To, Range: e.Rule.Range}
-			if !family.CoversLine(tr, a.Line) {
+			if !family.CoversLine(a.Component, tr, a.Line) {
 				t.Fatalf("rule %s is not line-wide for %s", e.Rule.ID, a.Line)
 			}
 		}

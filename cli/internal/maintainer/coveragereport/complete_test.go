@@ -42,6 +42,7 @@ type scenario struct {
 	slug       string
 	family     string
 	component  string
+	scheme     string // the snapshot's release scheme, "" for semver
 	repo       string
 	lines      []string
 	releases   map[string][]string
@@ -102,7 +103,7 @@ func (s scenario) report(t *testing.T) Report {
 	t.Helper()
 	var atts []lineattest.LineAttestation
 	for i := 1; i < len(s.lines); i++ {
-		prev, ok := previousLine(s.lines[i])
+		prev, ok := lineattest.PreviousLine(s.component, s.lines[i])
 		if !ok || (prev != s.lines[i-1] && !s.attestAnyway) || s.skip[s.lines[i]] {
 			continue
 		}
@@ -119,7 +120,7 @@ func (s scenario) report(t *testing.T) Report {
 	packBytes := []byte(`{"schema":"test","revision":"synthetic","entries":[` + strings.Join(s.extra, ",") + `]` + section + `}`)
 	file := LinesFile{Schema: LinesSchema, CapturedOn: s.capturedOn, Projects: map[string]ProjectLines{}}
 	if len(s.lines) > 0 {
-		pl := ProjectLines{Lines: s.lines, Releases: s.releases}
+		pl := ProjectLines{Lines: s.lines, Releases: s.releases, Scheme: s.scheme}
 		if s.noSnapshotReleases {
 			pl.Releases = nil
 		}

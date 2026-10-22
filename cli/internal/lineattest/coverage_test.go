@@ -84,18 +84,18 @@ func TestCoversLineAgreesWithTheEngineMatcher(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got, want := family.CoversLine(s.Transition, "1.32"), matchesAll(s.Transition); got != want {
+		if got, want := family.CoversLine(s.Component, s.Transition, "1.32"), matchesAll(s.Transition); got != want {
 			t.Fatalf("rule %s: CoversLine=%v, engine matches every sampled transition=%v", s.ID, got, want)
 		}
 	}
-	if from, to, ok := family.LineTransitions("1.32"); !ok || from.Gte != "1.31.0" || from.Lt != "1.32.0" || to.Gte != "1.32.0" || to.Lt != "1.33.0" {
+	if from, to, ok := family.LineTransitions("pkg:github/kubernetes/kubernetes", "1.32"); !ok || from.Gte != "1.31.0" || from.Lt != "1.32.0" || to.Gte != "1.32.0" || to.Lt != "1.33.0" {
 		t.Fatalf("LineTransitions(1.32) = %+v %+v %v", from, to, ok)
 	}
 	// A line with no previous minor line in its major cannot be covered.
-	if _, _, ok := family.LineTransitions("2.0"); ok {
+	if _, _, ok := family.LineTransitions("pkg:github/kubernetes/kubernetes", "2.0"); ok {
 		t.Fatal("line 2.0 has no previous minor line")
 	}
-	if family.CoversLine(constraintengine.RuleTransition{Range: &constraintengine.VersionRange{From: constraintengine.VersionBound{Gte: "1.0.0", Lt: "2.0.0"}, To: constraintengine.VersionBound{Gte: "2.0.0", Lt: "2.1.0"}}}, "2.0") {
+	if family.CoversLine("pkg:github/kubernetes/kubernetes", constraintengine.RuleTransition{Range: &constraintengine.VersionRange{From: constraintengine.VersionBound{Gte: "1.0.0", Lt: "2.0.0"}, To: constraintengine.VersionBound{Gte: "2.0.0", Lt: "2.1.0"}}}, "2.0") {
 		t.Fatal("line 2.0 reported as covered")
 	}
 }

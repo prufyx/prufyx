@@ -167,7 +167,7 @@ func CheckRuleSets(atts []LineAttestation, rules []json.RawMessage) ([]Problem, 
 		for _, id := range a.RuleIDs {
 			listed[id] = true
 			if want[id] {
-				if f, _ := LookupFamily(k.Family); !f.CoversLine(byID[id].Transition, k.Line) {
+				if f, _ := LookupFamily(k.Family); !f.CoversLine(k.Component, byID[id].Transition, k.Line) {
 					problems = append(problems, Problem{Key: k, RuleID: id, Kind: ProblemRuleNotLineWide, Message: fmt.Sprintf("attestation for %s lists rule %s, which does not match every transition into line %s", k, id, k.Line)})
 				}
 				continue

@@ -97,6 +97,9 @@ func CRDTargets(targets []crdversions.Target) string {
 		for _, p := range t.TagPrefixes {
 			tags = append(tags, code(p+"X.Y.Z"))
 		}
+		if t.ReleaseScheme == crdversions.SchemeCalverEdge {
+			tags = []string{code("edge-YY.M.N") + " or " + code("YY.M.N-edge") + " (release scheme " + code(t.ReleaseScheme) + ")"}
+		}
 		attests := "no"
 		if t.Attest {
 			attests = "yes"

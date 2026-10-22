@@ -288,20 +288,28 @@ func releasesComplete(c *Change, opts Options, tagCache map[string][]extract.Tag
 
 // finalReleases lists the final release tags of line under the prefixes,
 // ascending by version. A version tagged twice at one commit counts once; at
-// two commits, or a matching tag with no full commit, is an error.
-func finalReleases(tags []extract.Tag, prefixes []string, line string) ([]lineattest.Release, error) {
+// two commits, or a matching tag with no full commit, is an error. A target
+// with a release scheme reads its tags with the scheme's grammar
+// (crdversions.CalverEdgeRelease) instead of the prefixes.
+func finalReleases(tags []extract.Tag, prefixes []string, scheme, line string) ([]lineattest.Release, error) {
 	byVersion := map[string]string{}
 	res := make([]*regexp.Regexp, len(prefixes))
 	for i, p := range prefixes {
 		res[i] = regexp.MustCompile(`^` + regexp.QuoteMeta(p) + `(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})$`)
 	}
 	for _, t := range tags {
-		for _, re := range res {
-			m := re.FindStringSubmatch(t.Name)
-			if m == nil {
-				continue
+		var versions []string
+		if scheme == crdversions.SchemeCalverEdge {
+			if v, _, ok := crdversions.CalverEdgeRelease(t.Name); ok {
+				versions = append(versions, v)
 			}
-			version := m[1] + "." + m[2] + "." + m[3]
+		}
+		for _, re := range res {
+			if m := re.FindStringSubmatch(t.Name); m != nil {
+				versions = append(versions, m[1]+"."+m[2]+"."+m[3])
+			}
+		}
+		for _, version := range versions {
 			if l, ok := lineattest.LineOf(version); !ok || l != line {
 				continue
 			}
@@ -329,17 +337,22 @@ func crdReleasesComplete(c *Change, tags []extract.Tag) error {
 	if !strings.HasPrefix(id, crdversions.IDPrefix) || !ok {
 		return emptyListErr(emptyListReleasesIncomplete, "extractor %s names no custom-resource target", logSafe(id))
 	}
-	major, minor, _ := strings.Cut(a.Line, ".")
-	m, err := strconv.Atoi(minor)
-	if err != nil || m < 1 || a.Releases == nil {
+	return crdReleasesMatch(target, a, tags)
+}
+
+// crdReleasesMatch compares the releases an attestation names with the final
+// release tags of its line and of its previous line (lineattest.PreviousLine).
+func crdReleasesMatch(target crdversions.Target, a *lineattest.LineAttestation, tags []extract.Tag) error {
+	previous, ok := lineattest.PreviousLine(a.Component, a.Line)
+	if !ok || a.Releases == nil {
 		return emptyListErr(emptyListReleasesIncomplete, "line %s has no previous minor line or the record names no releases", logSafe(a.Line))
 	}
 	for _, side := range []struct {
 		name string
 		line string
 		have []lineattest.Release
-	}{{"releases.from", major + "." + strconv.Itoa(m-1), a.Releases.From}, {"releases.to", a.Line, a.Releases.To}} {
-		want, err := finalReleases(tags, target.TagPrefixes, side.line)
+	}{{"releases.from", previous, a.Releases.From}, {"releases.to", a.Line, a.Releases.To}} {
+		want, err := finalReleases(tags, target.TagPrefixes, target.ReleaseScheme, side.line)
 		if err != nil {
 			return emptyListErr(emptyListReleasesIncomplete, "line %s: %v", side.line, err)
 		}

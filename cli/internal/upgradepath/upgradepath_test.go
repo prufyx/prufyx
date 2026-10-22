@@ -380,7 +380,7 @@ func TestHopCoverageAgreesWithLineAttestationFamily(t *testing.T) {
 			rule.Range = &constraintengine.VersionRange{From: bound(), To: bound()}
 		}
 		hop := Hop{Index: 2, From: line("1.24"), To: line("1.25")}
-		if got, want := hop.CoveredBy(rule), family.CoversLine(rule, "1.25"); got != want {
+		if got, want := hop.CoveredBy(rule), family.CoversLine(k8s, rule, "1.25"); got != want {
 			t.Fatalf("rule %+v: hop coverage %v, family line coverage %v", rule.Range, got, want)
 		}
 		if hop.CoveredBy(rule) {

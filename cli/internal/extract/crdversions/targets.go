@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
+	"github.com/prufyx/prufyx/cli/internal/lineattest"
 )
 
 // TargetSchema identifies a target file, target-<project>.json.
@@ -61,6 +62,10 @@ type Target struct {
 	// "knative-v"), in order of preference. A version tagged under two
 	// prefixes must name one commit.
 	TagPrefixes []string
+	// ReleaseScheme, when set, replaces TagPrefixes: it names the closed
+	// grammar of the project's release tags (SchemeCalverEdge). Exactly one
+	// of the two is set.
+	ReleaseScheme string
 	// MinFrom is the first earlier line (major, minor) a pair may start
 	// from.
 	MinFrom [2]int
@@ -255,18 +260,20 @@ const targetFilePattern = "target-*.json"
 func TargetFileName(project string) string { return "target-" + project + ".json" }
 
 type targetJSON struct {
-	Project     string          `json:"project"`
-	Catalog     string          `json:"catalog,omitempty"`
-	Name        string          `json:"name"`
-	Repo        string          `json:"repo"`
-	Component   string          `json:"component"`
-	FactProject string          `json:"factProject"`
-	TagPrefixes []string        `json:"tagPrefixes"`
-	MinFrom     string          `json:"minFrom"`
-	Attest      bool            `json:"attest"`
-	Paths       []pathJSON      `json:"paths"`
-	Exclude     []exclusionJSON `json:"exclude"`
-	Remote      *remoteJSON     `json:"remote,omitempty"`
+	Project     string   `json:"project"`
+	Catalog     string   `json:"catalog,omitempty"`
+	Name        string   `json:"name"`
+	Repo        string   `json:"repo"`
+	Component   string   `json:"component"`
+	FactProject string   `json:"factProject"`
+	TagPrefixes []string `json:"tagPrefixes,omitempty"`
+	// ReleaseScheme replaces tagPrefixes; see Target.
+	ReleaseScheme string          `json:"releaseScheme,omitempty"`
+	MinFrom       string          `json:"minFrom"`
+	Attest        bool            `json:"attest"`
+	Paths         []pathJSON      `json:"paths"`
+	Exclude       []exclusionJSON `json:"exclude"`
+	Remote        *remoteJSON     `json:"remote,omitempty"`
 	// DeclaredChannel and Channels: see Target.
 	DeclaredChannel string        `json:"declaredChannel,omitempty"`
 	Channels        []channelJSON `json:"channels,omitempty"`
@@ -388,7 +395,7 @@ func LoadTarget(name string, raw []byte) (Target, error) {
 }
 
 func (tj targetJSON) target() (Target, error) {
-	t := Target{Project: tj.Project, Catalog: CatalogCNCF, Name: tj.Name, Repo: tj.Repo, Component: tj.Component, FactProject: tj.FactProject, TagPrefixes: tj.TagPrefixes, Attest: tj.Attest}
+	t := Target{Project: tj.Project, Catalog: CatalogCNCF, Name: tj.Name, Repo: tj.Repo, Component: tj.Component, FactProject: tj.FactProject, TagPrefixes: tj.TagPrefixes, ReleaseScheme: tj.ReleaseScheme, Attest: tj.Attest}
 	switch tj.Catalog {
 	case "":
 	case CatalogCommunity:
@@ -413,12 +420,23 @@ func (tj targetJSON) target() (Target, error) {
 	if t.Component != "pkg:github/"+strings.TrimPrefix(t.Repo, "github.com/") {
 		return t, fmt.Errorf("component %q does not name repository %s", t.Component, t.Repo)
 	}
-	if len(t.TagPrefixes) == 0 || len(t.TagPrefixes) > 2 {
-		return t, fmt.Errorf("tagPrefixes: one or two of %s", tagPrefixNames)
-	}
-	for i, p := range t.TagPrefixes {
-		if !slicesContains(TagPrefixes, p) || (i > 0 && p == t.TagPrefixes[0]) {
-			return t, fmt.Errorf("tagPrefixes: one or two of %s", tagPrefixNames)
+	if t.ReleaseScheme != "" {
+		switch {
+		case tj.TagPrefixes != nil:
+			return t, fmt.Errorf("releaseScheme and tagPrefixes are mutually exclusive")
+		case !slicesContains(ReleaseSchemes, t.ReleaseScheme):
+			return t, fmt.Errorf("releaseScheme %q: want %q", t.ReleaseScheme, SchemeCalverEdge)
+		case !lineattest.CalverComponent(t.Component):
+			return t, fmt.Errorf("releaseScheme %q: component %s is not registered for calendar lines", t.ReleaseScheme, t.Component)
+		}
+	} else {
+		if len(t.TagPrefixes) == 0 || len(t.TagPrefixes) > 2 {
+			return t, fmt.Errorf("tagPrefixes: one or two of %s (or a releaseScheme)", tagPrefixNames)
+		}
+		for i, p := range t.TagPrefixes {
+			if !slicesContains(TagPrefixes, p) || (i > 0 && p == t.TagPrefixes[0]) {
+				return t, fmt.Errorf("tagPrefixes: one or two of %s", tagPrefixNames)
+			}
 		}
 	}
 	m := lineRE.FindStringSubmatch(tj.MinFrom)

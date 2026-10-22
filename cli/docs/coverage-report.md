@@ -84,6 +84,13 @@ A community-catalog project that has a valid rule but no valid line
 attestation is neither counted in `packProjectsCovered` nor listed under
 `projectsWithoutLines`.
 
+`scheme` is optional too: `"scheme": "calver-edge"` marks a project whose tags
+follow the release scheme of that name (`edge-YY.M.N` or `YY.M.N-edge`, see
+[extractors/crd.version-removal.md](extractors/crd.version-removal.md)). Its
+lines are calendar months `YY.M` (month 1 to 12), its releases `YY.M.N`, and
+the line before `YY.1` is `(YY-1).12`. Absent means final semver tags. Any
+other value is rejected.
+
 `releases` maps a line to the final releases of that line, ascending
 (`"releases": {"1.28": ["1.28.0", "1.28.1"]}`). Every key must be a listed
 line and every version a final release of that line. The ALL window compares
@@ -113,7 +120,8 @@ Only final release tags make a line: `v1.2.3` or `1.2.3`. Pre-releases, snapshot
 and unknown spellings are ignored, so an unrecognised tag scheme yields fewer
 lines, never invented ones. The same tags fill `releases` (`v1.2.3` is release
 `1.2.3`); a project with its own tag scheme (`linkerd`, `cloud-custodian`) gets
-none. A reviewed table covers `linkerd`
+none. A project whose reviewed `crd.version-removal` target names the release
+scheme `calver-edge` is read with that scheme and gets `"scheme": "calver-edge"`. A reviewed table covers `linkerd`
 (`stable-2.X.Y`, `version-2.X.Y`) and `cloud-custodian` (`0.9.N[.M]` to line
 `9.N`).
 
@@ -152,7 +160,7 @@ Per project, and per family under `familyCounts`:
 | `undeclared` | `linesTotal - 1 - decided - declaredUnknown`: pairs nobody has stated anything about. |
 | `complete` | True only when every clause below holds. |
 | `invalidDeclarations` | Declarations of the project that name a family it is not registered in, a chart-line family, or lines that are not consecutive in the snapshot. |
-| `incompleteReasons` | Why `complete` is false, from a closed list (`snapshot-stale`, `snapshot-undated`, `snapshot-future`, `snapshot-truncated`, `snapshot-hole`, `no-registered-family`, `chart-lines-unmapped`, `too-few-lines`, `invalid-declaration`, `undeclared-pairs`, `count-mismatch`). `count-mismatch` is an assertion of the counting itself and is not expected to appear; a gap shows as `undeclared-pairs`. |
+| `incompleteReasons` | Why `complete` is false, from a closed list (`snapshot-stale`, `snapshot-undated`, `snapshot-future`, `snapshot-truncated`, `snapshot-hole`, `no-registered-family`, `chart-lines-unmapped`, `calendar-lines`, `too-few-lines`, `invalid-declaration`, `undeclared-pairs`, `count-mismatch`). `count-mismatch` is an assertion of the counting itself and is not expected to appear; a gap shows as `undeclared-pairs`. |
 
 At project level a pair is `decided` only when every family the project is
 registered in decides it, and `declaredUnknown` when each family that does not
@@ -203,7 +211,10 @@ but its pairs are pairs of chart lines, which the snapshot does not hold, and
 no attestation exists for it. Its pairs are always `undeclared` (declarations
 for it are ignored and counted as invalid): a project with a chart target is
 never complete (`chart-lines-unmapped`). Chart lines are not mapped onto the
-project's lines.
+project's lines. A project whose snapshot entry has a `scheme` (calendar
+lines) is never complete either (`calendar-lines`): it skips months
+legitimately, so a gap between two lines cannot be told from a missing line.
+Its pairs are still decided, and counted, as for any project.
 
 What `complete` claims: for every pair of consecutive lines of the snapshot in
 the window, the pack holds a current, mechanically derived statement of the

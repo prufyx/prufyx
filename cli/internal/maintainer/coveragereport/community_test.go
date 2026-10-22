@@ -29,13 +29,13 @@ func combined(t *testing.T, ss ...scenario) Report {
 	file := LinesFile{Schema: LinesSchema, CapturedOn: allCaptured, Projects: map[string]ProjectLines{}}
 	for _, s := range ss {
 		for i := 1; i < len(s.lines); i++ {
-			prev, ok := previousLine(s.lines[i])
+			prev, ok := lineattest.PreviousLine(s.component, s.lines[i])
 			if !ok || prev != s.lines[i-1] {
 				continue
 			}
 			atts = append(atts, s.attestation(t, s.lines[i], prev))
 		}
-		file.Projects[s.slug] = ProjectLines{Lines: s.lines, Releases: s.releases, Component: s.component}
+		file.Projects[s.slug] = ProjectLines{Lines: s.lines, Releases: s.releases, Component: s.component, Scheme: s.scheme}
 	}
 	section, err := lineattest.Marshal(atts)
 	if err != nil {
@@ -118,7 +118,7 @@ const gatewayRule = `{"project":"gateway-api","rule":{"id":"gateway-api.crd-vers
 // CNCF one; a community project with a rule only is neither.
 func TestCommunityAttestationWithoutLines(t *testing.T) {
 	s := gatewayScenario("1.1", "1.2", "1.3")
-	prev, _ := previousLine("1.3")
+	prev, _ := lineattest.PreviousLine("", "1.3")
 	section, err := lineattest.Marshal([]lineattest.LineAttestation{s.attestation(t, "1.3", prev)})
 	if err != nil {
 		t.Fatal(err)
