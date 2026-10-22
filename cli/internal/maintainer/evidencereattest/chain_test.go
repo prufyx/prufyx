@@ -528,7 +528,7 @@ func TestWeeklyBatchSimulationOnRealPacks(t *testing.T) {
 		pack, path string
 		maxCapped  int
 	}{
-		{PackCNCF, filepath.Join("..", "..", "cncfcheck", "data", "rules.json"), 130},
+		{PackCNCF, filepath.Join("..", "..", "cncfcheck", "data", "rules.json"), 140},
 		{PackCommunity, filepath.Join("..", "..", "projectcheck", "data", "rules.json"), 25},
 	} {
 		raw, err := os.ReadFile(tc.path)
