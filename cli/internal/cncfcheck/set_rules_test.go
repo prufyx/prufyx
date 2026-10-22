@@ -30,7 +30,7 @@ const (
 	syntheticSetFact  = "component.kubernetes.kubelet_feature_gates_set"
 	syntheticGate     = "SyntheticRemovedGate"
 	syntheticRevision = "0000000000000000000000000000000000000001"
-	syntheticRuleID   = "kubernetes.synthetic-removed-gate.1-36-0-to-1-37-0"
+	syntheticRuleID   = "kubernetes.synthetic-removed-gate.1-38-0-to-1-39-0"
 )
 
 // unregisteredSetFact is a set fact of the component-configuration adapter
@@ -49,7 +49,7 @@ func unregisteredSetEntry(t *testing.T) Entry {
 
 func syntheticSetEntry(t *testing.T) Entry {
 	t.Helper()
-	rule := `{"id":"` + syntheticRuleID + `","operator":"forbid_set_member","subject":{"component":"pkg:github/kubernetes/kubernetes","from":"1.36.0","to":"1.37.0"},` +
+	rule := `{"id":"` + syntheticRuleID + `","operator":"forbid_set_member","subject":{"component":"pkg:github/kubernetes/kubernetes","from":"1.38.0","to":"1.39.0"},` +
 		`"setCondition":{"side":"proposed","component":"pkg:github/kubernetes/kubernetes","factId":"` + syntheticSetFact + `","members":["` + syntheticGate + `"]},` +
 		`"evidence":{"state":"active","reviewedAt":"2026-09-20T00:00:00Z","validUntil":"2026-12-19T00:00:00Z","sources":[{"id":"synthetic-gate-declaration","url":"https://github.com/kubernetes/kubernetes/blob/` + syntheticRevision + `/pkg/features/kube_features.go","revision":"` + syntheticRevision + `","contentDigest":"sha256:` + strings.Repeat("0", 64) + `","startLine":1,"endLine":2}]},` +
 		`"reasonCode":"KUBERNETES_FEATURE_GATE_REMOVED","nextAction":"remove ` + syntheticGate + ` from every kubelet feature-gate setting before upgrading"}`
@@ -305,7 +305,7 @@ func TestSyntheticRemovedGateThroughAdapterAndKnowledge(t *testing.T) {
 				t.Fatal(err)
 			}
 			contents := [][]byte{[]byte("KUBELET_KUBEADM_ARGS=\"" + tc.args + "\"\n"), []byte(kubeletConfig)}
-			prepared, err := cncfprepare.PrepareKubernetesComponentConfig(selection, contents, "1.36.0", "1.37.0", "official_upstream", registered)
+			prepared, err := cncfprepare.PrepareKubernetesComponentConfig(selection, contents, "1.38.0", "1.39.0", "official_upstream", registered)
 			if err != nil {
 				t.Fatal(err)
 			}

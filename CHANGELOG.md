@@ -877,7 +877,7 @@ A catalogued project is not tested coverage: a catalogue entry says Prufyx holds
   signer, key id and validity before it asks for the batch id, and applies the
   gate's changed-path rule. See
   [knowledge-gate.md](cli/docs/knowledge-gate.md#batch-approvals).
-- Kubernetes knowledge for the minor lines 1.33 to 1.36: four reviewed kubelet
+- Kubernetes knowledge for the minor lines 1.33 to 1.37: five reviewed kubelet
   version-skew rules (kubelet at most three minor versions older than the
   target control plane, never newer) over the new declaration
   `declarations.minimumKubeletVersion` (and, for a mixed fleet, the optional

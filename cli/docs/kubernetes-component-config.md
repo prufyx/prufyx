@@ -164,7 +164,7 @@ A missing source is never read as absence. In particular:
 - The version-skew predicate needs `declarations.minimumKubeletVersion`, the
   lowest kubelet version of any node, written `x.y.z` (strip any distribution
   build suffix). The predicate applies to every one-minor control plane upgrade; reviewed
-  rules exist for targets 1.33 to 1.36 only, other targets stay UNKNOWN. It is
+  rules exist for targets 1.33 to 1.37 only, other targets stay UNKNOWN. It is
   true when that kubelet is more than three minor versions older than `--to`
   (two below 1.25), or when the highest kubelet is newer than it, as the
   upstream version-skew policy allows. The highest kubelet is

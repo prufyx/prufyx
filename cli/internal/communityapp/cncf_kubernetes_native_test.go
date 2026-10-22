@@ -21,8 +21,8 @@ func servedReason() string {
 }
 
 // kubeletSkewRules is how many reviewed kubelet version-skew rules the
-// embedded pack holds (1.32 to 1.36); they join every Kubernetes selection.
-const kubeletSkewRules = 4
+// embedded pack holds (1.32 to 1.37); they join every Kubernetes selection.
+const kubeletSkewRules = 5
 
 // kubernetesRuleExtra is how many more Kubernetes verdict rules the embedded
 // pack holds once the mechanical rules replace the reviewed ones.

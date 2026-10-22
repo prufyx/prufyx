@@ -16,7 +16,7 @@ import (
 func syntheticCrossingEntry(t *testing.T) Entry {
 	t.Helper()
 	entry := syntheticSetEntry(t)
-	crossing := `"crossing":{"change":{"version":"1.37.0","basis":"REMOVED_IN_RELEASE","sourceId":"synthetic-gate-declaration"},"horizon":{"lt":"1.40.0","basis":"REVIEWED_THROUGH_MINOR_LINE","sourceId":"synthetic-gate-declaration"}},`
+	crossing := `"crossing":{"change":{"version":"1.39.0","basis":"REMOVED_IN_RELEASE","sourceId":"synthetic-gate-declaration"},"horizon":{"lt":"1.42.0","basis":"REVIEWED_THROUGH_MINOR_LINE","sourceId":"synthetic-gate-declaration"}},`
 	entry.Rule = json.RawMessage(strings.Replace(string(entry.Rule), `"evidence":`, crossing+`"evidence":`, 1))
 	return entry
 }

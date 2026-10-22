@@ -23,13 +23,13 @@ import (
 const (
 	syntheticGateFact = "component.kubernetes.kubelet_feature_gates_set"
 	syntheticGate     = "SyntheticRemovedGate"
-	syntheticGateRule = "kubernetes.synthetic-removed-gate.1-36-0-to-1-37-0"
+	syntheticGateRule = "kubernetes.synthetic-removed-gate.1-38-0-to-1-39-0"
 )
 
 func useSyntheticGateKnowledge(t *testing.T) {
 	t.Helper()
 	revision := "0000000000000000000000000000000000000001"
-	rule := `{"id":"` + syntheticGateRule + `","operator":"forbid_set_member","subject":{"component":"pkg:github/kubernetes/kubernetes","from":"1.36.0","to":"1.37.0"},` +
+	rule := `{"id":"` + syntheticGateRule + `","operator":"forbid_set_member","subject":{"component":"pkg:github/kubernetes/kubernetes","from":"1.38.0","to":"1.39.0"},` +
 		`"setCondition":{"side":"proposed","component":"pkg:github/kubernetes/kubernetes","factId":"` + syntheticGateFact + `","members":["` + syntheticGate + `"]},` +
 		`"evidence":{"state":"active","reviewedAt":"2026-09-20T00:00:00Z","validUntil":"2026-12-19T00:00:00Z","sources":[{"id":"synthetic-gate-declaration","url":"https://github.com/kubernetes/kubernetes/blob/` + revision + `/pkg/features/kube_features.go","revision":"` + revision + `","contentDigest":"sha256:` + strings.Repeat("0", 64) + `","startLine":1,"endLine":2}]},` +
 		`"reasonCode":"KUBERNETES_FEATURE_GATE_REMOVED","nextAction":"remove ` + syntheticGate + ` from every kubelet feature-gate setting before upgrading"}`
@@ -57,7 +57,7 @@ func writeGateFixture(t *testing.T, args string, complete bool) string {
 }
 
 func gateArgs(selection string, extra ...string) []string {
-	return append([]string{"check", "cncf", "--project", "kubernetes", "--component-config", selection, "--from", "1.36.0", "--to", "1.37.0", "--distribution", "official_upstream", "--now", "2026-10-01T00:00:00Z"}, extra...)
+	return append([]string{"check", "cncf", "--project", "kubernetes", "--component-config", selection, "--from", "1.38.0", "--to", "1.39.0", "--distribution", "official_upstream", "--now", "2026-10-01T00:00:00Z"}, extra...)
 }
 
 func TestSyntheticRemovedGateThroughTheCommandRoute(t *testing.T) {
@@ -118,10 +118,10 @@ func TestSyntheticRemovedGateThroughTheCommandRoute(t *testing.T) {
 	selection := writeGateFixture(t, "--config=/var/lib/kubelet/config.yaml --feature-gates="+syntheticGate+"=true", true)
 	args := gateArgs(selection, "--format", "json")
 	for index, value := range args {
-		if value == "1.36.0" {
-			args[index] = "1.37.0"
-		} else if value == "1.37.0" {
-			args[index] = "1.38.0"
+		if value == "1.38.0" {
+			args[index] = "1.39.0"
+		} else if value == "1.39.0" {
+			args[index] = "1.40.0"
 		}
 	}
 	code, stdout, stderr := runCNCFCLI(t, args...)
