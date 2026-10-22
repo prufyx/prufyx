@@ -360,8 +360,14 @@ func TestPathPolicyApprovalSubject(t *testing.T) {
 			ev := sectionRecord(doc, "pathPolicies", 0)["evidence"].(map[string]any)
 			ev["validUntil"] = shiftTime(t, ev["validUntil"], 24*time.Hour)
 		}), reviewedPolicyID, "exists in the base"},
-		"existing edited":  {base, edit(t, base, func(doc map[string]any) { sectionRecord(doc, "pathPolicies", 0)["policy"] = "direct" }), reviewedPolicyID, "exists in the base"},
-		"missing":          {noPolicy, noPolicy, reviewedPolicyID, "has no record"},
+		"existing edited": {base, edit(t, base, func(doc map[string]any) { sectionRecord(doc, "pathPolicies", 0)["policy"] = "direct" }), reviewedPolicyID, "exists in the base"},
+		"missing":         {noPolicy, noPolicy, reviewedPolicyID, "has no record"},
+		"mechanical basis": {noPolicy, edit(t, base, func(doc map[string]any) {
+			ev := sectionRecord(doc, "pathPolicies", 0)["evidence"].(map[string]any)
+			ev["basis"] = "mechanical"
+			ev["extractor"] = map[string]any{"id": "x", "version": "1.0.0", "codeDigest": "sha256:" + strings.Repeat("a", 64)}
+			ev["derivedAt"] = ev["reviewedAt"]
+		}), reviewedPolicyID, "an approval admits only a reviewed path policy"},
 		"line attestation": {noPolicy, withMechanical, reviewedAttestationID, "is not a path policy"},
 		"bad id":           {noPolicy, base, "a b", "not a valid approval record ID"},
 	} {
