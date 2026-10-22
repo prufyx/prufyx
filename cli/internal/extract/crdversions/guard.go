@@ -268,6 +268,18 @@ func makeLines(data []byte) ([]surfaceLine, string) {
 
 // goalValueLiteral reports the value of a .DEFAULT_GOAL assignment that
 // names a goal: not empty, no variable reference and no pattern.
+// assignValue is the value of an assignment match, comment removed.
+func assignValue(m []string) string {
+	if m == nil {
+		return ""
+	}
+	v := m[2]
+	if i := commentStart(v); i >= 0 {
+		v = v[:i]
+	}
+	return v
+}
+
 func goalValueLiteral(v string) bool {
 	if i := commentStart(v); i >= 0 {
 		v = v[:i]
@@ -297,7 +309,7 @@ func parseMake(data []byte, dev bool) ([]surfaceLine, *devInfo, string) {
 		switch {
 		case strings.HasPrefix(line, "\t"):
 			b.note(line, true)
-			b.goal(line, false)
+			b.goal(line, false, "")
 			b.words(line, b.ctx(targets), true)
 			text := strings.TrimSpace(line)
 			if isCommand(text) {
@@ -309,7 +321,16 @@ func parseMake(data []byte, dev bool) ([]surfaceLine, *devInfo, string) {
 		default:
 			b.note(line, true)
 			am := makeAssignRE.FindStringSubmatch(line)
-			b.goal(line, am != nil && am[1] == ".DEFAULT_GOAL" && goalValueLiteral(am[2]) && !makeShellAssignRE.MatchString(line))
+			if am == nil && makeRuleRE.MatchString(line) {
+				// A rule (even one named .DEFAULT_GOAL) is read as a rule;
+				// only the word in its inline recipe is a mention.
+				if i := strings.Index(line, ";"); i >= 0 {
+					b.goal(line[i+1:], false, "")
+				}
+			} else {
+				literal := am != nil && am[1] == ".DEFAULT_GOAL" && goalValueLiteral(am[2]) && !makeShellAssignRE.MatchString(line) && !makeAppendGoalRE.MatchString(line)
+				b.goal(line, literal, strings.TrimSpace(assignValue(am)))
+			}
 			if m := makeIncludeRE.FindStringSubmatch(line); m != nil {
 				targets = nil
 				b.include(strings.Fields(m[1]))

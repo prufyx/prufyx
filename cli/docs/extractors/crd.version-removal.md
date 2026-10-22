@@ -441,11 +441,16 @@ Through the offline factory mirror (or a fixture tree), never the network.
     seen;
   - an `include`, `-include` or `sinclude` operand is not a literal, clean
     path of a Makefile that was read; an include precedes the first rule while
-    no `.DEFAULT_GOAL` is set; the target is the default goal; `.DEFAULT_GOAL`
-    occurs anywhere but in an assignment of a non-empty literal value (a
-    recipe, rule form, an empty or computed value); the first rule's target
-    (a name starting with a dot counts when it holds a `/`) holds a variable or
-    `%`; or
+    no `.DEFAULT_GOAL` is set; `.DEFAULT_GOAL` is not set by one literal
+    assignment (`=`, `:=`, `?=` of a non-empty value without `$` or `%`; a
+    second assignment must give the same value; `+=`, `!=`, a define, a
+    mention in a recipe, or an empty or computed value is not read). The rule
+    form (`.DEFAULT_GOAL: x`) is an ordinary rule, as GNU make reads it. With no
+    assignment the default goal is the first target of the first rule that can
+    be one (a name starting with a dot only when it holds a `/`): the entry is
+    not applied when that target is the entry, holds a `%`, or holds variable
+    references that expand (as for prerequisites, above) to a name that can
+    equal the entry or cannot be read; or
     `.RECIPEPREFIX` occurs in a Makefile;
   - a file over the bounds of the check (more than 50000 distinct words, or
     5000 rules or includes), or an install surface the guard cannot check, at

@@ -94,9 +94,13 @@ type devInfo struct {
 	// uses are sorted by word.
 	uses  []devUse
 	rules []devRule
-	// goal indexes the first rule with a target that does not start with
-	// "." (-1: none).
-	goal int
+	// goalTarget is the first target of the first rule that can be the
+	// default goal (a name that does not start with "." unless it holds a
+	// "/"); goalSeen says there is one.
+	goalTarget string
+	goalSeen   bool
+	// goalValue is the value of the .DEFAULT_GOAL assignment when hasGoal.
+	goalValue string
 	// assigns are the variable assignments, in file order.
 	assigns []devAssign
 	// includes are the operands of the include lines.
@@ -116,6 +120,8 @@ var (
 	makeInvokeRE  = regexp.MustCompile(`(?:^|[^A-Za-z0-9_.-])g?make(?:$|[^A-Za-z0-9_./-])|\$[({]MAKE[)}]`)
 	makeIncludeRE = regexp.MustCompile(`^ *(?:-include|sinclude|include)(?:[ \t]+(.*))?$`)
 	makeDefineRE  = regexp.MustCompile(`^ *(?:(?:export|override|private|unexport)[ \t]+)*(?:define|endef)(?:[ \t]|$)`)
+	// makeAppendGoalRE is an append to .DEFAULT_GOAL.
+	makeAppendGoalRE = regexp.MustCompile(`^\s*(?:(?:export|override|private|unexport)[ \t]+)*\.DEFAULT_GOAL\s*\+=`)
 	// makeDefineNameRE reads the name of a define.
 	makeDefineNameRE = regexp.MustCompile(`^ *(?:(?:export|override|private|unexport)[ \t]+)*define[ \t]+([^ \t]+)`)
 	// makeShellAssignRE is an assignment whose value is a shell command.
@@ -170,7 +176,7 @@ type devBuilder struct {
 }
 
 func newDevBuilder() *devBuilder {
-	return &devBuilder{info: &devInfo{goal: -1}, seen: map[devUse]bool{}, ctxOf: map[string]int{}}
+	return &devBuilder{info: &devInfo{}, seen: map[devUse]bool{}, ctxOf: map[string]int{}}
 }
 
 // ctx returns the index of a rule's target list (-1 for none).
@@ -224,11 +230,13 @@ func (b *devBuilder) note(line string, makefile bool) {
 	}
 }
 
-// goal reads a line that holds .DEFAULT_GOAL: only an assignment of a
-// non-empty literal value sets a default goal that is known; any other line
-// that holds the word (a recipe, a rule, an empty or computed value) leaves
-// it open.
-func (b *devBuilder) goal(line string, literalAssign bool) {
+// goal reads a line that holds .DEFAULT_GOAL: only a variable assignment
+// ("=", ":=", "?=") of a non-empty literal value sets a default goal that is
+// known, and a second assignment must give the same value; any other line
+// that holds the word (a recipe, "+=", "!=", a define, an empty or computed
+// value) leaves it open. The rule form (".DEFAULT_GOAL: x") is an ordinary
+// rule and is not read here.
+func (b *devBuilder) goal(line string, literalAssign bool, value string) {
 	if b == nil {
 		return
 	}
@@ -237,7 +245,10 @@ func (b *devBuilder) goal(line string, literalAssign bool) {
 			continue
 		}
 		if literalAssign {
-			b.info.hasGoal = true
+			if b.info.hasGoal && b.info.goalValue != value {
+				b.info.dynGoal = true
+			}
+			b.info.hasGoal, b.info.goalValue = true, value
 		} else {
 			b.info.dynGoal = true
 		}
@@ -259,7 +270,7 @@ func (b *devBuilder) include(operands []string) {
 	if b == nil {
 		return
 	}
-	if b.info.goal < 0 {
+	if !b.info.goalSeen {
 		b.info.includeBeforeGoal = true
 	}
 	if b.info.includes = append(b.info.includes, operands...); len(b.info.includes) > maxSurfaceLines {
@@ -295,10 +306,10 @@ func (b *devBuilder) rule(targets []string, line string) {
 	if len(b.info.rules) > maxSurfaceLines {
 		b.info.over = true
 	}
-	if b.info.goal < 0 {
+	if !b.info.goalSeen {
 		for _, t := range targets {
 			if !strings.HasPrefix(t, ".") || strings.Contains(t, "/") {
-				b.info.goal = len(b.info.rules) - 1
+				b.info.goalTarget, b.info.goalSeen = t, true
 				break
 			}
 		}
@@ -433,7 +444,7 @@ func evalDevOnly(entries []DevOnlyMake, files []devFile, blobs map[string]bool, 
 			continue
 		}
 		if f.info.dynGoal {
-			pick(".DEFAULT_GOAL is not a literal assignment in " + f.path)
+			pick(".DEFAULT_GOAL is not set by one literal assignment in " + f.path)
 		}
 		if f.info.recipePrefix {
 			pick(".RECIPEPREFIX in " + f.path)
@@ -445,11 +456,12 @@ func evalDevOnly(entries []DevOnlyMake, files []devFile, blobs map[string]bool, 
 			}
 		}
 	}
+	vars := newDevVars(files)
 	applied := map[string]bool{}
 	recs := make([]DevOnlyMakeRecord, len(entries))
 	for i, en := range entries {
 		recs[i] = DevOnlyMakeRecord{Makefile: en.Makefile, Target: en.Target}
-		if why := staticDevWhy(en, byPath, blobs, global); why != "" {
+		if why := staticDevWhy(en, byPath, blobs, vars, global); why != "" {
 			recs[i].WhyNot = why
 			continue
 		}
@@ -466,7 +478,6 @@ func evalDevOnly(entries []DevOnlyMake, files []devFile, blobs map[string]bool, 
 		}
 		return true
 	}
-	vars := newDevVars(files)
 	// The greatest set of entries in which every entry holds.
 	for changed := true; changed; {
 		changed = false
@@ -512,7 +523,7 @@ func literalInclude(op, dir string, makePaths map[string]bool) bool {
 
 // staticDevWhy checks what does not depend on the other entries ("" when
 // it holds).
-func staticDevWhy(en DevOnlyMake, byPath map[string]devFile, blobs map[string]bool, global string) string {
+func staticDevWhy(en DevOnlyMake, byPath map[string]devFile, blobs map[string]bool, vars *devVars, global string) string {
 	mf, ok := byPath[en.Makefile]
 	if !ok || mf.kind != surfMake || mf.info == nil {
 		return "the Makefile is missing at this release or is not read"
@@ -539,19 +550,17 @@ func staticDevWhy(en DevOnlyMake, byPath map[string]devFile, blobs map[string]bo
 		}
 	}
 	if !mf.info.hasGoal {
-		switch g := mf.info.goal; {
+		switch g := mf.info.goalTarget; {
 		case mf.info.includeBeforeGoal:
 			return "an include precedes the first rule of " + en.Makefile + ": the default goal is not known"
-		case g < 0:
+		case !mf.info.goalSeen:
 			return "the default goal of " + en.Makefile + " is not known"
-		case containsWord(mf.info.rules[g].targets, en.Target):
+		case g == en.Target:
 			return "the target is the default goal of " + en.Makefile
-		default:
-			for _, t := range mf.info.rules[g].targets {
-				if dynamicWord(t) {
-					return "the first rule of " + en.Makefile + " has a variable or % in its target"
-				}
-			}
+		case strings.Contains(g, "%"):
+			return "the first rule of " + en.Makefile + " has a pattern target"
+		case strings.Contains(g, "$") && vars.cannotName(g, en.Target):
+			return "the default goal of " + en.Makefile + " may be the target"
 		}
 	}
 	return ""
