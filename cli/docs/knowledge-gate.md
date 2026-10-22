@@ -830,7 +830,7 @@ engine loader admits (`v1alpha10` for a pack without a higher-level feature)
 and changes no other byte of the pack. A pack that is not already in canonical
 form is refused, so is a request outside the lines the pack's Kubernetes rules
 and attestations cover (a range must lie inside them; one uncovered line is
-built only when named alone, for example `--lines 1.38`). A list of a line not
+built only as the single item of `--lines`, for example `--lines 1.38`). A list of a line not
 requested is kept; a list of a requested line is replaced. The run is
 sequential, stops at the first error and writes nothing unless every line was
 derived. The same inputs and `--now` give the same bytes. `GITHUB_TOKEN` (or

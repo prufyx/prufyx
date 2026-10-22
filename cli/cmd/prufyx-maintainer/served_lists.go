@@ -230,7 +230,9 @@ func renderServedPack(pack *extractpack.Pack, raw []byte, built []servedapis.Rec
 	head.Members[servedapis.PackMember] = section
 	// A pack carries exactly the schema of the highest-level feature it
 	// uses, so the first level the loader admits is the right one.
-	var admitErr error
+	// When no level is admitted the cause is the first refusal (the pack's
+	// own level): a later level only adds "unknown schema" on top of it.
+	var firstErr error
 	for l := level; l <= level+servedSchemaLevels; l++ {
 		newSchema, _ := json.Marshal(cncfPackSchemaFamily + strconv.Itoa(l))
 		head.Members["schema"] = newSchema
@@ -238,11 +240,15 @@ func renderServedPack(pack *extractpack.Pack, raw []byte, built []servedapis.Rec
 		if err != nil {
 			return nil, "", "", err
 		}
-		if admitErr = admit(packPath, rendered); admitErr == nil {
+		admitErr := admit(packPath, rendered)
+		if admitErr == nil {
 			return rendered, schema, cncfPackSchemaFamily + strconv.Itoa(l), nil
 		}
+		if firstErr == nil {
+			firstErr = admitErr
+		}
 	}
-	return nil, "", "", fmt.Errorf("the engine loader refuses the pack with the served lists at its schema and the next %d levels: %w", servedSchemaLevels, admitErr)
+	return nil, "", "", fmt.Errorf("the engine loader refuses the pack with the served lists at its schema and the next %d levels: %w", servedSchemaLevels, firstErr)
 }
 
 const cncfPackSchemaFamily = "prufyx.io/cncf-source-rule-pack/v1alpha"
@@ -322,7 +328,7 @@ func coveredKubernetesLines(pack *extractpack.Pack) (span [2]int, err error) {
 // parseServedLines reads --lines: comma-separated items, each a range
 // "1.19-1.37" or one line "1.30". A range must lie inside the span the
 // pack's Kubernetes rules cover; a line outside it is accepted only when it
-// is named alone, exactly. The result is ascending and has no repeat.
+// is the only item of the list, exactly. The result is ascending and has no repeat.
 func parseServedLines(text string, covered [2]int) ([]string, error) {
 	minor := func(s string) (int, error) {
 		m := servedLineRE.FindStringSubmatch(s)
@@ -332,7 +338,8 @@ func parseServedLines(text string, covered [2]int) ([]string, error) {
 		return strconv.Atoi(m[1])
 	}
 	set := map[int]bool{}
-	for _, item := range strings.Split(text, ",") {
+	items := strings.Split(text, ",")
+	for _, item := range items {
 		from, to, isRange := strings.Cut(item, "-")
 		a, err := minor(from)
 		if err != nil {
@@ -349,6 +356,8 @@ func parseServedLines(text string, covered [2]int) ([]string, error) {
 			if a < covered[0] || b > covered[1] {
 				return nil, fmt.Errorf("range %q is outside the lines the pack's Kubernetes rules cover (1.%d-1.%d); name an uncovered line alone to build it", item, covered[0], covered[1])
 			}
+		} else if (a < covered[0] || a > covered[1]) && len(items) != 1 {
+			return nil, fmt.Errorf("line %q is outside the lines the pack's Kubernetes rules cover (1.%d-1.%d); an uncovered line is built only as the single item of --lines", item, covered[0], covered[1])
 		}
 		for n := a; n <= b; n++ {
 			set[n] = true

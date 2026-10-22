@@ -244,6 +244,28 @@ func TestServedListsBuildStopsAtTheFirstFailure(t *testing.T) {
 	}
 }
 
+func TestServedListsBuildReportsTheFirstRefusal(t *testing.T) {
+	pack := servedPackDir(t)
+	calls := 0
+	var out bytes.Buffer
+	err := runServedListsWith([]string{"build", "--pack", pack, "--lines", "1.30", "--now", servedTestNow}, &out, servedListsDeps{
+		source: func(string) (servedSource, error) { return newServedFakeSource(t), nil },
+		admit: func(string, []byte) error {
+			calls++
+			if calls == 1 {
+				return errors.New("integrity: list names a removed API")
+			}
+			return errors.New("unknown schema")
+		},
+	})
+	if err == nil || !strings.Contains(err.Error(), "integrity: list names a removed API") || strings.Contains(err.Error(), "unknown schema") {
+		t.Fatalf("want the first refusal only, got %v", err)
+	}
+	if calls < 2 {
+		t.Fatalf("%d admit calls, want the level loop to run", calls)
+	}
+}
+
 func TestParseServedLines(t *testing.T) {
 	covered := [2]int{19, 37}
 	for _, tc := range []struct {
@@ -256,6 +278,8 @@ func TestParseServedLines(t *testing.T) {
 		{in: "1.19-1.20,1.37", want: []string{"1.19", "1.20", "1.37"}},
 		{in: "1.38", want: []string{"1.38"}}, // named alone and exactly
 		{in: "1.5", want: []string{"1.5"}},
+		{in: "1.38,1.50", err: "single item"},
+		{in: "1.30,1.38", err: "single item"},
 		{in: "1.18-1.20", err: "outside the lines"},
 		{in: "1.30-1.38", err: "outside the lines"},
 		{in: "1.30-1.20", err: "backwards"},
