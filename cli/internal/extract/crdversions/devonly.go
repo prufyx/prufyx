@@ -99,6 +99,9 @@ type devInfo struct {
 	// "/"); goalSeen says there is one.
 	goalTarget string
 	goalSeen   bool
+	// goalUnknown: a rule that could be the default goal lies in a
+	// conditional or a define before one that is unconditional.
+	goalUnknown bool
 	// goalValue is the value of the .DEFAULT_GOAL assignment when hasGoal.
 	goalValue string
 	// assigns are the variable assignments, in file order.
@@ -119,6 +122,9 @@ var (
 	// makeInvokeRE finds a word that runs make.
 	makeInvokeRE  = regexp.MustCompile(`(?:^|[^A-Za-z0-9_.-])g?make(?:$|[^A-Za-z0-9_./-])|\$[({]MAKE[)}]`)
 	makeIncludeRE = regexp.MustCompile(`^ *(?:-include|sinclude|include)(?:[ \t]+(.*))?$`)
+	makeCondRE    = regexp.MustCompile(`^ *(?:ifeq|ifneq|ifdef|ifndef)(?:[ \t(]|$)`)
+	makeEndifRE   = regexp.MustCompile(`^ *endif(?:[ \t]|$)`)
+	makeEndefRE   = regexp.MustCompile(`^ *endef(?:[ \t]|$)`)
 	makeDefineRE  = regexp.MustCompile(`^ *(?:(?:export|override|private|unexport)[ \t]+)*(?:define|endef)(?:[ \t]|$)`)
 	// makeAppendGoalRE is an append to .DEFAULT_GOAL.
 	makeAppendGoalRE = regexp.MustCompile(`^\s*(?:(?:export|override|private|unexport)[ \t]+)*\.DEFAULT_GOAL\s*\+=`)
@@ -236,7 +242,7 @@ func (b *devBuilder) note(line string, makefile bool) {
 // that holds the word (a recipe, "+=", "!=", a define, an empty or computed
 // value) leaves it open. The rule form (".DEFAULT_GOAL: x") is an ordinary
 // rule and is not read here.
-func (b *devBuilder) goal(line string, literalAssign bool, value string) {
+func (b *devBuilder) goal(line string, literalAssign bool, value string, nested bool) {
 	if b == nil {
 		return
 	}
@@ -244,7 +250,7 @@ func (b *devBuilder) goal(line string, literalAssign bool, value string) {
 		if w != ".DEFAULT_GOAL" {
 			continue
 		}
-		if literalAssign {
+		if literalAssign && !nested {
 			if b.info.hasGoal && b.info.goalValue != value {
 				b.info.dynGoal = true
 			}
@@ -280,7 +286,7 @@ func (b *devBuilder) include(operands []string) {
 
 // rule records a rule header line: the targets, the header text (before a
 // ";") and the recipe text after it.
-func (b *devBuilder) rule(targets []string, line string) {
+func (b *devBuilder) rule(targets []string, line string, nested bool) {
 	if b == nil {
 		return
 	}
@@ -309,7 +315,11 @@ func (b *devBuilder) rule(targets []string, line string) {
 	if !b.info.goalSeen {
 		for _, t := range targets {
 			if !strings.HasPrefix(t, ".") || strings.Contains(t, "/") {
-				b.info.goalTarget, b.info.goalSeen = t, true
+				if nested {
+					b.info.goalUnknown = true
+				} else {
+					b.info.goalTarget, b.info.goalSeen = t, true
+				}
 				break
 			}
 		}
@@ -553,12 +563,14 @@ func staticDevWhy(en DevOnlyMake, byPath map[string]devFile, blobs map[string]bo
 		switch g := mf.info.goalTarget; {
 		case mf.info.includeBeforeGoal:
 			return "an include precedes the first rule of " + en.Makefile + ": the default goal is not known"
-		case !mf.info.goalSeen:
+		case mf.info.goalUnknown || !mf.info.goalSeen:
 			return "the default goal of " + en.Makefile + " is not known"
 		case g == en.Target:
 			return "the target is the default goal of " + en.Makefile
 		case strings.Contains(g, "%"):
 			return "the first rule of " + en.Makefile + " has a pattern target"
+		case strings.Contains(g, "$") && vars.mayBeEmpty(g):
+			return "the first rule of " + en.Makefile + " may have no target: the default goal is not known"
 		case strings.Contains(g, "$") && vars.cannotName(g, en.Target):
 			return "the default goal of " + en.Makefile + " may be the target"
 		}
@@ -846,6 +858,18 @@ func (v *devVars) cannotName(word, target string) bool {
 	e := &expander{v: v}
 	for _, c := range e.expand(word, 0) {
 		if wildMatch(c, target) {
+			return true
+		}
+	}
+	return e.fail
+}
+
+// mayBeEmpty reports a word that may expand to nothing, or that cannot be
+// read: a rule whose target it is may have no target at all.
+func (v *devVars) mayBeEmpty(word string) bool {
+	e := &expander{v: v}
+	for _, c := range e.expand(word, 0) {
+		if strings.Trim(c, wildcard) == "" {
 			return true
 		}
 	}

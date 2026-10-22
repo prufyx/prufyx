@@ -450,7 +450,11 @@ Through the offline factory mirror (or a fixture tree), never the network.
     be one (a name starting with a dot only when it holds a `/`): the entry is
     not applied when that target is the entry, holds a `%`, or holds variable
     references that expand (as for prerequisites, above) to a name that can
-    equal the entry or cannot be read; or
+    equal the entry, to nothing, or cannot be read. A `.DEFAULT_GOAL`
+    assignment inside a conditional (`ifeq`, `ifneq`, `ifdef`, `ifndef`) or a
+    `define`, and a rule that could be the goal inside either before the first
+    unconditional one, leave the default goal unknown; a conditional after
+    that rule changes nothing; or
     `.RECIPEPREFIX` occurs in a Makefile;
   - a file over the bounds of the check (more than 50000 distinct words, or
     5000 rules or includes), or an install surface the guard cannot check, at

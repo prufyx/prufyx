@@ -305,11 +305,14 @@ func parseMake(data []byte, dev bool) ([]surfaceLine, *devInfo, string) {
 		}
 		return ""
 	}
+	// condDepth counts open conditionals, defDepth open defines (a define
+	// body is text: conditionals inside it do not count).
+	var condDepth, defDepth int
 	for _, line := range logicalLines(data) {
 		switch {
 		case strings.HasPrefix(line, "\t"):
 			b.note(line, true)
-			b.goal(line, false, "")
+			b.goal(line, false, "", false)
 			b.words(line, b.ctx(targets), true)
 			text := strings.TrimSpace(line)
 			if isCommand(text) {
@@ -320,16 +323,32 @@ func parseMake(data []byte, dev bool) ([]surfaceLine, *devInfo, string) {
 		case strings.TrimSpace(line) == "" || strings.HasPrefix(strings.TrimSpace(line), "#"):
 		default:
 			b.note(line, true)
+			switch {
+			case makeEndefRE.MatchString(line):
+				if defDepth > 0 {
+					defDepth--
+				}
+			case makeDefineNameRE.MatchString(line) || makeDefineRE.MatchString(line):
+				defDepth++
+			case defDepth > 0:
+			case makeCondRE.MatchString(line):
+				condDepth++
+			case makeEndifRE.MatchString(line):
+				if condDepth > 0 {
+					condDepth--
+				}
+			}
+			nested := condDepth > 0 || defDepth > 0
 			am := makeAssignRE.FindStringSubmatch(line)
 			if am == nil && makeRuleRE.MatchString(line) {
 				// A rule (even one named .DEFAULT_GOAL) is read as a rule;
 				// only the word in its inline recipe is a mention.
 				if i := strings.Index(line, ";"); i >= 0 {
-					b.goal(line[i+1:], false, "")
+					b.goal(line[i+1:], false, "", nested)
 				}
 			} else {
 				literal := am != nil && am[1] == ".DEFAULT_GOAL" && goalValueLiteral(am[2]) && !makeShellAssignRE.MatchString(line) && !makeAppendGoalRE.MatchString(line)
-				b.goal(line, literal, strings.TrimSpace(assignValue(am)))
+				b.goal(line, literal, strings.TrimSpace(assignValue(am)), nested)
 			}
 			if m := makeIncludeRE.FindStringSubmatch(line); m != nil {
 				targets = nil
@@ -369,7 +388,7 @@ func parseMake(data []byte, dev bool) ([]surfaceLine, *devInfo, string) {
 			}
 			if m := makeRuleRE.FindStringSubmatch(line); m != nil {
 				targets = strings.Fields(m[1])
-				b.rule(targets, line)
+				b.rule(targets, line, nested)
 				if i := strings.Index(line, ";"); i >= 0 && isCommand(line[i:]) {
 					if why := add(surfaceLine{Targets: targets, Text: clip(line[i+1:])}); why != "" {
 						return nil, nil, why
