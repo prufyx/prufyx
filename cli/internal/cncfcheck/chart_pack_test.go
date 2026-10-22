@@ -197,7 +197,7 @@ func syntheticRangedChartEntry(t *testing.T) Entry {
 		return map[string]any{"bound": name, "basis": basis, "sourceId": "synthetic-gate-declaration"}
 	}
 	rule["range"] = map[string]any{
-		"from": map[string]any{"gte": "1.36.0", "lt": "1.37.0"}, "to": map[string]any{"gte": "1.37.0", "lt": "1.38.0"},
+		"from": map[string]any{"gte": "1.38.0", "lt": "1.39.0"}, "to": map[string]any{"gte": "1.39.0", "lt": "1.40.0"},
 		"bounds": []any{bound("from.gte", constraintengine.BasisPreviousMinorLine), bound("from.lt", constraintengine.BasisRemovedInRelease), bound("to.gte", constraintengine.BasisRemovedInRelease), bound("to.lt", constraintengine.BasisTargetSeries)},
 	}
 	raw, err := json.Marshal(rule)

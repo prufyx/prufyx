@@ -14,13 +14,16 @@ import (
 // versions of the target passes, one that is further behind is blocked, and
 // no declaration leaves it unknown.
 func TestPublishedKubeletSkewRules(t *testing.T) {
-	now := time.Date(2026, 10, 7, 0, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 10, 23, 0, 0, 0, 0, time.UTC)
 	for _, test := range []struct {
 		from, to, kubelet, newest string
 		status                    string
 	}{
 		// A mixed fleet declares its highest kubelet too: one newer than the
 		// target blocks, the same fleet without that declaration does not.
+		{"1.36.2", "1.37.0", "1.34.0", "", "PASS"},
+		{"1.36.2", "1.37.0", "1.33.2", "", "BLOCKED"},
+		{"1.36.2", "1.37.0", "1.34.0", "1.38.0", "BLOCKED"},
 		{"1.35.2", "1.36.0", "1.34.0", "1.37.0", "BLOCKED"},
 		{"1.35.2", "1.36.0", "1.34.0", "1.36.1", "PASS"},
 		{"1.35.2", "1.36.0", "1.34.0", "", "PASS"},
