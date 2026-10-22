@@ -188,8 +188,16 @@ func TestScanFirstPassNeedsEveryRecord(t *testing.T) {
 	installRecords(t, recordSet{attestation: true, served: true, refused: true, attestationRules: func([]string) []string { return nil }})
 	// After a refused pack nothing is left behind: the knowledge answers
 	// exactly as the shipped knowledge did before the pack was offered.
-	if result := scanHop(t, mustEmbedded(t), cronjobV1); result.Exit != shipped.Exit || !slices.Equal(gapReasons(result.Report), gapReasons(shipped.Report)) {
-		t.Fatalf("shipped knowledge: exit %d gaps %v, before: exit %d gaps %v", result.Exit, gapReasons(result.Report), shipped.Exit, gapReasons(shipped.Report))
+	after := scanHop(t, mustEmbedded(t), cronjobV1)
+	if after.Exit != shipped.Exit || !slices.Equal(gapReasons(after.Report), gapReasons(shipped.Report)) {
+		t.Fatalf("shipped knowledge: exit %d gaps %v, before: exit %d gaps %v", after.Exit, gapReasons(after.Report), shipped.Exit, gapReasons(shipped.Report))
+	}
+	// The shipped answer is a PASS without gaps, so exit and gaps cannot
+	// show a leftover synthetic pack: the served list the answer names must
+	// be the shipped one, digest and validity window included.
+	before, now := shipped.Report.Paths[0].ServedList, after.Report.Paths[0].ServedList
+	if before == nil || now == nil || *before != *now {
+		t.Fatalf("served list after a refused pack %+v, shipped %+v", now, before)
 	}
 }
 
