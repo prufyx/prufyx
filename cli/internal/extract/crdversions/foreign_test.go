@@ -91,3 +91,24 @@ func TestForeignDefinitionIsNotADuplicate(t *testing.T) {
 		t.Fatalf("crds %d, foreign %v", len(inv.CRDs), inv.Foreign)
 	}
 }
+
+// A copy outside the listed paths of a definition of a group another
+// project owns does not keep the scan from being clean; a definition of an
+// unlisted group there still does.
+func TestScanIgnoresForeignGroupDefinitions(t *testing.T) {
+	const path = "deploy/other/gw.yaml"
+	gw := foreignCRD("gateway.networking.k8s.io", "Gateway", "gateways")
+
+	_, proof, f := quietPair(t, path, gw)
+	if proof.To.Scan == nil || !proof.To.Scan.Clean() || (f != nil && f.blocks()) {
+		t.Fatalf("foreign copy: scan %+v finding %+v", proof.To.Scan, f)
+	}
+	if f != nil && len(f.CRDs) != 0 {
+		t.Fatalf("the foreign definition is named in %+v", f)
+	}
+
+	_, proof, f = quietPair(t, path, gw+"---\n"+crd("Gamma", "v1"))
+	if f == nil || f.Class != ClassExtra || len(f.CRDs) != 1 || proof.To.Scan.Clean() {
+		t.Fatalf("own extra next to a foreign one: %+v", f)
+	}
+}

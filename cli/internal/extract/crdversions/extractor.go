@@ -386,6 +386,15 @@ func listFiles(r extract.PinnedReader, repo extract.RepoRef, commit string, p Pa
 	return files, nil
 }
 
+// foreignGroup reports whether the reviewed custom-resource table assigns
+// the group (exactly, to one project) to a project other than project.
+var tableIndex = customresources.DefaultIndex()
+
+func foreignGroup(group, project string) bool {
+	owner, attribution := tableIndex.Owner(group)
+	return attribution == customresources.Owned && owner != project
+}
+
 // readInventory reads every listed path at commit. On a problem it returns
 // the partial inventory with the problem.
 func readInventory(r extract.PinnedReader, repo extract.RepoRef, t Target, commit string) (*Inventory, error) {
@@ -470,7 +479,6 @@ type origin struct {
 // (a bundled copy of another project's CRDs): it is left out of the
 // inventory, and recorded by name in inv.Foreign.
 func readDefinitions(r extract.PinnedReader, repo extract.RepoRef, commit string, files []string, inv *Inventory, other *origin, project string) (*Inventory, error) {
-	owners := customresources.DefaultIndex()
 	sort.Strings(files)
 	byName := map[string]string{}
 	byKind := map[string]string{}
@@ -494,7 +502,7 @@ func readDefinitions(r extract.PinnedReader, repo extract.RepoRef, commit string
 			return inv, err
 		}
 		for _, c := range crds {
-			if owner, attribution := owners.Owner(c.Group); attribution == customresources.Owned && owner != project {
+			if foreignGroup(c.Group, project) {
 				inv.Foreign = append(inv.Foreign, c.Name)
 				continue
 			}
