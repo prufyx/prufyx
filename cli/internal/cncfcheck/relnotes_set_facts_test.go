@@ -13,11 +13,10 @@ import (
 )
 
 // These tests hold the set facts of the relnotes line-attestation work to the
-// pack parser before they are registered. relnotesSetFacts is the canonical
-// list: the data change that adds them to packagedDefinitions (a registryDigest
-// member change with an owner approval, see maintainer/knowledgegate
-// registry_member.go) copies it. Until then the facts are NOT in the compiled
-// registry and the embedded pack is unchanged; the packs below are test-only.
+// pack parser. relnotesSetFacts is the canonical list of the facts that
+// packagedDefinitions registers (a registryDigest member change with an owner
+// approval, see maintainer/knowledgegate registry_member.go). The packs below
+// are test-only; the embedded pack holds no rule over these facts.
 
 type relnotesSetFact struct {
 	project   string // fact id segment and catalog slug
@@ -120,6 +119,26 @@ func TestRelnotesSetFactsCrossingOnlyRuleAtV1alpha11(t *testing.T) {
 	for _, schema := range []string{packSchemaRanged, packSchemaSet, packSchemaAttested, packSchemaServedAPIs} {
 		if _, err := assembleSynthetic(syntheticPack(t, schema, extra, entries[0]), extra); !errors.Is(err, ErrIntegrity) {
 			t.Fatalf("crossing relnotes rule under %s accepted: %v", schema, err)
+		}
+	}
+}
+
+// TestRelnotesSetFactsRegistered holds the compiled registry to the canonical
+// list: every fact is registered as a set of its component.
+func TestRelnotesSetFactsRegistered(t *testing.T) {
+	t.Parallel()
+	registry, err := compiledRegistry()
+	if err != nil {
+		t.Fatal(err)
+	}
+	have := map[string]constraintengine.FactDefinition{}
+	for _, d := range registry.Definitions() {
+		have[d.ID] = d
+	}
+	for _, f := range relnotesSetFacts() {
+		d, ok := have[f.id()]
+		if !ok || d.Type != constraintengine.FactSet || d.Component != f.component {
+			t.Errorf("%s is not registered as a set fact of %s", f.id(), f.component)
 		}
 	}
 }
