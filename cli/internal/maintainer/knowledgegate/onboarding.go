@@ -184,8 +184,8 @@ type OnboardingEnvelope struct {
 //
 // Left out on purpose, because a target a batch admits has no reviewed scan
 // exclusion (O4) and these classes only arise under one: exclusion-void,
-// excluded-unread, pre-patch-copy and pre-patch (excluded, accepted before
-// them, stays). A new class of the scanner
+// excluded-unread, pre-patch-copy, pre-patch and no-definition (excluded,
+// accepted before them, stays). A new class of the scanner
 // is refused until it is added here (TestOnboardingFindingClasses).
 var onboardingFindingClasses = map[string]bool{
 	crdversions.ClassConflict:        true,

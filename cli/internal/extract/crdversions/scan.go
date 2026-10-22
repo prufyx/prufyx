@@ -89,7 +89,16 @@ const (
 	// ClassPrePatch: the kustomization of a reviewed pre-patch exclusion
 	// whose rendering checkPrePatch accepted.
 	ClassPrePatch = "pre-patch"
+	// ClassNoDefinition: a file under a reviewed exclusion that declares its
+	// files define nothing (defines: none) for which definesNothing holds
+	// at this release. Recorded with its sha256; it does not block
+	// attestation.
+	ClassNoDefinition = "no-definition"
 )
+
+// definesNonePrefix starts the location of a file under a reviewed
+// exclusion that declares its files define nothing.
+const definesNonePrefix = "defines none: "
 
 // Scan bounds.
 const (
@@ -125,6 +134,10 @@ const (
 	kindGo
 	// kindPackagedChart: a .tgz in a directory named charts (not read).
 	kindPackagedChart
+	// kindNoDef: a YAML or JSON file under a reviewed exclusion that
+	// declares its files define nothing: read like kindData, and checked
+	// by definesNothing.
+	kindNoDef
 )
 
 var (
@@ -214,8 +227,9 @@ type Finding struct {
 	Class  string `json:"class"`
 	// Location is "" in the open tree, "default: <name>" under a
 	// default-excluded directory, "void: <entry>" under a reviewed
-	// exclusion that does not hold at the release, or the reviewed
-	// exclusion entry.
+	// exclusion that does not hold at the release, "defines none: <entry>"
+	// under a reviewed exclusion that declares its files define nothing,
+	// or the reviewed exclusion entry.
 	Location string   `json:"location,omitempty"`
 	CRDs     []string `json:"crds,omitempty"`
 	// Served are the members the file's definitions serve.
@@ -226,7 +240,7 @@ type Finding struct {
 // blocks reports whether a finding keeps the scan from being clean.
 func (f Finding) blocks() bool {
 	switch f.Class {
-	case ClassSchemaPatch, ClassCRDPatch, ClassKustomizeConfig, ClassLegacyCopy, ClassTemplatedCopy, ClassPrePatchCopy, ClassPrePatch, ClassExcluded, ClassExcludedUnread:
+	case ClassSchemaPatch, ClassCRDPatch, ClassKustomizeConfig, ClassLegacyCopy, ClassTemplatedCopy, ClassPrePatchCopy, ClassPrePatch, ClassExcluded, ClassExcludedUnread, ClassNoDefinition:
 		return false
 	}
 	return true
@@ -256,10 +270,10 @@ func (f Finding) defaultLike() bool {
 // a version the inventory does not show: a templated, unreadable,
 // unsupported or Go-defined CRD source in the open tree or among declared
 // copies, or a declared copy (a chart template) that serves other
-// versions. A file under a default-excluded directory only blocks
-// attestation.
+// versions. A file under a default-excluded directory, a void entry or an
+// entry that declares its files define nothing only blocks attestation.
 func (f Finding) unreadable() bool {
-	if strings.HasPrefix(f.Location, "default: ") || strings.HasPrefix(f.Location, voidPrefix) {
+	if strings.HasPrefix(f.Location, "default: ") || strings.HasPrefix(f.Location, voidPrefix) || strings.HasPrefix(f.Location, definesNonePrefix) {
 		return false
 	}
 	switch f.Class {
@@ -379,6 +393,9 @@ type blobInfo struct {
 	// gzip is what the gzip-compressed string literals of a Go source hold
 	// (nil when it has none).
 	gzip *gzipRead
+	// noDef is why bytes read as kindNoDef may define something ("" when
+	// definesNothing holds for them).
+	noDef string
 }
 
 // gzipRead is what the gzip-compressed string literals of one Go source
@@ -494,12 +511,14 @@ type scanFile struct {
 func fileKind(p string, at place) int {
 	name := path.Base(p)
 	switch {
+	case at.definesNone && dataNameRE.MatchString(name) && !isKustomizationName(name) && name != "Chart.yaml":
+		return kindNoDef
 	case dataNameRE.MatchString(name) || name == "Kustomization":
 		return kindData
 	case sourceNameRE.MatchString(name):
 		return kindSource
 	case strings.HasSuffix(name, ".go"):
-		if (at.kind != locTree && !at.void) || strings.HasSuffix(name, "_test.go") || !crdPathRE.MatchString(p) {
+		if (at.kind != locTree && !at.void && !at.definesNone) || strings.HasSuffix(name, "_test.go") || !crdPathRE.MatchString(p) {
 			return kindNone
 		}
 		return kindGo
@@ -645,15 +664,16 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 }
 
 // placed records a finding's location. Under a reviewed exclusion that
-// does not declare copies or pre-patch copies a finding is recorded, never
-// blocking: excluded when its content is known, excluded-unread otherwise.
-// Under one that declares them every class keeps its effect.
+// does not declare copies, pre-patch copies or that its files define
+// nothing, a finding is recorded, never blocking: excluded when its content
+// is known, excluded-unread otherwise. Under one that declares them every
+// class keeps its effect.
 func placed(f Finding, at place) Finding {
 	if at.kind == locTree {
 		return f
 	}
 	f.Location = at.entry
-	if at.kind != locReviewed || at.copies || at.prePatch != "" {
+	if at.kind != locReviewed || at.copies || at.prePatch != "" || at.definesNone {
 		return f
 	}
 	switch f.Class {
@@ -750,6 +770,8 @@ func summarize(kind int, data []byte) *blobInfo {
 			info.gzip = readGzipLiterals(data)
 		}
 		return info
+	case kindNoDef:
+		info.noDef = definesNothing(data)
 	}
 	if info.words == 0 && !sourceKeysRE.Match(data) {
 		return info
@@ -1707,11 +1729,126 @@ func isKustomizationName(base string) bool {
 	return base == "kustomization.yaml" || base == "kustomization.yml" || base == "Kustomization"
 }
 
+// definesNothing checks that a YAML or JSON file defines no
+// CustomResourceDefinition and is no install surface ("" when it holds, the
+// reason otherwise). It is a function of the bytes only. The file must be
+// within the size bound, hold no template syntax and be strictly
+// decodable; no document may be an apiextensions.k8s.io object or of the
+// kind, a kustomization (kind Kustomization or Component, or a mapping with
+// a kustomization field this scan reads) or a chart (a dependencies key);
+// no mapping at any depth may name the kind as a value and have a spec;
+// and no string may hold a manifest line naming the kind.
+func definesNothing(data []byte) string {
+	if len(data) > MaxFileBytes {
+		return fmt.Sprintf("it is over the %d-byte bound", MaxFileBytes)
+	}
+	if bytes.Contains(data, []byte(templateMarker)) {
+		return "it holds template syntax"
+	}
+	_, values, err := decodeStrict(data)
+	if err != nil {
+		return "it is not decodable within the strict YAML subset"
+	}
+	for i, v := range values {
+		if obj, ok := v.(map[string]any); ok {
+			kind, _ := obj["kind"].(string)
+			apiVersion, _ := obj["apiVersion"].(string)
+			_, deps := obj["dependencies"]
+			switch {
+			case kind == crdKind || strings.HasPrefix(apiVersion, crdAPIGroupPrefix):
+				return fmt.Sprintf("document %d is an %s object or of kind %s", i+1, strings.TrimSuffix(crdAPIGroupPrefix, "/"), crdKind)
+			case kind == "Kustomization" || kind == "Component" || !emptyKustomization(readKustomization(obj)):
+				return fmt.Sprintf("document %d reads as a kustomization", i+1)
+			case deps:
+				return fmt.Sprintf("document %d names dependencies", i+1)
+			}
+		}
+		if why := definitionInside(v); why != "" {
+			return fmt.Sprintf("document %d: %s", i+1, why)
+		}
+	}
+	return ""
+}
+
+// emptyKustomization reports a mapping read as a kustomization that names
+// nothing the scan reads (nil: another kind).
+func emptyKustomization(k *kustomization) bool {
+	return k == nil || (len(k.configs) == 0 && k.configBad == "" && k.crdTargets == 0 && len(k.patchPaths) == 0 && k.inline == 0 &&
+		k.inlineBad == "" && k.problem == "" && k.open == "" && len(k.remote) == 0 && len(k.local) == 0)
+}
+
+// definitionInside walks a decoded value, map keys in sorted order: a
+// mapping that holds the kind as the value of any key and has a spec, or a
+// string that holds a manifest line naming the kind ("" when none does).
+func definitionInside(v any) string {
+	switch t := v.(type) {
+	case map[string]any:
+		keys := make([]string, 0, len(t))
+		for k := range t {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		if _, spec := t["spec"]; spec {
+			for _, k := range keys {
+				if s, ok := t[k].(string); ok && s == crdKind {
+					return fmt.Sprintf("a mapping with %s: %s has a spec", k, crdKind)
+				}
+			}
+		}
+		for _, k := range keys {
+			if why := definitionInside(t[k]); why != "" {
+				return why
+			}
+		}
+	case []any:
+		for _, c := range t {
+			if why := definitionInside(c); why != "" {
+				return why
+			}
+		}
+	case string:
+		if embeddedKindRE.MatchString(t) || kindValueRE.MatchString(t) {
+			return "a string holds a manifest that names " + crdKind
+		}
+	}
+	return ""
+}
+
 // classify places a candidate file against the inventory of its tag and
 // its location. found is false when the file holds nothing CRD-like and
 // names no other repository. dirs are the declared definition kustomization
 // directories of the tag.
+//
+// Under a reviewed exclusion that declares its files define nothing, a
+// YAML or JSON file for which definesNothing holds is no-definition, found
+// whatever it holds. Every other file there is classified as anywhere else
+// and keeps its class (located "defines none: <entry>": it blocks
+// attestation and never withholds a pair); one whose class would not block
+// it, or that would not be found, is unread: the reviewer's claim does not
+// hold for it.
 func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commit string, f scanFile, info *blobInfo, inv *Inventory, dirs map[string]bool) (Finding, bool, error) {
+	if !f.at.definesNone {
+		return x.classifyFile(r, repo, commit, f, info, inv, dirs)
+	}
+	if f.kind == kindNoDef && info.noDef == "" {
+		return Finding{Path: f.path, SHA256: info.sha256, Class: ClassNoDefinition, Location: f.at.entry, Detail: "a YAML or JSON file that defines no CustomResourceDefinition: strictly decoded, no definition, no mapping that names the kind with a spec, no manifest in a string, not a kustomization or a chart"}, true, nil
+	}
+	fd, found, err := x.classifyFile(r, repo, commit, f, info, inv, dirs)
+	// A copy is not a finding (the scan lists it under copies): here it
+	// is a definition the reviewer said is not there.
+	if err != nil || (found && fd.blocks() && fd.Class != ClassCopy) {
+		return fd, found, err
+	}
+	why := info.noDef
+	if f.kind != kindNoDef {
+		why = "not a YAML or JSON data file"
+	}
+	return Finding{Path: f.path, SHA256: info.sha256, Class: ClassUnread, Location: f.at.entry, Detail: "declared to define nothing, but " + why}, true, nil
+}
+
+// classifyFile classifies a file outside an entry that declares its files
+// define nothing (see classify).
+func (x *Extractor) classifyFile(r extract.PinnedReader, repo extract.RepoRef, commit string, f scanFile, info *blobInfo, inv *Inventory, dirs map[string]bool) (Finding, bool, error) {
 	fd := Finding{Path: f.path, SHA256: info.sha256}
 	base := path.Base(f.path)
 	isKust := isKustomizationName(base)

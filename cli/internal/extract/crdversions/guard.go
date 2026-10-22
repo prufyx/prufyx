@@ -43,7 +43,10 @@ import (
 //   - ko: an excluded path under a kodata directory (ko packs it into the
 //     image);
 //   - Go packages in a directory above the excluded path or inside it: a
-//     //go:embed pattern that matches a file under it.
+//     //go:embed pattern that matches a file under it. Not for an entry
+//     that declares its files define nothing (defines: none): that claim is
+//     checked file by file at every tag, and a program that embeds such a
+//     file installs nothing from it.
 //
 // A reference voids the exclusion for that tag: the files under it are
 // classified like the files of a default-excluded directory (location
@@ -697,7 +700,8 @@ func refKind(p string) string {
 }
 
 // guard checks the reviewed exclusions that are not declared copies or
-// pre-patch copies against the install surfaces of one tag. It returns a
+// pre-patch copies against the install surfaces of one tag (an entry that
+// declares its files define nothing against every surface but //go:embed). It returns a
 // finding for each exclusion that has files at the tag and is referenced,
 // and the set of those exclusions (by entry path). blobs are all the files
 // of the tree, commits its submodules.
@@ -797,9 +801,16 @@ func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extr
 			}
 		}
 	}
-	// Go packages above an excluded path, and inside it.
-	goDirs := map[string]bool{}
+	// Go packages above an excluded path, and inside it. An entry that
+	// declares its files define nothing is not checked against embeds.
+	var embedLive []Exclusion
 	for _, e := range live {
+		if !e.DefinesNone {
+			embedLive = append(embedLive, e)
+		}
+	}
+	goDirs := map[string]bool{}
+	for _, e := range embedLive {
 		d := path.Dir(strings.TrimSuffix(e.Path, "/"))
 		for {
 			if d == "." {
@@ -821,7 +832,7 @@ func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extr
 			d = ""
 		}
 		inside := false
-		for _, e := range live {
+		for _, e := range embedLive {
 			inside = inside || exclusionMatches(e.Path, b.Path)
 		}
 		if goDirs[d] || inside {
@@ -988,7 +999,7 @@ func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extr
 
 	// Go packages that embed files.
 	under := map[string][]string{}
-	for _, e := range live {
+	for _, e := range embedLive {
 		if _, done := found[e.Path]; done {
 			continue
 		}
@@ -1006,7 +1017,7 @@ func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extr
 		if pkg == "." {
 			pkg = ""
 		}
-		for _, e := range live {
+		for _, e := range embedLive {
 			if _, done := found[e.Path]; done {
 				continue
 			}

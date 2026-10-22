@@ -147,7 +147,7 @@ func narrowed(b, h crdversions.Target) []string {
 		switch {
 		case !ok:
 			out = append(out, "exclude:"+name)
-		case be.Copies != e.Copies || be.PrePatch != e.PrePatch:
+		case be.Copies != e.Copies || be.PrePatch != e.PrePatch || be.DefinesNone != e.DefinesNone:
 			out = append(out, "excludeChanged:"+name)
 		}
 	}
