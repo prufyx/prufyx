@@ -70,6 +70,9 @@ type Target struct {
 	// full-tree scan records without letting them block attestation, each
 	// with its reviewed reason. A listed path is never excluded.
 	Exclude []Exclusion
+	// DevOnlyMake lists the Makefile targets a reviewer states are for
+	// development only (see DevOnlyMake).
+	DevOnlyMake []DevOnlyMake
 	// Attest makes the extractor attest the target's lines for the
 	// custom-resource version family. Only a project of the reviewed
 	// custom-resource table (its set fact is registered) may attest; a
@@ -238,6 +241,25 @@ type Exclusion struct {
 // files under it keep their classes.
 func (e Exclusion) checked() bool { return e.Copies || e.PrePatch != "" }
 
+// DevOnlyMake is one reviewed Makefile target that exists for development
+// (a local lab, a test cluster) and whose recipe may apply a path under a
+// reviewed exclusion: the install-surface guard (guard.go) does not count
+// the recipe lines of such a target as an install of the excluded path, but
+// only at a release where it can show the target is nothing else: the
+// Makefile has a rule for it, the name occurs nowhere else a program could
+// run it from, and nothing runs make with a name it cannot read. Where it
+// cannot, the entry is not applied at that release and the exclusion is
+// void as without it. Adding an entry loosens the guard: the target guard
+// lists it.
+type DevOnlyMake struct {
+	// Makefile is the clean repository path of the Makefile.
+	Makefile string
+	// Target is the target name (no pattern, variable or special target).
+	Target   string
+	Reason   string
+	Evidence string
+}
+
 // TagPrefixes are the release tag prefixes a target may name: none, "v",
 // and "knative-v" (Knative's release tags, knative-v1.15.0). Each ends in a
 // character that is not a digit or a dot, so a version is never read with
@@ -281,7 +303,9 @@ type targetJSON struct {
 	Attest      bool            `json:"attest"`
 	Paths       []pathJSON      `json:"paths"`
 	Exclude     []exclusionJSON `json:"exclude"`
-	Remote      *remoteJSON     `json:"remote,omitempty"`
+	// DevOnlyMakeTargets: see DevOnlyMake.
+	DevOnlyMakeTargets []devOnlyMakeJSON `json:"devOnlyMakeTargets,omitempty"`
+	Remote             *remoteJSON       `json:"remote,omitempty"`
 	// DeclaredChannel and Channels: see Target.
 	DeclaredChannel string        `json:"declaredChannel,omitempty"`
 	Channels        []channelJSON `json:"channels,omitempty"`
@@ -323,6 +347,13 @@ type exclusionJSON struct {
 	PrePatch string `json:"prePatch,omitempty"`
 	// Defines is "none" or absent (see Exclusion.DefinesNone).
 	Defines string `json:"defines,omitempty"`
+}
+
+type devOnlyMakeJSON struct {
+	Makefile string `json:"makefile"`
+	Target   string `json:"target"`
+	Reason   string `json:"reason"`
+	Evidence string `json:"evidence"`
 }
 
 var (
@@ -514,6 +545,18 @@ func (tj targetJSON) target() (Target, error) {
 		}
 		t.Exclude = append(t.Exclude, Exclusion{Path: ej.Path, Repo: ej.Repo, Reason: ej.Reason, Evidence: ej.Evidence, Copies: ej.Copies, PrePatch: ej.PrePatch, DefinesNone: ej.Defines == definesNoneValue})
 	}
+	seenDev := map[string]bool{}
+	for _, dj := range tj.DevOnlyMakeTargets {
+		if err := validDevOnlyMake(dj); err != nil {
+			return t, fmt.Errorf("devOnlyMakeTargets %q %q: %w", dj.Makefile, dj.Target, err)
+		}
+		k := dj.Makefile + "\x00" + dj.Target
+		if seenDev[k] {
+			return t, fmt.Errorf("devOnlyMakeTargets %q %q is listed twice", dj.Makefile, dj.Target)
+		}
+		seenDev[k] = true
+		t.DevOnlyMake = append(t.DevOnlyMake, DevOnlyMake{Makefile: dj.Makefile, Target: dj.Target, Reason: dj.Reason, Evidence: dj.Evidence})
+	}
 	if tj.Remote != nil {
 		remote, err := tj.Remote.remote(t)
 		if err != nil {
@@ -690,11 +733,8 @@ func validExclusion(ej exclusionJSON) error {
 			return fmt.Errorf("pattern: %w", err)
 		}
 	}
-	if r := strings.TrimSpace(ej.Reason); r != ej.Reason || len(r) < 12 || len(r) > 300 {
-		return fmt.Errorf("a reason of 12 to 300 characters is required")
-	}
-	if e := strings.TrimSpace(ej.Evidence); e != ej.Evidence || len(e) < 40 || len(e) > 800 {
-		return fmt.Errorf("evidence of 40 to 800 characters is required")
+	if err := validReasonEvidence(ej.Reason, ej.Evidence); err != nil {
+		return err
 	}
 	if ej.PrePatch != "" {
 		switch {
@@ -719,6 +759,37 @@ func validExclusion(ej exclusionJSON) error {
 		}
 	}
 	return nil
+}
+
+// validReasonEvidence is the bound a reviewed reason and its evidence keep.
+func validReasonEvidence(reason, evidence string) error {
+	if r := strings.TrimSpace(reason); r != reason || len(r) < 12 || len(r) > 300 {
+		return fmt.Errorf("a reason of 12 to 300 characters is required")
+	}
+	if e := strings.TrimSpace(evidence); e != evidence || len(e) < 40 || len(e) > 800 {
+		return fmt.Errorf("evidence of 40 to 800 characters is required")
+	}
+	return nil
+}
+
+// devTargetRE is the name of a dev-only Makefile target: plain characters,
+// no pattern, variable, special target (leading dot) or separator.
+var devTargetRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$`)
+
+// validDevOnlyMake checks one dev-only Makefile target entry: a clean
+// repository path whose last element is a Makefile name, a plain target name
+// that does not say it installs, and the reason and evidence bound of an
+// exclusion.
+func validDevOnlyMake(dj devOnlyMakeJSON) error {
+	switch {
+	case !cleanRepoPath(dj.Makefile) || !makeNameRE.MatchString(path.Base(dj.Makefile)):
+		return fmt.Errorf("makefile is not the clean repository path of a Makefile")
+	case !devTargetRE.MatchString(dj.Target):
+		return fmt.Errorf("target is not a plain target name")
+	case installTargetRE.MatchString(dj.Target):
+		return fmt.Errorf("target names an install: it is never dev-only")
+	}
+	return validReasonEvidence(dj.Reason, dj.Evidence)
 }
 
 // definesNoneValue is the one value of an exclusion's defines member.

@@ -376,6 +376,25 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   the `helm.values.*` code digests move; the extractor framework files are
   unchanged, so the digests of `k8s.feature-gate-removal`,
   `k8s.served-api-removal` and `crd.version-removal.*` do not move.
+- Maintainer extractor `crd.version-removal` 2.9.0: a target file can list
+  `devOnlyMakeTargets`, Makefile targets a reviewer states exist for
+  development only (a local lab cluster), each with its Makefile, target name,
+  reason and evidence. At a release where the files show the target is reached
+  from nowhere else (its name occurs only in its own rule and in special rules
+  such as `.PHONY`, nothing runs make with a name it cannot read, includes and
+  the default goal are literal, no `.RECIPEPREFIX`), the install-surface guard
+  does not count the recipe lines of that target as an install of an excluded
+  path; at any other release the entry is not applied and the exclusion is void
+  as before. The scan record lists each entry (`devOnlyMake`: applied, why not,
+  the references left out, the documents that name the target). The loader
+  refuses a name that says install, deploy, setup, apply, bootstrap,
+  provision, release or up, a pattern or variable, and a duplicate. Adding an
+  entry is a narrowing for the target guard and may not be part of an
+  onboarding batch. A `define`, `endef`, `include` or `.RECIPEPREFIX` line now
+  ends the Makefile rule above it for the guard, so a recipe line after one is
+  no longer skipped as the recipe of a test target. No target uses the member:
+  rules, records and attestations are unchanged except for the extractor
+  version and every `crd.version-removal.*` code digest.
 - Maintainer extractor `crd.version-removal` 2.6.0: a reviewed exclusion of
   YAML or JSON files (one file or a pattern, never a directory) can declare
   `"defines": "none"`, and the scan checks that claim at every release: a file

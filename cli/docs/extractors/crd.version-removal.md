@@ -1,6 +1,6 @@
 # Extractor `crd.version-removal`
 
-Version 2.6.0. Derives `forbid_set_member` rules for custom-resource
+Version 2.9.0. Derives `forbid_set_member` rules for custom-resource
 versions that a project's release line no longer serves, from the
 CustomResourceDefinition manifests the project ships in its repository. It is
 deterministic, reads only upstream source pinned by full commit SHA, and
@@ -389,6 +389,60 @@ Through the offline factory mirror (or a fixture tree), never the network.
     are checked to define nothing at every release (a program that embeds
     such a file installs no definition from it).
 
+  **Dev-only Makefile targets.** A target file may list `devOnlyMakeTargets`:
+  Makefile targets a reviewer states exist for development only (a local lab
+  cluster), each with the `makefile` (the clean repository path of a Makefile),
+  the `target` (a plain name: letters, digits, `_`, `.`, `-`, no leading dot or
+  dash, up to 128 characters, never a name that says `install`, `deploy`,
+  `setup`, `apply`, `bootstrap`, `provision`, `release` or `up`), and a
+  `reason` and `evidence` bounded like an exclusion's. The loader refuses a
+  listed pair twice. Such an entry loosens the guard, so the target guard lists
+  every added pair as a narrowing that needs a reviewed removals entry
+  (`devOnlyMake:<makefile>:<target>`); removing an entry, or rewording its
+  reason or evidence, needs none, and a new target admitted by an onboarding
+  batch may not list any.
+
+  The entry is **applied** at a release only when the files of that release
+  show the target is reached from nowhere else. It is not applied when any of
+  these holds, and then the exclusion is void exactly as without the entry:
+  - the Makefile is missing, unread, or has no rule header that names the
+    target; or a `GNUmakefile`, `makefile` or `Makefile` next to a Makefile of
+    that name could be read instead;
+  - the target name occurs as a word in any Makefile, shell script or
+    container build of the release, except in its own rule headers and recipe
+    lines in the listed Makefile, in the header of a special rule (every
+    target starts with `.`, such as `.PHONY`; not `.DEFAULT_GOAL`, and not the
+    recipe of such a rule), and in a rule whose every target is itself an
+    applied entry. Lines that are comments (`#` first) are not words. A
+    document that names the target does not void the entry: the proof lists
+    it;
+  - a Makefile, shell script or container build line runs `make`, `gmake`,
+    `$(MAKE)` or `${MAKE}` with a word that holds `$` or `%` (the name may be
+    built at run time), or a rule of a target that is not an applied entry has
+    a prerequisite that holds one;
+  - an `include`, `-include` or `sinclude` operand is not a literal, clean
+    path of a Makefile that was read; an include precedes the first rule while
+    no `.DEFAULT_GOAL` is set; the target is the default goal; `.DEFAULT_GOAL`
+    holds a variable or `%`; the first rule's target holds one; or
+    `.RECIPEPREFIX` occurs in a Makefile;
+  - a file over the bounds of the check (more than 50000 distinct words, or
+    5000 rules or includes), or an install surface the guard cannot check, at
+    that release.
+
+  The entries of a target are decided together, as the greatest set in which
+  every entry holds (all start applied, the ones that fail are dropped, and
+  this repeats), so two entries can be each other's prerequisite. For an
+  applied entry the Makefile check leaves out the recipe lines of that
+  Makefile whose every target is an applied entry; a rule that also has another
+  target, the same name in another Makefile, a recipe after a `define`,
+  `endef`, `include` or `.RECIPEPREFIX` line (these end the rule above them),
+  and every other referrer still void the exclusion. The scan record has a
+  `devOnlyMake` member (absent for a target with no entry): per entry the
+  Makefile, target, whether it is applied, why not, the references of an
+  excluded path it left out (the exclusion and the word of the recipe line),
+  and the documents that name the target (at most 20). Nothing is withheld
+  because of it.
+
   A void entry (also one with `"defines": "none"`) is treated like a
   default-excluded directory at that release,
   with the location `void: <entry>`: its files are classified (Go sources
@@ -654,6 +708,18 @@ version must come from a full run of that project's id with this build (which
 then carries the id's own digest), not from an edit of a record that carries
 the old shared digest. From then on, a change to one target only requires
 re-deriving the records of that target's id.
+## Changes from version 2.6.0
+
+Version 2.9.0 adds the `devOnlyMakeTargets` member of a target file and the
+`devOnlyMake` member of the scan record (above). It loosens the guard for an
+entry that uses it, at a release where every condition holds, and for no other
+file or target: output is unchanged for every target without the member, except
+the extractor version and the code digest. A `define`, `endef`, `include`,
+`-include`, `sinclude` or `.RECIPEPREFIX` line in a Makefile now ends the rule
+above it, so a tab line after one is no longer attributed to that rule (and no
+longer skipped as the recipe of a test target): this can only void an exclusion
+that was not void before.
+
 ## Changes from version 2.5.0
 
 Version 2.6.0 adds the `defines` member of a reviewed exclusion (the one

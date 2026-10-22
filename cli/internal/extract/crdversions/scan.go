@@ -217,6 +217,9 @@ type ScanRecord struct {
 	Copies []string `json:"copies"`
 	// Findings are the files of every other class, sorted by path.
 	Findings []Finding `json:"findings"`
+	// DevOnlyMake is the proof of each dev-only Makefile target entry of the
+	// target at this commit (see DevOnlyMake); absent for a target with none.
+	DevOnlyMake []DevOnlyMakeRecord `json:"devOnlyMake,omitempty"`
 }
 
 // Finding is one file outside the listed paths with CRD-like content, or
@@ -571,12 +574,13 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 	}
 	// The install-surface guard: a reviewed exclusion that something
 	// installing refers to does not hold at this tag.
-	voids, voided, err := x.guard(ctx, r, repo, commit, blobs, commits)
+	voids, voided, devRecs, err := x.guard(ctx, r, repo, commit, blobs, commits)
 	if err != nil {
 		return nil, err
 	}
 	tg := x.target.withVoided(voided)
 	rec.Findings = append(rec.Findings, voids...)
+	rec.DevOnlyMake = devRecs
 	var files []scanFile
 	for _, p := range commits {
 		at := tg.placeOf(p)
