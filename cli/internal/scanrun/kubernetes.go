@@ -1069,6 +1069,9 @@ func (r *kubernetesRun) wholeUpgrade(from, to string, plan upgradepath.Plan) err
 		if rule.Scope.Component != r.component || mode == constraintengine.MatchNone {
 			continue
 		}
+		if visitsIntermediate(plan, rule) {
+			continue
+		}
 		if mode == constraintengine.MatchCrossing && eval.claims[rule.Scope.ID].Status != "BLOCKED" && examinedByAHop(plan, rule) {
 			continue
 		}
@@ -1083,6 +1086,34 @@ func (r *kubernetesRun) wholeUpgrade(from, to string, plan upgradepath.Plan) err
 		r.judge(rule, eval, ref, false)
 	}
 	return nil
+}
+
+// visitsIntermediate reports whether the plan visits the minor line of a
+// require_intermediate_version rule's intermediate: it is the line of an
+// endpoint of some hop. The engine blocks the end-to-end pair because its
+// input names no intermediate; a plan that goes through that line has
+// satisfied the rule's requirement, and its hops decide the rest. A plan that
+// does not visit the line (a direct hop) keeps the rule's BLOCKED.
+func visitsIntermediate(plan upgradepath.Plan, rule cncfcheck.ScanRule) bool {
+	if rule.Intermediate == "" {
+		return false
+	}
+	want, ok := lineattest.LineOf(rule.Intermediate)
+	if !ok {
+		return false
+	}
+	for _, hop := range plan.Hops {
+		for _, end := range []upgradepath.Endpoint{hop.From, hop.To} {
+			line := end.Line
+			if end.Exact() {
+				line, _ = lineattest.LineOf(end.Version)
+			}
+			if line == want {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // examinedByAHop reports whether some planned hop with evaluable ends
