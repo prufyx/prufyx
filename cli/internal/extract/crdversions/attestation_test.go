@@ -177,7 +177,7 @@ func TestWithheldPairIsNotAttested(t *testing.T) {
 }
 
 // Registered Strimzi (0.51 -> 1.0: a new major with removed definitions)
-// and unregistered Longhorn derive rules and attest nothing.
+// and Antrea (a target that does not attest) derive rules and attest nothing.
 func TestRealTargetsAttestOnlyWhatTheyMay(t *testing.T) {
 	out := mustRun(t, "strimzi", extract.FixtureReader{Root: strimziRoot})
 	if len(out.Attestations) != 0 {
@@ -188,9 +188,9 @@ func TestRealTargetsAttestOnlyWhatTheyMay(t *testing.T) {
 			t.Fatalf("strimzi pair %s: %+v", p.From+"->"+p.To, p.Attestation)
 		}
 	}
-	tg, _ := TargetFor("longhorn")
+	tg, _ := TargetFor("antrea")
 	if tg.Attest || len(New(tg).AttestedFamilies()) != 0 {
-		t.Fatal("longhorn attests")
+		t.Fatal("antrea attests")
 	}
 }
 
