@@ -1,6 +1,6 @@
 # Extractor `crd.version-removal`
 
-Version 2.5.0. Derives `forbid_set_member` rules for custom-resource
+Version 2.6.0. Derives `forbid_set_member` rules for custom-resource
 versions that a project's release line no longer serves, from the
 CustomResourceDefinition manifests the project ships in its repository. It is
 deterministic, reads only upstream source pinned by full commit SHA, and
@@ -27,7 +27,9 @@ rendered CRD manifests, and the reviewed exclusions of the full-tree scan
 (below), each with the reason it was accepted and, for chart templates that are
 copies of the listed definitions, the flag `copies` that makes the scan check
 that claim, or, for the generated sources a kustomization renders into a
-listed bundle, the kustomization `prePatch` whose rendering the scan checks.
+listed bundle, the kustomization `prePatch` whose rendering the scan checks,
+or, for YAML or JSON data files that define no CRD, `"defines": "none"`, a
+claim the scan checks.
 
 An entry of a project outside the CNCF landscape catalog carries
 `"catalog": "community"` (an entry without the field is a CNCF catalog
@@ -201,6 +203,7 @@ Through the offline factory mirror (or a fixture tree), never the network.
   | `external` | a Helm `Chart.yaml` with a dependency whose `repository` is another repository (`https://`, `oci://`, an alias such as `@repo`; not a local `file://` path or none), or a kustomization with a remote resource, component or base (a URL, `github.com/...`, `git@...`, `?ref=`) |
   | `excluded` | a file under a reviewed exclusion that does not declare copies, whose content is recorded (path, sha256, the definitions it holds) |
   | `excluded-unread` | the same, when its content could not be read |
+  | `no-definition` | a YAML or JSON file under a reviewed exclusion with `"defines": "none"` that, at this release, is within the size bound, holds no template syntax, is strictly decodable, has no document that is an `apiextensions.k8s.io` object, of the kind, a kustomization (kind `Kustomization` or `Component`, or a mapping with a resource, base, component, patch, configuration or replacement field) or names `dependencies`, no mapping at any depth that holds the kind as the value of any key and has a `spec`, and no string that holds a manifest line naming the kind; recorded with its sha256 (see below) |
   | `exclusion-void` | a reviewed exclusion that an install surface refers to at this release (see below); it blocks attestation |
 
   The effect depends on the class and the location:
@@ -219,6 +222,14 @@ Through the offline factory mirror (or a fixture tree), never the network.
   - every other class in the open tree or among declared copies, and every
     class but those six under a default-excluded directory:
     the pair is not attestable.
+  - `no-definition`: recorded; the pair stays attestable, and the file does
+    not keep a definition from being established as gone.
+  - any class under a reviewed exclusion with `"defines": "none"` (location
+    `defines none: <entry>`), and `unread` there for a file that would
+    otherwise not block or not be a finding: the pair is not attestable; the
+    pair is never withheld and its rules are never narrowed because of it,
+    but an opaque file there keeps a definition from being established as
+    gone (as under a void entry).
   - `excluded` and `excluded-unread`: recorded; the pair stays attestable. An
     `excluded-unread` file keeps a definition from being established as gone,
     unless it also lies in a default-excluded directory (a test-fixture entry
@@ -318,6 +329,24 @@ Through the offline factory mirror (or a fixture tree), never the network.
     file or pattern entry, when it is not the clean path of a kustomization,
     lies under the entry or a listed path, or the target has install
     channels or a `remote` source.
+  - A reviewed exclusion with `"defines": "none"` (such as a discovery list
+    or an ignore list that names the kind and that a Go program embeds)
+    states that its files define no CRD. The scan checks that claim for each
+    file at every release: a YAML or JSON file for which every condition of
+    `no-definition` holds is of that class, whatever else it holds (a
+    mapping that names the kind without a `spec` is not a `reference`
+    there). Any other file there is classified as in the open tree and keeps
+    its class, located `defines none: <entry>`; a file that would then not
+    block attestation (a copy, a `schema-patch`, ...) or not be a finding at
+    all is `unread` with the failed condition in its detail. The loader
+    accepts only the value `none`, and refuses it together with `copies` or
+    `prePatch`, on a directory prefix, on a file or pattern whose last
+    element does not end in `.json`, `.yaml` or `.yml`, and on a name (or a
+    pattern that matches a name, in lower or upper case) `kustomization.yaml`,
+    `kustomization.yml`, `Kustomization`, `Chart.yaml`, `requirements.yaml` or
+    `values.yaml`. Such an entry is not a declared copy: it may not lie under
+    an install directory, and it is guarded (below), except against
+    `//go:embed`.
 
   **Reviewed exclusions carry evidence and are guarded.** Every entry of the
   table names its repository, the path (a directory prefix ending in `/`, one
@@ -355,9 +384,12 @@ Through the offline factory mirror (or a fixture tree), never the network.
   - it lies under a ko `kodata` directory (packed into the image), or a
     symbolic link lies inside a `kodata` directory;
   - a Go package in a directory above it, or inside it, embeds a file under
-    it (`//go:embed`).
+    it (`//go:embed`); not for an entry with `"defines": "none"`, whose files
+    are checked to define nothing at every release (a program that embeds
+    such a file installs no definition from it).
 
-  A void entry is treated like a default-excluded directory at that release,
+  A void entry (also one with `"defines": "none"`) is treated like a
+  default-excluded directory at that release,
   with the location `void: <entry>`: its files are classified (Go sources
   under it are read too), block attestation and never withhold a pair or
   narrow its rules, but an opaque file there still keeps a definition from
@@ -621,6 +653,16 @@ version must come from a full run of that project's id with this build (which
 then carries the id's own digest), not from an edit of a record that carries
 the old shared digest. From then on, a change to one target only requires
 re-deriving the records of that target's id.
+## Changes from version 2.5.0
+
+Version 2.6.0 adds the `defines` member of a reviewed exclusion (the one
+value `"none"`) and the class `no-definition` (above). It loosens the scan
+for an entry that uses it: the install-surface guard no longer voids it for a
+`//go:embed` directive, and a file that names the kind without defining a CRD
+no longer blocks attestation there, while every condition is checked at every
+release. No target uses it in this version: output is unchanged for every
+target and file, except the extractor version and the code digest.
+
 ## Changes from version 2.4.0
 
 Version 2.5.0 adds the `prePatch` member of a reviewed exclusion and the
