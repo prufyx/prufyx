@@ -4,7 +4,7 @@
   "policyId": "cncf-source-preview-v1",
   "policyDigest": "sha256:59fb35dd1cf0241cb704b10de6d8040cd584da29fb17443a353bab4542aeb83d",
   "landscapeFileDigest": "sha256:8ee4c10af7d58ddda752ff91c20bf6a5f328bfa5aa288f93801d0ca9d2b0c0ef",
-  "registryDigest": "sha256:e1d87d1ff7b2d39b25ea905a07f24d0a7b1d4326fbabb1b0e2b0d12355986e3a",
+  "registryDigest": "sha256:a7b773bd9a0a00b8d947d81980ba1dc9cb9226997a5a1824202d0caf3df618cf",
   "entries": [
     {
       "description": "Argo CD v3.5.2 uses Helm 4; this checks one effective official Helm repository with OCI enabled and caller-declared plain-HTTP transport for the documented force-HTTP flag requirement and direct-repository conflicting TLS flags.",
