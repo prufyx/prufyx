@@ -29,12 +29,12 @@ func syntheticBasisEntry(id, operator, basis, extra string) cncfcheck.Entry {
 }
 
 func TestSyntheticRequireBasisThroughTheCommandRoute(t *testing.T) {
-	satisfied := `,"dependency":{"side":"proposed","component":"pkg:github/kubernetes/kubernetes","comparison":"gte","version":"1.36.0"}`
-	reviewed := syntheticKubernetesEntry("kubernetes.synthetic-a-reviewed.1-35-0-to-1-36-0", "require_component_version", "REVIEWED_SOURCE_CONSTRAINT", "keep the reviewed version", satisfied)
-	mechanical := syntheticBasisEntry("kubernetes.synthetic-b-mechanical.1-35-0-to-1-36-0", "require_component_version", constraintengine.BasisMechanical, satisfied)
-	consensus := syntheticBasisEntry("kubernetes.synthetic-c-consensus.1-35-0-to-1-36-0", "require_component_version", constraintengine.BasisConsensus, satisfied)
-	lead := syntheticBasisEntry("kubernetes.synthetic-d-lead.1-35-0-to-1-36-0", "forbid_target_version", constraintengine.BasisLead, "")
-	input := []byte(`{"schema":"` + constraintengine.InputSchema + `","authority":"` + constraintengine.InputAuthority + `","current":{"components":[{"component":"pkg:github/kubernetes/kubernetes","version":"1.35.0","facts":[]}]},"proposed":{"components":[{"component":"pkg:github/kubernetes/kubernetes","version":"1.36.0","facts":[]}]}}`)
+	satisfied := `,"dependency":{"side":"proposed","component":"pkg:github/kubernetes/kubernetes","comparison":"gte","version":"1.39.0"}`
+	reviewed := syntheticKubernetesEntry("kubernetes.synthetic-a-reviewed.1-38-0-to-1-39-0", "require_component_version", "REVIEWED_SOURCE_CONSTRAINT", "keep the reviewed version", satisfied)
+	mechanical := syntheticBasisEntry("kubernetes.synthetic-b-mechanical.1-38-0-to-1-39-0", "require_component_version", constraintengine.BasisMechanical, satisfied)
+	consensus := syntheticBasisEntry("kubernetes.synthetic-c-consensus.1-38-0-to-1-39-0", "require_component_version", constraintengine.BasisConsensus, satisfied)
+	lead := syntheticBasisEntry("kubernetes.synthetic-d-lead.1-38-0-to-1-39-0", "forbid_target_version", constraintengine.BasisLead, "")
+	input := []byte(`{"schema":"` + constraintengine.InputSchema + `","authority":"` + constraintengine.InputAuthority + `","current":{"components":[{"component":"pkg:github/kubernetes/kubernetes","version":"1.38.0","facts":[]}]},"proposed":{"components":[{"component":"pkg:github/kubernetes/kubernetes","version":"1.39.0","facts":[]}]}}`)
 	for _, tc := range []struct {
 		name     string
 		entries  []cncfcheck.Entry
@@ -46,7 +46,7 @@ func TestSyntheticRequireBasisThroughTheCommandRoute(t *testing.T) {
 	}{
 		{"default: consensus never passes, lead left out", []cncfcheck.Entry{reviewed, mechanical, consensus, lead}, "", ExitUnknown,
 			[]string{`"status":"NO_KNOWN_ISSUE"`, `"trustPolicy":{"requiredBasis":["reviewed","mechanical","empirical","consensus"],"excludedRules":0,"excludedLeadRules":1}`, `"engineContractDigest":"` + constraintengine.EngineContractDigestBasis() + `"`},
-			[]string{"1 finding relies on model consensus\n", "rule: kubernetes.synthetic-c-consensus.1-35-0-to-1-36-0 (NO_KNOWN_ISSUE, CONSENSUS_NO_KNOWN_ISSUE)\n", "evidence basis: two independent model readings, citations verified; may block, never passes\n", "trust policy: 1 unverified lead not shown; add lead to --require-basis to list it\n", "· 2 passed "},
+			[]string{"1 finding relies on model consensus\n", "rule: kubernetes.synthetic-c-consensus.1-38-0-to-1-39-0 (NO_KNOWN_ISSUE, CONSENSUS_NO_KNOWN_ISSUE)\n", "evidence basis: two independent model readings, citations verified; may block, never passes\n", "trust policy: 1 unverified lead not shown; add lead to --require-basis to list it\n", "· 2 passed "},
 			[]string{"synthetic-d-lead", "result cannot pass"}},
 		{"reviewed only: mechanical rules left out, the check cannot pass", []cncfcheck.Entry{reviewed, mechanical, consensus, lead}, "reviewed", ExitUnknown,
 			[]string{`"trustPolicy":{"requiredBasis":["reviewed"],"excludedRules":2,"excludedLeadRules":1}`, `"status":"PASS"`},
@@ -54,7 +54,7 @@ func TestSyntheticRequireBasisThroughTheCommandRoute(t *testing.T) {
 			[]string{"synthetic-b-mechanical", "synthetic-c-consensus", "model consensus"}},
 		{"lead listed: an unverified lead never blocks", []cncfcheck.Entry{reviewed, mechanical, lead}, "reviewed,mechanical,lead", ExitOK,
 			[]string{`"status":"NOTICE"`, `"reasonCode":"LEAD_NOT_VERIFIED"`},
-			[]string{"unverified lead (does not block): kubernetes.synthetic-d-lead.1-35-0-to-1-36-0\n  worth checking: plan the reviewed route\n  evidence basis: one unverified model reading; never blocks or passes\n"},
+			[]string{"unverified lead (does not block): kubernetes.synthetic-d-lead.1-38-0-to-1-39-0\n  worth checking: plan the reviewed route\n  evidence basis: one unverified model reading; never blocks or passes\n"},
 			[]string{"BLOCKED", "trust policy"}},
 		{"no consensus finding, no note", []cncfcheck.Entry{reviewed, mechanical}, "", ExitOK, nil, nil, []string{"model consensus", "trust policy"}},
 	} {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 )
 
 type componentFixture struct {
@@ -36,7 +37,7 @@ func writeComponentFixture(t *testing.T, kubeletMode os.FileMode, sourceDigest s
 }
 
 func componentConfigArgs(selection string, extra ...string) []string {
-	return append([]string{"check", "cncf", "--project", "kubernetes", "--component-config", selection, "--from", "1.23.17", "--to", "1.24.0", "--distribution", "official_upstream", "--now", "2026-10-01T00:00:00Z"}, extra...)
+	return append([]string{"check", "cncf", "--project", "kubernetes", "--component-config", selection, "--from", "1.23.17", "--to", "1.24.0", "--distribution", "official_upstream", "--now", supersedeids.ClockString()}, extra...)
 }
 
 func assertComponentOutputRedacted(t *testing.T, fixture componentFixture, output string) {
@@ -52,9 +53,11 @@ func TestKubernetesComponentConfigCheckWithoutReviewedRuleStaysUnknown(t *testin
 	t.Parallel()
 	fixture := writeComponentFixture(t, 0o600, "")
 	// No predicate covers the 1.38 line and no published rule reads the
-	// feature-gate set facts, so no rule can be selected. The registered set
-	// facts are still prepared (incomplete here: the fixture declares no
-	// complete scope), which only changes the preparation reason.
+	// feature-gate set facts, so no rule decides this transition: either no
+	// rule is selected, or the kubelet version-skew rules (which cover the
+	// 1.32 to 1.36 lines only) are listed as not reviewed for the pair. The
+	// registered set facts are still prepared (incomplete here: the fixture
+	// declares no complete scope), which only changes the preparation reason.
 	args := componentConfigArgs(fixture.selection)
 	for index, value := range args {
 		switch value {
@@ -65,7 +68,7 @@ func TestKubernetesComponentConfigCheckWithoutReviewedRuleStaysUnknown(t *testin
 		}
 	}
 	code, stdout, stderr := runCNCFCLI(t, args...)
-	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, "Kubernetes component configuration review") || !strings.Contains(stdout, "aggregate: UNKNOWN") || !strings.Contains(stdout, "scoped result: UNKNOWN (no reviewed rule for this input and transition)") || strings.Contains(stdout, ": PASS") || strings.Contains(stdout, ": BLOCKED") {
+	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, "Kubernetes component configuration review") || !strings.Contains(stdout, "aggregate: UNKNOWN") || (!strings.Contains(stdout, "scoped result: UNKNOWN (no reviewed rule for this input and transition)") && !strings.Contains(stdout, "(RULE_TRANSITION_NOT_REVIEWED)")) || strings.Contains(stdout, ": PASS") || strings.Contains(stdout, ": BLOCKED") {
 		t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
 	assertComponentOutputRedacted(t, fixture, stdout)

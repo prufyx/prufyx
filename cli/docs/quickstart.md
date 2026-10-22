@@ -289,7 +289,7 @@ line and exits `11`:
 UNKNOWN  0 must fix · 29 undecided · 0 passed     kubernetes 1.21.0 -> 1.25.0, 29 reviewed rules
 
 UNDECIDED (29 rules)
-  UNKNOWN: kubernetes 1.21.0 -> 1.25.0 is not a reviewed transition; reviewed pairs: 1.21.0 -> 1.22.0, 1.23.17 -> 1.24.0, 1.24.0 -> 1.25.0, 1.25.0 -> 1.26.0, 1.26.0 -> 1.27.0, 1.28.0 -> 1.29.0, 1.31.0 -> 1.32.0, 1.32.0 -> 1.33.0, and 2 more (prufyx catalog checks --project kubernetes); for a multi-minor upgrade, check each minor step; a step without a reviewed pair stays UNKNOWN
+  UNKNOWN: kubernetes 1.21.0 -> 1.25.0 is not a reviewed transition; reviewed pairs: 1.21.0 -> 1.22.0, 1.23.17 -> 1.24.0, 1.24.0 -> 1.25.0, 1.25.0 -> 1.26.0, 1.26.0 -> 1.27.0, 1.28.0 -> 1.29.0, 1.31.0 -> 1.32.0, 1.32.0 -> 1.33.0, and 4 more (prufyx catalog checks --project kubernetes); for a multi-minor upgrade, check each minor step; a step without a reviewed pair stays UNKNOWN
   20 rules about release boundaries (1.22.0, 1.25.0) this hop crosses are not reviewed for this hop
 
 Whole upgrade: not proven. No reviewed rule decided this transition.

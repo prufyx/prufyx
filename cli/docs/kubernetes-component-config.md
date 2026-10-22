@@ -161,9 +161,7 @@ A missing source is never read as absence. In particular:
   `--fail-cgroupv1`) to true, or when the kubelet scope is complete and no
   source overrides it; it passes when every occurrence sets it to `false` and
   the kubelet scope is complete. An undeclared node fact stays unknown.
-- The version-skew fact is registered and prepared, but no published rule reads
-  it yet: it has no effect on a result until the version-skew rules are
-  published. The predicate needs `declarations.minimumKubeletVersion`, the
+- The version-skew predicate needs `declarations.minimumKubeletVersion`, the
   lowest kubelet version of any node, written `x.y.z` (strip any distribution
   build suffix). The predicate applies to every one-minor control plane upgrade; reviewed
   rules exist for targets 1.33 to 1.36 only, other targets stay UNKNOWN. It is
