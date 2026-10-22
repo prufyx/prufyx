@@ -418,8 +418,20 @@ Through the offline factory mirror (or a fixture tree), never the network.
     it;
   - a Makefile, shell script or container build line runs `make`, `gmake`,
     `$(MAKE)` or `${MAKE}` with a word that holds `$` or `%` (the name may be
-    built at run time), or a rule of a target that is not an applied entry has
-    a prerequisite that holds one;
+    built at run time);
+  - a rule of a target that is not an applied entry has a prerequisite word
+    that may expand to the target name. A word with variable references is
+    expanded over-approximately: each `$(V)`, `${V}` or `$V` (a plain name) is
+    replaced, recursively (depth 8, 256 expansions per word, at most 256
+    results), by every value assigned to `V` in any Makefile of the release,
+    split into words; a variable assigned in no Makefile (`PWD`, `CURDIR`, the
+    environment) is a wildcard that matches any string without white space.
+    The prerequisite is safe when no result can equal the name. A function
+    call, a substitution reference, an automatic variable, `$$`, a variable
+    set with `define` or `!=`, a cycle, a bound, a `%` and a target-specific
+    assignment are not read, so the entry is not applied. A value given at the
+    command line or the environment to a variable the Makefiles assign is not
+    seen;
   - an `include`, `-include` or `sinclude` operand is not a literal, clean
     path of a Makefile that was read; an include precedes the first rule while
     no `.DEFAULT_GOAL` is set; the target is the default goal; `.DEFAULT_GOAL`

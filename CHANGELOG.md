@@ -382,7 +382,9 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   reason and evidence. At a release where the files show the target is reached
   from nowhere else (its name occurs only in its own rule and in special rules
   such as `.PHONY`, nothing runs make with a name it cannot read, includes and
-  the default goal are literal, no `.RECIPEPREFIX`), the install-surface guard
+  the default goal are literal, no `.RECIPEPREFIX`, no prerequisite that can
+  expand to the name when its variables are over-approximated from the
+  Makefiles' assignments), the install-surface guard
   does not count the recipe lines of that target as an install of an excluded
   path; at any other release the entry is not applied and the exclusion is void
   as before. The scan record lists each entry (`devOnlyMake`: applied, why not,

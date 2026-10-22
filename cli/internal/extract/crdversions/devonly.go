@@ -45,6 +45,16 @@ import (
 // the file is still read by the guard as before.
 const maxDevUses = 50000
 
+// maxDevAssigns bounds the variable assignments kept for one Makefile.
+const maxDevAssigns = 20000
+
+// Bounds of the expansion of one prerequisite word.
+const (
+	maxExpandDepth = 8
+	maxExpansions  = 256
+	maxCandidates  = 256
+)
+
 // maxDevDocs bounds the documents listed in a proof record.
 const maxDevDocs = 20
 
@@ -60,8 +70,17 @@ type devUse struct {
 // devRule is one rule header of a Makefile.
 type devRule struct {
 	targets []string
-	// dynPrereq: a prerequisite word holds "$" or "%".
-	dynPrereq bool
+	// dyn are the prerequisite words that hold "$", "%" or "=" (a variable
+	// reference, a pattern, a target-specific assignment); "%" alone when the
+	// header could not be split.
+	dyn []string
+}
+
+// devAssign is one assignment of a variable in a Makefile (bad: a value
+// that cannot be read as words, such as a define or a shell assignment).
+type devAssign struct {
+	name, value string
+	bad         bool
 }
 
 // devInfo is what the dev-only check needs of one file. It depends only on
@@ -77,6 +96,8 @@ type devInfo struct {
 	// goal indexes the first rule with a target that does not start with
 	// "." (-1: none).
 	goal int
+	// assigns are the variable assignments, in file order.
+	assigns []devAssign
 	// includes are the operands of the include lines.
 	includes []string
 	// includeBeforeGoal: an include precedes the first goal rule.
@@ -94,6 +115,8 @@ var (
 	makeInvokeRE  = regexp.MustCompile(`(?:^|[^A-Za-z0-9_.-])g?make(?:$|[^A-Za-z0-9_./-])|\$[({]MAKE[)}]`)
 	makeIncludeRE = regexp.MustCompile(`^ *(?:-include|sinclude|include)(?:[ \t]+(.*))?$`)
 	makeDefineRE  = regexp.MustCompile(`^ *(?:define|endef)(?:[ \t]|$)`)
+	// makeShellAssignRE is an assignment whose value is a shell command.
+	makeShellAssignRE = regexp.MustCompile(`^\s*(?:export\s+|override\s+)?[A-Za-z_][A-Za-z0-9_.-]*\s*!=`)
 )
 
 // dynamicWord reports a word that may expand to a name: it holds a variable
@@ -181,6 +204,16 @@ func (b *devBuilder) note(line string, makefile bool) {
 	}
 }
 
+// assign records a variable assignment.
+func (b *devBuilder) assign(name, value string, bad bool) {
+	if b == nil {
+		return
+	}
+	if b.info.assigns = append(b.info.assigns, devAssign{name: name, value: value, bad: bad}); len(b.info.assigns) > maxDevAssigns {
+		b.info.over = true
+	}
+}
+
 func (b *devBuilder) include(operands []string) {
 	if b == nil {
 		return
@@ -203,14 +236,21 @@ func (b *devBuilder) rule(targets []string, line string) {
 	if i := strings.Index(line, ";"); i >= 0 {
 		head, recipe = line[:i], line[i+1:]
 	}
-	dyn := true
+	var dyn []string
 	if c := strings.Index(head, ":"); c >= 0 {
-		dyn = false
-		for _, w := range strings.Fields(head[c+1:]) {
-			dyn = dyn || dynamicWord(w)
+		pre := head[c+1:]
+		if i := commentStart(pre); i >= 0 {
+			pre = pre[:i]
 		}
+		for _, w := range strings.Fields(pre) {
+			if dynamicWord(w) || strings.Contains(w, "=") {
+				dyn = append(dyn, w)
+			}
+		}
+	} else {
+		dyn = []string{"%"}
 	}
-	b.info.rules = append(b.info.rules, devRule{targets: append([]string(nil), targets...), dynPrereq: dyn})
+	b.info.rules = append(b.info.rules, devRule{targets: append([]string(nil), targets...), dyn: dyn})
 	if len(b.info.rules) > maxSurfaceLines {
 		b.info.over = true
 	}
@@ -373,6 +413,7 @@ func evalDevOnly(entries []DevOnlyMake, files []devFile, blobs map[string]bool, 
 		}
 		return true
 	}
+	vars := newDevVars(files)
 	// The greatest set of entries in which every entry holds.
 	for changed := true; changed; {
 		changed = false
@@ -381,7 +422,7 @@ func evalDevOnly(entries []DevOnlyMake, files []devFile, blobs map[string]bool, 
 			if !applied[k] {
 				continue
 			}
-			if why := devVoidedBy(en, files, allApplied); why != "" {
+			if why := devVoidedBy(en, files, vars, allApplied); why != "" {
 				delete(applied, k)
 				recs[i].WhyNot = why
 				changed = true
@@ -462,14 +503,20 @@ func staticDevWhy(en DevOnlyMake, byPath map[string]devFile, blobs map[string]bo
 
 // devVoidedBy checks the target name and the prerequisites against the
 // files, given which entries are applied now ("" when none voids it).
-func devVoidedBy(en DevOnlyMake, files []devFile, allApplied func(string, []string) bool) string {
+func devVoidedBy(en DevOnlyMake, files []devFile, vars *devVars, allApplied func(string, []string) bool) string {
 	for _, f := range files {
 		if f.kind != surfMake {
 			continue
 		}
 		for _, r := range f.info.rules {
-			if r.dynPrereq && !allApplied(f.path, r.targets) {
-				return fmt.Sprintf("a rule of %s in %s has a prerequisite with a variable or %%", strings.Join(r.targets, " "), f.path)
+			if allApplied(f.path, r.targets) {
+				continue
+			}
+			for _, w := range r.dyn {
+				if !vars.cannotName(w, en.Target) {
+					continue
+				}
+				return fmt.Sprintf("a rule of %s in %s has a prerequisite that may name the target: %s", strings.Join(r.targets, " "), f.path, clipWord(w))
 			}
 		}
 	}
@@ -561,4 +608,181 @@ func devWaivers(en DevOnlyMake, lines []surfaceLine, live []Exclusion, skip func
 		})
 	}
 	return out
+}
+
+// wildcard stands for an unknown value in an expansion: any string without
+// white space.
+const wildcard = "\x00"
+
+// devVars are the assignments of every variable in the Makefiles of a tag.
+type devVars struct {
+	vals map[string][]string
+	bad  map[string]bool
+}
+
+func newDevVars(files []devFile) *devVars {
+	v := &devVars{vals: map[string][]string{}, bad: map[string]bool{}}
+	for _, f := range files {
+		if f.kind != surfMake || f.info == nil {
+			continue
+		}
+		for _, a := range f.info.assigns {
+			if a.bad {
+				v.bad[a.name] = true
+			}
+			v.vals[a.name] = append(v.vals[a.name], a.value)
+		}
+	}
+	return v
+}
+
+var plainNameRE = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_.-]*$`)
+
+// refAt reads the variable reference that starts at s[i] == '$': $(NAME),
+// ${NAME} or $X with a plain name. A function call, a substitution
+// reference, an automatic variable and "$$" are not read.
+func refAt(s string, i int) (name string, end int, ok bool) {
+	if i+1 >= len(s) {
+		return "", 0, false
+	}
+	c := s[i+1]
+	switch {
+	case c == '(' || c == '{':
+		closer := byte(')')
+		if c == '{' {
+			closer = '}'
+		}
+		j := strings.IndexByte(s[i+2:], closer)
+		if j < 0 || !plainNameRE.MatchString(s[i+2:i+2+j]) {
+			return "", 0, false
+		}
+		return s[i+2 : i+2+j], i + 2 + j + 1, true
+	case c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'):
+		return string(c), i + 2, true
+	}
+	return "", 0, false
+}
+
+// expander expands the variable references of one word into the strings it
+// may become. It over-approximates: every assignment of a variable counts,
+// a variable assigned in no Makefile is the wildcard, and what it cannot
+// read (a function call, an automatic variable, "$$", a cycle, a bound) sets
+// fail.
+type expander struct {
+	v     *devVars
+	n     int
+	stack []string
+	fail  bool
+}
+
+func (e *expander) expand(s string, depth int) []string {
+	i := strings.IndexByte(s, '$')
+	if i < 0 {
+		return []string{s}
+	}
+	if e.fail {
+		return nil
+	}
+	name, end, ok := refAt(s, i)
+	if !ok || depth >= maxExpandDepth || e.v.bad[name] || containsWord(e.stack, name) {
+		e.fail = true
+		return nil
+	}
+	if e.n++; e.n > maxExpansions {
+		e.fail = true
+		return nil
+	}
+	prefix := s[:i]
+	sufs := e.expand(s[end:], depth)
+	if e.fail {
+		return nil
+	}
+	vals, assigned := e.v.vals[name]
+	if !assigned {
+		vals = []string{wildcard}
+	}
+	seen := map[string]bool{}
+	var out []string
+	add := func(c string) {
+		if !seen[c] {
+			seen[c] = true
+			out = append(out, c)
+		}
+	}
+	e.stack = append(e.stack, name)
+	defer func() { e.stack = e.stack[:len(e.stack)-1] }()
+	for _, val := range vals {
+		fields := strings.Fields(val)
+		if len(fields) == 0 {
+			for _, suf := range sufs {
+				add(prefix + suf)
+			}
+			continue
+		}
+		for k, fw := range fields {
+			cands := e.expand(fw, depth+1)
+			if e.fail {
+				return nil
+			}
+			for _, c := range cands {
+				switch {
+				case len(fields) == 1:
+					for _, suf := range sufs {
+						add(prefix + c + suf)
+					}
+				case k == 0:
+					add(prefix + c)
+				case k == len(fields)-1:
+					for _, suf := range sufs {
+						add(c + suf)
+					}
+				default:
+					add(c)
+				}
+			}
+			if len(out) > maxCandidates {
+				e.fail = true
+				return nil
+			}
+		}
+	}
+	return out
+}
+
+// wildMatch reports whether s matches a pattern in which the wildcard
+// stands for any string.
+func wildMatch(pat, s string) bool {
+	parts := strings.Split(pat, wildcard)
+	if len(parts) == 1 {
+		return pat == s
+	}
+	if !strings.HasPrefix(s, parts[0]) {
+		return false
+	}
+	s = s[len(parts[0]):]
+	last := parts[len(parts)-1]
+	for _, mid := range parts[1 : len(parts)-1] {
+		j := strings.Index(s, mid)
+		if j < 0 {
+			return false
+		}
+		s = s[j+len(mid):]
+	}
+	return strings.HasSuffix(s, last)
+}
+
+// cannotName reports a prerequisite word that may expand to the target
+// name, or that cannot be read (so it may): a "%", a "=", a word the
+// expansion does not read, or any expansion that matches the name.
+func (v *devVars) cannotName(word, target string) bool {
+	if strings.ContainsAny(word, "%=") {
+		return true
+	}
+	e := &expander{v: v}
+	for _, c := range e.expand(word, 0) {
+		if wildMatch(c, target) {
+			return true
+		}
+	}
+	return e.fail
 }

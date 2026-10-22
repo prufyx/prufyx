@@ -310,9 +310,17 @@ func parseMake(data []byte, dev bool) ([]surfaceLine, *devInfo, string) {
 			}
 			if f := strings.Fields(line); makeDefineRE.MatchString(line) || (len(f) > 0 && f[0] == ".RECIPEPREFIX") {
 				targets = nil
+				if len(f) > 1 && f[0] == "define" {
+					b.assign(f[1], "", true)
+				}
 			}
 			if m := makeAssignRE.FindStringSubmatch(line); m != nil {
 				b.words(line, -1, false)
+				value := m[2]
+				if i := commentStart(value); i >= 0 {
+					value = value[:i]
+				}
+				b.assign(m[1], strings.TrimSpace(value), makeShellAssignRE.MatchString(line))
 				if strings.Contains(m[2], "/") {
 					if why := add(surfaceLine{Assign: m[1], Text: clip(m[2])}); why != "" {
 						return nil, nil, why

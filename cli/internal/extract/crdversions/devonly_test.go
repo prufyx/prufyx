@@ -61,6 +61,20 @@ func TestDevOnlyMake(t *testing.T) {
 	}
 	big.WriteString("\n")
 	waived := []DevOnlyWaiver{{Exclusion: kwokDir, Token: "./scripts/config/kwok"}}
+	// kyvernoShaped resolves its prerequisites through assignments and the
+	// environment, as a project Makefile does.
+	const kyvernoShaped = "TOOLS_DIR ?= $(PWD)/.tools\nHELM ?= $(TOOLS_DIR)/helm\nKIND ?= $(TOOLS_DIR)/kind\nTOOLS := $(KIND) $(HELM)\nGOPATH_SHIM := ${PWD}/.gopath\nPACKAGE ?= example.com/p\nPACKAGE_SHIM := $(GOPATH_SHIM)/src/$(PACKAGE)\nbuild: $(TOOLS) $(PACKAGE_SHIM) | $(HELM)\n\t@echo build\n"
+	var many, deep strings.Builder
+	many.WriteString("V :=")
+	for i := 0; i <= maxCandidates; i++ {
+		fmt.Fprintf(&many, " w%d", i)
+	}
+	many.WriteString("\n")
+	for i := 0; i <= maxExpandDepth; i++ {
+		fmt.Fprintf(&deep, "V%d := $(V%d)\n", i, i+1)
+	}
+	deep.WriteString("V9 := x\n")
+	manyValues, deepChain := many.String(), deep.String()
 	cases := []struct {
 		name    string
 		extra   map[string]string
@@ -109,8 +123,26 @@ func TestDevOnlyMake(t *testing.T) {
 		{name: "(c) gmake in a script", extra: map[string]string{"hack/run.sh": "gmake \"$1\"\n"}, entries: one, why: "hack/run.sh", void: true},
 		{name: "(c) make in a container build", extra: map[string]string{"Dockerfile": "FROM scratch\nRUN make ${TARGET}\n"}, entries: one, why: "Dockerfile", void: true},
 		// (d)
-		{name: "(d) a variable prerequisite", extra: map[string]string{"Makefile": devMakefile + "build: $(BINS)\n"}, entries: one, why: "a rule of build in Makefile has a prerequisite with a variable", void: true},
-		{name: "(d) a pattern prerequisite", extra: map[string]string{"Makefile": devMakefile + "%.o: %.c\n"}, entries: one, why: "prerequisite with a variable", void: true},
+		{name: "(d) a variable prerequisite", extra: map[string]string{"Makefile": devMakefile + "build: $(BINS)\n"}, entries: one, why: "a rule of build in Makefile has a prerequisite that may name the target", void: true},
+		{name: "(d) a pattern prerequisite", extra: map[string]string{"Makefile": devMakefile + "%.o: %.c\n"}, entries: one, why: "may name the target", void: true},
+		{name: "(d) a comment after the prerequisites", extra: map[string]string{"Makefile": devMakefile + "lab: all ## run it at -count=10 with $(X) or 100%\n"}, entries: one, waived: waived},
+		{name: "(d) a comment hides no prerequisite", extra: map[string]string{"Makefile": devMakefile + "lab: all $(Y) # note\n"}, entries: one, why: "may name the target: $(Y)", void: true},
+		{name: "(d) a resolvable chain of variables", extra: map[string]string{"Makefile": kyvernoShaped + devMakefile}, entries: one, waived: waived},
+		{name: "(d) a variable from the environment inside a path", extra: map[string]string{"Makefile": devMakefile + "lab: $(PWD)/x ${HOME}/y\n"}, entries: one, waived: waived},
+		{name: "(d) a variable from the environment alone", extra: map[string]string{"Makefile": devMakefile + "lab: $(PWD)\n"}, entries: one, why: "may name the target: $(PWD)", void: true},
+		{name: "(d) a function call", extra: map[string]string{"Makefile": "V := a\n" + devMakefile + "lab: $(addprefix x/,$(V))\n"}, entries: one, why: "may name the target", void: true},
+		{name: "(d) a shell call in a value", extra: map[string]string{"Makefile": "KO ?= $(shell which ko)\n" + devMakefile + "lab: $(KO)\n"}, entries: one, why: "may name the target", void: true},
+		{name: "(d) an automatic variable", extra: map[string]string{"Makefile": devMakefile + "lab: $<\n"}, entries: one, why: "may name the target", void: true},
+		{name: "(d) a cycle", extra: map[string]string{"Makefile": "A := $(B)\nB := $(A)\n" + devMakefile + "lab: $(A)\n"}, entries: one, why: "may name the target", void: true},
+		{name: "(d) a value built by concatenation", extra: map[string]string{"Makefile": "P := dev-lab\n" + devMakefile + "lab: $(P)-kwok\n"}, entries: one, why: "may name the target", void: true},
+		{name: "(d) a value split in words", extra: map[string]string{"Makefile": "P := dev-lab kwok\n" + devMakefile + "lab: $(P)\n"}, entries: one, waived: waived},
+		{name: "(d) a middle word is a name of its own", extra: map[string]string{"Makefile": "P := a dev-lab-kwok b\n" + devMakefile + "lab: x$(P)y\n"}, entries: one, why: "may name the target", void: true},
+		{name: "(d) a variable defined with define", extra: map[string]string{"Makefile": "define V\nx\nendef\n" + devMakefile + "lab: $(V)\n"}, entries: one, why: "may name the target", void: true},
+		{name: "(d) a variable set by a shell assignment", extra: map[string]string{"Makefile": "V != echo x\n" + devMakefile + "lab: $(V)\n"}, entries: one, why: "may name the target", void: true},
+		{name: "(d) a target-specific assignment", extra: map[string]string{"Makefile": devMakefile + "lab: V=x\n"}, entries: one, why: "may name the target", void: true},
+		{name: "(d) too many values", extra: map[string]string{"Makefile": manyValues + devMakefile + "lab: $(V)\n"}, entries: one, why: "may name the target", void: true},
+		{name: "(d) too many references in a word", extra: map[string]string{"Makefile": "A := x\n" + devMakefile + "lab: " + strings.Repeat("$(A)", maxExpansions+1) + "\n"}, entries: one, why: "may name the target", void: true},
+		{name: "(d) a chain deeper than the bound", extra: map[string]string{"Makefile": deepChain + devMakefile + "lab: $(V0)\n"}, entries: one, why: "may name the target", void: true},
 		// (e)
 		{name: "(e) a computed include", extra: map[string]string{"Makefile": "all:\n\t@echo all\ninclude $(wildcard hack/*.mk)\n.PHONY: dev-lab-kwok\ndev-lab-kwok:\n" + devApplied}, entries: one, why: "include of", void: true},
 		{name: "(e) an include of a file that was not read", extra: map[string]string{"Makefile": "all:\n\t@echo all\n-include missing.mk\n.PHONY: dev-lab-kwok\ndev-lab-kwok:\n" + devApplied}, entries: one, why: "include of", void: true},
@@ -356,6 +388,36 @@ func TestDevOnlyMakeLoader(t *testing.T) {
 	} {
 		if _, err := load(tc.dev); err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("%s: %v, want %q", name, err, tc.want)
+		}
+	}
+}
+
+func TestDevPrereqExpansion(t *testing.T) {
+	v := &devVars{vals: map[string][]string{
+		"A": {"x y"}, "L": {"a dev-lab"}, "M": {"dev-lab a"}, "B": {"p-$(A)", "q"}, "E": {""}, "T1": {"dev-lab"}, "C": {"$(C)"},
+	}, bad: map[string]bool{"BAD": true}}
+	for _, tc := range []struct {
+		word string
+		want bool // may name "dev-lab-kwok"
+	}{
+		{"plain", false}, {"$(A)", false}, {"a$(A)b", false}, {"$(B)", false}, {"$(E)", false}, {"x$(E)y", false},
+		{"$(T1)-kwok", true}, {"${T1}-kwok", true}, {"$(T1)", false}, {"$(UNSET)", true}, {"$(UNSET)/x", false}, {"pre-$(UNSET)", false},
+		{"$(UNSET)-kwok", true}, {"dev-$(UNSET)", true}, {"$(UNSET)lab-kwok", true}, {"$X", true},
+		{"$(C)", true}, {"$(BAD)", true}, {"$$x", true}, {"$@", true}, {"$(shell x)", true}, {"$(A:x=y)", true}, {"$(A", true}, {"x$", true},
+		{"$(L)-kwok", true}, {"$(M)-kwok", false}, {"a%", true}, {"V=1", true},
+	} {
+		if got := v.cannotName(tc.word, "dev-lab-kwok"); got != tc.want {
+			t.Errorf("cannotName(%q) = %v", tc.word, got)
+		}
+	}
+	for pat, s := range map[string]string{"\x00": "a", "a\x00": "ab", "\x00b": "ab", "a\x00c": "abc", "a\x00b\x00c": "axbyc", "\x00\x00": ""} {
+		if !wildMatch(pat, s) {
+			t.Errorf("wildMatch(%q, %q)", pat, s)
+		}
+	}
+	for pat, s := range map[string]string{"a": "b", "a\x00": "ba", "\x00b": "ba", "a\x00b\x00c": "acb", "ab\x00ba": "aba"} {
+		if wildMatch(pat, s) {
+			t.Errorf("wildMatch(%q, %q)", pat, s)
 		}
 	}
 }
