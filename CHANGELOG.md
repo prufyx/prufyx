@@ -34,7 +34,7 @@ Changes from `v0.0.1-alpha.1` (a96744cd69a6) to `main` (0c4757049d83), computed 
 
 The release-line figures are the README coverage block, generated on 2026-10-08 (v0.0.1-alpha.1) and 2026-10-17 (main) by `scripts/readme-coverage.sh`; the block comes from `prufyx-maintainer coverage report`.
 
-#### Projects added to the catalogue (0)
+#### Projects added to the support inventory (0)
 
 No project was added.
 
@@ -51,7 +51,7 @@ None.
   - `openyurt` (cncf, new): proof pair v1.6.0 to v1.7.0
   - `submariner` (cncf, new): proof pair v0.23.1 to v0.24.0
 
-Only approved batches are counted. A project entry names the project and the proof pair of versions the batch rests on; it does not by itself add a project to the catalogue (see the catalogue list above).
+Only approved batches are counted. A project entry names the project and the proof pair of versions the batch rests on; it does not by itself add a project to the catalogue (see the support inventory list above).
 
 #### Rules by project (42 added, 25 removed)
 
