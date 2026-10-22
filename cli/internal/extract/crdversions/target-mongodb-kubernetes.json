@@ -9,6 +9,7 @@
     "factProject": "mongodb_kubernetes",
     "tagPrefixes": [""],
     "minFrom": "1.8",
+    "attest": true,
     "paths": [
       {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
     ],
