@@ -422,6 +422,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   unchanged except for the extractor version and the code digest of the
   `crd.version-removal` ids; the extractor framework files are unchanged, so
   no other extractor's digest moves.
+  A tab-indented `ifdef`, `ifeq`, `ifndef`, `ifneq`, `endif` or `define` line
+  where no rule is open (after an assignment, before any rule) is now read as
+  a directive and leaves the default goal unknown, so a dev-only entry is not
+  applied.
 - Maintainer extractor `crd.version-removal` 2.6.0: a reviewed exclusion of
   YAML or JSON files (one file or a pattern, never a directory) can declare
   `"defines": "none"`, and the scan checks that claim at every release: a file

@@ -114,6 +114,8 @@ type devInfo struct {
 	dynMake bool
 	// hasGoal: .DEFAULT_GOAL occurs; dynGoal: on a line with "$" or "%".
 	hasGoal, dynGoal bool
+	// goalWhy replaces the reason of dynGoal when it is set ("" otherwise).
+	goalWhy string
 	// recipePrefix: .RECIPEPREFIX occurs.
 	recipePrefix bool
 }
@@ -454,7 +456,11 @@ func evalDevOnly(entries []DevOnlyMake, files []devFile, blobs map[string]bool, 
 			continue
 		}
 		if f.info.dynGoal {
-			pick(".DEFAULT_GOAL is not set by one literal assignment in " + f.path)
+			if f.info.goalWhy != "" {
+				pick(f.info.goalWhy + " in " + f.path)
+			} else {
+				pick(".DEFAULT_GOAL is not set by one literal assignment in " + f.path)
+			}
 		}
 		if f.info.recipePrefix {
 			pick(".RECIPEPREFIX in " + f.path)

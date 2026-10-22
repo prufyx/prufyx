@@ -312,6 +312,11 @@ func parseMake(data []byte, dev bool) ([]surfaceLine, *devInfo, string) {
 		switch {
 		case strings.HasPrefix(line, "\t"):
 			b.note(line, true)
+			if t := strings.TrimLeft(line, "\t "); b != nil && len(targets) == 0 && (makeCondRE.MatchString(t) || makeEndifRE.MatchString(t) || makeDefineRE.MatchString(t)) {
+				// Where no rule is open make reads a tab-indented directive as
+				// a directive, not as a recipe line.
+				b.info.dynGoal, b.info.goalWhy = true, "conditional directive in recipe position"
+			}
 			b.goal(line, false, "", false)
 			b.words(line, b.ctx(targets), true)
 			text := strings.TrimSpace(line)
