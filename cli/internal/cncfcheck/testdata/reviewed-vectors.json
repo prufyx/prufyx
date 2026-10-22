@@ -31215,6 +31215,133 @@
     ]
   },
   {
+    "project": "openfga",
+    "ruleId": "openfga.playground-preshared-authn.1-13-1-to-1-14-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/openfga/openfga",
+                "version": "1.13.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/openfga/openfga",
+                "version": "1.14.0",
+                "facts": [
+                  {
+                    "id": "component.openfga.playground_enabled_with_preshared_authn",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/openfga/openfga",
+                "version": "1.13.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/openfga/openfga",
+                "version": "1.14.0",
+                "facts": [
+                  {
+                    "id": "component.openfga.playground_enabled_with_preshared_authn",
+                    "state": "declared",
+                    "boolValue": false
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/openfga/openfga",
+                "version": "1.13.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/openfga/openfga",
+                "version": "1.14.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "unsupported",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/openfga/openfga",
+                "version": "1.13.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/openfga/openfga",
+                "version": "1.14.0",
+                "facts": [
+                  {
+                    "id": "component.openfga.playground_enabled_with_preshared_authn",
+                    "state": "unsupported"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
     "project": "opentelemetry",
     "ruleId": "opentelemetry.internal-telemetry-default-bind.0-110-to-0-111",
     "cases": [
@@ -34798,6 +34925,223 @@
                 "component": "pkg:github/rook/rook",
                 "version": "1.20.6",
                 "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "spire",
+    "ruleId": "spire.agent-retry-bootstrap-removed.1-13-6-to-1-14-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/spiffe/spire",
+                "version": "1.13.6",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/spiffe/spire",
+                "version": "1.14.0",
+                "facts": [
+                  {
+                    "id": "component.spire.agent_retry_bootstrap_key_present",
+                    "state": "declared",
+                    "boolValue": true
+                  },
+                  {
+                    "id": "component.spire.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/spiffe/spire",
+                "version": "1.13.6",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/spiffe/spire",
+                "version": "1.14.0",
+                "facts": [
+                  {
+                    "id": "component.spire.agent_retry_bootstrap_key_present",
+                    "state": "declared",
+                    "boolValue": false
+                  },
+                  {
+                    "id": "component.spire.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "unknown_distribution_missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/spiffe/spire",
+                "version": "1.13.6",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/spiffe/spire",
+                "version": "1.14.0",
+                "facts": [
+                  {
+                    "id": "component.spire.agent_retry_bootstrap_key_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "unknown_distribution_custom",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/spiffe/spire",
+                "version": "1.13.6",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/spiffe/spire",
+                "version": "1.14.0",
+                "facts": [
+                  {
+                    "id": "component.spire.agent_retry_bootstrap_key_present",
+                    "state": "declared",
+                    "boolValue": true
+                  },
+                  {
+                    "id": "component.spire.distribution",
+                    "state": "declared",
+                    "enumValue": "custom_build"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "unknown_condition_missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/spiffe/spire",
+                "version": "1.13.6",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/spiffe/spire",
+                "version": "1.14.0",
+                "facts": [
+                  {
+                    "id": "component.spire.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "unknown_condition_unsupported",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/spiffe/spire",
+                "version": "1.13.6",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/spiffe/spire",
+                "version": "1.14.0",
+                "facts": [
+                  {
+                    "id": "component.spire.agent_retry_bootstrap_key_present",
+                    "state": "unsupported"
+                  },
+                  {
+                    "id": "component.spire.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  }
+                ]
               }
             ]
           }
@@ -39458,6 +39802,260 @@
                 "component": "pkg:github/velero-io/velero",
                 "version": "1.16.2",
                 "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "vitess",
+    "ruleId": "vitess.grpc-server-crl-without-tls-material.23-0-6-to-23-0-7",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/vitessio/vitess",
+                "version": "23.0.6",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/vitessio/vitess",
+                "version": "23.0.7",
+                "facts": [
+                  {
+                    "id": "component.vitess.grpc_server_crl_without_tls_material",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/vitessio/vitess",
+                "version": "23.0.6",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/vitessio/vitess",
+                "version": "23.0.7",
+                "facts": [
+                  {
+                    "id": "component.vitess.grpc_server_crl_without_tls_material",
+                    "state": "declared",
+                    "boolValue": false
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/vitessio/vitess",
+                "version": "23.0.6",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/vitessio/vitess",
+                "version": "23.0.7",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "unsupported",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/vitessio/vitess",
+                "version": "23.0.6",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/vitessio/vitess",
+                "version": "23.0.7",
+                "facts": [
+                  {
+                    "id": "component.vitess.grpc_server_crl_without_tls_material",
+                    "state": "unsupported"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "vitess",
+    "ruleId": "vitess.grpc-server-crl-without-tls-material.24-0-3-to-24-0-4",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/vitessio/vitess",
+                "version": "24.0.3",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/vitessio/vitess",
+                "version": "24.0.4",
+                "facts": [
+                  {
+                    "id": "component.vitess.grpc_server_crl_without_tls_material",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "satisfied",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/vitessio/vitess",
+                "version": "24.0.3",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/vitessio/vitess",
+                "version": "24.0.4",
+                "facts": [
+                  {
+                    "id": "component.vitess.grpc_server_crl_without_tls_material",
+                    "state": "declared",
+                    "boolValue": false
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/vitessio/vitess",
+                "version": "24.0.3",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/vitessio/vitess",
+                "version": "24.0.4",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "unsupported",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/vitessio/vitess",
+                "version": "24.0.3",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/vitessio/vitess",
+                "version": "24.0.4",
+                "facts": [
+                  {
+                    "id": "component.vitess.grpc_server_crl_without_tls_material",
+                    "state": "unsupported"
+                  }
+                ]
               }
             ]
           }

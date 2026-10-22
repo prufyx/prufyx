@@ -186,7 +186,7 @@ prufyx catalog cncf --project helm --format json
 The generic check accepts one local JSON file containing minimized, operator-declared current and proposed component identities and facts. The file must be a regular private file with an owner-only mode (`0600` or stricter, for example `0400`); symlinks, permissive files, oversized files, malformed JSON, and untyped values are rejected. The CLI reads bytes locally and does not collect a cluster, inspect live state, invoke a model, download a database, or upload data.
 
 <!-- preview-counts-intro:begin -->
-The current embedded preview has 211 active exact rules across 53 rule projects (1 withdrawn, not used).
+The current embedded preview has 215 active exact rules across 53 rule projects (1 withdrawn, not used).
 <!-- preview-counts-intro:end -->
 The separate SPIFFE X.509-SVID and CloudEvents structured JSON
 standards-conformance profiles have no from/to pairs and do not alter these
@@ -677,7 +677,7 @@ has the documented preparation adapter. The current rules use registered
 facts, so this binary requires its own compatible CNCF database store. Preserve
 older stores and binaries for older reports.
 <!-- preview-counts-pack:begin -->
-The embedded CNCF rule pack has 211 active constraints across 53 rule projects; the separate
+The embedded CNCF rule pack has 215 active constraints across 53 rule projects; the separate
 community-project pack has 34 constraints across 8 projects.
 <!-- preview-counts-pack:end -->
 Runtime reproduction remains zero.

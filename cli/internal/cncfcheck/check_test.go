@@ -55,7 +55,7 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The vector file holds the vectors of both generations of the Kubernetes
-	// API-removal rules (the 25 reviewed ones and the 29 mechanical ones, 224
+	// API-removal rules (the 25 reviewed ones and the 29 mechanical ones, 228
 	// in all); the pack's rules select theirs. The pairing is ordered, as it
 	// always was: the i-th rule of the pack is checked by the i-th vector of
 	// the file that belongs to the pack, separately for the mechanical rules
@@ -71,8 +71,8 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 	// other rules.
 	all := reviewedVectors(t)
 	batch := len(crdbatchids.IDs())
-	if len(all) != 224+batch {
-		t.Fatalf("the vector file holds %d vectors, want %d (195 + the 29 mechanical + the %d of the custom-resource batch)", len(all), 224+batch, batch)
+	if len(all) != 228+batch {
+		t.Fatalf("the vector file holds %d vectors, want %d (199 + the 29 mechanical + the %d of the custom-resource batch)", len(all), 228+batch, batch)
 	}
 	extra := 0
 	otherGeneration := map[string]bool{}
@@ -160,10 +160,10 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 			}
 		}
 	}
-	if len(b.pack.Entries) != 195+extra+shippedBatch || len(vectors) != 195+extra+shippedBatch {
+	if len(b.pack.Entries) != 199+extra+shippedBatch || len(vectors) != 199+extra+shippedBatch {
 		t.Fatal("unexpected reviewed rule or vector count")
 	}
-	if caseCount != 979+4*extra+4*shippedBatch {
+	if caseCount != 997+4*extra+4*shippedBatch {
 		t.Fatal("unexpected reviewed case count")
 	}
 	for _, vector := range vectors {
@@ -195,6 +195,10 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 				}
 				if vector.RuleID == "opentelemetry.internal-telemetry-default-bind.0-110-to-0-111" {
 					clock = time.Date(2026, 9, 13, 10, 0, 0, 0, time.UTC)
+				}
+				// Reviewed on 2026-10-22, after the historical corpus clock.
+				if vector.RuleID == "openfga.playground-preshared-authn.1-13-1-to-1-14-0" || vector.RuleID == "spire.agent-retry-bootstrap-removed.1-13-6-to-1-14-0" || strings.HasPrefix(vector.RuleID, "vitess.grpc-server-crl-without-tls-material.") {
+					clock = time.Date(2026, 10, 22, 7, 0, 0, 0, time.UTC)
 				}
 				if vector.RuleID == "containerd.selected-official-runtime-shim-removed.1-7-28-to-2-0-0" {
 					clock = time.Date(2026, 9, 12, 12, 30, 0, 0, time.UTC)
@@ -698,7 +702,7 @@ func TestCatalogueDoesNotInventCoverage(t *testing.T) {
 	for _, want := range []struct {
 		slug  string
 		rules int
-	}{{"cortex", 5}, {"falco", 2}, {"karmada", 1}, {"kubeedge", 1}, {"kuma", 1}, {"spire", 1}, {"strimzi", 1 + crdbatchids.Count("strimzi")}} {
+	}{{"cortex", 5}, {"falco", 2}, {"karmada", 1}, {"kubeedge", 1}, {"kuma", 1}, {"spire", 2}, {"strimzi", 1 + crdbatchids.Count("strimzi")}} {
 		preview, err := Catalog(false, want.slug)
 		if err != nil || len(preview.Projects) != 1 || preview.Projects[0].SourceRuleCount != want.rules || preview.Projects[0].GenericCoverage != "source_rule_preview" || preview.Projects[0].RuntimeReproduced != 0 {
 			t.Fatalf("%s source preview coverage missing or overstated", want.slug)

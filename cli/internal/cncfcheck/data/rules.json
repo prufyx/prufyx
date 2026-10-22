@@ -14952,6 +14952,109 @@
       }
     },
     {
+      "description": "OpenFGA 1.14.0 refuses to start with the built-in Playground enabled and authn.method=preshared, which 1.13.1 accepted; this checks only a caller-declared effective configuration.",
+      "project": "openfga",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/openfga/openfga",
+          "description": "Whether the caller-declared effective proposed OpenFGA configuration has the built-in Playground enabled together with authn.method=preshared. The preparer does not resolve file, environment, or flag precedence; declare false only when the Playground is definitely disabled or another authentication method is selected.",
+          "enumTokens": null,
+          "id": "component.openfga.playground_enabled_with_preshared_authn",
+          "side": "proposed",
+          "type": "bool"
+        }
+      ],
+      "rule": {
+        "id": "openfga.playground-preshared-authn.1-13-1-to-1-14-0",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/openfga/openfga",
+          "from": "1.13.1",
+          "to": "1.14.0"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/openfga/openfga",
+          "factId": "component.openfga.playground_enabled_with_preshared_authn",
+          "boolValue": true
+        },
+        "appliesWhen": [],
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T06:35:40Z",
+          "validUntil": "2027-01-20T06:35:40Z",
+          "sources": [
+            {
+              "id": "openfga-v1-13-1-changelog-head",
+              "url": "https://github.com/openfga/openfga/blob/cbb16abf8cd582012540f6d40be34b133d90ce7b/CHANGELOG.md",
+              "revision": "cbb16abf8cd582012540f6d40be34b133d90ce7b",
+              "contentDigest": "sha256:18ef464361d468c2d3446b9dbdbd36a656945f565d46219bcb1120cf3e8be21d",
+              "startLine": 11,
+              "endLine": 11
+            },
+            {
+              "id": "openfga-v1-13-1-config-validation",
+              "url": "https://github.com/openfga/openfga/blob/cbb16abf8cd582012540f6d40be34b133d90ce7b/pkg/server/config/config.go",
+              "revision": "cbb16abf8cd582012540f6d40be34b133d90ce7b",
+              "contentDigest": "sha256:5718efc99551f6b5972561823d7a0d0958f0f4517e6f16056bd640e239f08fcf",
+              "startLine": 537,
+              "endLine": 545
+            },
+            {
+              "id": "openfga-v1-13-1-playground-start",
+              "url": "https://github.com/openfga/openfga/blob/cbb16abf8cd582012540f6d40be34b133d90ce7b/cmd/run/run.go",
+              "revision": "cbb16abf8cd582012540f6d40be34b133d90ce7b",
+              "contentDigest": "sha256:e3d91223603c1121125cc7b5eaaf1a7a05efb149af095b09c4ab07e0f448b7d3",
+              "startLine": 789,
+              "endLine": 796
+            },
+            {
+              "id": "openfga-v1-14-0-changelog-head",
+              "url": "https://github.com/openfga/openfga/blob/40e6b410825813d1d394d7371c5ca31cad17f517/CHANGELOG.md",
+              "revision": "40e6b410825813d1d394d7371c5ca31cad17f517",
+              "contentDigest": "sha256:f2498dc7ca1fa38b4ae5c3d3bf7be52790b72c3897904d6e0f2a67a9c1a4f6f6",
+              "startLine": 11,
+              "endLine": 11
+            },
+            {
+              "id": "openfga-v1-14-0-changelog-playground",
+              "url": "https://github.com/openfga/openfga/blob/40e6b410825813d1d394d7371c5ca31cad17f517/CHANGELOG.md",
+              "revision": "40e6b410825813d1d394d7371c5ca31cad17f517",
+              "contentDigest": "sha256:f2498dc7ca1fa38b4ae5c3d3bf7be52790b72c3897904d6e0f2a67a9c1a4f6f6",
+              "startLine": 17,
+              "endLine": 17
+            },
+            {
+              "id": "openfga-v1-14-0-config-validation",
+              "url": "https://github.com/openfga/openfga/blob/40e6b410825813d1d394d7371c5ca31cad17f517/pkg/server/config/config.go",
+              "revision": "40e6b410825813d1d394d7371c5ca31cad17f517",
+              "contentDigest": "sha256:010f5d6dd11ea194b90f193f8ce7082880eaec29ed5b11c24047f58a7a195aaa",
+              "startLine": 558,
+              "endLine": 566
+            },
+            {
+              "id": "openfga-v1-14-0-playground-abort",
+              "url": "https://github.com/openfga/openfga/blob/40e6b410825813d1d394d7371c5ca31cad17f517/cmd/run/run.go",
+              "revision": "40e6b410825813d1d394d7371c5ca31cad17f517",
+              "contentDigest": "sha256:4cd49a71504a877516bd7e413c81448a6cae3d71d4321c2cf3c90dfe7fa2305a",
+              "startLine": 1056,
+              "endLine": 1061
+            },
+            {
+              "id": "openfga-v1-14-0-playground-start",
+              "url": "https://github.com/openfga/openfga/blob/40e6b410825813d1d394d7371c5ca31cad17f517/cmd/run/run.go",
+              "revision": "40e6b410825813d1d394d7371c5ca31cad17f517",
+              "contentDigest": "sha256:4cd49a71504a877516bd7e413c81448a6cae3d71d4321c2cf3c90dfe7fa2305a",
+              "startLine": 791,
+              "endLine": 798
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Disable the Playground (it is deprecated and development-only) or set authn.method to none before the 1.14.0 upgrade; resolve file, environment and flag precedence outside this check first."
+      }
+    },
+    {
       "project": "opentelemetry",
       "description": "OpenTelemetry Collector 0.111.0 changes the internal metrics default from wildcard :8888 to localhost:8888 when the target feature gate is effective; this checks only a caller-declared non-loopback scrape requirement for a complete config with no service.telemetry.metrics override.",
       "requiredFacts": [
@@ -16819,6 +16922,127 @@
           "from": "1.18.11",
           "to": "1.20.7"
         }
+      }
+    },
+    {
+      "description": "SPIRE Agent 1.14.0 removes the deprecated agent.retry_bootstrap configuration key; the stock agent rejects an unknown key in the agent section at startup. This rule covers only a caller-declared effective agent configuration file of the official distribution.",
+      "project": "spire",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.spire.distribution",
+          "component": "pkg:github/spiffe/spire",
+          "type": "enum",
+          "enumTokens": [
+            "custom_build",
+            "official_upstream"
+          ],
+          "description": "Declared distribution identity for the proposed SPIRE Agent command. This source rule applies only to the reviewed official upstream distribution and does not prove binary, image, or runtime identity."
+        },
+        {
+          "component": "pkg:github/spiffe/spire",
+          "description": "Whether the caller-declared effective proposed SPIRE Agent configuration file sets the agent.retry_bootstrap key. Declare false only when the key is definitely absent from the effective agent section; the preparer does not resolve included files, templating or generated configuration, and the -retryBootstrap flag is not covered.",
+          "enumTokens": null,
+          "id": "component.spire.agent_retry_bootstrap_key_present",
+          "side": "proposed",
+          "type": "bool"
+        }
+      ],
+      "rule": {
+        "id": "spire.agent-retry-bootstrap-removed.1-13-6-to-1-14-0",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/spiffe/spire",
+          "from": "1.13.6",
+          "to": "1.14.0"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/spiffe/spire",
+          "factId": "component.spire.agent_retry_bootstrap_key_present",
+          "boolValue": true
+        },
+        "appliesWhen": [
+          {
+            "side": "proposed",
+            "component": "pkg:github/spiffe/spire",
+            "factId": "component.spire.distribution",
+            "enumValue": "official_upstream"
+          }
+        ],
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T06:35:40Z",
+          "validUntil": "2027-01-20T06:35:40Z",
+          "sources": [
+            {
+              "id": "spire-v1-13-6-agent-config-key",
+              "url": "https://github.com/spiffe/spire/blob/746331571d5563bb28bf1dc1c2cd04e1570453d8/cmd/spire-agent/cli/run/run.go",
+              "revision": "746331571d5563bb28bf1dc1c2cd04e1570453d8",
+              "contentDigest": "sha256:6e8867db68aedb019a25cd38b0bb1231e9309be68a37b6464b5f2886682d9ed9",
+              "startLine": 66,
+              "endLine": 108
+            },
+            {
+              "id": "spire-v1-13-6-retry-bootstrap-deprecated",
+              "url": "https://github.com/spiffe/spire/blob/746331571d5563bb28bf1dc1c2cd04e1570453d8/cmd/spire-agent/cli/run/run.go",
+              "revision": "746331571d5563bb28bf1dc1c2cd04e1570453d8",
+              "contentDigest": "sha256:6e8867db68aedb019a25cd38b0bb1231e9309be68a37b6464b5f2886682d9ed9",
+              "startLine": 471,
+              "endLine": 475
+            },
+            {
+              "id": "spire-v1-14-0-agent-config-keys",
+              "url": "https://github.com/spiffe/spire/blob/d18ee04aa47be45ae5f58fab6431cf1ab8d3af77/cmd/spire-agent/cli/run/run.go",
+              "revision": "d18ee04aa47be45ae5f58fab6431cf1ab8d3af77",
+              "contentDigest": "sha256:5cad82fdc45a1274ae3cec9471e1c70261d76eafc9912f58ec67916842b430b8",
+              "startLine": 66,
+              "endLine": 107
+            },
+            {
+              "id": "spire-v1-14-0-agent-main",
+              "url": "https://github.com/spiffe/spire/blob/d18ee04aa47be45ae5f58fab6431cf1ab8d3af77/cmd/spire-agent/main.go",
+              "revision": "d18ee04aa47be45ae5f58fab6431cf1ab8d3af77",
+              "contentDigest": "sha256:519f673fcf9e82b2999f193b40fddb3a0719311cdd6adfbfbfa63419908e3c4f",
+              "startLine": 11,
+              "endLine": 11
+            },
+            {
+              "id": "spire-v1-14-0-load-config-error",
+              "url": "https://github.com/spiffe/spire/blob/d18ee04aa47be45ae5f58fab6431cf1ab8d3af77/cmd/spire-agent/cli/run/run.go",
+              "revision": "d18ee04aa47be45ae5f58fab6431cf1ab8d3af77",
+              "contentDigest": "sha256:5cad82fdc45a1274ae3cec9471e1c70261d76eafc9912f58ec67916842b430b8",
+              "startLine": 187,
+              "endLine": 191
+            },
+            {
+              "id": "spire-v1-14-0-run-command-wiring",
+              "url": "https://github.com/spiffe/spire/blob/d18ee04aa47be45ae5f58fab6431cf1ab8d3af77/cmd/spire-agent/cli/cli.go",
+              "revision": "d18ee04aa47be45ae5f58fab6431cf1ab8d3af77",
+              "contentDigest": "sha256:41c051110135b8d187ffd9b6b80496ba7aa72887cff55f00f32914d409b3a9a8",
+              "startLine": 40,
+              "endLine": 42
+            },
+            {
+              "id": "spire-v1-14-0-unknown-config-check",
+              "url": "https://github.com/spiffe/spire/blob/d18ee04aa47be45ae5f58fab6431cf1ab8d3af77/cmd/spire-agent/cli/run/run.go",
+              "revision": "d18ee04aa47be45ae5f58fab6431cf1ab8d3af77",
+              "contentDigest": "sha256:5cad82fdc45a1274ae3cec9471e1c70261d76eafc9912f58ec67916842b430b8",
+              "startLine": 605,
+              "endLine": 625
+            },
+            {
+              "id": "spire-v1-14-0-unknown-config-gate",
+              "url": "https://github.com/spiffe/spire/blob/d18ee04aa47be45ae5f58fab6431cf1ab8d3af77/cmd/spire-agent/cli/run/run.go",
+              "revision": "d18ee04aa47be45ae5f58fab6431cf1ab8d3af77",
+              "contentDigest": "sha256:5cad82fdc45a1274ae3cec9471e1c70261d76eafc9912f58ec67916842b430b8",
+              "startLine": 553,
+              "endLine": 557
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Remove the agent.retry_bootstrap key from the SPIRE Agent configuration before upgrading to 1.14.0 (retrying bootstrap is the default); review the effective agent section separately."
       }
     },
     {
@@ -18730,6 +18954,212 @@
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
         "nextAction": "Upgrade and validate Velero 1.17.x first, then assess a separate transition to 1.18.0 with its upgrade guide."
+      }
+    },
+    {
+      "description": "Vitess 23.0.7 refuses to start a gRPC server configured with --grpc-crl but without the certificate, key or CA it needs, which 23.0.6 accepted; this checks only caller-declared effective flags of one server binary.",
+      "project": "vitess",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/vitessio/vitess",
+          "description": "Whether the caller-declared effective proposed flags of one Vitess server binary start the gRPC server (--grpc-port non-zero or --socket-file set) and set --grpc-crl while at least one of --grpc-cert, --grpc-key and --grpc-ca is unset. Declare false only when the gRPC server is not started, --grpc-crl is unset, or all of --grpc-cert, --grpc-key and --grpc-ca are set; flag precedence, environment and configuration files are not resolved.",
+          "enumTokens": null,
+          "id": "component.vitess.grpc_server_crl_without_tls_material",
+          "side": "proposed",
+          "type": "bool"
+        }
+      ],
+      "rule": {
+        "id": "vitess.grpc-server-crl-without-tls-material.23-0-6-to-23-0-7",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/vitessio/vitess",
+          "from": "23.0.6",
+          "to": "23.0.7"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/vitessio/vitess",
+          "factId": "component.vitess.grpc_server_crl_without_tls_material",
+          "boolValue": true
+        },
+        "appliesWhen": [],
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T06:35:40Z",
+          "validUntil": "2027-01-20T06:35:40Z",
+          "sources": [
+            {
+              "id": "vitess-v23-0-6-grpc-server-startup",
+              "url": "https://github.com/vitessio/vitess/blob/0f1ed062dec171e0adfab796110549752901e299/go/vt/servenv/grpc_server.go",
+              "revision": "0f1ed062dec171e0adfab796110549752901e299",
+              "contentDigest": "sha256:e91d0d89396f214491cda0705be288cac43c562f9a48c2523f0d9f4586312d7a",
+              "startLine": 207,
+              "endLine": 227
+            },
+            {
+              "id": "vitess-v23-0-6-server-crl-config",
+              "url": "https://github.com/vitessio/vitess/blob/0f1ed062dec171e0adfab796110549752901e299/go/vt/vttls/vttls.go",
+              "revision": "0f1ed062dec171e0adfab796110549752901e299",
+              "contentDigest": "sha256:481af2f0891f1187cb0d1d8625b70c59faf1c188ae958da24ef54fd5a90fbc8d",
+              "startLine": 202,
+              "endLine": 220
+            },
+            {
+              "id": "vitess-v23-0-7-grpc-flags",
+              "url": "https://github.com/vitessio/vitess/blob/88e905b37737fd3dd8365b7a56dceb0aa6de46f9/go/vt/servenv/grpc_server.go",
+              "revision": "88e905b37737fd3dd8365b7a56dceb0aa6de46f9",
+              "contentDigest": "sha256:8dc119c193cf66e8873bd97b34a8a7e291d31d7357a5666a4db09c464d5f909d",
+              "startLine": 145,
+              "endLine": 158
+            },
+            {
+              "id": "vitess-v23-0-7-grpc-server-enabled",
+              "url": "https://github.com/vitessio/vitess/blob/88e905b37737fd3dd8365b7a56dceb0aa6de46f9/go/vt/servenv/grpc_server.go",
+              "revision": "88e905b37737fd3dd8365b7a56dceb0aa6de46f9",
+              "contentDigest": "sha256:8dc119c193cf66e8873bd97b34a8a7e291d31d7357a5666a4db09c464d5f909d",
+              "startLine": 192,
+              "endLine": 202
+            },
+            {
+              "id": "vitess-v23-0-7-grpc-server-tls-startup",
+              "url": "https://github.com/vitessio/vitess/blob/88e905b37737fd3dd8365b7a56dceb0aa6de46f9/go/vt/servenv/grpc_server.go",
+              "revision": "88e905b37737fd3dd8365b7a56dceb0aa6de46f9",
+              "contentDigest": "sha256:8dc119c193cf66e8873bd97b34a8a7e291d31d7357a5666a4db09c464d5f909d",
+              "startLine": 214,
+              "endLine": 223
+            },
+            {
+              "id": "vitess-v23-0-7-server-crl-requires-ca",
+              "url": "https://github.com/vitessio/vitess/blob/88e905b37737fd3dd8365b7a56dceb0aa6de46f9/go/vt/vttls/vttls.go",
+              "revision": "88e905b37737fd3dd8365b7a56dceb0aa6de46f9",
+              "contentDigest": "sha256:d7a53bc1d23ebf2d7e5a1a2b7c6da443fa76fecfbd6f04f1ced28b2807ec7c62",
+              "startLine": 264,
+              "endLine": 287
+            },
+            {
+              "id": "vitess-v23-0-7-server-tls-enabled",
+              "url": "https://github.com/vitessio/vitess/blob/88e905b37737fd3dd8365b7a56dceb0aa6de46f9/go/vt/vttls/vttls.go",
+              "revision": "88e905b37737fd3dd8365b7a56dceb0aa6de46f9",
+              "contentDigest": "sha256:d7a53bc1d23ebf2d7e5a1a2b7c6da443fa76fecfbd6f04f1ced28b2807ec7c62",
+              "startLine": 233,
+              "endLine": 241
+            },
+            {
+              "id": "vitess-v23-0-7-socket-file-flag",
+              "url": "https://github.com/vitessio/vitess/blob/88e905b37737fd3dd8365b7a56dceb0aa6de46f9/go/vt/servenv/unix_socket.go",
+              "revision": "88e905b37737fd3dd8365b7a56dceb0aa6de46f9",
+              "contentDigest": "sha256:36129c8a1ef007764d9a4a4b30640e120a72f7c3a312bb251f16bf50c5079c83",
+              "startLine": 63,
+              "endLine": 63
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Set --grpc-cert, --grpc-key and --grpc-ca together with --grpc-crl, or remove --grpc-crl, before upgrading to 23.0.7; resolve flag, environment and config-file precedence outside this check first."
+      }
+    },
+    {
+      "description": "Vitess 24.0.4 refuses to start a gRPC server configured with --grpc-crl but without the certificate, key or CA it needs, which 24.0.3 accepted; this checks only caller-declared effective flags of one server binary.",
+      "project": "vitess",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/vitessio/vitess",
+          "description": "Whether the caller-declared effective proposed flags of one Vitess server binary start the gRPC server (--grpc-port non-zero or --socket-file set) and set --grpc-crl while at least one of --grpc-cert, --grpc-key and --grpc-ca is unset. Declare false only when the gRPC server is not started, --grpc-crl is unset, or all of --grpc-cert, --grpc-key and --grpc-ca are set; flag precedence, environment and configuration files are not resolved.",
+          "enumTokens": null,
+          "id": "component.vitess.grpc_server_crl_without_tls_material",
+          "side": "proposed",
+          "type": "bool"
+        }
+      ],
+      "rule": {
+        "id": "vitess.grpc-server-crl-without-tls-material.24-0-3-to-24-0-4",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/vitessio/vitess",
+          "from": "24.0.3",
+          "to": "24.0.4"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/vitessio/vitess",
+          "factId": "component.vitess.grpc_server_crl_without_tls_material",
+          "boolValue": true
+        },
+        "appliesWhen": [],
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-22T06:35:40Z",
+          "validUntil": "2027-01-20T06:35:40Z",
+          "sources": [
+            {
+              "id": "vitess-v24-0-3-grpc-server-startup",
+              "url": "https://github.com/vitessio/vitess/blob/33f1e705bbfa51ece6e62c8439ddd5db2dc1752e/go/vt/servenv/grpc_server.go",
+              "revision": "33f1e705bbfa51ece6e62c8439ddd5db2dc1752e",
+              "contentDigest": "sha256:7ec42390a745a91f54f15c4f541ade9e1cd720aac1fabbef2ffebf797ed8967b",
+              "startLine": 209,
+              "endLine": 230
+            },
+            {
+              "id": "vitess-v24-0-3-server-crl-config",
+              "url": "https://github.com/vitessio/vitess/blob/33f1e705bbfa51ece6e62c8439ddd5db2dc1752e/go/vt/vttls/vttls.go",
+              "revision": "33f1e705bbfa51ece6e62c8439ddd5db2dc1752e",
+              "contentDigest": "sha256:2c1ed33bbdebbcc77810b313f19bfe7655fc6c0f7258d34ca5d42def5d142332",
+              "startLine": 200,
+              "endLine": 217
+            },
+            {
+              "id": "vitess-v24-0-4-grpc-flags",
+              "url": "https://github.com/vitessio/vitess/blob/967ff0b9222d950b20cb47a36109c0e1a9dce507/go/vt/servenv/grpc_server.go",
+              "revision": "967ff0b9222d950b20cb47a36109c0e1a9dce507",
+              "contentDigest": "sha256:527b68a070b1dffaee9eb397af6da88160bdba10ac1f670c27e4d57e1ac018a0",
+              "startLine": 148,
+              "endLine": 161
+            },
+            {
+              "id": "vitess-v24-0-4-grpc-server-enabled",
+              "url": "https://github.com/vitessio/vitess/blob/967ff0b9222d950b20cb47a36109c0e1a9dce507/go/vt/servenv/grpc_server.go",
+              "revision": "967ff0b9222d950b20cb47a36109c0e1a9dce507",
+              "contentDigest": "sha256:527b68a070b1dffaee9eb397af6da88160bdba10ac1f670c27e4d57e1ac018a0",
+              "startLine": 195,
+              "endLine": 205
+            },
+            {
+              "id": "vitess-v24-0-4-grpc-server-tls-startup",
+              "url": "https://github.com/vitessio/vitess/blob/967ff0b9222d950b20cb47a36109c0e1a9dce507/go/vt/servenv/grpc_server.go",
+              "revision": "967ff0b9222d950b20cb47a36109c0e1a9dce507",
+              "contentDigest": "sha256:527b68a070b1dffaee9eb397af6da88160bdba10ac1f670c27e4d57e1ac018a0",
+              "startLine": 217,
+              "endLine": 228
+            },
+            {
+              "id": "vitess-v24-0-4-server-crl-requires-ca",
+              "url": "https://github.com/vitessio/vitess/blob/967ff0b9222d950b20cb47a36109c0e1a9dce507/go/vt/vttls/vttls.go",
+              "revision": "967ff0b9222d950b20cb47a36109c0e1a9dce507",
+              "contentDigest": "sha256:cb0bc8e7ee9a57ab7e00a27e1d8cdf8a0b227a5c550e51455eb26d4a79a8eee3",
+              "startLine": 262,
+              "endLine": 284
+            },
+            {
+              "id": "vitess-v24-0-4-server-tls-enabled",
+              "url": "https://github.com/vitessio/vitess/blob/967ff0b9222d950b20cb47a36109c0e1a9dce507/go/vt/vttls/vttls.go",
+              "revision": "967ff0b9222d950b20cb47a36109c0e1a9dce507",
+              "contentDigest": "sha256:cb0bc8e7ee9a57ab7e00a27e1d8cdf8a0b227a5c550e51455eb26d4a79a8eee3",
+              "startLine": 231,
+              "endLine": 239
+            },
+            {
+              "id": "vitess-v24-0-4-socket-file-flag",
+              "url": "https://github.com/vitessio/vitess/blob/967ff0b9222d950b20cb47a36109c0e1a9dce507/go/vt/servenv/unix_socket.go",
+              "revision": "967ff0b9222d950b20cb47a36109c0e1a9dce507",
+              "contentDigest": "sha256:b18c9b3d5b3d5396f9851f1bcda02f56c067c8a2df1315afb87907628d63754d",
+              "startLine": 64,
+              "endLine": 64
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Set --grpc-cert, --grpc-key and --grpc-ca together with --grpc-crl, or remove --grpc-crl, before upgrading to 24.0.4; resolve flag, environment and config-file precedence outside this check first."
       }
     },
     {
