@@ -343,9 +343,11 @@ Through the offline factory mirror (or a fixture tree), never the network.
     element does not end in `.json`, `.yaml` or `.yml`, and on a name (or a
     pattern that matches a name, in lower or upper case) `kustomization.yaml`,
     `kustomization.yml`, `Kustomization`, `Chart.yaml`, `requirements.yaml` or
-    `values.yaml`. Such an entry is not a declared copy: it may not lie under
-    an install directory, and it is guarded (below), except against
-    `//go:embed`.
+    `values.yaml`, or when an earlier entry covers it. Such an entry is not
+    a declared copy: it may not lie under an install directory, and it is
+    guarded (below), except against `//go:embed`. A definition encoded in a
+    string (base64, compressed) that a program decodes is not read: that
+    part of the claim rests on the reviewer's evidence.
 
   **Reviewed exclusions carry evidence and are guarded.** Every entry of the
   table names its repository, the path (a directory prefix ending in `/`, one

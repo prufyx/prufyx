@@ -254,6 +254,8 @@ func TestDefinesNoneLoader(t *testing.T) {
 		"a duplicate":                {ej(dnFile, `,"defines":"none"`) + "," + ej(dnFile, ""), "not sorted"},
 		"another repository":         {strings.Replace(ej(dnFile, `,"defines":"none"`), "github.com/o/p", "github.com/o/q", 1), "names repository"},
 		"a listed path":              {ej("crds/a.yaml", `,"defines":"none"`), "covers the listed path"},
+		"under an earlier entry":     {ej("cmd/", "") + "," + ej(dnFile, `,"defines":"none"`), "would place its files"},
+		"under an earlier pattern":   {ej("cmd/data/*.json", "") + "," + ej("cmd/data/x.json", `,"defines":"none"`), "would place its files"},
 	} {
 		if _, err := LoadTarget("target-p.json", testTargetsJSON(tc.ej)); err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("%s: %v, want %q", name, err, tc.want)

@@ -1841,7 +1841,7 @@ func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commi
 	}
 	why := info.noDef
 	if f.kind != kindNoDef {
-		why = "not a YAML or JSON data file"
+		why = "it is not a YAML or JSON data file the claim can be checked for (a kustomization, a chart, a template, Go source)"
 	}
 	return Finding{Path: f.path, SHA256: info.sha256, Class: ClassUnread, Location: f.at.entry, Detail: "declared to define nothing, but " + why}, true, nil
 }
