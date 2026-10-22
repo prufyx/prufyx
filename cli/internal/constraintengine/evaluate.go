@@ -46,6 +46,11 @@ func Evaluate(input Input, rules RuleSet, now time.Time) (Report, error) {
 		Omissions:         requiredOmissions(assessment),
 		ScopeCompleteness: scope,
 	}
+	for _, side := range []inputSide{input.document.Current, input.document.Proposed} {
+		for _, component := range side.Components {
+			report.preRelease = report.preRelease || PreRelease(component.Version)
+		}
+	}
 	return issueReport(report), nil
 }
 

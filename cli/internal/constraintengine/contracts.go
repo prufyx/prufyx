@@ -564,6 +564,9 @@ type Report struct {
 	ScopeCompleteness *ScopeCompleteness `json:"scopeCompleteness,omitempty"`
 	seal              *reportSeal
 	digest            string
+	// preRelease is set by Evaluate when a declared component version is a
+	// pre-release. It is not part of the report document.
+	preRelease bool
 }
 type reportSeal struct{}
 
@@ -862,6 +865,9 @@ func compareVersions(left, right string) (int, bool) {
 // or the component scope. A route that cannot label a pre-release must not
 // pass such a report.
 func (r Report) HasPreReleaseInput() bool {
+	if r.preRelease {
+		return true
+	}
 	for _, claim := range r.Claims {
 		if m := claim.SubjectMatch; m != nil && (PreRelease(m.AnchorFrom) || PreRelease(m.AnchorTo)) {
 			return true
