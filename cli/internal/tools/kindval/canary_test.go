@@ -456,27 +456,27 @@ func TestV2CRDControls(t *testing.T) {
 	}
 }
 
-// A removal hop whose removals no upstream guide documents has false
+// A removal hop whose removals no upstream guide documents (1.33 -> 1.34) has false
 // removal controls only: the group is incomplete and a confirmed removal
 // claim on it is undetermined, not confirmed by execution.
 func TestV2OneExpectationGroupIsIncomplete(t *testing.T) {
 	const cidr = "networking.k8s.io/v1beta1 ServiceCIDR"
-	removal := Claim{ID: "removal.cidr", Kind: KindK8sRemoval, Subject: Subject{From: rawString("1.36"), To: rawString("1.37"), Group: "networking.k8s.io", Version: "v1beta1", Kind: "ServiceCIDR"}}
-	served := servedAPIClaim("1.37", "apps", "v1", "Deployment", ExpectServed, "t")
-	claims := v2Claims(t, []string{"1.36", "1.37"}, removal, served)
+	removal := Claim{ID: "removal.cidr", Kind: KindK8sRemoval, Subject: Subject{From: rawString("1.33"), To: rawString("1.34"), Group: "networking.k8s.io", Version: "v1beta1", Kind: "ServiceCIDR"}}
+	served := servedAPIClaim("1.34", "apps", "v1", "Deployment", ExpectServed, "t")
+	claims := v2Claims(t, []string{"1.33", "1.34"}, removal, served)
 	accepted := func(api string) VerdictCase {
 		return VerdictCase{ID: caseID(api), API: api, Server: ServerTry{Outcome: ServerAccepted}}
 	}
-	keptOn37 := func(api string) VerdictCase {
+	keptOn34 := func(api string) VerdictCase {
 		c := accepted(api)
-		c.Scan = &ScanTry{From: "1.36.0", To: "1.37.0", Exit: exitPass, Verdict: "PASS", Gaps: []string{}, Rules: []string{}}
+		c.Scan = &ScanTry{From: "1.33.0", To: "1.34.0", Exit: exitPass, Verdict: "PASS", Gaps: []string{}, Rules: []string{}}
 		return c
 	}
 	runs := Runs{
-		Snapshots: map[string]Snapshot{"1.36": lineSnapshot("1.36", apiDeploy, apiDS, cidr), "1.37": lineSnapshot("1.37", apiDeploy, apiDS)},
+		Snapshots: map[string]Snapshot{"1.33": lineSnapshot("1.33", apiDeploy, apiDS, cidr), "1.34": lineSnapshot("1.34", apiDeploy, apiDS)},
 		Verdicts: map[string]VerdictRun{
-			"1.36": {Line: "1.36", Cases: []VerdictCase{accepted(apiDeploy), accepted(apiDS), accepted(cidr)}},
-			"1.37": {Line: "1.37", Cases: []VerdictCase{keptOn37(apiDeploy), keptOn37(apiDS), {ID: caseID(cidr), API: cidr, Server: ServerTry{Outcome: ServerNotServed}, Scan: &ScanTry{From: "1.36.0", To: "1.37.0", Exit: exitBlocked, Verdict: "BLOCKED", Gaps: []string{gapNotServed}, Rules: []string{}}}}},
+			"1.33": {Line: "1.33", Cases: []VerdictCase{accepted(apiDeploy), accepted(apiDS), accepted(cidr)}},
+			"1.34": {Line: "1.34", Cases: []VerdictCase{keptOn34(apiDeploy), keptOn34(apiDS), {ID: caseID(cidr), API: cidr, Server: ServerTry{Outcome: ServerNotServed}, Scan: &ScanTry{From: "1.33.0", To: "1.34.0", Exit: exitBlocked, Verdict: "BLOCKED", Gaps: []string{gapNotServed}, Rules: []string{}}}}},
 		},
 	}
 	res := Evaluate(claims, runs, Provenance{}, time.Unix(0, 0))
@@ -490,10 +490,10 @@ func TestV2OneExpectationGroupIsIncomplete(t *testing.T) {
 	if c := got["removal.cidr"]; c.Outcome != OutcomeUndetermined || c.Reason != ReasonControlsAbsent || !strings.Contains(c.Detail, "all have one expectation") {
 		t.Fatalf("removal %+v", c)
 	}
-	if s, _ := summaryOf(res, KindK8sRemoval, "1.37"); s.State != ControlStateIncomplete || s.True != 0 || s.False != 2 {
+	if s, _ := summaryOf(res, KindK8sRemoval, "1.34"); s.State != ControlStateIncomplete || s.True != 0 || s.False != 2 {
 		t.Fatalf("summary %+v", res.Totals.Controls)
 	}
-	if c := got["k8s.1.37.apps_v1_Deployment.served"]; c.Outcome != OutcomeConfirmed || c.Verdict != VerdictConfirmed {
+	if c := got["k8s.1.34.apps_v1_Deployment.served"]; c.Outcome != OutcomeConfirmed || c.Verdict != VerdictConfirmed {
 		t.Fatalf("served %+v", c)
 	}
 }

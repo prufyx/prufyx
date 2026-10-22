@@ -259,6 +259,54 @@
       "control": "true"
     },
     {
+      "id": "control.removal.networking.k8s.io_v1beta1_IPAddress.1.36-to-1.37",
+      "kind": "k8s-removal",
+      "subject": {
+        "from": "1.36",
+        "to": "1.37",
+        "group": "networking.k8s.io",
+        "version": "v1beta1",
+        "kind": "IPAddress"
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes/kubernetes/blob/ecf6decece6a6de25a57aad9ba90b6ce580f6f78/api/openapi-spec/swagger.json#L74727",
+        "absentAt": "https://github.com/kubernetes/kubernetes/blob/f54c212e3a2f75d674b717a9b29052b20b60aefc/api/openapi-spec/swagger.json"
+      },
+      "control": "true"
+    },
+    {
+      "id": "control.removal.networking.k8s.io_v1beta1_ServiceCIDR.1.36-to-1.37",
+      "kind": "k8s-removal",
+      "subject": {
+        "from": "1.36",
+        "to": "1.37",
+        "group": "networking.k8s.io",
+        "version": "v1beta1",
+        "kind": "ServiceCIDR"
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes/kubernetes/blob/ecf6decece6a6de25a57aad9ba90b6ce580f6f78/api/openapi-spec/swagger.json#L75227",
+        "absentAt": "https://github.com/kubernetes/kubernetes/blob/f54c212e3a2f75d674b717a9b29052b20b60aefc/api/openapi-spec/swagger.json"
+      },
+      "control": "true"
+    },
+    {
+      "id": "control.removal.storage.k8s.io_v1beta1_VolumeAttributesClass.1.36-to-1.37",
+      "kind": "k8s-removal",
+      "subject": {
+        "from": "1.36",
+        "to": "1.37",
+        "group": "storage.k8s.io",
+        "version": "v1beta1",
+        "kind": "VolumeAttributesClass"
+      },
+      "evidence": {
+        "source": "https://github.com/kubernetes/kubernetes/blob/ecf6decece6a6de25a57aad9ba90b6ce580f6f78/api/openapi-spec/swagger.json#L100587",
+        "absentAt": "https://github.com/kubernetes/kubernetes/blob/f54c212e3a2f75d674b717a9b29052b20b60aefc/api/openapi-spec/swagger.json"
+      },
+      "control": "true"
+    },
+    {
       "id": "control.crd-version.external-snapshotter.v6.0.1.volumesnapshotclasses.v1beta1.served-false.storage-false",
       "kind": "crd-version",
       "subject": {
