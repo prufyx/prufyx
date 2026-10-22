@@ -17,8 +17,8 @@ import (
 
 // The community catalog in the gate (code before data): rules of a community
 // project are admitted by the same proofs as a CNCF project's, the first one
-// moves the pack to its own schema level, and a community line attestation is
-// refused until the reviewed path exists. The derivations here run the real
+// moves the pack to its own schema level, and a community line attestation
+// needs the same proof as any other. The derivations here run the real
 // extractor over the frozen Strimzi fixture, moved onto a community target:
 // the rules they produce are never published.
 
@@ -175,10 +175,10 @@ func TestGateDoesNotAdmitAHandWrittenCommunityRule(t *testing.T) {
 	}
 }
 
-// Community data cannot attest: a line attestation naming a community
-// component fails the pack's admission, so the gate refuses it before any
-// proof is looked at.
-func TestGateRefusesACommunityLineAttestation(t *testing.T) {
+// A hand-written (reviewed) community line attestation is a loosening like any
+// other: the pack admits it (the family lists the community component), and
+// the gate does not pass it without the approval a reviewed record needs.
+func TestGateCommunityLineAttestationNeedsAProof(t *testing.T) {
 	t.Parallel()
 	entries, catalog := communityEntries(t, gateNow.Add(-time.Hour))
 	base, head := communityHead(t, entries, communityPackSchema)
@@ -200,13 +200,13 @@ func TestGateRefusesACommunityLineAttestation(t *testing.T) {
 	opts := Options{Base: base, Head: head, Source: extract.FixtureReader{Root: strimziFixture}, Catalog: catalog, Citations: passingCitations{}, Layout: DefaultLayout(), Now: gateNow}
 	pinBaseKeys(&opts)
 	fromBot(&opts)
-	// The gate cannot even read the pack's records: it stops with an error
-	// that names the family, rather than classifying the attestation.
 	r, err := Verify(context.Background(), opts)
-	if err == nil && r != nil && r.Passed() {
-		t.Fatal("a community line attestation passed the gate")
+	// The family no longer refuses the component: whatever stops the record
+	// is its missing approval, not a reason that names the family.
+	if err != nil && strings.Contains(err.Error(), "is not the component of family") {
+		t.Fatalf("refused for the old reason: %v", err)
 	}
-	if err != nil && !strings.Contains(err.Error(), "is not the component of family crd.custom_resource_versions") {
-		t.Fatalf("refused for another reason: %v", err)
+	if err == nil && r != nil && r.Passed() {
+		t.Fatal("a reviewed community line attestation passed the gate without an approval")
 	}
 }

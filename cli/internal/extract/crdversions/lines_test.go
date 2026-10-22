@@ -559,9 +559,6 @@ func TestLoadTargets(t *testing.T) {
 		{"tag prefix", mutate(func(tg, _ map[string]any, _ fstest.MapFS) { tg["tagPrefixes"] = []any{"release-"} }), "tagPrefixes"},
 		{"catalog spelled cncf", mutate(func(tg, _ map[string]any, _ fstest.MapFS) { tg["catalog"] = "cncf" }), "omit it for a CNCF catalog project"},
 		{"unknown catalog", mutate(func(tg, _ map[string]any, _ fstest.MapFS) { tg["catalog"] = "landscape" }), "catalog"},
-		{"community target attests", mutate(func(tg, _ map[string]any, _ fstest.MapFS) {
-			tg["catalog"], tg["attest"] = "community", true
-		}), "a community catalog target does not attest"},
 		{"duplicate fact project", mutate(func(tg, _ map[string]any, _ fstest.MapFS) {
 			tg["factProject"] = Targets[1].FactProject
 		}), "fact " + Targets[1].FactProject + " is used by"},

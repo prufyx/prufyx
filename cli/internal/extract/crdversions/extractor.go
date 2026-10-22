@@ -936,8 +936,6 @@ func dropChannelRetained(removals []Removal, scope []*tagState) ([]Removal, []Ch
 func (x *Extractor) attestation(pair extract.VersionPair, fromLine, toLine *releaseLine, fa, ta *tagState, rules []extract.Candidate, c *Completeness) (*extract.AttestationCandidate, string) {
 	family, _ := lineattest.LookupFamily(lineattest.FamilyCustomResourceVersions)
 	switch {
-	case x.target.Catalog == CatalogCommunity:
-		return nil, "the project is in the community catalog, whose line reviews are not admitted until the reviewed path for them exists, so its lines are not attested"
 	case x.target.Remote != nil:
 		return nil, "the target installs from another repository from some line on: its lines are not attested"
 	case len(x.target.Channels) > 0:

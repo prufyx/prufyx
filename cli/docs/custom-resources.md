@@ -49,10 +49,14 @@ community project yet; while it holds none, every route refuses the project
 with the message below, and nothing else changes. A community rule may be
 only a `forbid_set_member` rule over the project's own set fact; a community
 project is never in the CNCF catalogue, its counts or the corpus
-attestation, and it cannot carry a line review: the family of line reviews
-admits no community component, so the extractor never attests its lines
-until the reviewed path that does exists. The extractor derives its rules for
-the maintainers, under the same rules as for CNCF projects (full commit
+attestation. It can carry line reviews like a CNCF project: every row of the
+table, whatever its catalog, is a member of the family of line reviews, and
+its target attests when the target file sets `attest` (a target file of a
+community project names `"catalog": "community"`). Its line attestations
+are stored in the CNCF rule pack beside its rules, under the same proofs,
+caps and expiry as any other record; coverage counts them in the separate
+community total, never in the CNCF totals. The extractor derives its rules
+for the maintainers, under the same rules as for CNCF projects (full commit
 citations, whole-tree scan, withheld pairs).
 
 The extractor reads the CRDs of every project of the table. The knowledge gate

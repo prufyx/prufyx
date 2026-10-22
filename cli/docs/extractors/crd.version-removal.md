@@ -34,12 +34,13 @@ An entry of a project outside the CNCF landscape catalog carries
 project; `"cncf"` is not spelled out). Such a project must be a community
 project of the reviewed custom-resource table, with the same repository and
 name, and neither its slug nor its component may be a CNCF catalog one (see
-[../custom-resources.md](../custom-resources.md)). A community target never
-attests: the loader refuses `"attest": true` for it, until the reviewed path
-that admits a community project's line reviews exists (the pack and the
-knowledge store can carry its rules, but the line-review families admit no
-community component). Its runs follow every other rule of this
-extractor (full-commit citations, full-tree scan, withheld pairs).
+[../custom-resources.md](../custom-resources.md)). A community target
+attests like a CNCF one when it sets `"attest": true`: the family of line
+reviews admits every project of the table, and the attestation needs the
+project's table row (the extractor refuses to attest a component no row names).
+Its records are stored in the CNCF rule pack beside its rules. Its runs follow
+every other rule of this extractor (full-commit citations, full-tree scan,
+withheld pairs).
 
 Every target, with its catalog, repository, release tags, first line, the
 paths it reads and the number of reviewed exclusions, is listed in
@@ -512,9 +513,9 @@ For a derived pair it writes one attestation of the later line exactly when:
   skipped minor number is not attested: the family's hop shape is one minor
   line);
 - the target has `"attest": true` in its target file, which a test pins to the
-  CNCF catalog projects of the custom-resource table (the projects whose set
-  fact is registered and whose line reviews the family admits): today Argo
-  CD, Istio and Strimzi. A community target never attests.
+  projects of the custom-resource table, of either catalog (the projects whose
+  set fact is registered and whose line reviews the family admits): today Argo
+  CD, Istio and Strimzi.
 
 The attestation lists exactly the pair's rules (empty for a quiet line),
 names in `releases` every final release of both lines with the commit its tag
