@@ -211,11 +211,42 @@ func dryRun(ctx context.Context, b *budgetSource, concurrency int, target crdver
 			return b.used(), fmt.Errorf("the target does not attest its newest pair: %s", logSafe(reason))
 		}
 	case OnboardingKindNew:
+		if err := checkRowKinds(proof.To, row); err != nil {
+			return b.used(), err
+		}
 		if err := checkGroupSources(b, target, row, pr.ToCommit); err != nil {
 			return b.used(), err
 		}
 	}
 	return b.used(), nil
+}
+
+// checkRowKinds requires every kind the new row lists for a group to be
+// defined by the newest release (inv, the pair's later inventory). Otherwise
+// a row could claim a kind of a shared group that the group's existing owner
+// really ships, and extraction of that owner would drop its definitions as
+// foreign. It does not check the kinds against the sharing project's own
+// pack evidence: that is not loaded here, and this check already refuses the
+// claim the new project cannot back with a definition of its own.
+func checkRowKinds(inv *crdversions.Inventory, row customresources.Project) error {
+	if inv == nil {
+		return errors.New("the dry run recorded no inventory of the newest release")
+	}
+	defined := map[[2]string]bool{}
+	for _, c := range inv.CRDs {
+		defined[[2]string{c.Group, c.Kind}] = true
+	}
+	for _, g := range row.Groups {
+		if g.Kinds == nil {
+			continue
+		}
+		for _, k := range g.Kinds {
+			if !defined[[2]string{g.Name, k}] {
+				return fmt.Errorf("the row lists kind %s of %s, which the newest release does not define", logSafe(k), logSafe(g.Name))
+			}
+		}
+	}
+	return nil
 }
 
 // checkGroupSources reads back, at the pair's later release, the file each

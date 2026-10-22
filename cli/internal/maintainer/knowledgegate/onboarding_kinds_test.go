@@ -59,7 +59,12 @@ func (f *onboardingFixture) shareWith(t *testing.T, baseKinds, headKinds, newKin
 	t.Helper()
 	f.editBaseTable(t, func(ps []customresources.Project) []customresources.Project { return setListing(ps, baseKinds) })
 	for _, c := range []string{obFrom, obTo} {
-		writeUpstream(t, f.upstream, c, obCRD, obCRDDoc(kindsGroup, "v1"))
+		doc := obCRDDoc(kindsGroup, "v1")
+		if len(newKinds) > 0 {
+			// The release defines the kind the new row lists (O6).
+			doc = strings.Replace(doc, "kind: Widget", "kind: "+newKinds[0], 1)
+		}
+		writeUpstream(t, f.upstream, c, obCRD, doc)
 	}
 	f.editTable(t, func(ps []customresources.Project) []customresources.Project {
 		ps = setListing(ps, headKinds)

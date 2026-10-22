@@ -115,9 +115,11 @@ func (x *Extractor) Version() string { return Version }
 
 // SourceFiles implements extract.CodeSource: the package's code and the
 // target file of this extractor's own project, so that a change to another
-// target, or a new one, does not move this id's code digest.
+// target, or a new one, does not move this id's code digest. It also folds in
+// the listings of the table (the index the extractor attributes by) that can
+// change what this project's extraction keeps: see CodeViewWithIndex.
 func (x *Extractor) SourceFiles() (string, fs.FS) {
-	return SourceDir, CodeView(source, x.target.Project)
+	return SourceDir, CodeViewWithIndex(source, x.target.Project, x.index)
 }
 
 // Applies implements extract.Extractor.
@@ -295,7 +297,7 @@ type Inventory struct {
 	CRDs     []CRD        `json:"crds"`
 	// Foreign names the definitions found under the listed paths that were
 	// left out because the reviewed custom-resource table assigns their
-	// group to another project; absent when there are none.
+	// group and kind to another project; absent when there are none.
 	Foreign []string `json:"foreign,omitempty"`
 	// Remote records where the definitions were read when the release
 	// installs from another repository; absent otherwise.
@@ -494,7 +496,7 @@ type origin struct {
 
 // readDefinitions reads the listed files of repo at commit into inv, in path
 // order, and checks that no definition is repeated. other is nil for the
-// release's own repository. A definition whose group the reviewed
+// release's own repository. A definition whose group and kind the reviewed
 // custom-resource table assigns to another project is not this project's
 // (a bundled copy of another project's CRDs): it is left out of the
 // inventory, and recorded by name in inv.Foreign.

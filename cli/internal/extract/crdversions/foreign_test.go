@@ -107,10 +107,16 @@ func TestScanIgnoresForeignGroupDefinitions(t *testing.T) {
 	if f != nil && len(f.CRDs) != 0 {
 		t.Fatalf("the foreign definition is named in %+v", f)
 	}
+	if fc := proof.To.Scan.ForeignCopies; len(fc) != 1 || fc[0].Path != path || len(fc[0].Definitions) != 1 || fc[0].Definitions[0] != "gateways.gateway.networking.k8s.io" {
+		t.Fatalf("the dropped definition is not recorded in the scan: %+v", fc)
+	}
 
 	_, proof, f = quietPair(t, path, gw+"---\n"+crd("Gamma", "v1"))
 	if f == nil || f.Class != ClassExtra || len(f.CRDs) != 1 || proof.To.Scan.Clean() {
 		t.Fatalf("own extra next to a foreign one: %+v", f)
+	}
+	if len(f.Foreign) != 1 {
+		t.Fatalf("the finding does not name the dropped definition: %+v", f)
 	}
 }
 

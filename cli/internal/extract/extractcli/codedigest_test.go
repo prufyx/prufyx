@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
+	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
 )
 
 // Every registered extractor's code digest must cover the non-test Go files
@@ -66,6 +67,10 @@ func TestEveryExtractorDigestCoversItsPackageOnDisk(t *testing.T) {
 			base := path.Base(f.Path)
 			if !strings.HasSuffix(base, ".go") && !strings.HasSuffix(base, ".json") || strings.HasSuffix(base, "_test.go") {
 				t.Errorf("%s: %s is neither code nor a data file", id, f.Path)
+			}
+			if disk == filepath.Join("..", "crdversions") && base == crdversions.AttributionFileName {
+				// Synthetic: the table listings of the id's groups, not a file.
+				continue
 			}
 			covered[base] = true
 			coveredBy[disk][base] = true

@@ -14,6 +14,7 @@ import (
 	"testing"
 	"testing/fstest"
 
+	"github.com/prufyx/prufyx/cli/internal/customresources"
 	"github.com/prufyx/prufyx/cli/internal/extract"
 )
 
@@ -42,6 +43,9 @@ func TestCodeDigestCoversOwnTargetOnly(t *testing.T) {
 			}
 		}
 		want := append(slices.Clone(code), path.Join(SourceDir, TargetFileName(tg.Project)))
+		if len(customresources.DefaultIndex().ListingsSharing(tg.Project)) > 0 {
+			want = append(want, path.Join(SourceDir, AttributionFileName))
+		}
 		slices.Sort(want)
 		if !slices.Equal(got, want) {
 			t.Errorf("%s covers %v, want %v", tg.ExtractorID(), got, want)
@@ -217,5 +221,50 @@ func TestPerIDCodeDigestsSynthetic(t *testing.T) {
 	must(t, err)
 	if !bytes.Equal(raw, want) {
 		t.Fatalf("%s differs (run with -update after a deliberate change to the digest rule):\n%s", golden, raw)
+	}
+}
+
+// The digest folds in the table listings that can change what this project's
+// extraction keeps: a change of a sharing project's listing of the target's
+// group moves it; an unrelated table edit, and a project without a row, do
+// not.
+func TestCodeDigestFollowsAttributionOfOwnGroups(t *testing.T) {
+	proj := func(slug, group string, kinds []string) customresources.Project {
+		return customresources.Project{Slug: slug, Groups: []customresources.Group{{Name: group, Kinds: kinds}}}
+	}
+	digest := func(project string, ps ...customresources.Project) string {
+		t.Helper()
+		files, err := extract.CodeFiles(extract.SourceSet{Dir: SourceDir, Files: CodeViewWithIndex(syntheticSource(nil), project, customresources.NewIndex(ps))})
+		must(t, err)
+		return extract.CodeDigest(files)
+	}
+	base := []customresources.Project{
+		proj("alpha", "shared.example.org", []string{"A"}),
+		proj("beta", "shared.example.org", []string{"B"}),
+		proj("other", "other.example.org", nil),
+	}
+	d := digest("alpha", base...)
+	if got := digest("alpha", base[0], base[1], proj("other", "other.example.org", []string{"X"}), proj("new", "new.example.org", nil)); got != d {
+		t.Error("an unrelated table edit moved the digest")
+	}
+	if got := digest("alpha", base[0], proj("beta", "shared.example.org", []string{"B", "A2"}), base[2]); got == d {
+		t.Error("a change of a sharing listing did not move the digest")
+	}
+	if got := digest("alpha", base[0], base[1], base[2], proj("gamma", "shared.example.org", []string{"C"})); got == d {
+		t.Error("a new project sharing the group did not move the digest")
+	}
+	if got := digest("alpha", proj("alpha", "shared.example.org", []string{"A", "A2"}), base[1], base[2]); got == d {
+		t.Error("a change of the target's own listing did not move the digest")
+	}
+	// No row: nothing extra is folded in.
+	if digest("alpha") != digest("alpha", base[2]) {
+		t.Error("a project without a row has a table-dependent digest")
+	}
+	files, err := extract.CodeFiles(extract.SourceSet{Dir: SourceDir, Files: CodeViewWithIndex(syntheticSource(nil), "alpha", customresources.NewIndex(nil))})
+	must(t, err)
+	for _, f := range files {
+		if strings.HasSuffix(f.Path, AttributionFileName) {
+			t.Error("attribution file present for a project without a row")
+		}
 	}
 }
