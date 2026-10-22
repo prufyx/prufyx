@@ -185,6 +185,16 @@ A catalogued project is not tested coverage: a catalogue entry says Prufyx holds
 
 ### Added
 
+- The knowledge gate admits a NEW reviewed path policy (no record with that ID
+  in the base) with an owner approval for exactly that record: subject
+  `pathPolicy`, `ruleId` `path-policy.<hex>`, `scope` the component's package
+  URL, `baseDigest` always `absent`. It is refused with a batch approval in the
+  same change, and every existing path policy stays renewal-only (a changed,
+  re-pinned or reactivated record, also a withdrawn one, is still refused).
+  `prufyx-maintainer approval sign` and `verify` take `--subject pathPolicy
+  --record ID` (verify needs `--base-root`). Before this a new path policy could
+  not enter the pack at all.
+
 - Maintainer command `prufyx-maintainer served-lists build --pack FILE --lines 1.19-1.37 --now RFC3339`
   derives the served-API lists of Kubernetes lines from the pinned upstream
   OpenAPI specification (the code the knowledge gate re-derives with) and writes

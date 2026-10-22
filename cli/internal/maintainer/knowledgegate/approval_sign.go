@@ -75,13 +75,15 @@ func wipe(b []byte) {
 // ApprovalSubject is what one approval is for, read from the base and head
 // pack files exactly as the gate reads them.
 type ApprovalSubject struct {
-	// Kind is ApprovalSubjectRule or ApprovalSubjectLineAttestation.
+	// Kind is ApprovalSubjectRule, ApprovalSubjectLineAttestation or
+	// ApprovalSubjectPathPolicy (among others).
 	Kind string
 	Pack string
 	// RuleID is the rule id, or the line attestation's record ID.
 	RuleID string
 	// Scope is set for a baseline approval (the repository) and a line
-	// attestation approval ("<component> <factFamily> <line>").
+	// attestation approval ("<component> <factFamily> <line>"); for a path
+	// policy approval it is the component's package URL.
 	Scope string
 	// Base is the canonical base entry (nil: the base has no such rule);
 	// Candidate the canonical proposed entry.
@@ -187,6 +189,40 @@ func AttestationApprovalSubject(spec PackSpec, basePack, headPack []byte, record
 	return s, nil
 }
 
+// PathPolicyApprovalSubject reads one NEW reviewed path policy record, by
+// record ID, from the pack files of the base and the head. It refuses a pack
+// without records, a record the head does not hold, a record that is not a
+// reviewed path policy and any record the base already holds: an existing
+// path policy changes only by renewal, the gate accepts no approval for it.
+func PathPolicyApprovalSubject(spec PackSpec, basePack, headPack []byte, recordID string) (ApprovalSubject, error) {
+	if !approvalTokenRE.MatchString(recordID) {
+		return ApprovalSubject{}, errors.New("the record ID is not a valid approval record ID")
+	}
+	if !spec.Records {
+		return ApprovalSubject{}, fmt.Errorf("pack %s carries no path policies", spec.Name)
+	}
+	base, err := parsePack(spec, basePack)
+	if err != nil {
+		return ApprovalSubject{}, fmt.Errorf("base pack: %w", err)
+	}
+	head, err := parsePack(spec, headPack)
+	if err != nil {
+		return ApprovalSubject{}, fmt.Errorf("proposed pack: %w", err)
+	}
+	h := head.Records[recordID]
+	switch {
+	case h == nil:
+		return ApprovalSubject{}, fmt.Errorf("the proposed pack has no record %s", recordID)
+	case h.Section != sectionPolicies:
+		return ApprovalSubject{}, fmt.Errorf("record %s is not a path policy", recordID)
+	case h.Basis != constraintengine.BasisReviewed:
+		return ApprovalSubject{}, fmt.Errorf("record %s has evidence basis %q; an approval admits only a reviewed path policy", recordID, logSafe(h.Basis))
+	case base.Records[recordID] != nil:
+		return ApprovalSubject{}, fmt.Errorf("path policy %s exists in the base; an existing path policy changes only by renewal, the gate accepts no approval for it", recordID)
+	}
+	return ApprovalSubject{Kind: ApprovalSubjectPathPolicy, Pack: spec.Name, RuleID: recordID, Scope: h.Scope, Candidate: h.Canonical}, nil
+}
+
 // LoadApprovalKeys checks a web-approval key file against its pinned digest
 // (sha256 of the file without its final newline, as the gate computes it)
 // and parses it.
@@ -218,7 +254,7 @@ type SignApprovalOptions struct {
 // a pinned owner, and any record the gate's verifier would refuse at Now.
 func SignApproval(o SignApprovalOptions) ([]byte, ApprovalRecord, error) {
 	switch o.Subject.Kind {
-	case ApprovalSubjectRule, ApprovalSubjectRepinBaseline, ApprovalSubjectLineAttestation, ApprovalSubjectRegistry, ApprovalSubjectServed:
+	case ApprovalSubjectRule, ApprovalSubjectRepinBaseline, ApprovalSubjectLineAttestation, ApprovalSubjectPathPolicy, ApprovalSubjectRegistry, ApprovalSubjectServed:
 	default:
 		return nil, ApprovalRecord{}, fmt.Errorf("approval subject kind %q is not supported", logSafe(o.Subject.Kind))
 	}
@@ -289,6 +325,9 @@ func VerifyApprovalSubject(raw []byte, keys ApprovalKeys, s ApprovalSubject, now
 		return verifyBaselineSubject(raw, keys, s, now)
 	case ApprovalSubjectLineAttestation:
 		return VerifyRecordApproval(raw, keys, s.Pack, ApprovalSubjectLineAttestation, s.RuleID, s.Scope, s.Base, s.Candidate, now)
+	case ApprovalSubjectPathPolicy:
+		// A new record only: the base state is absent.
+		return VerifyRecordApproval(raw, keys, s.Pack, ApprovalSubjectPathPolicy, s.RuleID, s.Scope, nil, s.Candidate, now)
 	case ApprovalSubjectRegistry:
 		return VerifyRecordApproval(raw, keys, s.Pack, ApprovalSubjectRegistry, s.RuleID, s.Scope, s.Base, s.Candidate, now)
 	case ApprovalSubjectServed:

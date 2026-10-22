@@ -53,7 +53,10 @@
 // renews the record and changes nothing but its two dates (a reviewed
 // record), or, for a reviewed line attestation, by an owner approval for
 // exactly that record plus a cross-check against the attesting extractor's
-// own derivation of the line. See records.go.
+// own derivation of the line. A NEW reviewed path policy (no record in the
+// base) is admitted by an owner approval for exactly that record (subject
+// pathPolicy, baseDigest absent) and no batch; any other reviewed path
+// policy change is renewal only. See records.go.
 //
 // On top of that the gate checks every head pack (engine admission,
 // rulecheck, fact registry and size caps, the stagger cap for renewed

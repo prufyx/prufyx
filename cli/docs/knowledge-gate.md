@@ -154,7 +154,8 @@ A loosening record change is admitted only with one of these proofs:
 | --- | --- |
 | reviewed line attestation or path policy, renewed | the change appends one signed statement to the pack's statement chain that verifies (as for rules, including the comparison with the gate's own worklist), the statement is an automated one (`signerRole` `automation`), it renews this record, and the record differs from the base only in a later `evidence.reviewedAt` and a later `evidence.validUntil`, set exactly to the statement's `attestedAt` and the `validUntil` the statement gives the record. The gate checks the dates itself; it does not infer them from the statement verifying. |
 | reviewed line attestation, added or changed otherwise | an owner approval for exactly that record (see [Owner approvals](#owner-approvals)) or a batch approval that lists it (see [Batch approvals](#batch-approvals)), and the cross-check below |
-| reviewed path policy, changed otherwise | never |
+| reviewed path policy, new (the base holds no record with that ID) | an owner approval for exactly that record (subject `pathPolicy`, `baseDigest` `absent`; see [Owner approvals](#owner-approvals)), in a change that carries no batch approval. A batch never lists a path policy. |
+| reviewed path policy, changed otherwise | never: an existing record (also a withdrawn one) changes only by the renewal above, and an approval for it is refused |
 | mechanical line attestation | the extractor named in `evidence.extractor`, as compiled into the gate, derives exactly this attestation (canonical JSON) from upstream bytes pinned by commit SHA, with the record's own `derivedAt` and lease, under the same 24-hour derivation-time bound as a mechanical rule. A statement or an approval never admits one. |
 | mechanical path policy | never: no extractor derives path policies |
 | served-API list | basis mechanical only, and `servedlists` as compiled into the gate re-derives exactly this record (canonical JSON): the cited source is the one specification, `api/openapi-spec/swagger.json` of `github.com/kubernetes/kubernetes`, at the commit the tag `v<line>.0` points at, its `sha256` is `contentDigest`, and `derivedAt` is within the 24-hour bound. A list naming an API the removal table marks as removed at or before its line is refused. Any other basis is never admitted, with or without an approval. |
@@ -450,7 +451,8 @@ Sign it with `prufyx-maintainer approval sign --subject repinBaseline`, see
 - `cli/knowledge/approvals/<pack>/<rule id>.json` may be added or changed only
   together with a change to that rule that the approval admitted; it may be
   removed only together with an admitted change to that rule. The same holds
-  for `cli/knowledge/approvals/<pack>/<record id>.json` and a line attestation.
+  for `cli/knowledge/approvals/<pack>/<record id>.json` and a line attestation
+  or a new path policy.
 - `cli/knowledge/reattestation/<pack>/worklists/<stem>.worklist.json` may only
   be added, and only for the statement `<stem>` the same change appends and the
   gate verifies.
@@ -481,7 +483,7 @@ Sign it with `prufyx-maintainer approval sign --subject repinBaseline`, see
 | `cli/knowledge/reattestation/<pack>/worklists/<stem>.worklist.json` | head | the worklist the statement `<stem>` was prepared from |
 | `cli/knowledge/reattestation/<pack>/review-records/<rule id>.json` | head | individual review records, when a human statement uses them |
 | `cli/knowledge/reattestation/trust-root.json` | base only | the reattestation trust root; its digest is passed separately (`--trust-root-digest`) |
-| `cli/knowledge/approvals/<pack>/<rule id>.json` | head | owner approvals (`<record id>.json` for a line attestation) |
+| `cli/knowledge/approvals/<pack>/<rule id>.json` | head | owner approvals (`<record id>.json` for a line attestation or a new path policy) |
 | `cli/knowledge/approvals/batches/<batch id>.json` | base and head | owner batch approvals (see [Batch approvals](#batch-approvals)) |
 | `cli/knowledge/trust/web-approval-keys.json` | base only | the pinned owner-approval keys; their digest is passed separately (`--approval-keys-digest`) |
 | `cli/knowledge/onboarding/<batch id>.json` | base and head | owner onboarding batches (see [Onboarding batches](#onboarding-batches)) |
@@ -545,7 +547,26 @@ family and line separated by single spaces. `candidateDigest` and
 `lineAttestations` section, in the same canonical JSON), and `baseDigest` is
 `absent` when the base has no attestation for that scope. A rule approval
 has neither member, so a rule approval never verifies for an attestation, and
-the reverse. Approvals for path policies are not accepted.
+the reverse.
+
+An approval for a NEW reviewed path policy names `"subject": "pathPolicy"`:
+
+```json
+    "ruleId": "path-policy.…",
+    "scope": "pkg:github/kubernetes/kubernetes",
+    "subject": "pathPolicy"
+```
+
+`ruleId` is the record ID (derived from the component) and `scope` is the
+record's component, a package URL. `candidateDigest` is taken over the policy
+record (its object in the `pathPolicies` section, in canonical JSON) and
+`baseDigest` is always `absent`: the gate admits the approval only where the
+base holds no record with that ID, and refuses any other `baseDigest`. It is
+refused together with a batch approval in the same change. Once a component has
+a record, its policy changes only by renewal or withdrawal; no approval
+corrects it. The same single-use and forward-only rules apply as for line
+attestations, and the owner's key and the record cannot change in one change
+(`records-trust`).
 
 An attestation can be removed (tightening) and added again later, so the base
 state alone does not stop an approval from being used twice. A record
@@ -669,12 +690,12 @@ prufyx-maintainer approval sign \
 | `--key FILE` | the private key file: a regular file owned by you with no group or other permission (mode `0600` or `0400`), not a symbolic link, with no symbolic link in its path and only one hard link |
 | `--key-stdin` | read the private key from standard input instead; standard input must be a pipe (a terminal, another device or a redirected file is refused; give a file with `--key`) |
 | `--output` | the approval file to create; its path must end in `<pack>/<rule id>.json` (the gate reads `cli/knowledge/approvals/<pack>/<rule id>.json`); an existing file or link there is never replaced, no directory in the path may be a symbolic link, missing directories are created, and the file gets mode `0644` |
-| `--subject` | what the approval is for: `rule` (the default), `lineAttestation`, `repinBaseline`, `registryDigest` or `servedAPIs` |
-| `--record` | with `--subject lineAttestation`, in place of `--rule`: the line attestation's record ID; the proposed pack must hold it with evidence basis `reviewed`, it must differ from the base record, the base record must not be mechanical, and the change must loosen (a change that only shortens `validUntil` is refused) |
+| `--subject` | what the approval is for: `rule` (the default), `lineAttestation`, `pathPolicy`, `repinBaseline`, `registryDigest` or `servedAPIs` |
+| `--record` | with `--subject pathPolicy`, in place of `--rule`: the path policy's record ID; the proposed pack must hold it as a reviewed policy and the base pack must hold no record with that ID. With `--subject lineAttestation`, in place of `--rule`: the line attestation's record ID; the proposed pack must hold it with evidence basis `reviewed`, it must differ from the base record, the base record must not be mechanical, and the change must loosen (a change that only shortens `validUntil` is refused) |
 
 A line attestation approval names `"subject": "lineAttestation"` and the
 record's `scope`, and its digests are those of the base and proposed record.
-Path policies and mechanical attestations cannot be approved. The gate uses a
+Mechanical attestations and existing path policies cannot be approved. The gate uses a
 record approval once and only forward: it refuses an approval file already in
 the base, and one decided at or before an approval the base holds for the same
 record, so write a new one for each change (`decidedAt` is the current time).
@@ -688,6 +709,9 @@ prufyx-maintainer approval sign --subject lineAttestation --pack cncf \
   --identity airstand --candidate-id pr-15 --key-stdin \
   --output cli/knowledge/approvals/cncf/<record id>.json
 ```
+
+A new path policy is signed the same way with `--subject pathPolicy --record
+<record id>` (the output is `cli/knowledge/approvals/cncf/<record id>.json`).
 
 `decidedAt` is the current time. The key may end with line breaks and nothing
 else; any other text before or after the PEM block is refused. The command
@@ -707,7 +731,7 @@ prufyx-maintainer approval verify \
   --keys /path/to/base-keys.json --keys-digest sha256:…
 ```
 
-For a line attestation or a repin baseline, `approval verify` also needs
+For a line attestation, a new path policy or a repin baseline, `approval verify` also needs
 `--base-root DIR`, the base checkout. It then applies the gate's checks of the
 base's approvals before it prints `approval OK`: an approval the base already
 holds, and an approval for the same record that the base superseded with a

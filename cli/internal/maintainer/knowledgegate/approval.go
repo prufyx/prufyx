@@ -32,7 +32,9 @@ import (
 // then names the subject lineAttestation, the record ID in ruleId and the
 // record's scope ("<component> <factFamily> <line>"), and its digests are
 // those of the record (canonical JSON). A rule approval names no subject
-// and no scope, so one never verifies as the other.
+// and no scope, so one never verifies as the other. A third record subject,
+// pathPolicy, covers one NEW reviewed path policy: its scope is the
+// component's package URL and its base state is always absent.
 const (
 	ApprovalSchema     = "prufyx.io/knowledge-approval/v2"
 	ApprovalKeysSchema = "prufyx.io/web-approval-keys/v1"
@@ -109,8 +111,10 @@ var (
 	// family and a minor line, separated by single spaces.
 	// approvalRepoScopeRE is the scope of a repinBaseline approval: the
 	// repository, owner/repo.
-	approvalRepoScopeRE = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9]|-[A-Za-z0-9]){0,38}/[A-Za-z0-9][A-Za-z0-9._-]{0,99}$`)
-	approvalScopeRE     = regexp.MustCompile(`^pkg:[a-z0-9][a-z0-9+._/-]{0,199} [a-z0-9][a-z0-9._-]{0,127} (0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})$`)
+	// approvalPolicyScopeRE is a path policy scope: the component's package URL.
+	approvalPolicyScopeRE = regexp.MustCompile(`^pkg:[a-z0-9][a-z0-9+._/-]{0,199}$`)
+	approvalRepoScopeRE   = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9]|-[A-Za-z0-9]){0,38}/[A-Za-z0-9][A-Za-z0-9._-]{0,99}$`)
+	approvalScopeRE       = regexp.MustCompile(`^pkg:[a-z0-9][a-z0-9+._/-]{0,199} [a-z0-9][a-z0-9._-]{0,127} (0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})$`)
 )
 
 // SignedApprovalBytes returns the exact bytes an approval signature covers.
@@ -137,6 +141,11 @@ func (r ApprovalRecord) validate() error {
 		}
 	case ApprovalSubjectLineAttestation:
 		if !approvalScopeRE.MatchString(r.Scope) {
+			return errors.New("approval record field out of range")
+		}
+	case ApprovalSubjectPathPolicy:
+		// Only a new record is approved: the base has none.
+		if !approvalPolicyScopeRE.MatchString(r.Scope) || r.BaseDigest != ApprovalBaseAbsent {
 			return errors.New("approval record field out of range")
 		}
 	case ApprovalSubjectRepinBaseline:
