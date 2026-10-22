@@ -109,8 +109,17 @@ type KubernetesComponentSelection struct {
 	// source is meaningful.
 	KubeletNoConfigFile bool
 	KubeletNoConfigDir  bool
-	Sources             []KubernetesComponentSource
-	selection           []byte
+	// MinimumKubeletVersion is the caller's declaration of the lowest kubelet
+	// version (x.y.z) of any node the cluster will run after the control plane
+	// upgrade. It is the one input of the version-skew fact.
+	MinimumKubeletVersion string
+	// MaximumKubeletVersion is the optional declaration of the highest kubelet
+	// version (x.y.z) of any node, for a mixed fleet. It needs
+	// MinimumKubeletVersion and is not below it. Without it the highest
+	// kubelet is taken to be the lowest one.
+	MaximumKubeletVersion string
+	Sources               []KubernetesComponentSource
+	selection             []byte
 }
 
 // ParseKubernetesComponentSelection strictly parses the caller's selection
@@ -146,7 +155,7 @@ func ParseKubernetesComponentSelection(raw []byte) (KubernetesComponentSelection
 	}
 	if value, exists := root["declarations"]; exists {
 		declarations, ok := value.(map[string]any)
-		if !ok || allowFields(declarations, map[string]bool{"linuxNodeCgroupV1": true, "kubeletNoConfigFile": true, "kubeletNoConfigDir": true}) != nil {
+		if !ok || allowFields(declarations, map[string]bool{"linuxNodeCgroupV1": true, "kubeletNoConfigFile": true, "kubeletNoConfigDir": true, "minimumKubeletVersion": true, "maximumKubeletVersion": true}) != nil {
 			return KubernetesComponentSelection{}, ErrInvalid
 		}
 		for key, target := range map[string]*bool{"kubeletNoConfigFile": &selection.KubeletNoConfigFile, "kubeletNoConfigDir": &selection.KubeletNoConfigDir} {
@@ -157,6 +166,22 @@ func ParseKubernetesComponentSelection(raw []byte) (KubernetesComponentSelection
 				}
 				*target = declared
 			}
+		}
+		if value, exists := declarations["minimumKubeletVersion"]; exists {
+			declared, ok := value.(string)
+			if _, parsed := kubernetesVersionParts(declared); !ok || !parsed {
+				return KubernetesComponentSelection{}, ErrInvalid
+			}
+			selection.MinimumKubeletVersion = declared
+		}
+		if value, exists := declarations["maximumKubeletVersion"]; exists {
+			declared, ok := value.(string)
+			highest, parsed := kubernetesVersionParts(declared)
+			lowest, lowestParsed := kubernetesVersionParts(selection.MinimumKubeletVersion)
+			if !ok || !parsed || !lowestParsed || compareVersionParts(highest, lowest) < 0 {
+				return KubernetesComponentSelection{}, ErrInvalid
+			}
+			selection.MaximumKubeletVersion = declared
 		}
 		if value, exists := declarations["linuxNodeCgroupV1"]; exists {
 			declared, ok := value.(bool)
@@ -242,7 +267,7 @@ func PrepareKubernetesComponentConfig(selection KubernetesComponentSelection, co
 	predicates := make([]k8sPredicate, 0)
 	if line, ok := kubernetesCrossedMinorLine(from, to); ok {
 		for _, predicate := range k8sComponentPredicates {
-			if predicate.Line == line && registered(predicate.Fact) {
+			if (predicate.Line == line || (predicate.Line == k8sEveryLine && selection.MinimumKubeletVersion != "")) && registered(predicate.Fact) {
 				predicates = append(predicates, predicate)
 			}
 		}
@@ -260,6 +285,12 @@ func PrepareKubernetesComponentConfig(selection KubernetesComponentSelection, co
 		}
 	}
 	model := buildK8sComponentModel(selection, contents)
+	model.minKubelet, model.minKubeletOK = kubernetesVersionParts(selection.MinimumKubeletVersion)
+	model.target, model.targetOK = kubernetesVersionParts(to)
+	model.maxKubelet, model.maxKubeletOK = model.minKubelet, model.minKubeletOK
+	if selection.MaximumKubeletVersion != "" {
+		model.maxKubelet, model.maxKubeletOK = kubernetesVersionParts(selection.MaximumKubeletVersion)
+	}
 	facts := make([]inputFact, 0, len(predicates)+len(sets))
 	state, reason := StatePrepared, ReasonKubernetesComponentSettingAbsent
 	if len(predicates) == 0 {
@@ -352,6 +383,13 @@ type k8sComponentModel struct {
 	complete map[string]bool
 	cgroupV1 *bool
 	kubeadm  []map[string]any
+
+	// minKubelet is the declared minimum kubelet version and target the
+	// control plane version of the transition, both as major, minor, patch.
+	// maxKubelet is the declared maximum, or the minimum when none is declared.
+	minKubelet, maxKubelet, target [3]uint64
+	minKubeletOK, maxKubeletOK     bool
+	targetOK                       bool
 
 	kubeletNoConfigFile, kubeletNoConfigDir bool
 }
@@ -867,4 +905,17 @@ func k8sPath(object map[string]any, keys ...string) (value any, found, ok bool) 
 		current = next
 	}
 	return current, true, true
+}
+
+// compareVersionParts orders two major, minor, patch triples.
+func compareVersionParts(a, b [3]uint64) int {
+	for i := range a {
+		if a[i] != b[i] {
+			if a[i] < b[i] {
+				return -1
+			}
+			return 1
+		}
+	}
+	return 0
 }

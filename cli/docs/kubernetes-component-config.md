@@ -37,6 +37,8 @@ kind: ComponentConfigSelection
 complete: [kube-apiserver, kube-controller-manager, kube-scheduler, kubelet, kube-proxy, kubeadm, static-pods, workloads]
 declarations:
   linuxNodeCgroupV1: false   # optional: does any Linux node use cgroup v1?
+  # minimumKubeletVersion: "1.33.2"  # optional: lowest kubelet version of any node, x.y.z
+  # maximumKubeletVersion: "1.34.0"  # optional, mixed fleet: highest kubelet version, x.y.z
   # kubeletNoConfigFile: true  # optional: no kubelet uses --config
   # kubeletNoConfigDir: true   # optional: no kubelet uses --config-dir
 sources:
@@ -159,6 +161,34 @@ A missing source is never read as absence. In particular:
   `--fail-cgroupv1`) to true, or when the kubelet scope is complete and no
   source overrides it; it passes when every occurrence sets it to `false` and
   the kubelet scope is complete. An undeclared node fact stays unknown.
+- The version-skew fact is registered and prepared, but no published rule reads
+  it yet: it has no effect on a result until the version-skew rules are
+  published. The predicate needs `declarations.minimumKubeletVersion`, the
+  lowest kubelet version of any node, written `x.y.z` (strip any distribution
+  build suffix). The predicate applies to every one-minor control plane upgrade; reviewed
+  rules exist for targets 1.33 to 1.36 only, other targets stay UNKNOWN. It is
+  true when that kubelet is more than three minor versions older than `--to`
+  (two below 1.25), or when the highest kubelet is newer than it, as the
+  upstream version-skew policy allows. The highest kubelet is
+  `declarations.maximumKubeletVersion` when you declare it (optional, `x.y.z`,
+  not below the minimum, refused without the minimum), else the minimum. So a
+  mixed fleet with minimum 1.34 and maximum 1.37 that targets 1.36.0 is
+  unsupported, and the same fleet without the maximum is not flagged. Without
+  the minimum the fact is not emitted and the rule stays `UNKNOWN`.
+  A BLOCKED result means unsupported by the upstream version-skew policy, not
+  a broken cluster: kind validation showed such clusters still join and run;
+  the policy gives no support for them. Limits:
+  1. Mixed fleet: only the minimum and the maximum are declared; nodes in
+     between are not inspected, and no node is observed.
+  2. Multi-minor jumps: each published rule covers one minor pair. A jump such
+     as 1.32 to 1.36 is not evaluated: every skew rule stays UNKNOWN, so
+     check each minor step.
+  3. The policy is minor-based and the patch level is ignored: a maximum of
+     1.36.1 against a target of 1.36.0 is not newer.
+  4. It does not cover mixed-version control planes, kube-proxy or kubectl.
+  Source: the upstream version-skew policy
+  (`content/en/releases/version-skew-policy.md` in kubernetes/website at the
+  pinned commit 2f160d9ce5f5808e98eac26a1bc05e4894b0c269, lines 53-56).
 - `--distribution` other than `official_upstream` keeps every fact unknown:
   vendor builds may keep removed settings.
 

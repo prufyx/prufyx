@@ -359,8 +359,12 @@ func TestKubernetesComponentConfigPredicateTable(t *testing.T) {
 			t.Fatalf("invalid or duplicate predicate %q", predicate.Fact)
 		}
 		seen[predicate.Fact] = true
-		major, minor, ok := strings.Cut(predicate.Line, ".")
-		if !ok || major != "1" || len(minor) != 2 || minor < "23" || minor > "37" {
+		if predicate.Line == k8sEveryLine {
+			// The version-skew fact applies to every crossed line and is the only such predicate.
+			if predicate.Fact != KubernetesKubeletSkewFact {
+				t.Fatalf("%s: line-less predicate", predicate.Fact)
+			}
+		} else if major, minor, ok := strings.Cut(predicate.Line, "."); !ok || major != "1" || len(minor) != 2 || minor < "23" || minor > "37" {
 			t.Fatalf("%s: line %q outside 1.23-1.37", predicate.Fact, predicate.Line)
 		}
 		for _, scope := range predicate.Reads {
@@ -370,7 +374,7 @@ func TestKubernetesComponentConfigPredicateTable(t *testing.T) {
 		}
 		perLine[predicate.Line]++
 	}
-	if len(k8sComponentPredicates) != 39 || len(perLine) != 15 {
+	if len(k8sComponentPredicates) != 40 || len(perLine) != 16 {
 		t.Fatalf("predicates=%d lines=%d", len(k8sComponentPredicates), len(perLine))
 	}
 	// The removed-API adapter owns other facts; the two tables never overlap.
@@ -381,7 +385,7 @@ func TestKubernetesComponentConfigPredicateTable(t *testing.T) {
 			}
 		}
 	}
-	if got := KubernetesComponentConfigFacts("1.36.9", "1.37.0"); len(got) != perLine["1.37"] {
+	if got := KubernetesComponentConfigFacts("1.36.9", "1.37.0"); len(got) != perLine["1.37"]+perLine[k8sEveryLine] {
 		t.Fatalf("facts for 1.37 = %v", got)
 	}
 	if got := KubernetesComponentConfigFacts("1.30.0", "1.32.0"); len(got) != 0 {
