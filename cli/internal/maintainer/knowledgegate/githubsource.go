@@ -17,6 +17,7 @@ import (
 	"net/url"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -25,6 +26,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
+	"github.com/prufyx/prufyx/cli/internal/extract/chartarchive"
 )
 
 // Limits on what the GitHub source accepts.
@@ -712,6 +714,17 @@ func (g *GitHubSource) Read(repo extract.RepoRef, commit, p string) ([]byte, err
 		return g.Read(repo, commit, p)
 	}
 	return body, nil
+}
+
+// Archive implements extract.ArchiveSource: the packaged Helm chart a reviewed
+// target pins, fetched with one GET that counts against the same request
+// budget as the GitHub requests, and returned only if it hashes to the pin.
+func (g *GitHubSource) Archive(ctx context.Context, rawURL, digest string) ([]byte, error) {
+	src := chartarchive.HTTPSource{Client: g.Client, Admit: g.admitAPI}
+	if g.CacheDir != "" {
+		src.CacheDir = filepath.Join(g.CacheDir, "chart")
+	}
+	return src.Archive(ctx, rawURL, digest)
 }
 
 func gitBlobID(data []byte) string {

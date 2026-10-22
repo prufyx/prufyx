@@ -12,6 +12,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/extract"
+	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
 	"github.com/prufyx/prufyx/cli/internal/extract/extractcli"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencerepin"
@@ -114,6 +115,23 @@ func rederive(ctx context.Context, src Source, catalog map[string]extractcli.Spe
 	}
 }
 
+// useArchives lets a crd.version-removal extractor fetch the pinned chart
+// archives of its target through src, when src can serve them (the GitHub
+// source counts each fetch against its request budget). Any other source
+// leaves the extractor without one: a scan that needs an archive is then
+// incomplete, never a pass.
+func useArchives(ex extract.Extractor, src Source) bool {
+	cx, ok := ex.(*crdversions.Extractor)
+	if !ok {
+		return false
+	}
+	a, ok := src.(crdversions.ArchiveSource)
+	if ok {
+		cx.UseArchives(a)
+	}
+	return ok
+}
+
 // rederiveGroup runs one extractor at one derivation time and lease and
 // returns its entries by rule ID and its line attestations, in canonical
 // JSON, by record ID.
@@ -138,6 +156,7 @@ func rederiveGroup(ctx context.Context, src Source, catalog map[string]extractcl
 		return nil, nil, fmt.Errorf("validUntil %q", k.validUntil)
 	}
 	ex := spec.New(concurrency)
+	useArchives(ex, src)
 	run, err := extractcli.Derive(ctx, ex, src, src, extract.Options{Repo: repo, DerivedAt: derived, Lease: until.Sub(derived)})
 	if err != nil {
 		return nil, nil, err
@@ -193,6 +212,7 @@ func runAttester(ctx context.Context, src Source, catalog map[string]extractcli.
 	for _, id := range ids {
 		spec := catalog[id]
 		ex := spec.New(concurrency)
+		useArchives(ex, src)
 		if !attestsScope(ex, family, component, f) {
 			continue
 		}
