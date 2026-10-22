@@ -173,3 +173,17 @@ func TestLongFieldsAreRefused(t *testing.T) {
 		t.Fatalf("clip cut a rune: %d", got)
 	}
 }
+
+// A value nested deeper than the old intake.MaxDepth bound is still read.
+func TestCiphertextDetectedBelowOldDepthBound(t *testing.T) {
+	var v any = "ENC[AES256_GCM,data:x]"
+	for i := 0; i < intake.MaxDepth+4; i++ {
+		v = map[string]any{"a": v}
+	}
+	if !hasCiphertext(v, 0) {
+		t.Fatal("ENC[ below depth 34 was not detected")
+	}
+	if valueBytes(v, 0) <= (intake.MaxDepth+2)*4 {
+		t.Fatal("valueBytes stopped at the old depth bound")
+	}
+}

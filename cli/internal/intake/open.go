@@ -39,7 +39,7 @@ const (
 	DefaultNodes            = 500000
 )
 
-// Limits bounds one Open call. The nesting depth limit is MaxDepth.
+// Limits bounds one Open call. The nesting depth limit is MaxManifestDepth.
 type Limits struct {
 	FileBytes  int64 // bytes per file or stdin
 	TotalBytes int64 // bytes over all files

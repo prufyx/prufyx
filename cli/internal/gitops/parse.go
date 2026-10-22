@@ -650,7 +650,7 @@ func structuralTokens(text string) int {
 // valueBytes is the text size of a decoded value: keys, scalars and a few
 // bytes of punctuation per node.
 func valueBytes(v any, depth int) int {
-	if depth > intake.MaxDepth+2 {
+	if depth > intake.MaxManifestDepth+2 {
 		return 0
 	}
 	switch t := v.(type) {

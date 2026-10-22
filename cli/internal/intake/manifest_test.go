@@ -191,3 +191,18 @@ func TestDecodeAcceptsDeepCRDSchema(t *testing.T) {
 		t.Fatal("a schema deeper than MaxManifestDepth was accepted")
 	}
 }
+
+func TestDecodeAcceptsExactlyMaxManifestDepth(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("apiVersion: v1\nkind: Pod\nmetadata:\n  name: p\n")
+	// metadata is level 2; fill with nested maps until the document is
+	// exactly MaxManifestDepth levels deep.
+	b.WriteString("spec:\n")
+	for i := 0; i < MaxManifestDepth-2; i++ {
+		b.WriteString(strings.Repeat(" ", (i+1)*2) + "a:\n")
+	}
+	b.WriteString(strings.Repeat(" ", (MaxManifestDepth-1)*2) + "z: 1\n")
+	if _, err := Decode("max-depth.yaml", []byte(b.String())); err != nil {
+		t.Fatalf("a manifest exactly MaxManifestDepth deep was refused: %v", err)
+	}
+}
