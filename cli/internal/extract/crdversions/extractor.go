@@ -37,7 +37,7 @@ const (
 	// IDPrefix is followed by the project slug: one extractor id per
 	// project, since a run reads one repository.
 	IDPrefix = "crd.version-removal."
-	Version  = "2.9.0"
+	Version  = "2.10.0"
 	// SourceDir is this package's directory under the module's internal/.
 	SourceDir = "extract/crdversions"
 )
@@ -80,6 +80,16 @@ type Extractor struct {
 	lines map[string]*releaseLine
 	// lineOf maps a tag name to its line key.
 	lineOf map[string]string
+
+	// depMu guards deps and depProblem and serializes the fetches of pinned
+	// chart dependency archives (see chartdeps.go).
+	depMu sync.Mutex
+	// deps holds each pinned archive read, by name, version, URL and digest.
+	deps map[string]*depArchive
+	// depProblem is why a fetch failed; later fetches are not tried.
+	depProblem string
+	// archives fetches pinned chart archives (nil: none can be read).
+	archives ArchiveSource
 }
 
 type inventoryResult struct {
@@ -890,7 +900,7 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, pair ex
 	}
 	proof.Completeness = completeness(fromLine, toLine, fromTags, toTags, lines, proof.DefinitionsRemoved, proof.UnlistedRemovals)
 	res := extract.Extraction{Candidates: out, Proof: proof}
-	att, why := x.attestation(pair, fromLine, toLine, fa, ta, out, proof.Completeness)
+	att, why := x.attestation(pair, fromLine, toLine, fa, ta, out, proof.Completeness, all)
 	if att != nil {
 		res.Attestations = []extract.AttestationCandidate{*att}
 	} else {
@@ -933,7 +943,7 @@ func dropChannelRetained(removals []Removal, scope []*tagState) ([]Removal, []Ch
 // the same major), for a target that attests and a component the family
 // covers. The attestation names every release of both lines it read, so it
 // covers no release published later.
-func (x *Extractor) attestation(pair extract.VersionPair, fromLine, toLine *releaseLine, fa, ta *tagState, rules []extract.Candidate, c *Completeness) (*extract.AttestationCandidate, string) {
+func (x *Extractor) attestation(pair extract.VersionPair, fromLine, toLine *releaseLine, fa, ta *tagState, rules []extract.Candidate, c *Completeness, states []*tagState) (*extract.AttestationCandidate, string) {
 	family, _ := lineattest.LookupFamily(lineattest.FamilyCustomResourceVersions)
 	switch {
 	case x.target.Catalog == CatalogCommunity:
@@ -950,6 +960,9 @@ func (x *Extractor) attestation(pair extract.VersionPair, fromLine, toLine *rele
 		return nil, "the derivation does not establish the whole lines: " + strings.Join(c.Reasons, "; ")
 	case fromLine.Major != toLine.Major || fromLine.Minor+1 != toLine.Minor:
 		return nil, fmt.Sprintf("%s is not the minor line after %s in the same major; only such an upgrade is attested", toLine.key(), fromLine.key())
+	}
+	if why := dependencyGroupConflict(states); why != "" {
+		return nil, why
 	}
 	fromFile, toFile := firstCRDFile(fa), firstCRDFile(ta)
 	if fromFile == "" || toFile == "" {

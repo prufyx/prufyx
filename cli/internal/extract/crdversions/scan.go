@@ -220,6 +220,9 @@ type ScanRecord struct {
 	// DevOnlyMake is the proof of each dev-only Makefile target entry of the
 	// target at this commit (see DevOnlyMake); absent for a target with none.
 	DevOnlyMake []DevOnlyMakeRecord `json:"devOnlyMake,omitempty"`
+	// Dependencies is the proof of each pinned Helm chart dependency read at
+	// this commit (see ChartDependency); absent for a target with none.
+	Dependencies []DependencyRecord `json:"dependencies,omitempty"`
 }
 
 // Finding is one file outside the listed paths with CRD-like content, or
@@ -276,7 +279,7 @@ func (f Finding) defaultLike() bool {
 // versions. A file under a default-excluded directory, a void entry or an
 // entry that declares its files define nothing only blocks attestation.
 func (f Finding) unreadable() bool {
-	if strings.HasPrefix(f.Location, "default: ") || strings.HasPrefix(f.Location, voidPrefix) || strings.HasPrefix(f.Location, definesNonePrefix) {
+	if strings.HasPrefix(f.Location, "default: ") || strings.HasPrefix(f.Location, voidPrefix) || strings.HasPrefix(f.Location, definesNonePrefix) || strings.HasPrefix(f.Location, dependencyPrefix) {
 		return false
 	}
 	switch f.Class {
@@ -346,6 +349,14 @@ func (s *ScanRecord) holds(name string) bool {
 			return true
 		}
 	}
+	// A chart dependency that ships the definition keeps it from being gone.
+	for _, d := range s.Dependencies {
+		for _, f := range d.Files {
+			if slicesContains(f.CRDs, name) {
+				return true
+			}
+		}
+	}
 	return false
 }
 
@@ -375,6 +386,8 @@ type blobInfo struct {
 	// chartDeps are the dependencies of the bytes read as a Helm
 	// Chart.yaml that come from another repository.
 	chartDeps []string
+	// chartDepEntries are the same dependencies, as read.
+	chartDepEntries []chartDepEntry
 	// template is the result of reading the bytes with their template
 	// directives removed (nil when the bytes hold no template syntax or no
 	// kind name).
@@ -632,8 +645,24 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 		}
 	}
 	defDirs := definitionDirs(files, infos, inv)
+	var lockModes map[string]string
+	if len(x.target.ChartDependencies) > 0 {
+		lockModes = map[string]string{}
+		for _, e := range blobs {
+			if path.Base(e.Path) == "Chart.lock" {
+				lockModes[e.Path] = e.Mode
+			}
+		}
+	}
 	for i, f := range files {
-		fd, found, err := x.classify(r, repo, commit, f, infos[i], inv, defDirs)
+		info := infos[i]
+		if lockModes != nil && path.Base(f.path) == "Chart.yaml" && f.at.kind == locTree && len(info.chartDepEntries) > 0 {
+			var rerr error
+			if info, rerr = x.resolveChartDeps(ctx, r, repo, commit, f, info, inv, lockModes, rec); rerr != nil {
+				return nil, rerr
+			}
+		}
+		fd, found, err := x.classify(r, repo, commit, f, info, inv, defDirs)
 		if err != nil {
 			return nil, err
 		}
@@ -664,6 +693,10 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 	}
 	sort.Strings(rec.Exclusions)
 	sort.Slice(rec.Findings, func(i, j int) bool { return rec.Findings[i].Path < rec.Findings[j].Path })
+	sort.Slice(rec.Dependencies, func(i, j int) bool {
+		a, b := rec.Dependencies[i], rec.Dependencies[j]
+		return a.Chart+"\x00"+a.Name+"\x00"+a.Version < b.Chart+"\x00"+b.Name+"\x00"+b.Version
+	})
 	return x.storeScan(commit, rec), nil
 }
 
@@ -807,7 +840,8 @@ func summarize(kind int, data []byte) *blobInfo {
 	if len(values) == 1 {
 		if obj, ok := values[0].(map[string]any); ok {
 			info.kust = readKustomization(obj)
-			info.chartDeps = externalChartDeps(obj)
+			info.chartDepEntries = remoteChartDeps(obj)
+			info.chartDeps = chartDepTexts(info.chartDepEntries)
 		}
 		if len(crds) == 0 && info.kinds > 0 {
 			info.configProblem = transformerConfig(values[0])
@@ -1697,36 +1731,6 @@ func remoteSource(s string) bool {
 		return true
 	}
 	return false
-}
-
-// externalChartDeps lists the dependencies of a Chart.yaml mapping that
-// come from another repository (a repository other than a local file://
-// path or none).
-func externalChartDeps(obj map[string]any) []string {
-	deps, ok := obj["dependencies"].([]any)
-	if !ok {
-		return nil
-	}
-	if _, chart := obj["apiVersion"]; !chart {
-		return nil
-	}
-	var out []string
-	for _, d := range deps {
-		m, ok := d.(map[string]any)
-		if !ok {
-			out = append(out, "a dependency that is not a mapping")
-			continue
-		}
-		repo, _ := m["repository"].(string)
-		if !remoteSource(repo) {
-			continue
-		}
-		name, _ := m["name"].(string)
-		version, _ := m["version"].(string)
-		out = append(out, fmt.Sprintf("%s %s from %s", name, version, repo))
-	}
-	sort.Strings(out)
-	return out
 }
 
 func isKustomizationName(base string) bool {

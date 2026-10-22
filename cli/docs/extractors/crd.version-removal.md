@@ -1,6 +1,6 @@
 # Extractor `crd.version-removal`
 
-Version 2.9.0. Derives `forbid_set_member` rules for custom-resource
+Version 2.10.0. Derives `forbid_set_member` rules for custom-resource
 versions that a project's release line no longer serves, from the
 CustomResourceDefinition manifests the project ships in its repository. It is
 deterministic, reads only upstream source pinned by full commit SHA, and
@@ -200,10 +200,15 @@ Through the offline factory mirror (or a fixture tree), never the network.
   | `unsupported` | a template, jsonnet or cue source that holds the word, or a packaged Helm chart |
   | `go-defined` | Go code that builds a definition as a composite literal (`CustomResourceDefinition{ObjectMeta: ...}`, or of its spec, names or versions); its served versions are not read |
   | `external` | a Helm `Chart.yaml` with a dependency whose `repository` is another repository (`https://`, `oci://`, an alias such as `@repo`; not a local `file://` path or none), or a kustomization with a remote resource, component or base (a URL, `github.com/...`, `git@...`, `?ref=`) |
+  | `dependency-extra` | a definition in a pinned Helm chart dependency (see below) that the inventory does not hold, in a group the inventory has at this release |
+  | `dependency-apiservice` | a pinned Helm chart dependency whose files name an API service `<version>.<group>` of a group the inventory has at this release |
   | `excluded` | a file under a reviewed exclusion that does not declare copies, whose content is recorded (path, sha256, the definitions it holds) |
   | `excluded-unread` | the same, when its content could not be read |
   | `no-definition` | a YAML or JSON file under a reviewed exclusion with `"defines": "none"` that, at this release, is within the size bound, holds no template syntax, is strictly decodable, has no document that is an `apiextensions.k8s.io` object, of the kind, a kustomization (kind `Kustomization` or `Component`, or a mapping with a resource, base, component, patch, configuration or replacement field) or names `dependencies`, no mapping at any depth that holds the kind as the value of any key and has a `spec`, and no string that holds a manifest line naming the kind; recorded with its sha256 (see below) |
   | `exclusion-void` | a reviewed exclusion that an install surface refers to at this release (see below); it blocks attestation |
+
+  The `external` class is also what a Helm chart dependency stays unless a
+  target pins it (below).
 
   The effect depends on the class and the location:
 
@@ -221,6 +226,10 @@ Through the offline factory mirror (or a fixture tree), never the network.
   - every other class in the open tree or among declared copies, and every
     class but those six under a default-excluded directory:
     the pair is not attestable.
+  - `dependency-extra`, `dependency-apiservice` and every class at the
+    location `dependency: <name>@<version>`: the pair is not attestable. A
+    file of a dependency is never a conflict or an unreadable source that
+    withholds a pair or narrows its rules.
   - `no-definition`: recorded; the pair stays attestable, and the file does
     not keep a definition from being established as gone.
   - any class under a reviewed exclusion with `"defines": "none"` (location
@@ -473,6 +482,78 @@ Through the offline factory mirror (or a fixture tree), never the network.
   excluded path it left out (the exclusion and the word of the recipe line),
   and the documents that name the target (at most 20). Nothing is withheld
   because of it.
+
+  **Pinned Helm chart dependencies.** A `Chart.yaml` whose dependency comes
+  from a chart repository is `external` and blocks attestation. A target file
+  may list `chartDependencies`, per chart directory (`chart`, a clean
+  repository path), dependency `name` and `repository` (the exact strings of
+  the `Chart.yaml`, a trailing slash included; an `https://` URL with a
+  lower-case host and no credentials, query or fragment; `oci://` is not
+  read), a `reason` and `evidence` bounded like an exclusion's, and `pins`:
+  per exact version (three numbers and an optional pre-release; no range,
+  wildcard, space, `v` prefix or build metadata, sorted, none twice) the
+  `url` of the packaged chart (`https://`, on the host of the repository,
+  ending in `.tgz`) and its `sha256` (64 lower-case hex digits). Entries are
+  sorted by chart, name and repository. A target file without the member is
+  read exactly as before.
+
+  At a release where a dependency of a `Chart.yaml` in an entry's chart
+  directory equals an entry's name and repository and one of its pinned
+  versions, the scan reads the packaged chart instead of treating the
+  dependency as external, if the `Chart.lock` in the same directory (when
+  there is one) lists the same remote dependencies (name, repository,
+  version) as the `Chart.yaml`; `condition`, `tags` and `alias` are ignored,
+  every dependency is read as installed. With a different `Chart.lock`, or a
+  dependency that equals no pin, the `Chart.yaml` stays `external` for it; a
+  `Chart.lock` that cannot be read (not strictly decodable, a link) is
+  `unread`. Only a `Chart.yaml` in the open tree is resolved.
+
+  The archive is fetched once per run through an archive source the caller
+  configures (the knowledge gate's GitHub source: one HTTPS GET, 60 seconds,
+  at most 10 MiB, counted against the gate's request budget, redirects only
+  within the same host and scheme, cached on disk only under its sha256). The
+  extractor requires the bytes to hash to the pin (otherwise the dependency is
+  `unread`, whoever served them) and unpacks them within bounds: at most 10
+  MiB compressed, 64 MiB unpacked, 4000 entries, regular files and directories
+  only (a link or device is `unread`), clean unique paths under one top
+  directory named like the dependency, and a `Chart.yaml` whose `name` and
+  `version` are the dependency's and the pin's. A fetch that fails, an
+  extractor run without an archive source (the offline `extract` command), a
+  spent budget or an archive over the compressed bound make the scan
+  incomplete (`complete: false`, with the reason): never a finding, never a
+  pass, and no further fetch is tried in that run.
+
+  The files of the packaged chart are classified like those of the
+  repository, at the location `dependency: <name>@<version>`, each against the
+  inventory of the release. A file's definitions pass only if each is a copy of
+  an inventory definition, or lies in a group the inventory does not have (the
+  groups of the inventory only): a file with one definition of a group the
+  inventory has that the inventory does not hold is `dependency-extra`, whatever
+  else it holds. Anything else is a finding of its class: a `conflict`,
+  `unread` (also a kustomization, a packaged chart inside it, or an archive
+  that fails a check above), `reference`, `unsupported`, `go-defined`, or
+  `external` (a remote dependency of the packaged chart is never followed);
+  a class that is not a finding elsewhere in a chart dependency is `unread`.
+  Local subcharts below `charts/` are read as part of it. Any file of the
+  archive that names an API service `<version>.<group>` (a manifest, or the
+  `resourceNames` of an RBAC rule) of a group of the inventory is a
+  `dependency-apiservice` finding on the `Chart.yaml`; a name of another group
+  passes, and the scan records that the programs a dependency deploys are not
+  read (`notRead`). A pair is also not attested when a dependency ships a
+  definition, or names an API service, of a group that any release of either
+  line has in its inventory but the release it was read at does not.
+
+  The scan record has a `dependencies` member (absent for a target with no
+  entry): per dependency read, its chart, name, repository, version, url,
+  sha256, why it could not be read, the API service names found, and its
+  classified files (path, sha256, class, definitions, and the definitions the
+  inventory does not hold). A definition that a dependency ships is not taken
+  to be gone. Adding an entry or a pin, or changing a pin's url, sha256 or
+  repository, loosens what the scan accepts: the target guard lists it
+  (`chartDependency:<chart>:<name>@<version>`, `chartDependencyChanged:...`)
+  and it needs a reviewed removals entry; removing one, or rewording its
+  reason or evidence, needs none. A new target or an attestation batch of the
+  knowledge gate may not carry the member.
 
   A void entry (also one with `"defines": "none"`) is treated like a
   default-excluded directory at that release,
@@ -739,6 +820,16 @@ version must come from a full run of that project's id with this build (which
 then carries the id's own digest), not from an edit of a record that carries
 the old shared digest. From then on, a change to one target only requires
 re-deriving the records of that target's id.
+
+## Changes from version 2.9.0
+
+Version 2.10.0 adds the `chartDependencies` member of a target file, the
+classes `dependency-extra` and `dependency-apiservice`, the `dependencies`
+member of the scan record and a reason for which an attestation is refused
+(above). It loosens what the scan accepts only for an entry that uses it:
+output is unchanged for every target without the member, except the extractor
+version and the code digest. No target uses it yet.
+
 ## Changes from version 2.6.0
 
 Version 2.9.0 adds the `devOnlyMakeTargets` member of a target file and the

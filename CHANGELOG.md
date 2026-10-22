@@ -398,6 +398,30 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   no longer skipped as the recipe of a test target. No target uses the member:
   rules, records and attestations are unchanged except for the extractor
   version and every `crd.version-removal.*` code digest.
+- Maintainer extractor `crd.version-removal` 2.10.0: a target file can list
+  `chartDependencies`, remote Helm chart dependencies of a chart directory,
+  each pinned by exact version to the URL and sha256 of its packaged chart
+  (`https://` repositories only; `oci://` is not read). At a release where the
+  `Chart.yaml` (and the `Chart.lock` beside it) names a pinned dependency, the
+  scan fetches the archive through the caller's archive source, requires its
+  bytes to hash to the pin, unpacks it within bounds (10 MiB compressed, 64
+  MiB unpacked, 4000 entries, no links) and classifies its files like those of
+  the repository: copies, and definitions of a group the inventory does not
+  have, pass; a definition of a group the inventory has that it does not hold
+  (`dependency-extra`), an API service of such a group named in its files
+  (`dependency-apiservice`), and every other class block attestation. A fetch
+  that fails, a spent request budget or a run without an archive source make
+  the scan incomplete, never a pass. The scan record gains `dependencies`
+  (per dependency: url, sha256, classified files); a pair whose dependency
+  ships a group that another release of the pair has is not attested. The
+  knowledge gate gives its GitHub source (one GET per archive, counted against
+  its request budget) to the extractor; the offline `extract` command has none.
+  Adding an entry or a pin, or changing a pin's url, sha256 or repository, is
+  a narrowing for the target guard and may not be part of an onboarding or
+  attest batch. No target uses the member: rules, records and attestations are
+  unchanged except for the extractor version and the code digest of the
+  `crd.version-removal` ids; the extractor framework files are unchanged, so
+  no other extractor's digest moves.
 - Maintainer extractor `crd.version-removal` 2.6.0: a reviewed exclusion of
   YAML or JSON files (one file or a pattern, never a directory) can declare
   `"defines": "none"`, and the scan checks that claim at every release: a file

@@ -73,6 +73,9 @@ type Target struct {
 	// DevOnlyMake lists the Makefile targets a reviewer states are for
 	// development only (see DevOnlyMake).
 	DevOnlyMake []DevOnlyMake
+	// ChartDependencies lists the remote Helm chart dependencies whose
+	// packaged charts the full-tree scan reads (see ChartDependency).
+	ChartDependencies []ChartDependency
 	// Attest makes the extractor attest the target's lines for the
 	// custom-resource version family. Only a project of the reviewed
 	// custom-resource table (its set fact is registered) may attest; a
@@ -305,7 +308,9 @@ type targetJSON struct {
 	Exclude     []exclusionJSON `json:"exclude"`
 	// DevOnlyMakeTargets: see DevOnlyMake.
 	DevOnlyMakeTargets []devOnlyMakeJSON `json:"devOnlyMakeTargets,omitempty"`
-	Remote             *remoteJSON       `json:"remote,omitempty"`
+	// ChartDependencies: see ChartDependency.
+	ChartDependencies []chartDependencyJSON `json:"chartDependencies,omitempty"`
+	Remote            *remoteJSON           `json:"remote,omitempty"`
 	// DeclaredChannel and Channels: see Target.
 	DeclaredChannel string        `json:"declaredChannel,omitempty"`
 	Channels        []channelJSON `json:"channels,omitempty"`
@@ -557,6 +562,11 @@ func (tj targetJSON) target() (Target, error) {
 		seenDev[k] = true
 		t.DevOnlyMake = append(t.DevOnlyMake, DevOnlyMake{Makefile: dj.Makefile, Target: dj.Target, Reason: dj.Reason, Evidence: dj.Evidence})
 	}
+	deps, err := chartDependencies(tj.ChartDependencies)
+	if err != nil {
+		return t, fmt.Errorf("chartDependencies: %w", err)
+	}
+	t.ChartDependencies = deps
 	if tj.Remote != nil {
 		remote, err := tj.Remote.remote(t)
 		if err != nil {
