@@ -378,7 +378,7 @@ NOT CHECKED (1)
 Read 2 documents over 1 hop; 1 of 1 component has rules (partially evaluated). 6 checks passed (--show-passes).
 Scope limits: node and kubelet version skew not evaluated; Kubernetes: only API versions in the supplied manifests are evaluated; live cluster objects, CRDs, stored versions, admission and component configuration are not.
 Evidence: every finding cites pinned upstream source (--verbose). No network used.
-evaluated at 2026-11-20T00:00:00Z; input sha256:cac5facf042643aa2ca473b53dbc8e3de6e3001562dc1a16c4a0d15115aa07b0; knowledge embedded cncf-2026-09-13.8 sha256:c34732a2dffc4191904c07e8dfddb86ccffbc2d0a2a1ad51e1ff020e3da25896
+evaluated at 2026-11-20T00:00:00Z; input sha256:cac5facf042643aa2ca473b53dbc8e3de6e3001562dc1a16c4a0d15115aa07b0; knowledge embedded cncf-2026-09-13.8 sha256:4798d687e1680cc93cb0827634daa52f7f13091878edb66f2e1b00d9fb1a8e2e
 ```
 
 The exit code is `10`, and the finding names the file, the line of the

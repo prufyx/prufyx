@@ -180,12 +180,28 @@ func TestEmbeddedKnowledgeSetRulesReadCustomResourceSets(t *testing.T) {
 			}
 		}
 	}
+	// The values-path set of each reviewed chart source: registered so the
+	// helm.values rules the extractor derives are admitted. The helm-values
+	// extractor's test holds this list to the chart-source table.
+	charts := map[string]bool{}
+	for _, id := range []string{
+		"component.cert_manager.chart_cert-manager_values_paths_set",
+		"component.external_secrets.chart_external-secrets_values_paths_set",
+		"component.istio.chart_gateway_values_paths_set",
+		"component.keda.chart_keda_values_paths_set",
+		"component.metallb.chart_metallb_values_paths_set",
+		"component.opentelemetry.chart_opentelemetry-collector_values_paths_set",
+	} {
+		charts[id] = true
+	}
 	sets := 0
 	for _, definition := range compiledDefinitions() {
 		if definition.Type != constraintengine.FactSet {
 			continue
 		}
-		if gates[definition.ID] {
+		if charts[definition.ID] {
+			// a chart values-path fact; the extractor test checks its component
+		} else if gates[definition.ID] {
 			if definition.Component != "pkg:github/kubernetes/kubernetes" {
 				t.Fatalf("%s is declared for %s", definition.ID, definition.Component)
 			}
@@ -194,8 +210,8 @@ func TestEmbeddedKnowledgeSetRulesReadCustomResourceSets(t *testing.T) {
 		}
 		sets++
 	}
-	if sets != len(crd)+len(gates) {
-		t.Fatalf("%d set facts registered, %d custom-resource projects and %d feature-gate facts", sets, len(crd), len(gates))
+	if sets != len(crd)+len(gates)+len(charts) {
+		t.Fatalf("%d set facts registered, %d custom-resource projects, %d feature-gate facts and %d chart values-path facts", sets, len(crd), len(gates), len(charts))
 	}
 	// Every registered feature-gate fact is one the adapter can supply; the
 	// flag sets stay unregistered until a published rule consumes them.

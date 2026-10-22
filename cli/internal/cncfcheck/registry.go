@@ -13,8 +13,9 @@ func compiledDefinitions() []constraintengine.FactDefinition {
 	return append(packagedDefinitions(), additionalDefinitions()...)
 }
 
-// packagedDefinitions are the reviewed fact definitions, followed by one
-// custom-resource version set per project of the reviewed custom-resource
+// packagedDefinitions are the reviewed fact definitions (among them the
+// chart values-path set of every chart of the reviewed chart-source table),
+// followed by one custom-resource version set per project of the reviewed custom-resource
 // table (customResourceVersionDefinitions).
 func packagedDefinitions() []constraintengine.FactDefinition {
 	return append([]constraintengine.FactDefinition{
@@ -123,11 +124,11 @@ func packagedDefinitions() []constraintengine.FactDefinition {
 		{ID: "component.kubernetes.validatingadmissionpolicy_v1beta1_removed_gvk_present", Component: "pkg:github/kubernetes/kubernetes", Type: constraintengine.FactBool, EnumTokens: nil},
 		{ID: "component.kubernetes.ipaddress_servicecidr_v1beta1_removed_gvk_present", Component: "pkg:github/kubernetes/kubernetes", Type: constraintengine.FactBool, EnumTokens: nil},
 		{ID: "component.kubernetes.volumeattributesclass_v1beta1_removed_gvk_present", Component: "pkg:github/kubernetes/kubernetes", Type: constraintengine.FactBool, EnumTokens: nil},
-		{ID: "component.kubernetes.kube_apiserver_feature_gates_set", Component: "pkg:github/kubernetes/kubernetes", Type: constraintengine.FactSet},
-		{ID: "component.kubernetes.kube_controller_manager_feature_gates_set", Component: "pkg:github/kubernetes/kubernetes", Type: constraintengine.FactSet},
-		{ID: "component.kubernetes.kube_scheduler_feature_gates_set", Component: "pkg:github/kubernetes/kubernetes", Type: constraintengine.FactSet},
-		{ID: "component.kubernetes.kubelet_feature_gates_set", Component: "pkg:github/kubernetes/kubernetes", Type: constraintengine.FactSet},
-		{ID: "component.kubernetes.kube_proxy_feature_gates_set", Component: "pkg:github/kubernetes/kubernetes", Type: constraintengine.FactSet},
+		{ID: "component.kubernetes.kube_apiserver_feature_gates_set", Component: "pkg:github/kubernetes/kubernetes", Type: constraintengine.FactSet, EnumTokens: nil},
+		{ID: "component.kubernetes.kube_controller_manager_feature_gates_set", Component: "pkg:github/kubernetes/kubernetes", Type: constraintengine.FactSet, EnumTokens: nil},
+		{ID: "component.kubernetes.kube_scheduler_feature_gates_set", Component: "pkg:github/kubernetes/kubernetes", Type: constraintengine.FactSet, EnumTokens: nil},
+		{ID: "component.kubernetes.kubelet_feature_gates_set", Component: "pkg:github/kubernetes/kubernetes", Type: constraintengine.FactSet, EnumTokens: nil},
+		{ID: "component.kubernetes.kube_proxy_feature_gates_set", Component: "pkg:github/kubernetes/kubernetes", Type: constraintengine.FactSet, EnumTokens: nil},
 		{ID: "component.kubeedge.distribution", Component: "pkg:github/kubeedge/kubeedge", Type: constraintengine.FactEnum, EnumTokens: []string{"custom_build", "official_upstream"}},
 		{ID: "component.kubeedge.effective_argv_complete", Component: "pkg:github/kubeedge/kubeedge", Type: constraintengine.FactBool, EnumTokens: nil},
 		{ID: "component.kubeedge.execution_surface", Component: "pkg:github/kubeedge/kubeedge", Type: constraintengine.FactEnum, EnumTokens: []string{"keadm_init", "other"}},
@@ -187,6 +188,12 @@ func packagedDefinitions() []constraintengine.FactDefinition {
 		{ID: "component.tuf.updater_bootstrap_keyword_present", Component: "pkg:github/theupdateframework/python-tuf", Type: constraintengine.FactBool, EnumTokens: nil},
 		{ID: "component.velero.crd_update_before_server", Component: "pkg:github/velero-io/velero", Type: constraintengine.FactBool, EnumTokens: nil},
 		{ID: "component.vitess.multi_statement_execute_fetch_as_dba", Component: "pkg:github/vitessio/vitess", Type: constraintengine.FactBool, EnumTokens: nil},
+		{ID: "component.cert_manager.chart_cert-manager_values_paths_set", Component: "pkg:github/cert-manager/cert-manager", Type: constraintengine.FactSet, EnumTokens: nil},
+		{ID: "component.external_secrets.chart_external-secrets_values_paths_set", Component: "pkg:github/external-secrets/external-secrets", Type: constraintengine.FactSet, EnumTokens: nil},
+		{ID: "component.istio.chart_gateway_values_paths_set", Component: "pkg:github/istio/istio", Type: constraintengine.FactSet, EnumTokens: nil},
+		{ID: "component.keda.chart_keda_values_paths_set", Component: "pkg:github/kedacore/keda", Type: constraintengine.FactSet, EnumTokens: nil},
+		{ID: "component.metallb.chart_metallb_values_paths_set", Component: "pkg:github/metallb/metallb", Type: constraintengine.FactSet, EnumTokens: nil},
+		{ID: "component.opentelemetry.chart_opentelemetry-collector_values_paths_set", Component: "pkg:github/open-telemetry/opentelemetry-collector", Type: constraintengine.FactSet, EnumTokens: nil},
 	}, customResourceVersionDefinitions()...)
 }
 
