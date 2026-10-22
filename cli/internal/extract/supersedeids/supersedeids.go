@@ -272,7 +272,7 @@ func ClocksOf(pack []byte) (Clocks, error) {
 		if earliest.IsZero() || until.Before(earliest) {
 			earliest = until
 		}
-		if !isAPIRemoval(entry.Rule.ID) {
+		if !isAPIRemoval(entry.Rule.ID) && !isKubeletSkew(entry.Rule.ID) {
 			continue
 		}
 		reviewed, err := time.Parse(time.RFC3339, ev.ReviewedAt)
@@ -303,6 +303,13 @@ func ClocksOf(pack []byte) (Clocks, error) {
 		}
 	}
 	return c, nil
+}
+
+// isKubeletSkew reports whether id is a reviewed Kubernetes kubelet
+// version-skew rule. Like the API-removal rules, it has an evidence clock the
+// shared test clock must not precede.
+func isKubeletSkew(id string) bool {
+	return strings.HasPrefix(id, "kubernetes.kubelet-version-skew.")
 }
 
 // isAPIRemoval reports whether id is a Kubernetes API-removal rule of either

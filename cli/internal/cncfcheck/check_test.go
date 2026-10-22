@@ -55,7 +55,7 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The vector file holds the vectors of both generations of the Kubernetes
-	// API-removal rules (the 25 reviewed ones and the 29 mechanical ones, 220
+	// API-removal rules (the 25 reviewed ones and the 29 mechanical ones, 224
 	// in all); the pack's rules select theirs. The pairing is ordered, as it
 	// always was: the i-th rule of the pack is checked by the i-th vector of
 	// the file that belongs to the pack, separately for the mechanical rules
@@ -71,8 +71,8 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 	// other rules.
 	all := reviewedVectors(t)
 	batch := len(crdbatchids.IDs())
-	if len(all) != 220+batch {
-		t.Fatalf("the vector file holds %d vectors, want %d (191 + the 29 mechanical + the %d of the custom-resource batch)", len(all), 220+batch, batch)
+	if len(all) != 224+batch {
+		t.Fatalf("the vector file holds %d vectors, want %d (195 + the 29 mechanical + the %d of the custom-resource batch)", len(all), 224+batch, batch)
 	}
 	extra := 0
 	otherGeneration := map[string]bool{}
@@ -160,10 +160,10 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 			}
 		}
 	}
-	if len(b.pack.Entries) != 191+extra+shippedBatch || len(vectors) != 191+extra+shippedBatch {
+	if len(b.pack.Entries) != 195+extra+shippedBatch || len(vectors) != 195+extra+shippedBatch {
 		t.Fatal("unexpected reviewed rule or vector count")
 	}
-	if caseCount != 963+4*extra+4*shippedBatch {
+	if caseCount != 979+4*extra+4*shippedBatch {
 		t.Fatal("unexpected reviewed case count")
 	}
 	for _, vector := range vectors {
@@ -180,6 +180,10 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 				}
 				// This source review completed after the historical corpus clock;
 				// preserve its real reviewedAt timestamp in the rule data.
+				// The version-skew rules were reviewed on 2026-10-06.
+				if strings.HasPrefix(vector.RuleID, "kubernetes.kubelet-version-skew.") {
+					clock = time.Date(2026, 10, 7, 0, 0, 0, 0, time.UTC)
+				}
 				if vector.Project == "cloud-custodian" || vector.Project == "opencost" {
 					clock = time.Date(2026, 9, 12, 10, 0, 0, 0, time.UTC)
 				}
