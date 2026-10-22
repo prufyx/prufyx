@@ -176,6 +176,8 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return runExtract(args[1:], stdout, stderr)
 	case "consensus":
 		return runConsensus(args[1:], stdout, stderr)
+	case "served-lists":
+		return runServedLists(args[1:], stdout, stderr)
 	case "chart-versions":
 		if code := chartversions.Main(args[1:], time.Now, stdout, stderr); code != 0 {
 			return &commandError{code: code, message: "chart-versions failed", printed: true}
@@ -202,7 +204,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 		}
 		return nil
 	case "help", "-h", "--help":
-		fmt.Fprintln(stdout, "usage: prufyx-maintainer <project|contribution|contribution-candidates|selected-source-import|source-corpus|corpus-attestation|review-record|public-source-capture|evidence|factory|extract|consensus|chart-versions|gate|approval|rule|target-check|coverage|export-knowledge|knowledge-targets|package-knowledge|knowledge-publish|knowledge-sign|support-inventory|docs-tables|release-gate|staging-receipt|release|local-kind|release-*> [options]")
+		fmt.Fprintln(stdout, "usage: prufyx-maintainer <project|contribution|contribution-candidates|selected-source-import|source-corpus|corpus-attestation|review-record|public-source-capture|evidence|factory|extract|consensus|served-lists|chart-versions|gate|approval|rule|target-check|coverage|export-knowledge|knowledge-targets|package-knowledge|knowledge-publish|knowledge-sign|support-inventory|docs-tables|release-gate|staging-receipt|release|local-kind|release-*> [options]")
 		return nil
 	default:
 		return usageError()
