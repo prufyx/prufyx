@@ -63,12 +63,13 @@ jobs:
           dirs=()
           while IFS= read -r path; do
             [ -n "${path}" ] || continue
-            [ -e "${path}" ] || { echo "${path}: removed, skipped"; continue; }
             rel="${path#contrib/onboard-bundles/}"
             case "${rel}" in
               README.md) continue ;;
               */*) ;;
               *)
+                # A deleted stray top-level file leaves nothing to reject.
+                [ -e "${path}" ] || { echo "${path}: removed, skipped"; continue; }
                 echo "::error title=Onboarding bundle::${path}: a bundle lives at contrib/onboard-bundles/<slug>/, not directly under contrib/onboard-bundles/"
                 status=1
                 continue

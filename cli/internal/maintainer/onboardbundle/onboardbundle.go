@@ -152,7 +152,7 @@ func Validate(dir string) ([]string, error) {
 			}
 			v := ps.val
 			if isQuote {
-				v = strings.NewReplacer("\n", "", "\t", "").Replace(v)
+				v = strings.NewReplacer("\n", "", "\r", "", "\t", "").Replace(v)
 			}
 			if ctrlRE.MatchString(v) {
 				out = append(out, ps.path+": control character")
