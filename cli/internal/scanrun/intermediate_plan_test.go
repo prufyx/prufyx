@@ -85,6 +85,9 @@ func TestVisitsIntermediate(t *testing.T) {
 		{"direct hop", hops("1.33.2", "1.37.1"), "1.34.0", false},
 		{"other operator has no intermediate", hops("1.33.2", "1.34", "1.37.1"), "", false},
 		{"unparseable intermediate", hops("1.33.2", "1.34", "1.37.1"), "latest", false},
+		{"intermediate on the start line", hops("1.24.0", "1.26", "1.28.0"), "1.24.5", false},
+		{"intermediate on the target line", hops("1.24.0", "1.26", "1.28.7"), "1.28.1", false},
+		{"single hop is never interior", hops("1.33.2", "1.34.0"), "1.34.0", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
