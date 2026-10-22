@@ -206,6 +206,44 @@ A missing source is never read as absence. In particular:
 - `--distribution` other than `official_upstream` keeps every fact unknown:
   vendor builds may keep removed settings.
 
+### Supplying kubelet versions (version-skew evidence)
+
+`scan` and `assess` do not take declarations, so the kubelet skew rule is
+decided only by `check cncf --project kubernetes --component-config`. `assess`
+reports the kubelet versions it sees but does not pass them to the rule.
+
+1. Read the kubelet versions yourself, for example from the
+   `KUBELET VERSION` column of `kubectl get nodes` (or each node's
+   `kubelet --version`). Prufyx never contacts a cluster and does not collect
+   this. Take the lowest and the highest version in the fleet and write each as
+   `x.y.z`, without a `v` prefix or a distribution build suffix.
+2. Put them in the selection document, together with at least one source and a
+   `complete:` list (the document is not valid without a source):
+
+   ```yaml
+   apiVersion: prufyx.io/kubernetes-component-config/v1alpha1
+   kind: ComponentConfigSelection
+   complete: [kubelet]
+   declarations:
+     minimumKubeletVersion: "1.33.2"
+     maximumKubeletVersion: "1.34.1"   # optional; omit when all nodes match
+   sources:
+   - {scope: kubelet, format: kubelet-config, path: /abs/kubelet-config.yaml}
+   ```
+
+3. Save it as an absolute path with mode `0600`, then run:
+
+   ```sh
+   prufyx check cncf --project kubernetes --component-config /abs/selection.yaml \
+     --from 1.35.8 --to 1.36.0 --distribution official_upstream \
+     --now "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+   ```
+
+Without `minimumKubeletVersion` the rule stays `UNKNOWN`; that is the expected
+answer when the evidence is missing, not an error. Declare the maximum only
+when some node is newer than the minimum: the rule then also catches a kubelet
+newer than the target control plane.
+
 ### Feature-gate and flag sets
 
 Besides the per-setting predicates, the adapter can declare two set facts
