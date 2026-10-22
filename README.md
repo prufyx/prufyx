@@ -274,9 +274,9 @@ stale). The method and the full per-project table are in the
 [coverage report guide](cli/docs/coverage-report.md).
 
 In plain terms: the rules are exact, reviewed transitions, mostly for older
-releases. No upgrade between two release lines is decided as a whole yet, and
-Kubernetes has no rule for upgrades after 1.32. Reviewed Kubernetes API
-removals exist for upgrades to 1.22, 1.24-1.27, 1.29 and 1.32.
+releases. No upgrade between two release lines is decided as a whole yet.
+Reviewed Kubernetes served-API removals exist for upgrades to 1.22, 1.25-1.27,
+1.29, 1.32, 1.33, 1.34 and 1.37.
 
 Further projects with executable checks: Argo Workflows, Ceph, Fluent Bit,
 Grafana, Grafana Loki, Kibana, MariaDB and MariaDB Operator (community
