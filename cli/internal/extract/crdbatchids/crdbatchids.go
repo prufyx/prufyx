@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -124,9 +125,27 @@ func ShippedLines() []Line {
 		if out[i].Component != out[j].Component {
 			return out[i].Component < out[j].Component
 		}
-		return out[i].Line < out[j].Line
+		return lineLess(out[i].Line, out[j].Line)
 	})
 	return out
+}
+
+// lineLess orders two "major.minor" lines numerically, as the pack's
+// canonical order does (1.9 before 1.10). The package imports nothing of the
+// module, so it cannot use lineattest.LineLess.
+func lineLess(a, b string) bool {
+	number := func(line string) (int, int) {
+		major, minor, _ := strings.Cut(line, ".")
+		x, _ := strconv.Atoi(major)
+		y, _ := strconv.Atoi(minor)
+		return x, y
+	}
+	am, an := number(a)
+	bm, bn := number(b)
+	if am != bm {
+		return am < bm
+	}
+	return an < bn
 }
 
 var (

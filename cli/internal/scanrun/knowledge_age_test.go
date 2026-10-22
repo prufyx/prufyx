@@ -182,9 +182,15 @@ func renewedAll(t *testing.T) []byte {
 func TestScanKnowledgeAgeStore(t *testing.T) {
 	reviewed, end := renewedWindow()
 	endDay := end.Format("2006-01-02")
-	before, _, after := ageInstants()
-	first := embeddedEarliest(t)
+	beforeAll, _, afterAll := ageInstants()
+	firstAll := embeddedEarliest(t)
 	for _, layout := range storeLayouts {
+		// The age clocks follow the earliest expiry of the whole pack; a
+		// per-project database holds only the opened project's rules, whose
+		// earliest expiry can be later, so its clocks move with it.
+		first := earliestRule(t, layout)
+		shift := first.Sub(firstAll)
+		before, after := shiftInstant(t, beforeAll, shift), shiftInstant(t, afterAll, shift)
 		renewed := newStoreFixture(t, layout)
 		renewed.importPack(renewedAll(t), "6")
 		stale := newStoreFixture(t, layout)
@@ -233,6 +239,37 @@ func plural(n int, one, many string) string {
 		return one
 	}
 	return many
+}
+
+// earliestRule is the earliest validUntil of the active rules a database of the
+// layout serves, as countRules counts them.
+func earliestRule(t *testing.T, layout string) time.Time {
+	t.Helper()
+	var first time.Time
+	editPack(t, embeddedPack(t), func(project string, rule map[string]any) bool {
+		evidence := rule["evidence"].(map[string]any)
+		end, err := time.Parse(time.RFC3339, evidence["validUntil"].(string))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if evidence["state"] == "active" && (layout == cncfknowledge.LayoutSingleTarget || project == kubernetesSlug) && (first.IsZero() || end.Before(first)) {
+			first = end
+		}
+		return true
+	})
+	if first.IsZero() {
+		t.Fatalf("%s: no active rule", layout)
+	}
+	return first
+}
+
+func shiftInstant(t *testing.T, at string, d time.Duration) string {
+	t.Helper()
+	parsed, err := time.Parse(time.RFC3339, at)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return parsed.Add(d).Format(time.RFC3339)
 }
 
 // countRules counts the embedded pack's active rules a database of the
