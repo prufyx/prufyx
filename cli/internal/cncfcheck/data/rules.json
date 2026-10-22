@@ -3448,13 +3448,13 @@
       "rule": {
         "evidence": {
           "basis": "mechanical",
-          "derivedAt": "2026-10-17T05:31:50Z",
+          "derivedAt": "2026-10-22T20:18:11Z",
           "extractor": {
-            "codeDigest": "sha256:bf04611637073ebd4cdf8a8bc30c4b55377e2b52e344c8103ccfb7a2f2b4f858",
+            "codeDigest": "sha256:ae4ab3eeab7311af6520d43f376301bfd3bc33b6c09904db1751828e1e4f1c2c",
             "id": "crd.version-removal.crossplane",
             "version": "2.5.0"
           },
-          "reviewedAt": "2026-10-17T05:31:50Z",
+          "reviewedAt": "2026-10-22T20:18:11Z",
           "sources": [
             {
               "contentDigest": "sha256:0866ed25ba43e0606272bf9b8255e907d674c348a6297cf73dac99103b433569",
@@ -3474,7 +3474,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-15T05:31:50Z"
+          "validUntil": "2026-12-02T20:18:11Z"
         },
         "id": "crossplane.crd-version-removal.compositionrevisions-apiextensions-crossplane-io.1-20-0-to-2-0-0",
         "nextAction": "change apiVersion of CompositionRevision to apiextensions.crossplane.io/v1 before upgrading to 2.0.0",
@@ -3543,13 +3543,13 @@
       "rule": {
         "evidence": {
           "basis": "mechanical",
-          "derivedAt": "2026-10-17T05:31:50Z",
+          "derivedAt": "2026-10-22T20:18:11Z",
           "extractor": {
-            "codeDigest": "sha256:bf04611637073ebd4cdf8a8bc30c4b55377e2b52e344c8103ccfb7a2f2b4f858",
+            "codeDigest": "sha256:ae4ab3eeab7311af6520d43f376301bfd3bc33b6c09904db1751828e1e4f1c2c",
             "id": "crd.version-removal.crossplane",
             "version": "2.5.0"
           },
-          "reviewedAt": "2026-10-17T05:31:50Z",
+          "reviewedAt": "2026-10-22T20:18:11Z",
           "sources": [
             {
               "contentDigest": "sha256:04279e2d7254b06c456916cb02a3d3a1100e9b279deabcecd4f903e17e74bebd",
@@ -3569,7 +3569,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-15T05:31:50Z"
+          "validUntil": "2026-12-02T20:18:11Z"
         },
         "id": "crossplane.crd-version-removal.environmentconfigs-apiextensions-crossplane-io.1-20-0-to-2-0-0",
         "nextAction": "change apiVersion of EnvironmentConfig to apiextensions.crossplane.io/v1beta1 before upgrading to 2.0.0",
@@ -11653,13 +11653,13 @@
       "rule": {
         "evidence": {
           "basis": "mechanical",
-          "derivedAt": "2026-10-17T05:46:27Z",
+          "derivedAt": "2026-10-22T20:18:11Z",
           "extractor": {
-            "codeDigest": "sha256:225f5707b71e90a986ce3f3a8e0763761b79d47e30b84543eb60a2e46c7016ea",
+            "codeDigest": "sha256:615211e5086ec9763fdd0fd2cfdc50b7ac1e199b9f3a822fbf3fb737e6fdf9db",
             "id": "crd.version-removal.kyverno",
             "version": "2.5.0"
           },
-          "reviewedAt": "2026-10-17T05:46:27Z",
+          "reviewedAt": "2026-10-22T20:18:11Z",
           "sources": [
             {
               "contentDigest": "sha256:4da606b34b772d8d846bdec3927c35e712571299f2e50f7996ca095e25447e87",
@@ -11679,7 +11679,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-15T05:46:27Z"
+          "validUntil": "2026-12-02T20:18:11Z"
         },
         "id": "kyverno.crd-version-removal.updaterequests-kyverno-io.1-15-0-to-1-16-0",
         "nextAction": "change apiVersion of UpdateRequest to kyverno.io/v2 before upgrading to 1.16.0",
@@ -17253,13 +17253,13 @@
       "rule": {
         "evidence": {
           "basis": "mechanical",
-          "derivedAt": "2026-10-17T06:35:18Z",
+          "derivedAt": "2026-10-22T20:18:11Z",
           "extractor": {
-            "codeDigest": "sha256:eccf924fdd21932d19884f9a766c16da238ea7dc670576f03385f2fae9e02f4c",
+            "codeDigest": "sha256:899d7212f29859fee67db165c35942161f4ba59df0feae1738c5bb2256d39288",
             "id": "crd.version-removal.strimzi",
             "version": "2.5.0"
           },
-          "reviewedAt": "2026-10-17T06:35:18Z",
+          "reviewedAt": "2026-10-22T20:18:11Z",
           "sources": [
             {
               "contentDigest": "sha256:220f4d675304c7cf349459bb7532ae6910de98a1e12282a69cc21202cc6b7a83",
@@ -17279,7 +17279,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-15T06:35:18Z"
+          "validUntil": "2026-12-16T20:18:11Z"
         },
         "id": "strimzi.crd-version-removal.kafkabridges-kafka-strimzi-io.0-51-0-to-1-0-0",
         "nextAction": "migrate stored KafkaBridge objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to kafka.strimzi.io/v1 before upgrading to 1.0.0",
@@ -17348,13 +17348,13 @@
       "rule": {
         "evidence": {
           "basis": "mechanical",
-          "derivedAt": "2026-10-17T06:35:18Z",
+          "derivedAt": "2026-10-22T20:18:11Z",
           "extractor": {
-            "codeDigest": "sha256:eccf924fdd21932d19884f9a766c16da238ea7dc670576f03385f2fae9e02f4c",
+            "codeDigest": "sha256:899d7212f29859fee67db165c35942161f4ba59df0feae1738c5bb2256d39288",
             "id": "crd.version-removal.strimzi",
             "version": "2.5.0"
           },
-          "reviewedAt": "2026-10-17T06:35:18Z",
+          "reviewedAt": "2026-10-22T20:18:11Z",
           "sources": [
             {
               "contentDigest": "sha256:8050325edfec7ac90718f9e40f3f808b5489d7ae6c11b1634bc82426955b8fff",
@@ -17374,7 +17374,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-15T06:35:18Z"
+          "validUntil": "2026-12-16T20:18:11Z"
         },
         "id": "strimzi.crd-version-removal.kafkaconnectors-kafka-strimzi-io.0-51-0-to-1-0-0",
         "nextAction": "migrate stored KafkaConnector objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to kafka.strimzi.io/v1 before upgrading to 1.0.0",
@@ -17443,13 +17443,13 @@
       "rule": {
         "evidence": {
           "basis": "mechanical",
-          "derivedAt": "2026-10-17T06:35:18Z",
+          "derivedAt": "2026-10-22T20:18:11Z",
           "extractor": {
-            "codeDigest": "sha256:eccf924fdd21932d19884f9a766c16da238ea7dc670576f03385f2fae9e02f4c",
+            "codeDigest": "sha256:899d7212f29859fee67db165c35942161f4ba59df0feae1738c5bb2256d39288",
             "id": "crd.version-removal.strimzi",
             "version": "2.5.0"
           },
-          "reviewedAt": "2026-10-17T06:35:18Z",
+          "reviewedAt": "2026-10-22T20:18:11Z",
           "sources": [
             {
               "contentDigest": "sha256:b9cee7b9e0b1eb77a32542d454f1e01353543f244e2b25603dc031bd8253ecb5",
@@ -17469,7 +17469,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-15T06:35:18Z"
+          "validUntil": "2026-12-16T20:18:11Z"
         },
         "id": "strimzi.crd-version-removal.kafkaconnects-kafka-strimzi-io.0-51-0-to-1-0-0",
         "nextAction": "migrate stored KafkaConnect objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to kafka.strimzi.io/v1 before upgrading to 1.0.0",
@@ -17538,13 +17538,13 @@
       "rule": {
         "evidence": {
           "basis": "mechanical",
-          "derivedAt": "2026-10-17T06:35:18Z",
+          "derivedAt": "2026-10-22T20:18:11Z",
           "extractor": {
-            "codeDigest": "sha256:eccf924fdd21932d19884f9a766c16da238ea7dc670576f03385f2fae9e02f4c",
+            "codeDigest": "sha256:899d7212f29859fee67db165c35942161f4ba59df0feae1738c5bb2256d39288",
             "id": "crd.version-removal.strimzi",
             "version": "2.5.0"
           },
-          "reviewedAt": "2026-10-17T06:35:18Z",
+          "reviewedAt": "2026-10-22T20:18:11Z",
           "sources": [
             {
               "contentDigest": "sha256:89a9f585983f690f7cfbe355c362032c0ca73973986fe34067efa88057b9d955",
@@ -17564,7 +17564,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-15T06:35:18Z"
+          "validUntil": "2026-12-16T20:18:11Z"
         },
         "id": "strimzi.crd-version-removal.kafkamirrormaker2s-kafka-strimzi-io.0-51-0-to-1-0-0",
         "nextAction": "migrate stored KafkaMirrorMaker2 objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to kafka.strimzi.io/v1 before upgrading to 1.0.0",
@@ -17633,13 +17633,13 @@
       "rule": {
         "evidence": {
           "basis": "mechanical",
-          "derivedAt": "2026-10-17T06:35:18Z",
+          "derivedAt": "2026-10-22T20:18:11Z",
           "extractor": {
-            "codeDigest": "sha256:eccf924fdd21932d19884f9a766c16da238ea7dc670576f03385f2fae9e02f4c",
+            "codeDigest": "sha256:899d7212f29859fee67db165c35942161f4ba59df0feae1738c5bb2256d39288",
             "id": "crd.version-removal.strimzi",
             "version": "2.5.0"
           },
-          "reviewedAt": "2026-10-17T06:35:18Z",
+          "reviewedAt": "2026-10-22T20:18:11Z",
           "sources": [
             {
               "contentDigest": "sha256:8e5fb2ff83f71ae7aa9ad97b200828bed8fcca6ae56d28fdbea3fc09870f5c57",
@@ -17659,7 +17659,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-15T06:35:18Z"
+          "validUntil": "2026-12-16T20:18:11Z"
         },
         "id": "strimzi.crd-version-removal.kafkanodepools-kafka-strimzi-io.0-51-0-to-1-0-0",
         "nextAction": "migrate stored KafkaNodePool objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to kafka.strimzi.io/v1 before upgrading to 1.0.0",
@@ -17728,13 +17728,13 @@
       "rule": {
         "evidence": {
           "basis": "mechanical",
-          "derivedAt": "2026-10-17T06:35:18Z",
+          "derivedAt": "2026-10-22T20:18:11Z",
           "extractor": {
-            "codeDigest": "sha256:eccf924fdd21932d19884f9a766c16da238ea7dc670576f03385f2fae9e02f4c",
+            "codeDigest": "sha256:899d7212f29859fee67db165c35942161f4ba59df0feae1738c5bb2256d39288",
             "id": "crd.version-removal.strimzi",
             "version": "2.5.0"
           },
-          "reviewedAt": "2026-10-17T06:35:18Z",
+          "reviewedAt": "2026-10-22T20:18:11Z",
           "sources": [
             {
               "contentDigest": "sha256:e84ffcd975c62025436ead73298c53b3e3409746986295d57dc156b6710201b2",
@@ -17754,7 +17754,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-15T06:35:18Z"
+          "validUntil": "2026-12-16T20:18:11Z"
         },
         "id": "strimzi.crd-version-removal.kafkarebalances-kafka-strimzi-io.0-51-0-to-1-0-0",
         "nextAction": "migrate stored KafkaRebalance objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to kafka.strimzi.io/v1 before upgrading to 1.0.0",
@@ -17823,13 +17823,13 @@
       "rule": {
         "evidence": {
           "basis": "mechanical",
-          "derivedAt": "2026-10-17T06:35:18Z",
+          "derivedAt": "2026-10-22T20:18:11Z",
           "extractor": {
-            "codeDigest": "sha256:eccf924fdd21932d19884f9a766c16da238ea7dc670576f03385f2fae9e02f4c",
+            "codeDigest": "sha256:899d7212f29859fee67db165c35942161f4ba59df0feae1738c5bb2256d39288",
             "id": "crd.version-removal.strimzi",
             "version": "2.5.0"
           },
-          "reviewedAt": "2026-10-17T06:35:18Z",
+          "reviewedAt": "2026-10-22T20:18:11Z",
           "sources": [
             {
               "contentDigest": "sha256:cf97d0e156ad5b8347d1416a70df6791ad1eab3b7ba53f54d16a21d6ff66b6e6",
@@ -17849,7 +17849,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-15T06:35:18Z"
+          "validUntil": "2026-12-16T20:18:11Z"
         },
         "id": "strimzi.crd-version-removal.kafkas-kafka-strimzi-io.0-51-0-to-1-0-0",
         "nextAction": "migrate stored Kafka objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to kafka.strimzi.io/v1 before upgrading to 1.0.0",
@@ -17918,13 +17918,13 @@
       "rule": {
         "evidence": {
           "basis": "mechanical",
-          "derivedAt": "2026-10-17T06:35:18Z",
+          "derivedAt": "2026-10-22T20:18:11Z",
           "extractor": {
-            "codeDigest": "sha256:eccf924fdd21932d19884f9a766c16da238ea7dc670576f03385f2fae9e02f4c",
+            "codeDigest": "sha256:899d7212f29859fee67db165c35942161f4ba59df0feae1738c5bb2256d39288",
             "id": "crd.version-removal.strimzi",
             "version": "2.5.0"
           },
-          "reviewedAt": "2026-10-17T06:35:18Z",
+          "reviewedAt": "2026-10-22T20:18:11Z",
           "sources": [
             {
               "contentDigest": "sha256:36390f0731c699448076d4ee739e8b7f331d083e91a7fb71500aaa830ab1127e",
@@ -17944,7 +17944,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-15T06:35:18Z"
+          "validUntil": "2026-12-16T20:18:11Z"
         },
         "id": "strimzi.crd-version-removal.kafkatopics-kafka-strimzi-io.0-51-0-to-1-0-0",
         "nextAction": "migrate stored KafkaTopic objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to kafka.strimzi.io/v1 before upgrading to 1.0.0",
@@ -18015,13 +18015,13 @@
       "rule": {
         "evidence": {
           "basis": "mechanical",
-          "derivedAt": "2026-10-17T06:35:18Z",
+          "derivedAt": "2026-10-22T20:18:11Z",
           "extractor": {
-            "codeDigest": "sha256:eccf924fdd21932d19884f9a766c16da238ea7dc670576f03385f2fae9e02f4c",
+            "codeDigest": "sha256:899d7212f29859fee67db165c35942161f4ba59df0feae1738c5bb2256d39288",
             "id": "crd.version-removal.strimzi",
             "version": "2.5.0"
           },
-          "reviewedAt": "2026-10-17T06:35:18Z",
+          "reviewedAt": "2026-10-22T20:18:11Z",
           "sources": [
             {
               "contentDigest": "sha256:6f278324169ae433ea7a01c535c7db130d5ec42e64389188c4a20504c5f37467",
@@ -18041,7 +18041,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-15T06:35:18Z"
+          "validUntil": "2026-12-16T20:18:11Z"
         },
         "id": "strimzi.crd-version-removal.kafkausers-kafka-strimzi-io.0-51-0-to-1-0-0",
         "nextAction": "migrate stored KafkaUser objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to kafka.strimzi.io/v1 before upgrading to 1.0.0",
@@ -18112,13 +18112,13 @@
       "rule": {
         "evidence": {
           "basis": "mechanical",
-          "derivedAt": "2026-10-17T06:35:18Z",
+          "derivedAt": "2026-10-22T20:18:11Z",
           "extractor": {
-            "codeDigest": "sha256:eccf924fdd21932d19884f9a766c16da238ea7dc670576f03385f2fae9e02f4c",
+            "codeDigest": "sha256:899d7212f29859fee67db165c35942161f4ba59df0feae1738c5bb2256d39288",
             "id": "crd.version-removal.strimzi",
             "version": "2.5.0"
           },
-          "reviewedAt": "2026-10-17T06:35:18Z",
+          "reviewedAt": "2026-10-22T20:18:11Z",
           "sources": [
             {
               "contentDigest": "sha256:e669bc6b5bbebd4dd911e5ad0b9817cbbee9b920f1a8a1ab0fc8dda116bb2fc8",
@@ -18138,7 +18138,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-15T06:35:18Z"
+          "validUntil": "2026-12-16T20:18:11Z"
         },
         "id": "strimzi.crd-version-removal.strimzipodsets-core-strimzi-io.0-51-0-to-1-0-0",
         "nextAction": "migrate stored StrimziPodSet objects to v1 and remove v1beta2 from status.storedVersions, then change apiVersion to core.strimzi.io/v1 before upgrading to 1.0.0",
@@ -19353,11 +19353,11 @@
         "extractor": {
           "id": "crd.version-removal.cert-manager",
           "version": "2.5.0",
-          "codeDigest": "sha256:cfdaf90deb080895239fd6a9070bbf6cb6437f5e559b4cb3f8a7cc6ea45cfccf"
+          "codeDigest": "sha256:c0ca248ae9263ca68a256cef4d0e6d579cc0bfce4b1073995495412af805cce5"
         },
-        "derivedAt": "2026-10-17T13:08:58Z",
-        "reviewedAt": "2026-10-17T13:08:58Z",
-        "validUntil": "2027-01-15T13:08:58Z",
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2026-11-25T20:18:11Z",
         "sources": [
           {
             "id": "crds-1-19-0",
@@ -19427,11 +19427,11 @@
         "extractor": {
           "id": "crd.version-removal.cert-manager",
           "version": "2.5.0",
-          "codeDigest": "sha256:cfdaf90deb080895239fd6a9070bbf6cb6437f5e559b4cb3f8a7cc6ea45cfccf"
+          "codeDigest": "sha256:c0ca248ae9263ca68a256cef4d0e6d579cc0bfce4b1073995495412af805cce5"
         },
-        "derivedAt": "2026-10-17T13:08:58Z",
-        "reviewedAt": "2026-10-17T13:08:58Z",
-        "validUntil": "2027-01-15T13:08:58Z",
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2026-11-25T20:18:11Z",
         "sources": [
           {
             "id": "crds-1-20-0",
@@ -19521,11 +19521,11 @@
         "extractor": {
           "id": "crd.version-removal.dapr",
           "version": "2.5.0",
-          "codeDigest": "sha256:459ba9ae43baef6ddb10a7f5a8134fd21292d1123de3be7d36bc8c24273831eb"
+          "codeDigest": "sha256:6a59670c89284bb477f7dc6316ed9788d1dc912f9a08ec6f7a31928de1de3d38"
         },
-        "derivedAt": "2026-10-21T19:59:17Z",
-        "reviewedAt": "2026-10-21T19:59:17Z",
-        "validUntil": "2027-01-19T19:59:17Z",
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2026-11-25T20:18:11Z",
         "sources": [
           {
             "id": "crds-1-13-0",
@@ -19647,11 +19647,11 @@
         "extractor": {
           "id": "crd.version-removal.dapr",
           "version": "2.5.0",
-          "codeDigest": "sha256:459ba9ae43baef6ddb10a7f5a8134fd21292d1123de3be7d36bc8c24273831eb"
+          "codeDigest": "sha256:6a59670c89284bb477f7dc6316ed9788d1dc912f9a08ec6f7a31928de1de3d38"
         },
-        "derivedAt": "2026-10-21T19:59:17Z",
-        "reviewedAt": "2026-10-21T19:59:17Z",
-        "validUntil": "2027-01-19T19:59:17Z",
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2026-11-25T20:18:11Z",
         "sources": [
           {
             "id": "crds-1-14-0",
@@ -19837,11 +19837,11 @@
         "extractor": {
           "id": "crd.version-removal.dapr",
           "version": "2.5.0",
-          "codeDigest": "sha256:459ba9ae43baef6ddb10a7f5a8134fd21292d1123de3be7d36bc8c24273831eb"
+          "codeDigest": "sha256:6a59670c89284bb477f7dc6316ed9788d1dc912f9a08ec6f7a31928de1de3d38"
         },
-        "derivedAt": "2026-10-21T19:59:17Z",
-        "reviewedAt": "2026-10-21T19:59:17Z",
-        "validUntil": "2027-01-19T19:59:17Z",
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2026-11-25T20:18:11Z",
         "sources": [
           {
             "id": "crds-1-15-0",
@@ -19855,6 +19855,456 @@
             "id": "crds-1-16-0",
             "url": "https://github.com/dapr/dapr/blob/b68296042c975d4ede1ed93ec6b0a579c2b6a020/charts/dapr/crds/components.yaml",
             "revision": "b68296042c975d4ede1ed93ec6b0a579c2b6a020",
+            "contentDigest": "sha256:47acb92af4b4c403832c0d7acc32cab2d72c58be630dc7fe0cdbed702c3b1434",
+            "startLine": 1,
+            "endLine": 102
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/dapr/dapr",
+      "line": "1.17",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.16.0",
+            "commit": "b68296042c975d4ede1ed93ec6b0a579c2b6a020"
+          },
+          {
+            "version": "1.16.1",
+            "commit": "133e3847acd3bba2f0a22f9e82af25ef6a63f5a3"
+          },
+          {
+            "version": "1.16.2",
+            "commit": "3c7722a8c5648354e24256993caf047bc8c80666"
+          },
+          {
+            "version": "1.16.3",
+            "commit": "08ccc4577dc702ca35116465ce0b7d7ee89f9b8e"
+          },
+          {
+            "version": "1.16.4",
+            "commit": "448c44d71cfa3de827a6eade70aea320351cab64"
+          },
+          {
+            "version": "1.16.5",
+            "commit": "f167add0ab641afa210d61771820d0d178bc41ae"
+          },
+          {
+            "version": "1.16.6",
+            "commit": "b16d781bfa9c6bb7e324775492d0901ce97b397e"
+          },
+          {
+            "version": "1.16.7",
+            "commit": "f47f8e13a6e39869ac2b01fe984ad2177e357445"
+          },
+          {
+            "version": "1.16.8",
+            "commit": "9f4e6018a5eed51ee33a54e5852bb2174c2fec61"
+          },
+          {
+            "version": "1.16.9",
+            "commit": "fb9d5d6a77cb78485fe6500a4b8a5786472a4726"
+          },
+          {
+            "version": "1.16.10",
+            "commit": "f6cdf5f17cdb5076cfd2869d05667aa3a450280b"
+          },
+          {
+            "version": "1.16.11",
+            "commit": "9642b3355bd310b7aab5c0c6349b2638358742e0"
+          },
+          {
+            "version": "1.16.12",
+            "commit": "0d27b2af09d5da02a3bce2391e90f4c78610a416"
+          },
+          {
+            "version": "1.16.13",
+            "commit": "0519ae37d5b930c513ce35c658db2b0c5f90ea68"
+          },
+          {
+            "version": "1.16.14",
+            "commit": "e1b37f40873ec5006933dc694eee305b5dbb984e"
+          },
+          {
+            "version": "1.16.15",
+            "commit": "5a94c6cd5e1ef15fef032d466d5b356598c2142d"
+          },
+          {
+            "version": "1.16.16",
+            "commit": "2ff5df81f29a48987f47841ddc4826534dc2e3e0"
+          },
+          {
+            "version": "1.16.17",
+            "commit": "08ef8c127ebb4e1d23aae6400c101ad99b8abf13"
+          },
+          {
+            "version": "1.16.18",
+            "commit": "4507f15568a248e53a8b98bea7a1fac408993b45"
+          },
+          {
+            "version": "1.16.19",
+            "commit": "035274a88581a52198d6cce9649e436e1c10b00a"
+          },
+          {
+            "version": "1.16.20",
+            "commit": "702022c168f037997f88053a16e595fc0a871994"
+          },
+          {
+            "version": "1.16.21",
+            "commit": "6a474a4812ffa985ef1d10e37a77309c57cd5a6f"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.17.0",
+            "commit": "755b4763223f066f75876dccd34e3be3aea476e7"
+          },
+          {
+            "version": "1.17.1",
+            "commit": "d52559f55e8059f56fb6cb59e5195bd848bbab3d"
+          },
+          {
+            "version": "1.17.2",
+            "commit": "e25860e52a4e9cfcbbfc02aab7675bd7608dc6ed"
+          },
+          {
+            "version": "1.17.3",
+            "commit": "6828ba948b8534561c434ef5abb4254f7b52c982"
+          },
+          {
+            "version": "1.17.4",
+            "commit": "55aa0988eb6a91fe0a84a1674becce9456d334d6"
+          },
+          {
+            "version": "1.17.5",
+            "commit": "3974797d4325124650f3a6c9bf220ba327f84e6c"
+          },
+          {
+            "version": "1.17.6",
+            "commit": "730072425935a8af961701abcbecc4e4a79039fa"
+          },
+          {
+            "version": "1.17.7",
+            "commit": "54e78963d88076ad606325eacd11d31dfab646c7"
+          },
+          {
+            "version": "1.17.8",
+            "commit": "5e58054aa3c77dc6c7a85e0177f82b55913f96a7"
+          },
+          {
+            "version": "1.17.9",
+            "commit": "104b6eaa1eb91227b4303697d40282e4215a4271"
+          },
+          {
+            "version": "1.17.10",
+            "commit": "510e976ffd6ed23572fb9ba78626bc88085d8044"
+          },
+          {
+            "version": "1.17.11",
+            "commit": "d2efab9063a9f23312e22afa2bcb548b6a1f589e"
+          },
+          {
+            "version": "1.17.12",
+            "commit": "3076ea483bdbe13c8488f9afc17111bfbd836a58"
+          },
+          {
+            "version": "1.17.13",
+            "commit": "c09a7f934d2f3668af9dce12ab0bdcdbd10c2e80"
+          },
+          {
+            "version": "1.17.14",
+            "commit": "698ec4de933da2aa05a2554db4b329f4ca43b976"
+          },
+          {
+            "version": "1.17.15",
+            "commit": "332fbf6b24b78fd921ad3e12d65be5c78a29c183"
+          },
+          {
+            "version": "1.17.16",
+            "commit": "482cba26b8fac5d0beb7ec477dd863b86677236c"
+          },
+          {
+            "version": "1.17.17",
+            "commit": "de3a0b7a4f624b3b0335f257bf982ad5e5994828"
+          },
+          {
+            "version": "1.17.18",
+            "commit": "37fb2fb515694d6e04ca882cfca6e465b7e49208"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.dapr",
+          "version": "2.5.0",
+          "codeDigest": "sha256:6a59670c89284bb477f7dc6316ed9788d1dc912f9a08ec6f7a31928de1de3d38"
+        },
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2026-11-25T20:18:11Z",
+        "sources": [
+          {
+            "id": "crds-1-16-0",
+            "url": "https://github.com/dapr/dapr/blob/b68296042c975d4ede1ed93ec6b0a579c2b6a020/charts/dapr/crds/components.yaml",
+            "revision": "b68296042c975d4ede1ed93ec6b0a579c2b6a020",
+            "contentDigest": "sha256:47acb92af4b4c403832c0d7acc32cab2d72c58be630dc7fe0cdbed702c3b1434",
+            "startLine": 1,
+            "endLine": 102
+          },
+          {
+            "id": "crds-1-17-0",
+            "url": "https://github.com/dapr/dapr/blob/755b4763223f066f75876dccd34e3be3aea476e7/charts/dapr/crds/components.yaml",
+            "revision": "755b4763223f066f75876dccd34e3be3aea476e7",
+            "contentDigest": "sha256:47acb92af4b4c403832c0d7acc32cab2d72c58be630dc7fe0cdbed702c3b1434",
+            "startLine": 1,
+            "endLine": 102
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/dapr/dapr",
+      "line": "1.18",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.17.0",
+            "commit": "755b4763223f066f75876dccd34e3be3aea476e7"
+          },
+          {
+            "version": "1.17.1",
+            "commit": "d52559f55e8059f56fb6cb59e5195bd848bbab3d"
+          },
+          {
+            "version": "1.17.2",
+            "commit": "e25860e52a4e9cfcbbfc02aab7675bd7608dc6ed"
+          },
+          {
+            "version": "1.17.3",
+            "commit": "6828ba948b8534561c434ef5abb4254f7b52c982"
+          },
+          {
+            "version": "1.17.4",
+            "commit": "55aa0988eb6a91fe0a84a1674becce9456d334d6"
+          },
+          {
+            "version": "1.17.5",
+            "commit": "3974797d4325124650f3a6c9bf220ba327f84e6c"
+          },
+          {
+            "version": "1.17.6",
+            "commit": "730072425935a8af961701abcbecc4e4a79039fa"
+          },
+          {
+            "version": "1.17.7",
+            "commit": "54e78963d88076ad606325eacd11d31dfab646c7"
+          },
+          {
+            "version": "1.17.8",
+            "commit": "5e58054aa3c77dc6c7a85e0177f82b55913f96a7"
+          },
+          {
+            "version": "1.17.9",
+            "commit": "104b6eaa1eb91227b4303697d40282e4215a4271"
+          },
+          {
+            "version": "1.17.10",
+            "commit": "510e976ffd6ed23572fb9ba78626bc88085d8044"
+          },
+          {
+            "version": "1.17.11",
+            "commit": "d2efab9063a9f23312e22afa2bcb548b6a1f589e"
+          },
+          {
+            "version": "1.17.12",
+            "commit": "3076ea483bdbe13c8488f9afc17111bfbd836a58"
+          },
+          {
+            "version": "1.17.13",
+            "commit": "c09a7f934d2f3668af9dce12ab0bdcdbd10c2e80"
+          },
+          {
+            "version": "1.17.14",
+            "commit": "698ec4de933da2aa05a2554db4b329f4ca43b976"
+          },
+          {
+            "version": "1.17.15",
+            "commit": "332fbf6b24b78fd921ad3e12d65be5c78a29c183"
+          },
+          {
+            "version": "1.17.16",
+            "commit": "482cba26b8fac5d0beb7ec477dd863b86677236c"
+          },
+          {
+            "version": "1.17.17",
+            "commit": "de3a0b7a4f624b3b0335f257bf982ad5e5994828"
+          },
+          {
+            "version": "1.17.18",
+            "commit": "37fb2fb515694d6e04ca882cfca6e465b7e49208"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.18.0",
+            "commit": "7c4f540efa3e6f768a45010f2fc0d4b4c287cac3"
+          },
+          {
+            "version": "1.18.1",
+            "commit": "4cef924a0b1360c69d810deec8cd59bf853f6721"
+          },
+          {
+            "version": "1.18.2",
+            "commit": "d2dd3747145e38e4d85db4714e26d7569c9c37db"
+          },
+          {
+            "version": "1.18.3",
+            "commit": "2dcf2e3548faf3c740b3d29ee300e2132db65cff"
+          },
+          {
+            "version": "1.18.4",
+            "commit": "6d1c53f430205c0c0f3bc3589ce5a3ec3f6f1647"
+          },
+          {
+            "version": "1.18.5",
+            "commit": "90d9f2f374b5b5855580dae1f58f725e186483fc"
+          },
+          {
+            "version": "1.18.6",
+            "commit": "b32a815fa2260983e181b95272ea555fe17d3895"
+          },
+          {
+            "version": "1.18.7",
+            "commit": "b32a815fa2260983e181b95272ea555fe17d3895"
+          },
+          {
+            "version": "1.18.8",
+            "commit": "6539b81d31680ff95408fcee2f4a359d72adb8b0"
+          },
+          {
+            "version": "1.18.9",
+            "commit": "7b4c3832127d09af128e1d8f121117a1ffbc502f"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.dapr",
+          "version": "2.5.0",
+          "codeDigest": "sha256:6a59670c89284bb477f7dc6316ed9788d1dc912f9a08ec6f7a31928de1de3d38"
+        },
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2026-11-25T20:18:11Z",
+        "sources": [
+          {
+            "id": "crds-1-17-0",
+            "url": "https://github.com/dapr/dapr/blob/755b4763223f066f75876dccd34e3be3aea476e7/charts/dapr/crds/components.yaml",
+            "revision": "755b4763223f066f75876dccd34e3be3aea476e7",
+            "contentDigest": "sha256:47acb92af4b4c403832c0d7acc32cab2d72c58be630dc7fe0cdbed702c3b1434",
+            "startLine": 1,
+            "endLine": 102
+          },
+          {
+            "id": "crds-1-18-0",
+            "url": "https://github.com/dapr/dapr/blob/7c4f540efa3e6f768a45010f2fc0d4b4c287cac3/charts/dapr/crds/components.yaml",
+            "revision": "7c4f540efa3e6f768a45010f2fc0d4b4c287cac3",
+            "contentDigest": "sha256:47acb92af4b4c403832c0d7acc32cab2d72c58be630dc7fe0cdbed702c3b1434",
+            "startLine": 1,
+            "endLine": 102
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/dapr/dapr",
+      "line": "1.19",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.18.0",
+            "commit": "7c4f540efa3e6f768a45010f2fc0d4b4c287cac3"
+          },
+          {
+            "version": "1.18.1",
+            "commit": "4cef924a0b1360c69d810deec8cd59bf853f6721"
+          },
+          {
+            "version": "1.18.2",
+            "commit": "d2dd3747145e38e4d85db4714e26d7569c9c37db"
+          },
+          {
+            "version": "1.18.3",
+            "commit": "2dcf2e3548faf3c740b3d29ee300e2132db65cff"
+          },
+          {
+            "version": "1.18.4",
+            "commit": "6d1c53f430205c0c0f3bc3589ce5a3ec3f6f1647"
+          },
+          {
+            "version": "1.18.5",
+            "commit": "90d9f2f374b5b5855580dae1f58f725e186483fc"
+          },
+          {
+            "version": "1.18.6",
+            "commit": "b32a815fa2260983e181b95272ea555fe17d3895"
+          },
+          {
+            "version": "1.18.7",
+            "commit": "b32a815fa2260983e181b95272ea555fe17d3895"
+          },
+          {
+            "version": "1.18.8",
+            "commit": "6539b81d31680ff95408fcee2f4a359d72adb8b0"
+          },
+          {
+            "version": "1.18.9",
+            "commit": "7b4c3832127d09af128e1d8f121117a1ffbc502f"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.19.0",
+            "commit": "cd59bfba89c39344bfaca73f1eb7c76ec411c258"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.dapr",
+          "version": "2.5.0",
+          "codeDigest": "sha256:6a59670c89284bb477f7dc6316ed9788d1dc912f9a08ec6f7a31928de1de3d38"
+        },
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2026-11-25T20:18:11Z",
+        "sources": [
+          {
+            "id": "crds-1-18-0",
+            "url": "https://github.com/dapr/dapr/blob/7c4f540efa3e6f768a45010f2fc0d4b4c287cac3/charts/dapr/crds/components.yaml",
+            "revision": "7c4f540efa3e6f768a45010f2fc0d4b4c287cac3",
+            "contentDigest": "sha256:47acb92af4b4c403832c0d7acc32cab2d72c58be630dc7fe0cdbed702c3b1434",
+            "startLine": 1,
+            "endLine": 102
+          },
+          {
+            "id": "crds-1-19-0",
+            "url": "https://github.com/dapr/dapr/blob/cd59bfba89c39344bfaca73f1eb7c76ec411c258/charts/dapr/crds/components.yaml",
+            "revision": "cd59bfba89c39344bfaca73f1eb7c76ec411c258",
             "contentDigest": "sha256:47acb92af4b4c403832c0d7acc32cab2d72c58be630dc7fe0cdbed702c3b1434",
             "startLine": 1,
             "endLine": 102
@@ -19903,11 +20353,11 @@
         "extractor": {
           "id": "crd.version-removal.keda",
           "version": "2.5.0",
-          "codeDigest": "sha256:c4260fe5bcfab5faa7ffc6003ba859197c0d75ab5aaa340ea635cff70ea9472e"
+          "codeDigest": "sha256:8c7e9b16f4d8e0018375fb11302899cf77a883dc02b54f8d56a3a641b0c211fd"
         },
-        "derivedAt": "2026-10-17T13:08:58Z",
-        "reviewedAt": "2026-10-17T13:08:58Z",
-        "validUntil": "2027-01-15T13:08:58Z",
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2026-12-02T20:18:11Z",
         "sources": [
           {
             "id": "crds-2-16-0",
@@ -19977,11 +20427,11 @@
         "extractor": {
           "id": "crd.version-removal.keda",
           "version": "2.5.0",
-          "codeDigest": "sha256:c4260fe5bcfab5faa7ffc6003ba859197c0d75ab5aaa340ea635cff70ea9472e"
+          "codeDigest": "sha256:8c7e9b16f4d8e0018375fb11302899cf77a883dc02b54f8d56a3a641b0c211fd"
         },
-        "derivedAt": "2026-10-17T13:08:58Z",
-        "reviewedAt": "2026-10-17T13:08:58Z",
-        "validUntil": "2027-01-15T13:08:58Z",
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2026-12-02T20:18:11Z",
         "sources": [
           {
             "id": "crds-2-17-0",
@@ -20039,11 +20489,11 @@
         "extractor": {
           "id": "crd.version-removal.keda",
           "version": "2.5.0",
-          "codeDigest": "sha256:c4260fe5bcfab5faa7ffc6003ba859197c0d75ab5aaa340ea635cff70ea9472e"
+          "codeDigest": "sha256:8c7e9b16f4d8e0018375fb11302899cf77a883dc02b54f8d56a3a641b0c211fd"
         },
-        "derivedAt": "2026-10-17T13:08:58Z",
-        "reviewedAt": "2026-10-17T13:08:58Z",
-        "validUntil": "2027-01-15T13:08:58Z",
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2026-12-02T20:18:11Z",
         "sources": [
           {
             "id": "crds-2-18-0",
@@ -20097,11 +20547,11 @@
         "extractor": {
           "id": "crd.version-removal.keda",
           "version": "2.5.0",
-          "codeDigest": "sha256:c4260fe5bcfab5faa7ffc6003ba859197c0d75ab5aaa340ea635cff70ea9472e"
+          "codeDigest": "sha256:8c7e9b16f4d8e0018375fb11302899cf77a883dc02b54f8d56a3a641b0c211fd"
         },
-        "derivedAt": "2026-10-17T13:08:58Z",
-        "reviewedAt": "2026-10-17T13:08:58Z",
-        "validUntil": "2027-01-15T13:08:58Z",
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2026-12-02T20:18:11Z",
         "sources": [
           {
             "id": "crds-2-19-0",
@@ -20155,11 +20605,11 @@
         "extractor": {
           "id": "crd.version-removal.keda",
           "version": "2.5.0",
-          "codeDigest": "sha256:c4260fe5bcfab5faa7ffc6003ba859197c0d75ab5aaa340ea635cff70ea9472e"
+          "codeDigest": "sha256:8c7e9b16f4d8e0018375fb11302899cf77a883dc02b54f8d56a3a641b0c211fd"
         },
-        "derivedAt": "2026-10-17T13:08:58Z",
-        "reviewedAt": "2026-10-17T13:08:58Z",
-        "validUntil": "2027-01-15T13:08:58Z",
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2026-12-02T20:18:11Z",
         "sources": [
           {
             "id": "crds-2-20-0",
@@ -20867,6 +21317,318 @@
       }
     },
     {
+      "component": "pkg:github/mongodb/mongodb-kubernetes",
+      "line": "1.9",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.8.0",
+            "commit": "bc48cd8b4a5830180854f93f9c63e29afa331764"
+          },
+          {
+            "version": "1.8.1",
+            "commit": "d89262c9bd16182b4ccadca13706cc8c10ab2df2"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.9.0",
+            "commit": "33f3eeb1a42be64ca44e132dee5646931ce0a84f"
+          },
+          {
+            "version": "1.9.1",
+            "commit": "f935a71a503c0c98f8caf517d7bfed09c4c691e2"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.mongodb-kubernetes",
+          "version": "2.5.0",
+          "codeDigest": "sha256:936369979557dcedf688b352af3679ef9394b4dba7178a9cd4b318c69f346459"
+        },
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2026-11-18T20:18:11Z",
+        "sources": [
+          {
+            "id": "crds-1-8-0",
+            "url": "https://github.com/mongodb/mongodb-kubernetes/blob/bc48cd8b4a5830180854f93f9c63e29afa331764/config/crd/bases/mongodb.com_clustermongodbroles.yaml",
+            "revision": "bc48cd8b4a5830180854f93f9c63e29afa331764",
+            "contentDigest": "sha256:0d233663abc98b4ea2cf2900ab2b0cea3c4d87ae8e2abb3d3daa8af542cdedba",
+            "startLine": 1,
+            "endLine": 108
+          },
+          {
+            "id": "crds-1-9-0",
+            "url": "https://github.com/mongodb/mongodb-kubernetes/blob/33f3eeb1a42be64ca44e132dee5646931ce0a84f/config/crd/bases/ai.mongodb.com_voyageais.yaml",
+            "revision": "33f3eeb1a42be64ca44e132dee5646931ce0a84f",
+            "contentDigest": "sha256:787e85c5f1bf6bbdb85079085fd11dac324549a17fe1a62518a1dede9c5f5674",
+            "startLine": 1,
+            "endLine": 616
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/mongodb/mongodb-kubernetes",
+      "line": "1.10",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.9.0",
+            "commit": "33f3eeb1a42be64ca44e132dee5646931ce0a84f"
+          },
+          {
+            "version": "1.9.1",
+            "commit": "f935a71a503c0c98f8caf517d7bfed09c4c691e2"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.10.0",
+            "commit": "41e81d7ebccf299463e9d5f81006d3e6b7ddfa91"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.mongodb-kubernetes",
+          "version": "2.5.0",
+          "codeDigest": "sha256:936369979557dcedf688b352af3679ef9394b4dba7178a9cd4b318c69f346459"
+        },
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2026-11-18T20:18:11Z",
+        "sources": [
+          {
+            "id": "crds-1-10-0",
+            "url": "https://github.com/mongodb/mongodb-kubernetes/blob/41e81d7ebccf299463e9d5f81006d3e6b7ddfa91/config/crd/bases/ai.mongodb.com_voyageais.yaml",
+            "revision": "41e81d7ebccf299463e9d5f81006d3e6b7ddfa91",
+            "contentDigest": "sha256:4b930fc3b00777d9487f124b9e820a2ff0c65b44f531103ae3b1eb99c9190120",
+            "startLine": 1,
+            "endLine": 616
+          },
+          {
+            "id": "crds-1-9-0",
+            "url": "https://github.com/mongodb/mongodb-kubernetes/blob/33f3eeb1a42be64ca44e132dee5646931ce0a84f/config/crd/bases/ai.mongodb.com_voyageais.yaml",
+            "revision": "33f3eeb1a42be64ca44e132dee5646931ce0a84f",
+            "contentDigest": "sha256:787e85c5f1bf6bbdb85079085fd11dac324549a17fe1a62518a1dede9c5f5674",
+            "startLine": 1,
+            "endLine": 616
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/mongodb/mongodb-kubernetes",
+      "line": "1.11",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.10.0",
+            "commit": "41e81d7ebccf299463e9d5f81006d3e6b7ddfa91"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.11.0",
+            "commit": "92a6af18c9cd5da7b933ab566f29de80fa1a0925"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.mongodb-kubernetes",
+          "version": "2.5.0",
+          "codeDigest": "sha256:936369979557dcedf688b352af3679ef9394b4dba7178a9cd4b318c69f346459"
+        },
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2026-11-18T20:18:11Z",
+        "sources": [
+          {
+            "id": "crds-1-10-0",
+            "url": "https://github.com/mongodb/mongodb-kubernetes/blob/41e81d7ebccf299463e9d5f81006d3e6b7ddfa91/config/crd/bases/ai.mongodb.com_voyageais.yaml",
+            "revision": "41e81d7ebccf299463e9d5f81006d3e6b7ddfa91",
+            "contentDigest": "sha256:4b930fc3b00777d9487f124b9e820a2ff0c65b44f531103ae3b1eb99c9190120",
+            "startLine": 1,
+            "endLine": 616
+          },
+          {
+            "id": "crds-1-11-0",
+            "url": "https://github.com/mongodb/mongodb-kubernetes/blob/92a6af18c9cd5da7b933ab566f29de80fa1a0925/config/crd/bases/ai.mongodb.com_voyageais.yaml",
+            "revision": "92a6af18c9cd5da7b933ab566f29de80fa1a0925",
+            "contentDigest": "sha256:70c2a5017608f6956d1c78fd07b9edebb748eaffd958fbc29fc712cca53dad9c",
+            "startLine": 1,
+            "endLine": 616
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/mongodb/mongodb-kubernetes",
+      "line": "1.12",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.11.0",
+            "commit": "92a6af18c9cd5da7b933ab566f29de80fa1a0925"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.12.0",
+            "commit": "fc9104e0601abfa0bbae444dcb1d55d092a96e24"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.mongodb-kubernetes",
+          "version": "2.5.0",
+          "codeDigest": "sha256:936369979557dcedf688b352af3679ef9394b4dba7178a9cd4b318c69f346459"
+        },
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2026-11-18T20:18:11Z",
+        "sources": [
+          {
+            "id": "crds-1-11-0",
+            "url": "https://github.com/mongodb/mongodb-kubernetes/blob/92a6af18c9cd5da7b933ab566f29de80fa1a0925/config/crd/bases/ai.mongodb.com_voyageais.yaml",
+            "revision": "92a6af18c9cd5da7b933ab566f29de80fa1a0925",
+            "contentDigest": "sha256:70c2a5017608f6956d1c78fd07b9edebb748eaffd958fbc29fc712cca53dad9c",
+            "startLine": 1,
+            "endLine": 616
+          },
+          {
+            "id": "crds-1-12-0",
+            "url": "https://github.com/mongodb/mongodb-kubernetes/blob/fc9104e0601abfa0bbae444dcb1d55d092a96e24/config/crd/bases/ai.mongodb.com_voyageais.yaml",
+            "revision": "fc9104e0601abfa0bbae444dcb1d55d092a96e24",
+            "contentDigest": "sha256:70c2a5017608f6956d1c78fd07b9edebb748eaffd958fbc29fc712cca53dad9c",
+            "startLine": 1,
+            "endLine": 616
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/mongodb/mongodb-kubernetes",
+      "line": "1.13",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.12.0",
+            "commit": "fc9104e0601abfa0bbae444dcb1d55d092a96e24"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.13.0",
+            "commit": "75fa89bca8c1395a1beb0f244723f255f67f8719"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.mongodb-kubernetes",
+          "version": "2.5.0",
+          "codeDigest": "sha256:936369979557dcedf688b352af3679ef9394b4dba7178a9cd4b318c69f346459"
+        },
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2026-11-18T20:18:11Z",
+        "sources": [
+          {
+            "id": "crds-1-12-0",
+            "url": "https://github.com/mongodb/mongodb-kubernetes/blob/fc9104e0601abfa0bbae444dcb1d55d092a96e24/config/crd/bases/ai.mongodb.com_voyageais.yaml",
+            "revision": "fc9104e0601abfa0bbae444dcb1d55d092a96e24",
+            "contentDigest": "sha256:70c2a5017608f6956d1c78fd07b9edebb748eaffd958fbc29fc712cca53dad9c",
+            "startLine": 1,
+            "endLine": 616
+          },
+          {
+            "id": "crds-1-13-0",
+            "url": "https://github.com/mongodb/mongodb-kubernetes/blob/75fa89bca8c1395a1beb0f244723f255f67f8719/config/crd/bases/ai.mongodb.com_voyageais.yaml",
+            "revision": "75fa89bca8c1395a1beb0f244723f255f67f8719",
+            "contentDigest": "sha256:70c2a5017608f6956d1c78fd07b9edebb748eaffd958fbc29fc712cca53dad9c",
+            "startLine": 1,
+            "endLine": 616
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/mongodb/mongodb-kubernetes",
+      "line": "1.14",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.13.0",
+            "commit": "75fa89bca8c1395a1beb0f244723f255f67f8719"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.14.0",
+            "commit": "26b4959c16f513752364994884c05bb343d5bef3"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.mongodb-kubernetes",
+          "version": "2.5.0",
+          "codeDigest": "sha256:936369979557dcedf688b352af3679ef9394b4dba7178a9cd4b318c69f346459"
+        },
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2026-11-18T20:18:11Z",
+        "sources": [
+          {
+            "id": "crds-1-13-0",
+            "url": "https://github.com/mongodb/mongodb-kubernetes/blob/75fa89bca8c1395a1beb0f244723f255f67f8719/config/crd/bases/ai.mongodb.com_voyageais.yaml",
+            "revision": "75fa89bca8c1395a1beb0f244723f255f67f8719",
+            "contentDigest": "sha256:70c2a5017608f6956d1c78fd07b9edebb748eaffd958fbc29fc712cca53dad9c",
+            "startLine": 1,
+            "endLine": 616
+          },
+          {
+            "id": "crds-1-14-0",
+            "url": "https://github.com/mongodb/mongodb-kubernetes/blob/26b4959c16f513752364994884c05bb343d5bef3/config/crd/bases/ai.mongodb.com_voyageais.yaml",
+            "revision": "26b4959c16f513752364994884c05bb343d5bef3",
+            "contentDigest": "sha256:70c2a5017608f6956d1c78fd07b9edebb748eaffd958fbc29fc712cca53dad9c",
+            "startLine": 1,
+            "endLine": 616
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/strimzi/strimzi-kafka-operator",
       "line": "0.50",
       "factFamily": "crd.custom_resource_versions",
@@ -20899,11 +21661,11 @@
         "extractor": {
           "id": "crd.version-removal.strimzi",
           "version": "2.5.0",
-          "codeDigest": "sha256:eccf924fdd21932d19884f9a766c16da238ea7dc670576f03385f2fae9e02f4c"
+          "codeDigest": "sha256:899d7212f29859fee67db165c35942161f4ba59df0feae1738c5bb2256d39288"
         },
-        "derivedAt": "2026-10-17T06:35:18Z",
-        "reviewedAt": "2026-10-17T06:35:18Z",
-        "validUntil": "2027-01-15T06:35:18Z",
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2026-12-16T20:18:11Z",
         "sources": [
           {
             "id": "crds-0-49-0",
@@ -20953,11 +21715,11 @@
         "extractor": {
           "id": "crd.version-removal.strimzi",
           "version": "2.5.0",
-          "codeDigest": "sha256:eccf924fdd21932d19884f9a766c16da238ea7dc670576f03385f2fae9e02f4c"
+          "codeDigest": "sha256:899d7212f29859fee67db165c35942161f4ba59df0feae1738c5bb2256d39288"
         },
-        "derivedAt": "2026-10-17T06:35:18Z",
-        "reviewedAt": "2026-10-17T06:35:18Z",
-        "validUntil": "2027-01-15T06:35:18Z",
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2026-12-16T20:18:11Z",
         "sources": [
           {
             "id": "crds-0-50-0",
@@ -21007,11 +21769,11 @@
         "extractor": {
           "id": "crd.version-removal.strimzi",
           "version": "2.5.0",
-          "codeDigest": "sha256:eccf924fdd21932d19884f9a766c16da238ea7dc670576f03385f2fae9e02f4c"
+          "codeDigest": "sha256:899d7212f29859fee67db165c35942161f4ba59df0feae1738c5bb2256d39288"
         },
-        "derivedAt": "2026-10-17T06:35:18Z",
-        "reviewedAt": "2026-10-17T06:35:18Z",
-        "validUntil": "2027-01-15T06:35:18Z",
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2026-12-16T20:18:11Z",
         "sources": [
           {
             "id": "crds-1-0-0",
@@ -21057,11 +21819,11 @@
         "extractor": {
           "id": "crd.version-removal.strimzi",
           "version": "2.5.0",
-          "codeDigest": "sha256:eccf924fdd21932d19884f9a766c16da238ea7dc670576f03385f2fae9e02f4c"
+          "codeDigest": "sha256:899d7212f29859fee67db165c35942161f4ba59df0feae1738c5bb2256d39288"
         },
-        "derivedAt": "2026-10-17T06:35:18Z",
-        "reviewedAt": "2026-10-17T06:35:18Z",
-        "validUntil": "2027-01-15T06:35:18Z",
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2026-12-16T20:18:11Z",
         "sources": [
           {
             "id": "crds-1-1-0",
@@ -21107,11 +21869,11 @@
         "extractor": {
           "id": "crd.version-removal.strimzi",
           "version": "2.5.0",
-          "codeDigest": "sha256:eccf924fdd21932d19884f9a766c16da238ea7dc670576f03385f2fae9e02f4c"
+          "codeDigest": "sha256:899d7212f29859fee67db165c35942161f4ba59df0feae1738c5bb2256d39288"
         },
-        "derivedAt": "2026-10-17T06:35:18Z",
-        "reviewedAt": "2026-10-17T06:35:18Z",
-        "validUntil": "2027-01-15T06:35:18Z",
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2026-12-16T20:18:11Z",
         "sources": [
           {
             "id": "crds-1-2-0",
@@ -21169,11 +21931,11 @@
         "extractor": {
           "id": "crd.version-removal.tekton",
           "version": "2.5.0",
-          "codeDigest": "sha256:17d4757647aee574d7382447284051e2d0fc2f0f65b0098f4135bd7d693173f7"
+          "codeDigest": "sha256:6dc8240f017d8d29346d714df14b9adbfbb9017c5ca61590cc739336f45b3050"
         },
-        "derivedAt": "2026-10-21T20:08:37Z",
-        "reviewedAt": "2026-10-21T20:08:37Z",
-        "validUntil": "2027-01-19T20:08:37Z",
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2026-12-23T20:18:11Z",
         "sources": [
           {
             "id": "crds-1-12-0",
@@ -21227,11 +21989,11 @@
         "extractor": {
           "id": "crd.version-removal.tekton",
           "version": "2.5.0",
-          "codeDigest": "sha256:17d4757647aee574d7382447284051e2d0fc2f0f65b0098f4135bd7d693173f7"
+          "codeDigest": "sha256:6dc8240f017d8d29346d714df14b9adbfbb9017c5ca61590cc739336f45b3050"
         },
-        "derivedAt": "2026-10-21T20:08:37Z",
-        "reviewedAt": "2026-10-21T20:08:37Z",
-        "validUntil": "2027-01-19T20:08:37Z",
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2026-12-23T20:18:11Z",
         "sources": [
           {
             "id": "crds-1-13-0",
@@ -21285,6 +22047,10 @@
           {
             "version": "1.15.3",
             "commit": "64924d47bc91bbe197b1465bb4f83be6dee8c83d"
+          },
+          {
+            "version": "1.15.4",
+            "commit": "074d50aa537352f3a49374d850c1bd7e324ca496"
           }
         ]
       },
@@ -21293,11 +22059,11 @@
         "extractor": {
           "id": "crd.version-removal.tekton",
           "version": "2.5.0",
-          "codeDigest": "sha256:17d4757647aee574d7382447284051e2d0fc2f0f65b0098f4135bd7d693173f7"
+          "codeDigest": "sha256:6dc8240f017d8d29346d714df14b9adbfbb9017c5ca61590cc739336f45b3050"
         },
-        "derivedAt": "2026-10-21T20:08:37Z",
-        "reviewedAt": "2026-10-21T20:08:37Z",
-        "validUntil": "2027-01-19T20:08:37Z",
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2026-12-23T20:18:11Z",
         "sources": [
           {
             "id": "crds-1-14-0",
@@ -21341,6 +22107,10 @@
           {
             "version": "1.15.3",
             "commit": "64924d47bc91bbe197b1465bb4f83be6dee8c83d"
+          },
+          {
+            "version": "1.15.4",
+            "commit": "074d50aa537352f3a49374d850c1bd7e324ca496"
           }
         ],
         "to": [
@@ -21355,11 +22125,11 @@
         "extractor": {
           "id": "crd.version-removal.tekton",
           "version": "2.5.0",
-          "codeDigest": "sha256:17d4757647aee574d7382447284051e2d0fc2f0f65b0098f4135bd7d693173f7"
+          "codeDigest": "sha256:6dc8240f017d8d29346d714df14b9adbfbb9017c5ca61590cc739336f45b3050"
         },
-        "derivedAt": "2026-10-21T20:08:37Z",
-        "reviewedAt": "2026-10-21T20:08:37Z",
-        "validUntil": "2027-01-19T20:08:37Z",
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2026-12-23T20:18:11Z",
         "sources": [
           {
             "id": "crds-1-15-0",
@@ -21405,11 +22175,11 @@
         "extractor": {
           "id": "crd.version-removal.tekton",
           "version": "2.5.0",
-          "codeDigest": "sha256:17d4757647aee574d7382447284051e2d0fc2f0f65b0098f4135bd7d693173f7"
+          "codeDigest": "sha256:6dc8240f017d8d29346d714df14b9adbfbb9017c5ca61590cc739336f45b3050"
         },
-        "derivedAt": "2026-10-21T20:08:37Z",
-        "reviewedAt": "2026-10-21T20:08:37Z",
-        "validUntil": "2027-01-19T20:08:37Z",
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2026-12-23T20:18:11Z",
         "sources": [
           {
             "id": "crds-1-16-0",
@@ -21467,11 +22237,11 @@
         "extractor": {
           "id": "crd.version-removal.velero",
           "version": "2.5.0",
-          "codeDigest": "sha256:0db28d95b90dfcc32eedc47844b400d42c0d341bb2d577c24a10b06ca0478f65"
+          "codeDigest": "sha256:c31182bcd8ce66baa3f6104adb402c5f4705d9dd70142b688f2d44bfe843b115"
         },
-        "derivedAt": "2026-10-17T13:08:58Z",
-        "reviewedAt": "2026-10-17T13:08:58Z",
-        "validUntil": "2027-01-15T13:08:58Z",
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2027-01-06T20:18:11Z",
         "sources": [
           {
             "id": "crds-1-13-0",
@@ -21529,11 +22299,11 @@
         "extractor": {
           "id": "crd.version-removal.velero",
           "version": "2.5.0",
-          "codeDigest": "sha256:0db28d95b90dfcc32eedc47844b400d42c0d341bb2d577c24a10b06ca0478f65"
+          "codeDigest": "sha256:c31182bcd8ce66baa3f6104adb402c5f4705d9dd70142b688f2d44bfe843b115"
         },
-        "derivedAt": "2026-10-17T13:08:58Z",
-        "reviewedAt": "2026-10-17T13:08:58Z",
-        "validUntil": "2027-01-15T13:08:58Z",
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2027-01-06T20:18:11Z",
         "sources": [
           {
             "id": "crds-1-14-0",
@@ -21595,11 +22365,11 @@
         "extractor": {
           "id": "crd.version-removal.velero",
           "version": "2.5.0",
-          "codeDigest": "sha256:0db28d95b90dfcc32eedc47844b400d42c0d341bb2d577c24a10b06ca0478f65"
+          "codeDigest": "sha256:c31182bcd8ce66baa3f6104adb402c5f4705d9dd70142b688f2d44bfe843b115"
         },
-        "derivedAt": "2026-10-17T13:08:58Z",
-        "reviewedAt": "2026-10-17T13:08:58Z",
-        "validUntil": "2027-01-15T13:08:58Z",
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2027-01-06T20:18:11Z",
         "sources": [
           {
             "id": "crds-1-15-0",
@@ -21661,11 +22431,11 @@
         "extractor": {
           "id": "crd.version-removal.velero",
           "version": "2.5.0",
-          "codeDigest": "sha256:0db28d95b90dfcc32eedc47844b400d42c0d341bb2d577c24a10b06ca0478f65"
+          "codeDigest": "sha256:c31182bcd8ce66baa3f6104adb402c5f4705d9dd70142b688f2d44bfe843b115"
         },
-        "derivedAt": "2026-10-17T13:08:58Z",
-        "reviewedAt": "2026-10-17T13:08:58Z",
-        "validUntil": "2027-01-15T13:08:58Z",
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2027-01-06T20:18:11Z",
         "sources": [
           {
             "id": "crds-1-16-0",
@@ -21735,11 +22505,11 @@
         "extractor": {
           "id": "crd.version-removal.velero",
           "version": "2.5.0",
-          "codeDigest": "sha256:0db28d95b90dfcc32eedc47844b400d42c0d341bb2d577c24a10b06ca0478f65"
+          "codeDigest": "sha256:c31182bcd8ce66baa3f6104adb402c5f4705d9dd70142b688f2d44bfe843b115"
         },
-        "derivedAt": "2026-10-17T13:08:58Z",
-        "reviewedAt": "2026-10-17T13:08:58Z",
-        "validUntil": "2027-01-15T13:08:58Z",
+        "derivedAt": "2026-10-22T20:18:11Z",
+        "reviewedAt": "2026-10-22T20:18:11Z",
+        "validUntil": "2027-01-06T20:18:11Z",
         "sources": [
           {
             "id": "crds-1-17-0",
