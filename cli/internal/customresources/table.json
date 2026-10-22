@@ -46,6 +46,18 @@
       ]
     },
     {
+      "slug": "chaos-mesh",
+      "catalog": "cncf",
+      "factProject": "chaos_mesh",
+      "component": "pkg:github/chaos-mesh/chaos-mesh",
+      "groups": [
+        {
+          "name": "chaos-mesh.org",
+          "source": "https://github.com/chaos-mesh/chaos-mesh/blob/c58b44f18ff02f04965be5d439a68658e5d65fde/config/crd/bases/chaos-mesh.org_workflows.yaml"
+        }
+      ]
+    },
+    {
       "slug": "cilium",
       "catalog": "cncf",
       "factProject": "cilium",
@@ -222,6 +234,18 @@
       ]
     },
     {
+      "slug": "eraser",
+      "catalog": "cncf",
+      "factProject": "eraser",
+      "component": "pkg:github/eraser-dev/eraser",
+      "groups": [
+        {
+          "name": "eraser.sh",
+          "source": "https://github.com/eraser-dev/eraser/blob/bab117eae8d5034934f000467346acd64cb6259b/config/crd/bases/eraser.sh_imagelists.yaml"
+        }
+      ]
+    },
+    {
       "slug": "external-secrets",
       "catalog": "cncf",
       "factProject": "external_secrets",
@@ -308,6 +332,18 @@
       ]
     },
     {
+      "slug": "kanister",
+      "catalog": "cncf",
+      "factProject": "kanister",
+      "component": "pkg:github/kanisterio/kanister",
+      "groups": [
+        {
+          "name": "cr.kanister.io",
+          "source": "https://github.com/kanisterio/kanister/blob/4bfb772d1725355517afad2e8c87a26a3af9dc30/pkg/customresource/repositoryserver.yaml"
+        }
+      ]
+    },
+    {
       "slug": "karmada",
       "catalog": "cncf",
       "factProject": "karmada",
@@ -344,6 +380,42 @@
         {
           "name": "work.karmada.io",
           "source": "https://github.com/karmada-io/karmada/blob/6d7b233a54d59c8473803901768153f6e4353d02/charts/karmada/_crds/bases/work/work.karmada.io_works.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "kcp",
+      "catalog": "cncf",
+      "factProject": "kcp",
+      "component": "pkg:github/kcp-dev/kcp",
+      "groups": [
+        {
+          "name": "apis.kcp.io",
+          "source": "https://github.com/kcp-dev/kcp/blob/86954e9bfd1b67b9dbe57ab56f273a704f77d142/config/crds/apis.kcp.io_apiresourceschemas.yaml"
+        },
+        {
+          "name": "cache.kcp.io",
+          "source": "https://github.com/kcp-dev/kcp/blob/86954e9bfd1b67b9dbe57ab56f273a704f77d142/config/crds/cache.kcp.io_clustercachedresources.yaml"
+        },
+        {
+          "name": "core.kcp.io",
+          "source": "https://github.com/kcp-dev/kcp/blob/86954e9bfd1b67b9dbe57ab56f273a704f77d142/config/crds/core.kcp.io_shards.yaml"
+        },
+        {
+          "name": "druid.gardener.cloud",
+          "source": "https://github.com/kcp-dev/kcp/blob/86954e9bfd1b67b9dbe57ab56f273a704f77d142/contrib/production/etcd-druid/etcds.druid.gardener.cloud.yaml"
+        },
+        {
+          "name": "migration.kcp.io",
+          "source": "https://github.com/kcp-dev/kcp/blob/86954e9bfd1b67b9dbe57ab56f273a704f77d142/config/crds/migration.kcp.io_logicalclustermigrations.yaml"
+        },
+        {
+          "name": "tenancy.kcp.io",
+          "source": "https://github.com/kcp-dev/kcp/blob/86954e9bfd1b67b9dbe57ab56f273a704f77d142/config/crds/tenancy.kcp.io_workspacetypes.yaml"
+        },
+        {
+          "name": "topology.kcp.io",
+          "source": "https://github.com/kcp-dev/kcp/blob/86954e9bfd1b67b9dbe57ab56f273a704f77d142/config/crds/topology.kcp.io_partitionsets.yaml"
         }
       ]
     },
@@ -406,6 +478,22 @@
         {
           "name": "slo.koordinator.sh",
           "source": "https://github.com/koordinator-sh/koordinator/blob/989ca85c62abcca92b303aa12fd2ccff2ed30fed/config/crd/bases/slo.koordinator.sh_nodeslos.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "kubevela",
+      "catalog": "cncf",
+      "factProject": "kubevela",
+      "component": "pkg:github/kubevela/kubevela",
+      "groups": [
+        {
+          "name": "core.oam.dev",
+          "source": "https://github.com/kubevela/kubevela/blob/a1860544f0556828e165ef68701b2926730671a7/charts/vela-core/crds/core.oam.dev_workloaddefinitions.yaml"
+        },
+        {
+          "name": "cue.oam.dev",
+          "source": "https://github.com/kubevela/kubevela/blob/a1860544f0556828e165ef68701b2926730671a7/charts/vela-core/crds/cue.oam.dev_packages.yaml"
         }
       ]
     },
@@ -802,6 +890,18 @@
         {
           "name": "topology.volcano.sh",
           "source": "https://github.com/volcano-sh/volcano/blob/8fc394c11e8db0d0ada5c17816b58bced9d7213d/config/crd/volcano/bases/topology.volcano.sh_hypernodes.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "wasmcloud",
+      "catalog": "cncf",
+      "factProject": "wasmcloud",
+      "component": "pkg:github/wasmcloud/wasmcloud",
+      "groups": [
+        {
+          "name": "runtime.wasmcloud.dev",
+          "source": "https://github.com/wasmcloud/wasmcloud/blob/bc5acfb8e15f7d6d199ca940354d82e590c2d5ff/runtime-operator/config/crd/bases/runtime.wasmcloud.dev_workloads.yaml"
         }
       ]
     }

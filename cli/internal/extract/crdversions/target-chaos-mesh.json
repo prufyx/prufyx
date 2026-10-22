@@ -1,0 +1,16 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "chaos-mesh",
+    "name": "Chaos Mesh",
+    "repo": "github.com/chaos-mesh/chaos-mesh",
+    "component": "pkg:github/chaos-mesh/chaos-mesh",
+    "factProject": "chaos_mesh",
+    "tagPrefixes": ["v"],
+    "minFrom": "2.3",
+    "paths": [
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

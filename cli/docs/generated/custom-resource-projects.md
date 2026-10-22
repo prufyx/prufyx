@@ -10,6 +10,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `antrea` | CNCF | `component.antrea.custom_resource_versions_set` | `crd.antrea.io`, `multicluster.crd.antrea.io` |
 | `argo-cd` | CNCF | `component.argo_cd.custom_resource_versions_set` | `argoproj.io` |
 | `cert-manager` | CNCF | `component.cert_manager.custom_resource_versions_set` | `acme.cert-manager.io`, `cert-manager.io` |
+| `chaos-mesh` | CNCF | `component.chaos_mesh.custom_resource_versions_set` | `chaos-mesh.org` |
 | `cilium` | CNCF | `component.cilium.custom_resource_versions_set` | `cilium.io` |
 | `cloudnativepg` | CNCF | `component.cloudnativepg.custom_resource_versions_set` | `postgresql.cnpg.io` |
 | `cluster-api` | community | `component.cluster_api.custom_resource_versions_set` | `cluster.x-k8s.io`, `clusterctl.cluster.x-k8s.io`, `runtime.cluster.x-k8s.io` |
@@ -18,15 +19,19 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `dapr` | CNCF | `component.dapr.custom_resource_versions_set` | `dapr.io` |
 | `dex` | CNCF | `component.dex.custom_resource_versions_set` | `dex.coreos.com` |
 | `eck-operator` | community | `component.eck_operator.custom_resource_versions_set` | `agent.k8s.elastic.co`, `apm.k8s.elastic.co`, `autoops.k8s.elastic.co`, `autoscaling.k8s.elastic.co`, `beat.k8s.elastic.co`, `elasticsearch.k8s.elastic.co`, `enterprisesearch.k8s.elastic.co`, `kibana.k8s.elastic.co`, `logstash.k8s.elastic.co`, `maps.k8s.elastic.co`, `packageregistry.k8s.elastic.co`, `stackconfigpolicy.k8s.elastic.co` |
+| `eraser` | CNCF | `component.eraser.custom_resource_versions_set` | `eraser.sh` |
 | `external-secrets` | CNCF | `component.external_secrets.custom_resource_versions_set` | `external-secrets.io`, `generators.external-secrets.io` |
 | `gateway-api` | community | `component.gateway_api.custom_resource_versions_set` | `gateway.networking.k8s.io` |
 | `istio` | CNCF | `component.istio.custom_resource_versions_set` | `extensions.istio.io`, `networking.istio.io`, `security.istio.io`, `telemetry.istio.io` |
 | `k8gb` | CNCF | `component.k8gb.custom_resource_versions_set` | `k8gb.absa.oss`, `k8gb.io` |
 | `k8up` | CNCF | `component.k8up.custom_resource_versions_set` | `k8up.io` |
+| `kanister` | CNCF | `component.kanister.custom_resource_versions_set` | `cr.kanister.io` |
 | `karmada` | CNCF | `component.karmada.custom_resource_versions_set` | `apps.karmada.io`, `autoscaling.karmada.io`, `config.karmada.io`, `networking.karmada.io`, `operator.karmada.io`, `policy.karmada.io`, `remedy.karmada.io`, `work.karmada.io` |
+| `kcp` | CNCF | `component.kcp.custom_resource_versions_set` | `apis.kcp.io`, `cache.kcp.io`, `core.kcp.io`, `druid.gardener.cloud`, `migration.kcp.io`, `tenancy.kcp.io`, `topology.kcp.io` |
 | `keda` | CNCF | `component.keda.custom_resource_versions_set` | `eventing.keda.sh`, `keda.sh` |
 | `kong-ingress-controller` | community | `component.kong_ingress_controller.custom_resource_versions_set` | `configuration.konghq.com` |
 | `koordinator` | CNCF | `component.koordinator.custom_resource_versions_set` | `analysis.koordinator.sh`, `config.koordinator.sh`, `quota.koordinator.sh`, `scheduling.koordinator.sh`, `slo.koordinator.sh` |
+| `kubevela` | CNCF | `component.kubevela.custom_resource_versions_set` | `core.oam.dev`, `cue.oam.dev` |
 | `kueue` | community | `component.kueue.custom_resource_versions_set` | `kueue.x-k8s.io` |
 | `kuma` | CNCF | `component.kuma.custom_resource_versions_set` | `kuma.io` |
 | `kyverno` | CNCF | `component.kyverno.custom_resource_versions_set` | `kyverno.io`, `policies.kyverno.io`, `reports.kyverno.io`, `wgpolicyk8s.io` |
@@ -47,6 +52,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `tekton` | CNCF | `component.tekton.custom_resource_versions_set` | `resolution.tekton.dev`, `tekton.dev` |
 | `velero` | CNCF | `component.velero.custom_resource_versions_set` | `velero.io` |
 | `volcano` | CNCF | `component.volcano.custom_resource_versions_set` | `batch.volcano.sh`, `bus.volcano.sh`, `config.volcano.sh`, `flow.volcano.sh`, `nodeinfo.volcano.sh`, `scheduling.volcano.sh`, `shard.volcano.sh`, `topology.volcano.sh` |
+| `wasmcloud` | CNCF | `component.wasmcloud.custom_resource_versions_set` | `runtime.wasmcloud.dev` |
 
 ## Community catalog
 

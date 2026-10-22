@@ -1,0 +1,16 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "kanister",
+    "name": "Kanister",
+    "repo": "github.com/kanisterio/kanister",
+    "component": "pkg:github/kanisterio/kanister",
+    "factProject": "kanister",
+    "tagPrefixes": [""],
+    "minFrom": "0.114",
+    "paths": [
+      {"path": "pkg/customresource", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

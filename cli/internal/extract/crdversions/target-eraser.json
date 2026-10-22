@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "eraser",
+    "name": "Eraser",
+    "repo": "github.com/eraser-dev/eraser",
+    "component": "pkg:github/eraser-dev/eraser",
+    "factProject": "eraser",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.5",
+    "paths": [
+      {"path": "config/crd/bases/eraser.sh_imagejobs.yaml"},
+      {"path": "config/crd/bases/eraser.sh_imagelists.yaml"}
+    ],
+    "exclude": []
+  }
+}
