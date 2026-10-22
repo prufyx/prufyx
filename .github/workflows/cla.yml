@@ -47,7 +47,8 @@ jobs:
             const FILE = 'signatures.json';
             const CLA_URL = `https://github.com/${context.repo.owner}/${context.repo.repo}/blob/main/CLA.md`;
             // The maintainer is the CLA licensor and does not sign it.
-            const EXEMPT = new Set(['airstand', 'dependabot[bot]', 'github-actions[bot]']);
+            // prufyx-bot is the maintainer's own automation account (factory export pull requests).
+            const EXEMPT = new Set(['airstand', 'prufyx-bot', 'dependabot[bot]', 'github-actions[bot]']);
             const { owner, repo } = context.repo;
             const prNumber = context.payload.pull_request?.number ?? context.payload.issue.number;
 
