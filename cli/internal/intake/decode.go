@@ -25,7 +25,13 @@ const (
 	MaxNodes     = 200000
 	// MaxDepth, MaxObjectMembers and MaxArrayItems bound one document. They
 	// equal the limits of the strict JSON decoder used by the preparers.
-	MaxDepth         = 32
+	MaxDepth = 32
+	// MaxManifestDepth bounds one Kubernetes manifest document. Published
+	// CustomResourceDefinitions nest their schemas deeper than a component
+	// configuration does (cert-manager's Challenge CRD is 38 levels deep), so
+	// the manifest path admits twice the configuration depth, the depth limit
+	// of the strict JSON checker.
+	MaxManifestDepth = 64
 	MaxObjectMembers = 4096
 	MaxArrayItems    = 2048
 )
@@ -54,6 +60,8 @@ type decodeOptions struct {
 	// timestampStrings reads an untagged timestamp scalar such as 2026-01-02
 	// as the string it is written as.
 	timestampStrings bool
+	// maxDepth bounds nesting; zero means MaxDepth.
+	maxDepth int
 	// maxDocuments bounds the documents of this call; zero means MaxDocuments
 	// and a negative value allows none.
 	maxDocuments int
@@ -181,12 +189,19 @@ func decodeDocuments(raw []byte, opts decodeOptions) ([]any, error) {
 	return documents, nil
 }
 
+func (opts decodeOptions) depthLimit() int {
+	if opts.maxDepth > 0 {
+		return opts.maxDepth
+	}
+	return MaxDepth
+}
+
 func (opts decodeOptions) yamlValue(node *yaml.Node, depth int, budget *int) (any, error) {
 	*budget--
 	if *budget < 0 {
 		return nil, limitReached{"nodes"}
 	}
-	if depth > MaxDepth || node == nil || node.Anchor != "" || node.Alias != nil || node.Kind == yaml.AliasNode {
+	if depth > opts.depthLimit() || node == nil || node.Anchor != "" || node.Alias != nil || node.Kind == yaml.AliasNode {
 		return nil, errK8sComponentYAML
 	}
 	switch node.Kind {

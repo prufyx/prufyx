@@ -127,6 +127,7 @@ func decodeFile(display string, raw []byte, bounds decodeOptions) (Workspace, er
 	sum := sha256.Sum256(raw)
 	digest := "sha256:" + hex.EncodeToString(sum[:])
 	bounds.foldKeys, bounds.timestampStrings = true, true
+	bounds.maxDepth = MaxManifestDepth
 	var lines []documentLines
 	bounds.lines = &lines
 	values, err := decodeDocuments(raw, bounds)
