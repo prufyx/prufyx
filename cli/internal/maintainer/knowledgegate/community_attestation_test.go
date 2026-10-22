@@ -158,23 +158,32 @@ func TestEmptyListConditionsForACommunityTarget(t *testing.T) {
 // per-day limits, so 51 in a day over both is refused.
 func TestCapsCountRecordsOfBothPackKinds(t *testing.T) {
 	t.Parallel()
-	base, head := k8sQuietTrees(t, nil)
+	base, head := crdQuietTrees(t, nil)
 	ids := readPack(t, base, commRulesPath).activeReviewed()
 	if len(ids) == 0 {
 		t.Fatal("the community-corpus pack has no rule to loosen")
 	}
 	editPack(t, head, commRulesPath, func(p *packDoc) { ruleOf(p.find(t, ids[0]))["nextAction"] = "Changed." })
-	r := runGate(t, Options{Base: base, Head: head, Source: fixtureSource, Author: DefaultBotLogin, MaxLoosening: 1})
+	opts := Options{Base: base, Head: head, Source: argoFixture, Author: DefaultBotLogin, Catalog: argoCatalog(true)}
+	// The community-target attestation is a real loosening of the CNCF pack.
+	r := runGate(t, opts)
+	if c := change(t, r, crdAttestationID("90.2")); !c.OK || c.Class != ClassLoosening {
+		t.Fatalf("change %+v", c)
+	}
 	if r.Totals.Loosening != 2 {
 		t.Fatalf("totals %+v", r.Totals)
 	}
-	requireFail(t, r, "limits: 2 loosening changes, cap 1")
+	opts.MaxLoosening = 1
+	requireFail(t, runGate(t, opts), "limits: 2 loosening changes, cap 1")
+	opts.MaxLoosening = 0
 	for _, tc := range []struct {
 		before int
 		fail   bool
 	}{{DefaultMaxDailyLoosening - 2, false}, {DefaultMaxDailyLoosening - 1, true}} {
 		before := tc.before
-		r := runGate(t, Options{Base: base, Head: head, Source: fixtureSource, Author: DefaultBotLogin, DailyLoosening: &before})
+		o := opts
+		o.DailyLoosening = &before
+		r := runGate(t, o)
 		if c, ok := check(r, "limits/daily"); !ok || c.OK == tc.fail {
 			t.Fatalf("limits/daily %+v (before %d)", c, tc.before)
 		}

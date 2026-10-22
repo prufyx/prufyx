@@ -13,6 +13,8 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/extract"
 	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
 	"github.com/prufyx/prufyx/cli/internal/extract/extractcli"
+	"github.com/prufyx/prufyx/cli/internal/lineattest"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencerepin"
 )
 
 // The community catalog in the gate (code before data): rules of a community
@@ -201,12 +203,21 @@ func TestGateCommunityLineAttestationNeedsAProof(t *testing.T) {
 	pinBaseKeys(&opts)
 	fromBot(&opts)
 	r, err := Verify(context.Background(), opts)
-	// The family no longer refuses the component: whatever stops the record
-	// is its missing approval, not a reason that names the family.
-	if err != nil && strings.Contains(err.Error(), "is not the component of family") {
-		t.Fatalf("refused for the old reason: %v", err)
+	// The family no longer refuses the component: what stops the record is
+	// its missing approval, not a reason that names the family.
+	if err != nil || r == nil {
+		t.Fatalf("gate did not run: result %v, err %v", r, err)
 	}
-	if err == nil && r != nil && r.Passed() {
+	if r.Passed() {
 		t.Fatal("a reviewed community line attestation passed the gate without an approval")
 	}
+	id := evidencerepin.LineAttestationRecordID("pkg:github/kubernetes-sigs/gateway-api", lineattest.FamilyCustomResourceVersions, "1.2")
+	c := change(t, r, id)
+	if c.Class != ClassLoosening || c.Basis != "reviewed" || c.OK {
+		t.Fatalf("change %+v, want a refused loosening with a reviewed basis", c)
+	}
+	if !strings.Contains(c.Detail, "no owner approval") || strings.Contains(c.Detail, "is not the component of family") {
+		t.Fatalf("refused for the wrong reason: %s", c.Detail)
+	}
+	requireFail(t, r, "no owner approval")
 }

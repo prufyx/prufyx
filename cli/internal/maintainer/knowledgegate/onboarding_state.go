@@ -584,6 +584,8 @@ func (st *onboardingState) checkProject(p OnboardingProject, baseRows, headRows 
 	if p.Catalog != string(row.Catalog) {
 		bad("O4: the batch names another catalog than the table row's")
 	}
+	// Defence in depth: targets.go and customresources.go already force the
+	// target and the row to agree, so this is not expected to fire.
 	if head.FactProject != row.FactProject || head.Component != row.Component {
 		bad("O4: the target and the table row name different facts or components")
 	}
@@ -627,6 +629,8 @@ func (st *onboardingState) checkProject(p OnboardingProject, baseRows, headRows 
 			bad("O4: the target repository %s is not the landscape repository %s", logSafe(head.Repo), logSafe(repo))
 		}
 		for _, g := range row.Groups {
+			// Defence in depth: the table does not load with such a group
+			// unless a reviewed ownership record lists it.
 			if customresources.ReservedNamespace(g.Name) || customresources.KubernetesGroup(g.Name) {
 				bad("O4: the group %s is reserved; a reserved group is recorded on its own, never in an onboarding batch", logSafe(g.Name))
 			}

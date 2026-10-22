@@ -189,7 +189,7 @@ func TestOnboardingCommunityRefusals(t *testing.T) {
 				tg["exclude"] = []any{map[string]any{"path": "test/crds/", "repo": ocDefault.repo(), "reason": "end-to-end test manifests", "evidence": "the directory holds only the manifests of the end-to-end tests"}}
 			})
 		}, want: "may not exclude files"},
-		{name: "a community row in a reserved group", spec: ocDefault, edit: func(t *testing.T, f *onboardingFixture) {
+		{name: "a community row in a reserved group (the table refuses it before the batch check)", spec: ocDefault, edit: func(t *testing.T, f *onboardingFixture) {
 			f.editTable(t, func(ps []customresources.Project) []customresources.Project {
 				for i := range ps {
 					if ps[i].Slug == ocDefault.slug {
@@ -199,7 +199,7 @@ func TestOnboardingCommunityRefusals(t *testing.T) {
 				return ps
 			})
 			f.draft.Projects[0].Groups = []string{"a.widgets.synthetic.k8s.io"}
-		}, want: "O4"},
+		}, want: "custom-resource table does not load"},
 		{name: "the row has no upstream record", spec: ocDefault, edit: func(t *testing.T, f *onboardingFixture) {
 			raw, err := f.head.Read(ol.TablePath, MaxFileBytes)
 			if err != nil {

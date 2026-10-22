@@ -680,6 +680,12 @@ files were `unread` (fragments, v1beta1 copies) or `reference`
 Rules and vectors are unchanged; the scan records of the inventory and the
 completeness of a pair change where such files exist.
 
+## Changes without a version bump
+
+Targets of the community catalog can now attest (`attest` in `targets.json`),
+on the same terms as the CNCF catalog. The extractor `Version` constant is
+unchanged.
+
 ## Changes from version 2.0.0
 
 Version 2.1.0 adds the line attestations above and the `attest` member of
