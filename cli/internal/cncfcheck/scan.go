@@ -50,6 +50,9 @@ type ScanRule struct {
 	// condition; empty when it has none.
 	SetFact    string
 	SetMembers []string
+	// Intermediate is the mandatory intermediate version of a
+	// require_intermediate_version rule; empty for every other operator.
+	Intermediate string
 }
 
 // NewScanRule reads the selection view of one raw rule. It does not
@@ -63,7 +66,10 @@ func NewScanRule(project, description string, raw json.RawMessage) (ScanRule, er
 	var action struct {
 		NextAction string `json:"nextAction"`
 		Severity   string `json:"severity"`
-		Evidence   struct {
+		// Intermediate is read with the same strict decoding as the engine's
+		// rule type: a string, empty when absent.
+		Intermediate string `json:"intermediate"`
+		Evidence     struct {
 			Basis string `json:"basis"`
 		} `json:"evidence"`
 		SetCondition *struct {
@@ -78,6 +84,9 @@ func NewScanRule(project, description string, raw json.RawMessage) (ScanRule, er
 	// its basis.
 	notice := constraintengine.IsNoticeOperator(shape.Operator)
 	rule := ScanRule{Project: project, Scope: scope, Notice: notice, SetNotice: constraintengine.IsSetNoticeOperator(shape.Operator), Basis: constraintengine.EffectiveBasis(action.Evidence.Basis), Severity: action.Severity, Description: description, NextAction: action.NextAction}
+	if shape.Operator == "require_intermediate_version" {
+		rule.Intermediate = action.Intermediate
+	}
 	for _, condition := range shape.conditions() {
 		rule.Facts = append(rule.Facts, condition.FactID)
 	}

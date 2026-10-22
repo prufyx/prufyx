@@ -697,6 +697,7 @@ A catalogued project is not tested coverage: a catalogue entry says Prufyx holds
 
 ### Fixed
 
+- The whole-upgrade check of a multi-hop Kubernetes plan no longer blocks on a `require_intermediate_version` rule whose intermediate minor line the plan visits; a plan that skips that line (a direct hop) still gives BLOCKED.
 - A `require_component_version` rule whose declared dependency version the
   engine cannot compare now gives UNKNOWN
   (`RULE_DEPENDENCY_VERSION_NOT_COMPARABLE`) instead of BLOCKED, or

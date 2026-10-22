@@ -1069,6 +1069,9 @@ func (r *kubernetesRun) wholeUpgrade(from, to string, plan upgradepath.Plan) err
 		if rule.Scope.Component != r.component || mode == constraintengine.MatchNone {
 			continue
 		}
+		if visitsIntermediate(plan, rule) {
+			continue
+		}
 		if mode == constraintengine.MatchCrossing && eval.claims[rule.Scope.ID].Status != "BLOCKED" && examinedByAHop(plan, rule) {
 			continue
 		}
@@ -1083,6 +1086,30 @@ func (r *kubernetesRun) wholeUpgrade(from, to string, plan upgradepath.Plan) err
 		r.judge(rule, eval, ref, false)
 	}
 	return nil
+}
+
+// visitsIntermediate reports whether the plan visits the minor line of a
+// require_intermediate_version rule's intermediate as an interior stop: the
+// end of some hop other than the last. The plan's own first and last ends do
+// not count, since a plan does not pass through its start or target line. The
+// engine blocks the end-to-end pair because its input names no intermediate; a
+// plan that stops on that line has satisfied the rule's requirement, and its
+// hops decide the rest. A plan that does not stop there (a direct hop) keeps
+// the rule's BLOCKED.
+func visitsIntermediate(plan upgradepath.Plan, rule cncfcheck.ScanRule) bool {
+	if rule.Intermediate == "" || len(plan.Hops) < 2 {
+		return false
+	}
+	want, ok := lineattest.LineOf(rule.Intermediate)
+	if !ok {
+		return false
+	}
+	for _, hop := range plan.Hops[:len(plan.Hops)-1] {
+		if _, stop, ok := hopLines(hop); ok && stop == want {
+			return true
+		}
+	}
+	return false
 }
 
 // examinedByAHop reports whether some planned hop with evaluable ends

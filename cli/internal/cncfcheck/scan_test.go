@@ -142,3 +142,21 @@ func TestNewScanRuleBasisAndNotice(t *testing.T) {
 		t.Fatalf("notice %+v %v", rule, err)
 	}
 }
+
+// TestNewScanRuleIntermediate: the intermediate is exposed for a
+// require_intermediate_version rule only.
+func TestNewScanRuleIntermediate(t *testing.T) {
+	t.Parallel()
+	subject := `"subject":{"component":"pkg:github/kubernetes/kubernetes","from":"1.33.0","to":"1.37.0"}`
+	cases := []struct{ name, raw, want string }{
+		{"intermediate rule", `{"id":"kubernetes.a","operator":"require_intermediate_version",` + subject + `,"intermediate":"1.34.0","evidence":{},"nextAction":"x"}`, "1.34.0"},
+		{"no intermediate", `{"id":"kubernetes.b","operator":"require_intermediate_version",` + subject + `,"evidence":{},"nextAction":"x"}`, ""},
+		{"other operator ignores the field", `{"id":"kubernetes.c","operator":"forbid_target_version",` + subject + `,"intermediate":"1.34.0","evidence":{},"nextAction":"x"}`, ""},
+	}
+	for _, tc := range cases {
+		rule, err := NewScanRule("kubernetes", "d", []byte(tc.raw))
+		if err != nil || rule.Intermediate != tc.want {
+			t.Fatalf("%s: intermediate %q err %v, want %q", tc.name, rule.Intermediate, err, tc.want)
+		}
+	}
+}
