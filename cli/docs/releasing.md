@@ -39,11 +39,12 @@ attestation and the `SHA256SUMS` of a version must stay one-to-one.
 
    ```sh
    cd cli
-   go run ./cmd/prufyx-maintainer release-notes --repo .. --from <prev> --to <head> --level 4 --into ../CHANGELOG.md
-   go run ./cmd/prufyx-maintainer release-notes --repo .. --from <prev> --to <head> --into docs/release-notes-<tag>.md
+   go run ./cmd/prufyx-maintainer release-notes --repo .. --from <prev> --to <head> --to-label <tag> --level 4 --into ../CHANGELOG.md
+   go run ./cmd/prufyx-maintainer release-notes --repo .. --from <prev> --to <head> --to-label <tag> --into docs/release-notes-<tag>.md
    ```
 
-   `--into` rewrites only the text between the
+   For the second command, first create `docs/release-notes-<tag>.md` with the
+   hand-written text and an empty marker pair. `--into` rewrites only the text between the
    `<!-- release-notes:begin -->` and `<!-- release-notes:end -->` lines of the
    file and refuses a file without exactly one such pair. In `CHANGELOG.md`
    rename `## [Unreleased]` to `## [<version>] - <date>`, keep the generated
@@ -60,7 +61,7 @@ attestation and the `SHA256SUMS` of a version must stay one-to-one.
    README block was missing in one revision.
 
    After the pull request merges, tag the merge commit. Before the tag push,
-   run both commands again with `--to <tagged commit>`; `git diff` must show
+   run both commands again with `--to <tagged commit>` and the same `--to-label`; `git diff` must show
    only the commit hash in the first line of each generated block. Any other
    difference means a data file changed after the freeze: commit the
    regenerated files in a new pull request and tag after it.

@@ -3,6 +3,7 @@
 package releasenotes
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os/exec"
@@ -30,11 +31,12 @@ func MergedPRs(repo, from, to string) ([]PR, error) {
 	}
 	cmd := exec.CommandContext(context.Background(), "git", "-C", repo, "log", "--first-parent", "--merges", "--reverse",
 		"--format=%s%x1f%b%x1e", from+".."+to)
-	out, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("git log %s..%s: %w", from, to, err)
+	var out, errb bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &out, &errb
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("git log %s..%s: %w: %s", from, to, err, strings.TrimSpace(errb.String()))
 	}
-	return parsePRs(string(out)), nil
+	return parsePRs(out.String()), nil
 }
 
 func parsePRs(log string) []PR {

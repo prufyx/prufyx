@@ -11,7 +11,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/maintainer/releasenotes"
 )
 
-const releaseNotesUsage = "release-notes: usage: prufyx-maintainer release-notes (--from REV [--to REV] [--repo DIR] | --from-dir DIR --to-dir DIR) [--level 3|4] [--out FILE | --into FILE]"
+const releaseNotesUsage = "release-notes: usage: prufyx-maintainer release-notes (--from REV [--to REV] [--repo DIR] | --from-dir DIR --to-dir DIR) [--to-label NAME] [--level 3|4] [--out FILE | --into FILE]"
 
 // runReleaseNotes prints, as Markdown, what the data files of one tree add to
 // another: projects, rules, line attestations, onboarding batches and the
@@ -25,6 +25,7 @@ func runReleaseNotes(args []string, stdout io.Writer) error {
 	toRev := flags.String("to", "HEAD", "revision to describe")
 	fromDir := flags.String("from-dir", "", "previous tree as a directory (instead of --from)")
 	toDir := flags.String("to-dir", "", "tree to describe as a directory (instead of --to)")
+	toLabel := flags.String("to-label", "", "name for the tree to describe in the output (default: --to); pass the same value on every regeneration")
 	out := flags.String("out", "", "write the Markdown to this file (default: stdout)")
 	into := flags.String("into", "", "replace the block between the "+releasenotes.MarkerBegin+" and "+releasenotes.MarkerEnd+" lines of this Markdown file")
 	level := flags.Int("level", 3, "heading level of the sections: 3, or 4 under the level-3 categories of a CHANGELOG entry")
@@ -38,6 +39,9 @@ func runReleaseNotes(args []string, stdout io.Writer) error {
 		from = releasenotes.GitTree{Repo: *repo, Rev: *fromRev}
 		to = releasenotes.GitTree{Repo: *repo, Rev: *toRev}
 		opts.FromLabel, opts.ToLabel = *fromRev, *toRev
+		if *toLabel != "" {
+			opts.ToLabel = *toLabel
+		}
 		var err error
 		if opts.FromCommit, err = releasenotes.Commit(*repo, *fromRev); err != nil {
 			return &commandError{code: 2, message: "release-notes: cannot resolve --from", err: err}

@@ -141,6 +141,7 @@ func ReadSnapshot(t Tree) (*Snapshot, error) {
 		Withdrawn:  map[string]bool{},
 		Lines:      map[string]map[string]bool{},
 		Onboarding: map[string][]OnboardedProject{},
+		Decisions:  map[string]string{},
 	}
 	for _, rf := range []struct {
 		path string
@@ -216,6 +217,7 @@ func ReadSnapshot(t Tree) (*Snapshot, error) {
 		if b.Record.BatchID == "" {
 			return nil, fmt.Errorf("%s: no batchId", name)
 		}
+		s.Decisions[b.Record.BatchID] = b.Record.Decision
 		for _, p := range b.Record.Projects {
 			s.Onboarding[b.Record.BatchID] = append(s.Onboarding[b.Record.BatchID], OnboardedProject{
 				Batch: b.Record.BatchID, Slug: p.Slug, Catalog: p.Catalog, Kind: p.Kind,

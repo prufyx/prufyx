@@ -170,6 +170,11 @@ A catalogued project is not tested coverage: a catalogue entry says Prufyx holds
   they need. The support inventory accepts a pack with the member (it lists
   nothing for it), and `rule verify-citations` includes the lists' sources. No
   pack data changes.
+- Maintainer command `prufyx-maintainer release-notes`: prints, or writes into a
+  marked block of a Markdown file, what one revision adds over another
+  (inventory projects, rules, line attestations, Kubernetes minors, approved
+  onboarding batches, README coverage figures, merged pull requests), computed
+  from the data files. It evaluates no rule. See `cli/docs/releasing.md`.
 - `scripts/kind-val.sh --name-prefix P` names the clusters `P-<line>` (default `prufyx-kind`, unchanged), so several runs (each with its own prefix and `--out`) can share one Docker host; their cluster creations take turns where `flock` exists (`--create-lock`).
 - CNCF knowledge: 13 custom-resource version-removal rules (`crd.version-removal`)
   for Crossplane (2), Kyverno (1) and Strimzi (10), each forbidding a

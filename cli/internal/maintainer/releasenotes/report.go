@@ -166,10 +166,10 @@ func projects(b *strings.Builder, from, to *Snapshot) {
 			removed = append(removed, fmt.Sprintf("- `%s`", id))
 		}
 	}
-	list(b, "### Projects added to the catalogue", added, "No project was added.")
+	list(b, "### Projects added to the support inventory", added, "No project was added.")
 	list(b, "### Catalogued projects that gained their first executable check", gained, "None.")
 	if len(removed) > 0 {
-		list(b, "### Projects removed from the catalogue", removed, "")
+		list(b, "### Projects removed from the support inventory", removed, "")
 	}
 }
 
@@ -190,10 +190,7 @@ func onboarding(b *strings.Builder, from, to *Snapshot) {
 			continue
 		}
 		ps := to.Onboarding[id]
-		decision := "no project entries"
-		if len(ps) > 0 {
-			decision = ps[0].Decision
-		}
+		decision := to.Decisions[id]
 		items = append(items, fmt.Sprintf("- batch `%s`, decision `%s`:", id, decision))
 		for _, p := range ps {
 			items = append(items, fmt.Sprintf("  - `%s` (%s, %s): proof pair %s to %s", p.Slug, p.Catalog, p.Kind, p.FromTag, p.ToTag))
@@ -209,7 +206,7 @@ func onboarding(b *strings.Builder, from, to *Snapshot) {
 		return
 	}
 	b.WriteString(strings.Join(items, "\n") + "\n\n")
-	b.WriteString("Only approved batches are counted. A project entry names the project and the proof pair of versions the batch rests on; it does not by itself add a project to the catalogue (see the catalogue list above).\n\n")
+	b.WriteString("Only approved batches are counted. A project entry names the project and the proof pair of versions the batch rests on; it does not by itself add a project to the catalogue (see the support inventory list above).\n\n")
 }
 
 func rules(b *strings.Builder, from, to *Snapshot) {

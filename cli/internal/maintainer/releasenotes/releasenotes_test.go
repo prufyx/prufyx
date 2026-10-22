@@ -76,6 +76,7 @@ func toFiles() map[string]string {
 		onboardingDir + "/ob-1.json": `{"schema":"s","record":{"batchId":"ob-1","decision":"approve","projects":[
 {"slug":"dex","catalog":"cncf","kind":"new","proof":{"pair":{"fromTag":"v2.45.0","toTag":"v2.46.0"}}},
 {"slug":"k8up","catalog":"cncf","kind":"new","proof":{"pair":{"fromTag":"v2.15.0","toTag":"v2.16.0"}}}]}}`,
+		onboardingDir + "/ob-3.json": `{"schema":"s","record":{"batchId":"ob-3","decision":"approve","projects":[]}}`,
 		onboardingDir + "/ob-2.json": `{"schema":"s","record":{"batchId":"ob-2","decision":"reject","projects":[
 {"slug":"zed","catalog":"community","kind":"new","proof":{"pair":{"fromTag":"v1","toTag":"v2"}}}]}}`,
 	}
@@ -106,7 +107,7 @@ func TestRenderFixtureTrees(t *testing.T) {
 		"| Gap, no valid rule (G) | 300 | 336 | +36 |",
 		"| Upgrades between consecutive release lines | 350 | 390 | +40 |",
 		"generated on 2026-10-08 (v1) and 2026-10-20 (main)",
-		"### Projects added to the catalogue (3)",
+		"### Projects added to the support inventory (3)",
 		"- `c` (C): executable check",
 		"- `e` (E): source-only, no check",
 		"### Catalogued projects that gained their first executable check (1)\n\n- `b` (B)",
@@ -118,9 +119,10 @@ func TestRenderFixtureTrees(t *testing.T) {
 		"- `x/lib`: 2 now; new lines 1.10",
 		"- `kubernetes/kubernetes`: 2 now; new lines 1.37",
 		"Lines with a line attestation (2): 1.36, 1.37. New since `v1`: 1.37.",
-		"### Onboarding batches (1 approved, 2 project entries)",
+		"### Onboarding batches (2 approved, 2 project entries)",
 		"- batch `ob-1`, decision `approve`:\n  - `dex` (cncf, new): proof pair v2.45.0 to v2.46.0",
 		"- batch `ob-2`, decision `reject`:",
+		"- batch `ob-3`, decision `approve`:",
 		"- #7 Add thing\n- Merge branch 'x'",
 		"decided is not safe",
 		"A catalogued project is not tested coverage",
@@ -145,7 +147,7 @@ func TestRenderEmptyFromTree(t *testing.T) {
 		"| Projects with at least one executable check | n/a | n/a | n/a |",
 		"| Decided for the whole release-line pair (A+B) | n/a | n/a | n/a |",
 		"The release-line figures (A+B, S, G) are n/a",
-		"### Projects added to the catalogue (5)",
+		"### Projects added to the support inventory (5)",
 		"### Rules by project (6 added, 0 removed)",
 	} {
 		if !strings.Contains(out, want) {
@@ -157,7 +159,7 @@ func TestRenderEmptyFromTree(t *testing.T) {
 func TestRenderNoChange(t *testing.T) {
 	out := render(t, toFiles(), toFiles())
 	for _, want := range []string{
-		"### Projects added to the catalogue (0)\n\nNo project was added.",
+		"### Projects added to the support inventory (0)\n\nNo project was added.",
 		"No rule was added or removed.",
 		"### Onboarding batches (0 approved, 0 project entries)",
 		"No line attestation was added or removed.",
@@ -288,7 +290,7 @@ func TestGitTreesAndMergedPRs(t *testing.T) {
 	if names, err := (GitTree{Repo: repo, Rev: "v1"}).List(onboardingDir); err != nil || len(names) != 0 {
 		t.Errorf("v1 onboarding = %v, %v", names, err)
 	}
-	if names, err := (GitTree{Repo: repo, Rev: "HEAD"}).List(onboardingDir); err != nil || len(names) != 2 {
+	if names, err := (GitTree{Repo: repo, Rev: "HEAD"}).List(onboardingDir); err != nil || len(names) != 3 {
 		t.Errorf("HEAD onboarding = %v, %v", names, err)
 	}
 	if _, err := MergedPRs(repo, "-x", "HEAD"); err == nil {
