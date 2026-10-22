@@ -1,6 +1,6 @@
 # Extractor `crd.version-removal`
 
-Version 2.6.0. Derives `forbid_set_member` rules for custom-resource
+Version 2.7.0. Derives `forbid_set_member` rules for custom-resource
 versions that a project's release line no longer serves, from the
 CustomResourceDefinition manifests the project ships in its repository. It is
 deterministic, reads only upstream source pinned by full commit SHA, and
@@ -29,7 +29,9 @@ copies of the listed definitions, the flag `copies` that makes the scan check
 that claim, or, for the generated sources a kustomization renders into a
 listed bundle, the kustomization `prePatch` whose rendering the scan checks,
 or, for YAML or JSON data files that define no CRD, `"defines": "none"`, a
-claim the scan checks.
+claim the scan checks. An entry may also declare a `templateHeader`, the one
+reviewed comment directive its listed files may start with (see "Comment
+directives and metadata strings" below).
 
 An entry of a project outside the CNCF landscape catalog carries
 `"catalog": "community"` (an entry without the field is a CNCF catalog
@@ -130,7 +132,8 @@ Through the offline factory mirror (or a fixture tree), never the network.
   aliases, merge keys, custom tags, non-string, empty or duplicate keys are
   refused, as are documents nested deeper than 128 levels, over 4 000 000
   nodes, over 1 024 documents, or files over 8 MiB. Template syntax (`{{`)
-  makes the file unreadable, except where it is documentation (below).
+  makes the file unreadable, except where it is documentation or comment
+  directives and quoted metadata strings (below).
   Documents of other kinds are counted and otherwise ignored.
 - **Template syntax, precisely.** A file is a rendered manifest, not a
   template, so `{{` makes it unreadable, with one exception that is decided by
@@ -153,6 +156,44 @@ Through the offline factory mirror (or a fixture tree), never the network.
   validation rule, a flow collection or another kind of document is one
   more). Text that only decodes to `{{` (an escape, a line continuation) holds
   none in its bytes and is not template syntax.
+- **Comment directives and metadata strings.** A file the description rule
+  refuses is still read as a rendered manifest, as it is written, when its
+  `{{` sit only where a renderer can drop the whole file, drop or add
+  metadata lines, or write inside a quoted metadata string (cert-manager's
+  `deploy/crds` from 1.16 to 1.18). All of these must hold: the file decodes
+  in the strict subset and holds no line break but `\n` (no carriage return,
+  NEL U+0085, line separator U+2028 or paragraph separator U+2029, which the
+  decoder counts as line breaks: the metadata block is located by decoded
+  lines and applied to the file's lines); every string with `{{`
+  is the value of a key of `metadata.labels` or `metadata.annotations` of a
+  CRD document, written on one line in single or double quotes whose text is
+  the string itself (no escape, no doubled quote, nothing after the closing
+  quote), and each action in it is well formed (no brace inside), trims no
+  whitespace and is not `if`, `else`, `end`, `range`, `with`, `define`,
+  `block`, `break`, `continue` or an assignment; no key holds `{{`; every
+  other line with `{{` is a `#` comment that ends in exactly one action
+  (`^\s*#[^{}]*\{\{[^{}]*\}\}\s*$`), and is a template comment, the
+  target's declared template header (below) once before anything else, the
+  `if` around the whole file before any line that is not blank or a comment
+  with its `end` on the last line that is not blank, or an `if`, `with`,
+  `end`, or `include`/`toYaml` ending in `indent`/`nindent` inside the
+  top-level `metadata` block of a CRD document (located in the decoded
+  document, up to its next key), balanced inside it; `-}}` only on the last
+  line that is not blank; and the file with those actions replaced by as
+  many spaces decodes to the same tree except the admitted strings, with the
+  admitted actions being every `{{` of the file's bytes. A range, else,
+  define, template or block directive, an assignment, a bare expression, a
+  directive outside metadata or between documents, a directive in another
+  kind of document, a `{{` in a block scalar, a plain or multi-line label and
+  any mix with schema descriptions are template syntax. The renderer can then
+  only drop every document (never one version), change metadata, or write
+  inside a quoted label or annotation, which can reach `spec` only through a
+  duplicate key or a new document. A target may declare one **template
+  header** (`"templateHeader": {"action": ..., "evidence": ...}`, the action
+  `include "<name>" .` matched exactly, the evidence a reviewer's reading of
+  the named template): cert-manager declares `include
+  "cert-manager.crd-check" .`, whose definition only fails the rendering. The
+  header is admitted only in the target's listed files.
 - **Each `apiextensions.k8s.io/v1` CustomResourceDefinition**: its name,
   group, kind, plural and scope, and for every entry of `spec.versions` the
   name, `served` and `storage` flags and the lines of the entry and of its two
@@ -654,6 +695,19 @@ version must come from a full run of that project's id with this build (which
 then carries the id's own digest), not from an edit of a record that carries
 the old shared digest. From then on, a change to one target only requires
 re-deriving the records of that target's id.
+## Changes from version 2.6.0
+
+Version 2.7.0 reads a file whose `{{` lie only in comment directives (the
+condition around the whole file, conditions and includes in metadata, a
+declared template header) and in one-line quoted metadata label and
+annotation values (the rule above), and adds the target member
+`templateHeader`, declared by cert-manager. Its `deploy/crds` files from 1.16
+to 1.18 were template syntax and withheld the pairs 1.16 to 1.17, 1.17 to 1.18
+and 1.18 to 1.19. A one-line quoted label or annotation with `{{` in a CRD
+document, which was template syntax, is now read in every target. Output is
+unchanged for every target and file none of this applies to, except the
+extractor version and the code digest.
+
 ## Changes from version 2.5.0
 
 Version 2.6.0 adds the `defines` member of a reviewed exclusion (the one

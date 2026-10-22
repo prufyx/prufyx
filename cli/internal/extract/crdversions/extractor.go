@@ -37,7 +37,7 @@ const (
 	// IDPrefix is followed by the project slug: one extractor id per
 	// project, since a run reads one repository.
 	IDPrefix = "crd.version-removal."
-	Version  = "2.6.0"
+	Version  = "2.7.0"
 	// SourceDir is this package's directory under the module's internal/.
 	SourceDir = "extract/crdversions"
 )
@@ -389,7 +389,11 @@ func readInventory(r extract.PinnedReader, repo extract.RepoRef, t Target, commi
 	if err != nil {
 		return inv, err
 	}
-	if _, err := readDefinitions(r, repo, commit, files, inv, nil); err != nil {
+	header := ""
+	if t.TemplateHeader != nil {
+		header = t.TemplateHeader.Action
+	}
+	if _, err := readDefinitions(r, repo, commit, files, inv, nil, header); err != nil {
 		return inv, err
 	}
 	// The other install channels, each read in full: a definition is
@@ -399,7 +403,7 @@ func readInventory(r extract.PinnedReader, repo extract.RepoRef, t Target, commi
 		ci := &Inventory{Paths: []PathRecord{}, Files: []FileRecord{}, CRDs: []CRD{}}
 		cfiles, err := listPaths(r, repo, commit, ch.Paths, ci)
 		if err == nil {
-			_, err = readDefinitions(r, repo, commit, cfiles, ci, nil)
+			_, err = readDefinitions(r, repo, commit, cfiles, ci, nil, "")
 		}
 		if err != nil {
 			if p, ok := asProblem(err); ok {
@@ -460,8 +464,9 @@ type origin struct {
 
 // readDefinitions reads the listed files of repo at commit into inv, in path
 // order, and checks that no definition is repeated. other is nil for the
-// release's own repository.
-func readDefinitions(r extract.PinnedReader, repo extract.RepoRef, commit string, files []string, inv *Inventory, other *origin) (*Inventory, error) {
+// release's own repository. header is the action of the target's declared
+// template header ("" for none).
+func readDefinitions(r extract.PinnedReader, repo extract.RepoRef, commit string, files []string, inv *Inventory, other *origin, header string) (*Inventory, error) {
 	sort.Strings(files)
 	byName := map[string]string{}
 	byKind := map[string]string{}
@@ -476,7 +481,7 @@ func readDefinitions(r extract.PinnedReader, repo extract.RepoRef, commit string
 		if err != nil {
 			return inv, err
 		}
-		rec, crds, err := parseFile(f, data)
+		rec, crds, err := parseFileHeader(f, data, header)
 		if other != nil {
 			rec.Repo, rec.Commit = other.repo.Key, other.commit
 		}

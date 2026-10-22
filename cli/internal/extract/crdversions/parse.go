@@ -115,12 +115,23 @@ type FileRecord struct {
 // template syntax and any CRD that is not a complete
 // apiextensions.k8s.io/v1 definition is a problem.
 func parseFile(path string, data []byte) (FileRecord, []CRD, error) {
-	rec, crds, _, err := parseValues(path, data)
+	return parseFileHeader(path, data, "")
+}
+
+// parseFileHeader is parseFile for a listed file of a target that declares
+// a template header (the action of Target.TemplateHeader, "" for none).
+func parseFileHeader(path string, data []byte, header string) (FileRecord, []CRD, error) {
+	rec, crds, _, err := parseValuesHeader(path, data, header)
 	return rec, crds, err
 }
 
 // parseValues is parseFile that also returns the decoded documents.
 func parseValues(path string, data []byte) (FileRecord, []CRD, []any, error) {
+	return parseValuesHeader(path, data, "")
+}
+
+// parseValuesHeader is parseValues with a declared template header.
+func parseValuesHeader(path string, data []byte, header string) (FileRecord, []CRD, []any, error) {
 	sum := sha256.Sum256(data)
 	rec := FileRecord{Path: path, SHA256: "sha256:" + hex.EncodeToString(sum[:]), Size: len(data), Lines: extract.CountLines(data)}
 	if len(data) > MaxFileBytes {
@@ -130,10 +141,15 @@ func parseValues(path string, data []byte) (FileRecord, []CRD, []any, error) {
 	if bytes.Contains(data, []byte(templateMarker)) {
 		// A file that does not decode is read as a template, as before.
 		// One that does is a template unless every "{{" lies in a
-		// description string of a CRD schema (template.go).
+		// description string of a CRD schema, or every "{{" lies in a
+		// comment directive or a metadata label or annotation value
+		// (template.go).
 		why := "template syntax"
 		if err == nil {
 			why = templateOutsideDescriptions(data, values)
+			if why != "" && templateInCommentsAndMetadata(data, nodes, values, header) == "" {
+				why = ""
+			}
 		}
 		if err != nil || why != "" {
 			return rec, nil, nil, problemf("%s contains template syntax (%q): it is not a rendered manifest", path, templateMarker)

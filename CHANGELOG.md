@@ -376,6 +376,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   the `helm.values.*` code digests move; the extractor framework files are
   unchanged, so the digests of `k8s.feature-gate-removal`,
   `k8s.served-api-removal` and `crd.version-removal.*` do not move.
+- Maintainer extractor `crd.version-removal` 2.7.0: a CRD file whose `{{` lie
+  only in `#` comment directives (the condition around the whole file,
+  conditions and indented includes in metadata, a target's reviewed
+  `templateHeader`) and in one-line quoted metadata label and annotation
+  values is read as written instead of being withheld as template syntax
+  (cert-manager's `deploy/crds` from 1.16 to 1.18); any other `{{` still
+  makes the file a template. The code digest of every `crd.version-removal.*`
+  id moves; extractor goldens follow.
 - Maintainer extractor `crd.version-removal` 2.6.0: a reviewed exclusion of
   YAML or JSON files (one file or a pattern, never a directory) can declare
   `"defines": "none"`, and the scan checks that claim at every release: a file

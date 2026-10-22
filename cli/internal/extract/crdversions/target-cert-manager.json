@@ -15,6 +15,7 @@
     "exclude": [
       {"path": "deploy/charts/cert-manager/templates/", "repo": "github.com/cert-manager/cert-manager", "reason": "Helm chart templates; the chart's CRD templates are rendered from the same generated definitions as deploy/crds (checked as copies)", "evidence": "Not trusted, checked: at every tag each file is read with its template directives removed and its definitions are compared with the listed paths (versions, served flags); a mismatch, another definition or an unreadable file blocks attestation.", "copies": true},
       {"path": "make/", "repo": "github.com/cert-manager/cert-manager", "reason": "build scripts and the Helm template header used to generate chart CRD templates; no installed definition", "evidence": "Read at v1.16.0 and v1.21.2: make/ holds the Makefile fragments included by the root Makefile, kind and e2e scripts, and make/config/* (kind, kyverno, bind, ...) which only the e2e-setup targets apply to a test cluster; make/_shared*/helm/crd.template.header.yaml is the header the CRD generator prepends to the chart templates."}
-    ]
+    ],
+    "templateHeader": {"action": "include \"cert-manager.crd-check\" .", "evidence": "Read at every final tag v1.16.0..v1.18.6: deploy/crds/crd-certificaterequests.yaml starts with the comment directive # {{- include \"cert-manager.crd-check\" . }} (the other five files start with the whole-file if); the chart's _helpers.tpl defines cert-manager.crd-check, identical at v1.16.0..v1.19.6, with two if/fail/end blocks only, so it renders no manifest text and can only fail the rendering."}
   }
 }

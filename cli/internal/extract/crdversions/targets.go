@@ -85,6 +85,11 @@ type Target struct {
 	// project with one install.
 	DeclaredChannel string
 	Channels        []Channel
+	// TemplateHeader, when set, is the reviewed action of the one comment
+	// directive a listed file may hold before the condition around the
+	// whole file (see templateInCommentsAndMetadata). It is nil for a
+	// target whose listed files hold no such line.
+	TemplateHeader *TemplateHeader
 
 	// voided are the Exclude entries that do not hold at the release being
 	// scanned (see guard.go); set on a copy made for one scan.
@@ -160,6 +165,17 @@ func (r *Remote) appliesTo(major, minor int) bool {
 type Channel struct {
 	Name  string
 	Paths []PathSpec
+}
+
+// TemplateHeader is a reviewed comment directive that a listed file may
+// hold before the condition around the whole file: an include of a named
+// template, which a reviewer read (Evidence) and found to render no
+// manifest text (cert-manager's crd-check helper only fails the
+// rendering). It is not decided by the file's structure, so the action is
+// matched exactly.
+type TemplateHeader struct {
+	Action   string
+	Evidence string
 }
 
 // PathSpec is a file, or a directory whose files with names matching Match
@@ -285,6 +301,13 @@ type targetJSON struct {
 	// DeclaredChannel and Channels: see Target.
 	DeclaredChannel string        `json:"declaredChannel,omitempty"`
 	Channels        []channelJSON `json:"channels,omitempty"`
+	// TemplateHeader: see Target.
+	TemplateHeader *templateHeaderJSON `json:"templateHeader,omitempty"`
+}
+
+type templateHeaderJSON struct {
+	Action   string `json:"action"`
+	Evidence string `json:"evidence"`
 }
 
 type channelJSON struct {
@@ -329,7 +352,10 @@ var (
 	projectRE     = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 	factProjectRE = regexp.MustCompile(`^[a-z0-9]+(_[a-z0-9]+)*$`)
 	lineRE        = regexp.MustCompile(`^(0|[1-9][0-9]{0,3})\.(0|[1-9][0-9]{0,3})$`)
-	globMeta      = "*?["
+	// templateHeaderRE is the only header action a target may declare: an
+	// include of one named template with the dot.
+	templateHeaderRE = regexp.MustCompile(`^include "[A-Za-z0-9][A-Za-z0-9_.-]{0,62}" \.$`)
+	globMeta         = "*?["
 )
 
 func mustLoadTargets(fsys fs.FS) []Target {
@@ -513,6 +539,15 @@ func (tj targetJSON) target() (Target, error) {
 			}
 		}
 		t.Exclude = append(t.Exclude, Exclusion{Path: ej.Path, Repo: ej.Repo, Reason: ej.Reason, Evidence: ej.Evidence, Copies: ej.Copies, PrePatch: ej.PrePatch, DefinesNone: ej.Defines == definesNoneValue})
+	}
+	if h := tj.TemplateHeader; h != nil {
+		if !templateHeaderRE.MatchString(h.Action) {
+			return t, fmt.Errorf("templateHeader action %q is not include \"<name>\" .", h.Action)
+		}
+		if e := strings.TrimSpace(h.Evidence); e != h.Evidence || len(e) < 40 || len(e) > 800 {
+			return t, fmt.Errorf("templateHeader: evidence of 40 to 800 characters is required")
+		}
+		t.TemplateHeader = &TemplateHeader{Action: h.Action, Evidence: h.Evidence}
 	}
 	if tj.Remote != nil {
 		remote, err := tj.Remote.remote(t)

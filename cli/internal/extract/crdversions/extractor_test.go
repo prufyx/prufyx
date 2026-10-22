@@ -315,7 +315,7 @@ func TestCRDWithhold(t *testing.T) {
 		}, "holds no CRD manifest file"},
 		{"templated file", func(t *testing.T, dir string) {
 			edit(t, filepath.Join(dir, "gadget-crd.yaml"), func(s string) string {
-				return strings.Replace(s, "app.kubernetes.io/part-of: fixture", "app.kubernetes.io/part-of: \"{{ .Release.Name }}\"", 1)
+				return strings.Replace(s, "app.kubernetes.io/part-of: fixture", "app.kubernetes.io/part-of: fixture-{{ .Release.Name }}", 1)
 			})
 		}, "contains template syntax"},
 		{"v1beta1 CRD", func(t *testing.T, dir string) {

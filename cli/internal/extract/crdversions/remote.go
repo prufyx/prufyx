@@ -183,5 +183,5 @@ func readRemoteInventory(r extract.PinnedReader, repo extract.RepoRef, t Target,
 		Kustomization: digestOf(rm.Kustomization, data), Ref: ref, Repo: rm.Repo, Commit: pinned, Directory: rm.Directory,
 		DirectoryManifest: digestOf(dirFile, dirData), Resources: append([]string(nil), resources...), UnlistedYAMLIgnored: ignored,
 	}
-	return readDefinitions(r, remote, pinned, files, inv, &origin{repo: remote, commit: pinned})
+	return readDefinitions(r, remote, pinned, files, inv, &origin{repo: remote, commit: pinned}, "")
 }
