@@ -352,6 +352,7 @@ Every gap has a reason, a detail and an action.
 | `VERSION_NOT_DETECTED` | No current version was declared. | Pass `--from kubernetes=VERSION` or set `current:` in `prufyx.yaml`. |
 | `VERSION_CONFLICT` | Two different versions were declared for one project. | Declare one. |
 | `DECLARATION_MISSING` | Scope completeness, target apply or the distribution is not declared, or the Helm values of a chart hop are not declared complete. | Declare it with the flag or in `prufyx.yaml`, if it is true. |
+| `DECLARATION_MISMATCH` | A declared kubelet version cannot be compared with the hop target (another major version) or with the distribution (not `official_upstream`), so the kubelet skew rule cannot decide. | Declare kubelet versions on the target's major version, or check the kubelet skew by hand. |
 | `DISTRIBUTION_NOT_COVERED` | The distribution is `custom_build`. | Check your distribution's release notes by hand. |
 | `DOCUMENTS_TEMPLATED` | Documents with `{{ ... }}` or `${...}`. | Render them (`helm template`, `kustomize build`) and scan the output. |
 | `DOCUMENTS_NOT_EVALUATED` | Nested or unresolved lists, paginated lists, objects of a kind other than `List` that hold a top-level `items` array, documents that are not Kubernetes objects, skipped symlinks or special files, or no manifests at all, or Helm values that set a key to `null`; for a project with custom-resource versions, also objects of custom-resource groups that no reviewed project owns. | Pass only rendered Kubernetes objects; check unowned custom resources by hand. |
@@ -472,7 +473,8 @@ prufyx scan manifests/ --from kubernetes=1.35.2 --to kubernetes=1.37.0 \
   minor-only form. A maximum needs a minimum and is not below it. Anything else
   is a usage error (exit 2): it is never ignored and never read as a pass. A
   version on another major than the hop target cannot be compared and leaves
-  the rule `UNKNOWN`.
+  the rule `UNKNOWN` with a `DECLARATION_MISMATCH` gap that names the declared
+  and the target version.
 - Only `--distribution official_upstream` is evaluated, as for the check route.
   The fact does not need `--resource-scope-complete` or
   `--target-api-apply-required` (they describe manifests), but a hop cannot be

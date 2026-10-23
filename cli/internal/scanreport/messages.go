@@ -29,6 +29,7 @@ const (
 	ReasonVersionNotDetected         = "VERSION_NOT_DETECTED"
 	ReasonVersionConflict            = "VERSION_CONFLICT"
 	ReasonDeclarationMissing         = "DECLARATION_MISSING"
+	ReasonDeclarationMismatch        = "DECLARATION_MISMATCH"
 	ReasonDistributionNotCovered     = "DISTRIBUTION_NOT_COVERED"
 	ReasonDocumentsTemplated         = "DOCUMENTS_TEMPLATED"
 	ReasonDocumentsNotEvaluated      = "DOCUMENTS_NOT_EVALUATED"
@@ -66,6 +67,8 @@ const (
 	GapDeclarationApply        GapKey = ReasonDeclarationMissing + "/apply"
 	GapDeclarationDistribution GapKey = ReasonDeclarationMissing + "/distribution"
 	GapDeclarationKubelet      GapKey = ReasonDeclarationMissing + "/kubelet-version"
+	GapDeclarationKubeletMajor GapKey = ReasonDeclarationMismatch + "/kubelet-version"
+	GapDeclarationKubeletBuild GapKey = ReasonDeclarationMismatch + "/kubelet-distribution"
 	GapDistributionNotCovered  GapKey = ReasonDistributionNotCovered
 	GapDocumentsTemplated      GapKey = ReasonDocumentsTemplated
 	GapDocumentsLists          GapKey = ReasonDocumentsNotEvaluated + "/lists"
@@ -200,6 +203,10 @@ var gapMessages = map[GapKey]gapMessage{
 		"for upstream builds, add distribution: official_upstream to prufyx.yaml or pass --distribution official_upstream", 1},
 	GapDeclarationKubelet: {"rule %[1]s applies to this hop but the lowest kubelet version is not declared",
 		"add --kubelet-version-min X.Y.Z (and --kubelet-version-max for a mixed fleet) or minimumKubeletVersion in prufyx.yaml; declare only what is true", 1},
+	GapDeclarationKubeletMajor: {"kubelet %[1]s is not comparable with target %[2]s (other major); %[3]s cannot decide",
+		"declare kubelet versions on the target's major version, or check the kubelet skew by hand", 3},
+	GapDeclarationKubeletBuild: {"kubelet %[1]s not compared on %[2]s (only official_upstream); %[3]s cannot decide",
+		"check the kubelet skew of your distribution by hand", 3},
 	GapDistributionNotCovered: {"the %[1]s distribution is %[2]s; only official_upstream is evaluated",
 		"check your distribution's release notes by hand", 2},
 	GapDocumentsTemplated: {"%[1]d document(s) contain unrendered templates",
@@ -293,7 +300,7 @@ var gapMessages = map[GapKey]gapMessage{
 // GapReasons lists the closed vocabulary in order.
 func GapReasons() []string {
 	return []string{
-		ReasonAlphaAPINotCovered, ReasonAPIVersionNotReviewed, ReasonAPIVersionNotServed, ReasonUnsupportedCombination, ReasonComponentNotCovered, ReasonDeclarationMissing,
+		ReasonAlphaAPINotCovered, ReasonAPIVersionNotReviewed, ReasonAPIVersionNotServed, ReasonUnsupportedCombination, ReasonComponentNotCovered, ReasonDeclarationMismatch, ReasonDeclarationMissing,
 		ReasonDistributionNotCovered, ReasonDocumentsNotEvaluated, ReasonDocumentsTemplated, ReasonDowngradeNotReviewed,
 		ReasonEvidenceExpired, ReasonIntermediateLineNotCovered, ReasonLineNotAttested, ReasonNoReviewedPathPolicy,
 		ReasonPathNotPlannable, ReasonPathPolicyNotCurrent, ReasonProjectNotInKnowledge, ReasonRuleNotDecided, ReasonVersionConflict, ReasonVersionNotDetected,

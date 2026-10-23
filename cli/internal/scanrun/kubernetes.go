@@ -613,6 +613,11 @@ func (r *kubernetesRun) judge(rule cncfcheck.ScanRule, eval evaluation, ref scan
 	default:
 		return judgement{reasons: []string{r.gap(&ref, scanreport.GapRuleStatusNotUnderstood, rule.Scope.ID, quote(claim.Status))}}
 	}
+	if claim.ReasonCode == "RULE_FACT_UNAVAILABLE" && declarationOnly(rule) && r.declarations.kubelet.Minimum != "" {
+		// The declared versions exist but the fact could not be built from
+		// them: the manifests' preparation reason says nothing about it.
+		return judgement{reasons: []string{r.kubeletMismatchGap(rule.Scope.ID, ref)}}
+	}
 	if factReasons[claim.ReasonCode] {
 		return judgement{reasons: r.preparationGaps(eval.scan.Prepared, rule.Scope.ID, claim.ReasonCode, ref)}
 	}
@@ -624,6 +629,20 @@ func (r *kubernetesRun) judge(rule cncfcheck.ScanRule, eval evaluation, ref scan
 		return judgement{reasons: []string{r.gap(&ref, scanreport.GapEvidenceExpired, rule.Scope.ID, claim.EvidenceFreshness)}}
 	}
 	return judgement{reasons: []string{r.gap(&ref, scanreport.GapRuleNotDecided, rule.Scope.ID, claim.ReasonCode)}}
+}
+
+// kubeletMismatchGap names why a declared kubelet version could not be
+// compared: a distribution other than official_upstream, else the versions
+// themselves (another major version than the hop target).
+func (r *kubernetesRun) kubeletMismatchGap(ruleID string, ref scanreport.HopRef) string {
+	declared := r.declarations.kubelet.Minimum
+	if r.declarations.kubelet.Maximum != "" {
+		declared += " to " + r.declarations.kubelet.Maximum
+	}
+	if r.declarations.distribution != "official_upstream" {
+		return r.gap(&ref, scanreport.GapDeclarationKubeletBuild, declared, r.declarations.distribution, ruleID)
+	}
+	return r.gap(&ref, scanreport.GapDeclarationKubeletMajor, declared, ref.To, ruleID)
 }
 
 // preparationGaps explains a claim whose fact the preparation left

@@ -282,3 +282,65 @@ func TestScanKubeletFileKeysAndFlagPrecedence(t *testing.T) {
 		t.Fatal("a flag minimum above the file maximum was accepted")
 	}
 }
+
+// mismatchGaps are the gaps that name a declared kubelet version that cannot
+// be compared, by rule.
+func mismatchGaps(report scanreport.Report) map[string]scanreport.Gap {
+	found := map[string]scanreport.Gap{}
+	for _, gap := range report.Gaps {
+		if gap.Reason != scanreport.ReasonDeclarationMismatch {
+			continue
+		}
+		for _, rule := range []string{skewRule36, skewRule37} {
+			if strings.Contains(gap.Detail, rule) {
+				found[rule] = gap
+			}
+		}
+	}
+	return found
+}
+
+// TestScanKubeletUncomparableNamesTheCause: a declared kubelet version that
+// cannot be compared is named as such, never explained by the manifests'
+// preparation reason, and never passes.
+func TestScanKubeletUncomparableNamesTheCause(t *testing.T) {
+	t.Parallel()
+	_, removed := files(t, map[string]string{"cronjob.yaml": removedCronJobOnly})
+	custom := []string{"--distribution", "custom_build", "--kubelet-version-min", "1.30.0"}
+	cases := map[string]struct {
+		paths []string
+		extra []string
+		want  string
+	}{
+		"other major":                {kubeletManifest(t), []string{"--kubelet-version-min", "2.0.0"}, "other major"},
+		"other major, removed GVK":   {removed, []string{"--kubelet-version-min", "2.0.0"}, "other major"},
+		"other major in the maximum": {kubeletManifest(t), []string{"--kubelet-version-min", "1.33.0", "--kubelet-version-max", "2.0.0"}, "other major"},
+		"custom build":               {kubeletManifest(t), custom, "only official_upstream"},
+		"custom build, removed GVK":  {removed, custom, "only official_upstream"},
+	}
+	for name, test := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			command := kubeletArgs(test.paths, test.extra...)
+			if strings.Contains(strings.Join(test.extra, " "), "custom_build") {
+				command = append(append([]string{}, test.paths...), "--resource-scope-complete", "--target-api-apply-required",
+					"--now", testNow, "--from", "kubernetes=1.35.2", "--to", "kubernetes=1.37.0", "--show-passes")
+				command = append(command, test.extra...)
+			}
+			result := mustScan(t, kubeletKnowledge(t), command...)
+			if result.Exit != scanreport.ExitUnknown && result.Exit != scanreport.ExitBlocked {
+				t.Fatalf("exit %d, want unknown or blocked, never pass", result.Exit)
+			}
+			gaps := mismatchGaps(result.Report)
+			for _, rule := range []string{skewRule36, skewRule37} {
+				gap, ok := gaps[rule]
+				if !ok || !strings.Contains(gap.Detail, test.want) {
+					t.Fatalf("%s: no %q gap: %+v", rule, test.want, gaps)
+				}
+				if _, ok := skewPass(result.Report, rule); ok {
+					t.Fatalf("%s passed", rule)
+				}
+			}
+		})
+	}
+}

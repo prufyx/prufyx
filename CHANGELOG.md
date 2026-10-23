@@ -194,7 +194,9 @@ A catalogued project is not tested coverage: a catalogue entry says Prufyx holds
   "needs evidence that scan does not collect". The versions are declared, not
   observed: findings, `--show-passes` entries, the report footer and
   `provenance.kubeletVersions` say so. Invalid versions are a usage error (exit
-  2); a version on another major leaves the rule `UNKNOWN`. See
+  2); a version on another major, or a distribution other than
+  `official_upstream`, leaves the rule `UNKNOWN` with a `DECLARATION_MISMATCH` gap
+  that names the cause. See
   `cli/docs/scan.md`.
 - The knowledge gate admits a NEW reviewed path policy (no record with that ID
   in the base) with an owner approval for exactly that record: subject
