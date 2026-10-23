@@ -278,16 +278,14 @@ func TestRenewSameBuildReleaseExtension(t *testing.T) {
 			rel := m["releases"].(map[string]any)
 			rel["from"].([]any)[0].(map[string]any)["commit"] = strings.Repeat("a", 40)
 		})},
-		{"shrink: the pack holds the run's releases in another order", func(m map[string]any) {
+		{"shrink: the pack holds a release the run lacks", func(m map[string]any) {
 			rel, ok := m["releases"].(map[string]any)
 			if !ok {
 				return
 			}
 			to := rel["to"].([]any)
-			if len(to) < 2 {
-				return
-			}
-			to[0], to[len(to)-1] = to[len(to)-1], to[0]
+			line := strings.Join(strings.Split(to[len(to)-1].(map[string]any)["version"].(string), ".")[:2], ".")
+			rel["to"] = append(to, map[string]any{"version": line + ".99", "commit": strings.Repeat("c", 40)})
 			ev := evOf(m)
 			ev["derivedAt"], ev["reviewedAt"], ev["validUntil"] = "2026-10-01T00:00:00Z", "2026-10-01T00:00:00Z", "2026-10-31T00:00:00Z"
 		}},
