@@ -16,8 +16,9 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/upgradepath"
 )
 
-// These tests attach synthetic path-policy records to the embedded pack. The
-// embedded pack carries none and stays byte-identical.
+// These tests attach synthetic path-policy records to a base taken from the
+// embedded pack with its own path-policy section dropped (syntheticBase). The
+// embedded pack carries exactly one record, for Kubernetes.
 
 const ciliumComponent = "pkg:github/cilium/cilium"
 
@@ -54,18 +55,26 @@ func featurePack(t *testing.T, schema string, attestations, policies []byte) []b
 	return encoded
 }
 
-func TestEmbeddedPackCarriesNoPathPolicies(t *testing.T) {
+func TestEmbeddedPackCarriesTheKubernetesPathPolicy(t *testing.T) {
 	t.Parallel()
 	raw, err := packagedFiles.ReadFile("data/rules.json")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Contains(raw, []byte(upgradepath.PackMember)) {
-		t.Fatal("the published pack carries path policies")
+	if !bytes.Contains(raw, []byte(upgradepath.PackMember)) {
+		t.Fatal("the published pack carries no path policies")
+	}
+	shipped := shippedPack(t)
+	var records []upgradepath.Record
+	if err := json.Unmarshal(shipped.PathPolicies, &records); err != nil || len(records) != 1 || records[0].Component != k8sComponent || records[0].Policy != upgradepath.PolicySequentialMinor {
+		t.Fatalf("embedded path policy records: %+v %v", records, err)
 	}
 	status, err := PathPolicyFor(k8sComponent, time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC))
-	if err != nil || status.Found || status.Policy() != nil {
+	if err != nil || !status.Found || status.Policy() == nil || status.Record.Policy != upgradepath.PolicySequentialMinor {
 		t.Fatalf("embedded path policy: %+v %v", status, err)
+	}
+	if status, err := PathPolicyFor(ciliumComponent, time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)); err != nil || status.Found || status.Policy() != nil {
+		t.Fatalf("embedded path policy of another component: %+v %v", status, err)
 	}
 	components, err := CatalogSubjectComponents()
 	if err != nil || !slices.Contains(components, k8sComponent) || !slices.Contains(components, ciliumComponent) || !slices.IsSorted(components) {
@@ -155,10 +164,11 @@ func TestPathPolicyFreshness(t *testing.T) {
 	if absent := b.pathPolicyFor("pkg:github/argoproj/argo-cd", time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)); absent.Found || absent.RecordNotCurrent() || absent.Policy() != nil {
 		t.Fatalf("absent record: %+v", absent)
 	}
-	// The embedded lookup goes through the same method.
+	// The embedded lookup goes through the same method; the embedded pack
+	// holds a record for Kubernetes only (its own dates, not the cases').
 	for _, c := range cases {
 		t.Run("embedded "+c.name, func(t *testing.T) {
-			if status, err := PathPolicyFor(c.component, c.now); err != nil || status.Found {
+			if status, err := PathPolicyFor(c.component, c.now); err != nil || status.Found != (c.component == k8sComponent) {
 				t.Fatalf("embedded pack: %+v %v", status, err)
 			}
 		})
@@ -249,10 +259,10 @@ func TestPackSchemaLevels(t *testing.T) {
 	if b.pack.Schema != level || b.packDigest != "sha256:"+embeddedPackSHA256 {
 		t.Fatalf("embedded pack schema %s digest %s", b.pack.Schema, b.packDigest)
 	}
-	// Decoding and re-encoding the pack adds no section: no path policies,
-	// and line attestations exactly when the file holds them.
+	// Decoding and re-encoding the pack adds no section: path policies and
+	// line attestations exactly when the file holds them.
 	reencoded, err := json.Marshal(b.pack)
-	if err != nil || bytes.Contains(reencoded, []byte(upgradepath.PackMember)) || bytes.Contains(reencoded, []byte("lineAttestations")) != bytes.Contains(raw, []byte("lineAttestations")) {
+	if err != nil || bytes.Contains(reencoded, []byte(upgradepath.PackMember)) != bytes.Contains(raw, []byte(upgradepath.PackMember)) || bytes.Contains(reencoded, []byte("lineAttestations")) != bytes.Contains(raw, []byte("lineAttestations")) {
 		t.Fatalf("re-encoded pack gained a section: %v", err)
 	}
 	if schema, err := requiredPackSchema(b.pack); err != nil || schema != level {

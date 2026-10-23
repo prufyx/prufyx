@@ -32,7 +32,7 @@ import (
 func syntheticBase(t *testing.T) rulePack {
 	t.Helper()
 	pack := shippedPack(t)
-	if len(pack.PathPolicies) != 0 || len(pack.Distributions) != 0 {
+	if len(pack.Distributions) != 0 {
 		t.Fatal("the shipped pack carries a section syntheticBase does not reduce")
 	}
 	entries := make([]Entry, 0, len(pack.Entries))
@@ -41,7 +41,7 @@ func syntheticBase(t *testing.T) rulePack {
 			entries = append(entries, entry)
 		}
 	}
-	pack.Entries, pack.LineAttestations, pack.ServedAPIs, pack.Schema = entries, nil, nil, packSchemaRanged
+	pack.Entries, pack.LineAttestations, pack.PathPolicies, pack.ServedAPIs, pack.Schema = entries, nil, nil, nil, packSchemaRanged
 	if schema, err := requiredPackSchema(pack); err != nil || schema != packSchemaRanged {
 		t.Fatalf("the reduced shipped pack needs schema %s (%v), not the ranged one: syntheticBase must learn the new feature", schema, err)
 	}
@@ -118,7 +118,7 @@ func syntheticBaseExternalBundle(t *testing.T, revision string) []byte {
 		t.Fatalf("rules-only envelope over syntheticBase refused: %v", err)
 	}
 	shipped := shippedPack(t)
-	if len(shipped.LineAttestations) == 0 && len(shipped.ServedAPIs) == 0 && len(shipped.Entries) == len(pack.Entries) {
+	if len(shipped.LineAttestations) == 0 && len(shipped.PathPolicies) == 0 && len(shipped.ServedAPIs) == 0 && len(shipped.Entries) == len(pack.Entries) {
 		exported, err := ExportEmbeddedExternalBundle(revision)
 		if err != nil || !bytes.Equal(exported, raw) {
 			t.Fatalf("the export of a section-free shipped pack differs from the rules-only envelope: %v", err)
@@ -137,7 +137,7 @@ func syntheticBaseExternalBundle(t *testing.T, revision string) []byte {
 func shippedSchemaLevel(t *testing.T) string {
 	t.Helper()
 	pack := shippedPack(t)
-	if len(pack.PathPolicies) != 0 || len(pack.Distributions) != 0 {
+	if len(pack.Distributions) != 0 {
 		t.Fatal("the shipped pack carries a section shippedSchemaLevel does not state")
 	}
 	if len(pack.ServedAPIs) != 0 {

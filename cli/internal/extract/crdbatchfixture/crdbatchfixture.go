@@ -23,13 +23,15 @@ const (
 	schemaAttested = "prufyx.io/cncf-source-rule-pack/v1alpha4"
 	// membersServed is the pack member of the served-API lists.
 	membersServed = "servedAPIs"
+	// membersPolicies is the pack member of the upgrade-path policies.
+	membersPolicies = "pathPolicies"
 )
 
 // Without returns pack without the batch, rendered like the shipped pack. A
 // pack that does not hold the batch is returned unchanged. The batch moved
 // the pack from the ranged schema to the line attestation schema; Without
 // moves it back unless line attestations of other facts remain, drops the
-// served-API list member (not part of the batch), and refuses a
+// served-API list and path policy members (not part of the batch), and refuses a
 // pack that holds anything else that would need a schema above the ranged
 // one (a set rule outside the batch, another section), so it never yields a
 // pack its loader would refuse for a reason the batch did not bring.
@@ -45,9 +47,12 @@ func Without(pack []byte) ([]byte, error) {
 	// The served-API lists are not part of the batch: the pack the tests
 	// model has none, and without them the pack is again at the line
 	// attestation schema.
-	if _, ok := p.Members[membersServed]; ok {
-		delete(p.Members, membersServed)
-		p.Members["schema"] = json.RawMessage(`"` + schemaAttested + `"`)
+	// The same holds for the upgrade-path policies.
+	for _, member := range []string{membersServed, membersPolicies} {
+		if _, ok := p.Members[member]; ok {
+			delete(p.Members, member)
+			p.Members["schema"] = json.RawMessage(`"` + schemaAttested + `"`)
+		}
 	}
 	var schema string
 	if err := json.Unmarshal(p.Members["schema"], &schema); err != nil || schema != schemaAttested {

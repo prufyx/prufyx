@@ -147,8 +147,18 @@ func TestValidatePackPathPolicies(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r, err := ValidatePackPathPolicies(raw, PathPolicyOptions{}); err != nil || !r.Valid || r.EntryCount != 0 {
+	if r, err := ValidatePackPathPolicies(raw, PathPolicyOptions{}); err != nil || !r.Valid || r.EntryCount != 1 {
 		t.Fatalf("published pack: %+v %v", r, err)
+	}
+	// The cases below add a section of their own to the pack without one.
+	start := bytes.Index(raw, []byte("\n  \"pathPolicies\": ["))
+	end := bytes.Index(raw, []byte("\n  \"servedAPIs\": ["))
+	if start < 0 || end < start {
+		t.Fatal("the published pack has no path policy section to strip")
+	}
+	raw = append(append([]byte{}, raw[:start]...), raw[end:]...)
+	if r, err := ValidatePackPathPolicies(raw, PathPolicyOptions{}); err != nil || !r.Valid || r.EntryCount != 0 {
+		t.Fatalf("published pack without the section: %+v %v", r, err)
 	}
 	evidence := rule(kubernetesEntry(t))["evidence"]
 	good := policyDocument(t, policyComponent, evidence)

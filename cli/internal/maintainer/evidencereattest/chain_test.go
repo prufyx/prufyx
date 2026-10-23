@@ -688,6 +688,10 @@ func withoutMechanicalRules(t *testing.T, raw []byte) []byte {
 			t.Fatal(err)
 		}
 	}
+	// A reviewed path policy newer than the simulated chain's start needs
+	// its own review (V5), like a reviewed rule: the simulation covers the
+	// records reviewed before it starts.
+	delete(p.Members, "pathPolicies")
 	out, err := p.Render()
 	if err != nil {
 		t.Fatal(err)

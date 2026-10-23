@@ -11,9 +11,11 @@ component's upgrades are formed. Prufyx uses it to split an upgrade into
 hops. The policy itself never decides that a hop is safe; rules do that, one
 hop at a time.
 
-No command reads path policies to change an answer in this release, and the
-published knowledge pack carries none. This page describes the record, the
-planner and the checks a pack must pass, for contributors and maintainers.
+`prufyx scan` reads the policy of a component to split an upgrade into hops.
+The published knowledge pack carries one record, for the Kubernetes control
+plane (`sequential_minor`, citing the version-skew policy of the Kubernetes
+website). This page describes the record, the planner and the checks a pack
+must pass, for contributors and maintainers.
 
 ## Policies
 

@@ -78,7 +78,7 @@ timestamp and digests, is left out here):
 ```
 UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading (4 other areas were not checked)
 
-kubernetes 1.24.0 -> 1.25.0: 1 hop (no reviewed path policy)
+kubernetes 1.24.0 -> 1.25.0: 1 hop (path policy sequential_minor)
 
 NOT CHECKED (5)
   kubernetes   no reviewed list of the API versions Kubernetes 1.25 serves; 2 manifest(s) cannot be checked - check them against the API reference of that Kubernetes release by hand, or request coverage: https://github.com/prufyx/prufyx/issues/new?template=project-knowledge.yml
@@ -112,7 +112,7 @@ Real output (exit `10`):
 ```
 BLOCKED: 1 problem must be fixed; 1 area was not checked
 
-kubernetes 1.24.0 -> 1.25.0: 1 hop (no reviewed path policy)
+kubernetes 1.24.0 -> 1.25.0: 1 hop (path policy sequential_minor)
   1.24.0 -> 1.25.0   Kubernetes 1.25 stops serving CronJob through batch/v1beta1
                      rendered.yaml:1  CronJob default/nightly-report
                      fix: Migrate the named CronJob manifests to batch/v1. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
@@ -308,12 +308,12 @@ not covered, with the `prufyx check cncf` command that does cover them. It does
 not look at a live cluster, custom resources, stored versions, admission or
 component configuration, or node version skew.
 
-`scan` cannot answer `PASS` (exit `0`) with the knowledge built into this
-source tree. A pass needs three kinds of reviewed records that are not shipped
-yet: reviews that a release line has no other removed APIs, a reviewed upgrade
-path policy for skipping release lines, and a reviewed list of the API versions
-each target release serves. Until they are, a scan with Kubernetes manifests
-ends in `BLOCKED` (exit `10`) or "not every area checked" (exit `11`). See the
+`scan` answers `PASS FOR THE DECLARED SCOPE` (exit `0`) only when every hop of
+the upgrade is decided by reviewed records: reviews that a release line has no
+other removed APIs, the reviewed Kubernetes upgrade-path policy that plans a
+jump across minor lines hop by hop, and a reviewed list of the API versions
+each target release serves. Anything the knowledge does not cover ends in
+`BLOCKED` (exit `10`) or "not every area checked" (exit `11`). See the
 [`scan` guide](cli/docs/scan.md). To run it in a workflow, see the
 [GitHub Action](cli/docs/github-action.md).
 
@@ -353,10 +353,6 @@ status:
   attestation check and requires an archive checksum to skip attestation;
   tagged release builds are reproducible and carry their build identity. See
   [releasing](cli/docs/releasing.md).
-
-**Internal, not yet shipped in knowledge:** support for reviewed served-API
-lists in `scan`. No such list is shipped, so `scan` still cannot answer `PASS`
-as described above.
 
 **Planned:** a published release with prebuilt binaries, an official signed
 knowledge feed, and automated GitOps release gates. None exists today.

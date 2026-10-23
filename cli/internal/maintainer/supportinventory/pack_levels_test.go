@@ -140,7 +140,7 @@ func levelServedAPIs() []any {
 // generateWithPack runs Generate over the repository inputs with the CNCF
 // pack replaced by the level base after edit. The level base is the
 // embedded pack reduced to the ranged level: its rules without the set
-// rules, without its line attestation and served-API list sections, under
+// rules, without its line attestation, path policy and served-API list sections, under
 // the ranged schema, so that the level each case asserts is the level of
 // the feature it adds. A shipped section the reduction does not know fails
 // the test.
@@ -157,7 +157,7 @@ func generateWithPack(t *testing.T, edit func(pack map[string]any)) (map[string]
 	}
 	for member := range pack {
 		switch member {
-		case "schema", "revision", "policyId", "policyDigest", "landscapeFileDigest", "registryDigest", "entries", "lineAttestations", "servedAPIs":
+		case "schema", "revision", "policyId", "policyDigest", "landscapeFileDigest", "registryDigest", "entries", "lineAttestations", "pathPolicies", "servedAPIs":
 		default:
 			t.Fatalf("the shipped pack carries member %s, which the level base does not reduce", member)
 		}
@@ -169,6 +169,7 @@ func generateWithPack(t *testing.T, edit func(pack map[string]any)) (map[string]
 		}
 	}
 	delete(pack, "lineAttestations")
+	delete(pack, "pathPolicies")
 	delete(pack, "servedAPIs")
 	pack["entries"], pack["schema"] = entries, "prufyx.io/cncf-source-rule-pack/v1alpha2"
 	edit(pack)

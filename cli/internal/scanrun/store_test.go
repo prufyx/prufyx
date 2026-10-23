@@ -154,6 +154,7 @@ func embeddedPackWithoutServedLists(t *testing.T) []byte {
 		t.Fatal(err)
 	}
 	delete(pack, "servedAPIs")
+	delete(pack, "pathPolicies")
 	pack["schema"] = "prufyx.io/cncf-source-rule-pack/v1alpha4"
 	out, err := json.Marshal(pack)
 	if err != nil {
@@ -180,6 +181,10 @@ func editPack(t *testing.T, raw []byte, edit func(project string, rule map[strin
 		}
 	}
 	pack["entries"] = kept
+	// The shipped upgrade-path policy is left out: these tests state what the
+	// store answers over rules whose leases they move, and a policy that
+	// planned the hops would add its own lease to every case.
+	delete(pack, "pathPolicies")
 	// A line attestation of a component none of whose rules is kept goes with
 	// them: the edited pack must not decide lines of a project it dropped.
 	if atts, ok := pack["lineAttestations"].([]any); ok {
@@ -431,8 +436,12 @@ func TestScanStoreRenewedRule(t *testing.T) {
 	for _, layout := range storeLayouts {
 		dir, _ := files(t, map[string]string{"applyset.yaml": cronjobV1beta1})
 		inDir(t, dir, func() {
+			// After the leases ended the shipped path policy is no longer
+			// current either: the scan names that gap and plans no hop. The
+			// renewed pack below carries no policy (editPack), so its one
+			// whole-upgrade hop is the one the rule decides.
 			embedded := mustScan(t, nil, append(storeArgs([]string{"applyset.yaml"}, scanArgs...), "--now", afterExpiry)...)
-			if embedded.Exit != scanreport.ExitUnknown || len(embedded.Report.Findings) != 0 || !contains(gapReasons(embedded.Report), "EVIDENCE_EXPIRED 1.24.17->1.25.3") {
+			if embedded.Exit != scanreport.ExitUnknown || len(embedded.Report.Findings) != 0 || !contains(gapReasons(embedded.Report), "PATH_POLICY_NOT_CURRENT") {
 				t.Fatalf("embedded after expiry: exit %d gaps %v", embedded.Exit, gapReasons(embedded.Report))
 			}
 

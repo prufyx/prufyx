@@ -69,6 +69,7 @@ func crdRoutePack(t *testing.T, now time.Time) []byte {
 	pack["entries"] = entries
 	delete(pack, "lineAttestations")
 	delete(pack, "servedAPIs")
+	delete(pack, "pathPolicies")
 	pack["schema"] = "prufyx.io/cncf-source-rule-pack/v1alpha3"
 	if attestations, ok := pack["lineAttestations"].([]any); ok {
 		var kept []any

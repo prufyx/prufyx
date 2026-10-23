@@ -2,7 +2,7 @@
 
 ## PROBLEMS TO FIX (1)
 
-### kubernetes 1.24.17 -> 1.25.3: 1 hop (no reviewed path policy)
+### kubernetes 1.24.17 -> 1.25.3: 1 hop (path policy sequential\_minor)
 
 | Hop | Problem | Where | Fix |
 | --- | --- | --- | --- |
@@ -10,7 +10,7 @@
 
 ## HOPS
 
-### kubernetes 1.24.17 -> 1.25.3: 1 hop (no reviewed path policy)
+### kubernetes 1.24.17 -> 1.25.3: 1 hop (path policy sequential\_minor)
 
 | Hop | Status |
 | --- | --- |

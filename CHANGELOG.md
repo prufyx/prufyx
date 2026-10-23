@@ -194,7 +194,13 @@ A catalogued project is not tested coverage: a catalogue entry says Prufyx holds
   `prufyx-maintainer approval sign` and `verify` take `--subject pathPolicy
   --record ID` (verify needs `--base-root`). Before this a new path policy could
   not enter the pack at all.
-
+- Knowledge: the first reviewed upgrade-path policy. The pack carries one
+  `pathPolicies` record, `sequential_minor` for the Kubernetes control plane,
+  citing the upstream version-skew policy (note on not skipping minor versions
+  of `kube-apiserver`) at a pinned commit. `prufyx scan` now plans an upgrade
+  across minor lines hop by hop for Kubernetes (`1.29.x` to `1.37.x` is eight
+  hops) instead of reporting the gap `NO_REVIEWED_PATH_POLICY`; a record whose
+  review lapses is the gap `PATH_POLICY_NOT_CURRENT`, never a direct hop.
 - Maintainer command `prufyx-maintainer served-lists build --pack FILE --lines 1.19-1.37 --now RFC3339`
   derives the served-API lists of Kubernetes lines from the pinned upstream
   OpenAPI specification (the code the knowledge gate re-derives with) and writes

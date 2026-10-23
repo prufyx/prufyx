@@ -61,9 +61,12 @@ func Reviewed(pack []byte) ([]byte, error) {
 	}
 	// The served-API lists came after the supersede: the pack as it was
 	// has none, and is at the line attestation schema again.
-	if _, ok := p.Members["servedAPIs"]; ok {
-		delete(p.Members, "servedAPIs")
-		p.Members["schema"] = json.RawMessage(`"prufyx.io/cncf-source-rule-pack/v1alpha4"`)
+	// The upgrade-path policies came after it too.
+	for _, member := range []string{"servedAPIs", "pathPolicies"} {
+		if _, ok := p.Members[member]; ok {
+			delete(p.Members, member)
+			p.Members["schema"] = json.RawMessage(`"prufyx.io/cncf-source-rule-pack/v1alpha4"`)
+		}
 	}
 	return p.Render()
 }
