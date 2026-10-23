@@ -363,9 +363,14 @@ refutes the affected removal claims (which still require the scan to block)
 instead of voiding the hop. The scan stage itself therefore has no canary.
 
 The hops whose removals the upstream deprecation guide does not document
-(1.33, 1.34, 1.37 in the current table) have only `false` removal controls,
+(1.33, 1.34 in the current table) have only `false` removal controls,
 so their `k8s-removal` groups are `incomplete` and their removal claims stay
-`undetermined` until a reviewed `true` control is added for the hop.
+`undetermined` until a reviewed `true` control is added for the hop. The hop
+1.36 to 1.37 has `true` controls from the Kubernetes OpenAPI spec instead
+(`evidence.source` is the spec at the `v1.36.0` commit, which serves the
+`v1beta1` path; `evidence.absentAt` is the spec at the `v1.37.0` commit, which
+has none): `IPAddress` and `ServiceCIDR` of `networking.k8s.io/v1beta1`, and
+`VolumeAttributesClass` of `storage.k8s.io/v1beta1`.
 
 A control that cannot be decided is not as expected: a line without a
 snapshot, or a custom-resource run limited with `kindval crd --pair` (or
