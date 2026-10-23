@@ -1,0 +1,26 @@
+{
+  "kind": "leads",
+  "leads": [
+    {
+      "artefact": "spec.legacyMode",
+      "certainty": "medium",
+      "changedIn": "1.3.0",
+      "commit": "1111111111111111111111111111111111111111",
+      "component": "example-operator",
+      "fileSha256": "7777777777777777777777777777777777777777777777777777777777777777",
+      "pair": {
+        "fromTag": "v1.2.0",
+        "toTag": "v1.3.0"
+      },
+      "path": "CHANGELOG.md",
+      "quote": {
+        "endLine": 12,
+        "startLine": 12,
+        "text": "- Removed the spec.legacyMode field; use spec.mode instead."
+      },
+      "replacement": "spec.mode",
+      "type": "removal"
+    }
+  ],
+  "schema": "prufyx.io/onboard-bundle/v1"
+}

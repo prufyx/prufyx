@@ -1,0 +1,23 @@
+{
+  "entries": [
+    {
+      "class": "templated-copy",
+      "evidence": [
+        {
+          "commit": "1111111111111111111111111111111111111111",
+          "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+          "tag": "v1.3.0"
+        },
+        {
+          "commit": "3333333333333333333333333333333333333333",
+          "sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+          "tag": "v1.2.0"
+        }
+      ],
+      "note": "Helm template that repeats the CRDs of config/crd/bases",
+      "path": "charts/example-operator/templates/crds.yaml"
+    }
+  ],
+  "kind": "scan-notes",
+  "schema": "prufyx.io/onboard-bundle/v1"
+}

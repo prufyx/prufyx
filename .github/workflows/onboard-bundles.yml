@@ -1,0 +1,96 @@
+name: Onboarding bundles
+
+# Validates every onboarding bundle directory a pull request adds or changes
+# under contrib/onboard-bundles/<slug>/. The validator is built from the BASE
+# commit, never from the pull request, so a pull request cannot weaken the
+# check that judges it; the pull request checkout is only read as data.
+# No secrets, no network beyond the checkout and the vendored Go build.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'contrib/onboard-bundles/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: onboard-bundles-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate onboarding bundles
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout base (trusted validator source)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+          persist-credentials: false
+
+      - name: Checkout pull request (bundle data only)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: pr
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: base/cli/go.mod
+          cache-dependency-path: base/cli/go.sum
+
+      - name: Build validator from base
+        working-directory: base/cli
+        run: go build -buildvcs=false -o "${RUNNER_TEMP}/prufyx-maintainer" ./cmd/prufyx-maintainer
+
+      - name: Validate changed bundles
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        working-directory: pr
+        run: |
+          set -euo pipefail
+          # Every path touched under contrib/onboard-bundles/, deletions included.
+          changed="$(git diff --name-only --no-renames "${BASE_SHA}...${HEAD_SHA}" -- contrib/onboard-bundles/)"
+          status=0
+          dirs=()
+          while IFS= read -r path; do
+            [ -n "${path}" ] || continue
+            rel="${path#contrib/onboard-bundles/}"
+            case "${rel}" in
+              README.md) continue ;;
+              */*) ;;
+              *)
+                # A deleted stray top-level file leaves nothing to reject.
+                [ -e "${path}" ] || { echo "${path}: removed, skipped"; continue; }
+                echo "::error title=Onboarding bundle::${path}: a bundle lives at contrib/onboard-bundles/<slug>/, not directly under contrib/onboard-bundles/"
+                status=1
+                continue
+                ;;
+            esac
+            slug="${rel%%/*}"
+            if ! printf '%s' "${slug}" | grep -Eq '^[a-z0-9][a-z0-9-]{0,62}$'; then
+              echo "::error title=Onboarding bundle::${path}: directory name ${slug} is not a valid project slug"
+              status=1
+              continue
+            fi
+            dir="contrib/onboard-bundles/${slug}"
+            # A bundle directory removed by the pull request has nothing left to validate.
+            [ -d "${dir}" ] || { echo "${dir}: removed, skipped"; continue; }
+            case " ${dirs[*]-} " in *" ${dir} "*) ;; *) dirs+=("${dir}") ;; esac
+          done <<< "${changed}"
+          if [ "${#dirs[@]}" -eq 0 ] && [ "${status}" -eq 0 ]; then
+            echo "no onboarding bundle directory changed, nothing to validate"
+            exit 0
+          fi
+          if [ "${#dirs[@]}" -gt 0 ]; then
+            "${RUNNER_TEMP}/prufyx-maintainer" onboard-bundle validate --dir-is-slug "${dirs[@]}" || status=1
+          fi
+          exit "${status}"

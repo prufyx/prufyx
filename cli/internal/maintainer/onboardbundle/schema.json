@@ -1,0 +1,835 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "prufyx.io/onboard-bundle/v1",
+  "title": "Prufyx onboarding bundle v1 (HINTS ONLY, never knowledge)",
+  "description": "One schema file, one $defs entry per bundle file. File name -> def: project.json=project, target-draft.json=targetDraft, scan-notes.json=scanNotes, relnotes-sources.json=relnotesSources, leads.json=leads, receipt.json=receipt. Every def is closed (additionalProperties false). The validator implements only: type, required, properties, additionalProperties, enum, const, pattern, minLength, maxLength, minimum, maximum, maxItems, items, $ref into $defs. extractManifest checks extract-run/manifest.json shallowly (closed top level); extract-run/candidates.json and attestations.json are only depth/size/leak checked and are never trusted.",
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+    },
+    "repo": {
+      "type": "string",
+      "pattern": "^github\\.com/[A-Za-z0-9._-]{1,100}/[A-Za-z0-9._-]{1,100}$"
+    },
+    "tag": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._/+-]*$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^[A-Za-z0-9._@+=,~ /-]+$"
+    },
+    "line": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10000000
+    },
+    "note": {
+      "type": "string",
+      "maxLength": 300
+    },
+    "envelope": {
+      "type": "string",
+      "const": "prufyx.io/onboard-bundle/v1"
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "kind",
+        "repo",
+        "slug",
+        "licence",
+        "tagPrefix",
+        "releaseLines",
+        "cncfStatusClaim"
+      ],
+      "properties": {
+        "schema": {
+          "$ref": "#/$defs/envelope"
+        },
+        "kind": {
+          "type": "string",
+          "const": "project"
+        },
+        "repo": {
+          "$ref": "#/$defs/repo"
+        },
+        "slug": {
+          "$ref": "#/$defs/slug"
+        },
+        "licence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "commit",
+            "sha256",
+            "spdxGuess"
+          ],
+          "properties": {
+            "path": {
+              "$ref": "#/$defs/path"
+            },
+            "commit": {
+              "$ref": "#/$defs/commit"
+            },
+            "sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "spdxGuess": {
+              "type": "string",
+              "enum": [
+                "Apache-2.0",
+                "MIT",
+                "BSD-2-Clause",
+                "BSD-3-Clause",
+                "MPL-2.0",
+                "ISC",
+                "GPL-2.0",
+                "GPL-3.0",
+                "LGPL-3.0",
+                "AGPL-3.0"
+              ]
+            }
+          }
+        },
+        "tagPrefix": {
+          "type": "string",
+          "maxLength": 32,
+          "pattern": "^([A-Za-z][A-Za-z0-9._-]{0,30}[-/]|v|)$"
+        },
+        "releaseLines": {
+          "type": "array",
+          "maxItems": 6,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "line",
+              "tag",
+              "commit"
+            ],
+            "properties": {
+              "line": {
+                "type": "string",
+                "pattern": "^[0-9]{1,6}\\.[0-9]{1,6}$"
+              },
+              "tag": {
+                "$ref": "#/$defs/tag"
+              },
+              "commit": {
+                "$ref": "#/$defs/commit"
+              }
+            }
+          }
+        },
+        "cncfStatusClaim": {
+          "type": "string",
+          "enum": [
+            "graduated",
+            "incubating",
+            "sandbox",
+            "none",
+            "unknown"
+          ]
+        }
+      }
+    },
+    "targetDraft": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "kind",
+        "status",
+        "target"
+      ],
+      "properties": {
+        "schema": {
+          "$ref": "#/$defs/envelope"
+        },
+        "kind": {
+          "type": "string",
+          "const": "target-draft"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "skeleton",
+            "filled",
+            "no-crds"
+          ]
+        },
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "project",
+            "repo",
+            "tagPrefixes",
+            "minFrom",
+            "paths",
+            "exclude"
+          ],
+          "properties": {
+            "project": {
+              "$ref": "#/$defs/slug"
+            },
+            "name": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "repo": {
+              "$ref": "#/$defs/repo"
+            },
+            "component": {
+              "type": "string",
+              "maxLength": 200,
+              "pattern": "^pkg:github/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$"
+            },
+            "factProject": {
+              "type": "string",
+              "maxLength": 63,
+              "pattern": "^[a-z0-9]+(_[a-z0-9]+)*$"
+            },
+            "tagPrefixes": {
+              "type": "array",
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "maxLength": 32
+              }
+            },
+            "minFrom": {
+              "type": "string",
+              "pattern": "^[0-9]{1,6}\\.[0-9]{1,6}$"
+            },
+            "attest": {
+              "type": "boolean"
+            },
+            "paths": {
+              "type": "array",
+              "maxItems": 20,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "path"
+                ],
+                "properties": {
+                  "path": {
+                    "$ref": "#/$defs/path"
+                  },
+                  "directory": {
+                    "type": "boolean"
+                  },
+                  "match": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "guard": {
+                    "type": "string",
+                    "maxLength": 200
+                  }
+                }
+              }
+            },
+            "exclude": {
+              "type": "array",
+              "maxItems": 20,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "path",
+                  "repo",
+                  "reason",
+                  "evidence"
+                ],
+                "properties": {
+                  "path": {
+                    "$ref": "#/$defs/path"
+                  },
+                  "repo": {
+                    "$ref": "#/$defs/repo"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 12,
+                    "maxLength": 300
+                  },
+                  "evidence": {
+                    "type": "string",
+                    "minLength": 40,
+                    "maxLength": 800
+                  },
+                  "copies": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "copiesEvidence": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "comparedWith",
+              "tags",
+              "note"
+            ],
+            "properties": {
+              "path": {
+                "$ref": "#/$defs/path"
+              },
+              "comparedWith": {
+                "$ref": "#/$defs/path"
+              },
+              "tags": {
+                "type": "array",
+                "maxItems": 12,
+                "items": {
+                  "$ref": "#/$defs/tag"
+                }
+              },
+              "note": {
+                "$ref": "#/$defs/note"
+              }
+            }
+          }
+        }
+      }
+    },
+    "scanNotes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "kind",
+        "entries"
+      ],
+      "properties": {
+        "schema": {
+          "$ref": "#/$defs/envelope"
+        },
+        "kind": {
+          "type": "string",
+          "const": "scan-notes"
+        },
+        "entries": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "class",
+              "note",
+              "evidence"
+            ],
+            "properties": {
+              "path": {
+                "$ref": "#/$defs/path"
+              },
+              "class": {
+                "type": "string",
+                "enum": [
+                  "copy",
+                  "templated-copy",
+                  "extra",
+                  "reference",
+                  "unread",
+                  "external",
+                  "go-defined",
+                  "other"
+                ]
+              },
+              "note": {
+                "$ref": "#/$defs/note"
+              },
+              "evidence": {
+                "type": "array",
+                "maxItems": 12,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "tag",
+                    "commit",
+                    "sha256"
+                  ],
+                  "properties": {
+                    "tag": {
+                      "$ref": "#/$defs/tag"
+                    },
+                    "commit": {
+                      "$ref": "#/$defs/commit"
+                    },
+                    "sha256": {
+                      "$ref": "#/$defs/sha256"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "relnotesSources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "kind",
+        "rows"
+      ],
+      "properties": {
+        "schema": {
+          "$ref": "#/$defs/envelope"
+        },
+        "kind": {
+          "type": "string",
+          "const": "relnotes-sources"
+        },
+        "rows": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "form",
+              "postTag",
+              "pairs"
+            ],
+            "properties": {
+              "path": {
+                "$ref": "#/$defs/path"
+              },
+              "form": {
+                "type": "string",
+                "enum": [
+                  "changelog",
+                  "release-notes-dir",
+                  "docs-page",
+                  "github-release-body",
+                  "other"
+                ]
+              },
+              "postTag": {
+                "type": "boolean"
+              },
+              "pairs": {
+                "type": "array",
+                "maxItems": 5,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "fromTag",
+                    "toTag",
+                    "present",
+                    "commit",
+                    "fileSha256"
+                  ],
+                  "properties": {
+                    "fromTag": {
+                      "$ref": "#/$defs/tag"
+                    },
+                    "toTag": {
+                      "$ref": "#/$defs/tag"
+                    },
+                    "present": {
+                      "type": "boolean"
+                    },
+                    "commit": {
+                      "$ref": "#/$defs/commit"
+                    },
+                    "fileSha256": {
+                      "$ref": "#/$defs/sha256"
+                    },
+                    "startLine": {
+                      "$ref": "#/$defs/line"
+                    },
+                    "endLine": {
+                      "$ref": "#/$defs/line"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "leads": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "kind",
+        "leads"
+      ],
+      "properties": {
+        "schema": {
+          "$ref": "#/$defs/envelope"
+        },
+        "kind": {
+          "type": "string",
+          "const": "leads"
+        },
+        "leads": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "component",
+              "artefact",
+              "changedIn",
+              "pair",
+              "path",
+              "commit",
+              "fileSha256",
+              "quote",
+              "certainty"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "removal",
+                  "rename",
+                  "default-change",
+                  "behaviour-change",
+                  "deprecation",
+                  "other"
+                ]
+              },
+              "component": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "artefact": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 300
+              },
+              "replacement": {
+                "type": "string",
+                "maxLength": 300
+              },
+              "changedIn": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "refusal": {
+                "type": "string",
+                "maxLength": 300
+              },
+              "pair": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "fromTag",
+                  "toTag"
+                ],
+                "properties": {
+                  "fromTag": {
+                    "$ref": "#/$defs/tag"
+                  },
+                  "toTag": {
+                    "$ref": "#/$defs/tag"
+                  }
+                }
+              },
+              "path": {
+                "$ref": "#/$defs/path"
+              },
+              "commit": {
+                "$ref": "#/$defs/commit"
+              },
+              "fileSha256": {
+                "$ref": "#/$defs/sha256"
+              },
+              "quote": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "startLine",
+                  "endLine",
+                  "text"
+                ],
+                "properties": {
+                  "startLine": {
+                    "$ref": "#/$defs/line"
+                  },
+                  "endLine": {
+                    "$ref": "#/$defs/line"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  }
+                }
+              },
+              "certainty": {
+                "type": "string",
+                "enum": [
+                  "high",
+                  "medium",
+                  "low"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "kind",
+        "kit",
+        "tool",
+        "bundleSha256",
+        "files",
+        "review",
+        "agentLabel",
+        "generatedAt",
+        "checks"
+      ],
+      "properties": {
+        "schema": {
+          "$ref": "#/$defs/envelope"
+        },
+        "kind": {
+          "type": "string",
+          "const": "receipt"
+        },
+        "kit": {
+          "type": "string",
+          "pattern": "^[a-z0-9.-]{1,32}$"
+        },
+        "tool": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "prufyxCommit"
+          ],
+          "properties": {
+            "prufyxCommit": {
+              "$ref": "#/$defs/commit"
+            }
+          }
+        },
+        "bundleSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "files": {
+          "type": "array",
+          "maxItems": 12,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "sha256"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "maxLength": 64,
+                "pattern": "^[a-z0-9./-]+$"
+              },
+              "sha256": {
+                "$ref": "#/$defs/sha256"
+              }
+            }
+          }
+        },
+        "review": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "state",
+            "admissionState"
+          ],
+          "properties": {
+            "state": {
+              "type": "string",
+              "const": "NOT_REVIEWED"
+            },
+            "admissionState": {
+              "type": "string",
+              "const": "NOT_ADMITTED"
+            }
+          }
+        },
+        "agentLabel": {
+          "type": "string",
+          "maxLength": 80,
+          "pattern": "^[A-Za-z0-9 ._+/-]*$"
+        },
+        "generatedAt": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+        },
+        "checks": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "targetCheckOffline",
+            "extractRun",
+            "dropped"
+          ],
+          "properties": {
+            "targetCheckOffline": {
+              "type": "string",
+              "enum": [
+                "pass",
+                "fail",
+                "not-run"
+              ]
+            },
+            "extractRun": {
+              "type": "string",
+              "enum": [
+                "done",
+                "needs-blobs",
+                "failed",
+                "not-run"
+              ]
+            },
+            "dropped": {
+              "type": "array",
+              "maxItems": 100,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "file",
+                  "reason"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "reason": {
+                    "type": "string",
+                    "maxLength": 200
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "extractManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "repo",
+        "extractor"
+      ],
+      "properties": {
+        "schema": {
+          "type": "string",
+          "const": "prufyx.io/extractor-run-manifest/v1"
+        },
+        "repo": {
+          "$ref": "#/$defs/repo"
+        },
+        "extractor": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^crd\\.version-removal\\.[a-z0-9-]{1,63}$"
+            },
+            "version": {
+              "type": "string",
+              "maxLength": 32
+            },
+            "codeDigest": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            }
+          }
+        },
+        "derivedAt": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "validUntil": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "codeFiles": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "type": "object"
+          }
+        },
+        "commits": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "type": "object"
+          }
+        },
+        "outputs": {
+          "type": "object"
+        },
+        "pairs": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "type": "object"
+          }
+        },
+        "totals": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}

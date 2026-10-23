@@ -1,0 +1,41 @@
+{
+  "copiesEvidence": [
+    {
+      "comparedWith": "deploy/widgets-crd.yaml",
+      "note": "the two files were byte-equal at both tags as compared by the agent",
+      "path": "config/crd/bases/example.io_widgets.yaml",
+      "tags": [
+        "v1.3.0",
+        "v1.2.0"
+      ]
+    }
+  ],
+  "kind": "target-draft",
+  "schema": "prufyx.io/onboard-bundle/v1",
+  "status": "filled",
+  "target": {
+    "exclude": [
+      {
+        "evidence": "Read at v1.3.0 and v1.2.0: the directory holds only files used by unit tests; no release manifest references it.",
+        "path": "test/fixtures/crds/",
+        "reason": "Test fixtures with CRD-shaped files, not installed by users",
+        "repo": "github.com/example-org/example-operator"
+      }
+    ],
+    "minFrom": "1.1",
+    "name": "Example Operator",
+    "paths": [
+      {
+        "directory": true,
+        "guard": "(?i)crd",
+        "match": "^[^.][^/]*\\.ya?ml$",
+        "path": "config/crd/bases"
+      }
+    ],
+    "project": "example-operator",
+    "repo": "github.com/example-org/example-operator",
+    "tagPrefixes": [
+      "v"
+    ]
+  }
+}
