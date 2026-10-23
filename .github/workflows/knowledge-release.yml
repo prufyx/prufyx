@@ -95,10 +95,15 @@ jobs:
             cncf) ;;
             cncf-projects)
               layout_args=(--profile cncf-projects)
+              committed="${GITHUB_WORKSPACE}/cli/knowledge/published/cncf-projects-index.v1.json"
               if [ "${FIRST_RELEASE}" = "true" ]; then
+                if [ -e "${committed}" ]; then
+                  echo "first_release=true refused: a committed index already exists; release from it instead" >&2
+                  exit 1
+                fi
                 layout_args+=(--first-release)
               else
-                layout_args+=(--previous-index "${GITHUB_WORKSPACE}/cli/knowledge/published/cncf-projects-index.v1.json")
+                layout_args+=(--previous-index "${committed}")
               fi
               ;;
             *) echo "unknown layout" >&2; exit 1 ;;

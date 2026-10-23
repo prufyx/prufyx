@@ -253,9 +253,18 @@ index cannot bump every project and move every rollback floor:
 
 - `--previous-index /absolute/index.json`: the index of the last release. It is
   a committed, generated file, `cli/knowledge/published/cncf-projects-index.v1.json`;
-  it is never edited by hand. The release writes the next index to
-  `knowledge/cncf/index.v1.json` inside its output directory, and the release
-  pull request replaces the committed file with it.
+  it is never edited by hand. The file does not exist yet: the pull request of
+  the first release (`--first-release`) creates it. The release writes the next
+  index to `knowledge/cncf/index.v1.json` inside its output directory, and the
+  release pull request replaces the committed file with it. The workflow
+  refuses `first_release=true` once the committed file exists.
+  Review duty: the committed index is generated, and a hand-edited one (for
+  example lowering a project's revision) could regress a project below client
+  rollback floors. Reviewers must check that the diff is exactly what `release`
+  wrote. `release` checks only that the previous index parses under the
+  compiled engine capability and that the new revision is greater than the
+  index revision; it does not verify that the file is the one last published,
+  nor that no project revision was lowered.
 - `--first-release`: no index was ever published. Use it only then, or when the
   engine capability changed (an index of an older capability no longer parses
   and every target changes anyway); the new revision must still be larger than

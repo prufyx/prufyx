@@ -188,6 +188,7 @@ func (o Options) validate() error {
 		}
 	case ProfileCNCFProjects:
 		// Fail closed: an omitted previous index would bump every project.
+		// The first comparison is an XOR: both set or both unset is refused.
 		if (o.PreviousIndex == "") == !o.FirstRelease || o.PreviousIndex != "" && !filepath.IsAbs(o.PreviousIndex) {
 			return fmt.Errorf("the %s profile needs exactly one of a previous index and a first release: %w", ProfileCNCFProjects, ErrRejected)
 		}
