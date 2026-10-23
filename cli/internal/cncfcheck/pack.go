@@ -806,10 +806,38 @@ func (b bundle) selectFamily(project string, facts []string, raw []byte) (select
 	// A matching transition-only rule is added to whichever set results, but
 	// it is not a verdict of the family: it never narrows the fallback, so the
 	// family rules are evaluated exactly as without it.
+	chosen := matched
 	if verdicts == 0 {
-		return b.admit(append(b.fallbackRules(family, matched), transitionOnly...), nil)
+		chosen = b.fallbackRules(family, matched)
 	}
-	return b.admit(append(matched, transitionOnly...), nil)
+	// The engine refuses a rule set that is not in strictly ascending id
+	// order, so the transition-only rules are merged by id, not appended.
+	chosen, err := mergeByRuleID(chosen, transitionOnly)
+	if err != nil {
+		return selection{}, ErrIntegrity
+	}
+	return b.admit(chosen, nil)
+}
+
+// mergeByRuleID returns first and second as one list in ascending rule id.
+// Both inputs are in pack order and share no rule.
+func mergeByRuleID(first, second []json.RawMessage) ([]json.RawMessage, error) {
+	if len(second) == 0 {
+		return first, nil
+	}
+	merged := append(append(make([]json.RawMessage, 0, len(first)+len(second)), first...), second...)
+	ids := make(map[string]string, len(merged))
+	for _, rule := range merged {
+		var shape struct {
+			ID string `json:"id"`
+		}
+		if err := json.Unmarshal(rule, &shape); err != nil {
+			return nil, err
+		}
+		ids[string(rule)] = shape.ID
+	}
+	sort.SliceStable(merged, func(i, j int) bool { return ids[string(merged[i])] < ids[string(merged[j])] })
+	return merged, nil
 }
 
 func (b bundle) selectedRuleSet(project, ruleID string) (constraintengine.RuleSet, error) {

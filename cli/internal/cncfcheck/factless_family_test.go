@@ -91,11 +91,45 @@ func factlessBundle(t *testing.T, entries ...Entry) bundle {
 
 func factlessBundleUnder(t *testing.T, schema string, entries ...Entry) bundle {
 	t.Helper()
-	b, err := assembleSynthetic(syntheticPack(t, schema, nil, entries...), nil)
+	b, err := assembleSynthetic(withoutPublishedFactlessSkips(t, syntheticPack(t, schema, nil, entries...)), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return b
+}
+
+// withoutPublishedFactlessSkips drops the published Kubernetes rules that
+// read no fact and require an intermediate version (the control-plane
+// no-minor-skip rules) from a synthetic pack. The engine refuses overlapping
+// rules over one pair, and the synthetic rule of these tests stands for them
+// on the same pair, so the published ones would collide with it. The other
+// published rules stay, and the drop is by shape, not by id, so it needs no
+// update when more of them are published.
+func withoutPublishedFactlessSkips(t *testing.T, raw []byte) []byte {
+	t.Helper()
+	var pack rulePack
+	if err := json.Unmarshal(raw, &pack); err != nil {
+		t.Fatal(err)
+	}
+	kept := make([]Entry, 0, len(pack.Entries))
+	for _, entry := range pack.Entries {
+		if entry.Project == "kubernetes" && ruleID(t, entry) != factlessRuleID {
+			var shape ruleShape
+			if err := json.Unmarshal(entry.Rule, &shape); err != nil {
+				t.Fatal(err)
+			}
+			if shape.Operator == "require_intermediate_version" && len(entry.RequiredFacts) == 0 {
+				continue
+			}
+		}
+		kept = append(kept, entry)
+	}
+	pack.Entries = kept
+	out, err := json.Marshal(pack)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
 }
 
 // TestFactlessIntermediateRuleSelected: a rule that reads no fact and wants
