@@ -519,17 +519,19 @@ func TestPrepareRenewsOnlyRulesWhoseValidUntilMovesLater(t *testing.T) {
 
 // Weekly batches over the real embedded packs, rotating through all seven
 // waves, with every citation mechanically unchanged and no individual
-// review ever supplied: no renewal may move a rule's validUntil earlier,
-// and the consecutive-cycle cap must not be reached by most of the pack
-// within a few weeks.
+// review ever supplied: no renewal may move a rule's validUntil earlier, and
+// a rule is never renewed again sooner than renewalWindow after its previous
+// renewal (the cap is reached by the second renewal, so that gap is also the
+// time a rule takes to reach it). How many rules reach the cap within the
+// horizon is only logged: it is the weekly batch size times the weeks left after
+// the first renewals and moves with every re-derivation of the pack.
 func TestWeeklyBatchSimulationOnRealPacks(t *testing.T) {
 	const weeks = 16
 	for _, tc := range []struct {
 		pack, path string
-		maxCapped  int
 	}{
-		{PackCNCF, filepath.Join("..", "..", "cncfcheck", "data", "rules.json"), 130},
-		{PackCommunity, filepath.Join("..", "..", "projectcheck", "data", "rules.json"), 25},
+		{PackCNCF, filepath.Join("..", "..", "cncfcheck", "data", "rules.json")},
+		{PackCommunity, filepath.Join("..", "..", "projectcheck", "data", "rules.json")},
 	} {
 		raw, err := os.ReadFile(tc.path)
 		if err != nil {
@@ -630,9 +632,6 @@ func TestWeeklyBatchSimulationOnRealPacks(t *testing.T) {
 			tc.pack, weeks, renewals, notLater, notDue, len(capped), total, maxConsecutiveBatchCycles, int(minGap.Hours()/24), lapsed)
 		if minGap != 0 && minGap < renewalWindow {
 			t.Fatalf("%s: a rule was renewed again only %s after its previous renewal", tc.pack, minGap)
-		}
-		if len(capped) > tc.maxCapped {
-			t.Fatalf("%s: %d rules reached the consecutive-cycle cap within %d weeks, more than %d", tc.pack, len(capped), weeks, tc.maxCapped)
 		}
 	}
 }
