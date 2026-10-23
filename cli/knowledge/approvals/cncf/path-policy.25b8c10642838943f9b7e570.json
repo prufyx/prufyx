@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "absent",
+    "candidateDigest": "sha256:75685f8b265992751450fa7b76be90edb32c98b10eb7744622ca07d52c86d05c",
+    "candidateId": "pr-187",
+    "decidedAt": "2026-10-23T04:14:37Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "path-policy.25b8c10642838943f9b7e570",
+    "scope": "pkg:github/kubernetes/kubernetes",
+    "subject": "pathPolicy"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "JyaENLum8S08i533jcXzYYQtbXhKnU8ZCQKv1J2DLmKhwNeDpoCFOktKYbDqo+0d3WSSULYGXtu3olzLPaN4CA=="
+}
