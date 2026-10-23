@@ -1143,6 +1143,69 @@
       }
     },
     {
+      "description": "Cilium 1.20.0 no longer serves version v2alpha1 of CiliumNodeConfig (CustomResourceDefinition ciliumnodeconfigs.cilium.io), which 1.19.0 served. Derived from the complete CustomResourceDefinition manifests at both release tags. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "project": "cilium",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/cilium/cilium",
+          "description": "Custom-resource versions (group/version/Kind) of the Cilium custom resources in the complete target apply set.",
+          "enumTokens": null,
+          "id": "component.cilium.custom_resource_versions_set",
+          "side": "proposed",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "evidence": {
+          "basis": "mechanical",
+          "derivedAt": "2026-10-23T16:15:05Z",
+          "extractor": {
+            "codeDigest": "sha256:9890cfe37f47146c7cf8b919b64fe097ac3176cb66f07827793fd6217f25e0de",
+            "id": "crd.version-removal.cilium",
+            "version": "2.5.0"
+          },
+          "reviewedAt": "2026-10-23T16:15:05Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:c7e3558ed06e8d87ce75a007bd3b0f0fb2c28080a6c52ee9184f6d3b887f1aff",
+              "endLine": 116,
+              "id": "crd-1-20-0",
+              "revision": "450c53145dc0a872ae20dfb05598c94ef55a71e2",
+              "startLine": 1,
+              "url": "https://github.com/cilium/cilium/blob/450c53145dc0a872ae20dfb05598c94ef55a71e2/pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodeconfigs.yaml"
+            },
+            {
+              "contentDigest": "sha256:92a77d6f101e251708501a2b1322dfb1a4cd45f9a78f8bf733baa7dc91963263",
+              "endLine": 217,
+              "id": "crd-versions-1-19-0",
+              "revision": "7c6667e1e707d7f39a4af3409c2a9ebea2917d32",
+              "startLine": 117,
+              "url": "https://github.com/cilium/cilium/blob/7c6667e1e707d7f39a4af3409c2a9ebea2917d32/pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodeconfigs.yaml"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-21T16:15:05Z"
+        },
+        "id": "cilium.crd-version-removal.ciliumnodeconfigs-cilium-io.1-19-0-to-1-20-0",
+        "nextAction": "change apiVersion of CiliumNodeConfig to cilium.io/v2 before upgrading to 1.20.0",
+        "operator": "forbid_set_member",
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "setCondition": {
+          "component": "pkg:github/cilium/cilium",
+          "factId": "component.cilium.custom_resource_versions_set",
+          "members": [
+            "cilium.io/v2alpha1/CiliumNodeConfig"
+          ],
+          "side": "proposed"
+        },
+        "subject": {
+          "component": "pkg:github/cilium/cilium",
+          "from": "1.19.0",
+          "to": "1.20.0"
+        }
+      }
+    },
+    {
       "project": "cilium",
       "description": "Cilium v1.19.7 CNP and CCNP CRD schemas require fromRequires/toRequires arrays to be empty (maxItems: 0). This narrow check evaluates only an operator-declared complete relevant set; it does not claim support-removal history, API-server/runtime behavior, or whole-upgrade safety.",
       "requiredFacts": [
@@ -19448,6 +19511,406 @@
             "contentDigest": "sha256:dff7542a2ee6581e3963a076410212ad3207201b70df8a328aa50826d569161c",
             "startLine": 1,
             "endLine": 3524
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/cilium/cilium",
+      "line": "1.16",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.15.0",
+            "commit": "2db45c468981a863b230186ad37d44e5a7c08d61"
+          },
+          {
+            "version": "1.15.1",
+            "commit": "a368c8f0f34dfe9a47e8a621af31ea94337f6fb5"
+          },
+          {
+            "version": "1.15.2",
+            "commit": "7cf5782920423b07e7a4e6e67fafd81e1d4a1d33"
+          },
+          {
+            "version": "1.15.3",
+            "commit": "22dfbc58ad8e1f52a5cae1adc17d6f317bffd747"
+          },
+          {
+            "version": "1.15.4",
+            "commit": "9b3f9a8c0d71bf70bc0fd3fbc256bacc67fe6c32"
+          },
+          {
+            "version": "1.15.5",
+            "commit": "8c7e442ccd48b9011a10f34a128ec98751d9a80e"
+          },
+          {
+            "version": "1.15.6",
+            "commit": "a09e05e6b63d82dbc3a1b0de1721a3407c340e7c"
+          },
+          {
+            "version": "1.15.7",
+            "commit": "de06bcfb3cf8ff165421729d2bf579c92fef7631"
+          },
+          {
+            "version": "1.15.8",
+            "commit": "e6291578f4104127b932365f5bf0fd61ff772f40"
+          },
+          {
+            "version": "1.15.9",
+            "commit": "2ea0cf3328be75b4dbcead6d7d846ec07f0a4623"
+          },
+          {
+            "version": "1.15.10",
+            "commit": "2fdab41a13d2a3f8abbbb4d3b4ba8cc1624c3935"
+          },
+          {
+            "version": "1.15.11",
+            "commit": "e580c18c63c428f3b0bdf6bf5a888d954f628bd9"
+          },
+          {
+            "version": "1.15.12",
+            "commit": "1f74fa42d94cdb6a57307b70ea2bb91a99379f1f"
+          },
+          {
+            "version": "1.15.13",
+            "commit": "1d896cad39c6ec67ca15984c6c4748577622b80a"
+          },
+          {
+            "version": "1.15.14",
+            "commit": "779ce30860298b8cde9a960ea1db45deb9adf468"
+          },
+          {
+            "version": "1.15.15",
+            "commit": "dacf1b6b130757f7670b7c3b2f485deeb2b1fc97"
+          },
+          {
+            "version": "1.15.16",
+            "commit": "a0ee30f5ee96eaf4766453e0cae7759a6965b90d"
+          },
+          {
+            "version": "1.15.17",
+            "commit": "01998c02af47f57e49fa4a2ee5e55c60107d1027"
+          },
+          {
+            "version": "1.15.18",
+            "commit": "fbfb9b30afed1c6a42769c3a338f1c6ddc42678c"
+          },
+          {
+            "version": "1.15.19",
+            "commit": "6a0e0dfd47b1d6057e766dfb1fbd6d5e6ed661d1"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.16.0",
+            "commit": "82999990bc954699cf24853ef9747d9166ee24c8"
+          },
+          {
+            "version": "1.16.1",
+            "commit": "685790550b375380dd8fac71cc2a37427d78fc40"
+          },
+          {
+            "version": "1.16.2",
+            "commit": "3261be3fea2dfb3ca90deb69a85e848d13286fa5"
+          },
+          {
+            "version": "1.16.3",
+            "commit": "f221719170636b0e0da2c7b8227c18967a1201c8"
+          },
+          {
+            "version": "1.16.4",
+            "commit": "0380724290f01576aa053c2c2ad35532063c695e"
+          },
+          {
+            "version": "1.16.5",
+            "commit": "ad6882773c5f89feda9c295276707f01de269296"
+          },
+          {
+            "version": "1.16.6",
+            "commit": "9e9f098982ddc31463cfcf2d589d9e1d8bb040a7"
+          },
+          {
+            "version": "1.16.7",
+            "commit": "2ab5f8da5915992a1e548c290105dbc08f4be52d"
+          },
+          {
+            "version": "1.16.8",
+            "commit": "dc65ba9bb5f8201e0f51babfb6e7a02de2527460"
+          },
+          {
+            "version": "1.16.9",
+            "commit": "bf7387b2b6aed80d9c8e4c04f8fc7dd6040ed93d"
+          },
+          {
+            "version": "1.16.10",
+            "commit": "a93da32ed27ce87ed3f03d2c30923a132f98aa10"
+          },
+          {
+            "version": "1.16.11",
+            "commit": "bf9392a9b488df95ba7de58d14de5f8d3afa2067"
+          },
+          {
+            "version": "1.16.12",
+            "commit": "a66093957f9614320e5d7364615235209b757c55"
+          },
+          {
+            "version": "1.16.13",
+            "commit": "ec7cc0716d8439e20bf3464e8be982a72177afe5"
+          },
+          {
+            "version": "1.16.14",
+            "commit": "52717bf2cd4cb5ba7e4bcccf698f1c1d1d7b4c32"
+          },
+          {
+            "version": "1.16.15",
+            "commit": "75130674084311ceedfc2bd6dfec511478d23105"
+          },
+          {
+            "version": "1.16.16",
+            "commit": "0b0482a8e7589c6333611ef331bcd2d5d7d8882b"
+          },
+          {
+            "version": "1.16.17",
+            "commit": "46dd18e1cf303ee70f444a2ade146941beccbd1d"
+          },
+          {
+            "version": "1.16.18",
+            "commit": "ab50022137f1d6af6914dead0d83b13ab3119d4d"
+          },
+          {
+            "version": "1.16.19",
+            "commit": "011fab6e7b798edd17e0337307dc034ed4916653"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.cilium",
+          "version": "2.5.0",
+          "codeDigest": "sha256:9890cfe37f47146c7cf8b919b64fe097ac3176cb66f07827793fd6217f25e0de"
+        },
+        "derivedAt": "2026-10-23T16:15:05Z",
+        "reviewedAt": "2026-10-23T16:15:05Z",
+        "validUntil": "2027-01-21T16:15:05Z",
+        "sources": [
+          {
+            "id": "crds-1-15-0",
+            "url": "https://github.com/cilium/cilium/blob/2db45c468981a863b230186ad37d44e5a7c08d61/pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwideenvoyconfigs.yaml",
+            "revision": "2db45c468981a863b230186ad37d44e5a7c08d61",
+            "contentDigest": "sha256:95234ab6b5d9f6293f392aab2d2902f72665a71e7919083606eea5521aba0481",
+            "startLine": 1,
+            "endLine": 123
+          },
+          {
+            "id": "crds-1-16-0",
+            "url": "https://github.com/cilium/cilium/blob/82999990bc954699cf24853ef9747d9166ee24c8/pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwideenvoyconfigs.yaml",
+            "revision": "82999990bc954699cf24853ef9747d9166ee24c8",
+            "contentDigest": "sha256:542004b80a240055c9985fca13ca777865ca81f67dfd5e06de2bfe4e1857edce",
+            "startLine": 1,
+            "endLine": 187
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/cilium/cilium",
+      "line": "1.17",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.16.0",
+            "commit": "82999990bc954699cf24853ef9747d9166ee24c8"
+          },
+          {
+            "version": "1.16.1",
+            "commit": "685790550b375380dd8fac71cc2a37427d78fc40"
+          },
+          {
+            "version": "1.16.2",
+            "commit": "3261be3fea2dfb3ca90deb69a85e848d13286fa5"
+          },
+          {
+            "version": "1.16.3",
+            "commit": "f221719170636b0e0da2c7b8227c18967a1201c8"
+          },
+          {
+            "version": "1.16.4",
+            "commit": "0380724290f01576aa053c2c2ad35532063c695e"
+          },
+          {
+            "version": "1.16.5",
+            "commit": "ad6882773c5f89feda9c295276707f01de269296"
+          },
+          {
+            "version": "1.16.6",
+            "commit": "9e9f098982ddc31463cfcf2d589d9e1d8bb040a7"
+          },
+          {
+            "version": "1.16.7",
+            "commit": "2ab5f8da5915992a1e548c290105dbc08f4be52d"
+          },
+          {
+            "version": "1.16.8",
+            "commit": "dc65ba9bb5f8201e0f51babfb6e7a02de2527460"
+          },
+          {
+            "version": "1.16.9",
+            "commit": "bf7387b2b6aed80d9c8e4c04f8fc7dd6040ed93d"
+          },
+          {
+            "version": "1.16.10",
+            "commit": "a93da32ed27ce87ed3f03d2c30923a132f98aa10"
+          },
+          {
+            "version": "1.16.11",
+            "commit": "bf9392a9b488df95ba7de58d14de5f8d3afa2067"
+          },
+          {
+            "version": "1.16.12",
+            "commit": "a66093957f9614320e5d7364615235209b757c55"
+          },
+          {
+            "version": "1.16.13",
+            "commit": "ec7cc0716d8439e20bf3464e8be982a72177afe5"
+          },
+          {
+            "version": "1.16.14",
+            "commit": "52717bf2cd4cb5ba7e4bcccf698f1c1d1d7b4c32"
+          },
+          {
+            "version": "1.16.15",
+            "commit": "75130674084311ceedfc2bd6dfec511478d23105"
+          },
+          {
+            "version": "1.16.16",
+            "commit": "0b0482a8e7589c6333611ef331bcd2d5d7d8882b"
+          },
+          {
+            "version": "1.16.17",
+            "commit": "46dd18e1cf303ee70f444a2ade146941beccbd1d"
+          },
+          {
+            "version": "1.16.18",
+            "commit": "ab50022137f1d6af6914dead0d83b13ab3119d4d"
+          },
+          {
+            "version": "1.16.19",
+            "commit": "011fab6e7b798edd17e0337307dc034ed4916653"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.17.0",
+            "commit": "c2bbf787eab9b7f728fcc861904d9bcf17e4ba9b"
+          },
+          {
+            "version": "1.17.1",
+            "commit": "d6c9f9e8d560e4f941b31acfaf8070b0fd64857f"
+          },
+          {
+            "version": "1.17.2",
+            "commit": "fb3ab54ffe3f1b5059e87a9022fd6559b276b7ce"
+          },
+          {
+            "version": "1.17.3",
+            "commit": "3993bd066abcf2d493f38cbeeb104174b7ef1ed0"
+          },
+          {
+            "version": "1.17.4",
+            "commit": "55aecc0f4706b5f8a70fc38ed2817cc2e15b0f60"
+          },
+          {
+            "version": "1.17.5",
+            "commit": "69aab28cf10174430372aa6fbd7c1e555b267993"
+          },
+          {
+            "version": "1.17.6",
+            "commit": "ee3ca4a7e998da677a9b1c634619a85ce5b0dc64"
+          },
+          {
+            "version": "1.17.7",
+            "commit": "621ebf56873e48dcdbbaad4dddfeac931c5046d3"
+          },
+          {
+            "version": "1.17.8",
+            "commit": "03b5572f35bba14971c5ce049de3842b8ff4fa6a"
+          },
+          {
+            "version": "1.17.9",
+            "commit": "a2f97aa8d2de4bb360bee1e295e20556ce4166ce"
+          },
+          {
+            "version": "1.17.10",
+            "commit": "2661dea2811d5c3580c22fa8545d9c76df1688e6"
+          },
+          {
+            "version": "1.17.11",
+            "commit": "b832d4f4745651f187f84be9bcdbc31512ebc559"
+          },
+          {
+            "version": "1.17.12",
+            "commit": "7533de6dc6366c5504b394a090ac7d1680dc54ee"
+          },
+          {
+            "version": "1.17.13",
+            "commit": "b0547c9f09de0088acdd34f6e1e1aeb992d23837"
+          },
+          {
+            "version": "1.17.14",
+            "commit": "6fc7f9725d4a2f3293b17614181ae2b3fb5529cf"
+          },
+          {
+            "version": "1.17.15",
+            "commit": "4206eaa53006115b8a52cbab6394c78f06ebcf6a"
+          },
+          {
+            "version": "1.17.16",
+            "commit": "383d39c83a022b95ccc1b4738c9e33e63534af34"
+          },
+          {
+            "version": "1.17.17",
+            "commit": "0db95967f554c95ee21a1fb7268bb5785e563d9d"
+          },
+          {
+            "version": "1.17.18",
+            "commit": "e5796ad1eb6003acf44d8f6a7dc726699a37c1c0"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.cilium",
+          "version": "2.5.0",
+          "codeDigest": "sha256:9890cfe37f47146c7cf8b919b64fe097ac3176cb66f07827793fd6217f25e0de"
+        },
+        "derivedAt": "2026-10-23T16:15:05Z",
+        "reviewedAt": "2026-10-23T16:15:05Z",
+        "validUntil": "2027-01-21T16:15:05Z",
+        "sources": [
+          {
+            "id": "crds-1-16-0",
+            "url": "https://github.com/cilium/cilium/blob/82999990bc954699cf24853ef9747d9166ee24c8/pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwideenvoyconfigs.yaml",
+            "revision": "82999990bc954699cf24853ef9747d9166ee24c8",
+            "contentDigest": "sha256:542004b80a240055c9985fca13ca777865ca81f67dfd5e06de2bfe4e1857edce",
+            "startLine": 1,
+            "endLine": 187
+          },
+          {
+            "id": "crds-1-17-0",
+            "url": "https://github.com/cilium/cilium/blob/c2bbf787eab9b7f728fcc861904d9bcf17e4ba9b/pkg/k8s/apis/cilium.io/client/crds/v2/ciliumclusterwideenvoyconfigs.yaml",
+            "revision": "c2bbf787eab9b7f728fcc861904d9bcf17e4ba9b",
+            "contentDigest": "sha256:6702ee56ed447a7ecf1f85b1f8c745f29e2840f3446cdf98e514805972588770",
+            "startLine": 1,
+            "endLine": 198
           }
         ]
       }
