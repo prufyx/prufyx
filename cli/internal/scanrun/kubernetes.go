@@ -613,7 +613,7 @@ func (r *kubernetesRun) judge(rule cncfcheck.ScanRule, eval evaluation, ref scan
 	default:
 		return judgement{reasons: []string{r.gap(&ref, scanreport.GapRuleStatusNotUnderstood, rule.Scope.ID, quote(claim.Status))}}
 	}
-	if claim.ReasonCode == "RULE_FACT_UNAVAILABLE" && declarationOnly(rule) && r.declarations.kubelet.Minimum != "" {
+	if claim.ReasonCode == "RULE_FACT_UNAVAILABLE" && declarationOnly(rule) && r.declarations.kubelet.Minimum != "" && r.declarations.distributionSet {
 		// The declared versions exist but the fact could not be built from
 		// them: the manifests' preparation reason says nothing about it.
 		return judgement{reasons: []string{r.kubeletMismatchGap(rule.Scope.ID, ref)}}

@@ -344,3 +344,31 @@ func TestScanKubeletUncomparableNamesTheCause(t *testing.T) {
 		})
 	}
 }
+
+// TestScanKubeletWithoutDistributionNamesTheMissingDeclaration: declared
+// kubelet versions without a declared distribution are a missing
+// declaration, not a mismatch, and never pass.
+func TestScanKubeletWithoutDistributionNamesTheMissingDeclaration(t *testing.T) {
+	t.Parallel()
+	command := append(append([]string{}, kubeletManifest(t)...), "--resource-scope-complete", "--target-api-apply-required",
+		"--now", testNow, "--from", "kubernetes=1.35.2", "--to", "kubernetes=1.37.0", "--show-passes", "--kubelet-version-min", "1.33.0")
+	result := mustScan(t, kubeletKnowledge(t), command...)
+	if result.Exit != scanreport.ExitUnknown && result.Exit != scanreport.ExitBlocked {
+		t.Fatalf("exit %d, want unknown or blocked, never pass", result.Exit)
+	}
+	if gaps := mismatchGaps(result.Report); len(gaps) != 0 {
+		t.Fatalf("mismatch gaps without a declared distribution: %+v", gaps)
+	}
+	missing := false
+	for _, gap := range result.Report.Gaps {
+		missing = missing || gap.Reason == scanreport.ReasonDeclarationMissing && strings.Contains(gap.Detail, "distribution")
+	}
+	if !missing {
+		t.Fatalf("no DECLARATION_MISSING distribution gap: %+v", result.Report.Gaps)
+	}
+	for _, rule := range []string{skewRule36, skewRule37} {
+		if _, ok := skewPass(result.Report, rule); ok {
+			t.Fatalf("%s passed", rule)
+		}
+	}
+}
