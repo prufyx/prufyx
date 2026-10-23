@@ -81,6 +81,18 @@ func TestPlanPathTable(t *testing.T) {
 		{"invalid beats downgrade", policy(PolicySequentialMinor), "1.30.x", "1.24.0", nil, GapPathNotPlannable},
 		{"leading zero patch", policy(PolicyDirect), "1.24.01", "1.25.0", nil, GapPathNotPlannable},
 		{"patch beyond 32 bits", policy(PolicyDirect), "1.24.4294967296", "1.25.0", nil, GapPathNotPlannable},
+
+		// A Kubernetes pre-release is an exact end on its own line.
+		{"minor to a pre-release of the next line", policy(PolicySequentialMinor), "1.37.5", "1.38.0-alpha.2", hops(exact("1.37.5"), exact("1.38.0-alpha.2")), ""},
+		{"minor over lines to a pre-release", policy(PolicySequentialMinor), "1.36.0", "1.38.0-rc.1", hops(exact("1.36.0"), line("1.37"), exact("1.38.0-rc.1")), ""},
+		{"minor from a pre-release", policy(PolicySequentialMinor), "1.38.0-alpha.2", "1.39.0", hops(exact("1.38.0-alpha.2"), exact("1.39.0")), ""},
+		{"minor from a pre-release over lines", policy(PolicySequentialMinor), "1.38.0-beta.1", "1.40.2", hops(exact("1.38.0-beta.1"), line("1.39"), exact("1.40.2")), ""},
+		{"same line pre-release to release is one hop", policy(PolicySequentialMinor), "1.38.0-alpha.2", "1.38.0", hops(exact("1.38.0-alpha.2"), exact("1.38.0")), ""},
+		{"pre-release to a later pre-release", nil, "1.38.0-alpha.1", "1.38.0-alpha.2", hops(exact("1.38.0-alpha.1"), exact("1.38.0-alpha.2")), ""},
+		{"release to its own pre-release is a downgrade", nil, "1.38.0", "1.38.0-rc.1", nil, GapDowngradeNotReviewed},
+		{"equal pre-releases", nil, "1.38.0-rc.1", "1.38.0-rc.1", nil, GapPathNotPlannable},
+		{"malformed pre-release", policy(PolicySequentialMinor), "1.37.0", "1.38.0-alpha", nil, GapPathNotPlannable},
+		{"patch pre-release", policy(PolicySequentialMinor), "1.37.0", "1.38.1-alpha.1", nil, GapPathNotPlannable},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -178,7 +190,8 @@ func endpointBelow(a, b Endpoint) bool {
 		}
 		return e.Line + ".4294967295.4294967295"
 	}
-	return constraintengine.VersionLess(high(a), low(b))
+	c, ok := constraintengine.CompareVersions(high(a), low(b))
+	return ok && c < 0
 }
 
 func TestPlanPathProperty(t *testing.T) {
@@ -260,7 +273,7 @@ func FuzzPlanPath(f *testing.F) {
 			}
 			return
 		}
-		if !constraintengine.VersionLess(from, to) {
+		if c, ok := constraintengine.CompareVersions(from, to); !ok || c >= 0 {
 			t.Fatalf("%q -> %q planned without being an upgrade", from, to)
 		}
 		checkPlanShape(t, plan, from, to)
@@ -544,5 +557,34 @@ func TestHopCrossingOverlapAndCover(t *testing.T) {
 	}
 	if !(Hop{1, exact("1.24.17"), line("1.25")}).CrossingCovers(rule) || !(Hop{1, line("1.24"), line("1.26")}).CrossingCovers(rule) || (Hop{1, line("1.25"), line("1.26")}).CrossingCovers(rule) || (Hop{1, line("1.24"), line("1.30")}).CrossingCovers(rule) {
 		t.Fatal("CrossingCovers does not follow the region [0,C) x [C,cap)")
+	}
+}
+
+// Only Kubernetes plans a pre-release end.
+func TestPlanPathPreReleaseOnlyForKubernetes(t *testing.T) {
+	other := "pkg:github/cilium/cilium"
+	for _, c := range [][2]string{{"1.37.0", "1.38.0-alpha.2"}, {"1.38.0-alpha.2", "1.38.0"}, {"1.38.0-rc.1", "1.39.0"}} {
+		for _, p := range []*PathPolicy{nil, {Component: other, Policy: PolicySequentialMinor}} {
+			if got := PlanPath(other, c[0], c[1], p); got.Gap != GapPathNotPlannable || len(got.Hops) != 0 {
+				t.Errorf("%s -> %s: %+v", c[0], c[1], got)
+			}
+		}
+		if got := PlanPath(other, "1.0.0", "1.2.0", nil); got.Gap != GapNone {
+			t.Fatalf("release plan refused: %+v", got)
+		}
+	}
+}
+
+// A pre-release end is exact and belongs to its own line.
+func TestPreReleaseEndpoint(t *testing.T) {
+	e := exact("1.38.0-alpha.2")
+	if !e.Exact() || e.MinorLine() {
+		t.Fatal("a pre-release is an exact end")
+	}
+	if v, ok := e.EngineVersion(); !ok || v != "1.38.0-alpha.2" {
+		t.Fatalf("engine version %q, %v", v, ok)
+	}
+	if !e.CoveredBy(constraintengine.VersionBound{Gte: "1.38.0", Lt: "1.39.0"}) || e.CoveredBy(constraintengine.VersionBound{Gte: "1.37.0", Lt: "1.38.0"}) {
+		t.Fatal("a pre-release is inside its own line, not the one below")
 	}
 }

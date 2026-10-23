@@ -213,6 +213,14 @@ A catalogued project is not tested coverage: a catalogue entry says Prufyx holds
   (inventory projects, rules, line attestations, Kubernetes minors, approved
   onboarding batches, README coverage figures, merged pull requests), computed
   from the data files. It evaluates no rule. See `cli/docs/releasing.md`.
+- `prufyx scan` accepts a Kubernetes pre-release version
+  `X.Y.0-(alpha|beta|rc).N` (`--from`, `--to` and `prufyx.yaml`) and orders it
+  as SemVer 2.0 does: below its release, on its own line. A scan that names
+  one is never `SCOPE_COMPLETE_PASS`: it is `BLOCKED` when a reviewed rule
+  blocks and `UNKNOWN` otherwise, labelled with `versionStage: "prerelease"`
+  on the inventory entry and a note that findings are provisional until the GA
+  release. Other components and every other suffix stay refused. No rule or
+  knowledge changes; release inputs behave as before.
 - `scripts/kind-val.sh --name-prefix P` names the clusters `P-<line>` (default `prufyx-kind`, unchanged), so several runs (each with its own prefix and `--out`) can share one Docker host; their cluster creations take turns where `flock` exists (`--create-lock`).
 - CNCF knowledge: 13 custom-resource version-removal rules (`crd.version-removal`)
   for Crossplane (2), Kyverno (1) and Strimzi (10), each forbidding a

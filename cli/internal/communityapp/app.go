@@ -17,6 +17,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/buildidentity"
 	"github.com/prufyx/prufyx/cli/internal/certmanagervalues"
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/currentbundle"
 	"github.com/prufyx/prufyx/cli/internal/observation"
 	"github.com/prufyx/prufyx/cli/internal/prometheusmode"
@@ -159,6 +160,10 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, version s
 		return r.assess(ctx, args[1:])
 	case "prepare":
 		if len(args) >= 2 && args[1] == "cncf" {
+			// A pre-release is read by prufyx scan only, which never passes it.
+			if preReleaseVersionFlag(args[2:]) {
+				return r.usage("prepare cncf takes release versions X.Y.Z; a Kubernetes pre-release is accepted by prufyx scan only")
+			}
 			return r.prepareCNCF(args[2:])
 		}
 		if len(args) >= 2 && args[1] == "project" {
@@ -517,6 +522,25 @@ func optionName(arg string) (string, bool) {
 	name := strings.SplitN(trimmed, "=", 2)[0]
 	return name, name != ""
 }
+
+// preReleaseVersionFlag reports a --from or --to value that is a Kubernetes
+// pre-release.
+func preReleaseVersionFlag(args []string) bool {
+	for i, arg := range args {
+		name, value, joined := strings.Cut(strings.TrimLeft(arg, "-"), "=")
+		if len(arg) == len(name) || name != "from" && name != "to" {
+			continue
+		}
+		if !joined && i+1 < len(args) {
+			value = args[i+1]
+		}
+		if constraintengine.PreRelease(value) {
+			return true
+		}
+	}
+	return false
+}
+
 func hasHelp(args []string) bool {
 	for _, arg := range args {
 		if help(arg) {

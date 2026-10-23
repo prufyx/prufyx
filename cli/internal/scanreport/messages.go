@@ -79,6 +79,9 @@ const (
 	// GapAPIVersionNotServedCrossed: the removal is on a release line the
 	// upgrade enters, and no reviewed rule decided the object.
 	GapAPIVersionNotServedCrossed GapKey = ReasonAPIVersionNotServed + "/crossed-undecided"
+	// GapVersionPreRelease: an end of the hop is a pre-release, which no
+	// reviewed rule covers; the hop is never passed.
+	GapVersionPreRelease GapKey = ReasonLineNotAttested + "/pre-release"
 	// GapStepNotDecided: the step that enters a line did not decide an object.
 	GapStepNotDecided GapKey = ReasonRuleNotDecided + "/entered-line"
 	// GapLineNoScanRules: a line the upgrade enters removed API versions that
@@ -168,6 +171,8 @@ var gapMessages = map[GapKey]gapMessage{
 		"check the %[1]s %[2]s release notes by hand, and report the inconsistent review", 3},
 	GapLineNoRules: {"%[1]s removes API versions on the way to %[2]s that no reviewed rule covers yet",
 		"check the %[1]s release notes for removed APIs by hand up to %[2]s", 2},
+	GapVersionPreRelease: {"Kubernetes %[1]s is a pre-release; no reviewed rule covers a pre-release, so nothing is passed",
+		"scan again against the GA release once it is out, or check the release notes by hand", 1},
 	GapIntermediateLine: {"rule %[1]s applies to only some releases of this hop's release lines",
 		"scan the hop with exact versions, or request a rule that covers whole lines: " + RequestCoverageURL, 1},
 	GapIntermediateMajor: {"a whole major release line cannot be evaluated",
@@ -563,6 +568,10 @@ const (
 // catalog) it checks: the catalog is stated in every output format.
 const NoteCommunityCatalog = "note: %s is in the community catalog (not in the embedded CNCF landscape catalog; no CNCF status asserted)"
 
+// NotePreRelease is the note a report carries for a pre-release Kubernetes
+// version it was given, in every output format.
+const NotePreRelease = "Kubernetes %s is a pre-release; findings are provisional until the GA release"
+
 // UsageCommunityComponent refuses a project of the community catalog
 // (outside the embedded CNCF landscape catalog): its custom-resource version
 // set is registered, but scan reads no knowledge about it yet.
@@ -577,7 +586,7 @@ const (
 	UsageBadValue         = "invalid value for %s; use prufyx scan --help"
 	UsageRepeated         = "%s given more than once"
 	UsageComponentVersion = "%s takes COMPONENT=VERSION, for example kubernetes=1.30.4"
-	UsageVersion          = "version %s of %s is not X.Y.Z"
+	UsageVersion          = "version %s of %s is not X.Y.Z (kubernetes also takes X.Y.0-alpha.N, X.Y.0-beta.N or X.Y.0-rc.N)"
 	UsageUnknownComponent = "unknown component %s; closest: %s"
 	// UsageUnknownComponentNoMatch is the same refusal when no known
 	// component is near the name.

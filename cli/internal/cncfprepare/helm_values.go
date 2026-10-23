@@ -316,7 +316,7 @@ func PrepareHelmValues(hop HelmChartHop, fact string, values map[string]any, uni
 		return HelmValuesScan{}, ErrInvalid
 	}
 	for _, v := range []string{hop.KubernetesFrom, hop.KubernetesTo} {
-		if v != "" && (hop.Kubernetes == "" || hop.Kubernetes == hop.Component || !validVersionSyntax(v)) {
+		if v != "" && (hop.Kubernetes == "" || hop.Kubernetes == hop.Component || !validKubernetesVersion(v)) {
 			return HelmValuesScan{}, ErrInvalid
 		}
 	}

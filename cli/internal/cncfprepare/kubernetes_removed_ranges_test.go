@@ -209,16 +209,18 @@ func TestK8sRemovalSelectionCrossesTheMinorLine(t *testing.T) {
 		}
 	}
 	for _, pair := range [][2]string{
-		{"1.25.1", "1.25.4"},  // same-line patch upgrade
-		{"1.25.0", "1.25.3"},  // same-line, at the target line already
-		{"1.23.99", "1.25.3"}, // multi-minor jump
-		{"1.24.17", "1.26.0"}, // multi-minor jump
-		{"1.25.3", "1.24.17"}, // downgrade
-		{"1.24.5", "1.24.5"},  // equal
-		{"0.24.0", "1.25.0"},  // major crossing
-		{"1.24.0", "2.25.0"},  // major crossing
-		{"v1.24.0", "1.25.3"}, // not a release version
-		{"1.24.0", "1.25.0-rc.1"},
+		{"1.25.1", "1.25.4"},      // same-line patch upgrade
+		{"1.25.0", "1.25.3"},      // same-line, at the target line already
+		{"1.23.99", "1.25.3"},     // multi-minor jump
+		{"1.24.17", "1.26.0"},     // multi-minor jump
+		{"1.25.3", "1.24.17"},     // downgrade
+		{"1.24.5", "1.24.5"},      // equal
+		{"0.24.0", "1.25.0"},      // major crossing
+		{"1.24.0", "2.25.0"},      // major crossing
+		{"v1.24.0", "1.25.3"},     // not a release version
+		{"1.25.0-rc.1", "1.25.0"}, // same line: a pre-release is on its own line
+		{"1.24.0", "1.25.0-rc.1+x"},
+		{"1.24.0", "1.25.1-rc.1"},
 	} {
 		if got := KubernetesRemovedAPIFacts(pair[0], pair[1]); len(got) != 0 {
 			t.Fatalf("%v selected %v, want none", pair, got)
@@ -281,7 +283,9 @@ func TestK8sRemovalsForCrossedMinorLineReady(t *testing.T) {
 		{"0.24.0", "1.25.0"},
 		{"1.24.0", "2.25.0"},
 		{"v1.24.0", "1.25.3"},
-		{"1.24.0", "1.25.0-rc.1"},
+		{"1.25.0-rc.1", "1.25.0"},
+		{"1.24.0", "1.25.0-rc.1+x"},
+		{"1.24.0", "1.25.1-rc.1"},
 	} {
 		if _, ok := kubernetesRemovalsForCrossedMinorLine(pair[0], pair[1]); ok {
 			t.Fatalf("%v: expected no reviewed line", pair)
@@ -428,3 +432,24 @@ func TestK8sFlowControlPathUnchanged(t *testing.T) {
 }
 
 func k8sFact(slug string) string { return "component.kubernetes." + slug + "_removed_gvk_present" }
+
+// A Kubernetes pre-release is on its own line: entering X.Y.0-rc.N from the
+// line below crosses the same reviewed line as entering X.Y.0.
+func TestK8sRemovalsPreReleaseCrossesItsOwnLine(t *testing.T) {
+	want := KubernetesRemovedAPIFacts("1.24.0", "1.25.0")
+	if len(want) == 0 {
+		t.Fatal("fixture: 1.25 must be a reviewed line")
+	}
+	for _, to := range []string{"1.25.0-alpha.1", "1.25.0-beta.2", "1.25.0-rc.1"} {
+		if got := KubernetesRemovedAPIFacts("1.24.3", to); strings.Join(got, ",") != strings.Join(want, ",") {
+			t.Fatalf("1.24.3 -> %s selected %v, want %v", to, got, want)
+		}
+		doc := k8sList(k8sDoc("batch/v1beta1", "CronJob"))
+		if _, err := PrepareKubernetesRemovedAPIs(doc, "1.24.3", to, "official_upstream", true, true); err != nil {
+			t.Fatalf("1.24.3 -> %s: %v", to, err)
+		}
+	}
+	if _, err := PrepareKubernetesRemovedAPIs(k8sList(), "1.24.3", "1.25.0-rc", "official_upstream", true, true); err == nil {
+		t.Fatal("a malformed pre-release was prepared")
+	}
+}

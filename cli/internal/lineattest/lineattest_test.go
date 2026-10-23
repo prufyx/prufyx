@@ -308,12 +308,12 @@ func TestClassify(t *testing.T) {
 }
 
 func TestLineOf(t *testing.T) {
-	for v, want := range map[string]string{"1.28.0": "1.28", "1.28.13": "1.28", "10.0.1": "10.0"} {
+	for v, want := range map[string]string{"1.28.0": "1.28", "1.28.13": "1.28", "10.0.1": "10.0", "1.38.0-alpha.2": "1.38", "1.38.0-beta.0": "1.38", "1.38.0-rc.1": "1.38"} {
 		if got, ok := LineOf(v); !ok || got != want {
 			t.Fatalf("%s: %s", v, got)
 		}
 	}
-	for _, v := range []string{"1.28", "1.28.01", "01.2.3", "1.x.0", ""} {
+	for _, v := range []string{"1.28", "1.28.01", "01.2.3", "1.x.0", "", "1.38.0-alpha", "1.38.0-alpha.01", "1.38.1-alpha.1", "1.38.0-alpha.1+x", "v1.38.0-alpha.1", "10.0.0-rc.1"} {
 		if _, ok := LineOf(v); ok {
 			t.Fatalf("%s accepted", v)
 		}

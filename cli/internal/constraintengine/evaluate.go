@@ -46,6 +46,11 @@ func Evaluate(input Input, rules RuleSet, now time.Time) (Report, error) {
 		Omissions:         requiredOmissions(assessment),
 		ScopeCompleteness: scope,
 	}
+	for _, side := range []inputSide{input.document.Current, input.document.Proposed} {
+		for _, component := range side.Components {
+			report.preRelease = report.preRelease || PreRelease(component.Version)
+		}
+	}
 	return issueReport(report), nil
 }
 
@@ -158,7 +163,7 @@ func evaluateMatchedRule(input inputDocument, rule rule, claim Claim) Claim {
 			claim.NextAction = chartSubjectAction(transition{})
 			return claim
 		}
-		comparison, comparable := compareVersions(component.Version, rule.Dependency.Version)
+		comparison, comparable := compareVersions(LineFloor(component.Version), rule.Dependency.Version)
 		if !comparable {
 			// A version the engine cannot compare proves neither side of
 			// the bound: never BLOCKED (nor UNSUPPORTED), never PASS.
@@ -432,7 +437,7 @@ func validClaimMatches(report Report) bool {
 		if (report.EngineContractDigest != engineContractDigestRanged() && report.EngineContractDigest != engineContractDigestSet() && report.EngineContractDigest != engineContractDigestNotice() && report.EngineContractDigest != engineContractDigestBasis() && !atLeastSeverityContract(report.EngineContractDigest)) || match.Mode != subjectMatchModeRange || claim.Status == "UNKNOWN" && claim.ReasonCode == "RULE_TRANSITION_NOT_REVIEWED" {
 			return false
 		}
-		if !validVersion(match.AnchorFrom) || !validVersion(match.AnchorTo) || !inBound(match.AnchorFrom, match.From) || !inBound(match.AnchorTo, match.To) {
+		if !validAnchorVersion(match.AnchorFrom) || !validAnchorVersion(match.AnchorTo) || !inBound(match.AnchorFrom, match.From) || !inBound(match.AnchorTo, match.To) {
 			return false
 		}
 		if c, ok := compareVersions(match.From.Lt, match.To.Gte); !ok || c > 0 {

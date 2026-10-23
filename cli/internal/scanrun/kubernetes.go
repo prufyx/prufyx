@@ -799,10 +799,18 @@ func (r *kubernetesRun) hop(hop upgradepath.Hop, unplanned bool) (scanreport.Hop
 		}
 	}
 
+	// A hop with a pre-release end is never COVERED: no reviewed rule covers
+	// a pre-release, and a hop with no entered line and no blocker would
+	// otherwise look decidable. It stays BLOCKED when a blocker was found
+	// and is undecided otherwise.
+	preRelease := preReleaseEnd(hop)
+	if preRelease != "" && !blocked {
+		result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapVersionPreRelease, preRelease))
+	}
 	switch {
 	case blocked:
 		result.Status = scanreport.HopBlocked
-	case decidedAll && attested:
+	case decidedAll && attested && preRelease == "":
 		result.Status = scanreport.HopCovered
 		result.Reasons = nil
 	case len(applicable) == 0 && !attestationCurrent:
@@ -1010,6 +1018,17 @@ func containsFamily(families []string) bool {
 		}
 	}
 	return false
+}
+
+// preReleaseEnd returns the pre-release version at either end of the hop, or
+// "" when both ends are releases or lines.
+func preReleaseEnd(hop upgradepath.Hop) string {
+	for _, end := range []upgradepath.Endpoint{hop.From, hop.To} {
+		if constraintengine.PreRelease(end.Version) {
+			return end.Version
+		}
+	}
+	return ""
 }
 
 // hopLines returns the minor lines of the hop's ends.

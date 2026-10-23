@@ -619,7 +619,8 @@ func ClaimExit(report Report) int {
 			unknown = true
 		}
 	}
-	if decided == 0 || unknown {
+	// A pre-release is provisional: this route never passes it.
+	if decided == 0 || unknown || report.Check.HasPreReleaseInput() {
 		return 11
 	}
 	return 0

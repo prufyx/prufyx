@@ -474,3 +474,37 @@ func TestParseNamesCommunityProjects(t *testing.T) {
 		}
 	}
 }
+
+// Kubernetes takes a pre-release X.Y.0-(alpha|beta|rc).N; every other
+// project stays strict X.Y.Z and malformed pre-releases are refused.
+func TestParseVersionsPreRelease(t *testing.T) {
+	for _, good := range []string{"1.38.0-alpha.1", "1.38.0-alpha.2", "1.38.0-beta.0", "1.38.0-rc.1"} {
+		for _, section := range []string{"current", "target"} {
+			got, err := Parse([]byte(head + section + ": {kubernetes: " + good + "}\n"))
+			if err != nil {
+				t.Errorf("%s %q rejected: %v", section, good, err)
+				continue
+			}
+			versions := got.Current
+			if section == "target" {
+				versions = got.Target
+			}
+			if versions["kubernetes"] != good {
+				t.Errorf("%s %q read as %q", section, good, versions["kubernetes"])
+			}
+		}
+	}
+	for _, bad := range []string{"1.38.0-alpha", "1.38.0-alpha.01", "1.38.1-alpha.1", "1.38-alpha.1", "1.38.0-alpha.1+x", "v1.38.0-alpha.1", "1.38.0-nightly.1", "1.38.0-alpha.1-eks-adc7111", "2.38.0-alpha.1"} {
+		if _, err := Parse([]byte(head + "target: {kubernetes: '" + bad + "'}\n")); !errors.Is(err, ErrConfig) {
+			t.Errorf("%q accepted: %v", bad, err)
+		}
+	}
+	for _, slug := range []string{"argo-cd", "cilium"} {
+		if _, err := Parse([]byte(head + "target: {" + slug + ": 1.38.0}\n")); err != nil {
+			t.Fatalf("%s: %v", slug, err)
+		}
+		if _, err := Parse([]byte(head + "target: {" + slug + ": 1.38.0-rc.1}\n")); !errors.Is(err, ErrConfig) {
+			t.Errorf("%s accepted a pre-release: %v", slug, err)
+		}
+	}
+}

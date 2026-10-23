@@ -408,3 +408,22 @@ func TestChartKubeMinimumWithoutValuesRule(t *testing.T) {
 		t.Fatalf("without --to kubernetes: %+v %+v %+v", unset.Findings, unset.Passes, unset.Gaps)
 	}
 }
+
+// A chart hop given a Kubernetes pre-release ends UNKNOWN with the label; it
+// is neither an error nor a pass.
+func TestChartHopWithKubernetesPreRelease(t *testing.T) {
+	kube := chartEntry(chartKubeID, "require_component_version", kedaChartSubject("2.15.0", "2.16.0"),
+		`"dependency":{"side":"proposed","component":"pkg:github/kubernetes/kubernetes","comparison":"gte","version":"1.30.0"}`, "")
+	knowledge := installCharts(t, []cncfcheck.Entry{kube})
+	values := []string{"auth:\n  token: x\n"}
+	for _, c := range [][2]string{{"1.29.4", "1.30.0-alpha.1"}, {"1.30.0-beta.1", "1.30.2"}} {
+		result := chartScan(t, knowledge, values, "--helm-values-complete", "--from", "kubernetes="+c[0], "--to", "kubernetes="+c[1])
+		report := result.Report
+		if report.Verdict != scanreport.VerdictUnknown || result.Exit != scanreport.ExitUnknown {
+			t.Fatalf("%v: %s exit %d gaps %+v", c, report.Verdict, result.Exit, report.Gaps)
+		}
+		if !strings.Contains(string(jsonOf(t, report)), `"versionStage":"prerelease"`) {
+			t.Fatalf("%v: no versionStage", c)
+		}
+	}
+}

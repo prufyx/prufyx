@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/prufyx/prufyx/cli/internal/k8sversion"
 )
 
 // Removal is one reviewed API removal: the named kinds in Group stop
@@ -141,7 +143,12 @@ func lineLess(a, b string) bool {
 	return am < bm || am == bm && an < bn
 }
 
+// lineParts reads major and minor of a line "M.m". A Kubernetes pre-release
+// reads as its own line ("1.38.0-alpha.2" -> 1, 38).
 func lineParts(line string) (uint64, uint64) {
+	if pre, ok := k8sversion.ParsePreRelease(line); ok {
+		return uint64(pre.Major), uint64(pre.Minor)
+	}
 	major, minor, _ := strings.Cut(line, ".")
 	m, _ := strconv.ParseUint(major, 10, 32)
 	n, _ := strconv.ParseUint(minor, 10, 32)

@@ -29,3 +29,36 @@ func TestDependencyVersionNotComparableIsUnknown(t *testing.T) {
 		}
 	}
 }
+
+// A pre-release declared version is on its own line for a dependency bound:
+// 1.38.0-alpha.2 satisfies "gte 1.38.0" and fails "lt 1.38.0", like 1.38.0.
+func TestDependencyVersionPreReleaseUsesItsLine(t *testing.T) {
+	const dependency = "pkg:github/kubernetes/kubernetes"
+	for _, c := range []struct{ comparison, bound, want string }{
+		{"gte", "1.38.0", "PASS"}, {"gte", "1.37.0", "PASS"}, {"gte", "1.39.0", "BLOCKED"},
+		{"lt", "1.38.0", "BLOCKED"}, {"lt", "1.39.0", "PASS"}, {"lte", "1.38.0", "PASS"}, {"eq", "1.38.0", "PASS"},
+	} {
+		input := inputDocument{Proposed: inputSide{Components: []inputComponent{{Component: dependency, Version: "1.38.0-alpha.2"}}}}
+		r := rule{Operator: "require_component_version", Dependency: &componentCheck{Side: "proposed", Component: dependency, Comparison: c.comparison, Version: c.bound}}
+		if got := evaluateMatchedRule(input, r, Claim{}).Status; got != c.want {
+			t.Errorf("1.38.0-alpha.2 %s %s: got %s, want %s", c.comparison, c.bound, got, c.want)
+		}
+	}
+}
+
+// A report decided on a pre-release is recognised from its disclosures.
+func TestReportHasPreReleaseInput(t *testing.T) {
+	plain := Report{Claims: []Claim{{SubjectMatch: &SubjectMatch{AnchorFrom: "1.24.1", AnchorTo: "1.25.0"}}}}
+	if plain.HasPreReleaseInput() {
+		t.Fatal("a release report is labelled")
+	}
+	for _, r := range []Report{
+		{Claims: []Claim{{SubjectMatch: &SubjectMatch{AnchorFrom: "1.24.1", AnchorTo: "1.25.0-rc.1"}}}},
+		{Claims: []Claim{{CrossingMatch: &CrossingMatch{AnchorFrom: "1.24.0-beta.1", AnchorTo: "1.25.0"}}}},
+		{ScopeCompleteness: &ScopeCompleteness{Components: []ComponentScope{{Component: kubernetesComponent, From: "1.24.1", To: "1.25.0-alpha.1"}}}},
+	} {
+		if !r.HasPreReleaseInput() {
+			t.Fatalf("not recognised: %+v", r)
+		}
+	}
+}

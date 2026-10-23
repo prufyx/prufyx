@@ -105,6 +105,34 @@ prufyx scan [PATH ...] [-] --to COMPONENT=VERSION [--from COMPONENT=VERSION ...]
 A component version is `X.Y.Z` with no prefix, suffix or leading zeros. An
 unknown component name is refused and the three closest names are listed.
 
+### Kubernetes pre-releases
+
+For `kubernetes` only, a version may also be an upstream pre-release
+`X.Y.0-alpha.N`, `X.Y.0-beta.N` or `X.Y.0-rc.N`, with `N` written without a
+leading zero (`--to kubernetes=1.38.0-rc.1`). Anything else with a `-` or `+`
+suffix is refused (`1.38.0-alpha`, `1.38.0-alpha.01`, `1.38.1-alpha.1`,
+`1.38-alpha.1`, `1.38.0-rc.1+x`, a `v` prefix, a distribution suffix); every
+other component stays strict `X.Y.Z`.
+
+A pre-release orders below its release (`1.38.0-alpha.2 < 1.38.0-beta.0 <
+1.38.0-rc.1 < 1.38.0`) and belongs to its own line, `1.38`. Upgrading from
+`1.37.x` to `1.38.0-alpha.2` therefore enters line 1.38, and a reviewed rule
+that blocks that step still blocks it. A scan that names a pre-release can
+never pass: the answer is `BLOCKED` when a reviewed rule blocks, `UNKNOWN`
+otherwise, also for a hop inside one line such as `1.38.0-alpha.2 -> 1.38.0`.
+The report says so: the inventory entry carries `versionStage: "prerelease"`,
+the notes carry "Kubernetes 1.38.0-alpha.2 is a pre-release; findings are
+provisional until the GA release", and a gap with reason `LINE_NOT_ATTESTED`
+explains the undecided hops. SARIF carries the component names under the run
+property `preRelease`. Run the scan again against the GA release.
+
+A reviewed rule written for a whole release line applies to a pre-release of
+that line as if it were the line's first release (`X.Y.0`): a rule that blocks
+`1.37.5 -> 1.38.0` also blocks `1.37.5 -> 1.38.0-alpha.1`, and a dependency
+bound such as "Kubernetes gte 1.38.0" is met by `1.38.0-alpha.2`. This errs
+towards reporting a blocker, never towards a pass. `prepare cncf` refuses a
+pre-release, and `check cncf` never exits 0 for a report decided on one.
+
 ## Knowledge database
 
 Without `--knowledge-db`, `scan` uses the knowledge built into the binary, and
@@ -310,7 +338,7 @@ Every gap has a reason, a detail and an action.
 
 | Reason | When | What to do |
 | --- | --- | --- |
-| `LINE_NOT_ATTESTED` | The target line of a hop has no current review of its removed APIs, the review is inconsistent with the rules, the hop does not enter one line from the line before it, the hop stays within one line, or a removal on the way has no reviewed rule. | Check that line's release notes by hand, or request coverage. |
+| `LINE_NOT_ATTESTED` | The target line of a hop has no current review of its removed APIs, the review is inconsistent with the rules, the hop does not enter one line from the line before it, the hop stays within one line, a removal on the way has no reviewed rule, or an end of the hop is a Kubernetes pre-release. | Check that line's release notes by hand, or request coverage. |
 | `INTERMEDIATE_LINE_NOT_COVERED_BY_RANGE` | A rule applies to some releases of a hop's line and not to others. Its result is not used. | Scan the hop with exact versions, or request a rule that covers whole lines. |
 | `NO_REVIEWED_PATH_POLICY` | No reviewed upgrade-path policy, and the upgrade skips release lines. | Upgrade one minor line at a time and scan each hop. |
 | `PATH_POLICY_NOT_CURRENT` | A path policy exists but its review is expired or withdrawn. | Use knowledge with a current policy; until then scan one line at a time. |

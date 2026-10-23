@@ -17,6 +17,8 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"github.com/prufyx/prufyx/cli/internal/k8sversion"
 )
 
 const (
@@ -562,6 +564,9 @@ type Report struct {
 	ScopeCompleteness *ScopeCompleteness `json:"scopeCompleteness,omitempty"`
 	seal              *reportSeal
 	digest            string
+	// preRelease is set by Evaluate when a declared component version is a
+	// pre-release. It is not part of the report document.
+	preRelease bool
 }
 type reportSeal struct{}
 
@@ -749,7 +754,48 @@ func publicText(value string) bool {
 	return true
 }
 
-type numericVersion [3]uint32
+// numericVersion is major, minor, patch and a pre-release rank. A release
+// has the highest rank, so X.Y.Z-alpha.N < X.Y.Z-beta.N < X.Y.Z-rc.N < X.Y.Z
+// (SemVer 2.0). Only parseAnyVersion yields a lower rank.
+type numericVersion [4]uint32
+
+const releaseRank = ^uint32(0)
+
+// kubernetesComponent is the only component that takes a pre-release version.
+const kubernetesComponent = "pkg:github/kubernetes/kubernetes"
+
+// AcceptsPreRelease reports whether a component may be given a pre-release
+// version X.Y.0-(alpha|beta|rc).N. Only Kubernetes is; every other component
+// stays strict X.Y.Z.
+func AcceptsPreRelease(component string) bool { return component == kubernetesComponent }
+
+// PreRelease reports whether version is a Kubernetes pre-release
+// X.Y.0-(alpha|beta|rc).N.
+func PreRelease(version string) bool {
+	_, ok := k8sversion.ParsePreRelease(version)
+	return ok
+}
+
+// LineFloor maps a pre-release to the first release of its own line:
+// 1.38.0-alpha.2 -> 1.38.0. Any other string is returned unchanged. Rule
+// ranges and crossings read a pre-release as inside its own line, not in the
+// line below it where its ordering alone would put it.
+func LineFloor(version string) string {
+	if pre, ok := k8sversion.ParsePreRelease(version); ok {
+		return pre.Line() + ".0"
+	}
+	return version
+}
+
+// validSideVersion is the version grammar of an input side: X.Y.Z, and for
+// a component that accepts one, a pre-release.
+func validSideVersion(component, version string) bool {
+	return validVersion(version) || AcceptsPreRelease(component) && PreRelease(version)
+}
+
+// validAnchorVersion is the grammar of the declared pair a claim disclosure
+// holds: X.Y.Z, or a pre-release the input side accepted.
+func validAnchorVersion(version string) bool { return validVersion(version) || PreRelease(version) }
 
 func parseVersion(value string) (numericVersion, bool) {
 	if !versionRE.MatchString(value) {
@@ -764,17 +810,42 @@ func parseVersion(value string) (numericVersion, bool) {
 		}
 		parsed[index] = uint32(number)
 	}
+	parsed[3] = releaseRank
 	return parsed, true
+}
+
+// parseAnyVersion reads X.Y.Z or a Kubernetes pre-release. Rule data is
+// validated with parseVersion, which refuses a pre-release.
+func parseAnyVersion(value string) (numericVersion, bool) {
+	if parsed, ok := parseVersion(value); ok {
+		return parsed, true
+	}
+	pre, ok := k8sversion.ParsePreRelease(value)
+	if !ok {
+		return numericVersion{}, false
+	}
+	var stage uint32
+	switch pre.Pre {
+	case k8sversion.StageAlpha:
+		stage = 1
+	case k8sversion.StageBeta:
+		stage = 2
+	case k8sversion.StageRC:
+		stage = 3
+	default:
+		return numericVersion{}, false
+	}
+	return numericVersion{uint32(pre.Major), uint32(pre.Minor), uint32(pre.Patch), stage<<24 | uint32(pre.PreN)}, true
 }
 
 func validVersion(value string) bool { _, ok := parseVersion(value); return ok }
 
 func compareVersions(left, right string) (int, bool) {
-	leftVersion, ok := parseVersion(left)
+	leftVersion, ok := parseAnyVersion(left)
 	if !ok {
 		return 0, false
 	}
-	rightVersion, ok := parseVersion(right)
+	rightVersion, ok := parseAnyVersion(right)
 	if !ok {
 		return 0, false
 	}
@@ -787,6 +858,32 @@ func compareVersions(left, right string) (int, bool) {
 		}
 	}
 	return 0, true
+}
+
+// HasPreReleaseInput reports that a claim of the report was decided on a
+// pre-release version: the declared pair a range or crossing disclosure holds,
+// or the component scope. A route that cannot label a pre-release must not
+// pass such a report.
+func (r Report) HasPreReleaseInput() bool {
+	if r.preRelease {
+		return true
+	}
+	for _, claim := range r.Claims {
+		if m := claim.SubjectMatch; m != nil && (PreRelease(m.AnchorFrom) || PreRelease(m.AnchorTo)) {
+			return true
+		}
+		if m := claim.CrossingMatch; m != nil && (PreRelease(m.AnchorFrom) || PreRelease(m.AnchorTo)) {
+			return true
+		}
+	}
+	if r.ScopeCompleteness != nil {
+		for _, c := range r.ScopeCompleteness.Components {
+			if PreRelease(c.From) || PreRelease(c.To) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // EvidenceBasisLine is the one-line human statement of how the claim's rule

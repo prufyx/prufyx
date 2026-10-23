@@ -122,7 +122,13 @@ type Component struct {
 	Chart string `json:"chart,omitempty"`
 	// Covered is true when scan evaluates this component.
 	Covered bool `json:"covered"`
+	// VersionStage is "prerelease" when the current or target version is a
+	// pre-release; absent for a release. A pre-release is never passed.
+	VersionStage string `json:"versionStage,omitempty"`
 }
+
+// VersionStagePreRelease is the VersionStage of a pre-release version.
+const VersionStagePreRelease = "prerelease"
 
 // Path is the planned upgrade of one component.
 type Path struct {

@@ -217,6 +217,21 @@ type sarifRunProps struct {
 	// HelmValues identifies the values supplied for declared charts; absent
 	// when none was declared.
 	HelmValues []HelmValues `json:"helmValues,omitempty"`
+	// PreRelease names the components whose current or target version is a
+	// pre-release (versionStage "prerelease"); absent when there are none.
+	PreRelease []string `json:"preRelease,omitempty"`
+}
+
+// preReleaseComponents lists, in inventory order, the components with a
+// pre-release version.
+func preReleaseComponents(report Report) []string {
+	var out []string
+	for _, component := range report.Inventory {
+		if component.VersionStage == VersionStagePreRelease {
+			out = append(out, component.Name)
+		}
+	}
+	return out
 }
 
 // communityCatalogComponents lists, in inventory order, the components of
@@ -267,6 +282,7 @@ func SARIF(report Report) ([]byte, error) {
 			EngineContractDigest: p.EngineContractDigest, NetworkUsed: p.NetworkUsed,
 			Omissions: omissions, TrustPolicy: report.TrustPolicy, KnowledgeStore: p.KnowledgeStore,
 			CommunityCatalog: communityCatalogComponents(report), HelmValues: p.HelmValues,
+			PreRelease: preReleaseComponents(report),
 		},
 	}}}
 	var out bytes.Buffer

@@ -13,6 +13,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/intake"
+	"github.com/prufyx/prufyx/cli/internal/k8sversion"
 	"github.com/prufyx/prufyx/cli/internal/scanconfig"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 )
@@ -427,7 +428,8 @@ func addVersion(target *map[string]string, flagName, value string) error {
 	if !ok || component == "" || version == "" || len(component) > 128 || len(version) > 64 {
 		return usage(scanreport.UsageComponentVersion, flagName)
 	}
-	if !validVersion(version) {
+	// Only Kubernetes takes a pre-release X.Y.0-(alpha|beta|rc).N.
+	if !validVersion(version) && !(component == kubernetesSlug && k8sPreRelease(version)) {
 		return usage(scanreport.UsageVersion, quote(version), quote(component))
 	}
 	if *target == nil {
@@ -480,6 +482,12 @@ func validVersion(version string) bool {
 		}
 	}
 	return true
+}
+
+// k8sPreRelease reports a Kubernetes pre-release version X.Y.0-(alpha|beta|rc).N.
+func k8sPreRelease(version string) bool {
+	_, ok := k8sversion.ParsePreRelease(version)
+	return ok
 }
 
 // quote shows user text in a message, bounded and with control characters

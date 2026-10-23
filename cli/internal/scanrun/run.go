@@ -23,6 +23,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfknowledge"
 	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/intake"
 	"github.com/prufyx/prufyx/cli/internal/knowledgeage"
 	"github.com/prufyx/prufyx/cli/internal/knowledgeauto"
@@ -294,6 +295,20 @@ func Run(request Request, options Options) (Result, error) {
 				inventory[slug].Catalog = cncfcheck.CatalogCommunity
 				report.Notes = append(report.Notes, scanreport.Text(scanreport.NoteCommunityCatalog, slug))
 			}
+		}
+	}
+	// A pre-release Kubernetes version is labelled in the inventory and in a
+	// note, and the scan can never pass: the gap holds for every path that
+	// reads the version (the Kubernetes hops, a chart hop given a Kubernetes
+	// version).
+	if component, ok := inventory[kubernetesSlug]; ok {
+		for i, version := range []string{component.Current, component.Target} {
+			if !constraintengine.PreRelease(version) || i == 1 && version == component.Current {
+				continue
+			}
+			component.VersionStage = scanreport.VersionStagePreRelease
+			report.Notes = append(report.Notes, scanreport.Text(scanreport.NotePreRelease, version))
+			report.Gaps = append(report.Gaps, scanreport.NewGap(kubernetesSlug, nil, scanreport.GapVersionPreRelease, version))
 		}
 	}
 	for _, slug := range slugs {

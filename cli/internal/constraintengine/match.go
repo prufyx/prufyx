@@ -69,6 +69,9 @@ type RuleTransition struct {
 // Match reports how the declared transition matches this subject. A version
 // that is not a valid release version never matches a range.
 func (t RuleTransition) Match(from, to string) MatchMode {
+	if t.refusesPreRelease(from, to) {
+		return MatchNone
+	}
 	if from == t.From && to == t.To {
 		return MatchAnchor
 	}
@@ -79,6 +82,20 @@ func (t RuleTransition) Match(from, to string) MatchMode {
 		return MatchCrossing
 	}
 	return MatchNone
+}
+
+// refusesPreRelease reports that a version is a pre-release and the rule's
+// component takes none: such a pair never matches.
+func (t RuleTransition) refusesPreRelease(versions ...string) bool {
+	if AcceptsPreRelease(t.Component) {
+		return false
+	}
+	for _, version := range versions {
+		if PreRelease(version) {
+			return true
+		}
+	}
+	return false
 }
 
 // changeVersion is the release boundary C a rule's reviewed subject is about:
@@ -129,11 +146,11 @@ func (t RuleTransition) CrossesUnreviewed(from, to string) bool { return t.cross
 // boundary the engine knows.
 func (t RuleTransition) crossesUnreviewed(from, to string) bool {
 	change, ok := t.changeVersion()
-	if !ok {
+	if !ok || t.refusesPreRelease(from, to) {
 		return false
 	}
-	below, ok1 := compareVersions(from, change)
-	reached, ok2 := compareVersions(to, change)
+	below, ok1 := compareVersions(LineFloor(from), change)
+	reached, ok2 := compareVersions(LineFloor(to), change)
 	if !ok1 || !ok2 {
 		return false
 	}
@@ -165,12 +182,18 @@ func (t RuleTransition) CrossingAdmits(fromDistribution, toDistribution string) 
 // this subject. It serves partial catalogue filters; rule selection and
 // evaluation always use Match.
 func (t RuleTransition) MatchesFrom(from string) bool {
-	return from == t.From || t.Range != nil && inBound(from, t.Range.From) || t.Crossing != nil && VersionLess(from, t.Crossing.Change.Version)
+	if t.refusesPreRelease(from) {
+		return false
+	}
+	return from == t.From || t.Range != nil && inBound(from, t.Range.From) || t.Crossing != nil && VersionLess(LineFloor(from), t.Crossing.Change.Version)
 }
 
 // MatchesTo is the proposed-version counterpart of MatchesFrom.
 func (t RuleTransition) MatchesTo(to string) bool {
-	return to == t.To || t.Range != nil && inBound(to, t.Range.To) || t.Crossing != nil && !VersionLess(to, t.Crossing.Change.Version) && VersionLess(to, t.Crossing.Cap())
+	if t.refusesPreRelease(to) {
+		return false
+	}
+	return to == t.To || t.Range != nil && inBound(to, t.Range.To) || t.Crossing != nil && !VersionLess(LineFloor(to), t.Crossing.Change.Version) && VersionLess(LineFloor(to), t.Crossing.Cap())
 }
 
 // IsAnchorFrom reports whether the declared current version is exactly the
@@ -187,19 +210,36 @@ func (t RuleTransition) IsAnchor(from, to string) bool { return from == t.From &
 // Contains reports gte <= version < lt. An invalid version is never inside.
 func (b VersionBound) Contains(version string) bool { return inBound(version, b) }
 
-// SameVersion reports that two valid release versions are equal.
+// SameVersion reports that two valid release versions are equal. A
+// pre-release is not a release version: use CompareVersions for one.
 func SameVersion(left, right string) bool {
-	c, ok := compareVersions(left, right)
+	c, ok := compareReleaseVersions(left, right)
 	return ok && c == 0
 }
 
 // VersionLess reports left < right for two valid release versions.
 func VersionLess(left, right string) bool {
-	c, ok := compareVersions(left, right)
+	c, ok := compareReleaseVersions(left, right)
 	return ok && c < 0
 }
 
+// CompareVersions orders two versions as SemVer 2.0 does: X.Y.Z, or for
+// Kubernetes a pre-release X.Y.0-(alpha|beta|rc).N, which is below its
+// release. ok is false when either is neither. Callers that take only release
+// versions use SameVersion and VersionLess.
+func CompareVersions(left, right string) (int, bool) { return compareVersions(left, right) }
+
+// compareReleaseVersions is compareVersions for two X.Y.Z versions only.
+func compareReleaseVersions(left, right string) (int, bool) {
+	if !validVersion(left) || !validVersion(right) {
+		return 0, false
+	}
+	return compareVersions(left, right)
+}
+
 func inBound(version string, bound VersionBound) bool {
+	// A pre-release is inside its own line (LineFloor).
+	version = LineFloor(version)
 	low, lowOK := compareVersions(bound.Gte, version)
 	high, highOK := compareVersions(version, bound.Lt)
 	return lowOK && highOK && low <= 0 && high < 0

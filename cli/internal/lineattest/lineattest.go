@@ -31,6 +31,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/customresources"
+	"github.com/prufyx/prufyx/cli/internal/k8sversion"
 )
 
 // Completeness is the only completeness statement an attestation makes.
@@ -319,7 +320,12 @@ var lineRE = regexp.MustCompile(`^(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})$`)
 func ValidLine(line string) bool { return lineRE.MatchString(line) }
 
 // LineOf returns the minor line of a release version: "1.28.3" -> "1.28".
+// A Kubernetes pre-release X.Y.0-(alpha|beta|rc).N belongs to its own line:
+// "1.38.0-alpha.2" -> "1.38".
 func LineOf(version string) (string, bool) {
+	if pre, ok := k8sversion.ParsePreRelease(version); ok {
+		return pre.Line(), ValidLine(pre.Line())
+	}
 	parts := strings.Split(version, ".")
 	if len(parts) != 3 {
 		return "", false

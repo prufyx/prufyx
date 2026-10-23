@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/intake"
 )
 
@@ -231,8 +232,15 @@ func kubernetesListPagination(root map[string]any) (bool, bool) {
 	}
 	return paginated, true
 }
+
+// validKubernetesVersion is X.Y.Z, or a Kubernetes pre-release
+// X.Y.0-(alpha|beta|rc).N.
+func validKubernetesVersion(value string) bool {
+	return validVersionSyntax(value) || constraintengine.PreRelease(value)
+}
+
 func kubernetesPrepared(sourceDigest, from, to string, fact inputFact, state State, reason Reason) (Prepared, error) {
-	if !validVersionSyntax(from) || !validVersionSyntax(to) || from == to {
+	if !validKubernetesVersion(from) || !validKubernetesVersion(to) || from == to {
 		return Prepared{}, ErrInvalid
 	}
 	canonical, err := marshalComponentInput(KubernetesComponent, from, to, []inputFact{fact})

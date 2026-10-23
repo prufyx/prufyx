@@ -10,6 +10,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/intake"
 	"github.com/prufyx/prufyx/cli/internal/k8sremovals"
 )
@@ -82,8 +83,11 @@ func kubernetesCrossedMinorLine(from, to string) (string, bool) {
 	return strconv.FormatUint(toParts[0], 10) + "." + strconv.FormatUint(toParts[1], 10), true
 }
 
+// kubernetesVersionParts reads major, minor and patch. A pre-release reads as
+// the first release of its own line: 1.38.0-alpha.2 -> 1.38.0.
 func kubernetesVersionParts(value string) ([3]uint64, bool) {
 	var parts [3]uint64
+	value = constraintengine.LineFloor(value)
 	if !validVersionSyntax(value) {
 		return parts, false
 	}
@@ -535,7 +539,7 @@ func kubernetesApplySetDocuments(raw []byte) ([]map[string]any, bool, Reason, er
 }
 
 func kubernetesRemovedPrepared(sourceDigest, from, to string, facts []inputFact, state State, reason Reason) (Prepared, error) {
-	if !validVersionSyntax(from) || !validVersionSyntax(to) || from == to {
+	if !validKubernetesVersion(from) || !validKubernetesVersion(to) || from == to {
 		return Prepared{}, ErrInvalid
 	}
 	// Sort by fact ID so the canonical input does not depend on table order.

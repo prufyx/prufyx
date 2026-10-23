@@ -240,10 +240,15 @@ func PlanPath(component, from, to string, policy *PathPolicy) Plan {
 	if !validVersion(from) || !validVersion(to) {
 		return gap(GapPathNotPlannable)
 	}
-	if constraintengine.SameVersion(from, to) {
+	// Only Kubernetes takes a pre-release end.
+	if !constraintengine.AcceptsPreRelease(component) && (constraintengine.PreRelease(from) || constraintengine.PreRelease(to)) {
 		return gap(GapPathNotPlannable)
 	}
-	if !constraintengine.VersionLess(from, to) {
+	order, _ := constraintengine.CompareVersions(from, to)
+	if order == 0 {
+		return gap(GapPathNotPlannable)
+	}
+	if order > 0 {
 		return gap(GapDowngradeNotReviewed)
 	}
 	if policy != nil && (policy.Component != component || !ValidPolicy(policy.Policy)) {
@@ -297,12 +302,14 @@ func PlanPath(component, from, to string, policy *PathPolicy) Plan {
 }
 
 // validVersion accepts a release version that both the engine and the line
-// helpers read: M.m.p without leading zeros.
+// helpers read: M.m.p without leading zeros, or a Kubernetes pre-release
+// (PlanPath refuses one for any other component).
 func validVersion(version string) bool {
 	if _, ok := lineattest.LineOf(version); !ok {
 		return false
 	}
-	return constraintengine.SameVersion(version, version)
+	_, ok := constraintengine.CompareVersions(version, version)
+	return ok
 }
 
 // numbers returns the major and minor of a valid version.
