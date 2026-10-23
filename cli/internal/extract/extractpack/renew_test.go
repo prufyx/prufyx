@@ -230,17 +230,22 @@ func TestRenewFinalAuditRefusesAMisbehavingStep(t *testing.T) {
 }
 
 // olderRelease makes an attestation with releases look derived three days
-// before the run by the same build, from one release fewer in "to" (the run
-// then sees one new upstream patch tag). Attestations without releases stay as
-// they are. extra is applied to each one changed.
+// before the run by the same build, with one release fewer (the run then sees
+// one new upstream patch tag). Attestations that have no release to spare (a
+// list may not be empty) stay as they are. extra is applied to each one changed.
 func olderRelease(extra func(m map[string]any)) func(m map[string]any) {
 	return func(m map[string]any) {
 		rel, ok := m["releases"].(map[string]any)
 		if !ok {
 			return
 		}
-		to := rel["to"].([]any)
-		rel["to"] = to[:len(to)-1]
+		if to := rel["to"].([]any); len(to) > 1 {
+			rel["to"] = to[:len(to)-1]
+		} else if from := rel["from"].([]any); len(from) > 1 {
+			rel["from"] = from[:len(from)-1]
+		} else {
+			return
+		}
 		ev := evOf(m)
 		ev["derivedAt"], ev["reviewedAt"], ev["validUntil"] = "2026-10-01T00:00:00Z", "2026-10-01T00:00:00Z", "2026-10-31T00:00:00Z"
 		if extra != nil {
