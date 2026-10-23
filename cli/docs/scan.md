@@ -650,8 +650,9 @@ a rule that applies), `unsupported` (combinations outside a documented support
 range), `omissions`, `notes` and `provenance` (evaluation instant, input digest, configuration
 digest, knowledge origin, revision and digest, the engine contract digest of
 the first evaluated transition, build identity, `networkUsed: false`, and
-`knowledgeStore` when `--knowledge-db` was used, and `helmValues` for
-declared Helm values). A declared chart hop adds `chart` to its inventory
+`knowledgeStore` when `--knowledge-db` was used, `helmValues` for
+declared Helm values, and `kubeletVersions` for declared kubelet versions,
+which also puts `declaredEvidence` on the findings and passes they decided). A declared chart hop adds `chart` to its inventory
 entry, its path (chart name, source and counts of the values keys read) and
 its hop references, and a chart finding lists its values `keys`; these fields
 are absent otherwise. The engine contract

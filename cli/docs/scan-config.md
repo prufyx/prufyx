@@ -56,7 +56,7 @@ missing declaration, so the check it controls cannot pass on a guess.
 
 ## Precedence
 
-A command-line flag overrides the same key in the file, key by key. For a
+A command-line flag overrides the same key in the file, key by key. A kubelet version pair taken partly from the file and partly from a flag is reported with source `mixed`. For a
 chart declaration, `--helm-values` replaces the whole `values` list and
 `--helm-set` the whole `set` list; they are never appended. A key that
 neither supplies is unset. The result records, for every value, whether it came
