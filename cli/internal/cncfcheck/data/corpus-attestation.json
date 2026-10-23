@@ -2,8 +2,8 @@
   "schema": "prufyx.io/cncf-corpus-attestation/v1alpha1",
   "attestation": "COMPLETE_REVIEWED_RULES_FOR_LISTED_COMPONENTS",
   "revision": "cncf-2026-09-13.8",
-  "packDigest": "sha256:01901387c8b48b2a0f98245f11513cac4ae795101ea8a1d34aca1a2c24e5d8c7",
-  "ruleSetDigest": "sha256:abd0b55c467616fd862b366a731bd059cfa7402027d04bf102cda3824933a2aa",
+  "packDigest": "sha256:087f7e05739e1f23914f38ae207e2347343be7d739cbc6a0625b74acaab81b88",
+  "ruleSetDigest": "sha256:85d6d1fee53e4769862b43b89e734c4900cc248ceacfe9353417174719c0ca20",
   "ruleCount": 245,
   "components": [
     "pkg:generic/cni-configuration-spec",

@@ -8143,7 +8143,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-22T12:00:00Z",
-          "validUntil": "2027-01-20T12:00:00Z",
+          "validUntil": "2027-01-07T12:00:00Z",
           "sources": [
             {
               "id": "kubernetes-website-version-skew-policy",
@@ -8207,7 +8207,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-22T12:00:00Z",
-          "validUntil": "2027-01-20T12:00:00Z",
+          "validUntil": "2027-01-07T12:00:00Z",
           "sources": [
             {
               "id": "kubernetes-website-version-skew-policy",
@@ -8271,7 +8271,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-22T12:00:00Z",
-          "validUntil": "2027-01-20T12:00:00Z",
+          "validUntil": "2027-01-07T12:00:00Z",
           "sources": [
             {
               "id": "kubernetes-website-version-skew-policy",
@@ -8335,7 +8335,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-22T12:00:00Z",
-          "validUntil": "2027-01-20T12:00:00Z",
+          "validUntil": "2027-01-07T12:00:00Z",
           "sources": [
             {
               "id": "kubernetes-website-version-skew-policy",
@@ -8399,7 +8399,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-22T12:00:00Z",
-          "validUntil": "2027-01-20T12:00:00Z",
+          "validUntil": "2027-01-07T12:00:00Z",
           "sources": [
             {
               "id": "kubernetes-website-version-skew-policy",
@@ -8463,7 +8463,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-22T12:00:00Z",
-          "validUntil": "2027-01-20T12:00:00Z",
+          "validUntil": "2027-01-07T12:00:00Z",
           "sources": [
             {
               "id": "kubernetes-website-version-skew-policy",
@@ -8527,7 +8527,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-22T12:00:00Z",
-          "validUntil": "2027-01-20T12:00:00Z",
+          "validUntil": "2027-01-07T12:00:00Z",
           "sources": [
             {
               "id": "kubernetes-website-version-skew-policy",
@@ -8591,7 +8591,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-22T12:00:00Z",
-          "validUntil": "2027-01-20T12:00:00Z",
+          "validUntil": "2027-01-07T12:00:00Z",
           "sources": [
             {
               "id": "kubernetes-website-version-skew-policy",
@@ -8655,7 +8655,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-22T12:00:00Z",
-          "validUntil": "2027-01-20T12:00:00Z",
+          "validUntil": "2027-01-07T12:00:00Z",
           "sources": [
             {
               "id": "kubernetes-website-version-skew-policy",
@@ -8719,7 +8719,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-22T12:00:00Z",
-          "validUntil": "2027-01-20T12:00:00Z",
+          "validUntil": "2027-01-07T12:00:00Z",
           "sources": [
             {
               "id": "kubernetes-website-version-skew-policy",
@@ -8783,7 +8783,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-22T12:00:00Z",
-          "validUntil": "2027-01-20T12:00:00Z",
+          "validUntil": "2027-01-07T12:00:00Z",
           "sources": [
             {
               "id": "kubernetes-website-version-skew-policy",
@@ -8847,7 +8847,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-22T12:00:00Z",
-          "validUntil": "2027-01-20T12:00:00Z",
+          "validUntil": "2027-01-07T12:00:00Z",
           "sources": [
             {
               "id": "kubernetes-website-version-skew-policy",
@@ -8911,7 +8911,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-22T12:00:00Z",
-          "validUntil": "2027-01-20T12:00:00Z",
+          "validUntil": "2027-01-07T12:00:00Z",
           "sources": [
             {
               "id": "kubernetes-website-version-skew-policy",
@@ -8975,7 +8975,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-22T12:00:00Z",
-          "validUntil": "2027-01-20T12:00:00Z",
+          "validUntil": "2027-01-07T12:00:00Z",
           "sources": [
             {
               "id": "kubernetes-website-version-skew-policy",
@@ -9039,7 +9039,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-22T12:00:00Z",
-          "validUntil": "2027-01-20T12:00:00Z",
+          "validUntil": "2027-01-07T12:00:00Z",
           "sources": [
             {
               "id": "kubernetes-website-version-skew-policy",
@@ -9103,7 +9103,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-22T12:00:00Z",
-          "validUntil": "2027-01-20T12:00:00Z",
+          "validUntil": "2027-01-07T12:00:00Z",
           "sources": [
             {
               "id": "kubernetes-website-version-skew-policy",
@@ -9167,7 +9167,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-22T12:00:00Z",
-          "validUntil": "2027-01-20T12:00:00Z",
+          "validUntil": "2027-01-14T12:00:00Z",
           "sources": [
             {
               "id": "kubernetes-website-version-skew-policy",
@@ -9231,7 +9231,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-22T12:00:00Z",
-          "validUntil": "2027-01-20T12:00:00Z",
+          "validUntil": "2027-01-14T12:00:00Z",
           "sources": [
             {
               "id": "kubernetes-website-version-skew-policy",
@@ -9295,7 +9295,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-22T12:00:00Z",
-          "validUntil": "2027-01-20T12:00:00Z",
+          "validUntil": "2027-01-14T12:00:00Z",
           "sources": [
             {
               "id": "kubernetes-website-version-skew-policy",
@@ -9359,7 +9359,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-22T12:00:00Z",
-          "validUntil": "2027-01-20T12:00:00Z",
+          "validUntil": "2027-01-14T12:00:00Z",
           "sources": [
             {
               "id": "kubernetes-website-version-skew-policy",
@@ -9423,7 +9423,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-22T12:00:00Z",
-          "validUntil": "2027-01-20T12:00:00Z",
+          "validUntil": "2027-01-14T12:00:00Z",
           "sources": [
             {
               "id": "kubernetes-website-version-skew-policy",
@@ -9487,7 +9487,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-22T12:00:00Z",
-          "validUntil": "2027-01-20T12:00:00Z",
+          "validUntil": "2027-01-14T12:00:00Z",
           "sources": [
             {
               "id": "kubernetes-website-version-skew-policy",
@@ -9551,7 +9551,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-22T12:00:00Z",
-          "validUntil": "2027-01-20T12:00:00Z",
+          "validUntil": "2027-01-14T12:00:00Z",
           "sources": [
             {
               "id": "kubernetes-website-version-skew-policy",
@@ -9615,7 +9615,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-22T12:00:00Z",
-          "validUntil": "2027-01-20T12:00:00Z",
+          "validUntil": "2027-01-14T12:00:00Z",
           "sources": [
             {
               "id": "kubernetes-website-version-skew-policy",
@@ -9679,7 +9679,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-22T12:00:00Z",
-          "validUntil": "2027-01-20T12:00:00Z",
+          "validUntil": "2027-01-14T12:00:00Z",
           "sources": [
             {
               "id": "kubernetes-website-version-skew-policy",
@@ -9743,7 +9743,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-22T12:00:00Z",
-          "validUntil": "2027-01-20T12:00:00Z",
+          "validUntil": "2027-01-14T12:00:00Z",
           "sources": [
             {
               "id": "kubernetes-website-version-skew-policy",
@@ -9807,7 +9807,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-22T12:00:00Z",
-          "validUntil": "2027-01-20T12:00:00Z",
+          "validUntil": "2027-01-14T12:00:00Z",
           "sources": [
             {
               "id": "kubernetes-website-version-skew-policy",
@@ -9871,7 +9871,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-22T12:00:00Z",
-          "validUntil": "2027-01-20T12:00:00Z",
+          "validUntil": "2027-01-14T12:00:00Z",
           "sources": [
             {
               "id": "kubernetes-website-version-skew-policy",
