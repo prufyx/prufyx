@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgetargets"
 )
 
 func TestGateUnchangedPasses(t *testing.T) {
@@ -210,6 +212,33 @@ func TestGateSizeAlarm(t *testing.T) {
 	}
 	if len(r.Alarms) != 4 {
 		t.Fatalf("alarms %v", r.Alarms)
+	}
+}
+
+// A split pack is published as per-project targets, so the single bundle's
+// size, however large, neither fails nor alarms: targetsCheck is the verdict.
+func TestGateSizeIsInformationalForSplitPacks(t *testing.T) {
+	t.Parallel()
+	r := &Report{}
+	spec := PackSpec{Name: "x"}
+	for _, stats := range []PackStats{
+		{TargetBytes: 85, MaxTargetBytes: 100, Split: true},
+		{TargetBytes: 101, MaxTargetBytes: 100, Split: true},
+	} {
+		r.sizeCheck(spec, stats, 80, 90, true)
+	}
+	if len(r.Checks) != 2 || !r.Checks[0].OK || !r.Checks[1].OK || len(r.Alarms) != 0 {
+		t.Fatalf("checks %+v alarms %v", r.Checks, r.Alarms)
+	}
+	if r.Checks[0].Name != "size/x" || !strings.Contains(r.Checks[0].Detail, "informational only") {
+		t.Fatalf("check %+v", r.Checks[0])
+	}
+	// The per-project verdict is unchanged: a target over its cap still fails.
+	over := PackStats{Split: true, Targets: []knowledgetargets.Target{{Path: "knowledge/cncf/projects/p.v1.json", Bytes: knowledgetargets.DefaultLimit().Cap + 1}}}
+	r = &Report{}
+	r.targetsCheck(spec, over, 80, 90, false)
+	if len(r.Checks) != 1 || r.Checks[0].OK {
+		t.Fatalf("an oversize project target passed: %+v", r.Checks)
 	}
 }
 

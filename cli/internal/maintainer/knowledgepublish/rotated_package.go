@@ -4,10 +4,11 @@ package knowledgepublish
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
-	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgepack"
@@ -19,8 +20,11 @@ import (
 // initial root and its complete ordered successor sequence.
 type RotatedFinalizePackageOptions struct {
 	InitialRoot, Target, Targets, Snapshot, Timestamp []byte
-	InitialRootDigest                                 string
-	SuccessorRoots                                    [][]byte
+	// Projects are the project targets of a per-project publication; Target
+	// is then the index. Empty means the single-target layout.
+	Projects          []Target
+	InitialRootDigest string
+	SuccessorRoots    [][]byte
 }
 
 type admittedRootMember struct {
@@ -40,8 +44,8 @@ func FinalizeRotatedPackage(opts RotatedFinalizePackageOptions) ([]byte, Finaliz
 	if err != nil {
 		return nil, FinalizationReceipt{}, ErrRejected
 	}
-	packageRaw, receipt, err := finalizeAdmittedPackage(opts.InitialRoot, initialDigest, final, members, opts.Target, opts.Targets, opts.Snapshot, opts.Timestamp)
-	if err != nil || !validRotatedReceipt(receipt, initial, initialDigest, final, members) {
+	packageRaw, receipt, err := finalizeAdmittedPackage(opts.InitialRoot, initialDigest, final, members, opts.Target, opts.Projects, opts.Targets, opts.Snapshot, opts.Timestamp)
+	if err != nil || !validRotatedReceipt(receipt, profileFor(opts.Projects), initial, initialDigest, final, members) {
 		return nil, FinalizationReceipt{}, ErrRejected
 	}
 	return packageRaw, receipt, nil
@@ -73,12 +77,13 @@ func admitSuccessorRoots(initial []byte, successors [][]byte) (*metadata.Metadat
 	return trusted.Root, members, nil
 }
 
-func finalizeAdmittedPackage(initialRaw []byte, initialDigest string, authority *metadata.Metadata[metadata.RootType], successors []admittedRootMember, targetRaw, targetsRaw, snapshotRaw, timestampRaw []byte) ([]byte, FinalizationReceipt, error) {
-	targetDigest, admission, err := admitTarget(targetRaw)
+func finalizeAdmittedPackage(initialRaw []byte, initialDigest string, authority *metadata.Metadata[metadata.RootType], successors []admittedRootMember, targetRaw []byte, projects []Target, targetsRaw, snapshotRaw, timestampRaw []byte) ([]byte, FinalizationReceipt, error) {
+	set, err := admitTargetSet(targetRaw, projects)
 	if err != nil {
 		return nil, FinalizationReceipt{}, err
 	}
-	targets, snapshot, err := admitTargetsSnapshot(authority, targetRaw, targetsRaw, snapshotRaw)
+	targetDigest, admission := set.digest, set.admission
+	targets, snapshot, err := admitTargetsSnapshot(authority, set, targetsRaw, snapshotRaw)
 	if err != nil || validateSnapshot(snapshot, targetsRaw, targets.Signed.Version) != nil {
 		return nil, FinalizationReceipt{}, fmt.Errorf("signed target chain: %w", ErrRejected)
 	}
@@ -102,10 +107,17 @@ func finalizeAdmittedPackage(initialRaw []byte, initialDigest string, authority 
 		return nil, FinalizationReceipt{}, err
 	}
 	entries := map[string][]byte{
-		filepath.Join("metadata", fmt.Sprintf("%d.targets.json", targets.Signed.Version)):                                                     targetsRaw,
-		filepath.Join("metadata", fmt.Sprintf("%d.snapshot.json", snapshot.Signed.Version)):                                                   snapshotRaw,
-		filepath.Join("metadata", "timestamp.json"):                                                                                           timestampRaw,
-		filepath.Join("targets", "knowledge", strings.TrimPrefix(targetDigest, "sha256:")+"."+filepath.Base(knowledge.ConstraintsTargetPath)): targetRaw,
+		filepath.Join("metadata", fmt.Sprintf("%d.targets.json", targets.Signed.Version)):   targetsRaw,
+		filepath.Join("metadata", fmt.Sprintf("%d.snapshot.json", snapshot.Signed.Version)): snapshotRaw,
+		filepath.Join("metadata", "timestamp.json"):                                         timestampRaw,
+	}
+	for _, file := range set.files {
+		// go-tuf requests <dir>/<sha256>.<base> under consistent snapshots.
+		name := filepath.Join("targets", filepath.FromSlash(path.Dir(file.Path)), hex.EncodeToString(sha256Bytes(file.Raw))+"."+path.Base(file.Path))
+		if err := os.MkdirAll(filepath.Join(repository, filepath.Dir(name)), 0o700); err != nil {
+			return nil, FinalizationReceipt{}, err
+		}
+		entries[name] = file.Raw
 	}
 	for _, successor := range successors {
 		entries[filepath.Join("metadata", fmt.Sprintf("%d.root.json", successor.version))] = successor.raw
@@ -115,7 +127,7 @@ func finalizeAdmittedPackage(initialRaw []byte, initialDigest string, authority 
 			return nil, FinalizationReceipt{}, fmt.Errorf("stage repository: %w", err)
 		}
 	}
-	packageRaw, err := knowledgepack.PackageDirectory(repository, "cncf")
+	packageRaw, err := knowledgepack.PackageDirectory(repository, packProfile(set.profile))
 	if err != nil {
 		return nil, FinalizationReceipt{}, err
 	}
@@ -126,7 +138,13 @@ func finalizeAdmittedPackage(initialRaw []byte, initialDigest string, authority 
 	if err := os.WriteFile(packagePath, packageRaw, 0o600); err != nil {
 		return nil, FinalizationReceipt{}, err
 	}
-	verification, err := knowledge.VerifyConstraints(knowledge.VerifyRequest{PackagePath: packagePath, BootstrapRootPath: rootPath, BootstrapRootDigest: initialDigest, ExpectedPackageDigest: digest(packageRaw), ExpectedRevision: admission.Revision, ExpectedBundleDigest: targetDigest})
+	verifyRequest := knowledge.VerifyRequest{PackagePath: packagePath, BootstrapRootPath: rootPath, BootstrapRootDigest: initialDigest, ExpectedPackageDigest: digest(packageRaw), ExpectedRevision: admission.Revision, ExpectedBundleDigest: targetDigest}
+	var verification knowledge.PackageVerificationReceipt
+	if set.profile == "cncf-projects" {
+		verification, err = knowledge.VerifyConstraintsProjects(verifyRequest)
+	} else {
+		verification, err = knowledge.VerifyConstraints(verifyRequest)
+	}
 	if err != nil {
 		return nil, FinalizationReceipt{}, fmt.Errorf("consumer verification: %w", err)
 	}
@@ -136,7 +154,10 @@ func finalizeAdmittedPackage(initialRaw []byte, initialDigest string, authority 
 		verification.Timestamp.Version != timestamp.Signed.Version || verification.Timestamp.Digest != digest(timestampRaw) {
 		return nil, FinalizationReceipt{}, fmt.Errorf("consumer verification receipt: %w", ErrRejected)
 	}
-	return packageRaw, FinalizationReceipt{Schema: FinalReceiptSchema, Status: "VERIFIED_FOR_PACKAGING", Profile: "cncf", RootDigest: initialDigest, TargetDigest: targetDigest, PackageDigest: digest(packageRaw), KnowledgeRevision: admission.Revision, CapabilityDigest: admission.EngineCapabilityDigest, Verification: verification}, nil
+	if set.profile == "cncf-projects" && !sameProjectReceipts(verification.ProjectTargets, set.files[1:]) {
+		return nil, FinalizationReceipt{}, fmt.Errorf("consumer project receipt: %w", ErrRejected)
+	}
+	return packageRaw, FinalizationReceipt{Schema: FinalReceiptSchema, Status: "VERIFIED_FOR_PACKAGING", Profile: set.profile, RootDigest: initialDigest, TargetDigest: targetDigest, PackageDigest: digest(packageRaw), KnowledgeRevision: admission.Revision, CapabilityDigest: admission.EngineCapabilityDigest, Verification: verification}, nil
 }
 
 func digestRoot(root *metadata.Metadata[metadata.RootType]) string {
@@ -147,9 +168,37 @@ func digestRoot(root *metadata.Metadata[metadata.RootType]) string {
 	return digest(raw)
 }
 
-func validRotatedReceipt(receipt FinalizationReceipt, initial *metadata.Metadata[metadata.RootType], initialDigest string, final *metadata.Metadata[metadata.RootType], successors []admittedRootMember) bool {
+// packProfile maps a consumer profile to the packer profile of the same name.
+func packProfile(profile string) string {
+	if profile == "cncf-projects" {
+		return knowledgepack.ProfileCNCFProjects
+	}
+	return profile
+}
+
+// sameProjectReceipts checks that the consumer verified exactly the project
+// targets that were staged: same paths, lengths and digests, in any order.
+func sameProjectReceipts(receipts []knowledge.ProjectTargetReceipt, files []Target) bool {
+	if len(receipts) != len(files) {
+		return false
+	}
+	byPath := make(map[string]Target, len(files))
+	for _, file := range files {
+		byPath[file.Path] = file
+	}
+	for _, receipt := range receipts {
+		file, ok := byPath[receipt.TargetPath]
+		if !ok || receipt.Length != int64(len(file.Raw)) || receipt.Digest != digest(file.Raw) {
+			return false
+		}
+		delete(byPath, receipt.TargetPath)
+	}
+	return true
+}
+
+func validRotatedReceipt(receipt FinalizationReceipt, profile string, initial *metadata.Metadata[metadata.RootType], initialDigest string, final *metadata.Metadata[metadata.RootType], successors []admittedRootMember) bool {
 	v := receipt.Verification
-	if receipt.Schema != FinalReceiptSchema || receipt.Status != "VERIFIED_FOR_PACKAGING" || receipt.Profile != "cncf" || receipt.NetworkUsed || receipt.KeysHandled || receipt.RootDigest != initialDigest || v.APIVersion != "prufyx.io/knowledge-package-verification/v1" || v.Status != "VERIFIED" || v.Profile != "cncf" || v.TrustSource != "OPERATOR_PROVISIONED" || v.InitialRootDigest != initialDigest || v.NetworkUsed || v.StoreUsed || v.StoreChanged || v.RollbackAgainstStoreChecked || v.ImportEligibility != "NOT_EVALUATED" || v.Purpose != "operator_provided" || len(v.RootHistory) != len(successors)+1 || v.RootHistory[0].Version != initial.Signed.Version || v.RootHistory[0].Digest != initialDigest || v.Root.Version != final.Signed.Version || receipt.PackageDigest != v.PackageDigest || receipt.TargetDigest != v.TargetDigest || receipt.KnowledgeRevision != v.KnowledgeRevision || receipt.CapabilityDigest != v.EngineCapabilityDigest {
+	if receipt.Schema != FinalReceiptSchema || receipt.Status != "VERIFIED_FOR_PACKAGING" || receipt.Profile != profile || receipt.NetworkUsed || receipt.KeysHandled || receipt.RootDigest != initialDigest || v.APIVersion != "prufyx.io/knowledge-package-verification/v1" || v.Status != "VERIFIED" || v.Profile != profile || v.TrustSource != "OPERATOR_PROVISIONED" || v.InitialRootDigest != initialDigest || v.NetworkUsed || v.StoreUsed || v.StoreChanged || v.RollbackAgainstStoreChecked || v.ImportEligibility != "NOT_EVALUATED" || v.Purpose != "operator_provided" || len(v.RootHistory) != len(successors)+1 || v.RootHistory[0].Version != initial.Signed.Version || v.RootHistory[0].Digest != initialDigest || v.Root.Version != final.Signed.Version || receipt.PackageDigest != v.PackageDigest || receipt.TargetDigest != v.TargetDigest || receipt.KnowledgeRevision != v.KnowledgeRevision || receipt.CapabilityDigest != v.EngineCapabilityDigest {
 		return false
 	}
 	for i, successor := range successors {

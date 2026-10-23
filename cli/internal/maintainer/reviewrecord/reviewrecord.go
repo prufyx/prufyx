@@ -295,13 +295,35 @@ func verifyRaw(r record, recordValue any, packetRaw, packetReceipt, sourceReceip
 	return sourcecorpus.Canonical(receipt)
 }
 
+// exactEmbeddedTarget reports whether raw is, byte for byte, either the
+// single-target bundle of the embedded pack at revision or the target of
+// project in the per-project layout at revision. A project target depends on
+// its project and revision only, so rebuilding it needs no index. The
+// single-target export is not required to exist: it stops fitting its cap
+// long before the per-project targets do.
+func exactEmbeddedTarget(raw []byte, revision, project string) bool {
+	if expected, err := cncfcheck.ExportEmbeddedExternalBundle(revision); err == nil && bytes.Equal(raw, expected) {
+		return true
+	}
+	_, projects, err := cncfcheck.BuildEmbeddedExternalTargets(revision, nil)
+	if err != nil {
+		return false
+	}
+	path := cncfcheck.ProjectTargetPath(project)
+	for _, target := range projects {
+		if target.Path == path {
+			return bytes.Equal(raw, target.Bytes)
+		}
+	}
+	return false
+}
+
 func exactSelectedRule(raw []byte, revision, project, ruleID string) (cncfcheck.ExternalBundle, []byte, ruleDocument, error) {
 	bundle, err := cncfcheck.ParseExternalBundle(raw)
 	if err != nil {
 		return cncfcheck.ExternalBundle{}, nil, ruleDocument{}, errRejected
 	}
-	expected, err := cncfcheck.ExportEmbeddedExternalBundle(revision)
-	if err != nil || !bytes.Equal(raw, expected) {
+	if !exactEmbeddedTarget(raw, revision, project) {
 		return cncfcheck.ExternalBundle{}, nil, ruleDocument{}, errRejected
 	}
 	var target targetDocument

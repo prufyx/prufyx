@@ -819,6 +819,15 @@ func (r *Report) sizeCheck(spec PackSpec, stats PackStats, baseLen, headLen int,
 	if stats.MaxTargetBytes > 0 {
 		pct = stats.TargetBytes * 100 / stats.MaxTargetBytes
 	}
+	if stats.Split {
+		// A split pack is published as per-project targets, which
+		// targetsCheck judges (each target and their total). The single
+		// bundle is no longer published: its size is a re-serialization
+		// with a sentinel revision, reported here for information and
+		// never failing or alarming.
+		r.add("size/"+spec.Name, true, "single-target layout, informational only: target %d of %d bytes (%d percent, sentinel revision); the verdict is targets/%s", stats.TargetBytes, stats.MaxTargetBytes, pct, spec.Name)
+		return
+	}
 	alarm := stats.TargetBytes*100 >= SizeAlarmPercent*stats.MaxTargetBytes
 	ok := stats.TargetBytes <= stats.MaxTargetBytes && !(alarm && loosens && headLen > baseLen)
 	detail := fmt.Sprintf("target %d of %d bytes (%d percent)", stats.TargetBytes, stats.MaxTargetBytes, pct)

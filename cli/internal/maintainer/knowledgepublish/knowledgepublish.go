@@ -93,8 +93,20 @@ type FinalizationReceipt struct {
 	Verification      knowledge.PackageVerificationReceipt `json:"verification"`
 }
 
+// Target is one signed target of a per-project publication: its TUF path
+// (knowledge/cncf/projects/<project>.v1.json) and exact bytes.
+type Target struct {
+	Path string
+	Raw  []byte
+}
+
+// In every options struct below, Target is the single CNCF external bundle
+// when Projects is empty. With Projects it is the per-project index
+// (knowledge/cncf/index.v1.json) and Projects holds exactly the project
+// targets the index lists.
 type TargetsOptions struct {
 	Root, Target []byte
+	Projects     []Target
 	RootDigest   string
 	Version      int64
 	Expires      string
@@ -102,6 +114,7 @@ type TargetsOptions struct {
 
 type SnapshotOptions struct {
 	Root, Target, Targets []byte
+	Projects              []Target
 	RootDigest            string
 	Version               int64
 	Expires               string
@@ -109,6 +122,7 @@ type SnapshotOptions struct {
 
 type TimestampOptions struct {
 	Root, Target, Targets, Snapshot []byte
+	Projects                        []Target
 	RootDigest                      string
 	Version                         int64
 	Expires                         string
@@ -116,6 +130,7 @@ type TimestampOptions struct {
 
 type FinalizePackageOptions struct {
 	Root, Target, Targets, Snapshot, Timestamp []byte
+	Projects                                   []Target
 	RootDigest                                 string
 }
 
@@ -123,6 +138,9 @@ type FinalizePackageOptions struct {
 // package and in-memory verification receipt returned by FinalizePackage. It
 // never accepts a saved receipt and the plan grants no bootstrap authority.
 func FinalizePackageWithReleasePlan(opts FinalizePackageOptions, packageURL string) ([]byte, []byte, FinalizationReceipt, error) {
+	if len(opts.Projects) != 0 {
+		return nil, nil, FinalizationReceipt{}, fmt.Errorf("a release plan exists only for the cncf profile: %w", ErrRejected)
+	}
 	packageRaw, receipt, err := FinalizePackage(opts)
 	if err != nil {
 		return nil, nil, FinalizationReceipt{}, err
@@ -166,7 +184,7 @@ func PrepareTargets(opts TargetsOptions) (Preparation, error) {
 	if err != nil {
 		return Preparation{}, err
 	}
-	targetDigest, _, err := admitTarget(opts.Target)
+	set, err := admitTargetSet(opts.Target, opts.Projects)
 	if err != nil {
 		return Preparation{}, err
 	}
@@ -174,14 +192,16 @@ func PrepareTargets(opts TargetsOptions) (Preparation, error) {
 	if err != nil || !validVersion(opts.Version) {
 		return Preparation{}, ErrRejected
 	}
-	targetInfo, err := metadata.TargetFile().FromBytes(knowledge.ConstraintsTargetPath, opts.Target, "sha256")
-	if err != nil {
-		return Preparation{}, fmt.Errorf("target identity: %w", ErrRejected)
-	}
 	role := metadata.Targets(expires)
 	role.Signed.Version = opts.Version
-	role.Signed.Targets[knowledge.ConstraintsTargetPath] = targetInfo
-	return prepare(metadata.TARGETS, root, rootDigest, role, targetDigest, "")
+	for _, file := range set.files {
+		targetInfo, err := metadata.TargetFile().FromBytes(file.Path, file.Raw, "sha256")
+		if err != nil {
+			return Preparation{}, fmt.Errorf("target identity: %w", ErrRejected)
+		}
+		role.Signed.Targets[file.Path] = targetInfo
+	}
+	return prepare(metadata.TARGETS, root, rootDigest, role, set.digest, "")
 }
 
 // PrepareSnapshot verifies finalized targets and creates the dependent snapshot payload.
@@ -190,12 +210,12 @@ func PrepareSnapshot(opts SnapshotOptions) (Preparation, error) {
 	if err != nil {
 		return Preparation{}, err
 	}
-	targetDigest, _, err := admitTarget(opts.Target)
+	set, err := admitTargetSet(opts.Target, opts.Projects)
 	if err != nil {
 		return Preparation{}, err
 	}
 	targets, err := parseTargets(opts.Targets, true)
-	if err != nil || root.VerifyDelegate(metadata.TARGETS, targets) != nil || validateTargets(targets, opts.Target) != nil {
+	if err != nil || root.VerifyDelegate(metadata.TARGETS, targets) != nil || validateTargets(targets, set) != nil {
 		return Preparation{}, fmt.Errorf("signed targets: %w", ErrRejected)
 	}
 	expires, err := parseExpiry(opts.Expires)
@@ -205,7 +225,7 @@ func PrepareSnapshot(opts SnapshotOptions) (Preparation, error) {
 	role := metadata.Snapshot(expires)
 	role.Signed.Version = opts.Version
 	role.Signed.Meta["targets.json"] = metaIdentity(targets.Signed.Version, opts.Targets)
-	return prepare(metadata.SNAPSHOT, root, rootDigest, role, targetDigest, digest(opts.Targets))
+	return prepare(metadata.SNAPSHOT, root, rootDigest, role, set.digest, digest(opts.Targets))
 }
 
 // PrepareTimestamp verifies the target/targets/snapshot chain and creates the timestamp payload.
@@ -214,11 +234,11 @@ func PrepareTimestamp(opts TimestampOptions) (Preparation, error) {
 	if err != nil {
 		return Preparation{}, err
 	}
-	targetDigest, _, err := admitTarget(opts.Target)
+	set, err := admitTargetSet(opts.Target, opts.Projects)
 	if err != nil {
 		return Preparation{}, err
 	}
-	targets, snapshot, err := admitTargetsSnapshot(root, opts.Target, opts.Targets, opts.Snapshot)
+	targets, snapshot, err := admitTargetsSnapshot(root, set, opts.Targets, opts.Snapshot)
 	if err != nil || validateSnapshot(snapshot, opts.Targets, targets.Signed.Version) != nil {
 		return Preparation{}, fmt.Errorf("signed snapshot chain: %w", ErrRejected)
 	}
@@ -229,7 +249,7 @@ func PrepareTimestamp(opts TimestampOptions) (Preparation, error) {
 	role := metadata.Timestamp(expires)
 	role.Signed.Version = opts.Version
 	role.Signed.Meta["snapshot.json"] = metaIdentity(snapshot.Signed.Version, opts.Snapshot)
-	return prepare(metadata.TIMESTAMP, root, rootDigest, role, targetDigest, digest(opts.Snapshot))
+	return prepare(metadata.TIMESTAMP, root, rootDigest, role, set.digest, digest(opts.Snapshot))
 }
 
 // FinalizeRole attaches externally returned signatures and verifies the
@@ -286,7 +306,7 @@ func FinalizePackage(opts FinalizePackageOptions) ([]byte, FinalizationReceipt, 
 	if err != nil {
 		return nil, FinalizationReceipt{}, err
 	}
-	return finalizeAdmittedPackage(opts.Root, rootDigest, root, nil, opts.Target, opts.Targets, opts.Snapshot, opts.Timestamp)
+	return finalizeAdmittedPackage(opts.Root, rootDigest, root, nil, opts.Target, opts.Projects, opts.Targets, opts.Snapshot, opts.Timestamp)
 }
 
 func prepare[T metadata.Roles](roleName string, root *metadata.Metadata[metadata.RootType], rootDigest string, role *metadata.Metadata[T], targetDigest, priorDigest string) (Preparation, error) {
@@ -349,9 +369,76 @@ func admitTarget(raw []byte) (string, cncfcheck.ExternalAdmission, error) {
 	return bundle.BundleDigest(), admission, nil
 }
 
-func admitTargetsSnapshot(root *metadata.Metadata[metadata.RootType], target, targetsRaw, snapshotRaw []byte) (*metadata.Metadata[metadata.TargetsType], *metadata.Metadata[metadata.SnapshotType], error) {
+// targetSet is the admitted set of targets one targets role signs.
+type targetSet struct {
+	// digest is the identity bound into signing requests: the bundle digest of
+	// a single target, the index digest of a per-project set.
+	digest    string
+	admission cncfcheck.ExternalAdmission
+	// profile is the consumer profile that verifies the package.
+	profile string
+	// files lists every signed target, the index (or the bundle) first.
+	files []Target
+}
+
+// profileFor names the consumer profile for a publication with projects.
+func profileFor(projects []Target) string {
+	if len(projects) == 0 {
+		return "cncf"
+	}
+	return "cncf-projects"
+}
+
+// admitTargetSet admits the single bundle (no projects) or the per-project
+// layout: the index plus exactly the project targets it lists, each admitted
+// against its index entry. Anything missing, extra or mismatched is refused.
+func admitTargetSet(target []byte, projects []Target) (targetSet, error) {
+	if len(projects) == 0 {
+		targetDigest, admission, err := admitTarget(target)
+		if err != nil {
+			return targetSet{}, err
+		}
+		return targetSet{digest: targetDigest, admission: admission, profile: "cncf", files: []Target{{Path: knowledge.ConstraintsTargetPath, Raw: target}}}, nil
+	}
+	if len(projects) > cncfcheck.MaxExternalIndexProjects {
+		return targetSet{}, ErrRejected
+	}
+	index, err := cncfcheck.ParseExternalIndex(target)
+	if err != nil {
+		return targetSet{}, fmt.Errorf("index admission: %w", ErrRejected)
+	}
+	admission, err := index.Admission()
+	if err != nil || admission.Purpose != "operator_provided" {
+		return targetSet{}, fmt.Errorf("index purpose: %w", ErrRejected)
+	}
+	entries := index.Entries()
+	if len(entries) != len(projects) {
+		return targetSet{}, fmt.Errorf("project targets differ from the index: %w", ErrRejected)
+	}
+	byPath := make(map[string][]byte, len(projects))
+	for _, project := range projects {
+		if _, dup := byPath[project.Path]; dup || len(project.Raw) == 0 || len(project.Raw) > MaxTargetBytes {
+			return targetSet{}, ErrRejected
+		}
+		byPath[project.Path] = project.Raw
+	}
+	files := []Target{{Path: cncfcheck.ExternalIndexTargetPath, Raw: target}}
+	for _, entry := range entries {
+		raw, ok := byPath[entry.TargetPath]
+		if !ok {
+			return targetSet{}, fmt.Errorf("project target %s is missing: %w", entry.TargetPath, ErrRejected)
+		}
+		if _, err := cncfcheck.AdmitExternalProjectTarget(index, entry.Project, raw); err != nil {
+			return targetSet{}, fmt.Errorf("project target %s admission: %w", entry.TargetPath, ErrRejected)
+		}
+		files = append(files, Target{Path: entry.TargetPath, Raw: raw})
+	}
+	return targetSet{digest: digest(target), admission: admission, profile: "cncf-projects", files: files}, nil
+}
+
+func admitTargetsSnapshot(root *metadata.Metadata[metadata.RootType], set targetSet, targetsRaw, snapshotRaw []byte) (*metadata.Metadata[metadata.TargetsType], *metadata.Metadata[metadata.SnapshotType], error) {
 	targets, err := parseTargets(targetsRaw, true)
-	if err != nil || root.VerifyDelegate(metadata.TARGETS, targets) != nil || validateTargets(targets, target) != nil {
+	if err != nil || root.VerifyDelegate(metadata.TARGETS, targets) != nil || validateTargets(targets, set) != nil {
 		return nil, nil, ErrRejected
 	}
 	snapshot, err := parseSnapshot(snapshotRaw, true)
@@ -361,24 +448,42 @@ func admitTargetsSnapshot(root *metadata.Metadata[metadata.RootType], target, ta
 	return targets, snapshot, nil
 }
 
-func validateTargets(role *metadata.Metadata[metadata.TargetsType], target []byte) error {
-	if validateTargetsShape(role) != nil {
+func validateTargets(role *metadata.Metadata[metadata.TargetsType], set targetSet) error {
+	if validateTargetsShape(role) != nil || len(role.Signed.Targets) != len(set.files) {
 		return ErrRejected
 	}
-	info := role.Signed.Targets[knowledge.ConstraintsTargetPath]
-	if info == nil || info.Length != int64(len(target)) || info.Custom != nil || len(info.UnrecognizedFields) != 0 || len(info.Hashes) != 1 || !bytes.Equal(info.Hashes["sha256"], sha256Bytes(target)) {
-		return ErrRejected
+	for _, file := range set.files {
+		info := role.Signed.Targets[file.Path]
+		if info == nil || info.Length != int64(len(file.Raw)) || info.Custom != nil || len(info.UnrecognizedFields) != 0 || len(info.Hashes) != 1 || !bytes.Equal(info.Hashes["sha256"], sha256Bytes(file.Raw)) {
+			return ErrRejected
+		}
 	}
 	return nil
 }
 
+// validateTargetsShape accepts either the single-target role (exactly the
+// constraints bundle) or the per-project role (the index plus project
+// targets). It checks the role only; the bytes are bound by validateTargets.
 func validateTargetsShape(role *metadata.Metadata[metadata.TargetsType]) error {
-	if role == nil || role.Signed.Type != metadata.TARGETS || !validVersion(role.Signed.Version) || role.Signed.Expires.IsZero() || !strings.HasPrefix(role.Signed.SpecVersion, "1.0.") || len(role.Signed.Targets) != 1 || role.Signed.Delegations != nil || len(role.Signed.UnrecognizedFields) != 0 || len(role.UnrecognizedFields) != 0 {
+	if role == nil || role.Signed.Type != metadata.TARGETS || !validVersion(role.Signed.Version) || role.Signed.Expires.IsZero() || !strings.HasPrefix(role.Signed.SpecVersion, "1.0.") || role.Signed.Delegations != nil || len(role.Signed.UnrecognizedFields) != 0 || len(role.UnrecognizedFields) != 0 {
 		return ErrRejected
 	}
-	info := role.Signed.Targets[knowledge.ConstraintsTargetPath]
-	if info == nil || info.Length < 1 || info.Length > MaxTargetBytes || info.Custom != nil || len(info.UnrecognizedFields) != 0 || len(info.Hashes) != 1 || len(info.Hashes["sha256"]) != sha256.Size {
+	all := role.Signed.Targets
+	switch {
+	case len(all) == 1 && all[knowledge.ConstraintsTargetPath] != nil:
+	case len(all) >= 2 && len(all) <= cncfcheck.MaxExternalIndexProjects+1 && all[cncfcheck.ExternalIndexTargetPath] != nil:
+		for name := range all {
+			if _, ok := cncfcheck.ProjectFromTargetPath(name); !ok && name != cncfcheck.ExternalIndexTargetPath {
+				return ErrRejected
+			}
+		}
+	default:
 		return ErrRejected
+	}
+	for _, info := range all {
+		if info == nil || info.Length < 1 || info.Length > MaxTargetBytes || info.Custom != nil || len(info.UnrecognizedFields) != 0 || len(info.Hashes) != 1 || len(info.Hashes["sha256"]) != sha256.Size {
+			return ErrRejected
+		}
 	}
 	return nil
 }

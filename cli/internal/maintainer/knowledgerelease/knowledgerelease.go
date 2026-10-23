@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -31,8 +32,25 @@ var ErrRejected = errors.New("knowledge release rejected")
 
 const maxPassphraseBytes = 1024
 
+// Profiles a release can publish. The empty profile means ProfileCNCF.
+const (
+	ProfileCNCF         = "cncf"
+	ProfileCNCFProjects = "cncf-projects"
+)
+
 // Options are all inputs of one release. Paths are absolute.
 type Options struct {
+	// Profile selects the layout: ProfileCNCF (the default) publishes the
+	// single external bundle; ProfileCNCFProjects publishes the index plus
+	// one target per project, all signed by the same targets role key.
+	Profile string
+	// PreviousIndex is, for ProfileCNCFProjects, the last published index
+	// (a committed, generated file). Projects whose target bytes did not
+	// change keep their previous revision, and Revision must be greater than
+	// the previous index revision. FirstRelease stands in for it when no
+	// index was ever published; exactly one of the two is required.
+	PreviousIndex string
+	FirstRelease  bool
 	// Revision is the positive knowledge revision; Version is the positive
 	// TUF version used for the targets, snapshot and timestamp roles.
 	Revision string
@@ -45,7 +63,8 @@ type Options struct {
 	TargetsKey, SnapshotKey, TimestampKey string
 	// PassphraseFile holds the key passphrase (one line, mode 0600 or tighter).
 	PassphraseFile string
-	// PackageURL is the exact HTTPS URL the package will be served from.
+	// PackageURL is the exact HTTPS URL the package will be served from. It is
+	// only written into the release plan, which ProfileCNCFProjects has none of.
 	PackageURL string
 	// OutputDir is a new directory; the release is written inside it.
 	OutputDir string
@@ -73,6 +92,9 @@ func Run(o Options) (Result, error) {
 	rootRaw, err := read(o.Root, knowledgepublish.MaxRootBytes)
 	if err != nil {
 		return Result{}, ErrRejected
+	}
+	if o.Profile == ProfileCNCFProjects {
+		return runProjects(o, rootRaw)
 	}
 	target, err := cncfcheck.ExportEmbeddedExternalBundle(o.Revision)
 	if err != nil {
@@ -155,7 +177,22 @@ func (o Options) validate() error {
 			return ErrRejected
 		}
 	}
-	if o.Revision == "" || o.Version <= 0 || o.RootDigest == "" || o.PackageURL == "" || o.Now.IsZero() {
+	// A per-project release has no release plan, hence no package URL.
+	if o.Revision == "" || o.Version <= 0 || o.RootDigest == "" || (o.PackageURL == "" && o.Profile != ProfileCNCFProjects) || o.Now.IsZero() {
+		return ErrRejected
+	}
+	switch o.Profile {
+	case "", ProfileCNCF:
+		if o.PreviousIndex != "" || o.FirstRelease {
+			return fmt.Errorf("previous index and first release apply to the %s profile only: %w", ProfileCNCFProjects, ErrRejected)
+		}
+	case ProfileCNCFProjects:
+		// Fail closed: an omitted previous index would bump every project.
+		// The first comparison is an XOR: both set or both unset is refused.
+		if (o.PreviousIndex == "") == !o.FirstRelease || o.PreviousIndex != "" && !filepath.IsAbs(o.PreviousIndex) {
+			return fmt.Errorf("the %s profile needs exactly one of a previous index and a first release: %w", ProfileCNCFProjects, ErrRejected)
+		}
+	default:
 		return ErrRejected
 	}
 	if _, err := strconv.ParseUint(o.Revision, 10, 63); err != nil {
@@ -220,4 +257,121 @@ func wipe(b []byte) {
 	for i := range b {
 		b[i] = 0
 	}
+}
+
+// Test seams for the per-project builders.
+var (
+	buildFirst = cncfcheck.BuildEmbeddedExternalTargets
+	buildFrom  = cncfcheck.BuildEmbeddedExternalTargetsFrom
+)
+
+// runProjects builds, signs, verifies and writes one per-project release. It
+// publishes no release plan: the plan format describes the single target
+// only. The written index is the next previous index to commit.
+func runProjects(o Options, rootRaw []byte) (Result, error) {
+	var index cncfcheck.ExternalTarget
+	var projects []cncfcheck.ExternalTarget
+	var err error
+	if o.FirstRelease {
+		index, projects, err = buildFirst(o.Revision, nil)
+	} else {
+		var previous []byte
+		if previous, err = read(o.PreviousIndex, cncfcheck.MaxExternalTargetBytes); err != nil {
+			return Result{}, ErrRejected
+		}
+		// Refuses a revision that does not advance the previous index.
+		index, projects, err = buildFrom(o.Revision, previous)
+	}
+	if err != nil {
+		// Includes cncfcheck.ErrDistributionsNotPublishable: distribution
+		// records have no project target yet, so the pack cannot be
+		// published in this layout.
+		return Result{}, fmt.Errorf("build per-project targets: %w", errors.Join(ErrRejected, err))
+	}
+	parsed, err := cncfcheck.ParseExternalIndex(index.Bytes)
+	if err != nil {
+		return Result{}, ErrRejected
+	}
+	admission, err := parsed.Admission()
+	if err != nil || admission.EvidenceExpiresAt == "" {
+		return Result{}, ErrRejected
+	}
+	expires := admission.EvidenceExpiresAt
+	if o.Expires != "" {
+		if o.Expires > expires {
+			return Result{}, ErrRejected
+		}
+		expires = o.Expires
+	}
+	end, err := time.Parse(time.RFC3339, expires)
+	if err != nil || end.Format(time.RFC3339) != expires || !end.After(o.Now) {
+		return Result{}, ErrRejected
+	}
+	set := make([]knowledgepublish.Target, 0, len(projects))
+	for _, project := range projects {
+		set = append(set, knowledgepublish.Target{Path: project.Path, Raw: project.Bytes})
+	}
+
+	targetsRaw, err := signRole(o, rootRaw, metadata.TARGETS, o.TargetsKey, func() (knowledgepublish.Preparation, error) {
+		return knowledgepublish.PrepareTargets(knowledgepublish.TargetsOptions{Root: rootRaw, Target: index.Bytes, Projects: set, RootDigest: o.RootDigest, Version: o.Version, Expires: expires})
+	})
+	if err != nil {
+		return Result{}, err
+	}
+	snapshotRaw, err := signRole(o, rootRaw, metadata.SNAPSHOT, o.SnapshotKey, func() (knowledgepublish.Preparation, error) {
+		return knowledgepublish.PrepareSnapshot(knowledgepublish.SnapshotOptions{Root: rootRaw, Target: index.Bytes, Projects: set, Targets: targetsRaw, RootDigest: o.RootDigest, Version: o.Version, Expires: expires})
+	})
+	if err != nil {
+		return Result{}, err
+	}
+	timestampRaw, err := signRole(o, rootRaw, metadata.TIMESTAMP, o.TimestampKey, func() (knowledgepublish.Preparation, error) {
+		return knowledgepublish.PrepareTimestamp(knowledgepublish.TimestampOptions{Root: rootRaw, Target: index.Bytes, Projects: set, Targets: targetsRaw, Snapshot: snapshotRaw, RootDigest: o.RootDigest, Version: o.Version, Expires: expires})
+	})
+	if err != nil {
+		return Result{}, err
+	}
+	packageRaw, receipt, err := knowledgepublish.FinalizePackage(knowledgepublish.FinalizePackageOptions{
+		Root: rootRaw, Target: index.Bytes, Projects: set, Targets: targetsRaw, Snapshot: snapshotRaw, Timestamp: timestampRaw, RootDigest: o.RootDigest,
+	})
+	if err != nil {
+		return Result{}, ErrRejected
+	}
+
+	version := strconv.FormatInt(o.Version, 10)
+	files := []struct {
+		name string
+		raw  []byte
+	}{
+		{"root.json", rootRaw},
+		{version + ".targets.json", targetsRaw},
+		{version + ".snapshot.json", snapshotRaw},
+		{"timestamp.json", timestampRaw},
+		{ProfileCNCFProjects + "-" + o.Revision + ".tar", packageRaw},
+		// The targets keep their TUF paths, so the directory can be fed back
+		// to the publisher. The index is the next previous index to commit.
+		{index.Path, index.Bytes},
+	}
+	for _, project := range projects {
+		files = append(files, struct {
+			name string
+			raw  []byte
+		}{project.Path, project.Bytes})
+	}
+	if err := os.Mkdir(o.OutputDir, 0o700); err != nil {
+		return Result{}, ErrRejected
+	}
+	result := Result{Expires: expires, Receipt: receipt, Revision: o.Revision}
+	for _, f := range files {
+		full := filepath.Join(o.OutputDir, filepath.FromSlash(f.name))
+		if dir := path.Dir(f.name); dir != "." {
+			if err := os.MkdirAll(filepath.Join(o.OutputDir, filepath.FromSlash(dir)), 0o700); err != nil {
+				return Result{}, ErrRejected
+			}
+		}
+		if err := knowledgepublish.WriteExclusive(full, f.raw); err != nil {
+			return Result{}, ErrRejected
+		}
+		result.Files = append(result.Files, f.name)
+	}
+	return result, nil
 }

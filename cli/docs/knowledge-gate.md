@@ -253,8 +253,8 @@ Run on every pack of the head, whatever the change:
 | `admit/<pack>` | the pack (with its landscape, priority list or project registry) is not admitted exactly as shipped knowledge is: registry, policy, identities, review windows, engine parse (string and size limits included) |
 | `rulecheck/<pack>` | `rule validate` finds anything in any entry |
 | `registry/<pack>` | the compiled fact registry exceeds its cap |
-| `size/<pack>` | the published target exceeds its size cap, or is at or above 80 percent of it and the change loosens and grows the pack. At or above 80 percent an alarm is reported |
-| `targets/cncf` | the CNCF pack, split into the per-project targets and the index it is published as, has a target over the per-target cap or a total over the package bound (the limits of `knowledge-targets check-size`), or a target or the total is at or above its alarm and the change loosens and grows the pack. Alarms are reported. The single-target size above is still checked, because the publisher still produces that layout |
+| `size/<pack>` | for a pack that is not split (the community pack): the published target exceeds its size cap, or is at or above 80 percent of it and the change loosens and grows the pack; at or above 80 percent an alarm is reported. For the split CNCF pack the check always passes and only reports the size of the single-target layout, which the publisher no longer releases (informational; `targets/cncf` is the verdict) |
+| `targets/cncf` | the CNCF pack, split into the per-project targets and the index it is published as, has a target over the per-target cap or a total over the package bound (the limits of `knowledge-targets check-size`), or a target or the total is at or above its alarm and the change loosens and grows the pack. Alarms are reported |
 | `stagger/<pack>` | a loosening change moves a lease into an ISO week that then holds more than 15% of the pack's rules (at least one) |
 | `stagger/<pack>/records` | (a pack holding records) a loosening change of a rule or a record moves a lease into an ISO week that then holds more than 15% of the pack's rules and records together (at least one), as a reattestation statement's own check counts them |
 | `rulecheck/<pack>/lineAttestations` | (a pack holding line attestations) an attestation does not list exactly the pack's rules for its line and fact family, or lists a rule that does not match every transition into the line; for example, a rule was added to an attested line without the attestation being updated |
@@ -1410,7 +1410,9 @@ embedded default and the publisher size the targets `knowledge-targets build`
 emits; for one pack the two differ by a few hundred bytes (per-project targets
 by about 18 bytes each, the single target by tens of bytes). A tree within that
 margin of an alarm is decided by the gate in CI. The single-target line names its
-target (`knowledge/constraints.v1.json`).
+target (`knowledge/constraints.v1.json`), is informational only and never fails;
+it carries the same sentinel-revision difference. The verdict is the per-project
+targets and their total.
 
 `evidence repin --source mirror` exits 0 even when files are missing from the
 mirror, because the worklist is complete in the sense that matters (missing files

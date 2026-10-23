@@ -66,7 +66,8 @@ prufyx db update --release-plan ./cncf-1.release-plan.json \
 
 `prufyx.io/knowledge-release-plan/v1` is an unsigned, closed canonical JSON
 routing and assertion file. It supports only profile `cncf`, the fixed
-`knowledge/constraints.v1.json` target, and one unrotated publisher root. Its
+`knowledge/constraints.v1.json` target, and one unrotated publisher root. The
+publisher writes no release plan for the per-project `cncf-projects` layout. Its
 authority value is `UNSIGNED_ROUTING_AND_ASSERTIONS_NOT_TRUST`. The plan has no
 root bytes, credentials, local configuration, issuer, or signature and cannot
 authorize bootstrap. An empty store still requires the independently obtained
@@ -140,7 +141,7 @@ To set a pin, compute the digest of the offline-created version 1 `root.json`
 
 ## Automatic use of the local database
 
-`prufyx db update --profile cncf-projects` (or a release plan for that profile) may
+`prufyx db update --profile cncf-projects` may
 omit `--db-root`; the database is then installed in the default store location:
 `$XDG_DATA_HOME/prufyx/knowledge/cncf-projects` when `XDG_DATA_HOME` is an absolute
 path, otherwise `~/.local/share/prufyx/knowledge/cncf-projects`. Missing directories

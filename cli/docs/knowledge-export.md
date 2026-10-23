@@ -8,7 +8,13 @@ go run ./cmd/prufyx-maintainer export-knowledge \
   --profile cncf --revision 1 --output ./constraints.v1.json
 ```
 
-The output is only the canonical `knowledge/constraints.v1.json` target with
+With `--profile cncf-projects` the same command writes the per-project layout
+into a new directory instead (`knowledge/cncf/index.v1.json` and one target per
+project; `--previous-index FILE` keeps unchanged projects at their previous
+revision), the input of `knowledge-publish --targets-dir`; see
+[knowledge-publisher.md](knowledge-publisher.md).
+
+For `--profile cncf` the output is only the canonical `knowledge/constraints.v1.json` target with
 purpose `operator_provided`. It contains the complete embedded reviewed rule
 pack with the supplied positive revision. It does not export a local database,
 selection, trust root, customer input, or signing key. The command does not

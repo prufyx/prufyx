@@ -67,11 +67,27 @@ func TotalAlarmed(targets []Target, limit Limit) (int64, bool) {
 	return sum, sum >= limit.TotalAlarm
 }
 
-// SingleTargetAlarmed reports whether the single-target layout (the only one
-// the publisher can produce today) is at or above the per-target alarm.
+// SingleTargetAlarmed reports whether the single-target layout is at or above
+// the per-target alarm. The publisher releases the per-project layout, so this
+// is informational and never decides a verdict.
 func SingleTargetAlarmed(bytes int64, limit Limit) bool {
 	return bytes >= limit.Alarm
 }
+
+// singleTargetNote is the informational line for the single-target layout.
+// The size is measured with a sentinel revision, so it is a few dozen bytes
+// off the bundle a release would carry. It never fails the check.
+func singleTargetNote(size int64, limit Limit) string {
+	note := fmt.Sprintf("single-target layout: knowledge/constraints.v1.json %d bytes (%.1f%% of cap); informational only, measured with a sentinel revision, the verdict is the per-project targets above", size, percent(size, limit.Cap))
+	if SingleTargetAlarmed(size, limit) {
+		note += fmt.Sprintf("; at or above the %d-byte per-target alarm, so the publisher does not release this layout", limit.Alarm)
+	}
+	return note
+}
+
+// singleTargetUnbuildable is the informational line for a pack that no
+// longer fits the single target at all.
+const singleTargetUnbuildable = "single-target layout: knowledge/constraints.v1.json cannot be built for the embedded pack (above the single-target parse cap); informational only, the verdict is the per-project targets above"
 
 // Alarms returns the targets at or above the alarm size, largest first.
 func Alarms(targets []Target, limit Limit) []Target {
@@ -155,6 +171,10 @@ func runBuild(args []string, stdout, stderr io.Writer) int {
 		previousIndex = raw
 	}
 	index, projects, err := Build(*revision, previousIndex)
+	if errors.Is(err, cncfcheck.ErrDistributionsNotPublishable) {
+		fmt.Fprintln(stderr, "knowledge-targets build: the pack holds distribution records, which no per-project target carries yet; the pack cannot be published in this layout")
+		return 2
+	}
 	if err != nil {
 		fmt.Fprintln(stderr, "knowledge-targets build: targets rejected")
 		return 2
@@ -203,20 +223,15 @@ func runCheckSize(args []string, stdout, stderr io.Writer) int {
 		for _, project := range projects {
 			targets = append(targets, Target{Path: project.Path, Bytes: int64(len(project.Bytes))})
 		}
-		// The publisher can only produce the single-target layout until it
-		// emits per-project targets, so that layout is gated too. Remove
-		// this gate when the single-target profile is retired.
+		// The publisher releases the per-project layout, so the verdict is
+		// the per-project targets and their total. The single target is
+		// reported for information only.
 		code := report(targets, DefaultLimit(), stdout, stderr)
-		single, err := exportSingleTarget("1")
-		switch {
-		case err != nil:
-			fmt.Fprintln(stderr, "size alarm: the embedded pack no longer fits the single target knowledge/constraints.v1.json")
-			return 1
-		case SingleTargetAlarmed(int64(len(single)), DefaultLimit()):
-			fmt.Fprintf(stderr, "size alarm: single-target layout knowledge/constraints.v1.json is %d bytes, at or above %d%% of the %d-byte per-target cap (%d bytes); the publisher still produces only this layout\n", len(single), cncfcheck.TargetSizeAlarmPercent, DefaultLimit().Cap, DefaultLimit().Alarm)
-			return 1
+		if single, err := exportSingleTarget("1"); err != nil {
+			fmt.Fprintln(stdout, singleTargetUnbuildable)
+		} else {
+			fmt.Fprintln(stdout, singleTargetNote(int64(len(single)), DefaultLimit()))
 		}
-		fmt.Fprintf(stdout, "single-target layout: knowledge/constraints.v1.json %d bytes (%.1f%% of cap)\n", len(single), percent(int64(len(single)), DefaultLimit().Cap))
 		return code
 	}
 	return report(targets, DefaultLimit(), stdout, stderr)
@@ -258,11 +273,7 @@ func checkTree(tree string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	code := report(targets, DefaultLimit(), stdout, stderr)
-	if SingleTargetAlarmed(int64(packReport.TargetBytes), DefaultLimit()) {
-		fmt.Fprintf(stderr, "size alarm: single-target layout knowledge/constraints.v1.json is %d bytes, at or above the per-target alarm (%d bytes)\n", packReport.TargetBytes, DefaultLimit().Alarm)
-		return 1
-	}
-	fmt.Fprintf(stdout, "single-target layout: knowledge/constraints.v1.json %d bytes (%.1f%% of cap)\n", packReport.TargetBytes, percent(int64(packReport.TargetBytes), DefaultLimit().Cap))
+	fmt.Fprintln(stdout, singleTargetNote(int64(packReport.TargetBytes), DefaultLimit()))
 	return code
 }
 

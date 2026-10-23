@@ -247,3 +247,41 @@ func validTestRecord() record {
 		Bindings: bindings{digest, digest, digest, digest, digest, digest, digest, digest, digest, digest, digest},
 	}
 }
+
+func TestExactTargetAcceptsOnlyTheRulesOwnProjectTarget(t *testing.T) {
+	_, projects, err := cncfcheck.BuildEmbeddedExternalTargets("73", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	byPath := map[string][]byte{}
+	for _, target := range projects {
+		byPath[target.Path] = target.Bytes
+	}
+	own := byPath[cncfcheck.ProjectTargetPath("karmada")]
+	if len(own) == 0 {
+		t.Fatal("no karmada project target")
+	}
+	if _, _, rule, err := exactSelectedRule(own, "73", "karmada", karmadaRule); err != nil || rule.ID != karmadaRule {
+		t.Fatalf("own project target rejected: %v", err)
+	}
+	if _, _, _, err := exactSelectedRule(own, "74", "karmada", karmadaRule); err == nil {
+		t.Fatal("project target accepted for another revision")
+	}
+	var other []byte
+	for path, raw := range byPath {
+		if path != cncfcheck.ProjectTargetPath("karmada") {
+			other = raw
+			break
+		}
+	}
+	if _, _, _, err := exactSelectedRule(other, "73", "karmada", karmadaRule); err == nil {
+		t.Fatal("another project's target accepted")
+	}
+	mutated := bytes.Replace(own, []byte(`"description":"`), []byte(`"description":"unrelated mutation: `), 1)
+	if bytes.Equal(mutated, own) {
+		t.Fatal("fixture mutation missed")
+	}
+	if _, _, _, err := exactSelectedRule(mutated, "73", "karmada", karmadaRule); err == nil {
+		t.Fatal("mutated project target accepted")
+	}
+}

@@ -122,7 +122,8 @@ prufyx db status --profile cncf-projects --db-root ./cncf-projects-store
 `db verify` lists every project target with its revision, length and digest.
 `db import` and `db update` report the number of project targets imported.
 `db update --profile cncf-projects --source URL` works as for other profiles;
-`--release-plan` still describes only the single-target layout.
+`--release-plan` describes only the single-target layout (profile `cncf`) and is
+refused for `cncf-projects`; the publisher writes no release plan for it.
 
 `check cncf` and `check batch` take the same `--knowledge-db` flag for both
 layouts and detect the layout from the store. For a per-project store they
@@ -198,9 +199,11 @@ index and every project get `--revision`. With it, a project whose target
 bytes would not change keeps its previous revision and digest, and only the
 changed projects and the index move to the new revision, which must be
 greater than the previous index revision. Building does not sign anything.
-The [publisher workflow](knowledge-publisher.md) and `package-knowledge`
-still prepare only the single-target layout; signing per-project targets is
-not part of this source preview yet. A pack that carries line attestations,
+The [publisher workflow](knowledge-publisher.md) builds, signs, packages and
+finalizes this layout too (`knowledge-publish release --profile cncf-projects`
+with the committed previous index, or the step-by-step commands with
+`--targets-dir`, and `package-knowledge --profile cncf-projects`), using the
+same role keys. A pack that carries line attestations,
 upgrade-path policies or served-API lists splits with each record in its
 project's target (see below). A pack that carries distribution records cannot
 be split yet: they are not scoped to one project, no target carries them, and
@@ -215,10 +218,13 @@ go run ./cmd/prufyx-maintainer knowledge-targets check-size --tree /absolute/che
 go run ./cmd/prufyx-maintainer knowledge-targets check-size --dir /absolute/new-dir
 ```
 
-Without `--dir` it builds the targets from the embedded pack in memory and
-also checks the single-target layout, which is still the only layout the
-publisher can produce; that check fails at the same 80% alarm and is removed
-when the single-target profile is retired. With `--dir` it measures every
+Without `--dir` it builds the targets from the embedded pack in memory. The
+verdict is the per-project targets and their total. It also prints one
+informational line for the single-target layout (`knowledge/constraints.v1.json`),
+which the publisher no longer releases: that line never fails the check, and
+its size is measured with a sentinel revision, so it is a few dozen bytes off
+the bundle a release would carry. The knowledge gate's `size/cncf` check is
+informational in the same way and `targets/cncf` is the verdict. With `--dir` it measures every
 `.json` file under `knowledge/cncf/` in a build output, without parsing, so an
 oversize file is still reported. It prints the largest targets, the package
 total and, for each target at or over the alarm, the target path, its size, the

@@ -30,6 +30,14 @@ on:
       version:
         description: Positive TUF metadata version (greater than the last release)
         required: true
+      layout:
+        description: cncf (single bundle, default) or cncf-projects (index plus one target per project)
+        required: false
+        default: cncf
+      first_release:
+        description: cncf-projects only; "true" when no index was ever published (otherwise the committed index is the previous index)
+        required: false
+        default: "false"
 
 permissions:
   contents: read
@@ -66,6 +74,8 @@ jobs:
           BASE_URL: ${{ vars.KNOWLEDGE_PACKAGE_BASE_URL }}
           REVISION: ${{ inputs.revision }}
           VERSION: ${{ inputs.version }}
+          LAYOUT: ${{ inputs.layout }}
+          FIRST_RELEASE: ${{ inputs.first_release }}
         run: |
           set -euo pipefail
           umask 077
@@ -76,7 +86,30 @@ jobs:
           printf '%s' "${TIMESTAMP_KEY}" > "${secrets_dir}/timestamp.key.pem"
           printf '%s' "${PASSPHRASE}" > "${secrets_dir}/passphrase"
           printf '%s' "${ROOT_B64}" | base64 -d > "${secrets_dir}/root.json"
+          # The per-project layout is built from the committed index of the last
+          # release (a generated file, never edited by hand). The release writes
+          # the next index to knowledge-release/knowledge/cncf/index.v1.json; the
+          # release PR copies it to the committed path.
+          layout_args=()
+          case "${LAYOUT}" in
+            cncf) ;;
+            cncf-projects)
+              layout_args=(--profile cncf-projects)
+              committed="${GITHUB_WORKSPACE}/cli/knowledge/published/cncf-projects-index.v1.json"
+              if [ "${FIRST_RELEASE}" = "true" ]; then
+                if [ -e "${committed}" ]; then
+                  echo "first_release=true refused: a committed index already exists; release from it instead" >&2
+                  exit 1
+                fi
+                layout_args+=(--first-release)
+              else
+                layout_args+=(--previous-index "${committed}")
+              fi
+              ;;
+            *) echo "unknown layout" >&2; exit 1 ;;
+          esac
           go run -buildvcs=false ./cmd/prufyx-maintainer knowledge-publish release \
+            "${layout_args[@]}" \
             --revision "${REVISION}" --version "${VERSION}" \
             --root "${secrets_dir}/root.json" --root-digest "${ROOT_DIGEST}" \
             --targets-key "${secrets_dir}/targets.key.pem" \
