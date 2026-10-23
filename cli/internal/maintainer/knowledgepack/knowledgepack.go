@@ -14,12 +14,15 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/knowledge"
 	"golang.org/x/sys/unix"
 )
 
@@ -28,6 +31,26 @@ const (
 	MaxPackageFiles = 16
 	MaxPackageEntry = 1 << 20
 	MaxPackageTotal = 2 << 20
+)
+
+// ProfileCNCFProjects is the per-project CNCF layout: one index target and up
+// to cncfcheck.MaxExternalIndexProjects project targets. It is deliberately
+// not part of Profiles(), which lists the single-target profiles.
+const ProfileCNCFProjects = "cncf-projects"
+
+// Package bounds of ProfileCNCFProjects. They equal the bounds the consumer
+// applies to a per-project package (internal/knowledge/projects.go).
+const (
+	MaxSplitPackageBytes = knowledge.SplitMaxPackageBytes
+	MaxSplitPackageTotal = knowledge.SplitMaxPackageMemberBytes
+	MaxSplitPackageFiles = cncfcheck.MaxExternalIndexProjects + 32
+)
+
+// The member names the consumer accepts for a per-project package
+// (internal/knowledge/projects.go); kept equal on purpose.
+var (
+	splitIndexMemberRE   = regexp.MustCompile(`^targets/knowledge/cncf/([0-9a-f]{64})\.index\.v1\.json$`)
+	splitProjectMemberRE = regexp.MustCompile(`^targets/knowledge/(cncf|community)/projects/([0-9a-f]{64})\.([a-z0-9]+(?:-[a-z0-9]+)*)\.v1\.json$`)
 )
 
 var targetSuffix = map[string]string{
@@ -170,10 +193,60 @@ func readStable(name string, listed os.FileInfo) ([]byte, error) {
 	return data, nil
 }
 
+// splitMember reports whether name is an index or project target member of a
+// per-project package.
+func splitMember(name string) bool {
+	return splitIndexMemberRE.MatchString(name) || splitProjectMemberRE.MatchString(name)
+}
+
+// checkSplitMembers verifies the per-project target set: exactly one index,
+// at least one project, every member named after its own SHA-256, and every
+// project slug unique and in the directory its catalog requires.
+func checkSplitMembers(members map[string][]byte) error {
+	indexes, projects := 0, 0
+	seen := map[string]bool{}
+	for name, data := range members {
+		if !splitMember(name) {
+			continue
+		}
+		var want string
+		if match := splitIndexMemberRE.FindStringSubmatch(name); match != nil {
+			indexes++
+			want = match[1]
+		} else {
+			match := splitProjectMemberRE.FindStringSubmatch(name)
+			if _, ok := cncfcheck.ProjectFromTargetPath("knowledge/" + match[1] + "/projects/" + match[3] + ".v1.json"); !ok || seen[match[3]] {
+				return fmt.Errorf("invalid project target: %w", ErrRejected)
+			}
+			seen[match[3]] = true
+			projects++
+			want = match[2]
+		}
+		if fmt.Sprintf("%x", sha256.Sum256(data)) != want {
+			return fmt.Errorf("target digest mismatch: %w", ErrRejected)
+		}
+	}
+	if indexes != 1 || projects < 1 || projects > cncfcheck.MaxExternalIndexProjects {
+		return fmt.Errorf("per-project package needs one index and 1-%d project targets: %w", cncfcheck.MaxExternalIndexProjects, ErrRejected)
+	}
+	return nil
+}
+
 func collectMembers(inputDir, profile string) (map[string][]byte, error) {
+	split := profile == ProfileCNCFProjects
 	suffix, ok := targetSuffix[profile]
-	if !ok {
+	if !ok && !split {
 		return nil, fmt.Errorf("unsupported profile: %w", ErrRejected)
+	}
+	maxFiles, maxTotal := MaxPackageFiles, int64(MaxPackageTotal)
+	if split {
+		maxFiles, maxTotal = MaxSplitPackageFiles, MaxSplitPackageTotal
+	}
+	isTarget := func(rel string) bool {
+		if split {
+			return splitMember(rel)
+		}
+		return targetName(rel, suffix)
 	}
 	if err := rejectSymlinkComponents(inputDir); err != nil {
 		return nil, err
@@ -183,6 +256,11 @@ func collectMembers(inputDir, profile string) (map[string][]byte, error) {
 		return nil, fmt.Errorf("input is not a real directory: %w", ErrRejected)
 	}
 	allowedDirs := map[string]bool{"metadata": true, "targets": true, "targets/knowledge": true}
+	if split {
+		for _, dir := range []string{"targets/knowledge/cncf", "targets/knowledge/cncf/projects", "targets/knowledge/community", "targets/knowledge/community/projects"} {
+			allowedDirs[dir] = true
+		}
+	}
 	members := map[string][]byte{}
 	inodes := map[[2]uint64]bool{}
 	var total int64
@@ -204,7 +282,7 @@ func collectMembers(inputDir, profile string) (map[string][]byte, error) {
 			}
 			return nil
 		}
-		if !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 || !isASCII(rel) || path.Clean(rel) != rel || (!metadataName(rel) && !targetName(rel, suffix)) {
+		if !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 || !isASCII(rel) || path.Clean(rel) != rel || (!metadataName(rel) && !isTarget(rel)) {
 			return fmt.Errorf("invalid input member: %w", ErrRejected)
 		}
 		id, err := fileIdentity(info)
@@ -216,11 +294,11 @@ func collectMembers(inputDir, profile string) (map[string][]byte, error) {
 			return fmt.Errorf("duplicate hard-linked member: %w", ErrRejected)
 		}
 		inodes[key] = true
-		if info.Size() < 1 || info.Size() > MaxPackageEntry || len(members) >= MaxPackageFiles {
+		if info.Size() < 1 || info.Size() > MaxPackageEntry || len(members) >= maxFiles {
 			return fmt.Errorf("input member bound exceeded: %w", ErrRejected)
 		}
 		total += info.Size()
-		if total > MaxPackageTotal {
+		if total > maxTotal {
 			return fmt.Errorf("package total bound exceeded: %w", ErrRejected)
 		}
 		data, err := readStable(name, info)
@@ -247,6 +325,12 @@ func collectMembers(inputDir, profile string) (map[string][]byte, error) {
 	}
 	if len(members) < 4 || members["metadata/timestamp.json"] == nil {
 		return nil, fmt.Errorf("incomplete package: %w", ErrRejected)
+	}
+	if split {
+		if err := checkSplitMembers(members); err != nil {
+			return nil, err
+		}
+		return members, nil
 	}
 	var target string
 	for name := range members {
@@ -306,7 +390,11 @@ func PackageDirectory(inputDir, profile string) ([]byte, error) {
 	if err := w.Close(); err != nil {
 		return nil, fmt.Errorf("close archive: %w", err)
 	}
-	if buffer.Len() > MaxPackageBytes {
+	maxBytes := MaxPackageBytes
+	if profile == ProfileCNCFProjects {
+		maxBytes = MaxSplitPackageBytes
+	}
+	if buffer.Len() > maxBytes {
 		return nil, fmt.Errorf("archive bound exceeded: %w", ErrRejected)
 	}
 	return buffer.Bytes(), nil
