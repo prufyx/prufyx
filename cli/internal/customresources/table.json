@@ -241,7 +241,7 @@
       "groups": [
         {
           "name": "eraser.sh",
-          "source": "https://github.com/eraser-dev/eraser/blob/bab117eae8d5034934f000467346acd64cb6259b/config/crd/bases/eraser.sh_imagelists.yaml"
+          "source": "https://github.com/eraser-dev/eraser/blob/c60f83d04f89e6ed70a4dc88adbda0d7d7885d31/config/crd/bases/eraser.sh_imagelists.yaml"
         }
       ]
     },
@@ -391,27 +391,27 @@
       "groups": [
         {
           "name": "apis.kcp.io",
-          "source": "https://github.com/kcp-dev/kcp/blob/86954e9bfd1b67b9dbe57ab56f273a704f77d142/config/crds/apis.kcp.io_apiresourceschemas.yaml"
+          "source": "https://github.com/kcp-dev/kcp/blob/1a4cb725de077a081365b2ce40bb3e5e8006efa3/config/crds/apis.kcp.io_apiresourceschemas.yaml"
         },
         {
           "name": "cache.kcp.io",
-          "source": "https://github.com/kcp-dev/kcp/blob/86954e9bfd1b67b9dbe57ab56f273a704f77d142/config/crds/cache.kcp.io_clustercachedresources.yaml"
+          "source": "https://github.com/kcp-dev/kcp/blob/1a4cb725de077a081365b2ce40bb3e5e8006efa3/config/crds/cache.kcp.io_clustercachedresources.yaml"
         },
         {
           "name": "core.kcp.io",
-          "source": "https://github.com/kcp-dev/kcp/blob/86954e9bfd1b67b9dbe57ab56f273a704f77d142/config/crds/core.kcp.io_shards.yaml"
+          "source": "https://github.com/kcp-dev/kcp/blob/1a4cb725de077a081365b2ce40bb3e5e8006efa3/config/crds/core.kcp.io_shards.yaml"
         },
         {
           "name": "migration.kcp.io",
-          "source": "https://github.com/kcp-dev/kcp/blob/86954e9bfd1b67b9dbe57ab56f273a704f77d142/config/crds/migration.kcp.io_logicalclustermigrations.yaml"
+          "source": "https://github.com/kcp-dev/kcp/blob/1a4cb725de077a081365b2ce40bb3e5e8006efa3/config/crds/migration.kcp.io_logicalclustermigrations.yaml"
         },
         {
           "name": "tenancy.kcp.io",
-          "source": "https://github.com/kcp-dev/kcp/blob/86954e9bfd1b67b9dbe57ab56f273a704f77d142/config/crds/tenancy.kcp.io_workspacetypes.yaml"
+          "source": "https://github.com/kcp-dev/kcp/blob/1a4cb725de077a081365b2ce40bb3e5e8006efa3/config/crds/tenancy.kcp.io_workspacetypes.yaml"
         },
         {
           "name": "topology.kcp.io",
-          "source": "https://github.com/kcp-dev/kcp/blob/86954e9bfd1b67b9dbe57ab56f273a704f77d142/config/crds/topology.kcp.io_partitionsets.yaml"
+          "source": "https://github.com/kcp-dev/kcp/blob/1a4cb725de077a081365b2ce40bb3e5e8006efa3/config/crds/topology.kcp.io_partitionsets.yaml"
         }
       ]
     },
