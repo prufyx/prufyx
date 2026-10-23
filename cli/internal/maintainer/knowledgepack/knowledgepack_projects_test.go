@@ -110,7 +110,7 @@ func TestKnowledgePack_CNCFProjects_RejectsInvalidSets(t *testing.T) {
 		},
 		"duplicate project slug": func(m map[string][]byte) {
 			data := []byte("other bytes")
-			m[splitMemberPath("community/projects", "alpha.v1.json", data)] = data
+			m[splitMemberPath("cncf/projects", "alpha.v1.json", data)] = data
 		},
 		"non-community slug under community": func(m map[string][]byte) {
 			data := []byte("beta")

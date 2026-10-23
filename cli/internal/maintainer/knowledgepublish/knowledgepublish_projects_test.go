@@ -12,6 +12,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
+	"github.com/secure-systems-lab/go-securesystemslib/cjson"
 	"github.com/theupdateframework/go-tuf/v2/metadata"
 )
 
@@ -212,5 +213,50 @@ func TestValidateTargetsShape_AcceptsSingleOrPerProjectOnly(t *testing.T) {
 		if err := validateTargetsShape(build(paths...)); !errors.Is(err, ErrRejected) {
 			t.Fatalf("%v accepted: %v", paths, err)
 		}
+	}
+}
+
+// A targets role that is validly signed but lists a different set than the
+// one being chained (a dropped or an extra project) is refused when the
+// snapshot is prepared.
+func TestPerProjectPublication_SignedRoleOverAnotherSetIsRefused(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Second)
+	index, projects := embeddedProjectTargets(t, "65")
+	root, rootDigest, keys := testRoot(t, now)
+	for name, edit := range map[string]func(map[string]*metadata.TargetFiles){
+		"dropped project": func(all map[string]*metadata.TargetFiles) { delete(all, projects[0].Path) },
+		"extra project": func(all map[string]*metadata.TargetFiles) {
+			info := *all[projects[0].Path]
+			all["knowledge/cncf/projects/not-listed.v1.json"] = &info
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			prep, err := PrepareTargets(TargetsOptions{Root: root, RootDigest: rootDigest, Target: index, Projects: projects, Version: 7, Expires: now.Add(72 * time.Hour).Format(time.RFC3339)})
+			if err != nil {
+				t.Fatal(err)
+			}
+			role, err := parseTargets(prep.UnsignedMetadata, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			edit(role.Signed.Targets)
+			unsigned, err := role.ToBytes(false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			payload, err := cjson.EncodeCanonical(role.Signed)
+			if err != nil {
+				t.Fatal(err)
+			}
+			other := Preparation{Role: metadata.TARGETS, UnsignedMetadata: unsigned, Payload: payload}
+			signed, err := FinalizeRole(root, rootDigest, metadata.TARGETS, unsigned, signatureEnvelope(t, other, keys[metadata.TARGETS]))
+			if err != nil {
+				t.Fatalf("a per-project role over another set is still a valid role: %v", err)
+			}
+			expires := now.Add(48 * time.Hour).Format(time.RFC3339)
+			if _, err := PrepareSnapshot(SnapshotOptions{Root: root, RootDigest: rootDigest, Target: index, Projects: projects, Targets: signed, Version: 8, Expires: expires}); !errors.Is(err, ErrRejected) {
+				t.Fatalf("snapshot over a role with another set accepted: %v", err)
+			}
+		})
 	}
 }
