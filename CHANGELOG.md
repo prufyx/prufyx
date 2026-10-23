@@ -734,6 +734,12 @@ A catalogued project is not tested coverage: a catalogue entry says Prufyx holds
 
 ### Fixed
 
+- `prufyx scan` and the native-input `check cncf` routes now evaluate a rule that
+  reads no fact and requires an intermediate version (`require_intermediate_version`),
+  when the upgrade matches it. Before, the fact-family selection left such a rule out,
+  so a direct skip over the mandatory intermediate line stayed UNKNOWN in scan while
+  `check cncf` already blocked it. No other fact-less rule is evaluated by this
+  selection, and no published report changes.
 - The whole-upgrade check of a multi-hop Kubernetes plan no longer blocks on a `require_intermediate_version` rule whose intermediate minor line the plan visits; a plan that skips that line (a direct hop) still gives BLOCKED.
 - A `require_component_version` rule whose declared dependency version the
   engine cannot compare now gives UNKNOWN

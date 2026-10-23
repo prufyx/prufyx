@@ -1,0 +1,148 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "prufyx",
+          "version": "development",
+          "informationUri": "https://github.com/prufyx/prufyx",
+          "rules": [
+            {
+              "id": "kubernetes.synthetic-factless-skip.1-33-0-to-1-37-0",
+              "shortDescription": {
+                "text": "Synthetic test-only rule"
+              },
+              "help": {
+                "text": "Upgrade through 1.34, 1.35 and 1.36 in order."
+              },
+              "helpUri": "https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/releases/version-skew-policy.md",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "basis": "reviewed",
+                "kind": "blocker"
+              }
+            },
+            {
+              "id": "prufyx/gap/NO_REVIEWED_PATH_POLICY",
+              "shortDescription": {
+                "text": "Area not checked: NO_REVIEWED_PATH_POLICY"
+              },
+              "help": {
+                "text": "Prufyx could not decide this area (NO_REVIEWED_PATH_POLICY), so the scan is UNKNOWN for it. It is not a blocker and not a pass. The result message says what to do."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "basis": "none",
+                "kind": "gap"
+              }
+            }
+          ]
+        }
+      },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "exitCode": 10,
+          "exitCodeDescription": "BLOCKED: 1 problem must be fixed; 1 area was not checked",
+          "startTimeUtc": "2026-11-20T00:00:00Z",
+          "toolExecutionNotifications": [
+            {
+              "level": "warning",
+              "message": {
+                "text": "no reviewed upgrade-path policy for kubernetes, and 1.33.2 -> 1.37.1 skips release lines - upgrade one minor line at a time and scan each hop"
+              },
+              "descriptor": {
+                "id": "NO_REVIEWED_PATH_POLICY"
+              },
+              "properties": {
+                "kind": "gap",
+                "component": "kubernetes"
+              }
+            }
+          ]
+        }
+      ],
+      "results": [
+        {
+          "ruleId": "kubernetes.synthetic-factless-skip.1-33-0-to-1-37-0",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "Synthetic test-only rule — fix: Upgrade through 1.34, 1.35 and 1.36 in order."
+          },
+          "properties": {
+            "component": "kubernetes",
+            "hop": "1.33.2 -> 1.37.1",
+            "basis": "reviewed",
+            "match": "range"
+          }
+        },
+        {
+          "ruleId": "prufyx/gap/NO_REVIEWED_PATH_POLICY",
+          "ruleIndex": 1,
+          "level": "warning",
+          "message": {
+            "text": "no reviewed upgrade-path policy for kubernetes, and 1.33.2 -> 1.37.1 skips release lines - upgrade one minor line at a time and scan each hop"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "cm.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "prufyxResult/v1": "793c7c1e46225d7fe2c4510e3169f45188520abcebc972807edb4d4a320cea1e"
+          },
+          "properties": {
+            "component": "kubernetes",
+            "hop": "",
+            "basis": "none",
+            "match": "gap"
+          }
+        }
+      ],
+      "properties": {
+        "verdict": "BLOCKED",
+        "headline": "BLOCKED: 1 problem must be fixed; 1 area was not checked",
+        "summary": {
+          "blockers": 1,
+          "gaps": 1,
+          "passes": 0,
+          "componentsDetected": 1,
+          "componentsCovered": 1,
+          "componentsWithRules": 1,
+          "hops": 1,
+          "documentsRead": 1,
+          "documentsOmitted": 0,
+          "notices": 0,
+          "leads": 0,
+          "unsupported": 0
+        },
+        "evaluatedAt": "2026-11-20T00:00:00Z",
+        "inputDigest": "sha256:5f0e102f87295be12f25b81077a273ed6f57278aacd49ddd32255b32025e3479",
+        "knowledgeOrigin": "external_signed_local",
+        "knowledgeRevision": "",
+        "knowledgeDigest": "",
+        "engineContractDigest": "sha256:0d46478e7a818c192fa57367bf17bf5a066ec7e414d0b745e0f900fd319fd463",
+        "networkUsed": false,
+        "omissions": [
+          "node and kubelet version skew not evaluated",
+          "Kubernetes: only API versions in the supplied manifests are evaluated; live cluster objects, CRDs, stored versions, admission and component configuration are not"
+        ]
+      }
+    }
+  ]
+}

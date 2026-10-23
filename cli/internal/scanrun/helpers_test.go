@@ -253,7 +253,10 @@ type knowledgeOptions struct {
 	noServedList    bool
 	servedOverride  ServedList
 	servedFreshness string
-	// synthetic are rules added to the published ones (raw rule JSON).
+	// synthetic are rules added to the published ones (raw rule JSON). They
+	// are evaluated directly and so bypass the fact-family selection
+	// (cncfcheck selectFamily); a rule that reads no fact needs
+	// newSelectionKnowledge to test that selection.
 	synthetic []string
 	// base is the knowledge the reviews are added to; nil is the embedded
 	// knowledge.

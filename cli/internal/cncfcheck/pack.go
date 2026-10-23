@@ -706,7 +706,8 @@ func isVerdictNeutralRule(raw json.RawMessage) (bool, error) {
 
 // factFamilyRuleSet selects the project's rules whose condition and
 // applicability facts all belong to facts, narrowed to the rules whose
-// transition matches the input when any does.
+// transition matches the input when any does. A rule that reads no fact is
+// selected only when transitionOnlyBlocker admits it and the pair matches.
 func (b bundle) factFamilyRuleSet(project string, facts []string, raw []byte) (constraintengine.RuleSet, error) {
 	selected, err := b.selectFamily(project, facts, raw)
 	return selected.rules, err
@@ -735,6 +736,7 @@ func (b bundle) selectFamily(project string, facts []string, raw []byte) (select
 	current, proposed := versions(input.Current), versions(input.Proposed)
 	family := make([]json.RawMessage, 0)
 	matched := make([]json.RawMessage, 0)
+	transitionOnly := make([]json.RawMessage, 0)
 	verdicts := 0
 	for _, entry := range b.pack.Entries {
 		if entry.Project != project {
@@ -744,7 +746,30 @@ func (b bundle) selectFamily(project string, facts []string, raw []byte) (select
 		if err != nil {
 			return selection{}, ErrIntegrity
 		}
-		inFamily := len(factIDs) > 0
+		if len(factIDs) == 0 {
+			// A rule reading no fact is outside every fact family, so the
+			// family walk never evaluates it. A mandatory-intermediate rule
+			// is decided by the transition alone: it joins the selection
+			// only when the pair matches it, and is never added to the family
+			// (it takes no part in the fallback and raises no unreviewed
+			// claim). Other fact-less operators stay out of the selection.
+			blocker, err := transitionOnlyBlocker(entry.Rule)
+			if err != nil {
+				return selection{}, ErrIntegrity
+			}
+			if !blocker {
+				continue
+			}
+			subject, err := ruleTransition(entry.Rule)
+			if err != nil {
+				return selection{}, ErrIntegrity
+			}
+			if subject.AdmitsChart(nil) && subject.Match(current[subject.Component], proposed[subject.Component]) != constraintengine.MatchNone {
+				transitionOnly = append(transitionOnly, entry.Rule)
+			}
+			continue
+		}
+		inFamily := true
 		for _, factID := range factIDs {
 			inFamily = inFamily && allowed[factID]
 		}
@@ -778,10 +803,41 @@ func (b bundle) selectFamily(project string, facts []string, raw []byte) (select
 		}
 	}
 	// As in selectForInput: a notice or lead alone never narrows the family.
+	// A matching transition-only rule is added to whichever set results, but
+	// it is not a verdict of the family: it never narrows the fallback, so the
+	// family rules are evaluated exactly as without it.
+	chosen := matched
 	if verdicts == 0 {
-		return b.admit(b.fallbackRules(family, matched), nil)
+		chosen = b.fallbackRules(family, matched)
 	}
-	return b.admit(matched, nil)
+	// The engine refuses a rule set that is not in strictly ascending id
+	// order, so the transition-only rules are merged by id, not appended.
+	chosen, err := mergeByRuleID(chosen, transitionOnly)
+	if err != nil {
+		return selection{}, ErrIntegrity
+	}
+	return b.admit(chosen, nil)
+}
+
+// mergeByRuleID returns first and second as one list in ascending rule id.
+// Both inputs are in pack order and share no rule.
+func mergeByRuleID(first, second []json.RawMessage) ([]json.RawMessage, error) {
+	if len(second) == 0 {
+		return first, nil
+	}
+	merged := append(append(make([]json.RawMessage, 0, len(first)+len(second)), first...), second...)
+	ids := make(map[string]string, len(merged))
+	for _, rule := range merged {
+		var shape struct {
+			ID string `json:"id"`
+		}
+		if err := json.Unmarshal(rule, &shape); err != nil {
+			return nil, err
+		}
+		ids[string(rule)] = shape.ID
+	}
+	sort.SliceStable(merged, func(i, j int) bool { return ids[string(merged[i])] < ids[string(merged[j])] })
+	return merged, nil
 }
 
 func (b bundle) selectedRuleSet(project, ruleID string) (constraintengine.RuleSet, error) {
