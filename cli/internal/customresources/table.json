@@ -2,6 +2,28 @@
   "schema": "prufyx.io/custom-resource-table/v1",
   "projects": [
     {
+      "slug": "actions-runner-controller",
+      "catalog": "community",
+      "upstream": {
+        "name": "actions-runner-controller",
+        "repository": "https://github.com/actions/actions-runner-controller",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/actions/actions-runner-controller/blob/b0fd7a75ea94f643a57964e5699479f6406cf8b5/LICENSE"
+      },
+      "factProject": "actions_runner_controller",
+      "component": "pkg:github/actions/actions-runner-controller",
+      "groups": [
+        {
+          "name": "actions.github.com",
+          "source": "https://github.com/actions/actions-runner-controller/blob/b511953df7a8a752faf0a0f840bd832e02796c10/config/crd/bases/actions.github.com_ephemeralrunnersets.yaml"
+        },
+        {
+          "name": "actions.summerwind.dev",
+          "source": "https://github.com/actions/actions-runner-controller/blob/b511953df7a8a752faf0a0f840bd832e02796c10/config/crd/bases/actions.summerwind.dev_runnersets.yaml"
+        }
+      ]
+    },
+    {
       "slug": "antrea",
       "catalog": "cncf",
       "factProject": "antrea",
@@ -262,6 +284,28 @@
       ]
     },
     {
+      "slug": "fluent-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "fluent-operator",
+        "repository": "https://github.com/fluent/fluent-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/fluent/fluent-operator/blob/cf5582c23d9e8d96ba1d77d3c7ac48a0456ff7c2/LICENSE"
+      },
+      "factProject": "fluent_operator",
+      "component": "pkg:github/fluent/fluent-operator",
+      "groups": [
+        {
+          "name": "fluentbit.fluent.io",
+          "source": "https://github.com/fluent/fluent-operator/blob/352f22c9458ccfcfcebd80541f1c4d026cc9b665/config/crd/bases/fluentbit.fluent.io_parsers.yaml"
+        },
+        {
+          "name": "fluentd.fluent.io",
+          "source": "https://github.com/fluent/fluent-operator/blob/352f22c9458ccfcfcebd80541f1c4d026cc9b665/config/crd/bases/fluentd.fluent.io_outputs.yaml"
+        }
+      ]
+    },
+    {
       "slug": "gateway-api",
       "catalog": "community",
       "upstream": {
@@ -276,6 +320,24 @@
         {
           "name": "gateway.networking.k8s.io",
           "source": "https://github.com/kubernetes-sigs/gateway-api/blob/89b3b0c3fa63f9342f43ba0fb2cf93d6aab53af7/config/crd/standard/gateway.networking.k8s.io_udproutes.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "grafana-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "grafana-operator",
+        "repository": "https://github.com/grafana/grafana-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/grafana/grafana-operator/blob/3e68ec4c3c706d5d3ca45c7f2d141a5336f243e4/LICENSE"
+      },
+      "factProject": "grafana_operator",
+      "component": "pkg:github/grafana/grafana-operator",
+      "groups": [
+        {
+          "name": "grafana.integreatly.org",
+          "source": "https://github.com/grafana/grafana-operator/blob/1d8584df2127ad9341567efb2683adaf25894ebe/config/crd/bases/grafana.integreatly.org_grafanaserviceaccounts.yaml"
         }
       ]
     },
@@ -478,6 +540,36 @@
       ]
     },
     {
+      "slug": "kubernetes-ingress",
+      "catalog": "community",
+      "upstream": {
+        "name": "kubernetes-ingress",
+        "repository": "https://github.com/nginx/kubernetes-ingress",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/nginx/kubernetes-ingress/blob/2598147d84065276946301ee57534ba6c11b7a8e/LICENSE"
+      },
+      "factProject": "kubernetes_ingress",
+      "component": "pkg:github/nginx/kubernetes-ingress",
+      "groups": [
+        {
+          "name": "appprotect.f5.com",
+          "source": "https://github.com/nginx/kubernetes-ingress/blob/205828534dd07f1a73440dce23a25a7feefcc395/config/crd/bases/appprotect.f5.com_apusersigs.yaml"
+        },
+        {
+          "name": "appprotectdos.f5.com",
+          "source": "https://github.com/nginx/kubernetes-ingress/blob/205828534dd07f1a73440dce23a25a7feefcc395/config/crd/bases/appprotectdos.f5.com_dosprotectedresources.yaml"
+        },
+        {
+          "name": "externaldns.nginx.org",
+          "source": "https://github.com/nginx/kubernetes-ingress/blob/205828534dd07f1a73440dce23a25a7feefcc395/config/crd/bases/externaldns.nginx.org_dnsendpoints.yaml"
+        },
+        {
+          "name": "k8s.nginx.org",
+          "source": "https://github.com/nginx/kubernetes-ingress/blob/205828534dd07f1a73440dce23a25a7feefcc395/config/crd/bases/k8s.nginx.org_virtualservers.yaml"
+        }
+      ]
+    },
+    {
       "slug": "kubevela",
       "catalog": "cncf",
       "factProject": "kubevela",
@@ -648,6 +740,24 @@
       ]
     },
     {
+      "slug": "opentelemetry-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "opentelemetry-operator",
+        "repository": "https://github.com/open-telemetry/opentelemetry-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/open-telemetry/opentelemetry-operator/blob/543148991f8feb169f47bbb0e37e85fbd7cb02f5/LICENSE"
+      },
+      "factProject": "opentelemetry_operator",
+      "component": "pkg:github/open-telemetry/opentelemetry-operator",
+      "groups": [
+        {
+          "name": "opentelemetry.io",
+          "source": "https://github.com/open-telemetry/opentelemetry-operator/blob/f3bd3660c30ec57f60b0e9706a14507b747bceb4/config/crd/bases/opentelemetry.io_targetallocators.yaml"
+        }
+      ]
+    },
+    {
       "slug": "openyurt",
       "catalog": "cncf",
       "factProject": "openyurt",
@@ -794,6 +904,24 @@
       ]
     },
     {
+      "slug": "sealed-secrets",
+      "catalog": "community",
+      "upstream": {
+        "name": "sealed-secrets",
+        "repository": "https://github.com/bitnami/sealed-secrets",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/bitnami/sealed-secrets/blob/7f8477cf1ebc23f00a23f19e9b776c88bb7ea0c4/LICENSE"
+      },
+      "factProject": "sealed_secrets",
+      "component": "pkg:github/bitnami/sealed-secrets",
+      "groups": [
+        {
+          "name": "bitnami.com",
+          "source": "https://github.com/bitnami/sealed-secrets/blob/7117727b801514f4c6e3b2cd23cdb74b81f57a86/helm/sealed-secrets/crds/bitnami.com_sealedsecrets.yaml"
+        }
+      ]
+    },
+    {
       "slug": "strimzi",
       "catalog": "cncf",
       "factProject": "strimzi",
@@ -834,6 +962,24 @@
         {
           "name": "tekton.dev",
           "source": "https://github.com/tektoncd/pipeline/blob/61e02215132ce7bef054ff7e1fb074f217716c1a/config/300-crds/300-verificationpolicy.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "trivy-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "trivy-operator",
+        "repository": "https://github.com/aquasecurity/trivy-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/aquasecurity/trivy-operator/blob/3d073500cfb4956371435fa4085f2f59b9ff6d57/LICENSE"
+      },
+      "factProject": "trivy_operator",
+      "component": "pkg:github/aquasecurity/trivy-operator",
+      "groups": [
+        {
+          "name": "aquasecurity.github.io",
+          "source": "https://github.com/aquasecurity/trivy-operator/blob/047f1d95f4f8355569aadbdad0f1c74550c6cbec/deploy/helm/crds/aquasecurity.github.io_vulnerabilityreports.yaml"
         }
       ]
     },

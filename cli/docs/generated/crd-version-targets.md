@@ -7,6 +7,7 @@ The reviewed targets of the `crd.version-removal` extractor
 
 | Extractor id | Catalog | Repository | Release tags | First pair from | Attests lines | CRD manifests | Reviewed exclusions |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| `crd.version-removal.actions-runner-controller` | community | `github.com/actions/actions-runner-controller` | `vX.Y.Z`, then `X.Y.Z` | 0.22 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.antrea` | CNCF | `github.com/antrea-io/antrea` | `vX.Y.Z` | 2.2 | no | files matching `^[^.][^/]*\.ya?ml$` in `build/charts/antrea/crds`, files matching `^[^.][^/]*\.ya?ml$` in `multicluster/config/crd/bases` (when present) | 0 |
 | `crd.version-removal.argo-cd` | CNCF | `github.com/argoproj/argo-cd` | `vX.Y.Z` | 3.0 | yes | files matching `^[^.][^/]*\.ya?ml$` in `manifests/crds` | 0 |
 | `crd.version-removal.cert-manager` | CNCF | `github.com/cert-manager/cert-manager` | `vX.Y.Z` | 1.16 | yes | files matching `^[^.][^/]*\.ya?ml$` in `deploy/crds` | 2 |
@@ -21,7 +22,9 @@ The reviewed targets of the `crd.version-removal` extractor
 | `crd.version-removal.eck-operator` | community | `github.com/elastic/cloud-on-k8s` | `vX.Y.Z` | 3.0 | no | `config/crds/v1/all-crds.yaml` | 1 |
 | `crd.version-removal.eraser` | CNCF | `github.com/eraser-dev/eraser` | `vX.Y.Z` | 0.5 | no | `config/crd/bases/eraser.sh_imagejobs.yaml`, `config/crd/bases/eraser.sh_imagelists.yaml` | 0 |
 | `crd.version-removal.external-secrets` | CNCF | `github.com/external-secrets/external-secrets` | `vX.Y.Z` | 2.7 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crds/bases` | 0 |
+| `crd.version-removal.fluent-operator` | community | `github.com/fluent/fluent-operator` | `vX.Y.Z` | 3.5 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.gateway-api` | community | `github.com/kubernetes-sigs/gateway-api` | `vX.Y.Z` | 1.1 | no | channel `standard` (declared): files matching `^[^.][^/]*\.ya?ml$` in `config/crd/standard`; channel `experimental`, read only to keep the versions it still serves out of rules: files matching `^[^.][^/]*\.ya?ml$` in `config/crd/experimental` | 0 |
+| `crd.version-removal.grafana-operator` | community | `github.com/grafana/grafana-operator` | `vX.Y.Z`, then `X.Y.Z` | 5.20 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.istio` | CNCF | `github.com/istio/istio` | `X.Y.Z` | 1.26 | yes | `manifests/charts/base/files/crd-all.gen.yaml` | 8 |
 | `crd.version-removal.k8gb` | CNCF | `github.com/k8gb-io/k8gb` | `vX.Y.Z` | 0.16 | no | files matching `^k8gb\.[^/]*\.ya?ml$` in `chart/k8gb/crd` | 0 |
 | `crd.version-removal.k8up` | CNCF | `github.com/k8up-io/k8up` | `vX.Y.Z` | 2.11 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/apiextensions.k8s.io/v1` | 0 |
@@ -31,6 +34,7 @@ The reviewed targets of the `crd.version-removal` extractor
 | `crd.version-removal.keda` | CNCF | `github.com/kedacore/keda` | `vX.Y.Z` | 2.16 | yes | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.kong-ingress-controller` | community | `github.com/kong/kubernetes-ingress-controller` | `vX.Y.Z` | 3.0 | no | before 3.4: files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases`; from 3.4: the files listed by `config/crd/ingress-controller/kustomization.yaml` of `github.com/kong/kubernetes-configuration`, at the tag `config/crd/kustomization.yaml` names (pinned tags: 6) | 0 |
 | `crd.version-removal.koordinator` | CNCF | `github.com/koordinator-sh/koordinator` | `vX.Y.Z` | 1.3 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
+| `crd.version-removal.kubernetes-ingress` | community | `github.com/nginx/kubernetes-ingress` | `vX.Y.Z` | 5.2 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.kubevela` | CNCF | `github.com/kubevela/kubevela` | `vX.Y.Z` | 1.6 | no | files matching `^[^.][^/]*\.ya?ml$` in `charts/vela-core/crds` | 0 |
 | `crd.version-removal.kueue` | community | `github.com/kubernetes-sigs/kueue` | `vX.Y.Z` | 0.15 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/components/crd/alpha/bases` (when present), files matching `^[^.][^/]*\.ya?ml$` in `config/components/crd/bases` | 0 |
 | `crd.version-removal.kuma` | CNCF | `github.com/kumahq/kuma` | `vX.Y.Z`, then `X.Y.Z` | 2.9 | yes | files matching `^[^.][^/]*\.ya?ml$` in `deployments/charts/kuma/crds` | 2 |
@@ -41,15 +45,18 @@ The reviewed targets of the `crd.version-removal` extractor
 | `crd.version-removal.mongodb-kubernetes` | community | `github.com/mongodb/mongodb-kubernetes` | `X.Y.Z` | 1.8 | yes | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.node-feature-discovery` | community | `github.com/kubernetes-sigs/node-feature-discovery` | `vX.Y.Z` | 0.14 | no | `deployment/base/nfd-crds/nfd-api-crds.yaml` | 0 |
 | `crd.version-removal.openkruise` | CNCF | `github.com/openkruise/kruise` | `vX.Y.Z` | 1.4 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
+| `crd.version-removal.opentelemetry-operator` | community | `github.com/open-telemetry/opentelemetry-operator` | `vX.Y.Z` | 0.156 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.openyurt` | CNCF | `github.com/openyurtio/openyurt` | `vX.Y.Z` | 1.3 | no | files matching `^[^.][^/]*\.ya?ml$` in `charts/yurt-manager/crds`, files matching `^[^.][^/]*\.ya?ml$` in `charts/yurt-iot-dock/crds` (when present) | 0 |
 | `crd.version-removal.percona-postgresql-operator` | community | `github.com/percona/percona-postgresql-operator` | `vX.Y.Z` | 2.6 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.prometheus-operator` | community | `github.com/prometheus-operator/prometheus-operator` | `vX.Y.Z` | 0.89 | no | files matching `^[^.][^/]*\.ya?ml$` in `example/prometheus-operator-crd` | 0 |
 | `crd.version-removal.rancher` | community | `github.com/rancher/rancher` | `vX.Y.Z` | 2.10 | no | files matching `^[^.][^/]*\.ya?ml$` in `pkg/crds/yaml/generated` | 0 |
 | `crd.version-removal.rook` | CNCF | `github.com/rook/rook` | `vX.Y.Z` | 1.16 | no | `deploy/examples/crds.yaml` | 1 |
 | `crd.version-removal.schemahero` | CNCF | `github.com/schemahero/schemahero` | `vX.Y.Z` | 0.21 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crds/v1` | 0 |
+| `crd.version-removal.sealed-secrets` | community | `github.com/bitnami/sealed-secrets` | `vX.Y.Z` | 0.35 | no | files matching `^[^.][^/]*\.ya?ml$` in `helm/sealed-secrets/crds` | 0 |
 | `crd.version-removal.strimzi` | CNCF | `github.com/strimzi/strimzi-kafka-operator` | `X.Y.Z` | 0.49 | yes | files matching `^[0-9A-Za-z]{3}-Crd-[A-Za-z0-9-]+\.ya?ml$` in `install/access-operator` (when present), files matching `^[0-9A-Za-z]{3}-Crd-[A-Za-z0-9-]+\.ya?ml$` in `install/cluster-operator` | 3 |
 | `crd.version-removal.submariner` | CNCF | `github.com/submariner-io/submariner` | `vX.Y.Z` | 0.22 | no | files matching `^[^.][^/]*\.ya?ml$` in `deploy/crds` | 0 |
 | `crd.version-removal.tekton` | CNCF | `github.com/tektoncd/pipeline` | `vX.Y.Z` | 1.12 | yes | files matching `^[^.][^/]*\.ya?ml$` in `config/300-crds` | 0 |
+| `crd.version-removal.trivy-operator` | community | `github.com/aquasecurity/trivy-operator` | `vX.Y.Z` | 0.31 | no | files matching `^[^.][^/]*\.ya?ml$` in `deploy/helm/crds` | 0 |
 | `crd.version-removal.velero` | CNCF | `github.com/velero-io/velero` | `vX.Y.Z` | 1.13 | yes | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/v1/bases`, files matching `^[^.][^/]*\.ya?ml$` in `config/crd/v2alpha1/bases` | 4 |
 | `crd.version-removal.volcano` | CNCF | `github.com/volcano-sh/volcano` | `vX.Y.Z` | 1.10 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/volcano/bases`, files matching `^[^.][^/]*\.ya?ml$` in `config/crd/jobflow/bases` (when present) | 0 |
 | `crd.version-removal.wasmcloud` | CNCF | `github.com/wasmcloud/wasmcloud` | `vX.Y.Z` | 2.6 | no | files matching `^[^.][^/]*\.ya?ml$` in `runtime-operator/config/crd/bases` | 0 |
