@@ -1,0 +1,42 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "kcp",
+    "name": "kcp",
+    "repo": "github.com/kcp-dev/kcp",
+    "component": "pkg:github/kcp-dev/kcp",
+    "factProject": "kcp",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.28",
+    "paths": [
+      {"path": "config/crds/admissionregistration.k8s.io_mutatingadmissionpolicies.yaml", "optional": true},
+      {"path": "config/crds/admissionregistration.k8s.io_mutatingadmissionpolicybindings.yaml", "optional": true},
+      {"path": "config/crds/admissionregistration.k8s.io_mutatingwebhookconfigurations.yaml"},
+      {"path": "config/crds/admissionregistration.k8s.io_validatingadmissionpolicies.yaml"},
+      {"path": "config/crds/admissionregistration.k8s.io_validatingadmissionpolicybindings.yaml"},
+      {"path": "config/crds/admissionregistration.k8s.io_validatingwebhookconfigurations.yaml"},
+      {"path": "config/crds/apis.kcp.io_apibindings.yaml"},
+      {"path": "config/crds/apis.kcp.io_apiconversions.yaml"},
+      {"path": "config/crds/apis.kcp.io_apiexportendpointslices.yaml"},
+      {"path": "config/crds/apis.kcp.io_apiexports.yaml"},
+      {"path": "config/crds/apis.kcp.io_apiresourceschemas.yaml"},
+      {"path": "config/crds/cache.kcp.io_cachedobjects.yaml"},
+      {"path": "config/crds/cache.kcp.io_clustercachedresourceendpointslices.yaml", "optional": true},
+      {"path": "config/crds/cache.kcp.io_clustercachedresources.yaml", "optional": true},
+      {"path": "config/crds/core.kcp.io_logicalclusters.yaml"},
+      {"path": "config/crds/core.kcp.io_shards.yaml"},
+      {"path": "config/crds/migration.kcp.io_logicalclusterdumps.yaml", "optional": true},
+      {"path": "config/crds/migration.kcp.io_logicalclustermigrations.yaml", "optional": true},
+      {"path": "config/crds/rbac.authorization.k8s.io_clusterrolebindings.yaml"},
+      {"path": "config/crds/rbac.authorization.k8s.io_clusterroles.yaml"},
+      {"path": "config/crds/rbac.authorization.k8s.io_rolebindings.yaml"},
+      {"path": "config/crds/rbac.authorization.k8s.io_roles.yaml"},
+      {"path": "config/crds/tenancy.kcp.io_workspaceauthenticationconfigurations.yaml", "optional": true},
+      {"path": "config/crds/tenancy.kcp.io_workspaces.yaml"},
+      {"path": "config/crds/tenancy.kcp.io_workspacetypes.yaml"},
+      {"path": "config/crds/topology.kcp.io_partitions.yaml"},
+      {"path": "config/crds/topology.kcp.io_partitionsets.yaml"}
+    ],
+    "exclude": []
+  }
+}

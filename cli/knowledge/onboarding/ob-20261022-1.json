@@ -1,0 +1,629 @@
+{
+  "schema": "prufyx.io/knowledge-onboarding-batch/v1",
+  "record": {
+    "base": {
+      "packRevision": "cncf-2026-09-13.8",
+      "registryDigest": "sha256:e1d87d1ff7b2d39b25ea905a07f24d0a7b1d4326fbabb1b0e2b0d12355986e3a",
+      "tableDigest": "sha256:c31d8f85a9a6196ccdfce8f2829164e60670c74eab2a0b30528662a09051a81a",
+      "targetsDigest": "sha256:5d851ce0a06543efc9f0a635009e22aaa2652191756ce888c5718f6b8a007ef0"
+    },
+    "batchId": "ob-20261022-1",
+    "candidateId": "pr-179",
+    "changeSetDigest": "sha256:4cfe872c3215abd2b1ccbd0785fdff094bfddf4b4466568601df290872702e03",
+    "decidedAt": "2026-10-23T13:35:05Z",
+    "decision": "approve",
+    "head": {
+      "packRevision": "cncf-2026-09-13.8",
+      "registryDigest": "sha256:3915e9971eecfa21d8cfc2f14bd40833321bd81c2d45085f1b28ac14e6a5314e",
+      "tableDigest": "sha256:c6d3a72a1597bfc6b553c147608b098e2747d72a78c1112a91aab07b39ffcd89",
+      "targetsDigest": "sha256:f9355ed1a8c36a801704f76c8e6482524d62a928ede6e982a31c8aa49e852544"
+    },
+    "identity": "airstand",
+    "nonce": "b3edf847c18a82a9c0c7b53cc50a1998",
+    "notAfter": "2026-10-26T13:35:05Z",
+    "projects": [
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:34ea9786af9d72e4cf4ab43bc4ede616dd10979ba2a2fcb896f2af338d53570f",
+            "path": "cli/internal/extract/crdversions/target-chaos-mesh.json"
+          }
+        ],
+        "catalog": "cncf",
+        "facts": [
+          "component.chaos_mesh.custom_resource_versions_set"
+        ],
+        "groups": [
+          "chaos-mesh.org"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 141,
+            "ledger": "sha256:be5d53f557a93c55be59f3e9de7fb74376cc12e8ed1770167de1ed96800789a5",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "b061f3c26be3f0d3f52049044f2513c42c843c1f",
+            "fromTag": "v2.7.0",
+            "toCommit": "211bf86e599e5228f47f7fa9f3f4fd2af012c011",
+            "toTag": "v2.8.0"
+          },
+          "scan": [
+            {
+              "class": "kustomize-config",
+              "path": "config/crd/kustomizeconfig.yaml",
+              "sha256": "sha256:bb3c3386666fd5463ab30910120285a320f6c6fd21fa3fce278c3802feec638e"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/cainjection_in_iochaos.yaml",
+              "sha256": "sha256:f8bc9f53a41501334a883f408be5b64a1bc6f07487b7c9addb23b97ea27d7840"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_networkchaos.yaml",
+              "sha256": "sha256:9c907ec1e4daa59e34bc04d4e01d5fc53c530298ca09e7b16778fc6f8d511af9"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_podchaos.yaml",
+              "sha256": "sha256:b9316f45f03cff14a5738bb4745e77589a588e242cbc29961f046ba38b474f96"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/webhook_in_iochaos.yaml",
+              "sha256": "sha256:26fbc829bbe4c1b9f1ec14071f21125a7260be2a1a94b93ba33e9dc11592193f"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_networkchaos.yaml",
+              "sha256": "sha256:ee8237a3fcabfd7a731100aa5c53ba1e681828d85971dc45857c61113f69d62a"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_podchaos.yaml",
+              "sha256": "sha256:77936a9aaa3954ff88853979369bb620776513392046bf2a4cca1feccf47c8d9"
+            }
+          ]
+        },
+        "slug": "chaos-mesh"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:05f9a8b8441ee22f947424d9fd50b16ed527fa4da6782858e3f371610cb7dcd6",
+            "path": "cli/internal/extract/crdversions/target-eraser.json"
+          }
+        ],
+        "catalog": "cncf",
+        "facts": [
+          "component.eraser.custom_resource_versions_set"
+        ],
+        "groups": [
+          "eraser.sh"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 27,
+            "ledger": "sha256:be5d53f557a93c55be59f3e9de7fb74376cc12e8ed1770167de1ed96800789a5",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "6f5a5abf937f1f0e97c626cdea32af82f20c9d26",
+            "fromTag": "v1.3.0",
+            "toCommit": "c60f83d04f89e6ed70a4dc88adbda0d7d7885d31",
+            "toTag": "v1.4.0"
+          },
+          "scan": [
+            {
+              "class": "unread",
+              "path": "charts/eraser/templates/imagejobs.eraser.sh-customresourcedefinition.yaml",
+              "sha256": "sha256:3f81a48f4431979945e4727e87e6bb338e5254b29a42b4b5602ffbe00d612ce3"
+            },
+            {
+              "class": "unread",
+              "path": "charts/eraser/templates/imagejobs.eraser.sh-customresourcedefinition.yaml",
+              "sha256": "sha256:67a6c0f8a7ff820f22e0e17718b23b443d84c15393ac62d500ef85843ae61758"
+            },
+            {
+              "class": "unread",
+              "path": "charts/eraser/templates/imagejobs.eraser.sh-customresourcedefinition.yaml",
+              "sha256": "sha256:c0d427942c913a02e499c1d5915a60e30c1b79fac863ac1b4f72618a994b8230"
+            },
+            {
+              "class": "unread",
+              "path": "charts/eraser/templates/imagelists.eraser.sh-customresourcedefinition.yaml",
+              "sha256": "sha256:33e8af7e9ed485839322aeccdc24f888ad0801588e7c41c0331ce169c43f7675"
+            },
+            {
+              "class": "unread",
+              "path": "charts/eraser/templates/imagelists.eraser.sh-customresourcedefinition.yaml",
+              "sha256": "sha256:c7b0b4f01e75505dbb92b8ffa51d2342ef188c3f468cb6fdd34f137743470db5"
+            },
+            {
+              "class": "unread",
+              "path": "charts/eraser/templates/imagelists.eraser.sh-customresourcedefinition.yaml",
+              "sha256": "sha256:f60c62fefbd4c54e790b98d437ac668b1417c76bd93bee510a23a7f29e0e23ad"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/bases/_.yaml",
+              "sha256": "sha256:65a817960b340b0cc4c8da492206ea200b9865de6fb445680ab55df90f22d095"
+            },
+            {
+              "class": "kustomize-config",
+              "path": "config/crd/kustomizeconfig.yaml",
+              "sha256": "sha256:719acc969830acc5efe6b723fe595d8239cb17331515b123f5c2f9aed4eb1997"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/cainjection_in_eraserconfigs.yaml",
+              "sha256": "sha256:aa4749a4c191242ea5edcd617a6b8f5833a834242ecb526989fd026decae76e1"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/cainjection_in_imagelists.yaml",
+              "sha256": "sha256:19c6832c9c9f5994cf958b5b7b7591d3446d4585114b5462ad26e56761e33b4f"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/webhook_in_eraserconfigs.yaml",
+              "sha256": "sha256:378ed87b7fbf7f4ec5417066b1e01a7b1f0ecc240ecaf3ad91da8ba55689670f"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/webhook_in_imagelists.yaml",
+              "sha256": "sha256:f4238b146f969a7cbcbb2b0bdcfd943d6d5549be040b333343f1c3e55fff46d1"
+            },
+            {
+              "class": "unread",
+              "path": "manifest_staging/charts/eraser/templates/imagejobs.eraser.sh-customresourcedefinition.yaml",
+              "sha256": "sha256:3f81a48f4431979945e4727e87e6bb338e5254b29a42b4b5602ffbe00d612ce3"
+            },
+            {
+              "class": "unread",
+              "path": "manifest_staging/charts/eraser/templates/imagejobs.eraser.sh-customresourcedefinition.yaml",
+              "sha256": "sha256:67a6c0f8a7ff820f22e0e17718b23b443d84c15393ac62d500ef85843ae61758"
+            },
+            {
+              "class": "unread",
+              "path": "manifest_staging/charts/eraser/templates/imagejobs.eraser.sh-customresourcedefinition.yaml",
+              "sha256": "sha256:c0d427942c913a02e499c1d5915a60e30c1b79fac863ac1b4f72618a994b8230"
+            },
+            {
+              "class": "unread",
+              "path": "manifest_staging/charts/eraser/templates/imagelists.eraser.sh-customresourcedefinition.yaml",
+              "sha256": "sha256:33e8af7e9ed485839322aeccdc24f888ad0801588e7c41c0331ce169c43f7675"
+            },
+            {
+              "class": "unread",
+              "path": "manifest_staging/charts/eraser/templates/imagelists.eraser.sh-customresourcedefinition.yaml",
+              "sha256": "sha256:c7b0b4f01e75505dbb92b8ffa51d2342ef188c3f468cb6fdd34f137743470db5"
+            },
+            {
+              "class": "unread",
+              "path": "manifest_staging/charts/eraser/templates/imagelists.eraser.sh-customresourcedefinition.yaml",
+              "sha256": "sha256:f60c62fefbd4c54e790b98d437ac668b1417c76bd93bee510a23a7f29e0e23ad"
+            },
+            {
+              "class": "unread",
+              "path": "third_party/open-policy-agent/gatekeeper/helmify/kustomization.yaml",
+              "sha256": "sha256:579e8c6f57610cb8f02fbc60ad8646a1bd6f9b48259abf3a34a9fdc25cb482fa"
+            }
+          ]
+        },
+        "slug": "eraser"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:b9973d3a0ded87d5252f62a24f73fee9635a4addddb859b99c52a9f52d9c10f3",
+            "path": "cli/internal/extract/crdversions/target-kanister.json"
+          }
+        ],
+        "catalog": "cncf",
+        "facts": [
+          "component.kanister.custom_resource_versions_set"
+        ],
+        "groups": [
+          "cr.kanister.io"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 29,
+            "ledger": "sha256:be5d53f557a93c55be59f3e9de7fb74376cc12e8ed1770167de1ed96800789a5",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "19086171e8029e588dce663abff08cd2a274e333",
+            "fromTag": "0.118.0",
+            "toCommit": "4bfb772d1725355517afad2e8c87a26a3af9dc30",
+            "toTag": "0.119.0"
+          },
+          "scan": [
+            {
+              "class": "extra",
+              "path": "helm/fdb-operator/templates/crds/foundationdbcluster.yaml",
+              "sha256": "sha256:0576af99aa951f4c42a91e5f187083e23b0dcd45e79a766e89f1e308f3847883"
+            }
+          ]
+        },
+        "slug": "kanister"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:356c28fa81f59f5a864c201481f3f912112ed3a9a9ffcf04c26338fc33edb1c1",
+            "path": "cli/internal/extract/crdversions/target-kcp.json"
+          }
+        ],
+        "catalog": "cncf",
+        "facts": [
+          "component.kcp.custom_resource_versions_set"
+        ],
+        "groups": [
+          "apis.kcp.io",
+          "cache.kcp.io",
+          "core.kcp.io",
+          "migration.kcp.io",
+          "tenancy.kcp.io",
+          "topology.kcp.io"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 162,
+            "ledger": "sha256:be5d53f557a93c55be59f3e9de7fb74376cc12e8ed1770167de1ed96800789a5",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "857068adc705066996fe9bbff21c0cb08382b5a6",
+            "fromTag": "v0.32.0",
+            "toCommit": "1a4cb725de077a081365b2ce40bb3e5e8006efa3",
+            "toTag": "v0.33.0"
+          },
+          "scan": [
+            {
+              "class": "extra",
+              "path": "config/crds/cache.kcp.io_cachedresourceendpointslices.yaml",
+              "sha256": "sha256:eebf2179a9088efe3cc53359475babd148e88fd2e7f10bb47e940c8277bb5b14"
+            },
+            {
+              "class": "extra",
+              "path": "config/crds/cache.kcp.io_cachedresources.yaml",
+              "sha256": "sha256:6424f1097d80c9db5e3d21b04df46f6b9c592a9ed2afb611af925470ef02cd5f"
+            },
+            {
+              "class": "extra",
+              "path": "config/examples/virtualresources/crd-instances.yaml",
+              "sha256": "sha256:57009bcd040617a1f0338e31c1dcbccf3b4a124f73ccbff1937c96f5c3daaa29"
+            },
+            {
+              "class": "extra",
+              "path": "contrib/production/etcd-druid/etcdcopybackupstasks.druid.gardener.cloud.yaml",
+              "sha256": "sha256:27241600bb112d44016e3e56a0eabd2d65a42bd894feb462f3ec82a7a5919bff"
+            },
+            {
+              "class": "extra",
+              "path": "contrib/production/etcd-druid/etcds.druid.gardener.cloud.yaml",
+              "sha256": "sha256:c19bf03e96e0450c88586fa830f499155f7cf2f4472b6fc62e8847264e6cb1a5"
+            },
+            {
+              "class": "external",
+              "path": "contrib/tilt/etcd/kustomization.yaml",
+              "sha256": "sha256:0cf4c4be09ec7e24d9cb666b3311a8350dbec73ac614e5936abcef86610d8631"
+            },
+            {
+              "class": "external",
+              "path": "contrib/tilt/kcp-operator/kustomization.yaml",
+              "sha256": "sha256:c6bdefd375e71609317a435d4b8c5ac07461aa6ed8a58f0b4d9187846c70cd98"
+            },
+            {
+              "class": "go-defined",
+              "path": "pkg/cache/server/crd_lister.go",
+              "sha256": "sha256:3a0a75d060b7e940c5cc83bb0f57e0a8aa816550e36b48a88fbd9a94b3ada108"
+            },
+            {
+              "class": "go-defined",
+              "path": "pkg/cache/server/crd_lister.go",
+              "sha256": "sha256:ccc6b9db7b8460d2e8510e22710ef472116ae0ff0795c37bc3e12eff247dce27"
+            },
+            {
+              "class": "go-defined",
+              "path": "staging/src/github.com/kcp-dev/virtual-workspace-framework/crdpuller/discovery.go",
+              "sha256": "sha256:15e83171e5d03b03d6d5d77ee0f182fd0b109e3a90504f348fa094bc60b09b70"
+            },
+            {
+              "class": "extra",
+              "path": "test/e2e/cache/assets/crd-instances.yaml",
+              "sha256": "sha256:57009bcd040617a1f0338e31c1dcbccf3b4a124f73ccbff1937c96f5c3daaa29"
+            },
+            {
+              "class": "extra",
+              "path": "test/e2e/customresourcedefinition/apis.kcp.io_cowboys.yaml",
+              "sha256": "sha256:4a09c5150880b50b32fa7196fb151bbc2bc296e7033baec7c4424c5c63a691cb"
+            },
+            {
+              "class": "extra",
+              "path": "test/e2e/customresourcedefinition/shirts_crd.yaml",
+              "sha256": "sha256:bb00acd6755f838ad761cab033384ef17c25a1a0a6a076543ea80a9d533d0f85"
+            },
+            {
+              "class": "extra",
+              "path": "test/e2e/customresourcedefinition/wildwest.dev_cowboys.yaml",
+              "sha256": "sha256:ba468c4e8a571a78a7e8402609e8d906ef55234fb540726efa7d373bfb1cb83a"
+            },
+            {
+              "class": "unread",
+              "path": "test/e2e/fixtures/kube/apps.k8s.io_deployments.yaml",
+              "sha256": "sha256:48a99c4e318eaff680d866cc6766f02d3c58f29500dc08e190ae8240db149fbf"
+            },
+            {
+              "class": "unread",
+              "path": "test/e2e/fixtures/kube/core.k8s.io_endpoints.yaml",
+              "sha256": "sha256:f20767ef8d44706608cea2b51dd3a84c782193556011e7a7b7fe2ff8db8560d5"
+            },
+            {
+              "class": "unread",
+              "path": "test/e2e/fixtures/kube/core.k8s.io_persistentvolumes.yaml",
+              "sha256": "sha256:74f44664255bf8eec5bb292519dd172499a761e6708bc7abdce2d00974f89993"
+            },
+            {
+              "class": "unread",
+              "path": "test/e2e/fixtures/kube/core.k8s.io_pods.yaml",
+              "sha256": "sha256:a187edfea72d051bf82126b374861591a7afc7af5c6f6f56c7209d34b8f94158"
+            },
+            {
+              "class": "unread",
+              "path": "test/e2e/fixtures/kube/core.k8s.io_services.yaml",
+              "sha256": "sha256:c31984b97a84ae2916c4eb0190d95375070790a9b88c359310eab068bc780764"
+            },
+            {
+              "class": "extra",
+              "path": "test/e2e/fixtures/kube/networking.k8s.io_ingresses.yaml",
+              "sha256": "sha256:9af30ebd232a13f80d77db6cbaed36f738f351a1d7b385b22a8cf6f305d22605"
+            },
+            {
+              "class": "extra",
+              "path": "test/e2e/fixtures/kube/networking.k8s.io_networkpolicies.yaml",
+              "sha256": "sha256:0e733a07ef8e1de074be7ef5ec4cd2802a6f7f49a12d0651435d4beda7990fa4"
+            },
+            {
+              "class": "extra",
+              "path": "test/e2e/fixtures/wildwest/wildwest.dev_cowboys.yaml",
+              "sha256": "sha256:40d8581107e30b8754820ff63ea8760c20b57edad8b8cd1031d19d1c4f4e078b"
+            },
+            {
+              "class": "extra",
+              "path": "test/e2e/fixtures/wildwest/wildwest.dev_sheriffs.yaml",
+              "sha256": "sha256:4fee66b9cde17e128424bc480a10a71dcbee89ceb3e29b5fa30d01d55d77255f"
+            },
+            {
+              "class": "extra",
+              "path": "test/e2e/mounts/crd_kubecluster.yaml",
+              "sha256": "sha256:a2cc4a3ec0d979be47be65aedec3d6950dea8df341489f2bbad18cd38bbda51c"
+            },
+            {
+              "class": "extra",
+              "path": "test/e2e/virtual/apiexport/crd_cowboys.yaml",
+              "sha256": "sha256:57f31fab3610978c7cf5da41a2fcc0cd386814992d6e0d47fca04a8b1d4c92b6"
+            },
+            {
+              "class": "extra",
+              "path": "test/integration/dynamicrestmapper/assets/crd_kubecluster.yaml",
+              "sha256": "sha256:a2cc4a3ec0d979be47be65aedec3d6950dea8df341489f2bbad18cd38bbda51c"
+            },
+            {
+              "class": "extra",
+              "path": "test/integration/dynamicrestmapper/assets/crd_kubecluster_updates.yaml",
+              "sha256": "sha256:f0038b266baf05d8f3accb8ce6c426290830684ddb83dd2e6dcfe07604522135"
+            }
+          ]
+        },
+        "slug": "kcp"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:5a54780c122b790edbbdd580fdcaaee0719a6bebe33a0cb737027d8262c57973",
+            "path": "cli/internal/extract/crdversions/target-kubevela.json"
+          }
+        ],
+        "catalog": "cncf",
+        "facts": [
+          "component.kubevela.custom_resource_versions_set"
+        ],
+        "groups": [
+          "core.oam.dev",
+          "cue.oam.dev"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 112,
+            "ledger": "sha256:be5d53f557a93c55be59f3e9de7fb74376cc12e8ed1770167de1ed96800789a5",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "bc15e5b3592467db3d71f166835eb05540af2abe",
+            "fromTag": "v1.10.0",
+            "toCommit": "a1860544f0556828e165ef68701b2926730671a7",
+            "toTag": "v1.11.0"
+          },
+          "scan": [
+            {
+              "class": "conflict",
+              "path": "cmd/core/app/hooks/crdvalidation/testdata/old_apprev_crd.yaml",
+              "sha256": "sha256:7b42fda765b8a7310c839e6c7fdf266f1a411e3f9e21f2c62aa31de023792013"
+            },
+            {
+              "class": "conflict",
+              "path": "cmd/core/app/hooks/testdata/old_apprev_crd.yaml",
+              "sha256": "sha256:7b42fda765b8a7310c839e6c7fdf266f1a411e3f9e21f2c62aa31de023792013"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/cainjection_in_applications.yaml",
+              "sha256": "sha256:59ad96c87fc71e776796c0d4e25d6b94e4af41fb063b6d1054606fffaf865925"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/webhook_in_applications.yaml",
+              "sha256": "sha256:33c7bf7b6b176ddafe41b97e3ebd8d7ec988d0a8ab5e08e3f6a97460ff260cdf"
+            },
+            {
+              "class": "extra",
+              "path": "e2e/addon/mock/testdata/fluxcd/resources/crds/bucket.yaml",
+              "sha256": "sha256:e5f83bb103db586abed70bb6b55873eac58c9d4fc892d77d8f0703550e951aae"
+            },
+            {
+              "class": "extra",
+              "path": "e2e/addon/mock/testdata/fluxcd/resources/crds/git-repo.yaml",
+              "sha256": "sha256:120e754569d8d5035c76648cca836812b36186de09381e0583182ae7abdb89e3"
+            },
+            {
+              "class": "extra",
+              "path": "e2e/addon/mock/testdata/fluxcd/resources/crds/helm-chart.yaml",
+              "sha256": "sha256:6201f5b71fe7c9fcdfea2bda57a4edac6d772f2075cb48acd0591be005c3e3c8"
+            },
+            {
+              "class": "extra",
+              "path": "e2e/addon/mock/testdata/fluxcd/resources/crds/helm-release.yaml",
+              "sha256": "sha256:b3700292c2059bc2f6946bf73058dd6a939b1e09d65f57f67a4a906045a9f27c"
+            },
+            {
+              "class": "extra",
+              "path": "e2e/addon/mock/testdata/fluxcd/resources/crds/helm-repo.yaml",
+              "sha256": "sha256:2111b60322726638a6be7063b702089421da4fd2d2ab62d2fe5bc118eb67f61d"
+            },
+            {
+              "class": "extra",
+              "path": "e2e/addon/mock/testdata/fluxcd/resources/crds/kustomize.yaml",
+              "sha256": "sha256:6ad02dfa755b5f1ffacc70436d3a87d34ccb498ccf3c8466810dcbb5f4435667"
+            },
+            {
+              "class": "unsupported",
+              "path": "pkg/addon/testdata/charts/sample-1.0.1.tgz",
+              "sha256": ""
+            },
+            {
+              "class": "extra",
+              "path": "pkg/controller/core.oam.dev/v1beta1/application/testdata/crds/terraform.core.oam.dev_configurations.yaml",
+              "sha256": "sha256:a19c208d5acec52db5a1174a3e6cb74f944e615d4479bfbf115d049ff98abbc1"
+            },
+            {
+              "class": "extra",
+              "path": "pkg/multicluster/testdata/managedclusters.yaml",
+              "sha256": "sha256:4700f48a5717e7d4b2f5bfb7c44589b40fcb1adbcf67ad8127401d8113532ecf"
+            },
+            {
+              "class": "extra",
+              "path": "pkg/rollout/testdata/rollouts.yaml",
+              "sha256": "sha256:67f5c7c5e8a75677bc0bd322ba6e68254562023eecb7763d217f872e98fff328"
+            },
+            {
+              "class": "extra",
+              "path": "pkg/workflow/operation/testdata/rollouts.yaml",
+              "sha256": "sha256:67f5c7c5e8a75677bc0bd322ba6e68254562023eecb7763d217f872e98fff328"
+            },
+            {
+              "class": "extra",
+              "path": "pkg/workflow/providers/legacy/query/testdata/helm-release-crd.yaml",
+              "sha256": "sha256:038c31cdf1445d0e993b09269bd2d26f02028023f433d1c948b570ffb12fa414"
+            },
+            {
+              "class": "extra",
+              "path": "pkg/workflow/providers/legacy/query/testdata/machinelearning.seldon.io_seldondeployments.yaml",
+              "sha256": "sha256:89b7388e40fa93219ea734b3a573a2080ea7f53019aad26b44bbaedccf4a3ac4"
+            },
+            {
+              "class": "extra",
+              "path": "pkg/workflow/providers/query/testdata/helm-release-crd.yaml",
+              "sha256": "sha256:038c31cdf1445d0e993b09269bd2d26f02028023f433d1c948b570ffb12fa414"
+            },
+            {
+              "class": "extra",
+              "path": "pkg/workflow/providers/query/testdata/machinelearning.seldon.io_seldondeployments.yaml",
+              "sha256": "sha256:89b7388e40fa93219ea734b3a573a2080ea7f53019aad26b44bbaedccf4a3ac4"
+            },
+            {
+              "class": "unsupported",
+              "path": "references/cli/adopt-templates/default.cue",
+              "sha256": "sha256:4d385dfcac2b624a3bb21f6c3e129a2283c0375d11f6136eab3b593d065caf63"
+            },
+            {
+              "class": "unsupported",
+              "path": "references/cli/adopt-templates/default.cue",
+              "sha256": "sha256:d77e29d3de96aa89cf0a26e0fc9bdaf73d8a05eaae560353582afe9d9af65559"
+            },
+            {
+              "class": "extra",
+              "path": "test/e2e-multicluster-test/testdata/kube/sample-crd.yaml",
+              "sha256": "sha256:64d482084fa4f61c887dca64d0bc7df0ec0c51eb27ceb1c1a2fa1b9ff0dd9978"
+            }
+          ]
+        },
+        "slug": "kubevela"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:572fb58ec45df1b1d731de8d9e90e961ed358e4ac704bf97079372aa182e0b6f",
+            "path": "cli/internal/extract/crdversions/target-wasmcloud.json"
+          }
+        ],
+        "catalog": "cncf",
+        "facts": [
+          "component.wasmcloud.custom_resource_versions_set"
+        ],
+        "groups": [
+          "runtime.wasmcloud.dev"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 35,
+            "ledger": "sha256:be5d53f557a93c55be59f3e9de7fb74376cc12e8ed1770167de1ed96800789a5",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "f9b37fc3ab52db32378f88b116a24a763b4484db",
+            "fromTag": "v2.10.0",
+            "toCommit": "bc5acfb8e15f7d6d199ca940354d82e590c2d5ff",
+            "toTag": "v2.11.0"
+          },
+          "scan": [
+            {
+              "class": "kustomize-config",
+              "path": "runtime-operator/config/crd/kustomizeconfig.yaml",
+              "sha256": "sha256:6d7795b478715403133638a62e9d24a6bfef7629809e14cc73e8d2ea457594d9"
+            },
+            {
+              "class": "unread",
+              "path": "runtime-operator/config/rbac/kustomization.yaml",
+              "sha256": "sha256:cef626ce6055d1a18e51791decd61a425b16d38b69389293c86126c3c25cfa40"
+            }
+          ]
+        },
+        "slug": "wasmcloud"
+      }
+    ],
+    "sample": [
+      0,
+      4,
+      5
+    ],
+    "summaryDigest": "sha256:e7e05c3588d23eee1efb486e05bccbd769f380aea9c09edc63a1d4e72c544051"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "P0U1uTzf91dGp6jiiRLRmfZvqf9eEcJs7TtD5QdcKn0V5dWPIXpMKQ9XqOR/hPiGs8C1htySDemWPnq/ppZnBA=="
+}

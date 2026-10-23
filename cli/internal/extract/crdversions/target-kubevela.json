@@ -1,0 +1,16 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "kubevela",
+    "name": "KubeVela",
+    "repo": "github.com/kubevela/kubevela",
+    "component": "pkg:github/kubevela/kubevela",
+    "factProject": "kubevela",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.6",
+    "paths": [
+      {"path": "charts/vela-core/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}
