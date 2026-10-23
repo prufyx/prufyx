@@ -41,8 +41,10 @@ that exact full file or that exact raw-LF span; its URL, revision, and line
 range must also match. Every selected rule source must match exactly one packet
 span and vice versa.
 
-The supplied target must byte-for-byte equal
-`cncfcheck.ExportEmbeddedExternalBundle` at the record's positive revision.
+The supplied target must byte-for-byte equal either
+`cncfcheck.ExportEmbeddedExternalBundle` at the record's positive revision, or
+the per-project target of the record's project at that revision (the target the
+publisher signs in the per-project layout, which needs no index to rebuild).
 Parsing some other structurally valid target is insufficient. The record binds
 both the complete vector file bytes and the canonical selected vector group.
 The verifier executes every selected case at the declared evaluation clock and

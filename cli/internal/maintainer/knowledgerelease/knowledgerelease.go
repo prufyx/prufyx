@@ -258,6 +258,12 @@ func wipe(b []byte) {
 	}
 }
 
+// Test seams for the per-project builders.
+var (
+	buildFirst = cncfcheck.BuildEmbeddedExternalTargets
+	buildFrom  = cncfcheck.BuildEmbeddedExternalTargetsFrom
+)
+
 // runProjects builds, signs, verifies and writes one per-project release. It
 // publishes no release plan: the plan format describes the single target
 // only. The written index is the next previous index to commit.
@@ -266,14 +272,14 @@ func runProjects(o Options, rootRaw []byte) (Result, error) {
 	var projects []cncfcheck.ExternalTarget
 	var err error
 	if o.FirstRelease {
-		index, projects, err = cncfcheck.BuildEmbeddedExternalTargets(o.Revision, nil)
+		index, projects, err = buildFirst(o.Revision, nil)
 	} else {
 		var previous []byte
 		if previous, err = read(o.PreviousIndex, cncfcheck.MaxExternalTargetBytes); err != nil {
 			return Result{}, ErrRejected
 		}
 		// Refuses a revision that does not advance the previous index.
-		index, projects, err = cncfcheck.BuildEmbeddedExternalTargetsFrom(o.Revision, previous)
+		index, projects, err = buildFrom(o.Revision, previous)
 	}
 	if err != nil {
 		// Includes cncfcheck.ErrDistributionsNotPublishable: distribution

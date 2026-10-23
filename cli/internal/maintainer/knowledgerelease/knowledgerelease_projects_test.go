@@ -4,6 +4,7 @@ package knowledgerelease
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -123,5 +124,24 @@ func TestProjectsReleaseRejections(t *testing.T) {
 				t.Fatal("output written for a refused release")
 			}
 		})
+	}
+}
+
+// A pack holding distribution records cannot be published per project: the
+// release is refused, the sentinel survives for the caller's message, and
+// nothing is written.
+func TestProjectsReleaseRefusesDistributionRecords(t *testing.T) {
+	original := buildFirst
+	defer func() { buildFirst = original }()
+	buildFirst = func(string, map[string]string) (cncfcheck.ExternalTarget, []cncfcheck.ExternalTarget, error) {
+		return cncfcheck.ExternalTarget{}, nil, errors.Join(cncfcheck.ErrIntegrity, cncfcheck.ErrDistributionsNotPublishable)
+	}
+	o := projectsFixture(t)
+	_, err := Run(o)
+	if !errors.Is(err, cncfcheck.ErrDistributionsNotPublishable) || !errors.Is(err, ErrRejected) {
+		t.Fatalf("err=%v", err)
+	}
+	if _, statErr := os.Stat(o.OutputDir); statErr == nil {
+		t.Fatal("output written for a refused release")
 	}
 }

@@ -7,8 +7,9 @@ bytes, choose a trust authority, or change the CLI's `OPERATOR_PROVISIONED` and
 `CANDIDATE_ONLY` report labels.
 
 The input target must be a canonical `operator_provided` replacement snapshot
-for `knowledge/constraints.v1.json` and the exact capability compiled into this
-source tree. Replacement means the selected feed target stands on its own and
+for `knowledge/constraints.v1.json` (or, with `--targets-dir`, the index and
+project targets of the per-project layout described below) and the exact
+capability compiled into this source tree. Replacement means the selected feed target stands on its own and
 is never merged with an installed snapshot. Its reviewed rules may differ from
 the embedded set, including data-only additions, removals, or an empty snapshot
 that intentionally supplies no coverage. The separately reviewed CNCF exporter
@@ -201,6 +202,74 @@ described in [knowledge-updates.md](knowledge-updates.md).
   floor and refuse an older version.
 - It does not choose a trust root and does not change what `scan` uses by
   default; a client still needs the independently verified root and digest.
+
+## Per-project layout (`cncf-projects`)
+
+The CNCF knowledge is published as an index plus one target per project (see
+[cncf-knowledge-per-project.md](cncf-knowledge-per-project.md)), so no single
+target caps the coverage. The publisher builds, signs, packages and finalizes
+this layout with the same role keys and the same single targets role as the
+single-bundle layout: the targets role simply lists the index and every project
+target, and the snapshot and timestamp roles are unchanged. No new key or key
+ceremony is involved. The single-bundle path above is unchanged.
+
+```sh
+# 1. The per-project targets of this source tree, or of the next revision.
+prufyx-maintainer export-knowledge --profile cncf-projects --revision 82 \
+  [--previous-index /absolute/committed-index.json] --output /absolute/publisher/targets
+
+# 2. The same prepare / sign / finalize steps, with --targets-dir instead of --target.
+prufyx-maintainer knowledge-publish prepare-targets --root ... --root-digest ... \
+  --targets-dir /absolute/publisher/targets --version 1 --expires ... --output ...
+prufyx-maintainer knowledge-publish finalize-package --root ... --root-digest ... \
+  --targets-dir /absolute/publisher/targets --targets ... --snapshot ... --timestamp ... \
+  --output /absolute/publisher/cncf-projects-82.tar
+
+# 3. Package an already signed directory from the content-addressed members.
+prufyx-maintainer package-knowledge --profile cncf-projects --input ... --output ...
+```
+
+`--targets-dir` is the tree written by `export-knowledge --profile cncf-projects`
+or `knowledge-targets build`: `knowledge/cncf/index.v1.json` and one
+`*.v1.json` per project under `knowledge/cncf/projects` and, when present,
+`knowledge/community/projects`. The publisher checks that the project targets
+are exactly the ones the index lists, each admitted against its index entry,
+before anything is signed; `finalize-package` and `finalize-rotated-package`
+verify the finished package with the per-project consumer verifier
+(`prufyx db verify --profile cncf-projects`). The package members are
+`targets/knowledge/cncf/<sha256>.index.v1.json` and
+`targets/knowledge/{cncf,community}/projects/<sha256>.<project>.v1.json`; the
+packer applies the consumer's member names and bounds (at most 256 project
+targets, 8 MiB package, 7 MiB of members) and checks every member against the
+digest in its name. `finalize-package --package-url/--release-plan-output` is
+refused for this layout (see below).
+
+`knowledge-publish release --profile cncf-projects` does all of this in one
+step. It builds the targets with the **previous index** so that a project whose
+target bytes did not change keeps its previous revision (a changed project, or a
+new one, gets the new revision; a revision that does not advance the previous
+index is refused). Exactly one of the following is required, so a forgotten
+index cannot bump every project and move every rollback floor:
+
+- `--previous-index /absolute/index.json`: the index of the last release. It is
+  a committed, generated file, `cli/knowledge/published/cncf-projects-index.v1.json`;
+  it is never edited by hand. The release writes the next index to
+  `knowledge/cncf/index.v1.json` inside its output directory, and the release
+  pull request replaces the committed file with it.
+- `--first-release`: no index was ever published. Use it only then, or when the
+  engine capability changed (an index of an older capability no longer parses
+  and every target changes anyway); the new revision must still be larger than
+  every revision published before.
+
+The output directory holds `root.json`, `<version>.targets.json`,
+`<version>.snapshot.json`, `timestamp.json`, `cncf-projects-<revision>.tar` and
+the targets under `knowledge/`. `--package-url` is not used. No release plan is
+written: the release-plan format (`prufyx db update --release-plan`) describes
+the single-target layout only and stays `cncf`-only, so clients of the
+per-project layout update with `prufyx db update --profile cncf-projects` from
+the package. A pack that holds distribution records cannot be published in this
+layout (no project target carries them); the release is refused with a message
+that says so.
 
 ## Root-transition preparation
 

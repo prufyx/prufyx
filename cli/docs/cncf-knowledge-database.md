@@ -40,7 +40,9 @@ correct, maintainer-reviewed, or reproduced in a runtime environment.
 The database can also be published as one target per project plus an index,
 using the `cncf-projects` profile; see [Per-project CNCF knowledge
 targets](cncf-knowledge-per-project.md). Checks detect the layout from the
-store. The rest of this page describes the single-target `cncf` profile.
+store. The maintainer publisher releases this per-project layout; the
+single-target `cncf` profile stays supported for existing stores and packages.
+The rest of this page describes the single-target `cncf` profile.
 
 ## Import and inspect
 
