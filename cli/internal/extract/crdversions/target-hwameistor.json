@@ -1,0 +1,16 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "hwameistor",
+    "name": "HwameiStor",
+    "repo": "github.com/hwameistor/hwameistor",
+    "component": "pkg:github/hwameistor/hwameistor",
+    "factProject": "hwameistor",
+    "tagPrefixes": ["v", ""],
+    "minFrom": "0.13",
+    "paths": [
+      {"path": "deploy/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

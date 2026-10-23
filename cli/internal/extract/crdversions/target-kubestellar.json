@@ -1,0 +1,20 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "kubestellar",
+    "name": "KubeStellar",
+    "repo": "github.com/kubestellar/kubestellar",
+    "component": "pkg:github/kubestellar/kubestellar",
+    "factProject": "kubestellar",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.25",
+    "paths": [
+      {"path": "config/crd/bases/control.kubestellar.io_bindingpolicies.yaml"},
+      {"path": "config/crd/bases/control.kubestellar.io_bindings.yaml"},
+      {"path": "config/crd/bases/control.kubestellar.io_combinedstatuses.yaml"},
+      {"path": "config/crd/bases/control.kubestellar.io_customtransforms.yaml"},
+      {"path": "config/crd/bases/control.kubestellar.io_statuscollectors.yaml"}
+    ],
+    "exclude": []
+  }
+}

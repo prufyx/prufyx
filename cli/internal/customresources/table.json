@@ -2,6 +2,18 @@
   "schema": "prufyx.io/custom-resource-table/v1",
   "projects": [
     {
+      "slug": "akri",
+      "catalog": "cncf",
+      "factProject": "akri",
+      "component": "pkg:github/project-akri/akri",
+      "groups": [
+        {
+          "name": "akri.sh",
+          "source": "https://github.com/project-akri/akri/blob/a2ee68343e83e6917ce5f648d3820a699b819fde/deployment/helm/crds/akri-instance-crd.yaml"
+        }
+      ]
+    },
+    {
       "slug": "antrea",
       "catalog": "cncf",
       "factProject": "antrea",
@@ -26,6 +38,18 @@
         {
           "name": "argoproj.io",
           "source": "https://github.com/argoproj/argo-cd/blob/e98f483bfd5781df2592fef1aeed1148f150d9c9/manifests/crds/application-crd.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "capsule",
+      "catalog": "cncf",
+      "factProject": "capsule",
+      "component": "pkg:github/projectcapsule/capsule",
+      "groups": [
+        {
+          "name": "capsule.clastix.io",
+          "source": "https://github.com/projectcapsule/capsule/blob/6d92444ddac7175bf4a7efecfa3652023fe8b066/charts/capsule/crds/capsule.clastix.io_tenants.yaml"
         }
       ]
     },
@@ -256,6 +280,18 @@
       ]
     },
     {
+      "slug": "hwameistor",
+      "catalog": "cncf",
+      "factProject": "hwameistor",
+      "component": "pkg:github/hwameistor/hwameistor",
+      "groups": [
+        {
+          "name": "hwameistor.io",
+          "source": "https://github.com/hwameistor/hwameistor/blob/8e8b04efb0a7268e61d5313f3fac8cc5acd39af5/deploy/crds/hwameistor.io_resizepolicies_crd.yaml"
+        }
+      ]
+    },
+    {
       "slug": "istio",
       "catalog": "cncf",
       "factProject": "istio",
@@ -406,6 +442,72 @@
         {
           "name": "slo.koordinator.sh",
           "source": "https://github.com/koordinator-sh/koordinator/blob/989ca85c62abcca92b303aa12fd2ccff2ed30fed/config/crd/bases/slo.koordinator.sh_nodeslos.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "kubestellar",
+      "catalog": "cncf",
+      "factProject": "kubestellar",
+      "component": "pkg:github/kubestellar/kubestellar",
+      "groups": [
+        {
+          "name": "control.kubestellar.io",
+          "source": "https://github.com/kubestellar/kubestellar/blob/aeec0fa9abc09dce7264bc3e1c989596a8b9fbaa/config/crd/bases/control.kubestellar.io_statuscollectors.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "kubeswift",
+      "catalog": "community",
+      "upstream": {
+        "name": "kubeswift",
+        "repository": "https://github.com/kubeswift-io/kubeswift",
+        "license": "AGPL-3.0-only",
+        "licenseSource": "https://github.com/kubeswift-io/kubeswift/blob/017f4e7c24d213fe77737314f2d8db7660e9de49/LICENSE"
+      },
+      "factProject": "kubeswift",
+      "component": "pkg:github/kubeswift-io/kubeswift",
+      "groups": [
+        {
+          "name": "fleet.kubeswift.io",
+          "source": "https://github.com/kubeswift-io/kubeswift/blob/5c1347e3436949b6917861417fc23347828d7e23/config/crd/bases/fleet.kubeswift.io_clusters.yaml"
+        },
+        {
+          "name": "gpu.kubeswift.io",
+          "source": "https://github.com/kubeswift-io/kubeswift/blob/5c1347e3436949b6917861417fc23347828d7e23/config/crd/bases/gpu.kubeswift.io_swiftgpuprofiles.yaml"
+        },
+        {
+          "name": "image.kubeswift.io",
+          "source": "https://github.com/kubeswift-io/kubeswift/blob/5c1347e3436949b6917861417fc23347828d7e23/config/crd/bases/image.kubeswift.io_swiftimages.yaml"
+        },
+        {
+          "name": "kernel.kubeswift.io",
+          "source": "https://github.com/kubeswift-io/kubeswift/blob/5c1347e3436949b6917861417fc23347828d7e23/config/crd/bases/kernel.kubeswift.io_swiftkernels.yaml"
+        },
+        {
+          "name": "migration.kubeswift.io",
+          "source": "https://github.com/kubeswift-io/kubeswift/blob/5c1347e3436949b6917861417fc23347828d7e23/config/crd/bases/migration.kubeswift.io_swiftmigrations.yaml"
+        },
+        {
+          "name": "sandbox.kubeswift.io",
+          "source": "https://github.com/kubeswift-io/kubeswift/blob/5c1347e3436949b6917861417fc23347828d7e23/config/crd/bases/sandbox.kubeswift.io_swiftsandboxpools.yaml"
+        },
+        {
+          "name": "seed.kubeswift.io",
+          "source": "https://github.com/kubeswift-io/kubeswift/blob/5c1347e3436949b6917861417fc23347828d7e23/config/crd/bases/seed.kubeswift.io_swiftseedprofiles.yaml"
+        },
+        {
+          "name": "snapshot.kubeswift.io",
+          "source": "https://github.com/kubeswift-io/kubeswift/blob/5c1347e3436949b6917861417fc23347828d7e23/config/crd/bases/snapshot.kubeswift.io_swiftsnapshotschedules.yaml"
+        },
+        {
+          "name": "storage.kubeswift.io",
+          "source": "https://github.com/kubeswift-io/kubeswift/blob/5c1347e3436949b6917861417fc23347828d7e23/config/crd/bases/storage.kubeswift.io_swiftstoragelocations.yaml"
+        },
+        {
+          "name": "swift.kubeswift.io",
+          "source": "https://github.com/kubeswift-io/kubeswift/blob/5c1347e3436949b6917861417fc23347828d7e23/config/crd/bases/swift.kubeswift.io_swiftguests.yaml"
         }
       ]
     },
@@ -628,6 +730,22 @@
       ]
     },
     {
+      "slug": "radius",
+      "catalog": "cncf",
+      "factProject": "radius",
+      "component": "pkg:github/radius-project/radius",
+      "groups": [
+        {
+          "name": "radapp.io",
+          "source": "https://github.com/radius-project/radius/blob/b913c13618039677b8727a2063cc853142cdb7c9/deploy/Chart/crds/radius/radapp.io_deploymenttemplates.yaml"
+        },
+        {
+          "name": "ucp.dev",
+          "source": "https://github.com/radius-project/radius/blob/b913c13618039677b8727a2063cc853142cdb7c9/deploy/Chart/crds/ucpd/ucp.dev_resources.yaml"
+        }
+      ]
+    },
+    {
       "slug": "rancher",
       "catalog": "community",
       "upstream": {
@@ -674,6 +792,18 @@
         {
           "name": "telemetry.cattle.io",
           "source": "https://github.com/rancher/rancher/blob/9994cd93198c4b1692bcda733eb08d1e81c26eed/pkg/crds/yaml/generated/telemetry.cattle.io_secretrequests.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "ratify",
+      "catalog": "cncf",
+      "factProject": "ratify",
+      "component": "pkg:github/ratify-project/ratify",
+      "groups": [
+        {
+          "name": "config.ratify.deislabs.io",
+          "source": "https://github.com/ratify-project/ratify/blob/bee965470e98895dd9e9180642cf526c4d5a0450/config/crd/bases/config.ratify.deislabs.io_verifiers.yaml"
         }
       ]
     },
