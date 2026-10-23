@@ -247,7 +247,7 @@ upgrade surface they decide.
 ## Coverage
 
 <!-- coverage:begin -->
-Generated on 2026-10-17 by `scripts/readme-coverage.sh` (do not edit this block by hand).
+Generated on 2026-10-23 by `scripts/readme-coverage.sh` (do not edit this block by hand).
 
 | Executable rules | Count |
 | --- | --- |
@@ -260,11 +260,11 @@ Version-coverage depth, measured over the last five minor upgrades of each of th
 
 | Status | Upgrades | Share |
 | --- | --- | --- |
-| Decided for the whole release-line pair (A attested, B bounded) | 12 | 3% |
-| Rule for one exact version pair only (S) | 42 | 10.7% |
-| Gap, no valid rule (G) | 336 | 86.1% |
+| Decided for the whole release-line pair (A attested, B bounded) | 34 | 8.7% |
+| Rule for one exact version pair only (S) | 40 | 10.2% |
+| Gap, no valid rule (G) | 316 | 81% |
 
-Kubernetes: 34 valid rules, but 8 fall in its window 1.32 to 1.37; 0 of 5 upgrades in that window are gaps.
+Kubernetes: 35 valid rules, but 9 fall in its window 1.32 to 1.37; 0 of 5 upgrades in that window are gaps.
 
 Decided means a valid rule or attestation covers every version of both release lines, so the answer is BLOCKED or UNKNOWN, never a whole-upgrade PASS. An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.
 <!-- coverage:end -->
