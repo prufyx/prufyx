@@ -70,6 +70,7 @@ prufyx scan [PATH ...] [-] --to COMPONENT=VERSION [--from COMPONENT=VERSION ...]
     [--config FILE]
     [--distribution official_upstream|custom_build]
     [--resource-scope-complete[=true|false]] [--target-api-apply-required[=true|false]]
+    [--kubelet-version-min X.Y.Z [--kubelet-version-max X.Y.Z]]
     [--chart PROJECT=NAME[@SOURCE]] [--helm-values FILE ...] [--helm-set KEY=VALUE ...]
     [--helm-values-complete[=true|false]]
     [--format human|json|sarif|markdown|csv] [--show-passes] [--verbose] [--redact]
@@ -87,6 +88,8 @@ prufyx scan [PATH ...] [-] --to COMPONENT=VERSION [--from COMPONENT=VERSION ...]
 | `--distribution` | `official_upstream` or `custom_build`. Only `official_upstream` is evaluated. |
 | `--resource-scope-complete` | Declares that the inputs are every manifest you apply. |
 | `--target-api-apply-required` | Declares that the inputs are applied to the target Kubernetes API. |
+| `--kubelet-version-min X.Y.Z` | Declares the lowest kubelet version of any node after the control plane upgrade. It feeds the Kubernetes version-skew rules. The version is declared by you and not observed: see "Declared kubelet versions". Each flag at most once. |
+| `--kubelet-version-max X.Y.Z` | Declares the highest kubelet version, for a mixed fleet. Needs `--kubelet-version-min` and is not below it; without it the highest kubelet is taken to be the lowest. |
 | `--chart P=NAME[@SOURCE]` | Declares that the `--from`/`--to` versions of project `P` are versions of the Helm chart `NAME`, not of the application. The chart is resolved through the reviewed [chart-source table](chart-identity.md): exactly one current row must tie `P` to `NAME` (name the repository as `@SOURCE` when there are several). See "Helm chart values". |
 | `--helm-values FILE` | A values file supplied for the declared chart. Repeatable, in Helm's order: a later file wins. Needs exactly one chart declaration. |
 | `--helm-set KEY=VALUE` | A `--set` assignment applied after the files. Repeatable. `KEY` is a dotted path (`\.`, `\=`, `\,` and `\\` escape); list indexes, several assignments in one flag, a `VALUE` with an unescaped comma or a leading `{` are refused. `VALUE` `null` removes the key. |
@@ -349,6 +352,7 @@ Every gap has a reason, a detail and an action.
 | `VERSION_NOT_DETECTED` | No current version was declared. | Pass `--from kubernetes=VERSION` or set `current:` in `prufyx.yaml`. |
 | `VERSION_CONFLICT` | Two different versions were declared for one project. | Declare one. |
 | `DECLARATION_MISSING` | Scope completeness, target apply or the distribution is not declared, or the Helm values of a chart hop are not declared complete. | Declare it with the flag or in `prufyx.yaml`, if it is true. |
+| `DECLARATION_MISMATCH` | A declared kubelet version cannot be compared with the hop target (another major version) or with the distribution (not `official_upstream`), so the kubelet skew rule cannot decide. | Declare kubelet versions on the target's major version, or check the kubelet skew by hand. |
 | `DISTRIBUTION_NOT_COVERED` | The distribution is `custom_build`. | Check your distribution's release notes by hand. |
 | `DOCUMENTS_TEMPLATED` | Documents with `{{ ... }}` or `${...}`. | Render them (`helm template`, `kustomize build`) and scan the output. |
 | `DOCUMENTS_NOT_EVALUATED` | Nested or unresolved lists, paginated lists, objects of a kind other than `List` that hold a top-level `items` array, documents that are not Kubernetes objects, skipped symlinks or special files, or no manifests at all, or Helm values that set a key to `null`; for a project with custom-resource versions, also objects of custom-resource groups that no reviewed project owns. | Pass only rendered Kubernetes objects; check unowned custom resources by hand. |
@@ -434,7 +438,9 @@ it stands.
 
 ## What is not checked
 
-- Node and kubelet version skew.
+- Node and kubelet version skew, unless you declare the kubelet versions (see
+  "Declared kubelet versions"): even then only the versions you declared are
+  evaluated, never the nodes.
 - Anything other than API versions in the supplied manifests: live cluster
   objects, CRDs, stored versions, admission, and component configuration.
 - Projects other than Kubernetes (reported as `COMPONENT_NOT_COVERED`); for
@@ -442,6 +448,52 @@ it stands.
   checked.
 - For a declared chart hop, anything but the chart's values rules and the
   Kubernetes version it needs.
+
+## Declared kubelet versions
+
+The Kubernetes version-skew rules need the kubelet versions, which a manifest
+does not hold. Without them each skew rule that applies to a hop is a gap,
+`DECLARATION_MISSING` with the action to add `--kubelet-version-min X.Y.Z`
+(and `--kubelet-version-max` for a mixed fleet) or `minimumKubeletVersion` in
+`prufyx.yaml`.
+
+```sh
+prufyx scan manifests/ --from kubernetes=1.35.2 --to kubernetes=1.37.0 \
+  --distribution official_upstream --resource-scope-complete --target-api-apply-required \
+  --kubelet-version-min 1.33.0
+```
+
+- The versions are evaluated by the same predicate as
+  `check cncf --component-config` (`declarations.minimumKubeletVersion`): the
+  lowest kubelet is too old when it is more than three minor versions behind
+  the target (two when it is older than 1.25), and the highest (the maximum,
+  else the minimum) is too new when its minor is above the target's. Patch
+  levels are ignored.
+- A value is exactly `x.y.z`: no `v`, no build suffix, no leading zeros, no
+  minor-only form. A maximum needs a minimum and is not below it. Anything else
+  is a usage error (exit 2): it is never ignored and never read as a pass. A
+  version on another major than the hop target cannot be compared and leaves
+  the rule `UNKNOWN` with a `DECLARATION_MISMATCH` gap that names the declared
+  and the target version.
+- Only `--distribution official_upstream` is evaluated, as for the check route.
+  The fact does not need `--resource-scope-complete` or
+  `--target-api-apply-required` (they describe manifests), but a hop cannot be
+  covered without them, so these flags alone never produce a pass.
+- The declared versions are applied unchanged to every hop of the plan.
+  Upgrading nodes between hops is not modelled. With 1.35.2 to 1.37.0 and a
+  minimum of 1.33.0, hop 1.36 passes the skew rule and hop 1.37 is `BLOCKED`.
+- Everything that rests on the declaration says so: the finding and the
+  `--show-passes` entries carry "declared kubelet versions, not observed" (a
+  skew finding has no manifest location), the report ends with `kubelet
+  versions: declared min X (max Y) via flag; declared by you, not observed`,
+  and the JSON has `provenance.kubeletVersions` (`minimum`, `maximum`,
+  `source` as `flag`, `file` or `mixed`, and `observed: false`). The standing
+  scope limit reads "kubelet version skew evaluated from declared versions
+  only, nodes not observed". Without a maximum, the report says the maximum is
+  taken as the minimum.
+- A declaration that is too high turns a real violation into a pass of this one
+  rule. Declare only what is true. The declaration changes nothing else: not
+  the manifests' facts, the line reviews or the served lists.
 
 ## Locations and `--redact`
 
@@ -600,8 +652,9 @@ a rule that applies), `unsupported` (combinations outside a documented support
 range), `omissions`, `notes` and `provenance` (evaluation instant, input digest, configuration
 digest, knowledge origin, revision and digest, the engine contract digest of
 the first evaluated transition, build identity, `networkUsed: false`, and
-`knowledgeStore` when `--knowledge-db` was used, and `helmValues` for
-declared Helm values). A declared chart hop adds `chart` to its inventory
+`knowledgeStore` when `--knowledge-db` was used, `helmValues` for
+declared Helm values, and `kubeletVersions` for declared kubelet versions,
+which also puts `declaredEvidence` on the findings and passes they decided). A declared chart hop adds `chart` to its inventory
 entry, its path (chart name, source and counts of the values keys read) and
 its hop references, and a chart finding lists its values `keys`; these fields
 are absent otherwise. The engine contract

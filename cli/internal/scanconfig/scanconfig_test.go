@@ -101,6 +101,8 @@ func TestParseRejectsMalformed(t *testing.T) {
 		"invalid utf8":      head + "# \xff\n",
 		"bad distribution":  head + "declarations: {kubernetes: {distribution: Official}}\n",
 		"distribution type": head + "declarations: {kubernetes: {distribution: true}}\n",
+		"kubelet as number": head + "declarations: {kubernetes: {minimumKubeletVersion: 1.33}}\n",
+		"kubelet as bool":   head + "declarations: {kubernetes: {maximumKubeletVersion: true}}\n",
 		"bool as string":    head + "declarations: {kubernetes: {resourceScopeComplete: \"true\"}}\n",
 		"bool as number":    head + "declarations: {kubernetes: {targetApplyRequired: 1}}\n",
 		"null declaration":  head + "declarations:\n",
@@ -506,5 +508,24 @@ func TestParseVersionsPreRelease(t *testing.T) {
 		if _, err := Parse([]byte(head + "target: {" + slug + ": 1.38.0-rc.1}\n")); !errors.Is(err, ErrConfig) {
 			t.Errorf("%s accepted a pre-release: %v", slug, err)
 		}
+	}
+}
+
+func TestKubeletVersionKeysAndMerge(t *testing.T) {
+	cfg, err := Parse([]byte(head + "declarations: {kubernetes: {minimumKubeletVersion: \"1.33.0\", maximumKubeletVersion: \"1.34.1\"}}\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	fromFile := Merge(cfg, FlagDeclarations{})
+	if fromFile.MinimumKubeletVersion != (Value[string]{Value: "1.33.0", Set: true, Source: FromFile}) || fromFile.MaximumKubeletVersion.Value != "1.34.1" {
+		t.Fatalf("file: %+v", fromFile)
+	}
+	flag := "1.32.0"
+	overridden := Merge(cfg, FlagDeclarations{MinimumKubeletVersion: &flag})
+	if overridden.MinimumKubeletVersion != (Value[string]{Value: "1.32.0", Set: true, Source: FromFlag}) || overridden.MaximumKubeletVersion.Source != FromFile {
+		t.Fatalf("flag: %+v", overridden)
+	}
+	if none := Merge(Config{}, FlagDeclarations{}); none.MinimumKubeletVersion.Set || none.MaximumKubeletVersion.Set {
+		t.Fatalf("absent keys are set: %+v", none)
 	}
 }

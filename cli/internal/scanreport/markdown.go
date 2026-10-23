@@ -168,7 +168,7 @@ func Markdown(report Report, options MarkdownOptions) []byte {
 		line("## "+labelPassed, len(report.Passes))
 		line("")
 		for _, pass := range report.Passes {
-			line("- %s %s", mdText(pass.Component+" "+hopLabel(pass.Hop)), mdCode(pass.RuleID))
+			line("- %s %s%s", mdText(pass.Component+" "+hopLabel(pass.Hop)), mdCode(pass.RuleID), mdText(declaredSuffix(pass.DeclaredEvidence)))
 		}
 	}
 
@@ -223,6 +223,9 @@ func Markdown(report Report, options MarkdownOptions) []byte {
 		fmt.Sprintf(labelMDKnowledge, p.KnowledgeOrigin, p.KnowledgeRevision, p.KnowledgeDigest),
 	)
 	provenance = append(provenance, knowledgeStoreLines(p.KnowledgeStore)...)
+	if text := kubeletVersionsLine(p.KubeletVersions); text != "" {
+		provenance = append(provenance, text)
+	}
 	provenance = append(provenance, helmValuesLines(p.HelmValues)...)
 	provenance = append(provenance,
 		fmt.Sprintf(labelMDEngine, p.EngineContractDigest),
@@ -266,6 +269,9 @@ func writeFindingTable(out *bytes.Buffer, findings []Finding) {
 				break
 			}
 			where = append(where, markdownLocation(location))
+		}
+		if finding.DeclaredEvidence != "" {
+			where = append(where, mdText(finding.DeclaredEvidence))
 		}
 		if len(finding.Keys) > 0 {
 			where = append(where, mdText(fmt.Sprintf(labelKeys, strings.Join(finding.Keys, ", "))))

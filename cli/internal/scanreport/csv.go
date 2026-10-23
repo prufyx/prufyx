@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/csv"
 	"strconv"
+	"strings"
 )
 
 // csvColumns are the columns of the CSV rendering, in order.
@@ -51,7 +52,7 @@ func renderCSV(report Report, options RenderOptions) ([]byte, error) {
 			row[5] = csvCell(location.Kind)
 			row[6] = csvCell(location.Namespace)
 			row[7] = csvCell(location.Name)
-			row[8] = csvCell(finding.Title)
+			row[8] = csvCell(finding.Title + declaredSuffix(finding.DeclaredEvidence))
 			row[9] = csvCell(finding.Fix)
 			if err := writer.Write(row); err != nil {
 				return nil, err
@@ -73,6 +74,7 @@ func renderCSV(report Report, options RenderOptions) ([]byte, error) {
 			row[0] = csvCell("PASS")
 			row[1] = csvCell(pass.RuleID)
 			row[2] = csvCell(pass.Component)
+			row[8] = csvCell(strings.TrimSpace(declaredSuffix(pass.DeclaredEvidence)))
 			if err := writer.Write(row); err != nil {
 				return nil, err
 			}

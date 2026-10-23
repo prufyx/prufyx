@@ -37,7 +37,7 @@ kind: ComponentConfigSelection
 complete: [kube-apiserver, kube-controller-manager, kube-scheduler, kubelet, kube-proxy, kubeadm, static-pods, workloads]
 declarations:
   linuxNodeCgroupV1: false   # optional: does any Linux node use cgroup v1?
-  # minimumKubeletVersion: "1.33.2"  # optional: lowest kubelet version of any node, x.y.z
+  # minimumKubeletVersion: "1.33.2"  # optional: lowest kubelet version of any node, x.y.z (prufyx scan: --kubelet-version-min)
   # maximumKubeletVersion: "1.34.0"  # optional, mixed fleet: highest kubelet version, x.y.z
   # kubeletNoConfigFile: true  # optional: no kubelet uses --config
   # kubeletNoConfigDir: true   # optional: no kubelet uses --config-dir

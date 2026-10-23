@@ -24,6 +24,15 @@ of each undecided rule).
 | `--target-api-apply-required` | `targetApplyRequired: true` | These manifests are what you send to the Kubernetes API of the target version. | The files are a reference copy, or are applied to another cluster. |
 | `--distribution official_upstream` | `distribution: official_upstream` | The cluster runs an upstream Kubernetes build. | It runs a vendor or modified build: declare `custom_build`. |
 
+Two more declarations are optional. They feed only the Kubernetes version-skew
+rules of `scan`, are declared and not observed, and are labelled so in the
+report (see [Declared kubelet versions](scan.md#declared-kubelet-versions)):
+
+| Flag | In `prufyx.yaml` (`declarations.kubernetes.`) | True when | Leave it out when |
+| --- | --- | --- | --- |
+| `--kubelet-version-min X.Y.Z` | `minimumKubeletVersion: "X.Y.Z"` | No node will run an older kubelet than this after the control plane upgrade. | You do not know it: the skew rules then stay a named gap. |
+| `--kubelet-version-max X.Y.Z` | `maximumKubeletVersion: "X.Y.Z"` | No node runs a newer kubelet than this (mixed fleet). | The fleet is uniform: the maximum is then taken as the minimum. |
+
 Why Prufyx cannot infer them:
 
 - **Scope.** A `PASS` from "the removed kind is absent from what I was shown" is

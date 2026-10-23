@@ -138,7 +138,7 @@ func Human(report Report, options HumanOptions) []byte {
 		line("")
 		line(labelPassed, len(report.Passes))
 		for _, pass := range report.Passes {
-			line("  %s %s   %s", pass.Component, hopLabel(pass.Hop), pass.RuleID)
+			line("  %s %s   %s%s", pass.Component, hopLabel(pass.Hop), pass.RuleID, declaredSuffix(pass.DeclaredEvidence))
 		}
 	}
 	if options.Verbose {
@@ -175,7 +175,31 @@ func Human(report Report, options HumanOptions) []byte {
 	for _, text := range helmValuesLines(p.HelmValues) {
 		line("%s", text)
 	}
+	if text := kubeletVersionsLine(p.KubeletVersions); text != "" {
+		line("%s", text)
+	}
 	return out.Bytes()
+}
+
+// kubeletVersionsLine is the provenance line of declared kubelet versions;
+// empty when none were declared.
+func kubeletVersionsLine(v *KubeletVersions) string {
+	if v == nil {
+		return ""
+	}
+	highest := ""
+	if v.Maximum != "" {
+		highest = " (max " + v.Maximum + ")"
+	}
+	return Text(labelKubeletVersions, v.Minimum, highest, v.Source)
+}
+
+// declaredSuffix is the label a result that rests on declared input carries.
+func declaredSuffix(declared string) string {
+	if declared == "" {
+		return ""
+	}
+	return "   [" + declared + "]"
 }
 
 // helmValuesLines are the provenance lines of the values supplied for
@@ -312,6 +336,9 @@ func writeFinding(out *bytes.Buffer, finding Finding, options HumanOptions, shar
 			break
 		}
 		fmt.Fprintf(out, "%s%s\n", sanitizeArgs([]any{indent, locationText(location)})...)
+	}
+	if finding.DeclaredEvidence != "" {
+		fmt.Fprintf(out, "%s%s\n", sanitizeArgs([]any{indent, finding.DeclaredEvidence})...)
 	}
 	if len(finding.Keys) > 0 {
 		fmt.Fprintf(out, "%s"+labelKeys+"\n", sanitizeArgs([]any{indent, strings.Join(finding.Keys, ", ")})...)

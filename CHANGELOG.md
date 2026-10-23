@@ -185,6 +185,19 @@ A catalogued project is not tested coverage: a catalogue entry says Prufyx holds
 
 ### Added
 
+- `prufyx scan` takes declared kubelet versions, `--kubelet-version-min` and
+  `--kubelet-version-max` (or `minimumKubeletVersion` and `maximumKubeletVersion`
+  under `declarations.kubernetes` in `prufyx.yaml`), and feeds them to the
+  Kubernetes version-skew rules through the same predicate as
+  `check cncf --component-config`. Without them each skew rule that applies to a
+  hop is now a named gap, `DECLARATION_MISSING` with the flag to add, instead of
+  "needs evidence that scan does not collect". The versions are declared, not
+  observed: findings, `--show-passes` entries, the report footer and
+  `provenance.kubeletVersions` say so. Invalid versions are a usage error (exit
+  2); a version on another major, or a distribution other than
+  `official_upstream`, leaves the rule `UNKNOWN` with a `DECLARATION_MISMATCH` gap
+  that names the cause. See
+  `cli/docs/scan.md`.
 - The knowledge gate admits a NEW reviewed path policy (no record with that ID
   in the base) with an owner approval for exactly that record: subject
   `pathPolicy`, `ruleId` `path-policy.<hex>`, `scope` the component's package

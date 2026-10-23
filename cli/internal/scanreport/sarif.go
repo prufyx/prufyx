@@ -136,6 +136,8 @@ type sarifResultProps struct {
 	CrossedLine *CrossedLine `json:"crossedLine,omitempty"`
 	// Keys are the Helm values keys of a chart values finding.
 	Keys []string `json:"keys,omitempty"`
+	// DeclaredEvidence labels a finding that rests on declared input.
+	DeclaredEvidence string `json:"declaredEvidence,omitempty"`
 }
 
 type sarifLocation struct {
@@ -220,6 +222,8 @@ type sarifRunProps struct {
 	// PreRelease names the components whose current or target version is a
 	// pre-release (versionStage "prerelease"); absent when there are none.
 	PreRelease []string `json:"preRelease,omitempty"`
+	// KubeletVersions are the declared (never observed) kubelet versions.
+	KubeletVersions *KubeletVersions `json:"kubeletVersions,omitempty"`
 }
 
 // preReleaseComponents lists, in inventory order, the components with a
@@ -282,7 +286,7 @@ func SARIF(report Report) ([]byte, error) {
 			EngineContractDigest: p.EngineContractDigest, NetworkUsed: p.NetworkUsed,
 			Omissions: omissions, TrustPolicy: report.TrustPolicy, KnowledgeStore: p.KnowledgeStore,
 			CommunityCatalog: communityCatalogComponents(report), HelmValues: p.HelmValues,
-			PreRelease: preReleaseComponents(report),
+			PreRelease: preReleaseComponents(report), KubeletVersions: p.KubeletVersions,
 		},
 	}}}
 	var out bytes.Buffer
@@ -363,7 +367,7 @@ func sarifResults(report Report, index map[string]int) ([]sarifResult, int) {
 		base := sarifResult{
 			RuleID: f.RuleID, RuleIndex: index[f.RuleID], Level: sarifError,
 			Message:    sarifText{resultMessage(f)},
-			Properties: sarifResultProps{Component: f.Component, Hop: hopLabel(f.Hop), Basis: f.Basis, Match: f.Match, Crossing: f.Crossing, CrossedLine: f.CrossedLine, Keys: f.Keys},
+			Properties: sarifResultProps{Component: f.Component, Hop: hopLabel(f.Hop), Basis: f.Basis, Match: f.Match, Crossing: f.Crossing, CrossedLine: f.CrossedLine, Keys: f.Keys, DeclaredEvidence: f.DeclaredEvidence},
 		}
 		if len(f.Locations) == 0 {
 			rows = append(rows, sarifRow{component: f.Component, hop: f.Hop.order(), document: -1, item: -1, result: base})
@@ -586,6 +590,9 @@ func cut(text string, n int) string {
 // long the head of the fix is cut and the disclosure kept.
 func resultMessage(f Finding) string {
 	text := fmt.Sprintf(labelResultMessage, f.Title, f.Fix)
+	if f.DeclaredEvidence != "" {
+		text += " (" + f.DeclaredEvidence + ")"
+	}
 	if len(text) <= sarifMessageMax || f.CrossedLine == nil {
 		return cut(text, sarifMessageMax)
 	}

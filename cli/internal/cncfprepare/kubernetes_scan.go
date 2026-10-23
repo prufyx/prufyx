@@ -26,7 +26,19 @@ type KubernetesScan struct {
 // the caller declares: every omission it carries leaves the set unresolved,
 // exactly as it does for a single file. Callers remove documents that are
 // not part of the apply set (such as a scan configuration file) before.
-func PrepareKubernetesScan(workspace intake.Workspace, from, to, distribution string, targetApplyRequired, complete bool) (KubernetesScan, error) {
+//
+// declaration carries the caller's declared kubelet versions. When it names a
+// minimum, the preparation adds the kubelet version-skew fact, evaluated by
+// the same predicate as the component-configuration route; the fact is never
+// a document-backed source. A declaration that does not validate is refused.
+func PrepareKubernetesScan(workspace intake.Workspace, from, to, distribution string, targetApplyRequired, complete bool, declaration KubeletDeclaration) (KubernetesScan, error) {
+	if err := ValidateKubeletVersionDeclarations(declaration.Minimum, declaration.Maximum); err != nil {
+		return KubernetesScan{}, err
+	}
+	var extra []inputFact
+	if declaration.Minimum != "" {
+		extra = []inputFact{kubeletSkewDeclaredFact(declaration, to, distribution)}
+	}
 	read := func() (kubernetesApplySet, error) { return kubernetesApplySetOf(workspace), nil }
 	var (
 		prepared Prepared
@@ -34,9 +46,9 @@ func PrepareKubernetesScan(workspace intake.Workspace, from, to, distribution st
 		err      error
 	)
 	if _, reviewed := kubernetesRemovalsForCrossedMinorLine(from, to); reviewed {
-		prepared, sources, err = prepareKubernetesRemovedAPIs(read, workspace.Digest, from, to, distribution, targetApplyRequired, complete)
+		prepared, sources, err = prepareKubernetesRemovedAPIs(read, workspace.Digest, from, to, distribution, targetApplyRequired, complete, extra)
 	} else {
-		prepared, sources, err = prepareKubernetesFlowControl(read, workspace.Digest, from, to, distribution, targetApplyRequired, complete)
+		prepared, sources, err = prepareKubernetesFlowControl(read, workspace.Digest, from, to, distribution, targetApplyRequired, complete, extra)
 	}
 	if err != nil {
 		return KubernetesScan{}, err
@@ -56,3 +68,36 @@ type KubernetesRemovedVersion = k8sremovals.RemovedVersion
 // version. It is read-only provenance for callers that must notice an
 // object at a version removed on a line no evaluated transition crosses.
 func KubernetesRemovedVersions() []KubernetesRemovedVersion { return k8sremovals.RemovedVersions() }
+
+// KubeletDeclaration is the caller's declared kubelet versions for a scan.
+// Minimum is the lowest kubelet version of any node after the control plane
+// upgrade, Maximum the optional highest (else the minimum), both x.y.z.
+// Source says where the declaration came from ("flag" or "file"); it is
+// provenance only and never enters a canonical input or digest.
+type KubeletDeclaration struct {
+	Minimum, Maximum, Source string
+}
+
+// kubeletSkewDeclaredFact is the skew fact for one hop target from declared
+// versions: true or false from the shared predicate, unsupported when the
+// distribution is not official upstream or the versions cannot be compared.
+func kubeletSkewDeclaredFact(declaration KubeletDeclaration, to, distribution string) inputFact {
+	unsupported := inputFact{ID: KubernetesKubeletSkewFact, State: "unsupported"}
+	if distribution != "official_upstream" {
+		return unsupported
+	}
+	lowest, lowestOK := kubernetesVersionParts(declaration.Minimum)
+	highest, highestOK := lowest, lowestOK
+	if declaration.Maximum != "" {
+		highest, highestOK = kubernetesVersionParts(declaration.Maximum)
+	}
+	target, targetOK := kubernetesVersionParts(to)
+	if !lowestOK || !highestOK || !targetOK {
+		return unsupported
+	}
+	present, resolved := KubeletSkewUnsupported(lowest, highest, target)
+	if !resolved {
+		return unsupported
+	}
+	return boolFact(KubernetesKubeletSkewFact, present)
+}

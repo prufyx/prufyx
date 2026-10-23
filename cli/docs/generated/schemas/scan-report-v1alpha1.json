@@ -685,6 +685,9 @@
             "$ref": "#/$defs/location"
           }
         },
+        "declaredEvidence": {
+          "type": "string"
+        },
         "keys": {
           "type": "array",
           "items": {
@@ -736,6 +739,7 @@
             "API_VERSION_NOT_REVIEWED",
             "API_VERSION_NOT_SERVED",
             "COMPONENT_NOT_COVERED",
+            "DECLARATION_MISMATCH",
             "DECLARATION_MISSING",
             "DISTRIBUTION_NOT_COVERED",
             "DOCUMENTS_NOT_EVALUATED",
@@ -781,6 +785,9 @@
         },
         "hop": {
           "$ref": "#/$defs/hopRef"
+        },
+        "declaredEvidence": {
+          "type": "string"
         }
       }
     },
@@ -1095,6 +1102,36 @@
           "items": {
             "$ref": "#/$defs/helmValues"
           }
+        },
+        "kubeletVersions": {
+          "$ref": "#/$defs/kubeletVersions"
+        }
+      }
+    },
+    "kubeletVersions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "minimum",
+        "source",
+        "observed"
+      ],
+      "properties": {
+        "minimum": {
+          "type": "string"
+        },
+        "maximum": {
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "flag",
+            "file",
+            "mixed"
+          ]
+        },
+        "observed": {
+          "const": false
         }
       }
     },
