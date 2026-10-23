@@ -206,6 +206,18 @@ type PathSpec struct {
 // files under it block attestation like any others. An entry that is not a
 // declared copy or pre-patch copy may not lie under a chart, an install,
 // deploy, manifests or CRD directory (see installSegments).
+//
+// With DefinesNone (a file or a pattern of YAML or JSON files only), the
+// reviewer states that the files define no CustomResourceDefinition: data
+// files that name the kind (discovery lists, ignore lists) and that a Go
+// program embeds. The scan checks that claim at every tag (see
+// definesNothing): a file that is strictly decodable, holds no definition,
+// no mapping that names the kind and has a spec, no manifest inside a
+// string, and is not a kustomization or a chart is no-definition, which
+// does not block attestation. A file that fails a check keeps its class
+// and blocks, and never withholds a pair. The install-surface guard still
+// reads such an entry, except for //go:embed directives: embedding a file
+// that defines nothing into a program installs nothing.
 type Exclusion struct {
 	Path     string
 	Repo     string
@@ -216,6 +228,9 @@ type Exclusion struct {
 	// into the listed paths ("" when the entry declares no pre-patch
 	// copies).
 	PrePatch string
+	// DefinesNone: the files under Path define no CustomResourceDefinition,
+	// checked at every tag.
+	DefinesNone bool
 }
 
 // checked reports an entry whose claim the scan checks (declared copies or
@@ -306,6 +321,8 @@ type exclusionJSON struct {
 	Evidence string `json:"evidence"`
 	Copies   bool   `json:"copies,omitempty"`
 	PrePatch string `json:"prePatch,omitempty"`
+	// Defines is "none" or absent (see Exclusion.DefinesNone).
+	Defines string `json:"defines,omitempty"`
 }
 
 var (
@@ -467,6 +484,15 @@ func (tj targetJSON) target() (Target, error) {
 		if ej.Repo != t.Repo {
 			return t, fmt.Errorf("exclusion %q names repository %q, not %s", ej.Path, ej.Repo, t.Repo)
 		}
+		if ej.Defines != "" {
+			// An earlier entry that covers it would place its files, and
+			// the claim would never be checked.
+			for _, other := range tj.Exclude[:i] {
+				if exclusionMatches(other.Path, ej.Path) || exclusionMatches(other.Path, path.Dir(ej.Path)+"/") {
+					return t, fmt.Errorf("exclusion %q: defines none under the exclusion %q, which would place its files", ej.Path, other.Path)
+				}
+			}
+		}
 		if ej.PrePatch != "" {
 			// The rendering is compared with the declared definitions of
 			// the repository itself: a target with other channels or a
@@ -480,7 +506,7 @@ func (tj targetJSON) target() (Target, error) {
 				}
 			}
 		}
-		t.Exclude = append(t.Exclude, Exclusion{Path: ej.Path, Repo: ej.Repo, Reason: ej.Reason, Evidence: ej.Evidence, Copies: ej.Copies, PrePatch: ej.PrePatch})
+		t.Exclude = append(t.Exclude, Exclusion{Path: ej.Path, Repo: ej.Repo, Reason: ej.Reason, Evidence: ej.Evidence, Copies: ej.Copies, PrePatch: ej.PrePatch, DefinesNone: ej.Defines == definesNoneValue})
 	}
 	if tj.Remote != nil {
 		remote, err := tj.Remote.remote(t)
@@ -676,12 +702,52 @@ func validExclusion(ej exclusionJSON) error {
 			return fmt.Errorf("prePatch %s lies under the entry", ej.PrePatch)
 		}
 	}
+	if ej.Defines != "" {
+		if why := validDefinesNone(ej); why != "" {
+			return fmt.Errorf("defines: %s", why)
+		}
+	}
 	if !ej.Copies && ej.PrePatch == "" {
 		if seg := installSegment(ej.Path); seg != "" {
 			return fmt.Errorf("%q lies under a %q directory: definitions there are installed or generated for install and are never excluded", ej.Path, seg)
 		}
 	}
 	return nil
+}
+
+// definesNoneValue is the one value of an exclusion's defines member.
+const definesNoneValue = "none"
+
+// definesNoneRefused are the file names a defines-none entry may neither
+// name nor match: kustomize and Helm read them as install surfaces whatever
+// they hold.
+var definesNoneRefused = []string{"kustomization.yaml", "kustomization.yml", "Kustomization", "Chart.yaml", "requirements.yaml", "values.yaml"}
+
+// validDefinesNone checks the shape of a defines-none entry ("" when it is
+// accepted): the value "none", not with copies or prePatch, a file or a
+// pattern (never a directory) whose last element ends in .json, .yaml or
+// .yml, and that neither is nor matches a kustomization, Chart.yaml,
+// requirements.yaml or values.yaml (in any letter case).
+func validDefinesNone(ej exclusionJSON) string {
+	base := path.Base(ej.Path)
+	switch {
+	case ej.Defines != definesNoneValue:
+		return fmt.Sprintf("%q: the only value is %q", ej.Defines, definesNoneValue)
+	case ej.Copies || ej.PrePatch != "":
+		return "excludes copies and prePatch"
+	case strings.HasSuffix(ej.Path, "/"):
+		return "names files, not a directory"
+	case !strings.HasSuffix(base, ".json") && !strings.HasSuffix(base, ".yaml") && !strings.HasSuffix(base, ".yml"):
+		return "names YAML or JSON files only (.json, .yaml, .yml)"
+	}
+	for _, n := range definesNoneRefused {
+		for _, cand := range []string{n, strings.ToLower(n), strings.ToUpper(n)} {
+			if ok, _ := path.Match(base, cand); ok || strings.EqualFold(base, n) {
+				return fmt.Sprintf("%s is read by kustomize or Helm: it is never declared to define nothing", n)
+			}
+		}
+	}
+	return ""
 }
 
 // installSegments are the directory names of the places a project installs
@@ -758,6 +824,9 @@ type place struct {
 	entry    string
 	copies   bool
 	prePatch string
+	// definesNone: a reviewed exclusion that declares its files define
+	// nothing (location "defines none: <entry>").
+	definesNone bool
 	// void: a reviewed exclusion that an install surface refers to at this
 	// release. The place is a default-like one ("void: <entry>"): the files
 	// are classified, block attestation and never withhold a pair, but a
@@ -773,6 +842,9 @@ func (t Target) placeOf(p string) place {
 		if exclusionMatches(e.Path, p) {
 			if t.voided[e.Path] {
 				return place{kind: locDefault, entry: voidPrefix + e.Path, void: true}
+			}
+			if e.DefinesNone {
+				return place{kind: locReviewed, entry: definesNonePrefix + e.Path, definesNone: true}
 			}
 			return place{kind: locReviewed, entry: e.Path, copies: e.Copies, prePatch: e.PrePatch}
 		}

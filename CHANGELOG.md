@@ -601,6 +601,23 @@ A catalogued project is not tested coverage: a catalogue entry says Prufyx holds
   the `helm.values.*` code digests move; the extractor framework files are
   unchanged, so the digests of `k8s.feature-gate-removal`,
   `k8s.served-api-removal` and `crd.version-removal.*` do not move.
+- Maintainer extractor `crd.version-removal` 2.6.0: a reviewed exclusion of
+  YAML or JSON files (one file or a pattern, never a directory) can declare
+  `"defines": "none"`, and the scan checks that claim at every release: a file
+  that is strictly decodable, holds no template syntax, no definition, no
+  `apiextensions.k8s.io` document, no mapping that names the kind and has a
+  `spec`, no manifest inside a string, and is no kustomization or chart is
+  class `no-definition`, which does not block attestation. A file that fails a
+  check keeps its class (or is `unread`) and blocks, but never withholds a
+  pair. The install-surface guard still voids such an entry for every
+  referrer but `//go:embed` (embedding a data file that defines nothing
+  installs nothing). The loader refuses the value with `copies` or
+  `prePatch`, on a directory, on any name other than `.json`, `.yaml` or
+  `.yml`, and on a kustomization, `Chart.yaml`, `requirements.yaml` or
+  `values.yaml` name or a pattern that matches one. No target uses it yet:
+  rules, records and attestations are unchanged except for the extractor
+  version and every `crd.version-removal.*` code digest. Turning an entry
+  into a `defines: none` entry is a changed exclusion for the target guard.
 - Maintainer extractor `crd.version-removal` 2.5.0: a reviewed exclusion can
   name the kustomization that renders its files into a listed bundle
   (`prePatch`), and the scan checks that rendering at every release. It is
