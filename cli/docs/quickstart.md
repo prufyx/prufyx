@@ -399,9 +399,9 @@ gaps, `--redact`, JSON output and `prufyx.yaml`.
   running a check.
 - The current build has **194 registered native check routes** across all
   projects (enforced by `internal/checkroutemetadata`, not a doc claim you
-  have to trust); Kubernetes reviews removed APIs for six from/to pairs
-  (upgrades to 1.22, 1.25, 1.26, 1.27, 1.29 and 1.32) plus the 1.24 dockershim
-  removal. This quickstart exercised two of them.
+  have to trust); Kubernetes decides removed APIs for the upgrades
+  to 1.22, 1.25, 1.26, 1.27, 1.29, 1.32, 1.33, 1.34 and 1.37 plus the 1.24
+  dockershim removal. This quickstart exercised two of them.
 - [`one-command-flow.md`](one-command-flow.md) covers `prufyx assess`, which
   reads a live cluster (read-only) and lists which checks apply to it. Put all
   flags before the context name:
