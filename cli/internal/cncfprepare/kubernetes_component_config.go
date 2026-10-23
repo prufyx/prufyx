@@ -5,6 +5,7 @@ package cncfprepare
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/intake"
 	"path/filepath"
 	"regexp"
@@ -135,14 +136,14 @@ func ValidateKubeletVersionDeclarations(minimum, maximum string) error {
 		return nil
 	}
 	lowest, ok := kubernetesVersionParts(minimum)
-	if !ok {
+	if !ok || constraintengine.PreRelease(minimum) {
 		return fmt.Errorf("%w: the minimum kubelet version must be x.y.z", ErrInvalid)
 	}
 	if maximum == "" {
 		return nil
 	}
 	highest, ok := kubernetesVersionParts(maximum)
-	if !ok {
+	if !ok || constraintengine.PreRelease(maximum) {
 		return fmt.Errorf("%w: the maximum kubelet version must be x.y.z", ErrInvalid)
 	}
 	if compareVersionParts(highest, lowest) < 0 {

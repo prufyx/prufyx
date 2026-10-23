@@ -35,17 +35,19 @@ func TestValidateKubeletVersionDeclarations(t *testing.T) {
 		minimum, maximum string
 		ok               bool
 	}{
-		"none":               {"", "", true},
-		"minimum":            {"1.33.0", "", true},
-		"equal maximum":      {"1.33.0", "1.33.0", true},
-		"higher maximum":     {"1.33.0", "1.35.2", true},
-		"v prefix":           {"v1.33.0", "", false},
-		"build suffix":       {"1.33.0-eks", "", false},
-		"minor only":         {"1.33", "", false},
-		"leading zero":       {"1.033.0", "", false},
-		"maximum below":      {"1.34.0", "1.33.9", false},
-		"maximum no minimum": {"", "1.34.0", false},
-		"bad maximum":        {"1.33.0", "1.34", false},
+		"none":                {"", "", true},
+		"minimum":             {"1.33.0", "", true},
+		"equal maximum":       {"1.33.0", "1.33.0", true},
+		"higher maximum":      {"1.33.0", "1.35.2", true},
+		"v prefix":            {"v1.33.0", "", false},
+		"build suffix":        {"1.33.0-eks", "", false},
+		"pre-release minimum": {"1.36.0-rc.1", "", false},
+		"pre-release maximum": {"1.33.0", "1.36.0-rc.1", false},
+		"minor only":          {"1.33", "", false},
+		"leading zero":        {"1.033.0", "", false},
+		"maximum below":       {"1.34.0", "1.33.9", false},
+		"maximum no minimum":  {"", "1.34.0", false},
+		"bad maximum":         {"1.33.0", "1.34", false},
 	} {
 		t.Run(name, func(t *testing.T) {
 			err := ValidateKubeletVersionDeclarations(tc.minimum, tc.maximum)
