@@ -65,7 +65,7 @@ var secretRE = []*regexp.Regexp{
 var internalRE = []*regexp.Regexp{
 	regexp.MustCompile(`(?:^|[\s"'=:(])/Users/[^/\s]+`),
 	regexp.MustCompile(`(?:^|[\s"'=:(])/home/[^/\s]+`),
-	regexp.MustCompile(`\b(?:10\.\d{1,3}|192\.168|172\.(?:1[6-9]|2\d|3[01]))\.\d{1,3}\.\d{1,3}\b`),
+	regexp.MustCompile(`(?:^|[^\d.])(?:10\.\d{1,3}|192\.168|172\.(?:1[6-9]|2\d|3[01]))\.\d{1,3}\.\d{1,3}\b`),
 	regexp.MustCompile(`\.claude\b|\.ssh\b|\.kube\b|(?i:\bkubeconfig\b)`),
 }
 
@@ -409,6 +409,8 @@ func walkStrings(v any, path string, sink *[]pathString) {
 		}
 		sort.Strings(keys)
 		for _, k := range keys {
+			// Keys are free text too: scan them like values.
+			*sink = append(*sink, pathString{path + "." + k, k})
 			walkStrings(x[k], path+"."+k, sink)
 		}
 	}

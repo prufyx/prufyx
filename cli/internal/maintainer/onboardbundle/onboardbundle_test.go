@@ -251,3 +251,44 @@ func contains(findings []string, want string) bool {
 	}
 	return false
 }
+
+func TestKeysAndVersionsScanned(t *testing.T) {
+	secret := "gh" + "p_" + strings.Repeat("a", 30)
+	cases := []struct {
+		name    string
+		content string
+		want    string // empty: no such finding expected
+	}{
+		{"secret-shaped key", `{"` + secret + `": 1}`, "secret-shaped value"},
+		{"path key", `{"/Users/someone/work": true}`, "internal/owner-environment name"},
+		{"nested private-ip key", `{"a": {"192.168.1.5": 1}}`, "internal/owner-environment name"},
+		{"control char key", `{"a\nb": 1}`, "control character"},
+		{"four-part version accepted", `{"v": "1.10.2.3"}`, ""},
+		{"four-part 192 version accepted", `{"v": "3.192.168.1"}`, ""},
+		{"four-part 172 version accepted", `{"v": "2.172.16.4"}`, ""},
+		{"plain key accepted", `{"harmless": "1.2.3"}`, ""},
+		{"private 10 ip refused", `{"v": "host 10.1.2.3"}`, "internal/owner-environment name"},
+		{"private 192 ip refused", `{"v": "192.168.0.1"}`, "internal/owner-environment name"},
+		{"private 172 ip refused", `{"v": "x=172.20.1.1"}`, "internal/owner-environment name"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			d := fixture(t, func(d string) { write(t, d, "extract-run/candidates.json", tc.content) })
+			findings, err := Validate(d)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.want == "" {
+				for _, f := range findings {
+					if strings.Contains(f, "internal/owner-environment") || strings.Contains(f, "secret-shaped") || strings.Contains(f, "control character") {
+						t.Fatalf("unexpected finding: %v", findings)
+					}
+				}
+				return
+			}
+			if !contains(findings, tc.want) {
+				t.Fatalf("want a finding containing %q, got %v", tc.want, findings)
+			}
+		})
+	}
+}
