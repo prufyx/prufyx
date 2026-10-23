@@ -280,6 +280,24 @@
       ]
     },
     {
+      "slug": "grafana-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "grafana-operator",
+        "repository": "https://github.com/grafana/grafana-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/grafana/grafana-operator/blob/3e68ec4c3c706d5d3ca45c7f2d141a5336f243e4/LICENSE"
+      },
+      "factProject": "grafana_operator",
+      "component": "pkg:github/grafana/grafana-operator",
+      "groups": [
+        {
+          "name": "grafana.integreatly.org",
+          "source": "https://github.com/grafana/grafana-operator/blob/1d8584df2127ad9341567efb2683adaf25894ebe/config/crd/bases/grafana.integreatly.org_grafanaserviceaccounts.yaml"
+        }
+      ]
+    },
+    {
       "slug": "istio",
       "catalog": "cncf",
       "factProject": "istio",
@@ -478,6 +496,36 @@
       ]
     },
     {
+      "slug": "kubernetes-ingress",
+      "catalog": "community",
+      "upstream": {
+        "name": "kubernetes-ingress",
+        "repository": "https://github.com/nginx/kubernetes-ingress",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/nginx/kubernetes-ingress/blob/2598147d84065276946301ee57534ba6c11b7a8e/LICENSE"
+      },
+      "factProject": "kubernetes_ingress",
+      "component": "pkg:github/nginx/kubernetes-ingress",
+      "groups": [
+        {
+          "name": "appprotect.f5.com",
+          "source": "https://github.com/nginx/kubernetes-ingress/blob/205828534dd07f1a73440dce23a25a7feefcc395/config/crd/bases/appprotect.f5.com_apusersigs.yaml"
+        },
+        {
+          "name": "appprotectdos.f5.com",
+          "source": "https://github.com/nginx/kubernetes-ingress/blob/205828534dd07f1a73440dce23a25a7feefcc395/config/crd/bases/appprotectdos.f5.com_dosprotectedresources.yaml"
+        },
+        {
+          "name": "externaldns.nginx.org",
+          "source": "https://github.com/nginx/kubernetes-ingress/blob/205828534dd07f1a73440dce23a25a7feefcc395/config/crd/bases/externaldns.nginx.org_dnsendpoints.yaml"
+        },
+        {
+          "name": "k8s.nginx.org",
+          "source": "https://github.com/nginx/kubernetes-ingress/blob/205828534dd07f1a73440dce23a25a7feefcc395/config/crd/bases/k8s.nginx.org_virtualservers.yaml"
+        }
+      ]
+    },
+    {
       "slug": "kubevela",
       "catalog": "cncf",
       "factProject": "kubevela",
@@ -644,6 +692,24 @@
         {
           "name": "policy.kruise.io",
           "source": "https://github.com/openkruise/kruise/blob/b1e001a957ce62bf87894d0212f5e704a8e9c2b4/config/crd/bases/policy.kruise.io_podunavailablebudgets.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "opentelemetry-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "opentelemetry-operator",
+        "repository": "https://github.com/open-telemetry/opentelemetry-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/open-telemetry/opentelemetry-operator/blob/513d6053adfc942b62f7f65502aad938c9ab0ff3/LICENSE"
+      },
+      "factProject": "opentelemetry_operator",
+      "component": "pkg:github/open-telemetry/opentelemetry-operator",
+      "groups": [
+        {
+          "name": "opentelemetry.io",
+          "source": "https://github.com/open-telemetry/opentelemetry-operator/blob/989089bf5c75d78fdc6004147f97d972fc436bd4/config/crd/bases/opentelemetry.io_targetallocators.yaml"
         }
       ]
     },
@@ -834,6 +900,24 @@
         {
           "name": "tekton.dev",
           "source": "https://github.com/tektoncd/pipeline/blob/61e02215132ce7bef054ff7e1fb074f217716c1a/config/300-crds/300-verificationpolicy.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "trivy-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "trivy-operator",
+        "repository": "https://github.com/aquasecurity/trivy-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/aquasecurity/trivy-operator/blob/3d073500cfb4956371435fa4085f2f59b9ff6d57/LICENSE"
+      },
+      "factProject": "trivy_operator",
+      "component": "pkg:github/aquasecurity/trivy-operator",
+      "groups": [
+        {
+          "name": "aquasecurity.github.io",
+          "source": "https://github.com/aquasecurity/trivy-operator/blob/047f1d95f4f8355569aadbdad0f1c74550c6cbec/deploy/helm/crds/aquasecurity.github.io_vulnerabilityreports.yaml"
         }
       ]
     },
