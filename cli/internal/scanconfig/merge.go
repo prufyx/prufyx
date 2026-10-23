@@ -27,6 +27,8 @@ type FlagDeclarations struct {
 	Distribution          *string
 	ResourceScopeComplete *bool
 	TargetApplyRequired   *bool
+	MinimumKubeletVersion *string
+	MaximumKubeletVersion *string
 	// Helm holds, by project, the chart declarations given on the command
 	// line; nil when none was given.
 	Helm map[string]HelmFlags
@@ -59,6 +61,10 @@ type Effective struct {
 	Distribution          Value[string]
 	ResourceScopeComplete Value[bool]
 	TargetApplyRequired   Value[bool]
+	// MinimumKubeletVersion and MaximumKubeletVersion are the declared
+	// kubelet versions; not validated here.
+	MinimumKubeletVersion Value[string]
+	MaximumKubeletVersion Value[string]
 	// Helm holds the chart declarations by project; nil when neither the
 	// file nor a flag declares one.
 	Helm map[string]HelmEffective
@@ -78,6 +84,8 @@ func Merge(cfg Config, flags FlagDeclarations) Effective {
 	out.Distribution = pickPtr(file.Distribution, flags.Distribution)
 	out.ResourceScopeComplete = pickPtr(file.ResourceScopeComplete, flags.ResourceScopeComplete)
 	out.TargetApplyRequired = pickPtr(file.TargetApplyRequired, flags.TargetApplyRequired)
+	out.MinimumKubeletVersion = pickPtr(file.MinimumKubeletVersion, flags.MinimumKubeletVersion)
+	out.MaximumKubeletVersion = pickPtr(file.MaximumKubeletVersion, flags.MaximumKubeletVersion)
 	out.Helm = mergeHelm(cfg.Declarations.Helm, flags.Helm)
 	return out
 }

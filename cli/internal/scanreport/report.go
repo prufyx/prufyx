@@ -290,6 +290,9 @@ type Finding struct {
 	// EngineContractDigest of the step are the ones in CrossedLine.
 	CrossedLine *CrossedLine `json:"crossedLine,omitempty"`
 	Locations   []Location   `json:"locations"`
+	// DeclaredEvidence labels a finding that rests on declared, not observed,
+	// input; it stands where locations would be. Absent otherwise.
+	DeclaredEvidence string `json:"declaredEvidence,omitempty"`
 	// Keys are the Helm values keys a chart values rule found: required
 	// keys the supplied values do not set, or refused keys they set, as
 	// values-path set members. Absent for every other finding.
@@ -339,6 +342,9 @@ type Pass struct {
 	RuleID    string `json:"ruleId"`
 	Component string `json:"component"`
 	Hop       HopRef `json:"hop"`
+	// DeclaredEvidence labels a pass that rests on declared, not observed,
+	// input. Absent otherwise.
+	DeclaredEvidence string `json:"declaredEvidence,omitempty"`
 }
 
 // Notice is a one-way notice rule that applies to a hop: the reviewed
@@ -416,6 +422,19 @@ type Provenance struct {
 	KnowledgeStore *KnowledgeStore `json:"knowledgeStore,omitempty"`
 	// HelmValues identifies the values supplied for each declared chart hop.
 	HelmValues []HelmValues `json:"helmValues,omitempty"`
+	// KubeletVersions are the kubelet versions the caller declared; absent
+	// when none were. They are declared, never observed.
+	KubeletVersions *KubeletVersions `json:"kubeletVersions,omitempty"`
+}
+
+// KubeletVersions is the caller's declaration of the kubelet versions the
+// skew rule was evaluated from. Source is "flag", "file" or "mixed". Observed
+// is always false: scan never reads nodes.
+type KubeletVersions struct {
+	Minimum  string `json:"minimum"`
+	Maximum  string `json:"maximum,omitempty"`
+	Source   string `json:"source"`
+	Observed bool   `json:"observed"`
 }
 
 // HelmValues identifies the values supplied for one declared chart: the

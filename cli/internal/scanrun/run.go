@@ -135,12 +135,17 @@ func Run(request Request, options Options) (Result, error) {
 	effective := scanconfig.Merge(config, scanconfig.FlagDeclarations{
 		Inputs: request.Paths, Current: request.From, Target: request.To,
 		Distribution: request.Distribution, ResourceScopeComplete: request.ResourceScopeComplete, TargetApplyRequired: request.TargetApplyRequired,
+		MinimumKubeletVersion: request.KubeletVersionMin, MaximumKubeletVersion: request.KubeletVersionMax,
 		Helm: charts,
 	})
 	if err := checkComponents(catalog, effective); err != nil {
 		return Result{}, err
 	}
 	if err := checkCharts(effective); err != nil {
+		return Result{}, err
+	}
+	kubelet, err := kubeletDeclarationOf(effective)
+	if err != nil {
 		return Result{}, err
 	}
 	// openKnowledge opens the knowledge database a scan reads (never called
@@ -270,6 +275,7 @@ func Run(request Request, options Options) (Result, error) {
 		report.Notes = append(report.Notes, scanreport.PermissionNote(readable))
 	}
 
+	kubeletUsed := false
 	slugs := make([]string, 0, len(effective.Target)+len(effective.Current))
 	inventory := map[string]*scanreport.Component{}
 	for slug, value := range effective.Current {
@@ -371,14 +377,31 @@ func Run(request Request, options Options) (Result, error) {
 		}
 		component.Covered = true
 		report.Inventory = append(report.Inventory, *component)
+		declared := declarationsOf(effective)
+		declared.kubelet = kubelet
 		run := &kubernetesRun{
 			knowledge: knowledge, now: now, report: &report, workspace: manifests,
-			component: component.Component, declarations: declarationsOf(effective), policy: request.TrustPolicy,
+			component: component.Component, declarations: declared, policy: request.TrustPolicy,
 		}
 		if err := run.evaluate(component.Current, component.Target); err != nil {
 			return Result{}, err
 		}
-		report.Omissions = append(report.Omissions, scanreport.OmissionNodeSkew, scanreport.OmissionKubernetesScope)
+		skew := scanreport.OmissionNodeSkew
+		if kubelet.Minimum != "" {
+			skew = scanreport.OmissionNodeSkewDeclared
+		}
+		report.Omissions = append(report.Omissions, skew, scanreport.OmissionKubernetesScope)
+		kubeletUsed = true
+		if kubelet.Minimum != "" {
+			report.Provenance.KubeletVersions = &scanreport.KubeletVersions{Minimum: kubelet.Minimum, Maximum: kubelet.Maximum, Source: kubelet.Source}
+			report.Notes = append(report.Notes, scanreport.NoteKubeletHops)
+			if kubelet.Maximum == "" {
+				report.Notes = append(report.Notes, scanreport.NoteKubeletMaxNotDeclared)
+			}
+		}
+	}
+	if kubelet.Minimum != "" && !kubeletUsed {
+		report.Notes = append(report.Notes, scanreport.NoteKubeletUnused)
 	}
 
 	scanreport.Finalize(&report)
@@ -570,6 +593,32 @@ type declarations struct {
 	distributionSet bool
 	scopeComplete   bool
 	applyRequired   bool
+	// kubelet are the declared kubelet versions; the zero value declares none.
+	kubelet cncfprepare.KubeletDeclaration
+}
+
+// kubeletDeclarationOf reads the declared kubelet versions after flags
+// override the file and validates them with the check route's rules. A
+// declaration that does not validate is a usage error: it is never ignored
+// and never read as a pass.
+func kubeletDeclarationOf(effective scanconfig.Effective) (cncfprepare.KubeletDeclaration, error) {
+	minimum, maximum := effective.MinimumKubeletVersion, effective.MaximumKubeletVersion
+	if !minimum.Set && !maximum.Set {
+		return cncfprepare.KubeletDeclaration{}, nil
+	}
+	if !minimum.Set {
+		// A maximum without a minimum.
+		return cncfprepare.KubeletDeclaration{}, usage(scanreport.UsageKubeletVersions)
+	}
+	declaration := cncfprepare.KubeletDeclaration{Minimum: minimum.Value, Maximum: maximum.Value, Source: string(minimum.Source)}
+	if maximum.Set && maximum.Source != minimum.Source {
+		declaration.Source = "mixed"
+	}
+	// An empty value is "declared but empty", not "not declared".
+	if declaration.Minimum == "" || maximum.Set && declaration.Maximum == "" || cncfprepare.ValidateKubeletVersionDeclarations(declaration.Minimum, declaration.Maximum) != nil {
+		return cncfprepare.KubeletDeclaration{}, usage(scanreport.UsageKubeletVersions)
+	}
+	return declaration, nil
 }
 
 func declarationsOf(effective scanconfig.Effective) declarations {

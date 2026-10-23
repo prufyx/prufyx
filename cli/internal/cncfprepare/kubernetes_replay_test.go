@@ -175,7 +175,7 @@ func TestKubernetesScanMatchesBytePreparation(t *testing.T) {
 		for _, pair := range kubernetesReplayPairs() {
 			for _, decl := range kubernetesReplayDeclarations() {
 				want, wantErr := PrepareKubernetesRemovedAPIs(raw, pair[0], pair[1], decl.distribution, decl.apply, decl.scope)
-				got, gotErr := PrepareKubernetesScan(workspace, pair[0], pair[1], decl.distribution, decl.apply, decl.scope)
+				got, gotErr := PrepareKubernetesScan(workspace, pair[0], pair[1], decl.distribution, decl.apply, decl.scope, KubeletDeclaration{})
 				key := fmt.Sprintf("%s %v %+v", name, pair, decl)
 				if (wantErr == nil) != (gotErr == nil) {
 					t.Fatalf("%s: byte error %v, documents error %v", key, wantErr, gotErr)
@@ -216,7 +216,7 @@ func TestKubernetesScanSources(t *testing.T) {
 		t.Fatal(err)
 	}
 	workspace := intake.Workspace{Documents: append(first.Documents, second.Documents...), Digest: "sha256:" + strings.Repeat("1", 64)}
-	scan, err := PrepareKubernetesScan(workspace, "1.24.17", "1.25.0", "official_upstream", true, true)
+	scan, err := PrepareKubernetesScan(workspace, "1.24.17", "1.25.0", "official_upstream", true, true, KubeletDeclaration{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -233,11 +233,11 @@ func TestKubernetesScanSources(t *testing.T) {
 		t.Fatal(err)
 	}
 	flow.Digest = workspace.Digest
-	scan, err = PrepareKubernetesScan(flow, "1.31.0", "1.32.0", "official_upstream", true, true)
+	scan, err = PrepareKubernetesScan(flow, "1.31.0", "1.32.0", "official_upstream", true, true, KubeletDeclaration{})
 	if err != nil || len(scan.Sources[KubernetesFlowControlFact]) != 1 {
 		t.Fatalf("flow-control sources %+v %v", scan.Sources, err)
 	}
-	scan, err = PrepareKubernetesScan(flow, "1.31.0", "1.32.0", "official_upstream", true, false)
+	scan, err = PrepareKubernetesScan(flow, "1.31.0", "1.32.0", "official_upstream", true, false, KubeletDeclaration{})
 	if err != nil || len(scan.Sources) != 0 {
 		t.Fatalf("sources without a declared fact %+v %v", scan.Sources, err)
 	}

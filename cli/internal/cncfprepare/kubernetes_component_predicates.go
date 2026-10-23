@@ -153,16 +153,27 @@ const KubernetesKubeletSkewFact = "component.kubernetes.kubelet_version_skew_uns
 // kubelet (the declared maximum, else the minimum) is too new when its minor is
 // above the target's.
 func k8sKubeletSkewUnsupported(m *k8sComponentModel) k8sResult {
-	if !m.minKubeletOK || !m.maxKubeletOK || !m.targetOK || m.minKubelet[0] != m.target[0] || m.maxKubelet[0] != m.target[0] {
+	if !m.minKubeletOK || !m.maxKubeletOK || !m.targetOK {
 		return k8sResult{}
 	}
-	lowest, highest, target := m.minKubelet[1], m.maxKubelet[1], m.target[1]
+	present, resolved := KubeletSkewUnsupported(m.minKubelet, m.maxKubelet, m.target)
+	return k8sResult{present: present, resolved: resolved}
+}
+
+// KubeletSkewUnsupported is the one implementation of the skew predicate, shared
+// by the component-config route and by scan's declared kubelet versions. It is
+// unresolved (false, false) when a kubelet version is not on the target's major.
+func KubeletSkewUnsupported(minimum, maximum, target [3]uint64) (present, resolved bool) {
+	if minimum[0] != target[0] || maximum[0] != target[0] {
+		return false, false
+	}
+	lowest, highest, line := minimum[1], maximum[1], target[1]
 	lag := uint64(3)
 	if lowest < 25 {
 		lag = 2
 	}
-	tooOld := target >= lowest && target-lowest > lag
-	return k8sResult{present: highest > target || tooOld, resolved: true}
+	tooOld := line >= lowest && line-lowest > lag
+	return highest > line || tooOld, true
 }
 
 // KubernetesComponentConfigFacts returns every fact the adapter can evaluate for

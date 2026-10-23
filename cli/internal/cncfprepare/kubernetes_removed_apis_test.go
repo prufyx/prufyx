@@ -447,7 +447,7 @@ func TestK8sRemovedAPIsItemsUnderAnotherKind(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				scan, err := PrepareKubernetesScan(workspace, pair[0], pair[1], "official_upstream", true, true)
+				scan, err := PrepareKubernetesScan(workspace, pair[0], pair[1], "official_upstream", true, true, KubeletDeclaration{})
 				if err != nil || scan.Prepared.State != StateUnknown || scan.Prepared.Reason != ReasonKubernetesUnresolved || len(scan.Sources) != 0 {
 					t.Fatalf("%s->%s scan: %v %s/%s %v", pair[0], pair[1], err, scan.Prepared.State, scan.Prepared.Reason, scan.Sources)
 				}
@@ -482,7 +482,7 @@ func TestK8sRemovedAPIsItemsBesideAWitness(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			scan, err := PrepareKubernetesScan(workspace, from125, to125, "official_upstream", true, true)
+			scan, err := PrepareKubernetesScan(workspace, from125, to125, "official_upstream", true, true, KubeletDeclaration{})
 			if err != nil || string(scan.Prepared.CanonicalInputJSON) != string(prepared.CanonicalInputJSON) || len(scan.Sources[factCronJob]) != 1 || scan.Sources[factCronJob][0].Document != 0 {
 				t.Fatalf("scan: %v %+v", err, scan.Sources)
 			}

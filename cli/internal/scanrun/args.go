@@ -27,6 +27,9 @@ type Request struct {
 	Distribution          *string
 	ResourceScopeComplete *bool
 	TargetApplyRequired   *bool
+	// KubeletVersionMin and KubeletVersionMax are --kubelet-version-min and
+	// --kubelet-version-max: declared, not observed, kubelet versions.
+	KubeletVersionMin, KubeletVersionMax *string
 	// Charts are the --chart PROJECT=NAME[@SOURCE] declarations; nil when
 	// none was given.
 	Charts map[string]string
@@ -260,6 +263,19 @@ func ParseArgs(args []string) (Request, error) {
 				return Request{}, usage(scanreport.UsageBadValue, display)
 			}
 			request.Distribution = &v
+		case "kubelet-version-min", "kubelet-version-max":
+			if err := once(display); err != nil {
+				return Request{}, err
+			}
+			v, err := next()
+			if err != nil {
+				return Request{}, err
+			}
+			if name == "kubelet-version-min" {
+				request.KubeletVersionMin = &v
+			} else {
+				request.KubeletVersionMax = &v
+			}
 		case "resource-scope-complete", "target-api-apply-required":
 			if err := once(display); err != nil {
 				return Request{}, err

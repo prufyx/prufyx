@@ -84,6 +84,11 @@ type KubernetesDeclarations struct {
 	Distribution          *string
 	ResourceScopeComplete *bool
 	TargetApplyRequired   *bool
+	// MinimumKubeletVersion and MaximumKubeletVersion are the declared
+	// lowest and highest kubelet versions (x.y.z). They have no check-route
+	// flag; the scan validates them after flags are merged.
+	MinimumKubeletVersion *string
+	MaximumKubeletVersion *string
 }
 
 // IsConfigDocument reports whether a document identity is that of a
@@ -353,7 +358,7 @@ func parseDeclarations(value any) (DeclarationSet, error) {
 		}
 	}
 	if v, present := m["kubernetes"]; present {
-		k, err := object(v, "declarations.kubernetes", "distribution", "resourceScopeComplete", "targetApplyRequired")
+		k, err := object(v, "declarations.kubernetes", "distribution", "resourceScopeComplete", "targetApplyRequired", "minimumKubeletVersion", "maximumKubeletVersion")
 		if err != nil {
 			return DeclarationSet{}, err
 		}
@@ -375,6 +380,18 @@ func parseDeclarations(value any) (DeclarationSet, error) {
 					return DeclarationSet{}, fail("declarations.kubernetes.%s must be true or false", field.name)
 				}
 				*field.dst = &b
+			}
+		}
+		for _, field := range []struct {
+			name string
+			dst  **string
+		}{{"minimumKubeletVersion", &decl.MinimumKubeletVersion}, {"maximumKubeletVersion", &decl.MaximumKubeletVersion}} {
+			if v, present := k[field.name]; present {
+				s, ok := v.(string)
+				if !ok {
+					return DeclarationSet{}, fail("declarations.kubernetes.%s must be a version string x.y.z", field.name)
+				}
+				*field.dst = &s
 			}
 		}
 		set.Kubernetes = decl

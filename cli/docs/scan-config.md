@@ -34,6 +34,8 @@ is never ignored. The file holds exactly one YAML document.
 | `declarations.kubernetes.distribution` | no | `official_upstream` or `custom_build`. Same as `--distribution`. |
 | `declarations.kubernetes.resourceScopeComplete` | no | `true` or `false`: the supplied resources are the complete set. Same as `--resource-scope-complete`. |
 | `declarations.kubernetes.targetApplyRequired` | no | `true` or `false`: the resources are required for applying to the target API. Same as `--target-api-apply-required`. |
+| `declarations.kubernetes.minimumKubeletVersion` | no | The lowest kubelet version of any node, exactly `x.y.z` (a quoted string). Declared, not observed. Same as `--kubelet-version-min`; see [Declared kubelet versions](scan.md#declared-kubelet-versions). |
+| `declarations.kubernetes.maximumKubeletVersion` | no | The highest kubelet version, exactly `x.y.z`, for a mixed fleet; needs the minimum and is not below it. Same as `--kubelet-version-max`. |
 | `declarations.helm.<project>.chart` | yes, for a `helm` entry | The Helm chart the project's `current` and `target` versions are versions of, as `NAME` or `NAME@SOURCE`. Same as `--chart <project>=...`. |
 | `declarations.helm.<project>.values` | no | 1 to 64 values files, in Helm's order (a later file wins). Each is relative to the directory of the file, in the same clean form as `inputs`, and names a file, not a directory. Same as `--helm-values`. |
 | `declarations.helm.<project>.set` | no | 1 to 64 `KEY=VALUE` assignments applied after the files. Same as `--helm-set`. |

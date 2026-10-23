@@ -65,6 +65,7 @@ const (
 	GapDeclarationScope        GapKey = ReasonDeclarationMissing + "/scope"
 	GapDeclarationApply        GapKey = ReasonDeclarationMissing + "/apply"
 	GapDeclarationDistribution GapKey = ReasonDeclarationMissing + "/distribution"
+	GapDeclarationKubelet      GapKey = ReasonDeclarationMissing + "/kubelet-version"
 	GapDistributionNotCovered  GapKey = ReasonDistributionNotCovered
 	GapDocumentsTemplated      GapKey = ReasonDocumentsTemplated
 	GapDocumentsLists          GapKey = ReasonDocumentsNotEvaluated + "/lists"
@@ -197,6 +198,8 @@ var gapMessages = map[GapKey]gapMessage{
 		"if they are, add targetApplyRequired: true to prufyx.yaml or pass --target-api-apply-required", 1},
 	GapDeclarationDistribution: {"the %[1]s distribution is not declared",
 		"for upstream builds, add distribution: official_upstream to prufyx.yaml or pass --distribution official_upstream", 1},
+	GapDeclarationKubelet: {"rule %[1]s applies to this hop but the lowest kubelet version is not declared",
+		"add --kubelet-version-min X.Y.Z (and --kubelet-version-max for a mixed fleet) or minimumKubeletVersion in prufyx.yaml; declare only what is true", 1},
 	GapDistributionNotCovered: {"the %[1]s distribution is %[2]s; only official_upstream is evaluated",
 		"check your distribution's release notes by hand", 2},
 	GapDocumentsTemplated: {"%[1]d document(s) contain unrendered templates",
@@ -452,6 +455,16 @@ func headline(report Report) string {
 const (
 	// OmissionNodeSkew is stated on every Kubernetes path.
 	OmissionNodeSkew = "node and kubelet version skew not evaluated"
+	// OmissionNodeSkewDeclared replaces OmissionNodeSkew when kubelet
+	// versions are declared.
+	OmissionNodeSkewDeclared = "kubelet version skew evaluated from declared versions only, nodes not observed"
+	// DeclaredEvidenceKubelet labels a result that rests on declared
+	// kubelet versions.
+	DeclaredEvidenceKubelet = "declared kubelet versions, not observed"
+	// NoteKubeletHops is stated whenever kubelet versions are declared.
+	NoteKubeletHops           = "the declared kubelet versions were applied unchanged to every hop; upgrading nodes between hops is not modelled"
+	NoteKubeletMaxNotDeclared = "kubelet maximum not declared: taken as the minimum"
+	NoteKubeletUnused         = "note: declared kubelet versions were not used: no Kubernetes upgrade was evaluated"
 	// OmissionKubernetesScope says what the Kubernetes evaluation reads.
 	OmissionKubernetesScope = "Kubernetes: only API versions in the supplied manifests are evaluated; live cluster objects, CRDs, stored versions, admission and component configuration are not"
 )
@@ -495,6 +508,7 @@ const (
 	labelPassCountOne           = " 1 check passed (--show-passes)."
 	labelNotEvaluated           = "Scope limits: %s."
 	labelEvidence               = "Evidence: every finding cites pinned upstream source (--verbose). No network used."
+	labelKubeletVersions        = "kubelet versions: declared min %s%s via %s; declared by you, not observed"
 	labelProvenance             = "evaluated at %s; input %s; knowledge %s %s %s"
 	labelKnowledgeStore         = "knowledge database %s; layout %s; target %s; trust receipt %s"
 	labelKnowledgeProject       = "knowledge for %s: target %s revision %s digest %s"
@@ -597,6 +611,7 @@ const (
 	UsageKnowledgeEmbeddedDB     = "--knowledge=embedded cannot be used with --knowledge-db"
 	UsageKnowledgeDBFailed       = "KNOWLEDGE INTEGRITY FAILURE: the knowledge database could not be verified (%s); nothing was evaluated and the embedded knowledge was not used"
 	UsageNow                     = "--now must be canonical UTC with whole seconds, for example 2026-10-04T00:00:00Z"
+	UsageKubeletVersions         = "kubelet versions are not accepted: --kubelet-version-min and --kubelet-version-max (or minimumKubeletVersion and maximumKubeletVersion in prufyx.yaml) take x.y.z only, a maximum needs a minimum and is not below it"
 	UsageStdinTwice              = "standard input (-) can be read only once"
 	UsageConfig                  = "configuration file: %s"
 	UsageConfigNotAccepted       = "configuration file is not accepted"
@@ -656,6 +671,8 @@ with where it is and how to fix it, and every area that was not checked.
   --distribution D          official_upstream or custom_build (Kubernetes)
   --resource-scope-complete[=true|false]   the inputs are every manifest you apply
   --target-api-apply-required[=true|false] the inputs are applied to the target API
+  --kubelet-version-min X.Y.Z  the lowest kubelet version of any node (declared, not observed)
+  --kubelet-version-max X.Y.Z  the highest kubelet version, for a mixed fleet (needs the minimum)
   --chart P=NAME[@SOURCE]   P's --from/--to versions are versions of Helm chart NAME, resolved
                             through the reviewed chart-source table; checks only the chart's
                             values and Kubernetes-version rules (Kubernetes needs --to kubernetes=)

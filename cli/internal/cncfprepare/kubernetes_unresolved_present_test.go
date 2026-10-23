@@ -98,7 +98,7 @@ func TestK8sRemovedAPIsUnresolvedSetNeverDeclaresWithoutReadableWitness(t *testi
 func TestK8sScanUnresolvedSetNamesReadableWitness(t *testing.T) {
 	raw := yamlDocs(cronjobRemoved, unreadableTemplated)
 	workspace := crWorkspace(t, raw)
-	scan, err := PrepareKubernetesScan(workspace, from125, to125, "official_upstream", true, true)
+	scan, err := PrepareKubernetesScan(workspace, from125, to125, "official_upstream", true, true, KubeletDeclaration{})
 	if err != nil {
 		t.Fatal(err)
 	}

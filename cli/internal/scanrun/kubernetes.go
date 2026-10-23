@@ -468,7 +468,7 @@ func containsFact(facts []string, fact string) bool {
 // evaluateTransition prepares the engine input for one concrete transition
 // exactly as the single-file route does and evaluates it.
 func (r *kubernetesRun) evaluateTransition(from, to string) (evaluation, error) {
-	scan, err := cncfprepare.PrepareKubernetesScan(r.workspace, from, to, r.declarations.distribution, r.declarations.applyRequired, r.declarations.scopeComplete)
+	scan, err := cncfprepare.PrepareKubernetesScan(r.workspace, from, to, r.declarations.distribution, r.declarations.applyRequired, r.declarations.scopeComplete, r.declarations.kubelet)
 	if err != nil {
 		return evaluation{}, ErrIntegrity
 	}
@@ -482,7 +482,14 @@ func (r *kubernetesRun) evaluateTransition(from, to string) (evaluation, error) 
 		// the line can stand for a decision.
 		return evaluation{scan: scan, refused: true}, nil
 	}
-	result, err := r.knowledge.Evaluate(r.policy, kubernetesSlug, cncfprepare.KubernetesRemovedAPIAllFacts(), scan.Prepared.CanonicalInputJSON, r.now)
+	facts := cncfprepare.KubernetesRemovedAPIAllFacts()
+	if r.declarations.kubelet.Minimum != "" {
+		// Declared kubelet versions make the skew rules readable; without
+		// them the rules stay unselected and the hop names the missing
+		// declaration.
+		facts = append(facts, cncfprepare.KubernetesKubeletSkewFact)
+	}
+	result, err := r.knowledge.Evaluate(r.policy, kubernetesSlug, facts, scan.Prepared.CanonicalInputJSON, r.now)
 	if errors.Is(err, ErrRefused) {
 		// The knowledge has no fact for a removal the preparation knows
 		// about on this line: no reviewed rule can decide it.
@@ -539,6 +546,32 @@ func (r *kubernetesRun) evaluateTransition(from, to string) (evaluation, error) 
 	return evaluation{scan: scan, claims: claims, contract: result.EngineContractDigest}, nil
 }
 
+// declarationFacts are the facts that only a caller declaration can supply:
+// no manifest or knowledge can make them true.
+var declarationFacts = map[string]bool{cncfprepare.KubernetesKubeletSkewFact: true}
+
+// declarationOnly reports whether every fact the rule reads is a
+// declaration-only fact.
+func declarationOnly(rule cncfcheck.ScanRule) bool {
+	if len(rule.Facts) == 0 {
+		return false
+	}
+	for _, fact := range rule.Facts {
+		if !declarationFacts[fact] {
+			return false
+		}
+	}
+	return true
+}
+
+// declaredEvidence is the label a result of a declaration-only rule carries.
+func declaredEvidence(rule cncfcheck.ScanRule) string {
+	if declarationOnly(rule) {
+		return scanreport.DeclaredEvidenceKubelet
+	}
+	return ""
+}
+
 // judgement is the result of one applicable rule.
 type judgement struct {
 	decided, blocked bool
@@ -555,6 +588,9 @@ type judgement struct {
 func (r *kubernetesRun) judge(rule cncfcheck.ScanRule, eval evaluation, ref scanreport.HopRef, viaCrossing bool) judgement {
 	claim, found := eval.claims[rule.Scope.ID]
 	if !found {
+		if r.declarations.kubelet.Minimum == "" && declarationOnly(rule) {
+			return judgement{reasons: []string{r.gap(&ref, scanreport.GapDeclarationKubelet, rule.Scope.ID)}}
+		}
 		return judgement{reasons: []string{r.gap(&ref, scanreport.GapRuleNeedsOtherEvidence, rule.Scope.ID, kubernetesSlug)}}
 	}
 	switch claim.Status {
@@ -565,7 +601,7 @@ func (r *kubernetesRun) judge(rule cncfcheck.ScanRule, eval evaluation, ref scan
 		key := rule.Scope.ID + "\x00" + ref.From + "\x00" + ref.To + "\x00" + strconv.FormatBool(ref.WholeUpgrade)
 		if !r.passes[key] {
 			r.passes[key] = true
-			r.report.Passes = append(r.report.Passes, scanreport.Pass{RuleID: rule.Scope.ID, Component: kubernetesSlug, Hop: ref})
+			r.report.Passes = append(r.report.Passes, scanreport.Pass{RuleID: rule.Scope.ID, Component: kubernetesSlug, Hop: ref, DeclaredEvidence: declaredEvidence(rule)})
 		}
 		return judgement{decided: true, facts: claimFacts(claim)}
 	case constraintengine.StatusUnsupported:
@@ -1168,7 +1204,7 @@ func (r *kubernetesRun) finding(rule cncfcheck.ScanRule, claim constraintengine.
 	finding := scanreport.Finding{
 		RuleID: rule.Scope.ID, Component: kubernetesSlug, Hop: ref, Title: title(rule.Description), Fix: rule.NextAction, Match: "anchor",
 		Basis: constraintengine.EffectiveBasis(claim.EvidenceBasis), Citations: append([]constraintengine.SourceEvidence{}, claim.Sources...),
-		RuleDigest: claim.RuleDigest, Locations: []scanreport.Location{},
+		RuleDigest: claim.RuleDigest, Locations: []scanreport.Location{}, DeclaredEvidence: declaredEvidence(rule),
 	}
 	if claim.SubjectMatch != nil {
 		finding.Match = claim.SubjectMatch.Mode

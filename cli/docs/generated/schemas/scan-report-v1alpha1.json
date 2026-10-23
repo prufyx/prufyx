@@ -685,6 +685,9 @@
             "$ref": "#/$defs/location"
           }
         },
+        "declaredEvidence": {
+          "type": "string"
+        },
         "keys": {
           "type": "array",
           "items": {
@@ -781,6 +784,9 @@
         },
         "hop": {
           "$ref": "#/$defs/hopRef"
+        },
+        "declaredEvidence": {
+          "type": "string"
         }
       }
     },
@@ -1095,6 +1101,36 @@
           "items": {
             "$ref": "#/$defs/helmValues"
           }
+        },
+        "kubeletVersions": {
+          "$ref": "#/$defs/kubeletVersions"
+        }
+      }
+    },
+    "kubeletVersions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "minimum",
+        "source",
+        "observed"
+      ],
+      "properties": {
+        "minimum": {
+          "type": "string"
+        },
+        "maximum": {
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "flag",
+            "file",
+            "mixed"
+          ]
+        },
+        "observed": {
+          "const": false
         }
       }
     },

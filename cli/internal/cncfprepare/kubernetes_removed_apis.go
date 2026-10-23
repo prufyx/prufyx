@@ -141,7 +141,7 @@ func PrepareKubernetesRemovedAPIs(raw []byte, from, to, distribution string, tar
 	if len(raw) == 0 || len(raw) > maxInputBytes || !utf8.Valid(raw) {
 		return Prepared{}, ErrInvalid
 	}
-	prepared, _, err := prepareKubernetesRemovedAPIs(func() (kubernetesApplySet, error) { return kubernetesApplySetFromBytes(raw) }, digestBytes(raw), from, to, distribution, targetApplyRequired, complete)
+	prepared, _, err := prepareKubernetesRemovedAPIs(func() (kubernetesApplySet, error) { return kubernetesApplySetFromBytes(raw) }, digestBytes(raw), from, to, distribution, targetApplyRequired, complete, nil)
 	return prepared, err
 }
 
@@ -150,7 +150,7 @@ func PrepareKubernetesRemovedAPIs(raw []byte, from, to, distribution string, tar
 // always did. It also returns, for every fact declared true, the documents
 // that made it true. It must only be called for a pair that crosses a
 // reviewed minor line.
-func prepareKubernetesRemovedAPIs(read func() (kubernetesApplySet, error), sourceDigest, from, to, distribution string, targetApplyRequired, complete bool) (Prepared, map[string][]intake.Source, error) {
+func prepareKubernetesRemovedAPIs(read func() (kubernetesApplySet, error), sourceDigest, from, to, distribution string, targetApplyRequired, complete bool, extra []inputFact) (Prepared, map[string][]intake.Source, error) {
 	removals, reviewed := kubernetesRemovalsForCrossedMinorLine(from, to)
 	if !reviewed {
 		return Prepared{}, nil, ErrInvalid
@@ -163,7 +163,7 @@ func prepareKubernetesRemovedAPIs(read func() (kubernetesApplySet, error), sourc
 		return facts
 	}
 	prepare := func(facts []inputFact, state State, reason Reason, sources map[string][]intake.Source) (Prepared, map[string][]intake.Source, error) {
-		prepared, err := kubernetesRemovedPrepared(sourceDigest, from, to, facts, state, reason)
+		prepared, err := kubernetesRemovedPrepared(sourceDigest, from, to, append(facts, extra...), state, reason)
 		if err != nil {
 			return Prepared{}, nil, err
 		}
@@ -594,7 +594,7 @@ func PrepareKubernetesRemovedAPIsLocated(raw []byte, file, from, to, distributio
 		workspace = decoded
 		return kubernetesApplySetOf(decoded), nil
 	}
-	prepared, sources, err := prepareKubernetesRemovedAPIs(read, digestBytes(raw), from, to, distribution, targetApplyRequired, complete)
+	prepared, sources, err := prepareKubernetesRemovedAPIs(read, digestBytes(raw), from, to, distribution, targetApplyRequired, complete, nil)
 	if err != nil {
 		return Prepared{}, nil, err
 	}

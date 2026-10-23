@@ -4,6 +4,7 @@ package cncfprepare
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/prufyx/prufyx/cli/internal/intake"
 	"path/filepath"
 	"regexp"
@@ -122,6 +123,34 @@ type KubernetesComponentSelection struct {
 	selection             []byte
 }
 
+// ValidateKubeletVersionDeclarations checks the declared lowest and highest
+// kubelet versions the way both routes need: empty means not declared; a
+// declared version is exactly x.y.z; a maximum needs a minimum and is not below
+// it. It is shared by the selection document and by scan's flags.
+func ValidateKubeletVersionDeclarations(minimum, maximum string) error {
+	if minimum == "" {
+		if maximum != "" {
+			return fmt.Errorf("%w: a maximum kubelet version needs a minimum", ErrInvalid)
+		}
+		return nil
+	}
+	lowest, ok := kubernetesVersionParts(minimum)
+	if !ok {
+		return fmt.Errorf("%w: the minimum kubelet version must be x.y.z", ErrInvalid)
+	}
+	if maximum == "" {
+		return nil
+	}
+	highest, ok := kubernetesVersionParts(maximum)
+	if !ok {
+		return fmt.Errorf("%w: the maximum kubelet version must be x.y.z", ErrInvalid)
+	}
+	if compareVersionParts(highest, lowest) < 0 {
+		return fmt.Errorf("%w: the maximum kubelet version is below the minimum", ErrInvalid)
+	}
+	return nil
+}
+
 // ParseKubernetesComponentSelection strictly parses the caller's selection
 // document. It never opens a referenced file.
 func ParseKubernetesComponentSelection(raw []byte) (KubernetesComponentSelection, error) {
@@ -167,21 +196,17 @@ func ParseKubernetesComponentSelection(raw []byte) (KubernetesComponentSelection
 				*target = declared
 			}
 		}
-		if value, exists := declarations["minimumKubeletVersion"]; exists {
-			declared, ok := value.(string)
-			if _, parsed := kubernetesVersionParts(declared); !ok || !parsed {
-				return KubernetesComponentSelection{}, ErrInvalid
+		for key, target := range map[string]*string{"minimumKubeletVersion": &selection.MinimumKubeletVersion, "maximumKubeletVersion": &selection.MaximumKubeletVersion} {
+			if value, exists := declarations[key]; exists {
+				declared, ok := value.(string)
+				if !ok || declared == "" {
+					return KubernetesComponentSelection{}, ErrInvalid
+				}
+				*target = declared
 			}
-			selection.MinimumKubeletVersion = declared
 		}
-		if value, exists := declarations["maximumKubeletVersion"]; exists {
-			declared, ok := value.(string)
-			highest, parsed := kubernetesVersionParts(declared)
-			lowest, lowestParsed := kubernetesVersionParts(selection.MinimumKubeletVersion)
-			if !ok || !parsed || !lowestParsed || compareVersionParts(highest, lowest) < 0 {
-				return KubernetesComponentSelection{}, ErrInvalid
-			}
-			selection.MaximumKubeletVersion = declared
+		if ValidateKubeletVersionDeclarations(selection.MinimumKubeletVersion, selection.MaximumKubeletVersion) != nil {
+			return KubernetesComponentSelection{}, ErrInvalid
 		}
 		if value, exists := declarations["linuxNodeCgroupV1"]; exists {
 			declared, ok := value.(bool)

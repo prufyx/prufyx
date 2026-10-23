@@ -4,6 +4,7 @@ package cncfprepare
 
 import (
 	"encoding/json"
+	"sort"
 	"strings"
 	"unicode/utf8"
 
@@ -31,16 +32,16 @@ func PrepareKubernetesFlowControl(raw []byte, from, to, distribution string, tar
 	if len(raw) == 0 || len(raw) > maxInputBytes || !utf8.Valid(raw) {
 		return Prepared{}, ErrInvalid
 	}
-	prepared, _, err := prepareKubernetesFlowControl(func() (kubernetesApplySet, error) { return kubernetesApplySetFromBytes(raw) }, digestBytes(raw), from, to, distribution, targetApplyRequired, complete)
+	prepared, _, err := prepareKubernetesFlowControl(func() (kubernetesApplySet, error) { return kubernetesApplySetFromBytes(raw) }, digestBytes(raw), from, to, distribution, targetApplyRequired, complete, nil)
 	return prepared, err
 }
 
 // prepareKubernetesFlowControl is the flow-control preparation over an apply
 // set that read resolves on demand, after the target guard. It also returns
 // the documents that made the fact true, when it is declared true.
-func prepareKubernetesFlowControl(read func() (kubernetesApplySet, error), sourceDigest, from, to, distribution string, targetApplyRequired, complete bool) (Prepared, map[string][]intake.Source, error) {
+func prepareKubernetesFlowControl(read func() (kubernetesApplySet, error), sourceDigest, from, to, distribution string, targetApplyRequired, complete bool, extra []inputFact) (Prepared, map[string][]intake.Source, error) {
 	if !targetApplyRequired || distribution != "official_upstream" {
-		prepared, err := kubernetesPrepared(sourceDigest, from, to, inputFact{ID: KubernetesFlowControlFact, State: "unsupported"}, StateUnknown, ReasonKubernetesTargetGuard)
+		prepared, err := kubernetesPrepared(sourceDigest, from, to, inputFact{ID: KubernetesFlowControlFact, State: "unsupported"}, StateUnknown, ReasonKubernetesTargetGuard, extra...)
 		return prepared, nil, err
 	}
 	set, err := read()
@@ -70,7 +71,7 @@ func prepareKubernetesFlowControl(read func() (kubernetesApplySet, error), sourc
 		fact = inputFact{ID: KubernetesFlowControlFact, State: "declared", BoolValue: &v}
 		sources = map[string][]intake.Source{KubernetesFlowControlFact: inspected.Matched}
 	}
-	prepared, err := kubernetesPrepared(sourceDigest, from, to, fact, state, reason)
+	prepared, err := kubernetesPrepared(sourceDigest, from, to, fact, state, reason, extra...)
 	if err != nil {
 		return Prepared{}, nil, err
 	}
@@ -239,11 +240,14 @@ func validKubernetesVersion(value string) bool {
 	return validVersionSyntax(value) || constraintengine.PreRelease(value)
 }
 
-func kubernetesPrepared(sourceDigest, from, to string, fact inputFact, state State, reason Reason) (Prepared, error) {
+func kubernetesPrepared(sourceDigest, from, to string, fact inputFact, state State, reason Reason, extra ...inputFact) (Prepared, error) {
 	if !validKubernetesVersion(from) || !validKubernetesVersion(to) || from == to {
 		return Prepared{}, ErrInvalid
 	}
-	canonical, err := marshalComponentInput(KubernetesComponent, from, to, []inputFact{fact})
+	facts := append([]inputFact{fact}, extra...)
+	// Sort by fact ID so the canonical input does not depend on call order.
+	sort.Slice(facts, func(i, j int) bool { return facts[i].ID < facts[j].ID })
+	canonical, err := marshalComponentInput(KubernetesComponent, from, to, facts)
 	if err != nil {
 		return Prepared{}, ErrInvalid
 	}
