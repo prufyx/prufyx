@@ -4,12 +4,16 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/currentbundle"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgepublish"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgerelease"
@@ -46,19 +50,20 @@ func runKnowledgePublish(args []string, stdout io.Writer) error {
 func runFinalizeRotatedPackage(args []string, stdout io.Writer) error {
 	flags := flag.NewFlagSet("knowledge-publish finalize-rotated-package", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
-	var initialRoot, initialDigest, target, targets, snapshot, timestamp, output string
+	var initialRoot, initialDigest, target, targetsDir, targets, snapshot, timestamp, output string
 	var successors []string
 	flags.StringVar(&initialRoot, "initial-root", "", "independently pinned initial root")
 	flags.StringVar(&initialDigest, "initial-root-digest", "", "exact initial root SHA-256")
 	flags.Func("successor-root", "finalized successor root; repeat in N+1 order", func(v string) error { successors = append(successors, v); return nil })
 	flags.StringVar(&target, "target", "", "complete CNCF external target")
+	flags.StringVar(&targetsDir, "targets-dir", "", "per-project targets directory (instead of --target)")
 	flags.StringVar(&targets, "targets", "", "finalized targets metadata")
 	flags.StringVar(&snapshot, "snapshot", "", "finalized snapshot metadata")
 	flags.StringVar(&timestamp, "timestamp", "", "finalized timestamp metadata")
 	flags.StringVar(&output, "output", "", "new anchored rotated package")
 	if err := flags.Parse(args); err != nil {
 		if err == flag.ErrHelp {
-			if _, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer knowledge-publish finalize-rotated-package --initial-root ABS --initial-root-digest sha256:... --successor-root ABS [--successor-root ABS ...] --target ABS --targets ABS --snapshot ABS --timestamp ABS --output ABS"); e != nil {
+			if _, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer knowledge-publish finalize-rotated-package --initial-root ABS --initial-root-digest sha256:... --successor-root ABS [--successor-root ABS ...] (--target ABS | --targets-dir ABS) --targets ABS --snapshot ABS --timestamp ABS --output ABS"); e != nil {
 				return e
 			}
 			_, e := fmt.Fprintln(stdout, "supply 1-8 finalized successors in N+1..K order; the package is for a client currently trusting N. The receipt is stateless verification, not store eligibility.")
@@ -66,11 +71,11 @@ func runFinalizeRotatedPackage(args []string, stdout io.Writer) error {
 		}
 		return knowledgePublishError()
 	}
-	if flags.NArg() != 0 || initialRoot == "" || initialDigest == "" || target == "" || targets == "" || snapshot == "" || timestamp == "" || output == "" || !filepath.IsAbs(output) || len(successors) == 0 || len(successors) > 8 {
+	if flags.NArg() != 0 || initialRoot == "" || initialDigest == "" || (target == "") == (targetsDir == "") || targets == "" || snapshot == "" || timestamp == "" || output == "" || !filepath.IsAbs(output) || len(successors) == 0 || len(successors) > 8 {
 		return knowledgePublishError()
 	}
 	initialRaw, e1 := readPublishInput(initialRoot, knowledgepublish.MaxRootBytes)
-	targetRaw, e2 := readPublishInput(target, knowledgepublish.MaxTargetBytes)
+	targetRaw, projects, e2 := readTargetInput(target, targetsDir)
 	targetsRaw, e3 := readPublishInput(targets, knowledgepublish.MaxRoleBytes)
 	snapshotRaw, e4 := readPublishInput(snapshot, knowledgepublish.MaxRoleBytes)
 	timestampRaw, e5 := readPublishInput(timestamp, knowledgepublish.MaxRoleBytes)
@@ -85,7 +90,7 @@ func runFinalizeRotatedPackage(args []string, stdout io.Writer) error {
 	if e1 != nil || e2 != nil || e3 != nil || e4 != nil || e5 != nil {
 		return knowledgePublishError()
 	}
-	packageRaw, receipt, err := knowledgepublish.FinalizeRotatedPackage(knowledgepublish.RotatedFinalizePackageOptions{InitialRoot: initialRaw, InitialRootDigest: initialDigest, SuccessorRoots: rootRaw, Target: targetRaw, Targets: targetsRaw, Snapshot: snapshotRaw, Timestamp: timestampRaw})
+	packageRaw, receipt, err := knowledgepublish.FinalizeRotatedPackage(knowledgepublish.RotatedFinalizePackageOptions{InitialRoot: initialRaw, InitialRootDigest: initialDigest, SuccessorRoots: rootRaw, Target: targetRaw, Projects: projects, Targets: targetsRaw, Snapshot: snapshotRaw, Timestamp: timestampRaw})
 	if err != nil || knowledgepublish.WriteExclusive(output, packageRaw) != nil {
 		return knowledgePublishError()
 	}
@@ -177,7 +182,7 @@ func runFinalizeRootTransition(args []string, stdout io.Writer) error {
 }
 
 type publishCommon struct {
-	root, rootDigest, target, output string
+	root, rootDigest, target, targetsDir, output string
 }
 
 func bindPublishCommon(flags *flag.FlagSet, values *publishCommon, includeTarget bool) {
@@ -185,6 +190,7 @@ func bindPublishCommon(flags *flag.FlagSet, values *publishCommon, includeTarget
 	flags.StringVar(&values.rootDigest, "root-digest", "", "independently verified public root SHA-256")
 	if includeTarget {
 		flags.StringVar(&values.target, "target", "", "canonical CNCF external replacement target")
+		flags.StringVar(&values.targetsDir, "targets-dir", "", "per-project targets directory (instead of --target)")
 	}
 	flags.StringVar(&values.output, "output", "", "new private output path")
 }
@@ -201,11 +207,11 @@ func runPrepareTargets(args []string) error {
 	if flags.Parse(args) != nil || flags.NArg() != 0 || !completeCommon(common, true) || version == 0 || expires == "" {
 		return knowledgePublishError()
 	}
-	root, target, err := readRootTarget(common)
+	root, target, projects, err := readRootTarget(common)
 	if err != nil {
 		return knowledgePublishError()
 	}
-	prepared, err := knowledgepublish.PrepareTargets(knowledgepublish.TargetsOptions{Root: root, Target: target, RootDigest: common.rootDigest, Version: version, Expires: expires})
+	prepared, err := knowledgepublish.PrepareTargets(knowledgepublish.TargetsOptions{Root: root, Target: target, Projects: projects, RootDigest: common.rootDigest, Version: version, Expires: expires})
 	if err != nil || knowledgepublish.WritePreparation(common.output, prepared) != nil {
 		return knowledgePublishError()
 	}
@@ -225,7 +231,7 @@ func runPrepareSnapshot(args []string) error {
 	if flags.Parse(args) != nil || flags.NArg() != 0 || !completeCommon(common, true) || targets == "" || version == 0 || expires == "" {
 		return knowledgePublishError()
 	}
-	root, target, err := readRootTarget(common)
+	root, target, projects, err := readRootTarget(common)
 	if err != nil {
 		return knowledgePublishError()
 	}
@@ -233,7 +239,7 @@ func runPrepareSnapshot(args []string) error {
 	if err != nil {
 		return knowledgePublishError()
 	}
-	prepared, err := knowledgepublish.PrepareSnapshot(knowledgepublish.SnapshotOptions{Root: root, Target: target, Targets: targetsRaw, RootDigest: common.rootDigest, Version: version, Expires: expires})
+	prepared, err := knowledgepublish.PrepareSnapshot(knowledgepublish.SnapshotOptions{Root: root, Target: target, Projects: projects, Targets: targetsRaw, RootDigest: common.rootDigest, Version: version, Expires: expires})
 	if err != nil || knowledgepublish.WritePreparation(common.output, prepared) != nil {
 		return knowledgePublishError()
 	}
@@ -254,7 +260,7 @@ func runPrepareTimestamp(args []string) error {
 	if flags.Parse(args) != nil || flags.NArg() != 0 || !completeCommon(common, true) || targets == "" || snapshot == "" || version == 0 || expires == "" {
 		return knowledgePublishError()
 	}
-	root, target, err := readRootTarget(common)
+	root, target, projects, err := readRootTarget(common)
 	if err != nil {
 		return knowledgePublishError()
 	}
@@ -263,7 +269,7 @@ func runPrepareTimestamp(args []string) error {
 	if err1 != nil || err2 != nil {
 		return knowledgePublishError()
 	}
-	prepared, err := knowledgepublish.PrepareTimestamp(knowledgepublish.TimestampOptions{Root: root, Target: target, Targets: targetsRaw, Snapshot: snapshotRaw, RootDigest: common.rootDigest, Version: version, Expires: expires})
+	prepared, err := knowledgepublish.PrepareTimestamp(knowledgepublish.TimestampOptions{Root: root, Target: target, Projects: projects, Targets: targetsRaw, Snapshot: snapshotRaw, RootDigest: common.rootDigest, Version: version, Expires: expires})
 	if err != nil || knowledgepublish.WritePreparation(common.output, prepared) != nil {
 		return knowledgePublishError()
 	}
@@ -315,7 +321,7 @@ func runFinalizeKnowledgePackage(args []string, stdout io.Writer) error {
 		(packageURL == "") != (releasePlanOutput == "") || planRequested && (!filepath.IsAbs(releasePlanOutput) || filepath.Clean(releasePlanOutput) == filepath.Clean(common.output)) {
 		return knowledgePublishError()
 	}
-	root, target, err := readRootTarget(common)
+	root, target, projects, err := readRootTarget(common)
 	if err != nil {
 		return knowledgePublishError()
 	}
@@ -325,7 +331,7 @@ func runFinalizeKnowledgePackage(args []string, stdout io.Writer) error {
 	if err1 != nil || err2 != nil || err3 != nil {
 		return knowledgePublishError()
 	}
-	opts := knowledgepublish.FinalizePackageOptions{Root: root, Target: target, Targets: targetsRaw, Snapshot: snapshotRaw, Timestamp: timestampRaw, RootDigest: common.rootDigest}
+	opts := knowledgepublish.FinalizePackageOptions{Root: root, Target: target, Projects: projects, Targets: targetsRaw, Snapshot: snapshotRaw, Timestamp: timestampRaw, RootDigest: common.rootDigest}
 	var packageRaw, planRaw []byte
 	var receipt knowledgepublish.FinalizationReceipt
 	if planRequested {
@@ -359,16 +365,69 @@ func writePackageAndPlan(packagePath string, packageRaw []byte, planPath string,
 }
 
 func completeCommon(values publishCommon, target bool) bool {
-	return values.root != "" && values.rootDigest != "" && values.output != "" && (!target || values.target != "") && filepath.IsAbs(values.output)
+	// Exactly one of --target (the single bundle) and --targets-dir (the
+	// per-project layout) names the targets.
+	return values.root != "" && values.rootDigest != "" && values.output != "" && (!target || (values.target == "") != (values.targetsDir == "")) && filepath.IsAbs(values.output)
 }
 
-func readRootTarget(values publishCommon) ([]byte, []byte, error) {
+func readRootTarget(values publishCommon) ([]byte, []byte, []knowledgepublish.Target, error) {
 	root, err := readPublishInput(values.root, knowledgepublish.MaxRootBytes)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	target, projects, err := readTargetInput(values.target, values.targetsDir)
+	return root, target, projects, err
+}
+
+// readTargetInput reads the single bundle (--target) or, for --targets-dir,
+// the index and the project targets of the per-project layout.
+func readTargetInput(target, targetsDir string) ([]byte, []knowledgepublish.Target, error) {
+	if targetsDir == "" {
+		raw, err := readPublishInput(target, knowledgepublish.MaxTargetBytes)
+		return raw, nil, err
+	}
+	return readTargetsDir(targetsDir)
+}
+
+// readTargetsDir reads the tree written by "knowledge-targets build" or
+// "export-knowledge --profile cncf-projects": knowledge/cncf/index.v1.json and
+// every *.v1.json under knowledge/cncf/projects and, when present,
+// knowledge/community/projects. Anything else in those directories is refused.
+func readTargetsDir(dir string) ([]byte, []knowledgepublish.Target, error) {
+	if !filepath.IsAbs(dir) {
+		return nil, nil, knowledgepublish.ErrRejected
+	}
+	index, err := readPublishInput(filepath.Join(dir, "knowledge", "cncf", "index.v1.json"), knowledgepublish.MaxTargetBytes)
 	if err != nil {
 		return nil, nil, err
 	}
-	target, err := readPublishInput(values.target, knowledgepublish.MaxTargetBytes)
-	return root, target, err
+	var projects []knowledgepublish.Target
+	for _, sub := range []struct {
+		rel      string
+		optional bool
+	}{{"cncf/projects", false}, {"community/projects", true}} {
+		entries, err := os.ReadDir(filepath.Join(dir, "knowledge", filepath.FromSlash(sub.rel)))
+		if errors.Is(err, os.ErrNotExist) && sub.optional {
+			continue
+		}
+		if err != nil {
+			return nil, nil, knowledgepublish.ErrRejected
+		}
+		for _, entry := range entries {
+			if !entry.Type().IsRegular() || !strings.HasSuffix(entry.Name(), cncfcheck.ExternalProjectTargetSuffix) || len(projects) >= cncfcheck.MaxExternalIndexProjects {
+				return nil, nil, knowledgepublish.ErrRejected
+			}
+			raw, err := readPublishInput(filepath.Join(dir, "knowledge", filepath.FromSlash(sub.rel), entry.Name()), knowledgepublish.MaxTargetBytes)
+			if err != nil {
+				return nil, nil, err
+			}
+			projects = append(projects, knowledgepublish.Target{Path: "knowledge/" + sub.rel + "/" + entry.Name(), Raw: raw})
+		}
+	}
+	if len(projects) == 0 {
+		return nil, nil, knowledgepublish.ErrRejected
+	}
+	return index, projects, nil
 }
 
 func readPublishInput(path string, limit int) ([]byte, error) {
@@ -397,9 +456,15 @@ func runKnowledgeRelease(args []string, stdout io.Writer) error {
 	flags.StringVar(&o.PackageURL, "package-url", "", "exact HTTPS URL the package will be served from")
 	flags.StringVar(&o.OutputDir, "output-dir", "", "new absolute output directory")
 	flags.StringVar(&o.Expires, "expires", "", "optional earlier role expiry as exact UTC RFC3339")
+	flags.StringVar(&o.Profile, "profile", "", "cncf (default, single bundle) or cncf-projects (index plus one target per project)")
+	flags.StringVar(&o.PreviousIndex, "previous-index", "", "cncf-projects: absolute path of the committed previously published index")
+	flags.BoolVar(&o.FirstRelease, "first-release", false, "cncf-projects: no index was published before (instead of --previous-index)")
 	if err := flags.Parse(args); err != nil {
 		if err == flag.ErrHelp {
-			_, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer knowledge-publish release --revision N --version N --root ABS --root-digest sha256:... --targets-key ABS --snapshot-key ABS --timestamp-key ABS --passphrase-file ABS --package-url https://... --output-dir ABS [--expires UTC]")
+			if _, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer knowledge-publish release --revision N --version N --root ABS --root-digest sha256:... --targets-key ABS --snapshot-key ABS --timestamp-key ABS --passphrase-file ABS --package-url https://... --output-dir ABS [--expires UTC]"); e != nil {
+				return e
+			}
+			_, e := fmt.Fprintln(stdout, "per-project layout: add --profile cncf-projects and exactly one of --previous-index ABS (the committed index of the last release) or --first-release; --package-url is then unused and no release plan is written.")
 			return e
 		}
 		return knowledgePublishError()
@@ -409,6 +474,9 @@ func runKnowledgeRelease(args []string, stdout io.Writer) error {
 	}
 	o.Now = time.Now().UTC()
 	result, err := knowledgerelease.Run(o)
+	if errors.Is(err, cncfcheck.ErrDistributionsNotPublishable) {
+		return &commandError{code: 2, message: "knowledge-publish: the pack holds distribution records, which no per-project target carries yet; release refused"}
+	}
 	if err != nil {
 		return knowledgePublishError()
 	}
