@@ -55,7 +55,7 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The vector file holds the vectors of both generations of the Kubernetes
-	// API-removal rules (the 25 reviewed ones and the 29 mechanical ones, 229
+	// API-removal rules (the 25 reviewed ones and the 29 mechanical ones, 257
 	// in all); the pack's rules select theirs. The pairing is ordered, as it
 	// always was: the i-th rule of the pack is checked by the i-th vector of
 	// the file that belongs to the pack, separately for the mechanical rules
@@ -71,8 +71,8 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 	// other rules.
 	all := reviewedVectors(t)
 	batch := len(crdbatchids.IDs())
-	if len(all) != 229+batch {
-		t.Fatalf("the vector file holds %d vectors, want %d (200 + the 29 mechanical + the %d of the custom-resource batch)", len(all), 229+batch, batch)
+	if len(all) != 257+batch {
+		t.Fatalf("the vector file holds %d vectors, want %d (228 + the 29 mechanical + the %d of the custom-resource batch)", len(all), 257+batch, batch)
 	}
 	extra := 0
 	otherGeneration := map[string]bool{}
@@ -160,10 +160,10 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 			}
 		}
 	}
-	if len(b.pack.Entries) != 200+extra+shippedBatch || len(vectors) != 200+extra+shippedBatch {
+	if len(b.pack.Entries) != 228+extra+shippedBatch || len(vectors) != 228+extra+shippedBatch {
 		t.Fatal("unexpected reviewed rule or vector count")
 	}
-	if caseCount != 1001+4*extra+4*shippedBatch {
+	if caseCount != 1113+4*extra+4*shippedBatch {
 		t.Fatal("unexpected reviewed case count")
 	}
 	for _, vector := range vectors {
@@ -181,7 +181,7 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 				// This source review completed after the historical corpus clock;
 				// preserve its real reviewedAt timestamp in the rule data.
 				// The version-skew rules were reviewed on 2026-10-06 and 2026-10-22.
-				if strings.HasPrefix(vector.RuleID, "kubernetes.kubelet-version-skew.") {
+				if strings.HasPrefix(vector.RuleID, "kubernetes.kubelet-version-skew.") || strings.HasPrefix(vector.RuleID, "kubernetes.control-plane-no-minor-skip.") {
 					clock = time.Date(2026, 10, 23, 0, 0, 0, 0, time.UTC)
 				}
 				if vector.Project == "cloud-custodian" || vector.Project == "opencost" {

@@ -24,6 +24,11 @@ func servedReason() string {
 // embedded pack holds (1.32 to 1.37); they join every Kubernetes selection.
 const kubeletSkewRules = 5
 
+// controlPlaneSkipRules is how many control-plane no-minor-skip rules the
+// embedded pack holds (1.29 to 1.37); they join every generic Kubernetes
+// selection.
+const controlPlaneSkipRules = 28
+
 // kubernetesRuleExtra is how many more Kubernetes verdict rules the embedded
 // pack holds once the mechanical rules replace the reviewed ones.
 func kubernetesRuleExtra() int {

@@ -209,7 +209,21 @@ func TestGateRecordBreaker(t *testing.T) {
 	t.Parallel()
 	lines := []string{"1.22", "1.23", "1.24", "1.25", "1.26", "1.27", "1.28", "1.29", "1.30", "1.31", "1.33", "1.34"}
 	base, head := attestedTrees(t, append(lines, "1.35"), []string{"1.35"}, nil)
-	r := runGate(t, Options{Base: base, Head: head, Author: DefaultBotLogin, MaxWithdrawPercent: 5})
+	// The breaker counts the base's active rules and records together, so
+	// the percent that the 12 removed attestations exceed shrinks as the
+	// embedded pack grows: derive it from the pack instead of fixing it.
+	probe := runGate(t, Options{Base: base, Head: head, Author: DefaultBotLogin, MaxWithdrawPercent: 5})
+	active := 0
+	for _, b := range probe.Breakers {
+		if b.Kind == BreakerWithdrawRecords && b.Subject == "cncf" {
+			active = b.Of
+		}
+	}
+	if active == 0 || active >= 1200 {
+		t.Fatalf("no record breaker for the cncf pack: %+v", probe.Breakers)
+	}
+	percent := 1199 / active
+	r := runGate(t, Options{Base: base, Head: head, Author: DefaultBotLogin, MaxWithdrawPercent: percent})
 	requireFail(t, r, "breaker/withdrawals/cncf/records")
 	if ch, ok := check(r, "breaker/withdrawals/cncf"); !ok || !ch.OK {
 		t.Fatalf("rule breaker %+v", ch)
@@ -224,7 +238,7 @@ func TestGateRecordBreaker(t *testing.T) {
 		t.Fatalf("no project breaker for the removed attestations: %+v", r.Breakers)
 	}
 	// Raised, the same change passes.
-	r = runGate(t, Options{Base: base, Head: head, Author: DefaultBotLogin, MaxWithdrawPercent: 10})
+	r = runGate(t, Options{Base: base, Head: head, Author: DefaultBotLogin, MaxWithdrawPercent: percent + 1})
 	requireAdmittedButUnsplit(t, r)
 }
 

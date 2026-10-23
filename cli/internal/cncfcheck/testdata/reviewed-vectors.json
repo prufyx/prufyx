@@ -19705,6 +19705,2918 @@
   },
   {
     "project": "kubernetes",
+    "ruleId": "kubernetes.control-plane-no-minor-skip.1-29-0-to-1-31-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.29.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.31.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.29.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.31.2",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.29.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.29.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": []
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.31.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "kubernetes",
+    "ruleId": "kubernetes.control-plane-no-minor-skip.1-29-0-to-1-32-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.29.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.32.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.29.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.32.2",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.29.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.29.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": []
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.32.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "kubernetes",
+    "ruleId": "kubernetes.control-plane-no-minor-skip.1-29-0-to-1-33-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.29.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.33.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.29.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.33.2",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.29.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.29.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": []
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.33.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "kubernetes",
+    "ruleId": "kubernetes.control-plane-no-minor-skip.1-29-0-to-1-34-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.29.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.34.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.29.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.34.2",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.29.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.29.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": []
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.34.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "kubernetes",
+    "ruleId": "kubernetes.control-plane-no-minor-skip.1-29-0-to-1-35-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.29.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.35.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.29.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.35.2",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.29.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.29.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": []
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.35.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "kubernetes",
+    "ruleId": "kubernetes.control-plane-no-minor-skip.1-29-0-to-1-36-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.29.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.36.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.29.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.36.2",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.29.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.29.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": []
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.36.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "kubernetes",
+    "ruleId": "kubernetes.control-plane-no-minor-skip.1-29-0-to-1-37-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.29.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.37.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.29.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.37.2",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.29.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.29.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": []
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.37.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "kubernetes",
+    "ruleId": "kubernetes.control-plane-no-minor-skip.1-30-0-to-1-32-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.30.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.32.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.30.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.32.2",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.30.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.30.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": []
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.32.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "kubernetes",
+    "ruleId": "kubernetes.control-plane-no-minor-skip.1-30-0-to-1-33-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.30.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.33.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.30.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.33.2",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.30.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.30.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": []
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.33.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "kubernetes",
+    "ruleId": "kubernetes.control-plane-no-minor-skip.1-30-0-to-1-34-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.30.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.34.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.30.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.34.2",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.30.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.30.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": []
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.34.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "kubernetes",
+    "ruleId": "kubernetes.control-plane-no-minor-skip.1-30-0-to-1-35-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.30.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.35.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.30.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.35.2",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.30.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.30.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": []
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.35.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "kubernetes",
+    "ruleId": "kubernetes.control-plane-no-minor-skip.1-30-0-to-1-36-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.30.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.36.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.30.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.36.2",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.30.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.30.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": []
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.36.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "kubernetes",
+    "ruleId": "kubernetes.control-plane-no-minor-skip.1-30-0-to-1-37-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.30.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.37.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.30.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.37.2",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.30.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.30.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": []
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.37.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "kubernetes",
+    "ruleId": "kubernetes.control-plane-no-minor-skip.1-31-0-to-1-33-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.31.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.33.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.31.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.33.2",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.31.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.31.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": []
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.33.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "kubernetes",
+    "ruleId": "kubernetes.control-plane-no-minor-skip.1-31-0-to-1-34-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.31.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.34.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.31.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.34.2",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.31.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.31.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": []
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.34.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "kubernetes",
+    "ruleId": "kubernetes.control-plane-no-minor-skip.1-31-0-to-1-35-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.31.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.35.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.31.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.35.2",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.31.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.31.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": []
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.35.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "kubernetes",
+    "ruleId": "kubernetes.control-plane-no-minor-skip.1-31-0-to-1-36-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.31.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.36.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.31.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.36.2",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.31.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.31.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": []
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.36.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "kubernetes",
+    "ruleId": "kubernetes.control-plane-no-minor-skip.1-31-0-to-1-37-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.31.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.37.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.31.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.37.2",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.31.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.31.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": []
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.37.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "kubernetes",
+    "ruleId": "kubernetes.control-plane-no-minor-skip.1-32-0-to-1-34-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.32.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.34.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.32.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.34.2",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.32.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.32.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": []
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.34.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "kubernetes",
+    "ruleId": "kubernetes.control-plane-no-minor-skip.1-32-0-to-1-35-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.32.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.35.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.32.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.35.2",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.32.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.32.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": []
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.35.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "kubernetes",
+    "ruleId": "kubernetes.control-plane-no-minor-skip.1-32-0-to-1-36-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.32.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.36.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.32.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.36.2",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.32.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.32.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": []
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.36.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "kubernetes",
+    "ruleId": "kubernetes.control-plane-no-minor-skip.1-32-0-to-1-37-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.32.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.37.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.32.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.37.2",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.32.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.32.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": []
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.37.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "kubernetes",
+    "ruleId": "kubernetes.control-plane-no-minor-skip.1-33-0-to-1-35-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.33.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.35.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.33.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.35.2",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.33.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.33.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": []
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.35.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "kubernetes",
+    "ruleId": "kubernetes.control-plane-no-minor-skip.1-33-0-to-1-36-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.33.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.36.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.33.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.36.2",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.33.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.33.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": []
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.36.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "kubernetes",
+    "ruleId": "kubernetes.control-plane-no-minor-skip.1-33-0-to-1-37-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.33.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.37.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.33.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.37.2",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.33.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.33.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": []
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.37.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "kubernetes",
+    "ruleId": "kubernetes.control-plane-no-minor-skip.1-34-0-to-1-36-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.34.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.36.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.34.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.36.2",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.34.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.34.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": []
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.36.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "kubernetes",
+    "ruleId": "kubernetes.control-plane-no-minor-skip.1-34-0-to-1-37-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.34.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.37.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.34.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.37.2",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.34.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.34.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": []
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.37.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "kubernetes",
+    "ruleId": "kubernetes.control-plane-no-minor-skip.1-35-0-to-1-37-0",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.35.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.37.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.35.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.37.2",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "outside",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.35.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.35.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": []
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubernetes/kubernetes",
+                "version": "1.37.0",
+                "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "kubernetes",
     "ruleId": "kubernetes.in-tree-dockershim-removed.1-24",
     "cases": [
       {

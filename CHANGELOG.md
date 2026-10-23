@@ -909,6 +909,12 @@ A catalogued project is not tested coverage: a catalogue entry says Prufyx holds
   `declarations.maximumKubeletVersion`) of the component-configuration
   selection. BLOCKED means unsupported by the upstream version-skew policy, not
   a broken cluster. See [kubernetes-component-config.md](cli/docs/kubernetes-component-config.md).
+- Kubernetes knowledge for the control plane: 28 reviewed no-minor-skip rules
+  (a direct upgrade from a 1.29 to 1.35 line to a target two or more lines
+  above it, up to 1.37, skips minor versions of `kube-apiserver`). The result
+  is BLOCKED with the order to follow; BLOCKED means outside the upstream
+  version-skew policy, not a broken cluster. Other pairs stay UNKNOWN. See
+  [kubernetes-component-config.md](cli/docs/kubernetes-component-config.md).
 - `prufyx-maintainer knowledge-publish release`: one offline, deterministic step
   that builds a signed knowledge-database release (TUF targets, snapshot and
   timestamp, package and release plan) from the reviewed embedded knowledge,
