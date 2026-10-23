@@ -2,14 +2,14 @@
   "schema": "prufyx.io/knowledge-approval/v2",
   "record": {
     "baseDigest": "absent",
-    "candidateDigest": "sha256:44a037708174b1914501e80fddd9d591008e19d7407bd0e94c84a78434d124a8",
+    "candidateDigest": "sha256:b7b02915e26c15c149ff9380184cc50f682b537d903d329bd508bea740c7388c",
     "candidateId": "pr-196",
-    "decidedAt": "2026-10-23T14:37:46Z",
+    "decidedAt": "2026-10-23T16:10:11Z",
     "decision": "approve",
     "identity": "airstand",
     "pack": "cncf",
     "ruleId": "kubernetes.control-plane-no-minor-skip.1-30-0-to-1-33-0"
   },
   "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
-  "signature": "5jgtUCwRpiIZajnN8KBg8Ax2EucRSAurpxCSuyyYjuLeFXbbd4xS6zg0B9ogJfcpmwZrZYF9AfC/aLi8LaCBDg=="
+  "signature": "jifBiPIoH7oaX4A/GzI0v47n9LSUaDSQyQclBLpEucRgMbErEkMqR2RyhcvqjX7we9v5qwLD5pRrfgoYSTq4Ag=="
 }
