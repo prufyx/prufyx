@@ -24,6 +24,7 @@ const (
 	memoTransition
 	memoNeutral
 	memoBasis
+	memoTransitionOnly
 )
 
 // ruleMemo remembers values derived from one rule document by the SHA-256 of
@@ -85,6 +86,22 @@ func ruleTransition(raw json.RawMessage) (constraintengine.RuleTransition, error
 
 func ruleVerdictNeutral(raw json.RawMessage) (bool, error) {
 	return memoRule(memoNeutral, raw, isVerdictNeutralRule)
+}
+
+// transitionOnlyBlocker reports whether a rule that reads no fact may be
+// selected for a fact-family evaluation: only a mandatory-intermediate rule,
+// which can only BLOCK or stay UNKNOWN. An operator that can PASS from the
+// versions alone (require_component_version) or that is not decided by the
+// transition (forbid_target_version) is not admitted. This is the one place
+// to admit a further operator, deliberately.
+func transitionOnlyBlocker(raw json.RawMessage) (bool, error) {
+	return memoRule(memoTransitionOnly, raw, func(raw json.RawMessage) (bool, error) {
+		var shape ruleShape
+		if err := json.Unmarshal(raw, &shape); err != nil {
+			return false, err
+		}
+		return shape.Operator == "require_intermediate_version", nil
+	})
 }
 
 func ruleBasis(raw json.RawMessage) (string, error) {

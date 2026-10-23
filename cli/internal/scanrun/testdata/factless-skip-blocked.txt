@@ -1,0 +1,13 @@
+BLOCKED: 1 problem must be fixed; 1 area was not checked
+
+kubernetes 1.33.2 -> 1.37.1: 1 hop (no reviewed path policy)
+  1.33.2 -> 1.37.1   Synthetic test-only rule
+                     fix: Upgrade through 1.34, 1.35 and 1.36 in order.
+
+NOT CHECKED (1)
+  kubernetes   no reviewed upgrade-path policy for kubernetes, and 1.33.2 -> 1.37.1 skips release lines - upgrade one minor line at a time and scan each hop
+
+Read 1 document over 1 hop; 1 of 1 component has rules (partially evaluated).
+Scope limits: node and kubelet version skew not evaluated; Kubernetes: only API versions in the supplied manifests are evaluated; live cluster objects, CRDs, stored versions, admission and component configuration are not.
+Evidence: every finding cites pinned upstream source (--verbose). No network used.
+evaluated at 2026-11-20T00:00:00Z; input sha256:5f0e102f87295be12f25b81077a273ed6f57278aacd49ddd32255b32025e3479; knowledge external_signed_local  

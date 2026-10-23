@@ -396,6 +396,12 @@ the flow-control fact, so a rule reviewed for that exact pair but reading
 another removal fact cannot be decided there; it is reported as a gap, never
 as a pass, and a blocker is never lost.
 
+A rule that reads no fact and requires an intermediate version (a mandatory
+intermediate, for example "go through 1.34 first") is evaluated on every hop and
+on the whole upgrade whenever the transition matches it. It blocks a direct skip
+over that line and is satisfied by a plan that stops on the intermediate line.
+It never gives a pass, and a transition it does not match gets no claim from it.
+
 ## One-way changes
 
 Some reviewed transitions cannot be rolled back. When such a notice applies to
