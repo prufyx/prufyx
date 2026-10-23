@@ -402,10 +402,6 @@
           "source": "https://github.com/kcp-dev/kcp/blob/86954e9bfd1b67b9dbe57ab56f273a704f77d142/config/crds/core.kcp.io_shards.yaml"
         },
         {
-          "name": "druid.gardener.cloud",
-          "source": "https://github.com/kcp-dev/kcp/blob/86954e9bfd1b67b9dbe57ab56f273a704f77d142/contrib/production/etcd-druid/etcds.druid.gardener.cloud.yaml"
-        },
-        {
           "name": "migration.kcp.io",
           "source": "https://github.com/kcp-dev/kcp/blob/86954e9bfd1b67b9dbe57ab56f273a704f77d142/config/crds/migration.kcp.io_logicalclustermigrations.yaml"
         },

@@ -35,9 +35,7 @@
       {"path": "config/crds/tenancy.kcp.io_workspaces.yaml"},
       {"path": "config/crds/tenancy.kcp.io_workspacetypes.yaml"},
       {"path": "config/crds/topology.kcp.io_partitions.yaml"},
-      {"path": "config/crds/topology.kcp.io_partitionsets.yaml"},
-      {"path": "contrib/production/etcd-druid/etcdcopybackupstasks.druid.gardener.cloud.yaml", "optional": true},
-      {"path": "contrib/production/etcd-druid/etcds.druid.gardener.cloud.yaml", "optional": true}
+      {"path": "config/crds/topology.kcp.io_partitionsets.yaml"}
     ],
     "exclude": []
   }
