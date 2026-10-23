@@ -1,0 +1,16 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "ratify",
+    "name": "Ratify",
+    "repo": "github.com/ratify-project/ratify",
+    "component": "pkg:github/ratify-project/ratify",
+    "factProject": "ratify",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.0",
+    "paths": [
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}
