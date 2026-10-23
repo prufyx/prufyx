@@ -33,8 +33,9 @@ var rangedRemovals = []struct {
 // alone, a manifest at an API version that the target line stops serving is
 // BLOCKED (exit 10) by the rule of that line for any patch of the previous
 // line going to any patch of the line, not only at the line anchors. The
-// served version of the same kind is no finding, and the answer is never a
-// pass (the embedded knowledge has no line review or served list).
+// served version of the same kind is no finding and is decided by the same
+// rule (a pass of that rule; whether the whole answer is a pass depends on
+// the reviewed pairs the embedded knowledge also carries, e.g. 1.31 to 1.32).
 func TestScanRangedRemovalsBlockEveryPatchPair(t *testing.T) {
 	knowledge := embeddedOnly(t)
 	for _, removal := range rangedRemovals {
@@ -54,7 +55,7 @@ func TestScanRangedRemovalsBlockEveryPatchPair(t *testing.T) {
 			t.Run(name+"/served", func(t *testing.T) {
 				_, paths := files(t, map[string]string{"applyset.yaml": "apiVersion: " + removal.served + "\nkind: " + removal.kind + "\nmetadata: {name: a}\n"})
 				result := mustScan(t, knowledge, args(paths, "--from", "kubernetes="+pair[0], "--to", "kubernetes="+pair[1])...)
-				if result.Exit == scanreport.ExitPass || result.Exit == scanreport.ExitBlocked || len(result.Report.Findings) != 0 {
+				if result.Exit == scanreport.ExitBlocked || len(result.Report.Findings) != 0 {
 					t.Fatalf("exit %d findings %+v", result.Exit, result.Report.Findings)
 				}
 				passed := false
