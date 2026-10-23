@@ -53,7 +53,7 @@
       "groups": [
         {
           "name": "chaos-mesh.org",
-          "source": "https://github.com/chaos-mesh/chaos-mesh/blob/c58b44f18ff02f04965be5d439a68658e5d65fde/config/crd/bases/chaos-mesh.org_workflows.yaml"
+          "source": "https://github.com/chaos-mesh/chaos-mesh/blob/211bf86e599e5228f47f7fa9f3f4fd2af012c011/config/crd/bases/chaos-mesh.org_workflows.yaml"
         }
       ]
     },
