@@ -208,16 +208,28 @@ A missing source is never read as absence. In particular:
 
 ### Supplying kubelet versions (version-skew evidence)
 
-`scan` and `assess` do not take declarations, so the kubelet skew rule is
-decided only by `check cncf --project kubernetes --component-config`. `assess`
-reports the kubelet versions it sees but does not pass them to the rule.
+Two routes decide the kubelet skew rule from versions you declare: `prufyx scan`
+and `check cncf --project kubernetes --component-config`. `assess` has no
+kubelet version flags. Prufyx never contacts a cluster and does not collect
+kubelet versions, so you read them yourself and declare only what is true.
 
-1. Read the kubelet versions yourself, for example from the
-   `KUBELET VERSION` column of `kubectl get nodes` (or each node's
-   `kubelet --version`). Prufyx never contacts a cluster and does not collect
-   this. Take the lowest and the highest version in the fleet and write each as
-   `x.y.z`, without a `v` prefix or a distribution build suffix.
-2. Put them in the selection document, together with at least one source and a
+Read the kubelet versions, for example from the `KUBELET VERSION` column of
+`kubectl get nodes` (or each node's `kubelet --version`). Take the lowest and
+the highest version in the fleet and write each as `x.y.z`, without a `v`
+prefix or a distribution build suffix.
+
+Route A: `prufyx scan`. Pass `--kubelet-version-min X.Y.Z` and, for a mixed
+fleet, `--kubelet-version-max X.Y.Z`, or set `declarations.kubernetes.minimumKubeletVersion`
+and `declarations.kubernetes.maximumKubeletVersion` in `prufyx.yaml`. A flag
+overrides the same key in the file. A maximum needs a minimum and is not below
+it; any other value is a usage error (exit 2). The versions are applied to every
+hop of the plan. Without the minimum the skew rule is a `DECLARATION_MISSING`
+gap. See [scan.md](scan.md#declared-kubelet-versions) and
+[scan-config.md](scan-config.md).
+
+Route B: `check cncf --component-config`, below.
+
+1. Put them in the selection document, together with at least one source and a
    `complete:` list (the document is not valid without a source):
 
    ```yaml
@@ -231,7 +243,7 @@ reports the kubelet versions it sees but does not pass them to the rule.
    - {scope: kubelet, format: kubelet-config, path: /abs/kubelet-config.yaml}
    ```
 
-3. Save it as an absolute path with mode `0600`, then run:
+2. Save it as an absolute path with mode `0600`, then run:
 
    ```sh
    prufyx check cncf --project kubernetes --component-config /abs/selection.yaml \
