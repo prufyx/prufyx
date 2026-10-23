@@ -29,7 +29,7 @@ func factlessSkipRule() string {
 }
 
 // selectionKnowledge is the Kubernetes knowledge of a verified store whose
-// pack holds the published rules plus the rule, evaluated through the real
+// Kubernetes pack holds only the synthetic rules, evaluated through the real
 // fact-family selection. The synthetic rules of knowledgeOptions bypass that
 // selection (testKnowledge.Evaluate evaluates them directly), so a rule that
 // reads no fact can only be tested this way.
@@ -60,6 +60,15 @@ func newSelectionKnowledge(t testing.TB, rules ...string) Knowledge {
 	if err := json.Unmarshal(pack["entries"], &entries); err != nil {
 		t.Fatal(err)
 	}
+	// Synthetic only: the published Kubernetes rules are dropped, so the
+	// goldens and counts here do not move when Kubernetes rules are published.
+	kept := entries[:0]
+	for _, entry := range entries {
+		if string(entry["project"]) != `"kubernetes"` {
+			kept = append(kept, entry)
+		}
+	}
+	entries = kept
 	for _, rule := range rules {
 		entries = append(entries, map[string]json.RawMessage{
 			"project": json.RawMessage(`"kubernetes"`), "description": json.RawMessage(`"Synthetic test-only rule. Never published."`),
