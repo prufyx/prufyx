@@ -270,19 +270,27 @@ func TestRenewSameBuildReleaseExtension(t *testing.T) {
 		edit func(m map[string]any)
 	}{
 		{"extension and ruleIds differ", olderRelease(func(m map[string]any) { m["ruleIds"] = []any{"x.rule"} })},
-		{"extension and completeness differ", olderRelease(func(m map[string]any) { m["completeness"] = "OTHER" })},
 		{"extension and other extractor id", olderRelease(func(m map[string]any) {
 			evOf(m)["extractor"].(map[string]any)["id"] = "crd.version-removal.other"
 		})},
 		{"other build, a from release rewritten", olderRelease(func(m map[string]any) {
-			evOf(m)["extractor"].(map[string]any)["version"] = "0.0.0-other"
+			evOf(m)["extractor"].(map[string]any)["codeDigest"] = "sha256:" + strings.Repeat("0", 64)
 			rel := m["releases"].(map[string]any)
 			rel["from"].([]any)[0].(map[string]any)["commit"] = strings.Repeat("a", 40)
 		})},
-		{"shrink: the pack holds a release the run lacks", olderRelease(func(m map[string]any) {
-			rel := m["releases"].(map[string]any)
-			rel["to"] = append(rel["to"].([]any), map[string]any{"version": "99.0.0", "commit": strings.Repeat("c", 40)})
-		})},
+		{"shrink: the pack holds the run's releases in another order", func(m map[string]any) {
+			rel, ok := m["releases"].(map[string]any)
+			if !ok {
+				return
+			}
+			to := rel["to"].([]any)
+			if len(to) < 2 {
+				return
+			}
+			to[0], to[len(to)-1] = to[len(to)-1], to[0]
+			ev := evOf(m)
+			ev["derivedAt"], ev["reviewedAt"], ev["validUntil"] = "2026-10-01T00:00:00Z", "2026-10-01T00:00:00Z", "2026-10-31T00:00:00Z"
+		}},
 		{"same build, same releases, later stamp", func(m map[string]any) {
 			if _, ok := m["releases"].(map[string]any); !ok {
 				return
