@@ -24,6 +24,9 @@ func TestSameLandscapeRepo(t *testing.T) {
 		{"sub path", "https://github.com/Example/Widget/tree/main", "github.com/example/widget", false},
 		{"empty landscape", "", "github.com/example/widget", false},
 		{"empty target", "https://github.com/Example/Widget", "", false},
+		{"userinfo", "https://user@github.com/Example/Widget", "github.com/example/widget", false},
+		{"percent-encoded slash", "https://github.com/Example%2FWidget", "github.com/example/widget", false},
+		{"upper-case scheme (accepted: scheme case only)", "HTTPS://github.com/Example/Widget", "github.com/example/widget", true},
 		{"unicode fold (Kelvin sign)", "https://github.com/examplK/widget", "github.com/example/widget", false},
 		{"unicode in target", "https://github.com/example/widget", "github.com/examplK/widget", false},
 	} {

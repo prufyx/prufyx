@@ -715,10 +715,11 @@ func onlyAttestChanged(baseRaw, headRaw []byte) string {
 // loosened (no trailing slash, no other host, no Unicode folding).
 func sameLandscapeRepo(landscapeURL, targetRepo string) bool {
 	want := "https://" + targetRepo
-	if landscapeURL == "" || !isASCII(landscapeURL) || !isASCII(want) {
+	if landscapeURL == "" || targetRepo == "" || !isASCII(landscapeURL) || !isASCII(want) {
 		return false
 	}
-	return strings.ToLower(landscapeURL) == strings.ToLower(want)
+	// Both sides are ASCII here, so EqualFold is an ASCII case fold.
+	return strings.EqualFold(landscapeURL, want)
 }
 
 func isASCII(s string) bool {
