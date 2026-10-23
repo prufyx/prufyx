@@ -69,6 +69,21 @@ func newSelectionKnowledge(t testing.TB, rules ...string) Knowledge {
 		}
 	}
 	entries = kept
+	// The line attestations list published rule ids; a pack that no longer
+	// holds those rules is rejected, so the Kubernetes attestations go too.
+	var attestations []map[string]json.RawMessage
+	if err := json.Unmarshal(pack["lineAttestations"], &attestations); err != nil {
+		t.Fatal(err)
+	}
+	keptAttestations := attestations[:0]
+	for _, attestation := range attestations {
+		if string(attestation["component"]) != `"pkg:github/kubernetes/kubernetes"` {
+			keptAttestations = append(keptAttestations, attestation)
+		}
+	}
+	if pack["lineAttestations"], err = json.Marshal(keptAttestations); err != nil {
+		t.Fatal(err)
+	}
 	for _, rule := range rules {
 		entries = append(entries, map[string]json.RawMessage{
 			"project": json.RawMessage(`"kubernetes"`), "description": json.RawMessage(`"Synthetic test-only rule. Never published."`),
