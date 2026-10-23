@@ -136,7 +136,10 @@ func TestPackageTotalAlarmFiresAtEightyPercentOfTheMemberTotal(t *testing.T) {
 	}
 }
 
-func TestSingleTargetLayoutIsGated(t *testing.T) {
+// The single-target size is an informational line: it is reported with the
+// sentinel-revision caveat and never changes the verdict, whatever its size or
+// whether the single target can still be built at all.
+func TestSingleTargetLayoutIsInformationalOnly(t *testing.T) {
 	limit := DefaultLimit()
 	if SingleTargetAlarmed(limit.Alarm-1, limit) || !SingleTargetAlarmed(limit.Alarm, limit) {
 		t.Fatal("single-target boundary is not 80% of the cap")
@@ -144,22 +147,33 @@ func TestSingleTargetLayoutIsGated(t *testing.T) {
 	original := exportSingleTarget
 	defer func() { exportSingleTarget = original }()
 
-	exportSingleTarget = func(string) ([]byte, error) { return make([]byte, limit.Alarm), nil }
+	for name, test := range map[string]struct {
+		export func(string) ([]byte, error)
+		want   []string
+	}{
+		"at alarm":    {func(string) ([]byte, error) { return make([]byte, limit.Alarm), nil }, []string{"knowledge/constraints.v1.json 838861 bytes", "informational only", "sentinel revision", "does not release this layout"}},
+		"below alarm": {func(string) ([]byte, error) { return make([]byte, limit.Alarm-1), nil }, []string{"knowledge/constraints.v1.json 838860 bytes", "informational only", "sentinel revision"}},
+		"unbuildable": {func(string) ([]byte, error) { return nil, ErrRejected }, []string{"cannot be built", "informational only"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			exportSingleTarget = test.export
+			var stdout, stderr bytes.Buffer
+			if code := Run([]string{"check-size"}, &stdout, &stderr); code != 0 || stderr.Len() != 0 {
+				t.Fatalf("code=%d stderr=%s", code, stderr.String())
+			}
+			for _, want := range test.want {
+				if !strings.Contains(stdout.String(), want) {
+					t.Fatalf("stdout lacks %q: %s", want, stdout.String())
+				}
+			}
+		})
+	}
+	// A per-project target at the alarm still fails, whatever the single target says.
+	exportSingleTarget = func(string) ([]byte, error) { return make([]byte, 10), nil }
+	oversize := []Target{{Path: "knowledge/cncf/projects/kubernetes.v1.json", Bytes: limit.Alarm}}
 	var stdout, stderr bytes.Buffer
-	if code := Run([]string{"check-size"}, &stdout, &stderr); code != 1 || !strings.Contains(stderr.String(), "single-target layout knowledge/constraints.v1.json is 838861 bytes") {
-		t.Fatalf("at alarm: code=%d stderr=%s", code, stderr.String())
-	}
-	exportSingleTarget = func(string) ([]byte, error) { return make([]byte, limit.Alarm-1), nil }
-	stdout.Reset()
-	stderr.Reset()
-	if code := Run([]string{"check-size"}, &stdout, &stderr); code != 0 {
-		t.Fatalf("below alarm: code=%d stderr=%s", code, stderr.String())
-	}
-	exportSingleTarget = func(string) ([]byte, error) { return nil, ErrRejected }
-	stdout.Reset()
-	stderr.Reset()
-	if code := Run([]string{"check-size"}, &stdout, &stderr); code != 1 || !strings.Contains(stderr.String(), "no longer fits") {
-		t.Fatalf("unbuildable: code=%d stderr=%s", code, stderr.String())
+	if code := report(oversize, limit, &stdout, &stderr); code != 1 || !strings.Contains(stderr.String(), "size alarm: target knowledge/cncf/projects/kubernetes.v1.json") {
+		t.Fatalf("per-project alarm code=%d stderr=%s", code, stderr.String())
 	}
 }
 
@@ -228,8 +242,8 @@ func TestCheckSizeTreeRefusesLinksAndNamesTheSingleTarget(t *testing.T) {
 	if code := Run([]string{"check-size", "--tree", tree}, &stdout, &stderr); code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr.String())
 	}
-	if !strings.Contains(stdout.String(), "single-target layout: knowledge/constraints.v1.json ") {
-		t.Fatalf("the single target is not named: %s", stdout.String())
+	if !strings.Contains(stdout.String(), "single-target layout: knowledge/constraints.v1.json ") || !strings.Contains(stdout.String(), "informational only") {
+		t.Fatalf("the single target is not named as informational: %s", stdout.String())
 	}
 	// Move the data directory outside and link to it.
 	outside := filepath.Join(t.TempDir(), "data")

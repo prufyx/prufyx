@@ -94,7 +94,7 @@ func TestBuildCarriesRecordsAndCheckSizeMeasuresThem(t *testing.T) {
 	}
 	stdout.Reset()
 	stderr.Reset()
-	if code := Run([]string{"check-size"}, &stdout, &stderr); code != 0 || !strings.Contains(stdout.String(), "single-target layout") {
+	if code := Run([]string{"check-size"}, &stdout, &stderr); code != 0 || !strings.Contains(stdout.String(), "single-target layout") || !strings.Contains(stdout.String(), "informational only") {
 		t.Fatalf("check-size code=%d stdout=%s stderr=%s", code, stdout.String(), stderr.String())
 	}
 }
