@@ -422,18 +422,21 @@ func ruleRenewable(old, nw []byte) bool {
 func ruleRenewalOnly(a, b []byte) bool { return ruleRenewable(a, b) }
 
 // renewable reports whether nw may replace old, the attestation of the same
-// key: both are mechanical, derived by the same extractor at different builds
-// (version or code digest), nw's derivedAt is later, the scope, completeness
-// and rule ids are identical, and the releases only extend (every release of
-// old is in nw in the same order). Sources and validUntil may change.
+// key: both are mechanical, derived by the same extractor, nw's derivedAt is
+// later, the scope, completeness and rule ids are identical, and the releases
+// only extend (every release of old is in nw in the same order). The builds
+// (version or code digest) may differ; at the same build nw must hold at least
+// one release old lacks (a new upstream patch tag), nothing else may change.
+// Sources and validUntil may change.
 func renewable(old, nw lineattest.LineAttestation) bool {
 	oe, ne := old.Evidence, nw.Evidence
 	if oe.Basis != "mechanical" || ne.Basis != "mechanical" || oe.Extractor == nil || ne.Extractor == nil {
 		return false
 	}
-	if oe.Extractor.ID != ne.Extractor.ID || (oe.Extractor.Version == ne.Extractor.Version && oe.Extractor.CodeDigest == ne.Extractor.CodeDigest) {
+	if oe.Extractor.ID != ne.Extractor.ID {
 		return false
 	}
+	sameBuild := oe.Extractor.Version == ne.Extractor.Version && oe.Extractor.CodeDigest == ne.Extractor.CodeDigest
 	if old.Key() != nw.Key() || old.Completeness != nw.Completeness || !equalIDs(old.RuleIDs, nw.RuleIDs) {
 		return false
 	}
@@ -443,12 +446,15 @@ func renewable(old, nw lineattest.LineAttestation) bool {
 		return false
 	}
 	if old.Releases == nil {
-		return true
+		return !sameBuild
 	}
 	if nw.Releases == nil {
 		return false
 	}
-	return releasesExtend(old.Releases.From, nw.Releases.From) && releasesExtend(old.Releases.To, nw.Releases.To)
+	if !releasesExtend(old.Releases.From, nw.Releases.From) || !releasesExtend(old.Releases.To, nw.Releases.To) {
+		return false
+	}
+	return !sameBuild || len(nw.Releases.From)+len(nw.Releases.To) > len(old.Releases.From)+len(old.Releases.To)
 }
 
 func equalIDs(a, b []string) bool {

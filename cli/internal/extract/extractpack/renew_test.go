@@ -228,3 +228,70 @@ func TestRenewFinalAuditRefusesAMisbehavingStep(t *testing.T) {
 	}
 	assertUnchanged(t, pack, pre)
 }
+
+// olderRelease makes an attestation with releases look derived three days
+// before the run by the same build, from one release fewer in "to" (the run
+// then sees one new upstream patch tag). Attestations without releases stay as
+// they are. extra is applied to each one changed.
+func olderRelease(extra func(m map[string]any)) func(m map[string]any) {
+	return func(m map[string]any) {
+		rel, ok := m["releases"].(map[string]any)
+		if !ok {
+			return
+		}
+		to := rel["to"].([]any)
+		rel["to"] = to[:len(to)-1]
+		ev := evOf(m)
+		ev["derivedAt"], ev["reviewedAt"], ev["validUntil"] = "2026-10-01T00:00:00Z", "2026-10-01T00:00:00Z", "2026-10-31T00:00:00Z"
+		if extra != nil {
+			extra(m)
+		}
+	}
+}
+
+func TestRenewSameBuildReleaseExtension(t *testing.T) {
+	// Accepted: the same build, the releases only grew, nothing else differs.
+	pack, run, want, _ := renewSetup(t, olderRelease(nil))
+	rep, err := renewApply(t, pack, run, true)
+	if err != nil || len(rep.AttRenewed) == 0 || len(rep.AttAdded) != 0 || !rep.Changed {
+		t.Fatalf("report %+v err %v", rep, err)
+	}
+	if got := attMember(t, pack); !sameJSON(got, want) {
+		t.Fatalf("section is not the run's:\n%s\n%s", got, want)
+	}
+
+	for _, c := range []struct {
+		name string
+		edit func(m map[string]any)
+	}{
+		{"extension and ruleIds differ", olderRelease(func(m map[string]any) { m["ruleIds"] = []any{"x.rule"} })},
+		{"extension and completeness differ", olderRelease(func(m map[string]any) { m["completeness"] = "OTHER" })},
+		{"extension and other extractor id", olderRelease(func(m map[string]any) {
+			evOf(m)["extractor"].(map[string]any)["id"] = "crd.version-removal.other"
+		})},
+		{"other build, a from release rewritten", olderRelease(func(m map[string]any) {
+			evOf(m)["extractor"].(map[string]any)["version"] = "0.0.0-other"
+			rel := m["releases"].(map[string]any)
+			rel["from"].([]any)[0].(map[string]any)["commit"] = strings.Repeat("a", 40)
+		})},
+		{"shrink: the pack holds a release the run lacks", olderRelease(func(m map[string]any) {
+			rel := m["releases"].(map[string]any)
+			rel["to"] = append(rel["to"].([]any), map[string]any{"version": "99.0.0", "commit": strings.Repeat("c", 40)})
+		})},
+		{"same build, same releases, later stamp", func(m map[string]any) {
+			if _, ok := m["releases"].(map[string]any); !ok {
+				return
+			}
+			ev := evOf(m)
+			ev["derivedAt"], ev["reviewedAt"], ev["validUntil"] = "2026-10-01T00:00:00Z", "2026-10-01T00:00:00Z", "2026-10-31T00:00:00Z"
+		}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			pack, run, _, pre := renewSetup(t, c.edit)
+			if _, err := renewApply(t, pack, run, true); !errors.Is(err, extractpack.ErrCollision) {
+				t.Fatalf("err = %v, want a collision", err)
+			}
+			assertUnchanged(t, pack, pre)
+		})
+	}
+}
