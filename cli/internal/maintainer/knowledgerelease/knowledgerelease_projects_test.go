@@ -107,11 +107,15 @@ func TestProjectsReleaseRejections(t *testing.T) {
 		"neither previous index nor first release": func(o *Options) { o.FirstRelease = false },
 		"both previous index and first release":    func(o *Options) { o.PreviousIndex = filepath.Join(filepath.Dir(o.Root), "index.json") },
 		"relative previous index":                  func(o *Options) { o.FirstRelease, o.PreviousIndex = false, "index.json" },
-		"missing previous index":                   func(o *Options) { o.FirstRelease, o.PreviousIndex = false, filepath.Join(filepath.Dir(o.Root), "absent.json") },
-		"unknown profile":                          func(o *Options) { o.Profile = "cncf-all" },
-		"previous index on the single profile":     func(o *Options) { o.Profile, o.FirstRelease, o.PackageURL = ProfileCNCF, true, "https://metadata.example.test/x.tar" },
-		"expiry beyond rules":                      func(o *Options) { o.Expires = "2999-01-01T00:00:00Z" },
-		"swapped role keys":                        func(o *Options) { o.TargetsKey, o.SnapshotKey = o.SnapshotKey, o.TargetsKey },
+		"missing previous index": func(o *Options) {
+			o.FirstRelease, o.PreviousIndex = false, filepath.Join(filepath.Dir(o.Root), "absent.json")
+		},
+		"unknown profile": func(o *Options) { o.Profile = "cncf-all" },
+		"previous index on the single profile": func(o *Options) {
+			o.Profile, o.FirstRelease, o.PackageURL = ProfileCNCF, true, "https://metadata.example.test/x.tar"
+		},
+		"expiry beyond rules": func(o *Options) { o.Expires = "2999-01-01T00:00:00Z" },
+		"swapped role keys":   func(o *Options) { o.TargetsKey, o.SnapshotKey = o.SnapshotKey, o.TargetsKey },
 	}
 	for name, mutate := range cases {
 		t.Run(name, func(t *testing.T) {

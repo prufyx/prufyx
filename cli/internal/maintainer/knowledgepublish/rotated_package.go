@@ -107,9 +107,9 @@ func finalizeAdmittedPackage(initialRaw []byte, initialDigest string, authority 
 		return nil, FinalizationReceipt{}, err
 	}
 	entries := map[string][]byte{
-		filepath.Join("metadata", fmt.Sprintf("%d.targets.json", targets.Signed.Version)):                                                     targetsRaw,
-		filepath.Join("metadata", fmt.Sprintf("%d.snapshot.json", snapshot.Signed.Version)):                                                   snapshotRaw,
-		filepath.Join("metadata", "timestamp.json"):                                                                                           timestampRaw,
+		filepath.Join("metadata", fmt.Sprintf("%d.targets.json", targets.Signed.Version)):   targetsRaw,
+		filepath.Join("metadata", fmt.Sprintf("%d.snapshot.json", snapshot.Signed.Version)): snapshotRaw,
+		filepath.Join("metadata", "timestamp.json"):                                         timestampRaw,
 	}
 	for _, file := range set.files {
 		// go-tuf requests <dir>/<sha256>.<base> under consistent snapshots.
