@@ -625,7 +625,7 @@ func (st *onboardingState) checkProject(p OnboardingProject, baseRows, headRows 
 			// admitted blind by an onboarding batch.
 			bad("O4: a new target may not exclude files from the full-tree scan (%d exclusions); exclusions are reviewed per project", len(head.Exclude))
 		}
-		if repo := st.landscape[p.Slug]; row.Catalog != customresources.CatalogCommunity && repo != "https://"+head.Repo {
+		if repo := st.landscape[p.Slug]; row.Catalog != customresources.CatalogCommunity && !sameLandscapeRepo(repo, head.Repo) {
 			bad("O4: the target repository %s is not the landscape repository %s", logSafe(head.Repo), logSafe(repo))
 		}
 		for _, g := range row.Groups {
@@ -704,4 +704,29 @@ func onlyAttestChanged(baseRaw, headRaw []byte) string {
 		return "kind attest may change only the target's attest member"
 	}
 	return ""
+}
+
+// sameLandscapeRepo reports whether the landscape's repository URL names the
+// target's repository. A target repository is always lowercase (the target
+// loader and extract.ParseRepo lower it, as GitHub owner and repository names
+// are case-insensitive), while the landscape keeps the spelling of the
+// project. The comparison therefore folds ASCII case only: both sides must be
+// ASCII, the scheme and host must match exactly, and nothing else is
+// loosened (no trailing slash, no other host, no Unicode folding).
+func sameLandscapeRepo(landscapeURL, targetRepo string) bool {
+	want := "https://" + targetRepo
+	if landscapeURL == "" || targetRepo == "" || !isASCII(landscapeURL) || !isASCII(want) {
+		return false
+	}
+	// Both sides are ASCII here, so EqualFold is an ASCII case fold.
+	return strings.EqualFold(landscapeURL, want)
+}
+
+func isASCII(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= 0x80 {
+			return false
+		}
+	}
+	return true
 }
