@@ -175,6 +175,12 @@ func (r *Report) trustCheck(opts Options) {
 				bad = append(bad, p+" ("+err.Error()+")")
 			} else if pinnedDigest(raw) != pin {
 				bad = append(bad, p+" (does not match the pinned digest)")
+			} else if p == opts.Layout.ApprovalKeysPath {
+				// A key file the gate cannot parse would turn every later
+				// change red once merged: refuse it here.
+				if _, err := ParseApprovalKeys(raw); err != nil {
+					bad = append(bad, p+" (does not parse: "+logSafe(err.Error())+")")
+				}
 			}
 		}
 	}

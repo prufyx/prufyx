@@ -243,7 +243,7 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	var source, author, sender, owner, bot, headSHA, commits, digest, keysDigest, rerun, now, report, summary string
 	var max, concurrency int
 	var citeTimeout time.Duration
-	var all, shadow bool
+	var all, shadow, botPaused bool
 	var shardSpec, cacheDir, shardState string
 	var restBudget int64
 	var metricsFile, alarmsFile, alarmsMD string
@@ -251,6 +251,7 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	f := newFlags("gate verify", &t)
 	m.register(f)
 	f.BoolVar(&shadow, "shadow", false, "shadow mode: compute everything, never be eligible for automatic merging")
+	f.BoolVar(&botPaused, "bot-signer-paused", false, "refuse every onboarding batch signed with an onboarding-bot key")
 	f.StringVar(&metricsFile, "metrics", "", "write the metrics JSON to this file")
 	f.StringVar(&alarmsFile, "alarms", "", "write the alarms JSON to this file")
 	f.StringVar(&alarmsMD, "alarms-markdown", "", "write the alarms as a Markdown list to this file")
@@ -291,7 +292,7 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	if restBudget < 0 {
 		return 2, errors.New("--rest-budget must not be negative")
 	}
-	opts := Options{Layout: layout, Base: base, Head: head, Author: author, Sender: sender, Owner: owner, BotLogin: bot, HeadSHA: headSHA, MaxLoosening: max, TrustRootDigest: digest, ApprovalKeysDigest: keysDigest, RederiveAll: all, Concurrency: concurrency, Shadow: shadow}
+	opts := Options{Layout: layout, Base: base, Head: head, Author: author, Sender: sender, Owner: owner, BotLogin: bot, HeadSHA: headSHA, MaxLoosening: max, TrustRootDigest: digest, ApprovalKeysDigest: keysDigest, RederiveAll: all, Concurrency: concurrency, Shadow: shadow, BotSignerPaused: botPaused}
 	m.apply(&opts)
 	if shardSpec != "" && !all {
 		return 2, errors.New("--shard needs --rederive-all")

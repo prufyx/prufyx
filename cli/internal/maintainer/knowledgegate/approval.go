@@ -90,9 +90,22 @@ type ApprovalKeys struct {
 	Schema string `json:"schema"`
 	Role   string `json:"role"`
 	// Owners are the identities whose approvals count (GitHub logins).
-	Owners []string      `json:"owners"`
-	Keys   []ApprovalKey `json:"keys"`
+	Owners []string `json:"owners"`
+	// Bots are the identities of the onboarding-bot tier. A bot identity
+	// signs only with an onboarding-bot key, an owner only with an owner
+	// key; the two lists never overlap. Absent in a key file without a bot.
+	Bots []string      `json:"bots,omitempty"`
+	Keys []ApprovalKey `json:"keys"`
 }
+
+const (
+	// ApprovalTierOwner is the tier of every key without a tier field.
+	ApprovalTierOwner = "owner"
+	// ApprovalTierOnboardingBot is the tier whose signature the gate accepts
+	// for a kind-new onboarding batch only, inside the caps (onboarding_bot.go).
+	ApprovalTierOnboardingBot = "onboarding-bot"
+	maxApprovalBots           = 8
+)
 
 // ApprovalKey is one pinned public key. KeyID is "sha256:" and the hex
 // sha256 of the raw 32-byte public key.
@@ -100,6 +113,54 @@ type ApprovalKey struct {
 	KeyID     string `json:"keyId"`
 	PublicKey string `json:"publicKey"` // hex, 32 bytes
 	NotAfter  string `json:"notAfter"`
+	// Tier is "owner" (or absent) or "onboarding-bot". Any other value
+	// matches neither tier below, so every path refuses such a key.
+	Tier string `json:"tier,omitempty"`
+}
+
+// ownerTier reports whether the key is an owner key (no tier counts as one).
+func (k ApprovalKey) ownerTier() bool {
+	return k.Tier == "" || k.Tier == ApprovalTierOwner
+}
+
+// botTier reports whether the key is an onboarding-bot key.
+func (k ApprovalKey) botTier() bool { return k.Tier == ApprovalTierOnboardingBot }
+
+// errBotTierKey is the refusal of every path that only an owner key may
+// sign: approvals, knowledge batches, signing commands.
+func errBotTierKey(prefix string, k ApprovalKey) error {
+	if k.botTier() {
+		return fmt.Errorf("%s: signed by a bot-tier key, which signs only a kind-new onboarding batch", prefix)
+	}
+	return fmt.Errorf("%s: the key has no owner tier", prefix)
+}
+
+func (k ApprovalKeys) isOwner(login string) bool {
+	for _, o := range k.Owners {
+		if o == login {
+			return true
+		}
+	}
+	return false
+}
+
+func (k ApprovalKeys) isBot(login string) bool {
+	for _, b := range k.Bots {
+		if b == login {
+			return true
+		}
+	}
+	return false
+}
+
+// keyByID returns the pinned key with the id, or nil.
+func (k ApprovalKeys) keyByID(id string) *ApprovalKey {
+	for i := range k.Keys {
+		if k.Keys[i].KeyID == id {
+			return &k.Keys[i]
+		}
+	}
+	return nil
 }
 
 var (
@@ -210,8 +271,21 @@ func ParseApprovalKeys(raw []byte) (ApprovalKeys, error) {
 			return ApprovalKeys{}, fmt.Errorf("approval keys: owner %q", o)
 		}
 	}
+	if len(k.Bots) > maxApprovalBots {
+		return ApprovalKeys{}, errors.New("approval keys: too many bots")
+	}
+	botSeen := map[string]bool{}
+	for _, b := range k.Bots {
+		if !approvalLoginRE.MatchString(b) || botSeen[b] || k.isOwner(b) {
+			return ApprovalKeys{}, fmt.Errorf("approval keys: bot %q", b)
+		}
+		botSeen[b] = true
+	}
 	seen := map[string]bool{}
 	for _, key := range k.Keys {
+		if !key.ownerTier() && !key.botTier() {
+			return ApprovalKeys{}, fmt.Errorf("approval keys: key %q has an unknown tier", key.KeyID)
+		}
 		pub, err := hex.DecodeString(key.PublicKey)
 		if err != nil || len(pub) != ed25519.PublicKeySize || key.KeyID != ApprovalKeyID(pub) || seen[key.KeyID] || !approvalTimeRE.MatchString(key.NotAfter) {
 			return ApprovalKeys{}, fmt.Errorf("approval keys: key %q", key.KeyID)
@@ -275,6 +349,9 @@ func verifyApproval(raw []byte, keys ApprovalKeys, pack, subject, ruleID, scope 
 	}
 	if key == nil {
 		return errors.New("approval: signed by a key that is not pinned")
+	}
+	if !key.ownerTier() {
+		return errBotTierKey("approval", *key)
 	}
 	now = now.UTC()
 	notAfter, err := time.Parse(time.RFC3339, key.NotAfter)

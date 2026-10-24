@@ -51,6 +51,9 @@ jobs:
       BOT_LOGIN: ${{ vars.KNOWLEDGE_BOT_LOGIN || 'prufyx-factory[bot]' }}
       REATTEST_TRUST_ROOT_DIGEST: ${{ vars.REATTEST_TRUST_ROOT_DIGEST }}
       WEB_APPROVAL_KEYS_DIGEST: ${{ vars.WEB_APPROVAL_KEYS_DIGEST }}
+      # Any value but empty or "false" pauses the onboarding-bot tier (a typo
+      # pauses, it never resumes).
+      BOT_SIGNER_PAUSED: ${{ vars.KNOWLEDGE_BOT_SIGNER_PAUSED }}
       MAX_LOOSENING: ${{ vars.KNOWLEDGE_MAX_LOOSENING || '200' }}
       # A scheduled run re-derives one slice of the extractors (the slice is
       # the UTC day number mod 7), so every project is fully re-derived at
@@ -225,6 +228,9 @@ jobs:
                 --report "${RUNNER_TEMP}/gate-report.json" --summary "${GITHUB_STEP_SUMMARY}"
                 --metrics "${RUNNER_TEMP}/gate-metrics.json"
                 --alarms "${RUNNER_TEMP}/gate-alarms.json" --alarms-markdown "${RUNNER_TEMP}/gate-alarms.md")
+          if [ -n "${BOT_SIGNER_PAUSED}" ] && [ "${BOT_SIGNER_PAUSED}" != "false" ]; then
+            args+=(--bot-signer-paused)
+          fi
           if [ "${SHADOW_VAR}" = "true" ] || [ "${SHADOW_LABEL}" = "true" ]; then
             args+=(--shadow)
           fi

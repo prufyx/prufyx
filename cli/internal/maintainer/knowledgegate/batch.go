@@ -534,6 +534,9 @@ func verifyBatch(raw []byte, name string, st *batchState, keys ApprovalKeys, now
 	if key == nil {
 		return env, errors.New("batch approval: signed by a key that is not pinned")
 	}
+	if !key.ownerTier() {
+		return env, errBotTierKey("batch approval", *key)
+	}
 	now = now.UTC()
 	keyNotAfter, err := time.Parse(time.RFC3339, key.NotAfter)
 	if err != nil || !now.Before(keyNotAfter) {

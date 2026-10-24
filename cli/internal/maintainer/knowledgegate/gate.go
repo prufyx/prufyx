@@ -100,6 +100,9 @@ type Options struct {
 	// Shadow computes everything as usual but never makes the change
 	// eligible for automatic merging.
 	Shadow bool
+	// BotSignerPaused refuses every onboarding batch signed with an
+	// onboarding-bot key (owner batches are unaffected).
+	BotSignerPaused bool
 	// DailyLoosening is the number of loosening changes already merged by
 	// the automation in the last day, counted by the caller. Nil means it
 	// is unknown: the change is then never eligible for automatic merging.

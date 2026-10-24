@@ -143,7 +143,7 @@ func cmdOnboardingSign(args []string, env approvalEnv, layout Layout, stdout io.
 		return 2, errors.New("no source of randomness or terminal to confirm on")
 	}
 	now := env.now().UTC().Truncate(time.Second)
-	keyID, err := checkBatchSigner(keys, key, identity, now)
+	keyID, err := checkOnboardingSigner(keys, key, identity, now)
 	if err != nil {
 		return 2, err
 	}
@@ -208,6 +208,9 @@ func cmdOnboardingSign(args []string, env approvalEnv, layout Layout, stdout io.
 		return 2, fmt.Errorf("the signed batch does not verify: %s", why)
 	}
 	if why := refuseOnboarding(envl, baseFiles); why != "" {
+		return 2, errors.New(why)
+	}
+	if why := botOnboardingLimits(envl, keys, baseFiles, now, false); why != "" {
 		return 2, errors.New(why)
 	}
 	if err := writeApprovalFile(output, raw); err != nil {
@@ -278,6 +281,9 @@ func cmdOnboardingVerify(args []string, env approvalEnv, layout Layout, stdout i
 		return 2, err
 	}
 	if why := refuseOnboarding(envl, baseFiles); why != "" {
+		return refused(why)
+	}
+	if why := botOnboardingLimits(envl, keys, baseFiles, at, false); why != "" {
 		return refused(why)
 	}
 	cls, err := Classify(layout, base, head)
