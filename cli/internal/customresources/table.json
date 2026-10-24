@@ -30,6 +30,24 @@
       ]
     },
     {
+      "slug": "awx-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "awx-operator",
+        "repository": "https://github.com/ansible/awx-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/ansible/awx-operator/blob/5e66b6aeb06c30ddc7300893145d7a31b1655ccd/LICENSE"
+      },
+      "factProject": "awx_operator",
+      "component": "pkg:github/ansible/awx-operator",
+      "groups": [
+        {
+          "name": "awx.ansible.com",
+          "source": "https://github.com/ansible/awx-operator/blob/dd37ebd440edf953d822f2c134833a44a8e77532/config/crd/bases/awx.ansible.com_awxs.yaml"
+        }
+      ]
+    },
+    {
       "slug": "cert-manager",
       "catalog": "cncf",
       "factProject": "cert_manager",
@@ -108,6 +126,24 @@
       ]
     },
     {
+      "slug": "cluster-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "cluster-operator",
+        "repository": "https://github.com/rabbitmq/cluster-operator",
+        "license": "MPL-2.0",
+        "licenseSource": "https://github.com/rabbitmq/cluster-operator/blob/e20d5f4992960e4347430c4dd8fd7570eb016f46/LICENSE.txt"
+      },
+      "factProject": "cluster_operator",
+      "component": "pkg:github/rabbitmq/cluster-operator",
+      "groups": [
+        {
+          "name": "rabbitmq.com",
+          "source": "https://github.com/rabbitmq/cluster-operator/blob/8db765e845443489c643fabc508396d4ef5d31a7/config/crd/bases/rabbitmq.com_rabbitmqclusters.yaml"
+        }
+      ]
+    },
+    {
       "slug": "contour",
       "catalog": "cncf",
       "factProject": "contour",
@@ -144,6 +180,24 @@
         {
           "name": "secrets.crossplane.io",
           "source": "https://github.com/crossplane/crossplane/blob/2efdb03ae80fc27f4b6b9b0cebc96a462233cf17/cluster/crds/secrets.crossplane.io_storeconfigs.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "cyclops",
+      "catalog": "community",
+      "upstream": {
+        "name": "cyclops",
+        "repository": "https://github.com/cyclops-ui/cyclops",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/cyclops-ui/cyclops/blob/e2965366f0e52472e32d37475fbbb5d3507199d0/LICENSE"
+      },
+      "factProject": "cyclops",
+      "component": "pkg:github/cyclops-ui/cyclops",
+      "groups": [
+        {
+          "name": "cyclops-ui.com",
+          "source": "https://github.com/cyclops-ui/cyclops/blob/0cb57591927387de0e98a82f87fba13e1364a440/cyclops-ctrl/config/crd/bases/cyclops-ui.com_templatestores.yaml"
         }
       ]
     },
@@ -478,6 +532,36 @@
       ]
     },
     {
+      "slug": "kube-green",
+      "catalog": "community",
+      "upstream": {
+        "name": "kube-green",
+        "repository": "https://github.com/kube-green/kube-green",
+        "license": "MIT",
+        "licenseSource": "https://github.com/kube-green/kube-green/blob/335696fad48024429afc421c104f5a76088a667d/LICENSE"
+      },
+      "factProject": "kube_green",
+      "component": "pkg:github/kube-green/kube-green",
+      "groups": [
+        {
+          "name": "kube-green.com",
+          "source": "https://github.com/kube-green/kube-green/blob/eb4a805915c00300a5262c6fdb9fde99a6d96941/config/crd/bases/kube-green.com_sleepinfos.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "kuberhealthy",
+      "catalog": "cncf",
+      "factProject": "kuberhealthy",
+      "component": "pkg:github/kuberhealthy/kuberhealthy",
+      "groups": [
+        {
+          "name": "kuberhealthy.github.io",
+          "source": "https://github.com/kuberhealthy/kuberhealthy/blob/c0f8f3c7ea35d68accb2e0297ca1d50f1a4b54d8/deploy/helm/kuberhealthy/crds/healthchecks.kuberhealthy.github.io.yaml"
+        }
+      ]
+    },
+    {
       "slug": "kubevela",
       "catalog": "cncf",
       "factProject": "kubevela",
@@ -632,6 +716,18 @@
       ]
     },
     {
+      "slug": "openchoreo",
+      "catalog": "cncf",
+      "factProject": "openchoreo",
+      "component": "pkg:github/openchoreo/openchoreo",
+      "groups": [
+        {
+          "name": "openchoreo.dev",
+          "source": "https://github.com/openchoreo/openchoreo/blob/6e1478eef0fc36add3bd44a3e24af6a7ca17a50c/config/crd/bases/openchoreo.dev_workloads.yaml"
+        }
+      ]
+    },
+    {
       "slug": "openkruise",
       "catalog": "cncf",
       "factProject": "openkruise",
@@ -668,6 +764,24 @@
         {
           "name": "raven.openyurt.io",
           "source": "https://github.com/openyurtio/openyurt/blob/35ef4cd692e387d0d56c9084e3da161bad2a3092/charts/yurt-manager/crds/raven.openyurt.io_gateways.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "operator-lifecycle-manager",
+      "catalog": "community",
+      "upstream": {
+        "name": "operator-lifecycle-manager",
+        "repository": "https://github.com/operator-framework/operator-lifecycle-manager",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/operator-framework/operator-lifecycle-manager/blob/f6925fde7820b275e766af66363b5dab4fb9bff5/LICENSE"
+      },
+      "factProject": "operator_lifecycle_manager",
+      "component": "pkg:github/operator-framework/operator-lifecycle-manager",
+      "groups": [
+        {
+          "name": "operators.coreos.com",
+          "source": "https://github.com/operator-framework/operator-lifecycle-manager/blob/0368a3f9dff1fa14c8645b867fba25c3be9df845/deploy/chart/crds/0000_50_olm_00-subscriptions.crd.yaml"
         }
       ]
     },
@@ -758,6 +872,24 @@
         {
           "name": "telemetry.cattle.io",
           "source": "https://github.com/rancher/rancher/blob/9994cd93198c4b1692bcda733eb08d1e81c26eed/pkg/crds/yaml/generated/telemetry.cattle.io_secretrequests.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "redis-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "redis-operator",
+        "repository": "https://github.com/ot-container-kit/redis-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/ot-container-kit/redis-operator/blob/e23140a8522f8e6f1aac2cdf51dfe560c0e90004/LICENSE"
+      },
+      "factProject": "redis_operator",
+      "component": "pkg:github/ot-container-kit/redis-operator",
+      "groups": [
+        {
+          "name": "redis.redis.opstreelabs.in",
+          "source": "https://github.com/ot-container-kit/redis-operator/blob/71954323c9191e6171f3eb04f80bb46a5f128306/config/crd/bases/redis.redis.opstreelabs.in_redissentinels.yaml"
         }
       ]
     },
