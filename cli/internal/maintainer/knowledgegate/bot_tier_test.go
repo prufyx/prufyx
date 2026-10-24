@@ -514,7 +514,7 @@ func TestBotOnboardingGate(t *testing.T) {
 		f := newOnboardingFixture(t)
 		bot := f.pinBot(t, "2027-01-01T00:00:00Z")
 		for i := 1; i <= MaxBotBatchesWeek; i++ {
-			name, raw := botBaseBatch(t, f, bot, fmt.Sprintf("ob-2026100%d-1", i), 1, f.signedAt.Add(-time.Duration(i)*time.Hour))
+			name, raw := botBaseBatch(t, f, bot, fmt.Sprintf("ob-2026092%d-1", i), 1, f.signedAt.Add(-time.Duration(i)*time.Hour))
 			f.writeBatch(t, f.base, name, raw)
 			f.writeBatch(t, f.head, name, raw)
 		}
@@ -525,7 +525,7 @@ func TestBotOnboardingGate(t *testing.T) {
 		f := newOnboardingFixture(t)
 		bot := f.pinBot(t, "2027-01-01T00:00:00Z")
 		for i := 1; i < MaxBotBatchesWeek; i++ {
-			name, raw := botBaseBatch(t, f, bot, fmt.Sprintf("ob-2026100%d-1", i), 1, f.signedAt.Add(-time.Duration(i)*time.Hour))
+			name, raw := botBaseBatch(t, f, bot, fmt.Sprintf("ob-2026092%d-1", i), 1, f.signedAt.Add(-time.Duration(i)*time.Hour))
 			f.writeBatch(t, f.base, name, raw)
 			f.writeBatch(t, f.head, name, raw)
 		}
