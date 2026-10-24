@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"regexp"
 	"strings"
 )
@@ -41,16 +42,16 @@ var (
 // strict-validation unknown field. Other rejections, for example a
 // non-structural schema, are not diagnosed: validation modes cannot change
 // their answer.
-func ladderClass(ie *InstallError) bool {
+func ladderClass(ie *InstallError, err error) bool {
 	if ie == nil {
 		return false
 	}
-	for _, l := range ie.Lines {
-		if strings.Contains(l, "field not declared in schema") || strings.Contains(l, "unknown field") {
-			return true
-		}
+	text := strings.Join(ie.Lines, "\n")
+	var ae *applyError
+	if errors.As(err, &ae) {
+		text = ae.stderr // the full output, not the capped lines
 	}
-	return false
+	return strings.Contains(text, "field not declared in schema") || strings.Contains(text, "unknown field")
 }
 
 // droppedPaths lists the unknown-field paths named in lines, deduplicated.
@@ -78,6 +79,9 @@ func droppedPaths(lines []string) []string {
 func runLadder(ctx context.Context, k kube, manifest []byte) []LadderStep {
 	steps := []LadderStep{}
 	for _, m := range ladderMethods {
+		if ctx.Err() != nil {
+			break
+		}
 		args := append(strings.Fields(m), "-f", "-")
 		_, errb, exit := k.run(ctx, "kubectl", k.args(args...), manifest)
 		var lines []string
@@ -99,6 +103,10 @@ func runLadder(ctx context.Context, k kube, manifest []byte) []LadderStep {
 func ladderAccepted(exit int, lines []string) bool {
 	if exit == 0 {
 		return true
+	}
+	all := strings.Join(lines, "\n")
+	if exit != 1 || transportFailure(all) || strings.Contains(all, "was refused") {
+		return false
 	}
 	for _, l := range lines {
 		if (strings.HasPrefix(l, "Error from server") || strings.HasPrefix(l, "error:")) && !strings.Contains(l, "(AlreadyExists)") {
