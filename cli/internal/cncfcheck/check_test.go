@@ -106,6 +106,12 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 		if err := json.Unmarshal(b.pack.Entries[i].Rule, &rule); err != nil {
 			t.Fatal(err)
 		}
+		if crdbatchids.IsForeign(rule.ID) {
+			// A mechanical custom-resource rule of another project is
+			// re-derived by the knowledge gate from the upstream manifests;
+			// the file holds reviewed vectors of the batch only.
+			continue
+		}
 		packIDs = append(packIDs, rule.ID)
 		inPack[rule.ID] = true
 	}
@@ -160,7 +166,7 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 			}
 		}
 	}
-	if len(b.pack.Entries) != 228+extra+shippedBatch || len(vectors) != 228+extra+shippedBatch {
+	if len(b.pack.Entries) != 228+extra+shippedBatch+len(crdbatchids.Foreign()) || len(vectors) != 228+extra+shippedBatch {
 		t.Fatal("unexpected reviewed rule or vector count")
 	}
 	if caseCount != 1113+4*extra+4*shippedBatch {

@@ -27,7 +27,9 @@ const (
 	membersPolicies = "pathPolicies"
 )
 
-// Without returns pack without the batch, rendered like the shipped pack. A
+// Without returns pack without the batch and, when the pack holds the batch,
+// without the mechanical custom-resource version-removal rules the factory
+// adds beside it (crdbatchids.Foreign), rendered like the shipped pack. A
 // pack that does not hold the batch is returned unchanged. The batch moved
 // the pack from the ranged schema to the line attestation schema; Without
 // moves it back unless line attestations of other facts remain, drops the
@@ -69,6 +71,12 @@ func Without(pack []byte) ([]byte, error) {
 	for _, id := range crdbatchids.IDs() {
 		batch[id] = true
 	}
+	// The mechanical custom-resource rules of other projects (the factory's)
+	// are set rules too: the pack the tests model, before the batch, has none.
+	foreign := map[string]bool{}
+	for _, id := range crdbatchids.ForeignIDs(pack) {
+		foreign[id] = true
+	}
 	var kept []json.RawMessage
 	for _, raw := range p.Entries {
 		var e struct {
@@ -80,7 +88,7 @@ func Without(pack []byte) ([]byte, error) {
 		if err := json.Unmarshal(raw, &e); err != nil {
 			return nil, err
 		}
-		if batch[e.Rule.ID] {
+		if batch[e.Rule.ID] || foreign[e.Rule.ID] {
 			continue
 		}
 		if e.Rule.Operator == "forbid_set_member" {
@@ -117,5 +125,69 @@ func Without(pack []byte) ([]byte, error) {
 	}
 	delete(p.Members, "lineAttestations")
 	p.Members["schema"] = json.RawMessage(`"` + schemaRanged + `"`)
+	return p.Render()
+}
+
+// WithoutForeign returns pack without the mechanical custom-resource
+// version-removal rules of other projects (crdbatchids.ForeignIDs) and the
+// quiet line attestations of the family that the factory states for the
+// components of those rules, rendered like the shipped pack. Tests that pin
+// figures over the reviewed pack use it to state them over the pack as it was
+// reviewed. It drops every family line of those components, so a reviewed
+// quiet line of such a component would leave the baseline too.
+func WithoutForeign(pack []byte) ([]byte, error) {
+	foreign := map[string]bool{}
+	for _, id := range crdbatchids.ForeignIDs(pack) {
+		foreign[id] = true
+	}
+	if len(foreign) == 0 {
+		return pack, nil
+	}
+	components := crdbatchids.ForeignComponents(pack)
+	p, err := extractpack.ParsePack(pack)
+	if err != nil {
+		return nil, err
+	}
+	var kept []json.RawMessage
+	for _, raw := range p.Entries {
+		var e struct {
+			Rule struct {
+				ID string `json:"id"`
+			} `json:"rule"`
+		}
+		if err := json.Unmarshal(raw, &e); err != nil {
+			return nil, err
+		}
+		if !foreign[e.Rule.ID] {
+			kept = append(kept, raw)
+		}
+	}
+	p.Entries = kept
+	if _, has := p.Members["lineAttestations"]; !has {
+		return p.Render()
+	}
+	var atts []json.RawMessage
+	if err := json.Unmarshal(p.Members["lineAttestations"], &atts); err != nil {
+		return nil, err
+	}
+	var keptAtts []json.RawMessage
+	for _, raw := range atts {
+		var a struct {
+			Component  string `json:"component"`
+			FactFamily string `json:"factFamily"`
+		}
+		if err := json.Unmarshal(raw, &a); err != nil {
+			return nil, err
+		}
+		if a.FactFamily == crdbatchids.FactFamily && components[a.Component] {
+			continue
+		}
+		keptAtts = append(keptAtts, raw)
+	}
+	out, err := json.Marshal(keptAtts)
+	if err != nil {
+		return nil, err
+	}
+	p.Members["lineAttestations"] = out
 	return p.Render()
 }

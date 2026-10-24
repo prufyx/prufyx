@@ -157,8 +157,9 @@ func TestCustomResourceRuleAdmissionNeedsTheRegisteredFact(t *testing.T) {
 		t.Fatalf("rule over the registered fact refused: %v", err)
 	}
 	// The embedded pack itself carries no such rule but the batch's
-	// (crdbatchids: none before it ships, its 13 after), each reading the
-	// set of its own project.
+	// (crdbatchids: none before it ships, its 13 after) and the mechanical
+	// ones of other projects (crdbatchids.Foreign), each reading the set of
+	// its own project.
 	stated := map[string]crdbatchids.Rule{}
 	if crdbatchids.Shipped() {
 		for _, r := range crdbatchids.Rules() {
@@ -172,15 +173,19 @@ func TestCustomResourceRuleAdmissionNeedsTheRegisteredFact(t *testing.T) {
 		for _, e := range b.pack.Entries {
 			for _, f := range e.RequiredFacts {
 				if strings.HasSuffix(f.ID, ".custom_resource_versions_set") {
-					if r, ok := stated[ruleID(t, e)]; !ok || f.ID != r.FactID() {
+					if r, ok := stated[ruleID(t, e)]; ok {
+						if f.ID != r.FactID() {
+							t.Fatalf("embedded pack rule %s reads %s", ruleID(t, e), f.ID)
+						}
+					} else if !crdbatchids.IsForeign(ruleID(t, e)) || f.ID != "component."+e.Project+".custom_resource_versions_set" {
 						t.Fatalf("embedded pack rule %s reads %s", ruleID(t, e), f.ID)
 					}
 					reading++
 				}
 			}
 		}
-		if reading != len(stated) {
-			t.Fatalf("%d embedded rules read a custom-resource set, the batch states %d", reading, len(stated))
+		if reading != len(stated)+len(crdbatchids.Foreign()) {
+			t.Fatalf("%d embedded rules read a custom-resource set, the batch states %d and %d are mechanical rules of other projects", reading, len(stated), len(crdbatchids.Foreign()))
 		}
 	}
 }

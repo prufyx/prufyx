@@ -85,17 +85,20 @@ func TestHoldsRefusesPartialAndAlteredBatches(t *testing.T) {
 	first := Rules()[0]
 	altered := append([]string{entryOf(first, append(first.Members, "x.example/v1/Extra"))}, all[1:]...)
 	for name, pack := range map[string][]byte{
-		"rules without lines":      packOf(all, nil),
-		"lines without rules":      packOf(nil, quiet),
-		"one rule missing":         packOf(all[1:], quiet),
-		"one line missing":         packOf(all, quiet[1:]),
-		"altered members":          packOf(altered, quiet),
-		"foreign crd rule":         packOf(append(all, `{"project":"keda","rule":{"id":"keda.crd-version-removal.x"}}`), quiet),
-		"line with a rule":         packOf(all, append(quiet[1:], lineOf(Lines()[0], `["`+first.ID+`"]`))),
-		"line without ids":         packOf(all, append(quiet[1:], lineOf(Lines()[0], "null"))),
-		"repeated line":            packOf(all, append(quiet, quiet[0])),
-		"foreign line with a rule": packOf(all, append(quiet, lineOf(Line{Component: "pkg:github/dapr/dapr", Line: "1.14"}, `["`+first.ID+`"]`))),
-		"foreign repeated line":    packOf(all, append(quiet, lineOf(Line{Component: "pkg:github/dapr/dapr", Line: "1.14"}, "[]"), lineOf(Line{Component: "pkg:github/dapr/dapr", Line: "1.14"}, "[]"))),
+		"rules without lines":                      packOf(all, nil),
+		"lines without rules":                      packOf(nil, quiet),
+		"one rule missing":                         packOf(all[1:], quiet),
+		"one line missing":                         packOf(all, quiet[1:]),
+		"altered members":                          packOf(altered, quiet),
+		"foreign crd rule shapeless":               packOf(append(all, `{"project":"keda","rule":{"id":"keda.crd-version-removal.x"}}`), quiet),
+		"foreign crd rule of another project's id": packOf(append(all, foreignEntry("keda", "cilium.crd-version-removal.x", "pkg:github/keda/keda", "component.keda.custom_resource_versions_set", "proposed")), quiet),
+		"foreign crd rule on the current side":     packOf(append(all, foreignEntry("keda", "keda.crd-version-removal.x", "pkg:github/keda/keda", "component.keda.custom_resource_versions_set", "current")), quiet),
+		"foreign crd rule over another fact":       packOf(append(all, foreignEntry("keda", "keda.crd-version-removal.x", "pkg:github/keda/keda", "component.other.custom_resource_versions_set", "proposed")), quiet),
+		"line with a rule":                         packOf(all, append(quiet[1:], lineOf(Lines()[0], `["`+first.ID+`"]`))),
+		"line without ids":                         packOf(all, append(quiet[1:], lineOf(Lines()[0], "null"))),
+		"repeated line":                            packOf(all, append(quiet, quiet[0])),
+		"foreign line with a rule":                 packOf(all, append(quiet, lineOf(Line{Component: "pkg:github/dapr/dapr", Line: "1.14"}, `["`+first.ID+`"]`))),
+		"foreign repeated line":                    packOf(all, append(quiet, lineOf(Line{Component: "pkg:github/dapr/dapr", Line: "1.14"}, "[]"), lineOf(Line{Component: "pkg:github/dapr/dapr", Line: "1.14"}, "[]"))),
 	} {
 		if _, err := Holds(pack); err == nil {
 			t.Errorf("%s: accepted", name)
@@ -130,5 +133,34 @@ func TestHoldsAcceptsForeignQuietLines(t *testing.T) {
 	// Foreign lines alone never make a partial batch.
 	if _, err := Holds(packOf(all, extra)); err == nil {
 		t.Fatal("rules and foreign lines without the batch's lines accepted")
+	}
+}
+
+func foreignEntry(project, id, component, factID, side string) string {
+	return fmt.Sprintf(`{"project":%q,"rule":{"id":%q,"operator":"forbid_set_member","subject":{"component":%q,"from":"1.0.0","to":"2.0.0"},"setCondition":{"side":%q,"component":%q,"factId":%q,"members":["x.example/v1/X"]}}}`,
+		project, id, component, side, component, factID)
+}
+
+// A mechanical custom-resource version-removal rule of another project (the
+// factory's daily export adds them) is accepted beside the whole batch and
+// beside none of it, and never counts towards the batch.
+func TestHoldsAcceptsForeignMechanicalRules(t *testing.T) {
+	var all, quiet []string
+	for _, r := range Rules() {
+		all = append(all, entryOf(r, r.Members))
+	}
+	for _, l := range Lines() {
+		quiet = append(quiet, lineOf(l, "[]"))
+	}
+	foreign := foreignEntry("cilium", "cilium.crd-version-removal.ciliumnodeconfigs-cilium-io.1-19-0-to-1-20-0", "pkg:github/cilium/cilium", "component.cilium.custom_resource_versions_set", "proposed")
+	if held, err := Holds(packOf(append([]string{foreign}, all...), quiet)); err != nil || !held {
+		t.Fatalf("whole batch with a foreign rule: %v %v", held, err)
+	}
+	if held, err := Holds(packOf([]string{foreign}, nil)); err != nil || held {
+		t.Fatalf("no batch with a foreign rule: %v %v", held, err)
+	}
+	// A foreign rule never completes a partial batch.
+	if _, err := Holds(packOf(append([]string{foreign}, all[1:]...), quiet)); err == nil {
+		t.Fatal("a foreign rule made up for a missing batch rule")
 	}
 }

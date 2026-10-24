@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/extract/crdbatchfixture"
 	"github.com/prufyx/prufyx/cli/internal/extract/crdbatchids"
 	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 )
@@ -90,6 +91,12 @@ func fleetOf(f Totals) fleetFigures {
 func TestEmbeddedPackBaseline(t *testing.T) {
 	pack, err := cncfcheck.EmbeddedRulePack()
 	if err != nil {
+		t.Fatal(err)
+	}
+	// The figures are those of the reviewed rules: the mechanical
+	// custom-resource rules of other projects the factory adds are not part
+	// of the baseline.
+	if pack, err = crdbatchfixture.WithoutForeign(pack); err != nil {
 		t.Fatal(err)
 	}
 	var head struct {
