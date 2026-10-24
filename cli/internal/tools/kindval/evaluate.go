@@ -701,6 +701,24 @@ func (e *evaluator) k8sRemoval(c Claim, cr *ClaimResult) {
 	}
 }
 
+// rejected turns an install failure into install-rejected when the API
+// server refused the apply (ie is set).
+func (cr *ClaimResult) rejected(ie *InstallError) {
+	if ie != nil {
+		cr.Reason, cr.InstallError = ReasonInstallRejected, ie
+	}
+}
+
+// firstInstallError is the first rejection among the states, if any.
+func firstInstallError(states ...CRDReleaseState) *InstallError {
+	for _, s := range states {
+		if s.InstallError != nil {
+			return s.InstallError
+		}
+	}
+	return nil
+}
+
 // pairFor finds the run of the pair a claim's project and releases name.
 func (e *evaluator) pairFor(project, fromTag, toTag string, cr *ClaimResult) (CRDPairResult, bool) {
 	id := pairID(project, fromTag, toTag)
@@ -713,6 +731,9 @@ func (e *evaluator) pairFor(project, fromTag, toTag string, cr *ClaimResult) (CR
 	if pr.Error != "" || pr.From.Error != "" || pr.To.Error != "" {
 		cr.Outcome, cr.Reason = OutcomeError, ReasonInstallFailed
 		cr.Detail = strings.TrimSpace(pr.Error + " " + pr.From.Error + " " + pr.To.Error)
+		if pr.Error == "" {
+			cr.rejected(firstInstallError(pr.From, pr.To))
+		}
 		return pr, false
 	}
 	return pr, true
@@ -728,6 +749,7 @@ func (e *evaluator) releaseStateFor(project, tag string, cr *ClaimResult) (CRDRe
 	}
 	sort.Strings(ids)
 	var failed, failedReason string
+	var failedErr *InstallError
 	for _, id := range ids {
 		pr := e.pairs[id]
 		if pr.Project != project {
@@ -745,10 +767,13 @@ func (e *evaluator) releaseStateFor(project, tag string, cr *ClaimResult) (CRDRe
 		cr.NodeImageDigest = imageDigest(e.pairImage[id])
 		switch {
 		case state.Error != "":
-			failed, failedReason = state.Error, ReasonInstallFailed
+			failed, failedReason, failedErr = state.Error, ReasonInstallFailed, state.InstallError
 		case len(state.Files) == 0:
 			// The pair stopped before this release was installed.
-			failed, failedReason = strings.TrimSpace(pr.Error+" "+pr.From.Error), ReasonInstallFailed
+			failed, failedReason, failedErr = strings.TrimSpace(pr.Error+" "+pr.From.Error), ReasonInstallFailed, nil
+			if pr.Error == "" {
+				failedErr = pr.From.InstallError
+			}
 			if failed == "" {
 				failedReason = ReasonReleaseNotInstalled
 				failed = "the pair " + id + " did not install " + tag
@@ -760,6 +785,7 @@ func (e *evaluator) releaseStateFor(project, tag string, cr *ClaimResult) (CRDRe
 	if failed != "" {
 		cr.Outcome, cr.Reason = OutcomeError, failedReason
 		cr.Detail = failed
+		cr.rejected(failedErr)
 		return CRDReleaseState{}, false
 	}
 	if r, ok := e.singles[singleID(project, tag)]; ok {
@@ -770,6 +796,9 @@ func (e *evaluator) releaseStateFor(project, tag string, cr *ClaimResult) (CRDRe
 		case r.Error != "" || r.State.Error != "":
 			cr.Outcome, cr.Reason = OutcomeError, ReasonInstallFailed
 			cr.Detail = strings.TrimSpace(r.Error + " " + r.State.Error)
+			if r.Error == "" {
+				cr.rejected(r.State.InstallError)
+			}
 		case len(r.State.Files) == 0:
 			cr.Detail, cr.Reason = fmt.Sprintf("release %s %s was not installed", project, tag), ReasonReleaseNotInstalled
 		default:

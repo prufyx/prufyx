@@ -59,6 +59,8 @@ func TestEveryReasonCode(t *testing.T) {
 	gadgets := gadgetClaims(true).Claims
 	pairID := "fixture.v9.0.0-to-v9.1.0"
 	failedPair := crdRuns(CRDPairResult{ID: pairID, Project: "fixture", FromTag: "v9.0.0", ToTag: "v9.1.0", From: CRDReleaseState{Files: []FetchedFile{{Path: "x"}}, Error: "kubectl apply: exit 1"}})
+	ie := &InstallError{Phase: "apply", Exit: 1, Lines: []string{"Error from server (Invalid): x"}}
+	rejectedPair := crdRuns(CRDPairResult{ID: pairID, Project: "fixture", FromTag: "v9.0.0", ToTag: "v9.1.0", From: CRDReleaseState{Files: []FetchedFile{{Path: "x"}}, Error: "kubectl apply: exit 1", InstallError: ie}})
 	stoppedPair := crdRuns(CRDPairResult{ID: pairID, Project: "fixture", FromTag: "v9.0.0", ToTag: "v9.1.0", From: CRDReleaseState{Files: []FetchedFile{{Path: "x"}}}})
 	gadgetDef := CRDDef{Name: "gadgets.fixture.example", Group: "fixture.example", Kind: "Gadget", Versions: []CRDVersion{{Name: "v1", Served: true, Storage: true}}}
 	installed := CRDReleaseState{Files: []FetchedFile{{Path: "x"}}, CRDs: []CRDDef{gadgetDef}}
@@ -81,6 +83,7 @@ func TestEveryReasonCode(t *testing.T) {
 		"image digest mismatch": {unproven, k8sClaims, "k8s.1.32.apps_v1_Deployment.served", OutcomeError, ReasonImageDigestMismatch},
 		"no run":                {Runs{}, gadgets, "removal", OutcomeUndetermined, ReasonNoRun},
 		"install failed":        {failedPair, gadgets, "removal", OutcomeError, ReasonInstallFailed},
+		"install rejected":      {rejectedPair, gadgets, "removal", OutcomeError, ReasonInstallRejected},
 		"release not installed": {stoppedPair, gadgets, "to.v1", OutcomeError, ReasonReleaseNotInstalled},
 		"not probed":            {declared, gadgets, "removal", OutcomeUndetermined, ReasonNotProbed},
 		"crd missing":           {noDef, gadgets, "to.v1", OutcomeRefuted, ReasonCRDMissing},
