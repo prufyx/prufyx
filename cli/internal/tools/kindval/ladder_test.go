@@ -18,11 +18,11 @@ func TestLadderClass(t *testing.T) {
 		"strict":      {[]string{`error: error validating "STDIN": error validating data: unknown field "spec.x"`}, true},
 		"structural":  {[]string{`Error from server (Invalid): CustomResourceDefinition.apiextensions.k8s.io "a.b" is invalid: must be empty to be structural`}, false},
 	} {
-		if got := ladderClass(&InstallError{Lines: tc.lines}); got != tc.want {
+		if got := ladderClass(&InstallError{Lines: tc.lines}, nil); got != tc.want {
 			t.Errorf("%s: got %v", name, got)
 		}
 	}
-	if ladderClass(nil) {
+	if ladderClass(nil, nil) {
 		t.Error("nil")
 	}
 }
@@ -92,5 +92,29 @@ func TestLadderAccepted(t *testing.T) {
 	}
 	if !ladderAccepted(0, nil) {
 		t.Error("exit 0")
+	}
+}
+
+func TestLadderAcceptedNotReached(t *testing.T) {
+	if ladderAccepted(-1, []string{"context canceled"}) {
+		t.Error("exit -1")
+	}
+	if ladderAccepted(1, []string{"The connection to the server 127.0.0.1:1 was refused - did you specify the right host or port?"}) {
+		t.Error("transport")
+	}
+	if ladderAccepted(1, []string{`Error from server (AlreadyExists): x`, `Error from server (BadRequest): strict decoding error: unknown field "a"`}) {
+		t.Error("mixed")
+	}
+}
+
+func TestLadderClassBeyondCap(t *testing.T) {
+	var b strings.Builder
+	for i := 0; i < InstallErrorMaxLines+5; i++ {
+		b.WriteString("Error from server (Invalid): x\n")
+	}
+	b.WriteString(".spec.x: field not declared in schema")
+	err := &applyError{1, b.String()}
+	if !ladderClass(installError(err), err) {
+		t.Error("field line past the cap")
 	}
 }

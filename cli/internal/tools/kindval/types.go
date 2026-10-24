@@ -370,7 +370,7 @@ type InstallError struct {
 	Exit  int      `json:"exit"`
 	Lines []string `json:"lines"`
 	CRDs  []string `json:"crds"`
-	// ApplyLadder is set for the unknown-field classes: dry-run applies of
+	// ApplyLadder is set for the unknown-field classes: server dry runs (create) of
 	// the same manifests with strict, then warn validation (see LadderStep).
 	ApplyLadder []LadderStep `json:"apply_ladder,omitempty"`
 }
