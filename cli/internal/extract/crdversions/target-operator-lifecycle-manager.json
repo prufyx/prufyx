@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "operator-lifecycle-manager",
+    "catalog": "community",
+    "name": "operator-lifecycle-manager",
+    "repo": "github.com/operator-framework/operator-lifecycle-manager",
+    "component": "pkg:github/operator-framework/operator-lifecycle-manager",
+    "factProject": "operator_lifecycle_manager",
+    "tagPrefixes": ["v", ""],
+    "minFrom": "0.41",
+    "paths": [
+      {"path": "deploy/chart/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}
