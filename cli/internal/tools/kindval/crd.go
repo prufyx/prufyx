@@ -226,6 +226,9 @@ func installRelease(ctx context.Context, k kube, manifest []byte, defs []CRDDef,
 	if err := k.apply(ctx, manifest); err != nil {
 		state.Error = err.Error()
 		state.InstallError = installError(err)
+		if ladderClass(state.InstallError) {
+			state.InstallError.ApplyLadder = runLadder(ctx, k, manifest)
+		}
 		return state
 	}
 	names := crdNames(defs)

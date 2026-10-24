@@ -296,7 +296,7 @@ entry.
 | `server-no-answer` | error | A kubectl call got no answer from the API server. |
 | `scan-no-report` | error | `prufyx scan` gave no report. |
 | `install-failed` | error | A fetch, apply, wait or cleanup of a release failed (including an apply that did not reach a healthy API server). |
-| `install-rejected` | error | The API server refused the server-side apply of a release's definitions (a deterministic answer, not a transient failure). The result carries `install_error`: `{"phase":"apply","exit":1,"lines":[the first stderr lines, at most 50],"crds":[definitions the lines name]}`. |
+| `install-rejected` | error | The API server refused the server-side apply of a release's definitions (a deterministic answer, not a transient failure). The result carries `install_error`: `{"phase":"apply","exit":1,"lines":[the first stderr lines, at most 50],"crds":[definitions the lines name]}`. For an unknown-field rejection (`field not declared in schema`, `unknown field`) it also carries `apply_ladder`: server dry runs (`kubectl create --dry-run=server`, since a client-side apply of a large definition fails on the annotation size) of the same manifests with `--validate=strict` then `--validate=warn`, each `{"method","exit","accepted","lines","dropped"}` (`dropped` are the unknown field paths; `accepted` ignores AlreadyExists). The ladder installs nothing and never changes the verdict. |
 | `crd-missing` | refuted | The cluster holds no such definition after the install. |
 | `version-not-declared` | refuted | The definition does not declare the version. |
 | `disagreement` | refuted | The API server (or the scan) contradicts the claim. |
