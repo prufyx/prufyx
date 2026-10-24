@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -208,11 +209,74 @@ func firstLine(s string) string {
 	return s
 }
 
+// applyError is a failed apply: the kubectl exit and its stderr.
+type applyError struct {
+	exit   int
+	stderr string
+}
+
+func (e *applyError) Error() string {
+	return fmt.Sprintf("kubectl apply: exit %d: %s", e.exit, e.stderr)
+}
+
+// InstallErrorMaxLines caps the stderr lines kept in an InstallError.
+const InstallErrorMaxLines = 50
+
+// crdNameInError matches the two ways the API server names a definition:
+// CustomResourceDefinition.apiextensions.k8s.io "name" and, for a server-side
+// apply typed-patch failure, (/name; apiextensions.k8s.io/v1, Kind=CustomResourceDefinition).
+var crdNameInError = regexp.MustCompile(`CustomResourceDefinition(?:\.apiextensions\.k8s\.io)? "([^"]+)"|typed patch object \(/([^;]+); apiextensions\.k8s\.io/[^,]+, Kind=CustomResourceDefinition\)`)
+
+// installError returns the structured form of err when the API server
+// refused the apply: exit 1 with an "Error from server" answer or a
+// server-side-apply typed-patch failure, and no sign that the server was
+// unreachable or busy. Any other failure (a killed or unavailable API
+// server, a timeout, a missing binary) is not a rejection: nil.
+func installError(err error) *InstallError {
+	var ae *applyError
+	if !errors.As(err, &ae) || ae.exit != 1 || transportFailure(ae.stderr) {
+		return nil
+	}
+	lines, crds := []string{}, []string{}
+	seen := map[string]bool{}
+	rejected := false
+	for _, l := range strings.Split(ae.stderr, "\n") {
+		if l = strings.TrimSpace(l); l == "" {
+			continue
+		}
+		if strings.HasPrefix(l, "Error from server") {
+			for _, transient := range []string{"(Timeout)", "(ServerTimeout)", "(TooManyRequests)", "(InternalError)", "(ServiceUnavailable)"} {
+				if strings.HasPrefix(l, "Error from server "+transient) {
+					return nil
+				}
+			}
+			rejected = true
+		}
+		if strings.Contains(l, "failed to create typed patch object") {
+			rejected = true
+		}
+		if len(lines) < InstallErrorMaxLines {
+			lines = append(lines, l)
+		}
+		for _, m := range crdNameInError.FindAllStringSubmatch(l, -1) {
+			name := m[1] + m[2]
+			if !seen[name] {
+				seen[name] = true
+				crds = append(crds, name)
+			}
+		}
+	}
+	if !rejected {
+		return nil
+	}
+	return &InstallError{Phase: "apply", Exit: ae.exit, Lines: lines, CRDs: crds}
+}
+
 // apply applies manifests server-side and waits for CRDs to be established.
 func (k kube) apply(ctx context.Context, manifest []byte) error {
 	_, errb, exit := k.run(ctx, "kubectl", k.args("apply", "--server-side", "--force-conflicts", "-f", "-"), manifest)
 	if exit != 0 {
-		return fmt.Errorf("kubectl apply: exit %d: %s", exit, strings.TrimSpace(string(errb)))
+		return &applyError{exit: exit, stderr: strings.TrimSpace(string(errb))}
 	}
 	return nil
 }

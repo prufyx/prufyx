@@ -33,10 +33,11 @@ func newFieldRuns(pair CRDPair) []*fieldRun {
 }
 
 // failFields records an install failure on every claim not yet decided.
-func failFields(runs []*fieldRun, msg string) {
+func failFields(runs []*fieldRun, msg string, ie *InstallError) {
 	for _, f := range runs {
 		if f.res.Skip == "" && f.res.Error == "" {
 			f.res.Error = msg
+			f.res.InstallError = ie
 		}
 	}
 }
@@ -144,6 +145,9 @@ func (e *evaluator) crdField(c Claim, cr *ClaimResult) {
 	switch {
 	case f.Error != "":
 		cr.Outcome, cr.Reason, cr.Detail = OutcomeError, ReasonInstallFailed, f.Error
+		if f.InstallError != nil {
+			cr.Reason, cr.InstallError = ReasonInstallRejected, f.InstallError
+		}
 		return
 	case f.Skip != "":
 		undetermined(f.Skip, f.Detail)

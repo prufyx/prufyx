@@ -225,6 +225,7 @@ func installRelease(ctx context.Context, k kube, manifest []byte, defs []CRDDef,
 	state := CRDReleaseState{Files: files}
 	if err := k.apply(ctx, manifest); err != nil {
 		state.Error = err.Error()
+		state.InstallError = installError(err)
 		return state
 	}
 	names := crdNames(defs)
@@ -262,7 +263,7 @@ func runPairFields(ctx context.Context, k kube, fetch fetcher, pair CRDPair) (re
 	runs := newFieldRuns(pair)
 	defer func() {
 		if res.Error != "" {
-			failFields(runs, res.Error)
+			failFields(runs, res.Error, nil)
 		}
 		fields = fieldResults(runs)
 	}()
@@ -284,7 +285,7 @@ func runPairFields(ctx context.Context, k kube, fetch fetcher, pair CRDPair) (re
 	}()
 	res.From = installRelease(ctx, k, fromManifest, fromDefs, fromFiles, nil)
 	if res.From.Error != "" {
-		failFields(runs, "from: "+res.From.Error)
+		failFields(runs, "from: "+res.From.Error, res.From.InstallError)
 		return res, nil
 	}
 	fieldsAtFrom(ctx, k, runs, res.From.CRDs)
@@ -317,7 +318,7 @@ func runPairFields(ctx context.Context, k kube, fetch fetcher, pair CRDPair) (re
 	}
 	res.To = installRelease(ctx, k, toManifest, toDefs, toFiles, fromDefs)
 	if res.To.Error != "" {
-		failFields(runs, "to: "+res.To.Error)
+		failFields(runs, "to: "+res.To.Error, res.To.InstallError)
 	} else {
 		fieldsAtTo(ctx, k, runs, true, res.To.CRDs)
 	}
