@@ -8,11 +8,10 @@
     "component": "pkg:github/clastix/kamaji",
     "factProject": "kamaji",
     "releaseScheme": "calver-edge",
-    "minFrom": "24.9",
+    "minFrom": "24.7",
     "paths": [
       {"path": "charts/kamaji/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
     ],
-    "exclude": [],
-    "attest": true
+    "exclude": []
   }
 }
