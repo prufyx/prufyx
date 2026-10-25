@@ -394,7 +394,9 @@ func onboardingSample(core onboardingCore) ([]int, error) {
 
 // verifyOnboardingSignature checks the envelope against the pinned keys at
 // now: a pinned, unexpired key, the signature over the domain-separated
-// record, an owner identity, the approve decision and the validity window.
+// record, an identity of the key's tier (owner key: owner; onboarding-bot
+// key: bot, kind-new projects only, at most MaxBotOnboardingProjects), the
+// approve decision and the validity window.
 // It checks nothing about the trees.
 func verifyOnboardingSignature(env OnboardingEnvelope, keys ApprovalKeys, now time.Time) error {
 	r := env.Record
@@ -402,12 +404,7 @@ func verifyOnboardingSignature(env OnboardingEnvelope, keys ApprovalKeys, now ti
 	if err != nil {
 		return fmt.Errorf("onboarding batch: %w", err)
 	}
-	var key *ApprovalKey
-	for i := range keys.Keys {
-		if keys.Keys[i].KeyID == env.KeyID {
-			key = &keys.Keys[i]
-		}
-	}
+	key := keys.keyByID(env.KeyID)
 	if key == nil {
 		return errors.New("onboarding batch: signed by a key that is not pinned")
 	}
@@ -424,14 +421,10 @@ func verifyOnboardingSignature(env OnboardingEnvelope, keys ApprovalKeys, now ti
 	if err != nil || len(sig) != ed25519.SignatureSize || !ed25519.Verify(ed25519.PublicKey(pub), signed, sig) {
 		return errors.New("onboarding batch: signature does not verify")
 	}
-	owner := false
-	for _, o := range keys.Owners {
-		owner = owner || o == r.Identity
+	if err := checkOnboardingTier(*key, keys, r); err != nil {
+		return err
 	}
-	switch {
-	case !owner:
-		return fmt.Errorf("onboarding batch: %s is not an owner", r.Identity)
-	case r.Decision != ApprovalDecisionApprove:
+	if r.Decision != ApprovalDecisionApprove {
 		return fmt.Errorf("onboarding batch: decision is %q", r.Decision)
 	}
 	decided, err1 := time.Parse(time.RFC3339, r.DecidedAt)

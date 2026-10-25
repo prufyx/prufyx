@@ -113,6 +113,9 @@ func runOnboarding(ctx context.Context, opts Options, cls *Classification, chang
 	if err := verifyOnboardingSignature(env, *keys, opts.Now); err != nil {
 		return fail("O1: %s", logSafe(err.Error()))
 	}
+	if why := botOnboardingLimits(env, *keys, baseFiles, opts.Now, opts.BotSignerPaused); why != "" {
+		return fail("%s", why)
+	}
 	if why := refuseOnboarding(env, baseFiles); why != "" {
 		return fail("O1: %s", why)
 	}
@@ -146,7 +149,11 @@ func runOnboarding(ctx context.Context, opts Options, cls *Classification, chang
 	}
 	res.ok = true
 	res.headTable, res.headRevision, res.headRegistry = st.head.table, st.head.revision, st.head.registryDigest
-	res.detail = fmt.Sprintf("onboarding batch %s by %s admits %d projects (sample %d read in full), valid until %s", rec.BatchID, rec.Identity, len(rec.Projects), len(rec.Sample), rec.NotAfter)
+	sampleNote := fmt.Sprintf("sample %d read in full", len(rec.Sample))
+	if k := keys.keyByID(env.KeyID); k != nil && k.botTier() {
+		sampleNote = "bot tier: sample drawn, not read"
+	}
+	res.detail = fmt.Sprintf("onboarding batch %s by %s admits %d projects (%s), valid until %s", rec.BatchID, rec.Identity, len(rec.Projects), sampleNote, rec.NotAfter)
 	return res
 }
 

@@ -275,6 +275,9 @@ func SignApproval(o SignApprovalOptions) ([]byte, ApprovalRecord, error) {
 	if pinned == nil {
 		return nil, ApprovalRecord{}, fmt.Errorf("the signing key %s is not pinned in the approval key file", keyID)
 	}
+	if !pinned.ownerTier() {
+		return nil, ApprovalRecord{}, errBotTierKey("the signing key "+keyID, *pinned)
+	}
 	notAfter, err := time.Parse(time.RFC3339, pinned.NotAfter)
 	if err != nil || !now.Before(notAfter) {
 		return nil, ApprovalRecord{}, fmt.Errorf("the signing key %s expired at %s", keyID, pinned.NotAfter)

@@ -86,6 +86,9 @@ func checkBatchSigner(keys ApprovalKeys, key ed25519.PrivateKey, identity string
 	if pinned == nil {
 		return "", fmt.Errorf("the signing key %s is not pinned in the approval key file", keyID)
 	}
+	if !pinned.ownerTier() {
+		return "", errBotTierKey("the signing key "+keyID, *pinned)
+	}
 	if notAfter, err := time.Parse(time.RFC3339, pinned.NotAfter); err != nil || !now.Before(notAfter) {
 		return "", fmt.Errorf("the signing key %s expired at %s", keyID, pinned.NotAfter)
 	}
