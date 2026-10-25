@@ -734,11 +734,14 @@ func genericProjectsWith(rules map[string]any, identities map[string]identity, c
 		}
 		seen[id] = true
 		// A notice (one-way or set notice) is verdict-neutral: it is not an
-		// executable rule and must not be counted or listed as one. Until the
-		// inventory has a section of its own for notices it refuses them
-		// rather than overclaim.
+		// executable rule, so it is neither counted nor listed as one, and the
+		// inventory lists executable coverage only. Its project, id and
+		// uniqueness were checked above; the pack loaders validate the rest.
+		// Notices stay readable through the rule pack itself and the check
+		// commands. (The community-project table lists its one-way notices;
+		// the generic table has no such section yet.)
 		if operator, _ := rule["operator"].(string); constraintengine.IsNoticeOperator(operator) {
-			return nil, 0, nil, none, invalid("the inventory does not list notices yet")
+			continue
 		}
 		// A support-range rule (severity "unsupported") never blocks: its
 		// failing outcome is UNSUPPORTED, so listing it under the rule limit
