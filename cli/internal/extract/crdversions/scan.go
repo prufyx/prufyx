@@ -506,6 +506,13 @@ type scanFile struct {
 	path, oid string
 	kind      int
 	at        place
+	// inc is what the claim pass read of the file's spec include (nil when
+	// the file has none, the include was refused or the pass could not read
+	// it); incRead is set once the pass ran, so classify does not read the
+	// include again. It is kept on the file, not on the blob: the include
+	// resolves against the file's path and the commit.
+	inc     *specIncludeRead
+	incRead bool
 }
 
 // fileKind decides what a tree entry is to the scan.
@@ -634,10 +641,13 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 		if infos[i].include == nil {
 			continue
 		}
+		// A file whose include cannot be read stays what it was before the
+		// shape was recognised (unread); it does not stop the scan.
 		inc, err := readSpecInclude(r, repo, commit, f.path, infos[i].include)
 		if err != nil {
-			return nil, err
+			inc = nil
 		}
+		files[i].inc, files[i].incRead = inc, true
 		if inc != nil {
 			claimed[inc.Path] = true
 		}
@@ -1795,9 +1805,12 @@ func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commi
 	tpl := info.template
 	viaInclude := false
 	if info.unread != "" && info.include != nil {
-		inc, err := readSpecInclude(r, repo, commit, f.path, info.include)
-		if err != nil {
-			return fd, false, err
+		inc := f.inc
+		if !f.incRead {
+			var err error
+			if inc, err = readSpecInclude(r, repo, commit, f.path, info.include); err != nil {
+				return fd, false, err
+			}
 		}
 		if inc != nil {
 			tpl, viaInclude = &templateRead{crds: inc.CRDs}, true

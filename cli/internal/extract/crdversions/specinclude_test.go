@@ -3,8 +3,10 @@
 package crdversions
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"reflect"
 	"regexp"
 	"slices"
@@ -602,5 +604,71 @@ func TestSpecIncludeInTheScan(t *testing.T) {
 	_, proof = run(from, other)
 	if f := findingOf(proof.To.Scan, twin+"/templates/widgets.yaml"); f == nil || f.Class != ClassUnread || !strings.Contains(f.Detail, "the listed paths do not hold") {
 		t.Fatalf("a twin of another definition: %+v", f)
+	}
+}
+
+// countingRepo counts the reads of one path and fails the n-th and later
+// ones (never, when from is 0).
+type countingRepo struct {
+	synthRepo
+	path  string
+	from  int
+	calls *int
+}
+
+func (c countingRepo) Read(r extract.RepoRef, commit, p string) ([]byte, error) {
+	if p == c.path {
+		*c.calls++
+		if c.from > 0 && *c.calls >= c.from {
+			return nil, errors.New("read unavailable")
+		}
+	}
+	return c.synthRepo.Read(r, commit, p)
+}
+
+func twinRepo() synthRepo {
+	body := kindDefault(specBody("v1"))
+	files := specFiles(specChart, body)
+	for p, c := range specFiles("charts/twin", body) {
+		files[p] = c
+	}
+	return newSynth(release{"v1.0.0", files}, release{"v1.1.0", files})
+}
+
+// The included file of a template is read once for the claim pass and not
+// again when the template is classified.
+func TestSpecIncludeIsReadOnceForTheClaimAndTheClassification(t *testing.T) {
+	const twinSpec = "charts/twin/hack/widgets_spec.yaml"
+	repo, err := extract.ParseRepo(specTarget().Repo)
+	must(t, err)
+	n := 0
+	rd := countingRepo{synthRepo: twinRepo(), path: twinSpec, calls: &n}
+	// Unreadable template: the include is resolved by the claim pass and
+	// then by classify, which must reuse the first result.
+	if _, err := extract.Run(context.Background(), New(specTarget()), rd, rd, extract.Options{Repo: repo, DerivedAt: derivedAt}); err != nil {
+		t.Fatal(err)
+	}
+	if n != 3 {
+		t.Fatalf("%d reads of the included file across two tags, want 3", n)
+	}
+}
+
+// A read that fails while the include of a template is resolved does not
+// stop the scan: the template stays what it was before the shape was read
+// (unread), as the same file with a refused include.
+func TestSpecIncludeReadFailureLeavesTheFileUnread(t *testing.T) {
+	const twinSpec = "charts/twin/hack/widgets_spec.yaml"
+	repo, err := extract.ParseRepo(specTarget().Repo)
+	must(t, err)
+	n := 0
+	// The scan reads the file itself first; the claim pass is the second read.
+	rd := countingRepo{synthRepo: twinRepo(), path: twinSpec, from: 2, calls: &n}
+	out, err := extract.Run(context.Background(), New(specTarget()), rd, rd, extract.Options{Repo: repo, DerivedAt: derivedAt})
+	if err != nil {
+		t.Fatalf("a failing read of the included file aborted the run: %v", err)
+	}
+	_, proof := pairOf(t, out, "1.0.0", "1.1.0")
+	if f := findingOf(proof.To.Scan, "charts/twin/templates/widgets.yaml"); f == nil || f.Class != ClassUnread {
+		t.Fatalf("%+v", f)
 	}
 }
