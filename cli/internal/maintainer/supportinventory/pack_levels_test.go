@@ -197,9 +197,10 @@ func generateWithPack(t *testing.T, edit func(pack map[string]any)) (map[string]
 // table: set rules (v1alpha3), line attestations (v1alpha4) and path
 // policies (v1alpha5), notice rules (v1alpha6), consensus and lead rules
 // (v1alpha7), support-range rules (v1alpha8) and distribution records
-// (v1alpha9) each require exactly their level. Notices, consensus, lead and
+// (v1alpha9) each require exactly their level. Consensus, lead and
 // support-range rules, and distribution records, are then refused:
-// the inventory does not list them yet. Attestations and
+// the inventory does not list them yet. Notices are verdict-neutral and are
+// left out of the inventory. Attestations and
 // policies add no capability, so the inventory is otherwise unchanged.
 func TestSupportInventory_ReadsEveryPackSchemaLevel(t *testing.T) {
 	base, err := generateWithPack(t, func(map[string]any) {})
@@ -233,8 +234,7 @@ func TestSupportInventory_ReadsEveryPackSchemaLevel(t *testing.T) {
 		edit      func(map[string]any)
 		want      string
 		unchanged bool
-		// refusal is the error the right schema still meets (the
-		// inventory does not list notices yet).
+		// refusal is the error the right schema still meets.
 		refusal string
 	}{
 		{name: "ranged (level base)", edit: func(map[string]any) {}, want: schemas[1], unchanged: true},
@@ -245,12 +245,12 @@ func TestSupportInventory_ReadsEveryPackSchemaLevel(t *testing.T) {
 			p["lineAttestations"], p["pathPolicies"] = levelAttestations(), levelPolicies()
 		}, want: schemas[4], unchanged: true},
 		{name: "set rule and attestations", edit: func(p map[string]any) { addSetRule(p); p["lineAttestations"] = levelAttestations() }, want: schemas[3]},
-		{name: "notice rule", edit: addNoticeRule, want: schemas[5], refusal: "does not list notices"},
+		{name: "notice rule", edit: addNoticeRule, want: schemas[5], unchanged: true},
 		{name: "notice rule, set rule, attestations and policies", edit: func(p map[string]any) {
 			addNoticeRule(p)
 			addSetRule(p)
 			p["lineAttestations"], p["pathPolicies"] = levelAttestations(), levelPolicies()
-		}, want: schemas[5], refusal: "does not list notices"},
+		}, want: schemas[5]},
 		{name: "lead rule", edit: func(p map[string]any) { addRule(p, levelLeadRule()) }, want: schemas[6], refusal: "does not list consensus or lead rules"},
 		{name: "consensus rule", edit: func(p map[string]any) {
 			rule := levelLeadRule()
@@ -269,7 +269,7 @@ func TestSupportInventory_ReadsEveryPackSchemaLevel(t *testing.T) {
 			p["distributions"], p["lineAttestations"], p["pathPolicies"] = levelDistributions(), levelAttestations(), levelPolicies()
 		}, want: schemas[8], refusal: "does not list distribution records"},
 		{name: "served-API lists", edit: func(p map[string]any) { p["servedAPIs"] = levelServedAPIs() }, want: schemas[9], unchanged: true},
-		{name: "set notice", edit: func(p map[string]any) { addRule(p, levelSetNoticeRule()) }, want: schemas[13], refusal: "does not list notices"},
+		{name: "set notice", edit: func(p map[string]any) { addRule(p, levelSetNoticeRule()) }, want: schemas[13], unchanged: true},
 		{name: "ranged chart rule", edit: func(p map[string]any) { addRule(p, levelRangedChartRule()) }, want: schemas[14]},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -325,16 +325,69 @@ func TestSupportInventory_RefusesVariantPackMembers(t *testing.T) {
 	}
 }
 
-// A notice rule is never listed or counted as an executable rule: the
-// inventory refuses a pack with one, under its right schema, until notices
-// have their own section.
-func TestSupportInventory_RefusesNoticeRules(t *testing.T) {
-	_, err := generateWithPack(t, func(p map[string]any) {
-		p["schema"] = "prufyx.io/cncf-source-rule-pack/v1alpha6"
-		p["entries"] = append(p["entries"].([]any), map[string]any{"description": "d", "project": "kubernetes", "requiredFacts": []any{}, "rule": levelNoticeRule()})
-	})
-	if err == nil || !strings.Contains(err.Error(), "the inventory does not list notices yet") {
-		t.Fatalf("a notice rule was accepted: %v", err)
+// A notice rule (one-way or set) is verdict-neutral: it is neither listed nor
+// counted as an executable rule, so a pack with notices produces the same
+// inventory bytes as the pack without them, whatever else the pack holds. A
+// notice is still checked for a known project and a unique id.
+func TestSupportInventory_NoticeRulesAreLeftOut(t *testing.T) {
+	withEntry := func(schema string, rule map[string]any) func(map[string]any) {
+		return func(p map[string]any) {
+			p["schema"] = schema
+			p["entries"] = append(p["entries"].([]any), map[string]any{"description": "d", "project": "kubernetes", "requiredFacts": []any{}, "rule": rule})
+		}
+	}
+	base, err := generateWithPack(t, func(map[string]any) {})
+	if err != nil {
+		t.Fatal(err)
+	}
+	baseJSON, _ := json.Marshal(base)
+	for _, tc := range []struct {
+		name   string
+		schema string
+		rule   map[string]any
+	}{
+		{"one-way notice", "prufyx.io/cncf-source-rule-pack/v1alpha6", levelNoticeRule()},
+		{"set notice", "prufyx.io/cncf-source-rule-pack/v1alpha14", levelSetNoticeRule()},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// Alone: the same document as the pack without it.
+			got, err := generateWithPack(t, withEntry(tc.schema, tc.rule))
+			if err != nil {
+				t.Fatal(err)
+			}
+			gotJSON, _ := json.Marshal(got)
+			if string(gotJSON) != string(baseJSON) {
+				t.Fatal("a notice changed the inventory")
+			}
+			if strings.Contains(string(gotJSON), tc.rule["id"].(string)) {
+				t.Fatal("the notice is listed")
+			}
+			// Next to an executable rule: that rule is still listed and counted.
+			mixed, err := generateWithPack(t, func(p map[string]any) {
+				withEntry(tc.schema, tc.rule)(p)
+				p["entries"] = append(p["entries"].([]any), map[string]any{"description": "d", "project": "kubernetes", "requiredFacts": []any{}, "rule": levelSetRule()})
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			mixedJSON, _ := json.Marshal(mixed)
+			if !strings.Contains(string(mixedJSON), levelTestSetRule) || strings.Contains(string(mixedJSON), tc.rule["id"].(string)) {
+				t.Fatal("the executable rule is missing or the notice is listed")
+			}
+			// A malformed notice entry is still refused.
+			if _, err := generateWithPack(t, func(p map[string]any) {
+				withEntry(tc.schema, tc.rule)(p)
+				withEntry(tc.schema, tc.rule)(p)
+			}); err == nil || !strings.Contains(err.Error(), "duplicate rule") {
+				t.Fatalf("duplicate notice id accepted: %v", err)
+			}
+			if _, err := generateWithPack(t, func(p map[string]any) {
+				withEntry(tc.schema, tc.rule)(p)
+				p["entries"].([]any)[len(p["entries"].([]any))-1].(map[string]any)["project"] = "no-such-project"
+			}); err == nil || !strings.Contains(err.Error(), "absent from landscape") {
+				t.Fatalf("notice of an unknown project accepted: %v", err)
+			}
+		})
 	}
 }
 
