@@ -39,13 +39,25 @@ func TestFinalReleasesCalver(t *testing.T) {
 	if got, err := finalReleases(tags, nil, crdversions.SchemeCalverEdge, "26.1"); err != nil || len(got) != 1 || got[0].Version != "26.1.1" {
 		t.Fatalf("26.1: %+v, %v", got, err)
 	}
-	// The non-canonical spelling is no release, so its line has none.
-	if got, _ := finalReleases(tags, nil, crdversions.SchemeCalverEdge, "25.3"); len(got) != 0 {
-		t.Fatalf("25.3: %+v", got)
+	// A zero-padded month is the release of the canonical line.
+	if got, err := finalReleases(tags, nil, crdversions.SchemeCalverEdge, "25.3"); err != nil || len(got) != 1 || got[0].Version != "25.3.1" {
+		t.Fatalf("25.3: %+v, %v", got, err)
 	}
 	// A semver target does not read these tags.
 	if got, _ := finalReleases(tags, []string{"v", ""}, "", "25.12"); len(got) != 0 {
 		t.Fatalf("semver target read edge tags: %+v", got)
+	}
+	// A tag shaped like a release of the line that the grammar cannot read
+	// leaves the line's releases unknown; other lines are not affected.
+	loose := calverTags("edge-26.1.1", "26.1.1000-edge", "edge-26.2.1", "edge-26.2.0")
+	if _, err := finalReleases(loose, nil, crdversions.SchemeCalverEdge, "26.1"); err == nil || !strings.Contains(err.Error(), "does not read") {
+		t.Fatalf("26.1 with an unread tag: %v", err)
+	}
+	if _, err := finalReleases(loose, nil, crdversions.SchemeCalverEdge, "26.2"); err == nil {
+		t.Fatal("26.2 with an unread tag accepted")
+	}
+	if got, err := finalReleases(loose[:1], nil, crdversions.SchemeCalverEdge, "26.1"); err != nil || len(got) != 1 {
+		t.Fatalf("26.1 without it: %+v, %v", got, err)
 	}
 	// One version under both spellings at two commits is refused.
 	both := []extract.Tag{{Name: "edge-26.1.1", Commit: strings.Repeat("a", 40)}, {Name: "26.1.1-edge", Commit: strings.Repeat("b", 40)}}

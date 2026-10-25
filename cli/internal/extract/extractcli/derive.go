@@ -8,6 +8,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
 	"github.com/prufyx/prufyx/cli/internal/extract/chartrun"
+	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
 )
 
 // Derivation is one run of a registered extractor, under the framework it
@@ -43,7 +44,7 @@ func Derive(ctx context.Context, ex extract.Extractor, tags extract.TagSource, r
 		}
 		return &Derivation{Manifest: out.Manifest, Entries: entries, files: out.Files}, nil
 	}
-	out, err := extract.Run(ctx, ex, tags, reader, opts)
+	out, err := extract.Run(ctx, ex, crdversions.ReleaseTags(ex, tags), reader, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -63,5 +64,5 @@ func VerifyRun(ctx context.Context, ex extract.Extractor, tags extract.TagSource
 	if cx, ok := chartrun.Unwrap(ex); ok {
 		return chartrun.Verify(ctx, cx, tags, reader, dir, existing)
 	}
-	return extract.Verify(ctx, ex, tags, reader, dir, existing)
+	return extract.Verify(ctx, ex, crdversions.ReleaseTags(ex, tags), reader, dir, existing)
 }

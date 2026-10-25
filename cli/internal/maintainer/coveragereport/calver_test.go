@@ -114,10 +114,10 @@ func TestLinesFromCalverTags(t *testing.T) {
 		t.Fatal(err)
 	}
 	e := f.Projects["edge"]
-	if e.Scheme != crdversions.SchemeCalverEdge || !slices.Equal(e.Lines, []string{"24.7", "25.12", "26.1", "26.10"}) {
+	if e.Scheme != crdversions.SchemeCalverEdge || !slices.Equal(e.Lines, []string{"24.7", "25.3", "25.12", "26.1", "26.10"}) {
 		t.Fatalf("edge %+v", e)
 	}
-	if !slices.Equal(e.Releases["26.1"], []string{"26.1.1", "26.1.2"}) || !slices.Equal(e.Releases["26.10"], []string{"26.10.4"}) || len(e.Releases["25.3"]) != 0 {
+	if !slices.Equal(e.Releases["26.1"], []string{"26.1.1", "26.1.2"}) || !slices.Equal(e.Releases["26.10"], []string{"26.10.4"}) || !slices.Equal(e.Releases["25.3"], []string{"25.3.1"}) {
 		t.Fatalf("releases %+v", e.Releases)
 	}
 	if p := f.Projects["plain"]; p.Scheme != "" || !slices.Equal(p.Lines, []string{"1.2"}) {
@@ -134,7 +134,10 @@ func TestLinesFromCalverTags(t *testing.T) {
 	if v, ok := releaseOfTag("edge", crdversions.SchemeCalverEdge, "edge-24.7.1"); !ok || v != "24.7.1" {
 		t.Fatalf("calendar release: %q %v", v, ok)
 	}
-	if _, ok := releaseOfTag("edge", crdversions.SchemeCalverEdge, "edge-24.07.1"); ok {
-		t.Fatal("a non-canonical month is not a release")
+	if _, ok := releaseOfTag("edge", crdversions.SchemeCalverEdge, "edge-24.7.01"); ok {
+		t.Fatal("a non-canonical counter is not a release")
+	}
+	if v, ok := releaseOfTag("edge", crdversions.SchemeCalverEdge, "edge-24.07.1"); !ok || v != "24.7.1" {
+		t.Fatalf("zero-padded month: %q %v", v, ok)
 	}
 }

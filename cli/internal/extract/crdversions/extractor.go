@@ -160,7 +160,15 @@ func (x *Extractor) releaseLines(index extract.ReleaseIndex) []*releaseLine {
 	}
 	byVersion := map[string]rel{}
 	conflicts := map[string]bool{}
+	unread := map[string]bool{}
 	for _, t := range index.Tags {
+		if x.target.ReleaseScheme == SchemeCalverEdge {
+			// A tag shaped like a release that the grammar cannot read may
+			// be a release of its line: the line is not complete.
+			if line, bad := CalverEdgeUnread(t.Name); bad {
+				unread[line] = true
+			}
+		}
 		if !extract.IsCommitSHA(t.Commit) {
 			continue
 		}
@@ -215,6 +223,8 @@ func (x *Extractor) releaseLines(index extract.ReleaseIndex) []*releaseLine {
 		switch {
 		case conflicts[l.key()]:
 			l.Problem = "a release of the line is tagged twice, at different commits"
+		case unread[l.key()]:
+			l.Problem = "a tag of the line has the shape of a release the release grammar does not read"
 		case len(l.Tags) > maxTagsPerLine:
 			l.Problem = fmt.Sprintf("the line has %d release tags, over the bound of %d", len(l.Tags), maxTagsPerLine)
 		}

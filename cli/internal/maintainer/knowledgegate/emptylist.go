@@ -302,6 +302,10 @@ func finalReleases(tags []extract.Tag, prefixes []string, scheme, line string) (
 		if scheme == crdversions.SchemeCalverEdge {
 			if v, _, ok := crdversions.CalverEdgeRelease(t.Name); ok {
 				versions = append(versions, v)
+			} else if l, bad := crdversions.CalverEdgeUnread(t.Name); bad && l == line {
+				// Shaped like a release of this line but not read: the
+				// line's releases are not known.
+				return nil, fmt.Errorf("tag %s has the shape of a release of line %s that the release grammar does not read", logSafe(t.Name), line)
 			}
 		}
 		for _, re := range res {

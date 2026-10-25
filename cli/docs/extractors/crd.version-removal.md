@@ -135,8 +135,13 @@ YY.M.N-edge        26.10.4-edge
 ```
 
 `YY` is two digits (the year 2010 or later), `M` is 1 to 12 and `N` is 1 to 999,
-all without leading zeros, so `edge-25.03.1` is not a release (the line it
-would belong to starts at its next tag). A release candidate
+without leading zeros, except that the month may be zero-padded
+(`edge-25.03.1` is the release `25.3.1`; the canonical spelling of the same
+version is preferred, and the two at different commits make the line unusable).
+A tag of the shape `edge-YY.M.N` or `YY.M.N-edge` that is still not a release
+(`edge-26.3.0`, `26.3.1000-edge`) may be a release the extractor cannot read:
+the line it names is unusable, and the knowledge gate refuses a record whose
+releases it cannot list. A release candidate
 (`edge-26.3.2-rc1`), a foreign prefix (`v26.3.2-edge`), a plain `26.3.2` and
 every other shape are ignored. The records carry the engine version `YY.M.N`
 (`26.10.4`), never the tag's decoration; the tag names stay in the proof as

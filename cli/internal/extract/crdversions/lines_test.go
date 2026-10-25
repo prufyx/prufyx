@@ -89,7 +89,7 @@ func runSynth(t *testing.T, tg Target, s synthRepo) *extract.Output {
 	t.Helper()
 	repo, err := extract.ParseRepo(tg.Repo)
 	must(t, err)
-	out, err := extract.Run(context.Background(), New(tg), s, s, extract.Options{Repo: repo, DerivedAt: derivedAt})
+	out, err := extract.Run(context.Background(), New(tg), ReleaseTags(New(tg), s), s, extract.Options{Repo: repo, DerivedAt: derivedAt})
 	if err != nil {
 		t.Fatal(err)
 	}

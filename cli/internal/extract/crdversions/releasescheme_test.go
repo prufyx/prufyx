@@ -24,7 +24,12 @@ func TestCalverEdgeGrammar(t *testing.T) {
 		{"26.3.2-edge", "26.3.2", 1, true},
 		{"26.10.4-edge", "26.10.4", 1, true},
 		{"edge-25.12.100", "25.12.100", 0, true},
-		{"edge-25.03.1", "", 0, false},
+		{"edge-25.03.1", "25.3.1", 2, true},
+		{"25.03.1-edge", "25.3.1", 3, true},
+		{"edge-25.10.1", "25.10.1", 0, true},
+		{"edge-25.00.1", "", 0, false},
+		{"edge-25.013.1", "", 0, false},
+		{"edge-25.003.1", "", 0, false},
 		{"edge-26.3.2-rc1", "", 0, false},
 		{"v26.3.2-edge", "", 0, false},
 		{"026.3.2-edge", "", 0, false},
@@ -94,6 +99,35 @@ func tagsAt(names ...string) extract.ReleaseIndex {
 	return extract.ReleaseIndex{Tags: tags}
 }
 
+// A tag with the shape of a release that the grammar does not read is
+// reported with its line; a tag that is no release shape is not.
+func TestCalverEdgeUnread(t *testing.T) {
+	for _, c := range []struct {
+		tag, line string
+		unread    bool
+	}{
+		{"edge-26.3.0", "26.3", true},
+		{"26.3.1000-edge", "26.3", true},
+		{"26.3.01-edge", "26.3", true},
+		{"edge-26.13.1", "26.13", true},
+		{"26.00.1-edge", "26.0", true},
+		{"edge-05.3.1", "5.3", true},
+		{"edge-26.3.1", "", false},
+		{"edge-26.03.1", "", false},
+		{"26.3.2-edge", "", false},
+		{"edge-26.3.2-rc1", "", false},
+		{"v26.3.2-edge", "", false},
+		{"26.3.2", "", false},
+		{"edge-26.3", "", false},
+		{"edge-26.3.2\n", "", false},
+	} {
+		line, unread := CalverEdgeUnread(c.tag)
+		if line != c.line || unread != c.unread {
+			t.Errorf("CalverEdgeUnread(%q) = %q, %v; want %q, %v", c.tag, line, unread, c.line, c.unread)
+		}
+	}
+}
+
 // Both spellings form lines by calendar month; a skipped month is skipped,
 // numeric order puts 26.9 before 26.10, and tags of any other shape are not
 // releases.
@@ -117,7 +151,7 @@ func TestCalverReleaseLinesAndPairs(t *testing.T) {
 	if want := []string{"24.7", "24.9", "25.3", "25.12", "26.1", "26.2", "26.3", "26.9", "26.10"}; !slices.Equal(keys, want) {
 		t.Fatalf("lines %v, want %v", keys, want)
 	}
-	if !slices.Equal(versions["24.7"], []string{"24.7.1", "24.7.2"}) || !slices.Equal(versions["25.3"], []string{"25.3.2"}) || !slices.Equal(versions["26.3"], []string{"26.3.2", "26.3.3"}) {
+	if !slices.Equal(versions["24.7"], []string{"24.7.1", "24.7.2"}) || !slices.Equal(versions["25.3"], []string{"25.3.1", "25.3.2"}) || !slices.Equal(versions["26.3"], []string{"26.3.2", "26.3.3"}) {
 		t.Fatalf("versions %v", versions)
 	}
 	var pairs []string
@@ -133,6 +167,74 @@ func TestCalverReleaseLinesAndPairs(t *testing.T) {
 		t.Fatalf("pairs from 26.2: %+v", got)
 	}
 }
+
+// A zero-padded month is the same release as the canonical spelling: at
+// one commit it counts once and the canonical tag is the recorded one; at
+// two commits it spoils the line.
+func TestCalverPaddedMonth(t *testing.T) {
+	x := New(Target{ReleaseScheme: SchemeCalverEdge})
+	a, b := strings.Repeat("a", 40), strings.Repeat("b", 40)
+	same := extract.ReleaseIndex{Tags: []extract.Tag{{Name: "edge-25.03.1", Commit: a}, {Name: "edge-25.3.1", Commit: a}}}
+	if lines := x.releaseLines(same); len(lines) != 1 || lines[0].Problem != "" || len(lines[0].Tags) != 1 || lines[0].Tags[0].Name != "edge-25.3.1" {
+		t.Fatalf("same commit: %+v", lines)
+	}
+	apart := extract.ReleaseIndex{Tags: []extract.Tag{{Name: "edge-25.03.1", Commit: a}, {Name: "edge-25.3.1", Commit: b}}}
+	if lines := x.releaseLines(apart); len(lines) != 1 || !strings.Contains(lines[0].Problem, "tagged twice") {
+		t.Fatalf("two commits: %+v", lines)
+	}
+	only := extract.ReleaseIndex{Tags: []extract.Tag{{Name: "edge-25.03.1", Commit: a}}}
+	if lines := x.releaseLines(only); len(lines) != 1 || lines[0].key() != "25.3" || lines[0].Versions[0] != "25.3.1" || lines[0].Tags[0].Name != "edge-25.03.1" {
+		t.Fatalf("padded only: %+v", lines)
+	}
+}
+
+// A tag shaped like a release that the grammar cannot read spoils its line
+// (and no other line), so the line is never attested as complete.
+func TestCalverUnreadReleaseSpoilsLine(t *testing.T) {
+	x := New(Target{ReleaseScheme: SchemeCalverEdge})
+	c := func(n string) extract.Tag { return extract.Tag{Name: n, Commit: strings.Repeat("a", 40)} }
+	idx := extract.ReleaseIndex{Tags: []extract.Tag{c("edge-26.2.1"), c("edge-26.3.1"), c("26.3.1000-edge"), c("edge-26.4.1"), c("edge-26.4.2-rc1")}}
+	got := map[string]string{}
+	for _, l := range x.releaseLines(idx) {
+		got[l.key()] = l.Problem
+	}
+	if got["26.2"] != "" || got["26.4"] != "" || !strings.Contains(got["26.3"], "release grammar") || len(got) != 3 {
+		t.Fatalf("problems %v", got)
+	}
+	// A semver target does not read these tags at all.
+	if lines := New(Target{TagPrefixes: []string{""}}).releaseLines(idx); len(lines) != 0 {
+		t.Fatalf("semver target: %+v", lines)
+	}
+}
+
+// ReleaseTags names every tag the scheme reads by its engine version, for
+// the framework's recorded-tag check, and leaves other targets alone.
+func TestReleaseTags(t *testing.T) {
+	a := strings.Repeat("a", 40)
+	src := fixedTags{{Name: "26.3.2-edge", Commit: a}, {Name: "edge-25.03.1", Commit: a}, {Name: "edge-26.1.1", Commit: a}, {Name: "26.3.3-rc1", Commit: a}, {Name: "27.1.1-edge", Commit: a}}
+	got, err := ReleaseTags(New(Target{ReleaseScheme: SchemeCalverEdge}), src).Tags(extract.RepoRef{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, tg := range got {
+		names = append(names, tg.Name)
+	}
+	if want := []string{"26.3.2-edge", "edge-25.03.1", "edge-26.1.1", "26.3.3-rc1", "27.1.1-edge", "26.3.2", "25.3.1", "26.1.1", "27.1.1"}; !slices.Equal(names, want) {
+		t.Fatalf("tags %v, want %v", names, want)
+	}
+	if got, _ := ReleaseTags(New(Target{TagPrefixes: []string{"v"}}), src).Tags(extract.RepoRef{}); len(got) != len(src) {
+		t.Fatalf("a semver target got %d tags, want %d", len(got), len(src))
+	}
+	// The aliases are no release tags of the scheme.
+	if lines := New(Target{ReleaseScheme: SchemeCalverEdge}).releaseLines(extract.ReleaseIndex{Tags: []extract.Tag{{Name: "26.3.2", Commit: a}}}); len(lines) != 0 {
+		t.Fatalf("an alias is a release: %+v", lines)
+	}
+}
+
+type fixedTags []extract.Tag
+
+func (f fixedTags) Tags(extract.RepoRef) ([]extract.Tag, error) { return f, nil }
 
 // One version under both spellings counts once at one commit and spoils its
 // line at two (as a version under two prefixes does).
@@ -172,6 +274,11 @@ func TestCalverDeriveAndAttest(t *testing.T) {
 		release{"edge-25.11.1", alpha}, release{"edge-25.12.1", alpha}, release{"edge-25.12.2", alpha},
 		release{"26.1.1-edge", alpha}, release{"26.2.1-edge", alpha}, release{"26.4.1-edge", alpha},
 	))
+	// A zero-padded month attests too, with its version as the release.
+	padded := runSynth(t, calverSynthTarget(), newSynth(release{"edge-25.03.1", alpha}, release{"edge-25.04.1", alpha}))
+	if r := attestationFor(t, padded, "25.4"); r == nil || r.Releases.To[0].Version != "25.4.1" || r.Releases.From[0].Version != "25.3.1" {
+		t.Fatalf("padded months: %+v", padded.Attestations)
+	}
 	for _, c := range []struct {
 		from, to, status string
 		line             string
