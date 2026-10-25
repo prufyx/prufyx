@@ -109,6 +109,11 @@ type GitHubObjects struct {
 	// count these requests against its GitHub request budget.
 	Admit   func() error
 	Observe func(*http.Response) error
+	// ObserveAnon, when set, sees the token-less retry that follows an
+	// unclassified 403 (see getOnce). Its rate limit headers describe the
+	// shared anonymous pool, not the token, so Observe must not see them;
+	// without ObserveAnon the retry is not observed.
+	ObserveAnon func(*http.Response) error
 
 	// repos caches, per repository, the default branch and the tag commits
 	// (set by NewGitHubObjects); without it every reachability check looks
@@ -166,7 +171,7 @@ func (g GitHubObjects) getLimited(ctx context.Context, u string, limit int) ([]b
 		err    error
 	)
 	for attempt := 1; attempt <= maxAPIAttempts; attempt++ {
-		body, status, err = g.getOnce(ctx, u, limit)
+		body, status, err = g.getOnce(ctx, u, limit, false)
 		if errors.Is(err, errRefused) {
 			break
 		}
@@ -183,7 +188,13 @@ func (g GitHubObjects) getLimited(ctx context.Context, u string, limit int) ([]b
 	return body, status, err
 }
 
-func (g GitHubObjects) getOnce(ctx context.Context, u string, limit int) ([]byte, int, error) {
+// getOnce makes one API request. A 403 to an authenticated request that is not
+// a rate limit (no X-RateLimit-Remaining 0, no Retry-After) can come from an
+// organisation IP allow list that refuses token requests from the runner but
+// serves public data anonymously: the request is repeated once without the
+// token (anon). The retry is admitted and counted like any request; it is
+// never repeated, and a rate-limit 403 is never retried anonymously.
+func (g GitHubObjects) getOnce(ctx context.Context, u string, limit int, anon bool) ([]byte, int, error) {
 	// The same hardened client the raw fetcher uses (SEC-D): no proxy
 	// environment, a bounded timeout, and redirects only within the
 	// original host and scheme, so the token never follows a redirect.
@@ -199,7 +210,7 @@ func (g GitHubObjects) getOnce(ctx context.Context, u string, limit int) ([]byte
 	}
 	request.Header.Set("Accept", "application/vnd.github+json")
 	request.Header.Set("X-GitHub-Api-Version", "2022-11-28")
-	if g.Token != "" {
+	if g.Token != "" && !anon {
 		request.Header.Set("Authorization", "Bearer "+g.Token)
 	}
 	response, err := client.Do(request)
@@ -207,10 +218,17 @@ func (g GitHubObjects) getOnce(ctx context.Context, u string, limit int) ([]byte
 		return nil, 0, err
 	}
 	defer response.Body.Close()
-	if g.Observe != nil {
-		if err := g.Observe(response); err != nil {
+	observe := g.Observe
+	if anon {
+		observe = g.ObserveAnon
+	}
+	if observe != nil {
+		if err := observe(response); err != nil {
 			return nil, response.StatusCode, fmt.Errorf("%w: %w", errRefused, err)
 		}
+	}
+	if response.StatusCode == http.StatusForbidden && g.Token != "" && !anon && !rateLimited(response) {
+		return g.getOnce(ctx, u, limit, true)
 	}
 	body, err := io.ReadAll(io.LimitReader(response.Body, int64(limit)+1))
 	if err != nil {
@@ -220,6 +238,12 @@ func (g GitHubObjects) getOnce(ctx context.Context, u string, limit int) ([]byte
 		return nil, response.StatusCode, fmt.Errorf("%s: %w (%d bytes)", u, errResponseTooLarge, limit)
 	}
 	return body, response.StatusCode, nil
+}
+
+// rateLimited reports whether a 403 is GitHub's primary or secondary rate
+// limit rather than a refusal of the credentials.
+func rateLimited(r *http.Response) bool {
+	return r.Header.Get("X-RateLimit-Remaining") == "0" || r.Header.Get("Retry-After") != ""
 }
 
 func (g GitHubObjects) endpoint(owner, repo, kind, sha string) string {
