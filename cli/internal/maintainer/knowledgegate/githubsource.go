@@ -222,11 +222,19 @@ func (g *GitHubSource) admitAPI() error {
 func (g *GitHubSource) CitationAdmit() error { return g.admitAPI() }
 
 // CitationObserve reads the rate limit headers of a citation API response.
-func (g *GitHubSource) CitationObserve(resp *http.Response) error { return g.noteRateLimit(resp) }
+func (g *GitHubSource) CitationObserve(resp *http.Response) error {
+	return g.noteRateLimit(resp, false)
+}
+
+// errAnonRefused marks a 403 that the anonymous retry of get also got.
+var errAnonRefused = errors.New("also refused without token")
 
 // noteRateLimit reads GitHub's rate limit headers from an API response.
-func (g *GitHubSource) noteRateLimit(resp *http.Response) error {
-	if v := resp.Header.Get("X-RateLimit-Remaining"); v != "" {
+// anonRetry is true for the token-less retry after a 403: its remaining count
+// belongs to the shared per-IP anonymous pool, not to the token, so it is not
+// stored (it would trip the reserve check for later authenticated requests).
+func (g *GitHubSource) noteRateLimit(resp *http.Response, anonRetry bool) error {
+	if v := resp.Header.Get("X-RateLimit-Remaining"); v != "" && !anonRetry {
 		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n >= 0 {
 			g.remaining.Store(n + 1)
 		}
@@ -235,6 +243,9 @@ func (g *GitHubSource) noteRateLimit(resp *http.Response) error {
 	// secondary (Retry-After). Both are "could not run", not "not found".
 	if resp.StatusCode == http.StatusTooManyRequests ||
 		(resp.StatusCode == http.StatusForbidden && (resp.Header.Get("X-RateLimit-Remaining") == "0" || resp.Header.Get("Retry-After") != "")) {
+		if anonRetry {
+			return g.exhaust(fmt.Sprintf("GitHub refused the anonymous retry after 403 (HTTP %d, rate limit)", resp.StatusCode))
+		}
 		return g.exhaust(fmt.Sprintf("GitHub refused the request (HTTP %d, rate limit)", resp.StatusCode))
 	}
 	return nil
@@ -322,7 +333,11 @@ func (g *GitHubSource) get(ctx context.Context, u string, api bool, limit int64)
 		return nil, 0, err
 	}
 	var lastErr error
+	// anon is set after an unclassified 403 to an authenticated request: the
+	// request is sent once more without the token (see below).
+	anon := false
 	for attempt := 0; attempt < 3; attempt++ {
+		retried := anon // this pass is the anonymous retry; it is not one of the 3 attempts
 		if api {
 			if err := g.admitAPI(); err != nil {
 				return nil, 0, err
@@ -335,7 +350,7 @@ func (g *GitHubSource) get(ctx context.Context, u string, api bool, limit int64)
 		if api {
 			req.Header.Set("Accept", "application/vnd.github+json")
 			req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
-			if g.Token != "" {
+			if g.Token != "" && !anon {
 				req.Header.Set("Authorization", "Bearer "+g.Token)
 			}
 		}
@@ -346,8 +361,20 @@ func (g *GitHubSource) get(ctx context.Context, u string, api bool, limit int64)
 			body, readErr := io.ReadAll(io.LimitReader(resp.Body, limit+1))
 			resp.Body.Close()
 			if api {
-				if err := g.noteRateLimit(resp); err != nil {
+				if err := g.noteRateLimit(resp, retried); err != nil {
 					return nil, resp.StatusCode, err
+				}
+				// A 403 that is not a rate limit can come from an organisation
+				// IP allow list that refuses token requests from the runner
+				// but serves public data anonymously. Retry once without the
+				// token; the retry is admitted and counted like any request.
+				if resp.StatusCode == http.StatusForbidden && g.Token != "" && !anon {
+					anon = true
+					attempt--
+					continue
+				}
+				if retried && resp.StatusCode == http.StatusForbidden {
+					return body, resp.StatusCode, errAnonRefused
 				}
 			}
 			switch {
@@ -396,6 +423,9 @@ func (g *GitHubSource) rootTree(ctx context.Context, repo extract.RepoRef, commi
 		u := orDefault(g.APIBase, "https://api.github.com") + "/repos/" + url.PathEscape(owner) + "/" + url.PathEscape(name) + "/git/commits/" + commit
 		g.nCommit.Add(1)
 		body, status, err := g.get(ctx, u, true, 1<<20)
+		if errors.Is(err, errAnonRefused) {
+			return fmt.Errorf("commit %s of %s: HTTP %d: %w", commit, repo.Key, status, err)
+		}
 		if err != nil {
 			return err
 		}
@@ -498,6 +528,9 @@ func (g *GitHubSource) fetchTree(ctx context.Context, repo extract.RepoRef, id s
 		g.nRecursive.Add(1)
 	}
 	body, status, err := g.get(ctx, u, true, maxTreeBytes)
+	if errors.Is(err, errAnonRefused) {
+		return fmt.Errorf("tree %s of %s: HTTP %d: %w", id, repo.Key, status, err)
+	}
 	if err != nil {
 		return err
 	}
