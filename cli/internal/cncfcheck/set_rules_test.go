@@ -101,7 +101,8 @@ func embeddedPackDigest(raw []byte) string {
 // TestEmbeddedKnowledgeSetRulesReadCustomResourceSets: the embedded pack is
 // the pinned one, and every set rule it publishes is a custom-resource
 // version-removal rule of the batch crdbatchids states (none before the
-// batch ships, exactly its 28 after): a forbid_set_member rule over the
+// batch ships, exactly its 28 after) or a mechanical one of another project
+// (crdbatchids.Foreign, which the factory adds): a forbid_set_member rule over the
 // custom-resource version set of its own project, on the proposed side,
 // declared with the set type. No published rule reads a feature-gate set.
 func TestEmbeddedKnowledgeSetRulesReadCustomResourceSets(t *testing.T) {
@@ -119,9 +120,11 @@ func TestEmbeddedKnowledgeSetRulesReadCustomResourceSets(t *testing.T) {
 	// five Kubernetes component feature-gate sets.
 	crd := map[string]bool{}
 	factOf := map[string]string{}
+	componentOf := map[string]string{}
 	for _, p := range customresources.Projects() {
 		crd[p.FactID()] = true
 		factOf[p.Slug] = p.FactID()
+		componentOf[p.Slug] = p.Component
 	}
 	want := map[string]crdbatchids.Rule{}
 	if crdbatchids.Shipped() {
@@ -149,6 +152,11 @@ func TestEmbeddedKnowledgeSetRulesReadCustomResourceSets(t *testing.T) {
 			t.Fatal(err)
 		}
 		stated, ok := want[id]
+		if !ok && crdbatchids.IsForeign(id) {
+			// A mechanical rule of another project states itself: its
+			// component must be the registered project's.
+			stated, ok = crdbatchids.Rule{ID: id, Project: entry.Project, Component: componentOf[entry.Project], Members: rule.SetCondition.Members}, true
+		}
 		fact := rule.SetCondition.FactID
 		if !ok || entry.Project != stated.Project || fact != stated.FactID() || fact != factOf[entry.Project] || !crd[fact] || rule.SetCondition.Side != "proposed" || rule.SetCondition.Component != stated.Component || !slices.Equal(rule.SetCondition.Members, stated.Members) {
 			t.Fatalf("published set rule %s (project %s) reads %s %s %v: not a stated custom-resource version-removal rule of its project", id, entry.Project, rule.SetCondition.Side, fact, rule.SetCondition.Members)
@@ -166,8 +174,8 @@ func TestEmbeddedKnowledgeSetRulesReadCustomResourceSets(t *testing.T) {
 			t.Fatalf("%s declares its set fact %d times", id, declared)
 		}
 	}
-	if published != len(want) {
-		t.Fatalf("%d published set rules, the batch states %d", published, len(want))
+	if published != len(want)+len(crdbatchids.Foreign()) {
+		t.Fatalf("%d published set rules, the batch states %d and %d are mechanical rules of other projects", published, len(want), len(crdbatchids.Foreign()))
 	}
 	gates := map[string]bool{}
 	for _, slug := range []string{"kube_apiserver", "kube_controller_manager", "kube_scheduler", "kubelet", "kube_proxy"} {

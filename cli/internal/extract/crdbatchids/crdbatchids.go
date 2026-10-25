@@ -4,10 +4,11 @@
 // custom-resource version-removal rules (crd.version-removal extractors) and
 // the line attestations that come with it: 13 rules for Crossplane, Kyverno
 // and Strimzi, and five quiet Strimzi lines. The shipped pack holds
-// the whole batch or none of it, and no other custom-resource version-removal
-// rule. Tests whose expectations depend on the batch (rule counts, claim
-// counts, route outcomes) state both cases through this package, so that they
-// pass before and after the data change and stay exact in each. The package
+// the whole batch or none of it; other custom-resource version-removal rules
+// (the factory's mechanical ones) may sit beside it. Tests whose
+// expectations depend on the batch (rule counts, claim counts, route
+// outcomes) state both cases through this package, so that they pass before
+// and after the data change and stay exact in each. The package
 // is a leaf (it imports nothing of this module) so that any package's tests
 // can use it. No production code imports it.
 package crdbatchids
@@ -136,6 +137,9 @@ var (
 	// shippedOthers are the quiet lines of the shipped pack that are not
 	// the batch's.
 	shippedOthers []Line
+	// shippedForeign are the ids of the custom-resource version-removal
+	// rules of the shipped pack that are not the batch's.
+	shippedForeign []string
 )
 
 // Shipped reports whether the shipped rule pack (cncfcheck/data/rules.json,
@@ -151,11 +155,88 @@ func Shipped() bool {
 			return
 		}
 		shipped, shippedOthers, shippedErr = holds(raw)
+		if shippedErr == nil {
+			shippedForeign = ForeignIDs(raw)
+		}
 	})
 	if shippedErr != nil {
 		panic("crdbatchids: " + shippedErr.Error())
 	}
 	return shipped
+}
+
+// Foreign returns, in ascending order, the ids of the custom-resource
+// version-removal rules the shipped pack holds that are not the batch's: the
+// factory's mechanical rules for other projects. Tests that pin what the pack
+// holds count them beside the batch instead of stating each.
+func Foreign() []string {
+	Shipped()
+	return append([]string(nil), shippedForeign...)
+}
+
+// IsForeign reports whether id is one of Foreign.
+func IsForeign(id string) bool {
+	for _, f := range Foreign() {
+		if f == id {
+			return true
+		}
+	}
+	return false
+}
+
+// ForeignComponents returns the components (subject components) of the
+// custom-resource version-removal rules of pack that are not the batch's.
+func ForeignComponents(pack []byte) map[string]bool {
+	var p struct {
+		Entries []struct {
+			Rule struct {
+				ID      string  `json:"id"`
+				Subject subject `json:"subject"`
+			} `json:"rule"`
+		} `json:"entries"`
+	}
+	if err := json.Unmarshal(pack, &p); err != nil {
+		return nil
+	}
+	inBatch := map[string]bool{}
+	for _, r := range rules {
+		inBatch[r.ID] = true
+	}
+	out := map[string]bool{}
+	for _, e := range p.Entries {
+		if id := e.Rule.ID; strings.Contains(id, Marker) && !inBatch[id] {
+			out[e.Rule.Subject.Component] = true
+		}
+	}
+	return out
+}
+
+// ForeignIDs returns, in ascending order, the ids of the custom-resource
+// version-removal rules of pack that are not the batch's. It does not check
+// them: Holds does.
+func ForeignIDs(pack []byte) []string {
+	var p struct {
+		Entries []struct {
+			Rule struct {
+				ID string `json:"id"`
+			} `json:"rule"`
+		} `json:"entries"`
+	}
+	if err := json.Unmarshal(pack, &p); err != nil {
+		return nil
+	}
+	inBatch := map[string]bool{}
+	for _, r := range rules {
+		inBatch[r.ID] = true
+	}
+	var out []string
+	for _, e := range p.Entries {
+		if id := e.Rule.ID; strings.Contains(id, Marker) && !inBatch[id] {
+			out = append(out, id)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // Count is the number of the batch's rules of project the shipped pack
@@ -165,6 +246,14 @@ func Count(project string) int {
 		return 0
 	}
 	return len(ProjectRules(project))
+}
+
+// setCondition is a rule's set condition.
+type setCondition struct {
+	Side      string   `json:"side"`
+	Component string   `json:"component"`
+	FactID    string   `json:"factId"`
+	Members   []string `json:"members"`
 }
 
 // subject is a rule's subject: component and release pair.
@@ -178,8 +267,9 @@ type subject struct {
 // A pack holding part of the batch, a batch rule that differs from its
 // statement here (project, operator, subject, set condition), a line
 // attestation of the family that is repeated or lists rules without being
-// a line of the batch, or any other custom-resource version-removal rule is
-// an error. Quiet lines of the family that are not the batch's are accepted
+// a line of the batch, or a custom-resource version-removal rule of another
+// project's mechanical extractor that is not shaped like one is an error;
+// well-shaped foreign rules are accepted and never count as the batch. Quiet lines of the family that are not the batch's are accepted
 // whatever project they belong to: other changes ship them (and the
 // factory's onboarding adds more), so no list of them is kept here.
 func Holds(pack []byte) (bool, error) {
@@ -194,15 +284,10 @@ func holds(pack []byte) (bool, []Line, error) {
 		Entries []struct {
 			Project string `json:"project"`
 			Rule    struct {
-				ID           string  `json:"id"`
-				Operator     string  `json:"operator"`
-				Subject      subject `json:"subject"`
-				SetCondition *struct {
-					Side      string   `json:"side"`
-					Component string   `json:"component"`
-					FactID    string   `json:"factId"`
-					Members   []string `json:"members"`
-				} `json:"setCondition"`
+				ID           string        `json:"id"`
+				Operator     string        `json:"operator"`
+				Subject      subject       `json:"subject"`
+				SetCondition *setCondition `json:"setCondition"`
 			} `json:"rule"`
 		} `json:"entries"`
 		LineAttestations []struct {
@@ -225,7 +310,9 @@ func holds(pack []byte) (bool, []Line, error) {
 		want, ok := byID[got.ID]
 		if !ok {
 			if strings.Contains(got.ID, Marker) {
-				return false, nil, fmt.Errorf("the pack holds custom-resource version-removal rule %s, which is not of the batch", got.ID)
+				if err := foreignRuleError(entry.Project, got.ID, got.Operator, got.Subject, got.SetCondition); err != nil {
+					return false, nil, err
+				}
 			}
 			continue
 		}
@@ -272,6 +359,21 @@ func holds(pack []byte) (bool, []Line, error) {
 		return true, others, nil
 	}
 	return false, nil, fmt.Errorf("the pack holds %d of the batch's %d rules and %d of its %d line attestations, want all or none", held, len(rules), attested, len(lines))
+}
+
+// foreignRuleError checks a custom-resource version-removal rule that is not
+// of the batch (also one of a batch project that the batch does not state). The factory's mechanical extractors add such rules for other
+// projects (one per removed custom-resource version), so the pack may carry
+// any number of them; they are never counted as the batch. They must have the
+// shape the extractors give them: an id that names the rule's own project, a
+// forbid_set_member over that project's custom-resource version set on the
+// proposed side, and at least one member. Anything else is a data error.
+func foreignRuleError(project, id, operator string, sub subject, set *setCondition) error {
+	if project == "" || !strings.HasPrefix(id, project+Marker) || operator != "forbid_set_member" || set == nil ||
+		set.Side != "proposed" || set.Component != sub.Component || set.FactID != "component."+project+".custom_resource_versions_set" || len(set.Members) == 0 {
+		return fmt.Errorf("the pack's custom-resource version-removal rule %s is not of the batch and not shaped like a mechanical rule", id)
+	}
+	return nil
 }
 
 func shippedPack() ([]byte, error) {
