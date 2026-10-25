@@ -77,6 +77,7 @@ const (
 	ReasonServerNoAnswer      = "server-no-answer"
 	ReasonScanNoReport        = "scan-no-report"
 	ReasonInstallFailed       = "install-failed"
+	ReasonInstallRejected     = "install-rejected"
 	ReasonCRDMissing          = "crd-missing"
 	ReasonVersionNotDeclared  = "version-not-declared"
 	ReasonImageDigestMismatch = "image-digest-mismatch"
@@ -96,7 +97,7 @@ const (
 var Reasons = []string{
 	ReasonNotEvaluated, ReasonNoSnapshot, ReasonNoRun, ReasonNoCorpusCase, ReasonNotProbed,
 	ReasonReleaseUnavailable, ReasonReleaseNotInstalled, ReasonServerNoAnswer, ReasonScanNoReport,
-	ReasonInstallFailed, ReasonCRDMissing, ReasonVersionNotDeclared, ReasonImageDigestMismatch,
+	ReasonInstallFailed, ReasonInstallRejected, ReasonCRDMissing, ReasonVersionNotDeclared, ReasonImageDigestMismatch,
 	ReasonDisagreement, ReasonCanaryFailed, ReasonControlsAbsent,
 	ReasonSchemaPermissive, ReasonPathNotInFrom, ReasonValueMissing, ReasonObjectNotBuildable,
 	ReasonFromRejected, ReasonOtherRejection,
@@ -316,6 +317,8 @@ type CRDFieldResult struct {
 	ToSchema string `json:"toSchema,omitempty"`
 	Pattern  string `json:"pattern,omitempty"`
 	Error    string `json:"error,omitempty"`
+	// InstallError is set, next to Error, when the install was rejected.
+	InstallError *InstallError `json:"install_error,omitempty"`
 }
 
 // CRDReleaseResult is what the cluster said about one release installed on
@@ -352,6 +355,21 @@ type CRDReleaseState struct {
 	CRDs    []CRDDef      `json:"crds"`
 	Objects []ObjectTry   `json:"objects"`
 	Error   string        `json:"error,omitempty"`
+	// InstallError is set, next to Error, when the API server refused the
+	// apply (see InstallError).
+	InstallError *InstallError `json:"install_error,omitempty"`
+}
+
+// InstallError is the structured form of an apply the API server refused
+// with a deterministic answer (reason install-rejected), as opposed to an
+// apply that failed to reach it (install-failed). Phase is "apply"; Exit is
+// the kubectl exit code; Lines are the first lines kubectl printed on stderr
+// (at most InstallErrorMaxLines); CRDs are the definitions the lines name.
+type InstallError struct {
+	Phase string   `json:"phase"`
+	Exit  int      `json:"exit"`
+	Lines []string `json:"lines"`
+	CRDs  []string `json:"crds"`
 }
 
 // FetchedFile is one manifest file as fetched, with its digest.
@@ -452,6 +470,7 @@ type ClaimResult struct {
 	Verdict         string          `json:"verdict,omitempty"`
 	Reason          string          `json:"reason,omitempty"`
 	Detail          string          `json:"detail,omitempty"`
+	InstallError    *InstallError   `json:"install_error,omitempty"`
 	PrufyxCommit    string          `json:"prufyxCommit,omitempty"`
 	NodeImageDigest string          `json:"nodeImageDigest,omitempty"`
 	LogDigest       string          `json:"logDigest,omitempty"`
