@@ -38,7 +38,7 @@ const (
 	// IDPrefix is followed by the project slug: one extractor id per
 	// project, since a run reads one repository.
 	IDPrefix = "crd.version-removal."
-	Version  = "2.6.0"
+	Version  = "2.7.0"
 	// SourceDir is this package's directory under the module's internal/.
 	SourceDir = "extract/crdversions"
 )
@@ -504,6 +504,7 @@ func readDefinitions(r extract.PinnedReader, repo extract.RepoRef, commit string
 	sort.Strings(files)
 	byName := map[string]string{}
 	byKind := map[string]string{}
+	var claims *specIncludeClaims
 	for i, f := range files {
 		if i > 0 && files[i-1] == f {
 			return inv, problemf("%s is listed twice", f)
@@ -516,10 +517,28 @@ func readDefinitions(r extract.PinnedReader, repo extract.RepoRef, commit string
 			return inv, err
 		}
 		rec, crds, err := parseFile(f, data)
+		var included []FileRecord
+		if err != nil && other == nil {
+			// A template of the admitted spec-include shape (specinclude.go);
+			// any refusal leaves the failure above.
+			if sh := parseSpecIncludeTemplate(data); sh != nil {
+				inc, ierr := readSpecInclude(r, repo, commit, f, sh)
+				if ierr != nil {
+					return inv, ierr
+				}
+				if claims == nil {
+					claims = newSpecIncludeClaims(files)
+				}
+				if inc != nil && claims.take(f, inc.Path) {
+					recs := inc.records(rec)
+					rec, included, crds, err = recs[0], recs[1:], inc.CRDs, nil
+				}
+			}
+		}
 		if other != nil {
 			rec.Repo, rec.Commit = other.repo.Key, other.commit
 		}
-		inv.Files = append(inv.Files, rec)
+		inv.Files = append(append(inv.Files, rec), included...)
 		if err != nil {
 			return inv, err
 		}
