@@ -9,6 +9,15 @@
       "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
       "publicKey": "017df93925df41dfa873b55664ed44b8d563d4e656b9288b7fdfb150425c274c",
       "notAfter": "2027-10-16T00:00:00Z"
+    },
+    {
+      "keyId": "sha256:f25122006c39056826999433c0c100392d1de23462d5b56ee3ba5ad45e874e99",
+      "publicKey": "1cdb12becfce116d0db39ab1970fc5c6fcc73448b8633a4b0d53642884ceabd9",
+      "notAfter": "2027-01-23T18:48:29Z",
+      "tier": "onboarding-bot"
     }
+  ],
+  "bots": [
+    "prufyx-bot"
   ]
 }
