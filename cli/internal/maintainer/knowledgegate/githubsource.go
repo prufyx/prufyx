@@ -322,6 +322,9 @@ func (g *GitHubSource) get(ctx context.Context, u string, api bool, limit int64)
 		return nil, 0, err
 	}
 	var lastErr error
+	// anon is set after an unclassified 403 to an authenticated request: the
+	// request is sent once more without the token (see below).
+	anon := false
 	for attempt := 0; attempt < 3; attempt++ {
 		if api {
 			if err := g.admitAPI(); err != nil {
@@ -335,7 +338,7 @@ func (g *GitHubSource) get(ctx context.Context, u string, api bool, limit int64)
 		if api {
 			req.Header.Set("Accept", "application/vnd.github+json")
 			req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
-			if g.Token != "" {
+			if g.Token != "" && !anon {
 				req.Header.Set("Authorization", "Bearer "+g.Token)
 			}
 		}
@@ -348,6 +351,14 @@ func (g *GitHubSource) get(ctx context.Context, u string, api bool, limit int64)
 			if api {
 				if err := g.noteRateLimit(resp); err != nil {
 					return nil, resp.StatusCode, err
+				}
+				// A 403 that is not a rate limit can come from an organisation
+				// IP allow list that refuses token requests from the runner
+				// but serves public data anonymously. Retry once without the
+				// token; the retry is admitted and counted like any request.
+				if resp.StatusCode == http.StatusForbidden && g.Token != "" && !anon {
+					anon = true
+					continue
 				}
 			}
 			switch {

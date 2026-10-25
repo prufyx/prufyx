@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -167,5 +168,81 @@ func TestHTTPRedirectPolicyAndURLCheck(t *testing.T) {
 		if err := checkHTTPURL(u); (err == nil) != ok {
 			t.Errorf("checkHTTPURL(%q) = %v, ok want %v", u, err, ok)
 		}
+	}
+}
+
+func TestGitHubSourceGetRetriesUnclassified403WithoutToken(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name       string
+		handler    func(w http.ResponseWriter, r *http.Request)
+		wantStatus int
+		wantReqs   int64
+		wantAuth   []bool // Authorization present per request
+		wantBody   string
+		wantErr    string
+		exhausted  bool
+	}{
+		{"403 with token, 200 anonymous", func(w http.ResponseWriter, r *http.Request) {
+			if r.Header.Get("Authorization") != "" {
+				w.WriteHeader(http.StatusForbidden)
+				return
+			}
+			_, _ = w.Write([]byte("anon-ok"))
+		}, 200, 2, []bool{true, false}, "anon-ok", "", false},
+		{"rate limit 403 is not retried", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-RateLimit-Remaining", "0")
+			w.WriteHeader(http.StatusForbidden)
+		}, 403, 1, []bool{true}, "", "rate limit", true},
+		{"403 both ways", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+		}, 403, 2, []bool{true, false}, "", "", false},
+		{"404 is not retried", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+		}, 404, 1, []bool{true}, "", "", false},
+		{"401 is not retried", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusUnauthorized)
+		}, 401, 1, []bool{true}, "", "", false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var mu sync.Mutex
+			var auths []bool
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				mu.Lock()
+				auths = append(auths, r.Header.Get("Authorization") != "")
+				mu.Unlock()
+				tc.handler(w, r)
+			}))
+			defer srv.Close()
+			g := &GitHubSource{Token: "tok-secret"}
+			body, status, err := g.get(context.Background(), srv.URL+"/x", true, 100)
+			if tc.wantErr == "" && err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if tc.wantErr != "" && (err == nil || !strings.Contains(err.Error(), tc.wantErr)) {
+				t.Fatalf("err = %v; want containing %q", err, tc.wantErr)
+			}
+			if status != tc.wantStatus || string(body) != tc.wantBody {
+				t.Fatalf("got %d %q; want %d %q", status, body, tc.wantStatus, tc.wantBody)
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			if len(auths) != len(tc.wantAuth) {
+				t.Fatalf("requests with auth flags %v; want %v", auths, tc.wantAuth)
+			}
+			for i := range auths {
+				if auths[i] != tc.wantAuth[i] {
+					t.Fatalf("requests with auth flags %v; want %v", auths, tc.wantAuth)
+				}
+			}
+			if n := g.nAPI.Load(); n != tc.wantReqs {
+				t.Fatalf("budget counted %d requests; want %d", n, tc.wantReqs)
+			}
+			if g.exhausted.Load() != tc.exhausted {
+				t.Fatalf("exhausted = %v; want %v", g.exhausted.Load(), tc.exhausted)
+			}
+		})
 	}
 }
