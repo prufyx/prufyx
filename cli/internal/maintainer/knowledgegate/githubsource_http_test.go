@@ -196,7 +196,7 @@ func TestGitHubSourceGetRetriesUnclassified403WithoutToken(t *testing.T) {
 		}, 403, 1, []bool{true}, "", "rate limit", true},
 		{"403 both ways", func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusForbidden)
-		}, 403, 2, []bool{true, false}, "", "", false},
+		}, 403, 2, []bool{true, false}, "", "also refused without token", false},
 		{"404 is not retried", func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 		}, 404, 1, []bool{true}, "", "", false},
@@ -244,5 +244,72 @@ func TestGitHubSourceGetRetriesUnclassified403WithoutToken(t *testing.T) {
 				t.Fatalf("exhausted = %v; want %v", g.exhausted.Load(), tc.exhausted)
 			}
 		})
+	}
+}
+
+func TestGitHubSourceAnonRetryDoesNotPoisonBudget(t *testing.T) {
+	t.Parallel()
+	var n atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "" {
+			if n.Add(1) == 1 {
+				w.WriteHeader(http.StatusForbidden)
+				return
+			}
+			w.Header().Set("X-RateLimit-Remaining", "4000")
+			_, _ = w.Write([]byte("authed"))
+			return
+		}
+		w.Header().Set("X-RateLimit-Remaining", "20") // shared anonymous pool, below the reserve
+		_, _ = w.Write([]byte("anon"))
+	}))
+	defer srv.Close()
+	g := &GitHubSource{Token: "tok-secret"}
+	if body, _, err := g.get(context.Background(), srv.URL+"/a", true, 100); err != nil || string(body) != "anon" {
+		t.Fatalf("anon retry: %q, %v", body, err)
+	}
+	if g.exhausted.Load() {
+		t.Fatalf("anonymous remaining count exhausted the budget: %s", g.budgetReason())
+	}
+	if body, _, err := g.get(context.Background(), srv.URL+"/b", true, 100); err != nil || string(body) != "authed" {
+		t.Fatalf("later authenticated request: %q, %v", body, err)
+	}
+}
+
+func TestGitHubSourceAnonRetryRateLimitReasonAndAttempts(t *testing.T) {
+	t.Parallel()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "" {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		w.Header().Set("X-RateLimit-Remaining", "0")
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	defer srv.Close()
+	g := &GitHubSource{Token: "tok-secret"}
+	_, _, err := g.get(context.Background(), srv.URL+"/a", true, 100)
+	if err == nil || !strings.Contains(err.Error(), "anonymous retry after 403") {
+		t.Fatalf("err = %v; want reason naming the anonymous retry", err)
+	}
+
+	// The retry does not use up one of the 3 attempts for 5xx.
+	var reqs atomic.Int32
+	srv2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if reqs.Add(1) == 1 {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		w.WriteHeader(http.StatusBadGateway)
+	}))
+	defer srv2.Close()
+	g2 := &GitHubSource{Token: "tok-secret"}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if _, _, err := g2.get(ctx, srv2.URL+"/a", true, 100); err == nil {
+		t.Fatal("want an error after repeated 502")
+	}
+	if got := reqs.Load(); got != 4 { // 403, then 3 attempts of 502
+		t.Fatalf("requests = %d; want 4", got)
 	}
 }
