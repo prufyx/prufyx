@@ -107,13 +107,21 @@ func narrowed(b, h crdversions.Target) []string {
 	if lineLess(b.MinFrom, h.MinFrom) {
 		out = append(out, "minFrom:"+line(h.MinFrom))
 	}
-	for _, p := range b.TagPrefixes {
-		if !containsString(h.TagPrefixes, p) {
-			out = append(out, "tagPrefix:"+p)
+	// A head that names a release scheme has no prefixes: switching between
+	// the two grammars is an identity change (targetIdentity), not a loss of
+	// prefixes. Removing the grammar altogether stays narrowing.
+	if h.ReleaseScheme == "" {
+		for _, p := range b.TagPrefixes {
+			if !containsString(h.TagPrefixes, p) {
+				out = append(out, "tagPrefix:"+p)
+			}
 		}
-	}
-	if !samePrefixOrder(b.TagPrefixes, h.TagPrefixes) {
-		out = append(out, "tagPrefixOrder")
+		if !samePrefixOrder(b.TagPrefixes, h.TagPrefixes) {
+			out = append(out, "tagPrefixOrder")
+		}
+		if b.ReleaseScheme != "" && len(h.TagPrefixes) == 0 {
+			out = append(out, "releaseScheme:"+b.ReleaseScheme)
+		}
 	}
 	if b.Attest && !h.Attest {
 		out = append(out, "attest")
@@ -322,7 +330,22 @@ func targetIdentity(b, h crdversions.Target) []string {
 	if b.Catalog != h.Catalog {
 		out = append(out, "catalog:"+h.Catalog)
 	}
+	if bg, hg := releaseGrammar(b), releaseGrammar(h); bg != hg && bg != "" && hg != "" {
+		out = append(out, "releaseGrammar:"+hg)
+	}
 	return out
+}
+
+// releaseGrammar names how a target reads its release tags: its release
+// scheme, or the tag prefixes. Empty when it names neither.
+func releaseGrammar(t crdversions.Target) string {
+	switch {
+	case t.ReleaseScheme != "":
+		return "scheme:" + t.ReleaseScheme
+	case len(t.TagPrefixes) > 0:
+		return "tagPrefixes"
+	}
+	return ""
 }
 
 // samePrefixOrder reports whether the prefixes both lists share keep their

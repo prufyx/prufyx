@@ -239,19 +239,6 @@ func nextLineStart(line string) (string, bool) {
 	return major + "." + strconv.FormatUint(m+1, 10) + ".0", true
 }
 
-// previousLine returns M.(m-1) when line is M.m with m > 0.
-func previousLine(line string) (string, bool) {
-	major, minor, ok := strings.Cut(line, ".")
-	if !ok {
-		return "", false
-	}
-	m, err := strconv.ParseUint(minor, 10, 32)
-	if err != nil || m == 0 {
-		return "", false
-	}
-	return major + "." + strconv.FormatUint(m-1, 10), true
-}
-
 func ratio(n, d int) float64 {
 	if d == 0 {
 		return 0
@@ -628,13 +615,12 @@ func classify(project, fromLine, toLine string, rules []*ruleRec, atts []lineatt
 // target line whose hop is exactly fromLine->toLine and whose listed rules are all
 // valid and line-wide for that line.
 func attestedFamilies(fromLine, toLine string, atts []lineattest.LineAttestation, byID map[string]*ruleRec) []string {
-	previous, ok := previousLine(toLine)
-	if !ok || previous != fromLine {
-		return nil
-	}
 	set := map[string]bool{}
 	for _, a := range atts {
 		if a.Line != toLine || a.Completeness != lineattest.Completeness {
+			continue
+		}
+		if previous, ok := lineattest.PreviousLine(a.Component, toLine); !ok || previous != fromLine {
 			continue
 		}
 		family, ok := lineattest.LookupFamily(a.FactFamily)
@@ -644,7 +630,7 @@ func attestedFamilies(fromLine, toLine string, atts []lineattest.LineAttestation
 		wide := true
 		for _, id := range a.RuleIDs {
 			r := byID[id]
-			if r == nil || !r.valid || !family.CoversLine(r.tr, toLine) {
+			if r == nil || !r.valid || !family.CoversLine(a.Component, r.tr, toLine) {
 				wide = false
 				break
 			}

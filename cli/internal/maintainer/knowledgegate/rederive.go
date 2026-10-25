@@ -12,6 +12,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/extract"
+	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
 	"github.com/prufyx/prufyx/cli/internal/extract/extractcli"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencerepin"
@@ -210,7 +211,7 @@ func runAttester(ctx context.Context, src Source, catalog map[string]extractcli.
 		if floor != "" && !lineattest.ValidLine(floor) {
 			return nil, "", fmt.Errorf("extractor %s has an invalid first line %q", id, floor)
 		}
-		out, err := extract.Run(ctx, ex, src, src, extract.Options{Repo: repo, DerivedAt: now.UTC().Truncate(time.Second)})
+		out, err := extract.Run(ctx, ex, crdversions.ReleaseTags(ex, src), src, extract.Options{Repo: repo, DerivedAt: now.UTC().Truncate(time.Second)})
 		return out, floor, err
 	}
 	return nil, "", fmt.Errorf("no extractor of this gate attests fact family %s for %s", logSafe(family), logSafe(component))

@@ -91,3 +91,17 @@ func TestCustomResourcesRendersKinds(t *testing.T) {
 		t.Fatalf("kinds not rendered:\n%s", out)
 	}
 }
+
+func TestCRDTargetsRendersReleaseScheme(t *testing.T) {
+	a := []byte(`{"schema": "prufyx.io/crd-version-target/v1", "target":
+  {"project": "kamaji", "name": "Kamaji", "repo": "github.com/clastix/kamaji", "component": "pkg:github/clastix/kamaji", "factProject": "kamaji", "releaseScheme": "calver-edge", "minFrom": "24.7",
+   "paths": [{"path": "crds/a.yaml"}], "exclude": []}}`)
+	targets, err := crdversions.LoadTargets(fstest.MapFS{"target-kamaji.json": {Data: a}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "| `crd.version-removal.kamaji` | CNCF | `github.com/clastix/kamaji` | `edge-YY.M.N` or `YY.M.N-edge` (release scheme `calver-edge`) | 24.7 | no | `crds/a.yaml` | 0 |"
+	if got := CRDTargets(targets); !strings.Contains(got, want+"\n") {
+		t.Errorf("missing row %s in\n%s", want, got)
+	}
+}

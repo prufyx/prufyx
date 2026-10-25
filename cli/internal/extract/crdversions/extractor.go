@@ -38,7 +38,7 @@ const (
 	// IDPrefix is followed by the project slug: one extractor id per
 	// project, since a run reads one repository.
 	IDPrefix = "crd.version-removal."
-	Version  = "2.5.0"
+	Version  = "2.6.0"
 	// SourceDir is this package's directory under the module's internal/.
 	SourceDir = "extract/crdversions"
 )
@@ -156,34 +156,41 @@ func (x *Extractor) releaseLines(index extract.ReleaseIndex) []*releaseLine {
 		major, minor, patch int
 		tag                 extract.Tag
 		version             string
+		rank                int
 	}
 	byVersion := map[string]rel{}
 	conflicts := map[string]bool{}
+	unread := map[string]bool{}
 	for _, t := range index.Tags {
+		if x.target.ReleaseScheme == SchemeCalverEdge {
+			// A tag shaped like a release that the grammar cannot read may
+			// be a release of its line: the line is not complete.
+			if line, bad := CalverEdgeUnread(t.Name); bad {
+				unread[line] = true
+			}
+		}
 		if !extract.IsCommitSHA(t.Commit) {
 			continue
 		}
-		for _, prefix := range x.target.TagPrefixes {
-			m := finalTagRE(prefix).FindStringSubmatch(t.Name)
-			if m == nil {
+		version, rank, ok := x.target.releaseOf(t.Name)
+		if !ok {
+			continue
+		}
+		parts := strings.Split(version, ".")
+		major, _ := strconv.Atoi(parts[0])
+		minor, _ := strconv.Atoi(parts[1])
+		patch, _ := strconv.Atoi(parts[2])
+		r := rel{major, minor, patch, t, version, rank}
+		if prev, dup := byVersion[version]; dup {
+			if prev.tag.Commit != t.Commit {
+				conflicts[fmt.Sprintf("%d.%d", major, minor)] = true
+			}
+			// Prefer the earlier prefix of the table.
+			if prev.rank <= rank {
 				continue
 			}
-			version := m[1] + "." + m[2] + "." + m[3]
-			major, _ := strconv.Atoi(m[1])
-			minor, _ := strconv.Atoi(m[2])
-			patch, _ := strconv.Atoi(m[3])
-			r := rel{major, minor, patch, t, version}
-			if prev, dup := byVersion[version]; dup {
-				if prev.tag.Commit != t.Commit {
-					conflicts[fmt.Sprintf("%d.%d", major, minor)] = true
-				}
-				// Prefer the earlier prefix of the table.
-				if prefixRank(x.target.TagPrefixes, prev.tag.Name, version) <= prefixRank(x.target.TagPrefixes, t.Name, version) {
-					continue
-				}
-			}
-			byVersion[version] = r
 		}
+		byVersion[version] = r
 	}
 	lines := map[string]*releaseLine{}
 	var rels []rel
@@ -216,20 +223,13 @@ func (x *Extractor) releaseLines(index extract.ReleaseIndex) []*releaseLine {
 		switch {
 		case conflicts[l.key()]:
 			l.Problem = "a release of the line is tagged twice, at different commits"
+		case unread[l.key()]:
+			l.Problem = "a tag of the line has the shape of a release the release grammar does not read"
 		case len(l.Tags) > maxTagsPerLine:
 			l.Problem = fmt.Sprintf("the line has %d release tags, over the bound of %d", len(l.Tags), maxTagsPerLine)
 		}
 	}
 	return out
-}
-
-func prefixRank(prefixes []string, tag, version string) int {
-	for i, p := range prefixes {
-		if tag == p+version {
-			return i
-		}
-	}
-	return len(prefixes)
 }
 
 func finalTagRE(prefix string) *regexp.Regexp {
@@ -916,6 +916,10 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, pair ex
 	for _, st := range append(append([]*tagState{}, fromTags...), toTags...) {
 		states[st.tag.Name] = st
 	}
+	if len(names) > 0 && lineattest.CalverComponent(x.target.Component) {
+		// Rule bounds are minor lines of one major; a calendar line has none.
+		return withhold(problemf("a removal under the %s release scheme is not derived: rules for calendar lines are not defined", x.target.ReleaseScheme))
+	}
 	var out []extract.Candidate
 	for _, name := range names {
 		c, err := x.candidate(pair, fromLine, toLine, states, fa, ta, byCRD[name], lines.LineWide)
@@ -932,7 +936,7 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, pair ex
 	if u := ta.scan.unreadable(); len(out) > 0 && len(u) > 0 {
 		return withhold(problemf("at %s: %s is %s (%s): a version the rules forbid may still be served there", ta.tag.Name, u[0].Path, u[0].Class, u[0].Detail))
 	}
-	proof.Completeness = completeness(fromLine, toLine, fromTags, toTags, lines, proof.DefinitionsRemoved, proof.UnlistedRemovals)
+	proof.Completeness = completeness(x.target.Component, fromLine, toLine, fromTags, toTags, lines, proof.DefinitionsRemoved, proof.UnlistedRemovals)
 	res := extract.Extraction{Candidates: out, Proof: proof}
 	att, why := x.attestation(pair, fromLine, toLine, fa, ta, out, proof.Completeness)
 	if att != nil {
@@ -990,7 +994,7 @@ func (x *Extractor) attestation(pair extract.VersionPair, fromLine, toLine *rele
 		return nil, "the custom-resource version family does not cover " + x.target.Component
 	case !c.Attestable:
 		return nil, "the derivation does not establish the whole lines: " + strings.Join(c.Reasons, "; ")
-	case fromLine.Major != toLine.Major || fromLine.Minor+1 != toLine.Minor:
+	case hopShape(x.target.Component, fromLine, toLine) != HopPreviousMinor:
 		return nil, fmt.Sprintf("%s is not the minor line after %s in the same major; only such an upgrade is attested", toLine.key(), fromLine.key())
 	}
 	fromFile, toFile := firstCRDFile(fa), firstCRDFile(ta)
@@ -1046,7 +1050,15 @@ func firstCRDFile(st *tagState) string {
 }
 
 // hopShape names the shape of a pair of lines.
-func hopShape(from, to *releaseLine) string {
+func hopShape(component string, from, to *releaseLine) string {
+	if lineattest.CalverComponent(component) {
+		// Lines are calendar months: the previous line of January is
+		// December of the year before, and a year is no major.
+		if prev, ok := lineattest.PreviousLine(component, to.key()); ok && prev == from.key() {
+			return HopPreviousMinor
+		}
+		return HopSkippedMinor
+	}
 	switch {
 	case from.Major == to.Major && from.Minor+1 == to.Minor:
 		return HopPreviousMinor
@@ -1513,8 +1525,8 @@ func anchorRemovals(fa, ta *tagState) ([]Removal, []DefinitionRemoval, error) {
 	return out, defs, nil
 }
 
-func completeness(fromLine, toLine *releaseLine, from, to []*tagState, lines *LinesRecord, defs []DefinitionRemoval, unlisted []UnlistedRemoval) *Completeness {
-	c := &Completeness{Declared: true, Scan: true, LineWide: lines.LineWide, Hop: hopShape(fromLine, toLine), Reasons: []string{}}
+func completeness(component string, fromLine, toLine *releaseLine, from, to []*tagState, lines *LinesRecord, defs []DefinitionRemoval, unlisted []UnlistedRemoval) *Completeness {
+	c := &Completeness{Declared: true, Scan: true, LineWide: lines.LineWide, Hop: hopShape(component, fromLine, toLine), Reasons: []string{}}
 	for _, st := range append(append([]*tagState{}, from...), to...) {
 		if !st.complete() {
 			c.Declared = false

@@ -234,6 +234,7 @@ A catalogued project is not tested coverage: a catalogue entry says Prufyx holds
   on the inventory entry and a note that findings are provisional until the GA
   release. Other components and every other suffix stay refused. No rule or
   knowledge changes; release inputs behave as before.
+- `crd.version-removal` 2.6.0: a target may name the release scheme `calver-edge` (tags `edge-YY.M.N` and `YY.M.N-edge`, engine version `YY.M.N`, calendar lines) instead of `tagPrefixes`; line attestations, the release completeness check and the coverage report take the previous line from `lineattest.PreviousLine` (`YY.1` follows `(YY-1).12` for such a component); the lines snapshot accepts an optional `scheme` member. No target uses it yet.
 - `scripts/kind-val.sh --name-prefix P` names the clusters `P-<line>` (default `prufyx-kind`, unchanged), so several runs (each with its own prefix and `--out`) can share one Docker host; their cluster creations take turns where `flock` exists (`--create-lock`).
 - CNCF knowledge: 13 custom-resource version-removal rules (`crd.version-removal`)
   for Crossplane (2), Kyverno (1) and Strimzi (10), each forbidding a

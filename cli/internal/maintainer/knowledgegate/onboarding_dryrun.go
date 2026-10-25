@@ -164,7 +164,7 @@ func dryRun(ctx context.Context, b *budgetSource, concurrency int, target crdver
 		return 0, err
 	}
 	ex := &newestPairOnly{Extractor: crdversions.NewConcurrent(target, max(concurrency, 1)).WithIndex(index)}
-	out, err := extract.Run(ctx, ex, b, b, extract.Options{Repo: repo, DerivedAt: now.UTC().Truncate(time.Second)})
+	out, err := extract.Run(ctx, ex, crdversions.ReleaseTags(ex, b), b, extract.Options{Repo: repo, DerivedAt: now.UTC().Truncate(time.Second)})
 	if err != nil {
 		return b.used(), fmt.Errorf("the dry run failed: %v", logSafe(err.Error()))
 	}

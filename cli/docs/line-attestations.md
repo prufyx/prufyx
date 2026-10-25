@@ -147,6 +147,18 @@ rule cannot be attested at all: listing the rule fails this check and
 leaving it out fails the exact set. A line `M.0` has no previous minor line
 in its major and cannot be attested.
 
+The previous line comes from one function, `lineattest.PreviousLine`
+(component, line). For an ordinary component it is `M.(m-1)`. A component
+whose releases are named for the calendar month (a closed set in code; see
+the release scheme `calver-edge` in
+[extractors/crd.version-removal.md](extractors/crd.version-removal.md)) has
+lines `YY.M`, and the line before `YY.1` is `(YY-1).12`. Every place that
+checks a hop, the releases of an attestation, the release completeness of an
+empty list, the coverage report and the scan, asks it. A calendar component
+has no line-wide rules: the range arithmetic above is about minor lines of
+one major, so such a component's family has no rule that covers a line and an
+attestation of it lists no rule.
+
 A planner that uses an attestation must still evaluate each listed rule for
 the upgrade's actual versions: a listed rule that does not match the
 upgrade, or does not reach a verdict, makes that upgrade a gap, never
