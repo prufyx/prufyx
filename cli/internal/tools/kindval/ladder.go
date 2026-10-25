@@ -84,16 +84,20 @@ func runLadder(ctx context.Context, k kube, manifest []byte) []LadderStep {
 		}
 		args := append(strings.Fields(m), "-f", "-")
 		_, errb, exit := k.run(ctx, "kubectl", k.args(args...), manifest)
-		var lines []string
+		var all []string
 		for _, l := range strings.Split(string(errb), "\n") {
-			if l = strings.TrimSpace(l); l != "" && len(lines) < InstallErrorMaxLines {
-				lines = append(lines, l)
+			if l = strings.TrimSpace(l); l != "" {
+				all = append(all, l)
 			}
 		}
-		if lines == nil {
-			lines = []string{}
+		// Classify on the full stderr; only the stored lines are capped.
+		lines := []string{}
+		if len(all) > InstallErrorMaxLines {
+			lines = append(lines, all[:InstallErrorMaxLines]...)
+		} else {
+			lines = append(lines, all...)
 		}
-		steps = append(steps, LadderStep{Method: m, Exit: exit, Accepted: ladderAccepted(exit, lines), Lines: lines, Dropped: droppedPaths(lines)})
+		steps = append(steps, LadderStep{Method: m, Exit: exit, Accepted: ladderAccepted(exit, all), Lines: lines, Dropped: droppedPaths(all)})
 	}
 	return steps
 }
@@ -109,7 +113,8 @@ func ladderAccepted(exit int, lines []string) bool {
 		return false
 	}
 	for _, l := range lines {
-		if (strings.HasPrefix(l, "Error from server") || strings.HasPrefix(l, "error:")) && !strings.Contains(l, "(AlreadyExists)") {
+		// Unknown failure text is not an acceptance.
+		if !strings.HasPrefix(l, "Warning:") && !strings.Contains(l, "(AlreadyExists)") {
 			return false
 		}
 	}

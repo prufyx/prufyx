@@ -118,3 +118,26 @@ func TestLadderClassBeyondCap(t *testing.T) {
 		t.Error("field line past the cap")
 	}
 }
+
+func TestLadderAcceptedUnknownText(t *testing.T) {
+	if ladderAccepted(1, []string{`Unable to recognize "STDIN": no matches for kind "Foo"`}) {
+		t.Error("unknown failure text accepted")
+	}
+}
+
+// Classification uses the full stderr; only the stored Lines are capped.
+func TestRunLadderBeyondCap(t *testing.T) {
+	var b strings.Builder
+	for i := 0; i < 60; i++ {
+		b.WriteString(`Error from server (AlreadyExists): error when creating "STDIN": x already exists` + "\n")
+	}
+	b.WriteString(`Error from server (BadRequest): strict decoding error: unknown field "spec.x"` + "\n")
+	r := func(ctx context.Context, name string, args []string, stdin []byte) ([]byte, []byte, int) {
+		return nil, []byte(b.String()), 1
+	}
+	for _, s := range runLadder(context.Background(), kube{run: r, kubeconfig: "kc"}, []byte("x")) {
+		if s.Accepted || !reflect.DeepEqual(s.Dropped, []string{"spec.x"}) || len(s.Lines) != InstallErrorMaxLines {
+			t.Errorf("step %+v", s)
+		}
+	}
+}
