@@ -1,0 +1,552 @@
+{
+  "schema": "prufyx.io/knowledge-onboarding-batch/v1",
+  "record": {
+    "batchId": "ob-20261025-1",
+    "candidateId": "",
+    "identity": "",
+    "nonce": "",
+    "decidedAt": "",
+    "notAfter": "",
+    "base": {
+      "registryDigest": "sha256:cf779b59e096857d29a64a2e2026fddced0fa2535cfb0e2069f37f6bc4a60393",
+      "packRevision": "cncf-2026-09-13.8",
+      "targetsDigest": {
+        "target-antrea.json": "sha256:402337c636568aea64942824d5c7679961b2a5afd426195fd7e65f57adc0e084",
+        "target-argo-cd.json": "sha256:0554b539d827d7ff4fb79af883b8169ffbb834fd662b1fa08cb0fe6475efb5ed",
+        "target-cert-manager.json": "sha256:f85a864516e63dcc57c1aeef12907c9d7a6c9e386ec3a8462d7d628222b29326",
+        "target-chaos-mesh.json": "sha256:34ea9786af9d72e4cf4ab43bc4ede616dd10979ba2a2fcb896f2af338d53570f",
+        "target-cilium.json": "sha256:126aaf05f381bcab6619d552c12581c896d3ad7154ddaa61bed2c2c9950b17f6",
+        "target-cloudnativepg.json": "sha256:dda49305e91ae470c1e6262da8e41cc69b754e1afda1617f698e188493347888",
+        "target-cluster-api.json": "sha256:5b7101ffc43ad91ede59effdacd7aa80868998f66b3515605221113eb844188c",
+        "target-contour.json": "sha256:da007cb052fdf8c43dcb62ea6f94051825ff4311084f5c1a2714f60f8d910d73",
+        "target-crossplane.json": "sha256:ffe5efcae87a539d0f2540bd181f1fe1f05b5882613f610e0111caf38e870cab",
+        "target-dapr.json": "sha256:201c079a37f1708320f414c3a72be11f05789b54919cda2c63c2939a8397deb7",
+        "target-dex.json": "sha256:82879d0d21cccf114dfa856086081a0038489033aadf7ac0de48c92635a05a0c",
+        "target-eck-operator.json": "sha256:d1f8b4b6ce0f0597e8a31272d4f8785db053bf2cdb2ac7a90a9fb10ed74a34bb",
+        "target-eraser.json": "sha256:05f9a8b8441ee22f947424d9fd50b16ed527fa4da6782858e3f371610cb7dcd6",
+        "target-external-secrets.json": "sha256:7b598ef08207a9b80d016ab2e0ec2b8960c010772249f573361a9a9563861e18",
+        "target-gateway-api.json": "sha256:445a8e583a481a84c8f8b4b29731bf6a5d94cf94a21ea1c842b851b998a4e418",
+        "target-grafana-operator.json": "sha256:57367fb2d3aca25fcfcbad24834df8a1625f3d334d5b56ad3a018941046eae69",
+        "target-istio.json": "sha256:c718dab9a911c6403c3f3725d9dc71d928d165a25cc85b124d4aef630ec0c79a",
+        "target-k8gb.json": "sha256:40c1feac84502d2853fb6e9b676eeb68624262730d44b682b51ba2de92a5941c",
+        "target-k8up.json": "sha256:41c50fc194d892fecfea50e883b7a755b117dd601c7e19fa692b516f1bb0881b",
+        "target-kanister.json": "sha256:b9973d3a0ded87d5252f62a24f73fee9635a4addddb859b99c52a9f52d9c10f3",
+        "target-karmada.json": "sha256:0951081497e45407a95af719db6f00ca7d37d4aac87851e92b483dc65f3f4ae6",
+        "target-kcp.json": "sha256:356c28fa81f59f5a864c201481f3f912112ed3a9a9ffcf04c26338fc33edb1c1",
+        "target-keda.json": "sha256:5f974733b3a4d7b884a549b45ad04d956c824a176025da449cbf9b3e32b98521",
+        "target-kong-ingress-controller.json": "sha256:14cea39067d135bba8f3c85552fececc6e345f1d069d2eab0e61ad59ef3720c3",
+        "target-koordinator.json": "sha256:88082dc66364edf7aad449b8691d4661be2d045887cbae6f647679f742c91732",
+        "target-kubernetes-ingress.json": "sha256:1319d0fe28b92c9dcfb75644608b81cfdc6040ffba819a65acebbedf74c40161",
+        "target-kubevela.json": "sha256:5a54780c122b790edbbdd580fdcaaee0719a6bebe33a0cb737027d8262c57973",
+        "target-kueue.json": "sha256:1efdc8e029b75b89bf08a00f755fb9cf9ef23e30975adc1217518ff427ec7090",
+        "target-kuma.json": "sha256:b8531462601c5d29c87f4afccf63140ca88cde685712dbde63e4618521206ea3",
+        "target-kyverno.json": "sha256:788166731af34425afb55e25f436c851f27e19cbcff6a4a41d51730f93564eef",
+        "target-logging-operator-kube-logging.json": "sha256:ff21bff4a4acfd88d0a62b20c7b1f669b7998c0bcb9dbbbc9479fd5a7a27dbf8",
+        "target-longhorn.json": "sha256:e014d8480cae8064af7c13323a022d34814314f8b3bc64da530d9a1e0e76897f",
+        "target-metallb.json": "sha256:94add480351132292cd5901e7944cf285cf12f571c3de4446d604b37299ca296",
+        "target-mongodb-kubernetes.json": "sha256:9e84662ee68b7d9f18cfe77b4daee7f321975540c5606e5b3a4535a23f103afc",
+        "target-node-feature-discovery.json": "sha256:f99c13f09ddba4f3535302734e5635e2e92465f455afa79a0edd04145f284476",
+        "target-openkruise.json": "sha256:5a21389761afac3754b294ea68ee6b390c284f1d9a71ef45d13d3b965d85e0fa",
+        "target-opentelemetry-operator.json": "sha256:6250e203499ac23c31f588e12c3feef806913fcb8eb758654ba0d1bf942250d8",
+        "target-openyurt.json": "sha256:e07a0f24d7c8ee0def784828e860eb95c5daa81f9ecb8c97695d3cf99fdc7c29",
+        "target-percona-postgresql-operator.json": "sha256:0675a964361aca4eae70f5fb08b4348234ef755f4991364f2e93adf4f3fcef74",
+        "target-prometheus-operator.json": "sha256:61db44e492ba843d4ab427345feb42f2cc7e96858ebd519c0dfaed35fdc7f3ba",
+        "target-rancher.json": "sha256:507fb9f5031f6aedaeebc0f61785aba7820cca755a78c5c99cd308103730e9bb",
+        "target-rook.json": "sha256:28c4d5e497f34778c005af02c62b05786b963d2a3a4d55e5e53ca3e92606326c",
+        "target-schemahero.json": "sha256:b93aed6559c69801c45fdfa952ec9b2012b19b8f887722cee24912746033c76b",
+        "target-strimzi.json": "sha256:ed50ff6c928c61b113328436e0005548352432016d0740cbfd52c04bd6baefe6",
+        "target-submariner.json": "sha256:7b99198634b994484e0275c7c6e00f91b64a049addafdeac1dc265bbe933b42c",
+        "target-tekton.json": "sha256:8d51d44a186e191e50b6c1ad90c4c26b3fd06a6de5c90affcb17ab21ca55dc04",
+        "target-trivy-operator.json": "sha256:fef02b9a75aea087221416d10e6c762200620ffa8f94562937d38595ba465dbd",
+        "target-velero.json": "sha256:341effbc77880643244470d179f42b59ab91077eb206223f081e8600ed160dc6",
+        "target-volcano.json": "sha256:72c6c0e186fa3f2dc944a00526e2aee9b8ddd67968bd7edcec9dc9e5206c2de0",
+        "target-wasmcloud.json": "sha256:572fb58ec45df1b1d731de8d9e90e961ed358e4ac704bf97079372aa182e0b6f"
+      },
+      "tableDigest": "sha256:723d2f4bd50870dea0fac143e4bb49f6bfaad0ee033a8dabaa9765cce4a835de",
+      "chartSourcesDigest": "sha256:723f1fc86f5602c30ea23640f1f9fd3d9f30dbd407c050b0e66fa8380ae61b4d"
+    },
+    "head": {
+      "registryDigest": "sha256:1221ab51141981c4aee6cb6e252e91ab24a890fc281b453795c2a2de5b8a935d",
+      "packRevision": "cncf-2026-09-13.8",
+      "targetsDigest": {
+        "target-akri.json": "sha256:33eafc94cae13dee4194cc430a4f8fa6d4a8348f641a1253bfedc45f9260b674",
+        "target-antrea.json": "sha256:402337c636568aea64942824d5c7679961b2a5afd426195fd7e65f57adc0e084",
+        "target-argo-cd.json": "sha256:0554b539d827d7ff4fb79af883b8169ffbb834fd662b1fa08cb0fe6475efb5ed",
+        "target-awx-operator.json": "sha256:d38b6177a97f555d50030edda0d32baa1fe484bfd1ba252648d57db590c0e6ba",
+        "target-cert-manager.json": "sha256:f85a864516e63dcc57c1aeef12907c9d7a6c9e386ec3a8462d7d628222b29326",
+        "target-chaos-mesh.json": "sha256:34ea9786af9d72e4cf4ab43bc4ede616dd10979ba2a2fcb896f2af338d53570f",
+        "target-cilium.json": "sha256:126aaf05f381bcab6619d552c12581c896d3ad7154ddaa61bed2c2c9950b17f6",
+        "target-cloudnativepg.json": "sha256:dda49305e91ae470c1e6262da8e41cc69b754e1afda1617f698e188493347888",
+        "target-cluster-api.json": "sha256:5b7101ffc43ad91ede59effdacd7aa80868998f66b3515605221113eb844188c",
+        "target-contour.json": "sha256:da007cb052fdf8c43dcb62ea6f94051825ff4311084f5c1a2714f60f8d910d73",
+        "target-crossplane.json": "sha256:ffe5efcae87a539d0f2540bd181f1fe1f05b5882613f610e0111caf38e870cab",
+        "target-cyclops.json": "sha256:b4cd199897e61bcf35ae1407993da4c4e11815c49f0cab983a4dbc3b6600f6e8",
+        "target-dapr.json": "sha256:201c079a37f1708320f414c3a72be11f05789b54919cda2c63c2939a8397deb7",
+        "target-dex.json": "sha256:82879d0d21cccf114dfa856086081a0038489033aadf7ac0de48c92635a05a0c",
+        "target-eck-operator.json": "sha256:d1f8b4b6ce0f0597e8a31272d4f8785db053bf2cdb2ac7a90a9fb10ed74a34bb",
+        "target-eraser.json": "sha256:05f9a8b8441ee22f947424d9fd50b16ed527fa4da6782858e3f371610cb7dcd6",
+        "target-external-secrets.json": "sha256:7b598ef08207a9b80d016ab2e0ec2b8960c010772249f573361a9a9563861e18",
+        "target-fluent-operator.json": "sha256:e1bbca7b734da3031573ef32c02ed9600888a7125ffab3aad7dbcb389c72547b",
+        "target-gateway-api.json": "sha256:445a8e583a481a84c8f8b4b29731bf6a5d94cf94a21ea1c842b851b998a4e418",
+        "target-grafana-operator.json": "sha256:57367fb2d3aca25fcfcbad24834df8a1625f3d334d5b56ad3a018941046eae69",
+        "target-istio.json": "sha256:c718dab9a911c6403c3f3725d9dc71d928d165a25cc85b124d4aef630ec0c79a",
+        "target-k8gb.json": "sha256:40c1feac84502d2853fb6e9b676eeb68624262730d44b682b51ba2de92a5941c",
+        "target-k8up.json": "sha256:41c50fc194d892fecfea50e883b7a755b117dd601c7e19fa692b516f1bb0881b",
+        "target-kanister.json": "sha256:b9973d3a0ded87d5252f62a24f73fee9635a4addddb859b99c52a9f52d9c10f3",
+        "target-karmada.json": "sha256:0951081497e45407a95af719db6f00ca7d37d4aac87851e92b483dc65f3f4ae6",
+        "target-kcp.json": "sha256:356c28fa81f59f5a864c201481f3f912112ed3a9a9ffcf04c26338fc33edb1c1",
+        "target-keda.json": "sha256:5f974733b3a4d7b884a549b45ad04d956c824a176025da449cbf9b3e32b98521",
+        "target-kong-ingress-controller.json": "sha256:14cea39067d135bba8f3c85552fececc6e345f1d069d2eab0e61ad59ef3720c3",
+        "target-koordinator.json": "sha256:88082dc66364edf7aad449b8691d4661be2d045887cbae6f647679f742c91732",
+        "target-kube-green.json": "sha256:7e34578ea9cf0621f22a0f90e8358ab7d1df0b7673809ac917cdf1701ead904c",
+        "target-kubernetes-ingress.json": "sha256:1319d0fe28b92c9dcfb75644608b81cfdc6040ffba819a65acebbedf74c40161",
+        "target-kubestellar.json": "sha256:28b411b7e2bb46accaf6df41097fe263846d178623d2e459eb147841a7faaaca",
+        "target-kubeswift.json": "sha256:e78480cf08f0839831e86420674658259a13dcca416253230cea0e882a591943",
+        "target-kubevela.json": "sha256:5a54780c122b790edbbdd580fdcaaee0719a6bebe33a0cb737027d8262c57973",
+        "target-kueue.json": "sha256:1efdc8e029b75b89bf08a00f755fb9cf9ef23e30975adc1217518ff427ec7090",
+        "target-kuma.json": "sha256:b8531462601c5d29c87f4afccf63140ca88cde685712dbde63e4618521206ea3",
+        "target-kyverno.json": "sha256:788166731af34425afb55e25f436c851f27e19cbcff6a4a41d51730f93564eef",
+        "target-logging-operator-kube-logging.json": "sha256:ff21bff4a4acfd88d0a62b20c7b1f669b7998c0bcb9dbbbc9479fd5a7a27dbf8",
+        "target-longhorn.json": "sha256:e014d8480cae8064af7c13323a022d34814314f8b3bc64da530d9a1e0e76897f",
+        "target-metallb.json": "sha256:94add480351132292cd5901e7944cf285cf12f571c3de4446d604b37299ca296",
+        "target-mongodb-kubernetes.json": "sha256:9e84662ee68b7d9f18cfe77b4daee7f321975540c5606e5b3a4535a23f103afc",
+        "target-node-feature-discovery.json": "sha256:f99c13f09ddba4f3535302734e5635e2e92465f455afa79a0edd04145f284476",
+        "target-openkruise.json": "sha256:5a21389761afac3754b294ea68ee6b390c284f1d9a71ef45d13d3b965d85e0fa",
+        "target-opentelemetry-operator.json": "sha256:6250e203499ac23c31f588e12c3feef806913fcb8eb758654ba0d1bf942250d8",
+        "target-openyurt.json": "sha256:e07a0f24d7c8ee0def784828e860eb95c5daa81f9ecb8c97695d3cf99fdc7c29",
+        "target-operator-lifecycle-manager.json": "sha256:0a5904031c151f47fe643247c20ac9521609c80e3f8c4b33e304ea845e1692cc",
+        "target-percona-postgresql-operator.json": "sha256:0675a964361aca4eae70f5fb08b4348234ef755f4991364f2e93adf4f3fcef74",
+        "target-prometheus-operator.json": "sha256:61db44e492ba843d4ab427345feb42f2cc7e96858ebd519c0dfaed35fdc7f3ba",
+        "target-radius.json": "sha256:3266377d0e706c8e4aba2f52fa1fce029e6dc7d2d07e373fe0c1e3f7a65ebf53",
+        "target-rancher.json": "sha256:507fb9f5031f6aedaeebc0f61785aba7820cca755a78c5c99cd308103730e9bb",
+        "target-redis-operator.json": "sha256:91939c7cb8e4528cfb03b5313e421c006509c7dcd3151f88fdcfe61500acd413",
+        "target-rook.json": "sha256:28c4d5e497f34778c005af02c62b05786b963d2a3a4d55e5e53ca3e92606326c",
+        "target-schemahero.json": "sha256:b93aed6559c69801c45fdfa952ec9b2012b19b8f887722cee24912746033c76b",
+        "target-sealed-secrets.json": "sha256:375e16ebb496464911f1b9bd20931288b06612372d5afb739773a3db9ae487cb",
+        "target-strimzi.json": "sha256:ed50ff6c928c61b113328436e0005548352432016d0740cbfd52c04bd6baefe6",
+        "target-submariner.json": "sha256:7b99198634b994484e0275c7c6e00f91b64a049addafdeac1dc265bbe933b42c",
+        "target-tekton.json": "sha256:8d51d44a186e191e50b6c1ad90c4c26b3fd06a6de5c90affcb17ab21ca55dc04",
+        "target-trivy-operator.json": "sha256:fef02b9a75aea087221416d10e6c762200620ffa8f94562937d38595ba465dbd",
+        "target-velero.json": "sha256:341effbc77880643244470d179f42b59ab91077eb206223f081e8600ed160dc6",
+        "target-volcano.json": "sha256:72c6c0e186fa3f2dc944a00526e2aee9b8ddd67968bd7edcec9dc9e5206c2de0",
+        "target-wasmcloud.json": "sha256:572fb58ec45df1b1d731de8d9e90e961ed358e4ac704bf97079372aa182e0b6f"
+      },
+      "tableDigest": "sha256:faa89dafe89039f4e1fcbed65946cb1d6b3c8a7e330e7bfed1da5d9e265ce336",
+      "chartSourcesDigest": "sha256:723f1fc86f5602c30ea23640f1f9fd3d9f30dbd407c050b0e66fa8380ae61b4d"
+    },
+    "projects": [
+      {
+        "slug": "akri",
+        "catalog": "cncf",
+        "proposalBase": "62d59b147e7730c98d16b1198151813fa60f084e",
+        "artifacts": [
+          {
+            "path": "cli/internal/customresources/table.json#projects/akri",
+            "digest": "sha256:678dd41bbc10399c7cff9a52d2642e41ab96834de75d2ef25ff4b83a1e7c7a72"
+          },
+          {
+            "path": "cli/internal/extract/crdversions/target-akri.json",
+            "digest": "sha256:33eafc94cae13dee4194cc430a4f8fa6d4a8348f641a1253bfedc45f9260b674"
+          },
+          {
+            "path": "factory:registry/projects.yaml",
+            "digest": "sha256:53eab426a1cc5e5b0d6fdbf58db7a563f5bae5e7b1c818ffa75e29be9c09fdba"
+          }
+        ],
+        "proof": {
+          "dryRunManifest": "sha256:c457d26bdf017044078268f64e9a6f1af771251d720c10a14cfc0abe7d6f8b78",
+          "dryRunBinary": "c4fa1c7b109fd6c0d9974956a7b62e7d1588a3a9f8e44b96ba59337bf4778250",
+          "codeDigest": "sha256:4beadf824b37730e51c0e4b9ce9c13e29ecdf90176dd3484c4cb39f5ee77f18f",
+          "claims": {
+            "confirmed": 11,
+            "undetermined": 0,
+            "refuted": 0
+          }
+        },
+        "facts": [
+          "component.akri.custom_resource_versions_set"
+        ],
+        "groups": [
+          "akri.sh"
+        ],
+        "reservedGroups": []
+      },
+      {
+        "slug": "awx-operator",
+        "catalog": "community",
+        "proposalBase": "62d59b147e7730c98d16b1198151813fa60f084e",
+        "artifacts": [
+          {
+            "path": "cli/internal/customresources/table.json#projects/awx-operator",
+            "digest": "sha256:4c7e2d7286b116ccb4094d665c5662aac6f94f66018c0cde4c23fc84abe111cf"
+          },
+          {
+            "path": "cli/internal/extract/crdversions/target-awx-operator.json",
+            "digest": "sha256:d38b6177a97f555d50030edda0d32baa1fe484bfd1ba252648d57db590c0e6ba"
+          },
+          {
+            "path": "factory:registry/projects.yaml",
+            "digest": "sha256:f9166d6494b130497dad450c9c3dc463085304b99ffb350ae3ed9fa889a4ba3e"
+          }
+        ],
+        "proof": {
+          "dryRunManifest": "sha256:18fc4de3af26db31cf912e45a3d12e4fb6fa74206a998514985b3e67edfc3fd7",
+          "dryRunBinary": "f4b5eb98babbc333f36e903abc119cb09e33e388330a5e8700306cc45db84599",
+          "codeDigest": "sha256:ba238a96b1fda1b4dc4802c96bfc16fede25ad43214f09d5512e2667ee8d0ebe",
+          "claims": {
+            "confirmed": 29,
+            "undetermined": 0,
+            "refuted": 0
+          }
+        },
+        "facts": [
+          "component.awx_operator.custom_resource_versions_set"
+        ],
+        "groups": [
+          "awx.ansible.com"
+        ],
+        "reservedGroups": []
+      },
+      {
+        "slug": "cyclops",
+        "catalog": "community",
+        "proposalBase": "62d59b147e7730c98d16b1198151813fa60f084e",
+        "artifacts": [
+          {
+            "path": "cli/internal/customresources/table.json#projects/cyclops",
+            "digest": "sha256:6d40e7ed67fdd3895a851ec1bce576b80b37281809aa89147190c2a283562a03"
+          },
+          {
+            "path": "cli/internal/extract/crdversions/target-cyclops.json",
+            "digest": "sha256:b4cd199897e61bcf35ae1407993da4c4e11815c49f0cab983a4dbc3b6600f6e8"
+          },
+          {
+            "path": "factory:registry/projects.yaml",
+            "digest": "sha256:b466f81cfe97dcdc49ca394c52d0bc8c5eba434d26aadeba72a87afbc6c6c3e5"
+          }
+        ],
+        "proof": {
+          "dryRunManifest": "sha256:56a4c562837762be84f0587dcfb958bbf61b7839718cab0913cbf10cdda8d989",
+          "dryRunBinary": "f9293742bccb2f4b6b623874d848b7866ac74c8740940d86701536cc18213bcb",
+          "codeDigest": "sha256:0a1a628c2a9c63fc5e5bcc2967eaf0291bca71fe4aa10f0a508b70d2cf9d57ad",
+          "claims": {
+            "confirmed": 11,
+            "undetermined": 0,
+            "refuted": 0
+          }
+        },
+        "facts": [
+          "component.cyclops.custom_resource_versions_set"
+        ],
+        "groups": [
+          "cyclops-ui.com"
+        ],
+        "reservedGroups": []
+      },
+      {
+        "slug": "fluent-operator",
+        "catalog": "community",
+        "proposalBase": "62d59b147e7730c98d16b1198151813fa60f084e",
+        "artifacts": [
+          {
+            "path": "cli/internal/customresources/table.json#projects/fluent-operator",
+            "digest": "sha256:c6131d8ad3c8c0785a51a4196d367897dc8b807060faec8be22097c1dcd29a17"
+          },
+          {
+            "path": "cli/internal/extract/crdversions/target-fluent-operator.json",
+            "digest": "sha256:e1bbca7b734da3031573ef32c02ed9600888a7125ffab3aad7dbcb389c72547b"
+          },
+          {
+            "path": "factory:registry/projects.yaml",
+            "digest": "sha256:3c2bf89202a2063f47cc49a9b261af703824f08d1884e546a3a98fe08091bac5"
+          }
+        ],
+        "proof": {
+          "dryRunManifest": "sha256:6e9f1b131104fb84718b22643d9e82789c30866cb706ba14db91db4f0d896fcd",
+          "dryRunBinary": "2feb407f6087548861c1d8c76ed9cdb848c941c8e08d822b2dc339addb5a1ac7",
+          "codeDigest": "sha256:0853856f9172fdb96061ab993bc6f3061d17ac8a9c30d40c910e3d543f90d35f",
+          "claims": {
+            "confirmed": 137,
+            "undetermined": 0,
+            "refuted": 0
+          }
+        },
+        "facts": [
+          "component.fluent_operator.custom_resource_versions_set"
+        ],
+        "groups": [
+          "fluentbit.fluent.io",
+          "fluentd.fluent.io"
+        ],
+        "reservedGroups": []
+      },
+      {
+        "slug": "kube-green",
+        "catalog": "community",
+        "proposalBase": "62d59b147e7730c98d16b1198151813fa60f084e",
+        "artifacts": [
+          {
+            "path": "cli/internal/customresources/table.json#projects/kube-green",
+            "digest": "sha256:ba5367cd5068325867a9c00803286587fce27622e581273ad6b1fa55f7a42086"
+          },
+          {
+            "path": "cli/internal/extract/crdversions/target-kube-green.json",
+            "digest": "sha256:7e34578ea9cf0621f22a0f90e8358ab7d1df0b7673809ac917cdf1701ead904c"
+          },
+          {
+            "path": "factory:registry/projects.yaml",
+            "digest": "sha256:f02f0fcc19ed1035d4b472f96e7e43757c4b85435e25a1aab7e4ac83b53c8bd4"
+          }
+        ],
+        "proof": {
+          "dryRunManifest": "sha256:1767ce8b874efbc587df4da080435f5b667ea8c88a79d1bf0a4877cdf9043392",
+          "dryRunBinary": "f24844c7d8eea012cc103e18b577fedd82dd3875a954832a3a3197955a3aea2f",
+          "codeDigest": "sha256:30c768dd19151498f44fdd9ad96001dba6cc74be57a4ac1e05987e4b2fc23dc5",
+          "claims": {
+            "confirmed": 11,
+            "undetermined": 0,
+            "refuted": 0
+          }
+        },
+        "facts": [
+          "component.kube_green.custom_resource_versions_set"
+        ],
+        "groups": [
+          "kube-green.com"
+        ],
+        "reservedGroups": []
+      },
+      {
+        "slug": "kubestellar",
+        "catalog": "cncf",
+        "proposalBase": "62d59b147e7730c98d16b1198151813fa60f084e",
+        "artifacts": [
+          {
+            "path": "cli/internal/customresources/table.json#projects/kubestellar",
+            "digest": "sha256:4e1c38ce1d1abc98bc78a4953b590f4931404df961362b482d3e24c413b62861"
+          },
+          {
+            "path": "cli/internal/extract/crdversions/target-kubestellar.json",
+            "digest": "sha256:28b411b7e2bb46accaf6df41097fe263846d178623d2e459eb147841a7faaaca"
+          },
+          {
+            "path": "factory:registry/projects.yaml",
+            "digest": "sha256:040da0eecdd864145b07617ce418126fe95d15487b8ec7c5b6ffa5a04941eaa6"
+          }
+        ],
+        "proof": {
+          "dryRunManifest": "sha256:b0a9242b0e22af80e0f1a517bd3e59a63bfc3ae4703b9b19a213edc4a895b00a",
+          "dryRunBinary": "c4fa1c7b109fd6c0d9974956a7b62e7d1588a3a9f8e44b96ba59337bf4778250",
+          "codeDigest": "sha256:2b3a46fc777deecc03a04d4579eee8b4d02720a26b4c77ba71bda9cc5aa7686d",
+          "claims": {
+            "confirmed": 35,
+            "undetermined": 0,
+            "refuted": 0
+          }
+        },
+        "facts": [
+          "component.kubestellar.custom_resource_versions_set"
+        ],
+        "groups": [
+          "control.kubestellar.io"
+        ],
+        "reservedGroups": []
+      },
+      {
+        "slug": "kubeswift",
+        "catalog": "community",
+        "proposalBase": "62d59b147e7730c98d16b1198151813fa60f084e",
+        "artifacts": [
+          {
+            "path": "cli/internal/customresources/table.json#projects/kubeswift",
+            "digest": "sha256:ffe1c3d641f389a3a3dd51175c24c0c3c3fe6dd30fab46377b38b4025bf56275"
+          },
+          {
+            "path": "cli/internal/extract/crdversions/target-kubeswift.json",
+            "digest": "sha256:e78480cf08f0839831e86420674658259a13dcca416253230cea0e882a591943"
+          },
+          {
+            "path": "factory:registry/projects.yaml",
+            "digest": "sha256:05899b94bce28788d63360e6d9089d09448ff2f05fb294e39f48af9fe95d633a"
+          }
+        ],
+        "proof": {
+          "dryRunManifest": "sha256:e727d6af5a997bdb3fc9aa64b7387e62cc5f078df39a6c8b5b83592346398ca6",
+          "dryRunBinary": "c4fa1c7b109fd6c0d9974956a7b62e7d1588a3a9f8e44b96ba59337bf4778250",
+          "codeDigest": "sha256:7cdfad428999998a4ad05e8bd2037a6cf5cc740ba6b99299e34f62a7a40c4e32",
+          "claims": {
+            "confirmed": 114,
+            "undetermined": 0,
+            "refuted": 0
+          }
+        },
+        "facts": [
+          "component.kubeswift.custom_resource_versions_set"
+        ],
+        "groups": [
+          "fleet.kubeswift.io",
+          "gpu.kubeswift.io",
+          "image.kubeswift.io",
+          "kernel.kubeswift.io",
+          "migration.kubeswift.io",
+          "sandbox.kubeswift.io",
+          "seed.kubeswift.io",
+          "snapshot.kubeswift.io",
+          "storage.kubeswift.io",
+          "swift.kubeswift.io"
+        ],
+        "reservedGroups": []
+      },
+      {
+        "slug": "operator-lifecycle-manager",
+        "catalog": "community",
+        "proposalBase": "62d59b147e7730c98d16b1198151813fa60f084e",
+        "artifacts": [
+          {
+            "path": "cli/internal/customresources/table.json#projects/operator-lifecycle-manager",
+            "digest": "sha256:39d0979b9cac1ea37c78c02469c24030c313101708ab6a2ad5be449bc406287a"
+          },
+          {
+            "path": "cli/internal/extract/crdversions/target-operator-lifecycle-manager.json",
+            "digest": "sha256:0a5904031c151f47fe643247c20ac9521609c80e3f8c4b33e304ea845e1692cc"
+          },
+          {
+            "path": "factory:registry/projects.yaml",
+            "digest": "sha256:5d706a008462041545ecf50c7fec57d064949e5d1a86b80702ff9a9588127ae4"
+          }
+        ],
+        "proof": {
+          "dryRunManifest": "sha256:72d8daa6791cf0ff7aa918d2e037cc830d4b44993886c70b73c894bc5ed9a1ed",
+          "dryRunBinary": "a908a1907b017306e3039c169158ccea03a3c9625196e4cd3272d2c450986351",
+          "codeDigest": "sha256:0af69fc644be77a3415a7a49b1c6ba0ffc82b641acb44bf278cbd2653730a1c7",
+          "claims": {
+            "confirmed": 65,
+            "undetermined": 0,
+            "refuted": 0
+          }
+        },
+        "facts": [
+          "component.operator_lifecycle_manager.custom_resource_versions_set"
+        ],
+        "groups": [
+          "operators.coreos.com"
+        ],
+        "reservedGroups": []
+      },
+      {
+        "slug": "radius",
+        "catalog": "cncf",
+        "proposalBase": "62d59b147e7730c98d16b1198151813fa60f084e",
+        "artifacts": [
+          {
+            "path": "cli/internal/customresources/table.json#projects/radius",
+            "digest": "sha256:998592d23fca5676ceb22c9454d95624d1d0e9f448a00a880dda2dbfadbced94"
+          },
+          {
+            "path": "cli/internal/extract/crdversions/target-radius.json",
+            "digest": "sha256:3266377d0e706c8e4aba2f52fa1fce029e6dc7d2d07e373fe0c1e3f7a65ebf53"
+          },
+          {
+            "path": "factory:registry/projects.yaml",
+            "digest": "sha256:b8bc404d07750729172d9dea15b2d96ec15a3b53b0b9a8a232c3d42af94d91da"
+          }
+        ],
+        "proof": {
+          "dryRunManifest": "sha256:ee75bdc9496098cad1cdc28e73a3f211e0596382c35022424b6901ccb984f229",
+          "dryRunBinary": "c4fa1c7b109fd6c0d9974956a7b62e7d1588a3a9f8e44b96ba59337bf4778250",
+          "codeDigest": "sha256:9af4024177476f95e1dfc3ec75b72b0579afd810bc782780f1f8e459619ca5ba",
+          "claims": {
+            "confirmed": 34,
+            "undetermined": 0,
+            "refuted": 0
+          }
+        },
+        "facts": [
+          "component.radius.custom_resource_versions_set"
+        ],
+        "groups": [
+          "radapp.io",
+          "ucp.dev"
+        ],
+        "reservedGroups": []
+      },
+      {
+        "slug": "redis-operator",
+        "catalog": "community",
+        "proposalBase": "62d59b147e7730c98d16b1198151813fa60f084e",
+        "artifacts": [
+          {
+            "path": "cli/internal/customresources/table.json#projects/redis-operator",
+            "digest": "sha256:987c054201dfc2fbff1bea7121f55ee3207cc6493acc00cae0936502233f8476"
+          },
+          {
+            "path": "cli/internal/extract/crdversions/target-redis-operator.json",
+            "digest": "sha256:91939c7cb8e4528cfb03b5313e421c006509c7dcd3151f88fdcfe61500acd413"
+          },
+          {
+            "path": "factory:registry/projects.yaml",
+            "digest": "sha256:da277dd2707039fda0382e8cf949e6a3f4333841b2ff5670ad32d4291692c38e"
+          }
+        ],
+        "proof": {
+          "dryRunManifest": "sha256:4735fff449857fb921b9d6c8d0532aa664ab2b92445e7d78353ad11c85bfdc4e",
+          "dryRunBinary": "92933d3881753d92f248870ebbf7d5bc0b664a039ea8adf0f11f25543e9bfe3e",
+          "codeDigest": "sha256:b08bf8157d7a139332929ebbb5d5bcf211914ed36bd199c072a4198e6031536b",
+          "claims": {
+            "confirmed": 29,
+            "undetermined": 0,
+            "refuted": 0
+          }
+        },
+        "facts": [
+          "component.redis_operator.custom_resource_versions_set"
+        ],
+        "groups": [
+          "redis.redis.opstreelabs.in"
+        ],
+        "reservedGroups": []
+      },
+      {
+        "slug": "sealed-secrets",
+        "catalog": "community",
+        "proposalBase": "62d59b147e7730c98d16b1198151813fa60f084e",
+        "artifacts": [
+          {
+            "path": "cli/internal/customresources/table.json#projects/sealed-secrets",
+            "digest": "sha256:e1e2d05e1a2dbab5c49ef8126d54b087ebf5f5d6249327ade0458c882c111a2b"
+          },
+          {
+            "path": "cli/internal/extract/crdversions/target-sealed-secrets.json",
+            "digest": "sha256:375e16ebb496464911f1b9bd20931288b06612372d5afb739773a3db9ae487cb"
+          },
+          {
+            "path": "factory:registry/projects.yaml",
+            "digest": "sha256:a63c277e710f6f9edd13824d73076c582cb5f27ae57d749ba3427fe337fcab13"
+          }
+        ],
+        "proof": {
+          "dryRunManifest": "sha256:7723537acd604529160d84247031399d04794de033a2af0db0cc5debb4b38bf5",
+          "dryRunBinary": "c4fa1c7b109fd6c0d9974956a7b62e7d1588a3a9f8e44b96ba59337bf4778250",
+          "codeDigest": "sha256:ac401211dc50a389a563217d9cd5848cada55acdc7249b5f7ede023150db1105",
+          "claims": {
+            "confirmed": 11,
+            "undetermined": 0,
+            "refuted": 0
+          }
+        },
+        "facts": [
+          "component.sealed_secrets.custom_resource_versions_set"
+        ],
+        "groups": [
+          "bitnami.com"
+        ],
+        "reservedGroups": []
+      }
+    ],
+    "changeSetDigest": "sha256:02652af01909a9410b7fe3e138a29c866f3cfc35c8f4928060184e41587a686c",
+    "summaryDigest": "sha256:57b4bb61e17a21305ff9679be9ea3d314619f0251c54c99eb6023f2501b6869f",
+    "sample": []
+  },
+  "keyId": "",
+  "signature": ""
+}

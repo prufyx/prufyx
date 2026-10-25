@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "kube-green",
+    "catalog": "community",
+    "name": "kube-green",
+    "repo": "github.com/kube-green/kube-green",
+    "component": "pkg:github/kube-green/kube-green",
+    "factProject": "kube_green",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.2",
+    "paths": [
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}
