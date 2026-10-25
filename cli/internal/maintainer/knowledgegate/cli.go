@@ -675,7 +675,7 @@ func sourceFlag(source string, citeTimeout time.Duration, getenv func(string) st
 		// The citation verifier's GitHub API calls use the same token, so
 		// they are counted against the same budget.
 		objects := rulecheck.NewGitHubObjects(token)
-		objects.Admit, objects.Observe = src.CitationAdmit, src.CitationObserve
+		objects.Admit, objects.Observe, objects.ObserveAnon = src.CitationAdmit, src.CitationObserve, src.CitationObserveAnon
 		return src, &rulecheck.CitationVerifier{Resolver: objects, Fetcher: rulecheck.HTTPFetcher{}, Concurrency: 4, Timeout: citeTimeout}, nil
 	case strings.HasPrefix(source, "fixture:") && len(source) > len("fixture:"):
 		return extract.FixtureReader{Root: strings.TrimPrefix(source, "fixture:")}, OfflineCitations{}, nil

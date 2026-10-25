@@ -229,6 +229,11 @@ func (g *GitHubSource) CitationObserve(resp *http.Response) error {
 // errAnonRefused marks a 403 that the anonymous retry of get also got.
 var errAnonRefused = errors.New("also refused without token")
 
+// CitationObserveAnon is CitationObserve for the token-less retry after a 403.
+func (g *GitHubSource) CitationObserveAnon(resp *http.Response) error {
+	return g.noteRateLimit(resp, true)
+}
+
 // noteRateLimit reads GitHub's rate limit headers from an API response.
 // anonRetry is true for the token-less retry after a 403: its remaining count
 // belongs to the shared per-IP anonymous pool, not to the token, so it is not

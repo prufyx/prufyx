@@ -154,7 +154,7 @@ func TestCitationRequestsCountAgainstTheSharedBudget(t *testing.T) {
 	src := &GitHubSource{MaxRESTRequests: 2}
 	objects := rulecheck.NewGitHubObjects("t")
 	objects.APIBase = srv.URL
-	objects.Admit, objects.Observe = src.CitationAdmit, src.CitationObserve
+	objects.Admit, objects.Observe, objects.ObserveAnon = src.CitationAdmit, src.CitationObserve, src.CitationObserveAnon
 	_, err := objects.RevisionReachable(context.Background(), "o", "r", sha('a'))
 	if !errors.Is(err, ErrBudgetExhausted) {
 		t.Fatalf("err = %v, want ErrBudgetExhausted", err)
