@@ -74,15 +74,31 @@ func TestBotTierKeyFile(t *testing.T) {
 	}
 }
 
-// A key file without tier fields (every key file today) parses as before:
-// all keys are owner keys, no bots, and it serialises without new members.
+// oldApprovalKeyFile is the committed key file as it was before the bot tier
+// existed (no tier fields, no bots). It is a fixed copy, not the live file,
+// because registering a bot key adds both to the live file.
+const oldApprovalKeyFile = `{
+  "schema": "prufyx.io/web-approval-keys/v1",
+  "role": "web-approval",
+  "owners": [
+    "airstand"
+  ],
+  "keys": [
+    {
+      "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+      "publicKey": "017df93925df41dfa873b55664ed44b8d563d4e656b9288b7fdfb150425c274c",
+      "notAfter": "2027-10-16T00:00:00Z"
+    }
+  ]
+}
+`
+
+// A key file without tier fields (every key file before the bot tier) parses
+// as before: all keys are owner keys, no bots, and it serialises without new
+// members.
 func TestBotTierOldKeyFileUnchanged(t *testing.T) {
 	t.Parallel()
-	raw, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(DefaultLayout().ApprovalKeysPath)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	k, err := ParseApprovalKeys(raw)
+	k, err := ParseApprovalKeys([]byte(oldApprovalKeyFile))
 	if err != nil {
 		t.Fatal(err)
 	}
