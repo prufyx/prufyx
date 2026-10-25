@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "grafana-operator",
+    "catalog": "community",
+    "name": "grafana-operator",
+    "repo": "github.com/grafana/grafana-operator",
+    "component": "pkg:github/grafana/grafana-operator",
+    "factProject": "grafana_operator",
+    "tagPrefixes": ["v", ""],
+    "minFrom": "5.20",
+    "paths": [
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

@@ -1,0 +1,283 @@
+{
+  "schema": "prufyx.io/knowledge-onboarding-batch/v1",
+  "record": {
+    "base": {
+      "packRevision": "cncf-2026-09-13.8",
+      "registryDigest": "sha256:3915e9971eecfa21d8cfc2f14bd40833321bd81c2d45085f1b28ac14e6a5314e",
+      "tableDigest": "sha256:c6d3a72a1597bfc6b553c147608b098e2747d72a78c1112a91aab07b39ffcd89",
+      "targetsDigest": "sha256:f9355ed1a8c36a801704f76c8e6482524d62a928ede6e982a31c8aa49e852544"
+    },
+    "batchId": "ob-20261023-1",
+    "candidateId": "pr-198",
+    "changeSetDigest": "sha256:81c8b02f0ebd8f37ed453221c054bced3f8b37dd7c7255e5952f2dd7ff7d9f72",
+    "decidedAt": "2026-10-25T10:02:31Z",
+    "decision": "approve",
+    "head": {
+      "packRevision": "cncf-2026-09-13.8",
+      "registryDigest": "sha256:cf779b59e096857d29a64a2e2026fddced0fa2535cfb0e2069f37f6bc4a60393",
+      "tableDigest": "sha256:723d2f4bd50870dea0fac143e4bb49f6bfaad0ee033a8dabaa9765cce4a835de",
+      "targetsDigest": "sha256:3d781157a876365a09c380e89c6fb312341b88c89e752d8a6a08e9d7d4d98634"
+    },
+    "identity": "airstand",
+    "nonce": "60d0d343166425a53228ec0e46383272",
+    "notAfter": "2026-10-28T10:02:31Z",
+    "projects": [
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:57367fb2d3aca25fcfcbad24834df8a1625f3d334d5b56ad3a018941046eae69",
+            "path": "cli/internal/extract/crdversions/target-grafana-operator.json"
+          }
+        ],
+        "catalog": "community",
+        "facts": [
+          "component.grafana_operator.custom_resource_versions_set"
+        ],
+        "groups": [
+          "grafana.integreatly.org"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 81,
+            "ledger": "sha256:17131374d57f1feda4bc9a01af5fb845bacb22e1571317401165ea077420c648",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "065a718a1fe83728d08054c299de7f8577e88f79",
+            "fromTag": "v5.24.0",
+            "toCommit": "1d8584df2127ad9341567efb2683adaf25894ebe",
+            "toTag": "v5.25.0"
+          },
+          "scan": [
+            {
+              "class": "kustomize-config",
+              "path": "config/crd/kustomizeconfig.yaml",
+              "sha256": "sha256:6d7795b478715403133638a62e9d24a6bfef7629809e14cc73e8d2ea457594d9"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_grafanaalertrulegroups.yaml",
+              "sha256": "sha256:f86b50ab656d5a1ee0121af9311511e241b0a3bb94403179aed6cd53329e5881"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_grafanacontactpoints.yaml",
+              "sha256": "sha256:12c9b454c4119404ec02c2e5e45a6ac8b83be8bee99693d23a7920256b32cbfd"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_grafanadashboards.yaml",
+              "sha256": "sha256:c7636085f12c072e62b785f4791e5c39dbaa92ac4e03a4519e750e7dcca3c9e8"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_grafanadatasources.yaml",
+              "sha256": "sha256:c78fb62a0531aba2b2b82d465b665d2556378f08895e750526ebe44142b4b26e"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_grafanafolders.yaml",
+              "sha256": "sha256:73ebd6d719f8e658b1255d11caf06ead997679f8261685fd9759abb56314faef"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_grafananotificationpolicyroutes.yaml",
+              "sha256": "sha256:41f53f638f4ed4c22849388194e267d0f8ad1b31d4352a11c7d81006cb318c65"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_grafanas.yaml",
+              "sha256": "sha256:73debf4226b7d6ec8bc08a8694613dfc43af8d6bf2bdd26214e18c225f9b6d94"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_grafanaalertrulegroups.yaml",
+              "sha256": "sha256:c6d8bd66ce391199deaf22b084e8812ebad2986a66dbafc2d6bb14407320299c"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_grafanacontactpoints.yaml",
+              "sha256": "sha256:d7af6513ca6d0169561d61934cb9081c7388c3b9495f2584c829ac227241536f"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_grafanadashboards.yaml",
+              "sha256": "sha256:4fa5abda82ab3895229de312dbe02ccd5df026f04689ad127488ff6696dbf517"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_grafanadatasources.yaml",
+              "sha256": "sha256:5578bea5173f444d9557b0abee69156ebac44fa31bdd4c4ac477ca90001fbd4a"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_grafanafolders.yaml",
+              "sha256": "sha256:a36e7e519bf8b36bf9cc817d40d8aad8816cea88714ca6dea8d614ce13389771"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_grafananotificationpolicyroutes.yaml",
+              "sha256": "sha256:03fe2eb7711897db6b78dbf14fc1d8b18ad5c847270d4a55e0a6e4cd8be340aa"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_grafanas.yaml",
+              "sha256": "sha256:cb009fa0646f44a0f85ebe7b2f0f095d5b584f84c8b00b98d74b8d0a1a382d1d"
+            },
+            {
+              "class": "extra",
+              "path": "tests/fixtures/route_crd.yaml",
+              "sha256": "sha256:d3e1a040bd200406a44d8cdc11810e3b59289738ea4b69d3e89a3dd8cb0a915c"
+            }
+          ]
+        },
+        "slug": "grafana-operator"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:1319d0fe28b92c9dcfb75644608b81cfdc6040ffba819a65acebbedf74c40161",
+            "path": "cli/internal/extract/crdversions/target-kubernetes-ingress.json"
+          }
+        ],
+        "catalog": "community",
+        "facts": [
+          "component.kubernetes_ingress.custom_resource_versions_set"
+        ],
+        "groups": [
+          "appprotect.f5.com",
+          "appprotectdos.f5.com",
+          "externaldns.nginx.org",
+          "k8s.nginx.org"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 77,
+            "ledger": "sha256:7e117cef24407e62c965b0942c4e71321e79740fc55d7cfeaf99e85ff343e5ea",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "99a5d02f03b3e88a29143abe95d2e0edf0aae1c5",
+            "fromTag": "v5.6.0",
+            "toCommit": "205828534dd07f1a73440dce23a25a7feefcc395",
+            "toTag": "v5.7.0"
+          },
+          "scan": []
+        },
+        "slug": "kubernetes-ingress"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:6250e203499ac23c31f588e12c3feef806913fcb8eb758654ba0d1bf942250d8",
+            "path": "cli/internal/extract/crdversions/target-opentelemetry-operator.json"
+          }
+        ],
+        "catalog": "community",
+        "facts": [
+          "component.opentelemetry_operator.custom_resource_versions_set"
+        ],
+        "groups": [
+          "opentelemetry.io"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 41,
+            "ledger": "sha256:e7dae41cf1fd2d344f8ce58a755ccd0fc86a396b41fdcabc64f867e66ab37cfa",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "f3bd3660c30ec57f60b0e9706a14507b747bceb4",
+            "fromTag": "v0.161.0",
+            "toCommit": "989089bf5c75d78fdc6004147f97d972fc436bd4",
+            "toTag": "v0.162.0"
+          },
+          "scan": [
+            {
+              "class": "kustomize-config",
+              "path": "config/crd/kustomizeconfig.yaml",
+              "sha256": "sha256:527b0a00ef8b8fc9f8333c17f1ddf2f33ba07e95d00d369c9c1e86eafedc37af"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_opampbridges.yaml",
+              "sha256": "sha256:c68e4d4b615747ab1fac15452fb4a68e805ac17d41c9808bd58339a0d4e7ca8a"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_opentelemetrycollectors.yaml",
+              "sha256": "sha256:5b2a471eeabe8bd767b7bb9aaf31468b1927c0fbec932fec2b8254afb2d80178"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_targetallocators.yaml",
+              "sha256": "sha256:2f5af564dde2fefdf898a12bbaf314a153f2bad1229f5195fb6bd5fd74ad1575"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_opentelemetrycollectors.yaml",
+              "sha256": "sha256:5e0ccda58bb503cb5bc582afd1a67c3425ed4cf8a2d099f5218643795619e1a8"
+            },
+            {
+              "class": "unread",
+              "path": "config/overlays/openshift/remove-cert-manager-annotations.yaml",
+              "sha256": "sha256:3cdd529c412b6b244ea318425b8e6094a5ac0893ccec15bc9a3fdb809827353c"
+            },
+            {
+              "class": "conflict",
+              "path": "tests/e2e-upgrade/upgrade-test/opentelemetry-operator-v0.86.0.yaml",
+              "sha256": "sha256:ecdd672ea8dbe7deb6561b453139339a29c1fdb20e902166280540341365f899"
+            }
+          ]
+        },
+        "slug": "opentelemetry-operator"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:fef02b9a75aea087221416d10e6c762200620ffa8f94562937d38595ba465dbd",
+            "path": "cli/internal/extract/crdversions/target-trivy-operator.json"
+          }
+        ],
+        "catalog": "community",
+        "facts": [
+          "component.trivy_operator.custom_resource_versions_set"
+        ],
+        "groups": [
+          "aquasecurity.github.io"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 77,
+            "ledger": "sha256:ca2b9748614281a2751938cfb3cf9d5819a7206b5de5620da58495036e7b6fe7",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "5171971e35c7b1d8a0e47a94a2326da4d97ff417",
+            "fromTag": "v0.35.0",
+            "toCommit": "047f1d95f4f8355569aadbdad0f1c74550c6cbec",
+            "toTag": "v0.36.0"
+          },
+          "scan": []
+        },
+        "slug": "trivy-operator"
+      }
+    ],
+    "sample": [
+      0,
+      2,
+      3
+    ],
+    "summaryDigest": "sha256:d7f0e67f674b268ebc341efac99b4d9a315c02e703b01eaf47508d55d02c8df1"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "oQBCAJRxxuzqWIsvckJXPfjCIDzdYfXqlm5dg+giru7RsRN33mnpUDGbxBI5pFGrs9Yyqq1Uwc4/OcHFoeW5Cw=="
+}

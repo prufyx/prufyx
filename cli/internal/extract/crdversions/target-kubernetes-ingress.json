@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "kubernetes-ingress",
+    "catalog": "community",
+    "name": "kubernetes-ingress",
+    "repo": "github.com/nginx/kubernetes-ingress",
+    "component": "pkg:github/nginx/kubernetes-ingress",
+    "factProject": "kubernetes_ingress",
+    "tagPrefixes": ["v"],
+    "minFrom": "5.2",
+    "paths": [
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}
