@@ -105,6 +105,15 @@ func TestCommunityComponentIsAMember(t *testing.T) {
 	for _, p := range customresources.CommunityProjects() {
 		a := crdAttestation("a.rule")
 		a.Component = p.Component
+		if CalverComponent(p.Component) {
+			// A calendar component's lines are months: the line before
+			// 26.10 is 26.9, not a minor of one major.
+			a.Line = "26.10"
+			a.Releases = &Releases{
+				From: []Release{{Version: "26.9.2", Commit: commit(1)}},
+				To:   []Release{{Version: "26.10.2", Commit: commit(3)}},
+			}
+		}
 		if err := a.Validate(); err != nil {
 			t.Fatalf("%s: community attestation invalid: %v", p.Slug, err)
 		}
