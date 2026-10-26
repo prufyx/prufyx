@@ -23,6 +23,7 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
+case "$lines" in /*) ;; *) lines="$(pwd -P)/$lines" ;; esac
 [ -n "$now" ] || now="$(jq -r '.capturedOn' "$lines")T12:00:00Z"
 
 tmp=$(mktemp -d)
@@ -36,6 +37,7 @@ inv="$root/cli/docs/generated/community-support-inventory.json"
 jq -r --slurpfile inv "$inv" --arg now "$now" '
   def pct(a; b): if b == 0 then "0%" else ((a * 1000 / b | floor) / 10 | tostring) + "%" end;
   ($inv[0].counts) as $c
+  | . as $r
   | .fleet as $f
   | (.projects[] | select(.project == "kubernetes")) as $k
   | "Generated on \($now[0:10]) by `scripts/readme-coverage.sh` (do not edit this block by hand).\n"
@@ -45,6 +47,7 @@ jq -r --slurpfile inv "$inv" --arg now "$now" '
   + "| Rules for further, non-CNCF projects | \($c.communityProjectSourceRules) across \($c.communityProjectRuleProjects) projects |\n"
   + "| Projects with at least one executable check | \($c.executableProjects) |\n"
   + "| Projects catalogued with retained public sources | \($c.selectedSourceProjects) (\($c.selectedSourceOnlyProjects) of them source-only, no check) |\n"
+  + "| Projects with CRD version knowledge (a reviewed `crd.custom_resource_versions` target) | \($r.crdVersionProjects) |\n"
   + "\n"
   + "Version-coverage depth, measured over the last five minor upgrades of each of the \($f.projects) projects with a release-line snapshot (\($f.pairs) upgrades between consecutive release lines):\n"
   + "\n"

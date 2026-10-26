@@ -51,6 +51,9 @@ type Input struct {
 	All bool
 	// Declared is the declared-unknown file; nil means the embedded one.
 	Declared []byte
+	// CRDVersionProjects is copied into the report when set (see
+	// CRDProjectCount); zero leaves the member out.
+	CRDVersionProjects int
 }
 
 // Pair is one consecutive pair of lines and its status.
@@ -150,9 +153,13 @@ type Report struct {
 	// PackProjects is the number of projects with a valid rule or
 	// attestation in the pack, whether or not lines are known for them. A
 	// community project counts only through a current attestation.
-	PackProjects int    `json:"packProjectsCovered"`
-	Fleet        Totals `json:"fleet"`
-	Priority     Totals `json:"priorityProjects"`
+	PackProjects int `json:"packProjectsCovered"`
+	// CRDVersionProjects is the number of distinct projects with a reviewed
+	// crd.custom_resource_versions target: the projects whose CRD version
+	// knowledge exists, whether or not lines are known for them.
+	CRDVersionProjects int    `json:"crdVersionProjects,omitempty"`
+	Fleet              Totals `json:"fleet"`
+	Priority           Totals `json:"priorityProjects"`
 	// CommunityCatalog totals the community-catalog projects apart from
 	// the fleet; it is absent when the lines snapshot lists none.
 	CommunityCatalog *Totals   `json:"communityCatalog,omitempty"`
@@ -349,6 +356,7 @@ func Compute(in Input) (Report, error) {
 	}
 
 	var report Report
+	report.CRDVersionProjects = in.CRDVersionProjects
 	report.Schema = Schema
 	report.Now = now.Format(time.RFC3339)
 	report.Window = window

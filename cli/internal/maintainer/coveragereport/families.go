@@ -135,3 +135,13 @@ func registrations(slug string) []registration {
 func registeredFamilies() []string {
 	return []string{lineattest.FamilyCustomResourceVersions, FamilyHelmValuesSchema, lineattest.FamilyKubernetesRemovedServedGVK}
 }
+
+// CRDProjectCount counts the distinct projects among the reviewed
+// crd.custom_resource_versions targets.
+func CRDProjectCount() int {
+	seen := map[string]bool{}
+	for _, t := range crdversions.Targets {
+		seen[t.Project] = true
+	}
+	return len(seen)
+}
