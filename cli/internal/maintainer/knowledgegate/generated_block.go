@@ -32,6 +32,13 @@ type GeneratedBlock struct {
 	Render func(t Tree) (string, error)
 	// More are further regions of the same file.
 	More []BlockRegion
+	// Sources are the repository files of the renderer of this block. A
+	// change that moves one is checked by the head's own test (the base
+	// gate renders with the base's code, which cannot know the new
+	// renderer); it is never admitted as an automatic change.
+	Sources []string
+	// HeadTest names the test of the head that verifies the block.
+	HeadTest string
 }
 
 // BlockRegion is one more generated region of a GeneratedBlock's file.
@@ -100,11 +107,30 @@ func (l Layout) admittedBlocks(base, head Tree) map[string]bool {
 	return out
 }
 
+// sourceChanged returns the renderer source files of the block that the
+// change moves.
+func (g GeneratedBlock) sourceChanged(changed []string) []string {
+	var out []string
+	for _, p := range changed {
+		if slices.Contains(g.Sources, p) {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
 // blockChecks checks, for every change, that each generated block of the
-// head equals the rendering of the head's own data.
+// head equals the rendering of the head's own data. When the change moves
+// the renderer of a block, the gate (built from the base code) cannot judge
+// the block; the check does not fail then and the head's test
+// (TestCoverageBlockMatchesRepositoryREADME or its preview twin) verifies it.
 func (r *Report) blockChecks(opts Options) {
 	for _, g := range opts.Layout.GeneratedBlocks {
 		name := "generated/" + g.Path
+		if moved := g.sourceChanged(r.ChangedPaths); len(moved) > 0 {
+			r.add(name, true, "renderer changed in this change; verified by the head's %s", g.HeadTest)
+			continue
+		}
 		want, err := g.Want(opts.Head, opts.Head)
 		if err != nil {
 			r.add(name, false, "cannot regenerate the block: %v", logSafe(err.Error()))
