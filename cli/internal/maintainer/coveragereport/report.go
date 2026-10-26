@@ -55,10 +55,11 @@ type Input struct {
 	// CRDVersionProjects is copied into the report when set (see
 	// CRDProjectCount); zero leaves the member out.
 	CRDVersionProjects int
-	// CRDTargetProjects lists the projects with a reviewed target (see
-	// CRDProjectSlugs); when set, the report counts those that also have a
-	// published rule or line attestation of the CRD version family.
-	CRDTargetProjects []string
+	// CRDTargetComponents maps the projects with a reviewed target to the
+	// component of the target (see CRDProjectComponents); when set, the
+	// report counts those that also have a published rule or line
+	// attestation of the CRD version family.
+	CRDTargetComponents map[string]string
 }
 
 // Pair is one consecutive pair of lines and its status.
@@ -350,7 +351,7 @@ func Compute(in Input) (Report, error) {
 	attsByProject := map[string][]lineattest.LineAttestation{}
 	expiringAtt := map[string]int{}
 	validAtt := map[string]int{}
-	crdAtt := map[string]bool{}
+	crdAttComponent := map[string]bool{}
 	for _, a := range atts {
 		project, ok := componentProject[a.Component]
 		if !ok {
@@ -361,9 +362,6 @@ func Compute(in Input) (Report, error) {
 		}
 		attsByProject[project] = append(attsByProject[project], a)
 		validAtt[project]++
-		if a.FactFamily == lineattest.FamilyCustomResourceVersions {
-			crdAtt[project] = true
-		}
 		if until, err := constraintengine.ParseUTC(a.Evidence.ValidUntil); err == nil && until.Sub(now) <= ExpiryHorizon {
 			expiringAtt[project]++
 		}
@@ -417,8 +415,13 @@ func Compute(in Input) (Report, error) {
 		report.PackProjects++
 	}
 
-	for _, project := range in.CRDTargetProjects {
-		published := crdAtt[project]
+	for _, a := range atts {
+		if a.FactFamily == lineattest.FamilyCustomResourceVersions && a.Freshness(now) == lineattest.FreshnessCurrent {
+			crdAttComponent[a.Component] = true
+		}
+	}
+	for project, component := range in.CRDTargetComponents {
+		published := crdAttComponent[component]
 		for _, r := range byProject[project] {
 			if r.valid && slices.Contains(r.families, lineattest.FamilyCustomResourceVersions) {
 				published = true

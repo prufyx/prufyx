@@ -169,11 +169,11 @@ func coverageBlock(t Tree) (string, error) {
 		return "", fmt.Errorf("the pinned lines snapshot has no captured date")
 	}
 	now := captured.Add(12 * time.Hour).UTC()
-	crd, err := crdProjectSlugs(t)
+	crd, err := crdProjectComponents(t)
 	if err != nil {
 		return "", err
 	}
-	report, err := coveragereport.Compute(coveragereport.Input{Pack: pack, Lines: linesRaw, Now: now, CRDVersionProjects: len(crd), CRDTargetProjects: crd})
+	report, err := coveragereport.Compute(coveragereport.Input{Pack: pack, Lines: linesRaw, Now: now, CRDVersionProjects: len(crd), CRDTargetComponents: crd})
 	if err != nil {
 		return "", err
 	}
@@ -198,9 +198,9 @@ func previewRegion(t Tree, render func([]byte) (string, error)) (string, error) 
 	return render(inventory)
 }
 
-// crdProjectSlugs lists the distinct projects among the CRD version targets
-// of the tree, sorted, loaded as the onboarding gate loads them.
-func crdProjectSlugs(t Tree) ([]string, error) {
+// crdProjectComponents maps the projects among the CRD version targets of the
+// tree to their target components, loaded as the onboarding gate loads them.
+func crdProjectComponents(t Tree) (map[string]string, error) {
 	targets, err := treeTargets(t, defaultOnboardingLayout().TargetsDir)
 	if err != nil {
 		return nil, err
@@ -213,15 +213,10 @@ func crdProjectSlugs(t Tree) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("the CRD version targets do not load: %v", logSafe(err.Error()))
 	}
-	seen := map[string]bool{}
+	out := map[string]string{}
 	for _, tg := range loaded {
-		seen[tg.Project] = true
+		out[tg.Project] = tg.Component
 	}
-	out := make([]string, 0, len(seen))
-	for slug := range seen {
-		out = append(out, slug)
-	}
-	slices.Sort(out)
 	return out, nil
 }
 

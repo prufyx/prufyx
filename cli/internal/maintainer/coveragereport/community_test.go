@@ -211,6 +211,7 @@ func TestCRDPublishedProjects(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	component := map[string]string{"gateway-api": s.component, "kubeswift": "pkg:github/kubeswift-io/kubeswift"}
 	cases := []struct {
 		name    string
 		entries string
@@ -227,7 +228,11 @@ func TestCRDPublishedProjects(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			r, err := Compute(Input{Pack: []byte(`{"schema":"test","revision":"synthetic","entries":[` + c.entries + `]` + c.section + `}`), Lines: linesBytes, Now: allNow, All: true, CRDVersionProjects: len(c.targets), CRDTargetProjects: c.targets})
+			targets := map[string]string{}
+			for _, p := range c.targets {
+				targets[p] = component[p]
+			}
+			r, err := Compute(Input{Pack: []byte(`{"schema":"test","revision":"synthetic","entries":[` + c.entries + `]` + c.section + `}`), Lines: linesBytes, Now: allNow, All: true, CRDVersionProjects: len(c.targets), CRDTargetComponents: targets})
 			if err != nil {
 				t.Fatal(err)
 			}
