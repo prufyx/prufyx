@@ -289,6 +289,12 @@ func DefaultLayout() Layout {
 		GeneratedBlocks: []GeneratedBlock{{
 			Path: readmePath, Begin: coveragereport.READMEBegin, End: coveragereport.READMEEnd,
 			Render: coverageBlock,
+		}, {
+			Path: PreviewPath, Begin: coveragereport.PreviewIntroBegin, End: coveragereport.PreviewIntroEnd,
+			Render: previewIntro,
+			More: []BlockRegion{{
+				Begin: coveragereport.PreviewPackBegin, End: coveragereport.PreviewPackEnd, Render: previewPack,
+			}},
 		}},
 		AutoMergePaths: []string{
 			cncfRulesPath, cncfAttestPath, commRulesPath, commAttestPath, inventoryJSON, inventoryMD,

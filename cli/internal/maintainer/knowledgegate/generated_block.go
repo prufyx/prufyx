@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing/fstest"
 	"time"
 
@@ -17,27 +18,46 @@ import (
 // readmePath is the file whose coverage block is generated.
 const readmePath = "README.md"
 
+// PreviewPath is the document whose rule-count sentences are generated.
+const PreviewPath = "cli/docs/CNCF-SOURCE-PREVIEW.md"
+
 // GeneratedBlock is a region of a prose file, between two marker lines, that
-// must equal a rendering of the change's own data. The prose outside the
-// markers is never generated and never changes in an automatic change.
+// must equal a rendering of the change's own data. A file may hold more
+// regions (More); the file then equals its prose with every region rendered.
+// The prose outside the markers is never generated and never changes in an
+// automatic change.
 type GeneratedBlock struct {
 	Path, Begin, End string
 	// Render returns the text between the markers from the data of a tree.
 	Render func(t Tree) (string, error)
+	// More are further regions of the same file.
+	More []BlockRegion
+}
+
+// BlockRegion is one more generated region of a GeneratedBlock's file.
+type BlockRegion struct {
+	Begin, End string
+	Render     func(t Tree) (string, error)
 }
 
 // Want returns the file as it must read: the prose of the prose tree with
-// the block rendered from the data tree.
+// every block rendered from the data tree.
 func (g GeneratedBlock) Want(prose, data Tree) ([]byte, error) {
 	doc, err := prose.Read(g.Path, MaxFileBytes)
 	if err != nil {
 		return nil, err
 	}
-	block, err := g.Render(data)
-	if err != nil {
-		return nil, err
+	regions := append([]BlockRegion{{Begin: g.Begin, End: g.End, Render: g.Render}}, g.More...)
+	for _, r := range regions {
+		block, err := r.Render(data)
+		if err != nil {
+			return nil, err
+		}
+		if doc, err = coveragereport.SpliceBlock(doc, r.Begin, r.End, block); err != nil {
+			return nil, err
+		}
 	}
-	return coveragereport.SpliceBlock(doc, g.Begin, g.End, block)
+	return doc, nil
 }
 
 // matches reports whether the head file is a regular file, without an
@@ -134,6 +154,24 @@ func coverageBlock(t Tree) (string, error) {
 	return coveragereport.RenderREADMEBlock(report, inventory, now)
 }
 
+// previewIntro and previewPack render the two rule-count regions of the
+// CNCF source preview from the tree's generated support inventory.
+func previewIntro(t Tree) (string, error) {
+	return previewRegion(t, coveragereport.RenderPreviewIntro)
+}
+
+func previewPack(t Tree) (string, error) {
+	return previewRegion(t, coveragereport.RenderPreviewPack)
+}
+
+func previewRegion(t Tree, render func([]byte) (string, error)) (string, error) {
+	inventory, err := t.Read(inventoryJSON, MaxFileBytes)
+	if err != nil {
+		return "", err
+	}
+	return render(inventory)
+}
+
 // crdProjectCount counts the distinct projects among the CRD version targets
 // of the tree, loaded as the onboarding gate loads them.
 func crdProjectCount(t Tree) (int, error) {
@@ -157,12 +195,16 @@ func crdProjectCount(t Tree) (int, error) {
 }
 
 // RegenerateBlocks rewrites the generated blocks of the tree rooted at root
-// with the default layout, or only checks them when check is set. It returns
+// with the default layout, or only checks them when check is set. Only the
+// files named in only are handled; none named means every block. It returns
 // the paths that were stale (check) or rewritten.
-func RegenerateBlocks(root string, check bool) ([]string, error) {
+func RegenerateBlocks(root string, check bool, only ...string) ([]string, error) {
 	tree := Tree{Root: root}
 	var changed []string
 	for _, g := range DefaultLayout().GeneratedBlocks {
+		if len(only) > 0 && !slices.Contains(only, g.Path) {
+			continue
+		}
 		want, err := g.Want(tree, tree)
 		if err != nil {
 			return changed, fmt.Errorf("%s: %w", g.Path, err)

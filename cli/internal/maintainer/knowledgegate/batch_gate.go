@@ -78,8 +78,8 @@ func batchAllowedPaths(layout Layout, base, head Tree, batchPath string) map[str
 	for _, g := range layout.Generated {
 		allowed[g.JSONPath], allowed[g.MarkdownPath] = true, true
 	}
-	// A generated block's file (the README) only when it is the base file
-	// with just its block regenerated from the head's data.
+	// A generated block's file (the README, the CNCF source preview)
+	// only when it is the base file with just its blocks regenerated from the head's data.
 	for p := range layout.admittedBlocks(base, head) {
 		allowed[p] = true
 	}
@@ -129,7 +129,7 @@ func runBatch(ctx context.Context, opts Options, cls *Classification, changedPat
 		}
 	}
 	if len(outside) > 0 {
-		return fail("a change carrying a batch approval may change only the pack files, their corpus attestations, the generated support inventory, the README coverage block regenerated from the change's data and the batch file; it also changes %d other files%s", len(outside), listDetail(outside))
+		return fail("a change carrying a batch approval may change only the pack files, their corpus attestations, the generated support inventory, the README coverage block and the CNCF source preview counts regenerated from the change's data and the batch file; it also changes %d other files%s", len(outside), listDetail(outside))
 	}
 	st, err := newBatchState(opts.Layout, cls)
 	if err != nil {

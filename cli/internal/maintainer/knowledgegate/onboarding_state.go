@@ -376,7 +376,7 @@ func (st *onboardingState) check(rec OnboardingRecord, batchPath string) []strin
 		}
 	}
 	if len(outside) > 0 {
-		bad("O2: an onboarding change may change only the batch file, the listed projects' target files, the custom-resource table, the %s pack file, its corpus attestation, the generated support inventory and the regenerated README coverage block; it also changes %d other files%s", ol.Pack, len(outside), listDetail(outside))
+		bad("O2: an onboarding change may change only the batch file, the listed projects' target files, the custom-resource table, the %s pack file, its corpus attestation, the generated support inventory and the regenerated README coverage block and CNCF source preview counts; it also changes %d other files%s", ol.Pack, len(outside), listDetail(outside))
 	}
 	// O2: the classification holds, with a new project, the pack's
 	// registryDigest; nothing else. The pack's revision never changes: it is
