@@ -63,7 +63,7 @@ var (
 	configMap    = crObject("v1", "ConfigMap", "settings")
 	route        = crObject("gateway.networking.k8s.io/v1", "HTTPRoute", "web")
 	virtualSvc   = crObject("networking.istio.io/v1", "VirtualService", "web")
-	certificate  = crObject("postgres-operator.crunchydata.com/v1beta1", "PostgresCluster", "db")
+	certificate  = crObject("unknown.example.invalid/v1beta1", "PostgresCluster", "db")
 )
 
 func TestCustomResourceVersionsComplete(t *testing.T) {

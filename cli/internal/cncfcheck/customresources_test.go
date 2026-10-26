@@ -203,7 +203,7 @@ func TestCustomResourceRuleOverPreparedInput(t *testing.T) {
 	kafka := func(version string) string {
 		return "apiVersion: kafka.strimzi.io/" + version + "\nkind: Kafka\nmetadata:\n  name: main\n  namespace: kafka\n"
 	}
-	other := "apiVersion: postgres-operator.crunchydata.com/v1beta1\nkind: PostgresCluster\nmetadata:\n  name: tls\n"
+	other := "apiVersion: unknown.example.invalid/v1beta1\nkind: PostgresCluster\nmetadata:\n  name: tls\n"
 	for name, tc := range map[string]struct {
 		docs     []string
 		complete bool

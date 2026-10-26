@@ -95,7 +95,7 @@ func TestKubernetesGroup(t *testing.T) {
 // group two projects list are attributed to nobody.
 func TestOwnerRefusesUnknownAndAmbiguousGroups(t *testing.T) {
 	x := DefaultIndex()
-	for _, group := range []string{"access.strimzi.io", "strimzi.io", "kafka.strimzi.io.example.com", "KAFKA.STRIMZI.IO", "istio.io", "install.istio.io", "argoproj.io.", "postgres-operator.crunchydata.com", "infrastructure.cluster.x-k8s.io", ""} {
+	for _, group := range []string{"access.strimzi.io", "strimzi.io", "kafka.strimzi.io.example.com", "KAFKA.STRIMZI.IO", "istio.io", "install.istio.io", "argoproj.io.", "unknown.example.invalid", "infrastructure.cluster.x-k8s.io", ""} {
 		if owner, attribution := x.Owner(group); attribution != Unknown || owner != "" {
 			t.Errorf("%q attributed to %q (%v)", group, owner, attribution)
 		}
