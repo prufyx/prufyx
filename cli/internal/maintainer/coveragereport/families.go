@@ -139,9 +139,15 @@ func registeredFamilies() []string {
 // CRDProjectCount counts the distinct projects among the reviewed
 // crd.custom_resource_versions targets.
 func CRDProjectCount() int {
-	seen := map[string]bool{}
+	return len(CRDProjectComponents())
+}
+
+// CRDProjectComponents maps every project with a reviewed
+// crd.custom_resource_versions target to the component of that target.
+func CRDProjectComponents() map[string]string {
+	out := map[string]string{}
 	for _, t := range crdversions.Targets {
-		seen[t.Project] = true
+		out[t.Project] = t.Component
 	}
-	return len(seen)
+	return out
 }

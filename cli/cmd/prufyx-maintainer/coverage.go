@@ -15,6 +15,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/coveragereport"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgegate"
+	"github.com/prufyx/prufyx/cli/internal/projectcheck"
 )
 
 const maxCoverageInput = 32 << 20
@@ -160,6 +161,10 @@ func runCoverageReport(args []string, stdout io.Writer) error {
 	if err != nil {
 		return &commandError{code: 2, message: "coverage report: pack is unreadable", err: err}
 	}
+	community, err := projectcheck.EmbeddedRulePack()
+	if err != nil {
+		return &commandError{code: 2, message: "coverage report: community pack is unreadable", err: err}
+	}
 	lines, err := readBounded(*linesPath)
 	if err != nil {
 		return &commandError{code: 2, message: "coverage report: lines file is unreadable", err: err}
@@ -170,7 +175,7 @@ func runCoverageReport(args []string, stdout io.Writer) error {
 			return &commandError{code: 2, message: "coverage report: declared file is unreadable", err: err}
 		}
 	}
-	report, err := coveragereport.Compute(coveragereport.Input{Pack: pack, Lines: lines, Now: now, Window: window, All: all, Declared: declared, CRDVersionProjects: coveragereport.CRDProjectCount()})
+	report, err := coveragereport.Compute(coveragereport.Input{Pack: pack, Lines: lines, Now: now, Window: window, All: all, Declared: declared, CRDVersionProjects: coveragereport.CRDProjectCount(), CRDTargetComponents: coveragereport.CRDProjectComponents(), CommunityPack: community})
 	if err != nil {
 		return &commandError{code: 2, message: "coverage report: input rejected", err: err}
 	}

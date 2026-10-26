@@ -196,3 +196,74 @@ func TestCNCFOutputsAreIndependentOfCommunityRecords(t *testing.T) {
 		t.Fatalf("community totals %+v", both.CommunityCatalog)
 	}
 }
+
+// A reviewed target alone is not data: only a valid rule or a current line
+// attestation of the CRD version family makes a target project count as
+// published, and a project outside the target list never does.
+func TestCRDPublishedProjects(t *testing.T) {
+	s := gatewayScenario("1.1", "1.2", "1.3")
+	prev, _ := lineattest.PreviousLine("", "1.3")
+	section, err := lineattest.Marshal([]lineattest.LineAttestation{s.attestation(t, "1.3", prev)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	linesBytes, err := MarshalLines(LinesFile{Schema: LinesSchema, CapturedOn: allCaptured, Projects: map[string]ProjectLines{"other": {Lines: []string{"1.0", "1.1"}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	expired, err := lineattest.Marshal([]lineattest.LineAttestation{func() lineattest.LineAttestation {
+		a := s.attestation(t, "1.3", prev)
+		a.Evidence.ValidUntil = "2026-10-05T00:00:00Z"
+		return a
+	}()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	expiredRule := strings.Replace(gatewayRule, "2026-12-15T00:00:00Z", "2026-10-05T00:00:00Z", 1)
+	withdrawnRule := strings.Replace(gatewayRule, `"state":"active"`, `"state":"withdrawn"`, 1)
+	community := func(entries, section string) string {
+		return `{"schema":"test","revision":"synthetic","entries":[` + entries + `]` + section + `}`
+	}
+	component := map[string]string{"gateway-api": s.component, "kubeswift": "pkg:github/kubeswift-io/kubeswift"}
+	cases := []struct {
+		name    string
+		entries string
+		section string
+		targets []string
+		// pack is the community pack; empty means none.
+		pack string
+		want int
+	}{
+		{"targets only", "", "", []string{"gateway-api", "kubeswift"}, "", 0},
+		{"rule", gatewayRule, "", []string{"gateway-api", "kubeswift"}, "", 1},
+		{"attestation", "", `,"lineAttestations":` + string(section), []string{"gateway-api", "kubeswift"}, "", 1},
+		{"rule and attestation count once", gatewayRule, `,"lineAttestations":` + string(section), []string{"gateway-api", "kubeswift"}, "", 1},
+		{"data of a project without a target", gatewayRule, `,"lineAttestations":` + string(section), []string{"kubeswift"}, "", 0},
+		{"no target list", gatewayRule, `,"lineAttestations":` + string(section), nil, "", 0},
+		{"expired attestation", "", `,"lineAttestations":` + string(expired), []string{"gateway-api", "kubeswift"}, "", 0},
+		{"expired rule", expiredRule, "", []string{"gateway-api", "kubeswift"}, "", 0},
+		{"invalid rule", withdrawnRule, "", []string{"gateway-api", "kubeswift"}, "", 0},
+		{"community rule", "", "", []string{"gateway-api", "kubeswift"}, community(gatewayRule, ""), 1},
+		{"community attestation", "", "", []string{"gateway-api", "kubeswift"}, community("", `,"lineAttestations":`+string(section)), 1},
+		{"community and main count once", gatewayRule, "", []string{"gateway-api", "kubeswift"}, community(gatewayRule, `,"lineAttestations":`+string(section)), 1},
+		{"community expired attestation", "", "", []string{"gateway-api", "kubeswift"}, community("", `,"lineAttestations":`+string(expired)), 0},
+		{"community expired rule", "", "", []string{"gateway-api", "kubeswift"}, community(expiredRule, ""), 0},
+		{"community invalid rule", "", "", []string{"gateway-api", "kubeswift"}, community(withdrawnRule, ""), 0},
+		{"community data of a project without a target", "", "", []string{"kubeswift"}, community(gatewayRule, `,"lineAttestations":`+string(section)), 0},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			targets := map[string]string{}
+			for _, p := range c.targets {
+				targets[p] = component[p]
+			}
+			r, err := Compute(Input{Pack: []byte(`{"schema":"test","revision":"synthetic","entries":[` + c.entries + `]` + c.section + `}`), Lines: linesBytes, Now: allNow, All: true, CRDVersionProjects: len(c.targets), CRDTargetComponents: targets, CommunityPack: []byte(c.pack)})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if r.CRDPublishedProjects != c.want {
+				t.Fatalf("published CRD projects %d, want %d", r.CRDPublishedProjects, c.want)
+			}
+		})
+	}
+}

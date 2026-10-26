@@ -160,6 +160,10 @@ func coverageBlock(t Tree) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	community, err := t.Read(commRulesPath, MaxFileBytes)
+	if err != nil {
+		return "", err
+	}
 	lines, err := coveragereport.ParseLines(linesRaw)
 	if err != nil {
 		return "", err
@@ -169,11 +173,11 @@ func coverageBlock(t Tree) (string, error) {
 		return "", fmt.Errorf("the pinned lines snapshot has no captured date")
 	}
 	now := captured.Add(12 * time.Hour).UTC()
-	crd, err := crdProjectCount(t)
+	crd, err := crdProjectComponents(t)
 	if err != nil {
 		return "", err
 	}
-	report, err := coveragereport.Compute(coveragereport.Input{Pack: pack, Lines: linesRaw, Now: now, CRDVersionProjects: crd})
+	report, err := coveragereport.Compute(coveragereport.Input{Pack: pack, Lines: linesRaw, Now: now, CRDVersionProjects: len(crd), CRDTargetComponents: crd, CommunityPack: community})
 	if err != nil {
 		return "", err
 	}
@@ -198,12 +202,12 @@ func previewRegion(t Tree, render func([]byte) (string, error)) (string, error) 
 	return render(inventory)
 }
 
-// crdProjectCount counts the distinct projects among the CRD version targets
-// of the tree, loaded as the onboarding gate loads them.
-func crdProjectCount(t Tree) (int, error) {
+// crdProjectComponents maps the projects among the CRD version targets of the
+// tree to their target components, loaded as the onboarding gate loads them.
+func crdProjectComponents(t Tree) (map[string]string, error) {
 	targets, err := treeTargets(t, defaultOnboardingLayout().TargetsDir)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	fsys := fstest.MapFS{}
 	for name, raw := range targets {
@@ -211,13 +215,13 @@ func crdProjectCount(t Tree) (int, error) {
 	}
 	loaded, err := crdversions.LoadTargets(fsys)
 	if err != nil {
-		return 0, fmt.Errorf("the CRD version targets do not load: %v", logSafe(err.Error()))
+		return nil, fmt.Errorf("the CRD version targets do not load: %v", logSafe(err.Error()))
 	}
-	seen := map[string]bool{}
+	out := map[string]string{}
 	for _, tg := range loaded {
-		seen[tg.Project] = true
+		out[tg.Project] = tg.Component
 	}
-	return len(seen), nil
+	return out, nil
 }
 
 // RegenerateBlocks rewrites the generated blocks of the tree rooted at root
