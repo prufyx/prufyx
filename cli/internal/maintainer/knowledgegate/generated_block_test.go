@@ -303,3 +303,51 @@ func TestOnboardingGateRefusesREADMEBreakage(t *testing.T) {
 		})
 	}
 }
+
+// A change that moves the renderer of a block cannot be judged by the gate
+// built from the base code: the block check does not fail, the head's own
+// test decides, and the change is never automatic.
+func TestGateRendererSourceChange(t *testing.T) {
+	t.Parallel()
+	for _, g := range DefaultLayout().GeneratedBlocks {
+		if len(g.Sources) == 0 || g.HeadTest == "" {
+			t.Fatalf("block %s lists no renderer sources or head test", g.Path)
+		}
+	}
+	src := DefaultLayout().GeneratedBlocks[0].Sources[0]
+	t.Run("renderer moved, block differs", func(t *testing.T) {
+		t.Parallel()
+		base, head := tightened(t)
+		editREADME(t, head, alterBlockDigit)
+		writeFile(t, filepath.Join(head.Root, filepath.FromSlash(src)), []byte("// changed renderer\n"))
+		r := runGate(t, Options{Base: base, Head: head, Author: DefaultBotLogin})
+		c, ok := check(r, "generated/"+readmePath)
+		if !ok || !c.OK || !strings.Contains(c.Detail, "renderer changed in this change; verified by the head's TestCoverageBlockMatchesRepositoryREADME") {
+			t.Fatalf("block check %+v", c)
+		}
+		if r.AutoMerge.Eligible {
+			t.Fatal("a renderer change is eligible for automatic merging")
+		}
+		if !strings.Contains(strings.Join(r.AutoMerge.Reasons, " "), src) {
+			t.Fatalf("reasons %v", r.AutoMerge.Reasons)
+		}
+	})
+	t.Run("renderer unchanged, hand edit", func(t *testing.T) {
+		t.Parallel()
+		base, head := tightened(t)
+		editREADME(t, head, alterBlockDigit)
+		r := runGate(t, Options{Base: base, Head: head, Author: DefaultBotLogin})
+		requireFail(t, r, "generated/"+readmePath)
+		if r.AutoMerge.Eligible {
+			t.Fatal("a hand-edited README is eligible for automatic merging")
+		}
+	})
+	t.Run("other file moved, hand edit", func(t *testing.T) {
+		t.Parallel()
+		base, head := tightened(t)
+		editREADME(t, head, alterBlockDigit)
+		writeFile(t, filepath.Join(head.Root, "cli/internal/maintainer/coveragereport/render.go"), []byte("// not a README source\n"))
+		r := runGate(t, Options{Base: base, Head: head, Author: DefaultBotLogin})
+		requireFail(t, r, "generated/"+readmePath)
+	})
+}
