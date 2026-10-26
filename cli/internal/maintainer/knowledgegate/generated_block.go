@@ -169,11 +169,11 @@ func coverageBlock(t Tree) (string, error) {
 		return "", fmt.Errorf("the pinned lines snapshot has no captured date")
 	}
 	now := captured.Add(12 * time.Hour).UTC()
-	crd, err := crdProjectCount(t)
+	crd, err := crdProjectSlugs(t)
 	if err != nil {
 		return "", err
 	}
-	report, err := coveragereport.Compute(coveragereport.Input{Pack: pack, Lines: linesRaw, Now: now, CRDVersionProjects: crd})
+	report, err := coveragereport.Compute(coveragereport.Input{Pack: pack, Lines: linesRaw, Now: now, CRDVersionProjects: len(crd), CRDTargetProjects: crd})
 	if err != nil {
 		return "", err
 	}
@@ -198,12 +198,12 @@ func previewRegion(t Tree, render func([]byte) (string, error)) (string, error) 
 	return render(inventory)
 }
 
-// crdProjectCount counts the distinct projects among the CRD version targets
-// of the tree, loaded as the onboarding gate loads them.
-func crdProjectCount(t Tree) (int, error) {
+// crdProjectSlugs lists the distinct projects among the CRD version targets
+// of the tree, sorted, loaded as the onboarding gate loads them.
+func crdProjectSlugs(t Tree) ([]string, error) {
 	targets, err := treeTargets(t, defaultOnboardingLayout().TargetsDir)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	fsys := fstest.MapFS{}
 	for name, raw := range targets {
@@ -211,13 +211,18 @@ func crdProjectCount(t Tree) (int, error) {
 	}
 	loaded, err := crdversions.LoadTargets(fsys)
 	if err != nil {
-		return 0, fmt.Errorf("the CRD version targets do not load: %v", logSafe(err.Error()))
+		return nil, fmt.Errorf("the CRD version targets do not load: %v", logSafe(err.Error()))
 	}
 	seen := map[string]bool{}
 	for _, tg := range loaded {
 		seen[tg.Project] = true
 	}
-	return len(seen), nil
+	out := make([]string, 0, len(seen))
+	for slug := range seen {
+		out = append(out, slug)
+	}
+	slices.Sort(out)
+	return out, nil
 }
 
 // RegenerateBlocks rewrites the generated blocks of the tree rooted at root
