@@ -14,6 +14,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/coveragereport"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgegate"
 )
 
 const maxCoverageInput = 32 << 20
@@ -38,15 +39,45 @@ func readBounded(path string) ([]byte, error) {
 // pack and a snapshot of release lines and never evaluate a rule.
 func runCoverage(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
-		return &commandError{code: 2, message: "usage: prufyx-maintainer coverage <report|lines-from-tags> [options]"}
+		return &commandError{code: 2, message: "usage: prufyx-maintainer coverage <report|readme|lines-from-tags> [options]"}
 	}
 	switch args[0] {
 	case "report":
 		return runCoverageReport(args[1:], stdout)
+	case "readme":
+		return runCoverageReadme(args[1:], stdout, stderr)
 	case "lines-from-tags":
 		return runCoverageLinesFromTags(args[1:], stdout)
 	}
-	return &commandError{code: 2, message: "usage: prufyx-maintainer coverage <report|lines-from-tags> [options]"}
+	return &commandError{code: 2, message: "usage: prufyx-maintainer coverage <report|readme|lines-from-tags> [options]"}
+}
+
+// runCoverageReadme regenerates the coverage block of README.md from the
+// tree's own data (the one implementation, also the gate's), or with --check
+// fails when the block is stale.
+func runCoverageReadme(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("coverage readme", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	check := flags.Bool("check", false, "do not write; fail if the README coverage block differs from its regeneration")
+	root := flags.String("root", ".", "repository root")
+	if err := flags.Parse(args); err != nil || flags.NArg() != 0 {
+		return &commandError{code: 2, message: "coverage readme: usage: [--check] [--root DIR]"}
+	}
+	abs, err := filepath.Abs(*root)
+	if err != nil {
+		return &commandError{code: 2, message: "coverage readme: root is unusable", err: err}
+	}
+	changed, err := knowledgegate.RegenerateBlocks(abs, *check)
+	if err != nil {
+		return &commandError{code: 2, message: "coverage readme: cannot regenerate the block", err: err}
+	}
+	if *check && len(changed) > 0 {
+		return &commandError{code: 1, message: strings.Join(changed, ", ") + " coverage block is stale; run scripts/readme-coverage.sh"}
+	}
+	for _, p := range changed {
+		fmt.Fprintf(stdout, "updated %s\n", p)
+	}
+	return nil
 }
 
 func runCoverageReport(args []string, stdout io.Writer) error {

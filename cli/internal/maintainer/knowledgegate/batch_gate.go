@@ -70,13 +70,18 @@ func newBatchFiles(opts Options) (map[string][]byte, error) {
 // batchAllowedPaths are the only paths a change carrying a batch may
 // touch: the pack files, their corpus attestations, the generated outputs
 // and the batch file itself.
-func batchAllowedPaths(layout Layout, batchPath string) map[string]bool {
+func batchAllowedPaths(layout Layout, base, head Tree, batchPath string) map[string]bool {
 	allowed := map[string]bool{batchPath: true}
 	for _, spec := range layout.Packs {
 		allowed[spec.Path], allowed[spec.AttestationPath] = true, true
 	}
 	for _, g := range layout.Generated {
 		allowed[g.JSONPath], allowed[g.MarkdownPath] = true, true
+	}
+	// A generated block's file (the README) only when it is the base file
+	// with just its block regenerated from the head's data.
+	for p := range layout.admittedBlocks(base, head) {
+		allowed[p] = true
 	}
 	return allowed
 }
@@ -117,14 +122,14 @@ func runBatch(ctx context.Context, opts Options, cls *Classification, changedPat
 		return res
 	}
 	var outside []string
-	allowed := batchAllowedPaths(opts.Layout, res.path)
+	allowed := batchAllowedPaths(opts.Layout, opts.Base, opts.Head, res.path)
 	for _, p := range changedPaths {
 		if !allowed[p] {
 			outside = append(outside, logSafe(p))
 		}
 	}
 	if len(outside) > 0 {
-		return fail("a change carrying a batch approval may change only the pack files, their corpus attestations, the generated support inventory and the batch file; it also changes %d other files%s", len(outside), listDetail(outside))
+		return fail("a change carrying a batch approval may change only the pack files, their corpus attestations, the generated support inventory, the README coverage block regenerated from the change's data and the batch file; it also changes %d other files%s", len(outside), listDetail(outside))
 	}
 	st, err := newBatchState(opts.Layout, cls)
 	if err != nil {

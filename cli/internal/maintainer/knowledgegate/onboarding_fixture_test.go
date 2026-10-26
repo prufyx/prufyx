@@ -274,6 +274,7 @@ func (f *onboardingFixture) writePack(t *testing.T, packRaw []byte) {
 		writeFile(t, filepath.Join(f.head.Root, filepath.FromSlash(g.MarkdownPath)), []byte(md))
 	}
 	f.writeDocs(t)
+	regenerateBlocksLoose(f.head)
 }
 
 func (f *onboardingFixture) writeDocs(t *testing.T) {

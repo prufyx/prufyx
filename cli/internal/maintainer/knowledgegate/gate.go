@@ -562,6 +562,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	}
 	r.packChecks(cls, opts)
 	r.generatedChecks(opts)
+	r.blockChecks(opts)
 	r.trustCheck(opts)
 	r.recordsTrustCheck(cls, opts)
 	r.modeCheck(opts)
@@ -943,6 +944,7 @@ func (r *Report) generatedChecks(opts Options) {
 }
 
 func (r *Report) autoMerge(opts Options) {
+	blocks := opts.Layout.admittedBlocks(opts.Base, opts.Head)
 	var reasons []string
 	if !r.Passed() {
 		reasons = append(reasons, "the gate did not pass")
@@ -983,7 +985,7 @@ func (r *Report) autoMerge(opts Options) {
 	}
 	var outside []string
 	for _, p := range r.ChangedPaths {
-		if !opts.Layout.autoMergePath(p) {
+		if !opts.Layout.autoMergePath(p) && !blocks[p] {
 			outside = append(outside, p)
 		}
 	}
@@ -1004,7 +1006,7 @@ func (r *Report) autoMerge(opts Options) {
 func (r *Report) modeCheck(opts Options) {
 	var bad []string
 	for _, p := range r.ChangedPaths {
-		if !opts.Layout.autoMergePath(p) {
+		if !opts.Layout.autoMergePath(p) && !opts.Layout.blockPath(p) {
 			continue
 		}
 		if opts.Head.executable(p) || opts.Base.executable(p) {

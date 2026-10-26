@@ -11,6 +11,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/corpusattest"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/coveragereport"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencereattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgetargets"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/repinbaselines"
@@ -143,6 +144,11 @@ type Layout struct {
 	ConsensusClaimsDir string
 	// Generated are outputs that must regenerate byte-identically.
 	Generated []GeneratedPair
+	// GeneratedBlocks are regions of prose files that must equal a
+	// rendering of the change's own data. The file of a block is an
+	// automatic-change path only when it equals the base file with just
+	// the block regenerated (admittedBlocks); never through AutoMergePaths.
+	GeneratedBlocks []GeneratedBlock
 	// AutoMergePaths lists the paths an automatically mergeable change may
 	// touch: an entry ending in "/" is a directory prefix, any other entry
 	// an exact file. Trust material is never among them.
@@ -279,6 +285,10 @@ func DefaultLayout() Layout {
 			Generate: func(t Tree) ([]byte, string, error) {
 				return supportinventory.Generate(supportInventoryConfig(t))
 			},
+		}},
+		GeneratedBlocks: []GeneratedBlock{{
+			Path: readmePath, Begin: coveragereport.READMEBegin, End: coveragereport.READMEEnd,
+			Render: coverageBlock,
 		}},
 		AutoMergePaths: []string{
 			cncfRulesPath, cncfAttestPath, commRulesPath, commAttestPath, inventoryJSON, inventoryMD,
