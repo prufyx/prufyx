@@ -9,6 +9,7 @@
     "factProject": "kubernetes_ingress",
     "tagPrefixes": ["v"],
     "minFrom": "5.2",
+    "attest": true,
     "paths": [
       {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
     ],

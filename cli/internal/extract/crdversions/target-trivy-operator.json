@@ -9,6 +9,7 @@
     "factProject": "trivy_operator",
     "tagPrefixes": ["v"],
     "minFrom": "0.31",
+    "attest": true,
     "paths": [
       {"path": "deploy/helm/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
     ],
