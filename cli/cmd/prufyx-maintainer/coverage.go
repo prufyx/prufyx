@@ -39,17 +39,19 @@ func readBounded(path string) ([]byte, error) {
 // pack and a snapshot of release lines and never evaluate a rule.
 func runCoverage(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
-		return &commandError{code: 2, message: "usage: prufyx-maintainer coverage <report|readme|lines-from-tags> [options]"}
+		return &commandError{code: 2, message: "usage: prufyx-maintainer coverage <report|readme|preview|lines-from-tags> [options]"}
 	}
 	switch args[0] {
 	case "report":
 		return runCoverageReport(args[1:], stdout)
 	case "readme":
 		return runCoverageReadme(args[1:], stdout, stderr)
+	case "preview":
+		return runCoveragePreview(args[1:], stdout)
 	case "lines-from-tags":
 		return runCoverageLinesFromTags(args[1:], stdout)
 	}
-	return &commandError{code: 2, message: "usage: prufyx-maintainer coverage <report|readme|lines-from-tags> [options]"}
+	return &commandError{code: 2, message: "usage: prufyx-maintainer coverage <report|readme|preview|lines-from-tags> [options]"}
 }
 
 // runCoverageReadme regenerates the coverage block of README.md from the
@@ -67,12 +69,40 @@ func runCoverageReadme(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return &commandError{code: 2, message: "coverage readme: root is unusable", err: err}
 	}
-	changed, err := knowledgegate.RegenerateBlocks(abs, *check)
+	changed, err := knowledgegate.RegenerateBlocks(abs, *check, "README.md")
 	if err != nil {
 		return &commandError{code: 2, message: "coverage readme: cannot regenerate the block", err: err}
 	}
 	if *check && len(changed) > 0 {
 		return &commandError{code: 1, message: strings.Join(changed, ", ") + " coverage block is stale; run scripts/readme-coverage.sh"}
+	}
+	for _, p := range changed {
+		fmt.Fprintf(stdout, "updated %s\n", p)
+	}
+	return nil
+}
+
+// runCoveragePreview regenerates the rule-count sentences of
+// cli/docs/CNCF-SOURCE-PREVIEW.md from the generated support inventory (the
+// one implementation, also the gate's), or with --check fails when stale.
+func runCoveragePreview(args []string, stdout io.Writer) error {
+	flags := flag.NewFlagSet("coverage preview", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	check := flags.Bool("check", false, "do not write; fail if the preview counts differ from their regeneration")
+	root := flags.String("root", ".", "repository root")
+	if err := flags.Parse(args); err != nil || flags.NArg() != 0 {
+		return &commandError{code: 2, message: "coverage preview: usage: [--check] [--root DIR]"}
+	}
+	abs, err := filepath.Abs(*root)
+	if err != nil {
+		return &commandError{code: 2, message: "coverage preview: root is unusable", err: err}
+	}
+	changed, err := knowledgegate.RegenerateBlocks(abs, *check, knowledgegate.PreviewPath)
+	if err != nil {
+		return &commandError{code: 2, message: "coverage preview: cannot regenerate the counts", err: err}
+	}
+	if *check && len(changed) > 0 {
+		return &commandError{code: 1, message: "CNCF-SOURCE-PREVIEW.md counts are stale; run scripts/preview-coverage.sh"}
 	}
 	for _, p := range changed {
 		fmt.Fprintf(stdout, "updated %s\n", p)

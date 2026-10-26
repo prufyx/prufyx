@@ -45,6 +45,7 @@ var knowledgeFiles = []string{
 	"cli/docs/generated/community-support-inventory.json",
 	"cli/docs/generated/community-support-inventory.md",
 	"README.md",
+	PreviewPath,
 	coveragereport.PinnedLinesPath,
 }
 
