@@ -59,6 +59,10 @@ community total, never in the CNCF totals. The extractor derives its rules
 for the maintainers, under the same rules as for CNCF projects (full commit
 citations, whole-tree scan, withheld pairs).
 
+A community project answers through the line reviews of `prufyx scan`;
+`prufyx check cncf --custom-resources` stays UNKNOWN (exit 11) for it, because
+that mode never reads line reviews and never exits 0.
+
 The extractor reads the CRDs of every project of the table. The knowledge gate
 refuses rules over the version set of a project that is not listed here, until
 the project and its API groups join this table; adding a project to the table

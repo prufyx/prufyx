@@ -139,9 +139,20 @@ func registeredFamilies() []string {
 // CRDProjectCount counts the distinct projects among the reviewed
 // crd.custom_resource_versions targets.
 func CRDProjectCount() int {
+	return len(CRDProjectSlugs())
+}
+
+// CRDProjectSlugs lists the distinct projects among the reviewed
+// crd.custom_resource_versions targets, sorted.
+func CRDProjectSlugs() []string {
 	seen := map[string]bool{}
 	for _, t := range crdversions.Targets {
 		seen[t.Project] = true
 	}
-	return len(seen)
+	out := make([]string, 0, len(seen))
+	for slug := range seen {
+		out = append(out, slug)
+	}
+	sort.Strings(out)
+	return out
 }

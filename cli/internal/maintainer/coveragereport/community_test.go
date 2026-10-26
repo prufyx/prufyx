@@ -196,3 +196,44 @@ func TestCNCFOutputsAreIndependentOfCommunityRecords(t *testing.T) {
 		t.Fatalf("community totals %+v", both.CommunityCatalog)
 	}
 }
+
+// A reviewed target alone is not data: only a valid rule or a current line
+// attestation of the CRD version family makes a target project count as
+// published, and a project outside the target list never does.
+func TestCRDPublishedProjects(t *testing.T) {
+	s := gatewayScenario("1.1", "1.2", "1.3")
+	prev, _ := lineattest.PreviousLine("", "1.3")
+	section, err := lineattest.Marshal([]lineattest.LineAttestation{s.attestation(t, "1.3", prev)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	linesBytes, err := MarshalLines(LinesFile{Schema: LinesSchema, CapturedOn: allCaptured, Projects: map[string]ProjectLines{"other": {Lines: []string{"1.0", "1.1"}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		name    string
+		entries string
+		section string
+		targets []string
+		want    int
+	}{
+		{"targets only", "", "", []string{"gateway-api", "kubeswift"}, 0},
+		{"rule", gatewayRule, "", []string{"gateway-api", "kubeswift"}, 1},
+		{"attestation", "", `,"lineAttestations":` + string(section), []string{"gateway-api", "kubeswift"}, 1},
+		{"rule and attestation count once", gatewayRule, `,"lineAttestations":` + string(section), []string{"gateway-api", "kubeswift"}, 1},
+		{"data of a project without a target", gatewayRule, `,"lineAttestations":` + string(section), []string{"kubeswift"}, 0},
+		{"no target list", gatewayRule, `,"lineAttestations":` + string(section), nil, 0},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			r, err := Compute(Input{Pack: []byte(`{"schema":"test","revision":"synthetic","entries":[` + c.entries + `]` + c.section + `}`), Lines: linesBytes, Now: allNow, All: true, CRDVersionProjects: len(c.targets), CRDTargetProjects: c.targets})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if r.CRDPublishedProjects != c.want {
+				t.Fatalf("published CRD projects %d, want %d", r.CRDPublishedProjects, c.want)
+			}
+		})
+	}
+}
