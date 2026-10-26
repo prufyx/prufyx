@@ -409,6 +409,7 @@ that proves it.
 - Suggest a project with the
   [project source issue form](https://github.com/prufyx/prufyx/issues/new?template=project-knowledge.yml).
   The repository URL is enough to begin.
+- Maintain a project? See [For project maintainers](docs/maintainers.md).
 - Prepare evidence locally with the
   [project onboarding guide](cli/docs/project-onboarding.md) and the
   [upstream contribution guide](cli/docs/upstream-contributions.md).
