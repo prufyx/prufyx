@@ -14,6 +14,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/extract/crdbatchfixture"
 	"github.com/prufyx/prufyx/cli/internal/extract/crdbatchids"
+	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
 	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 )
 
@@ -599,5 +600,42 @@ func TestEmptyListCountsWhenCurrentAndAdjacent(t *testing.T) {
 	}
 	if got := crd(crdAttJSON("0.52", "0.51.0", "0.52.0"), "0.50", "0.52"); got != "G" {
 		t.Fatalf("non-adjacent empty list (custom resources): %s", got)
+	}
+}
+
+// The CRD project count is counted once per project and is left out of the
+// report unless the caller asks for it, so the default report stays
+// byte-identical.
+func TestCRDVersionProjects(t *testing.T) {
+	n := CRDProjectCount()
+	if n == 0 {
+		t.Fatal("no reviewed CRD targets")
+	}
+	seen := map[string]bool{}
+	for _, tg := range crdversions.Targets {
+		seen[tg.Project] = true
+	}
+	if n != len(seen) || n > len(crdversions.Targets) {
+		t.Fatalf("count %d, distinct projects %d, targets %d", n, len(seen), len(crdversions.Targets))
+	}
+	in := Input{Pack: read(t, "testdata/pack-cncf-2026-09-13.4-reduced.json"), Lines: read(t, "testdata/lines-2026-10-08.json"), Now: baselineNow}
+	base, err := Compute(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if base.CRDVersionProjects != 0 {
+		t.Fatalf("set without being asked: %d", base.CRDVersionProjects)
+	}
+	in.CRDVersionProjects = n
+	got, err := Compute(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := got.JSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), fmt.Sprintf("\"crdVersionProjects\": %d,", n)) {
+		t.Fatalf("member missing from %s", raw)
 	}
 }
