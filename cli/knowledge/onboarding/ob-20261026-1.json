@@ -1,0 +1,977 @@
+{
+  "schema": "prufyx.io/knowledge-onboarding-batch/v1",
+  "record": {
+    "base": {
+      "packRevision": "cncf-2026-09-13.8",
+      "registryDigest": "sha256:cf779b59e096857d29a64a2e2026fddced0fa2535cfb0e2069f37f6bc4a60393",
+      "tableDigest": "sha256:723d2f4bd50870dea0fac143e4bb49f6bfaad0ee033a8dabaa9765cce4a835de",
+      "targetsDigest": "sha256:3d781157a876365a09c380e89c6fb312341b88c89e752d8a6a08e9d7d4d98634"
+    },
+    "batchId": "ob-20261026-1",
+    "candidateId": "pr-220",
+    "changeSetDigest": "sha256:301d798bf37c26bebde8de8b29f908aa9216fad73dedadfaa4b33d126134b3fa",
+    "decidedAt": "2026-10-26T07:06:36Z",
+    "decision": "approve",
+    "head": {
+      "packRevision": "cncf-2026-09-13.8",
+      "registryDigest": "sha256:1221ab51141981c4aee6cb6e252e91ab24a890fc281b453795c2a2de5b8a935d",
+      "tableDigest": "sha256:faa89dafe89039f4e1fcbed65946cb1d6b3c8a7e330e7bfed1da5d9e265ce336",
+      "targetsDigest": "sha256:200ce3376c0961d1f1f871b2874dc8bf1cc4860f69a51bb25d3c79b47571010f"
+    },
+    "identity": "prufyx-bot",
+    "nonce": "7dc346947c7c889eeeec4d59cd41bd61",
+    "notAfter": "2026-10-29T07:06:36Z",
+    "projects": [
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:33eafc94cae13dee4194cc430a4f8fa6d4a8348f641a1253bfedc45f9260b674",
+            "path": "cli/internal/extract/crdversions/target-akri.json"
+          }
+        ],
+        "catalog": "cncf",
+        "facts": [
+          "component.akri.custom_resource_versions_set"
+        ],
+        "groups": [
+          "akri.sh"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 11,
+            "ledger": "sha256:a370b30729dcc3376c80613ffa5514818a9266958eed7d9ef3d9b6ab3cd1ed51",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "edc2803f5591a00bd2ff9f6fc4a1011dd1b84a86",
+            "fromTag": "v0.13.8",
+            "toCommit": "a2ee68343e83e6917ce5f648d3820a699b819fde",
+            "toTag": "v0.14.0"
+          },
+          "scan": [
+            {
+              "class": "unread",
+              "path": "deployment/helm/crds/akri-configuration-crd.yaml",
+              "sha256": "sha256:1eca35b7484b5cfdea9235105a2738fd43ad0747fed25fda52588f49e297aed4"
+            },
+            {
+              "class": "unread",
+              "path": "deployment/helm/crds/akri-configuration-crd.yaml",
+              "sha256": "sha256:7c4af51b9f1e28be1a9871829cc5dd99f0bbc587cd532ec388502f7d9fa1f564"
+            }
+          ]
+        },
+        "slug": "akri"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:d38b6177a97f555d50030edda0d32baa1fe484bfd1ba252648d57db590c0e6ba",
+            "path": "cli/internal/extract/crdversions/target-awx-operator.json"
+          }
+        ],
+        "catalog": "community",
+        "facts": [
+          "component.awx_operator.custom_resource_versions_set"
+        ],
+        "groups": [
+          "awx.ansible.com"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 29,
+            "ledger": "sha256:3f1e419802cf5eaf0ed2a7e6aa925e62e09ee31188fa580a7e7d3fbe5078191c",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "8ead140541622f67bd2d44a3c76bb05739cdebb6",
+            "fromTag": "2.18.0",
+            "toCommit": "e3c27206815f68b2c5ba75b019bc2bc1a940b311",
+            "toTag": "2.19.0"
+          },
+          "scan": []
+        },
+        "slug": "awx-operator"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:b4cd199897e61bcf35ae1407993da4c4e11815c49f0cab983a4dbc3b6600f6e8",
+            "path": "cli/internal/extract/crdversions/target-cyclops.json"
+          }
+        ],
+        "catalog": "community",
+        "facts": [
+          "component.cyclops.custom_resource_versions_set"
+        ],
+        "groups": [
+          "cyclops-ui.com"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 11,
+            "ledger": "sha256:c52258ad1872a8f9b430bfc0e8dda8adee97cd6c0a85020220b2c8f6ea87a974",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "63cd0106b9aa8314160cebb3364d220844cff5ee",
+            "fromTag": "v0.20.0",
+            "toCommit": "ac97fc67bfc03aed691585f2c59a9787aa363667",
+            "toTag": "v0.21.0"
+          },
+          "scan": [
+            {
+              "class": "kustomize-config",
+              "path": "cyclops-ctrl/config/crd/kustomizeconfig.yaml",
+              "sha256": "sha256:6d7795b478715403133638a62e9d24a6bfef7629809e14cc73e8d2ea457594d9"
+            },
+            {
+              "class": "crd-patch",
+              "path": "cyclops-ctrl/config/crd/patches/cainjection_in_modules.yaml",
+              "sha256": "sha256:0a3833987b710e815ae322d2cf9d8d9182cf6b9474492a079ae29153469cc3ae"
+            },
+            {
+              "class": "crd-patch",
+              "path": "cyclops-ctrl/config/crd/patches/webhook_in_modules.yaml",
+              "sha256": "sha256:9ba684a5500940a74b832c4de1b1dd69a55b533eafcd9946c418c87fbc3fc568"
+            }
+          ]
+        },
+        "slug": "cyclops"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:e1bbca7b734da3031573ef32c02ed9600888a7125ffab3aad7dbcb389c72547b",
+            "path": "cli/internal/extract/crdversions/target-fluent-operator.json"
+          }
+        ],
+        "catalog": "community",
+        "facts": [
+          "component.fluent_operator.custom_resource_versions_set"
+        ],
+        "groups": [
+          "fluentbit.fluent.io",
+          "fluentd.fluent.io"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 137,
+            "ledger": "sha256:df382277393f1552e6d3092f8c00d2763c0cc1cafc1befe557163e95c3629050",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "d4821ada2099323b25b652d7198207f298695e27",
+            "fromTag": "v3.9.0",
+            "toCommit": "7ab60a3ead9130cf9a24a3c07f540353dfa9e099",
+            "toTag": "v3.10.0"
+          },
+          "scan": [
+            {
+              "class": "templated-copy",
+              "path": "charts/fluent-operator-fluent-bit-crds/templates/fluentbit.fluent.io_clusterfilters.yaml",
+              "sha256": "sha256:096bb90fbd22b2d88f73e5638f743d6615e99d9b288a01dac1e4e2188c8f1d9f"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/fluent-operator-fluent-bit-crds/templates/fluentbit.fluent.io_clusterfilters.yaml",
+              "sha256": "sha256:13bba571d546a08e2ba71e5e43fe00782bee9fe854300b6b174bdb4b5c6e5a9e"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/fluent-operator-fluent-bit-crds/templates/fluentbit.fluent.io_clusterfluentbitconfigs.yaml",
+              "sha256": "sha256:a57f60c800f9d8b5a52c6826e109f0f0d790d9778ae4ba023aa89e2abe07445d"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/fluent-operator-fluent-bit-crds/templates/fluentbit.fluent.io_clusterinputs.yaml",
+              "sha256": "sha256:df448fb33052c61555ffd4cf0f1b455370eec8a0baac7109a804ce68f244122b"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/fluent-operator-fluent-bit-crds/templates/fluentbit.fluent.io_clustermultilineparsers.yaml",
+              "sha256": "sha256:400274798d0c9cebc4c9d4d92e04ef8d55f5ed54383e977674105249b5032781"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/fluent-operator-fluent-bit-crds/templates/fluentbit.fluent.io_clusteroutputs.yaml",
+              "sha256": "sha256:98927ef3b0bd9923c7c3e392643bb74d5bc2cc94e87374b5cb8bd4b505efd8cb"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/fluent-operator-fluent-bit-crds/templates/fluentbit.fluent.io_clusteroutputs.yaml",
+              "sha256": "sha256:ba2a1f262a5d53aabf7fff0a87d96193062291f684903cb3d43267ece424dbff"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/fluent-operator-fluent-bit-crds/templates/fluentbit.fluent.io_clusterparsers.yaml",
+              "sha256": "sha256:87e4d153e0472f309853e73ac62cb1582cff05baf12566010966d16545f6c1f9"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/fluent-operator-fluent-bit-crds/templates/fluentbit.fluent.io_collectors.yaml",
+              "sha256": "sha256:b4f837397573b3aa8832cbbf42777e2690a9ffdaf040225ad672b317170795b0"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/fluent-operator-fluent-bit-crds/templates/fluentbit.fluent.io_collectors.yaml",
+              "sha256": "sha256:fdc745d45679a4d0758d822e4b38f51583475d9b615811829cba1281270c9869"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/fluent-operator-fluent-bit-crds/templates/fluentbit.fluent.io_filters.yaml",
+              "sha256": "sha256:16b568965c10e57fe15913f5f12e513fbaacf4dfd2907846828e4b931efca33a"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/fluent-operator-fluent-bit-crds/templates/fluentbit.fluent.io_filters.yaml",
+              "sha256": "sha256:9de6f2a747be551276548aea25521d6ecb8648ba1e1c902125d9a08d3cce622c"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/fluent-operator-fluent-bit-crds/templates/fluentbit.fluent.io_fluentbitconfigs.yaml",
+              "sha256": "sha256:b69733ec1d343f0d146f551dfb3428adbe45775f1d1991fa551e012d535db171"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/fluent-operator-fluent-bit-crds/templates/fluentbit.fluent.io_fluentbits.yaml",
+              "sha256": "sha256:4180153c51c1d83e65b42f7e0968cc91eaff9bec3c7f3d1ba957a0d68ce2ae4c"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/fluent-operator-fluent-bit-crds/templates/fluentbit.fluent.io_fluentbits.yaml",
+              "sha256": "sha256:5279dcbf56016fbfa0a4d9e4ece9f1f42c465c79695e72893c2167da799b0768"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/fluent-operator-fluent-bit-crds/templates/fluentbit.fluent.io_multilineparsers.yaml",
+              "sha256": "sha256:64102f957e6aac3e401da16e62ada3fa592275f3012f5422c1551fc0cec9b461"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/fluent-operator-fluent-bit-crds/templates/fluentbit.fluent.io_outputs.yaml",
+              "sha256": "sha256:1a2895dad673149cbadf15d48efccdf5483b52001aba3b03ac530948d1a8e4d0"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/fluent-operator-fluent-bit-crds/templates/fluentbit.fluent.io_outputs.yaml",
+              "sha256": "sha256:b2c9ef5eeef702c537bf6e3628d9d97d636691a35ab5be092d41465d68d53b56"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/fluent-operator-fluent-bit-crds/templates/fluentbit.fluent.io_parsers.yaml",
+              "sha256": "sha256:360f4e79b617e32c1972bc6d3fd588d1b57448764f34569b5ba43bb0d279c4a3"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/fluent-operator-fluentd-crds/templates/fluentd.fluent.io_clusterfilters.yaml",
+              "sha256": "sha256:dfec86eb8d14c1e567b489092fa5b081ad17d5390d7b959e4aced2da1716fb01"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/fluent-operator-fluentd-crds/templates/fluentd.fluent.io_clusterfluentdconfigs.yaml",
+              "sha256": "sha256:018ed3fe2fac5713eb4ed3927fbb7bc95a2bfb44b042468bdc2b65e2cab06cdd"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/fluent-operator-fluentd-crds/templates/fluentd.fluent.io_clusterinputs.yaml",
+              "sha256": "sha256:f11cdf8f374f8d9cea3170060e7cafec62cadacd96b3562ea13b17105ad7dd41"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/fluent-operator-fluentd-crds/templates/fluentd.fluent.io_clusteroutputs.yaml",
+              "sha256": "sha256:819bce3d610b52e000523dcd469262cbcad1f2bf0009caf1a8c700f6e4afac08"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/fluent-operator-fluentd-crds/templates/fluentd.fluent.io_filters.yaml",
+              "sha256": "sha256:9d8113443847f627aeace5ff75aa09cf8363be43f8dd3d2f88560589cebe4faf"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/fluent-operator-fluentd-crds/templates/fluentd.fluent.io_fluentdconfigs.yaml",
+              "sha256": "sha256:d0af276601b441f7064cb991c2fc22421776507404dab1bca66827470d1b7b75"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/fluent-operator-fluentd-crds/templates/fluentd.fluent.io_fluentds.yaml",
+              "sha256": "sha256:2a494216645c36380ce9150477cf9d708e57e5a4c86c4c91791ed92f971c3b3b"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/fluent-operator-fluentd-crds/templates/fluentd.fluent.io_fluentds.yaml",
+              "sha256": "sha256:a1399f37a734ba56f3be69074cdd701d53ccfec9c50cd683e53fe79dc2ab3232"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/fluent-operator-fluentd-crds/templates/fluentd.fluent.io_inputs.yaml",
+              "sha256": "sha256:3a8a92af301b075c0fcf1b745dee72649a609ceacef18e39e0149d93c6cebab5"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/fluent-operator-fluentd-crds/templates/fluentd.fluent.io_outputs.yaml",
+              "sha256": "sha256:e6c80c9163ed535a7ac838c541b721b060c8405df503acfff320e56c1b4b20e4"
+            },
+            {
+              "class": "kustomize-config",
+              "path": "config/crd/kustomizeconfig.yaml",
+              "sha256": "sha256:6d7795b478715403133638a62e9d24a6bfef7629809e14cc73e8d2ea457594d9"
+            }
+          ]
+        },
+        "slug": "fluent-operator"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:7e34578ea9cf0621f22a0f90e8358ab7d1df0b7673809ac917cdf1701ead904c",
+            "path": "cli/internal/extract/crdversions/target-kube-green.json"
+          }
+        ],
+        "catalog": "community",
+        "facts": [
+          "component.kube_green.custom_resource_versions_set"
+        ],
+        "groups": [
+          "kube-green.com"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 11,
+            "ledger": "sha256:4d56e7c720674e7990a22d42eeee38a291f8e32c9622fe1260169fec9db2246a",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "ba5ded6a40555a406b71e4e54ea8bec3c374bc9b",
+            "fromTag": "v0.6.0",
+            "toCommit": "656bc3203c73adc320c1a79e1bc14e2c29a05028",
+            "toTag": "v0.7.0"
+          },
+          "scan": [
+            {
+              "class": "unread",
+              "path": "charts/kube-green/templates/crds/sleepinfo.yaml",
+              "sha256": "sha256:5d8aedc9feceb9f53d24db6c3ae925efa26c444f9042f3c1e899a93951f31212"
+            },
+            {
+              "class": "unread",
+              "path": "charts/kube-green/templates/crds/sleepinfo.yaml",
+              "sha256": "sha256:cc78bc16bfe4a07a4eaf47b318ffd0ba8f95a68ae81027a2f7ec3afba9a98a36"
+            },
+            {
+              "class": "unread",
+              "path": "charts/snapshots/test-output.snap.yaml",
+              "sha256": "sha256:55723274c6fd6b6e4b73fb5efb241e2391d9f76823f155e2eccf1f8ff10b4bc2"
+            },
+            {
+              "class": "unread",
+              "path": "charts/snapshots/test-output.snap.yaml",
+              "sha256": "sha256:9c904d383f4e0f772a8fd63e657e199ca4fd4b7f601a2ed4a6e389863a5717b7"
+            },
+            {
+              "class": "unread",
+              "path": "charts/snapshots/test-output.snap.yaml",
+              "sha256": "sha256:b79fa5d54c362f372f6d455619634d517b2a054ae5fbe073bccc4d5528e96cdf"
+            },
+            {
+              "class": "kustomize-config",
+              "path": "config/crd/kustomizeconfig.yaml",
+              "sha256": "sha256:6d7795b478715403133638a62e9d24a6bfef7629809e14cc73e8d2ea457594d9"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_sleepinfos.yaml",
+              "sha256": "sha256:3eeabf3af7005b0f82903ff51a96910e72b83c93035a4ecc7688680ce571d5e3"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_sleepinfos.yaml",
+              "sha256": "sha256:582d7c647a043e4ed2946edfa2271caeceef059ee52596bdcd2ef63bf1684d97"
+            },
+            {
+              "class": "reference",
+              "path": "config/default/kustomization.yaml",
+              "sha256": "sha256:684f2094e08efea681949a0f5ecaf1887499bfce2110ecb75b82fd83b4288bcc"
+            },
+            {
+              "class": "reference",
+              "path": "config/default/kustomization.yaml",
+              "sha256": "sha256:e8724d595102800e506b1735355f8398748073cd73b1046f0262e80732895263"
+            }
+          ]
+        },
+        "slug": "kube-green"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:28b411b7e2bb46accaf6df41097fe263846d178623d2e459eb147841a7faaaca",
+            "path": "cli/internal/extract/crdversions/target-kubestellar.json"
+          }
+        ],
+        "catalog": "cncf",
+        "facts": [
+          "component.kubestellar.custom_resource_versions_set"
+        ],
+        "groups": [
+          "control.kubestellar.io"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 35,
+            "ledger": "sha256:5f004392ee9d412b652fb89f9b56f7e86ee2839a11b1c9d8a7f6860fb95ea720",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "547f6b627c45678c3ad9e32b6444a132acfdf2bd",
+            "fromTag": "v0.29.0",
+            "toCommit": "aeec0fa9abc09dce7264bc3e1c989596a8b9fbaa",
+            "toTag": "v0.30.0"
+          },
+          "scan": [
+            {
+              "class": "schema-patch",
+              "path": "config/crd/kustomization.yaml",
+              "sha256": "sha256:9a633a787caf8d9519316905aee48a90f03489f14f225b765e87feb73f3c2942"
+            },
+            {
+              "class": "kustomize-config",
+              "path": "config/crd/kustomizeconfig.yaml",
+              "sha256": "sha256:6d7795b478715403133638a62e9d24a6bfef7629809e14cc73e8d2ea457594d9"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/cainjection_in_controlplanes.yaml",
+              "sha256": "sha256:009485c0e57d3745deec7efb9585f038ebf4b903e0d08e2c5bdd6c4f42387c4c"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/webhook_in_controlplanes.yaml",
+              "sha256": "sha256:d2f1278e3f5b535c3eac013a4981a0aff85fed5b219ce5a6f072964697150365"
+            },
+            {
+              "class": "external",
+              "path": "core-chart/Chart.yaml",
+              "sha256": "sha256:2b3c3823d01f4577f030fa14a2e49e1d9f633b37017a7b2c05640b5bfbee7e26"
+            },
+            {
+              "class": "external",
+              "path": "core-chart/Chart.yaml",
+              "sha256": "sha256:a04f8078db79df0ad2860556671817ca51a9ae5ff177d552f4430da754cdc6f0"
+            }
+          ]
+        },
+        "slug": "kubestellar"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:e78480cf08f0839831e86420674658259a13dcca416253230cea0e882a591943",
+            "path": "cli/internal/extract/crdversions/target-kubeswift.json"
+          }
+        ],
+        "catalog": "community",
+        "facts": [
+          "component.kubeswift.custom_resource_versions_set"
+        ],
+        "groups": [
+          "fleet.kubeswift.io",
+          "gpu.kubeswift.io",
+          "image.kubeswift.io",
+          "kernel.kubeswift.io",
+          "migration.kubeswift.io",
+          "sandbox.kubeswift.io",
+          "seed.kubeswift.io",
+          "snapshot.kubeswift.io",
+          "storage.kubeswift.io",
+          "swift.kubeswift.io"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 114,
+            "ledger": "sha256:6b05073d676e0da58fc4c62d407d5fbf5c21de9d67a2fc351a5638ad04f4f62a",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "679839b5352bc575fd9ab6f7a2d40c4d65cb3b9a",
+            "fromTag": "v0.19.0",
+            "toCommit": "97989dc5b51c1c79b5b590c743b7070f38a32d6d",
+            "toTag": "v0.20.0"
+          },
+          "scan": []
+        },
+        "slug": "kubeswift"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:0a5904031c151f47fe643247c20ac9521609c80e3f8c4b33e304ea845e1692cc",
+            "path": "cli/internal/extract/crdversions/target-operator-lifecycle-manager.json"
+          }
+        ],
+        "catalog": "community",
+        "facts": [
+          "component.operator_lifecycle_manager.custom_resource_versions_set"
+        ],
+        "groups": [
+          "operators.coreos.com"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 65,
+            "ledger": "sha256:86962470f269d3f66956e3e70134afed591992f99318485c455f8c628a31ef07",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "4b21b9ba17185754381c7eaf0b8b872a62429729",
+            "fromTag": "v0.45.0",
+            "toCommit": "0368a3f9dff1fa14c8645b867fba25c3be9df845",
+            "toTag": "v0.46.0"
+          },
+          "scan": [
+            {
+              "class": "extra",
+              "path": "pkg/controller/operators/catalog/testdata/apiextensionsv1/crontabs.crd.old.unserved.yaml",
+              "sha256": "sha256:e2f9b26f726be2313c657b95f698ecd6cb0d54761c7985bef5795648b60939e9"
+            },
+            {
+              "class": "extra",
+              "path": "pkg/controller/operators/catalog/testdata/apiextensionsv1/crontabs.crd.old.yaml",
+              "sha256": "sha256:a42c933de5cf7a58515ac27914f3d9c98e5742053b391d32b502abb11d92defa"
+            },
+            {
+              "class": "extra",
+              "path": "pkg/controller/operators/catalog/testdata/apiextensionsv1/crontabs.crd.unserved.yaml",
+              "sha256": "sha256:1ba6592a2f09161d04fcb16d8d1b295805ed3689675a58c53bcba2c059e34285"
+            },
+            {
+              "class": "extra",
+              "path": "pkg/controller/operators/catalog/testdata/apiextensionsv1/crontabs.crd.yaml",
+              "sha256": "sha256:f1d2a6264610b2e9c71751b7ed88ea679259ea26c616d3c6ca7e858ea0f7f478"
+            },
+            {
+              "class": "unread",
+              "path": "pkg/controller/operators/catalog/testdata/apiextensionsv1/single-version-crd.old.yaml",
+              "sha256": "sha256:edca5ad9c34c62a2ef561170940c84fa78483606b8a378a571e3c0e4182cd0a3"
+            },
+            {
+              "class": "unread",
+              "path": "pkg/controller/operators/catalog/testdata/apiextensionsv1/single-version-crd.yaml",
+              "sha256": "sha256:169aa8e91c7c621fa23cfa02ff416c674ef3cb905a40aa4a8fee134dae09ac91"
+            },
+            {
+              "class": "unread",
+              "path": "pkg/controller/operators/catalog/testdata/apiextensionsv1beta1/crd.no-versions-list.old.yaml",
+              "sha256": "sha256:a2f00c56114f0b2089f955f8401245afc6dcfce9dcbedb58d6e1db4433265653"
+            },
+            {
+              "class": "unread",
+              "path": "pkg/controller/operators/catalog/testdata/apiextensionsv1beta1/crd.no-versions-list.yaml",
+              "sha256": "sha256:92f3be23e2bd37e689daec5a237f9536b3cd267a2b12296d838e86f9a246b7e7"
+            },
+            {
+              "class": "unread",
+              "path": "pkg/controller/operators/catalog/testdata/apiextensionsv1beta1/crd.old.yaml",
+              "sha256": "sha256:8b628acde3f9c88e464ba7985c3d055f8b142676cd8f2c91972992cdbd927088"
+            },
+            {
+              "class": "unread",
+              "path": "pkg/controller/operators/catalog/testdata/apiextensionsv1beta1/crd.unserved.yaml",
+              "sha256": "sha256:3665605009f6095f3fd3fd968fb473670f6d58beec407a1cd4c4a42c5bc75385"
+            },
+            {
+              "class": "unread",
+              "path": "pkg/controller/operators/catalog/testdata/apiextensionsv1beta1/crd.yaml",
+              "sha256": "sha256:57fdd5854ba10e8f8fd2df0937e15c806950a8c35284db3d86e186ef431877a6"
+            },
+            {
+              "class": "extra",
+              "path": "pkg/controller/operators/catalog/testdata/hivebug/crd.yaml",
+              "sha256": "sha256:76dad9d6ca6bc4e2fffe891adfc9bd7a2cc9576d39aba7cebc4aa50f7b987f80"
+            },
+            {
+              "class": "extra",
+              "path": "pkg/controller/operators/catalog/testdata/postgrestolerations/crd.yaml",
+              "sha256": "sha256:291ebca08d9ea348d58778710d9f691ba07552d731ed467a92b4815f44d060d6"
+            },
+            {
+              "class": "legacy-copy",
+              "path": "pkg/controller/operators/catalog/testdata/prometheusrule.crd.yaml",
+              "sha256": "sha256:4135c1195530008a7932d854c800efd6c38afcea53fad3d192378e967b20f835"
+            },
+            {
+              "class": "extra",
+              "path": "pkg/controller/operators/openshift/testdata/crds/clusteroperators.config.openshift.io.yaml",
+              "sha256": "sha256:8049b83723e6f0f568a31e04fd0308c2cfdd0a186f4889fc8ec70b4df55104a2"
+            },
+            {
+              "class": "extra",
+              "path": "pkg/controller/operators/openshift/testdata/crds/clusterversions.config.openshift.io.yaml",
+              "sha256": "sha256:3d814ce005c86c53ad9c92a6817a0eac3fb5682fab8b189e2643d738fca72090"
+            },
+            {
+              "class": "extra",
+              "path": "pkg/controller/operators/testdata/fixtures/crd.yaml",
+              "sha256": "sha256:eb61b49d2fdeff27e7c54d5098d58bfa05c821cf0f9256a8bcf4d3f9accc178d"
+            },
+            {
+              "class": "extra",
+              "path": "pkg/package-server/provider/testdata/manifests/etcd/0.6.0/etcdcluster.crd.yaml",
+              "sha256": "sha256:3b3045eeae38b7738a21e7e89ac84a1bc32f6cb82e2d36b41ba3c50c57093578"
+            },
+            {
+              "class": "extra",
+              "path": "pkg/package-server/provider/testdata/manifests/etcd/0.6.1/etcdcluster.crd.yaml",
+              "sha256": "sha256:3b3045eeae38b7738a21e7e89ac84a1bc32f6cb82e2d36b41ba3c50c57093578"
+            },
+            {
+              "class": "extra",
+              "path": "pkg/package-server/provider/testdata/manifests/etcd/0.9.0/etcdbackup.crd.yaml",
+              "sha256": "sha256:369c175315ba68d84e3d503cae6b7f17163ebd33598e7cd3d7c33b85dea05f92"
+            },
+            {
+              "class": "extra",
+              "path": "pkg/package-server/provider/testdata/manifests/etcd/0.9.0/etcdcluster.crd.yaml",
+              "sha256": "sha256:3b3045eeae38b7738a21e7e89ac84a1bc32f6cb82e2d36b41ba3c50c57093578"
+            },
+            {
+              "class": "extra",
+              "path": "pkg/package-server/provider/testdata/manifests/etcd/0.9.0/etcdrestore.crd.yaml",
+              "sha256": "sha256:a079a3b2f2d9a6b68d35590c03543ab8e818db7addc3f04dc8a95fcf959530af"
+            },
+            {
+              "class": "extra",
+              "path": "pkg/package-server/provider/testdata/manifests/etcd/0.9.2/etcdbackup.crd.yaml",
+              "sha256": "sha256:369c175315ba68d84e3d503cae6b7f17163ebd33598e7cd3d7c33b85dea05f92"
+            },
+            {
+              "class": "extra",
+              "path": "pkg/package-server/provider/testdata/manifests/etcd/0.9.2/etcdcluster.crd.yaml",
+              "sha256": "sha256:3b3045eeae38b7738a21e7e89ac84a1bc32f6cb82e2d36b41ba3c50c57093578"
+            },
+            {
+              "class": "extra",
+              "path": "pkg/package-server/provider/testdata/manifests/etcd/0.9.2/etcdrestore.crd.yaml",
+              "sha256": "sha256:a079a3b2f2d9a6b68d35590c03543ab8e818db7addc3f04dc8a95fcf959530af"
+            },
+            {
+              "class": "legacy-copy",
+              "path": "pkg/package-server/provider/testdata/manifests/prometheus/0.14.0/alertmanager.crd.yaml",
+              "sha256": "sha256:b39e56d743496f3a3d7267fcdef7db3f7f9d50f67bcc88956e13525e5bad6ed0"
+            },
+            {
+              "class": "legacy-copy",
+              "path": "pkg/package-server/provider/testdata/manifests/prometheus/0.14.0/prometheus.crd.yaml",
+              "sha256": "sha256:ae37d6de8b0fc4afd7d7340e8401d01714b885e7d7202c3583deded43a7d9924"
+            },
+            {
+              "class": "legacy-copy",
+              "path": "pkg/package-server/provider/testdata/manifests/prometheus/0.14.0/prometheusrule.crd.yaml",
+              "sha256": "sha256:569a634ff0c179a3527dfac2915b8d173e598a252d2ee5184984c09fbbaea752"
+            },
+            {
+              "class": "legacy-copy",
+              "path": "pkg/package-server/provider/testdata/manifests/prometheus/0.14.0/servicemonitor.crd.yaml",
+              "sha256": "sha256:0438556e88f84b9ed3335bd722e102f6483f5d58f534feb762664d5cdbcc0d54"
+            },
+            {
+              "class": "legacy-copy",
+              "path": "pkg/package-server/provider/testdata/manifests/prometheus/0.15.0/alertmanager.crd.yaml",
+              "sha256": "sha256:b39e56d743496f3a3d7267fcdef7db3f7f9d50f67bcc88956e13525e5bad6ed0"
+            },
+            {
+              "class": "legacy-copy",
+              "path": "pkg/package-server/provider/testdata/manifests/prometheus/0.15.0/prometheus.crd.yaml",
+              "sha256": "sha256:ae37d6de8b0fc4afd7d7340e8401d01714b885e7d7202c3583deded43a7d9924"
+            },
+            {
+              "class": "legacy-copy",
+              "path": "pkg/package-server/provider/testdata/manifests/prometheus/0.15.0/prometheusrule.crd.yaml",
+              "sha256": "sha256:569a634ff0c179a3527dfac2915b8d173e598a252d2ee5184984c09fbbaea752"
+            },
+            {
+              "class": "legacy-copy",
+              "path": "pkg/package-server/provider/testdata/manifests/prometheus/0.15.0/servicemonitor.crd.yaml",
+              "sha256": "sha256:0438556e88f84b9ed3335bd722e102f6483f5d58f534feb762664d5cdbcc0d54"
+            },
+            {
+              "class": "legacy-copy",
+              "path": "pkg/package-server/provider/testdata/manifests/prometheus/0.22.2/alertmanager.crd.yaml",
+              "sha256": "sha256:b39e56d743496f3a3d7267fcdef7db3f7f9d50f67bcc88956e13525e5bad6ed0"
+            },
+            {
+              "class": "legacy-copy",
+              "path": "pkg/package-server/provider/testdata/manifests/prometheus/0.22.2/prometheus.crd.yaml",
+              "sha256": "sha256:ae37d6de8b0fc4afd7d7340e8401d01714b885e7d7202c3583deded43a7d9924"
+            },
+            {
+              "class": "legacy-copy",
+              "path": "pkg/package-server/provider/testdata/manifests/prometheus/0.22.2/prometheusrule.crd.yaml",
+              "sha256": "sha256:569a634ff0c179a3527dfac2915b8d173e598a252d2ee5184984c09fbbaea752"
+            },
+            {
+              "class": "legacy-copy",
+              "path": "pkg/package-server/provider/testdata/manifests/prometheus/0.22.2/servicemonitor.crd.yaml",
+              "sha256": "sha256:0438556e88f84b9ed3335bd722e102f6483f5d58f534feb762664d5cdbcc0d54"
+            },
+            {
+              "class": "reference",
+              "path": "test/e2e/data/catalog.new.yaml",
+              "sha256": "sha256:bd518685f6062df4cd14538a5eaf19816d00bbf360bf7ac05d0be7272eb54765"
+            },
+            {
+              "class": "reference",
+              "path": "test/e2e/data/catalog.old.yaml",
+              "sha256": "sha256:fed454b4741f7831f88a2292f2b2a5ef97e764c187a5c84ea8a70ac01b32aa78"
+            },
+            {
+              "class": "extra",
+              "path": "test/e2e/data/kiali-image-bundle/manifests/kiali.crd.yaml",
+              "sha256": "sha256:9dc72b6a54a008959b87d5422f2136ea4b35d66bd4bc033a6a6d58bfeede4259"
+            },
+            {
+              "class": "extra",
+              "path": "test/e2e/data/kiali-image-bundle/manifests/kiali.monitoringdashboards.crd.yaml",
+              "sha256": "sha256:5fb59da39dc5898f063306409c71795c7d0b03d6c02fe2fb2837e6bba2d49939"
+            },
+            {
+              "class": "extra",
+              "path": "test/e2e/data/kiali-manifests/0.18.1/kiali.crd.yaml",
+              "sha256": "sha256:8386b5f50cb82335ba0c7883fe8f408954d9c4d2b78e42f03b888f94f2556cf1"
+            },
+            {
+              "class": "extra",
+              "path": "test/e2e/data/kiali-manifests/1.1.0/kiali.crd.yaml",
+              "sha256": "sha256:8386b5f50cb82335ba0c7883fe8f408954d9c4d2b78e42f03b888f94f2556cf1"
+            },
+            {
+              "class": "extra",
+              "path": "test/e2e/data/kiali-manifests/1.1.0/kiali.monitoringdashboards.crd.yaml",
+              "sha256": "sha256:5fb59da39dc5898f063306409c71795c7d0b03d6c02fe2fb2837e6bba2d49939"
+            },
+            {
+              "class": "extra",
+              "path": "test/e2e/data/kiali-manifests/1.3.1/kiali.crd.yaml",
+              "sha256": "sha256:9dc72b6a54a008959b87d5422f2136ea4b35d66bd4bc033a6a6d58bfeede4259"
+            },
+            {
+              "class": "extra",
+              "path": "test/e2e/data/kiali-manifests/1.3.1/kiali.monitoringdashboards.crd.yaml",
+              "sha256": "sha256:5fb59da39dc5898f063306409c71795c7d0b03d6c02fe2fb2837e6bba2d49939"
+            },
+            {
+              "class": "extra",
+              "path": "test/e2e/data/kiali-manifests/1.4.2/kiali.crd.yaml",
+              "sha256": "sha256:8386b5f50cb82335ba0c7883fe8f408954d9c4d2b78e42f03b888f94f2556cf1"
+            },
+            {
+              "class": "extra",
+              "path": "test/e2e/data/kiali-manifests/1.4.2/kiali.monitoringdashboards.crd.yaml",
+              "sha256": "sha256:5fb59da39dc5898f063306409c71795c7d0b03d6c02fe2fb2837e6bba2d49939"
+            },
+            {
+              "class": "extra",
+              "path": "test/e2e/testdata/deprecated-crd/deprecated.crd.yaml",
+              "sha256": "sha256:6d351e71e8d3a13153504891f3683073c4a36bbe9e12f270d6948ab8ad8156c7"
+            },
+            {
+              "class": "extra",
+              "path": "test/e2e/testdata/vpa/crd.yaml",
+              "sha256": "sha256:3088afdb2eb46118d1f4b21d8447577c4107da9e752727b1dc8ef97b76d18400"
+            },
+            {
+              "class": "extra",
+              "path": "test/images/busybox-index/busybox-dependency/1.0.0/manifests/foo.crd.yaml",
+              "sha256": "sha256:f32bb7e802bc96bff7bb721d7d67a9c61c62ff8a3cedfc65cb1ed6cc8dd3277e"
+            },
+            {
+              "class": "extra",
+              "path": "test/images/busybox-index/busybox-dependency/2.0.0/manifests/foo.crd.yaml",
+              "sha256": "sha256:f32bb7e802bc96bff7bb721d7d67a9c61c62ff8a3cedfc65cb1ed6cc8dd3277e"
+            }
+          ]
+        },
+        "slug": "operator-lifecycle-manager"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:3266377d0e706c8e4aba2f52fa1fce029e6dc7d2d07e373fe0c1e3f7a65ebf53",
+            "path": "cli/internal/extract/crdversions/target-radius.json"
+          }
+        ],
+        "catalog": "cncf",
+        "facts": [
+          "component.radius.custom_resource_versions_set"
+        ],
+        "groups": [
+          "radapp.io",
+          "ucp.dev"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 34,
+            "ledger": "sha256:2b73ca6841b394b11b6552d76e9504efe26bcd7c0febd04930cc6ff9f262b7f2",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "694528df87202b3f092ad0a9e81adaebd4e49a8b",
+            "fromTag": "v0.60.0",
+            "toCommit": "69c94eecb1ba98b5104c1cb43606c0ce7bcc2392",
+            "toTag": "v0.61.0"
+          },
+          "scan": [
+            {
+              "class": "extra",
+              "path": "test/crd/flux/source.toolkit.fluxcd.io_gitrepositories.yaml",
+              "sha256": "sha256:1da22640c7dfa9c7e96323c2c5808206ae257f3767a5f8a7a675fbc5198d9195"
+            }
+          ]
+        },
+        "slug": "radius"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:91939c7cb8e4528cfb03b5313e421c006509c7dcd3151f88fdcfe61500acd413",
+            "path": "cli/internal/extract/crdversions/target-redis-operator.json"
+          }
+        ],
+        "catalog": "community",
+        "facts": [
+          "component.redis_operator.custom_resource_versions_set"
+        ],
+        "groups": [
+          "redis.redis.opstreelabs.in"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 29,
+            "ledger": "sha256:d64510f92f1cd9ca7e570d4097ee034aec9d88ff86cf3a5708001324ac1b40cc",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "ef33adb71ce1bffb0ab1fce593625c320dc6164e",
+            "fromTag": "v0.26.0",
+            "toCommit": "71954323c9191e6171f3eb04f80bb46a5f128306",
+            "toTag": "v0.27.0"
+          },
+          "scan": [
+            {
+              "class": "kustomize-config",
+              "path": "config/crd/kustomizeconfig.yaml",
+              "sha256": "sha256:6d7795b478715403133638a62e9d24a6bfef7629809e14cc73e8d2ea457594d9"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_redis.yaml",
+              "sha256": "sha256:4593c7a66e066cdcdc65b255f19e34c2c96a0f4aba508c39a52cb8497cd532db"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_redisclusters.yaml",
+              "sha256": "sha256:fd8ff8da6b9363ce9889b9aa0c46d4cbdcce0bfed2cbc24f4a6a0fa4bbe13c17"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_redisreplications.yaml",
+              "sha256": "sha256:a25bc3e94417ca62d7149cf4b76d9a0de960597ab89bca61b8bd723e3eecec9e"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_redissentinels.yaml",
+              "sha256": "sha256:d6f3b83f700716fe932e24c73dae60d1adb3db5a87443c69b8e230fc66c80d80"
+            },
+            {
+              "class": "unread",
+              "path": "config/rbac/kustomization.yaml",
+              "sha256": "sha256:337c865ccc0d823d5f0d4e2ac90b4bc14d0e0ac3a2009b14c89f5e79d39f1d73"
+            },
+            {
+              "class": "unread",
+              "path": "config/rbac/kustomization.yaml",
+              "sha256": "sha256:81cec00d4d324da02774ca9c4499a2162b035143241cc3f369a94c543373c6aa"
+            }
+          ]
+        },
+        "slug": "redis-operator"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:375e16ebb496464911f1b9bd20931288b06612372d5afb739773a3db9ae487cb",
+            "path": "cli/internal/extract/crdversions/target-sealed-secrets.json"
+          }
+        ],
+        "catalog": "community",
+        "facts": [
+          "component.sealed_secrets.custom_resource_versions_set"
+        ],
+        "groups": [
+          "bitnami.com"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 11,
+            "ledger": "sha256:c4d65e033838364703827b51a2c4a5a66734040c6d877dc4b76622e2e72f09db",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "7117727b801514f4c6e3b2cd23cdb74b81f57a86",
+            "fromTag": "v0.40.0",
+            "toCommit": "6772bee54ff8c7ef27bdeeaf15ec329854796c69",
+            "toTag": "v0.41.0"
+          },
+          "scan": [
+            {
+              "class": "unsupported",
+              "path": "controller-norbac.jsonnet",
+              "sha256": "sha256:10d574071e9cae1c2215011706cb93571834ca51939df11ebcdb85401c47ef97"
+            },
+            {
+              "class": "unsupported",
+              "path": "kube-fixes.libsonnet",
+              "sha256": "sha256:bf58c2e1cad50aa98c649e825ab2bb5366ce5092f49872a52805dbbe9eb1959d"
+            },
+            {
+              "class": "unsupported",
+              "path": "vendor_jsonnet/kube-libsonnet/kube.libsonnet",
+              "sha256": "sha256:3a41e92bc625f7ba013f6634b4e04b25e383b38458e59f3b08de90e878417ffe"
+            }
+          ]
+        },
+        "slug": "sealed-secrets"
+      }
+    ],
+    "sample": [
+      0,
+      2,
+      9
+    ],
+    "summaryDigest": "sha256:2e8759a430abc771b59f11484d1244cbc4c659f63a506cbe202fc945b00d63cf"
+  },
+  "keyId": "sha256:f25122006c39056826999433c0c100392d1de23462d5b56ee3ba5ad45e874e99",
+  "signature": "H+CtR9IKchgypL9SROCNJflFyi12SwMtQu7ZjDybEqCmD/u7t2+wK9rdOTVHhQrzKlft6r0F4A7Gq7efV1h+AA=="
+}
