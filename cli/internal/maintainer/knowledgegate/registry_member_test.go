@@ -86,6 +86,7 @@ func editRegistryPack(t *testing.T, tr Tree, definitions []constraintengine.Fact
 		writeFile(t, filepath.Join(tr.Root, filepath.FromSlash(g.JSONPath)), j)
 		writeFile(t, filepath.Join(tr.Root, filepath.FromSlash(g.MarkdownPath)), []byte(md))
 	}
+	regenerateBlocksLoose(tr)
 }
 
 func setRegistryDigest(t *testing.T, tr Tree, digest string, definitions []constraintengine.FactDefinition) {

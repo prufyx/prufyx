@@ -110,7 +110,7 @@ func outsideBatchPaths(layout Layout, base, head Tree, batchPath string) ([]stri
 	if err != nil {
 		return nil, err
 	}
-	allowed := batchAllowedPaths(layout, batchPath)
+	allowed := batchAllowedPaths(layout, base, head, batchPath)
 	var outside []string
 	for _, p := range paths {
 		if !allowed[p] {

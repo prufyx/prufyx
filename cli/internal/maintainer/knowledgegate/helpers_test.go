@@ -17,6 +17,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/extract/crdbatchfixture"
 	"github.com/prufyx/prufyx/cli/internal/extract/extractpack"
 	"github.com/prufyx/prufyx/cli/internal/extract/supersedefixture"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/coveragereport"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencereattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/rulecheck"
 )
@@ -43,6 +44,23 @@ var knowledgeFiles = []string{
 	"cli/docs/data/selected-source-records-v1.json",
 	"cli/docs/generated/community-support-inventory.json",
 	"cli/docs/generated/community-support-inventory.md",
+	"README.md",
+	coveragereport.PinnedLinesPath,
+}
+
+// knowledgeTargetFiles are the CRD version target files, which the README
+// block counts.
+func knowledgeTargetFiles() ([]string, error) {
+	dir := defaultOnboardingLayout().TargetsDir
+	names, err := filepath.Glob(filepath.Join(repoRoot, filepath.FromSlash(dir), "target-*.json"))
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for _, n := range names {
+		out = append(out, dir+"/"+filepath.Base(n))
+	}
+	return out, nil
 }
 
 func writeFile(t *testing.T, path string, raw []byte) {
@@ -100,7 +118,11 @@ func withoutLineAttestations(raw []byte) ([]byte, error) {
 func buildKnowledgeTemplate() (map[string][]byte, error) {
 	files := map[string][]byte{}
 	rebuilt := false
-	for _, rel := range knowledgeFiles {
+	targetFiles, err := knowledgeTargetFiles()
+	if err != nil {
+		return nil, err
+	}
+	for _, rel := range append(append([]string{}, knowledgeFiles...), targetFiles...) {
 		raw, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(rel)))
 		if err != nil {
 			return nil, err
@@ -173,6 +195,16 @@ func buildKnowledgeTemplate() (map[string][]byte, error) {
 		}
 		files[g.JSONPath] = jsonRaw
 		files[g.MarkdownPath] = []byte(markdown)
+		if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(g.JSONPath)), jsonRaw, 0o644); err != nil {
+			return nil, err
+		}
+	}
+	for _, g := range layout.GeneratedBlocks {
+		want, err := g.Want(tree, tree)
+		if err != nil {
+			return nil, err
+		}
+		files[g.Path] = want
 	}
 	return files, nil
 }
@@ -281,6 +313,31 @@ func regenerate(t *testing.T, tr Tree) {
 		}
 		writeFile(t, filepath.Join(tr.Root, filepath.FromSlash(g.JSONPath)), j)
 		writeFile(t, filepath.Join(tr.Root, filepath.FromSlash(g.MarkdownPath)), []byte(md))
+	}
+	regenerateBlocks(t, tr)
+}
+
+// regenerateBlocks rewrites the generated blocks of a tree from its data.
+func regenerateBlocks(t *testing.T, tr Tree) {
+	t.Helper()
+	for _, g := range DefaultLayout().GeneratedBlocks {
+		want, err := g.Want(tr, tr)
+		if err != nil {
+			t.Fatalf("regenerate %s: %v", g.Path, err)
+		}
+		writeFile(t, filepath.Join(tr.Root, filepath.FromSlash(g.Path)), want)
+	}
+}
+
+// regenerateBlocksLoose is regenerateBlocks for fixtures that may hold a pack
+// or targets that do not load: the block is then left as it is.
+func regenerateBlocksLoose(tr Tree) {
+	for _, g := range DefaultLayout().GeneratedBlocks {
+		want, err := g.Want(tr, tr)
+		if err != nil {
+			continue
+		}
+		_ = os.WriteFile(filepath.Join(tr.Root, filepath.FromSlash(g.Path)), want, 0o644)
 	}
 }
 

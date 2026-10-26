@@ -107,6 +107,7 @@ type onboardingState struct {
 	base, head      onboardingSide
 	cls             *Classification
 	changedPaths    []string
+	baseTree        Tree
 	headTree        Tree
 	changeSetDigest string
 	// landscape maps a CNCF slug to its repository URL.
@@ -194,7 +195,7 @@ type onboardingChangeSet struct {
 // read as an onboarding change at all.
 func newOnboardingState(layout Layout, base, head Tree, cls *Classification, changedPaths []string) (*onboardingState, error) {
 	ol := layout.Onboarding
-	st := &onboardingState{layout: layout, cls: cls, changedPaths: changedPaths, headTree: head, landscape: map[string]string{}}
+	st := &onboardingState{layout: layout, cls: cls, changedPaths: changedPaths, baseTree: base, headTree: head, landscape: map[string]string{}}
 	var err error
 	if st.base, err = readOnboardingSide(ol, base, cls.base[ol.Pack]); err != nil {
 		return nil, fmt.Errorf("base: %w", err)
@@ -268,6 +269,9 @@ func (st *onboardingState) allowedPaths(rec OnboardingRecord, batchPath string) 
 		allowed[targetPath(ol, p.Slug)] = true
 	}
 	for rel := range st.docs() {
+		allowed[rel] = true
+	}
+	for rel := range st.layout.admittedBlocks(st.baseTree, st.headTree) {
 		allowed[rel] = true
 	}
 	return allowed
@@ -372,7 +376,7 @@ func (st *onboardingState) check(rec OnboardingRecord, batchPath string) []strin
 		}
 	}
 	if len(outside) > 0 {
-		bad("O2: an onboarding change may change only the batch file, the listed projects' target files, the custom-resource table, the %s pack file, its corpus attestation and the generated support inventory; it also changes %d other files%s", ol.Pack, len(outside), listDetail(outside))
+		bad("O2: an onboarding change may change only the batch file, the listed projects' target files, the custom-resource table, the %s pack file, its corpus attestation, the generated support inventory and the regenerated README coverage block; it also changes %d other files%s", ol.Pack, len(outside), listDetail(outside))
 	}
 	// O2: the classification holds, with a new project, the pack's
 	// registryDigest; nothing else. The pack's revision never changes: it is
