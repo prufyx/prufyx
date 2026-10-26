@@ -38,7 +38,7 @@ repository's files. They are published under the data license of this
 repository, [CC BY-SA 4.0](../DATA-LICENSE.md). Source code is under the
 license in [LICENSE](../LICENSE).
 
-Projects under source-available or proprietary licenses are not accepted.
+Prufyx covers public, open-source projects; other projects may be declined.
 Submitting the form does not guarantee that the project is covered, and this
 page gives no date for coverage.
 
@@ -52,8 +52,9 @@ in an issue and cite the file that shows the correct value.
 ## Opt out
 
 Comment on your issue, or open a new one, asking for removal. We remove the
-project's published knowledge and stop covering it. We cannot recall copies
-that others already made under the license.
+project from the current knowledge set and stop covering it in later releases.
+Earlier releases, git history, and copies others made under CC BY-SA 4.0
+remain.
 
 ## Other routes
 

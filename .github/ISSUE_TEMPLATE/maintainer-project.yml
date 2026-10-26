@@ -7,7 +7,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        This form is for people who maintain a public project. Only the first four fields are required; answer the rest as far as you know.
+        This form is for people who maintain a public project. Three fields and the consent checkbox at the end are required; answer the rest as far as you know.
 
         Everything here is a hint. Prufyx checks each claim against your project's own repository before anything is published, and does not publish an unverified claim as fact. See [For project maintainers](https://github.com/prufyx/prufyx/blob/main/docs/maintainers.md).
 
@@ -42,7 +42,7 @@ body:
     id: relation-proof
     attributes:
       label: Link that shows your relation (recommended)
-      description: A public link to a MAINTAINERS, CODEOWNERS or OWNERS line, or to an organisation page, that names the GitHub account filing this issue. Without it the entry stays a hint of lower confidence.
+      description: A public link to a MAINTAINERS, CODEOWNERS or OWNERS line, or to an organisation page, that names the GitHub account filing this issue. Without it the entry stays a hint of lower confidence. If you chose Other, explain your relation here.
       placeholder: https://github.com/owner/repository/blob/main/MAINTAINERS#L3
   - type: input
     id: tag-pattern
