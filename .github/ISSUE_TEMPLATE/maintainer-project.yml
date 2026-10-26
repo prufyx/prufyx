@@ -1,0 +1,108 @@
+name: Maintainer - register or update your project
+description: For maintainers of a public project. Tell Prufyx where your releases, CRDs, charts and upgrade notes live.
+title: "[maintainer] "
+labels:
+  - maintainer-intake
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This form is for people who maintain a public project. Only the first four fields are required; answer the rest as far as you know.
+
+        Everything here is a hint. Prufyx checks each claim against your project's own repository before anything is published, and does not publish an unverified claim as fact. See [For project maintainers](https://github.com/prufyx/prufyx/blob/main/docs/maintainers.md).
+
+        This issue is public. Do not include email addresses, customer data, cluster data, credentials, or private links.
+  - type: input
+    id: project-name
+    attributes:
+      label: Project name
+      placeholder: Example Operator
+    validations:
+      required: true
+  - type: input
+    id: repository
+    attributes:
+      label: Repository URL
+      description: Exact HTTPS URL of the public repository.
+      placeholder: https://github.com/owner/repository
+    validations:
+      required: true
+  - type: dropdown
+    id: relation
+    attributes:
+      label: Your relation to the project
+      options:
+        - Maintainer
+        - Owner
+        - Maintainer of a downstream or packaging repository
+        - Other (explain in the proof field)
+    validations:
+      required: true
+  - type: textarea
+    id: relation-proof
+    attributes:
+      label: Link that shows your relation (recommended)
+      description: A public link to a MAINTAINERS, CODEOWNERS or OWNERS line, or to an organisation page, that names the GitHub account filing this issue. Without it the entry stays a hint of lower confidence.
+      placeholder: https://github.com/owner/repository/blob/main/MAINTAINERS#L3
+  - type: input
+    id: tag-pattern
+    attributes:
+      label: Release tag pattern
+      description: How release tags are named, and which tags are not releases.
+      placeholder: "v<major>.<minor>.<patch>; ignore tags ending in -rc.N"
+  - type: textarea
+    id: crd-locations
+    attributes:
+      label: Where the CRDs live
+      description: Repository-relative paths or chart names. Say which copy is authoritative if the same CRD appears in several places.
+      placeholder: |
+        config/crd/bases (authoritative)
+        charts/example/crds (copy)
+  - type: textarea
+    id: helm-chart
+    attributes:
+      label: Helm chart location
+      description: Path or chart repository, and how chart version relates to the release tag.
+      placeholder: charts/example, chart version equals release tag without the leading v
+  - type: textarea
+    id: kubernetes-versions
+    attributes:
+      label: Supported Kubernetes versions per release line
+      description: One line per release line, with a link to where you document it.
+      placeholder: |
+        1.4: Kubernetes 1.27-1.30 (https://example.org/docs/compat)
+        1.3: Kubernetes 1.25-1.28
+  - type: textarea
+    id: upgrade-notes
+    attributes:
+      label: Upgrade notes and breaking changes
+      description: Links to upgrade guides or changelog sections, and any breaking change between versions that users often miss. Give a file and tag or version for each.
+      placeholder: |
+        https://github.com/owner/repository/blob/v1.4.0/docs/upgrade.md
+        1.3 to 1.4: field spec.foo removed from the Example CRD
+  - type: textarea
+    id: deprecations
+    attributes:
+      label: Deprecations and removals
+      description: Deprecated or removed fields, API versions, flags or chart values, with the version and a link.
+  - type: textarea
+    id: excluded-versions
+    attributes:
+      label: Versions to exclude
+      description: Pre-release lines, unsupported lines, or withdrawn releases that should not be covered, with the reason.
+  - type: dropdown
+    id: contact-preference
+    attributes:
+      label: How should we send corrections or questions?
+      options:
+        - Comment on this issue
+        - Open an issue in the Prufyx repository
+        - Pull request to the Prufyx repository
+        - No contact needed
+  - type: checkboxes
+    id: consent
+    attributes:
+      label: Consent
+      options:
+        - label: I agree that the information and links in this issue may be published in Prufyx knowledge under the data license of this repository (CC BY-SA 4.0, see DATA-LICENSE.md), after verification against the project's own sources. I included no private or personal data.
+          required: true
