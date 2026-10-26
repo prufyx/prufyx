@@ -60,6 +60,11 @@ type Input struct {
 	// report counts those that also have a published rule or line
 	// attestation of the CRD version family.
 	CRDTargetComponents map[string]string
+	// CommunityPack is the community rule pack, or nil. Only the count of
+	// published CRD projects reads it: a valid crd.custom_resource_versions
+	// rule or a current line attestation in it counts a target project
+	// once, together with the main pack.
+	CommunityPack []byte
 }
 
 // Pair is one consecutive pair of lines and its status.
@@ -223,6 +228,60 @@ func validAt(e evidenceShape, now time.Time) (ok bool, until time.Time) {
 		return false, time.Time{}
 	}
 	return !now.Before(reviewed) && now.Before(until), until
+}
+
+// crdPublished names the projects and components that a pack publishes for
+// the crd.custom_resource_versions family.
+type crdPublished struct{ project, component map[string]bool }
+
+// communityCRDPublished reads the community pack (nil: nothing published):
+// a valid, verdict-bearing rule of the CRD version family publishes its
+// project; a current line attestation of the family publishes its component.
+func communityCRDPublished(raw []byte, now time.Time) (crdPublished, error) {
+	out := crdPublished{project: map[string]bool{}, component: map[string]bool{}}
+	if len(raw) == 0 {
+		return out, nil
+	}
+	var pack packDoc
+	if err := json.Unmarshal(raw, &pack); err != nil {
+		return out, fmt.Errorf("%w: community pack: %v", ErrInvalid, err)
+	}
+	for _, entry := range pack.Entries {
+		var shape struct {
+			Evidence evidenceShape `json:"evidence"`
+		}
+		if json.Unmarshal(entry.Rule, &shape) != nil || entry.Project == "" {
+			return out, fmt.Errorf("%w: community pack: malformed entry", ErrInvalid)
+		}
+		scope, err := lineattest.ScopeOf(entry.Rule)
+		if err != nil {
+			return out, fmt.Errorf("%w: community pack: %v", ErrInvalid, err)
+		}
+		neutral, err := constraintengine.RawRuleVerdictNeutral(entry.Rule)
+		if err != nil {
+			return out, fmt.Errorf("%w: community pack: %v", ErrInvalid, err)
+		}
+		if ok, _ := validAt(shape.Evidence, now); ok && !neutral && slices.Contains(scope.Families, lineattest.FamilyCustomResourceVersions) {
+			out.project[entry.Project] = true
+		}
+	}
+	section, present, err := lineattest.PackSection(raw)
+	if err != nil {
+		return out, fmt.Errorf("%w: community pack: %v", ErrInvalid, err)
+	}
+	if !present {
+		return out, nil
+	}
+	atts, err := lineattest.Parse(section)
+	if err != nil {
+		return out, fmt.Errorf("%w: community pack attestations: %v", ErrInvalid, err)
+	}
+	for _, a := range atts {
+		if a.FactFamily == lineattest.FamilyCustomResourceVersions && a.Freshness(now) == lineattest.FreshnessCurrent {
+			out.component[a.Component] = true
+		}
+	}
+	return out, nil
 }
 
 // lineMapped reports whether line arithmetic on engine versions is the
@@ -420,6 +479,10 @@ func Compute(in Input) (Report, error) {
 			crdAttComponent[a.Component] = true
 		}
 	}
+	communityCRD, err := communityCRDPublished(in.CommunityPack, now)
+	if err != nil {
+		return Report{}, err
+	}
 	for project, component := range in.CRDTargetComponents {
 		published := crdAttComponent[component]
 		for _, r := range byProject[project] {
@@ -427,7 +490,7 @@ func Compute(in Input) (Report, error) {
 				published = true
 			}
 		}
-		if published {
+		if published || communityCRD.project[project] || communityCRD.component[component] {
 			report.CRDPublishedProjects++
 		}
 	}

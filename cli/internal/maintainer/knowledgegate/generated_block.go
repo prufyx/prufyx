@@ -160,6 +160,10 @@ func coverageBlock(t Tree) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	community, err := t.Read(commRulesPath, MaxFileBytes)
+	if err != nil {
+		return "", err
+	}
 	lines, err := coveragereport.ParseLines(linesRaw)
 	if err != nil {
 		return "", err
@@ -173,7 +177,7 @@ func coverageBlock(t Tree) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	report, err := coveragereport.Compute(coveragereport.Input{Pack: pack, Lines: linesRaw, Now: now, CRDVersionProjects: len(crd), CRDTargetComponents: crd})
+	report, err := coveragereport.Compute(coveragereport.Input{Pack: pack, Lines: linesRaw, Now: now, CRDVersionProjects: len(crd), CRDTargetComponents: crd, CommunityPack: community})
 	if err != nil {
 		return "", err
 	}
