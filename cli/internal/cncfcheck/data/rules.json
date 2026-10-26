@@ -21081,6 +21081,526 @@
   ],
   "lineAttestations": [
     {
+      "component": "pkg:github/ansible/awx-operator",
+      "line": "2.15",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.14.0",
+            "commit": "5e66b6aeb06c30ddc7300893145d7a31b1655ccd"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.15.0",
+            "commit": "413b7003a2c5f949b175e430456d4eb49c13a999"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.awx-operator",
+          "version": "2.7.0",
+          "codeDigest": "sha256:7920f69b301ce5d84266626a09a57b24a121dcc1280eb765addb07e2db1d371e"
+        },
+        "derivedAt": "2026-10-26T19:47:20Z",
+        "reviewedAt": "2026-10-26T19:47:20Z",
+        "validUntil": "2027-01-24T19:47:20Z",
+        "sources": [
+          {
+            "id": "crds-2-14-0",
+            "url": "https://github.com/ansible/awx-operator/blob/5e66b6aeb06c30ddc7300893145d7a31b1655ccd/config/crd/bases/awx.ansible.com_awxbackups.yaml",
+            "revision": "5e66b6aeb06c30ddc7300893145d7a31b1655ccd",
+            "contentDigest": "sha256:55a54cb986d2c98ecbfb59cabe5098b2664904ceda0c8cfd96e37064365fba71",
+            "startLine": 1,
+            "endLine": 147
+          },
+          {
+            "id": "crds-2-15-0",
+            "url": "https://github.com/ansible/awx-operator/blob/413b7003a2c5f949b175e430456d4eb49c13a999/config/crd/bases/awx.ansible.com_awxbackups.yaml",
+            "revision": "413b7003a2c5f949b175e430456d4eb49c13a999",
+            "contentDigest": "sha256:55a54cb986d2c98ecbfb59cabe5098b2664904ceda0c8cfd96e37064365fba71",
+            "startLine": 1,
+            "endLine": 147
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/ansible/awx-operator",
+      "line": "2.16",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.15.0",
+            "commit": "413b7003a2c5f949b175e430456d4eb49c13a999"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.16.0",
+            "commit": "3fa60853a2fd7036724d0af53914234a6cd6dbee"
+          },
+          {
+            "version": "2.16.1",
+            "commit": "ed72dc12b2605d032c3c8d9c5f8e1d3fe750b85c"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.awx-operator",
+          "version": "2.7.0",
+          "codeDigest": "sha256:7920f69b301ce5d84266626a09a57b24a121dcc1280eb765addb07e2db1d371e"
+        },
+        "derivedAt": "2026-10-26T19:47:20Z",
+        "reviewedAt": "2026-10-26T19:47:20Z",
+        "validUntil": "2027-01-24T19:47:20Z",
+        "sources": [
+          {
+            "id": "crds-2-15-0",
+            "url": "https://github.com/ansible/awx-operator/blob/413b7003a2c5f949b175e430456d4eb49c13a999/config/crd/bases/awx.ansible.com_awxbackups.yaml",
+            "revision": "413b7003a2c5f949b175e430456d4eb49c13a999",
+            "contentDigest": "sha256:55a54cb986d2c98ecbfb59cabe5098b2664904ceda0c8cfd96e37064365fba71",
+            "startLine": 1,
+            "endLine": 147
+          },
+          {
+            "id": "crds-2-16-0",
+            "url": "https://github.com/ansible/awx-operator/blob/3fa60853a2fd7036724d0af53914234a6cd6dbee/config/crd/bases/awx.ansible.com_awxbackups.yaml",
+            "revision": "3fa60853a2fd7036724d0af53914234a6cd6dbee",
+            "contentDigest": "sha256:55a54cb986d2c98ecbfb59cabe5098b2664904ceda0c8cfd96e37064365fba71",
+            "startLine": 1,
+            "endLine": 147
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/ansible/awx-operator",
+      "line": "2.17",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.16.0",
+            "commit": "3fa60853a2fd7036724d0af53914234a6cd6dbee"
+          },
+          {
+            "version": "2.16.1",
+            "commit": "ed72dc12b2605d032c3c8d9c5f8e1d3fe750b85c"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.17.0",
+            "commit": "5d99553fa677189b78fc9e645b29de3efcb61ec8"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.awx-operator",
+          "version": "2.7.0",
+          "codeDigest": "sha256:7920f69b301ce5d84266626a09a57b24a121dcc1280eb765addb07e2db1d371e"
+        },
+        "derivedAt": "2026-10-26T19:47:20Z",
+        "reviewedAt": "2026-10-26T19:47:20Z",
+        "validUntil": "2027-01-24T19:47:20Z",
+        "sources": [
+          {
+            "id": "crds-2-16-0",
+            "url": "https://github.com/ansible/awx-operator/blob/3fa60853a2fd7036724d0af53914234a6cd6dbee/config/crd/bases/awx.ansible.com_awxbackups.yaml",
+            "revision": "3fa60853a2fd7036724d0af53914234a6cd6dbee",
+            "contentDigest": "sha256:55a54cb986d2c98ecbfb59cabe5098b2664904ceda0c8cfd96e37064365fba71",
+            "startLine": 1,
+            "endLine": 147
+          },
+          {
+            "id": "crds-2-17-0",
+            "url": "https://github.com/ansible/awx-operator/blob/5d99553fa677189b78fc9e645b29de3efcb61ec8/config/crd/bases/awx.ansible.com_awxbackups.yaml",
+            "revision": "5d99553fa677189b78fc9e645b29de3efcb61ec8",
+            "contentDigest": "sha256:55a54cb986d2c98ecbfb59cabe5098b2664904ceda0c8cfd96e37064365fba71",
+            "startLine": 1,
+            "endLine": 147
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/ansible/awx-operator",
+      "line": "2.18",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.17.0",
+            "commit": "5d99553fa677189b78fc9e645b29de3efcb61ec8"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.18.0",
+            "commit": "8ead140541622f67bd2d44a3c76bb05739cdebb6"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.awx-operator",
+          "version": "2.7.0",
+          "codeDigest": "sha256:7920f69b301ce5d84266626a09a57b24a121dcc1280eb765addb07e2db1d371e"
+        },
+        "derivedAt": "2026-10-26T19:47:20Z",
+        "reviewedAt": "2026-10-26T19:47:20Z",
+        "validUntil": "2027-01-24T19:47:20Z",
+        "sources": [
+          {
+            "id": "crds-2-17-0",
+            "url": "https://github.com/ansible/awx-operator/blob/5d99553fa677189b78fc9e645b29de3efcb61ec8/config/crd/bases/awx.ansible.com_awxbackups.yaml",
+            "revision": "5d99553fa677189b78fc9e645b29de3efcb61ec8",
+            "contentDigest": "sha256:55a54cb986d2c98ecbfb59cabe5098b2664904ceda0c8cfd96e37064365fba71",
+            "startLine": 1,
+            "endLine": 147
+          },
+          {
+            "id": "crds-2-18-0",
+            "url": "https://github.com/ansible/awx-operator/blob/8ead140541622f67bd2d44a3c76bb05739cdebb6/config/crd/bases/awx.ansible.com_awxbackups.yaml",
+            "revision": "8ead140541622f67bd2d44a3c76bb05739cdebb6",
+            "contentDigest": "sha256:55a54cb986d2c98ecbfb59cabe5098b2664904ceda0c8cfd96e37064365fba71",
+            "startLine": 1,
+            "endLine": 147
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/ansible/awx-operator",
+      "line": "2.19",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.18.0",
+            "commit": "8ead140541622f67bd2d44a3c76bb05739cdebb6"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.19.0",
+            "commit": "e3c27206815f68b2c5ba75b019bc2bc1a940b311"
+          },
+          {
+            "version": "2.19.1",
+            "commit": "dd37ebd440edf953d822f2c134833a44a8e77532"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.awx-operator",
+          "version": "2.7.0",
+          "codeDigest": "sha256:7920f69b301ce5d84266626a09a57b24a121dcc1280eb765addb07e2db1d371e"
+        },
+        "derivedAt": "2026-10-26T19:47:20Z",
+        "reviewedAt": "2026-10-26T19:47:20Z",
+        "validUntil": "2027-01-24T19:47:20Z",
+        "sources": [
+          {
+            "id": "crds-2-18-0",
+            "url": "https://github.com/ansible/awx-operator/blob/8ead140541622f67bd2d44a3c76bb05739cdebb6/config/crd/bases/awx.ansible.com_awxbackups.yaml",
+            "revision": "8ead140541622f67bd2d44a3c76bb05739cdebb6",
+            "contentDigest": "sha256:55a54cb986d2c98ecbfb59cabe5098b2664904ceda0c8cfd96e37064365fba71",
+            "startLine": 1,
+            "endLine": 147
+          },
+          {
+            "id": "crds-2-19-0",
+            "url": "https://github.com/ansible/awx-operator/blob/e3c27206815f68b2c5ba75b019bc2bc1a940b311/config/crd/bases/awx.ansible.com_awxbackups.yaml",
+            "revision": "e3c27206815f68b2c5ba75b019bc2bc1a940b311",
+            "contentDigest": "sha256:55a54cb986d2c98ecbfb59cabe5098b2664904ceda0c8cfd96e37064365fba71",
+            "startLine": 1,
+            "endLine": 147
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/aquasecurity/trivy-operator",
+      "line": "0.32",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.31.0",
+            "commit": "1c6a158189a46ae39b26423273953aba9cf93bc0"
+          },
+          {
+            "version": "0.31.1",
+            "commit": "5746743cb6c49c633c6334fb36060578b599a45d"
+          },
+          {
+            "version": "0.31.2",
+            "commit": "3d073500cfb4956371435fa4085f2f59b9ff6d57"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.32.0",
+            "commit": "1006872c1463e81a40d48298145625aefef2a02f"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.trivy-operator",
+          "version": "2.7.0",
+          "codeDigest": "sha256:2cfcc4ac0c8434c83ed55fa752a6d7b9e135b8a13ea0d39084f6c10b318e5c8d"
+        },
+        "derivedAt": "2026-10-26T18:09:56Z",
+        "reviewedAt": "2026-10-26T18:09:56Z",
+        "validUntil": "2027-01-24T18:09:56Z",
+        "sources": [
+          {
+            "id": "crds-0-31-0",
+            "url": "https://github.com/aquasecurity/trivy-operator/blob/1c6a158189a46ae39b26423273953aba9cf93bc0/deploy/helm/crds/aquasecurity.github.io_clustercompliancereports.yaml",
+            "revision": "1c6a158189a46ae39b26423273953aba9cf93bc0",
+            "contentDigest": "sha256:43d7eee869b4ecccf92abbc023799fe7373504fec0766ee07f75f86cae0771dd",
+            "startLine": 1,
+            "endLine": 280
+          },
+          {
+            "id": "crds-0-32-0",
+            "url": "https://github.com/aquasecurity/trivy-operator/blob/1006872c1463e81a40d48298145625aefef2a02f/deploy/helm/crds/aquasecurity.github.io_clustercompliancereports.yaml",
+            "revision": "1006872c1463e81a40d48298145625aefef2a02f",
+            "contentDigest": "sha256:43d7eee869b4ecccf92abbc023799fe7373504fec0766ee07f75f86cae0771dd",
+            "startLine": 1,
+            "endLine": 280
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/aquasecurity/trivy-operator",
+      "line": "0.33",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.32.0",
+            "commit": "1006872c1463e81a40d48298145625aefef2a02f"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.33.0",
+            "commit": "5e34376b9f5aa6aa330fb360b6c26f828103fb5c"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.trivy-operator",
+          "version": "2.7.0",
+          "codeDigest": "sha256:2cfcc4ac0c8434c83ed55fa752a6d7b9e135b8a13ea0d39084f6c10b318e5c8d"
+        },
+        "derivedAt": "2026-10-26T18:09:56Z",
+        "reviewedAt": "2026-10-26T18:09:56Z",
+        "validUntil": "2027-01-24T18:09:56Z",
+        "sources": [
+          {
+            "id": "crds-0-32-0",
+            "url": "https://github.com/aquasecurity/trivy-operator/blob/1006872c1463e81a40d48298145625aefef2a02f/deploy/helm/crds/aquasecurity.github.io_clustercompliancereports.yaml",
+            "revision": "1006872c1463e81a40d48298145625aefef2a02f",
+            "contentDigest": "sha256:43d7eee869b4ecccf92abbc023799fe7373504fec0766ee07f75f86cae0771dd",
+            "startLine": 1,
+            "endLine": 280
+          },
+          {
+            "id": "crds-0-33-0",
+            "url": "https://github.com/aquasecurity/trivy-operator/blob/5e34376b9f5aa6aa330fb360b6c26f828103fb5c/deploy/helm/crds/aquasecurity.github.io_clustercompliancereports.yaml",
+            "revision": "5e34376b9f5aa6aa330fb360b6c26f828103fb5c",
+            "contentDigest": "sha256:43d7eee869b4ecccf92abbc023799fe7373504fec0766ee07f75f86cae0771dd",
+            "startLine": 1,
+            "endLine": 280
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/aquasecurity/trivy-operator",
+      "line": "0.34",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.33.0",
+            "commit": "5e34376b9f5aa6aa330fb360b6c26f828103fb5c"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.34.0",
+            "commit": "7107830178ae50e96e9f09d98976e51e6152759f"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.trivy-operator",
+          "version": "2.7.0",
+          "codeDigest": "sha256:2cfcc4ac0c8434c83ed55fa752a6d7b9e135b8a13ea0d39084f6c10b318e5c8d"
+        },
+        "derivedAt": "2026-10-26T18:09:56Z",
+        "reviewedAt": "2026-10-26T18:09:56Z",
+        "validUntil": "2027-01-24T18:09:56Z",
+        "sources": [
+          {
+            "id": "crds-0-33-0",
+            "url": "https://github.com/aquasecurity/trivy-operator/blob/5e34376b9f5aa6aa330fb360b6c26f828103fb5c/deploy/helm/crds/aquasecurity.github.io_clustercompliancereports.yaml",
+            "revision": "5e34376b9f5aa6aa330fb360b6c26f828103fb5c",
+            "contentDigest": "sha256:43d7eee869b4ecccf92abbc023799fe7373504fec0766ee07f75f86cae0771dd",
+            "startLine": 1,
+            "endLine": 280
+          },
+          {
+            "id": "crds-0-34-0",
+            "url": "https://github.com/aquasecurity/trivy-operator/blob/7107830178ae50e96e9f09d98976e51e6152759f/deploy/helm/crds/aquasecurity.github.io_clustercompliancereports.yaml",
+            "revision": "7107830178ae50e96e9f09d98976e51e6152759f",
+            "contentDigest": "sha256:43d7eee869b4ecccf92abbc023799fe7373504fec0766ee07f75f86cae0771dd",
+            "startLine": 1,
+            "endLine": 280
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/aquasecurity/trivy-operator",
+      "line": "0.35",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.34.0",
+            "commit": "7107830178ae50e96e9f09d98976e51e6152759f"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.35.0",
+            "commit": "5171971e35c7b1d8a0e47a94a2326da4d97ff417"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.trivy-operator",
+          "version": "2.7.0",
+          "codeDigest": "sha256:2cfcc4ac0c8434c83ed55fa752a6d7b9e135b8a13ea0d39084f6c10b318e5c8d"
+        },
+        "derivedAt": "2026-10-26T18:09:56Z",
+        "reviewedAt": "2026-10-26T18:09:56Z",
+        "validUntil": "2027-01-24T18:09:56Z",
+        "sources": [
+          {
+            "id": "crds-0-34-0",
+            "url": "https://github.com/aquasecurity/trivy-operator/blob/7107830178ae50e96e9f09d98976e51e6152759f/deploy/helm/crds/aquasecurity.github.io_clustercompliancereports.yaml",
+            "revision": "7107830178ae50e96e9f09d98976e51e6152759f",
+            "contentDigest": "sha256:43d7eee869b4ecccf92abbc023799fe7373504fec0766ee07f75f86cae0771dd",
+            "startLine": 1,
+            "endLine": 280
+          },
+          {
+            "id": "crds-0-35-0",
+            "url": "https://github.com/aquasecurity/trivy-operator/blob/5171971e35c7b1d8a0e47a94a2326da4d97ff417/deploy/helm/crds/aquasecurity.github.io_clustercompliancereports.yaml",
+            "revision": "5171971e35c7b1d8a0e47a94a2326da4d97ff417",
+            "contentDigest": "sha256:43d7eee869b4ecccf92abbc023799fe7373504fec0766ee07f75f86cae0771dd",
+            "startLine": 1,
+            "endLine": 280
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/aquasecurity/trivy-operator",
+      "line": "0.36",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.35.0",
+            "commit": "5171971e35c7b1d8a0e47a94a2326da4d97ff417"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.36.0",
+            "commit": "047f1d95f4f8355569aadbdad0f1c74550c6cbec"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.trivy-operator",
+          "version": "2.7.0",
+          "codeDigest": "sha256:2cfcc4ac0c8434c83ed55fa752a6d7b9e135b8a13ea0d39084f6c10b318e5c8d"
+        },
+        "derivedAt": "2026-10-26T18:09:56Z",
+        "reviewedAt": "2026-10-26T18:09:56Z",
+        "validUntil": "2027-01-24T18:09:56Z",
+        "sources": [
+          {
+            "id": "crds-0-35-0",
+            "url": "https://github.com/aquasecurity/trivy-operator/blob/5171971e35c7b1d8a0e47a94a2326da4d97ff417/deploy/helm/crds/aquasecurity.github.io_clustercompliancereports.yaml",
+            "revision": "5171971e35c7b1d8a0e47a94a2326da4d97ff417",
+            "contentDigest": "sha256:43d7eee869b4ecccf92abbc023799fe7373504fec0766ee07f75f86cae0771dd",
+            "startLine": 1,
+            "endLine": 280
+          },
+          {
+            "id": "crds-0-36-0",
+            "url": "https://github.com/aquasecurity/trivy-operator/blob/047f1d95f4f8355569aadbdad0f1c74550c6cbec/deploy/helm/crds/aquasecurity.github.io_clustercompliancereports.yaml",
+            "revision": "047f1d95f4f8355569aadbdad0f1c74550c6cbec",
+            "contentDigest": "sha256:43d7eee869b4ecccf92abbc023799fe7373504fec0766ee07f75f86cae0771dd",
+            "startLine": 1,
+            "endLine": 280
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/cert-manager/cert-manager",
       "line": "1.20",
       "factFamily": "crd.custom_resource_versions",
@@ -21240,6 +21760,134 @@
             "contentDigest": "sha256:dff7542a2ee6581e3963a076410212ad3207201b70df8a328aa50826d569161c",
             "startLine": 1,
             "endLine": 3524
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/cyclops-ui/cyclops",
+      "line": "0.20",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.19.0",
+            "commit": "9a2f2bad369fce72e7b2b5defead8caea54f4ecb"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.20.0",
+            "commit": "63cd0106b9aa8314160cebb3364d220844cff5ee"
+          },
+          {
+            "version": "0.20.1",
+            "commit": "5041e4915ebc7126ef0e90491704b8785144c606"
+          },
+          {
+            "version": "0.20.2",
+            "commit": "0461e81d468339c28f91124e71e8333cc1d8f0de"
+          },
+          {
+            "version": "0.20.3",
+            "commit": "88a61f78de97c9d3ea0e5d95f53da9770bcd3bb0"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.cyclops",
+          "version": "2.7.0",
+          "codeDigest": "sha256:6f53f7ceb1fbaf2893d924524dd16f592dc15f23e447a58ff71b6a294d23c00d"
+        },
+        "derivedAt": "2026-10-26T19:11:00Z",
+        "reviewedAt": "2026-10-26T19:11:00Z",
+        "validUntil": "2027-01-24T19:11:00Z",
+        "sources": [
+          {
+            "id": "crds-0-19-0",
+            "url": "https://github.com/cyclops-ui/cyclops/blob/9a2f2bad369fce72e7b2b5defead8caea54f4ecb/cyclops-ctrl/config/crd/bases/cyclops-ui.com_modules.yaml",
+            "revision": "9a2f2bad369fce72e7b2b5defead8caea54f4ecb",
+            "contentDigest": "sha256:5de8adfb16f8a80aa668c5dfa8fd9c941c49e31f99c375b475225abb44df8575",
+            "startLine": 1,
+            "endLine": 173
+          },
+          {
+            "id": "crds-0-20-0",
+            "url": "https://github.com/cyclops-ui/cyclops/blob/63cd0106b9aa8314160cebb3364d220844cff5ee/cyclops-ctrl/config/crd/bases/cyclops-ui.com_modules.yaml",
+            "revision": "63cd0106b9aa8314160cebb3364d220844cff5ee",
+            "contentDigest": "sha256:5de8adfb16f8a80aa668c5dfa8fd9c941c49e31f99c375b475225abb44df8575",
+            "startLine": 1,
+            "endLine": 173
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/cyclops-ui/cyclops",
+      "line": "0.21",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.20.0",
+            "commit": "63cd0106b9aa8314160cebb3364d220844cff5ee"
+          },
+          {
+            "version": "0.20.1",
+            "commit": "5041e4915ebc7126ef0e90491704b8785144c606"
+          },
+          {
+            "version": "0.20.2",
+            "commit": "0461e81d468339c28f91124e71e8333cc1d8f0de"
+          },
+          {
+            "version": "0.20.3",
+            "commit": "88a61f78de97c9d3ea0e5d95f53da9770bcd3bb0"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.21.0",
+            "commit": "ac97fc67bfc03aed691585f2c59a9787aa363667"
+          },
+          {
+            "version": "0.21.1",
+            "commit": "0cb57591927387de0e98a82f87fba13e1364a440"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.cyclops",
+          "version": "2.7.0",
+          "codeDigest": "sha256:6f53f7ceb1fbaf2893d924524dd16f592dc15f23e447a58ff71b6a294d23c00d"
+        },
+        "derivedAt": "2026-10-26T19:11:00Z",
+        "reviewedAt": "2026-10-26T19:11:00Z",
+        "validUntil": "2027-01-24T19:11:00Z",
+        "sources": [
+          {
+            "id": "crds-0-20-0",
+            "url": "https://github.com/cyclops-ui/cyclops/blob/63cd0106b9aa8314160cebb3364d220844cff5ee/cyclops-ctrl/config/crd/bases/cyclops-ui.com_modules.yaml",
+            "revision": "63cd0106b9aa8314160cebb3364d220844cff5ee",
+            "contentDigest": "sha256:5de8adfb16f8a80aa668c5dfa8fd9c941c49e31f99c375b475225abb44df8575",
+            "startLine": 1,
+            "endLine": 173
+          },
+          {
+            "id": "crds-0-21-0",
+            "url": "https://github.com/cyclops-ui/cyclops/blob/ac97fc67bfc03aed691585f2c59a9787aa363667/cyclops-ctrl/config/crd/bases/cyclops-ui.com_modules.yaml",
+            "revision": "ac97fc67bfc03aed691585f2c59a9787aa363667",
+            "contentDigest": "sha256:fe991d6e020dd3494adce91f022bb19b87a416796f08d567d2597108fe111731",
+            "startLine": 1,
+            "endLine": 186
           }
         ]
       }
@@ -22100,6 +22748,60 @@
             "contentDigest": "sha256:47acb92af4b4c403832c0d7acc32cab2d72c58be630dc7fe0cdbed702c3b1434",
             "startLine": 1,
             "endLine": 102
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/fluent/fluent-operator",
+      "line": "3.10",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "3.9.0",
+            "commit": "d4821ada2099323b25b652d7198207f298695e27"
+          }
+        ],
+        "to": [
+          {
+            "version": "3.10.0",
+            "commit": "7ab60a3ead9130cf9a24a3c07f540353dfa9e099"
+          },
+          {
+            "version": "3.10.1",
+            "commit": "352f22c9458ccfcfcebd80541f1c4d026cc9b665"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.fluent-operator",
+          "version": "2.7.0",
+          "codeDigest": "sha256:f2530a744301ed9edd5e1747c5008d6368812380ac1b9be33e090631a1a225d8"
+        },
+        "derivedAt": "2026-10-26T18:04:54Z",
+        "reviewedAt": "2026-10-26T18:04:54Z",
+        "validUntil": "2027-01-24T18:04:54Z",
+        "sources": [
+          {
+            "id": "crds-3-10-0",
+            "url": "https://github.com/fluent/fluent-operator/blob/7ab60a3ead9130cf9a24a3c07f540353dfa9e099/config/crd/bases/fluentbit.fluent.io_clusterfilters.yaml",
+            "revision": "7ab60a3ead9130cf9a24a3c07f540353dfa9e099",
+            "contentDigest": "sha256:e5273045bd828dae84213ae9ce4810621ac30742c391a8238b0fd75ab8fdd652",
+            "startLine": 1,
+            "endLine": 976
+          },
+          {
+            "id": "crds-3-9-0",
+            "url": "https://github.com/fluent/fluent-operator/blob/d4821ada2099323b25b652d7198207f298695e27/config/crd/bases/fluentbit.fluent.io_clusterfilters.yaml",
+            "revision": "d4821ada2099323b25b652d7198207f298695e27",
+            "contentDigest": "sha256:e5273045bd828dae84213ae9ce4810621ac30742c391a8238b0fd75ab8fdd652",
+            "startLine": 1,
+            "endLine": 976
           }
         ]
       }
@@ -23104,6 +23806,318 @@
             "contentDigest": "sha256:465276aedf437726de5a6ed23a41b86d78bb0d347edf251a755ae26a93cdd8a6",
             "startLine": 1,
             "endLine": 110423
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/mongodb/mongodb-kubernetes",
+      "line": "1.9",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.8.0",
+            "commit": "bc48cd8b4a5830180854f93f9c63e29afa331764"
+          },
+          {
+            "version": "1.8.1",
+            "commit": "d89262c9bd16182b4ccadca13706cc8c10ab2df2"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.9.0",
+            "commit": "33f3eeb1a42be64ca44e132dee5646931ce0a84f"
+          },
+          {
+            "version": "1.9.1",
+            "commit": "f935a71a503c0c98f8caf517d7bfed09c4c691e2"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.mongodb-kubernetes",
+          "version": "2.7.0",
+          "codeDigest": "sha256:0aaf5c497478ad2e2064a12427fa1f45838973f05a775a3f0b1c3a7e554f7f24"
+        },
+        "derivedAt": "2026-10-26T18:27:52Z",
+        "reviewedAt": "2026-10-26T18:27:52Z",
+        "validUntil": "2027-01-24T18:27:52Z",
+        "sources": [
+          {
+            "id": "crds-1-8-0",
+            "url": "https://github.com/mongodb/mongodb-kubernetes/blob/bc48cd8b4a5830180854f93f9c63e29afa331764/config/crd/bases/mongodb.com_clustermongodbroles.yaml",
+            "revision": "bc48cd8b4a5830180854f93f9c63e29afa331764",
+            "contentDigest": "sha256:0d233663abc98b4ea2cf2900ab2b0cea3c4d87ae8e2abb3d3daa8af542cdedba",
+            "startLine": 1,
+            "endLine": 108
+          },
+          {
+            "id": "crds-1-9-0",
+            "url": "https://github.com/mongodb/mongodb-kubernetes/blob/33f3eeb1a42be64ca44e132dee5646931ce0a84f/config/crd/bases/ai.mongodb.com_voyageais.yaml",
+            "revision": "33f3eeb1a42be64ca44e132dee5646931ce0a84f",
+            "contentDigest": "sha256:787e85c5f1bf6bbdb85079085fd11dac324549a17fe1a62518a1dede9c5f5674",
+            "startLine": 1,
+            "endLine": 616
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/mongodb/mongodb-kubernetes",
+      "line": "1.10",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.9.0",
+            "commit": "33f3eeb1a42be64ca44e132dee5646931ce0a84f"
+          },
+          {
+            "version": "1.9.1",
+            "commit": "f935a71a503c0c98f8caf517d7bfed09c4c691e2"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.10.0",
+            "commit": "41e81d7ebccf299463e9d5f81006d3e6b7ddfa91"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.mongodb-kubernetes",
+          "version": "2.7.0",
+          "codeDigest": "sha256:0aaf5c497478ad2e2064a12427fa1f45838973f05a775a3f0b1c3a7e554f7f24"
+        },
+        "derivedAt": "2026-10-26T18:27:52Z",
+        "reviewedAt": "2026-10-26T18:27:52Z",
+        "validUntil": "2027-01-24T18:27:52Z",
+        "sources": [
+          {
+            "id": "crds-1-10-0",
+            "url": "https://github.com/mongodb/mongodb-kubernetes/blob/41e81d7ebccf299463e9d5f81006d3e6b7ddfa91/config/crd/bases/ai.mongodb.com_voyageais.yaml",
+            "revision": "41e81d7ebccf299463e9d5f81006d3e6b7ddfa91",
+            "contentDigest": "sha256:4b930fc3b00777d9487f124b9e820a2ff0c65b44f531103ae3b1eb99c9190120",
+            "startLine": 1,
+            "endLine": 616
+          },
+          {
+            "id": "crds-1-9-0",
+            "url": "https://github.com/mongodb/mongodb-kubernetes/blob/33f3eeb1a42be64ca44e132dee5646931ce0a84f/config/crd/bases/ai.mongodb.com_voyageais.yaml",
+            "revision": "33f3eeb1a42be64ca44e132dee5646931ce0a84f",
+            "contentDigest": "sha256:787e85c5f1bf6bbdb85079085fd11dac324549a17fe1a62518a1dede9c5f5674",
+            "startLine": 1,
+            "endLine": 616
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/mongodb/mongodb-kubernetes",
+      "line": "1.11",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.10.0",
+            "commit": "41e81d7ebccf299463e9d5f81006d3e6b7ddfa91"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.11.0",
+            "commit": "92a6af18c9cd5da7b933ab566f29de80fa1a0925"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.mongodb-kubernetes",
+          "version": "2.7.0",
+          "codeDigest": "sha256:0aaf5c497478ad2e2064a12427fa1f45838973f05a775a3f0b1c3a7e554f7f24"
+        },
+        "derivedAt": "2026-10-26T18:27:52Z",
+        "reviewedAt": "2026-10-26T18:27:52Z",
+        "validUntil": "2027-01-24T18:27:52Z",
+        "sources": [
+          {
+            "id": "crds-1-10-0",
+            "url": "https://github.com/mongodb/mongodb-kubernetes/blob/41e81d7ebccf299463e9d5f81006d3e6b7ddfa91/config/crd/bases/ai.mongodb.com_voyageais.yaml",
+            "revision": "41e81d7ebccf299463e9d5f81006d3e6b7ddfa91",
+            "contentDigest": "sha256:4b930fc3b00777d9487f124b9e820a2ff0c65b44f531103ae3b1eb99c9190120",
+            "startLine": 1,
+            "endLine": 616
+          },
+          {
+            "id": "crds-1-11-0",
+            "url": "https://github.com/mongodb/mongodb-kubernetes/blob/92a6af18c9cd5da7b933ab566f29de80fa1a0925/config/crd/bases/ai.mongodb.com_voyageais.yaml",
+            "revision": "92a6af18c9cd5da7b933ab566f29de80fa1a0925",
+            "contentDigest": "sha256:70c2a5017608f6956d1c78fd07b9edebb748eaffd958fbc29fc712cca53dad9c",
+            "startLine": 1,
+            "endLine": 616
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/mongodb/mongodb-kubernetes",
+      "line": "1.12",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.11.0",
+            "commit": "92a6af18c9cd5da7b933ab566f29de80fa1a0925"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.12.0",
+            "commit": "fc9104e0601abfa0bbae444dcb1d55d092a96e24"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.mongodb-kubernetes",
+          "version": "2.7.0",
+          "codeDigest": "sha256:0aaf5c497478ad2e2064a12427fa1f45838973f05a775a3f0b1c3a7e554f7f24"
+        },
+        "derivedAt": "2026-10-26T18:27:52Z",
+        "reviewedAt": "2026-10-26T18:27:52Z",
+        "validUntil": "2027-01-24T18:27:52Z",
+        "sources": [
+          {
+            "id": "crds-1-11-0",
+            "url": "https://github.com/mongodb/mongodb-kubernetes/blob/92a6af18c9cd5da7b933ab566f29de80fa1a0925/config/crd/bases/ai.mongodb.com_voyageais.yaml",
+            "revision": "92a6af18c9cd5da7b933ab566f29de80fa1a0925",
+            "contentDigest": "sha256:70c2a5017608f6956d1c78fd07b9edebb748eaffd958fbc29fc712cca53dad9c",
+            "startLine": 1,
+            "endLine": 616
+          },
+          {
+            "id": "crds-1-12-0",
+            "url": "https://github.com/mongodb/mongodb-kubernetes/blob/fc9104e0601abfa0bbae444dcb1d55d092a96e24/config/crd/bases/ai.mongodb.com_voyageais.yaml",
+            "revision": "fc9104e0601abfa0bbae444dcb1d55d092a96e24",
+            "contentDigest": "sha256:70c2a5017608f6956d1c78fd07b9edebb748eaffd958fbc29fc712cca53dad9c",
+            "startLine": 1,
+            "endLine": 616
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/mongodb/mongodb-kubernetes",
+      "line": "1.13",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.12.0",
+            "commit": "fc9104e0601abfa0bbae444dcb1d55d092a96e24"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.13.0",
+            "commit": "75fa89bca8c1395a1beb0f244723f255f67f8719"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.mongodb-kubernetes",
+          "version": "2.7.0",
+          "codeDigest": "sha256:0aaf5c497478ad2e2064a12427fa1f45838973f05a775a3f0b1c3a7e554f7f24"
+        },
+        "derivedAt": "2026-10-26T18:27:52Z",
+        "reviewedAt": "2026-10-26T18:27:52Z",
+        "validUntil": "2027-01-24T18:27:52Z",
+        "sources": [
+          {
+            "id": "crds-1-12-0",
+            "url": "https://github.com/mongodb/mongodb-kubernetes/blob/fc9104e0601abfa0bbae444dcb1d55d092a96e24/config/crd/bases/ai.mongodb.com_voyageais.yaml",
+            "revision": "fc9104e0601abfa0bbae444dcb1d55d092a96e24",
+            "contentDigest": "sha256:70c2a5017608f6956d1c78fd07b9edebb748eaffd958fbc29fc712cca53dad9c",
+            "startLine": 1,
+            "endLine": 616
+          },
+          {
+            "id": "crds-1-13-0",
+            "url": "https://github.com/mongodb/mongodb-kubernetes/blob/75fa89bca8c1395a1beb0f244723f255f67f8719/config/crd/bases/ai.mongodb.com_voyageais.yaml",
+            "revision": "75fa89bca8c1395a1beb0f244723f255f67f8719",
+            "contentDigest": "sha256:70c2a5017608f6956d1c78fd07b9edebb748eaffd958fbc29fc712cca53dad9c",
+            "startLine": 1,
+            "endLine": 616
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/mongodb/mongodb-kubernetes",
+      "line": "1.14",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.13.0",
+            "commit": "75fa89bca8c1395a1beb0f244723f255f67f8719"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.14.0",
+            "commit": "26b4959c16f513752364994884c05bb343d5bef3"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.mongodb-kubernetes",
+          "version": "2.7.0",
+          "codeDigest": "sha256:0aaf5c497478ad2e2064a12427fa1f45838973f05a775a3f0b1c3a7e554f7f24"
+        },
+        "derivedAt": "2026-10-26T18:27:52Z",
+        "reviewedAt": "2026-10-26T18:27:52Z",
+        "validUntil": "2027-01-24T18:27:52Z",
+        "sources": [
+          {
+            "id": "crds-1-13-0",
+            "url": "https://github.com/mongodb/mongodb-kubernetes/blob/75fa89bca8c1395a1beb0f244723f255f67f8719/config/crd/bases/ai.mongodb.com_voyageais.yaml",
+            "revision": "75fa89bca8c1395a1beb0f244723f255f67f8719",
+            "contentDigest": "sha256:70c2a5017608f6956d1c78fd07b9edebb748eaffd958fbc29fc712cca53dad9c",
+            "startLine": 1,
+            "endLine": 616
+          },
+          {
+            "id": "crds-1-14-0",
+            "url": "https://github.com/mongodb/mongodb-kubernetes/blob/26b4959c16f513752364994884c05bb343d5bef3/config/crd/bases/ai.mongodb.com_voyageais.yaml",
+            "revision": "26b4959c16f513752364994884c05bb343d5bef3",
+            "contentDigest": "sha256:70c2a5017608f6956d1c78fd07b9edebb748eaffd958fbc29fc712cca53dad9c",
+            "startLine": 1,
+            "endLine": 616
           }
         ]
       }
