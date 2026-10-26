@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "radius",
+    "name": "Radius",
+    "repo": "github.com/radius-project/radius",
+    "component": "pkg:github/radius-project/radius",
+    "factProject": "radius",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.56",
+    "paths": [
+      {"path": "deploy/Chart/crds/radius", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"},
+      {"path": "deploy/Chart/crds/ucpd", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

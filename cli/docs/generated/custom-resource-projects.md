@@ -7,8 +7,10 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 
 | Project | Catalog | Fact | API groups |
 | --- | --- | --- | --- |
+| `akri` | CNCF | `component.akri.custom_resource_versions_set` | `akri.sh` |
 | `antrea` | CNCF | `component.antrea.custom_resource_versions_set` | `crd.antrea.io`, `multicluster.crd.antrea.io` |
 | `argo-cd` | CNCF | `component.argo_cd.custom_resource_versions_set` | `argoproj.io` |
+| `awx-operator` | community | `component.awx_operator.custom_resource_versions_set` | `awx.ansible.com` |
 | `cert-manager` | CNCF | `component.cert_manager.custom_resource_versions_set` | `acme.cert-manager.io`, `cert-manager.io` |
 | `chaos-mesh` | CNCF | `component.chaos_mesh.custom_resource_versions_set` | `chaos-mesh.org` |
 | `cilium` | CNCF | `component.cilium.custom_resource_versions_set` | `cilium.io` |
@@ -16,11 +18,13 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `cluster-api` | community | `component.cluster_api.custom_resource_versions_set` | `cluster.x-k8s.io`, `clusterctl.cluster.x-k8s.io`, `runtime.cluster.x-k8s.io` |
 | `contour` | CNCF | `component.contour.custom_resource_versions_set` | `projectcontour.io` |
 | `crossplane` | CNCF | `component.crossplane.custom_resource_versions_set` | `apiextensions.crossplane.io`, `ops.crossplane.io`, `pkg.crossplane.io`, `protection.crossplane.io`, `secrets.crossplane.io` |
+| `cyclops` | community | `component.cyclops.custom_resource_versions_set` | `cyclops-ui.com` |
 | `dapr` | CNCF | `component.dapr.custom_resource_versions_set` | `dapr.io` |
 | `dex` | CNCF | `component.dex.custom_resource_versions_set` | `dex.coreos.com` |
 | `eck-operator` | community | `component.eck_operator.custom_resource_versions_set` | `agent.k8s.elastic.co`, `apm.k8s.elastic.co`, `autoops.k8s.elastic.co`, `autoscaling.k8s.elastic.co`, `beat.k8s.elastic.co`, `elasticsearch.k8s.elastic.co`, `enterprisesearch.k8s.elastic.co`, `kibana.k8s.elastic.co`, `logstash.k8s.elastic.co`, `maps.k8s.elastic.co`, `packageregistry.k8s.elastic.co`, `stackconfigpolicy.k8s.elastic.co` |
 | `eraser` | CNCF | `component.eraser.custom_resource_versions_set` | `eraser.sh` |
 | `external-secrets` | CNCF | `component.external_secrets.custom_resource_versions_set` | `external-secrets.io`, `generators.external-secrets.io` |
+| `fluent-operator` | community | `component.fluent_operator.custom_resource_versions_set` | `fluentbit.fluent.io`, `fluentd.fluent.io` |
 | `gateway-api` | community | `component.gateway_api.custom_resource_versions_set` | `gateway.networking.k8s.io` |
 | `grafana-operator` | community | `component.grafana_operator.custom_resource_versions_set` | `grafana.integreatly.org` |
 | `istio` | CNCF | `component.istio.custom_resource_versions_set` | `extensions.istio.io`, `networking.istio.io`, `security.istio.io`, `telemetry.istio.io` |
@@ -32,7 +36,10 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `keda` | CNCF | `component.keda.custom_resource_versions_set` | `eventing.keda.sh`, `keda.sh` |
 | `kong-ingress-controller` | community | `component.kong_ingress_controller.custom_resource_versions_set` | `configuration.konghq.com` |
 | `koordinator` | CNCF | `component.koordinator.custom_resource_versions_set` | `analysis.koordinator.sh`, `config.koordinator.sh`, `quota.koordinator.sh`, `scheduling.koordinator.sh`, `slo.koordinator.sh` |
+| `kube-green` | community | `component.kube_green.custom_resource_versions_set` | `kube-green.com` |
 | `kubernetes-ingress` | community | `component.kubernetes_ingress.custom_resource_versions_set` | `appprotect.f5.com`, `appprotectdos.f5.com`, `externaldns.nginx.org`, `k8s.nginx.org` |
+| `kubestellar` | CNCF | `component.kubestellar.custom_resource_versions_set` | `control.kubestellar.io` |
+| `kubeswift` | community | `component.kubeswift.custom_resource_versions_set` | `fleet.kubeswift.io`, `gpu.kubeswift.io`, `image.kubeswift.io`, `kernel.kubeswift.io`, `migration.kubeswift.io`, `sandbox.kubeswift.io`, `seed.kubeswift.io`, `snapshot.kubeswift.io`, `storage.kubeswift.io`, `swift.kubeswift.io` |
 | `kubevela` | CNCF | `component.kubevela.custom_resource_versions_set` | `core.oam.dev`, `cue.oam.dev` |
 | `kueue` | community | `component.kueue.custom_resource_versions_set` | `kueue.x-k8s.io` |
 | `kuma` | CNCF | `component.kuma.custom_resource_versions_set` | `kuma.io` |
@@ -45,11 +52,15 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `openkruise` | CNCF | `component.openkruise.custom_resource_versions_set` | `apps.kruise.io`, `policy.kruise.io` |
 | `opentelemetry-operator` | community | `component.opentelemetry_operator.custom_resource_versions_set` | `opentelemetry.io` |
 | `openyurt` | CNCF | `component.openyurt.custom_resource_versions_set` | `apps.openyurt.io`, `iot.openyurt.io`, `network.openyurt.io`, `raven.openyurt.io` |
+| `operator-lifecycle-manager` | community | `component.operator_lifecycle_manager.custom_resource_versions_set` | `operators.coreos.com` |
 | `percona-postgresql-operator` | community | `component.percona_postgresql_operator.custom_resource_versions_set` | `pgv2.percona.com`, `upstream.pgv2.percona.com` |
 | `prometheus-operator` | community | `component.prometheus_operator.custom_resource_versions_set` | `monitoring.coreos.com` |
+| `radius` | CNCF | `component.radius.custom_resource_versions_set` | `radapp.io`, `ucp.dev` |
 | `rancher` | community | `component.rancher.custom_resource_versions_set` | `auditlog.cattle.io`, `catalog.cattle.io`, `management.cattle.io`, `operation.cattle.io`, `plan.cattle.io`, `provisioning.cattle.io`, `rke.cattle.io`, `scc.cattle.io`, `telemetry.cattle.io` |
+| `redis-operator` | community | `component.redis_operator.custom_resource_versions_set` | `redis.redis.opstreelabs.in` |
 | `rook` | CNCF | `component.rook.custom_resource_versions_set` | `ceph.rook.io`, `objectbucket.io` |
 | `schemahero` | CNCF | `component.schemahero.custom_resource_versions_set` | `databases.schemahero.io`, `schemas.schemahero.io` |
+| `sealed-secrets` | community | `component.sealed_secrets.custom_resource_versions_set` | `bitnami.com` |
 | `strimzi` | CNCF | `component.strimzi.custom_resource_versions_set` | `core.strimzi.io`, `kafka.strimzi.io` |
 | `submariner` | CNCF | `component.submariner.custom_resource_versions_set` | `submariner.io` |
 | `tekton` | CNCF | `component.tekton.custom_resource_versions_set` | `resolution.tekton.dev`, `tekton.dev` |
@@ -62,19 +73,27 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 
 | Project | Name | Upstream repository | Licence |
 | --- | --- | --- | --- |
+| `awx-operator` | awx-operator | https://github.com/ansible/awx-operator | [`Apache-2.0`](https://github.com/ansible/awx-operator/blob/5e66b6aeb06c30ddc7300893145d7a31b1655ccd/LICENSE) |
 | `cluster-api` | Cluster API | https://github.com/kubernetes-sigs/cluster-api | [`Apache-2.0`](https://github.com/kubernetes-sigs/cluster-api/blob/560d4acf507bc7cac34b2da449fa5cd53eaeb149/LICENSE) |
+| `cyclops` | cyclops | https://github.com/cyclops-ui/cyclops | [`Apache-2.0`](https://github.com/cyclops-ui/cyclops/blob/e2965366f0e52472e32d37475fbbb5d3507199d0/LICENSE) |
 | `eck-operator` | Elastic Cloud on Kubernetes | https://github.com/elastic/cloud-on-k8s | [`Elastic-2.0`](https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/LICENSE.txt) |
+| `fluent-operator` | fluent-operator | https://github.com/fluent/fluent-operator | [`Apache-2.0`](https://github.com/fluent/fluent-operator/blob/cf5582c23d9e8d96ba1d77d3c7ac48a0456ff7c2/LICENSE) |
 | `gateway-api` | Gateway API | https://github.com/kubernetes-sigs/gateway-api | [`Apache-2.0`](https://github.com/kubernetes-sigs/gateway-api/blob/89b3b0c3fa63f9342f43ba0fb2cf93d6aab53af7/LICENSE) |
 | `grafana-operator` | grafana-operator | https://github.com/grafana/grafana-operator | [`Apache-2.0`](https://github.com/grafana/grafana-operator/blob/3e68ec4c3c706d5d3ca45c7f2d141a5336f243e4/LICENSE) |
 | `kong-ingress-controller` | Kong Ingress Controller | https://github.com/kong/kubernetes-ingress-controller | [`Apache-2.0`](https://github.com/kong/kubernetes-ingress-controller/blob/17f5dafd2a447a7e5ff7be84006a83787ac2882c/LICENSE) |
+| `kube-green` | kube-green | https://github.com/kube-green/kube-green | [`MIT`](https://github.com/kube-green/kube-green/blob/335696fad48024429afc421c104f5a76088a667d/LICENSE) |
 | `kubernetes-ingress` | kubernetes-ingress | https://github.com/nginx/kubernetes-ingress | [`Apache-2.0`](https://github.com/nginx/kubernetes-ingress/blob/2598147d84065276946301ee57534ba6c11b7a8e/LICENSE) |
+| `kubeswift` | kubeswift | https://github.com/kubeswift-io/kubeswift | [`AGPL-3.0-only`](https://github.com/kubeswift-io/kubeswift/blob/70947a12aab3c586aa63454f967afd77120e8cb9/LICENSE) |
 | `kueue` | Kueue | https://github.com/kubernetes-sigs/kueue | [`Apache-2.0`](https://github.com/kubernetes-sigs/kueue/blob/f850823bead72095aaba55025a7efadfdfe3782a/LICENSE) |
 | `mongodb-kubernetes` | MongoDB Controllers for Kubernetes | https://github.com/mongodb/mongodb-kubernetes | [`Apache-2.0 OR LicenseRef-MongoDB-Customer-Agreement`](https://github.com/mongodb/mongodb-kubernetes/blob/75fa89bca8c1395a1beb0f244723f255f67f8719/LICENSE-MCK) |
 | `node-feature-discovery` | Node Feature Discovery | https://github.com/kubernetes-sigs/node-feature-discovery | [`Apache-2.0`](https://github.com/kubernetes-sigs/node-feature-discovery/blob/45d276ed9d3f0f67fb642aa78969721df3034451/LICENSE) |
 | `opentelemetry-operator` | opentelemetry-operator | https://github.com/open-telemetry/opentelemetry-operator | [`Apache-2.0`](https://github.com/open-telemetry/opentelemetry-operator/blob/513d6053adfc942b62f7f65502aad938c9ab0ff3/LICENSE) |
+| `operator-lifecycle-manager` | operator-lifecycle-manager | https://github.com/operator-framework/operator-lifecycle-manager | [`Apache-2.0`](https://github.com/operator-framework/operator-lifecycle-manager/blob/f6925fde7820b275e766af66363b5dab4fb9bff5/LICENSE) |
 | `percona-postgresql-operator` | Percona Operator for PostgreSQL | https://github.com/percona/percona-postgresql-operator | [`Apache-2.0`](https://github.com/percona/percona-postgresql-operator/blob/a6cb60bf372f0eec5c9680437c300e2c07362d70/LICENSE.md) |
 | `prometheus-operator` | Prometheus Operator | https://github.com/prometheus-operator/prometheus-operator | [`Apache-2.0`](https://github.com/prometheus-operator/prometheus-operator/blob/2e4af1d7d8f0ae634fcf0ac967a76fb381a65542/LICENSE) |
 | `rancher` | Rancher | https://github.com/rancher/rancher | [`Apache-2.0`](https://github.com/rancher/rancher/blob/9994cd93198c4b1692bcda733eb08d1e81c26eed/LICENSE) |
+| `redis-operator` | redis-operator | https://github.com/ot-container-kit/redis-operator | [`Apache-2.0`](https://github.com/ot-container-kit/redis-operator/blob/e23140a8522f8e6f1aac2cdf51dfe560c0e90004/LICENSE) |
+| `sealed-secrets` | sealed-secrets | https://github.com/bitnami/sealed-secrets | [`Apache-2.0`](https://github.com/bitnami/sealed-secrets/blob/6dc880366d1cafa16683173cc3c8e3b58e930937/LICENSE) |
 | `trivy-operator` | trivy-operator | https://github.com/aquasecurity/trivy-operator | [`Apache-2.0`](https://github.com/aquasecurity/trivy-operator/blob/3d073500cfb4956371435fa4085f2f59b9ff6d57/LICENSE) |
 
 ## Groups in reserved namespaces
