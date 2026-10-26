@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "cyclops",
+    "catalog": "community",
+    "name": "cyclops",
+    "repo": "github.com/cyclops-ui/cyclops",
+    "component": "pkg:github/cyclops-ui/cyclops",
+    "factProject": "cyclops",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.16",
+    "paths": [
+      {"path": "cyclops-ctrl/config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

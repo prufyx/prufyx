@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "kubeswift",
+    "catalog": "community",
+    "name": "kubeswift",
+    "repo": "github.com/kubeswift-io/kubeswift",
+    "component": "pkg:github/kubeswift-io/kubeswift",
+    "factProject": "kubeswift",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.15",
+    "paths": [
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

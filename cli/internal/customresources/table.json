@@ -2,6 +2,18 @@
   "schema": "prufyx.io/custom-resource-table/v1",
   "projects": [
     {
+      "slug": "akri",
+      "catalog": "cncf",
+      "factProject": "akri",
+      "component": "pkg:github/project-akri/akri",
+      "groups": [
+        {
+          "name": "akri.sh",
+          "source": "https://github.com/project-akri/akri/blob/a2ee68343e83e6917ce5f648d3820a699b819fde/deployment/helm/crds/akri-instance-crd.yaml"
+        }
+      ]
+    },
+    {
       "slug": "antrea",
       "catalog": "cncf",
       "factProject": "antrea",
@@ -26,6 +38,24 @@
         {
           "name": "argoproj.io",
           "source": "https://github.com/argoproj/argo-cd/blob/e98f483bfd5781df2592fef1aeed1148f150d9c9/manifests/crds/application-crd.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "awx-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "awx-operator",
+        "repository": "https://github.com/ansible/awx-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/ansible/awx-operator/blob/5e66b6aeb06c30ddc7300893145d7a31b1655ccd/LICENSE"
+      },
+      "factProject": "awx_operator",
+      "component": "pkg:github/ansible/awx-operator",
+      "groups": [
+        {
+          "name": "awx.ansible.com",
+          "source": "https://github.com/ansible/awx-operator/blob/e3c27206815f68b2c5ba75b019bc2bc1a940b311/config/crd/bases/awx.ansible.com_awxs.yaml"
         }
       ]
     },
@@ -148,6 +178,24 @@
       ]
     },
     {
+      "slug": "cyclops",
+      "catalog": "community",
+      "upstream": {
+        "name": "cyclops",
+        "repository": "https://github.com/cyclops-ui/cyclops",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/cyclops-ui/cyclops/blob/e2965366f0e52472e32d37475fbbb5d3507199d0/LICENSE"
+      },
+      "factProject": "cyclops",
+      "component": "pkg:github/cyclops-ui/cyclops",
+      "groups": [
+        {
+          "name": "cyclops-ui.com",
+          "source": "https://github.com/cyclops-ui/cyclops/blob/ac97fc67bfc03aed691585f2c59a9787aa363667/cyclops-ctrl/config/crd/bases/cyclops-ui.com_templatestores.yaml"
+        }
+      ]
+    },
+    {
       "slug": "dapr",
       "catalog": "cncf",
       "factProject": "dapr",
@@ -258,6 +306,28 @@
         {
           "name": "generators.external-secrets.io",
           "source": "https://github.com/external-secrets/external-secrets/blob/9d17906e8e4c5532ffe513f72273df03b7b07bc6/config/crds/bases/generators.external-secrets.io_webhooks.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "fluent-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "fluent-operator",
+        "repository": "https://github.com/fluent/fluent-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/fluent/fluent-operator/blob/cf5582c23d9e8d96ba1d77d3c7ac48a0456ff7c2/LICENSE"
+      },
+      "factProject": "fluent_operator",
+      "component": "pkg:github/fluent/fluent-operator",
+      "groups": [
+        {
+          "name": "fluentbit.fluent.io",
+          "source": "https://github.com/fluent/fluent-operator/blob/7ab60a3ead9130cf9a24a3c07f540353dfa9e099/config/crd/bases/fluentbit.fluent.io_parsers.yaml"
+        },
+        {
+          "name": "fluentd.fluent.io",
+          "source": "https://github.com/fluent/fluent-operator/blob/7ab60a3ead9130cf9a24a3c07f540353dfa9e099/config/crd/bases/fluentd.fluent.io_outputs.yaml"
         }
       ]
     },
@@ -496,6 +566,24 @@
       ]
     },
     {
+      "slug": "kube-green",
+      "catalog": "community",
+      "upstream": {
+        "name": "kube-green",
+        "repository": "https://github.com/kube-green/kube-green",
+        "license": "MIT",
+        "licenseSource": "https://github.com/kube-green/kube-green/blob/335696fad48024429afc421c104f5a76088a667d/LICENSE"
+      },
+      "factProject": "kube_green",
+      "component": "pkg:github/kube-green/kube-green",
+      "groups": [
+        {
+          "name": "kube-green.com",
+          "source": "https://github.com/kube-green/kube-green/blob/656bc3203c73adc320c1a79e1bc14e2c29a05028/config/crd/bases/kube-green.com_sleepinfos.yaml"
+        }
+      ]
+    },
+    {
       "slug": "kubernetes-ingress",
       "catalog": "community",
       "upstream": {
@@ -522,6 +610,72 @@
         {
           "name": "k8s.nginx.org",
           "source": "https://github.com/nginx/kubernetes-ingress/blob/205828534dd07f1a73440dce23a25a7feefcc395/config/crd/bases/k8s.nginx.org_virtualservers.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "kubestellar",
+      "catalog": "cncf",
+      "factProject": "kubestellar",
+      "component": "pkg:github/kubestellar/kubestellar",
+      "groups": [
+        {
+          "name": "control.kubestellar.io",
+          "source": "https://github.com/kubestellar/kubestellar/blob/aeec0fa9abc09dce7264bc3e1c989596a8b9fbaa/config/crd/bases/control.kubestellar.io_statuscollectors.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "kubeswift",
+      "catalog": "community",
+      "upstream": {
+        "name": "kubeswift",
+        "repository": "https://github.com/kubeswift-io/kubeswift",
+        "license": "AGPL-3.0-only",
+        "licenseSource": "https://github.com/kubeswift-io/kubeswift/blob/70947a12aab3c586aa63454f967afd77120e8cb9/LICENSE"
+      },
+      "factProject": "kubeswift",
+      "component": "pkg:github/kubeswift-io/kubeswift",
+      "groups": [
+        {
+          "name": "fleet.kubeswift.io",
+          "source": "https://github.com/kubeswift-io/kubeswift/blob/97989dc5b51c1c79b5b590c743b7070f38a32d6d/config/crd/bases/fleet.kubeswift.io_clusters.yaml"
+        },
+        {
+          "name": "gpu.kubeswift.io",
+          "source": "https://github.com/kubeswift-io/kubeswift/blob/97989dc5b51c1c79b5b590c743b7070f38a32d6d/config/crd/bases/gpu.kubeswift.io_swiftgpuprofiles.yaml"
+        },
+        {
+          "name": "image.kubeswift.io",
+          "source": "https://github.com/kubeswift-io/kubeswift/blob/97989dc5b51c1c79b5b590c743b7070f38a32d6d/config/crd/bases/image.kubeswift.io_swiftimages.yaml"
+        },
+        {
+          "name": "kernel.kubeswift.io",
+          "source": "https://github.com/kubeswift-io/kubeswift/blob/97989dc5b51c1c79b5b590c743b7070f38a32d6d/config/crd/bases/kernel.kubeswift.io_swiftkernels.yaml"
+        },
+        {
+          "name": "migration.kubeswift.io",
+          "source": "https://github.com/kubeswift-io/kubeswift/blob/97989dc5b51c1c79b5b590c743b7070f38a32d6d/config/crd/bases/migration.kubeswift.io_swiftmigrations.yaml"
+        },
+        {
+          "name": "sandbox.kubeswift.io",
+          "source": "https://github.com/kubeswift-io/kubeswift/blob/97989dc5b51c1c79b5b590c743b7070f38a32d6d/config/crd/bases/sandbox.kubeswift.io_swiftsandboxpools.yaml"
+        },
+        {
+          "name": "seed.kubeswift.io",
+          "source": "https://github.com/kubeswift-io/kubeswift/blob/97989dc5b51c1c79b5b590c743b7070f38a32d6d/config/crd/bases/seed.kubeswift.io_swiftseedprofiles.yaml"
+        },
+        {
+          "name": "snapshot.kubeswift.io",
+          "source": "https://github.com/kubeswift-io/kubeswift/blob/97989dc5b51c1c79b5b590c743b7070f38a32d6d/config/crd/bases/snapshot.kubeswift.io_swiftsnapshotschedules.yaml"
+        },
+        {
+          "name": "storage.kubeswift.io",
+          "source": "https://github.com/kubeswift-io/kubeswift/blob/97989dc5b51c1c79b5b590c743b7070f38a32d6d/config/crd/bases/storage.kubeswift.io_swiftstoragelocations.yaml"
+        },
+        {
+          "name": "swift.kubeswift.io",
+          "source": "https://github.com/kubeswift-io/kubeswift/blob/97989dc5b51c1c79b5b590c743b7070f38a32d6d/config/crd/bases/swift.kubeswift.io_swiftguests.yaml"
         }
       ]
     },
@@ -738,6 +892,24 @@
       ]
     },
     {
+      "slug": "operator-lifecycle-manager",
+      "catalog": "community",
+      "upstream": {
+        "name": "operator-lifecycle-manager",
+        "repository": "https://github.com/operator-framework/operator-lifecycle-manager",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/operator-framework/operator-lifecycle-manager/blob/f6925fde7820b275e766af66363b5dab4fb9bff5/LICENSE"
+      },
+      "factProject": "operator_lifecycle_manager",
+      "component": "pkg:github/operator-framework/operator-lifecycle-manager",
+      "groups": [
+        {
+          "name": "operators.coreos.com",
+          "source": "https://github.com/operator-framework/operator-lifecycle-manager/blob/0368a3f9dff1fa14c8645b867fba25c3be9df845/deploy/chart/crds/0000_50_olm_00-subscriptions.crd.yaml"
+        }
+      ]
+    },
+    {
       "slug": "percona-postgresql-operator",
       "catalog": "community",
       "upstream": {
@@ -774,6 +946,22 @@
         {
           "name": "monitoring.coreos.com",
           "source": "https://github.com/prometheus-operator/prometheus-operator/blob/2e4af1d7d8f0ae634fcf0ac967a76fb381a65542/example/prometheus-operator-crd/monitoring.coreos.com_thanosrulers.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "radius",
+      "catalog": "cncf",
+      "factProject": "radius",
+      "component": "pkg:github/radius-project/radius",
+      "groups": [
+        {
+          "name": "radapp.io",
+          "source": "https://github.com/radius-project/radius/blob/69c94eecb1ba98b5104c1cb43606c0ce7bcc2392/deploy/Chart/crds/radius/radapp.io_deploymenttemplates.yaml"
+        },
+        {
+          "name": "ucp.dev",
+          "source": "https://github.com/radius-project/radius/blob/69c94eecb1ba98b5104c1cb43606c0ce7bcc2392/deploy/Chart/crds/ucpd/ucp.dev_resources.yaml"
         }
       ]
     },
@@ -828,6 +1016,24 @@
       ]
     },
     {
+      "slug": "redis-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "redis-operator",
+        "repository": "https://github.com/ot-container-kit/redis-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/ot-container-kit/redis-operator/blob/e23140a8522f8e6f1aac2cdf51dfe560c0e90004/LICENSE"
+      },
+      "factProject": "redis_operator",
+      "component": "pkg:github/ot-container-kit/redis-operator",
+      "groups": [
+        {
+          "name": "redis.redis.opstreelabs.in",
+          "source": "https://github.com/ot-container-kit/redis-operator/blob/71954323c9191e6171f3eb04f80bb46a5f128306/config/crd/bases/redis.redis.opstreelabs.in_redissentinels.yaml"
+        }
+      ]
+    },
+    {
       "slug": "rook",
       "catalog": "cncf",
       "factProject": "rook",
@@ -856,6 +1062,24 @@
         {
           "name": "schemas.schemahero.io",
           "source": "https://github.com/schemahero/schemahero/blob/b1f03b64f47114393013bc0dc7f5736ad1a35e9a/config/crds/v1/schemas.schemahero.io_tables.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "sealed-secrets",
+      "catalog": "community",
+      "upstream": {
+        "name": "sealed-secrets",
+        "repository": "https://github.com/bitnami/sealed-secrets",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/bitnami/sealed-secrets/blob/6dc880366d1cafa16683173cc3c8e3b58e930937/LICENSE"
+      },
+      "factProject": "sealed_secrets",
+      "component": "pkg:github/bitnami/sealed-secrets",
+      "groups": [
+        {
+          "name": "bitnami.com",
+          "source": "https://github.com/bitnami/sealed-secrets/blob/6772bee54ff8c7ef27bdeeaf15ec329854796c69/helm/sealed-secrets/crds/bitnami.com_sealedsecrets.yaml"
         }
       ]
     },

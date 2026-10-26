@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "awx-operator",
+    "catalog": "community",
+    "name": "awx-operator",
+    "repo": "github.com/ansible/awx-operator",
+    "component": "pkg:github/ansible/awx-operator",
+    "factProject": "awx_operator",
+    "tagPrefixes": [""],
+    "minFrom": "2.14",
+    "paths": [
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}
