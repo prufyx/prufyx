@@ -37,6 +37,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `kong-ingress-controller` | community | `component.kong_ingress_controller.custom_resource_versions_set` | `configuration.konghq.com` |
 | `koordinator` | CNCF | `component.koordinator.custom_resource_versions_set` | `analysis.koordinator.sh`, `config.koordinator.sh`, `quota.koordinator.sh`, `scheduling.koordinator.sh`, `slo.koordinator.sh` |
 | `kube-green` | community | `component.kube_green.custom_resource_versions_set` | `kube-green.com` |
+| `kuberhealthy` | CNCF | `component.kuberhealthy.custom_resource_versions_set` | `kuberhealthy.github.io` |
 | `kubernetes-ingress` | community | `component.kubernetes_ingress.custom_resource_versions_set` | `appprotect.f5.com`, `appprotectdos.f5.com`, `externaldns.nginx.org`, `k8s.nginx.org` |
 | `kubestellar` | CNCF | `component.kubestellar.custom_resource_versions_set` | `control.kubestellar.io` |
 | `kubeswift` | community | `component.kubeswift.custom_resource_versions_set` | `fleet.kubeswift.io`, `gpu.kubeswift.io`, `image.kubeswift.io`, `kernel.kubeswift.io`, `migration.kubeswift.io`, `sandbox.kubeswift.io`, `seed.kubeswift.io`, `snapshot.kubeswift.io`, `storage.kubeswift.io`, `swift.kubeswift.io` |
@@ -46,9 +47,11 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `kyverno` | CNCF | `component.kyverno.custom_resource_versions_set` | `kyverno.io`, `policies.kyverno.io`, `reports.kyverno.io`, `wgpolicyk8s.io` |
 | `logging-operator-kube-logging` | CNCF | `component.logging_operator_kube_logging.custom_resource_versions_set` | `logging-extensions.banzaicloud.io`, `logging.banzaicloud.io` |
 | `longhorn` | CNCF | `component.longhorn.custom_resource_versions_set` | `longhorn.io` |
+| `mariadb-operator` | community | `component.mariadb_operator.custom_resource_versions_set` | `k8s.mariadb.com` |
 | `metallb` | CNCF | `component.metallb.custom_resource_versions_set` | `metallb.io` |
 | `mongodb-kubernetes` | community | `component.mongodb_kubernetes.custom_resource_versions_set` | `ai.mongodb.com`, `mongodb.com`, `mongodbcommunity.mongodb.com` |
 | `node-feature-discovery` | community | `component.node_feature_discovery.custom_resource_versions_set` | `nfd.k8s-sigs.io` |
+| `openchoreo` | CNCF | `component.openchoreo.custom_resource_versions_set` | `openchoreo.dev` |
 | `openkruise` | CNCF | `component.openkruise.custom_resource_versions_set` | `apps.kruise.io`, `policy.kruise.io` |
 | `opentelemetry-operator` | community | `component.opentelemetry_operator.custom_resource_versions_set` | `opentelemetry.io` |
 | `openyurt` | CNCF | `component.openyurt.custom_resource_versions_set` | `apps.openyurt.io`, `iot.openyurt.io`, `network.openyurt.io`, `raven.openyurt.io` |
@@ -85,6 +88,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `kubernetes-ingress` | kubernetes-ingress | https://github.com/nginx/kubernetes-ingress | [`Apache-2.0`](https://github.com/nginx/kubernetes-ingress/blob/2598147d84065276946301ee57534ba6c11b7a8e/LICENSE) |
 | `kubeswift` | kubeswift | https://github.com/kubeswift-io/kubeswift | [`AGPL-3.0-only`](https://github.com/kubeswift-io/kubeswift/blob/70947a12aab3c586aa63454f967afd77120e8cb9/LICENSE) |
 | `kueue` | Kueue | https://github.com/kubernetes-sigs/kueue | [`Apache-2.0`](https://github.com/kubernetes-sigs/kueue/blob/f850823bead72095aaba55025a7efadfdfe3782a/LICENSE) |
+| `mariadb-operator` | mariadb-operator | https://github.com/mariadb-operator/mariadb-operator | [`MIT`](https://github.com/mariadb-operator/mariadb-operator/blob/236803d7f86c9c86842723d6cdfb1f369eb525d6/LICENSE) |
 | `mongodb-kubernetes` | MongoDB Controllers for Kubernetes | https://github.com/mongodb/mongodb-kubernetes | [`Apache-2.0 OR LicenseRef-MongoDB-Customer-Agreement`](https://github.com/mongodb/mongodb-kubernetes/blob/75fa89bca8c1395a1beb0f244723f255f67f8719/LICENSE-MCK) |
 | `node-feature-discovery` | Node Feature Discovery | https://github.com/kubernetes-sigs/node-feature-discovery | [`Apache-2.0`](https://github.com/kubernetes-sigs/node-feature-discovery/blob/45d276ed9d3f0f67fb642aa78969721df3034451/LICENSE) |
 | `opentelemetry-operator` | opentelemetry-operator | https://github.com/open-telemetry/opentelemetry-operator | [`Apache-2.0`](https://github.com/open-telemetry/opentelemetry-operator/blob/513d6053adfc942b62f7f65502aad938c9ab0ff3/LICENSE) |

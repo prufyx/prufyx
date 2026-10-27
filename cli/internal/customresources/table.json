@@ -584,6 +584,18 @@
       ]
     },
     {
+      "slug": "kuberhealthy",
+      "catalog": "cncf",
+      "factProject": "kuberhealthy",
+      "component": "pkg:github/kuberhealthy/kuberhealthy",
+      "groups": [
+        {
+          "name": "kuberhealthy.github.io",
+          "source": "https://github.com/kuberhealthy/kuberhealthy/blob/42640eda49d092aacc7e412bc1b08578e540703b/deploy/helm/kuberhealthy/crds/healthchecks.kuberhealthy.github.io.yaml"
+        }
+      ]
+    },
+    {
       "slug": "kubernetes-ingress",
       "catalog": "community",
       "upstream": {
@@ -778,6 +790,24 @@
       ]
     },
     {
+      "slug": "mariadb-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "mariadb-operator",
+        "repository": "https://github.com/mariadb-operator/mariadb-operator",
+        "license": "MIT",
+        "licenseSource": "https://github.com/mariadb-operator/mariadb-operator/blob/236803d7f86c9c86842723d6cdfb1f369eb525d6/LICENSE"
+      },
+      "factProject": "mariadb_operator",
+      "component": "pkg:github/mariadb-operator/mariadb-operator",
+      "groups": [
+        {
+          "name": "k8s.mariadb.com",
+          "source": "https://github.com/mariadb-operator/mariadb-operator/blob/afac262d98f7b5e553b32c4807ea68c8c197c0bd/config/crd/bases/k8s.mariadb.com_users.yaml"
+        }
+      ]
+    },
+    {
       "slug": "metallb",
       "catalog": "cncf",
       "factProject": "metallb",
@@ -830,6 +860,18 @@
         {
           "name": "nfd.k8s-sigs.io",
           "source": "https://github.com/kubernetes-sigs/node-feature-discovery/blob/45d276ed9d3f0f67fb642aa78969721df3034451/deployment/base/nfd-crds/nfd-api-crds.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "openchoreo",
+      "catalog": "cncf",
+      "factProject": "openchoreo",
+      "component": "pkg:github/openchoreo/openchoreo",
+      "groups": [
+        {
+          "name": "openchoreo.dev",
+          "source": "https://github.com/openchoreo/openchoreo/blob/178dfbde3e3343e5ac151b88a2f203f523f97480/config/crd/bases/openchoreo.dev_workloads.yaml"
         }
       ]
     },

@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "mariadb-operator",
+    "catalog": "community",
+    "name": "mariadb-operator",
+    "repo": "github.com/mariadb-operator/mariadb-operator",
+    "component": "pkg:github/mariadb-operator/mariadb-operator",
+    "factProject": "mariadb_operator",
+    "tagPrefixes": [""],
+    "minFrom": "0.38",
+    "paths": [
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}
