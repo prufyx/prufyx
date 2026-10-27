@@ -107,6 +107,14 @@ func TestEmbeddedPackLineAttestations(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := crdbatchids.ShippedLines()
+	// ShippedLines orders lines as strings ("1.10" before "1.9"); the pack
+	// orders them numerically, so compare in the pack's order.
+	sort.SliceStable(want, func(i, j int) bool {
+		if want[i].Component != want[j].Component {
+			return want[i].Component < want[j].Component
+		}
+		return lineattest.LineLess(want[i].Line, want[j].Line)
+	})
 	if !present || bytes.Contains(raw, []byte("lineAttestations")) != present {
 		t.Fatalf("the published pack carries a line attestation section: %v, it must carry the Kubernetes lines", present)
 	}

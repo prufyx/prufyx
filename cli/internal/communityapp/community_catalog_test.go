@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/customresources"
 )
 
@@ -19,7 +20,19 @@ func TestCommunityProjectWithoutDataAnswersAsBefore(t *testing.T) {
 		args := []string{"check", "cncf", "--project", p.Slug, "--custom-resources", path, "--from", "1.0.0", "--to", "1.1.0", "--now", "2026-10-04T00:00:00Z"}
 		code, stdout, stderr := runCNCFCLI(t, args...)
 		want := fmt.Sprintf("prufyx: %s (%s) is in the %s: check cncf does not check its custom-resource versions yet; see docs/custom-resources.md\n", p.Slug, p.Upstream.Name, customresources.CommunityLabel)
-		if code != ExitUsage || stdout != "" || stderr != want {
+		has, err := cncfcheck.CommunityProjectHasData(p.Slug)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if has {
+			// Shipped data makes the project checkable: it no longer gets
+			// the "not checked yet" answer.
+			// The checkable path answers PASS or UNKNOWN for this input; a usage
+			// error or a crash must fail.
+			if (code != ExitOK && code != ExitUnknown) || !strings.Contains(stdout, p.Slug) || strings.Contains(stderr, "does not check its custom-resource versions yet") {
+				t.Fatalf("%s has shipped data: code=%d stdout=%q stderr=%q", p.Slug, code, stdout, stderr)
+			}
+		} else if code != ExitUsage || stdout != "" || stderr != want {
 			t.Fatalf("%s: code=%d stdout=%q stderr=%q, want %q", p.Slug, code, stdout, stderr, want)
 		}
 		// Listing routes know the project as nothing: it is not a catalogue
