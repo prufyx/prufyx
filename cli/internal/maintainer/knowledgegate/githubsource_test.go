@@ -18,6 +18,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -366,4 +367,225 @@ func TestGitHubSourceCachesAcrossCallers(t *testing.T) {
 		t.Fatalf("a second derivation repeated requests: %+v then %+v", before, after)
 	}
 	requireSameFiles(t, again, deriveFiles(t, extract.FixtureReader{Root: servedFixture}))
+}
+
+// refusalServer answers requests through handle(w, authed, n): n is the
+// 1-based count of requests of the same kind (authenticated or anonymous).
+type refusalServer struct {
+	srv        *httptest.Server
+	auth, anon atomic.Int64
+	sleeps     []time.Duration
+	handle     func(w http.ResponseWriter, authed bool, n int64)
+}
+
+func newRefusalServer(t *testing.T, handle func(w http.ResponseWriter, authed bool, n int64)) *refusalServer {
+	t.Helper()
+	rs := &refusalServer{handle: handle}
+	rs.srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "" {
+			rs.handle(w, true, rs.auth.Add(1))
+			return
+		}
+		rs.handle(w, false, rs.anon.Add(1))
+	}))
+	t.Cleanup(rs.srv.Close)
+	return rs
+}
+
+func (rs *refusalServer) source() *GitHubSource {
+	return &GitHubSource{APIBase: rs.srv.URL, Token: "test-token-value", MaxRESTRequests: 50,
+		Sleep: func(_ context.Context, d time.Duration) error { rs.sleeps = append(rs.sleeps, d); return nil }}
+}
+
+func refuse(w http.ResponseWriter, status int, msg string, hdr map[string]string) {
+	for k, v := range hdr {
+		w.Header().Set(k, v)
+	}
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(map[string]string{"message": msg})
+}
+
+func TestGitHubGetRefusals(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	diagHdr := map[string]string{"X-RateLimit-Remaining": "4000", "X-RateLimit-Resource": "core", "X-RateLimit-Reset": "1700000000", "X-GitHub-Request-Id": "ABCD:1234"}
+	secondaryHdr := map[string]string{"X-RateLimit-Remaining": "4000", "X-RateLimit-Resource": "core", "X-GitHub-Request-Id": "SEC:1"}
+
+	t.Run("unclassified 403 then anonymous 200", func(t *testing.T) {
+		t.Parallel()
+		rs := newRefusalServer(t, func(w http.ResponseWriter, authed bool, _ int64) {
+			if authed {
+				refuse(w, 403, "Resource not accessible by integration", diagHdr)
+				return
+			}
+			_, _ = w.Write([]byte("ok"))
+		})
+		body, status, err := rs.source().get(ctx, rs.srv.URL+"/x", true, 1<<10)
+		if err != nil || status != 200 || string(body) != "ok" {
+			t.Fatalf("got %q %d %v", body, status, err)
+		}
+		if rs.auth.Load() != 1 || rs.anon.Load() != 1 {
+			t.Fatalf("auth=%d anon=%d", rs.auth.Load(), rs.anon.Load())
+		}
+	})
+
+	t.Run("unclassified 403 and anonymous 403 carry both diagnostics", func(t *testing.T) {
+		t.Parallel()
+		rs := newRefusalServer(t, func(w http.ResponseWriter, authed bool, _ int64) {
+			if authed {
+				refuse(w, 403, "Resource not accessible by integration", diagHdr)
+				return
+			}
+			refuse(w, 403, "Forbidden anon", map[string]string{"X-GitHub-Request-Id": "ANON:9"})
+		})
+		_, _, err := rs.source().get(ctx, rs.srv.URL+"/x", true, 1<<10)
+		if !errors.Is(err, errAnonRefused) {
+			t.Fatalf("want errAnonRefused, got %v", err)
+		}
+		for _, want := range []string{"authenticated: HTTP 403", "Resource not accessible by integration", "resource=core", "reset=1700000000", "ABCD:1234", "anonymous: HTTP 403", "Forbidden anon", "ANON:9"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("error lacks %q: %v", want, err)
+			}
+		}
+		if strings.Contains(err.Error(), "test-token-value") {
+			t.Errorf("token in error: %v", err)
+		}
+	})
+
+	t.Run("anonymous rate limit keeps the authenticated diagnostics", func(t *testing.T) {
+		t.Parallel()
+		rs := newRefusalServer(t, func(w http.ResponseWriter, authed bool, _ int64) {
+			if authed {
+				refuse(w, 403, "Resource not accessible by integration", diagHdr)
+				return
+			}
+			refuse(w, 403, "API rate limit exceeded for 10.0.0.1", map[string]string{"X-RateLimit-Remaining": "0", "X-RateLimit-Resource": "core"})
+		})
+		src := rs.source()
+		_, _, err := src.get(ctx, rs.srv.URL+"/x", true, 1<<10)
+		if !errors.Is(err, ErrBudgetExhausted) {
+			t.Fatalf("want exhausted, got %v", err)
+		}
+		for _, want := range []string{"anonymous retry", "Resource not accessible by integration", "API rate limit exceeded"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("error lacks %q: %v", want, err)
+			}
+		}
+		if !src.Stats().BudgetExhausted {
+			t.Fatal("run must be latched exhausted")
+		}
+	})
+
+	t.Run("secondary rate limit then 200 backs off without anonymous request", func(t *testing.T) {
+		t.Parallel()
+		rs := newRefusalServer(t, func(w http.ResponseWriter, authed bool, n int64) {
+			if !authed {
+				t.Error("anonymous request must never happen for a secondary limit")
+			}
+			if n == 1 {
+				refuse(w, 403, "You have exceeded a secondary rate limit. Please wait.", secondaryHdr)
+				return
+			}
+			_, _ = w.Write([]byte("ok"))
+		})
+		src := rs.source()
+		body, _, err := src.get(ctx, rs.srv.URL+"/x", true, 1<<10)
+		if err != nil || string(body) != "ok" {
+			t.Fatalf("got %q %v", body, err)
+		}
+		if rs.anon.Load() != 0 || len(rs.sleeps) != 1 || rs.sleeps[0] != secondaryBaseWait {
+			t.Fatalf("anon=%d sleeps=%v", rs.anon.Load(), rs.sleeps)
+		}
+		if st := src.Stats(); st.APIRequests != 2 || st.BudgetExhausted {
+			t.Fatalf("each try must count against the budget: %+v", st)
+		}
+	})
+
+	t.Run("Retry-After is honoured and capped", func(t *testing.T) {
+		t.Parallel()
+		rs := newRefusalServer(t, func(w http.ResponseWriter, _ bool, n int64) {
+			switch n {
+			case 1:
+				refuse(w, 429, "slow down", map[string]string{"Retry-After": "7"})
+			case 2:
+				refuse(w, 403, "slow down", map[string]string{"Retry-After": "9999"})
+			default:
+				_, _ = w.Write([]byte("ok"))
+			}
+		})
+		if _, _, err := rs.source().get(ctx, rs.srv.URL+"/x", true, 1<<10); err != nil {
+			t.Fatal(err)
+		}
+		if len(rs.sleeps) != 2 || rs.sleeps[0] != 7*time.Second || rs.sleeps[1] != secondaryMaxWait {
+			t.Fatalf("sleeps=%v", rs.sleeps)
+		}
+	})
+
+	t.Run("persistent secondary limit exhausts after bounded tries", func(t *testing.T) {
+		t.Parallel()
+		rs := newRefusalServer(t, func(w http.ResponseWriter, authed bool, _ int64) {
+			if !authed {
+				t.Error("anonymous request must never happen for a secondary limit")
+			}
+			refuse(w, 403, "You have exceeded a SECONDARY RATE LIMIT", secondaryHdr)
+		})
+		src := rs.source()
+		_, _, err := src.get(ctx, rs.srv.URL+"/x", true, 1<<10)
+		if !errors.Is(err, ErrBudgetExhausted) {
+			t.Fatalf("want exhausted, got %v", err)
+		}
+		for _, want := range []string{"3 tries", "SECONDARY RATE LIMIT", "resource=core", "SEC:1"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("error lacks %q: %v", want, err)
+			}
+		}
+		if rs.auth.Load() != secondaryTries || len(rs.sleeps) != secondaryTries-1 || rs.sleeps[1] != 2*secondaryBaseWait {
+			t.Fatalf("auth=%d sleeps=%v", rs.auth.Load(), rs.sleeps)
+		}
+		if st := src.Stats(); !st.BudgetExhausted || st.APIRequests != secondaryTries {
+			t.Fatalf("%+v", st)
+		}
+	})
+
+	t.Run("back-off that does not fit the deadline exhausts without waiting", func(t *testing.T) {
+		t.Parallel()
+		rs := newRefusalServer(t, func(w http.ResponseWriter, _ bool, _ int64) {
+			refuse(w, 403, "secondary rate limit", secondaryHdr)
+		})
+		src := rs.source()
+		deadline := time.Now().Add(time.Hour) // real deadline; the fake clock is 2s before it
+		src.Now = func() time.Time { return deadline.Add(-2 * time.Second) }
+		dctx, cancel := context.WithDeadline(ctx, deadline)
+		defer cancel()
+		_, _, err := src.get(dctx, rs.srv.URL+"/x", true, 1<<10)
+		if !errors.Is(err, ErrBudgetExhausted) || !strings.Contains(err.Error(), "deadline") || len(rs.sleeps) != 0 {
+			t.Fatalf("err=%v sleeps=%v", err, rs.sleeps)
+		}
+	})
+
+	t.Run("primary limit is unchanged", func(t *testing.T) {
+		t.Parallel()
+		rs := newRefusalServer(t, func(w http.ResponseWriter, authed bool, _ int64) {
+			if !authed {
+				t.Error("anonymous request must never happen for a primary limit")
+			}
+			refuse(w, 403, "API rate limit exceeded", map[string]string{"X-RateLimit-Remaining": "0", "X-RateLimit-Resource": "core"})
+		})
+		src := rs.source()
+		_, status, err := src.get(ctx, rs.srv.URL+"/x", true, 1<<10)
+		if !errors.Is(err, ErrBudgetExhausted) || status != 403 {
+			t.Fatalf("status=%d err=%v", status, err)
+		}
+		if !strings.Contains(err.Error(), "GitHub refused the request (HTTP 403, rate limit)") || rs.auth.Load() != 1 || len(rs.sleeps) != 0 {
+			t.Fatalf("auth=%d sleeps=%v err=%v", rs.auth.Load(), rs.sleeps, err)
+		}
+	})
+}
+
+func TestOneLineCapsAndSanitizes(t *testing.T) {
+	t.Parallel()
+	got := oneLine("a\nb\r\n\tc\x00"+strings.Repeat("x", 300), maxDiagBody)
+	if strings.ContainsAny(got, "\n\r\t\x00") || len(got) > maxDiagBody+3 || !strings.HasPrefix(got, "a b c ") {
+		t.Fatalf("%q", got)
+	}
 }

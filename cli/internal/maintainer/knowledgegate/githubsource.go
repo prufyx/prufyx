@@ -107,6 +107,10 @@ type GitHubSource struct {
 	// CacheDir, when set, keeps verified git trees and small blobs on disk
 	// between runs. An entry is used only if it hashes to its own object id.
 	CacheDir string
+	// Sleep and Now are the clock of the secondary rate limit back-off;
+	// nil means a context-aware timer and time.Now. Tests inject fakes.
+	Sleep func(ctx context.Context, d time.Duration) error
+	Now   func() time.Time
 
 	mu        sync.Mutex
 	roots     map[string]string              // repo NUL commit -> root tree id
@@ -239,21 +243,131 @@ func (g *GitHubSource) CitationObserveAnon(resp *http.Response) error {
 // belongs to the shared per-IP anonymous pool, not to the token, so it is not
 // stored (it would trip the reserve check for later authenticated requests).
 func (g *GitHubSource) noteRateLimit(resp *http.Response, anonRetry bool) error {
+	return g.noteRateLimitDetail(resp, anonRetry, "")
+}
+
+// storeRemaining keeps the X-RateLimit-Remaining of an authenticated response.
+func (g *GitHubSource) storeRemaining(resp *http.Response, anonRetry bool) {
 	if v := resp.Header.Get("X-RateLimit-Remaining"); v != "" && !anonRetry {
 		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n >= 0 {
 			g.remaining.Store(n + 1)
 		}
+	}
+}
+
+// noteRateLimitDetail is noteRateLimit with diagnostics (see describeRefusal)
+// appended to the budget reason when the response is a rate limit refusal.
+func (g *GitHubSource) noteRateLimitDetail(resp *http.Response, anonRetry bool, detail string) error {
+	g.storeRemaining(resp, anonRetry)
+	if detail != "" {
+		detail = " [" + detail + "]"
 	}
 	// A refusal because of the rate limit: primary (remaining 0) or
 	// secondary (Retry-After). Both are "could not run", not "not found".
 	if resp.StatusCode == http.StatusTooManyRequests ||
 		(resp.StatusCode == http.StatusForbidden && (resp.Header.Get("X-RateLimit-Remaining") == "0" || resp.Header.Get("Retry-After") != "")) {
 		if anonRetry {
-			return g.exhaust(fmt.Sprintf("GitHub refused the anonymous retry after 403 (HTTP %d, rate limit)", resp.StatusCode))
+			return g.exhaust(fmt.Sprintf("GitHub refused the anonymous retry after 403 (HTTP %d, rate limit)%s", resp.StatusCode, detail))
 		}
-		return g.exhaust(fmt.Sprintf("GitHub refused the request (HTTP %d, rate limit)", resp.StatusCode))
+		return g.exhaust(fmt.Sprintf("GitHub refused the request (HTTP %d, rate limit)%s", resp.StatusCode, detail))
 	}
 	return nil
+}
+
+// Secondary rate limit back-off: at most secondaryTries sends of one request,
+// waiting Retry-After (or secondaryBaseWait doubling) capped at secondaryMaxWait.
+const (
+	secondaryTries    = 3
+	secondaryBaseWait = 5 * time.Second
+	secondaryMaxWait  = 60 * time.Second
+	maxDiagBody       = 200
+	maxDiagHeader     = 64
+)
+
+// oneLine collapses whitespace and control characters, drops invalid UTF-8
+// and cuts to max bytes, so server text is safe to put in one log line.
+func oneLine(s string, max int) string {
+	s = strings.ToValidUTF8(s, "?")
+	s = strings.Join(strings.FieldsFunc(s, func(r rune) bool { return r < 0x20 || r == 0x7f || r == ' ' }), " ")
+	if len(s) > max {
+		s = strings.ToValidUTF8(s[:max], "") + "..."
+	}
+	return s
+}
+
+// refusalMessage returns the "message" of a GitHub error body, or the raw
+// body when it is not JSON.
+func refusalMessage(body []byte) string {
+	var doc struct {
+		Message string `json:"message"`
+	}
+	if json.Unmarshal(body, &doc) == nil && doc.Message != "" {
+		return doc.Message
+	}
+	return string(body)
+}
+
+// describeRefusal is the diagnostic text of a 403/429: status, capped body
+// message and the rate limit headers. It never includes request headers.
+func describeRefusal(resp *http.Response, body []byte) string {
+	h := func(name string) string {
+		if v := oneLine(resp.Header.Get(name), maxDiagHeader); v != "" {
+			return v
+		}
+		return "-"
+	}
+	return fmt.Sprintf("HTTP %d message=%q remaining=%s resource=%s reset=%s retry-after=%s request-id=%s",
+		resp.StatusCode, oneLine(refusalMessage(body), maxDiagBody),
+		h("X-RateLimit-Remaining"), h("X-RateLimit-Resource"), h("X-RateLimit-Reset"), h("Retry-After"), h("X-GitHub-Request-Id"))
+}
+
+// isSecondaryLimit reports a 403/429 that GitHub sends for its secondary rate
+// limit: the body says so, or it carries Retry-After. A primary limit
+// (remaining 0 with neither) is not one.
+func isSecondaryLimit(resp *http.Response, body []byte) bool {
+	if resp.StatusCode != http.StatusForbidden && resp.StatusCode != http.StatusTooManyRequests {
+		return false
+	}
+	return resp.Header.Get("Retry-After") != "" ||
+		strings.Contains(strings.ToLower(refusalMessage(body)), "secondary rate limit")
+}
+
+// secondaryWait is how long to wait before try number n (1-based) is repeated.
+func secondaryWait(resp *http.Response, n int) time.Duration {
+	if v := resp.Header.Get("Retry-After"); v != "" {
+		if sec, err := strconv.ParseInt(strings.TrimSpace(v), 10, 64); err == nil && sec >= 0 {
+			if sec > int64(secondaryMaxWait/time.Second) {
+				return secondaryMaxWait
+			}
+			return time.Duration(sec) * time.Second
+		}
+	}
+	d := secondaryBaseWait << (n - 1)
+	if d > secondaryMaxWait {
+		d = secondaryMaxWait
+	}
+	return d
+}
+
+func (g *GitHubSource) now() time.Time {
+	if g.Now != nil {
+		return g.Now()
+	}
+	return time.Now()
+}
+
+func (g *GitHubSource) sleep(ctx context.Context, d time.Duration) error {
+	if g.Sleep != nil {
+		return g.Sleep(ctx, d)
+	}
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.C:
+		return nil
+	}
 }
 
 func (g *GitHubSource) init() {
@@ -341,6 +455,8 @@ func (g *GitHubSource) get(ctx context.Context, u string, api bool, limit int64)
 	// anon is set after an unclassified 403 to an authenticated request: the
 	// request is sent once more without the token (see below).
 	anon := false
+	authDiag := "" // diagnostics of the authenticated 403 that led to the anonymous retry
+	secondary := 0 // sends so far that met a secondary rate limit
 	for attempt := 0; attempt < 3; attempt++ {
 		retried := anon // this pass is the anonymous retry; it is not one of the 3 attempts
 		if api {
@@ -366,7 +482,29 @@ func (g *GitHubSource) get(ctx context.Context, u string, api bool, limit int64)
 			body, readErr := io.ReadAll(io.LimitReader(resp.Body, limit+1))
 			resp.Body.Close()
 			if api {
-				if err := g.noteRateLimit(resp, retried); err != nil {
+				var diag string
+				if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusTooManyRequests {
+					diag = describeRefusal(resp, body)
+				}
+				if diag != "" && !retried && isSecondaryLimit(resp, body) {
+					// Secondary rate limit: wait and repeat the authenticated
+					// request; the anonymous retry is for other 403s only.
+					g.storeRemaining(resp, false)
+					secondary++
+					if secondary >= secondaryTries {
+						return nil, resp.StatusCode, g.exhaust(fmt.Sprintf("GitHub secondary rate limit persists after %d tries [%s]", secondary, diag))
+					}
+					wait := secondaryWait(resp, secondary)
+					if dl, ok := ctx.Deadline(); ok && g.now().Add(wait).After(dl) {
+						return nil, resp.StatusCode, g.exhaust(fmt.Sprintf("GitHub secondary rate limit: waiting %s does not fit the run deadline [%s]", wait, diag))
+					}
+					if err := g.sleep(ctx, wait); err != nil {
+						return nil, 0, err
+					}
+					attempt--
+					continue
+				}
+				if err := g.noteRateLimitDetail(resp, retried, joinDiag(authDiag, diag)); err != nil {
 					return nil, resp.StatusCode, err
 				}
 				// A 403 that is not a rate limit can come from an organisation
@@ -375,11 +513,12 @@ func (g *GitHubSource) get(ctx context.Context, u string, api bool, limit int64)
 				// token; the retry is admitted and counted like any request.
 				if resp.StatusCode == http.StatusForbidden && g.Token != "" && !anon {
 					anon = true
+					authDiag = diag
 					attempt--
 					continue
 				}
 				if retried && resp.StatusCode == http.StatusForbidden {
-					return body, resp.StatusCode, errAnonRefused
+					return body, resp.StatusCode, fmt.Errorf("%w [%s]", errAnonRefused, joinDiag(authDiag, diag))
 				}
 			}
 			switch {
@@ -400,6 +539,18 @@ func (g *GitHubSource) get(ctx context.Context, u string, api bool, limit int64)
 		}
 	}
 	return nil, 0, lastErr
+}
+
+// joinDiag labels the diagnostics of the authenticated and the anonymous
+// refusal (either may be empty).
+func joinDiag(auth, anon string) string {
+	switch {
+	case auth == "":
+		return anon
+	case anon == "":
+		return "authenticated: " + auth
+	}
+	return "authenticated: " + auth + "; anonymous: " + anon
 }
 
 func escapePath(p string) string {
