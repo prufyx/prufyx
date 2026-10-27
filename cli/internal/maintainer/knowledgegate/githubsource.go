@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/gitread"
 )
 
 // Limits on what the GitHub source accepts.
@@ -60,6 +61,12 @@ type GitHubStats struct {
 	// DiskTreeHits and DiskBlobHits are objects answered from the on-disk
 	// cache (CacheDir) instead of the network.
 	DiskTreeHits, DiskBlobHits int64
+	// GitFetches and GitReads count the anonymous git work done for
+	// organisations whose IP allow list refuses the REST API (network
+	// operations and local object reads); they are not REST requests and
+	// never use the REST budget. IPAllowListed names those organisations.
+	GitFetches, GitReads int64
+	IPAllowListed        []string
 	// RateLimitRemaining is the last X-RateLimit-Remaining GitHub
 	// reported, or -1 when none was seen.
 	RateLimitRemaining int64
@@ -107,6 +114,11 @@ type GitHubSource struct {
 	// CacheDir, when set, keeps verified git trees and small blobs on disk
 	// between runs. An entry is used only if it hashes to its own object id.
 	CacheDir string
+	// Git reads repositories of organisations whose IP allow list refuses
+	// token requests from the runner (see errIPAllowList); nil creates one
+	// on first use, shared with the citation verifier (CitationGit). Close
+	// removes its scratch directory.
+	Git *gitread.Remote
 	// Sleep and Now are the clock of the secondary rate limit back-off;
 	// nil means a context-aware timer and time.Now. Tests inject fakes.
 	Sleep func(ctx context.Context, d time.Duration) error
@@ -167,11 +179,35 @@ func (g *GitHubSource) once(key string, done func() bool, fn func() error) error
 // Stats returns the request counters of this source since it was created.
 func (g *GitHubSource) Stats() GitHubStats {
 	c, t, r := g.nCommit.Load(), g.nTree.Load(), g.nRecursive.Load()
-	return GitHubStats{RESTCalls: c + t, CommitCalls: c, TreeCalls: t, RecursiveTreeCalls: r,
+	gs := g.git().Stats()
+	return GitHubStats{GitFetches: gs.Fetches, GitReads: gs.Reads, IPAllowListed: gs.Owners, RESTCalls: c + t, CommitCalls: c, TreeCalls: t, RecursiveTreeCalls: r,
 		TruncatedFallbacks: g.nTruncated.Load(), RawFetches: g.nRaw.Load(), RawBytes: g.nRawBytes.Load(), RawCacheHits: g.nRawHit.Load(),
 		APIRequests: g.nAPI.Load(), DiskTreeHits: g.nDiskTree.Load(), DiskBlobHits: g.nDiskBlob.Load(),
 		RateLimitRemaining: g.remaining.Load() - 1, BudgetExhausted: g.exhausted.Load(), BudgetReason: g.budgetReason()}
 }
+
+// git returns the anonymous git reader, creating it on first use.
+func (g *GitHubSource) git() *gitread.Remote {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.Git == nil {
+		g.Git = &gitread.Remote{}
+	}
+	return g.Git
+}
+
+// CitationGit is the git reader the citation verifier shares with the source,
+// so both learn the same IP allow-listed organisations.
+func (g *GitHubSource) CitationGit() *gitread.Remote { return g.git() }
+
+// Close removes the scratch directory of the git reader.
+func (g *GitHubSource) Close() error { return g.git().Close() }
+
+// errIPAllowList marks an authenticated request refused because the
+// organisation has an IP allow list that does not admit the runner. It is
+// not a rate limit and not a verdict about the data: the caller reads the
+// same data over anonymous git instead of retrying the REST API anonymously.
+var errIPAllowList = errors.New("organisation IP allow list refused the token request")
 
 func (g *GitHubSource) budgetReason() string {
 	g.reasonMu.Lock()
@@ -507,6 +543,9 @@ func (g *GitHubSource) get(ctx context.Context, u string, api bool, limit int64)
 				if err := g.noteRateLimitDetail(resp, retried, joinDiag(authDiag, diag)); err != nil {
 					return nil, resp.StatusCode, err
 				}
+				if resp.StatusCode == http.StatusForbidden && g.Token != "" && !anon && gitread.IsIPAllowListRefusal(body) {
+					return nil, resp.StatusCode, fmt.Errorf("%w [%s]", errIPAllowList, diag)
+				}
 				// A 403 that is not a rate limit can come from an organisation
 				// IP allow list that refuses token requests from the runner
 				// but serves public data anonymously. Retry once without the
@@ -576,9 +615,30 @@ func (g *GitHubSource) rootTree(ctx context.Context, repo extract.RepoRef, commi
 	}
 	err := g.once("c\x00"+key, func() bool { _, ok := g.roots[key]; return ok }, func() error {
 		owner, name := repo.OwnerName()
+		viaGit := func(cause error) error {
+			tree, err := g.git().Commit(ctx, owner, name, commit)
+			if err != nil {
+				if cause != nil {
+					return fmt.Errorf("commit %s of %s over git after %v: %w", commit, repo.Key, cause, err)
+				}
+				return fmt.Errorf("commit %s of %s over git: %w", commit, repo.Key, err)
+			}
+			g.mu.Lock()
+			g.roots[key] = tree
+			g.mu.Unlock()
+			return nil
+		}
+		if g.git().Listed(owner) {
+			return viaGit(nil)
+		}
 		u := orDefault(g.APIBase, "https://api.github.com") + "/repos/" + url.PathEscape(owner) + "/" + url.PathEscape(name) + "/git/commits/" + commit
 		g.nCommit.Add(1)
 		body, status, err := g.get(ctx, u, true, 1<<20)
+		if errors.Is(err, errIPAllowList) {
+			g.git().MarkListed(owner)
+			g.nCommit.Add(-1) // answered over git, not a REST lookup
+			return viaGit(err)
+		}
 		if errors.Is(err, errAnonRefused) {
 			return fmt.Errorf("commit %s of %s: HTTP %d: %w", commit, repo.Key, status, err)
 		}
@@ -677,34 +737,64 @@ func gitOrder(entries []extract.TreeEntry) {
 func (g *GitHubSource) fetchTree(ctx context.Context, repo extract.RepoRef, id string, recursive bool) error {
 	key := repo.Key + "\x00" + id
 	owner, name := repo.OwnerName()
-	u := orDefault(g.APIBase, "https://api.github.com") + "/repos/" + url.PathEscape(owner) + "/" + url.PathEscape(name) + "/git/trees/" + id
-	g.nTree.Add(1)
-	if recursive {
-		u += "?recursive=1"
-		g.nRecursive.Add(1)
-	}
-	body, status, err := g.get(ctx, u, true, maxTreeBytes)
-	if errors.Is(err, errAnonRefused) {
-		return fmt.Errorf("tree %s of %s: HTTP %d: %w", id, repo.Key, status, err)
-	}
-	if err != nil {
-		return err
-	}
-	if status != http.StatusOK {
-		return fmt.Errorf("tree %s of %s: HTTP %d", id, repo.Key, status)
+	type treeEntry struct {
+		Path string `json:"path"`
+		Mode string `json:"mode"`
+		Type string `json:"type"`
+		SHA  string `json:"sha"`
 	}
 	var doc struct {
-		SHA       string `json:"sha"`
-		Truncated bool   `json:"truncated"`
-		Tree      []struct {
-			Path string `json:"path"`
-			Mode string `json:"mode"`
-			Type string `json:"type"`
-			SHA  string `json:"sha"`
-		} `json:"tree"`
+		SHA       string      `json:"sha"`
+		Truncated bool        `json:"truncated"`
+		Tree      []treeEntry `json:"tree"`
 	}
-	if err := json.Unmarshal(body, &doc); err != nil || doc.SHA != id {
-		return fmt.Errorf("tree %s of %s: unexpected response", id, repo.Key)
+	viaGit := func(cause error) error {
+		list, err := g.git().Tree(ctx, owner, name, id, recursive)
+		if err != nil {
+			if cause != nil {
+				return fmt.Errorf("tree %s of %s over git after %v: %w", id, repo.Key, cause, err)
+			}
+			return fmt.Errorf("tree %s of %s over git: %w", id, repo.Key, err)
+		}
+		doc.SHA = id
+		for _, e := range list {
+			doc.Tree = append(doc.Tree, treeEntry{Path: e.Path, Mode: e.Mode, Type: e.Type, SHA: e.SHA})
+		}
+		return nil
+	}
+	if g.git().Listed(owner) {
+		if err := viaGit(nil); err != nil {
+			return err
+		}
+	} else {
+		u := orDefault(g.APIBase, "https://api.github.com") + "/repos/" + url.PathEscape(owner) + "/" + url.PathEscape(name) + "/git/trees/" + id
+		g.nTree.Add(1)
+		if recursive {
+			u += "?recursive=1"
+			g.nRecursive.Add(1)
+		}
+		body, status, err := g.get(ctx, u, true, maxTreeBytes)
+		switch {
+		case errors.Is(err, errIPAllowList):
+			g.git().MarkListed(owner)
+			g.nTree.Add(-1) // answered over git, not a REST lookup
+			if recursive {
+				g.nRecursive.Add(-1)
+			}
+			if err := viaGit(err); err != nil {
+				return err
+			}
+		case errors.Is(err, errAnonRefused):
+			return fmt.Errorf("tree %s of %s: HTTP %d: %w", id, repo.Key, status, err)
+		case err != nil:
+			return err
+		case status != http.StatusOK:
+			return fmt.Errorf("tree %s of %s: HTTP %d", id, repo.Key, status)
+		default:
+			if err := json.Unmarshal(body, &doc); err != nil || doc.SHA != id {
+				return fmt.Errorf("tree %s of %s: unexpected response", id, repo.Key)
+			}
+		}
 	}
 	if doc.Truncated {
 		if recursive {

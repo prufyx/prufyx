@@ -344,6 +344,7 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	}
 	if gh, ok := opts.Source.(*GitHubSource); ok {
 		gh.MaxRESTRequests, gh.CacheDir = restBudget, cacheDir
+		defer gh.Close()
 	}
 	if rerun != "" {
 		if opts.RerunWorklist, err = readBoundedFile(rerun, MaxFileBytes); err != nil {
@@ -676,6 +677,7 @@ func sourceFlag(source string, citeTimeout time.Duration, getenv func(string) st
 		// they are counted against the same budget.
 		objects := rulecheck.NewGitHubObjects(token)
 		objects.Admit, objects.Observe, objects.ObserveAnon = src.CitationAdmit, src.CitationObserve, src.CitationObserveAnon
+		objects.Git = src.CitationGit()
 		return src, &rulecheck.CitationVerifier{Resolver: objects, Fetcher: rulecheck.HTTPFetcher{}, Concurrency: 4, Timeout: citeTimeout}, nil
 	case strings.HasPrefix(source, "fixture:") && len(source) > len("fixture:"):
 		return extract.FixtureReader{Root: strings.TrimPrefix(source, "fixture:")}, OfflineCitations{}, nil
