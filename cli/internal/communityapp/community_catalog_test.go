@@ -27,8 +27,10 @@ func TestCommunityProjectWithoutDataAnswersAsBefore(t *testing.T) {
 		if has {
 			// Shipped data makes the project checkable: it no longer gets
 			// the "not checked yet" answer.
-			if strings.Contains(stderr, "does not check its custom-resource versions yet") {
-				t.Fatalf("%s has shipped data but answers %q", p.Slug, stderr)
+			// The checkable path answers PASS or UNKNOWN for this input; a usage
+			// error or a crash must fail.
+			if (code != ExitOK && code != ExitUnknown) || !strings.Contains(stdout, p.Slug) || strings.Contains(stderr, "does not check its custom-resource versions yet") {
+				t.Fatalf("%s has shipped data: code=%d stdout=%q stderr=%q", p.Slug, code, stdout, stderr)
 			}
 		} else if code != ExitUsage || stdout != "" || stderr != want {
 			t.Fatalf("%s: code=%d stdout=%q stderr=%q, want %q", p.Slug, code, stdout, stderr, want)

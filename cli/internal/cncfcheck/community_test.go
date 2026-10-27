@@ -93,7 +93,75 @@ func shippedCommunityData(t *testing.T) map[string]bool {
 			withData[p.Slug] = true
 		}
 	}
+	if len(withData) == len(customresources.CommunityProjects()) {
+		t.Fatal("no dataless community project left; use a synthetic one")
+	}
 	return withData
+}
+
+// plainShippedBundle is the embedded pack with every record of a community
+// project removed (its rules and its line, path and served-API records), at
+// the pack's own schema: what the shipped pack was before community data.
+func plainShippedBundle(t *testing.T) bundle {
+	t.Helper()
+	raw, err := packagedFiles.ReadFile("data/rules.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pack rulePack
+	if err := strictJSON(raw, &pack); err != nil {
+		t.Fatal(err)
+	}
+	owned := map[string]bool{}
+	for _, p := range customresources.CommunityProjects() {
+		owned[p.Component] = true
+	}
+	kept := pack.Entries[:0]
+	for _, e := range pack.Entries {
+		if !isCommunitySlug(e.Project) {
+			kept = append(kept, e)
+		}
+	}
+	pack.Entries = kept
+	strip := func(section json.RawMessage) json.RawMessage {
+		if len(section) == 0 {
+			return section
+		}
+		var items []json.RawMessage
+		if err := json.Unmarshal(section, &items); err != nil {
+			t.Fatal(err)
+		}
+		components, err := sectionComponents(section)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out []json.RawMessage
+		for i, item := range items {
+			if !owned[components[i]] {
+				out = append(out, item)
+			}
+		}
+		if len(out) == 0 {
+			return nil
+		}
+		encoded, err := json.Marshal(out)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return encoded
+	}
+	pack.LineAttestations = strip(pack.LineAttestations)
+	pack.PathPolicies = strip(pack.PathPolicies)
+	pack.ServedAPIs = strip(pack.ServedAPIs)
+	encoded, err := json.Marshal(pack)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := assembleWith(encoded, compiledDefinitions())
+	if err != nil {
+		t.Fatalf("plain shipped pack refused: %v", err)
+	}
+	return b
 }
 
 func TestCommunityIdentitiesOfTheShippedTable(t *testing.T) {
@@ -190,9 +258,27 @@ func TestCommunityIsInertWithShippedKnowledge(t *testing.T) {
 	if len(withData) == 0 && (bytes.Contains(index.Bytes, []byte(`"catalog"`)) || bytes.Contains(index.Bytes, []byte("/v3"))) {
 		t.Fatalf("index: %s", index.Bytes)
 	}
+	targeted := map[string]bool{}
 	for _, target := range targets {
-		if slug, ok := ProjectFromTargetPath(target.Path); strings.HasPrefix(target.Path, ExternalCommunityTargetPrefix) && (!ok || !withData[slug]) {
-			t.Fatalf("community target %s from the shipped pack, which has no data for it", target.Path)
+		if slug, ok := ProjectFromTargetPath(target.Path); strings.HasPrefix(target.Path, ExternalCommunityTargetPrefix) {
+			if !ok || !withData[slug] || target.Path != ProjectTargetPath(slug) {
+				t.Fatalf("community target %s from the shipped pack, which has no data for it", target.Path)
+			}
+			targeted[slug] = true
+		}
+	}
+	if len(withData) != 0 {
+		var document externalIndexDocument
+		if err := json.Unmarshal(index.Bytes, &document); err != nil {
+			t.Fatal(err)
+		}
+		if document.Schema != ExternalIndexSchemaCommunity {
+			t.Fatalf("index schema %s, want %s", document.Schema, ExternalIndexSchemaCommunity)
+		}
+	}
+	for slug := range withData {
+		if !targeted[slug] {
+			t.Fatalf("%s ships data but has no target at %s", slug, ProjectTargetPath(slug))
 		}
 	}
 }
@@ -639,12 +725,9 @@ func TestCommunityIndexRefusals(t *testing.T) {
 	}
 	// The index of a pack without a community entry is the v1 or v2 index
 	// and carries no catalog member.
-	// While the shipped pack carries no community data it is the plain index.
-	if len(shippedCommunityData(t)) == 0 {
-		plain, _ := buildCommunityTargets(t, mustLoad(t))
-		if bytes.Contains(plain.Bytes, []byte(`"catalog"`)) || bytes.Contains(plain.Bytes, []byte(ExternalIndexSchemaCommunity)) {
-			t.Fatalf("plain index: %s", plain.Bytes)
-		}
+	plain, _ := buildCommunityTargets(t, plainShippedBundle(t))
+	if bytes.Contains(plain.Bytes, []byte(`"catalog"`)) || bytes.Contains(plain.Bytes, []byte(ExternalIndexSchemaCommunity)) {
+		t.Fatalf("plain index: %s", plain.Bytes)
 	}
 }
 
