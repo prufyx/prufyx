@@ -178,6 +178,24 @@
       ]
     },
     {
+      "slug": "crunchydata-postgres-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "postgres-operator",
+        "repository": "https://github.com/crunchydata/postgres-operator",
+        "license": "NOASSERTION",
+        "licenseSource": "https://github.com/crunchydata/postgres-operator/blob/bcd2d9a3bb5bd3881a220f870cc2fde53eba781a/LICENSE.md"
+      },
+      "factProject": "crunchydata_postgres_operator",
+      "component": "pkg:github/crunchydata/postgres-operator",
+      "groups": [
+        {
+          "name": "postgres-operator.crunchydata.com",
+          "source": "https://github.com/crunchydata/postgres-operator/blob/669ff866e5e01185946854fc073b7a30791aa0df/config/crd/bases/postgres-operator.crunchydata.com_postgresclusters.yaml"
+        }
+      ]
+    },
+    {
       "slug": "cyclops",
       "catalog": "community",
       "upstream": {
@@ -328,6 +346,18 @@
         {
           "name": "fluentd.fluent.io",
           "source": "https://github.com/fluent/fluent-operator/blob/7ab60a3ead9130cf9a24a3c07f540353dfa9e099/config/crd/bases/fluentd.fluent.io_outputs.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "fluid",
+      "catalog": "cncf",
+      "factProject": "fluid",
+      "component": "pkg:github/fluid-cloudnative/fluid",
+      "groups": [
+        {
+          "name": "data.fluid.io",
+          "source": "https://github.com/fluid-cloudnative/fluid/blob/b1060936c20e6ff38a06eda694b2f58c02d0c11d/config/crd/bases/data.fluid.io_vineyardruntimes.yaml"
         }
       ]
     },
@@ -584,6 +614,18 @@
       ]
     },
     {
+      "slug": "kuberhealthy",
+      "catalog": "cncf",
+      "factProject": "kuberhealthy",
+      "component": "pkg:github/kuberhealthy/kuberhealthy",
+      "groups": [
+        {
+          "name": "kuberhealthy.github.io",
+          "source": "https://github.com/kuberhealthy/kuberhealthy/blob/42640eda49d092aacc7e412bc1b08578e540703b/deploy/helm/kuberhealthy/crds/healthchecks.kuberhealthy.github.io.yaml"
+        }
+      ]
+    },
+    {
       "slug": "kubernetes-ingress",
       "catalog": "community",
       "upstream": {
@@ -778,6 +820,24 @@
       ]
     },
     {
+      "slug": "mariadb-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "mariadb-operator",
+        "repository": "https://github.com/mariadb-operator/mariadb-operator",
+        "license": "MIT",
+        "licenseSource": "https://github.com/mariadb-operator/mariadb-operator/blob/236803d7f86c9c86842723d6cdfb1f369eb525d6/LICENSE"
+      },
+      "factProject": "mariadb_operator",
+      "component": "pkg:github/mariadb-operator/mariadb-operator",
+      "groups": [
+        {
+          "name": "k8s.mariadb.com",
+          "source": "https://github.com/mariadb-operator/mariadb-operator/blob/afac262d98f7b5e553b32c4807ea68c8c197c0bd/config/crd/bases/k8s.mariadb.com_users.yaml"
+        }
+      ]
+    },
+    {
       "slug": "metallb",
       "catalog": "cncf",
       "factProject": "metallb",
@@ -830,6 +890,18 @@
         {
           "name": "nfd.k8s-sigs.io",
           "source": "https://github.com/kubernetes-sigs/node-feature-discovery/blob/45d276ed9d3f0f67fb642aa78969721df3034451/deployment/base/nfd-crds/nfd-api-crds.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "openchoreo",
+      "catalog": "cncf",
+      "factProject": "openchoreo",
+      "component": "pkg:github/openchoreo/openchoreo",
+      "groups": [
+        {
+          "name": "openchoreo.dev",
+          "source": "https://github.com/openchoreo/openchoreo/blob/178dfbde3e3343e5ac151b88a2f203f523f97480/config/crd/bases/openchoreo.dev_workloads.yaml"
         }
       ]
     },
@@ -906,6 +978,18 @@
         {
           "name": "operators.coreos.com",
           "source": "https://github.com/operator-framework/operator-lifecycle-manager/blob/0368a3f9dff1fa14c8645b867fba25c3be9df845/deploy/chart/crds/0000_50_olm_00-subscriptions.crd.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "ovn-kubernetes",
+      "catalog": "cncf",
+      "factProject": "ovn_kubernetes",
+      "component": "pkg:github/ovn-kubernetes/ovn-kubernetes",
+      "groups": [
+        {
+          "name": "k8s.ovn.org",
+          "source": "https://github.com/ovn-kubernetes/ovn-kubernetes/blob/d6a3812d1bc1c36bf24c7eda0e86e9b13d84907d/helm/ovn-kubernetes/crds/k8s.ovn.org_vteps.yaml"
         }
       ]
     },

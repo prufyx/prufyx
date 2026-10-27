@@ -18,6 +18,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `cluster-api` | community | `component.cluster_api.custom_resource_versions_set` | `cluster.x-k8s.io`, `clusterctl.cluster.x-k8s.io`, `runtime.cluster.x-k8s.io` |
 | `contour` | CNCF | `component.contour.custom_resource_versions_set` | `projectcontour.io` |
 | `crossplane` | CNCF | `component.crossplane.custom_resource_versions_set` | `apiextensions.crossplane.io`, `ops.crossplane.io`, `pkg.crossplane.io`, `protection.crossplane.io`, `secrets.crossplane.io` |
+| `crunchydata-postgres-operator` | community | `component.crunchydata_postgres_operator.custom_resource_versions_set` | `postgres-operator.crunchydata.com` |
 | `cyclops` | community | `component.cyclops.custom_resource_versions_set` | `cyclops-ui.com` |
 | `dapr` | CNCF | `component.dapr.custom_resource_versions_set` | `dapr.io` |
 | `dex` | CNCF | `component.dex.custom_resource_versions_set` | `dex.coreos.com` |
@@ -25,6 +26,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `eraser` | CNCF | `component.eraser.custom_resource_versions_set` | `eraser.sh` |
 | `external-secrets` | CNCF | `component.external_secrets.custom_resource_versions_set` | `external-secrets.io`, `generators.external-secrets.io` |
 | `fluent-operator` | community | `component.fluent_operator.custom_resource_versions_set` | `fluentbit.fluent.io`, `fluentd.fluent.io` |
+| `fluid` | CNCF | `component.fluid.custom_resource_versions_set` | `data.fluid.io` |
 | `gateway-api` | community | `component.gateway_api.custom_resource_versions_set` | `gateway.networking.k8s.io` |
 | `grafana-operator` | community | `component.grafana_operator.custom_resource_versions_set` | `grafana.integreatly.org` |
 | `istio` | CNCF | `component.istio.custom_resource_versions_set` | `extensions.istio.io`, `networking.istio.io`, `security.istio.io`, `telemetry.istio.io` |
@@ -37,6 +39,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `kong-ingress-controller` | community | `component.kong_ingress_controller.custom_resource_versions_set` | `configuration.konghq.com` |
 | `koordinator` | CNCF | `component.koordinator.custom_resource_versions_set` | `analysis.koordinator.sh`, `config.koordinator.sh`, `quota.koordinator.sh`, `scheduling.koordinator.sh`, `slo.koordinator.sh` |
 | `kube-green` | community | `component.kube_green.custom_resource_versions_set` | `kube-green.com` |
+| `kuberhealthy` | CNCF | `component.kuberhealthy.custom_resource_versions_set` | `kuberhealthy.github.io` |
 | `kubernetes-ingress` | community | `component.kubernetes_ingress.custom_resource_versions_set` | `appprotect.f5.com`, `appprotectdos.f5.com`, `externaldns.nginx.org`, `k8s.nginx.org` |
 | `kubestellar` | CNCF | `component.kubestellar.custom_resource_versions_set` | `control.kubestellar.io` |
 | `kubeswift` | community | `component.kubeswift.custom_resource_versions_set` | `fleet.kubeswift.io`, `gpu.kubeswift.io`, `image.kubeswift.io`, `kernel.kubeswift.io`, `migration.kubeswift.io`, `sandbox.kubeswift.io`, `seed.kubeswift.io`, `snapshot.kubeswift.io`, `storage.kubeswift.io`, `swift.kubeswift.io` |
@@ -46,13 +49,16 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `kyverno` | CNCF | `component.kyverno.custom_resource_versions_set` | `kyverno.io`, `policies.kyverno.io`, `reports.kyverno.io`, `wgpolicyk8s.io` |
 | `logging-operator-kube-logging` | CNCF | `component.logging_operator_kube_logging.custom_resource_versions_set` | `logging-extensions.banzaicloud.io`, `logging.banzaicloud.io` |
 | `longhorn` | CNCF | `component.longhorn.custom_resource_versions_set` | `longhorn.io` |
+| `mariadb-operator` | community | `component.mariadb_operator.custom_resource_versions_set` | `k8s.mariadb.com` |
 | `metallb` | CNCF | `component.metallb.custom_resource_versions_set` | `metallb.io` |
 | `mongodb-kubernetes` | community | `component.mongodb_kubernetes.custom_resource_versions_set` | `ai.mongodb.com`, `mongodb.com`, `mongodbcommunity.mongodb.com` |
 | `node-feature-discovery` | community | `component.node_feature_discovery.custom_resource_versions_set` | `nfd.k8s-sigs.io` |
+| `openchoreo` | CNCF | `component.openchoreo.custom_resource_versions_set` | `openchoreo.dev` |
 | `openkruise` | CNCF | `component.openkruise.custom_resource_versions_set` | `apps.kruise.io`, `policy.kruise.io` |
 | `opentelemetry-operator` | community | `component.opentelemetry_operator.custom_resource_versions_set` | `opentelemetry.io` |
 | `openyurt` | CNCF | `component.openyurt.custom_resource_versions_set` | `apps.openyurt.io`, `iot.openyurt.io`, `network.openyurt.io`, `raven.openyurt.io` |
 | `operator-lifecycle-manager` | community | `component.operator_lifecycle_manager.custom_resource_versions_set` | `operators.coreos.com` |
+| `ovn-kubernetes` | CNCF | `component.ovn_kubernetes.custom_resource_versions_set` | `k8s.ovn.org` |
 | `percona-postgresql-operator` | community | `component.percona_postgresql_operator.custom_resource_versions_set` | `pgv2.percona.com`, `upstream.pgv2.percona.com` |
 | `prometheus-operator` | community | `component.prometheus_operator.custom_resource_versions_set` | `monitoring.coreos.com` |
 | `radius` | CNCF | `component.radius.custom_resource_versions_set` | `radapp.io`, `ucp.dev` |
@@ -75,6 +81,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | --- | --- | --- | --- |
 | `awx-operator` | awx-operator | https://github.com/ansible/awx-operator | [`Apache-2.0`](https://github.com/ansible/awx-operator/blob/5e66b6aeb06c30ddc7300893145d7a31b1655ccd/LICENSE) |
 | `cluster-api` | Cluster API | https://github.com/kubernetes-sigs/cluster-api | [`Apache-2.0`](https://github.com/kubernetes-sigs/cluster-api/blob/560d4acf507bc7cac34b2da449fa5cd53eaeb149/LICENSE) |
+| `crunchydata-postgres-operator` | postgres-operator | https://github.com/crunchydata/postgres-operator | [`NOASSERTION`](https://github.com/crunchydata/postgres-operator/blob/bcd2d9a3bb5bd3881a220f870cc2fde53eba781a/LICENSE.md) |
 | `cyclops` | cyclops | https://github.com/cyclops-ui/cyclops | [`Apache-2.0`](https://github.com/cyclops-ui/cyclops/blob/e2965366f0e52472e32d37475fbbb5d3507199d0/LICENSE) |
 | `eck-operator` | Elastic Cloud on Kubernetes | https://github.com/elastic/cloud-on-k8s | [`Elastic-2.0`](https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/LICENSE.txt) |
 | `fluent-operator` | fluent-operator | https://github.com/fluent/fluent-operator | [`Apache-2.0`](https://github.com/fluent/fluent-operator/blob/cf5582c23d9e8d96ba1d77d3c7ac48a0456ff7c2/LICENSE) |
@@ -85,6 +92,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `kubernetes-ingress` | kubernetes-ingress | https://github.com/nginx/kubernetes-ingress | [`Apache-2.0`](https://github.com/nginx/kubernetes-ingress/blob/2598147d84065276946301ee57534ba6c11b7a8e/LICENSE) |
 | `kubeswift` | kubeswift | https://github.com/kubeswift-io/kubeswift | [`AGPL-3.0-only`](https://github.com/kubeswift-io/kubeswift/blob/70947a12aab3c586aa63454f967afd77120e8cb9/LICENSE) |
 | `kueue` | Kueue | https://github.com/kubernetes-sigs/kueue | [`Apache-2.0`](https://github.com/kubernetes-sigs/kueue/blob/f850823bead72095aaba55025a7efadfdfe3782a/LICENSE) |
+| `mariadb-operator` | mariadb-operator | https://github.com/mariadb-operator/mariadb-operator | [`MIT`](https://github.com/mariadb-operator/mariadb-operator/blob/236803d7f86c9c86842723d6cdfb1f369eb525d6/LICENSE) |
 | `mongodb-kubernetes` | MongoDB Controllers for Kubernetes | https://github.com/mongodb/mongodb-kubernetes | [`Apache-2.0 OR LicenseRef-MongoDB-Customer-Agreement`](https://github.com/mongodb/mongodb-kubernetes/blob/75fa89bca8c1395a1beb0f244723f255f67f8719/LICENSE-MCK) |
 | `node-feature-discovery` | Node Feature Discovery | https://github.com/kubernetes-sigs/node-feature-discovery | [`Apache-2.0`](https://github.com/kubernetes-sigs/node-feature-discovery/blob/45d276ed9d3f0f67fb642aa78969721df3034451/LICENSE) |
 | `opentelemetry-operator` | opentelemetry-operator | https://github.com/open-telemetry/opentelemetry-operator | [`Apache-2.0`](https://github.com/open-telemetry/opentelemetry-operator/blob/513d6053adfc942b62f7f65502aad938c9ab0ff3/LICENSE) |
