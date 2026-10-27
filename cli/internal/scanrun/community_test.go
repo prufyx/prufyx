@@ -3,6 +3,7 @@
 package scanrun
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"path/filepath"
@@ -14,9 +15,33 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 )
 
-// With the shipped knowledge a community project is refused exactly as it
-// was before the community knowledge step: the same message, whichever route
-// names it (flag, configuration file, knowledge database).
+// shippedCommunityData names the community projects whose component the
+// embedded pack mentions (rules or any record), read from the raw pack and
+// not through the code under test. The set grows as community data lands, so
+// no test may name one project as dataless.
+func shippedCommunityData(t *testing.T) map[string]bool {
+	t.Helper()
+	raw, err := os.ReadFile("../cncfcheck/data/rules.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	withData := map[string]bool{}
+	for _, p := range customresources.CommunityProjects() {
+		if bytes.Contains(raw, []byte(`"`+p.Component+`"`)) {
+			withData[p.Slug] = true
+		}
+	}
+	if len(withData) == len(customresources.CommunityProjects()) {
+		t.Fatal("no dataless community project left; use a synthetic one")
+	}
+	return withData
+}
+
+// With the shipped knowledge a community project without data is refused
+// exactly as it was before the community knowledge step: the same message,
+// whichever route names it (flag, configuration file, knowledge database). A
+// community project with shipped data is not refused as a community
+// component: the scan goes on to its input.
 func TestScanCommunityComponentWithoutDataIsRefusedAsBefore(t *testing.T) {
 	if len(customresources.CommunityProjects()) == 0 {
 		t.Fatal("no community project")
@@ -25,8 +50,22 @@ func TestScanCommunityComponentWithoutDataIsRefusedAsBefore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	withData := shippedCommunityData(t)
 	for _, p := range customresources.CommunityProjects() {
 		want := scanreport.Text(scanreport.UsageCommunityComponent, quote(p.Slug))
+		if withData[p.Slug] {
+			for name, extra := range map[string][]string{
+				"to":   {"--to", p.Slug + "=1.3.0"},
+				"from": {"--from", p.Slug + "=1.2.0", "--to", "kubernetes=1.30.0"},
+			} {
+				_, err := scan(t, embedded, args([]string{"missing.yaml"}, extra...)...)
+				var u *UsageError
+				if err == nil || (errors.As(err, &u) && u.Error() == want) || !strings.Contains(err.Error(), "missing.yaml") {
+					t.Fatalf("%s %s: %v, want the scan to reach its input, not %q", p.Slug, name, err, want)
+				}
+			}
+			continue
+		}
 		for name, extra := range map[string][]string{
 			"to":   {"--to", p.Slug + "=1.3.0"},
 			"from": {"--from", p.Slug + "=1.2.0", "--to", "kubernetes=1.30.0"},

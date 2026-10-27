@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/customresources"
 	"github.com/prufyx/prufyx/cli/internal/knowledgefixture"
 )
 
@@ -20,8 +21,13 @@ import (
 
 const recordsServedSection = `[{"component":"pkg:github/kubernetes/kubernetes","line":"1.29","completeness":"COMPLETE_SERVED_API_LIST_FOR_LINE","apis":["apps/v1 Deployment","v1 ConfigMap"],"evidence":{"basis":"reviewed","reviewedAt":"2026-09-23T00:00:00Z","validUntil":"2026-12-20T00:00:00Z","sources":[{"id":"s","url":"https://github.com/kubernetes/website/blob/9f1af2971c32124bff0a1f42255ba5a2f3c8a16f/content/en/docs/reference/using-api/deprecation-guide.md","revision":"9f1af2971c32124bff0a1f42255ba5a2f3c8a16f","contentDigest":"sha256:96f34a49cbdd7bd53008cc7b7cc8aff58c373ad323e64eef0155cbbc44494f61","startLine":40,"endLine":49}]}}]`
 
-// packWithServedList is the shipped CNCF pack plus one served-API list.
-func packWithServedList(t *testing.T) []byte {
+// plainShippedPack is the shipped CNCF pack without any record of a
+// community project (its rules and its line, path and served-API records).
+// These tests are about the CNCF index layouts (plain and records), which a
+// pack carrying community data leaves for the community layout; the shipped
+// pack gains such data as community projects are onboarded, so the pack is
+// stripped here, whatever it holds.
+func plainShippedPack(t *testing.T) []byte {
 	t.Helper()
 	raw, err := os.ReadFile("../cncfcheck/data/rules.json")
 	if err != nil {
@@ -29,6 +35,66 @@ func packWithServedList(t *testing.T) []byte {
 	}
 	var pack map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &pack); err != nil {
+		t.Fatal(err)
+	}
+	slugs, components := map[string]bool{}, map[string]bool{}
+	for _, p := range customresources.CommunityProjects() {
+		slugs[p.Slug], components[p.Component] = true, true
+	}
+	strip := func(member string, owner func(item json.RawMessage) string, owned map[string]bool) {
+		section, ok := pack[member]
+		if !ok {
+			return
+		}
+		var items []json.RawMessage
+		if err := json.Unmarshal(section, &items); err != nil {
+			t.Fatal(err)
+		}
+		kept := make([]json.RawMessage, 0, len(items))
+		for _, item := range items {
+			if !owned[owner(item)] {
+				kept = append(kept, item)
+			}
+		}
+		if len(kept) == 0 {
+			delete(pack, member)
+			return
+		}
+		encoded, err := json.Marshal(kept)
+		if err != nil {
+			t.Fatal(err)
+		}
+		pack[member] = encoded
+	}
+	field := func(name string) func(json.RawMessage) string {
+		return func(item json.RawMessage) string {
+			var shape map[string]json.RawMessage
+			if err := json.Unmarshal(item, &shape); err != nil {
+				t.Fatal(err)
+			}
+			var value string
+			if err := json.Unmarshal(shape[name], &value); err != nil {
+				t.Fatal(err)
+			}
+			return value
+		}
+	}
+	strip("entries", field("project"), slugs)
+	for _, member := range []string{"lineAttestations", "pathPolicies", "servedAPIs"} {
+		strip(member, field("component"), components)
+	}
+	out, err := json.Marshal(pack)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+// packWithServedList is the shipped CNCF pack plus one served-API list.
+func packWithServedList(t *testing.T) []byte {
+	t.Helper()
+	var pack map[string]json.RawMessage
+	if err := json.Unmarshal(plainShippedPack(t), &pack); err != nil {
 		t.Fatal(err)
 	}
 	pack["servedAPIs"] = json.RawMessage(recordsServedSection)
@@ -121,19 +187,10 @@ func TestConstraintsProjectsCarryRecords(t *testing.T) {
 	if !ok || !bytes.Contains(target.Bytes(), []byte(`"servedAPIs"`)) {
 		t.Fatal("the opened kubernetes target does not carry its served list")
 	}
-	plain := targetsFromPack(t, mustRead(t, "../cncfcheck/data/rules.json"), "5")
+	plain := targetsFromPack(t, plainShippedPack(t), "5")
 	if bytes.Equal(plain[ConstraintsProjectsIndexTargetPath], index) {
 		t.Fatal("records did not change the index")
 	}
-}
-
-func mustRead(t *testing.T, name string) []byte {
-	t.Helper()
-	raw, err := os.ReadFile(name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return raw
 }
 
 // TestConstraintsProjectsRefuseDroppingRecordsAtTheSameRevision: after a
@@ -153,7 +210,7 @@ func TestConstraintsProjectsRefuseDroppingRecordsAtTheSameRevision(t *testing.T)
 		t.Fatal(err)
 	}
 	k8s := cncfcheck.ProjectTargetPath("kubernetes")
-	plain5 := targetsFromPack(t, mustRead(t, "../cncfcheck/data/rules.json"), "5")
+	plain5 := targetsFromPack(t, plainShippedPack(t), "5")
 	stripped := map[string][]byte{}
 	for name, raw := range withRecords {
 		stripped[name] = raw
@@ -165,7 +222,7 @@ func TestConstraintsProjectsRefuseDroppingRecordsAtTheSameRevision(t *testing.T)
 		t.Fatalf("records dropped at the same revision accepted: %+v %v", rejected, err)
 	}
 	assertSelectionKept(t, f.store, kept, rejected)
-	if _, err := f.importPackage(f.write(t, knowledgefixture.ProjectsPackage{Targets: targetsFromPack(t, mustRead(t, "../cncfcheck/data/rules.json"), "6")})); err != nil {
+	if _, err := f.importPackage(f.write(t, knowledgefixture.ProjectsPackage{Targets: targetsFromPack(t, plainShippedPack(t), "6")})); err != nil {
 		t.Fatalf("an update without the records at a new revision refused: %v", err)
 	}
 }
