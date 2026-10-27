@@ -1,0 +1,168 @@
+{
+  "schema": "prufyx.io/knowledge-onboarding-batch/v1",
+  "record": {
+    "base": {
+      "packRevision": "cncf-2026-09-13.8",
+      "registryDigest": "sha256:1221ab51141981c4aee6cb6e252e91ab24a890fc281b453795c2a2de5b8a935d",
+      "tableDigest": "sha256:faa89dafe89039f4e1fcbed65946cb1d6b3c8a7e330e7bfed1da5d9e265ce336",
+      "targetsDigest": "sha256:58bf451bff242494682c5ab600085f5cb9c72841e4f75d448da5165dc6727cbe"
+    },
+    "batchId": "ob-20261027-2",
+    "candidateId": "pr-239",
+    "changeSetDigest": "sha256:3668448d19e800eea1039256560f8c0c8faa25c66903ccf50a05493bb921d9d0",
+    "decidedAt": "2026-10-27T17:16:56Z",
+    "decision": "approve",
+    "head": {
+      "packRevision": "cncf-2026-09-13.8",
+      "registryDigest": "sha256:190f954a09e4934450fd34bf5e9683cafeaac10ae836ad91fb6fbed9526f99b5",
+      "tableDigest": "sha256:ada65a5ae126f4b250a45c779d86d62b3321b117e0700385a06eb6bf5f311c06",
+      "targetsDigest": "sha256:7be6f6bd371e09e79931626acf0b111fd90231128c7cc73954712a65606578ca"
+    },
+    "identity": "prufyx-bot",
+    "nonce": "f443ae5e23bd7b47f63fb1e63d4d8860",
+    "notAfter": "2026-10-30T17:16:56Z",
+    "projects": [
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:38b9d6ab3028c74e216d3ca9a176e2a2c77cf094a60f3288728216ee555d824a",
+            "path": "cli/internal/extract/crdversions/target-kuberhealthy.json"
+          }
+        ],
+        "catalog": "cncf",
+        "facts": [
+          "component.kuberhealthy.custom_resource_versions_set"
+        ],
+        "groups": [
+          "kuberhealthy.github.io"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 11,
+            "ledger": "sha256:3e2d6f7e56b310b7c2dace8a49abdd167067a0b4aa59e0c8056397cbe29cf4a2",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "45e156ade56d4e2c1911e48d6dae5c0ccaa86a71",
+            "fromTag": "v2.7.0",
+            "toCommit": "42640eda49d092aacc7e412bc1b08578e540703b",
+            "toTag": "v3.0.0"
+          },
+          "scan": []
+        },
+        "slug": "kuberhealthy"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:60b2f3fc2eec3f3b79510302ea98e80bc9fefd0f34668d1a79fa46bd4af74af1",
+            "path": "cli/internal/extract/crdversions/target-mariadb-operator.json"
+          }
+        ],
+        "catalog": "community",
+        "facts": [
+          "component.mariadb_operator.custom_resource_versions_set"
+        ],
+        "groups": [
+          "k8s.mariadb.com"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 71,
+            "ledger": "sha256:552c481e3621ddc3872b41d23349161b1b9a72892dcf5c3176de193e6d6d26dd",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "58a3f520eeb92060473848d529fba8fcd9a157a6",
+            "fromTag": "26.6.0",
+            "toCommit": "afac262d98f7b5e553b32c4807ea68c8c197c0bd",
+            "toTag": "26.10.0"
+          },
+          "scan": [
+            {
+              "class": "extra",
+              "path": "examples/flux/clusters/production/flux-system/gotk-components.yaml",
+              "sha256": "sha256:0ba854464b08abb8f4caa61aee661e37842078a83d12229a3620738de44a7bb7"
+            },
+            {
+              "class": "external",
+              "path": "hack/manifests/external-snapshotter/kustomization.yaml",
+              "sha256": "sha256:5168dbf45c10d6a2767d8e41456e3380bed92e201df2643505d00888d0a73fd2"
+            }
+          ]
+        },
+        "slug": "mariadb-operator"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:12bad3ee15c1edd470a2d83de1b8e8f4bbc6efc7a7f0df64a542832b0ab8050d",
+            "path": "cli/internal/extract/crdversions/target-openchoreo.json"
+          }
+        ],
+        "catalog": "cncf",
+        "facts": [
+          "component.openchoreo.custom_resource_versions_set"
+        ],
+        "groups": [
+          "openchoreo.dev"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 213,
+            "ledger": "sha256:503f825780e9f1594c0300a5047d868f745a5be247f009bc293240ce87217b47",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "24db292571bb21ab511291aec4a248f0c98c68b4",
+            "fromTag": "v1.2.0",
+            "toCommit": "178dfbde3e3343e5ac151b88a2f203f523f97480",
+            "toTag": "v1.3.0"
+          },
+          "scan": [
+            {
+              "class": "kustomize-config",
+              "path": "config/crd/kustomizeconfig.yaml",
+              "sha256": "sha256:6d7795b478715403133638a62e9d24a6bfef7629809e14cc73e8d2ea457594d9"
+            },
+            {
+              "class": "reference",
+              "path": "config/default/kustomization.yaml",
+              "sha256": "sha256:8a9fc861a3547798f149628210a36dbdba7acd9506dffee670644879e3fb6067"
+            },
+            {
+              "class": "unread",
+              "path": "config/rbac/kustomization.yaml",
+              "sha256": "sha256:f3e37b4e1d9fa64db37feeaee9e93344139b883a38b4267e22c0bfcbaeaa5f15"
+            },
+            {
+              "class": "external",
+              "path": "install/helm/openchoreo-workflow-plane/Chart.yaml",
+              "sha256": "sha256:198fc782c3e9bf02a8dd66d1af1fe06403d2b2c3c52dc8296447bff37a839085"
+            },
+            {
+              "class": "external",
+              "path": "install/helm/openchoreo-workflow-plane/Chart.yaml",
+              "sha256": "sha256:ed02fadb76f9b7b14aa1e02c19fcae8a723a6487b4b2cb6c1b8e74dafd1a854b"
+            }
+          ]
+        },
+        "slug": "openchoreo"
+      }
+    ],
+    "sample": [
+      0,
+      1,
+      2
+    ],
+    "summaryDigest": "sha256:9e3c6a54fdb87455c75e4e87c43d3460dae0dcb353af57002b8475e0872cc32a"
+  },
+  "keyId": "sha256:f25122006c39056826999433c0c100392d1de23462d5b56ee3ba5ad45e874e99",
+  "signature": "ApTjFMShEHc7LZNzU2irHTg9yZNftbJPQ+yEusYlHPDpUJU8ZEQWWurmfSudCl9ZPzNWioj42kABSyIODOa9Dg=="
+}

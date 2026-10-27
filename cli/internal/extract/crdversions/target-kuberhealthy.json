@@ -1,0 +1,16 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "kuberhealthy",
+    "name": "Kuberhealthy",
+    "repo": "github.com/kuberhealthy/kuberhealthy",
+    "component": "pkg:github/kuberhealthy/kuberhealthy",
+    "factProject": "kuberhealthy",
+    "tagPrefixes": ["v", ""],
+    "minFrom": "2.3",
+    "paths": [
+      {"path": "deploy/helm/kuberhealthy/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}
