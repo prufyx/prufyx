@@ -147,7 +147,18 @@ func CRDProjectCount() int {
 func CRDProjectComponents() map[string]string {
 	out := map[string]string{}
 	for _, t := range crdversions.Targets {
-		out[t.Project] = t.Component
+		SetTargetComponent(out, t.Project, t.Component)
 	}
 	return out
+}
+
+// SetTargetComponent records the component of one target for its project.
+// A project whose targets name more than one distinct component keeps the
+// empty component, which Compute never attributes (fail closed).
+func SetTargetComponent(m map[string]string, project, component string) {
+	if prev, seen := m[project]; seen && prev != component {
+		m[project] = ""
+		return
+	}
+	m[project] = component
 }

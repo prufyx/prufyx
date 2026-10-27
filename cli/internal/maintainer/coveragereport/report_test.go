@@ -673,9 +673,24 @@ func TestCRDTargetAttribution(t *testing.T) {
 			}
 		})
 	}
+	// A project with targets of two distinct components gets the empty one.
+	multi := map[string]string{}
+	SetTargetComponent(multi, "strimzi", strimzi)
+	SetTargetComponent(multi, "strimzi", other)
+	SetTargetComponent(multi, "strimzi", strimzi)
+	if multi["strimzi"] != "" {
+		t.Fatalf("component = %q, want empty", multi["strimzi"])
+	}
+	report, err := Compute(Input{Pack: pack(nil, atts), Lines: []byte(ruleless), Now: baselineNow, CRDTargetComponents: multi})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := statuses(report.Projects[0]); got != "GG" {
+		t.Fatalf("two-component project: %s", got)
+	}
 	// Another project already owning the component blocks the attribution.
 	both := fmt.Sprintf(`{"schema":%q,"projects":{"strimzi":{"lines":["0.49","0.50","0.51"]},"holder":{"component":%q,"lines":["0.49","0.50","0.51"]}}}`, LinesSchema, strimzi)
-	report, err := Compute(Input{Pack: pack(nil, atts), Lines: []byte(both), Now: baselineNow, CRDTargetComponents: map[string]string{"strimzi": strimzi}})
+	report, err = Compute(Input{Pack: pack(nil, atts), Lines: []byte(both), Now: baselineNow, CRDTargetComponents: map[string]string{"strimzi": strimzi}})
 	if err != nil {
 		t.Fatal(err)
 	}

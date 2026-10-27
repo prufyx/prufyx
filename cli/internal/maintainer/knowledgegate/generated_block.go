@@ -219,7 +219,7 @@ func crdProjectComponents(t Tree) (map[string]string, error) {
 	}
 	out := map[string]string{}
 	for _, tg := range loaded {
-		out[tg.Project] = tg.Component
+		coveragereport.SetTargetComponent(out, tg.Project, tg.Component)
 	}
 	return out, nil
 }
