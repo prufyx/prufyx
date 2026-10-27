@@ -24,11 +24,43 @@ func TestScopeRouteCannotReadCustomResourceSets(t *testing.T) {
 			t.Fatalf("community corpus registers %s (%s)", d.ID, d.Type)
 		}
 	}
+	// A custom-resource project may also be a community source-rule project
+	// (mariadb-operator is both): the scope route stays blind to custom-resource
+	// sets because no rule of such a project requires a set fact.
 	b := testBundle(t)
+	projectsWithIdentity := map[string]string{}
+	for slug, identity := range b.identities {
+		projectsWithIdentity[identity.Component] = slug
+	}
+	packOnce, err := packaged.ReadFile("data/rules.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rawPack struct {
+		Entries []struct {
+			Project       string `json:"project"`
+			RequiredFacts []struct {
+				ID   string `json:"id"`
+				Type string `json:"type"`
+			} `json:"requiredFacts"`
+		} `json:"entries"`
+	}
+	if err := json.Unmarshal(packOnce, &rawPack); err != nil {
+		t.Fatal(err)
+	}
 	for _, p := range customresources.Projects() {
-		for _, identity := range b.identities {
-			if identity.Component == p.Component {
-				t.Fatalf("custom-resource project %s has a community identity", p.Slug)
+		slug, overlaps := projectsWithIdentity[p.Component]
+		if !overlaps {
+			continue
+		}
+		for _, e := range rawPack.Entries {
+			if e.Project != slug {
+				continue
+			}
+			for _, f := range e.RequiredFacts {
+				if f.Type == string(constraintengine.FactSet) || strings.HasSuffix(f.ID, ".custom_resource_versions_set") {
+					t.Fatalf("community rule of custom-resource project %s requires set fact %s", p.Slug, f.ID)
+				}
 			}
 		}
 	}
