@@ -134,6 +134,9 @@ func runServedListsWith(args []string, stdout io.Writer, deps servedListsDeps) e
 	if err != nil {
 		return &commandError{code: 2, message: "served-lists build: " + err.Error(), err: err}
 	}
+	if c, ok := src.(io.Closer); ok {
+		defer c.Close() // removes the git reader's scratch directory
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	ctx, cancel := context.WithTimeout(ctx, *timeout)

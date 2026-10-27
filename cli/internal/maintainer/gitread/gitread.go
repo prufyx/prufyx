@@ -159,7 +159,11 @@ func (r *Remote) repoDir(ctx context.Context, owner, repo, kind string) (string,
 	dir := filepath.Join(root, owner+"__"+repo+"."+kind+".git")
 	lock.Lock()
 	if _, err := os.Stat(filepath.Join(dir, "HEAD")); err != nil {
-		if _, err := r.run(ctx, "", false, "init", "--bare", "--quiet", "--", dir); err != nil {
+		if err := os.MkdirAll(root, 0o755); err != nil {
+			lock.Unlock()
+			return "", nil, err
+		}
+		if _, err := r.run(ctx, root, false, "init", "--bare", "--quiet", "--", dir); err != nil {
 			lock.Unlock()
 			return "", nil, err
 		}
@@ -203,13 +207,9 @@ func (r *Remote) run(ctx context.Context, dir string, network bool, args ...stri
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	full := []string{"-c", "credential.helper=", "-c", "core.askPass="}
-	if dir != "" {
-		full = append(full, "-C", dir)
-	}
-	full = append(full, args...)
-	cmd := exec.CommandContext(ctx, "git", full...)
-	cmd.Env = append(cmd.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_NO_LAZY_FETCH=1", "LC_ALL=C")
+	argv, env := gitCommand(dir, os.Environ(), args)
+	cmd := exec.CommandContext(ctx, "git", argv...)
+	cmd.Env = env
 	var out, errOut bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &limitWriter{w: &out}, &errOut
 	if err := cmd.Run(); err != nil {
@@ -219,6 +219,25 @@ func (r *Remote) run(ctx context.Context, dir string, network bool, args ...stri
 		return nil, fmt.Errorf("git %s: output too large", args[0])
 	}
 	return out.Bytes(), nil
+}
+
+// gitCommand builds the argument vector and environment of one git command.
+// git never runs in the process working directory (always -C dir), and no
+// ambient configuration applies: the global and system config files are off,
+// every inherited GIT_* variable is dropped, and no extra HTTP header or
+// credential helper (as a CI checkout installs) can reach the request.
+func gitCommand(dir string, environ, args []string) (argv, env []string) {
+	argv = []string{"-c", "credential.helper=", "-c", "core.askPass=", "-c", "http.extraheader=",
+		"-c", "gc.auto=0", "-c", "fetch.writeCommitGraph=false", "-C", dir}
+	argv = append(argv, args...)
+	for _, e := range environ {
+		if !strings.HasPrefix(e, "GIT_") {
+			env = append(env, e)
+		}
+	}
+	env = append(env, "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null", "GIT_CONFIG_NOSYSTEM=1",
+		"GIT_TERMINAL_PROMPT=0", "GIT_NO_LAZY_FETCH=1", "LC_ALL=C")
+	return argv, env
 }
 
 type limitWriter struct {
@@ -276,6 +295,13 @@ func (r *Remote) Commit(ctx context.Context, owner, repo, sha string) (string, e
 	dir, err := r.fetch(ctx, owner, repo, sha)
 	if err != nil {
 		return "", err
+	}
+	kind, err := r.run(ctx, dir, false, "cat-file", "-t", sha)
+	if err != nil {
+		return "", fmt.Errorf("commit %s of %s/%s: %w", sha, owner, repo, err)
+	}
+	if k := strings.TrimSpace(string(kind)); k != "commit" {
+		return "", fmt.Errorf("commit %s of %s/%s: the object is a %s, not a commit", sha, owner, repo, k)
 	}
 	out, err := r.run(ctx, dir, false, "cat-file", "commit", sha)
 	if err != nil {
@@ -372,7 +398,12 @@ func (r *Remote) Reachable(ctx context.Context, owner, repo, sha string) (bool, 
 	if err != nil {
 		return false, err
 	}
-	out, err := r.run(ctx, "", true, "ls-remote", "--tags", "--", u)
+	dir, lock, err := r.repoDir(ctx, owner, repo, "hist")
+	if err != nil {
+		return false, err
+	}
+	defer lock.Unlock()
+	out, err := r.run(ctx, dir, true, "ls-remote", "--tags", "--", u)
 	if err != nil {
 		return false, fmt.Errorf("list tags of %s/%s: %w", owner, repo, err)
 	}
@@ -399,11 +430,6 @@ func (r *Remote) Reachable(ctx context.Context, owner, repo, sha string) (bool, 
 			return true, nil
 		}
 	}
-	dir, lock, err := r.repoDir(ctx, owner, repo, "hist")
-	if err != nil {
-		return false, err
-	}
-	defer lock.Unlock()
 	key := owner + "/" + repo + "/HEAD"
 	r.mu.Lock()
 	done := r.fetched[key]

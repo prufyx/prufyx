@@ -5,6 +5,7 @@ package gitread_test
 import (
 	"context"
 	"errors"
+	"os"
 	"os/exec"
 	"reflect"
 	"strings"
@@ -117,5 +118,59 @@ func TestIsIPAllowListRefusal(t *testing.T) {
 		if got := gitread.IsIPAllowListRefusal([]byte(body)); got != want {
 			t.Errorf("%q: %v", body, got)
 		}
+	}
+}
+
+// gitCommand never runs in the working directory and drops ambient config.
+func TestGitCommandIgnoresAmbientConfig(t *testing.T) {
+	environ := []string{"PATH=/bin", "HOME=/h", "GIT_DIR=/x", "GIT_CONFIG_COUNT=1", "GIT_CONFIG_KEY_0=http.extraheader", "GIT_CONFIG_VALUE_0=AUTHORIZATION: basic x"}
+	argv, env := gitread.GitCommandForTest("/scratch/r.git", environ, []string{"fetch", "--", "u"})
+	joined := " " + strings.Join(argv, " ") + " "
+	for _, want := range []string{" -C /scratch/r.git ", " http.extraheader= ", " credential.helper= ", " gc.auto=0 ", " fetch.writeCommitGraph=false "} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("argv lacks %q: %v", want, argv)
+		}
+	}
+	got := map[string]bool{}
+	for _, e := range env {
+		got[e] = true
+		if strings.HasPrefix(e, "GIT_DIR=") || strings.HasPrefix(e, "GIT_CONFIG_KEY") || strings.HasPrefix(e, "GIT_CONFIG_COUNT") || strings.HasPrefix(e, "GIT_CONFIG_VALUE") {
+			t.Errorf("inherited %q", e)
+		}
+	}
+	for _, want := range []string{"GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null", "GIT_CONFIG_NOSYSTEM=1", "PATH=/bin"} {
+		if !got[want] {
+			t.Errorf("env lacks %s", want)
+		}
+	}
+}
+
+// A cwd repository with an http.extraheader must not affect a run.
+func TestRunIgnoresCwdRepoConfig(t *testing.T) {
+	repo := gitreadtest.New(t, "acme", "widget")
+	cwd := t.TempDir()
+	gitreadtest.Git(t, cwd, "init", "--quiet")
+	gitreadtest.Git(t, cwd, "config", "http.extraheader", "AUTHORIZATION: basic secret")
+	old, _ := os.Getwd()
+	if err := os.Chdir(cwd); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(old)
+	r := &gitread.Remote{Base: repo.Base, Dir: t.TempDir()}
+	defer r.Close()
+	if _, err := r.Commit(context.Background(), "acme", "widget", repo.C1); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(cwd + "/.git/objects/" + repo.C1[:2]); err == nil {
+		t.Fatal("objects were written into the working directory repository")
+	}
+}
+
+func TestCommitRejectsTagObject(t *testing.T) {
+	repo := gitreadtest.New(t, "acme", "widget")
+	r := &gitread.Remote{Base: repo.Base, Dir: t.TempDir()}
+	defer r.Close()
+	if _, err := r.Commit(context.Background(), "acme", "widget", repo.TagObj); err == nil || !strings.Contains(err.Error(), "not a commit") {
+		t.Fatalf("tag object must fail like REST /git/commits: %v", err)
 	}
 }
