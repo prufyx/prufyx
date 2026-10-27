@@ -214,16 +214,21 @@ type Report struct {
 
 // UpstreamReport is the GitHub request accounting of one run.
 type UpstreamReport struct {
-	RESTRequests       int64  `json:"restRequests"`
-	CommitCalls        int64  `json:"commitCalls"`
-	TreeCalls          int64  `json:"treeCalls"`
-	RawFetches         int64  `json:"rawFetches"`
-	CacheHits          int64  `json:"cacheHits"`
-	DiskTreeHits       int64  `json:"diskTreeHits"`
-	DiskBlobHits       int64  `json:"diskBlobHits"`
-	RateLimitRemaining int64  `json:"rateLimitRemaining"`
-	BudgetExhausted    bool   `json:"budgetExhausted"`
-	BudgetReason       string `json:"budgetReason,omitempty"`
+	RESTRequests int64 `json:"restRequests"`
+	CommitCalls  int64 `json:"commitCalls"`
+	TreeCalls    int64 `json:"treeCalls"`
+	RawFetches   int64 `json:"rawFetches"`
+	CacheHits    int64 `json:"cacheHits"`
+	DiskTreeHits int64 `json:"diskTreeHits"`
+	DiskBlobHits int64 `json:"diskBlobHits"`
+	// GitFetches and GitReads are the anonymous git operations done for
+	// IP allow-listed organisations (IPAllowListed); not REST requests.
+	GitFetches         int64    `json:"gitFetches,omitempty"`
+	GitReads           int64    `json:"gitReads,omitempty"`
+	IPAllowListed      []string `json:"ipAllowListed,omitempty"`
+	RateLimitRemaining int64    `json:"rateLimitRemaining"`
+	BudgetExhausted    bool     `json:"budgetExhausted"`
+	BudgetReason       string   `json:"budgetReason,omitempty"`
 }
 
 // statsSource is implemented by a Source that counts its upstream requests.
@@ -241,6 +246,7 @@ func (r *Report) budgetCheck(opts Options) {
 	r.Upstream = &UpstreamReport{
 		RESTRequests: st.APIRequests, CommitCalls: st.CommitCalls, TreeCalls: st.TreeCalls, RawFetches: st.RawFetches,
 		CacheHits: st.RawCacheHits, DiskTreeHits: st.DiskTreeHits, DiskBlobHits: st.DiskBlobHits,
+		GitFetches: st.GitFetches, GitReads: st.GitReads, IPAllowListed: st.IPAllowListed,
 		RateLimitRemaining: st.RateLimitRemaining, BudgetExhausted: st.BudgetExhausted, BudgetReason: st.BudgetReason,
 	}
 	if st.BudgetExhausted {
@@ -249,6 +255,10 @@ func (r *Report) budgetCheck(opts Options) {
 		// A starved run is not a verdict about the knowledge, so it must not
 		// only turn a job red: it raises an alarm, like the other breakers.
 		r.alarm(AlarmCouldNotRun, "the gate could not run: %s (%d REST requests used, shard %s); the rules of that run were not checked", st.BudgetReason, st.APIRequests, opts.Shard)
+		return
+	}
+	if len(st.IPAllowListed) > 0 {
+		r.add("rest-budget", true, "%d REST requests (%d commit, %d tree), %d raw fetches; %d git fetches and %d git reads for IP allow-listed organisations (%s)", st.APIRequests, st.CommitCalls, st.TreeCalls, st.RawFetches, st.GitFetches, st.GitReads, strings.Join(st.IPAllowListed, ", "))
 		return
 	}
 	r.add("rest-budget", true, "%d REST requests (%d commit, %d tree), %d raw fetches", st.APIRequests, st.CommitCalls, st.TreeCalls, st.RawFetches)

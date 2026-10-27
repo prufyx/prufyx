@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/gitread"
 )
 
 // CitationReportSchema identifies the citation-verification report shape.
@@ -114,6 +115,12 @@ type GitHubObjects struct {
 	// shared anonymous pool, not the token, so Observe must not see them;
 	// without ObserveAnon the retry is not observed.
 	ObserveAnon func(*http.Response) error
+	// Git, when set, serves the repositories of organisations whose IP
+	// allow list refuses the token (an authenticated 403 that says so): the
+	// owner is remembered, the REST API is not retried anonymously for it,
+	// and revisions are resolved over anonymous git instead. Without it the
+	// unclassified-403 retry below applies to every 403.
+	Git *gitread.Remote
 
 	// repos caches, per repository, the default branch and the tag commits
 	// (set by NewGitHubObjects); without it every reachability check looks
@@ -160,6 +167,10 @@ var errResponseTooLarge = errors.New("response exceeds the size limit")
 // terminal like errResponseTooLarge.
 var errRefused = errors.New("request refused by the caller's budget")
 
+// errIPAllowList marks an authenticated request refused by the organisation's
+// IP allow list. It is terminal; the caller switches to git.
+var errIPAllowList = errors.New("organisation IP allow list refused the token request")
+
 func (g GitHubObjects) get(ctx context.Context, u string) ([]byte, int, error) {
 	return g.getLimited(ctx, u, maxAPIBytes)
 }
@@ -172,7 +183,7 @@ func (g GitHubObjects) getLimited(ctx context.Context, u string, limit int) ([]b
 	)
 	for attempt := 1; attempt <= maxAPIAttempts; attempt++ {
 		body, status, err = g.getOnce(ctx, u, limit, false)
-		if errors.Is(err, errRefused) {
+		if errors.Is(err, errRefused) || errors.Is(err, errIPAllowList) {
 			break
 		}
 		transient := (err != nil && !errors.Is(err, errResponseTooLarge)) || status == http.StatusTooManyRequests || status >= 500
@@ -228,6 +239,12 @@ func (g GitHubObjects) getOnce(ctx context.Context, u string, limit int, anon bo
 		}
 	}
 	if response.StatusCode == http.StatusForbidden && g.Token != "" && !anon && !rateLimited(response) {
+		if g.Git != nil {
+			refusal, _ := io.ReadAll(io.LimitReader(response.Body, 64<<10))
+			if gitread.IsIPAllowListRefusal(refusal) {
+				return nil, response.StatusCode, errIPAllowList
+			}
+		}
 		return g.getOnce(ctx, u, limit, true)
 	}
 	body, err := io.ReadAll(io.LimitReader(response.Body, int64(limit)+1))
@@ -265,7 +282,14 @@ func (g GitHubObjects) RevisionReachable(ctx context.Context, owner, repo, sha s
 	if !revisionPattern.MatchString(sha) {
 		return false, fmt.Errorf("revision %q is not a full 40-character lowercase SHA", sha)
 	}
+	if g.Git != nil && g.Git.Listed(owner) {
+		return g.Git.Reachable(ctx, owner, repo, sha)
+	}
 	tags, truncated, err := g.tagCommits(ctx, owner, repo)
+	if errors.Is(err, errIPAllowList) {
+		g.Git.MarkListed(owner)
+		return g.Git.Reachable(ctx, owner, repo, sha)
+	}
 	if err != nil {
 		return false, err
 	}
@@ -273,11 +297,19 @@ func (g GitHubObjects) RevisionReachable(ctx context.Context, owner, repo, sha s
 		return true, nil
 	}
 	branch, err := g.defaultBranch(ctx, owner, repo)
+	if errors.Is(err, errIPAllowList) {
+		g.Git.MarkListed(owner)
+		return g.Git.Reachable(ctx, owner, repo, sha)
+	}
 	if err != nil {
 		return false, err
 	}
 	u := g.repoURL(owner, repo) + "/compare/" + sha + "..." + url.PathEscape(branch) + "?per_page=1"
 	body, status, err := g.getLimited(ctx, u, maxCompareBytes)
+	if errors.Is(err, errIPAllowList) {
+		g.Git.MarkListed(owner)
+		return g.Git.Reachable(ctx, owner, repo, sha)
+	}
 	if err != nil {
 		return false, err
 	}
@@ -403,7 +435,14 @@ func (g GitHubObjects) ResolveRevision(ctx context.Context, owner, repo, sha str
 	if !revisionPattern.MatchString(sha) {
 		return ObjectKind{}, fmt.Errorf("revision %q is not a full 40-character lowercase SHA", sha)
 	}
+	if g.Git != nil && g.Git.Listed(owner) {
+		return g.resolveOverGit(ctx, owner, repo, sha)
+	}
 	body, status, err := g.get(ctx, g.endpoint(owner, repo, "commits", sha))
+	if errors.Is(err, errIPAllowList) {
+		g.Git.MarkListed(owner)
+		return g.resolveOverGit(ctx, owner, repo, sha)
+	}
 	if err != nil {
 		return ObjectKind{}, err
 	}
@@ -449,6 +488,16 @@ func (g GitHubObjects) ResolveRevision(ctx context.Context, owner, repo, sha str
 		}
 	}
 	return ObjectKind{}, errors.New("tag object chain is too deep to peel")
+}
+
+// resolveOverGit is ResolveRevision for an IP allow-listed owner: the object
+// is fetched over anonymous git. Any failure is an error, never "not a commit".
+func (g GitHubObjects) resolveOverGit(ctx context.Context, owner, repo, sha string) (ObjectKind, error) {
+	commit, peeled, err := g.Git.Kind(ctx, owner, repo, sha)
+	if err != nil {
+		return ObjectKind{}, err
+	}
+	return ObjectKind{Commit: commit, PeeledCommit: peeled}, nil
 }
 
 // CitationFinding is one failed citation check.
