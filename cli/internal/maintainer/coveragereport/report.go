@@ -419,6 +419,9 @@ func Compute(in Input) (Report, error) {
 		if c == "" || targetClaims[c] != 1 || len(components[project]) > 0 || linesFile.Projects[project].Component != "" {
 			continue
 		}
+		if _, inSnapshot := linesFile.Projects[project]; !inSnapshot {
+			continue
+		}
 		if _, owned := componentProject[c]; owned {
 			continue
 		}

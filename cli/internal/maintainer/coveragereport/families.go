@@ -154,7 +154,9 @@ func CRDProjectComponents() map[string]string {
 
 // SetTargetComponent records the component of one target for its project.
 // A project whose targets name more than one distinct component keeps the
-// empty component, which Compute never attributes (fail closed).
+// empty component, which Compute never attributes (fail closed). The target
+// loader already rejects duplicate projects and duplicate components, so this
+// is defence in depth, not a path the shipped targets take.
 func SetTargetComponent(m map[string]string, project, component string) {
 	if prev, seen := m[project]; seen && prev != component {
 		m[project] = ""

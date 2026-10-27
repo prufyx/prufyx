@@ -674,6 +674,7 @@ func TestCRDTargetAttribution(t *testing.T) {
 		})
 	}
 	// A project with targets of two distinct components gets the empty one.
+	// The target loader already rejects such targets; this guards the helper.
 	multi := map[string]string{}
 	SetTargetComponent(multi, "strimzi", strimzi)
 	SetTargetComponent(multi, "strimzi", other)
@@ -687,6 +688,16 @@ func TestCRDTargetAttribution(t *testing.T) {
 	}
 	if got := statuses(report.Projects[0]); got != "GG" {
 		t.Fatalf("two-component project: %s", got)
+	}
+	// A target project absent from the lines snapshot is not attributed:
+	// its attestations add nothing and PackProjects stays 0.
+	other1 := fmt.Sprintf(`{"schema":%q,"projects":{"unrelated":{"lines":["0.49","0.50","0.51"]}}}`, LinesSchema)
+	report, err = Compute(Input{Pack: pack(nil, atts), Lines: []byte(other1), Now: baselineNow, CRDTargetComponents: map[string]string{"strimzi": strimzi}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := statuses(report.Projects[0]); got != "GG" || report.PackProjects != 0 {
+		t.Fatalf("absent from snapshot: %s, PackProjects %d", got, report.PackProjects)
 	}
 	// Another project already owning the component blocks the attribution.
 	both := fmt.Sprintf(`{"schema":%q,"projects":{"strimzi":{"lines":["0.49","0.50","0.51"]},"holder":{"component":%q,"lines":["0.49","0.50","0.51"]}}}`, LinesSchema, strimzi)
