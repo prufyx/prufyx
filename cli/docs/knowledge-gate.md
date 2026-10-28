@@ -1321,9 +1321,15 @@ commit and the commit list; gate output is printed with workflow commands
 stopped. When a statement chain changed it first runs `evidence repin` itself
 and passes the result as `--rerun-worklist`. For a pull request it also counts
 the loosening changes the automation merged in the last day (`gate daily-count`
-over the history of `main`) and passes the number. The token is read-only and
-the gate job uses no secrets; the only secret in the workflow belongs to the
-separate `Gate alarms` job. On the daily run it adds `--rederive-all`.
+over the history of `main`) and passes the number. The token is read-only. When
+the repository variable `KNOWLEDGE_GATE_APP_ID` is set, re-derivation reads the
+upstream projects with an installation token of a read-only GitHub App
+(contents and metadata read, about 5000 REST requests an hour instead of about
+1000 for the workflow token) and the default `--rest-budget` is 4000 instead of
+900. The App's private key (`KNOWLEDGE_GATE_APP_PRIVATE_KEY`) reaches only the
+pinned `actions/create-github-app-token` step; no run step sees a secret. The
+only other secret in the workflow belongs to the separate `Gate alarms` job.
+On the daily run it adds `--rederive-all`.
 
 It does not run for a merge queue: a `merge_group` run would use the workflow
 definition of the queued commit. Pull requests must instead be up to date with
