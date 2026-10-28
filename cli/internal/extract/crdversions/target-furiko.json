@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "furiko",
+    "catalog": "community",
+    "name": "furiko",
+    "repo": "github.com/furiko-io/furiko",
+    "component": "pkg:github/furiko-io/furiko",
+    "factProject": "furiko",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.0",
+    "paths": [
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

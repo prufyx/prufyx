@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "k8s-cleaner",
+    "catalog": "community",
+    "name": "k8s-cleaner",
+    "repo": "github.com/gianlucam76/k8s-cleaner",
+    "component": "pkg:github/gianlucam76/k8s-cleaner",
+    "factProject": "k8s_cleaner",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.19",
+    "paths": [
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}
