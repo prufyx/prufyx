@@ -25,10 +25,13 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `eraser` | CNCF | `component.eraser.custom_resource_versions_set` | `eraser.sh` |
 | `external-secrets` | CNCF | `component.external_secrets.custom_resource_versions_set` | `external-secrets.io`, `generators.external-secrets.io` |
 | `fluent-operator` | community | `component.fluent_operator.custom_resource_versions_set` | `fluentbit.fluent.io`, `fluentd.fluent.io` |
+| `fluid` | CNCF | `component.fluid.custom_resource_versions_set` | `data.fluid.io` |
 | `gateway-api` | community | `component.gateway_api.custom_resource_versions_set` | `gateway.networking.k8s.io` |
 | `grafana-operator` | community | `component.grafana_operator.custom_resource_versions_set` | `grafana.integreatly.org` |
 | `istio` | CNCF | `component.istio.custom_resource_versions_set` | `extensions.istio.io`, `networking.istio.io`, `security.istio.io`, `telemetry.istio.io` |
+| `k6-operator` | community | `component.k6_operator.custom_resource_versions_set` | `k6.io` |
 | `k8gb` | CNCF | `component.k8gb.custom_resource_versions_set` | `k8gb.absa.oss`, `k8gb.io` |
+| `k8s-cleaner` | community | `component.k8s_cleaner.custom_resource_versions_set` | `apps.projectsveltos.io` |
 | `k8up` | CNCF | `component.k8up.custom_resource_versions_set` | `k8up.io` |
 | `kanister` | CNCF | `component.kanister.custom_resource_versions_set` | `cr.kanister.io` |
 | `karmada` | CNCF | `component.karmada.custom_resource_versions_set` | `apps.karmada.io`, `autoscaling.karmada.io`, `config.karmada.io`, `networking.karmada.io`, `operator.karmada.io`, `policy.karmada.io`, `remedy.karmada.io`, `work.karmada.io` |
@@ -44,6 +47,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `kubevela` | CNCF | `component.kubevela.custom_resource_versions_set` | `core.oam.dev`, `cue.oam.dev` |
 | `kueue` | community | `component.kueue.custom_resource_versions_set` | `kueue.x-k8s.io` |
 | `kuma` | CNCF | `component.kuma.custom_resource_versions_set` | `kuma.io` |
+| `kuttl` | community | `component.kuttl.custom_resource_versions_set` | `kuttl.dev`, `mycrd.example.com`, `prow.example.com` |
 | `kyverno` | CNCF | `component.kyverno.custom_resource_versions_set` | `kyverno.io`, `policies.kyverno.io`, `reports.kyverno.io`, `wgpolicyk8s.io` |
 | `logging-operator-kube-logging` | CNCF | `component.logging_operator_kube_logging.custom_resource_versions_set` | `logging-extensions.banzaicloud.io`, `logging.banzaicloud.io` |
 | `longhorn` | CNCF | `component.longhorn.custom_resource_versions_set` | `longhorn.io` |
@@ -83,11 +87,14 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `fluent-operator` | fluent-operator | https://github.com/fluent/fluent-operator | [`Apache-2.0`](https://github.com/fluent/fluent-operator/blob/cf5582c23d9e8d96ba1d77d3c7ac48a0456ff7c2/LICENSE) |
 | `gateway-api` | Gateway API | https://github.com/kubernetes-sigs/gateway-api | [`Apache-2.0`](https://github.com/kubernetes-sigs/gateway-api/blob/89b3b0c3fa63f9342f43ba0fb2cf93d6aab53af7/LICENSE) |
 | `grafana-operator` | grafana-operator | https://github.com/grafana/grafana-operator | [`Apache-2.0`](https://github.com/grafana/grafana-operator/blob/3e68ec4c3c706d5d3ca45c7f2d141a5336f243e4/LICENSE) |
+| `k6-operator` | k6-operator | https://github.com/grafana/k6-operator | [`Apache-2.0`](https://github.com/grafana/k6-operator/blob/925e2a750ca572a4ff3f0414c4b11dd649d040cb/LICENSE) |
+| `k8s-cleaner` | k8s-cleaner | https://github.com/gianlucam76/k8s-cleaner | [`Apache-2.0`](https://github.com/gianlucam76/k8s-cleaner/blob/d733e5954391774658eea53dcb111f8272e8a23f/LICENSE) |
 | `kong-ingress-controller` | Kong Ingress Controller | https://github.com/kong/kubernetes-ingress-controller | [`Apache-2.0`](https://github.com/kong/kubernetes-ingress-controller/blob/17f5dafd2a447a7e5ff7be84006a83787ac2882c/LICENSE) |
 | `kube-green` | kube-green | https://github.com/kube-green/kube-green | [`MIT`](https://github.com/kube-green/kube-green/blob/335696fad48024429afc421c104f5a76088a667d/LICENSE) |
 | `kubernetes-ingress` | kubernetes-ingress | https://github.com/nginx/kubernetes-ingress | [`Apache-2.0`](https://github.com/nginx/kubernetes-ingress/blob/2598147d84065276946301ee57534ba6c11b7a8e/LICENSE) |
 | `kubeswift` | kubeswift | https://github.com/kubeswift-io/kubeswift | [`AGPL-3.0-only`](https://github.com/kubeswift-io/kubeswift/blob/70947a12aab3c586aa63454f967afd77120e8cb9/LICENSE) |
 | `kueue` | Kueue | https://github.com/kubernetes-sigs/kueue | [`Apache-2.0`](https://github.com/kubernetes-sigs/kueue/blob/f850823bead72095aaba55025a7efadfdfe3782a/LICENSE) |
+| `kuttl` | kuttl | https://github.com/kudobuilder/kuttl | [`Apache-2.0`](https://github.com/kudobuilder/kuttl/blob/9ef9f000371ebdd88fb16747ee5ac49f88021ade/LICENSE) |
 | `mariadb-operator` | mariadb-operator | https://github.com/mariadb-operator/mariadb-operator | [`MIT`](https://github.com/mariadb-operator/mariadb-operator/blob/236803d7f86c9c86842723d6cdfb1f369eb525d6/LICENSE) |
 | `mongodb-kubernetes` | MongoDB Controllers for Kubernetes | https://github.com/mongodb/mongodb-kubernetes | [`Apache-2.0 OR LicenseRef-MongoDB-Customer-Agreement`](https://github.com/mongodb/mongodb-kubernetes/blob/75fa89bca8c1395a1beb0f244723f255f67f8719/LICENSE-MCK) |
 | `node-feature-discovery` | Node Feature Discovery | https://github.com/kubernetes-sigs/node-feature-discovery | [`Apache-2.0`](https://github.com/kubernetes-sigs/node-feature-discovery/blob/45d276ed9d3f0f67fb642aa78969721df3034451/LICENSE) |

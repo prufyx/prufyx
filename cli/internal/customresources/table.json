@@ -332,6 +332,18 @@
       ]
     },
     {
+      "slug": "fluid",
+      "catalog": "cncf",
+      "factProject": "fluid",
+      "component": "pkg:github/fluid-cloudnative/fluid",
+      "groups": [
+        {
+          "name": "data.fluid.io",
+          "source": "https://github.com/fluid-cloudnative/fluid/blob/b1060936c20e6ff38a06eda694b2f58c02d0c11d/config/crd/bases/data.fluid.io_vineyardruntimes.yaml"
+        }
+      ]
+    },
+    {
       "slug": "gateway-api",
       "catalog": "community",
       "upstream": {
@@ -392,6 +404,24 @@
       ]
     },
     {
+      "slug": "k6-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "k6-operator",
+        "repository": "https://github.com/grafana/k6-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/grafana/k6-operator/blob/925e2a750ca572a4ff3f0414c4b11dd649d040cb/LICENSE"
+      },
+      "factProject": "k6_operator",
+      "component": "pkg:github/grafana/k6-operator",
+      "groups": [
+        {
+          "name": "k6.io",
+          "source": "https://github.com/grafana/k6-operator/blob/657f605a6fd16cd65efbd599615869485b85ea0c/config/crd/bases/k6.io_testruns.yaml"
+        }
+      ]
+    },
+    {
       "slug": "k8gb",
       "catalog": "cncf",
       "factProject": "k8gb",
@@ -404,6 +434,24 @@
         {
           "name": "k8gb.io",
           "source": "https://github.com/k8gb-io/k8gb/blob/9cffd9150a33c982295105c1f1b093adbae029d7/chart/k8gb/crd/k8gb.io_gslbs.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "k8s-cleaner",
+      "catalog": "community",
+      "upstream": {
+        "name": "k8s-cleaner",
+        "repository": "https://github.com/gianlucam76/k8s-cleaner",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/gianlucam76/k8s-cleaner/blob/d733e5954391774658eea53dcb111f8272e8a23f/LICENSE"
+      },
+      "factProject": "k8s_cleaner",
+      "component": "pkg:github/gianlucam76/k8s-cleaner",
+      "groups": [
+        {
+          "name": "apps.projectsveltos.io",
+          "source": "https://github.com/gianlucam76/k8s-cleaner/blob/a1ae3c37cee8e31709098e5032a628e09b016b41/config/crd/bases/apps.projectsveltos.io_reports.yaml"
         }
       ]
     },
@@ -734,6 +782,32 @@
         {
           "name": "kuma.io",
           "source": "https://github.com/kumahq/kuma/blob/51c6d3819be75d9587942242cdec709bc9934321/deployments/charts/kuma/crds/kuma.io_zones.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "kuttl",
+      "catalog": "community",
+      "upstream": {
+        "name": "kuttl",
+        "repository": "https://github.com/kudobuilder/kuttl",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/kudobuilder/kuttl/blob/9ef9f000371ebdd88fb16747ee5ac49f88021ade/LICENSE"
+      },
+      "factProject": "kuttl",
+      "component": "pkg:github/kudobuilder/kuttl",
+      "groups": [
+        {
+          "name": "kuttl.dev",
+          "source": "https://github.com/kudobuilder/kuttl/blob/2635740569a28f83f8fe1dc8e722017a6e02be69/crds/testsuite_crd.yaml"
+        },
+        {
+          "name": "mycrd.example.com",
+          "source": "https://github.com/kudobuilder/kuttl/blob/2635740569a28f83f8fe1dc8e722017a6e02be69/internal/harness/test_data/crd-in-step/00-crd.yaml"
+        },
+        {
+          "name": "prow.example.com",
+          "source": "https://github.com/kudobuilder/kuttl/blob/2635740569a28f83f8fe1dc8e722017a6e02be69/internal/harness/test_data/create-or-update/00-crd.yaml"
         }
       ]
     },
