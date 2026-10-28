@@ -380,6 +380,15 @@ func TestBotOnboardingLimits(t *testing.T) {
 		}
 		return append(out, extra...)
 	}
+	// weekProjects returns batches (each within MaxOnboardingProjects) that
+	// together hold n projects.
+	weekProjects := func(n int) []b {
+		var out []b
+		for ; n > 0; n -= MaxOnboardingProjects {
+			out = append(out, b{0, min(n, MaxOnboardingProjects), recent})
+		}
+		return out
+	}
 	cases := []struct {
 		name   string
 		env    OnboardingEnvelope
@@ -391,8 +400,8 @@ func TestBotOnboardingLimits(t *testing.T) {
 		{"base batches below the cap, one more admitted", head, files(baseBatches(MaxBotBatchesWeek - 2)...), false, ""},
 		{"one batch above the weekly cap", head, files(baseBatches(MaxBotBatchesWeek)...), false, fmt.Sprintf("O8c: this would be bot-tier batch %d", MaxBotBatchesWeek+1)},
 		{"last batch under the weekly cap admitted", head, files(baseBatches(MaxBotBatchesWeek - 1)...), false, ""},
-		{"one project above the weekly project cap", head, files(b{0, 100, recent}, b{0, MaxBotProjectsWeek - headProjects - 100 + 1, recent}), false, fmt.Sprintf("O8c: this would bring the bot-tier projects inside 7 days to %d", MaxBotProjectsWeek+1)},
-		{"last project under the weekly project cap admitted", head, files(b{0, 100, recent}, b{0, MaxBotProjectsWeek - headProjects - 100, recent}), false, ""},
+		{"one project above the weekly project cap", head, files(weekProjects(MaxBotProjectsWeek - headProjects + 1)...), false, fmt.Sprintf("O8c: this would bring the bot-tier projects inside 7 days to %d", MaxBotProjectsWeek+1)},
+		{"last project under the weekly project cap admitted", head, files(weekProjects(MaxBotProjectsWeek - headProjects)...), false, ""},
 		{"paused", head, nil, true, "O8b"},
 		{"paused does not touch an owner batch", ownerHead, nil, true, ""},
 		{"owner batches are not counted", head, files(baseBatches(MaxBotBatchesWeek - 2)...), false, ""},
