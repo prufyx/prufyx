@@ -22,6 +22,8 @@ func (fakeCharts) Charts(slug string, _ time.Time) []string {
 	switch slug {
 	case "argo-cd":
 		return []string{"argo-cd"}
+	case "istio":
+		return []string{"gateway", "istiod"}
 	case "split":
 		return []string{"split"}
 	}
@@ -29,22 +31,29 @@ func (fakeCharts) Charts(slug string, _ time.Time) []string {
 }
 
 func (fakeCharts) Component(slug, _ string, _ time.Time) (string, bool) {
-	return "c1", slug == "argo-cd"
+	return "c1", slug == "argo-cd" || slug == "istio"
 }
 
 func (fakeCharts) AppVersion(component, chart, chartVersion string, _ time.Time) (string, bool) {
 	if component == "c1" && chart == "argo-cd" && chartVersion == "7.1.0" {
 		return "2.12.0", true
 	}
+	if component == "c1" && (chart == "gateway" || chart == "istiod") && chartVersion == "1.22.0" {
+		return "1.22.0", true
+	}
 	return "", false
 }
 
 func workload(labels, templateLabels map[string]any) intake.Document {
+	return object("apps/v1", "Deployment", labels, templateLabels)
+}
+
+func object(apiVersion, kind string, labels, templateLabels map[string]any) intake.Document {
 	value := map[string]any{"metadata": map[string]any{"labels": labels}}
 	if templateLabels != nil {
 		value["spec"] = map[string]any{"template": map[string]any{"metadata": map[string]any{"labels": templateLabels}}}
 	}
-	return intake.Document{APIVersion: "apps/v1", Kind: "Deployment", Name: "x", Value: value}
+	return intake.Document{APIVersion: apiVersion, Kind: kind, Name: "x", Value: value}
 }
 
 func appLabels(name, version string) map[string]any {
@@ -82,6 +91,14 @@ func TestDetectVersions(t *testing.T) {
 		{name: "chart with prerelease version", docs: []intake.Document{workload(map[string]any{labelHelmChart: "argo-cd-7.1.0-rc.1"}, nil)}, slug: "argo-cd"},
 		{name: "chart resolves to two components", docs: []intake.Document{workload(map[string]any{labelHelmChart: "split-1.0.0"}, nil)}, slug: "split", present: true},
 
+		{name: "statefulset", docs: []intake.Document{object("apps/v1", "StatefulSet", appLabels("argo-cd", "2.12.0"), nil)}, slug: "argo-cd", version: "2.12.0", signals: []string{signalAppLabel}, present: true},
+		{name: "daemonset template", docs: []intake.Document{object("apps/v1", "DaemonSet", nil, appLabels("argo-cd", "2.12.0"))}, slug: "argo-cd", version: "2.12.0", signals: []string{signalAppLabel}, present: true},
+		{name: "configmap ignored", docs: []intake.Document{object("v1", "ConfigMap", appLabels("argo-cd", "2.12.0"), nil)}, slug: "argo-cd"},
+		{name: "crd ignored", docs: []intake.Document{object("apiextensions.k8s.io/v1", "CustomResourceDefinition", appLabels("argo-cd", "2.12.0"), nil)}, slug: "argo-cd"},
+		{name: "job ignored", docs: []intake.Document{object("batch/v1", "Job", appLabels("argo-cd", "2.12.0"), appLabels("argo-cd", "2.12.0"))}, slug: "argo-cd"},
+		{name: "deployment of another group ignored", docs: []intake.Document{object("example.com/v1", "Deployment", appLabels("argo-cd", "2.12.0"), nil)}, slug: "argo-cd"},
+		{name: "non control plane chart gives no istio version", docs: []intake.Document{workload(map[string]any{labelHelmChart: "gateway-1.22.0"}, nil)}, slug: "istio"},
+		{name: "control plane chart named like the project only", docs: []intake.Document{workload(map[string]any{labelHelmChart: "istiod-1.22.0"}, nil)}, slug: "istio"},
 		{name: "name is not the project", docs: []intake.Document{workload(appLabels("argocd-server", "2.12.0"), nil)}, slug: "argo-cd"},
 		{name: "name prefix only", docs: []intake.Document{workload(appLabels("argo-cd-extra", "2.12.0"), nil)}, slug: "argo-cd"},
 		{name: "other project chart", docs: []intake.Document{workload(map[string]any{labelHelmChart: "other-7.1.0"}, nil)}, slug: "argo-cd"},
@@ -193,4 +210,28 @@ func TestDetectCurrent(t *testing.T) {
 			t.Fatalf("current = %v notes = %v gaps = %v", effective.Current, report.Notes, report.Gaps)
 		}
 	})
+}
+
+func TestDetectSeenCountsLabelSets(t *testing.T) {
+	now := time.Date(2026, 10, 28, 0, 0, 0, 0, time.UTC)
+	// One label set carrying two signals counts once; a second set counts again.
+	docs := []intake.Document{
+		workload(map[string]any{labelHelmChart: "argo-cd-7.1.0", labelAppName: "argo-cd", labelAppVersion: "2.12.0"}, appLabels("argo-cd", "2.12.0")),
+	}
+	got := detectVersions(docs, []string{"argo-cd"}, fakeCharts{}, now)["argo-cd"]
+	if got.Version != "2.12.0" || got.Seen != 2 {
+		t.Fatalf("version %q seen %d, want 2.12.0 and 2", got.Version, got.Seen)
+	}
+}
+
+func TestDropShadowedNotDetected(t *testing.T) {
+	report := &scanreport.Report{Gaps: []scanreport.Gap{
+		scanreport.NewGap("a", nil, scanreport.GapVersionConflict, "a"),
+		scanreport.NewGap("a", nil, scanreport.GapVersionNotDetected, "a"),
+		scanreport.NewGap("b", nil, scanreport.GapVersionNotDetected, "b"),
+	}}
+	dropShadowedNotDetected(report)
+	if len(report.Gaps) != 2 || report.Gaps[0].Reason != scanreport.ReasonVersionConflict || report.Gaps[1].Component != "b" {
+		t.Fatalf("gaps = %+v", report.Gaps)
+	}
 }

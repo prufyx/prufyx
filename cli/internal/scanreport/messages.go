@@ -487,6 +487,7 @@ func PermissionNote(files int) string {
 // Human labels.
 const (
 	labelPath                   = "%s %s -> %s: %s"
+	labelDetectedCurrent        = " (current version detected from the manifests; see notes)"
 	labelChartPath              = "%s chart %s %s -> %s: %s"
 	labelChartHop               = "chart %s %s -> %s"
 	labelKeys                   = "keys: %s"

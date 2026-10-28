@@ -408,6 +408,7 @@ func Run(request Request, options Options) (Result, error) {
 		report.Notes = append(report.Notes, scanreport.NoteKubeletUnused)
 	}
 
+	dropShadowedNotDetected(&report)
 	scanreport.Finalize(&report)
 	if request.Redact {
 		scanreport.Redact(&report)

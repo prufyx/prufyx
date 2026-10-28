@@ -20,9 +20,14 @@ import (
 //
 //   - app.kubernetes.io/name equal to the project name, with a strict X.Y.Z
 //     app.kubernetes.io/version (one leading "v" allowed);
-//   - helm.sh/chart "<chart>-<chart version>" where the chart is a reviewed
-//     chart of the project and the reviewed chart table maps that chart
-//     version to an application version.
+//   - helm.sh/chart "<chart>-<chart version>" where the chart is named like
+//     the project (a project's other charts, such as a gateway chart, say
+//     nothing about its control plane) and the reviewed chart table maps
+//     that chart version to an application version.
+//
+// Only the labels of workloads (apps/v1 Deployment, StatefulSet, DaemonSet
+// and their pod templates) are read; a CRD, ConfigMap or Job label is not
+// evidence of what runs.
 //
 // Two different versions, or a usable version beside an unusable signal
 // (latest, a pre-release, an unmapped chart version), detect nothing and
@@ -83,7 +88,7 @@ type detection struct {
 	Version string
 	// Signals names the signals that produced it, sorted.
 	Signals []string
-	// Seen counts the label sets that carry usable evidence.
+	// Seen counts the distinct label sets that carry usable evidence.
 	Seen int
 	// Conflict is true when evidence exists but is ambiguous: the usable
 	// versions differ, or a usable version stands beside an unusable signal.
@@ -95,10 +100,16 @@ type detection struct {
 	Unusable int
 }
 
-// labelSets returns the labels of a document's object and of its pod
+// workloadKinds are the kinds whose labels may carry a detection signal.
+var workloadKinds = map[string]bool{"Deployment": true, "StatefulSet": true, "DaemonSet": true}
+
+// labelSets returns the labels of a workload's object and of its pod
 // template. Only string values are read.
 func labelSets(document intake.Document) []map[string]string {
 	var sets []map[string]string
+	if !workloadKinds[document.Kind] || !strings.HasPrefix(document.APIVersion, "apps/") {
+		return nil
+	}
 	for _, path := range [][]string{{"metadata", "labels"}, {"spec", "template", "metadata", "labels"}} {
 		var node any = document.Value
 		for _, key := range path {
@@ -129,12 +140,19 @@ func labelSets(document intake.Document) []map[string]string {
 func detectVersions(documents []intake.Document, slugs []string, charts chartLookup, now time.Time) map[string]detection {
 	out := map[string]detection{}
 	for _, slug := range slugs {
-		names := charts.Charts(slug, now)
+		var names []string
+		for _, name := range charts.Charts(slug, now) {
+			if name == slug {
+				names = append(names, name)
+			}
+		}
+		sets := 0
 		type seen struct{ version, signal string }
 		var found []seen
 		unusable := 0
 		for _, document := range documents {
 			for _, labels := range labelSets(document) {
+				before := len(found)
 				if labels[labelAppName] == slug {
 					if text, present := labels[labelAppVersion]; present {
 						if version, ok := chartidentity.NormalizeVersion(text); ok {
@@ -168,6 +186,9 @@ func detectVersions(documents []intake.Document, slugs []string, charts chartLoo
 					}
 					break
 				}
+				if len(found) > before {
+					sets++
+				}
 			}
 		}
 		if len(found) == 0 && unusable == 0 {
@@ -179,7 +200,7 @@ func detectVersions(documents []intake.Document, slugs []string, charts chartLoo
 			versions[item.version] = true
 			signals[item.signal] = true
 		}
-		result := detection{Seen: len(found), Unusable: unusable}
+		result := detection{Seen: sets, Unusable: unusable}
 		switch {
 		case len(found) == 0:
 			// Only unusable signals: nothing is detected and nothing is
@@ -243,4 +264,26 @@ func detectCurrent(effective *scanconfig.Effective, declaredCharts map[string]*c
 		}
 	}
 	return nil
+}
+
+// dropShadowedNotDetected removes the "not detected" gap of a project whose
+// manifests gave conflicting signals: the conflict gap already says why.
+func dropShadowedNotDetected(report *scanreport.Report) {
+	conflicted := map[string]bool{}
+	for _, gap := range report.Gaps {
+		if gap.Reason == scanreport.ReasonVersionConflict {
+			conflicted[gap.Component] = true
+		}
+	}
+	if len(conflicted) == 0 {
+		return
+	}
+	kept := report.Gaps[:0]
+	for _, gap := range report.Gaps {
+		if gap.Reason == scanreport.ReasonVersionNotDetected && conflicted[gap.Component] {
+			continue
+		}
+		kept = append(kept, gap)
+	}
+	report.Gaps = kept
 }
