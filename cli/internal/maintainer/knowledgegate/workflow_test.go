@@ -74,13 +74,13 @@ func TestWorkflowShape(t *testing.T) {
 	if len(wf.Permissions) != 1 || wf.Permissions["contents"] != "read" {
 		t.Fatalf("permissions %v, want contents: read only", wf.Permissions)
 	}
-	// The gate job holds no secret. The only secret in the file is the
-	// alarm channel's token, in the separate alarm job (checked below).
-	if strings.Contains(string(raw), "secrets.") && strings.Count(string(raw), "secrets.") != 1 {
-		t.Fatal("the gate must not use secrets")
-	}
-	if n := strings.Count(string(raw), "secrets.OPS_ISSUES_TOKEN"); n != strings.Count(string(raw), "secrets.") {
-		t.Fatal("the only secret the workflow may name is OPS_ISSUES_TOKEN")
+	// The workflow names two secrets, once each: the alarm channel's token
+	// in the separate alarm job, and the private key of the read-only App
+	// in the gate job's token step (both checked below).
+	if strings.Count(string(raw), "secrets.") != 2 ||
+		strings.Count(string(raw), "secrets.OPS_ISSUES_TOKEN") != 1 ||
+		strings.Count(string(raw), "secrets.KNOWLEDGE_GATE_APP_PRIVATE_KEY") != 1 {
+		t.Fatal("the only secrets the workflow may name are OPS_ISSUES_TOKEN and KNOWLEDGE_GATE_APP_PRIVATE_KEY, once each")
 	}
 	for _, forbidden := range []string{"gh pr merge", "--auto", "pulls/merge", "enable-auto-merge"} {
 		if strings.Contains(string(raw), forbidden) {
@@ -93,6 +93,43 @@ func TestWorkflowShape(t *testing.T) {
 	}
 	if len(job.Permissions) != 0 {
 		t.Fatal("the job must not widen permissions")
+	}
+	// In the gate job the App key reaches only the pinned token action,
+	// which mints a read-only token; no run step sees the key.
+	keySteps := 0
+	for _, s := range job.Steps {
+		key := false
+		for _, v := range s.With {
+			if str, ok := v.(string); ok && strings.Contains(str, "secrets.") {
+				key = true
+			}
+		}
+		for _, v := range s.Env {
+			if strings.Contains(v, "secrets.") {
+				t.Fatalf("%s: a gate step's environment names a secret", s.Name)
+			}
+		}
+		if strings.Contains(s.Run, "secrets.") {
+			t.Fatalf("%s: a gate run step names a secret", s.Name)
+		}
+		if !key {
+			continue
+		}
+		keySteps++
+		if !strings.HasPrefix(s.Uses, "actions/create-github-app-token@") {
+			t.Fatalf("%s: only the App token action may receive the key, got %q", s.Name, s.Uses)
+		}
+		for k, v := range s.With {
+			if strings.HasPrefix(k, "permission-") && v != "read" {
+				t.Fatalf("%s: App token permission %s=%v, want read", s.Name, k, v)
+			}
+		}
+		if s.With["permission-contents"] != "read" {
+			t.Fatalf("%s: the App token must be limited to contents: read", s.Name)
+		}
+	}
+	if keySteps != 1 {
+		t.Fatalf("the App key must reach exactly one gate step, got %d", keySteps)
 	}
 	// The head is the exact commit the event names; a branch name would
 	// let the checked commit differ from the one the result is for.
