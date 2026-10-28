@@ -349,8 +349,8 @@ Every gap has a reason, a detail and an action.
 | `DOWNGRADE_NOT_REVIEWED` | The target is older than the current version. | Prufyx checks upgrades only: see the project's docs on downgrades (the Kubernetes control plane has none), or swap `--from` and `--to`. |
 | `COMPONENT_NOT_COVERED` | A targeted project is not evaluated by `scan` yet, or (the 23 CNCF projects of the custom-resource table) only its custom-resource versions are, or it is a declared chart hop, where only the chart's values rules are. | Run `prufyx check cncf --project NAME`, or verify the rest of its upgrade notes by hand. |
 | `PROJECT_NOT_IN_KNOWLEDGE` | With `--knowledge-db`, the selected per-project index has no target for a targeted project, so nothing about it was checked. | Update the knowledge database to a revision that covers it, or check by hand. |
-| `VERSION_NOT_DETECTED` | No current version was declared. | Pass `--from kubernetes=VERSION` or set `current:` in `prufyx.yaml`. |
-| `VERSION_CONFLICT` | Two different versions were declared for one project. | Declare one. |
+| `VERSION_NOT_DETECTED` | No current version was declared and none was [detected in the manifests](#detected-versions). | Pass `--from kubernetes=VERSION` or set `current:` in `prufyx.yaml`. |
+| `VERSION_CONFLICT` | The manifests give different versions for one project, or a usable version beside an unusable signal (`latest`, a pre-release, a chart version with no reviewed application version). No version was detected. | Declare the version with `--from PROJECT=VERSION`. |
 | `DECLARATION_MISSING` | Scope completeness, target apply or the distribution is not declared, or the Helm values of a chart hop are not declared complete. | Declare it with the flag or in `prufyx.yaml`, if it is true. |
 | `DECLARATION_MISMATCH` | A declared kubelet version cannot be compared with the hop target (another major version) or with the distribution (not `official_upstream`), so the kubelet skew rule cannot decide. | Declare kubelet versions on the target's major version, or check the kubelet skew by hand. |
 | `DISTRIBUTION_NOT_COVERED` | The distribution is `custom_build`. | Check your distribution's release notes by hand. |
@@ -588,6 +588,39 @@ digest over all of them (`provenance.helmValues` in JSON); assignments are
 identified by digest only. A `--helm-set` whose key passes through a value
 that is not a mapping (`a: 1` with `--helm-set a.b=2`) is refused, as Helm
 refuses it.
+
+## Detected versions
+
+You do not have to declare `--from PROJECT=VERSION` for every project. For a
+target project with no declared current version, scan reads it from the labels
+of the manifests it already holds. It reads no other input and uses no network.
+
+Signals, in order of trust (both are exact matches, never guesses):
+
+1. `helm.sh/chart: CHART-VERSION`, where CHART is a reviewed chart of the
+   project and the reviewed chart table gives the application version that
+   chart version installs. The chart version alone is never used as the
+   application version.
+2. `app.kubernetes.io/name` equal to the project name, with
+   `app.kubernetes.io/version` a strict `X.Y.Z` (one leading `v` is dropped).
+
+Labels on a workload's pod template are read too. Rules:
+
+- A version you declare (`--from`, or `current:` in `prufyx.yaml`) always wins;
+  nothing is detected for that project.
+- Kubernetes is never detected, and a project declared as a Helm chart hop
+  keeps its chart versions.
+- Two different versions, or a usable version beside an unusable signal
+  (`latest`, a pre-release such as `1.2.0-rc1`, a two-part or non-version
+  tag, a chart version with no reviewed application version), detect nothing
+  and add a `VERSION_CONFLICT` gap. Only unusable signals leave the version
+  undeclared (`VERSION_NOT_DETECTED`).
+- A detected version is shown with `currentSource: "detected"` in the
+  inventory, and a note names the signal that produced it, so you can check it
+  by hand. It is never stronger than that evidence.
+
+Not detected yet: image tags, custom resource group names, and GitOps objects
+(Argo CD `Application`, Flux `HelmRelease`).
 
 ## `prufyx.yaml`
 
