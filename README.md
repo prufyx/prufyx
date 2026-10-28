@@ -255,7 +255,7 @@ Generated on 2026-10-23 by `scripts/readme-coverage.sh` (do not edit this block 
 | Rules for further, non-CNCF projects | 34 across 8 projects |
 | Projects with at least one executable check | 65 |
 | Projects catalogued with retained public sources | 58 (11 of them source-only, no check) |
-| Projects with reviewed CRD targets (a reviewed `crd.custom_resource_versions` target) | 64 |
+| Projects with reviewed CRD targets (a reviewed `crd.custom_resource_versions` target) | 73 |
 | Projects with a published CRD rule or line attestation | 8 |
 
 Version-coverage depth, measured over the last five minor upgrades of each of the 78 projects with a release-line snapshot (390 upgrades between consecutive release lines):

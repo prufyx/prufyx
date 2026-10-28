@@ -1,0 +1,16 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "kmesh",
+    "name": "Kmesh",
+    "repo": "github.com/kmesh-net/kmesh",
+    "component": "pkg:github/kmesh-net/kmesh",
+    "factProject": "kmesh",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.0",
+    "paths": [
+      {"path": "deploy/yaml/crd", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

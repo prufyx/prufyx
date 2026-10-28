@@ -1,0 +1,16 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "kubean",
+    "name": "Kubean",
+    "repo": "github.com/kubean-io/kubean",
+    "component": "pkg:github/kubean-io/kubean",
+    "factProject": "kubean",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.34",
+    "paths": [
+      {"path": "api/charts/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}
