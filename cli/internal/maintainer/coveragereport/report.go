@@ -407,6 +407,26 @@ func Compute(in Input) (Report, error) {
 			componentProject[c] = project
 		}
 	}
+	// A project that owns no component through the snapshot or its rules
+	// takes the component of its reviewed CRD target. Fail closed: a project
+	// that already owns a component, a component that another project owns
+	// or that two targets claim, or an empty component attributes nothing.
+	targetClaims := map[string]int{}
+	for _, c := range in.CRDTargetComponents {
+		targetClaims[c]++
+	}
+	for project, c := range in.CRDTargetComponents {
+		if c == "" || targetClaims[c] != 1 || len(components[project]) > 0 || linesFile.Projects[project].Component != "" {
+			continue
+		}
+		if _, inSnapshot := linesFile.Projects[project]; !inSnapshot {
+			continue
+		}
+		if _, owned := componentProject[c]; owned {
+			continue
+		}
+		componentProject[c] = project
+	}
 	attsByProject := map[string][]lineattest.LineAttestation{}
 	expiringAtt := map[string]int{}
 	validAtt := map[string]int{}

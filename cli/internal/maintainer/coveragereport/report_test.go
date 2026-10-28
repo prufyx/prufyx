@@ -639,3 +639,76 @@ func TestCRDVersionProjects(t *testing.T) {
 		t.Fatalf("member missing from %s", raw)
 	}
 }
+
+// A project that owns no component through its rules or the lines snapshot
+// takes the component of its reviewed CRD target, so the line attestations
+// of that component count for it. Ambiguity attributes nothing.
+func TestCRDTargetAttribution(t *testing.T) {
+	const other = "pkg:github/example/other"
+	atts := []string{crdAttJSON("0.50", "0.49.0", "0.50.0"), crdAttJSON("0.51", "0.50.0", "0.51.0")}
+	ruleless := fmt.Sprintf(`{"schema":%q,"projects":{"strimzi":{"lines":["0.49","0.50","0.51"]}}}`, LinesSchema)
+	owned := fmt.Sprintf(`{"schema":%q,"projects":{"strimzi":{"component":%q,"lines":["0.49","0.50","0.51"]}}}`, LinesSchema, strimzi)
+	for _, tc := range []struct {
+		name    string
+		lines   string
+		targets map[string]string
+		want    string
+	}{
+		{"rule-less project, own target", ruleless, map[string]string{"strimzi": strimzi}, "AA"},
+		{"no target", ruleless, nil, "GG"},
+		{"two targets claim the component", ruleless, map[string]string{"strimzi": strimzi, "dup": strimzi}, "GG"},
+		{"target names another component", ruleless, map[string]string{"strimzi": other}, "GG"},
+		{"empty target component", ruleless, map[string]string{"strimzi": ""}, "GG"},
+		{"snapshot component, no target", owned, nil, "AA"},
+		{"snapshot component wins over a conflicting target", owned, map[string]string{"strimzi": other}, "AA"},
+		{"component owned by another project stays with it", ruleless, map[string]string{"strimzi": strimzi, "dup": other}, "AA"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			report, err := Compute(Input{Pack: pack(nil, atts), Lines: []byte(tc.lines), Now: baselineNow, CRDTargetComponents: tc.targets})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := statuses(report.Projects[0]); got != tc.want {
+				t.Fatalf("statuses = %s, want %s", got, tc.want)
+			}
+		})
+	}
+	// A project with targets of two distinct components gets the empty one.
+	// The target loader already rejects such targets; this guards the helper.
+	multi := map[string]string{}
+	SetTargetComponent(multi, "strimzi", strimzi)
+	SetTargetComponent(multi, "strimzi", other)
+	SetTargetComponent(multi, "strimzi", strimzi)
+	if multi["strimzi"] != "" {
+		t.Fatalf("component = %q, want empty", multi["strimzi"])
+	}
+	report, err := Compute(Input{Pack: pack(nil, atts), Lines: []byte(ruleless), Now: baselineNow, CRDTargetComponents: multi})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := statuses(report.Projects[0]); got != "GG" {
+		t.Fatalf("two-component project: %s", got)
+	}
+	// A target project absent from the lines snapshot is not attributed:
+	// its attestations add nothing and PackProjects stays 0.
+	other1 := fmt.Sprintf(`{"schema":%q,"projects":{"unrelated":{"lines":["0.49","0.50","0.51"]}}}`, LinesSchema)
+	report, err = Compute(Input{Pack: pack(nil, atts), Lines: []byte(other1), Now: baselineNow, CRDTargetComponents: map[string]string{"strimzi": strimzi}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := statuses(report.Projects[0]); got != "GG" || report.PackProjects != 0 {
+		t.Fatalf("absent from snapshot: %s, PackProjects %d", got, report.PackProjects)
+	}
+	// Another project already owning the component blocks the attribution.
+	both := fmt.Sprintf(`{"schema":%q,"projects":{"strimzi":{"lines":["0.49","0.50","0.51"]},"holder":{"component":%q,"lines":["0.49","0.50","0.51"]}}}`, LinesSchema, strimzi)
+	report, err = Compute(Input{Pack: pack(nil, atts), Lines: []byte(both), Now: baselineNow, CRDTargetComponents: map[string]string{"strimzi": strimzi}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range report.Projects {
+		want := map[string]string{"strimzi": "GG", "holder": "AA"}[p.Project]
+		if got := statuses(p); got != want {
+			t.Fatalf("%s statuses = %s, want %s", p.Project, got, want)
+		}
+	}
+}
