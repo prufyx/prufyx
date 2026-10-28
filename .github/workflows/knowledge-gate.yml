@@ -8,7 +8,7 @@ name: Knowledge gate
 # change's files: nothing from the change is executed. That is why this
 # workflow runs on pull_request_target (the workflow definition and the gate
 # code come from the base branch, so a change cannot weaken its own gate).
-# It holds no secrets beyond a read-only token and never merges anything; it
+# It holds no secrets beyond read-only tokens and never merges anything; it
 # reports whether the change would be eligible for automatic merging, and
 # for which head commit.
 #
@@ -59,7 +59,6 @@ jobs:
       # the UTC day number mod 7), so every project is fully re-derived at
       # least weekly within the hourly request limit of the workflow token.
       SHARD: ${{ github.event.inputs.shard || 'day/7' }}
-      REST_BUDGET: ${{ vars.KNOWLEDGE_GATE_REST_BUDGET || '900' }}
       MAX_DAILY_LOOSENING: ${{ vars.KNOWLEDGE_MAX_DAILY_LOOSENING || '50' }}
       MAX_WITHDRAW_PERCENT: ${{ vars.KNOWLEDGE_MAX_WITHDRAW_PERCENT || '5' }}
       MAX_WITHDRAW_PROJECT: ${{ vars.KNOWLEDGE_MAX_WITHDRAW_PROJECT || '20' }}
@@ -124,6 +123,22 @@ jobs:
       - name: Build the gate from the base
         working-directory: gate-src/cli
         run: go build -buildvcs=false -trimpath -o "${RUNNER_TEMP}/prufyx-maintainer" ./cmd/prufyx-maintainer
+
+      # Re-deriving the rules reads the upstream projects through the GitHub
+      # REST API. The workflow token allows about 1000 requests an hour per
+      # repository; a read-only GitHub App installation token allows 5000.
+      # The App is optional: without it the gate keeps the workflow token and
+      # the lower request cap. Nothing from the change runs in this job, so
+      # the change never sees the token.
+      - name: Create the read-only App token
+        id: app-token
+        if: vars.KNOWLEDGE_GATE_APP_ID != ''
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.KNOWLEDGE_GATE_APP_ID }}
+          private-key: ${{ secrets.KNOWLEDGE_GATE_APP_PRIVATE_KEY }}
+          permission-contents: read
+          permission-metadata: read
 
       - name: Fetch both commits and require the head to contain the base
         run: |
@@ -197,7 +212,7 @@ jobs:
         if: steps.classify.outputs.chains_changed != '0'
         working-directory: base
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
         run: |
           set -euo pipefail
           # The owner baseline file is read from the base, like the rule
@@ -217,7 +232,9 @@ jobs:
       - name: Verify the change
         id: verify
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+          # The request cap stays below the hourly limit of the token in use.
+          REST_BUDGET: ${{ vars.KNOWLEDGE_GATE_REST_BUDGET || (steps.app-token.outputs.token && '4000' || '900') }}
         run: |
           set -euo pipefail
           args=(gate verify --base base --head head --source github
