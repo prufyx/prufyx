@@ -262,16 +262,16 @@ func TestBotOnboardingSignature(t *testing.T) {
 	if err := verifyOnboardingSignature(envelopeOf(t, bot, botRec), keys, now); err != nil {
 		t.Fatalf("bot batch: %v", err)
 	}
-	// The same bot batch with 15 projects passes, with 16 it does not.
+	// The same bot batch at the cap passes, one project above it does not.
 	if err := verifyOnboardingSignature(envelopeOf(t, bot, spread(t, botRec, MaxBotOnboardingProjects, OnboardingKindNew)), keys, now); err != nil {
-		t.Fatalf("15 projects: %v", err)
+		t.Fatalf("cap projects: %v", err)
 	}
-	if err := verifyOnboardingSignature(envelopeOf(t, bot, spread(t, botRec, MaxBotOnboardingProjects+1, OnboardingKindNew)), keys, now); err == nil || !strings.Contains(err.Error(), "at most 15") {
-		t.Fatalf("16 projects: %v", err)
+	if err := verifyOnboardingSignature(envelopeOf(t, bot, spread(t, botRec, MaxBotOnboardingProjects+1, OnboardingKindNew)), keys, now); err == nil || !strings.Contains(err.Error(), fmt.Sprintf("at most %d", MaxBotOnboardingProjects)) {
+		t.Fatalf("cap+1 projects: %v", err)
 	}
-	// The owner may still sign 16 projects.
+	// The owner may still sign above the bot cap.
 	if err := verifyOnboardingSignature(envelopeOf(t, owner, spread(t, rec, MaxBotOnboardingProjects+1, OnboardingKindNew)), keys, now); err != nil {
-		t.Fatalf("owner 16 projects: %v", err)
+		t.Fatalf("owner cap+1 projects: %v", err)
 	}
 	// kind attest is owner-only.
 	attest := spread(t, botRec, 3, OnboardingKindNew)
@@ -359,7 +359,7 @@ func TestBotOnboardingLimits(t *testing.T) {
 	}) map[string][]byte {
 		m := map[string][]byte{}
 		for i, s := range spec {
-			name, raw := botBaseBatch(t, f, bot, fmt.Sprintf("ob-2026090%d-%d", i+1, i+1), s.projects, s.decided)
+			name, raw := botBaseBatch(t, f, bot, fmt.Sprintf("ob-202609%02d-2", i+1), s.projects, s.decided)
 			m[name] = raw
 		}
 		return m
@@ -370,6 +370,25 @@ func TestBotOnboardingLimits(t *testing.T) {
 		decided  time.Time
 	}
 	recent := now.Add(-24 * time.Hour)
+	// headProjects is the size of the batch under test.
+	const headProjects = 5
+	// baseBatches returns n one-project batches inside the window, then extra.
+	baseBatches := func(n int, extra ...b) []b {
+		out := make([]b, 0, n+len(extra))
+		for i := 0; i < n; i++ {
+			out = append(out, b{0, 1, recent})
+		}
+		return append(out, extra...)
+	}
+	// weekProjects returns batches (each within MaxOnboardingProjects) that
+	// together hold n projects.
+	weekProjects := func(n int) []b {
+		var out []b
+		for ; n > 0; n -= MaxOnboardingProjects {
+			out = append(out, b{0, min(n, MaxOnboardingProjects), recent})
+		}
+		return out
+	}
 	cases := []struct {
 		name   string
 		env    OnboardingEnvelope
@@ -378,30 +397,31 @@ func TestBotOnboardingLimits(t *testing.T) {
 		want   string
 	}{
 		{"no base batches", head, nil, false, ""},
-		{"two base batches, third admitted", head, files(b{0, 5, recent}, b{0, 5, recent}), false, ""},
-		{"fourth batch in 7 days", head, files(b{0, 1, recent}, b{0, 1, recent}, b{0, 1, recent}), false, "O8c: this would be bot-tier batch 4"},
-		{"31st project in 7 days", head, files(b{0, 13, recent}, b{0, 13, recent}), false, "O8c: this would bring the bot-tier projects inside 7 days to 31"},
-		{"30th project admitted", head, files(b{0, 13, recent}, b{0, 12, recent}), false, ""},
+		{"base batches below the cap, one more admitted", head, files(baseBatches(MaxBotBatchesWeek - 2)...), false, ""},
+		{"one batch above the weekly cap", head, files(baseBatches(MaxBotBatchesWeek)...), false, fmt.Sprintf("O8c: this would be bot-tier batch %d", MaxBotBatchesWeek+1)},
+		{"last batch under the weekly cap admitted", head, files(baseBatches(MaxBotBatchesWeek - 1)...), false, ""},
+		{"one project above the weekly project cap", head, files(weekProjects(MaxBotProjectsWeek - headProjects + 1)...), false, fmt.Sprintf("O8c: this would bring the bot-tier projects inside 7 days to %d", MaxBotProjectsWeek+1)},
+		{"last project under the weekly project cap admitted", head, files(weekProjects(MaxBotProjectsWeek - headProjects)...), false, ""},
 		{"paused", head, nil, true, "O8b"},
 		{"paused does not touch an owner batch", ownerHead, nil, true, ""},
-		{"owner batches are not counted", head, files(b{0, 1, recent}, b{0, 1, recent}), false, ""},
+		{"owner batches are not counted", head, files(baseBatches(MaxBotBatchesWeek - 2)...), false, ""},
 		// Window edge, counted by notAfter: notAfter exactly 7 days back counts, one second more does not.
-		{"notAfter exactly 7 days back counts", head, files(b{0, 1, recent}, b{0, 1, recent}, b{0, 1, now.Add(-BotOnboardingWindow - MaxOnboardingValidity)}), false, "O8c"},
-		{"notAfter 7 days and 1s back is out", head, files(b{0, 1, recent}, b{0, 1, recent}, b{0, 1, now.Add(-BotOnboardingWindow - MaxOnboardingValidity - time.Second)}), false, ""},
+		{"notAfter exactly 7 days back counts", head, files(baseBatches(MaxBotBatchesWeek-1, b{0, 1, now.Add(-BotOnboardingWindow - MaxOnboardingValidity)})...), false, "O8c"},
+		{"notAfter 7 days and 1s back is out", head, files(baseBatches(MaxBotBatchesWeek-1, b{0, 1, now.Add(-BotOnboardingWindow - MaxOnboardingValidity - time.Second)})...), false, ""},
 		// A bot that back-dates decidedAt by 72h still counts for 7 days after admission.
-		{"back-dated decidedAt, 9 days old, notAfter 6 days old", head, files(b{0, 1, recent}, b{0, 1, recent}, b{0, 1, now.Add(-9 * 24 * time.Hour)}), false, "O8c"},
+		{"back-dated decidedAt, old decidedAt, notAfter inside the window", head, files(baseBatches(MaxBotBatchesWeek-1, b{0, 1, now.Add(-9 * 24 * time.Hour)})...), false, "O8c"},
 	}
 	for _, tc := range cases {
 		fs := tc.files
 		if tc.name == "owner batches are not counted" {
 			fs = map[string][]byte{}
-			for i := 0; i < 2; i++ {
+			for i := 0; i < MaxBotBatchesWeek; i++ {
 				rec := spread(t, f.record(t), 1, OnboardingKindNew)
-				rec.BatchID = fmt.Sprintf("ob-2026091%d-1", i)
+				rec.BatchID = fmt.Sprintf("ob-202610%02d-1", i+1)
 				rec.DecidedAt, rec.NotAfter = rfc(recent), rfc(recent.Add(MaxOnboardingValidity))
 				fs[rec.BatchID+".json"] = f.key.signOnboarding(t, rec)
 			}
-			for n, raw := range files(b{0, 1, recent}, b{0, 1, recent}) {
+			for n, raw := range files(baseBatches(MaxBotBatchesWeek - 2)...) {
 				fs[n] = raw
 			}
 		}
@@ -414,8 +434,8 @@ func TestBotOnboardingLimits(t *testing.T) {
 	// batch of a retired bot key (no longer pinned, identity not an owner)
 	// still counts.
 	retired := map[string][]byte{"ob-20260901-1.json": []byte("{")}
-	for i := 1; i <= 3; i++ {
-		name, raw := botBaseBatch(t, f, newApprovalKey(t), fmt.Sprintf("ob-2026091%d-1", i), 1, recent)
+	for i := 1; i <= MaxBotBatchesWeek; i++ {
+		name, raw := botBaseBatch(t, f, newApprovalKey(t), fmt.Sprintf("ob-202609%02d-3", i), 1, recent)
 		retired[name] = raw
 	}
 	if got := botOnboardingLimits(head, keys, retired, now, false); !strings.Contains(got, "O8c") {
@@ -526,22 +546,22 @@ func TestBotOnboardingGate(t *testing.T) {
 		signBot(t, f, bot, func(r *OnboardingRecord) { r.Projects[0].Kind = OnboardingKindAttest })
 		failed(t, f.gate(t), "kind new projects only")
 	})
-	t.Run("fourth batch in seven days", func(t *testing.T) {
+	t.Run("batch above the weekly cap", func(t *testing.T) {
 		f := newOnboardingFixture(t)
 		bot := f.pinBot(t, "2027-01-01T00:00:00Z")
 		for i := 1; i <= MaxBotBatchesWeek; i++ {
-			name, raw := botBaseBatch(t, f, bot, fmt.Sprintf("ob-2026092%d-1", i), 1, f.signedAt.Add(-time.Duration(i)*time.Hour))
+			name, raw := botBaseBatch(t, f, bot, fmt.Sprintf("ob-202609%02d-4", i), 1, f.signedAt.Add(-time.Duration(i)*time.Hour))
 			f.writeBatch(t, f.base, name, raw)
 			f.writeBatch(t, f.head, name, raw)
 		}
 		signBot(t, f, bot, nil)
 		failed(t, f.gate(t), "O8c")
 	})
-	t.Run("third batch in seven days", func(t *testing.T) {
+	t.Run("last batch under the weekly cap", func(t *testing.T) {
 		f := newOnboardingFixture(t)
 		bot := f.pinBot(t, "2027-01-01T00:00:00Z")
 		for i := 1; i < MaxBotBatchesWeek; i++ {
-			name, raw := botBaseBatch(t, f, bot, fmt.Sprintf("ob-2026092%d-1", i), 1, f.signedAt.Add(-time.Duration(i)*time.Hour))
+			name, raw := botBaseBatch(t, f, bot, fmt.Sprintf("ob-202609%02d-4", i), 1, f.signedAt.Add(-time.Duration(i)*time.Hour))
 			f.writeBatch(t, f.base, name, raw)
 			f.writeBatch(t, f.head, name, raw)
 		}

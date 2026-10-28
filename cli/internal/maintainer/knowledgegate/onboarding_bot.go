@@ -20,8 +20,8 @@ const (
 	MaxBotOnboardingProjects = 15
 	// MaxBotBatchesWeek and MaxBotProjectsWeek bound the bot-signed batches
 	// and their projects inside BotOnboardingWindow, this one included.
-	MaxBotBatchesWeek  = 3
-	MaxBotProjectsWeek = 30
+	MaxBotBatchesWeek  = 14
+	MaxBotProjectsWeek = 210
 	// BotOnboardingWindow is the span the weekly caps count over.
 	BotOnboardingWindow = 7 * 24 * time.Hour
 )
