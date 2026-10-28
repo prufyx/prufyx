@@ -1,0 +1,20 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "burrito",
+    "catalog": "community",
+    "name": "burrito",
+    "repo": "github.com/padok-team/burrito",
+    "component": "pkg:github/padok-team/burrito",
+    "factProject": "burrito",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.10",
+    "paths": [
+      {"path": "manifests/crds/config.terraform.padok.cloud_terraformlayers.yaml"},
+      {"path": "manifests/crds/config.terraform.padok.cloud_terraformpullrequests.yaml"},
+      {"path": "manifests/crds/config.terraform.padok.cloud_terraformrepositories.yaml"},
+      {"path": "manifests/crds/config.terraform.padok.cloud_terraformruns.yaml"}
+    ],
+    "exclude": []
+  }
+}

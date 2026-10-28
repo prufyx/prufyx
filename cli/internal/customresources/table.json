@@ -60,6 +60,24 @@
       ]
     },
     {
+      "slug": "burrito",
+      "catalog": "community",
+      "upstream": {
+        "name": "burrito",
+        "repository": "https://github.com/padok-team/burrito",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/padok-team/burrito/blob/08431668a19a75dab289d9bb55c74ef1c6ef772a/LICENSE"
+      },
+      "factProject": "burrito",
+      "component": "pkg:github/padok-team/burrito",
+      "groups": [
+        {
+          "name": "config.terraform.padok.cloud",
+          "source": "https://github.com/padok-team/burrito/blob/aed126436961d7aa69fa1305688e0332f3b71bb5/manifests/crds/config.terraform.padok.cloud_terraformruns.yaml"
+        }
+      ]
+    },
+    {
       "slug": "cert-manager",
       "catalog": "cncf",
       "factProject": "cert_manager",
@@ -332,6 +350,36 @@
       ]
     },
     {
+      "slug": "fluid",
+      "catalog": "cncf",
+      "factProject": "fluid",
+      "component": "pkg:github/fluid-cloudnative/fluid",
+      "groups": [
+        {
+          "name": "data.fluid.io",
+          "source": "https://github.com/fluid-cloudnative/fluid/blob/b1060936c20e6ff38a06eda694b2f58c02d0c11d/config/crd/bases/data.fluid.io_vineyardruntimes.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "furiko",
+      "catalog": "community",
+      "upstream": {
+        "name": "furiko",
+        "repository": "https://github.com/furiko-io/furiko",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/furiko-io/furiko/blob/a477b3f342560e410d81577acb3ade6cd864ccbf/LICENSE"
+      },
+      "factProject": "furiko",
+      "component": "pkg:github/furiko-io/furiko",
+      "groups": [
+        {
+          "name": "execution.furiko.io",
+          "source": "https://github.com/furiko-io/furiko/blob/927154ab64f3b25d7fd4c665474648ab32261989/config/crd/bases/execution.furiko.io_jobs.yaml"
+        }
+      ]
+    },
+    {
       "slug": "gateway-api",
       "catalog": "community",
       "upstream": {
@@ -392,6 +440,24 @@
       ]
     },
     {
+      "slug": "k6-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "k6-operator",
+        "repository": "https://github.com/grafana/k6-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/grafana/k6-operator/blob/925e2a750ca572a4ff3f0414c4b11dd649d040cb/LICENSE"
+      },
+      "factProject": "k6_operator",
+      "component": "pkg:github/grafana/k6-operator",
+      "groups": [
+        {
+          "name": "k6.io",
+          "source": "https://github.com/grafana/k6-operator/blob/657f605a6fd16cd65efbd599615869485b85ea0c/config/crd/bases/k6.io_testruns.yaml"
+        }
+      ]
+    },
+    {
       "slug": "k8gb",
       "catalog": "cncf",
       "factProject": "k8gb",
@@ -404,6 +470,24 @@
         {
           "name": "k8gb.io",
           "source": "https://github.com/k8gb-io/k8gb/blob/9cffd9150a33c982295105c1f1b093adbae029d7/chart/k8gb/crd/k8gb.io_gslbs.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "k8s-cleaner",
+      "catalog": "community",
+      "upstream": {
+        "name": "k8s-cleaner",
+        "repository": "https://github.com/gianlucam76/k8s-cleaner",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/gianlucam76/k8s-cleaner/blob/d733e5954391774658eea53dcb111f8272e8a23f/LICENSE"
+      },
+      "factProject": "k8s_cleaner",
+      "component": "pkg:github/gianlucam76/k8s-cleaner",
+      "groups": [
+        {
+          "name": "apps.projectsveltos.io",
+          "source": "https://github.com/gianlucam76/k8s-cleaner/blob/a1ae3c37cee8e31709098e5032a628e09b016b41/config/crd/bases/apps.projectsveltos.io_reports.yaml"
         }
       ]
     },
@@ -520,6 +604,18 @@
       ]
     },
     {
+      "slug": "kmesh",
+      "catalog": "cncf",
+      "factProject": "kmesh",
+      "component": "pkg:github/kmesh-net/kmesh",
+      "groups": [
+        {
+          "name": "kmesh.net",
+          "source": "https://github.com/kmesh-net/kmesh/blob/14b6c6c6c91c77dc50df93d4e8a2d41d7dcc2138/deploy/yaml/crd/kmesh.net_kmeshnodeinfos.yaml"
+        }
+      ]
+    },
+    {
       "slug": "kong-ingress-controller",
       "catalog": "community",
       "upstream": {
@@ -580,6 +676,18 @@
         {
           "name": "kube-green.com",
           "source": "https://github.com/kube-green/kube-green/blob/656bc3203c73adc320c1a79e1bc14e2c29a05028/config/crd/bases/kube-green.com_sleepinfos.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "kubean",
+      "catalog": "cncf",
+      "factProject": "kubean",
+      "component": "pkg:github/kubean-io/kubean",
+      "groups": [
+        {
+          "name": "kubean.io",
+          "source": "https://github.com/kubean-io/kubean/blob/a2687606b5c49daf0868a41165b84bebc20e0db4/api/charts/crds/kubean.io_manifests.yaml"
         }
       ]
     },
@@ -808,6 +916,18 @@
       ]
     },
     {
+      "slug": "metal3-io",
+      "catalog": "cncf",
+      "factProject": "metal3_io",
+      "component": "pkg:github/metal3-io/baremetal-operator",
+      "groups": [
+        {
+          "name": "metal3.io",
+          "source": "https://github.com/metal3-io/baremetal-operator/blob/f96bae0a2d157c56d1d26c485582d7c53e453c84/config/base/crds/bases/metal3.io_preprovisioningimages.yaml"
+        }
+      ]
+    },
+    {
       "slug": "metallb",
       "catalog": "cncf",
       "factProject": "metallb",
@@ -860,6 +980,24 @@
         {
           "name": "nfd.k8s-sigs.io",
           "source": "https://github.com/kubernetes-sigs/node-feature-discovery/blob/45d276ed9d3f0f67fb642aa78969721df3034451/deployment/base/nfd-crds/nfd-api-crds.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "onepassword-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "onepassword-operator",
+        "repository": "https://github.com/1password/onepassword-operator",
+        "license": "MIT",
+        "licenseSource": "https://github.com/1password/onepassword-operator/blob/a42a96bd263eb919715197e09e58c9855fd840df/LICENSE"
+      },
+      "factProject": "onepassword_operator",
+      "component": "pkg:github/1password/onepassword-operator",
+      "groups": [
+        {
+          "name": "onepassword.com",
+          "source": "https://github.com/1password/onepassword-operator/blob/ac8c7fe59f850c3d1fa9c4d25aa33e5af07b42de/config/crd/bases/onepassword.com_onepassworditems.yaml"
         }
       ]
     },
@@ -1184,6 +1322,24 @@
         {
           "name": "aquasecurity.github.io",
           "source": "https://github.com/aquasecurity/trivy-operator/blob/047f1d95f4f8355569aadbdad0f1c74550c6cbec/deploy/helm/crds/aquasecurity.github.io_vulnerabilityreports.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "vault-secrets-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "vault-secrets-operator",
+        "repository": "https://github.com/ricoberger/vault-secrets-operator",
+        "license": "MIT",
+        "licenseSource": "https://github.com/ricoberger/vault-secrets-operator/blob/98bf4bef7ec2a4a5bd57ba6780d9a96d824bff49/LICENSE"
+      },
+      "factProject": "vault_secrets_operator",
+      "component": "pkg:github/ricoberger/vault-secrets-operator",
+      "groups": [
+        {
+          "name": "ricoberger.de",
+          "source": "https://github.com/ricoberger/vault-secrets-operator/blob/da9e7e083870bd4c304485c5168377a2c89e0fae/charts/vault-secrets-operator/crds/ricoberger.de_vaultsecrets.yaml"
         }
       ]
     },
