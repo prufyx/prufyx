@@ -73,7 +73,7 @@ func Human(report Report, options HumanOptions) []byte {
 
 	for _, path := range report.Paths {
 		line("")
-		line("%s", pathLabel(path))
+		line("%s", pathLabel(report, path))
 		if options.Verbose {
 			for _, hop := range path.Hops {
 				status := hop.Status
@@ -279,12 +279,21 @@ func familyLines(path Path) []string {
 
 // pathLabel is the heading of a path: a chart path names the chart, so its
 // versions never read as application versions.
-func pathLabel(path Path) string {
+func pathLabel(report Report, path Path) string {
 	if path.Chart != nil {
 		return fmt.Sprintf(labelChartPath, path.Component, path.Chart.Name, path.From, path.To, pathSummary(path))
 	}
-	return fmt.Sprintf(labelPath, path.Component, path.From, path.To, pathSummary(path))
+	label := fmt.Sprintf(labelPath, path.Component, path.From, path.To, pathSummary(path))
+	for _, component := range report.Inventory {
+		if component.Name == path.Component && component.CurrentSource == currentDetected {
+			return label + labelDetectedCurrent
+		}
+	}
+	return label
 }
+
+// currentDetected is the currentSource of a version read from the manifests.
+const currentDetected = "detected"
 
 func pathSummary(path Path) string {
 	if path.Gap != "" {

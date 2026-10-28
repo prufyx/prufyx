@@ -275,6 +275,10 @@ func Run(request Request, options Options) (Result, error) {
 		report.Notes = append(report.Notes, scanreport.PermissionNote(readable))
 	}
 
+	if err := detectCurrent(&effective, declaredCharts, manifests.Documents, now, &report, func() (chartLookup, error) { return loadEmbeddedCharts() }); err != nil {
+		return Result{}, err
+	}
+
 	kubeletUsed := false
 	slugs := make([]string, 0, len(effective.Target)+len(effective.Current))
 	inventory := map[string]*scanreport.Component{}
@@ -404,6 +408,7 @@ func Run(request Request, options Options) (Result, error) {
 		report.Notes = append(report.Notes, scanreport.NoteKubeletUnused)
 	}
 
+	dropShadowedNotDetected(&report)
 	scanreport.Finalize(&report)
 	if request.Redact {
 		scanreport.Redact(&report)

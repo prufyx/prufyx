@@ -206,6 +206,7 @@
         },
         "currentSource": {
           "enum": [
+            "detected",
             "file",
             "flag"
           ]

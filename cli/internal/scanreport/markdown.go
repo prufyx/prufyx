@@ -68,7 +68,7 @@ func Markdown(report Report, options MarkdownOptions) []byte {
 				continue
 			}
 			line("")
-			line("### %s", mdText(pathLabel(path)))
+			line("### %s", mdText(pathLabel(report, path)))
 			writeFindingTable(&out, findings)
 		}
 		var rest []Finding
@@ -88,7 +88,7 @@ func Markdown(report Report, options MarkdownOptions) []byte {
 		line("## " + labelMDHops)
 		for _, path := range report.Paths {
 			line("")
-			line("### %s", mdText(pathLabel(path)))
+			line("### %s", mdText(pathLabel(report, path)))
 			if len(path.Hops) == 0 {
 				continue
 			}

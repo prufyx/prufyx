@@ -8,6 +8,9 @@ type Provenance string
 const (
 	FromFile Provenance = "file"
 	FromFlag Provenance = "flag"
+	// FromDetection marks a value scan read from the manifests; a value
+	// from a flag or the file always wins over it.
+	FromDetection Provenance = "detected"
 )
 
 // Value is one effective setting. Set is false when neither the file nor a

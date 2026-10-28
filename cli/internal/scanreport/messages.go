@@ -191,10 +191,10 @@ var gapMessages = map[GapKey]gapMessage{
 		"run prufyx check cncf --project %[1]s, or verify its upgrade notes by hand", 1},
 	GapProjectNotInKnowledge: {"the selected knowledge database has no knowledge for %[1]s, so nothing about it was checked",
 		"update the knowledge database to a revision that covers %[1]s, or verify its upgrade notes by hand", 1},
-	GapVersionNotDetected: {"the current %[1]s version is not declared; scan never reads it from manifests",
+	GapVersionNotDetected: {"the current %[1]s version is not declared and was not detected in the manifests",
 		"declare it with --from %[1]s=VERSION or under current: in prufyx.yaml", 1},
-	GapVersionConflict: {"different versions of %[1]s were declared",
-		"declare one version", 1},
+	GapVersionConflict: {"the manifests give conflicting or unusable version signals for %[1]s, so no version was detected",
+		"declare the version with --from %[1]s=VERSION or under current: in prufyx.yaml", 1},
 	GapDeclarationScope: {"the %[1]s manifests are not declared to be the complete set you apply",
 		"if they are, add resourceScopeComplete: true to prufyx.yaml or pass --resource-scope-complete", 1},
 	GapDeclarationApply: {"it is not declared that these manifests are applied to the target %[1]s API",
@@ -487,6 +487,7 @@ func PermissionNote(files int) string {
 // Human labels.
 const (
 	labelPath                   = "%s %s -> %s: %s"
+	labelDetectedCurrent        = " (current version detected from the manifests; see notes)"
 	labelChartPath              = "%s chart %s %s -> %s: %s"
 	labelChartHop               = "chart %s %s -> %s"
 	labelKeys                   = "keys: %s"
@@ -588,6 +589,15 @@ const (
 // the community catalog (a project outside the embedded CNCF landscape
 // catalog) it checks: the catalog is stated in every output format.
 const NoteCommunityCatalog = "note: %s is in the community catalog (not in the embedded CNCF landscape catalog; no CNCF status asserted)"
+
+// NoteVersionDetected is the note a report carries for each current version
+// scan read from the manifests instead of a declaration: the signal that
+// produced it, so the version can be checked by hand.
+const NoteVersionDetected = "note: current %s version %s was detected from the %s (%d label set(s) in the manifests); declare --from %s=VERSION to override it"
+
+// NoteVersionAmbiguous is the note a report carries when the manifests give
+// different or unusable version signals for one project.
+const NoteVersionAmbiguous = "note: the manifests give conflicting version signals for %s (usable versions: %s; unusable signals: %d); no version was detected"
 
 // NotePreRelease is the note a report carries for a pre-release Kubernetes
 // version it was given, in every output format.
