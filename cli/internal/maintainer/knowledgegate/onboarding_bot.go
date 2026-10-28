@@ -17,11 +17,11 @@ import (
 // them) refuses a key that is not an owner key.
 const (
 	// MaxBotOnboardingProjects bounds the projects of one bot-signed batch.
-	MaxBotOnboardingProjects = 15
+	MaxBotOnboardingProjects = 50
 	// MaxBotBatchesWeek and MaxBotProjectsWeek bound the bot-signed batches
 	// and their projects inside BotOnboardingWindow, this one included.
 	MaxBotBatchesWeek  = 3
-	MaxBotProjectsWeek = 30
+	MaxBotProjectsWeek = 100
 	// BotOnboardingWindow is the span the weekly caps count over.
 	BotOnboardingWindow = 7 * 24 * time.Hour
 )
