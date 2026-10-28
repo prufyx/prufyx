@@ -1,0 +1,18 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "trident",
+    "catalog": "community",
+    "name": "trident",
+    "repo": "github.com/netapp/trident",
+    "component": "pkg:github/netapp/trident",
+    "factProject": "trident",
+    "tagPrefixes": ["v"],
+    "minFrom": "23.10",
+    "paths": [
+      {"path": "deploy/crds/trident.netapp.io_tridentconfigurators_crd.yaml", "optional": true},
+      {"path": "deploy/crds/trident.netapp.io_tridentorchestrators_crd.yaml"}
+    ],
+    "exclude": []
+  }
+}
