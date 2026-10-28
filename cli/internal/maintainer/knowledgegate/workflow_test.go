@@ -6,11 +6,21 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
 	"gopkg.in/yaml.v3"
 )
+
+// secretRef matches any way of reaching the secrets context, not only the
+// dotted form: secrets['X'], toJSON(secrets) and "secrets: inherit" all
+// contain the bare word.
+var secretRef = regexp.MustCompile(`\bsecrets\b`)
+
+// yamlComment matches whole-line YAML comments, which prose may fill with
+// the word "secrets" without naming one.
+var yamlComment = regexp.MustCompile(`(?m)^[ \t]*#.*$`)
 
 var workflowPath = filepath.Join(repoRoot, ".github", "workflows", "knowledge-gate.yml")
 
@@ -77,9 +87,10 @@ func TestWorkflowShape(t *testing.T) {
 	// The workflow names two secrets, once each: the alarm channel's token
 	// in the separate alarm job, and the private key of the read-only App
 	// in the gate job's token step (both checked below).
-	if strings.Count(string(raw), "secrets.") != 2 ||
-		strings.Count(string(raw), "secrets.OPS_ISSUES_TOKEN") != 1 ||
-		strings.Count(string(raw), "secrets.KNOWLEDGE_GATE_APP_PRIVATE_KEY") != 1 {
+	code := yamlComment.ReplaceAllString(string(raw), "")
+	if len(secretRef.FindAllString(code, -1)) != 2 ||
+		strings.Count(code, "secrets.OPS_ISSUES_TOKEN") != 1 ||
+		strings.Count(code, "secrets.KNOWLEDGE_GATE_APP_PRIVATE_KEY") != 1 {
 		t.Fatal("the only secrets the workflow may name are OPS_ISSUES_TOKEN and KNOWLEDGE_GATE_APP_PRIVATE_KEY, once each")
 	}
 	for _, forbidden := range []string{"gh pr merge", "--auto", "pulls/merge", "enable-auto-merge"} {
@@ -100,16 +111,16 @@ func TestWorkflowShape(t *testing.T) {
 	for _, s := range job.Steps {
 		key := false
 		for _, v := range s.With {
-			if str, ok := v.(string); ok && strings.Contains(str, "secrets.") {
+			if str, ok := v.(string); ok && secretRef.MatchString(str) {
 				key = true
 			}
 		}
 		for _, v := range s.Env {
-			if strings.Contains(v, "secrets.") {
+			if secretRef.MatchString(v) {
 				t.Fatalf("%s: a gate step's environment names a secret", s.Name)
 			}
 		}
-		if strings.Contains(s.Run, "secrets.") {
+		if secretRef.MatchString(s.Run) {
 			t.Fatalf("%s: a gate run step names a secret", s.Name)
 		}
 		if !key {
@@ -118,6 +129,11 @@ func TestWorkflowShape(t *testing.T) {
 		keySteps++
 		if !strings.HasPrefix(s.Uses, "actions/create-github-app-token@") {
 			t.Fatalf("%s: only the App token action may receive the key, got %q", s.Name, s.Uses)
+		}
+		for _, widen := range []string{"owner", "repositories", "skip-token-revoke"} {
+			if _, ok := s.With[widen]; ok {
+				t.Fatalf("%s: App token input %q would widen or extend the token", s.Name, widen)
+			}
 		}
 		for k, v := range s.With {
 			if strings.HasPrefix(k, "permission-") && v != "read" {
@@ -212,7 +228,7 @@ func TestWorkflowShape(t *testing.T) {
 	}
 	for _, s := range job.Steps {
 		for _, e := range s.Env {
-			if strings.Contains(e, "secrets.") {
+			if secretRef.MatchString(e) {
 				t.Fatalf("%s: a secret in the gate job", s.Name)
 			}
 		}
@@ -254,7 +270,7 @@ func TestWorkflowShape(t *testing.T) {
 			}
 		}
 		for _, e := range s.Env {
-			if strings.Contains(e, "secrets.") {
+			if secretRef.MatchString(e) {
 				secretSteps++
 				if !strings.Contains(s.Run, `if [ -z "${OPS_ISSUES_TOKEN}" ] || [ -z "${OPS_ISSUES_REPO}" ]; then`) || !strings.Contains(s.Run, "exit 0") {
 					t.Fatalf("%s: must do nothing when the channel is not configured", s.Name)
