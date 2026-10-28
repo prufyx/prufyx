@@ -251,7 +251,7 @@ Generated on 2026-10-23 by `scripts/readme-coverage.sh` (do not edit this block 
 
 | Executable rules | Count |
 | --- | --- |
-| CNCF source rules, active | 244 across 53 projects (1 withdrawn, not used) |
+| CNCF source rules, active | 245 across 53 projects (1 withdrawn, not used) |
 | Rules for further, non-CNCF projects | 34 across 8 projects |
 | Projects with at least one executable check | 65 |
 | Projects catalogued with retained public sources | 58 (11 of them source-only, no check) |
