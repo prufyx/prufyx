@@ -162,10 +162,7 @@ func detectVersions(documents []intake.Document, slugs []string, charts chartLoo
 						}
 					}
 				}
-				value, present := labels[labelHelmChart]
-				if !present {
-					continue
-				}
+				value := labels[labelHelmChart]
 				for _, name := range names {
 					rest, ok := strings.CutPrefix(value, name+"-")
 					if !ok {
