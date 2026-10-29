@@ -187,6 +187,13 @@ A catalogued project is not tested coverage: a catalogue entry says Prufyx holds
 
 ### Changed
 
+- `prufyx scan` and `prufyx plan` no longer hide a removed API behind a
+  neighbour. A manifest set with an object at a removed version (for example
+  `rbac.authorization.k8s.io/v1beta1` ClusterRole, 1.21 to 1.22, or
+  `flowcontrol.apiserver.k8s.io/v1beta2` FlowSchema, 1.28 to 1.29) and another
+  object of the same group and kind at an alpha or an already unserved version
+  was UNKNOWN with no finding. It is now BLOCKED with the finding, and the
+  other object still reports its own gap.
 - `prufyx-maintainer knowledge-sign init` now asks for two separate passphrases
   at the terminal, each entered twice: one encrypts the root key, the other the
   targets, snapshot and timestamp keys. Equal passphrases are refused. Key file

@@ -69,7 +69,6 @@ func TestK8sRemovedAPIsUnresolvedSetNeverDeclaresWithoutReadableWitness(t *testi
 		"apply not declared":                   {yamlDocs(cronjobRemoved, unreadableTemplated), declaration{"official_upstream", false, true}},
 		"custom distribution":                  {yamlDocs(cronjobRemoved, unreadableTemplated), declaration{"custom_build", true, true}},
 		"paginated list":                       {yamlDocs(unreadableTemplated, "apiVersion: v1\nkind: List\nmetadata: {continue: next}\nitems:\n- {apiVersion: batch/v1beta1, kind: CronJob, metadata: {name: n}}\n"), full},
-		"unreviewed version of the same kind":  {yamlDocs(cronjobRemoved, "apiVersion: batch/v2alpha1\nkind: CronJob\nmetadata: {name: b}\n", unreadableTemplated), full},
 		"removed version in a bad list":        {yamlDocs(unreadableValues, "apiVersion: v1\nkind: List\nmetadata: {continue: 1}\nitems:\n- {apiVersion: batch/v1beta1, kind: CronJob, metadata: {name: n}}\n"), full},
 		"if opened before, closed after":       {yamlDocs("apiVersion: v1\nkind: ConfigMap\nmetadata: {name: a}\ndata: {x: \"{{- if .Values.on }}\"}\n", cronjobRemoved, "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: b}\ndata: {y: \"{{- end }}\"}\n"), full},
 		"range opened in a block scalar":       {yamlDocs("apiVersion: v1\nkind: ConfigMap\nmetadata: {name: a}\ndata:\n  x: |\n    {{- range .Values.jobs }}\n", cronjobRemoved), full},
@@ -165,4 +164,20 @@ func TestUnresolvedSetWithholdsEnclosedWitness(t *testing.T) {
 	if fact := crFact(t, scan.Prepared); fact.State != "unsupported" || len(scan.Members) != 0 {
 		t.Fatalf("custom resources %+v", fact)
 	}
+}
+
+// A readable document at the removed version stays proven present beside an
+// unresolved set even when another readable document of the same group and
+// kind carries a version no review names: the readable removed version is a
+// witness, the unreviewed one only keeps the state UNKNOWN.
+func TestK8sRemovedAPIsUnresolvedSetKeepsWitnessBesideUnreviewedVersion(t *testing.T) {
+	raw := yamlDocs(cronjobRemoved, "apiVersion: batch/v2alpha1\nkind: CronJob\nmetadata: {name: b}\n", unreadableTemplated)
+	prepared, err := PrepareKubernetesRemovedAPIs(raw, from125, to125, "official_upstream", true, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if prepared.State != StateUnknown {
+		t.Fatalf("state %s reason %s", prepared.State, prepared.Reason)
+	}
+	wantBool(t, k8sProposedFacts(t, prepared), factCronJob, true)
 }

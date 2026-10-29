@@ -177,15 +177,29 @@ func TestK8sRemovedAPIsUnreviewedVersionIsolatesOneFact(t *testing.T) {
 	}
 }
 
-// Same semantics as the reviewed 1.32 adapter: an unreviewed version of the
-// same group and kind keeps the fact undecidable even beside a witness.
-func TestK8sRemovedAPIsUnreviewedBesideWitnessStaysUnsupported(t *testing.T) {
-	raw := k8sList(
-		k8sDoc("autoscaling/v2beta1", "HorizontalPodAutoscaler"),
-		k8sDoc("autoscaling/v1", "HorizontalPodAutoscaler"),
-	)
-	facts := k8sProposedFacts(t, prepareK8s(t, raw, from125, to125, true))
-	wantUnsupported(t, facts, factHPA125)
+// A document at the removed version proves the removed GVK present: another
+// document of the same group and kind at a version the cited source does not
+// name (a GA, an alpha or an already unserved version) must not hide it. The
+// overall state stays UNKNOWN for the unreviewed version.
+func TestK8sRemovedAPIsUnreviewedBesideWitnessStillDeclaresPresent(t *testing.T) {
+	for _, other := range []string{"autoscaling/v1", "autoscaling/v2alpha1"} {
+		raw := k8sList(
+			k8sDoc("autoscaling/v2beta1", "HorizontalPodAutoscaler"),
+			k8sDoc(other, "HorizontalPodAutoscaler"),
+		)
+		prepared := prepareK8s(t, raw, from125, to125, true)
+		wantBool(t, k8sProposedFacts(t, prepared), factHPA125, true)
+		if prepared.State != StateUnknown {
+			t.Fatalf("%s: state = %s, want UNKNOWN", other, prepared.State)
+		}
+	}
+}
+
+// Without a document at the removed version the unreviewed version keeps the
+// fact undecidable.
+func TestK8sRemovedAPIsUnreviewedWithoutWitnessStaysUnsupported(t *testing.T) {
+	raw := k8sList(k8sDoc("autoscaling/v2alpha1", "HorizontalPodAutoscaler"))
+	wantUnsupported(t, k8sProposedFacts(t, prepareK8s(t, raw, from125, to125, true)), factHPA125)
 }
 
 func TestK8sRemovedAPIsCoreEventIsNotTheRemovedGroup(t *testing.T) {
