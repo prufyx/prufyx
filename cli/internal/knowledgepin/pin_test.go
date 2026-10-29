@@ -2,7 +2,11 @@
 
 package knowledgepin
 
-import "testing"
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"testing"
+)
 
 func TestShippedPinsAreEmptyOrCanonical(t *testing.T) {
 	if len(Profiles()) == 0 {
@@ -33,5 +37,25 @@ func TestValid(t *testing.T) {
 	}
 	if Digest("unknown") != "" {
 		t.Fatal("unknown profile pinned")
+	}
+}
+
+func TestEmbeddedRootMatchesPin(t *testing.T) {
+	for _, name := range Profiles() {
+		raw, ok := Root(name)
+		pin := Digest(name)
+		if pin == "" {
+			continue
+		}
+		if !ok {
+			t.Fatalf("pin for %s is set but no root is embedded", name)
+		}
+		sum := sha256.Sum256(raw)
+		if "sha256:"+hex.EncodeToString(sum[:]) != pin {
+			t.Fatalf("embedded root for %s does not hash to its pin", name)
+		}
+	}
+	if _, ok := Root("cncf-projects"); ok && Digest("cncf-projects") == "" {
+		t.Fatal("root embedded without a pin")
 	}
 }

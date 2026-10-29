@@ -507,6 +507,12 @@ func classifyTUFError(err error) error {
 	if errors.Is(err, &metadata.ErrExpiredMetadata{}) {
 		return fmt.Errorf("TUF metadata expired: %w", ErrExpired)
 	}
+	// go-tuf checks the signature before it compares timestamp versions, so this
+	// is a genuine older timestamp, not a forged one: report a stale feed.
+	var bad *metadata.ErrBadVersionNumber
+	if errors.As(err, &bad) && strings.HasPrefix(bad.Msg, "new timestamp version") && strings.Contains(bad.Msg, "must be >=") {
+		return fmt.Errorf("TUF rollback/version failure: %w", ErrFeedBehind)
+	}
 	if errors.Is(err, &metadata.ErrBadVersionNumber{}) || errors.Is(err, &metadata.ErrEqualVersionNumber{}) {
 		return fmt.Errorf("TUF rollback/version failure: %w", ErrRollback)
 	}

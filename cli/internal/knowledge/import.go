@@ -139,28 +139,28 @@ func importWithProfile(req ImportRequest, profile profileSpec, admit AdmitFunc, 
 		if !empty && (pending == nil || !store.pendingRecoveryShapeForProfile(profile)) {
 			return ImportReceipt{}, fmt.Errorf("existing store missing trust pointer: %w", ErrIntegrity)
 		}
-		if req.BootstrapRootPath == "" || req.BootstrapRootDigest == "" {
+		if !req.hasBootstrapRoot() || req.BootstrapRootDigest == "" {
 			return ImportReceipt{}, fmt.Errorf("initial root and digest required: %w", ErrInvalid)
 		}
 		initialDigest, err = normalizeDigest(req.BootstrapRootDigest)
 		if err != nil {
 			return ImportReceipt{}, err
 		}
-		bootstrap, _, err = currentbundle.ReadBoundedFileInfo(req.BootstrapRootPath, 128<<10)
+		bootstrap, err = req.bootstrapRootBytes()
 		if err != nil || digestBytes(bootstrap) != initialDigest {
 			return ImportReceipt{}, fmt.Errorf("initial root admission: %w", ErrIntegrity)
 		}
 	} else {
 		initialDigest = prior.state.InitialRootDigest
-		if req.BootstrapRootPath != "" || req.BootstrapRootDigest != "" {
+		if req.hasBootstrapRoot() || req.BootstrapRootDigest != "" {
 			if pending == nil {
 				return ImportReceipt{}, fmt.Errorf("initial root already established: %w", ErrInvalid)
 			}
 			provided, e := normalizeDigest(req.BootstrapRootDigest)
-			if e != nil || provided != initialDigest || req.BootstrapRootPath == "" {
+			if e != nil || provided != initialDigest || !req.hasBootstrapRoot() {
 				return ImportReceipt{}, ErrIntegrity
 			}
-			bootstrap, _, e = currentbundle.ReadBoundedFileInfo(req.BootstrapRootPath, 128<<10)
+			bootstrap, e = req.bootstrapRootBytes()
 			if e != nil || digestBytes(bootstrap) != initialDigest {
 				return ImportReceipt{}, ErrIntegrity
 			}
@@ -172,7 +172,7 @@ func importWithProfile(req ImportRequest, profile profileSpec, admit AdmitFunc, 
 			return ImportReceipt{}, fmt.Errorf("pinned root digest: %w", pinErr)
 		}
 		if initialDigest != pin {
-			return ImportReceipt{}, fmt.Errorf("initial root is not the pinned root: %w", ErrIntegrity)
+			return ImportReceipt{}, ErrPinnedRootMismatch
 		}
 	}
 	var pkg importPackage
@@ -522,4 +522,20 @@ func enforceRevisionFloor(floor, floorDigest, next, digest string) error {
 		}
 	}
 	return nil
+}
+
+func (req ImportRequest) hasBootstrapRoot() bool {
+	return req.BootstrapRootPath != "" || req.BootstrapRoot != nil
+}
+
+// bootstrapRootBytes returns the initial root from memory or from its file.
+func (req ImportRequest) bootstrapRootBytes() ([]byte, error) {
+	if req.BootstrapRoot != nil {
+		if len(req.BootstrapRoot) > 128<<10 {
+			return nil, ErrIntegrity
+		}
+		return append([]byte(nil), req.BootstrapRoot...), nil
+	}
+	raw, _, err := currentbundle.ReadBoundedFileInfo(req.BootstrapRootPath, 128<<10)
+	return raw, err
 }

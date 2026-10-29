@@ -117,6 +117,48 @@ body limit; with `--profile cncf-projects` the limit is 8 MiB (see
 command starts. For an offline environment, transfer the package separately and
 use `db import`.
 
+## Update with no arguments
+
+```sh
+prufyx db update
+```
+
+With no `--source` and no `--release-plan`, `db update` fetches the official
+`cncf-projects` feed (`https://prufyx.github.io/prufyx/knowledge/cncf-projects.tar`,
+overridable with `--source`), verifies it against the root pinned in this build
+and installs it into the default store, where `check` and `scan` find it. The
+trust logic is the same verifier as for every other update; only the defaults
+change. Giving `--source` or `--release-plan` keeps the rules described above
+(`--package-out FILE` alone, without `--source`, also targets the official feed; `--source` alone still means the `cert-manager` profile and a mandatory
+`--package-out`).
+
+- **Package directory.** Without `--package-out` the package is kept in
+  `$XDG_DATA_HOME/prufyx/knowledge/packages/` (`~/.local/share/prufyx/knowledge/packages/`
+  when `XDG_DATA_HOME` is not an absolute path), created with mode `0700`, as
+  `<revision>-<sha256>.tar` with mode `0600`. The two newest packages by revision
+  stay; older ones and leftovers of failed runs are removed after a successful
+  update. A package that fails import under its temporary `incoming-*.tar` name is
+  kept for recovery until the next successful update.
+- **Output.** The report names the current revision, the new revision, the expiry
+  of the signed trust metadata and of the source evidence, and prints
+  `already up to date` (exit `0`) when the revision and the bundle digest equal the
+  installed ones. In `--format json` these are `currentRevision`, `newRevision`,
+  `expiresAt`, `evidenceExpiresAt` and `upToDate`.
+- **Feed behind (exit `12`).** After a publish a CDN can serve the previous package
+  for a few minutes. A fetched package older than the installed revision is
+  reported as `FEED_BEHIND`, exits `12`, changes nothing and is not kept; retry in
+  about ten minutes. It is not an integrity failure. A package with the same
+  revision but a different digest is still refused as before (exit `3`).
+- **Store from another root.** A store whose initial root is not the pinned root is
+  refused with the message to remove the store directory
+  (the path is printed) and run `db update` again. There is no reset command.
+
+The official feed is not published yet and this build pins no root: the pin in
+`cli/internal/knowledgepin` stays empty until the owner's root ceremony. Until
+then a no-argument `db update` on an empty store stops before any download with
+"no trust root"; use `--source`, `--bootstrap-root` and `--bootstrap-root-digest`
+as above, or the knowledge built into the binary.
+
 ## Pinned root for official profiles
 
 A profile can carry a product-pinned root: the SHA-256 of its initial TUF root is
@@ -124,7 +166,10 @@ compiled into the binary (`cli/internal/knowledgepin`). For such a profile,
 `db update` trusts only that root.
 
 - First install: pass only `--bootstrap-root ./root.json`. The file must hash to the
-  pin; `--bootstrap-root-digest` is optional and, if given, must equal the pin.
+  pin; `--bootstrap-root-digest` is optional and, if given, must equal the pin. A
+  build that also embeds the root file (added with the pin in one reviewed change)
+  needs no flag on an empty store; the embedded bytes are used only if they hash to
+  the pin.
 - Later updates: no root flags. A store whose initial root is not the pin is refused
   and left unchanged.
 - Rotation: a new root version is accepted only through the signed root chain that
