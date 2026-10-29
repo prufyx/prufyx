@@ -187,8 +187,8 @@ func prepareKubernetesRemovedAPIs(read func() (kubernetesApplySet, error), sourc
 		facts := make([]inputFact, 0, len(removals))
 		sources := map[string][]intake.Source{}
 		for _, removal := range removals {
-			present, unreviewed, matched := classifyKubernetesRemoval(set.readable, removal)
-			if present && !unreviewed {
+			present, _, matched := classifyKubernetesRemoval(set.readable, removal)
+			if present {
 				v := true
 				facts = append(facts, inputFact{ID: removal.Fact, State: "declared", BoolValue: &v})
 				sources[removal.Fact] = matched
@@ -210,15 +210,20 @@ func prepareKubernetesRemovedAPIs(read func() (kubernetesApplySet, error), sourc
 	anyPresent, anyUnreviewed := false, false
 	for _, removal := range removals {
 		present, unreviewed, matched := classifyKubernetesRemoval(set.documents, removal)
-		switch {
-		case unreviewed:
+		if unreviewed {
 			anyUnreviewed = true
-			facts = append(facts, inputFact{ID: removal.Fact, State: "unsupported"})
+		}
+		switch {
 		case present:
+			// A document at the removed version proves the removed GVK
+			// present, whatever other documents of the same group and kind
+			// carry (an alpha or an already unserved version).
 			anyPresent = true
 			v := true
 			facts = append(facts, inputFact{ID: removal.Fact, State: "declared", BoolValue: &v})
 			sources[removal.Fact] = matched
+		case unreviewed:
+			facts = append(facts, inputFact{ID: removal.Fact, State: "unsupported"})
 		default:
 			v := false
 			facts = append(facts, inputFact{ID: removal.Fact, State: "declared", BoolValue: &v})
