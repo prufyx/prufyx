@@ -117,6 +117,7 @@ var otherRouteReasons = map[string]bool{
 	cncfprepare.ReasonKubernetesComponentNoReviewedRule:      true,
 	cncfprepare.ReasonKubernetesComponentDistribution:        true,
 	cncfprepare.ReasonKubernetesComponentSettingSetsComplete: true,
+	cncfprepare.ReasonKubernetesComponentSkewOnly:            true,
 }
 
 // noticeReasons are the reasons of verdict-neutral claims (one-way notices,

@@ -46,6 +46,11 @@ const (
 	ReasonKubernetesComponentEvidenceIncomplete Reason = "KUBERNETES_COMPONENT_EVIDENCE_INCOMPLETE"
 	ReasonKubernetesComponentNoReviewedRule     Reason = "KUBERNETES_COMPONENT_NO_REVIEWED_PREDICATE_FOR_TRANSITION"
 	ReasonKubernetesComponentDistribution       Reason = "KUBERNETES_COMPONENT_OFFICIAL_DISTRIBUTION_UNRESOLVED"
+	// ReasonKubernetesComponentSkewOnly reports a preparation that evaluated
+	// only the kubelet version-skew predicate: no removed-setting predicate
+	// and no setting set was registered, so nothing about removed settings
+	// was checked.
+	ReasonKubernetesComponentSkewOnly Reason = "KUBERNETES_COMPONENT_SKEW_ONLY"
 )
 
 // Scopes a selection may name. Each control-plane and node component scope
@@ -328,8 +333,12 @@ func PrepareKubernetesComponentConfig(selection KubernetesComponentSelection, co
 			removedEvaluated = true
 		}
 	}
-	if !removedEvaluated {
+	switch {
+	case removedEvaluated:
+	case len(sets) > 0:
 		reason = ReasonKubernetesComponentSettingSetsComplete
+	default:
+		reason = ReasonKubernetesComponentSkewOnly
 	}
 	anyPresent := false
 	switch {
