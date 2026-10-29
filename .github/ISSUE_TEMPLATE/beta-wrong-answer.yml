@@ -1,0 +1,45 @@
+name: Beta wrong answer
+description: Report a PASS, BLOCKED or UNKNOWN verdict that upstream evidence shows is wrong.
+title: "[beta wrong answer] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A wrong answer is a `PASS` when upstream says the upgrade breaks, a `BLOCKED` with a wrong or missing fix, or an `UNKNOWN` where reviewed upstream evidence clearly decides.
+
+        Do **not** include credentials, Secrets, customer configuration, cluster snapshots, private paths or logs. Use a minimized, anonymised input (only the keys involved). Report security issues privately, see SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: Output of `prufyx version`
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command line you ran
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: verdict
+    attributes:
+      label: Verdict, exit code and reason lines
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Upstream document or source line that shows the right answer
+      description: Give a link to the exact release note, changelog or source line.
+    validations:
+      required: true
+  - type: textarea
+    id: input
+    attributes:
+      label: Minimized, anonymised input
+      render: yaml
+    validations:
+      required: false

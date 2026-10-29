@@ -237,6 +237,7 @@ A catalogued project is not tested coverage: a catalogue entry says Prufyx holds
   comes from a file or an environment variable, never argv, and must be at
   least 16 characters. It never overwrites a file and prints only the key ID and
   public key.
+- Beta tester guide, `cli/docs/beta-tester-guide.md`: install and verify, `scan`, `plan`, `check cncf`, reading `PASS`/`BLOCKED`/`UNKNOWN`, the knowledge database and how to report a wrong answer. The README status banner now says public beta.
 - `prufyx scan` takes declared kubelet versions, `--kubelet-version-min` and
   `--kubelet-version-max` (or `minimumKubeletVersion` and `maximumKubeletVersion`
   under `declarations.kubernetes` in `prufyx.yaml`), and feeds them to the
