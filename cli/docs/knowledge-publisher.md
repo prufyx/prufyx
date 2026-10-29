@@ -251,20 +251,17 @@ new one, gets the new revision; a revision that does not advance the previous
 index is refused). Exactly one of the following is required, so a forgotten
 index cannot bump every project and move every rollback floor:
 
-- `--previous-index /absolute/index.json`: the index of the last release. It is
-  a committed, generated file, `cli/knowledge/published/cncf-projects-index.v1.json`;
-  it is never edited by hand. The file does not exist yet: the pull request of
-  the first release (`--first-release`) creates it. The release writes the next
-  index to `knowledge/cncf/index.v1.json` inside its output directory, and the
-  release pull request replaces the committed file with it. The workflow
-  refuses `first_release=true` once the committed file exists.
-  Review duty: the committed index is generated, and a hand-edited one (for
-  example lowering a project's revision) could regress a project below client
-  rollback floors. Reviewers must check that the diff is exactly what `release`
-  wrote. `release` checks only that the previous index parses under the
-  compiled engine capability and that the new revision is greater than the
-  index revision; it does not verify that the file is the one last published,
-  nor that no project revision was lowered.
+- `--previous-index /absolute/index.json`: the index of the last release. The
+  `knowledge-publish.yml` workflow takes it from the package of the last
+  successful sign run (see the recovery runbook); nothing is committed. The
+  release writes the next index to `knowledge/cncf/index.v1.json` inside its
+  output directory. The workflow refuses `first_release=true` when a
+  successful sign run on `main` exists.
+  Review duty: a hand-edited index (for example lowering a project's revision)
+  could regress a project below client rollback floors. `release` checks only
+  that the previous index parses under the compiled engine capability and that
+  the new revision is greater than the index revision; it does not verify that
+  the file is the one last published, nor that no project revision was lowered.
 - `--first-release`: no index was ever published. Use it only then, or when the
   engine capability changed (an index of an older capability no longer parses
   and every target changes anyway); the new revision must still be larger than
@@ -401,6 +398,10 @@ variable is set (nothing is checked when it is not).
    only and no required reviewer (a reviewer would stop the unattended
    weekly run). Store the four signing secrets in that environment, and make
    sure no repository-level secret has the same names.
+   Upload each key file from the file itself, `gh secret set NAME --env
+   knowledge-release < file.key.pem`, not by pasting into the web form: a key
+   whose final newline is lost is rejected at signing time with a generic
+   `operation rejected` error.
 3. Set the variable `KNOWLEDGE_ROOT_DIGEST` (`sha256:<hex>` of the pinned
    `root.json`), then `KNOWLEDGE_RELEASE_ENABLED=true`.
 4. Keep no OIDC federation (cloud or other) configured for this repository
