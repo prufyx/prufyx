@@ -22,9 +22,13 @@ inputs that correspond to its blocked, fixed, and unknown states.
   `component.etcd.experimental_flags_present=true`, and the scoped check is
   `BLOCKED` with exit `10`.
 - `fixed.json` uses the documented
-  `--feature-gates=CompactHashCheck=true` replacement. The complete finite target
-  grammar emits the same fact as `false`, and the adjacent scoped check is
-  `PASS` with exit `0`.
+  `--feature-gates=CompactHashCheck=true` replacement. PASS covers the reviewed
+  removed flag names only, plus the closed-value flags `--discovery-fallback`
+  (only `exit`), `--logger` (only `zap`) and `--v2-deprecation` (any explicit
+  value gives `UNKNOWN`). Other flag values are not validated: an invalid value
+  elsewhere still passes this rule, and etcd would refuse it at startup
+  regardless of the upgrade. This input emits the same fact as `false`, and the
+  adjacent scoped check is `PASS` with exit `0`.
 - `unknown.json` declares an indirect `--config-file` source. Preparation does
   not resolve it or emit a false fact, and the check remains `UNKNOWN` with
   exit `11`.

@@ -214,6 +214,14 @@ A catalogued project is not tested coverage: a catalogue entry says Prufyx holds
   names, modes, `root.json` and the expiry rules are unchanged. See
   `cli/docs/knowledge-signer.md`.
 
+### Fixed
+
+- etcd native-argv routes no longer give a scoped `PASS` for values the target
+  rejects or ignores: `--discovery-fallback` other than `exit`, `--logger` other
+  than `zap`, and any explicit `--v2-deprecation` now make the fact `UNKNOWN`.
+  PASS covers the reviewed removed flag names only; other flag values are not
+  validated.
+
 ### Added
 
 - `prufyx db update` with no arguments fetches the official `cncf-projects` feed
