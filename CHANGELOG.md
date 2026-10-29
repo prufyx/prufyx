@@ -183,6 +183,8 @@ A catalogued project is not tested coverage: a catalogue entry says Prufyx holds
 
 <!-- release-notes:end -->
 
+- `prufyx scan`: a custom-resource project or a declared Helm chart is now planned over several hops when the knowledge holds a current reviewed upgrade-path policy for it (one hop per minor line with `sequential_minor`, as for Kubernetes). A rule for the whole `from -> to` pair is judged once, at the whole upgrade. An intermediate line is never passed unless a rule covers it. Without a policy the upgrade is still one direct hop, and a policy that is not current is a gap (`PATH_POLICY_NOT_CURRENT`).
+
 - `prufyx plan`: plans a multi-hop upgrade as ordered stages (one per hop) with every blocker, gap and the reason a stage is not PASS. Evaluation is the same as `scan`; no stage is PASS yet (hop actions and node rolls are not checked), and `--to C=latest` is reported as not planned. See `cli/docs/plan.md`.
 
 ### Changed

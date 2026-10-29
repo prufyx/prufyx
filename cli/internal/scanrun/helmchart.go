@@ -338,7 +338,21 @@ func (r *helmChartRun) evaluate(from, to string) error {
 		r.gap(nil, scanreport.GapVersionNotDetected, r.slug)
 		return nil
 	}
-	plan := upgradepath.PlanPath(r.component, from, to, nil)
+	status := r.knowledge.PathPolicyFor(r.component, r.now)
+	if status.RecordNotCurrent() {
+		path.Gap = scanreport.ReasonPathPolicyNotCurrent
+		r.gap(nil, scanreport.GapPathPolicyNotCurrent, r.slug, status.Freshness)
+		return nil
+	}
+	if status.Policy() != nil && !r.policy.Admits(status.Record.Evidence.Basis) {
+		// A current policy whose evidence basis the trust policy leaves out
+		// is not used, and no direct hop stands in for it.
+		path.Gap = scanreport.ReasonNoReviewedPathPolicy
+		r.gap(nil, scanreport.GapPathPolicyTrustPolicy, r.slug, constraintengine.EffectiveBasis(status.Record.Evidence.Basis))
+		return nil
+	}
+	policy := status.Policy()
+	plan := upgradepath.PlanPath(r.component, from, to, policy)
 	if plan.Gap != upgradepath.GapNone {
 		outcome := reasonOutcomes[string(plan.Gap)]
 		if outcome.gap == "" {
@@ -348,28 +362,52 @@ func (r *helmChartRun) evaluate(from, to string) error {
 		r.gap(nil, outcome.gap, r.slug, from, to)
 		return nil
 	}
-	if plan.Component != r.component || len(plan.Hops) != 1 || !plan.Hops[0].From.Exact() || !plan.Hops[0].To.Exact() {
+	// Without a policy the plan is the one direct hop between exact versions.
+	if plan.Component != r.component || len(plan.Hops) == 0 || (policy == nil && (len(plan.Hops) != 1 || !plan.Hops[0].From.Exact() || !plan.Hops[0].To.Exact())) {
 		return ErrIntegrity
 	}
-	hop, err := r.hop(plan.Hops[0], path.Chart)
-	if err != nil {
-		return err
+	if policy != nil {
+		path.Policy = policy.Policy
 	}
-	path.Hops = append(path.Hops, hop)
+	for _, planned := range plan.Hops {
+		hop, err := r.hop(planned, path.Chart, nil)
+		if err != nil {
+			return err
+		}
+		path.Hops = append(path.Hops, hop)
+	}
+	if len(plan.Hops) > 1 {
+		// A rule that spans the whole upgrade matches no single hop; it is
+		// judged on the end-to-end pair, once.
+		whole := upgradepath.Hop{From: upgradepath.Endpoint{Version: from}, To: upgradepath.Endpoint{Version: to}}
+		if _, err := r.hop(whole, path.Chart, wholeUpgradeRules(plan)); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
-// hop evaluates the direct chart hop.
-func (r *helmChartRun) hop(hop upgradepath.Hop, chart *scanreport.PathChart) (scanreport.Hop, error) {
-	ref := scanreport.HopRef{Index: hop.Index, From: hop.From.String(), To: hop.To.String(), Chart: r.decl.chart.Name}
+// hop evaluates one planned chart hop. With only set it evaluates the whole
+// upgrade instead: hop is the end-to-end pair, only the rules only selects
+// are judged, the caller drops the returned hop, and the chart bookkeeping of
+// the path stays as the planned hops set it.
+func (r *helmChartRun) hop(hop upgradepath.Hop, chart *scanreport.PathChart, only func(cncfcheck.ScanRule) bool) (scanreport.Hop, error) {
+	ref := scanreport.HopRef{Index: hop.Index, From: hop.From.String(), To: hop.To.String(), Chart: r.decl.chart.Name, WholeUpgrade: only != nil}
 	result := scanreport.Hop{
 		Index: hop.Index,
-		From:  scanreport.Endpoint{Version: hop.From.Version},
-		To:    scanreport.Endpoint{Version: hop.To.Version},
+		From:  scanreport.Endpoint{Version: hop.From.Version, Line: hop.From.Line},
+		To:    scanreport.Endpoint{Version: hop.To.Version, Line: hop.To.Line},
 	}
 	fromVersion, fromOK := hop.From.EngineVersion()
 	toVersion, toOK := hop.To.EngineVersion()
 	if !fromOK || !toOK {
+		// A whole major line (sequential_major) has no engine version: the
+		// hop is not evaluated.
+		if hop.From.MajorLine() || hop.To.MajorLine() {
+			result.Status = scanreport.HopNoData
+			result.Reasons = []string{r.gap(&ref, scanreport.GapIntermediateMajor)}
+			return result, nil
+		}
 		return scanreport.Hop{}, ErrIntegrity
 	}
 	input := cncfprepare.HelmChartHop{
@@ -385,8 +423,10 @@ func (r *helmChartRun) hop(hop upgradepath.Hop, chart *scanreport.PathChart) (sc
 		return scanreport.Hop{}, ErrIntegrity
 	}
 	result.InputDigest = prepared.Prepared.InputDigest
-	chart.PathsRead, chart.Unnamed, chart.UniverseSize, chart.Members = prepared.PathsRead, prepared.Unnamed, prepared.UniverseSize, len(prepared.Members)
-	chart.Complete = prepared.Prepared.Reason == cncfprepare.ReasonHelmValuesComplete
+	if only == nil {
+		chart.PathsRead, chart.Unnamed, chart.UniverseSize, chart.Members = prepared.PathsRead, prepared.Unnamed, prepared.UniverseSize, len(prepared.Members)
+		chart.Complete = prepared.Prepared.Reason == cncfprepare.ReasonHelmValuesComplete
+	}
 	onlyReason := r.rootGaps[scanreport.GapChartValuesOnly].Reason
 	var facts []string
 	if r.fact != "" {
@@ -437,6 +477,9 @@ func (r *helmChartRun) hop(hop upgradepath.Hop, chart *scanreport.PathChart) (sc
 			continue
 		}
 		overlapping[rule.Scope.ID] = true
+		if only != nil && !only(rule) {
+			continue
+		}
 		if rule.Notice || rule.Basis == constraintengine.BasisLead {
 			continue
 		}
