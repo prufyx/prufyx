@@ -15,7 +15,7 @@ func capacityDefinitions(count int) []FactDefinition {
 	definitions := make([]FactDefinition, 0, count)
 	for index := 0; index < count; index++ {
 		definitions = append(definitions, FactDefinition{
-			ID: fmt.Sprintf("component.capacity.fact%03d", index), Component: capacityComponent, Type: FactBool,
+			ID: fmt.Sprintf("component.capacity.fact%04d", index), Component: capacityComponent, Type: FactBool,
 		})
 	}
 	return definitions
@@ -34,7 +34,7 @@ func capacityInput(t *testing.T, facts int) []byte {
 	declared := make([]map[string]any, 0, facts)
 	for index := 0; index < facts; index++ {
 		declared = append(declared, map[string]any{
-			"id": fmt.Sprintf("component.capacity.fact%03d", index), "state": "declared", "boolValue": true,
+			"id": fmt.Sprintf("component.capacity.fact%04d", index), "state": "declared", "boolValue": true,
 		})
 	}
 	document := map[string]any{
@@ -50,13 +50,13 @@ func capacityInput(t *testing.T, facts int) []byte {
 }
 
 func TestCompiledRegistryCapacityIsSeparateFromGenericAndInputBounds(t *testing.T) {
-	for _, count := range []int{65, 256} {
+	for _, count := range []int{65, 256, 257, MaxCompiledRegistryFacts} {
 		if _, err := NewCompiledRegistry(capacityDefinitions(count)); err != nil {
 			t.Fatalf("compiled registry %d definitions: %v", count, err)
 		}
 	}
-	if _, err := NewCompiledRegistry(capacityDefinitions(257)); !errors.Is(err, ErrInvalid) {
-		t.Fatalf("257 compiled definitions err=%v, want ErrInvalid", err)
+	if _, err := NewCompiledRegistry(capacityDefinitions(MaxCompiledRegistryFacts + 1)); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("%d compiled definitions err=%v, want ErrInvalid", MaxCompiledRegistryFacts+1, err)
 	}
 	if _, err := NewRegistry(capacityDefinitions(64)); err != nil {
 		t.Fatalf("64 generic definitions: %v", err)
