@@ -143,6 +143,9 @@ What it does and does not do in this build:
 - A component whose path `scan` cannot plan, for example an app with no
   reviewed path policy, is listed under "Not planned" with the scan's gap
   (`NO_REVIEWED_PATH_POLICY` when the upgrade skips release lines).
+- `--to kubernetes=newest-covered` picks the `.0` release of the newest line
+  whose reviewed served-API list is current. It is not "latest", and the plan
+  prints a note saying so. Details: [plan](plan.md#newest-covered).
 - `--to COMPONENT=latest` is not resolved: no signed release-line snapshot
   ships. The component is reported `LATEST_NOT_RESOLVED` and not planned. Give an
   explicit version.
