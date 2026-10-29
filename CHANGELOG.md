@@ -195,6 +195,7 @@ A catalogued project is not tested coverage: a catalogue entry says Prufyx holds
   `knowledge-release.yml` is superseded and disabled. See
   `cli/docs/knowledge-publisher.md`.
 - `prufyx scan`: a custom-resource project or a declared Helm chart is now planned over several hops when the knowledge holds a current reviewed upgrade-path policy for it (one hop per minor line with `sequential_minor`, as for Kubernetes). A rule for the whole `from -> to` pair is judged once, at the whole upgrade. An intermediate line is never passed unless a rule covers it. Without a policy the upgrade is still one direct hop, and a policy that is not current is a gap (`PATH_POLICY_NOT_CURRENT`).
+- `prufyx scan`: when a hop family decided something (a PASS within the custom-resource version check, or a finding) on a component that has no rules, the headline and the "Read N documents" line no longer say "nothing could be evaluated" / "(nothing evaluated)". The headline now reads "UNKNOWN: no blocker in the checks that ran; ..." and the line says "(partially evaluated)". Verdicts, exit codes and JSON are unchanged. A scan where nothing ran keeps the old wording.
 
 - `prufyx plan`: plans a multi-hop upgrade as ordered stages (one per hop) with every blocker, gap and the reason a stage is not PASS. Evaluation is the same as `scan`; no stage is PASS yet (hop actions and node rolls are not checked), and `--to C=latest` is reported as not planned. See `cli/docs/plan.md`.
 
