@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/knowledgeage"
 )
 
@@ -53,10 +54,18 @@ func TestRunOnEmbeddedData(t *testing.T) {
 	if err != nil || earliest.Location() != time.UTC {
 		t.Fatalf("not canonical UTC RFC 3339: %q", out.String())
 	}
-	// The embedded line attestations end on 2026-11-25T21:28:31Z at the
-	// earliest; the minimum over all evidence cannot be later than that.
-	if limit := time.Date(2026, 11, 25, 21, 28, 31, 0, time.UTC); earliest.After(limit) {
-		t.Fatalf("earliest %s ignores the line attestations (<= %s expected)", earliest.Format(time.RFC3339), limit.Format(time.RFC3339))
+	// The minimum over all evidence cannot be later than the minimum over the
+	// CNCF pack alone (rules, line attestations, served APIs, path policies).
+	pack, err := cncfcheck.EmbeddedEvidenceAge()
+	if err != nil {
+		t.Fatal(err)
+	}
+	limit, err := Earliest(pack)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if earliest.After(limit) {
+		t.Fatalf("earliest %s ignores part of the CNCF pack (<= %s expected)", earliest.Format(time.RFC3339), limit.Format(time.RFC3339))
 	}
 	out.Reset()
 	if err := Run([]string{"--min-days", "0"}, &out, &errOut); err == nil {

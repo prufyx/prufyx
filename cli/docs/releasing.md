@@ -230,7 +230,7 @@ A tag build fails unless the knowledge embedded in the binary is still valid
 well after the release. The step "Check the embedded knowledge is fresh" runs
 `prufyx-maintainer release-freshness --commit-date <tagged commit date>
 --min-days 30`. It reads the end date (`validUntil`) of all active embedded
-evidence with the same code the binary uses at run time: CNCF rules, project
+evidence with the same rules the binary applies at run time: CNCF rules, project
 rules, line attestations, served-API lists, path policies, image identity
 records and chart identity records. It takes the earliest date and fails when
 that date is earlier than the tagged commit's date plus 30 days. A binary that
