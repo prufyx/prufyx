@@ -258,3 +258,12 @@ func TestBuildFromPreviousIndexGivesChangedProjectsTheNewRevision(t *testing.T) 
 		}
 	}
 }
+
+func TestExternalIndexProjectCountBounds(t *testing.T) {
+	t.Parallel()
+	for n, want := range map[int]bool{-1: false, 0: false, 1: true, MaxExternalIndexProjects: true, MaxExternalIndexProjects + 1: false} {
+		if got := ValidExternalIndexProjectCount(n); got != want {
+			t.Errorf("%d projects: %v, want %v", n, got, want)
+		}
+	}
+}

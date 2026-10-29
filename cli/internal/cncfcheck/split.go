@@ -99,6 +99,9 @@ func ProjectTargetPath(project string) string {
 	return ExternalProjectTargetPrefix + project + ExternalProjectTargetSuffix
 }
 
+// ValidExternalIndexProjectCount reports whether an index may list n project targets: at least one, at most MaxExternalIndexProjects.
+func ValidExternalIndexProjectCount(n int) bool { return n >= 1 && n <= MaxExternalIndexProjects }
+
 // ProjectFromTargetPath returns the project slug of a project target path.
 // A path under the community prefix names a community project only, and a
 // path under the CNCF prefix never names one.
@@ -135,7 +138,7 @@ func parseExternalIndex(raw []byte, base *bundle) (ExternalIndex, error) {
 	if err != nil || !bytes.Equal(canonical, raw) {
 		return ExternalIndex{}, ErrInvalid
 	}
-	if (document.Schema != ExternalIndexSchema && document.Schema != ExternalIndexSchemaRecords && document.Schema != ExternalIndexSchemaCommunity) || !validExternalRevision(document.Revision) || (document.Purpose != "operator_provided" && document.Purpose != "synthetic_test_only") || len(document.Projects) == 0 || len(document.Projects) > MaxExternalIndexProjects {
+	if (document.Schema != ExternalIndexSchema && document.Schema != ExternalIndexSchemaRecords && document.Schema != ExternalIndexSchemaCommunity) || !validExternalRevision(document.Revision) || (document.Purpose != "operator_provided" && document.Purpose != "synthetic_test_only") || !ValidExternalIndexProjectCount(len(document.Projects)) {
 		return ExternalIndex{}, ErrInvalid
 	}
 	if base == nil {
@@ -381,7 +384,7 @@ func buildExternalTargets(base bundle, revision, purpose string, revisionFor fun
 		projects = append(projects, project)
 	}
 	sort.Strings(projects)
-	if len(projects) == 0 || len(projects) > MaxExternalIndexProjects {
+	if !ValidExternalIndexProjectCount(len(projects)) {
 		return ExternalTarget{}, nil, ErrIntegrity
 	}
 	index := externalIndexDocument{Schema: ExternalIndexSchema, Revision: revision, Purpose: purpose, EngineCapabilityDigest: capability}
