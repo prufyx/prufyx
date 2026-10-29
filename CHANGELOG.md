@@ -210,6 +210,7 @@ A catalogued project is not tested coverage: a catalogue entry says Prufyx holds
   and every other field equal), as `cli/docs/line-attestations.md` already
   described. Quiet lines that have no new patch tag can stay covered. Anything
   else stays a collision. Maintainers only; the CLI's checks are unchanged.
+- Beta tester guide, `cli/docs/beta-tester-guide.md`: install and verify, `scan`, `plan`, `check cncf`, reading `PASS`/`BLOCKED`/`UNKNOWN`, the knowledge database and how to report a wrong answer. The README status banner now says public beta.
 - `prufyx scan` takes declared kubelet versions, `--kubelet-version-min` and
   `--kubelet-version-max` (or `minimumKubeletVersion` and `maximumKubeletVersion`
   under `declarations.kubernetes` in `prufyx.yaml`), and feeds them to the
