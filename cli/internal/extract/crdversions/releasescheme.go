@@ -124,24 +124,55 @@ func (v versionAliasTags) Tags(repo extract.RepoRef) ([]extract.Tag, error) {
 	return out, nil
 }
 
+// paddedAliasPrefix starts the name of the entry a zero-padded tag gets
+// (paddedAliasTags). No tag prefix of a target can match it, so the
+// extractor never reads an entry as a release.
+const paddedAliasPrefix = "~"
+
+// paddedAliasTags gives the framework's recorded-tag check, which reads a tag
+// as naming a version only when the name ends in the version, one more entry
+// per tag with a zero-padded minor (v26.02.0): "~26.2.0" at the same commit.
+type paddedAliasTags struct {
+	inner extract.TagSource
+	x     *Extractor
+}
+
+// Tags implements extract.TagSource.
+func (p paddedAliasTags) Tags(repo extract.RepoRef) ([]extract.Tag, error) {
+	list, err := p.inner.Tags(repo)
+	if err != nil {
+		return nil, err
+	}
+	out := append([]extract.Tag{}, list...)
+	for _, t := range list {
+		if version, _, padded, ok := p.x.target.releaseOf(t.Name); ok && padded {
+			out = append(out, extract.Tag{Name: paddedAliasPrefix + version, Commit: t.Commit})
+		}
+	}
+	return out, nil
+}
+
 func (x *Extractor) releaseTagSource(tags extract.TagSource) extract.TagSource {
 	if x.target.ReleaseScheme == SchemeCalverEdge {
 		return versionAliasTags{inner: tags}
 	}
-	return tags
+	return paddedAliasTags{inner: tags, x: x}
 }
 
 // releaseOf reads a final release tag of the target: the engine version and
 // the rank of the spelling (the index of the tag prefix, or of the calver
-// spelling), lower being preferred.
-func (t Target) releaseOf(tag string) (version string, rank int, ok bool) {
+// spelling), lower being preferred. padded reports a zero-padded minor
+// (v26.02.0): a line that has such a tag and also a tag with the canonical
+// minor is ambiguous (releaseLines).
+func (t Target) releaseOf(tag string) (version string, rank int, padded, ok bool) {
 	if t.ReleaseScheme == SchemeCalverEdge {
-		return CalverEdgeRelease(tag)
+		v, r, ok := CalverEdgeRelease(tag)
+		return v, r, false, ok
 	}
 	for i, prefix := range t.TagPrefixes {
-		if m := finalTagRE(prefix).FindStringSubmatch(tag); m != nil {
-			return m[1] + "." + m[2] + "." + m[3], i, true
+		if v, p, ok := ReadFinalTag(prefix, 4, tag); ok {
+			return v, i, p, true
 		}
 	}
-	return "", 0, false
+	return "", 0, false, false
 }
