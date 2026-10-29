@@ -132,6 +132,8 @@ yet, so those manifests are listed as not checked rather than passed. Put the
 declarations in a `prufyx.yaml` to stop typing them (see
 [scan-config.md](cli/docs/scan-config.md)).
 
+**Several hops or several components?** `prufyx plan` takes the same inputs and flags as `scan` and prints the whole route as ordered stages, one per hop, with each stage's blockers, gaps and the reason it is not `PASS`. Today no stage is `PASS`: hop actions and node rolls are not checked yet. See [plan.md](cli/docs/plan.md).
+
 **Never add a declaration flag that is not true.** Prufyx does not default any
 of them, because a false one turns `UNKNOWN` into an answer the evidence does
 not support.
