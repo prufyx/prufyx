@@ -308,6 +308,14 @@ reviewed for one exact pair of versions cannot. Without a reviewed policy the
 upgrade is one direct hop, and an upgrade that skips release lines stays
 unchecked (gap `NO_REVIEWED_PATH_POLICY`).
 
+The same planning applies to a custom-resource project and to a declared Helm
+chart: when the knowledge holds a current, reviewed upgrade-path policy for the
+project, `scan` follows it hop by hop, and a rule reviewed for the whole
+`from -> to` pair is judged once, at the whole upgrade. Without a policy the
+upgrade stays one direct hop, and a policy whose review is not current is the
+gap `PATH_POLICY_NOT_CURRENT`; no hop with an intermediate end is ever a pass
+of the component.
+
 A hop that skips release lines still reports every blocker a reviewed rule
 establishes on a line it enters. For each line with known API removals between
 the hop's ends, `scan` evaluates the step of the hop that enters that line (for
