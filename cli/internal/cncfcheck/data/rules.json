@@ -24740,6 +24740,828 @@
       }
     },
     {
+      "component": "pkg:github/kumahq/kuma",
+      "line": "2.10",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.9.0",
+            "commit": "948e6a4391632607148f4dcdf7e9adce422a8075"
+          },
+          {
+            "version": "2.9.1",
+            "commit": "1bd34064068f8913b765589f927998780b7e72d8"
+          },
+          {
+            "version": "2.9.2",
+            "commit": "86593067f05038a1c7f76446a177538f3efff00f"
+          },
+          {
+            "version": "2.9.3",
+            "commit": "fbef9908b833fdb5487afdfba9cf902c075045e3"
+          },
+          {
+            "version": "2.9.4",
+            "commit": "2ef6d55d8e579035a6a256bcb4d3d99dfece7c02"
+          },
+          {
+            "version": "2.9.5",
+            "commit": "611efa39164f182580d68ed0d97c07def209fada"
+          },
+          {
+            "version": "2.9.6",
+            "commit": "9aa1314d9250daeb5c4d2e513ae5e285be42f155"
+          },
+          {
+            "version": "2.9.7",
+            "commit": "e7f8e96d3b5dd6e444f6439240f06aa0f97eb4e9"
+          },
+          {
+            "version": "2.9.8",
+            "commit": "0f01fdf57ebd9111626b82effbfafd72a1314cbf"
+          },
+          {
+            "version": "2.9.9",
+            "commit": "7ea4b665364e93c9015f7a44b08de34d84807281"
+          },
+          {
+            "version": "2.9.10",
+            "commit": "23550e31cd32ce62ba419c584d56c3945321f240"
+          },
+          {
+            "version": "2.9.11",
+            "commit": "949aad504a7a8606b54bfba1d40402f53adde0ae"
+          },
+          {
+            "version": "2.9.12",
+            "commit": "32aabc483a670c553bfa09c3a5cab0b6879afe97"
+          },
+          {
+            "version": "2.9.13",
+            "commit": "69a7c463aa0bf2916145cc2611719c124b271a4b"
+          },
+          {
+            "version": "2.9.14",
+            "commit": "3ee4becd51d7b714d3964f880784ab1065e03c33"
+          },
+          {
+            "version": "2.9.15",
+            "commit": "2fb87410c631ab1597802ca694c64bb5378316d7"
+          },
+          {
+            "version": "2.9.16",
+            "commit": "2955869905710384ac686ab651d19953fc85e779"
+          },
+          {
+            "version": "2.9.17",
+            "commit": "955213ac74c3bca9c1e166c268e4eec0e5ffeee9"
+          },
+          {
+            "version": "2.9.18",
+            "commit": "9db8356ac8bb71c84668c679cc6a1ca9b49c6818"
+          },
+          {
+            "version": "2.9.19",
+            "commit": "924476e2052f5c5eb92d339db5231c610e674e1f"
+          },
+          {
+            "version": "2.9.20",
+            "commit": "cee25bf6bad4f28eb0d11f36c9de0dc3d869b98c"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.10.0",
+            "commit": "fed2256136e694d2a5deedb2490d382ee280fbbe"
+          },
+          {
+            "version": "2.10.1",
+            "commit": "de16dff4b64312df4e1c112be993806311953614"
+          },
+          {
+            "version": "2.10.2",
+            "commit": "48269c3a738b415d7f4217c062d64b6d59c054ea"
+          },
+          {
+            "version": "2.10.3",
+            "commit": "735fda5bb05af42e66a011bf94a8817d6afc77fe"
+          },
+          {
+            "version": "2.10.4",
+            "commit": "5c18b378da11e7015518d961f0be2a87512770ff"
+          },
+          {
+            "version": "2.10.5",
+            "commit": "7dc144b13c57fcf1fad8a2c36b5e66c77e240414"
+          },
+          {
+            "version": "2.10.6",
+            "commit": "b4a2882ed294445661e0f72cafe82e747f474a15"
+          },
+          {
+            "version": "2.10.7",
+            "commit": "e62b841197e503111a4645beae97a284ac07f282"
+          },
+          {
+            "version": "2.10.8",
+            "commit": "8a505a8b770e5c8d23ca88d7770f0f4e412ea325"
+          },
+          {
+            "version": "2.10.9",
+            "commit": "7ae395a0b727bfd75bed86a7039d9e96046deb6b"
+          },
+          {
+            "version": "2.10.10",
+            "commit": "61572286c790c053941040ad54c1c81e9ecd9b03"
+          },
+          {
+            "version": "2.10.11",
+            "commit": "8fb523dab05c198649d248c0f20a0b2e953181eb"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.kuma",
+          "version": "2.7.0",
+          "codeDigest": "sha256:401d0194aa4238d58d61d6d834aab4cb05e496ace1b581d390e0765540b9ecb2"
+        },
+        "derivedAt": "2026-10-29T22:11:49Z",
+        "reviewedAt": "2026-10-29T22:11:49Z",
+        "validUntil": "2027-01-27T22:11:49Z",
+        "sources": [
+          {
+            "id": "crds-2-10-0",
+            "url": "https://github.com/kumahq/kuma/blob/fed2256136e694d2a5deedb2490d382ee280fbbe/deployments/charts/kuma/crds/kuma.io_circuitbreakers.yaml",
+            "revision": "fed2256136e694d2a5deedb2490d382ee280fbbe",
+            "contentDigest": "sha256:804600890c18c84acf370fac892164376e42ae15b9807842507e6fcecb8b8536",
+            "startLine": 1,
+            "endLine": 50
+          },
+          {
+            "id": "crds-2-9-0",
+            "url": "https://github.com/kumahq/kuma/blob/948e6a4391632607148f4dcdf7e9adce422a8075/deployments/charts/kuma/crds/kuma.io_circuitbreakers.yaml",
+            "revision": "948e6a4391632607148f4dcdf7e9adce422a8075",
+            "contentDigest": "sha256:f9bee3d7dc71c3f5a228aed24b208f829a8e81f959f710f37181cc1f06e9b1f1",
+            "startLine": 1,
+            "endLine": 50
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kumahq/kuma",
+      "line": "2.11",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.10.0",
+            "commit": "fed2256136e694d2a5deedb2490d382ee280fbbe"
+          },
+          {
+            "version": "2.10.1",
+            "commit": "de16dff4b64312df4e1c112be993806311953614"
+          },
+          {
+            "version": "2.10.2",
+            "commit": "48269c3a738b415d7f4217c062d64b6d59c054ea"
+          },
+          {
+            "version": "2.10.3",
+            "commit": "735fda5bb05af42e66a011bf94a8817d6afc77fe"
+          },
+          {
+            "version": "2.10.4",
+            "commit": "5c18b378da11e7015518d961f0be2a87512770ff"
+          },
+          {
+            "version": "2.10.5",
+            "commit": "7dc144b13c57fcf1fad8a2c36b5e66c77e240414"
+          },
+          {
+            "version": "2.10.6",
+            "commit": "b4a2882ed294445661e0f72cafe82e747f474a15"
+          },
+          {
+            "version": "2.10.7",
+            "commit": "e62b841197e503111a4645beae97a284ac07f282"
+          },
+          {
+            "version": "2.10.8",
+            "commit": "8a505a8b770e5c8d23ca88d7770f0f4e412ea325"
+          },
+          {
+            "version": "2.10.9",
+            "commit": "7ae395a0b727bfd75bed86a7039d9e96046deb6b"
+          },
+          {
+            "version": "2.10.10",
+            "commit": "61572286c790c053941040ad54c1c81e9ecd9b03"
+          },
+          {
+            "version": "2.10.11",
+            "commit": "8fb523dab05c198649d248c0f20a0b2e953181eb"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.11.0",
+            "commit": "77a25d52f5a6d1fd6df6e6d5ffa9ab8e3ce8456e"
+          },
+          {
+            "version": "2.11.1",
+            "commit": "a53866c54b27e2daf9346615af451c51a349da8d"
+          },
+          {
+            "version": "2.11.2",
+            "commit": "6c17bc74d42ea8ae6f64aec394b90af2cc77ab12"
+          },
+          {
+            "version": "2.11.3",
+            "commit": "c42567ce5aa073af5c37c6a01c588b6891375d2f"
+          },
+          {
+            "version": "2.11.4",
+            "commit": "2a52682435ae7668ee6f852236b33202f348b380"
+          },
+          {
+            "version": "2.11.5",
+            "commit": "9d3fe23952ecedb7aa0844c6d89e8cb519a6b2bc"
+          },
+          {
+            "version": "2.11.6",
+            "commit": "48d4c9a25ff865f00fd98aaee08482d7dc0c361b"
+          },
+          {
+            "version": "2.11.7",
+            "commit": "a25f03a4e2a81f9fccd99e89a8c02f15f83d63c7"
+          },
+          {
+            "version": "2.11.8",
+            "commit": "12fbf5f561e00b5f71eb5e72dc82e1a9eb4f9e87"
+          },
+          {
+            "version": "2.11.9",
+            "commit": "aefb3a7be44cf396a90aced668392ac064893bd3"
+          },
+          {
+            "version": "2.11.10",
+            "commit": "23887ef2a1b8a1f809aaf035d1f047d3fb3363b0"
+          },
+          {
+            "version": "2.11.11",
+            "commit": "12827091e6130e79a4dab4a0cc0075c938bf82b8"
+          },
+          {
+            "version": "2.11.12",
+            "commit": "afc9bda574220f7ff201d828efe363b07bb59816"
+          },
+          {
+            "version": "2.11.13",
+            "commit": "5d3be278f7c9657586411b82ce10ea26f1278f4a"
+          },
+          {
+            "version": "2.11.14",
+            "commit": "00ea5e4a54e2ca09b05d95f73e025d40d6f70c29"
+          },
+          {
+            "version": "2.11.15",
+            "commit": "2edd319c6112475aff3d0d2a9ddc211c5d211ddb"
+          },
+          {
+            "version": "2.11.16",
+            "commit": "4f014820993b70b632eff9289264c9ae3e29442d"
+          },
+          {
+            "version": "2.11.17",
+            "commit": "99ae9bd3e889d4d0c6d043af9b32c55a4763bc46"
+          },
+          {
+            "version": "2.11.18",
+            "commit": "8b1e524df3039708e30c9f83747ac18a700adc0c"
+          },
+          {
+            "version": "2.11.19",
+            "commit": "bacb971e23f6225546e91b5543e4440c52337b95"
+          },
+          {
+            "version": "2.11.20",
+            "commit": "a05c8d832e9ef578c3f61164155031bc103f6c5e"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.kuma",
+          "version": "2.7.0",
+          "codeDigest": "sha256:401d0194aa4238d58d61d6d834aab4cb05e496ace1b581d390e0765540b9ecb2"
+        },
+        "derivedAt": "2026-10-29T22:11:49Z",
+        "reviewedAt": "2026-10-29T22:11:49Z",
+        "validUntil": "2027-01-27T22:11:49Z",
+        "sources": [
+          {
+            "id": "crds-2-10-0",
+            "url": "https://github.com/kumahq/kuma/blob/fed2256136e694d2a5deedb2490d382ee280fbbe/deployments/charts/kuma/crds/kuma.io_circuitbreakers.yaml",
+            "revision": "fed2256136e694d2a5deedb2490d382ee280fbbe",
+            "contentDigest": "sha256:804600890c18c84acf370fac892164376e42ae15b9807842507e6fcecb8b8536",
+            "startLine": 1,
+            "endLine": 50
+          },
+          {
+            "id": "crds-2-11-0",
+            "url": "https://github.com/kumahq/kuma/blob/77a25d52f5a6d1fd6df6e6d5ffa9ab8e3ce8456e/deployments/charts/kuma/crds/kuma.io_circuitbreakers.yaml",
+            "revision": "77a25d52f5a6d1fd6df6e6d5ffa9ab8e3ce8456e",
+            "contentDigest": "sha256:43a668f49406df51886e301402e07013b2f2882fc48828c3278ed52828d3260d",
+            "startLine": 1,
+            "endLine": 50
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kumahq/kuma",
+      "line": "2.12",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.11.0",
+            "commit": "77a25d52f5a6d1fd6df6e6d5ffa9ab8e3ce8456e"
+          },
+          {
+            "version": "2.11.1",
+            "commit": "a53866c54b27e2daf9346615af451c51a349da8d"
+          },
+          {
+            "version": "2.11.2",
+            "commit": "6c17bc74d42ea8ae6f64aec394b90af2cc77ab12"
+          },
+          {
+            "version": "2.11.3",
+            "commit": "c42567ce5aa073af5c37c6a01c588b6891375d2f"
+          },
+          {
+            "version": "2.11.4",
+            "commit": "2a52682435ae7668ee6f852236b33202f348b380"
+          },
+          {
+            "version": "2.11.5",
+            "commit": "9d3fe23952ecedb7aa0844c6d89e8cb519a6b2bc"
+          },
+          {
+            "version": "2.11.6",
+            "commit": "48d4c9a25ff865f00fd98aaee08482d7dc0c361b"
+          },
+          {
+            "version": "2.11.7",
+            "commit": "a25f03a4e2a81f9fccd99e89a8c02f15f83d63c7"
+          },
+          {
+            "version": "2.11.8",
+            "commit": "12fbf5f561e00b5f71eb5e72dc82e1a9eb4f9e87"
+          },
+          {
+            "version": "2.11.9",
+            "commit": "aefb3a7be44cf396a90aced668392ac064893bd3"
+          },
+          {
+            "version": "2.11.10",
+            "commit": "23887ef2a1b8a1f809aaf035d1f047d3fb3363b0"
+          },
+          {
+            "version": "2.11.11",
+            "commit": "12827091e6130e79a4dab4a0cc0075c938bf82b8"
+          },
+          {
+            "version": "2.11.12",
+            "commit": "afc9bda574220f7ff201d828efe363b07bb59816"
+          },
+          {
+            "version": "2.11.13",
+            "commit": "5d3be278f7c9657586411b82ce10ea26f1278f4a"
+          },
+          {
+            "version": "2.11.14",
+            "commit": "00ea5e4a54e2ca09b05d95f73e025d40d6f70c29"
+          },
+          {
+            "version": "2.11.15",
+            "commit": "2edd319c6112475aff3d0d2a9ddc211c5d211ddb"
+          },
+          {
+            "version": "2.11.16",
+            "commit": "4f014820993b70b632eff9289264c9ae3e29442d"
+          },
+          {
+            "version": "2.11.17",
+            "commit": "99ae9bd3e889d4d0c6d043af9b32c55a4763bc46"
+          },
+          {
+            "version": "2.11.18",
+            "commit": "8b1e524df3039708e30c9f83747ac18a700adc0c"
+          },
+          {
+            "version": "2.11.19",
+            "commit": "bacb971e23f6225546e91b5543e4440c52337b95"
+          },
+          {
+            "version": "2.11.20",
+            "commit": "a05c8d832e9ef578c3f61164155031bc103f6c5e"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.12.0",
+            "commit": "6b4779917a9f9f9a73ef959a22e243b9a14b4ba1"
+          },
+          {
+            "version": "2.12.1",
+            "commit": "b5897104c4eef62f63979d7239e94385819cd591"
+          },
+          {
+            "version": "2.12.2",
+            "commit": "5099ee56f3a2f0e75593d97da6739fc98b8d808b"
+          },
+          {
+            "version": "2.12.3",
+            "commit": "49ceedc472250f51287a95b9f6d927bb854d5330"
+          },
+          {
+            "version": "2.12.4",
+            "commit": "81fdbf84567b803ca7a8f337b57aa6acf0ef65ab"
+          },
+          {
+            "version": "2.12.5",
+            "commit": "de788e80a88c6a40af869ae692dfa1950d2e1e42"
+          },
+          {
+            "version": "2.12.6",
+            "commit": "2a06348d90a35b1626fb70bcf7de950f8f96e130"
+          },
+          {
+            "version": "2.12.7",
+            "commit": "36ccddd765f307975233829a5494f7f8dc0870cf"
+          },
+          {
+            "version": "2.12.8",
+            "commit": "c4308b8966a52e002a72821e6890a9dab80b9513"
+          },
+          {
+            "version": "2.12.9",
+            "commit": "851ed1923bcb87d161c68acd84e3fd76707ab8d8"
+          },
+          {
+            "version": "2.12.10",
+            "commit": "44f11393a9f2bd10c62265bab924c206f3e138d8"
+          },
+          {
+            "version": "2.12.11",
+            "commit": "4bd8f7f6f9ad72b703be5fab2ead97dd09685d6b"
+          },
+          {
+            "version": "2.12.12",
+            "commit": "9a0c001f4c3b503d073b35cf278ccb3ed092663e"
+          },
+          {
+            "version": "2.12.13",
+            "commit": "efa5cb1d672ac83289a43deba656907f3e0c4305"
+          },
+          {
+            "version": "2.12.14",
+            "commit": "5e0c4351748645fa7164c4b8fbf6521e84c73861"
+          },
+          {
+            "version": "2.12.15",
+            "commit": "13442c5ea4f38e9508499c5f6fefb9eb828971ad"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.kuma",
+          "version": "2.7.0",
+          "codeDigest": "sha256:401d0194aa4238d58d61d6d834aab4cb05e496ace1b581d390e0765540b9ecb2"
+        },
+        "derivedAt": "2026-10-29T22:11:49Z",
+        "reviewedAt": "2026-10-29T22:11:49Z",
+        "validUntil": "2027-01-27T22:11:49Z",
+        "sources": [
+          {
+            "id": "crds-2-11-0",
+            "url": "https://github.com/kumahq/kuma/blob/77a25d52f5a6d1fd6df6e6d5ffa9ab8e3ce8456e/deployments/charts/kuma/crds/kuma.io_circuitbreakers.yaml",
+            "revision": "77a25d52f5a6d1fd6df6e6d5ffa9ab8e3ce8456e",
+            "contentDigest": "sha256:43a668f49406df51886e301402e07013b2f2882fc48828c3278ed52828d3260d",
+            "startLine": 1,
+            "endLine": 50
+          },
+          {
+            "id": "crds-2-12-0",
+            "url": "https://github.com/kumahq/kuma/blob/6b4779917a9f9f9a73ef959a22e243b9a14b4ba1/deployments/charts/kuma/crds/kuma.io_circuitbreakers.yaml",
+            "revision": "6b4779917a9f9f9a73ef959a22e243b9a14b4ba1",
+            "contentDigest": "sha256:43a668f49406df51886e301402e07013b2f2882fc48828c3278ed52828d3260d",
+            "startLine": 1,
+            "endLine": 50
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kumahq/kuma",
+      "line": "2.13",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.12.0",
+            "commit": "6b4779917a9f9f9a73ef959a22e243b9a14b4ba1"
+          },
+          {
+            "version": "2.12.1",
+            "commit": "b5897104c4eef62f63979d7239e94385819cd591"
+          },
+          {
+            "version": "2.12.2",
+            "commit": "5099ee56f3a2f0e75593d97da6739fc98b8d808b"
+          },
+          {
+            "version": "2.12.3",
+            "commit": "49ceedc472250f51287a95b9f6d927bb854d5330"
+          },
+          {
+            "version": "2.12.4",
+            "commit": "81fdbf84567b803ca7a8f337b57aa6acf0ef65ab"
+          },
+          {
+            "version": "2.12.5",
+            "commit": "de788e80a88c6a40af869ae692dfa1950d2e1e42"
+          },
+          {
+            "version": "2.12.6",
+            "commit": "2a06348d90a35b1626fb70bcf7de950f8f96e130"
+          },
+          {
+            "version": "2.12.7",
+            "commit": "36ccddd765f307975233829a5494f7f8dc0870cf"
+          },
+          {
+            "version": "2.12.8",
+            "commit": "c4308b8966a52e002a72821e6890a9dab80b9513"
+          },
+          {
+            "version": "2.12.9",
+            "commit": "851ed1923bcb87d161c68acd84e3fd76707ab8d8"
+          },
+          {
+            "version": "2.12.10",
+            "commit": "44f11393a9f2bd10c62265bab924c206f3e138d8"
+          },
+          {
+            "version": "2.12.11",
+            "commit": "4bd8f7f6f9ad72b703be5fab2ead97dd09685d6b"
+          },
+          {
+            "version": "2.12.12",
+            "commit": "9a0c001f4c3b503d073b35cf278ccb3ed092663e"
+          },
+          {
+            "version": "2.12.13",
+            "commit": "efa5cb1d672ac83289a43deba656907f3e0c4305"
+          },
+          {
+            "version": "2.12.14",
+            "commit": "5e0c4351748645fa7164c4b8fbf6521e84c73861"
+          },
+          {
+            "version": "2.12.15",
+            "commit": "13442c5ea4f38e9508499c5f6fefb9eb828971ad"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.13.0",
+            "commit": "99bb946e09bcdf7f7e6c1275c8bf14206db77274"
+          },
+          {
+            "version": "2.13.1",
+            "commit": "adfdfdf1fa709ffe62162505820265fe4a317d14"
+          },
+          {
+            "version": "2.13.2",
+            "commit": "349ef0859217575f43b4812afe638db5d4d63750"
+          },
+          {
+            "version": "2.13.3",
+            "commit": "b8573349f0938b8cc8ba5bc1cc1f90675175f107"
+          },
+          {
+            "version": "2.13.4",
+            "commit": "ea4af83fef0a054655d35f70bb14901704288cec"
+          },
+          {
+            "version": "2.13.5",
+            "commit": "6fbb2b7181215751100d09ca4706a2fe2b58e174"
+          },
+          {
+            "version": "2.13.6",
+            "commit": "acd5526624ff33a7b3c4d48cf5d22ea398becbe4"
+          },
+          {
+            "version": "2.13.7",
+            "commit": "744bfbb76ce474f568a10a88a6974c2b4db98bcd"
+          },
+          {
+            "version": "2.13.8",
+            "commit": "e700bedd5f610de1dd9f951b7d5ac24d0d9bcd28"
+          },
+          {
+            "version": "2.13.9",
+            "commit": "0e408093f6b569b687bd619b041d1b27d0c7b618"
+          },
+          {
+            "version": "2.13.10",
+            "commit": "b9b8c3f84ad8ff5fede09577439eb12cac518709"
+          },
+          {
+            "version": "2.13.11",
+            "commit": "7d3ba25f31a9ea67c44c7762b1d774529deaaae6"
+          },
+          {
+            "version": "2.13.12",
+            "commit": "bf5626f9d009e87edfa6d55e74dcd9cd92d97b3f"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.kuma",
+          "version": "2.7.0",
+          "codeDigest": "sha256:401d0194aa4238d58d61d6d834aab4cb05e496ace1b581d390e0765540b9ecb2"
+        },
+        "derivedAt": "2026-10-29T22:11:49Z",
+        "reviewedAt": "2026-10-29T22:11:49Z",
+        "validUntil": "2027-01-27T22:11:49Z",
+        "sources": [
+          {
+            "id": "crds-2-12-0",
+            "url": "https://github.com/kumahq/kuma/blob/6b4779917a9f9f9a73ef959a22e243b9a14b4ba1/deployments/charts/kuma/crds/kuma.io_circuitbreakers.yaml",
+            "revision": "6b4779917a9f9f9a73ef959a22e243b9a14b4ba1",
+            "contentDigest": "sha256:43a668f49406df51886e301402e07013b2f2882fc48828c3278ed52828d3260d",
+            "startLine": 1,
+            "endLine": 50
+          },
+          {
+            "id": "crds-2-13-0",
+            "url": "https://github.com/kumahq/kuma/blob/99bb946e09bcdf7f7e6c1275c8bf14206db77274/deployments/charts/kuma/crds/kuma.io_circuitbreakers.yaml",
+            "revision": "99bb946e09bcdf7f7e6c1275c8bf14206db77274",
+            "contentDigest": "sha256:5693c83a9e0200e3b1466d0538d95f927febf01dab857c117be2d50908f476fa",
+            "startLine": 1,
+            "endLine": 50
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kumahq/kuma",
+      "line": "2.14",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.13.0",
+            "commit": "99bb946e09bcdf7f7e6c1275c8bf14206db77274"
+          },
+          {
+            "version": "2.13.1",
+            "commit": "adfdfdf1fa709ffe62162505820265fe4a317d14"
+          },
+          {
+            "version": "2.13.2",
+            "commit": "349ef0859217575f43b4812afe638db5d4d63750"
+          },
+          {
+            "version": "2.13.3",
+            "commit": "b8573349f0938b8cc8ba5bc1cc1f90675175f107"
+          },
+          {
+            "version": "2.13.4",
+            "commit": "ea4af83fef0a054655d35f70bb14901704288cec"
+          },
+          {
+            "version": "2.13.5",
+            "commit": "6fbb2b7181215751100d09ca4706a2fe2b58e174"
+          },
+          {
+            "version": "2.13.6",
+            "commit": "acd5526624ff33a7b3c4d48cf5d22ea398becbe4"
+          },
+          {
+            "version": "2.13.7",
+            "commit": "744bfbb76ce474f568a10a88a6974c2b4db98bcd"
+          },
+          {
+            "version": "2.13.8",
+            "commit": "e700bedd5f610de1dd9f951b7d5ac24d0d9bcd28"
+          },
+          {
+            "version": "2.13.9",
+            "commit": "0e408093f6b569b687bd619b041d1b27d0c7b618"
+          },
+          {
+            "version": "2.13.10",
+            "commit": "b9b8c3f84ad8ff5fede09577439eb12cac518709"
+          },
+          {
+            "version": "2.13.11",
+            "commit": "7d3ba25f31a9ea67c44c7762b1d774529deaaae6"
+          },
+          {
+            "version": "2.13.12",
+            "commit": "bf5626f9d009e87edfa6d55e74dcd9cd92d97b3f"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.14.0",
+            "commit": "51c6d3819be75d9587942242cdec709bc9934321"
+          },
+          {
+            "version": "2.14.1",
+            "commit": "d525a79bc2a90ee496d2efe7206400c10e10e37f"
+          },
+          {
+            "version": "2.14.2",
+            "commit": "a82706b54052df26826f33a8421145572689e6b5"
+          },
+          {
+            "version": "2.14.3",
+            "commit": "0c7aaec033b7dad03c3a9f4d5b56eb6d941bfff9"
+          },
+          {
+            "version": "2.14.4",
+            "commit": "972825a904e8fb5dda9615142ca13e51a6890f3e"
+          },
+          {
+            "version": "2.14.5",
+            "commit": "b1a0a142353b4fe425be6c0135148fe84da17030"
+          },
+          {
+            "version": "2.14.6",
+            "commit": "efb6183ca540284c236216b5e0726477bac7406a"
+          },
+          {
+            "version": "2.14.7",
+            "commit": "8834b38f192d7cc012a31d55c1482bf8bf3f2877"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.kuma",
+          "version": "2.7.0",
+          "codeDigest": "sha256:401d0194aa4238d58d61d6d834aab4cb05e496ace1b581d390e0765540b9ecb2"
+        },
+        "derivedAt": "2026-10-29T22:11:49Z",
+        "reviewedAt": "2026-10-29T22:11:49Z",
+        "validUntil": "2027-01-27T22:11:49Z",
+        "sources": [
+          {
+            "id": "crds-2-13-0",
+            "url": "https://github.com/kumahq/kuma/blob/99bb946e09bcdf7f7e6c1275c8bf14206db77274/deployments/charts/kuma/crds/kuma.io_circuitbreakers.yaml",
+            "revision": "99bb946e09bcdf7f7e6c1275c8bf14206db77274",
+            "contentDigest": "sha256:5693c83a9e0200e3b1466d0538d95f927febf01dab857c117be2d50908f476fa",
+            "startLine": 1,
+            "endLine": 50
+          },
+          {
+            "id": "crds-2-14-0",
+            "url": "https://github.com/kumahq/kuma/blob/51c6d3819be75d9587942242cdec709bc9934321/deployments/charts/kuma/crds/kuma.io_circuitbreakers.yaml",
+            "revision": "51c6d3819be75d9587942242cdec709bc9934321",
+            "contentDigest": "sha256:fe2458949077aedec30ac1f4ec2f43bca99814858b420464689927ae97845849",
+            "startLine": 1,
+            "endLine": 50
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/mongodb/mongodb-kubernetes",
       "line": "1.9",
       "factFamily": "crd.custom_resource_versions",
@@ -25702,6 +26524,10 @@
           {
             "version": "1.12.2",
             "commit": "a1fc4054fb3c2c5963ddc25d1c40ca5208480ea4"
+          },
+          {
+            "version": "1.12.3",
+            "commit": "a9ec74c22dd6331e1c2b160bba00df9e8464124b"
           }
         ],
         "to": [
@@ -25719,12 +26545,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.tekton",
-          "version": "2.5.0",
-          "codeDigest": "sha256:17d4757647aee574d7382447284051e2d0fc2f0f65b0098f4135bd7d693173f7"
+          "version": "2.7.0",
+          "codeDigest": "sha256:751b57a4b06619d6534c02339329d2c9458305fda8f63e8524fa19a194ae27c0"
         },
-        "derivedAt": "2026-10-21T20:08:37Z",
-        "reviewedAt": "2026-10-21T20:08:37Z",
-        "validUntil": "2027-01-19T20:08:37Z",
+        "derivedAt": "2026-10-29T20:07:27Z",
+        "reviewedAt": "2026-10-29T20:07:27Z",
+        "validUntil": "2027-01-27T20:07:27Z",
         "sources": [
           {
             "id": "crds-1-12-0",
@@ -25777,12 +26603,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.tekton",
-          "version": "2.5.0",
-          "codeDigest": "sha256:17d4757647aee574d7382447284051e2d0fc2f0f65b0098f4135bd7d693173f7"
+          "version": "2.7.0",
+          "codeDigest": "sha256:751b57a4b06619d6534c02339329d2c9458305fda8f63e8524fa19a194ae27c0"
         },
-        "derivedAt": "2026-10-21T20:08:37Z",
-        "reviewedAt": "2026-10-21T20:08:37Z",
-        "validUntil": "2027-01-19T20:08:37Z",
+        "derivedAt": "2026-10-29T20:07:27Z",
+        "reviewedAt": "2026-10-29T20:07:27Z",
+        "validUntil": "2027-01-27T20:07:27Z",
         "sources": [
           {
             "id": "crds-1-13-0",
@@ -25836,6 +26662,14 @@
           {
             "version": "1.15.3",
             "commit": "64924d47bc91bbe197b1465bb4f83be6dee8c83d"
+          },
+          {
+            "version": "1.15.4",
+            "commit": "074d50aa537352f3a49374d850c1bd7e324ca496"
+          },
+          {
+            "version": "1.15.5",
+            "commit": "7c7d6de97aae26ba2de1bc0d2f6765c6ff6b49e0"
           }
         ]
       },
@@ -25843,12 +26677,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.tekton",
-          "version": "2.5.0",
-          "codeDigest": "sha256:17d4757647aee574d7382447284051e2d0fc2f0f65b0098f4135bd7d693173f7"
+          "version": "2.7.0",
+          "codeDigest": "sha256:751b57a4b06619d6534c02339329d2c9458305fda8f63e8524fa19a194ae27c0"
         },
-        "derivedAt": "2026-10-21T20:08:37Z",
-        "reviewedAt": "2026-10-21T20:08:37Z",
-        "validUntil": "2027-01-19T20:08:37Z",
+        "derivedAt": "2026-10-29T20:07:27Z",
+        "reviewedAt": "2026-10-29T20:07:27Z",
+        "validUntil": "2027-01-27T20:07:27Z",
         "sources": [
           {
             "id": "crds-1-14-0",
@@ -25892,6 +26726,14 @@
           {
             "version": "1.15.3",
             "commit": "64924d47bc91bbe197b1465bb4f83be6dee8c83d"
+          },
+          {
+            "version": "1.15.4",
+            "commit": "074d50aa537352f3a49374d850c1bd7e324ca496"
+          },
+          {
+            "version": "1.15.5",
+            "commit": "7c7d6de97aae26ba2de1bc0d2f6765c6ff6b49e0"
           }
         ],
         "to": [
@@ -25905,12 +26747,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.tekton",
-          "version": "2.5.0",
-          "codeDigest": "sha256:17d4757647aee574d7382447284051e2d0fc2f0f65b0098f4135bd7d693173f7"
+          "version": "2.7.0",
+          "codeDigest": "sha256:751b57a4b06619d6534c02339329d2c9458305fda8f63e8524fa19a194ae27c0"
         },
-        "derivedAt": "2026-10-21T20:08:37Z",
-        "reviewedAt": "2026-10-21T20:08:37Z",
-        "validUntil": "2027-01-19T20:08:37Z",
+        "derivedAt": "2026-10-29T20:07:27Z",
+        "reviewedAt": "2026-10-29T20:07:27Z",
+        "validUntil": "2027-01-27T20:07:27Z",
         "sources": [
           {
             "id": "crds-1-15-0",
@@ -25948,6 +26790,10 @@
           {
             "version": "1.17.0",
             "commit": "61e02215132ce7bef054ff7e1fb074f217716c1a"
+          },
+          {
+            "version": "1.17.1",
+            "commit": "f431c2d6dacfbe286702e4a347e8e335f5948e1b"
           }
         ]
       },
@@ -25955,12 +26801,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.tekton",
-          "version": "2.5.0",
-          "codeDigest": "sha256:17d4757647aee574d7382447284051e2d0fc2f0f65b0098f4135bd7d693173f7"
+          "version": "2.7.0",
+          "codeDigest": "sha256:751b57a4b06619d6534c02339329d2c9458305fda8f63e8524fa19a194ae27c0"
         },
-        "derivedAt": "2026-10-21T20:08:37Z",
-        "reviewedAt": "2026-10-21T20:08:37Z",
-        "validUntil": "2027-01-19T20:08:37Z",
+        "derivedAt": "2026-10-29T20:07:27Z",
+        "reviewedAt": "2026-10-29T20:07:27Z",
+        "validUntil": "2027-01-27T20:07:27Z",
         "sources": [
           {
             "id": "crds-1-16-0",
@@ -25974,6 +26820,60 @@
             "id": "crds-1-17-0",
             "url": "https://github.com/tektoncd/pipeline/blob/61e02215132ce7bef054ff7e1fb074f217716c1a/config/300-crds/300-customrun.yaml",
             "revision": "61e02215132ce7bef054ff7e1fb074f217716c1a",
+            "contentDigest": "sha256:3d72dbef5a711344e445a20ac6ae222487126239ee9cbbebbe5d0d6cff3d7ea6",
+            "startLine": 1,
+            "endLine": 834
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/tektoncd/pipeline",
+      "line": "1.18",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.17.0",
+            "commit": "61e02215132ce7bef054ff7e1fb074f217716c1a"
+          },
+          {
+            "version": "1.17.1",
+            "commit": "f431c2d6dacfbe286702e4a347e8e335f5948e1b"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.18.0",
+            "commit": "d55f53a622c2bd82e89ce7c1b6cd59d52b24849c"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.tekton",
+          "version": "2.7.0",
+          "codeDigest": "sha256:751b57a4b06619d6534c02339329d2c9458305fda8f63e8524fa19a194ae27c0"
+        },
+        "derivedAt": "2026-10-29T20:07:27Z",
+        "reviewedAt": "2026-10-29T20:07:27Z",
+        "validUntil": "2027-01-27T20:07:27Z",
+        "sources": [
+          {
+            "id": "crds-1-17-0",
+            "url": "https://github.com/tektoncd/pipeline/blob/61e02215132ce7bef054ff7e1fb074f217716c1a/config/300-crds/300-customrun.yaml",
+            "revision": "61e02215132ce7bef054ff7e1fb074f217716c1a",
+            "contentDigest": "sha256:3d72dbef5a711344e445a20ac6ae222487126239ee9cbbebbe5d0d6cff3d7ea6",
+            "startLine": 1,
+            "endLine": 834
+          },
+          {
+            "id": "crds-1-18-0",
+            "url": "https://github.com/tektoncd/pipeline/blob/d55f53a622c2bd82e89ce7c1b6cd59d52b24849c/config/300-crds/300-customrun.yaml",
+            "revision": "d55f53a622c2bd82e89ce7c1b6cd59d52b24849c",
             "contentDigest": "sha256:3d72dbef5a711344e445a20ac6ae222487126239ee9cbbebbe5d0d6cff3d7ea6",
             "startLine": 1,
             "endLine": 834
