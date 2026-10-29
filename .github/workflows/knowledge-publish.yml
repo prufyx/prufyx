@@ -1,0 +1,456 @@
+# Publishes the signed knowledge database that `prufyx db update` fetches.
+#
+# Two jobs, so the signing keys and the Pages deploy token never share a job:
+#   sign    environment knowledge-release: builds the package from the checked-out
+#           main commit, signs it with the online role keys, verifies it with the
+#           pinned root and uploads it as an Actions artifact.
+#   deploy  environment github-pages: no keys. Re-verifies the artifact against
+#           the digest the sign job reported, then deploys it to GitHub Pages.
+#
+# The workflow runs only when the repository variable KNOWLEDGE_RELEASE_ENABLED
+# is exactly "true", and only from main. It never runs pull request code.
+#
+# Required, all provided by the repository owner:
+#   secrets.KNOWLEDGE_TARGETS_KEY      targets role key file (encrypted PEM)
+#   secrets.KNOWLEDGE_SNAPSHOT_KEY     snapshot role key file (encrypted PEM)
+#   secrets.KNOWLEDGE_TIMESTAMP_KEY    timestamp role key file (encrypted PEM)
+#   secrets.KNOWLEDGE_KEY_PASSPHRASE   passphrase of the three role keys
+#   vars.KNOWLEDGE_ROOT_DIGEST         "sha256:<hex>" of the pinned root, checked
+#                                      against cli/internal/knowledgepin/root.json
+# The root signing key is never used here and stays offline.
+#
+# State (previous revision, TUF version, previous index) comes from the last
+# successful run of this workflow on main, never from the Pages CDN. See
+# cli/docs/knowledge-publisher.md for the runbook, including recovery.
+
+name: Knowledge publish
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cli/knowledge/**"
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+    inputs:
+      first_release:
+        description: "Publish revision 1. Refused if any successful run of this workflow exists on main."
+        type: boolean
+        required: false
+        default: false
+      previous_revision:
+        description: "Recovery (lost artifact): revision of the package that is live now."
+        type: string
+        required: false
+        default: ""
+      previous_tuf_version:
+        description: "Recovery (lost artifact): TUF timestamp version of that package."
+        type: string
+        required: false
+        default: ""
+      previous_index:
+        description: "Recovery (lost artifact): HTTPS URL of that live package (cncf-projects.tar); it is verified and its index is the previous index."
+        type: string
+        required: false
+        default: ""
+
+permissions: {}
+
+concurrency:
+  group: knowledge-publish
+  cancel-in-progress: false
+
+env:
+  MAX_PACKAGE_BYTES: "8388608"
+  MAX_INDEX_BYTES: "1048576"
+
+jobs:
+  sign:
+    name: Build and sign
+    if: ${{ github.ref == 'refs/heads/main' && vars.KNOWLEDGE_RELEASE_ENABLED == 'true' }}
+    environment: knowledge-release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      skip: ${{ steps.sign.outputs.skip }}
+      package_digest: ${{ steps.sign.outputs.package_digest }}
+      artifact_name: ${{ steps.sign.outputs.artifact_name }}
+      revision: ${{ steps.sign.outputs.revision }}
+    steps:
+      - name: Check out main
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache: false
+
+      - name: Check the pinned root
+        id: pin
+        env:
+          EXPECTED: ${{ vars.KNOWLEDGE_ROOT_DIGEST }}
+        run: |
+          set -euo pipefail
+          root="${GITHUB_WORKSPACE}/cli/internal/knowledgepin/root.json"
+          if [ ! -s "${root}" ]; then
+            echo "::error::cli/internal/knowledgepin/root.json is missing or empty: the trust root has not been pinned yet, nothing was signed."
+            exit 1
+          fi
+          if [ "$(stat -c %s "${root}")" -gt 1048576 ]; then
+            echo "::error::the pinned root file is larger than 1 MiB; nothing was signed."
+            exit 1
+          fi
+          digest="sha256:$(sha256sum "${root}" | cut -d' ' -f1)"
+          pin="$(grep -o '"cncf-projects":[[:space:]]*"[^"]*"' cli/internal/knowledgepin/pin.go | sed 's/.*"\([^"]*\)"$/\1/')"
+          if [ -z "${EXPECTED}" ]; then
+            echo "::error::repository variable KNOWLEDGE_ROOT_DIGEST is not set; nothing was signed."
+            exit 1
+          fi
+          if [ "${EXPECTED}" != "${digest}" ] || [ "${pin}" != "${digest}" ]; then
+            echo "::error::the root digest in KNOWLEDGE_ROOT_DIGEST, in cli/internal/knowledgepin/root.json and in the compiled-in pin are not all equal; nothing was signed."
+            exit 1
+          fi
+          echo "root_digest=${digest}" >> "${GITHUB_OUTPUT}"
+
+      - name: Build the tools
+        working-directory: cli
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/bin"
+          go build -trimpath -buildvcs=false -o "${RUNNER_TEMP}/bin/prufyx" ./cmd/prufyx-community
+          go build -trimpath -buildvcs=false -o "${RUNNER_TEMP}/bin/prufyx-maintainer" ./cmd/prufyx-maintainer
+
+      # The previous revision, TUF version and index come from the last
+      # successful run on main, found with the API (uncached), not from the
+      # Pages CDN. The artifact is untrusted until `db verify` has accepted it
+      # against the pinned root and the digest in the artifact NAME.
+      - name: Find and verify the previous state
+        id: prev
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ROOT_DIGEST: ${{ steps.pin.outputs.root_digest }}
+          FIRST_RELEASE: ${{ inputs.first_release }}
+          PREV_REVISION: ${{ inputs.previous_revision }}
+          PREV_TUF: ${{ inputs.previous_tuf_version }}
+          PREV_URL: ${{ inputs.previous_index }}
+        run: |
+          set -euo pipefail
+          umask 077
+          bin="${RUNNER_TEMP}/bin/prufyx"
+          root="${GITHUB_WORKSPACE}/cli/internal/knowledgepin/root.json"
+          state="$(mktemp -d "${RUNNER_TEMP}/knowledge-state.XXXXXX")"
+          fail() { echo "::error::$*"; exit 1; }
+
+          runs="$(gh api --paginate -X GET "repos/${GH_REPO}/actions/workflows/knowledge-publish.yml/runs" \
+            -f branch=main -f status=success -f per_page=100 \
+            --jq '.workflow_runs[] | .id')"
+
+          verify() { # package expected-digest expected-revision
+            local args=(db verify "$1" --profile cncf-projects --bootstrap-root "${root}" --bootstrap-root-digest "${ROOT_DIGEST}" --format json)
+            [ -z "$2" ] || args+=(--expected-package-digest "$2")
+            [ -z "$3" ] || args+=(--expected-revision "$3")
+            "${bin}" "${args[@]}"
+          }
+
+          if [ "${FIRST_RELEASE}" = "true" ]; then
+            if [ -n "${PREV_REVISION}${PREV_TUF}${PREV_URL}" ]; then
+              fail "first_release cannot be combined with the recovery inputs."
+            fi
+            if [ -n "${runs}" ]; then
+              fail "first_release=true refused: a successful run of this workflow already exists on main."
+            fi
+            echo "mode=first" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          pkg="${state}/previous.tar"
+          expected_digest=""
+          expected_revision=""
+          created=""
+          if [ -n "${PREV_REVISION}${PREV_TUF}${PREV_URL}" ]; then
+            [ -n "${PREV_REVISION}" ] && [ -n "${PREV_TUF}" ] && [ -n "${PREV_URL}" ] \
+              || fail "recovery needs previous_revision, previous_tuf_version and previous_index together."
+            [[ "${PREV_REVISION}" =~ ^[1-9][0-9]{0,17}$ ]] || fail "previous_revision is not a positive integer."
+            [[ "${PREV_TUF}" =~ ^[1-9][0-9]{0,17}$ ]] || fail "previous_tuf_version is not a positive integer."
+            [[ "${PREV_URL}" =~ ^https://[A-Za-z0-9._~/-]+$ ]] || fail "previous_index must be a plain https URL without query or credentials."
+            curl --proto '=https' --max-redirs 0 --max-filesize "${MAX_PACKAGE_BYTES}" --max-time 120 -fsS -o "${pkg}" -- "${PREV_URL}" \
+              || fail "could not download the previous package."
+            expected_revision="${PREV_REVISION}"
+            mode=recovery
+          else
+            [ -n "${runs}" ] || fail "no successful run of this workflow exists on main; use first_release=true for the very first publish."
+            found=""
+            while read -r id; do
+              [ -n "${id}" ] || continue
+              found="$(gh api -X GET "repos/${GH_REPO}/actions/runs/${id}/artifacts" \
+                --jq '[.artifacts[] | select(.expired == false) | select(.name | test("^knowledge-[0-9]+-[0-9a-f]{64}$"))] | (first // empty) | [.id, .name, .size_in_bytes, .created_at] | @tsv')"
+              [ -z "${found}" ] || break
+            done <<< "${runs}"
+            [ -n "${found}" ] || fail "no run has a live knowledge artifact (retention is 90 days); use the recovery inputs, see the runbook."
+            IFS=$'\t' read -r aid aname asize created <<< "${found}"
+            [ "${asize}" -le $((MAX_PACKAGE_BYTES * 2)) ] || fail "previous artifact is larger than expected."
+            gh api "repos/${GH_REPO}/actions/artifacts/${aid}/zip" > "${state}/previous.zip"
+            [ "$(unzip -Z1 "${state}/previous.zip")" = "cncf-projects.tar" ] || fail "previous artifact does not hold exactly cncf-projects.tar."
+            unzip -p "${state}/previous.zip" cncf-projects.tar | head -c $((MAX_PACKAGE_BYTES + 1)) > "${pkg}"
+            expected_digest="sha256:${aname##*-}"
+            mode=state
+          fi
+          [ "$(stat -c %s "${pkg}")" -le "${MAX_PACKAGE_BYTES}" ] || fail "previous package is larger than the package limit."
+
+          receipt="$(verify "${pkg}" "${expected_digest}" "${expected_revision}")" \
+            || fail "the previous package does not verify against the pinned root (an expired package cannot be used as state; see the runbook)."
+          revision="$(jq -r '.knowledgeRevision' <<< "${receipt}")"
+          tuf="$(jq -r '.timestamp.version' <<< "${receipt}")"
+          rules="$(jq -r '.ruleDigest' <<< "${receipt}")"
+          [[ "${revision}" =~ ^[1-9][0-9]{0,17}$ ]] || fail "previous revision is not a positive integer."
+          [[ "${tuf}" =~ ^[1-9][0-9]{0,17}$ ]] || fail "previous TUF version is not a positive integer."
+          if [ "${mode}" = recovery ] && [ "${tuf}" != "${PREV_TUF}" ]; then
+            fail "previous_tuf_version does not match the verified package."
+          fi
+
+          # Exactly one index member, extracted with a size cap (the member
+          # name is matched against a strict pattern; nothing is unpacked to disk).
+          members="$(tar -tf "${pkg}" | head -n 1000 | grep -E '^targets/knowledge/cncf/[0-9a-f]{64}\.index\.v1\.json$' || true)"
+          [ "$(grep -c . <<< "${members}")" = 1 ] || fail "previous package does not hold exactly one index."
+          tar -xOf "${pkg}" --no-wildcards -- "${members}" | head -c $((MAX_INDEX_BYTES + 1)) > "${state}/index.json"
+          [ "$(stat -c %s "${state}/index.json")" -le "${MAX_INDEX_BYTES}" ] || fail "previous index is larger than the limit."
+          [ -s "${state}/index.json" ] || fail "previous index is empty."
+
+          created_epoch=""
+          [ -z "${created}" ] || created_epoch="$(date -u -d "${created}" +%s)"
+          {
+            echo "mode=${mode}"
+            echo "revision=${revision}"
+            echo "tuf=${tuf}"
+            echo "rules=${rules}"
+            echo "created_epoch=${created_epoch}"
+            echo "index=${state}/index.json"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Build, sign and verify
+        id: sign
+        env:
+          TARGETS_KEY: ${{ secrets.KNOWLEDGE_TARGETS_KEY }}
+          SNAPSHOT_KEY: ${{ secrets.KNOWLEDGE_SNAPSHOT_KEY }}
+          TIMESTAMP_KEY: ${{ secrets.KNOWLEDGE_TIMESTAMP_KEY }}
+          PASSPHRASE: ${{ secrets.KNOWLEDGE_KEY_PASSPHRASE }}
+          ROOT_DIGEST: ${{ steps.pin.outputs.root_digest }}
+          MODE: ${{ steps.prev.outputs.mode }}
+          PREV_REVISION: ${{ steps.prev.outputs.revision }}
+          PREV_TUF: ${{ steps.prev.outputs.tuf }}
+          PREV_RULES: ${{ steps.prev.outputs.rules }}
+          PREV_CREATED: ${{ steps.prev.outputs.created_epoch }}
+          PREV_INDEX: ${{ steps.prev.outputs.index }}
+        run: |
+          set -euo pipefail
+          umask 077
+          export LC_ALL=C
+          fail() { echo "::error::$*"; exit 1; }
+          bin="${RUNNER_TEMP}/bin/prufyx"
+          maint="${RUNNER_TEMP}/bin/prufyx-maintainer"
+          root="${GITHUB_WORKSPACE}/cli/internal/knowledgepin/root.json"
+          keys="$(mktemp -d "${RUNNER_TEMP}/knowledge-keys.XXXXXX")"
+          work="$(mktemp -d "${RUNNER_TEMP}/knowledge-build.XXXXXX")"
+          trap 'rm -rf "${keys}"' EXIT
+          printf '%s' "${TARGETS_KEY}" > "${keys}/targets.key.pem"
+          printf '%s' "${SNAPSHOT_KEY}" > "${keys}/snapshot.key.pem"
+          printf '%s' "${TIMESTAMP_KEY}" > "${keys}/timestamp.key.pem"
+          printf '%s' "${PASSPHRASE}" > "${keys}/passphrase"
+
+          if [ "${MODE}" = first ]; then
+            revision=1
+            version=1
+            layout=(--first-release)
+          else
+            revision=$((PREV_REVISION + 1))
+            version=$((PREV_TUF + 1))
+            layout=(--previous-index "${PREV_INDEX}")
+          fi
+
+          now="$(date -u +%s)"
+          cap="$(date -u -d "@$((now + 14 * 86400))" +%Y-%m-%dT%H:%M:%SZ)"
+
+          release() { # output-dir [extra flags]
+            local out="$1"; shift
+            "${maint}" knowledge-publish release --profile cncf-projects "${layout[@]}" \
+              --revision "${revision}" --version "${version}" \
+              --root "${root}" --root-digest "${ROOT_DIGEST}" \
+              --targets-key "${keys}/targets.key.pem" \
+              --snapshot-key "${keys}/snapshot.key.pem" \
+              --timestamp-key "${keys}/timestamp.key.pem" \
+              --passphrase-file "${keys}/passphrase" \
+              --output-dir "${out}" "$@"
+          }
+
+          # Expiry is min(now + 14 days, earliest evidence expiry). The
+          # publisher refuses an --expires later than the evidence expiry and
+          # does not print that expiry beforehand, so a first pass without
+          # --expires learns it; it is used as-is when it is the earlier one.
+          release "${work}/probe" > "${work}/probe.json" || fail "the release was refused (evidence expired, revision not advancing or invalid input)."
+          expires="$(jq -r '.expires' "${work}/probe.json")"
+          final="${work}/probe"
+          if [[ "${expires}" > "${cap}" ]]; then
+            release "${work}/final" --expires "${cap}" > "${work}/final.json" || fail "the capped release was refused."
+            expires="$(jq -r '.expires' "${work}/final.json")"
+            final="${work}/final"
+          fi
+          [[ "${expires}" > "$(date -u -d "@$((now + 86400))" +%Y-%m-%dT%H:%M:%SZ)" ]] \
+            || fail "reviewed evidence expires within a day (${expires}); refresh the evidence before publishing."
+
+          pkg="${final}/cncf-projects-${revision}.tar"
+          hex="$(sha256sum "${pkg}" | cut -d' ' -f1)"
+          size="$(stat -c %s "${pkg}")"
+          [ "${size}" -le "${MAX_PACKAGE_BYTES}" ] || fail "the signed package is larger than the package limit."
+
+          # Self-verify with the client binary against the pinned root.
+          verified="$("${bin}" db verify "${pkg}" --profile cncf-projects \
+            --bootstrap-root "${root}" --bootstrap-root-digest "${ROOT_DIGEST}" \
+            --expected-package-digest "sha256:${hex}" --expected-revision "${revision}" --format json)" \
+            || fail "the signed package does not verify against the pinned root."
+          [ "$(jq -r '.timestamp.version' <<< "${verified}")" = "${version}" ] || fail "verified TUF version differs from the requested one."
+          rules="$(jq -r '.ruleDigest' <<< "${verified}")"
+
+          skip=false
+          if [ "${MODE}" = state ] && [ "${rules}" = "${PREV_RULES}" ] && [ -n "${PREV_CREATED}" ] \
+             && [ $((now - PREV_CREATED)) -lt $((7 * 86400)) ]; then
+            skip=true
+          fi
+
+          {
+            echo "skip=${skip}"
+            echo "revision=${revision}"
+            echo "package_digest=sha256:${hex}"
+            echo "artifact_name=knowledge-${revision}-${hex}"
+          } >> "${GITHUB_OUTPUT}"
+          {
+            if [ "${skip}" = true ]; then
+              echo "### Knowledge publish skipped"
+              echo "Bundle unchanged and the live metadata is under 7 days old (state of the previous run)."
+            else
+              echo "### Knowledge package signed"
+            fi
+            echo ""
+            echo "- revision: ${revision}"
+            echo "- TUF version: ${version}"
+            echo "- package digest: sha256:${hex}"
+            echo "- roles expire: ${expires}"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+          if [ "${skip}" != true ]; then
+            mkdir -m 700 "${RUNNER_TEMP}/artifact"
+            cp "${pkg}" "${RUNNER_TEMP}/artifact/cncf-projects.tar"
+          fi
+
+      - name: Upload the signed package
+        if: ${{ steps.sign.outputs.skip == 'false' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ steps.sign.outputs.artifact_name }}
+          path: ${{ runner.temp }}/artifact/cncf-projects.tar
+          retention-days: 90
+          if-no-files-found: error
+
+  deploy:
+    name: Deploy to Pages
+    needs: sign
+    if: ${{ needs.sign.result == 'success' && needs.sign.outputs.skip == 'false' }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      pages: write
+      id-token: write
+      actions: read
+      contents: read
+    steps:
+      - name: Check out main
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache: false
+
+      # A rerun of an older run must not put an older package live: refuse
+      # unless no later run of this workflow has succeeded on main.
+      - name: Refuse unless this is the latest run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          newer="$(gh api --paginate -X GET "repos/${GH_REPO}/actions/workflows/knowledge-publish.yml/runs" \
+            -f branch=main -f status=success -f per_page=100 \
+            | jq -r --argjson n "${RUN_NUMBER}" '.workflow_runs[] | select(.run_number > $n) | .id')"
+          if [ -n "${newer}" ]; then
+            echo "::error::a later run of this workflow has already succeeded on main; this run must not deploy. Start a new run with workflow_dispatch instead of re-running."
+            exit 1
+          fi
+
+      - name: Download the signed package
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ${{ needs.sign.outputs.artifact_name }}
+          path: ${{ runner.temp }}/signed
+
+      - name: Verify and assemble the site
+        env:
+          PACKAGE_DIGEST: ${{ needs.sign.outputs.package_digest }}
+          REVISION: ${{ needs.sign.outputs.revision }}
+          EXPECTED: ${{ vars.KNOWLEDGE_ROOT_DIGEST }}
+        working-directory: cli
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$*"; exit 1; }
+          root="${GITHUB_WORKSPACE}/cli/internal/knowledgepin/root.json"
+          [ -s "${root}" ] || fail "cli/internal/knowledgepin/root.json is missing; nothing was deployed."
+          root_digest="sha256:$(sha256sum "${root}" | cut -d' ' -f1)"
+          [ "${EXPECTED}" = "${root_digest}" ] || fail "KNOWLEDGE_ROOT_DIGEST differs from cli/internal/knowledgepin/root.json; nothing was deployed."
+          pkg="${RUNNER_TEMP}/signed/cncf-projects.tar"
+          [ "$(ls -A "${RUNNER_TEMP}/signed")" = "cncf-projects.tar" ] || fail "the artifact does not hold exactly cncf-projects.tar."
+          [ -f "${pkg}" ] && [ ! -L "${pkg}" ] || fail "the package is not a regular file."
+          [ "$(stat -c %s "${pkg}")" -le "${MAX_PACKAGE_BYTES}" ] || fail "the package is larger than the package limit."
+          [ "sha256:$(sha256sum "${pkg}" | cut -d' ' -f1)" = "${PACKAGE_DIGEST}" ] || fail "the artifact digest differs from the digest the sign job reported."
+          go build -trimpath -buildvcs=false -o "${RUNNER_TEMP}/prufyx" ./cmd/prufyx-community
+          receipt="$("${RUNNER_TEMP}/prufyx" db verify "${pkg}" --profile cncf-projects \
+            --bootstrap-root "${root}" --bootstrap-root-digest "${root_digest}" \
+            --expected-package-digest "${PACKAGE_DIGEST}" --expected-revision "${REVISION}" --format json)" \
+            || fail "the package does not verify against the pinned root; nothing was deployed."
+          site="${RUNNER_TEMP}/site"
+          mkdir -p "${site}/knowledge"
+          cp "${pkg}" "${site}/knowledge/cncf-projects.tar"
+          cp "${root}" "${site}/knowledge/root.json"
+          jq '{revision: .knowledgeRevision, packageDigest: .packageDigest, bundleDigest: .targetDigest, timestampVersion: .timestamp.version, expires: .timestamp.expires, evidenceExpiresAt: .evidenceExpiresAt}' \
+            <<< "${receipt}" > "${site}/knowledge/status.json"
+          {
+            echo "### Knowledge package deployed"
+            echo ""
+            echo "- revision: ${REVISION}"
+            echo "- package digest: ${PACKAGE_DIGEST}"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Configure Pages
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
+        with:
+          path: ${{ runner.temp }}/site
+
+      - name: Deploy to Pages
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5

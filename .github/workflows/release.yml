@@ -48,6 +48,36 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
+      # The official knowledge root pin. With the repository variable
+      # KNOWLEDGE_ROOT_DIGEST unset nothing is checked (a release without a
+      # pinned feed root). With it set, the embedded root file and the
+      # compiled-in pin must both equal it, so a release can never ship a pin
+      # that differs from the root the publisher signs under.
+      - name: Check the knowledge root pin
+        env:
+          EXPECTED: ${{ vars.KNOWLEDGE_ROOT_DIGEST }}
+        run: |
+          set -euo pipefail
+          if [ -z "${EXPECTED}" ]; then
+            echo "KNOWLEDGE_ROOT_DIGEST is not set; the knowledge root pin is not checked."
+            exit 0
+          fi
+          root="cli/internal/knowledgepin/root.json"
+          pin="$(grep -o '"cncf-projects":[[:space:]]*"[^"]*"' cli/internal/knowledgepin/pin.go | sed 's/.*"\([^"]*\)"$/\1/')"
+          if [ -z "${pin}" ]; then
+            echo "KNOWLEDGE_ROOT_DIGEST is set but the compiled-in pin is empty; nothing was built."
+            exit 1
+          fi
+          if [ ! -s "${root}" ]; then
+            echo "KNOWLEDGE_ROOT_DIGEST is set but ${root} is missing; nothing was built."
+            exit 1
+          fi
+          digest="sha256:$(sha256sum "${root}" | cut -d' ' -f1)"
+          if [ "${EXPECTED}" != "${digest}" ] || [ "${pin}" != "${digest}" ]; then
+            echo "KNOWLEDGE_ROOT_DIGEST, the digest of ${root} and the compiled-in pin are not all equal; nothing was built."
+            exit 1
+          fi
+
       # The release notes must exist before anything is built or attested:
       # a missing file found only in the last job would burn the tag.
       - name: Check the release notes exist

@@ -185,6 +185,16 @@ A catalogued project is not tested coverage: a catalogue entry says Prufyx holds
 
 - `prufyx plan`: plans a multi-hop upgrade as ordered stages (one per hop) with every blocker, gap and the reason a stage is not PASS. Evaluation is the same as `scan`; no stage is PASS yet (hop actions and node rolls are not checked), and `--to C=latest` is reported as not planned; `--to kubernetes=newest-covered` targets the newest release line the knowledge can evaluate (not the newest release). See `cli/docs/plan.md`.
 
+### Added (workflows)
+
+- `.github/workflows/knowledge-publish.yml` signs the knowledge database on
+  every knowledge change on `main` and weekly, and deploys it to GitHub Pages
+  in a separate keyless job. It stays off until the repository variable
+  `KNOWLEDGE_RELEASE_ENABLED` is `true`. Tag builds now check
+  `KNOWLEDGE_ROOT_DIGEST`, when set, against the embedded root and pin.
+  `knowledge-release.yml` is superseded and disabled. See
+  `cli/docs/knowledge-publisher.md`.
+
 ### Changed
 
 - `prufyx scan` and `prufyx plan` no longer hide a removed API behind a

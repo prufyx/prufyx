@@ -349,26 +349,125 @@ This command creates no release plan, feed, trust bootstrap, or custody proof.
 It preserves a complete valid empty replacement target for an intentional
 withdrawal; malformed or incomplete target metadata is rejected.
 
-## Hosted knowledge release workflow
+## Hosted knowledge publish workflow
 
-`.github/workflows/knowledge-release.yml` can build one signed knowledge
-release from CI. It is disabled until the repository variable
-`KNOWLEDGE_RELEASE_ENABLED` is exactly `true`. Its job runs in the protected
-GitHub environment `knowledge-release`, and the three TUF role keys and their
-passphrase are the only secrets it reads. Before setting the variable, the
-repository owner must:
+`.github/workflows/knowledge-publish.yml` signs and publishes the knowledge
+database that `prufyx db update` fetches. (`knowledge-release.yml` is an older
+manual draft; it is superseded and permanently disabled.) The workflow runs on
+every push to `main` that touches `cli/knowledge/**`, weekly, and on manual
+dispatch from `main`. It is off until the repository variable
+`KNOWLEDGE_RELEASE_ENABLED` is exactly `true`, and it never runs pull request
+code.
 
-1. Create the environment `knowledge-release` (Settings, Environments) with
-   the owner as required reviewer, so every run waits for an explicit approval.
-2. Limit the environment's deployment branches to `main`, so a run started
-   from another branch (a branch copy of the workflow) cannot use the secrets.
-3. Store the signing secrets as secrets of that environment, not as
-   repository secrets, and make sure no repository-level secret with the same
-   names exists, so no other job can read them.
+Two jobs keep the signing keys and the Pages deploy token apart:
 
-Create the environment before the first run: GitHub creates a referenced
-environment that does not exist automatically, with no protection rules.
+- `sign` runs in the environment `knowledge-release`, which holds the three
+  online role keys and their passphrase (`KNOWLEDGE_TARGETS_KEY`,
+  `KNOWLEDGE_SNAPSHOT_KEY`, `KNOWLEDGE_TIMESTAMP_KEY`,
+  `KNOWLEDGE_KEY_PASSPHRASE`). It builds the package from the checked-out
+  `main` commit, signs it, verifies it with `prufyx db verify` against the
+  pinned root, and uploads it as the artifact `knowledge-<revision>-<sha256>`
+  (kept 90 days). All roles expire at the earlier of 14 days from now and the
+  earliest reviewed-evidence expiry; the weekly run leaves one missed run of
+  margin. The package digest is a job output, and the job summary logs the
+  revision and digest. The job is skipped when the signed content is unchanged
+  and the last publish is under 7 days old.
+- `deploy` runs in the environment `github-pages` and holds no keys. It
+  downloads the artifact, checks its SHA-256 against the sign job's output,
+  verifies it again against the pinned root, refuses to run if a later run has
+  already succeeded, and deploys `knowledge/cncf-projects.tar`,
+  `knowledge/root.json` and `knowledge/status.json` with `actions/deploy-pages`.
+  The last two files are informational and never trusted by clients.
 
-The job does not restore a Go build cache and does not keep the job token in
-the checkout, so nothing another workflow run wrote can reach the signing step.
-The root signing key is never used by CI and stays offline.
+The previous revision, TUF version and index are read from the last successful
+run of this workflow on `main` (GitHub API, not the Pages CDN, which caches
+for about ten minutes). Its artifact is verified against the pinned root and
+the digest in its name, and one index member is extracted with a size cap.
+Revision and TUF version advance by one. With no previous run the workflow
+fails; the very first publish needs `first_release=true`, which itself fails
+when any successful run exists.
+
+The pinned root is `cli/internal/knowledgepin/root.json`. The workflow stops
+unless that file, the compiled-in pin and the repository variable
+`KNOWLEDGE_ROOT_DIGEST` agree. Release tag builds make the same check when the
+variable is set (nothing is checked when it is not).
+
+### Repository setup (owner)
+
+1. Enable GitHub Pages with source "GitHub Actions". Limit the environment
+   `github-pages` to deployment branch `main`, so no other branch can deploy
+   to the feed host.
+2. Create the environment `knowledge-release` with deployment branch `main`
+   only and no required reviewer (a reviewer would stop the unattended
+   weekly run). Store the four signing secrets in that environment, and make
+   sure no repository-level secret has the same names.
+3. Set the variable `KNOWLEDGE_ROOT_DIGEST` (`sha256:<hex>` of the pinned
+   `root.json`), then `KNOWLEDGE_RELEASE_ENABLED=true`.
+4. Keep no OIDC federation (cloud or other) configured for this repository
+   without binding `environment` and `job_workflow_ref`, because the deploy
+   job holds an OIDC token.
+
+The root signing key is never used by CI and stays offline. The root has its
+own passphrase, which CI never sees.
+
+The workflow passes the pinned version 1 root (`cli/internal/knowledgepin/root.json`)
+to the publisher as `--root` and to `db verify` as `--bootstrap-root`. The
+publisher refuses keys that are not in the root it is given, so rotating the
+online keys through a root transition also needs a workflow change that
+supplies the successor root to the signing step.
+
+### What protects the online keys
+
+There is no required environment reviewer. Anyone who can land a commit on
+`main` runs the publish workflow with the online keys, and editing the
+workflow in that commit could exfiltrate them. A holder of the three online
+keys can sign arbitrary knowledge, and clients check shape and evidence expiry,
+not truth. The controls that stand in the way:
+
+- Branch protection on `main` (pull request required). Code Owner review is
+  not enforced, because every pull request is authored by the only code owner
+  and GitHub forbids self-approval; `CODEOWNERS` still lists `.github/` and
+  `cli/internal/knowledgepin/` as documentation of intent. A second reviewer
+  identity is the upgrade path.
+- The knowledge gate, an independent review of the exact head, and the
+  maintainer's merge decision.
+- The environment `knowledge-release` accepts deployments from `main` only.
+- The `sign` job runs only the checked-out `main` commit, never pull request
+  code; user input reaches shell code only through environment variables;
+  every action is pinned by commit SHA; no Go build cache is restored and the
+  job token is not kept in the checkout.
+
+### Recovery runbook
+
+Never use "Re-run failed jobs" or "Re-run all jobs" on this workflow. A rerun
+reuses an old run's state; start a new run with `workflow_dispatch` instead.
+The deploy job refuses an old run once a later run has succeeded.
+
+- **Online keys compromised or suspected.** Run a root transition with the
+  offline root key that removes the three online keys and adds new ones (see
+  "Root-transition preparation" above). Create new online keys, store them as secrets of
+  a fresh environment, and point the workflow at it. Then republish with a
+  revision higher than any malicious one: the workflow always advances the
+  revision, so one dispatch after the new keys are in place is enough. Clients
+  refuse anything older than what they have seen, so a rollback is always a
+  republish with a higher number, never a lower one. If the root key itself is
+  compromised, create a new root and pin, which needs a new binary.
+- **Previous artifact lost or expired** (artifacts are kept 90 days). Verify
+  the live feed yourself with `prufyx db verify` against the pinned root, then
+  dispatch with `previous_revision`, `previous_tuf_version` and
+  `previous_index` (the HTTPS URL of the live `cncf-projects.tar`). The
+  workflow downloads that package, verifies it against the pinned root and the
+  stated revision, checks the TUF version, and continues from it. Recovery
+  cannot use a package whose timestamp has expired.
+- **Dead end: more than 14 days without a successful publish.** The previous
+  package's timestamp has expired, so `prufyx db verify` cannot verify it. The
+  artifact path and the recovery inputs both fail, and `first_release` is
+  refused because successful runs exist. The way out is an explicit owner
+  decision, taken through the coordinator (for example a new root and pin).
+  A follow-up adds a verify option for expired timestamps, for recovery only.
+  Until then the weekly run and its failure notification are the guard.
+- **A publish failed.** The feed keeps serving the previous package until its
+  timestamp expires, which is at most 14 days. Fix the cause and dispatch a
+  new run; the revision is recomputed, so nothing is lost.
+- **Online keys rotated routinely.** Use a root transition as above; no
+  binary change is needed.
