@@ -23270,6 +23270,60 @@
       }
     },
     {
+      "component": "pkg:github/fluent/fluent-operator",
+      "line": "3.11",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "3.10.0",
+            "commit": "7ab60a3ead9130cf9a24a3c07f540353dfa9e099"
+          },
+          {
+            "version": "3.10.1",
+            "commit": "352f22c9458ccfcfcebd80541f1c4d026cc9b665"
+          }
+        ],
+        "to": [
+          {
+            "version": "3.11.0",
+            "commit": "4b98e755cf513f42e5ff8f50a084c0f1ff9feec7"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.fluent-operator",
+          "version": "2.7.0",
+          "codeDigest": "sha256:f2530a744301ed9edd5e1747c5008d6368812380ac1b9be33e090631a1a225d8"
+        },
+        "derivedAt": "2026-10-28T20:22:02Z",
+        "reviewedAt": "2026-10-28T20:22:02Z",
+        "validUntil": "2027-01-26T20:22:02Z",
+        "sources": [
+          {
+            "id": "crds-3-10-0",
+            "url": "https://github.com/fluent/fluent-operator/blob/7ab60a3ead9130cf9a24a3c07f540353dfa9e099/config/crd/bases/fluentbit.fluent.io_clusterfilters.yaml",
+            "revision": "7ab60a3ead9130cf9a24a3c07f540353dfa9e099",
+            "contentDigest": "sha256:e5273045bd828dae84213ae9ce4810621ac30742c391a8238b0fd75ab8fdd652",
+            "startLine": 1,
+            "endLine": 976
+          },
+          {
+            "id": "crds-3-11-0",
+            "url": "https://github.com/fluent/fluent-operator/blob/4b98e755cf513f42e5ff8f50a084c0f1ff9feec7/config/crd/bases/fluentbit.fluent.io_clusterfilters.yaml",
+            "revision": "4b98e755cf513f42e5ff8f50a084c0f1ff9feec7",
+            "contentDigest": "sha256:841d85ff0d25e531883f1be188eab0c8636d824757498c8a2cee546ed793c85d",
+            "startLine": 1,
+            "endLine": 978
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/kedacore/keda",
       "line": "2.17",
       "factFamily": "crd.custom_resource_versions",
@@ -24636,6 +24690,10 @@
           {
             "version": "0.21.1",
             "commit": "9377ce5376dea86c5170c2f1faa22c1161d3bed3"
+          },
+          {
+            "version": "0.21.2",
+            "commit": "9658f61c7b239f22e86269f75f75bc3066c35a3b"
           }
         ]
       },
@@ -24646,9 +24704,9 @@
           "version": "2.7.0",
           "codeDigest": "sha256:25b35f3ebc220229040bd2d751d4319b99df21d5ddc453441c8cef0cf96ab28d"
         },
-        "derivedAt": "2026-10-28T06:32:14Z",
-        "reviewedAt": "2026-10-28T06:32:14Z",
-        "validUntil": "2027-01-26T06:32:14Z",
+        "derivedAt": "2026-10-28T22:07:20Z",
+        "reviewedAt": "2026-10-28T22:07:20Z",
+        "validUntil": "2027-01-26T22:07:20Z",
         "sources": [
           {
             "id": "crds-0-20-0",
