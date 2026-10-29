@@ -248,7 +248,7 @@ A public beta pre-release (`v0.1.0-beta.0`) is being prepared. Read the
 verification, the main commands and how to report a wrong answer, and the
 [release notes](cli/docs/release-notes-v0.1.0-beta.0.md) for what a build
 contains and its known limits. The coverage figures live in the generated block
-above, not in the guide. A beta result is a scoped finding, never a whole-upgrade
+below, not in the guide. A beta result is a scoped finding, never a whole-upgrade
 certificate.
 
 ## What is covered
