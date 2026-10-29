@@ -51,8 +51,8 @@ func (r runtime) plan(args []string, stdin io.Reader) int {
 		return r.scanError(err)
 	}
 	for _, c := range latest {
-		if _, both := request.To[c]; both {
-			return r.fail("--to "+c+" is given both as latest and as a version", ExitUsage)
+		if _, both := request.To[c]; both || slices.Contains(newest, c) {
+			return r.fail("--to "+c+" is given more than once (latest, newest-covered or a version)", ExitUsage)
 		}
 	}
 	request.NewestCovered = newest

@@ -67,6 +67,9 @@ func TestPlanCommand(t *testing.T) {
 	if code, _, _ := runPlan(t, append([]string{path, "--to", "kubernetes=1.30.4", "--to", "kubernetes=newest-covered"}, declared...)...); code != ExitUsage {
 		t.Fatalf("newest-covered twice %d", code)
 	}
+	if code, _, _ := runPlan(t, append([]string{path, "--to", "kubernetes=latest", "--to", "kubernetes=newest-covered"}, declared...)...); code != ExitUsage {
+		t.Fatalf("latest and newest-covered %d", code)
+	}
 	if code, _, _ := runPlan(t, append([]string{path, "--to", "cilium=newest-covered"}, declared...)...); code != ExitUsage {
 		t.Fatalf("newest-covered without lines %d", code)
 	}
