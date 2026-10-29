@@ -4,6 +4,9 @@ package main
 
 import (
 	"bytes"
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
@@ -38,13 +41,15 @@ func runEvidenceReattest(args []string, stdout, stderr io.Writer) error {
 		return runEvidenceReattestSign(args[1:], stdout, stderr)
 	case "verify":
 		return runEvidenceReattestVerify(args[1:], stdout, stderr)
+	case "keygen":
+		return runEvidenceReattestKeygen(args[1:], stdout, stderr)
 	case "trust-root":
 		if len(args) > 1 && args[1] == "migrate" {
 			return runEvidenceReattestTrustRootMigrate(args[2:], stdout, stderr)
 		}
 		return evidenceReattestError()
 	case "help", "-h", "--help":
-		_, err := fmt.Fprintln(stdout, "usage: prufyx-maintainer evidence reattest <prepare|sign|verify|trust-root migrate> [options]")
+		_, err := fmt.Fprintln(stdout, "usage: prufyx-maintainer evidence reattest <prepare|sign|verify|keygen|trust-root migrate> [options]")
 		return err
 	default:
 		return evidenceReattestError()
@@ -497,6 +502,108 @@ func automationSecrets(keyPath, keyEnv, passphrasePath, passphraseEnv string) (k
 		return nil, nil, knowledgesign.ErrRejected
 	}
 	return key, passphrase, nil
+}
+
+// runEvidenceReattestKeygen creates one Ed25519 automation signing key: the
+// encrypted PEM file `sign` reads (<keyId>.key.pem, 0600) and its hex public
+// key (<keyId>.pub) for `trust-root migrate --add-automation-key`. Stdout
+// carries the key ID and the public key only. It never overwrites a file.
+func runEvidenceReattestKeygen(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("evidence reattest keygen", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	var outDir, passphrasePath, passphraseEnv string
+	flags.StringVar(&outDir, "out-dir", "", "directory for <keyId>.key.pem and <keyId>.pub (absolute path; created mode 0700 if missing)")
+	flags.StringVar(&passphrasePath, "passphrase-file", "", "file holding the new key's passphrase (absolute path, mode 0600, owned by the current user; one trailing newline is ignored)")
+	flags.StringVar(&passphraseEnv, "passphrase-env", "", "name of an environment variable holding the new key's passphrase")
+	if err := flags.Parse(args); err != nil {
+		if err == flag.ErrHelp {
+			_, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer evidence reattest keygen --out-dir ABS (--passphrase-file ABS | --passphrase-env NAME)")
+			return e
+		}
+		return evidenceReattestError()
+	}
+	if flags.NArg() != 0 || outDir == "" || !filepath.IsAbs(outDir) || filepath.Clean(outDir) != outDir ||
+		(passphrasePath == "") == (passphraseEnv == "") {
+		return evidenceReattestError()
+	}
+	var passphrase []byte
+	if passphrasePath != "" {
+		raw, err := signerKey(passphrasePath)
+		if err != nil {
+			return evidenceReattestError()
+		}
+		passphrase = bytes.TrimSuffix(bytes.TrimSuffix(raw, []byte("\n")), []byte("\r"))
+	} else {
+		value, ok := os.LookupEnv(passphraseEnv)
+		_ = os.Unsetenv(passphraseEnv)
+		if !ok {
+			return evidenceReattestError()
+		}
+		passphrase = []byte(value)
+	}
+	if len(passphrase) < knowledgesign.MinPassphrase {
+		fmt.Fprintf(stderr, "evidence reattest keygen: the passphrase must be at least %d characters\n", knowledgesign.MinPassphrase)
+		return &commandError{code: 2, message: "evidence reattest keygen: rejected", printed: true}
+	}
+	if err := os.MkdirAll(filepath.Dir(outDir), 0o700); err != nil {
+		return evidenceReattestError()
+	}
+	if err := os.Mkdir(outDir, 0o700); err != nil && !errors.Is(err, os.ErrExist) {
+		return evidenceReattestError()
+	}
+	if info, err := os.Lstat(outDir); err != nil || !info.IsDir() {
+		return evidenceReattestError()
+	}
+	public, private, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		return evidenceReattestError()
+	}
+	keyID, err := evidencereattest.KeyID(public)
+	if err != nil {
+		return evidenceReattestError()
+	}
+	encoded, err := knowledgesign.EncryptedKeyPEM(private, passphrase)
+	if err != nil {
+		return evidenceReattestError()
+	}
+	publicHex := hex.EncodeToString(public)
+	keyPath, pubPath := filepath.Join(outDir, keyID+".key.pem"), filepath.Join(outDir, keyID+".pub")
+	if err := writeNewPrivate(keyPath, encoded); err != nil {
+		fmt.Fprintln(stderr, "evidence reattest keygen: --out-dir must not already contain the output files")
+		return &commandError{code: 2, message: "evidence reattest keygen: rejected", printed: true}
+	}
+	if err := writeNewPrivate(pubPath, []byte(publicHex+"\n")); err != nil {
+		_ = os.Remove(keyPath)
+		fmt.Fprintln(stderr, "evidence reattest keygen: --out-dir must not already contain the output files")
+		return &commandError{code: 2, message: "evidence reattest keygen: rejected", printed: true}
+	}
+	fmt.Fprintf(stdout, "evidence reattest keygen: keyId=%s publicKey=%s\n", keyID, publicHex)
+	return nil
+}
+
+// writeNewPrivate creates path, which must not exist, with mode 0600 whatever
+// the umask, and syncs it. O_EXCL never follows a symbolic link.
+func writeNewPrivate(path string, data []byte) error {
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return err
+	}
+	if err := file.Chmod(0o600); err != nil {
+		file.Close()
+		_ = os.Remove(path)
+		return err
+	}
+	if _, err := file.Write(data); err != nil {
+		file.Close()
+		_ = os.Remove(path)
+		return err
+	}
+	if err := file.Sync(); err != nil {
+		file.Close()
+		_ = os.Remove(path)
+		return err
+	}
+	return file.Close()
 }
 
 // runEvidenceReattestTrustRootMigrate writes a v2 trust root derived from

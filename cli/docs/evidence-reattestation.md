@@ -949,6 +949,26 @@ chain signed under the old root verifies unchanged under the new one; only
 the pin changes, and it must change in the same place for `prepare`,
 `sign` and `verify`.
 
+### Generating the automation key
+
+`keygen` creates one Ed25519 automation key from `crypto/rand`:
+
+```sh
+PASSPHRASE_VAR=... prufyx-maintainer evidence reattest keygen \
+  --out-dir "$PWD/automation-key" --passphrase-env PASSPHRASE_VAR
+```
+
+`--passphrase-file <abs path>` (mode 0600, owned by you) is the alternative;
+the passphrase is never taken from the command line and must be at least 16
+characters. The directory must be absolute and is created with mode 0700 if
+missing. It writes `<keyId>.key.pem` (mode 0600: the encrypted PEM that
+`sign --key` reads) and `<keyId>.pub` (the 64-hex public key), refuses to
+overwrite an existing file, and prints only the key ID and the public key.
+Pass the public key to `trust-root migrate --add-automation-key`. The custody
+rules below do not change: put the key file and passphrase into the secret
+store of the one job that signs automated statements, and do not keep them
+on the machine that prepares worklists.
+
 ## Key custody
 
 The re-attestation signing key is a separate purpose (`rule-evidence-
@@ -1019,10 +1039,10 @@ statements, never on the machine that prepares them.
   that chain is in use. `trust-root migrate` never changes a kept key's
   role, but it does not stop the operator removing a key that signed an
   existing entry; `prepare` and `verify` then reject the chain.
-- **Key generation.** This tool does not generate the automation key. Any
-  Ed25519 key in the encrypted PEM format the other signers in this
-  repository use works; its public key is added with
-  `trust-root migrate --add-automation-key`.
+- **Key generation.** `evidence reattest keygen` creates the automation
+  key; see "Generating the automation key". Any other Ed25519 key in the
+  encrypted PEM format the other signers in this repository use also works.
+  Its public key is added with `trust-root migrate --add-automation-key`.
 - **Review records for line attestations and path policies.** The review
   record format is the rule review format, and `review-record` does not
   produce or verify a review of an attestation or a path policy, so such a
