@@ -226,6 +226,24 @@
       ]
     },
     {
+      "slug": "datadog-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "datadog-operator",
+        "repository": "https://github.com/datadog/datadog-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/datadog/datadog-operator/blob/6dde50a92c2b98f63f8f8f61f4774c4950b9ef54/LICENSE"
+      },
+      "factProject": "datadog_operator",
+      "component": "pkg:github/datadog/datadog-operator",
+      "groups": [
+        {
+          "name": "datadoghq.com",
+          "source": "https://github.com/datadog/datadog-operator/blob/db6a88ca8796d8fff93c96b0c3e41fef85e2bdd1/bundle-community-operators/manifests/datadoghq.com_datadogslos.yaml"
+        }
+      ]
+    },
+    {
       "slug": "dex",
       "catalog": "cncf",
       "factProject": "dex",
@@ -382,6 +400,24 @@
         {
           "name": "gateway.networking.k8s.io",
           "source": "https://github.com/kubernetes-sigs/gateway-api/blob/89b3b0c3fa63f9342f43ba0fb2cf93d6aab53af7/config/crd/standard/gateway.networking.k8s.io_udproutes.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "github-actions-runner-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "github-actions-runner-operator",
+        "repository": "https://github.com/evryfs/github-actions-runner-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/evryfs/github-actions-runner-operator/blob/442e89af4a63caaa70e5ed1815f26e508b369a60/LICENSE.txt"
+      },
+      "factProject": "github_actions_runner_operator",
+      "component": "pkg:github/evryfs/github-actions-runner-operator",
+      "groups": [
+        {
+          "name": "garo.tietoevry.com",
+          "source": "https://github.com/evryfs/github-actions-runner-operator/blob/4b39140ecedabb6624ce92bf852713b80d1422d6/config/crd/bases/garo.tietoevry.com_githubactionrunners.yaml"
         }
       ]
     },
@@ -680,6 +716,24 @@
       ]
     },
     {
+      "slug": "kubemod",
+      "catalog": "community",
+      "upstream": {
+        "name": "kubemod",
+        "repository": "https://github.com/kubemod/kubemod",
+        "license": "BSD-3-Clause",
+        "licenseSource": "https://github.com/kubemod/kubemod/blob/ed1cb55a5dd0f29e3f6f9925d0fbd502f6ec11e6/LICENSE"
+      },
+      "factProject": "kubemod",
+      "component": "pkg:github/kubemod/kubemod",
+      "groups": [
+        {
+          "name": "api.kubemod.io",
+          "source": "https://github.com/kubemod/kubemod/blob/f030b2756ec873d0290e0561f95b8ab64a78dd95/config/crd/bases/api.kubemod.io_modrules.yaml"
+        }
+      ]
+    },
+    {
       "slug": "kuberhealthy",
       "catalog": "cncf",
       "factProject": "kuberhealthy",
@@ -718,6 +772,24 @@
         {
           "name": "k8s.nginx.org",
           "source": "https://github.com/nginx/kubernetes-ingress/blob/205828534dd07f1a73440dce23a25a7feefcc395/config/crd/bases/k8s.nginx.org_virtualservers.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "kubernetes-nmstate",
+      "catalog": "community",
+      "upstream": {
+        "name": "kubernetes-nmstate",
+        "repository": "https://github.com/nmstate/kubernetes-nmstate",
+        "license": "NOASSERTION",
+        "licenseSource": "https://github.com/nmstate/kubernetes-nmstate/blob/bc2ede247e1acdc67fa709110ac8b5b283f7b29d/LICENSE"
+      },
+      "factProject": "kubernetes_nmstate",
+      "component": "pkg:github/nmstate/kubernetes-nmstate",
+      "groups": [
+        {
+          "name": "nmstate.io",
+          "source": "https://github.com/nmstate/kubernetes-nmstate/blob/5245b16f44c19d720474ddf5db57bf7dd1c6ffbe/deploy/crds/nmstate.io_nodenetworkstates.yaml"
         }
       ]
     },
@@ -834,6 +906,32 @@
       ]
     },
     {
+      "slug": "kuttl",
+      "catalog": "community",
+      "upstream": {
+        "name": "kuttl",
+        "repository": "https://github.com/kudobuilder/kuttl",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/kudobuilder/kuttl/blob/9ef9f000371ebdd88fb16747ee5ac49f88021ade/LICENSE"
+      },
+      "factProject": "kuttl",
+      "component": "pkg:github/kudobuilder/kuttl",
+      "groups": [
+        {
+          "name": "kuttl.dev",
+          "source": "https://github.com/kudobuilder/kuttl/blob/2635740569a28f83f8fe1dc8e722017a6e02be69/crds/testsuite_crd.yaml"
+        },
+        {
+          "name": "mycrd.example.com",
+          "source": "https://github.com/kudobuilder/kuttl/blob/2635740569a28f83f8fe1dc8e722017a6e02be69/internal/harness/test_data/crd-in-step/00-crd.yaml"
+        },
+        {
+          "name": "prow.example.com",
+          "source": "https://github.com/kudobuilder/kuttl/blob/2635740569a28f83f8fe1dc8e722017a6e02be69/internal/harness/test_data/create-or-update/00-crd.yaml"
+        }
+      ]
+    },
+    {
       "slug": "kyverno",
       "catalog": "cncf",
       "factProject": "kyverno",
@@ -928,6 +1026,24 @@
       ]
     },
     {
+      "slug": "moco",
+      "catalog": "community",
+      "upstream": {
+        "name": "moco",
+        "repository": "https://github.com/cybozu-go/moco",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/cybozu-go/moco/blob/80ebab5c0a25ad444f1b179e43d8b0ab3c244d8f/LICENSE"
+      },
+      "factProject": "moco",
+      "component": "pkg:github/cybozu-go/moco",
+      "groups": [
+        {
+          "name": "moco.cybozu.com",
+          "source": "https://github.com/cybozu-go/moco/blob/acb2716d1ef13a8953dd18d55cf230c0edf90f04/config/crd/bases/moco.cybozu.com_mysqlclusters.yaml"
+        }
+      ]
+    },
+    {
       "slug": "mongodb-kubernetes",
       "catalog": "community",
       "upstream": {
@@ -950,6 +1066,24 @@
         {
           "name": "mongodbcommunity.mongodb.com",
           "source": "https://github.com/mongodb/mongodb-kubernetes/blob/75fa89bca8c1395a1beb0f244723f255f67f8719/config/crd/bases/mongodbcommunity.mongodb.com_mongodbcommunity.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "movetokube-postgres-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "postgres-operator",
+        "repository": "https://github.com/movetokube/postgres-operator",
+        "license": "MIT",
+        "licenseSource": "https://github.com/movetokube/postgres-operator/blob/dd9c20f0abd7537fa864cd3e09bbbbc4511f51eb/LICENSE"
+      },
+      "factProject": "movetokube_postgres_operator",
+      "component": "pkg:github/movetokube/postgres-operator",
+      "groups": [
+        {
+          "name": "db.movetokube.com",
+          "source": "https://github.com/movetokube/postgres-operator/blob/5b969e3c1a16803430cfecaa68f3989774af1f4d/config/crd/bases/db.movetokube.com_postgresusers.yaml"
         }
       ]
     },
@@ -998,6 +1132,24 @@
         {
           "name": "openchoreo.dev",
           "source": "https://github.com/openchoreo/openchoreo/blob/178dfbde3e3343e5ac151b88a2f203f523f97480/config/crd/bases/openchoreo.dev_workloads.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "openclaw-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "openclaw-operator",
+        "repository": "https://github.com/stubbi/openclaw-operator",
+        "license": "NOASSERTION",
+        "licenseSource": "https://github.com/stubbi/openclaw-operator/blob/95d0c9394a9a56bb322ed34e1d70e3231c1d5aa6/LICENSE"
+      },
+      "factProject": "openclaw_operator",
+      "component": "pkg:github/stubbi/openclaw-operator",
+      "groups": [
+        {
+          "name": "openclaw.rocks",
+          "source": "https://github.com/stubbi/openclaw-operator/blob/41d81387888be4e5108c351e8bddd514e2636b55/config/crd/bases/openclaw.rocks_openclawselfconfigs.yaml"
         }
       ]
     },
@@ -1202,6 +1354,24 @@
       ]
     },
     {
+      "slug": "renovate-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "renovate-operator",
+        "repository": "https://github.com/mogenius/renovate-operator",
+        "license": "MIT",
+        "licenseSource": "https://github.com/mogenius/renovate-operator/blob/f9b64f09e7fbfbcecbb7bdefd5269c410b0b7579/LICENSE"
+      },
+      "factProject": "renovate_operator",
+      "component": "pkg:github/mogenius/renovate-operator",
+      "groups": [
+        {
+          "name": "renovate-operator.mogenius.com",
+          "source": "https://github.com/mogenius/renovate-operator/blob/01b4299e9bd2af6f8a6dfcbed8cff65610cc64bf/charts/renovate-operator/crd/renovate-operator.mogenius.com_renovateprojects.yaml"
+        }
+      ]
+    },
+    {
       "slug": "rook",
       "catalog": "cncf",
       "factProject": "rook",
@@ -1292,6 +1462,18 @@
         {
           "name": "tekton.dev",
           "source": "https://github.com/tektoncd/pipeline/blob/61e02215132ce7bef054ff7e1fb074f217716c1a/config/300-crds/300-verificationpolicy.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "trickster",
+      "catalog": "cncf",
+      "factProject": "trickster",
+      "component": "pkg:github/trickstercache/trickster",
+      "groups": [
+        {
+          "name": "trickstercache.org",
+          "source": "https://github.com/trickstercache/trickster/blob/7788e6dbacb461b8da009ed3d403286024c9a4cc/deploy/kube/crds/trickstercachepolicies.yaml"
         }
       ]
     },

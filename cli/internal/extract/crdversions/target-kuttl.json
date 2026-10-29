@@ -1,0 +1,22 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "kuttl",
+    "catalog": "community",
+    "name": "kuttl",
+    "repo": "github.com/kudobuilder/kuttl",
+    "component": "pkg:github/kudobuilder/kuttl",
+    "factProject": "kuttl",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.23",
+    "paths": [
+      {"path": "crds/testassert_crd.yaml"},
+      {"path": "crds/teststep_crd.yaml"},
+      {"path": "crds/testsuite_crd.yaml"},
+      {"path": "internal/harness/test_crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"},
+      {"path": "internal/harness/test_data/crd-in-step/00-crd.yaml"},
+      {"path": "internal/harness/test_data/create-or-update/00-crd.yaml"}
+    ],
+    "exclude": []
+  }
+}

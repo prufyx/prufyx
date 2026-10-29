@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "renovate-operator",
+    "catalog": "community",
+    "name": "renovate-operator",
+    "repo": "github.com/mogenius/renovate-operator",
+    "component": "pkg:github/mogenius/renovate-operator",
+    "factProject": "renovate_operator",
+    "tagPrefixes": [""],
+    "minFrom": "6.2",
+    "paths": [
+      {"path": "charts/renovate-operator/crd", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}
