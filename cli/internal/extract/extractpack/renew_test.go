@@ -289,12 +289,63 @@ func TestRenewSameBuildReleaseExtension(t *testing.T) {
 			ev := evOf(m)
 			ev["derivedAt"], ev["reviewedAt"], ev["validUntil"] = "2026-10-01T00:00:00Z", "2026-10-01T00:00:00Z", "2026-10-31T00:00:00Z"
 		}},
-		{"same build, same releases, later stamp", func(m map[string]any) {
-			if _, ok := m["releases"].(map[string]any); !ok {
-				return
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			pack, run, _, pre := renewSetup(t, c.edit)
+			if _, err := renewApply(t, pack, run, true); !errors.Is(err, extractpack.ErrCollision) {
+				t.Fatalf("err = %v, want a collision", err)
 			}
-			ev := evOf(m)
-			ev["derivedAt"], ev["reviewedAt"], ev["validUntil"] = "2026-10-01T00:00:00Z", "2026-10-01T00:00:00Z", "2026-10-31T00:00:00Z"
+			assertUnchanged(t, pack, pre)
+		})
+	}
+}
+
+// earlierStamp ages the attestation's times only: the same build and the same
+// content, derived three days before the run.
+func earlierStamp(m map[string]any) {
+	ev := evOf(m)
+	ev["derivedAt"], ev["reviewedAt"], ev["validUntil"] = "2026-10-01T00:00:00Z", "2026-10-01T00:00:00Z", "2026-10-31T00:00:00Z"
+}
+
+func TestRenewSameBuildTimeOnly(t *testing.T) {
+	pack, run, want, pre := renewSetup(t, earlierStamp)
+	// Without the flag it stays a collision.
+	if _, err := renewApply(t, pack, run, false); !errors.Is(err, extractpack.ErrCollision) {
+		t.Fatalf("no flag: err = %v, want a collision", err)
+	}
+	assertUnchanged(t, pack, pre)
+
+	rep, err := renewApply(t, pack, run, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var n []json.RawMessage
+	_ = json.Unmarshal(want, &n)
+	if len(rep.AttRenewed) != len(n) || len(rep.AttAdded) != 0 || len(rep.AttUnchanged) != 0 || !rep.Changed {
+		t.Fatalf("report %+v", rep)
+	}
+	if got := attMember(t, pack); !sameJSON(got, want) {
+		t.Fatalf("section is not the run's, canonical order:\n%s\n%s", got, want)
+	}
+	// A second run finds the renewed records identical.
+	again, err := renewApply(t, pack, run, true)
+	if err != nil || again.Changed || len(again.AttRenewed) != 0 || len(again.AttUnchanged) != len(n) {
+		t.Fatalf("second: %+v %v", again, err)
+	}
+}
+
+func TestRenewSameBuildTimeOnlyRefusals(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		edit func(m map[string]any)
+	}{
+		{"source moved", func(m map[string]any) {
+			earlierStamp(m)
+			evOf(m)["sources"].([]any)[0].(map[string]any)["contentDigest"] = "sha256:" + strings.Repeat("1", 64)
+		}},
+		{"other extractor id", func(m map[string]any) {
+			earlierStamp(m)
+			evOf(m)["extractor"].(map[string]any)["id"] = "crd.version-removal.other"
 		}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -304,5 +355,29 @@ func TestRenewSameBuildReleaseExtension(t *testing.T) {
 			}
 			assertUnchanged(t, pack, pre)
 		})
+	}
+}
+
+// The final audit accepts a same-build time-only renewal of a key the step
+// reports as renewable and refuses one it does not.
+func TestRenewSameBuildFinalAudit(t *testing.T) {
+	pack, run, _, pre := renewSetup(t, earlierStamp)
+	restore := extractpack.SetSteps(func(base *extractpack.Pack, r *extractpack.Run, rep *extractpack.Report) (*extractpack.Pack, map[string]bool, error) {
+		head, _, err := extractpack.RealMerge(base, r, rep)
+		if err != nil || len(rep.AttRenewed) == 0 {
+			t.Fatalf("real merge: %+v %v", rep, err)
+		}
+		rep.AttRenewed = nil // the step does not report the renewals it made
+		// A non-empty allowed set keeps Apply from returning before the audit.
+		return head, map[string]bool{"x.unrelated": true}, nil
+	}, nil)
+	_, err := renewApply(t, pack, run, true)
+	restore()
+	if !errors.Is(err, extractpack.ErrForeignChange) {
+		t.Fatalf("err = %v, want ErrForeignChange", err)
+	}
+	assertUnchanged(t, pack, pre)
+	if _, err := renewApply(t, pack, run, true); err != nil {
+		t.Fatalf("real merge: %v", err)
 	}
 }

@@ -100,3 +100,50 @@ func TestGateRenewedMechanicalCRDAttestation(t *testing.T) {
 		})
 	}
 }
+
+// The same build re-deriving the record later (only the times differ) is the
+// same single loosening change, re-derived byte for byte; a stale derivedAt is
+// refused as for a new build.
+func TestGateRenewedMechanicalCRDAttestationSameBuild(t *testing.T) {
+	t.Parallel()
+	sameBuildTrees := func(t *testing.T) (Tree, Tree) {
+		t.Helper()
+		base, head := renewalTrees(t, nil)
+		var digest any
+		var hrecs []map[string]any
+		if err := json.Unmarshal(readPack(t, head, cncfRulesPath).fields["lineAttestations"], &hrecs); err != nil || len(hrecs) == 0 {
+			t.Fatalf("head records: %v", err)
+		}
+		digest = hrecs[0]["evidence"].(map[string]any)["extractor"].(map[string]any)["codeDigest"]
+		editPack(t, base, cncfRulesPath, func(p *packDoc) {
+			var records []map[string]any
+			if err := json.Unmarshal(p.fields["lineAttestations"], &records); err != nil {
+				t.Fatal(err)
+			}
+			for _, r := range records {
+				r["evidence"].(map[string]any)["extractor"].(map[string]any)["codeDigest"] = digest
+			}
+			raw, err := json.Marshal(records)
+			if err != nil {
+				t.Fatal(err)
+			}
+			p.fields["lineAttestations"] = raw
+		})
+		return base, head
+	}
+
+	base, head := sameBuildTrees(t)
+	r := runGate(t, Options{Base: base, Head: head, Source: argoFixture, Author: DefaultBotLogin})
+	requireAdmittedButUnsplit(t, r)
+	c := change(t, r, crdAttestationID("90.1"))
+	if c.Proof != ProofRederived || c.Basis != "mechanical" || c.Class != ClassLoosening || !c.OK || r.Limits.Loosening != 1 {
+		t.Fatalf("change %+v limits %+v", c, r.Limits)
+	}
+
+	base, head = sameBuildTrees(t)
+	r = runGate(t, Options{Base: base, Head: head, Source: argoFixture, Author: DefaultBotLogin, Now: gateNow.Add(48 * time.Hour)})
+	requireFail(t, r, "outside [now-24h, now+5m]")
+	if c := change(t, r, crdAttestationID("90.1")); c.OK {
+		t.Fatalf("admitted %+v", c)
+	}
+}
