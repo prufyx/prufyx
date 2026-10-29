@@ -15,10 +15,12 @@ reviewed). Prufyx evaluates locally and offline, uploads nothing, and a
 deterministic engine computes every verdict: no model runs on your machine. When the
 evidence does not decide the question, the answer is `UNKNOWN`, not a guess.
 
-> **Status: early alpha.** Build from source. There is no published release,
-> prebuilt binary, or official knowledge feed yet (release workflows exist in
-> the repository but have not published anything). Results are scoped findings,
-> not a guarantee that a whole upgrade is safe.
+> **Status: public beta (pre-release).** A `v0.1.0-beta.0` candidate build is
+> being prepared; until its GitHub release is published, build from source. The
+> binary carries embedded, time-limited knowledge. The official knowledge feed
+> and its trust root are not published yet, so `prufyx db update` has no
+> official source to use. Results are scoped findings, not a guarantee that a
+> whole upgrade is safe.
 
 ## Quickstart
 
@@ -238,6 +240,16 @@ is [exit codes](cli/docs/exit-codes.md). What each declaration flag asserts is i
 A rule applies to the exact reviewed version pair, or to a version range only
 where the cited evidence states that range. Outside it, the result is
 `UNKNOWN`.
+
+## Beta
+
+A public beta pre-release (`v0.1.0-beta.0`) is being prepared. Read the
+[beta tester guide](cli/docs/beta-tester-guide.md) for install and
+verification, the main commands and how to report a wrong answer, and the
+[release notes](cli/docs/release-notes-v0.1.0-beta.0.md) for what a build
+contains and its known limits. The coverage figures live in the generated block
+above, not in the guide. A beta result is a scoped finding, never a whole-upgrade
+certificate.
 
 ## What is covered
 
