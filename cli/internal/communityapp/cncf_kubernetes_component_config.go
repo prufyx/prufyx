@@ -80,7 +80,7 @@ func (r runtime) cncfKubernetesComponentConfig(path, pin, from, to, distribution
 	} else if done {
 		return cncfcheck.ClaimExit(report)
 	}
-	if _, err := fmt.Fprintf(r.stdout, "Kubernetes component configuration review\ntransition: %s -> %s\nselected sources: %d\npreparation: %s (%s)\nprepared input digest: %s\naggregate: UNKNOWN\nevaluated at: %s\nknowledge: embedded revision %s\nknowledge pack digest: %s\nnetwork used: false\npaths, argument values and raw documents retained: false\nscope: removed component settings named by reviewed rules only; component startup, runtime behavior, and whole-upgrade compatibility remain unverified\n", from, to, len(selection.Sources), prepared.State, prepared.Reason, prepared.InputDigest, report.Check.EvaluatedAt, report.KnowledgeRevision, report.KnowledgePackDigest); err != nil {
+	if _, err := fmt.Fprintf(r.stdout, "Kubernetes component configuration review\ntransition: %s -> %s\nselected sources: %d\npreparation: %s (%s)\nprepared input digest: %s\naggregate: UNKNOWN\nevaluated at: %s\nknowledge: embedded revision %s\nknowledge pack digest: %s\nnetwork used: false\npaths, argument values and raw documents retained: false\nscope: removed component settings named by reviewed rules only (removed-flag, plugin and feature-gate checks are not enabled for kubernetes components in this release); component startup, runtime behavior, and whole-upgrade compatibility remain unverified\n", from, to, len(selection.Sources), prepared.State, prepared.Reason, prepared.InputDigest, report.Check.EvaluatedAt, report.KnowledgeRevision, report.KnowledgePackDigest); err != nil {
 		return ExitIntegrity
 	}
 	if err := writeKubernetesComponentResult(r.stdout, report.Check.Claims, report.NextAction); err != nil {

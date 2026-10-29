@@ -319,7 +319,16 @@ func PrepareKubernetesComponentConfig(selection KubernetesComponentSelection, co
 	}
 	facts := make([]inputFact, 0, len(predicates)+len(sets))
 	state, reason := StatePrepared, ReasonKubernetesComponentSettingAbsent
-	if len(predicates) == 0 {
+	// ABSENT only claims that a removed-setting predicate ran and found
+	// nothing. The every-line skew predicate is not one, so a transition whose
+	// removed-setting predicates are all unregistered is not reported as such.
+	removedEvaluated := false
+	for _, predicate := range predicates {
+		if predicate.Line != k8sEveryLine {
+			removedEvaluated = true
+		}
+	}
+	if !removedEvaluated {
 		reason = ReasonKubernetesComponentSettingSetsComplete
 	}
 	anyPresent := false

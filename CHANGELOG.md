@@ -803,6 +803,11 @@ A catalogued project is not tested coverage: a catalogue entry says Prufyx holds
 
 ### Fixed
 
+- `prufyx check cncf --project kubernetes` for component configuration no longer
+  prints `KUBERNETES_COMPONENT_REMOVED_SETTING_ABSENT` when no removed-setting
+  predicate was evaluated (only the kubelet skew rule is active), and the scope
+  line says that removed-flag, plugin and feature-gate checks are not enabled
+  for kubernetes components.
 - `prufyx check cncf --project harbor` no longer PASSes an installer argv with
   `--with-clair` for 2.7.0 -> 2.8.0; the 2.8.0 installer rejects it, so the
   result is UNKNOWN.

@@ -502,3 +502,19 @@ func TestKubernetesComponentConfigNonBooleanCloudProviderGateIsNotAnOptIn(t *tes
 		})
 	}
 }
+
+// With only the every-line skew predicate registered (the shipped registry),
+// no removed-setting predicate runs, so the preparation must not claim that a
+// removed setting is absent even though a removed flag is present.
+func TestSkewOnlyPreparationDoesNotClaimRemovedSettingAbsent(t *testing.T) {
+	selection, contents := k8sSelection(t, k8sAllScopes, nil, k8sKubeletEnv("--register-schedulable=false"))
+	selection.MinimumKubeletVersion = "1.33.0"
+	skewOnly := func(fact string) bool { return fact == KubernetesKubeletSkewFact }
+	prepared, err := PrepareKubernetesComponentConfig(selection, contents, "1.33.4", "1.34.0", "official_upstream", skewOnly)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if prepared.Reason == ReasonKubernetesComponentSettingAbsent {
+		t.Fatalf("reason %s claims a removed-setting check that did not run", prepared.Reason)
+	}
+}
