@@ -127,6 +127,21 @@ func TestScanAppMultiHopWholeUpgradeRuleFiresOnce(t *testing.T) {
 	}
 }
 
+// Under sequential_major the hops end on whole major lines and are not
+// evaluated; the rule for the whole pair is still judged, once.
+func TestScanAppMultiHopSequentialMajorWholeUpgradeRuleFires(t *testing.T) {
+	base, ids := installPairs(t, [2]string{"1.1.0", "3.1.0"})
+	k := policyKnowledge{Knowledge: base, status: appPolicy(t, "sequential_major", [2]string{currentReviewed, currentUntil})}
+	result := mustScan(t, k, append(append([]string{}, mustPaths(t, gwRemoved)...), "--now", testNow, "--from", "gateway-api=1.1.0", "--to", "gateway-api=3.1.0", "--resource-scope-complete")...)
+	path := gwPath(t, result.Report)
+	if path.Policy != "sequential_major" || len(path.Hops) < 2 {
+		t.Fatalf("policy %q hops %d gaps %v", path.Policy, len(path.Hops), gapReasons(result.Report))
+	}
+	if result.Exit != scanreport.ExitBlocked || len(result.Report.Findings) != 1 || result.Report.Findings[0].RuleID != ids[0] || !result.Report.Findings[0].Hop.WholeUpgrade {
+		t.Fatalf("exit %d findings %+v gaps %v", result.Exit, result.Report.Findings, gapReasons(result.Report))
+	}
+}
+
 // Without a path policy the upgrade is the one direct hop, as before; a
 // record that is not current is a gap and never a direct hop.
 func TestScanAppWithoutPathPolicyIsOneDirectHop(t *testing.T) {
