@@ -112,7 +112,31 @@ func kubeVirtBindingFact(value any) (bool, bool) {
 	return invalid, true
 }
 
+// kubeVirtInterfaceKeys lists every JSON key of the KubeVirt v1.8.4 and v1.9.0
+// Interface type. Any other key could be an unrecognised binding method, so the
+// fact is unsupported (UNKNOWN) instead of being counted as one binding.
+var kubeVirtInterfaceKeys = map[string]bool{
+	"name": true, "model": true, "binding": true, "ports": true, "portRanges": true,
+	"macAddress": true, "bootOrder": true, "pciAddress": true, "dhcpOptions": true,
+	"tag": true, "acpiIndex": true, "state": true,
+	"bridge": true, "masquerade": true, "sriov": true, "passtBinding": true,
+	"slirp": true, "passt": true, "macvtap": true,
+}
+
 func kubeVirtInterfaceBindingCount(iface map[string]any) (int, bool) {
+	for key := range iface {
+		if !kubeVirtInterfaceKeys[key] {
+			return 0, false
+		}
+	}
+	// slirp, passt and macvtap are rejected by KubeVirt 1.9 admission
+	// (pkg/network/admitter/discontinued.go); their presence is not a
+	// countable binding, so the cardinality fact is unsupported.
+	for _, name := range []string{"slirp", "passt", "macvtap"} {
+		if value, present := iface[name]; present && value != nil {
+			return 0, false
+		}
+	}
 	count := 0
 	if value, present := iface["binding"]; present && value != nil {
 		if _, ok := value.(map[string]any); !ok {
