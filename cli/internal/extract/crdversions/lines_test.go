@@ -720,7 +720,7 @@ func TestChartTagPrefix(t *testing.T) {
 		{"foo-1-2-3.4.5", "", 0, false},
 		{"foo-bar-1.2.3", "", 0, false},
 	} {
-		v, r, ok := x.target.releaseOf(c.tag)
+		v, r, _, ok := x.target.releaseOf(c.tag)
 		if v != c.want || r != c.rank || ok != c.ok {
 			t.Fatalf("%s: %q %d %v", c.tag, v, r, ok)
 		}
