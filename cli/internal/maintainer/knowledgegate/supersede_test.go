@@ -848,7 +848,7 @@ func TestSupersedeOwnerCommits(t *testing.T) {
 
 // A rule whose canonical form cannot be computed is never paired.
 func TestSupersedeFailsClosedOnCanonicalForm(t *testing.T) {
-	t.Parallel()
+	// Not parallel: it swaps a package variable the parallel tests read.
 	old := supersedepred.CanonicalRule
 	defer func() { supersedepred.CanonicalRule = old }()
 	supersedepred.CanonicalRule = func(any) []byte { return nil }
