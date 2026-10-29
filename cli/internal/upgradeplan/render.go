@@ -45,6 +45,9 @@ func render(plan Plan, md bool) []byte {
 	if plan.Undecided > 0 {
 		line("Not decided: %d of %d stages. Prufyx never reports PASS for a stage it cannot prove.", plan.Undecided, len(plan.Stages))
 	}
+	for _, n := range plan.Notes {
+		line("Note: %s", n)
+	}
 	head("Routes")
 	for _, r := range plan.Routes {
 		policy := r.Policy

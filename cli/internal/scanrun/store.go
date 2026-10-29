@@ -179,6 +179,12 @@ func (k *Store) PackDigest() string { return k.digest }
 func (k *Store) Projects() []string { return k.snapshot.Projects() }
 
 // Component returns the subject component of a catalog project.
+// NewestServedLine is the newest line with a current reviewed served-API
+// list in the database's targets.
+func (k *Store) NewestServedLine(component string, now time.Time) (string, bool) {
+	return k.snapshot.NewestServedLine(component, now)
+}
+
 func (k *Store) Component(slug string) (string, bool) { return k.snapshot.Component(slug) }
 
 // Catalog is the catalog of a project the database holds: "community" for a

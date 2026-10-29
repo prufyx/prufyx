@@ -210,6 +210,25 @@ func (ix Index) For(component, line string, now time.Time) (Status, bool) {
 	return Status{Record: r, Freshness: r.Evidence.Freshness(now)}, true
 }
 
+// NewestCurrent returns the highest line (major.minor) of the component
+// that has a current record at now; ok is false when it has none.
+func (ix Index) NewestCurrent(component string, now time.Time) (string, bool) {
+	best, bestMajor, bestMinor := "", -1, -1
+	for key, r := range ix.byKey {
+		if key[0] != component || r.Evidence.Freshness(now) != lineattest.FreshnessCurrent {
+			continue
+		}
+		var major, minor int
+		if _, err := fmt.Sscanf(key[1], "%d.%d", &major, &minor); err != nil {
+			continue
+		}
+		if major > bestMajor || major == bestMajor && minor > bestMinor {
+			best, bestMajor, bestMinor = key[1], major, minor
+		}
+	}
+	return best, best != ""
+}
+
 // Len is the number of indexed records.
 func (ix Index) Len() int { return len(ix.byKey) }
 

@@ -19,6 +19,10 @@ Plans the whole upgrade of a cluster and its covered apps: the ordered hops,
 one stage per hop, with every blocker, every gap and why a stage is not PASS.
 Inputs and flags are those of prufyx scan (see prufyx scan --help), except:
 
+  --to C=newest-covered     the newest release line the knowledge has a current
+                            reviewed list for, at its .0 release (kubernetes). It
+                            is the newest line Prufyx can evaluate, not the newest
+                            release; the plan says which version it chose.
   --to C=latest             not resolved yet: no signed release-line snapshot
                             ships, so the component is reported as not planned.
                             Give an explicit version.
@@ -41,7 +45,7 @@ func (r runtime) plan(args []string, stdin io.Reader) int {
 			return r.fail("prufyx plan does not take --fail-on: its exit code is the plan verdict (0 PASS, 10 BLOCKED, 11 otherwise)", ExitUsage)
 		}
 	}
-	args, latest := splitLatest(args)
+	args, latest, newest := splitTargets(args)
 	request, err := scanrun.ParseArgs(args)
 	if err != nil {
 		return r.scanError(err)
@@ -51,10 +55,11 @@ func (r runtime) plan(args []string, stdin io.Reader) int {
 			return r.fail("--to "+c+" is given both as latest and as a version", ExitUsage)
 		}
 	}
+	request.NewestCovered = newest
 	if !slices.Contains(upgradeplan.Formats(), request.Format) {
 		return r.fail("prufyx plan supports --format human, json or markdown", ExitUsage)
 	}
-	if len(request.To) == 0 && len(latest) > 0 {
+	if len(request.To) == 0 && len(newest) == 0 && len(latest) > 0 {
 		// Every target was latest: plan nothing, say why.
 		plan := upgradeplan.Build(scanreport.Report{}, latest, upgradeplan.Capabilities{})
 		return r.writePlan(plan, request.Format)
@@ -85,10 +90,10 @@ func (r runtime) writePlan(plan upgradeplan.Plan, format string) int {
 	return plan.ExitCode
 }
 
-// splitLatest removes every --to C=latest (and --to=C=latest) from args and
-// returns the components. The scan parser takes only versions.
-func splitLatest(args []string) ([]string, []string) {
-	var kept, latest []string
+// splitTargets removes every --to C=latest and --to C=newest-covered (and
+// the --to=C=... spellings) from args and returns the components of each. The
+// scan parser takes only versions.
+func splitTargets(args []string) (kept, latest, newest []string) {
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		if arg == "--" {
@@ -111,7 +116,16 @@ func splitLatest(args []string) ([]string, []string) {
 			}
 			continue
 		}
+		if component, ok := strings.CutSuffix(value, "=newest-covered"); ok && component != "" {
+			if !slices.Contains(newest, component) {
+				newest = append(newest, component)
+			}
+			if !inline {
+				i++
+			}
+			continue
+		}
 		kept = append(kept, arg)
 	}
-	return kept, latest
+	return kept, latest, newest
 }

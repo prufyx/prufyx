@@ -46,6 +46,17 @@ Kubernetes). `BLOCKED` is fully decided: a blocker is a blocker.
 Reason codes: `ORDER_INFERRED`, `HOP_ACTIONS_NOT_CHECKED`,
 `NODE_ROLLS_NOT_PLANNED`, `HOP_NOT_COVERED`, `COMPONENT_GAP`.
 
+## `newest-covered`
+
+`--to kubernetes=newest-covered` sets the target to the `.0` release of the
+newest release line for which the knowledge holds a current reviewed
+served-API list. It is the newest line Prufyx can evaluate. It is **not** the
+newest release: a newer line may exist, and the patch is not resolved. The
+plan prints the chosen version in a note, and the scan input records the
+target source `newest-covered`. If no line is current (the lists expired) or
+the component has no such lists, the command refuses; it never guesses. It
+cannot be combined with an explicit `--to` for the same component.
+
 ## `latest`
 
 `--to C=latest` is not resolved yet: no signed release-line snapshot ships, so

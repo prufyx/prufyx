@@ -11,6 +11,9 @@ const (
 	// FromDetection marks a value scan read from the manifests; a value
 	// from a flag or the file always wins over it.
 	FromDetection Provenance = "detected"
+	// FromNewestCovered marks a target resolved from the knowledge: the
+	// newest release line with a current reviewed list, at its .0 release.
+	FromNewestCovered Provenance = "newest-covered"
 )
 
 // Value is one effective setting. Set is false when neither the file nor a

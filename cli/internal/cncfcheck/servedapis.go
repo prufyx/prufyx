@@ -75,6 +75,17 @@ func (k *ScanKnowledge) ServedAPIsFor(component, line string, now time.Time) (se
 	return b.servedAPIs.For(component, line, now)
 }
 
+// NewestServedLine is the newest release line of the component that has a
+// current reviewed served-API list in this snapshot: the newest line Prufyx
+// can evaluate, not the newest release that exists.
+func (k *ScanKnowledge) NewestServedLine(component string, now time.Time) (string, bool) {
+	b, ok := k.bundleForComponent(component)
+	if !ok {
+		return "", false
+	}
+	return b.servedAPIs.NewestCurrent(component, now)
+}
+
 // ServedListNamesRemovedAPI reports whether a served list names an API the
 // removal table marks as removed at or before its line: the check pack
 // admission applies, for the knowledge gate to apply before a list is

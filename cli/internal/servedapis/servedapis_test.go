@@ -96,3 +96,21 @@ func TestSourceFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestNewestCurrent(t *testing.T) {
+	records, err := Parse([]byte("[" + doc("1.9", `["v1 ConfigMap"]`) + "," + doc("1.10", `["v1 ConfigMap"]`) + "]"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ix := NewIndex(records)
+	at := func(s string) time.Time { v, _ := time.Parse(time.RFC3339, s); return v }
+	if line, ok := ix.NewestCurrent(KubernetesComponent, at("2026-10-04T00:00:00Z")); !ok || line != "1.10" {
+		t.Fatalf("%q %v", line, ok)
+	}
+	if _, ok := ix.NewestCurrent(KubernetesComponent, at("2026-12-20T00:00:00Z")); ok {
+		t.Fatal("a stale record is not the newest covered line")
+	}
+	if _, ok := ix.NewestCurrent("other", at("2026-10-04T00:00:00Z")); ok {
+		t.Fatal("no lines for another component")
+	}
+}

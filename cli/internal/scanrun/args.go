@@ -33,6 +33,10 @@ type Request struct {
 	// Charts are the --chart PROJECT=NAME[@SOURCE] declarations; nil when
 	// none was given.
 	Charts map[string]string
+	// NewestCovered lists the components whose target is the newest release
+	// line the knowledge has a current reviewed list for (--to C=newest-covered
+	// in prufyx plan); scan itself never sets it.
+	NewestCovered []string
 	// HelmValues and HelmSet are the --helm-values files and --helm-set
 	// assignments in the order given; HelmValuesComplete is
 	// --helm-values-complete. They belong to the one declared chart.
