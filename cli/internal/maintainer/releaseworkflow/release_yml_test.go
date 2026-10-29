@@ -472,3 +472,26 @@ func checkArchiveMembers(t *testing.T, name string, raw []byte) {
 		t.Errorf("%s: members %v, want %v", name, members, want)
 	}
 }
+
+// The embedded knowledge must stay valid for at least 30 days after the
+// tagged commit; the check runs before the build and takes the commit from
+// the environment, not from an expression inside the script.
+func TestReleaseWorkflowChecksEmbeddedKnowledgeFreshness(t *testing.T) {
+	wf := releaseWorkflow(t)
+	step := workflowStepNamed(t, wf, "build", "Check the embedded knowledge is fresh")
+	for _, want := range []string{"release-freshness", "--commit-date", "--min-days 30", "git log -1 --format=%cI"} {
+		if !strings.Contains(step.Run, want) {
+			t.Errorf("freshness step lacks %q", want)
+		}
+	}
+	if strings.Contains(step.Run, "${{") {
+		t.Error("freshness step must pass values through env, not expressions in run")
+	}
+	index := map[string]int{}
+	for i, s := range wf.Jobs["build"].Steps {
+		index[s.Name] = i
+	}
+	if !(index["Set up Go"] < index[step.Name] && index[step.Name] < index["Build binaries"]) {
+		t.Error("freshness step must run after Set up Go and before Build binaries")
+	}
+}

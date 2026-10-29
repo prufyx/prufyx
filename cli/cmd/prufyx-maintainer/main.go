@@ -27,6 +27,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/maintainer/localkind"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/onboardbundle"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/projectonboarding"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/releasefreshness"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/releasegate"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/releasehelpers"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/releaseworkflow"
@@ -116,6 +117,11 @@ func run(args []string, stdout, stderr io.Writer) error {
 	case "release-metadata", "release-verify-version", "release-verify-demo", "release-verify-scoped", "release-archive-smoke-receipt", "release-sbom", "release-verify-archive", "release-verify-marker":
 		if err := releasehelpers.Run(args, os.Stdin, stdout, stderr); err != nil {
 			return &commandError{code: 2, message: "release helper: operation rejected", err: err}
+		}
+		return nil
+	case "release-freshness":
+		if err := releasefreshness.Run(args[1:], stdout, stderr); err != nil {
+			return &commandError{code: 1, message: "release-freshness: " + err.Error()}
 		}
 		return nil
 	case "release-sign":

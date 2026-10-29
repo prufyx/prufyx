@@ -224,6 +224,47 @@ after the pin lands will accept only a store rooted in that pin. Pins are part
 of the source tree, so they are covered by the `sourceTreeDigest` in the build
 identity; a release tag therefore fixes the pin for that version.
 
+## Embedded knowledge freshness
+
+A tag build fails unless the knowledge embedded in the binary is still valid
+well after the release. The step "Check the embedded knowledge is fresh" runs
+`prufyx-maintainer release-freshness --commit-date <tagged commit date>
+--min-days 30`. It reads the end date (`validUntil`) of all active embedded
+evidence with the same code the binary uses at run time: CNCF rules, project
+rules, line attestations, served-API lists, path policies, image identity
+records and chart identity records. It takes the earliest date and fails when
+that date is earlier than the tagged commit's date plus 30 days. A binary that
+fails this rule would answer UNKNOWN, or report evidence as not current, soon
+after it ships.
+
+Check it before tagging, from `cli/`:
+
+```sh
+go run ./cmd/prufyx-maintainer release-freshness
+```
+
+It prints the earliest expiry as an RFC 3339 UTC time. Add
+`--commit-date <RFC 3339 date of the commit you plan to tag>` to apply the
+rule; any commit dated within 30 days of that expiry cannot be tagged until the
+affected evidence is renewed.
+
+Release checklist, in addition to the steps above:
+
+- Renewals land first. Evidence that would expire inside the 30-day window is
+  re-attested and merged to `main` before the tag, never after.
+- The latest patch releases of the key projects are present in the data (the
+  generated release notes list what was added; check the projects you
+  announce).
+- The embedded revision labels (`revision` at the top of
+  `cli/internal/cncfcheck/data/rules.json` and
+  `cli/internal/projectcheck/data/rules.json`) name the data being shipped. No
+  command bumps them: they are edited by hand in the same pull request as the
+  data change.
+- The knowledge root pin is current. The tag build checks the pin only when the
+  repository variable `KNOWLEDGE_ROOT_DIGEST` is set (see the section below);
+  when it is set, confirm that the embedded root and the compiled-in pin match
+  the root the publisher signs under at the time of the cut.
+
 ## Reproducibility
 
 Binaries are built with `-trimpath -buildvcs=false` and the build epoch is the
