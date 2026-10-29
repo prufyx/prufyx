@@ -99,7 +99,21 @@ func (r *customResourceRun) evaluate(from, to string) error {
 		r.gap(nil, scanreport.GapVersionNotDetected, r.slug)
 		return nil
 	}
-	plan := upgradepath.PlanPath(r.component, from, to, nil)
+	status := r.knowledge.PathPolicyFor(r.component, r.now)
+	if status.RecordNotCurrent() {
+		path.Gap = scanreport.ReasonPathPolicyNotCurrent
+		r.gap(nil, scanreport.GapPathPolicyNotCurrent, r.slug, status.Freshness)
+		return nil
+	}
+	if status.Policy() != nil && !r.policy.Admits(status.Record.Evidence.Basis) {
+		// A current policy whose evidence basis the trust policy leaves out
+		// is not used, and no direct hop stands in for it.
+		path.Gap = scanreport.ReasonNoReviewedPathPolicy
+		r.gap(nil, scanreport.GapPathPolicyTrustPolicy, r.slug, constraintengine.EffectiveBasis(status.Record.Evidence.Basis))
+		return nil
+	}
+	policy := status.Policy()
+	plan := upgradepath.PlanPath(r.component, from, to, policy)
 	if plan.Gap != upgradepath.GapNone {
 		outcome := reasonOutcomes[string(plan.Gap)]
 		if outcome.gap == "" {
@@ -109,15 +123,48 @@ func (r *customResourceRun) evaluate(from, to string) error {
 		r.gap(nil, outcome.gap, r.slug, from, to)
 		return nil
 	}
-	if plan.Component != r.component || len(plan.Hops) != 1 {
+	// Without a policy the plan is the one direct hop.
+	if plan.Component != r.component || len(plan.Hops) == 0 || (policy == nil && len(plan.Hops) != 1) {
 		return ErrIntegrity
 	}
-	hop, err := r.hop(plan.Hops[0])
-	if err != nil {
-		return err
+	if policy != nil {
+		path.Policy = policy.Policy
 	}
-	path.Hops = append(path.Hops, hop)
+	for _, planned := range plan.Hops {
+		hop, err := r.hop(planned, nil)
+		if err != nil {
+			return err
+		}
+		path.Hops = append(path.Hops, hop)
+	}
+	if len(plan.Hops) > 1 {
+		// A rule that spans the whole upgrade matches no single hop; it is
+		// judged on the end-to-end pair, once.
+		if _, err := r.hop(upgradepath.Hop{From: upgradepath.Endpoint{Version: from}, To: upgradepath.Endpoint{Version: to}}, wholeUpgradeRules(plan)); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+// wholeUpgradeRules (also used by the chart run) selects the rules the
+// end-to-end evaluation judges: those
+// that match the whole pair and that no planned hop overlaps (a hop that
+// overlaps a rule judges it, or names why it cannot), except a
+// require_intermediate_version rule whose intermediate line the plan visits.
+func wholeUpgradeRules(plan upgradepath.Plan) func(cncfcheck.ScanRule) bool {
+	from, to := plan.Hops[0].From.Version, plan.Hops[len(plan.Hops)-1].To.Version
+	return func(rule cncfcheck.ScanRule) bool {
+		if rule.Scope.Transition.Match(from, to) == constraintengine.MatchNone || visitsIntermediate(plan, rule) {
+			return false
+		}
+		for _, hop := range plan.Hops {
+			if hop.Overlaps(rule.Scope.Transition) {
+				return false
+			}
+		}
+		return true
+	}
 }
 
 // componentGaps are the gaps that hold whatever the rules say: the
@@ -146,9 +193,12 @@ func (r *customResourceRun) componentGaps() {
 	}
 }
 
-// hop evaluates the direct hop.
-func (r *customResourceRun) hop(hop upgradepath.Hop) (scanreport.Hop, error) {
-	ref := scanreport.HopRef{Index: hop.Index, From: hop.From.String(), To: hop.To.String()}
+// hop evaluates one planned hop. With only set it evaluates the whole
+// upgrade instead: hop is the end-to-end pair, only the rules only selects
+// are judged, and the caller drops the returned hop (findings, passes and
+// gaps carry the whole-upgrade reference).
+func (r *customResourceRun) hop(hop upgradepath.Hop, only func(cncfcheck.ScanRule) bool) (scanreport.Hop, error) {
+	ref := scanreport.HopRef{Index: hop.Index, From: hop.From.String(), To: hop.To.String(), WholeUpgrade: only != nil}
 	result := scanreport.Hop{
 		Index: hop.Index,
 		From:  scanreport.Endpoint{Version: hop.From.Version, Line: hop.From.Line},
@@ -157,6 +207,13 @@ func (r *customResourceRun) hop(hop upgradepath.Hop) (scanreport.Hop, error) {
 	fromVersion, fromOK := hop.From.EngineVersion()
 	toVersion, toOK := hop.To.EngineVersion()
 	if !fromOK || !toOK {
+		// A whole major line (sequential_major) has no engine version: the
+		// hop is not evaluated.
+		if hop.From.MajorLine() || hop.To.MajorLine() {
+			result.Status = scanreport.HopNoData
+			result.Reasons = []string{r.gap(&ref, scanreport.GapIntermediateMajor)}
+			return result, nil
+		}
 		return scanreport.Hop{}, ErrIntegrity
 	}
 	prepared, err := cncfprepare.PrepareCustomResourceVersions(r.workspace, r.slug, fromVersion, toVersion, r.declarations.scopeComplete)
@@ -204,6 +261,9 @@ func (r *customResourceRun) hop(hop upgradepath.Hop) (scanreport.Hop, error) {
 			continue
 		}
 		overlapping[rule.Scope.ID] = true
+		if only != nil && !only(rule) {
+			continue
+		}
 		if rule.Notice || rule.Basis == constraintengine.BasisLead {
 			// Verdict-neutral rules never decide a custom-resource hop.
 			continue
@@ -251,13 +311,18 @@ func (r *customResourceRun) hop(hop upgradepath.Hop) (scanreport.Hop, error) {
 			return scanreport.Hop{}, ErrIntegrity
 		}
 	}
-	if family := r.lineReview(hop, ref, fromVersion, toVersion, prepared, applicableIDs, decided, blocks, &result); family != nil {
-		if blocked {
-			// Every rule here reads only the set: a hop that blocks is
-			// never a pass of the family.
-			family.Status = scanreport.FamilyBlocked
+	// The family is decided on a hop between two exact versions only: an
+	// intermediate line end stands for releases the review did not read, and
+	// the whole upgrade is not a hop of the path.
+	if only == nil && hop.From.Exact() && hop.To.Exact() {
+		if family := r.lineReview(hop, ref, fromVersion, toVersion, prepared, applicableIDs, decided, blocks, &result); family != nil {
+			if blocked {
+				// Every rule here reads only the set: a hop that blocks is
+				// never a pass of the family.
+				family.Status = scanreport.FamilyBlocked
+			}
+			result.Families = []scanreport.FamilyResult{*family}
 		}
-		result.Families = []scanreport.FamilyResult{*family}
 	}
 	// Nothing covers this hop: the component is only partly evaluated.
 	result.Reasons = append(result.Reasons, r.rootGaps[scanreport.GapCustomResourcesOnly].Reason)
