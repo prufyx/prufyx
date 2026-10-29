@@ -154,10 +154,11 @@ func Run(request Request, options Options) (Result, error) {
 	// always answered for it before; every other scan opens the database
 	// after its input, as before.
 	openKnowledge := func() error {
-		targets := make([]string, 0, len(effective.Target))
+		targets := make([]string, 0, len(effective.Target)+len(request.NewestCovered))
 		for slug := range effective.Target {
 			targets = append(targets, slug)
 		}
+		targets = append(targets, request.NewestCovered...)
 		// A community project named only as the current version is asked
 		// of the database too: whether it holds data for it decides if the
 		// project is known.
@@ -205,7 +206,7 @@ func Run(request Request, options Options) (Result, error) {
 	if err := checkCommunityKnown(knowledge, effective); err != nil {
 		return Result{}, err
 	}
-	if len(effective.Target) == 0 {
+	if len(effective.Target) == 0 && len(request.NewestCovered) == 0 {
 		return Result{}, usage(scanreport.UsageNoTarget)
 	}
 	paths, err := inputPaths(effective, configDir)
@@ -235,6 +236,10 @@ func Run(request Request, options Options) (Result, error) {
 			clock = time.Now
 		}
 		now = clock().UTC().Truncate(time.Second)
+	}
+
+	if err := resolveNewestCovered(&effective, request.NewestCovered, knowledge, now); err != nil {
+		return Result{}, err
 	}
 
 	// Declared charts are resolved through the reviewed chart-source table

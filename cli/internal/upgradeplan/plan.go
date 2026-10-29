@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/prufyx/prufyx/cli/internal/scanconfig"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 )
 
@@ -87,6 +88,8 @@ type Plan struct {
 	Gaps []Gap `json:"gaps"`
 	// Undecided counts the stages that are not PASS.
 	Undecided int `json:"undecided"`
+	// Notes say how a target was chosen when Prufyx chose it.
+	Notes []string `json:"notes"`
 	// Provenance repeats the scan's, so the plan names what it rests on.
 	Provenance scanreport.Provenance `json:"provenance"`
 	ExitCode   int                   `json:"exitCode"`
@@ -153,11 +156,17 @@ type Gap struct {
 // components whose target was "latest": they are not in the scan, and each
 // becomes a LATEST_NOT_RESOLVED gap.
 func Build(report scanreport.Report, latest []string, caps Capabilities) Plan {
-	plan := Plan{Schema: Schema, Routes: []Route{}, Stages: []Stage{}, Gaps: []Gap{}, Provenance: report.Provenance}
+	plan := Plan{Schema: Schema, Routes: []Route{}, Stages: []Stage{}, Gaps: []Gap{}, Notes: []string{}, Provenance: report.Provenance}
 	for _, component := range latest {
 		plan.Gaps = append(plan.Gaps, Gap{Component: component, Reason: ReasonLatestNotResolved,
 			Detail: "the target is latest and no signed release-line snapshot ships, so the newest release is not known",
 			Action: "give an explicit target version: --to " + component + "=X.Y.Z"})
+	}
+
+	for _, c := range report.Inventory {
+		if c.TargetSource == string(scanconfig.FromNewestCovered) {
+			plan.Notes = append(plan.Notes, fmt.Sprintf("%s target %s was chosen by Prufyx: the newest release line with a current reviewed list in the knowledge, at its .0 release. It is not the newest release.", c.Name, c.Target))
+		}
 	}
 
 	paths := append([]scanreport.Path(nil), report.Paths...)

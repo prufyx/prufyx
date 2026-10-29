@@ -183,7 +183,7 @@ A catalogued project is not tested coverage: a catalogue entry says Prufyx holds
 
 <!-- release-notes:end -->
 
-- `prufyx plan`: plans a multi-hop upgrade as ordered stages (one per hop) with every blocker, gap and the reason a stage is not PASS. Evaluation is the same as `scan`; no stage is PASS yet (hop actions and node rolls are not checked), and `--to C=latest` is reported as not planned. See `cli/docs/plan.md`.
+- `prufyx plan`: plans a multi-hop upgrade as ordered stages (one per hop) with every blocker, gap and the reason a stage is not PASS. Evaluation is the same as `scan`; no stage is PASS yet (hop actions and node rolls are not checked), and `--to C=latest` is reported as not planned; `--to kubernetes=newest-covered` targets the newest release line the knowledge can evaluate (not the newest release). See `cli/docs/plan.md`.
 
 ### Changed
 

@@ -58,6 +58,21 @@ func TestPlanCommand(t *testing.T) {
 	if code, _, stderr := runPlan(t, path, "--to", "kubernetes=1.30.4", "--format", "sarif"); code != ExitUsage {
 		t.Fatalf("sarif %d %s", code, stderr)
 	}
+	// newest-covered: the newest line with a current reviewed list, labelled.
+	code, stdout, stderr := runPlan(t, append([]string{path, "--from", "kubernetes=1.35.2", "--to", "kubernetes=newest-covered", "--format", "json"}, declared...)...)
+	var newest upgradeplan.Plan
+	if err := json.Unmarshal([]byte(stdout), &newest); err != nil || len(newest.Routes) != 1 || !strings.HasSuffix(newest.Routes[0].To, ".0") || len(newest.Notes) != 1 || !strings.Contains(newest.Notes[0], "not the newest release") {
+		t.Fatalf("newest-covered %d %v\n%s\n%s", code, err, stdout, stderr)
+	}
+	if code, _, _ := runPlan(t, append([]string{path, "--to", "kubernetes=1.30.4", "--to", "kubernetes=newest-covered"}, declared...)...); code != ExitUsage {
+		t.Fatalf("newest-covered twice %d", code)
+	}
+	if code, _, _ := runPlan(t, append([]string{path, "--to", "kubernetes=latest", "--to", "kubernetes=newest-covered"}, declared...)...); code != ExitUsage {
+		t.Fatalf("latest and newest-covered %d", code)
+	}
+	if code, _, _ := runPlan(t, append([]string{path, "--to", "cilium=newest-covered"}, declared...)...); code != ExitUsage {
+		t.Fatalf("newest-covered without lines %d", code)
+	}
 	if code, _, _ := runPlan(t, path, "--to", "kubernetes=1.30.4", "--fail-on", "none"); code != ExitUsage {
 		t.Fatalf("fail-on %d", code)
 	}
