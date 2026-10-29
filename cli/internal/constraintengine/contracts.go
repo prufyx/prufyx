@@ -74,11 +74,12 @@ const (
 	unresolvedApplicability        = "APPLICABILITY_UNDETERMINED"
 	unresolvedNoApplicableRule     = "NO_APPLICABLE_RULE_FOR_COMPONENT"
 
-	maxInputBytes            = 1 << 20
-	maxRulesBytes            = 1 << 20
-	maxComponents            = 128
-	maxFacts                 = 64
-	maxCompiledRegistryFacts = 256
+	maxInputBytes = 1 << 20
+	maxRulesBytes = 1 << 20
+	maxComponents = 128
+	maxFacts      = 64
+	// one fact per supported project, with headroom; a reviewed constant, never selected by rule data
+	maxCompiledRegistryFacts = 2048
 	maxRules                 = 512
 	maxSources               = 8
 	maxStringBytes           = 256

@@ -1292,7 +1292,7 @@ go run ./cmd/prufyx-maintainer gate verify --base .. --head ..
 ```text
 ok   check tree: 0 links or special files under cli/
 ok   check admit/cncf: 191 entries admitted
-ok   check registry/cncf: 160 of 256 facts
+ok   check registry/cncf: 160 of 2048 facts
 …
 ok   check trust-material: 0 trust files changed
 ok   check records-trust: 0 record changes, 0 trust files changed
