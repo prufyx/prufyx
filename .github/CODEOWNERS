@@ -30,6 +30,7 @@
 /cli/internal/constraintengine/ @airstand
 /cli/internal/upgradepath/ @airstand
 /cli/internal/distribution/ @airstand
+/cli/internal/knowledgepin/ @airstand
 /cli/internal/maintainer/knowledgesign/ @airstand
 /cli/internal/supersedepred/ @airstand
 /cli/internal/consensus/ @airstand
