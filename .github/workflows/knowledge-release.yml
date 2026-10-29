@@ -1,9 +1,12 @@
-# DRAFT, DISABLED: builds one signed knowledge-database release from the
-# reviewed knowledge in this repository.
+# SUPERSEDED AND DISABLED. The knowledge database is published by
+# .github/workflows/knowledge-publish.yml (sign job, then Pages deploy). This
+# older manual draft is kept only for reference: its job never runs
+# (it needs the unused variable KNOWLEDGE_RELEASE_LEGACY_ENABLED), so enabling
+# KNOWLEDGE_RELEASE_ENABLED for the new workflow does not enable it.
+# It reads variables that are no longer provisioned.
 #
-# The job runs only when the repository variable KNOWLEDGE_RELEASE_ENABLED is
-# exactly "true". Until the owner provides the signing material below it stays
-# off, and the workflow can only be started by hand (workflow_dispatch).
+# Original description: builds one signed knowledge-database release from the
+# reviewed knowledge in this repository, by hand (workflow_dispatch).
 #
 # Required, all provided by the owner (none exist in the repository):
 #   secrets.KNOWLEDGE_TARGETS_KEY      targets role key file (encrypted PEM)
@@ -44,11 +47,9 @@ permissions:
 
 jobs:
   release:
-    if: ${{ vars.KNOWLEDGE_RELEASE_ENABLED == 'true' }}
-    # Protected environment: the owner creates `knowledge-release` with
-    # themselves as required reviewer before setting KNOWLEDGE_RELEASE_ENABLED
-    # (see cli/docs/knowledge-publisher.md). The signing secrets are
-    # reachable only after that approval.
+    if: ${{ vars.KNOWLEDGE_RELEASE_LEGACY_ENABLED == 'true' }}
+    # Superseded by knowledge-publish.yml; see the header. The environment is
+    # configured in cli/docs/knowledge-publisher.md.
     environment: knowledge-release
     runs-on: ubuntu-latest
     timeout-minutes: 30
