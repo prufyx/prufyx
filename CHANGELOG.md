@@ -222,6 +222,11 @@ A catalogued project is not tested coverage: a catalogue entry says Prufyx holds
 
 ### Fixed
 
+- `prufyx check cncf --project kubernetes` component-configuration preparation
+  reports the new reason `KUBERNETES_COMPONENT_SKEW_ONLY` when only the kubelet
+  version-skew rule was evaluated, instead of
+  `KUBERNETES_COMPONENT_SETTING_SETS_COMPLETE` (which now only means that setting
+  sets were declared).
 - etcd native-argv routes no longer give a scoped `PASS` for values the target
   rejects or ignores: `--discovery-fallback` other than `exit`, `--logger` other
   than `zap`, and any explicit `--v2-deprecation` now make the fact `UNKNOWN`.
