@@ -399,9 +399,23 @@ const (
 )
 
 // somethingRan is true when at least one hop was checked against a component
-// that has rules. Without that, "the checks that ran" would be empty.
+// that has rules, or a hop family produced a PASS or a BLOCKED result (a line
+// review of a component that has no rules). Without that, "the checks that
+// ran" would be empty.
 func somethingRan(report Report) bool {
-	return report.Summary.Hops > 0 && report.Summary.ComponentsWithRules > 0
+	if report.Summary.Hops > 0 && report.Summary.ComponentsWithRules > 0 {
+		return true
+	}
+	for _, path := range report.Paths {
+		for _, hop := range path.Hops {
+			for _, f := range hop.Families {
+				if f.Status == FamilyPass || f.Status == FamilyBlocked {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 func headline(report Report) string {
