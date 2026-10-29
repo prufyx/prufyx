@@ -59,7 +59,7 @@ type Target struct {
 	// component.<FactProject>.custom_resource_versions_set.
 	FactProject string
 	// TagPrefixes are the prefixes of final release tags ("v", "",
-	// "knative-v"), in order of preference. A version tagged under two
+	// "knative-v", or a chart prefix such as "jenkins-"), in order of preference. A version tagged under two
 	// prefixes must name one commit.
 	TagPrefixes []string
 	// ReleaseScheme, when set, replaces TagPrefixes: it names the closed
@@ -228,13 +228,38 @@ type Exclusion struct {
 // files under it keep their classes.
 func (e Exclusion) checked() bool { return e.Copies || e.PrePatch != "" }
 
-// TagPrefixes are the release tag prefixes a target may name: none, "v",
-// and "knative-v" (Knative's release tags, knative-v1.15.0). Each ends in a
-// character that is not a digit or a dot, so a version is never read with
-// part of it taken for the prefix.
+// TagPrefixes are the fixed release tag prefixes a target may name: none,
+// "v", and "knative-v" (Knative's release tags, knative-v1.15.0). Besides
+// these, a target may name a chart prefix (see ValidTagPrefix). Each prefix
+// ends in a character that is not a digit or a dot, so a version is never
+// read with part of it taken for the prefix.
 var TagPrefixes = []string{"", "v", "knative-v"}
 
-const tagPrefixNames = `"", "v" and "knative-v"`
+const tagPrefixNames = `"", "v", "knative-v" or a chart prefix such as "chart-name-"`
+
+// maxChartPrefix bounds the length of a chart prefix.
+const maxChartPrefix = 64
+
+// chartPrefixRE is the shape of a chart prefix, the tag prefix of a
+// repository that releases several charts: lower-case words of letters and
+// digits joined by single dashes, and a final dash ("prometheus-",
+// "cluster-autoscaler-chart-"). The final dash is neither a digit nor a dot.
+var chartPrefixRE = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*-$`)
+
+// ValidTagPrefix reports whether p is a release tag prefix a target may
+// name: one of TagPrefixes, or a chart prefix of at most 64 bytes. A tag
+// is read as a release of the prefix only when the whole tag is the prefix
+// followed by X.Y.Z (the tag grammar is anchored at both ends), so the tag
+// "prometheus-adapter-4.1.0" is never a release of the prefix "prometheus-".
+// No prefix of a target can be a release prefix of the same tag as another:
+// two prefixes that both match a tag would need a version that starts with
+// a dash.
+func ValidTagPrefix(p string) bool {
+	if slicesContains(TagPrefixes, p) {
+		return true
+	}
+	return len(p) <= maxChartPrefix && chartPrefixRE.MatchString(p)
+}
 
 // DefaultExcludedSegments are the directory names whose content is not
 // what a project normally installs: tests, test data, examples and
@@ -434,7 +459,7 @@ func (tj targetJSON) target() (Target, error) {
 			return t, fmt.Errorf("tagPrefixes: one or two of %s (or a releaseScheme)", tagPrefixNames)
 		}
 		for i, p := range t.TagPrefixes {
-			if !slicesContains(TagPrefixes, p) || (i > 0 && p == t.TagPrefixes[0]) {
+			if !ValidTagPrefix(p) || (i > 0 && p == t.TagPrefixes[0]) {
 				return t, fmt.Errorf("tagPrefixes: one or two of %s", tagPrefixNames)
 			}
 		}

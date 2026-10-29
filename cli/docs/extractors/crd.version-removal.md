@@ -104,10 +104,16 @@ and cannot have a `remote`.
 
 A **line** is one `major.minor` of a project with at least one final release
 tag (`<prefix>X.Y.Z`; release candidates never count). A target names one or
-two prefixes from a closed set: none, `v`, and `knative-v` (the release tags of
-the Knative projects, `knative-v1.15.0`); each ends in a character that is not
-a digit or a dot, so no part of a version is ever read as the prefix, and a
-tag with anything before the prefix (`xknative-v1.15.0`), a suffix
+two prefixes: none, `v`, `knative-v` (the release tags of
+the Knative projects, `knative-v1.15.0`), or a chart prefix, the prefix of a
+repository that releases several charts (`jenkins-`, `cluster-autoscaler-`).
+A chart prefix is lower-case words of letters and digits joined by single
+dashes, ends in a dash and has at most 64 bytes; no prefix has an upper-case
+letter, a slash, a dot or an empty word. Each prefix ends in a character that
+is not a digit or a dot, so no part of a version is ever read as the prefix.
+A tag is a release of a prefix only when it is exactly the prefix and `X.Y.Z`:
+the tag `prometheus-adapter-4.1.0` is not a release of `prometheus-`. A tag
+with anything before the prefix (`xknative-v1.15.0`), a suffix
 (`knative-v1.15.0-rc1`) or a leading zero (`knative-v01.2.3`) is not a release
 of the target. When a release is tagged
 under both prefixes of a project they must name one commit, or every pair of
