@@ -208,6 +208,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, version s
 		return r.database(ctx, args[1:])
 	case "scan":
 		return r.scan(args[1:], scanStdin)
+	case "plan":
+		return r.plan(args[1:], scanStdin)
 	case "community-preview":
 		if len(args) >= 2 && args[1] == "example" {
 			return r.communityExample(args[2:])

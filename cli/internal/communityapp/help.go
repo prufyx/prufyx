@@ -33,6 +33,7 @@ type helpGroup struct {
 var helpGroups = []helpGroup{
 	{"Check an upgrade:", []helpEntry{
 		{"scan", "Scan manifests and configs for known upgrade risks"},
+		{"plan", "Plan a multi-hop upgrade: ordered stages with blockers and gaps"},
 		{"check", "Evaluate one scoped rule route (cncf, project, batch, ...)"},
 		{"assess", "Read-only triage of live clusters; suggests which checks to run"},
 	}},
@@ -119,6 +120,8 @@ func (r runtime) commandHelp(name string) int {
 	switch name {
 	case "scan":
 		body = scanreport.Usage
+	case "plan":
+		body = planUsage
 	case "assess":
 		var sb strings.Builder
 		r.assessUsage(&sb)
@@ -172,7 +175,7 @@ func (r runtime) commandHelp(name string) int {
 // isCommand reports whether name is a top-level command with detailed help.
 func isCommand(name string) bool {
 	switch name {
-	case "scan", "assess", "prepare", "check", "catalog", "db", "version", "community-preview":
+	case "scan", "plan", "assess", "prepare", "check", "catalog", "db", "version", "community-preview":
 		return true
 	}
 	return false
