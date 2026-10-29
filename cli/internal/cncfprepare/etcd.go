@@ -249,6 +249,9 @@ func inspectEtcdLatestArgv(argv []string) (valid, found bool) {
 			return false, false
 		}
 		seen[name] = true
+		if !etcdClosedValueOK(name, body[equal+1:]) {
+			return false, false
+		}
 		if etcdTargetRemovedExperimentalFlags[name] {
 			found = true
 			continue
@@ -282,7 +285,7 @@ func inspectEtcdArgv(argv []string) (valid, found bool) {
 		if strings.HasPrefix(name, "-") || value == "" && name != "experimental-enable-v2v3" {
 			return false, false
 		}
-		if name == "config-file" || !etcdKnownFlags[name] && !etcdRemovedFlags[name] {
+		if name == "config-file" || !etcdKnownFlags[name] && !etcdRemovedFlags[name] || !etcdClosedValueOK(name, value) {
 			return false, false
 		}
 		if etcdRemovedFlags[name] {
@@ -294,6 +297,24 @@ func inspectEtcdArgv(argv []string) (valid, found bool) {
 		}
 	}
 	return true, found
+}
+
+// etcdClosedValueOK reports whether a flag whose accepted target values are a
+// reviewed closed set carries one of them. Other flag values are not validated.
+// discovery-fallback: the target rejects "proxy" (v3.6.0 config.go, v3.7.1
+// config.go), so only "exit" is accepted. logger: only "zap" (capnslog removed
+// in v3.5). v2-deprecation: deprecated, the value is ignored from v3.6.0 and the
+// valid list changed in v3.7.1, so any explicit value is not accepted.
+func etcdClosedValueOK(name, value string) bool {
+	switch name {
+	case "discovery-fallback":
+		return value == "exit"
+	case "logger":
+		return value == "zap"
+	case "v2-deprecation":
+		return false
+	}
+	return true
 }
 
 func validEtcdRemovedValue(name, value string) bool {

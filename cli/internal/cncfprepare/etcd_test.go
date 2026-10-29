@@ -222,3 +222,60 @@ func TestPrepareEtcdLatestMissingAmbiguousAndWrongPairsRemainUnknown(t *testing.
 		})
 	}
 }
+
+func TestPrepareEtcdClosedValueFlags(t *testing.T) {
+	routes := []struct{ name, from, to, fact string }{
+		{"3.5.17-3.6.0", EtcdFrom, EtcdTo, EtcdFact},
+		{"3.6.14-3.7.1", "3.6.14", EtcdLatestTo, EtcdLatestFact},
+		{"3.5.33-3.7.1", "3.5.33", EtcdLatestTo, EtcdLatestFact},
+	}
+	cases := []struct {
+		arg string
+		ok  bool
+	}{
+		{"--discovery-fallback=proxy", false},
+		{"--discovery-fallback=bogus", false},
+		{"--discovery-fallback=exit", true},
+		{"--logger=capnslog", false},
+		{"--logger=zap", true},
+		{"--v2-deprecation=not-yet", false},
+		{"--v2-deprecation=write-only", false},
+		{"--v2-deprecation=full", false},
+	}
+	for _, r := range routes {
+		for _, c := range cases {
+			t.Run(r.name+"/"+c.arg, func(t *testing.T) {
+				prepared, err := PrepareEtcd(etcdArguments(t, true, "--name=node", c.arg), r.from, r.to)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !c.ok {
+					if prepared.State != StateUnknown || prepared.Reason != ReasonEtcdArgvUnsupported {
+						t.Fatalf("want UNKNOWN unsupported, got %+v", prepared)
+					}
+					if _, has := preparedFacts(t, prepared)[r.fact]["boolValue"]; has {
+						t.Fatal("fact emitted for rejected value")
+					}
+					return
+				}
+				if r.fact == EtcdFact {
+					// 3.5.17->3.6.0: no removed atom, so no witness, but argv stays modelled.
+					if prepared.Reason != ReasonEtcdArgvNoWitness {
+						t.Fatalf("got %+v", prepared)
+					}
+					return
+				}
+				if prepared.State != StatePrepared || prepared.Reason != ReasonEtcdExperimentalAbsent {
+					t.Fatalf("got %+v", prepared)
+				}
+			})
+		}
+	}
+}
+
+func TestPrepareEtcdClosedValueWithRemovedFlagStaysUnknown(t *testing.T) {
+	prepared, err := PrepareEtcd(etcdArguments(t, true, "--enable-v2=true", "--discovery-fallback=proxy"), EtcdFrom, EtcdTo)
+	if err != nil || prepared.State != StateUnknown || prepared.Reason != ReasonEtcdArgvUnsupported {
+		t.Fatalf("prepared=%+v err=%v", prepared, err)
+	}
+}
