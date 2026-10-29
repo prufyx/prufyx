@@ -29,10 +29,8 @@ When the evidence does not decide the question the answer is `UNKNOWN`.
 - **Embedded rules expire.** Every rule in the CNCF and community-project
   packs is time-limited and stops being valid on its expiry date unless its
   review is renewed. A build without newer knowledge answers `UNKNOWN` for an
-  expired rule. Check the dates of the build you installed with
-  `prufyx db status` (store) or `prufyx catalog checks --project SLUG`
-  (embedded rules) before you rely on a result. The named cert-manager and
-  Prometheus checks are pinned to fixed versions and do not expire.
+  expired rule. Check the dates of the knowledge store you use with
+  `prufyx db status` before you rely on a result.
 
 ## What works
 
