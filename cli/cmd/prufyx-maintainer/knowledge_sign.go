@@ -164,11 +164,16 @@ func runKnowledgeSignInit(args []string, stdout, stderr io.Writer) error {
 	if flags.NArg() != 0 || *keyDir == "" || *expires == "" || knowledgesign.ValidateInitRequest(*keyDir, *expires) != nil {
 		return knowledgeSignError()
 	}
-	passphrase, err := promptPassphrase(stderr, true)
+	rootPassphrase, err := promptKnowledgeInitPassphrase(stderr, "Root key passphrase: ", "Confirm root key passphrase: ")
 	if err != nil {
 		return knowledgeSignError()
 	}
-	result, err := knowledgesign.Init(knowledgesign.InitOptions{KeyDir: *keyDir, RootExpires: *expires, Passphrase: passphrase})
+	passphrase, err := promptKnowledgeInitPassphrase(stderr, "Targets/snapshot/timestamp keys passphrase: ", "Confirm targets/snapshot/timestamp keys passphrase: ")
+	if err != nil {
+		wipeBytes(rootPassphrase)
+		return knowledgeSignError()
+	}
+	result, err := knowledgesign.Init(knowledgesign.InitOptions{KeyDir: *keyDir, RootExpires: *expires, RootPassphrase: rootPassphrase, Passphrase: passphrase})
 	if err != nil {
 		return knowledgeSignError()
 	}
@@ -242,12 +247,27 @@ func signerKey(path string) ([]byte, error) {
 	return raw, nil
 }
 
+// promptKnowledgeInitPassphrase is the seam for the two confirmed prompts of
+// knowledge-sign init (root key, then the three online role keys).
+var promptKnowledgeInitPassphrase = promptConfirmedPassphrase
+
 func promptPassphrase(stderr io.Writer, confirm bool) ([]byte, error) {
+	if confirm {
+		return promptConfirmedPassphrase(stderr, "Passphrase: ", "Confirm passphrase: ")
+	}
+	return promptLabeledPassphrase(stderr, "Passphrase: ", "", false)
+}
+
+func promptConfirmedPassphrase(stderr io.Writer, label, confirmLabel string) ([]byte, error) {
+	return promptLabeledPassphrase(stderr, label, confirmLabel, true)
+}
+
+func promptLabeledPassphrase(stderr io.Writer, label, confirmLabel string, confirm bool) ([]byte, error) {
 	fd := int(os.Stdin.Fd())
 	if !term.IsTerminal(fd) {
 		return nil, knowledgesign.ErrRejected
 	}
-	if _, err := fmt.Fprint(stderr, "Passphrase: "); err != nil {
+	if _, err := fmt.Fprint(stderr, label); err != nil {
 		return nil, err
 	}
 	first, err := term.ReadPassword(fd)
@@ -262,7 +282,7 @@ func promptPassphrase(stderr io.Writer, confirm bool) ([]byte, error) {
 	if !confirm {
 		return first, nil
 	}
-	if _, err := fmt.Fprint(stderr, "Confirm passphrase: "); err != nil {
+	if _, err := fmt.Fprint(stderr, confirmLabel); err != nil {
 		wipeBytes(first)
 		return nil, err
 	}

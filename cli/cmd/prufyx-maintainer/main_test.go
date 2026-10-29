@@ -116,11 +116,11 @@ func TestMaintainerCLIFinalizesRootTransitionWithRepeatedSignatures(t *testing.T
 	expires := time.Now().UTC().Add(time.Hour).Truncate(time.Second).Format(time.RFC3339)
 	trustedDir := filepath.Join(parent, "trusted-keys")
 	templateDir := filepath.Join(parent, "template-keys")
-	trusted, err := knowledgesign.Init(knowledgesign.InitOptions{KeyDir: trustedDir, RootExpires: expires, Passphrase: append([]byte(nil), passphrase...)})
+	trusted, err := knowledgesign.Init(knowledgesign.InitOptions{KeyDir: trustedDir, RootExpires: expires, RootPassphrase: []byte("root key passphrase 123456"), Passphrase: append([]byte(nil), passphrase...)})
 	if err != nil {
 		t.Fatal(err)
 	}
-	template, err := knowledgesign.Init(knowledgesign.InitOptions{KeyDir: templateDir, RootExpires: expires, Passphrase: append([]byte(nil), passphrase...)})
+	template, err := knowledgesign.Init(knowledgesign.InitOptions{KeyDir: templateDir, RootExpires: expires, RootPassphrase: []byte("root key passphrase 123456"), Passphrase: append([]byte(nil), passphrase...)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +152,7 @@ func TestMaintainerCLIFinalizesRootTransitionWithRepeatedSignatures(t *testing.T
 			SuccessorTemplate: template.Root, SuccessorTemplateDigest: template.RootDigest,
 			UnsignedMetadata: prepared.UnsignedMetadata, Request: prepared.Request,
 			ExpectedPayloadDigest: payloadDigest, Authority: authority,
-			EncryptedKey: encryptedKey, Passphrase: append([]byte(nil), passphrase...),
+			EncryptedKey: encryptedKey, Passphrase: []byte("root key passphrase 123456"),
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -197,11 +197,11 @@ func TestMaintainerCLIFinalizesRotatedPackage(t *testing.T) {
 	passphrase := []byte("rotated cli test passphrase 123")
 	expires := time.Now().UTC().Add(7 * 24 * time.Hour).Truncate(time.Second).Format(time.RFC3339)
 	oldDir, successorDir := filepath.Join(parent, "old-keys"), filepath.Join(parent, "successor-keys")
-	old, err := knowledgesign.Init(knowledgesign.InitOptions{KeyDir: oldDir, RootExpires: expires, Passphrase: append([]byte(nil), passphrase...)})
+	old, err := knowledgesign.Init(knowledgesign.InitOptions{KeyDir: oldDir, RootExpires: expires, RootPassphrase: []byte("root key passphrase 123456"), Passphrase: append([]byte(nil), passphrase...)})
 	if err != nil {
 		t.Fatal(err)
 	}
-	successorTemplate, err := knowledgesign.Init(knowledgesign.InitOptions{KeyDir: successorDir, RootExpires: expires, Passphrase: append([]byte(nil), passphrase...)})
+	successorTemplate, err := knowledgesign.Init(knowledgesign.InitOptions{KeyDir: successorDir, RootExpires: expires, RootPassphrase: []byte("root key passphrase 123456"), Passphrase: append([]byte(nil), passphrase...)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -222,7 +222,7 @@ func TestMaintainerCLIFinalizesRotatedPackage(t *testing.T) {
 				key[i] = 0
 			}
 		}()
-		raw, err := knowledgesign.SignRootTransition(knowledgesign.RootTransitionSignOptions{TrustedRoot: old.Root, TrustedRootDigest: old.RootDigest, SuccessorTemplate: successorTemplate.Root, SuccessorTemplateDigest: successorTemplate.RootDigest, UnsignedMetadata: transition.UnsignedMetadata, Request: transition.Request, ExpectedPayloadDigest: transitionPayloadDigest, Authority: authority, EncryptedKey: key, Passphrase: append([]byte(nil), passphrase...)})
+		raw, err := knowledgesign.SignRootTransition(knowledgesign.RootTransitionSignOptions{TrustedRoot: old.Root, TrustedRootDigest: old.RootDigest, SuccessorTemplate: successorTemplate.Root, SuccessorTemplateDigest: successorTemplate.RootDigest, UnsignedMetadata: transition.UnsignedMetadata, Request: transition.Request, ExpectedPayloadDigest: transitionPayloadDigest, Authority: authority, EncryptedKey: key, Passphrase: []byte("root key passphrase 123456")})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -510,7 +510,7 @@ func TestMaintainerCLIKnowledgeSignVerifyKeyRejectsNonTTYWithoutEchoingArguments
 	}
 	keyDir := filepath.Join(parent, "keys")
 	expires := time.Now().UTC().Add(time.Hour).Truncate(time.Second).Format(time.RFC3339)
-	initialized, err := knowledgesign.Init(knowledgesign.InitOptions{KeyDir: keyDir, RootExpires: expires, Passphrase: []byte("operator passphrase 123")})
+	initialized, err := knowledgesign.Init(knowledgesign.InitOptions{KeyDir: keyDir, RootExpires: expires, RootPassphrase: []byte("root key passphrase 123456"), Passphrase: []byte("operator passphrase 123")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -548,7 +548,7 @@ func TestMaintainerCLISignerKeyRequiresAbsolutePath(t *testing.T) {
 	keyDir := filepath.Join(parent, "keys")
 	if _, err := knowledgesign.Init(knowledgesign.InitOptions{
 		KeyDir: keyDir, RootExpires: time.Now().UTC().Add(time.Hour).Truncate(time.Second).Format(time.RFC3339),
-		Passphrase: []byte("operator passphrase 123"),
+		RootPassphrase: []byte("root key passphrase 123456"), Passphrase: []byte("operator passphrase 123"),
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -584,11 +584,11 @@ func TestMaintainerCLIRootTransitionBindingFailurePrecedesPassphraseAndOutput(t 
 	trustedDir := filepath.Join(parent, "trusted-keys")
 	templateDir := filepath.Join(parent, "template-keys")
 	expires := time.Now().UTC().Add(time.Hour).Truncate(time.Second).Format(time.RFC3339)
-	trusted, err := knowledgesign.Init(knowledgesign.InitOptions{KeyDir: trustedDir, RootExpires: expires, Passphrase: []byte("operator passphrase 123")})
+	trusted, err := knowledgesign.Init(knowledgesign.InitOptions{KeyDir: trustedDir, RootExpires: expires, RootPassphrase: []byte("root key passphrase 123456"), Passphrase: []byte("operator passphrase 123")})
 	if err != nil {
 		t.Fatal(err)
 	}
-	template, err := knowledgesign.Init(knowledgesign.InitOptions{KeyDir: templateDir, RootExpires: expires, Passphrase: []byte("operator passphrase 123")})
+	template, err := knowledgesign.Init(knowledgesign.InitOptions{KeyDir: templateDir, RootExpires: expires, RootPassphrase: []byte("root key passphrase 123456"), Passphrase: []byte("operator passphrase 123")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -615,7 +615,7 @@ func TestMaintainerCLIRootTransitionBindingFailurePrecedesPassphraseAndOutput(t 
 	originalPrompt := promptRootTransitionPassphrase
 	promptRootTransitionPassphrase = func(io.Writer, bool) ([]byte, error) {
 		prompted = true
-		return []byte("operator passphrase 123"), nil
+		return []byte("root key passphrase 123456"), nil
 	}
 	defer func() { promptRootTransitionPassphrase = originalPrompt }()
 	var stdout, stderr bytes.Buffer
@@ -813,5 +813,46 @@ func TestMaintainerCLI_DocsTables_WritesAndDetectsStale(t *testing.T) {
 	}
 	if err := run([]string{"docs-tables", "--root", root, "--check"}, &out, &errOut); err == nil {
 		t.Fatal("check passed on a stale file")
+	}
+}
+
+func TestKnowledgeSignInitPromptsTwoDistinctPassphrases(t *testing.T) {
+	parent, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(parent, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	original := promptKnowledgeInitPassphrase
+	defer func() { promptKnowledgeInitPassphrase = original }()
+	expires := time.Now().UTC().Add(time.Hour).Truncate(time.Second).Format(time.RFC3339)
+	run1 := func(name, first, second string) (string, error) {
+		var labels []string
+		answers := []string{first, second}
+		promptKnowledgeInitPassphrase = func(_ io.Writer, label, _ string) ([]byte, error) {
+			labels = append(labels, label)
+			answer := answers[len(labels)-1]
+			return []byte(answer), nil
+		}
+		var stdout, stderr bytes.Buffer
+		err := run([]string{"knowledge-sign", "init", "--key-dir", filepath.Join(parent, name), "--root-expires", expires}, &stdout, &stderr)
+		if len(labels) != 2 || !strings.HasPrefix(labels[0], "Root key") {
+			t.Fatalf("labels=%q", labels)
+		}
+		return stdout.String() + stderr.String(), err
+	}
+	out, err := run1("equal", "same passphrase 1234567", "same passphrase 1234567")
+	if err == nil || strings.Contains(out, "same passphrase") {
+		t.Fatalf("equal passphrases: err=%v out=%q", err, out)
+	}
+	if _, err := os.Stat(filepath.Join(parent, "equal")); err == nil {
+		t.Fatal("key directory created for equal passphrases")
+	}
+	if _, err := run1("ok", "root key passphrase 123456", "online keys passphrase 12345"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(parent, "ok", "root.key.pem")); err != nil {
+		t.Fatal(err)
 	}
 }

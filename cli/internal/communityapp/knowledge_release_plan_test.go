@@ -534,7 +534,7 @@ func publishedReleaseFixtureForTargets(t *testing.T, revisions []string, targetF
 	passphrase := []byte("nonempty release test passphrase 123")
 	initialized, err := knowledgesign.Init(knowledgesign.InitOptions{
 		KeyDir: keyDir, RootExpires: now.Add(7 * 24 * time.Hour).Format(time.RFC3339),
-		Passphrase: passphrase,
+		RootPassphrase: []byte("root key passphrase 123456"), Passphrase: passphrase,
 	})
 	if err != nil {
 		t.Fatal(err)

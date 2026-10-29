@@ -32,11 +32,11 @@ func TestRotatedPackage_InitializedStoreImportsAndContinuesAtSuccessor(t *testin
 	}
 	passphrase := []byte("rotated package test passphrase 123")
 	oldDir, nextDir := filepath.Join(private, "old-keys"), filepath.Join(private, "next-keys")
-	old, err := knowledgesign.Init(knowledgesign.InitOptions{KeyDir: oldDir, RootExpires: now.Add(7 * 24 * time.Hour).Format(time.RFC3339), Passphrase: append([]byte(nil), passphrase...)})
+	old, err := knowledgesign.Init(knowledgesign.InitOptions{KeyDir: oldDir, RootExpires: now.Add(7 * 24 * time.Hour).Format(time.RFC3339), RootPassphrase: []byte("root key passphrase 123456"), Passphrase: append([]byte(nil), passphrase...)})
 	if err != nil {
 		t.Fatal(err)
 	}
-	next, err := knowledgesign.Init(knowledgesign.InitOptions{KeyDir: nextDir, RootExpires: now.Add(7 * 24 * time.Hour).Format(time.RFC3339), Passphrase: append([]byte(nil), passphrase...)})
+	next, err := knowledgesign.Init(knowledgesign.InitOptions{KeyDir: nextDir, RootExpires: now.Add(7 * 24 * time.Hour).Format(time.RFC3339), RootPassphrase: []byte("root key passphrase 123456"), Passphrase: append([]byte(nil), passphrase...)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +139,7 @@ func finalizeRotatedTestTransition(t *testing.T, old knowledgesign.InitResult, o
 				key[i] = 0
 			}
 		}()
-		envelope, err := knowledgesign.SignRootTransition(knowledgesign.RootTransitionSignOptions{TrustedRoot: old.Root, TrustedRootDigest: old.RootDigest, SuccessorTemplate: next.Root, SuccessorTemplateDigest: next.RootDigest, UnsignedMetadata: prepared.UnsignedMetadata, Request: prepared.Request, ExpectedPayloadDigest: payloadDigest, Authority: authority, EncryptedKey: key, Passphrase: append([]byte(nil), passphrase...)})
+		envelope, err := knowledgesign.SignRootTransition(knowledgesign.RootTransitionSignOptions{TrustedRoot: old.Root, TrustedRootDigest: old.RootDigest, SuccessorTemplate: next.Root, SuccessorTemplateDigest: next.RootDigest, UnsignedMetadata: prepared.UnsignedMetadata, Request: prepared.Request, ExpectedPayloadDigest: payloadDigest, Authority: authority, EncryptedKey: key, Passphrase: []byte("root key passphrase 123456")})
 		if err != nil {
 			t.Fatal(err)
 		}

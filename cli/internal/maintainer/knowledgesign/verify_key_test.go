@@ -32,6 +32,9 @@ func TestVerifyKeyMatchesEveryTopLevelRole(t *testing.T) {
 				t.Fatal(err)
 			}
 			passphrase := []byte("operator passphrase 123")
+			if role == metadata.ROOT {
+				passphrase = []byte("root key passphrase 123456")
+			}
 			receipt, err := VerifyKey(VerifyKeyOptions{Root: rootRaw, RootDigest: rootDigest, Role: role, EncryptedKey: keyRaw, Passphrase: passphrase})
 			if err != nil || !allZero(passphrase) || receipt.Schema != "prufyx.io/local-tuf-key-verification/v1" || receipt.Status != "KEY_MATCHES_SELECTED_ROLE" || receipt.RootDigest != rootDigest || receipt.Role != role || receipt.KeyID == "" || !receipt.KeyMatchesSelectedRole || receipt.RootExpiryAssessed || receipt.NetworkUsed || receipt.TrustActivated || !containsKeyID(root.Signed.Roles[role].KeyIDs, receipt.KeyID) {
 				t.Fatalf("receipt=%+v passphraseWiped=%t err=%v", receipt, allZero(passphrase), err)
@@ -137,7 +140,7 @@ func resignRoot(t *testing.T, raw, rootKeyRaw []byte, mutate func(*metadata.Root
 		t.Fatal(err)
 	}
 	mutate(&root.Signed)
-	private, err := decryptPrivateKey(rootKeyRaw, []byte("operator passphrase 123"))
+	private, err := decryptPrivateKey(rootKeyRaw, []byte("root key passphrase 123456"))
 	if err != nil {
 		t.Fatal(err)
 	}

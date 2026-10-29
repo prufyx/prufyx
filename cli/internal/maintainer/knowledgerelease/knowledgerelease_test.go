@@ -25,7 +25,7 @@ func fixture(t *testing.T) Options {
 		t.Fatal(err)
 	}
 	keys := filepath.Join(parent, "keys")
-	init, err := knowledgesign.Init(knowledgesign.InitOptions{KeyDir: keys, RootExpires: time.Now().UTC().Add(48 * time.Hour).Format(time.RFC3339), Passphrase: []byte(testPassphrase)})
+	init, err := knowledgesign.Init(knowledgesign.InitOptions{KeyDir: keys, RootExpires: time.Now().UTC().Add(48 * time.Hour).Format(time.RFC3339), RootPassphrase: []byte("root key passphrase 123456"), Passphrase: []byte(testPassphrase)})
 	if err != nil {
 		t.Fatal(err)
 	}

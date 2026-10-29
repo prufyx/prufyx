@@ -26,7 +26,7 @@ func perProjectFixture(t *testing.T) (parent, rootDigest string) {
 		t.Fatal(err)
 	}
 	passphrase := "throwaway cli test passphrase 1"
-	init, err := knowledgesign.Init(knowledgesign.InitOptions{KeyDir: filepath.Join(dir, "keys"), RootExpires: time.Now().UTC().Add(48 * time.Hour).Format(time.RFC3339), Passphrase: []byte(passphrase)})
+	init, err := knowledgesign.Init(knowledgesign.InitOptions{KeyDir: filepath.Join(dir, "keys"), RootExpires: time.Now().UTC().Add(48 * time.Hour).Format(time.RFC3339), RootPassphrase: []byte("root key passphrase 123456"), Passphrase: []byte(passphrase)})
 	if err != nil {
 		t.Fatal(err)
 	}
