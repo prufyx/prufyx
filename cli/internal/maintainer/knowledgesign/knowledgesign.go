@@ -38,9 +38,12 @@ const (
 
 var ErrRejected = errors.New("knowledge signer input rejected")
 
-// InitOptions contains an owned passphrase buffer: Init consumes and wipes it.
+// InitOptions contains owned passphrase buffers: Init consumes and wipes them.
+// RootPassphrase encrypts the root key; Passphrase encrypts the targets,
+// snapshot and timestamp keys. The two must differ.
 type InitOptions struct {
 	KeyDir, RootExpires string
+	RootPassphrase      []byte
 	Passphrase          []byte
 }
 type InitResult struct {
@@ -60,7 +63,8 @@ type SignOptions struct {
 // for deliberate operator inspection or cleanup.
 func Init(options InitOptions) (InitResult, error) {
 	defer wipe(options.Passphrase)
-	if !validPassphrase(options.Passphrase) {
+	defer wipe(options.RootPassphrase)
+	if !validPassphrase(options.Passphrase) || !validPassphrase(options.RootPassphrase) || bytes.Equal(options.Passphrase, options.RootPassphrase) {
 		return InitResult{}, ErrRejected
 	}
 	expires, err := parseFutureUTC(options.RootExpires)
@@ -115,7 +119,11 @@ func Init(options InitOptions) (InitResult, error) {
 		return InitResult{}, ErrRejected
 	}
 	for _, role := range []string{metadata.ROOT, metadata.TARGETS, metadata.SNAPSHOT, metadata.TIMESTAMP} {
-		if err := writeEncryptedKeyAt(keyRoot, role+".key.pem", keys[role], options.Passphrase); err != nil {
+		passphrase := options.Passphrase
+		if role == metadata.ROOT {
+			passphrase = options.RootPassphrase
+		}
+		if err := writeEncryptedKeyAt(keyRoot, role+".key.pem", keys[role], passphrase); err != nil {
 			return InitResult{}, ErrRejected
 		}
 	}

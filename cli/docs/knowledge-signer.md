@@ -6,9 +6,11 @@ payload prepared for one `targets`, `snapshot`, or `timestamp` role. It never
 fetches, publishes, uploads a key, configures a feed, or activates a root.
 
 Initialize only in a new absolute `0700` directory outside any Git checkout. The expiry must be exact UTC RFC3339, future, and no more than 366 days ahead.
-The command reads the passphrase twice from a terminal with echo disabled; it
-accepts no passphrase flag, environment variable, file, default, or redirected
-standard input.
+The command prompts twice, each time asking for the passphrase twice from a
+terminal with echo disabled: first for the root key, then for the targets,
+snapshot, and timestamp keys. The two passphrases must differ; equal ones are
+refused. It accepts no passphrase flag, environment variable, file, default, or
+redirected standard input.
 
 ```sh
 umask 077
@@ -20,7 +22,8 @@ prufyx-maintainer knowledge-sign init \
 
 Initialization writes `root.json` and four mode-`0600` encrypted key files:
 `root.key.pem`, `targets.key.pem`, `snapshot.key.pem`, and `timestamp.key.pem`.
-Each is a PKCS#8 key wrapped in `ENCRYPTED SIGSTORE PRIVATE KEY` PEM using the
+`root.key.pem` is encrypted with the root passphrase; the other three share the
+second passphrase. Each is a PKCS#8 key wrapped in `ENCRYPTED SIGSTORE PRIVATE KEY` PEM using the
 vendored scrypt and secretbox implementation with the `encrypted.OWASP` KDF
 parameters. The code makes a best effort to overwrite its own temporary
 passphrase and key byte slices; Go does not provide a general memory-erasure

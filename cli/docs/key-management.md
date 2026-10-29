@@ -27,7 +27,9 @@ that may be committed or placed in repository variables.
 
 Passphrase rules shared by the key creation commands (`knowledge-sign init` and
 `release-sign init`): the passphrase is read from a terminal with echo disabled
-and is at least 16 and at most 1024 bytes. The key file is a PKCS#8 Ed25519 key
+and is at least 16 and at most 1024 bytes. `knowledge-sign init` asks for two
+different passphrases, each entered twice: one for the root key, one for the
+targets, snapshot and timestamp keys; it refuses equal ones. The key file is a PKCS#8 Ed25519 key
 in an `ENCRYPTED SIGSTORE PRIVATE KEY` PEM written with mode `0600` inside a
 new `0700` directory whose parent is a private directory outside any Git
 checkout. Signing with a human re-attestation key, a release key or a knowledge

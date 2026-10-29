@@ -31,7 +31,7 @@ func TestKnowledgeSign_InitProducesFourEncryptedRoleKeys(t *testing.T) {
 	}
 	keyDir := filepath.Join(parent, "operator-keys")
 	passphrase := []byte("operator passphrase 123")
-	result, err := Init(InitOptions{KeyDir: keyDir, RootExpires: time.Now().UTC().Add(24 * time.Hour).Truncate(time.Second).Format(time.RFC3339), Passphrase: passphrase})
+	result, err := Init(InitOptions{KeyDir: keyDir, RootExpires: time.Now().UTC().Add(24 * time.Hour).Truncate(time.Second).Format(time.RFC3339), RootPassphrase: []byte("root key passphrase 123456"), Passphrase: passphrase})
 	if err != nil || result.RootDigest == "" || len(result.Root) == 0 {
 		t.Fatalf("result=%+v err=%v", result, err)
 	}
@@ -59,7 +59,11 @@ func TestKnowledgeSign_InitProducesFourEncryptedRoleKeys(t *testing.T) {
 		if err != nil || info.Mode().Perm() != 0o600 {
 			t.Fatalf("role %s mode=%v err=%v", role, info.Mode(), err)
 		}
-		key, err := decryptPrivateKey(raw, []byte("operator passphrase 123"))
+		rolePassphrase := "operator passphrase 123"
+		if role == metadata.ROOT {
+			rolePassphrase = "root key passphrase 123456"
+		}
+		key, err := decryptPrivateKey(raw, []byte(rolePassphrase))
 		if err != nil || len(key) != ed25519.PrivateKeySize {
 			t.Fatalf("role %s decrypt err=%v", role, err)
 		}
@@ -154,7 +158,7 @@ func TestKnowledgeSign_RejectsUnsafeDirectoryExpiryAndNonCanonicalPEM(t *testing
 	if err := os.Chmod(privateParent, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Init(InitOptions{KeyDir: filepath.Join(privateParent, "keys"), RootExpires: time.Now().UTC().Add(367 * 24 * time.Hour).Truncate(time.Second).Format(time.RFC3339), Passphrase: []byte("operator passphrase 123")}); !errors.Is(err, ErrRejected) {
+	if _, err := Init(InitOptions{KeyDir: filepath.Join(privateParent, "keys"), RootExpires: time.Now().UTC().Add(367 * 24 * time.Hour).Truncate(time.Second).Format(time.RFC3339), RootPassphrase: []byte("root key passphrase 123456"), Passphrase: []byte("operator passphrase 123")}); !errors.Is(err, ErrRejected) {
 		t.Fatalf("overlong expiry accepted: %v", err)
 	}
 	nonPrivate := filepath.Join(privateParent, "nonprivate")
@@ -164,20 +168,20 @@ func TestKnowledgeSign_RejectsUnsafeDirectoryExpiryAndNonCanonicalPEM(t *testing
 	if err := os.Chmod(nonPrivate, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Init(InitOptions{KeyDir: filepath.Join(nonPrivate, "keys"), RootExpires: time.Now().UTC().Add(time.Hour).Truncate(time.Second).Format(time.RFC3339), Passphrase: []byte("operator passphrase 123")}); !errors.Is(err, ErrRejected) {
+	if _, err := Init(InitOptions{KeyDir: filepath.Join(nonPrivate, "keys"), RootExpires: time.Now().UTC().Add(time.Hour).Truncate(time.Second).Format(time.RFC3339), RootPassphrase: []byte("root key passphrase 123456"), Passphrase: []byte("operator passphrase 123")}); !errors.Is(err, ErrRejected) {
 		t.Fatalf("non-private parent accepted: %v", err)
 	}
 	linked := filepath.Join(privateParent, "linked")
 	if err := os.Symlink(privateParent, linked); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Init(InitOptions{KeyDir: filepath.Join(linked, "keys"), RootExpires: time.Now().UTC().Add(time.Hour).Truncate(time.Second).Format(time.RFC3339), Passphrase: []byte("operator passphrase 123")}); !errors.Is(err, ErrRejected) {
+	if _, err := Init(InitOptions{KeyDir: filepath.Join(linked, "keys"), RootExpires: time.Now().UTC().Add(time.Hour).Truncate(time.Second).Format(time.RFC3339), RootPassphrase: []byte("root key passphrase 123456"), Passphrase: []byte("operator passphrase 123")}); !errors.Is(err, ErrRejected) {
 		t.Fatalf("symlink ancestor accepted: %v", err)
 	}
 	if err := os.Mkdir(filepath.Join(privateParent, ".git"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Init(InitOptions{KeyDir: filepath.Join(privateParent, "git-keys"), RootExpires: time.Now().UTC().Add(time.Hour).Truncate(time.Second).Format(time.RFC3339), Passphrase: []byte("operator passphrase 123")}); !errors.Is(err, ErrRejected) {
+	if _, err := Init(InitOptions{KeyDir: filepath.Join(privateParent, "git-keys"), RootExpires: time.Now().UTC().Add(time.Hour).Truncate(time.Second).Format(time.RFC3339), RootPassphrase: []byte("root key passphrase 123456"), Passphrase: []byte("operator passphrase 123")}); !errors.Is(err, ErrRejected) {
 		t.Fatalf("Git checkout parent accepted: %v", err)
 	}
 	rootRaw, rootDigest, keyDir := initialized(t)
@@ -206,7 +210,7 @@ func initialized(t *testing.T) ([]byte, string, string) {
 		t.Fatal(err)
 	}
 	keyDir := filepath.Join(parent, "keys")
-	result, err := Init(InitOptions{KeyDir: keyDir, RootExpires: time.Now().UTC().Add(24 * time.Hour).Truncate(time.Second).Format(time.RFC3339), Passphrase: []byte("operator passphrase 123")})
+	result, err := Init(InitOptions{KeyDir: keyDir, RootExpires: time.Now().UTC().Add(24 * time.Hour).Truncate(time.Second).Format(time.RFC3339), RootPassphrase: []byte("root key passphrase 123456"), Passphrase: []byte("operator passphrase 123")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -284,5 +288,57 @@ func TestEncryptedKeyPEMRoundTripAndRejections(t *testing.T) {
 	}
 	if _, err := EncryptedKeyPEM(ed25519.PrivateKey("truncated"), passphrase); err == nil {
 		t.Fatal("accepted a malformed private key")
+	}
+}
+
+func TestKnowledgeSign_InitSeparatesRootPassphrase(t *testing.T) {
+	newDir := func(t *testing.T) string {
+		parent, err := filepath.EvalSymlinks(t.TempDir())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chmod(parent, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		return filepath.Join(parent, "keys")
+	}
+	expires := time.Now().UTC().Add(time.Hour).Truncate(time.Second).Format(time.RFC3339)
+	rootPass, onlinePass := "root key passphrase 123456", "online keys passphrase 12345"
+	keyDir := newDir(t)
+	if _, err := Init(InitOptions{KeyDir: keyDir, RootExpires: expires, RootPassphrase: []byte(rootPass), Passphrase: []byte(onlinePass)}); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		role, pass, other string
+	}{
+		{metadata.ROOT, rootPass, onlinePass},
+		{metadata.TARGETS, onlinePass, rootPass},
+		{metadata.SNAPSHOT, onlinePass, rootPass},
+		{metadata.TIMESTAMP, onlinePass, rootPass},
+	} {
+		raw, err := os.ReadFile(filepath.Join(keyDir, tc.role+".key.pem"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := DecryptPrivateKey(raw, []byte(tc.pass)); err != nil {
+			t.Fatalf("%s: own passphrase rejected: %v", tc.role, err)
+		}
+		if _, err := DecryptPrivateKey(raw, []byte(tc.other)); err == nil {
+			t.Fatalf("%s: decrypts with the other passphrase", tc.role)
+		}
+	}
+	for name, opts := range map[string]InitOptions{
+		"equal":        {RootPassphrase: []byte(onlinePass), Passphrase: []byte(onlinePass)},
+		"missing root": {Passphrase: []byte(onlinePass)},
+		"short root":   {RootPassphrase: []byte("short"), Passphrase: []byte(onlinePass)},
+		"short online": {RootPassphrase: []byte(rootPass), Passphrase: []byte("short")},
+	} {
+		opts.KeyDir, opts.RootExpires = newDir(t), expires
+		if _, err := Init(opts); err == nil {
+			t.Fatalf("%s: accepted", name)
+		}
+		if _, err := os.Stat(opts.KeyDir); err == nil {
+			t.Fatalf("%s: key directory created before rejection", name)
+		}
 	}
 }

@@ -27,14 +27,14 @@ func TestSignRootTransition_ReconstructsTemplateAndAuthorities(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	base := RootTransitionSignOptions{TrustedRoot: old, TrustedRootDigest: oldDigest, SuccessorTemplate: template, SuccessorTemplateDigest: templateDigest, UnsignedMetadata: p.UnsignedMetadata, Request: p.Request, ExpectedPayloadDigest: digest(p.Payload), Authority: "trusted", EncryptedKey: oldKey, Passphrase: []byte("operator passphrase 123")}
+	base := RootTransitionSignOptions{TrustedRoot: old, TrustedRootDigest: oldDigest, SuccessorTemplate: template, SuccessorTemplateDigest: templateDigest, UnsignedMetadata: p.UnsignedMetadata, Request: p.Request, ExpectedPayloadDigest: digest(p.Payload), Authority: "trusted", EncryptedKey: oldKey, Passphrase: []byte("root key passphrase 123456")}
 	oldEnv, err := SignRootTransition(base)
 	if err != nil {
 		t.Fatal(err)
 	}
 	base.Authority = "successor"
 	base.EncryptedKey = newKey
-	base.Passphrase = []byte("operator passphrase 123")
+	base.Passphrase = []byte("root key passphrase 123456")
 	newEnv, err := SignRootTransition(base)
 	if err != nil {
 		t.Fatal(err)
@@ -44,13 +44,13 @@ func TestSignRootTransition_ReconstructsTemplateAndAuthorities(t *testing.T) {
 	}
 	base.Authority = "trusted"
 	base.EncryptedKey = newKey
-	base.Passphrase = []byte("operator passphrase 123")
+	base.Passphrase = []byte("root key passphrase 123456")
 	if _, err = SignRootTransition(base); !errors.Is(err, ErrRejected) {
 		t.Fatalf("new key accepted as old authority: %v", err)
 	}
 	base.EncryptedKey = oldKey
 	base.SuccessorTemplateDigest = "sha256:" + string(make([]byte, 64))
-	base.Passphrase = []byte("operator passphrase 123")
+	base.Passphrase = []byte("root key passphrase 123456")
 	if _, err = SignRootTransition(base); !errors.Is(err, ErrRejected) {
 		t.Fatalf("bad template identity accepted: %v", err)
 	}

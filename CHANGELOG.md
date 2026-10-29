@@ -185,6 +185,14 @@ A catalogued project is not tested coverage: a catalogue entry says Prufyx holds
 
 - `prufyx plan`: plans a multi-hop upgrade as ordered stages (one per hop) with every blocker, gap and the reason a stage is not PASS. Evaluation is the same as `scan`; no stage is PASS yet (hop actions and node rolls are not checked), and `--to C=latest` is reported as not planned. See `cli/docs/plan.md`.
 
+### Changed
+
+- `prufyx-maintainer knowledge-sign init` now asks for two separate passphrases
+  at the terminal, each entered twice: one encrypts the root key, the other the
+  targets, snapshot and timestamp keys. Equal passphrases are refused. Key file
+  names, modes, `root.json` and the expiry rules are unchanged. See
+  `cli/docs/knowledge-signer.md`.
+
 ### Added
 
 - `prufyx scan` takes declared kubelet versions, `--kubelet-version-min` and

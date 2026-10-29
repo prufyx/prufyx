@@ -29,7 +29,7 @@ func TestPublisherReleaseRoundTripMatchesEmbeddedVerdicts(t *testing.T) {
 	}
 	const pass = "throwaway roundtrip passphrase 12"
 	keys := filepath.Join(dir, "keys")
-	initialized, err := knowledgesign.Init(knowledgesign.InitOptions{KeyDir: keys, RootExpires: time.Now().UTC().Add(48 * time.Hour).Format(time.RFC3339), Passphrase: []byte(pass)})
+	initialized, err := knowledgesign.Init(knowledgesign.InitOptions{KeyDir: keys, RootExpires: time.Now().UTC().Add(48 * time.Hour).Format(time.RFC3339), RootPassphrase: []byte("root key passphrase 123456"), Passphrase: []byte(pass)})
 	if err != nil {
 		t.Fatal(err)
 	}
