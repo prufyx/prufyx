@@ -129,7 +129,7 @@ overridable with `--source`), verifies it against the root pinned in this build
 and installs it into the default store, where `check` and `scan` find it. The
 trust logic is the same verifier as for every other update; only the defaults
 change. Giving `--source` or `--release-plan` keeps the rules described above
-(`--source` alone still means the `cert-manager` profile and a mandatory
+(`--package-out FILE` alone, without `--source`, also targets the official feed; `--source` alone still means the `cert-manager` profile and a mandatory
 `--package-out`).
 
 - **Package directory.** Without `--package-out` the package is kept in

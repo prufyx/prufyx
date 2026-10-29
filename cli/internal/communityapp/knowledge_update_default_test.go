@@ -267,3 +267,19 @@ func TestKnowledgeUpdateExplicitFlagsKeepTodaysRules(t *testing.T) {
 		}
 	}
 }
+
+// A newer signed timestamp that carries an older revision is an anomaly, not a
+// stale feed: it stays a rollback refusal (exit 3).
+func TestKnowledgeUpdateRevisionRegressionIsARollback(t *testing.T) {
+	env := newDefaultUpdateEnv(t)
+	if code, _, stderr := runDefaultUpdate(t, perProjectPackage(t, env.repo, 1, "5")); code != ExitOK {
+		t.Fatal(code, stderr)
+	}
+	code, out, _ := runDefaultUpdate(t, perProjectPackage(t, env.repo, 2, "4"))
+	if code != ExitIntegrity || out.Status == "FEED_BEHIND" || out.ReasonCode == "KNOWLEDGE_FEED_BEHIND" {
+		t.Fatalf("code=%d out=%+v", code, out)
+	}
+	if st, err := knowledge.InspectConstraintsProjects(env.store); err != nil || st.SelectedRevision != "5" {
+		t.Fatalf("store moved: %+v %v", st, err)
+	}
+}

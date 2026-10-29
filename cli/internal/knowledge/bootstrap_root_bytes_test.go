@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestEnforceRevisionFloorClassifiesOlderApartFromSameRevision(t *testing.T) {
+func TestEnforceRevisionFloorNeverReportsFeedBehind(t *testing.T) {
 	const a, b = "sha256:aa", "sha256:bb"
 	for name, tc := range map[string]struct {
 		floor, floorDigest, next, digest string
@@ -17,7 +17,7 @@ func TestEnforceRevisionFloorClassifiesOlderApartFromSameRevision(t *testing.T) 
 		"no floor":                   {"", "", "3", a, nil, false},
 		"newer":                      {"3", a, "4", b, nil, false},
 		"same revision same digest":  {"3", a, "3", a, nil, false},
-		"older is feed behind":       {"3", a, "2", b, ErrRollback, true},
+		"older is a plain rollback":  {"3", a, "2", b, ErrRollback, false},
 		"same revision other digest": {"3", a, "3", b, ErrRollback, false},
 	} {
 		err := enforceRevisionFloor(tc.floor, tc.floorDigest, tc.next, tc.digest)

@@ -514,7 +514,7 @@ func enforceRevisionFloor(floor, floorDigest, next, digest string) error {
 		return ErrIntegrity
 	}
 	if n < f {
-		return ErrFeedBehind
+		return ErrRollback
 	}
 	if n == f {
 		if floorDigest != digest {
