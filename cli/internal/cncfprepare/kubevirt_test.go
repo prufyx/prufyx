@@ -44,11 +44,18 @@ func TestPrepareKubeVirtIgnoresUnrelatedNativeFields(t *testing.T) {
 func TestPrepareKubeVirtUnknownForUnsupportedNativeShapes(t *testing.T) {
 	base := `{"apiVersion":"kubevirt.io/v1","kind":"VirtualMachineInstance","metadata":{"namespace":"compute","name":"vm-a"},"spec":{"domain":{"devices":{"interfaces":[{"name":"default","masquerade":{}}]}}}}`
 	for name, raw := range map[string]string{
-		"missing interfaces": `{"apiVersion":"kubevirt.io/v1","kind":"VirtualMachineInstance","metadata":{"namespace":"compute","name":"vm-a"},"spec":{"domain":{"devices":{}}}}`,
-		"wrong api":          `{"apiVersion":"kubevirt.io/v1beta1","kind":"VirtualMachineInstance","metadata":{"namespace":"compute","name":"vm-a"},"spec":{"domain":{"devices":{"interfaces":[]}}}}`,
-		"wrong binding type": `{"apiVersion":"kubevirt.io/v1","kind":"VirtualMachineInstance","metadata":{"namespace":"compute","name":"vm-a"},"spec":{"domain":{"devices":{"interfaces":[{"name":"default","binding":"plugin"}]}}}}`,
-		"missing namespace":  `{"apiVersion":"kubevirt.io/v1","kind":"VirtualMachineInstance","metadata":{"name":"vm-a"},"spec":{"domain":{"devices":{"interfaces":[]}}}}`,
-		"bad json":           base[:len(base)-1],
+		"missing interfaces":     `{"apiVersion":"kubevirt.io/v1","kind":"VirtualMachineInstance","metadata":{"namespace":"compute","name":"vm-a"},"spec":{"domain":{"devices":{}}}}`,
+		"wrong api":              `{"apiVersion":"kubevirt.io/v1beta1","kind":"VirtualMachineInstance","metadata":{"namespace":"compute","name":"vm-a"},"spec":{"domain":{"devices":{"interfaces":[]}}}}`,
+		"masquerade and slirp":   `{"apiVersion":"kubevirt.io/v1","kind":"VirtualMachineInstance","metadata":{"namespace":"compute","name":"vm-a"},"spec":{"domain":{"devices":{"interfaces":[{"name":"default","masquerade":{},"slirp":{}}]}}}}`,
+		"only slirp":             `{"apiVersion":"kubevirt.io/v1","kind":"VirtualMachineInstance","metadata":{"namespace":"compute","name":"vm-a"},"spec":{"domain":{"devices":{"interfaces":[{"name":"default","slirp":{}}]}}}}`,
+		"masquerade and passt":   `{"apiVersion":"kubevirt.io/v1","kind":"VirtualMachineInstance","metadata":{"namespace":"compute","name":"vm-a"},"spec":{"domain":{"devices":{"interfaces":[{"name":"default","masquerade":{},"passt":{}}]}}}}`,
+		"only passt":             `{"apiVersion":"kubevirt.io/v1","kind":"VirtualMachineInstance","metadata":{"namespace":"compute","name":"vm-a"},"spec":{"domain":{"devices":{"interfaces":[{"name":"default","passt":{}}]}}}}`,
+		"masquerade and macvtap": `{"apiVersion":"kubevirt.io/v1","kind":"VirtualMachineInstance","metadata":{"namespace":"compute","name":"vm-a"},"spec":{"domain":{"devices":{"interfaces":[{"name":"default","masquerade":{},"macvtap":{}}]}}}}`,
+		"only macvtap":           `{"apiVersion":"kubevirt.io/v1","kind":"VirtualMachineInstance","metadata":{"namespace":"compute","name":"vm-a"},"spec":{"domain":{"devices":{"interfaces":[{"name":"default","macvtap":{}}]}}}}`,
+		"unknown binding key":    `{"apiVersion":"kubevirt.io/v1","kind":"VirtualMachineInstance","metadata":{"namespace":"compute","name":"vm-a"},"spec":{"domain":{"devices":{"interfaces":[{"name":"default","masquerade":{},"futureBinding":{}}]}}}}`,
+		"wrong binding type":     `{"apiVersion":"kubevirt.io/v1","kind":"VirtualMachineInstance","metadata":{"namespace":"compute","name":"vm-a"},"spec":{"domain":{"devices":{"interfaces":[{"name":"default","binding":"plugin"}]}}}}`,
+		"missing namespace":      `{"apiVersion":"kubevirt.io/v1","kind":"VirtualMachineInstance","metadata":{"name":"vm-a"},"spec":{"domain":{"devices":{"interfaces":[]}}}}`,
+		"bad json":               base[:len(base)-1],
 	} {
 		t.Run(name, func(t *testing.T) {
 			prepared, err := PrepareKubeVirt([]byte(raw), KubeVirtFrom, KubeVirtTo)
