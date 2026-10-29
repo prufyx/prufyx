@@ -33,8 +33,10 @@ const (
 	k8sSetKindFlags        = "flags"
 
 	// ReasonKubernetesComponentSettingSetsComplete reports a preparation
-	// that declared only setting sets, every one of them complete. Which
-	// members a rule forbids is decided by the rule, not by preparation.
+	// that evaluated no removed-setting predicate and declared setting
+	// sets, every one of them complete (a registered kubelet skew predicate
+	// may also have run). Which members a rule forbids is decided by the
+	// rule, not by preparation.
 	ReasonKubernetesComponentSettingSetsComplete Reason = "KUBERNETES_COMPONENT_SETTING_SETS_COMPLETE"
 )
 
