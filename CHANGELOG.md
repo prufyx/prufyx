@@ -195,6 +195,15 @@ A catalogued project is not tested coverage: a catalogue entry says Prufyx holds
 
 ### Added
 
+- `prufyx db update` with no arguments fetches the official `cncf-projects` feed
+  and installs it into the default store; `--package-out` is optional for that
+  profile (packages are kept in `$XDG_DATA_HOME/prufyx/knowledge/packages/`, the
+  newest two). The report shows the current and new revision and the expiry, says
+  `already up to date` when nothing changed, and a feed that serves an older
+  revision than installed exits `12` (`FEED_BEHIND`) instead of failing as an
+  integrity error. The official feed is not published and the root pin is still
+  empty, so this needs the owner's root ceremony before it works end to end. See
+  `cli/docs/knowledge-updates.md`.
 - `prufyx scan` takes declared kubelet versions, `--kubelet-version-min` and
   `--kubelet-version-max` (or `minimumKubeletVersion` and `maximumKubeletVersion`
   under `declarations.kubernetes` in `prufyx.yaml`), and feeds them to the

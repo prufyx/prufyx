@@ -4,6 +4,7 @@ package knowledge
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/prufyx/prufyx/cli/internal/currentbundle"
 )
@@ -38,19 +39,32 @@ func ValidateImportAssertions(req ImportRequest) error {
 	if _, err := verificationAssertionsDigest(req.ExpectedVerification); err != nil {
 		return err
 	}
-	if (req.BootstrapRootPath == "") != (req.BootstrapRootDigest == "") {
+	if req.BootstrapRootPath != "" && req.BootstrapRoot != nil {
+		return fmt.Errorf("bootstrap root path and bytes are exclusive: %w", ErrInvalid)
+	}
+	if !req.hasBootstrapRoot() != (req.BootstrapRootDigest == "") {
 		return fmt.Errorf("bootstrap root path and digest must be supplied together: %w", ErrInvalid)
 	}
-	if req.BootstrapRootPath == "" {
+	if !req.hasBootstrapRoot() {
 		return nil
 	}
 	expected, err := normalizeDigest(req.BootstrapRootDigest)
 	if err != nil {
 		return fmt.Errorf("bootstrap root digest: %w", err)
 	}
-	raw, info, err := currentbundle.ReadBoundedFileInfo(req.BootstrapRootPath, 128<<10)
-	if err != nil || info == nil || !info.Mode().IsRegular() {
-		return fmt.Errorf("bootstrap root admission: %w", ErrIntegrity)
+	var raw []byte
+	if req.BootstrapRoot != nil {
+		var err error
+		if raw, err = req.bootstrapRootBytes(); err != nil {
+			return fmt.Errorf("bootstrap root admission: %w", ErrIntegrity)
+		}
+	} else {
+		var info os.FileInfo
+		var err error
+		raw, info, err = currentbundle.ReadBoundedFileInfo(req.BootstrapRootPath, 128<<10)
+		if err != nil || info == nil || !info.Mode().IsRegular() {
+			return fmt.Errorf("bootstrap root admission: %w", ErrIntegrity)
+		}
 	}
 	if digestBytes(raw) != expected {
 		return fmt.Errorf("bootstrap root digest mismatch: %w", ErrIntegrity)

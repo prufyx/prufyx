@@ -25,6 +25,26 @@ var pins = map[string]string{
 	"cncf-projects": "",
 }
 
+// roots maps a profile name to its embedded initial root bytes. It is empty
+// until the root ceremony: the root file is added together with its pin in one
+// reviewed change, and then registered here from a go:embed variable. A test
+// asserts that every non-empty pin equals the digest of the embedded root.
+var roots = map[string][]byte{}
+
+// Root returns the embedded initial root of a profile. The caller must still
+// admit it only if it hashes to the profile's pin (see Digest).
+func Root(profile string) ([]byte, bool) {
+	raw, ok := roots[profile]
+	if !ok || len(raw) == 0 {
+		return nil, false
+	}
+	return append([]byte(nil), raw...), true
+}
+
+// FeedURL is the official knowledge feed of the default profile. Nothing is
+// published there until the owner's root ceremony has happened.
+const FeedURL = "https://prufyx.github.io/prufyx/knowledge/cncf-projects.tar"
+
 // Digest returns the pinned initial root digest of a profile, or "" when the
 // profile has no pin.
 func Digest(profile string) string {

@@ -379,7 +379,8 @@ knowledge feed, and automated GitOps release gates. None exists today.
   owner-only rule to `scan` as well.
 - Reports omit raw values, paths, credentials, and configuration content.
 - Knowledge can be refreshed explicitly with `prufyx db update` from a signed
-  package you choose; nothing updates automatically.
+  package you choose; nothing updates automatically. With no arguments it targets the
+  official feed, which is not published yet.
 
 ## Support Prufyx
 

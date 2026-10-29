@@ -6,6 +6,7 @@ package knowledge
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
@@ -24,6 +25,13 @@ var (
 	ErrNoSelection      = errors.New("no verified knowledge selection")
 	ErrTrustAdvanced    = errors.New("knowledge trust state advanced beyond selection")
 	ErrRecoveryRequired = errors.New("knowledge import recovery required")
+	// ErrFeedBehind marks a package whose revision is older than the store's
+	// revision floor. It is a rollback refusal the caller may report as a
+	// stale feed; a same-revision package with another digest is not this.
+	ErrFeedBehind = fmt.Errorf("knowledge revision is older than the store: %w", ErrRollback)
+	// ErrPinnedRootMismatch marks a store whose initial root is not the root
+	// pinned in this build.
+	ErrPinnedRootMismatch = fmt.Errorf("initial root is not the pinned root: %w", ErrIntegrity)
 )
 
 type SelectionMode string
@@ -51,6 +59,10 @@ type ImportRequest struct {
 	StoreRoot           string
 	BootstrapRootPath   string
 	BootstrapRootDigest string
+	// BootstrapRoot carries the initial root bytes in memory (for a root
+	// embedded in the binary). It is exclusive with BootstrapRootPath and is
+	// admitted only if it hashes to BootstrapRootDigest.
+	BootstrapRoot []byte
 	// PinnedRootDigest, when set, requires the store's initial root to be
 	// exactly this digest. Later root versions still need the TUF chain.
 	PinnedRootDigest     string
