@@ -46,6 +46,11 @@ func (r runtime) plan(args []string, stdin io.Reader) int {
 	if err != nil {
 		return r.scanError(err)
 	}
+	for _, c := range latest {
+		if _, both := request.To[c]; both {
+			return r.fail("--to "+c+" is given both as latest and as a version", ExitUsage)
+		}
+	}
 	if !slices.Contains(upgradeplan.Formats(), request.Format) {
 		return r.fail("prufyx plan supports --format human, json or markdown", ExitUsage)
 	}
@@ -92,7 +97,7 @@ func splitLatest(args []string) ([]string, []string) {
 		}
 		value, inline := "", false
 		switch {
-		case arg == "--to" && i+1 < len(args):
+		case (arg == "--to" || arg == "-to") && i+1 < len(args):
 			value = args[i+1]
 		case strings.HasPrefix(arg, "--to="):
 			value, inline = strings.TrimPrefix(arg, "--to="), true

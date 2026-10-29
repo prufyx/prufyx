@@ -55,7 +55,10 @@ const (
 	ReasonActionsNotChecked   = "HOP_ACTIONS_NOT_CHECKED"
 	ReasonNodeRollsNotPlanned = "NODE_ROLLS_NOT_PLANNED"
 	ReasonHopNotCovered       = "HOP_NOT_COVERED"
-	ReasonComponentGap        = "COMPONENT_GAP"
+	// ReasonBlockedEarlier: the hop is BLOCKED by a rule the scan reported at
+	// an earlier hop of the same component.
+	ReasonBlockedEarlier = "BLOCKED_BY_EARLIER_FINDING"
+	ReasonComponentGap   = "COMPONENT_GAP"
 	// ReasonLatestNotResolved: the target was "latest" and no signed
 	// release-line snapshot ships, so the component is not planned.
 	ReasonLatestNotResolved = "LATEST_NOT_RESOLVED"
@@ -165,9 +168,10 @@ func Build(report scanreport.Report, latest []string, caps Capabilities) Plan {
 		}
 		return paths[i].Component < paths[j].Component
 	})
-	hasK8s := len(paths) > 0 && paths[0].Component == kubernetes
+	hasK8s := len(paths) > 0 && paths[0].Component == kubernetes && len(paths[0].Hops) > 0
 
 	used := map[string]bool{}
+	components := len(latest)
 	for _, path := range paths {
 		route := Route{Component: path.Component, From: path.From, To: path.To, Policy: path.Policy, Stops: []string{}, Hops: len(path.Hops), Gap: path.Gap}
 		for i, hop := range path.Hops {
@@ -176,6 +180,7 @@ func Build(report scanreport.Report, latest []string, caps Capabilities) Plan {
 			}
 		}
 		plan.Routes = append(plan.Routes, route)
+		components++
 		if path.Gap != "" || len(path.Hops) == 0 {
 			plan.Gaps = append(plan.Gaps, Gap{Component: path.Component, Reason: ReasonPlanGap, Detail: "the scan planned no hops: " + path.Gap,
 				Action: "see prufyx scan --help for the gap " + path.Gap})
@@ -194,7 +199,7 @@ func Build(report scanreport.Report, latest []string, caps Capabilities) Plan {
 	for i := range plan.Stages {
 		finishStage(&plan.Stages[i], caps)
 	}
-	finish(&plan, report)
+	finish(&plan, report, components)
 	return plan
 }
 
@@ -228,12 +233,13 @@ func newStage(path scanreport.Path, hop scanreport.Hop, hasK8s bool, report scan
 			stage.Notices = append(stage.Notices, n.RuleID+": "+n.Text)
 		}
 	}
-	for _, g := range report.Gaps {
+	for i, g := range report.Gaps {
 		if g.Component != path.Component {
 			continue
 		}
 		if g.Hop == nil || g.Hop.Index == hop.Index && !g.Hop.WholeUpgrade {
 			stage.Gaps = append(stage.Gaps, Gap{Component: g.Component, Reason: g.Reason, Detail: g.Detail, Action: g.Action})
+			used[fmt.Sprintf("g:%d", i)] = true
 		}
 	}
 	return stage
@@ -254,6 +260,15 @@ func placeWhole(plan *Plan, report scanreport.Report, used map[string]bool) {
 			plan.Stages[i].Findings = append(plan.Stages[i].Findings, Finding{RuleID: f.RuleID, Title: f.Title, Fix: f.Fix, Whole: true})
 			plan.Stages[i].WholeUpgrade = true
 			used["f:"+key(f.Component, f.RuleID)] = true
+		}
+	}
+	for i, g := range report.Gaps {
+		if g.Hop == nil || !g.Hop.WholeUpgrade {
+			continue
+		}
+		if j, ok := last[g.Component]; ok {
+			plan.Stages[j].Gaps = append(plan.Stages[j].Gaps, Gap{Component: g.Component, Reason: g.Reason, Detail: g.Detail, Action: g.Action})
+			used[fmt.Sprintf("g:%d", i)] = true
 		}
 	}
 	for _, u := range report.Unsupported {
@@ -282,27 +297,18 @@ func placeLeftovers(plan *Plan, report scanreport.Report, used map[string]bool) 
 			plan.Gaps = append(plan.Gaps, Gap{Component: u.Component, Reason: "UNSUPPORTED_NOT_PLACED", Detail: u.RuleID + ": " + u.Reason, Action: u.Fix})
 		}
 	}
-	for _, g := range report.Gaps {
-		if g.Component == "" || !hasStage(plan.Stages, g.Component) {
+	for i, g := range report.Gaps {
+		if !used[fmt.Sprintf("g:%d", i)] {
 			plan.Gaps = append(plan.Gaps, Gap{Component: g.Component, Reason: g.Reason, Detail: g.Detail, Action: g.Action})
 		}
 	}
-}
-
-func hasStage(stages []Stage, component string) bool {
-	for _, s := range stages {
-		if s.Component == component {
-			return true
-		}
-	}
-	return false
 }
 
 func key(component, rule string) string { return component + "\x00" + rule }
 
 // finishStage derives the reasons and the verdict of a stage.
 func finishStage(stage *Stage, caps Capabilities) {
-	if stage.HopStatus != scanreport.HopCovered && len(stage.Findings) == 0 {
+	if stage.HopStatus != scanreport.HopCovered && stage.HopStatus != scanreport.HopBlocked && len(stage.Findings) == 0 {
 		stage.Reasons = append(stage.Reasons, ReasonHopNotCovered)
 	}
 	if len(stage.Gaps) > 0 {
@@ -317,8 +323,13 @@ func finishStage(stage *Stage, caps Capabilities) {
 	if stage.Component == kubernetes && !caps.NodeRollsPlanned {
 		stage.Reasons = append(stage.Reasons, ReasonNodeRollsNotPlanned)
 	}
+	if stage.HopStatus == scanreport.HopBlocked && len(stage.Findings) == 0 {
+		// The scan reports a blocker once, at its first hop; later hops it
+		// blocks keep the BLOCKED status and name no finding.
+		stage.Reasons = append(stage.Reasons, ReasonBlockedEarlier)
+	}
 	switch {
-	case len(stage.Findings) > 0:
+	case stage.HopStatus == scanreport.HopBlocked, len(stage.Findings) > 0:
 		stage.Verdict = VerdictBlocked
 	case len(stage.Unsupported) > 0:
 		stage.Verdict = VerdictUnsupported
@@ -331,10 +342,10 @@ func finishStage(stage *Stage, caps Capabilities) {
 
 // finish sets the plan verdict (the worst stage; any plan gap is at least
 // UNKNOWN), the counts, the exit code and the headline.
-func finish(plan *Plan, report scanreport.Report) {
+func finish(plan *Plan, report scanreport.Report, components int) {
 	rank := map[string]int{VerdictPass: 0, VerdictUnknown: 1, VerdictUnsupported: 2, VerdictBlocked: 3}
 	worst := VerdictPass
-	blocked := report.Verdict == scanreport.VerdictBlocked
+	blocked := report.Verdict == scanreport.VerdictBlocked || len(report.Findings) > 0
 	counts := map[string]int{}
 	for _, s := range plan.Stages {
 		counts[s.Verdict]++
@@ -359,7 +370,7 @@ func finish(plan *Plan, report scanreport.Report) {
 		plan.ExitCode = ExitUnknown
 	}
 	plan.Headline = fmt.Sprintf("Upgrade plan: %d components, %d hops in %d stages. Verdict: %s (BLOCKED %d, UNSUPPORTED %d, UNKNOWN %d, PASS %d).",
-		len(plan.Routes), hopCount(plan.Routes), len(plan.Stages), worst, counts[VerdictBlocked], counts[VerdictUnsupported], counts[VerdictUnknown], counts[VerdictPass])
+		components, hopCount(plan.Routes), len(plan.Stages), worst, counts[VerdictBlocked], counts[VerdictUnsupported], counts[VerdictUnknown], counts[VerdictPass])
 }
 
 func hopCount(routes []Route) int {

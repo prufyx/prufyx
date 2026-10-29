@@ -3,6 +3,7 @@
 package upgradeplan
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -150,5 +151,28 @@ func TestDeterministicAndRender(t *testing.T) {
 	out, _ := Render(Build(r, nil, Capabilities{}), "human")
 	if strings.Contains(string(out), "\nStage 99") {
 		t.Fatal("forged line")
+	}
+}
+
+func TestGapPlacementAndEarlierBlocker(t *testing.T) {
+	r := report()
+	r.Paths[1].Hops = append(r.Paths[1].Hops, hop(3, "1.31", "1.32.0", scanreport.HopBlocked))
+	r.Gaps = []scanreport.Gap{
+		{Component: "kubernetes", Hop: &scanreport.HopRef{WholeUpgrade: true}, Reason: "LINE_NO_RULES", Detail: "whole"},
+		{Component: "kubernetes", Hop: &scanreport.HopRef{Index: 42}, Reason: "ORPHAN", Detail: "no such hop"},
+	}
+	plan := Build(r, nil, Capabilities{ActionsChecked: true, NodeRollsPlanned: true})
+	k := plan.Stages[:3]
+	if len(k[2].Gaps) != 1 || k[2].Gaps[0].Reason != "LINE_NO_RULES" {
+		t.Fatalf("whole gap not in last stage: %+v", k[2])
+	}
+	if len(plan.Gaps) != 1 || plan.Gaps[0].Reason != "ORPHAN" {
+		t.Fatalf("orphan gap lost: %+v", plan.Gaps)
+	}
+	if k[2].Verdict != VerdictBlocked || !slices.Contains(k[2].Reasons, ReasonBlockedEarlier) {
+		t.Fatalf("earlier blocker: %+v", k[2])
+	}
+	if p := Build(scanreport.Report{Findings: r.Findings}, nil, Capabilities{}); p.Verdict != VerdictBlocked {
+		t.Fatalf("findings without verdict: %s", p.Verdict)
 	}
 }
