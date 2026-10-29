@@ -52,6 +52,14 @@ itself. Automatic sync currently requires a matching published GitHub Release;
 the guide describes the explicit pinned-source fallback for tag-only and
 changelog-only repositories.
 
+## Changelog
+
+Do not edit `CHANGELOG.md` in a pull request: parallel pull requests conflict
+there. A pull request that changes user-visible behaviour adds one fragment,
+`changelog.d/<short-slug>.md`, instead. The format is in
+[changelog.d/README.md](changelog.d/README.md); `scripts/changelog-assemble.sh
+--check` validates it. The release cut moves the fragments into `CHANGELOG.md`.
+
 ## Develop locally
 
 Use Go 1.26.8. Go dependencies are pinned in `cli/vendor`; use the vendored,
