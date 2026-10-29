@@ -125,7 +125,7 @@ prufyx db update
 
 With no `--source` and no `--release-plan`, `db update` fetches the official
 `cncf-projects` feed (`https://prufyx.github.io/prufyx/knowledge/cncf-projects.tar`,
-overridable with `--source`), verifies it against the root pinned in this build
+overridable with `--source`, which takes an HTTPS URL only), verifies it against the root pinned in this build
 and installs it into the default store, where `check` and `scan` find it. The
 trust logic is the same verifier as for every other update; only the defaults
 change. Giving `--source` or `--release-plan` keeps the rules described above

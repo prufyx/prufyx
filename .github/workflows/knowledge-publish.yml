@@ -260,9 +260,9 @@ jobs:
           keys="$(mktemp -d "${RUNNER_TEMP}/knowledge-keys.XXXXXX")"
           work="$(mktemp -d "${RUNNER_TEMP}/knowledge-build.XXXXXX")"
           trap 'rm -rf "${keys}"' EXIT
-          printf '%s' "${TARGETS_KEY}" > "${keys}/targets.key.pem"
-          printf '%s' "${SNAPSHOT_KEY}" > "${keys}/snapshot.key.pem"
-          printf '%s' "${TIMESTAMP_KEY}" > "${keys}/timestamp.key.pem"
+          printf '%s\n' "${TARGETS_KEY}" > "${keys}/targets.key.pem"
+          printf '%s\n' "${SNAPSHOT_KEY}" > "${keys}/snapshot.key.pem"
+          printf '%s\n' "${TIMESTAMP_KEY}" > "${keys}/timestamp.key.pem"
           printf '%s' "${PASSPHRASE}" > "${keys}/passphrase"
 
           if [ "${MODE}" = first ]; then
