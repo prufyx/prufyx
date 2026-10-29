@@ -194,6 +194,12 @@ A catalogued project is not tested coverage: a catalogue entry says Prufyx holds
   `KNOWLEDGE_ROOT_DIGEST`, when set, against the embedded root and pin.
   `knowledge-release.yml` is superseded and disabled. See
   `cli/docs/knowledge-publisher.md`.
+- Tag builds now fail when the earliest `validUntil` over the embedded
+  evidence (rules, project rules, line attestations, served-API lists, path
+  policies, image and chart identity) is less than 30 days after the tagged
+  commit's date, so a release never ships evidence that expires soon after it.
+  `prufyx-maintainer release-freshness` prints that date; see
+  `cli/docs/releasing.md`.
 
 ### Changed
 

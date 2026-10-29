@@ -116,6 +116,20 @@ jobs:
           go-version: "1.26.8"
           cache: false
 
+      # The knowledge embedded in the binary must stay valid for a while after
+      # the release: the earliest evidence validUntil over all embedded rules
+      # (read by the code the binary itself uses) must be at least 30 days
+      # after the tagged commit's date, so a release never ships rules that
+      # answer UNKNOWN soon after it. Renewals must land before the tag.
+      - name: Check the embedded knowledge is fresh
+        working-directory: cli
+        env:
+          TAGGED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          commit_date="$(git log -1 --format=%cI "${TAGGED_SHA}")"
+          go run ./cmd/prufyx-maintainer release-freshness --commit-date "${commit_date}" --min-days 30
+
       - name: Build binaries
         working-directory: cli
         env:
