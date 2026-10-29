@@ -32,7 +32,7 @@ const ConstraintsProjectsIndexTargetPath = cncfcheck.ExternalIndexTargetPath
 var ErrLayout = errors.New("knowledge target layout mismatch")
 
 const (
-	// A per-project package holds the index, up to 256 project targets of at
+	// A per-project package holds the index, up to 1024 project targets of at
 	// most 1 MiB each, and TUF metadata. The complete package is bounded by
 	// the local bounded-file reader (8 MiB); member bytes by 7 MiB.
 	SplitMaxPackageBytes = 8 << 20

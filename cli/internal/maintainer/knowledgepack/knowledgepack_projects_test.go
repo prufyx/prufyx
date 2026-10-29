@@ -12,6 +12,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 )
 
 func splitMemberPath(dir, base string, data []byte) string {
@@ -135,14 +137,21 @@ func TestKnowledgePack_CNCFProjects_RejectsInvalidSets(t *testing.T) {
 	}
 }
 
-func TestKnowledgePack_CNCFProjects_RejectsTooManyProjects(t *testing.T) {
-	var names []string
-	for i := 0; i < 257; i++ {
-		names = append(names, fmt.Sprintf("project-%03d", i))
+func TestKnowledgePack_CNCFProjects_ProjectCountBound(t *testing.T) {
+	names := func(n int) []string {
+		var out []string
+		for i := 0; i < n; i++ {
+			out = append(out, fmt.Sprintf("project-%04d", i))
+		}
+		return out
 	}
-	root := splitFixture(t, names, nil)
+	root := splitFixture(t, names(cncfcheck.MaxExternalIndexProjects), nil)
+	if _, err := PackageDirectory(root, ProfileCNCFProjects); err != nil {
+		t.Fatalf("rejected %d projects: %v", cncfcheck.MaxExternalIndexProjects, err)
+	}
+	root = splitFixture(t, names(cncfcheck.MaxExternalIndexProjects+1), nil)
 	if _, err := PackageDirectory(root, ProfileCNCFProjects); !errors.Is(err, ErrRejected) {
-		t.Fatalf("accepted 257 projects: %v", err)
+		t.Fatalf("accepted %d projects: %v", cncfcheck.MaxExternalIndexProjects+1, err)
 	}
 }
 
