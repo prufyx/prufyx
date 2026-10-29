@@ -730,6 +730,9 @@ func validHex(value string, length int) bool {
 	return len(value) == length && strings.Trim(value, "0123456789abcdef") == ""
 }
 
+// KeyID returns the trust-root key ID of one Ed25519 public key.
+func KeyID(public ed25519.PublicKey) (string, error) { return keyIdentity(public) }
+
 func keyIdentity(public ed25519.PublicKey) (string, error) {
 	key, err := metadata.KeyFromPublicKey(public)
 	if err != nil {
