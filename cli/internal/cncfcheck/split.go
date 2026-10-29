@@ -34,8 +34,9 @@ const (
 	// MaxExternalTargetBytes is the per-target cap for the index and for
 	// every project target. It equals the single-envelope parser cap.
 	MaxExternalTargetBytes = maxExternalBundleBytes
-	// MaxExternalIndexProjects bounds the project targets one index may list.
-	MaxExternalIndexProjects = 256
+	// MaxExternalIndexProjects bounds the project targets one index may list: one per supported project, with headroom (the byte bounds of the
+	// package, not this count, limit its size).
+	MaxExternalIndexProjects = 1024
 	// TargetSizeAlarmPercent is the share of MaxExternalTargetBytes at which
 	// the maintainer size check fails.
 	TargetSizeAlarmPercent = 80

@@ -239,7 +239,7 @@ verify the finished package with the per-project consumer verifier
 (`prufyx db verify --profile cncf-projects`). The package members are
 `targets/knowledge/cncf/<sha256>.index.v1.json` and
 `targets/knowledge/{cncf,community}/projects/<sha256>.<project>.v1.json`; the
-packer applies the consumer's member names and bounds (at most 256 project
+packer applies the consumer's member names and bounds (at most 1024 project
 targets, 8 MiB package, 7 MiB of members) and checks every member against the
 digest in its name. `finalize-package --package-url/--release-plan-output` is
 refused for this layout (see below).

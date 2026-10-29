@@ -24,7 +24,7 @@ exact target length and SHA-256 digest, the rule digest and the earliest
 evidence expiry of that project's rules. The index is compact canonical JSON
 with projects in ascending order; unknown fields, duplicates, projects outside
 the compiled CNCF catalogue and targets over 1 MiB are rejected. An index lists
-between 1 and 256 projects.
+between 1 and 1024 projects.
 
 In a package archive the members are content-addressed like every other
 profile: `targets/knowledge/cncf/<sha256>.index.v1.json` and
