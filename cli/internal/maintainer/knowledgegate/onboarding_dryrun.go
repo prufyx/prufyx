@@ -33,30 +33,41 @@ const (
 	// and with it the batch, is refused.
 	OnboardingRESTBudget = 250
 	OnboardingReadBudget = 3000
+	// OnboardingListBudget is the directory listings one project's dry run
+	// may make. A listing is answered from the subtree one request fetched
+	// (the full-tree scan lists every directory of a tag, a vendored tree
+	// holds hundreds), so it is bounded apart from file reads and the REST
+	// requests it really costs stay under OnboardingRESTBudget.
+	OnboardingListBudget = 10000
 )
 
 var errOnboardingBudget = errors.New("the dry run's request budget for this project ran out")
 
 // budgetSource passes reads to src until the project's budget is used: the
 // REST requests src counts since the project started, checked before every
-// read or listing, and the number of reads and listings.
+// read or listing, the number of reads, and (apart) the number of listings.
 type budgetSource struct {
 	src   Source
 	stats statsSource
 	start int64
 	mu    sync.Mutex
 	reads int
+	lists int
 	over  bool
 }
 
-func (b *budgetSource) spend() error {
+func (b *budgetSource) spend() error { return b.spendIn(&b.reads, OnboardingReadBudget) }
+
+// spendIn counts one call against counter n, whose limit is limit; the REST
+// limit applies to every kind of call.
+func (b *budgetSource) spendIn(n *int, limit int) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if b.over || b.reads >= OnboardingReadBudget || b.stats.Stats().APIRequests-b.start >= OnboardingRESTBudget {
+	if b.over || *n >= limit || b.stats.Stats().APIRequests-b.start >= OnboardingRESTBudget {
 		b.over = true
 		return errOnboardingBudget
 	}
-	b.reads++
+	*n++
 	return nil
 }
 
@@ -70,7 +81,7 @@ func (b *budgetSource) Read(repo extract.RepoRef, commit, p string) ([]byte, err
 }
 
 func (b *budgetSource) List(repo extract.RepoRef, commit, dir string) ([]extract.TreeEntry, error) {
-	if err := b.spend(); err != nil {
+	if err := b.spendIn(&b.lists, OnboardingListBudget); err != nil {
 		return nil, err
 	}
 	return b.src.List(repo, commit, dir)
@@ -153,7 +164,7 @@ func onboardingDryRun(ctx context.Context, src Source, concurrency int, target c
 		err = fmt.Errorf("the dry run used %d GitHub REST requests, over the budget of %d", b.used(), OnboardingRESTBudget)
 	}
 	if errors.Is(err, errOnboardingBudget) || b.over {
-		err = fmt.Errorf("the dry run's budget of %d GitHub REST requests and %d reads ran out: refused, never admitted on a partial run", OnboardingRESTBudget, OnboardingReadBudget)
+		err = fmt.Errorf("the dry run's budget of %d GitHub REST requests, %d reads and %d listings ran out: refused, never admitted on a partial run", OnboardingRESTBudget, OnboardingReadBudget, OnboardingListBudget)
 	}
 	return used, err
 }
