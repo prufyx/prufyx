@@ -46,8 +46,10 @@ attestation and the `SHA256SUMS` of a version must stay one-to-one.
    For the second command, first create `docs/release-notes-<tag>.md` with the
    hand-written text and an empty marker pair. `--into` rewrites only the text between the
    `<!-- release-notes:begin -->` and `<!-- release-notes:end -->` lines of the
-   file and refuses a file without exactly one such pair. In `CHANGELOG.md`
-   rename `## [Unreleased]` to `## [<version>] - <date>`, keep the generated
+   file and refuses a file without exactly one such pair.
+   For `CHANGELOG.md`, first run `scripts/changelog-assemble.sh` from the repository root: it moves
+   the `changelog.d/` fragments into `CHANGELOG.md` below the generated block
+   and deletes them (`--check` only validates). Then rename `## [Unreleased]` to `## [<version>] - <date>`, keep the generated
    block, and open a new `## [Unreleased]` section with its own marker pair.
    The release notes file is `cli/docs/release-notes-<tag>.md`: hand-written
    text above the marker pair (what the build is, its limits; see
