@@ -270,15 +270,15 @@ Generated on 2026-10-23 by `scripts/readme-coverage.sh` (do not edit this block 
 | Projects with at least one executable check | 65 |
 | Projects catalogued with retained public sources | 58 (11 of them source-only, no check) |
 | Projects with reviewed CRD targets (a reviewed `crd.custom_resource_versions` target) | 73 |
-| Projects with a published CRD rule or line attestation | 8 |
+| Projects with a published CRD rule or line attestation | 6 |
 
 Version-coverage depth, measured over the last five minor upgrades of each of the 78 projects with a release-line snapshot (390 upgrades between consecutive release lines):
 
 | Status | Upgrades | Share |
 | --- | --- | --- |
-| Decided for the whole release-line pair (A attested, B bounded) | 34 | 8.7% |
-| Rule for one exact version pair only (S) | 40 | 10.2% |
-| Gap, no valid rule (G) | 316 | 81% |
+| Decided for the whole release-line pair (A attested, B bounded) | 27 | 6.9% |
+| Rule for one exact version pair only (S) | 41 | 10.5% |
+| Gap, no valid rule (G) | 322 | 82.5% |
 
 Kubernetes: 63 valid rules, but 19 fall in its window 1.32 to 1.37; 0 of 5 upgrades in that window are gaps.
 

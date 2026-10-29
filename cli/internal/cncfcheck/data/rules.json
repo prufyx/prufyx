@@ -21720,6 +21720,10 @@
           {
             "version": "1.20.4",
             "commit": "0b9448974868c5669d4f3e7499f5afd393889e22"
+          },
+          {
+            "version": "1.20.5",
+            "commit": "bb9a396c59fe29369e1a42fb0d0df94ccd891b6f"
           }
         ]
       },
@@ -21727,12 +21731,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.cert-manager",
-          "version": "2.5.0",
-          "codeDigest": "sha256:c0ca248ae9263ca68a256cef4d0e6d579cc0bfce4b1073995495412af805cce5"
+          "version": "2.7.0",
+          "codeDigest": "sha256:22ba78d4b02fe86f03f3b36115c4a4522376d1bb77835d8e1c5b09ca2d501ba8"
         },
-        "derivedAt": "2026-10-22T21:28:31Z",
-        "reviewedAt": "2026-10-22T21:28:31Z",
-        "validUntil": "2026-11-25T21:28:31Z",
+        "derivedAt": "2026-10-29T11:43:08Z",
+        "reviewedAt": "2026-10-29T11:43:08Z",
+        "validUntil": "2027-01-27T11:43:08Z",
         "sources": [
           {
             "id": "crds-1-19-0",
@@ -21780,6 +21784,10 @@
           {
             "version": "1.20.4",
             "commit": "0b9448974868c5669d4f3e7499f5afd393889e22"
+          },
+          {
+            "version": "1.20.5",
+            "commit": "bb9a396c59fe29369e1a42fb0d0df94ccd891b6f"
           }
         ],
         "to": [
@@ -21794,6 +21802,10 @@
           {
             "version": "1.21.2",
             "commit": "922a06aa49ee4bb802db268ef72a174af70edd32"
+          },
+          {
+            "version": "1.21.3",
+            "commit": "925c22283de556172d48d96a165dc2fa27f7a6ff"
           }
         ]
       },
@@ -21801,12 +21813,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.cert-manager",
-          "version": "2.5.0",
-          "codeDigest": "sha256:c0ca248ae9263ca68a256cef4d0e6d579cc0bfce4b1073995495412af805cce5"
+          "version": "2.7.0",
+          "codeDigest": "sha256:22ba78d4b02fe86f03f3b36115c4a4522376d1bb77835d8e1c5b09ca2d501ba8"
         },
-        "derivedAt": "2026-10-22T21:28:31Z",
-        "reviewedAt": "2026-10-22T21:28:31Z",
-        "validUntil": "2026-11-25T21:28:31Z",
+        "derivedAt": "2026-10-29T11:43:08Z",
+        "reviewedAt": "2026-10-29T11:43:08Z",
+        "validUntil": "2027-01-27T11:43:08Z",
         "sources": [
           {
             "id": "crds-1-20-0",
@@ -22423,12 +22435,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.dapr",
-          "version": "2.5.0",
-          "codeDigest": "sha256:6a59670c89284bb477f7dc6316ed9788d1dc912f9a08ec6f7a31928de1de3d38"
+          "version": "2.7.0",
+          "codeDigest": "sha256:a29d554284b3a6d7d550f4b3a1454ed3a83c1c4ec0cd9e1b6ad63236663c76c3"
         },
-        "derivedAt": "2026-10-22T21:28:31Z",
-        "reviewedAt": "2026-10-22T21:28:31Z",
-        "validUntil": "2026-11-25T21:28:31Z",
+        "derivedAt": "2026-10-29T11:43:08Z",
+        "reviewedAt": "2026-10-29T11:43:08Z",
+        "validUntil": "2027-01-27T11:43:08Z",
         "sources": [
           {
             "id": "crds-1-13-0",
@@ -22549,12 +22561,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.dapr",
-          "version": "2.5.0",
-          "codeDigest": "sha256:6a59670c89284bb477f7dc6316ed9788d1dc912f9a08ec6f7a31928de1de3d38"
+          "version": "2.7.0",
+          "codeDigest": "sha256:a29d554284b3a6d7d550f4b3a1454ed3a83c1c4ec0cd9e1b6ad63236663c76c3"
         },
-        "derivedAt": "2026-10-22T21:28:31Z",
-        "reviewedAt": "2026-10-22T21:28:31Z",
-        "validUntil": "2026-11-25T21:28:31Z",
+        "derivedAt": "2026-10-29T11:43:08Z",
+        "reviewedAt": "2026-10-29T11:43:08Z",
+        "validUntil": "2027-01-27T11:43:08Z",
         "sources": [
           {
             "id": "crds-1-14-0",
@@ -22739,12 +22751,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.dapr",
-          "version": "2.5.0",
-          "codeDigest": "sha256:6a59670c89284bb477f7dc6316ed9788d1dc912f9a08ec6f7a31928de1de3d38"
+          "version": "2.7.0",
+          "codeDigest": "sha256:a29d554284b3a6d7d550f4b3a1454ed3a83c1c4ec0cd9e1b6ad63236663c76c3"
         },
-        "derivedAt": "2026-10-22T21:28:31Z",
-        "reviewedAt": "2026-10-22T21:28:31Z",
-        "validUntil": "2026-11-25T21:28:31Z",
+        "derivedAt": "2026-10-29T11:43:08Z",
+        "reviewedAt": "2026-10-29T11:43:08Z",
+        "validUntil": "2027-01-27T11:43:08Z",
         "sources": [
           {
             "id": "crds-1-15-0",
@@ -22945,12 +22957,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.dapr",
-          "version": "2.5.0",
-          "codeDigest": "sha256:6a59670c89284bb477f7dc6316ed9788d1dc912f9a08ec6f7a31928de1de3d38"
+          "version": "2.7.0",
+          "codeDigest": "sha256:a29d554284b3a6d7d550f4b3a1454ed3a83c1c4ec0cd9e1b6ad63236663c76c3"
         },
-        "derivedAt": "2026-10-22T21:28:31Z",
-        "reviewedAt": "2026-10-22T21:28:31Z",
-        "validUntil": "2026-11-25T21:28:31Z",
+        "derivedAt": "2026-10-29T11:43:08Z",
+        "reviewedAt": "2026-10-29T11:43:08Z",
+        "validUntil": "2027-01-27T11:43:08Z",
         "sources": [
           {
             "id": "crds-1-16-0",
@@ -23103,12 +23115,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.dapr",
-          "version": "2.5.0",
-          "codeDigest": "sha256:6a59670c89284bb477f7dc6316ed9788d1dc912f9a08ec6f7a31928de1de3d38"
+          "version": "2.7.0",
+          "codeDigest": "sha256:a29d554284b3a6d7d550f4b3a1454ed3a83c1c4ec0cd9e1b6ad63236663c76c3"
         },
-        "derivedAt": "2026-10-22T21:28:31Z",
-        "reviewedAt": "2026-10-22T21:28:31Z",
-        "validUntil": "2026-11-25T21:28:31Z",
+        "derivedAt": "2026-10-29T11:43:08Z",
+        "reviewedAt": "2026-10-29T11:43:08Z",
+        "validUntil": "2027-01-27T11:43:08Z",
         "sources": [
           {
             "id": "crds-1-17-0",
@@ -23189,12 +23201,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.dapr",
-          "version": "2.5.0",
-          "codeDigest": "sha256:6a59670c89284bb477f7dc6316ed9788d1dc912f9a08ec6f7a31928de1de3d38"
+          "version": "2.7.0",
+          "codeDigest": "sha256:a29d554284b3a6d7d550f4b3a1454ed3a83c1c4ec0cd9e1b6ad63236663c76c3"
         },
-        "derivedAt": "2026-10-22T21:28:31Z",
-        "reviewedAt": "2026-10-22T21:28:31Z",
-        "validUntil": "2026-11-25T21:28:31Z",
+        "derivedAt": "2026-10-29T11:43:08Z",
+        "reviewedAt": "2026-10-29T11:43:08Z",
+        "validUntil": "2027-01-27T11:43:08Z",
         "sources": [
           {
             "id": "crds-1-18-0",
