@@ -195,6 +195,12 @@ A catalogued project is not tested coverage: a catalogue entry says Prufyx holds
 
 ### Added
 
+- `prufyx-maintainer evidence reattest keygen` generates the automation signing
+  key: an encrypted `<keyId>.key.pem` (mode 0600, the format `sign` reads) and a
+  hex `<keyId>.pub` for `trust-root migrate --add-automation-key`. The passphrase
+  comes from a file or an environment variable, never argv, and must be at
+  least 16 characters. It never overwrites a file and prints only the key ID and
+  public key.
 - `prufyx scan` takes declared kubelet versions, `--kubelet-version-min` and
   `--kubelet-version-max` (or `minimumKubeletVersion` and `maximumKubeletVersion`
   under `declarations.kubernetes` in `prufyx.yaml`), and feeds them to the
