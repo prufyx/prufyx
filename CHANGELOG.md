@@ -204,6 +204,12 @@ A catalogued project is not tested coverage: a catalogue entry says Prufyx holds
   integrity error. The official feed is not published and the root pin is still
   empty, so this needs the owner's root ceremony before it works end to end. See
   `cli/docs/knowledge-updates.md`.
+- `extract apply --renew-attestations` now renews a mechanical line attestation
+  at the same extractor build when the releases are equal and only the times
+  move (later `derivedAt`, `reviewedAt` equal to it, later `validUntil`; sources
+  and every other field equal), as `cli/docs/line-attestations.md` already
+  described. Quiet lines that have no new patch tag can stay covered. Anything
+  else stays a collision. Maintainers only; the CLI's checks are unchanged.
 - `prufyx scan` takes declared kubelet versions, `--kubelet-version-min` and
   `--kubelet-version-max` (or `minimumKubeletVersion` and `maximumKubeletVersion`
   under `declarations.kubernetes` in `prufyx.yaml`), and feeds them to the

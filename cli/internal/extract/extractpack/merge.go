@@ -10,7 +10,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -427,7 +429,10 @@ func ruleRenewalOnly(a, b []byte) bool { return ruleRenewable(a, b) }
 // only extend (every release of old is in nw in the same order). The builds
 // (version or code digest) may differ; at the same build nw must hold at least
 // one release old lacks (a new upstream patch tag), nothing else may change.
-// Sources and validUntil may change.
+// Sources and validUntil may change. The one exception is a time-only renewal:
+// the same build and equal releases are renewable when nw's reviewedAt equals
+// its derivedAt, its validUntil is later than old's, and everything else,
+// sources included, is equal (see timeOnlyRenewal).
 func renewable(old, nw lineattest.LineAttestation) bool {
 	oe, ne := old.Evidence, nw.Evidence
 	if oe.Basis != "mechanical" || ne.Basis != "mechanical" || oe.Extractor == nil || ne.Extractor == nil {
@@ -445,6 +450,9 @@ func renewable(old, nw lineattest.LineAttestation) bool {
 	if err1 != nil || err2 != nil || !nd.After(od) {
 		return false
 	}
+	if sameBuild && equalReleases(old.Releases, nw.Releases) {
+		return timeOnlyRenewal(old, nw)
+	}
 	if old.Releases == nil {
 		return !sameBuild
 	}
@@ -455,6 +463,32 @@ func renewable(old, nw lineattest.LineAttestation) bool {
 		return false
 	}
 	return !sameBuild || len(nw.Releases.From)+len(nw.Releases.To) > len(old.Releases.From)+len(old.Releases.To)
+}
+
+// equalReleases reports whether two release sets are both absent or hold the
+// same From and To lists in the same order.
+func equalReleases(a, b *lineattest.Releases) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return slices.Equal(a.From, b.From) && slices.Equal(a.To, b.To)
+}
+
+// timeOnlyRenewal reports whether nw differs from old (same build, equal
+// releases) only in the times: reviewedAt equals derivedAt, validUntil is later
+// than old's (a renewal never shortens the lease), and every other evidence
+// field, sources included, is equal. A moved source means the input moved,
+// which is not a renewal.
+func timeOnlyRenewal(old, nw lineattest.LineAttestation) bool {
+	oe, ne := old.Evidence, nw.Evidence
+	ov, err1 := time.Parse(time.RFC3339, oe.ValidUntil)
+	nv, err2 := time.Parse(time.RFC3339, ne.ValidUntil)
+	if err1 != nil || err2 != nil || !nv.After(ov) || ne.ReviewedAt != ne.DerivedAt {
+		return false
+	}
+	oe.DerivedAt, oe.ReviewedAt, oe.ValidUntil = "", "", ""
+	ne.DerivedAt, ne.ReviewedAt, ne.ValidUntil = "", "", ""
+	return reflect.DeepEqual(oe, ne)
 }
 
 func equalIDs(a, b []string) bool {

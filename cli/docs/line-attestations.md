@@ -350,21 +350,34 @@ owner-authored change, merged by the owner).
 Attestations expire like rules, and must be renewed the same way.
 
 - **Mechanical**: renewed by re-derivation. Run the same extractor build
-  again against the same pinned tags with a new `--derived-at`; the
-  attestation comes back with later `derivedAt`, `reviewedAt` and
-  `validUntil` and nothing else changed. A new extractor version or build also changes
-  `evidence.extractor`, which is a loosening change but not a plain renewal. `extract verify` proves it is reproducible from the pinned bytes.
-  A person does not renew a mechanical attestation.
-- **Mechanical, at a new extractor build**: when the extractor's code digest
-  or version has moved, re-derive and apply with
-  `extract apply --renew-attestations`. The run's attestation then replaces
-  the stored one of the same component, line and family, in place, if and only
-  if both are mechanical, the extractor id is the same, the code digest or
-  version differs, the run's `derivedAt` is later, and component, line, fact
-  family, completeness and `ruleIds` are identical. `releases` may only grow
+  again against the same pinned tags with a new `--derived-at`, and apply it
+  with `extract apply --renew-attestations`. The stored attestation of the
+  same component, line and family is replaced in place if and only if both
+  are mechanical, the extractor id, version and code digest are the same,
+  `releases` are equal (both absent, or the same `from` and `to` lists in the
+  same order), the run's `derivedAt` is strictly later, its `reviewedAt`
+  equals its `derivedAt`, its `validUntil` is later than the stored one (a
+  renewal never shortens a lease), and every other field, `sources` included,
+  is equal. Anything else stays a collision, as without the flag; an
+  identical re-run at the same `derivedAt` changes nothing. `extract verify`
+  proves the record is reproducible from the pinned bytes. A person does not
+  renew a mechanical attestation. The gate does not rely on the line being
+  unchanged. For an attestation with no rule ids ("no rule applies") it checks
+  the line's live upstream tags, so a new patch tag the record does not list
+  fails the gate; for one with rule ids it re-derives the record byte for
+  byte, and a new tag makes the re-derivation differ.
+- **Mechanical, at a new extractor build or with new releases**: when the
+  extractor's code digest or version has moved, or the line has new patch
+  releases, re-derive and apply with `extract apply --renew-attestations`. The
+  run's attestation then replaces the stored one of the same component, line
+  and family, in place, if and only if both are mechanical, the extractor id is
+  the same, the run's `derivedAt` is later, and component, line, fact family,
+  completeness and `ruleIds` are identical, and either the code digest or
+  version differs, or `releases` grew (at the same build at least one release
+  is new). `releases` may only grow
   (every stored version and commit stays, in order; new patch releases are
   appended); `sources` and the lease may change. Anything else stays a
-  collision, as without the flag; an identical re-run changes nothing. The
+  collision, as without the flag. The
   flag also renews rules (next item) and does not combine with `--withdraw`,
   `--rules-only` or `--quiet-lines-only`. The gate sees one loosening change
   per record and admits it only under the conditions of a new mechanical
