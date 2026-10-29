@@ -129,12 +129,13 @@ func inspectHarborArgv(argv []string, target string) (valid, present bool) {
 		}
 		switch name {
 		case "with-trivy":
-		case "with-notary", "with-clair":
+		case "with-notary":
 			if target != HarborTo {
 				return false, false
 			}
 		case "with-chartmuseum":
 			present = true
+		// with-clair is rejected for every target: the 2.8.0 installer exits 1 on it.
 		default:
 			return false, false
 		}

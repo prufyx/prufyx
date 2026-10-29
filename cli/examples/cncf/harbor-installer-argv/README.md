@@ -30,7 +30,7 @@ Review the minimized input locally, then run the check with its exact digest:
 The blocked example contains the removed `--with-chartmuseum` option. The fixed
 example contains only other reviewed bare options and produces a scoped PASS. For
 the `2.15.2` target pairs, only `--with-trivy` is a modeled non-removed option;
-`--with-notary` and `--with-clair` are target-rejected and therefore remain UNKNOWN.
+`--with-notary` is target-rejected and therefore remains UNKNOWN. `--with-clair` is rejected for every target, including `2.8.0`, and remains UNKNOWN.
 Help, wrappers, values, duplicates, unknown options, and unresolved input stay
 UNKNOWN. To see the help boundary explicitly, prepare this private declaration
 with the same pair, then check the minimized input; the check returns UNKNOWN

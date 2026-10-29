@@ -761,6 +761,9 @@ A catalogued project is not tested coverage: a catalogue entry says Prufyx holds
 
 ### Fixed
 
+- `prufyx check cncf --project harbor` no longer PASSes an installer argv with
+  `--with-clair` for 2.7.0 -> 2.8.0; the 2.8.0 installer rejects it, so the
+  result is UNKNOWN.
 - `prufyx scan` and the native-input `check cncf` routes now evaluate a rule that
   reads no fact and requires an intermediate version (`require_intermediate_version`),
   when the upgrade matches it. Before, the fact-family selection left such a rule out,

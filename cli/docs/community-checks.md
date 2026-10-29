@@ -832,9 +832,9 @@ chmod 600 harbor-argv.json
 
 The adapter models no Harbor option table: it recognizes only the finite
 reviewed no-value literal installer options (`--with-trivy`, and, only for
-the exact target of each pair, `--with-notary` and `--with-clair`) plus
+the exact target of each pair, `--with-notary`) plus
 `--with-chartmuseum`, and otherwise treats every other flag-shaped argument,
-`--help`, a duplicate option, or `effectiveArgvDeclared: false` as
+`--with-clair` (the 2.8.0 installer exits 1 on it), `--help`, a duplicate option, or `effectiveArgvDeclared: false` as
 unsupported rather than guessing its behavior. A fully modeled argv without
 `--with-chartmuseum` is a scoped `PASS`; the installer is never executed, so
 this witness always comes from the complete declared argv, never from an

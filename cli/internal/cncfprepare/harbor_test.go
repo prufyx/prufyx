@@ -11,6 +11,15 @@ func harborArguments(declared bool, argv ...string) []byte {
 	return []byte(`{"apiVersion":"` + HarborAPI + `","kind":"` + HarborKind + `","effectiveArgvDeclared":` + map[bool]string{true: "true", false: "false"}[declared] + `,"argv":[` + quoteStrings(argv) + `]}`)
 }
 
+func TestPrepareHarborWithClairRejectedAtEveryTarget(t *testing.T) {
+	for _, argv := range [][]string{{"--with-clair"}, {"--with-clair", "--with-trivy"}} {
+		prepared, err := PrepareHarbor(harborArguments(true, argv...), HarborFrom, HarborTo)
+		if err != nil || prepared.State != StateUnknown || prepared.Reason != ReasonHarborArgvUnsupported {
+			t.Fatalf("argv=%v prepared=%#v err=%v", argv, prepared, err)
+		}
+	}
+}
+
 func TestPrepareHarborChartMuseumFact(t *testing.T) {
 	cases := []struct {
 		name string

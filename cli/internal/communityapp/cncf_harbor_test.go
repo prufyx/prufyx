@@ -24,6 +24,7 @@ func TestHarborPreparationFeedsScopedCheck(t *testing.T) {
 		{name: "removed option", status: "BLOCKED", argv: []string{"--with-chartmuseum"}, prepareCode: ExitOK, checkCode: ExitBlocked},
 		{name: "complete absence", status: "PASS", argv: []string{"--with-notary", "--with-trivy"}, prepareCode: ExitOK, checkCode: ExitOK},
 		{name: "help is unresolved", status: "UNKNOWN", argv: []string{"--help"}, prepareCode: ExitUnknown, checkCode: ExitUnknown},
+		{name: "with-clair rejected by 2.8.0 installer", status: "UNKNOWN", argv: []string{"--with-clair"}, prepareCode: ExitUnknown, checkCode: ExitUnknown},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			raw := harborCLIInput(true, tc.argv...)
