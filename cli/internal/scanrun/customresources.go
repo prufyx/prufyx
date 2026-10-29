@@ -148,10 +148,11 @@ func (r *customResourceRun) evaluate(from, to string) error {
 }
 
 // wholeUpgradeRules (also used by the chart run) selects the rules the
-// end-to-end evaluation judges: those
-// that match the whole pair and that no planned hop overlaps (a hop that
-// overlaps a rule judges it, or names why it cannot), except a
-// require_intermediate_version rule whose intermediate line the plan visits.
+// end-to-end evaluation judges: those that match the whole pair and that no
+// evaluated planned hop covers (a hop that covers a rule judges it; a hop that
+// only overlaps it, or a major-line hop that is not evaluated, leaves it to
+// the whole upgrade), except a require_intermediate_version rule whose
+// intermediate line the plan visits.
 func wholeUpgradeRules(plan upgradepath.Plan) func(cncfcheck.ScanRule) bool {
 	from, to := plan.Hops[0].From.Version, plan.Hops[len(plan.Hops)-1].To.Version
 	return func(rule cncfcheck.ScanRule) bool {
@@ -159,7 +160,9 @@ func wholeUpgradeRules(plan upgradepath.Plan) func(cncfcheck.ScanRule) bool {
 			return false
 		}
 		for _, hop := range plan.Hops {
-			if hop.Overlaps(rule.Scope.Transition) {
+			_, fromOK := hop.From.EngineVersion()
+			_, toOK := hop.To.EngineVersion()
+			if fromOK && toOK && hop.CoveredBy(rule.Scope.Transition) {
 				return false
 			}
 		}
