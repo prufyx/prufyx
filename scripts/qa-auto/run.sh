@@ -15,10 +15,10 @@
 #                     run is older than QA_FULL_EVERY_H (24), or non-test code changed; else only changed projects
 #   QA_POLL=1         do nothing unless main has a sha not yet checked (what the timer uses)
 #   QA_FORCE=1        run even if this sha was checked
-#   QA_WORK_ROOT      default /opt/prufyx/work; per-run scratch QA_WORK_ROOT/qa-auto-run-*, removed at exit
+#   QA_WORK_ROOT      default ${TMPDIR:-/tmp}/qa-auto; per-run scratch QA_WORK_ROOT/qa-auto-run-*, removed at exit
 #   QA_STATE          persistent state (default QA_WORK_ROOT/qa-auto-state): status.json, last_green, alarms/,
 #                     results/, known-mismatch.json (baseline), cache/ (bare upstream clones, swagger)
-#   QA_DEVBOX         default /opt/prufyx/bin/devbox
+#   QA_DEVBOX         wrapper "devbox -w DIR cmd..." that runs cmd in a toolchain container with DIR mounted (default: devbox on PATH)
 #   QA_MAXLOAD        skip (exit 75) when the 1-minute load is not below this (default 8)
 #   QA_JOBS           parallel projects in the CRD oracle (default 3)
 #   QA_PROJECTS       comma list: check only these projects (ad-hoc runs and seeded-failure proofs)
@@ -31,9 +31,9 @@
 set -uo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 : "${QA_REPO_URL:=https://github.com/prufyx/prufyx.git}"
-: "${QA_WORK_ROOT:=/opt/prufyx/work}"
+: "${QA_WORK_ROOT:=${TMPDIR:-/tmp}/qa-auto}"
 : "${QA_STATE:=$QA_WORK_ROOT/qa-auto-state}"
-: "${QA_DEVBOX:=/opt/prufyx/bin/devbox}"
+: "${QA_DEVBOX:=devbox}"
 : "${QA_MAXLOAD:=8}"
 : "${QA_MODE:=auto}"
 : "${QA_FULL_EVERY_H:=24}"

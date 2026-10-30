@@ -14,7 +14,7 @@ import argparse, atexit, json, os, signal, subprocess, sys
 from qalib import *
 import crd_oracle
 
-DEVBOX = ENV("QA_DEVBOX", "/opt/prufyx/bin/devbox")
+DEVBOX = ENV("QA_DEVBOX", "devbox")
 IMAGE = ENV("QA_KIND_IMAGE", "kindest/node:v1.30.13")
 NCRD = int(ENV("QA_PROBE_CRD", "2"))
 
