@@ -173,6 +173,10 @@
           "type": "integer",
           "minimum": 0
         },
+        "documentsAllowlistSkipped": {
+          "type": "integer",
+          "minimum": 0
+        },
         "notices": {
           "type": "integer",
           "minimum": 0
@@ -998,6 +1002,8 @@
             "LIST_SHAPE_UNRESOLVED",
             "SYMLINK_NOT_FOLLOWED",
             "NOT_REGULAR_FILE",
+            "HIDDEN_DIRECTORY_SKIPPED",
+            "NOT_MANIFEST_NAME",
             "CONFIG_DOCUMENT"
           ]
         }
@@ -1098,6 +1104,9 @@
         "knowledgeStore": {
           "$ref": "#/$defs/knowledgeStore"
         },
+        "knowledgeSelection": {
+          "$ref": "#/$defs/knowledgeSelection"
+        },
         "helmValues": {
           "type": "array",
           "items": {
@@ -1174,6 +1183,41 @@
           "items": {
             "$ref": "#/$defs/knowledgeStoreProject"
           }
+        }
+      }
+    },
+    "knowledgeSelection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "chosen",
+        "reason"
+      ],
+      "properties": {
+        "chosen": {
+          "type": "string",
+          "enum": [
+            "embedded",
+            "local-db"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "store-newer",
+            "store-corrected",
+            "store-older",
+            "identical",
+            "no-store",
+            "forced",
+            "store-expired"
+          ]
+        },
+        "embeddedEvidenceAt": {
+          "type": "string"
+        },
+        "storeEvidenceAt": {
+          "type": "string"
         }
       }
     },

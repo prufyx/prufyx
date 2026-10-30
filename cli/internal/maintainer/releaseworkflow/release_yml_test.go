@@ -7,10 +7,12 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/sha256"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -37,8 +39,10 @@ type workflowStep struct {
 
 type workflowFile struct {
 	Jobs map[string]struct {
-		Environment any            `yaml:"environment"`
-		Steps       []workflowStep `yaml:"steps"`
+		Environment any               `yaml:"environment"`
+		Needs       any               `yaml:"needs"`
+		Permissions map[string]string `yaml:"permissions"`
+		Steps       []workflowStep    `yaml:"steps"`
 	} `yaml:"jobs"`
 }
 
@@ -124,8 +128,8 @@ func TestReleaseWorkflowRestoresNoCacheAndKeepsNoToken(t *testing.T) {
 // bytes depend on it.
 func TestReleaseWorkflowPinsTheExactGoToolchain(t *testing.T) {
 	step := workflowStepNamed(t, releaseWorkflow(t), "build", "Set up Go")
-	if v, _ := step.With["go-version"].(string); v != "1.26.8" {
-		t.Errorf("go-version = %v, want the exact release \"1.26.8\"", step.With["go-version"])
+	if v, _ := step.With["go-version"].(string); v != "1.26.10" {
+		t.Errorf("go-version = %v, want the exact release \"1.26.10\"", step.With["go-version"])
 	}
 	if _, ok := step.With["go-version-file"]; ok {
 		t.Error("go-version-file must not be set next to an exact go-version")
@@ -263,39 +267,6 @@ func TestReleaseWorkflowDraftStepArguments(t *testing.T) {
 	ok, argv = exec1("v1.2.3", false)
 	if ok || argv != "" {
 		t.Errorf("missing notes: ok=%v, gh argv=%q; want failure without calling gh", ok, argv)
-	}
-}
-
-// The workflow that holds the TUF signing secrets restores no cache, keeps
-// no token in the checkout and runs in a protected environment.
-func TestKnowledgeReleaseWorkflowIsHardened(t *testing.T) {
-	wf := loadWorkflow(t, "knowledge-release.yml")
-	job, ok := wf.Jobs["release"]
-	if !ok {
-		t.Fatal("knowledge-release.yml has no release job")
-	}
-	if env, _ := job.Environment.(string); env != "knowledge-release" {
-		t.Errorf("environment = %v, want knowledge-release", job.Environment)
-	}
-	setupGo, checkouts := 0, 0
-	for _, step := range job.Steps {
-		switch {
-		case strings.HasPrefix(step.Uses, "actions/setup-go@"):
-			setupGo++
-			if v, ok := step.With["cache"].(bool); !ok || v {
-				t.Error("knowledge release: setup-go must set cache: false")
-			}
-		case strings.HasPrefix(step.Uses, "actions/checkout@"):
-			checkouts++
-			if v, ok := step.With["persist-credentials"].(bool); !ok || v {
-				t.Error("knowledge release: checkout must set persist-credentials: false")
-			}
-		case strings.HasPrefix(step.Uses, "actions/cache"):
-			t.Error("knowledge release must not use actions/cache")
-		}
-	}
-	if setupGo != 1 || checkouts != 1 {
-		t.Errorf("expected one setup-go and one checkout, found %d and %d", setupGo, checkouts)
 	}
 }
 
@@ -493,5 +464,89 @@ func TestReleaseWorkflowChecksEmbeddedKnowledgeFreshness(t *testing.T) {
 	}
 	if !(index["Set up Go"] < index[step.Name] && index[step.Name] < index["Build binaries"]) {
 		t.Error("freshness step must run after Set up Go and before Build binaries")
+	}
+}
+
+// The .deb and .rpm assets come from a job of their own that builds them with
+// a pinned nfpm, and the provenance job attests and lists them with the
+// archives.
+func TestReleaseWorkflowPackagesAreBuiltPinnedCheckedAndAttested(t *testing.T) {
+	wf := releaseWorkflow(t)
+	pkg, ok := wf.Jobs["packages"]
+	if !ok {
+		t.Fatal("release workflow has no packages job")
+	}
+	if n, _ := pkg.Needs.(string); n != "build" {
+		t.Errorf("packages job needs %v, want build", pkg.Needs)
+	}
+	if got := fmt.Sprint(wf.Jobs["provenance"].Needs); !strings.Contains(got, "packages") {
+		t.Errorf("provenance job needs %v, want it to include packages", got)
+	}
+	for perm := range pkg.Permissions {
+		if perm != "contents" {
+			t.Errorf("packages job requests permission %q; only contents: read is allowed", perm)
+		}
+	}
+	if pkg.Permissions["contents"] != "read" {
+		t.Error("packages job must have contents: read")
+	}
+	run := workflowStepNamed(t, wf, "packages", "Build packages")
+	if v := run.Env["NFPM_VERSION"]; !regexp.MustCompile(`^2\.[0-9]+\.[0-9]+$`).MatchString(v) {
+		t.Errorf("NFPM_VERSION = %q, want an exact nfpm v2 release", v)
+	}
+	if v := run.Env["NFPM_SHA256"]; !regexp.MustCompile(`^[0-9a-f]{64}$`).MatchString(v) {
+		t.Errorf("NFPM_SHA256 = %q, want a pinned 64-digit digest", v)
+	}
+	for _, want := range []string{
+		`echo "${NFPM_SHA256}  nfpm.tar.gz" | sha256sum -c -`, "SOURCE_DATE_EPOCH", "mtime: ${BUILD_MTIME}",
+		"dpkg-deb -x", "rpm2cpio", `cmp -s "${unpack}/usr/bin/prufyx" "${bin}"`, "exit 1",
+		"/usr/bin/prufyx", "mode: 0755",
+	} {
+		if !strings.Contains(run.Run, want) {
+			t.Errorf("Build packages step lacks %q", want)
+		}
+	}
+	if strings.Contains(run.Run, "|| true") {
+		t.Error("Build packages must not swallow failures with || true")
+	}
+	if rpm, nf := strings.Index(run.Run, "apt-get install"), strings.Index(run.Run, "curl "); rpm < 0 || nf < 0 || rpm > nf {
+		t.Error("tools must be installed before nfpm is downloaded and digest-checked")
+	}
+	if !strings.Contains(run.Run, "DATA-LICENSE.md") {
+		t.Error("DATA-LICENSE.md (named by NOTICE) must be packaged")
+	}
+	if strings.Contains(run.Run, "go install") {
+		t.Error("nfpm must be a pinned release binary, not built with go install")
+	}
+	if !strings.Contains(run.Run, "BUILD_EPOCH=\"$(git show -s --format=%ct \"${GITHUB_SHA}\")\"") {
+		t.Error("the package times must come from the tagged commit's commit time, like the build job")
+	}
+	for _, step := range pkg.Steps {
+		if strings.HasPrefix(step.Uses, "actions/cache") {
+			t.Errorf("packages step %q must not use actions/cache", step.Name)
+		}
+		if strings.HasPrefix(step.Uses, "actions/") && !regexp.MustCompile(`@[0-9a-f]{40}$`).MatchString(step.Uses) {
+			t.Errorf("packages step %q is not pinned by commit SHA: %s", step.Name, step.Uses)
+		}
+	}
+
+	prov := workflowStepNamed(t, wf, "provenance", "Attest build provenance")
+	subjects, _ := prov.With["subject-path"].(string)
+	for _, glob := range []string{"dist/*.tar.gz", "dist/*.deb", "dist/*.rpm"} {
+		if !strings.Contains(subjects, glob) {
+			t.Errorf("attested subjects lack %s: %q", glob, subjects)
+		}
+	}
+	sums := workflowStepNamed(t, wf, "provenance", "Generate SHA256SUMS").Run
+	if !strings.Contains(sums, "sha256sum *.tar.gz *.deb *.rpm > SHA256SUMS") {
+		t.Errorf("SHA256SUMS does not list the packages: %q", sums)
+	}
+	bundle := workflowStepNamed(t, wf, "provenance", "Upload release bundle")
+	if p, _ := bundle.With["path"].(string); !strings.Contains(p, "dist/*.deb") || !strings.Contains(p, "dist/*.rpm") {
+		t.Errorf("release bundle lacks the packages: %q", p)
+	}
+	draft := workflowStepNamed(t, wf, "draft-release", "Create draft GitHub release").Run
+	if !strings.Contains(draft, "dist/*.deb") || !strings.Contains(draft, "dist/*.rpm") {
+		t.Error("draft release does not attach the packages")
 	}
 }

@@ -101,5 +101,12 @@ prufyx check ... --strict-exit; rc=$?
 [ "$rc" -eq 14 ] || exit "$rc"
 ```
 
-Other commands (`version`, `catalog`, `prepare`, `db`, `assess`) exit `0` on
+Other commands (`version`, `catalog`, `prepare`, `db`) exit `0` on
 success, `2` for input not accepted and `3` for an integrity failure.
+
+`assess` with `--scope-input` exits with the scope aggregate: `0` for
+`SCOPE_COMPLETE_PASS`, `10` for `BLOCKED`, `11` for `UNKNOWN` (also when the
+scope assessment and the aggregate disagree). Without `--scope-input` the
+aggregate is a stated-limitation `UNKNOWN` and it exits `0`, with a note on
+standard error that this is not a pass. Partial collection exits `6`; `2` and
+`3` are as above.

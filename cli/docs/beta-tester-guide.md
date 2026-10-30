@@ -40,6 +40,11 @@ tar -xzf "$ARCHIVE"
 "./prufyx_${TAG}_linux_amd64/prufyx" version
 ```
 
+On Debian, Ubuntu, Fedora and similar systems you can use the `.deb` or `.rpm`
+asset (linux, amd64 or arm64) instead of the archive: run the same two checks
+on `prufyx_${TAG}_linux_amd64.deb` (or `.rpm`), then `sudo dpkg -i` it, or
+`sudo rpm -U` it. See [releasing](releasing.md#linux-packages).
+
 Step 2 needs the `gh` CLI and network access. `version` reports
 `"candidateOnly": true` and `"trustRootDigest": "UNPINNED"`: this is a candidate
 build, not maintainer-signed. No Windows archive is published. You can also
@@ -163,7 +168,7 @@ What it does and does not do in this build:
 | `BLOCKED` | `10` | A reviewed rule matched your input. The output names the file, object and fix, and cites the upstream source. |
 | `UNKNOWN`, `NOT CHECKED` | `11` | The evidence did not decide. Not a pass. |
 | invalid input | `2` | Command line or an input was not accepted. |
-| integrity failure | `3` | Knowledge or an input failed verification, or the default local knowledge store is invalid or expired. |
+| integrity failure | `3` | Knowledge or an input failed verification, or the default local knowledge store is invalid. |
 
 `plan` uses `0`, `10` and `11` only (never `14`).
 
@@ -193,10 +198,14 @@ expired rule, a missing declaration. Read the reason lines. Full tables:
 - `prufyx db verify FILE` checks a package offline; `db import` installs a
   package you carried over; `db status` shows the selected store.
 - Offline behaviour: checks never touch the network. With no store they use the
-  embedded knowledge. If a default local store exists but is invalid, expired,
-  rolled back or not private, the command stops with exit `3` and does not fall
-  back silently; repair it with `db update`, remove the store, or pass
-  `--knowledge=embedded`.
+  embedded knowledge. If a default local store exists, the newer knowledge wins:
+  the latest evidence review date of the store and of the embedded knowledge are
+  compared per project and standard error names both dates and the one used; a
+  store that is older for any asked project is not used. If the store's
+  signed metadata has expired, the embedded knowledge is used with a warning
+  (run `db update`). If the store is invalid, rolled back or not private, the
+  command stops with exit `3` and does not fall back silently; repair it with
+  `db update`, remove the store, or pass `--knowledge=embedded`.
 - `scan` and `check cncf` never refresh anything on their own. Details and
   exact flags: [knowledge updates](knowledge-updates.md).
 

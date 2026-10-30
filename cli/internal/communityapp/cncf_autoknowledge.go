@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/cncfknowledge"
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
 	"github.com/prufyx/prufyx/cli/internal/knowledgeauto"
 )
@@ -26,6 +26,14 @@ var cncfEmbeddedOnlyFlags = []string{
 // embedded knowledge. Test seam.
 var autoClock = time.Now
 
+// autoCompare compares a verified store selection with the embedded pack, and
+// autoExpiredRoot reads the initial trust root of a store whose signed
+// metadata expired. Test seams.
+var (
+	autoCompare     = cncfknowledge.CompareSelection
+	autoExpiredRoot = knowledge.ExpiredStoreRootDigest
+)
+
 // resolveCNCFKnowledge picks the knowledge source of a check that has no
 // explicit one. It only acts when the command line names neither
 // --knowledge-db, --now, a replay, nor a knowledge pin: an explicit database
@@ -33,8 +41,14 @@ var autoClock = time.Now
 //
 //   - --knowledge=embedded: embedded knowledge at the current time.
 //   - otherwise a default store that verifies (and has the pinned root when
-//     the build pins one) is selected through knowledgeDB;
-//   - a default store that is present but unusable is refused (stop=true);
+//     the build pins one) is compared with the embedded knowledge by the
+//     latest evidence review date; the newer one is used (on a tie the
+//     embedded, unless the store's content differs). A chosen store is
+//     selected through knowledgeDB;
+//   - a default store whose signed metadata has expired (and nothing else)
+//     is not used: the embedded knowledge is, with a warning;
+//   - any other default store that is present but unusable is refused
+//     (stop=true);
 //   - no default store: embedded knowledge at the current time.
 //
 // The chosen source is recorded in r.knowledgeSource and written to
@@ -54,11 +68,12 @@ func (r *runtime) resolveCNCFKnowledge(args []string, mode, project string, know
 		anyFlagProvided(args, "knowledge-revision", "knowledge-bundle-digest", "knowledge-trust-receipt-digest") {
 		return 0, false
 	}
-	embedded := func(why string) {
+	embeddedWith := func(prefix, why string) {
 		*nowText = autoClock().UTC().Truncate(time.Second).Format(time.RFC3339)
 		r.knowledgeSource = fmt.Sprintf("embedded (%s)", why)
-		fmt.Fprintf(r.stderr, "prufyx: knowledge source: embedded, %s\n", why)
+		fmt.Fprintf(r.stderr, "prufyx: %sknowledge source: embedded, %s\n", prefix, why)
 	}
+	embedded := func(why string) { embeddedWith("", why) }
 	if mode == knowledgeauto.ModeEmbedded {
 		embedded("forced by --knowledge=embedded")
 		return 0, false
@@ -72,6 +87,19 @@ func (r *runtime) resolveCNCFKnowledge(args []string, mode, project string, know
 		return r.fail(err.Error(), ExitIntegrity), true
 	}
 	selected, err := autoOpenStore(knowledge.SelectionRequest{StoreRoot: root}, []string{project})
+	if fallback, ok := knowledgeauto.FallbackReason(err); err != nil && ok {
+		// Expired signed metadata is not tampering: the embedded knowledge
+		// is used, loudly. The pin still has to match.
+		rootDigest, rerr := autoExpiredRoot(root)
+		if rerr == nil {
+			rerr = knowledgeauto.CheckPin(pinnedRootDigest(knowledgeauto.Profile), rootDigest)
+		}
+		if rerr == nil {
+			embeddedWith("warning: ", knowledgeauto.FallbackWhy(fallback))
+			return 0, false
+		}
+		err = rerr
+	}
 	if err == nil && (!selected.Valid() || selected.Mode() != knowledge.SelectionCurrent || !selected.PerProject()) {
 		err = knowledge.ErrIntegrity
 	}
@@ -85,6 +113,15 @@ func (r *runtime) resolveCNCFKnowledge(args []string, mode, project string, know
 		}
 		return r.fail(err.Error(), ExitIntegrity), true
 	}
+	cmp, err := autoCompare(selected, []string{project})
+	if err != nil {
+		return r.fail((&knowledgeauto.Refused{Reason: "verification failed"}).Error(), ExitIntegrity), true
+	}
+	choice := knowledgeauto.Choose(cmp.StoreEvidenceAt, cmp.EmbeddedEvidenceAt, cmp.Identical, cmp.StaleProject)
+	if !choice.UseStore() {
+		embedded(choice.EmbeddedWhy())
+		return 0, false
+	}
 	// Bind the evaluation to what was just verified and pin-checked: the
 	// store is opened again by the explicit path, and that open refuses any
 	// other revision, bundle or trust receipt (which commits to the initial
@@ -93,11 +130,7 @@ func (r *runtime) resolveCNCFKnowledge(args []string, mode, project string, know
 	*knowledgeDB = root
 	*knowledgeRevision, *knowledgeBundleDigest, *knowledgeTrustReceiptDigest = selected.Revision(), selected.BundleDigest(), selected.TrustReceiptDigest()
 	r.knowledgeSource = fmt.Sprintf("local-db (revision %s, bundle digest %s)", selected.Revision(), selected.BundleDigest())
-	embeddedRevision := "unknown"
-	if catalog, cerr := cncfcheck.Catalog(false, project); cerr == nil {
-		embeddedRevision = catalog.KnowledgeRevision
-	}
-	fmt.Fprintf(r.stderr, "prufyx: knowledge source: local-db, revision %s, bundle digest %s (embedded would be %s; the verified local database is preferred)\n", selected.Revision(), selected.BundleDigest(), embeddedRevision)
+	fmt.Fprintf(r.stderr, "prufyx: knowledge source: local-db, revision %s, bundle digest %s (%s)\n", selected.Revision(), selected.BundleDigest(), choice.StoreDetail())
 	receipt := selected.TrustReceipt()
 	fmt.Fprintf(r.stderr, "prufyx: note: %s\n", knowledgeauto.StalenessNote(receipt.VerifiedAt, receipt.EvidenceExpiresAt))
 	return 0, false
