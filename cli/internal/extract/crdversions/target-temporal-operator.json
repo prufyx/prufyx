@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "temporal-operator",
+    "catalog": "community",
+    "name": "temporal-operator",
+    "repo": "github.com/alexandrevilain/temporal-operator",
+    "component": "pkg:github/alexandrevilain/temporal-operator",
+    "factProject": "temporal_operator",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.17",
+    "paths": [
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

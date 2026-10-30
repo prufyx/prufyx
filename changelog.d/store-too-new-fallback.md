@@ -1,0 +1,4 @@
+### Changed
+
+- `scan` and `check cncf` no longer exit 3 on a local knowledge database that this prufyx cannot read: a database signed by the pinned root but too new for this build (`store-too-new`, with a warning naming the minimum prufyx version when known), or one an older prufyx left with a trust state this build cannot advance (`store-trust-advanced`, with a warning to upgrade prufyx or remove the named directory and run `prufyx db update`), falls back to the embedded knowledge. The pin is still checked first, and integrity, rollback, wrong-root, layout, permission, no-selection and recovery failures still exit 3. prufyx never removes the database itself.
+- `prufyx db verify` is documented with `db update` and `db import` as exiting 15 for knowledge that is too new, and the "upgrade prufyx to >= X" hint appears only when this build is below X.

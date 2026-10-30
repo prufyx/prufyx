@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "github-actions-runner-operator",
+    "catalog": "community",
+    "name": "github-actions-runner-operator",
+    "repo": "github.com/evryfs/github-actions-runner-operator",
+    "component": "pkg:github/evryfs/github-actions-runner-operator",
+    "factProject": "github_actions_runner_operator",
+    "tagPrefixes": ["v", ""],
+    "minFrom": "0.6",
+    "paths": [
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}
