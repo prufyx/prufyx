@@ -97,3 +97,31 @@ func TestReleasesCompleteAcrossNewYear(t *testing.T) {
 		t.Error("an ordinary component was compared with the previous calendar month")
 	}
 }
+
+func TestFinalReleasesPaddedMinor(t *testing.T) {
+	prefixes := []string{"v"}
+	tags := calverTags("v26.02.0", "v26.02.1", "v26.10.0", "v25.10.0", "v1.02.3", "v20.00.0", "v26.002.0")
+	got, err := finalReleases(tags, prefixes, "", "26.2")
+	if err != nil || len(got) != 2 || got[0].Version != "26.2.0" || got[1].Version != "26.2.1" {
+		t.Fatalf("26.2: %v %v", got, err)
+	}
+	if got, err := finalReleases(tags, prefixes, "", "26.10"); err != nil || len(got) != 1 || got[0].Version != "26.10.0" {
+		t.Fatalf("26.10: %v %v", got, err)
+	}
+	// A major below 20 or a doubled zero reads no release.
+	for _, line := range []string{"1.2", "20.0", "26.0"} {
+		if got, err := finalReleases(tags, prefixes, "", line); err != nil || len(got) != 0 {
+			t.Fatalf("%s: %v %v", line, got, err)
+		}
+	}
+	// Both spellings of one line: its releases are ambiguous, in either order.
+	for _, names := range [][]string{{"v26.02.0", "v26.2.0"}, {"v26.2.1", "v26.02.0"}} {
+		if got, err := finalReleases(calverTags(names...), prefixes, "", "26.2"); err == nil || !strings.Contains(err.Error(), "ambiguous") {
+			t.Fatalf("%v: %v %v", names, got, err)
+		}
+	}
+	// The other line is unaffected.
+	if got, err := finalReleases(calverTags("v26.02.0", "v26.2.0", "v26.10.0"), prefixes, "", "26.10"); err != nil || len(got) != 1 {
+		t.Fatalf("26.10: %v %v", got, err)
+	}
+}

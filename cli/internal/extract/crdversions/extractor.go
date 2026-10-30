@@ -161,6 +161,10 @@ func (x *Extractor) releaseLines(index extract.ReleaseIndex) []*releaseLine {
 	byVersion := map[string]rel{}
 	conflicts := map[string]bool{}
 	unread := map[string]bool{}
+	// spellings records, per line, whether a tag spells its minor padded
+	// (v26.02.0) and whether one spells it canonically (v26.2.0).
+	type spelling struct{ padded, canonical bool }
+	spellings := map[string]spelling{}
 	for _, t := range index.Tags {
 		if x.target.ReleaseScheme == SchemeCalverEdge {
 			// A tag shaped like a release that the grammar cannot read may
@@ -172,7 +176,7 @@ func (x *Extractor) releaseLines(index extract.ReleaseIndex) []*releaseLine {
 		if !extract.IsCommitSHA(t.Commit) {
 			continue
 		}
-		version, rank, ok := x.target.releaseOf(t.Name)
+		version, rank, padded, ok := x.target.releaseOf(t.Name)
 		if !ok {
 			continue
 		}
@@ -181,6 +185,13 @@ func (x *Extractor) releaseLines(index extract.ReleaseIndex) []*releaseLine {
 		minor, _ := strconv.Atoi(parts[1])
 		patch, _ := strconv.Atoi(parts[2])
 		r := rel{major, minor, patch, t, version, rank}
+		sp := spellings[fmt.Sprintf("%d.%d", major, minor)]
+		if padded {
+			sp.padded = true
+		} else {
+			sp.canonical = true
+		}
+		spellings[fmt.Sprintf("%d.%d", major, minor)] = sp
 		if prev, dup := byVersion[version]; dup {
 			if prev.tag.Commit != t.Commit {
 				conflicts[fmt.Sprintf("%d.%d", major, minor)] = true
@@ -221,6 +232,8 @@ func (x *Extractor) releaseLines(index extract.ReleaseIndex) []*releaseLine {
 	}
 	for _, l := range out {
 		switch {
+		case spellings[l.key()].padded && spellings[l.key()].canonical:
+			l.Problem = "the line has release tags with a zero-padded minor and with a canonical minor, so its releases are ambiguous"
 		case conflicts[l.key()]:
 			l.Problem = "a release of the line is tagged twice, at different commits"
 		case unread[l.key()]:
@@ -232,8 +245,45 @@ func (x *Extractor) releaseLines(index extract.ReleaseIndex) []*releaseLine {
 	return out
 }
 
-func finalTagRE(prefix string) *regexp.Regexp {
-	return regexp.MustCompile(`^` + regexp.QuoteMeta(prefix) + `(0|[1-9][0-9]{0,3})\.(0|[1-9][0-9]{0,3})\.(0|[1-9][0-9]{0,3})$`)
+// MinPaddedMajor and MaxPaddedMajor bound the major versions whose minor may
+// be zero-padded in a release tag (v26.02.0): a calendar-versioned project
+// with a two-digit year. Outside the range a padded minor (1.02.3, v19.02.0,
+// v100.02.0, v2024.02.1) is no release.
+const (
+	MinPaddedMajor = 20
+	MaxPaddedMajor = 99
+)
+
+// finalTagRE matches prefix followed by X.Y.Z. A component is a canonical
+// number; the minor may also be two digits with a leading zero ("02"), which
+// ReadFinalTag accepts only for a major from MinPaddedMajor to MaxPaddedMajor.
+func finalTagRE(prefix string, digits int) *regexp.Regexp {
+	n := fmt.Sprintf("0|[1-9][0-9]{0,%d}", digits-1)
+	return regexp.MustCompile(`^` + regexp.QuoteMeta(prefix) + `(` + n + `)\.(0[1-9]|` + n + `)\.(` + n + `)$`)
+}
+
+// ReadFinalTag reads a final release tag: prefix followed by X.Y.Z, each
+// component a number of at most digits digits without leading zeros, except
+// that the minor of a release of a major from MinPaddedMajor to MaxPaddedMajor may be written
+// with one leading zero (v26.02.0). version is the canonical X.Y.Z (26.2.0);
+// padded reports the padded spelling. Any other leading zero (v20.00.0,
+// v20.010.1, v1.02.3, v100.02.0, 26.2.03) is no release. This is the one definition of
+// the final-tag grammar for the extractor and the release completeness check
+// of the knowledge gate.
+func ReadFinalTag(prefix string, digits int, tag string) (version string, padded, ok bool) {
+	m := finalTagRE(prefix, digits).FindStringSubmatch(tag)
+	if m == nil {
+		return "", false, false
+	}
+	if len(m[2]) == 2 && m[2][0] == '0' {
+		major, _ := strconv.Atoi(m[1])
+		if major < MinPaddedMajor || major > MaxPaddedMajor {
+			return "", false, false
+		}
+		padded = true
+	}
+	minor, _ := strconv.Atoi(m[2])
+	return m[1] + "." + strconv.Itoa(minor) + "." + m[3], padded, true
 }
 
 // Pairs implements extract.Extractor: every two consecutive release lines
