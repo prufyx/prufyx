@@ -309,7 +309,7 @@ Release checklist, in addition to the steps above:
 Binaries are built with `-trimpath -buildvcs=false` and the build epoch is the
 tagged commit's own commit time, so rebuilding the same tag with the same Go
 toolchain yields byte-identical binaries. The workflow pins the exact Go patch
-release (`go-version: "1.26.8"`; the build identity records it) and packs the
+release (`go-version: "1.26.10"`; the build identity records it) and packs the
 archives deterministically (sorted members, the tagged commit's time as every
 mtime, numeric root ownership, normalized modes, no gzip name or time). A
 rebuild with the same Go release and GNU `tar` and `gzip` therefore yields

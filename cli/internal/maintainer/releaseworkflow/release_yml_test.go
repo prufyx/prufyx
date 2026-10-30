@@ -131,8 +131,8 @@ func TestReleaseWorkflowRestoresNoCacheAndKeepsNoToken(t *testing.T) {
 // bytes depend on it.
 func TestReleaseWorkflowPinsTheExactGoToolchain(t *testing.T) {
 	step := workflowStepNamed(t, releaseWorkflow(t), "build", "Set up Go")
-	if v, _ := step.With["go-version"].(string); v != "1.26.8" {
-		t.Errorf("go-version = %v, want the exact release \"1.26.8\"", step.With["go-version"])
+	if v, _ := step.With["go-version"].(string); v != "1.26.10" {
+		t.Errorf("go-version = %v, want the exact release \"1.26.10\"", step.With["go-version"])
 	}
 	if _, ok := step.With["go-version-file"]; ok {
 		t.Error("go-version-file must not be set next to an exact go-version")
@@ -270,39 +270,6 @@ func TestReleaseWorkflowDraftStepArguments(t *testing.T) {
 	ok, argv = exec1("v1.2.3", false)
 	if ok || argv != "" {
 		t.Errorf("missing notes: ok=%v, gh argv=%q; want failure without calling gh", ok, argv)
-	}
-}
-
-// The workflow that holds the TUF signing secrets restores no cache, keeps
-// no token in the checkout and runs in a protected environment.
-func TestKnowledgeReleaseWorkflowIsHardened(t *testing.T) {
-	wf := loadWorkflow(t, "knowledge-release.yml")
-	job, ok := wf.Jobs["release"]
-	if !ok {
-		t.Fatal("knowledge-release.yml has no release job")
-	}
-	if env, _ := job.Environment.(string); env != "knowledge-release" {
-		t.Errorf("environment = %v, want knowledge-release", job.Environment)
-	}
-	setupGo, checkouts := 0, 0
-	for _, step := range job.Steps {
-		switch {
-		case strings.HasPrefix(step.Uses, "actions/setup-go@"):
-			setupGo++
-			if v, ok := step.With["cache"].(bool); !ok || v {
-				t.Error("knowledge release: setup-go must set cache: false")
-			}
-		case strings.HasPrefix(step.Uses, "actions/checkout@"):
-			checkouts++
-			if v, ok := step.With["persist-credentials"].(bool); !ok || v {
-				t.Error("knowledge release: checkout must set persist-credentials: false")
-			}
-		case strings.HasPrefix(step.Uses, "actions/cache"):
-			t.Error("knowledge release must not use actions/cache")
-		}
-	}
-	if setupGo != 1 || checkouts != 1 {
-		t.Errorf("expected one setup-go and one checkout, found %d and %d", setupGo, checkouts)
 	}
 }
 

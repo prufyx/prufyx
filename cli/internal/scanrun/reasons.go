@@ -30,13 +30,15 @@ func gapOutcome(key scanreport.GapKey) outcome { return outcome{gap: key} }
 var reasonOutcomes = map[string]outcome{
 	// Intake omissions (a configuration document is dropped by the scan
 	// before the preparation and is not an intake reason).
-	string(intake.ReasonTemplated):           gapOutcome(scanreport.GapDocumentsTemplated),
-	string(intake.ReasonUnparseable):         gapOutcome(scanreport.GapDocumentsTemplated),
-	string(intake.ReasonNestedList):          gapOutcome(scanreport.GapDocumentsLists),
-	string(intake.ReasonListShape):           gapOutcome(scanreport.GapDocumentsLists),
-	string(intake.ReasonSymlinkNotFollowed):  gapOutcome(scanreport.GapDocumentsFiles),
-	string(intake.ReasonNotRegularFile):      gapOutcome(scanreport.GapDocumentsFiles),
-	string(intake.ReasonNotKubernetesShaped): gapOutcome(scanreport.GapDocumentsShape),
+	string(intake.ReasonTemplated):              gapOutcome(scanreport.GapDocumentsTemplated),
+	string(intake.ReasonUnparseable):            gapOutcome(scanreport.GapDocumentsTemplated),
+	string(intake.ReasonNestedList):             gapOutcome(scanreport.GapDocumentsLists),
+	string(intake.ReasonListShape):              gapOutcome(scanreport.GapDocumentsLists),
+	string(intake.ReasonSymlinkNotFollowed):     gapOutcome(scanreport.GapDocumentsFiles),
+	string(intake.ReasonNotRegularFile):         gapOutcome(scanreport.GapDocumentsFiles),
+	string(intake.ReasonHiddenDirectorySkipped): gapOutcome(scanreport.GapDocumentsFiles),
+	string(intake.ReasonNotManifestName):        gapOutcome(scanreport.GapDocumentsFiles),
+	string(intake.ReasonNotKubernetesShaped):    gapOutcome(scanreport.GapDocumentsShape),
 
 	// Rendered apply-set preparation.
 	cncfprepare.ReasonKubernetesRemovedGVKPresent:    decided,

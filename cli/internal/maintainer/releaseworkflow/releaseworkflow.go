@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	requiredGo     = "go1.26.8"
+	requiredGo     = "go1.26.10"
 	modulePath     = "github.com/prufyx/prufyx/cli"
 	entrypoint     = "./cmd/prufyx-community"
 	policyRel      = "cli/release/community-shipping-policy-v2.json"
