@@ -202,8 +202,8 @@ knowledge database knowledge-db; layout cncf-projects; target knowledge/cncf/ind
 knowledge for kubernetes: target knowledge/cncf/projects/kubernetes.v1.json revision 5 digest sha256:f52033c5f46cb594b8a6d4fcb057cc3284df7b92f5c1702aeb950f6b4f937cad
 ```
 
-(That database holds a test-signed copy of the built-in knowledge; no official
-Prufyx knowledge feed or trust root is published yet.)
+(That database holds a test-signed copy of the built-in knowledge, not the
+official feed. `prufyx db update` fetches the official feed.)
 
 ## Knowledge age note
 
@@ -225,8 +225,8 @@ prufyx: note: 50 knowledge rules have expired, the earliest on 2026-12-07 (2 day
 The knowledge in use is the knowledge built into the binary, or, with
 `--knowledge-db`, the targets opened from the database (with a database the
 advice leaves out `then use --knowledge-db`, which you already do). No
-official knowledge update is published yet, so the line names what works
-today: a newer source build, or a signed package you trust, imported with
+official knowledge update is fixed text in the line and does not check the
+feed. The line names a newer source build, or a signed package you trust, imported with
 `prufyx db import`. A rule that has expired answers `UNKNOWN`. The count
 covers the active rules of that knowledge; withdrawn rules do not count. The
 evaluation instant is the one printed in the report, so the line is the same

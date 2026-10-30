@@ -56,10 +56,10 @@ prufyx: note: 50 knowledge rules have expired, the earliest on 2026-12-07 (2 day
 
 With the embedded knowledge the instant is `--now`; with `--knowledge-db` it is
 the verifier's clock and the line describes the database's selected target
-(and leaves out `then use --knowledge-db`). No official knowledge update is
-published yet: the line names a newer source build or a signed package you
-trust (`prufyx db import`), not `prufyx db update`, which needs a source and a
-trust root you supply. A batch describes the embedded
+(and leaves out `then use --knowledge-db`). The line is fixed text and does not
+check the official feed: it names a newer source build or a signed package you
+trust (`prufyx db import`). `prufyx db update` with no flags also fetches the
+official signed feed. A batch describes the embedded
 CNCF knowledge only when an item used it. Standard output, JSON, the exit
 status and a replay report (`--replay-report`) are unchanged; a command that
 stops with an error, or prints help, prints no note. The same note is printed
