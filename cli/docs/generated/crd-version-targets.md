@@ -60,7 +60,7 @@ The reviewed targets of the `crd.version-removal` extractor
 | `crd.version-removal.node-feature-discovery` | community | `github.com/kubernetes-sigs/node-feature-discovery` | `vX.Y.Z` | 0.14 | no | `deployment/base/nfd-crds/nfd-api-crds.yaml` | 0 |
 | `crd.version-removal.onepassword-operator` | community | `github.com/1password/onepassword-operator` | `vX.Y.Z` | 1.7 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.openchoreo` | CNCF | `github.com/openchoreo/openchoreo` | `vX.Y.Z` | 0.16 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
-| `crd.version-removal.openkruise` | CNCF | `github.com/openkruise/kruise` | `vX.Y.Z` | 1.4 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
+| `crd.version-removal.openkruise` | CNCF | `github.com/openkruise/kruise` | `vX.Y.Z` | 1.4 | yes | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 1 |
 | `crd.version-removal.opentelemetry-operator` | community | `github.com/open-telemetry/opentelemetry-operator` | `vX.Y.Z` | 0.157 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.openyurt` | CNCF | `github.com/openyurtio/openyurt` | `vX.Y.Z` | 1.3 | yes | files matching `^[^.][^/]*\.ya?ml$` in `charts/yurt-manager/crds`, files matching `^[^.][^/]*\.ya?ml$` in `charts/yurt-iot-dock/crds` (when present) | 0 |
 | `crd.version-removal.operator-lifecycle-manager` | community | `github.com/operator-framework/operator-lifecycle-manager` | `vX.Y.Z`, then `X.Y.Z` | 0.41 | no | files matching `^[^.][^/]*\.ya?ml$` in `deploy/chart/crds` | 0 |
