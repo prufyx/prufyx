@@ -4,6 +4,7 @@ package scanrun
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -13,6 +14,10 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/k8sremovals"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 )
+
+// cleanAPIVersionRE is a lowercase [group/]version with no surrounding space.
+// Anything else is not read as a custom-resource group: it fails closed.
+var cleanAPIVersionRE = regexp.MustCompile(`^([a-z0-9]([-a-z0-9.]*[a-z0-9])?/)?[a-z0-9]([-a-z0-9]*[a-z0-9])?$`)
 
 // maxNativeGapLines bounds the lines NativeAPIVersionGaps returns.
 const maxNativeGapLines = 5
@@ -45,6 +50,10 @@ func NativeAPIVersionGaps(policy cncfcheck.TrustPolicy, documents []intake.Docum
 	removed := k8sremovals.AdmissionRemovedVersions()
 	reasons := map[string]bool{}
 	for _, document := range documents {
+		if !cleanAPIVersionRE.MatchString(document.APIVersion) {
+			reasons[fmt.Sprintf("apiVersion %q is not a clean lowercase group/version and cannot be matched against the served APIs", document.APIVersion)] = true
+			continue
+		}
 		group, version, found := strings.Cut(document.APIVersion, "/")
 		if !found {
 			group, version = "", document.APIVersion

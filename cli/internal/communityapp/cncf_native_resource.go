@@ -288,15 +288,15 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 	}
 	// The apiVersion backstop of scan: an object at a version the target does
 	// not serve, or that the review cannot show served, is never a pass.
-	var apiGaps []string
+	var gate apiGate
 	if project == "kubernetes" {
-		apiGaps = kubernetesNativeAPIGaps(r.trust, nativeRaw, to, nowText)
+		gate = func(at time.Time) []string { return kubernetesNativeAPIGaps(r.trust, nativeRaw, to, at) }
 	}
 	if storeRoot != "" {
 		if nowText != "" || (replayPath != "" && (revision == "" || bundle == "" || receipt == "" || (project != "cloudnativepg" && nativePin == "") || (project == "cloudnativepg" && (currentPin == "" || proposedPin == "")))) {
 			return r.usage("external native CNCF replay requires every raw resource digest and all knowledge pins")
 		}
-		return r.withAPIGaps(apiGaps, r.externalCNCF(cncfknowledge.Request{Selection: knowledge.SelectionRequest{StoreRoot: storeRoot, ExpectedRevision: revision, ExpectedBundleDigest: bundle, ExpectedTrustReceiptDigest: receipt}, Project: project, SelectedRuleID: selectedRuleID, Input: prepared.CanonicalInputJSON, InputDigest: prepared.InputDigest}, replayPath, format))
+		return r.externalCNCFGated(cncfknowledge.Request{Selection: knowledge.SelectionRequest{StoreRoot: storeRoot, ExpectedRevision: revision, ExpectedBundleDigest: bundle, ExpectedTrustReceiptDigest: receipt}, Project: project, SelectedRuleID: selectedRuleID, Input: prepared.CanonicalInputJSON, InputDigest: prepared.InputDigest}, replayPath, format, gate)
 	}
 	if revision != "" || bundle != "" || receipt != "" || nowText == "" || replayPath != "" {
 		return r.usage("native CNCF resource checks require canonical --now or an explicit signed knowledge selection")
@@ -304,6 +304,10 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 	now, err := parseUTC(nowText)
 	if err != nil || now.Nanosecond() != 0 || now.Format(time.RFC3339) != nowText {
 		return r.usage("CNCF check time must be explicit canonical UTC with whole seconds")
+	}
+	var apiGaps []string
+	if gate != nil {
+		apiGaps = gate(now)
 	}
 	var report cncfcheck.Report
 	if selectedRuleID != "" {
@@ -374,14 +378,10 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 
 // kubernetesNativeAPIGaps runs the scan apiVersion backstop over the supplied
 // resources. A resource set that cannot be read again is a gap too.
-func kubernetesNativeAPIGaps(policy cncfcheck.TrustPolicy, raw []byte, to, nowText string) []string {
+func kubernetesNativeAPIGaps(policy cncfcheck.TrustPolicy, raw []byte, to string, now time.Time) []string {
 	workspace, err := intake.Decode("input", raw)
 	if err != nil {
 		return []string{"the supplied resources could not be read for the API-version check"}
-	}
-	now, err := parseUTC(nowText)
-	if err != nil {
-		now = time.Now().UTC()
 	}
 	return scanrun.NativeAPIVersionGaps(policy, workspace.Documents, to, now)
 }
@@ -399,16 +399,13 @@ func apiGapLines(gaps []string) []string {
 	return lines
 }
 
-// withAPIGaps keeps a pass of the external-knowledge route from standing
-// when the backstop fired; the reasons go to stderr.
-func (r runtime) withAPIGaps(gaps []string, exit int) int {
-	if exit != 0 || len(gaps) == 0 {
-		return exit
+// apiGapHeadline is the UNKNOWN headline and reasons printed ahead of an
+// external-knowledge report that a gap turned from a pass into unknown.
+func apiGapHeadline(gaps []string) []string {
+	if len(gaps) == 0 {
+		return nil
 	}
-	for _, line := range apiGapLines(gaps) {
-		fmt.Fprintf(r.stderr, "prufyx: %s\n", line)
-	}
-	return ExitUnknown
+	return append([]string{"UNKNOWN  no pass: an API version is not shown served in the target"}, apiGapLines(gaps)...)
 }
 
 // spliceAPIVersionGaps adds an "apiVersionGaps" member to the report object.
