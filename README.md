@@ -271,15 +271,15 @@ Generated on 2026-10-30 by `scripts/readme-coverage.sh` (do not edit this block 
 | Projects with at least one executable check | 65 |
 | Projects catalogued with retained public sources | 58 (11 of them source-only, no check) |
 | Projects with reviewed CRD targets (a reviewed `crd.custom_resource_versions` target) | 73 |
-| Projects with a published CRD rule or line attestation | 17 |
+| Projects with a published CRD rule or line attestation | 16 |
 
 Version-coverage depth, measured over the last five minor upgrades of each of the 78 projects with a release-line snapshot (390 upgrades between consecutive release lines):
 
 | Status | Upgrades | Share |
 | --- | --- | --- |
-| Decided for the whole release-line pair (A attested, B bounded) | 40 | 10.2% |
+| Decided for the whole release-line pair (A attested, B bounded) | 39 | 10% |
 | Rule for one exact version pair only (S) | 40 | 10.2% |
-| Gap, no valid rule (G) | 310 | 79.4% |
+| Gap, no valid rule (G) | 311 | 79.7% |
 
 Kubernetes: 63 valid rules, but 19 fall in its window 1.32 to 1.37; 0 of 5 upgrades in that window are gaps.
 
@@ -313,7 +313,7 @@ Velero and others.
 Every rule in the CNCF and community-project packs is time-limited.
 
 <!-- validity-window:begin -->
-The 279 active rules shipped today stop being valid, rule by rule, between 2026-12-07 and 2027-01-26 unless their review is renewed; after its date a build without newer knowledge answers `UNKNOWN` for that rule.
+The 279 active rules shipped today stop being valid, rule by rule, between 2026-12-07 and 2027-01-28 unless their review is renewed; after its date a build without newer knowledge answers `UNKNOWN` for that rule.
 <!-- validity-window:end -->
 
 The named cert-manager and Prometheus checks are pinned to
