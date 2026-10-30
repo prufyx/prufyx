@@ -176,3 +176,13 @@ func TestGapPlacementAndEarlierBlocker(t *testing.T) {
 		t.Fatalf("findings without verdict: %s", p.Verdict)
 	}
 }
+
+// A report verdict of UNKNOWN lowers the plan even when every stage is PASS
+// and nothing else (gaps, findings) explains it.
+func TestFinishReportUnknownLowersPlan(t *testing.T) {
+	plan := &Plan{Stages: []Stage{{Verdict: VerdictPass}}}
+	finish(plan, scanreport.Report{Verdict: scanreport.VerdictUnknown}, 1)
+	if plan.Verdict != VerdictUnknown || plan.ExitCode != ExitUnknown {
+		t.Fatalf("verdict=%s exit=%d", plan.Verdict, plan.ExitCode)
+	}
+}
