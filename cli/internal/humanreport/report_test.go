@@ -40,11 +40,51 @@ func TestUndecidedClaimsAreNeverCountedAsPassed(t *testing.T) {
 		claim("b", "UNKNOWN", "RULE_FACT_UNAVAILABLE", "y"),
 		claim("c", constraintengine.StatusUnsupported, "S", "z"),
 	}})
-	if !strings.HasPrefix(out, "UNKNOWN  0 must fix · 2 undecided · 1 passed ") {
+	if !strings.HasPrefix(out, "UNKNOWN  0 must fix · 2 undecided     ") {
 		t.Fatalf("headline:\n%s", out)
 	}
 	if strings.Contains(strings.SplitN(out, "\n", 2)[0], "PASS (") {
 		t.Fatalf("UNKNOWN read as PASS:\n%s", out)
+	}
+}
+
+// The headline leads with the verdict. A pass count never sits in the
+// headline of an UNKNOWN or BLOCKED report; it follows as a "checked:" line.
+func TestHeadlineStatesVerdictFirst(t *testing.T) {
+	t.Parallel()
+	pass := claim("a", "PASS", "R", "x")
+	unknown := claim("b", "UNKNOWN", "RULE_FACT_UNAVAILABLE", "y")
+	blocked := claim("c", "BLOCKED", "B", "z")
+	for _, tc := range []struct {
+		name       string
+		exit       int
+		claims     []constraintengine.Claim
+		wantPrefix string
+		wantSecond string
+	}{
+		{"unknown with passes", 11, []constraintengine.Claim{pass, pass, unknown}, "UNKNOWN  0 must fix · 1 undecided     ", "checked: 2 rules passed; this is not a pass"},
+		{"unknown one pass", 11, []constraintengine.Claim{pass, unknown}, "UNKNOWN  0 must fix · 1 undecided     ", "checked: 1 rule passed; this is not a pass"},
+		{"unknown no passes", 11, []constraintengine.Claim{unknown}, "UNKNOWN  0 must fix · 1 undecided     ", ""},
+		{"blocked with passes", 10, []constraintengine.Claim{pass, blocked}, "BLOCKED  1 must fix · 0 undecided     ", "checked: 1 rule passed; this is not a pass"},
+		{"pass unchanged", 0, []constraintengine.Claim{pass, pass}, "PASS (scoped)  0 must fix · 0 undecided · 2 passed     ", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			lines := strings.Split(render(t, Input{Exit: tc.exit, Project: "p", Claims: tc.claims}), "\n")
+			if !strings.HasPrefix(lines[0], tc.wantPrefix) {
+				t.Fatalf("headline %q, want prefix %q", lines[0], tc.wantPrefix)
+			}
+			if tc.exit != 0 && strings.Contains(lines[0], "passed") {
+				t.Fatalf("pass count in non-PASS headline %q", lines[0])
+			}
+			second := ""
+			if strings.HasPrefix(lines[1], "checked:") {
+				second = lines[1]
+			}
+			if second != tc.wantSecond {
+				t.Fatalf("second line %q, want %q", lines[1], tc.wantSecond)
+			}
+		})
 	}
 }
 

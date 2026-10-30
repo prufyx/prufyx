@@ -502,7 +502,7 @@ func TestReleaseWorkflowPackagesAreBuiltPinnedCheckedAndAttested(t *testing.T) {
 	}
 	for _, want := range []string{
 		`echo "${NFPM_SHA256}  nfpm.tar.gz" | sha256sum -c -`, "SOURCE_DATE_EPOCH", "mtime: ${BUILD_MTIME}",
-		"dpkg-deb -x", "rpm2cpio", `cmp -s "${unpack}/usr/bin/prufyx" "${bin}"`, "exit 1",
+		"dpkg-deb -x", "rpm2cpio cpio", "buildhost: prufyx-release", `cmp -s "${unpack}/usr/bin/prufyx" "${bin}"`, "exit 1",
 		"/usr/bin/prufyx", "mode: 0755",
 	} {
 		if !strings.Contains(run.Run, want) {
