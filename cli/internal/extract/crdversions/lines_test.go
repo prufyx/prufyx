@@ -556,7 +556,7 @@ func TestLoadTargets(t *testing.T) {
 			tg["exclude"] = []any{exclusionOf(tg, "data/", "a reason that is long enough")}
 		}), "covers the listed path"},
 		{"every path optional", mutate(func(tg, _ map[string]any, _ fstest.MapFS) { tg["paths"].([]any)[0].(map[string]any)["optional"] = true }), "every path is optional"},
-		{"tag prefix", mutate(func(tg, _ map[string]any, _ fstest.MapFS) { tg["tagPrefixes"] = []any{"release-"} }), "tagPrefixes"},
+		{"tag prefix", mutate(func(tg, _ map[string]any, _ fstest.MapFS) { tg["tagPrefixes"] = []any{"Release-"} }), "tagPrefixes"},
 		{"catalog spelled cncf", mutate(func(tg, _ map[string]any, _ fstest.MapFS) { tg["catalog"] = "cncf" }), "omit it for a CNCF catalog project"},
 		{"unknown catalog", mutate(func(tg, _ map[string]any, _ fstest.MapFS) { tg["catalog"] = "landscape" }), "catalog"},
 		{"duplicate fact project", mutate(func(tg, _ map[string]any, _ fstest.MapFS) {
@@ -619,7 +619,7 @@ func TestKnativeTagPrefix(t *testing.T) {
 			t.Fatalf("%q: %v", ok, err)
 		}
 	}
-	for _, bad := range [][]string{{"knative-"}, {"Knative-v"}, {"release-"}, {"v", "v"}, {"knative-v", "knative-v"}, {"knative-v", "v", ""}, {}} {
+	for _, bad := range [][]string{{"Knative-v"}, {"v", "v"}, {"knative-v", "knative-v"}, {"knative-v", "v", ""}, {}} {
 		if _, err := LoadTarget("target-p.json", prefixes(bad...)); err == nil || !strings.Contains(err.Error(), "tagPrefixes") {
 			t.Fatalf("%q: %v", bad, err)
 		}
@@ -649,5 +649,80 @@ func TestKnativeTagPrefix(t *testing.T) {
 	)
 	if p, _ := pairOf(t, runSynth(t, tg, s), "1.0.0", "1.1.0"); p.Status != extract.PairWithheld || !strings.Contains(p.Reason, "tagged twice") {
 		t.Fatalf("%+v", p)
+	}
+}
+
+// A repository that releases several charts tags each as <chart>-X.Y.Z. A
+// chart prefix is open-ended in shape but closed in grammar, and a target
+// for one chart never reads the tags of another chart.
+func TestChartTagPrefix(t *testing.T) {
+	prefixes := func(ps ...string) []byte {
+		raw, err := json.Marshal(ps)
+		must(t, err)
+		return []byte(fmt.Sprintf(`{"schema":%q,"target":{"project":"p","name":"P","repo":"github.com/o/p","component":"pkg:github/o/p","factProject":"p","tagPrefixes":%s,"minFrom":"1.0","paths":[{"path":"crds/a.yaml"}],"exclude":[]}}`, TargetSchema, raw))
+	}
+	for _, ok := range [][]string{
+		{"prometheus-"}, {"cluster-autoscaler-"}, {"victoria-metrics-k8s-stack-"}, {"jenkins-"},
+		{"cluster-autoscaler-chart-"}, {"a-"}, {"0-"}, {"foo-1-"}, {"jenkins-", "v"}, {"", "jenkins-"},
+		{strings.Repeat("a", 63) + "-"}, {"jenkins-", "jenkins-chart-"}, {"foo-", "foo-1-"},
+	} {
+		tg, err := LoadTarget("target-p.json", prefixes(ok...))
+		if err != nil || !slices.Equal(tg.TagPrefixes, ok) {
+			t.Fatalf("%q: %v", ok, err)
+		}
+	}
+	for _, bad := range [][]string{
+		{"-"}, {"--"}, {"jenkins"}, {"jenkins--"}, {"jenkins--chart-"}, {"-jenkins-"}, {"jenkins-1"}, {"jenkins-1."},
+		{"Jenkins-"}, {"jenkinS-"}, {"jenkins_"}, {"jenkins/"}, {"jenkins."}, {"jenkins-."}, {"jenkins-v"},
+		{"../"}, {"../jenkins-"}, {"a/../b-"}, {"jenkins-/"}, {"jenkins%2f-"}, {"jenkins -"}, {"jenkins-\n"}, {"jenkins-\x00"},
+		{"jénkins-"}, {"jenkins-*"}, {"jenkins-.*-"}, {"(a)-"}, {"^jenkins-"}, {"jenkins-$"},
+		{strings.Repeat("a", 64) + "-"}, {strings.Repeat("a-", 40)},
+		{"jenkins-", "jenkins-"}, {"", ""}, {"jenkins-", "v", ""},
+	} {
+		if _, err := LoadTarget("target-p.json", prefixes(bad...)); err == nil || !strings.Contains(err.Error(), "tagPrefixes") {
+			t.Fatalf("%q accepted or wrong error: %v", bad, err)
+		}
+	}
+	if ValidTagPrefix("jenkins-") != true || ValidTagPrefix("Jenkins-") || ValidTagPrefix("") != true {
+		t.Fatal("ValidTagPrefix")
+	}
+	sha := func(c string) string { return strings.Repeat(c, 40) }
+	x := New(Target{TagPrefixes: []string{"prometheus-"}})
+	idx := extract.ReleaseIndex{Tags: []extract.Tag{
+		{Name: "prometheus-14.2.0", Commit: sha("a")},
+		{Name: "prometheus-adapter-4.1.0", Commit: sha("b")},
+		{Name: "prometheus-adapter-chart-4.1.0", Commit: sha("b")},
+		{Name: "prometheus-14.3.0-rc1", Commit: sha("c")},
+		{Name: "prometheus-14.3.0.1", Commit: sha("c")},
+		{Name: "prometheus-014.3.0", Commit: sha("c")},
+		{Name: "Prometheus-14.4.0", Commit: sha("c")},
+		{Name: "xprometheus-14.5.0", Commit: sha("c")},
+		{Name: "v14.6.0", Commit: sha("c")},
+		{Name: "14.7.0", Commit: sha("c")},
+		{Name: "prometheus-15.0.0", Commit: sha("d")},
+	}}
+	lines := x.releaseLines(idx)
+	if len(lines) != 2 || !slices.Equal(lines[0].Versions, []string{"14.2.0"}) || lines[0].Tags[0].Name != "prometheus-14.2.0" || !slices.Equal(lines[1].Versions, []string{"15.0.0"}) || lines[0].Problem != "" || lines[1].Problem != "" {
+		t.Fatalf("lines %+v", lines)
+	}
+	// A chart whose name extends another's, both prefixes in one target:
+	// each tag has one reading, and the digits of a version cannot start a
+	// second prefix.
+	x = New(Target{TagPrefixes: []string{"foo-", "foo-1-"}})
+	for _, c := range []struct {
+		tag  string
+		want string
+		rank int
+		ok   bool
+	}{
+		{"foo-1.2.3", "1.2.3", 0, true},
+		{"foo-1-2.3.4", "2.3.4", 1, true},
+		{"foo-1-2-3.4.5", "", 0, false},
+		{"foo-bar-1.2.3", "", 0, false},
+	} {
+		v, r, _, ok := x.target.releaseOf(c.tag)
+		if v != c.want || r != c.rank || ok != c.ok {
+			t.Fatalf("%s: %q %d %v", c.tag, v, r, ok)
+		}
 	}
 }

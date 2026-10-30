@@ -104,12 +104,25 @@ and cannot have a `remote`.
 
 A **line** is one `major.minor` of a project with at least one final release
 tag (`<prefix>X.Y.Z`; release candidates never count). A target names one or
-two prefixes from a closed set: none, `v`, and `knative-v` (the release tags of
-the Knative projects, `knative-v1.15.0`); each ends in a character that is not
-a digit or a dot, so no part of a version is ever read as the prefix, and a
-tag with anything before the prefix (`xknative-v1.15.0`), a suffix
+two prefixes: none, `v`, `knative-v` (the release tags of
+the Knative projects, `knative-v1.15.0`), or a chart prefix, the prefix of a
+repository that releases several charts (`jenkins-`, `cluster-autoscaler-`).
+A chart prefix is lower-case words of letters and digits joined by single
+dashes, ends in a dash and has at most 64 bytes; no prefix has an upper-case
+letter, a slash, a dot or an empty word. Each prefix ends in a character that
+is not a digit or a dot, so no part of a version is ever read as the prefix.
+A tag is a release of a prefix only when it is exactly the prefix and `X.Y.Z`:
+the tag `prometheus-adapter-4.1.0` is not a release of `prometheus-`. A tag
+with anything before the prefix (`xknative-v1.15.0`), a suffix
 (`knative-v1.15.0-rc1`) or a leading zero (`knative-v01.2.3`) is not a release
-of the target. When a release is tagged
+of the target. The minor of a release of
+major 20 to 99 may be zero-padded with one zero (`v26.02.0` is the release
+`26.2.0` of the line `26.2`); a padded minor of a lower or higher major
+(`v1.02.3`, `v100.02.0`, `v2024.02.1`), a
+zero minor with a leading zero (`v20.00.0`) and any other padding (`v20.010.1`,
+`v26.02.00`) is not a release. When a line has a tag with a padded minor and
+one with the canonical minor (`v26.02.0` and `v26.2.0`), its releases are
+ambiguous and every pair of the line is withheld. When a release is tagged
 under both prefixes of a project they must name one commit, or every pair of
 that line is withheld. A **pair** is two consecutive lines in version order (so
 a major release follows the last minor of the previous major, and a skipped

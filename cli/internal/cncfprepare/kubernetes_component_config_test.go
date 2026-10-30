@@ -517,9 +517,8 @@ func TestSkewOnlyPreparationDoesNotClaimRemovedSettingAbsent(t *testing.T) {
 	if prepared.Reason != ReasonKubernetesComponentSkewOnly {
 		t.Fatalf("reason %s, want %s (no removed-setting check ran)", prepared.Reason, ReasonKubernetesComponentSkewOnly)
 	}
-	for _, predicate := range k8sComponentPredicates {
-		if predicate.Line != k8sEveryLine && skewOnly(predicate.Fact) {
-			t.Fatalf("removed-setting predicate %s is registered by the skew-only filter", predicate.Fact)
-		}
+	view := k8sProposedFacts(t, prepared)
+	if _, ok := view[KubernetesKubeletSkewFact]; !ok || len(view) != 1 {
+		t.Fatalf("skew-only preparation proposed %d facts, want only %s", len(view), KubernetesKubeletSkewFact)
 	}
 }

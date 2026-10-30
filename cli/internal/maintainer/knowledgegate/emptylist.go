@@ -293,10 +293,9 @@ func releasesComplete(c *Change, opts Options, tagCache map[string][]extract.Tag
 // (crdversions.CalverEdgeRelease) instead of the prefixes.
 func finalReleases(tags []extract.Tag, prefixes []string, scheme, line string) ([]lineattest.Release, error) {
 	byVersion := map[string]string{}
-	res := make([]*regexp.Regexp, len(prefixes))
-	for i, p := range prefixes {
-		res[i] = regexp.MustCompile(`^` + regexp.QuoteMeta(p) + `(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})$`)
-	}
+	// A line with a tag of a zero-padded minor (v26.02.0) and one of the
+	// canonical minor (v26.2.0) has ambiguous releases.
+	var sawPadded, sawCanonical bool
 	for _, t := range tags {
 		var versions []string
 		if scheme == crdversions.SchemeCalverEdge {
@@ -308,14 +307,24 @@ func finalReleases(tags []extract.Tag, prefixes []string, scheme, line string) (
 				return nil, fmt.Errorf("tag %s has the shape of a release of line %s that the release grammar does not read", logSafe(t.Name), line)
 			}
 		}
-		for _, re := range res {
-			if m := re.FindStringSubmatch(t.Name); m != nil {
-				versions = append(versions, m[1]+"."+m[2]+"."+m[3])
+		paddedOf := map[string]bool{}
+		for _, p := range prefixes {
+			if v, padded, ok := crdversions.ReadFinalTag(p, 9, t.Name); ok {
+				versions = append(versions, v)
+				paddedOf[v] = padded
 			}
 		}
 		for _, version := range versions {
 			if l, ok := lineattest.LineOf(version); !ok || l != line {
 				continue
+			}
+			if paddedOf[version] {
+				sawPadded = true
+			} else {
+				sawCanonical = true
+			}
+			if sawPadded && sawCanonical {
+				return nil, fmt.Errorf("line %s has release tags with a zero-padded minor and with a canonical minor, so its releases are ambiguous", line)
 			}
 			if !commitHexRE.MatchString(t.Commit) {
 				return nil, fmt.Errorf("tag %s has no full commit", logSafe(t.Name))

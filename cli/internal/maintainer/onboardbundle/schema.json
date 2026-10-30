@@ -212,7 +212,7 @@
               "maxItems": 2,
               "items": {
                 "type": "string",
-                "maxLength": 32
+                "maxLength": 64
               }
             },
             "minFrom": {
