@@ -22,10 +22,10 @@ import (
 func TestRunUsesProvidedStreamsAndRejectsUnsafeFlags(t *testing.T) {
 	dir := t.TempDir()
 	meta := filepath.Join(dir, "metadata.json")
-	if err := WriteMetadata(MetadataOptions{Output: meta, Version: "v1.0.0", Revision: strings.Repeat("a", 40), SourceTreeDigest: "sha256:" + strings.Repeat("b", 64), ManifestDigest: "sha256:" + strings.Repeat("c", 64), Target: "linux-amd64", BuildEpoch: "1", GoVersion: "go1.26.8"}); err != nil {
+	if err := WriteMetadata(MetadataOptions{Output: meta, Version: "v1.0.0", Revision: strings.Repeat("a", 40), SourceTreeDigest: "sha256:" + strings.Repeat("b", 64), ManifestDigest: "sha256:" + strings.Repeat("c", 64), Target: "linux-amd64", BuildEpoch: "1", GoVersion: "go1.26.10"}); err != nil {
 		t.Fatal(err)
 	}
-	report := `{"result":{"status":"OK"},"data":{"version":"v1.0.0","releaseState":"release","sourceRevision":"` + strings.Repeat("a", 40) + `","sourceTreeDigest":"sha256:` + strings.Repeat("b", 64) + `","allowlistDigest":"sha256:` + strings.Repeat("c", 64) + `","buildProfile":"linux-amd64","goVersion":"go1.26.8","trustRootDigest":"UNPINNED","candidateOnly":true}}`
+	report := `{"result":{"status":"OK"},"data":{"version":"v1.0.0","releaseState":"release","sourceRevision":"` + strings.Repeat("a", 40) + `","sourceTreeDigest":"sha256:` + strings.Repeat("b", 64) + `","allowlistDigest":"sha256:` + strings.Repeat("c", 64) + `","buildProfile":"linux-amd64","goVersion":"go1.26.10","trustRootDigest":"UNPINNED","candidateOnly":true}}`
 	var out bytes.Buffer
 	if err := Run([]string{"release-verify-version", "--metadata", meta, "--report-stdin"}, strings.NewReader(report), &out, &out); err != nil {
 		t.Fatal(err)
@@ -45,7 +45,7 @@ func TestRunReleaseMetadataSupportsDarwinTmpAlias(t *testing.T) {
 		"release-metadata", "--output", path, "--version", "v1.0.0",
 		"--revision", strings.Repeat("a", 40), "--source-tree-digest", "sha256:" + strings.Repeat("b", 64),
 		"--manifest-digest", "sha256:" + strings.Repeat("c", 64), "--target", "linux-amd64",
-		"--build-epoch", "1", "--go-version", "go1.26.8",
+		"--build-epoch", "1", "--go-version", "go1.26.10",
 	}
 	if err := Run(args, strings.NewReader(""), &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
 		t.Fatal(err)
@@ -59,7 +59,7 @@ func TestVerifyDemoRejectsDuplicateJSON(t *testing.T) {
 }
 func TestWriteSBOMIsCanonicalAndNoFirstPartyRuntimeClaim(t *testing.T) {
 	p := filepath.Join(t.TempDir(), "SBOM.json")
-	if err := WriteSBOM(SBOMOptions{Output: p, Version: "v1.0.0", Revision: strings.Repeat("a", 40), BuildEpoch: "0", GoVersion: "go1.26.8"}); err != nil {
+	if err := WriteSBOM(SBOMOptions{Output: p, Version: "v1.0.0", Revision: strings.Repeat("a", 40), BuildEpoch: "0", GoVersion: "go1.26.10"}); err != nil {
 		t.Fatal(err)
 	}
 	raw, _ := os.ReadFile(p)
@@ -90,7 +90,7 @@ func TestWriteSBOMProjectsEveryActivePolicyModule(t *testing.T) {
 		t.Fatal("fixture has no external modules")
 	}
 	out := filepath.Join(t.TempDir(), "SBOM.json")
-	if err := WriteSBOM(SBOMOptions{Output: out, Version: "v1.0.0", Revision: strings.Repeat("a", 40), BuildEpoch: "0", GoVersion: "go1.26.8", Policy: policyPath}); err != nil {
+	if err := WriteSBOM(SBOMOptions{Output: out, Version: "v1.0.0", Revision: strings.Repeat("a", 40), BuildEpoch: "0", GoVersion: "go1.26.10", Policy: policyPath}); err != nil {
 		t.Fatal(err)
 	}
 	var sbom map[string]any
@@ -109,7 +109,7 @@ func TestWriteSBOMRejectsMalformedPolicy(t *testing.T) {
 	if err := os.WriteFile(policyPath, []byte(`{}`), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := WriteSBOM(SBOMOptions{Output: filepath.Join(t.TempDir(), "SBOM.json"), Version: "v1.0.0", Revision: strings.Repeat("a", 40), BuildEpoch: "0", GoVersion: "go1.26.8", Policy: policyPath}); err == nil {
+	if err := WriteSBOM(SBOMOptions{Output: filepath.Join(t.TempDir(), "SBOM.json"), Version: "v1.0.0", Revision: strings.Repeat("a", 40), BuildEpoch: "0", GoVersion: "go1.26.10", Policy: policyPath}); err == nil {
 		t.Fatal("malformed policy accepted")
 	}
 }
@@ -218,7 +218,7 @@ func TestWriteSBOMBindsFinalArtifacts(t *testing.T) {
 
 	out := filepath.Join(t.TempDir(), "SBOM.json")
 	options := SBOMOptions{
-		Output: out, Version: "v1.0.0", Revision: strings.Repeat("a", 40), BuildEpoch: "0", GoVersion: "go1.26.8",
+		Output: out, Version: "v1.0.0", Revision: strings.Repeat("a", 40), BuildEpoch: "0", GoVersion: "go1.26.10",
 		ArtifactDir: artifacts,
 		Artifacts:   []string{"prufyx-cli_1.0.0_source.tar.gz", "prufyx-cli_1.0.0_linux_amd64.tar.gz"},
 	}
@@ -277,7 +277,7 @@ func TestWriteSBOMArtifactBindingIsDeterministic(t *testing.T) {
 	artifacts := t.TempDir()
 	writeSBOMArtifact(t, artifacts, "prufyx-cli_1.0.0_source.tar.gz", "source archive bytes")
 	options := SBOMOptions{
-		Version: "v1.0.0", Revision: strings.Repeat("a", 40), BuildEpoch: "0", GoVersion: "go1.26.8",
+		Version: "v1.0.0", Revision: strings.Repeat("a", 40), BuildEpoch: "0", GoVersion: "go1.26.10",
 		ArtifactDir: artifacts, Artifacts: []string{"prufyx-cli_1.0.0_source.tar.gz"},
 	}
 	first := options
@@ -313,7 +313,7 @@ func TestWriteSBOMRejectsUnsafeOrMissingArtifacts(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			options := SBOMOptions{
 				Output: filepath.Join(t.TempDir(), "SBOM.json"), Version: "v1.0.0",
-				Revision: strings.Repeat("a", 40), BuildEpoch: "0", GoVersion: "go1.26.8",
+				Revision: strings.Repeat("a", 40), BuildEpoch: "0", GoVersion: "go1.26.10",
 				ArtifactDir: extra.ArtifactDir, Artifacts: extra.Artifacts,
 			}
 			if err := WriteSBOM(options); err == nil {
@@ -329,7 +329,7 @@ func TestRunReleaseSBOMAcceptsArtifactFlags(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "SBOM.json")
 	args := []string{
 		"release-sbom", "--output", out, "--version", "v1.0.0", "--revision", strings.Repeat("a", 40),
-		"--build-epoch", "0", "--go-version", "go1.26.8",
+		"--build-epoch", "0", "--go-version", "go1.26.10",
 		"--policy", filepath.Join("..", "..", "..", "release", "community-shipping-policy-v2.json"),
 		"--artifact-dir", artifacts, "--artifacts", "prufyx-cli_1.0.0_source.tar.gz",
 	}
@@ -339,5 +339,21 @@ func TestRunReleaseSBOMAcceptsArtifactFlags(t *testing.T) {
 	raw, _ := os.ReadFile(out)
 	if !bytes.Contains(raw, []byte(`"files":[`)) {
 		t.Fatal("release-sbom did not bind the declared artifacts")
+	}
+}
+
+func TestWriteSBOMGoSourceChecksumMatchesPinnedVersion(t *testing.T) {
+	policyPath := filepath.Join("..", "..", "..", "release", "community-shipping-policy-v2.json")
+	out := filepath.Join(t.TempDir(), "SBOM.json")
+	if err := WriteSBOM(SBOMOptions{Output: out, Version: "v1.0.0", Revision: strings.Repeat("a", 40), BuildEpoch: "0", GoVersion: "go1.26.10", Policy: policyPath}); err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := os.ReadFile(out)
+	if !strings.Contains(string(raw), "fd63e883ba2f2bfca93c1646b31ebef63e2b1e4d2b317c9789d976a68d81f36f") || strings.Contains(string(raw), "4e39b98e42f946fa05ac8bc5b71877df97dbdb7cbb1a777b541667ad7117fd2e") {
+		t.Fatalf("SBOM Go checksum is not the go1.26.10 source digest: %s", raw)
+	}
+	err := WriteSBOM(SBOMOptions{Output: out, Version: "v1.0.0", Revision: strings.Repeat("a", 40), BuildEpoch: "0", GoVersion: "go1.26.99", Policy: policyPath})
+	if err == nil {
+		t.Fatal("a Go version without a pinned source digest was accepted")
 	}
 }

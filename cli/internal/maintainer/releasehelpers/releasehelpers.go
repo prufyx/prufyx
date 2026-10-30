@@ -36,6 +36,13 @@ type HelperError struct{ Message string }
 func (e *HelperError) Error() string  { return e.Message }
 func reject(f string, a ...any) error { return &HelperError{fmt.Sprintf(f, a...)} }
 
+// goSourceSHA256ByVersion pins the SHA-256 of https://go.dev/dl/<version>.src.tar.gz
+// for every Go release the SBOM may name, so a toolchain bump cannot leave a
+// stale digest behind: an unlisted version is refused.
+var goSourceSHA256ByVersion = map[string]string{
+	"go1.26.10": "fd63e883ba2f2bfca93c1646b31ebef63e2b1e4d2b317c9789d976a68d81f36f",
+}
+
 type MetadataOptions struct{ Output, Version, Revision, SourceTreeDigest, ManifestDigest, Target, BuildEpoch, GoVersion string }
 type VersionOptions struct {
 	Metadata, ReportFile string
@@ -663,12 +670,16 @@ func WriteSBOM(o SBOMOptions) error {
 		"copyrightText": "Copyright 2026 Spas Atanasov",
 		"externalRefs":  []any{map[string]any{"referenceCategory": "PACKAGE-MANAGER", "referenceType": "purl", "referenceLocator": "pkg:golang/github.com/prufyx/prufyx/cli@" + o.Version}},
 	}
+	goSourceSHA256, ok := goSourceSHA256ByVersion[o.GoVersion]
+	if !ok {
+		return fmt.Errorf("no pinned source SHA-256 for %s; add it to goSourceSHA256ByVersion", o.GoVersion)
+	}
 	goPackage := map[string]any{
 		"SPDXID": "SPDXRef-Package-Go", "name": "Go runtime and standard library", "versionInfo": strings.TrimPrefix(o.GoVersion, "go"),
 		"downloadLocation": "https://go.dev/dl/" + o.GoVersion + ".src.tar.gz", "filesAnalyzed": false,
 		"licenseConcluded": "NOASSERTION", "licenseDeclared": "BSD-3-Clause", "copyrightText": "Copyright 2009 The Go Authors",
-		"checksums":    []any{map[string]any{"algorithm": "SHA256", "checksumValue": "4e39b98e42f946fa05ac8bc5b71877df97dbdb7cbb1a777b541667ad7117fd2e"}},
-		"comment":      "The reviewed LICENSES directory carries exact notices for the selected CGO-disabled linux/amd64 and linux/arm64 Go 1.26.8 build closure.",
+		"checksums":    []any{map[string]any{"algorithm": "SHA256", "checksumValue": goSourceSHA256}},
+		"comment":      "The reviewed LICENSES directory carries exact notices for the selected CGO-disabled linux/amd64 and linux/arm64 " + strings.Replace(o.GoVersion, "go", "Go ", 1) + " build closure.",
 		"externalRefs": []any{map[string]any{"referenceCategory": "PACKAGE-MANAGER", "referenceType": "purl", "referenceLocator": "pkg:golang/std@" + strings.TrimPrefix(o.GoVersion, "go")}},
 	}
 	v := map[string]any{

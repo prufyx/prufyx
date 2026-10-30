@@ -25,6 +25,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/intake"
+	knowledgestore "github.com/prufyx/prufyx/cli/internal/knowledge"
 	"github.com/prufyx/prufyx/cli/internal/knowledgeage"
 	"github.com/prufyx/prufyx/cli/internal/knowledgeauto"
 	"github.com/prufyx/prufyx/cli/internal/knowledgepin"
@@ -49,6 +50,12 @@ type Options struct {
 	// PinnedRoot gives the pinned initial root digest of a knowledge
 	// profile; nil means the product pin (knowledgepin.Digest).
 	PinnedRoot func(profile string) string
+	// OpenStore, CompareEmbedded and ExpiredRoot are test seams; nil means
+	// OpenStore, cncfcheck.CompareWithEmbedded and
+	// knowledge.ExpiredStoreRootDigest.
+	OpenStore       func(path string, projects []string) (*Store, error)
+	CompareEmbedded func(map[string]cncfcheck.ExternalBundle) (cncfcheck.EmbeddedComparison, error)
+	ExpiredRoot     func(storeRoot string) (string, error)
 }
 
 // Result is a finished scan.
@@ -74,6 +81,7 @@ type Result struct {
 func Run(request Request, options Options) (Result, error) {
 	knowledge := options.Knowledge
 	knowledgeSource, knowledgeNote := "", ""
+	var selection *scanreport.KnowledgeSelection
 	autoStore := false
 	if knowledge == nil && options.AutoLocalDB && request.KnowledgeDB == "" && request.Now.IsZero() && request.KnowledgeMode != "embedded" {
 		root, present, err := knowledgeauto.Locate()
@@ -88,9 +96,11 @@ func Run(request Request, options Options) (Result, error) {
 			request.KnowledgeDB, autoStore = root, true
 		} else {
 			knowledgeSource = "knowledge source: embedded, no local knowledge database installed"
+			selection = &scanreport.KnowledgeSelection{Chosen: knowledgeauto.SourceEmbedded, Reason: knowledgeauto.ReasonNoStore}
 		}
 	} else if knowledge == nil && options.AutoLocalDB && request.KnowledgeDB == "" && request.KnowledgeMode == "embedded" {
 		knowledgeSource = "knowledge source: embedded, forced by --knowledge=embedded"
+		selection = &scanreport.KnowledgeSelection{Chosen: knowledgeauto.SourceEmbedded, Reason: knowledgeauto.ReasonForced}
 	}
 	// The catalog checks component names. With --knowledge-db it is the
 	// compiled catalog alone: the database is opened once the targets are
@@ -153,6 +163,16 @@ func Run(request Request, options Options) (Result, error) {
 	// looked up right after the component names are checked, as that check
 	// always answered for it before; every other scan opens the database
 	// after its input, as before.
+	useEmbedded := func(source string, sel *scanreport.KnowledgeSelection) error {
+		loaded, err := LoadEmbedded()
+		if err != nil {
+			return ErrIntegrity
+		}
+		request.KnowledgeDB, autoStore = "", false
+		knowledgeSource, selection = source, sel
+		knowledge = loaded
+		return nil
+	}
 	openKnowledge := func() error {
 		targets := make([]string, 0, len(effective.Target)+len(request.NewestCovered))
 		for slug := range effective.Target {
@@ -168,12 +188,35 @@ func Run(request Request, options Options) (Result, error) {
 			}
 		}
 		sort.Strings(targets)
-		opened, err := OpenStore(request.KnowledgeDB, targets)
-		if err == nil && autoStore {
-			pinned := options.PinnedRoot
-			if pinned == nil {
-				pinned = knowledgepin.Digest
+		open := options.OpenStore
+		if open == nil {
+			open = OpenStore
+		}
+		pinned := options.PinnedRoot
+		if pinned == nil {
+			pinned = knowledgepin.Digest
+		}
+		opened, err := open(request.KnowledgeDB, targets)
+		var storeErr *StoreError
+		if err != nil && autoStore && errors.As(err, &storeErr) && storeErr.Fallback != "" {
+			// A failure that only warrants the fallback (an expired store): the
+			// embedded knowledge is used, with a warning. The pin still
+			// has to match, so a store of another trust root stays refused.
+			expiredRoot := options.ExpiredRoot
+			if expiredRoot == nil {
+				expiredRoot = knowledgestore.ExpiredStoreRootDigest
 			}
+			root, rerr := expiredRoot(request.KnowledgeDB)
+			switch {
+			case rerr != nil:
+				return &StoreError{Reason: scanreport.KnowledgeDBIntegrity, Auto: true}
+			case knowledgeauto.CheckPin(pinned(knowledgeauto.Profile), root) != nil:
+				return &StoreError{Reason: scanreport.KnowledgeDBPinMismatch, Auto: true}
+			}
+			return useEmbedded("warning: knowledge source: embedded, "+knowledgeauto.FallbackWhy(storeErr.Fallback),
+				&scanreport.KnowledgeSelection{Chosen: knowledgeauto.SourceEmbedded, Reason: storeErr.Fallback})
+		}
+		if err == nil && autoStore {
 			err = knowledgeauto.CheckPin(pinned(knowledgeauto.Profile), opened.InitialRootDigest())
 			if err != nil {
 				err = &StoreError{Reason: scanreport.KnowledgeDBPinMismatch}
@@ -183,17 +226,29 @@ func Run(request Request, options Options) (Result, error) {
 			err = &StoreError{Reason: scanreport.KnowledgeDBLayout}
 		}
 		if err != nil {
-			var storeErr *StoreError
 			if autoStore && errors.As(err, &storeErr) {
 				storeErr.Auto = true
 			}
 			return err
 		}
 		if autoStore {
+			// The store is fully verified. The newer knowledge wins.
+			compare := options.CompareEmbedded
+			if compare == nil {
+				compare = cncfcheck.CompareWithEmbedded
+			}
+			cmp, cerr := compare(opened.bundles)
+			if cerr != nil {
+				return &StoreError{Reason: scanreport.KnowledgeDBIntegrity, Auto: true}
+			}
+			choice := knowledgeauto.Choose(cmp.StoreEvidenceAt, cmp.EmbeddedEvidenceAt, cmp.Identical, cmp.StaleProject)
+			sel := &scanreport.KnowledgeSelection{Chosen: choice.Chosen, Reason: choice.Reason, EmbeddedEvidenceAt: cmp.EmbeddedEvidenceAt.UTC().Format(time.RFC3339), StoreEvidenceAt: cmp.StoreEvidenceAt.UTC().Format(time.RFC3339)}
+			if !choice.UseStore() {
+				return useEmbedded("knowledge source: embedded, "+choice.EmbeddedWhy(), sel)
+			}
+			selection = sel
 			knowledgeNote = knowledgeauto.StalenessNote(opened.info.Provenance.ImportedVerifiedAt, "")
-		}
-		if autoStore {
-			knowledgeSource = "knowledge source: local-db, revision " + opened.Revision() + ", bundle digest " + opened.PackDigest()
+			knowledgeSource = "knowledge source: local-db, revision " + opened.Revision() + ", bundle digest " + opened.PackDigest() + " (" + choice.StoreDetail() + ")"
 		}
 		knowledge = opened
 		return nil
@@ -253,7 +308,7 @@ func Run(request Request, options Options) (Result, error) {
 	report := scanreport.Report{Provenance: scanreport.Provenance{
 		EvaluatedAt: now.Format(time.RFC3339), InputDigest: workspace.Digest, ConfigDigest: config.Digest,
 		KnowledgeOrigin: knowledge.Origin(), KnowledgeRevision: knowledge.Revision(), KnowledgeDigest: knowledge.PackDigest(),
-		Build: *build,
+		Build: *build, KnowledgeSelection: selection,
 	}}
 	if store != nil {
 		provenance := store.Provenance
@@ -262,6 +317,7 @@ func Run(request Request, options Options) (Result, error) {
 	}
 	manifests := splitConfigDocuments(workspace, &report)
 	report.Summary.DocumentsRead = len(manifests.Documents)
+	report.Summary.DocumentsAllowlistSkipped = workspace.AllowlistSkipped
 	readable := 0
 	for _, file := range workspace.Files {
 		if report.Anchor == "" && file.Policy != intake.ModeNotApplicable {

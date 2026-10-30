@@ -16,7 +16,7 @@ named check distinguishes invalid or unsafe input (`2`) from a digest mismatch
 
 ## First run: no cluster
 
-From the repository root, build with Go 1.26.8 and run the embedded demo:
+From the repository root, build with Go 1.26.10 and run the embedded demo:
 
 ```sh
 (cd cli && GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \

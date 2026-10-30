@@ -12,7 +12,7 @@ declared current reliance. It does not claim that 1.121.2 introduced that
 initialization change or that upstream source proves deployment-specific
 provider reliance.
 
-Run from the `cli` directory with Go 1.26.8 available:
+Run from the `cli` directory with Go 1.26.10 available:
 
 ```sh
 umask 077
