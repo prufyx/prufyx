@@ -77,7 +77,9 @@ type jsonReport struct {
 	} `json:"check"`
 }
 
-var headlineCounts = regexp.MustCompile(`^\S.*?  (\d+) must fix · (\d+) undecided · (\d+) passed `)
+var checkedPasses = regexp.MustCompile(`(?m)^checked: (\d+) rules? passed;`)
+
+var headlineCounts = regexp.MustCompile(`^\S.*?  (\d+) must fix · (\d+) undecided(?: · (\d+) passed)? `)
 
 // The headline word follows the exit code, the three counts add up to the
 // claims, and -v (with --show-passes where the route has it) shows every rule
@@ -126,6 +128,13 @@ func TestHumanReportInvariantsOverRouteFixtures(t *testing.T) {
 			for _, field := range match[1:] {
 				n, _ := strconv.Atoi(field)
 				total += n
+			}
+			if code != ExitOK && !strings.Contains(first, "passed") {
+				// Non-PASS headline carries no pass count; it follows as "checked: N rule(s) passed".
+				if m := checkedPasses.FindStringSubmatch(human); m != nil {
+					n, _ := strconv.Atoi(m[1])
+					total += n
+				}
 			}
 			if total != len(report.Check.Claims) {
 				t.Fatalf("counts add up to %d, the report holds %d claims: %q", total, len(report.Check.Claims), first)
