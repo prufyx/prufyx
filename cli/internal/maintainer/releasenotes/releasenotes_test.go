@@ -341,3 +341,92 @@ func TestRenderLevelAndCommits(t *testing.T) {
 		t.Error("a level 3 heading remains")
 	}
 }
+
+func crdTable(entries ...string) string {
+	return `{"schema":"s","projects":[` + strings.Join(entries, ",") + `],"reserved":[]}`
+}
+
+func crdFix(slug, catalog string, groups int) string {
+	g := make([]string, groups)
+	for i := range g {
+		g[i] = `{"name":"g` + string(rune('a'+i)) + `.io","source":"https://example.invalid/x"}`
+	}
+	return `{"slug":"` + slug + `","catalog":"` + catalog + `","groups":[` + strings.Join(g, ",") + `]}`
+}
+
+func TestRenderCustomResourceTable(t *testing.T) {
+	toTable := crdTable(crdFix("zeta", "cncf", 2), crdFix("alpha", "community", 1), crdFix("kept", "cncf", 1))
+	tests := []struct {
+		name    string
+		from    map[string]string
+		to      map[string]string
+		want    []string
+		notWant []string
+	}{
+		{
+			name: "from has table",
+			from: map[string]string{crdTablePath: crdTable(crdFix("kept", "cncf", 1), crdFix("gone", "cncf", 3), crdFix("early", "community", 1))},
+			to:   map[string]string{crdTablePath: toTable},
+			want: []string{
+				"### Projects with custom-resource version checks (3)\n\n- added: `alpha` (community): 1 CRD group\n- added: `zeta` (cncf): 2 CRD groups\n- removed: `early` (community): 1 CRD group\n- removed: `gone` (cncf): 3 CRD groups\n",
+			},
+			notWant: []string{"has no table file", "`kept`", crdTablePath + "` does not exist"},
+		},
+		{
+			name: "from lacks table",
+			from: map[string]string{"unrelated": "x"},
+			to:   map[string]string{crdTablePath: toTable},
+			want: []string{
+				"### Projects with custom-resource version checks (3)\n\nThe from-release has no table file; all 3 projects are listed.\n\n- `alpha` (community): 1 CRD group\n- `kept` (cncf): 1 CRD group\n- `zeta` (cncf): 2 CRD groups\n",
+			},
+			notWant: []string{crdTablePath + "` does not exist"},
+		},
+		{
+			name: "no change",
+			from: map[string]string{crdTablePath: toTable},
+			to:   map[string]string{crdTablePath: toTable},
+			want: []string{"(3)\n\nNo project was added or removed."},
+		},
+		{
+			name:    "to lacks table",
+			from:    map[string]string{crdTablePath: toTable},
+			to:      map[string]string{"unrelated": "x"},
+			notWant: []string{"version checks (0)"},
+			want:    []string{"version checks\n\n`" + crdTablePath + "` is not present in `main`; no project is listed."},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			out := render(t, tc.from, tc.to)
+			for _, w := range tc.want {
+				if !strings.Contains(out, w) {
+					t.Errorf("output lacks %q\n%s", w, out)
+				}
+			}
+			for _, w := range tc.notWant {
+				if strings.Contains(out, w) {
+					t.Errorf("output has %q\n%s", w, out)
+				}
+			}
+		})
+	}
+}
+
+func TestReadSnapshotRejectsBadCRDTable(t *testing.T) {
+	tests := []struct{ name, content string }{
+		{"invalid json", `{"projects":[`},
+		{"empty file", ``},
+		{"duplicate slug", crdTable(crdFix("a", "cncf", 1), crdFix("a", "cncf", 1))},
+		{"empty slug", crdTable(crdFix("", "cncf", 1))},
+		{"slug breaks markdown", crdTable(crdFix("a`\n- x", "cncf", 1))},
+		{"bad catalog", crdTable(crdFix("a", "CNCF*", 1))},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ReadSnapshot(DirTree{writeTree(t, map[string]string{crdTablePath: tc.content})})
+			if err == nil {
+				t.Fatal("want error")
+			}
+		})
+	}
+}
