@@ -28,7 +28,8 @@ prufyx db capabilities --profile cncf --format json
 
 This reads neither a knowledge store nor the network. It reports the required
 target path, capability digest, schemas, and parser bounds. It does not make
-the target trusted, configure an official feed, or enable automatic refresh.
+the target trusted, fetch knowledge from the official feed
+(`prufyx db update`) or your own package, or enable automatic refresh.
 An independently managed root, signatures, and verified package remain
 necessary before the existing explicit `db import` or `db update` paths can
 select it.
