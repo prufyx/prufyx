@@ -521,6 +521,7 @@ const (
 	labelNotChecked             = "NOT CHECKED (%d)"
 	labelOnlyBlocked            = "Hidden by --only-blocked: %d not-checked gap(s), %d other item(s) (notices, unsupported, leads). Run without the flag or use --format json to see them."
 	labelPassed                 = "PASSED (%d)"
+	labelAllowlistSkipped       = " %d non-manifest files skipped (allowlisted)."
 	labelChecked                = "Read %s over %s; %s."
 	labelComponentsRulesOne     = "%d of 1 component has rules"
 	labelComponentsRulesMany    = "%d of %d components have rules"

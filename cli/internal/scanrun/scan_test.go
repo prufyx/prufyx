@@ -726,11 +726,49 @@ func TestScanSkippedFilesAreOmissions(t *testing.T) {
 	for _, o := range report.Omitted {
 		got[filepath.Base(o.File)] = o.Reason
 	}
-	want := map[string]string{".deploy": "HIDDEN_DIRECTORY_SKIPPED", ".git": "HIDDEN_DIRECTORY_SKIPPED", "manifest": "NOT_MANIFEST_NAME"}
-	if !reflect.DeepEqual(got, want) || report.Summary.DocumentsOmitted != 3 {
+	want := map[string]string{".deploy": "HIDDEN_DIRECTORY_SKIPPED", "manifest": "NOT_MANIFEST_NAME"}
+	if !reflect.DeepEqual(got, want) || report.Summary.DocumentsOmitted != 2 || report.Summary.DocumentsAllowlistSkipped != 1 {
 		t.Fatalf("omitted %+v", report.Omitted)
 	}
-	if !strings.Contains(string(scanreport.Human(report, scanreport.HumanOptions{})), "3 file(s) or directories were not read") {
+	if !strings.Contains(string(scanreport.Human(report, scanreport.HumanOptions{})), "2 file(s) or directories were not read") {
 		t.Fatal("human output does not name the skipped entries")
 	}
+}
+
+// TestScanAllowlistedFilesDoNotBlockPass: documentation, images, licence-style
+// and ignore files and .git are counted, not gaps; a skipped file outside the
+// allowlist still gives UNKNOWN.
+func TestScanAllowlistedFilesDoNotBlockPass(t *testing.T) {
+	t.Parallel()
+	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
+	allowed := map[string]string{
+		"README.md": "x", "docs/logo.PNG": "x", "LICENSE": "x", "NOTICE.txt": "x", "CODEOWNERS": "x",
+		".gitignore": "x", ".helmignore": "x", ".git/config": "x", "sub/.git/HEAD": "x",
+	}
+	dir, _ := files(t, mergeFiles(allowed, map[string]string{"dep.yaml": cronjobV1}))
+	result := mustScan(t, knowledge, args([]string{dir}, "--from", "kubernetes=1.29.6", "--to", "kubernetes=1.30.4")...)
+	if result.Exit != scanreport.ExitPass || result.Report.Summary.DocumentsAllowlistSkipped != 9 || len(result.Report.Omitted) != 0 {
+		t.Fatalf("exit %d skipped %d omitted %+v gaps %v", result.Exit, result.Report.Summary.DocumentsAllowlistSkipped, result.Report.Omitted, gapReasons(result.Report))
+	}
+	if !strings.Contains(string(scanreport.Human(result.Report, scanreport.HumanOptions{})), "9 non-manifest files skipped (allowlisted)") {
+		t.Fatal("human output does not count the allowlisted skips")
+	}
+	for _, name := range []string{"notes.txt", ".github/ci.yml.disabled", "Makefile", "Dockerfile", "x.tpl", ".terraform/p", "node_modules/m"} {
+		dir, _ := files(t, map[string]string{"dep.yaml": cronjobV1, name: "x"})
+		result := mustScan(t, knowledge, args([]string{dir}, "--from", "kubernetes=1.29.6", "--to", "kubernetes=1.30.4")...)
+		if result.Exit != scanreport.ExitUnknown || !gapNamed(result.Report, "DOCUMENTS_NOT_EVALUATED") {
+			t.Errorf("%s: exit %d gaps %v", name, result.Exit, gapReasons(result.Report))
+		}
+	}
+}
+
+func mergeFiles(a, b map[string]string) map[string]string {
+	out := map[string]string{}
+	for k, v := range a {
+		out[k] = v
+	}
+	for k, v := range b {
+		out[k] = v
+	}
+	return out
 }

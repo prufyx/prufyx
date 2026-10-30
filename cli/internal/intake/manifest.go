@@ -88,6 +88,10 @@ type Omission struct {
 type Workspace struct {
 	Documents []Document
 	Omissions []Omission
+	// AllowlistSkipped counts the entries of a walked directory that were
+	// skipped by name because they cannot carry a Kubernetes object (.git,
+	// documentation, images, ignore files). They are not omissions.
+	AllowlistSkipped int
 	// Auxiliary holds the decoded value of top-level documents that are not
 	// Kubernetes-shaped but come from a file named exactly Chart.yaml,
 	// kustomization.yaml, kustomization.yml or Kustomization. The same

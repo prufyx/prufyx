@@ -127,7 +127,8 @@ var effectiveUID = func() uint64 { return uint64(os.Geteuid()) }
 // A directory is walked recursively in lexical order. Only regular files named
 // *.yaml, *.yml or *.json are read; hidden directories are skipped and
 // symlinks are never followed. A symlink, or a pipe, socket or device with a
-// manifest extension, is recorded as an omission so the result never looks
+// manifest extension, is recorded as an omission (except the allowlist of files that
+// cannot carry an object, and .git, which are only counted) so the result never looks
 // more complete than it is; a regular file or directory that cannot be opened
 // is an error. Every component is opened through directory
 // descriptors, so replacing a path with a symlink while the walk runs cannot
@@ -224,7 +225,11 @@ func (o *opener) walk(dir *os.File, display string) error {
 			// directory is recorded once, so the result never looks more
 			// complete than it is.
 			if hidden {
-				o.omit(child, ReasonHiddenDirectorySkipped)
+				if name == ".git" {
+					o.out.AllowlistSkipped++
+				} else {
+					o.omit(child, ReasonHiddenDirectorySkipped)
+				}
 				continue
 			}
 			sub, err := validation.OpenEntryDirectory(dir, name)
@@ -238,7 +243,11 @@ func (o *opener) walk(dir *os.File, display string) error {
 			}
 		case validation.EntryRegular:
 			if !isManifestName(name) {
-				o.omit(child, ReasonNotManifestName)
+				if allowlistedName(name) {
+					o.out.AllowlistSkipped++
+				} else {
+					o.omit(child, ReasonNotManifestName)
+				}
 				continue
 			}
 			file, err := validation.OpenEntryFile(dir, name)
@@ -266,6 +275,26 @@ func (o *opener) walk(dir *os.File, display string) error {
 // omit records an entry that was seen and deliberately not read.
 func (o *opener) omit(display string, reason Reason) {
 	o.out.Omissions = append(o.out.Omissions, Omission{Source: Source{Display: display, Item: -1}, Reason: reason})
+}
+
+// allowlistedName says whether a regular file without a manifest name is a
+// kind of file that cannot carry a Kubernetes object: documentation, images,
+// licence-style files and ignore files. Such a file is counted, not omitted.
+func allowlistedName(name string) bool {
+	switch name {
+	case ".gitignore", ".gitattributes", ".helmignore", ".dockerignore":
+		return true
+	}
+	ext := filepath.Ext(name)
+	switch strings.ToLower(ext) {
+	case ".md", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico":
+		return true
+	}
+	switch strings.TrimSuffix(name, ext) {
+	case "README", "LICENSE", "LICENCE", "NOTICE", "CHANGELOG", "CODEOWNERS":
+		return true
+	}
+	return false
 }
 
 func isManifestName(name string) bool {
