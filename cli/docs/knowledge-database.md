@@ -100,8 +100,9 @@ automatic garbage collection or configured total database-size cap; operators
 must account for retained metadata and revisions when managing local storage.
 
 The explicit `db update` path downloads and verifies a selected package before
-import. Production publishing and signing, an official feed, and official trust-root
-distribution remain separate responsibilities. The synthetic generator creates
+import. Production publishing and signing, the official feed, and official trust-root
+distribution are separate responsibilities, described in the
+[publisher guide](knowledge-publisher.md). The synthetic generator creates
 freshness times solely to exercise the local protocol.
 
 The scoped exits are 0 for `PASS`, 10 for profile-scoped `BLOCKED` or `FAIL` as

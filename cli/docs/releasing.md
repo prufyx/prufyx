@@ -137,8 +137,7 @@ The workflow has four jobs. Third-party actions are pinned by commit SHA.
 3. **Checksums and provenance.** Downloads all archives and packages, writes
    `SHA256SUMS` (sha256sum format, one line per archive and package), and
    creates a GitHub build provenance attestation
-   (`actions/attest-build-provenance`) for every `.tar.gz`, `.deb` and `.rpm`.
-   `SHA256SUMS` itself is not an attested subject. This job runs in
+   (`actions/attest-build-provenance`) for every `.tar.gz`, `.deb` and `.rpm` and for `SHA256SUMS` itself. This job runs in
    the protected GitHub environment `release`: it waits until the owner, the
    environment's only required reviewer, approves the run, and the
    environment admits only tags matching `v*` as deployment refs. The draft
@@ -165,7 +164,13 @@ ARCHIVE="prufyx_${TAG}_linux_amd64.tar.gz"
 BASE="https://github.com/prufyx/prufyx/releases/download/$TAG"
 curl -fsSLO "$BASE/SHA256SUMS" && curl -fsSLO "$BASE/$ARCHIVE"
 
-# 1. The archive matches the published checksum (detects changed bytes only).
+# 1. The checksum file was produced by the release workflow, and the archive
+#    matches it (detects changed bytes only).
+gh attestation verify SHA256SUMS \
+  --repo prufyx/prufyx \
+  --signer-workflow prufyx/prufyx/.github/workflows/release.yml \
+  --source-ref "refs/tags/$TAG" \
+  --deny-self-hosted-runners
 grep " $ARCHIVE\$" SHA256SUMS | sha256sum -c -
 
 # 2. The archive was built by this repository's release workflow from this tag.
@@ -186,8 +191,9 @@ tar -xzf "$ARCHIVE"
 What each step establishes:
 
 - The checksum proves only that the archive equals the one named in
-  `SHA256SUMS`. Both come from the same release, so on its own it says nothing
-  about who built them.
+  `SHA256SUMS`. `SHA256SUMS` is itself attested, so verifying it first ties
+  the listed checksums to the release workflow; without that check the two
+  files come from the same release and say nothing about who built them.
 - The attestation is the origin check. `--repo` and `--signer-workflow` pin the
   repository and the workflow file that signed; `--source-ref` pins the tag.
   Verification needs network access to GitHub and the `gh` CLI.
@@ -251,10 +257,10 @@ initial (version 1) TUF root of that profile's official knowledge feed. It is
 compiled into the binary and is used by `prufyx db update` (see
 [Knowledge updates](knowledge-updates.md)).
 
-Today the only profile, `cncf-projects`, has an **empty** pin. An empty pin
-means no root is pinned: `db update` requires the operator to pass an explicit
-bootstrap root and digest, and nothing is trusted implicitly. Releases cut now
-therefore ship without a pinned official feed root.
+The only profile, `cncf-projects`, has a pin (`knowledgepin/pin.go`) and an
+embedded root. `db update` with no flags trusts only that root. A profile with
+an empty pin would require the operator to pass an explicit bootstrap root and
+digest.
 
 The pin is set by a reviewed source change that puts the digest of the
 offline-created version 1 `root.json` into the `pins` table. That requires the
@@ -309,7 +315,7 @@ Release checklist, in addition to the steps above:
 Binaries are built with `-trimpath -buildvcs=false` and the build epoch is the
 tagged commit's own commit time, so rebuilding the same tag with the same Go
 toolchain yields byte-identical binaries. The workflow pins the exact Go patch
-release (`go-version: "1.26.8"`; the build identity records it) and packs the
+release (`go-version: "1.26.10"`; the build identity records it) and packs the
 archives deterministically (sorted members, the tagged commit's time as every
 mtime, numeric root ownership, normalized modes, no gzip name or time). A
 rebuild with the same Go release and GNU `tar` and `gzip` therefore yields
