@@ -393,6 +393,35 @@ knowledge feed, and automated GitOps release gates. None exists today.
   package you choose; nothing updates automatically. With no arguments it targets the
   official feed, verified against the root pinned in the build.
 
+### Two ways to get knowledge
+
+- **Offline (default).** The binary carries its knowledge, versioned with the
+  release. `check`, `scan` and `plan` need no network and no setup. Embedded
+  rules are time-limited; an expired rule answers `UNKNOWN`.
+- **Online, only when you run it.** `prufyx db update` fetches the signed
+  knowledge database from the official feed and installs it in
+  `~/.local/share/prufyx/knowledge/cncf-projects` (`$XDG_DATA_HOME` if
+  absolute); downloaded packages are kept in `.../knowledge/packages/`. It
+  verifies a TUF chain that starts at the root pinned in the binary
+  (`sha256:11eff27032c4a3db126d030ae860e881e8e0dd1e7c37fcc4f10ef5fde70a326a`),
+  changes nothing for a package older than the installed one (exit `12`),
+  refuses a package with the same revision and a different digest, and sends no
+  configuration, path or report. Nothing runs at startup.
+- **Back to embedded.** `--knowledge=embedded` on `check cncf` or `scan`, or
+  remove the store directory above.
+- **Air-gapped.** Carry a package over and check it with
+  `prufyx db verify FILE --profile cncf-projects --bootstrap-root root.json
+  --bootstrap-root-digest sha256:<digest you verified yourself>`, then
+  `prufyx db import FILE --db-root <store> --profile cncf-projects` (same root
+  flags on a first import). Or use an HTTPS mirror you operate:
+  `prufyx db update --profile cncf-projects --source https://<mirror>/cncf-projects.tar`,
+  still verified against the pinned root.
+- An invalid or expired store makes `check` and `scan` stop with exit `3`; they
+  do not fall back to embedded silently. Repair it with `db update`, or use
+  `--knowledge=embedded`.
+
+Details: [knowledge updates](cli/docs/knowledge-updates.md).
+
 ## Support Prufyx
 
 Prufyx is built in the open by an independent maintainer. Every check is tied to a
