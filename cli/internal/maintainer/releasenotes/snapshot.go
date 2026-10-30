@@ -18,6 +18,7 @@ const (
 	projectRulesPath  = "cli/internal/projectcheck/data/rules.json"
 	inventoryPath     = "cli/docs/generated/community-support-inventory.json"
 	onboardingDir     = "cli/knowledge/onboarding"
+	crdTablePath      = "cli/internal/customresources/table.json"
 	readmePath        = "README.md"
 	kubernetesPackage = "pkg:github/kubernetes/kubernetes"
 	maxFile           = 64 << 20
@@ -59,6 +60,12 @@ type OnboardedProject struct {
 	Decision string
 }
 
+// CRDProject is one project of the custom-resource version table.
+type CRDProject struct {
+	Catalog string
+	Groups  int
+}
+
 // Snapshot is what is read from one tree.
 type Snapshot struct {
 	Counts     map[string]int
@@ -70,7 +77,9 @@ type Snapshot struct {
 	Onboarding map[string][]OnboardedProject
 	Decisions  map[string]string // batchId -> decision
 	Depth      *Depth
-	Missing    []string // data files this tree does not have
+	CRD        map[string]CRDProject // custom-resource table, slug -> entry
+	HasCRD     bool                  // the tree has the table file
+	Missing    []string              // data files this tree does not have
 }
 
 func readOptional(t Tree, name string, s *Snapshot) ([]byte, error) {
@@ -113,6 +122,14 @@ type inventoryFile struct {
 	} `json:"withdrawnRules"`
 }
 
+type crdTableFile struct {
+	Projects []struct {
+		Slug    string            `json:"slug"`
+		Catalog string            `json:"catalog"`
+		Groups  []json.RawMessage `json:"groups"`
+	} `json:"projects"`
+}
+
 type batchFile struct {
 	Record struct {
 		BatchID  string `json:"batchId"`
@@ -143,6 +160,7 @@ func ReadSnapshot(t Tree) (*Snapshot, error) {
 		Lines:      map[string]map[string]bool{},
 		Onboarding: map[string][]OnboardedProject{},
 		Decisions:  map[string]string{},
+		CRD:        map[string]CRDProject{},
 	}
 	for _, rf := range []struct {
 		path string
@@ -228,6 +246,23 @@ func ReadSnapshot(t Tree) (*Snapshot, error) {
 		if len(b.Record.Projects) == 0 {
 			s.Onboarding[b.Record.BatchID] = nil
 		}
+	}
+	// The table file is absent from older tags; report.go says so once, so it
+	// is not recorded in Missing.
+	if raw, err := t.Read(crdTablePath); err == nil {
+		if len(raw) > maxFile {
+			return nil, fmt.Errorf("%s: larger than %d bytes", crdTablePath, maxFile)
+		}
+		var tf crdTableFile
+		if err := json.Unmarshal(raw, &tf); err != nil {
+			return nil, fmt.Errorf("%s: %w", crdTablePath, err)
+		}
+		s.HasCRD = true
+		for _, p := range tf.Projects {
+			s.CRD[p.Slug] = CRDProject{Catalog: p.Catalog, Groups: len(p.Groups)}
+		}
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return nil, fmt.Errorf("%s: %w", crdTablePath, err)
 	}
 	readme, err := readOptional(t, readmePath, s)
 	if err != nil {
