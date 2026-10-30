@@ -140,6 +140,9 @@ const (
 	// GapChartKubernetesVersion: a chart rule needs the Kubernetes version,
 	// which was not declared.
 	GapChartKubernetesVersion GapKey = ReasonRuleNotDecided + "/chart-kubernetes-version"
+	// GapPinnedNowStale: --now pins the evaluation time before the end date
+	// of knowledge rules that have expired at the real time.
+	GapPinnedNowStale GapKey = ReasonEvidenceExpired + "/pinned-now"
 )
 
 // Reason is the gap reason of the key.
@@ -293,6 +296,8 @@ var gapMessages = map[GapKey]gapMessage{
 		"check the chart's values rules by hand", 3},
 	GapHelmValuesUniverseUnresolved: {"%[1]s chart %[2]s: a rule reads the values-path set other than as a set of keys",
 		"check the chart's values rules by hand, and report the rule", 2},
+	GapPinnedNowStale: {"--now %[1]s hides that %[3]d knowledge rules have expired since (today: %[2]s)",
+		"drop --now to evaluate at the real time, or use newer knowledge (build from newer source, or `prufyx db import` a signed package you trust)", 3},
 	GapChartKubernetesVersion: {"rule %[1]s needs the Kubernetes version the chart is installed on",
 		"give the cluster's target version with --to kubernetes=X.Y.Z and scan again", 1},
 }
