@@ -41,6 +41,7 @@ func Render(from, to *Snapshot, o Options) string {
 	summary(&b, from, to, o)
 	projects(&b, from, to)
 	onboarding(&b, from, to)
+	customResources(&b, from, to, o)
 	rules(&b, from, to)
 	lines(&b, from, to, o)
 	pullRequests(&b, o)
@@ -207,6 +208,50 @@ func onboarding(b *strings.Builder, from, to *Snapshot) {
 	}
 	b.WriteString(strings.Join(items, "\n") + "\n\n")
 	b.WriteString("Only approved batches are counted. A project entry names the project and the proof pair of versions the batch rests on; it does not by itself add a project to the catalogue (see the support inventory list above).\n\n")
+}
+
+// crdEntry is the list text of one project, without the list prefix.
+func crdEntry(slug string, p CRDProject) string {
+	noun := "CRD groups"
+	if p.Groups == 1 {
+		noun = "CRD group"
+	}
+	return fmt.Sprintf("`%s` (%s): %d %s", slug, p.Catalog, p.Groups, noun)
+}
+
+// customResources lists the projects of the custom-resource version table. A
+// from-tree without the table file (older tags) lists every project. A
+// changed group count of a project present in both trees is not listed.
+func customResources(b *strings.Builder, from, to *Snapshot, o Options) {
+	if !to.HasCRD {
+		fmt.Fprintf(b, "### Projects with custom-resource version checks\n\n`%s` is not present in `%s`; no project is listed.\n\n", crdTablePath, o.ToLabel)
+		return
+	}
+	fmt.Fprintf(b, "### Projects with custom-resource version checks (%d)\n\n", len(to.CRD))
+	var items []string
+	if !from.HasCRD {
+		fmt.Fprintf(b, "The from-release has no table file; all %d projects are listed.\n\n", len(to.CRD))
+		for _, k := range sortedKeys(to.CRD) {
+			items = append(items, "- "+crdEntry(k, to.CRD[k]))
+		}
+		b.WriteString(strings.Join(items, "\n") + "\n\n")
+		return
+	}
+	for _, k := range sortedKeys(to.CRD) {
+		if _, ok := from.CRD[k]; !ok {
+			items = append(items, "- added: "+crdEntry(k, to.CRD[k]))
+		}
+	}
+	for _, k := range sortedKeys(from.CRD) {
+		if _, ok := to.CRD[k]; !ok {
+			items = append(items, "- removed: "+crdEntry(k, from.CRD[k]))
+		}
+	}
+	if len(items) == 0 {
+		b.WriteString("No project was added or removed.\n\n")
+		return
+	}
+	b.WriteString(strings.Join(items, "\n") + "\n\n")
 }
 
 func rules(b *strings.Builder, from, to *Snapshot) {
