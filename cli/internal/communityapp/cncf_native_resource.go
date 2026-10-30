@@ -11,7 +11,9 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfknowledge"
 	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
+	"github.com/prufyx/prufyx/cli/internal/intake"
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
+	"github.com/prufyx/prufyx/cli/internal/scanrun"
 )
 
 const (
@@ -129,6 +131,7 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 	var objectFacts map[string][]cncfprepare.ObjectRef
 	var prepared cncfprepare.Prepared
 	var rawDigests []string
+	var nativeRaw []byte
 	var expectedSourceDigest string
 	selectedRuleID := requestedRuleID
 	var err error
@@ -245,6 +248,7 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 			prepared, err = cncfprepare.PrepareNativeMigration(raw, project, from, to)
 		}
 		rawDigests = []string{digest}
+		nativeRaw = raw
 		expectedSourceDigest = digest
 	case "cloudnativepg":
 		if anyFlagProvided(args, "native-resource", "native-resource-digest") || nativePath != "" || currentPath == "" || proposedPath == "" {
@@ -282,11 +286,17 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 	if _, err := cncfcheck.Catalog(false, project); err != nil {
 		return r.cncfProjectError(project, err)
 	}
+	// The apiVersion backstop of scan: an object at a version the target does
+	// not serve, or that the review cannot show served, is never a pass.
+	var apiGaps []string
+	if project == "kubernetes" {
+		apiGaps = kubernetesNativeAPIGaps(r.trust, nativeRaw, to, nowText)
+	}
 	if storeRoot != "" {
 		if nowText != "" || (replayPath != "" && (revision == "" || bundle == "" || receipt == "" || (project != "cloudnativepg" && nativePin == "") || (project == "cloudnativepg" && (currentPin == "" || proposedPin == "")))) {
 			return r.usage("external native CNCF replay requires every raw resource digest and all knowledge pins")
 		}
-		return r.externalCNCF(cncfknowledge.Request{Selection: knowledge.SelectionRequest{StoreRoot: storeRoot, ExpectedRevision: revision, ExpectedBundleDigest: bundle, ExpectedTrustReceiptDigest: receipt}, Project: project, SelectedRuleID: selectedRuleID, Input: prepared.CanonicalInputJSON, InputDigest: prepared.InputDigest}, replayPath, format)
+		return r.withAPIGaps(apiGaps, r.externalCNCF(cncfknowledge.Request{Selection: knowledge.SelectionRequest{StoreRoot: storeRoot, ExpectedRevision: revision, ExpectedBundleDigest: bundle, ExpectedTrustReceiptDigest: receipt}, Project: project, SelectedRuleID: selectedRuleID, Input: prepared.CanonicalInputJSON, InputDigest: prepared.InputDigest}, replayPath, format))
 	}
 	if revision != "" || bundle != "" || receipt != "" || nowText == "" || replayPath != "" {
 		return r.usage("native CNCF resource checks require canonical --now or an explicit signed knowledge selection")
@@ -313,9 +323,22 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 		return r.fail("CNCF report integrity failure", ExitIntegrity)
 	}
 	locations := claimLocations(report.Check.Claims, objectFacts, redact)
+	exit := cncfcheck.ClaimExit(report)
+	// The gaps are reported only where they turned a pass into unknown; a
+	// BLOCKED or already-unknown result keeps its own reasons.
+	if exit != 0 {
+		apiGaps = nil
+	} else if len(apiGaps) > 0 {
+		exit = ExitUnknown
+	}
 	if format == "json" {
 		if encoded, err = spliceClaimLocations(encoded, locations); err != nil {
 			return r.fail("CNCF report integrity failure", ExitIntegrity)
+		}
+		if len(apiGaps) > 0 {
+			if encoded, err = spliceAPIVersionGaps(encoded, apiGaps); err != nil {
+				return r.fail("CNCF report integrity failure", ExitIntegrity)
+			}
 		}
 		if _, err := fmt.Fprintln(r.stdout, string(encoded)); err != nil {
 			return ExitIntegrity
@@ -326,8 +349,9 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 			claims = withKubernetesDeclarationActions(claims, kubernetesDeclarationAction(prepared.Reason, resourceScopeComplete, targetAPIApplyRequired, kubernetesDistribution))
 		}
 		route := humanRoute{
-			exit: cncfcheck.ClaimExit(report), claims: claims, project: project, from: from, to: to,
+			exit: exit, claims: claims, project: project, from: from, to: to,
 			showPasses: flagProvided(args, "show-passes"), verbose: verboseRequested(args), trust: report.TrustPolicy,
+			preamble:   apiGapLines(apiGaps),
 			provenance: nativeProvenance(rawDigests, prepared.InputDigest, report),
 			knowledge:  knowledgeFooter(report),
 			locations:  locationLines(locations),
@@ -345,7 +369,64 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 			return ExitIntegrity
 		}
 	}
-	return cncfcheck.ClaimExit(report)
+	return exit
+}
+
+// kubernetesNativeAPIGaps runs the scan apiVersion backstop over the supplied
+// resources. A resource set that cannot be read again is a gap too.
+func kubernetesNativeAPIGaps(policy cncfcheck.TrustPolicy, raw []byte, to, nowText string) []string {
+	workspace, err := intake.Decode("input", raw)
+	if err != nil {
+		return []string{"the supplied resources could not be read for the API-version check"}
+	}
+	now, err := parseUTC(nowText)
+	if err != nil {
+		now = time.Now().UTC()
+	}
+	return scanrun.NativeAPIVersionGaps(policy, workspace.Documents, to, now)
+}
+
+const apiGapHeader = "API versions not shown served in the target (no pass; unknown):"
+
+func apiGapLines(gaps []string) []string {
+	if len(gaps) == 0 {
+		return nil
+	}
+	lines := []string{apiGapHeader}
+	for _, gap := range gaps {
+		lines = append(lines, "  "+gap)
+	}
+	return lines
+}
+
+// withAPIGaps keeps a pass of the external-knowledge route from standing
+// when the backstop fired; the reasons go to stderr.
+func (r runtime) withAPIGaps(gaps []string, exit int) int {
+	if exit != 0 || len(gaps) == 0 {
+		return exit
+	}
+	for _, line := range apiGapLines(gaps) {
+		fmt.Fprintf(r.stderr, "prufyx: %s\n", line)
+	}
+	return ExitUnknown
+}
+
+// spliceAPIVersionGaps adds an "apiVersionGaps" member to the report object.
+func spliceAPIVersionGaps(raw []byte, gaps []string) ([]byte, error) {
+	trimmed := bytes.TrimRight(raw, " \t\r\n")
+	if len(trimmed) < 2 || trimmed[len(trimmed)-1] != '}' {
+		return nil, errLocationSplice
+	}
+	member, err := json.Marshal(gaps)
+	if err != nil {
+		return nil, errLocationSplice
+	}
+	out := append(append(append([]byte(nil), trimmed[:len(trimmed)-1]...), []byte(`,"apiVersionGaps":`)...), member...)
+	out = append(out, '}')
+	if !json.Valid(out) {
+		return nil, errLocationSplice
+	}
+	return out, nil
 }
 
 func joinNativeDigests(values []string) string {

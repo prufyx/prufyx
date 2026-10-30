@@ -53,6 +53,11 @@ It can be a blocked or undecided scan; the report headline shows which.
   `Whole upgrade: not proven` next to it, always.
 - **Do:** in CI add `--strict-exit`, so a scoped pass exits `14` and cannot be
   read as a complete pass.
+- **Kubernetes `--native-resource`:** a resource at an API version the target
+  does not serve (removed, alpha, or not in the reviewed served-API list of the
+  target line) is never a scoped PASS. The check exits `11` (UNKNOWN), with or
+  without `--strict-exit`, and names the object types; `--format json` adds an
+  `apiVersionGaps` list. `prufyx scan` applies the same rule.
 
 ## BLOCKED (exit 10)
 
