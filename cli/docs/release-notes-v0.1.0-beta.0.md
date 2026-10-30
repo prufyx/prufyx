@@ -100,7 +100,7 @@ tar -xzf "$ARCHIVE"
 
 To install a package instead, run steps 1 and 2 with the package file name
 (`prufyx_${TAG}_linux_amd64.deb`, or `.rpm`, or an `arm64` one), then
-`sudo dpkg -i` the `.deb` or `sudo rpm -i` the `.rpm`. The package holds the
+`sudo dpkg -i` the `.deb` or `sudo rpm -U` the `.rpm`. The package holds the
 binary of the attested archive, the licence files and no install scripts.
 
 The checksum alone says nothing about who built the archive; the attestation

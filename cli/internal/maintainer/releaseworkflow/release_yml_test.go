@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/sha256"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -38,9 +39,10 @@ type workflowStep struct {
 
 type workflowFile struct {
 	Jobs map[string]struct {
-		Environment any            `yaml:"environment"`
-		Needs       any            `yaml:"needs"`
-		Steps       []workflowStep `yaml:"steps"`
+		Environment any               `yaml:"environment"`
+		Needs       any               `yaml:"needs"`
+		Permissions map[string]string `yaml:"permissions"`
+		Steps       []workflowStep    `yaml:"steps"`
 	} `yaml:"jobs"`
 }
 
@@ -510,6 +512,17 @@ func TestReleaseWorkflowPackagesAreBuiltPinnedCheckedAndAttested(t *testing.T) {
 	if n, _ := pkg.Needs.(string); n != "build" {
 		t.Errorf("packages job needs %v, want build", pkg.Needs)
 	}
+	if got := fmt.Sprint(wf.Jobs["provenance"].Needs); !strings.Contains(got, "packages") {
+		t.Errorf("provenance job needs %v, want it to include packages", got)
+	}
+	for perm := range pkg.Permissions {
+		if perm != "contents" {
+			t.Errorf("packages job requests permission %q; only contents: read is allowed", perm)
+		}
+	}
+	if pkg.Permissions["contents"] != "read" {
+		t.Error("packages job must have contents: read")
+	}
 	run := workflowStepNamed(t, wf, "packages", "Build packages")
 	if v := run.Env["NFPM_VERSION"]; !regexp.MustCompile(`^2\.[0-9]+\.[0-9]+$`).MatchString(v) {
 		t.Errorf("NFPM_VERSION = %q, want an exact nfpm v2 release", v)
@@ -518,13 +531,22 @@ func TestReleaseWorkflowPackagesAreBuiltPinnedCheckedAndAttested(t *testing.T) {
 		t.Errorf("NFPM_SHA256 = %q, want a pinned 64-digit digest", v)
 	}
 	for _, want := range []string{
-		`sha256sum -c -`, "SOURCE_DATE_EPOCH", "mtime: ${BUILD_MTIME}",
+		`echo "${NFPM_SHA256}  nfpm.tar.gz" | sha256sum -c -`, "SOURCE_DATE_EPOCH", "mtime: ${BUILD_MTIME}",
 		"dpkg-deb -x", "rpm2cpio", `cmp -s "${unpack}/usr/bin/prufyx" "${bin}"`, "exit 1",
 		"/usr/bin/prufyx", "mode: 0755",
 	} {
 		if !strings.Contains(run.Run, want) {
 			t.Errorf("Build packages step lacks %q", want)
 		}
+	}
+	if strings.Contains(run.Run, "|| true") {
+		t.Error("Build packages must not swallow failures with || true")
+	}
+	if rpm, nf := strings.Index(run.Run, "apt-get install"), strings.Index(run.Run, "curl "); rpm < 0 || nf < 0 || rpm > nf {
+		t.Error("tools must be installed before nfpm is downloaded and digest-checked")
+	}
+	if !strings.Contains(run.Run, "DATA-LICENSE.md") {
+		t.Error("DATA-LICENSE.md (named by NOTICE) must be packaged")
 	}
 	if strings.Contains(run.Run, "go install") {
 		t.Error("nfpm must be a pinned release binary, not built with go install")

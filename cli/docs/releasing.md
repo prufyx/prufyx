@@ -128,7 +128,7 @@ The workflow has four jobs. Third-party actions are pinned by commit SHA.
    binary from the built archive and packs it with a pinned `nfpm` release
    (exact version and SHA-256 digest in the workflow) into
    `prufyx_<tag>_linux_<arch>.deb` and `.rpm`: `/usr/bin/prufyx` plus the
-   licence files (`LICENSE`, `NOTICE`, `THIRD-PARTY.md`, `LICENSES/`) under
+   licence files (`LICENSE`, `NOTICE`, `THIRD-PARTY.md`, `DATA-LICENSE.md`, `LICENSES/`) under
    `/usr/share/doc/prufyx/`, no install scripts. The job then unpacks every
    package and fails unless `/usr/bin/prufyx` is byte-identical to the binary
    of the archive, so a package never holds another binary than the attested
@@ -209,7 +209,7 @@ gh attestation verify "$PKG" --repo prufyx/prufyx \
   --signer-workflow prufyx/prufyx/.github/workflows/release.yml \
   --source-ref "refs/tags/$TAG" --deny-self-hosted-runners
 sudo dpkg -i "$PKG"                         # Debian, Ubuntu
-sudo rpm -i "$PKG"                          # Fedora, RHEL, openSUSE
+sudo rpm -U "$PKG"                          # Fedora, RHEL, openSUSE
 ```
 
 The package installs `/usr/bin/prufyx` and the licence files under
@@ -217,7 +217,9 @@ The package installs `/usr/bin/prufyx` and the licence files under
 package-manager key, so there is no repository to add and no automatic update.
 The workflow checks that its `/usr/bin/prufyx` equals the binary in the
 `.tar.gz`. The RPM `Release` field is `1` and a pre-release tag becomes
-`0.1.0~beta.0` in both formats.
+`0.1.0~beta.0` in both formats when the pre-release id has no hyphen
+(as in `beta.0`); for an id containing `-`, nfpm's rpm maps it to `_` while
+the deb keeps it.
 
 The composite GitHub Action performs steps 1 and 2 itself
 (`scripts/action/install.sh`) with `verify-attestation` defaulting to `auto`
