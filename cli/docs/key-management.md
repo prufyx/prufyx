@@ -4,10 +4,11 @@ This page lists every signing key and pinned digest that the code in this
 repository defines, where the public part of each one is pinned, and what to
 do when a key is rotated, lost or compromised.
 
-Read this first: **no production key or trust root is pinned in this
-repository today.** The tools below exist and are tested with throwaway keys.
-Nothing here is a published trust anchor, a published feed or a signed
-release. Each procedure describes what the code supports; where the code has
+Read this first: **no production release-signing key or release trust root is
+pinned in this repository today.** The knowledge trust root is pinned
+(`cli/internal/knowledgepin`) and the official knowledge feed is published. The
+tools below exist and are tested with throwaway keys. Nothing here is a
+published release-signing trust anchor or a signed release. Each procedure describes what the code supports; where the code has
 no mechanism, the section says so instead of describing a promise.
 
 No private key, passphrase or token is stored in this repository, and none is
@@ -63,8 +64,9 @@ generates one. See [Offline operator role signer](knowledge-signer.md) and
 **Where the public part is pinned.** On the client. The first import into an
 empty store needs the root file and its independently verified digest. The
 store then records that initial root digest and refuses a different bootstrap
-root for the same store. There is no Prufyx feed, official root or default root
-(see [Explicit knowledge downloads](knowledge-updates.md)).
+root for the same store. For `cncf-projects` the initial root is pinned in the
+build (`cli/internal/knowledgepin`); other profiles need an explicit bootstrap
+root and digest (see [Explicit knowledge downloads](knowledge-updates.md)).
 
 **Checks you can run.** `knowledge-sign verify-key` decrypts one key and
 reports only whether its public key matches the chosen role in a root you

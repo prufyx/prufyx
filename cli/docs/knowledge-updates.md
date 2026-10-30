@@ -4,8 +4,7 @@ This unreleased Community source capability downloads a complete signed package
 from an operator-selected HTTPS URL, retains it locally, and imports it through
 the existing TUF verifier. Checks and historical replay continue to run offline.
 There is no startup refresh, account, telemetry, or upload API. The Prufyx trust
-root is pinned in the build; the official feed is configured but its first
-publication is pending. The Community source preview is public.
+root is pinned in the build and the official feed is published. The Community source preview is public.
 
 ## Download and verify
 
@@ -295,7 +294,7 @@ is a recovery consistency identity and does not authenticate the plan.
 ## Prepare a signed package
 
 The offline maintainer workflow is implemented; the official root is pinned and
-the official feed's first publication is pending. From the `cli` directory, export the complete compatible
+the official feed is published. From the `cli` directory, export the complete compatible
 CNCF replacement target:
 
 ```sh
@@ -320,8 +319,9 @@ change review dates, or establish that source rules are correct.
 
 The existing [contributor workflow](upstream-contributions.md#workflow-and-authority)
 names maintainer Spas Atanasov (`@airstand`) for maintainer acceptance and
-publication review. Production key custody, root distribution,
-reviewed rule publication and hosted feed operation remain separate release gates.
+publication review. Production key custody, root distribution and reviewed rule
+publication remain maintainer responsibilities; the official feed is operated by
+the maintainer, see [knowledge-publisher.md](knowledge-publisher.md).
 Existing examples use ephemeral
 test keys and synthetic review dates solely to exercise the protocol; they are
 not evidence of a production feed or a comprehensive release-note corpus.

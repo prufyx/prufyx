@@ -99,8 +99,10 @@ implementation review precede maintainer acceptance. Local JSON validation and
 archive assembly do not sign or publish trusted metadata. After acceptance,
 the existing [signed-package handoff](knowledge-updates.md#assemble-an-already-signed-package)
 is a separate responsibility of maintainer Spas Atanasov (`@airstand`), followed
-by consumer verification and explicit import or update. This repository does
-not provide a production signer, hosted feed, or official trust root.
+by consumer verification and explicit import or update. The tooling described
+here does not sign or publish trusted metadata. The official signed feed and
+its pinned root are described in [knowledge-publisher.md](knowledge-publisher.md)
+and [knowledge-updates.md](knowledge-updates.md).
 
 The synthetic generator exercises empty revision 1 and active revisions 2 and
 3 with ephemeral keys and public certificate inputs:

@@ -257,10 +257,10 @@ initial (version 1) TUF root of that profile's official knowledge feed. It is
 compiled into the binary and is used by `prufyx db update` (see
 [Knowledge updates](knowledge-updates.md)).
 
-Today the only profile, `cncf-projects`, has an **empty** pin. An empty pin
-means no root is pinned: `db update` requires the operator to pass an explicit
-bootstrap root and digest, and nothing is trusted implicitly. Releases cut now
-therefore ship without a pinned official feed root.
+The only profile, `cncf-projects`, has a pin (`knowledgepin/pin.go`) and an
+embedded root. `db update` with no flags trusts only that root. A profile with
+an empty pin would require the operator to pass an explicit bootstrap root and
+digest.
 
 The pin is set by a reviewed source change that puts the digest of the
 offline-created version 1 `root.json` into the `pins` table. That requires the
