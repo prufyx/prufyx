@@ -1,0 +1,18 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "kamaji",
+    "catalog": "community",
+    "name": "Kamaji",
+    "repo": "github.com/clastix/kamaji",
+    "component": "pkg:github/clastix/kamaji",
+    "factProject": "kamaji",
+    "releaseScheme": "calver-edge",
+    "minFrom": "24.7",
+    "attest": true,
+    "paths": [
+      {"path": "charts/kamaji/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}
