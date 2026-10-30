@@ -264,7 +264,7 @@ jobs:
           # Installed first, so nothing is fetched after the nfpm digest check.
           if ! command -v rpm2cpio > /dev/null; then
             sudo apt-get update -qq
-            sudo apt-get install -y -qq --no-install-recommends rpm2cpio
+            sudo apt-get install -y -qq --no-install-recommends rpm2cpio cpio
           fi
 
           # Same epoch as the build job: the tagged commit's own commit time.
@@ -309,6 +309,8 @@ jobs:
           homepage: https://github.com/prufyx/prufyx
           license: AGPL-3.0-only
           mtime: ${BUILD_MTIME}
+          rpm:
+            buildhost: prufyx-release
           contents:
             - src: ${bin}
               dst: /usr/bin/prufyx
