@@ -100,9 +100,12 @@ type Summary struct {
 	Hops                int `json:"hops"`
 	DocumentsRead       int `json:"documentsRead"`
 	DocumentsOmitted    int `json:"documentsOmitted"`
-	Notices             int `json:"notices"`
-	Leads               int `json:"leads"`
-	Unsupported         int `json:"unsupported"`
+	// DocumentsAllowlistSkipped counts directory entries skipped by name
+	// because they cannot carry a Kubernetes object; they are not gaps.
+	DocumentsAllowlistSkipped int `json:"documentsAllowlistSkipped,omitempty"`
+	Notices                   int `json:"notices"`
+	Leads                     int `json:"leads"`
+	Unsupported               int `json:"unsupported"`
 }
 
 // Component is one component named by a version declaration.

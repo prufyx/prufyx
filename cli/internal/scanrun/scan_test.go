@@ -4,6 +4,7 @@ package scanrun
 
 import (
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -181,6 +182,9 @@ func TestScanPassPreconditions(t *testing.T) {
 			"one unresolved list":      {full, map[string]string{"list.yaml": "apiVersion: v1\nkind: List\nitems: []\n"}, declared, "DOCUMENTS_NOT_EVALUATED"},
 			"one values file":          {full, map[string]string{"values.yaml": "replicas: 2\n"}, declared, "DOCUMENTS_NOT_EVALUATED"},
 			"items under another kind": {full, map[string]string{"bundle.yaml": "apiVersion: example.io/v1\nkind: Bundle\nmetadata: {name: b}\nitems:\n- {apiVersion: batch/v1beta1, kind: CronJob, metadata: {name: hidden}}\n"}, declared, "DOCUMENTS_NOT_EVALUATED"},
+			"hidden directory skipped": {full, map[string]string{".deploy/fs.yaml": "apiVersion: flowcontrol.apiserver.k8s.io/v1beta2\nkind: FlowSchema\nmetadata: {name: fs}\n"}, declared, "DOCUMENTS_NOT_EVALUATED"},
+			"file named manifest":      {full, map[string]string{"manifest": "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: m}\n"}, declared, "DOCUMENTS_NOT_EVALUATED"},
+			"template file skipped":    {full, map[string]string{"dep.tpl": "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: m}\n"}, declared, "DOCUMENTS_NOT_EVALUATED"},
 			"one alpha API":            {full, map[string]string{"alpha.yaml": "apiVersion: resource.k8s.io/v1alpha3\nkind: DeviceClass\nmetadata: {name: gpu}\n"}, declared, "ALPHA_API_NOT_COVERED"},
 			"stale line review":        {knowledgeOptions{lines: without(allLines, "1.30"), stale: []string{"1.30"}, policy: "current"}, nil, declared, "LINE_NOT_ATTESTED"},
 			"missing line review":      {knowledgeOptions{lines: without(allLines, "1.30"), policy: "current"}, nil, declared, "LINE_NOT_ATTESTED"},
@@ -698,4 +702,73 @@ func TestJudgeClaims(t *testing.T) {
 			t.Errorf("%s %s: decided %t gaps %+v", tc.status, tc.reason, judged.decided, report.Gaps)
 		}
 	}
+}
+
+// TestScanSkippedFilesAreOmissions: a hidden directory and a regular file
+// without a manifest name are never read, so a scan that declares the scope
+// complete cannot pass over them: the verdict is UNKNOWN and each skip is
+// listed as an omitted entry with its reason.
+func TestScanSkippedFilesAreOmissions(t *testing.T) {
+	t.Parallel()
+	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
+	dir, _ := files(t, map[string]string{
+		"hd/dep.yaml":        cronjobV1,
+		"hd/.deploy/fs.yaml": "apiVersion: flowcontrol.apiserver.k8s.io/v1beta2\nkind: FlowSchema\nmetadata: {name: fs}\n",
+		"hd/manifest":        cronjobV1,
+		"hd/.git/config":     "[core]\n",
+	})
+	result := mustScan(t, knowledge, args([]string{dir + "/hd"}, "--from", "kubernetes=1.28.0", "--to", "kubernetes=1.29.0")...)
+	report := result.Report
+	if result.Exit != scanreport.ExitUnknown || report.Verdict != scanreport.VerdictUnknown || !gapNamed(report, "DOCUMENTS_NOT_EVALUATED") {
+		t.Fatalf("exit %d verdict %s gaps %v", result.Exit, report.Verdict, gapReasons(report))
+	}
+	got := map[string]string{}
+	for _, o := range report.Omitted {
+		got[filepath.Base(o.File)] = o.Reason
+	}
+	want := map[string]string{".deploy": "HIDDEN_DIRECTORY_SKIPPED", "manifest": "NOT_MANIFEST_NAME"}
+	if !reflect.DeepEqual(got, want) || report.Summary.DocumentsOmitted != 2 || report.Summary.DocumentsAllowlistSkipped != 1 {
+		t.Fatalf("omitted %+v", report.Omitted)
+	}
+	if !strings.Contains(string(scanreport.Human(report, scanreport.HumanOptions{})), "2 file(s) or directories were not read") {
+		t.Fatal("human output does not name the skipped entries")
+	}
+}
+
+// TestScanAllowlistedFilesDoNotBlockPass: documentation, images, licence-style
+// and ignore files and .git are counted, not gaps; a skipped file outside the
+// allowlist still gives UNKNOWN.
+func TestScanAllowlistedFilesDoNotBlockPass(t *testing.T) {
+	t.Parallel()
+	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
+	allowed := map[string]string{
+		"README.md": "x", "docs/logo.PNG": "x", "LICENSE": "x", "NOTICE.txt": "x", "CODEOWNERS": "x",
+		".gitignore": "x", ".helmignore": "x", ".git/config": "x", "sub/.git/HEAD": "x",
+	}
+	dir, _ := files(t, mergeFiles(allowed, map[string]string{"dep.yaml": cronjobV1}))
+	result := mustScan(t, knowledge, args([]string{dir}, "--from", "kubernetes=1.29.6", "--to", "kubernetes=1.30.4")...)
+	if result.Exit != scanreport.ExitPass || result.Report.Summary.DocumentsAllowlistSkipped != 9 || len(result.Report.Omitted) != 0 {
+		t.Fatalf("exit %d skipped %d omitted %+v gaps %v", result.Exit, result.Report.Summary.DocumentsAllowlistSkipped, result.Report.Omitted, gapReasons(result.Report))
+	}
+	if !strings.Contains(string(scanreport.Human(result.Report, scanreport.HumanOptions{})), "9 non-manifest files skipped (allowlisted)") {
+		t.Fatal("human output does not count the allowlisted skips")
+	}
+	for _, name := range []string{"notes.txt", ".github/ci.yml.disabled", "Makefile", "Dockerfile", "x.tpl", ".terraform/p", "node_modules/m"} {
+		dir, _ := files(t, map[string]string{"dep.yaml": cronjobV1, name: "x"})
+		result := mustScan(t, knowledge, args([]string{dir}, "--from", "kubernetes=1.29.6", "--to", "kubernetes=1.30.4")...)
+		if result.Exit != scanreport.ExitUnknown || !gapNamed(result.Report, "DOCUMENTS_NOT_EVALUATED") {
+			t.Errorf("%s: exit %d gaps %v", name, result.Exit, gapReasons(result.Report))
+		}
+	}
+}
+
+func mergeFiles(a, b map[string]string) map[string]string {
+	out := map[string]string{}
+	for k, v := range a {
+		out[k] = v
+	}
+	for k, v := range b {
+		out[k] = v
+	}
+	return out
 }

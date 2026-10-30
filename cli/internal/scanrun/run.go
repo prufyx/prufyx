@@ -262,6 +262,7 @@ func Run(request Request, options Options) (Result, error) {
 	}
 	manifests := splitConfigDocuments(workspace, &report)
 	report.Summary.DocumentsRead = len(manifests.Documents)
+	report.Summary.DocumentsAllowlistSkipped = workspace.AllowlistSkipped
 	readable := 0
 	for _, file := range workspace.Files {
 		if report.Anchor == "" && file.Policy != intake.ModeNotApplicable {
