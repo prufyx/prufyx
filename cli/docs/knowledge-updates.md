@@ -3,9 +3,9 @@
 This unreleased Community source capability downloads a complete signed package
 from an operator-selected HTTPS URL, retains it locally, and imports it through
 the existing TUF verifier. Checks and historical replay continue to run offline.
-There is no configured Prufyx feed, official trust root, startup refresh, account,
-telemetry, or upload API. The Community source preview is public. Official
-metadata packages and a Prufyx trust root are not yet published.
+There is no startup refresh, account, telemetry, or upload API. The Prufyx trust
+root is pinned in the build; the official feed is configured but its first
+publication is pending. The Community source preview is public.
 
 ## Download and verify
 
@@ -153,11 +153,10 @@ change. Giving `--source` or `--release-plan` keeps the rules described above
   refused with the message to remove the store directory
   (the path is printed) and run `db update` again. There is no reset command.
 
-The official feed is not published yet and this build pins no root: the pin in
-`cli/internal/knowledgepin` stays empty until the owner's root ceremony. Until
-then a no-argument `db update` on an empty store stops before any download with
-"no trust root"; use `--source`, `--bootstrap-root` and `--bootstrap-root-digest`
-as above, or the knowledge built into the binary.
+The official root is pinned in `cli/internal/knowledgepin`, so a no-argument
+`db update` on an empty store downloads from the official feed and admits only
+a store whose initial root is that pinned root. To use a feed you operate, pass
+`--source`, `--bootstrap-root` and `--bootstrap-root-digest` as above.
 
 ## Pinned root for official profiles
 
@@ -177,7 +176,7 @@ compiled into the binary (`cli/internal/knowledgepin`). For such a profile,
 
 An empty pin means the profile has no pinned root. Then an explicit
 `--bootstrap-root` and `--bootstrap-root-digest` are required, as described above.
-No profile is pinned until a pin is set in a reviewed source change; `db verify`,
+Only `cncf-projects` is pinned (the pin was set in a reviewed source change); `db verify`,
 `db import`, `scan` and `check` are not affected by pins.
 
 To set a pin, compute the digest of the offline-created version 1 `root.json`
@@ -284,8 +283,8 @@ is a recovery consistency identity and does not authenticate the plan.
 
 ## Prepare a signed package
 
-The offline maintainer workflow is implemented, but no official Prufyx root or
-feed is configured. From the `cli` directory, export the complete compatible
+The offline maintainer workflow is implemented; the official root is pinned and
+the official feed's first publication is pending. From the `cli` directory, export the complete compatible
 CNCF replacement target:
 
 ```sh

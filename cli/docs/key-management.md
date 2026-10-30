@@ -18,7 +18,7 @@ that may be committed or placed in repository variables.
 
 | Role | Algorithm | Private part | Public part is pinned in | Pinned today |
 | --- | --- | --- | --- | --- |
-| [Knowledge package roles](#knowledge-package-roles-root-targets-snapshot-timestamp): `root`, `targets`, `snapshot`, `timestamp` | Ed25519 (TUF) | encrypted file per role, held by the operator | the operator's own process: the initial root file plus its SHA-256, passed as `--bootstrap-root` and `--bootstrap-root-digest` | No. Official root not published. |
+| [Knowledge package roles](#knowledge-package-roles-root-targets-snapshot-timestamp): `root`, `targets`, `snapshot`, `timestamp` | Ed25519 (TUF) | encrypted file per role, held by the operator | the operator's own process: the initial root file plus its SHA-256, passed as `--bootstrap-root` and `--bootstrap-root-digest` | `cncf-projects` only: the initial root is pinned in the build. |
 | [Release statement key](#release-statement-key) | Ed25519 | one encrypted file, held offline by the release owner | the release trust root digest, passed to `release verify-signature` | No. No release has been signed. |
 | [Artifact attestation](#artifact-attestation) | keyless (GitHub-issued) | none held by the project | the workflow identity (repository, workflow file, source revision) | Workflow exists; no tagged release has been published. |
 | [Re-attestation keys](#re-attestation-keys-human-and-automation): `human`, `automation` | Ed25519 | encrypted file per key | the trust root file, pinned by the repository variable `REATTEST_TRUST_ROOT_DIGEST` | No. No trust root file or digest is recorded in this repository. |

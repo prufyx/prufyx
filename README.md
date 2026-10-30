@@ -17,9 +17,8 @@ evidence does not decide the question, the answer is `UNKNOWN`, not a guess.
 
 > **Status: public beta (pre-release).** A `v0.1.0-beta.0` candidate build is
 > being prepared; until its GitHub release is published, build from source. The
-> binary carries embedded, time-limited knowledge. The official knowledge feed
-> and its trust root are not published yet, so `prufyx db update` has no
-> official source to use. Results are scoped findings, not a guarantee that a
+> binary carries embedded, time-limited knowledge, and `prufyx db update`
+> refreshes it from the official signed feed once that feed is published. Results are scoped findings, not a guarantee that a
 > whole upgrade is safe.
 
 ## Quickstart
@@ -392,7 +391,7 @@ knowledge feed, and automated GitOps release gates. None exists today.
 - Reports omit raw values, paths, credentials, and configuration content.
 - Knowledge can be refreshed explicitly with `prufyx db update` from a signed
   package you choose; nothing updates automatically. With no arguments it targets the
-  official feed, which is not published yet.
+  official feed, verified against the root pinned in the build.
 
 ## Support Prufyx
 

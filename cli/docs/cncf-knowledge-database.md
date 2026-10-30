@@ -29,8 +29,9 @@ complete: an empty revision means no coverage; missing, invalid or stale externa
 data never falls back to embedded rules. `catalog cncf` continues to describe
 the embedded catalogue, not the selected external store.
 
-The store accepts operator-provisioned TUF roots and packages. There is currently
-no official Prufyx root, public feed or automatic startup update. Explicit
+The store accepts operator-provisioned TUF roots and packages. The official Prufyx root is
+pinned in the build, the official feed's first publication is pending, and there
+is no automatic startup update. Explicit
 [`db update`](knowledge-updates.md) can download and retain a complete package
 from an operator-selected HTTPS URL before the same local verification.
 TUF verifies origin under the selected root, metadata expiry, target digests and

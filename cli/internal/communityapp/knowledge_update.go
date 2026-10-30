@@ -172,7 +172,7 @@ func (r runtime) databaseUpdateWithFetches(ctx context.Context, args []string, f
 		}
 	}
 	if autoPackage && storeNeedsRoot && req.BootstrapRoot == nil && req.BootstrapRootDigest == "" {
-		return r.usage("no trust root for this knowledge database: this build pins no root for the official feed yet; pass --source, --bootstrap-root and --bootstrap-root-digest, or use the embedded knowledge")
+		return r.usage("no trust root for this knowledge database: this build pins no root for the official feed; pass --source, --bootstrap-root and --bootstrap-root-digest, or use the embedded knowledge")
 	}
 	if err := knowledge.ValidateImportAssertions(req); err != nil {
 		return r.knowledgeError("invalid local database update assertions", err)

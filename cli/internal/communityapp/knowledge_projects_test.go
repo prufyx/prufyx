@@ -34,7 +34,11 @@ func perProjectPackage(t *testing.T, repo *knowledgefixture.ProjectsRepository, 
 }
 
 func TestKnowledgeUpdatePerProjectProfileUsesPerProjectTransport(t *testing.T) {
-	t.Parallel()
+	// The fixture root is not the official root: drop the pin for this test.
+	// The pin is a package variable, so this test cannot run in parallel.
+	oldPin := pinnedRootDigest
+	pinnedRootDigest = func(string) string { return "" }
+	t.Cleanup(func() { pinnedRootDigest = oldPin })
 	repo, err := knowledgefixture.NewProjectsRepository(time.Now().UTC().Truncate(time.Second))
 	if err != nil {
 		t.Fatal(err)

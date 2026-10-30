@@ -178,11 +178,11 @@ expired rule, a missing declaration. Read the reason lines. Full tables:
   `UNKNOWN` by design.
 - `prufyx db update` downloads a complete signed package and verifies it with
   TUF. With no arguments it targets the official `cncf-projects` feed and
-  needs the trust root pinned in the build. **That feed is not published and
-  this build pins no root**, until the owner's key ceremony and first
-  publication. A no-argument `db update` on an empty store therefore stops
-  with "no trust root". Until then the embedded knowledge of beta.0 is what
-  you use. The manual path is `prufyx db update --profile cncf --source URL
+  needs the trust root pinned in the build. This build pins the official
+  root, so a no-argument `db update` fetches the signed package from the
+  official feed and refuses anything not signed from that root. If the feed is
+  not published yet, the download fails (`KNOWLEDGE_DOWNLOAD_FAILED`) and the
+  embedded knowledge stays in use. The manual path is `prufyx db update --profile cncf --source URL
   --package-out FILE --db-root DIR --bootstrap-root root.json
   --bootstrap-root-digest sha256:...`: you need a package source you operate
   and a root you verified independently.
