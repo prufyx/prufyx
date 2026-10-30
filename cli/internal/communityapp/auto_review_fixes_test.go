@@ -193,7 +193,7 @@ func TestAutoKnowledgeExpiredStoreFallsBackForCheckAndScan(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	repoNow := time.Now().UTC().Truncate(time.Second).Add(-24*time.Hour + 6*time.Second) // timestamp expires at repoNow+24h
+	repoNow := time.Now().UTC().Truncate(time.Second).Add(-24*time.Hour + 20*time.Second) // timestamp expires at repoNow+24h
 	repo, err := importProjectsInto(t, root, repoNow, "5")
 	if err != nil {
 		if time.Now().After(repoNow.Add(24 * time.Hour)) {
