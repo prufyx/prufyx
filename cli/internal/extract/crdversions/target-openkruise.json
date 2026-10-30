@@ -8,9 +8,12 @@
     "factProject": "openkruise",
     "tagPrefixes": ["v"],
     "minFrom": "1.4",
+    "attest": true,
     "paths": [
       {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
     ],
-    "exclude": []
+    "exclude": [
+      {"path": "tools/hack/csi-driver-host-path/", "repo": "github.com/openkruise/kruise", "reason": "end-to-end test helper that sets up a CSI hostpath driver and the external-snapshotter VolumeSnapshot CRDs (snapshot.storage.k8s.io) in a test cluster; not an OpenKruise definition and not part of an install", "evidence": "Read at v1.7.5 and v1.9.2: the Makefile target install-csi, a prerequisite of kruise-e2e-test, runs cd tools/hack/csi-driver-host-path; ./install-snapshot.sh, which kubectl-applies snapshot/snapshot.storage.k8s.io_*.yaml; download-install-scripts.sh downloads those files from kubernetes-csi/external-snapshotter. The directory is absent at v1.5.0 and v1.6.0; no install manifest, kustomization or chart names it."}
+    ]
   }
 }

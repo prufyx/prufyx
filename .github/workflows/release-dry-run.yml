@@ -1,0 +1,57 @@
+name: Release dry run
+
+# Runs the build, package and checksum steps of release.yml without a tag.
+# The run: bodies are taken from release.yml itself by scripts/release-dry-run.sh,
+# so they cannot drift. Nothing here tags, attests, uploads or creates a
+# release, and no secret is used: the token is read-only and nothing is kept.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/release.yml"
+      - ".github/workflows/release-dry-run.yml"
+      - "cli/docs/releasing.md"
+      - "scripts/release-dry-run.sh"
+      - "cli/internal/tools/workflowrun/**"
+      - "release/community-shipping-policy-v2.json"
+      - "cli/internal/buildidentity/**"
+      - "LICENSE"
+      - "NOTICE"
+      - "THIRD-PARTY.md"
+      - "DATA-LICENSE.md"
+      - "LICENSES/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-dry-run-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dry-run:
+    name: Release dry run
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      # The exact toolchain and no cache, as in release.yml.
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: "1.26.10"
+          cache: false
+
+      - name: Dry run
+        env:
+          KNOWLEDGE_ROOT_DIGEST: ${{ vars.KNOWLEDGE_ROOT_DIGEST }}
+        run: scripts/release-dry-run.sh "${RUNNER_TEMP}/release-dry-run"

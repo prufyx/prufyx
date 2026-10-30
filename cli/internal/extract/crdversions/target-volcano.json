@@ -8,6 +8,7 @@
     "factProject": "volcano",
     "tagPrefixes": ["v"],
     "minFrom": "1.10",
+    "attest": true,
     "paths": [
       {"path": "config/crd/volcano/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"},
       {"path": "config/crd/jobflow/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd", "optional": true}
