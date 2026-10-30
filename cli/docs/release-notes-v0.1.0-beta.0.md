@@ -153,6 +153,13 @@ You can also build from source; see the [README](https://github.com/prufyx/prufy
   knowledge, compared by the latest evidence review date per project. A
   removal-only correction without a new review date cannot be told from an
   older database (see [knowledge updates](https://github.com/prufyx/prufyx/blob/main/cli/docs/knowledge-updates.md)).
+- Dragonfly: `prufyx check cncf --project dragonfly` and `prufyx assess` never
+  reach exit `0` for Dragonfly. The result is `UNKNOWN` (exit `11` on the
+  generic route; `assess` exits `0` only with the note "not a pass"). This is
+  by design until the combined-rule work in beta.1. `UNKNOWN` is not a pass.
+- The GitHub Action input `fail-on` now defaults to `blocked,unknown` (was
+  `blocked`). This is a breaking change: a scan that is `UNKNOWN` fails the
+  step. To keep the old behaviour, set `fail-on: blocked`.
 - The generated block lists no added projects ("Projects added to the support
   inventory (0)"): no project was newly catalogued since `v0.0.1-alpha.1`. The
   gain is more reviewed rules and line attestations for catalogued projects.
