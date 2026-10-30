@@ -17,6 +17,46 @@ and how you want to be contacted.
 The issue is public. Do not put email addresses, customer data, cluster data
 or credentials in it.
 
+## Preferred route: a bundle pull request
+
+If you can run the maintainer tool, a pull request is faster to review than an
+issue. It carries the same kind of hints in machine-readable form. An issue
+stays a valid entry: a person reads every one.
+
+1. Build `prufyx-maintainer` and collect public facts about your repository
+   with the commands in
+   [project onboarding](../cli/docs/project-onboarding.md): `project init`
+   writes a request file, `project sync` fetches public release and licence
+   data into an immutable snapshot, for example:
+
+   ```sh
+   prufyx-maintainer project init \
+     --repository https://github.com/OWNER/REPOSITORY \
+     --release-limit 5 \
+     --output "$PRIVATE/project-request.json"
+   prufyx-maintainer project sync \
+     --manifest "$PRIVATE/project-request.json" \
+     --output-parent "$PRIVATE/corpus"
+   ```
+
+2. If you also have evidence for a rule or a project transition, check the
+   packet offline as described in
+   [upstream contributions](../cli/docs/upstream-contributions.md):
+
+   ```sh
+   go run ./cmd/prufyx-maintainer contribution validate \
+     --packet PATH_TO_PACKET.json
+   ```
+
+3. Open a pull request that adds `contrib/onboard-bundles/<slug>/`. The layout,
+   limits and the offline check are in the
+   [bundle README](../contrib/onboard-bundles/README.md); a fictional,
+   schema-valid example is in
+   [`testdata/valid`](../cli/internal/maintainer/onboardbundle/testdata/valid).
+   CI validates every changed bundle directory with the validator built from
+   the base branch. Passing means the bundle is well-formed, nothing more:
+   maintainers still re-derive and byte-compare everything.
+
 ## How the information is used
 
 What you send is a hint. It tells us where to look and what to ask. It is
