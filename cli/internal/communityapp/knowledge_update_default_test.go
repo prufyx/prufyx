@@ -157,8 +157,13 @@ func TestKnowledgeUpdateKeepsLastTwoPackages(t *testing.T) {
 func TestKnowledgeUpdateAlreadyUpToDate(t *testing.T) {
 	env := newDefaultUpdateEnv(t)
 	raw := perProjectPackage(t, env.repo, 1, "4")
-	if code, out, stderr := runDefaultUpdate(t, raw); code != ExitOK || out.UpToDate {
-		t.Fatalf("first: code=%d out=%+v stderr=%s", code, out, stderr)
+	code, first, stderr := runDefaultUpdate(t, raw)
+	if code != ExitOK || first.UpToDate {
+		t.Fatalf("first: code=%d out=%+v stderr=%s", code, first, stderr)
+	}
+	var firstHuman bytes.Buffer
+	if (runtime{stdout: &firstHuman, stderr: &bytes.Buffer{}}).writeKnowledgeUpdate(first, "human", ExitOK) != ExitOK || !strings.Contains(firstHuman.String(), "knowledge update: IMPORTED\n") {
+		t.Fatalf("real import header must stay IMPORTED:\n%s", firstHuman.String())
 	}
 	code, out, _ := runDefaultUpdate(t, raw)
 	if code != ExitOK || !out.UpToDate || out.CurrentRevision != "4" || out.NewRevision != "4" || out.ReasonCode != "KNOWLEDGE_ALREADY_UP_TO_DATE" {
@@ -171,7 +176,7 @@ func TestKnowledgeUpdateAlreadyUpToDate(t *testing.T) {
 	if runtime := (runtime{stdout: &human, stderr: &bytes.Buffer{}}); runtime.writeKnowledgeUpdate(out, "human", ExitOK) != ExitOK {
 		t.Fatal("human output failed")
 	}
-	for _, want := range []string{"current revision: 4", "new revision: 4", "trust metadata expires: ", "already up to date"} {
+	for _, want := range []string{"knowledge update: local database already up to date (nothing imported)", "current revision: 4", "new revision: 4", "trust metadata expires: ", "already up to date"} {
 		if !strings.Contains(human.String(), want) {
 			t.Fatalf("human output lacks %q:\n%s", want, human.String())
 		}
