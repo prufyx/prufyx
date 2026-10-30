@@ -192,3 +192,24 @@ func TestUnsupportedProjectTargetDoesNotAdvanceTrust(t *testing.T) {
 		t.Fatalf("status=%+v err=%v", status, err)
 	}
 }
+
+// The "upgrade to >= X" hint is given only when this build is below X: a
+// parse failure with an already satisfied minimum names no version.
+func TestCNCFMinOrEmptyHintsOnlyWhenNotMet(t *testing.T) {
+	withBuildVersion(t, "v0.2.0")
+	for _, c := range []struct{ raw, want string }{
+		{`{"schema":"v9","minClientVersion":"v0.3.0"}`, "v0.3.0"},
+		{`{"schema":"v9","minClientVersion":"v0.2.0"}`, ""},
+		{`{"schema":"v9","minClientVersion":"v0.1.0"}`, ""},
+		{`{"schema":"v9"}`, ""},
+	} {
+		if got := cncfMinOrEmpty([]byte(c.raw)); got != c.want {
+			t.Fatalf("%s: got %q, want %q", c.raw, got, c.want)
+		}
+	}
+	// Through the real path: an unreadable index whose minimum is met.
+	err := unsupportedFailure(cncfMinOrEmpty([]byte(`{"schema":"v9","minClientVersion":"v0.1.0"}`)), "index target parse")
+	if got := UnsupportedMinVersion(err); got != "" {
+		t.Fatalf("hint for a met minimum: %q", got)
+	}
+}
