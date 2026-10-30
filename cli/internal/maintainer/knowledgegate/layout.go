@@ -289,8 +289,13 @@ func DefaultLayout() Layout {
 		GeneratedBlocks: []GeneratedBlock{{
 			Path: readmePath, Begin: coveragereport.READMEBegin, End: coveragereport.READMEEnd,
 			Render: coverageBlock,
+			More: []BlockRegion{
+				{Begin: coveragereport.READMEBasisBegin, End: coveragereport.READMEBasisEnd, Render: basisBlock},
+				{Begin: coveragereport.READMEValidityBegin, End: coveragereport.READMEValidityEnd, Render: validityBlock},
+			},
 			Sources: []string{
 				"cli/internal/maintainer/coveragereport/readme.go",
+				"cli/internal/maintainer/coveragereport/claims.go",
 				"cli/internal/maintainer/coveragereport/report.go",
 				"cli/internal/maintainer/coveragereport/families.go",
 				"cli/internal/maintainer/knowledgegate/generated_block.go",

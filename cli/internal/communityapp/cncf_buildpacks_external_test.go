@@ -89,8 +89,8 @@ func TestBuildpacksRawExternalKnowledgeIsAuthoritative(t *testing.T) {
 	dir := t.TempDir()
 	current := filepath.Join(dir, "current.json")
 	proposed := filepath.Join(dir, "proposed.json")
-	writeLifecycleConfig(t, current, "0.16.5", []string{"0.11"}, "CURRENT_PRIVATE")
-	writeLifecycleConfig(t, proposed, "0.17.7", []string{"0.12"}, "TARGET_PRIVATE")
+	writeLifecycleConfig(t, current, "0.16.5", realBPSupported0, "CURRENT_PRIVATE")
+	writeLifecycleConfig(t, proposed, "0.17.7", realBPSupported1, "TARGET_PRIVATE")
 	realExternal := buildpacksExternalArgs(fixture, current, proposed, "0.16.5", "0.17.7", "0.13", "human")
 	code, noFallback, stderr := runCNCFCLI(t, realExternal...)
 	if code != ExitUnknown || stderr != "" || !strings.Contains(noFallback, "selected external revision has no rule") || !strings.Contains(noFallback, "no embedded rule was used") || !strings.Contains(noFallback, "revision 1") {
@@ -104,8 +104,8 @@ func TestBuildpacksRawExternalKnowledgeIsAuthoritative(t *testing.T) {
 
 	current = filepath.Join(dir, "synthetic-current.json")
 	proposed = filepath.Join(dir, "synthetic-proposed.json")
-	writeLifecycleConfig(t, current, knowledgefixture.SyntheticBuildpacksFrom, []string{"0.11"}, "CURRENT_PRIVATE")
-	writeLifecycleConfig(t, proposed, knowledgefixture.SyntheticBuildpacksTo, []string{"0.12"}, "TARGET_PRIVATE")
+	writeLifecycleConfig(t, current, knowledgefixture.SyntheticBuildpacksFrom, realBPSupported0, "CURRENT_PRIVATE")
+	writeLifecycleConfig(t, proposed, knowledgefixture.SyntheticBuildpacksTo, realBPSupported1, "TARGET_PRIVATE")
 	fixture.importRevision2(t)
 	args := buildpacksExternalArgs(fixture, current, proposed, knowledgefixture.SyntheticBuildpacksFrom, knowledgefixture.SyntheticBuildpacksTo, "0.13", "human")
 	code, blocked, stderr := runCNCFCLI(t, args...)
@@ -128,10 +128,10 @@ func TestBuildpacksRawExternalReplayBindsCanonicalPlanNotRawConfigs(t *testing.T
 	dir := t.TempDir()
 	current1, current2 := filepath.Join(dir, "current-1.json"), filepath.Join(dir, "current-2.json")
 	proposed1, proposed2 := filepath.Join(dir, "proposed-1.json"), filepath.Join(dir, "proposed-2.json")
-	currentRaw1 := writeLifecycleConfig(t, current1, knowledgefixture.SyntheticBuildpacksFrom, []string{"0.11"}, "FIRST_RAW_PRIVATE")
-	proposedRaw1 := writeLifecycleConfig(t, proposed1, knowledgefixture.SyntheticBuildpacksTo, []string{"0.12"}, "FIRST_RAW_PRIVATE")
-	currentRaw2 := writeLifecycleConfig(t, current2, knowledgefixture.SyntheticBuildpacksFrom, []string{"0.11"}, "SECOND_RAW_PRIVATE")
-	proposedRaw2 := writeLifecycleConfig(t, proposed2, knowledgefixture.SyntheticBuildpacksTo, []string{"0.12"}, "SECOND_RAW_PRIVATE")
+	currentRaw1 := writeLifecycleConfig(t, current1, knowledgefixture.SyntheticBuildpacksFrom, realBPSupported0, "FIRST_RAW_PRIVATE")
+	proposedRaw1 := writeLifecycleConfig(t, proposed1, knowledgefixture.SyntheticBuildpacksTo, realBPSupported1, "FIRST_RAW_PRIVATE")
+	currentRaw2 := writeLifecycleConfig(t, current2, knowledgefixture.SyntheticBuildpacksFrom, realBPSupported0, "SECOND_RAW_PRIVATE")
+	proposedRaw2 := writeLifecycleConfig(t, proposed2, knowledgefixture.SyntheticBuildpacksTo, realBPSupported1, "SECOND_RAW_PRIVATE")
 	if bytes.Equal(currentRaw1, currentRaw2) || bytes.Equal(proposedRaw1, proposedRaw2) {
 		t.Fatal("metadata-only raw variants did not change")
 	}
@@ -186,8 +186,8 @@ func TestBuildpacksRawExternalModeAndSelectionGuards(t *testing.T) {
 	fixture := makeBuildpacksExternalFixture(t)
 	dir := t.TempDir()
 	current, proposed := filepath.Join(dir, "current.json"), filepath.Join(dir, "proposed.json")
-	currentRaw := writeLifecycleConfig(t, current, "0.16.5", []string{"0.11"}, "CURRENT_PRIVATE")
-	proposedRaw := writeLifecycleConfig(t, proposed, "0.17.7", []string{"0.12"}, "TARGET_PRIVATE")
+	currentRaw := writeLifecycleConfig(t, current, "0.16.5", realBPSupported0, "CURRENT_PRIVATE")
+	proposedRaw := writeLifecycleConfig(t, proposed, "0.17.7", realBPSupported1, "TARGET_PRIVATE")
 	base := buildpacksExternalArgs(fixture, current, proposed, "0.16.5", "0.17.7", "0.13", "json")
 	invalid := [][]string{
 		append(append([]string{}, base...), "--now", "2026-09-10T17:00:00Z"),

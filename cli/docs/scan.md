@@ -203,7 +203,7 @@ trust receipt digest, the purpose, when the revision was imported and, in the
 per-project layout, the revision and digest of each targeted project's target.
 An automatic scan (no `--knowledge-db`, no `--now`) also carries `knowledgeSelection`:
 `chosen` (`embedded` or `local-db`), `reason` (`store-newer`, `store-corrected`, `store-older`,
-`identical`, `no-store`, `forced`, `store-expired`) and, when the store was compared
+`identical`, `no-store`, `forced`, `store-expired`, `store-too-new`, `store-trust-advanced`) and, when the store was compared
 with the embedded knowledge, `embeddedEvidenceAt` and `storeEvidenceAt`.
 SARIF output carries the same `knowledgeStore` object in its run properties,
 and Markdown output lists the same lines as the human output in its

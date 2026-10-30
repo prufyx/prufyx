@@ -47,7 +47,7 @@ environment variables:
 ## 2. What the verdicts mean
 
 Every `prufyx check` starts with one headline line: the verdict word, the counts
-(must fix, undecided, passed) and the scope. Rules that decide something are
+(must fix, undecided; a PASS also counts passed) and the scope. For UNKNOWN and BLOCKED a `checked:` line gives the passed count. Rules that decide something are
 listed under it, grouped by the action they share. Rules that came back `PASS`
 are counted, not listed (add `--show-passes` to list them). Sources, rule ids
 and provenance are behind `-v`.
@@ -140,7 +140,8 @@ in this pair came back `PASS` because this apply set does not contain them, so
 they are counted rather than listed):
 
 ```
-BLOCKED  1 must fix · 0 undecided · 6 passed     kubernetes 1.24.0 -> 1.25.0, 7 reviewed rules
+BLOCKED  1 must fix · 0 undecided     kubernetes 1.24.0 -> 1.25.0, 7 reviewed rules
+checked: 6 rules passed; this is not a pass
 
 MUST FIX (1)
   Kubernetes 1.25 stops serving CronJob through batch/v1beta1
@@ -266,7 +267,8 @@ chmod 600 applyset.yaml
 Verified output:
 
 ```
-BLOCKED  1 must fix · 0 undecided · 6 passed     kubernetes 1.24.0 -> 1.25.0, 7 reviewed rules
+BLOCKED  1 must fix · 0 undecided     kubernetes 1.24.0 -> 1.25.0, 7 reviewed rules
+checked: 6 rules passed; this is not a pass
 
 MUST FIX (1)
   Kubernetes 1.25 stops serving CronJob through batch/v1beta1
@@ -298,7 +300,7 @@ line and exits `11`:
 ```
 
 ```
-UNKNOWN  0 must fix · 29 undecided · 0 passed     kubernetes 1.21.0 -> 1.25.0, 29 reviewed rules
+UNKNOWN  0 must fix · 29 undecided     kubernetes 1.21.0 -> 1.25.0, 29 reviewed rules
 
 UNDECIDED (29 rules)
   UNKNOWN: kubernetes 1.21.0 -> 1.25.0 is not a reviewed transition; reviewed pairs: 1.21.0 -> 1.22.0, 1.23.17 -> 1.24.0, 1.24.0 -> 1.25.0, 1.25.0 -> 1.26.0, 1.26.0 -> 1.27.0, 1.28.0 -> 1.29.0, 1.29.0 -> 1.31.0, 1.29.0 -> 1.32.0, and 32 more (prufyx catalog checks --project kubernetes); for a multi-minor upgrade, check each minor step; a step without a reviewed pair stays UNKNOWN
@@ -345,7 +347,8 @@ chmod 600 applyset-1-22.json
 Verified output:
 
 ```
-BLOCKED  1 must fix · 0 undecided · 12 passed     kubernetes 1.21.0 -> 1.22.0, 13 reviewed rules
+BLOCKED  1 must fix · 0 undecided     kubernetes 1.21.0 -> 1.22.0, 13 reviewed rules
+checked: 12 rules passed; this is not a pass
 
 MUST FIX (1)
   Kubernetes 1.22 stops serving Ingress through extensions/v1beta1
