@@ -30,7 +30,7 @@
         }
       ]
     },
-    "toolchain": "Go 1.26.8 with vendored modules; offline build and local file evaluation"
+    "toolchain": "Go 1.26.10 with vendored modules; offline build and local file evaluation"
   },
   "scenarios": [
     {

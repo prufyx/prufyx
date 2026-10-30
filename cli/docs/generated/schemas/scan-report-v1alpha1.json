@@ -173,6 +173,10 @@
           "type": "integer",
           "minimum": 0
         },
+        "documentsAllowlistSkipped": {
+          "type": "integer",
+          "minimum": 0
+        },
         "notices": {
           "type": "integer",
           "minimum": 0
@@ -998,6 +1002,8 @@
             "LIST_SHAPE_UNRESOLVED",
             "SYMLINK_NOT_FOLLOWED",
             "NOT_REGULAR_FILE",
+            "HIDDEN_DIRECTORY_SKIPPED",
+            "NOT_MANIFEST_NAME",
             "CONFIG_DOCUMENT"
           ]
         }

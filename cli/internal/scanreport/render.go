@@ -246,7 +246,11 @@ func checkedLine(report Report) string {
 	default:
 		components += labelNothingEvaluated
 	}
-	return fmt.Sprintf(labelChecked, count(summary.DocumentsRead, labelDocumentOne, labelDocuments), count(summary.Hops, labelHopOne, labelHops), components)
+	line := fmt.Sprintf(labelChecked, count(summary.DocumentsRead, labelDocumentOne, labelDocuments), count(summary.Hops, labelHopOne, labelHops), components)
+	if summary.DocumentsAllowlistSkipped > 0 {
+		line += fmt.Sprintf(labelAllowlistSkipped, summary.DocumentsAllowlistSkipped)
+	}
+	return line
 }
 
 func count(n int, one, many string) string {

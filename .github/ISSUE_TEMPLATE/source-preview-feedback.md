@@ -6,7 +6,7 @@ labels: source-preview, feedback
 
 ## Five-minute path
 
-- [ ] I used Go 1.26.8 with `GOTOOLCHAIN=local`, `GOPROXY=off`, `GOSUMDB=off`,
+- [ ] I used Go 1.26.10 with `GOTOOLCHAIN=local`, `GOPROXY=off`, `GOSUMDB=off`,
   and `GOFLAGS='-mod=vendor -buildvcs=false'`.
 - [ ] I ran the MetalLB example from the README and observed the scoped
   `BLOCKED` result for the legacy ConfigMap before rechecking the reviewed CR

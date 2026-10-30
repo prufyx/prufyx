@@ -251,13 +251,7 @@ func (r *kubernetesRun) apiVersionGaps(to string, entered map[string]bool) *scan
 	// The groups the target's served list names, if one was found: a
 	// reviewed reserved group (customresources.ReservedGroups) that a
 	// served list names is checked against it after all.
-	servedGroups := map[string]bool{}
-	if status.Found {
-		for api := range status.List.APIs {
-			apiVersion, _, _ := strings.Cut(api, " ")
-			servedGroups[customresources.GroupOf(apiVersion)] = true
-		}
-	}
+	servedGroups := servedGroupSet(status)
 	undecidedLines := map[string]bool{}
 	scanRuleLines := map[string]bool{}
 	for _, removal := range cncfprepare.KubernetesRemovedVersions() {
@@ -269,8 +263,7 @@ func (r *kubernetesRun) apiVersionGaps(to string, entered map[string]bool) *scan
 			group, version = "", document.APIVersion
 		}
 		for _, removal := range removed {
-			if removal.Group != group || removal.Version != version || !containsString(removal.Kinds, document.Kind) ||
-				lineattest.LineLess(targetLine, removal.Line) {
+			if !removalApplies(removal, group, version, document.Kind, targetLine) {
 				continue
 			}
 			switch {
@@ -351,6 +344,25 @@ func (r *kubernetesRun) apiVersionGaps(to string, entered map[string]bool) *scan
 		Line: status.List.Line, Basis: constraintengine.EffectiveBasis(status.List.Basis), Freshness: status.Freshness,
 		ValidUntil: status.List.ValidUntil, Partial: status.List.Partial, Digest: servedListDigest(status.List.APIs),
 	}
+}
+
+// removalApplies reports whether a reviewed removal covers an object at the
+// group, version and kind on a target line at or above the removal's line.
+func removalApplies(removal k8sremovals.RemovedVersion, group, version, kind, targetLine string) bool {
+	return removal.Group == group && removal.Version == version && containsString(removal.Kinds, kind) &&
+		!lineattest.LineLess(targetLine, removal.Line)
+}
+
+// servedGroupSet is the groups a found served list names.
+func servedGroupSet(status ServedStatus) map[string]bool {
+	groups := map[string]bool{}
+	if status.Found {
+		for api := range status.List.APIs {
+			apiVersion, _, _ := strings.Cut(api, " ")
+			groups[customresources.GroupOf(apiVersion)] = true
+		}
+	}
+	return groups
 }
 
 // servedListDigest is "sha256:" over the list's sorted pairs, one per line.

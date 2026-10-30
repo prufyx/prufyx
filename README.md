@@ -23,7 +23,7 @@ evidence does not decide the question, the answer is `UNKNOWN`, not a guess.
 
 ## Quickstart
 
-Requires Go 1.26 (release builds use 1.26.8; see CONTRIBUTING.md).
+Requires Go 1.26 (release builds use 1.26.10; see CONTRIBUTING.md).
 
 **1. Build.**
 
@@ -210,7 +210,7 @@ prufyx assess --kubeconfig "$HOME/.kube/config" --acknowledge-kubeconfig-exec-ri
   --format json my-context
 ```
 
-`assess` does not give a verdict. It lists which checks apply to what it found
+Without `--scope-input`, `assess` does not give a verdict (exit `0` is not a pass). It lists which checks apply to what it found
 and what each still needs from you. See [one-command flow](cli/docs/one-command-flow.md).
 
 The longer [quickstart guide](cli/docs/quickstart.md) walks through `check`
@@ -260,7 +260,7 @@ upgrade surface they decide.
 ## Coverage
 
 <!-- coverage:begin -->
-Generated on 2026-10-23 by `scripts/readme-coverage.sh` (do not edit this block by hand).
+Generated on 2026-10-30 by `scripts/readme-coverage.sh` (do not edit this block by hand).
 
 | Executable rules | Count |
 | --- | --- |
@@ -269,15 +269,15 @@ Generated on 2026-10-23 by `scripts/readme-coverage.sh` (do not edit this block 
 | Projects with at least one executable check | 65 |
 | Projects catalogued with retained public sources | 58 (11 of them source-only, no check) |
 | Projects with reviewed CRD targets (a reviewed `crd.custom_resource_versions` target) | 73 |
-| Projects with a published CRD rule or line attestation | 6 |
+| Projects with a published CRD rule or line attestation | 17 |
 
 Version-coverage depth, measured over the last five minor upgrades of each of the 78 projects with a release-line snapshot (390 upgrades between consecutive release lines):
 
 | Status | Upgrades | Share |
 | --- | --- | --- |
-| Decided for the whole release-line pair (A attested, B bounded) | 27 | 6.9% |
-| Rule for one exact version pair only (S) | 41 | 10.5% |
-| Gap, no valid rule (G) | 322 | 82.5% |
+| Decided for the whole release-line pair (A attested, B bounded) | 40 | 10.2% |
+| Rule for one exact version pair only (S) | 40 | 10.2% |
+| Gap, no valid rule (G) | 310 | 79.4% |
 
 Kubernetes: 63 valid rules, but 19 fall in its window 1.32 to 1.37; 0 of 5 upgrades in that window are gaps.
 

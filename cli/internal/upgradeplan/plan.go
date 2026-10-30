@@ -365,6 +365,9 @@ func finish(plan *Plan, report scanreport.Report, components int) {
 	if blocked && rank[worst] < rank[VerdictBlocked] {
 		worst = VerdictBlocked
 	}
+	if report.Verdict == scanreport.VerdictUnknown && rank[worst] < rank[VerdictUnknown] {
+		worst = VerdictUnknown
+	}
 	if (len(plan.Gaps) > 0 || len(plan.Stages) == 0) && rank[worst] < rank[VerdictUnknown] {
 		worst = VerdictUnknown
 	}

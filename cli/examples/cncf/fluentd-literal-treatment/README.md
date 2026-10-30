@@ -5,7 +5,7 @@ for Fluentd 1.17.1 to 1.18.0. It recognizes a strict JSON declaration and
 records only whether one simple `#{...}` marker is present. It does not parse
 Fluentd files, Ruby, interpolation, plugins, or runtime behavior.
 
-Keep declarations private. From the `cli` directory, use Go 1.26.8 and a
+Keep declarations private. From the `cli` directory, use Go 1.26.10 and a
 private temporary copy:
 
 ```sh

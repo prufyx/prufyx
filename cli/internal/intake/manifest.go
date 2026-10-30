@@ -37,6 +37,14 @@ const (
 	// ReasonNotRegularFile marks a pipe, socket or device with a manifest
 	// extension met while walking a directory.
 	ReasonNotRegularFile Reason = "NOT_REGULAR_FILE"
+	// ReasonHiddenDirectorySkipped marks a hidden directory (.git, .deploy)
+	// met while walking a directory. It is not entered, so the manifests in
+	// it are not read.
+	ReasonHiddenDirectorySkipped Reason = "HIDDEN_DIRECTORY_SKIPPED"
+	// ReasonNotManifestName marks a regular file met while walking a
+	// directory whose name does not end in .yaml, .yml or .json. It is not
+	// read, so a manifest saved under another name is not seen.
+	ReasonNotManifestName Reason = "NOT_MANIFEST_NAME"
 )
 
 // Source says where a document came from. Display is the path as the caller
@@ -80,6 +88,10 @@ type Omission struct {
 type Workspace struct {
 	Documents []Document
 	Omissions []Omission
+	// AllowlistSkipped counts the entries of a walked directory that were
+	// skipped by name because they cannot carry a Kubernetes object (.git,
+	// documentation, images, ignore files). They are not omissions.
+	AllowlistSkipped int
 	// Auxiliary holds the decoded value of top-level documents that are not
 	// Kubernetes-shaped but come from a file named exactly Chart.yaml,
 	// kustomization.yaml, kustomization.yml or Kustomization. The same
