@@ -144,9 +144,14 @@ You can also build from source; see the [README](https://github.com/prufyx/prufy
   `--now` or without, until the knowledge is renewed. Run `prufyx db update` to fetch newer
   knowledge from the official signed feed; the embedded knowledge stays as the
   offline fallback.
-- mariadb-operator is not covered in this build. It is planned for beta.1.
-- Some upgrade pairs stay `UNKNOWN`: four Kyverno pairs (gap G11) and the
-  kubeswift 0.1 to 0.3 upgrade have no decided rule.
+- mariadb-operator has one reviewed rule in this build, for the pair 26.3.0 to
+  26.6.0 (`prufyx check project --project mariadb-operator`). Every other pair,
+  including 26.6.0 to 26.10.0, has no reviewed rule and no CRD line
+  attestation, because its calendar-version release lines are not consecutive
+  minors yet, so those upgrades answer `UNKNOWN`. Release-order and alias
+  handling for these lines is planned for beta.1.
+- Some upgrade pairs stay `UNKNOWN`: four Kyverno release-line upgrades
+  and the kubeswift 0.1 to 0.3 upgrade have no decided rule.
 - A knowledge package that this build cannot read (for example one with a
   `minClientVersion` above this build) makes `prufyx db update` and `prufyx db
   import` exit `15` (`KNOWLEDGE_TOO_NEW_FOR_THIS_CLIENT`). The current store and the
