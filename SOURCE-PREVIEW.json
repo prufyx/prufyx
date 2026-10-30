@@ -304,7 +304,7 @@
     "Unsupported, missing, ambiguous, incomplete, or unobserved facts remain UNKNOWN.",
     "The checks do not establish whole-upgrade compatibility, cluster state, effective configuration, runtime behavior, delivery, backup completion, or data safety.",
     "The tool reads local data and does not execute supplied source, workloads, plugins, or commands.",
-    "There is no official prebuilt binary, hosted feed, startup refresh, or automatic knowledge admission."
+    "There is no official prebuilt binary, startup refresh, or automatic knowledge admission."
   ],
   "knowledgeUpdates": {
     "mode": "explicit operator-selected local update",

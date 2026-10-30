@@ -23,7 +23,9 @@ When the evidence does not decide the question the answer is `UNKNOWN`.
 - **Official knowledge feed.** The knowledge trust root is pinned in the build
   (separate from the unpinned build identity above). `prufyx db update` with no
   flags fetches the official signed feed and refuses anything not signed from
-  the pinned root. Feed metadata expires and is refreshed weekly. Without a
+  the pinned root. Feed metadata is refreshed by a weekly publish run and expires after
+  at most 14 days, sooner if reviewed evidence expires earlier. If runs fail,
+  the feed stops verifying once its timestamp expires. Without a
   store, or if you do not run `db update`, the knowledge embedded in the binary
   is used. See
   [knowledge updates](https://github.com/prufyx/prufyx/blob/main/cli/docs/knowledge-updates.md).

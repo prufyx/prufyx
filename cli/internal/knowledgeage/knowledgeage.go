@@ -77,12 +77,12 @@ func Merge(lists ...[]Source) []Source {
 // Line is the note for the summary, without the "prufyx: " prefix and the
 // line end, or "" when no rule is expired or about to be. embedded says the
 // knowledge was the one built into the binary, which can also be replaced by
-// a knowledge database. The line names no path and no input.
+// a knowledge database; the parameter is currently unused because the text is
+// the same either way. The line names no path and no input.
 //
 // The line names the two ways to get newer knowledge: `prufyx db update`,
 // which fetches the official signed feed, or a newer source build. It does not
-// claim that a newer package is installed or available. The embedded flag no
-// longer changes the text.
+// claim that a newer package is installed or available.
 func Line(summary Summary, now time.Time, embedded bool) string {
 	if summary.Expired == 0 && summary.Expiring == 0 {
 		return ""

@@ -64,8 +64,9 @@ generates one. See [Offline operator role signer](knowledge-signer.md) and
 **Where the public part is pinned.** On the client. The first import into an
 empty store needs the root file and its independently verified digest. The
 store then records that initial root digest and refuses a different bootstrap
-root for the same store. There is no Prufyx feed, official root or default root
-(see [Explicit knowledge downloads](knowledge-updates.md)).
+root for the same store. For `cncf-projects` the initial root is pinned in the
+build (`cli/internal/knowledgepin`); other profiles need an explicit bootstrap
+root and digest (see [Explicit knowledge downloads](knowledge-updates.md)).
 
 **Checks you can run.** `knowledge-sign verify-key` decrypts one key and
 reports only whether its public key matches the chosen role in a root you
