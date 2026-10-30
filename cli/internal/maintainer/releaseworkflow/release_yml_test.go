@@ -535,7 +535,7 @@ func TestReleaseWorkflowPackagesAreBuiltPinnedCheckedAndAttested(t *testing.T) {
 
 	prov := workflowStepNamed(t, wf, "provenance", "Attest build provenance")
 	subjects, _ := prov.With["subject-path"].(string)
-	for _, glob := range []string{"dist/*.tar.gz", "dist/*.deb", "dist/*.rpm"} {
+	for _, glob := range []string{"dist/*.tar.gz", "dist/*.deb", "dist/*.rpm", "dist/SHA256SUMS"} {
 		if !strings.Contains(subjects, glob) {
 			t.Errorf("attested subjects lack %s: %q", glob, subjects)
 		}
