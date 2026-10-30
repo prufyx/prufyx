@@ -264,7 +264,7 @@ const withdrawnAction = "this rule was withdrawn because its evidence could not 
 // newer knowledge exists.
 func staleAction(validUntil string) string {
 	date, _, _ := strings.Cut(validUntil, "T")
-	return boundedAction(fmt.Sprintf("the review of this rule expired on %s; run `prufyx db update` to fetch newer knowledge, or build from newer source, or check this change by hand against its cited source", date),
+	return boundedAction(fmt.Sprintf("the review of this rule expired on %s; run `prufyx db update` to fetch newer knowledge (a run with --knowledge=embedded or --knowledge-db ignores it), or build from newer source, or check this change by hand against its cited source", date),
 		"the review of this rule expired; use newer knowledge, or check this change by hand against its cited source")
 }
 

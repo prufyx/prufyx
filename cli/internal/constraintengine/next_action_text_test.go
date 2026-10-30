@@ -18,7 +18,7 @@ func TestUnknownNextActionsArePlainAndActionable(t *testing.T) {
 		must             []string
 	}{
 		{"stale", noticeRule("notice-a", scopeComponentA, "1.0.0", "2.0.0", "active", expiredUntil, ""), "", "RULE_EVIDENCE_STALE",
-			[]string{"review of this rule expired on 20", "prufyx db update", "build from newer source", "by hand"}},
+			[]string{"review of this rule expired on 20", "prufyx db update", "ignores it", "build from newer source", "by hand"}},
 		{"withdrawn", noticeRule("notice-a", scopeComponentA, "1.0.0", "2.0.0", "withdrawn", activeUntil, ""), "", "RULE_EVIDENCE_WITHDRAWN",
 			[]string{"withdrawn", "evidence could not be verified", "by hand"}},
 		{"applicability fact missing", noticeRule("notice-a", scopeComponentA, "1.0.0", "2.0.0", "active", activeUntil, appliesWhenA(true)), "", "RULE_APPLICABILITY_FACT_UNAVAILABLE",
