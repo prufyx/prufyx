@@ -13,6 +13,7 @@ package scanrun
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"path/filepath"
 	"sort"
@@ -67,6 +68,11 @@ type Result struct {
 	// within 30 days of the evaluation instant. It is empty otherwise and is
 	// never part of the report.
 	KnowledgeAge string
+	// PinnedNowWarning is a one-line warning for standard error, without the
+	// "prufyx: " prefix: --now is earlier than the real time and knowledge
+	// rules have expired in between. The report then holds a gap, so it cannot
+	// pass. Empty otherwise.
+	PinnedNowWarning string
 	// KnowledgeSource is a one-line note for standard error saying which
 	// knowledge an automatic selection used; empty when the source was
 	// explicit (--knowledge-db, --now, supplied knowledge) or not automatic.
@@ -293,6 +299,12 @@ func Run(request Request, options Options) (Result, error) {
 		now = clock().UTC().Truncate(time.Second)
 	}
 
+	wallClock := options.Clock
+	if wallClock == nil {
+		wallClock = time.Now
+	}
+	pinnedNowWarning, pinnedNowGap := pinnedNowExpiry(knowledge, request.Now, wallClock().UTC().Truncate(time.Second))
+
 	if err := resolveNewestCovered(&effective, request.NewestCovered, knowledge, now); err != nil {
 		return Result{}, err
 	}
@@ -396,7 +408,7 @@ func Run(request Request, options Options) (Result, error) {
 				report.Gaps = append(report.Gaps, scanreport.NewGap(slug, nil, scanreport.GapProjectNotInKnowledge, slug))
 				continue
 			}
-			run := &helmChartRun{knowledge: knowledge, now: now, report: &report, slug: slug, component: component.Component, decl: decl, policy: request.TrustPolicy}
+			run := &helmChartRun{knowledge: knowledge, now: now, report: &report, workspace: manifests, slug: slug, component: component.Component, decl: decl, policy: request.TrustPolicy}
 			if value, ok := effective.Current[kubernetesSlug]; ok {
 				run.kubernetesFrom = value.Value
 			}
@@ -470,11 +482,14 @@ func Run(request Request, options Options) (Result, error) {
 	}
 
 	dropShadowedNotDetected(&report)
+	if pinnedNowGap != nil {
+		report.Gaps = append(report.Gaps, *pinnedNowGap)
+	}
 	scanreport.Finalize(&report)
 	if request.Redact {
 		scanreport.Redact(&report)
 	}
-	return Result{Report: report, Exit: scanreport.Exit(report), KnowledgeAge: knowledgeAgeNote(knowledge, now), KnowledgeSource: knowledgeSource, KnowledgeNote: knowledgeNote}, nil
+	return Result{Report: report, Exit: scanreport.Exit(report), KnowledgeAge: knowledgeAgeNote(knowledge, now), PinnedNowWarning: pinnedNowWarning, KnowledgeSource: knowledgeSource, KnowledgeNote: knowledgeNote}, nil
 }
 
 // knowledgeAgeNote words the age note for the knowledge a scan used,
@@ -489,6 +504,38 @@ func knowledgeAgeNote(knowledge Knowledge, now time.Time) string {
 	}
 	return knowledgeage.Line(knowledgeage.Summarize(aged.KnowledgeAge(), now), now, knowledge.Store() == nil)
 }
+
+// pinnedNowExpiry finds knowledge rules that have expired at the real time
+// wall but not at the --now the request pinned: the pin hides them. It
+// returns the warning for standard error and the gap that stops a PASS, or
+// nothing when no --now was given, --now is not earlier than wall, a
+// knowledge database fixes the time, or no rule expired in between. It uses
+// the same expiry count as the knowledge age note.
+func pinnedNowExpiry(knowledge Knowledge, pinned, wall time.Time) (string, *scanreport.Gap) {
+	if pinned.IsZero() || knowledge.Store() != nil || !pinned.Before(wall) {
+		return "", nil
+	}
+	aged, ok := knowledge.(interface {
+		KnowledgeAge() []knowledgeage.Source
+	})
+	if !ok {
+		return "", nil
+	}
+	sources := aged.KnowledgeAge()
+	expired := knowledgeage.Summarize(sources, wall).Expired
+	if expired <= knowledgeage.Summarize(sources, pinned).Expired {
+		return "", nil
+	}
+	return PinnedNowText(pinned, wall, expired), gapPtr(scanreport.NewGap("knowledge", nil, scanreport.GapPinnedNowStale, pinned.Format(time.RFC3339), wall.Format("2006-01-02"), expired))
+}
+
+// PinnedNowText words the warning for a --now earlier than the real time wall
+// when expired knowledge rules hide behind it.
+func PinnedNowText(pinned, wall time.Time, expired int) string {
+	return fmt.Sprintf("warning: --now %s is earlier than today (%s) and %d knowledge rules have expired since; the pinned time hides it. Drop --now to evaluate at the real time", pinned.Format(time.RFC3339), wall.Format("2006-01-02"), expired)
+}
+
+func gapPtr(gap scanreport.Gap) *scanreport.Gap { return &gap }
 
 // componentCatalog names the catalog's projects and their components.
 type componentCatalog interface {
@@ -647,6 +694,21 @@ func splitConfigDocuments(workspace intake.Workspace, report *scanreport.Report)
 		report.Omitted = append(report.Omitted, omitted(omission.Source, string(omission.Reason)))
 	}
 	return manifests
+}
+
+// omissionCounts counts the intake omissions by the gap each reason maps to;
+// a reason without a mapping counts as a document shape gap. Every route
+// that reads the workspace turns these into gaps, never into a pass.
+func omissionCounts(omissions []intake.Omission) map[scanreport.GapKey]int {
+	counts := map[scanreport.GapKey]int{}
+	for _, omission := range omissions {
+		outcome, known := reasonOutcomes[string(omission.Reason)]
+		if !known || outcome.gap == "" {
+			outcome.gap = scanreport.GapDocumentsShape
+		}
+		counts[outcome.gap]++
+	}
+	return counts
 }
 
 func omitted(source intake.Source, reason string) scanreport.Omitted {

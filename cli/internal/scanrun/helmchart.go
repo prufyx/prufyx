@@ -229,6 +229,7 @@ type helmChartRun struct {
 	knowledge Knowledge
 	now       time.Time
 	report    *scanreport.Report
+	workspace intake.Workspace
 	slug      string
 	component string
 	decl      *chartDeclaration
@@ -322,6 +323,13 @@ func (r *helmChartRun) evaluate(from, to string) error {
 	r.fact, r.ambiguous = fact, !single
 	r.universe = universeOf(r.rules, fact)
 	r.rootGap(scanreport.GapChartValuesOnly, r.slug, r.decl.chart.Name)
+	// Files the scan did not read are not evaluated by any route.
+	counts := omissionCounts(r.workspace.Omissions)
+	for _, key := range []scanreport.GapKey{scanreport.GapDocumentsTemplated, scanreport.GapDocumentsLists, scanreport.GapDocumentsFiles, scanreport.GapDocumentsShape} {
+		if counts[key] > 0 {
+			r.rootGap(key, counts[key])
+		}
+	}
 
 	path := scanreport.Path{Component: r.slug, From: from, To: to, Chart: &scanreport.PathChart{Name: r.decl.chart.Name, Source: r.decl.chart.Source}}
 	defer func() {

@@ -75,6 +75,9 @@ func (r runtime) plan(args []string, stdin io.Reader) int {
 		fmt.Fprintln(r.stderr, "prufyx: note: "+result.KnowledgeNote)
 	}
 	r.knowledgeAgeNote(result.KnowledgeAge)
+	if result.PinnedNowWarning != "" {
+		fmt.Fprintln(r.stderr, "prufyx: "+result.PinnedNowWarning)
+	}
 	plan := upgradeplan.Build(result.Report, latest, upgradeplan.Capabilities{})
 	return r.writePlan(plan, request.Format)
 }

@@ -188,3 +188,48 @@ func TestChartUniverseOf(t *testing.T) {
 	}
 	_ = cncfprepare.HelmUniverse{}
 }
+
+// TestOmissionsAreGapsOnEveryRoute: entries the scan did not read (a hidden
+// directory, a template file, a symlink, a file without a manifest name) are
+// gaps on the chart route as on the application routes, never only report
+// entries.
+func TestOmissionsAreGapsOnEveryRoute(t *testing.T) {
+	t.Parallel()
+	knowledge := embeddedKnowledge(t)
+	routes := map[string][]string{
+		"chart":      {"--chart", "keda=keda", "--from", "keda=2.15.0", "--to", "keda=2.16.0"},
+		"custom":     {"--from", "keda=2.15.0", "--to", "keda=2.16.0"},
+		"kubernetes": {"--from", "kubernetes=1.28.0", "--to", "kubernetes=1.29.0", "--distribution", "official_upstream", "--resource-scope-complete", "--target-api-apply-required"},
+	}
+	entries := map[string]map[string]string{
+		"hidden directory": {".deploy/fs.yaml": "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: h}\n"},
+		"template file":    {"dep.tpl": "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: t}\n"},
+		"symlink":          {"link.yaml": "->manifest.yaml"},
+		"manifest name":    {"manifest": "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: m}\n"},
+	}
+	for route, argv := range routes {
+		for name, extra := range entries {
+			t.Run(route+"/"+name, func(t *testing.T) {
+				t.Parallel()
+				dir := helmDir(t, map[string]string{})
+				for file, content := range extra {
+					path := filepath.Join(dir, file)
+					if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+						t.Fatal(err)
+					}
+					if target, link := strings.CutPrefix(content, "->"); link {
+						if err := os.Symlink(target, path); err != nil {
+							t.Skip("symlinks unavailable")
+						}
+					} else if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+						t.Fatal(err)
+					}
+				}
+				result := mustScan(t, knowledge, append([]string{dir, "--now", testNow}, argv...)...)
+				if result.Exit != scanreport.ExitUnknown || !gapNamed(result.Report, "DOCUMENTS_NOT_EVALUATED") || len(result.Report.Omitted) == 0 {
+					t.Fatalf("exit %d gaps %v omitted %+v", result.Exit, gapReasons(result.Report), result.Report.Omitted)
+				}
+			})
+		}
+	}
+}

@@ -42,6 +42,9 @@ func (r runtime) scan(args []string, stdin io.Reader) int {
 		fmt.Fprintln(r.stderr, "prufyx: note: "+result.KnowledgeNote)
 	}
 	r.knowledgeAgeNote(result.KnowledgeAge)
+	if result.PinnedNowWarning != "" {
+		fmt.Fprintln(r.stderr, "prufyx: "+result.PinnedNowWarning)
+	}
 	if note := request.ExitNote(result.Report, result.Exit); note != "" {
 		fmt.Fprintln(r.stderr, note)
 	}

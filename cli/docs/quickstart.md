@@ -114,6 +114,18 @@ $ prufyx check cncf --project etcd --native-resource applyset.json --from 3.5.17
 prufyx: NATIVE_CNCF_RESOURCE_INPUT_INVALID: input file is readable or writable by group or others; prufyx requires owner-only permissions to protect its private contents; run `chmod 600 <file>` and retry
 ```
 
+`--now` pins the evaluation time but never hides real-time expiry. When the
+knowledge built into the binary has rules that ended after the pinned time and
+before the real date, `prufyx check cncf` (also `check project` and `check batch`) prints a warning on standard error naming the pinned
+`--now`, today's date and the number of rules that expired. A check that passed at the pinned time is evaluated again at the real time, and the real-time result is given when it is not a PASS (exit 11 for expired rules). Replays of a
+saved report (`--replay-report`) and runs with `--knowledge-db` keep their
+recorded time and get no warning.
+
+Example commands in these docs pin `--now`. Once the embedded knowledge
+expires (the first rules end on 2026-12-07 at the current data), a command
+with an earlier pinned `--now` warns and answers UNKNOWN; change the date in
+the example to the current time, or drop `--now`.
+
 ## 4. Run the check: Kubernetes 1.24 → 1.25
 
 ```sh
