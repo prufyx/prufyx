@@ -28,6 +28,8 @@ import (
 // they are skipped.
 
 type workflowStep struct {
+	ID   string            `yaml:"id"`
+	If   string            `yaml:"if"`
 	Name string            `yaml:"name"`
 	Uses string            `yaml:"uses"`
 	With map[string]any    `yaml:"with"`

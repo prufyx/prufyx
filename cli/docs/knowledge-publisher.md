@@ -389,6 +389,45 @@ unless that file, the compiled-in pin and the repository variable
 `KNOWLEDGE_ROOT_DIGEST` agree. Release tag builds make the same check when the
 variable is set (nothing is checked when it is not).
 
+### Oldest-supported-client gate
+
+Before the package is uploaded, the `sign` job builds the oldest client that
+is still supported and runs `db verify` with it on the candidate package. The
+client is pinned in `cli/knowledge/oldest-supported-client.txt`:
+
+```
+ref=<40-hex commit, or a vX.Y.Z[-pre.N] tag>
+version=v0.1.0-beta.0
+```
+
+The steps "Read the oldest supported client pin", "Check out the oldest
+supported client" (a pinned `actions/checkout` of `ref` into `oldest/`, no
+persisted credentials), and "Verify with the oldest supported client" run
+after "Build, sign and verify" and before "Upload the signed package", only
+when a package was produced. The signing keys are already gone then (the
+signing step removes them on exit) and none of these steps has a secret. The
+client is built with `version` injected, so its version checks are real, and
+it verifies against its own compiled-in root with the package digest and
+revision of the candidate. If it refuses the package, or cannot be built, the
+job fails with "the oldest supported client (...) refuses this package", the
+upload and the deploy do not run, and the feed keeps the last package. An
+unverifiable gate counts as a failed gate.
+
+Until the first beta tag exists, `ref` is a commit of `main`. After the
+`v0.1.0-beta.0` cut, a PR sets `ref` to that tag.
+
+**Bump the pin** only after the old version is out of support: a PR that sets
+`ref` and `version` to the new oldest supported release. Changing
+`cli/knowledge/**` runs the publish workflow, which then proves the new pin
+accepts the package.
+
+**Recovery when the ref cannot be built** (for example the toolchain moved on
+or the commit is unreachable): the gate fails every run and nothing is
+published. Open a PR that fixes the pin file (a buildable ref of the same
+supported version, or the next supported release when the old one is out of
+support), then start a new run with `workflow_dispatch`. Do not remove the
+gate step to unblock a publish.
+
 ### Repository setup (owner)
 
 1. Enable GitHub Pages with source "GitHub Actions". Limit the environment

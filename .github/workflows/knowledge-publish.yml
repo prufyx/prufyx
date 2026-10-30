@@ -349,6 +349,61 @@ jobs:
             cp "${pkg}" "${RUNNER_TEMP}/artifact/cncf-projects.tar"
           fi
 
+      # The signing keys are gone before these steps run: the keys directory of
+      # "Build, sign and verify" is removed by that step's EXIT trap, and none
+      # of the three steps below has a secret in its environment.
+      - name: Read the oldest supported client pin
+        id: oldest
+        if: ${{ steps.sign.outputs.skip == 'false' }}
+        run: |
+          set -euo pipefail
+          pinfile="${GITHUB_WORKSPACE}/cli/knowledge/oldest-supported-client.txt"
+          fail() { echo "::error::$*"; exit 1; }
+          [ -f "${pinfile}" ] && [ "$(stat -c %s "${pinfile}")" -le 1024 ] || fail "cli/knowledge/oldest-supported-client.txt is missing or too large; nothing was uploaded."
+          [ "$(grep -c '' "${pinfile}")" = 2 ] || fail "cli/knowledge/oldest-supported-client.txt must hold exactly the lines ref= and version=; nothing was uploaded."
+          ref="$(sed -n '1p' "${pinfile}")"
+          ver="$(sed -n '2p' "${pinfile}")"
+          [[ "${ref}" =~ ^ref=([0-9a-f]{40}|v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+\.[0-9]+)?)$ ]] || fail "the ref line of cli/knowledge/oldest-supported-client.txt is not a 40-hex commit or a vX.Y.Z[-pre.N] tag; nothing was uploaded."
+          [[ "${ver}" =~ ^version=v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z]+\.[0-9]+)?$ ]] || fail "the version line of cli/knowledge/oldest-supported-client.txt is not vMAJOR.MINOR.PATCH[-pre.N]; nothing was uploaded."
+          {
+            echo "ref=${ref#ref=}"
+            echo "version=${ver#version=}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Check out the oldest supported client
+        if: ${{ steps.sign.outputs.skip == 'false' }}
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ steps.oldest.outputs.ref }}
+          path: oldest
+          persist-credentials: false
+          fetch-depth: 1
+
+      # An unverifiable gate is a failed gate: if the pinned client cannot be
+      # built, or refuses the candidate package, the run fails here, nothing
+      # is uploaded and the feed keeps the last package.
+      - name: Verify with the oldest supported client
+        if: ${{ steps.sign.outputs.skip == 'false' }}
+        env:
+          OLDEST_REF: ${{ steps.oldest.outputs.ref }}
+          OLDEST_VERSION: ${{ steps.oldest.outputs.version }}
+          PACKAGE_DIGEST: ${{ steps.sign.outputs.package_digest }}
+          REVISION: ${{ steps.sign.outputs.revision }}
+        run: |
+          set -euo pipefail
+          refuse() { echo "::error::the oldest supported client (${OLDEST_VERSION}, ${OLDEST_REF}) refuses this package or cannot be built; the feed keeps the last package. See cli/docs/knowledge-publisher.md."; exit 1; }
+          out="${RUNNER_TEMP}/oldest"
+          mkdir -m 700 "${out}"
+          oroot="${GITHUB_WORKSPACE}/oldest/cli/internal/knowledgepin/root.json"
+          [ -s "${oroot}" ] || refuse
+          (cd "${GITHUB_WORKSPACE}/oldest/cli" && GOTOOLCHAIN=local go build -trimpath -buildvcs=false \
+            -ldflags "-X github.com/prufyx/prufyx/cli/internal/buildidentity.Version=${OLDEST_VERSION}" \
+            -o "${out}/prufyx" ./cmd/prufyx-community) || refuse
+          "${out}/prufyx" db verify "${RUNNER_TEMP}/artifact/cncf-projects.tar" --profile cncf-projects \
+            --bootstrap-root "${oroot}" --bootstrap-root-digest "sha256:$(sha256sum "${oroot}" | cut -d' ' -f1)" \
+            --expected-package-digest "${PACKAGE_DIGEST}" --expected-revision "${REVISION}" --format json > "${out}/receipt.json" || refuse
+          echo "- oldest supported client ${OLDEST_VERSION} (${OLDEST_REF}) accepts the package" >> "${GITHUB_STEP_SUMMARY}"
+
       - name: Upload the signed package
         if: ${{ steps.sign.outputs.skip == 'false' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
