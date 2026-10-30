@@ -366,8 +366,10 @@ Two jobs keep the signing keys and the Pages deploy token apart:
   (kept 90 days). All roles expire at the earlier of 14 days from now and the
   earliest reviewed-evidence expiry; the weekly run leaves one missed run of
   margin. The package digest is a job output, and the job summary logs the
-  revision and digest. The job is skipped when the signed content is unchanged
-  and the last publish is under 7 days old.
+  revision and digest. A push or dispatch run is skipped when the signed content
+  is unchanged and the last publish is under 7 days old. The weekly scheduled run
+  is never skipped: it always re-signs, so the timestamp expiry moves every
+  week (a skip near 7 days would leave the next run on the 14-day expiry).
 - `deploy` runs in the environment `github-pages` and holds no keys. It
   downloads the artifact, checks its SHA-256 against the sign job's output,
   verifies it again against the pinned root, refuses to run if a later run has
@@ -387,6 +389,35 @@ The pinned root is `cli/internal/knowledgepin/root.json`. The workflow stops
 unless that file, the compiled-in pin and the repository variable
 `KNOWLEDGE_ROOT_DIGEST` agree. Release tag builds make the same check when the
 variable is set (nothing is checked when it is not).
+
+### Publish self-check
+
+`.github/workflows/knowledge-publish-verify.yml` runs daily (and on dispatch)
+and needs no human and no secret: job permissions are `contents: read` and
+`issues: write`, the latter only for one tracking issue, and `actions: read` to
+list the publish runs. It runs only on `main`
+and only when `KNOWLEDGE_RELEASE_ENABLED` is `true`. It calls
+`scripts/publish-verify.sh`, which fetches the public feed
+(`https://prufyx.github.io/prufyx/knowledge/cncf-projects.tar`), verifies it
+with `prufyx db verify` against the pinned root (the same trust as
+`prufyx db update`) and prints one line. It fails, listing every reason, when:
+
+- the feed is unreachable or does not verify (including an expired timestamp);
+- the feed is older than 8 days (signing time is the verified timestamp expiry
+  minus 14 days; when the evidence expiry capped the expiry instead, the
+  `Last-Modified` of the deploy is used);
+- the timestamp expires in less than 5 days;
+- the last successful `Knowledge publish` run on `main` is older than 8 days;
+- the feed is older than the newest merge touching `cli/knowledge` on `main`
+  (the first-parent merge commit in the full-history checkout, not the branch
+  commit the GitHub API lists),
+  unless that merge is under 2 hours old or a later successful run (for
+  example one that skipped an unchanged bundle) has accounted for it.
+
+On failure the workflow opens the issue "Knowledge publish self-check failed"
+(or comments on the open one) and the job fails; when the check passes again it
+closes the issue. To check by hand, dispatch the workflow. To fix a failure,
+see the recovery runbook below.
 
 ### Oldest-supported-client gate
 
