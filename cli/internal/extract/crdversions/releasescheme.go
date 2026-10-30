@@ -96,8 +96,10 @@ func CalverEdgeUnread(tag string) (line string, unread bool) {
 // scheme, each tag the scheme reads gets one more entry named for the engine
 // version at the same commit; the extractor ignores it (it is no release tag
 // of the scheme), and it exists only because the tag it stands for is one.
-// Any other extractor, and any target without the scheme, gets tags back
-// unchanged. Callers of extract.Run pass the extractor's tags through this.
+// For a target without the scheme, each tag with a zero-padded minor
+// (v26.02.0) gets one more entry, "~26.2.0", at the same commit. Any other
+// extractor gets tags back unchanged. Callers of extract.Run pass the
+// extractor's tags through this.
 func ReleaseTags(ex extract.Extractor, tags extract.TagSource) extract.TagSource {
 	if r, ok := ex.(interface {
 		releaseTagSource(extract.TagSource) extract.TagSource

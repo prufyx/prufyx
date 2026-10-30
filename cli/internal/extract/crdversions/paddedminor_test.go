@@ -26,6 +26,9 @@ func TestReadFinalTagPaddedMinor(t *testing.T) {
 		{"v", "v26.0.0", "26.0.0", false},
 		{"v", "v1.2.3", "1.2.3", false},
 		{"v", "v19.9.0", "19.9.0", false},
+		{"v", "v99.02.0", "99.2.0", true},
+		{"v", "v100.2.0", "100.2.0", false},
+		{"v", "v2024.2.1", "2024.2.1", false},
 	} {
 		v, p, ok := ReadFinalTag(c.prefix, 4, c.tag)
 		if !ok || v != c.version || p != c.padded {
@@ -33,15 +36,17 @@ func TestReadFinalTagPaddedMinor(t *testing.T) {
 		}
 	}
 	for _, tag := range []string{
-		"v1.02.3",   // major below 20
-		"v19.02.0",  // major below 20
-		"v9.01.0",   // major below 20
-		"1.02.3",    // major below 20, no prefix
-		"v20.00.0",  // zero minor with a leading zero
-		"v26.00.1",  // same
-		"v20.010.1", // two leading zeros worth of padding
-		"v26.002.0", // more than one leading zero
-		"v26.10.00", // leading zero of the patch
+		"v1.02.3",    // major below 20
+		"v19.02.0",   // major below 20
+		"v9.01.0",    // major below 20
+		"v100.02.0",  // major above 99
+		"v2024.02.1", // calendar year major above 99
+		"1.02.3",     // major below 20, no prefix
+		"v20.00.0",   // zero minor with a leading zero
+		"v26.00.1",   // same
+		"v20.010.1",  // two leading zeros worth of padding
+		"v26.002.0",  // more than one leading zero
+		"v26.10.00",  // leading zero of the patch
 		"v26.02.00",
 		"v26.02.01",
 		"v26.2.03",
