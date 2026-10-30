@@ -184,7 +184,9 @@ expired rule, a missing declaration. Read the reason lines. Full tables:
 - If `prufyx db update` exits `15` ("too new for this prufyx"), the published
   knowledge needs a newer prufyx. Nothing was changed and your current database
   and the embedded knowledge keep working; upgrade prufyx, then run `db update`
-  again. Do not remove the store for this.
+  again. Do not remove the store for this. `scan` and `check` with such a
+  database, or with one an older prufyx left unadvanceable, use the embedded
+  knowledge with a warning instead of failing (see `knowledge-updates.md`).
 - `prufyx db update` downloads a complete signed package and verifies it with
   TUF. With no arguments it targets the official `cncf-projects` feed and
   needs the trust root pinned in the build. This build pins the official

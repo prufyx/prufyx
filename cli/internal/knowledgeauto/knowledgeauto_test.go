@@ -202,15 +202,56 @@ func TestFallbackWhy(t *testing.T) {
 }
 
 func TestFallbackReason(t *testing.T) {
-	if r, ok := FallbackReason(fmt.Errorf("x: %w", knowledge.ErrExpired)); !ok || r != ReasonStoreExpired {
-		t.Fatalf("expired: %q %v", r, ok)
-	}
-	for _, err := range []error{
-		nil, knowledge.ErrIntegrity, knowledge.ErrRollback, knowledge.ErrTrustAdvanced,
-		errors.Join(knowledge.ErrExpired, knowledge.ErrIntegrity), errors.Join(knowledge.ErrExpired, knowledge.ErrRollback),
+	for _, c := range []struct {
+		err    error
+		reason string
+	}{
+		{fmt.Errorf("x: %w", knowledge.ErrExpired), ReasonStoreExpired},
+		{fmt.Errorf("x: %w", knowledge.ErrUnsupportedKnowledge), ReasonStoreTooNew},
+		{&knowledge.UnsupportedError{Reason: "r", MinVersion: "v1.0.0"}, ReasonStoreTooNew},
+		{fmt.Errorf("x: %w", knowledge.ErrTrustAdvanced), ReasonStoreTrustAdvanced},
 	} {
+		if r, ok := FallbackReason(c.err); !ok || r != c.reason {
+			t.Fatalf("%v: %q %v", c.err, r, ok)
+		}
+	}
+	hard := []error{knowledge.ErrIntegrity, knowledge.ErrRollback, knowledge.ErrFeedBehind, knowledge.ErrPinnedRootMismatch,
+		knowledge.ErrNoSelection, knowledge.ErrLayout, knowledge.ErrRecoveryRequired}
+	cases := []error{nil, errors.New("other")}
+	cases = append(cases, hard...)
+	for _, h := range hard {
+		for _, soft := range []error{knowledge.ErrExpired, knowledge.ErrUnsupportedKnowledge, knowledge.ErrTrustAdvanced} {
+			cases = append(cases, errors.Join(soft, h), errors.Join(h, soft))
+		}
+	}
+	for _, err := range cases {
 		if r, ok := FallbackReason(err); ok || r != "" {
 			t.Fatalf("%v: %q %v", err, r, ok)
+		}
+	}
+}
+
+func TestFallbackWarning(t *testing.T) {
+	if got := FallbackWarning(ReasonStoreTooNew, "v0.3.0", ""); !strings.Contains(got, "a newer prufyx is needed for this knowledge (min version v0.3.0)") {
+		t.Fatalf("too new: %q", got)
+	}
+	if got := FallbackWarning(ReasonStoreTooNew, "", ""); !strings.HasSuffix(got, "a newer prufyx is needed for this knowledge") {
+		t.Fatalf("too new, no version: %q", got)
+	}
+	if got := FallbackWarning(ReasonStoreTrustAdvanced, "", "/s"); !strings.Contains(got, "upgrade prufyx, or remove /s and run `prufyx db update`") {
+		t.Fatalf("trust advanced: %q", got)
+	}
+}
+
+// The scan report schema lists every fallback reason.
+func TestFallbackReasonsAreInTheScanSchema(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "docs", "generated", "schemas", "scan-report-v1alpha1.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, reason := range []string{ReasonStoreExpired, ReasonStoreTooNew, ReasonStoreTrustAdvanced} {
+		if !strings.Contains(string(raw), `"`+reason+`"`) {
+			t.Fatalf("%s missing from the schema", reason)
 		}
 	}
 }

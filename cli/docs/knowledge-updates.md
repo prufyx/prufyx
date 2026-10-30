@@ -151,7 +151,7 @@ change. Giving `--source` or `--release-plan` keeps the rules described above
 - **Too new for this prufyx (exit `15`).** A package that the pinned root signed
   but this build cannot read (an unknown index format, or a `minClientVersion`
   above this build) is reported as `KNOWLEDGE_TOO_NEW_FOR_THIS_CLIENT` and exits
-  `15`. `db update` and `db import` change nothing and persist no trust state: the
+  `15`. `db update`, `db import` and `db verify` change nothing and persist no trust state: the
   current local database and the embedded knowledge stay in use, and a later
   readable package imports normally. The message names the minimum version when
   the package states one; upgrade prufyx. A package that fails signature, hash or
@@ -209,6 +209,7 @@ are created private to you (mode 0700), whatever your umask is.
 | nothing given, default store verifies | the newer of the local database and the embedded knowledge | standard error, human output |
 | nothing given, no default store (absent or empty directory) | embedded, evaluated at the current time | standard error |
 | nothing given, default store's signed metadata has expired | embedded, with a warning | standard error, `store-expired` in the scan report |
+| nothing given, default store signed by the pinned root but too new for this build, or left with a trust state this build cannot advance | embedded, with a warning | standard error, `store-too-new` or `store-trust-advanced` in the scan report |
 | nothing given, default store present but invalid, rolled back, not private, or rooted in a different trust root than the pin of this build | none: exit 3 | standard error |
 
 An invalid store is never silently replaced by the embedded knowledge, because that
@@ -216,7 +217,21 @@ could hide tampering. The error says so and names the way
 out: repair it with `prufyx db update`, remove the store, or use
 `--knowledge=embedded`. A store whose signed metadata has expired is not used; the
 embedded knowledge is used instead with a warning on standard error and
-`store-expired` in the report, and every other failure still exits 3. When the
+`store-expired` in the report, and every other failure still exits 3.
+
+A store that the pinned root signed but this build cannot read is also not used:
+the embedded knowledge is used with the warning `the local database cannot be
+used: a newer prufyx is needed for this knowledge (min version X)` (the version
+is named when the knowledge states one) and `store-too-new` in the report.
+A store that an older prufyx left with a trust state this build cannot advance
+is not used either: the warning is `the local database cannot be advanced by
+this version of prufyx: upgrade prufyx, or remove <store directory> and run
+prufyx db update`, and the report says `store-trust-advanced`. Prufyx never
+removes the store itself, because that would reset its rollback protection. The
+exit code of the evaluation is unchanged. Integrity, rollback, wrong-root,
+layout, permission, no-selection and recovery failures still exit 3, and the
+pin is checked before any fallback, so a store of another trust root still
+exits 3. When the
 build pins a root, only a store whose initial root is that root is used; with no pin,
 any store the normal verification accepts is used.
 
