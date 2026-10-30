@@ -412,6 +412,15 @@ job fails with "the oldest supported client (...) refuses this package", the
 upload and the deploy do not run, and the feed keeps the last package. An
 unverifiable gate counts as a failed gate.
 
+**Feed evolution constraint.** `minClientVersion` protects only the index and
+project-target content: a client below it reads the field first and reports the
+package as too new instead of failing. The TUF role shape (the roles and their
+signed fields), the tar member layout and the rule that no tar member may stay
+unused must stay fixed for as long as any supported client cannot read a change
+to them, because those checks run before the version is known and a client that
+fails them treats the package as an integrity failure. The oldest-client gate
+above enforces this: a package it refuses is not published.
+
 Until the first beta tag exists, `ref` is a commit of `main`. After the
 `v0.1.0-beta.0` cut, a PR sets `ref` to that tag.
 

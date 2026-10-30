@@ -1,4 +1,4 @@
-UNKNOWN  0 must fix · 1 undecided · 0 passed     kyverno 1.12.5 -> 1.13.0, 1 reviewed rule
+UNKNOWN  0 must fix · 1 undecided     kyverno 1.12.5 -> 1.13.0, 1 reviewed rule
 input authority: OPERATOR_DECLARED_MINIMIZED
 
 UNDECIDED (1 rule)

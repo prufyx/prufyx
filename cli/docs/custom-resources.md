@@ -185,7 +185,8 @@ chmod 600 manifests.yaml
 With the knowledge of this release:
 
 ```
-BLOCKED  1 must fix · 0 undecided · 9 passed     strimzi 0.51.0 -> 1.0.0, 10 reviewed rules
+BLOCKED  1 must fix · 0 undecided     strimzi 0.51.0 -> 1.0.0, 10 reviewed rules
+checked: 9 rules passed; this is not a pass
 
 MUST FIX (1)
   Strimzi 1.0.0 no longer serves version v1beta2 of Kafka (CustomResourceDefinition kafkas.kafka.strimzi.io), which 0.51.0 served

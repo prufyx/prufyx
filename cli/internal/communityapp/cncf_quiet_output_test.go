@@ -91,7 +91,7 @@ func TestQuietHumanReviewedPairCollapsesPassesAndSharesSources(t *testing.T) {
 	if !strings.Contains(human, fmt.Sprintf("%d cited upstream sources (show with -v)", sources)) || strings.Contains(human, "PASSED (") || !strings.Contains(human, "6 passed rules (--show-passes)") {
 		t.Fatalf("unexpected quiet output:\n%s", human)
 	}
-	if !strings.HasPrefix(human, "BLOCKED  1 must fix · 0 undecided · 6 passed") || !strings.Contains(human, "MUST FIX (1)") {
+	if !strings.HasPrefix(human, "BLOCKED  1 must fix · 0 undecided     ") || !strings.Contains(human, "MUST FIX (1)") {
 		t.Fatalf("verdict must come first and name the decisive claim:\n%s", human)
 	}
 	if strings.Index(human, "Whole upgrade: not proven") < strings.Index(human, "MUST FIX") {

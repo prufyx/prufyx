@@ -134,7 +134,16 @@ func Render(out io.Writer, in Input) error {
 		}
 	}
 
-	w.printf("%s  %d must fix · %d undecided · %d passed     %s\n", HeadlineWord(in.Exit), counts.blocked, counts.undecided, counts.passed, in.subject(counts.verdicts))
+	if in.Exit == exitOK {
+		w.printf("%s  %d must fix · %d undecided · %d passed     %s\n", HeadlineWord(in.Exit), counts.blocked, counts.undecided, counts.passed, in.subject(counts.verdicts))
+	} else {
+		// The verdict leads and the pass count is never part of the headline:
+		// "N passed" next to UNKNOWN or BLOCKED reads like a pass.
+		w.printf("%s  %d must fix · %d undecided     %s\n", HeadlineWord(in.Exit), counts.blocked, counts.undecided, in.subject(counts.verdicts))
+		if counts.passed > 0 {
+			w.printf("checked: %s passed; this is not a pass\n", plural(counts.passed, "rule", "rules"))
+		}
+	}
 	for _, line := range in.Preamble {
 		w.println(line)
 	}
