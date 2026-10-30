@@ -196,6 +196,10 @@ func TestAutoKnowledgeExpiredStoreFallsBackForCheckAndScan(t *testing.T) {
 	repoNow := time.Now().UTC().Truncate(time.Second).Add(-24*time.Hour + 6*time.Second) // timestamp expires at repoNow+24h
 	repo, err := importProjectsInto(t, root, repoNow, "5")
 	if err != nil {
+		if time.Now().After(repoNow.Add(24 * time.Hour)) {
+			// The import refuses a package that is already expired.
+			t.Skipf("the store expired before the import finished (slow machine): %v", err)
+		}
 		t.Fatal(err)
 	}
 	pinProjects(t, repo.RootDigest)
