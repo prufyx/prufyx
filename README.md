@@ -439,7 +439,7 @@ above takes real compute.
 | Storage | 2 TB NVMe | Pinned upstream source mirrors and reproducible builds |
 
 If you or your company would like to fund or provide hardware, please get in touch
-by email at [airstand@gmail.com](mailto:airstand@gmail.com) or on
+by email at [hello@prufyx.com](mailto:hello@prufyx.com) or on
 [LinkedIn](https://www.linkedin.com/in/spasatanasov/). Hardware sponsors are
 acknowledged here and on [prufyx.com](https://prufyx.com) with their permission.
 We will publish what any support paid for. Sponsorship does not buy influence over
