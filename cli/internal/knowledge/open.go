@@ -191,7 +191,13 @@ func openRevision(req SelectionRequest, profile profileSpec, evaluatedAt time.Ti
 		return VerifiedRevision{}, ErrIntegrity
 	}
 	admission, err := admit(append([]byte(nil), target...))
-	if err != nil || validateAdmissionForProfile(admission, profile) != nil || !admissionMatchesReceipt(admission, receipt) {
+	// A digest-bound target this build cannot read (minClientVersion above the
+	// build, unknown schema) is not reported yet: the bundle is revalidated
+	// below first, so only a store that still verifies reaches the fallback.
+	var unsupported error
+	if errors.Is(err, ErrUnsupportedKnowledge) {
+		unsupported = err
+	} else if err != nil || validateAdmissionForProfile(admission, profile) != nil || !admissionMatchesReceipt(admission, receipt) {
 		return VerifiedRevision{}, ErrIntegrity
 	}
 	var storedProjects map[string][]byte
@@ -211,6 +217,9 @@ func openRevision(req SelectionRequest, profile profileSpec, evaluatedAt time.Ti
 	}
 	if digestBytes(verified.target) != selection.BundleDigest || verified.material.stateDigest != selection.TrustStateDigest || profile.split && !sameProjects(storedProjects, verified.projects) {
 		return VerifiedRevision{}, fmt.Errorf("revalidated trust state: %w", ErrIntegrity)
+	}
+	if unsupported != nil {
+		return VerifiedRevision{}, unsupported
 	}
 	v := VerifiedRevision{bytes: append([]byte(nil), target...), revision: selection.Revision, bundleDigest: selection.BundleDigest, trustReceipt: receipt, trustReceiptDigest: selection.TrustReceiptDigest, verifiedAt: evaluatedAt, mode: mode, profile: profile.id, seal: &verifiedSeal{}}
 	if profile.split {
