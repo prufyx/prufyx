@@ -207,6 +207,9 @@ func admitConstraintsIndex(target []byte) (Admission, error) {
 
 func cncfMinOrEmpty(raw []byte) string {
 	min, _ := cncfcheck.ExternalIndexMinClient(raw)
+	if buildidentity.MeetsMinimum(min) {
+		return "" // already met: an upgrade would not help
+	}
 	return min
 }
 

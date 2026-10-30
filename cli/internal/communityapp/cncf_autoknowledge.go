@@ -88,14 +88,14 @@ func (r *runtime) resolveCNCFKnowledge(args []string, mode, project string, know
 	}
 	selected, err := autoOpenStore(knowledge.SelectionRequest{StoreRoot: root}, []string{project})
 	if fallback, ok := knowledgeauto.FallbackReason(err); err != nil && ok {
-		// Expired signed metadata is not tampering: the embedded knowledge
-		// is used, loudly. The pin still has to match.
+		// Expired, too-new or trust-advanced stores are not tampering: the
+		// embedded knowledge is used, loudly. The pin still has to match.
 		rootDigest, rerr := autoExpiredRoot(root)
 		if rerr == nil {
 			rerr = knowledgeauto.CheckPin(pinnedRootDigest(knowledgeauto.Profile), rootDigest)
 		}
 		if rerr == nil {
-			embeddedWith("warning: ", knowledgeauto.FallbackWhy(fallback))
+			embeddedWith("warning: ", knowledgeauto.FallbackWarning(fallback, knowledge.UnsupportedMinVersion(err), root))
 			return 0, false
 		}
 		err = rerr

@@ -205,7 +205,8 @@ func Run(request Request, options Options) (Result, error) {
 		opened, err := open(request.KnowledgeDB, targets)
 		var storeErr *StoreError
 		if err != nil && autoStore && errors.As(err, &storeErr) && storeErr.Fallback != "" {
-			// A failure that only warrants the fallback (an expired store): the
+			// A failure that only warrants the fallback (an expired, too-new or
+			// trust-advanced store): the
 			// embedded knowledge is used, with a warning. The pin still
 			// has to match, so a store of another trust root stays refused.
 			expiredRoot := options.ExpiredRoot
@@ -219,7 +220,7 @@ func Run(request Request, options Options) (Result, error) {
 			case knowledgeauto.CheckPin(pinned(knowledgeauto.Profile), root) != nil:
 				return &StoreError{Reason: scanreport.KnowledgeDBPinMismatch, Auto: true}
 			}
-			return useEmbedded("warning: knowledge source: embedded, "+knowledgeauto.FallbackWhy(storeErr.Fallback),
+			return useEmbedded("warning: knowledge source: embedded, "+knowledgeauto.FallbackWarning(storeErr.Fallback, storeErr.FallbackMin, request.KnowledgeDB),
 				&scanreport.KnowledgeSelection{Chosen: knowledgeauto.SourceEmbedded, Reason: storeErr.Fallback})
 		}
 		if err == nil && autoStore {

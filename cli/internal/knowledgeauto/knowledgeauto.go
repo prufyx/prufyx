@@ -262,6 +262,11 @@ const (
 	ReasonNoStore        = "no-store"
 	ReasonForced         = "forced"
 	ReasonStoreExpired   = "store-expired"
+	// ReasonStoreTooNew is a store the pinned root signed but this build
+	// cannot read; ReasonStoreTrustAdvanced one that an older client left
+	// with a trust state this build cannot advance.
+	ReasonStoreTooNew        = "store-too-new"
+	ReasonStoreTrustAdvanced = "store-trust-advanced"
 )
 
 // Selection is the outcome of choosing between a verified store and the
@@ -329,28 +334,51 @@ const ExpiredWhy = "the local database's signed metadata has expired; run `prufy
 
 // FallbackReason reports whether a store failure is one of the few that fall
 // back to the embedded knowledge (with a warning), and the reason to state.
-// It is the single place such a failure is added. Today only a store whose
-// signed metadata has expired and nothing else (no integrity, rollback,
-// trust-state, selection, layout or recovery failure) qualifies.
+// It is the single place such a failure is added. Only a store whose signed
+// metadata has expired, one the pinned root signed but this build cannot read
+// (ErrUnsupportedKnowledge), or one left with an unadvanceable trust state
+// (ErrTrustAdvanced) qualifies, and only when no integrity, rollback,
+// selection, layout or recovery failure is part of the error.
 func FallbackReason(err error) (reason string, ok bool) {
 	hard := errors.Is(err, knowledge.ErrIntegrity) || errors.Is(err, knowledge.ErrRollback) ||
-		errors.Is(err, knowledge.ErrTrustAdvanced) || errors.Is(err, knowledge.ErrNoSelection) ||
+		errors.Is(err, knowledge.ErrNoSelection) ||
 		errors.Is(err, knowledge.ErrLayout) || errors.Is(err, knowledge.ErrRecoveryRequired)
 	switch {
 	case hard:
 		return "", false
 	case errors.Is(err, knowledge.ErrExpired):
 		return ReasonStoreExpired, true
+	case errors.Is(err, knowledge.ErrUnsupportedKnowledge):
+		return ReasonStoreTooNew, true
+	case errors.Is(err, knowledge.ErrTrustAdvanced):
+		return ReasonStoreTrustAdvanced, true
 	}
 	return "", false
 }
 
 // FallbackWhy is the warning text of the embedded fallback for a reason that
-// FallbackReason returned.
-func FallbackWhy(reason string) string {
+// FallbackReason returned, without the details FallbackWarning adds.
+func FallbackWhy(reason string) string { return FallbackWarning(reason, "", "") }
+
+// FallbackWarning is FallbackWhy with the minimum prufyx version the knowledge
+// names (store-too-new) and the store directory (store-trust-advanced), each
+// when known. The store is never removed by prufyx.
+func FallbackWarning(reason, minVersion, storeDir string) string {
 	switch reason {
 	case ReasonStoreExpired:
 		return ExpiredWhy
+	case ReasonStoreTooNew:
+		why := "the local database cannot be used: a newer prufyx is needed for this knowledge"
+		if minVersion != "" {
+			why += " (min version " + minVersion + ")"
+		}
+		return why
+	case ReasonStoreTrustAdvanced:
+		dir := "the local database directory"
+		if storeDir != "" {
+			dir = storeDir
+		}
+		return "the local database's trust state is ahead of or differs from its selection (written by a newer prufyx, or the selection was modified); if you did not run another prufyx on this store, treat this as tampering. To continue: upgrade prufyx, or remove " + dir + " and run `prufyx db update` (removing the store also resets its rollback protection: only do it if you trust where the store came from)"
 	}
 	return "the local database cannot be used; run `prufyx db update`"
 }

@@ -59,6 +59,9 @@ type StoreError struct {
 	// is one an automatic selection answers with the embedded knowledge
 	// instead of refusing; empty otherwise.
 	Fallback string
+	// FallbackMin is the minimum prufyx version the unreadable knowledge
+	// names (Fallback "store-too-new"), when it names one.
+	FallbackMin string
 }
 
 func (e *StoreError) Error() string {
@@ -80,7 +83,7 @@ func OpenStore(path string, projects []string) (*Store, error) {
 	}
 	selection, err := cncfknowledge.OpenScan(path, projects)
 	if err != nil {
-		return nil, &StoreError{Reason: storeFailure(err), Fallback: fallbackOf(err)}
+		return nil, openFailure(err)
 	}
 	bundles := map[string]cncfcheck.ExternalBundle{}
 	digests := map[string]string{}
@@ -234,6 +237,12 @@ func (k *Store) KnowledgeAge() []knowledgeage.Source { return k.snapshot.Knowled
 func (k *Store) Store() *StoreInfo {
 	info := k.info
 	return &info
+}
+
+// openFailure is the StoreError of a failed open, with the embedded fallback
+// the error warrants (and the minimum version an unreadable one names).
+func openFailure(err error) *StoreError {
+	return &StoreError{Reason: storeFailure(err), Fallback: fallbackOf(err), FallbackMin: knowledge.UnsupportedMinVersion(err)}
 }
 
 func fallbackOf(err error) string {
