@@ -12,6 +12,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfknowledge"
 	"github.com/prufyx/prufyx/cli/internal/knowledgeage"
+	"github.com/prufyx/prufyx/cli/internal/projectcheck"
 	"github.com/prufyx/prufyx/cli/internal/scanrun"
 )
 
@@ -56,7 +57,7 @@ func evaluated(exit int) bool {
 // checkCNCF runs check cncf and prints the age note for the knowledge it
 // used: the database's targets, or the embedded knowledge at --now.
 func (r runtime) checkCNCF(args []string) int {
-	return r.pinnedNowGuard(args, cncfcheck.EmbeddedKnowledgeAge, runtime.checkCNCFAt)
+	return r.pinnedNowGuard(args, cncfcheck.EmbeddedEvidenceAge, runtime.checkCNCFAt)
 }
 
 func (r runtime) checkCNCFAt(args []string) int {
@@ -210,4 +211,19 @@ func replaceNow(args []string, value string) ([]string, bool) {
 		}
 	}
 	return out, false
+}
+
+// batchEmbeddedAge is the end dates of the embedded evidence a batch can use:
+// the CNCF pack (rules, line attestations, served-API lists, path policies)
+// and the community project pack, for items of either kind.
+func batchEmbeddedAge() ([]knowledgeage.Source, error) {
+	cncf, err := cncfcheck.EmbeddedEvidenceAge()
+	if err != nil {
+		return nil, err
+	}
+	projects, err := projectcheck.EmbeddedKnowledgeAge()
+	if err != nil {
+		return nil, err
+	}
+	return knowledgeage.Merge(cncf, projects), nil
 }

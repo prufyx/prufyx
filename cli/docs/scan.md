@@ -112,6 +112,11 @@ before the real date, `prufyx scan` prints a warning on standard error naming th
 saved report (`--replay-report`) and runs with `--knowledge-db` keep their
 recorded time and get no warning.
 
+Example commands in these docs pin `--now`. Once the embedded knowledge
+expires (the first rules end on 2026-12-07 at the current data), a command
+with an earlier pinned `--now` warns and answers UNKNOWN; change the date in
+the example to the current time, or drop `--now`.
+
 A component version is `X.Y.Z` with no prefix, suffix or leading zeros. An
 unknown component name is refused and the three closest names are listed.
 

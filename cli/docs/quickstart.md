@@ -121,6 +121,11 @@ before the real date, `prufyx check cncf` (also `check project` and `check batch
 saved report (`--replay-report`) and runs with `--knowledge-db` keep their
 recorded time and get no warning.
 
+Example commands in these docs pin `--now`. Once the embedded knowledge
+expires (the first rules end on 2026-12-07 at the current data), a command
+with an earlier pinned `--now` warns and answers UNKNOWN; change the date in
+the example to the current time, or drop `--now`.
+
 ## 4. Run the check: Kubernetes 1.24 → 1.25
 
 ```sh

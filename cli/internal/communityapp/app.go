@@ -187,7 +187,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, version s
 		}
 		switch args[1] {
 		case "batch":
-			return r.pinnedNowGuard(args[2:], cncfcheck.EmbeddedKnowledgeAge, runtime.batch)
+			return r.pinnedNowGuard(args[2:], batchEmbeddedAge, runtime.batch)
 		case "cncf":
 			return r.checkCNCF(args[2:])
 		case "project":
