@@ -4,9 +4,11 @@ package communityapp
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfknowledge"
@@ -15,6 +17,47 @@ import (
 )
 
 func (r runtime) externalCNCF(req cncfknowledge.Request, replayPath, format string) int {
+	return r.externalCNCFGated(req, replayPath, format, nil)
+}
+
+// apiGate returns the API-version gaps of the checked resources at the
+// evaluation time of the report (never the wall clock), nil when none.
+type apiGate func(evaluatedAt time.Time) []string
+
+// reportEvaluatedAt reads knowledge.evaluatedAt of a report; the zero time
+// when it cannot be read, which no served list is current at.
+func reportEvaluatedAt(report []byte) time.Time {
+	var shape struct {
+		Knowledge struct {
+			EvaluatedAt string `json:"evaluatedAt"`
+		} `json:"knowledge"`
+	}
+	if json.Unmarshal(report, &shape) != nil {
+		return time.Time{}
+	}
+	at, err := time.Parse(time.RFC3339, shape.Knowledge.EvaluatedAt)
+	if err != nil {
+		return time.Time{}
+	}
+	return at.UTC()
+}
+
+// gateExit turns an exit 0 into UNKNOWN when the gate names gaps at the
+// evaluation time of the report; other exits and a nil gate pass through.
+func gateExit(gate apiGate, exit int, report []byte) (int, []string) {
+	if gate == nil || exit != 0 {
+		return exit, nil
+	}
+	if gaps := gate(reportEvaluatedAt(report)); len(gaps) > 0 {
+		return ExitUnknown, gaps
+	}
+	return exit, nil
+}
+
+// externalCNCFGated is externalCNCF with an API-version gate: when the report
+// would exit 0 and the gate names gaps, the result is UNKNOWN (exit 11) with
+// the reasons in the same output.
+func (r runtime) externalCNCFGated(req cncfknowledge.Request, replayPath, format string, gate apiGate) int {
 	if replayPath != "" {
 		expected, err := readCNCFPrivate(replayPath, 4<<20)
 		if err != nil {
@@ -28,15 +71,25 @@ func (r runtime) externalCNCF(req cncfknowledge.Request, replayPath, format stri
 		if err != nil {
 			return r.fail("external CNCF replay integrity failure", ExitIntegrity)
 		}
+		// The clock of the original report, so a replay is deterministic.
+		exit, gaps := gateExit(gate, cncfknowledge.HistoricalClaimExit(replay), replay.OriginalReport)
 		if format == "json" {
+			if len(gaps) > 0 {
+				if raw, err = spliceAPIVersionGaps(raw, gaps); err != nil {
+					return r.fail("external CNCF replay integrity failure", ExitIntegrity)
+				}
+			}
 			_, err = fmt.Fprintln(r.stdout, string(raw))
 		} else {
+			for _, line := range apiGapHeadline(gaps) {
+				fmt.Fprintln(r.stdout, line)
+			}
 			_, err = fmt.Fprintf(r.stdout, "historical external CNCF replay: MATCH\noriginal report digest: %s\ncurrent non-revocation: not checked offline\nwhole-upgrade assessment: UNKNOWN\n", replay.OriginalReportDigest)
 		}
 		if err != nil {
 			return ExitIntegrity
 		}
-		return cncfknowledge.HistoricalClaimExit(replay)
+		return exit
 	}
 	report, err := r.evaluateCurrent(req)
 	if err != nil {
@@ -46,10 +99,19 @@ func (r runtime) externalCNCF(req cncfknowledge.Request, replayPath, format stri
 	if err != nil {
 		return r.fail("external CNCF report integrity failure", ExitIntegrity)
 	}
+	exit, gaps := gateExit(gate, cncfknowledge.ClaimExit(report), raw)
 	if format == "json" {
+		if len(gaps) > 0 {
+			if raw, err = spliceAPIVersionGaps(raw, gaps); err != nil {
+				return r.fail("external CNCF report integrity failure", ExitIntegrity)
+			}
+		}
 		_, err = fmt.Fprintln(r.stdout, string(raw))
 	} else {
 		var output bytes.Buffer
+		for _, line := range apiGapHeadline(gaps) {
+			fmt.Fprintln(&output, line)
+		}
 		fmt.Fprintf(&output, "%s source-constraint check\nwhole-upgrade assessment: UNKNOWN\nknowledge: external signed local revision %s\npurpose: %s\ntrust source: %s\nsource references: operator-declared; runtime behavior unverified\n", report.Check.Project, report.Knowledge.Revision, report.Knowledge.Purpose, report.Knowledge.TrustSource)
 		if r.knowledgeSource != "" {
 			fmt.Fprintf(&output, "knowledge source: %s\n", r.knowledgeSource)
@@ -65,7 +127,7 @@ func (r runtime) externalCNCF(req cncfknowledge.Request, replayPath, format stri
 	if err != nil {
 		return ExitIntegrity
 	}
-	return cncfknowledge.ClaimExit(report)
+	return exit
 }
 
 func (r runtime) cncfKnowledgeError(message string, err error) int {

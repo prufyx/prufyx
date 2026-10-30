@@ -53,6 +53,21 @@ It can be a blocked or undecided scan; the report headline shows which.
   `Whole upgrade: not proven` next to it, always.
 - **Do:** in CI add `--strict-exit`, so a scoped pass exits `14` and cannot be
   read as a complete pass.
+- **Kubernetes `--native-resource`:** a resource at an API version the target
+  does not serve (removed, alpha, not in the reviewed served-API list of the
+  target line, or an `apiVersion` that is not a clean lowercase
+  `group/version`) is never a scoped PASS. The check exits `11` (UNKNOWN), with
+  or without `--strict-exit`, and names the object types.
+  - A valid `apps/v1` object also exits `11` when the target line has no
+    current reviewed served-API list, as `prufyx scan` does.
+  - `--format json` keeps the per-claim statuses, but the result is UNKNOWN:
+    consumers must honour the exit code and the `apiVersionGaps` list, not
+    only the claim statuses. The same holds for the `--knowledge-db` and
+    `--replay-report` routes, which judge the served list at the report's own
+    evaluation time, not the wall clock.
+  - Only `--native-resource` and `prufyx scan` apply this check. The two-step
+    route (`prepare cncf`, then `check cncf --input`) has no raw resources and
+    does not; this is a known limit.
 
 ## BLOCKED (exit 10)
 
