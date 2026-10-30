@@ -213,8 +213,8 @@ var gapMessages = map[GapKey]gapMessage{
 		"render them (for example with helm template) and scan the output", 1},
 	GapDocumentsLists: {"%[1]d document(s) are nested lists or lists that cannot be resolved",
 		"flatten the lists, or pass each object as its own document", 1},
-	GapDocumentsFiles: {"%[1]d file(s) were not read (symlinks or special files)",
-		"pass the files themselves; symlinks are never followed", 1},
+	GapDocumentsFiles: {"%[1]d file(s) or directories were not read (symlink, special file, hidden directory, or other name than .yaml, .yml, .json)",
+		"pass them by name, or render the manifests to .yaml files; symlinks are never followed", 1},
 	GapDocumentsShape: {"%[1]d document(s) are not Kubernetes objects, so the manifests cannot be read as one apply set",
 		"remove them from the inputs, or pass only rendered manifests", 1},
 	GapDocumentsUnresolved: {"the manifests cannot be read as one apply set (an apiVersion or kind is not valid, or an object that is not a List holds items)",
@@ -521,6 +521,7 @@ const (
 	labelNotChecked             = "NOT CHECKED (%d)"
 	labelOnlyBlocked            = "Hidden by --only-blocked: %d not-checked gap(s), %d other item(s) (notices, unsupported, leads). Run without the flag or use --format json to see them."
 	labelPassed                 = "PASSED (%d)"
+	labelAllowlistSkipped       = " %d non-manifest files skipped (allowlisted)."
 	labelChecked                = "Read %s over %s; %s."
 	labelComponentsRulesOne     = "%d of 1 component has rules"
 	labelComponentsRulesMany    = "%d of %d components have rules"

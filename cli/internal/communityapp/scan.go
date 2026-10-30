@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 	"github.com/prufyx/prufyx/cli/internal/scanrun"
 )
@@ -23,7 +24,7 @@ func (r runtime) scan(args []string, stdin io.Reader) int {
 		fmt.Fprintln(r.stdout, scanreport.Usage)
 		return ExitOK
 	}
-	result, err := scanrun.Run(request, scanrun.Options{Stdin: stdin, AutoLocalDB: true, PinnedRoot: pinnedRootDigest})
+	result, err := scanrun.Run(request, scanrun.Options{Stdin: stdin, AutoLocalDB: true, PinnedRoot: pinnedRootDigest, CompareEmbedded: scanCompareEmbedded, OpenStore: scanOpenStore, ExpiredRoot: scanExpiredRoot})
 	if err != nil {
 		return r.scanError(err)
 	}
@@ -46,6 +47,17 @@ func (r runtime) scan(args []string, stdin io.Reader) int {
 	}
 	return request.ExitCode(result.Report, result.Exit)
 }
+
+// scanCompareEmbedded replaces the store/embedded comparison of an automatic
+// scan. Test seam; nil is the real comparison.
+var scanCompareEmbedded func(map[string]cncfcheck.ExternalBundle) (cncfcheck.EmbeddedComparison, error)
+
+// scanOpenStore and scanExpiredRoot replace opening the default store and
+// reading the root of an expired one. Test seams; nil is the real behaviour.
+var (
+	scanOpenStore   func(path string, projects []string) (*scanrun.Store, error)
+	scanExpiredRoot func(storeRoot string) (string, error)
+)
 
 func (r runtime) scanError(err error) int {
 	var usageErr *scanrun.UsageError

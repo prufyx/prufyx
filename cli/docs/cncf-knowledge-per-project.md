@@ -7,7 +7,7 @@ size of a single target. This layout uses the `cncf-projects` profile. The
 single-target `cncf` profile is unchanged and keeps working with existing
 stores; the two layouts never share a store.
 
-The official Prufyx root is pinned in the build; the feed's first publication is pending. Packages in this layout are
+The official Prufyx root is pinned in the build and the feed is published. Packages in this layout are
 verified against an operator-provisioned root exactly like the single-target
 layout; see [Optional signed CNCF knowledge](cncf-knowledge-database.md) and
 [Explicit knowledge downloads](knowledge-updates.md).

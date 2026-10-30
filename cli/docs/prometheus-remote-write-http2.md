@@ -21,7 +21,7 @@ PREVIEW_DIR="$(mktemp -d)"
 chmod 700 "$PREVIEW_DIR"
 cleanup_preview() { rm -rf "$PREVIEW_DIR"; }
 trap cleanup_preview 0 HUP INT TERM
-test "$(go env GOVERSION)" = go1.26.8
+test "$(go env GOVERSION)" = go1.26.10
 (cd cli && \
   GOTOOLCHAIN=local GOWORK=off GOFLAGS='-mod=vendor -buildvcs=false' GOPROXY=off GOSUMDB=off \
   go build -trimpath -buildvcs=false -o "$PREVIEW_DIR/prufyx-community" ./cmd/prufyx-community)

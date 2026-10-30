@@ -20,11 +20,14 @@ When the evidence does not decide the question the answer is `UNKNOWN`.
 - **Unpinned trust root.** `prufyx version` reports `"trustRootDigest":
   "UNPINNED"` unless the release notes of a later build say otherwise. The
   build identity binds no release trust root.
-- **No official knowledge feed published.** There is no Prufyx-operated
-  download endpoint for knowledge packages. `prufyx db update` trusts nothing
-  implicitly: you must pass an explicit bootstrap root and its digest, and a
-  source URL you operate or chose. Without a store, the knowledge embedded in
-  the binary is used. See
+- **Official knowledge feed.** The knowledge trust root is pinned in the build
+  (separate from the unpinned build identity above). `prufyx db update` with no
+  flags fetches the official signed feed and refuses anything not signed from
+  the pinned root. Feed metadata is refreshed by a weekly publish run and expires after
+  at most 14 days, sooner if reviewed evidence expires earlier. If runs fail,
+  the feed stops verifying once its timestamp expires. Without a
+  store, or if you do not run `db update`, the knowledge embedded in the binary
+  is used. See
   [knowledge updates](https://github.com/prufyx/prufyx/blob/main/cli/docs/knowledge-updates.md).
 - **Embedded rules expire.** Every rule in the CNCF and community-project
   packs is time-limited and stops being valid on its expiry date unless its
