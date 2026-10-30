@@ -262,7 +262,7 @@ jobs:
           set -euo pipefail
           # Needed only to unpack the finished packages for the check below.
           # Installed first, so nothing is fetched after the nfpm digest check.
-          if ! command -v rpm2cpio > /dev/null; then
+          if ! command -v rpm2cpio > /dev/null || ! command -v cpio > /dev/null; then
             sudo apt-get update -qq
             sudo apt-get install -y -qq --no-install-recommends rpm2cpio cpio
           fi

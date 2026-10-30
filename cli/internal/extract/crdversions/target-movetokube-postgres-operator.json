@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "movetokube-postgres-operator",
+    "catalog": "community",
+    "name": "postgres-operator",
+    "repo": "github.com/movetokube/postgres-operator",
+    "component": "pkg:github/movetokube/postgres-operator",
+    "factProject": "movetokube_postgres_operator",
+    "tagPrefixes": [""],
+    "minFrom": "2.0",
+    "paths": [
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

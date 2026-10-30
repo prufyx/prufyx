@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "kubemod",
+    "catalog": "community",
+    "name": "kubemod",
+    "repo": "github.com/kubemod/kubemod",
+    "component": "pkg:github/kubemod/kubemod",
+    "factProject": "kubemod",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.16",
+    "paths": [
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

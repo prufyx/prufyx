@@ -136,6 +136,15 @@ The workflow has four jobs. Third-party actions are pinned by commit SHA.
    inputs twice, also on hosts with different names, gave byte-identical packages
    (checked for nfpm 2.48.0). The `.rpm` build host header field is fixed to
    `prufyx-release` (nfpm otherwise writes the hostname of the builder).
+   Dry-run record (the packages step run verbatim in `ubuntu:24.04` with
+   `--hostname hostA` and `--hostname hostB`, on synthetic archives, tag
+   `v0.1.0-beta.0`, nfpm 2.48.0): all four packages were byte-identical across
+   the two hosts. The `.rpm` digests of that run were
+   `4050774d62c99b9c84eafea2cc3c081891f715095599857f736e230d155328e8` (amd64)
+   and `178985a1d767588661cadf1879b1481de8760b492d822a8313c20238a359120a`
+   (arm64). They depend on the synthetic input and are a record of the check,
+   not of a release; compare the packages of a real run with `SHA256SUMS`.
+   The step installs `rpm2cpio` and `cpio` unless both are already present.
 3. **Checksums and provenance.** Downloads all archives and packages, writes
    `SHA256SUMS` (sha256sum format, one line per archive and package), and
    creates a GitHub build provenance attestation

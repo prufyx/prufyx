@@ -1,0 +1,16 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "kbind",
+    "name": "kbind",
+    "repo": "github.com/kbind-dev/kbind",
+    "component": "pkg:github/kbind-dev/kbind",
+    "factProject": "kbind",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.3",
+    "paths": [
+      {"path": "deploy/crd", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

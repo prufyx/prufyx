@@ -249,6 +249,7 @@ jobs:
           PREV_RULES: ${{ steps.prev.outputs.rules }}
           PREV_CREATED: ${{ steps.prev.outputs.created_epoch }}
           PREV_INDEX: ${{ steps.prev.outputs.index }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
           umask 077
@@ -318,8 +319,11 @@ jobs:
           [ "$(jq -r '.timestamp.version' <<< "${verified}")" = "${version}" ] || fail "verified TUF version differs from the requested one."
           rules="$(jq -r '.ruleDigest' <<< "${verified}")"
 
+          # The weekly cron never skips: it always re-signs, so the timestamp
+          # expiry moves every week (a skip at 6d23h would let the next run
+          # land on the 14-day expiry). Only push and dispatch can skip.
           skip=false
-          if [ "${MODE}" = state ] && [ "${rules}" = "${PREV_RULES}" ] && [ -n "${PREV_CREATED}" ] \
+          if [ "${EVENT_NAME}" != schedule ] && [ "${MODE}" = state ] && [ "${rules}" = "${PREV_RULES}" ] && [ -n "${PREV_CREATED}" ] \
              && [ $((now - PREV_CREATED)) -lt $((7 * 86400)) ]; then
             skip=true
           fi
