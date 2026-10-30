@@ -138,21 +138,24 @@ You can also build from source; see the [README](https://github.com/prufyx/prufy
 - Single maintainer: the main branch has one maintainer, so changes get no
   second-person review. A CODEOWNERS file and a required reviewer are planned
   for beta.1.
-- Embedded knowledge expires: its earliest rule ends on 2026-12-07. After that
-  date, a run with a pinned `--now` answers `UNKNOWN` for the affected rules
-  until the knowledge is renewed. Run `prufyx db update` to fetch newer
+- Embedded knowledge expires: its earliest rule ends on 2026-12-07 (a few line
+  attestations in the generated block end earlier). After a rule expires, a
+  run that uses the embedded knowledge answers `UNKNOWN` for it, with a pinned
+  `--now` or without, until the knowledge is renewed. Run `prufyx db update` to fetch newer
   knowledge from the official signed feed; the embedded knowledge stays as the
   offline fallback.
 - mariadb-operator is not covered in this build. It is planned for beta.1.
 - Some upgrade pairs stay `UNKNOWN`: four Kyverno pairs (gap G11) and the
   kubeswift 0.1 to 0.3 upgrade have no decided rule.
-- A knowledge package that this build cannot read makes `prufyx db update`
-  exit `15` (`KNOWLEDGE_TOO_NEW_FOR_THIS_CLIENT`). The current store and the
+- A knowledge package that this build cannot read (for example one with a
+  `minClientVersion` above this build) makes `prufyx db update` and `prufyx db
+  import` exit `15` (`KNOWLEDGE_TOO_NEW_FOR_THIS_CLIENT`). The current store and the
   embedded knowledge are kept. Upgrade prufyx.
 - `scan` and `check` use the newer of the local database and the embedded
   knowledge, compared by the latest evidence review date per project. A
-  removal-only correction without a new review date cannot be told from an
-  older database (see [knowledge updates](https://github.com/prufyx/prufyx/blob/main/cli/docs/knowledge-updates.md)).
+  database that is older for any project is not used and the embedded
+  knowledge wins, so a removal-only correction needs a new review date to be
+  picked up (see [knowledge updates](https://github.com/prufyx/prufyx/blob/main/cli/docs/knowledge-updates.md)).
 - Dragonfly: `prufyx check cncf --project dragonfly` and `prufyx assess` never
   reach exit `0` for Dragonfly. The result is `UNKNOWN` (exit `11` on the
   generic route; `assess` exits `0` only with the note "not a pass"). This is
