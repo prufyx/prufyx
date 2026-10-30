@@ -30,11 +30,14 @@ import (
 // they are skipped.
 
 type workflowStep struct {
-	Name string            `yaml:"name"`
-	Uses string            `yaml:"uses"`
-	With map[string]any    `yaml:"with"`
-	Env  map[string]string `yaml:"env"`
-	Run  string            `yaml:"run"`
+	ID              string            `yaml:"id"`
+	If              string            `yaml:"if"`
+	ContinueOnError any               `yaml:"continue-on-error"`
+	Name            string            `yaml:"name"`
+	Uses            string            `yaml:"uses"`
+	With            map[string]any    `yaml:"with"`
+	Env             map[string]string `yaml:"env"`
+	Run             string            `yaml:"run"`
 }
 
 type workflowFile struct {
