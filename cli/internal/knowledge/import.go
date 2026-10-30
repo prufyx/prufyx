@@ -560,7 +560,15 @@ func (req ImportRequest) bootstrapRootBytes() ([]byte, error) {
 // integrity, identity-assertion or digest failure takes precedence and is
 // left to the normal path, which records the advanced trust as before.
 func unsupportedBeforePersist(req ImportRequest, pkg importPackage, verified *verificationResult, admit AdmitFunc) error {
+	// The trust-identity assertion is checked first, on both paths, so a
+	// mismatch stays an integrity failure.
+	if req.ExpectedVerification != nil && !verificationTrustMatches(req.ExpectedVerification, verified.material.state) {
+		return nil
+	}
 	if verified.refreshErr != nil {
+		// ExpectedBundleDigest and ensureAllPackageMembersUsed cannot be
+		// checked here: verified.target is not available after a failed
+		// refresh, so they are left to the later path.
 		classified := classifyTUFError(verified.refreshErr)
 		if errors.Is(classified, ErrUnsupportedKnowledge) {
 			return classified
@@ -568,9 +576,6 @@ func unsupportedBeforePersist(req ImportRequest, pkg importPackage, verified *ve
 		return nil
 	}
 	if ensureAllPackageMembersUsed(pkg, verified.served, &verified.material) != nil {
-		return nil
-	}
-	if req.ExpectedVerification != nil && !verificationTrustMatches(req.ExpectedVerification, verified.material.state) {
 		return nil
 	}
 	if req.ExpectedBundleDigest != "" {

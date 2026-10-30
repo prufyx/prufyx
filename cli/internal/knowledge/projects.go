@@ -281,6 +281,9 @@ func verifySplitTargets(u *updater.Updater, targets *metadata.Metadata[metadata.
 			return nil, &splitTargetError{reason: fmt.Sprintf("target %s is missing or does not match its signed length and hash", entry.TargetPath), cause: err}
 		}
 		if _, err := cncfcheck.AdmitExternalProjectTarget(index, entry.Project, raw); err != nil {
+			if errors.Is(err, cncfcheck.ErrUnreadableTarget) {
+				return nil, unsupportedFailure(cncfMinOrEmpty(indexRaw), "target %s is not readable by this build", entry.TargetPath)
+			}
 			// The index was readable, so a project target it lists that fails
 			// admission (e.g. foreign records) is corruption, not a newer format.
 			return nil, &splitTargetError{reason: fmt.Sprintf("target %s semantic admission", entry.TargetPath), cause: err}

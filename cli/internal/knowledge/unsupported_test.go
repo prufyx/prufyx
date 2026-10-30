@@ -5,6 +5,7 @@ package knowledge
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -150,5 +151,44 @@ func TestExternalIndexMinClientIsLenient(t *testing.T) {
 		if v, ok := cncfcheck.ExternalIndexMinClient([]byte(raw)); ok || v != "" {
 			t.Fatalf("%q: got %q %t", raw, v, ok)
 		}
+	}
+}
+
+// A signed, hash-verified project target this build cannot parse (an unknown
+// field), listed by an index without minClientVersion, is unsupported: no
+// trust advance, the store stays READY.
+func TestUnsupportedProjectTargetDoesNotAdvanceTrust(t *testing.T) {
+	base := projectsTargets(t, "5", nil)
+	first, _ := firstProjects(base)
+	oldRaw := base[first]
+	newRaw := append(append([]byte(nil), oldRaw[:len(oldRaw)-1]...), []byte(`,"futureField":true}`)...)
+	oldFrag := fmt.Sprintf(`"length":%d,"digest":"%s"`, len(oldRaw), digestBytes(oldRaw))
+	newFrag := fmt.Sprintf(`"length":%d,"digest":"%s"`, len(newRaw), digestBytes(newRaw))
+	index := base[ConstraintsProjectsIndexTargetPath]
+	if !bytes.Contains(index, []byte(oldFrag)) {
+		t.Fatal("index entry fragment not found")
+	}
+	changed := map[string][]byte{}
+	for k, v := range base {
+		changed[k] = v
+	}
+	changed[first] = newRaw
+	changed[ConstraintsProjectsIndexTargetPath] = bytes.Replace(index, []byte(oldFrag), []byte(newFrag), 1)
+
+	f := newProjectsFixture(t)
+	good, err := f.importPackage(f.write(t, knowledgefixture.ProjectsPackage{Targets: base}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt, err := f.importPackage(f.write(t, knowledgefixture.ProjectsPackage{Targets: changed}))
+	if !errors.Is(err, ErrUnsupportedKnowledge) || errors.Is(err, ErrIntegrity) {
+		t.Fatalf("err=%v receipt=%+v", err, receipt)
+	}
+	if receipt.Status != "REJECTED" || receipt.TrustStateAdvanced || receipt.TrustStateDigest != good.TrustStateDigest {
+		t.Fatalf("receipt=%+v", receipt)
+	}
+	status, err := InspectConstraintsProjects(f.store)
+	if err != nil || status.State != "READY" || status.SelectedRevision != "5" {
+		t.Fatalf("status=%+v err=%v", status, err)
 	}
 }

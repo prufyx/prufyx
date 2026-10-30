@@ -350,6 +350,11 @@ func (r runtime) databaseUpdateWithFetches(ctx context.Context, args []string, f
 			// deleted here, because deleting a store resets its rollback floors.
 			output.ReasonCode = "KNOWLEDGE_TOO_NEW_FOR_THIS_CLIENT"
 			output.NextAction = "upgrade prufyx" + tooNewVersionHint(err) + "; the embedded knowledge and the current local database stay in use"
+			if autoPackage {
+				// Nothing advanced, so there is nothing to recover from the
+				// file; do not leave a package the next update would only reread.
+				retained, output.PackageRetained = false, false
+			}
 			return finish(ExitKnowledgeTooNew)
 		}
 		if autoPackage && errors.Is(err, knowledge.ErrPinnedRootMismatch) {

@@ -256,6 +256,10 @@ func (x ExternalIndex) Entry(project string) (ExternalIndexEntry, bool) {
 	return ExternalIndexEntry{}, false
 }
 
+// ErrUnreadableTarget reports a length- and digest-matching project target
+// whose envelope this build cannot parse. It is not an ErrIntegrity.
+var ErrUnreadableTarget = errors.New("CNCF check project target not readable by this build")
+
 // AdmitExternalProjectTarget admits one project target against its index
 // entry: exact length and digest, envelope revision and purpose, every rule
 // entry and every record owned by the project, whether the target is a
@@ -268,6 +272,12 @@ func AdmitExternalProjectTarget(index ExternalIndex, project string, raw []byte)
 	}
 	bundle, err := parseExternalBundle(raw, index.base)
 	if err != nil {
+		// A target the pinned root signed and the index lists, but this
+		// build cannot parse (unknown field, newer schema), is distinct from
+		// a mismatch: callers may treat it as "needs a newer prufyx".
+		if errors.Is(err, ErrInvalid) {
+			return ExternalBundle{}, ErrUnreadableTarget
+		}
 		return ExternalBundle{}, ErrIntegrity
 	}
 	admission, err := bundle.Admission()
