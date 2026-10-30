@@ -92,7 +92,7 @@ func TestKnowledgeAgeCheckCNCFEmbedded(t *testing.T) {
 			if code != ExitOK && code != ExitBlocked && code != ExitUnknown {
 				t.Errorf("%s %s: exit %d", now, format, code)
 			}
-			if strings.Contains(stdout, "knowledge rules") || strings.Contains(stdout, "db update") {
+			if strings.Contains(stdout, "knowledge rules") {
 				t.Errorf("%s %s: the note reached standard output", now, format)
 			}
 		}

@@ -259,11 +259,12 @@ const RequestCoverageURL = "https://github.com/prufyx/prufyx/issues/new?template
 // withdrawnAction is the next action of a rule whose evidence was withdrawn.
 const withdrawnAction = "this rule was withdrawn because its evidence could not be verified; use newer knowledge, or check this change by hand against its cited source"
 
-// staleAction is the next action of a rule whose review has expired. There is
-// no official knowledge feed yet, so it names what a user can do today.
+// staleAction is the next action of a rule whose review has expired. It names
+// `prufyx db update` and a build from newer source; it does not claim that
+// newer knowledge exists.
 func staleAction(validUntil string) string {
 	date, _, _ := strings.Cut(validUntil, "T")
-	return boundedAction(fmt.Sprintf("the review of this rule expired on %s; use newer knowledge (a newer source build, or a signed package you trust), or check this change by hand against its cited source", date),
+	return boundedAction(fmt.Sprintf("the review of this rule expired on %s; run `prufyx db update` to fetch newer knowledge, or build from newer source, or check this change by hand against its cited source", date),
 		"the review of this rule expired; use newer knowledge, or check this change by hand against its cited source")
 }
 
