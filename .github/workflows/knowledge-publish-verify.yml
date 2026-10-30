@@ -4,7 +4,8 @@
 # "Knowledge publish" did not keep the feed fresh. See
 # cli/docs/knowledge-publisher.md, "Publish self-check".
 #
-# Runs only on main and only when KNOWLEDGE_RELEASE_ENABLED is "true". The one
+# The job reads the publish workflow's runs (actions: read) and the full git
+# history of main (the merge time). Runs only on main and only when KNOWLEDGE_RELEASE_ENABLED is "true". The one
 # write is a single tracking issue (opened or commented on failure, closed on
 # recovery); nothing else is changed.
 
@@ -28,6 +29,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
+      actions: read
       contents: read
       issues: write
     steps:
@@ -35,6 +37,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
@@ -63,7 +66,7 @@ jobs:
             line="publish-verify: FAIL the pinned root file and the compiled-in pin differ"
             rc=1
           else
-            line="$(scripts/publish-verify.sh --bin "${RUNNER_TEMP}/bin/prufyx" --root "${root}" --root-digest "${digest}" --repo "${REPO}")"
+            line="$(scripts/publish-verify.sh --bin "${RUNNER_TEMP}/bin/prufyx" --root "${root}" --root-digest "${digest}" --repo "${REPO}" --git "${GITHUB_WORKSPACE}")"
             rc=$?
           fi
           echo "${line}"
@@ -89,7 +92,7 @@ jobs:
         run: |
           set -euo pipefail
           title="Knowledge publish self-check failed"
-          num="$(gh issue list --state open --limit 100 --json number,title \
+          num="$(gh issue list --state open --limit 100 --author "app/github-actions" --json number,title \
             --jq "[.[] | select(.title == \"${title}\")] | (first // empty) | .number")"
           if [ "${RC}" = 0 ]; then
             if [ -n "${num}" ]; then

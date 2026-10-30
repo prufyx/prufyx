@@ -14,7 +14,11 @@
 #   no successful Knowledge publish run on main / last one older than 8 days
 #   feed not newer than the newest cli/knowledge merge on main
 #
-# Usage: publish-verify.sh --bin PRUFYX --root FILE --root-digest sha256:HEX --repo OWNER/REPO [--feed URL]
+# Usage: publish-verify.sh --bin PRUFYX --root FILE --root-digest sha256:HEX --repo OWNER/REPO
+#                          --git DIR [--git-ref REF] [--feed URL]
+#   --git DIR is a checkout with full history (fetch-depth 0); the newest
+#   knowledge merge is the first-parent commit of REF (default origin/main)
+#   that touched cli/knowledge, i.e. the merge commit, not the branch commit.
 # Env:   GH_TOKEN (optional, raises the API rate limit; read-only use),
 #        PUBLISH_VERIFY_API (default https://api.github.com),
 #        PUBLISH_VERIFY_NOW (epoch seconds, tests only).
@@ -28,19 +32,21 @@ CAP_DAYS=14                # the publish workflow signs expiry = min(now + 14d, 
 FEED_DEFAULT="https://prufyx.github.io/prufyx/knowledge/cncf-projects.tar"
 MAX_BYTES=8388608
 
-bin="" root="" rdigest="" repo="" feed="${FEED_DEFAULT}"
+bin="" root="" rdigest="" repo="" gitdir="" gitref="origin/main" feed="${FEED_DEFAULT}"
 while [ $# -gt 0 ]; do
   case "$1" in
     --bin) bin="${2:-}"; shift 2 ;;
     --root) root="${2:-}"; shift 2 ;;
     --root-digest) rdigest="${2:-}"; shift 2 ;;
     --repo) repo="${2:-}"; shift 2 ;;
+    --git) gitdir="${2:-}"; shift 2 ;;
+    --git-ref) gitref="${2:-}"; shift 2 ;;
     --feed) feed="${2:-}"; shift 2 ;;
     *) echo "publish-verify: usage error: unknown argument" >&2; exit 2 ;;
   esac
 done
-if [ -z "${bin}" ] || [ -z "${root}" ] || [ -z "${rdigest}" ] || ! [[ "${repo}" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]]; then
-  echo "publish-verify: usage error: --bin, --root, --root-digest and --repo OWNER/REPO are required" >&2
+if [ -z "${bin}" ] || [ -z "${root}" ] || [ -z "${rdigest}" ] || [ -z "${gitdir}" ] || ! [[ "${repo}" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]]; then
+  echo "publish-verify: usage error: --bin, --root, --root-digest and --repo OWNER/REPO and --git are required" >&2
   exit 2
 fi
 if ! [[ "${feed}" =~ ^https://[A-Za-z0-9._~/-]+$ ]]; then
@@ -140,22 +146,19 @@ else
   fi
 fi
 
-# 5. The feed must be newer than the newest knowledge merge on main. A merge
-# younger than the grace window is still being published; a later successful
-# run that skipped the deploy (unchanged bundle) also accounts for the merge.
-commits="$(gh_get "commits?sha=main&path=cli/knowledge&per_page=1")" || commits=""
-if [ -z "${commits}" ]; then
-  fail "cannot read the newest knowledge merge on main"
-else
-  merge="$(jq -r '.[0].commit.committer.date // empty' <<< "${commits}")"
-  if [ -n "${merge}" ]; then
-    m_e="$(epoch "${merge}")" || m_e=""
-    if [ -z "${m_e}" ]; then
-      fail "newest knowledge merge has no readable time"
-    elif [ -n "${signed}" ] && [ "${signed}" -lt "${m_e}" ] && [ $((now - m_e)) -gt "${MERGE_GRACE_SECONDS}" ] \
-         && { [ -z "${rs_e:-}" ] || [ "${rs_e}" -lt "${m_e}" ]; }; then
-      fail "feed not newer than the newest knowledge merge on main (${merge}) and no later successful publish run"
-    fi
+# 5. The feed must be newer than the newest knowledge merge on main. The merge
+# time is the committer time of the first-parent commit of main that touched
+# cli/knowledge (the no-ff merge commit; the GitHub commits API would return
+# the older branch commit). A merge younger than the grace window is still
+# being published; a later successful run that skipped the deploy (unchanged
+# bundle) also accounts for the merge.
+m_e="$(git -C "${gitdir}" log --first-parent -1 --format=%ct "${gitref}" -- cli/knowledge 2>/dev/null)" || m_e="__err__"
+if [ "${m_e}" = "__err__" ] || { [ -n "${m_e}" ] && ! [[ "${m_e}" =~ ^[0-9]+$ ]]; }; then
+  fail "cannot read the newest knowledge merge on main from the checkout"
+elif [ -n "${m_e}" ]; then
+  if [ -n "${signed}" ] && [ "${signed}" -lt "${m_e}" ] && [ $((now - m_e)) -gt "${MERGE_GRACE_SECONDS}" ] \
+       && { [ -z "${rs_e:-}" ] || [ "${rs_e}" -lt "${m_e}" ]; }; then
+    fail "feed not newer than the newest knowledge merge on main ($(date -u -d "@${m_e}" +%Y-%m-%dT%H:%M:%SZ)) and no later successful publish run"
   fi
 fi
 

@@ -394,7 +394,8 @@ variable is set (nothing is checked when it is not).
 
 `.github/workflows/knowledge-publish-verify.yml` runs daily (and on dispatch)
 and needs no human and no secret: job permissions are `contents: read` and
-`issues: write`, the second only for one tracking issue. It runs only on `main`
+`issues: write`, the latter only for one tracking issue, and `actions: read` to
+list the publish runs. It runs only on `main`
 and only when `KNOWLEDGE_RELEASE_ENABLED` is `true`. It calls
 `scripts/publish-verify.sh`, which fetches the public feed
 (`https://prufyx.github.io/prufyx/knowledge/cncf-projects.tar`), verifies it
@@ -407,7 +408,9 @@ with `prufyx db verify` against the pinned root (the same trust as
   `Last-Modified` of the deploy is used);
 - the timestamp expires in less than 5 days;
 - the last successful `Knowledge publish` run on `main` is older than 8 days;
-- the feed is older than the newest merge touching `cli/knowledge` on `main`,
+- the feed is older than the newest merge touching `cli/knowledge` on `main`
+  (the first-parent merge commit in the full-history checkout, not the branch
+  commit the GitHub API lists),
   unless that merge is under 2 hours old or a later successful run (for
   example one that skipped an unchanged bundle) has accounted for it.
 

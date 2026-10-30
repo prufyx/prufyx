@@ -100,7 +100,7 @@ func TestPublishVerifyWorkflowIsHardened(t *testing.T) {
 		t.Fatalf("jobs = %d, want 1", len(wf.Jobs))
 	}
 	job := wf.Jobs["verify"]
-	if !samePermissions(job.Permissions, map[string]string{"contents": "read", "issues": "write"}) {
+	if !samePermissions(job.Permissions, map[string]string{"actions": "read", "contents": "read", "issues": "write"}) {
 		t.Errorf("permissions = %v", job.Permissions)
 	}
 	if job.Environment != nil {
@@ -123,6 +123,12 @@ func TestPublishVerifyWorkflowIsHardened(t *testing.T) {
 			if v, ok := st.With["persist-credentials"].(bool); !ok || v {
 				t.Error("checkout must set persist-credentials: false")
 			}
+			if v, ok := st.With["fetch-depth"].(int); !ok || v != 0 {
+				t.Error("checkout must set fetch-depth: 0 (the merge time comes from git history)")
+			}
+		}
+		if strings.Contains(st.Run, "gh issue list") && !strings.Contains(st.Run, `--author "app/github-actions"`) {
+			t.Error("the tracking issue must be looked up by its author")
 		}
 		if strings.HasPrefix(st.Uses, "actions/setup-go@") {
 			if v, ok := st.With["cache"].(bool); !ok || v {
@@ -153,18 +159,19 @@ func TestPublishVerifyScript(t *testing.T) {
 	day := 24 * time.Hour
 
 	type scenario struct {
-		name       string
-		signed     time.Time // feed signing time; expires = signed + 14d
-		evidence   time.Time // zero: signed + 60d
-		runStarted time.Time
-		noRun      bool
-		merge      time.Time
-		noMerge    bool
-		lastMod    time.Time
-		verifyFail bool
-		feedFail   bool
-		wantExit   int
-		wantIn     string
+		name         string
+		signed       time.Time // feed signing time; expires = signed + 14d
+		evidence     time.Time // zero: signed + 60d
+		runStarted   time.Time
+		noRun        bool
+		merge        time.Time // committer time of the no-ff merge commit on main
+		branchCommit time.Time // zero: 30 days before the merge (the commit the GitHub commits API would return)
+		noMerge      bool
+		lastMod      time.Time
+		verifyFail   bool
+		feedFail     bool
+		wantExit     int
+		wantIn       string
 	}
 	good := scenario{signed: now.Add(-1 * day), runStarted: now.Add(-1 * day), merge: now.Add(-3 * day), wantExit: 0, wantIn: "publish-verify: OK revision 7"}
 	with := func(name string, f func(*scenario), exit int, in string) scenario {
@@ -183,6 +190,12 @@ func TestPublishVerifyScript(t *testing.T) {
 		with("feed not newer than merge", func(s *scenario) {
 			s.signed = now.Add(-3 * day)
 			s.merge = now.Add(-1 * day)
+			s.runStarted = now.Add(-4 * day)
+		}, 1, "feed not newer than the newest knowledge merge"),
+		with("old branch commit, recent merge, stale feed", func(s *scenario) {
+			s.signed = now.Add(-3 * day)
+			s.merge = now.Add(-1 * day)
+			s.branchCommit = now.Add(-10 * day)
 			s.runStarted = now.Add(-4 * day)
 		}, 1, "feed not newer than the newest knowledge merge"),
 		with("merge inside grace", func(s *scenario) { s.merge = now.Add(-30 * time.Minute); s.runStarted = now.Add(-1 * day) }, 0, "publish-verify: OK"),
@@ -231,11 +244,7 @@ func TestPublishVerifyScript(t *testing.T) {
 				runs = fmt.Sprintf(`{"workflow_runs":[{"run_started_at":%q}]}`, ts(sc.runStarted))
 			}
 			write("runs.json", runs)
-			commits := `[]`
-			if !sc.noMerge {
-				commits = fmt.Sprintf(`[{"commit":{"committer":{"date":%q}}}]`, ts(sc.merge))
-			}
-			write("commits.json", commits)
+			repoDir := makeMergeRepo(t, filepath.Join(dir, "repo"), sc.merge, sc.branchCommit, sc.noMerge)
 			write("root.json", "{}")
 			if sc.feedFail {
 				write("feed_fail", "1")
@@ -256,7 +265,6 @@ while [ $# -gt 0 ]; do
 done
 case "${url}" in
   *knowledge-publish.yml/runs*) cat "$d/runs.json" ;;
-  */commits*) cat "$d/commits.json" ;;
   *)
     [ ! -e "$d/feed_fail" ] || exit 22
     cp "$d/headers" "${hdr}"; echo tar > "${out}" ;;
@@ -273,7 +281,7 @@ cat "$d/receipt.json"
 				}
 			}
 			cmd := exec.Command("bash", script, "--bin", filepath.Join(bin, "prufyx"), "--root", filepath.Join(dir, "root.json"),
-				"--root-digest", "sha256:"+strings.Repeat("0", 64), "--repo", "prufyx/prufyx")
+				"--root-digest", "sha256:"+strings.Repeat("0", 64), "--repo", "prufyx/prufyx", "--git", repoDir)
 			cmd.Env = append(os.Environ(), "PATH="+bin+":"+os.Getenv("PATH"), fmt.Sprintf("PUBLISH_VERIFY_NOW=%d", now.Unix()))
 			out, err := cmd.Output()
 			code := 0
@@ -288,4 +296,60 @@ cat "$d/receipt.json"
 			}
 		})
 	}
+}
+
+// makeMergeRepo builds a real repository: a feature branch commit touching
+// cli/knowledge (committed at branch) merged with --no-ff into main at
+// mergeAt. With noMerge the branch never
+// touches cli/knowledge. It sets refs/remotes/origin/main like a checkout.
+func makeMergeRepo(t *testing.T, dir string, mergeAt, branchAt time.Time, noMerge bool) string {
+	t.Helper()
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if branchAt.IsZero() {
+		branchAt = mergeAt.Add(-30 * 24 * time.Hour)
+	}
+	git := func(at time.Time, args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		stamp := at.Format(time.RFC3339)
+		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.invalid",
+			"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.invalid",
+			"GIT_AUTHOR_DATE="+stamp, "GIT_COMMITTER_DATE="+stamp,
+			"GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v: %s", args, err, out)
+		}
+	}
+	file := func(name string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(dir, name)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(name+branchAt.String()), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	long := mergeAt.Add(-60 * 24 * time.Hour)
+	git(long, "init", "-q", "-b", "main")
+	file("README")
+	git(long, "add", "-A")
+	git(long, "commit", "-q", "-m", "base")
+	git(branchAt, "checkout", "-q", "-b", "feature")
+	if noMerge {
+		file("other/x")
+	} else {
+		file("cli/knowledge/x")
+	}
+	git(branchAt, "add", "-A")
+	git(branchAt, "commit", "-q", "-m", "feature")
+	git(mergeAt, "checkout", "-q", "main")
+	git(mergeAt, "merge", "--no-ff", "-q", "-m", "Merge pull request", "feature")
+	git(mergeAt, "update-ref", "refs/remotes/origin/main", "HEAD")
+	return dir
 }
