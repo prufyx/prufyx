@@ -210,7 +210,7 @@ are created private to you (mode 0700), whatever your umask is.
 | nothing given, no default store (absent or empty directory) | embedded, evaluated at the current time | standard error |
 | nothing given, default store's signed metadata has expired | embedded, with a warning | standard error, `store-expired` in the scan report |
 | nothing given, default store signed by the pinned root but too new for this build, or left with a trust state this build cannot advance | embedded, with a warning | standard error, `store-too-new` or `store-trust-advanced` in the scan report |
-| nothing given, default store present but invalid, rolled back, not private, or rooted in a different trust root than the pin of this build | none: exit 3 | standard error |
+| nothing given, default store present but invalid, clock rolled back, not private, or rooted in a different trust root than the pin of this build | none: exit 3 | standard error |
 
 An invalid store is never silently replaced by the embedded knowledge, because that
 could hide tampering. The error says so and names the way
@@ -223,11 +223,15 @@ A store that the pinned root signed but this build cannot read is also not used:
 the embedded knowledge is used with the warning `the local database cannot be
 used: a newer prufyx is needed for this knowledge (min version X)` (the version
 is named when the knowledge states one) and `store-too-new` in the report.
-A store that an older prufyx left with a trust state this build cannot advance
-is not used either: the warning is `the local database cannot be advanced by
-this version of prufyx: upgrade prufyx, or remove <store directory> and run
-prufyx db update`, and the report says `store-trust-advanced`. Prufyx never
-removes the store itself, because that would reset its rollback protection. The
+A store whose trust state is ahead of or differs from its selection is not used
+either, and the report says `store-trust-advanced`. This is what a newer prufyx
+leaves behind, but a selection file restored to an older, validly signed copy
+looks the same, so the warning says so: "if you did not run another prufyx on
+this store, treat this as tampering". It names the way out (upgrade prufyx, or
+remove the store directory and run `prufyx db update`) and states that removing
+the store also resets its rollback protection, so do it only if you trust where
+the store came from. Prufyx never removes the store itself. A real clock rollback
+with a consistent selection is not this case and still exits 3. The
 exit code of the evaluation is unchanged. Integrity, rollback, wrong-root,
 layout, permission, no-selection and recovery failures still exit 3, and the
 pin is checked before any fallback, so a store of another trust root still

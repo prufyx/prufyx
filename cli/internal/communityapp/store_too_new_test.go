@@ -113,7 +113,7 @@ func TestAutoKnowledgeTrustAdvancedStoreFallsBackForCheckAndScan(t *testing.T) {
 	fixture := installDefaultStore(t)
 	_, nowOut, _ := runCNCFCLI(t, autoCheckArgs(t, "--format", "json", "--now", autoFixedNow)...)
 	advanceTrustBehindSelection(t, fixture)
-	want := "the local database cannot be advanced by this version of prufyx: upgrade prufyx, or remove " + fixture.root + " and run `prufyx db update`"
+	want := "the local database's trust state is ahead of or differs from its selection (written by a newer prufyx, or the selection was modified); if you did not run another prufyx on this store, treat this as tampering. To continue: upgrade prufyx, or remove " + fixture.root + " and run `prufyx db update` (removing the store also resets its rollback protection: only do it if you trust where the store came from)"
 
 	code, out, stderr := runCNCFCLI(t, autoCheckArgs(t, "--format", "json")...)
 	if code == ExitIntegrity || out != nowOut || !strings.Contains(stderr, "prufyx: warning: knowledge source: embedded, "+want) {

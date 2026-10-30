@@ -378,7 +378,7 @@ func FallbackWarning(reason, minVersion, storeDir string) string {
 		if storeDir != "" {
 			dir = storeDir
 		}
-		return "the local database cannot be advanced by this version of prufyx: upgrade prufyx, or remove " + dir + " and run `prufyx db update`"
+		return "the local database's trust state is ahead of or differs from its selection (written by a newer prufyx, or the selection was modified); if you did not run another prufyx on this store, treat this as tampering. To continue: upgrade prufyx, or remove " + dir + " and run `prufyx db update` (removing the store also resets its rollback protection: only do it if you trust where the store came from)"
 	}
 	return "the local database cannot be used; run `prufyx db update`"
 }

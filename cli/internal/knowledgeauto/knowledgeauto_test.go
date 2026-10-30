@@ -3,6 +3,7 @@
 package knowledgeauto
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -243,15 +244,51 @@ func TestFallbackWarning(t *testing.T) {
 	}
 }
 
-// The scan report schema lists every fallback reason.
+// The reason enum of the scan report schema lists every fallback reason.
 func TestFallbackReasonsAreInTheScanSchema(t *testing.T) {
 	raw, err := os.ReadFile(filepath.Join("..", "..", "docs", "generated", "schemas", "scan-report-v1alpha1.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, reason := range []string{ReasonStoreExpired, ReasonStoreTooNew, ReasonStoreTrustAdvanced} {
-		if !strings.Contains(string(raw), `"`+reason+`"`) {
-			t.Fatalf("%s missing from the schema", reason)
+	var doc any
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	var enum []string
+	// The knowledgeSelection object is the one whose "chosen" member exists.
+	var walk func(v any)
+	walk = func(v any) {
+		switch n := v.(type) {
+		case map[string]any:
+			if props, ok := n["properties"].(map[string]any); ok {
+				if _, chosen := props["chosen"]; chosen {
+					if reason, ok := props["reason"].(map[string]any); ok {
+						for _, e := range reason["enum"].([]any) {
+							enum = append(enum, e.(string))
+						}
+					}
+				}
+			}
+			for _, c := range n {
+				walk(c)
+			}
+		case []any:
+			for _, c := range n {
+				walk(c)
+			}
+		}
+	}
+	walk(doc)
+	if len(enum) == 0 {
+		t.Fatal("no knowledgeSelection reason enum in the schema")
+	}
+	for _, reason := range []string{ReasonStoreNewer, ReasonStoreCorrected, ReasonStoreOlder, ReasonIdentical, ReasonNoStore, ReasonForced, ReasonStoreExpired, ReasonStoreTooNew, ReasonStoreTrustAdvanced} {
+		found := false
+		for _, e := range enum {
+			found = found || e == reason
+		}
+		if !found {
+			t.Fatalf("%s missing from the reason enum %v", reason, enum)
 		}
 	}
 }
