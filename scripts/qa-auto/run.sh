@@ -26,7 +26,8 @@
 #   QA_NO_KIND=1      skip the kind probes
 #   QA_ALARM_HOOK     executable called with the alarm file path when an alarm is raised
 #   QA_PRE_BUILD      shell script run in the scratch checkout before the build (seeded-failure proofs only)
-# Exit: 0 green, 2 alarm, 3 inconclusive (infra errors), 75 busy/load, 1 setup failure.
+# Exit: 0 green, 2 alarm, 3 inconclusive (errors), 4 green-partial (a suite was skipped), 75 busy/load, 1 setup failure.
+# Ad-hoc runs (QA_PROJECTS, QA_SHA, QA_PRE_BUILD or QA_NO_KIND set) never update last_green/last_checked/last_full/status.json.
 set -uo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 : "${QA_REPO_URL:=https://github.com/prufyx/prufyx.git}"
@@ -39,6 +40,10 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 : "${QA_JOBS:=3}"
 export QA_DEVBOX QA_JOBS
 mkdir -p "$QA_STATE/results" "$QA_STATE/cache"
+# ad-hoc (parameterized) runs never move last_green/last_checked/last_full or the polled status.json:
+# a seeded-failure build or a one-project run must not become the baseline of later incremental runs.
+ADHOC=0; for v in QA_PROJECTS QA_SHA QA_PRE_BUILD QA_NO_KIND; do [ -n "${!v:-}" ] && ADHOC=1; done
+adhoc_flag=(); [ "$ADHOC" = 1 ] && adhoc_flag=(--adhoc)
 
 exec 9>"$QA_STATE/lock"
 flock -n 9 || { echo "qa-auto: another run holds the lock"; exit 75; }
@@ -89,8 +94,12 @@ echo "$sel" >"$OUT/select.json"
 if [ "$mode" = incremental ] && [ "$selmode" = none ]; then
   log "$s8: nothing relevant changed since ${lg:0:8}; recording green"
   python3 -c 'import json,sys;json.dump([],open(sys.argv[1],"w"))' "$OUT/none.cases.json"
-  python3 "$HERE/summarize.py" --dir "$OUT" --state "$QA_STATE" --sha "$sha" --mode none --note "no relevant change"
-  rc=$?; echo "$sha" >"$QA_STATE/last_checked"; [ $rc = 0 ] && echo "$sha" >"$QA_STATE/last_green"; exit $rc
+  python3 "$HERE/summarize.py" --dir "$OUT" --state "$QA_STATE" --sha "$sha" --mode none --note "no relevant change" "${adhoc_flag[@]}"
+  rc=$?
+  if [ "$ADHOC" = 0 ]; then
+    echo "$sha" >"$QA_STATE/last_checked"; [ $rc = 0 ] && echo "$sha" >"$QA_STATE/last_green"
+  fi
+  exit $rc
 fi
 
 # 2. build prufyx + helper in the devbox
@@ -98,14 +107,14 @@ mkdir -p "$RUN/src/cli/cmd/crdgvkqa" "$RUN/bin" "$RUN/tmp"
 cp "$HERE/crdgvk.go" "$RUN/src/cli/cmd/crdgvkqa/main.go"
 if [ -n "${QA_PRE_BUILD:-}" ]; then (cd "$RUN/src" && sh "$QA_PRE_BUILD") || { log "pre-build hook failed"; exit 1; }; fi
 log "$s8 mode=$mode build"
-"$QA_DEVBOX" -w "$RUN/src/cli" sh -c "GOFLAGS=-mod=vendor go build -o $RUN/bin/prufyx ./cmd/prufyx-community && GOFLAGS=-mod=vendor go build -o $RUN/bin/crdgvk ./cmd/crdgvkqa" </dev/null >"$RUN/build.log" 2>&1 \
+"$QA_DEVBOX" -w "$RUN/src/cli" sh -c 'GOFLAGS=-mod=vendor go build -o "$1/bin/prufyx" ./cmd/prufyx-community && GOFLAGS=-mod=vendor go build -o "$1/bin/crdgvk" ./cmd/crdgvkqa' _ "$RUN" </dev/null >"$RUN/build.log" 2>&1 \
   || { tail -20 "$RUN/build.log" >&2; log "build failed"; exit 1; }
 
 # 3. coverage report (pairs come from here; every pair is checked regardless of its status)
 export QA_NOW=${QA_NOW:-$(date -u -d '+1 day' +%Y-%m-%dT00:00:00Z)}
 L=$(ls "$RUN"/src/cli/internal/maintainer/coveragereport/testdata/lines-*.json 2>/dev/null | tail -1)
 export QA_COV=""
-if [ -n "$L" ] && "$QA_DEVBOX" -w "$RUN/src/cli" sh -c "GOFLAGS=-mod=vendor go run ./cmd/prufyx-maintainer coverage report --lines ${L#"$RUN/src/cli/"} --now $QA_NOW --window ALL --json-out $RUN/cov.json" </dev/null >"$RUN/cov.log" 2>&1; then
+if [ -n "$L" ] && "$QA_DEVBOX" -w "$RUN/src/cli" sh -c 'GOFLAGS=-mod=vendor go run ./cmd/prufyx-maintainer coverage report --lines "$1" --now "$2" --window ALL --json-out "$3"' _ "${L#"$RUN/src/cli/"}" "$QA_NOW" "$RUN/cov.json" </dev/null >"$RUN/cov.log" 2>&1; then
   QA_COV=$RUN/cov.json
 else
   log "coverage report failed; pairs derived from upstream tags"
@@ -117,45 +126,60 @@ cd "$HERE" || exit 1
 if [ "$mode" = full ]; then sel_args=(--all); else sel_args=(--projects "$projects"); fi
 python3 -X utf8 crd_oracle.py "${sel_args[@]}" --out "$OUT/crd.cases.json" >"$OUT/crd.log" 2>&1 || log "crd oracle crashed"
 python3 -X utf8 k8s_oracle.py --out "$OUT/k8s.cases.json" >"$OUT/k8s.log" 2>&1 || log "k8s oracle crashed"
-if [ "${QA_NO_KIND:-0}" != 1 ]; then
+skipped=()
+placeholder() { # FILE SUITE: error case so a crashed or empty suite can never be green
+  python3 -c 'import json,sys;json.dump([{"suite":sys.argv[2],"key":"suite-crashed","wrongpass":False,"mismatch":False,"error":True,"detail":{}}],open(sys.argv[1],"w"))' "$1" "$2"
+}
+if [ "${QA_NO_KIND:-0}" = 1 ]; then
+  skipped+=(kind)
+else
   nk=$("$QA_DEVBOX" kind get clusters </dev/null 2>/dev/null | grep -c '^qa-' || true)
   load=$(cut -d' ' -f1 /proc/loadavg)
   if [ "${nk:-0}" -lt 3 ] && awk -v l="$load" -v m="$QA_MAXLOAD" 'BEGIN{exit !(l<m)}'; then
     python3 -X utf8 kind_probe.py --sha8 "$s8" --crd-cases "$OUT/crd.cases.json" --out "$OUT/kind.cases.json" >"$OUT/kind.log" 2>&1 || log "kind probe crashed"
   else
     log "kind probes skipped (qa clusters=$nk load=$load)"
+    skipped+=(kind)
   fi
 fi
+[ "${QA_NO_KIND:-0}" = 1 ] || [[ " ${skipped[*]:-} " == *" kind "* ]] || [ -s "$OUT/kind.cases.json" ] || placeholder "$OUT/kind.cases.json" kind
 # a crashed suite leaves no cases file: that is an error case, never a silent green
 for s in crd k8s; do
-  [ -s "$OUT/$s.cases.json" ] || python3 -c 'import json,sys;json.dump([{"suite":sys.argv[2],"key":"suite-crashed","wrongpass":False,"mismatch":False,"error":True,"detail":{}}],open(sys.argv[1],"w"))' "$OUT/$s.cases.json" "$s"
+  [ -s "$OUT/$s.cases.json" ] || placeholder "$OUT/$s.cases.json" "$s"
 done
 
 # 4b. buildpacks #325 end-to-end (11 cases, seconds)
 python3 -X utf8 bp325.py "$QA_BIN" "$RUN/tmp/bp325" --cases "$OUT/bp325.cases.json" >"$OUT/bp325.log" 2>&1 || log "bp325 crashed"
-[ -s "$OUT/bp325.cases.json" ] || python3 -c 'import json,sys;json.dump([{"suite":"bp325","key":"suite-crashed","wrongpass":False,"mismatch":False,"error":True,"detail":{}}],open(sys.argv[1],"w"))' "$OUT/bp325.cases.json"
+[ -s "$OUT/bp325.cases.json" ] || placeholder "$OUT/bp325.cases.json" bp325
 
-# 4c. db suite (slow, ~40 min in the vkr-slot queue): only for db/knowledge diffs, QA_DB=1 (nightly), never in the fast path.
-# QA_DB_SUITE = path to the db suite run.sh (internal, not in this repo). Run under a slot already held by this script's caller:
-# set VKR_SLOT_HELD=1 in the service so the suite does not queue a second slot.
+# 4c. db suite (slow, tens of minutes when the host runs a job queue): only for db/knowledge diffs or QA_DB=1 (nightly),
+# never in the fast path. QA_DB_SUITE = path to the db suite run.sh, supplied by the operator. If the caller already holds a
+# job slot, export VKR_SLOT_HELD=1 so the suite does not queue for a second one.
 dbsel=$(python3 -c 'import json,sys;print(int(bool(json.loads(sys.argv[1]).get("db"))))' "$sel")
 if [ -n "${QA_DB_SUITE:-}" ] && [ -x "$QA_DB_SUITE" ] && { [ "${QA_DB:-0}" = 1 ] || [ "$dbsel" = 1 ]; }; then
   log "db suite"
   "$QA_DB_SUITE" "$sha" "$OUT/db" >"$OUT/db.log" 2>&1 || true
   python3 "$HERE/db_check.py" --json "$OUT/db/dbqa.json" --allow "$QA_STATE/db-allow.json" --out "$OUT/db.cases.json" >>"$OUT/db.log" 2>&1
+  [ -s "$OUT/db.cases.json" ] || placeholder "$OUT/db.cases.json" db
 fi
+printf '%s\n' "${skipped[@]:-}" | python3 -c 'import json,sys;json.dump([l.strip() for l in sys.stdin if l.strip()],open(sys.argv[1],"w"))' "$OUT/skipped.json"
 
 # 5. verdict, state, alarm
-python3 "$HERE/summarize.py" --dir "$OUT" --state "$QA_STATE" --sha "$sha" --mode "$mode" --note "$(( $(date +%s) - t0 ))s"
+python3 "$HERE/summarize.py" --dir "$OUT" --state "$QA_STATE" --sha "$sha" --mode "$mode" --note "$(( $(date +%s) - t0 ))s" "${adhoc_flag[@]}"
 rc=$?
-echo "$sha" >"$QA_STATE/last_checked"
-if [ $rc = 0 ]; then
-  echo "$sha" >"$QA_STATE/last_green"
-  [ "$mode" = full ] && date +%s >"$QA_STATE/last_full"
+if [ "$ADHOC" = 0 ]; then
+  # retry (poll again) after setup/inconclusive runs: last_checked only for green, alarm and partial
+  case $rc in 0|2|4) echo "$sha" >"$QA_STATE/last_checked";; esac
+  if [ $rc = 0 ]; then
+    echo "$sha" >"$QA_STATE/last_green"
+    [ "$mode" = full ] && date +%s >"$QA_STATE/last_full"
+  fi
 fi
 if [ $rc = 2 ]; then
   log "ALARM: $QA_STATE/alarms/$s8.alarm.json"
-  [ -n "${QA_ALARM_HOOK:-}" ] && [ -x "$QA_ALARM_HOOK" ] && "$QA_ALARM_HOOK" "$QA_STATE/alarms/$s8.alarm.json" || true
+  if [ -n "${QA_ALARM_HOOK:-}" ] && [ -x "$QA_ALARM_HOOK" ]; then
+    "$QA_ALARM_HOOK" "$QA_STATE/alarms/$s8.alarm.json" || log "alarm hook failed with exit $?"
+  fi
 fi
 ls -1dt "$QA_STATE"/results/*/ 2>/dev/null | tail -n +21 | xargs -r rm -rf
 exit $rc

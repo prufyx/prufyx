@@ -48,7 +48,9 @@ def run(proj, cov):
         if r.returncode:
             shutil.rmtree(gd, ignore_errors=True)
             return [case(S, proj, error=True, why="clone: " + r.stderr[:200])]
-    sh("git", "-C", gd, "fetch", "-q", "--tags", "--force")
+    r = sh("git", "-C", gd, "fetch", "-q", "--tags", "--force")
+    if r.returncode:
+        return [case(S, proj, error=True, why="fetch tags: " + r.stderr[:200])]
     pref = tj["tagPrefixes"][0]
     tags = sh("git", "-C", gd, "tag", "-l").stdout.split()
     lines = {}
