@@ -44,6 +44,7 @@ stays a valid entry: a person reads every one.
    [upstream contributions](../cli/docs/upstream-contributions.md):
 
    ```sh
+   cd cli
    go run ./cmd/prufyx-maintainer contribution validate \
      --packet PATH_TO_PACKET.json
    ```
