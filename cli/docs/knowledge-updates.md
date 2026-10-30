@@ -214,7 +214,9 @@ any store the normal verification accepts is used.
 
 The newer knowledge wins: the latest evidence review date in each pack is compared;
 on a tie the embedded knowledge is used (identical content) unless the store differs,
-which is a correction. The line on standard error names both dates and which one was
+which is a correction (`store-corrected`). A store is used only when no compared project
+has older evidence in it than in the embedded knowledge; the line for an older store
+names that project. The line on standard error names both dates and which one was
 used. The store is fully verified before this comparison, so a verified store is
 never used or rejected on its date alone. A correction that only removes a rule and
 keeps the review date is indistinguishable from an older store; a rule removal
@@ -224,7 +226,7 @@ embedded knowledge only (such as the Argo CD ConfigMap and custom-resource modes
 need `--now`. The source line is not part of the `check cncf` JSON report; the report's own origin,
 revision and digest fields already state the source. Human output adds a
 `knowledge source:` line. The `scan` JSON report carries `knowledgeSelection` with
-`chosen`, `reason` (`store-newer`, `store-older`, `identical`, `no-store`, `forced`,
+`chosen`, `reason` (`store-newer`, `store-corrected`, `store-older`, `identical`, `no-store`, `forced`,
 `store-expired`) and, when compared, `embeddedEvidenceAt` and `storeEvidenceAt`.
 
 ## Use the database with `prufyx scan`

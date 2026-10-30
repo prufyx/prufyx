@@ -253,12 +253,15 @@ func StalenessNote(verifiedAt, evidenceExpiresAt string) string {
 
 // Reasons of a knowledge selection, as stated in a report.
 const (
-	ReasonStoreNewer   = "store-newer"
-	ReasonStoreOlder   = "store-older"
-	ReasonIdentical    = "identical"
-	ReasonNoStore      = "no-store"
-	ReasonForced       = "forced"
-	ReasonStoreExpired = "store-expired"
+	ReasonStoreNewer = "store-newer"
+	// ReasonStoreCorrected is a store with the same evidence date as the
+	// embedded knowledge but different content.
+	ReasonStoreCorrected = "store-corrected"
+	ReasonStoreOlder     = "store-older"
+	ReasonIdentical      = "identical"
+	ReasonNoStore        = "no-store"
+	ReasonForced         = "forced"
+	ReasonStoreExpired   = "store-expired"
 )
 
 // Selection is the outcome of choosing between a verified store and the
@@ -268,15 +271,22 @@ type Selection struct {
 	Reason     string
 	StoreAt    time.Time
 	EmbeddedAt time.Time
+	// StaleProject is the project whose store evidence is older than the
+	// embedded one; it makes the embedded knowledge win whatever the others say.
+	StaleProject string
 }
 
-// Choose picks the newer knowledge by its latest evidence review date. On an
-// equal date the embedded knowledge is used when the store's content is
-// identical, otherwise the store (the same date with different content is a
-// later correction).
-func Choose(storeAt, embeddedAt time.Time, identical bool) Selection {
-	s := Selection{StoreAt: storeAt, EmbeddedAt: embeddedAt}
+// Choose picks the newer knowledge by its latest evidence review date. The
+// store is used only when no compared project has older evidence in it than in
+// the embedded knowledge (staleProject names the first that has; storeAt and
+// embeddedAt are then that project's dates). On an equal date the embedded
+// knowledge is used when the store's content is identical, otherwise the
+// store (the same date with different content is a later correction).
+func Choose(storeAt, embeddedAt time.Time, identical bool, staleProject string) Selection {
+	s := Selection{StoreAt: storeAt, EmbeddedAt: embeddedAt, StaleProject: staleProject}
 	switch {
+	case staleProject != "":
+		s.Chosen, s.Reason = SourceEmbedded, ReasonStoreOlder
 	case storeAt.After(embeddedAt):
 		s.Chosen, s.Reason = SourceLocalDB, ReasonStoreNewer
 	case storeAt.Before(embeddedAt):
@@ -284,7 +294,7 @@ func Choose(storeAt, embeddedAt time.Time, identical bool) Selection {
 	case identical:
 		s.Chosen, s.Reason = SourceEmbedded, ReasonIdentical
 	default:
-		s.Chosen, s.Reason = SourceLocalDB, ReasonStoreNewer
+		s.Chosen, s.Reason = SourceLocalDB, ReasonStoreCorrected
 	}
 	return s
 }
@@ -307,7 +317,11 @@ func (s Selection) EmbeddedWhy() string {
 	if s.Reason == ReasonIdentical {
 		return "local database identical to embedded (evidence " + day(s.StoreAt) + "); embedded used"
 	}
-	return "local database is older (evidence " + day(s.StoreAt) + " vs " + day(s.EmbeddedAt) + "); run `prufyx db update`"
+	project := ""
+	if s.StaleProject != "" {
+		project = " for " + s.StaleProject
+	}
+	return "local database is older" + project + " (evidence " + day(s.StoreAt) + " vs " + day(s.EmbeddedAt) + "); run `prufyx db update`"
 }
 
 // ExpiredWhy is the reason text of the embedded fallback for an expired store.
@@ -334,5 +348,9 @@ func FallbackReason(err error) (reason string, ok bool) {
 // FallbackWhy is the warning text of the embedded fallback for a reason that
 // FallbackReason returned.
 func FallbackWhy(reason string) string {
-	return ExpiredWhy
+	switch reason {
+	case ReasonStoreExpired:
+		return ExpiredWhy
+	}
+	return "the local database cannot be used; run `prufyx db update`"
 }

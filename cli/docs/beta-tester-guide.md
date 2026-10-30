@@ -191,7 +191,8 @@ expired rule, a missing declaration. Read the reason lines. Full tables:
 - Offline behaviour: checks never touch the network. With no store they use the
   embedded knowledge. If a default local store exists, the newer knowledge wins:
   the latest evidence review date of the store and of the embedded knowledge are
-  compared, and standard error names both dates and the one used. If the store's
+  compared per project and standard error names both dates and the one used; a
+  store that is older for any asked project is not used. If the store's
   signed metadata has expired, the embedded knowledge is used with a warning
   (run `db update`). If the store is invalid, rolled back or not private, the
   command stops with exit `3` and does not fall back silently; repair it with

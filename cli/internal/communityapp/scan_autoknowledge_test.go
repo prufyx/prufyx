@@ -3,12 +3,15 @@
 package communityapp
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 	"github.com/prufyx/prufyx/cli/internal/scanrun"
 )
@@ -52,6 +55,31 @@ func TestScanAutoKnowledge(t *testing.T) {
 		report.Provenance.KnowledgeSelection.Reason != "store-older" || report.Provenance.KnowledgeSelection.StoreEvidenceAt != "2026-10-17T00:00:00Z" ||
 		!strings.Contains(stderr, "local database is older (evidence 2026-10-17 vs 2026-10-29)") {
 		t.Fatalf("older: %v %q\n%s", err, stderr, stdout)
+	}
+
+	// The older store's report is the embedded report except for the stated
+	// selection: the replay form is unchanged.
+	_, olderOut, _ := runScan(t, args...)
+	_, nowOut, _ := runScan(t, append(append([]string{}, args...), "--now", time.Now().UTC().Truncate(time.Second).Format(time.RFC3339))...)
+	if stripSelection(t, olderOut) != stripSelection(t, nowOut) {
+		t.Fatalf("older store differs from embedded:\n%s\n%s", olderOut, nowOut)
+	}
+
+	// Newer on one project, older on another: embedded, the project is named.
+	forceStale(t, "2026-10-17T00:00:00Z", "2026-10-29T00:00:00Z", "argo-cd")
+	_, stdout, stderr = runScan(t, args...)
+	report, err = scanreport.DecodeJSON([]byte(stdout))
+	if err != nil || report.Provenance.KnowledgeOrigin == "external_signed_local" || report.Provenance.KnowledgeSelection == nil ||
+		report.Provenance.KnowledgeSelection.Reason != "store-older" || !strings.Contains(stderr, "local database is older for argo-cd (evidence 2026-10-17 vs 2026-10-29)") {
+		t.Fatalf("stale project: %v %q\n%s", err, stderr, stdout)
+	}
+
+	// Same date, different content: store-corrected.
+	forceComparison(t, "2026-10-29T00:00:00Z", "2026-10-29T00:00:00Z", false)
+	_, stdout, _ = runScan(t, args...)
+	report, err = scanreport.DecodeJSON([]byte(stdout))
+	if err != nil || report.Provenance.KnowledgeOrigin != "external_signed_local" || report.Provenance.KnowledgeSelection == nil || report.Provenance.KnowledgeSelection.Reason != "store-corrected" {
+		t.Fatalf("corrected: %v\n%s", err, stdout)
 	}
 
 	// Newer store: used.
@@ -132,4 +160,53 @@ func TestScanAutoKnowledgeExpiredStore(t *testing.T) {
 	if code, stdout, _ := runScan(t, args...); code != ExitIntegrity || stdout != "" {
 		t.Fatalf("expired, root unreadable: %d", code)
 	}
+}
+
+// stripSelection removes the stated knowledge selection from a JSON report.
+func stripSelection(t *testing.T, raw string) string {
+	t.Helper()
+	var doc map[string]any
+	if err := json.Unmarshal([]byte(raw), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if prov, ok := doc["provenance"].(map[string]any); ok {
+		delete(prov, "knowledgeSelection")
+	}
+	out, err := json.Marshal(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(out)
+}
+
+// TestScanAutoKnowledgeFallbackFailuresStayRefused: a rollback and a failed
+// comparison exit 3 with no report; only an expired store falls back.
+func TestScanAutoKnowledgeFallbackFailuresStayRefused(t *testing.T) {
+	useDefaultStoreHome(t)
+	installDefaultStore(t)
+	input := filepath.Join(t.TempDir(), "applyset.yaml")
+	if err := os.WriteFile(input, []byte(scanCronJob), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	args := []string{input, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3", "--distribution", "official_upstream", "--resource-scope-complete", "--target-api-apply-required", "--format", "json"}
+	t.Run("rollback", func(t *testing.T) {
+		old := scanOpenStore
+		scanOpenStore = func(string, []string) (*scanrun.Store, error) {
+			return nil, &scanrun.StoreError{Reason: scanreport.KnowledgeDBRollback}
+		}
+		t.Cleanup(func() { scanOpenStore = old })
+		if code, stdout, stderr := runScan(t, args...); code != ExitIntegrity || stdout != "" || !strings.Contains(stderr, "rollback") {
+			t.Fatalf("rollback: %d %q %q", code, stdout, stderr)
+		}
+	})
+	t.Run("comparison fails", func(t *testing.T) {
+		old := scanCompareEmbedded
+		scanCompareEmbedded = func(map[string]cncfcheck.ExternalBundle) (cncfcheck.EmbeddedComparison, error) {
+			return cncfcheck.EmbeddedComparison{}, errors.New("compare")
+		}
+		t.Cleanup(func() { scanCompareEmbedded = old })
+		if code, stdout, stderr := runScan(t, args...); code != ExitIntegrity || stdout != "" || !strings.Contains(stderr, "KNOWLEDGE INTEGRITY FAILURE") {
+			t.Fatalf("compare: %d %q %q", code, stdout, stderr)
+		}
+	})
 }

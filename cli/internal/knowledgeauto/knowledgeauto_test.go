@@ -171,17 +171,33 @@ func TestChoose(t *testing.T) {
 	for _, c := range []struct {
 		store, embedded string
 		identical       bool
+		stale           string
 		chosen, reason  string
 	}{
-		{"2026-11-05T00:00:00Z", "2026-10-29T00:00:00Z", false, SourceLocalDB, ReasonStoreNewer},
-		{"2026-10-17T00:00:00Z", "2026-10-29T00:00:00Z", false, SourceEmbedded, ReasonStoreOlder},
-		{"2026-10-29T00:00:00Z", "2026-10-29T00:00:00Z", true, SourceEmbedded, ReasonIdentical},
-		{"2026-10-29T00:00:00Z", "2026-10-29T00:00:00Z", false, SourceLocalDB, ReasonStoreNewer},
+		{"2026-11-05T00:00:00Z", "2026-10-29T00:00:00Z", false, "", SourceLocalDB, ReasonStoreNewer},
+		{"2026-10-17T00:00:00Z", "2026-10-29T00:00:00Z", false, "", SourceEmbedded, ReasonStoreOlder},
+		{"2026-10-29T00:00:00Z", "2026-10-29T00:00:00Z", true, "", SourceEmbedded, ReasonIdentical},
+		{"2026-10-29T00:00:00Z", "2026-10-29T00:00:00Z", false, "", SourceLocalDB, ReasonStoreCorrected},
+		// Newer overall but older for one project: embedded.
+		{"2026-10-17T00:00:00Z", "2026-10-29T00:00:00Z", false, "argo-cd", SourceEmbedded, ReasonStoreOlder},
 	} {
-		got := Choose(d(c.store), d(c.embedded), c.identical)
+		got := Choose(d(c.store), d(c.embedded), c.identical, c.stale)
 		if got.Chosen != c.chosen || got.Reason != c.reason {
 			t.Fatalf("%+v: %+v", c, got)
 		}
+	}
+}
+
+func TestFallbackWhy(t *testing.T) {
+	if got := FallbackWhy(ReasonStoreExpired); got != ExpiredWhy {
+		t.Fatalf("expired: %q", got)
+	}
+	if got := FallbackWhy("other"); got == ExpiredWhy || got == "" {
+		t.Fatalf("unknown reason got the expiry text: %q", got)
+	}
+	why := Choose(time.Unix(1, 0), time.Unix(2, 0), false, "argo-cd").EmbeddedWhy()
+	if !strings.Contains(why, "argo-cd") {
+		t.Fatalf("stale project not named: %q", why)
 	}
 }
 

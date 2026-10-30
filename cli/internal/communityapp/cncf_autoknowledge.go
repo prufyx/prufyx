@@ -117,7 +117,7 @@ func (r *runtime) resolveCNCFKnowledge(args []string, mode, project string, know
 	if err != nil {
 		return r.fail((&knowledgeauto.Refused{Reason: "verification failed"}).Error(), ExitIntegrity), true
 	}
-	choice := knowledgeauto.Choose(cmp.StoreEvidenceAt, cmp.EmbeddedEvidenceAt, cmp.Identical)
+	choice := knowledgeauto.Choose(cmp.StoreEvidenceAt, cmp.EmbeddedEvidenceAt, cmp.Identical, cmp.StaleProject)
 	if !choice.UseStore() {
 		embedded(choice.EmbeddedWhy())
 		return 0, false

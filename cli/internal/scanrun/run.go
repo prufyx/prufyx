@@ -241,7 +241,7 @@ func Run(request Request, options Options) (Result, error) {
 			if cerr != nil {
 				return &StoreError{Reason: scanreport.KnowledgeDBIntegrity, Auto: true}
 			}
-			choice := knowledgeauto.Choose(cmp.StoreEvidenceAt, cmp.EmbeddedEvidenceAt, cmp.Identical)
+			choice := knowledgeauto.Choose(cmp.StoreEvidenceAt, cmp.EmbeddedEvidenceAt, cmp.Identical, cmp.StaleProject)
 			sel := &scanreport.KnowledgeSelection{Chosen: choice.Chosen, Reason: choice.Reason, EmbeddedEvidenceAt: cmp.EmbeddedEvidenceAt.UTC().Format(time.RFC3339), StoreEvidenceAt: cmp.StoreEvidenceAt.UTC().Format(time.RFC3339)}
 			if !choice.UseStore() {
 				return useEmbedded("knowledge source: embedded, "+choice.EmbeddedWhy(), sel)

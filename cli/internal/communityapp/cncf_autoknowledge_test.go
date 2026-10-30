@@ -89,6 +89,24 @@ func forceComparison(t *testing.T, storeAt, embeddedAt string, identical bool) {
 	t.Cleanup(func() { autoCompare, scanCompareEmbedded = oldCheck, oldScan })
 }
 
+// forceStale fixes a comparison in which the store is older for one project.
+func forceStale(t *testing.T, storeAt, embeddedAt, project string) {
+	t.Helper()
+	forceComparison(t, storeAt, embeddedAt, false)
+	oldCheck, oldScan := autoCompare, scanCompareEmbedded
+	autoCompare = func(knowledge.VerifiedRevision, []string) (cncfcheck.EmbeddedComparison, error) {
+		cmp, err := oldCheck(knowledge.VerifiedRevision{}, nil)
+		cmp.StaleProject = project
+		return cmp, err
+	}
+	scanCompareEmbedded = func(b map[string]cncfcheck.ExternalBundle) (cncfcheck.EmbeddedComparison, error) {
+		cmp, err := oldScan(b)
+		cmp.StaleProject = project
+		return cmp, err
+	}
+	t.Cleanup(func() { autoCompare, scanCompareEmbedded = oldCheck, oldScan })
+}
+
 func autoCheckArgs(t *testing.T, extra ...string) []string {
 	t.Helper()
 	input := writeCNCFFile(t, "input.json", []byte(kyvernoInputFalse), 0o600)
@@ -303,6 +321,15 @@ func TestAutoKnowledgeNewerWins(t *testing.T) {
 		t.Fatalf("older: %d %q\n%s", code, stderr, out)
 	}
 
+	// Newer on one asked project but older on another: embedded, the stale
+	// project is named (the dates are that project's).
+	forceStale(t, "2026-10-17T00:00:00Z", "2026-10-29T00:00:00Z", "argo-cd")
+	code, out, stderr = runCNCFCLI(t, autoCheckArgs(t, "--format", "json")...)
+	if code == ExitIntegrity || out != nowOut ||
+		!strings.Contains(stderr, "knowledge source: embedded, local database is older for argo-cd (evidence 2026-10-17 vs 2026-10-29)") {
+		t.Fatalf("stale project: %d %q\n%s", code, stderr, out)
+	}
+
 	// Same date, different content: a correction, the store is used.
 	forceComparison(t, "2026-10-29T00:00:00Z", "2026-10-29T00:00:00Z", false)
 	_, out, stderr = runCNCFCLI(t, autoCheckArgs(t, "--format", "json")...)
@@ -327,4 +354,56 @@ func TestAutoKnowledgeExpiredStoreFallsBackToEmbedded(t *testing.T) {
 	if out != nowOut || code == ExitIntegrity || !strings.Contains(stderr, "prufyx: warning: knowledge source: embedded, the local database's signed metadata has expired; run `prufyx db update`") {
 		t.Fatalf("expired: %d %q\n%s", code, stderr, out)
 	}
+}
+
+// TestAutoKnowledgeFallbackFailuresStayRefused: only an expired store falls
+// back; an expired store of another root, a rollback, a failed root read (for
+// instance a concurrent `db update` holding the lock) and a failed comparison
+// all exit 3 with a clean message and no report.
+func TestAutoKnowledgeFallbackFailuresStayRefused(t *testing.T) {
+	refused := func(t *testing.T, want string) {
+		t.Helper()
+		for _, format := range []string{"human", "json"} {
+			code, stdout, stderr := runCNCFCLI(t, autoCheckArgs(t, "--format", format)...)
+			if code != ExitIntegrity || stdout != "" || !strings.Contains(stderr, "KNOWLEDGE INTEGRITY FAILURE") || !strings.Contains(stderr, want) || strings.Contains(stderr, "goroutine") {
+				t.Fatalf("%s: %d %q %q", format, code, stdout, stderr)
+			}
+		}
+	}
+	t.Run("expired and pin mismatch", func(t *testing.T) {
+		useDefaultStoreHome(t)
+		installDefaultStore(t)
+		pinProjects(t, "sha256:"+strings.Repeat("ab", 32))
+		forceExpired(t)
+		refused(t, "pinned in this build")
+	})
+	t.Run("rollback", func(t *testing.T) {
+		useDefaultStoreHome(t)
+		installDefaultStore(t)
+		old := autoOpenStore
+		autoOpenStore = func(knowledge.SelectionRequest, []string) (knowledge.VerifiedRevision, error) {
+			return knowledge.VerifiedRevision{}, knowledge.ErrRollback
+		}
+		t.Cleanup(func() { autoOpenStore = old })
+		refused(t, "rollback")
+	})
+	t.Run("expired root unreadable or locked", func(t *testing.T) {
+		useDefaultStoreHome(t)
+		installDefaultStore(t)
+		forceExpired(t)
+		old := autoExpiredRoot
+		autoExpiredRoot = func(string) (string, error) { return "", errors.New("lock timeout") }
+		t.Cleanup(func() { autoExpiredRoot = old })
+		refused(t, "verification failed")
+	})
+	t.Run("comparison fails", func(t *testing.T) {
+		useDefaultStoreHome(t)
+		installDefaultStore(t)
+		old := autoCompare
+		autoCompare = func(knowledge.VerifiedRevision, []string) (cncfcheck.EmbeddedComparison, error) {
+			return cncfcheck.EmbeddedComparison{}, errors.New("compare")
+		}
+		t.Cleanup(func() { autoCompare = old })
+		refused(t, "verification failed")
+	})
 }

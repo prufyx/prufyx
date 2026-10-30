@@ -4,6 +4,7 @@ package cncfcheck
 
 import (
 	"encoding/json"
+	"sort"
 	"time"
 )
 
@@ -51,6 +52,11 @@ type EmbeddedComparison struct {
 	// the compared projects' rules on each side.
 	StoreEvidenceAt    time.Time
 	EmbeddedEvidenceAt time.Time
+	// StaleProject names the first compared project (in name order) whose
+	// store evidence is older than its embedded evidence; empty when there is
+	// none. When it is set the two dates above are that project's, so a
+	// message can state the dates of the project that decides the choice.
+	StaleProject string
 	// Identical is true when every compared project has the same rules and
 	// records on both sides (the revision label is not part of it).
 	Identical bool
@@ -74,7 +80,14 @@ func CompareWithEmbedded(store map[string]ExternalBundle) (EmbeddedComparison, e
 		byProject[entry.Project] = append(byProject[entry.Project], entry)
 	}
 	out := EmbeddedComparison{Identical: true}
-	for project, bundle := range store {
+	projects := make([]string, 0, len(store))
+	for project := range store {
+		projects = append(projects, project)
+	}
+	sort.Strings(projects)
+	var staleStoreAt, staleEmbeddedAt time.Time
+	for _, project := range projects {
+		bundle := store[project]
 		if !bundle.valid() {
 			return EmbeddedComparison{}, ErrIntegrity
 		}
@@ -86,15 +99,22 @@ func CompareWithEmbedded(store map[string]ExternalBundle) (EmbeddedComparison, e
 		if err != nil {
 			return EmbeddedComparison{}, err
 		}
-		if at := embedded.EvidenceHighWater(); at.After(out.EmbeddedEvidenceAt) {
-			out.EmbeddedEvidenceAt = at
+		embeddedAt, storeAt := embedded.EvidenceHighWater(), bundle.EvidenceHighWater()
+		if embeddedAt.After(out.EmbeddedEvidenceAt) {
+			out.EmbeddedEvidenceAt = embeddedAt
 		}
-		if at := bundle.EvidenceHighWater(); at.After(out.StoreEvidenceAt) {
-			out.StoreEvidenceAt = at
+		if storeAt.After(out.StoreEvidenceAt) {
+			out.StoreEvidenceAt = storeAt
+		}
+		if storeAt.Before(embeddedAt) && out.StaleProject == "" {
+			out.StaleProject, staleStoreAt, staleEmbeddedAt = project, storeAt, embeddedAt
 		}
 		if embedded.contentDigest() != bundle.contentDigest() {
 			out.Identical = false
 		}
+	}
+	if out.StaleProject != "" {
+		out.StoreEvidenceAt, out.EmbeddedEvidenceAt = staleStoreAt, staleEmbeddedAt
 	}
 	return out, nil
 }

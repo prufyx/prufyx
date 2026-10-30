@@ -1199,6 +1199,7 @@
           "type": "string",
           "enum": [
             "store-newer",
+            "store-corrected",
             "store-older",
             "identical",
             "no-store",
