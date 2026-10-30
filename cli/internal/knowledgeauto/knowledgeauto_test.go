@@ -4,10 +4,12 @@ package knowledgeauto
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
 )
@@ -151,9 +153,48 @@ func TestLocateNeverCommittedStoreIsAbsent(t *testing.T) {
 
 func TestStalenessNote(t *testing.T) {
 	note := StalenessNote("2026-01-02T03:04:05Z", "2026-04-02T00:00:00Z")
-	for _, want := range []string{"2026-01-02T03:04:05Z", "expires 2026-04-02T00:00:00Z", "older than the embedded"} {
+	for _, want := range []string{"2026-01-02T03:04:05Z", "expires 2026-04-02T00:00:00Z", "newer than the embedded"} {
 		if !strings.Contains(note, want) {
 			t.Fatalf("%q lacks %q", note, want)
+		}
+	}
+}
+
+func TestChoose(t *testing.T) {
+	d := func(v string) time.Time {
+		at, err := time.Parse(time.RFC3339, v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return at
+	}
+	for _, c := range []struct {
+		store, embedded string
+		identical       bool
+		chosen, reason  string
+	}{
+		{"2026-11-05T00:00:00Z", "2026-10-29T00:00:00Z", false, SourceLocalDB, ReasonStoreNewer},
+		{"2026-10-17T00:00:00Z", "2026-10-29T00:00:00Z", false, SourceEmbedded, ReasonStoreOlder},
+		{"2026-10-29T00:00:00Z", "2026-10-29T00:00:00Z", true, SourceEmbedded, ReasonIdentical},
+		{"2026-10-29T00:00:00Z", "2026-10-29T00:00:00Z", false, SourceLocalDB, ReasonStoreNewer},
+	} {
+		got := Choose(d(c.store), d(c.embedded), c.identical)
+		if got.Chosen != c.chosen || got.Reason != c.reason {
+			t.Fatalf("%+v: %+v", c, got)
+		}
+	}
+}
+
+func TestFallbackReason(t *testing.T) {
+	if r, ok := FallbackReason(fmt.Errorf("x: %w", knowledge.ErrExpired)); !ok || r != ReasonStoreExpired {
+		t.Fatalf("expired: %q %v", r, ok)
+	}
+	for _, err := range []error{
+		nil, knowledge.ErrIntegrity, knowledge.ErrRollback, knowledge.ErrTrustAdvanced,
+		errors.Join(knowledge.ErrExpired, knowledge.ErrIntegrity), errors.Join(knowledge.ErrExpired, knowledge.ErrRollback),
+	} {
+		if r, ok := FallbackReason(err); ok || r != "" {
+			t.Fatalf("%v: %q %v", err, r, ok)
 		}
 	}
 }

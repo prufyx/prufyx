@@ -198,26 +198,34 @@ are created private to you (mode 0700), whatever your umask is.
 | `--knowledge-db DIR` | that database, verified as before | as before |
 | `--now TIME` (replay form) | embedded | as before |
 | `--knowledge=embedded` | embedded, evaluated at the current time | standard error |
-| nothing given, default store verifies | the local database | standard error, human output |
+| nothing given, default store verifies | the newer of the local database and the embedded knowledge | standard error, human output |
 | nothing given, no default store (absent or empty directory) | embedded, evaluated at the current time | standard error |
-| nothing given, default store present but invalid, expired, rolled back, not private, or rooted in a different trust root than the pin of this build | none: exit 3 | standard error |
+| nothing given, default store's signed metadata has expired | embedded, with a warning | standard error, `store-expired` in the scan report |
+| nothing given, default store present but invalid, rolled back, not private, or rooted in a different trust root than the pin of this build | none: exit 3 | standard error |
 
 An invalid store is never silently replaced by the embedded knowledge, because that
-could hide tampering or serve stale knowledge. The error says so and names the way
+could hide tampering. The error says so and names the way
 out: repair it with `prufyx db update`, remove the store, or use
-`--knowledge=embedded`. A store that has expired is refused the same way. When the
+`--knowledge=embedded`. A store whose signed metadata has expired is not used; the
+embedded knowledge is used instead with a warning on standard error and
+`store-expired` in the report, and every other failure still exits 3. When the
 build pins a root, only a store whose initial root is that root is used; with no pin,
 any store the normal verification accepts is used.
 
-The embedded knowledge is never preferred because it "looks newer": its revision (a
-dated label) and a database revision (a whole number) have no common order, and a
-verified refresh is the point of the database. The check line on standard error shows
-both revisions. `--now` always selects the embedded knowledge, so historical replays
+The newer knowledge wins: the latest evidence review date in each pack is compared;
+on a tie the embedded knowledge is used (identical content) unless the store differs,
+which is a correction. The line on standard error names both dates and which one was
+used. The store is fully verified before this comparison, so a verified store is
+never used or rejected on its date alone. A correction that only removes a rule and
+keeps the review date is indistinguishable from an older store; a rule removal
+therefore carries a new review date. `--now` always selects the embedded knowledge, so historical replays
 stay byte-identical whether or not a store is installed. Check routes that read the
 embedded knowledge only (such as the Argo CD ConfigMap and custom-resource modes) still
-need `--now`. The source line is not part of the JSON report; the report's own origin,
+need `--now`. The source line is not part of the `check cncf` JSON report; the report's own origin,
 revision and digest fields already state the source. Human output adds a
-`knowledge source:` line.
+`knowledge source:` line. The `scan` JSON report carries `knowledgeSelection` with
+`chosen`, `reason` (`store-newer`, `store-older`, `identical`, `no-store`, `forced`,
+`store-expired`) and, when compared, `embeddedEvidenceAt` and `storeEvidenceAt`.
 
 ## Use the database with `prufyx scan`
 

@@ -45,6 +45,7 @@ func importProjectsInto(t *testing.T, root string, repoNow time.Time, revision s
 // swapped in after verification (or a concurrent db update) is refused.
 func TestAutoKnowledgeCheckRefusesStoreSwappedAfterVerification(t *testing.T) {
 	useDefaultStoreHome(t)
+	forceComparison(t, "2026-11-05T00:00:00Z", "2026-10-29T00:00:00Z", false)
 	fixture := installDefaultStore(t)
 	pinProjects(t, "") // the swapped store has another root: only the binding can stop it
 	old := autoOpenStore
@@ -87,6 +88,7 @@ func TestAutoKnowledgeCheckRefusesStoreSwappedAfterVerification(t *testing.T) {
 // concurrent db update) is refused too, never reported under the old source.
 func TestAutoKnowledgeCheckRefusesConcurrentUpdate(t *testing.T) {
 	useDefaultStoreHome(t)
+	forceComparison(t, "2026-11-05T00:00:00Z", "2026-10-29T00:00:00Z", false)
 	fixture := installDefaultStore(t)
 	old := autoOpenStore
 	autoOpenStore = func(req knowledge.SelectionRequest, projects []string) (knowledge.VerifiedRevision, error) {
@@ -111,6 +113,7 @@ func TestAutoKnowledgeCheckRefusesConcurrentUpdate(t *testing.T) {
 // anything committed but invalid is still refused.
 func TestAutoKnowledgeFailedFirstInstallIsAbsent(t *testing.T) {
 	useDefaultStoreHome(t)
+	forceComparison(t, "2026-11-05T00:00:00Z", "2026-10-29T00:00:00Z", false)
 	root, err := knowledgeauto.EnsureRoot()
 	if err != nil {
 		t.Fatal(err)
@@ -184,7 +187,7 @@ func TestAutoKnowledgeCommittedButInvalidStaysRefused(t *testing.T) {
 
 // Real expiry and real clock rollback (no stub): the store is signed so its
 // timestamp expires a few seconds after the import.
-func TestAutoKnowledgeExpiredStoreIsRefusedByCheckAndScan(t *testing.T) {
+func TestAutoKnowledgeExpiredStoreFallsBackForCheckAndScan(t *testing.T) {
 	useDefaultStoreHome(t)
 	root, err := knowledgeauto.EnsureRoot()
 	if err != nil {
@@ -202,12 +205,12 @@ func TestAutoKnowledgeExpiredStoreIsRefusedByCheckAndScan(t *testing.T) {
 	time.Sleep(time.Until(repoNow.Add(24*time.Hour)) + 1500*time.Millisecond)
 	for _, format := range []string{"human", "json"} {
 		code, stdout, stderr := runCNCFCLI(t, autoCheckArgs(t, "--format", format)...)
-		if code != ExitIntegrity || stdout != "" || !strings.Contains(stderr, "expired") || !strings.Contains(stderr, "embedded knowledge was not used") {
+		if code == ExitIntegrity || stdout == "" || !strings.Contains(stderr, "prufyx: warning: knowledge source: embedded, the local database's signed metadata has expired") {
 			t.Fatalf("check %s: %d %q %q", format, code, stdout, stderr)
 		}
 	}
 	code, stdout, stderr := runScan(t, autoScanArgs(t)...)
-	if code != ExitIntegrity || stdout != "" || !strings.Contains(stderr, "embedded knowledge was not used") {
+	if code == ExitIntegrity || stdout == "" || !strings.Contains(stderr, "prufyx: warning: knowledge source: embedded, the local database's signed metadata has expired") {
 		t.Fatalf("scan: %d %q %q", code, stdout, stderr)
 	}
 	if code, out, _ := runCNCFCLI(t, autoCheckArgs(t, "--format", "json", "--knowledge=embedded")...); decodeAutoJSON(t, out).KnowledgeOrigin != "embedded" {
@@ -278,6 +281,7 @@ func TestAutoKnowledgeWrongProfileLayoutIsRefused(t *testing.T) {
 // M4: the age of the database in use is visible on standard error.
 func TestAutoKnowledgeStatesDatabaseAge(t *testing.T) {
 	useDefaultStoreHome(t)
+	forceComparison(t, "2026-11-05T00:00:00Z", "2026-10-29T00:00:00Z", false)
 	installDefaultStore(t)
 	_, _, stderr := runCNCFCLI(t, autoCheckArgs(t, "--format", "json")...)
 	if !strings.Contains(stderr, "prufyx: note: local database last verified at 20") || !strings.Contains(stderr, "signed evidence expires") {

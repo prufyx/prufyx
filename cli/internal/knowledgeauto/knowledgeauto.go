@@ -7,15 +7,16 @@
 //
 // The rule is fail-closed. No default store means embedded knowledge. A
 // default store that is present but cannot be used (damaged, unverifiable,
-// expired, rolled back, private-mode wrong, or rooted in a different trust
-// root than the product pin) is an error: it never falls back silently,
-// because that could hide tampering or serve stale knowledge. The embedded
-// knowledge is used only when no store exists or when the caller forces it.
+// rolled back, private-mode wrong, or rooted in a different trust root than
+// the product pin) is an error: it never falls back silently, because that
+// could hide tampering. The one exception is a store whose signed metadata
+// has merely expired: that store is not used, the embedded knowledge is, and
+// the fallback is announced.
 //
-// Revisions of the embedded knowledge (a dated label) and of a signed
-// database (a whole number) have no common order, so the embedded knowledge
-// is never preferred because it "looks newer": a verified database in the
-// default location wins.
+// A store that verifies is compared with the embedded knowledge by the latest
+// evidence review date in each (Choose): the newer knowledge wins. On a tie
+// the embedded knowledge is used when the store holds identical content, and
+// the store when its content differs, which is a later correction.
 package knowledgeauto
 
 import (
@@ -26,6 +27,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
 )
@@ -239,13 +241,98 @@ func CheckPin(pin, initialRootDigest string) error {
 }
 
 // StalenessNote is the standard-error note that makes the age of a database
-// in use visible. Until the embedded knowledge and a database can be compared
-// (FEED-1b) a verified database always wins, however old it is. It changes no
-// verdict.
+// in use visible. It is printed only when the database was chosen because its
+// evidence is newer than the embedded knowledge. It changes no verdict.
 func StalenessNote(verifiedAt, evidenceExpiresAt string) string {
 	note := "local database last verified at " + verifiedAt
 	if evidenceExpiresAt != "" {
 		note += ", signed evidence expires " + evidenceExpiresAt
 	}
-	return note + "; it is used even when older than the embedded knowledge (no freshness comparison yet)"
+	return note + "; it is used because its evidence is newer than the embedded knowledge"
+}
+
+// Reasons of a knowledge selection, as stated in a report.
+const (
+	ReasonStoreNewer   = "store-newer"
+	ReasonStoreOlder   = "store-older"
+	ReasonIdentical    = "identical"
+	ReasonNoStore      = "no-store"
+	ReasonForced       = "forced"
+	ReasonStoreExpired = "store-expired"
+)
+
+// Selection is the outcome of choosing between a verified store and the
+// embedded knowledge.
+type Selection struct {
+	Chosen     string
+	Reason     string
+	StoreAt    time.Time
+	EmbeddedAt time.Time
+}
+
+// Choose picks the newer knowledge by its latest evidence review date. On an
+// equal date the embedded knowledge is used when the store's content is
+// identical, otherwise the store (the same date with different content is a
+// later correction).
+func Choose(storeAt, embeddedAt time.Time, identical bool) Selection {
+	s := Selection{StoreAt: storeAt, EmbeddedAt: embeddedAt}
+	switch {
+	case storeAt.After(embeddedAt):
+		s.Chosen, s.Reason = SourceLocalDB, ReasonStoreNewer
+	case storeAt.Before(embeddedAt):
+		s.Chosen, s.Reason = SourceEmbedded, ReasonStoreOlder
+	case identical:
+		s.Chosen, s.Reason = SourceEmbedded, ReasonIdentical
+	default:
+		s.Chosen, s.Reason = SourceLocalDB, ReasonStoreNewer
+	}
+	return s
+}
+
+// UseStore reports whether the verified store is the knowledge to use.
+func (s Selection) UseStore() bool { return s.Chosen == SourceLocalDB }
+
+func day(t time.Time) string { return t.UTC().Format("2006-01-02") }
+
+// StoreDetail is the parenthesis that follows the line of a chosen store.
+func (s Selection) StoreDetail() string {
+	if s.StoreAt.Equal(s.EmbeddedAt) {
+		return "same evidence date " + day(s.StoreAt) + ", content differs from embedded: a later correction"
+	}
+	return "newer than embedded: evidence " + day(s.StoreAt) + " vs " + day(s.EmbeddedAt)
+}
+
+// EmbeddedWhy is the reason text of a chosen embedded knowledge.
+func (s Selection) EmbeddedWhy() string {
+	if s.Reason == ReasonIdentical {
+		return "local database identical to embedded (evidence " + day(s.StoreAt) + "); embedded used"
+	}
+	return "local database is older (evidence " + day(s.StoreAt) + " vs " + day(s.EmbeddedAt) + "); run `prufyx db update`"
+}
+
+// ExpiredWhy is the reason text of the embedded fallback for an expired store.
+const ExpiredWhy = "the local database's signed metadata has expired; run `prufyx db update`"
+
+// FallbackReason reports whether a store failure is one of the few that fall
+// back to the embedded knowledge (with a warning), and the reason to state.
+// It is the single place such a failure is added. Today only a store whose
+// signed metadata has expired and nothing else (no integrity, rollback,
+// trust-state, selection, layout or recovery failure) qualifies.
+func FallbackReason(err error) (reason string, ok bool) {
+	hard := errors.Is(err, knowledge.ErrIntegrity) || errors.Is(err, knowledge.ErrRollback) ||
+		errors.Is(err, knowledge.ErrTrustAdvanced) || errors.Is(err, knowledge.ErrNoSelection) ||
+		errors.Is(err, knowledge.ErrLayout) || errors.Is(err, knowledge.ErrRecoveryRequired)
+	switch {
+	case hard:
+		return "", false
+	case errors.Is(err, knowledge.ErrExpired):
+		return ReasonStoreExpired, true
+	}
+	return "", false
+}
+
+// FallbackWhy is the warning text of the embedded fallback for a reason that
+// FallbackReason returned.
+func FallbackWhy(reason string) string {
+	return ExpiredWhy
 }

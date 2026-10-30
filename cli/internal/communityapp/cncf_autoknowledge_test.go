@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
 	"github.com/prufyx/prufyx/cli/internal/knowledgeauto"
 	"github.com/prufyx/prufyx/cli/internal/knowledgefixture"
@@ -69,6 +70,25 @@ func installDefaultStore(t *testing.T) autoStoreFixture {
 	return autoStoreFixture{root: root, rootDigest: repo.RootDigest, repo: repo}
 }
 
+// forceComparison fixes the store/embedded comparison of automatic check and
+// scan: the store holds evidence of storeAt, the embedded knowledge of
+// embeddedAt, and identical says whether their content is the same.
+func forceComparison(t *testing.T, storeAt, embeddedAt string, identical bool) {
+	t.Helper()
+	parse := func(v string) time.Time {
+		at, err := time.Parse(time.RFC3339, v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return at
+	}
+	cmp := cncfcheck.EmbeddedComparison{StoreEvidenceAt: parse(storeAt), EmbeddedEvidenceAt: parse(embeddedAt), Identical: identical}
+	oldCheck, oldScan := autoCompare, scanCompareEmbedded
+	autoCompare = func(knowledge.VerifiedRevision, []string) (cncfcheck.EmbeddedComparison, error) { return cmp, nil }
+	scanCompareEmbedded = func(map[string]cncfcheck.ExternalBundle) (cncfcheck.EmbeddedComparison, error) { return cmp, nil }
+	t.Cleanup(func() { autoCompare, scanCompareEmbedded = oldCheck, oldScan })
+}
+
 func autoCheckArgs(t *testing.T, extra ...string) []string {
 	t.Helper()
 	input := writeCNCFFile(t, "input.json", []byte(kyvernoInputFalse), 0o600)
@@ -96,12 +116,13 @@ func decodeAutoJSON(t *testing.T, raw string) autoKnowledgeJSON {
 func TestAutoKnowledgeUsesInstalledLocalDB(t *testing.T) {
 	useDefaultStoreHome(t)
 	installDefaultStore(t)
+	forceComparison(t, "2026-11-05T00:00:00Z", "2026-10-29T00:00:00Z", false)
 	code, stdout, stderr := runCNCFCLI(t, autoCheckArgs(t, "--format", "json")...)
 	report := decodeAutoJSON(t, stdout)
 	if report.Knowledge.Origin == "" || report.Knowledge.Revision != "5" || report.Knowledge.BundleDigest == "" {
 		t.Fatalf("not the local database: %d\n%s\n%s", code, stdout, stderr)
 	}
-	if want := "prufyx: knowledge source: local-db, revision 5, bundle digest " + report.Knowledge.BundleDigest; !strings.Contains(stderr, want) || !strings.Contains(stderr, "embedded would be") {
+	if want := "prufyx: knowledge source: local-db, revision 5, bundle digest " + report.Knowledge.BundleDigest; !strings.Contains(stderr, want) || !strings.Contains(stderr, "newer than embedded: evidence 2026-11-05 vs 2026-10-29") {
 		t.Fatalf("source line: %q", stderr)
 	}
 	// The same verdict as an explicit --knowledge-db of the same store.
@@ -248,5 +269,62 @@ func TestDBUpdateDefaultRootOnlyForOfficialProfile(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(os.Getenv("XDG_DATA_HOME"), "prufyx")); err == nil {
 		t.Fatal("default location created for a refused update")
+	}
+}
+
+// forceExpired makes the default store report expired signed metadata; the
+// store's real trust root is read as for a real expired store.
+func forceExpired(t *testing.T) {
+	t.Helper()
+	old := autoOpenStore
+	autoOpenStore = func(knowledge.SelectionRequest, []string) (knowledge.VerifiedRevision, error) {
+		return knowledge.VerifiedRevision{}, errors.Join(knowledge.ErrExpired)
+	}
+	t.Cleanup(func() { autoOpenStore = old })
+}
+
+func TestAutoKnowledgeNewerWins(t *testing.T) {
+	useDefaultStoreHome(t)
+	installDefaultStore(t)
+	_, nowOut, _ := runCNCFCLI(t, autoCheckArgs(t, "--format", "json", "--now", autoFixedNow)...)
+
+	// A store with the same content (the real comparison: the store is the
+	// export of the embedded pack) is a tie and the embedded knowledge is used.
+	code, out, stderr := runCNCFCLI(t, autoCheckArgs(t, "--format", "json")...)
+	if decodeAutoJSON(t, out).KnowledgeOrigin != "embedded" || out != nowOut || !strings.Contains(stderr, "knowledge source: embedded, local database identical to embedded") {
+		t.Fatalf("tie: %d %q\n%s", code, stderr, out)
+	}
+
+	// Older store: embedded, store not bound, --now set automatically.
+	forceComparison(t, "2026-10-17T00:00:00Z", "2026-10-29T00:00:00Z", false)
+	code, out, stderr = runCNCFCLI(t, autoCheckArgs(t, "--format", "json")...)
+	if code == ExitIntegrity || out != nowOut ||
+		!strings.Contains(stderr, "knowledge source: embedded, local database is older (evidence 2026-10-17 vs 2026-10-29); run `prufyx db update`") {
+		t.Fatalf("older: %d %q\n%s", code, stderr, out)
+	}
+
+	// Same date, different content: a correction, the store is used.
+	forceComparison(t, "2026-10-29T00:00:00Z", "2026-10-29T00:00:00Z", false)
+	_, out, stderr = runCNCFCLI(t, autoCheckArgs(t, "--format", "json")...)
+	if decodeAutoJSON(t, out).Knowledge.Revision != "5" || !strings.Contains(stderr, "a later correction") {
+		t.Fatalf("correction: %q\n%s", stderr, out)
+	}
+
+	// Newer store, human output.
+	forceComparison(t, "2026-11-05T00:00:00Z", "2026-10-29T00:00:00Z", false)
+	_, human, _ := runCNCFCLI(t, autoCheckArgs(t)...)
+	if !strings.Contains(human, "knowledge source: local-db (revision 5") {
+		t.Fatalf("human: %s", human)
+	}
+}
+
+func TestAutoKnowledgeExpiredStoreFallsBackToEmbedded(t *testing.T) {
+	useDefaultStoreHome(t)
+	installDefaultStore(t)
+	_, nowOut, _ := runCNCFCLI(t, autoCheckArgs(t, "--format", "json", "--now", autoFixedNow)...)
+	forceExpired(t)
+	code, out, stderr := runCNCFCLI(t, autoCheckArgs(t, "--format", "json")...)
+	if out != nowOut || code == ExitIntegrity || !strings.Contains(stderr, "prufyx: warning: knowledge source: embedded, the local database's signed metadata has expired; run `prufyx db update`") {
+		t.Fatalf("expired: %d %q\n%s", code, stderr, out)
 	}
 }
