@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+"""Decide what a run must cover from the files changed since the last green sha.
+
+usage: select_projects.py --changed FILE --src DIR     (FILE: git diff --name-only, one path per line)
+prints {"mode": "full|incremental|none", "projects": [...], "relevant": bool, "reasons": [...]}
+  target-<p>.json            -> project p
+  knowledge / data / lines   -> projects whose slug is in the path, else full
+  non-test Go, go.mod, vendor-> full (the scanner itself may have changed)
+  docs, tests, changelog ... -> ignored
+"""
+import argparse, glob, json, os, re
+
+ap = argparse.ArgumentParser()
+ap.add_argument("--changed", required=True)
+ap.add_argument("--src", required=True)
+a = ap.parse_args()
+slugs = sorted(re.sub(r"^target-|\.json$", "", os.path.basename(p))
+               for p in glob.glob(a.src + "/cli/internal/extract/crdversions/target-*.json"))
+projects, reasons, full = set(), [], False
+for p in open(a.changed).read().split("\n"):
+    if not p:
+        continue
+    m = re.fullmatch(r"cli/internal/extract/crdversions/target-(.+)\.json", p)
+    if m:
+        projects.add(m.group(1)); reasons.append("target " + m.group(1)); continue
+    if re.search(r"coveragereport/testdata/lines-.*\.json$", p) or re.search(r"(^|/)(knowledge|data)/", p):
+        hit = [s for s in slugs if s in p]
+        if hit:
+            projects.update(hit); reasons.append("data " + p)
+        else:
+            full = True; reasons.append("data (no project in path) " + p)
+        continue
+    if re.search(r"(^|/)(testdata|docs|changelog\.d|\.github)/|\.md$|_test\.go$|^(LICENSES|NOTICE|THIRD-PARTY|SOURCE-PREVIEW)", p):
+        continue
+    if p.endswith(".go") or p in ("cli/go.mod", "cli/go.sum") or p.startswith("cli/vendor/"):
+        full = True; reasons.append("code " + p)
+mode = "full" if full else ("incremental" if projects else "none")
+print(json.dumps({"mode": mode, "projects": sorted(projects), "relevant": mode != "none", "reasons": reasons[:20]}))
