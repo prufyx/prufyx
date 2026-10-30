@@ -133,11 +133,29 @@ You can also build from source; see the [README](https://github.com/prufyx/prufy
 - Input files for `check` must be regular, owner-only files (for example mode
   `0600`) and not symlinks. A symlinked path is refused rather than followed.
 - No Windows archive is published, and file or directory input to `prufyx scan`
-  is not supported on Windows.
-- Planned, not in place: an official signed knowledge feed with a pinned trust
-  root, and maintainer-signed releases.
-- A knowledge pack with a feature a build does not know is refused whole,
-  fail-closed.
+  is not supported on Windows. Windows support is planned for beta.1.
+- Planned, not in place: maintainer-signed releases.
+- Single maintainer: the main branch has one maintainer, so changes get no
+  second-person review. A CODEOWNERS file and a required reviewer are planned
+  for beta.1.
+- Embedded knowledge expires: its earliest rule ends on 2026-12-07. After that
+  date, a run with a pinned `--now` answers `UNKNOWN` for the affected rules
+  until the knowledge is renewed. Run `prufyx db update` to fetch newer
+  knowledge from the official signed feed; the embedded knowledge stays as the
+  offline fallback.
+- mariadb-operator is not covered in this build. It is planned for beta.1.
+- Some upgrade pairs stay `UNKNOWN`: four Kyverno pairs (gap G11) and the
+  kubeswift 0.1 to 0.3 upgrade have no decided rule.
+- A knowledge package that this build cannot read makes `prufyx db update`
+  exit `15` (`KNOWLEDGE_TOO_NEW_FOR_THIS_CLIENT`). The current store and the
+  embedded knowledge are kept. Upgrade prufyx.
+- `scan` and `check` use the newer of the local database and the embedded
+  knowledge, compared by the latest evidence review date per project. A
+  removal-only correction without a new review date cannot be told from an
+  older database (see [knowledge updates](https://github.com/prufyx/prufyx/blob/main/cli/docs/knowledge-updates.md)).
+- The generated block lists no added projects ("Projects added to the support
+  inventory (0)"): no project was newly catalogued since `v0.0.1-alpha.1`. The
+  gain is more reviewed rules and line attestations for catalogued projects.
 
 ## Reporting issues
 
