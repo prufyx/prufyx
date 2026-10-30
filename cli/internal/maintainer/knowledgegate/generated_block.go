@@ -184,6 +184,28 @@ func coverageBlock(t Tree) (string, error) {
 	return coveragereport.RenderREADMEBlock(report, inventory, now)
 }
 
+// basisBlock and validityBlock render the README sentences about how the
+// rules were established and when they stop being valid, from both packs.
+func basisBlock(t Tree) (string, error) {
+	return claimsRegion(t, coveragereport.RenderBasisSentence)
+}
+
+func validityBlock(t Tree) (string, error) {
+	return claimsRegion(t, coveragereport.RenderValiditySentence)
+}
+
+func claimsRegion(t Tree, render func(packs ...[]byte) (string, error)) (string, error) {
+	pack, err := t.Read(cncfRulesPath, MaxFileBytes)
+	if err != nil {
+		return "", err
+	}
+	community, err := t.Read(commRulesPath, MaxFileBytes)
+	if err != nil {
+		return "", err
+	}
+	return render(pack, community)
+}
+
 // previewIntro and previewPack render the two rule-count regions of the
 // CNCF source preview from the tree's generated support inventory.
 func previewIntro(t Tree) (string, error) {
