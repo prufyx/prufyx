@@ -133,7 +133,9 @@ The workflow has four jobs. Third-party actions are pinned by commit SHA.
    package and fails unless `/usr/bin/prufyx` is byte-identical to the binary
    of the archive, so a package never holds another binary than the attested
    archive. File times are the tagged commit's commit time; building the same
-   inputs twice gave byte-identical packages (checked for nfpm 2.48.0).
+   inputs twice, also on hosts with different names, gave byte-identical packages
+   (checked for nfpm 2.48.0). The `.rpm` build host header field is fixed to
+   `prufyx-release` (nfpm otherwise writes the hostname of the builder).
 3. **Checksums and provenance.** Downloads all archives and packages, writes
    `SHA256SUMS` (sha256sum format, one line per archive and package), and
    creates a GitHub build provenance attestation
