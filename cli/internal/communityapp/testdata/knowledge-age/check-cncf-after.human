@@ -3,7 +3,7 @@ input authority: OPERATOR_DECLARED_MINIMIZED
 
 UNDECIDED (1 rule)
   Kyverno reportsChunkSize removal only for an explicitly declared official upstream reports-controller invocation; image provenance, wrappers, other command surfaces, controller behavior, and whole-upgrade compatibility are unverified
-    to decide: the review of this rule expired on 2026-12-08; use newer knowledge (a newer source build, or a signed package you trust), or check this change by hand against its cited source
+    to decide: the review of this rule expired on 2026-12-08; run `prufyx db update` to fetch newer knowledge (a run with --knowledge=embedded or --knowledge-db ignores it), or build from newer source, or check this change by hand against its cited source
 
 Whole upgrade: not proven. This report evaluated only 1 reviewed rule.
 next action: review each scoped claim; whole-upgrade behavior and runtime evidence remain unverified

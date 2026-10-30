@@ -189,6 +189,10 @@ the selected target (the index in the per-project layout), and
 `knowledgeStore` gives the database path, its layout, the target path, the
 trust receipt digest, the purpose, when the revision was imported and, in the
 per-project layout, the revision and digest of each targeted project's target.
+An automatic scan (no `--knowledge-db`, no `--now`) also carries `knowledgeSelection`:
+`chosen` (`embedded` or `local-db`), `reason` (`store-newer`, `store-corrected`, `store-older`,
+`identical`, `no-store`, `forced`, `store-expired`) and, when the store was compared
+with the embedded knowledge, `embeddedEvidenceAt` and `storeEvidenceAt`.
 SARIF output carries the same `knowledgeStore` object in its run properties,
 and Markdown output lists the same lines as the human output in its
 provenance block. With `--redact` the database path is replaced by its
@@ -202,8 +206,8 @@ knowledge database knowledge-db; layout cncf-projects; target knowledge/cncf/ind
 knowledge for kubernetes: target knowledge/cncf/projects/kubernetes.v1.json revision 5 digest sha256:f52033c5f46cb594b8a6d4fcb057cc3284df7b92f5c1702aeb950f6b4f937cad
 ```
 
-(That database holds a test-signed copy of the built-in knowledge; no official
-Prufyx knowledge feed or trust root is published yet.)
+(That database holds a test-signed copy of the built-in knowledge, not the
+official feed. `prufyx db update` fetches the official feed.)
 
 ## Knowledge age note
 
@@ -211,7 +215,7 @@ When the knowledge a scan used is close to the end of its review window,
 `scan` prints one line on standard error, after the report:
 
 ```text
-prufyx: note: 166 knowledge rules expire within 30 days, the earliest on 2026-12-07 (in 17 days). No official update yet: build from newer source, or `prufyx db import` a signed package you trust (then use --knowledge-db) before they expire.
+prufyx: note: 166 knowledge rules expire within 30 days, the earliest on 2026-12-07 (in 17 days). Run `prufyx db update` to fetch newer knowledge, or build from newer source before they expire.
 ```
 
 The line appears when any active rule of the knowledge in use ends no later
@@ -219,15 +223,13 @@ than 30 days after the evaluation instant (exactly 30 days counts), and when a
 rule has already ended, in which case it says so:
 
 ```text
-prufyx: note: 50 knowledge rules have expired, the earliest on 2026-12-07 (2 days ago). No official update yet: build from newer source, or `prufyx db import` a signed package you trust (then use --knowledge-db). Expired rules answer UNKNOWN.
+prufyx: note: 50 knowledge rules have expired, the earliest on 2026-12-07 (2 days ago). Run `prufyx db update` to fetch newer knowledge, or build from newer source. Expired rules answer UNKNOWN.
 ```
 
 The knowledge in use is the knowledge built into the binary, or, with
-`--knowledge-db`, the targets opened from the database (with a database the
-advice leaves out `then use --knowledge-db`, which you already do). No
-official knowledge update is published yet, so the line names what works
-today: a newer source build, or a signed package you trust, imported with
-`prufyx db import`. A rule that has expired answers `UNKNOWN`. The count
+`--knowledge-db`, the targets opened from the database. The advice is fixed
+text: it names `prufyx db update` (official signed feed) and a newer source
+build. It does not check the feed and does not claim a newer package exists. A rule that has expired answers `UNKNOWN`. The count
 covers the active rules of that knowledge; withdrawn rules do not count. The
 evaluation instant is the one printed in the report, so the line is the same
 for the same `--now` and the same knowledge.

@@ -1,0 +1,3 @@
+### Changed
+
+- `scan` and `check cncf` now compare the verified local knowledge database with the embedded knowledge by the latest evidence review date and use the newer one; on a tie the embedded knowledge is used unless the database content differs (a correction). Standard error names both dates and the source used, and the `scan` JSON report carries `knowledgeSelection`. A local database whose signed metadata has expired no longer stops the command with exit 3: the embedded knowledge is used with a warning (`store-expired`); every other store failure still exits 3. `--knowledge-db` and `--now` are unchanged.

@@ -1104,6 +1104,9 @@
         "knowledgeStore": {
           "$ref": "#/$defs/knowledgeStore"
         },
+        "knowledgeSelection": {
+          "$ref": "#/$defs/knowledgeSelection"
+        },
         "helmValues": {
           "type": "array",
           "items": {
@@ -1180,6 +1183,41 @@
           "items": {
             "$ref": "#/$defs/knowledgeStoreProject"
           }
+        }
+      }
+    },
+    "knowledgeSelection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "chosen",
+        "reason"
+      ],
+      "properties": {
+        "chosen": {
+          "type": "string",
+          "enum": [
+            "embedded",
+            "local-db"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "store-newer",
+            "store-corrected",
+            "store-older",
+            "identical",
+            "no-store",
+            "forced",
+            "store-expired"
+          ]
+        },
+        "embeddedEvidenceAt": {
+          "type": "string"
+        },
+        "storeEvidenceAt": {
+          "type": "string"
         }
       }
     },

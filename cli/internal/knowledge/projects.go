@@ -458,3 +458,36 @@ func cncfStoreProfile(storeRoot string) (profileSpec, error) {
 	}
 	return constraintsProfile(), nil
 }
+
+// ExpiredStoreRootDigest returns the initial trust root digest of a CNCF
+// store without verifying a revision. A caller that has just learned that the
+// store's signed metadata expired (ErrExpired, which is reported only after
+// the signatures verified) uses it to still check the product pin. It reads
+// the stored trust state under the store lock and writes nothing.
+func ExpiredStoreRootDigest(storeRoot string) (string, error) {
+	profile, err := cncfStoreProfile(storeRoot)
+	if err != nil {
+		return "", err
+	}
+	if !profile.split {
+		return "", ErrLayout
+	}
+	store, err := ensureStoreRoot(storeRoot)
+	if err != nil {
+		return "", err
+	}
+	defer store.Close()
+	lock, err := store.lock(5 * time.Second)
+	if err != nil {
+		return "", err
+	}
+	defer unlockStore(lock)
+	if err := checkProfileMarker(store, profile, false); err != nil {
+		return "", err
+	}
+	material, err := loadCurrentTrustForProfile(store, profile)
+	if err != nil {
+		return "", err
+	}
+	return material.state.InitialRootDigest, nil
+}

@@ -43,6 +43,8 @@ type Store struct {
 	digest   string
 	root     string
 	info     StoreInfo
+	// bundles holds, per opened project, the verified envelope.
+	bundles map[string]cncfcheck.ExternalBundle
 }
 
 // StoreError is a knowledge database that could not be opened or verified.
@@ -53,6 +55,10 @@ type StoreError struct {
 	// Auto marks a database found in the default store location, not named
 	// with --knowledge-db: the error then says how to force embedded.
 	Auto bool
+	// Fallback is the reason (knowledgeauto.FallbackReason) when the failure
+	// is one an automatic selection answers with the embedded knowledge
+	// instead of refusing; empty otherwise.
+	Fallback string
 }
 
 func (e *StoreError) Error() string {
@@ -74,7 +80,7 @@ func OpenStore(path string, projects []string) (*Store, error) {
 	}
 	selection, err := cncfknowledge.OpenScan(path, projects)
 	if err != nil {
-		return nil, &StoreError{Reason: storeFailure(err)}
+		return nil, &StoreError{Reason: storeFailure(err), Fallback: fallbackOf(err)}
 	}
 	bundles := map[string]cncfcheck.ExternalBundle{}
 	digests := map[string]string{}
@@ -103,7 +109,7 @@ func OpenStore(path string, projects []string) (*Store, error) {
 	if err != nil {
 		return nil, &StoreError{Reason: scanreport.KnowledgeDBIntegrity}
 	}
-	return &Store{snapshot: snapshot, digests: digests, revision: selection.Revision, digest: selection.BundleDigest, root: selection.InitialRootDigest, info: info}, nil
+	return &Store{snapshot: snapshot, digests: digests, revision: selection.Revision, digest: selection.BundleDigest, root: selection.InitialRootDigest, info: info, bundles: bundles}, nil
 }
 
 // storeMarkers are the files of which an existing knowledge database holds
@@ -228,4 +234,9 @@ func (k *Store) KnowledgeAge() []knowledgeage.Source { return k.snapshot.Knowled
 func (k *Store) Store() *StoreInfo {
 	info := k.info
 	return &info
+}
+
+func fallbackOf(err error) string {
+	reason, _ := knowledgeauto.FallbackReason(err)
+	return reason
 }

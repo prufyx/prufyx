@@ -8,7 +8,7 @@ trademarks.
 
 | Material | Distribution treatment |
 | --- | --- |
-| Go runtime and standard library | Compiled into release binaries using Go 1.26.8 with CGO disabled. The Go Authors' BSD license is included at [LICENSES/Go-BSD-3-Clause.txt](LICENSES/Go-BSD-3-Clause.txt). |
+| Go runtime and standard library | Compiled into release binaries using Go 1.26.10 with CGO disabled. The Go Authors' BSD license is included at [LICENSES/Go-BSD-3-Clause.txt](LICENSES/Go-BSD-3-Clause.txt). |
 | External Go modules | The offline knowledge-database implementation uses the exact vendored module profile below. Release builds use `-mod=vendor` with network access disabled. |
 | Official upstream release and source references | Public URLs, identities, digests, short factual summaries, and narrowly scoped predicates. The TiKV target-preflight contribution example also retains three complete upstream files for local digest and span verification under the source licenses listed below. Upstream names identify the subject of a check; they imply no endorsement. |
 | Synthetic fixtures and checkpoint source | Prufyx-authored examples and recorded first-party source checkpoints, except the modified upstream test fixtures listed under [Modified upstream test fixtures](#modified-upstream-test-fixtures). Recorded source paths describe checkpoint provenance, not independent origin attestations. |
@@ -107,10 +107,10 @@ as test input and do not establish runtime behavior.
 | Kubernetes API registration and lifecycle files (`zz_generated.prerelease-lifecycle.go` verbatim; each `register.go` trimmed to its license header, package clause and `GroupName` constant) and `api/openapi-spec/swagger.json` reduced to the `x-kubernetes-group-version-kind` entries of the autoscaling, batch, policy, flowcontrol, authentication, apiextensions and apiregistration groups, The Kubernetes Authors; modified (trimmed), in `cli/internal/extract/k8sservedapis/testdata/fixture/github.com/kubernetes/kubernetes` | [`kubernetes/kubernetes`](https://github.com/kubernetes/kubernetes) at v1.24.0 `4ce5a8954017644c5420bae81d72b09b735c21f0`, v1.25.0 `a866cbe2e5bbaa01cfd5e969aa3e033f3282a8a2`, v1.30.0 `7c48c2bd72b9bf5c44d21d7338cc7bea77d0ad2a`, v1.31.0 `9edcffcde5595e8a5b1a35f88c421764e575afce`, v1.32.0 `70d3cc986aa8221cd1dfb1121852688902d3bf53`, v1.33.0 `60a317eadfcb839692a68eab88b2096f4d708f4f`; per-file upstream SHA-256 values in `cli/internal/extract/k8sservedapis/testdata/fixture/PROVENANCE.txt` | Apache-2.0; [license](LICENSES/Source-Kubernetes-Apache-2.0.txt) |
 | Kubernetes feature-gate definitions (`kube_features.go`, `feature_gate.go`, `known_features.go` and the feature-list YAML files), The Kubernetes Authors; modified (each cut down to a few feature gates and formatted with gofmt) unless `PROVENANCE.txt` marks the file verbatim, in `cli/internal/extract/k8sfeaturegates/testdata/fixture/github.com/kubernetes/kubernetes` | [`kubernetes/kubernetes`](https://github.com/kubernetes/kubernetes) at v1.22.0 `c2b5237ccd9c0f1d600d3072634ca66cefdf272f`, v1.23.0 `ab69524f795c42094a6630298ff53f3c3ebab7f4`, v1.31.0 `9edcffcde5595e8a5b1a35f88c421764e575afce`, v1.32.0 `70d3cc986aa8221cd1dfb1121852688902d3bf53`, v1.36.0 `ecf6decece6a6de25a57aad9ba90b6ce580f6f78`, v1.37.0 `f54c212e3a2f75d674b717a9b29052b20b60aefc`; per-file upstream SHA-256 values in `cli/internal/extract/k8sfeaturegates/testdata/fixture/PROVENANCE.txt` | Apache-2.0; [license](LICENSES/Source-Kubernetes-Apache-2.0.txt) |
 
-## Go 1.26.8 notices included with binaries
+## Go 1.26.10 notices included with binaries
 
 The complete `LICENSES/` directory accompanies each Linux binary archive.
-These notices come from the exact Go 1.26.8 distribution used to enumerate
+These notices come from the exact Go 1.26.10 distribution used to enumerate
 the CLI's Linux amd64 and arm64 dependencies with `CGO_ENABLED=0` and no
 Go experiments. Upstream comment prefixes are preserved in extracted notice
 blocks; their copyright, permission, and disclaimer text is unchanged.

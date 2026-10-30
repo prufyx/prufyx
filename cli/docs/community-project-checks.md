@@ -20,7 +20,7 @@ set -eu
 umask 077
 PREVIEW_DIR="$(mktemp -d)"
 trap 'rm -rf "$PREVIEW_DIR"' EXIT
-test "$(go env GOVERSION)" = go1.26.8
+test "$(go env GOVERSION)" = go1.26.10
 (cd cli && GOTOOLCHAIN=local GOWORK=off GOFLAGS='-mod=vendor -buildvcs=false' GOPROXY=off GOSUMDB=off \
   go build -trimpath -buildvcs=false -o "$PREVIEW_DIR/prufyx-community" ./cmd/prufyx-community)
 ```

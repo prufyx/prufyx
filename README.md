@@ -18,12 +18,12 @@ evidence does not decide the question, the answer is `UNKNOWN`, not a guess.
 > **Status: public beta (pre-release).** A `v0.1.0-beta.0` candidate build is
 > being prepared; until its GitHub release is published, build from source. The
 > binary carries embedded, time-limited knowledge, and `prufyx db update`
-> refreshes it from the official signed feed once that feed is published. Results are scoped findings, not a guarantee that a
-> whole upgrade is safe.
+> refreshes it from the official signed feed. Results are scoped findings, not a
+> guarantee that a whole upgrade is safe.
 
 ## Quickstart
 
-Requires Go 1.26 (release builds use 1.26.8; see CONTRIBUTING.md).
+Requires Go 1.26 (release builds use 1.26.10; see CONTRIBUTING.md).
 
 **1. Build.**
 
@@ -373,8 +373,9 @@ status:
   tagged release builds are reproducible and carry their build identity. See
   [releasing](cli/docs/releasing.md).
 
-**Planned:** a published release with prebuilt binaries, an official signed
-knowledge feed, and automated GitOps release gates. None exists today.
+**Planned:** a published release with prebuilt binaries and automated GitOps
+release gates. Neither exists today. The official signed knowledge feed is
+published; `prufyx db update` fetches it.
 
 ## Privacy and offline operation
 
@@ -438,7 +439,7 @@ above takes real compute.
 | Storage | 2 TB NVMe | Pinned upstream source mirrors and reproducible builds |
 
 If you or your company would like to fund or provide hardware, please get in touch
-by email at [airstand@gmail.com](mailto:airstand@gmail.com) or on
+by email at [hello@prufyx.com](mailto:hello@prufyx.com) or on
 [LinkedIn](https://www.linkedin.com/in/spasatanasov/). Hardware sponsors are
 acknowledged here and on [prufyx.com](https://prufyx.com) with their permission.
 We will publish what any support paid for. Sponsorship does not buy influence over

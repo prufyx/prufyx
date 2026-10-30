@@ -87,7 +87,7 @@ func TestScanKnowledgeAgeEmbedded(t *testing.T) {
 				t.Errorf("%s: note %q, want %q", c.name, result.KnowledgeAge, c.want)
 			}
 			if result.KnowledgeAge != "" {
-				if !strings.Contains(result.KnowledgeAge, "No official update yet: build from newer source, or `prufyx db import` a signed package you trust (then use --knowledge-db)") || strings.Contains(result.KnowledgeAge, "db update") || len("prufyx: "+result.KnowledgeAge+"\n") > 256 {
+				if !strings.Contains(result.KnowledgeAge, "Run `prufyx db update` to fetch newer knowledge, or build from newer source") || !strings.Contains(result.KnowledgeAge, "`prufyx db update`") || len("prufyx: "+result.KnowledgeAge+"\n") > 256 {
 					t.Errorf("%s: %q", c.name, result.KnowledgeAge)
 				}
 			}
@@ -199,10 +199,10 @@ func TestScanKnowledgeAgeStore(t *testing.T) {
 			cases := []struct{ at, want string }{
 				{reviewed.AddDate(0, 0, 14).Format(time.RFC3339), ""},
 				{end.Add(-knowledgeage.Window - time.Second).Format(time.RFC3339), ""},
-				{end.Add(-knowledgeage.Window).Format(time.RFC3339), "note: " + itoa(active) + " knowledge rules expire within 30 days, the earliest on " + endDay + " (in 30 days). No official update yet: `prufyx db import` a newer signed package you trust, or build from newer source before they expire."},
-				{end.AddDate(0, 0, -18).Format(time.RFC3339), "note: " + itoa(active) + " knowledge rules expire within 30 days, the earliest on " + endDay + " (in 18 days). No official update yet: `prufyx db import` a newer signed package you trust, or build from newer source before they expire."},
-				{end.Format(time.RFC3339), "note: " + itoa(active) + " knowledge rules have expired, the earliest on " + endDay + " (less than a day ago). No official update yet: `prufyx db import` a newer signed package you trust, or build from newer source. Expired rules answer UNKNOWN."},
-				{end.AddDate(0, 0, 2).Format(time.RFC3339), "note: " + itoa(active) + " knowledge rules have expired, the earliest on " + endDay + " (2 days ago). No official update yet: `prufyx db import` a newer signed package you trust, or build from newer source. Expired rules answer UNKNOWN."},
+				{end.Add(-knowledgeage.Window).Format(time.RFC3339), "note: " + itoa(active) + " knowledge rules expire within 30 days, the earliest on " + endDay + " (in 30 days). Run `prufyx db update` to fetch newer knowledge, or build from newer source before they expire."},
+				{end.AddDate(0, 0, -18).Format(time.RFC3339), "note: " + itoa(active) + " knowledge rules expire within 30 days, the earliest on " + endDay + " (in 18 days). Run `prufyx db update` to fetch newer knowledge, or build from newer source before they expire."},
+				{end.Format(time.RFC3339), "note: " + itoa(active) + " knowledge rules have expired, the earliest on " + endDay + " (less than a day ago). Run `prufyx db update` to fetch newer knowledge, or build from newer source. Expired rules answer UNKNOWN."},
+				{end.AddDate(0, 0, 2).Format(time.RFC3339), "note: " + itoa(active) + " knowledge rules have expired, the earliest on " + endDay + " (2 days ago). Run `prufyx db update` to fetch newer knowledge, or build from newer source. Expired rules answer UNKNOWN."},
 			}
 			for _, c := range cases {
 				if got := note(openAt(t, renewed.store, c.at)); got != c.want {
@@ -212,7 +212,7 @@ func TestScanKnowledgeAgeStore(t *testing.T) {
 			// The embedded-pack database is described by its own dates: the
 			// embedded end dates are in December, the renewed ones are not.
 			expired := countRules(t, layout, after)
-			want := "note: " + itoa(expired) + " knowledge " + plural(expired, "rule has", "rules have") + " expired, the earliest on " + first.Format("2006-01-02") + " (2 days ago). No official update yet: `prufyx db import` a newer signed package you trust, or build from newer source. Expired rules answer UNKNOWN."
+			want := "note: " + itoa(expired) + " knowledge " + plural(expired, "rule has", "rules have") + " expired, the earliest on " + first.Format("2006-01-02") + " (2 days ago). Run `prufyx db update` to fetch newer knowledge, or build from newer source. Expired rules answer UNKNOWN."
 			if got := note(openAt(t, stale.store, after)); got != want || expired == 0 {
 				t.Errorf("%s stale database: %q, want %q", layout, got, want)
 			}

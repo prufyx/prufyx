@@ -426,7 +426,7 @@ func TestScanSchemaRequiredFields(t *testing.T) {
 		"lead": reflect.TypeOf(scanreport.Lead{}), "trustPolicy": reflect.TypeOf(scanreport.TrustPolicy{}), "unsupported": reflect.TypeOf(scanreport.Unsupported{}),
 		"omitted": reflect.TypeOf(scanreport.Omitted{}), "provenance": reflect.TypeOf(scanreport.Provenance{}), "endpoint": reflect.TypeOf(scanreport.Endpoint{}),
 		"citation": reflect.TypeOf(constraintengine.SourceEvidence{}), "crossingMatch": reflect.TypeOf(constraintengine.CrossingMatch{}), "build": reflect.TypeOf(testBuild),
-		"knowledgeStore": reflect.TypeOf(scanreport.KnowledgeStore{}), "knowledgeStoreProject": reflect.TypeOf(scanreport.KnowledgeStoreProject{}),
+		"knowledgeStore": reflect.TypeOf(scanreport.KnowledgeStore{}), "knowledgeStoreProject": reflect.TypeOf(scanreport.KnowledgeStoreProject{}), "knowledgeSelection": reflect.TypeOf(scanreport.KnowledgeSelection{}),
 		"pathChart": reflect.TypeOf(scanreport.PathChart{}), "helmValues": reflect.TypeOf(scanreport.HelmValues{}), "helmValuesFile": reflect.TypeOf(scanreport.HelmValuesFile{}), "kubeletVersions": reflect.TypeOf(scanreport.KubeletVersions{}),
 	}
 	for name, typ := range types {
