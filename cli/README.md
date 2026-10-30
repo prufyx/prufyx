@@ -1,6 +1,6 @@
 # Prufyx Community CLI
 
-Build the Community binary from this module with Go 1.26.8:
+Build the Community binary from this module with Go 1.26.10:
 
 ```sh
 GOTOOLCHAIN=local GOWORK=off GOFLAGS='-mod=vendor -buildvcs=false' GOPROXY=off GOSUMDB=off \

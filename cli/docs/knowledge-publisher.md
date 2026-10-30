@@ -349,8 +349,7 @@ withdrawal; malformed or incomplete target metadata is rejected.
 ## Hosted knowledge publish workflow
 
 `.github/workflows/knowledge-publish.yml` signs and publishes the knowledge
-database that `prufyx db update` fetches. (`knowledge-release.yml` is an older
-manual draft; it is superseded and permanently disabled.) The workflow runs on
+database that `prufyx db update` fetches. The workflow runs on
 every push to `main` that touches `cli/knowledge/**`, weekly, and on manual
 dispatch from `main`. It is off until the repository variable
 `KNOWLEDGE_RELEASE_ENABLED` is exactly `true`, and it never runs pull request

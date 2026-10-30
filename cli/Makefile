@@ -6,7 +6,7 @@ STATICCHECK ?= staticcheck
 .PHONY: targets-check targets-check-citations mutants toolchain-check staticcheck staticcheck-full dco-check release-gate-test release-manifest regenerate-pack-goldens
 
 toolchain-check:
-	@version="$$(GOTOOLCHAIN=local $(GO) env GOVERSION)"; test "$$version" = go1.26.8 || { echo "Go 1.26.8 is required; found $$version" >&2; exit 1; }
+	@version="$$(GOTOOLCHAIN=local $(GO) env GOVERSION)"; test "$$version" = go1.26.10 || { echo "Go 1.26.10 is required; found $$version" >&2; exit 1; }
 
 staticcheck: toolchain-check
 	@go_root="$$(GOTOOLCHAIN=local $(GO) env GOROOT)"; status=0; \
