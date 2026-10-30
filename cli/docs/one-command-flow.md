@@ -232,6 +232,15 @@ What makes that honest:
   component, every rule that was not evaluated and why. Absence of evidence
   is `UNKNOWN`.
 
+### Exit codes
+
+With `--scope-input`, `assess` exits with the aggregate: `0` for
+`SCOPE_COMPLETE_PASS`, `10` for `BLOCKED`, `11` for `UNKNOWN` (or any
+unrecognised aggregate), in both `--format human` and `--format json`.
+Without `--scope-input` the aggregate is the stated-limitation `UNKNOWN` and
+the triage report exits `0`. Usage errors exit `2`; collection failures keep
+their codes (partial collection exits `6`).
+
 ## Why one collection run per context
 
 `internal/observation.Import` (a reviewed, unmodified boundary) refuses to
