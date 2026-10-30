@@ -118,7 +118,9 @@ func importWithProfile(req ImportRequest, profile profileSpec, admit AdmitFunc, 
 	if err != nil {
 		return ImportReceipt{}, err
 	}
+	floorExisted := false
 	if _, floorReadErr := store.read("clock-floor.json", 4096); floorReadErr == nil {
+		floorExisted = true
 		floor, parseErr := loadClockFloor(store)
 		if parseErr != nil {
 			return ImportReceipt{}, ErrIntegrity
@@ -254,6 +256,19 @@ func importWithProfile(req ImportRequest, profile profileSpec, admit AdmitFunc, 
 			return failureReceipt(errors.Join(result, fmt.Errorf("clear completed import recovery: %w", ErrRecoveryRequired)))
 		}
 		return receipt, result
+	}
+	// A package the pinned root signed but this build cannot read must not
+	// advance trust: a later, readable package with the same TUF versions
+	// would otherwise be refused as trust advanced beyond selection forever.
+	if unsupported := unsupportedBeforePersist(req, pkg, &verified, admit); unsupported != nil {
+		// A first import leaves the store as it found it (no clock floor
+		// either), so a later readable package can still bootstrap it.
+		if prior == nil && !floorExisted {
+			if rmErr := store.remove("clock-floor.json"); rmErr != nil && !os.IsNotExist(rmErr) {
+				return failureReceipt(errors.Join(unsupported, rmErr))
+			}
+		}
+		return finish(ImportReceipt{APIVersion: "prufyx.io/knowledge-import-receipt/v1", Status: "REJECTED", TrustStateAdvanced: false, SelectionChanged: false, TrustStateDigest: priorDigest}, unsupported)
 	}
 	stateRawBeforeAdmission, err := marshalCanonical(verified.material.state)
 	if err != nil {
@@ -538,4 +553,38 @@ func (req ImportRequest) bootstrapRootBytes() ([]byte, error) {
 	}
 	raw, _, err := currentbundle.ReadBoundedFileInfo(req.BootstrapRootPath, 128<<10)
 	return raw, err
+}
+
+// unsupportedBeforePersist returns an ErrUnsupportedKnowledge error when the
+// package is signed and hash-verified but unreadable by this build. Any
+// integrity, identity-assertion or digest failure takes precedence and is
+// left to the normal path, which records the advanced trust as before.
+func unsupportedBeforePersist(req ImportRequest, pkg importPackage, verified *verificationResult, admit AdmitFunc) error {
+	// The trust-identity assertion is checked first, on both paths, so a
+	// mismatch stays an integrity failure.
+	if req.ExpectedVerification != nil && !verificationTrustMatches(req.ExpectedVerification, verified.material.state) {
+		return nil
+	}
+	if verified.refreshErr != nil {
+		// ExpectedBundleDigest and ensureAllPackageMembersUsed cannot be
+		// checked here: verified.target is not available after a failed
+		// refresh, so they are left to the later path.
+		classified := classifyTUFError(verified.refreshErr)
+		if errors.Is(classified, ErrUnsupportedKnowledge) {
+			return classified
+		}
+		return nil
+	}
+	if ensureAllPackageMembersUsed(pkg, verified.served, &verified.material) != nil {
+		return nil
+	}
+	if req.ExpectedBundleDigest != "" {
+		if expected, err := normalizeDigest(req.ExpectedBundleDigest); err != nil || expected != digestBytes(verified.target) {
+			return nil
+		}
+	}
+	if _, err := admit(append([]byte(nil), verified.target...)); errors.Is(err, ErrUnsupportedKnowledge) {
+		return fmt.Errorf("semantic admission: %w", err)
+	}
+	return nil
 }

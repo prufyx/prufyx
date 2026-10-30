@@ -181,6 +181,10 @@ expired rule, a missing declaration. Read the reason lines. Full tables:
 - A binary carries embedded knowledge. It works offline with no setup.
 - Embedded rules are time-limited. After a rule expires, the answer for it is
   `UNKNOWN` by design.
+- If `prufyx db update` exits `15` ("too new for this prufyx"), the published
+  knowledge needs a newer prufyx. Nothing was changed and your current database
+  and the embedded knowledge keep working; upgrade prufyx, then run `db update`
+  again. Do not remove the store for this.
 - `prufyx db update` downloads a complete signed package and verifies it with
   TUF. With no arguments it targets the official `cncf-projects` feed and
   needs the trust root pinned in the build. This build pins the official

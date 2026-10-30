@@ -29,6 +29,12 @@ var (
 	// revision floor. It is a rollback refusal the caller may report as a
 	// stale feed; a same-revision package with another digest is not this.
 	ErrFeedBehind = fmt.Errorf("knowledge revision is older than the store: %w", ErrRollback)
+	// ErrUnsupportedKnowledge marks a package that the pinned root signed and
+	// whose index or project bytes matched their signed hashes, but that this
+	// build cannot read: an unknown field or schema, an engine capability it
+	// does not have, or a minClientVersion above this build. A newer prufyx is
+	// needed. It is never an integrity failure and never advances trust.
+	ErrUnsupportedKnowledge = errors.New("knowledge is signed by the pinned root but not readable by this prufyx build; a newer prufyx is needed")
 	// ErrPinnedRootMismatch marks a store whose initial root is not the root
 	// pinned in this build.
 	ErrPinnedRootMismatch = fmt.Errorf("initial root is not the pinned root: %w", ErrIntegrity)

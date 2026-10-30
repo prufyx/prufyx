@@ -148,6 +148,14 @@ change. Giving `--source` or `--release-plan` keeps the rules described above
   reported as `FEED_BEHIND`, exits `12`, changes nothing and is not kept; retry in
   about ten minutes. It is not an integrity failure. A package with the same
   revision but a different digest is still refused as before (exit `3`).
+- **Too new for this prufyx (exit `15`).** A package that the pinned root signed
+  but this build cannot read (an unknown index format, or a `minClientVersion`
+  above this build) is reported as `KNOWLEDGE_TOO_NEW_FOR_THIS_CLIENT` and exits
+  `15`. `db update` and `db import` change nothing and persist no trust state: the
+  current local database and the embedded knowledge stay in use, and a later
+  readable package imports normally. The message names the minimum version when
+  the package states one; upgrade prufyx. A package that fails signature, hash or
+  digest checks is still an integrity failure (exit `3`).
 - **Store from another root.** A store whose initial root is not the pinned root is
   refused with the message to remove the store directory
   (the path is printed) and run `db update` again. There is no reset command.
@@ -253,6 +261,10 @@ completed, the downloaded package's SHA-256 and the separate import receipt or
 rejection. It does not include the URL, local paths, raw remote errors or bodies.
 A download is not a compatibility result. `synthetic_test_only` and
 operator-provisioned trust remain visible in imported knowledge and reports.
+
+A package that is validly signed but too new for this build (exit `15`) is
+rejected before any trust state is written, so it cannot block later updates.
+It is not a verdict about your upgrade.
 
 Transport failure does not invoke the importer or modify the store. Normal
 transfer/write failure removes the incomplete output; interruption can leave an
