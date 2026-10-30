@@ -1,0 +1,106 @@
+# Daily read-only self-check of the live knowledge feed. No secrets, no keys:
+# it fetches the public feed, verifies it with the pinned root (same trust as
+# `prufyx db update`) and fails, with a tracking issue, when the weekly
+# "Knowledge publish" did not keep the feed fresh. See
+# cli/docs/knowledge-publisher.md, "Publish self-check".
+#
+# Runs only on main and only when KNOWLEDGE_RELEASE_ENABLED is "true". The one
+# write is a single tracking issue (opened or commented on failure, closed on
+# recovery); nothing else is changed.
+
+name: Knowledge publish self-check
+
+on:
+  schedule:
+    - cron: "43 6 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: knowledge-publish-verify
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify the live feed
+    if: ${{ github.ref == 'refs/heads/main' && vars.KNOWLEDGE_RELEASE_ENABLED == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Check out main
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache: false
+
+      - name: Build the client
+        working-directory: cli
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/bin"
+          go build -trimpath -buildvcs=false -o "${RUNNER_TEMP}/bin/prufyx" ./cmd/prufyx-community
+
+      - name: Verify the feed
+        id: verify
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -uo pipefail
+          root="${GITHUB_WORKSPACE}/cli/internal/knowledgepin/root.json"
+          digest="sha256:$(sha256sum "${root}" | cut -d' ' -f1)"
+          pin="$(grep -o '"cncf-projects":[[:space:]]*"[^"]*"' cli/internal/knowledgepin/pin.go | sed 's/.*"\([^"]*\)"$/\1/')"
+          if [ "${pin}" != "${digest}" ]; then
+            line="publish-verify: FAIL the pinned root file and the compiled-in pin differ"
+            rc=1
+          else
+            line="$(scripts/publish-verify.sh --bin "${RUNNER_TEMP}/bin/prufyx" --root "${root}" --root-digest "${digest}" --repo "${REPO}")"
+            rc=$?
+          fi
+          echo "${line}"
+          {
+            echo "### Knowledge publish self-check"
+            echo ""
+            echo "${line}"
+          } >> "${GITHUB_STEP_SUMMARY}"
+          {
+            echo "rc=${rc}"
+            echo "line=${line//$'\n'/ }"
+          } >> "${GITHUB_OUTPUT}"
+
+      # One tracking issue: opened on the first failure, commented on later
+      # ones, closed when the check passes again.
+      - name: Update the tracking issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RC: ${{ steps.verify.outputs.rc }}
+          LINE: ${{ steps.verify.outputs.line }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          title="Knowledge publish self-check failed"
+          num="$(gh issue list --state open --limit 100 --json number,title \
+            --jq "[.[] | select(.title == \"${title}\")] | (first // empty) | .number")"
+          if [ "${RC}" = 0 ]; then
+            if [ -n "${num}" ]; then
+              gh issue close "${num}" --comment "The self-check passes again: ${LINE} (${RUN_URL})"
+            fi
+            exit 0
+          fi
+          body="${LINE}"$'\n\n'"Run: ${RUN_URL}"$'\n\n'"Runbook: cli/docs/knowledge-publisher.md (Recovery runbook). Dispatch the Knowledge publish workflow from main; this issue closes itself when the check passes."
+          if [ -n "${num}" ]; then
+            gh issue comment "${num}" --body "${body}"
+          else
+            gh issue create --title "${title}" --body "${body}"
+          fi
+          exit 1
