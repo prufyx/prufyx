@@ -30,7 +30,7 @@ does not create a binary-release claim. Go archive identities are policy data
 that the release environment verifies before a declared build.
 
 Build and gate commands use vendored modules with module download and checksum
-services disabled. From the repository root, use Go 1.26.8 and write the
+services disabled. From the repository root, use Go 1.26.10 and write the
 manifest outside the checkout:
 
 ```sh
@@ -44,7 +44,7 @@ export GOTOOLCHAIN=local GOWORK=off GOFLAGS='-mod=vendor -buildvcs=false' GOPROX
     --output /tmp/prufyx-source-manifest.json)
 ```
 
-Supply the absolute path to the verified Go 1.26.8 executable with `--go` when
+Supply the absolute path to the verified Go 1.26.10 executable with `--go` when
 `command -v go` does not resolve to that toolchain. The output path must be
 new and outside the source root. The command does not download modules or
 execute user-supplied project code.

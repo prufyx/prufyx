@@ -668,7 +668,7 @@ func WriteSBOM(o SBOMOptions) error {
 		"downloadLocation": "https://go.dev/dl/" + o.GoVersion + ".src.tar.gz", "filesAnalyzed": false,
 		"licenseConcluded": "NOASSERTION", "licenseDeclared": "BSD-3-Clause", "copyrightText": "Copyright 2009 The Go Authors",
 		"checksums":    []any{map[string]any{"algorithm": "SHA256", "checksumValue": "4e39b98e42f946fa05ac8bc5b71877df97dbdb7cbb1a777b541667ad7117fd2e"}},
-		"comment":      "The reviewed LICENSES directory carries exact notices for the selected CGO-disabled linux/amd64 and linux/arm64 Go 1.26.8 build closure.",
+		"comment":      "The reviewed LICENSES directory carries exact notices for the selected CGO-disabled linux/amd64 and linux/arm64 Go 1.26.10 build closure.",
 		"externalRefs": []any{map[string]any{"referenceCategory": "PACKAGE-MANAGER", "referenceType": "purl", "referenceLocator": "pkg:golang/std@" + strings.TrimPrefix(o.GoVersion, "go")}},
 	}
 	v := map[string]any{

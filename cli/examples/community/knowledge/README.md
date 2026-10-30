@@ -14,4 +14,4 @@ The generator also accepts `--profile cloudevents-structured-json` when run
 directly, producing empty revision 1 and active revisions 2 and 3 for the
 isolated profile and historical-replay tests.
 
-The signatures demonstrate transport, rollback, and selection mechanics only. Their freshness dates are generated for the synthetic run and do not record an upstream review. They are not an official Prufyx trust root, cert-manager or CloudEvents authority, or production signing workflow. The Go command performs no network or cluster operation and uses the vendored Go 1.26.8 source tree. The retained shell file is only a compatibility launcher.
+The signatures demonstrate transport, rollback, and selection mechanics only. Their freshness dates are generated for the synthetic run and do not record an upstream review. They are not an official Prufyx trust root, cert-manager or CloudEvents authority, or production signing workflow. The Go command performs no network or cluster operation and uses the vendored Go 1.26.10 source tree. The retained shell file is only a compatibility launcher.
