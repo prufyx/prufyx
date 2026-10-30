@@ -309,8 +309,9 @@ change review dates, or establish that source rules are correct.
 
 The existing [contributor workflow](upstream-contributions.md#workflow-and-authority)
 names maintainer Spas Atanasov (`@airstand`) for maintainer acceptance and
-publication review. Production key custody, root distribution,
-reviewed rule publication and hosted feed operation remain separate release gates.
+publication review. Production key custody, root distribution and reviewed rule
+publication remain maintainer responsibilities; the official feed is operated by
+the maintainer, see [knowledge-publisher.md](knowledge-publisher.md).
 Existing examples use ephemeral
 test keys and synthetic review dates solely to exercise the protocol; they are
 not evidence of a production feed or a comprehensive release-note corpus.
