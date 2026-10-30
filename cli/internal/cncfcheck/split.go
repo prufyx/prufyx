@@ -72,6 +72,25 @@ type externalIndexDocument struct {
 	Purpose                string               `json:"purpose"`
 	EngineCapabilityDigest string               `json:"engineCapabilityDigest"`
 	Projects               []ExternalIndexEntry `json:"projects"`
+	// MinClientVersion is the oldest prufyx that may read this package, as
+	// vMAJOR.MINOR.PATCH[-pre.N]. Absent means every client that reads the
+	// schema.
+	MinClientVersion string `json:"minClientVersion,omitempty"`
+}
+
+// ExternalIndexMinClient reads only the minimum client version of an index
+// target. It is deliberately lenient: it ignores every other field, so it
+// works on an index of a schema this build cannot parse. The bool is false
+// when the field is absent or the input is not a JSON object with a string
+// value there. Callers must hash-verify raw first.
+func ExternalIndexMinClient(raw []byte) (string, bool) {
+	var probe struct {
+		MinClientVersion string `json:"minClientVersion"`
+	}
+	if json.Unmarshal(raw, &probe) != nil || probe.MinClientVersion == "" {
+		return "", false
+	}
+	return probe.MinClientVersion, true
 }
 
 // ExternalIndex is a parser-issued, sealed view of an index target.
@@ -237,6 +256,10 @@ func (x ExternalIndex) Entry(project string) (ExternalIndexEntry, bool) {
 	return ExternalIndexEntry{}, false
 }
 
+// ErrUnreadableTarget reports a length- and digest-matching project target
+// whose envelope this build cannot parse. It is not an ErrIntegrity.
+var ErrUnreadableTarget = errors.New("CNCF check project target not readable by this build")
+
 // AdmitExternalProjectTarget admits one project target against its index
 // entry: exact length and digest, envelope revision and purpose, every rule
 // entry and every record owned by the project, whether the target is a
@@ -249,6 +272,12 @@ func AdmitExternalProjectTarget(index ExternalIndex, project string, raw []byte)
 	}
 	bundle, err := parseExternalBundle(raw, index.base)
 	if err != nil {
+		// A target the pinned root signed and the index lists, but this
+		// build cannot parse (unknown field, newer schema), is distinct from
+		// a mismatch: callers may treat it as "needs a newer prufyx".
+		if errors.Is(err, ErrInvalid) {
+			return ExternalBundle{}, ErrUnreadableTarget
+		}
 		return ExternalBundle{}, ErrIntegrity
 	}
 	admission, err := bundle.Admission()

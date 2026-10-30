@@ -62,7 +62,7 @@ there. A pull request that changes user-visible behaviour adds one fragment,
 
 ## Develop locally
 
-Use Go 1.26.8. Go dependencies are pinned in `cli/vendor`; use the vendored,
+Use Go 1.26.10. Go dependencies are pinned in `cli/vendor`; use the vendored,
 offline dependency set for every local check. From the repository root:
 
 ```sh
@@ -74,7 +74,7 @@ CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
 ```
 
 The CLI module declares `go 1.26`, so any Go 1.26.x toolchain can build it.
-Release builds require exactly Go 1.26.8, which `make toolchain-check` enforces.
+Release builds require exactly Go 1.26.10, which `make toolchain-check` enforces.
 A Go `toolchain` directive would only select a preferred version when toolchain
 switching is permitted; `GOTOOLCHAIN=local` always uses the invoked Go
 executable and does not validate that executable's patch release. Before an
@@ -82,13 +82,13 @@ offline check, use the explicit local gate:
 
 ```sh
 cd cli
-make toolchain-check GO=/absolute/path/to/go1.26.8/bin/go
+make toolchain-check GO=/absolute/path/to/go1.26.10/bin/go
 ```
 
 Staticcheck is an opt-in local analysis gate. It is not part of the ordinary
 offline build, and it never downloads a tool. Provision a pinned binary outside
 the checkout using Staticcheck 2026.2.1 (which supports Go 1.27 and therefore
-the supported Go 1.26.8 toolchain), verify its published SHA-256 sidecar:
+the supported Go 1.26.10 toolchain), verify its published SHA-256 sidecar:
 
 ```sh
 mkdir -p /private/tmp/prufyx-staticcheck && cd /private/tmp/prufyx-staticcheck
@@ -105,9 +105,9 @@ Staticcheck's complete default check set:
 
 ```sh
 cd cli
-make staticcheck GO=/absolute/path/to/go1.26.8/bin/go \
+make staticcheck GO=/absolute/path/to/go1.26.10/bin/go \
   STATICCHECK=/absolute/path/to/staticcheck
-make staticcheck-full GO=/absolute/path/to/go1.26.8/bin/go \
+make staticcheck-full GO=/absolute/path/to/go1.26.10/bin/go \
   STATICCHECK=/absolute/path/to/staticcheck
 ```
 

@@ -20,12 +20,12 @@ evidence does not decide the question, the answer is `UNKNOWN`, not a guess.
 > **Status: public beta (pre-release).** A `v0.1.0-beta.0` candidate build is
 > being prepared; until its GitHub release is published, build from source. The
 > binary carries embedded, time-limited knowledge, and `prufyx db update`
-> refreshes it from the official signed feed once that feed is published. Results are scoped findings, not a guarantee that a
-> whole upgrade is safe.
+> refreshes it from the official signed feed. Results are scoped findings, not a
+> guarantee that a whole upgrade is safe.
 
 ## Quickstart
 
-Requires Go 1.26 (release builds use 1.26.8; see CONTRIBUTING.md).
+Requires Go 1.26 (release builds use 1.26.10; see CONTRIBUTING.md).
 
 **1. Build.**
 
@@ -262,7 +262,7 @@ upgrade surface they decide.
 ## Coverage
 
 <!-- coverage:begin -->
-Generated on 2026-10-23 by `scripts/readme-coverage.sh` (do not edit this block by hand).
+Generated on 2026-10-30 by `scripts/readme-coverage.sh` (do not edit this block by hand).
 
 | Executable rules | Count |
 | --- | --- |
@@ -271,15 +271,15 @@ Generated on 2026-10-23 by `scripts/readme-coverage.sh` (do not edit this block 
 | Projects with at least one executable check | 65 |
 | Projects catalogued with retained public sources | 58 (11 of them source-only, no check) |
 | Projects with reviewed CRD targets (a reviewed `crd.custom_resource_versions` target) | 73 |
-| Projects with a published CRD rule or line attestation | 6 |
+| Projects with a published CRD rule or line attestation | 17 |
 
 Version-coverage depth, measured over the last five minor upgrades of each of the 78 projects with a release-line snapshot (390 upgrades between consecutive release lines):
 
 | Status | Upgrades | Share |
 | --- | --- | --- |
-| Decided for the whole release-line pair (A attested, B bounded) | 27 | 6.9% |
-| Rule for one exact version pair only (S) | 41 | 10.5% |
-| Gap, no valid rule (G) | 322 | 82.5% |
+| Decided for the whole release-line pair (A attested, B bounded) | 40 | 10.2% |
+| Rule for one exact version pair only (S) | 40 | 10.2% |
+| Gap, no valid rule (G) | 310 | 79.4% |
 
 Kubernetes: 63 valid rules, but 19 fall in its window 1.32 to 1.37; 0 of 5 upgrades in that window are gaps.
 
@@ -378,8 +378,9 @@ status:
   tagged release builds are reproducible and carry their build identity. See
   [releasing](cli/docs/releasing.md).
 
-**Planned:** a published release with prebuilt binaries, an official signed
-knowledge feed, and automated GitOps release gates. None exists today.
+**Planned:** a published release with prebuilt binaries and automated GitOps
+release gates. Neither exists today. The official signed knowledge feed is
+published; `prufyx db update` fetches it.
 
 ## Privacy and offline operation
 
@@ -409,7 +410,8 @@ knowledge feed, and automated GitOps release gates. None exists today.
   absolute); downloaded packages are kept in `.../knowledge/packages/`. It
   verifies a TUF chain that starts at the root pinned in the binary
   (`sha256:11eff27032c4a3db126d030ae860e881e8e0dd1e7c37fcc4f10ef5fde70a326a`),
-  changes nothing for a package older than the installed one (exit `12`),
+  changes nothing for a package older than the installed one (exit `12`) or
+  too new for this build (exit `15`),
   refuses a package with the same revision and a different digest, and sends no
   configuration, path or report. Nothing runs at startup.
 - **Back to embedded.** `--knowledge=embedded` on `check cncf` or `scan`, or
@@ -443,7 +445,7 @@ above takes real compute.
 | Storage | 2 TB NVMe | Pinned upstream source mirrors and reproducible builds |
 
 If you or your company would like to fund or provide hardware, please get in touch
-by email at [airstand@gmail.com](mailto:airstand@gmail.com) or on
+by email at [hello@prufyx.com](mailto:hello@prufyx.com) or on
 [LinkedIn](https://www.linkedin.com/in/spasatanasov/). Hardware sponsors are
 acknowledged here and on [prufyx.com](https://prufyx.com) with their permission.
 We will publish what any support paid for. Sponsorship does not buy influence over

@@ -415,7 +415,13 @@ func scan(t testing.TB, knowledge Knowledge, args ...string) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	return Run(request, Options{Knowledge: knowledge, Build: &testBuild})
+	options := Options{Knowledge: knowledge, Build: &testBuild}
+	if !request.Now.IsZero() {
+		// The real time equals the pinned --now, so these scans do not depend
+		// on the date the tests run on.
+		options.Clock = func() time.Time { return request.Now }
+	}
+	return Run(request, options)
 }
 
 // mustScan runs a scan that must be accepted.

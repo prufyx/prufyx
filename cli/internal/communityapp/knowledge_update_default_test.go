@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/buildidentity"
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
 	"github.com/prufyx/prufyx/cli/internal/knowledgefixture"
 	"github.com/prufyx/prufyx/cli/internal/knowledgepin"
@@ -281,5 +283,40 @@ func TestKnowledgeUpdateRevisionRegressionIsARollback(t *testing.T) {
 	}
 	if st, err := knowledge.InspectConstraintsProjects(env.store); err != nil || st.SelectedRevision != "5" {
 		t.Fatalf("store moved: %+v %v", st, err)
+	}
+}
+
+// A package signed by the pinned root that names a newer minimum client is
+// reported as too new: exit 15, trust not advanced, the store untouched.
+func TestKnowledgeUpdateTooNewForThisClient(t *testing.T) {
+	old := buildidentity.Version
+	buildidentity.Version = "v0.1.0-beta.0"
+	t.Cleanup(func() { buildidentity.Version = old })
+	env := newDefaultUpdateEnv(t)
+	if code, _, stderr := runDefaultUpdate(t, perProjectPackage(t, env.repo, 1, "4")); code != ExitOK {
+		t.Fatal(code, stderr)
+	}
+	index, projects, err := cncfcheck.BuildEmbeddedExternalTargets("5", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexRaw := append(append([]byte(nil), index.Bytes[:len(index.Bytes)-1]...), []byte(`,"minClientVersion":"v0.3.0"}`)...)
+	targets := map[string][]byte{index.Path: indexRaw}
+	for _, project := range projects {
+		targets[project.Path] = project.Bytes
+	}
+	raw, err := env.repo.Package(knowledgefixture.ProjectsPackage{Version: 2, Targets: targets})
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, out, _ := runDefaultUpdate(t, raw)
+	if code != ExitKnowledgeTooNew || out.ReasonCode != "KNOWLEDGE_TOO_NEW_FOR_THIS_CLIENT" || out.Rejection == nil || out.Rejection.TrustStateAdvanced || out.ImportReceipt != nil {
+		t.Fatalf("code=%d out=%+v", code, out)
+	}
+	if !strings.Contains(out.NextAction, "upgrade prufyx to >= v0.3.0") || !strings.Contains(out.NextAction, "stay in use") {
+		t.Fatalf("next action = %q", out.NextAction)
+	}
+	if st, err := knowledge.InspectConstraintsProjects(env.store); err != nil || st.State != "READY" || st.SelectedRevision != "4" {
+		t.Fatalf("store changed: %+v %v", st, err)
 	}
 }

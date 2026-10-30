@@ -178,14 +178,7 @@ func (r *customResourceRun) componentGaps() {
 	if !r.declarations.scopeComplete {
 		r.rootGap(scanreport.GapDeclarationScope, r.slug)
 	}
-	counts := map[scanreport.GapKey]int{}
-	for _, omission := range r.workspace.Omissions {
-		outcome, known := reasonOutcomes[string(omission.Reason)]
-		if !known || outcome.gap == "" {
-			outcome.gap = scanreport.GapDocumentsShape
-		}
-		counts[outcome.gap]++
-	}
+	counts := omissionCounts(r.workspace.Omissions)
 	for _, key := range []scanreport.GapKey{scanreport.GapDocumentsTemplated, scanreport.GapDocumentsLists, scanreport.GapDocumentsFiles, scanreport.GapDocumentsShape} {
 		if counts[key] > 0 {
 			r.rootGap(key, counts[key])

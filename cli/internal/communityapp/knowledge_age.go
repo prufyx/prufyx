@@ -3,6 +3,7 @@
 package communityapp
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"time"
@@ -11,6 +12,8 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfknowledge"
 	"github.com/prufyx/prufyx/cli/internal/knowledgeage"
+	"github.com/prufyx/prufyx/cli/internal/projectcheck"
+	"github.com/prufyx/prufyx/cli/internal/scanrun"
 )
 
 // ageRecord collects what a check command learns about the age of the
@@ -54,6 +57,10 @@ func evaluated(exit int) bool {
 // checkCNCF runs check cncf and prints the age note for the knowledge it
 // used: the database's targets, or the embedded knowledge at --now.
 func (r runtime) checkCNCF(args []string) int {
+	return r.pinnedNowGuard(args, cncfcheck.EmbeddedEvidenceAge, runtime.checkCNCFAt)
+}
+
+func (r runtime) checkCNCFAt(args []string) int {
 	r.age = &ageRecord{}
 	exit := r.cncf(args)
 	if !evaluated(exit) || hasHelp(args) {
@@ -126,4 +133,97 @@ func batchAgeNote(report batchcheck.Report) string {
 		return ""
 	}
 	return knowledgeage.Line(knowledgeage.Summarize(sources, now), now, true)
+}
+
+// pinnedNowGuard runs a check that takes --now with embedded knowledge. --now
+// pins the evaluation time, but it must not hide knowledge that has expired
+// at the real time (autoClock): when rules have expired since the pinned
+// time, it warns, and a PASS is only kept if the same check also passes at
+// the real time; otherwise the report and exit status of the real-time
+// evaluation are given. A replay (--replay-report), a knowledge database or
+// a run without --now is left as it was.
+func (r runtime) pinnedNowGuard(args []string, sources func() ([]knowledgeage.Source, error), run func(runtime, []string) int) int {
+	text, ok := nowFlag(args)
+	if !ok || hasHelp(args) || flagProvided(args, "knowledge-db") || flagProvided(args, "replay-report") {
+		return run(r, args)
+	}
+	pinned, err := time.Parse(time.RFC3339, text)
+	if err != nil {
+		return run(r, args)
+	}
+	pinned = pinned.UTC()
+	wall := autoClock().UTC().Truncate(time.Second)
+	aged, err := sources()
+	if err != nil || !pinned.Before(wall) {
+		return run(r, args)
+	}
+	expired := knowledgeage.Summarize(aged, wall).Expired
+	if expired <= knowledgeage.Summarize(aged, pinned).Expired {
+		return run(r, args)
+	}
+	warning := "prufyx: " + scanrun.PinnedNowText(pinned, wall, expired) + "\n"
+
+	var out, errs bytes.Buffer
+	pinnedRun := r
+	pinnedRun.stdout, pinnedRun.stderr = &out, &errs
+	exit := run(pinnedRun, args)
+	if exit == ExitOK {
+		wallArgs, replaced := replaceNow(args, wall.Format(time.RFC3339))
+		if !replaced {
+			return r.fail("--now could not be re-evaluated at the real time", ExitUnknown)
+		}
+		var wallOut, wallErrs bytes.Buffer
+		wallRun := r
+		wallRun.stdout, wallRun.stderr = &wallOut, &wallErrs
+		wallExit := run(wallRun, wallArgs)
+		if wallExit != ExitOK {
+			if !evaluated(wallExit) {
+				fmt.Fprint(r.stderr, warning)
+				return r.fail("the result at the real time could not be evaluated, so the pinned PASS is not given", ExitUnknown)
+			}
+			out, errs, exit = wallOut, wallErrs, wallExit
+		}
+	}
+	r.stdout.Write(out.Bytes())
+	r.stderr.Write(errs.Bytes())
+	fmt.Fprint(r.stderr, warning)
+	return exit
+}
+
+// replaceNow gives args with the value of --now replaced.
+func replaceNow(args []string, value string) ([]string, bool) {
+	out := append([]string(nil), args...)
+	for i, arg := range out {
+		if arg == "--" {
+			break
+		}
+		name, ok := optionName(arg)
+		if !ok || name != "now" {
+			continue
+		}
+		if eq := strings.Index(arg, "="); eq >= 0 {
+			out[i] = arg[:eq+1] + value
+			return out, true
+		}
+		if i+1 < len(out) {
+			out[i+1] = value
+			return out, true
+		}
+	}
+	return out, false
+}
+
+// batchEmbeddedAge is the end dates of the embedded evidence a batch can use:
+// the CNCF pack (rules, line attestations, served-API lists, path policies)
+// and the community project pack, for items of either kind.
+func batchEmbeddedAge() ([]knowledgeage.Source, error) {
+	cncf, err := cncfcheck.EmbeddedEvidenceAge()
+	if err != nil {
+		return nil, err
+	}
+	projects, err := projectcheck.EmbeddedKnowledgeAge()
+	if err != nil {
+		return nil, err
+	}
+	return knowledgeage.Merge(cncf, projects), nil
 }

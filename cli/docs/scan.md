@@ -81,7 +81,7 @@ prufyx scan [PATH ...] [-] --to COMPONENT=VERSION [--from COMPONENT=VERSION ...]
 
 | Flag | Meaning |
 | --- | --- |
-| `PATH` | Files or directories of rendered manifests. A directory is read recursively (`*.yaml`, `*.yml`, `*.json`; hidden directories skipped; symlinks never followed). `-` reads standard input. Without a path, the `inputs` of `prufyx.yaml` are used, else the current directory. |
+| `PATH` | Files or directories of rendered manifests. A directory is read recursively (`*.yaml`, `*.yml`, `*.json`; hidden directories are not entered. Hidden directories, files with another name and symlinks are reported as not read, so the verdict is UNKNOWN. Only `.git`, `*.md`, images (`.png .jpg .jpeg .gif .svg .ico`), `README`, `LICENSE`, `LICENCE`, `NOTICE`, `CHANGELOG` and `CODEOWNERS` files of any extension, and `.gitignore`, `.gitattributes`, `.helmignore`, `.dockerignore` are skipped without a gap and counted in `summary.documentsAllowlistSkipped`. To scan a skipped file or directory, name it; naming it in addition to its parent does not clear the omission, so then name the whole input set). `-` reads standard input. Without a path, the `inputs` of `prufyx.yaml` are used, else the current directory. |
 | `--to C=V` | Target version of component `C`, a project name from `prufyx catalog cncf`. Repeatable; at least one target is required (here or in `prufyx.yaml`). |
 | `--from C=V` | Version of `C` in use now. Repeatable. `scan` never reads the Kubernetes version from manifests: without it the answer names the gap. |
 | `--config FILE` | The [`prufyx.yaml`](scan-config.md) to read. Default: `prufyx.yaml` next to the first `PATH`. Flags override the file key by key. |
@@ -104,6 +104,18 @@ prufyx scan [PATH ...] [-] --to COMPONENT=VERSION [--from COMPONENT=VERSION ...]
 | `--require-basis` | The evidence bases whose rules are evaluated, a comma-separated subset of `reviewed`, `mechanical`, `empirical`, `consensus`, `lead`. Default: `reviewed,mechanical,empirical,consensus`, the same as `prufyx check cncf`. A rule left out that applies to a hop keeps the hop undecided (`RULE_NOT_DECIDED`) and the report says how many were left out. |
 | `--knowledge-db` | Read the knowledge from this verified local knowledge database instead of the knowledge built into the binary. See "Knowledge database" below. |
 | `--now` | The evaluation instant, canonical UTC with whole seconds (`2026-10-04T00:00:00Z`). Default: the current time, truncated to the second. It is printed in every report; pass it to replay a scan exactly. Not accepted with `--knowledge-db`. |
+
+`--now` pins the evaluation time but never hides real-time expiry. When the
+knowledge built into the binary has rules that ended after the pinned time and
+before the real date, `prufyx scan` prints a warning on standard error naming the pinned
+`--now`, today's date and the number of rules that expired. The report then holds an `EVIDENCE_EXPIRED` gap, so it cannot be a PASS (exit 11). Replays of a
+saved report (`--replay-report`) and runs with `--knowledge-db` keep their
+recorded time and get no warning.
+
+Example commands in these docs pin `--now`. Once the embedded knowledge
+expires (the first rules end on 2026-12-07 at the current data), a command
+with an earlier pinned `--now` warns and answers UNKNOWN; change the date in
+the example to the current time, or drop `--now`.
 
 A component version is `X.Y.Z` with no prefix, suffix or leading zeros. An
 unknown component name is refused and the three closest names are listed.
@@ -189,6 +201,10 @@ the selected target (the index in the per-project layout), and
 `knowledgeStore` gives the database path, its layout, the target path, the
 trust receipt digest, the purpose, when the revision was imported and, in the
 per-project layout, the revision and digest of each targeted project's target.
+An automatic scan (no `--knowledge-db`, no `--now`) also carries `knowledgeSelection`:
+`chosen` (`embedded` or `local-db`), `reason` (`store-newer`, `store-corrected`, `store-older`,
+`identical`, `no-store`, `forced`, `store-expired`) and, when the store was compared
+with the embedded knowledge, `embeddedEvidenceAt` and `storeEvidenceAt`.
 SARIF output carries the same `knowledgeStore` object in its run properties,
 and Markdown output lists the same lines as the human output in its
 provenance block. With `--redact` the database path is replaced by its
@@ -202,8 +218,8 @@ knowledge database knowledge-db; layout cncf-projects; target knowledge/cncf/ind
 knowledge for kubernetes: target knowledge/cncf/projects/kubernetes.v1.json revision 5 digest sha256:f52033c5f46cb594b8a6d4fcb057cc3284df7b92f5c1702aeb950f6b4f937cad
 ```
 
-(That database holds a test-signed copy of the built-in knowledge; no official
-Prufyx knowledge feed or trust root is published yet.)
+(That database holds a test-signed copy of the built-in knowledge, not the
+official feed. `prufyx db update` fetches the official feed.)
 
 ## Knowledge age note
 
@@ -211,7 +227,7 @@ When the knowledge a scan used is close to the end of its review window,
 `scan` prints one line on standard error, after the report:
 
 ```text
-prufyx: note: 166 knowledge rules expire within 30 days, the earliest on 2026-12-07 (in 17 days). No official update yet: build from newer source, or `prufyx db import` a signed package you trust (then use --knowledge-db) before they expire.
+prufyx: note: 166 knowledge rules expire within 30 days, the earliest on 2026-12-07 (in 17 days). Run `prufyx db update` to fetch newer knowledge, or build from newer source before they expire.
 ```
 
 The line appears when any active rule of the knowledge in use ends no later
@@ -219,15 +235,13 @@ than 30 days after the evaluation instant (exactly 30 days counts), and when a
 rule has already ended, in which case it says so:
 
 ```text
-prufyx: note: 50 knowledge rules have expired, the earliest on 2026-12-07 (2 days ago). No official update yet: build from newer source, or `prufyx db import` a signed package you trust (then use --knowledge-db). Expired rules answer UNKNOWN.
+prufyx: note: 50 knowledge rules have expired, the earliest on 2026-12-07 (2 days ago). Run `prufyx db update` to fetch newer knowledge, or build from newer source. Expired rules answer UNKNOWN.
 ```
 
 The knowledge in use is the knowledge built into the binary, or, with
-`--knowledge-db`, the targets opened from the database (with a database the
-advice leaves out `then use --knowledge-db`, which you already do). No
-official knowledge update is published yet, so the line names what works
-today: a newer source build, or a signed package you trust, imported with
-`prufyx db import`. A rule that has expired answers `UNKNOWN`. The count
+`--knowledge-db`, the targets opened from the database. The advice is fixed
+text: it names `prufyx db update` (official signed feed) and a newer source
+build. It does not check the feed and does not claim a newer package exists. A rule that has expired answers `UNKNOWN`. The count
 covers the active rules of that knowledge; withdrawn rules do not count. The
 evaluation instant is the one printed in the report, so the line is the same
 for the same `--now` and the same knowledge.
@@ -363,7 +377,7 @@ Every gap has a reason, a detail and an action.
 | `DECLARATION_MISMATCH` | A declared kubelet version cannot be compared with the hop target (another major version) or with the distribution (not `official_upstream`), so the kubelet skew rule cannot decide. | Declare kubelet versions on the target's major version, or check the kubelet skew by hand. |
 | `DISTRIBUTION_NOT_COVERED` | The distribution is `custom_build`. | Check your distribution's release notes by hand. |
 | `DOCUMENTS_TEMPLATED` | Documents with `{{ ... }}` or `${...}`. | Render them (`helm template`, `kustomize build`) and scan the output. |
-| `DOCUMENTS_NOT_EVALUATED` | Nested or unresolved lists, paginated lists, objects of a kind other than `List` that hold a top-level `items` array, documents that are not Kubernetes objects, skipped symlinks or special files, or no manifests at all, or Helm values that set a key to `null`; for a project with custom-resource versions, also objects of custom-resource groups that no reviewed project owns. | Pass only rendered Kubernetes objects; check unowned custom resources by hand. |
+| `DOCUMENTS_NOT_EVALUATED` | Nested or unresolved lists, paginated lists, objects of a kind other than `List` that hold a top-level `items` array, documents that are not Kubernetes objects, skipped symlinks or special files, hidden directories and files without a `.yaml`, `.yml` or `.json` name found in a scanned directory, or no manifests at all, or Helm values that set a key to `null`; for a project with custom-resource versions, also objects of custom-resource groups that no reviewed project owns. | Pass only rendered Kubernetes objects; check unowned custom resources by hand. |
 | `UNSUPPORTED_COMBINATION` | A support-range rule finds the planned combination outside its documented support range (see "Unsupported combinations"). | Follow the rule's next action, or accept the risk knowingly; the answer cannot pass. |
 | `API_VERSION_NOT_SERVED` | A manifest uses an API version that was removed on a release line at or below the target (every removal Prufyx has reviewed, including those before 1.22 such as `extensions/v1beta1` workloads), and no reviewed rule decided it: it was removed at or before your current line, or on a line the upgrade enters where the rule is missing, left out by `--require-basis`, or could not decide (for example a missing declaration). The headline then says so instead of "no blockers". | Migrate it to a served version before upgrading and scan again; the `RULE_NOT_DECIDED` gaps for the step that enters the line say why no rule decided it (no rule for the line, a rule left out by `--require-basis`, a rule that covers only part of the step, or a rule that could not decide). |
 | `API_VERSION_NOT_REVIEWED` | A manifest uses a version of a reviewed kind that the reviewed removals do not name, or a version and kind of a Kubernetes API group that the reviewed list of the target line does not name as served; or that list is missing, not current, for another line or component, or rests on a basis `--require-basis` leaves out. The built-in knowledge does not carry such lists yet, so today every scan with Kubernetes manifests names this gap. | Check those versions against the target's API reference by hand, or request coverage. |

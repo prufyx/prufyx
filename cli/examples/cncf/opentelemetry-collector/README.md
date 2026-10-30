@@ -6,7 +6,7 @@ top-level `logging` or `logging/name` exporter is configured for the reviewed
 `0.110.0` to `0.111.0` transition. It does not run a Collector or validate
 pipeline startup, connectors, providers, environment expansion, or delivery.
 
-Run this from a checkout root with Go 1.26.8 and copy the tracked example to a
+Run this from a checkout root with Go 1.26.10 and copy the tracked example to a
 private `0600` file before checking it. Set `PRUFYX_BIN` to an existing
 checkout-root binary, or let the command build a temporary binary outside the
 checkout. The `official` distribution and the two completeness flags are
@@ -17,7 +17,7 @@ set -eu
 umask 077
 repo_root=$(git rev-parse --show-toplevel)
 cd "$repo_root"
-test "$(go env GOVERSION)" = go1.26.8
+test "$(go env GOVERSION)" = go1.26.10
 task_dir=$(mktemp -d)
 trap 'rm -rf "$task_dir"' EXIT
 if [ -n "${PRUFYX_BIN:-}" ]; then

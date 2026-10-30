@@ -157,15 +157,7 @@ func (r *kubernetesRun) componentGaps() map[scanreport.GapKey]scanreport.Gap {
 			add(key, kubernetesSlug)
 		}
 	}
-	counts := map[scanreport.GapKey]int{}
-	for _, omission := range r.workspace.Omissions {
-		outcome, known := reasonOutcomes[string(omission.Reason)]
-		if !known || outcome.gap == "" {
-			outcome.gap = scanreport.GapDocumentsShape
-		}
-		counts[outcome.gap]++
-	}
-	for key, n := range counts {
+	for key, n := range omissionCounts(r.workspace.Omissions) {
 		add(key, n)
 	}
 	if len(r.workspace.Documents) == 0 && len(r.workspace.Omissions) == 0 {

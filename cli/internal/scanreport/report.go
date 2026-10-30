@@ -100,9 +100,12 @@ type Summary struct {
 	Hops                int `json:"hops"`
 	DocumentsRead       int `json:"documentsRead"`
 	DocumentsOmitted    int `json:"documentsOmitted"`
-	Notices             int `json:"notices"`
-	Leads               int `json:"leads"`
-	Unsupported         int `json:"unsupported"`
+	// DocumentsAllowlistSkipped counts directory entries skipped by name
+	// because they cannot carry a Kubernetes object; they are not gaps.
+	DocumentsAllowlistSkipped int `json:"documentsAllowlistSkipped,omitempty"`
+	Notices                   int `json:"notices"`
+	Leads                     int `json:"leads"`
+	Unsupported               int `json:"unsupported"`
 }
 
 // Component is one component named by a version declaration.
@@ -420,6 +423,10 @@ type Provenance struct {
 	// local knowledge database (--knowledge-db). KnowledgeRevision and
 	// KnowledgeDigest then identify the selected target.
 	KnowledgeStore *KnowledgeStore `json:"knowledgeStore,omitempty"`
+	// KnowledgeSelection states how an automatic scan chose between the
+	// local database and the embedded knowledge. It is absent when the
+	// source was explicit (--knowledge-db, --now, supplied knowledge).
+	KnowledgeSelection *KnowledgeSelection `json:"knowledgeSelection,omitempty"`
 	// HelmValues identifies the values supplied for each declared chart hop.
 	HelmValues []HelmValues `json:"helmValues,omitempty"`
 	// KubeletVersions are the kubelet versions the caller declared; absent
@@ -469,6 +476,18 @@ type KnowledgeStore struct {
 	Purpose            string                  `json:"purpose"`
 	ImportedVerifiedAt string                  `json:"importedVerifiedAt"`
 	Projects           []KnowledgeStoreProject `json:"projects,omitempty"`
+}
+
+// KnowledgeSelection is the automatic choice of knowledge. Chosen is
+// "embedded" or "local-db". Reason is "store-newer", "store-corrected",
+// "store-older", "identical", "no-store", "forced" or "store-expired". The
+// evidence dates are the latest review dates compared (those of the project
+// with older store evidence, for "store-older"), when a comparison was made.
+type KnowledgeSelection struct {
+	Chosen             string `json:"chosen"`
+	Reason             string `json:"reason"`
+	EmbeddedEvidenceAt string `json:"embeddedEvidenceAt,omitempty"`
+	StoreEvidenceAt    string `json:"storeEvidenceAt,omitempty"`
 }
 
 // KnowledgeStoreProject is one project target opened from a per-project
