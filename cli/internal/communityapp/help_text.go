@@ -170,10 +170,11 @@ const dbHelp = `Usage:
   prufyx db verify FILE --profile cert-manager|cncf|cncf-projects|spiffe-x509-svid|cloudevents-structured-json|tikv-gcp-v2-wif-backup --bootstrap-root FILE --bootstrap-root-digest SHA256 [--expected-package-digest SHA256] [--expected-revision REVISION] [--expected-bundle-digest SHA256] [--format human|json]
   prufyx db import FILE --db-root DIR [--profile cert-manager|cncf|cncf-projects|spiffe-x509-svid|cloudevents-structured-json|tikv-gcp-v2-wif-backup] [--bootstrap-root FILE --bootstrap-root-digest SHA256] [--expected-revision REVISION] [--expected-bundle-digest SHA256] [--format human|json]
   prufyx db update --source HTTPS_URL --package-out FILE --db-root DIR [--profile cert-manager|cncf|cncf-projects|spiffe-x509-svid|cloudevents-structured-json|tikv-gcp-v2-wif-backup] [--bootstrap-root FILE --bootstrap-root-digest SHA256] [--expected-revision REVISION] [--expected-bundle-digest SHA256] [--format human|json]
-  prufyx db status --db-root DIR [--profile cert-manager|cncf|cncf-projects|spiffe-x509-svid|cloudevents-structured-json|tikv-gcp-v2-wif-backup] [--format human|json]
+  prufyx db status [--db-root DIR] [--profile cert-manager|cncf|cncf-projects|spiffe-x509-svid|cloudevents-structured-json|tikv-gcp-v2-wif-backup] [--format human|json]
   prufyx db capabilities --profile cncf [--format human|json]
 
-Verify, import and status are offline. Verify requires an independently trusted
+Verify, import and status are offline. Without --db-root, status of the
+cncf-projects profile reads the default store location that db update installs into. Verify requires an independently trusted
 bootstrap root and does not inspect a store or establish import eligibility.
 Only explicit update fetches a complete package;
 no configuration or report is uploaded. The default profile is cert-manager. Use a
