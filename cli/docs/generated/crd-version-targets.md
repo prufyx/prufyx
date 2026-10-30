@@ -46,14 +46,14 @@ The reviewed targets of the `crd.version-removal` extractor
 | `crd.version-removal.kuberhealthy` | CNCF | `github.com/kuberhealthy/kuberhealthy` | `vX.Y.Z`, then `X.Y.Z` | 2.3 | no | files matching `^[^.][^/]*\.ya?ml$` in `deploy/helm/kuberhealthy/crds` | 0 |
 | `crd.version-removal.kubernetes-ingress` | community | `github.com/nginx/kubernetes-ingress` | `vX.Y.Z` | 5.2 | yes | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.kubestellar` | CNCF | `github.com/kubestellar/kubestellar` | `vX.Y.Z` | 0.25 | no | `config/crd/bases/control.kubestellar.io_bindingpolicies.yaml`, `config/crd/bases/control.kubestellar.io_bindings.yaml`, `config/crd/bases/control.kubestellar.io_combinedstatuses.yaml`, `config/crd/bases/control.kubestellar.io_customtransforms.yaml`, `config/crd/bases/control.kubestellar.io_statuscollectors.yaml` | 0 |
-| `crd.version-removal.kubeswift` | community | `github.com/kubeswift-io/kubeswift` | `vX.Y.Z` | 0.15 | yes | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
+| `crd.version-removal.kubeswift` | community | `github.com/kubeswift-io/kubeswift` | `vX.Y.Z` | 0.1 | yes | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.kubevela` | CNCF | `github.com/kubevela/kubevela` | `vX.Y.Z` | 1.6 | no | files matching `^[^.][^/]*\.ya?ml$` in `charts/vela-core/crds` | 0 |
 | `crd.version-removal.kueue` | community | `github.com/kubernetes-sigs/kueue` | `vX.Y.Z` | 0.15 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/components/crd/alpha/bases` (when present), files matching `^[^.][^/]*\.ya?ml$` in `config/components/crd/bases` | 0 |
 | `crd.version-removal.kuma` | CNCF | `github.com/kumahq/kuma` | `vX.Y.Z`, then `X.Y.Z` | 2.9 | yes | files matching `^[^.][^/]*\.ya?ml$` in `deployments/charts/kuma/crds` | 2 |
-| `crd.version-removal.kyverno` | CNCF | `github.com/kyverno/kyverno` | `vX.Y.Z` | 1.14 | no | files matching `^[^.][^/]*\.ya?ml$` anywhere under `config/crds` | 5 |
+| `crd.version-removal.kyverno` | CNCF | `github.com/kyverno/kyverno` | `vX.Y.Z` | 1.14 | yes | files matching `^[^.][^/]*\.ya?ml$` anywhere under `config/crds` | 5 |
 | `crd.version-removal.logging-operator-kube-logging` | CNCF | `github.com/kube-logging/logging-operator` | `X.Y.Z` | 6.4 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.longhorn` | CNCF | `github.com/longhorn/longhorn` | `vX.Y.Z` | 1.8 | yes | `deploy/longhorn.yaml` | 1 |
-| `crd.version-removal.mariadb-operator` | community | `github.com/mariadb-operator/mariadb-operator` | `X.Y.Z` | 0.38 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
+| `crd.version-removal.mariadb-operator` | community | `github.com/mariadb-operator/mariadb-operator` | `vX.Y.Z` | 0.38 | yes | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.metal3-io` | CNCF | `github.com/metal3-io/baremetal-operator` | `vX.Y.Z` | 0.9 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/base/crds/bases` | 0 |
 | `crd.version-removal.metallb` | CNCF | `github.com/metallb/metallb` | `vX.Y.Z` | 0.13 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.mongodb-kubernetes` | community | `github.com/mongodb/mongodb-kubernetes` | `X.Y.Z` | 1.8 | yes | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |

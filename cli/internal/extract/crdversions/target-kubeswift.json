@@ -8,7 +8,7 @@
     "component": "pkg:github/kubeswift-io/kubeswift",
     "factProject": "kubeswift",
     "tagPrefixes": ["v"],
-    "minFrom": "0.15",
+    "minFrom": "0.1",
     "attest": true,
     "paths": [
       {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
