@@ -211,7 +211,7 @@ When the knowledge a scan used is close to the end of its review window,
 `scan` prints one line on standard error, after the report:
 
 ```text
-prufyx: note: 166 knowledge rules expire within 30 days, the earliest on 2026-12-07 (in 17 days). No official update yet: build from newer source, or `prufyx db import` a signed package you trust (then use --knowledge-db) before they expire.
+prufyx: note: 166 knowledge rules expire within 30 days, the earliest on 2026-12-07 (in 17 days). Run `prufyx db update` to fetch newer knowledge, or build from newer source before they expire.
 ```
 
 The line appears when any active rule of the knowledge in use ends no later
@@ -219,15 +219,13 @@ than 30 days after the evaluation instant (exactly 30 days counts), and when a
 rule has already ended, in which case it says so:
 
 ```text
-prufyx: note: 50 knowledge rules have expired, the earliest on 2026-12-07 (2 days ago). No official update yet: build from newer source, or `prufyx db import` a signed package you trust (then use --knowledge-db). Expired rules answer UNKNOWN.
+prufyx: note: 50 knowledge rules have expired, the earliest on 2026-12-07 (2 days ago). Run `prufyx db update` to fetch newer knowledge, or build from newer source. Expired rules answer UNKNOWN.
 ```
 
 The knowledge in use is the knowledge built into the binary, or, with
-`--knowledge-db`, the targets opened from the database (with a database the
-advice leaves out `then use --knowledge-db`, which you already do). No
-official knowledge update is fixed text in the line and does not check the
-feed. The line names a newer source build, or a signed package you trust, imported with
-`prufyx db import`. A rule that has expired answers `UNKNOWN`. The count
+`--knowledge-db`, the targets opened from the database. The advice is fixed
+text: it names `prufyx db update` (official signed feed) and a newer source
+build. It does not check the feed and does not claim a newer package exists. A rule that has expired answers `UNKNOWN`. The count
 covers the active rules of that knowledge; withdrawn rules do not count. The
 evaluation instant is the one printed in the report, so the line is the same
 for the same `--now` and the same knowledge.

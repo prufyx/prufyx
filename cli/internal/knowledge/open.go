@@ -16,9 +16,9 @@ import (
 const genericIntegrityNextAction = "inspect store integrity; use a matching CLI capability, or provision a separate store with an independently verified bootstrap; preserve the old store"
 
 // noSelectionNextAction is the next action of a store that holds no
-// selection. No official package or trust root is published yet, so it says
-// who needs the step: only a user who maintains their own signed knowledge.
-const noSelectionNextAction = "import a signed package with an explicit bootstrap root; no official package or trust root is published yet, so this is only needed if you maintain your own signed knowledge"
+// selection: nothing is installed locally. It names the official feed first and
+// the own-package path for users who maintain their own signed knowledge.
+const noSelectionNextAction = "run `prufyx db update` to install the official signed knowledge, or import a signed package with an explicit bootstrap root if you maintain your own"
 
 func OpenSelected(req SelectionRequest, admit AdmitFunc) (VerifiedRevision, error) {
 	return openRevision(req, certManagerProfile(), time.Time{}, SelectionCurrent, admit, nil)
