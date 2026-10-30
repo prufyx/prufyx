@@ -8,6 +8,7 @@
     "factProject": "kyverno",
     "tagPrefixes": ["v"],
     "minFrom": "1.14",
+    "attest": true,
     "paths": [
       {"path": "config/crds", "directory": true, "recursive": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
     ],
