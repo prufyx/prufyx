@@ -493,7 +493,11 @@ func (r runtime) writeKnowledgeUpdate(output knowledgeUpdateOutput, format strin
 		return r.writeJSON(output, code)
 	}
 	var b bytes.Buffer
-	fmt.Fprintf(&b, "knowledge update: %s\nprofile: %s\nnetwork attempted: %t\ntransfer completed: %t\npackage retained: %t\npartial cleanup required: %t\npackage digest: %s\nreason: %s\nnext action: %s\n", output.Status, output.Profile, output.NetworkAttempted, output.TransferCompleted, output.PackageRetained, output.PartialCleanupRequired, output.PackageDigest, output.ReasonCode, output.NextAction)
+	headline := output.Status
+	if output.UpToDate {
+		headline = "local database already up to date (nothing imported)"
+	}
+	fmt.Fprintf(&b, "knowledge update: %s\nprofile: %s\nnetwork attempted: %t\ntransfer completed: %t\npackage retained: %t\npartial cleanup required: %t\npackage digest: %s\nreason: %s\nnext action: %s\n", headline, output.Profile, output.NetworkAttempted, output.TransferCompleted, output.PackageRetained, output.PartialCleanupRequired, output.PackageDigest, output.ReasonCode, output.NextAction)
 	if receipt := output.ImportReceipt; receipt != nil {
 		if output.NewRevision != "" {
 			fmt.Fprintf(&b, "current revision: %s\nnew revision: %s\ntrust metadata expires: %s\nsource evidence expires: %s\n", dash(output.CurrentRevision), output.NewRevision, output.ExpiresAt, dash(output.EvidenceExpires))
