@@ -4,11 +4,13 @@
 
 Prufyx checks a planned upgrade against upstream evidence and returns
 `PASS`, `BLOCKED`, or `UNKNOWN`. Every rule cites the exact upstream commit,
-file, and line range it relies on, and says how it was established. Every rule
-in the knowledge shipped today was reviewed by a person. Prufyx is built to
-accept other ways of establishing a rule as well, for example deriving it
-mechanically from upstream source with a program that is re-run and checked
-before the rule is accepted; each rule states which way it was established, and
+file, and line range it relies on, and says how it was established.
+
+<!-- basis-counts:begin -->
+Of the 279 active rules shipped today, 236 with basis `reviewed`, 43 with basis `mechanical`. A `reviewed` rule was established by a person who read the cited upstream evidence. A `mechanical` rule was derived from upstream source by an extractor program that is re-run and checked before the rule is accepted; no person reviewed it rule by rule. The 98 release-line attestations and served-API lists are separate records: 98 with basis `mechanical`.
+<!-- basis-counts:end -->
+
+Each rule states which way it was established, and
 you can limit a `scan` to the ways you trust (by default `scan` uses every
 basis except `lead`; `--require-basis reviewed` keeps only rules a person
 reviewed). Prufyx evaluates locally and offline, uploads nothing, and a
@@ -288,9 +290,9 @@ Update the block with `scripts/readme-coverage.sh` (`--check` fails when it is
 stale). The method and the full per-project table are in the
 [coverage report guide](cli/docs/coverage-report.md).
 
-In plain terms: the rules are exact, reviewed transitions, mostly for older
+In plain terms: the rules are exact transitions, mostly for older
 releases. No upgrade between two release lines is decided as a whole yet.
-Reviewed Kubernetes API removals exist for upgrades to 1.22, 1.25-1.27, 1.29,
+Kubernetes API removals exist for upgrades to 1.22, 1.25-1.27, 1.29,
 1.32-1.34 and 1.37, plus the in-tree dockershim removal in 1.24.
 Each served-API removal rule covers every patch release of the previous line
 going to every patch release of the line that stops serving the API, so a
@@ -308,10 +310,13 @@ Jaeger, Karmada, KEDA, Knative, KubeEdge, KubeVirt, Kyverno, Linkerd, Longhorn,
 MetalLB, OPA, OpenTelemetry, Prometheus, Rook, SPIRE, Strimzi, Tekton, Thanos,
 Velero and others.
 
-Every rule in the CNCF and community-project packs is time-limited. The rules
-shipped today stop being valid between 2026-12-07 and 2026-12-22 unless their
-review is renewed; after that date a build without newer knowledge answers
-`UNKNOWN` for them. The named cert-manager and Prometheus checks are pinned to
+Every rule in the CNCF and community-project packs is time-limited.
+
+<!-- validity-window:begin -->
+The 279 active rules shipped today stop being valid, rule by rule, between 2026-12-07 and 2027-01-26 unless their review is renewed; after its date a build without newer knowledge answers `UNKNOWN` for that rule.
+<!-- validity-window:end -->
+
+The named cert-manager and Prometheus checks are pinned to
 fixed versions and do not expire.
 
 Run `prufyx catalog checks --project PROJECT` (for example `kubernetes`) to

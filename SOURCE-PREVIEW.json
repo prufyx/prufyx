@@ -4,11 +4,7 @@
   "destination": "https://github.com/prufyx/prufyx",
   "source": {
     "inventoryPath": "cli/docs/generated/community-support-inventory.json",
-    "inventorySha256": "sha256:6d47facc4ef8cc25f1a587ec880b59f9044b2137d37791cc7c6d4954e3f93c1a",
     "counts": {
-      "executableProjects": 66,
-      "selectedSourceRecords": 110,
-      "selectedSourceProjects": 58,
       "documentedScenarioExamples": 33
     },
     "latestUpgradeCoverage": {
