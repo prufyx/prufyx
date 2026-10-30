@@ -8,6 +8,7 @@
     "factProject": "openyurt",
     "tagPrefixes": ["v"],
     "minFrom": "1.3",
+    "attest": true,
     "paths": [
       {"path": "charts/yurt-manager/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"},
       {"path": "charts/yurt-iot-dock/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd", "optional": true}

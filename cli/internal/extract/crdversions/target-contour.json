@@ -8,9 +8,12 @@
     "factProject": "contour",
     "tagPrefixes": ["v"],
     "minFrom": "1.28",
+    "attest": true,
     "paths": [
       {"path": "examples/contour/01-crds.yaml"}
     ],
-    "exclude": []
+    "exclude": [
+      {"path": "examples/optional-features/kustomization.yaml", "repo": "github.com/projectcontour/contour", "reason": "a user-run kustomize example that switches optional features off; it only deletes CustomResourceDefinitions from the rendered gateway manifest and defines none", "evidence": "Read at v1.28.0 and v1.33.7: the header says to run it with kubectl kustomize on examples/optional-features/; its only resource is ../render/contour-gateway.yaml and its patches are JSON6902 argument additions plus $patch delete entries for extensionservices.projectcontour.io and the grpcroutes, tlsroutes, tcproutes and udproutes Gateway API definitions. The generator scripts (hack/generate-deployment.sh, generate-gateway-deployment.sh, generate-gateway-yaml.sh, generate-crd-yaml.sh) read only examples/contour, examples/gateway and examples/deployment, and the Makefile names neither this directory nor examples/render."}
+    ]
   }
 }
