@@ -22,7 +22,7 @@ skipped = json.load(open(a.dir + "/skipped.json")) if os.path.exists(a.dir + "/s
 if a.mode != "none":
     # empty coverage must never be green: every mandatory suite needs at least one case
     for suite in ("crd", "k8s", "bp325"):
-        if not any(c["suite"] == suite for c in cases):
+        if not any(c["suite"].split("-")[0] == suite for c in cases):  # k8s-range, k8s-single, k8s-plan count as k8s
             cases.append({"suite": suite, "key": "no-cases", "wrongpass": False, "mismatch": False, "error": True,
                           "detail": {"why": "suite produced no cases"}})
 bp = a.state + "/known-mismatch.json"
