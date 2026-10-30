@@ -8,7 +8,7 @@ assert compatibility, or publish a project.
 
 ## Build the local runner
 
-Run these commands from a shell with Go 1.26.8. Replace the two path values;
+Run these commands from a shell with Go 1.26.10. Replace the two path values;
 keep `PRIVATE` outside the checkout and any shared or public directory.
 
 ```sh
@@ -16,7 +16,7 @@ set -eu
 umask 077
 COMMUNITY_ROOT=/path/to/prufyx
 PRIVATE=/path/to/private/prufyx-project
-test "$(go env GOVERSION)" = go1.26.8
+test "$(go env GOVERSION)" = go1.26.10
 mkdir -m 700 -p "$PRIVATE/bin" "$PRIVATE/corpus"
 (cd "$COMMUNITY_ROOT/cli" && \
   CGO_ENABLED=0 GOTOOLCHAIN=local GOWORK=off \

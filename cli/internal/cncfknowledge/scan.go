@@ -91,3 +91,18 @@ func OpenScan(storeRoot string, projects []string) (ScanSelection, error) {
 	}
 	return result, nil
 }
+
+// CompareSelection compares the verified store selection with the embedded
+// pack for the named projects. The store is already fully verified; this only
+// reads what it verified.
+func CompareSelection(selected knowledge.VerifiedRevision, projects []string) (cncfcheck.EmbeddedComparison, error) {
+	bundles := map[string]cncfcheck.ExternalBundle{}
+	for _, project := range projects {
+		bundle, _, _, err := selectedBundle(project, selected)
+		if err != nil {
+			return cncfcheck.EmbeddedComparison{}, err
+		}
+		bundles[project] = bundle
+	}
+	return cncfcheck.CompareWithEmbedded(bundles)
+}

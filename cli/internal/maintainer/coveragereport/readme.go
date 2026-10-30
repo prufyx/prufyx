@@ -19,7 +19,7 @@ const (
 	READMEBegin = "<!-- coverage:begin -->"
 	READMEEnd   = "<!-- coverage:end -->"
 	// PinnedLinesPath is the repository path of the pinned lines snapshot.
-	PinnedLinesPath = "cli/internal/maintainer/coveragereport/testdata/lines-2026-10-23.json"
+	PinnedLinesPath = "cli/internal/maintainer/coveragereport/testdata/lines-2026-10-30.json"
 )
 
 // readmeInventoryCounts are the support-inventory counts the block prints.

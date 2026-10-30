@@ -1,6 +1,6 @@
 # Community checks
 
-Build the public binary from the repository root with Go 1.26.8:
+Build the public binary from the repository root with Go 1.26.10:
 
 ```sh
 (cd cli && GOTOOLCHAIN=local GOWORK=off GOFLAGS='-mod=vendor -buildvcs=false' GOPROXY=off GOSUMDB=off \

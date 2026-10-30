@@ -12,7 +12,7 @@ definition to the inherited `TypeInfo.config_type = None` default used by the
 This local check reads one private JSON policy, projects only the selected
 filter fact, and never runs Cloud Custodian or contacts AWS.
 
-From the `cli` directory with Go 1.26.8 available:
+From the `cli` directory with Go 1.26.10 available:
 
 ```sh
 umask 077

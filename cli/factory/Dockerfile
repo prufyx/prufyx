@@ -11,7 +11,7 @@
 # the git binaries and their shared libraries copied in. It runs as the
 # non-root user (uid/gid 65532) and holds no signing keys.
 
-FROM golang:1.26.8-bookworm AS build
+FROM golang:1.26.10-bookworm AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY vendor ./vendor
