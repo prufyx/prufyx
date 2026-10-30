@@ -14,6 +14,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/buildidentity"
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/theupdateframework/go-tuf/v2/metadata"
 	"github.com/theupdateframework/go-tuf/v2/metadata/updater"
@@ -79,13 +80,60 @@ type projectFloor struct {
 	Digest   string `json:"digest"`
 }
 
-type splitTargetError struct{ reason string }
+type splitTargetError struct {
+	reason string
+	cause  error
+}
 
 func (e *splitTargetError) Error() string { return e.reason + ": " + ErrIntegrity.Error() }
-func (e *splitTargetError) Unwrap() error { return ErrIntegrity }
+func (e *splitTargetError) Unwrap() []error {
+	if e.cause != nil {
+		return []error{ErrIntegrity, e.cause}
+	}
+	return []error{ErrIntegrity}
+}
 
 func splitFailure(format string, args ...any) error {
 	return &splitTargetError{reason: fmt.Sprintf(format, args...)}
+}
+
+// UnsupportedError is ErrUnsupportedKnowledge with the reason and, when the
+// package names one, the minimum prufyx version that can read it.
+type UnsupportedError struct {
+	Reason     string
+	MinVersion string
+}
+
+func (e *UnsupportedError) Error() string {
+	if e.MinVersion != "" {
+		return e.Reason + " (min version " + e.MinVersion + "): " + ErrUnsupportedKnowledge.Error()
+	}
+	return e.Reason + ": " + ErrUnsupportedKnowledge.Error()
+}
+func (e *UnsupportedError) Unwrap() error { return ErrUnsupportedKnowledge }
+
+// UnsupportedMinVersion returns the minimum version named by an unsupported
+// knowledge error, or "" when there is none.
+func UnsupportedMinVersion(err error) string {
+	var u *UnsupportedError
+	if errors.As(err, &u) {
+		return u.MinVersion
+	}
+	return ""
+}
+
+func unsupportedFailure(minVersion, format string, args ...any) error {
+	return &UnsupportedError{Reason: fmt.Sprintf(format, args...), MinVersion: minVersion}
+}
+
+// checkMinClient fails with an unsupported error when the index names a
+// minimum client version above this build. raw must be hash-verified.
+func checkMinClient(raw []byte) error {
+	min, ok := cncfcheck.ExternalIndexMinClient(raw)
+	if !ok || buildidentity.MeetsMinimum(min) {
+		return nil
+	}
+	return unsupportedFailure(min, "the package requires prufyx %s or newer", min)
 }
 
 func isSplitTarget(targetPath string) bool { return targetPath == ConstraintsProjectsIndexTargetPath }
@@ -143,15 +191,23 @@ func packageLayoutMismatch(raw []byte, profile profileSpec) error {
 }
 
 func admitConstraintsIndex(target []byte) (Admission, error) {
+	if err := checkMinClient(target); err != nil {
+		return Admission{}, err
+	}
 	index, err := cncfcheck.ParseExternalIndex(target)
 	if err != nil {
-		return Admission{}, fmt.Errorf("index target parse: %w", ErrIntegrity)
+		return Admission{}, unsupportedFailure(cncfMinOrEmpty(target), "index target parse")
 	}
 	admission, err := index.Admission()
 	if err != nil {
-		return Admission{}, fmt.Errorf("index target admission: %w", ErrIntegrity)
+		return Admission{}, unsupportedFailure(cncfMinOrEmpty(target), "index target admission")
 	}
 	return Admission{Revision: admission.Revision, Purpose: admission.Purpose, EngineCapabilityDigest: admission.EngineCapabilityDigest, HasRule: admission.HasRule, RuleDigest: admission.RuleDigest, EvidenceExpiresAt: admission.EvidenceExpiresAt}, nil
+}
+
+func cncfMinOrEmpty(raw []byte) string {
+	min, _ := cncfcheck.ExternalIndexMinClient(raw)
+	return min
 }
 
 // validateSplitTargetsRole checks the shape of a per-project targets role:
@@ -177,9 +233,14 @@ func validateSplitTargetsRole(targets *metadata.Metadata[metadata.TargetsType], 
 // project targets in the index must equal the set in the targets role, with
 // identical lengths and digests. A nil selection downloads every project.
 func verifySplitTargets(u *updater.Updater, targets *metadata.Metadata[metadata.TargetsType], indexRaw []byte, targetDir string, only map[string]bool) (map[string][]byte, error) {
+	// indexRaw was hash-verified by DownloadTarget: a failure to read it is
+	// a package this build does not understand, not tampering.
+	if err := checkMinClient(indexRaw); err != nil {
+		return nil, err
+	}
 	index, err := cncfcheck.ParseExternalIndex(indexRaw)
 	if err != nil {
-		return nil, splitFailure("index target admission")
+		return nil, unsupportedFailure(cncfMinOrEmpty(indexRaw), "index target admission")
 	}
 	entries := index.Entries()
 	listed := map[string]cncfcheck.ExternalIndexEntry{}
@@ -191,16 +252,16 @@ func verifySplitTargets(u *updater.Updater, targets *metadata.Metadata[metadata.
 			continue
 		}
 		if _, ok := listed[name]; !ok {
-			return nil, splitFailure("target %s is signed but not listed in the index", name)
+			return nil, unsupportedFailure("", "target %s is signed but not listed in the index", name)
 		}
 	}
 	for _, entry := range entries {
 		info := targets.Signed.Targets[entry.TargetPath]
 		if info == nil {
-			return nil, splitFailure("target %s is listed in the index but not signed", entry.TargetPath)
+			return nil, unsupportedFailure("", "target %s is listed in the index but not signed", entry.TargetPath)
 		}
 		if info.Length != entry.Length || "sha256:"+hex.EncodeToString(info.Hashes["sha256"]) != entry.Digest {
-			return nil, splitFailure("target %s length or digest differs between index and targets metadata", entry.TargetPath)
+			return nil, unsupportedFailure("", "target %s length or digest differs between index and targets metadata", entry.TargetPath)
 		}
 	}
 	projects := map[string][]byte{}
@@ -217,10 +278,12 @@ func verifySplitTargets(u *updater.Updater, targets *metadata.Metadata[metadata.
 		}
 		_, raw, err := u.DownloadTarget(info, filepath.Join(targetDir, "project-"+entry.Project+".json"), "https://offline.invalid/targets")
 		if err != nil {
-			return nil, splitFailure("target %s is missing or does not match its signed length and hash", entry.TargetPath)
+			return nil, &splitTargetError{reason: fmt.Sprintf("target %s is missing or does not match its signed length and hash", entry.TargetPath), cause: err}
 		}
 		if _, err := cncfcheck.AdmitExternalProjectTarget(index, entry.Project, raw); err != nil {
-			return nil, splitFailure("target %s semantic admission", entry.TargetPath)
+			// The index was readable, so a project target it lists that fails
+			// admission (e.g. foreign records) is corruption, not a newer format.
+			return nil, &splitTargetError{reason: fmt.Sprintf("target %s semantic admission", entry.TargetPath), cause: err}
 		}
 		projects[entry.Project] = append([]byte(nil), raw...)
 	}

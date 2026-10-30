@@ -72,6 +72,25 @@ type externalIndexDocument struct {
 	Purpose                string               `json:"purpose"`
 	EngineCapabilityDigest string               `json:"engineCapabilityDigest"`
 	Projects               []ExternalIndexEntry `json:"projects"`
+	// MinClientVersion is the oldest prufyx that may read this package, as
+	// vMAJOR.MINOR.PATCH[-pre.N]. Absent means every client that reads the
+	// schema.
+	MinClientVersion string `json:"minClientVersion,omitempty"`
+}
+
+// ExternalIndexMinClient reads only the minimum client version of an index
+// target. It is deliberately lenient: it ignores every other field, so it
+// works on an index of a schema this build cannot parse. The bool is false
+// when the field is absent or the input is not a JSON object with a string
+// value there. Callers must hash-verify raw first.
+func ExternalIndexMinClient(raw []byte) (string, bool) {
+	var probe struct {
+		MinClientVersion string `json:"minClientVersion"`
+	}
+	if json.Unmarshal(raw, &probe) != nil || probe.MinClientVersion == "" {
+		return "", false
+	}
+	return probe.MinClientVersion, true
 }
 
 // ExternalIndex is a parser-issued, sealed view of an index target.

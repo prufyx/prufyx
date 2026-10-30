@@ -236,16 +236,19 @@ func TestConstraintsProjectsRejectTamperedMissingExtraAndMismatchedTargets(t *te
 		name string
 		pkg  knowledgefixture.ProjectsPackage
 		want string
+		// unsupported marks a hash-verified, pinned-root-signed package this
+		// build cannot read: it must not advance trust.
+		unsupported bool
 	}{
-		{"tampered project bytes", knowledgefixture.ProjectsPackage{Targets: base, Replace: map[string][]byte{first: flipByte(base[first])}}, "does not match its signed length and hash"},
-		{"tampered index bytes", knowledgefixture.ProjectsPackage{Targets: base, Replace: map[string][]byte{ConstraintsProjectsIndexTargetPath: bytes.Replace(base[ConstraintsProjectsIndexTargetPath], []byte(`"revision":"5"`), []byte(`"revision":"9"`), 1)}}, "TUF verification"},
-		{"project member missing from package", knowledgefixture.ProjectsPackage{Targets: base, Omit: []string{second}}, "does not match its signed length and hash"},
-		{"project listed in index but not signed", knowledgefixture.ProjectsPackage{Targets: without(second)}, "listed in the index but not signed"},
-		{"project signed but not in index", knowledgefixture.ProjectsPackage{Targets: extraTargets}, "signed but not listed in the index"},
-		{"unsigned extra package member", knowledgefixture.ProjectsPackage{Targets: base, Extra: map[string][]byte{knowledgefixture.ProjectsPackageMember(cncfcheck.ProjectTargetPath(extraProject), base[first]): base[first]}}, "unused package member"},
-		{"project target holds another project's rules", knowledgefixture.ProjectsPackage{Targets: foreign}, "semantic admission"},
-		{"index digest differs from signed target", knowledgefixture.ProjectsPackage{Targets: withIndex(otherIndex.Bytes)}, "differs between index and targets metadata"},
-		{"signed project differs from index", knowledgefixture.ProjectsPackage{Targets: func() map[string][]byte { c := without(first); c[first] = olderFirst; return c }()}, "differs between index and targets metadata"},
+		{"tampered project bytes", knowledgefixture.ProjectsPackage{Targets: base, Replace: map[string][]byte{first: flipByte(base[first])}}, "does not match its signed length and hash", false},
+		{"tampered index bytes", knowledgefixture.ProjectsPackage{Targets: base, Replace: map[string][]byte{ConstraintsProjectsIndexTargetPath: bytes.Replace(base[ConstraintsProjectsIndexTargetPath], []byte(`"revision":"5"`), []byte(`"revision":"9"`), 1)}}, "TUF verification", false},
+		{"project member missing from package", knowledgefixture.ProjectsPackage{Targets: base, Omit: []string{second}}, "does not match its signed length and hash", false},
+		{"project listed in index but not signed", knowledgefixture.ProjectsPackage{Targets: without(second)}, "listed in the index but not signed", true},
+		{"project signed but not in index", knowledgefixture.ProjectsPackage{Targets: extraTargets}, "signed but not listed in the index", true},
+		{"unsigned extra package member", knowledgefixture.ProjectsPackage{Targets: base, Extra: map[string][]byte{knowledgefixture.ProjectsPackageMember(cncfcheck.ProjectTargetPath(extraProject), base[first]): base[first]}}, "unused package member", false},
+		{"project target holds another project's rules", knowledgefixture.ProjectsPackage{Targets: foreign}, "semantic admission", false},
+		{"index digest differs from signed target", knowledgefixture.ProjectsPackage{Targets: withIndex(otherIndex.Bytes)}, "differs between index and targets metadata", true},
+		{"signed project differs from index", knowledgefixture.ProjectsPackage{Targets: func() map[string][]byte { c := without(first); c[first] = olderFirst; return c }()}, "differs between index and targets metadata", true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -259,7 +262,11 @@ func TestConstraintsProjectsRejectTamperedMissingExtraAndMismatchedTargets(t *te
 				t.Fatal(err)
 			}
 			receipt, err := f.importPackage(f.write(t, tc.pkg))
-			if err == nil || !(errors.Is(err, ErrIntegrity) || errors.Is(err, ErrInvalid)) {
+			if tc.unsupported {
+				if !errors.Is(err, ErrUnsupportedKnowledge) || errors.Is(err, ErrIntegrity) || receipt.TrustStateAdvanced || receipt.TrustStateDigest != good.TrustStateDigest {
+					t.Fatalf("unsupported package: receipt=%+v err=%v", receipt, err)
+				}
+			} else if err == nil || !(errors.Is(err, ErrIntegrity) || errors.Is(err, ErrInvalid)) {
 				t.Fatalf("accepted: receipt=%+v err=%v", receipt, err)
 			}
 			if !strings.Contains(err.Error(), tc.want) {

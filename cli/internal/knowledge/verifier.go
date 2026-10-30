@@ -504,6 +504,9 @@ func classifyTUFError(err error) error {
 	if errors.As(err, &split) {
 		return err
 	}
+	if errors.Is(err, ErrUnsupportedKnowledge) {
+		return err
+	}
 	if errors.Is(err, &metadata.ErrExpiredMetadata{}) {
 		return fmt.Errorf("TUF metadata expired: %w", ErrExpired)
 	}

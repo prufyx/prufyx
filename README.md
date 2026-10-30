@@ -404,7 +404,8 @@ knowledge feed, and automated GitOps release gates. None exists today.
   absolute); downloaded packages are kept in `.../knowledge/packages/`. It
   verifies a TUF chain that starts at the root pinned in the binary
   (`sha256:11eff27032c4a3db126d030ae860e881e8e0dd1e7c37fcc4f10ef5fde70a326a`),
-  changes nothing for a package older than the installed one (exit `12`),
+  changes nothing for a package older than the installed one (exit `12`) or
+  too new for this build (exit `15`),
   refuses a package with the same revision and a different digest, and sends no
   configuration, path or report. Nothing runs at startup.
 - **Back to embedded.** `--knowledge=embedded` on `check cncf` or `scan`, or

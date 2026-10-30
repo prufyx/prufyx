@@ -39,6 +39,13 @@ var embeddedRoot = knowledgepin.Root
 // the store (a stale CDN window after a publish). Nothing was changed; retry.
 const ExitFeedBehind = 12
 
+// ExitKnowledgeTooNew is the exit code of a db update or db import whose
+// package is signed by the pinned root but not readable by this build.
+// 13 is already used by check batch --exit-mode detailed, so this takes the
+// next free code. Nothing was installed; the embedded knowledge and the local
+// database stay in use.
+const ExitKnowledgeTooNew = 15
+
 const updateUsage = "Usage: prufyx db update [(--source HTTPS_URL [--profile cert-manager|cncf|cncf-projects|spiffe-x509-svid|cloudevents-structured-json|tikv-gcp-v2-wif-backup] [--expected-revision REVISION] [--expected-bundle-digest SHA256] | --release-plan LOCAL_FILE)] [--package-out FILE] [--db-root DIR] [--bootstrap-root FILE --bootstrap-root-digest SHA256] [--format human|json]"
 
 type knowledgeUpdateOutput struct {
@@ -337,6 +344,14 @@ func (r runtime) databaseUpdateWithFetches(ctx context.Context, args []string, f
 			retained, output.PackageRetained = false, false
 			return finish(ExitFeedBehind)
 		}
+		if errors.Is(err, knowledge.ErrUnsupportedKnowledge) {
+			// The package is authentic but newer than this build understands.
+			// Trust did not advance and the store is untouched; it is never
+			// deleted here, because deleting a store resets its rollback floors.
+			output.ReasonCode = "KNOWLEDGE_TOO_NEW_FOR_THIS_CLIENT"
+			output.NextAction = "upgrade prufyx" + tooNewVersionHint(err) + "; the embedded knowledge and the current local database stay in use"
+			return finish(ExitKnowledgeTooNew)
+		}
 		if autoPackage && errors.Is(err, knowledge.ErrPinnedRootMismatch) {
 			output.ReasonCode = "KNOWLEDGE_STORE_ROOT_NOT_PINNED"
 			output.NextAction = "the store was created from a trust root other than the one pinned in this build; remove the store directory " + *dbRoot + " and run db update again"
@@ -574,4 +589,11 @@ func prunePackages(parent *os.Root, current string) {
 			parent.Remove(p.name)
 		}
 	}
+}
+
+func tooNewVersionHint(err error) string {
+	if v := knowledge.UnsupportedMinVersion(err); v != "" {
+		return " to >= " + v
+	}
+	return ""
 }

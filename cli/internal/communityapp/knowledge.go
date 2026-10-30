@@ -283,14 +283,18 @@ func (r runtime) databaseImportRejected(receipt knowledge.ImportReceipt, err err
 
 func (r runtime) databaseImportRejectedForProfile(receipt knowledge.ImportReceipt, err error, format, profile string) int {
 	output := rejectedKnowledgeImport(receipt, err, profile)
+	code := ExitIntegrity
+	if errors.Is(err, knowledge.ErrUnsupportedKnowledge) {
+		code = ExitKnowledgeTooNew
+	}
 	if format == "json" {
-		return r.writeJSON(output, ExitIntegrity)
+		return r.writeJSON(output, code)
 	}
 	_, writeErr := fmt.Fprintf(r.stdout, "knowledge import: %s\ntrust state advanced: %t\nselection changed: %t\ntrust state digest: %s\nreason: %s\nnext action: %s\n", output.Status, output.TrustStateAdvanced, output.SelectionChanged, output.TrustStateDigest, output.ReasonCode, output.NextAction)
 	if writeErr != nil {
-		return ExitIntegrity
+		return code
 	}
-	return ExitIntegrity
+	return code
 }
 
 func rejectedKnowledgeImport(receipt knowledge.ImportReceipt, err error, profile string) rejectedImportOutput {
@@ -301,6 +305,9 @@ func rejectedKnowledgeImport(receipt knowledge.ImportReceipt, err error, profile
 		nextAction = "retry the exact original signed package with the same expected revision, bundle digest, and original bootstrap arguments, if any"
 	} else if errors.Is(err, knowledge.ErrExpired) {
 		reason = "KNOWLEDGE_TRUST_METADATA_EXPIRED"
+	} else if errors.Is(err, knowledge.ErrUnsupportedKnowledge) {
+		reason = "KNOWLEDGE_TOO_NEW_FOR_THIS_CLIENT"
+		nextAction = "upgrade prufyx" + tooNewVersionHint(err) + "; the embedded knowledge and the current local database stay in use"
 	}
 	if profile == "cncf" || profile == "cncf-projects" || profile == "spiffe-x509-svid" || profile == "cloudevents-structured-json" || profile == "tikv-gcp-v2-wif-backup" {
 		nextAction = strings.ReplaceAll(nextAction, "prufyx db status", "prufyx db status --profile "+profile)
@@ -396,6 +403,9 @@ func (r runtime) knowledgeError(message string, err error) int {
 	}
 	if errors.Is(err, knowledge.ErrRecoveryRequired) {
 		return r.fail(message+"; recovery required: retry the exact original signed package with its original assertions and bootstrap arguments", ExitIntegrity)
+	}
+	if errors.Is(err, knowledge.ErrUnsupportedKnowledge) {
+		return r.fail(message+"; the knowledge is too new for this prufyx: upgrade prufyx"+tooNewVersionHint(err)+"; the embedded knowledge and the current local database stay in use", ExitKnowledgeTooNew)
 	}
 	if errors.Is(err, knowledge.ErrInvalid) || errors.Is(err, certmanagervalues.ErrInvalid) {
 		return r.fail(message, ExitUsage)

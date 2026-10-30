@@ -38,8 +38,13 @@ then the flag is opt-in.
 | `11` | not every area checked | `UNKNOWN`, `ATTENTION`, or stale evidence in `check batch` | same |
 | `12` | not used | `check batch --exit-mode detailed` only: stale evidence | same |
 | `13` | not used | `check batch --exit-mode detailed` only: evaluation clock before review time | same |
+| `15` | not used | not used | not used |
 | `2` | command line or input not accepted | same | same |
 | `3` | knowledge or input integrity failure | same | same |
+
+Exit `15` belongs to `prufyx db update` and `prufyx db import`: the signed
+knowledge package is too new for this prufyx. Nothing was changed; the current
+database and the embedded knowledge stay in use. Upgrade prufyx.
 
 Rank when several apply: `3` and `2` stop the command; otherwise blocked
 (`10`), then not checked (`11`), then pass.
