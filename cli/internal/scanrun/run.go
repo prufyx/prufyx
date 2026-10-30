@@ -396,7 +396,7 @@ func Run(request Request, options Options) (Result, error) {
 				report.Gaps = append(report.Gaps, scanreport.NewGap(slug, nil, scanreport.GapProjectNotInKnowledge, slug))
 				continue
 			}
-			run := &helmChartRun{knowledge: knowledge, now: now, report: &report, slug: slug, component: component.Component, decl: decl, policy: request.TrustPolicy}
+			run := &helmChartRun{knowledge: knowledge, now: now, report: &report, workspace: manifests, slug: slug, component: component.Component, decl: decl, policy: request.TrustPolicy}
 			if value, ok := effective.Current[kubernetesSlug]; ok {
 				run.kubernetesFrom = value.Value
 			}
@@ -647,6 +647,21 @@ func splitConfigDocuments(workspace intake.Workspace, report *scanreport.Report)
 		report.Omitted = append(report.Omitted, omitted(omission.Source, string(omission.Reason)))
 	}
 	return manifests
+}
+
+// omissionCounts counts the intake omissions by the gap each reason maps to;
+// a reason without a mapping counts as a document shape gap. Every route
+// that reads the workspace turns these into gaps, never into a pass.
+func omissionCounts(omissions []intake.Omission) map[scanreport.GapKey]int {
+	counts := map[scanreport.GapKey]int{}
+	for _, omission := range omissions {
+		outcome, known := reasonOutcomes[string(omission.Reason)]
+		if !known || outcome.gap == "" {
+			outcome.gap = scanreport.GapDocumentsShape
+		}
+		counts[outcome.gap]++
+	}
+	return counts
 }
 
 func omitted(source intake.Source, reason string) scanreport.Omitted {
