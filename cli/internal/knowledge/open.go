@@ -191,9 +191,15 @@ func openRevision(req SelectionRequest, profile profileSpec, evaluatedAt time.Ti
 		return VerifiedRevision{}, ErrIntegrity
 	}
 	admission, err := admit(append([]byte(nil), target...))
-	// A digest-bound target this build cannot read (minClientVersion above the
-	// build, unknown schema) is not reported yet: the bundle is revalidated
-	// below first, so only a store that still verifies reaches the fallback.
+	// A digest-bound target whose minClientVersion is above this build is not
+	// reported yet: the bundle is revalidated first, so only a store that
+	// still verifies reaches the fallback. An unknown schema does not: the
+	// index parse in readStoredProjects maps to ErrIntegrity. For the
+	// cncf-projects profile (the only admit returning
+	// ErrUnsupportedKnowledge) this function returns at
+	// classifyTUFError(verified.refreshErr), because verifySplitTargets runs
+	// checkMinClient first; the revalidated-state compare and the
+	// `unsupported` return below are defence in depth for other profiles.
 	var unsupported error
 	if errors.Is(err, ErrUnsupportedKnowledge) {
 		unsupported = err
