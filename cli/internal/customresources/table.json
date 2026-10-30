@@ -78,6 +78,28 @@
       ]
     },
     {
+      "slug": "cass-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "cass-operator",
+        "repository": "https://github.com/k8ssandra/cass-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/k8ssandra/cass-operator/blob/f88f577347336c300419a5567e258ba8eb5c5a07/LICENSE.txt"
+      },
+      "factProject": "cass_operator",
+      "component": "pkg:github/k8ssandra/cass-operator",
+      "groups": [
+        {
+          "name": "cassandra.datastax.com",
+          "source": "https://github.com/k8ssandra/cass-operator/blob/f88f577347336c300419a5567e258ba8eb5c5a07/config/crd/bases/cassandra.datastax.com_cassandradatacenters.yaml"
+        },
+        {
+          "name": "control.k8ssandra.io",
+          "source": "https://github.com/k8ssandra/cass-operator/blob/f88f577347336c300419a5567e258ba8eb5c5a07/config/crd/bases/control.k8ssandra.io_scheduledtasks.yaml"
+        }
+      ]
+    },
+    {
       "slug": "cert-manager",
       "catalog": "cncf",
       "factProject": "cert_manager",
@@ -102,6 +124,24 @@
         {
           "name": "chaos-mesh.org",
           "source": "https://github.com/chaos-mesh/chaos-mesh/blob/211bf86e599e5228f47f7fa9f3f4fd2af012c011/config/crd/bases/chaos-mesh.org_workflows.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "chaosblade-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "chaosblade-operator",
+        "repository": "https://github.com/chaosblade-io/chaosblade-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/chaosblade-io/chaosblade-operator/blob/e778bef0d9944b4ed70f39ee50e4b8f8fe1b069b/LICENSE"
+      },
+      "factProject": "chaosblade_operator",
+      "component": "pkg:github/chaosblade-io/chaosblade-operator",
+      "groups": [
+        {
+          "name": "chaosblade.io",
+          "source": "https://github.com/chaosblade-io/chaosblade-operator/blob/e778bef0d9944b4ed70f39ee50e4b8f8fe1b069b/deploy/crds/chaosblade.io_chaosblades_crd.yaml"
         }
       ]
     },
@@ -222,6 +262,24 @@
         {
           "name": "dapr.io",
           "source": "https://github.com/dapr/dapr/blob/7c4f540efa3e6f768a45010f2fc0d4b4c287cac3/charts/dapr/crds/workflowaccesspolicy.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "datadog-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "datadog-operator",
+        "repository": "https://github.com/datadog/datadog-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/datadog/datadog-operator/blob/db6a88ca8796d8fff93c96b0c3e41fef85e2bdd1/LICENSE"
+      },
+      "factProject": "datadog_operator",
+      "component": "pkg:github/datadog/datadog-operator",
+      "groups": [
+        {
+          "name": "datadoghq.com",
+          "source": "https://github.com/datadog/datadog-operator/blob/db6a88ca8796d8fff93c96b0c3e41fef85e2bdd1/bundle-community-operators/manifests/datadoghq.com_datadogslos.yaml"
         }
       ]
     },
@@ -350,6 +408,24 @@
       ]
     },
     {
+      "slug": "function-mesh",
+      "catalog": "community",
+      "upstream": {
+        "name": "function-mesh",
+        "repository": "https://github.com/streamnative/function-mesh",
+        "license": "NOASSERTION",
+        "licenseSource": "https://github.com/streamnative/function-mesh/blob/eced1f28126f7ea789522b1a7dd1a59331659f71/LICENSE"
+      },
+      "factProject": "function_mesh",
+      "component": "pkg:github/streamnative/function-mesh",
+      "groups": [
+        {
+          "name": "compute.functionmesh.io",
+          "source": "https://github.com/streamnative/function-mesh/blob/eced1f28126f7ea789522b1a7dd1a59331659f71/config/crd/bases/compute.functionmesh.io_sources.yaml"
+        }
+      ]
+    },
+    {
       "slug": "furiko",
       "catalog": "community",
       "upstream": {
@@ -382,6 +458,24 @@
         {
           "name": "gateway.networking.k8s.io",
           "source": "https://github.com/kubernetes-sigs/gateway-api/blob/89b3b0c3fa63f9342f43ba0fb2cf93d6aab53af7/config/crd/standard/gateway.networking.k8s.io_udproutes.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "github-actions-runner-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "github-actions-runner-operator",
+        "repository": "https://github.com/evryfs/github-actions-runner-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/evryfs/github-actions-runner-operator/blob/4b39140ecedabb6624ce92bf852713b80d1422d6/LICENSE.txt"
+      },
+      "factProject": "github_actions_runner_operator",
+      "component": "pkg:github/evryfs/github-actions-runner-operator",
+      "groups": [
+        {
+          "name": "garo.tietoevry.com",
+          "source": "https://github.com/evryfs/github-actions-runner-operator/blob/4b39140ecedabb6624ce92bf852713b80d1422d6/config/crd/bases/garo.tietoevry.com_githubactionrunners.yaml"
         }
       ]
     },
@@ -544,6 +638,18 @@
       ]
     },
     {
+      "slug": "kbind",
+      "catalog": "cncf",
+      "factProject": "kbind",
+      "component": "pkg:github/kbind-dev/kbind",
+      "groups": [
+        {
+          "name": "kube-bind.io",
+          "source": "https://github.com/kbind-dev/kbind/blob/3080410e7ee6c378c6fb6a849fd82882ebdcaea9/deploy/crd/kube-bind.io_collections.yaml"
+        }
+      ]
+    },
+    {
       "slug": "kcp",
       "catalog": "cncf",
       "factProject": "kcp",
@@ -676,6 +782,24 @@
         {
           "name": "kubean.io",
           "source": "https://github.com/kubean-io/kubean/blob/a2687606b5c49daf0868a41165b84bebc20e0db4/api/charts/crds/kubean.io_manifests.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "kubemod",
+      "catalog": "community",
+      "upstream": {
+        "name": "kubemod",
+        "repository": "https://github.com/kubemod/kubemod",
+        "license": "BSD-3-Clause",
+        "licenseSource": "https://github.com/kubemod/kubemod/blob/f030b2756ec873d0290e0561f95b8ab64a78dd95/LICENSE"
+      },
+      "factProject": "kubemod",
+      "component": "pkg:github/kubemod/kubemod",
+      "groups": [
+        {
+          "name": "api.kubemod.io",
+          "source": "https://github.com/kubemod/kubemod/blob/f030b2756ec873d0290e0561f95b8ab64a78dd95/config/crd/bases/api.kubemod.io_modrules.yaml"
         }
       ]
     },
@@ -928,6 +1052,24 @@
       ]
     },
     {
+      "slug": "moco",
+      "catalog": "community",
+      "upstream": {
+        "name": "moco",
+        "repository": "https://github.com/cybozu-go/moco",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/cybozu-go/moco/blob/acb2716d1ef13a8953dd18d55cf230c0edf90f04/LICENSE"
+      },
+      "factProject": "moco",
+      "component": "pkg:github/cybozu-go/moco",
+      "groups": [
+        {
+          "name": "moco.cybozu.com",
+          "source": "https://github.com/cybozu-go/moco/blob/acb2716d1ef13a8953dd18d55cf230c0edf90f04/config/crd/bases/moco.cybozu.com_mysqlclusters.yaml"
+        }
+      ]
+    },
+    {
       "slug": "mongodb-kubernetes",
       "catalog": "community",
       "upstream": {
@@ -954,6 +1096,24 @@
       ]
     },
     {
+      "slug": "movetokube-postgres-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "postgres-operator",
+        "repository": "https://github.com/movetokube/postgres-operator",
+        "license": "MIT",
+        "licenseSource": "https://github.com/movetokube/postgres-operator/blob/5b969e3c1a16803430cfecaa68f3989774af1f4d/LICENSE"
+      },
+      "factProject": "movetokube_postgres_operator",
+      "component": "pkg:github/movetokube/postgres-operator",
+      "groups": [
+        {
+          "name": "db.movetokube.com",
+          "source": "https://github.com/movetokube/postgres-operator/blob/5b969e3c1a16803430cfecaa68f3989774af1f4d/config/crd/bases/db.movetokube.com_postgresusers.yaml"
+        }
+      ]
+    },
+    {
       "slug": "node-feature-discovery",
       "catalog": "community",
       "upstream": {
@@ -968,6 +1128,24 @@
         {
           "name": "nfd.k8s-sigs.io",
           "source": "https://github.com/kubernetes-sigs/node-feature-discovery/blob/45d276ed9d3f0f67fb642aa78969721df3034451/deployment/base/nfd-crds/nfd-api-crds.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "ollama-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "ollama-operator",
+        "repository": "https://github.com/nekomeowww/ollama-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/nekomeowww/ollama-operator/blob/f95b0dd404df5ef5e26848400884817a8b5777ea/LICENSE"
+      },
+      "factProject": "ollama_operator",
+      "component": "pkg:github/nekomeowww/ollama-operator",
+      "groups": [
+        {
+          "name": "ollama.ayaka.io",
+          "source": "https://github.com/nekomeowww/ollama-operator/blob/f95b0dd404df5ef5e26848400884817a8b5777ea/config/crd/bases/ollama.ayaka.io_models.yaml"
         }
       ]
     },
@@ -998,6 +1176,22 @@
         {
           "name": "openchoreo.dev",
           "source": "https://github.com/openchoreo/openchoreo/blob/178dfbde3e3343e5ac151b88a2f203f523f97480/config/crd/bases/openchoreo.dev_workloads.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "openfunction",
+      "catalog": "cncf",
+      "factProject": "openfunction",
+      "component": "pkg:github/openfunction/openfunction",
+      "groups": [
+        {
+          "name": "core.openfunction.io",
+          "source": "https://github.com/openfunction/openfunction/blob/661bff35f382c2a5ddc121d3465afc830775d527/config/crd/bases/core.openfunction.io_servings.yaml"
+        },
+        {
+          "name": "events.openfunction.io",
+          "source": "https://github.com/openfunction/openfunction/blob/661bff35f382c2a5ddc121d3465afc830775d527/config/crd/bases/events.openfunction.io_triggers.yaml"
         }
       ]
     },
@@ -1096,6 +1290,24 @@
         {
           "name": "upstream.pgv2.percona.com",
           "source": "https://github.com/percona/percona-postgresql-operator/blob/a6cb60bf372f0eec5c9680437c300e2c07362d70/config/crd/bases/upstream.pgv2.percona.com_postgresclusters.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "percona-server-mysql-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "percona-server-mysql-operator",
+        "repository": "https://github.com/percona/percona-server-mysql-operator",
+        "license": "NOASSERTION",
+        "licenseSource": "https://github.com/percona/percona-server-mysql-operator/blob/e399eb71e9f5fcb53314ed1bfb4b021142ffd5b9/LICENSE"
+      },
+      "factProject": "percona_server_mysql_operator",
+      "component": "pkg:github/percona/percona-server-mysql-operator",
+      "groups": [
+        {
+          "name": "ps.percona.com",
+          "source": "https://github.com/percona/percona-server-mysql-operator/blob/e399eb71e9f5fcb53314ed1bfb4b021142ffd5b9/config/crd/bases/ps.percona.com_perconaservermysqls.yaml"
         }
       ]
     },
@@ -1202,6 +1414,24 @@
       ]
     },
     {
+      "slug": "renovate-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "renovate-operator",
+        "repository": "https://github.com/mogenius/renovate-operator",
+        "license": "MIT",
+        "licenseSource": "https://github.com/mogenius/renovate-operator/blob/01b4299e9bd2af6f8a6dfcbed8cff65610cc64bf/LICENSE"
+      },
+      "factProject": "renovate_operator",
+      "component": "pkg:github/mogenius/renovate-operator",
+      "groups": [
+        {
+          "name": "renovate-operator.mogenius.com",
+          "source": "https://github.com/mogenius/renovate-operator/blob/01b4299e9bd2af6f8a6dfcbed8cff65610cc64bf/charts/renovate-operator/crd/renovate-operator.mogenius.com_renovateprojects.yaml"
+        }
+      ]
+    },
+    {
       "slug": "rook",
       "catalog": "cncf",
       "factProject": "rook",
@@ -1292,6 +1522,24 @@
         {
           "name": "tekton.dev",
           "source": "https://github.com/tektoncd/pipeline/blob/61e02215132ce7bef054ff7e1fb074f217716c1a/config/300-crds/300-verificationpolicy.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "temporal-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "temporal-operator",
+        "repository": "https://github.com/alexandrevilain/temporal-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/alexandrevilain/temporal-operator/blob/0b07bcd4d922265b2f1e5d5d3c55397707189c7e/LICENSE"
+      },
+      "factProject": "temporal_operator",
+      "component": "pkg:github/alexandrevilain/temporal-operator",
+      "groups": [
+        {
+          "name": "temporal.io",
+          "source": "https://github.com/alexandrevilain/temporal-operator/blob/0b07bcd4d922265b2f1e5d5d3c55397707189c7e/config/crd/bases/temporal.io_temporalschedules.yaml"
         }
       ]
     },
