@@ -153,11 +153,10 @@ change. Giving `--source` or `--release-plan` keeps the rules described above
   refused with the message to remove the store directory
   (the path is printed) and run `db update` again. There is no reset command.
 
-The official feed is not published yet and this build pins no root: the pin in
-`cli/internal/knowledgepin` stays empty until the owner's root ceremony. Until
-then a no-argument `db update` on an empty store stops before any download with
-"no trust root"; use `--source`, `--bootstrap-root` and `--bootstrap-root-digest`
-as above, or the knowledge built into the binary.
+The official root is pinned in `cli/internal/knowledgepin`, so a no-argument
+`db update` on an empty store downloads from the official feed and admits only
+a store whose initial root is that pinned root. To use a feed you operate, pass
+`--source`, `--bootstrap-root` and `--bootstrap-root-digest` as above.
 
 ## Pinned root for official profiles
 
