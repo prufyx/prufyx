@@ -90,26 +90,28 @@ not documented for `pull_request_target`.
 | `redact` | no | `true` replaces paths and object names with digests in the report and the summary. Default `false`. |
 | `require-basis` | no | Comma separated evidence bases, as for `--require-basis`. |
 | `knowledge-db` | no | A verified [knowledge database](scan.md#knowledge-database) directory. |
-| `fail-on` | no | When the step fails: `none`, `blocked` (default), or `unknown`, which means "unknown or worse" and also fails on BLOCKED (`blocked,unknown` is the same). |
+| `fail-on` | no | When the step fails: `none`, `blocked`, or `unknown`, which means "unknown or worse" and also fails on BLOCKED (`blocked,unknown` is the same, and is the default). |
 
 `blocked` is exit code `10` and `unknown` is exit code `11`, the answer
 `UNKNOWN`: no blocker in the checks that ran, but not every area was checked.
-Under the default, an `UNKNOWN` scan (exit `11`) passes the step and adds a
+By default (`blocked,unknown`) an `UNKNOWN` scan (exit `11`) fails the step, so a
+green step is a pass for the declared scope. With `fail-on: blocked` it passes the
+step and adds a
 warning annotation that not every area was checked: a green step is not a
 pass. The one exception is the gap `API_VERSION_NOT_SERVED`: a manifest uses an API
 version the target Kubernetes release does not serve, which the reviewed removal
-table establishes. That fails the step under `blocked` (the default), `unknown`
+table establishes. That fails the step under `blocked`, `unknown`
 and `blocked,unknown`; only `none` lets it pass. The step outputs stay `verdict=unknown` and
 `exit-code=11` when the step fails for this reason, so an `if:` that tests
 `verdict == 'blocked'` does not catch it; test the step outcome instead. To
 confirm the gap the action reads a JSON report (the report itself when
 `format: json`, else one more scan); if that report cannot be read, or the
-confirming scan does not exit `11`, the step fails rather than passing. Use `fail-on: unknown` if the job must stop until a person has reviewed
+confirming scan does not exit `11`, the step fails rather than passing. The default `fail-on` already stops the job until a person has reviewed
 the gaps (see [answers and exit codes](scan.md#answers-and-exit-codes)).
 Invalid input (exit `2`) and a knowledge integrity failure (exit `3`) always
 fail the step, whatever `fail-on` says. Because `scan` rarely answers PASS
-today, `fail-on: unknown` fails most scans; that is the honest reading of an
-undecided upgrade, and the default `blocked` trades it for a green job that
+today, the default fails most scans; that is the honest reading of an
+undecided upgrade. `fail-on: blocked` trades it for a green job that
 you must not read as a pass.
 
 The action applies `fail-on` itself, after `prufyx scan` returns, so it can

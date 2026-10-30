@@ -41,7 +41,7 @@ in_format="${PRUFYX_IN_FORMAT:-json}"
 in_redact="${PRUFYX_IN_REDACT:-false}"
 in_basis="${PRUFYX_IN_REQUIRE_BASIS:-}"
 in_db="${PRUFYX_IN_KNOWLEDGE_DB:-}"
-in_failon="${PRUFYX_IN_FAIL_ON:-blocked}"
+in_failon="${PRUFYX_IN_FAIL_ON:-blocked,unknown}"
 in_config="${PRUFYX_IN_CONFIG:-}"
 in_dist="${PRUFYX_IN_DISTRIBUTION:-}"
 in_scope="${PRUFYX_IN_RESOURCE_SCOPE_COMPLETE:-}"
@@ -253,7 +253,7 @@ case "$code" in
       fi
       echo "Prufyx: UNKNOWN: no blocker in the checks that ran, but some areas were not checked."
       if [ "$fail_unknown" != 1 ]; then
-        printf '::warning title=Prufyx::%s\n' "UNKNOWN (exit 11): not every area was checked, so this is not a pass. The report names what was not checked. Set fail-on: unknown to stop the job on this." >&2
+        printf '::warning title=Prufyx::%s\n' "UNKNOWN (exit 11): not every area was checked, so this is not a pass. The report names what was not checked. Set fail-on: blocked,unknown (the default) to stop the job on this." >&2
       fi
       if [ "$fail_unknown" = 1 ]; then die "prufyx could not decide everything (exit 11)"; fi ;;
   3) die "prufyx knowledge integrity failure (exit 3); nothing was checked" ;;
