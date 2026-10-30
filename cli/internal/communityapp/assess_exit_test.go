@@ -39,9 +39,12 @@ func TestAssessExitFollowsAggregate(t *testing.T) {
 					}
 					return rep, onecommand.ExitOK
 				}
-				code, stdout, _ := runCommunity(t, "assess", "--kubeconfig", "/k", "--acknowledge-kubeconfig-exec-risk", "--format", format, "ctx")
+				code, stdout, stderr := runCommunity(t, "assess", "--kubeconfig", "/k", "--acknowledge-kubeconfig-exec-risk", "--format", format, "ctx")
 				if code != tc.want {
 					t.Fatalf("code=%d want %d stdout=%q", code, tc.want, stdout)
+				}
+				if gotNote := strings.Contains(stderr, assessNoScopeNote); gotNote != !tc.scope {
+					t.Fatalf("no-scope note present=%v, scope=%v, stderr=%q", gotNote, tc.scope, stderr)
 				}
 				if !strings.Contains(stdout, tc.assessment) {
 					t.Fatalf("aggregate %s missing from output: %q", tc.assessment, stdout)
@@ -61,5 +64,18 @@ func TestAssessCollectionFailureCodeKept(t *testing.T) {
 	code, _, _ := runCommunity(t, "assess", "--kubeconfig", "/k", "--acknowledge-kubeconfig-exec-risk", "ctx")
 	if code != onecommand.ExitPartial {
 		t.Fatalf("code=%d want %d", code, onecommand.ExitPartial)
+	}
+}
+
+// A scope assessment that disagrees with the aggregate is never a pass.
+func TestAssessExitScopeAggregateMismatch(t *testing.T) {
+	for _, tc := range [][2]string{{"SCOPE_COMPLETE_PASS", "BLOCKED"}, {"BLOCKED", "SCOPE_COMPLETE_PASS"}, {"UNKNOWN", "SCOPE_COMPLETE_PASS"}} {
+		rep := onecommand.Report{
+			Aggregate:       onecommand.AggregateNote{Assessment: tc[0]},
+			ScopeAssessment: &projectcheck.ScopeReport{Assessment: tc[1]},
+		}
+		if got := assessExit(rep); got != ExitUnknown {
+			t.Errorf("aggregate=%s scope=%s: exit=%d want %d", tc[0], tc[1], got, ExitUnknown)
+		}
 	}
 }

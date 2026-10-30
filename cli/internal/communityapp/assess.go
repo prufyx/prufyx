@@ -85,24 +85,32 @@ func (r runtime) assess(ctx context.Context, args []string) int {
 			return r.fail("report encoding failed", ExitIntegrity)
 		}
 		fmt.Fprintln(r.stdout, string(raw))
-		return assessExit(report)
+		return r.assessFinish(report)
 	}
 	writeAssessHuman(r.stdout, report)
-	return assessExit(report)
+	return r.assessFinish(report)
 }
 
 // runAssessCollect is the collection seam; tests replace it.
 var runAssessCollect = onecommand.Run
 
+// assessNoScopeNote is printed on standard error when assess exits 0 without
+// a scope declaration: that exit status is not a pass.
+const assessNoScopeNote = "prufyx: note: assess aggregate is UNKNOWN because no --scope-input was supplied; exit 0 is not a pass"
+
 // assessExit maps the declared-scope aggregate to the check exit codes: 0
 // only for SCOPE_COMPLETE_PASS, 10 for BLOCKED, 11 for UNKNOWN or anything
-// unrecognised. Without a scope declaration no verdict exists (the aggregate
-// is the stated-limitation UNKNOWN), so the triage report exits 0 as before.
+// unrecognised, including a scope assessment that disagrees with the
+// aggregate. Without a scope declaration no verdict exists (the aggregate is
+// the stated-limitation UNKNOWN), so the triage report exits 0 as before.
 func assessExit(report onecommand.Report) int {
 	if report.ScopeAssessment == nil {
 		return ExitOK
 	}
-	switch report.Aggregate.Assessment {
+	if report.ScopeAssessment.Assessment != report.Aggregate.Assessment {
+		return ExitUnknown
+	}
+	switch report.ScopeAssessment.Assessment {
 	case constraintengine.AssessmentScopeCompletePass:
 		return ExitOK
 	case constraintengine.AssessmentBlocked:
@@ -110,6 +118,16 @@ func assessExit(report onecommand.Report) int {
 	default:
 		return ExitUnknown
 	}
+}
+
+// assessFinish returns assessExit and, for the exit 0 that carries no
+// verdict, tells the operator so on standard error.
+func (r runtime) assessFinish(report onecommand.Report) int {
+	code := assessExit(report)
+	if report.ScopeAssessment == nil && code == ExitOK {
+		fmt.Fprintln(r.stderr, assessNoScopeNote)
+	}
+	return code
 }
 
 type stringsFlag []string
@@ -268,7 +286,7 @@ Options:
 
 Exit status: with --scope-input, 0 = SCOPE_COMPLETE_PASS, 10 = BLOCKED,
 11 = UNKNOWN; without it the aggregate is a stated-limitation UNKNOWN and
-the triage report exits 0. Usage errors exit 2, collection failures keep
+the triage report exits 0 with a note on stderr. Usage errors exit 2, collection failures keep
 their own codes (partial collection exits 6).`)
 }
 
