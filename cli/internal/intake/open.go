@@ -220,8 +220,11 @@ func (o *opener) walk(dir *os.File, display string) error {
 		hidden := strings.HasPrefix(name, ".")
 		switch kind {
 		case validation.EntryDirectory:
-			// Hidden directories (.git, .terraform) are skipped.
+			// Hidden directories (.git, .terraform) are not entered: the
+			// directory is recorded once, so the result never looks more
+			// complete than it is.
 			if hidden {
+				o.omit(child, ReasonHiddenDirectorySkipped)
 				continue
 			}
 			sub, err := validation.OpenEntryDirectory(dir, name)
@@ -235,6 +238,7 @@ func (o *opener) walk(dir *os.File, display string) error {
 			}
 		case validation.EntryRegular:
 			if !isManifestName(name) {
+				o.omit(child, ReasonNotManifestName)
 				continue
 			}
 			file, err := validation.OpenEntryFile(dir, name)
@@ -247,12 +251,12 @@ func (o *opener) walk(dir *os.File, display string) error {
 				return err
 			}
 		case validation.EntrySymlink:
-			if !hidden {
-				o.omit(child, ReasonSymlinkNotFollowed)
-			}
+			o.omit(child, ReasonSymlinkNotFollowed)
 		default:
 			if isManifestName(name) {
 				o.omit(child, ReasonNotRegularFile)
+			} else {
+				o.omit(child, ReasonNotManifestName)
 			}
 		}
 	}
