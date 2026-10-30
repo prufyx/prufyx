@@ -89,6 +89,49 @@ func fleetOf(f Totals) fleetFigures {
 	return fleetFigures{f.Projects, f.Pairs, f.A, f.B, f.S, f.G, f.C1, f.C3}
 }
 
+// onlyBaselineCRDLines keeps, of the quiet custom-resource line attestations
+// of pack, those listed in testdata/baseline-crd-lines.json. The factory adds
+// such lines for every release it reads; the figures below are those of the
+// pack as it was at the baseline, so a line added later (a bot knowledge PR)
+// must not move them and does not need an edit of this file.
+func onlyBaselineCRDLines(t *testing.T, pack []byte) ([]byte, error) {
+	t.Helper()
+	var list struct {
+		Lines []struct{ Component, Line string } `json:"lines"`
+	}
+	if err := json.Unmarshal(read(t, "testdata/baseline-crd-lines.json"), &list); err != nil {
+		return nil, err
+	}
+	keep := map[[2]string]bool{}
+	for _, l := range list.Lines {
+		keep[[2]string{l.Component, l.Line}] = true
+	}
+	var members map[string]json.RawMessage
+	if err := json.Unmarshal(pack, &members); err != nil {
+		return nil, err
+	}
+	var atts []json.RawMessage
+	if err := json.Unmarshal(members["lineAttestations"], &atts); err != nil {
+		return nil, err
+	}
+	kept := []json.RawMessage{}
+	for _, raw := range atts {
+		var a struct{ Component, Line, FactFamily string }
+		if err := json.Unmarshal(raw, &a); err != nil {
+			return nil, err
+		}
+		if a.FactFamily == "crd.custom_resource_versions" && !keep[[2]string{a.Component, a.Line}] {
+			continue
+		}
+		kept = append(kept, raw)
+	}
+	var err error
+	if members["lineAttestations"], err = json.Marshal(kept); err != nil {
+		return nil, err
+	}
+	return json.Marshal(members)
+}
+
 func TestEmbeddedPackBaseline(t *testing.T) {
 	pack, err := cncfcheck.EmbeddedRulePack()
 	if err != nil {
@@ -98,6 +141,9 @@ func TestEmbeddedPackBaseline(t *testing.T) {
 	// custom-resource rules of other projects the factory adds are not part
 	// of the baseline.
 	if pack, err = crdbatchfixture.WithoutForeign(pack); err != nil {
+		t.Fatal(err)
+	}
+	if pack, err = onlyBaselineCRDLines(t, pack); err != nil {
 		t.Fatal(err)
 	}
 	var head struct {
