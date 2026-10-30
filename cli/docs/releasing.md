@@ -331,3 +331,44 @@ binaries instead.
 that `install.sh` and `release.yml` agree on the archive name, the binary path,
 the checksum file name, the signer workflow and the platform matrix. A change
 to either file that breaks that contract fails the test before a tag is pushed.
+
+## Release dry run (CI)
+
+`.github/workflows/release-dry-run.yml` rehearses the release on every pull
+request that touches `release.yml`, this document, the dry-run script or the
+licence and policy files the packages carry, and on demand
+(`workflow_dispatch`). It has a read-only token, uses no secret, creates no tag,
+release, attestation or artifact, and uploads nothing. A tag build is still the
+only place where the attestation, the environment approval and the draft release
+can be tested.
+
+`scripts/release-dry-run.sh` takes the `run:` bodies of the steps "Check the
+tag", "Check the knowledge root pin", "Check the embedded knowledge is fresh",
+"Build binaries", "Build packages" and "Generate SHA256SUMS" out of
+`release.yml` itself (`cli/internal/tools/workflowrun`) and runs them verbatim
+with the dry-run tag `v0.0.0-dryrun.0`, so the rehearsal cannot drift from the
+workflow. It reports a table (check, PASS or FAIL) in the job summary:
+
+- the tag grammar step and the knowledge root pin step pass;
+- the freshness gate passes: the earliest embedded evidence expiry is at least
+  30 days after the committer date of the checked commit (on a pull request that
+  is the merge commit, so it uses the current date; on a pull request a failure
+  is shown as WARN and does not fail the job, so expiring evidence does not block
+  unrelated pull requests; on `workflow_dispatch` it is a FAIL, the pre-tag
+  signal that blocks a tag);
+- archives exist for the whole build matrix (`prufyx` and `prufyx-collector`
+  for linux and darwin on amd64 and arm64), each holding one directory with one
+  binary;
+- rebuilding the same inputs in a second clean clone at another path gives
+  byte-identical archives;
+- the `.deb` and `.rpm` packages built under the host names `hostA` and `hostB`
+  are byte-identical;
+- `/usr/bin/prufyx` in every package equals the binary of the archive;
+- `SHA256SUMS` has one line per archive and package in the sha256sum format and
+  verifies.
+
+To run it by hand on a Linux machine with the tools listed in the script header,
+run `scripts/release-dry-run.sh [WORKDIR]` from a clean checkout of the commit.
+`cli/internal/maintainer/releaseworkflow` pins the workflow's own properties
+(triggers, permissions, action pins, the Go version equal to `release.yml`) and
+that every step the script extracts exists in `release.yml`.
