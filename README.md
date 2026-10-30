@@ -210,7 +210,7 @@ prufyx assess --kubeconfig "$HOME/.kube/config" --acknowledge-kubeconfig-exec-ri
   --format json my-context
 ```
 
-`assess` does not give a verdict. It lists which checks apply to what it found
+Without `--scope-input`, `assess` does not give a verdict (exit `0` is not a pass). It lists which checks apply to what it found
 and what each still needs from you. See [one-command flow](cli/docs/one-command-flow.md).
 
 The longer [quickstart guide](cli/docs/quickstart.md) walks through `check`
