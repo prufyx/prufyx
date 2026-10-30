@@ -110,7 +110,7 @@ delete the draft, leave the tag as burned, and cut the next prerelease number.
 
 ## What CI does
 
-The workflow has three jobs. Third-party actions are pinned by commit SHA.
+The workflow has four jobs. Third-party actions are pinned by commit SHA.
 
 1. **Build** (one job per `linux`/`darwin` x `amd64`/`arm64`, on
    `ubuntu-24.04`, `CGO_ENABLED=0`). For each platform it builds two binaries
@@ -124,17 +124,28 @@ The workflow has three jobs. Third-party actions are pinned by commit SHA.
    `release/community-shipping-policy-v2.json`, the profile
    `community-<os>-<arch>`, the commit's own commit time as build epoch, and the
    Go version.
-2. **Checksums and provenance.** Downloads all archives, writes `SHA256SUMS`
-   (sha256sum format, one line per archive), and creates a GitHub build
-   provenance attestation (`actions/attest-build-provenance`) for every
-   `.tar.gz`. `SHA256SUMS` itself is not an attested subject. This job runs in
+2. **Linux packages.** For `linux` x `amd64`/`arm64` it unpacks the `prufyx`
+   binary from the built archive and packs it with a pinned `nfpm` release
+   (exact version and SHA-256 digest in the workflow) into
+   `prufyx_<tag>_linux_<arch>.deb` and `.rpm`: `/usr/bin/prufyx` plus the
+   licence files (`LICENSE`, `NOTICE`, `THIRD-PARTY.md`, `LICENSES/`) under
+   `/usr/share/doc/prufyx/`, no install scripts. The job then unpacks every
+   package and fails unless `/usr/bin/prufyx` is byte-identical to the binary
+   of the archive, so a package never holds another binary than the attested
+   archive. File times are the tagged commit's commit time; building the same
+   inputs twice gave byte-identical packages (checked for nfpm 2.48.0).
+3. **Checksums and provenance.** Downloads all archives and packages, writes
+   `SHA256SUMS` (sha256sum format, one line per archive and package), and
+   creates a GitHub build provenance attestation
+   (`actions/attest-build-provenance`) for every `.tar.gz`, `.deb` and `.rpm`.
+   `SHA256SUMS` itself is not an attested subject. This job runs in
    the protected GitHub environment `release`: it waits until the owner, the
    environment's only required reviewer, approves the run, and the
    environment admits only tags matching `v*` as deployment refs. The draft
    release job needs this job, so nothing is attested or drafted without that
    approval.
-3. **Draft release.** Creates a draft release for the tag with the archives and
-   `SHA256SUMS` attached, using `cli/docs/release-notes-<tag>.md` as the text and
+4. **Draft release.** Creates a draft release for the tag with the archives,
+   packages and `SHA256SUMS` attached, using `cli/docs/release-notes-<tag>.md` as the text and
    marking hyphenated tags as pre-releases.
 
 The workflow does not run the test suite, does not sign with any maintainer key
@@ -184,6 +195,29 @@ What each step establishes:
   should equal the commit you expect for the tag. It is self-reported by the
   binary, so treat it as a consistency check after steps 1 and 2, not as
   evidence on its own.
+
+### Linux packages
+
+The `.deb` and `.rpm` assets are verified the same way (steps 1 and 2), then
+installed:
+
+```sh
+PKG="prufyx_${TAG}_linux_amd64.deb"        # or _arm64.deb, _amd64.rpm, _arm64.rpm
+curl -fsSLO "$BASE/$PKG"
+grep " $PKG\$" SHA256SUMS | sha256sum -c -
+gh attestation verify "$PKG" --repo prufyx/prufyx \
+  --signer-workflow prufyx/prufyx/.github/workflows/release.yml \
+  --source-ref "refs/tags/$TAG" --deny-self-hosted-runners
+sudo dpkg -i "$PKG"                         # Debian, Ubuntu
+sudo rpm -i "$PKG"                          # Fedora, RHEL, openSUSE
+```
+
+The package installs `/usr/bin/prufyx` and the licence files under
+`/usr/share/doc/prufyx/`; it has no install scripts and is not signed with a
+package-manager key, so there is no repository to add and no automatic update.
+The workflow checks that its `/usr/bin/prufyx` equals the binary in the
+`.tar.gz`. The RPM `Release` field is `1` and a pre-release tag becomes
+`0.1.0~beta.0` in both formats.
 
 The composite GitHub Action performs steps 1 and 2 itself
 (`scripts/action/install.sh`) with `verify-attestation` defaulting to `auto`

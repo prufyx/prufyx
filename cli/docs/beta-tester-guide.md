@@ -40,6 +40,11 @@ tar -xzf "$ARCHIVE"
 "./prufyx_${TAG}_linux_amd64/prufyx" version
 ```
 
+On Debian, Ubuntu, Fedora and similar systems you can use the `.deb` or `.rpm`
+asset (linux, amd64 or arm64) instead of the archive: run the same two checks
+on `prufyx_${TAG}_linux_amd64.deb` (or `.rpm`), then `sudo dpkg -i` it, or
+`sudo rpm -i` it. See [releasing](releasing.md#linux-packages).
+
 Step 2 needs the `gh` CLI and network access. `version` reports
 `"candidateOnly": true` and `"trustRootDigest": "UNPINNED"`: this is a candidate
 build, not maintainer-signed. No Windows archive is published. You can also

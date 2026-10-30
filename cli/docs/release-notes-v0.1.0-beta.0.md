@@ -71,8 +71,10 @@ tested coverage. These figures are not a statement that any upgrade is safe.
 
 Archives are built for linux and darwin on amd64 and arm64:
 `prufyx_<tag>_<os>_<arch>.tar.gz` (the `prufyx` CLI) and
-`prufyx-collector_<tag>_<os>_<arch>.tar.gz`. `SHA256SUMS` lists every archive,
-and each archive has a GitHub build provenance attestation. Verify before you
+`prufyx-collector_<tag>_<os>_<arch>.tar.gz`. For linux on amd64 and arm64 the
+`prufyx` CLI is also published as `prufyx_<tag>_linux_<arch>.deb` and `.rpm`.
+`SHA256SUMS` lists every archive and package, and each of them has a GitHub
+build provenance attestation. Verify before you
 run anything from an archive:
 
 ```sh
@@ -95,6 +97,11 @@ gh attestation verify "$ARCHIVE" \
 tar -xzf "$ARCHIVE"
 "./prufyx_${TAG}_linux_amd64/prufyx" version
 ```
+
+To install a package instead, run steps 1 and 2 with the package file name
+(`prufyx_${TAG}_linux_amd64.deb`, or `.rpm`, or an `arm64` one), then
+`sudo dpkg -i` the `.deb` or `sudo rpm -i` the `.rpm`. The package holds the
+binary of the attested archive, the licence files and no install scripts.
 
 The checksum alone says nothing about who built the archive; the attestation
 is the origin check (it needs the `gh` CLI and network access). `prufyx

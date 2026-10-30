@@ -225,9 +225,149 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
+  # .deb and .rpm of the linux prufyx binary. The package carries the very
+  # binary of the attested tarball (checked below), so a package is never a
+  # second build. No scripts, no signing: the packages are attested and listed
+  # in SHA256SUMS by the provenance job like the archives.
+  packages:
+    name: Linux packages (.deb, .rpm)
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      # Only the licence texts that travel with the binary (cone mode keeps
+      # the root files LICENSE, NOTICE and THIRD-PARTY.md).
+      - name: Checkout licence files
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+          sparse-checkout: LICENSES
+
+      - name: Download linux archives
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: archives-linux-*
+          path: archives
+          merge-multiple: true
+
+      - name: Build packages
+        env:
+          TAG: ${{ github.ref_name }}
+          NFPM_VERSION: "2.48.0"
+          NFPM_SHA256: "6d7f9a28b2f397934403950fcbba83f598b08d02edbe79a0815b3b4897341750"
+        run: |
+          set -euo pipefail
+          # Same epoch as the build job: the tagged commit's own commit time.
+          BUILD_EPOCH="$(git show -s --format=%ct "${GITHUB_SHA}")"
+          BUILD_MTIME="$(date -u -d "@${BUILD_EPOCH}" +%Y-%m-%dT%H:%M:%SZ)"
+          export SOURCE_DATE_EPOCH="${BUILD_EPOCH}"
+          PKG_VERSION="${TAG#v}"
+
+          # nfpm is a pinned release binary with a pinned digest, not built
+          # from source at run time.
+          mkdir -p nfpm-bin pkgwork dist
+          curl -fsSL --retry 3 --retry-all-errors -o nfpm.tar.gz \
+            "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/nfpm_${NFPM_VERSION}_Linux_x86_64.tar.gz"
+          echo "${NFPM_SHA256}  nfpm.tar.gz" | sha256sum -c -
+          tar -xzf nfpm.tar.gz -C nfpm-bin nfpm
+
+          # Needed only to unpack the finished packages for the check below.
+          if ! command -v rpm2cpio > /dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq --no-install-recommends rpm2cpio
+          fi
+
+          # The licence files are copied and stamped with the build epoch:
+          # the checkout's own file times differ from run to run, and nfpm
+          # takes the times of tree members from the files.
+          lic="pkgwork/licences"
+          mkdir -p "${lic}"
+          cp -R LICENSE NOTICE THIRD-PARTY.md LICENSES "${lic}/"
+          chmod -R u=rwX,go=rX "${lic}"
+          find "${lic}" -exec touch -h -d "@${BUILD_EPOCH}" {} +
+
+          for arch in amd64 arm64; do
+            name="prufyx_${TAG}_linux_${arch}"
+            work="pkgwork/${arch}"
+            mkdir -p "${work}"
+            tar -xzf "archives/${name}.tar.gz" -C "${work}"
+            bin="${work}/${name}/prufyx"
+            test -f "${bin}"
+
+            cat > "${work}/nfpm.yaml" <<EOF
+          name: prufyx
+          arch: ${arch}
+          platform: linux
+          version: ${PKG_VERSION}
+          section: utils
+          maintainer: Prufyx <hello@prufyx.com>
+          description: Checks Kubernetes upgrades against reviewed project knowledge.
+          homepage: https://github.com/prufyx/prufyx
+          license: AGPL-3.0-only
+          mtime: ${BUILD_MTIME}
+          contents:
+            - src: ${bin}
+              dst: /usr/bin/prufyx
+              file_info:
+                mode: 0755
+                mtime: ${BUILD_MTIME}
+            - src: ${lic}/LICENSE
+              dst: /usr/share/doc/prufyx/LICENSE
+              file_info:
+                mode: 0644
+                mtime: ${BUILD_MTIME}
+            - src: ${lic}/NOTICE
+              dst: /usr/share/doc/prufyx/NOTICE
+              file_info:
+                mode: 0644
+                mtime: ${BUILD_MTIME}
+            - src: ${lic}/THIRD-PARTY.md
+              dst: /usr/share/doc/prufyx/THIRD-PARTY.md
+              file_info:
+                mode: 0644
+                mtime: ${BUILD_MTIME}
+            - src: ${lic}/LICENSES
+              dst: /usr/share/doc/prufyx/LICENSES
+              type: tree
+              file_info:
+                mtime: ${BUILD_MTIME}
+          EOF
+
+            for fmt in deb rpm; do
+              out="dist/${name}.${fmt}"
+              ./nfpm-bin/nfpm package --config "${work}/nfpm.yaml" --packager "${fmt}" --target "${out}"
+              # The package must hold exactly the attested binary: a faulty
+              # nfpm must not smuggle another one into an attested file.
+              unpack="${work}/unpack-${fmt}"
+              rm -rf "${unpack}" && mkdir -p "${unpack}"
+              if [ "${fmt}" = deb ]; then
+                dpkg-deb -x "${out}" "${unpack}"
+              else
+                (cd "${unpack}" && rpm2cpio "${GITHUB_WORKSPACE}/${out}" | cpio -idm --quiet)
+              fi
+              if ! cmp -s "${unpack}/usr/bin/prufyx" "${bin}"; then
+                echo "${out} does not carry the binary of ${name}.tar.gz."
+                exit 1
+              fi
+            done
+          done
+          ls -l dist
+
+      - name: Upload packages
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: packages-linux
+          path: |
+            dist/*.deb
+            dist/*.rpm
+          retention-days: 7
+          if-no-files-found: error
+
   provenance:
     name: Checksums and provenance
-    needs: build
+    needs: [build, packages]
     # Protected environment: the owner creates `release` with themselves as
     # required reviewer and tags `v*` as the only deployment refs. Provenance is
     # attested, and the draft release (which needs this job) is created,
@@ -247,16 +387,25 @@ jobs:
           path: dist
           merge-multiple: true
 
+      - name: Download packages
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: packages-linux
+          path: dist
+
       - name: Generate SHA256SUMS
         working-directory: dist
         run: |
           set -euo pipefail
-          sha256sum *.tar.gz > SHA256SUMS
+          sha256sum *.tar.gz *.deb *.rpm > SHA256SUMS
 
       - name: Attest build provenance
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
-          subject-path: dist/*.tar.gz
+          subject-path: |
+            dist/*.tar.gz
+            dist/*.deb
+            dist/*.rpm
 
       - name: Upload release bundle
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -264,6 +413,8 @@ jobs:
           name: release-bundle
           path: |
             dist/*.tar.gz
+            dist/*.deb
+            dist/*.rpm
             dist/SHA256SUMS
           retention-days: 7
           if-no-files-found: error
@@ -309,4 +460,6 @@ jobs:
             --title "${GITHUB_REF_NAME}" \
             --notes-file "${notes}" \
             dist/*.tar.gz \
+            dist/*.deb \
+            dist/*.rpm \
             dist/SHA256SUMS
