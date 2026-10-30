@@ -146,7 +146,7 @@ not support.
 | Exit | Meaning |
 | --- | --- |
 | `0` | `scan`: `PASS FOR THE DECLARED SCOPE`. `check`: the checked rules passed, nothing more. |
-| `10` | `BLOCKED`: a reviewed rule matched your input. |
+| `10` | `BLOCKED`: a rule matched your input. |
 | `11` | `UNKNOWN`: the evidence did not decide. Not a pass. |
 | `2` / `3` | Input not accepted / integrity failure. |
 
@@ -225,7 +225,7 @@ the quickstart guide). Reports are never coloured.
 
 ## What the verdicts mean
 
-- `BLOCKED`: your input matches a reviewed condition the target release
+- `BLOCKED`: your input matches a rule condition the target release
   enforces. The output names the fix. Exit `10`.
 - `UNKNOWN`: the evidence does not decide. Never read it as a pass. Exit `11`.
 - `PASS`: the checked rules passed for that scope. It is not a whole-upgrade
@@ -238,7 +238,7 @@ what it means, what it does not mean and what to do. The single exit-code table
 is [exit codes](cli/docs/exit-codes.md). What each declaration flag asserts is in
 [declarations](cli/docs/declarations.md).
 
-A rule applies to the exact reviewed version pair, or to a version range only
+A rule applies to the exact cited version pair, or to a version range only
 where the cited evidence states that range. Outside it, the result is
 `UNKNOWN`.
 
@@ -255,7 +255,7 @@ certificate.
 ## What is covered
 
 The [generated support inventory](cli/docs/community-support-inventory.md)
-is the authoritative list of checks. A check covers exact reviewed versions;
+is the authoritative list of checks. A check covers exact cited versions;
 the numbers below separate how many rules exist from how much of the recent
 upgrade surface they decide.
 
