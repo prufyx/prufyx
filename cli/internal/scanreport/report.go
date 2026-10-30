@@ -480,7 +480,8 @@ type KnowledgeStore struct {
 
 // KnowledgeSelection is the automatic choice of knowledge. Chosen is
 // "embedded" or "local-db". Reason is "store-newer", "store-corrected",
-// "store-older", "identical", "no-store", "forced" or "store-expired". The
+// "store-older", "identical", "no-store", "forced", "store-expired", "store-too-new" or
+// "store-trust-advanced" (the last three fall back to embedded). The
 // evidence dates are the latest review dates compared (those of the project
 // with older store evidence, for "store-older"), when a comparison was made.
 type KnowledgeSelection struct {

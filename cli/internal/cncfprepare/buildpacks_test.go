@@ -26,9 +26,15 @@ func lifecycleOCIConfig(t *testing.T, version string, supported, deprecated []st
 	return raw
 }
 
+var (
+	realDeprecated = []string{"0.3", "0.4", "0.5", "0.6"}
+	realSupported0 = []string{"0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "0.10", "0.11"}
+	realSupported1 = append(append([]string{}, realSupported0...), "0.12")
+)
+
 func TestPrepareBuildpacksLifecyclePlan(t *testing.T) {
-	current := lifecycleOCIConfig(t, BuildpacksFrom, []string{"0.10", "0.11"}, []string{"0.10"}, nil)
-	target := lifecycleOCIConfig(t, BuildpacksTo, []string{"0.11", "0.12"}, []string{"0.11"}, nil)
+	current := lifecycleOCIConfig(t, BuildpacksFrom, realSupported0, realDeprecated, nil)
+	target := lifecycleOCIConfig(t, BuildpacksTo, realSupported1, realDeprecated, nil)
 	for _, tc := range []struct {
 		name, proposed string
 		want           bool
@@ -57,16 +63,22 @@ func TestPrepareBuildpacksLifecyclePlan(t *testing.T) {
 }
 
 func TestPrepareBuildpacksLifecycleUnsupportedMetadataStaysUnknown(t *testing.T) {
-	validCurrent := lifecycleOCIConfig(t, BuildpacksFrom, []string{"0.11"}, nil, nil)
-	validTarget := lifecycleOCIConfig(t, BuildpacksTo, []string{"0.12"}, nil, nil)
+	validCurrent := lifecycleOCIConfig(t, BuildpacksFrom, realSupported0, realDeprecated, nil)
+	validTarget := lifecycleOCIConfig(t, BuildpacksTo, realSupported1, realDeprecated, nil)
 	tests := []struct {
 		name            string
 		current, target []byte
 	}{
-		{"wrong current identity", lifecycleOCIConfig(t, "0.16.4", []string{"0.11"}, nil, nil), validTarget},
-		{"wrong target identity", validCurrent, lifecycleOCIConfig(t, "0.17.6", []string{"0.12"}, nil, nil)},
-		{"deprecated outside supported", validCurrent, lifecycleOCIConfig(t, BuildpacksTo, []string{"0.12"}, []string{"0.11"}, nil)},
+		{"wrong current identity", lifecycleOCIConfig(t, "0.16.4", realSupported0, realDeprecated, nil), validTarget},
+		{"wrong target identity", validCurrent, lifecycleOCIConfig(t, "0.17.6", realSupported1, realDeprecated, nil)},
+		{"deprecated outside supported", validCurrent, lifecycleOCIConfig(t, BuildpacksTo, realSupported1, []string{"0.13"}, nil)},
+		{"deprecated differs from pinned", validCurrent, lifecycleOCIConfig(t, BuildpacksTo, realSupported1, []string{"0.11"}, nil)},
 		{"missing labels", validCurrent, []byte(`{"config":{"Labels":{}}}`)},
+		{"wrong-PASS: target claims 0.13", validCurrent, lifecycleOCIConfig(t, BuildpacksTo, append(append([]string{}, realSupported1...), "0.13"), realDeprecated, nil)},
+		{"target claims only up to 0.11", validCurrent, lifecycleOCIConfig(t, BuildpacksTo, realSupported0, realDeprecated, nil)},
+		{"target deprecated differs", validCurrent, lifecycleOCIConfig(t, BuildpacksTo, realSupported1, []string{"0.3"}, nil)},
+		{"current lacks 0.11", lifecycleOCIConfig(t, BuildpacksFrom, realSupported0[:8], realDeprecated, nil), validTarget},
+		{"current claims 0.12", lifecycleOCIConfig(t, BuildpacksFrom, realSupported1, realDeprecated, nil), validTarget},
 		{"nested duplicate", validCurrent, []byte(`{"config":{"Labels":{"io.buildpacks.lifecycle.version":"0.17.7","io.buildpacks.lifecycle.apis":"{\"platform\":{\"supported\":[\"0.12\"],\"Supported\":[\"0.12\"],\"deprecated\":[]}}"}}}`)},
 	}
 	for _, tc := range tests {
@@ -82,8 +94,25 @@ func TestPrepareBuildpacksLifecycleUnsupportedMetadataStaysUnknown(t *testing.T)
 	}
 }
 
+func TestPrepareBuildpacksLifecycleSetOrderIrrelevantAndUnreviewedVersion(t *testing.T) {
+	rev := []string{"0.12", "0.11", "0.10", "0.9", "0.8", "0.7", "0.6", "0.5", "0.4", "0.3"}
+	current := lifecycleOCIConfig(t, BuildpacksFrom, realSupported0, realDeprecated, nil)
+	target := lifecycleOCIConfig(t, BuildpacksTo, rev, []string{"0.6", "0.5", "0.4", "0.3"}, nil)
+	prepared, err := PrepareBuildpacksLifecycle(current, target, BuildpacksFrom, BuildpacksTo, "0.11", "0.12")
+	if err != nil || prepared.State != StatePrepared {
+		t.Fatalf("prepared=%+v err=%v", prepared, err)
+	}
+	var value map[string]any
+	if json.Unmarshal(lifecycleOCIConfig(t, "0.19.6", append(append([]string{}, realSupported1...), "0.13"), realDeprecated, nil), &value) != nil {
+		t.Fatal("decode")
+	}
+	if support, ok := inspectLifecycleConfig(value, "0.19.6", "0.13"); support || ok {
+		t.Fatalf("unreviewed version accepted: %v %v", support, ok)
+	}
+}
+
 func TestPrepareBuildpacksLifecycleRejectsInvalidInput(t *testing.T) {
-	valid := lifecycleOCIConfig(t, BuildpacksFrom, []string{"0.11"}, nil, nil)
+	valid := lifecycleOCIConfig(t, BuildpacksFrom, realSupported0, realDeprecated, nil)
 	for _, tc := range []struct{ raw, api string }{{`{`, "0.11"}, {string(valid), "00.11"}} {
 		if _, err := PrepareBuildpacksLifecycle([]byte(tc.raw), valid, BuildpacksFrom, BuildpacksTo, tc.api, "0.13"); err == nil {
 			t.Fatalf("accepted raw=%q api=%q", tc.raw, tc.api)

@@ -10,9 +10,15 @@ import (
 	"testing"
 )
 
+var (
+	realBPSupported0 = []string{"0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "0.10", "0.11"}
+	realBPSupported1 = append(append([]string{}, realBPSupported0...), "0.12")
+	realBPDeprecated = []string{"0.3", "0.4", "0.5", "0.6"}
+)
+
 func writeLifecycleConfig(t *testing.T, path, version string, supported []string, private string) []byte {
 	t.Helper()
-	apis, _ := json.Marshal(map[string]any{"buildpack": map[string]any{"supported": []string{"0.9"}, "deprecated": []string{}}, "platform": map[string]any{"supported": supported, "deprecated": []string{}}})
+	apis, _ := json.Marshal(map[string]any{"buildpack": map[string]any{"supported": []string{"0.9"}, "deprecated": []string{}}, "platform": map[string]any{"supported": supported, "deprecated": realBPDeprecated}})
 	metadata, _ := json.Marshal(map[string]any{"lifecycle": map[string]any{"version": version}})
 	raw, err := json.Marshal(map[string]any{"architecture": "arm64", "history": []any{map[string]any{"created_by": private}}, "config": map[string]any{"Labels": map[string]any{"io.buildpacks.lifecycle.version": version, "io.buildpacks.lifecycle.apis": string(apis), "io.buildpacks.builder.metadata": string(metadata), "private.example/canary": private}}})
 	if err != nil {
@@ -31,8 +37,8 @@ func TestBuildpacksRawLifecyclePlanEditAndRepeat(t *testing.T) {
 	dir := t.TempDir()
 	current := filepath.Join(dir, "current-private.json")
 	proposed := filepath.Join(dir, "proposed-private.json")
-	currentRaw := writeLifecycleConfig(t, current, "0.16.5", []string{"0.3", "0.11"}, "CURRENT_PRIVATE")
-	proposedRaw := writeLifecycleConfig(t, proposed, "0.17.7", []string{"0.3", "0.11", "0.12"}, "TARGET_PRIVATE")
+	currentRaw := writeLifecycleConfig(t, current, "0.16.5", realBPSupported0, "CURRENT_PRIVATE")
+	proposedRaw := writeLifecycleConfig(t, proposed, "0.17.7", realBPSupported1, "TARGET_PRIVATE")
 	args := buildpacksRawArgs(current, proposed, "0.13", "human")
 	code, before, stderr := runCNCFCLI(t, args...)
 	if code != ExitBlocked || stderr != "" || !strings.Contains(before, "target lifecycle does not declare support") && !strings.Contains(before, "scoped result: BLOCKED") || !strings.Contains(before, "CNB_PLATFORM_API: current 0.11 (declared supported); proposed 0.13 (not declared supported)") || !strings.Contains(before, "aggregate: UNKNOWN") || !strings.Contains(before, "not official registry provenance") {
@@ -61,18 +67,31 @@ func TestBuildpacksRawLifecyclePlanEditAndRepeat(t *testing.T) {
 	}
 }
 
+func TestBuildpacksRawLyingTargetLabelNeverPasses(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	current := filepath.Join(dir, "current.json")
+	proposed := filepath.Join(dir, "proposed.json")
+	writeLifecycleConfig(t, current, "0.16.5", realBPSupported0, "C")
+	writeLifecycleConfig(t, proposed, "0.17.7", append(append([]string{}, realBPSupported1...), "0.13"), "T")
+	code, output, stderr := runCNCFCLI(t, buildpacksRawArgs(current, proposed, "0.13", "human")...)
+	if code != ExitUnknown || stderr != "" || !strings.Contains(output, "RULE_FACT_UNAVAILABLE") {
+		t.Fatalf("code=%d stderr=%q output=%s", code, stderr, output)
+	}
+}
+
 func TestBuildpacksRawLifecycleUnknownAndModeGuards(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	current := filepath.Join(dir, "current.json")
 	proposed := filepath.Join(dir, "proposed.json")
-	writeLifecycleConfig(t, current, "0.16.5", []string{"0.11"}, "CURRENT_PRIVATE")
-	writeLifecycleConfig(t, proposed, "0.17.6", []string{"0.12"}, "TARGET_PRIVATE")
+	writeLifecycleConfig(t, current, "0.16.5", realBPSupported0, "CURRENT_PRIVATE")
+	writeLifecycleConfig(t, proposed, "0.17.6", realBPSupported1, "TARGET_PRIVATE")
 	code, output, stderr := runCNCFCLI(t, buildpacksRawArgs(current, proposed, "0.13", "human")...)
 	if code != ExitUnknown || stderr != "" || !strings.Contains(output, "RULE_FACT_UNAVAILABLE") {
 		t.Fatalf("identity code=%d stderr=%q output=%s", code, stderr, output)
 	}
-	writeLifecycleConfig(t, proposed, "0.17.7", []string{"0.12"}, "TARGET_PRIVATE")
+	writeLifecycleConfig(t, proposed, "0.17.7", realBPSupported1, "TARGET_PRIVATE")
 	wrongPair := buildpacksRawArgs(current, proposed, "0.13", "human")
 	for i := range wrongPair {
 		if wrongPair[i] == "0.16.5" {
@@ -84,12 +103,12 @@ func TestBuildpacksRawLifecycleUnknownAndModeGuards(t *testing.T) {
 	if code != ExitUnknown || stderr != "" || !strings.Contains(output, "RULE_TRANSITION_NOT_REVIEWED") {
 		t.Fatalf("pair code=%d stderr=%q output=%s", code, stderr, output)
 	}
-	writeLifecycleConfig(t, current, "0.16.5", []string{"0.10"}, "CURRENT_PRIVATE")
+	writeLifecycleConfig(t, current, "0.16.5", realBPSupported0[:8], "CURRENT_PRIVATE")
 	code, output, stderr = runCNCFCLI(t, buildpacksRawArgs(current, proposed, "0.13", "human")...)
-	if code != ExitUnknown || stderr != "" || !strings.Contains(output, "current 0.11 (not declared supported)") || !strings.Contains(output, "RULE_APPLICABILITY_NOT_MATCHED") {
-		t.Fatalf("known unsupported current code=%d stderr=%q output=%s", code, stderr, output)
+	if code != ExitUnknown || stderr != "" || !strings.Contains(output, "RULE_APPLICABILITY_FACT_UNAVAILABLE") {
+		t.Fatalf("lying current code=%d stderr=%q output=%s", code, stderr, output)
 	}
-	writeLifecycleConfig(t, current, "0.16.5", []string{"0.11"}, "CURRENT_PRIVATE")
+	writeLifecycleConfig(t, current, "0.16.5", realBPSupported0, "CURRENT_PRIVATE")
 	base := buildpacksRawArgs(current, proposed, "0.13", "json")
 	for _, extra := range [][]string{{"--input", current}, {"--service", current}, {"--config-map", current}, {"--knowledge-db", dir}, {"--replay-report", current}} {
 		code, stdout, stderr := runCNCFCLI(t, append(append([]string{}, base...), extra...)...)

@@ -13508,13 +13508,13 @@
       "rule": {
         "evidence": {
           "basis": "mechanical",
-          "derivedAt": "2026-10-17T05:46:27Z",
+          "derivedAt": "2026-10-30T17:32:02Z",
           "extractor": {
-            "codeDigest": "sha256:225f5707b71e90a986ce3f3a8e0763761b79d47e30b84543eb60a2e46c7016ea",
+            "codeDigest": "sha256:aeb5bf110acf16b31c149cf8ee98abc685f5755daf03cbe562ee92fded9549e8",
             "id": "crd.version-removal.kyverno",
-            "version": "2.5.0"
+            "version": "2.7.0"
           },
-          "reviewedAt": "2026-10-17T05:46:27Z",
+          "reviewedAt": "2026-10-30T17:32:02Z",
           "sources": [
             {
               "contentDigest": "sha256:4da606b34b772d8d846bdec3927c35e712571299f2e50f7996ca095e25447e87",
@@ -13534,7 +13534,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-15T05:46:27Z"
+          "validUntil": "2027-01-28T17:32:02Z"
         },
         "id": "kyverno.crd-version-removal.updaterequests-kyverno-io.1-15-0-to-1-16-0",
         "nextAction": "change apiVersion of UpdateRequest to kyverno.io/v2 before upgrading to 1.16.0",
