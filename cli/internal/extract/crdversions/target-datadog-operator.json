@@ -1,0 +1,28 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "datadog-operator",
+    "catalog": "community",
+    "name": "datadog-operator",
+    "repo": "github.com/datadog/datadog-operator",
+    "component": "pkg:github/datadog/datadog-operator",
+    "factProject": "datadog_operator",
+    "tagPrefixes": ["v", ""],
+    "minFrom": "1.29",
+    "paths": [
+      {"path": "bundle-community-operators/manifests/datadoghq.com_datadogagentinternals.yaml"},
+      {"path": "bundle-community-operators/manifests/datadoghq.com_datadogagentprofiles.yaml"},
+      {"path": "bundle-community-operators/manifests/datadoghq.com_datadogagents.yaml"},
+      {"path": "bundle-community-operators/manifests/datadoghq.com_datadogcsidrivers.yaml"},
+      {"path": "bundle-community-operators/manifests/datadoghq.com_datadogdashboards.yaml"},
+      {"path": "bundle-community-operators/manifests/datadoghq.com_datadoggenericresources.yaml"},
+      {"path": "bundle-community-operators/manifests/datadoghq.com_datadoginstrumentations.yaml"},
+      {"path": "bundle-community-operators/manifests/datadoghq.com_datadogmetrics.yaml"},
+      {"path": "bundle-community-operators/manifests/datadoghq.com_datadogmonitors.yaml"},
+      {"path": "bundle-community-operators/manifests/datadoghq.com_datadogpodautoscalerclusterprofiles.yaml"},
+      {"path": "bundle-community-operators/manifests/datadoghq.com_datadogpodautoscalers.yaml"},
+      {"path": "bundle-community-operators/manifests/datadoghq.com_datadogslos.yaml"}
+    ],
+    "exclude": []
+  }
+}
