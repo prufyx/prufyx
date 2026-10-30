@@ -245,14 +245,18 @@ func (x *Extractor) releaseLines(index extract.ReleaseIndex) []*releaseLine {
 	return out
 }
 
-// MinPaddedMajor is the lowest major version whose minor may be zero-padded
-// in a release tag (v26.02.0): a calendar-versioned project. Below it a
-// padded minor (1.02.3) is no release.
-const MinPaddedMajor = 20
+// MinPaddedMajor and MaxPaddedMajor bound the major versions whose minor may
+// be zero-padded in a release tag (v26.02.0): a calendar-versioned project
+// with a two-digit year. Outside the range a padded minor (1.02.3, v19.02.0,
+// v100.02.0, v2024.02.1) is no release.
+const (
+	MinPaddedMajor = 20
+	MaxPaddedMajor = 99
+)
 
 // finalTagRE matches prefix followed by X.Y.Z. A component is a canonical
 // number; the minor may also be two digits with a leading zero ("02"), which
-// ReadFinalTag accepts only for a major of MinPaddedMajor or more.
+// ReadFinalTag accepts only for a major from MinPaddedMajor to MaxPaddedMajor.
 func finalTagRE(prefix string, digits int) *regexp.Regexp {
 	n := fmt.Sprintf("0|[1-9][0-9]{0,%d}", digits-1)
 	return regexp.MustCompile(`^` + regexp.QuoteMeta(prefix) + `(` + n + `)\.(0[1-9]|` + n + `)\.(` + n + `)$`)
@@ -260,10 +264,10 @@ func finalTagRE(prefix string, digits int) *regexp.Regexp {
 
 // ReadFinalTag reads a final release tag: prefix followed by X.Y.Z, each
 // component a number of at most digits digits without leading zeros, except
-// that the minor of a release of major MinPaddedMajor or more may be written
+// that the minor of a release of a major from MinPaddedMajor to MaxPaddedMajor may be written
 // with one leading zero (v26.02.0). version is the canonical X.Y.Z (26.2.0);
 // padded reports the padded spelling. Any other leading zero (v20.00.0,
-// v20.010.1, v1.02.3, 26.2.03) is no release. This is the one definition of
+// v20.010.1, v1.02.3, v100.02.0, 26.2.03) is no release. This is the one definition of
 // the final-tag grammar for the extractor and the release completeness check
 // of the knowledge gate.
 func ReadFinalTag(prefix string, digits int, tag string) (version string, padded, ok bool) {
@@ -273,7 +277,7 @@ func ReadFinalTag(prefix string, digits int, tag string) (version string, padded
 	}
 	if len(m[2]) == 2 && m[2][0] == '0' {
 		major, _ := strconv.Atoi(m[1])
-		if major < MinPaddedMajor {
+		if major < MinPaddedMajor || major > MaxPaddedMajor {
 			return "", false, false
 		}
 		padded = true

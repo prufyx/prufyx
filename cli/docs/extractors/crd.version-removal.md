@@ -116,8 +116,9 @@ the tag `prometheus-adapter-4.1.0` is not a release of `prometheus-`. A tag
 with anything before the prefix (`xknative-v1.15.0`), a suffix
 (`knative-v1.15.0-rc1`) or a leading zero (`knative-v01.2.3`) is not a release
 of the target. The minor of a release of
-major 20 or more may be zero-padded with one zero (`v26.02.0` is the release
-`26.2.0` of the line `26.2`); a padded minor of a lower major (`v1.02.3`), a
+major 20 to 99 may be zero-padded with one zero (`v26.02.0` is the release
+`26.2.0` of the line `26.2`); a padded minor of a lower or higher major
+(`v1.02.3`, `v100.02.0`, `v2024.02.1`), a
 zero minor with a leading zero (`v20.00.0`) and any other padding (`v20.010.1`,
 `v26.02.00`) is not a release. When a line has a tag with a padded minor and
 one with the canonical minor (`v26.02.0` and `v26.2.0`), its releases are
