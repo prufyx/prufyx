@@ -47,7 +47,7 @@ func TestDatabaseStatusDefaultStore(t *testing.T) {
 		t.Fatalf("update code=%d out=%s err=%s", code, out.String(), errb.String())
 	}
 
-	// Same as an explicit --db-root DIR: a missing leaf directory reports NO_SELECTION.
+	// An absent default store reports no selection and is not created.
 	empty := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(empty, "prufyx", "knowledge"), 0o700); err != nil {
 		t.Fatal(err)
@@ -60,7 +60,7 @@ func TestDatabaseStatusDefaultStore(t *testing.T) {
 		want string
 	}{
 		{"default store present", installed, []string{"--profile", "cncf-projects"}, ExitOK, "knowledge database state: READY"},
-		{"default store absent", empty, []string{"--profile", "cncf-projects"}, ExitUnknown, "NO_SELECTION"},
+		{"default store absent", empty, []string{"--profile", "cncf-projects"}, ExitUnknown, "no verified knowledge database is selected"},
 		{"explicit db-root wins", empty, []string{"--profile", "cncf-projects", "--db-root", store}, ExitOK, "knowledge database state: READY"},
 		{"explicit empty db-root still errors", installed, []string{"--profile", "cncf-projects", "--db-root", ""}, ExitUsage, ""},
 		{"profile without default location", installed, []string{"--profile", "cncf"}, ExitUsage, ""},
@@ -71,8 +71,13 @@ func TestDatabaseStatusDefaultStore(t *testing.T) {
 			t.Setenv("XDG_DATA_HOME", tc.xdg)
 			var stdout, stderr bytes.Buffer
 			code := runtime{stdout: &stdout, stderr: &stderr}.databaseStatus(tc.args)
-			if code != tc.code || !strings.Contains(stdout.String(), tc.want) {
+			if code != tc.code || !strings.Contains(stdout.String()+stderr.String(), tc.want) {
 				t.Fatalf("code=%d want %d out=%s err=%s", code, tc.code, stdout.String(), stderr.String())
+			}
+			if tc.name == "default store absent" {
+				if _, err := os.Lstat(filepath.Join(tc.xdg, "prufyx", "knowledge", "cncf-projects")); !os.IsNotExist(err) {
+					t.Fatalf("status created the default store: %v", err)
+				}
 			}
 		})
 	}

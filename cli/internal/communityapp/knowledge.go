@@ -206,9 +206,16 @@ func (r runtime) databaseStatus(args []string) int {
 	// Without --db-root the default profile reads the default store location,
 	// the one db update installs into; other profiles have none.
 	if *dbRoot == "" {
-		root, ok := knowledgeauto.DefaultRoot()
-		if *profile != knowledgeauto.Profile || !ok {
+		if _, ok := knowledgeauto.DefaultRoot(); *profile != knowledgeauto.Profile || !ok {
 			return r.usage("invalid database status arguments; use --help")
+		}
+		// Locate writes nothing: status must not create the default store.
+		root, present, err := knowledgeauto.Locate()
+		if err != nil {
+			return r.knowledgeError("knowledge database status failed", err)
+		}
+		if !present {
+			return r.fail("no verified knowledge database is selected", ExitUnknown)
 		}
 		*dbRoot = root
 	}
