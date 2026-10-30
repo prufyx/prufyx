@@ -122,6 +122,10 @@ type inventoryFile struct {
 	} `json:"withdrawnRules"`
 }
 
+// crdNameRE is the slug rule of cli/internal/customresources (slugRE), also
+// applied to the catalog, so a name cannot break the Markdown list.
+var crdNameRE = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
+
 type crdTableFile struct {
 	Projects []struct {
 		Slug    string            `json:"slug"`
@@ -257,10 +261,19 @@ func ReadSnapshot(t Tree) (*Snapshot, error) {
 		if err := json.Unmarshal(raw, &tf); err != nil {
 			return nil, fmt.Errorf("%s: %w", crdTablePath, err)
 		}
-		s.HasCRD = true
 		for _, p := range tf.Projects {
+			if !crdNameRE.MatchString(p.Slug) {
+				return nil, fmt.Errorf("%s: invalid slug %q", crdTablePath, p.Slug)
+			}
+			if !crdNameRE.MatchString(p.Catalog) {
+				return nil, fmt.Errorf("%s: invalid catalog %q for %s", crdTablePath, p.Catalog, p.Slug)
+			}
+			if _, dup := s.CRD[p.Slug]; dup {
+				return nil, fmt.Errorf("%s: duplicate slug %q", crdTablePath, p.Slug)
+			}
 			s.CRD[p.Slug] = CRDProject{Catalog: p.Catalog, Groups: len(p.Groups)}
 		}
+		s.HasCRD = true
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		return nil, fmt.Errorf("%s: %w", crdTablePath, err)
 	}
