@@ -2,7 +2,7 @@
 """Decide what a run must cover from the files changed since the last green sha.
 
 usage: select_projects.py --changed FILE --src DIR     (FILE: git diff --name-only, one path per line)
-prints {"mode": "full|incremental|none", "projects": [...], "relevant": bool, "reasons": [...]}
+prints {"db": bool (db-related path changed: run the db suite), "mode": "full|incremental|none", "projects": [...], "relevant": bool, "reasons": [...]}
   target-<p>.json            -> project p
   knowledge / data / lines   -> projects whose slug is in the path, else full
   non-test Go, go.mod, vendor-> full (the scanner itself may have changed)
@@ -16,10 +16,13 @@ ap.add_argument("--src", required=True)
 a = ap.parse_args()
 slugs = sorted(re.sub(r"^target-|\.json$", "", os.path.basename(p))
                for p in glob.glob(a.src + "/cli/internal/extract/crdversions/target-*.json"))
-projects, reasons, full = set(), [], False
+projects, reasons, full, db = set(), [], False, False
+DBRE = re.compile(r"^cli/(internal/)?(knowledge|[a-z]*db[a-z]*)")
 for p in open(a.changed).read().split("\n"):
     if not p:
         continue
+    if DBRE.search(p) and not re.search(r"_test\.go$|\.md$|/docs/", p):
+        db = True
     m = re.fullmatch(r"cli/internal/extract/crdversions/target-(.+)\.json", p)
     if m:
         projects.add(m.group(1)); reasons.append("target " + m.group(1)); continue
@@ -35,4 +38,4 @@ for p in open(a.changed).read().split("\n"):
     if p.endswith(".go") or p in ("cli/go.mod", "cli/go.sum") or p.startswith("cli/vendor/"):
         full = True; reasons.append("code " + p)
 mode = "full" if full else ("incremental" if projects else "none")
-print(json.dumps({"mode": mode, "projects": sorted(projects), "relevant": mode != "none", "reasons": reasons[:20]}))
+print(json.dumps({"mode": mode, "projects": sorted(projects), "relevant": mode != "none", "db": db, "reasons": reasons[:20]}))

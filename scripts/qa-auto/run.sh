@@ -22,6 +22,7 @@
 #   QA_MAXLOAD        skip (exit 75) when the 1-minute load is not below this (default 8)
 #   QA_JOBS           parallel projects in the CRD oracle (default 3)
 #   QA_PROJECTS       comma list: check only these projects (ad-hoc runs and seeded-failure proofs)
+#   QA_DB_SUITE       path of the db suite run.sh [SHA] [OUTDIR]; QA_DB=1 forces it (nightly); STATE/db-allow.json = allowed failing ids
 #   QA_NO_KIND=1      skip the kind probes
 #   QA_ALARM_HOOK     executable called with the alarm file path when an alarm is raised
 #   QA_PRE_BUILD      shell script run in the scratch checkout before the build (seeded-failure proofs only)
@@ -129,6 +130,20 @@ fi
 for s in crd k8s; do
   [ -s "$OUT/$s.cases.json" ] || python3 -c 'import json,sys;json.dump([{"suite":sys.argv[2],"key":"suite-crashed","wrongpass":False,"mismatch":False,"error":True,"detail":{}}],open(sys.argv[1],"w"))' "$OUT/$s.cases.json" "$s"
 done
+
+# 4b. buildpacks #325 end-to-end (11 cases, seconds)
+python3 -X utf8 bp325.py "$QA_BIN" "$RUN/tmp/bp325" --cases "$OUT/bp325.cases.json" >"$OUT/bp325.log" 2>&1 || log "bp325 crashed"
+[ -s "$OUT/bp325.cases.json" ] || python3 -c 'import json,sys;json.dump([{"suite":"bp325","key":"suite-crashed","wrongpass":False,"mismatch":False,"error":True,"detail":{}}],open(sys.argv[1],"w"))' "$OUT/bp325.cases.json"
+
+# 4c. db suite (slow, ~40 min in the vkr-slot queue): only for db/knowledge diffs, QA_DB=1 (nightly), never in the fast path.
+# QA_DB_SUITE = path to the db suite run.sh (internal, not in this repo). Run under a slot already held by this script's caller:
+# set VKR_SLOT_HELD=1 in the service so the suite does not queue a second slot.
+dbsel=$(python3 -c 'import json,sys;print(int(bool(json.loads(sys.argv[1]).get("db"))))' "$sel")
+if [ -n "${QA_DB_SUITE:-}" ] && [ -x "$QA_DB_SUITE" ] && { [ "${QA_DB:-0}" = 1 ] || [ "$dbsel" = 1 ]; }; then
+  log "db suite"
+  "$QA_DB_SUITE" "$sha" "$OUT/db" >"$OUT/db.log" 2>&1 || true
+  python3 "$HERE/db_check.py" --json "$OUT/db/dbqa.json" --allow "$QA_STATE/db-allow.json" --out "$OUT/db.cases.json" >>"$OUT/db.log" 2>&1
+fi
 
 # 5. verdict, state, alarm
 python3 "$HERE/summarize.py" --dir "$OUT" --state "$QA_STATE" --sha "$sha" --mode "$mode" --note "$(( $(date +%s) - t0 ))s"
