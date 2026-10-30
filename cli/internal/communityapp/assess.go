@@ -75,7 +75,7 @@ func (r runtime) assess(ctx context.Context, args []string) int {
 	}
 	// Collector progress lines go to stderr so stdout carries only the
 	// report; `--format json` output must parse as JSON.
-	report, code := onecommand.Run(ctx, opts, r.stderr, r.stderr)
+	report, code := runAssessCollect(ctx, opts, r.stderr, r.stderr)
 	if code != onecommand.ExitOK {
 		return code
 	}
@@ -85,10 +85,31 @@ func (r runtime) assess(ctx context.Context, args []string) int {
 			return r.fail("report encoding failed", ExitIntegrity)
 		}
 		fmt.Fprintln(r.stdout, string(raw))
-		return ExitOK
+		return assessExit(report)
 	}
 	writeAssessHuman(r.stdout, report)
-	return ExitOK
+	return assessExit(report)
+}
+
+// runAssessCollect is the collection seam; tests replace it.
+var runAssessCollect = onecommand.Run
+
+// assessExit maps the declared-scope aggregate to the check exit codes: 0
+// only for SCOPE_COMPLETE_PASS, 10 for BLOCKED, 11 for UNKNOWN or anything
+// unrecognised. Without a scope declaration no verdict exists (the aggregate
+// is the stated-limitation UNKNOWN), so the triage report exits 0 as before.
+func assessExit(report onecommand.Report) int {
+	if report.ScopeAssessment == nil {
+		return ExitOK
+	}
+	switch report.Aggregate.Assessment {
+	case constraintengine.AssessmentScopeCompletePass:
+		return ExitOK
+	case constraintengine.AssessmentBlocked:
+		return ExitBlocked
+	default:
+		return ExitUnknown
+	}
 }
 
 type stringsFlag []string
@@ -243,7 +264,12 @@ Options:
   --kubectl PATH                            kubectl executable (default PATH lookup)
   --output DIR                              private working directory for the collected bundle (default: a fresh temporary directory)
   --exec-env NAME                           forward one named ambient variable to kubectl; repeatable
-  --format human|json                       default human`)
+  --format human|json                       default human
+
+Exit status: with --scope-input, 0 = SCOPE_COMPLETE_PASS, 10 = BLOCKED,
+11 = UNKNOWN; without it the aggregate is a stated-limitation UNKNOWN and
+the triage report exits 0. Usage errors exit 2, collection failures keep
+their own codes (partial collection exits 6).`)
 }
 
 // hasDoubleDash reports an explicit "--" terminator, after which a leading
