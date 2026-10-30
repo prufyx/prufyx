@@ -105,6 +105,13 @@ prufyx scan [PATH ...] [-] --to COMPONENT=VERSION [--from COMPONENT=VERSION ...]
 | `--knowledge-db` | Read the knowledge from this verified local knowledge database instead of the knowledge built into the binary. See "Knowledge database" below. |
 | `--now` | The evaluation instant, canonical UTC with whole seconds (`2026-10-04T00:00:00Z`). Default: the current time, truncated to the second. It is printed in every report; pass it to replay a scan exactly. Not accepted with `--knowledge-db`. |
 
+`--now` pins the evaluation time but never hides real-time expiry. When the
+knowledge built into the binary has rules that ended after the pinned time and
+before the real date, `prufyx scan` prints a warning on standard error naming the pinned
+`--now`, today's date and the number of rules that expired. The report then holds an `EVIDENCE_EXPIRED` gap, so it cannot be a PASS (exit 11). Replays of a
+saved report (`--replay-report`) and runs with `--knowledge-db` keep their
+recorded time and get no warning.
+
 A component version is `X.Y.Z` with no prefix, suffix or leading zeros. An
 unknown component name is refused and the three closest names are listed.
 

@@ -20,6 +20,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/currentbundle"
 	"github.com/prufyx/prufyx/cli/internal/observation"
+	"github.com/prufyx/prufyx/cli/internal/projectcheck"
 	"github.com/prufyx/prufyx/cli/internal/prometheusmode"
 )
 
@@ -186,11 +187,11 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, version s
 		}
 		switch args[1] {
 		case "batch":
-			return r.batch(args[2:])
+			return r.pinnedNowGuard(args[2:], cncfcheck.EmbeddedKnowledgeAge, runtime.batch)
 		case "cncf":
 			return r.checkCNCF(args[2:])
 		case "project":
-			return r.project(args[2:])
+			return r.pinnedNowGuard(args[2:], projectcheck.EmbeddedKnowledgeAge, runtime.project)
 		case "cert-manager-values":
 			return r.certManager(args[2:])
 		case "prometheus-mode":
