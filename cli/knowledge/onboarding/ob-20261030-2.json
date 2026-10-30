@@ -1,0 +1,1409 @@
+{
+  "schema": "prufyx.io/knowledge-onboarding-batch/v1",
+  "record": {
+    "base": {
+      "packRevision": "cncf-2026-09-13.8",
+      "registryDigest": "sha256:7ad219c651590e46da83212d49efed72c289e9680d34f1be10a9c3ffbc35a061",
+      "tableDigest": "sha256:3836c80bc855df9a049c88388cc13e197a0c04253a9cead93c3e2e6b875d63e5",
+      "targetsDigest": "sha256:0a1db480e11fcdac22f3fe0741c01288978bbe235a5d414cd40ceea2640d8802"
+    },
+    "batchId": "ob-20261030-2",
+    "candidateId": "pr-334",
+    "changeSetDigest": "sha256:1105e2dc36db9203cb458da61cea1166a4e44dcc3ed98e87c798993bdf3284a7",
+    "decidedAt": "2026-10-30T22:06:38Z",
+    "decision": "approve",
+    "head": {
+      "packRevision": "cncf-2026-09-13.8",
+      "registryDigest": "sha256:e3342a162dde33a4defb8ba5b8216d70a389024db7e0bc8e0e9a8ec702df4cc1",
+      "tableDigest": "sha256:359024e4ff16cdfef610ba771f47f812a6337b71c42f70e15a0048c623f66315",
+      "targetsDigest": "sha256:1defdd584ebf4f1fed4f6e96443c6524ea77a60f2b98a4c8df005829a2e7c002"
+    },
+    "identity": "prufyx-bot",
+    "nonce": "ab448abfe25653e5b9dcc4d130231eff",
+    "notAfter": "2026-11-02T22:06:38Z",
+    "projects": [
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:879651e1b0ef157ffb905573c9521c2da4f08e577179aa149706be0f64794765",
+            "path": "cli/internal/extract/crdversions/target-cass-operator.json"
+          }
+        ],
+        "catalog": "community",
+        "facts": [
+          "component.cass_operator.custom_resource_versions_set"
+        ],
+        "groups": [
+          "cassandra.datastax.com",
+          "control.k8ssandra.io"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 23,
+            "ledger": "sha256:14facec4459481d41c4c12c8df66ab86f127fa79ea0b5cf5d7c552f6cb5f62d3",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "d6461a03889c3e67fb65fcf65418634d9530bb5a",
+            "fromTag": "v1.32.0",
+            "toCommit": "f88f577347336c300419a5567e258ba8eb5c5a07",
+            "toTag": "v1.33.0"
+          },
+          "scan": [
+            {
+              "class": "reference",
+              "path": "config/components/webhook/kustomizeconfig.yaml",
+              "sha256": "sha256:dde88e10cb3999846844c1ced35fa67571d4a521db48206b470e634a71e423a0"
+            },
+            {
+              "class": "schema-patch",
+              "path": "config/crd/kustomization.yaml",
+              "sha256": "sha256:6a6d1350c1020e0155a914050deb2aad0c4e5a00e6f5064924e99c30b87f4baf"
+            },
+            {
+              "class": "kustomize-config",
+              "path": "config/crd/kustomizeconfig.yaml",
+              "sha256": "sha256:6d7795b478715403133638a62e9d24a6bfef7629809e14cc73e8d2ea457594d9"
+            },
+            {
+              "class": "external",
+              "path": "hack/gatekeeper/kustomization.yaml",
+              "sha256": "sha256:65f318b5e48d92704cbd3ed25db8fb3a3bae9f82a19f08f605169a61f2656d00"
+            },
+            {
+              "class": "legacy-copy",
+              "path": "tests/testdata/cass-operator-1.1.0-chart/templates/customresourcedefinition.yaml",
+              "sha256": "sha256:2bc62dc709edd26a93d7fc1245d85b6d6efd7bb5db4a3ebe6ce2e6f80cddf0ba"
+            },
+            {
+              "class": "legacy-copy",
+              "path": "tests/testdata/cass-operator-1.7.1-manifests.yaml",
+              "sha256": "sha256:64aadae586d42312afb7f3efc07959f9786169f12c1b50629b08fb251a26760f"
+            },
+            {
+              "class": "external",
+              "path": "tests/upgrade_operator/kustomization.yaml",
+              "sha256": "sha256:2957738907122ae1f159bc14623e280fd8d2564040696711975ebc03702fb8c5"
+            }
+          ]
+        },
+        "slug": "cass-operator"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:eea0a1e555f31b7d97aa9bc7f019422c609a90992c769d5c5c3f7913c17f5e3a",
+            "path": "cli/internal/extract/crdversions/target-chaosblade-operator.json"
+          }
+        ],
+        "catalog": "community",
+        "facts": [
+          "component.chaosblade_operator.custom_resource_versions_set"
+        ],
+        "groups": [
+          "chaosblade.io"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 7,
+            "ledger": "sha256:5c0619f94137f9ebdf78aca8a447ea34664dcf35050b00bcb178e943c182e5c4",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "f3def73980c6618338f916505a0d66c7f4a5121c",
+            "fromTag": "v1.7.0",
+            "toCommit": "e778bef0d9944b4ed70f39ee50e4b8f8fe1b069b",
+            "toTag": "v1.8.0"
+          },
+          "scan": [
+            {
+              "class": "legacy-copy",
+              "path": "deploy/olm/deploy/crd.yaml",
+              "sha256": "sha256:4bfee45d362007b7ec54ad9a657697abf0aa2f10a8de3f56f64243c9bd2dd763"
+            },
+            {
+              "class": "legacy-copy",
+              "path": "deploy/olm/deploy/crds/chaosblade_v1alpha1_chaosblade_crd.yaml",
+              "sha256": "sha256:d308632d6511afda36439dee7fd43c38e753767cccaffb689f7a69179b185642"
+            },
+            {
+              "class": "legacy-copy",
+              "path": "deploy/olm/deploy/olm-catalog/chaosblade-operator/0.5.1/chaosblade_v1alpha1_chaosblade_crd.yaml",
+              "sha256": "sha256:d308632d6511afda36439dee7fd43c38e753767cccaffb689f7a69179b185642"
+            },
+            {
+              "class": "legacy-copy",
+              "path": "deploy/olm/deploy/olm-catalog/chaosblade-operator/0.6.0/chaosblade_v1alpha1_chaosblade_crd.yaml",
+              "sha256": "sha256:d308632d6511afda36439dee7fd43c38e753767cccaffb689f7a69179b185642"
+            }
+          ]
+        },
+        "slug": "chaosblade-operator"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:1049e87887830bd76c0d467aa7d6e0135bc4b094eed3ca6e290bfe57b7477e97",
+            "path": "cli/internal/extract/crdversions/target-datadog-operator.json"
+          }
+        ],
+        "catalog": "community",
+        "facts": [
+          "component.datadog_operator.custom_resource_versions_set"
+        ],
+        "groups": [
+          "datadoghq.com"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 41,
+            "ledger": "sha256:3a9a215b2c5cb49ef87c14e7734ef3e9a80833fae69082a503e429d98433af83",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "bbf5695472b4902fb3cf7f2a3ddfbf0cc900713a",
+            "fromTag": "v1.30.0",
+            "toCommit": "db6a88ca8796d8fff93c96b0c3e41fef85e2bdd1",
+            "toTag": "v1.31.0"
+          },
+          "scan": [
+            {
+              "class": "reference",
+              "path": "config/crd/kustomizeconfig.yaml",
+              "sha256": "sha256:75e0c13218d06a59e83bef1b19197031eda45162837a9fc81cb503b173c4f6f1"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/cainjection_in_datadogagents.yaml",
+              "sha256": "sha256:1a2d4f8f6cc523987828bfdb5db755a5cfa70e034f3de6add4fcfda8d3a3eea9"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/cainjection_in_datadoghq_datadogagentprofiles.yaml",
+              "sha256": "sha256:c3f9d2a39b28854c09bade5db5ecfd32e78beeaf7fc65b5050bed9e40b94c57b"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/cainjection_in_datadoghq_datadogdashboards.yaml",
+              "sha256": "sha256:6e8106ca95c0ae25402d20239dcbad3c85085321ff1f3b3b3fa6536401626c6c"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/cainjection_in_datadoghq_datadoggenericresources.yaml",
+              "sha256": "sha256:83ab7ec84e4e7a2463bc09b32efc2527a0d3c87e28a3fed456d9c03e71ced721"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/cainjection_in_datadoghq_datadogpodautoscalers.yaml",
+              "sha256": "sha256:cc0f5b86e68377124e155db79ed2da27f3c265822014e9b35ec7cea1b108fac1"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/cainjection_in_datadogmetrics.yaml",
+              "sha256": "sha256:da00261f36fcc185ebd899536b5701811150811f10c3765c26cbebd5959dcc00"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/cainjection_in_datadogmonitors.yaml",
+              "sha256": "sha256:af8bc000e42dc290f10fa68f12696360a2d5c2e337a13660fdd51dafee3f34fc"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/webhook_in_datadogagents.yaml",
+              "sha256": "sha256:a678604715378e015f187da3fceccfb1f525d9b26406cf9003a6238ab08d4d2e"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/webhook_in_datadoghq_datadogagentprofiles.yaml",
+              "sha256": "sha256:57e5c95969f2b8728066b8c80317806a8be585b44e77c2d70c0185ef02e855ec"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/webhook_in_datadoghq_datadogdashboards.yaml",
+              "sha256": "sha256:828f4d9ac3c308d24571185725f53f3fb62c2096089ec3b9a2d7550e4d0dc97a"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/webhook_in_datadoghq_datadoggenericresources.yaml",
+              "sha256": "sha256:a1128718083b38383ba1336018ac22540edcd87b8f1cd7c0462595adefde1342"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/webhook_in_datadoghq_datadogpodautoscalers.yaml",
+              "sha256": "sha256:9f85dc9c133d241c658f1497ab89ec0bf084ffedcebeae5f74c573a0b8f4e4f8"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/webhook_in_datadogmetrics.yaml",
+              "sha256": "sha256:638b0315837dbfb53e536e9a6e2b0d3a6610fd517fbb2b6910c4c09c9f77cc92"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/webhook_in_datadogmonitors.yaml",
+              "sha256": "sha256:44608af3039220c384417d52b60e2be0e530f9c436f9aaa1dfb4a24ae033d30e"
+            },
+            {
+              "class": "unsupported",
+              "path": "marketplaces/charts/google-marketplace/chart/datadog-mp/charts/datadog-operator-2.24.0.tgz",
+              "sha256": ""
+            },
+            {
+              "class": "unsupported",
+              "path": "marketplaces/charts/google-marketplace/chart/datadog-mp/charts/datadog-operator-2.26.0.tgz",
+              "sha256": ""
+            },
+            {
+              "class": "unread",
+              "path": "marketplaces/charts/google-marketplace/chart/datadog-mp/templates/application.yaml",
+              "sha256": "sha256:e3dbd1565387b5ed280fe18ec92df61f9044caa120021a0974d8f47332448b39"
+            },
+            {
+              "class": "unread",
+              "path": "marketplaces/charts/google-marketplace/chart/datadog-mp/templates/application.yaml",
+              "sha256": "sha256:e784bf27258828ee57df43b64406cba77937e0e33f2a5732c2001112b8d3ab84"
+            }
+          ]
+        },
+        "slug": "datadog-operator"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:c61e49a928bed16922f339f8e3f78a308296c41065ed619806bd3740b3aed304",
+            "path": "cli/internal/extract/crdversions/target-function-mesh.json"
+          }
+        ],
+        "catalog": "community",
+        "facts": [
+          "component.function_mesh.custom_resource_versions_set"
+        ],
+        "groups": [
+          "compute.functionmesh.io"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 35,
+            "ledger": "sha256:8d2c54e905469fbaaf3260b00479b74b870cb457df0f7638c0365cf8907ce1a2",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "a248fb6f5fda5d9e5f48422adc19ca1e4f6402f9",
+            "fromTag": "v0.29.0",
+            "toCommit": "eced1f28126f7ea789522b1a7dd1a59331659f71",
+            "toTag": "v0.30.0"
+          },
+          "scan": [
+            {
+              "class": "unread",
+              "path": "charts/function-mesh-operator/charts/admission-webhook/templates/crd-compute.functionmesh.io-backendconfigs.yaml",
+              "sha256": "sha256:bcd7043a9a3ad3b720d863180d96f525d20aef391cdbf9a8b9c3d9b305d03c95"
+            },
+            {
+              "class": "templated-copy",
+              "path": "charts/function-mesh-operator/charts/admission-webhook/templates/crd-compute.functionmesh.io-functionmeshes.yaml",
+              "sha256": "sha256:e11ae7fe48ba8f3cc5a41c0af45f6062eb2ea3db0ff2e356a2ac7f72c0744509"
+            },
+            {
+              "class": "unread",
+              "path": "charts/function-mesh-operator/charts/admission-webhook/templates/crd-compute.functionmesh.io-functions.yaml",
+              "sha256": "sha256:587eade0108753dea1bd1526f82f27a6916f83281294f96f042a12ba3ede883b"
+            },
+            {
+              "class": "unread",
+              "path": "charts/function-mesh-operator/charts/admission-webhook/templates/crd-compute.functionmesh.io-sinks.yaml",
+              "sha256": "sha256:c1bb7d64e40fa9e55f29e5d72252736975688240eb06ba815cf2539ef34a7802"
+            },
+            {
+              "class": "unread",
+              "path": "charts/function-mesh-operator/charts/admission-webhook/templates/crd-compute.functionmesh.io-sources.yaml",
+              "sha256": "sha256:08c92133c54e69b7c23a92fbf891f620b764697fbcc64a3883cf2f41db696fdf"
+            },
+            {
+              "class": "kustomize-config",
+              "path": "config/crd/kustomizeconfig.yaml",
+              "sha256": "sha256:527b0a00ef8b8fc9f8333c17f1ddf2f33ba07e95d00d369c9c1e86eafedc37af"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_backendconfigs.yaml",
+              "sha256": "sha256:0c83dd6c577ac4e951c50f325325b7ed78f1a73932b15c5ada83ea7ba67f71b7"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_functionmeshes.yaml",
+              "sha256": "sha256:ad3bed59f7b0d5cbf50de10c3651bdeb3f6a711c2f90547ecd76f9b0890a277c"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_functions.yaml",
+              "sha256": "sha256:d456cd7b95d1cfd2df59cd00dac0a23a4a6a2570f0f9d3114fcebb237081282b"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_sinks.yaml",
+              "sha256": "sha256:2ad4ec02dbe742cdcf4baf090359a6725736e397cb47bb11438e896397f00109"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_sources.yaml",
+              "sha256": "sha256:edd2cb4dc427afc1037ad972ee71712f67c027c4a44a57ef12e0ff0d036e7c71"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_backendconfigs.yaml",
+              "sha256": "sha256:665feaf322b368e8c88c9d4e955c5e5531aa185e77f99fd1a72f0d200cb3abff"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_functionmeshes.yaml",
+              "sha256": "sha256:c8a86ae4e5300f389db5a76d9da171d1b632802688aa423ee0d21e19d27402f9"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_functions.yaml",
+              "sha256": "sha256:e98fc8cfa7823dea74cd2271641a85c843a533dd1f101f0f153b7086172e6940"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_sinks.yaml",
+              "sha256": "sha256:a2659b555ce65a5a8353411585a5aa32a863ea0cffdbc1ce816817b59091f9ed"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_sources.yaml",
+              "sha256": "sha256:11907b3c36f68361c047c76aff93a181b847532c12d59c5a5866f6cd2884ae20"
+            }
+          ]
+        },
+        "slug": "function-mesh"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:335ad86c9bc4863d25e7748fbd375e65ffe45dbc1393c55ae07973764b2fd7bc",
+            "path": "cli/internal/extract/crdversions/target-github-actions-runner-operator.json"
+          }
+        ],
+        "catalog": "community",
+        "facts": [
+          "component.github_actions_runner_operator.custom_resource_versions_set"
+        ],
+        "groups": [
+          "garo.tietoevry.com"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 11,
+            "ledger": "sha256:fcb29273f42014371e043c7247ee6043ad7f05ad8b2e2788ff45266d817f7599",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "cd45f4622e9db24533687895695af24279e9563b",
+            "fromTag": "v0.10.0",
+            "toCommit": "4b39140ecedabb6624ce92bf852713b80d1422d6",
+            "toTag": "v0.11.0"
+          },
+          "scan": [
+            {
+              "class": "kustomize-config",
+              "path": "config/crd/kustomizeconfig.yaml",
+              "sha256": "sha256:527b0a00ef8b8fc9f8333c17f1ddf2f33ba07e95d00d369c9c1e86eafedc37af"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_githubactionrunners.yaml",
+              "sha256": "sha256:f4212f1a3b697c52a91dc427bc5de5ba5b1000b08ebb21217515037c383e0ffc"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_githubactionrunners.yaml",
+              "sha256": "sha256:3c90ebf0b45fde8e5f00249be32120f430472f3240188c920977a7b7dbbbab91"
+            }
+          ]
+        },
+        "slug": "github-actions-runner-operator"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:1f16f0c7bbae253e93c9efbb17952db5763aa32c07d4c4008488104420c864c1",
+            "path": "cli/internal/extract/crdversions/target-kbind.json"
+          }
+        ],
+        "catalog": "cncf",
+        "facts": [
+          "component.kbind.custom_resource_versions_set"
+        ],
+        "groups": [
+          "kube-bind.io"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 77,
+            "ledger": "sha256:2b71ce22d438c6b104b2dfdf08a2527f020c63dcdc5ff156bcb56ef9deaa64de",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "8b330f51942e4455e5fba7e6fa398febe4f5a6b5",
+            "fromTag": "v0.7.0",
+            "toCommit": "3080410e7ee6c378c6fb6a849fd82882ebdcaea9",
+            "toTag": "v0.8.0"
+          },
+          "scan": [
+            {
+              "class": "unread",
+              "path": "deploy/charts/backend/templates/example.yaml",
+              "sha256": "sha256:c89df9a5192ae62d4889fe4faa71359c0027c0cbd12a3fc3f1c871109bfcc72c"
+            },
+            {
+              "class": "extra",
+              "path": "deploy/examples/crd-cowboys.yaml",
+              "sha256": "sha256:fd6b0552eef195048c9e4a085a9cc272bd4f99be058e649cdc87feb64967e20c"
+            },
+            {
+              "class": "extra",
+              "path": "deploy/examples/crd-sheriffs.yaml",
+              "sha256": "sha256:ea1b2fced7de1fabf54dfdb1e9b573e62c303fc6651b31c86006cef11c806dab"
+            }
+          ]
+        },
+        "slug": "kbind"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:1a78adac9bbaff6bfc201799192952a80b1673595e884e4837c265947c04673f",
+            "path": "cli/internal/extract/crdversions/target-kubemod.json"
+          }
+        ],
+        "catalog": "community",
+        "facts": [
+          "component.kubemod.custom_resource_versions_set"
+        ],
+        "groups": [
+          "api.kubemod.io"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 11,
+            "ledger": "sha256:c18475b7dcd71f6094826a79a3470e96d63f93443274644dd68b8ddc41db8012",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "4ad72f16918f611220caccba0b09e78f4441e19e",
+            "fromTag": "v0.20.0",
+            "toCommit": "f030b2756ec873d0290e0561f95b8ab64a78dd95",
+            "toTag": "v0.21.0"
+          },
+          "scan": [
+            {
+              "class": "kustomize-config",
+              "path": "config/crd/kustomizeconfig.yaml",
+              "sha256": "sha256:527b0a00ef8b8fc9f8333c17f1ddf2f33ba07e95d00d369c9c1e86eafedc37af"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_modrules.yaml",
+              "sha256": "sha256:76a373b07ff4078dae63cb394a16ed854f7fd4a99e6daf95b31a65d1b23eff2a"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_modrules.yaml",
+              "sha256": "sha256:a7b83f48799863cb6142ed542c5dfd76f2fe53ffa2d49d552cc8f4fd12b9a460"
+            }
+          ]
+        },
+        "slug": "kubemod"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:04ef61deb0c5dad9eae7d47639f852c9178d659fbd59c55bb119d911b41f83ad",
+            "path": "cli/internal/extract/crdversions/target-moco.json"
+          }
+        ],
+        "catalog": "community",
+        "facts": [
+          "component.moco.custom_resource_versions_set"
+        ],
+        "groups": [
+          "moco.cybozu.com"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 17,
+            "ledger": "sha256:0e9f2e267997aa35dd823b15532521f3667bcd8ca10f8a9d3dcd862333b66152",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "6730d3420ab5ad1f7b075548a5e7d497a8223c25",
+            "fromTag": "v0.37.0",
+            "toCommit": "acb2716d1ef13a8953dd18d55cf230c0edf90f04",
+            "toTag": "v0.38.0"
+          },
+          "scan": [
+            {
+              "class": "unread",
+              "path": "charts/moco/templates/generated/crds/moco_crds.yaml",
+              "sha256": "sha256:2358b1d35b235e0479d8f8c4abf04723931bd6b84f4dede09ed0619469526f16"
+            },
+            {
+              "class": "unread",
+              "path": "charts/moco/templates/generated/crds/moco_crds.yaml",
+              "sha256": "sha256:cb206c5646b082b07082a8db6e6db79d4b81d4903e3ef4aa792d91813e923eba"
+            },
+            {
+              "class": "kustomize-config",
+              "path": "config/crd/kustomizeconfig.yaml",
+              "sha256": "sha256:6d7795b478715403133638a62e9d24a6bfef7629809e14cc73e8d2ea457594d9"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/backuppolicy.yaml",
+              "sha256": "sha256:375b5405eddc08663ef9a87ccc3ed28971c3c88cf9ae85cd8122ef31f7c8ef14"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_backuppolicies.yaml",
+              "sha256": "sha256:393d80701b205a61058595ea1bbab39f1bac9b7a632cd03cdedb123780906dd5"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_mysqlclusters.yaml",
+              "sha256": "sha256:9a2b649365d0c0cae4694a9ade7e4843523164fd9d27f7539dc4eab84a765d0b"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/mysqlcluster.yaml",
+              "sha256": "sha256:17fe39e7e6707afd31ce5d043dfe553a13f4375501a6b41e715089def38e19ec"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_backuppolicies.yaml",
+              "sha256": "sha256:1a66f26ad5182f4e28989acd8e0c4fe3559c475429ee2daaab075dc01c974a75"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_mysqlclusters.yaml",
+              "sha256": "sha256:a85d0fa3c3de5e9d2871b3c5d8cbfc1ecee400e5acdf64d5e6549e196f35d625"
+            },
+            {
+              "class": "unread",
+              "path": "config/kustomize-to-helm/overlays/crds/conversion-patch.yaml",
+              "sha256": "sha256:fe6cf30079c1cef36e6d10e0cedaea36dff477fd06563685fec514761cab9eae"
+            },
+            {
+              "class": "unread",
+              "path": "config/kustomize-to-helm/overlays/templates/kustomization.yaml",
+              "sha256": "sha256:35beb073a52102a434dec8d26a5585975d135f95360daae8dddedbcd76e3626d"
+            }
+          ]
+        },
+        "slug": "moco"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:28f1766e8b3bb8cf97557cd536eb2f92218a9bea62c06b529a3eda369a6a2b89",
+            "path": "cli/internal/extract/crdversions/target-movetokube-postgres-operator.json"
+          }
+        ],
+        "catalog": "community",
+        "facts": [
+          "component.movetokube_postgres_operator.custom_resource_versions_set"
+        ],
+        "groups": [
+          "db.movetokube.com"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 14,
+            "ledger": "sha256:fa5f95361aa9a2867700339b55c94b7871cdcf329e833b46037c0c08fa4ffc39",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "c9b2ac520012e6927ca32045821e157bcf095bf5",
+            "fromTag": "2.3.0",
+            "toCommit": "5b969e3c1a16803430cfecaa68f3989774af1f4d",
+            "toTag": "2.4.0"
+          },
+          "scan": [
+            {
+              "class": "kustomize-config",
+              "path": "config/crd/kustomizeconfig.yaml",
+              "sha256": "sha256:6d7795b478715403133638a62e9d24a6bfef7629809e14cc73e8d2ea457594d9"
+            }
+          ]
+        },
+        "slug": "movetokube-postgres-operator"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:29278665464dfdf604be686426a9cd16c713b2b647af40f989e8c6fdc1cfc54d",
+            "path": "cli/internal/extract/crdversions/target-ollama-operator.json"
+          }
+        ],
+        "catalog": "community",
+        "facts": [
+          "component.ollama_operator.custom_resource_versions_set"
+        ],
+        "groups": [
+          "ollama.ayaka.io"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 11,
+            "ledger": "sha256:ad35fa3f3bb51172a0886874144569640982e1c0aefe85fc31ae0abf39288420",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "2717e823f4936ff212bd7d11234f67c132741477",
+            "fromTag": "v0.9.1",
+            "toCommit": "f95b0dd404df5ef5e26848400884817a8b5777ea",
+            "toTag": "v0.10.0"
+          },
+          "scan": [
+            {
+              "class": "kustomize-config",
+              "path": "config/crd/kustomizeconfig.yaml",
+              "sha256": "sha256:6d7795b478715403133638a62e9d24a6bfef7629809e14cc73e8d2ea457594d9"
+            }
+          ]
+        },
+        "slug": "ollama-operator"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:f08609c1a76eb535abf995da9bb9fb94d03e70cfe51017d756cb18f49911ae4f",
+            "path": "cli/internal/extract/crdversions/target-openfunction.json"
+          }
+        ],
+        "catalog": "cncf",
+        "facts": [
+          "component.openfunction.custom_resource_versions_set"
+        ],
+        "groups": [
+          "core.openfunction.io",
+          "events.openfunction.io"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 54,
+            "ledger": "sha256:a0e9d95b1eb5d3722fd9a8afdee000bdc6a5ab98ae1513efa23cc12e5a90e862",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "80110baeb59e61b2b8f7e93952e850cbb319ccc8",
+            "fromTag": "v1.1.0",
+            "toCommit": "661bff35f382c2a5ddc121d3465afc830775d527",
+            "toTag": "v1.2.0"
+          },
+          "scan": [
+            {
+              "class": "unread",
+              "path": "config/bundle.yaml",
+              "sha256": "sha256:587e6ccd698303cdc5236e429794d790f0a2253a45ed15757368022c7eb7a47a"
+            },
+            {
+              "class": "unread",
+              "path": "config/bundle.yaml",
+              "sha256": "sha256:9b49f6bc2631355eaa3fe4af38a555aa81e98e9e2eb94ae58e1c36016212f4da"
+            },
+            {
+              "class": "unread",
+              "path": "config/bundle.yaml",
+              "sha256": "sha256:e9202a1bd0b33002a0ba16e45625ee53c87da1f1d0bdfc03f08fdcba7abbc94c"
+            },
+            {
+              "class": "extra",
+              "path": "config/crd/bases/events.openfunction.io_clustereventbus.yaml",
+              "sha256": "sha256:764a7c218be12b1189d1314aa71d3a25642f0b2ccd07b6901490409389a7010c"
+            },
+            {
+              "class": "extra",
+              "path": "config/crd/bases/events.openfunction.io_eventbus.yaml",
+              "sha256": "sha256:d4677a6dbfdce20ea4a500ff77c547b507a04505b4f989b080900459e0afed46"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/bases/networking.openfunction.io_gateways.yaml",
+              "sha256": "sha256:69229ffcf366cab0b37cff17e26c25a8f6595f90691f0b2f27159ca12a862d82"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/bases/networking.openfunction.io_gateways.yaml",
+              "sha256": "sha256:b8812e44bfa7c188d5ab81889d2e41429f76068393a920ec428f9263314220fa"
+            },
+            {
+              "class": "reference",
+              "path": "config/crd/kustomization.yaml",
+              "sha256": "sha256:31819226db7af05b6a40acb63fff4f61e3689228277669fb3d1233acfc9af907"
+            },
+            {
+              "class": "reference",
+              "path": "config/crd/kustomization.yaml",
+              "sha256": "sha256:e1ef7dafdb2da7c11d4d2efd935c900ddbb26cecd9eca40bbeff9bce1d3a7060"
+            },
+            {
+              "class": "kustomize-config",
+              "path": "config/crd/kustomizeconfig.yaml",
+              "sha256": "sha256:1706ab5bc7e522b8af69025f6b9544769d092c6fc88cea7051a8399431019707"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_builders.yaml",
+              "sha256": "sha256:35cc3da78b12770ef9d953eb795187fec9ae5648d9c0e7c98ec98cb87a2f97cf"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/cainjection_in_clustereventbus.yaml",
+              "sha256": "sha256:c5c311171dbcd3123c49f1608b6f8e6208eb4ac873d69da49b0ef1986bf9c056"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/cainjection_in_clustereventbuses.yaml",
+              "sha256": "sha256:c5c311171dbcd3123c49f1608b6f8e6208eb4ac873d69da49b0ef1986bf9c056"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/cainjection_in_eventbus.yaml",
+              "sha256": "sha256:7afd48932e2c81037791cd1c0828b2eda6c4f05dd59450c77847bcd8568f040d"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/cainjection_in_eventbuses.yaml",
+              "sha256": "sha256:7afd48932e2c81037791cd1c0828b2eda6c4f05dd59450c77847bcd8568f040d"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_eventsources.yaml",
+              "sha256": "sha256:0b2dcb058b3e577753e710dcc49162bb24cf440b0e3af975779606ff02d444ac"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_functions.yaml",
+              "sha256": "sha256:31100eea7eafa4d782310586114e6df3b2c0cf0911799f88319eaedd34107b29"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/cainjection_in_gateways.yaml",
+              "sha256": "sha256:740bbe2277f01b68efbdd14c011887f774c378f8b47bfa66d249b728c76426db"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_servings.yaml",
+              "sha256": "sha256:dd2eb2e3dc07174e12732a314f257dc86a69d8adf0042182ccb2c18319879e77"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/cainjection_in_triggers.yaml",
+              "sha256": "sha256:034706d522aa09a84cd48d0ff4aeadd10a7071e92ef9a8dc621c5297df878af7"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_builders.yaml",
+              "sha256": "sha256:26b458721f380ad87543ebe677d9b3a479aa4a55ce57727ec4a59b3ef78718d7"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/webhook_in_clustereventbus.yaml",
+              "sha256": "sha256:5a04c45f7fd3400a0dc1c7e1cea76cb5cfff966ecf77d0527872d5f39b594210"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/webhook_in_clustereventbuses.yaml",
+              "sha256": "sha256:5a04c45f7fd3400a0dc1c7e1cea76cb5cfff966ecf77d0527872d5f39b594210"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/webhook_in_eventbus.yaml",
+              "sha256": "sha256:dbfb7cacfe69446eaabb7cfe40b2779f849efdd324f0957f66f80928dfad3093"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/webhook_in_eventbuses.yaml",
+              "sha256": "sha256:dbfb7cacfe69446eaabb7cfe40b2779f849efdd324f0957f66f80928dfad3093"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_eventsources.yaml",
+              "sha256": "sha256:4084b2529b65135758007d46a7c44d673b19602bbcb987ecbb9e65c0d5140a56"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_functions.yaml",
+              "sha256": "sha256:7d9c2f309b9ab4f9cd9ca0f199566383c576b79b522f960d042403f883be9bbb"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/webhook_in_gateways.yaml",
+              "sha256": "sha256:573f8fcf79052c85b810e43ccdb56be61f52dc52d4621dfab484ba1aae75fa4e"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_servings.yaml",
+              "sha256": "sha256:03f4e802249fee70a688ccfa341fd87304ded200038927b5733e7ac443bedb5a"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/webhook_in_triggers.yaml",
+              "sha256": "sha256:c0eb0679ac9eb8708a411862bca48d39f4e1b4d48e382dc270b0becb4fd5dc89"
+            }
+          ]
+        },
+        "slug": "openfunction"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:9bad8da79cf65a9ffbf8a0e35586c81487ddab6f5b02b446752c1054420569f1",
+            "path": "cli/internal/extract/crdversions/target-percona-server-mysql-operator.json"
+          }
+        ],
+        "catalog": "community",
+        "facts": [
+          "component.percona_server_mysql_operator.custom_resource_versions_set"
+        ],
+        "groups": [
+          "ps.percona.com"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 27,
+            "ledger": "sha256:a942cb67dd2c6d5c75b4c41ae296944910457f9db7544c992bb4b2903bbe805e",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "71fec83da870c47c3d75165ca36b848ce86fdb73",
+            "fromTag": "v1.2.0",
+            "toCommit": "e399eb71e9f5fcb53314ed1bfb4b021142ffd5b9",
+            "toTag": "v1.3.0"
+          },
+          "scan": [
+            {
+              "class": "kustomize-config",
+              "path": "config/crd/kustomizeconfig.yaml",
+              "sha256": "sha256:6d7795b478715403133638a62e9d24a6bfef7629809e14cc73e8d2ea457594d9"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/versionlabel_in_perconaserverformysql.yaml",
+              "sha256": "sha256:347c8a59e58205c51e7e60789a5fc2feaf8924c21063c292b597f0d1b4cbbda3"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/versionlabel_in_perconaserverformysql.yaml",
+              "sha256": "sha256:5ffa0c38e053ebc7be4bdf457738bdfeeb12c50ed660d95065340f462c386165"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/versionlabel_in_perconaserverformysqlbackups.yaml",
+              "sha256": "sha256:0da5f74ee55694081f2d32606de5e0bce4f431f0a86baf15d513f38fcf40b822"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/versionlabel_in_perconaserverformysqlbackups.yaml",
+              "sha256": "sha256:a3c1b8f50126705cdf20ba52f11a7f4fa6c5bfbedf71f5ac0e19abf8ae96754f"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/versionlabel_in_perconaserverformysqlclustersets.yaml",
+              "sha256": "sha256:993119fc8717460e8d8fc694d8a055063aa52d6a85f85dcf86a6e454f1eae0b6"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/versionlabel_in_perconaserverformysqlclustersets.yaml",
+              "sha256": "sha256:cf8d5198418fc7c3615e0460da5e741d2bbc8841dcfd16a0f2516c4f5a035134"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/versionlabel_in_perconaserverformysqlrestores.yaml",
+              "sha256": "sha256:31d0b3f0331fc12abe17e29b6c5c4c2d347dc2742cf4226ba29d60261a35eb68"
+            },
+            {
+              "class": "crd-patch",
+              "path": "config/crd/patches/versionlabel_in_perconaserverformysqlrestores.yaml",
+              "sha256": "sha256:ea3489cc2ee45248b3c8f4c04a069d7faac5b38620827021c3c5a681114f87e5"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/async-big-data/00-assert.yaml",
+              "sha256": "sha256:964e3881448f7e8fc9de2a3a2a549f2d708acd72910d4afba03bb4798b70be53"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/async-failover/00-assert.yaml",
+              "sha256": "sha256:b2e9e4dc80aad8d01156f98e0d8d864253c61b2ca18a07be5ae30365a099a09d"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/async-global-metadata/00-assert.yaml",
+              "sha256": "sha256:bfd2240724bd52ba47a94e0e8743a4dd52311086783412fd431d472ef62c3c41"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/async-ignore-annotations/00-assert.yaml",
+              "sha256": "sha256:ee49fe955f695e8c2fad68c7d7e2be6b47f6c380b1785f4c7a9bbbcef45bb01a"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/async-pitr-minio/01-assert.yaml",
+              "sha256": "sha256:964e3881448f7e8fc9de2a3a2a549f2d708acd72910d4afba03bb4798b70be53"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/async-pitr-s3/01-assert.yaml",
+              "sha256": "sha256:964e3881448f7e8fc9de2a3a2a549f2d708acd72910d4afba03bb4798b70be53"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/async-upgrade/00-assert.yaml",
+              "sha256": "sha256:bfd2240724bd52ba47a94e0e8743a4dd52311086783412fd431d472ef62c3c41"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/auto-config/00-assert.yaml",
+              "sha256": "sha256:b2e9e4dc80aad8d01156f98e0d8d864253c61b2ca18a07be5ae30365a099a09d"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/config-router/00-assert.yaml",
+              "sha256": "sha256:b2e9e4dc80aad8d01156f98e0d8d864253c61b2ca18a07be5ae30365a099a09d"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/config/00-assert.yaml",
+              "sha256": "sha256:b2e9e4dc80aad8d01156f98e0d8d864253c61b2ca18a07be5ae30365a099a09d"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/custom-users/00-assert.yaml",
+              "sha256": "sha256:b2e9e4dc80aad8d01156f98e0d8d864253c61b2ca18a07be5ae30365a099a09d"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/demand-backup-cloud/00-assert.yaml",
+              "sha256": "sha256:964e3881448f7e8fc9de2a3a2a549f2d708acd72910d4afba03bb4798b70be53"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/demand-backup-incremental/00-assert.yaml",
+              "sha256": "sha256:964e3881448f7e8fc9de2a3a2a549f2d708acd72910d4afba03bb4798b70be53"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/demand-backup-retry/00-assert.yaml",
+              "sha256": "sha256:964e3881448f7e8fc9de2a3a2a549f2d708acd72910d4afba03bb4798b70be53"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/demand-backup/00-assert.yaml",
+              "sha256": "sha256:964e3881448f7e8fc9de2a3a2a549f2d708acd72910d4afba03bb4798b70be53"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/gr-big-data/00-assert.yaml",
+              "sha256": "sha256:964e3881448f7e8fc9de2a3a2a549f2d708acd72910d4afba03bb4798b70be53"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/gr-cross-cluster-backup/00-assert.yaml",
+              "sha256": "sha256:964e3881448f7e8fc9de2a3a2a549f2d708acd72910d4afba03bb4798b70be53"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/gr-cross-cluster/00-assert.yaml",
+              "sha256": "sha256:964e3881448f7e8fc9de2a3a2a549f2d708acd72910d4afba03bb4798b70be53"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/gr-demand-backup-cloud/00-assert.yaml",
+              "sha256": "sha256:964e3881448f7e8fc9de2a3a2a549f2d708acd72910d4afba03bb4798b70be53"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/gr-demand-backup-haproxy/00-assert.yaml",
+              "sha256": "sha256:964e3881448f7e8fc9de2a3a2a549f2d708acd72910d4afba03bb4798b70be53"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/gr-demand-backup-incremental-compressed/00-assert.yaml",
+              "sha256": "sha256:964e3881448f7e8fc9de2a3a2a549f2d708acd72910d4afba03bb4798b70be53"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/gr-demand-backup-incremental-encrypted/00-assert.yaml",
+              "sha256": "sha256:964e3881448f7e8fc9de2a3a2a549f2d708acd72910d4afba03bb4798b70be53"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/gr-demand-backup-incremental/00-assert.yaml",
+              "sha256": "sha256:964e3881448f7e8fc9de2a3a2a549f2d708acd72910d4afba03bb4798b70be53"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/gr-demand-backup/00-assert.yaml",
+              "sha256": "sha256:964e3881448f7e8fc9de2a3a2a549f2d708acd72910d4afba03bb4798b70be53"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/gr-finalizer/01-assert.yaml",
+              "sha256": "sha256:b2e9e4dc80aad8d01156f98e0d8d864253c61b2ca18a07be5ae30365a099a09d"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/gr-global-metadata/00-assert.yaml",
+              "sha256": "sha256:bfd2240724bd52ba47a94e0e8743a4dd52311086783412fd431d472ef62c3c41"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/gr-haproxy/00-assert.yaml",
+              "sha256": "sha256:bfd2240724bd52ba47a94e0e8743a4dd52311086783412fd431d472ef62c3c41"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/gr-ignore-annotations/00-assert.yaml",
+              "sha256": "sha256:bfd2240724bd52ba47a94e0e8743a4dd52311086783412fd431d472ef62c3c41"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/gr-init-deploy/00-assert.yaml",
+              "sha256": "sha256:bfd2240724bd52ba47a94e0e8743a4dd52311086783412fd431d472ef62c3c41"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/gr-one-pod/00-assert.yaml",
+              "sha256": "sha256:bfd2240724bd52ba47a94e0e8743a4dd52311086783412fd431d472ef62c3c41"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/gr-pitr-encrypted-s3/01-assert.yaml",
+              "sha256": "sha256:964e3881448f7e8fc9de2a3a2a549f2d708acd72910d4afba03bb4798b70be53"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/gr-pitr-minio/01-assert.yaml",
+              "sha256": "sha256:964e3881448f7e8fc9de2a3a2a549f2d708acd72910d4afba03bb4798b70be53"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/gr-pitr-one-pod/01-assert.yaml",
+              "sha256": "sha256:964e3881448f7e8fc9de2a3a2a549f2d708acd72910d4afba03bb4798b70be53"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/gr-pitr-s3/01-assert.yaml",
+              "sha256": "sha256:964e3881448f7e8fc9de2a3a2a549f2d708acd72910d4afba03bb4798b70be53"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/gr-recreate/00-assert.yaml",
+              "sha256": "sha256:bfd2240724bd52ba47a94e0e8743a4dd52311086783412fd431d472ef62c3c41"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/gr-scaling/00-assert.yaml",
+              "sha256": "sha256:bfd2240724bd52ba47a94e0e8743a4dd52311086783412fd431d472ef62c3c41"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/gr-scheduled-backup-incremental/00-assert.yaml",
+              "sha256": "sha256:964e3881448f7e8fc9de2a3a2a549f2d708acd72910d4afba03bb4798b70be53"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/gr-scheduled-backup/00-assert.yaml",
+              "sha256": "sha256:964e3881448f7e8fc9de2a3a2a549f2d708acd72910d4afba03bb4798b70be53"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/gr-security-context/01-assert.yaml",
+              "sha256": "sha256:964e3881448f7e8fc9de2a3a2a549f2d708acd72910d4afba03bb4798b70be53"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/gr-self-healing/00-assert.yaml",
+              "sha256": "sha256:bfd2240724bd52ba47a94e0e8743a4dd52311086783412fd431d472ef62c3c41"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/gr-tls-cert-manager/01-assert.yaml",
+              "sha256": "sha256:b2e9e4dc80aad8d01156f98e0d8d864253c61b2ca18a07be5ae30365a099a09d"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/gr-upgrade/00-assert.yaml",
+              "sha256": "sha256:bfd2240724bd52ba47a94e0e8743a4dd52311086783412fd431d472ef62c3c41"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/gr-users/00-assert.yaml",
+              "sha256": "sha256:b2e9e4dc80aad8d01156f98e0d8d864253c61b2ca18a07be5ae30365a099a09d"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/haproxy/00-assert.yaml",
+              "sha256": "sha256:bfd2240724bd52ba47a94e0e8743a4dd52311086783412fd431d472ef62c3c41"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/init-deploy/00-assert.yaml",
+              "sha256": "sha256:bfd2240724bd52ba47a94e0e8743a4dd52311086783412fd431d472ef62c3c41"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/limits/00-assert.yaml",
+              "sha256": "sha256:bfd2240724bd52ba47a94e0e8743a4dd52311086783412fd431d472ef62c3c41"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/logcollection/00-assert.yaml",
+              "sha256": "sha256:ee49fe955f695e8c2fad68c7d7e2be6b47f6c380b1785f4c7a9bbbcef45bb01a"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/monitoring/00-assert.yaml",
+              "sha256": "sha256:bfd2240724bd52ba47a94e0e8743a4dd52311086783412fd431d472ef62c3c41"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/one-pod/00-assert.yaml",
+              "sha256": "sha256:bfd2240724bd52ba47a94e0e8743a4dd52311086783412fd431d472ef62c3c41"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/operator-self-healing/00-assert.yaml",
+              "sha256": "sha256:bfd2240724bd52ba47a94e0e8743a4dd52311086783412fd431d472ef62c3c41"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/operator-self-healing/05-assert.yaml",
+              "sha256": "sha256:bfd2240724bd52ba47a94e0e8743a4dd52311086783412fd431d472ef62c3c41"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/operator-self-healing/07-assert.yaml",
+              "sha256": "sha256:bfd2240724bd52ba47a94e0e8743a4dd52311086783412fd431d472ef62c3c41"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/operator-self-healing/09-assert.yaml",
+              "sha256": "sha256:bfd2240724bd52ba47a94e0e8743a4dd52311086783412fd431d472ef62c3c41"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/recreate/00-assert.yaml",
+              "sha256": "sha256:bfd2240724bd52ba47a94e0e8743a4dd52311086783412fd431d472ef62c3c41"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/scaling/00-assert.yaml",
+              "sha256": "sha256:bfd2240724bd52ba47a94e0e8743a4dd52311086783412fd431d472ef62c3c41"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/scheduled-backup-incremental/00-assert.yaml",
+              "sha256": "sha256:964e3881448f7e8fc9de2a3a2a549f2d708acd72910d4afba03bb4798b70be53"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/scheduled-backup/00-assert.yaml",
+              "sha256": "sha256:964e3881448f7e8fc9de2a3a2a549f2d708acd72910d4afba03bb4798b70be53"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/service-per-pod/00-assert.yaml",
+              "sha256": "sha256:bfd2240724bd52ba47a94e0e8743a4dd52311086783412fd431d472ef62c3c41"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/sidecars/00-assert.yaml",
+              "sha256": "sha256:bfd2240724bd52ba47a94e0e8743a4dd52311086783412fd431d472ef62c3c41"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/smart-update/00-assert.yaml",
+              "sha256": "sha256:dce97e8a9492f3d477f969f7960dd97b37e2f9f4298ae4bcbe40947f44f1cb9d"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/storage/00-assert.yaml",
+              "sha256": "sha256:bfd2240724bd52ba47a94e0e8743a4dd52311086783412fd431d472ef62c3c41"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/switch-cluster-type/00-assert.yaml",
+              "sha256": "sha256:964e3881448f7e8fc9de2a3a2a549f2d708acd72910d4afba03bb4798b70be53"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/telemetry/00-assert.yaml",
+              "sha256": "sha256:48f8eb697ea22c3acf3cc1a8dcf05586773e8ad60e68958c33a68edded9c530e"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/tls-cert-manager/01-assert.yaml",
+              "sha256": "sha256:b2e9e4dc80aad8d01156f98e0d8d864253c61b2ca18a07be5ae30365a099a09d"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/users/00-assert.yaml",
+              "sha256": "sha256:b2e9e4dc80aad8d01156f98e0d8d864253c61b2ca18a07be5ae30365a099a09d"
+            },
+            {
+              "class": "unread",
+              "path": "e2e-tests/tests/version-service/00-assert.yaml",
+              "sha256": "sha256:808e8ff49467d8e46d10ecca2bcfe73b28cdd0297c55a4762190e5bdbd3d5fb1"
+            }
+          ]
+        },
+        "slug": "percona-server-mysql-operator"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:26ef89b1b2feb4f29c7023a72cc424faabb835b81fa05988b9a03ff8b39ea8e0",
+            "path": "cli/internal/extract/crdversions/target-renovate-operator.json"
+          }
+        ],
+        "catalog": "community",
+        "facts": [
+          "component.renovate_operator.custom_resource_versions_set"
+        ],
+        "groups": [
+          "renovate-operator.mogenius.com"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 26,
+            "ledger": "sha256:2fc312e0f6562b8c22edf0b9a3209a29de05ac1a402295aa59512e35d21781ad",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "759f235453908c7667fe4cc3bd40942558197811",
+            "fromTag": "6.6.0",
+            "toCommit": "01b4299e9bd2af6f8a6dfcbed8cff65610cc64bf",
+            "toTag": "6.7.0"
+          },
+          "scan": [
+            {
+              "class": "external",
+              "path": "charts/renovate-operator/Chart.yaml",
+              "sha256": "sha256:2374c050da85c989b2f8a0f2054359f2dacd8d2b01930a07e52178ef6eb39308"
+            },
+            {
+              "class": "external",
+              "path": "charts/renovate-operator/Chart.yaml",
+              "sha256": "sha256:d216fe2fe0e106beb24bcab9d6ff63cf6e45853d5333ea866a0d3e044ca66b90"
+            }
+          ]
+        },
+        "slug": "renovate-operator"
+      },
+      {
+        "artifacts": [
+          {
+            "digest": "sha256:77a56ddf1dab41d9247ef17c298a250ba3ab94d26cb4ed7dfe212ee4b0784493",
+            "path": "cli/internal/extract/crdversions/target-temporal-operator.json"
+          }
+        ],
+        "catalog": "community",
+        "facts": [
+          "component.temporal_operator.custom_resource_versions_set"
+        ],
+        "groups": [
+          "temporal.io"
+        ],
+        "kind": "new",
+        "proof": {
+          "claims": {
+            "confirmed": 28,
+            "ledger": "sha256:f5022929ecfff8fc04f752c22978abfdbc63ff922910fb0d94a30fa96bf3eef0",
+            "refuted": 0,
+            "undetermined": 0
+          },
+          "pair": {
+            "fromCommit": "a6c3d8d722b108b0b6483410d36e533dfe25486f",
+            "fromTag": "v0.21.0",
+            "toCommit": "0b07bcd4d922265b2f1e5d5d3c55397707189c7e",
+            "toTag": "v0.22.0"
+          },
+          "scan": [
+            {
+              "class": "kustomize-config",
+              "path": "config/crd/kustomizeconfig.yaml",
+              "sha256": "sha256:49c26353af47484e4e138c28650bc16237fd7dfb18612502616fa39ed6a37e02"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/cainjection_in_clusterclients.yaml",
+              "sha256": "sha256:22381c7d7e7cfdc19e63b626c3a3e1cbf3c55f91af31427d28ac7f518fa2ac3d"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/cainjection_in_clusters.yaml",
+              "sha256": "sha256:385ecabdab5610fc421c8f028f863ef1077d5af2e205e8af8878cd4177c85367"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/cainjection_in_namespaces.yaml",
+              "sha256": "sha256:c41ff7e1f808ffb21d170af4f3f163418781210f5420c976051bfdde8ccdf191"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/webhook_in_clusterclients.yaml",
+              "sha256": "sha256:dcb9b4898e23f30c9e795804015387fcbd3b9578cd622136ee784d6469b0490b"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/webhook_in_clusters.yaml",
+              "sha256": "sha256:447c7448e6edb48b5aa3ddb50b9746ad2cd189d53c1cdc9ff15ab2ab86e699a8"
+            },
+            {
+              "class": "unread",
+              "path": "config/crd/patches/webhook_in_namespaces.yaml",
+              "sha256": "sha256:db5f0599c6e900f6a0a461b05abb34d3b475ba9496a41c2b8a66b0c560df948e"
+            }
+          ]
+        },
+        "slug": "temporal-operator"
+      }
+    ],
+    "sample": [
+      3,
+      5,
+      8
+    ],
+    "summaryDigest": "sha256:410e018e955547b0a53603134c5a9e3f33f6bb221898fa15d2191c91beeade49"
+  },
+  "keyId": "sha256:f25122006c39056826999433c0c100392d1de23462d5b56ee3ba5ad45e874e99",
+  "signature": "XahclQZBpwZlwzfHWiXZv239I0bdT8JljriklT6gc9cw0akEhIXZgf+4fcm/dQwvAuKF3C+wHWDa1knjxIYOAA=="
+}
