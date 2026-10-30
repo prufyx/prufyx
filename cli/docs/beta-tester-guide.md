@@ -165,7 +165,7 @@ What it does and does not do in this build:
 | --- | --- | --- |
 | `PASS` (`check`) | `0`, or `14` with `--strict-exit` | The rules this check evaluated, for that exact pair, passed. Nothing more. |
 | `PASS FOR THE DECLARED SCOPE` (`scan`) | `0` | Every hop is covered by reviewed records and nothing is missing, for what you declared. Not a whole-upgrade certificate. |
-| `BLOCKED` | `10` | A reviewed rule matched your input. The output names the file, object and fix, and cites the upstream source. |
+| `BLOCKED` | `10` | A rule matched your input. The output names the file, object and fix, and cites the upstream source. |
 | `UNKNOWN`, `NOT CHECKED` | `11` | The evidence did not decide. Not a pass. |
 | invalid input | `2` | Command line or an input was not accepted. |
 | integrity failure | `3` | Knowledge or an input failed verification, or the default local knowledge store is invalid. |

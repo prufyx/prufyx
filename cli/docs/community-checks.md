@@ -15,7 +15,7 @@ run `chmod 600 values.json` before the check.
 
 ## Exit codes
 
-A `check` exit `0` means the reviewed rules it evaluated passed, not that the
+A `check` exit `0` means the rules it evaluated passed, not that the
 upgrade is safe. In CI add `--strict-exit` to every `check` route to exit `14`
 instead of `0` on a scoped PASS. The single table of exit codes for `check` and `scan` is in
 [exit-codes.md](exit-codes.md).
