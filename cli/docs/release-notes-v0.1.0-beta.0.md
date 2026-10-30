@@ -150,8 +150,10 @@ You can also build from source; see the [README](https://github.com/prufyx/prufy
   attestation, because its calendar-version release lines are not consecutive
   minors yet, so those upgrades answer `UNKNOWN`. Release-order and alias
   handling for these lines is planned for beta.1.
-- Some upgrade pairs stay `UNKNOWN`: four Kyverno release-line upgrades
-  and the kubeswift 0.1 to 0.3 upgrade have no decided rule.
+- Some upgrade pairs stay `UNKNOWN`: the Kyverno upgrades 1.14 to 1.15,
+  1.16 to 1.17, 1.17 to 1.18 and 1.18 to 1.19, and the kubeswift 0.1 to 0.3
+  upgrade have no decided rule. (Kyverno 1.15 to 1.16 is decided: `BLOCKED`
+  for the removed `updaterequests` resource.)
 - A knowledge package that this build cannot read (for example one with a
   `minClientVersion` above this build) makes `prufyx db update` and `prufyx db
   import` exit `15` (`KNOWLEDGE_TOO_NEW_FOR_THIS_CLIENT`). The current store and the
