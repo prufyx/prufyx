@@ -143,7 +143,40 @@ func inspectLifecycleConfig(value any, expectedVersion, selectedAPI string) (boo
 			return false, false
 		}
 	}
+	reviewed, ok := reviewedPlatformAPIs[expectedVersion]
+	if !ok || !sameAPISet(supported, reviewed.supported) || !sameAPISet(deprecated, reviewed.deprecated) {
+		return false, false
+	}
 	return supported[selectedAPI], true
+}
+
+type reviewedPlatformAPISet struct{ supported, deprecated []string }
+
+// reviewedPlatformAPIs pins the Platform API sets of the reviewed lifecycle
+// versions, read from api/apis.go (var Platform) at the upstream tags
+// https://github.com/buildpacks/lifecycle/blob/v0.16.5/api/apis.go and
+// https://github.com/buildpacks/lifecycle/blob/v0.17.7/api/apis.go.
+// Labels are caller-supplied declarations, so a label set that differs from the
+// pinned set, or a version without an entry, is not usable evidence.
+var reviewedPlatformAPIs = map[string]reviewedPlatformAPISet{
+	BuildpacksFrom: {supported: []string{"0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "0.10", "0.11"}, deprecated: []string{"0.3", "0.4", "0.5", "0.6"}},
+	BuildpacksTo:   {supported: []string{"0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "0.10", "0.11", "0.12"}, deprecated: []string{"0.3", "0.4", "0.5", "0.6"}},
+	// Fictional versions of the synthetic test-only external knowledge
+	// (knowledgefixture.SyntheticBuildpacksFrom/To); they reuse the reviewed sets.
+	"81.0.0": {supported: []string{"0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "0.10", "0.11"}, deprecated: []string{"0.3", "0.4", "0.5", "0.6"}},
+	"82.0.0": {supported: []string{"0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "0.10", "0.11", "0.12"}, deprecated: []string{"0.3", "0.4", "0.5", "0.6"}},
+}
+
+func sameAPISet(got map[string]bool, want []string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for _, api := range want {
+		if !got[api] {
+			return false
+		}
+	}
+	return true
 }
 
 func platformAPISet(value any) (map[string]bool, bool) {

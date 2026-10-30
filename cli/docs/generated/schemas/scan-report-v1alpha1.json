@@ -1210,7 +1210,9 @@
             "identical",
             "no-store",
             "forced",
-            "store-expired"
+            "store-expired",
+            "store-too-new",
+            "store-trust-advanced"
           ]
         },
         "embeddedEvidenceAt": {

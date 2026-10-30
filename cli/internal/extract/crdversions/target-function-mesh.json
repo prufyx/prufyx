@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "function-mesh",
+    "catalog": "community",
+    "name": "function-mesh",
+    "repo": "github.com/streamnative/function-mesh",
+    "component": "pkg:github/streamnative/function-mesh",
+    "factProject": "function_mesh",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.25",
+    "paths": [
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

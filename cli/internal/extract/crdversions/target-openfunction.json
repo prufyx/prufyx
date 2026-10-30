@@ -1,0 +1,22 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "openfunction",
+    "name": "OpenFunction",
+    "repo": "github.com/openfunction/openfunction",
+    "component": "pkg:github/openfunction/openfunction",
+    "factProject": "openfunction",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.6",
+    "paths": [
+      {"path": "config/crd/bases/core.openfunction.io_builders.yaml"},
+      {"path": "config/crd/bases/core.openfunction.io_functions.yaml"},
+      {"path": "config/crd/bases/core.openfunction.io_servings.yaml"},
+      {"path": "config/crd/bases/events.openfunction.io_clustereventbuses.yaml", "optional": true},
+      {"path": "config/crd/bases/events.openfunction.io_eventbuses.yaml", "optional": true},
+      {"path": "config/crd/bases/events.openfunction.io_eventsources.yaml"},
+      {"path": "config/crd/bases/events.openfunction.io_triggers.yaml"}
+    ],
+    "exclude": []
+  }
+}
