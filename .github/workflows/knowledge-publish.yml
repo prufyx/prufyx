@@ -363,7 +363,7 @@ jobs:
           [ "$(grep -c '' "${pinfile}")" = 2 ] || fail "cli/knowledge/oldest-supported-client.txt must hold exactly the lines ref= and version=; nothing was uploaded."
           ref="$(sed -n '1p' "${pinfile}")"
           ver="$(sed -n '2p' "${pinfile}")"
-          [[ "${ref}" =~ ^ref=([0-9a-f]{40}|v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+\.[0-9]+)?)$ ]] || fail "the ref line of cli/knowledge/oldest-supported-client.txt is not a 40-hex commit or a vX.Y.Z[-pre.N] tag; nothing was uploaded."
+          [[ "${ref}" =~ ^ref=[0-9a-f]{40}$ ]] || fail "the ref line of cli/knowledge/oldest-supported-client.txt is not a 40-hex commit; nothing was uploaded."
           [[ "${ver}" =~ ^version=v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z]+\.[0-9]+)?$ ]] || fail "the version line of cli/knowledge/oldest-supported-client.txt is not vMAJOR.MINOR.PATCH[-pre.N]; nothing was uploaded."
           {
             echo "ref=${ref#ref=}"
@@ -402,6 +402,7 @@ jobs:
           "${out}/prufyx" db verify "${RUNNER_TEMP}/artifact/cncf-projects.tar" --profile cncf-projects \
             --bootstrap-root "${oroot}" --bootstrap-root-digest "sha256:$(sha256sum "${oroot}" | cut -d' ' -f1)" \
             --expected-package-digest "${PACKAGE_DIGEST}" --expected-revision "${REVISION}" --format json > "${out}/receipt.json" || refuse
+          jq -e '.status == "VERIFIED"' "${out}/receipt.json" > /dev/null || refuse
           echo "- oldest supported client ${OLDEST_VERSION} (${OLDEST_REF}) accepts the package" >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Upload the signed package

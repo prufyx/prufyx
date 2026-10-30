@@ -132,6 +132,8 @@ func TestKnowledgePublishWorkflowIsHardened(t *testing.T) {
 	}
 }
 
+var secretsRef = regexp.MustCompile(`\bsecrets\b`)
+
 func stepIndex(steps []workflowStep, name string) int {
 	for i, s := range steps {
 		if s.Name == name {
@@ -162,17 +164,23 @@ func TestKnowledgePublishOldestClientGate(t *testing.T) {
 		if !strings.Contains(st.If, "steps.sign.outputs.skip == 'false'") {
 			t.Errorf("%q: if %q must be limited to runs that produce a package", st.Name, st.If)
 		}
+		if st.ContinueOnError != nil {
+			t.Errorf("%q: must not set continue-on-error", st.Name)
+		}
+		if strings.Contains(st.If, "||") {
+			t.Errorf("%q: if %q must not contain ||", st.Name, st.If)
+		}
 		for k, v := range st.Env {
-			if strings.Contains(v, "secrets.") {
+			if secretsRef.MatchString(v) {
 				t.Errorf("%q: env %s references secrets", st.Name, k)
 			}
 		}
 		for k, v := range st.With {
-			if s, ok := v.(string); ok && strings.Contains(s, "secrets.") {
+			if s, ok := v.(string); ok && secretsRef.MatchString(s) {
 				t.Errorf("%q: with %s references secrets", st.Name, k)
 			}
 		}
-		if strings.Contains(st.Run, "secrets.") || strings.Contains(st.Run, "github.token") || strings.Contains(st.Run, "GH_TOKEN") {
+		if secretsRef.MatchString(st.Run) || strings.Contains(st.Run, "github.token") || strings.Contains(st.Run, "GH_TOKEN") {
 			t.Errorf("%q: run block touches a token or secret", st.Name)
 		}
 	}
@@ -199,6 +207,7 @@ func TestKnowledgePublishOldestClientGate(t *testing.T) {
 		"db verify",
 		"--expected-package-digest",
 		"--expected-revision",
+		"jq -e '.status == \"VERIFIED\"'",
 		"--bootstrap-root",
 		"the oldest supported client (",
 		"the feed keeps the last package",
@@ -213,7 +222,7 @@ func TestKnowledgePublishOldestClientGate(t *testing.T) {
 }
 
 var (
-	oldestRefLine     = regexp.MustCompile(`^ref=([0-9a-f]{40}|v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+\.[0-9]+)?)$`)
+	oldestRefLine     = regexp.MustCompile(`^ref=[0-9a-f]{40}$`)
 	oldestVersionLine = regexp.MustCompile(`^version=v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z]+\.[0-9]+)?$`)
 )
 
@@ -232,7 +241,7 @@ func TestOldestSupportedClientPin(t *testing.T) {
 		t.Fatalf("pin file must hold exactly two newline-terminated lines, got %q", raw)
 	}
 	if !oldestRefLine.MatchString(lines[0]) {
-		t.Errorf("ref line %q is not a 40-hex commit or a vX.Y.Z[-pre.N] tag", lines[0])
+		t.Errorf("ref line %q is not a 40-hex commit", lines[0])
 	}
 	if !oldestVersionLine.MatchString(lines[1]) {
 		t.Errorf("version line %q is not vMAJOR.MINOR.PATCH[-pre.N]", lines[1])

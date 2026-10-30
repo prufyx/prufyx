@@ -396,7 +396,7 @@ is still supported and runs `db verify` with it on the candidate package. The
 client is pinned in `cli/knowledge/oldest-supported-client.txt`:
 
 ```
-ref=<40-hex commit, or a vX.Y.Z[-pre.N] tag>
+ref=<40-hex commit>
 version=v0.1.0-beta.0
 ```
 
