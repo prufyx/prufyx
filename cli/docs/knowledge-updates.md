@@ -190,6 +190,7 @@ omit `--db-root`; the database is then installed in the default store location:
 `$XDG_DATA_HOME/prufyx/knowledge/cncf-projects` when `XDG_DATA_HOME` is an absolute
 path, otherwise `~/.local/share/prufyx/knowledge/cncf-projects`. Missing directories
 are created private to you (mode 0700), whatever your umask is.
+`prufyx db status --profile cncf-projects` without `--db-root` inspects that same default store.
 
 `prufyx check cncf` and `prufyx scan` choose their knowledge in this order:
 

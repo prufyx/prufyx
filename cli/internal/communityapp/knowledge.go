@@ -15,6 +15,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/certmanagervalues"
 	"github.com/prufyx/prufyx/cli/internal/currentbundle"
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
+	"github.com/prufyx/prufyx/cli/internal/knowledgeauto"
 	"github.com/prufyx/prufyx/cli/internal/knowledgecheck"
 )
 
@@ -191,7 +192,7 @@ func (r runtime) databaseImport(args []string) int {
 
 func (r runtime) databaseStatus(args []string) int {
 	if hasHelp(args) {
-		fmt.Fprintln(r.stdout, "Usage: prufyx db status --db-root DIR [--profile cert-manager|cncf|cncf-projects|spiffe-x509-svid|cloudevents-structured-json|tikv-gcp-v2-wif-backup] [--format human|json]")
+		fmt.Fprintln(r.stdout, "Usage: prufyx db status [--db-root DIR] [--profile cert-manager|cncf|cncf-projects|spiffe-x509-svid|cloudevents-structured-json|tikv-gcp-v2-wif-backup] [--format human|json]")
 		return ExitOK
 	}
 	fs := flag.NewFlagSet("db status", flag.ContinueOnError)
@@ -199,8 +200,17 @@ func (r runtime) databaseStatus(args []string) int {
 	dbRoot := fs.String("db-root", "", "private knowledge store root")
 	profile := fs.String("profile", "cert-manager", "cert-manager, cncf, cncf-projects, spiffe-x509-svid, cloudevents-structured-json, or tikv-gcp-v2-wif-backup in separate directories")
 	format := fs.String("format", "human", "human or json")
-	if duplicateFlags(args) || fs.Parse(args) != nil || fs.NArg() != 0 || *dbRoot == "" || !validKnowledgeProfile(*profile) || (*format != "human" && *format != "json") {
+	if duplicateFlags(args) || fs.Parse(args) != nil || fs.NArg() != 0 || (*dbRoot == "" && flagProvided(args, "db-root")) || !validKnowledgeProfile(*profile) || (*format != "human" && *format != "json") {
 		return r.usage("invalid database status arguments; use --help")
+	}
+	// Without --db-root the default profile reads the default store location,
+	// the one db update installs into; other profiles have none.
+	if *dbRoot == "" {
+		root, ok := knowledgeauto.DefaultRoot()
+		if *profile != knowledgeauto.Profile || !ok {
+			return r.usage("invalid database status arguments; use --help")
+		}
+		*dbRoot = root
 	}
 	var status knowledge.Status
 	var err error
