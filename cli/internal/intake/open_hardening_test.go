@@ -70,7 +70,8 @@ func TestOpenSymlinksAndSpecialFilesAreVisibleOmissions(t *testing.T) {
 	if err := syscall.Mkfifo(fifo, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	// A pipe without a manifest name is not input and is not reported.
+	// A pipe without a manifest name is a skipped entry like any other file
+	// without a manifest name.
 	if err := syscall.Mkfifo(filepath.Join(dir, "other.pipe"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +82,7 @@ func TestOpenSymlinksAndSpecialFilesAreVisibleOmissions(t *testing.T) {
 	if strings.Join(names(w), ",") != "real" || len(w.Files) != 1 {
 		t.Fatalf("read %v", names(w))
 	}
-	if !hasReason(w, link, ReasonSymlinkNotFollowed) || !hasReason(w, linkDir, ReasonSymlinkNotFollowed) || !hasReason(w, fifo, ReasonNotRegularFile) || len(w.Omissions) != 3 {
+	if !hasReason(w, link, ReasonSymlinkNotFollowed) || !hasReason(w, linkDir, ReasonSymlinkNotFollowed) || !hasReason(w, fifo, ReasonNotRegularFile) || !hasReason(w, filepath.Join(dir, "other.pipe"), ReasonNotManifestName) || len(w.Omissions) != 4 {
 		t.Fatalf("omissions %+v", w.Omissions)
 	}
 	// Named directly, a pipe is refused without being opened.
@@ -338,5 +339,90 @@ func TestOpenEachLimitFuzz(t *testing.T) {
 		if _, err := Open([]string{dir}, Options{Limits: Limits{Nodes: least - 1}}); least > 1 && !errors.Is(err, ErrLimit) {
 			t.Fatalf("seed %d nodes: %v", seed, err)
 		}
+	}
+}
+
+// A hidden directory and a regular file without a manifest name are recorded
+// as omissions, never silently skipped; a hidden directory is not entered, so
+// one omission stands for the whole tree.
+func TestOpenSkippedEntriesAreVisibleOmissions(t *testing.T) {
+	dir := root(t)
+	write(t, filepath.Join(dir, "dep.yaml"), fmt.Sprintf(cm, "dep"), 0o600)
+	write(t, filepath.Join(dir, ".deploy", "fs.yaml"), fmt.Sprintf(cm, "hidden"), 0o600)
+	write(t, filepath.Join(dir, ".git", "objects", "x.yaml"), fmt.Sprintf(cm, "git"), 0o600)
+	write(t, filepath.Join(dir, "manifest"), fmt.Sprintf(cm, "bare"), 0o600)
+	write(t, filepath.Join(dir, "a.tpl"), fmt.Sprintf(cm, "tpl"), 0o600)
+	write(t, filepath.Join(dir, "sub", "b.gotmpl"), fmt.Sprintf(cm, "gotmpl"), 0o600)
+	w, err := Open([]string{dir}, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(names(w), ",") != "dep" {
+		t.Fatalf("read %v", names(w))
+	}
+	for path, reason := range map[string]Reason{
+		filepath.Join(dir, ".deploy"):         ReasonHiddenDirectorySkipped,
+		filepath.Join(dir, "manifest"):        ReasonNotManifestName,
+		filepath.Join(dir, "a.tpl"):           ReasonNotManifestName,
+		filepath.Join(dir, "sub", "b.gotmpl"): ReasonNotManifestName,
+	} {
+		if !hasReason(w, path, reason) {
+			t.Errorf("no %s omission for %s", reason, path)
+		}
+	}
+	// .git is on the allowlist: counted, not an omission.
+	if len(w.Omissions) != 4 || w.AllowlistSkipped != 1 {
+		t.Fatalf("omissions %+v skipped %d", w.Omissions, w.AllowlistSkipped)
+	}
+	// Named directly, a hidden directory or any file is still read.
+	if w, err := Open([]string{filepath.Join(dir, ".deploy")}, Options{}); err != nil || len(w.Omissions) != 0 || len(w.Files) != 1 {
+		t.Fatalf("named hidden directory: %v %+v", err, w.Omissions)
+	}
+}
+
+// A hidden symlink is reported like any other symlink.
+func TestOpenHiddenSymlinkIsOmission(t *testing.T) {
+	dir, outside := root(t), root(t)
+	write(t, filepath.Join(outside, "secret.yaml"), fmt.Sprintf(cm, "outside"), 0o600)
+	write(t, filepath.Join(dir, "real.yaml"), fmt.Sprintf(cm, "real"), 0o600)
+	link, gitLink := filepath.Join(dir, ".link"), filepath.Join(dir, ".git")
+	if err := os.Symlink(filepath.Join(outside, "secret.yaml"), link); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, gitLink); err != nil {
+		t.Fatal(err)
+	}
+	w, err := Open([]string{dir}, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasReason(w, link, ReasonSymlinkNotFollowed) || !hasReason(w, gitLink, ReasonSymlinkNotFollowed) || len(w.Omissions) != 2 || w.AllowlistSkipped != 0 {
+		t.Fatalf("omissions %+v skipped %d", w.Omissions, w.AllowlistSkipped)
+	}
+}
+
+func TestOpenAllowlist(t *testing.T) {
+	cases := map[string]bool{
+		"README": true, "README.md": true, "README.rst": true, "LICENSE": true, "LICENSE.txt": true, "LICENCE": true, "NOTICE": true,
+		"CHANGELOG.rst": true, "CODEOWNERS": true, "a.md": true, "a.PNG": true, "a.jpg": true, "a.jpeg": true, "a.gif": true, "a.svg": true, "a.ico": true,
+		".gitignore": true, ".gitattributes": true, ".helmignore": true, ".dockerignore": true,
+		"readme": false, "License": false, "notes.txt": false, "Makefile": false, "Dockerfile": false, "manifest": false,
+		"x.tpl": false, "x.gotmpl": false, ".env": false, "README.tar.gz": false, "LICENSE-MIT": false, ".gitignore.bak": false,
+	}
+	for name, want := range cases {
+		if got := allowlistedName(name); got != want {
+			t.Errorf("%s: %v want %v", name, got, want)
+		}
+	}
+	dir := root(t)
+	for _, name := range []string{"README.md", ".gitignore", "a.tpl", "sub/.git/config", ".github/w.yml", ".terraform/p.tf", "node_modules/m.js"} {
+		write(t, filepath.Join(dir, name), "x", 0o600)
+	}
+	w, err := Open([]string{dir}, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if w.AllowlistSkipped != 3 || len(w.Omissions) != 4 || !hasReason(w, filepath.Join(dir, ".github"), ReasonHiddenDirectorySkipped) || !hasReason(w, filepath.Join(dir, "a.tpl"), ReasonNotManifestName) {
+		t.Fatalf("skipped %d omissions %+v", w.AllowlistSkipped, w.Omissions)
 	}
 }
