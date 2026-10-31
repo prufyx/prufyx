@@ -153,8 +153,8 @@ python3 -X utf8 bp325.py "$QA_BIN" "$RUN/tmp/bp325" --cases "$OUT/bp325.cases.js
 [ -s "$OUT/bp325.cases.json" ] || placeholder "$OUT/bp325.cases.json" bp325
 
 # 4c. db suite (slow, tens of minutes when the host runs a job queue): only for db/knowledge diffs or QA_DB=1 (nightly),
-# never in the fast path. QA_DB_SUITE = path to the db suite run.sh, supplied by the operator. If the caller already holds a
-# job slot, export VKR_SLOT_HELD=1 so the suite does not queue for a second one.
+# never in the fast path. QA_DB_SUITE = path to the db suite run.sh, supplied by the operator (any job queueing is the
+# suite's own concern).
 dbsel=$(python3 -c 'import json,sys;print(int(bool(json.loads(sys.argv[1]).get("db"))))' "$sel")
 if [ -n "${QA_DB_SUITE:-}" ] && [ -x "$QA_DB_SUITE" ] && { [ "${QA_DB:-0}" = 1 ] || [ "$dbsel" = 1 ]; }; then
   log "db suite"
