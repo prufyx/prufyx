@@ -2,7 +2,12 @@
 
 package cncfcheck
 
-import "errors"
+import (
+	"encoding/json"
+	"errors"
+
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+)
 
 // ExportExternalBundleFromPack and BuildExternalTargetsFromPack are not a
 // publication path. They admit a rule pack only by the checks the embedded
@@ -67,4 +72,42 @@ func admitPack(packRaw []byte) (bundle, error) {
 		return bundle{}, ErrIntegrity
 	}
 	return assemble(landscapeRaw, priorityRaw, packRaw, compiledDefinitions())
+}
+
+// externalEntries is entries without the removal-crossing rules. An external
+// pack refuses them (validateExternalPack): the embedded pack alone carries a
+// crossing rule, so every derivation of an external bundle from a pack leaves
+// it out and keeps the project's target. A pack without one is returned as is.
+func externalEntries(entries []Entry) ([]Entry, error) {
+	kept := make([]Entry, 0, len(entries))
+	for _, entry := range entries {
+		crossing, err := constraintengine.AnyCrossingRule([]json.RawMessage{entry.Rule})
+		if err != nil {
+			return nil, ErrIntegrity
+		}
+		if !crossing {
+			kept = append(kept, entry)
+		}
+	}
+	if len(kept) == len(entries) {
+		return entries, nil
+	}
+	return kept, nil
+}
+
+// externalPack is pack for an external bundle: without the crossing rules,
+// at the schema level the remaining content requires.
+func externalPack(pack rulePack) (rulePack, error) {
+	entries, err := externalEntries(pack.Entries)
+	if err != nil {
+		return rulePack{}, err
+	}
+	if len(entries) == len(pack.Entries) {
+		return pack, nil
+	}
+	pack.Entries = entries
+	if pack.Schema, err = requiredPackSchema(pack); err != nil {
+		return rulePack{}, ErrIntegrity
+	}
+	return pack, nil
 }

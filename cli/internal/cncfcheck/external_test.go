@@ -358,7 +358,12 @@ func TestExportEmbeddedExternalBundlePreservesCompletePack(t *testing.T) {
 	if err := json.Unmarshal(raw, &document); err != nil {
 		t.Fatal(err)
 	}
-	want := base.pack
+	// The embedded pack's removal-crossing rules stay in the binary: the
+	// export is the pack without them.
+	want, err := externalPack(base.pack)
+	if err != nil {
+		t.Fatal(err)
+	}
 	want.Revision = "73"
 	wantRaw, err := json.Marshal(want)
 	if err != nil {
