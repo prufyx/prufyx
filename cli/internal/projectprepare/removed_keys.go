@@ -88,6 +88,22 @@ func prepareRemovedKeys(raw []byte, from, to string, complete, precedenceResolve
 	if err != nil {
 		return Prepared{}, ErrInvalid
 	}
+	// Fail closed on a mention the scanner did not recognise as the setting: the
+	// name of a removed key (its last path segment) anywhere in the input, as a
+	// key at another depth, a list entry or inside a string value, means the file
+	// is not read in the shape the scanner assumes.
+	if supported {
+		lower := bytes.ToLower(raw)
+		for _, k := range keys {
+			name := k.Key
+			if i := strings.LastIndexByte(name, '.'); i >= 0 {
+				name = name[i+1:]
+			}
+			if !found[k.Fact] && bytes.Contains(lower, []byte(strings.ToLower(name))) {
+				supported = false
+			}
+		}
+	}
 	facts := make([]inputFact, 0, len(keys))
 	for _, k := range keys {
 		facts = append(facts, inputFact{ID: k.Fact, State: "unsupported"})
@@ -303,8 +319,15 @@ func flattenSettings(node *yaml.Node, prefix string, leaves, parents map[string]
 				return false
 			}
 		case yaml.SequenceNode:
+			// A list of settings is a list of plain single-line scalars; a list of
+			// mappings or lists is how charts carry env entries or plugin blocks.
 			if !plainNodes(value) {
 				return false
+			}
+			for _, item := range value.Content {
+				if item.Kind != yaml.ScalarNode || strings.ContainsAny(item.Value, "\r\n") {
+					return false
+				}
 			}
 			leaves[path] = true
 		case yaml.ScalarNode:
@@ -342,20 +365,23 @@ func plainNodes(node *yaml.Node) bool {
 // makes the whole file unsupported, so a rarely used namespace only costs an
 // UNKNOWN answer, never a wrong PASS.
 var openSearchSettingNamespaces = map[string]bool{
-	"action": true, "aux": true, "azure": true, "bootstrap": true, "cache": true, "client": true,
+	"action": true, "aux": true, "azure": true, "bootstrap": true, "cache": true, "client": true, "cloud": true,
 	"cluster": true, "compatibility": true, "discovery": true, "extensions": true, "gateway": true, "gcs": true,
 	"http": true, "indices": true, "ingest": true, "logger": true, "monitor": true, "network": true,
 	"node": true, "opendistro_security": true, "opensearch": true, "path": true, "plugins": true,
 	"processors": true, "reindex": true, "remote_store": true, "repositories": true, "rest": true,
 	"s3": true, "script": true, "search": true, "snapshot": true, "telemetry": true, "thread_pool": true,
 	"tracer": true, "transport": true,
+	"admission_control": true, "arrow": true, "cluster_manager": true, "grpc": true, "indexing_pressure": true,
+	"knn": true, "opendistro": true, "point_in_time": true, "search_backpressure": true, "segrep": true,
+	"shard_indexing_pressure": true, "task_cancellation": true, "tcp": true,
 }
 
 // openSearchWrapperSegments are path segments that name an embedded file or a
 // chart/manifest layer, never an opensearch.yml setting.
 var openSearchWrapperSegments = map[string]bool{
 	"config": true, "configmap": true, "extraenvs": true, "opensearchconfig": true,
-	"values": true, "metadata": true, "spec": true, "apiversion": true, "kind": true,
+	"values": true, "env": true, "metadata": true, "spec": true, "apiversion": true, "kind": true,
 }
 
 // openSearchSettingPath reports whether a flattened path can be an opensearch.yml
@@ -372,7 +398,7 @@ func openSearchSettingPath(path string) bool {
 	}
 	for _, segment := range segments {
 		lower := strings.ToLower(segment)
-		if openSearchWrapperSegments[lower] || strings.HasSuffix(lower, "yml") || strings.HasSuffix(lower, "yaml") {
+		if openSearchWrapperSegments[lower] || strings.HasSuffix(lower, "yml") || strings.HasSuffix(lower, "yaml") || strings.HasSuffix(lower, "cfg") {
 			return false
 		}
 	}

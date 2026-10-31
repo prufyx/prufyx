@@ -220,3 +220,40 @@ func TestPrepareOpenSearchConfigDeclarations(t *testing.T) {
 		t.Fatal("malformed YAML accepted")
 	}
 }
+
+// TestRemovedKeysFailClosed pins that a removed key's name, or a wrapped file,
+// never yields a PASS-capable preparation unless the file is the plain bare
+// config in which the scanner saw the setting itself.
+func TestRemovedKeysFailClosed(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, project, raw string
+		prepared           bool
+	}{
+		{"os-umbrella-block-scalar", OpenSearchProject, "opensearch:\n  config:\n    opensearch.yml: |\n      gateway.expected_nodes: 3\n", false},
+		{"os-file-name-key", OpenSearchProject, "opensearch.yml: \"gateway.expected_nodes: 3\"\n", false},
+		{"os-nested-config-mapping", OpenSearchProject, "opensearch:\n  config:\n    gateway.expected_nodes: 3\n", false},
+		{"os-list-of-mappings", OpenSearchProject, "plugins:\n  - gateway.expected_nodes: 3\n", false},
+		{"os-extra-envs", OpenSearchProject, "extraEnvs:\n  - name: gateway.recover_after_nodes\n    value: \"2\"\n", false},
+		{"os-name-in-value", OpenSearchProject, "node.attr.note: gateway.expected_nodes\n", false},
+		{"os-name-in-sibling", OpenSearchProject, "gateway.expected_nodes_total: 3\n", false},
+		{"os-name-under-other-path", OpenSearchProject, "cluster.routing:\n  gateway:\n    expected_nodes: 3\n", false},
+		{"os-widened-namespaces", OpenSearchProject, "search_backpressure.mode: enforced\ngrpc.port: 9400\nknn.memory.circuit_breaker.limit: 50%\ncluster_manager.throttling.thresholds.x: 1\nshard_indexing_pressure.enabled: true\ntcp.no_delay: true\n", true},
+		{"os-plain-absent", OpenSearchProject, "cluster.name: demo\nnode.name: n1\npath.data: /d\ndiscovery.seed_hosts:\n  - a\n  - b\n", true},
+		{"af-name-in-other-section", AirflowProject, "[core]\ninstance_name_has_markup = True\n", false},
+		{"af-name-commented-out", AirflowProject, "[webserver]\n# instance_name_has_markup = True\n", false},
+		{"af-name-in-value", AirflowProject, "[core]\nnote = warn_deployment_exposure\n", false},
+		{"af-plain-absent", AirflowProject, "[core]\nexecutor = LocalExecutor\n[webserver]\nbase_url = x\n", true},
+	} {
+		got, err := PrepareEffectiveConfig(tc.project, []byte(tc.raw), map[string]string{OpenSearchProject: "2.19.7", AirflowProject: "3.0.6"}[tc.project], map[string]string{OpenSearchProject: "3.0.0", AirflowProject: "3.1.0"}[tc.project], true, true)
+		if err != nil {
+			t.Fatalf("%s: err=%v", tc.name, err)
+		}
+		if tc.prepared != (got.State == "PREPARED") {
+			t.Fatalf("%s: state=%s reason=%s", tc.name, got.State, got.Reason)
+		}
+		if !tc.prepared && bytes.Contains(got.CanonicalInputJSON, []byte(`"boolValue"`)) {
+			t.Fatalf("%s: declared a value: %s", tc.name, got.CanonicalInputJSON)
+		}
+	}
+}
