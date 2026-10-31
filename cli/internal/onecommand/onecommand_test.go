@@ -118,8 +118,8 @@ func TestRunClassifiesThreeWaySplit(t *testing.T) {
 	if code != ExitOK {
 		t.Fatalf("Run failed: code=%d stderr=%s", code, stderr.String())
 	}
-	if report.RouteCatalog.TotalNativeRoutes != 202+kubernetesExtra() {
-		t.Fatalf("totalNativeRoutes=%d want %d", report.RouteCatalog.TotalNativeRoutes, 202+kubernetesExtra())
+	if report.RouteCatalog.TotalNativeRoutes != 200+kubernetesExtra() {
+		t.Fatalf("totalNativeRoutes=%d want %d", report.RouteCatalog.TotalNativeRoutes, 200+kubernetesExtra())
 	}
 	// Without a declared component scope there is no auditable applicable set,
 	// so the aggregate must stay UNKNOWN however many routes classified as
@@ -137,8 +137,8 @@ func TestRunClassifiesThreeWaySplit(t *testing.T) {
 	if ctxReport.CollectionStatus != "complete_for_declared_surface" {
 		t.Fatalf("collectionStatus=%q", ctxReport.CollectionStatus)
 	}
-	if len(ctxReport.Checks) != 202+kubernetesExtra() {
-		t.Fatalf("checks=%d want %d", len(ctxReport.Checks), 202+kubernetesExtra())
+	if len(ctxReport.Checks) != 200+kubernetesExtra() {
+		t.Fatalf("checks=%d want %d", len(ctxReport.Checks), 200+kubernetesExtra())
 	}
 
 	// Prometheus is observed at exactly 2.55.1 with a recognized predicate
@@ -197,8 +197,8 @@ func TestRunClassifiesThreeWaySplit(t *testing.T) {
 	// Summary counts must add up to the total.
 	s := ctxReport.Summary
 	total := s.ApplicableFullySatisfied + s.ApplicableNeedsDeclaration + s.NotApplicableVersionMismatch + s.NotApplicableComponentAbsent + s.IndeterminateNotObservable + s.IndeterminatePartialCollection
-	if total != 202+kubernetesExtra() {
-		t.Fatalf("summary total=%d want %d (%+v)", total, 202+kubernetesExtra(), s)
+	if total != 200+kubernetesExtra() {
+		t.Fatalf("summary total=%d want %d (%+v)", total, 200+kubernetesExtra(), s)
 	}
 	if s.ApplicableFullySatisfied != 0 {
 		t.Fatalf("applicableFullySatisfied=%d, want 0 for the current catalog (see TestNoNativeRouteIsFullySatisfiedByVersionAlone)", s.ApplicableFullySatisfied)
@@ -265,7 +265,7 @@ func kubernetesExtra() int {
 }
 
 // TestNoNativeRouteIsFullySatisfiedByVersionAlone documents and enforces a
-// core finding of the design: every one of the 202 native check routes (206 once the mechanical Kubernetes rules ship)
+// core finding of the design: every one of the 200 native check routes (204 once the mechanical Kubernetes rules ship)
 // requires at least one caller declaration (a file, a name, or a boolean
 // intent flag) beyond the --from/--to version pair. If this ever stops being
 // true, ApplicableFullySatisfied stops being a dead bucket and the design
@@ -276,8 +276,8 @@ func TestNoNativeRouteIsFullySatisfiedByVersionAlone(t *testing.T) {
 		t.Fatal(err)
 	}
 	routes := nativeRoutes(result)
-	if len(routes) != 202+kubernetesExtra() {
-		t.Fatalf("native routes=%d want %d", len(routes), 202+kubernetesExtra())
+	if len(routes) != 200+kubernetesExtra() {
+		t.Fatalf("native routes=%d want %d", len(routes), 200+kubernetesExtra())
 	}
 	for _, route := range routes {
 		if len(missingDeclarations(route.NativeDescriptor.Command)) == 0 {

@@ -95,7 +95,7 @@ func TestDiscoverCompleteEmbeddedIdentityCatalog(t *testing.T) {
 	// Every rule of the pack is an identity: the custom-resource batch adds
 	// its 13 once it ships (crdbatchids), and each mechanical rule of another
 	// project one more.
-	if result.Schema != Schema || len(result.Checks) != 270+kubernetesExtra()+len(crdbatchIDs())+len(crdbatchids.Foreign()) {
+	if result.Schema != Schema || len(result.Checks) != 268+kubernetesExtra()+len(crdbatchIDs())+len(crdbatchids.Foreign()) {
 		t.Fatalf("catalog schema/count = %q/%d", result.Schema, len(result.Checks))
 	}
 	if result.Scope.SourceEvidenceFreshness != "NOT_EVALUATED" {
@@ -110,7 +110,7 @@ func TestDiscoverCompleteEmbeddedIdentityCatalog(t *testing.T) {
 			t.Fatalf("community generic route exposed: %#v", item)
 		}
 	}
-	if bound != 202+kubernetesExtra() {
+	if bound != 200+kubernetesExtra() {
 		t.Fatalf("bound native routes = %d", bound)
 	}
 }
@@ -256,7 +256,7 @@ func TestDiscoverRefusesAMixOfBothGenerations(t *testing.T) {
 				bound++
 			}
 		}
-		if want := 177 + len(identities) - len(base); bound != want {
+		if want := 175 + len(identities) - len(base); bound != want {
 			t.Errorf("%s: bound %d, want %d", name, bound, want)
 		}
 	}

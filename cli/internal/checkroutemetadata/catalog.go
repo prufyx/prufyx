@@ -391,7 +391,7 @@ func descriptorSet() []descriptor {
 // descriptorsWith is the descriptor set of every project but Kubernetes plus
 // the given Kubernetes descriptors.
 func descriptorsWith(kubernetes []descriptor) []descriptor {
-	result := make([]descriptor, 0, 206)
+	result := make([]descriptor, 0, 204)
 	alertPairs := []struct{ from, id string }{
 		{"2.55.1", "prometheus.alertmanager-api-v1-removed.3-1"},
 		{"3.9.1", "prometheus.alertmanager-api-v1.target-config.3-9-1-to-3-14-0"},
@@ -556,9 +556,7 @@ func descriptorsWith(kubernetes []descriptor) []descriptor {
 	}
 	openSearchBase := extend(projectBase("opensearch"), file("--effective-config"), literal("--effective-config-complete"), literal("--precedence-resolved"))
 	for _, id := range []string{
-		"opensearch.removed-setting-gateway-expected-master-nodes.2-19-7-to-3-0-0",
 		"opensearch.removed-setting-gateway-expected-nodes.2-19-7-to-3-0-0",
-		"opensearch.removed-setting-gateway-recover-after-master-nodes.2-19-7-to-3-0-0",
 		"opensearch.removed-setting-gateway-recover-after-nodes.2-19-7-to-3-0-0",
 	} {
 		result = append(result, descriptor{family: FamilyCommunity, project: "opensearch", component: "pkg:github/opensearch-project/opensearch", ruleID: id, from: "2.19.7", to: "3.0.0", command: exactPair(openSearchBase, "2.19.7", "3.0.0"), limit: "One selected removed opensearch.yml gateway setting only; completeness and precedence remain caller declarations. Setting values, command-line or environment settings not folded into the file, and whole-upgrade safety remain unassessed."})
@@ -900,7 +898,7 @@ func discover(cncf []cncfcheck.RuleIdentity, community []projectcheck.RuleIdenti
 		knownProjects[item.Project] = true
 		known[identityKey(FamilyCommunity, item.Project, item.Component, item.RuleID, item.From, item.To)] = true
 	}
-	if want := 177 + len(kubernetes); len(descriptors) != want {
+	if want := 175 + len(kubernetes); len(descriptors) != want {
 		return Result{}, fmt.Errorf("%w: descriptor count=%d", ErrIntegrity, len(descriptors))
 	}
 	for key := range descriptors {

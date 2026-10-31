@@ -20,9 +20,7 @@ var removedKeyRules = []struct {
 	{"airflow", "3.0.6", "3.1.0", "airflow.removed-option-scheduler-dag-stale-not-seen-duration.3-0-6-to-3-1-0", "[scheduler]\ndag_stale_not_seen_duration = 600\n"},
 	{"airflow", "3.0.6", "3.1.0", "airflow.removed-option-webserver-instance-name-has-markup.3-0-6-to-3-1-0", "[webserver]\ninstance_name_has_markup = True\n"},
 	{"airflow", "3.0.6", "3.1.0", "airflow.removed-option-webserver-warn-deployment-exposure.3-0-6-to-3-1-0", "[webserver]\nwarn_deployment_exposure = False\n"},
-	{"opensearch", "2.19.7", "3.0.0", "opensearch.removed-setting-gateway-expected-master-nodes.2-19-7-to-3-0-0", "gateway.expected_master_nodes: 3\n"},
 	{"opensearch", "2.19.7", "3.0.0", "opensearch.removed-setting-gateway-expected-nodes.2-19-7-to-3-0-0", "gateway:\n  expected_nodes: 3\n"},
-	{"opensearch", "2.19.7", "3.0.0", "opensearch.removed-setting-gateway-recover-after-master-nodes.2-19-7-to-3-0-0", "gateway.recover_after_master_nodes: 2\n"},
 	{"opensearch", "2.19.7", "3.0.0", "opensearch.removed-setting-gateway-recover-after-nodes.2-19-7-to-3-0-0", "gateway:\n  recover_after_nodes: 2\n"},
 }
 
