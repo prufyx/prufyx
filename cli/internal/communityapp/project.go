@@ -226,7 +226,11 @@ func (r runtime) project(args []string) int {
 	if err != nil {
 		return r.fail("community project report integrity failure", ExitIntegrity)
 	}
+	removedKeyRoute := request.project == projectprepare.AirflowProject || request.project == projectprepare.OpenSearchProject
 	if request.format == "json" {
+		if removedKeyRoute {
+			encoded = withPreparationOmissions(encoded, prepared.Omissions)
+		}
 		fmt.Fprintln(r.stdout, string(encoded))
 	} else {
 		route := humanRoute{
@@ -250,6 +254,9 @@ func (r runtime) project(args []string) int {
 				route.preamble = append(route.preamble, "input qualification: omitted allow_structured_metadata used the reviewed target default under an explicit opt-in; this is source-derived, not observed")
 			}
 		}
+		if removedKeyRoute {
+			route.preamble = append(route.preamble, preparationQualifications(prepared.Omissions)...)
+		}
 		for _, rule := range report.NotEvaluated {
 			route.notEvaluated = append(route.notEvaluated, rule.RuleID+": "+rule.NextAction)
 		}
@@ -261,6 +268,31 @@ func (r runtime) project(args []string) int {
 		}
 	}
 	return projectcheck.ClaimExit(report)
+}
+
+// preparationQualifications renders each preparer omission as one preamble line.
+func preparationQualifications(omissions []string) []string {
+	lines := make([]string, 0, len(omissions))
+	for _, omission := range omissions {
+		lines = append(lines, "input qualification: "+omission)
+	}
+	return lines
+}
+
+// withPreparationOmissions appends the preparer's omissions to a sealed report
+// object as one extra key, leaving every other byte as sealed.
+func withPreparationOmissions(encoded []byte, omissions []string) []byte {
+	if len(omissions) == 0 || len(encoded) == 0 || encoded[len(encoded)-1] != '}' {
+		return encoded
+	}
+	list, err := json.Marshal(omissions)
+	if err != nil {
+		return encoded
+	}
+	out := append([]byte(nil), encoded[:len(encoded)-1]...)
+	out = append(out, `,"preparationOmissions":`...)
+	out = append(out, list...)
+	return append(out, '}')
 }
 
 func (r runtime) prepareProjectInput(request projectArguments) (projectprepare.Prepared, int) {

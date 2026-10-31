@@ -439,3 +439,20 @@ explicit `true` case and exits 0, and `unknown.json` omits the setting and exits
 11. The aggregate compatibility assessment remains UNKNOWN for all three
 scoped results. Each command must include `--resource-complete`,
 `--pre-operator-update`, `--from 26.3.0`, and `--to 26.6.0`.
+
+## Removed-key checks (airflow, opensearch)
+
+`check project --project airflow|opensearch --effective-config <file>` looks
+only for the options or settings the target release notes list as removed
+(airflow 3.0.6 to 3.1.0, opensearch 2.19.7 to 3.0.0). It reads nothing else.
+
+- opensearch: any `opensearch.experimental.*` setting makes the answer UNKNOWN.
+  The 3.0.0 release removed experimental feature flags that no rule names, so a
+  scoped PASS would be wrong. The omission
+  `SETTING_MAY_BE_REMOVED_BY_TARGET_NO_RULE_COVERS_IT:<key>` names each key.
+- An empty file, or a file with only comments, is rejected (exit 2) for both
+  projects.
+- The preparation omissions (what was and was not inspected, and that
+  environment variables, secrets backends and command-line settings are your
+  declarations) are printed as `input qualification:` lines and in the JSON
+  report as `preparationOmissions`.
