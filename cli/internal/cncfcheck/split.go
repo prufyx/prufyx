@@ -9,8 +9,6 @@ import (
 	"regexp"
 	"sort"
 	"time"
-
-	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 )
 
 // Per-project layout. The CNCF knowledge database is published as one TUF
@@ -402,19 +400,9 @@ func buildExternalTargets(base bundle, revision, purpose string, revisionFor fun
 	}
 	byProject := map[string][]Entry{}
 	for _, entry := range base.pack.Entries {
-		// A removal-crossing rule is carried by the embedded pack only (an
-		// external pack refuses it, see validateExternalPack): its project
-		// keeps its target, without the rule.
-		if crossing, err := constraintengine.AnyCrossingRule([]json.RawMessage{entry.Rule}); err != nil {
-			return ExternalTarget{}, nil, ErrIntegrity
-		} else if crossing {
-			if _, ok := byProject[entry.Project]; !ok {
-				byProject[entry.Project] = nil
-			}
-			continue
-		}
 		byProject[entry.Project] = append(byProject[entry.Project], entry)
 	}
+	// A project whose rules are all crossing rules keeps its target.
 	records, err := splitRecords(base.pack, base.knowledgeProjects())
 	if err != nil {
 		return ExternalTarget{}, nil, errors.Join(ErrIntegrity, ErrRecordWithoutOwner)
@@ -499,6 +487,9 @@ func encodeExternalEnvelopeWithRecords(base bundle, revision, purpose string, en
 	capability, err := externalCapabilityDigest(base)
 	if err != nil {
 		return nil, ErrIntegrity
+	}
+	if entries, err = externalEntries(entries); err != nil {
+		return nil, err
 	}
 	if entries == nil {
 		entries = []Entry{}
