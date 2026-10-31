@@ -5,6 +5,7 @@
 One page per project that has its own `prufyx check` or `prufyx prepare` usage.
 Shared flags, exit status and the other routes: [routes.md](routes.md).
 
+- [airflow](airflow.md)
 - [argo-cd](argo-cd.md)
 - [argo-workflows](argo-workflows.md)
 - [buildpacks](buildpacks.md)
@@ -48,6 +49,7 @@ Shared flags, exit status and the other routes: [routes.md](routes.md).
 - [nats](nats.md)
 - [opencost](opencost.md)
 - [openfga](openfga.md)
+- [opensearch](opensearch.md)
 - [opentelemetry](opentelemetry.md)
 - [prometheus](prometheus.md)
 - [spire](spire.md)

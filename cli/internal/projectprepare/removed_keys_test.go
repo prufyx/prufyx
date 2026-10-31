@@ -37,7 +37,10 @@ func TestScanAirflowCfg(t *testing.T) {
 		{"same-key-other-section", "[core]\ninstance_name_has_markup = True\n", map[string]bool{}, true, false},
 		{"commented-out", "[webserver]\n# instance_name_has_markup = True\n; warn_deployment_exposure = True\n", map[string]bool{}, true, false},
 		{"continuation-line-is-not-an-option", "[core]\nplugins_folder = a\n  instance_name_has_markup = True\n", map[string]bool{}, true, false},
-		{"comments-only", "# nothing\n", map[string]bool{}, true, false},
+		{"comments-only", "# nothing\n", nil, false, true},
+		{"whitespace-only", " \n\t\n", nil, false, true},
+		{"vtab-led-continuation-is-not-an-option", "[webserver]\nbase_url = a\n\vinstance_name_has_markup = True\n", map[string]bool{}, true, false},
+		{"formfeed-led-continuation-is-not-an-option", "[webserver]\nbase_url = a\n\finstance_name_has_markup = True\n", map[string]bool{}, true, false},
 		{"case-variant-key", "[webserver]\nInstance_Name_Has_Markup = True\n", nil, false, false},
 		{"cmd-variant", "[webserver]\ninstance_name_has_markup_cmd = echo True\n", nil, false, false},
 		{"secret-variant", "[webserver]\nwarn_deployment_exposure_secret = x\n", nil, false, false},
@@ -83,7 +86,7 @@ func TestScanOpenSearchYAML(t *testing.T) {
 		{"two-keys", "gateway:\n  expected_nodes: 3\n  recover_after_master_nodes: 2\n", map[string]bool{expected: true, afterMaster: true}, true, false},
 		{"null-value-still-set", "gateway.expected_nodes:\n", map[string]bool{expected: true}, true, false},
 		{"absent", "cluster.name: demo\nnode.name: n1\n", map[string]bool{}, true, false},
-		{"empty-yaml", "# only a comment\n", map[string]bool{}, true, false},
+		{"empty-yaml", "# only a comment\n", nil, false, true},
 		{"retained-sibling-settings", "gateway:\n  expected_data_nodes: 3\n  recover_after_data_nodes: 2\n  recover_after_time: 5m\n", map[string]bool{}, true, false},
 		{"unrelated-prefix-sibling", "gateway.expected_nodes_total: 3\n", map[string]bool{}, true, false},
 		{"sequence-value-elsewhere", "discovery.seed_hosts:\n  - a\n  - b\n", map[string]bool{}, true, false},
@@ -218,6 +221,46 @@ func TestPrepareOpenSearchConfigDeclarations(t *testing.T) {
 	}
 	if _, err := prepareOpenSearchConfig([]byte("gateway: [\n"), "2.19.7", "3.0.0", true, true); err == nil {
 		t.Fatal("malformed YAML accepted")
+	}
+}
+
+func TestOpenSearchUncoveredSettingsAreUnknown(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct{ name, raw, key string }{
+		{"reviewer-repro-pluggable-cache", "cluster.name: demo\nopensearch.experimental.feature.pluggable.caching.enabled: true\n", "opensearch.experimental.feature.pluggable.caching.enabled"},
+		{"approximate-point-range-query", "opensearch:\n  experimental:\n    feature:\n      approximate_point_range_query:\n        enabled: true\n", "opensearch.experimental.feature.approximate_point_range_query.enabled"},
+		{"case-variant", "OpenSearch.Experimental.feature.x.enabled: true\n", "OpenSearch.Experimental.feature.x.enabled"},
+		{"false-value", "opensearch.experimental.feature.x.enabled: false\n", "opensearch.experimental.feature.x.enabled"},
+		{"scalar-on-namespace", "opensearch.experimental: true\n", "opensearch.experimental"},
+	} {
+		got, err := prepareOpenSearchConfig([]byte(tc.raw), "2.19.7", "3.0.0", true, true)
+		if err != nil || got.State != "UNKNOWN" || got.Reason != "SETTING_IN_NAMESPACE_WITH_UNCOVERED_REMOVALS_PRESENT" || bytes.Contains(got.CanonicalInputJSON, []byte(`"boolValue"`)) {
+			t.Fatalf("%s: %+v err=%v", tc.name, got, err)
+		}
+		want := "SETTING_MAY_BE_REMOVED_BY_TARGET_NO_RULE_COVERS_IT:" + tc.key
+		found := false
+		for _, o := range got.Omissions {
+			found = found || o == want
+		}
+		if !found {
+			t.Fatalf("%s: omission %q missing from %v", tc.name, want, got.Omissions)
+		}
+	}
+	got, err := prepareOpenSearchConfig([]byte("cluster.name: demo\n"), "2.19.7", "3.0.0", true, true)
+	if err != nil || got.State != "PREPARED" {
+		t.Fatalf("plain config not prepared: %+v err=%v", got, err)
+	}
+}
+
+func TestEmptyAndCommentsOnlyConfigAreInvalid(t *testing.T) {
+	t.Parallel()
+	for _, raw := range []string{"", "# c\n", "\n \n"} {
+		if _, err := prepareOpenSearchConfig([]byte(raw), "2.19.7", "3.0.0", true, true); err == nil {
+			t.Fatalf("opensearch %q accepted", raw)
+		}
+		if _, err := prepareAirflowConfig([]byte(raw), "3.0.6", "3.1.0", true, true); err == nil {
+			t.Fatalf("airflow %q accepted", raw)
+		}
 	}
 }
 
