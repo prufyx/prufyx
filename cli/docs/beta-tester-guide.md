@@ -220,6 +220,16 @@ expired rule, a missing declaration. Read the reason lines. Full tables:
   skips release lines then stays unchecked (`NO_REVIEWED_PATH_POLICY`).
 - Many projects have rules for exact version pairs only. A pair with no rule is
   `UNKNOWN`. A catalogued project is not tested coverage.
+- "Catalogued" and "decided" are different counts. 87 projects have a reviewed
+  custom-resource target (46 CNCF landscape, 41 community catalog). Decided
+  coverage is smaller: 39 upgrades in 10 projects are decided for the whole
+  release-line pair (A or B), plus 5 upgrades in 1 community-catalog project.
+  The generated block in the [README](../../README.md#coverage) has the
+  current figures.
+- Community-catalog projects are mostly not scannable in beta.0: 34 of the 41
+  have no data in the embedded knowledge, and `scan`, `plan` and `check cncf --custom-resources`
+  refuse them with exit `2` instead of answering. The other 7 are accepted.
+  Scanning the rest is planned for beta.1.
 - Patch-only upgrades within one release line are not evaluated for removals.
 - Prufyx never infers what you did not declare, and does not prove migration
   completion, runtime compatibility, availability, data safety or security.
