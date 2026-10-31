@@ -39,6 +39,7 @@ The reviewed targets of the `crd.version-removal` extractor
 | `crd.version-removal.k8gb` | CNCF | `github.com/k8gb-io/k8gb` | `vX.Y.Z` | 0.16 | no | files matching `^k8gb\.[^/]*\.ya?ml$` in `chart/k8gb/crd` | 0 |
 | `crd.version-removal.k8s-cleaner` | community | `github.com/gianlucam76/k8s-cleaner` | `vX.Y.Z` | 0.19 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.k8up` | CNCF | `github.com/k8up-io/k8up` | `vX.Y.Z` | 2.11 | yes | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/apiextensions.k8s.io/v1` | 0 |
+| `crd.version-removal.kamaji` | community | `github.com/clastix/kamaji` | `vX.Y.Z` | 0.2 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.kanister` | CNCF | `github.com/kanisterio/kanister` | `X.Y.Z` | 0.114 | no | files matching `^[^.][^/]*\.ya?ml$` in `pkg/customresource` | 0 |
 | `crd.version-removal.karmada` | CNCF | `github.com/karmada-io/karmada` | `vX.Y.Z` | 1.14 | no | files matching `^[^.][^/]*\.ya?ml$` anywhere under `charts/karmada/_crds/bases`, files matching `^[^.][^/]*\.ya?ml$` in `operator/config/crds` (when present) | 0 |
 | `crd.version-removal.kbind` | CNCF | `github.com/kbind-dev/kbind` | `vX.Y.Z` | 0.3 | no | files matching `^[^.][^/]*\.ya?ml$` in `deploy/crd` | 0 |

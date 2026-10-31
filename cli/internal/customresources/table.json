@@ -586,6 +586,24 @@
       ]
     },
     {
+      "slug": "kamaji",
+      "catalog": "community",
+      "upstream": {
+        "name": "kamaji",
+        "repository": "https://github.com/clastix/kamaji",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/clastix/kamaji/blob/f4c0cec4f9e689e1351297021b65e15870b7d7f4/LICENSE"
+      },
+      "factProject": "kamaji",
+      "component": "pkg:github/clastix/kamaji",
+      "groups": [
+        {
+          "name": "kamaji.clastix.io",
+          "source": "https://github.com/clastix/kamaji/blob/f4c0cec4f9e689e1351297021b65e15870b7d7f4/config/crd/bases/kamaji.clastix.io_tenantcontrolplanes.yaml"
+        }
+      ]
+    },
+    {
       "slug": "kanister",
       "catalog": "cncf",
       "factProject": "kanister",
