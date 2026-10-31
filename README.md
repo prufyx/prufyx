@@ -7,7 +7,7 @@ Prufyx checks a planned upgrade against upstream evidence and returns
 file, and line range it relies on, and says how it was established.
 
 <!-- basis-counts:begin -->
-Of the 279 active rules shipped today, 236 with basis `reviewed`, 43 with basis `mechanical`. A `reviewed` rule was established by a person who read the cited upstream evidence. A `mechanical` rule was derived from upstream source by an extractor program that is re-run and checked before the rule is accepted; no person reviewed it rule by rule. The 116 release-line attestations and served-API lists are separate records: 116 with basis `mechanical`.
+Of the 279 active rules shipped today, 236 with basis `reviewed`, 43 with basis `mechanical`. A `reviewed` rule was established by a person who read the cited upstream evidence. A `mechanical` rule was derived from upstream source by an extractor program that is re-run and checked before the rule is accepted; no person reviewed it rule by rule. The 123 release-line attestations and served-API lists are separate records: 123 with basis `mechanical`.
 <!-- basis-counts:end -->
 
 Each rule states which way it was established, and
