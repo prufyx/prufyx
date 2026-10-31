@@ -354,7 +354,7 @@ var openSearchSettingNamespaces = map[string]bool{
 // openSearchWrapperSegments are path segments that name an embedded file or a
 // chart/manifest layer, never an opensearch.yml setting.
 var openSearchWrapperSegments = map[string]bool{
-	"config": true, "configmap": true, "data": false, "extraenvs": true, "opensearchconfig": true,
+	"config": true, "configmap": true, "extraenvs": true, "opensearchconfig": true,
 	"values": true, "metadata": true, "spec": true, "apiversion": true, "kind": true,
 }
 
