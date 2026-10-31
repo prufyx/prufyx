@@ -69,6 +69,9 @@ func (r runtime) scanError(err error) int {
 	}
 	var storeErr *scanrun.StoreError
 	if errors.As(err, &storeErr) {
+		if storeErr.TooNew() {
+			return r.fail(storeErr.Error(), ExitKnowledgeTooNew)
+		}
 		return r.fail(storeErr.Error(), ExitIntegrity)
 	}
 	return r.fail(scanreport.UsageIntegrity, ExitIntegrity)

@@ -220,6 +220,7 @@ are created private to you (mode 0700), whatever your umask is.
 | Command line and store | Knowledge used | Shown |
 | --- | --- | --- |
 | `--knowledge-db DIR` | that database, verified as before | as before |
+| `--knowledge-db DIR`, database signed by the pinned root but too new for this build | none: exit 15, `KNOWLEDGE TOO NEW FOR THIS PRUFYX` (`check cncf` words it "the knowledge is too new for this prufyx"), nothing evaluated, no embedded fallback; upgrade prufyx or drop `--knowledge-db` | standard error |
 | `--now TIME` (replay form) | embedded | as before |
 | `--knowledge=embedded` | embedded, evaluated at the current time | standard error |
 | nothing given, default store verifies | the newer of the local database and the embedded knowledge | standard error, human output |
@@ -239,6 +240,9 @@ A store that the pinned root signed but this build cannot read is also not used:
 the embedded knowledge is used with the warning `the local database cannot be
 used: a newer prufyx is needed for this knowledge (min version X)` (the version
 is named when the knowledge states one) and `store-too-new` in the report.
+With an explicit `--knowledge-db` there is no fallback: `scan` and `check cncf`
+exit `15` (not `3`) and say that a newer prufyx is needed (with the minimum version when the knowledge
+states one). Tampering with the same database still exits `3`.
 A store whose trust state is ahead of or differs from its selection is not used
 either, and the report says `store-trust-advanced`. This is what a newer prufyx
 leaves behind, but a selection file restored to an older, validly signed copy

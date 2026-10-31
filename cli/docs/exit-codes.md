@@ -38,16 +38,19 @@ then the flag is opt-in.
 | `11` | not every area checked | `UNKNOWN`, `ATTENTION`, or stale evidence in `check batch` | same |
 | `12` | not used | `check batch --exit-mode detailed` only: stale evidence | same |
 | `13` | not used | `check batch --exit-mode detailed` only: evaluation clock before review time | same |
-| `15` | not used (`db update`, `db import` and `db verify` only, see below) | not used | not used |
+| `15` | `--knowledge-db` database too new for this prufyx (see below) | same (`check cncf --knowledge-db`; `plan --knowledge-db` follows `scan`; `check batch --knowledge-db` still exits `3`) | same |
 | `2` | command line or input not accepted | same | same |
 | `3` | knowledge or input integrity failure | same | same |
 
-Exit `15` belongs to `prufyx db update`, `prufyx db import` and `prufyx db verify`: the signed
-knowledge package is too new for this prufyx, or (reason
-`KNOWLEDGE_CAPABILITY_MISMATCH`) was built for a different engine capability than
-this prufyx. Nothing was changed; the current database and the embedded knowledge
-stay in use. Upgrade prufyx, or wait for the feed to be republished if this
-prufyx is the newer side.
+Exit `15` means the signed knowledge cannot be used by this prufyx: it is too new, or
+(reason `KNOWLEDGE_CAPABILITY_MISMATCH`) it was built for a different engine
+capability than this prufyx. For `prufyx db update`, `prufyx db import` and
+`prufyx db verify` nothing was changed; the current database and the embedded
+knowledge stay in use. For `scan` and `check cncf` with an explicit
+`--knowledge-db` holding a too-new database, nothing was evaluated and the
+embedded knowledge was not used (an invalid or tampered database is still exit
+`3`). Upgrade prufyx, drop `--knowledge-db`, or wait for the feed to be republished
+if this prufyx is the newer side.
 
 Rank when several apply: `3` and `2` stop the command; otherwise blocked
 (`10`), then not checked (`11`), then pass.
