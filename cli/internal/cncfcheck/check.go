@@ -179,7 +179,11 @@ func ValidateCanonicalInput(project string, inputRaw []byte) error {
 	if !b.hasProject(project) {
 		return ErrInvalid
 	}
-	if _, err := constraintengine.ParseInput(inputRaw, b.registry); err != nil {
+	guarded, _, err := guardRelnotesSets(inputRaw)
+	if err != nil {
+		return ErrInvalid
+	}
+	if _, err := constraintengine.ParseInput(guarded, b.registry); err != nil {
 		return ErrInvalid
 	}
 	return nil
@@ -209,7 +213,11 @@ func (b bundle) check(project, selectedRuleID string, inputRaw []byte, now time.
 	if !b.hasCheckableProject(project) {
 		return Report{}, ErrInvalid
 	}
-	input, err := constraintengine.ParseInput(inputRaw, b.registry)
+	guarded, _, err := guardRelnotesSets(inputRaw)
+	if err != nil {
+		return Report{}, ErrInvalid
+	}
+	input, err := constraintengine.ParseInput(guarded, b.registry)
 	if err != nil {
 		return Report{}, ErrInvalid
 	}
@@ -266,7 +274,11 @@ func (b bundle) checkFacts(project string, facts []string, inputRaw []byte, now 
 	if !b.hasCheckableProject(project) {
 		return Report{}, ErrInvalid
 	}
-	input, err := constraintengine.ParseInput(inputRaw, b.registry)
+	guarded, _, err := guardRelnotesSets(inputRaw)
+	if err != nil {
+		return Report{}, ErrInvalid
+	}
+	input, err := constraintengine.ParseInput(guarded, b.registry)
 	if err != nil {
 		return Report{}, ErrInvalid
 	}
@@ -314,6 +326,9 @@ func (b bundle) reportSelection(project, selectedRuleID string, family bool, inp
 		NextAction:      "review each scoped claim; whole-upgrade behavior and runtime evidence remain unverified",
 		Check:           result,
 		TrustPolicy:     b.policy.disclosure(selected),
+	}
+	if _, downgraded, _ := guardRelnotesSets(inputRaw); downgraded {
+		report.NextAction = relnotesUnreviewedNextAction
 	}
 	if b.external {
 		report.KnowledgeOrigin, report.SourceAuthority = "external_declared", externalSourceAuthority
