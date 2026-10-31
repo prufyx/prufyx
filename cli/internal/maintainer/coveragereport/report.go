@@ -782,6 +782,11 @@ func classify(project, fromLine, toLine string, rules []*ruleRec, atts []lineatt
 	pair := Pair{From: fromLine, To: toLine, Status: StatusG}
 	if lineMapped(project) {
 		if fams, listed := attestedFamilies(fromLine, toLine, atts, byID); len(fams) > 0 {
+			// A valid line-wide rule bounding the same pair can still lead to BLOCKED
+			// even when the attestation lists no rule.
+			if !listed {
+				_, listed = boundedFamilies(fromLine, toLine, rules)
+			}
 			pair.Status, pair.Families, pair.canBlock = StatusA, fams, listed
 			return pair
 		}
