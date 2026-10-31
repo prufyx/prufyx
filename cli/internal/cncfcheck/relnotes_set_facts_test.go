@@ -32,19 +32,18 @@ const (
 )
 
 func relnotesSetFacts() []relnotesSetFact {
-	projects := []struct{ project, component string }{
-		{"falco", "pkg:github/falcosecurity/falco"},
-		{"thanos", "pkg:github/thanos-io/thanos"},
-		{"cortex", "pkg:github/cortexproject/cortex"},
-		{"cilium", "pkg:github/cilium/cilium"},
+	const (
+		falco  = "pkg:github/falcosecurity/falco"
+		thanos = "pkg:github/thanos-io/thanos"
+		cortex = "pkg:github/cortexproject/cortex"
+	)
+	// Only the facts a reviewed release-note rule reads are registered.
+	return []relnotesSetFact{
+		{"falco", falco, "cli_flags_set", "synthetic-removed-flag", descFlags},
+		{"falco", falco, "config_keys_set", "synthetic.removed.key", descConfig},
+		{"thanos", thanos, "cli_flags_set", "synthetic-removed-flag", descFlags},
+		{"cortex", cortex, "cli_flags_set", "synthetic-removed-flag", descFlags},
 	}
-	var out []relnotesSetFact
-	for _, p := range projects {
-		out = append(out,
-			relnotesSetFact{p.project, p.component, "cli_flags_set", "synthetic-removed-flag", descFlags},
-			relnotesSetFact{p.project, p.component, "config_keys_set", "synthetic.removed.key", descConfig})
-	}
-	return out
 }
 
 func (f relnotesSetFact) id() string { return "component." + f.project + "." + f.kind }
@@ -90,8 +89,8 @@ func relnotesCrossingEntry(f relnotesSetFact) Entry {
 func TestRelnotesSetFactsCrossingOnlyRuleAtV1alpha11(t *testing.T) {
 	t.Parallel()
 	facts := relnotesSetFacts()
-	if len(facts) != 8 {
-		t.Fatalf("%d relnotes set facts, want 8 (4 projects x flags and config keys)", len(facts))
+	if len(facts) != 4 {
+		t.Fatalf("%d relnotes set facts, want 4 (falco flags and config keys, thanos flags, cortex flags)", len(facts))
 	}
 	extra := relnotesDefinitions()
 	var entries []Entry

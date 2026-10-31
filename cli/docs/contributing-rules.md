@@ -657,7 +657,7 @@ registered facts, with the spelling a member must have:
 | `component.<project>.cli_flags_set` | long flag names without leading dashes (`--web.enable-lifecycle` is `web.enable-lifecycle`); values are not part of the set |
 | `component.<project>.config_keys_set` | dotted key paths from the document root (`server.tls.enabled`); values are not part of the set |
 
-Registered for `falco`, `thanos`, `cortex` and `cilium`. A fact that is absent
+Registered: `cli_flags_set` for `falco`, `thanos` and `cortex`, and `config_keys_set` for `falco`. A fact that is absent
 from the caller's input is unknown, never "not set". The facts only feed
 rules that block; a rule over them never passes a hop.
 
