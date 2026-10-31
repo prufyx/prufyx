@@ -259,6 +259,15 @@ is the authoritative list of checks. A check covers exact cited versions;
 the numbers below separate how many rules exist from how much of the recent
 upgrade surface they decide.
 
+Catalogued is not the same as decided. A project is catalogued when it has a
+reviewed custom-resource target (87 projects: 46 of the CNCF landscape
+catalog, 41 of the community catalog). It is decided only for the upgrades
+that a rule or line attestation covers for the whole release-line pair (A or
+B in the table below). In beta.0, community-catalog projects are mostly not
+scannable: 34 of the 41 have no data in the embedded knowledge, and `scan`,
+`plan` and `check cncf` refuse them with exit `2` instead of answering. The
+other 7 hold line attestations and are accepted.
+
 ## Coverage
 
 <!-- coverage:begin -->
