@@ -28,6 +28,10 @@ ALLOWABLE = {"R1.store-explicit", "R1.auto-store", "R1.batch", "R1.same-id-shado
              "R2.flat", "R2.nested",                                                                             # A1
              "R3.falco.m",                                                                                       # falco -m
              "R4.ingress-ext-1.25-1.26"}                                                                         # W3
+def allowable(cid):  # open review findings; the R1x adversarial variants belong to WI-1 too
+    return cid in ALLOWABLE or (cid.startswith("R1x.") and not cid.startswith("R1x.other-project"))
+
+
 BLOCKED, UNKNOWN, INTEGRITY = 10, 11, 3
 NOT_PASS = {INTEGRITY, BLOCKED, UNKNOWN}
 RULES = "cli/internal/cncfcheck/data/rules.json"
@@ -73,16 +77,26 @@ if os.path.exists(test_file):
         r1 = json.load(open(go_out))
     except Exception:
         pass
-    if len(r1) < 6:
+    if len(r1) < 20:
         print((g.stdout + g.stderr)[-1500:])
 else:
     print("review: no Go harness in this source tree")
 if r1:
-    ctl = r1.get("R1.embedded", {})
-    obs("R1.embedded", "ctl", ctl.get("exit", -1), {BLOCKED}, ctl.get("text", "")[:150])
+    for cid in sorted(r1):
+        o = r1[cid]
+        want = o.get("want", "block")
+        if want == "pass":  # a crossing rule of another project must not change this answer
+            obs(cid, "ctl", o["exit"], {0}, o["text"][:150])
+        elif want.startswith("equal:"):  # no crossing rule: same answer with and without a store
+            ref = r1.get(want[6:], {}).get("exit", -1)
+            obs(cid, "ctl", o["exit"], {ref} | ({2} if o["exit"] == 2 else set()), "embedded=%s %s" % (ref, o["text"][:120]))
+        elif want == "info":
+            continue
+        else:
+            obs(cid, "ctl" if cid == "R1.embedded" else "gate", o["exit"], {BLOCKED} if cid == "R1.embedded" else NOT_PASS, o["text"][:150])
     for cid in ("R1.store-explicit", "R1.auto-store", "R1.batch", "R1.same-id-shadow", "R1.same-id-shadow-batch"):
-        o = r1.get(cid)
-        obs(cid, "gate", o["exit"] if o else -1, NOT_PASS, o["text"][:150] if o else "not recorded")
+        if cid not in r1:
+            obs(cid, "gate", -1, NOT_PASS, "not recorded")
 
 # R2 ------------------------------------------------------------------------------------------------------------
 for cid, text in (("R2.flat", "opensearch.experimental.feature.pluggable.caching.enabled: true\n"),
@@ -150,7 +164,7 @@ if os.path.exists(a.allow):
     except Exception as e:
         allow, bad = {}, ["unreadable allow-list: %r" % e]
 for k, v in allow.items():
-    if k not in ALLOWABLE:
+    if not allowable(k):
         bad.append(f"{k}: not an allow-listable review finding")
     elif not (isinstance(v, dict) and v.get("wi") in WIS and str(v.get("reason", "")).strip()):
         bad.append(f"{k}: entry needs {{'wi': one of {sorted(WIS)}, 'reason': text}}")
@@ -158,7 +172,7 @@ cases, seen = [], set()
 for cid, kind, code, ok, note in OBS:
     seen.add(cid)
     good = code in ok
-    entry = allow.get(cid) if cid in ALLOWABLE else None
+    entry = allow.get(cid) if allowable(cid) else None
     if entry and not bad and good:
         cases.append(case("review", "stale-allow:" + cid, mismatch=True, error=True, exit=code, wi=entry.get("wi"),
                           why="FIXED - remove from allow-list"))
@@ -168,12 +182,12 @@ for cid, kind, code, ok, note in OBS:
                           mismatch=not entry and not (passed and kind == "gate"), exit=code, expect=sorted(ok), note=note,
                           allowed=entry))
 for cid in allow:
-    if cid in ALLOWABLE and cid not in seen:
+    if allowable(cid) and cid not in seen:
         cases.append(case("review", "allowed-not-run:" + cid, wi=allow[cid].get("wi") if isinstance(allow[cid], dict) else None))
 for msg in bad:
     cases.append(case("review", "allow-list", error=True, why=msg))
 if not OBS:
     cases.append(case("review", "no-cases", error=True, why="no review case ran (Go harness missing or failed)"))
-cases.append(case("review", "summary", ran=len(OBS), skipped=SKIPPED, allowed=len([c for c in allow if c in ALLOWABLE])))
+cases.append(case("review", "summary", ran=len(OBS), skipped=SKIPPED, allowed=len([c for c in allow if allowable(c)])))
 dump(cases, a.out)
 print("review", json.dumps(counts(cases)))
