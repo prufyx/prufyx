@@ -20,6 +20,8 @@ const checkHelpLegacy = `Usage:
   prufyx check cncf --project containerd --containerd-config FILE --runtime-handler NAME --from 1.7.28 --to 2.0.0 --containerd-config-complete --containerd-config-precedence-resolved --containerd-official-upstream --containerd-official-bundled-runtimes-only --now RFC3339 [--containerd-config-digest SHA256] [--format human|json]
   prufyx check cncf --project SLUG --input FILE --now RFC3339 [--input-digest SHA256] [--format human|json]
   prufyx check cncf --project SLUG --input FILE --knowledge-db DIR [--input-digest SHA256] [--format human|json]
+  prufyx check project --project airflow --effective-config FILE --from 3.0.6 --to 3.1.0 --effective-config-complete --precedence-resolved --now RFC3339 [--effective-config-digest SHA256] [--format human|json]
+  prufyx check project --project opensearch --effective-config FILE --from 2.19.7 --to 3.0.0 --effective-config-complete --precedence-resolved --now RFC3339 [--effective-config-digest SHA256] [--format human|json]
   prufyx check project --project grafana|kibana|loki --effective-config FILE --from VERSION --to VERSION --effective-config-complete --precedence-resolved --now RFC3339 [--effective-config-digest SHA256] [--format human|json]
   prufyx check project --project loki --loki-schema-config FILE --from 2.9.8 --to 3.0.0 --effective-config-complete --precedence-resolved --now RFC3339 [--use-reviewed-target-default] [--loki-schema-config-digest SHA256] [--format human|json]
   prufyx check project --project fluent-bit --effective-config FILE --from 3.2.0 --to 4.0.0 --effective-config-complete --current-default-was-used --preserve-http2-enabled --now RFC3339 [--effective-config-digest SHA256] [--format human|json]
@@ -46,6 +48,8 @@ Exit status for check tikv-gcp-v2-wif-backup: 0 scoped PASS, 10 scoped BLOCKED, 
 Exit status for check batch: legacy mode preserves 0 PASS, 10 BLOCKED, 11 UNKNOWN or stale, 2 invalid input, 3 integrity failure; detailed mode uses 12 stale evidence and 13 evaluation clock before review.`
 
 const prepareHelpLegacy = `Usage:
+  prufyx prepare project --project airflow --effective-config FILE --from 3.0.6 --to 3.1.0 --effective-config-complete --precedence-resolved [--effective-config-digest SHA256] [--format human|json|input]
+  prufyx prepare project --project opensearch --effective-config FILE --from 2.19.7 --to 3.0.0 --effective-config-complete --precedence-resolved [--effective-config-digest SHA256] [--format human|json|input]
   prufyx prepare project --project grafana|kibana|loki --effective-config FILE --from VERSION --to VERSION --effective-config-complete --precedence-resolved [--effective-config-digest SHA256] [--format human|json|input]
   prufyx prepare project --project loki --loki-schema-config FILE --from 2.9.8 --to 3.0.0 --effective-config-complete --precedence-resolved [--use-reviewed-target-default] [--loki-schema-config-digest SHA256] [--format human|json|input]
   prufyx prepare project --project fluent-bit --effective-config FILE --from 3.2.0 --to 4.0.0 --effective-config-complete --current-default-was-used --preserve-http2-enabled [--effective-config-digest SHA256] [--format human|json|input]
@@ -407,8 +411,11 @@ with umask 077 to a new file so it remains private. --format json also includes
 the source digest, preparation reason and omissions, without raw workload data.
 Exit 0: prepared; 11: unresolved preparation; 2: invalid input; 3: integrity failure.`
 
-const checkProjectLegacy = `Usage: prufyx check project --project grafana|kibana|loki --effective-config FILE --from VERSION --to VERSION --effective-config-complete --precedence-resolved --now RFC3339 [--effective-config-digest SHA256] [--format human|json]
+const checkProjectLegacy = `Usage: prufyx check project --project airflow --effective-config FILE --from 3.0.6 --to 3.1.0 --effective-config-complete --precedence-resolved --now RFC3339 [--effective-config-digest SHA256] [--format human|json]
+  prufyx check project --project opensearch --effective-config FILE --from 2.19.7 --to 3.0.0 --effective-config-complete --precedence-resolved --now RFC3339 [--effective-config-digest SHA256] [--format human|json]
+  prufyx check project --project grafana|kibana|loki --effective-config FILE --from VERSION --to VERSION --effective-config-complete --precedence-resolved --now RFC3339 [--effective-config-digest SHA256] [--format human|json]
    Kibana 9.0.8|9.1.10|9.2.8|9.3.8|9.4.6 -> 9.5.3 additionally requires --full-status-without-monitor-required for the status-page scope.
+   For airflow and opensearch, --effective-config must be the plain airflow.cfg or opensearch.yml, not a Helm values file, a ConfigMap or a manifest that wraps it: a wrapped file is UNKNOWN or invalid input.
    or: prufyx check project --project loki --loki-schema-config FILE --from 2.9.8 --to 3.0.0 --effective-config-complete --precedence-resolved --now RFC3339 [--use-reviewed-target-default] [--loki-schema-config-digest SHA256] [--format human|json]
    or: prufyx check project --project fluent-bit --effective-config FILE --from 3.2.0 --to 4.0.0 --effective-config-complete --current-default-was-used --preserve-http2-enabled --now RFC3339 [--effective-config-digest SHA256] [--format human|json]
    or: prufyx check project --project fluent-bit --effective-config FILE --from 3.2.10|4.0.14|4.1.2|4.2.8|5.0.10 --to 5.1.2 --effective-config-complete --require-http2 --now RFC3339 [--effective-config-digest SHA256] [--format human|json]
@@ -417,8 +424,11 @@ const checkProjectLegacy = `Usage: prufyx check project --project grafana|kibana
    or: prufyx check project --project ceph --selected-osd-metadata FILE --selected-osd-id ID --from VERSION --to VERSION --selected-osd-metadata-complete --now RFC3339 [--selected-osd-metadata-digest SHA256] [--format human|json]
 This preview is embedded-only. --knowledge-db, --profile, and replay flags are not supported for community projects.`
 
-const prepareProjectLegacy = `Usage: prufyx prepare project --project grafana|kibana|loki --effective-config FILE --from VERSION --to VERSION --effective-config-complete --precedence-resolved [--effective-config-digest SHA256] [--format human|json|input]
+const prepareProjectLegacy = `Usage: prufyx prepare project --project airflow --effective-config FILE --from 3.0.6 --to 3.1.0 --effective-config-complete --precedence-resolved [--effective-config-digest SHA256] [--format human|json|input]
+  prufyx prepare project --project opensearch --effective-config FILE --from 2.19.7 --to 3.0.0 --effective-config-complete --precedence-resolved [--effective-config-digest SHA256] [--format human|json|input]
+  prufyx prepare project --project grafana|kibana|loki --effective-config FILE --from VERSION --to VERSION --effective-config-complete --precedence-resolved [--effective-config-digest SHA256] [--format human|json|input]
    Kibana 9.0.8|9.1.10|9.2.8|9.3.8|9.4.6 -> 9.5.3 additionally requires --full-status-without-monitor-required for the status-page scope.
+   For airflow and opensearch, --effective-config must be the plain airflow.cfg or opensearch.yml, not a Helm values file, a ConfigMap or a manifest that wraps it: a wrapped file is UNKNOWN or invalid input.
    or: prufyx prepare project --project loki --loki-schema-config FILE --from 2.9.8 --to 3.0.0 --effective-config-complete --precedence-resolved [--use-reviewed-target-default] [--loki-schema-config-digest SHA256] [--format human|json|input]
    or: prufyx prepare project --project fluent-bit --effective-config FILE --from 3.2.0 --to 4.0.0 --effective-config-complete --current-default-was-used --preserve-http2-enabled [--effective-config-digest SHA256] [--format human|json|input]
    or: prufyx prepare project --project fluent-bit --effective-config FILE --from 3.2.10|4.0.14|4.1.2|4.2.8|5.0.10 --to 5.1.2 --effective-config-complete --require-http2 [--effective-config-digest SHA256] [--format human|json|input]

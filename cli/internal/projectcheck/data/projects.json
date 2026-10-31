@@ -1,7 +1,15 @@
 {
   "schema": "prufyx.io/community-project-registry/v1alpha1",
-  "revision": "community-projects-2026-09-12.2",
+  "revision": "community-projects-2026-10-31.1",
   "projects": [
+    {
+      "slug": "airflow",
+      "name": "Apache Airflow",
+      "repositoryURL": "https://github.com/apache/airflow",
+      "component": "pkg:github/apache/airflow",
+      "identityAuthority": "MAINTAINER_REVIEWED_EXTERNAL_REPOSITORY",
+      "cncfMembership": "NOT_ASSERTED"
+    },
     {
       "slug": "argo-workflows",
       "name": "Argo Workflows",
@@ -63,6 +71,14 @@
       "name": "MariaDB Operator",
       "repositoryURL": "https://github.com/mariadb-operator/mariadb-operator",
       "component": "pkg:github/mariadb-operator/mariadb-operator",
+      "identityAuthority": "MAINTAINER_REVIEWED_EXTERNAL_REPOSITORY",
+      "cncfMembership": "NOT_ASSERTED"
+    },
+    {
+      "slug": "opensearch",
+      "name": "OpenSearch",
+      "repositoryURL": "https://github.com/opensearch-project/OpenSearch",
+      "component": "pkg:github/opensearch-project/opensearch",
       "identityAuthority": "MAINTAINER_REVIEWED_EXTERNAL_REPOSITORY",
       "cncfMembership": "NOT_ASSERTED"
     }
