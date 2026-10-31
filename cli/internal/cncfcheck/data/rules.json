@@ -28010,6 +28010,412 @@
           }
         ]
       }
+    },
+    {
+      "component": "pkg:github/volcano-sh/volcano",
+      "line": "1.11",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.10.0",
+            "commit": "c601aed1f0bbedc254eaafed5dc57b0cc90fb60c"
+          },
+          {
+            "version": "1.10.1",
+            "commit": "7b8b9b0dd1efeb300eb6b019857ea3e4f1824360"
+          },
+          {
+            "version": "1.10.2",
+            "commit": "ca2dbb36bb41232afd68a7ced85451a7f3b9f12a"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.11.0",
+            "commit": "f1141171980bee89114c9be3f0e3c1472848e0b0"
+          },
+          {
+            "version": "1.11.1",
+            "commit": "879cdf3adef11cab7a8d44852f61e6255d7fc400"
+          },
+          {
+            "version": "1.11.2",
+            "commit": "735842af59b9be0da5090677db7693c98a798b2a"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.volcano",
+          "version": "2.7.0",
+          "codeDigest": "sha256:bcbdc5d3a10f554096327d0229664080c2e4c85c5401ba79aeef7a573b6c795d"
+        },
+        "derivedAt": "2026-10-30T23:59:17Z",
+        "reviewedAt": "2026-10-30T23:59:17Z",
+        "validUntil": "2027-01-28T23:59:17Z",
+        "sources": [
+          {
+            "id": "crds-1-10-0",
+            "url": "https://github.com/volcano-sh/volcano/blob/c601aed1f0bbedc254eaafed5dc57b0cc90fb60c/config/crd/jobflow/bases/flow.volcano.sh_jobflows.yaml",
+            "revision": "c601aed1f0bbedc254eaafed5dc57b0cc90fb60c",
+            "contentDigest": "sha256:0a64bf9c96c701425f4db862eb24f4d7ebfdacad51c4e015d24de50f662c1e8c",
+            "startLine": 1,
+            "endLine": 190
+          },
+          {
+            "id": "crds-1-11-0",
+            "url": "https://github.com/volcano-sh/volcano/blob/f1141171980bee89114c9be3f0e3c1472848e0b0/config/crd/jobflow/bases/flow.volcano.sh_jobflows.yaml",
+            "revision": "f1141171980bee89114c9be3f0e3c1472848e0b0",
+            "contentDigest": "sha256:be658029f6d8bf99b15d25fd6ac77f1515df601eadbf9a843b2723ec307570bc",
+            "startLine": 1,
+            "endLine": 198
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/volcano-sh/volcano",
+      "line": "1.12",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.11.0",
+            "commit": "f1141171980bee89114c9be3f0e3c1472848e0b0"
+          },
+          {
+            "version": "1.11.1",
+            "commit": "879cdf3adef11cab7a8d44852f61e6255d7fc400"
+          },
+          {
+            "version": "1.11.2",
+            "commit": "735842af59b9be0da5090677db7693c98a798b2a"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.12.0",
+            "commit": "d24c04ca1a2813c506a1d9d3cd38dca9bf7ce400"
+          },
+          {
+            "version": "1.12.1",
+            "commit": "f7acc998d1b23f045b3e3f53cdccff1695bbff37"
+          },
+          {
+            "version": "1.12.2",
+            "commit": "9b72eacdc07eb1edefa2c737eab1b467c301558a"
+          },
+          {
+            "version": "1.12.3",
+            "commit": "afdefddf42f462c5531666915e72cd3d22cd3240"
+          },
+          {
+            "version": "1.12.4",
+            "commit": "28043a49084093e089981e0fa2720ad899346c4a"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.volcano",
+          "version": "2.7.0",
+          "codeDigest": "sha256:bcbdc5d3a10f554096327d0229664080c2e4c85c5401ba79aeef7a573b6c795d"
+        },
+        "derivedAt": "2026-10-30T23:59:17Z",
+        "reviewedAt": "2026-10-30T23:59:17Z",
+        "validUntil": "2027-01-28T23:59:17Z",
+        "sources": [
+          {
+            "id": "crds-1-11-0",
+            "url": "https://github.com/volcano-sh/volcano/blob/f1141171980bee89114c9be3f0e3c1472848e0b0/config/crd/jobflow/bases/flow.volcano.sh_jobflows.yaml",
+            "revision": "f1141171980bee89114c9be3f0e3c1472848e0b0",
+            "contentDigest": "sha256:be658029f6d8bf99b15d25fd6ac77f1515df601eadbf9a843b2723ec307570bc",
+            "startLine": 1,
+            "endLine": 198
+          },
+          {
+            "id": "crds-1-12-0",
+            "url": "https://github.com/volcano-sh/volcano/blob/d24c04ca1a2813c506a1d9d3cd38dca9bf7ce400/config/crd/jobflow/bases/flow.volcano.sh_jobflows.yaml",
+            "revision": "d24c04ca1a2813c506a1d9d3cd38dca9bf7ce400",
+            "contentDigest": "sha256:af416338d095b571fcc77d53fcb0a1dc904c9f45961e487c797378a2280cc617",
+            "startLine": 1,
+            "endLine": 198
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/volcano-sh/volcano",
+      "line": "1.13",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.12.0",
+            "commit": "d24c04ca1a2813c506a1d9d3cd38dca9bf7ce400"
+          },
+          {
+            "version": "1.12.1",
+            "commit": "f7acc998d1b23f045b3e3f53cdccff1695bbff37"
+          },
+          {
+            "version": "1.12.2",
+            "commit": "9b72eacdc07eb1edefa2c737eab1b467c301558a"
+          },
+          {
+            "version": "1.12.3",
+            "commit": "afdefddf42f462c5531666915e72cd3d22cd3240"
+          },
+          {
+            "version": "1.12.4",
+            "commit": "28043a49084093e089981e0fa2720ad899346c4a"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.13.0",
+            "commit": "943b8c23d402462b63f1e21f7f7a39129ba8d63c"
+          },
+          {
+            "version": "1.13.1",
+            "commit": "0c6f3bf706ad6790b1e806ef5e65c2ffdb3418ba"
+          },
+          {
+            "version": "1.13.2",
+            "commit": "8f7a52a6e0a188a3cf42483bfa74fce122bd5599"
+          },
+          {
+            "version": "1.13.3",
+            "commit": "5fe5adf1cc501a3d66950a84a47e0543606bf47e"
+          },
+          {
+            "version": "1.13.4",
+            "commit": "b469a8374e740040071861ec976f61a3f5f5f47c"
+          },
+          {
+            "version": "1.13.5",
+            "commit": "dda9a5eebcb75940503ca9482033a61c33b0a558"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.volcano",
+          "version": "2.7.0",
+          "codeDigest": "sha256:bcbdc5d3a10f554096327d0229664080c2e4c85c5401ba79aeef7a573b6c795d"
+        },
+        "derivedAt": "2026-10-30T23:59:17Z",
+        "reviewedAt": "2026-10-30T23:59:17Z",
+        "validUntil": "2027-01-28T23:59:17Z",
+        "sources": [
+          {
+            "id": "crds-1-12-0",
+            "url": "https://github.com/volcano-sh/volcano/blob/d24c04ca1a2813c506a1d9d3cd38dca9bf7ce400/config/crd/jobflow/bases/flow.volcano.sh_jobflows.yaml",
+            "revision": "d24c04ca1a2813c506a1d9d3cd38dca9bf7ce400",
+            "contentDigest": "sha256:af416338d095b571fcc77d53fcb0a1dc904c9f45961e487c797378a2280cc617",
+            "startLine": 1,
+            "endLine": 198
+          },
+          {
+            "id": "crds-1-13-0",
+            "url": "https://github.com/volcano-sh/volcano/blob/943b8c23d402462b63f1e21f7f7a39129ba8d63c/config/crd/jobflow/bases/flow.volcano.sh_jobflows.yaml",
+            "revision": "943b8c23d402462b63f1e21f7f7a39129ba8d63c",
+            "contentDigest": "sha256:bd99c5d9f619e5e1712a41693539a4ca46e260b66b341cfc30eafc4b39e3e4d0",
+            "startLine": 1,
+            "endLine": 4127
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/volcano-sh/volcano",
+      "line": "1.14",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.13.0",
+            "commit": "943b8c23d402462b63f1e21f7f7a39129ba8d63c"
+          },
+          {
+            "version": "1.13.1",
+            "commit": "0c6f3bf706ad6790b1e806ef5e65c2ffdb3418ba"
+          },
+          {
+            "version": "1.13.2",
+            "commit": "8f7a52a6e0a188a3cf42483bfa74fce122bd5599"
+          },
+          {
+            "version": "1.13.3",
+            "commit": "5fe5adf1cc501a3d66950a84a47e0543606bf47e"
+          },
+          {
+            "version": "1.13.4",
+            "commit": "b469a8374e740040071861ec976f61a3f5f5f47c"
+          },
+          {
+            "version": "1.13.5",
+            "commit": "dda9a5eebcb75940503ca9482033a61c33b0a558"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.14.0",
+            "commit": "6f86a47f32772ca8df248add31d01385a8a097b4"
+          },
+          {
+            "version": "1.14.1",
+            "commit": "49b8f40ba6247b9a6a65e14e6e14c4fb19feb77c"
+          },
+          {
+            "version": "1.14.2",
+            "commit": "92d6e4cdcc5cb6cb6a10ae9a3025104a0066adba"
+          },
+          {
+            "version": "1.14.3",
+            "commit": "27fec3b5cfab105e1eb731c470e33c98784b76ff"
+          },
+          {
+            "version": "1.14.4",
+            "commit": "2160f3d687229094bb47b9b55540af711925c11c"
+          },
+          {
+            "version": "1.14.5",
+            "commit": "496b6ebff0a2df2d03a3a3071f1f6156c6034c83"
+          },
+          {
+            "version": "1.14.6",
+            "commit": "55da8dc0c54b1e4a01a74ee413f7fb4150e5e552"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.volcano",
+          "version": "2.7.0",
+          "codeDigest": "sha256:bcbdc5d3a10f554096327d0229664080c2e4c85c5401ba79aeef7a573b6c795d"
+        },
+        "derivedAt": "2026-10-30T23:59:17Z",
+        "reviewedAt": "2026-10-30T23:59:17Z",
+        "validUntil": "2027-01-28T23:59:17Z",
+        "sources": [
+          {
+            "id": "crds-1-13-0",
+            "url": "https://github.com/volcano-sh/volcano/blob/943b8c23d402462b63f1e21f7f7a39129ba8d63c/config/crd/jobflow/bases/flow.volcano.sh_jobflows.yaml",
+            "revision": "943b8c23d402462b63f1e21f7f7a39129ba8d63c",
+            "contentDigest": "sha256:bd99c5d9f619e5e1712a41693539a4ca46e260b66b341cfc30eafc4b39e3e4d0",
+            "startLine": 1,
+            "endLine": 4127
+          },
+          {
+            "id": "crds-1-14-0",
+            "url": "https://github.com/volcano-sh/volcano/blob/6f86a47f32772ca8df248add31d01385a8a097b4/config/crd/jobflow/bases/flow.volcano.sh_jobflows.yaml",
+            "revision": "6f86a47f32772ca8df248add31d01385a8a097b4",
+            "contentDigest": "sha256:a9713b34f8f1d1c3844d014c9706407024b0d59013b8dc588e748ae9aa4ee556",
+            "startLine": 1,
+            "endLine": 4336
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/volcano-sh/volcano",
+      "line": "1.15",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.14.0",
+            "commit": "6f86a47f32772ca8df248add31d01385a8a097b4"
+          },
+          {
+            "version": "1.14.1",
+            "commit": "49b8f40ba6247b9a6a65e14e6e14c4fb19feb77c"
+          },
+          {
+            "version": "1.14.2",
+            "commit": "92d6e4cdcc5cb6cb6a10ae9a3025104a0066adba"
+          },
+          {
+            "version": "1.14.3",
+            "commit": "27fec3b5cfab105e1eb731c470e33c98784b76ff"
+          },
+          {
+            "version": "1.14.4",
+            "commit": "2160f3d687229094bb47b9b55540af711925c11c"
+          },
+          {
+            "version": "1.14.5",
+            "commit": "496b6ebff0a2df2d03a3a3071f1f6156c6034c83"
+          },
+          {
+            "version": "1.14.6",
+            "commit": "55da8dc0c54b1e4a01a74ee413f7fb4150e5e552"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.15.0",
+            "commit": "8fc394c11e8db0d0ada5c17816b58bced9d7213d"
+          },
+          {
+            "version": "1.15.1",
+            "commit": "0a56ed331897f5455916a44d3075671376d731d6"
+          },
+          {
+            "version": "1.15.2",
+            "commit": "1462fb7b4835970708717456e3aed85e697ec2eb"
+          },
+          {
+            "version": "1.15.3",
+            "commit": "d2dd7024f4af3070f9d99d68a78973893908a743"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.volcano",
+          "version": "2.7.0",
+          "codeDigest": "sha256:bcbdc5d3a10f554096327d0229664080c2e4c85c5401ba79aeef7a573b6c795d"
+        },
+        "derivedAt": "2026-10-30T23:59:17Z",
+        "reviewedAt": "2026-10-30T23:59:17Z",
+        "validUntil": "2027-01-28T23:59:17Z",
+        "sources": [
+          {
+            "id": "crds-1-14-0",
+            "url": "https://github.com/volcano-sh/volcano/blob/6f86a47f32772ca8df248add31d01385a8a097b4/config/crd/jobflow/bases/flow.volcano.sh_jobflows.yaml",
+            "revision": "6f86a47f32772ca8df248add31d01385a8a097b4",
+            "contentDigest": "sha256:a9713b34f8f1d1c3844d014c9706407024b0d59013b8dc588e748ae9aa4ee556",
+            "startLine": 1,
+            "endLine": 4336
+          },
+          {
+            "id": "crds-1-15-0",
+            "url": "https://github.com/volcano-sh/volcano/blob/8fc394c11e8db0d0ada5c17816b58bced9d7213d/config/crd/jobflow/bases/flow.volcano.sh_jobflows.yaml",
+            "revision": "8fc394c11e8db0d0ada5c17816b58bced9d7213d",
+            "contentDigest": "sha256:ac4dd87f7f230f98ee636edf0962c093649d033b6901ab41671eb02eb1f13fd2",
+            "startLine": 1,
+            "endLine": 4350
+          }
+        ]
+      }
     }
   ],
   "pathPolicies": [
