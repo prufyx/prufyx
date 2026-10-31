@@ -175,7 +175,7 @@ func TestFalcoMesosRuleListsTheAliases(t *testing.T) {
 	found := false
 	for _, entry := range shippedPack(t).Entries {
 		var rule struct {
-			ID           string `json:"id"`
+			ID           string                     `json:"id"`
 			SetCondition struct{ Members []string } `json:"setCondition"`
 		}
 		if err := json.Unmarshal(entry.Rule, &rule); err != nil || rule.ID != "falco.relnotes.flag-removed.mesos-api.0-35" {
