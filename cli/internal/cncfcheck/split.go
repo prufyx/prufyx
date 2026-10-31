@@ -168,8 +168,11 @@ func parseExternalIndex(raw []byte, base *bundle) (ExternalIndex, error) {
 		base = &loaded
 	}
 	capability, err := externalCapabilityDigest(*base)
-	if err != nil || document.EngineCapabilityDigest != capability {
+	if err != nil {
 		return ExternalIndex{}, ErrIntegrity
+	}
+	if document.EngineCapabilityDigest != capability {
+		return ExternalIndex{}, errors.Join(ErrIntegrity, ErrCapabilityMismatch)
 	}
 	var earliest time.Time
 	withRecords, withCommunity := 0, 0

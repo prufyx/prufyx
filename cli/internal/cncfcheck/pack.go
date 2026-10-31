@@ -36,6 +36,12 @@ var (
 	digestPattern = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 )
 
+// ErrCapabilityMismatch is joined with ErrIntegrity when a signed index or
+// bundle was built for another engine capability (engine contract, fact
+// registry, policy or landscape) than this build compiles. It is not
+// tampering: the document is authentic but not for this build.
+var ErrCapabilityMismatch = errors.New("the knowledge was built for a different engine capability than this build")
+
 type projectIdentity struct {
 	Slug          string `json:"slug"`
 	Name          string `json:"name"`

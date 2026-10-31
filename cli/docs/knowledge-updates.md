@@ -156,6 +156,22 @@ change. Giving `--source` or `--release-plan` keeps the rules described above
   readable package imports normally. The message names the minimum version when
   the package states one; upgrade prufyx. A package that fails signature, hash or
   digest checks is still an integrity failure (exit `3`).
+- **Built for another engine capability (exit `15`).** A package whose index was
+  built for a different engine capability than this build compiles (the fact
+  registry, policy or engine contract differ) is reported as
+  `KNOWLEDGE_CAPABILITY_MISMATCH`, also with exit `15`, and changes nothing. The
+  message does not say which side is newer: upgrade prufyx if it is older than
+  the feed, otherwise the feed has not been republished for this release yet.
+  The embedded knowledge and the current local database stay in use.
+  The capability changes when a project is added to the supported table, when a
+  fact is registered, or when the engine changes; rule and attestation updates for
+  existing projects do not change it. So `prufyx db update` delivers feed
+  updates only while the feed was built for the same capability as the
+  installed prufyx; after such a change, older builds report the mismatch until
+  they are upgraded. If a database from the old feed is installed and you
+  upgrade prufyx, run `prufyx db update` first: until then `scan` and `check` may
+  stop with exit `3` instead of using the embedded knowledge (fix planned for
+  beta.1).
 - **Store from another root.** A store whose initial root is not the pinned root is
   refused with the message to remove the store directory
   (the path is printed) and run `db update` again. There is no reset command.

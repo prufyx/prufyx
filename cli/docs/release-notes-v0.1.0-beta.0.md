@@ -176,6 +176,16 @@ You can also build from source; see the [README](https://github.com/prufyx/prufy
   `minClientVersion` above this build) makes `prufyx db update` and `prufyx db
   import` exit `15` (`KNOWLEDGE_TOO_NEW_FOR_THIS_CLIENT`). The current store and the
   embedded knowledge are kept. Upgrade prufyx.
+- `prufyx db update` follows the official feed only while the feed was built
+  for the same engine capability as this build. Adding a project to the
+  supported table, registering a fact or changing the engine changes the
+  capability; a feed published after such a change is refused by this build
+  with exit `15` and the reason `KNOWLEDGE_CAPABILITY_MISMATCH` (the embedded
+  knowledge and your current database keep working) until prufyx is upgraded.
+  Rule and attestation updates for existing projects do not change the
+  capability. If you upgrade with a database from an older feed installed, run
+  `prufyx db update` before `scan`; until then `scan` and `check` may stop with
+  exit `3`. Compatibility across capabilities is planned for beta.1.
 - `scan` and `check` use the newer of the local database and the embedded
   knowledge, compared by the latest evidence review date per project. A
   database that is older for any project is not used and the embedded
