@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "absent",
+    "candidateDigest": "sha256:2a1d0ef19fc42a92f31949a83fc6b4f16ab42da629e95d6528910bae30ba2485",
+    "candidateId": "pr-346",
+    "decidedAt": "2026-10-31T13:34:28Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "community",
+    "ruleId": "airflow.removed-option-webserver-instance-name-has-markup.3-0-6-to-3-1-0"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "tF/BdwVHtab1FW6sFEg3TaB4UNXUVdCodM3OMNIRuaQBLqf0gHZ+XtdTsxGIObDqh/V8uVhw9cgD4OjrOTWcBA=="
+}
