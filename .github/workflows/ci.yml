@@ -28,6 +28,8 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
+          # The release-notes check below reads two revisions of the history.
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
@@ -81,6 +83,16 @@ jobs:
         run: |
           scripts/readme-coverage.sh --check
           scripts/preview-coverage.sh --check
+
+      - name: Check generated release-notes block
+        # The generated block of the beta.0 release notes must equal its
+        # regeneration from the two revisions it names. This catches a hand
+        # edit of the block; it does not move the block to a newer revision.
+        working-directory: cli
+        run: |
+          go run ./cmd/prufyx-maintainer release-notes --repo .. \
+            --from v0.0.1-alpha.1 --to b55e9425f44b --to-label v0.1.0-beta.0 \
+            --into docs/release-notes-v0.1.0-beta.0.md --check
 
   test-core:
     # Sharded by package group so the slowest packages run side by side. The
