@@ -347,7 +347,7 @@ jobs:
         # runs race the full list, so every commit that reaches main is raced.
         run: |
           set -euo pipefail
-          base_packages="./internal/scanreport/ ./internal/scanrun/ ./internal/cncfcheck/ ./internal/constraintengine/ ./internal/knowledge/ ./internal/maintainer/rulecheck/"
+          base_packages="./internal/scanreport/ ./internal/scanrun/ ./internal/cncfcheck/ ./internal/constraintengine/ ./internal/knowledge/ ./internal/maintainer/rulecheck/ ./internal/knowledgeauto/ ./internal/communityapp/"
           root=$(pwd)
           cd cli
           selected=""
