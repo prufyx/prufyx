@@ -3,8 +3,10 @@
 package cncfcheck
 
 import (
+	"encoding/json"
 	"sort"
 
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/upgradepath"
 )

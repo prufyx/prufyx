@@ -27,8 +27,8 @@ type relnotesSetFact struct {
 }
 
 const (
-	descFlags   = "Command-line flags the deployment passes: long names without leading dashes (--web.enable-lifecycle is web.enable-lifecycle); values are not part of the set."
-	descConfig  = "Configuration keys the deployment sets: dotted key paths from the document root (server.tls.enabled); values are not part of the set."
+	descFlags  = "Command-line flags the deployment passes: long names without leading dashes (--web.enable-lifecycle is web.enable-lifecycle); values are not part of the set."
+	descConfig = "Configuration keys the deployment sets: dotted key paths from the document root (server.tls.enabled); values are not part of the set."
 )
 
 func relnotesSetFacts() []relnotesSetFact {
