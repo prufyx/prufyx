@@ -15,8 +15,8 @@ import (
 // TestEmbeddedRelnotesCrossingRules holds every release-note removal rule of
 // the embedded pack (a crossing-only forbid_set_member over a project's
 // caller-supplied flag or config-key set) to what it may say: BLOCKED when
-// the deployment sets the removed member before a hop that crosses the
-// release, and never PASS otherwise (a crossing only blocks). The external
+// the deployment sets the removed member, nothing else blocks, and an
+// incomplete or missing set never passes. The external
 // bundle and the per-project targets leave these rules out
 // (external_pack.go), which TestSplitTargetsCoverThePackExactlyAndAreDeterministic
 // and TestExportEmbeddedExternalBundlePreservesCompletePack hold.
@@ -52,14 +52,20 @@ func TestEmbeddedRelnotesCrossingRules(t *testing.T) {
 			raw, _ := json.Marshal(members)
 			return `{"id":"` + rule.SetCondition.FactID + `","state":"declared","setValue":{"members":` + string(raw) + `,"complete":true}}`
 		}
+		incomplete := `{"id":"` + rule.SetCondition.FactID + `","state":"declared","setValue":{"members":["zz-unrelated"],"complete":false}}`
 		for _, tc := range []struct {
 			name, fact string
 			blocked    bool
+			// mayPass: the rule decides its own anchor hop, so a complete
+			// declared set without the member passes THAT rule only (as
+			// every set rule does); an incomplete or missing set never does.
+			mayPass bool
 		}{
-			{"member set", declared(rule.SetCondition.Members[0]), true},
-			{"unrelated member set", declared("zz-unrelated"), false},
-			{"empty set", declared(), false},
-			{"fact unsupported", `{"id":"` + rule.SetCondition.FactID + `","state":"unsupported"}`, false},
+			{"member set", declared(rule.SetCondition.Members[0]), true, false},
+			{"unrelated member set", declared("zz-unrelated"), false, true},
+			{"empty set", declared(), false, true},
+			{"incomplete set", incomplete, false, false},
+			{"fact unsupported", `{"id":"` + rule.SetCondition.FactID + `","state":"unsupported"}`, false, false},
 		} {
 			report, err := CheckRule(entry.Project, rule.ID, input(tc.fact), now)
 			if err != nil || len(report.Check.Claims) != 1 {
@@ -69,7 +75,10 @@ func TestEmbeddedRelnotesCrossingRules(t *testing.T) {
 			if tc.blocked && (status != "BLOCKED" || exit != 10) {
 				t.Fatalf("%s %s: status=%s exit=%d, want BLOCKED", rule.ID, tc.name, status, exit)
 			}
-			if !tc.blocked && (status == "PASS" || exit == 0) {
+			if !tc.blocked && status == "BLOCKED" {
+				t.Fatalf("%s %s: blocked without the member", rule.ID, tc.name)
+			}
+			if !tc.blocked && !tc.mayPass && (status == "PASS" || exit == 0) {
 				t.Fatalf("%s %s: a crossing rule passed (status=%s exit=%d)", rule.ID, tc.name, status, exit)
 			}
 		}
