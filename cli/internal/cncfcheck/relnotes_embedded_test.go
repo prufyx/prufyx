@@ -191,3 +191,28 @@ func TestFalcoMesosRuleListsTheAliases(t *testing.T) {
 		t.Fatal("falco mesos-api rule missing")
 	}
 }
+
+// The falco 0.37.0 release removes --userspace and -K/-k (Kubernetes metadata
+// support) from the command line; the 0.36.2 option table adds the names -u,
+// --k8s-api, --k8s-api-cert and --k8s-node, which the 0.37.0 table no longer
+// holds. The rule lists every one, short names case-sensitive.
+func TestFalcoCLIOptionsRuleListsEveryRemovedName(t *testing.T) {
+	t.Parallel()
+	found := false
+	for _, entry := range shippedPack(t).Entries {
+		var rule struct {
+			ID           string                     `json:"id"`
+			SetCondition struct{ Members []string } `json:"setCondition"`
+		}
+		if err := json.Unmarshal(entry.Rule, &rule); err != nil || rule.ID != "falco.relnotes.flag-removed.cli-options.0-37" {
+			continue
+		}
+		found = true
+		if strings.Join(rule.SetCondition.Members, ",") != "K,k,k8s-api,k8s-api-cert,k8s-node,u,userspace" {
+			t.Fatalf("members=%v, want every option 0.37.0 removed", rule.SetCondition.Members)
+		}
+	}
+	if !found {
+		t.Fatal("falco cli-options rule missing")
+	}
+}

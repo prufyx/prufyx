@@ -5726,6 +5726,14 @@
               "revision": "1b62b5ccd1c64cd972ef0252262075cbf42a130c",
               "startLine": 200,
               "url": "https://raw.githubusercontent.com/falcosecurity/falco/1b62b5ccd1c64cd972ef0252262075cbf42a130c/userspace/falco/app/options.cpp"
+            },
+            {
+              "contentDigest": "sha256:18a0b864da008579014681f37e49e3f973267c4b45d184bc428477449ee8ff6f",
+              "endLine": 211,
+              "id": "options-0-37-0",
+              "revision": "ba229e5b54d48e39bb76bce3790cef9fb94c708b",
+              "startLine": 1,
+              "url": "https://raw.githubusercontent.com/falcosecurity/falco/ba229e5b54d48e39bb76bce3790cef9fb94c708b/userspace/falco/app/options.cpp"
             }
           ],
           "state": "active",
