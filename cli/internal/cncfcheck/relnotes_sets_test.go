@@ -103,3 +103,42 @@ func TestRelnotesGuardIsMinimal(t *testing.T) {
 		}
 	}
 }
+
+// A fact id spelled with JSON escapes is the same id to the engine's parser:
+// the guard decodes every input, so the spelling cannot skip it.
+func TestRelnotesGuardSeesEscapedFactIDs(t *testing.T) {
+	t.Parallel()
+	escaped := bytes.Replace(relnotesInput(factCortexFlags, true, "cluster.peer"), []byte("cli_flags_set"), []byte(`cli_flags_set`), 1)
+	if bytes.Equal(escaped, relnotesInput(factCortexFlags, true, "cluster.peer")) {
+		t.Fatal("test input not escaped")
+	}
+	if _, down, err := guardRelnotesSets(escaped); err != nil || !down {
+		t.Fatalf("escaped id not downgraded: down=%v err=%v", down, err)
+	}
+	upper := bytes.Replace(relnotesInput(factCortexFlags, true, "Store.max-look-back-period"), []byte("cli_flags_set"), []byte(`cli_flags_set`), 1)
+	if _, _, err := guardRelnotesSets(upper); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("escaped id with an upper-case member: %v", err)
+	}
+}
+
+// A rewrite never makes valid an input the engine's own gate refuses.
+func TestRelnotesParseGuardedKeepsTheEngineGate(t *testing.T) {
+	t.Parallel()
+	b, err := load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	good := relnotesInput(factCortexFlags, true, "cluster.peer")
+	if _, down, err := parseGuarded(good, b.registry); err != nil || !down {
+		t.Fatalf("good input: down=%v err=%v", down, err)
+	}
+	for name, raw := range map[string][]byte{
+		"duplicate key": bytes.Replace(good, []byte(`"authority":"OPERATOR_DECLARED_MINIMIZED",`), []byte(`"authority":"OPERATOR_DECLARED_MINIMIZED","authority":"OPERATOR_DECLARED_MINIMIZED",`), 1),
+		"trailing data": append(append([]byte{}, good...), []byte(` {}`)...),
+		"invalid utf-8": bytes.Replace(good, []byte("cluster.peer"), []byte("cluster.pe\xffr"), 1),
+	} {
+		if _, _, err := parseGuarded(raw, b.registry); !errors.Is(err, ErrInvalid) {
+			t.Fatalf("%s accepted: %v", name, err)
+		}
+	}
+}

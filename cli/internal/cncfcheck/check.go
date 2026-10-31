@@ -179,11 +179,7 @@ func ValidateCanonicalInput(project string, inputRaw []byte) error {
 	if !b.hasProject(project) {
 		return ErrInvalid
 	}
-	guarded, _, err := guardRelnotesSets(inputRaw)
-	if err != nil {
-		return ErrInvalid
-	}
-	if _, err := constraintengine.ParseInput(guarded, b.registry); err != nil {
+	if _, _, err := parseGuarded(inputRaw, b.registry); err != nil {
 		return ErrInvalid
 	}
 	return nil
@@ -213,11 +209,7 @@ func (b bundle) check(project, selectedRuleID string, inputRaw []byte, now time.
 	if !b.hasCheckableProject(project) {
 		return Report{}, ErrInvalid
 	}
-	guarded, _, err := guardRelnotesSets(inputRaw)
-	if err != nil {
-		return Report{}, ErrInvalid
-	}
-	input, err := constraintengine.ParseInput(guarded, b.registry)
+	input, _, err := parseGuarded(inputRaw, b.registry)
 	if err != nil {
 		return Report{}, ErrInvalid
 	}
@@ -274,11 +266,7 @@ func (b bundle) checkFacts(project string, facts []string, inputRaw []byte, now 
 	if !b.hasCheckableProject(project) {
 		return Report{}, ErrInvalid
 	}
-	guarded, _, err := guardRelnotesSets(inputRaw)
-	if err != nil {
-		return Report{}, ErrInvalid
-	}
-	input, err := constraintengine.ParseInput(guarded, b.registry)
+	input, _, err := parseGuarded(inputRaw, b.registry)
 	if err != nil {
 		return Report{}, ErrInvalid
 	}
@@ -327,9 +315,6 @@ func (b bundle) reportSelection(project, selectedRuleID string, family bool, inp
 		Check:           result,
 		TrustPolicy:     b.policy.disclosure(selected),
 	}
-	if _, downgraded, _ := guardRelnotesSets(inputRaw); downgraded {
-		report.NextAction = relnotesUnreviewedNextAction
-	}
 	if b.external {
 		report.KnowledgeOrigin, report.SourceAuthority = "external_declared", externalSourceAuthority
 	}
@@ -347,6 +332,14 @@ func (b bundle) reportSelection(project, selectedRuleID string, family bool, inp
 		}
 		if selected.excluded > 0 {
 			report.NextAction = trustPolicyNextAction
+		}
+	}
+	if _, downgraded, _ := guardRelnotesSets(inputRaw); downgraded && selected.excluded == 0 {
+		for _, claim := range result.Claims {
+			if claim.ReasonCode == "RULE_SET_FACT_INCOMPLETE" {
+				report.NextAction = relnotesUnreviewedNextAction
+				break
+			}
 		}
 	}
 	report.seal = &reportSeal{}

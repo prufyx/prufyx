@@ -336,11 +336,7 @@ func (b ExternalBundle) evaluate(project, selectedRuleID string, inputRaw []byte
 			return Report{}, ErrInvalid
 		}
 	}
-	guarded, _, err := guardRelnotesSets(inputRaw)
-	if err != nil {
-		return Report{}, ErrInvalid
-	}
-	input, err := constraintengine.ParseInput(guarded, selected.registry)
+	input, _, err := parseGuarded(inputRaw, selected.registry)
 	if err != nil {
 		return Report{}, ErrInvalid
 	}
