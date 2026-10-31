@@ -302,10 +302,12 @@ func (b ExternalBundle) Evaluate(project string, inputRaw []byte, now time.Time)
 	return b.evaluate(project, "", inputRaw, now)
 }
 
-// EvaluateRule applies one closed rule selection without embedded fallback.
-// The compiled pack must establish that the requested rule belongs to project;
-// the selected external pack may omit it, in which case the report has no
-// claims and remains UNKNOWN.
+// EvaluateRule applies one closed rule selection. The compiled pack must
+// establish that the requested rule belongs to project. The rule is looked up
+// in the external pack plus the project's embedded removal-crossing rules (a
+// store never carries one, and a store rule with a crossing rule's id is an
+// integrity failure); when neither holds it the report has no claims and
+// remains UNKNOWN.
 func (b ExternalBundle) EvaluateRule(project, ruleID string, inputRaw []byte, now time.Time) (Report, error) {
 	if ruleID == "" {
 		return Report{}, ErrInvalid

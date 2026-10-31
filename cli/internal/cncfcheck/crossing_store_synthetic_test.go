@@ -116,6 +116,28 @@ func TestSyntheticStoreCrossingRuleSortingFirst(t *testing.T) {
 	if err != nil || ClaimExit(report) != 10 {
 		t.Fatalf("store scan: exit %d, %v", ClaimExit(report), err)
 	}
+	// The hop above matches one rule only; the whole project document must
+	// still parse, which needs the merged entries in ascending id order.
+	base, err := load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	merged, err := packWithEmbeddedCrossing(base.pack, store.pack, "kubernetes")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 1; i < len(merged.Entries); i++ {
+		if ruleID(t, merged.Entries[i-1]) >= ruleID(t, merged.Entries[i]) {
+			t.Fatalf("merged ids not ascending at %d", i)
+		}
+	}
+	if merged.Entries[0].Project != "kubernetes" || ruleID(t, merged.Entries[0]) != "kubernetes.aaa-crossing.1-38-0-to-1-39-0" {
+		t.Fatalf("crossing rule not first: %s", ruleID(t, merged.Entries[0]))
+	}
+	whole := bundle{landscape: base.landscape, community: base.community, priority: base.priority, pack: merged, registry: store.registry, catalogueDigest: base.catalogueDigest}
+	if _, err := whole.ruleSet("kubernetes"); err != nil {
+		t.Fatalf("merged project document: %v", err)
+	}
 	report, err = store.EvaluateRule("kubernetes", "kubernetes.aaa-crossing.1-38-0-to-1-39-0", input, now)
 	if err != nil || ClaimExit(report) != 10 {
 		t.Fatalf("selected rule: exit %d, %v", ClaimExit(report), err)
