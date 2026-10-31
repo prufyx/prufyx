@@ -295,17 +295,19 @@ func (b ExternalBundle) WithTrustPolicy(policy TrustPolicy) ExternalBundle {
 	return b
 }
 
-// Evaluate applies only the rules in this parsed external bundle. It never
-// falls back to the embedded pack and makes no source, signature, or runtime
-// authority claim.
+// Evaluate applies the rules in this parsed external bundle and the embedded
+// removal-crossing rules of the project, which no external bundle can carry.
+// It makes no source, signature, or runtime authority claim.
 func (b ExternalBundle) Evaluate(project string, inputRaw []byte, now time.Time) (Report, error) {
 	return b.evaluate(project, "", inputRaw, now)
 }
 
-// EvaluateRule applies one closed rule selection without embedded fallback.
-// The compiled pack must establish that the requested rule belongs to project;
-// the selected external pack may omit it, in which case the report has no
-// claims and remains UNKNOWN.
+// EvaluateRule applies one closed rule selection. The compiled pack must
+// establish that the requested rule belongs to project. The rule is looked up
+// in the external pack plus the project's embedded removal-crossing rules (a
+// store never carries one, and a store rule with a crossing rule's id is an
+// integrity failure); when neither holds it the report has no claims and
+// remains UNKNOWN.
 func (b ExternalBundle) EvaluateRule(project, ruleID string, inputRaw []byte, now time.Time) (Report, error) {
 	if ruleID == "" {
 		return Report{}, ErrInvalid
@@ -321,7 +323,14 @@ func (b ExternalBundle) evaluate(project, selectedRuleID string, inputRaw []byte
 	if err != nil {
 		return Report{}, err
 	}
-	selected := bundle{landscape: base.landscape, community: base.community, priority: base.priority, pack: b.pack, registry: b.registry, packDigest: b.bundleDigest, catalogueDigest: base.catalogueDigest, policy: b.policy}
+	// The embedded removal-crossing rules of the project always take part: no
+	// store target carries one, and a store must never turn a block into a
+	// pass. A store rule with the id of one of them is an integrity failure.
+	pack, err := packWithEmbeddedCrossing(base.pack, b.pack, project)
+	if err != nil {
+		return Report{}, err
+	}
+	selected := bundle{landscape: base.landscape, community: base.community, priority: base.priority, pack: pack, registry: b.registry, packDigest: b.bundleDigest, catalogueDigest: base.catalogueDigest, policy: b.policy}
 	// A community project is named only when this envelope holds data for
 	// it; without data it is refused as an unknown project is.
 	if !base.hasProject(project) && !(base.isCommunity(project) && selected.communityHasData(project)) {

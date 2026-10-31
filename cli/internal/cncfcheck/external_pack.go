@@ -5,6 +5,7 @@ package cncfcheck
 import (
 	"encoding/json"
 	"errors"
+	"sort"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 )
@@ -110,4 +111,61 @@ func externalPack(pack rulePack) (rulePack, error) {
 		return rulePack{}, ErrIntegrity
 	}
 	return pack, nil
+}
+
+// packWithEmbeddedCrossing is external with the removal-crossing rules that
+// the embedded pack holds for project appended. A store target never carries
+// such a rule (externalEntries), so a check that evaluated the store alone
+// would pass a hop the embedded pack blocks. A store rule that has the id of
+// an embedded crossing rule would decide in its place and is refused. The
+// result is for selection only; its entries are never encoded or published.
+func packWithEmbeddedCrossing(embedded, external rulePack, project string) (rulePack, error) {
+	var crossing []Entry
+	for _, entry := range embedded.Entries {
+		if entry.Project != project {
+			continue
+		}
+		held, err := constraintengine.AnyCrossingRule([]json.RawMessage{entry.Rule})
+		if err != nil {
+			return rulePack{}, ErrIntegrity
+		}
+		if held {
+			crossing = append(crossing, entry)
+		}
+	}
+	if len(crossing) == 0 {
+		return external, nil
+	}
+	ids := make(map[string]bool, len(crossing))
+	for _, entry := range crossing {
+		id, err := ruleEntryID(entry)
+		if err != nil {
+			return rulePack{}, err
+		}
+		ids[id] = true
+	}
+	merged := make([]Entry, 0, len(external.Entries)+len(crossing))
+	for _, entry := range external.Entries {
+		id, err := ruleEntryID(entry)
+		if err != nil || ids[id] {
+			return rulePack{}, ErrIntegrity
+		}
+		merged = append(merged, entry)
+	}
+	// The rule document requires strictly ascending rule ids; ids are unique
+	// after the shadow check above.
+	merged = append(merged, crossing...)
+	sort.SliceStable(merged, func(i, j int) bool { a, _ := ruleEntryID(merged[i]); b, _ := ruleEntryID(merged[j]); return a < b })
+	external.Entries = merged
+	return external, nil
+}
+
+func ruleEntryID(entry Entry) (string, error) {
+	var shape struct {
+		ID string `json:"id"`
+	}
+	if json.Unmarshal(entry.Rule, &shape) != nil || shape.ID == "" {
+		return "", ErrIntegrity
+	}
+	return shape.ID, nil
 }
