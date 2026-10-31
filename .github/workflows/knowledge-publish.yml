@@ -274,7 +274,7 @@ jobs:
           out="${RUNNER_TEMP}/producing"
           mkdir -m 700 "${out}"
           root="${GITHUB_WORKSPACE}/cli/internal/knowledgepin/root.json"
-          (cd "${GITHUB_WORKSPACE}/producing/cli" && GOTOOLCHAIN=local go build -trimpath -buildvcs=false \
+          (cd "${GITHUB_WORKSPACE}/producing/cli" && GOTOOLCHAIN=local GOPROXY=off go build -trimpath -buildvcs=false \
             -o "${out}/prufyx" ./cmd/prufyx-community) \
             || fail "the client that produced the previous package cannot be built; the feed keeps the last package. See cli/docs/knowledge-publisher.md."
           "${out}/prufyx" db verify "${PKG}" --profile cncf-projects --bootstrap-root "${root}" --bootstrap-root-digest "${ROOT_DIGEST}" \
@@ -467,7 +467,7 @@ jobs:
           mkdir -m 700 "${out}"
           oroot="${GITHUB_WORKSPACE}/oldest/cli/internal/knowledgepin/root.json"
           [ -s "${oroot}" ] || refuse
-          (cd "${GITHUB_WORKSPACE}/oldest/cli" && GOTOOLCHAIN=local go build -trimpath -buildvcs=false \
+          (cd "${GITHUB_WORKSPACE}/oldest/cli" && GOTOOLCHAIN=local GOPROXY=off go build -trimpath -buildvcs=false \
             -ldflags "-X github.com/prufyx/prufyx/cli/internal/buildidentity.Version=${OLDEST_VERSION}" \
             -o "${out}/prufyx" ./cmd/prufyx-community) || refuse
           obootstrap=(--bootstrap-root "${oroot}" --bootstrap-root-digest "sha256:$(sha256sum "${oroot}" | cut -d' ' -f1)")

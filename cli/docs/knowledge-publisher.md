@@ -429,7 +429,8 @@ engine moves it; so does regenerating `cli/internal/cncfcheck/data/**`. The push
 trigger watches these paths so that such a merge publishes at once.
 
 A package published before the change no longer parses under the new build. The
-workflow therefore handles it in three steps, all without a secret:
+workflow therefore handles it in three steps (steps 2 and 3 hold no secret or
+token; step 1 holds only the read-only workflow token it always had):
 
 1. "Find and verify the previous state" verifies the previous package with the
    client of this tree, as always. If that client exits `15` with
@@ -450,9 +451,16 @@ The oldest-supported-client gate then allows the pinned client to refuse the
 package, but only with exit `15` and the too-new text, and only if the same
 binary verifies the previous package. In this mode the gate proves the signature,
 role and metadata path of the pinned client; the content of the new package is
-covered by the self-verification of the signing step. Clients older than the
-change report `KNOWLEDGE_CAPABILITY_MISMATCH` (exit `15`) until they are
-upgraded; plan capability changes accordingly and land them before a client
+covered by the self-verification of the signing step. The pin must therefore be
+a client that contains this mechanism (it maps a capability mismatch to exit `15`;
+older builds report an integrity failure, exit `3`, and the gate refuses), and in
+the refusing branch its capability must equal the previous package's. After a
+capability-change release, move the pin (`cli/knowledge/oldest-supported-client.txt`)
+to a client of the new capability before the next capability change; otherwise the
+gate blocks that publish. If the pinned client has the same capability as the
+candidate, it verifies the package and the gate passes as usual. Clients that
+contain this mechanism report `KNOWLEDGE_CAPABILITY_MISMATCH` (exit `15`) until they
+are upgraded; plan capability changes accordingly and land them before a client
 release is cut, so the release matches the live feed. The recovery inputs
 (`previous_revision`, `previous_tuf_version`, `previous_index`) still verify with
 the client of this tree and so cannot cross a capability change; a lost artifact

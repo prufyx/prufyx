@@ -187,7 +187,9 @@ expired rule, a missing declaration. Read the reason lines. Full tables:
   again. Do not remove the store for this. The same exit with the reason
   `KNOWLEDGE_CAPABILITY_MISMATCH` means the feed was built for another engine
   capability than your build (a project was added to the supported table, a fact
-  registered or the engine changed): upgrade prufyx if it is older than the feed.
+  registered or the engine changed): upgrade prufyx if it is older than the feed
+  (builds made before this reason existed report an integrity failure, exit `3`,
+  for the same feed; upgrade those as well).
   This beta only follows feed updates while the feed matches its own capability;
   the embedded knowledge keeps working. After upgrading with an old database
   installed, run `prufyx db update` before `scan`. `scan` and `check` with such a
