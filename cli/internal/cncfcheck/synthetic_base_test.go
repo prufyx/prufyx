@@ -140,6 +140,13 @@ func shippedSchemaLevel(t *testing.T) string {
 	if len(pack.Distributions) != 0 {
 		t.Fatal("the shipped pack carries a section shippedSchemaLevel does not state")
 	}
+	for _, entry := range pack.Entries {
+		if crossing, err := constraintengine.AnyCrossingRule([]json.RawMessage{entry.Rule}); err != nil {
+			t.Fatal(err)
+		} else if crossing {
+			return packSchemaCrossing
+		}
+	}
 	if len(pack.ServedAPIs) != 0 {
 		return packSchemaServedAPIs
 	}

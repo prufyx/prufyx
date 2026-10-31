@@ -99,12 +99,22 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 	}
 	var packIDs []string
 	inPack := map[string]bool{}
+	crossingRules := 0
 	for i := range b.pack.Entries {
 		var rule struct {
 			ID string `json:"id"`
 		}
 		if err := json.Unmarshal(b.pack.Entries[i].Rule, &rule); err != nil {
 			t.Fatal(err)
+		}
+		if crossing, err := constraintengine.AnyCrossingRule([]json.RawMessage{b.pack.Entries[i].Rule}); err != nil {
+			t.Fatal(err)
+		} else if crossing {
+			// A release-note removal rule is crossing-only and can never
+			// pass: TestEmbeddedRelnotesCrossingRules holds each one to its
+			// own evidence; the file holds reviewed vectors of range rules.
+			crossingRules++
+			continue
 		}
 		if crdbatchids.IsForeign(rule.ID) {
 			// A mechanical custom-resource rule of another project is
@@ -166,7 +176,7 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 			}
 		}
 	}
-	if len(b.pack.Entries) != 228+extra+shippedBatch+len(crdbatchids.Foreign()) || len(vectors) != 228+extra+shippedBatch {
+	if len(b.pack.Entries) != 228+extra+shippedBatch+len(crdbatchids.Foreign())+crossingRules || len(vectors) != 228+extra+shippedBatch {
 		t.Fatal("unexpected reviewed rule or vector count")
 	}
 	if caseCount != 1113+4*extra+4*shippedBatch {
@@ -708,7 +718,7 @@ func TestCatalogueDoesNotInventCoverage(t *testing.T) {
 	for _, want := range []struct {
 		slug  string
 		rules int
-	}{{"cortex", 5}, {"falco", 2}, {"karmada", 1}, {"kubeedge", 1}, {"kuma", 1}, {"spire", 2}, {"strimzi", 1 + crdbatchids.Count("strimzi")}} {
+	}{{"cortex", 8}, {"falco", 5}, {"karmada", 1}, {"kubeedge", 1}, {"kuma", 1}, {"spire", 2}, {"strimzi", 1 + crdbatchids.Count("strimzi")}} {
 		preview, err := Catalog(false, want.slug)
 		if err != nil || len(preview.Projects) != 1 || preview.Projects[0].SourceRuleCount != want.rules || preview.Projects[0].GenericCoverage != "source_rule_preview" || preview.Projects[0].RuntimeReproduced != 0 {
 			t.Fatalf("%s source preview coverage missing or overstated", want.slug)
