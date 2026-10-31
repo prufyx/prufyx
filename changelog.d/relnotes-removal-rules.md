@@ -1,0 +1,3 @@
+### Added
+
+- Nine reviewed release-note removal rules for falco (`outputs.max_burst`, `outputs.rate`, flag `mesos-api`), cortex (flags `querier.at-modifier-enabled`, `querier.compress-http-responses`, `store.max-look-back-period`), thanos (flags `debug.advertise-compatibility-label`, `log.request.decision`) and cilium (`aws-pagination-enabled`). Each rule reads a caller-supplied flag or config-key set, can only block a hop that crosses the release, never passes one, and cites the release-note line confirmed by a search of both pinned source trees. The CNCF rule pack moves to schema level `v1alpha11`.
