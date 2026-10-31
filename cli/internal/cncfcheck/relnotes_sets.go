@@ -5,6 +5,8 @@ package cncfcheck
 import (
 	"bytes"
 	"encoding/json"
+
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"slices"
 	"strings"
 )
@@ -32,8 +34,8 @@ const (
 	factThanosFlags    = "component.thanos.cli_flags_set"
 )
 
-// relnotesSetFacts are the set facts of the release-note rules.
-var relnotesSetFacts = map[string]bool{factCortexFlags: true, factFalcoFlags: true, factFalcoConfigKey: true, factThanosFlags: true}
+// relnotesGuardedFacts are the set facts of the release-note rules.
+var relnotesGuardedFacts = map[string]bool{factCortexFlags: true, factFalcoFlags: true, factFalcoConfigKey: true, factThanosFlags: true}
 
 // relnotesUnreviewedRemovals lists, per set fact, members removed by a
 // release that a shipped release-note rule crosses while no shipped rule
@@ -65,12 +67,16 @@ var relnotesUnreviewedRemovals = map[string][]string{
 const relnotesUnreviewedNextAction = "a declared set holds flags or keys that the same release removed and no reviewed rule covers; the rule stays UNKNOWN for them: remove them, or retain UNKNOWN"
 
 // guardRelnotesSets returns the input to evaluate and whether any complete
-// set was handed to the engine as not complete. Inputs that hold none of the
-// release-note facts come back byte for byte.
+// set was handed to the engine as not complete. Inputs that need no change
+// come back byte for byte. It always decodes: a fact id may be spelled with
+// JSON escapes, which the engine's parser unescapes. When the input is
+// rewritten, the engine-level input digest inside the report is that of the
+// rewritten document; the file digest stays that of the original bytes, and
+// Replay takes the same deterministic path. The caller must have had the
+// original bytes accepted by the engine first (parseGuarded), because the
+// re-encoding does not keep what the engine's gate refuses (duplicate keys,
+// trailing data, invalid UTF-8).
 func guardRelnotesSets(raw []byte) ([]byte, bool, error) {
-	if !bytes.Contains(raw, []byte(`_set"`)) {
-		return raw, false, nil
-	}
 	var doc map[string]any
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.UseNumber()
@@ -87,7 +93,7 @@ func guardRelnotesSets(raw []byte) ([]byte, bool, error) {
 			for _, rawFact := range facts {
 				fact, _ := rawFact.(map[string]any)
 				id, _ := fact["id"].(string)
-				if !relnotesSetFacts[id] {
+				if !relnotesGuardedFacts[id] {
 					continue
 				}
 				value, _ := fact["setValue"].(map[string]any)
@@ -136,4 +142,26 @@ func unreviewedSibling(factID string, names []string) bool {
 		}
 	}
 	return false
+}
+
+// parseGuarded parses raw with the engine's own gate first, so a rewrite of a
+// guarded set never makes an input valid that the engine refuses, then parses
+// the guarded document. downgraded reports whether a set was rewritten.
+func parseGuarded(raw []byte, registry constraintengine.Registry) (input constraintengine.Input, downgraded bool, err error) {
+	input, err = constraintengine.ParseInput(raw, registry)
+	if err != nil {
+		return constraintengine.Input{}, false, ErrInvalid
+	}
+	guarded, downgraded, err := guardRelnotesSets(raw)
+	if err != nil {
+		return constraintengine.Input{}, false, ErrInvalid
+	}
+	if !downgraded {
+		return input, false, nil
+	}
+	input, err = constraintengine.ParseInput(guarded, registry)
+	if err != nil {
+		return constraintengine.Input{}, false, ErrInvalid
+	}
+	return input, true, nil
 }
