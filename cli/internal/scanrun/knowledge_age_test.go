@@ -250,7 +250,7 @@ func countRules(t *testing.T, layout, at string) int {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if evidence["state"] == "active" && !end.After(limit) && (layout == cncfknowledge.LayoutSingleTarget || project == kubernetesSlug) {
+		if _, crossing := rule["crossing"]; !crossing && evidence["state"] == "active" && !end.After(limit) && (layout == cncfknowledge.LayoutSingleTarget || project == kubernetesSlug) {
 			count++
 		}
 		return true

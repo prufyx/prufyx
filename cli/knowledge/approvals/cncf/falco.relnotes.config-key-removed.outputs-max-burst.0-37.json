@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "absent",
+    "candidateDigest": "sha256:e497ac2eeef39019f70f797342c4555c413a4924794777f4c728d0cd827a8dd9",
+    "candidateId": "pr-348",
+    "decidedAt": "2026-10-31T21:00:23Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "falco.relnotes.config-key-removed.outputs-max-burst.0-37"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "8NQbxO47Sc8oOTPITb0ArCF01O5px6bLdZvSFjDanbUppKcN8MszMUTGDaN40EPcK8pEx8p+w3p6j2Rlr8bKBA=="
+}
