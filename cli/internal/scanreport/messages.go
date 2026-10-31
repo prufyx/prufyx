@@ -649,6 +649,7 @@ const (
 	UsageKnowledgeDBNow          = "--now cannot be used with --knowledge-db: a knowledge database is verified and evaluated at the current time"
 	UsageKnowledgeEmbeddedDB     = "--knowledge=embedded cannot be used with --knowledge-db"
 	UsageKnowledgeDBFailed       = "KNOWLEDGE INTEGRITY FAILURE: the knowledge database could not be verified (%s); nothing was evaluated and the embedded knowledge was not used"
+	UsageKnowledgeDBTooNew       = "KNOWLEDGE TOO NEW FOR THIS PRUFYX: the knowledge database is signed by the pinned root but this prufyx cannot read it (%s); nothing was evaluated and the embedded knowledge was not used; upgrade prufyx or drop --knowledge-db"
 	UsageNow                     = "--now must be canonical UTC with whole seconds, for example 2026-10-04T00:00:00Z"
 	UsageKubeletVersions         = "kubelet versions are not accepted: --kubelet-version-min and --kubelet-version-max (or minimumKubeletVersion and maximumKubeletVersion in prufyx.yaml) take x.y.z only, a maximum needs a minimum and is not below it"
 	UsageStdinTwice              = "standard input (-) can be read only once"
@@ -694,6 +695,7 @@ const (
 	KnowledgeDBRecovery      = "an interrupted import needs recovery"
 	KnowledgeDBInvalid       = "the database path or contents are not accepted"
 	KnowledgeDBIntegrity     = "integrity check failed"
+	KnowledgeDBTooNew        = "a newer prufyx is needed for this knowledge"
 )
 
 // Usage is the help text of the scan command.

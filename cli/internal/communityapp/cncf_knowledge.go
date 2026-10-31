@@ -14,6 +14,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/cncfknowledge"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
+	"github.com/prufyx/prufyx/cli/internal/knowledgeauto"
 )
 
 func (r runtime) externalCNCF(req cncfknowledge.Request, replayPath, format string) int {
@@ -139,6 +140,15 @@ func (r runtime) cncfKnowledgeError(message string, err error) int {
 	}
 	if errors.Is(err, cncfknowledge.ErrInvalid) || errors.Is(err, cncfcheck.ErrInvalid) {
 		return r.fail(message, ExitUsage)
+	}
+	if errors.Is(err, knowledge.ErrUnsupportedKnowledge) {
+		// An explicit store is never replaced by the embedded knowledge. Only a
+		// store that is too new and nothing else is exit 15; unsupported
+		// knowledge joined with any other failure stays an integrity failure.
+		if reason, _ := knowledgeauto.FallbackReason(err); reason == knowledgeauto.ReasonStoreTooNew {
+			return r.fail(message+"; the knowledge is too new for this prufyx: upgrade prufyx"+tooNewVersionHint(err)+" or drop --knowledge-db; nothing was evaluated and the embedded knowledge was not used", ExitKnowledgeTooNew)
+		}
+		return r.fail(message, ExitIntegrity)
 	}
 	return r.knowledgeError(message, err)
 }

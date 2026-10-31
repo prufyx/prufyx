@@ -65,11 +65,22 @@ type StoreError struct {
 }
 
 func (e *StoreError) Error() string {
+	if e.TooNew() {
+		reason := e.Reason
+		if e.FallbackMin != "" {
+			reason += ", min version " + e.FallbackMin
+		}
+		return scanreport.Text(scanreport.UsageKnowledgeDBTooNew, reason)
+	}
 	if e.Auto {
 		return (&knowledgeauto.Refused{Reason: e.Reason}).Error()
 	}
 	return scanreport.Text(scanreport.UsageKnowledgeDBFailed, e.Reason)
 }
+
+// TooNew reports a database the pinned root signed but this build cannot
+// read: not tampering, so the exit code differs from an integrity failure.
+func (e *StoreError) TooNew() bool { return e.Reason == scanreport.KnowledgeDBTooNew }
 
 // Unwrap makes a StoreError an integrity failure.
 func (e *StoreError) Unwrap() error { return ErrIntegrity }
@@ -166,6 +177,10 @@ func storeFailure(err error) string {
 		return scanreport.KnowledgeDBIntegrity
 	case errors.Is(err, knowledge.ErrInvalid), errors.Is(err, cncfknowledge.ErrInvalid), errors.Is(err, cncfcheck.ErrInvalid):
 		return scanreport.KnowledgeDBInvalid
+	case errors.Is(err, knowledge.ErrUnsupportedKnowledge):
+		// Last: an integrity, rollback, layout or similar failure joined with
+		// it has been named above, so only a pure too-new store gets here.
+		return scanreport.KnowledgeDBTooNew
 	}
 	return scanreport.KnowledgeDBIntegrity
 }
