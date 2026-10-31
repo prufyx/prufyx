@@ -125,26 +125,37 @@ func TestStoreScanKeepsEmbeddedCrossingRuleIdentities(t *testing.T) {
 	}
 }
 
-// A store whose other rules are newer than the embedded pack's old ones, but
-// older than the embedded crossing rules' review (2026-10-31), is not
-// "newer": the embedded evidence counts every embedded rule of the project.
+// The store-or-embedded comparison counts every embedded rule of a project,
+// the crossing rules too (their review is the newest of the project), while a
+// store target built from the same pack carries none of them: the store is
+// then stale, so it must be strictly newer to win, and the rules are
+// identical otherwise.
 func TestCompareWithEmbeddedCountsCrossingRuleEvidence(t *testing.T) {
 	t.Parallel()
-	base, err := load()
+	indexTarget, targets, err := BuildEmbeddedExternalTargets("5", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var cilium []Entry
-	for _, entry := range base.pack.Entries {
-		if entry.Project == "cilium" {
-			cilium = append(cilium, entry)
+	index, err := ParseExternalIndex(indexTarget.Bytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var raw []byte
+	for _, target := range targets {
+		if target.Path == ProjectTargetPath("cilium") {
+			raw = target.Bytes
 		}
 	}
-	filtered, err := externalEntries(cilium)
-	if err != nil || len(filtered) == len(cilium) {
-		t.Fatalf("cilium has no embedded crossing rule: %v", err)
+	bundle, err := AdmitExternalProjectTarget(index, "cilium", raw)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if !evidenceHighWater(cilium).After(evidenceHighWater(filtered)) {
-		t.Fatal("the crossing rule is not the newest review of cilium")
+	comparison, err := CompareWithEmbedded(map[string]ExternalBundle{"cilium": bundle})
+	if err != nil {
+		t.Fatal(err)
+	}
+	crossingAt := time.Date(2026, 10, 31, 12, 0, 0, 0, time.UTC)
+	if !comparison.Identical || comparison.StaleProject != "cilium" || !comparison.EmbeddedEvidenceAt.Equal(crossingAt) || !comparison.StoreEvidenceAt.Before(crossingAt) {
+		t.Fatalf("comparison=%+v", comparison)
 	}
 }

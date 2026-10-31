@@ -398,11 +398,13 @@ func buildExternalTargets(base bundle, revision, purpose string, revisionFor fun
 	if err != nil {
 		return ExternalTarget{}, nil, ErrIntegrity
 	}
+	// byProject holds every embedded rule: a project whose rules are all
+	// crossing rules keeps its target, and encodeExternalEnvelopeWithRecords
+	// leaves the crossing rules out of it.
 	byProject := map[string][]Entry{}
 	for _, entry := range base.pack.Entries {
 		byProject[entry.Project] = append(byProject[entry.Project], entry)
 	}
-	// A project whose rules are all crossing rules keeps its target.
 	records, err := splitRecords(base.pack, base.knowledgeProjects())
 	if err != nil {
 		return ExternalTarget{}, nil, errors.Join(ErrIntegrity, ErrRecordWithoutOwner)

@@ -110,9 +110,9 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 		if crossing, err := constraintengine.AnyCrossingRule([]json.RawMessage{b.pack.Entries[i].Rule}); err != nil {
 			t.Fatal(err)
 		} else if crossing {
-			// A release-note removal rule is crossing-only and can never
-			// pass: TestEmbeddedRelnotesCrossingRules holds each one to its
-			// own evidence; the file holds reviewed vectors of range rules.
+			// A release-note removal rule is crossing-only and has no
+			// reviewed range vectors: TestEmbeddedRelnotesCrossingRules
+			// holds each one to its own evidence.
 			crossingRules++
 			continue
 		}
