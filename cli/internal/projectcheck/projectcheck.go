@@ -180,6 +180,10 @@ type reportSeal struct{}
 
 func definitions() []constraintengine.FactDefinition {
 	return []constraintengine.FactDefinition{
+		{ID: "component.airflow.api_enable_xcom_deserialize_support_present", Component: "pkg:github/apache/airflow", Type: constraintengine.FactBool},
+		{ID: "component.airflow.scheduler_dag_stale_not_seen_duration_present", Component: "pkg:github/apache/airflow", Type: constraintengine.FactBool},
+		{ID: "component.airflow.webserver_instance_name_has_markup_present", Component: "pkg:github/apache/airflow", Type: constraintengine.FactBool},
+		{ID: "component.airflow.webserver_warn_deployment_exposure_present", Component: "pkg:github/apache/airflow", Type: constraintengine.FactBool},
 		{ID: "component.argo-workflows.server_legacy_basehref_flag_present", Component: "pkg:github/argoproj/argo-workflows", Type: constraintengine.FactBool},
 		{ID: "component.ceph.selected_current_osd_filestore", Component: "pkg:github/ceph/ceph", Type: constraintengine.FactBool},
 		{ID: "component.grafana.legacy_alerting_explicitly_enabled", Component: "pkg:github/grafana/grafana", Type: constraintengine.FactBool},
@@ -198,6 +202,10 @@ func definitions() []constraintengine.FactDefinition {
 		{ID: "component.mariadb_operator.pre_operator_update", Component: "pkg:github/mariadb-operator/mariadb-operator", Type: constraintengine.FactBool},
 		{ID: "component.mariadb_operator.replication_enabled", Component: "pkg:github/mariadb-operator/mariadb-operator", Type: constraintengine.FactBool},
 		{ID: "component.mariadb_operator.resource_complete", Component: "pkg:github/mariadb-operator/mariadb-operator", Type: constraintengine.FactBool},
+		{ID: "component.opensearch.gateway_expected_master_nodes_present", Component: "pkg:github/opensearch-project/opensearch", Type: constraintengine.FactBool},
+		{ID: "component.opensearch.gateway_expected_nodes_present", Component: "pkg:github/opensearch-project/opensearch", Type: constraintengine.FactBool},
+		{ID: "component.opensearch.gateway_recover_after_master_nodes_present", Component: "pkg:github/opensearch-project/opensearch", Type: constraintengine.FactBool},
+		{ID: "component.opensearch.gateway_recover_after_nodes_present", Component: "pkg:github/opensearch-project/opensearch", Type: constraintengine.FactBool},
 	}
 }
 
@@ -224,7 +232,8 @@ func loadRaw(registryRaw, packRaw []byte, factDefinitions []constraintengine.Fac
 		return bundle{}, ErrIntegrity
 	}
 	b.registryDigest, b.packDigest = digest(registryRaw), digest(packRaw)
-	if b.registryDocument.Schema != "prufyx.io/community-project-registry/v1alpha1" || !validPackSchema(b.pack) || b.pack.PolicyID != "community-project-source-preview-v1" || b.pack.PolicyDigest != digest([]byte(PolicyDeclaration)) || len(b.registryDocument.Projects) != 8 || len(b.pack.Entries) < len(b.registryDocument.Projects) {
+	// The registry holds the eight original projects or those plus airflow and opensearch (the second step of the two-step landing: code first, data second).
+	if b.registryDocument.Schema != "prufyx.io/community-project-registry/v1alpha1" || !validPackSchema(b.pack) || b.pack.PolicyID != "community-project-source-preview-v1" || b.pack.PolicyDigest != digest([]byte(PolicyDeclaration)) || (len(b.registryDocument.Projects) != 8 && len(b.registryDocument.Projects) != 10) || len(b.pack.Entries) < len(b.registryDocument.Projects) {
 		return bundle{}, ErrIntegrity
 	}
 	b.identities = map[string]identity{}
