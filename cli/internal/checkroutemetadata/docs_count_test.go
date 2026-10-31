@@ -25,7 +25,8 @@ func TestDocsRouteCountMatchesRegistry(t *testing.T) {
 			bound++
 		}
 	}
-	for _, name := range []string{"quickstart.md", "one-command-flow.md"} {
+	// quickstart.md states the count; one-command-flow.md must not type one.
+	for name, mustState := range map[string]bool{"quickstart.md": true, "one-command-flow.md": false} {
 		raw, err := os.ReadFile(filepath.Join("..", "..", "docs", name))
 		if err != nil {
 			t.Fatal(err)
@@ -42,7 +43,7 @@ func TestDocsRouteCountMatchesRegistry(t *testing.T) {
 				}
 			}
 		}
-		if found == 0 {
+		if mustState && found == 0 {
 			t.Errorf("%s states no native route count; the pin has nothing to check", name)
 		}
 	}
