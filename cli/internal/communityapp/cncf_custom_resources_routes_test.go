@@ -60,6 +60,12 @@ func crdRoutePack(t *testing.T, now time.Time) []byte {
 	}
 	entries := []any{crdRouteEntry(now)}
 	for _, item := range pack["entries"].([]any) {
+		rule := item.(map[string]any)["rule"].(map[string]any)
+		// A release-note removal rule (crossing-only set rule) needs a
+		// schema above the one this pack models, which predates it.
+		if _, crossing := rule["crossing"]; crossing && rule["operator"] == "forbid_set_member" {
+			continue
+		}
 		if item.(map[string]any)["project"] != "strimzi" {
 			entries = append(entries, item)
 		}

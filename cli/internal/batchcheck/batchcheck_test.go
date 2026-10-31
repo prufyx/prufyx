@@ -65,7 +65,9 @@ func TestEvaluateMixedOutcomesAndDeterministicPrecedence(t *testing.T) {
 	if len(report.Items[1].Report) == 0 || !strings.Contains(string(report.Items[1].Report), `"inputDigest":"sha256:`) || strings.Contains(string(report.Items[1].Report), "a-pass") {
 		t.Fatalf("sealed child report missing or leaked plan label: %s", report.Items[1].Report)
 	}
-	if len(report.Items[0].Categories) != 1 || report.Items[0].Categories[0] != "UNKNOWN_CLAIM" {
+	// thanos now ships a crossing rule that this hop does not decide: it is
+	// named as not yet reviewed beside the unknown claim.
+	if len(report.Items[0].Categories) != 2 || report.Items[0].Categories[0] != "NOT_YET_REVIEWED" || report.Items[0].Categories[1] != "UNKNOWN_CLAIM" {
 		t.Fatalf("unexpected category set: %+v", report.Items[0].Categories)
 	}
 }

@@ -155,6 +155,15 @@ func embeddedPackWithoutServedLists(t *testing.T) []byte {
 	}
 	delete(pack, "servedAPIs")
 	delete(pack, "pathPolicies")
+	// The release-note removal rules (crossing) need a higher schema level
+	// than the one this pack takes, and play no part in these tests.
+	var entries []any
+	for _, item := range pack["entries"].([]any) {
+		if _, crossing := item.(map[string]any)["rule"].(map[string]any)["crossing"]; !crossing {
+			entries = append(entries, item)
+		}
+	}
+	pack["entries"] = entries
 	pack["schema"] = "prufyx.io/cncf-source-rule-pack/v1alpha4"
 	out, err := json.Marshal(pack)
 	if err != nil {
