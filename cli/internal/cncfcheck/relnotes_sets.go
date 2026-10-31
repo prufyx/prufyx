@@ -34,8 +34,8 @@ const (
 	factThanosFlags    = "component.thanos.cli_flags_set"
 )
 
-// relnotesSetFacts are the set facts of the release-note rules.
-var relnotesSetFacts = map[string]bool{factCortexFlags: true, factFalcoFlags: true, factFalcoConfigKey: true, factThanosFlags: true}
+// relnotesGuardedFacts are the set facts of the release-note rules.
+var relnotesGuardedFacts = map[string]bool{factCortexFlags: true, factFalcoFlags: true, factFalcoConfigKey: true, factThanosFlags: true}
 
 // relnotesUnreviewedRemovals lists, per set fact, members removed by a
 // release that a shipped release-note rule crosses while no shipped rule
@@ -93,7 +93,7 @@ func guardRelnotesSets(raw []byte) ([]byte, bool, error) {
 			for _, rawFact := range facts {
 				fact, _ := rawFact.(map[string]any)
 				id, _ := fact["id"].(string)
-				if !relnotesSetFacts[id] {
+				if !relnotesGuardedFacts[id] {
 					continue
 				}
 				value, _ := fact["setValue"].(map[string]any)

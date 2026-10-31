@@ -83,7 +83,7 @@ func TestRelnotesGuardIsMinimal(t *testing.T) {
 		}
 	}
 	for fact, siblings := range relnotesUnreviewedRemovals {
-		if !relnotesSetFacts[fact] || !slices.IsSorted(siblings) || !RegisteredFact(fact) {
+		if !relnotesGuardedFacts[fact] || !slices.IsSorted(siblings) || !RegisteredFact(fact) {
 			t.Fatalf("%s: not a registered release-note fact or siblings unsorted", fact)
 		}
 		for _, sibling := range siblings {
@@ -97,7 +97,7 @@ func TestRelnotesGuardIsMinimal(t *testing.T) {
 			}
 		}
 	}
-	for fact := range relnotesSetFacts {
+	for fact := range relnotesGuardedFacts {
 		if !RegisteredFact(fact) {
 			t.Fatalf("%s is not a registered fact", fact)
 		}
