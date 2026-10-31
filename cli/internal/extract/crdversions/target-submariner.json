@@ -8,6 +8,7 @@
     "factProject": "submariner",
     "tagPrefixes": ["v"],
     "minFrom": "0.22",
+    "attest": true,
     "paths": [
       {"path": "deploy/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
     ],

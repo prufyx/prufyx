@@ -8,6 +8,7 @@
     "factProject": "dex",
     "tagPrefixes": ["v"],
     "minFrom": "2.41",
+    "attest": true,
     "paths": [
       {"path": "scripts/manifests/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
     ],
