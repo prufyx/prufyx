@@ -108,14 +108,14 @@ func TestRelnotesGuardIsMinimal(t *testing.T) {
 // the guard decodes every input, so the spelling cannot skip it.
 func TestRelnotesGuardSeesEscapedFactIDs(t *testing.T) {
 	t.Parallel()
-	escaped := bytes.Replace(relnotesInput(factCortexFlags, true, "cluster.peer"), []byte("cli_flags_set"), []byte(`cli_flags_set`), 1)
+	escaped := bytes.Replace(relnotesInput(factCortexFlags, true, "cluster.peer"), []byte("cli_flags_set"), []byte("cli_flags\\u005fset"), 1)
 	if bytes.Equal(escaped, relnotesInput(factCortexFlags, true, "cluster.peer")) {
 		t.Fatal("test input not escaped")
 	}
 	if _, down, err := guardRelnotesSets(escaped); err != nil || !down {
 		t.Fatalf("escaped id not downgraded: down=%v err=%v", down, err)
 	}
-	upper := bytes.Replace(relnotesInput(factCortexFlags, true, "Store.max-look-back-period"), []byte("cli_flags_set"), []byte(`cli_flags_set`), 1)
+	upper := bytes.Replace(relnotesInput(factCortexFlags, true, "Store.max-look-back-period"), []byte("cli_flags_set"), []byte("cli_flags\\u005fset"), 1)
 	if _, _, err := guardRelnotesSets(upper); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("escaped id with an upper-case member: %v", err)
 	}
