@@ -191,7 +191,19 @@ func openRevision(req SelectionRequest, profile profileSpec, evaluatedAt time.Ti
 		return VerifiedRevision{}, ErrIntegrity
 	}
 	admission, err := admit(append([]byte(nil), target...))
-	if err != nil || validateAdmissionForProfile(admission, profile) != nil || !admissionMatchesReceipt(admission, receipt) {
+	// A digest-bound target whose minClientVersion is above this build is not
+	// reported yet: the bundle is revalidated first, so only a store that
+	// still verifies reaches the fallback. An unknown schema does not: the
+	// index parse in readStoredProjects maps to ErrIntegrity. For the
+	// cncf-projects profile (the only admit returning
+	// ErrUnsupportedKnowledge) this function returns at
+	// classifyTUFError(verified.refreshErr), because verifySplitTargets runs
+	// checkMinClient first; the revalidated-state compare and the
+	// `unsupported` return below are defence in depth for other profiles.
+	var unsupported error
+	if errors.Is(err, ErrUnsupportedKnowledge) {
+		unsupported = err
+	} else if err != nil || validateAdmissionForProfile(admission, profile) != nil || !admissionMatchesReceipt(admission, receipt) {
 		return VerifiedRevision{}, ErrIntegrity
 	}
 	var storedProjects map[string][]byte
@@ -207,10 +219,25 @@ func openRevision(req SelectionRequest, profile profileSpec, evaluatedAt time.Ti
 		return VerifiedRevision{}, err
 	}
 	if verified.refreshErr != nil {
-		return VerifiedRevision{}, classifyTUFError(verified.refreshErr)
+		classified := classifyTUFError(verified.refreshErr)
+		if errors.Is(classified, ErrUnsupportedKnowledge) {
+			// The unsupported answer sends the caller to the embedded
+			// knowledge, so it is given only for a store whose trust
+			// material is intact as a whole.
+			if err := verifyStoredTrustStates(store, profile); err != nil {
+				return VerifiedRevision{}, err
+			}
+		}
+		return VerifiedRevision{}, classified
 	}
 	if digestBytes(verified.target) != selection.BundleDigest || verified.material.stateDigest != selection.TrustStateDigest || profile.split && !sameProjects(storedProjects, verified.projects) {
 		return VerifiedRevision{}, fmt.Errorf("revalidated trust state: %w", ErrIntegrity)
+	}
+	if unsupported != nil {
+		if err := verifyStoredTrustStates(store, profile); err != nil {
+			return VerifiedRevision{}, err
+		}
+		return VerifiedRevision{}, unsupported
 	}
 	v := VerifiedRevision{bytes: append([]byte(nil), target...), revision: selection.Revision, bundleDigest: selection.BundleDigest, trustReceipt: receipt, trustReceiptDigest: selection.TrustReceiptDigest, verifiedAt: evaluatedAt, mode: mode, profile: profile.id, seal: &verifiedSeal{}}
 	if profile.split {
@@ -510,4 +537,26 @@ func packageFromStoredWithProjects(m *trustMaterial, target []byte, bundle strin
 		files["targets/knowledge/"+strings.TrimPrefix(bundle, "sha256:")+"."+path.Base(profile.targetPath)] = append([]byte(nil), target...)
 	}
 	return importPackage{files: files, targetPath: profile.targetPath}
+}
+
+// verifyStoredTrustStates checks every trust state the store keeps, not only
+// the selected one: each must match its own digest and validate. It is the
+// condition for reporting a store as unsupported (too new) instead of as an
+// integrity failure.
+func verifyStoredTrustStates(store *storeFS, profile profileSpec) error {
+	dir, err := store.openDir("trust/states", false)
+	if err != nil {
+		return fmt.Errorf("trust states: %w", ErrIntegrity)
+	}
+	defer dir.Close()
+	names, err := dir.Readdirnames(-1)
+	if err != nil {
+		return fmt.Errorf("trust states: %w", ErrIntegrity)
+	}
+	for _, name := range names {
+		if _, err := loadTrustByDigestForProfile(store, "sha256:"+name, profile); err != nil {
+			return fmt.Errorf("stored trust state: %w", ErrIntegrity)
+		}
+	}
+	return nil
 }
