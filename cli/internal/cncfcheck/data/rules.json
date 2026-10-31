@@ -5675,7 +5675,7 @@
       }
     },
     {
-      "description": "Release-note-declared change: the falco 0.35.0 release notes list the flags --mesos-api, -pmesos and -pm as removed. This records what the project's own release notes state at a pinned commit; it is not proof of behaviour and says nothing about defaults, other keys, patch-release changes or undeclared changes. The rule reads the flags the deployment sets before the upgrade (a caller-supplied set) and applies to upgrades from a release below 0.35.0 to a release from 0.35.0 up to, but not including, 0.36.0.",
+      "description": "Release-note-declared change: the falco 0.35.0 release notes list the flags --mesos-api, -pmesos and -pm as removed, and the 0.34.1 command-line options define the short alias -m for --mesos-api (gone in 0.35.0). This records what the project's own release notes and option table state at pinned commits; it is not proof of behaviour and says nothing about defaults, other keys, patch-release changes or undeclared changes. The value-bearing form \"-p mesos\" is not checked: the set holds names only. The rule reads the flags the deployment sets before the upgrade (a caller-supplied set) and applies to upgrades from a release below 0.35.0 to a release from 0.35.0 up to, but not including, 0.36.0.",
       "project": "falco",
       "requiredFacts": [
         {
@@ -5710,19 +5710,28 @@
               "revision": "faa915df89ea6ea1d6f62f5c67fb5d07cdbfdbe9",
               "startLine": 48,
               "url": "https://raw.githubusercontent.com/falcosecurity/falco/faa915df89ea6ea1d6f62f5c67fb5d07cdbfdbe9/CHANGELOG.md"
+            },
+            {
+              "contentDigest": "sha256:5ff852c5eeb9364165a5f49e42e3f8f36b846b66df67cccbf007426db0cf0b7d",
+              "endLine": 193,
+              "id": "options-0-34-1",
+              "revision": "9a4205cc70e449b170d32d3033dc7e74cf4ca613",
+              "startLine": 193,
+              "url": "https://raw.githubusercontent.com/falcosecurity/falco/9a4205cc70e449b170d32d3033dc7e74cf4ca613/userspace/falco/app_cmdline_options.cpp"
             }
           ],
           "state": "active",
           "validUntil": "2027-01-29T12:00:00Z"
         },
         "id": "falco.relnotes.flag-removed.mesos-api.0-35",
-        "nextAction": "Remove the flags --mesos-api, -pmesos and -pm before upgrading to 0.35.0",
+        "nextAction": "Remove the flags --mesos-api, -m, -pmesos and -pm before upgrading to 0.35.0",
         "operator": "forbid_set_member",
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
         "setCondition": {
           "component": "pkg:github/falcosecurity/falco",
           "factId": "component.falco.cli_flags_set",
           "members": [
+            "m",
             "mesos-api",
             "pm",
             "pmesos"
