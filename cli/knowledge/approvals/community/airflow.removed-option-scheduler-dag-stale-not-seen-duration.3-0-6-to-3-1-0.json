@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "absent",
+    "candidateDigest": "sha256:65cc937f6205af40ece9f920ec34ec2fff93039f4be47627a79a813a41d1407a",
+    "candidateId": "pr-346",
+    "decidedAt": "2026-10-31T13:34:28Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "community",
+    "ruleId": "airflow.removed-option-scheduler-dag-stale-not-seen-duration.3-0-6-to-3-1-0"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "o0swzZNR0qy8dpSdH/pBa0GpQpl9ls+giD8+l/7aQWNbZEzbLNYk9oxeECKJrQKcXHlNpdk5rBceUbhQLlyRBw=="
+}

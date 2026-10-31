@@ -546,6 +546,19 @@ func TestWeeklyBatchSimulationOnRealPacks(t *testing.T) {
 			raw = withoutMechanicalRules(t, raw)
 		}
 		start := time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC)
+		// The human path (V5) rejects a rule reviewed after the chain head, so
+		// the simulation starts after the newest review in the pack it runs
+		// over: rules added later than the fixed date above are reviewed later.
+		startDoc, err := loadPack(raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, entry := range startDoc.Entries {
+			fields, _ := parseRuleFields(entry.Rule)
+			if reviewed, err := parseUTC(fields.Evidence.ReviewedAt); err == nil && reviewed.After(start.Add(-time.Hour)) {
+				start = reviewed.Add(time.Hour)
+			}
+		}
 		renewals, notLater, notDue, lapsed := 0, 0, 0, 0
 		capped := map[string]bool{}
 		// lastRenewed and minGap track, per rule, the shortest time
