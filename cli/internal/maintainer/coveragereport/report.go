@@ -75,6 +75,12 @@ type Pair struct {
 	// Families names the fact families of the attestations (A) or rules
 	// (B) that decide the pair.
 	Families []string `json:"families,omitempty"`
+	// canBlock is set for a pair whose decision can end in BLOCKED: it is
+	// bounded by a rule (B), or an attestation that decides it lists at
+	// least one rule (A). An attestation that lists no rule can produce
+	// only a family-scoped PASS, never BLOCKED. It is not part of the
+	// report document.
+	canBlock bool
 }
 
 // Project is one project's row.
@@ -187,6 +193,54 @@ type Report struct {
 	WithoutLines []string `json:"projectsWithoutLines"`
 	// ExpiringProjects lists projects with an entry expiring within 14 days.
 	ExpiringProjects []string `json:"expiringProjects"`
+
+	// split and withPairs feed the README block only; the document does
+	// not carry them. Both cover the fleet (CNCF) projects.
+	split     decidedSplit
+	withPairs int
+	crd       crdTargets
+}
+
+// crdTargets counts the projects with a reviewed CRD version target by
+// catalog, and how many community ones have a published CRD rule or line
+// attestation.
+type crdTargets struct {
+	cncf, community, communityPublished int
+}
+
+// decidedSplit divides the fleet's decided pairs (A and B) by whether the
+// decision can end in BLOCKED. noBlock lists, by family set, the pairs
+// decided only by attestations that list no rule.
+type decidedSplit struct {
+	canBlock int
+	noBlock  []familyCount
+}
+
+// familyCount is a number of pairs decided by one set of fact families.
+type familyCount struct {
+	families string
+	pairs    int
+}
+
+func (d *decidedSplit) addNoBlock(families []string) {
+	key := strings.Join(families, " + ")
+	for i := range d.noBlock {
+		if d.noBlock[i].families == key {
+			d.noBlock[i].pairs++
+			return
+		}
+	}
+	d.noBlock = append(d.noBlock, familyCount{families: key, pairs: 1})
+	sort.Slice(d.noBlock, func(i, j int) bool { return d.noBlock[i].families < d.noBlock[j].families })
+}
+
+// total is the number of decided pairs the split covers.
+func (d decidedSplit) total() int {
+	n := d.canBlock
+	for _, f := range d.noBlock {
+		n += f.pairs
+	}
+	return n
 }
 
 type packEntry struct {
@@ -510,8 +564,17 @@ func Compute(in Input) (Report, error) {
 				published = true
 			}
 		}
-		if published || communityCRD.project[project] || communityCRD.component[component] {
+		published = published || communityCRD.project[project] || communityCRD.component[component]
+		if published {
 			report.CRDPublishedProjects++
+		}
+		if customresources.IsCommunity(project) {
+			report.crd.community++
+			if published {
+				report.crd.communityPublished++
+			}
+		} else {
+			report.crd.cncf++
 		}
 	}
 
@@ -561,6 +624,13 @@ func Compute(in Input) (Report, error) {
 		for i := 0; i+1 < len(lines); i++ {
 			pair := classify(slug, lines[i], lines[i+1], byProject[slug], attsByProject[slug], byID)
 			row.Pairs = append(row.Pairs, pair)
+			if !community && (pair.Status == StatusA || pair.Status == StatusB) {
+				if pair.canBlock {
+					report.split.canBlock++
+				} else {
+					report.split.addNoBlock(pair.Families)
+				}
+			}
 			switch pair.Status {
 			case StatusA:
 				row.A++
@@ -632,6 +702,9 @@ func Compute(in Input) (Report, error) {
 			continue
 		}
 		add(&report.Fleet)
+		if p.A+p.B+p.S > 0 {
+			report.withPairs++
+		}
 		if p.Priority {
 			add(&report.Priority)
 		}
@@ -708,12 +781,12 @@ func Compute(in Input) (Report, error) {
 func classify(project, fromLine, toLine string, rules []*ruleRec, atts []lineattest.LineAttestation, byID map[string]*ruleRec) Pair {
 	pair := Pair{From: fromLine, To: toLine, Status: StatusG}
 	if lineMapped(project) {
-		if fams := attestedFamilies(fromLine, toLine, atts, byID); len(fams) > 0 {
-			pair.Status, pair.Families = StatusA, fams
+		if fams, listed := attestedFamilies(fromLine, toLine, atts, byID); len(fams) > 0 {
+			pair.Status, pair.Families, pair.canBlock = StatusA, fams, listed
 			return pair
 		}
 		if fams, ok := boundedFamilies(fromLine, toLine, rules); ok {
-			pair.Status, pair.Families = StatusB, fams
+			pair.Status, pair.Families, pair.canBlock = StatusB, fams, true
 			return pair
 		}
 	}
@@ -733,8 +806,9 @@ func classify(project, fromLine, toLine string, rules []*ruleRec, atts []lineatt
 
 // attestedFamilies returns the families with a current attestation for the
 // target line whose hop is exactly fromLine->toLine and whose listed rules are all
-// valid and line-wide for that line.
-func attestedFamilies(fromLine, toLine string, atts []lineattest.LineAttestation, byID map[string]*ruleRec) []string {
+// valid and line-wide for that line. listed reports whether any of those
+// attestations lists a rule, the only way an attestation can lead to BLOCKED.
+func attestedFamilies(fromLine, toLine string, atts []lineattest.LineAttestation, byID map[string]*ruleRec) (families []string, listed bool) {
 	set := map[string]bool{}
 	for _, a := range atts {
 		if a.Line != toLine || a.Completeness != lineattest.Completeness {
@@ -757,9 +831,12 @@ func attestedFamilies(fromLine, toLine string, atts []lineattest.LineAttestation
 		}
 		if wide {
 			set[a.FactFamily] = true
+			if len(a.RuleIDs) > 0 {
+				listed = true
+			}
 		}
 	}
-	return sortedKeys(set)
+	return sortedKeys(set), listed
 }
 
 // boundedFamilies reports whether a valid rule decides the whole pair: its

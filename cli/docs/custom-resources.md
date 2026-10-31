@@ -66,10 +66,13 @@ that mode never reads line reviews and never exits 0.
 The extractor reads the CRDs of every project of the table. The knowledge gate
 refuses rules over the version set of a project that is not listed here, until
 the project and its API groups join this table; adding a project to the table
-is a reviewed code change. So far the extractor attests
-release lines (the line reviews that `scan` reports) only for `argo-cd`,
-`istio` and `strimzi`; for the other projects of the table the fact is
-registered and rules over it are admitted, but no release line is attested yet.
+is a reviewed code change. The extractor attests
+release lines (the line reviews that `scan` reports) only for the projects
+that hold a published rule or line attestation of this fact; their count is
+the row "Projects with a published CRD rule or line attestation" of the
+generated coverage block in the root [README](../../README.md#coverage). For the other projects of the table the
+fact is registered and rules over it are admitted, but no release line is
+attested yet.
 An API group that a project shares with others is not listed: for example
 the multicluster API group `multicluster.x-k8s.io` that Karmada and Antrea
 both ship, the Cluster API provider groups (`bootstrap`, `controlplane`,
