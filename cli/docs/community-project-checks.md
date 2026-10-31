@@ -48,7 +48,9 @@ checks:
   it does not validate the rest of the configuration or the upgrade. Apache
   Airflow is a neutral community-project identity; CNCF membership is not
   asserted. `--effective-config` must be the plain `airflow.cfg`, not a Helm
-  values file or a ConfigMap that wraps it; a wrapped file is invalid input.
+  values file or a ConfigMap that wraps it; a wrapped file is invalid input. A removed option's name
+  that appears anywhere other than as the option itself (another section, a
+  comment, a value) makes the answer UNKNOWN.
 - OpenSearch `2.19.7` → `3.0.0`: whether a proposed `opensearch.yml` sets one of
   four `gateway` settings that the 2.19.7 source marks deprecated and the 3.0.0
   source no longer defines, which the 3.0.0 release notes list as removed:
@@ -62,7 +64,11 @@ checks:
   precedence-resolved. Passing says only that none of these four settings is
   set; it does not validate the rest of the configuration or the upgrade.
   OpenSearch is a neutral community-project identity; CNCF membership is not
-  asserted.
+  asserted. `--effective-config` must be the plain `opensearch.yml`, not a Helm
+  values file, a ConfigMap or a manifest that wraps it. A file with a key that
+  is not an OpenSearch setting path (an unknown top-level namespace, a file-name
+  or wrapper-layer key), a multi-line value, a list of mappings, or a removed
+  setting's name anywhere other than as the setting itself is UNKNOWN.
 - Fluent Bit `3.2.0` → `4.0.0`: whether a complete proposed classic
   configuration preserves an enabled OpenTelemetry `http2` setting after
   Fluent Bit changed its default from `on` to `off`. This requires the
