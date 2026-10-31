@@ -61,13 +61,12 @@ func TestQAReviewCrossing(t *testing.T) {
 	}
 	day := time.Now().UTC().Truncate(24 * time.Hour)
 	reviewed, until := day.AddDate(0, 0, -1), day.AddDate(0, 0, 30)
-	// pass decides the pair on its own; crossing blocks when the flag is declared;
-	// shadow is a non-crossing rule with the crossing rule's id.
-	pass := qaEntry("cortex.qa-review-pass.1-8-2-to-1-9-0", "require_component_version",
-		`"dependency":{"side":"proposed","component":"`+qaCortex+`","comparison":"gte","version":"1.9.0"},`, "", reviewed, until)
+	// plain is an unrelated set rule that decides the pair (PASS); crossing blocks when the flag is declared; shadow is a non-crossing rule with the crossing rule's id.
 	crossing := qaEntry(qaID, "forbid_set_member",
 		`"setCondition":{"side":"proposed","component":"`+qaCortex+`","factId":"`+qaFact+`","members":["`+qaFlag+`"]},`+
 			`"crossing":{"change":{"version":"1.9.0","basis":"REMOVED_IN_RELEASE","sourceId":"release-notes"},"horizon":{"lt":"1.10.0","basis":"REVIEWED_THROUGH_MINOR_LINE","sourceId":"release-notes"}},`, "x", reviewed, until)
+	plain := qaEntry("cortex.qa-review-plain.1-8-2-to-1-9-0", "forbid_set_member",
+		`"setCondition":{"side":"proposed","component":"`+qaCortex+`","factId":"`+qaFact+`","members":["qa-other-flag"]},`, "x", reviewed, until)
 	shadow := qaEntry(qaID, "forbid_set_member",
 		`"setCondition":{"side":"proposed","component":"`+qaCortex+`","factId":"`+qaFact+`","members":["qa-other-flag"]},`, "x", reviewed, until)
 
@@ -101,7 +100,7 @@ func TestQAReviewCrossing(t *testing.T) {
 		code, stdout, stderr := runCNCFCLI(t, "check", "batch", "--plan", planPath, "--root", dir, "--knowledge-db", store, "--format", "json")
 		qaOutcome(t, res, id, code, stdout, stderr)
 	}
-	// withStore installs a store built from storeEntries, then evaluates under pass+crossing.
+	// withStore installs a store built from storeEntries, then evaluates under plain+crossing.
 	withStore := func(name string, storeEntries []cncfcheck.Entry, run func(store string)) {
 		t.Run(name, func(t *testing.T) {
 			useDefaultStoreHome(t)
@@ -109,17 +108,17 @@ func TestQAReviewCrossing(t *testing.T) {
 			restore := use(storeEntries...)
 			installDefaultStore(t)
 			restore()
-			defer use(pass, crossing)()
+			defer use(plain, crossing)()
 			forceComparison(t, "2026-10-29T00:00:00Z", "2026-10-29T00:00:00Z", false)
 			run(filepath.Join(os.Getenv("XDG_DATA_HOME"), "prufyx", "knowledge", "cncf-projects"))
 		})
 	}
 
 	func() {
-		defer use(pass, crossing)()
+		defer use(plain, crossing)()
 		check("R1.embedded", "--now", now)
 	}()
-	withStore("clean-store", []cncfcheck.Entry{pass}, func(store string) {
+	withStore("clean-store", []cncfcheck.Entry{plain}, func(store string) {
 		check("R1.store-explicit", "--knowledge-db", store)
 		check("R1.auto-store")
 		batch("R1.batch", store)

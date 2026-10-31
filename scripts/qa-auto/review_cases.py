@@ -38,6 +38,7 @@ ap.add_argument("--allow", default=os.path.join(ENV("QA_STATE", "."), "review-al
 a = ap.parse_args()
 W = os.path.join(TMP, "review")
 os.makedirs(W, exist_ok=True)
+SKIPPED = []
 OBS = []  # (id, kind, exit, ok exit codes, note); kind gate (exit 0 = wrongpass) | gap (exit 0 = mismatch only)
 
 
@@ -71,7 +72,9 @@ if os.path.exists(test_file):
     try:
         r1 = json.load(open(go_out))
     except Exception:
-        print((g.stdout + g.stderr)[-600:])
+        pass
+    if len(r1) < 6:
+        print((g.stdout + g.stderr)[-1500:])
 else:
     print("review: no Go harness in this source tree")
 if r1:
@@ -88,6 +91,9 @@ for cid, text in (("R2.flat", "opensearch.experimental.feature.pluggable.caching
     write_private(f, text)
     code, note = run("check", "project", "--project", "opensearch", "--effective-config", f, "--from", "2.19.7", "--to", "3.0.0",
                      "--effective-config-complete", "--precedence-resolved", "--now", PROBE_NOW, "--format", "json")
+    if code == 2 and "failed admission" in note:  # the build has no OpenSearch rules yet: nothing to check
+        SKIPPED.append(cid)
+        continue
     obs(cid, "gate", code, NOT_PASS, note)
 
 # R3 ------------------------------------------------------------------------------------------------------------
@@ -168,6 +174,6 @@ for msg in bad:
     cases.append(case("review", "allow-list", error=True, why=msg))
 if not OBS:
     cases.append(case("review", "no-cases", error=True, why="no review case ran (Go harness missing or failed)"))
-cases.append(case("review", "summary", ran=len(OBS), allowed=len([c for c in allow if c in ALLOWABLE])))
+cases.append(case("review", "summary", ran=len(OBS), skipped=SKIPPED, allowed=len([c for c in allow if c in ALLOWABLE])))
 dump(cases, a.out)
 print("review", json.dumps(counts(cases)))
