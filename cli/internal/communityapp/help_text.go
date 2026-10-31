@@ -13,7 +13,7 @@ be passed to prufyx check; --format input writes it out.
 
 Routes:
   cncf      one CNCF project (about 50), by --project SLUG
-  project   grafana, kibana, loki, fluent-bit, ceph
+  project   airflow, grafana, kibana, loki, opensearch, fluent-bit, ceph
 
 Examples:
   prufyx prepare cncf --project opencost --input opencost.json --from 1.119.0 --to 1.120.0
@@ -35,7 +35,7 @@ prufyx scan.
 
 Routes:
   cncf                          one CNCF project (about 50), by --project SLUG
-  project                       grafana, kibana, loki, fluent-bit, ceph
+  project                       airflow, grafana, kibana, loki, opensearch, fluent-bit, ceph
   cert-manager-values           cert-manager Helm values
   batch                         run a plan file of checks
   prometheus-mode               Prometheus mode observation
@@ -125,7 +125,7 @@ Examples:
       --to VERSION --effective-config-complete --precedence-resolved --now 2026-10-18T00:00:00Z
 
 Flags:
-  --project SLUG           grafana, kibana, loki, fluent-bit or ceph
+  --project SLUG           airflow, grafana, kibana, loki, opensearch, fluent-bit or ceph
   --effective-config FILE  effective configuration; loki, fluent-bit and ceph name their own
                            input flag (see --project SLUG --help)
   --from, --to VERSION     versions to compare
@@ -148,7 +148,7 @@ Examples:
       --to VERSION --effective-config-complete --precedence-resolved
 
 Flags:
-  --project SLUG           grafana, kibana, loki, fluent-bit or ceph
+  --project SLUG           airflow, grafana, kibana, loki, opensearch, fluent-bit or ceph
   --effective-config FILE  effective configuration; loki, fluent-bit and ceph name their own
                            input flag (see --project SLUG --help)
   --from, --to VERSION     versions to compare

@@ -5,6 +5,222 @@
   "policyDigest": "sha256:16b3a461dfc639f997c6f048d4dc6f0cf5bda3c02c12fdc4f390bf52fc2ff144",
   "entries": [
     {
+      "description": "Apache Airflow 3.1.0: the release notes list the [api] enable_xcom_deserialize_support option as removed as a security improvement. This checks only whether one complete, precedence-resolved airflow.cfg sets enable_xcom_deserialize_support in its [api] section; it reads no value, no other option and no environment variable that is not already folded into the file, and says nothing about the rest of the 3.0.6 to 3.1.0 upgrade.",
+      "project": "airflow",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.airflow.api_enable_xcom_deserialize_support_present",
+          "component": "pkg:github/apache/airflow",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the proposed effective airflow.cfg sets enable_xcom_deserialize_support in its [api] section."
+        }
+      ],
+      "rule": {
+        "id": "airflow.removed-option-api-enable-xcom-deserialize-support.3-0-6-to-3-1-0",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/apache/airflow",
+          "from": "3.0.6",
+          "to": "3.1.0"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/apache/airflow",
+          "factId": "component.airflow.api_enable_xcom_deserialize_support_present",
+          "boolValue": true
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Remove enable_xcom_deserialize_support from the [api] section of airflow.cfg (the Airflow 3.1.0 release notes list it as removed), then recheck the precedence-resolved config.",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-31T12:00:00Z",
+          "validUntil": "2027-01-28T12:00:00Z",
+          "sources": [
+            {
+              "id": "airflow-3-0-6-config-api-enable-xcom-deserialize-support",
+              "url": "https://github.com/apache/airflow/blob/e965c2e676d85ced65a485d4b2601addc2fd3e97/airflow-core/src/airflow/config_templates/config.yml",
+              "revision": "e965c2e676d85ced65a485d4b2601addc2fd3e97",
+              "contentDigest": "sha256:cdec4e751debd909d4d2ec1082c71566047fb5d41125bafba7f1d5bf5c7de6ff",
+              "startLine": 1462,
+              "endLine": 1470
+            },
+            {
+              "id": "airflow-3-1-0-release-notes-api-enable-xcom-deserialize-support",
+              "url": "https://github.com/apache/airflow/blob/54bd5d8cd9f6f477cc83445737614dec81c4323c/RELEASE_NOTES.rst",
+              "revision": "54bd5d8cd9f6f477cc83445737614dec81c4323c",
+              "contentDigest": "sha256:d6865c0a804aab30f0dc41e1080141046e5bead5c1bb78d887d57e0edb772983",
+              "startLine": 239,
+              "endLine": 241
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "Apache Airflow 3.1.0: the release notes list the [scheduler] dag_stale_not_seen_duration option as a removed unused config. This checks only whether one complete, precedence-resolved airflow.cfg sets dag_stale_not_seen_duration in its [scheduler] section; it reads no value, no other option and no environment variable that is not already folded into the file, and says nothing about the rest of the 3.0.6 to 3.1.0 upgrade.",
+      "project": "airflow",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.airflow.scheduler_dag_stale_not_seen_duration_present",
+          "component": "pkg:github/apache/airflow",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the proposed effective airflow.cfg sets dag_stale_not_seen_duration in its [scheduler] section."
+        }
+      ],
+      "rule": {
+        "id": "airflow.removed-option-scheduler-dag-stale-not-seen-duration.3-0-6-to-3-1-0",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/apache/airflow",
+          "from": "3.0.6",
+          "to": "3.1.0"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/apache/airflow",
+          "factId": "component.airflow.scheduler_dag_stale_not_seen_duration_present",
+          "boolValue": true
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Remove dag_stale_not_seen_duration from the [scheduler] section of airflow.cfg (the Airflow 3.1.0 release notes list it as removed), then recheck the precedence-resolved config.",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-31T12:00:00Z",
+          "validUntil": "2027-01-28T12:00:00Z",
+          "sources": [
+            {
+              "id": "airflow-3-0-6-config-scheduler-dag-stale-not-seen-duration",
+              "url": "https://github.com/apache/airflow/blob/e965c2e676d85ced65a485d4b2601addc2fd3e97/airflow-core/src/airflow/config_templates/config.yml",
+              "revision": "e965c2e676d85ced65a485d4b2601addc2fd3e97",
+              "contentDigest": "sha256:cdec4e751debd909d4d2ec1082c71566047fb5d41125bafba7f1d5bf5c7de6ff",
+              "startLine": 2204,
+              "endLine": 2210
+            },
+            {
+              "id": "airflow-3-1-0-release-notes-scheduler-dag-stale-not-seen-duration",
+              "url": "https://github.com/apache/airflow/blob/54bd5d8cd9f6f477cc83445737614dec81c4323c/RELEASE_NOTES.rst",
+              "revision": "54bd5d8cd9f6f477cc83445737614dec81c4323c",
+              "contentDigest": "sha256:d6865c0a804aab30f0dc41e1080141046e5bead5c1bb78d887d57e0edb772983",
+              "startLine": 522,
+              "endLine": 522
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "Apache Airflow 3.1.0: the release notes list the [webserver] instance_name_has_markup option among the unused configuration options that have been removed. This checks only whether one complete, precedence-resolved airflow.cfg sets instance_name_has_markup in its [webserver] section; it reads no value, no other option and no environment variable that is not already folded into the file, and says nothing about the rest of the 3.0.6 to 3.1.0 upgrade.",
+      "project": "airflow",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.airflow.webserver_instance_name_has_markup_present",
+          "component": "pkg:github/apache/airflow",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the proposed effective airflow.cfg sets instance_name_has_markup in its [webserver] section."
+        }
+      ],
+      "rule": {
+        "id": "airflow.removed-option-webserver-instance-name-has-markup.3-0-6-to-3-1-0",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/apache/airflow",
+          "from": "3.0.6",
+          "to": "3.1.0"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/apache/airflow",
+          "factId": "component.airflow.webserver_instance_name_has_markup_present",
+          "boolValue": true
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Remove instance_name_has_markup from the [webserver] section of airflow.cfg (the Airflow 3.1.0 release notes list it as removed), then recheck the precedence-resolved config.",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-31T12:00:00Z",
+          "validUntil": "2027-01-28T12:00:00Z",
+          "sources": [
+            {
+              "id": "airflow-3-0-6-config-webserver-instance-name-has-markup",
+              "url": "https://github.com/apache/airflow/blob/e965c2e676d85ced65a485d4b2601addc2fd3e97/airflow-core/src/airflow/config_templates/config.yml",
+              "revision": "e965c2e676d85ced65a485d4b2601addc2fd3e97",
+              "contentDigest": "sha256:cdec4e751debd909d4d2ec1082c71566047fb5d41125bafba7f1d5bf5c7de6ff",
+              "startLine": 1812,
+              "endLine": 1818
+            },
+            {
+              "id": "airflow-3-1-0-release-notes-webserver-instance-name-has-markup",
+              "url": "https://github.com/apache/airflow/blob/54bd5d8cd9f6f477cc83445737614dec81c4323c/RELEASE_NOTES.rst",
+              "revision": "54bd5d8cd9f6f477cc83445737614dec81c4323c",
+              "contentDigest": "sha256:d6865c0a804aab30f0dc41e1080141046e5bead5c1bb78d887d57e0edb772983",
+              "startLine": 216,
+              "endLine": 233
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "Apache Airflow 3.1.0: the release notes list the [webserver] warn_deployment_exposure option among the unused configuration options that have been removed. This checks only whether one complete, precedence-resolved airflow.cfg sets warn_deployment_exposure in its [webserver] section; it reads no value, no other option and no environment variable that is not already folded into the file, and says nothing about the rest of the 3.0.6 to 3.1.0 upgrade.",
+      "project": "airflow",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.airflow.webserver_warn_deployment_exposure_present",
+          "component": "pkg:github/apache/airflow",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the proposed effective airflow.cfg sets warn_deployment_exposure in its [webserver] section."
+        }
+      ],
+      "rule": {
+        "id": "airflow.removed-option-webserver-warn-deployment-exposure.3-0-6-to-3-1-0",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/apache/airflow",
+          "from": "3.0.6",
+          "to": "3.1.0"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/apache/airflow",
+          "factId": "component.airflow.webserver_warn_deployment_exposure_present",
+          "boolValue": true
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Remove warn_deployment_exposure from the [webserver] section of airflow.cfg (the Airflow 3.1.0 release notes list it as removed), then recheck the precedence-resolved config.",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-31T12:00:00Z",
+          "validUntil": "2027-01-28T12:00:00Z",
+          "sources": [
+            {
+              "id": "airflow-3-0-6-config-webserver-warn-deployment-exposure",
+              "url": "https://github.com/apache/airflow/blob/e965c2e676d85ced65a485d4b2601addc2fd3e97/airflow-core/src/airflow/config_templates/config.yml",
+              "revision": "e965c2e676d85ced65a485d4b2601addc2fd3e97",
+              "contentDigest": "sha256:cdec4e751debd909d4d2ec1082c71566047fb5d41125bafba7f1d5bf5c7de6ff",
+              "startLine": 1827,
+              "endLine": 1833
+            },
+            {
+              "id": "airflow-3-1-0-release-notes-webserver-warn-deployment-exposure",
+              "url": "https://github.com/apache/airflow/blob/54bd5d8cd9f6f477cc83445737614dec81c4323c/RELEASE_NOTES.rst",
+              "revision": "54bd5d8cd9f6f477cc83445737614dec81c4323c",
+              "contentDigest": "sha256:d6865c0a804aab30f0dc41e1080141046e5bead5c1bb78d887d57e0edb772983",
+              "startLine": 216,
+              "endLine": 233
+            }
+          ]
+        }
+      }
+    },
+    {
       "description": "Argo Workflows v4.1.3 retains the --base-href spelling that replaced --basehref; this checks literal argv for one exact-image, caller-selected target argo-server Deployment.",
       "project": "argo-workflows",
       "requiredFacts": [
@@ -2678,6 +2894,254 @@
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
         "nextAction": "For a selected Galera-only MariaDB resource, set spec.updateStrategy.autoUpdateDataPlane: true before updating the operator; review standalone, replication, admission, runtime readiness, and data-plane completion separately."
+      }
+    },
+    {
+      "description": "OpenSearch 3.0.0 removes the deprecated gateway.expected_master_nodes node setting: its source marks the setting deprecated in 2.19.7 and no longer defines it in 3.0.0, and the 3.0.0 release notes list the deprecated 'gateway' recovery settings as removed. This checks only whether one complete, precedence-resolved opensearch.yml sets gateway.expected_master_nodes in dotted or nested form; it reads no value, no other setting and no command-line or environment setting that is not already folded into the file, and says nothing about the rest of the 2.19.7 to 3.0.0 upgrade.",
+      "project": "opensearch",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.opensearch.gateway_expected_master_nodes_present",
+          "component": "pkg:github/opensearch-project/opensearch",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the proposed effective opensearch.yml sets gateway.expected_master_nodes in dotted or nested mapping form."
+        }
+      ],
+      "rule": {
+        "id": "opensearch.removed-setting-gateway-expected-master-nodes.2-19-7-to-3-0-0",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/opensearch-project/opensearch",
+          "from": "2.19.7",
+          "to": "3.0.0"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/opensearch-project/opensearch",
+          "factId": "component.opensearch.gateway_expected_master_nodes_present",
+          "boolValue": true
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Remove gateway.expected_master_nodes from opensearch.yml and use the gateway.expected_data_nodes and gateway.recover_after_data_nodes settings that 3.0.0 still defines, then recheck the precedence-resolved config.",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-31T12:00:00Z",
+          "validUntil": "2027-01-28T12:00:00Z",
+          "sources": [
+            {
+              "id": "opensearch-2-19-7-gateway-service-gateway-expected-master-nodes",
+              "url": "https://github.com/opensearch-project/OpenSearch/blob/6dd9a042d889837fad5d6e2afc5d3d3ce99edad6/server/src/main/java/org/opensearch/gateway/GatewayService.java",
+              "revision": "6dd9a042d889837fad5d6e2afc5d3d3ce99edad6",
+              "contentDigest": "sha256:060c6eaf4108f87a0e5662b1164b0f0c84198dd9b3c45529828d734f8135507d",
+              "startLine": 84,
+              "endLine": 90
+            },
+            {
+              "id": "opensearch-3-0-0-gateway-service-settings",
+              "url": "https://github.com/opensearch-project/OpenSearch/blob/dc4efa821904cc2d7ea7ef61c0f577d3fc0d8be9/server/src/main/java/org/opensearch/gateway/GatewayService.java",
+              "revision": "dc4efa821904cc2d7ea7ef61c0f577d3fc0d8be9",
+              "contentDigest": "sha256:f26b39631ebd6cffc4f9737aeb8ec5ac5b0893837cfbd3edfd94b9dcde00501f",
+              "startLine": 71,
+              "endLine": 87
+            },
+            {
+              "id": "opensearch-3-0-0-release-notes-gateway-removed",
+              "url": "https://github.com/opensearch-project/OpenSearch/blob/dc4efa821904cc2d7ea7ef61c0f577d3fc0d8be9/release-notes/opensearch.release-notes-3.0.0.md",
+              "revision": "dc4efa821904cc2d7ea7ef61c0f577d3fc0d8be9",
+              "contentDigest": "sha256:0040e5781d524aff4ef6d0a32cad71028754d804323508edae3e33f0e657421d",
+              "startLine": 172,
+              "endLine": 188
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "OpenSearch 3.0.0 removes the deprecated gateway.expected_nodes node setting: its source marks the setting deprecated in 2.19.7 and no longer defines it in 3.0.0, and the 3.0.0 release notes list the deprecated 'gateway' recovery settings as removed. This checks only whether one complete, precedence-resolved opensearch.yml sets gateway.expected_nodes in dotted or nested form; it reads no value, no other setting and no command-line or environment setting that is not already folded into the file, and says nothing about the rest of the 2.19.7 to 3.0.0 upgrade.",
+      "project": "opensearch",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.opensearch.gateway_expected_nodes_present",
+          "component": "pkg:github/opensearch-project/opensearch",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the proposed effective opensearch.yml sets gateway.expected_nodes in dotted or nested mapping form."
+        }
+      ],
+      "rule": {
+        "id": "opensearch.removed-setting-gateway-expected-nodes.2-19-7-to-3-0-0",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/opensearch-project/opensearch",
+          "from": "2.19.7",
+          "to": "3.0.0"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/opensearch-project/opensearch",
+          "factId": "component.opensearch.gateway_expected_nodes_present",
+          "boolValue": true
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Remove gateway.expected_nodes from opensearch.yml and use the gateway.expected_data_nodes and gateway.recover_after_data_nodes settings that 3.0.0 still defines, then recheck the precedence-resolved config.",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-31T12:00:00Z",
+          "validUntil": "2027-01-28T12:00:00Z",
+          "sources": [
+            {
+              "id": "opensearch-2-19-7-gateway-service-gateway-expected-nodes",
+              "url": "https://github.com/opensearch-project/OpenSearch/blob/6dd9a042d889837fad5d6e2afc5d3d3ce99edad6/server/src/main/java/org/opensearch/gateway/GatewayService.java",
+              "revision": "6dd9a042d889837fad5d6e2afc5d3d3ce99edad6",
+              "contentDigest": "sha256:060c6eaf4108f87a0e5662b1164b0f0c84198dd9b3c45529828d734f8135507d",
+              "startLine": 71,
+              "endLine": 77
+            },
+            {
+              "id": "opensearch-3-0-0-gateway-service-settings",
+              "url": "https://github.com/opensearch-project/OpenSearch/blob/dc4efa821904cc2d7ea7ef61c0f577d3fc0d8be9/server/src/main/java/org/opensearch/gateway/GatewayService.java",
+              "revision": "dc4efa821904cc2d7ea7ef61c0f577d3fc0d8be9",
+              "contentDigest": "sha256:f26b39631ebd6cffc4f9737aeb8ec5ac5b0893837cfbd3edfd94b9dcde00501f",
+              "startLine": 71,
+              "endLine": 87
+            },
+            {
+              "id": "opensearch-3-0-0-release-notes-gateway-removed",
+              "url": "https://github.com/opensearch-project/OpenSearch/blob/dc4efa821904cc2d7ea7ef61c0f577d3fc0d8be9/release-notes/opensearch.release-notes-3.0.0.md",
+              "revision": "dc4efa821904cc2d7ea7ef61c0f577d3fc0d8be9",
+              "contentDigest": "sha256:0040e5781d524aff4ef6d0a32cad71028754d804323508edae3e33f0e657421d",
+              "startLine": 172,
+              "endLine": 188
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "OpenSearch 3.0.0 removes the deprecated gateway.recover_after_master_nodes node setting: its source marks the setting deprecated in 2.19.7 and no longer defines it in 3.0.0, and the 3.0.0 release notes list the deprecated 'gateway' recovery settings as removed. This checks only whether one complete, precedence-resolved opensearch.yml sets gateway.recover_after_master_nodes in dotted or nested form; it reads no value, no other setting and no command-line or environment setting that is not already folded into the file, and says nothing about the rest of the 2.19.7 to 3.0.0 upgrade.",
+      "project": "opensearch",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.opensearch.gateway_recover_after_master_nodes_present",
+          "component": "pkg:github/opensearch-project/opensearch",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the proposed effective opensearch.yml sets gateway.recover_after_master_nodes in dotted or nested mapping form."
+        }
+      ],
+      "rule": {
+        "id": "opensearch.removed-setting-gateway-recover-after-master-nodes.2-19-7-to-3-0-0",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/opensearch-project/opensearch",
+          "from": "2.19.7",
+          "to": "3.0.0"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/opensearch-project/opensearch",
+          "factId": "component.opensearch.gateway_recover_after_master_nodes_present",
+          "boolValue": true
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Remove gateway.recover_after_master_nodes from opensearch.yml and use the gateway.expected_data_nodes and gateway.recover_after_data_nodes settings that 3.0.0 still defines, then recheck the precedence-resolved config.",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-31T12:00:00Z",
+          "validUntil": "2027-01-28T12:00:00Z",
+          "sources": [
+            {
+              "id": "opensearch-2-19-7-gateway-service-gateway-recover-after-master-nodes",
+              "url": "https://github.com/opensearch-project/OpenSearch/blob/6dd9a042d889837fad5d6e2afc5d3d3ce99edad6/server/src/main/java/org/opensearch/gateway/GatewayService.java",
+              "revision": "6dd9a042d889837fad5d6e2afc5d3d3ce99edad6",
+              "contentDigest": "sha256:060c6eaf4108f87a0e5662b1164b0f0c84198dd9b3c45529828d734f8135507d",
+              "startLine": 109,
+              "endLine": 115
+            },
+            {
+              "id": "opensearch-3-0-0-gateway-service-settings",
+              "url": "https://github.com/opensearch-project/OpenSearch/blob/dc4efa821904cc2d7ea7ef61c0f577d3fc0d8be9/server/src/main/java/org/opensearch/gateway/GatewayService.java",
+              "revision": "dc4efa821904cc2d7ea7ef61c0f577d3fc0d8be9",
+              "contentDigest": "sha256:f26b39631ebd6cffc4f9737aeb8ec5ac5b0893837cfbd3edfd94b9dcde00501f",
+              "startLine": 71,
+              "endLine": 87
+            },
+            {
+              "id": "opensearch-3-0-0-release-notes-gateway-removed",
+              "url": "https://github.com/opensearch-project/OpenSearch/blob/dc4efa821904cc2d7ea7ef61c0f577d3fc0d8be9/release-notes/opensearch.release-notes-3.0.0.md",
+              "revision": "dc4efa821904cc2d7ea7ef61c0f577d3fc0d8be9",
+              "contentDigest": "sha256:0040e5781d524aff4ef6d0a32cad71028754d804323508edae3e33f0e657421d",
+              "startLine": 172,
+              "endLine": 188
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "OpenSearch 3.0.0 removes the deprecated gateway.recover_after_nodes node setting: its source marks the setting deprecated in 2.19.7 and no longer defines it in 3.0.0, and the 3.0.0 release notes list the deprecated 'gateway' recovery settings as removed. This checks only whether one complete, precedence-resolved opensearch.yml sets gateway.recover_after_nodes in dotted or nested form; it reads no value, no other setting and no command-line or environment setting that is not already folded into the file, and says nothing about the rest of the 2.19.7 to 3.0.0 upgrade.",
+      "project": "opensearch",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.opensearch.gateway_recover_after_nodes_present",
+          "component": "pkg:github/opensearch-project/opensearch",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the proposed effective opensearch.yml sets gateway.recover_after_nodes in dotted or nested mapping form."
+        }
+      ],
+      "rule": {
+        "id": "opensearch.removed-setting-gateway-recover-after-nodes.2-19-7-to-3-0-0",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/opensearch-project/opensearch",
+          "from": "2.19.7",
+          "to": "3.0.0"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/opensearch-project/opensearch",
+          "factId": "component.opensearch.gateway_recover_after_nodes_present",
+          "boolValue": true
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Remove gateway.recover_after_nodes from opensearch.yml and use the gateway.expected_data_nodes and gateway.recover_after_data_nodes settings that 3.0.0 still defines, then recheck the precedence-resolved config.",
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-10-31T12:00:00Z",
+          "validUntil": "2027-01-28T12:00:00Z",
+          "sources": [
+            {
+              "id": "opensearch-2-19-7-gateway-service-gateway-recover-after-nodes",
+              "url": "https://github.com/opensearch-project/OpenSearch/blob/6dd9a042d889837fad5d6e2afc5d3d3ce99edad6/server/src/main/java/org/opensearch/gateway/GatewayService.java",
+              "revision": "6dd9a042d889837fad5d6e2afc5d3d3ce99edad6",
+              "contentDigest": "sha256:060c6eaf4108f87a0e5662b1164b0f0c84198dd9b3c45529828d734f8135507d",
+              "startLine": 96,
+              "endLine": 102
+            },
+            {
+              "id": "opensearch-3-0-0-gateway-service-settings",
+              "url": "https://github.com/opensearch-project/OpenSearch/blob/dc4efa821904cc2d7ea7ef61c0f577d3fc0d8be9/server/src/main/java/org/opensearch/gateway/GatewayService.java",
+              "revision": "dc4efa821904cc2d7ea7ef61c0f577d3fc0d8be9",
+              "contentDigest": "sha256:f26b39631ebd6cffc4f9737aeb8ec5ac5b0893837cfbd3edfd94b9dcde00501f",
+              "startLine": 71,
+              "endLine": 87
+            },
+            {
+              "id": "opensearch-3-0-0-release-notes-gateway-removed",
+              "url": "https://github.com/opensearch-project/OpenSearch/blob/dc4efa821904cc2d7ea7ef61c0f577d3fc0d8be9/release-notes/opensearch.release-notes-3.0.0.md",
+              "revision": "dc4efa821904cc2d7ea7ef61c0f577d3fc0d8be9",
+              "contentDigest": "sha256:0040e5781d524aff4ef6d0a32cad71028754d804323508edae3e33f0e657421d",
+              "startLine": 172,
+              "endLine": 188
+            }
+          ]
+        }
       }
     }
   ]

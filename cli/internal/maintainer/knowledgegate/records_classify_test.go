@@ -5,6 +5,7 @@ package knowledgegate
 import (
 	"encoding/json"
 	"slices"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -80,7 +81,29 @@ func TestClassifyRecordEdits(t *testing.T) {
 		"attestation renewed and repinned": {att, func(d map[string]any) {
 			shift(ev(d, att), "reviewedAt", time.Hour)
 			shift(ev(d, att), "validUntil", time.Hour)
-			ev(d, att)["sources"].([]any)[0].(map[string]any)["endLine"] = json.Number("1")
+			// Re-pin the span within the cited file: a single line at the
+			// span's start, or two lines when it already is one line. The
+			// fixture's source is the pack's first rule's, so the line
+			// numbers are not fixed.
+			source := ev(d, att)["sources"].([]any)[0].(map[string]any)
+			line := func(v any) int64 {
+				switch n := v.(type) {
+				case float64:
+					return int64(n)
+				case json.Number:
+					i, _ := n.Int64()
+					return i
+				}
+				t.Fatalf("unexpected line number %T", v)
+				return 0
+			}
+			start, end := line(source["startLine"]), line(source["endLine"])
+			if end == start {
+				end++
+			} else {
+				end = start
+			}
+			source["endLine"] = json.Number(strconv.FormatInt(end, 10))
 		}, ClassLoosening, []string{KindRenew, KindRepin}, false},
 		"attestation rule list": {att, func(d map[string]any) { sectionRecord(d, att, 0)["ruleIds"] = []any{"a.rule"} }, ClassLoosening, []string{KindModify}, false},
 		"policy withdrawn":      {pol, func(d map[string]any) { ev(d, pol)["state"] = "withdrawn" }, ClassTightening, []string{KindWithdraw}, false},

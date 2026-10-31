@@ -2,10 +2,11 @@
   "schema": "prufyx.io/community-project-corpus-attestation/v1alpha1",
   "attestation": "COMPLETE_REVIEWED_RULES_FOR_LISTED_COMPONENTS",
   "revision": "community-project-rules-2026-09-12.6",
-  "packDigest": "sha256:64d9550e8505bdefcbd33d0ca0911119a0f9576f40799a0878a0c1ec3a9e2a28",
-  "ruleSetDigest": "sha256:4cb768bf4798696a5811092ab9c3facc379bba76b9d7ab4a270ed384ebbc3bff",
-  "ruleCount": 34,
+  "packDigest": "sha256:126ffba3337d606085577bf358058f8947a727b51ea9ecfc10f95379b6808bef",
+  "ruleSetDigest": "sha256:b6e2c91b8b8ecfeaceda14a81c7e16d6aab57d6c29999abd53ac58fd214d6bee",
+  "ruleCount": 42,
   "components": [
+    "pkg:github/apache/airflow",
     "pkg:github/argoproj/argo-workflows",
     "pkg:github/ceph/ceph",
     "pkg:github/elastic/kibana",
@@ -13,7 +14,8 @@
     "pkg:github/grafana/grafana",
     "pkg:github/grafana/loki",
     "pkg:github/mariadb-operator/mariadb-operator",
-    "pkg:github/mariadb/server"
+    "pkg:github/mariadb/server",
+    "pkg:github/opensearch-project/opensearch"
   ],
   "limitations": [
     "this attestation states only that every reviewed rule the maintainer holds for each listed component is present in this pack at this revision; it authors no compatibility claim and changes none",

@@ -34,6 +34,35 @@ checks:
 - Kibana `8.18.0` → `9.0.0`: whether a proposed `kibana.yml` retains
   `xpack.reporting.roles.allow`, which Kibana 9 no longer supports. Passing
   this predicate does not validate feature privileges or reporting access.
+- Apache Airflow `3.0.6` → `3.1.0`: whether a proposed `airflow.cfg` sets one
+  of four options that the 3.1.0 release notes list as removed:
+  `[webserver] instance_name_has_markup`, `[webserver] warn_deployment_exposure`,
+  `[api] enable_xcom_deserialize_support` or `[scheduler]
+  dag_stale_not_seen_duration`. Each option is its own rule, so a report names
+  the option it blocks on. The file is read as an INI file; a spelling that could
+  change which option is meant (a case variant, a `_cmd` or `_secret` form, a
+  repeated section or option, a `[DEFAULT]` entry) is UNKNOWN. The check reads
+  no value and no other option, and does not see environment variables unless
+  the caller has folded them into the file and declared it complete and
+  precedence-resolved. Passing says only that none of these four options is set;
+  it does not validate the rest of the configuration or the upgrade. Apache
+  Airflow is a neutral community-project identity; CNCF membership is not
+  asserted. `--effective-config` must be the plain `airflow.cfg`, not a Helm
+  values file or a ConfigMap that wraps it; a wrapped file is invalid input.
+- OpenSearch `2.19.7` → `3.0.0`: whether a proposed `opensearch.yml` sets one of
+  four `gateway` settings that the 2.19.7 source marks deprecated and the 3.0.0
+  source no longer defines, which the 3.0.0 release notes list as removed:
+  `gateway.expected_nodes`, `gateway.expected_master_nodes`,
+  `gateway.recover_after_nodes` and `gateway.recover_after_master_nodes`. Each
+  setting is its own rule. Dotted and nested spellings are both read; a YAML
+  anchor, alias, tag, merge key, second document, repeated path, case variant or
+  a scalar on a parent of a listed setting is UNKNOWN. The check reads no value
+  and no other setting, and does not see command-line or environment settings
+  unless the caller has folded them into the file and declared it complete and
+  precedence-resolved. Passing says only that none of these four settings is
+  set; it does not validate the rest of the configuration or the upgrade.
+  OpenSearch is a neutral community-project identity; CNCF membership is not
+  asserted.
 - Fluent Bit `3.2.0` → `4.0.0`: whether a complete proposed classic
   configuration preserves an enabled OpenTelemetry `http2` setting after
   Fluent Bit changed its default from `on` to `off`. This requires the
