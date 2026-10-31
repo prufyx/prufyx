@@ -172,8 +172,10 @@ change. Giving `--source` or `--release-plan` keeps the rules described above
   upgrade prufyx, run `prufyx db update` first: until then `scan` and `check` may
   stop with exit `3` instead of using the embedded knowledge (fix planned for
   beta.1). `prufyx db status` on such a database reports `INTEGRITY_FAILURE`
-  (exit `3`) although nothing is damaged (a distinct state is planned for
-  beta.1); do not remove the store, upgrade prufyx.
+  (exit `3`) and cannot yet tell it from a tampered one (a distinct state is
+  planned for beta.1): run `scan` or `check cncf` with `--knowledge-db`; exit
+  `15` means too new (upgrade prufyx), exit `3` means an integrity failure
+  (replace the store with `db update`).
 - **Store from another root.** A store whose initial root is not the pinned root is
   refused with the message to remove the store directory
   (the path is printed) and run `db update` again. There is no reset command.

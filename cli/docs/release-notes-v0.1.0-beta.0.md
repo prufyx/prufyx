@@ -189,9 +189,11 @@ You can also build from source; see the [README](https://github.com/prufyx/prufy
 - `prufyx db status` on a database this build cannot read (too new, or built for
   another engine capability) reports `INTEGRITY_FAILURE` (exit `3`) with the
   reason "selected knowledge admission failed integrity checks", although the
-  database is intact and `scan` or `check cncf` with `--knowledge-db` name the
-  real reason (exit `15`). Do not remove the store for this; upgrade prufyx. A
-  distinct `db status` state is planned for beta.1.
+  database may be intact. `db status` cannot yet tell a database that is too new
+  from a tampered one. Run `scan` or `check cncf` with `--knowledge-db` to see
+  which: exit `15` means too new (upgrade prufyx), exit `3` means an integrity
+  failure (replace the store with `db update`). A distinct `db status` state is
+  planned for beta.1.
 - `scan` and `check` use the newer of the local database and the embedded
   knowledge, compared by the latest evidence review date per project. A
   database that is older for any project is not used and the embedded
