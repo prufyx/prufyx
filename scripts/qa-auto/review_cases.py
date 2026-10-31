@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Permanent regression cases from an independent review (suite "review", fast path, seconds to a minute).
+"""Permanent regression cases (suite "review", fast path, seconds to a minute).
 usage: review_cases.py --out FILE.cases.json [--allow STATE/review-allow.json]
 
 R1  removal-crossing rule: a synthetic crossing BLOCK that the embedded pack reports must not turn into exit 0 through
@@ -14,21 +14,21 @@ R4  kubernetes --native-resource: a resource at an API version the target no lon
 GAP adjacent removals no rule covers yet: expected non-PASS, a PASS is a mismatch (known gap), never allow-listable.
 
 WRONGPASS = exit 0 where the verdict must not pass. MISMATCH = any other deviation.
-Allow-list STATE/review-allow.json = {"ID": {"wi": "WI-1", "reason": "..."}}: only the ids in ALLOWABLE (the open
-review findings) may be listed, each with a valid work item. An allowed id that fails is reported and does not alarm;
-an allowed id that now passes is a STALE entry and alarms (mismatch + error), so the list only shrinks. An empty or
-missing list is the release gate. Malformed entries are errors.
+Allow-list STATE/review-allow.json = {"ID": {"ref": "tracking reference", "reason": "..."}}: only the ids in ALLOWABLE
+(the open known findings) may be listed. An allowed id that returns the known wrong PASS (exit 0 on a gate case) is
+reported and does not alarm; any other deviation (crash, exit -1, exit 2, ...) stays a mismatch. An allowed id that now
+passes as expected is a STALE entry and alarms (mismatch + error), so the list only shrinks. An empty or missing list
+is the release gate. Malformed entries are errors. Every skipped case raises an error case.
 """
 import argparse, json, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from qalib import BIN, SRC, TMP, NOW, ENV, case, counts, dump, sh, write_private
 
-WIS = {"WI-1", "WI-2", "WI-3", "WI-4"}
 ALLOWABLE = {"R1.store-explicit", "R1.auto-store", "R1.batch", "R1.same-id-shadow", "R1.same-id-shadow-batch",  # F1-F4
              "R2.flat", "R2.nested",                                                                             # A1
              "R3.falco.m",                                                                                       # falco -m
              "R4.ingress-ext-1.25-1.26"}                                                                         # W3
-def allowable(cid):  # open review findings; the R1x adversarial variants belong to WI-1 too
+def allowable(cid):  # open review findings; the R1x adversarial variants are known findings too
     return cid in ALLOWABLE or (cid.startswith("R1x.") and not cid.startswith("R1x.other-project"))
 
 
@@ -67,6 +67,7 @@ def has_rules(*needles):
 go_out = os.path.join(SRC, "cli", "qa-review-out.json")
 test_file = os.path.join(SRC, "cli/internal/communityapp/qa_review_synthetic_test.go")
 r1 = {}
+R1_HARNESS_FAIL = ""
 if os.path.exists(test_file):
     if os.path.exists(go_out):
         os.remove(go_out)
@@ -79,6 +80,7 @@ if os.path.exists(test_file):
         pass
     if len(r1) < 20:
         print((g.stdout + g.stderr)[-1500:])
+        R1_HARNESS_FAIL = f"Go harness recorded {len(r1)} of at least 20 entries"
 else:
     print("review: no Go harness in this source tree")
 if r1:
@@ -94,9 +96,10 @@ if r1:
             continue
         else:
             obs(cid, "ctl" if cid == "R1.embedded" else "gate", o["exit"], {BLOCKED} if cid == "R1.embedded" else NOT_PASS, o["text"][:150])
-    for cid in ("R1.store-explicit", "R1.auto-store", "R1.batch", "R1.same-id-shadow", "R1.same-id-shadow-batch"):
+if os.path.exists(test_file):
+    for cid in ("R1.store-explicit", "R1.auto-store", "R1.batch", "R1.same-id-shadow", "R1.same-id-shadow-batch", "R1.embedded"):
         if cid not in r1:
-            obs(cid, "gate", -1, NOT_PASS, "not recorded")
+            obs(cid, "ctl" if cid == "R1.embedded" else "gate", -1, {BLOCKED} if cid == "R1.embedded" else NOT_PASS, "not recorded")
 
 # R2 ------------------------------------------------------------------------------------------------------------
 for cid, text in (("R2.flat", "opensearch.experimental.feature.pluggable.caching.enabled: true\n"),
@@ -106,7 +109,7 @@ for cid, text in (("R2.flat", "opensearch.experimental.feature.pluggable.caching
     code, note = run("check", "project", "--project", "opensearch", "--effective-config", f, "--from", "2.19.7", "--to", "3.0.0",
                      "--effective-config-complete", "--precedence-resolved", "--now", PROBE_NOW, "--format", "json")
     if code == 2 and "failed admission" in note:  # the build has no OpenSearch rules yet: nothing to check
-        SKIPPED.append(cid)
+        SKIPPED.append(cid)  # no pinned "rules absent" build exists: a skip is an error (raised below)
         continue
     obs(cid, "gate", code, NOT_PASS, note)
 
@@ -126,13 +129,17 @@ def member(cid, kind, ok, project, comp, frm, to, m):
 
 
 FALCO, CORTEX = "pkg:github/falcosecurity/falco", "pkg:github/cortexproject/cortex"
-if has_rules('"falco.relnotes.'):
+if not has_rules('"falco.relnotes.'):
+    SKIPPED.append("R3.falco")
+else:
     member("R3.falco.m", "gate", {BLOCKED}, "falco", FALCO, "0.34.1", "0.35.0", "m")
     member("R3.falco.mesos-api", "gate", {BLOCKED}, "falco", FALCO, "0.34.1", "0.35.0", "mesos-api")  # control
     for m in ("pm", "pmesos"):  # `-p mesos` is not representable: known gap
         member("R3.falco." + m, "gap", NOT_PASS, "falco", FALCO, "0.34.1", "0.35.0", m)
     member("GAP.falco.userspace", "gap", NOT_PASS, "falco", FALCO, "0.36.2", "0.37.0", "userspace")
-if has_rules('"cortex.relnotes.'):
+if not has_rules('"cortex.relnotes.'):
+    SKIPPED.append("R3.cortex")
+else:
     member("R3.cortex.lower", "gate", {BLOCKED}, "cortex", CORTEX, "1.8.1", "1.9.0", "store.max-look-back-period")  # control
     member("R3.cortex.upper", "gate", NOT_PASS, "cortex", CORTEX, "1.8.1", "1.9.0", "Store.max-look-back-period")
     member("GAP.cortex.per-user-override-config", "gap", NOT_PASS, "cortex", CORTEX, "1.8.1", "1.9.0", "limits.per-user-override-config")
@@ -166,26 +173,31 @@ if os.path.exists(a.allow):
 for k, v in allow.items():
     if not allowable(k):
         bad.append(f"{k}: not an allow-listable review finding")
-    elif not (isinstance(v, dict) and v.get("wi") in WIS and str(v.get("reason", "")).strip()):
-        bad.append(f"{k}: entry needs {{'wi': one of {sorted(WIS)}, 'reason': text}}")
+    elif not (isinstance(v, dict) and str(v.get("ref", "")).strip() and str(v.get("reason", "")).strip()):
+        bad.append(f"{k}: entry needs {{'ref': text, 'reason': text}}")
 cases, seen = [], set()
 for cid, kind, code, ok, note in OBS:
     seen.add(cid)
     good = code in ok
     entry = allow.get(cid) if allowable(cid) else None
     if entry and not bad and good:
-        cases.append(case("review", "stale-allow:" + cid, mismatch=True, error=True, exit=code, wi=entry.get("wi"),
+        cases.append(case("review", "stale-allow:" + cid, mismatch=True, error=True, exit=code, ref=entry.get("ref"),
                           why="FIXED - remove from allow-list"))
     elif not good:
         passed = code == 0
-        cases.append(case("review", cid, wrongpass=passed and kind == "gate" and not entry,
-                          mismatch=not entry and not (passed and kind == "gate"), exit=code, expect=sorted(ok), note=note,
-                          allowed=entry))
+        known = bool(entry) and passed and kind == "gate"  # only the known wrong PASS is suppressed
+        cases.append(case("review", cid, wrongpass=passed and kind == "gate" and not known,
+                          mismatch=not known and not (passed and kind == "gate"), exit=code, expect=sorted(ok), note=note,
+                          allowed=entry if known else None, unexpected_for_allowed=bool(entry) and not known))
 for cid in allow:
     if allowable(cid) and cid not in seen:
-        cases.append(case("review", "allowed-not-run:" + cid, wi=allow[cid].get("wi") if isinstance(allow[cid], dict) else None))
+        cases.append(case("review", "allowed-not-run:" + cid, ref=allow[cid].get("ref") if isinstance(allow[cid], dict) else None))
 for msg in bad:
     cases.append(case("review", "allow-list", error=True, why=msg))
+if R1_HARNESS_FAIL:
+    cases.append(case("review", "R1-harness", error=True, mismatch=True, why=R1_HARNESS_FAIL))
+for sk in SKIPPED:
+    cases.append(case("review", "skipped:" + sk, error=True, mismatch=True, why="case skipped; the build must carry these rules"))
 if not OBS:
     cases.append(case("review", "no-cases", error=True, why="no review case ran (Go harness missing or failed)"))
 cases.append(case("review", "summary", ran=len(OBS), skipped=SKIPPED, allowed=len([c for c in allow if allowable(c)])))
