@@ -4,6 +4,7 @@ package checkroutemetadata
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
@@ -94,8 +95,19 @@ func TestDiscoverCompleteEmbeddedIdentityCatalog(t *testing.T) {
 	}
 	// Every rule of the pack is an identity: the custom-resource batch adds
 	// its 13 once it ships (crdbatchids), and each mechanical rule of another
-	// project one more.
-	if result.Schema != Schema || len(result.Checks) != 270+kubernetesExtra()+len(crdbatchIDs())+len(crdbatchids.Foreign()) {
+	// project one more, and so does each release-note removal rule
+	// (ids "<project>.relnotes.*").
+	cncf, err := cncfcheck.EmbeddedRuleIdentities()
+	if err != nil {
+		t.Fatal(err)
+	}
+	relnotes := 0
+	for _, item := range cncf {
+		if strings.Contains(item.RuleID, ".relnotes.") {
+			relnotes++
+		}
+	}
+	if result.Schema != Schema || len(result.Checks) != 270+kubernetesExtra()+len(crdbatchIDs())+len(crdbatchids.Foreign())+relnotes {
 		t.Fatalf("catalog schema/count = %q/%d", result.Schema, len(result.Checks))
 	}
 	if result.Scope.SourceEvidenceFreshness != "NOT_EVALUATED" {

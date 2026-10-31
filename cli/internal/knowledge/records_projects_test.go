@@ -97,6 +97,26 @@ func packWithServedList(t *testing.T) []byte {
 	if err := json.Unmarshal(plainShippedPack(t), &pack); err != nil {
 		t.Fatal(err)
 	}
+	// The release-note removal rules (crossing) need a higher schema level
+	// than this pack takes, and play no part in these tests.
+	var entries []map[string]json.RawMessage
+	if err := json.Unmarshal(pack["entries"], &entries); err != nil {
+		t.Fatal(err)
+	}
+	kept := entries[:0]
+	for _, entry := range entries {
+		var rule map[string]json.RawMessage
+		if err := json.Unmarshal(entry["rule"], &rule); err != nil {
+			t.Fatal(err)
+		}
+		if _, crossing := rule["crossing"]; !crossing {
+			kept = append(kept, entry)
+		}
+	}
+	var err error
+	if pack["entries"], err = json.Marshal(kept); err != nil {
+		t.Fatal(err)
+	}
 	pack["servedAPIs"] = json.RawMessage(recordsServedSection)
 	pack["schema"] = json.RawMessage(`"prufyx.io/cncf-source-rule-pack/v1alpha10"`)
 	out, err := json.Marshal(pack)

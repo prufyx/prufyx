@@ -162,6 +162,9 @@ func TestEmbeddedPackBaseline(t *testing.T) {
 		baseline = "cncf-2026-09-13.9"
 	}
 	if supersedeids.Superseded() {
+		// The six release-note removal rules (crossing-only; falco, cortex,
+		// thanos) decide pairs of old lines, which are outside the
+		// 2026-10-08 window, so the figures equal the pack without them.
 		now, want = supersedeids.Clock(), fleetFigures{Projects: 55, Pairs: 275, A: 29, B: 3, S: 40, G: 203, C1: 53, C3: 6}
 	} else if head.Revision != baseline {
 		// Only the reviewed generation is tied to the baseline revision: a

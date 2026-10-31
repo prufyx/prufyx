@@ -54,7 +54,13 @@ func communityPack(t *testing.T, schema string, entries ...Entry) []byte {
 	if err := strictJSON(raw, &pack); err != nil {
 		t.Fatal(err)
 	}
-	pack.Entries = append(pack.Entries, entries...)
+	// The pack models community entries and attestations: the release-note
+	// crossing rules need a higher schema level and play no part here.
+	kept, err := externalEntries(pack.Entries)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pack.Entries = append(append([]Entry(nil), kept...), entries...)
 	sort.SliceStable(pack.Entries, func(i, j int) bool { return ruleID(t, pack.Entries[i]) < ruleID(t, pack.Entries[j]) })
 	pack.Schema = schema
 	encoded, err := json.Marshal(pack)
@@ -515,7 +521,12 @@ func TestCommunityStaysOutOfTheCNCFCountsAndCorpus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if inventory.RuleCount != baseInventory.RuleCount+1 || inventory.RuleSetDigest == baseInventory.RuleSetDigest || len(inventory.Components) != len(baseInventory.Components) {
+	baseKept, err := externalEntries(base.pack.Entries)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The community pack models no release-note crossing rule.
+	if inventory.RuleCount != baseInventory.RuleCount-(len(base.pack.Entries)-len(baseKept))+1 || inventory.RuleSetDigest == baseInventory.RuleSetDigest || len(inventory.Components) != len(baseInventory.Components) {
 		t.Fatalf("corpus: %d rules, %d components (base %d, %d)", inventory.RuleCount, len(inventory.Components), baseInventory.RuleCount, len(baseInventory.Components))
 	}
 }

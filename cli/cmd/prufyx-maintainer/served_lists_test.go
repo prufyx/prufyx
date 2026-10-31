@@ -91,7 +91,7 @@ func servedPackDir(t *testing.T) string {
 // the build raises it from.
 func servedFreePack(t *testing.T, raw []byte) []byte {
 	t.Helper()
-	pk, err := extractpack.ParsePack(raw)
+	pk, err := extractpack.ParsePack(withoutCrossingRules(t, raw))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -367,4 +367,40 @@ func TestServedListsRoutesAndSources(t *testing.T) {
 	if s, err := servedListsSource("fixture:" + t.TempDir()); err != nil || s == nil {
 		t.Fatalf("fixture source: %v", err)
 	}
+}
+
+// withoutCrossingRules is the pack as it was before it held release-note
+// removal rules (crossing-only set rules, which need a schema above the one
+// this test models).
+func withoutCrossingRules(t *testing.T, raw []byte) []byte {
+	t.Helper()
+	p, err := extractpack.ParsePack(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var kept []json.RawMessage
+	for _, entry := range p.Entries {
+		var e struct {
+			Rule struct {
+				Operator string          `json:"operator"`
+				Crossing json.RawMessage `json:"crossing"`
+			} `json:"rule"`
+		}
+		if err := json.Unmarshal(entry, &e); err != nil {
+			t.Fatal(err)
+		}
+		if e.Rule.Operator == "forbid_set_member" && len(e.Rule.Crossing) > 0 {
+			continue
+		}
+		kept = append(kept, entry)
+	}
+	if len(kept) == len(p.Entries) {
+		return raw
+	}
+	p.Entries = kept
+	out, err := p.Render()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
 }

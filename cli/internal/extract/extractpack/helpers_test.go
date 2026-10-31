@@ -79,6 +79,7 @@ func packDir(t *testing.T, family string) string {
 			if b, err = supersedefixture.Reviewed(b); err != nil {
 				t.Fatal(err)
 			}
+			b = withoutCrossingRules(t, b)
 			b = withoutLineAttestations(t, b)
 		}
 		if err := os.WriteFile(filepath.Join(dir, f), b, 0o644); err != nil {
@@ -86,6 +87,42 @@ func packDir(t *testing.T, family string) string {
 		}
 	}
 	return filepath.Join(dir, "rules.json")
+}
+
+// withoutCrossingRules is the pack as it was before it held release-note
+// removal rules (crossing-only set rules, which need a schema above the one
+// withoutLineAttestations lowers the pack to).
+func withoutCrossingRules(t *testing.T, raw []byte) []byte {
+	t.Helper()
+	p, err := extractpack.ParsePack(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var kept []json.RawMessage
+	for _, entry := range p.Entries {
+		var e struct {
+			Rule struct {
+				Operator string          `json:"operator"`
+				Crossing json.RawMessage `json:"crossing"`
+			} `json:"rule"`
+		}
+		if err := json.Unmarshal(entry, &e); err != nil {
+			t.Fatal(err)
+		}
+		if e.Rule.Operator == "forbid_set_member" && len(e.Rule.Crossing) > 0 {
+			continue
+		}
+		kept = append(kept, entry)
+	}
+	if len(kept) == len(p.Entries) {
+		return raw
+	}
+	p.Entries = kept
+	out, err := p.Render()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
 }
 
 // withoutLineAttestations is the pack as it was before it carried line
