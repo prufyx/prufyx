@@ -1,0 +1,4 @@
+### Documentation
+- The README coverage block now splits the decided upgrades by whether they can answer `BLOCKED` (a rule, or an attestation that lists rules) or only a family-scoped `PASS` (an attestation that lists no rule), and states how many projects have a rule or attestation in their last five minors and how many rules expire in the first six days of their validity span. The catalogue sentence in the README is generated from the same report.
+- The beta tester guide, the release notes prose, and `custom-resources.md` no longer type coverage figures by hand; the `scan` description no longer says custom resources are not looked at; the README `scan` output shows the served-list wording the binary prints; the native-route count in the quickstart and the one-command-flow page is pinned to the registry by a test.
+- `prufyx-maintainer release-notes --into FILE --check` compares the generated block of a file with its regeneration without writing.

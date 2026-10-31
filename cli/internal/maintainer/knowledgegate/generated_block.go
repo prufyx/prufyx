@@ -148,40 +148,60 @@ func (r *Report) blockChecks(opts Options) {
 // through the tree (no links, bounded sizes). The evaluation time is the
 // snapshot's captured date at 12:00:00Z, so nothing depends on the clock.
 func coverageBlock(t Tree) (string, error) {
-	pack, err := t.Read(cncfRulesPath, MaxFileBytes)
-	if err != nil {
-		return "", err
-	}
-	linesRaw, err := t.Read(coveragereport.PinnedLinesPath, MaxFileBytes)
-	if err != nil {
-		return "", err
-	}
-	inventory, err := t.Read(inventoryJSON, MaxFileBytes)
-	if err != nil {
-		return "", err
-	}
-	community, err := t.Read(commRulesPath, MaxFileBytes)
-	if err != nil {
-		return "", err
-	}
-	lines, err := coveragereport.ParseLines(linesRaw)
-	if err != nil {
-		return "", err
-	}
-	captured, err := time.Parse("2006-01-02", lines.CapturedOn)
-	if err != nil {
-		return "", fmt.Errorf("the pinned lines snapshot has no captured date")
-	}
-	now := captured.Add(12 * time.Hour).UTC()
-	crd, err := crdProjectComponents(t)
-	if err != nil {
-		return "", err
-	}
-	report, err := coveragereport.Compute(coveragereport.Input{Pack: pack, Lines: linesRaw, Now: now, CRDVersionProjects: len(crd), CRDTargetComponents: crd, CommunityPack: community})
+	report, inventory, now, err := coverageReportOf(t)
 	if err != nil {
 		return "", err
 	}
 	return coveragereport.RenderREADMEBlock(report, inventory, now)
+}
+
+// crdBlock renders the README sentence about the CRD version targets from
+// the same report.
+func crdBlock(t Tree) (string, error) {
+	report, _, _, err := coverageReportOf(t)
+	if err != nil {
+		return "", err
+	}
+	return coveragereport.RenderCRDCatalogue(report)
+}
+
+// coverageReportOf computes the report the README regions are rendered from,
+// with the support inventory it is paired with and its evaluation time.
+func coverageReportOf(t Tree) (coveragereport.Report, []byte, time.Time, error) {
+	pack, err := t.Read(cncfRulesPath, MaxFileBytes)
+	if err != nil {
+		return coveragereport.Report{}, nil, time.Time{}, err
+	}
+	linesRaw, err := t.Read(coveragereport.PinnedLinesPath, MaxFileBytes)
+	if err != nil {
+		return coveragereport.Report{}, nil, time.Time{}, err
+	}
+	inventory, err := t.Read(inventoryJSON, MaxFileBytes)
+	if err != nil {
+		return coveragereport.Report{}, nil, time.Time{}, err
+	}
+	community, err := t.Read(commRulesPath, MaxFileBytes)
+	if err != nil {
+		return coveragereport.Report{}, nil, time.Time{}, err
+	}
+	lines, err := coveragereport.ParseLines(linesRaw)
+	if err != nil {
+		return coveragereport.Report{}, nil, time.Time{}, err
+	}
+	captured, err := time.Parse("2006-01-02", lines.CapturedOn)
+	if err != nil {
+		return coveragereport.Report{}, nil, time.Time{}, fmt.Errorf("the pinned lines snapshot has no captured date")
+	}
+	now := captured.Add(12 * time.Hour).UTC()
+	crd, err := crdProjectComponents(t)
+	if err != nil {
+		return coveragereport.Report{}, nil, time.Time{}, err
+	}
+	report, err := coveragereport.Compute(coveragereport.Input{Pack: pack, Lines: linesRaw, Now: now, CRDVersionProjects: len(crd), CRDTargetComponents: crd, CommunityPack: community})
+	if err != nil {
+		return coveragereport.Report{}, nil, time.Time{}, err
+	}
+	return report, inventory, now, nil
 }
 
 // basisBlock and validityBlock render the README sentences about how the

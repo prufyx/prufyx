@@ -11,7 +11,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/maintainer/releasenotes"
 )
 
-const releaseNotesUsage = "release-notes: usage: prufyx-maintainer release-notes (--from REV [--to REV] [--repo DIR] | --from-dir DIR --to-dir DIR) [--to-label NAME] [--level 3|4] [--out FILE | --into FILE]"
+const releaseNotesUsage = "release-notes: usage: prufyx-maintainer release-notes (--from REV [--to REV] [--repo DIR] | --from-dir DIR --to-dir DIR) [--to-label NAME] [--level 3|4] [--out FILE | --into FILE [--check]]"
 
 // runReleaseNotes prints, as Markdown, what the data files of one tree add to
 // another: projects, rules, line attestations, onboarding batches and the
@@ -28,8 +28,9 @@ func runReleaseNotes(args []string, stdout io.Writer) error {
 	toLabel := flags.String("to-label", "", "name for the tree to describe in the output (default: --to); pass the same value on every regeneration")
 	out := flags.String("out", "", "write the Markdown to this file (default: stdout)")
 	into := flags.String("into", "", "replace the block between the "+releasenotes.MarkerBegin+" and "+releasenotes.MarkerEnd+" lines of this Markdown file")
+	check := flags.Bool("check", false, "with --into: do not write; exit 1 when the block of the file differs from the regeneration")
 	level := flags.Int("level", 3, "heading level of the sections: 3, or 4 under the level-3 categories of a CHANGELOG entry")
-	if err := flags.Parse(args); err != nil || flags.NArg() != 0 || (*out != "" && *into != "") || (*level != 3 && *level != 4) {
+	if err := flags.Parse(args); err != nil || flags.NArg() != 0 || (*out != "" && *into != "") || (*check && *into == "") || (*level != 3 && *level != 4) {
 		return &commandError{code: 2, message: releaseNotesUsage, err: err}
 	}
 	var from, to releasenotes.Tree
@@ -80,6 +81,12 @@ func runReleaseNotes(args []string, stdout io.Writer) error {
 		updated, err := releasenotes.ReplaceBlock(string(doc), text)
 		if err != nil {
 			return &commandError{code: 2, message: "release-notes: " + err.Error(), err: err}
+		}
+		if *check {
+			if updated != string(doc) {
+				return &commandError{code: 1, message: "release-notes: the generated block of " + *into + " differs from its regeneration; rerun with --into (and the same --from, --to and --to-label) to update it"}
+			}
+			return nil
 		}
 		if err := os.WriteFile(*into, []byte(updated), 0o644); err != nil {
 			return &commandError{code: 2, message: "release-notes: cannot write the file", err: err}
