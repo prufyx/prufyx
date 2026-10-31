@@ -221,6 +221,7 @@ Add --show-passes with --format human on the Kubernetes native-resource route an
 
 ```text
 Kibana 9.0.8|9.1.10|9.2.8|9.3.8|9.4.6 -> 9.5.3 additionally requires --full-status-without-monitor-required for the status-page scope.
+For airflow and opensearch, --effective-config must be the plain airflow.cfg or opensearch.yml, not a Helm values file, a ConfigMap or a manifest that wraps it: a wrapped file is UNKNOWN or invalid input.
 This preview is embedded-only. --knowledge-db, --profile, and replay flags are not supported for community projects.
 ```
 
@@ -327,6 +328,7 @@ Exit 0: prepared; 11: unresolved preparation; 2: invalid input; 3: integrity fai
 
 ```text
 Kibana 9.0.8|9.1.10|9.2.8|9.3.8|9.4.6 -> 9.5.3 additionally requires --full-status-without-monitor-required for the status-page scope.
+For airflow and opensearch, --effective-config must be the plain airflow.cfg or opensearch.yml, not a Helm values file, a ConfigMap or a manifest that wraps it: a wrapped file is UNKNOWN or invalid input.
 ```
 
 ### prufyx check
