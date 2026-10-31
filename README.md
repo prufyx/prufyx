@@ -265,7 +265,8 @@ catalog, 41 of the community catalog). It is decided only for the upgrades
 that a rule or line attestation covers for the whole release-line pair (A or
 B in the table below). In beta.0, community-catalog projects are mostly not
 scannable: 34 of the 41 have no data in the embedded knowledge, and `scan`,
-`plan` and `check cncf` refuse them with exit `2` instead of answering. The
+`plan` and `check cncf --custom-resources` refuse them with exit `2` instead of
+answering. The
 other 7 hold line attestations and are accepted.
 
 ## Coverage
@@ -300,7 +301,8 @@ stale). The method and the full per-project table are in the
 [coverage report guide](cli/docs/coverage-report.md).
 
 In plain terms: the rules are exact transitions, mostly for older
-releases. No upgrade between two release lines is decided as a whole yet.
+releases. Only a minority of upgrades between two release lines are decided as a
+whole (see the table above).
 Kubernetes API removals exist for upgrades to 1.22, 1.25-1.27, 1.29,
 1.32-1.34 and 1.37, plus the in-tree dockershim removal in 1.24.
 Each served-API removal rule covers every patch release of the previous line

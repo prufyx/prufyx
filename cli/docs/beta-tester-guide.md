@@ -227,7 +227,7 @@ expired rule, a missing declaration. Read the reason lines. Full tables:
   The generated block in the [README](../../README.md#coverage) has the
   current figures.
 - Community-catalog projects are mostly not scannable in beta.0: 34 of the 41
-  have no data in the embedded knowledge, and `scan`, `plan` and `check cncf`
+  have no data in the embedded knowledge, and `scan`, `plan` and `check cncf --custom-resources`
   refuse them with exit `2` instead of answering. The other 7 are accepted.
   Scanning the rest is planned for beta.1.
 - Patch-only upgrades within one release line are not evaluated for removals.

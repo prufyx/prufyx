@@ -84,7 +84,7 @@ Two numbers answer different questions and are not interchangeable:
 Community-catalog projects are mostly not scannable in beta.0. Of the 41, 7
 hold reviewed line attestations in the embedded knowledge and are accepted. The
 other 34 hold no data there: `prufyx scan`, `prufyx plan` and `prufyx check
-cncf` refuse them with exit `2` ("is in the community catalog ... does not
+cncf --custom-resources` refuse them with exit `2` ("is in the community catalog ... does not
 check ... yet") rather than answer. A community-catalog route that scans such
 projects is planned for beta.1.
 
