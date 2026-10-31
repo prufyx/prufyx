@@ -5675,7 +5675,7 @@
       }
     },
     {
-      "description": "Release-note-declared change: the falco 0.35.0 release notes list the flag --mesos-api as removed. This records what the project's own release notes state at a pinned commit; it is not proof of behaviour and says nothing about defaults, other keys, patch-release changes or undeclared changes. The rule reads the flags the deployment sets before the upgrade (a caller-supplied set) and applies to upgrades from a release below 0.35.0 to a release from 0.35.0 up to, but not including, 0.36.0.",
+      "description": "Release-note-declared change: the falco 0.35.0 release notes list the flags --mesos-api, -pmesos and -pm as removed. This records what the project's own release notes state at a pinned commit; it is not proof of behaviour and says nothing about defaults, other keys, patch-release changes or undeclared changes. The rule reads the flags the deployment sets before the upgrade (a caller-supplied set) and applies to upgrades from a release below 0.35.0 to a release from 0.35.0 up to, but not including, 0.36.0.",
       "project": "falco",
       "requiredFacts": [
         {
@@ -5716,14 +5716,16 @@
           "validUntil": "2027-01-29T12:00:00Z"
         },
         "id": "falco.relnotes.flag-removed.mesos-api.0-35",
-        "nextAction": "Remove the flag --mesos-api before upgrading to 0.35.0",
+        "nextAction": "Remove the flags --mesos-api, -pmesos and -pm before upgrading to 0.35.0",
         "operator": "forbid_set_member",
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
         "setCondition": {
           "component": "pkg:github/falcosecurity/falco",
           "factId": "component.falco.cli_flags_set",
           "members": [
-            "mesos-api"
+            "mesos-api",
+            "pm",
+            "pmesos"
           ],
           "side": "current"
         },

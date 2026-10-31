@@ -41,8 +41,8 @@ func TestEmbeddedRelnotesCrossingRules(t *testing.T) {
 		if err := json.Unmarshal(entry.Rule, &rule); err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(rule.ID, ".relnotes.") || len(rule.SetCondition.Members) != 1 {
-			t.Fatalf("crossing rule %s is not a release-note rule over one member", rule.ID)
+		if !strings.Contains(rule.ID, ".relnotes.") || len(rule.SetCondition.Members) == 0 {
+			t.Fatalf("crossing rule %s is not a release-note rule over its removed members", rule.ID)
 		}
 		input := func(fact string) []byte {
 			return []byte(fmt.Sprintf(`{"schema":"prufyx.io/operator-declared-constraint-input/v1alpha1","authority":"OPERATOR_DECLARED_MINIMIZED","current":{"components":[{"component":%q,"version":%q,"facts":[%s]}]},"proposed":{"components":[{"component":%q,"version":%q,"facts":[]}]}}`,
@@ -56,20 +56,27 @@ func TestEmbeddedRelnotesCrossingRules(t *testing.T) {
 			return `{"id":"` + rule.SetCondition.FactID + `","state":"declared","setValue":{"members":` + string(raw) + `,"complete":true}}`
 		}
 		incomplete := `{"id":"` + rule.SetCondition.FactID + `","state":"declared","setValue":{"members":["zz-unrelated"],"complete":false}}`
-		for _, tc := range []struct {
+		type setCase struct {
 			name, fact string
 			blocked    bool
 			// mayPass: the rule decides its own anchor hop, so a complete
 			// declared set without the member passes THAT rule only (as
 			// every set rule does); an incomplete or missing set never does.
 			mayPass bool
-		}{
-			{"member set", declared(rule.SetCondition.Members[0]), true, false},
+		}
+		var cases []setCase
+		// Every removed member blocks on its own: a release-note line that
+		// removes a flag together with its short aliases lists them all.
+		for _, member := range rule.SetCondition.Members {
+			cases = append(cases, setCase{"member set " + member, declared(member), true, false})
+		}
+		cases = append(cases, []setCase{
 			{"unrelated member set", declared("zz-unrelated"), false, true},
 			{"empty set", declared(), false, true},
 			{"incomplete set", incomplete, false, false},
 			{"fact unsupported", `{"id":"` + rule.SetCondition.FactID + `","state":"unsupported"}`, false, false},
-		} {
+		}...)
+		for _, tc := range cases {
 			report, err := CheckRule(entry.Project, rule.ID, input(tc.fact), now)
 			if err != nil || len(report.Check.Claims) != 1 {
 				t.Fatalf("%s %s: report=%+v err=%v", rule.ID, tc.name, report, err)
@@ -157,5 +164,29 @@ func TestCompareWithEmbeddedCountsCrossingRuleEvidence(t *testing.T) {
 	crossingAt := time.Date(2026, 10, 31, 12, 0, 0, 0, time.UTC)
 	if !comparison.Identical || comparison.StaleProject != "cortex" || !comparison.EmbeddedEvidenceAt.Equal(crossingAt) || !comparison.StoreEvidenceAt.Before(crossingAt) {
 		t.Fatalf("comparison=%+v", comparison)
+	}
+}
+
+// The falco 0.35.0 release note removes --mesos-api together with its aliases
+// -pmesos and -pm on one line; the rule lists all three, so a deployment that
+// still passes an alias is blocked, not passed.
+func TestFalcoMesosRuleListsTheAliases(t *testing.T) {
+	t.Parallel()
+	found := false
+	for _, entry := range shippedPack(t).Entries {
+		var rule struct {
+			ID           string `json:"id"`
+			SetCondition struct{ Members []string } `json:"setCondition"`
+		}
+		if err := json.Unmarshal(entry.Rule, &rule); err != nil || rule.ID != "falco.relnotes.flag-removed.mesos-api.0-35" {
+			continue
+		}
+		found = true
+		if strings.Join(rule.SetCondition.Members, ",") != "mesos-api,pm,pmesos" {
+			t.Fatalf("members=%v, want the flag and both aliases of the release-note line", rule.SetCondition.Members)
+		}
+	}
+	if !found {
+		t.Fatal("falco mesos-api rule missing")
 	}
 }
