@@ -419,6 +419,53 @@ On failure the workflow opens the issue "Knowledge publish self-check failed"
 closes the issue. To check by hand, dispatch the workflow. To fix a failure,
 see the recovery runbook below.
 
+### Engine capability change
+
+The engine capability digest (engine contract, fact registry, policy, landscape)
+is compared for equality: a client reads a package only if the package was built
+for the capability the client compiles. Adding a project to
+`cli/internal/customresources/table.json`, registering a fact or changing the
+engine moves it; so does regenerating `cli/internal/cncfcheck/data/**`. The push
+trigger watches these paths so that such a merge publishes at once.
+
+A package published before the change no longer parses under the new build. The
+workflow therefore handles it in three steps (steps 2 and 3 hold no secret or
+token; step 1 holds only the read-only workflow token it always had):
+
+1. "Find and verify the previous state" verifies the previous package with the
+   client of this tree, as always. If that client exits `15` with
+   `KNOWLEDGE CAPABILITY MISMATCH`, the step records the commit of the run that
+   produced the package (never an input), and nothing else counts as a reason to
+   continue: any other failure stops the run.
+2. "Check out the commit that produced the previous package" and "Verify the
+   previous package with the client that produced it" build that commit's
+   client (`GOTOOLCHAIN=local`, no network) and run the same `db verify` against
+   the pinned root of this tree and the digest in the artifact name. Only if it
+   exits `0` with `VERIFIED` does the run continue, in mode `capability`.
+3. The release uses `--first-release` with revision and TUF version one above
+   the previous ones. Every project is released again at that revision, so the
+   revision floors and TUF versions of existing clients keep advancing. The cron
+   and the skip rule are unchanged; mode `capability` never skips.
+
+The oldest-supported-client gate then allows the pinned client to refuse the
+package, but only with exit `15` and the too-new text, and only if the same
+binary verifies the previous package. In this mode the gate proves the signature,
+role and metadata path of the pinned client; the content of the new package is
+covered by the self-verification of the signing step. The pin must therefore be
+a client that contains this mechanism (it maps a capability mismatch to exit `15`;
+older builds report an integrity failure, exit `3`, and the gate refuses), and in
+the refusing branch its capability must equal the previous package's. After a
+capability-change release, move the pin (`cli/knowledge/oldest-supported-client.txt`)
+to a client of the new capability before the next capability change; otherwise the
+gate blocks that publish. If the pinned client has the same capability as the
+candidate, it verifies the package and the gate passes as usual. Clients that
+contain this mechanism report `KNOWLEDGE_CAPABILITY_MISMATCH` (exit `15`) until they
+are upgraded; plan capability changes accordingly and land them before a client
+release is cut, so the release matches the live feed. The recovery inputs
+(`previous_revision`, `previous_tuf_version`, `previous_index`) still verify with
+the client of this tree and so cannot cross a capability change; a lost artifact
+across a change needs a reviewed manual release.
+
 ### Oldest-supported-client gate
 
 Before the package is uploaded, the `sign` job builds the oldest client that

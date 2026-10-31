@@ -70,6 +70,24 @@ of the two revisions; nobody types them. The method is in the
 whole: a gap (G) is `UNKNOWN`, never a pass, and a catalogued project is not
 tested coverage. These figures are not a statement that any upgrade is safe.
 
+Two numbers answer different questions and are not interchangeable:
+
+- **Catalogued:** 87 projects have a reviewed custom-resource target (46 of
+  the CNCF landscape catalog and 41 of the community catalog). Being
+  catalogued says that Prufyx knows the project's custom-resource API groups,
+  not that it decides any upgrade.
+- **Decided (A or B):** 39 of the 390 upgrades in the last-five-minor-upgrade
+  window of the 78 measured projects are decided for the whole release-line
+  pair, in 10 projects. The community catalog is counted apart: 5 more
+  decided upgrades in 1 project.
+
+Community-catalog projects are mostly not scannable in beta.0. Of the 41, 7
+hold reviewed line attestations in the embedded knowledge and are accepted. The
+other 34 hold no data there: `prufyx scan`, `prufyx plan` and `prufyx check
+cncf --custom-resources` refuse them with exit `2` ("is in the community catalog ... does not
+check ... yet") rather than answer. A community-catalog route that scans such
+projects is planned for beta.1.
+
 ## Install and verify
 
 Archives are built for linux and darwin on amd64 and arm64:
@@ -158,6 +176,16 @@ You can also build from source; see the [README](https://github.com/prufyx/prufy
   `minClientVersion` above this build) makes `prufyx db update` and `prufyx db
   import` exit `15` (`KNOWLEDGE_TOO_NEW_FOR_THIS_CLIENT`). The current store and the
   embedded knowledge are kept. Upgrade prufyx.
+- `prufyx db update` follows the official feed only while the feed was built
+  for the same engine capability as this build. Adding a project to the
+  supported table, registering a fact or changing the engine changes the
+  capability; a feed published after such a change is refused by this build
+  with exit `15` and the reason `KNOWLEDGE_CAPABILITY_MISMATCH` (the embedded
+  knowledge and your current database keep working) until prufyx is upgraded.
+  Rule and attestation updates for existing projects do not change the
+  capability. If you upgrade with a database from an older feed installed, run
+  `prufyx db update` before `scan`; until then `scan` and `check` may stop with
+  exit `3`. Compatibility across capabilities is planned for beta.1.
 - `scan` and `check` use the newer of the local database and the embedded
   knowledge, compared by the latest evidence review date per project. A
   database that is older for any project is not used and the embedded

@@ -184,7 +184,15 @@ expired rule, a missing declaration. Read the reason lines. Full tables:
 - If `prufyx db update` exits `15` ("too new for this prufyx"), the published
   knowledge needs a newer prufyx. Nothing was changed and your current database
   and the embedded knowledge keep working; upgrade prufyx, then run `db update`
-  again. Do not remove the store for this. `scan` and `check` with such a
+  again. Do not remove the store for this. The same exit with the reason
+  `KNOWLEDGE_CAPABILITY_MISMATCH` means the feed was built for another engine
+  capability than your build (a project was added to the supported table, a fact
+  registered or the engine changed): upgrade prufyx if it is older than the feed
+  (builds made before this reason existed report an integrity failure, exit `3`,
+  for the same feed; upgrade those as well).
+  This beta only follows feed updates while the feed matches its own capability;
+  the embedded knowledge keeps working. After upgrading with an old database
+  installed, run `prufyx db update` before `scan`. `scan` and `check` with such a
   database, or with one an older prufyx left unadvanceable, use the embedded
   knowledge with a warning instead of failing (see `knowledge-updates.md`).
 - `prufyx db update` downloads a complete signed package and verifies it with
@@ -220,6 +228,16 @@ expired rule, a missing declaration. Read the reason lines. Full tables:
   skips release lines then stays unchecked (`NO_REVIEWED_PATH_POLICY`).
 - Many projects have rules for exact version pairs only. A pair with no rule is
   `UNKNOWN`. A catalogued project is not tested coverage.
+- "Catalogued" and "decided" are different counts. 87 projects have a reviewed
+  custom-resource target (46 CNCF landscape, 41 community catalog). Decided
+  coverage is smaller: 39 upgrades in 10 projects are decided for the whole
+  release-line pair (A or B), plus 5 upgrades in 1 community-catalog project.
+  The generated block in the [README](../../README.md#coverage) has the
+  current figures.
+- Community-catalog projects are mostly not scannable in beta.0: 34 of the 41
+  have no data in the embedded knowledge, and `scan`, `plan` and `check cncf --custom-resources`
+  refuse them with exit `2` instead of answering. The other 7 are accepted.
+  Scanning the rest is planned for beta.1.
 - Patch-only upgrades within one release line are not evaluated for removals.
 - Prufyx never infers what you did not declare, and does not prove migration
   completion, runtime compatibility, availability, data safety or security.

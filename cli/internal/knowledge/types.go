@@ -35,6 +35,12 @@ var (
 	// does not have, or a minClientVersion above this build. A newer prufyx is
 	// needed. It is never an integrity failure and never advances trust.
 	ErrUnsupportedKnowledge = errors.New("knowledge is signed by the pinned root but not readable by this prufyx build; a newer prufyx is needed")
+	// ErrCapabilityMismatch marks, together with ErrUnsupportedKnowledge, a
+	// signed index whose engine capability differs from this build's. The
+	// feed may be older or newer than this build: it is not a statement that
+	// a newer prufyx is needed. It is never an integrity failure and never
+	// advances trust; callers must test ErrUnsupportedKnowledge as well.
+	ErrCapabilityMismatch = errors.New("knowledge was built for a different engine capability than this prufyx build")
 	// ErrPinnedRootMismatch marks a store whose initial root is not the root
 	// pinned in this build.
 	ErrPinnedRootMismatch = fmt.Errorf("initial root is not the pinned root: %w", ErrIntegrity)
