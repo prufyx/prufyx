@@ -279,8 +279,8 @@ Generated on 2026-10-30 by `scripts/readme-coverage.sh` (do not edit this block 
 | Executable rules | Count |
 | --- | --- |
 | CNCF source rules, active | 245 across 53 projects (1 withdrawn, not used) |
-| Rules for further, non-CNCF projects | 34 across 8 projects |
-| Projects with at least one executable check (a rule, a named check or a profile; says nothing about which upgrades it decides) | 65 |
+| Rules for further, non-CNCF projects | 42 across 10 projects |
+| Projects with at least one executable check (a rule, a named check or a profile; says nothing about which upgrades it decides) | 67 |
 | Projects with a rule or attestation that decides at least one of their last five minor upgrades (A, B or S below) | 41 of 78 |
 | Projects catalogued with retained public sources | 58 (11 of them source-only, no check) |
 | Projects with reviewed CRD targets (a reviewed `crd.custom_resource_versions` target) | 87 |
@@ -296,7 +296,7 @@ Version-coverage depth, measured over the last five minor upgrades of each of th
 
 Kubernetes: 63 valid rules, but 19 fall in its window 1.32 to 1.37; 0 of 5 upgrades in that window are gaps.
 
-Decided means a valid rule or attestation covers every version of both release lines. It never means a whole-upgrade PASS. Only 5 of the 39 decided upgrades are decided by a rule, or by an attestation that lists rules, so the answer for them can be BLOCKED or UNKNOWN. The other 34 are decided only by line attestations that list no rule (32 by `crd.custom_resource_versions`, 2 by `kubernetes.removed_served_gvk`): for them an attestation can only give a family-scoped PASS (`scan` prints "PASS within <family> only"), never BLOCKED. An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.
+Decided means a valid rule or attestation covers every version of both release lines. It never means a whole-upgrade PASS. Only 7 of the 39 decided upgrades are decided by a rule, or by an attestation that lists rules, so the answer for them can be BLOCKED or UNKNOWN. The other 32 are decided only by line attestations that list no rule (32 by `crd.custom_resource_versions`): for them an attestation can only give a family-scoped PASS (`scan` prints "PASS within <family> only"), never BLOCKED. An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.
 <!-- coverage:end -->
 
 Update the block with `scripts/readme-coverage.sh` (`--check` fails when it is
@@ -327,7 +327,7 @@ Velero and others.
 Every rule in the CNCF and community-project packs is time-limited.
 
 <!-- validity-window:begin -->
-The 279 active rules shipped today stop being valid, rule by rule, between 2026-12-07 and 2027-01-28 unless their review is renewed; after its date a build without newer knowledge answers `UNKNOWN` for that rule. 199 of the 279 stop being valid on or before 2026-12-12, in the 6 days starting on the earliest.
+The 287 active rules shipped today stop being valid, rule by rule, between 2026-12-07 and 2027-01-28 unless their review is renewed; after its date a build without newer knowledge answers `UNKNOWN` for that rule. 199 of the 287 stop being valid on or before 2026-12-12, in the 6 days starting on the earliest.
 <!-- validity-window:end -->
 
 The named cert-manager and Prometheus checks are pinned to
