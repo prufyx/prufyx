@@ -9,9 +9,12 @@
     "factProject": "percona_server_mysql_operator",
     "tagPrefixes": ["v"],
     "minFrom": "0.11",
+    "attest": true,
     "paths": [
       {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
     ],
-    "exclude": []
+    "exclude": [
+      {"path": "e2e-tests/", "repo": "github.com/percona/percona-server-mysql-operator", "reason": "kuttl end-to-end test suite: assertion files that name CustomResourceDefinition objects, test configuration and helper scripts; no installed definition", "evidence": "Read at v0.11.0, v1.0.0 and v1.3.0: the Makefile reaches the directory only from test targets (kubectl kuttl test --config e2e-tests/kuttl.yaml, shfmt and the format helper over e2e-tests/functions and e2e-tests/tests, e2e-tests/build is the operator image build script and its build context excludes e2e-tests/ through .dockerignore, e2e-tests/release_versions and e2e-tests/vars.sh for the pinned test dependency versions); the .dockerignore lists e2e-tests/ so no image carries it; pkg/version/update-test-files.sh only rewrites version labels inside e2e-tests/tests; the listed path config/crd/bases does not refer to it."}
+    ]
   }
 }
