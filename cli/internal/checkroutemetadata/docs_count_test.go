@@ -6,45 +6,21 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"testing"
 )
 
-// The route counts the docs state are pinned to the registry: a doc that
-// types a stale number fails here, and no number is typed in this test.
-var docRouteCount = regexp.MustCompile(`\*\*(\d+) registered native check routes\*\*|\b(\d{3})(?:-route| routes| native| registered| of those)|0 of (\d{3})`)
+// The registry's route count moves with every route-adding change, so the user
+// docs type none: a doc that states one would go stale unnoticed.
+var docRouteCount = regexp.MustCompile(`\*\*\d+ registered native check routes\*\*|\b\d{3}(?:-route| routes| native check routes| registered native)|0 of \d{3}\b`)
 
-func TestDocsRouteCountMatchesRegistry(t *testing.T) {
-	result, err := Discover("", "", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	bound := 0
-	for _, item := range result.Checks {
-		if item.NativeDescriptor.State == DescriptorExact {
-			bound++
-		}
-	}
-	// quickstart.md states the count; one-command-flow.md must not type one.
-	for name, mustState := range map[string]bool{"quickstart.md": true, "one-command-flow.md": false} {
+func TestDocsTypeNoRouteCount(t *testing.T) {
+	for _, name := range []string{"quickstart.md", "one-command-flow.md"} {
 		raw, err := os.ReadFile(filepath.Join("..", "..", "docs", name))
 		if err != nil {
 			t.Fatal(err)
 		}
-		found := 0
-		for _, m := range docRouteCount.FindAllStringSubmatch(string(raw), -1) {
-			for _, g := range m[1:] {
-				if g == "" {
-					continue
-				}
-				found++
-				if n, _ := strconv.Atoi(g); n != bound {
-					t.Errorf("%s states %d native routes, the registry binds %d", name, n, bound)
-				}
-			}
-		}
-		if mustState && found == 0 {
-			t.Errorf("%s states no native route count; the pin has nothing to check", name)
+		if m := docRouteCount.Find(raw); m != nil {
+			t.Errorf("%s types a native route count (%q); the registry count moves with every route, leave it out", name, m)
 		}
 	}
 }
