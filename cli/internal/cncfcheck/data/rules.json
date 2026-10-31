@@ -5675,6 +5675,88 @@
       }
     },
     {
+      "description": "Release-note-declared change: the falco 0.37.0 release notes list the command-line option --userspace and the options -K and -k (Kubernetes metadata support, replaced by the k8smeta plugin) as removed, and the 0.36.2 option table defines them as -u/--userspace, -k/--k8s-api, -K/--k8s-api-cert and the Kubernetes metadata filter --k8s-node, which the 0.37.0 option table no longer holds. This records what the project's own release notes and option tables state at pinned commits; it is not proof of behaviour and says nothing about defaults, other options, patch-release changes or undeclared changes. The names -u, --k8s-api, --k8s-api-cert and --k8s-node are read from the option-table definitions, not from a release-note line. The rule reads the command-line options the deployment passes before the upgrade (a caller-supplied set of names) and applies to upgrades from a release below 0.37.0 to a release from 0.37.0 up to, but not including, 0.38.0.",
+      "project": "falco",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/falcosecurity/falco",
+          "description": "Command-line flag names the deployment passes before the upgrade: the long name without leading dashes (names only, values discarded). Caller-supplied; absent means unknown.",
+          "enumTokens": null,
+          "id": "component.falco.cli_flags_set",
+          "side": "current",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "crossing": {
+          "change": {
+            "basis": "REMOVED_IN_RELEASE",
+            "sourceId": "notes-0-37-0",
+            "version": "0.37.0"
+          },
+          "horizon": {
+            "basis": "REVIEWED_THROUGH_MINOR_LINE",
+            "lt": "0.38.0",
+            "sourceId": "notes-0-37-0"
+          }
+        },
+        "evidence": {
+          "reviewedAt": "2026-10-31T12:00:00Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:ba44f85a266294185608a060242e331e3185477134a0c971253b24447614f63f",
+              "endLine": 25,
+              "id": "notes-0-37-0",
+              "revision": "ba229e5b54d48e39bb76bce3790cef9fb94c708b",
+              "startLine": 25,
+              "url": "https://raw.githubusercontent.com/falcosecurity/falco/ba229e5b54d48e39bb76bce3790cef9fb94c708b/CHANGELOG.md"
+            },
+            {
+              "contentDigest": "sha256:ba44f85a266294185608a060242e331e3185477134a0c971253b24447614f63f",
+              "endLine": 12,
+              "id": "notes-0-37-0-userspace",
+              "revision": "ba229e5b54d48e39bb76bce3790cef9fb94c708b",
+              "startLine": 12,
+              "url": "https://raw.githubusercontent.com/falcosecurity/falco/ba229e5b54d48e39bb76bce3790cef9fb94c708b/CHANGELOG.md"
+            },
+            {
+              "contentDigest": "sha256:d0ea5ae23f4445f32e18b492d9cbe9eeea15839522f5462fde0744927d560bb4",
+              "endLine": 224,
+              "id": "options-0-36-2",
+              "revision": "1b62b5ccd1c64cd972ef0252262075cbf42a130c",
+              "startLine": 200,
+              "url": "https://raw.githubusercontent.com/falcosecurity/falco/1b62b5ccd1c64cd972ef0252262075cbf42a130c/userspace/falco/app/options.cpp"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-15T12:00:00Z"
+        },
+        "id": "falco.relnotes.flag-removed.cli-options.0-37",
+        "nextAction": "Remove the options --userspace, -u, --k8s-api, -k, --k8s-api-cert, -K and --k8s-node before upgrading to 0.37.0",
+        "operator": "forbid_set_member",
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "setCondition": {
+          "component": "pkg:github/falcosecurity/falco",
+          "factId": "component.falco.cli_flags_set",
+          "members": [
+            "K",
+            "k",
+            "k8s-api",
+            "k8s-api-cert",
+            "k8s-node",
+            "u",
+            "userspace"
+          ],
+          "side": "current"
+        },
+        "subject": {
+          "component": "pkg:github/falcosecurity/falco",
+          "from": "0.36.2",
+          "to": "0.37.0"
+        }
+      }
+    },
+    {
       "description": "Release-note-declared change: the falco 0.35.0 release notes list the flags --mesos-api, -pmesos and -pm as removed, and the 0.34.1 command-line options define the short alias -m for --mesos-api (gone in 0.35.0). This records what the project's own release notes and option table state at pinned commits; it is not proof of behaviour and says nothing about defaults, other keys, patch-release changes or undeclared changes. The value-bearing -p forms (\"-p mesos\", -pmesos, -pm) and \"-m <url>\" values are not checked beyond the flag name: the set holds names only. The rule reads the flags the deployment sets before the upgrade (a caller-supplied set) and applies to upgrades from a release below 0.35.0 to a release from 0.35.0 up to, but not including, 0.36.0.",
       "project": "falco",
       "requiredFacts": [

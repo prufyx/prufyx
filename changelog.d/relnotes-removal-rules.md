@@ -1,3 +1,4 @@
 ### Added
 
 - Six reviewed release-note removal rules for falco (`outputs.max_burst`, `outputs.rate`, flags `mesos-api`, `m`, `pmesos`, `pm`), cortex (flags `querier.compress-http-responses`, `store.max-look-back-period`) and thanos (flag `log.request.decision`). Each rule reads a caller-supplied flag or config-key set and blocks a deployment that still sets the removed member when it crosses the release. It never passes a hop it does not decide itself: a complete declared set without the member passes that rule on its own anchor hop only. Each cites the release-note line confirmed by a search of both pinned source trees. The CNCF rule pack moves to schema level `v1alpha11`.
+- A seventh rule covers the falco 0.37.0 command-line options that release removed (`--userspace`/`-u`, `-k`/`--k8s-api`, `-K`/`--k8s-api-cert`, `--k8s-node`): a deployment that still passes one is blocked when it crosses 0.37.0.

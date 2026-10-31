@@ -93,7 +93,7 @@ func TestEmbeddedRelnotesCrossingRules(t *testing.T) {
 			}
 		}
 	}
-	if count != 6 {
+	if count != 7 {
 		t.Fatalf("%d release-note crossing rules in the embedded pack, want 6", count)
 	}
 }
