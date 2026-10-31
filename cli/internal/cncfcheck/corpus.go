@@ -421,7 +421,7 @@ func assessScopeWith(b bundle, attestationRaw, inputRaw []byte, now time.Time) (
 			return ScopeReport{}, ErrInvalid
 		}
 	}
-	input, err := constraintengine.ParseInput(inputRaw, b.registry)
+	input, _, err := parseGuarded(inputRaw, b.registry)
 	if err != nil {
 		return ScopeReport{}, ErrInvalid
 	}
