@@ -526,6 +526,14 @@ func TestCustomResourceFamilyCountsA(t *testing.T) {
 	if len(report.Families) != 1 || report.Families[0].Family != "crd.custom_resource_versions" || report.Families[0].A != 3 {
 		t.Fatalf("families %+v", report.Families)
 	}
+	// Only the attestation that lists a rule can end in BLOCKED; the other
+	// two decided pairs can give a family-scoped PASS only.
+	if report.split.canBlock != 1 || len(report.split.noBlock) != 1 || report.split.noBlock[0] != (familyCount{"crd.custom_resource_versions", 2}) || report.split.total() != report.Fleet.A+report.Fleet.B {
+		t.Fatalf("split %+v fleet %+v", report.split, report.Fleet)
+	}
+	if got := decidedSplitSentence(report.split, 3); !strings.Contains(got, "Only 1 of the 3 decided upgrades") || !strings.Contains(got, "The other 2 are decided only by line attestations that list no rule (2 by `crd.custom_resource_versions`)") {
+		t.Fatalf("sentence %q", got)
+	}
 	// A listed rule that holds for its anchor pair only keeps the pair from A.
 	anchorOnly := strings.Replace(rule, ","+rangeJSON("0.50.0", "0.51.0", "0.51.0", "0.52.0"), "", 1)
 	report, err = Compute(Input{Pack: pack([]string{anchorOnly}, atts), Lines: snapshot, Now: baselineNow})

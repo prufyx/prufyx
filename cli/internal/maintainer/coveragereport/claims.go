@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 )
@@ -16,9 +17,15 @@ import (
 const (
 	READMEBasisBegin    = "<!-- basis-counts:begin -->"
 	READMEBasisEnd      = "<!-- basis-counts:end -->"
+	READMECRDBegin      = "<!-- crd-catalogue:begin -->"
+	READMECRDEnd        = "<!-- crd-catalogue:end -->"
 	READMEValidityBegin = "<!-- validity-window:begin -->"
 	READMEValidityEnd   = "<!-- validity-window:end -->"
 )
+
+// ExpiryBulkDays is the length, in days counted from the earliest expiry
+// day, of the span whose rule count the validity sentence states.
+const ExpiryBulkDays = 6
 
 type claimEvidence struct {
 	Basis      string `json:"basis"`
@@ -118,8 +125,10 @@ func RenderBasisSentence(packs ...[]byte) (string, error) {
 }
 
 // RenderValiditySentence renders the text between the validity-window
-// markers from the rule packs: the number of active rules and the earliest
-// and latest day on which one stops being valid. It ends with one newline.
+// markers from the rule packs: the number of active rules, the earliest and
+// latest day on which one stops being valid, and how many of them stop being
+// valid within the first ExpiryBulkDays days from the earliest. It ends with
+// one newline.
 func RenderValiditySentence(packs ...[]byte) (string, error) {
 	ps, err := parseClaimPacks(packs...)
 	if err != nil {
@@ -127,6 +136,7 @@ func RenderValiditySentence(packs ...[]byte) (string, error) {
 	}
 	n := 0
 	var first, last string
+	var days []string
 	for _, p := range ps {
 		for _, e := range p.Entries {
 			ev := e.Rule.Evidence
@@ -144,11 +154,23 @@ func RenderValiditySentence(packs ...[]byte) (string, error) {
 			if n == 0 || day > last {
 				last = day
 			}
+			days = append(days, day)
 			n++
 		}
 	}
 	if n == 0 {
 		return "", fmt.Errorf("the rule packs hold no active rule")
 	}
-	return fmt.Sprintf("The %d active rules shipped today stop being valid, rule by rule, between %s and %s unless their review is renewed; after its date a build without newer knowledge answers `UNKNOWN` for that rule.\n", n, first, last), nil
+	firstDay, err := time.Parse("2006-01-02", first)
+	if err != nil {
+		return "", err
+	}
+	bulkEnd := firstDay.AddDate(0, 0, ExpiryBulkDays-1).Format("2006-01-02")
+	bulk := 0
+	for _, d := range days {
+		if d <= bulkEnd {
+			bulk++
+		}
+	}
+	return fmt.Sprintf("The %d active rules shipped today stop being valid, rule by rule, between %s and %s unless their review is renewed; after its date a build without newer knowledge answers `UNKNOWN` for that rule. %d of the %d stop being valid on or before %s, in the %d days starting on the earliest.\n", n, first, last, bulk, n, bulkEnd, ExpiryBulkDays), nil
 }

@@ -291,6 +291,7 @@ func DefaultLayout() Layout {
 			Render: coverageBlock,
 			More: []BlockRegion{
 				{Begin: coveragereport.READMEBasisBegin, End: coveragereport.READMEBasisEnd, Render: basisBlock},
+				{Begin: coveragereport.READMECRDBegin, End: coveragereport.READMECRDEnd, Render: crdBlock},
 				{Begin: coveragereport.READMEValidityBegin, End: coveragereport.READMEValidityEnd, Render: validityBlock},
 			},
 			Sources: []string{
