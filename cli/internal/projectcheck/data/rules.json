@@ -2928,7 +2928,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-31T12:00:00Z",
-          "validUntil": "2027-01-28T12:00:00Z",
+          "validUntil": "2027-01-21T12:00:00Z",
           "sources": [
             {
               "id": "opensearch-2-19-7-gateway-service-gateway-expected-master-nodes",
@@ -3052,7 +3052,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-10-31T12:00:00Z",
-          "validUntil": "2027-01-28T12:00:00Z",
+          "validUntil": "2027-01-21T12:00:00Z",
           "sources": [
             {
               "id": "opensearch-2-19-7-gateway-service-gateway-recover-after-master-nodes",
