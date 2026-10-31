@@ -64,8 +64,13 @@ func TestSplitTargetsCoverThePackExactlyAndAreDeterministic(t *testing.T) {
 		}
 		total += len(bundle.pack.Entries)
 	}
-	if total != len(base.pack.Entries) || len(parsed.Entries()) != len(projects) {
-		t.Fatalf("split covers %d of %d entries", total, len(base.pack.Entries))
+	// A removal-crossing rule is carried by the embedded pack only.
+	carried, err := externalEntries(base.pack.Entries)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if total != len(carried) || len(parsed.Entries()) != len(projects) {
+		t.Fatalf("split covers %d of %d entries", total, len(carried))
 	}
 }
 

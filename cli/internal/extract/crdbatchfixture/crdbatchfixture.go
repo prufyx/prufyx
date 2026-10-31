@@ -81,14 +81,21 @@ func Without(pack []byte) ([]byte, error) {
 	for _, raw := range p.Entries {
 		var e struct {
 			Rule struct {
-				ID       string `json:"id"`
-				Operator string `json:"operator"`
+				ID       string          `json:"id"`
+				Operator string          `json:"operator"`
+				Crossing json.RawMessage `json:"crossing"`
 			} `json:"rule"`
 		}
 		if err := json.Unmarshal(raw, &e); err != nil {
 			return nil, err
 		}
 		if batch[e.Rule.ID] || foreign[e.Rule.ID] {
+			continue
+		}
+		// A release-note removal rule (crossing-only, over a caller-supplied
+		// flag or config-key set) is another generation's, like the batch:
+		// the pack the tests model does not hold it.
+		if e.Rule.Operator == "forbid_set_member" && len(e.Rule.Crossing) > 0 {
 			continue
 		}
 		if e.Rule.Operator == "forbid_set_member" {

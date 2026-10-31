@@ -402,6 +402,7 @@ func buildExternalTargets(base bundle, revision, purpose string, revisionFor fun
 	for _, entry := range base.pack.Entries {
 		byProject[entry.Project] = append(byProject[entry.Project], entry)
 	}
+	// A project whose rules are all crossing rules keeps its target.
 	records, err := splitRecords(base.pack, base.knowledgeProjects())
 	if err != nil {
 		return ExternalTarget{}, nil, errors.Join(ErrIntegrity, ErrRecordWithoutOwner)
@@ -486,6 +487,9 @@ func encodeExternalEnvelopeWithRecords(base bundle, revision, purpose string, en
 	capability, err := externalCapabilityDigest(base)
 	if err != nil {
 		return nil, ErrIntegrity
+	}
+	if entries, err = externalEntries(entries); err != nil {
+		return nil, err
 	}
 	if entries == nil {
 		entries = []Entry{}
