@@ -5675,7 +5675,7 @@
       }
     },
     {
-      "description": "Release-note-declared change: the falco 0.35.0 release notes list the flags --mesos-api, -pmesos and -pm as removed, and the 0.34.1 command-line options define the short alias -m for --mesos-api (gone in 0.35.0). This records what the project's own release notes and option table state at pinned commits; it is not proof of behaviour and says nothing about defaults, other keys, patch-release changes or undeclared changes. The value-bearing form \"-p mesos\" is not checked: the set holds names only. The rule reads the flags the deployment sets before the upgrade (a caller-supplied set) and applies to upgrades from a release below 0.35.0 to a release from 0.35.0 up to, but not including, 0.36.0.",
+      "description": "Release-note-declared change: the falco 0.35.0 release notes list the flags --mesos-api, -pmesos and -pm as removed, and the 0.34.1 command-line options define the short alias -m for --mesos-api (gone in 0.35.0). This records what the project's own release notes and option table state at pinned commits; it is not proof of behaviour and says nothing about defaults, other keys, patch-release changes or undeclared changes. The value-bearing -p forms (\"-p mesos\", -pmesos, -pm) and \"-m <url>\" values are not checked beyond the flag name: the set holds names only. The rule reads the flags the deployment sets before the upgrade (a caller-supplied set) and applies to upgrades from a release below 0.35.0 to a release from 0.35.0 up to, but not including, 0.36.0.",
       "project": "falco",
       "requiredFacts": [
         {
