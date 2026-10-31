@@ -168,8 +168,9 @@ func TestCompareWithEmbeddedCountsCrossingRuleEvidence(t *testing.T) {
 }
 
 // The falco 0.35.0 release note removes --mesos-api together with its aliases
-// -pmesos and -pm on one line; the rule lists all three, so a deployment that
-// still passes an alias is blocked, not passed.
+// -pmesos and -pm on one line, and the 0.34.1 option table defines the short
+// alias -m; the rule lists all four, so a deployment that still passes an
+// alias is blocked, not passed.
 func TestFalcoMesosRuleListsTheAliases(t *testing.T) {
 	t.Parallel()
 	found := false
@@ -182,8 +183,8 @@ func TestFalcoMesosRuleListsTheAliases(t *testing.T) {
 			continue
 		}
 		found = true
-		if strings.Join(rule.SetCondition.Members, ",") != "mesos-api,pm,pmesos" {
-			t.Fatalf("members=%v, want the flag and both aliases of the release-note line", rule.SetCondition.Members)
+		if strings.Join(rule.SetCondition.Members, ",") != "m,mesos-api,pm,pmesos" {
+			t.Fatalf("members=%v, want the flag, its option-table alias -m and both aliases of the release-note line", rule.SetCondition.Members)
 		}
 	}
 	if !found {
