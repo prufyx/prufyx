@@ -278,7 +278,7 @@ Generated on 2026-10-30 by `scripts/readme-coverage.sh` (do not edit this block 
 
 | Executable rules | Count |
 | --- | --- |
-| CNCF source rules, active | 245 across 53 projects (1 withdrawn, not used) |
+| CNCF source rules, active | 252 across 53 projects (1 withdrawn, not used) |
 | Rules for further, non-CNCF projects | 42 across 10 projects |
 | Projects with at least one executable check (a rule, a named check or a profile; says nothing about which upgrades it decides) | 67 |
 | Projects with a rule or attestation that decides at least one of their last five minor upgrades (A, B or S below) | 41 of 78 |
@@ -327,7 +327,7 @@ Velero and others.
 Every rule in the CNCF and community-project packs is time-limited.
 
 <!-- validity-window:begin -->
-The 287 active rules shipped today stop being valid, rule by rule, between 2026-12-07 and 2027-01-28 unless their review is renewed; after its date a build without newer knowledge answers `UNKNOWN` for that rule. 199 of the 287 stop being valid on or before 2026-12-12, in the 6 days starting on the earliest.
+The 294 active rules shipped today stop being valid, rule by rule, between 2026-12-07 and 2027-01-29 unless their review is renewed; after its date a build without newer knowledge answers `UNKNOWN` for that rule. 199 of the 294 stop being valid on or before 2026-12-12, in the 6 days starting on the earliest.
 <!-- validity-window:end -->
 
 The named cert-manager and Prometheus checks are pinned to
