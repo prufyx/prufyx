@@ -543,6 +543,16 @@ func TestCustomResourceFamilyCountsA(t *testing.T) {
 	if got := statuses(report.Projects[0]); got != "ASGA" {
 		t.Fatalf("anchor-only listed rule: %s", got)
 	}
+	// An attestation that lists no rule still leads to BLOCKED when a valid
+	// line-wide rule bounds the same pair.
+	unlisted := []string{crdAttJSON("0.51", "0.50.0", "0.51.0")}
+	report, err = Compute(Input{Pack: pack([]string{rule}, unlisted), Lines: snapshot, Now: baselineNow})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.split.canBlock != 1 || len(report.split.noBlock) != 0 {
+		t.Fatalf("unlisted attestation with a bounding rule: split %+v", report.split)
+	}
 	// An attestation of a component outside the family is refused.
 	outside := strings.Replace(crdAttJSON("0.51", "0.50.0", "0.51.0"), strimzi, "pkg:github/prometheus/prometheus", 1)
 	if _, err := Compute(Input{Pack: pack([]string{rule}, []string{outside}), Lines: snapshot, Now: baselineNow}); err == nil {
