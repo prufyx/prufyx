@@ -141,7 +141,7 @@ func TestQAReviewCrossing(t *testing.T) {
 		{name: "store-newer", store: es(plain), embed: es(plain, crossing), storeAt: newer, want: "block"},
 		{name: "store-older", store: es(plain), embed: es(plain, crossing), storeAt: older, want: "block"},
 		{name: "store-other-rules", store: es(plain, otherPair), embed: es(plain, otherPair, crossing), want: "block"},
-		{name: "other-project-crossing", store: es(plain), embed: es(plain, thCross), want: "pass"},
+		{name: "other-project-crossing", store: es(thPlain), embed: es(thPlain, crossing), want: "pass", items: []qaProject{qaThanosP}}, // thanos: no real rule covers 1.8.2 -> 1.9.0
 		{name: "two-crossing-one-passing", store: es(plain), embed: es(plain, crossing, crossing2), want: "block"},
 		{name: "mixed-batch", store: es(plain, thPlain), embed: es(plain, crossing, thPlain, thCross), want: "block", modes: "b", items: []qaProject{qaCortexP, qaThanosP}},
 		{name: "expired-store", store: es(plain), embed: es(plain, crossing), expired: true, want: "block", modes: "a"},
@@ -192,8 +192,8 @@ func TestQAReviewCrossing(t *testing.T) {
 				forceExpired(t)
 			}
 			store := filepath.Join(os.Getenv("XDG_DATA_HOME"), "prufyx", "knowledge", "cncf-projects")
-			in := writeInputs([]qaProject{qaCortexP})
-			base := []string{"check", "cncf", "--project", "cortex", "--input", in["cortex"], "--format", "json"}
+			in := writeInputs(sc.items)
+			base := []string{"check", "cncf", "--project", sc.items[0].slug, "--input", in[sc.items[0].slug], "--format", "json"}
 			for _, m := range sc.modes {
 				var code int
 				var so, se string
