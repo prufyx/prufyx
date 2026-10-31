@@ -43,3 +43,56 @@ func TestPackCrossingLevel(t *testing.T) {
 		t.Fatal("crossing on forbid_target_version accepted")
 	}
 }
+
+// A removal-crossing rule is carried by the embedded pack only: every
+// external envelope derived from a pack leaves it out, at the schema level the
+// remaining content requires, while an external pack that holds one is still
+// refused and a pack without one keeps its bytes.
+func TestExternalEnvelopeLeavesCrossingRulesOut(t *testing.T) {
+	t.Parallel()
+	entry := syntheticCrossingEntry(t)
+	withRaw := syntheticPack(t, packSchemaCrossing, nil, entry)
+	with, err := assembleSynthetic(withRaw, nil)
+	if err != nil {
+		t.Fatalf("crossing pack refused: %v", err)
+	}
+	kept, err := externalEntries(with.pack.Entries)
+	if err != nil || len(kept) != len(with.pack.Entries)-1 {
+		t.Fatalf("kept %d of %d entries: %v", len(kept), len(with.pack.Entries), err)
+	}
+	for _, e := range kept {
+		if ruleID(t, e) == ruleID(t, entry) {
+			t.Fatal("the crossing rule was kept")
+		}
+	}
+	stripped, err := externalPack(with.pack)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want, _ := requiredPackSchema(stripped); stripped.Schema != want || stripped.Schema == packSchemaCrossing {
+		t.Fatalf("schema %s after the crossing rule left, required %s", stripped.Schema, want)
+	}
+	raw, err := encodeExternalEnvelopeWithRecords(with, "1", "operator_provided", with.pack.Entries, recordSections{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := parseExternalBundle(raw, &with); err != nil {
+		t.Fatalf("envelope without the crossing rule refused: %v", err)
+	}
+	if strings.Contains(string(raw), ruleID(t, entry)) {
+		t.Fatal("the envelope carries the crossing rule")
+	}
+	// The guard stays: an external pack holding the rule is refused.
+	held := stripped
+	held.Entries = with.pack.Entries
+	held.Schema = packSchemaCrossing
+	if err := validateExternalPack(with, held, "1", false); !errors.Is(err, ErrIntegrity) {
+		t.Fatalf("external pack holding a crossing rule: %v", err)
+	}
+	// A pack without a crossing rule is returned as it is.
+	plain := syntheticBase(t)
+	same, err := externalEntries(plain.Entries)
+	if err != nil || len(same) != len(plain.Entries) || (len(same) > 0 && &same[0] != &plain.Entries[0]) {
+		t.Fatalf("a pack without a crossing rule changed: %v", err)
+	}
+}

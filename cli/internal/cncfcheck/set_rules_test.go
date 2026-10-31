@@ -132,7 +132,11 @@ func TestEmbeddedKnowledgeSetRulesReadCustomResourceSets(t *testing.T) {
 			want[r.ID] = r
 		}
 	}
-	published := 0
+	relnotesFact := map[string]relnotesSetFact{}
+	for _, f := range relnotesSetFacts() {
+		relnotesFact[f.id()] = f
+	}
+	published, relnotesRules := 0, 0
 	for _, entry := range shippedPack(t).Entries {
 		if !isSetRule(t, entry) {
 			if strings.Contains(string(entry.Rule), `"setCondition"`) {
@@ -150,6 +154,20 @@ func TestEmbeddedKnowledgeSetRulesReadCustomResourceSets(t *testing.T) {
 		}
 		if err := json.Unmarshal(entry.Rule, &rule); err != nil {
 			t.Fatal(err)
+		}
+		if f, isRelnotes := relnotesFact[rule.SetCondition.FactID]; isRelnotes {
+			// A release-note removal rule: a crossing-only forbid_set_member
+			// over the project's caller-supplied flag or config-key set, on
+			// the current side, one member, declared with the set type.
+			crossing, err := constraintengine.AnyCrossingRule([]json.RawMessage{entry.Rule})
+			if err != nil || !crossing || entry.Project != f.project || len(rule.SetCondition.Members) != 1 || rule.SetCondition.Side != "current" || rule.SetCondition.Component != f.component || !strings.HasPrefix(id, f.project+".relnotes.") {
+				t.Fatalf("relnotes rule %s (project %s) reads %s %s %v: not a crossing-only rule over its project's %s", id, entry.Project, rule.SetCondition.Side, rule.SetCondition.FactID, rule.SetCondition.Members, f.kind)
+			}
+			if len(entry.RequiredFacts) != 1 || entry.RequiredFacts[0].ID != f.id() || entry.RequiredFacts[0].Type != constraintengine.FactSet || entry.RequiredFacts[0].Side != "current" {
+				t.Fatalf("%s declares %+v", id, entry.RequiredFacts)
+			}
+			relnotesRules++
+			continue
 		}
 		stated, ok := want[id]
 		if !ok && crdbatchids.IsForeign(id) {
@@ -174,8 +192,8 @@ func TestEmbeddedKnowledgeSetRulesReadCustomResourceSets(t *testing.T) {
 			t.Fatalf("%s declares its set fact %d times", id, declared)
 		}
 	}
-	if published != len(want)+len(crdbatchids.Foreign()) {
-		t.Fatalf("%d published set rules, the batch states %d and %d are mechanical rules of other projects", published, len(want), len(crdbatchids.Foreign()))
+	if published != len(want)+len(crdbatchids.Foreign())+relnotesRules {
+		t.Fatalf("%d published set rules, the batch states %d, %d are mechanical rules of other projects and %d are release-note rules", published, len(want), len(crdbatchids.Foreign()), relnotesRules)
 	}
 	gates := map[string]bool{}
 	for _, slug := range []string{"kube_apiserver", "kube_controller_manager", "kube_scheduler", "kubelet", "kube_proxy"} {
