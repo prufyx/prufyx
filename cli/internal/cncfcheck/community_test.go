@@ -54,7 +54,13 @@ func communityPack(t *testing.T, schema string, entries ...Entry) []byte {
 	if err := strictJSON(raw, &pack); err != nil {
 		t.Fatal(err)
 	}
-	pack.Entries = append(pack.Entries, entries...)
+	// The pack models community entries and attestations: the release-note
+	// crossing rules need a higher schema level and play no part here.
+	kept, err := externalEntries(pack.Entries)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pack.Entries = append(append([]Entry(nil), kept...), entries...)
 	sort.SliceStable(pack.Entries, func(i, j int) bool { return ruleID(t, pack.Entries[i]) < ruleID(t, pack.Entries[j]) })
 	pack.Schema = schema
 	encoded, err := json.Marshal(pack)
