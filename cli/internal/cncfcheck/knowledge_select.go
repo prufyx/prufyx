@@ -101,7 +101,8 @@ func CompareWithEmbedded(store map[string]ExternalBundle) (EmbeddedComparison, e
 		}
 		// The embedded evidence counts every embedded rule of the project,
 		// the removal-crossing rules too: a store target never carries them
-		// (external_pack.go), so the store must be strictly newer to win.
+		// (external_pack.go). Every store evaluation adds them from the embedded
+		// pack (packWithEmbeddedCrossing), so a store never drops one.
 		embeddedAt, storeAt := evidenceHighWater(byProject[project]), bundle.EvidenceHighWater()
 		if embeddedAt.After(out.EmbeddedEvidenceAt) {
 			out.EmbeddedEvidenceAt = embeddedAt
