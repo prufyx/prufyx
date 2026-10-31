@@ -238,14 +238,11 @@ func scanOpenSearchYAML(raw []byte, keys []removedKey) (map[string]bool, bool, e
 	// inside it would then be read under a wrong path, and an absent removed key
 	// would be a wrong PASS. Every top-level key must start with a known
 	// setting namespace, otherwise the shape is unsupported.
-	for path := range leaves {
-		if !openSearchSettingNamespaces[strings.SplitN(path, ".", 2)[0]] {
-			return nil, false, nil
-		}
-	}
-	for path := range parents {
-		if !openSearchSettingNamespaces[strings.SplitN(path, ".", 2)[0]] {
-			return nil, false, nil
+	for _, paths := range []map[string]bool{leaves, parents} {
+		for path := range paths {
+			if !openSearchSettingPath(path) {
+				return nil, false, nil
+			}
 		}
 	}
 	found := map[string]bool{}
@@ -314,6 +311,11 @@ func flattenSettings(node *yaml.Node, prefix string, leaves, parents map[string]
 			if value.Anchor != "" || value.Alias != nil || value.Style&yaml.TaggedStyle != 0 {
 				return false
 			}
+			// A multi-line value is how a whole file is embedded in a Helm values
+			// file or a ConfigMap; opensearch.yml settings are single-line scalars.
+			if strings.ContainsAny(value.Value, "\r\n") {
+				return false
+			}
 			leaves[path] = true
 		default:
 			return false
@@ -347,4 +349,32 @@ var openSearchSettingNamespaces = map[string]bool{
 	"processors": true, "reindex": true, "remote_store": true, "repositories": true, "rest": true,
 	"s3": true, "script": true, "search": true, "snapshot": true, "telemetry": true, "thread_pool": true,
 	"tracer": true, "transport": true,
+}
+
+// openSearchWrapperSegments are path segments that name an embedded file or a
+// chart/manifest layer, never an opensearch.yml setting.
+var openSearchWrapperSegments = map[string]bool{
+	"config": true, "configmap": true, "data": false, "extraenvs": true, "opensearchconfig": true,
+	"values": true, "metadata": true, "spec": true, "apiversion": true, "kind": true,
+}
+
+// openSearchSettingPath reports whether a flattened path can be an opensearch.yml
+// setting: its first segment is a known namespace, the broad "opensearch"
+// namespace only continues with "experimental", no segment names a file
+// (.yml, .yaml) or a wrapper layer.
+func openSearchSettingPath(path string) bool {
+	segments := strings.Split(path, ".")
+	if !openSearchSettingNamespaces[segments[0]] {
+		return false
+	}
+	if segments[0] == "opensearch" && (len(segments) < 2 || segments[1] != "experimental") {
+		return false
+	}
+	for _, segment := range segments {
+		lower := strings.ToLower(segment)
+		if openSearchWrapperSegments[lower] || strings.HasSuffix(lower, "yml") || strings.HasSuffix(lower, "yaml") {
+			return false
+		}
+	}
+	return true
 }

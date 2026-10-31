@@ -105,6 +105,11 @@ func TestScanOpenSearchYAML(t *testing.T) {
 		{"helm-values-wrapper-nested", "opensearchConfig:\n  cluster.name: demo\nreplicas: 3\n", nil, false, false},
 		{"configmap-wrapper", "apiVersion: v1\nkind: ConfigMap\ndata:\n  opensearch.yml: |\n    cluster.name: demo\n", nil, false, false},
 		{"one-unknown-top-level-key", "cluster.name: demo\nreplicas: 3\n", nil, false, false},
+		{"umbrella-values-opensearch-block-scalar", "opensearch:\n  config:\n    opensearch.yml: |\n      gateway.expected_nodes: 3\n", nil, false, false},
+		{"umbrella-values-cluster-key", "cluster:\n  config:\n    opensearch.yml: |\n      cluster.name: x\n", nil, false, false},
+		{"umbrella-values-nested-mapping", "opensearch:\n  config:\n    gateway.expected_nodes: 3\n", nil, false, false},
+		{"quoted-multiline-embedded-file", "node:\n  conf: \"gateway.expected_nodes: 3\\nnode.name: x\"\n", nil, false, false},
+		{"file-name-key-under-known-namespace", "path:\n  opensearch.yml: x\n", nil, false, false},
 		{"known-namespaces-only", "cluster.name: demo\npath.data: /d\nplugins.security.ssl.http.enabled: true\n", map[string]bool{}, true, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
