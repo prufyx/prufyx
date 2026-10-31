@@ -87,8 +87,8 @@ if r1:
     for cid in sorted(r1):
         o = r1[cid]
         want = o.get("want", "block")
-        if want == "pass":  # a crossing rule of another project must not change this answer
-            obs(cid, "ctl", o["exit"], {0}, o["text"][:150])
+        if want == "pass":  # a crossing rule of another project must not block; UNKNOWN: the real cortex 1.9.0 removal rules cover no 1.8.2 hop
+            obs(cid, "ctl", o["exit"], {0, UNKNOWN}, o["text"][:150])
         elif want.startswith("equal:"):  # no crossing rule: same answer with and without a store
             ref = r1.get(want[6:], {}).get("exit", -1)
             obs(cid, "ctl", o["exit"], {ref} | ({2} if o["exit"] == 2 else set()), "embedded=%s %s" % (ref, o["text"][:120]))

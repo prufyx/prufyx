@@ -57,7 +57,7 @@ func qaEntry(p qaProject, id, member string, crossing bool, reviewed, until time
 }
 
 func qaInput(p qaProject, member string) string {
-	return `{"schema":"` + constraintengine.InputSchema + `","authority":"` + constraintengine.InputAuthority + `","current":{"components":[{"component":"` + p.comp + `","version":"1.8.2","facts":[{"id":"` + p.fact() + `","state":"declared","setValue":{"members":["` + member + `"],"complete":true}}]}]},` +
+	return `{"schema":"` + constraintengine.InputSchema + `","authority":"` + constraintengine.InputAuthority + `","current":{"components":[{"component":"` + p.comp + `","version":"1.8.2","facts":[]}]},` +
 		`"proposed":{"components":[{"component":"` + p.comp + `","version":"1.9.0","facts":[{"id":"` + p.fact() + `","state":"declared","setValue":{"members":["` + member + `"],"complete":true}}]}]}}`
 }
 
