@@ -136,6 +136,10 @@ func PrepareEffectiveConfig(project string, raw []byte, from, to string, complet
 		// Call PrepareMariaDBEffectiveConfig for this project so the guard is
 		// represented in the canonical input rather than inferred.
 		return PrepareMariaDBEffectiveConfig(raw, from, to, complete, precedenceResolved, false, false, false)
+	case AirflowProject:
+		return prepareAirflowConfig(raw, from, to, complete, precedenceResolved)
+	case OpenSearchProject:
+		return prepareOpenSearchConfig(raw, from, to, complete, precedenceResolved)
 	default:
 		return Prepared{}, ErrInvalid
 	}
