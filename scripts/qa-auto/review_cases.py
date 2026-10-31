@@ -117,8 +117,9 @@ for cid, text in (("R2.flat", "opensearch.experimental.feature.pluggable.caching
 def declared(project, comp, frm, to, member):
     fact = {"id": f"component.{project}.cli_flags_set", "state": "declared", "setValue": {"members": [member], "complete": True}}
     side = lambda v, facts: {"components": [{"component": comp, "version": v, "facts": facts}]}
+    # the release-note rules read the flag set on the current side
     return json.dumps({"schema": "prufyx.io/operator-declared-constraint-input/v1alpha1", "authority": "OPERATOR_DECLARED_MINIMIZED",
-                       "current": side(frm, []), "proposed": side(to, [fact])})
+                       "current": side(frm, [fact]), "proposed": side(to, [fact])})
 
 
 def member(cid, kind, ok, project, comp, frm, to, m):
@@ -141,7 +142,7 @@ if not has_rules('"cortex.relnotes.'):
     SKIPPED.append("R3.cortex")
 else:
     member("R3.cortex.lower", "gate", {BLOCKED}, "cortex", CORTEX, "1.8.1", "1.9.0", "store.max-look-back-period")  # control
-    member("R3.cortex.upper", "gate", NOT_PASS, "cortex", CORTEX, "1.8.1", "1.9.0", "Store.max-look-back-period")
+    member("R3.cortex.upper", "gate", NOT_PASS | {2}, "cortex", CORTEX, "1.8.1", "1.9.0", "Store.max-look-back-period")  # exit 2: member refused, never a PASS
     member("GAP.cortex.per-user-override-config", "gap", NOT_PASS, "cortex", CORTEX, "1.8.1", "1.9.0", "limits.per-user-override-config")
 
 # R4 ------------------------------------------------------------------------------------------------------------
