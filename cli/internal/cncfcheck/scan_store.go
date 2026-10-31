@@ -78,6 +78,13 @@ func NewStoreScanKnowledge(bundles map[string]ExternalBundle) (*ScanKnowledge, e
 			if err != nil {
 				return nil, err
 			}
+			// A store rule with the id of an embedded crossing rule would
+			// let the store's claim decide in its place.
+			for _, held := range rules {
+				if held.Scope.ID == rule.Scope.ID {
+					return nil, ErrIntegrity
+				}
+			}
 			rules = append(rules, rule)
 		}
 		sort.Slice(rules, func(i, j int) bool { return rules[i].Scope.ID < rules[j].Scope.ID })
