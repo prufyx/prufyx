@@ -12,6 +12,8 @@ body:
         Everything here is a hint. Prufyx checks each claim against your project's own repository before anything is published, and does not publish an unverified claim as fact. See [For project maintainers](https://github.com/prufyx/prufyx/blob/main/docs/maintainers.md).
 
         This issue is public. Do not include email addresses, customer data, cluster data, credentials, or private links.
+
+        Preferred route if you can run the maintainer tool: open a pull request that adds a bundle under `contrib/onboard-bundles/<slug>/`. See [Preferred route: a bundle pull request](https://github.com/prufyx/prufyx/blob/main/docs/maintainers.md#preferred-route-a-bundle-pull-request). This form stays a valid entry; a person reads it.
   - type: input
     id: project-name
     attributes:

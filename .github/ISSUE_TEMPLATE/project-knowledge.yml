@@ -10,6 +10,8 @@ body:
         Thanks for sharing a useful public project. A repository URL is enough to start: you do not need to maintain the project, calculate hashes, or prove a compatibility claim.
 
         This suggestion starts source review. It does not add an executable check, support claim, catalogue membership, or published knowledge package.
+
+        Preferred route if you can run the maintainer tool: open a pull request that adds a bundle under `contrib/onboard-bundles/<slug>/`. See [Preferred route: a bundle pull request](https://github.com/prufyx/prufyx/blob/main/docs/maintainers.md#preferred-route-a-bundle-pull-request). This form stays a valid entry; a person reads it.
   - type: input
     id: repository
     attributes:
