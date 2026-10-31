@@ -251,7 +251,10 @@ func ExportEmbeddedExternalBundle(revision string) ([]byte, error) {
 	if err != nil {
 		return nil, ErrIntegrity
 	}
-	pack := base.pack
+	pack, err := externalPack(base.pack)
+	if err != nil {
+		return nil, err
+	}
 	pack.Revision = revision
 	raw, err := json.Marshal(struct {
 		Schema                 string   `json:"schema"`
