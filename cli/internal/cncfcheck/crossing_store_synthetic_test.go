@@ -78,7 +78,7 @@ func TestSyntheticStoreEvaluationKeepsEmbeddedCrossingBlock(t *testing.T) {
 			t.Fatalf("%s: %v", name, err)
 		}
 		if exit := ClaimExit(report); exit != 10 {
-			t.Fatalf("%s: exit %d, claims %+v", name, exit, report.Check.Claims)
+			t.Fatalf("%s: exit %d, %d claims", name, exit, len(report.Check.Claims))
 		}
 	}
 	// The selected-rule route names the crossing rule; the store holds no
