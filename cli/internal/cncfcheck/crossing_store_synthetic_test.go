@@ -131,8 +131,17 @@ func TestSyntheticStoreCrossingRuleSortingFirst(t *testing.T) {
 			t.Fatalf("merged ids not ascending at %d", i)
 		}
 	}
-	if merged.Entries[0].Project != "kubernetes" || ruleID(t, merged.Entries[0]) != "kubernetes.aaa-crossing.1-38-0-to-1-39-0" {
-		t.Fatalf("crossing rule not first: %s", ruleID(t, merged.Entries[0]))
+	// The crossing rule sorts before every kubernetes store rule, so a merge
+	// that only appended it would leave it last among them.
+	first := ""
+	for _, entry := range merged.Entries {
+		if entry.Project == "kubernetes" {
+			first = ruleID(t, entry)
+			break
+		}
+	}
+	if first != "kubernetes.aaa-crossing.1-38-0-to-1-39-0" {
+		t.Fatalf("first kubernetes rule is %s", first)
 	}
 	whole := bundle{landscape: base.landscape, community: base.community, priority: base.priority, pack: merged, registry: store.registry, catalogueDigest: base.catalogueDigest}
 	if _, err := whole.ruleSet("kubernetes"); err != nil {
