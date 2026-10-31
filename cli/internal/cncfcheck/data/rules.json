@@ -3327,7 +3327,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-29T12:00:00Z"
+          "validUntil": "2027-01-15T12:00:00Z"
         },
         "id": "cortex.relnotes.flag-removed.querier-compress-http-responses.1-9",
         "nextAction": "Remove the flag --querier.compress-http-responses before upgrading to 1.9.0",
@@ -3387,7 +3387,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-29T12:00:00Z"
+          "validUntil": "2027-01-15T12:00:00Z"
         },
         "id": "cortex.relnotes.flag-removed.store-max-look-back-period.1-9",
         "nextAction": "Remove the flag --store.max-look-back-period before upgrading to 1.9.0",
@@ -5593,7 +5593,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-29T12:00:00Z"
+          "validUntil": "2027-01-15T12:00:00Z"
         },
         "id": "falco.relnotes.config-key-removed.outputs-max-burst.0-37",
         "nextAction": "Remove the config key outputs.max_burst before upgrading to 0.37.0",
@@ -21083,7 +21083,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-29T12:00:00Z"
+          "validUntil": "2027-01-15T12:00:00Z"
         },
         "id": "thanos.relnotes.flag-removed.log-request-decision.0-33",
         "nextAction": "Remove the flag --log.request.decision before upgrading to 0.33.0",

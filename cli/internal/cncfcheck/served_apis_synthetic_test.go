@@ -32,7 +32,7 @@ func TestServedAPIsSectionAdmission(t *testing.T) {
 		t.Fatal(err)
 	}
 	b, err := load()
-	if err != nil || b.pack.Schema != packSchemaServedAPIs {
+	if err != nil || b.pack.Schema != shippedSchemaLevel(t) {
 		t.Fatalf("schema %q err %v", b.pack.Schema, err)
 	}
 	k, err := LoadScanKnowledge()
