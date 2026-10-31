@@ -55,6 +55,29 @@ func NewStoreScanKnowledge(bundles map[string]ExternalBundle) (*ScanKnowledge, e
 			}
 			rules = append(rules, rule)
 		}
+		// A store target never carries a removal-crossing rule of the embedded
+		// pack (external_pack.go). Its identity stays among the project's
+		// rules, so the scan names it as a rule that needs other evidence, as
+		// the embedded pack does, and a hop it covers is never a family pass
+		// only because the rule is missing from the store. Its claims come
+		// from the store bundle, which holds no such rule.
+		for _, entry := range base.pack.Entries {
+			if entry.Project != project {
+				continue
+			}
+			crossing, err := constraintengine.AnyCrossingRule([]json.RawMessage{entry.Rule})
+			if err != nil {
+				return nil, ErrIntegrity
+			}
+			if !crossing {
+				continue
+			}
+			rule, err := NewScanRule(entry.Project, entry.Description, entry.Rule)
+			if err != nil {
+				return nil, err
+			}
+			rules = append(rules, rule)
+		}
 		sort.Slice(rules, func(i, j int) bool { return rules[i].Scope.ID < rules[j].Scope.ID })
 		k.selected[project] = selected
 		k.rules[project] = rules
