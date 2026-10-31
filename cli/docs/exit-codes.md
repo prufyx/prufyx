@@ -43,8 +43,11 @@ then the flag is opt-in.
 | `3` | knowledge or input integrity failure | same | same |
 
 Exit `15` belongs to `prufyx db update`, `prufyx db import` and `prufyx db verify`: the signed
-knowledge package is too new for this prufyx. Nothing was changed; the current
-database and the embedded knowledge stay in use. Upgrade prufyx.
+knowledge package is too new for this prufyx, or (reason
+`KNOWLEDGE_CAPABILITY_MISMATCH`) was built for a different engine capability than
+this prufyx. Nothing was changed; the current database and the embedded knowledge
+stay in use. Upgrade prufyx, or wait for the feed to be republished if this
+prufyx is the newer side.
 
 Rank when several apply: `3` and `2` stop the command; otherwise blocked
 (`10`), then not checked (`11`), then pass.

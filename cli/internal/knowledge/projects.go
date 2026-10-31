@@ -102,15 +102,26 @@ func splitFailure(format string, args ...any) error {
 type UnsupportedError struct {
 	Reason     string
 	MinVersion string
+	// Capability is set when the index was built for another engine
+	// capability than this build's.
+	Capability bool
 }
 
 func (e *UnsupportedError) Error() string {
+	if e.Capability {
+		return e.Reason + ": " + ErrCapabilityMismatch.Error()
+	}
 	if e.MinVersion != "" {
 		return e.Reason + " (min version " + e.MinVersion + "): " + ErrUnsupportedKnowledge.Error()
 	}
 	return e.Reason + ": " + ErrUnsupportedKnowledge.Error()
 }
-func (e *UnsupportedError) Unwrap() error { return ErrUnsupportedKnowledge }
+func (e *UnsupportedError) Unwrap() []error {
+	if e.Capability {
+		return []error{ErrUnsupportedKnowledge, ErrCapabilityMismatch}
+	}
+	return []error{ErrUnsupportedKnowledge}
+}
 
 // UnsupportedMinVersion returns the minimum version named by an unsupported
 // knowledge error, or "" when there is none.
@@ -120,6 +131,16 @@ func UnsupportedMinVersion(err error) string {
 		return u.MinVersion
 	}
 	return ""
+}
+
+// indexParseFailure maps a failed index parse to the unsupported answer. A
+// capability mismatch is named as such; every other failure keeps the
+// reason it had.
+func indexParseFailure(err error, indexRaw []byte, reason string) error {
+	if errors.Is(err, cncfcheck.ErrCapabilityMismatch) {
+		return &UnsupportedError{Reason: "the index was built for another engine capability", Capability: true}
+	}
+	return unsupportedFailure(cncfMinOrEmpty(indexRaw), "%s", reason)
 }
 
 func unsupportedFailure(minVersion, format string, args ...any) error {
@@ -196,7 +217,7 @@ func admitConstraintsIndex(target []byte) (Admission, error) {
 	}
 	index, err := cncfcheck.ParseExternalIndex(target)
 	if err != nil {
-		return Admission{}, unsupportedFailure(cncfMinOrEmpty(target), "index target parse")
+		return Admission{}, indexParseFailure(err, target, "index target parse")
 	}
 	admission, err := index.Admission()
 	if err != nil {
@@ -243,7 +264,7 @@ func verifySplitTargets(u *updater.Updater, targets *metadata.Metadata[metadata.
 	}
 	index, err := cncfcheck.ParseExternalIndex(indexRaw)
 	if err != nil {
-		return nil, unsupportedFailure(cncfMinOrEmpty(indexRaw), "index target admission")
+		return nil, indexParseFailure(err, indexRaw, "index target admission")
 	}
 	entries := index.Entries()
 	listed := map[string]cncfcheck.ExternalIndexEntry{}
