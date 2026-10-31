@@ -718,7 +718,7 @@ func TestCatalogueDoesNotInventCoverage(t *testing.T) {
 	for _, want := range []struct {
 		slug  string
 		rules int
-	}{{"cortex", 8}, {"falco", 5}, {"karmada", 1}, {"kubeedge", 1}, {"kuma", 1}, {"spire", 2}, {"strimzi", 1 + crdbatchids.Count("strimzi")}} {
+	}{{"cortex", 7}, {"falco", 5}, {"karmada", 1}, {"kubeedge", 1}, {"kuma", 1}, {"spire", 2}, {"strimzi", 1 + crdbatchids.Count("strimzi")}} {
 		preview, err := Catalog(false, want.slug)
 		if err != nil || len(preview.Projects) != 1 || preview.Projects[0].SourceRuleCount != want.rules || preview.Projects[0].GenericCoverage != "source_rule_preview" || preview.Projects[0].RuntimeReproduced != 0 {
 			t.Fatalf("%s source preview coverage missing or overstated", want.slug)

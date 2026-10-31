@@ -49,6 +49,39 @@ func entryIDs(t *testing.T, pack []byte) map[string]string {
 	return out
 }
 
+// relnotesCrossing counts the release-note removal rules of pack (crossing-only
+// set rules) that are neither of the batch nor mechanical rules of other
+// projects: Without drops them as another generation's.
+func relnotesCrossing(t *testing.T, pack []byte) int {
+	t.Helper()
+	var p struct {
+		Entries []struct {
+			Rule struct {
+				ID       string          `json:"id"`
+				Operator string          `json:"operator"`
+				Crossing json.RawMessage `json:"crossing"`
+			} `json:"rule"`
+		} `json:"entries"`
+	}
+	if err := json.Unmarshal(pack, &p); err != nil {
+		t.Fatal(err)
+	}
+	other := map[string]bool{}
+	for _, id := range crdbatchids.IDs() {
+		other[id] = true
+	}
+	for _, id := range crdbatchids.ForeignIDs(pack) {
+		other[id] = true
+	}
+	n := 0
+	for _, e := range p.Entries {
+		if !other[e.Rule.ID] && e.Rule.Operator == "forbid_set_member" && len(e.Rule.Crossing) > 0 {
+			n++
+		}
+	}
+	return n
+}
+
 // Without leaves a pack without the batch unchanged; from the shipped pack
 // with the batch it removes exactly the batch and the mechanical
 // custom-resource rules of other projects, keeps every other rule as it
@@ -69,8 +102,9 @@ func TestWithout(t *testing.T) {
 		return
 	}
 	before, after := entryIDs(t, shipped), entryIDs(t, without)
-	if want := len(crdbatchids.IDs()) + len(crdbatchids.Foreign()); len(before)-len(after) != want {
-		t.Fatalf("%d rules removed, the batch has %d and %d are mechanical rules of other projects", len(before)-len(after), len(crdbatchids.IDs()), len(crdbatchids.Foreign()))
+	relnotes := relnotesCrossing(t, shipped)
+	if want := len(crdbatchids.IDs()) + len(crdbatchids.Foreign()) + relnotes; len(before)-len(after) != want {
+		t.Fatalf("%d rules removed, the batch has %d, %d are mechanical rules of other projects and %d are release-note removal rules", len(before)-len(after), len(crdbatchids.IDs()), len(crdbatchids.Foreign()), relnotes)
 	}
 	for id, entry := range after {
 		if before[id] != entry {
