@@ -84,7 +84,7 @@ UNKNOWN: manifests use API versions the target does not serve; migrate them befo
 kubernetes 1.24.0 -> 1.25.0: 1 hop (path policy sequential_minor)
 
 NOT CHECKED (5)
-  kubernetes   no reviewed list of the API versions Kubernetes 1.25 serves; 2 manifest(s) cannot be checked - check them against the API reference of that Kubernetes release by hand, or request coverage: https://github.com/prufyx/prufyx/issues/new?template=project-knowledge.yml
+  kubernetes   1 manifest(s) use API versions not in the Kubernetes 1.25 served list, stable (GA) versions only - check those API versions against the Kubernetes 1.25 API reference by hand
   kubernetes   1 manifest(s) use API versions Kubernetes 1.25 does not serve, removed on a line this upgrade enters - no reviewed rule decided them; migrate them to a served API version before upgrading, and the gaps for the step that enters the line say why
   kubernetes   it is not declared that these manifests are applied to the target kubernetes API - if they are, add targetApplyRequired: true to prufyx.yaml or pass --target-api-apply-required
   kubernetes   the kubernetes distribution is not declared - for upstream builds, add distribution: official_upstream to prufyx.yaml or pass --distribution official_upstream
@@ -121,7 +121,7 @@ kubernetes 1.24.0 -> 1.25.0: 1 hop (path policy sequential_minor)
                      fix: Migrate the named CronJob manifests to batch/v1. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
 
 NOT CHECKED (1)
-  kubernetes   no reviewed list of the API versions Kubernetes 1.25 serves; 2 manifest(s) cannot be checked - check them against the API reference of that Kubernetes release by hand, or request coverage: https://github.com/prufyx/prufyx/issues/new?template=project-knowledge.yml
+  kubernetes   1 manifest(s) use API versions not in the Kubernetes 1.25 served list, stable (GA) versions only - check those API versions against the Kubernetes 1.25 API reference by hand
 
 Read 2 documents over 1 hop; 1 of 1 component has rules (partially evaluated). 6 checks passed (--show-passes).
 Scope limits: node and kubelet version skew not evaluated; Kubernetes: only API versions in the supplied manifests are evaluated; live cluster objects, CRDs, stored versions, admission and component configuration are not.
@@ -130,8 +130,9 @@ Evidence: every finding cites pinned upstream source (--verbose). No network use
 
 `BLOCKED` names the problem, where it is, and the fix. Fix it, run the same
 command again. The `NOT CHECKED` entry that remains is not a failure of the
-command: no reviewed list of the API versions Kubernetes 1.25 serves exists
-yet, so those manifests are listed as not checked rather than passed. Put the
+command: the reviewed list of the API versions Kubernetes 1.25 serves holds
+stable (GA) versions only, so a manifest that uses an API version outside it is
+listed as not checked rather than passed. Put the
 declarations in a `prufyx.yaml` to stop typing them (see
 [scan-config.md](cli/docs/scan-config.md)).
 
@@ -259,15 +260,16 @@ is the authoritative list of checks. A check covers exact cited versions;
 the numbers below separate how many rules exist from how much of the recent
 upgrade surface they decide.
 
-Catalogued is not the same as decided. A project is catalogued when it has a
-reviewed custom-resource target (87 projects: 46 of the CNCF landscape
-catalog, 41 of the community catalog). It is decided only for the upgrades
-that a rule or line attestation covers for the whole release-line pair (A or
-B in the table below). In beta.0, community-catalog projects are mostly not
-scannable: 34 of the 41 have no data in the embedded knowledge, and `scan`,
-`plan` and `check cncf --custom-resources` refuse them with exit `2` instead of
-answering. The
-other 7 hold line attestations and are accepted.
+Catalogued is not the same as decided.
+
+<!-- crd-catalogue:begin -->
+A project is catalogued when it has a reviewed custom-resource target (87 projects: 46 of the CNCF landscape catalog, 41 of the community catalog). It is decided only for the upgrades that a rule or line attestation covers for the whole release-line pair (A or B in the table below). Of the 41 community-catalog projects, 7 hold a published rule or current line attestation for the CRD version family and 34 hold none.
+<!-- crd-catalogue:end -->
+
+In beta.0, a community-catalog project without data in the embedded knowledge
+is not scannable: `scan`, `plan` and `check cncf --custom-resources` refuse it
+with exit `2` instead of answering. The generated sentence above counts the
+community projects that hold CRD knowledge.
 
 ## Coverage
 
@@ -278,7 +280,8 @@ Generated on 2026-10-30 by `scripts/readme-coverage.sh` (do not edit this block 
 | --- | --- |
 | CNCF source rules, active | 245 across 53 projects (1 withdrawn, not used) |
 | Rules for further, non-CNCF projects | 42 across 10 projects |
-| Projects with at least one executable check | 67 |
+| Projects with at least one executable check (a rule, a named check or a profile; says nothing about which upgrades it decides) | 67 |
+| Projects with a rule or attestation that decides at least one of their last five minor upgrades (A, B or S below) | 41 of 78 |
 | Projects catalogued with retained public sources | 58 (11 of them source-only, no check) |
 | Projects with reviewed CRD targets (a reviewed `crd.custom_resource_versions` target) | 87 |
 | Projects with a published CRD rule or line attestation | 16 |
@@ -293,7 +296,7 @@ Version-coverage depth, measured over the last five minor upgrades of each of th
 
 Kubernetes: 63 valid rules, but 19 fall in its window 1.32 to 1.37; 0 of 5 upgrades in that window are gaps.
 
-Decided means a valid rule or attestation covers every version of both release lines, so the answer is BLOCKED or UNKNOWN, never a whole-upgrade PASS. An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.
+Decided means a valid rule or attestation covers every version of both release lines. It never means a whole-upgrade PASS. Only 7 of the 39 decided upgrades are decided by a rule, or by an attestation that lists rules, so the answer for them can be BLOCKED or UNKNOWN. The other 32 are decided only by line attestations that list no rule (32 by `crd.custom_resource_versions`): for them an attestation can only give a family-scoped PASS (`scan` prints "PASS within <family> only"), never BLOCKED. An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.
 <!-- coverage:end -->
 
 Update the block with `scripts/readme-coverage.sh` (`--check` fails when it is
@@ -324,7 +327,7 @@ Velero and others.
 Every rule in the CNCF and community-project packs is time-limited.
 
 <!-- validity-window:begin -->
-The 287 active rules shipped today stop being valid, rule by rule, between 2026-12-07 and 2027-01-28 unless their review is renewed; after its date a build without newer knowledge answers `UNKNOWN` for that rule.
+The 287 active rules shipped today stop being valid, rule by rule, between 2026-12-07 and 2027-01-28 unless their review is renewed; after its date a build without newer knowledge answers `UNKNOWN` for that rule. 199 of the 287 stop being valid on or before 2026-12-12, in the 6 days starting on the earliest.
 <!-- validity-window:end -->
 
 The named cert-manager and Prometheus checks are pinned to
@@ -340,8 +343,11 @@ documents every input contract.
 reports which API versions in them a Kubernetes release on the way to the
 target stops serving. It covers Kubernetes only; other projects are reported as
 not covered, with the `prufyx check cncf` command that does cover them. It does
-not look at a live cluster, custom resources, stored versions, admission or
-component configuration, or node version skew.
+not look at a live cluster, stored versions, admission or component
+configuration, or node version skew. Custom resources are evaluated only for
+the projects whose reviewed custom-resource version knowledge covers the
+upgrade (see [custom resources](cli/docs/custom-resources.md)); a custom
+resource of any other group is not evaluated.
 
 `scan` answers `PASS FOR THE DECLARED SCOPE` (exit `0`) only when every hop of
 the upgrade is decided by reviewed records: reviews that a release line has no

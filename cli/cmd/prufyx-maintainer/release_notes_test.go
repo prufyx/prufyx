@@ -44,6 +44,23 @@ func TestReleaseNotesDirectories(t *testing.T) {
 	if b, _ := os.ReadFile(cl); !strings.Contains(string(b), "#### Summary") || strings.Contains(string(b), "stale") || !strings.HasSuffix(string(b), "### Added\n") {
 		t.Errorf("changelog = %q", b)
 	}
+	// --check passes on the regenerated file, fails on a stale block and
+	// never writes.
+	args := []string{"release-notes", "--from-dir", from, "--to-dir", to, "--into", cl, "--level", "4", "--check"}
+	if err := run(args, &out, &errOut); err != nil {
+		t.Errorf("--check on a fresh block: %v", err)
+	}
+	b, _ := os.ReadFile(cl)
+	stale := strings.Replace(string(b), "#### Summary", "#### Sumary", 1)
+	if err := os.WriteFile(cl, []byte(stale), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := run(args, &out, &errOut); err == nil {
+		t.Error("--check accepted a stale block")
+	}
+	if b2, _ := os.ReadFile(cl); string(b2) != stale {
+		t.Error("--check wrote the file")
+	}
 	outFile := filepath.Join(t.TempDir(), "notes.md")
 	if err := run([]string{"release-notes", "--from-dir", from, "--to-dir", to, "--out", outFile}, &out, &errOut); err != nil {
 		t.Fatal(err)
@@ -63,6 +80,7 @@ func TestReleaseNotesUsageErrors(t *testing.T) {
 		{"release-notes", "--from", "-x"},
 		{"release-notes", "--from-dir", "x", "--to-dir", "y", "--level", "5"},
 		{"release-notes", "--from-dir", "x", "--to-dir", "y", "--out", "a", "--into", "b"},
+		{"release-notes", "--from-dir", "x", "--to-dir", "y", "--check"},
 	} {
 		var out, errOut bytes.Buffer
 		if err := run(args, &out, &errOut); err == nil {

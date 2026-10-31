@@ -69,7 +69,8 @@ func RenderREADMEBlock(r Report, inventoryJSON []byte, now time.Time) (string, e
 	w("| Executable rules | Count |\n| --- | --- |\n")
 	w("| CNCF source rules, active | %d across %d projects (%d withdrawn, not used) |\n", c["cncfSourceRules"], c["cncfRuleProjects"], c["cncfSourceRulesWithdrawn"])
 	w("| Rules for further, non-CNCF projects | %d across %d projects |\n", c["communityProjectSourceRules"], c["communityProjectRuleProjects"])
-	w("| Projects with at least one executable check | %d |\n", c["executableProjects"])
+	w("| Projects with at least one executable check (a rule, a named check or a profile; says nothing about which upgrades it decides) | %d |\n", c["executableProjects"])
+	w("| Projects with a rule or attestation that decides at least one of their last five minor upgrades (A, B or S below) | %d of %d |\n", r.withPairs, f.Projects)
 	w("| Projects catalogued with retained public sources | %d (%d of them source-only, no check) |\n", c["selectedSourceProjects"], c["selectedSourceOnlyProjects"])
 	w("| Projects with reviewed CRD targets (a reviewed `crd.custom_resource_versions` target) | %d |\n", r.CRDVersionProjects)
 	w("| Projects with a published CRD rule or line attestation | %d |\n\n", r.CRDPublishedProjects)
@@ -79,8 +80,29 @@ func RenderREADMEBlock(r Report, inventoryJSON []byte, now time.Time) (string, e
 	w("| Rule for one exact version pair only (S) | %d | %s |\n", f.S, readmePct(f.S, f.Pairs))
 	w("| Gap, no valid rule (G) | %d | %s |\n\n", f.G, readmePct(f.G, f.Pairs))
 	w("Kubernetes: %d valid rules, but %d fall in its window %s to %s; %d of %d upgrades in that window are gaps.\n\n", k.ValidRules, k.RulesInWindow, k.Window[0], k.Window[len(k.Window)-1], k.G, k.A+k.B+k.S+k.G)
-	w("Decided means a valid rule or attestation covers every version of both release lines, so the answer is BLOCKED or UNKNOWN, never a whole-upgrade PASS. An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.\n")
+	w("Decided means a valid rule or attestation covers every version of both release lines. It never means a whole-upgrade PASS. %s An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.\n", decidedSplitSentence(r.split, f.A+f.B))
 	return b.String(), nil
+}
+
+// decidedSplitSentence says, from the report, how many decided upgrades can
+// end in BLOCKED and how many cannot: an attestation that lists no rule can
+// produce only a family-scoped PASS ("PASS within <family> only" in the scan
+// output), never BLOCKED. total is the decided count the table prints; the
+// split must add up to it.
+func decidedSplitSentence(d decidedSplit, total int) string {
+	if d.total() != total {
+		return fmt.Sprintf("(the split of the %d decided upgrades is unavailable)", total)
+	}
+	if len(d.noBlock) == 0 {
+		return fmt.Sprintf("All %d decided upgrades are decided by a rule, or by an attestation that lists rules, so the answer for them can be BLOCKED or UNKNOWN.", total)
+	}
+	var parts []string
+	rest := 0
+	for _, f := range d.noBlock {
+		parts = append(parts, fmt.Sprintf("%d by `%s`", f.pairs, f.families))
+		rest += f.pairs
+	}
+	return fmt.Sprintf("Only %d of the %d decided upgrades are decided by a rule, or by an attestation that lists rules, so the answer for them can be BLOCKED or UNKNOWN. The other %d are decided only by line attestations that list no rule (%s): for them an attestation can only give a family-scoped PASS (`scan` prints \"PASS within <family> only\"), never BLOCKED.", d.canBlock, total, rest, strings.Join(parts, ", "))
 }
 
 // SpliceBlock returns doc with the lines between the begin and end marker
@@ -125,4 +147,16 @@ func SpliceBlock(doc []byte, begin, end, block string) ([]byte, error) {
 	out = append(out, block...)
 	out = append(out, doc[ei:]...)
 	return out, nil
+}
+
+// RenderCRDCatalogue renders the text between the crd-catalogue markers
+// from a report: how many projects have a reviewed custom-resource target,
+// and how many community-catalog ones have published CRD knowledge. It ends
+// with one newline.
+func RenderCRDCatalogue(r Report) (string, error) {
+	c := r.crd
+	if c.cncf+c.community == 0 {
+		return "", fmt.Errorf("report: no reviewed CRD version target")
+	}
+	return fmt.Sprintf("A project is catalogued when it has a reviewed custom-resource target (%d projects: %d of the CNCF landscape catalog, %d of the community catalog). It is decided only for the upgrades that a rule or line attestation covers for the whole release-line pair (A or B in the table below). Of the %d community-catalog projects, %d hold a published rule or current line attestation for the CRD version family and %d hold none.\n", c.cncf+c.community, c.cncf, c.community, c.community, c.communityPublished, c.community-c.communityPublished), nil
 }
