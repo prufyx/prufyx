@@ -110,7 +110,7 @@ func TestExplicitKnowledgeDBTooNewExitsFifteen(t *testing.T) {
 	}
 	for name, run := range map[string]func() (int, string, string){"scan": scan, "check cncf": check} {
 		code, stdout, stderr := run()
-		if code != ExitKnowledgeTooNew || stdout != "" || !strings.Contains(stderr, "too new") || !strings.Contains(stderr, "upgrade prufyx") || !strings.Contains(stderr, "drop --knowledge-db") || strings.Contains(stderr, "INTEGRITY FAILURE") {
+		if code != ExitKnowledgeTooNew || stdout != "" || !strings.Contains(strings.ToLower(stderr), "too new") || !strings.Contains(stderr, "upgrade prufyx") || !strings.Contains(stderr, "drop --knowledge-db") || strings.Contains(stderr, "INTEGRITY FAILURE") {
 			t.Fatalf("%s too new: %d %q %q", name, code, stdout, stderr)
 		}
 	}
@@ -119,7 +119,7 @@ func TestExplicitKnowledgeDBTooNewExitsFifteen(t *testing.T) {
 	}
 	flipStoreFile(t, store, "/target.json")
 	for name, run := range map[string]func() (int, string, string){"scan": scan, "check cncf": check} {
-		if code, stdout, stderr := run(); code != ExitIntegrity || stdout != "" || strings.Contains(stderr, "too new") {
+		if code, stdout, stderr := run(); code != ExitIntegrity || stdout != "" || strings.Contains(strings.ToLower(stderr), "too new") {
 			t.Fatalf("%s tampered: %d %q %q", name, code, stdout, stderr)
 		}
 	}
