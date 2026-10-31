@@ -52,17 +52,16 @@ checks:
   that appears anywhere other than as the option itself (another section, a
   comment, a value) makes the answer UNKNOWN.
 - OpenSearch `2.19.7` → `3.0.0`: whether a proposed `opensearch.yml` sets one of
-  two `gateway` settings that the 2.19.7 source marks deprecated and the 3.0.0
+  four `gateway` settings that the 2.19.7 source marks deprecated and the 3.0.0
   source no longer defines, which the 3.0.0 release notes list as removed:
-  `gateway.expected_nodes` and `gateway.recover_after_nodes`. Each setting is
-  its own rule. The release notes also list `gateway.expected_master_nodes`
-  and `gateway.recover_after_master_nodes`; no rule covers those two yet, so a
-  PASS says nothing about them. Dotted and nested spellings are both read; a YAML
+  `gateway.expected_nodes`, `gateway.expected_master_nodes`,
+  `gateway.recover_after_nodes` and `gateway.recover_after_master_nodes`. Each
+  setting is its own rule. Dotted and nested spellings are both read; a YAML
   anchor, alias, tag, merge key, second document, repeated path, case variant or
   a scalar on a parent of a listed setting is UNKNOWN. The check reads no value
   and no other setting, and does not see command-line or environment settings
   unless the caller has folded them into the file and declared it complete and
-  precedence-resolved. Passing says only that none of these two settings is
+  precedence-resolved. Passing says only that none of these four settings is
   set; it does not validate the rest of the configuration or the upgrade.
   OpenSearch is a neutral community-project identity; CNCF membership is not
   asserted. `--effective-config` must be the plain `opensearch.yml`, not a Helm
