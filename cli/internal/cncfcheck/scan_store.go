@@ -46,6 +46,9 @@ func NewStoreScanKnowledge(bundles map[string]ExternalBundle) (*ScanKnowledge, e
 		if selected.servedAPIs, err = admitServedAPIs(external.document.Pack, external.pack.ServedAPIs, base.landscape.Projects); err != nil {
 			return nil, ErrIntegrity
 		}
+		if selected.pack, err = packWithEmbeddedCrossing(base.pack, external.pack, project); err != nil {
+			return nil, err
+		}
 		var rules []ScanRule
 		for _, entry := range external.pack.Entries {
 			if entry.Project != project {
@@ -62,7 +65,7 @@ func NewStoreScanKnowledge(bundles map[string]ExternalBundle) (*ScanKnowledge, e
 		// rules, so the scan names it as a rule that needs other evidence, as
 		// the embedded pack does, and a hop it covers is never a family pass
 		// only because the rule is missing from the store. Its claims come
-		// from the store bundle, which holds no such rule.
+		// from the embedded rule, which the selected bundle holds for selection.
 		for _, entry := range base.pack.Entries {
 			if entry.Project != project {
 				continue

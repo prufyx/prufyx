@@ -6,7 +6,9 @@ import (
 	"bufio"
 	"bytes"
 	"io"
+	"sort"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"gopkg.in/yaml.v3"
@@ -67,7 +69,7 @@ func factIDs(keys []removedKey) []string {
 func prepareAirflowConfig(raw []byte, from, to string, complete, precedenceResolved bool) (Prepared, error) {
 	return prepareRemovedKeys(raw, from, to, complete, precedenceResolved, AirflowComponent, airflowRemovedKeys, scanAirflowCfg,
 		"AIRFLOW_CFG_REMOVED_OPTIONS_INSPECTED", "AIRFLOW_CFG_SHAPE_UNSUPPORTED",
-		"AIRFLOW_ENVIRONMENT_VARIABLES_AND_SECRETS_BACKENDS_ARE_CALLER_DECLARATIONS")
+		"AIRFLOW_ENVIRONMENT_VARIABLES_AND_SECRETS_BACKENDS_ARE_CALLER_DECLARATIONS", nil)
 }
 
 // prepareOpenSearchConfig is the same for one caller-selected opensearch.yml and
@@ -75,12 +77,12 @@ func prepareAirflowConfig(raw []byte, from, to string, complete, precedenceResol
 func prepareOpenSearchConfig(raw []byte, from, to string, complete, precedenceResolved bool) (Prepared, error) {
 	return prepareRemovedKeys(raw, from, to, complete, precedenceResolved, OpenSearchComponent, openSearchRemovedKeys, scanOpenSearchYAML,
 		"OPENSEARCH_YML_REMOVED_SETTINGS_INSPECTED", "OPENSEARCH_YML_SHAPE_UNSUPPORTED",
-		"OPENSEARCH_COMMAND_LINE_AND_ENVIRONMENT_SETTINGS_ARE_CALLER_DECLARATIONS")
+		"OPENSEARCH_COMMAND_LINE_AND_ENVIRONMENT_SETTINGS_ARE_CALLER_DECLARATIONS", uncoveredOpenSearchSettings)
 }
 
 type removedKeyScanner func(raw []byte, keys []removedKey) (found map[string]bool, supported bool, err error)
 
-func prepareRemovedKeys(raw []byte, from, to string, complete, precedenceResolved bool, component string, keys []removedKey, scan removedKeyScanner, preparedReason, shapeReason, declarationOmission string) (Prepared, error) {
+func prepareRemovedKeys(raw []byte, from, to string, complete, precedenceResolved bool, component string, keys []removedKey, scan removedKeyScanner, preparedReason, shapeReason, declarationOmission string, uncovered func(raw []byte) []string) (Prepared, error) {
 	if len(raw) == 0 || len(raw) > maxInputBytes || !utf8.Valid(raw) || bytes.IndexByte(raw, 0) >= 0 || !versionRE.MatchString(from) || !versionRE.MatchString(to) {
 		return Prepared{}, ErrInvalid
 	}
@@ -104,12 +106,20 @@ func prepareRemovedKeys(raw []byte, from, to string, complete, precedenceResolve
 			}
 		}
 	}
+	// A setting in a namespace the target release removed settings from, that no
+	// rule covers, is never answered with a scoped PASS.
+	var uncoveredKeys []string
+	if uncovered != nil {
+		uncoveredKeys = uncovered(raw)
+	}
 	facts := make([]inputFact, 0, len(keys))
 	for _, k := range keys {
 		facts = append(facts, inputFact{ID: k.Fact, State: "unsupported"})
 	}
 	state, reason := "UNKNOWN", "EFFECTIVE_CONFIG_INCOMPLETE_OR_PRECEDENCE_UNRESOLVED"
 	switch {
+	case len(uncoveredKeys) > 0:
+		reason = "SETTING_IN_NAMESPACE_WITH_UNCOVERED_REMOVALS_PRESENT"
 	case !supported:
 		reason = shapeReason
 	case complete && precedenceResolved:
@@ -123,19 +133,47 @@ func prepareRemovedKeys(raw []byte, from, to string, complete, precedenceResolve
 	if err != nil {
 		return Prepared{}, ErrInvalid
 	}
+	omissions := []string{
+		"CALLER_SUPPLIED_CONFIG_NOT_LIVE_OBSERVATION",
+		declarationOmission,
+		"ONLY_THE_LISTED_REMOVED_KEYS_INSPECTED_NOT_THEIR_VALUES_OR_ANY_OTHER_SETTING",
+		"WHOLE_UPGRADE_COMPATIBILITY_NOT_EVALUATED",
+	}
+	for _, key := range uncoveredKeys {
+		omissions = append(omissions, "SETTING_MAY_BE_REMOVED_BY_TARGET_NO_RULE_COVERS_IT:"+key)
+	}
 	return Prepared{
 		CanonicalInputJSON: canonical,
 		SourceDigest:       digest(raw),
 		InputDigest:        digest(canonical),
 		State:              state,
 		Reason:             reason,
-		Omissions: []string{
-			"CALLER_SUPPLIED_CONFIG_NOT_LIVE_OBSERVATION",
-			declarationOmission,
-			"ONLY_THE_LISTED_REMOVED_KEYS_INSPECTED_NOT_THEIR_VALUES_OR_ANY_OTHER_SETTING",
-			"WHOLE_UPGRADE_COMPATIBILITY_NOT_EVALUATED",
-		},
+		Omissions:          omissions,
 	}, nil
+}
+
+// uncoveredOpenSearchSettings lists the settings of an opensearch.yml that sit
+// in a namespace from which the 3.0.0 release removed settings without a rule
+// naming them: opensearch.experimental.* holds the experimental feature flags,
+// and 3.0.0 removed some (pluggable caching, approximate point range query)
+// while the release notes name no complete list. Each such leaf makes the
+// answer UNKNOWN. Paths are compared case-insensitively and returned sorted.
+func uncoveredOpenSearchSettings(raw []byte) []string {
+	var document yaml.Node
+	if yaml.Unmarshal(raw, &document) != nil || len(document.Content) != 1 || document.Content[0].Kind != yaml.MappingNode {
+		return nil
+	}
+	leaves, parents := map[string]bool{}, map[string]bool{}
+	flattenSettings(document.Content[0], "", leaves, parents)
+	var out []string
+	for path := range leaves {
+		lower := strings.ToLower(path)
+		if lower == "opensearch.experimental" || strings.HasPrefix(lower, "opensearch.experimental.") {
+			out = append(out, path)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // scanAirflowCfg reads the INI surface of airflow.cfg far enough to see whether
@@ -159,7 +197,9 @@ func scanAirflowCfg(raw []byte, keys []removedKey) (map[string]bool, bool, error
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, ";") {
 			continue
 		}
-		indented := line[0] == ' ' || line[0] == '\t'
+		// Python's ConfigParser indents by any leading whitespace (\v, \f, NBSP
+		// included), not only space and tab.
+		indented := len(strings.TrimLeftFunc(line, unicode.IsSpace)) < len(line)
 		if indented {
 			// A continuation of the previous value, which cannot start an option.
 			if !sectionKnown || !optionInSection {
@@ -220,6 +260,10 @@ func scanAirflowCfg(raw []byte, keys []removedKey) (map[string]bool, bool, error
 	if scanner.Err() != nil {
 		return nil, false, ErrInvalid
 	}
+	// No section at all (empty or comments only) is rejected like an empty file.
+	if !sectionKnown {
+		return nil, false, ErrInvalid
+	}
 	return found, true, nil
 }
 
@@ -232,9 +276,7 @@ func scanOpenSearchYAML(raw []byte, keys []removedKey) (map[string]bool, bool, e
 	decoder := yaml.NewDecoder(bytes.NewReader(raw))
 	var document yaml.Node
 	if err := decoder.Decode(&document); err != nil {
-		if err == io.EOF {
-			return map[string]bool{}, true, nil
-		}
+		// No document (empty or comments only) is rejected like an empty file.
 		return nil, false, ErrInvalid
 	}
 	var trailing yaml.Node

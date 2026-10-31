@@ -34,6 +34,41 @@ checks:
 - Kibana `8.18.0` → `9.0.0`: whether a proposed `kibana.yml` retains
   `xpack.reporting.roles.allow`, which Kibana 9 no longer supports. Passing
   this predicate does not validate feature privileges or reporting access.
+- Apache Airflow `3.0.6` → `3.1.0`: whether a proposed `airflow.cfg` sets one
+  of four options that the 3.1.0 release notes list as removed:
+  `[webserver] instance_name_has_markup`, `[webserver] warn_deployment_exposure`,
+  `[api] enable_xcom_deserialize_support` or `[scheduler]
+  dag_stale_not_seen_duration`. Each option is its own rule, so a report names
+  the option it blocks on. The file is read as an INI file; a spelling that could
+  change which option is meant (a case variant, a `_cmd` or `_secret` form, a
+  repeated section or option, a `[DEFAULT]` entry) is UNKNOWN. The check reads
+  no value and no other option, and does not see environment variables unless
+  the caller has folded them into the file and declared it complete and
+  precedence-resolved. Passing says only that none of these four options is set;
+  it does not validate the rest of the configuration or the upgrade. Apache
+  Airflow is a neutral community-project identity; CNCF membership is not
+  asserted. `--effective-config` must be the plain `airflow.cfg`, not a Helm
+  values file or a ConfigMap that wraps it; a wrapped file is invalid input. A removed option's name
+  that appears anywhere other than as the option itself (another section, a
+  comment, a value) makes the answer UNKNOWN.
+- OpenSearch `2.19.7` → `3.0.0`: whether a proposed `opensearch.yml` sets one of
+  four `gateway` settings that the 2.19.7 source marks deprecated and the 3.0.0
+  source no longer defines, which the 3.0.0 release notes list as removed:
+  `gateway.expected_nodes`, `gateway.expected_master_nodes`,
+  `gateway.recover_after_nodes` and `gateway.recover_after_master_nodes`. Each
+  setting is its own rule. Dotted and nested spellings are both read; a YAML
+  anchor, alias, tag, merge key, second document, repeated path, case variant or
+  a scalar on a parent of a listed setting is UNKNOWN. The check reads no value
+  and no other setting, and does not see command-line or environment settings
+  unless the caller has folded them into the file and declared it complete and
+  precedence-resolved. Passing says only that none of these four settings is
+  set; it does not validate the rest of the configuration or the upgrade.
+  OpenSearch is a neutral community-project identity; CNCF membership is not
+  asserted. `--effective-config` must be the plain `opensearch.yml`, not a Helm
+  values file, a ConfigMap or a manifest that wraps it. A file with a key that
+  is not an OpenSearch setting path (an unknown top-level namespace, a file-name
+  or wrapper-layer key), a multi-line value, a list of mappings, or a removed
+  setting's name anywhere other than as the setting itself is UNKNOWN.
 - Fluent Bit `3.2.0` → `4.0.0`: whether a complete proposed classic
   configuration preserves an enabled OpenTelemetry `http2` setting after
   Fluent Bit changed its default from `on` to `off`. This requires the
@@ -404,3 +439,20 @@ explicit `true` case and exits 0, and `unknown.json` omits the setting and exits
 11. The aggregate compatibility assessment remains UNKNOWN for all three
 scoped results. Each command must include `--resource-complete`,
 `--pre-operator-update`, `--from 26.3.0`, and `--to 26.6.0`.
+
+## Removed-key checks (airflow, opensearch)
+
+`check project --project airflow|opensearch --effective-config <file>` looks
+only for the options or settings the target release notes list as removed
+(airflow 3.0.6 to 3.1.0, opensearch 2.19.7 to 3.0.0). It reads nothing else.
+
+- opensearch: any `opensearch.experimental.*` setting makes the answer UNKNOWN.
+  The 3.0.0 release removed experimental feature flags that no rule names, so a
+  scoped PASS would be wrong. The omission
+  `SETTING_MAY_BE_REMOVED_BY_TARGET_NO_RULE_COVERS_IT:<key>` names each key.
+- An empty file, or a file with only comments, is rejected (exit 2) for both
+  projects.
+- The preparation omissions (what was and was not inspected, and that
+  environment variables, secrets backends and command-line settings are your
+  declarations) are printed as `input qualification:` lines and in the JSON
+  report as `preparationOmissions`.

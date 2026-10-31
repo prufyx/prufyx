@@ -106,8 +106,8 @@ Notes from the help text:
 - Add `--strict-exit` in CI: a scoped `PASS` then exits `14`, not `0`.
 - `prufyx prepare cncf --project SLUG --input FILE --from X --to Y` builds a
   check input from the project's own configuration file; `--format input` writes
-  the prepared input. Non-CNCF projects (grafana, kibana, loki, fluent-bit,
-  ceph) use `prepare project` and `check project`.
+  the prepared input. Non-CNCF projects (airflow, grafana, kibana, loki, opensearch,
+  fluent-bit, ceph) use `prepare project` and `check project`.
 - Several checks in one go: `prufyx check batch --plan plan.json --root DIR
   --now RFC3339`. The plan file format is in [batch checks](batch-checks.md).
   The batch plan file is not the same thing as `prufyx plan` (section 4).

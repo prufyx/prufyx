@@ -1,0 +1,3 @@
+### Fixed
+
+- The release-note rules read flag and config-key sets by exact, lower-case name: a set with another upper-case member is refused (falco's single-letter flags stay exact) instead of being compared. A complete set that holds a flag the same release removed without a reviewed rule (cortex 1.9.0: `limits.per-user-override-config`, `limits.per-user-override-period`, `cluster.listen-address`, `cluster.advertise-address`, `cluster.peer`, `cluster.peer-timeout`, `blocks-storage.bucket-store.index-cache.postings-compression-enabled`; falco 0.37.0: `metadata_download.*`) is UNKNOWN for these rules, never PASS. Not checked: value-bearing forms such as `-p mesos`, YAML keys of a flag, environment variables, `@argfile`, Helm values.
