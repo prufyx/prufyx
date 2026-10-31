@@ -158,9 +158,11 @@ func TestEmbeddedKnowledgeSetRulesReadCustomResourceSets(t *testing.T) {
 		if f, isRelnotes := relnotesFact[rule.SetCondition.FactID]; isRelnotes {
 			// A release-note removal rule: a crossing-only forbid_set_member
 			// over the project's caller-supplied flag or config-key set, on
-			// the current side, one member, declared with the set type.
+			// the current side, over its removed members (a flag and its aliases
+			// when one release-note line removes them together), declared with
+			// the set type.
 			crossing, err := constraintengine.AnyCrossingRule([]json.RawMessage{entry.Rule})
-			if err != nil || !crossing || entry.Project != f.project || len(rule.SetCondition.Members) != 1 || rule.SetCondition.Side != "current" || rule.SetCondition.Component != f.component || !strings.HasPrefix(id, f.project+".relnotes.") {
+			if err != nil || !crossing || entry.Project != f.project || len(rule.SetCondition.Members) == 0 || rule.SetCondition.Side != "current" || rule.SetCondition.Component != f.component || !strings.HasPrefix(id, f.project+".relnotes.") {
 				t.Fatalf("relnotes rule %s (project %s) reads %s %s %v: not a crossing-only rule over its project's %s", id, entry.Project, rule.SetCondition.Side, rule.SetCondition.FactID, rule.SetCondition.Members, f.kind)
 			}
 			if len(entry.RequiredFacts) != 1 || entry.RequiredFacts[0].ID != f.id() || entry.RequiredFacts[0].Type != constraintengine.FactSet || entry.RequiredFacts[0].Side != "current" {
