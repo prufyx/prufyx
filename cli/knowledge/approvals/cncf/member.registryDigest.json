@@ -1,10 +1,10 @@
 {
   "schema": "prufyx.io/knowledge-approval/v2",
   "record": {
-    "baseDigest": "sha256:a38dfd538794eca07988c3e4b8a4ee64dedec5bd6bf768b0804de7788b6480da",
-    "candidateDigest": "sha256:7a5b611cb247d426411ba9cb8dacd8a0f429b39693938b595bb76239111eb3d4",
-    "candidateId": "pr-157",
-    "decidedAt": "2026-10-22T12:41:04Z",
+    "baseDigest": "sha256:e3342a162dde33a4defb8ba5b8216d70a389024db7e0bc8e0e9a8ec702df4cc1",
+    "candidateDigest": "sha256:dee6e2fc01251fb93cc24ba114313633c7d2661cad3ff4fafb5c686a0d6b1445",
+    "candidateId": "pr-344",
+    "decidedAt": "2026-10-31T13:34:53Z",
     "decision": "approve",
     "identity": "airstand",
     "pack": "cncf",
@@ -13,5 +13,5 @@
     "subject": "registryDigest"
   },
   "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
-  "signature": "Woqoq9Z/xKU4fV/P1ZseZc/eITbcnUhNz0O6DasyVIzsRuqCPJeASJsmI/UiLO8u105MjUi6ozQ5oAQJdXkuCw=="
+  "signature": "A8ofITjCXMZffpdK/StUheBkPE62Q+obc9xli6dnL0M7lAdodF9jp6PH74DVf6ufCy/4t/Iua4OSGtoXLrKqCA=="
 }
