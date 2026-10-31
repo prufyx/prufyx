@@ -646,6 +646,21 @@ The tools that read rules know the crossing:
   `Replay`, which recomputes the report from the input and the rules, is the
   authority on the match mode.
 
+## Release-note set facts
+
+A crossing rule read from a project's own release notes (a removed or renamed
+command-line flag or configuration key) reads a caller-supplied set fact. The
+registered facts, with the spelling a member must have:
+
+| Fact | Members |
+| --- | --- |
+| `component.<project>.cli_flags_set` | long flag names without leading dashes (`--web.enable-lifecycle` is `web.enable-lifecycle`); values are not part of the set |
+| `component.<project>.config_keys_set` | dotted key paths from the document root (`server.tls.enabled`); values are not part of the set |
+
+Registered: `cli_flags_set` for `falco`, `thanos` and `cortex`, and `config_keys_set` for `falco`. A fact that is absent
+from the caller's input is unknown, never "not set". The facts only feed
+rules that block; a rule over them never passes a hop.
+
 ## Chart rules and `require_set_member`
 
 A rule may be about a Helm chart's own versions instead of the software the
