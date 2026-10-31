@@ -5,6 +5,7 @@ package cncfcheck
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"regexp"
 	"strconv"
@@ -143,8 +144,11 @@ func parseExternalBundle(raw []byte, base *bundle) (ExternalBundle, error) {
 		base = &loaded
 	}
 	capability, err := externalCapabilityDigest(*base)
-	if err != nil || document.EngineCapabilityDigest != capability {
+	if err != nil {
 		return ExternalBundle{}, ErrIntegrity
+	}
+	if document.EngineCapabilityDigest != capability {
+		return ExternalBundle{}, errors.Join(ErrIntegrity, ErrCapabilityMismatch)
 	}
 	var packValue rulePack
 	if err := json.Unmarshal(document.Pack, &packValue); err != nil {

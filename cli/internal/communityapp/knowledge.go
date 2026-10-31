@@ -323,8 +323,7 @@ func rejectedKnowledgeImport(receipt knowledge.ImportReceipt, err error, profile
 	} else if errors.Is(err, knowledge.ErrExpired) {
 		reason = "KNOWLEDGE_TRUST_METADATA_EXPIRED"
 	} else if errors.Is(err, knowledge.ErrUnsupportedKnowledge) {
-		reason = "KNOWLEDGE_TOO_NEW_FOR_THIS_CLIENT"
-		nextAction = "upgrade prufyx" + tooNewVersionHint(err) + "; the embedded knowledge and the current local database stay in use"
+		reason, nextAction = unsupportedAdvice(err)
 	}
 	if profile == "cncf" || profile == "cncf-projects" || profile == "spiffe-x509-svid" || profile == "cloudevents-structured-json" || profile == "tikv-gcp-v2-wif-backup" {
 		nextAction = strings.ReplaceAll(nextAction, "prufyx db status", "prufyx db status --profile "+profile)
@@ -420,6 +419,9 @@ func (r runtime) knowledgeError(message string, err error) int {
 	}
 	if errors.Is(err, knowledge.ErrRecoveryRequired) {
 		return r.fail(message+"; recovery required: retry the exact original signed package with its original assertions and bootstrap arguments", ExitIntegrity)
+	}
+	if capabilityMismatch(err) {
+		return r.fail(message+"; KNOWLEDGE CAPABILITY MISMATCH: "+capabilityMismatchAdvice, ExitKnowledgeTooNew)
 	}
 	if errors.Is(err, knowledge.ErrUnsupportedKnowledge) {
 		return r.fail(message+"; the knowledge is too new for this prufyx: upgrade prufyx"+tooNewVersionHint(err)+"; the embedded knowledge and the current local database stay in use", ExitKnowledgeTooNew)

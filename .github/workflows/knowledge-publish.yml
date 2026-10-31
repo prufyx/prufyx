@@ -30,6 +30,12 @@ on:
     branches: [main]
     paths:
       - "cli/knowledge/**"
+      # Inputs of the engine capability (fact registry, packaged rules, engine
+      # contract). A change publishes a new capability; see "Engine capability
+      # change" in cli/docs/knowledge-publisher.md.
+      - "cli/internal/customresources/table.json"
+      - "cli/internal/cncfcheck/data/**"
+      - "cli/internal/constraintengine/**"
   schedule:
     - cron: "17 5 * * 1"
   workflow_dispatch:
@@ -151,7 +157,7 @@ jobs:
 
           runs="$(gh api --paginate -X GET "repos/${GH_REPO}/actions/workflows/knowledge-publish.yml/runs" \
             -f branch=main -f status=success -f per_page=100 \
-            --jq '.workflow_runs[] | .id')"
+            --jq '.workflow_runs[] | [.id, .head_sha] | @tsv')"
 
           verify() { # package expected-digest expected-revision
             local args=(db verify "$1" --profile cncf-projects --bootstrap-root "${root}" --bootstrap-root-digest "${ROOT_DIGEST}" --format json)
@@ -159,6 +165,7 @@ jobs:
             [ -z "$3" ] || args+=(--expected-revision "$3")
             "${bin}" "${args[@]}"
           }
+          prev_sha=""
 
           if [ "${FIRST_RELEASE}" = "true" ]; then
             if [ -n "${PREV_REVISION}${PREV_TUF}${PREV_URL}" ]; then
@@ -188,11 +195,11 @@ jobs:
           else
             [ -n "${runs}" ] || fail "no successful run of this workflow exists on main; use first_release=true for the very first publish."
             found=""
-            while read -r id; do
+            while IFS=$'\t' read -r id sha; do
               [ -n "${id}" ] || continue
               found="$(gh api -X GET "repos/${GH_REPO}/actions/runs/${id}/artifacts" \
                 --jq '[.artifacts[] | select(.expired == false) | select(.name | test("^knowledge-[0-9]+-[0-9a-f]{64}$"))] | (first // empty) | [.id, .name, .size_in_bytes, .created_at] | @tsv')"
-              [ -z "${found}" ] || break
+              if [ -n "${found}" ]; then prev_sha="${sha}"; break; fi
             done <<< "${runs}"
             [ -n "${found}" ] || fail "no run has a live knowledge artifact (retention is 90 days); use the recovery inputs, see the runbook."
             IFS=$'\t' read -r aid aname asize created <<< "${found}"
@@ -205,34 +212,82 @@ jobs:
           fi
           [ "$(stat -c %s "${pkg}")" -le "${MAX_PACKAGE_BYTES}" ] || fail "previous package is larger than the package limit."
 
-          receipt="$(verify "${pkg}" "${expected_digest}" "${expected_revision}")" \
-            || fail "the previous package does not verify against the pinned root (an expired package cannot be used as state; see the runbook)."
-          revision="$(jq -r '.knowledgeRevision' <<< "${receipt}")"
-          tuf="$(jq -r '.timestamp.version' <<< "${receipt}")"
-          rules="$(jq -r '.ruleDigest' <<< "${receipt}")"
-          [[ "${revision}" =~ ^[1-9][0-9]{0,17}$ ]] || fail "previous revision is not a positive integer."
-          [[ "${tuf}" =~ ^[1-9][0-9]{0,17}$ ]] || fail "previous TUF version is not a positive integer."
-          if [ "${mode}" = recovery ] && [ "${tuf}" != "${PREV_TUF}" ]; then
-            fail "previous_tuf_version does not match the verified package."
+          # Verify with this tree's client. After an engine capability change
+          # (a registry, policy or engine change) the previous package was
+          # built for the old capability and this client refuses it with exit
+          # 15 and "KNOWLEDGE CAPABILITY MISMATCH". The package is then verified
+          # by the client of the commit that produced it (next steps), and the
+          # release is a capability change. Any other failure is final.
+          err="${state}/verify.err"
+          if verify "${pkg}" "${expected_digest}" "${expected_revision}" > "${state}/receipt.json" 2> "${err}"; then
+            rc=0
+          else
+            rc=$?
           fi
+          cat "${err}" >&2
+          if [ "${rc}" -ne 0 ]; then
+            if [ "${rc}" = 15 ] && [ "${mode}" = state ] && grep -q "KNOWLEDGE CAPABILITY MISMATCH" "${err}"; then
+              [[ "${prev_sha}" =~ ^[0-9a-f]{40}$ ]] || fail "the previous package needs the client that produced it, but its commit is unknown."
+              {
+                echo "mismatch=true"
+                echo "prev_sha=${prev_sha}"
+                echo "pkg=${pkg}"
+                echo "state_dir=${state}"
+                echo "expected_digest=${expected_digest}"
+                echo "created=${created}"
+              } >> "${GITHUB_OUTPUT}"
+              exit 0
+            fi
+            fail "the previous package does not verify against the pinned root (an expired package cannot be used as state; see the runbook)."
+          fi
+          PKG="${pkg}" RECEIPT="${state}/receipt.json" MODE="${mode}" CREATED="${created}" PREV_TUF="${PREV_TUF}" \
+            STATE_DIR="${state}" MAX_INDEX_BYTES="${MAX_INDEX_BYTES}" \
+            bash "${GITHUB_WORKSPACE}/scripts/knowledge-publish-state.sh"
 
-          # Exactly one index member, extracted with a size cap (the member
-          # name is matched against a strict pattern; nothing is unpacked to disk).
-          members="$(tar -tf "${pkg}" | head -n 1000 | grep -E '^targets/knowledge/cncf/[0-9a-f]{64}\.index\.v1\.json$' || true)"
-          [ "$(grep -c . <<< "${members}")" = 1 ] || fail "previous package does not hold exactly one index."
-          tar -xOf "${pkg}" --no-wildcards -- "${members}" | head -c $((MAX_INDEX_BYTES + 1)) > "${state}/index.json"
-          [ "$(stat -c %s "${state}/index.json")" -le "${MAX_INDEX_BYTES}" ] || fail "previous index is larger than the limit."
-          [ -s "${state}/index.json" ] || fail "previous index is empty."
+      # Only after an engine capability change: the previous package is
+      # verified with the client built from the commit that produced it (the
+      # code that accepted it when it was published), against the pinned root
+      # of this tree and the digest in the artifact name. No secret is in the
+      # environment of these two steps.
+      - name: Check out the commit that produced the previous package
+        if: ${{ steps.prev.outputs.mismatch == 'true' }}
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ steps.prev.outputs.prev_sha }}
+          path: producing
+          persist-credentials: false
+          fetch-depth: 1
 
-          created_epoch=""
-          [ -z "${created}" ] || created_epoch="$(date -u -d "${created}" +%s)"
+      - name: Verify the previous package with the client that produced it
+        id: prevcap
+        if: ${{ steps.prev.outputs.mismatch == 'true' }}
+        env:
+          ROOT_DIGEST: ${{ steps.pin.outputs.root_digest }}
+          PKG: ${{ steps.prev.outputs.pkg }}
+          STATE_DIR: ${{ steps.prev.outputs.state_dir }}
+          EXPECTED_DIGEST: ${{ steps.prev.outputs.expected_digest }}
+          CREATED: ${{ steps.prev.outputs.created }}
+        run: |
+          set -euo pipefail
+          umask 077
+          fail() { echo "::error::$*"; exit 1; }
+          out="${RUNNER_TEMP}/producing"
+          mkdir -m 700 "${out}"
+          root="${GITHUB_WORKSPACE}/cli/internal/knowledgepin/root.json"
+          (cd "${GITHUB_WORKSPACE}/producing/cli" && GOTOOLCHAIN=local go build -trimpath -buildvcs=false \
+            -o "${out}/prufyx" ./cmd/prufyx-community) \
+            || fail "the client that produced the previous package cannot be built; the feed keeps the last package. See cli/docs/knowledge-publisher.md."
+          "${out}/prufyx" db verify "${PKG}" --profile cncf-projects --bootstrap-root "${root}" --bootstrap-root-digest "${ROOT_DIGEST}" \
+            --expected-package-digest "${EXPECTED_DIGEST}" --format json > "${STATE_DIR}/receipt-producing.json" \
+            || fail "the previous package does not verify against the pinned root, even with the client that produced it."
+          jq -e '.status == "VERIFIED"' "${STATE_DIR}/receipt-producing.json" > /dev/null \
+            || fail "the previous package is not VERIFIED."
+          PKG="${PKG}" RECEIPT="${STATE_DIR}/receipt-producing.json" MODE=capability CREATED="${CREATED}" \
+            STATE_DIR="${STATE_DIR}" MAX_INDEX_BYTES="${MAX_INDEX_BYTES}" \
+            bash "${GITHUB_WORKSPACE}/scripts/knowledge-publish-state.sh"
           {
-            echo "mode=${mode}"
-            echo "revision=${revision}"
-            echo "tuf=${tuf}"
-            echo "rules=${rules}"
-            echo "created_epoch=${created_epoch}"
-            echo "index=${state}/index.json"
+            echo "pkg=${PKG}"
+            echo "digest=${EXPECTED_DIGEST}"
           } >> "${GITHUB_OUTPUT}"
 
       - name: Build, sign and verify
@@ -243,12 +298,12 @@ jobs:
           TIMESTAMP_KEY: ${{ secrets.KNOWLEDGE_TIMESTAMP_KEY }}
           PASSPHRASE: ${{ secrets.KNOWLEDGE_KEY_PASSPHRASE }}
           ROOT_DIGEST: ${{ steps.pin.outputs.root_digest }}
-          MODE: ${{ steps.prev.outputs.mode }}
-          PREV_REVISION: ${{ steps.prev.outputs.revision }}
-          PREV_TUF: ${{ steps.prev.outputs.tuf }}
-          PREV_RULES: ${{ steps.prev.outputs.rules }}
-          PREV_CREATED: ${{ steps.prev.outputs.created_epoch }}
-          PREV_INDEX: ${{ steps.prev.outputs.index }}
+          MODE: ${{ steps.prevcap.outputs.mode || steps.prev.outputs.mode }}
+          PREV_REVISION: ${{ steps.prevcap.outputs.revision || steps.prev.outputs.revision }}
+          PREV_TUF: ${{ steps.prevcap.outputs.tuf || steps.prev.outputs.tuf }}
+          PREV_RULES: ${{ steps.prevcap.outputs.rules || steps.prev.outputs.rules }}
+          PREV_CREATED: ${{ steps.prevcap.outputs.created_epoch || steps.prev.outputs.created_epoch }}
+          PREV_INDEX: ${{ steps.prevcap.outputs.index || steps.prev.outputs.index }}
           EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
@@ -269,6 +324,14 @@ jobs:
           if [ "${MODE}" = first ]; then
             revision=1
             version=1
+            layout=(--first-release)
+          elif [ "${MODE}" = capability ]; then
+            # The engine capability changed: the previous index no longer
+            # parses under this build, so every project is released again
+            # (--first-release layout) at the next revision and TUF version,
+            # which stay above everything published before.
+            revision=$((PREV_REVISION + 1))
+            version=$((PREV_TUF + 1))
             layout=(--first-release)
           else
             revision=$((PREV_REVISION + 1))
@@ -393,6 +456,10 @@ jobs:
           OLDEST_VERSION: ${{ steps.oldest.outputs.version }}
           PACKAGE_DIGEST: ${{ steps.sign.outputs.package_digest }}
           REVISION: ${{ steps.sign.outputs.revision }}
+          MODE: ${{ steps.prevcap.outputs.mode || steps.prev.outputs.mode }}
+          PREV_PKG: ${{ steps.prevcap.outputs.pkg }}
+          PREV_DIGEST: ${{ steps.prevcap.outputs.digest }}
+          PREV_REVISION: ${{ steps.prevcap.outputs.revision }}
         run: |
           set -euo pipefail
           refuse() { echo "::error::the oldest supported client (${OLDEST_VERSION}, ${OLDEST_REF}) refuses this package or cannot be built; the feed keeps the last package. See cli/docs/knowledge-publisher.md."; exit 1; }
@@ -403,11 +470,40 @@ jobs:
           (cd "${GITHUB_WORKSPACE}/oldest/cli" && GOTOOLCHAIN=local go build -trimpath -buildvcs=false \
             -ldflags "-X github.com/prufyx/prufyx/cli/internal/buildidentity.Version=${OLDEST_VERSION}" \
             -o "${out}/prufyx" ./cmd/prufyx-community) || refuse
-          "${out}/prufyx" db verify "${RUNNER_TEMP}/artifact/cncf-projects.tar" --profile cncf-projects \
-            --bootstrap-root "${oroot}" --bootstrap-root-digest "sha256:$(sha256sum "${oroot}" | cut -d' ' -f1)" \
-            --expected-package-digest "${PACKAGE_DIGEST}" --expected-revision "${REVISION}" --format json > "${out}/receipt.json" || refuse
-          jq -e '.status == "VERIFIED"' "${out}/receipt.json" > /dev/null || refuse
-          echo "- oldest supported client ${OLDEST_VERSION} (${OLDEST_REF}) accepts the package" >> "${GITHUB_STEP_SUMMARY}"
+          obootstrap=(--bootstrap-root "${oroot}" --bootstrap-root-digest "sha256:$(sha256sum "${oroot}" | cut -d' ' -f1)")
+          if [ "${MODE}" = capability ]; then
+            # An engine capability change: the oldest client may refuse the
+            # package, but only cleanly (exit 15, the too-new text), never as an
+            # integrity or usage failure, and only if the same binary still
+            # verifies the previous package, which proves it builds and runs
+            # the whole signature and metadata path. The package content is
+            # checked by the self-verification of the signing step.
+            if "${out}/prufyx" db verify "${RUNNER_TEMP}/artifact/cncf-projects.tar" --profile cncf-projects \
+                "${obootstrap[@]}" --expected-package-digest "${PACKAGE_DIGEST}" --expected-revision "${REVISION}" --format json \
+                > "${out}/receipt.json" 2> "${out}/stderr.txt"; then
+              orc=0
+            else
+              orc=$?
+            fi
+            cat "${out}/stderr.txt" >&2
+            if [ "${orc}" = 0 ]; then
+              jq -e '.status == "VERIFIED"' "${out}/receipt.json" > /dev/null || refuse
+              echo "- oldest supported client ${OLDEST_VERSION} (${OLDEST_REF}) accepts the package" >> "${GITHUB_STEP_SUMMARY}"
+            else
+              [ "${orc}" = 15 ] && grep -q "too new for this prufyx\|KNOWLEDGE CAPABILITY MISMATCH" "${out}/stderr.txt" || refuse
+              [ -n "${PREV_PKG}" ] && [ -n "${PREV_DIGEST}" ] || refuse
+              "${out}/prufyx" db verify "${PREV_PKG}" --profile cncf-projects "${obootstrap[@]}" \
+                --expected-package-digest "${PREV_DIGEST}" --expected-revision "${PREV_REVISION}" --format json > "${out}/prev-receipt.json" || refuse
+              jq -e '.status == "VERIFIED"' "${out}/prev-receipt.json" > /dev/null || refuse
+              echo "- oldest supported client ${OLDEST_VERSION} (${OLDEST_REF}) refuses the package cleanly (engine capability change, exit 15) and verifies the previous package" >> "${GITHUB_STEP_SUMMARY}"
+            fi
+          else
+            "${out}/prufyx" db verify "${RUNNER_TEMP}/artifact/cncf-projects.tar" --profile cncf-projects \
+              "${obootstrap[@]}" \
+              --expected-package-digest "${PACKAGE_DIGEST}" --expected-revision "${REVISION}" --format json > "${out}/receipt.json" || refuse
+            jq -e '.status == "VERIFIED"' "${out}/receipt.json" > /dev/null || refuse
+            echo "- oldest supported client ${OLDEST_VERSION} (${OLDEST_REF}) accepts the package" >> "${GITHUB_STEP_SUMMARY}"
+          fi
 
       - name: Upload the signed package
         if: ${{ steps.sign.outputs.skip == 'false' }}

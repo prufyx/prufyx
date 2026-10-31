@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -319,6 +320,44 @@ func TestKnowledgeUpdateTooNewForThisClient(t *testing.T) {
 		t.Fatalf("code=%d out=%+v", code, out)
 	}
 	if !strings.Contains(out.NextAction, "upgrade prufyx to >= v0.3.0") || !strings.Contains(out.NextAction, "stay in use") {
+		t.Fatalf("next action = %q", out.NextAction)
+	}
+	if st, err := knowledge.InspectConstraintsProjects(env.store); err != nil || st.State != "READY" || st.SelectedRevision != "4" {
+		t.Fatalf("store changed: %+v %v", st, err)
+	}
+}
+
+// A package signed by the pinned root whose index was built for another
+// engine capability than this build (a registry change) is reported as a
+// capability mismatch, not as "a newer prufyx is needed": exit 15, trust not
+// advanced, the store untouched.
+func TestKnowledgeUpdateCapabilityMismatch(t *testing.T) {
+	env := newDefaultUpdateEnv(t)
+	if code, _, stderr := runDefaultUpdate(t, perProjectPackage(t, env.repo, 1, "4")); code != ExitOK {
+		t.Fatal(code, stderr)
+	}
+	index, projects, err := cncfcheck.BuildEmbeddedExternalTargets("5", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreign := regexp.MustCompile(`"engineCapabilityDigest":"sha256:[0-9a-f]{64}"`)
+	indexRaw := foreign.ReplaceAll(index.Bytes, []byte(`"engineCapabilityDigest":"sha256:`+strings.Repeat("ab", 32)+`"`))
+	if bytes.Equal(indexRaw, index.Bytes) {
+		t.Fatal("capability digest not found in the index")
+	}
+	targets := map[string][]byte{index.Path: indexRaw}
+	for _, project := range projects {
+		targets[project.Path] = project.Bytes
+	}
+	raw, err := env.repo.Package(knowledgefixture.ProjectsPackage{Version: 2, Targets: targets})
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, out, _ := runDefaultUpdate(t, raw)
+	if code != ExitKnowledgeTooNew || out.ReasonCode != "KNOWLEDGE_CAPABILITY_MISMATCH" || out.Rejection == nil || out.Rejection.TrustStateAdvanced || out.ImportReceipt != nil {
+		t.Fatalf("code=%d out=%+v", code, out)
+	}
+	if !strings.Contains(out.NextAction, "different engine capability") || strings.Contains(out.NextAction, "upgrade prufyx to >=") || !strings.Contains(out.NextAction, "stay in use") {
 		t.Fatalf("next action = %q", out.NextAction)
 	}
 	if st, err := knowledge.InspectConstraintsProjects(env.store); err != nil || st.State != "READY" || st.SelectedRevision != "4" {

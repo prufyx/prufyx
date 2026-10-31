@@ -348,8 +348,7 @@ func (r runtime) databaseUpdateWithFetches(ctx context.Context, args []string, f
 			// The package is authentic but newer than this build understands.
 			// Trust did not advance and the store is untouched; it is never
 			// deleted here, because deleting a store resets its rollback floors.
-			output.ReasonCode = "KNOWLEDGE_TOO_NEW_FOR_THIS_CLIENT"
-			output.NextAction = "upgrade prufyx" + tooNewVersionHint(err) + "; the embedded knowledge and the current local database stay in use"
+			output.ReasonCode, output.NextAction = unsupportedAdvice(err)
 			if autoPackage {
 				// Nothing advanced, so there is nothing to recover from the
 				// file; do not leave a package the next update would only reread.
@@ -598,6 +597,24 @@ func prunePackages(parent *os.Root, current string) {
 			parent.Remove(p.name)
 		}
 	}
+}
+
+// capabilityMismatch reports an unsupported-knowledge error that is a capability
+// mismatch: the feed was built for another engine capability than this build,
+// which says nothing about which of the two is newer.
+func capabilityMismatch(err error) bool {
+	return errors.Is(err, knowledge.ErrUnsupportedKnowledge) && errors.Is(err, knowledge.ErrCapabilityMismatch)
+}
+
+const capabilityMismatchAdvice = "the knowledge feed was built for a different engine capability than this prufyx; upgrade prufyx if it is older than the feed, otherwise the feed has not been republished for this release yet; the embedded knowledge and the current local database stay in use"
+
+// unsupportedAdvice is the reason code and next action of an unsupported
+// knowledge error: a capability mismatch or a package that is too new.
+func unsupportedAdvice(err error) (reason, nextAction string) {
+	if capabilityMismatch(err) {
+		return "KNOWLEDGE_CAPABILITY_MISMATCH", capabilityMismatchAdvice
+	}
+	return "KNOWLEDGE_TOO_NEW_FOR_THIS_CLIENT", "upgrade prufyx" + tooNewVersionHint(err) + "; the embedded knowledge and the current local database stay in use"
 }
 
 func tooNewVersionHint(err error) string {

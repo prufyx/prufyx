@@ -184,7 +184,13 @@ expired rule, a missing declaration. Read the reason lines. Full tables:
 - If `prufyx db update` exits `15` ("too new for this prufyx"), the published
   knowledge needs a newer prufyx. Nothing was changed and your current database
   and the embedded knowledge keep working; upgrade prufyx, then run `db update`
-  again. Do not remove the store for this. `scan` and `check` with such a
+  again. Do not remove the store for this. The same exit with the reason
+  `KNOWLEDGE_CAPABILITY_MISMATCH` means the feed was built for another engine
+  capability than your build (a project was added to the supported table, a fact
+  registered or the engine changed): upgrade prufyx if it is older than the feed.
+  This beta only follows feed updates while the feed matches its own capability;
+  the embedded knowledge keeps working. After upgrading with an old database
+  installed, run `prufyx db update` before `scan`. `scan` and `check` with such a
   database, or with one an older prufyx left unadvanceable, use the embedded
   knowledge with a warning instead of failing (see `knowledge-updates.md`).
 - `prufyx db update` downloads a complete signed package and verifies it with

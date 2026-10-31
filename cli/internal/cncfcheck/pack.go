@@ -32,6 +32,11 @@ var packagedFiles embed.FS
 var (
 	ErrInvalid    = errors.New("invalid CNCF check request")
 	ErrIntegrity  = errors.New("CNCF check integrity failure")
+	// ErrCapabilityMismatch is joined with ErrIntegrity when a signed
+	// index or bundle was built for another engine capability (engine
+	// contract, fact registry, policy or landscape) than this build compiles.
+	// It is not tampering: the document is authentic but not for this build.
+	ErrCapabilityMismatch = errors.New("the knowledge was built for a different engine capability than this build")
 	slugPattern   = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 	digestPattern = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 )
