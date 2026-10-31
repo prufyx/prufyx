@@ -124,3 +124,22 @@ func TestExplicitKnowledgeDBTooNewExitsFifteen(t *testing.T) {
 		}
 	}
 }
+
+// Whichever file of a too-new store is tampered with (the index target, a
+// trust state, the selection), the explicit --knowledge-db stays an integrity
+// failure and never reports the store as too new.
+func TestExplicitKnowledgeDBTooNewTamperStaysIntegrity(t *testing.T) {
+	for _, suffix := range []string{"/target.json", "/state.json", "/selection.json", "/trust-receipt.json"} {
+		t.Run(suffix, func(t *testing.T) {
+			useDefaultStoreHome(t)
+			store := tooNewExplicitStore(t)
+			flipStoreFile(t, store, suffix)
+			if code, stdout, stderr := runScan(t, append(autoScanArgs(t), "--knowledge-db", store)...); code != ExitIntegrity || stdout != "" || strings.Contains(strings.ToLower(stderr), "too new") {
+				t.Fatalf("scan: %d %q %q", code, stdout, stderr)
+			}
+			if code, stdout, stderr := runCNCFCLI(t, autoCheckArgs(t, "--format", "json", "--knowledge-db", store)...); code != ExitIntegrity || stdout != "" || strings.Contains(strings.ToLower(stderr), "too new") {
+				t.Fatalf("check cncf: %d %q %q", code, stdout, stderr)
+			}
+		})
+	}
+}

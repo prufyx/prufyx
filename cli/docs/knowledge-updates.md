@@ -204,7 +204,7 @@ are created private to you (mode 0700), whatever your umask is.
 | Command line and store | Knowledge used | Shown |
 | --- | --- | --- |
 | `--knowledge-db DIR` | that database, verified as before | as before |
-| `--knowledge-db DIR`, database signed by the pinned root but too new for this build | none: exit 15, `KNOWLEDGE TOO NEW FOR THIS PRUFYX`, nothing evaluated, no embedded fallback; upgrade prufyx or drop `--knowledge-db` | standard error |
+| `--knowledge-db DIR`, database signed by the pinned root but too new for this build | none: exit 15, `KNOWLEDGE TOO NEW FOR THIS PRUFYX` (`check cncf` words it "the knowledge is too new for this prufyx"), nothing evaluated, no embedded fallback; upgrade prufyx or drop `--knowledge-db` | standard error |
 | `--now TIME` (replay form) | embedded | as before |
 | `--knowledge=embedded` | embedded, evaluated at the current time | standard error |
 | nothing given, default store verifies | the newer of the local database and the embedded knowledge | standard error, human output |

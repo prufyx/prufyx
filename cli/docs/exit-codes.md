@@ -38,7 +38,7 @@ then the flag is opt-in.
 | `11` | not every area checked | `UNKNOWN`, `ATTENTION`, or stale evidence in `check batch` | same |
 | `12` | not used | `check batch --exit-mode detailed` only: stale evidence | same |
 | `13` | not used | `check batch --exit-mode detailed` only: evaluation clock before review time | same |
-| `15` | `--knowledge-db` database too new for this prufyx (see below) | same (`check cncf --knowledge-db`) | same |
+| `15` | `--knowledge-db` database too new for this prufyx (see below) | same (`check cncf --knowledge-db`; `plan --knowledge-db` follows `scan`; `check batch --knowledge-db` still exits `3`) | same |
 | `2` | command line or input not accepted | same | same |
 | `3` | knowledge or input integrity failure | same | same |
 
