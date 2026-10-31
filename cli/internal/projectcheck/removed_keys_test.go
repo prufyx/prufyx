@@ -24,6 +24,17 @@ var removedKeyRules = []struct {
 	{"opensearch", "2.19.7", "3.0.0", "opensearch.removed-setting-gateway-recover-after-nodes.2-19-7-to-3-0-0", "gateway:\n  recover_after_nodes: 2\n"},
 }
 
+// removedKeyRuleCount is the number of shipped removed-key rules of a project.
+func removedKeyRuleCount(project string) int {
+	n := 0
+	for _, r := range removedKeyRules {
+		if r.project == project {
+			n++
+		}
+	}
+	return n
+}
+
 func statuses(t *testing.T, project, raw, from, to string, complete, resolved bool) map[string]string {
 	t.Helper()
 	prepared, err := projectprepare.PrepareEffectiveConfig(project, []byte(raw), from, to, complete, resolved)
@@ -48,7 +59,7 @@ func TestRemovedKeyRulesBlockOnlyTheirOwnKey(t *testing.T) {
 	for _, tc := range removedKeyRules {
 		t.Run(tc.ruleID, func(t *testing.T) {
 			got := statuses(t, tc.project, tc.config, tc.from, tc.to, true, true)
-			if len(got) != 4 {
+			if len(got) != removedKeyRuleCount(tc.project) {
 				t.Fatalf("claims=%v", got)
 			}
 			for id, status := range got {
@@ -71,7 +82,7 @@ func TestRemovedKeyRulesPassOnlyScopedWhenKeyAbsentOrUnrelated(t *testing.T) {
 		{"opensearch", "2.19.7", "3.0.0", "cluster.name: demo\ngateway.expected_data_nodes: 3\ngateway.recover_after_data_nodes: 2\n"},
 	} {
 		got := statuses(t, tc.project, tc.config, tc.from, tc.to, true, true)
-		if len(got) != 4 {
+		if len(got) != removedKeyRuleCount(tc.project) {
 			t.Fatalf("claims=%v", got)
 		}
 		for id, status := range got {
@@ -158,7 +169,7 @@ func TestRemovedKeyRulesCarryPinnedEvidenceAndLimits(t *testing.T) {
 			t.Fatalf("description lacks explicit limits: %s", e.Description)
 		}
 	}
-	if seen != 8 {
+	if seen != len(removedKeyRules) {
 		t.Fatalf("rules=%d", seen)
 	}
 }
