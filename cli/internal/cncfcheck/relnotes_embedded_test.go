@@ -31,8 +31,8 @@ func TestEmbeddedRelnotesCrossingRules(t *testing.T) {
 		}
 		count++
 		var rule struct {
-			ID      string `json:"id"`
-			Subject struct{ Component, From, To string }
+			ID           string `json:"id"`
+			Subject      struct{ Component, From, To string }
 			SetCondition struct {
 				Side, Component, FactID string
 				Members                 []string
