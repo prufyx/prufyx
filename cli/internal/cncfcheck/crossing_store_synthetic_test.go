@@ -5,7 +5,9 @@
 package cncfcheck
 
 import (
+	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -81,11 +83,42 @@ func TestSyntheticStoreEvaluationKeepsEmbeddedCrossingBlock(t *testing.T) {
 			t.Fatalf("%s: exit %d, %d claims", name, exit, len(report.Check.Claims))
 		}
 	}
-	// The selected-rule route names the crossing rule; the store holds no
-	// such rule, so the answer is no claim (UNKNOWN), never a pass.
+	// The selected-rule route names the crossing rule: the embedded rule
+	// decides, so the answer is the block.
 	report, err := store.EvaluateRule("kubernetes", syntheticRuleID, input, now)
-	if err != nil || ClaimExit(report) == 0 {
+	if err != nil || ClaimExit(report) != 10 {
 		t.Fatalf("selected-rule route: exit %d, %v", ClaimExit(report), err)
+	}
+}
+
+// The rule document needs ascending ids: an embedded crossing rule whose id
+// sorts before the store's rules must still evaluate (no integrity failure).
+func TestSyntheticStoreCrossingRuleSortingFirst(t *testing.T) {
+	entry := syntheticCrossingEntry(t)
+	entry.Rule = json.RawMessage(strings.ReplaceAll(string(entry.Rule), syntheticRuleID, "kubernetes.aaa-crossing.1-38-0-to-1-39-0"))
+	restore, err := UseSyntheticKnowledge(nil, []Entry{entry})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer restore()
+	input := crossingGateInput(t)
+	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	store := storeBundleOf(t)
+	report, err := store.Evaluate("kubernetes", input, now)
+	if err != nil || ClaimExit(report) != 10 {
+		t.Fatalf("store check: exit %d, %v", ClaimExit(report), err)
+	}
+	k, err := NewStoreScanKnowledge(map[string]ExternalBundle{"kubernetes": store})
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err = k.CheckFacts("kubernetes", cncfprepare.KubernetesComponentConfigAllFacts(), input, now)
+	if err != nil || ClaimExit(report) != 10 {
+		t.Fatalf("store scan: exit %d, %v", ClaimExit(report), err)
+	}
+	report, err = store.EvaluateRule("kubernetes", "kubernetes.aaa-crossing.1-38-0-to-1-39-0", input, now)
+	if err != nil || ClaimExit(report) != 10 {
+		t.Fatalf("selected rule: exit %d, %v", ClaimExit(report), err)
 	}
 }
 

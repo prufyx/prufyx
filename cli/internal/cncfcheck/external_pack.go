@@ -5,6 +5,7 @@ package cncfcheck
 import (
 	"encoding/json"
 	"errors"
+	"sort"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 )
@@ -151,7 +152,11 @@ func packWithEmbeddedCrossing(embedded, external rulePack, project string) (rule
 		}
 		merged = append(merged, entry)
 	}
-	external.Entries = append(merged, crossing...)
+	// The rule document requires strictly ascending rule ids; ids are unique
+	// after the shadow check above.
+	merged = append(merged, crossing...)
+	sort.SliceStable(merged, func(i, j int) bool { a, _ := ruleEntryID(merged[i]); b, _ := ruleEntryID(merged[j]); return a < b })
+	external.Entries = merged
 	return external, nil
 }
 
