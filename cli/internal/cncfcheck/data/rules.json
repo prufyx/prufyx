@@ -1,5 +1,5 @@
 {
-  "schema": "prufyx.io/cncf-source-rule-pack/v1alpha10",
+  "schema": "prufyx.io/cncf-source-rule-pack/v1alpha11",
   "revision": "cncf-2026-09-13.8",
   "policyId": "cncf-source-preview-v1",
   "policyDigest": "sha256:59fb35dd1cf0241cb704b10de6d8040cd584da29fb17443a353bab4542aeb83d",
@@ -3289,6 +3289,126 @@
       }
     },
     {
+      "description": "Release-note-declared change: the cortex 1.9.0 release notes list the flag --querier.compress-http-responses as removed. This records what the project's own release notes state at a pinned commit; it is not proof of behaviour and says nothing about defaults, other keys, patch-release changes or undeclared changes. The rule reads the flags the deployment sets before the upgrade (a caller-supplied set) and applies to upgrades from a release below 1.9.0 to a release from 1.9.0 up to, but not including, 1.10.0.",
+      "project": "cortex",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/cortexproject/cortex",
+          "description": "Command-line flag names the deployment passes before the upgrade: the long name without leading dashes (names only, values discarded). Caller-supplied; absent means unknown.",
+          "enumTokens": null,
+          "id": "component.cortex.cli_flags_set",
+          "side": "current",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "crossing": {
+          "change": {
+            "basis": "REMOVED_IN_RELEASE",
+            "sourceId": "notes-1-9-0",
+            "version": "1.9.0"
+          },
+          "horizon": {
+            "basis": "REVIEWED_THROUGH_MINOR_LINE",
+            "lt": "1.10.0",
+            "sourceId": "notes-1-9-0"
+          }
+        },
+        "evidence": {
+          "reviewedAt": "2026-10-31T12:00:00Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:b14935686362d7644f1ff970168a7d84c3fa6fcf4857fa49100d32bebd56ded2",
+              "endLine": 18,
+              "id": "notes-1-9-0",
+              "revision": "ed4f3395f8ba0098a827c5ae4ca8a2901674806c",
+              "startLine": 18,
+              "url": "https://raw.githubusercontent.com/cortexproject/cortex/ed4f3395f8ba0098a827c5ae4ca8a2901674806c/CHANGELOG.md"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-29T12:00:00Z"
+        },
+        "id": "cortex.relnotes.flag-removed.querier-compress-http-responses.1-9",
+        "nextAction": "Remove the flag --querier.compress-http-responses before upgrading to 1.9.0",
+        "operator": "forbid_set_member",
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "setCondition": {
+          "component": "pkg:github/cortexproject/cortex",
+          "factId": "component.cortex.cli_flags_set",
+          "members": [
+            "querier.compress-http-responses"
+          ],
+          "side": "current"
+        },
+        "subject": {
+          "component": "pkg:github/cortexproject/cortex",
+          "from": "1.8.1",
+          "to": "1.9.0"
+        }
+      }
+    },
+    {
+      "description": "Release-note-declared change: the cortex 1.9.0 release notes list the flag --store.max-look-back-period as removed. This records what the project's own release notes state at a pinned commit; it is not proof of behaviour and says nothing about defaults, other keys, patch-release changes or undeclared changes. The rule reads the flags the deployment sets before the upgrade (a caller-supplied set) and applies to upgrades from a release below 1.9.0 to a release from 1.9.0 up to, but not including, 1.10.0.",
+      "project": "cortex",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/cortexproject/cortex",
+          "description": "Command-line flag names the deployment passes before the upgrade: the long name without leading dashes (names only, values discarded). Caller-supplied; absent means unknown.",
+          "enumTokens": null,
+          "id": "component.cortex.cli_flags_set",
+          "side": "current",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "crossing": {
+          "change": {
+            "basis": "REMOVED_IN_RELEASE",
+            "sourceId": "notes-1-9-0",
+            "version": "1.9.0"
+          },
+          "horizon": {
+            "basis": "REVIEWED_THROUGH_MINOR_LINE",
+            "lt": "1.10.0",
+            "sourceId": "notes-1-9-0"
+          }
+        },
+        "evidence": {
+          "reviewedAt": "2026-10-31T12:00:00Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:b14935686362d7644f1ff970168a7d84c3fa6fcf4857fa49100d32bebd56ded2",
+              "endLine": 17,
+              "id": "notes-1-9-0",
+              "revision": "ed4f3395f8ba0098a827c5ae4ca8a2901674806c",
+              "startLine": 17,
+              "url": "https://raw.githubusercontent.com/cortexproject/cortex/ed4f3395f8ba0098a827c5ae4ca8a2901674806c/CHANGELOG.md"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-29T12:00:00Z"
+        },
+        "id": "cortex.relnotes.flag-removed.store-max-look-back-period.1-9",
+        "nextAction": "Remove the flag --store.max-look-back-period before upgrading to 1.9.0",
+        "operator": "forbid_set_member",
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "setCondition": {
+          "component": "pkg:github/cortexproject/cortex",
+          "factId": "component.cortex.cli_flags_set",
+          "members": [
+            "store.max-look-back-period"
+          ],
+          "side": "current"
+        },
+        "subject": {
+          "component": "pkg:github/cortexproject/cortex",
+          "from": "1.8.1",
+          "to": "1.9.0"
+        }
+      }
+    },
+    {
       "project": "cri-o",
       "description": "CRI-O target ArtifactStore named-reference short-name guard for an explicitly declared resolution plan only; store contents, caller branch, ordinary images and runtime remain unverified.",
       "requiredFacts": [
@@ -5432,6 +5552,186 @@
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
         "nextAction": "For the exact 0.40.0 to 0.42.0 transition, replace any declared removed Falco 0.40 CLI spelling with a target-supported configuration mechanism, then review the explicit proposed argv separately. Supply an explicit declaration when that argv is unknown."
+      }
+    },
+    {
+      "description": "Release-note-declared change: the falco 0.37.0 release notes list the config key outputs.max_burst as removed. This records what the project's own release notes state at a pinned commit; it is not proof of behaviour and says nothing about defaults, other keys, patch-release changes or undeclared changes. The rule reads the config keys the deployment sets before the upgrade (a caller-supplied set) and applies to upgrades from a release below 0.37.0 to a release from 0.37.0 up to, but not including, 0.38.0.",
+      "project": "falco",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/falcosecurity/falco",
+          "description": "Dotted config key paths from the document root that the deployment's configuration sets before the upgrade (keys only, values discarded). Caller-supplied; absent means unknown.",
+          "enumTokens": null,
+          "id": "component.falco.config_keys_set",
+          "side": "current",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "crossing": {
+          "change": {
+            "basis": "REMOVED_IN_RELEASE",
+            "sourceId": "notes-0-37-0",
+            "version": "0.37.0"
+          },
+          "horizon": {
+            "basis": "REVIEWED_THROUGH_MINOR_LINE",
+            "lt": "0.38.0",
+            "sourceId": "notes-0-37-0"
+          }
+        },
+        "evidence": {
+          "reviewedAt": "2026-10-31T12:00:00Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:ba44f85a266294185608a060242e331e3185477134a0c971253b24447614f63f",
+              "endLine": 11,
+              "id": "notes-0-37-0",
+              "revision": "ba229e5b54d48e39bb76bce3790cef9fb94c708b",
+              "startLine": 11,
+              "url": "https://raw.githubusercontent.com/falcosecurity/falco/ba229e5b54d48e39bb76bce3790cef9fb94c708b/CHANGELOG.md"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-29T12:00:00Z"
+        },
+        "id": "falco.relnotes.config-key-removed.outputs-max-burst.0-37",
+        "nextAction": "Remove the config key outputs.max_burst before upgrading to 0.37.0",
+        "operator": "forbid_set_member",
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "setCondition": {
+          "component": "pkg:github/falcosecurity/falco",
+          "factId": "component.falco.config_keys_set",
+          "members": [
+            "outputs.max_burst"
+          ],
+          "side": "current"
+        },
+        "subject": {
+          "component": "pkg:github/falcosecurity/falco",
+          "from": "0.36.2",
+          "to": "0.37.0"
+        }
+      }
+    },
+    {
+      "description": "Release-note-declared change: the falco 0.37.0 release notes list the config key outputs.rate as removed. This records what the project's own release notes state at a pinned commit; it is not proof of behaviour and says nothing about defaults, other keys, patch-release changes or undeclared changes. The rule reads the config keys the deployment sets before the upgrade (a caller-supplied set) and applies to upgrades from a release below 0.37.0 to a release from 0.37.0 up to, but not including, 0.38.0.",
+      "project": "falco",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/falcosecurity/falco",
+          "description": "Dotted config key paths from the document root that the deployment's configuration sets before the upgrade (keys only, values discarded). Caller-supplied; absent means unknown.",
+          "enumTokens": null,
+          "id": "component.falco.config_keys_set",
+          "side": "current",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "crossing": {
+          "change": {
+            "basis": "REMOVED_IN_RELEASE",
+            "sourceId": "notes-0-37-0",
+            "version": "0.37.0"
+          },
+          "horizon": {
+            "basis": "REVIEWED_THROUGH_MINOR_LINE",
+            "lt": "0.38.0",
+            "sourceId": "notes-0-37-0"
+          }
+        },
+        "evidence": {
+          "reviewedAt": "2026-10-31T12:00:00Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:ba44f85a266294185608a060242e331e3185477134a0c971253b24447614f63f",
+              "endLine": 10,
+              "id": "notes-0-37-0",
+              "revision": "ba229e5b54d48e39bb76bce3790cef9fb94c708b",
+              "startLine": 10,
+              "url": "https://raw.githubusercontent.com/falcosecurity/falco/ba229e5b54d48e39bb76bce3790cef9fb94c708b/CHANGELOG.md"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-29T12:00:00Z"
+        },
+        "id": "falco.relnotes.config-key-removed.outputs-rate.0-37",
+        "nextAction": "Remove the config key outputs.rate before upgrading to 0.37.0",
+        "operator": "forbid_set_member",
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "setCondition": {
+          "component": "pkg:github/falcosecurity/falco",
+          "factId": "component.falco.config_keys_set",
+          "members": [
+            "outputs.rate"
+          ],
+          "side": "current"
+        },
+        "subject": {
+          "component": "pkg:github/falcosecurity/falco",
+          "from": "0.36.2",
+          "to": "0.37.0"
+        }
+      }
+    },
+    {
+      "description": "Release-note-declared change: the falco 0.35.0 release notes list the flag --mesos-api as removed. This records what the project's own release notes state at a pinned commit; it is not proof of behaviour and says nothing about defaults, other keys, patch-release changes or undeclared changes. The rule reads the flags the deployment sets before the upgrade (a caller-supplied set) and applies to upgrades from a release below 0.35.0 to a release from 0.35.0 up to, but not including, 0.36.0.",
+      "project": "falco",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/falcosecurity/falco",
+          "description": "Command-line flag names the deployment passes before the upgrade: the long name without leading dashes (names only, values discarded). Caller-supplied; absent means unknown.",
+          "enumTokens": null,
+          "id": "component.falco.cli_flags_set",
+          "side": "current",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "crossing": {
+          "change": {
+            "basis": "REMOVED_IN_RELEASE",
+            "sourceId": "notes-0-35-0",
+            "version": "0.35.0"
+          },
+          "horizon": {
+            "basis": "REVIEWED_THROUGH_MINOR_LINE",
+            "lt": "0.36.0",
+            "sourceId": "notes-0-35-0"
+          }
+        },
+        "evidence": {
+          "reviewedAt": "2026-10-31T12:00:00Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:9c4f050a0d83602306fb758efc4988b6c5133869c4e7bc0c5cc9d14184e08c55",
+              "endLine": 48,
+              "id": "notes-0-35-0",
+              "revision": "faa915df89ea6ea1d6f62f5c67fb5d07cdbfdbe9",
+              "startLine": 48,
+              "url": "https://raw.githubusercontent.com/falcosecurity/falco/faa915df89ea6ea1d6f62f5c67fb5d07cdbfdbe9/CHANGELOG.md"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-29T12:00:00Z"
+        },
+        "id": "falco.relnotes.flag-removed.mesos-api.0-35",
+        "nextAction": "Remove the flag --mesos-api before upgrading to 0.35.0",
+        "operator": "forbid_set_member",
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "setCondition": {
+          "component": "pkg:github/falcosecurity/falco",
+          "factId": "component.falco.cli_flags_set",
+          "members": [
+            "mesos-api"
+          ],
+          "side": "current"
+        },
+        "subject": {
+          "component": "pkg:github/falcosecurity/falco",
+          "from": "0.34.1",
+          "to": "0.35.0"
+        }
       }
     },
     {
@@ -20730,6 +21030,66 @@
           "component": "pkg:github/thanos-io/thanos",
           "from": "0.41.0",
           "to": "0.42.4"
+        }
+      }
+    },
+    {
+      "description": "Release-note-declared change: the thanos 0.33.0 release notes list the flag --log.request.decision as removed. This records what the project's own release notes state at a pinned commit; it is not proof of behaviour and says nothing about defaults, other keys, patch-release changes or undeclared changes. The rule reads the flags the deployment sets before the upgrade (a caller-supplied set) and applies to upgrades from a release below 0.33.0 to a release from 0.33.0 up to, but not including, 0.34.0.",
+      "project": "thanos",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/thanos-io/thanos",
+          "description": "Command-line flag names the deployment passes before the upgrade: the long name without leading dashes (names only, values discarded). Caller-supplied; absent means unknown.",
+          "enumTokens": null,
+          "id": "component.thanos.cli_flags_set",
+          "side": "current",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "crossing": {
+          "change": {
+            "basis": "REMOVED_IN_RELEASE",
+            "sourceId": "notes-0-33-0",
+            "version": "0.33.0"
+          },
+          "horizon": {
+            "basis": "REVIEWED_THROUGH_MINOR_LINE",
+            "lt": "0.34.0",
+            "sourceId": "notes-0-33-0"
+          }
+        },
+        "evidence": {
+          "reviewedAt": "2026-10-31T12:00:00Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:83e5d6c69ef6959695ef0cd8cf8cc2ccce363cf0fe1f84ce71d3ee80263c30cc",
+              "endLine": 48,
+              "id": "notes-0-33-0",
+              "revision": "0f025f1ff97826a632435ba8fdcb9e3bc248bb27",
+              "startLine": 48,
+              "url": "https://raw.githubusercontent.com/thanos-io/thanos/0f025f1ff97826a632435ba8fdcb9e3bc248bb27/CHANGELOG.md"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-29T12:00:00Z"
+        },
+        "id": "thanos.relnotes.flag-removed.log-request-decision.0-33",
+        "nextAction": "Remove the flag --log.request.decision before upgrading to 0.33.0",
+        "operator": "forbid_set_member",
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "setCondition": {
+          "component": "pkg:github/thanos-io/thanos",
+          "factId": "component.thanos.cli_flags_set",
+          "members": [
+            "log.request.decision"
+          ],
+          "side": "current"
+        },
+        "subject": {
+          "component": "pkg:github/thanos-io/thanos",
+          "from": "0.32.5",
+          "to": "0.33.0"
         }
       }
     },
