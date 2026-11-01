@@ -492,15 +492,7 @@ func VerifyConstraintsProjects(req VerifyRequest) (PackageVerificationReceipt, e
 // InspectConstraintsProjects reports a per-project CNCF store, re-verifying
 // the index and every project target.
 func InspectConstraintsProjects(storeRoot string) (Status, error) {
-	status, err := inspectProfile(storeRoot, constraintsProjectsProfile())
-	if err == nil && status.SelectedRevision != "" {
-		// Compat mode must be visible: read the selected index (no project
-		// target) and report whether it is a later release's feed.
-		if selected, openErr := OpenSelectedCNCF(SelectionRequest{StoreRoot: storeRoot}, []string{}); openErr == nil {
-			status.Compat, status.UnreadableProjects = compatSummary(selected.Bytes())
-		}
-	}
-	return status, err
+	return inspectProfile(storeRoot, constraintsProjectsProfile())
 }
 
 // compatSummary reports whether an index is read in compat mode and which of

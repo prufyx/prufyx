@@ -274,6 +274,9 @@ func writeKnowledgeStatusHuman(w io.Writer, status knowledge.Status) {
 	if trustFreshness == "" {
 		trustFreshness = status.Freshness
 	}
+	if status.Compat {
+		defer fmt.Fprintf(w, "compat: feed of a later release; %d project(s) unknown to this prufyx kept unread; rules needing unknown facts stay UNKNOWN\n", len(status.UnreadableProjects))
+	}
 	fmt.Fprintf(w, "knowledge database state: %s\nreason: %s\nnext action: %s\nfreshness: %s\ntrust freshness: %s\nsource evidence freshness: %s\nsource evidence earliest expiry: %s\nchecked at: %s\ntrust source: %s\npurpose: %s\nselected revision: %s\nbundle digest: %s\ntrust receipt digest: %s\ncurrent eligible: %t\ncurrent non-revocation: %s\nnetwork used: false\nreadiness scope: selected-store integrity only; individual rules may remain UNKNOWN\n", status.State, status.Reason, status.NextAction, status.Freshness, trustFreshness, status.SourceEvidenceFreshness, status.SourceEvidenceExpiresAt, status.CheckedAt, status.TrustSource, status.Purpose, status.SelectedRevision, status.SelectedBundleDigest, status.TrustReceiptDigest, status.CurrentEligible, status.CurrentNonRevocation)
 }
 

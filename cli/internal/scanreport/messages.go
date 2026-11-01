@@ -544,6 +544,7 @@ const (
 	labelKnowledgeStore         = "knowledge database %s; layout %s; target %s; trust receipt %s"
 	labelKnowledgeProject       = "knowledge for %s: target %s revision %s digest %s"
 	labelKnowledgeProjectAbsent = "knowledge for %s: absent from the selected index"
+	labelKnowledgeCompat        = "knowledge database: feed of a later release, %d project(s) unknown to this prufyx kept unread"
 	labelHopStatus              = "  hop %d %s -> %s: %s"
 	labelDocuments              = "%d documents"
 	labelDocumentOne            = "1 document"

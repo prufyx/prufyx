@@ -354,6 +354,11 @@ func inspectProfile(storeRoot string, profile profileSpec) (Status, error) {
 			binding, bindingErr := loadDigestPointer(store, rel+"/trust-state.json")
 			if selectedMaterialErr == nil && decodeCanonicalStrict(raw, &receipt) == nil && digestBytes(raw) == selection.TrustReceiptDigest && targetErr == nil && digestBytes(target) == selection.BundleDigest && bindingErr == nil && binding == selection.TrustStateDigest && validateTrustReceiptForProfile(receipt, selection, selectedMaterial, int64(len(target)), profile) == nil {
 				s.Purpose = receipt.Purpose
+				if profile.split {
+					// Compat mode must be visible (read from the verified
+					// stored index; nothing is written).
+					s.Compat, s.UnreadableProjects = compatSummary(target)
+				}
 				admissionOK := true
 				if profile.admit != nil {
 					admitted, admissionErr := profile.admit(append([]byte(nil), target...))
