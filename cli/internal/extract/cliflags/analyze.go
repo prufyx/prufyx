@@ -102,7 +102,7 @@ var nonRegistering = map[string]bool{
 	"SetAnnotation": true, "ErrorHandling": true, "NewFlagSet": true, "UnquoteUsage": true,
 	"NormalizedName": true, "GetNormalizeFunc": true, "SetNormalizeFunc": true, "MarkHidden": true,
 	"MarkDeprecated": true, "MarkShorthandDeprecated": true, "AddGoFlagSet": true, "CopyToGoFlagSet": true,
-	"Usage": true, "SetUsage": true, "ParseErrorsAllowlist": true,
+	"Usage": true, "SetUsage": true, "ParseErrorsAllowlist": true, "ParseErrorsWhitelist": true, "SortFlags": true,
 }
 
 func listedNonRegistering(verb string) bool {
@@ -132,21 +132,22 @@ type event struct {
 type mod struct{ short, hidden bool }
 
 type analysis struct {
-	s          *scanner
-	bin        string
-	cl         *closure
-	om         omset
-	events     map[string]*event
-	mods       map[string]*mod
-	hidden     map[string]bool
-	deprecated map[string]bool
-	pending    map[string]bool
-	bound      map[string]bool
-	follows    int
-	declNames  map[string]bool
-	dir        string
-	err        error
-	urfaveVars map[string]bool
+	s           *scanner
+	bin         string
+	cl          *closure
+	om          omset
+	events      map[string]*event
+	mods        map[string]*mod
+	hidden      map[string]bool
+	deprecated  map[string]bool
+	pending     map[string]bool
+	bound       map[string]bool
+	follows     int
+	declNames   map[string]bool
+	dir         string
+	err         error
+	urfaveVars  map[string]bool
+	urfaveLists map[string]bool
 }
 
 func newAnalysis(s *scanner, bin, dir string, cl *closure, om omset) *analysis {
@@ -154,9 +155,16 @@ func newAnalysis(s *scanner, bin, dir string, cl *closure, om omset) *analysis {
 		hidden: map[string]bool{}, deprecated: map[string]bool{}, pending: map[string]bool{}, bound: map[string]bool{}}
 }
 
-// declared reports whether a function, method or interface method of this
-// name is declared anywhere in the package set.
+// declared reports whether name is used as an identifier anywhere in the
+// package set other than as the selected name of a selector expression
+// (x.name). That covers functions, methods, interface methods, struct fields
+// (also embedded and keyed in literals), parameters, variables and constants:
+// a parser held in a field or a func-typed variable is declared here, so a
+// call named like it is not taken for a library's.
 func (a *analysis) declared(name string) bool {
+	if !a.s.g.declAll {
+		return a.declaredFuncs(name)
+	}
 	if a.declNames == nil {
 		a.declNames = map[string]bool{}
 		for _, d := range a.cl.dirs {
@@ -164,19 +172,15 @@ func (a *analysis) declared(name string) bool {
 			if p == nil {
 				continue
 			}
-			for n := range p.funcs {
-				a.declNames[n] = true
-			}
-			for n := range p.methods {
-				a.declNames[n] = true
-			}
 			for _, fi := range p.files {
+				sels := map[*ast.Ident]bool{}
 				ast.Inspect(fi.f, func(n ast.Node) bool {
-					if it, ok := n.(*ast.InterfaceType); ok {
-						for _, m := range it.Methods.List {
-							for _, nm := range m.Names {
-								a.declNames[nm.Name] = true
-							}
+					switch n := n.(type) {
+					case *ast.SelectorExpr:
+						sels[n.Sel] = true
+					case *ast.Ident:
+						if !sels[n] {
+							a.declNames[n.Name] = true
 						}
 					}
 					return true
@@ -188,42 +192,59 @@ func (a *analysis) declared(name string) bool {
 }
 
 // urfaveVar reports whether name is a package-level variable of the package
-// set initialised with a urfave flag literal.
+// set initialised with a urfave flag literal; urfaveList the same for a
+// []cli.Flag literal.
 func (a *analysis) urfaveVar(name string) bool {
-	if a.urfaveVars == nil {
-		a.urfaveVars = map[string]bool{}
-		for _, d := range a.cl.dirs {
-			p := a.cl.pkgs[d]
-			if p == nil {
-				continue
-			}
-			for _, fi := range p.files {
-				w := &walker{a: a, fi: fi}
-				for _, decl := range fi.f.Decls {
-					gd, ok := decl.(*ast.GenDecl)
-					if !ok || gd.Tok != token.VAR {
+	a.indexUrfaveVars()
+	return a.urfaveVars[name]
+}
+
+func (a *analysis) urfaveList(name string) bool {
+	a.indexUrfaveVars()
+	return a.urfaveLists[name]
+}
+
+func (a *analysis) indexUrfaveVars() {
+	if a.urfaveVars != nil {
+		return
+	}
+	a.urfaveVars, a.urfaveLists = map[string]bool{}, map[string]bool{}
+	for _, d := range a.cl.dirs {
+		p := a.cl.pkgs[d]
+		if p == nil {
+			continue
+		}
+		for _, fi := range p.files {
+			w := &walker{a: a, fi: fi}
+			for _, decl := range fi.f.Decls {
+				gd, ok := decl.(*ast.GenDecl)
+				if !ok || gd.Tok != token.VAR {
+					continue
+				}
+				for _, spec := range gd.Specs {
+					vs, ok := spec.(*ast.ValueSpec)
+					if !ok || len(vs.Values) != len(vs.Names) {
 						continue
 					}
-					for _, spec := range gd.Specs {
-						vs, ok := spec.(*ast.ValueSpec)
-						if !ok || len(vs.Values) != len(vs.Names) {
+					for i, v := range vs.Values {
+						e := unparen(v)
+						if u, ok := e.(*ast.UnaryExpr); ok && u.Op == token.AND {
+							e = unparen(u.X)
+						}
+						cl, ok := e.(*ast.CompositeLit)
+						if !ok || cl.Type == nil {
 							continue
 						}
-						for i, v := range vs.Values {
-							e := unparen(v)
-							if u, ok := e.(*ast.UnaryExpr); ok && u.Op == token.AND {
-								e = unparen(u.X)
-							}
-							if cl, ok := e.(*ast.CompositeLit); ok && cl.Type != nil && w.urfaveFlagType(cl.Type) {
-								a.urfaveVars[vs.Names[i].Name] = true
-							}
+						if w.urfaveFlagType(cl.Type) {
+							a.urfaveVars[vs.Names[i].Name] = true
+						} else if w.urfaveFlagSlice(cl.Type) {
+							a.urfaveLists[vs.Names[i].Name] = true
 						}
 					}
 				}
 			}
 		}
 	}
-	return a.urfaveVars[name]
 }
 
 func (a *analysis) omit(reason, detail string) { a.om.add(reason, a.bin, detail) }
@@ -583,4 +604,35 @@ func (a *analysis) fill(b *Binary) {
 	case len(idioms) > 0:
 		b.Class = ClassDoubleDash
 	}
+}
+
+// declaredFuncs is the narrow form (functions, methods, interface methods
+// only), kept as the switched-off behaviour of the declAll guard.
+func (a *analysis) declaredFuncs(name string) bool {
+	for _, d := range a.cl.dirs {
+		p := a.cl.pkgs[d]
+		if p == nil {
+			continue
+		}
+		if len(p.funcs[name]) > 0 || len(p.methods[name]) > 0 {
+			return true
+		}
+		for _, fi := range p.files {
+			found := false
+			ast.Inspect(fi.f, func(n ast.Node) bool {
+				if it, ok := n.(*ast.InterfaceType); ok {
+					for _, m := range it.Methods.List {
+						for _, nm := range m.Names {
+							found = found || nm.Name == name
+						}
+					}
+				}
+				return !found
+			})
+			if found {
+				return true
+			}
+		}
+	}
+	return false
 }

@@ -1,0 +1,21 @@
+{
+ "note": "",
+ "ledger": [
+  "INVENTORY_FAULT_GO_MOD_INVALID go.work"
+ ],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/t",
+   "members": [
+    "real"
+   ],
+   "complete": false,
+   "class": "single-dash-long",
+   "idioms": [
+    "flag"
+   ],
+   "flags": {}
+  }
+ ]
+}

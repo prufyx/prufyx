@@ -1,0 +1,10 @@
+package main
+
+import (
+	"github.com/urfave/cli/v2"
+	"example.com/m/internal/mine"
+)
+
+func main() {
+	_ = []cli.Flag{mine.WithAliases(&cli.StringFlag{Name: "alpha"}, "b", "c")}
+}

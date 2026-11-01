@@ -1,0 +1,19 @@
+{
+ "note": "",
+ "ledger": [
+  "FLAG_DYNAMIC_REGISTRATION cmd/t"
+ ],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/t",
+   "members": [],
+   "complete": false,
+   "class": "single-dash-long",
+   "idioms": [
+    "urfave"
+   ],
+   "flags": {}
+  }
+ ]
+}

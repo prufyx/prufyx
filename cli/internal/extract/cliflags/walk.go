@@ -383,7 +383,12 @@ func (w *walker) visit(n ast.Node) bool {
 	switch n := n.(type) {
 	case *ast.CallExpr:
 		w.call(n)
+		w.urfaveAppend(n)
 		w.escape(n)
+	case *ast.AssignStmt:
+		w.urfaveAssign(n)
+	case *ast.ReturnStmt:
+		w.urfaveReturn(n)
 	case *ast.CompositeLit:
 		w.urfave(n)
 	case *ast.SelectorExpr:
@@ -747,7 +752,12 @@ func (w *walker) methodValue(n *ast.SelectorExpr) {
 	}
 	verb := n.Sel.Name
 	_, isVerb := w.g().verb(verb)
+	k := w.classify(n.X)
 	if !isVerb && verb != "Flag" && verb != "AddFlag" && verb != "AddFlagSet" && verb != "AddGoFlag" {
+		// An unlisted method of a proven flag set, taken as a value.
+		if (k == rkStd || k == rkPflag) && !listedNonRegistering(verb) && !w.calledDirectly(n) {
+			w.unlisted(verb)
+		}
 		return
 	}
 	if len(w.stack) >= 2 {
@@ -764,6 +774,15 @@ func (w *walker) methodValue(n *ast.SelectorExpr) {
 	if registrar {
 		w.unresolved("method value")
 	}
+}
+
+func (w *walker) calledDirectly(n *ast.SelectorExpr) bool {
+	if len(w.stack) >= 2 {
+		if c, ok := w.stack[len(w.stack)-2].(*ast.CallExpr); ok && c.Fun == ast.Expr(n) {
+			return true
+		}
+	}
+	return false
 }
 
 // selector checks method values and the uses of os.Args.
@@ -953,11 +972,55 @@ func (w *walker) urfaveFlagType(t ast.Expr) bool {
 	return im != nil && im.lib == libUrfave
 }
 
-// urfaveElemOK reports whether an element of a []cli.Flag literal is one the
-// walker reads: a flag literal, a package-level variable initialised with one,
-// or a call (such as altsrc.NewStringFlag) wrapping one. Anything else (a
-// custom type with its own Names method, a function result) is a flag with an
-// unknown name.
+// urfaveOwner reports whether t is a urfave type that is not a flag (App,
+// Command): the types whose Flags field holds a flag list.
+func (w *walker) urfaveOwner(t ast.Expr) bool {
+	sel, ok := t.(*ast.SelectorExpr)
+	if !ok || w.urfaveFlagType(t) {
+		return false
+	}
+	id, ok := sel.X.(*ast.Ident)
+	if !ok {
+		return false
+	}
+	im := w.alias(id.Name)
+	return im != nil && im.lib == libUrfave
+}
+
+// urfaveFlagSlice reports whether t is []cli.Flag.
+func (w *walker) urfaveFlagSlice(t ast.Expr) bool {
+	arr, ok := t.(*ast.ArrayType)
+	if !ok || arr.Len != nil {
+		return false
+	}
+	sel, ok := arr.Elt.(*ast.SelectorExpr)
+	if !ok || sel.Sel.Name != "Flag" {
+		return false
+	}
+	id, ok := sel.X.(*ast.Ident)
+	if !ok {
+		return false
+	}
+	im := w.alias(id.Name)
+	return im != nil && im.lib == libUrfave
+}
+
+// urfaveImport reports whether the import is urfave/cli or one of its
+// sub-packages (altsrc), the only wrappers that keep a flag's name.
+func urfaveImport(im *imp) bool {
+	for _, root := range []string{"github.com/urfave/cli", "gopkg.in/urfave/cli.v1", "gopkg.in/urfave/cli.v2"} {
+		if underRoot(im.path, root) {
+			return true
+		}
+	}
+	return false
+}
+
+// urfaveElemOK reports whether an element of a flag list is one the walker
+// reads: a flag literal, a package-level variable initialised with one, or a
+// call into a urfave package (altsrc.NewStringFlag) wrapping one. Anything
+// else (a custom type with its own Names method, a function result, a wrapper
+// of the module's own) is a flag with an unknown name.
 func (w *walker) urfaveElemOK(e ast.Expr) bool {
 	e = unparen(e)
 	if u, ok := e.(*ast.UnaryExpr); ok && u.Op == token.AND {
@@ -969,7 +1032,15 @@ func (w *walker) urfaveElemOK(e ast.Expr) bool {
 	case *ast.Ident:
 		return w.a.urfaveVar(x.Name)
 	case *ast.CallExpr:
-		if _, ok := x.Fun.(*ast.SelectorExpr); !ok {
+		sel, ok := x.Fun.(*ast.SelectorExpr)
+		if !ok {
+			return false
+		}
+		id, ok := sel.X.(*ast.Ident)
+		if !ok {
+			return false
+		}
+		if im := w.alias(id.Name); w.g().urfaveWrap && (im == nil || !urfaveImport(im)) {
 			return false
 		}
 		for _, a := range x.Args {
@@ -979,6 +1050,92 @@ func (w *walker) urfaveElemOK(e ast.Expr) bool {
 		}
 	}
 	return false
+}
+
+// urfaveListOK reports whether e is a whole flag list the walker reads: a
+// []cli.Flag literal (its elements are checked where it is visited), or a
+// package-level variable initialised with one.
+func (w *walker) urfaveListOK(e ast.Expr) bool {
+	e = unparen(e)
+	switch x := e.(type) {
+	case *ast.CompositeLit:
+		return x.Type != nil && w.urfaveFlagSlice(x.Type)
+	case *ast.Ident:
+		return w.a.urfaveList(x.Name)
+	}
+	return false
+}
+
+func (w *walker) importsUrfave() bool {
+	for _, im := range w.fi.imports {
+		if im.lib == libUrfave {
+			return true
+		}
+	}
+	return false
+}
+
+func (w *walker) listDynamic() {
+	if w.g().urfaveElems {
+		w.omit(ReasonDynamicRegistration, "flag list")
+	}
+}
+
+// urfaveAppend: in a file that uses urfave/cli, append(list, x...) must add
+// flags the walker reads.
+func (w *walker) urfaveAppend(c *ast.CallExpr) {
+	if id, ok := c.Fun.(*ast.Ident); !ok || id.Name != "append" || len(c.Args) < 2 || !w.importsUrfave() {
+		return
+	}
+	if c.Ellipsis.IsValid() {
+		if !w.urfaveListOK(c.Args[len(c.Args)-1]) {
+			w.listDynamic()
+		}
+		return
+	}
+	for _, a := range c.Args[1:] {
+		if !w.urfaveElemOK(a) {
+			w.listDynamic()
+		}
+	}
+}
+
+// urfaveAssign: x.Flags = v must assign a list the walker reads.
+func (w *walker) urfaveAssign(n *ast.AssignStmt) {
+	if !w.importsUrfave() {
+		return
+	}
+	for i, l := range n.Lhs {
+		sel, ok := l.(*ast.SelectorExpr)
+		if !ok || sel.Sel.Name != "Flags" || len(n.Lhs) != len(n.Rhs) {
+			continue
+		}
+		if !w.urfaveListOK(n.Rhs[i]) {
+			w.listDynamic()
+		}
+	}
+}
+
+// urfaveReturn: a function returning []cli.Flag must return lists the walker
+// reads.
+func (w *walker) urfaveReturn(n *ast.ReturnStmt) {
+	d := w.fn.decl
+	if d == nil || d.Type.Results == nil || !w.importsUrfave() {
+		return
+	}
+	for _, s := range w.stack {
+		if _, ok := s.(*ast.FuncLit); ok {
+			return
+		}
+	}
+	for i, f := range d.Type.Results.List {
+		if !w.urfaveFlagSlice(f.Type) || i >= len(n.Results) {
+			continue
+		}
+		if !w.urfaveListOK(n.Results[i]) {
+			w.listDynamic()
+		}
+	}
 }
 
 // urfave reads flag literals of urfave/cli: &cli.StringFlag{Name: "lit"}.
@@ -993,6 +1150,16 @@ func (w *walker) urfave(n *ast.CompositeLit) {
 							w.omit(ReasonDynamicRegistration, "flag element")
 						}
 					}
+				}
+			}
+		}
+		return
+	}
+	if n.Type != nil && w.urfaveOwner(n.Type) {
+		for _, e := range n.Elts {
+			if kv, ok := e.(*ast.KeyValueExpr); ok {
+				if k, ok := kv.Key.(*ast.Ident); ok && k.Name == "Flags" && !w.urfaveListOK(kv.Value) {
+					w.listDynamic()
 				}
 			}
 		}
