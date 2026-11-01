@@ -65,6 +65,9 @@ type Input struct {
 	// rule or a current line attestation in it counts a target project
 	// once, together with the main pack.
 	CommunityPack []byte
+	// V2 adds the metric v2 members (cells, weights, the v2 section) from
+	// the embedded tier and applicability files.
+	V2 bool
 }
 
 // Pair is one consecutive pair of lines and its status.
@@ -75,6 +78,11 @@ type Pair struct {
 	// Families names the fact families of the attestations (A) or rules
 	// (B) that decide the pair.
 	Families []string `json:"families,omitempty"`
+	// Cells and Weight are metric v2 members of the last two pairs of a
+	// tiered project; absent unless Input.V2 is set. Cells maps a v2 family
+	// to attested, bounded or open.
+	Cells  map[string]string `json:"cells,omitempty"`
+	Weight float64           `json:"weight,omitempty"`
 	// canBlock is set for a pair whose decision can end in BLOCKED: it is
 	// bounded by a rule (B), or an attestation that decides it lists at
 	// least one rule (A). An attestation that lists no rule can produce
@@ -193,6 +201,8 @@ type Report struct {
 	WithoutLines []string `json:"projectsWithoutLines"`
 	// ExpiringProjects lists projects with an entry expiring within 14 days.
 	ExpiringProjects []string `json:"expiringProjects"`
+	// V2 is the metric v2 section; present only when Input.V2 is set.
+	V2 *V2 `json:"v2,omitempty"`
 
 	// split and withPairs feed the README block only; the document does
 	// not carry them. Both cover the fleet (CNCF) projects.
@@ -773,6 +783,20 @@ func Compute(in Input) (Report, error) {
 		if p.Expiring > 0 {
 			report.ExpiringProjects = append(report.ExpiringProjects, p.Project)
 		}
+	}
+	if in.V2 {
+		tiers, err := ParseTiers(embeddedTiers)
+		if err != nil {
+			return Report{}, err
+		}
+		app, err := ParseApplicability(embeddedApplicability)
+		if err != nil {
+			return Report{}, err
+		}
+		if err := checkExemptions(tiers, app); err != nil {
+			return Report{}, err
+		}
+		applyV2(&report, tiers, app)
 	}
 	return report, nil
 }
