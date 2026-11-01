@@ -96,6 +96,10 @@ type Result struct {
 	// Omissions are the withheld items. They are report text, not part of
 	// the facts.
 	Omissions []Omission `json:"omissions"`
+	// Ledger is the typed, canonical form of Omissions that the framework
+	// ledger carries (LedgerEntry). A non-empty ledger means the facts are
+	// incomplete and the pair is not attestable.
+	Ledger []LedgerEntry `json:"ledger"`
 	// Exclusions are scope exclusions that do not make the facts incomplete.
 	Exclusions []Omission `json:"exclusions"`
 }
@@ -122,6 +126,7 @@ type guards struct {
 	collisions      bool
 	subtrees        bool
 	enumSig         bool // compare non-string enums per version, not as unions
+	ledger          ledgerGuards
 	fieldEnc        func(group, kind string, p []membercode.Seg) (string, error)
 	enumEnc         func(group, kind string, p []membercode.Seg, v string) (string, error)
 }
@@ -130,7 +135,7 @@ func defaultGuards() guards {
 	return guards{
 		parse:      parseGuards{strict: true, secret: true, nonCRD: true, limits: true, unmodel: true},
 		servedOnly: true, webhook: true, versionSpecific: true, preserve: true, status: true,
-		rename: true, presence: true, collisions: true, subtrees: true, enumSig: true,
+		rename: true, presence: true, collisions: true, subtrees: true, enumSig: true, ledger: defaultLedgerGuards(),
 		fieldEnc: membercode.Field, enumEnc: membercode.Enum,
 	}
 }
@@ -146,8 +151,8 @@ func defaultGuards() guards {
 // anything combined. A non-nil error means the run could not read pinned bytes
 // (reader failure, bad input); anything the extractor cannot decide is in the
 // result's omissions instead. Result.Omissions is local to this package: the
-// code that wires the extractor into the framework must map it into the
-// framework ledger, never drop it.
+// code that wires the extractor into the framework must carry Result.Ledger
+// into the pair record and attest a pair only when Result.Attestable.
 func Derive(ctx context.Context, r extract.PinnedReader, t Target, from, to string) (*Result, error) {
 	return derive(ctx, r, t, from, to, defaultGuards())
 }
@@ -322,16 +327,13 @@ func compare(a, b *side, from, to string, g guards) *Result {
 		diffCRD(o, da, db, subject, g)
 	}
 	res := &Result{Schema: ResultSchema, From: from, To: to, Omissions: o.omit.list(), Exclusions: o.exclusion.list()}
-	complete := len(res.Omissions) == 0
 	fm, over := capped(o.fields, o.dropped, "f")
 	if over {
 		res.Omissions = append(res.Omissions, Omission{Reason: ReasonSetTooLarge, Subject: "fields", Count: 1})
-		complete = false
 	}
 	em, over := capped(o.enums, o.dropped, "e")
 	if over {
 		res.Omissions = append(res.Omissions, Omission{Reason: ReasonSetTooLarge, Subject: "enums", Count: 1})
-		complete = false
 	}
 	sort.Slice(res.Omissions, func(i, j int) bool {
 		if res.Omissions[i].Reason != res.Omissions[j].Reason {
@@ -339,8 +341,7 @@ func compare(a, b *side, from, to string, g guards) *Result {
 		}
 		return res.Omissions[i].Subject < res.Omissions[j].Subject
 	})
-	res.Fields = constraintengine.SetValue{Members: fm, Complete: complete}
-	res.Enums = constraintengine.SetValue{Members: em, Complete: complete}
+	res.seal(fm, em, g.ledger)
 	return res
 }
 
