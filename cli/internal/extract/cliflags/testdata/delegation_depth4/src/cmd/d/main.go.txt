@@ -1,0 +1,24 @@
+package main
+
+import (
+	"os"
+	"github.com/spf13/pflag"
+)
+
+type fset = pflag.FlagSet
+
+func main() {
+	fs := pflag.NewFlagSet("d", pflag.ExitOnError)
+	one(fs)
+	_ = fs.Parse(os.Args[1:])
+}
+
+func one(fs *fset) { two(fs) }
+
+func two(fs *fset) { three(fs) }
+
+func three(fs *fset) { four(fs) }
+
+func four(fs *fset) {
+	fs.String("toodeep", "", "registered four calls below main")
+}

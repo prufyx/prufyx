@@ -1,0 +1,13 @@
+package main
+
+import (
+	"flag"
+)
+
+const portName = "port"
+
+func main() {
+	flag.Int(portName, 1, "port")
+	flag.String("ok", "", "ok")
+	flag.Parse()
+}

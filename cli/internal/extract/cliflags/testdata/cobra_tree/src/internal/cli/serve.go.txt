@@ -1,0 +1,15 @@
+package cli
+
+import (
+	"github.com/spf13/cobra"
+)
+
+func newServe() *cobra.Command {
+	cmd := &cobra.Command{Use: "serve"}
+	flags := cmd.Flags()
+	flags.String("addr", ":8080", "listen address")
+	flags.String("output", "", "output")
+	flags.IntVar(&port, "workers", 4, "workers")
+	cmd.Flags().Bool("tls", false, "enable tls")
+	return cmd
+}

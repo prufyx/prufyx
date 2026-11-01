@@ -1,0 +1,11 @@
+package main
+
+import (
+	"flag"
+)
+
+func main() {
+	flag.String("web."+suffix, "", "concatenated")
+	flag.String("ok", "", "ok")
+	flag.Parse()
+}

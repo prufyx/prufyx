@@ -1,0 +1,13 @@
+package main
+
+import (
+	"github.com/urfave/cli/v2"
+)
+
+func flags() []cli.Flag {
+	return build()
+}
+
+func build() []cli.Flag { return nil }
+
+func main() { _ = &cli.App{Flags: flags()} }

@@ -1,0 +1,42 @@
+{
+ "note": "",
+ "ledger": [],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/u",
+   "members": [
+    "config",
+    "log-level",
+    "verbose"
+   ],
+   "complete": true,
+   "class": "single-dash-long",
+   "idioms": [
+    "urfave"
+   ],
+   "flags": {
+    "config": {
+     "withheld": [
+      "FLAG_HAS_SHORTHAND"
+     ]
+    },
+    "log-level": {
+     "withheld": [
+      "FLAG_HAS_SHORTHAND"
+     ]
+    },
+    "verbose": {
+     "withheld": [
+      "FLAG_HAS_SHORTHAND"
+     ]
+    },
+    "x": {
+     "withheld": [
+      "FLAG_NAME_NOT_LONG"
+     ]
+    }
+   }
+  }
+ ]
+}

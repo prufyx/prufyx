@@ -1,0 +1,33 @@
+{
+ "note": "a name registered only in unreachable functions is a member but its removal is withheld",
+ "ledger": [],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/t",
+   "members": [
+    "legacy",
+    "lib-legacy",
+    "lib-live",
+    "live"
+   ],
+   "complete": true,
+   "class": "single-dash-long",
+   "idioms": [
+    "flag"
+   ],
+   "flags": {
+    "legacy": {
+     "withheld": [
+      "FLAG_REACHABILITY_UNPROVEN"
+     ]
+    },
+    "lib-legacy": {
+     "withheld": [
+      "FLAG_REACHABILITY_UNPROVEN"
+     ]
+    }
+   }
+  }
+ ]
+}

@@ -1,0 +1,22 @@
+// Shape modelled on the public kingpin usage in prometheus/prometheus
+// cmd/prometheus (Apache-2.0). Names and structure are trimmed; this is not
+// a verbatim copy.
+package main
+
+import (
+	"os"
+	"path/filepath"
+
+	"github.com/alecthomas/kingpin/v2"
+)
+
+func main() {
+	a := kingpin.New(filepath.Base(os.Args[0]), "The server")
+	a.Version("1.0")
+	a.Flag("web.listen-address", "Address to listen on.").Default("0.0.0.0:9090").StringVar(&addr)
+	a.Flag("storage.path", "Base path.").Default("data/").StringVar(&path)
+	a.Flag("web.enable-lifecycle", "Enable lifecycle.").Default("false").BoolVar(&lc)
+	a.Flag("enable-feature", "Comma separated features.").Hidden().StringsVar(&features)
+	_, err := a.Parse(os.Args[1:])
+	_ = err
+}

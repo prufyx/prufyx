@@ -1,0 +1,8 @@
+package main
+
+import (
+	"flag"
+	"C"
+)
+
+func main() { flag.Parse() }

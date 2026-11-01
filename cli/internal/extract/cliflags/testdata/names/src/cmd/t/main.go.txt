@@ -1,0 +1,21 @@
+package main
+
+import (
+	"flag"
+)
+
+func main() {
+	flag.Bool("Debug", false, "u")
+	flag.Bool("v", false, "u")
+	flag.Bool("a/b", false, "u")
+	flag.Bool("-x", false, "u")
+	flag.Bool("日本", false, "u")
+	flag.Bool("a b", false, "u")
+	flag.Bool(".dot", false, "u")
+	flag.Bool("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", false, "u")
+	flag.Bool("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", false, "u")
+	flag.Bool("1abc", false, "u")
+	flag.Bool("ok-name", false, "u")
+	flag.Bool("x.y_z-1", false, "u")
+	flag.Parse()
+}

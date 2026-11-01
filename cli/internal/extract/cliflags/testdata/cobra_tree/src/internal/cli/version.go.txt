@@ -1,0 +1,13 @@
+package cli
+
+import (
+	"github.com/spf13/cobra"
+)
+
+func newVersion() *cobra.Command {
+	cmd := &cobra.Command{Use: "version"}
+	cmd.Flags().Bool("short", false, "short")
+	cmd.Flags().String("output", "", "output")
+	cmd.Flags().MarkHidden("short")
+	return cmd
+}

@@ -1,0 +1,15 @@
+package main
+
+import (
+	"github.com/spf13/cobra"
+)
+
+var cmd = &cobra.Command{Use: "t", Run: run}
+
+func run(c *cobra.Command, a []string) {}
+
+func register() { cmd.Flags().String("via-ref", "", "u") }
+
+var _ = register
+
+func main() { _ = cmd.Execute() }

@@ -1,0 +1,21 @@
+{
+ "note": "a list that is not a literal or a package variable at the point of use is dynamic",
+ "ledger": [
+  "FLAG_DYNAMIC_REGISTRATION cmd/t"
+ ],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/t",
+   "members": [
+    "ok"
+   ],
+   "complete": false,
+   "class": "single-dash-long",
+   "idioms": [
+    "urfave"
+   ],
+   "flags": {}
+  }
+ ]
+}

@@ -1,0 +1,8 @@
+package main
+
+import (
+	"flag"
+	_ "example.com/m/plugin/p1"
+)
+
+func main() { flag.Parse() }

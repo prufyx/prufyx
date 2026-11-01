@@ -1,0 +1,10 @@
+package main
+
+import (
+	"flag"
+)
+
+func main() {
+	flag.Bool("real", false, "real")
+	flag.Parse()
+}

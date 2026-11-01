@@ -1,0 +1,9 @@
+package lib
+
+import (
+	"flag"
+)
+
+func Used() { flag.String("lib-live", "", "u") }
+
+func Unused() { flag.String("lib-legacy", "", "never called") }

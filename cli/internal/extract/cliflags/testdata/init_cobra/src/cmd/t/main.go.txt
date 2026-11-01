@@ -1,0 +1,13 @@
+package main
+
+import (
+	"github.com/spf13/cobra"
+)
+
+var rootCmd = &cobra.Command{Use: "t"}
+
+func init() {
+	rootCmd.Flags().String("viainit", "", "u")
+}
+
+func main() { _ = rootCmd.Execute() }

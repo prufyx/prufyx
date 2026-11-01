@@ -1,0 +1,15 @@
+package main
+
+import (
+	"github.com/spf13/pflag"
+)
+
+func norm(f *pflag.FlagSet, name string) pflag.NormalizedName {
+	return pflag.NormalizedName(name)
+}
+
+func main() {
+	fs := pflag.NewFlagSet("a", pflag.ExitOnError)
+	fs.SetNormalizeFunc(norm)
+	fs.String("real", "", "u")
+}

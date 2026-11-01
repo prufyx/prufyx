@@ -1,0 +1,7 @@
+package main
+
+import (
+	"flag"
+)
+
+var _ = flag.String("testdata-only", "", "testdata is skipped")

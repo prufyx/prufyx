@@ -1,0 +1,19 @@
+{
+ "note": "",
+ "ledger": [],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/t",
+   "members": [
+    "real"
+   ],
+   "complete": true,
+   "class": "single-dash-long",
+   "idioms": [
+    "flag"
+   ],
+   "flags": {}
+  }
+ ]
+}

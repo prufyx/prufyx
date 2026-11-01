@@ -1,0 +1,26 @@
+{
+ "note": "flag-level reasons are not ledger entries",
+ "ledger": [],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/t",
+   "members": [
+    "config",
+    "quiet"
+   ],
+   "complete": true,
+   "class": "double-dash",
+   "idioms": [
+    "pflag"
+   ],
+   "flags": {
+    "config": {
+     "withheld": [
+      "FLAG_HAS_SHORTHAND"
+     ]
+    }
+   }
+  }
+ ]
+}

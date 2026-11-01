@@ -1,0 +1,12 @@
+package main
+
+import (
+	"flag"
+)
+
+func main() {
+	for i := 0; i < 2; i++ {
+		flag.Bool("rep", false, "registered in a loop")
+	}
+	flag.Parse()
+}

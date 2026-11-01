@@ -1,0 +1,8 @@
+package main
+
+import (
+	"flag"
+	. "example.com/m/internal/lib"
+)
+
+func main() { Register(); flag.Parse() }

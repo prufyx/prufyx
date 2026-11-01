@@ -1,0 +1,10 @@
+package main
+
+import (
+	"example.com/m/pkg/extkingpin"
+)
+
+func registerQuery(app extkingpin.AppClause) {
+	app.Flag("query.timeout", "Timeout.").Default("2m").DurationVar(&d)
+	app.Flag("query.replica-label", "Label.").Strings()
+}

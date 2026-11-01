@@ -1,0 +1,21 @@
+{
+ "note": "a parser declared in the package set is not a flag library",
+ "ledger": [
+  "FLAG_ARGS_REWRITTEN cmd/t"
+ ],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/t",
+   "members": [
+    "real"
+   ],
+   "complete": false,
+   "class": "single-dash-long",
+   "idioms": [
+    "flag"
+   ],
+   "flags": {}
+  }
+ ]
+}

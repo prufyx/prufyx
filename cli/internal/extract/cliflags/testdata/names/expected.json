@@ -1,0 +1,63 @@
+{
+ "note": "",
+ "ledger": [],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/t",
+   "members": [
+    "1abc",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ok-name",
+    "x.y_z-1"
+   ],
+   "complete": true,
+   "class": "single-dash-long",
+   "idioms": [
+    "flag"
+   ],
+   "flags": {
+    "Debug": {
+     "withheld": [
+      "FLAG_NAME_UPPERCASE"
+     ]
+    },
+    "v": {
+     "withheld": [
+      "FLAG_NAME_NOT_LONG"
+     ]
+    },
+    "a/b": {
+     "withheld": [
+      "MEMBER_CHARSET"
+     ]
+    },
+    "-x": {
+     "withheld": [
+      "MEMBER_CHARSET"
+     ]
+    },
+    "日本": {
+     "withheld": [
+      "MEMBER_CHARSET"
+     ]
+    },
+    "a b": {
+     "withheld": [
+      "MEMBER_CHARSET"
+     ]
+    },
+    ".dot": {
+     "withheld": [
+      "MEMBER_CHARSET"
+     ]
+    },
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+     "withheld": [
+      "MEMBER_TOO_LONG"
+     ]
+    }
+   }
+  }
+ ]
+}

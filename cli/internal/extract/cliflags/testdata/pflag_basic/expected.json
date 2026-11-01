@@ -1,0 +1,21 @@
+{
+ "note": "",
+ "ledger": [],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/p",
+   "members": [
+    "debug",
+    "listen",
+    "tags"
+   ],
+   "complete": true,
+   "class": "double-dash",
+   "idioms": [
+    "pflag"
+   ],
+   "flags": {}
+  }
+ ]
+}

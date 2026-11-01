@@ -1,0 +1,14 @@
+package main
+
+import (
+	"flag"
+	"os"
+)
+
+var Parse = func(a []string) {}
+
+func main() {
+	flag.String("real", "", "u")
+	x := struct{ Parse func([]string) }{Parse}
+	x.Parse(os.Args[1:])
+}

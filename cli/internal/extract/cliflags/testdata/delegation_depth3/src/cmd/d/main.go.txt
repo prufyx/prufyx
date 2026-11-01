@@ -1,0 +1,22 @@
+package main
+
+import (
+	"os"
+	"github.com/spf13/pflag"
+)
+
+type fset = pflag.FlagSet
+
+func main() {
+	fs := pflag.NewFlagSet("d", pflag.ExitOnError)
+	one(fs)
+	_ = fs.Parse(os.Args[1:])
+}
+
+func one(fs *fset) { two(fs) }
+
+func two(fs *fset) { three(fs) }
+
+func three(fs *fset) {
+	fs.String("deep", "", "registered three calls below main")
+}
