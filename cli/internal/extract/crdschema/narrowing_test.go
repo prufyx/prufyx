@@ -4,6 +4,7 @@ package crdschema
 
 import (
 	"bytes"
+	"context"
 	"strings"
 	"testing"
 
@@ -36,6 +37,9 @@ func flowCase(name, meta string, exp expected) testCase {
 
 func narrowingCases() []testCase {
 	const kust = "apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\nresources:\n- widget.yaml\n"
+	const kustA = "apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\nresources:\n- widget.yaml\n"
+	gadgetCRD := strings.NewReplacer("kind: Widget", "kind: Gadget", "plural: widgets", "plural: gadgets", "widgets.example.io", "gadgets.example.io").Replace(string(simpleCRD("k")))
+	const kustAB = kustA + "- ./gadget.yaml\n"
 	skipped := func(f string) expected {
 		return expected{Fields: []string{widgetX}, Complete: true, Exclusions: []string{"KUSTOMIZE_FILE_SKIPPED|crd/" + f + "|2"}}
 	}
@@ -57,7 +61,7 @@ func narrowingCases() []testCase {
 		kustCase("kustomize_duplicate_key", "kustomization.yaml", kust+"kind: Kustomization\n", withheld("NON_CRD_DOCUMENT", "kustomization.yaml")),
 		kustCase("kustomize_anchor", "kustomization.yaml", kust+"metadata: &m {name: k}\n", withheld("NON_CRD_DOCUMENT", "kustomization.yaml")),
 		kustCase("kustomize_resource_entry_map", "kustomization.yaml",
-			"apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\nresources: [{a: b}]\n", withheld("NON_CRD_DOCUMENT", "kustomization.yaml")),
+			"apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\nresources: [widget.yaml, {a: b}]\n", withheld("NON_CRD_DOCUMENT", "kustomization.yaml")),
 		kustCase("kustomize_oversize", "kustomization.yaml", kust+"#"+strings.Repeat("x", maxFileBytes), withheld("CRD_TOO_LARGE", "kustomization.yaml")),
 		kustCase("kustomize_patches", "kustomization.yaml", kust+"patches:\n- path: p.yaml\n", withheld("NON_CRD_DOCUMENT", "kustomization.yaml")),
 		kustCase("kustomize_foreign_apiversion", "kustomization.yaml", "apiVersion: apps/v1\nkind: Kustomization\n", withheld("NON_CRD_DOCUMENT", "kustomization.yaml")),
@@ -65,6 +69,10 @@ func narrowingCases() []testCase {
 		kustCase("kustomize_malformed", "kustomization.yaml", "kind: Kustomization\nresources: [a, \n", withheld("CRD_PARSE_UNPROVEN", "kustomization.yaml")),
 		kustCase("kustomize_two_documents", "kustomization.yaml", kust+"---\n"+kust, expected{Fields: []string{widgetX}, Omissions: []string{"NON_CRD_DOCUMENT|crd/kustomization.yaml|4"}}),
 		kustCase("kustomize_other_name", "crd.yaml", kust, withheld("NON_CRD_DOCUMENT", "crd.yaml")),
+		{name: "kustomize_hidden_removal",
+			from: map[string][]byte{"crd/widget.yaml": simpleCRD("k"), "crd/gadget.yaml": []byte(gadgetCRD), "crd/kustomization.yaml": []byte(kustAB)},
+			to:   map[string][]byte{"crd/widget.yaml": simpleCRD("k"), "crd/gadget.yaml": []byte(gadgetCRD), "crd/kustomization.yaml": []byte(kustA)},
+			exp:  expected{Omissions: []string{"NON_CRD_DOCUMENT|crd/kustomization.yaml|1"}, Exclusions: []string{"KUSTOMIZE_FILE_SKIPPED|crd/kustomization.yaml|1"}}},
 		kustCase("kustomize_name_case", "Kustomization.yaml", kust, withheld("NON_CRD_DOCUMENT", "Kustomization.yaml")),
 		kustCase("kustomize_secret_generator", "kustomization.yaml", kust+"secretGenerator:\n- name: s\n", withheld("NON_CRD_DOCUMENT", "kustomization.yaml")),
 
@@ -159,8 +167,47 @@ func TestIsKustomizeFileOneFieldAtATime(t *testing.T) {
 		{"list root", "kustomization.yaml", "- a\n", false},
 		{"oversize", "kustomization.yaml", ok + "#" + strings.Repeat("x", maxFileBytes), false},
 	} {
-		if got := isKustomizeFile(tc.file, []byte(tc.body), defaultGuards().parse); got != tc.want {
+		if got := isKustomizeFile(tc.file, []byte(tc.body), nil, defaultGuards().parse); got != tc.want {
 			t.Errorf("%s: got %v, want %v", tc.name, got, tc.want)
 		}
+	}
+}
+
+// A kustomize file is skipped only when its resources name every sibling YAML
+// file of the directory.
+func TestIsKustomizeFileSiblingsMustBeNamed(t *testing.T) {
+	const body = "kind: Kustomization\nresources:\n- a.yaml\n- ./b.yaml\n"
+	for _, tc := range []struct {
+		name     string
+		siblings []string
+		want     bool
+	}{
+		{"no sibling", nil, true},
+		{"all named", []string{"a.yaml", "b.yaml"}, true},
+		{"one unnamed", []string{"a.yaml", "c.yaml"}, false},
+		{"path entry does not name a sibling", []string{"sub/a.yaml"}, false},
+	} {
+		if got := isKustomizeFile("kustomization.yaml", []byte(body), tc.siblings, defaultGuards().parse); got != tc.want {
+			t.Errorf("%s: got %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+// A file the target names explicitly is read, never skipped as kustomize.
+func TestExplicitKustomizationFileIsRead(t *testing.T) {
+	const kust = "apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\nresources:\n- widget.yaml\n"
+	tg := Target{Repo: repo, Files: []string{"crd/widget.yaml", "crd/kustomization.yaml"}}
+	m := newMem()
+	for _, c := range []string{commitA, commitB} {
+		m.put(c, "crd/kustomization.yaml", []byte(kust))
+	}
+	m.put(commitA, "crd/widget.yaml", simpleCRD("k", "x"))
+	m.put(commitB, "crd/widget.yaml", simpleCRD("k"))
+	res, err := Derive(context.Background(), m, tg, commitA, commitB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Attestable() {
+		t.Fatalf("explicit kustomization.yaml was skipped: %+v", res)
 	}
 }

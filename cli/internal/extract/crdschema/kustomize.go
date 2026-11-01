@@ -36,8 +36,13 @@ func kustomizeName(file string) bool {
 //   - the root is a mapping with only the keys in kustomizeKeys, "resources"
 //     and "bases" being lists of strings;
 //   - kind is Kustomization or Component, and apiVersion is absent or in the
-//     kustomize.config.k8s.io group.
-func isKustomizeFile(file string, data []byte, g parseGuards) (ok bool) {
+//     kustomize.config.k8s.io group;
+//   - every sibling YAML file of the same listed directory (siblings, base
+//     names, the kustomization itself excluded) is named in resources or bases
+//     as its base name or ./base name. Otherwise a resources list is not inert:
+//     a CRD that one commit lists and the other leaves out of the list is a
+//     hidden removal, so the file stays an ordinary (non-CRD) document.
+func isKustomizeFile(file string, data []byte, siblings []string, g parseGuards) (ok bool) {
 	if !kustomizeName(file) {
 		return false
 	}
@@ -79,6 +84,7 @@ func isKustomizeFile(file string, data []byte, g parseGuards) (ok bool) {
 			return false
 		}
 	}
+	named := map[string]bool{}
 	for i := 0; i+1 < len(root.Content); i += 2 {
 		k, v := root.Content[i].Value, root.Content[i+1]
 		if !kustomizeKeys[k] {
@@ -92,6 +98,9 @@ func isKustomizeFile(file string, data []byte, g parseGuards) (ok bool) {
 				if g.kustomizeEntries && !isStr(e) {
 					return false
 				}
+				if isStr(e) {
+					named[strings.TrimPrefix(e.Value, "./")] = true
+				}
 			}
 		}
 	}
@@ -101,6 +110,13 @@ func isKustomizeFile(file string, data []byte, g parseGuards) (ok bool) {
 	}
 	if av := mget(root, "apiVersion"); av != nil && (!isStr(av) || !strings.HasPrefix(av.Value, "kustomize.config.k8s.io/")) {
 		return false
+	}
+	if g.kustomizeCovered {
+		for _, sib := range siblings {
+			if !named[sib] {
+				return false
+			}
+		}
 	}
 	return true
 }
