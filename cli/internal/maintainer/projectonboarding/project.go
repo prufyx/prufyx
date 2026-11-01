@@ -153,10 +153,12 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, options O
 	}
 	switch args[0] {
 	case "help", "--help", "-h":
-		_, _ = io.WriteString(stdout, "usage: prufyx-maintainer project <init|sync|verify|status|inspect|proposal> [options]\ninit --repository HTTPS_GITHUB_REPO --output NEW_REQUEST [--slug SLUG] [--release-limit 1..10] [--tag-prefix PREFIX] [--changelog-paths PATH,...]\nexact-tag init: init --repository HTTPS_GITHUB_REPO --exact-tag TAG [--exact-tag TAG ...] --license-anchor-tag TAG --output NEW_REQUEST [--slug SLUG] [--changelog-paths PATH,...]\nsync --manifest REQUEST --output-parent PRIVATE_DIR [--previous SNAPSHOT]\nverify --snapshot SNAPSHOT [--previous PRIOR_EXACT_TAG_SNAPSHOT]\nstatus|proposal --snapshot SNAPSHOT\ninspect --snapshot SNAPSHOT [--tag TAG] [--include-notes]\n")
+		_, _ = io.WriteString(stdout, "usage: prufyx-maintainer project <init|validate|sync|verify|status|inspect|proposal> [options]\nvalidate --request REQUEST\ninit --repository HTTPS_GITHUB_REPO --output NEW_REQUEST [--slug SLUG] [--release-limit 1..10] [--tag-prefix PREFIX] [--changelog-paths PATH,...]\nexact-tag init: init --repository HTTPS_GITHUB_REPO --exact-tag TAG [--exact-tag TAG ...] --license-anchor-tag TAG --output NEW_REQUEST [--slug SLUG] [--changelog-paths PATH,...]\nsync --manifest REQUEST --output-parent PRIVATE_DIR [--previous SNAPSHOT]\nverify --snapshot SNAPSHOT [--previous PRIOR_EXACT_TAG_SNAPSHOT]\nstatus|proposal --snapshot SNAPSHOT\ninspect --snapshot SNAPSHOT [--tag TAG] [--include-notes]\n")
 		return 0
 	case "init":
 		return runInit(args[1:], stderr)
+	case "validate":
+		return runValidate(args[1:], stdout, stderr)
 	case "sync":
 		return runSync(ctx, args[1:], stdout, stderr, options)
 	case "verify":
@@ -227,6 +229,34 @@ func runInit(args []string, stderr io.Writer) int {
 	value := map[string]any{"schema": RequestSchema, "authority": Authority, "project": map[string]any{"slug": slug, "canonicalRepositoryURL": repo, "owner": owner, "repository": name}, "discovery": map[string]any{"releaseLimit": int64(limit), "tagPrefix": prefixValue, "changelogPaths": toAny(paths), "licenseDisposition": license}, "review": map[string]any{"state": "NOT_REVIEWED", "admissionState": "NOT_ADMITTED"}}
 	raw, err := sourcecorpus.Canonical(value)
 	if err != nil || writeNewPrivate(output, raw) != nil {
+		return reject(stderr)
+	}
+	return 0
+}
+
+// runValidate checks a request file (v1 release window or v2 exact tags)
+// offline. It reads the file only and prints the schema, repository and digest.
+func runValidate(args []string, stdout, stderr io.Writer) int {
+	flags := flag.NewFlagSet("project validate", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	var path string
+	flags.StringVar(&path, "request", "", "request file to validate")
+	if flags.Parse(args) != nil || flags.NArg() != 0 || path == "" {
+		return reject(stderr)
+	}
+	raw, err := sourcecorpus.ReadRegularFile(path, maxRequest)
+	if err != nil {
+		return reject(stderr)
+	}
+	var schema, repo, slug, digest string
+	if r, err := parseRequest(raw); err == nil {
+		schema, repo, slug, digest = RequestSchema, r.repo, r.slug, r.digest
+	} else if x, err := parseExactTagRequest(raw); err == nil {
+		schema, repo, slug, digest = ExactTagRequestSchema, x.repo, x.slug, x.digest
+	} else {
+		return reject(stderr)
+	}
+	if emitJSON(stdout, map[string]any{"valid": true, "schema": schema, "repository": repo, "slug": slug, "requestDigest": digest}) != nil {
 		return reject(stderr)
 	}
 	return 0

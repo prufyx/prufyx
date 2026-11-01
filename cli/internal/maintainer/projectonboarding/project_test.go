@@ -756,3 +756,26 @@ func TestProject_OutputWriteFailureIsReportedAndSnapshotRemains(t *testing.T) {
 		t.Fatalf("persisted snapshot invalid after output failure: %v", err)
 	}
 }
+
+func TestProject_Validate_ExamplesAndRejects(t *testing.T) {
+	for _, name := range []string{"mariadb-operator", "datadog-operator", "victoriametrics-operator"} {
+		var out, errb bytes.Buffer
+		path := filepath.Join("..", "..", "..", "..", "examples", "project-onboarding", name+"-request.json")
+		if code := Run(context.Background(), []string{"validate", "--request", path}, &out, &errb, Options{}); code != 0 {
+			t.Fatalf("%s: code=%d stderr=%s", name, code, errb.String())
+		}
+		if !strings.Contains(out.String(), `"valid":true`) {
+			t.Fatalf("%s: %s", name, out.String())
+		}
+	}
+	bad := filepath.Join(t.TempDir(), "bad.json")
+	if err := os.WriteFile(bad, []byte(`{"schema":"x"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{{"validate"}, {"validate", "--request", bad}, {"validate", "--request", filepath.Join(t.TempDir(), "missing.json")}} {
+		var out, errb bytes.Buffer
+		if code := Run(context.Background(), args, &out, &errb, Options{}); code != 2 || out.Len() != 0 {
+			t.Fatalf("%v: code=%d out=%s", args, code, out.String())
+		}
+	}
+}
