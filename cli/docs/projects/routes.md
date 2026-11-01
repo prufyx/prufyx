@@ -33,6 +33,7 @@ prufyx check cncf --project SLUG --input FILE (--now RFC3339 | --knowledge-db DI
 prufyx check cncf --project PROJECT --custom-resources FILE --from VERSION --to VERSION --now RFC3339 [--custom-resources-complete] [--custom-resources-digest SHA256] [--format human|json]
 prufyx check cncf --project SLUG --input FILE --now RFC3339 [--input-digest SHA256] [--format human|json]
 prufyx check cncf --project SLUG --input FILE --knowledge-db DIR [--input-digest SHA256] [--format human|json]
+prufyx check cncf --project SLUG --input FILE --via V1,V2 --now RFC3339 [--input-digest SHA256] [--format human|json]
 ```
 
 ### check prometheus-mode
