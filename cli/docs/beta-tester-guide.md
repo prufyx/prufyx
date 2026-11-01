@@ -159,6 +159,26 @@ What it does and does not do in this build:
   yet, expect `10` or `11`.
 - `--format human|markdown|json`.
 
+### Several versions with `check cncf`
+
+`check cncf` evaluates one transition. To check an upgrade over several
+versions, name the versions you will really install, in order:
+
+```sh
+prufyx check cncf --project falco --input input.json \
+  --via 0.36.2,0.37.0 --now 2026-11-20T00:00:00Z
+```
+
+Each hop (`current -> 0.36.2`, `0.36.2 -> 0.37.0`, `0.37.0 -> proposed`) is
+checked with the same rules and the same facts as a single check, and so is the
+end-to-end pair. The overall answer is `BLOCKED` (exit `10`) if any hop is
+blocked, `PASS` (exit `0`) only if every hop has a rule that decides it and
+all of them pass, and `UNKNOWN` (exit `11`) otherwise: a hop without a rule is
+never read as safe. `--via` takes exact versions in ascending order strictly
+between the input's two versions, and needs `--now` (no `--knowledge-db`, no
+`--replay-report`, no `--from`/`--to`). The facts in the input are used on every
+hop; Prufyx does not plan intermediate versions for you.
+
 ## 5. Read the answer
 
 | Answer | Exit | Meaning |

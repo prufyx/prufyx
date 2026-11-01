@@ -1,0 +1,3 @@
+### Added
+
+- `prufyx check cncf --project P --input FILE --via V1,V2 --now T` checks an upgrade over several versions: every hop of the path you declare (current, V1, V2, proposed) is evaluated with the same rules and facts as a single check, and the end-to-end pair is evaluated too. The answer lists each hop and one overall verdict: `BLOCKED` (exit 10) if any hop is blocked, `PASS` (exit 0) only if every hop has a deciding rule and passes, otherwise `UNKNOWN` (exit 11); a hop with no rule is never counted as a pass. `--format json` writes `prufyx.io/cncf-chain-check/v1alpha1`. Prufyx never invents an intermediate version, and the facts of the input are the same on every hop.

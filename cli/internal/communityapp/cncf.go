@@ -94,6 +94,7 @@ func (r runtime) cncf(args []string) int {
 	project := fs.String("project", "", "catalogue project slug")
 	input := fs.String("input", "", "minimized current and proposed declarations")
 	pin := fs.String("input-digest", "", "optional exact input file SHA-256")
+	via := fs.String("via", "", "comma-separated exact versions the upgrade passes through, in order, between the input's versions")
 	configMap := fs.String("config-map", "", "private proposed Argo CD argocd-cm JSON")
 	configMapPin := fs.String("config-map-digest", "", "optional exact ConfigMap SHA-256")
 	resourceExclusionsConfigMap := fs.String("resource-exclusions-config-map", "", "private Argo CD argocd-cm YAML for resource.exclusions")
@@ -591,8 +592,10 @@ func (r runtime) cncf(args []string) int {
 		if *imageStatusRequest == "" || *from == "" || *to == "" || cncfUnexpectedModeFlag(args, "image-status-request", "image-status-request-digest", "artifact-operation") || (*knowledgeDB == "" && (*nowText == "" || flagProvided(args, "replay-report") || flagProvided(args, "knowledge-revision") || flagProvided(args, "knowledge-bundle-digest") || flagProvided(args, "knowledge-trust-receipt-digest"))) {
 			return r.usage("invalid CRI-O ImageStatusRequest check arguments; use --help")
 		}
-	} else if *input == "" || cncfUnexpectedModeFlag(args, "input", "input-digest") || anyFlagProvided(args, "from", "to") {
+	} else if *input == "" || cncfUnexpectedModeFlag(args, "input", "input-digest", "via") || anyFlagProvided(args, "from", "to") {
 		return r.usage("invalid CNCF check arguments; use --help")
+	} else if flagProvided(args, "via") && (*knowledgeDB != "" || *replay != "" || *via == "") {
+		return r.usage("--via needs the embedded knowledge (--now) and cannot be combined with --knowledge-db or --replay-report")
 	}
 	var now time.Time
 	var err error
@@ -731,6 +734,9 @@ func (r runtime) cncf(args []string) int {
 			Project:   *project, Input: raw, InputDigest: *pin,
 		}, *replay, *format)
 	}
+	if *via != "" {
+		return r.cncfChain(*project, raw, strings.Split(*via, ","), now, *format, *showPasses)
+	}
 	var report cncfcheck.Report
 	if *replay != "" {
 		expected, readErr := readCNCFPrivate(*replay, 4<<20)
@@ -811,7 +817,7 @@ func cncfUnexpectedModeFlag(args []string, allowed ...string) bool {
 // cncf. Some names are reserved for accepted upcoming format adapters so their
 // eventual FlagSet registration cannot create an ignored cross-mode input.
 var cncfModeInputFlags = []string{
-	"input", "input-digest",
+	"input", "input-digest", "via",
 	"config-map", "config-map-digest", "requires-inherited-application-permissions",
 	"resource-exclusions-config-map", "resource-exclusions-config-map-digest", "resource-exclusions-config-complete", "resource-exclusions-precedence-resolved", "requires-v2-visibility-of-v3-default-excluded-resources",
 	"repository-secret", "repository-secret-digest", "repository-distribution", "repository-settings-resolved", "repository-uses-plain-http",
