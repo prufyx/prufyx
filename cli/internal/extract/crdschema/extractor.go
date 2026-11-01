@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
@@ -38,6 +37,8 @@ const (
 // as not attested and no line attestation can be stated. Tests set the
 // family on the extractor to prove the attested path.
 const attestedFamily = ""
+
+var errTooManySources = errors.New("crdschema: too many cited files")
 
 var slugRE = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
 
@@ -310,7 +311,7 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, p extra
 	}
 	// A read error on any release of either line aborts the run (fail
 	// closed), it is never a quiet line.
-	res, err := Derive(ctx, r, x.target, p.FromCommit, p.ToCommit)
+	res, fromFiles, toFiles, err := deriveFiles(ctx, r, x.target, p.FromCommit, p.ToCommit, defaultGuards())
 	if err != nil {
 		return extract.Extraction{}, err
 	}
@@ -340,48 +341,42 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, p extra
 	case x.family == "":
 		e.NotAttested = "no crd.schema fact family is registered yet"
 	default:
-		c, err := x.attestation(r, p, a, b)
-		if err != nil {
+		c, err := x.attestation(r, p, a, b, fromFiles, toFiles)
+		switch {
+		case errors.Is(err, errTooManySources):
+			e.NotAttested = "the derivation read more CRD files than an attestation can cite"
+		case err != nil:
 			return extract.Extraction{}, err
+		default:
+			e.Attestations = []extract.AttestationCandidate{c}
 		}
-		e.Attestations = []extract.AttestationCandidate{c}
 	}
 	return e, nil
 }
 
-// citePath names one CRD file the derivation read at commit.
-func (x *Extractor) citePath(r extract.PinnedReader, commit string) (string, error) {
-	if len(x.target.Files) > 0 {
-		return x.target.Files[0], nil
-	}
-	for _, d := range x.target.Dirs {
-		entries, err := r.List(x.target.Repo, commit, d)
-		if err != nil {
-			return "", err
-		}
-		for _, en := range entries {
-			if en.Type == "blob" && (strings.HasSuffix(en.Path, ".yaml") || strings.HasSuffix(en.Path, ".yml")) {
-				return en.Path, nil
-			}
-		}
-	}
-	return "", errors.New("crdschema: no source file to cite")
-}
+// maxCited is the number of sources a line attestation can carry.
+const maxCited = 8
 
-func (x *Extractor) attestation(r extract.PinnedReader, p extract.VersionPair, a, b *releaseLine) (extract.AttestationCandidate, error) {
+func (x *Extractor) attestation(r extract.PinnedReader, p extract.VersionPair, a, b *releaseLine, fromFiles, toFiles []string) (extract.AttestationCandidate, error) {
 	line, ok := lineattest.LineOf(p.To)
 	if !ok {
 		return extract.AttestationCandidate{}, fmt.Errorf("crdschema: no line for %s", p.To)
 	}
-	path, err := x.citePath(r, p.FromCommit)
-	if err != nil {
-		return extract.AttestationCandidate{}, err
+	if n := len(fromFiles) + len(toFiles); n == 0 || n > maxCited {
+		return extract.AttestationCandidate{}, errTooManySources
 	}
-	if _, err := r.Read(p.Repo, p.FromCommit, path); err != nil {
-		return extract.AttestationCandidate{}, err
+	c := extract.AttestationCandidate{Component: x.component, Line: line, FactFamily: x.family, RuleIDs: []string{}}
+	for _, side := range []struct {
+		prefix, commit string
+		files          []string
+	}{{"from", p.FromCommit, fromFiles}, {"to", p.ToCommit, toFiles}} {
+		for i, f := range side.files {
+			if _, err := r.Read(p.Repo, side.commit, f); err != nil {
+				return extract.AttestationCandidate{}, err
+			}
+			c.Sources = append(c.Sources, extract.SourceRef{ID: fmt.Sprintf("%s%02d", side.prefix, i), Repo: p.Repo, Commit: side.commit, Path: f})
+		}
 	}
-	c := extract.AttestationCandidate{Component: x.component, Line: line, FactFamily: x.family, RuleIDs: []string{},
-		Sources: []extract.SourceRef{{ID: "crd", Repo: p.Repo, Commit: p.FromCommit, Path: path}}}
 	if fam, _ := lineattest.LookupFamily(x.family); fam.ReleaseScoped() {
 		rl := &lineattest.Releases{}
 		for i, t := range a.Tags {

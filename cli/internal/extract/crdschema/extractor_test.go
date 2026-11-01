@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/customresources"
 	"github.com/prufyx/prufyx/cli/internal/extract"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 )
@@ -218,5 +219,71 @@ func TestReleaseShapedTagsAreNeverSkippedSilently(t *testing.T) {
 	tags := tagList{{Name: "v1.0.0", Commit: commitA}, {Name: "api/v1.0.1", Commit: commitC}, {Name: "v1.0.1-rc1", Commit: commitC}, {Name: "v1.1.0", Commit: commitB}}
 	if _, p, _ := runOne(t, newExtractor(t, true), tags, c.reader()); p.Attestation.Status != extract.PairAttested {
 		t.Errorf("attestation=%+v", p.Attestation)
+	}
+}
+
+// The release-scoped branch: the attestation names every release of both
+// lines, and cites every CRD file the derivation parsed at both commits.
+func TestReleaseScopedFamilyNamesReleasesAndCitesBothCommits(t *testing.T) {
+	fam, ok := lineattest.LookupFamily(lineattest.FamilyCustomResourceVersions)
+	if !ok || !fam.ReleaseScoped() {
+		t.Fatal("family is not release scoped")
+	}
+	component := ""
+	for _, p := range customresources.Projects() {
+		if fam.Admits(p.Component) {
+			component = p.Component
+			break
+		}
+	}
+	if component == "" {
+		t.Fatal("no component admitted by the family")
+	}
+	c := caseNamed(t, "added_only")
+	x, err := New("example", testTarget, component)
+	if err != nil {
+		t.Fatal(err)
+	}
+	x.family = lineattest.FamilyCustomResourceVersions
+	rd := c.reader()
+	for p, d := range c.from {
+		rd.put(commitC, p, d)
+	}
+	tags := tagList{{Name: "v1.0.0", Commit: commitA}, {Name: "v1.0.1", Commit: commitC}, {Name: "v1.1.0", Commit: commitB}}
+	out, p, _ := runOne(t, x, tags, rd)
+	if p.Attestation.Status != extract.PairAttested || len(out.Attestations) != 1 {
+		t.Fatalf("attestation=%+v", p.Attestation)
+	}
+	a := out.Attestations[0]
+	if a.Releases == nil || len(a.Releases.From) != 2 || len(a.Releases.To) != 1 {
+		t.Fatalf("releases %+v", a.Releases)
+	}
+	revs := map[string]bool{}
+	for _, s := range a.Evidence.Sources {
+		revs[s.Revision] = true
+	}
+	if !revs[commitA] || !revs[commitB] {
+		t.Fatalf("sources cite %v, want both commits", revs)
+	}
+}
+
+// A kustomization.yaml that was skipped is never cited.
+func TestSkippedKustomizationIsNotCited(t *testing.T) {
+	c := caseNamed(t, "kustomize_skipped")
+	x := newExtractor(t, true)
+	// the case removes a field, so use a quiet variant of it
+	rd := newMem()
+	for _, commit := range []string{commitA, commitB} {
+		rd.put(commit, "crd/widget.yaml", simpleCRD("k"))
+		rd.put(commit, "crd/kustomization.yaml", c.from["crd/kustomization.yaml"])
+	}
+	out, p, _ := runOne(t, x, twoLines, rd)
+	if p.Attestation.Status != extract.PairAttested || len(out.Attestations) != 1 {
+		t.Fatalf("attestation=%+v", p.Attestation)
+	}
+	for _, s := range out.Attestations[0].Evidence.Sources {
+		if strings.HasSuffix(s.URL, "kustomization.yaml") {
+			t.Fatalf("cites %s", s.URL)
+		}
 	}
 }
