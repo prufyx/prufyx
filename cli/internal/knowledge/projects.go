@@ -306,8 +306,9 @@ func verifySplitTargets(u *updater.Updater, targets *metadata.Metadata[metadata.
 		}
 		if !index.Readable(entry.Project) {
 			// A project this build does not know (a compat index): the TUF
-			// download above verified its signed length and hash; nothing
-			// in it is read or kept.
+			// download above verified its signed length and hash. The bytes
+			// are kept so the stored package re-verifies, never parsed.
+			projects[entry.Project] = append([]byte(nil), raw...)
 			continue
 		}
 		if _, err := cncfcheck.AdmitExternalProjectTarget(index, entry.Project, raw); err != nil {
@@ -379,7 +380,7 @@ func readStoredProjects(store *storeFS, rel string, indexRaw []byte, only map[st
 	}
 	projects := map[string][]byte{}
 	for _, entry := range index.Entries() {
-		if only != nil && !only[entry.Project] || !index.Readable(entry.Project) {
+		if only != nil && !only[entry.Project] {
 			continue
 		}
 		raw, err := store.read(rel+"/projects/"+entry.Project+".json", maxPackageEntry)
@@ -413,9 +414,6 @@ func projectReceipts(indexRaw []byte) ([]ProjectTargetReceipt, error) {
 	}
 	result := []ProjectTargetReceipt{}
 	for _, entry := range index.Entries() {
-		if !index.Readable(entry.Project) {
-			continue
-		}
 		result = append(result, ProjectTargetReceipt{Project: entry.Project, TargetPath: entry.TargetPath, Revision: entry.Revision, Length: entry.Length, Digest: entry.Digest})
 	}
 	return result, nil
