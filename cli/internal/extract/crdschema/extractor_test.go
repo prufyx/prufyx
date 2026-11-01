@@ -202,3 +202,21 @@ func TestNewRejectsBadInput(t *testing.T) {
 		t.Fatal("empty target accepted")
 	}
 }
+
+func TestReleaseShapedTagsAreNeverSkippedSilently(t *testing.T) {
+	c := caseNamed(t, "added_only")
+	for _, bad := range []extract.Tag{
+		{Name: "V1.0.1", Commit: commitC}, {Name: "v1.0.3.4", Commit: commitC}, {Name: "v1.0.1", Commit: "abc"}, {Name: "v1.0.2", Commit: ""},
+	} {
+		tags := tagList{{Name: "v1.0.0", Commit: commitA}, bad, {Name: "v1.1.0", Commit: commitB}}
+		out, p, ledger := runOne(t, newExtractor(t, true), tags, c.reader())
+		if p.Attestation.Status != extract.PairNotAttested || len(out.Attestations) != 0 || len(ledger) != 1 || ledger[0].Code != ReasonLineUnread {
+			t.Errorf("%s: attestation=%+v ledger=%v", bad.Name, p.Attestation, ledger)
+		}
+	}
+	// Other modules' tags and pre-releases are not releases of this line.
+	tags := tagList{{Name: "v1.0.0", Commit: commitA}, {Name: "api/v1.0.1", Commit: commitC}, {Name: "v1.0.1-rc1", Commit: commitC}, {Name: "v1.1.0", Commit: commitB}}
+	if _, p, _ := runOne(t, newExtractor(t, true), tags, c.reader()); p.Attestation.Status != extract.PairAttested {
+		t.Errorf("attestation=%+v", p.Attestation)
+	}
+}

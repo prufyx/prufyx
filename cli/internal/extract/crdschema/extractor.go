@@ -115,7 +115,7 @@ func (l *releaseLine) key() string { return fmt.Sprintf("%d.%d", l.Major, l.Mino
 
 var (
 	canonTagRE = regexp.MustCompile(`^v?(0|[1-9][0-9]{0,3})\.(0|[1-9][0-9]{0,3})\.(0|[1-9][0-9]{0,3})$`)
-	looseTagRE = regexp.MustCompile(`^v?([0-9]+)\.([0-9]+)\.([0-9]+)$`)
+	shapeTagRE = regexp.MustCompile(`^[vV]?([0-9]+)\.([0-9]+)(\.[0-9]+)*$`)
 )
 
 // releaseLines groups the final release tags (v1.2.3 or 1.2.3, canonical
@@ -131,21 +131,30 @@ func releaseLines(index extract.ReleaseIndex) []*releaseLine {
 	byVersion := map[string]rel{}
 	problems := map[string]string{}
 	allProblem := ""
-	for _, t := range index.Tags {
-		if !extract.IsCommitSHA(t.Commit) {
-			continue
+	markLine := func(tag, why string) {
+		lm := shapeTagRE.FindStringSubmatch(tag)
+		maj, e1 := strconv.Atoi(lm[1])
+		mnr, e2 := strconv.Atoi(lm[2])
+		if e1 != nil || e2 != nil {
+			allProblem = "a tag has the shape of a release but its numbers cannot be read"
+			return
 		}
+		problems[fmt.Sprintf("%d.%d", maj, mnr)] = why
+	}
+	for _, t := range index.Tags {
 		m := canonTagRE.FindStringSubmatch(t.Name)
 		if m == nil {
-			if lm := looseTagRE.FindStringSubmatch(t.Name); lm != nil {
-				maj, e1 := strconv.Atoi(lm[1])
-				mnr, e2 := strconv.Atoi(lm[2])
-				if e1 != nil || e2 != nil {
-					allProblem = "a tag has the shape of a release but its numbers cannot be read"
-				} else {
-					problems[fmt.Sprintf("%d.%d", maj, mnr)] = "a tag of the line has the shape of a release that is not canonical"
-				}
+			// Anything shaped like a release (any case of the v, two or more
+			// numeric parts) that is not canonical is never skipped silently.
+			// Prefixed tags (api/v1.2.3) and pre-releases are other modules'
+			// or not final releases.
+			if shapeTagRE.MatchString(t.Name) {
+				markLine(t.Name, "a tag of the line has the shape of a release that is not canonical")
 			}
+			continue
+		}
+		if !extract.IsCommitSHA(t.Commit) {
+			markLine(t.Name, "a release tag of the line has no pinned commit")
 			continue
 		}
 		maj, _ := strconv.Atoi(m[1])
@@ -299,6 +308,8 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, p extra
 				NotAttested: "the pair withheld items: a release line could not be read completely"}, nil
 		}
 	}
+	// A read error on any release of either line aborts the run (fail
+	// closed), it is never a quiet line.
 	res, err := Derive(ctx, r, x.target, p.FromCommit, p.ToCommit)
 	if err != nil {
 		return extract.Extraction{}, err
