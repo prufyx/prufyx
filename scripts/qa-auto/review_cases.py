@@ -189,6 +189,7 @@ for cid, kind, code, ok, note in OBS:
         known = bool(entry) and passed and kind == "gate"  # only the known wrong PASS is suppressed
         cases.append(case("review", cid, wrongpass=passed and kind == "gate" and not known,
                           mismatch=not known and not (passed and kind == "gate"), exit=code, expect=sorted(ok), note=note,
+                          why=f"{cid}: expected exit in {sorted(ok)}, got {code}",
                           allowed=entry if known else None, unexpected_for_allowed=bool(entry) and not known))
 for cid in allow:
     if allowable(cid) and cid not in seen:
