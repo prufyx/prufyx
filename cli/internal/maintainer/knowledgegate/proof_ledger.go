@@ -3,6 +3,7 @@
 package knowledgegate
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 )
@@ -17,13 +18,35 @@ func proofLedgerLen(proof any) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("pair proof cannot be encoded: %w", err)
 	}
-	var obj map[string]json.RawMessage
-	if json.Unmarshal(raw, &obj) != nil {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	if tok, err := dec.Token(); err != nil || tok != json.Delim('{') {
 		return 0, nil // not an object (null, array, scalar): it has no ledger member
 	}
-	member, ok := obj["ledger"]
-	if !ok {
+	seen := map[string]bool{}
+	var member json.RawMessage
+	for dec.More() {
+		tok, err := dec.Token()
+		if err != nil {
+			return 0, fmt.Errorf("pair proof cannot be read: %w", err)
+		}
+		key, _ := tok.(string)
+		if seen[key] {
+			return 0, fmt.Errorf("pair proof repeats the member %q", key)
+		}
+		seen[key] = true
+		var v json.RawMessage
+		if err := dec.Decode(&v); err != nil {
+			return 0, fmt.Errorf("pair proof cannot be read: %w", err)
+		}
+		if key == "ledger" {
+			member = v
+		}
+	}
+	if !seen["ledger"] {
 		return 0, nil
+	}
+	if bytes.Equal(bytes.TrimSpace(member), []byte("null")) {
+		return 0, fmt.Errorf("pair proof ledger is null, not an array")
 	}
 	var entries []json.RawMessage
 	if err := json.Unmarshal(member, &entries); err != nil {

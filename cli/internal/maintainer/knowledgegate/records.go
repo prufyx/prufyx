@@ -729,19 +729,20 @@ func crossCheckAttestation(out *extract.Output, floor string, a lineattest.LineA
 	for i := range out.Manifest.Pairs {
 		if line, ok := lineattest.LineOf(out.Manifest.Pairs[i].To); ok && line == a.Line {
 			pair = &out.Manifest.Pairs[i]
+			// A pair whose proof lists withheld items attests nothing,
+			// whatever the pair record says (the item ledger of an
+			// extractor's proof). Every pair into the line is checked.
+			n, lerr := proofLedgerLen(pair.Proof)
+			if lerr != nil {
+				return fmt.Errorf("line %s: %w", a.Line, lerr)
+			}
+			if n > 0 {
+				return fmt.Errorf("the extractor withheld %d item(s) on line %s and does not attest it", n, a.Line)
+			}
 		}
 	}
 	if pair == nil {
 		return fmt.Errorf("the extractor derives no pair into line %s from the pinned upstream bytes", a.Line)
-	}
-	// A pair whose proof lists withheld items attests nothing, whatever the
-	// pair record says (the item ledger of an extractor's proof).
-	n, lerr := proofLedgerLen(pair.Proof)
-	if lerr != nil {
-		return fmt.Errorf("line %s: %w", a.Line, lerr)
-	}
-	if n > 0 {
-		return fmt.Errorf("the extractor withheld %d item(s) on line %s and does not attest it", n, a.Line)
 	}
 	if pair.Status != extract.PairDerived || pair.Attestation == nil || pair.Attestation.Status != extract.PairAttested || !containsKind(pair.Attestation.Families, a.FactFamily) {
 		reason := pair.Reason

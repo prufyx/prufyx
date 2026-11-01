@@ -3,6 +3,7 @@
 package knowledgegate
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -25,7 +26,9 @@ func TestProofLedgerLen(t *testing.T) {
 		{"nil", nil, 0, false},
 		{"no ledger member", map[string]any{"removed": []string{"a"}}, 0, false},
 		{"empty ledger", map[string]any{"ledger": []entry{}}, 0, false},
-		{"null ledger", map[string]any{"ledger": nil}, 0, false},
+		{"null ledger", map[string]any{"ledger": nil}, 0, true},
+		{"repeated ledger key", json.RawMessage(`{"ledger":[1],"ledger":[]}`), 0, true},
+		{"repeated other key", json.RawMessage(`{"a":1,"a":2}`), 0, true},
 		{"two entries", map[string]any{"ledger": []entry{{"A_CODE", "a"}, {"A_CODE", "b"}}}, 2, false},
 		{"struct proof", struct {
 			Ledger []entry `json:"ledger"`
@@ -69,5 +72,22 @@ func TestCrossCheckAttestationRefusesProofLedger(t *testing.T) {
 	err = crossCheckAttestation(out(map[string]any{"ledger": []any{}}), "", a, nil)
 	if err == nil || strings.Contains(err.Error(), "withheld") || !strings.Contains(err.Error(), "does not attest line") {
 		t.Fatalf("proof with an empty ledger: %v", err)
+	}
+}
+
+// Every pair into the line counts, not only the last: a ledger on an earlier
+// pair into the same line refuses the attestation.
+func TestCrossCheckAttestationChecksEveryPairOfTheLine(t *testing.T) {
+	t.Parallel()
+	pair := func(to string, proof any) extract.PairRecord {
+		return extract.PairRecord{From: "1.29.0", To: to, Status: extract.PairDerived, Proof: proof,
+			Attestation: &extract.PairAttestation{Status: extract.PairAttested, Line: "1.30", Families: []string{lineattest.FamilyKubernetesRemovedServedGVK}}}
+	}
+	withLedger := map[string]any{"ledger": []map[string]string{{"code": "A_CODE", "item": "a"}}}
+	a := lineattest.LineAttestation{Component: recordComponent, Line: "1.30", FactFamily: lineattest.FamilyKubernetesRemovedServedGVK, RuleIDs: []string{}}
+	out := &extract.Output{Manifest: extract.Manifest{Pairs: []extract.PairRecord{pair("1.30.0", withLedger), pair("1.30.1", map[string]any{})}}}
+	err := crossCheckAttestation(out, "", a, nil)
+	if err == nil || !strings.Contains(err.Error(), "withheld 1 item(s)") {
+		t.Fatalf("ledger on the earlier pair of the line: %v", err)
 	}
 }
