@@ -57,6 +57,20 @@ type pkg struct {
 	envDone bool
 }
 
+// goSource reports whether the go tool builds a file of this name: a .go file
+// that is not a test and does not start with "_" or ".".
+func goSource(base string) bool {
+	return strings.HasSuffix(base, ".go") && !strings.HasSuffix(base, "_test.go") &&
+		!strings.HasPrefix(base, "_") && !strings.HasPrefix(base, ".")
+}
+
+func (s *scanner) goSrc(base string) bool {
+	if !s.g.fileNames {
+		return strings.HasSuffix(base, ".go") && !strings.HasSuffix(base, "_test.go")
+	}
+	return goSource(base)
+}
+
 // moduleDir turns an in-module import path into a repository directory.
 func moduleDir(module, p string) string {
 	if p == module {
@@ -89,7 +103,7 @@ func (s *scanner) loadPkg(dir string) (*pkg, error) {
 			p.missing = true
 			return p, nil
 		}
-		if !strings.HasSuffix(base, ".go") || strings.HasSuffix(base, "_test.go") {
+		if !s.goSrc(base) {
 			continue
 		}
 		if e.Type != "blob" || e.Mode == "120000" {
@@ -141,7 +155,7 @@ func (s *scanner) loadPkg(dir string) (*pkg, error) {
 				p.faults = append(p.faults, Omission{Reason: ReasonParseError, Detail: e.Path})
 				continue
 			}
-			im := &imp{path: ip, kind: classifyImport(ip, s.module), lib: libOf(ip)}
+			im := &imp{path: ip, kind: s.classifyImport(ip), lib: libOf(ip)}
 			if spec.Name != nil {
 				switch spec.Name.Name {
 				case ".":

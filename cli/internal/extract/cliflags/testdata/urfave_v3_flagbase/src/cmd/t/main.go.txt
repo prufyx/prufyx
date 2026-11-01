@@ -1,0 +1,9 @@
+package main
+
+import (
+	"github.com/urfave/cli/v3"
+)
+
+func main() {
+	_ = []cli.Flag{&cli.FlagBase[string, cli.StringConfig, cli.StringValue]{Name: "x3"}}
+}

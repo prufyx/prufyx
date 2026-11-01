@@ -1,0 +1,11 @@
+package main
+
+import (
+	"github.com/urfave/cli/v2"
+)
+
+type myFlag struct{}
+
+func main() {
+	_ = []cli.Flag{&myFlag{}, &cli.BoolFlag{Name: "ok"}}
+}

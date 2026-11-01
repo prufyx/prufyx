@@ -44,11 +44,11 @@ var (
 
 // ledgerGuards are switched off only by tests (see guards).
 type ledgerGuards struct {
-	code, item, reserved, limit, order, dedupe, veto bool
+	code, item, reserved, limit, order, dedupe, veto, inventory bool
 }
 
 func defaultLedgerGuards() ledgerGuards {
-	return ledgerGuards{code: true, item: true, reserved: true, limit: true, order: true, dedupe: true, veto: true}
+	return ledgerGuards{code: true, item: true, reserved: true, limit: true, order: true, dedupe: true, veto: true, inventory: true}
 }
 
 // ledgerOf turns the omissions into the canonical ledger. Any entry that
@@ -120,9 +120,25 @@ func (r *Result) seal(g ledgerGuards) {
 	for _, e := range r.Ledger {
 		bad[e.Item] = true
 	}
+	// A fault about something that is not a scanned binary (a directory the
+	// scan could not read or bound, a stale exclusion, the module itself)
+	// could hide a binary or a registration: no binary is complete.
+	global := fault
+	if g.inventory {
+		dirs := map[string]bool{}
+		for i := range r.Binaries {
+			dirs[r.Binaries[i].Dir] = true
+		}
+		for _, e := range r.Ledger {
+			global = global || !dirs[e.Item]
+		}
+		for _, o := range r.Omissions {
+			global = global || o.Global
+		}
+	}
 	for i := range r.Binaries {
 		b := &r.Binaries[i]
-		b.Set.Complete = !fault && !bad[b.Dir]
+		b.Set.Complete = !global && !bad[b.Dir]
 		if !g.veto {
 			b.Set.Complete = true
 		}

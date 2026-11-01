@@ -537,3 +537,107 @@ func TestInventoryFaultsInline(t *testing.T) {
 		}
 	}
 }
+
+// The standard library is accepted except for the packages that register
+// flags, load code or hide it.
+func TestStdlibDenylist(t *testing.T) {
+	for _, p := range []string{"C", "plugin", "testing", "testing/quick", "net/http/httptest"} {
+		src := fmt.Sprintf("package main\n\nimport _ %q\n\nfunc main() {}\n", p)
+		if p == "C" {
+			src = "package main\n\nimport \"C\"\n\nfunc main() {}\n"
+		}
+		res := scanFiles(t, map[string]string{"cmd/t/main.go": src}, defaultGuards())
+		if want := []string{"FLAG_IDIOM_UNSUPPORTED cmd/t"}; !equal(ledgerStrings(res.Ledger), want) {
+			t.Errorf("%s: ledger %v", p, ledgerStrings(res.Ledger))
+		}
+	}
+	for _, p := range []string{"net/http", "net/http/pprof", "os/exec", "log/slog", "text/template"} {
+		res := scanFiles(t, map[string]string{"cmd/t/main.go": fmt.Sprintf("package main\n\nimport _ %q\n\nfunc main() {}\n", p)}, defaultGuards())
+		if len(res.Ledger) != 0 {
+			t.Errorf("%s: ledger %v", p, ledgerStrings(res.Ledger))
+		}
+	}
+}
+
+// A fault on a directory that holds no binary withholds every binary.
+func TestUnscannedDirectoryFaultWithholdsEveryBinary(t *testing.T) {
+	g := defaultGuards()
+	g.lim.filesPerDir = 1
+	res := scanFiles(t, map[string]string{
+		"cmd/t/main.go": "package main\n\nfunc main() {}\n",
+		"docs/a.go":     "package docs\n",
+		"docs/b.go":     "package docs\n",
+	}, g)
+	if want := []string{"INVENTORY_FAULT_TOO_LARGE docs"}; !equal(ledgerStrings(res.Ledger), want) {
+		t.Fatalf("ledger %v", ledgerStrings(res.Ledger))
+	}
+	if b := binaryByDir(res, "cmd/t"); b == nil || b.Set.Complete || res.Attestable() {
+		t.Fatalf("cmd/t complete next to an unscanned directory: %+v", b)
+	}
+	// The same property for every fixture: when the ledger names a directory
+	// that is not a scanned binary, no binary is complete.
+	all, err := loadFixtures()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, fx := range all {
+		r, err := fx.scan(defaultGuards(), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		dirs := map[string]bool{}
+		for _, b := range r.Binaries {
+			dirs[b.Dir] = true
+		}
+		for _, e := range r.Ledger {
+			if !dirs[e.Item] {
+				for _, b := range r.Binaries {
+					if b.Set.Complete {
+						t.Errorf("%s: %s complete although %v is unscanned", fx.name, b.Dir, e)
+					}
+				}
+			}
+		}
+	}
+}
+
+func TestPanicIsAFaultNotACrash(t *testing.T) {
+	for _, at := range []string{"run", "binary"} {
+		g := defaultGuards()
+		g.hook = func(where string) {
+			if where == at {
+				panic("boom")
+			}
+		}
+		res := scanFiles(t, map[string]string{
+			"cmd/a/main.go": "package main\n\nfunc main() {}\n",
+			"cmd/b/main.go": "package main\n\nfunc main() {}\n",
+		}, g)
+		found := false
+		for _, e := range res.Ledger {
+			found = found || e.Code == ReasonPanic
+		}
+		if !found || res.Attestable() {
+			t.Errorf("%s: ledger %v", at, ledgerStrings(res.Ledger))
+		}
+		for _, b := range res.Binaries {
+			if at == "run" && b.Set.Complete {
+				t.Errorf("%s complete after a panic in the scan", b.Dir)
+			}
+		}
+	}
+}
+
+func TestCancelDuringAnalysisStops(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	g := defaultGuards()
+	g.hook = func(where string) {
+		if where == "binary" {
+			cancel()
+		}
+	}
+	m := newMem(map[string]string{"go.mod": goMod, "cmd/t/main.go": "package main\n\nfunc main() {}\n"})
+	if _, err := scan(ctx, m, Target{Repo: repo}, commitA, g); !errors.Is(err, context.Canceled) {
+		t.Fatalf("err %v", err)
+	}
+}

@@ -93,17 +93,45 @@ func scenarioVeto(g ledgerGuards) error {
 	return nil
 }
 
+// scenarioInventory: a fault about something that is not a scanned binary
+// leaves no binary complete, even a binary the ledger does not name.
+func scenarioInventory(g ledgerGuards) error {
+	for name, o := range map[string]Omission{
+		"global flag":     {Reason: "INVENTORY_FAULT_TOO_LARGE", Subject: "docs", Count: 1, Global: true},
+		"unknown subject": {Reason: "INVENTORY_FAULT_TOO_LARGE", Subject: "docs", Count: 1},
+	} {
+		r := &Result{
+			Binaries:  []Binary{{Dir: "cmd/a"}, {Dir: "cmd/b"}},
+			Omissions: []Omission{o},
+		}
+		r.seal(g)
+		for _, b := range r.Binaries {
+			if b.Set.Complete {
+				return fmt.Errorf("%s: %s is complete next to an unscanned fault", name, b.Dir)
+			}
+		}
+	}
+	// Control: a fault about one binary leaves the other complete.
+	r := &Result{Binaries: []Binary{{Dir: "cmd/a"}, {Dir: "cmd/b"}}, Omissions: []Omission{om("FLAG_X_CODE", "cmd/a")}}
+	r.seal(g)
+	if r.Binaries[0].Set.Complete || !r.Binaries[1].Set.Complete {
+		return fmt.Errorf("a binary fault must withhold exactly that binary: %+v", r.Binaries)
+	}
+	return nil
+}
+
 var ledgerScenarios = map[string]struct {
 	run func(ledgerGuards) error
 	off func(*ledgerGuards)
 }{
-	"TestLedgerCodeVocabulary":      {scenarioCode, func(g *ledgerGuards) { g.code = false }},
-	"TestLedgerReservedCodes":       {scenarioReserved, func(g *ledgerGuards) { g.reserved = false }},
-	"TestLedgerItemCharsetAndLen":   {scenarioItem, func(g *ledgerGuards) { g.item = false }},
-	"TestLedgerEntryCap":            {scenarioLimit, func(g *ledgerGuards) { g.limit = false }},
-	"TestLedgerSorted":              {scenarioOrder, func(g *ledgerGuards) { g.order = false }},
-	"TestLedgerDeduplicated":        {scenarioDedupe, func(g *ledgerGuards) { g.dedupe = false }},
-	"TestLedgerNeverYieldsAttested": {scenarioVeto, func(g *ledgerGuards) { g.veto = false }},
+	"TestLedgerCodeVocabulary":        {scenarioCode, func(g *ledgerGuards) { g.code = false }},
+	"TestLedgerReservedCodes":         {scenarioReserved, func(g *ledgerGuards) { g.reserved = false }},
+	"TestLedgerItemCharsetAndLen":     {scenarioItem, func(g *ledgerGuards) { g.item = false }},
+	"TestLedgerEntryCap":              {scenarioLimit, func(g *ledgerGuards) { g.limit = false }},
+	"TestLedgerSorted":                {scenarioOrder, func(g *ledgerGuards) { g.order = false }},
+	"TestLedgerDeduplicated":          {scenarioDedupe, func(g *ledgerGuards) { g.dedupe = false }},
+	"TestLedgerInventoryWithholdsAll": {scenarioInventory, func(g *ledgerGuards) { g.inventory = false }},
+	"TestLedgerNeverYieldsAttested":   {scenarioVeto, func(g *ledgerGuards) { g.veto = false }},
 }
 
 func mustPass(t *testing.T, name string) {
@@ -113,12 +141,13 @@ func mustPass(t *testing.T, name string) {
 	}
 }
 
-func TestLedgerCodeVocabulary(t *testing.T)    { mustPass(t, "TestLedgerCodeVocabulary") }
-func TestLedgerReservedCodes(t *testing.T)     { mustPass(t, "TestLedgerReservedCodes") }
-func TestLedgerItemCharsetAndLen(t *testing.T) { mustPass(t, "TestLedgerItemCharsetAndLen") }
-func TestLedgerEntryCap(t *testing.T)          { mustPass(t, "TestLedgerEntryCap") }
-func TestLedgerSorted(t *testing.T)            { mustPass(t, "TestLedgerSorted") }
-func TestLedgerDeduplicated(t *testing.T)      { mustPass(t, "TestLedgerDeduplicated") }
+func TestLedgerCodeVocabulary(t *testing.T)        { mustPass(t, "TestLedgerCodeVocabulary") }
+func TestLedgerReservedCodes(t *testing.T)         { mustPass(t, "TestLedgerReservedCodes") }
+func TestLedgerItemCharsetAndLen(t *testing.T)     { mustPass(t, "TestLedgerItemCharsetAndLen") }
+func TestLedgerEntryCap(t *testing.T)              { mustPass(t, "TestLedgerEntryCap") }
+func TestLedgerSorted(t *testing.T)                { mustPass(t, "TestLedgerSorted") }
+func TestLedgerDeduplicated(t *testing.T)          { mustPass(t, "TestLedgerDeduplicated") }
+func TestLedgerInventoryWithholdsAll(t *testing.T) { mustPass(t, "TestLedgerInventoryWithholdsAll") }
 
 // TestLedgerNeverYieldsAttested: a non-empty ledger is never complete and
 // never attestable, from generated omissions and hand-built results.

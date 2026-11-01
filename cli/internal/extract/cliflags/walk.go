@@ -93,6 +93,8 @@ func (w *walker) classifyType(t ast.Expr) rk {
 			return rkCobra
 		case im.lib == libKingpin && (t.Sel.Name == "Application" || t.Sel.Name == "CmdClause"):
 			return rkKing
+		case im.lib == libUrfave && t.Sel.Name == "App":
+			return rkUrfave
 		}
 	}
 	return rkNone
@@ -155,6 +157,8 @@ func (w *walker) classifyCall(c *ast.CallExpr) rk {
 				return rkPflag
 			case im.lib == libKingpin && (sel.Sel.Name == "New" || sel.Sel.Name == "NewApplication"):
 				return rkKing
+			case im.lib == libUrfave && sel.Sel.Name == "NewApp":
+				return rkUrfave
 			}
 			return rkNone
 		}
@@ -483,12 +487,14 @@ func (w *walker) pkgCall(c *ast.CallExpr, sel *ast.SelectorExpr, im *imp) {
 	verb := sel.Sel.Name
 	switch im.lib {
 	case libStd, libPflag:
-		if info, ok := regVerbs[verb]; ok {
+		if info, ok := w.g().verb(verb); ok {
 			k := rkStd
 			if im.lib == libPflag {
 				k = rkPflag
 			}
 			w.registerCall(c, k, info, "pkg:"+libDefaultName[im.lib]+".CommandLine")
+		} else if !listedNonRegistering(verb) {
+			w.unlisted(verb)
 		}
 	case libKingpin:
 		if verb == "Flag" {
@@ -510,17 +516,25 @@ func (w *walker) methodCall(c *ast.CallExpr, sel *ast.SelectorExpr, k rk) {
 	}
 	switch k {
 	case rkStd, rkPflag:
-		if info, ok := regVerbs[verb]; ok {
+		if info, ok := w.g().verb(verb); ok {
 			w.registerCall(c, k, info, identity)
 			return
 		}
-		if verb == "AddFlag" || verb == "AddFlagSet" || verb == "AddGoFlag" {
-			w.unresolved("merge")
+		if !listedNonRegistering(verb) {
+			w.unlisted(verb)
 		}
 	case rkKing:
 		if verb == "Flag" {
 			w.registerCall(c, k, kingFlagInfo, identity)
 		}
+	}
+}
+
+// unlisted withholds a method or package function of a flag library that is
+// neither a known registration nor on the non-registering list.
+func (w *walker) unlisted(verb string) {
+	if w.g().unlisted {
+		w.omit(ReasonDelegatedUnresolved, "method "+verb)
 	}
 }
 
@@ -548,7 +562,7 @@ func (w *walker) registerCall(c *ast.CallExpr, k rk, info verbInfo, identity str
 	}
 	ev := w.a.events[key]
 	if ev == nil {
-		ev = &event{key: key, name: name, idiom: k.idiom(), identity: identity}
+		ev = &event{key: key, name: name, idiom: k.idiom(), identity: identity, fnKey: w.fn.key, root: w.fn.decl == nil}
 		w.a.events[key] = ev
 	}
 	if info.short >= 0 {
@@ -567,7 +581,7 @@ func (w *walker) tripwire(c *ast.CallExpr, sel *ast.SelectorExpr) {
 	}
 	verb := sel.Sel.Name
 	shaped := false
-	if info, ok := regVerbs[verb]; ok && len(c.Args) == info.arity {
+	if info, ok := w.g().verb(verb); ok && len(c.Args) == info.arity {
 		shaped = true
 	}
 	if verb == "Flag" && len(c.Args) == 2 {
@@ -666,7 +680,7 @@ func filterArity(c []*fnInfo, n int) []*fnInfo {
 func (w *walker) followArgs(c *ast.CallExpr) {
 	binds := map[int]rk{}
 	for i, a := range c.Args {
-		if k := w.classify(a); k != rkNone {
+		if k := w.classify(a); k != rkNone && k != rkUrfave {
 			binds[i] = k
 		}
 	}
@@ -732,7 +746,7 @@ func (w *walker) methodValue(n *ast.SelectorExpr) {
 		return
 	}
 	verb := n.Sel.Name
-	_, isVerb := regVerbs[verb]
+	_, isVerb := w.g().verb(verb)
 	if !isVerb && verb != "Flag" && verb != "AddFlag" && verb != "AddFlagSet" && verb != "AddGoFlag" {
 		return
 	}
@@ -822,19 +836,39 @@ func (w *walker) argsUseOK() bool {
 			}
 			if j >= 0 {
 				if call, ok := w.stack[j].(*ast.CallExpr); ok {
-					return isParserCall(call)
+					return w.parserCall(call)
 				}
 			}
 		}
 	case *ast.CallExpr:
-		return isParserCall(p)
+		return w.parserCall(p)
 	}
 	return false
 }
 
-func isParserCall(c *ast.CallExpr) bool {
+// parserCall reports whether c hands its arguments to a flag parser the
+// walker can account for: a method of the flag libraries, of a proven flag
+// set, command or application, or a method whose name no function or
+// interface of the package set declares (so it can only be a library's). A
+// hand-written Parse in the package set is not one: it can accept a name that
+// is never registered.
+func (w *walker) parserCall(c *ast.CallExpr) bool {
 	sel, ok := c.Fun.(*ast.SelectorExpr)
-	return ok && parserMethods[sel.Sel.Name]
+	if !ok || !parserMethods[sel.Sel.Name] {
+		return false
+	}
+	if !w.g().argsParser {
+		return true
+	}
+	if id, ok := sel.X.(*ast.Ident); ok {
+		if im := w.alias(id.Name); im != nil {
+			return im.lib != libNone
+		}
+	}
+	if w.classify(sel.X) != rkNone {
+		return true
+	}
+	return !w.a.declared(sel.Sel.Name)
 }
 
 // escape withholds a flag set that leaves the places the walker can follow:
@@ -896,18 +930,75 @@ func (w *walker) keepsFlagSet() bool {
 	return false
 }
 
-// urfave reads flag literals of urfave/cli: &cli.StringFlag{Name: "lit"}.
-func (w *walker) urfave(n *ast.CompositeLit) {
-	typ, ok := n.Type.(*ast.SelectorExpr)
-	if !ok || !strings.HasSuffix(typ.Sel.Name, "Flag") {
-		return
+// urfaveFlagType reports whether t names a urfave/cli flag struct: cli.XFlag
+// or the v3 generic cli.FlagBase[...].
+func (w *walker) urfaveFlagType(t ast.Expr) bool {
+	if w.g().urfaveGen {
+		switch x := t.(type) {
+		case *ast.IndexExpr:
+			t = x.X
+		case *ast.IndexListExpr:
+			t = x.X
+		}
+	}
+	typ, ok := t.(*ast.SelectorExpr)
+	if !ok || !(strings.HasSuffix(typ.Sel.Name, "Flag") || typ.Sel.Name == "FlagBase") {
+		return false
 	}
 	id, ok := typ.X.(*ast.Ident)
 	if !ok {
-		return
+		return false
 	}
 	im := w.alias(id.Name)
-	if im == nil || im.lib != libUrfave {
+	return im != nil && im.lib == libUrfave
+}
+
+// urfaveElemOK reports whether an element of a []cli.Flag literal is one the
+// walker reads: a flag literal, a package-level variable initialised with one,
+// or a call (such as altsrc.NewStringFlag) wrapping one. Anything else (a
+// custom type with its own Names method, a function result) is a flag with an
+// unknown name.
+func (w *walker) urfaveElemOK(e ast.Expr) bool {
+	e = unparen(e)
+	if u, ok := e.(*ast.UnaryExpr); ok && u.Op == token.AND {
+		e = unparen(u.X)
+	}
+	switch x := e.(type) {
+	case *ast.CompositeLit:
+		return x.Type != nil && w.urfaveFlagType(x.Type)
+	case *ast.Ident:
+		return w.a.urfaveVar(x.Name)
+	case *ast.CallExpr:
+		if _, ok := x.Fun.(*ast.SelectorExpr); !ok {
+			return false
+		}
+		for _, a := range x.Args {
+			if w.urfaveElemOK(a) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// urfave reads flag literals of urfave/cli: &cli.StringFlag{Name: "lit"}.
+func (w *walker) urfave(n *ast.CompositeLit) {
+	if arr, ok := n.Type.(*ast.ArrayType); ok {
+		// []cli.Flag{...}: every element must be a flag the walker reads.
+		if sel, ok := arr.Elt.(*ast.SelectorExpr); ok && sel.Sel.Name == "Flag" {
+			if id, ok := sel.X.(*ast.Ident); ok {
+				if im := w.alias(id.Name); im != nil && im.lib == libUrfave && w.g().urfaveElems {
+					for _, e := range n.Elts {
+						if !w.urfaveElemOK(e) {
+							w.omit(ReasonDynamicRegistration, "flag element")
+						}
+					}
+				}
+			}
+		}
+		return
+	}
+	if n.Type == nil || !w.urfaveFlagType(n.Type) {
 		return
 	}
 	w.ctxOmits()
@@ -987,7 +1078,7 @@ func (w *walker) urfave(n *ast.CompositeLit) {
 		key := fmt.Sprintf("%s#%s", base, nm)
 		ev := w.a.events[key]
 		if ev == nil {
-			ev = &event{key: key, name: nm, idiom: IdiomUrfave, identity: identity}
+			ev = &event{key: key, name: nm, idiom: IdiomUrfave, identity: identity, fnKey: w.fn.key, root: w.fn.decl == nil}
 			w.a.events[key] = ev
 		}
 		ev.hidden = ev.hidden || hidden
