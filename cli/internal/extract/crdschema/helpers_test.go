@@ -26,6 +26,7 @@ type memReader struct {
 	modes   map[string]string            // path -> git mode override
 	reverse bool                         // list in reverse order
 	readErr error                        // returned by every Read when set
+	trees   []string                     // directory entries listed at every commit
 }
 
 func newMem() *memReader {
@@ -60,6 +61,11 @@ func (m *memReader) List(_ extract.RepoRef, commit, dir string) ([]extract.TreeE
 			out = append(out, extract.TreeEntry{Mode: mode, Type: "blob", Path: p})
 		}
 	}
+	for _, t := range m.trees {
+		if path.Dir(t) == dir {
+			out = append(out, extract.TreeEntry{Mode: "040000", Type: "tree", Path: t})
+		}
+	}
 	if len(out) == 0 {
 		return nil, fmt.Errorf("%w: %s", extract.ErrNotFound, dir)
 	}
@@ -84,6 +90,7 @@ type expected struct {
 type testCase struct {
 	name     string
 	from, to map[string][]byte // path -> bytes
+	trees    []string
 	exp      expected
 }
 
@@ -91,6 +98,7 @@ var testTarget = Target{Repo: repo, Dirs: []string{"crd"}}
 
 func (c testCase) reader() *memReader {
 	m := newMem()
+	m.trees = c.trees
 	for p, d := range c.from {
 		m.put(commitA, p, d)
 	}
@@ -169,6 +177,8 @@ func syntheticCases() []testCase {
 	return []testCase{
 		{name: "dir_missing_in_to", from: map[string][]byte{"crd/crd.yaml": simpleCRD("k", "x")}, to: map[string][]byte{},
 			exp: expected{Omissions: []string{"INVENTORY_FAULT_path_missing|crd|1", "CRD_PRESENCE_UNSTABLE|example.io/Widget|1"}}},
+		{name: "unlisted_subtree", trees: []string{"crd/extra"}, from: map[string][]byte{"crd/crd.yaml": simpleCRD("k", "x")}, to: map[string][]byte{"crd/crd.yaml": simpleCRD("k")},
+			exp: expected{Fields: []string{"example.io/Widget/spec/x"}, Omissions: []string{"INVENTORY_FAULT_unlisted_subtree|crd/extra|2"}}},
 		{name: "too_large_file", from: map[string][]byte{"crd/crd.yaml": simpleCRD("k", "x")}, to: map[string][]byte{"crd/crd.yaml": huge},
 			exp: expected{Omissions: []string{"CRD_TOO_LARGE|crd/crd.yaml|1", "CRD_PRESENCE_UNSTABLE|example.io/Widget|1"}}},
 		{name: "too_deep_schema", from: map[string][]byte{"crd/crd.yaml": simpleCRD("k", "x")}, to: map[string][]byte{"crd/crd.yaml": deepCRD},

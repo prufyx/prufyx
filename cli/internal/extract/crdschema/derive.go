@@ -72,6 +72,9 @@ type Omission struct {
 // Result is what Derive returns.
 type Result struct {
 	Schema string `json:"schema"`
+	// From and To are the commits the result is for.
+	From string `json:"from"`
+	To   string `json:"to"`
 	// Fields and Enums are the set fact values: the removed members, and
 	// complete only when the withhold set is empty.
 	Fields constraintengine.SetValue `json:"fields"`
@@ -103,6 +106,7 @@ type guards struct {
 	rename          bool
 	presence        bool
 	collisions      bool
+	subtrees        bool
 	fieldEnc        func(group, kind string, p []membercode.Seg) (string, error)
 	enumEnc         func(group, kind string, p []membercode.Seg, v string) (string, error)
 }
@@ -111,13 +115,20 @@ func defaultGuards() guards {
 	return guards{
 		parse:      parseGuards{strict: true, secret: true, nonCRD: true, limits: true, unmodel: true},
 		servedOnly: true, webhook: true, versionSpecific: true, preserve: true, status: true,
-		rename: true, presence: true, collisions: true,
+		rename: true, presence: true, collisions: true, subtrees: true,
 		fieldEnc: membercode.Field, enumEnc: membercode.Enum,
 	}
 }
 
 // Derive compares the CRD files of target at from and to (full 40-character
-// commits). A non-nil error means the run could not read pinned bytes
+// commits).
+//
+// A result is valid for exactly that pair. Results of several pairs must not
+// be unioned: a field removed from A to B and added back from B to C is gone
+// in neither A to C, and the rename and version-specific checks look at the
+// two commits only. To widen over a line, call Derive with the first and last
+// commit (or a dedicated line-wide function), and AND the complete flags of
+// anything combined. A non-nil error means the run could not read pinned bytes
 // (reader failure, bad input); anything the extractor cannot decide is in the
 // result's omissions instead.
 func Derive(ctx context.Context, r extract.PinnedReader, t Target, from, to string) (*Result, error) {
@@ -139,7 +150,7 @@ func derive(ctx context.Context, r extract.PinnedReader, t Target, from, to stri
 	if err != nil {
 		return nil, err
 	}
-	return compare(a, b, g), nil
+	return compare(a, b, from, to, g), nil
 }
 
 type side struct {
@@ -165,6 +176,13 @@ func readSide(ctx context.Context, r extract.PinnedReader, t Target, commit stri
 			continue
 		}
 		for _, e := range entries {
+			// Only a directory entry is withheld here: the listing is one
+			// level deep, so a subtree (or submodule) may hold CRDs that
+			// this pass never reads.
+			if e.Type != "blob" && g.subtrees {
+				s.faults = append(s.faults, fault{reason: ReasonUnlistedSubtree, file: e.Path})
+				continue
+			}
 			ext := path.Ext(e.Path)
 			if ext != ".yaml" && ext != ".yml" {
 				continue
@@ -248,7 +266,7 @@ type out struct {
 	omit, exclusion ledger
 }
 
-func compare(a, b *side, g guards) *Result {
+func compare(a, b *side, from, to string, g guards) *Result {
 	o := &out{
 		fields: map[string]string{}, enums: map[string]string{}, dropped: map[string]bool{},
 		omit: ledger{}, exclusion: ledger{},
@@ -286,7 +304,7 @@ func compare(a, b *side, g guards) *Result {
 		}
 		diffCRD(o, da, db, subject, g)
 	}
-	res := &Result{Schema: ResultSchema, Omissions: o.omit.list(), Exclusions: o.exclusion.list()}
+	res := &Result{Schema: ResultSchema, From: from, To: to, Omissions: o.omit.list(), Exclusions: o.exclusion.list()}
 	complete := len(res.Omissions) == 0
 	fm, over := capped(o.fields, o.dropped, "f")
 	if over {
@@ -298,6 +316,12 @@ func compare(a, b *side, g guards) *Result {
 		res.Omissions = append(res.Omissions, Omission{Reason: ReasonSetTooLarge, Subject: "enums", Count: 1})
 		complete = false
 	}
+	sort.Slice(res.Omissions, func(i, j int) bool {
+		if res.Omissions[i].Reason != res.Omissions[j].Reason {
+			return res.Omissions[i].Reason < res.Omissions[j].Reason
+		}
+		return res.Omissions[i].Subject < res.Omissions[j].Subject
+	})
 	res.Fields = constraintengine.SetValue{Members: fm, Complete: complete}
 	res.Enums = constraintengine.SetValue{Members: em, Complete: complete}
 	return res
@@ -466,8 +490,20 @@ func diffCRD(o *out, da, db *crdDoc, subject string, g guards) {
 		var reasons []string
 		if last := segs[len(segs)-1]; last.Kind != membercode.Prop {
 			reasons = append(reasons, ReasonParseUnproven)
-		} else if g.rename && bNames[last.Name] {
-			reasons = append(reasons, ReasonRename)
+		}
+		if g.rename {
+			// Any property of the removed subtree that appears as a new
+			// name elsewhere may have moved with it.
+			for _, dk := range sortedKeys(removed) {
+				d := removed[dk]
+				if !hasPrefix(d, segs) {
+					continue
+				}
+				if l := d[len(d)-1]; l.Kind == membercode.Prop && bNames[l.Name] {
+					reasons = append(reasons, ReasonRename)
+					break
+				}
+			}
 		}
 		reasons = append(reasons, chainReasons(segs, va, vb, g)...)
 		handle(k, segs, dedup(reasons), removed)
@@ -632,7 +668,11 @@ func diffEnums(o *out, da, db *crdDoc, subject string, va, vb []served, ub map[s
 				}
 			}
 		}
-		if nonString {
+		if statusScoped && isStatus(segs) {
+			if nonString {
+				continue // status is out of scope whatever its enum holds
+			}
+		} else if nonString {
 			o.omit.add(ReasonParseUnproven, subject)
 			continue
 		}

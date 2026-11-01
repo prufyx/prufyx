@@ -1,0 +1,10 @@
+{
+  "complete": false,
+  "enums": [],
+  "exclusions": [],
+  "fields": [],
+  "lossy": false,
+  "omissions": [
+    "RENAME_CANDIDATE|example.io/Widget|1"
+  ]
+}

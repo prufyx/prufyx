@@ -16,6 +16,7 @@ const (
 	ReasonNonCRD          = "NON_CRD_DOCUMENT"
 	ReasonPathMissing     = "INVENTORY_FAULT_path_missing"
 	ReasonSourceKind      = "INVENTORY_FAULT_source_kind"
+	ReasonUnlistedSubtree = "INVENTORY_FAULT_unlisted_subtree"
 	ReasonMemberCharset   = "MEMBER_CHARSET"
 	ReasonMemberTooLong   = "MEMBER_TOO_LONG"
 	ReasonMemberAmbiguous = "MEMBER_AMBIGUOUS"
@@ -23,8 +24,8 @@ const (
 )
 
 // ReasonStatusPath is a scope exclusion, not a withhold: a removal under
-// status of a CRD that declares a status subresource in both releases is
-// listed in the ledger and does not make the pair incomplete.
+// status is listed in the ledger and does not make the pair incomplete. It
+// applies to every CRD, whether or not it declares a status subresource.
 const ReasonStatusPath = "CRD_STATUS_PATH"
 
 // Limits. Anything above them is withheld, never truncated.
