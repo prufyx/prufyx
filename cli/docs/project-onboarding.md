@@ -89,6 +89,29 @@ repository-relative candidate; it is not fetched until `sync`. The optional
 license disposition records a declaration for review and is not a legal or
 license determination.
 
+## Check a request offline
+
+`validate` checks a request file against the closed v1 (release window) or v2
+(exact tags) schema without any network access, and without creating files:
+
+```sh
+prufyx-maintainer project validate --request project-request.json
+```
+
+On success it prints one JSON line with `valid`, `schema`, `repository`,
+`slug`, and `requestDigest`, and exits 0. Any malformed, duplicated, unknown,
+or non-canonical field exits 2 with `INVALID_INPUT_OR_INTEGRITY_FAILURE`.
+
+## Submit a request as a maintainer
+
+Open the issue form "Project onboarding request" in the
+[Prufyx repository](https://github.com/prufyx/prufyx/issues/new/choose). Its
+fields map one-to-one to the `project init` flags above (repository, slug,
+release limit, tag prefix, changelog paths, license disposition). A reviewer
+turns the issue into a request file with `project init`, runs `project
+validate`, and only then `project sync`. Submitting the form does not add a
+rule, assert compatibility, or publish a project. Public data only.
+
 Example request files are available at
 `examples/project-onboarding/mariadb-operator-request.json`,
 `examples/project-onboarding/datadog-operator-request.json`, and
