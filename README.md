@@ -297,6 +297,29 @@ Version-coverage depth, measured over the last five minor upgrades of each of th
 Kubernetes: 63 valid rules, but 19 fall in its window 1.32 to 1.37; 0 of 5 upgrades in that window are gaps.
 
 Decided means a valid rule or attestation covers every version of both release lines. It never means a whole-upgrade PASS. Only 8 of the 46 decided upgrades are decided by a rule, or by an attestation that lists rules, so the answer for them can be BLOCKED or UNKNOWN. The other 38 are decided only by line attestations that list no rule (38 by `crd.custom_resource_versions`): for them an attestation can only give a family-scoped PASS (`scan` prints "PASS within <family> only"), never BLOCKED. An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.
+
+Metric v2, Decided Pair Coverage, shown beside the v1 table above (v1 measures one fact family, so its share is not comparable). It covers the last two upgrades (last three release lines) of 30 Tier 1 and 0 Tier 2 projects: 60 upgrades, split into 420 cells, one per fact family that applies to the project. Tier 1 is the priority portfolio; no reviewed tier definition exists yet. Tier 2 has no reviewed list yet.
+
+| Measure | Value |
+| --- | --- |
+| DPC-declared: weighted share of cells with a line attestation | 2% |
+| DPC-reachable: the same, counting only cells whose fact the shipped client can read from manifests | 2% |
+| Cells attested | 9 of 420 (9 of them reachable, 0 declared only) |
+| Cells bounded by a rule range only, not counted | 0 |
+| Cells open, not counted | 411 |
+| Upgrades with every cell attested | 0 of 60 |
+
+| Fact family | Cells | Attested | Reachable | Producer in the shipped client (for at least one project) |
+| --- | --- | --- | --- | --- |
+| `crd.versions` | 60 | 7 | 7 | manifest |
+| `crd.schema` | 60 | 0 | 0 | none |
+| `helm.values` | 60 | 0 | 0 | none |
+| `cli.flags` | 60 | 0 | 0 | none |
+| `config.keys` | 60 | 0 | 0 | none |
+| `k8s.api` | 60 | 2 | 2 | manifest |
+| `k8s.min` | 60 | 0 | 0 | none |
+
+Declared means a reviewed line attestation exists in the knowledge. Reachable also needs the shipped client to produce that fact from manifests; an attested cell without a producer is declared only and is not in the reachable share. A bounded or open cell is not coverage, and a family with no measurement yet counts as open, never as not applicable (0 project-family-upgrade cells exempted by reviewed exemptions). Weights: Tier 1 three times Tier 2, the newest upgrade twice the one before. Neither share says that any upgrade is safe.
 <!-- coverage:end -->
 
 Update the block with `scripts/readme-coverage.sh` (`--check` fails when it is

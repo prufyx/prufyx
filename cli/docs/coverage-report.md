@@ -47,6 +47,40 @@ Projects whose release lines are not the `major.minor` of the engine version
 on exact pairs only: their ranges, crossings and attestations are never read as
 line-wide.
 
+## Metric v2: Decided Pair Coverage
+
+The README block prints metric v2 beside the v1 table above (v1 measures one
+fact family, so the two shares are not comparable). It is computed by
+`coverage readme` (`Input.V2` in the library) from two embedded data files in
+`cli/internal/maintainer/coveragereport/data/`:
+
+- `tiers.json`: Tier 1 and Tier 2 project lists, with `verified` and a
+  `source`. Tier 1 is the priority portfolio of the pinned lines snapshot;
+  Tier 2 is empty until a reviewed list exists. While `verified` is false the
+  README says no reviewed tier definition exists yet.
+- `family-applicability.json`: reviewed exemptions only (project, family,
+  reason, basis). Every family applies to every project otherwise.
+
+Universe: the tiered projects that have lines in the snapshot, last three
+release lines each, so two consecutive upgrades (a project with only two
+lines yields one upgrade). Each upgrade is split into
+cells, one per applicable family of `crd.versions`, `crd.schema`,
+`helm.values`, `cli.flags`, `config.keys`, `k8s.api`, `k8s.min`. A cell is
+`attested` (the upgrade is A and the family decides it), `bounded` (B, a rule
+range) or `open`. Only `attested` counts. A family without a measurement
+source yet (all but `crd.versions` and `k8s.api`) is `open`, never "not
+applicable".
+
+DPC-declared is the weighted share of attested cells (an upgrade with 1 of 7
+cells attested counts 1/7). Weights: Tier 1 three times Tier 2, the newest
+upgrade twice the one before. DPC-reachable counts an attested cell only when
+the shipped client can produce its fact from manifests: `crd.versions` for
+projects with a CNCF custom-resource row, `k8s.api` for Kubernetes. The
+producer is derived from the scan routes, not read from a fact definition
+(the registry has no such field). A declared cell without a producer is
+reported as declared only. The report JSON gains `cells` and `weight` on those
+pairs and a `v2` member only when v2 is requested.
+
 ## Inputs
 
 The pack is the embedded pack, or a file given with `--pack`. The versions come
