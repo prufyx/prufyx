@@ -165,29 +165,37 @@ func TestCustomResourceVersionsAmbiguousGroup(t *testing.T) {
 	}
 }
 
-// argoproj.io is listed for argo-cd only (the catalog project is the whole
-// Argo project): objects of other Argo components join argo-cd's set by
-// group. If a second project ever listed the group, it would become
-// ambiguous and these objects would join no set (see the table's note).
+// argoproj.io is listed for argo-cd by kind (AppProject, Application,
+// ApplicationSet): the kinds of other Argo components (a Rollout, a Workflow)
+// are not argo-cd's. They join no set and keep the argo-cd set incomplete
+// until the table lists them for their own projects.
 func TestCustomResourceVersionsSharedArgoGroup(t *testing.T) {
 	application := crObject("argoproj.io/v1alpha1", "Application", "app")
 	rollout := crObject("argoproj.io/v1alpha1", "Rollout", "web")
-	scan := prepareCR(t, crDocs(application, rollout), "argo-cd", true)
+	scan := prepareCR(t, crDocs(application), "argo-cd", true)
 	f := crFact(t, scan.Prepared)
-	if !f.SetValue.Complete || !reflect.DeepEqual(f.SetValue.Members, []string{"argoproj.io/v1alpha1/Application", "argoproj.io/v1alpha1/Rollout"}) {
+	if !f.SetValue.Complete || !reflect.DeepEqual(f.SetValue.Members, []string{"argoproj.io/v1alpha1/Application"}) {
 		t.Fatalf("argo-cd fact %+v", f)
 	}
-	if owner, attribution := customresources.DefaultIndex().Owner("argoproj.io"); attribution != customresources.Owned || owner != "argo-cd" {
-		t.Fatalf("argoproj.io: %q %v", owner, attribution)
+	scan = prepareCR(t, crDocs(application, rollout), "argo-cd", true)
+	f = crFact(t, scan.Prepared)
+	if f.SetValue.Complete || !reflect.DeepEqual(f.SetValue.Members, []string{"argoproj.io/v1alpha1/Application"}) || len(scan.Unattributed) != 1 {
+		t.Fatalf("argo-cd fact with a Rollout %+v unattributed %d", f, len(scan.Unattributed))
 	}
+	index := customresources.DefaultIndex()
+	for kind, want := range map[string]customresources.Attribution{"AppProject": customresources.Owned, "Application": customresources.Owned, "ApplicationSet": customresources.Owned, "Rollout": customresources.Unknown, "Workflow": customresources.Unknown} {
+		if owner, attribution := index.OwnerOf("argoproj.io", kind); attribution != want || (want == customresources.Owned && owner != "argo-cd") {
+			t.Fatalf("argoproj.io %s: %q %v", kind, owner, attribution)
+		}
+	}
+	if _, attribution := index.Owner("argoproj.io"); attribution != customresources.Owned {
+		t.Fatalf("argoproj.io: %v", attribution)
+	}
+	// A project that lists the whole group beside argo-cd's kinds is refused.
 	shared := customresources.Projects()
 	shared = append(shared, customresources.Project{Slug: "argo-workflows", FactProject: "argo_workflows", Component: "pkg:github/argoproj/argo-workflows", Groups: []customresources.Group{{Name: "argoproj.io"}}})
-	ambiguous, err := prepareCustomResourceVersions(customresources.NewIndex(shared), crWorkspace(t, crDocs(application)), "argo-cd", "2.14.0", "3.0.0", true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if f := crFact(t, ambiguous.Prepared); f.SetValue.Complete || len(f.SetValue.Members) != 0 || len(ambiguous.Unattributed) != 1 {
-		t.Fatalf("shared argoproj.io: %+v", f)
+	if customresources.Validate(shared) {
+		t.Fatal("a whole-group listing beside argo-cd's kinds was accepted")
 	}
 }
 
