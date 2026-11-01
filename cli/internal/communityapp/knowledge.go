@@ -175,6 +175,9 @@ func (r runtime) databaseImport(args []string) int {
 		if len(receipt.ProjectTargets) > 0 {
 			fmt.Fprintf(&output, "project targets: %d\n", len(receipt.ProjectTargets))
 		}
+		if receipt.Compat {
+			fmt.Fprintf(&output, "compat: feed of a later release; %d project(s) unknown to this prufyx kept unread; rules needing unknown facts stay UNKNOWN\n", len(receipt.UnreadableProjects))
+		}
 		if receipt.TrustReceipt.Purpose == "synthetic_test_only" {
 			fmt.Fprintln(&output, "authority: synthetic test knowledge only; no official Prufyx trust root or compatibility proof")
 		}

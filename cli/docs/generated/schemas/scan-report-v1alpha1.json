@@ -1183,6 +1183,15 @@
           "items": {
             "$ref": "#/$defs/knowledgeStoreProject"
           }
+        },
+        "compat": {
+          "type": "boolean"
+        },
+        "unreadableProjects": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },

@@ -255,7 +255,13 @@ func TestStoreScanKnowledgeDropsProjectWithDeferredRule(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(knowledge.rules[feed.project]) != 0 || len(knowledge.selected) != len(bundles)-1 {
-		t.Fatalf("project with a deferred rule kept scan knowledge: %d rules, %d/%d selected", len(knowledge.rules[feed.project]), len(knowledge.selected), len(bundles))
+	if len(knowledge.Rules(feed.project)) != 0 || knowledge.DeferredRules(feed.project) == 0 {
+		t.Fatalf("project with a deferred rule: %d scan rules, %d deferred", len(knowledge.Rules(feed.project)), knowledge.DeferredRules(feed.project))
+	}
+	// The project stays in the snapshot: a hop on it is answered, never an
+	// integrity failure, and the answer holds no claim.
+	report, err := knowledge.CheckFacts(feed.project, []string{feed.oldFact}, feed.input, reviewClock(t))
+	if errors.Is(err, ErrIntegrity) || (err == nil && len(report.Check.Claims) != 0) {
+		t.Fatalf("deferred project answered: err %v, claims %d", err, len(report.Check.Claims))
 	}
 }

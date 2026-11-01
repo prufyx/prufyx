@@ -1,3 +1,4 @@
 ### Changed
 
 - `prufyx db update` (per-project feed) now reads a signed feed from a later release that registers more facts or lists more projects than this build knows. Rules that need a fact this build does not register are not evaluated (no claim, never a PASS; the report lists them as `deferredRules` and the result stays UNKNOWN), projects this build does not know are ignored, and a project holding such a rule has no store scan result. A feed built for another engine contract or policy is still refused with exit 15. Builds before this change still refuse any feed whose registry differs from theirs.
+- `prufyx db status`, the import output and the scan report's `knowledgeStore` now say when the database holds a feed of a later release (`compat`, `unreadableProjects`); a scan reports a project whose target holds rules this build cannot evaluate with the gap `PROJECT_NOT_IN_KNOWLEDGE` (variant `rules-deferred`) instead of failing.

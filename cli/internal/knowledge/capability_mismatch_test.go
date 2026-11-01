@@ -100,9 +100,28 @@ func TestFutureFeedImportsInCompatMode(t *testing.T) {
 	if !listed {
 		t.Fatal("the receipt does not list the project of the later release")
 	}
-	// Kept as verified bytes, never parsed: the stored package must re-verify.
-	if _, err := InspectConstraintsProjects(f.store); err != nil {
-		t.Fatalf("status of a store holding a future feed: %v", err)
+	if !receipt.Compat || len(receipt.UnreadableProjects) != 1 || receipt.UnreadableProjects[0] != "zz-future-project" {
+		t.Fatalf("compat mode not visible in the receipt: %+v %v", receipt.Compat, receipt.UnreadableProjects)
+	}
+	// Kept as verified bytes, never parsed: the stored package must re-verify
+	// when it is read again later (status, then open for a known project).
+	status, err := InspectConstraintsProjects(f.store)
+	if err != nil || status.State != "READY" || !status.Compat || len(status.UnreadableProjects) != 1 {
+		t.Fatalf("status of a store holding a future feed: %+v %v", status, err)
+	}
+	var known string
+	for _, project := range receipt.ProjectTargets {
+		if project.Project != "zz-future-project" {
+			known = project.Project
+			break
+		}
+	}
+	opened, err := OpenSelectedCNCF(SelectionRequest{StoreRoot: f.store}, []string{known, "zz-future-project"})
+	if err != nil {
+		t.Fatalf("reopen a store holding a future feed: %v", err)
+	}
+	if _, ok := opened.ProjectTarget(known); !ok {
+		t.Fatal("known project target missing after reopen")
 	}
 	if _, err := f.importPackage(f.write(t, knowledgefixture.ProjectsPackage{Targets: futureProjectsTargets(t, "6")})); err != nil {
 		t.Fatalf("second future feed: %v", err)

@@ -508,6 +508,9 @@ func (r runtime) writeKnowledgeUpdate(output knowledgeUpdateOutput, format strin
 		if len(receipt.ProjectTargets) > 0 {
 			fmt.Fprintf(&b, "project targets: %d\n", len(receipt.ProjectTargets))
 		}
+		if receipt.Compat {
+			fmt.Fprintf(&b, "compat: feed of a later release; %d project(s) unknown to this prufyx kept unread; rules needing unknown facts stay UNKNOWN\n", len(receipt.UnreadableProjects))
+		}
 		if receipt.TrustReceipt.Purpose == "synthetic_test_only" {
 			fmt.Fprintln(&b, "authority: synthetic test knowledge only; no official Prufyx trust root or compatibility proof")
 		}

@@ -405,8 +405,8 @@ func Run(request Request, options Options) (Result, error) {
 			// A declared chart hop: its versions are chart versions, so no
 			// application rule (custom-resource, Kubernetes) is run on them.
 			report.Inventory = append(report.Inventory, *component)
-			if store != nil && store.Absent[slug] {
-				report.Gaps = append(report.Gaps, scanreport.NewGap(slug, nil, scanreport.GapProjectNotInKnowledge, slug))
+			if gap, unavailable := storeGap(store, slug); unavailable {
+				report.Gaps = append(report.Gaps, gap)
 				continue
 			}
 			run := &helmChartRun{knowledge: knowledge, now: now, report: &report, workspace: manifests, slug: slug, component: component.Component, decl: decl, policy: request.TrustPolicy}
@@ -431,8 +431,8 @@ func Run(request Request, options Options) (Result, error) {
 		if run, ok := newCustomResourceRun(knowledge, now, &report, manifests, slug, component.Component, declarationsOf(effective), request.TrustPolicy); ok {
 			// Checked for custom-resource versions only: never covered.
 			report.Inventory = append(report.Inventory, *component)
-			if store != nil && store.Absent[slug] {
-				report.Gaps = append(report.Gaps, scanreport.NewGap(slug, nil, scanreport.GapProjectNotInKnowledge, slug))
+			if gap, unavailable := storeGap(store, slug); unavailable {
+				report.Gaps = append(report.Gaps, gap)
 				continue
 			}
 			if err := run.evaluate(component.Current, component.Target); err != nil {
@@ -445,11 +445,12 @@ func Run(request Request, options Options) (Result, error) {
 			report.Inventory = append(report.Inventory, *component)
 			continue
 		}
-		if store != nil && store.Absent[slug] {
-			// The selected index has no target for the component: no rule,
-			// review or policy can apply, and nothing is borrowed from the
-			// embedded knowledge.
-			report.Gaps = append(report.Gaps, scanreport.NewGap(slug, nil, scanreport.GapProjectNotInKnowledge, slug))
+		if gap, unavailable := storeGap(store, slug); unavailable {
+			// The selected index has no target for the component, or its
+			// target holds rules this build cannot evaluate: no rule, review
+			// or policy can apply, and nothing is borrowed from the embedded
+			// knowledge.
+			report.Gaps = append(report.Gaps, gap)
 			report.Inventory = append(report.Inventory, *component)
 			continue
 		}
@@ -806,4 +807,20 @@ func checkCommunityKnown(knowledge Knowledge, effective scanconfig.Effective) er
 		}
 	}
 	return nil
+}
+
+// storeGap is the gap of a project the selected store cannot answer for: it
+// has no target in the index, or its target holds rules this build cannot
+// evaluate.
+func storeGap(store *StoreInfo, slug string) (scanreport.Gap, bool) {
+	if store == nil {
+		return scanreport.Gap{}, false
+	}
+	if store.Absent[slug] {
+		return scanreport.NewGap(slug, nil, scanreport.GapProjectNotInKnowledge, slug), true
+	}
+	if n := store.Deferred[slug]; n > 0 {
+		return scanreport.NewGap(slug, nil, scanreport.GapProjectRulesDeferred, slug, n), true
+	}
+	return scanreport.Gap{}, false
 }
