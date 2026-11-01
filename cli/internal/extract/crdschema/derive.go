@@ -27,6 +27,7 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -52,9 +53,23 @@ func (t Target) validate() error {
 	if len(t.Files)+len(t.Dirs) == 0 {
 		return errors.New("crdschema: target names no file or directory")
 	}
-	for _, p := range append(append([]string(nil), t.Files...), t.Dirs...) {
-		if p == "" || p != path.Clean(p) || strings.HasPrefix(p, "/") || p == ".." || strings.HasPrefix(p, "../") {
+	check := func(p string, rootOK bool) error {
+		if p == "" && rootOK {
+			return nil // the repository root, listed one level deep
+		}
+		if p == "" || p == "." || p != path.Clean(p) || strings.HasPrefix(p, "/") || p == ".." || strings.HasPrefix(p, "../") {
 			return fmt.Errorf("crdschema: target path %q is not a clean repository-relative path", p)
+		}
+		return nil
+	}
+	for _, p := range t.Files {
+		if err := check(p, false); err != nil {
+			return err
+		}
+	}
+	for _, p := range t.Dirs {
+		if err := check(p, true); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -130,7 +145,9 @@ func defaultGuards() guards {
 // commit (or a dedicated line-wide function), and AND the complete flags of
 // anything combined. A non-nil error means the run could not read pinned bytes
 // (reader failure, bad input); anything the extractor cannot decide is in the
-// result's omissions instead.
+// result's omissions instead. Result.Omissions is local to this package: the
+// code that wires the extractor into the framework must map it into the
+// framework ledger, never drop it.
 func Derive(ctx context.Context, r extract.PinnedReader, t Target, from, to string) (*Result, error) {
 	return derive(ctx, r, t, from, to, defaultGuards())
 }
@@ -550,12 +567,30 @@ func chainReasons(segs []membercode.Seg, va, vb []served, g guards) []string {
 		}
 	}
 	for _, v := range vb {
-		for i := len(segs) - 1; i >= 0; i-- {
-			if n, ok := v.t.nodes[segKey(segs[:i])]; ok {
-				flag(n)
-				break
-			}
+		r = append(r, missingInB(v, segs, g)...)
+	}
+	return r
+}
+
+// missingInB says why a path that a served version of B does not list may
+// still be accepted there: the nearest ancestor that exists preserves unknown
+// fields, takes any property through a typed additionalProperties, or holds a
+// keyword the extractor does not model.
+func missingInB(v served, segs []membercode.Seg, g guards) []string {
+	var r []string
+	for i := len(segs) - 1; i >= 0; i-- {
+		n, ok := v.t.nodes[segKey(segs[:i])]
+		if !ok {
+			continue
 		}
+		_, anyChild := v.t.nodes[segKey(append(append([]membercode.Seg(nil), segs[:i]...), membercode.Seg{Kind: membercode.Any}))]
+		if g.preserve && (n.chainPreserve() || anyChild) {
+			r = append(r, ReasonPreserveUnknown)
+		}
+		if g.parse.unmodel && n.chainUnmodel() {
+			r = append(r, ReasonParseUnproven)
+		}
+		break
 	}
 	return r
 }
@@ -632,12 +667,16 @@ func diffEnums(o *out, da, db *crdDoc, subject string, va, vb []served, ub map[s
 		}
 		vals := map[string]bool{}
 		nonString, any := false, false
+		rawA, rawB := map[string]bool{}, map[string]bool{}
 		for _, v := range va {
 			if n, ok := v.t.nodes[k]; ok && n.enum.present {
 				any = true
 				nonString = nonString || n.enum.nonString
 				for x := range n.enum.vals {
 					vals[x] = true
+				}
+				for x := range n.enum.raw {
+					rawA[x] = true
 				}
 			}
 		}
@@ -646,16 +685,23 @@ func diffEnums(o *out, da, db *crdDoc, subject string, va, vb []served, ub map[s
 		}
 		var common []string
 		for _, v := range vb {
-			if n, ok := v.t.nodes[k]; ok {
-				if n.enum.nonString {
-					nonString = true
-				}
-				if g.preserve && n.chainPreserve() {
-					common = append(common, ReasonPreserveUnknown)
-				}
-				if g.parse.unmodel && n.chainUnmodel() {
-					common = append(common, ReasonParseUnproven)
-				}
+			n, ok := v.t.nodes[k]
+			if !ok {
+				// A version of B without the node may still accept the value.
+				common = append(common, missingInB(v, segs, g)...)
+				continue
+			}
+			if n.enum.nonString {
+				nonString = true
+			}
+			for x := range n.enum.raw {
+				rawB[x] = true
+			}
+			if g.preserve && n.chainPreserve() {
+				common = append(common, ReasonPreserveUnknown)
+			}
+			if g.parse.unmodel && n.chainUnmodel() {
+				common = append(common, ReasonParseUnproven)
 			}
 		}
 		for _, v := range va {
@@ -667,6 +713,9 @@ func diffEnums(o *out, da, db *crdDoc, subject string, va, vb []served, ub map[s
 					common = append(common, ReasonParseUnproven)
 				}
 			}
+		}
+		if nonString && reflect.DeepEqual(rawA, rawB) {
+			continue // a non-string enum that did not change decides nothing
 		}
 		if statusScoped && isStatus(segs) {
 			if nonString {
@@ -681,6 +730,16 @@ func diffEnums(o *out, da, db *crdDoc, subject string, va, vb []served, ub map[s
 			for _, bv := range vb {
 				n, ok := bv.t.nodes[k]
 				if !ok {
+					// The version lacks the field: a change that is specific
+					// to it when A's same-named version listed the value.
+					if len(missingInB(bv, segs, g)) > 0 {
+						continue // possibly still accepted there: reported in common
+					}
+					for _, av := range va {
+						if an, had := av.t.nodes[k]; had && av.name == bv.name && (!an.enum.present || an.enum.vals[val]) {
+							rejectSome = true
+						}
+					}
 					continue
 				}
 				if !n.enum.present || n.enum.vals[val] {

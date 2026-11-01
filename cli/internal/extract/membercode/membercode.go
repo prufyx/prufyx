@@ -12,7 +12,7 @@
 //
 //	field       group/Kind/seg/seg/...
 //	enum value  group/Kind/seg/seg/.../value
-//	flag        flag or sub/flag
+//	flag        flag
 //	config key  seg.seg.seg
 //
 // An array item segment is "_item_" and a map value segment is "_any_". A
@@ -169,19 +169,13 @@ func Enum(group, kind string, path []Seg, value string) (string, error) {
 	return join('/', head, path, value)
 }
 
-// Flag encodes a command line flag name (without leading dashes), with an
-// optional subcommand.
-func Flag(sub, flag string) (string, error) {
+// Flag encodes a command line flag name (without leading dashes). Flags are
+// matched by long name only: there is no subcommand form.
+func Flag(flag string) (string, error) {
 	if err := checkName(flag, '/'); err != nil {
 		return "", err
 	}
-	if sub == "" {
-		return finish(flag)
-	}
-	if err := checkName(sub, '/'); err != nil {
-		return "", err
-	}
-	return finish(sub + "/" + flag)
+	return finish(flag)
 }
 
 // ConfigKey encodes a config key path, dot separated. A name that holds a dot

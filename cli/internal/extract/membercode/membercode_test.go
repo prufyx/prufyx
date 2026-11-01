@@ -35,8 +35,7 @@ func TestGoldenVectors(t *testing.T) {
 		{"field", func() (string, error) { return Field("keda.sh", "ScaledJob", p("spec", "jobTargetRef")) }, "keda.sh/ScaledJob/spec/jobTargetRef", nil},
 		{"field item and any", func() (string, error) { return Field("a.io", "K", p("spec", "list", "[]", "m", "*", "x")) }, "a.io/K/spec/list/_item_/m/_any_/x", nil},
 		{"enum", func() (string, error) { return Enum("a.io", "K", p("spec", "mode"), "Never") }, "a.io/K/spec/mode/Never", nil},
-		{"flag", func() (string, error) { return Flag("", "feature-gates") }, "feature-gates", nil},
-		{"sub flag", func() (string, error) { return Flag("serve", "port") }, "serve/port", nil},
+		{"flag", func() (string, error) { return Flag("feature-gates") }, "feature-gates", nil},
 		{"config key", func() (string, error) { return ConfigKey(p("server", "tls", "[]", "cert")) }, "server.tls._item_.cert", nil},
 		{"space", func() (string, error) { return Field("a.io", "K", p("spec", "a b")) }, "", ErrCharset},
 		{"at sign", func() (string, error) { return Field("a.io", "K", p("spec", "a@b")) }, "", ErrCharset},
@@ -50,6 +49,7 @@ func TestGoldenVectors(t *testing.T) {
 		{"enum value space", func() (string, error) { return Enum("a.io", "K", p("m"), "a b") }, "", ErrCharset},
 		{"enum value empty", func() (string, error) { return Enum("a.io", "K", p("m"), "") }, "", ErrCharset},
 		{"config dot in name", func() (string, error) { return ConfigKey(p("a.b")) }, "", ErrAmbiguous},
+		{"flag with slash", func() (string, error) { return Flag("serve/port") }, "", ErrAmbiguous},
 		{"empty path", func() (string, error) { return Field("a.io", "K", nil) }, "", ErrCharset},
 		{"leading dot group", func() (string, error) { return Field(".io", "K", p("a")) }, "", ErrCharset},
 	}
