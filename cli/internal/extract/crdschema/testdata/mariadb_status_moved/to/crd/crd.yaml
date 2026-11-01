@@ -1,0 +1,37 @@
+# Shape after the mariadb-operator MariaDB CRD (MIT), trimmed.
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: mariadbs.k8s.mariadb.com
+spec:
+  group: k8s.mariadb.com
+  names:
+    kind: MariaDB
+    plural: mariadbs
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              image:
+                type: string
+          status:
+            type: object
+            properties:
+              pointInTimeRecovery:
+                type: object
+                properties:
+                  other:
+                    type: boolean
+              replication:
+                type: object
+                properties:
+                  gtidStrictModePaused:
+                    type: boolean

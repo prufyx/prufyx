@@ -1,0 +1,12 @@
+{
+  "complete": false,
+  "enums": [],
+  "exclusions": [],
+  "fields": [
+    "example.io/Widget/spec/ok"
+  ],
+  "lossy": false,
+  "omissions": [
+    "MEMBER_CHARSET|example.io/Widget|1"
+  ]
+}

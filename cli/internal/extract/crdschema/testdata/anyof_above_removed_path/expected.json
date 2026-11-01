@@ -1,0 +1,10 @@
+{
+  "complete": false,
+  "enums": [],
+  "exclusions": [],
+  "fields": [],
+  "lossy": false,
+  "omissions": [
+    "CRD_PARSE_UNPROVEN|example.io/Widget|1"
+  ]
+}

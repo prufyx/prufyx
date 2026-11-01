@@ -1,0 +1,10 @@
+{
+  "complete": false,
+  "enums": [],
+  "exclusions": [],
+  "fields": [],
+  "lossy": false,
+  "omissions": [
+    "CRD_PRESENCE_UNSTABLE|example.io/Widget|1"
+  ]
+}
