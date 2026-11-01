@@ -73,6 +73,7 @@ func narrowingCases() []testCase {
 			from: map[string][]byte{"crd/widget.yaml": simpleCRD("k"), "crd/gadget.yaml": []byte(gadgetCRD), "crd/kustomization.yaml": []byte(kustAB)},
 			to:   map[string][]byte{"crd/widget.yaml": simpleCRD("k"), "crd/gadget.yaml": []byte(gadgetCRD), "crd/kustomization.yaml": []byte(kustA)},
 			exp:  expected{Omissions: []string{"NON_CRD_DOCUMENT|crd/kustomization.yaml|1"}, Exclusions: []string{"KUSTOMIZE_FILE_SKIPPED|crd/kustomization.yaml|1"}}},
+		kustCase("kustomize_foreign_resource", "kustomization.yaml", kust+"- ../extra\n", withheld("NON_CRD_DOCUMENT", "kustomization.yaml")),
 		kustCase("kustomize_name_case", "Kustomization.yaml", kust, withheld("NON_CRD_DOCUMENT", "Kustomization.yaml")),
 		kustCase("kustomize_secret_generator", "kustomization.yaml", kust+"secretGenerator:\n- name: s\n", withheld("NON_CRD_DOCUMENT", "kustomization.yaml")),
 
@@ -148,7 +149,7 @@ func TestIsKustomizeFileOneFieldAtATime(t *testing.T) {
 	}{
 		{"base", "kustomization.yaml", ok, true},
 		{"yml", "d/kustomization.yml", ok, true},
-		{"component without apiVersion", "kustomization.yaml", "kind: Component\n", true},
+		{"component without apiVersion", "kustomization.yaml", "kind: Component\nresources: [a.yaml]\n", true},
 		{"other name", "kustomization.yaml.txt", ok, false},
 		{"upper-case name", "KUSTOMIZATION.yaml", ok, false},
 		{"marker upper", "kustomization.yaml", ok + "x: CUSTOMRESOURCEDEFINITION\n", false},
@@ -167,7 +168,7 @@ func TestIsKustomizeFileOneFieldAtATime(t *testing.T) {
 		{"list root", "kustomization.yaml", "- a\n", false},
 		{"oversize", "kustomization.yaml", ok + "#" + strings.Repeat("x", maxFileBytes), false},
 	} {
-		if got := isKustomizeFile(tc.file, []byte(tc.body), nil, defaultGuards().parse); got != tc.want {
+		if got := isKustomizeFile(tc.file, []byte(tc.body), []string{"a.yaml"}, defaultGuards().parse); got != tc.want {
 			t.Errorf("%s: got %v, want %v", tc.name, got, tc.want)
 		}
 	}
@@ -182,7 +183,7 @@ func TestIsKustomizeFileSiblingsMustBeNamed(t *testing.T) {
 		siblings []string
 		want     bool
 	}{
-		{"no sibling", nil, true},
+		{"no sibling, entries are not siblings", nil, false},
 		{"all named", []string{"a.yaml", "b.yaml"}, true},
 		{"one unnamed", []string{"a.yaml", "c.yaml"}, false},
 		{"path entry does not name a sibling", []string{"sub/a.yaml"}, false},
@@ -207,7 +208,14 @@ func TestExplicitKustomizationFileIsRead(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Attestable() {
+	if res.Attestable() || len(res.Exclusions) != 0 {
 		t.Fatalf("explicit kustomization.yaml was skipped: %+v", res)
+	}
+	found := false
+	for _, o := range res.Omissions {
+		found = found || (o.Reason == "NON_CRD_DOCUMENT" && o.Subject == "crd/kustomization.yaml")
+	}
+	if !found {
+		t.Fatalf("no NON_CRD_DOCUMENT omission: %+v", res.Omissions)
 	}
 }
