@@ -39,7 +39,8 @@ func kustomizeName(file string) bool {
 //     kustomize.config.k8s.io group;
 //   - every sibling YAML file of the same listed directory (siblings, base
 //     names, the kustomization itself excluded) is named in resources or bases
-//     as its base name or ./base name. Otherwise a resources list is not inert:
+//     as its base name or ./base name, and every resources or bases entry is
+//     such a sibling (nothing else: no .., URL, subdirectory or glob). Otherwise a resources list is not inert:
 //     a CRD that one commit lists and the other leaves out of the list is a
 //     hidden removal, so the file stays an ordinary (non-CRD) document.
 func isKustomizeFile(file string, data []byte, siblings []string, g parseGuards) (ok bool) {
@@ -85,6 +86,10 @@ func isKustomizeFile(file string, data []byte, siblings []string, g parseGuards)
 		}
 	}
 	named := map[string]bool{}
+	sibSet := map[string]bool{}
+	for _, sb := range siblings {
+		sibSet[sb] = true
+	}
 	for i := 0; i+1 < len(root.Content); i += 2 {
 		k, v := root.Content[i].Value, root.Content[i+1]
 		if !kustomizeKeys[k] {
@@ -99,7 +104,14 @@ func isKustomizeFile(file string, data []byte, siblings []string, g parseGuards)
 					return false
 				}
 				if isStr(e) {
-					named[strings.TrimPrefix(e.Value, "./")] = true
+					name := strings.TrimPrefix(e.Value, "./")
+					// An entry that is not a sibling YAML file (.., /, :, a URL,
+					// a subdirectory, a glob) pulls in documents this pass
+					// does not read, so the file is not skipped.
+					if g.kustomizeCovered && !sibSet[name] {
+						return false
+					}
+					named[name] = true
 				}
 			}
 		}
