@@ -161,21 +161,43 @@ func Derive(ctx context.Context, r extract.PinnedReader, t Target, from, to stri
 }
 
 func derive(ctx context.Context, r extract.PinnedReader, t Target, from, to string, g guards) (*Result, error) {
+	res, _, _, err := deriveFiles(ctx, r, t, from, to, g)
+	return res, err
+}
+
+// deriveFiles is derive that also returns, per commit, the sorted paths of the
+// files whose CRDs the comparison used (skipped kustomize files are not among
+// them). A line attestation cites exactly these.
+func deriveFiles(ctx context.Context, r extract.PinnedReader, t Target, from, to string, g guards) (*Result, []string, []string, error) {
 	if err := t.validate(); err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	if !extract.IsCommitSHA(from) || !extract.IsCommitSHA(to) {
-		return nil, errors.New("crdschema: from and to must be full 40-character commit SHAs")
+		return nil, nil, nil, errors.New("crdschema: from and to must be full 40-character commit SHAs")
 	}
 	a, err := readSide(ctx, r, t, from, g)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	b, err := readSide(ctx, r, t, to, g)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
-	return compare(a, b, from, to, g), nil
+	return compare(a, b, from, to, g), a.files(), b.files(), nil
+}
+
+// files lists the distinct paths of the CRD documents the side kept.
+func (s *side) files() []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, d := range s.crds {
+		if !seen[d.file] {
+			seen[d.file] = true
+			out = append(out, d.file)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 type side struct {
