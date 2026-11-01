@@ -35,8 +35,13 @@ type Report struct {
 	// at least one candidate rule, so every report without exclusions keeps
 	// its bytes.
 	TrustPolicy *TrustPolicyDisclosure `json:"trustPolicy,omitempty"`
-	seal        *reportSeal
-	digest      string
+	// DeferredRules lists the rules of the project that were not evaluated
+	// because they need facts this build does not register (a signed feed
+	// newer than the build). They produce no claim; the report stays UNKNOWN
+	// for them. Absent for every other report, so those keep their bytes.
+	DeferredRules []DeferredRule `json:"deferredRules,omitempty"`
+	seal          *reportSeal
+	digest        string
 }
 type reportSeal struct{}
 
@@ -341,6 +346,10 @@ func (b bundle) reportSelection(project, selectedRuleID string, family bool, inp
 				break
 			}
 		}
+	}
+	if deferred := deferredOf(b.pack, project); len(deferred) > 0 {
+		report.DeferredRules = deferred
+		report.NextAction = deferredNextAction + "; " + report.NextAction
 	}
 	report.seal = &reportSeal{}
 	raw, err := json.Marshal(report)
