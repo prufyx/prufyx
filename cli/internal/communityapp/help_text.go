@@ -81,6 +81,9 @@ Flags:
   --require-basis LIST     only evaluate rules whose evidence basis is in LIST
   --show-passes            human output: list PASS claims instead of counting them
   --input-digest SHA256    pin the exact input file
+  --via V1,V2,...          with --input: also check each hop of the upgrade through these
+                           exact versions (ascending, between the input's versions); BLOCKED
+                           if any hop is, PASS only if every hop passes, else UNKNOWN
   --replay-report FILE     re-check a prior JSON report
   --format human|json      report format (default human)
 
