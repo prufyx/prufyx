@@ -345,6 +345,8 @@ func TestKnowledgeUpdateCapabilityMismatch(t *testing.T) {
 	if bytes.Equal(indexRaw, index.Bytes) {
 		t.Fatal("capability digest not found in the index")
 	}
+	// Another engine, not only another registry: the base marker moves too.
+	indexRaw = regexp.MustCompile(`"baseCapabilityDigest":"sha256:[0-9a-f]{64}"`).ReplaceAll(indexRaw, []byte(`"baseCapabilityDigest":"sha256:`+strings.Repeat("cd", 32)+`"`))
 	targets := map[string][]byte{index.Path: indexRaw}
 	for _, project := range projects {
 		targets[project.Path] = project.Bytes
