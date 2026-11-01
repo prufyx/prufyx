@@ -184,6 +184,8 @@ func syntheticCases() []testCase {
 		{name: "too_deep_schema", from: map[string][]byte{"crd/crd.yaml": simpleCRD("k", "x")}, to: map[string][]byte{"crd/crd.yaml": deepCRD},
 			exp: expected{Omissions: []string{"CRD_TOO_LARGE|example.io/Widget|1"}}},
 		{name: "too_many_members", from: map[string][]byte{"crd/crd.yaml": simpleCRD(many...)}, to: map[string][]byte{"crd/crd.yaml": simpleCRD(manyLess...)},
-			exp: expected{Fields: wantMembers, Omissions: []string{"MEMBER_SET_TOO_LARGE|fields|1"}}},
+			exp: expected{Omissions: []string{"MEMBER_SET_TOO_LARGE|fields|300"}}},
+		{name: "exactly_cap_members", from: map[string][]byte{"crd/crd.yaml": simpleCRD(many[:256]...)}, to: map[string][]byte{"crd/crd.yaml": simpleCRD(manyLess...)},
+			exp: expected{Fields: wantMembers, Complete: true}},
 	}
 }
