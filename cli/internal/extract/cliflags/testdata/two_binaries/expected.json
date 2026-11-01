@@ -1,0 +1,31 @@
+{
+ "note": "sets are per binary, never unioned here",
+ "ledger": [],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/a",
+   "members": [
+    "a-flag"
+   ],
+   "complete": true,
+   "class": "single-dash-long",
+   "idioms": [
+    "flag"
+   ],
+   "flags": {}
+  },
+  {
+   "dir": "cmd/b",
+   "members": [
+    "b-flag"
+   ],
+   "complete": true,
+   "class": "double-dash",
+   "idioms": [
+    "pflag"
+   ],
+   "flags": {}
+  }
+ ]
+}

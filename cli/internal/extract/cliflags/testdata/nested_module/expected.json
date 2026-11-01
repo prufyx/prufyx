@@ -1,0 +1,21 @@
+{
+ "note": "",
+ "ledger": [
+  "INVENTORY_FAULT_NESTED_MODULE tools/gen"
+ ],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/t",
+   "members": [
+    "real"
+   ],
+   "complete": true,
+   "class": "single-dash-long",
+   "idioms": [
+    "flag"
+   ],
+   "flags": {}
+  }
+ ]
+}

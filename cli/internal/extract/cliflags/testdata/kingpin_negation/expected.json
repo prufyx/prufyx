@@ -1,0 +1,26 @@
+{
+ "note": "",
+ "ledger": [],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/t",
+   "members": [
+    "color",
+    "no-color"
+   ],
+   "complete": true,
+   "class": "double-dash",
+   "idioms": [
+    "kingpin"
+   ],
+   "flags": {
+    "no-color": {
+     "withheld": [
+      "FLAG_KINGPIN_NEGATION"
+     ]
+    }
+   }
+  }
+ ]
+}

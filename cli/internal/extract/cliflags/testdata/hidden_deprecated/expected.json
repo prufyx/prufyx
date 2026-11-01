@@ -1,0 +1,28 @@
+{
+ "note": "deprecated and hidden flags stay members; recorded as information",
+ "ledger": [],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/t",
+   "members": [
+    "new-flag",
+    "old-flag",
+    "secret"
+   ],
+   "complete": true,
+   "class": "double-dash",
+   "idioms": [
+    "pflag"
+   ],
+   "flags": {
+    "old-flag": {
+     "deprecated": true
+    },
+    "secret": {
+     "hidden": true
+    }
+   }
+  }
+ ]
+}

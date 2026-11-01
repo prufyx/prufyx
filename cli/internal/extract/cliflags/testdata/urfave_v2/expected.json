@@ -1,0 +1,26 @@
+{
+ "note": "",
+ "ledger": [],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/u",
+   "members": [
+    "conf",
+    "config",
+    "debug",
+    "ttl"
+   ],
+   "complete": true,
+   "class": "single-dash-long",
+   "idioms": [
+    "urfave"
+   ],
+   "flags": {
+    "debug": {
+     "hidden": true
+    }
+   }
+  }
+ ]
+}

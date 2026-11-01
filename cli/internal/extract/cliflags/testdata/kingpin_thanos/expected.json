@@ -1,0 +1,23 @@
+{
+ "note": "",
+ "ledger": [],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/thanos",
+   "members": [
+    "grpc-address",
+    "log.level",
+    "prometheus.url",
+    "query.replica-label",
+    "query.timeout"
+   ],
+   "complete": true,
+   "class": "double-dash",
+   "idioms": [
+    "kingpin"
+   ],
+   "flags": {}
+  }
+ ]
+}

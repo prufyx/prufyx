@@ -1,0 +1,12 @@
+package main
+
+import (
+	"os"
+	"example.com/m/internal/cli"
+)
+
+func main() {
+	r := cli.NewRoot()
+	r.SetArgs(os.Args[1:])
+	_ = r.Execute()
+}

@@ -1,0 +1,13 @@
+package cli
+
+import (
+	"github.com/spf13/cobra"
+)
+
+func NewRoot() *cobra.Command {
+	root := &cobra.Command{Use: "app"}
+	root.PersistentFlags().String("config", "", "config file")
+	root.PersistentFlags().Bool("debug", false, "debug")
+	root.AddCommand(newServe(), newVersion())
+	return root
+}

@@ -1,0 +1,11 @@
+package main
+
+import (
+	"flag"
+)
+
+func main() {
+	cb := func() { flag.String("cbflag", "", "u") }
+	cb()
+	flag.Parse()
+}

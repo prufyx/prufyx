@@ -1,0 +1,8 @@
+package main
+
+import (
+	"flag"
+	"example.com/m/internal/gone"
+)
+
+func main() { flag.Parse(); gone.Run() }

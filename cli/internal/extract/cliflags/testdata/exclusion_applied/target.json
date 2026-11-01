@@ -1,0 +1,8 @@
+{
+ "exclude": [
+  {
+   "dir": "hack/gen",
+   "reason": "code generator, not shipped"
+  }
+ ]
+}

@@ -1,0 +1,21 @@
+{
+ "note": "",
+ "ledger": [
+  "FLAG_ARGS_REWRITTEN cmd/t"
+ ],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/t",
+   "members": [
+    "real"
+   ],
+   "complete": false,
+   "class": "double-dash",
+   "idioms": [
+    "pflag"
+   ],
+   "flags": {}
+  }
+ ]
+}

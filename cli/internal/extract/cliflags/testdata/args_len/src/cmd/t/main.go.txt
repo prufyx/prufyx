@@ -1,0 +1,14 @@
+package main
+
+import (
+	"flag"
+	"os"
+)
+
+func main() {
+	flag.String("real", "", "u")
+	if len(os.Args) < 2 {
+		return
+	}
+	flag.Parse()
+}

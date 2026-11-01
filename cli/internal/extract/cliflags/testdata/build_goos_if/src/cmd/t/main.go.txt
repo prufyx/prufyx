@@ -1,0 +1,14 @@
+package main
+
+import (
+	"flag"
+	"runtime"
+)
+
+func main() {
+	flag.String("ok", "", "ok")
+	if runtime.GOOS == "windows" {
+		flag.String("win-only", "", "u")
+	}
+	flag.Parse()
+}

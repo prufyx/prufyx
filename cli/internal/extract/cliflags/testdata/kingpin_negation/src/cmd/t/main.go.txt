@@ -1,0 +1,11 @@
+package main
+
+import (
+	"github.com/alecthomas/kingpin/v2"
+)
+
+func main() {
+	a := kingpin.New("t", "t")
+	a.Flag("no-color", "x").Bool()
+	a.Flag("color", "c").Bool()
+}

@@ -1,0 +1,7 @@
+package main
+
+import (
+	"flag"
+)
+
+var _ = flag.String("underscore-dir", "", "underscore dirs are skipped")

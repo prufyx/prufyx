@@ -1,0 +1,8 @@
+package main
+
+import (
+	"flag"
+	"example.com/m/internal/util"
+)
+
+func main() { flag.String("a-flag", util.Name(), "u"); flag.Parse() }

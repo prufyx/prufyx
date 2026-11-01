@@ -1,0 +1,13 @@
+package main
+
+import (
+	"github.com/spf13/pflag"
+)
+
+type fset = pflag.FlagSet
+
+// addFlags registers on a parameter of unknown kind and nothing in the
+// module ever passes it a flag set.
+func addFlags(fs *fset) { fs.String("orphan", "", "u") }
+
+func main() { pflag.Parse() }

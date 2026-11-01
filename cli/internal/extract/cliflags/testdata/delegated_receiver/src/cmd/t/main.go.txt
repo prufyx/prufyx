@@ -1,0 +1,11 @@
+package main
+
+import (
+	"flag"
+)
+
+type opts struct{ fs *flag.FlagSet }
+
+func (o *opts) add() { o.fs.String("viastruct", "", "u") }
+
+func main() { flag.Parse() }

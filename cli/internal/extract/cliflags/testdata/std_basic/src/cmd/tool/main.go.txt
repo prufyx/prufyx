@@ -1,0 +1,20 @@
+package main
+
+import (
+	"flag"
+	"time"
+)
+
+var verbose = flag.Bool("verbose", false, "verbose output")
+
+func main() {
+	var port int
+	flag.IntVar(&port, "port", 8080, "listen port")
+	name := flag.String("name", "", "name")
+	flag.Duration("timeout", time.Second, "timeout")
+	flag.Func("define", "define a thing", func(string) error { return nil })
+	flag.Var(nil, "level", "log level")
+	flag.CommandLine.Bool("cl-bool", false, "through CommandLine")
+	flag.Parse()
+	_, _ = name, verbose
+}

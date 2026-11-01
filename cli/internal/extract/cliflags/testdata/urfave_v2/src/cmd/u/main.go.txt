@@ -1,0 +1,17 @@
+package main
+
+import (
+	"os"
+	"github.com/urfave/cli/v2"
+)
+
+func main() {
+	app := &cli.App{
+		Flags: []cli.Flag{
+			&cli.StringFlag{Name: "config", Aliases: []string{"conf"}, Usage: "config"},
+			&cli.BoolFlag{Name: "debug", Hidden: true},
+			&cli.IntFlag{Name: "ttl"},
+		},
+	}
+	_ = app.Run(os.Args)
+}
