@@ -1,0 +1,119 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package crdschema
+
+import (
+	"bytes"
+	"testing"
+
+	"gopkg.in/yaml.v3"
+)
+
+const widgetX = "example.io/Widget/spec/x"
+
+// withMeta replaces the metadata block of a simple CRD.
+func withMeta(meta string, props ...string) []byte {
+	return bytes.Replace(simpleCRD(props...), []byte("metadata:\n  name: widgets.example.io\n"), []byte(meta+"\n"), 1)
+}
+
+// kustCase puts a file next to a CRD that loses the field x, at both commits.
+func kustCase(name, file, content string, exp expected) testCase {
+	return testCase{
+		name: name,
+		from: map[string][]byte{"crd/widget.yaml": simpleCRD("k", "x"), "crd/" + file: []byte(content)},
+		to:   map[string][]byte{"crd/widget.yaml": simpleCRD("k"), "crd/" + file: []byte(content)},
+		exp:  exp,
+	}
+}
+
+func flowCase(name, meta string, exp expected) testCase {
+	return testCase{name: name,
+		from: map[string][]byte{"crd/crd.yaml": simpleCRD("k", "x")},
+		to:   map[string][]byte{"crd/crd.yaml": withMeta(meta, "k")},
+		exp:  exp}
+}
+
+func narrowingCases() []testCase {
+	const kust = "apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\nresources:\n- widget.yaml\n"
+	skipped := func(f string) expected {
+		return expected{Fields: []string{widgetX}, Complete: true, Exclusions: []string{"KUSTOMIZE_FILE_SKIPPED|crd/" + f + "|2"}}
+	}
+	withheld := func(reason, f string) expected {
+		return expected{Fields: []string{widgetX}, Omissions: []string{reason + "|crd/" + f + "|2"}}
+	}
+	flowOK := expected{Fields: []string{widgetX}, Complete: true}
+	flowBad := expected{Omissions: []string{"CRD_PARSE_UNPROVEN|crd/crd.yaml|1", "CRD_PRESENCE_UNSTABLE|example.io/Widget|1"}}
+	m := func(list string) string { return "metadata: {name: widgets.example.io, finalizers: " + list + "}" }
+	return []testCase{
+		// Change 1: kustomize files.
+		kustCase("kustomize_skipped", "kustomization.yaml", kust, skipped("kustomization.yaml")),
+		kustCase("kustomize_yml_component_skipped", "kustomization.yml",
+			"kind: Component\napiVersion: kustomize.config.k8s.io/v1alpha1\nnamespace: n\nresources: [widget.yaml]\n", skipped("kustomization.yml")),
+		kustCase("kustomize_crd_marker", "kustomization.yaml",
+			kust+"metadata:\n  name: k\n  annotations:\n    note: CustomResourceDefinition\n", withheld("NON_CRD_DOCUMENT", "kustomization.yaml")),
+		kustCase("kustomize_patches", "kustomization.yaml", kust+"patches:\n- path: p.yaml\n", withheld("NON_CRD_DOCUMENT", "kustomization.yaml")),
+		kustCase("kustomize_foreign_apiversion", "kustomization.yaml", "apiVersion: apps/v1\nkind: Kustomization\n", withheld("NON_CRD_DOCUMENT", "kustomization.yaml")),
+		kustCase("kustomize_wrong_kind", "kustomization.yaml", "apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Other\n", withheld("NON_CRD_DOCUMENT", "kustomization.yaml")),
+		kustCase("kustomize_malformed", "kustomization.yaml", "kind: Kustomization\nresources: [a, \n", withheld("CRD_PARSE_UNPROVEN", "kustomization.yaml")),
+		kustCase("kustomize_two_documents", "kustomization.yaml", kust+"---\n"+kust, expected{Fields: []string{widgetX}, Omissions: []string{"NON_CRD_DOCUMENT|crd/kustomization.yaml|4"}}),
+		kustCase("kustomize_other_name", "crd.yaml", kust, withheld("NON_CRD_DOCUMENT", "crd.yaml")),
+		kustCase("kustomize_name_case", "Kustomization.yaml", kust, withheld("NON_CRD_DOCUMENT", "Kustomization.yaml")),
+		kustCase("kustomize_secret_generator", "kustomization.yaml", kust+"secretGenerator:\n- name: s\n", withheld("NON_CRD_DOCUMENT", "kustomization.yaml")),
+
+		// Change 2: quoted scalars in flow collections.
+		flowCase("flow_quoted_double", m(`["a", "b"]`), flowOK),
+		flowCase("flow_quoted_single", m(`['a', 'b']`), flowOK),
+		flowCase("flow_quoted_mixed", m(`[a, "b", 'c u']`), flowOK),
+		flowCase("flow_quoted_coercible_strings", m(`["true", "null", "1e3", "~", '123', "", "é"]`), flowOK),
+		flowCase("flow_quoted_escape", m(`["a\tb"]`), flowBad),
+		flowCase("flow_quoted_hex_escape", m(`["\x41"]`), flowBad),
+		flowCase("flow_quoted_single_escape", m(`['it''s']`), flowBad),
+		flowCase("flow_quoted_multiline", "metadata: {name: widgets.example.io, finalizers: [\"a\n  b\"]}", flowBad),
+		flowCase("flow_quoted_tagged", m(`[!!str "a"]`), flowBad),
+		flowCase("flow_quoted_anchor", m(`[&a "a"]`), flowBad),
+		flowCase("flow_quoted_alias", m(`[&a b, *a]`), flowBad),
+		{name: "flow_quoted_enum_strings",
+			from: map[string][]byte{"crd/crd.yaml": enumCRD(`enum: [a, "true", "null", "1e3"]`)},
+			to:   map[string][]byte{"crd/crd.yaml": enumCRD(`enum: ["a"]`)},
+			exp: expected{Complete: true, Enums: []string{
+				"example.io/Widget/spec/mode/1e3", "example.io/Widget/spec/mode/null", "example.io/Widget/spec/mode/true"}}},
+
+		// Change 3 is not made: a same-named new path stays a rename candidate,
+		// whatever the name. These pin that, including the generic name `name`.
+		{name: "rename_generic_name_kept",
+			from: map[string][]byte{"crd/crd.yaml": nestedCRD("ref:\n                type: object\n                properties:\n                  name:\n                    type: string\n                  group:\n                    type: string\n")},
+			to:   map[string][]byte{"crd/crd.yaml": nestedCRD("other:\n                type: object\n                properties:\n                  name:\n                    type: string\n                  size:\n                    type: integer\n")},
+			exp:  expected{Omissions: []string{"RENAME_CANDIDATE|example.io/Widget|1"}}},
+		{name: "rename_equal_fingerprint_kept",
+			from: map[string][]byte{"crd/crd.yaml": nestedCRD("timeout:\n                type: string\n")},
+			to:   map[string][]byte{"crd/crd.yaml": nestedCRD("adv:\n                type: object\n                properties:\n                  timeout:\n                    type: string\n")},
+			exp:  expected{Omissions: []string{"RENAME_CANDIDATE|example.io/Widget|1"}}},
+		{name: "rename_different_type_kept",
+			from: map[string][]byte{"crd/crd.yaml": nestedCRD("timeout:\n                type: string\n")},
+			to:   map[string][]byte{"crd/crd.yaml": nestedCRD("adv:\n                type: object\n                properties:\n                  timeout:\n                    type: integer\n")},
+			exp:  expected{Omissions: []string{"RENAME_CANDIDATE|example.io/Widget|1"}}},
+	}
+}
+
+// nestedCRD is a CRD with the property k plus extra, which starts at the
+// indentation of the spec properties.
+func nestedCRD(extra string) []byte {
+	return append(simpleCRD("k"), []byte("              "+extra)...)
+}
+
+func enumCRD(enum string) []byte {
+	return append(simpleCRD("k"), []byte("              mode:\n                type: string\n                "+enum+"\n")...)
+}
+
+// A quoted scalar in a flow list is a string, whatever it looks like.
+func TestQuotedFlowScalarsStayStrings(t *testing.T) {
+	var n yaml.Node
+	if err := yaml.Unmarshal([]byte(`["true", "null", "1e3", "~", 'x']`), &n); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range n.Content[0].Content {
+		if c.Tag != "!!str" {
+			t.Errorf("%q has tag %s", c.Value, c.Tag)
+		}
+	}
+}

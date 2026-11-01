@@ -126,6 +126,7 @@ type guards struct {
 	collisions      bool
 	subtrees        bool
 	enumSig         bool // compare non-string enums per version, not as unions
+	emptyOnCap      bool // an over-cap member set is emitted empty, never as a prefix
 	ledger          ledgerGuards
 	fieldEnc        func(group, kind string, p []membercode.Seg) (string, error)
 	enumEnc         func(group, kind string, p []membercode.Seg, v string) (string, error)
@@ -133,9 +134,10 @@ type guards struct {
 
 func defaultGuards() guards {
 	return guards{
-		parse:      parseGuards{strict: true, secret: true, nonCRD: true, limits: true, unmodel: true},
+		parse: parseGuards{strict: true, secret: true, nonCRD: true, limits: true, unmodel: true,
+			quotedFlow: true, quotedProof: true, kustomize: true, kustomizeProof: true},
 		servedOnly: true, webhook: true, versionSpecific: true, preserve: true, status: true,
-		rename: true, presence: true, collisions: true, subtrees: true, enumSig: true, ledger: defaultLedgerGuards(),
+		rename: true, presence: true, collisions: true, subtrees: true, enumSig: true, emptyOnCap: true, ledger: defaultLedgerGuards(),
 		fieldEnc: membercode.Field, enumEnc: membercode.Enum,
 	}
 }
@@ -179,6 +181,8 @@ type side struct {
 	crds   map[string]*crdDoc
 	blocks map[string]bool
 	faults []fault
+	// skipped are provable kustomize files that were not read as CRDs.
+	skipped []string
 }
 
 func readSide(ctx context.Context, r extract.PinnedReader, t Target, commit string, g guards) (*side, error) {
@@ -231,6 +235,10 @@ func readSide(ctx context.Context, r extract.PinnedReader, t Target, commit stri
 		}
 		if err != nil {
 			return nil, fmt.Errorf("crdschema: read %s: %w", f, err)
+		}
+		if g.parse.kustomize && isKustomizeFile(f, data, g.parse) {
+			s.skipped = append(s.skipped, f)
+			continue
 		}
 		docs, faults := parseFile(f, data, g.parse)
 		s.faults = append(s.faults, faults...)
@@ -302,6 +310,9 @@ func compare(a, b *side, from, to string, g guards) *Result {
 		}
 		o.omit.add(f.reason, subject)
 	}
+	for _, f := range append(append([]string(nil), a.skipped...), b.skipped...) {
+		o.exclusion.add(ReasonKustomizeSkipped, f)
+	}
 	keys := make([]string, 0, len(a.crds))
 	for k := range a.crds {
 		keys = append(keys, k)
@@ -327,13 +338,13 @@ func compare(a, b *side, from, to string, g guards) *Result {
 		diffCRD(o, da, db, subject, g)
 	}
 	res := &Result{Schema: ResultSchema, From: from, To: to, Omissions: o.omit.list(), Exclusions: o.exclusion.list()}
-	fm, over := capped(o.fields, o.dropped, "f")
+	fm, n, over := capped(o.fields, o.dropped, "f", g)
 	if over {
-		res.Omissions = append(res.Omissions, Omission{Reason: ReasonSetTooLarge, Subject: "fields", Count: 1})
+		res.Omissions = append(res.Omissions, Omission{Reason: ReasonSetTooLarge, Subject: "fields", Count: n})
 	}
-	em, over := capped(o.enums, o.dropped, "e")
+	em, n, over := capped(o.enums, o.dropped, "e", g)
 	if over {
-		res.Omissions = append(res.Omissions, Omission{Reason: ReasonSetTooLarge, Subject: "enums", Count: 1})
+		res.Omissions = append(res.Omissions, Omission{Reason: ReasonSetTooLarge, Subject: "enums", Count: n})
 	}
 	sort.Slice(res.Omissions, func(i, j int) bool {
 		if res.Omissions[i].Reason != res.Omissions[j].Reason {
@@ -345,8 +356,12 @@ func compare(a, b *side, from, to string, g guards) *Result {
 	return res
 }
 
-func capped(m map[string]string, dropped map[string]bool, setName string) ([]string, bool) {
-	list := make([]string, 0, len(m))
+// capped returns the sorted members of m. A set above the engine's member
+// limit is returned empty, not as a prefix, so a reader that ignores the
+// complete flag cannot take a prefix for the whole set; n is then the number
+// of members that did not fit, reported only as the omission count.
+func capped(m map[string]string, dropped map[string]bool, setName string, g guards) (list []string, n int, over bool) {
+	list = make([]string, 0, len(m))
 	for k := range m {
 		if !dropped[setName+k] {
 			list = append(list, k)
@@ -354,9 +369,12 @@ func capped(m map[string]string, dropped map[string]bool, setName string) ([]str
 	}
 	sort.Strings(list)
 	if len(list) > constraintengine.MaxSetMembers {
-		return list[:constraintengine.MaxSetMembers], true
+		if !g.emptyOnCap {
+			return list[:constraintengine.MaxSetMembers], len(list), true
+		}
+		return []string{}, len(list), true
 	}
-	return list, false
+	return list, 0, false
 }
 
 type served struct {
