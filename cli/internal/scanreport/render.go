@@ -220,6 +220,9 @@ func knowledgeStoreLines(store *KnowledgeStore) []string {
 		return nil
 	}
 	lines := []string{fmt.Sprintf(labelKnowledgeStore, store.Path, store.Layout, store.TargetPath, store.TrustReceiptDigest)}
+	if store.Compat {
+		lines = append(lines, fmt.Sprintf(labelKnowledgeCompat, len(store.UnreadableProjects)))
+	}
 	for _, project := range store.Projects {
 		if project.Status != "present" {
 			lines = append(lines, fmt.Sprintf(labelKnowledgeProjectAbsent, project.Project))
