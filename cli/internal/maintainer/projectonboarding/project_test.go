@@ -760,7 +760,7 @@ func TestProject_OutputWriteFailureIsReportedAndSnapshotRemains(t *testing.T) {
 func TestProject_Validate_ExamplesAndRejects(t *testing.T) {
 	for _, name := range []string{"mariadb-operator", "datadog-operator", "victoriametrics-operator"} {
 		var out, errb bytes.Buffer
-		path := filepath.Join("..", "..", "..", "..", "examples", "project-onboarding", name+"-request.json")
+		path := filepath.Join("..", "..", "..", "examples", "project-onboarding", name+"-request.json")
 		if code := Run(context.Background(), []string{"validate", "--request", path}, &out, &errb, Options{}); code != 0 {
 			t.Fatalf("%s: code=%d stderr=%s", name, code, errb.String())
 		}
