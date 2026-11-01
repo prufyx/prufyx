@@ -1,0 +1,10 @@
+{
+  "complete": true,
+  "enums": [
+    "example.io/Widget/spec/mode/Old"
+  ],
+  "exclusions": [],
+  "fields": [],
+  "lossy": false,
+  "omissions": []
+}

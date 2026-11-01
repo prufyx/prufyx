@@ -1,0 +1,10 @@
+{
+  "complete": true,
+  "enums": [
+    "policy.karmada.io/PropagationPolicy/spec/failover/application/purgeMode/Graciously"
+  ],
+  "exclusions": [],
+  "fields": [],
+  "lossy": false,
+  "omissions": []
+}
