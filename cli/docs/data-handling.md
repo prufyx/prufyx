@@ -47,6 +47,33 @@ results and remediation. They omit raw values, command lines, environment values
 unknown user-supplied setting names and local input paths. Generic input failures
 do not echo the rejected document.
 
+Custom-resource instance fields. A collector in the manifest-intake path can
+check which custom-resource spec paths and enum values your rendered manifests
+set, so that a rule about a removed field can be decided from them. It is local:
+it reads only the files you give and calls no Kubernetes API. It is not
+connected to `scan` reports yet; this paragraph fixes what it may keep before
+it is. It looks only for the public members named by the rules of the scanned
+project. A member is kept in its pattern form (`_item_` for an array item,
+`_any_` for a map value) when the manifests set that path, and an enum member is
+kept only when the value in the manifests equals the value the member names. A
+report can therefore show which of those paths and enum tokens your manifests
+set, as members and counts. It does not keep the path you wrote, any other
+value, object names, namespaces, labels, annotations, `status`, or anything
+from a Secret (Secret kinds are not read). Omission texts are fixed phrases with
+a count; they never echo a key, path, value or name. Name and namespace are used
+only to notice that the same object is written twice and stay in memory for
+that call. When a document cannot be read (template syntax, a parse error, a
+byte order mark, a kustomization or Helm chart that is not rendered, a wrapper
+object such as a Flux HelmRelease or Kustomization, an Argo CD Application or
+ApplicationSet, or a Crossplane Composition, which can carry custom resources
+inside their own fields), the result is marked incomplete and an absent member
+is never taken as absent. The same holds for a value of an unexpected shape
+under a looked-for path, a key beside a looked-for path that cannot be written
+as a member, more than 1000 objects of one project, and more than 256 members.
+Two cases can block when the setting is not really in force: the same object
+written twice (the members of every copy are kept) and `apiVersion`, which is
+not consulted.
+
 Hashes are content identifiers, not anonymization or proof of a trusted origin.
 Identical input can produce an identical digest. Keep original artifacts locally
 when replay is required and review a report before choosing to share it.
