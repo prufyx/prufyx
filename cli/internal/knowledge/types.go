@@ -153,12 +153,6 @@ type PackageVerificationReceipt struct {
 	// ProjectTargets lists every verified project target of a per-project
 	// package. It is empty for single-target profiles.
 	ProjectTargets []ProjectTargetReceipt `json:"projectTargets,omitempty"`
-	// Compat is true when the index was built for another engine capability
-	// than this build and is read in compat mode (a feed from a later
-	// release); UnreadableProjects lists the projects it lists that this
-	// build does not know. Their verified bytes are kept and never read.
-	Compat             bool     `json:"compat,omitempty"`
-	UnreadableProjects []string `json:"unreadableProjects,omitempty"`
 }
 
 type SelectionRequest struct {
@@ -217,6 +211,12 @@ type ImportReceipt struct {
 	// ProjectTargets lists the verified project targets of a per-project
 	// import. It is empty for single-target profiles.
 	ProjectTargets []ProjectTargetReceipt `json:"projectTargets,omitempty"`
+	// Compat is true when the index was built for another engine capability
+	// than this build and is read in compat mode (a feed from a later
+	// release); UnreadableProjects lists the projects it lists that this
+	// build does not know. Their verified bytes are kept and never read.
+	Compat             bool     `json:"compat,omitempty"`
+	UnreadableProjects []string `json:"unreadableProjects,omitempty"`
 }
 
 type Status struct {
