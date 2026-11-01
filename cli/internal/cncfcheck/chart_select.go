@@ -83,7 +83,7 @@ func (b bundle) selectChartFamily(project string, facts []string, raw []byte, ch
 	matched := make([]json.RawMessage, 0)
 	verdicts := 0
 	for _, entry := range b.pack.Entries {
-		if entry.Project != project {
+		if entry.Project != project || entry.deferred != nil {
 			continue
 		}
 		var shape ruleShape

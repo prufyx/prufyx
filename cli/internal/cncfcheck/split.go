@@ -67,11 +67,16 @@ type ExternalIndexEntry struct {
 }
 
 type externalIndexDocument struct {
-	Schema                 string               `json:"schema"`
-	Revision               string               `json:"revision"`
-	Purpose                string               `json:"purpose"`
-	EngineCapabilityDigest string               `json:"engineCapabilityDigest"`
-	Projects               []ExternalIndexEntry `json:"projects"`
+	Schema                 string `json:"schema"`
+	Revision               string `json:"revision"`
+	Purpose                string `json:"purpose"`
+	EngineCapabilityDigest string `json:"engineCapabilityDigest"`
+	// BaseCapabilityDigest binds the part of the capability a client cannot
+	// extend: engine contract, policy and pack schema. A client whose base
+	// matches reads a package whose fact registry or project table is wider
+	// (or narrower) than its own; see forwardcompat.go.
+	BaseCapabilityDigest string               `json:"baseCapabilityDigest,omitempty"`
+	Projects             []ExternalIndexEntry `json:"projects"`
 	// MinClientVersion is the oldest prufyx that may read this package, as
 	// vMAJOR.MINOR.PATCH[-pre.N]. Absent means every client that reads the
 	// schema.
@@ -100,6 +105,9 @@ type ExternalIndex struct {
 	admission ExternalAdmission
 	base      *bundle
 	seal      *externalBundleSeal
+	// compat is true when the index capability differs from this build's
+	// but the base capability matches (forwardcompat.go).
+	compat bool
 }
 
 // ExternalTarget is one built target: its TUF path and exact bytes.
@@ -171,8 +179,9 @@ func parseExternalIndex(raw []byte, base *bundle) (ExternalIndex, error) {
 	if err != nil {
 		return ExternalIndex{}, ErrIntegrity
 	}
-	if document.EngineCapabilityDigest != capability {
-		return ExternalIndex{}, errors.Join(ErrIntegrity, ErrCapabilityMismatch)
+	compat, err := admitIndexCapability(*base, document.EngineCapabilityDigest, document.BaseCapabilityDigest, capability)
+	if err != nil {
+		return ExternalIndex{}, err
 	}
 	var earliest time.Time
 	withRecords, withCommunity := 0, 0
@@ -186,10 +195,17 @@ func parseExternalIndex(raw []byte, base *bundle) (ExternalIndex, error) {
 		if i > 0 && document.Projects[i-1].Project >= entry.Project {
 			return ExternalIndex{}, ErrInvalid
 		}
-		if !base.hasKnowledgeProject(entry.Project) || entry.Catalog != base.catalogOf(entry.Project) || entry.TargetPath != ProjectTargetPath(entry.Project) || !validExternalRevision(entry.Revision) || entry.Length < 1 || entry.Length > MaxExternalTargetBytes || !digestPattern.MatchString(entry.Digest) || !digestPattern.MatchString(entry.RuleDigest) {
+		if !validExternalRevision(entry.Revision) || entry.Length < 1 || entry.Length > MaxExternalTargetBytes || !digestPattern.MatchString(entry.Digest) || !digestPattern.MatchString(entry.RuleDigest) {
 			return ExternalIndex{}, ErrInvalid
 		}
-		if _, ok := ProjectFromTargetPath(entry.TargetPath); !ok {
+		if base.hasKnowledgeProject(entry.Project) {
+			if entry.Catalog != base.catalogOf(entry.Project) || entry.TargetPath != ProjectTargetPath(entry.Project) {
+				return ExternalIndex{}, ErrInvalid
+			}
+			if _, ok := ProjectFromTargetPath(entry.TargetPath); !ok {
+				return ExternalIndex{}, ErrInvalid
+			}
+		} else if !compat || !futureProjectEntryShape(entry) {
 			return ExternalIndex{}, ErrInvalid
 		}
 		expires, err := time.Parse(time.RFC3339, entry.EvidenceExpiresAt)
@@ -225,7 +241,7 @@ func parseExternalIndex(raw []byte, base *bundle) (ExternalIndex, error) {
 		bindings = append(bindings, ruleBinding{Project: entry.Project, Revision: entry.Revision, RuleDigest: entry.RuleDigest, Records: entry.Records, Catalog: entry.Catalog})
 	}
 	admission := ExternalAdmission{Revision: document.Revision, Purpose: document.Purpose, EngineCapabilityDigest: document.EngineCapabilityDigest, HasRule: true, RuleDigest: externalDigestJSON(bindings), EvidenceExpiresAt: earliest.Format(time.RFC3339)}
-	return ExternalIndex{raw: append([]byte(nil), raw...), document: document, admission: admission, base: base, seal: &externalBundleSeal{}}, nil
+	return ExternalIndex{raw: append([]byte(nil), raw...), document: document, admission: admission, base: base, seal: &externalBundleSeal{}, compat: compat}, nil
 }
 
 // Admission returns the aggregate semantic identity of the index. RuleDigest
@@ -273,7 +289,12 @@ func AdmitExternalProjectTarget(index ExternalIndex, project string, raw []byte)
 	if !ok || int64(len(raw)) != entry.Length || digest(raw) != entry.Digest {
 		return ExternalBundle{}, ErrIntegrity
 	}
-	bundle, err := parseExternalBundle(raw, index.base)
+	if !index.Readable(project) {
+		// A project this build does not know: the bytes match the signed
+		// identity, but nothing in them is read or evaluated.
+		return ExternalBundle{}, ErrUnreadableTarget
+	}
+	bundle, err := parseExternalBundleCompat(raw, index.base, index.compatCapability())
 	if err != nil {
 		// A target the pinned root signed and the index lists, but this
 		// build cannot parse (unknown field, newer schema), is distinct from
@@ -284,7 +305,7 @@ func AdmitExternalProjectTarget(index ExternalIndex, project string, raw []byte)
 		return ExternalBundle{}, ErrIntegrity
 	}
 	admission, err := bundle.Admission()
-	if err != nil || admission.Revision != entry.Revision || admission.Purpose != index.document.Purpose || admission.EngineCapabilityDigest != index.document.EngineCapabilityDigest || !(admission.HasRule || admission.HasRecords) || admission.HasRecords != entry.Records || admission.RuleDigest != entry.RuleDigest || admission.EvidenceExpiresAt != entry.EvidenceExpiresAt {
+	if err != nil || admission.Revision != entry.Revision || admission.Purpose != index.document.Purpose || admission.EngineCapabilityDigest != index.document.EngineCapabilityDigest || !(admission.HasRule || admission.HasRecords) || admission.HasRecords != entry.Records || (admission.RuleDigest != entry.RuleDigest && !bundle.hasDeferred()) || admission.EvidenceExpiresAt != entry.EvidenceExpiresAt {
 		return ExternalBundle{}, ErrIntegrity
 	}
 	for _, item := range bundle.pack.Entries {
@@ -422,7 +443,7 @@ func buildExternalTargets(base bundle, revision, purpose string, revisionFor fun
 	if !ValidExternalIndexProjectCount(len(projects)) {
 		return ExternalTarget{}, nil, ErrIntegrity
 	}
-	index := externalIndexDocument{Schema: ExternalIndexSchema, Revision: revision, Purpose: purpose, EngineCapabilityDigest: capability}
+	index := externalIndexDocument{Schema: ExternalIndexSchema, Revision: revision, Purpose: purpose, EngineCapabilityDigest: capability, BaseCapabilityDigest: baseCapabilityDigest(base)}
 	if len(records) > 0 {
 		index.Schema = ExternalIndexSchemaRecords
 	}

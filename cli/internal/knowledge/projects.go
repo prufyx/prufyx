@@ -293,6 +293,12 @@ func verifySplitTargets(u *updater.Updater, targets *metadata.Metadata[metadata.
 		if only != nil && !only[entry.Project] {
 			continue
 		}
+		// A project this build does not know (a compat index): its target
+		// was bound to the signed targets role above and is neither
+		// downloaded nor read.
+		if !index.Readable(entry.Project) {
+			continue
+		}
 		info, err := u.GetTargetInfo(entry.TargetPath)
 		if err != nil {
 			return nil, err
@@ -373,7 +379,7 @@ func readStoredProjects(store *storeFS, rel string, indexRaw []byte, only map[st
 	}
 	projects := map[string][]byte{}
 	for _, entry := range index.Entries() {
-		if only != nil && !only[entry.Project] {
+		if only != nil && !only[entry.Project] || !index.Readable(entry.Project) {
 			continue
 		}
 		raw, err := store.read(rel+"/projects/"+entry.Project+".json", maxPackageEntry)

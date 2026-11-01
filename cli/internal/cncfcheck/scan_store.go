@@ -36,6 +36,12 @@ func NewStoreScanKnowledge(bundles map[string]ExternalBundle) (*ScanKnowledge, e
 		if !external.valid() || !base.hasKnowledgeProject(project) || external.registry.Digest() != base.registry.Digest() {
 			return nil, ErrIntegrity
 		}
+		// A project with a rule this build cannot evaluate has no scan
+		// knowledge: a scan could otherwise pass a hop only because the rule
+		// that blocks it is missing. The project stays UNKNOWN in the scan.
+		if external.hasDeferred() {
+			continue
+		}
 		selected := bundle{landscape: base.landscape, community: base.community, priority: base.priority, pack: external.pack, registry: external.registry, packDigest: external.bundleDigest, catalogueDigest: base.catalogueDigest, external: true}
 		if selected.attestations, err = admitAttestations(external.pack.LineAttestations, len(external.pack.LineAttestations) > 0, external.pack.Entries); err != nil {
 			return nil, ErrIntegrity

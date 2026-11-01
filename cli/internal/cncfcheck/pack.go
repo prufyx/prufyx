@@ -78,6 +78,11 @@ type Entry struct {
 	Description   string          `json:"description"`
 	RequiredFacts []Fact          `json:"requiredFacts"`
 	Rule          json.RawMessage `json:"rule"`
+	// deferred lists the facts of RequiredFacts that this build does not
+	// register (or registers differently). It is set only on an entry of a
+	// target listed by a compat index and is never serialized. Such a rule
+	// is never given to the engine (forwardcompat.go).
+	deferred []string
 }
 
 type rulePack struct {
@@ -422,6 +427,9 @@ func (b bundle) ruleSet(project string) (constraintengine.RuleSet, error) {
 func (b bundle) packRules() []json.RawMessage {
 	rules := make([]json.RawMessage, 0, len(b.pack.Entries))
 	for _, entry := range b.pack.Entries {
+		if entry.deferred != nil {
+			continue
+		}
 		rules = append(rules, entry.Rule)
 	}
 	return rules
@@ -629,7 +637,7 @@ func (b bundle) selectForInput(project string, raw []byte) (selection, error) {
 	matched := make([]json.RawMessage, 0)
 	verdicts := 0
 	for _, entry := range b.pack.Entries {
-		if entry.Project != project {
+		if entry.Project != project || entry.deferred != nil {
 			continue
 		}
 		subject, err := ruleTransition(entry.Rule)
@@ -697,7 +705,7 @@ func (b bundle) fallbackRules(candidates, matched []json.RawMessage) []json.RawM
 func (b bundle) projectRules(project string) []json.RawMessage {
 	rules := make([]json.RawMessage, 0)
 	for _, entry := range b.pack.Entries {
-		if entry.Project == project {
+		if entry.Project == project && entry.deferred == nil {
 			rules = append(rules, entry.Rule)
 		}
 	}
@@ -745,7 +753,7 @@ func (b bundle) selectFamily(project string, facts []string, raw []byte) (select
 	transitionOnly := make([]json.RawMessage, 0)
 	verdicts := 0
 	for _, entry := range b.pack.Entries {
-		if entry.Project != project {
+		if entry.Project != project || entry.deferred != nil {
 			continue
 		}
 		factIDs, err := ruleFactIDs(entry.Rule)
@@ -855,7 +863,7 @@ func (b bundle) selectedRuleSet(project, ruleID string) (constraintengine.RuleSe
 func (b bundle) selectRule(project, ruleID string) (selection, error) {
 	selected := make([]json.RawMessage, 0, 1)
 	for _, entry := range b.pack.Entries {
-		if entry.Project != project {
+		if entry.Project != project || entry.deferred != nil {
 			continue
 		}
 		var shape struct {
