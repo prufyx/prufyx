@@ -1,0 +1,11 @@
+package main
+
+import (
+	goflag "flag"
+	"github.com/spf13/pflag"
+)
+
+func main() {
+	pflag.CommandLine.AddGoFlag(goflag.Lookup("x"))
+	pflag.Parse()
+}

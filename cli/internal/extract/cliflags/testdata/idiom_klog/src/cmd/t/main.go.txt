@@ -1,0 +1,12 @@
+package main
+
+import (
+	"flag"
+	"k8s.io/klog/v2"
+)
+
+func main() {
+	flag.String("real", "", "real")
+	klog.InitFlags(nil)
+	flag.Parse()
+}

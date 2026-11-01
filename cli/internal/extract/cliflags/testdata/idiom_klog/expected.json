@@ -1,0 +1,22 @@
+{
+ "note": "",
+ "ledger": [
+  "FLAG_GLOBAL_FLAGSET_SHARED cmd/t",
+  "FLAG_IDIOM_UNSUPPORTED cmd/t"
+ ],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/t",
+   "members": [
+    "real"
+   ],
+   "complete": false,
+   "class": "single-dash-long",
+   "idioms": [
+    "flag"
+   ],
+   "flags": {}
+  }
+ ]
+}

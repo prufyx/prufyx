@@ -1,0 +1,12 @@
+package main
+
+import (
+	"github.com/spf13/pflag"
+)
+
+func main() {
+	pflag.String("listen", ":80", "addr")
+	pflag.BoolVar(&b, "debug", false, "debug")
+	pflag.StringSlice("tags", nil, "tags")
+	pflag.Parse()
+}

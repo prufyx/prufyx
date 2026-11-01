@@ -1,0 +1,25 @@
+{
+ "note": "",
+ "ledger": [],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/tool",
+   "members": [
+    "cl-bool",
+    "define",
+    "level",
+    "name",
+    "port",
+    "timeout",
+    "verbose"
+   ],
+   "complete": true,
+   "class": "single-dash-long",
+   "idioms": [
+    "flag"
+   ],
+   "flags": {}
+  }
+ ]
+}

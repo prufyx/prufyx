@@ -1,0 +1,16 @@
+package main
+
+import (
+	"flag"
+	"os"
+)
+
+func lookup() func(*flag.FlagSet) { return nil }
+
+func main() {
+	fs := flag.NewFlagSet("x", flag.ExitOnError)
+	fs.String("seen", "", "u")
+	register := lookup()
+	register(fs)
+	_ = fs.Parse(os.Args[1:])
+}

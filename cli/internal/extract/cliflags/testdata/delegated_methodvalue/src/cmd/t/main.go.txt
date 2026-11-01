@@ -1,0 +1,12 @@
+package main
+
+import (
+	"flag"
+)
+
+func main() {
+	fs := flag.NewFlagSet("x", flag.ExitOnError)
+	reg := fs.String
+	reg("viavalue", "", "u")
+	fs.String("seen", "", "u")
+}

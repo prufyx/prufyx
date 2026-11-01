@@ -1,0 +1,14 @@
+package main
+
+import (
+	"flag"
+)
+
+// flag.String("removed-in-comment", "", "a name in a comment is not a flag")
+
+func main() {
+	flag.String("real", "", "real")
+	decoy := flag.NewFlagSet("decoy", flag.ContinueOnError)
+	decoy.String("decoy-only", "", "never parsed by the program; still counted")
+	flag.Parse()
+}

@@ -1,0 +1,17 @@
+package main
+
+import (
+	"os"
+	"github.com/urfave/cli"
+)
+
+func main() {
+	app := cli.NewApp()
+	app.Flags = []cli.Flag{
+		cli.StringFlag{Name: "config, c"},
+		cli.BoolFlag{Name: "verbose, V"},
+		cli.StringFlag{Name: "log-level, l"},
+		cli.BoolFlag{Name: "x"},
+	}
+	_ = app.Run(os.Args)
+}

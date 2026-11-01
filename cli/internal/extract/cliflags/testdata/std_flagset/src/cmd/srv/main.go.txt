@@ -1,0 +1,14 @@
+package main
+
+import (
+	"flag"
+	"os"
+)
+
+func main() {
+	fs := flag.NewFlagSet("run", flag.ExitOnError)
+	ttl := fs.Int("ttl", 0, "ttl")
+	fs.StringVar(&cfg, "config", "c.conf", "config path")
+	_ = ttl
+	_ = fs.Parse(os.Args[1:])
+}

@@ -1,0 +1,13 @@
+package main
+
+import (
+	"flag"
+)
+
+func newSet() *flag.FlagSet {
+	fs := flag.NewFlagSet("a", flag.ExitOnError)
+	fs.String("a-flag", "", "u")
+	return fs
+}
+
+func main() { flag.Parse() }

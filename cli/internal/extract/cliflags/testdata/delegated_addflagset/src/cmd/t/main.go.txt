@@ -1,0 +1,13 @@
+package main
+
+import (
+	"github.com/spf13/pflag"
+)
+
+func main() {
+	a := pflag.NewFlagSet("a", pflag.ExitOnError)
+	b := pflag.NewFlagSet("b", pflag.ExitOnError)
+	b.String("merged", "", "u")
+	a.AddFlagSet(b)
+	pflag.Parse()
+}

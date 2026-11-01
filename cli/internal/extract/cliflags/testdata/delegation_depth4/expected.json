@@ -1,0 +1,19 @@
+{
+ "note": "",
+ "ledger": [
+  "FLAG_DELEGATED_UNRESOLVED cmd/d"
+ ],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/d",
+   "members": [],
+   "complete": false,
+   "class": "double-dash",
+   "idioms": [
+    "pflag"
+   ],
+   "flags": {}
+  }
+ ]
+}

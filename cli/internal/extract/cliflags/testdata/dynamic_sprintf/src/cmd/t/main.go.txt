@@ -1,0 +1,12 @@
+package main
+
+import (
+	"flag"
+	"fmt"
+)
+
+func main() {
+	flag.String(fmt.Sprintf("%s.addr", prefix), "", "formatted")
+	flag.String("ok", "", "ok")
+	flag.Parse()
+}

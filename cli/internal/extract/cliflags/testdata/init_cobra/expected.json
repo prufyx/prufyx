@@ -1,0 +1,21 @@
+{
+ "note": "",
+ "ledger": [
+  "FLAG_INIT_REGISTRATION cmd/t"
+ ],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/t",
+   "members": [
+    "viainit"
+   ],
+   "complete": false,
+   "class": "double-dash",
+   "idioms": [
+    "pflag"
+   ],
+   "flags": {}
+  }
+ ]
+}

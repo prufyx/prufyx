@@ -1,0 +1,29 @@
+{
+ "note": "same name on two commands is not a duplicate",
+ "ledger": [],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/app",
+   "members": [
+    "addr",
+    "config",
+    "debug",
+    "output",
+    "short",
+    "tls",
+    "workers"
+   ],
+   "complete": true,
+   "class": "double-dash",
+   "idioms": [
+    "pflag"
+   ],
+   "flags": {
+    "short": {
+     "hidden": true
+    }
+   }
+  }
+ ]
+}

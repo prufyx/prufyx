@@ -1,0 +1,23 @@
+{
+ "note": "",
+ "ledger": [
+  "INVENTORY_FAULT_EXCLUSION_UNKNOWN cmd/gone"
+ ],
+ "excluded": [
+  "hack/gen"
+ ],
+ "binaries": [
+  {
+   "dir": "cmd/a",
+   "members": [
+    "a-flag"
+   ],
+   "complete": true,
+   "class": "single-dash-long",
+   "idioms": [
+    "flag"
+   ],
+   "flags": {}
+  }
+ ]
+}

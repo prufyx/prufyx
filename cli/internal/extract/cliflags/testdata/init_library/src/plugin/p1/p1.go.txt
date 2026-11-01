@@ -1,0 +1,7 @@
+package p1
+
+import (
+	"flag"
+)
+
+func init() { flag.String("p1.addr", "", "plugin flag") }

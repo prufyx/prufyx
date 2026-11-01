@@ -1,0 +1,20 @@
+// Shape modelled on the public kingpin command tree of thanos-io/thanos
+// cmd/thanos (Apache-2.0). Names and structure are trimmed; this is not a
+// verbatim copy.
+package main
+
+import (
+	"os"
+
+	"github.com/alecthomas/kingpin/v2"
+)
+
+func main() {
+	app := kingpin.New("thanos", "A tool")
+	app.Flag("log.level", "Log filtering level.").Default("info").Enum("error", "info")
+	sidecar := app.Command("sidecar", "Sidecar")
+	registerSidecar(sidecar)
+	query := app.Command("query", "Query")
+	registerQuery(query)
+	kingpin.MustParse(app.Parse(os.Args[1:]))
+}

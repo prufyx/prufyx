@@ -1,0 +1,18 @@
+package main
+
+import (
+	"github.com/spf13/cobra"
+)
+
+func newCmd() *cobra.Command {
+	cmd := &cobra.Command{Use: "x"}
+	f := cmd.Flags()
+	f.String("old-flag", "", "old")
+	f.String("new-flag", "", "new")
+	f.String("secret", "", "s")
+	_ = f.MarkDeprecated("old-flag", "use new-flag")
+	_ = f.MarkHidden("secret")
+	return cmd
+}
+
+func main() { _ = newCmd().Execute() }

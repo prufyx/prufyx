@@ -1,0 +1,21 @@
+{
+ "note": "only os.Args[0] and verbatim os.Args / os.Args[1:] to a parser are allowed",
+ "ledger": [
+  "FLAG_ARGS_REWRITTEN cmd/t"
+ ],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/t",
+   "members": [
+    "real"
+   ],
+   "complete": false,
+   "class": "single-dash-long",
+   "idioms": [
+    "flag"
+   ],
+   "flags": {}
+  }
+ ]
+}

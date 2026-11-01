@@ -1,0 +1,32 @@
+{
+ "note": "",
+ "ledger": [],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/t",
+   "members": [
+    "help",
+    "ok",
+    "version"
+   ],
+   "complete": true,
+   "class": "single-dash-long",
+   "idioms": [
+    "flag"
+   ],
+   "flags": {
+    "help": {
+     "withheld": [
+      "FLAG_BUILTIN_NAME"
+     ]
+    },
+    "version": {
+     "withheld": [
+      "FLAG_BUILTIN_NAME"
+     ]
+    }
+   }
+  }
+ ]
+}

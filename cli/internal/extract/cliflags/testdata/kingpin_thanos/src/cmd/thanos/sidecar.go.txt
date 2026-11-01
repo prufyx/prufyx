@@ -1,0 +1,10 @@
+package main
+
+import (
+	"example.com/m/pkg/extkingpin"
+)
+
+func registerSidecar(app extkingpin.AppClause) {
+	app.Flag("grpc-address", "Listen address.").Default("0.0.0.0:10901").String()
+	app.Flag("prometheus.url", "URL.").Default("http://localhost:9090").URLVar(&u)
+}

@@ -1,0 +1,21 @@
+{
+ "note": "",
+ "ledger": [
+  "INVENTORY_FAULT_SUBMODULE third_party/x"
+ ],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/t",
+   "members": [
+    "real"
+   ],
+   "complete": true,
+   "class": "single-dash-long",
+   "idioms": [
+    "flag"
+   ],
+   "flags": {}
+  }
+ ]
+}
