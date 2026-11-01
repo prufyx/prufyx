@@ -29,6 +29,10 @@ type StoreInfo struct {
 	// Absent lists the opened projects the selected index has no target
 	// for; nothing about them can be checked.
 	Absent map[string]bool
+	// Deferred counts, per opened project, the rules of its target this
+	// build cannot evaluate (a feed from a later release). Such a project is
+	// not checked and is reported with a gap.
+	Deferred map[string]int
 }
 
 // Store is knowledge selected from a verified local knowledge database.
@@ -99,10 +103,11 @@ func OpenStore(path string, projects []string) (*Store, error) {
 	bundles := map[string]cncfcheck.ExternalBundle{}
 	digests := map[string]string{}
 	info := StoreInfo{
-		EvaluatedAt: selection.EvaluatedAt, Absent: map[string]bool{},
+		EvaluatedAt: selection.EvaluatedAt, Absent: map[string]bool{}, Deferred: map[string]int{},
 		Provenance: scanreport.KnowledgeStore{
 			Path: filepath.Clean(path), Layout: selection.Layout, TargetPath: selection.TargetPath,
 			TrustReceiptDigest: selection.TrustReceiptDigest, Purpose: selection.Purpose, ImportedVerifiedAt: selection.ImportedVerifiedAt,
+			Compat: selection.Compat, UnreadableProjects: selection.UnreadableProjects,
 		},
 	}
 	for _, project := range selection.Projects {
@@ -122,6 +127,11 @@ func OpenStore(path string, projects []string) (*Store, error) {
 	snapshot, err := cncfcheck.NewStoreScanKnowledge(bundles)
 	if err != nil {
 		return nil, &StoreError{Reason: scanreport.KnowledgeDBIntegrity}
+	}
+	for project := range bundles {
+		if n := snapshot.DeferredRules(project); n > 0 {
+			info.Deferred[project] = n
+		}
 	}
 	return &Store{snapshot: snapshot, digests: digests, revision: selection.Revision, digest: selection.BundleDigest, root: selection.InitialRootDigest, info: info, bundles: bundles}, nil
 }

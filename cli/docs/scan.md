@@ -184,6 +184,12 @@ no directory at that path; the directory must be private to its owner (mode
 - A targeted project that the selected per-project index has no target for is
   not checked: it is reported with the gap `PROJECT_NOT_IN_KNOWLEDGE` and the
   answer cannot pass.
+- A project whose target in the database holds rules that need facts this
+  prufyx does not know (a database built from a later release) is not checked
+  either: it is reported with the gap `PROJECT_NOT_IN_KNOWLEDGE` (variant
+  `rules-deferred`, naming the number of rules) and the answer cannot pass.
+  The report's `knowledgeStore.compat` is true and `unreadableProjects` lists
+  the projects of the database this prufyx does not know.
 - Expired, not yet valid and withdrawn rules in the database behave exactly
   like built-in ones (`EVIDENCE_EXPIRED`). `--require-basis` applies to the
   database's rules and records as it does to the built-in ones.

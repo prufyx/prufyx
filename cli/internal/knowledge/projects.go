@@ -471,6 +471,7 @@ func withProjectReceipts(receipt ImportReceipt, profile profileSpec, indexRaw []
 	if projects, err := projectReceipts(indexRaw); err == nil {
 		receipt.ProjectTargets = projects
 	}
+	receipt.Compat, receipt.UnreadableProjects = compatSummary(indexRaw)
 	return receipt
 }
 
@@ -491,8 +492,35 @@ func VerifyConstraintsProjects(req VerifyRequest) (PackageVerificationReceipt, e
 // InspectConstraintsProjects reports a per-project CNCF store, re-verifying
 // the index and every project target.
 func InspectConstraintsProjects(storeRoot string) (Status, error) {
-	return inspectProfile(storeRoot, constraintsProjectsProfile())
+	status, err := inspectProfile(storeRoot, constraintsProjectsProfile())
+	if err == nil && status.SelectedRevision != "" {
+		// Compat mode must be visible: read the selected index (no project
+		// target) and report whether it is a later release's feed.
+		if selected, openErr := OpenSelectedCNCF(SelectionRequest{StoreRoot: storeRoot}, []string{}); openErr == nil {
+			status.Compat, status.UnreadableProjects = compatSummary(selected.Bytes())
+		}
+	}
+	return status, err
 }
+
+// compatSummary reports whether an index is read in compat mode and which of
+// its projects this build does not know.
+func compatSummary(indexRaw []byte) (bool, []string) {
+	index, err := cncfcheck.ParseExternalIndex(indexRaw)
+	if err != nil || !index.Compat() {
+		return false, nil
+	}
+	var unreadable []string
+	for _, entry := range index.Entries() {
+		if !index.Readable(entry.Project) {
+			unreadable = append(unreadable, entry.Project)
+		}
+	}
+	return true, unreadable
+}
+
+// IndexCompat is compatSummary for callers outside the package.
+func IndexCompat(indexRaw []byte) (bool, []string) { return compatSummary(indexRaw) }
 
 // OpenSelectedCNCF opens the selected CNCF revision in either layout. For a
 // per-project store only the named projects are read and verified, together

@@ -37,6 +37,11 @@ type ScanSelection struct {
 	EvaluatedAt time.Time
 	// Projects are the opened projects in slug order.
 	Projects []ScanProject
+	// Compat is true for an index read in compat mode (a feed from a later
+	// release); UnreadableProjects are the projects it lists that this build
+	// does not know.
+	Compat             bool
+	UnreadableProjects []string
 }
 
 // ScanProject is one opened project. Target is nil for a single-target
@@ -77,6 +82,7 @@ func OpenScan(storeRoot string, projects []string) (ScanSelection, error) {
 	}
 	if selected.PerProject() {
 		result.Layout = LayoutPerProject
+		result.Compat, result.UnreadableProjects = knowledge.IndexCompat(selected.Bytes())
 	}
 	for _, project := range projects {
 		bundle, admission, target, err := selectedBundle(project, selected)
