@@ -646,10 +646,12 @@ func TestCommunityCatalogIsCountedApart(t *testing.T) {
 func TestEmptyListCountsWhenCurrentAndAdjacent(t *testing.T) {
 	snapshot := func(window ...string) []byte {
 		quoted := make([]string, len(window))
+		releases := make([]string, len(window))
 		for i, l := range window {
 			quoted[i] = fmt.Sprintf("%q", l)
+			releases[i] = fmt.Sprintf("%q:[%q]", l, l+".0")
 		}
-		return []byte(fmt.Sprintf(`{"schema":%q,"projects":{"strimzi":{"component":%q,"lines":[%s]}}}`, LinesSchema, strimzi, strings.Join(quoted, ",")))
+		return []byte(fmt.Sprintf(`{"schema":%q,"projects":{"strimzi":{"component":%q,"lines":[%s],"releases":{%s}}}}`, LinesSchema, strimzi, strings.Join(quoted, ","), strings.Join(releases, ",")))
 	}
 	crd := func(att string, window ...string) string {
 		report, err := Compute(Input{Pack: pack(nil, []string{att}), Lines: snapshot(window...), Now: baselineNow})
@@ -713,8 +715,10 @@ func TestCRDVersionProjects(t *testing.T) {
 func TestCRDTargetAttribution(t *testing.T) {
 	const other = "pkg:github/example/other"
 	atts := []string{crdAttJSON("0.50", "0.49.0", "0.50.0"), crdAttJSON("0.51", "0.50.0", "0.51.0")}
-	ruleless := fmt.Sprintf(`{"schema":%q,"projects":{"strimzi":{"lines":["0.49","0.50","0.51"]}}}`, LinesSchema)
-	owned := fmt.Sprintf(`{"schema":%q,"projects":{"strimzi":{"component":%q,"lines":["0.49","0.50","0.51"]}}}`, LinesSchema, strimzi)
+	// release-scoped attestations decide a pair only against the snapshot's final releases of both lines
+	releases := `"releases":{"0.49":["0.49.0"],"0.50":["0.50.0"],"0.51":["0.51.0"]}`
+	ruleless := fmt.Sprintf(`{"schema":%q,"projects":{"strimzi":{"lines":["0.49","0.50","0.51"],%s}}}`, LinesSchema, releases)
+	owned := fmt.Sprintf(`{"schema":%q,"projects":{"strimzi":{"component":%q,"lines":["0.49","0.50","0.51"],%s}}}`, LinesSchema, strimzi, releases)
 	for _, tc := range []struct {
 		name    string
 		lines   string
@@ -767,7 +771,7 @@ func TestCRDTargetAttribution(t *testing.T) {
 		t.Fatalf("absent from snapshot: %s, PackProjects %d", got, report.PackProjects)
 	}
 	// Another project already owning the component blocks the attribution.
-	both := fmt.Sprintf(`{"schema":%q,"projects":{"strimzi":{"lines":["0.49","0.50","0.51"]},"holder":{"component":%q,"lines":["0.49","0.50","0.51"]}}}`, LinesSchema, strimzi)
+	both := fmt.Sprintf(`{"schema":%q,"projects":{"strimzi":{"lines":["0.49","0.50","0.51"]},"holder":{"component":%q,"lines":["0.49","0.50","0.51"],%s}}}`, LinesSchema, strimzi, releases)
 	report, err = Compute(Input{Pack: pack(nil, atts), Lines: []byte(both), Now: baselineNow, CRDTargetComponents: map[string]string{"strimzi": strimzi}})
 	if err != nil {
 		t.Fatal(err)
