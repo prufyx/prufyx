@@ -37,7 +37,12 @@
       "groups": [
         {
           "name": "argoproj.io",
-          "source": "https://github.com/argoproj/argo-cd/blob/e98f483bfd5781df2592fef1aeed1148f150d9c9/manifests/crds/application-crd.yaml"
+          "source": "https://github.com/argoproj/argo-cd/blob/e98f483bfd5781df2592fef1aeed1148f150d9c9/manifests/crds/application-crd.yaml",
+          "kinds": [
+            "AppProject",
+            "Application",
+            "ApplicationSet"
+          ]
         }
       ]
     },

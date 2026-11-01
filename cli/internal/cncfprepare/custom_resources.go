@@ -94,11 +94,11 @@ func CommunityCustomResourceProject(project string) (customresources.Project, bo
 // the complete apply set the caller declares (complete) or a part of it.
 //
 //   - An object is attributed to the project only when the reviewed table
-//     lists its API group for that project and no other. Attribution is by
-//     group, not kind: an object of another component that shares the group
-//     (an Argo Rollout in argoproj.io) joins the owning project's set, which
-//     is harmless while rules name only that project's kinds; see the
-//     customresources table on shared groups.
+//     lists its API group (and, for a group listed by kind, its kind) for
+//     that project and no other. An object of another component that shares
+//     the group (an Argo Rollout in argoproj.io) is attributed to no project
+//     until the table lists its kind; see the customresources table on shared
+//     groups.
 //   - The set is declared complete only when complete is declared, no list
 //     is paginated, every object of a custom-resource group is attributed to
 //     exactly one project and every member is representable. Otherwise the

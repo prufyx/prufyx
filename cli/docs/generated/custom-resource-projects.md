@@ -9,7 +9,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | --- | --- | --- | --- |
 | `akri` | CNCF | `component.akri.custom_resource_versions_set` | `akri.sh` |
 | `antrea` | CNCF | `component.antrea.custom_resource_versions_set` | `crd.antrea.io`, `multicluster.crd.antrea.io` |
-| `argo-cd` | CNCF | `component.argo_cd.custom_resource_versions_set` | `argoproj.io` |
+| `argo-cd` | CNCF | `component.argo_cd.custom_resource_versions_set` | `argoproj.io` (AppProject, Application, ApplicationSet) |
 | `awx-operator` | community | `component.awx_operator.custom_resource_versions_set` | `awx.ansible.com` |
 | `burrito` | community | `component.burrito.custom_resource_versions_set` | `config.terraform.padok.cloud` |
 | `cass-operator` | community | `component.cass_operator.custom_resource_versions_set` | `cassandra.datastax.com`, `control.k8ssandra.io` |
