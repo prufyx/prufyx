@@ -221,3 +221,30 @@ func TestLedgerCodesCoverEveryReason(t *testing.T) {
 		}
 	}
 }
+
+// The item length bound is the constant, so the two cannot drift.
+func TestLedgerItemLengthBound(t *testing.T) {
+	ok := ledgerOf([]Omission{om("MEMBER_CHARSET", strings.Repeat("a", MaxLedgerItemLen))}, defaultLedgerGuards())
+	if len(ok) != 1 || ok[0].Code != "MEMBER_CHARSET" {
+		t.Fatalf("an item of %d bytes: %v", MaxLedgerItemLen, ok)
+	}
+	if MaxLedgerItemLen != 200 {
+		t.Fatalf("MaxLedgerItemLen = %d, want 200", MaxLedgerItemLen)
+	}
+	if err := wantFault("item over the bound", ledgerOf([]Omission{om("MEMBER_CHARSET", strings.Repeat("a", MaxLedgerItemLen+1))}, defaultLedgerGuards()), LedgerInvalid); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAttestableNilResult(t *testing.T) {
+	var r *Result
+	if r.Attestable() {
+		t.Fatal("nil result is attestable")
+	}
+}
+
+func TestResultSchemaIsV2(t *testing.T) {
+	if ResultSchema != "prufyx.io/crd-schema-removal/v2" {
+		t.Fatalf("ResultSchema = %s", ResultSchema)
+	}
+}

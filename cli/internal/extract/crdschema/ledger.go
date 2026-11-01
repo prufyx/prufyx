@@ -5,6 +5,7 @@ package crdschema
 import (
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -38,7 +39,7 @@ const (
 
 var (
 	ledgerCodeRE = regexp.MustCompile(`^[A-Z][A-Z0-9_]{2,47}$`)
-	ledgerItemRE = regexp.MustCompile(`^[A-Za-z0-9_.:/@+=*\[\]-]{1,200}$`)
+	ledgerItemRE = regexp.MustCompile(`^[A-Za-z0-9_.:/@+=*\[\]-]{1,` + strconv.Itoa(MaxLedgerItemLen) + `}$`)
 )
 
 // ledgerGuards are switched off only by tests (see guards).
@@ -116,5 +117,5 @@ func (r *Result) seal(fm, em []string, g ledgerGuards) {
 // when nothing was withheld. A non-empty ledger can never yield one,
 // whatever the other fields say.
 func (r *Result) Attestable() bool {
-	return len(r.Ledger) == 0 && len(r.Omissions) == 0 && r.Fields.Complete && r.Enums.Complete
+	return r != nil && len(r.Ledger) == 0 && len(r.Omissions) == 0 && r.Fields.Complete && r.Enums.Complete
 }
