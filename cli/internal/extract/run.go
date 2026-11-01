@@ -68,6 +68,10 @@ type PairRecord struct {
 	Reason     string   `json:"reason,omitempty"`
 	Rules      []string `json:"rules"`
 	Proof      any      `json:"proof"`
+	// Ledger lists the items the extractor withheld from this derived pair,
+	// sorted and deduplicated; omitted when empty. A pair with a non-empty
+	// ledger is never attested.
+	Ledger []LedgerEntry `json:"ledger,omitempty"`
 	// Attestation is recorded for every pair of an extractor that attests
 	// lines, and omitted for any other extractor.
 	Attestation *PairAttestation `json:"attestation,omitempty"`
@@ -112,6 +116,8 @@ type Totals struct {
 	CommitsRd int `json:"commitsRead"`
 	// Attestations counts line attestations; omitted when zero.
 	Attestations int `json:"attestations,omitempty"`
+	// LedgerItems counts ledger entries over all pairs; omitted when zero.
+	LedgerItems int `json:"ledgerItems,omitempty"`
 }
 
 // Output is a complete run result, rendered to files by Files.
@@ -210,6 +216,7 @@ func Run(ctx context.Context, ex Extractor, tags TagSource, reader PinnedReader,
 			return nil, fmt.Errorf("pair %s: %w", pair.Key(), err)
 		}
 		pr.Status, pr.Proof = PairDerived, res.Proof
+		pr.Ledger = normalizeLedger(res.Ledger)
 		for _, c := range res.Candidates {
 			entry, err := stamp(c, rec, identity, derivedAt, validUntil)
 			if err != nil {
@@ -226,7 +233,11 @@ func Run(ctx context.Context, ex Extractor, tags TagSource, reader PinnedReader,
 		if !attests && (len(res.Attestations) > 0 || res.NotAttested != "") {
 			return nil, fmt.Errorf("pair %s: extractor %s returned attestations but does not attest lines", pair.Key(), ex.ID())
 		}
-		if attests {
+		if attests && len(pr.Ledger) > 0 && !ledgerGuards.noAttestVeto {
+			// Withheld items: whatever the extractor claims, the pair is
+			// not attested and its attestation candidates are dropped.
+			pr.Attestation = &PairAttestation{Status: PairNotAttested, Line: line, Families: []string{}, Reason: ledgerReason(pr.Ledger)}
+		} else if attests {
 			pa := &PairAttestation{Status: PairNotAttested, Line: line, Families: []string{}}
 			for _, c := range res.Attestations {
 				if !families[c.FactFamily] || !lineOK || c.Line != line {
@@ -286,6 +297,7 @@ func Run(ctx context.Context, ex Extractor, tags TagSource, reader PinnedReader,
 	}
 	m.Totals = Totals{Pairs: len(m.Pairs), Rules: len(out.Entries), Vectors: len(out.Vectors), CommitsRd: len(m.Commits), Attestations: len(out.Attestations)}
 	for _, p := range m.Pairs {
+		m.Totals.LedgerItems += len(p.Ledger)
 		if p.Status == PairDerived {
 			m.Totals.Derived++
 		} else {
@@ -582,6 +594,11 @@ func Verify(ctx context.Context, ex Extractor, tags TagSource, reader PinnedRead
 		return nil, fmt.Errorf("re-derivation failed: %w", err)
 	}
 	var problems []string
+	for _, p := range m.Pairs {
+		if err := CheckPairLedger(p); err != nil {
+			problems = append(problems, "manifest.json: "+err.Error())
+		}
+	}
 	if out.Manifest.Extractor != m.Extractor {
 		problems = append(problems, fmt.Sprintf("extractor identity differs: recorded %s %s %s, this binary %s %s %s", m.Extractor.ID, m.Extractor.Version, m.Extractor.CodeDigest, out.Manifest.Extractor.ID, out.Manifest.Extractor.Version, out.Manifest.Extractor.CodeDigest))
 	}
