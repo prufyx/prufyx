@@ -110,6 +110,10 @@ type Omission struct {
 	Subject string `json:"subject"`
 	Count   int    `json:"count"`
 	Detail  string `json:"detail,omitempty"`
+	// Global marks a fault about the inventory (a directory, the module, a
+	// limit) rather than about one binary: whatever it hides could be part of
+	// any binary, so it withholds every binary.
+	Global bool `json:"global,omitempty"`
 }
 
 // Flag is one registered long name of a binary. Names that cannot be set
@@ -192,11 +196,32 @@ type guards struct {
 	nameClass   bool // uppercase, one-character, charset and length of names
 	negation    bool // kingpin no- names
 	builtin     bool // help and version
-	excludeOnly bool // an exclusion that matches nothing is a fault
+	unlisted    bool // methods of a flag set that are not known to be harmless
+	argsParser  bool // os.Args handed to a parser the walker can prove
+	reach       bool // registrations in functions nothing reaches
+	vendorMod   bool // replace directives and vendored replacements
+	stdDeny     bool // standard library packages that register flags or load code
+	hook        func(string)
+	verbs       map[string]verbInfo // nil: regVerbs
+	fileNames   bool                // files the go tool ignores by name
+	urfaveElems bool                // unrecognised elements of a []cli.Flag literal
+	urfaveGen   bool                // urfave v3 generic flag types
+	excludeOnly bool                // an exclusion that matches nothing is a fault
 	limits      bool
 	lim         limits
 	parse       bool // parse errors are faults
 	ledger      ledgerGuards
+}
+
+// verb looks a registration method up in the guards' table (the default
+// table unless a test replaced it).
+func (g *guards) verb(name string) (verbInfo, bool) {
+	if g.verbs != nil {
+		v, ok := g.verbs[name]
+		return v, ok
+	}
+	v, ok := regVerbs[name]
+	return v, ok
 }
 
 func defaultGuards() guards {
@@ -204,7 +229,7 @@ func defaultGuards() guards {
 		imports: true, dynamic: true, loop: true, buildTag: true, goos: true, initReg: true,
 		tripwire: true, escape: true, delegated: true, depthLimit: true, normalize: true, global: true,
 		duplicate: true, argsRewrite: true, shorthand: true, aliases: true, nameClass: true,
-		negation: true, builtin: true, excludeOnly: true, limits: true, lim: defaultLimits(), parse: true, ledger: defaultLedgerGuards(),
+		negation: true, builtin: true, unlisted: true, argsParser: true, reach: true, vendorMod: true, stdDeny: true, fileNames: true, urfaveGen: true, urfaveElems: true, excludeOnly: true, limits: true, lim: defaultLimits(), parse: true, ledger: defaultLedgerGuards(),
 	}
 }
 
@@ -229,12 +254,27 @@ func scan(ctx context.Context, r extract.PinnedReader, t Target, sha string, g g
 	s := &scanner{ctx: ctx, r: r, repo: t.Repo, sha: sha, g: g, fset: token.NewFileSet(),
 		dirs: map[string]*dirListing{}, pkgs: map[string]*pkg{}, om: omset{}}
 	res := &Result{Schema: ResultSchema, Commit: sha, Binaries: []Binary{}, Excluded: []Exclusion{}}
-	if err := s.run(t, res); err != nil {
+	if err := s.safeRun(t, res); err != nil {
 		return nil, err
 	}
 	res.Omissions = s.omissions()
 	res.seal(g.ledger)
 	return res, nil
+}
+
+// safeRun runs the scan and turns a panic anywhere in it into a global
+// fault: the result is then incomplete everywhere.
+func (s *scanner) safeRun(t Target, res *Result) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			s.fault(ReasonPanic, "", "")
+			err = nil
+		}
+	}()
+	if s.g.hook != nil {
+		s.g.hook("run")
+	}
+	return s.run(t, res)
 }
 
 type dirListing struct {
@@ -250,11 +290,14 @@ type scanner struct {
 	g      guards
 	fset   *token.FileSet
 	module string
-	dirs   map[string]*dirListing
-	pkgs   map[string]*pkg
-	files  int
-	bytes  int
-	om     omset
+	// replaced are the module paths go.mod or vendor/modules.txt replaces:
+	// imports under them are not the reviewed libraries.
+	replaced []string
+	dirs     map[string]*dirListing
+	pkgs     map[string]*pkg
+	files    int
+	bytes    int
+	om       omset
 }
 
 // omset collects omissions keyed by (reason, subject).
@@ -276,6 +319,11 @@ func (m omset) add(reason, subject, detail string) {
 	}
 }
 
+func (m omset) addGlobal(reason, subject, detail string) {
+	m.add(reason, subject, detail)
+	m[[2]string{reason, subject}].Global = true
+}
+
 func (m omset) merge(src omset) {
 	for k, o := range src {
 		d := m[k]
@@ -285,6 +333,7 @@ func (m omset) merge(src omset) {
 			continue
 		}
 		d.Count += o.Count
+		d.Global = d.Global || o.Global
 		if d.Detail == "" || (o.Detail != "" && o.Detail < d.Detail) {
 			d.Detail = o.Detail
 		}
@@ -307,7 +356,7 @@ func (m omset) list() []Omission {
 
 func (s *scanner) omissions() []Omission { return s.om.list() }
 
-func (s *scanner) fault(reason, dir, detail string) { s.om.add(reason, showDir(dir), detail) }
+func (s *scanner) fault(reason, dir, detail string) { s.om.addGlobal(reason, showDir(dir), detail) }
 
 // showDir is the directory as it appears in results and ledger items.
 func showDir(dir string) string {
@@ -371,10 +420,76 @@ func (s *scanner) readModule() (bool, error) {
 			break
 		}
 		s.module = m[2]
+		s.readReplaced(string(data))
+		if err := s.readVendorReplaced(); err != nil {
+			return false, err
+		}
 		return true, nil
 	}
 	s.fault(ReasonGoModInvalid, "", "")
 	return false, nil
+}
+
+// readReplaced collects the old paths of go.mod replace directives, in both
+// the single-line and the block form.
+func (s *scanner) readReplaced(gomod string) {
+	inBlock := false
+	for _, line := range strings.Split(gomod, "\n") {
+		if i := strings.Index(line, "//"); i >= 0 {
+			line = line[:i]
+		}
+		f := strings.Fields(line)
+		switch {
+		case len(f) == 0:
+		case inBlock && f[0] == ")":
+			inBlock = false
+		case inBlock:
+			s.noteReplaced(f)
+		case f[0] == "replace" && len(f) > 1 && f[1] == "(":
+			inBlock = true
+		case f[0] == "replace":
+			s.noteReplaced(f[1:])
+		}
+	}
+}
+
+func (s *scanner) noteReplaced(f []string) {
+	for i, w := range f {
+		if w == "=>" && i > 0 {
+			s.replaced = append(s.replaced, strings.Trim(f[0], `"`))
+			return
+		}
+	}
+}
+
+// readVendorReplaced reads the replacement markers ("# path version => dir")
+// of vendor/modules.txt when the module vendors its dependencies. The vendored
+// files themselves are not hashed by the go tool and cannot be checked here: a
+// vendor tree patched without a replace directive is a residual risk.
+func (s *scanner) readVendorReplaced() error {
+	data, err := s.read("vendor/modules.txt")
+	if errors.Is(err, extract.ErrNotFound) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("cliflags: read vendor/modules.txt: %w", err)
+	}
+	if len(data) > maxGoModBytes {
+		s.fault(ReasonGoModInvalid, "vendor", "modules.txt too large")
+		return nil
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		f := strings.Fields(line)
+		if len(f) > 2 && f[0] == "#" {
+			for _, w := range f[2:] {
+				if w == "=>" {
+					s.replaced = append(s.replaced, f[1])
+					break
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func (s *scanner) run(t Target, res *Result) error {
@@ -491,7 +606,7 @@ func (s *scanner) discover() (mains []string, faults []faultDir, err error) {
 				}
 			case base == "go.mod" && it.dir != "":
 				nested = true
-			case strings.HasSuffix(base, ".go") && !strings.HasSuffix(base, "_test.go"):
+			case s.goSrc(base):
 				if e.Type != "blob" || e.Mode == "120000" {
 					faults = append(faults, faultDir{it.dir, ReasonSourceKind})
 					continue
@@ -630,16 +745,24 @@ func (s *scanner) binary(dir string) (*Binary, error) {
 	if err != nil {
 		return nil, err
 	}
+	var aerr error
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
 				om.add(ReasonPanic, bin, "")
 			}
 		}()
-		a := newAnalysis(s, bin, cl, om)
+		if s.g.hook != nil {
+			s.g.hook("binary")
+		}
+		a := newAnalysis(s, bin, dir, cl, om)
 		a.run()
+		aerr = a.err
 		a.fill(b)
 	}()
+	if aerr != nil {
+		return nil, aerr
+	}
 	s.om.merge(om)
 	return b, nil
 }

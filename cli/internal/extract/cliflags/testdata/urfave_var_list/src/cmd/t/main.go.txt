@@ -1,0 +1,12 @@
+package main
+
+import (
+	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v2/altsrc"
+)
+
+var cfgFlag = &cli.StringFlag{Name: "cfg"}
+
+func main() {
+	_ = []cli.Flag{cfgFlag, altsrc.NewStringFlag(&cli.StringFlag{Name: "wrapped"})}
+}

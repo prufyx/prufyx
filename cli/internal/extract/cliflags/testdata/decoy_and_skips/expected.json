@@ -1,5 +1,5 @@
 {
- "note": "a decoy flag set is over-approximated: its flag is a member",
+ "note": "a decoy flag set in a reachable function is over-approximated: its flag is a member",
  "ledger": [],
  "excluded": [],
  "binaries": [

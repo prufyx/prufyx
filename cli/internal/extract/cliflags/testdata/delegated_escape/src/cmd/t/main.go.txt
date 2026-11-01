@@ -10,4 +10,4 @@ func newSet() *flag.FlagSet {
 	return fs
 }
 
-func main() { flag.Parse() }
+func main() { _ = newSet(); flag.Parse() }

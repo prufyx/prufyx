@@ -59,6 +59,11 @@ const (
 	// ReasonKingpinNegation: a kingpin flag named no-*, which is
 	// indistinguishable from the automatic negation of another flag.
 	ReasonKingpinNegation = "FLAG_KINGPIN_NEGATION"
+	// ReasonReachabilityUnproven: every registration of the name is in a
+	// function that no call or reference from main, init or a package-level
+	// initialiser reaches (by name). Such a flag may never have been
+	// accepted, so its removal is not stated.
+	ReasonReachabilityUnproven = "FLAG_REACHABILITY_UNPROVEN"
 	// ReasonBuiltinName: help and version, which every flag library may
 	// accept without a registration, so that a removed registration does not
 	// mean a removed name.
@@ -105,7 +110,7 @@ type limits struct {
 
 func defaultLimits() limits {
 	return limits{dirs: 8192, filesPerDir: 2048, depth: 16, fileBytes: 2 << 20, files: 60000,
-		totalBytes: 256 << 20, packages: 4096, follows: 20000}
+		totalBytes: 64 << 20, packages: 4096, follows: 20000}
 }
 
 const (

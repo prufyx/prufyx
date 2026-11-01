@@ -1,0 +1,22 @@
+package main
+
+import (
+	"flag"
+	"os"
+)
+
+type P struct{ legacy bool }
+
+func (p *P) Parse(a []string) {
+	for _, x := range a {
+		if x == "--legacy" {
+			p.legacy = true
+		}
+	}
+}
+
+func main() {
+	flag.String("real", "", "u")
+	p := &P{}
+	p.Parse(os.Args[1:])
+}

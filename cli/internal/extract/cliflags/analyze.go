@@ -19,11 +19,12 @@ import (
 type rk uint8
 
 const (
-	rkNone  rk = iota
-	rkStd      // standard library *flag.FlagSet
-	rkPflag    // *pflag.FlagSet, including cobra's Flags() and PersistentFlags()
-	rkCobra    // *cobra.Command
-	rkKing     // kingpin application or command clause
+	rkNone   rk = iota
+	rkStd       // standard library *flag.FlagSet
+	rkPflag     // *pflag.FlagSet, including cobra's Flags() and PersistentFlags()
+	rkCobra     // *cobra.Command
+	rkKing      // kingpin application or command clause
+	rkUrfave    // urfave/cli application: a parser, not a registrar
 )
 
 func (k rk) idiom() string {
@@ -78,6 +79,7 @@ func buildVerbs() map[string]verbInfo {
 	m["CountVarP"] = verbInfo{1, 2, 4}
 	m["Var"] = verbInfo{1, -1, 3}
 	m["VarP"] = verbInfo{1, 2, 4}
+	m["VarPF"] = verbInfo{1, 2, 4}
 	for _, f := range []string{"Func", "BoolFunc"} {
 		m[f] = verbInfo{0, -1, 3}
 		m[f+"P"] = verbInfo{0, 1, 4}
@@ -85,6 +87,26 @@ func buildVerbs() map[string]verbInfo {
 	m["TextVar"] = verbInfo{1, -1, 4}
 	m["TextVarP"] = verbInfo{1, 2, 5}
 	return m
+}
+
+// nonRegistering are the methods and package functions of the standard flag
+// package and of pflag that are known not to register a name. On a proven
+// flag set every other method, and every other package function of those two
+// libraries, is withheld: an unlisted method could register a name the scanner
+// does not see.
+var nonRegistering = map[string]bool{
+	"Parse": true, "Parsed": true, "ParseAll": true, "Args": true, "Arg": true, "NArg": true, "NFlag": true,
+	"Lookup": true, "ShorthandLookup": true, "Set": true, "Changed": true, "Visit": true, "VisitAll": true,
+	"PrintDefaults": true, "FlagUsages": true, "FlagUsagesWrapped": true, "SetOutput": true, "Output": true,
+	"Name": true, "Init": true, "HasFlags": true, "HasAvailableFlags": true, "SetInterspersed": true,
+	"SetAnnotation": true, "ErrorHandling": true, "NewFlagSet": true, "UnquoteUsage": true,
+	"NormalizedName": true, "GetNormalizeFunc": true, "SetNormalizeFunc": true, "MarkHidden": true,
+	"MarkDeprecated": true, "MarkShorthandDeprecated": true, "AddGoFlagSet": true, "CopyToGoFlagSet": true,
+	"Usage": true, "SetUsage": true, "ParseErrorsAllowlist": true,
+}
+
+func listedNonRegistering(verb string) bool {
+	return nonRegistering[verb] || strings.HasPrefix(verb, "Get") || strings.HasPrefix(verb, "Mark")
 }
 
 var kingFlagInfo = verbInfo{0, -1, 2}
@@ -103,6 +125,8 @@ type event struct {
 	identity  string
 	shorthand bool
 	hidden    bool
+	fnKey     string // the function holding the registration
+	root      bool   // in a package-level initialiser, which always runs
 }
 
 type mod struct{ short, hidden bool }
@@ -119,11 +143,87 @@ type analysis struct {
 	pending    map[string]bool
 	bound      map[string]bool
 	follows    int
+	declNames  map[string]bool
+	dir        string
+	err        error
+	urfaveVars map[string]bool
 }
 
-func newAnalysis(s *scanner, bin string, cl *closure, om omset) *analysis {
-	return &analysis{s: s, bin: bin, cl: cl, om: om, events: map[string]*event{}, mods: map[string]*mod{},
+func newAnalysis(s *scanner, bin, dir string, cl *closure, om omset) *analysis {
+	return &analysis{s: s, bin: bin, dir: dir, cl: cl, om: om, events: map[string]*event{}, mods: map[string]*mod{},
 		hidden: map[string]bool{}, deprecated: map[string]bool{}, pending: map[string]bool{}, bound: map[string]bool{}}
+}
+
+// declared reports whether a function, method or interface method of this
+// name is declared anywhere in the package set.
+func (a *analysis) declared(name string) bool {
+	if a.declNames == nil {
+		a.declNames = map[string]bool{}
+		for _, d := range a.cl.dirs {
+			p := a.cl.pkgs[d]
+			if p == nil {
+				continue
+			}
+			for n := range p.funcs {
+				a.declNames[n] = true
+			}
+			for n := range p.methods {
+				a.declNames[n] = true
+			}
+			for _, fi := range p.files {
+				ast.Inspect(fi.f, func(n ast.Node) bool {
+					if it, ok := n.(*ast.InterfaceType); ok {
+						for _, m := range it.Methods.List {
+							for _, nm := range m.Names {
+								a.declNames[nm.Name] = true
+							}
+						}
+					}
+					return true
+				})
+			}
+		}
+	}
+	return a.declNames[name]
+}
+
+// urfaveVar reports whether name is a package-level variable of the package
+// set initialised with a urfave flag literal.
+func (a *analysis) urfaveVar(name string) bool {
+	if a.urfaveVars == nil {
+		a.urfaveVars = map[string]bool{}
+		for _, d := range a.cl.dirs {
+			p := a.cl.pkgs[d]
+			if p == nil {
+				continue
+			}
+			for _, fi := range p.files {
+				w := &walker{a: a, fi: fi}
+				for _, decl := range fi.f.Decls {
+					gd, ok := decl.(*ast.GenDecl)
+					if !ok || gd.Tok != token.VAR {
+						continue
+					}
+					for _, spec := range gd.Specs {
+						vs, ok := spec.(*ast.ValueSpec)
+						if !ok || len(vs.Values) != len(vs.Names) {
+							continue
+						}
+						for i, v := range vs.Values {
+							e := unparen(v)
+							if u, ok := e.(*ast.UnaryExpr); ok && u.Op == token.AND {
+								e = unparen(u.X)
+							}
+							if cl, ok := e.(*ast.CompositeLit); ok && cl.Type != nil && w.urfaveFlagType(cl.Type) {
+								a.urfaveVars[vs.Names[i].Name] = true
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return a.urfaveVars[name]
 }
 
 func (a *analysis) omit(reason, detail string) { a.om.add(reason, a.bin, detail) }
@@ -153,6 +253,10 @@ func (a *analysis) run() {
 		}
 		for _, fi := range p.files {
 			for _, decl := range fi.f.Decls {
+				if err := a.s.ctx.Err(); err != nil {
+					a.err = err
+					return
+				}
 				switch d := decl.(type) {
 				case *ast.FuncDecl:
 					if d.Body != nil {
@@ -187,6 +291,10 @@ func (a *analysis) analyzeVars(fi *fileInfo, d *ast.GenDecl) {
 }
 
 func (a *analysis) analyzeFunc(fn *fnInfo, bound map[string]rk, cc callCtx, depth int) {
+	if err := a.s.ctx.Err(); err != nil {
+		a.err = err
+		return
+	}
 	w := a.newWalker(fn, cc, depth)
 	w.params(bound)
 	w.gather(fn.decl.Body)
@@ -356,7 +464,12 @@ func (a *analysis) fill(b *Binary) {
 	type agg struct {
 		idioms        map[string]bool
 		hidden, short bool
+		reached       bool
 		identityCount map[string]int
+	}
+	var reach map[string]bool
+	if g.reach {
+		reach = a.reachable()
 	}
 	byName := map[string]*agg{}
 	keys := make([]string, 0, len(a.events))
@@ -380,6 +493,9 @@ func (a *analysis) fill(b *Binary) {
 			ag.short = true
 		}
 		ag.identityCount[ev.identity]++
+		if ev.root || reach[ev.fnKey] {
+			ag.reached = true
+		}
 	}
 	names := make([]string, 0, len(byName))
 	for n := range byName {
@@ -395,6 +511,9 @@ func (a *analysis) fill(b *Binary) {
 		}
 		if g.negation && ag.idioms[IdiomKingpin] && strings.HasPrefix(n, "no-") {
 			f.Withheld = append(f.Withheld, ReasonKingpinNegation)
+		}
+		if g.reach && !ag.reached {
+			f.Withheld = append(f.Withheld, ReasonReachabilityUnproven)
 		}
 		if g.builtin && (n == "help" || n == "version") {
 			f.Withheld = append(f.Withheld, ReasonBuiltinName)

@@ -52,7 +52,7 @@ var guardScenarios = map[string]guardScenario{
 	"TestGuardInitRegistration":  {fixturesScenario("init_registration", "init_callback", "init_cobra", "init_library"), func(g *guards) { g.initReg = false }},
 	"TestGuardUnprovableReceive": {fixturesScenario("delegated_receiver", "delegated_orphan_param", "kingpin_thanos"), func(g *guards) { g.tripwire = false }},
 	"TestGuardEscapingFlagSet":   {fixturesScenario("delegated_escape", "delegated_methodvalue"), func(g *guards) { g.escape = false }},
-	"TestGuardUnresolvedCallee":  {fixturesScenario("delegated_callee", "delegated_addflagset", "delegated_addgoflag"), func(g *guards) { g.delegated = false }},
+	"TestGuardUnresolvedCallee":  {fixturesScenario("delegated_callee"), func(g *guards) { g.delegated = false }},
 	"TestGuardDelegationDepth":   {fixturesScenario("delegation_depth3", "delegation_depth4"), func(g *guards) { g.depthLimit = false }},
 	"TestGuardNormalizeFunc":     {fixturesScenario("normalize_func"), func(g *guards) { g.normalize = false }},
 	"TestGuardGlobalFlagset":     {fixturesScenario("global_flagset", "idiom_klog"), func(g *guards) { g.global = false }},
@@ -62,10 +62,26 @@ var guardScenarios = map[string]guardScenario{
 	"TestGuardUrfaveAliases":     {fixturesScenario("urfave_v2"), func(g *guards) { g.aliases = false }},
 	"TestGuardMemberContract":    {fixturesScenario("names", "urfave_v1"), func(g *guards) { g.nameClass = false }},
 	"TestGuardBuiltinNames":      {fixturesScenario("builtin_names"), func(g *guards) { g.builtin = false }},
-	"TestGuardKingpinNegation":   {fixturesScenario("kingpin_negation"), func(g *guards) { g.negation = false }},
-	"TestGuardStaleExclusion":    {fixturesScenario("exclusion_stale"), func(g *guards) { g.excludeOnly = false }},
-	"TestGuardLimits":            {scenarioLimits, func(g *guards) { g.limits = false }},
-	"TestGuardParseErrors":       {fixturesScenario("parse_error"), func(g *guards) { g.parse = false }},
+	"TestGuardUnlistedMethods":   {fixturesScenario("pflag_unlisted_method", "pflag_pkg_addflag", "pflag_pkg_addflagset", "delegated_addflagset", "delegated_addgoflag"), func(g *guards) { g.unlisted = false }},
+	"TestGuardRegistrationTable": {fixturesScenario("pflag_varpf_method"), func(g *guards) {
+		g.verbs = map[string]verbInfo{}
+		for k, v := range regVerbs {
+			if k != "VarPF" {
+				g.verbs[k] = v
+			}
+		}
+	}},
+	"TestGuardArgsParser":       {fixturesScenario("args_handwritten_parser", "args_interface_parser", "cobra_tree", "urfave_v2"), func(g *guards) { g.argsParser = false }},
+	"TestGuardReachability":     {fixturesScenario("unreachable_function", "reachable_by_reference", "cobra_tree"), func(g *guards) { g.reach = false }},
+	"TestGuardStdlibDenylist":   {fixturesScenario("import_cgo", "import_httptest"), func(g *guards) { g.stdDeny = false }},
+	"TestGuardReplacedModules":  {fixturesScenario("replace_allowlisted", "replace_block_allowlisted", "replace_unrelated", "vendor_replace", "vendor_plain"), func(g *guards) { g.vendorMod = false }},
+	"TestGuardUrfaveElements":   {fixturesScenario("urfave_custom_flag", "urfave_var_list"), func(g *guards) { g.urfaveElems = false }},
+	"TestGuardUrfaveGeneric":    {fixturesScenario("urfave_v3_flagbase"), func(g *guards) { g.urfaveGen = false }},
+	"TestGuardIgnoredFileNames": {fixturesScenario("go_tool_ignored_names"), func(g *guards) { g.fileNames = false }},
+	"TestGuardKingpinNegation":  {fixturesScenario("kingpin_negation"), func(g *guards) { g.negation = false }},
+	"TestGuardStaleExclusion":   {fixturesScenario("exclusion_stale"), func(g *guards) { g.excludeOnly = false }},
+	"TestGuardLimits":           {scenarioLimits, func(g *guards) { g.limits = false }},
+	"TestGuardParseErrors":      {fixturesScenario("parse_error"), func(g *guards) { g.parse = false }},
 }
 
 func TestGuardImportAllowlist(t *testing.T)   { mustGuard(t, "TestGuardImportAllowlist") }
@@ -91,6 +107,16 @@ func TestGuardStaleExclusion(t *testing.T)    { mustGuard(t, "TestGuardStaleExcl
 func TestGuardLimits(t *testing.T)            { mustGuard(t, "TestGuardLimits") }
 func TestGuardParseErrors(t *testing.T)       { mustGuard(t, "TestGuardParseErrors") }
 
+func TestGuardUnlistedMethods(t *testing.T)   { mustGuard(t, "TestGuardUnlistedMethods") }
+func TestGuardRegistrationTable(t *testing.T) { mustGuard(t, "TestGuardRegistrationTable") }
+func TestGuardArgsParser(t *testing.T)        { mustGuard(t, "TestGuardArgsParser") }
+func TestGuardReachability(t *testing.T)      { mustGuard(t, "TestGuardReachability") }
+func TestGuardStdlibDenylist(t *testing.T)    { mustGuard(t, "TestGuardStdlibDenylist") }
+func TestGuardReplacedModules(t *testing.T)   { mustGuard(t, "TestGuardReplacedModules") }
+func TestGuardUrfaveElements(t *testing.T)    { mustGuard(t, "TestGuardUrfaveElements") }
+func TestGuardUrfaveGeneric(t *testing.T)     { mustGuard(t, "TestGuardUrfaveGeneric") }
+func TestGuardIgnoredFileNames(t *testing.T)  { mustGuard(t, "TestGuardIgnoredFileNames") }
+
 func mustGuard(t *testing.T, name string) {
 	t.Helper()
 	if err := guardScenarios[name].run(defaultGuards()); err != nil {
@@ -115,7 +141,7 @@ func TestGuardsAreLoadBearing(t *testing.T) {
 		}
 	}
 	// Every scenario is also wired to a test of the same name.
-	if len(guardScenarios) != 22 || len(ledgerScenarios) != 7 {
+	if len(guardScenarios) != 31 || len(ledgerScenarios) != 8 {
 		t.Errorf("scenario count changed: %d guards, %d ledger", len(guardScenarios), len(ledgerScenarios))
 	}
 }

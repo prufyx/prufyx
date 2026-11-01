@@ -107,15 +107,36 @@ func isStdlib(path string) bool {
 	return !strings.Contains(first, ".")
 }
 
-func classifyImport(path, module string) importKind {
-	if module != "" && underRoot(path, module) {
+// stdDenied are standard library import roots that are not neutral: "C" is
+// cgo (code the source does not show), plugin loads code at run time, testing
+// registers the test.* flags and net/http/httptest registers -httptest.serve
+// in an init function. Everything else in the standard library is accepted.
+var stdDenied = []string{"C", "plugin", "testing", "net/http/httptest"}
+
+func (s *scanner) classifyImport(path string) importKind {
+	if s.module != "" && underRoot(path, s.module) {
 		return impModule
 	}
 	if isStdlib(path) {
+		if s.g.stdDeny {
+			for _, root := range stdDenied {
+				if underRoot(path, root) {
+					return impDenied
+				}
+			}
+		}
 		return impStd
 	}
 	for _, root := range allowedExternal {
 		if underRoot(path, root) {
+			// A replaced module is not the reviewed library.
+			if s.g.vendorMod {
+				for _, old := range s.replaced {
+					if underRoot(path, old) {
+						return impDenied
+					}
+				}
+			}
 			return impAllowed
 		}
 	}

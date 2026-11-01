@@ -12,7 +12,7 @@
    "members": [
     "a-flag"
    ],
-   "complete": true,
+   "complete": false,
    "class": "single-dash-long",
    "idioms": [
     "flag"

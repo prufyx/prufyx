@@ -1,0 +1,5 @@
+module example.com/m
+
+go 1.22
+
+replace golang.org/x/sys => ./third_party/sys

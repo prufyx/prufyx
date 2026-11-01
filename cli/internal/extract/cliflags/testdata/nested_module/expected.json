@@ -1,5 +1,5 @@
 {
- "note": "",
+ "note": "a fault on a directory that was not scanned withholds every binary",
  "ledger": [
   "INVENTORY_FAULT_NESTED_MODULE tools/gen"
  ],
@@ -10,7 +10,7 @@
    "members": [
     "real"
    ],
-   "complete": true,
+   "complete": false,
    "class": "single-dash-long",
    "idioms": [
     "flag"
