@@ -4,6 +4,7 @@ package crdschema
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"gopkg.in/yaml.v3"
@@ -51,6 +52,13 @@ func narrowingCases() []testCase {
 			"kind: Component\napiVersion: kustomize.config.k8s.io/v1alpha1\nnamespace: n\nresources: [widget.yaml]\n", skipped("kustomization.yml")),
 		kustCase("kustomize_crd_marker", "kustomization.yaml",
 			kust+"metadata:\n  name: k\n  annotations:\n    note: CustomResourceDefinition\n", withheld("NON_CRD_DOCUMENT", "kustomization.yaml")),
+		kustCase("kustomize_crd_marker_upper", "kustomization.yaml",
+			kust+"metadata:\n  name: k\n  annotations:\n    note: CUSTOMRESOURCEDEFINITION\n", withheld("NON_CRD_DOCUMENT", "kustomization.yaml")),
+		kustCase("kustomize_duplicate_key", "kustomization.yaml", kust+"kind: Kustomization\n", withheld("NON_CRD_DOCUMENT", "kustomization.yaml")),
+		kustCase("kustomize_anchor", "kustomization.yaml", kust+"metadata: &m {name: k}\n", withheld("NON_CRD_DOCUMENT", "kustomization.yaml")),
+		kustCase("kustomize_resource_entry_map", "kustomization.yaml",
+			"apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\nresources: [{a: b}]\n", withheld("NON_CRD_DOCUMENT", "kustomization.yaml")),
+		kustCase("kustomize_oversize", "kustomization.yaml", kust+"#"+strings.Repeat("x", maxFileBytes), withheld("CRD_TOO_LARGE", "kustomization.yaml")),
 		kustCase("kustomize_patches", "kustomization.yaml", kust+"patches:\n- path: p.yaml\n", withheld("NON_CRD_DOCUMENT", "kustomization.yaml")),
 		kustCase("kustomize_foreign_apiversion", "kustomization.yaml", "apiVersion: apps/v1\nkind: Kustomization\n", withheld("NON_CRD_DOCUMENT", "kustomization.yaml")),
 		kustCase("kustomize_wrong_kind", "kustomization.yaml", "apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Other\n", withheld("NON_CRD_DOCUMENT", "kustomization.yaml")),
@@ -69,6 +77,11 @@ func narrowingCases() []testCase {
 		flowCase("flow_quoted_hex_escape", m(`["\x41"]`), flowBad),
 		flowCase("flow_quoted_single_escape", m(`['it''s']`), flowBad),
 		flowCase("flow_quoted_multiline", "metadata: {name: widgets.example.io, finalizers: [\"a\n  b\"]}", flowBad),
+		// U+2028 earlier in the file is a line end for the decoder but not for a
+		// split on \n; the next physical line looks like a valid quoted list.
+		flowCase("flow_quoted_after_unicode_break",
+			"metadata:\n  name: widgets.example.io\n  annotations:\n    n: \"p\u2028q\"\n  finalizers: [\"a\"]\n  finalizerz:  \"a\"", flowBad),
+		flowCase("flow_quoted_crlf", "metadata: {name: widgets.example.io, finalizers: [\"a\"]}\r", flowOK),
 		flowCase("flow_quoted_tagged", m(`[!!str "a"]`), flowBad),
 		flowCase("flow_quoted_anchor", m(`[&a "a"]`), flowBad),
 		flowCase("flow_quoted_alias", m(`[&a b, *a]`), flowBad),
@@ -114,6 +127,40 @@ func TestQuotedFlowScalarsStayStrings(t *testing.T) {
 	for _, c := range n.Content[0].Content {
 		if c.Tag != "!!str" {
 			t.Errorf("%q has tag %s", c.Value, c.Tag)
+		}
+	}
+}
+
+// isKustomizeFile, one property at a time.
+func TestIsKustomizeFileOneFieldAtATime(t *testing.T) {
+	const ok = "apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\nresources:\n- a.yaml\n"
+	for _, tc := range []struct {
+		name, file, body string
+		want             bool
+	}{
+		{"base", "kustomization.yaml", ok, true},
+		{"yml", "d/kustomization.yml", ok, true},
+		{"component without apiVersion", "kustomization.yaml", "kind: Component\n", true},
+		{"other name", "kustomization.yaml.txt", ok, false},
+		{"upper-case name", "KUSTOMIZATION.yaml", ok, false},
+		{"marker upper", "kustomization.yaml", ok + "x: CUSTOMRESOURCEDEFINITION\n", false},
+		{"marker lower", "kustomization.yaml", ok + "metadata: {name: customresourcedefinition}\n", false},
+		{"duplicate kind", "kustomization.yaml", ok + "kind: Kustomization\n", false},
+		{"anchor", "kustomization.yaml", ok + "metadata: &m {name: k}\n", false},
+		{"tag", "kustomization.yaml", ok + "namespace: !!str n\n", false},
+		{"resource entry map", "kustomization.yaml", "kind: Kustomization\nresources: [{a: b}]\n", false},
+		{"resource entry number", "kustomization.yaml", "kind: Kustomization\nresources: [1]\n", false},
+		{"resources not a list", "kustomization.yaml", "kind: Kustomization\nresources: a\n", false},
+		{"unknown key", "kustomization.yaml", ok + "patches: []\n", false},
+		{"no kind", "kustomization.yaml", "resources: [a]\n", false},
+		{"other kind", "kustomization.yaml", "kind: Deployment\n", false},
+		{"foreign apiVersion", "kustomization.yaml", "apiVersion: apps/v1\nkind: Kustomization\n", false},
+		{"two documents", "kustomization.yaml", ok + "---\n" + ok, false},
+		{"list root", "kustomization.yaml", "- a\n", false},
+		{"oversize", "kustomization.yaml", ok + "#" + strings.Repeat("x", maxFileBytes), false},
+	} {
+		if got := isKustomizeFile(tc.file, []byte(tc.body), defaultGuards().parse); got != tc.want {
+			t.Errorf("%s: got %v, want %v", tc.name, got, tc.want)
 		}
 	}
 }

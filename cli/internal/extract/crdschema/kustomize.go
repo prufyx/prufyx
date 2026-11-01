@@ -49,7 +49,10 @@ func isKustomizeFile(file string, data []byte, g parseGuards) (ok bool) {
 			ok = false
 		}
 	}()
-	if len(data) > maxFileBytes || bytes.Contains(bytes.ToLower(data), []byte("customresourcedefinition")) {
+	if g.kustomizeSize && len(data) > maxFileBytes {
+		return false
+	}
+	if g.kustomizeMarker && bytes.Contains(bytes.ToLower(data), []byte("customresourcedefinition")) {
 		return false
 	}
 	dec := yaml.NewDecoder(bytes.NewReader(data))
@@ -71,8 +74,10 @@ func isKustomizeFile(file string, data []byte, g parseGuards) (ok bool) {
 	if root.Kind != yaml.MappingNode {
 		return false
 	}
-	if err := checkYAML(root, g, data); err != nil {
-		return false
+	if g.kustomizeStrict {
+		if err := checkYAML(root, g, data); err != nil {
+			return false
+		}
 	}
 	for i := 0; i+1 < len(root.Content); i += 2 {
 		k, v := root.Content[i].Value, root.Content[i+1]
@@ -84,7 +89,7 @@ func isKustomizeFile(file string, data []byte, g parseGuards) (ok bool) {
 				return false
 			}
 			for _, e := range v.Content {
-				if !isStr(e) {
+				if g.kustomizeEntries && !isStr(e) {
 					return false
 				}
 			}

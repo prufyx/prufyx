@@ -55,6 +55,15 @@ type parseGuards struct {
 	// any file with a kustomize name is skipped (tests only).
 	kustomize      bool
 	kustomizeProof bool
+	// Parts of the kustomize proof and of the quoted-scalar proof, each
+	// switched off alone by tests: the marker scan, the strict YAML checks,
+	// the type of resources entries, the size limit, and the refusal of
+	// sources with line breaks that a line split cannot follow.
+	kustomizeMarker  bool
+	kustomizeStrict  bool
+	kustomizeEntries bool
+	kustomizeSize    bool
+	quotedBreaks     bool
 }
 
 var errUnproven = errors.New("unproven")
@@ -246,6 +255,7 @@ func parseDoc(file string, root *yaml.Node, g parseGuards, src []byte) (*crdDoc,
 func checkYAML(root *yaml.Node, g parseGuards, src []byte) error {
 	count := 0
 	var lines [][]byte
+	oddBreaks := false
 	var walk func(n *yaml.Node, depth int, inFlow bool) error
 	walk = func(n *yaml.Node, depth int, inFlow bool) error {
 		count++
@@ -266,8 +276,9 @@ func checkYAML(root *yaml.Node, g parseGuards, src []byte) error {
 				if g.quotedProof {
 					if lines == nil {
 						lines = bytes.Split(src, []byte("\n"))
+						oddBreaks = g.quotedBreaks && hasOtherBreak(src)
 					}
-					if !quotedSimple(n, lines) {
+					if oddBreaks || !quotedSimple(n, lines) {
 						return errUnproven
 					}
 				}
@@ -487,14 +498,32 @@ func buildTree(schema *yaml.Node, g parseGuards) (*tree, error) {
 	return t, nil
 }
 
+// hasOtherBreak reports whether src has a line break that is not \n or \r\n
+// (a lone \r, U+0085, U+2028 or U+2029). The YAML decoder counts those as
+// line ends, a split on \n does not, so node lines could not be mapped to
+// source lines.
+func hasOtherBreak(src []byte) bool {
+	for _, s := range []string{"\u0085", "\u2028", "\u2029"} {
+		if bytes.Contains(src, []byte(s)) {
+			return true
+		}
+	}
+	for i, c := range src {
+		if c == '\r' && (i+1 >= len(src) || src[i+1] != '\n') {
+			return true
+		}
+	}
+	return false
+}
+
 // quotedSimple proves, from the source line, that a quoted scalar is a plain
-// one-line string: it is a string without a tag or anchor, the node starts at
-// the opening quote, the closing quote is on the same line, no escape sequence
-// ("\\" in a double-quoted scalar, a doubled quote in a single-quoted one) is
-// used, and the text between the quotes is exactly the decoded value. Quoting
+// one-line string: the node starts at the opening quote, the closing quote is
+// on the same line, and no escape sequence (a backslash in a double-quoted
+// scalar, a doubled quote in a single-quoted one) is used. Tags and anchors
+// are refused by the strict checks that follow in checkYAML, and quoting
 // fixes the type, so a value such as "true", "null" or "1e3" stays a string.
 func quotedSimple(n *yaml.Node, lines [][]byte) bool {
-	if n.Tag != "!!str" || n.Anchor != "" || n.Style&yaml.TaggedStyle != 0 || n.Line < 1 || n.Line > len(lines) || n.Column < 1 {
+	if n.Line < 1 || n.Line > len(lines) || n.Column < 1 {
 		return false
 	}
 	var q rune
@@ -519,6 +548,7 @@ func quotedSimple(n *yaml.Node, lines [][]byte) bool {
 			if q == '\'' && j+1 < len(line) && line[j+1] == '\'' {
 				return false
 			}
+			// Belt and braces: the text between the quotes is the value.
 			return string(line[start+1:j]) == n.Value
 		}
 	}
