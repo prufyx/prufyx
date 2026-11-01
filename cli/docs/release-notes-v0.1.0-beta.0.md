@@ -187,6 +187,9 @@ You can also build from source; see the [README](https://github.com/prufyx/prufy
   capability. If you upgrade with a database from an older feed installed, run
   `prufyx db update` before `scan`; until then `scan` and `check` may stop with
   exit `3`. Compatibility across capabilities is planned for beta.1.
+- beta.0 clients stop accepting knowledge updates once beta.1 data is
+  published; upgrade to beta.1. Until then existing evidence stays valid until
+  its window expires, then checks report `UNKNOWN`.
 - `prufyx db status` on a database this build cannot read (too new, or built for
   another engine capability) reports `INTEGRITY_FAILURE` (exit `3`) with the
   reason "selected knowledge admission failed integrity checks", although the
