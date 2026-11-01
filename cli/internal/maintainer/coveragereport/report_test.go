@@ -534,8 +534,16 @@ func TestCustomResourceFamilyCountsA(t *testing.T) {
 	if report.split.canBlock != 1 || len(report.split.noBlock) != 1 || report.split.noBlock[0] != (familyCount{"crd.custom_resource_versions", 2}) || report.split.total() != report.Fleet.A+report.Fleet.B {
 		t.Fatalf("split %+v fleet %+v", report.split, report.Fleet)
 	}
-	if got := decidedSplitSentence(report.split, 3); !strings.Contains(got, "Only 1 of the 3 decided upgrades") || !strings.Contains(got, "The other 2 are decided only by line attestations that list no rule (2 by `crd.custom_resource_versions`)") {
+	got, err := decidedSplitSentence(report.split, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(got, "Only 1 of the 3 decided upgrades") || !strings.Contains(got, "The other 2 are decided only by line attestations that list no rule (2 by `crd.custom_resource_versions`)") {
 		t.Fatalf("sentence %q", got)
+	}
+	// A split that does not add up to the decided count is an error, never fallback text.
+	if got, err := decidedSplitSentence(report.split, 4); err == nil {
+		t.Fatalf("mismatched split returned %q, want an error", got)
 	}
 	// A listed rule that holds for its anchor pair only keeps the pair from A.
 	anchorOnly := strings.Replace(rule, ","+rangeJSON("0.50.0", "0.51.0", "0.51.0", "0.52.0"), "", 1)
