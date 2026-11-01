@@ -820,7 +820,7 @@ func storeGap(store *StoreInfo, slug string) (scanreport.Gap, bool) {
 		return scanreport.NewGap(slug, nil, scanreport.GapProjectNotInKnowledge, slug), true
 	}
 	if n := store.Deferred[slug]; n > 0 {
-		return scanreport.NewGap(slug, nil, scanreport.GapProjectRulesDeferred, slug, n), true
+		return scanreport.NewGap(slug, nil, scanreport.GapProjectRulesDeferred, slug), true
 	}
 	return scanreport.Gap{}, false
 }
