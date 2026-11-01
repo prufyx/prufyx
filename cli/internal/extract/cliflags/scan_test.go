@@ -641,3 +641,48 @@ func TestCancelDuringAnalysisStops(t *testing.T) {
 		t.Fatalf("err %v", err)
 	}
 }
+
+// The contract for the comparison: unproven reachability counts as present on
+// the newer side and is never a removal on the older side.
+func TestPresenceAndRemovalContract(t *testing.T) {
+	all, err := loadFixtures()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fx fixture
+	for _, f := range all {
+		if f.name == "unreachable_function" {
+			fx = f
+		}
+	}
+	res, err := fx.scan(defaultGuards(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := binaryByDir(res, "cmd/t")
+	for name, want := range map[string][2]bool{
+		"live":       {true, true},
+		"lib-live":   {true, true},
+		"legacy":     {true, false},
+		"lib-legacy": {true, false},
+		"absent":     {false, false},
+	} {
+		if got := b.Present(name); got != want[0] {
+			t.Errorf("Present(%s) = %v", name, got)
+		}
+		if got := b.Removable(name); got != want[1] {
+			t.Errorf("Removable(%s) = %v", name, got)
+		}
+	}
+	// Names outside the member contract are present but never removable, and
+	// nothing is removable from an incomplete set.
+	res = scanFiles(t, map[string]string{"cmd/t/main.go": "package main\n\nimport \"flag\"\n\nfunc main() { flag.Bool(\"Debug\", false, \"u\"); flag.Bool(\"ok\", false, \"u\"); flag.Parse() }\n"}, defaultGuards())
+	b = binaryByDir(res, "cmd/t")
+	if !b.Present("Debug") || b.Removable("Debug") || !b.Removable("ok") {
+		t.Errorf("Debug/ok: present %v/%v removable %v/%v", b.Present("Debug"), b.Present("ok"), b.Removable("Debug"), b.Removable("ok"))
+	}
+	b.Set.Complete = false
+	if b.Removable("ok") {
+		t.Error("removable from an incomplete set")
+	}
+}

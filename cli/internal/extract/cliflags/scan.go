@@ -23,6 +23,13 @@
 // package main at the pinned commit is one. A reviewed target can only
 // exclude a directory, with a reason.
 //
+// Contract for the comparison of two scans (not in this package): the newer
+// side counts every name for which Binary.Present is true as still accepted,
+// including names withheld as unreachable or outside the member contract; the
+// older side states a removal only for names for which Binary.Removable is
+// true. Counting a withheld registration as absent on the newer side would
+// turn an unproven reachability into a removal.
+//
 // Scope. Flag-level facts (shorthand, hidden, deprecated, name that cannot be
 // a member) are listed on the flags of a binary. Pair-level decisions (a name
 // still registered by another binary, a rename) belong to the code that
@@ -132,6 +139,20 @@ type Flag struct {
 	Withheld []string `json:"withheld"`
 }
 
+// CountsAsPresent reports whether the flag counts as accepted by the binary
+// when the scan is the newer side of a comparison ("still present"). It is
+// true for every listed flag, including one that carries
+// FLAG_REACHABILITY_UNPROVEN or a name that cannot be a set member: a name the
+// source registers may be accepted, and over-counting the newer side only ever
+// withholds a removal.
+func (f Flag) CountsAsPresent() bool { return true }
+
+// UsableForRemoval reports whether the flag may back a stated removal when the
+// scan is the older side: only a flag with no flag-level reason (no shorthand,
+// not unreachable, not builtin, not a name outside the member contract, ...).
+// Whether the name is also absent from the newer scan is the caller's check.
+func (f Flag) UsableForRemoval() bool { return len(f.Withheld) == 0 }
+
 // Binary is the scan result of one package main directory.
 type Binary struct {
 	// Dir is the repository-relative directory ("." for the root).
@@ -164,6 +185,38 @@ type Result struct {
 	// Ledger is the typed, canonical form of Omissions. A non-empty ledger
 	// means the sets are incomplete and the scan is not attestable.
 	Ledger []LedgerEntry `json:"ledger"`
+}
+
+// Present reports whether the binary registers name in any form the scanner
+// saw (see Flag.CountsAsPresent). Use it for the newer side of a comparison.
+func (b *Binary) Present(name string) bool {
+	_, ok := b.flag(name)
+	return ok
+}
+
+// Removable reports whether name may be stated as removed when it is absent
+// from the newer scan: it is a member of this (older) binary's complete set
+// and its flag carries no flag-level reason. Use it for the older side only.
+func (b *Binary) Removable(name string) bool {
+	f, ok := b.flag(name)
+	if !ok || !b.Set.Complete || !f.UsableForRemoval() {
+		return false
+	}
+	for _, m := range b.Set.Members {
+		if m == name {
+			return true
+		}
+	}
+	return false
+}
+
+func (b *Binary) flag(name string) (Flag, bool) {
+	for _, f := range b.Flags {
+		if f.Name == name {
+			return f, true
+		}
+	}
+	return Flag{}, false
 }
 
 // Canonical returns the canonical JSON of the result.
@@ -205,6 +258,10 @@ type guards struct {
 	verbs       map[string]verbInfo // nil: regVerbs
 	fileNames   bool                // files the go tool ignores by name
 	urfaveElems bool                // unrecognised elements of a []cli.Flag literal
+	declAll     bool                // fields and variables count as declared parsers
+	urfaveWrap  bool                // only urfave packages wrap a flag
+	reachDot    bool                // reachability through dot imports
+	goWork      bool                // go.work replace and use
 	urfaveGen   bool                // urfave v3 generic flag types
 	excludeOnly bool                // an exclusion that matches nothing is a fault
 	limits      bool
@@ -229,7 +286,7 @@ func defaultGuards() guards {
 		imports: true, dynamic: true, loop: true, buildTag: true, goos: true, initReg: true,
 		tripwire: true, escape: true, delegated: true, depthLimit: true, normalize: true, global: true,
 		duplicate: true, argsRewrite: true, shorthand: true, aliases: true, nameClass: true,
-		negation: true, builtin: true, unlisted: true, argsParser: true, reach: true, vendorMod: true, stdDeny: true, fileNames: true, urfaveGen: true, urfaveElems: true, excludeOnly: true, limits: true, lim: defaultLimits(), parse: true, ledger: defaultLedgerGuards(),
+		negation: true, builtin: true, unlisted: true, argsParser: true, reach: true, vendorMod: true, stdDeny: true, fileNames: true, urfaveGen: true, reachDot: true, declAll: true, urfaveWrap: true, goWork: true, urfaveElems: true, excludeOnly: true, limits: true, lim: defaultLimits(), parse: true, ledger: defaultLedgerGuards(),
 	}
 }
 
@@ -424,6 +481,9 @@ func (s *scanner) readModule() (bool, error) {
 		if err := s.readVendorReplaced(); err != nil {
 			return false, err
 		}
+		if err := s.readWork(); err != nil {
+			return false, err
+		}
 		return true, nil
 	}
 	s.fault(ReasonGoModInvalid, "", "")
@@ -460,6 +520,53 @@ func (s *scanner) noteReplaced(f []string) {
 			return
 		}
 	}
+}
+
+// readWork reads go.work when the repository has one: its replace directives
+// count like go.mod's, and a use directive that leaves the repository means
+// the build is not the module alone.
+func (s *scanner) readWork() error {
+	data, err := s.read("go.work")
+	if errors.Is(err, extract.ErrNotFound) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("cliflags: read go.work: %w", err)
+	}
+	if len(data) > maxGoModBytes {
+		s.fault(ReasonGoModInvalid, "go.work", "too large")
+		return nil
+	}
+	if !s.g.goWork {
+		return nil
+	}
+	s.readReplaced(string(data))
+	inBlock := false
+	for _, line := range strings.Split(string(data), "\n") {
+		if i := strings.Index(line, "//"); i >= 0 {
+			line = line[:i]
+		}
+		f := strings.Fields(line)
+		var dirs []string
+		switch {
+		case len(f) == 0:
+		case inBlock && f[0] == ")":
+			inBlock = false
+		case inBlock:
+			dirs = f[:1]
+		case f[0] == "use" && len(f) > 1 && f[1] == "(":
+			inBlock = true
+		case f[0] == "use" && len(f) > 1:
+			dirs = f[1:2]
+		}
+		for _, d := range dirs {
+			d = strings.Trim(d, `"`)
+			if c := path.Clean(d); path.IsAbs(c) || c == ".." || strings.HasPrefix(c, "../") {
+				s.fault(ReasonGoModInvalid, "go.work", "use outside the module")
+			}
+		}
+	}
+	return nil
 }
 
 // readVendorReplaced reads the replacement markers ("# path version => dir")

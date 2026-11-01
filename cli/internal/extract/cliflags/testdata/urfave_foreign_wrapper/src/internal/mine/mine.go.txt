@@ -1,0 +1,3 @@
+package mine
+
+func WithAliases(f ...interface{}) interface{} { return nil }

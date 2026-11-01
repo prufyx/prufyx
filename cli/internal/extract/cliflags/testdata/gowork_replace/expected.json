@@ -1,0 +1,21 @@
+{
+ "note": "",
+ "ledger": [
+  "FLAG_IDIOM_UNSUPPORTED cmd/t"
+ ],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/t",
+   "members": [
+    "real"
+   ],
+   "complete": false,
+   "class": "double-dash",
+   "idioms": [
+    "pflag"
+   ],
+   "flags": {}
+  }
+ ]
+}

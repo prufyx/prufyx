@@ -44,6 +44,15 @@ func (a *analysis) reachable() map[string]bool {
 			switch n := n.(type) {
 			case *ast.Ident:
 				push(fi.pkg.funcs[n.Name]...)
+				if a.s.g.reachDot {
+					for _, im := range fi.imports {
+						if im.dot && im.kind == impModule {
+							if tp := a.cl.pkgs[im.dir]; tp != nil {
+								push(tp.funcs[n.Name]...)
+							}
+						}
+					}
+				}
 			case *ast.SelectorExpr:
 				if id, ok := n.X.(*ast.Ident); ok {
 					if im := fi.aliases[id.Name]; im != nil && im.kind == impModule {

@@ -1,0 +1,7 @@
+package lib
+
+import (
+	"flag"
+)
+
+func Register() { flag.String("dot-flag", "", "u") }
