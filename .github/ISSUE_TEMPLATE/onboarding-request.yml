@@ -1,0 +1,63 @@
+name: Project onboarding request
+description: Ask for a public project to be observed. Fields map to "prufyx-maintainer project init".
+title: "[onboarding] "
+labels:
+  - maintainer-intake
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Fields map one-to-one to `prufyx-maintainer project init` (see [project onboarding](https://github.com/prufyx/prufyx/blob/main/cli/docs/project-onboarding.md)). A reviewer builds the request file, runs `project validate`, then `project sync`. This form does not add a rule, assert compatibility, or publish a project.
+
+        This issue is public. Do not include email addresses, customer data, cluster data, credentials, or private links.
+  - type: input
+    id: repository
+    attributes:
+      label: Repository URL
+      description: Exact canonical HTTPS URL with two path segments. No .git, query, fragment, or trailing slash.
+      placeholder: https://github.com/owner/repository
+    validations:
+      required: true
+  - type: input
+    id: slug
+    attributes:
+      label: Slug (optional)
+      description: Lowercase stable slug. Left empty, the tool derives one.
+      placeholder: my-project
+  - type: input
+    id: release-limit
+    attributes:
+      label: Recent releases to observe
+      description: Integer 1 to 10. Default 5.
+      placeholder: "5"
+  - type: input
+    id: tag-prefix
+    attributes:
+      label: Tag prefix (optional)
+      description: Only for repositories that tag several components. May end in /.
+      placeholder: operator/
+  - type: textarea
+    id: changelog-paths
+    attributes:
+      label: Changelog or upgrade-guide paths (optional)
+      description: One repository-relative path per line, at most 8. Replaces the defaults (CHANGELOG.md, CHANGES.md, CHANGES, RELEASES.md, docs/CHANGELOG.md).
+      placeholder: |
+        CHANGELOG.md
+        docs/upgrade.md
+  - type: dropdown
+    id: license-disposition
+    attributes:
+      label: License declaration
+      options:
+        - NOT_REVIEWED
+        - DECLARED_UNKNOWN
+      default: 0
+    validations:
+      required: true
+  - type: checkboxes
+    id: consent
+    attributes:
+      label: Consent
+      options:
+        - label: The repository is public and I included no private or personal data.
+          required: true
