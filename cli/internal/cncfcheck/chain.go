@@ -67,6 +67,11 @@ type ChainReport struct {
 // whole range is not lost. via is the operator's declared path: nothing here
 // invents an intermediate version.
 func (c Checker) CheckChain(project string, inputRaw []byte, via []string, now time.Time) (ChainReport, error) {
+	// the original bytes go through the engine's own input gate once: every hop is a re-encoding of them, which
+	// would otherwise hide a duplicate key (last value wins) that a single check refuses
+	if err := ValidateCanonicalInput(project, inputRaw); err != nil {
+		return ChainReport{}, err
+	}
 	return checkChain(func(raw []byte) (Report, error) { return c.Check(project, raw, now) }, project, inputRaw, via)
 }
 
@@ -95,7 +100,7 @@ func checkChain(evaluate func([]byte) (Report, error), project string, inputRaw 
 	if err != nil {
 		return ChainReport{}, err
 	}
-	if whole.Verdict == ChainUnknown && whole.Decided == 0 && whole.Report.TrustPolicy == nil {
+	if whole.Verdict == ChainUnknown && whole.Decided == 0 && (whole.Report.TrustPolicy == nil || whole.Report.TrustPolicy.ExcludedRules == 0) {
 		whole.Verdict = ChainNoRule
 	}
 	chain.Whole = whole
