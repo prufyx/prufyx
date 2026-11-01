@@ -195,7 +195,7 @@ var gapMessages = map[GapKey]gapMessage{
 		"run prufyx check cncf --project %[1]s, or verify its upgrade notes by hand", 1},
 	GapProjectNotInKnowledge: {"the selected knowledge database has no knowledge for %[1]s, so nothing about it was checked",
 		"update the knowledge database to a revision that covers %[1]s, or verify its upgrade notes by hand", 1},
-	GapProjectRulesDeferred: {"some rules of %[1]s in the selected knowledge database need facts this prufyx does not know, so nothing about %[1]s was checked",
+	GapProjectRulesDeferred: {"rules of %[1]s in the knowledge database need facts this prufyx does not know; nothing about it was checked",
 		"upgrade prufyx, then scan again; the other projects are checked normally", 1},
 	GapVersionNotDetected: {"the current %[1]s version is not declared and was not detected in the manifests",
 		"declare it with --from %[1]s=VERSION or under current: in prufyx.yaml", 1},

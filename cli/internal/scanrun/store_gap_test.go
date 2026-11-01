@@ -21,7 +21,7 @@ func TestStoreGapForDeferredRules(t *testing.T) {
 		t.Fatalf("absent: %+v %v", gap, ok)
 	}
 	gap, ok := storeGap(info, "b")
-	if !ok || !strings.Contains(gap.Detail, "some rules of b") || gap.Reason != scanreport.ReasonProjectNotInKnowledge {
+	if !ok || !strings.Contains(gap.Detail, "rules of b in the knowledge") || gap.Reason != scanreport.ReasonProjectNotInKnowledge {
 		t.Fatalf("deferred: %+v %v", gap, ok)
 	}
 	if _, ok := storeGap(info, "c"); ok {
