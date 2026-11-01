@@ -281,8 +281,12 @@ func TestSkippedKustomizationIsNotCited(t *testing.T) {
 	if p.Attestation.Status != extract.PairAttested || len(out.Attestations) != 1 {
 		t.Fatalf("attestation=%+v", p.Attestation)
 	}
-	for _, s := range out.Attestations[0].Evidence.Sources {
-		if strings.HasSuffix(s.URL, "kustomization.yaml") {
+	srcs := out.Attestations[0].Evidence.Sources
+	if len(srcs) != 2 {
+		t.Fatalf("sources %+v", srcs)
+	}
+	for _, s := range srcs {
+		if !strings.HasSuffix(s.URL, "/crd/widget.yaml") {
 			t.Fatalf("cites %s", s.URL)
 		}
 	}
