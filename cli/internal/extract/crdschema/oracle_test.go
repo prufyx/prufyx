@@ -159,6 +159,7 @@ func TestMutationEveryGuardIsLoadBearing(t *testing.T) {
 		{"member charset", func(g *guards) { g.fieldEnc = laxField; g.enumEnc = laxEnum }, []string{"member_charset"}},
 		{"member set over the cap is empty", func(g *guards) { g.emptyOnCap = false }, []string{"too_many_members"}},
 		{"kustomize skip", func(g *guards) { g.parse.kustomize = false }, []string{"kustomize_skipped", "kustomize_yml_component_skipped"}},
+		{"kustomize siblings must be named", func(g *guards) { g.parse.kustomizeCovered = false }, []string{"kustomize_hidden_removal"}},
 		{"kustomize proof", func(g *guards) { g.parse.kustomizeProof = false }, []string{"kustomize_crd_marker", "kustomize_patches", "kustomize_foreign_apiversion", "kustomize_malformed", "kustomize_two_documents", "kustomize_wrong_kind"}},
 		{"quoted flow scalars", func(g *guards) { g.parse.quotedFlow = false }, []string{"flow_quoted_double", "flow_quoted_single", "flow_quoted_mixed", "flow_quoted_coercible_strings", "flow_quoted_enum_strings"}},
 		{"quoted flow proof", func(g *guards) { g.parse.quotedProof = false }, []string{"flow_quoted_escape", "flow_quoted_hex_escape", "flow_quoted_single_escape", "flow_quoted_multiline"}},
