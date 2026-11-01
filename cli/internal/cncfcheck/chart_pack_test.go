@@ -98,11 +98,11 @@ func TestExternalRefusesChartRules(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := validateExternalPack(base, value, "7", false); err != nil {
+	if err := validateExternalPack(base, value, "7", false, false); err != nil {
 		t.Fatalf("the untouched export is refused, so the refusal below would prove nothing: %v", err)
 	}
 	value.Entries = append(value.Entries, syntheticChartEntry(t))
-	if err := validateExternalPack(base, value, "7", false); !errors.Is(err, ErrIntegrity) {
+	if err := validateExternalPack(base, value, "7", false, false); !errors.Is(err, ErrIntegrity) {
 		t.Fatalf("validateExternalPack admitted a chart rule: %v", err)
 	}
 }
@@ -176,7 +176,7 @@ func TestExternalRefusesSetNotices(t *testing.T) {
 		t.Fatal(err)
 	}
 	value.Entries = append(value.Entries, syntheticSetNoticeEntry(t, constraintengine.OperatorNoticeSetMemberPresent))
-	if err := validateExternalPack(base, value, "7", false); !errors.Is(err, ErrIntegrity) {
+	if err := validateExternalPack(base, value, "7", false, false); !errors.Is(err, ErrIntegrity) {
 		t.Fatalf("validateExternalPack admitted a set notice: %v", err)
 	}
 }

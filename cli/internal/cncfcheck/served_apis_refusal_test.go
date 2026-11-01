@@ -24,11 +24,11 @@ func TestExternalProfileRefusesServedAPIs(t *testing.T) {
 	}
 	value := syntheticBase(t)
 	value.Revision = "7"
-	if err := validateExternalPack(base, value, "7", false); err != nil {
+	if err := validateExternalPack(base, value, "7", false, false); err != nil {
 		t.Fatalf("control: the pack without a served list is refused: %v", err)
 	}
 	value.ServedAPIs, value.Schema = json.RawMessage(servedSectionForRefusal), packSchemaServedAPIs
-	if err := validateExternalPack(base, value, "7", false); !errors.Is(err, ErrIntegrity) {
+	if err := validateExternalPack(base, value, "7", false, false); !errors.Is(err, ErrIntegrity) {
 		t.Fatalf("validateExternalPack admitted served-API lists: %v", err)
 	}
 }

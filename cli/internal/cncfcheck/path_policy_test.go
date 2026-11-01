@@ -341,13 +341,13 @@ func TestExternalRefusesPathPolicies(t *testing.T) {
 	if err := json.Unmarshal(envelope["pack"], &value); err != nil {
 		t.Fatal(err)
 	}
-	if err := validateExternalPack(base, value, "7", false); !errors.Is(err, ErrIntegrity) {
+	if err := validateExternalPack(base, value, "7", false, false); !errors.Is(err, ErrIntegrity) {
 		t.Fatalf("validateExternalPack admitted path policies: %v", err)
 	}
 	// The same pack value without the section passes the external check, so
 	// the refusal above is the section's.
 	value.PathPolicies, value.Schema = nil, packSchemaRanged
-	if err := validateExternalPack(base, value, "7", false); err != nil {
+	if err := validateExternalPack(base, value, "7", false, false); err != nil {
 		t.Fatalf("validateExternalPack refused the pack without path policies: %v", err)
 	}
 }

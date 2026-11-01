@@ -140,14 +140,14 @@ func TestExternalPackRefusesSeverity(t *testing.T) {
 	pack := syntheticBase(t)
 	pack.Entries = []Entry{entry}
 	pack.Schema = packSchemaSeverity
-	if err := validateExternalPack(base, pack, pack.Revision, false); !errors.Is(err, ErrIntegrity) {
+	if err := validateExternalPack(base, pack, pack.Revision, false, false); !errors.Is(err, ErrIntegrity) {
 		t.Fatalf("external support-range pack accepted: %v", err)
 	}
 	// The same rule without the severity is admitted (control).
 	plain := entry
 	plain.Rule = json.RawMessage(strings.Replace(string(entry.Rule), `,"severity":"unsupported"`, "", 1))
 	pack.Entries, pack.Schema = []Entry{plain}, packSchema
-	if err := validateExternalPack(base, pack, pack.Revision, false); err != nil {
+	if err := validateExternalPack(base, pack, pack.Revision, false, false); err != nil {
 		t.Fatalf("external pack without severity refused: %v", err)
 	}
 }

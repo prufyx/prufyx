@@ -353,7 +353,7 @@ func TestExternalBundleRefusesAttestations(t *testing.T) {
 	if err := json.Unmarshal(envelope["pack"], &value); err != nil {
 		t.Fatal(err)
 	}
-	if err := validateExternalPack(base, value, "7", false); !errors.Is(err, ErrIntegrity) {
+	if err := validateExternalPack(base, value, "7", false, false); !errors.Is(err, ErrIntegrity) {
 		t.Fatalf("validateExternalPack admitted attestations: %v", err)
 	}
 }
