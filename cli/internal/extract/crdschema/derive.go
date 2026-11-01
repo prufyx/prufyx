@@ -27,7 +27,6 @@ import (
 	"errors"
 	"fmt"
 	"path"
-	"reflect"
 	"sort"
 	"strings"
 
@@ -122,6 +121,7 @@ type guards struct {
 	presence        bool
 	collisions      bool
 	subtrees        bool
+	enumSig         bool // compare non-string enums per version, not as unions
 	fieldEnc        func(group, kind string, p []membercode.Seg) (string, error)
 	enumEnc         func(group, kind string, p []membercode.Seg, v string) (string, error)
 }
@@ -130,7 +130,7 @@ func defaultGuards() guards {
 	return guards{
 		parse:      parseGuards{strict: true, secret: true, nonCRD: true, limits: true, unmodel: true},
 		servedOnly: true, webhook: true, versionSpecific: true, preserve: true, status: true,
-		rename: true, presence: true, collisions: true, subtrees: true,
+		rename: true, presence: true, collisions: true, subtrees: true, enumSig: true,
 		fieldEnc: membercode.Field, enumEnc: membercode.Enum,
 	}
 }
@@ -667,16 +667,12 @@ func diffEnums(o *out, da, db *crdDoc, subject string, va, vb []served, ub map[s
 		}
 		vals := map[string]bool{}
 		nonString, any := false, false
-		rawA, rawB := map[string]bool{}, map[string]bool{}
 		for _, v := range va {
 			if n, ok := v.t.nodes[k]; ok && n.enum.present {
 				any = true
 				nonString = nonString || n.enum.nonString
 				for x := range n.enum.vals {
 					vals[x] = true
-				}
-				for x := range n.enum.raw {
-					rawA[x] = true
 				}
 			}
 		}
@@ -693,9 +689,6 @@ func diffEnums(o *out, da, db *crdDoc, subject string, va, vb []served, ub map[s
 			}
 			if n.enum.nonString {
 				nonString = true
-			}
-			for x := range n.enum.raw {
-				rawB[x] = true
 			}
 			if g.preserve && n.chainPreserve() {
 				common = append(common, ReasonPreserveUnknown)
@@ -714,8 +707,8 @@ func diffEnums(o *out, da, db *crdDoc, subject string, va, vb []served, ub map[s
 				}
 			}
 		}
-		if nonString && reflect.DeepEqual(rawA, rawB) {
-			continue // a non-string enum that did not change decides nothing
+		if nonString && (enumSig(va, k) == enumSig(vb, k) || !g.enumSig && unionSig(va, k) == unionSig(vb, k)) {
+			continue // a non-string enum that did not change in any version decides nothing
 		}
 		if statusScoped && isStatus(segs) {
 			if nonString {
@@ -788,4 +781,38 @@ func diffEnums(o *out, da, db *crdDoc, subject string, va, vb []served, ub map[s
 			o.encoded(m, err, k+"\x00"+val, subject, "e", g)
 		}
 	}
+}
+
+// enumSig describes the enum at path k in every served version, by version
+// name, so that two sides compare equal only when each same-named version
+// lists exactly the same entries (and the same versions are served).
+func enumSig(vs []served, k string) string {
+	parts := make([]string, 0, len(vs))
+	for _, v := range vs {
+		n, ok := v.t.nodes[k]
+		switch {
+		case !ok:
+			parts = append(parts, v.name+"=missing")
+		case !n.enum.present:
+			parts = append(parts, v.name+"=none")
+		default:
+			parts = append(parts, v.name+"="+strings.Join(sortedKeys(n.enum.raw), ","))
+		}
+	}
+	sort.Strings(parts)
+	return strings.Join(parts, "|")
+}
+
+// unionSig is the pre-fix comparison, kept only so a test can prove that
+// comparing unions would be a wrong complete=true.
+func unionSig(vs []served, k string) string {
+	set := map[string]bool{}
+	for _, v := range vs {
+		if n, ok := v.t.nodes[k]; ok {
+			for x := range n.enum.raw {
+				set[x] = true
+			}
+		}
+	}
+	return strings.Join(sortedKeys(set), ",")
 }

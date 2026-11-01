@@ -151,6 +151,8 @@ func TestMutationEveryGuardIsLoadBearing(t *testing.T) {
 		{"presence", func(g *guards) { g.presence = false }, []string{"crd_absent_in_to"}},
 		{"typed additionalProperties in B", func(g *guards) { g.preserve = false }, []string{"additional_properties_schema_to"}},
 		{"enum: B version lacks the field", func(g *guards) { g.preserve = false }, []string{"enum_version_lacks_field_preserve"}},
+		{"non-string enum swapped between versions", func(g *guards) { g.enumSig = false }, []string{"enum_non_string_versions_swapped"}},
+		{"nested typed additionalProperties", func(g *guards) { g.preserve = false }, []string{"additional_properties_schema_nested", "item_ancestor_preserve_to", "preserve_two_levels_above_to"}},
 		{"unlisted subtree", func(g *guards) { g.subtrees = false }, []string{"unlisted_subtree"}},
 		{"rename of a descendant", func(g *guards) { g.rename = false }, []string{"rename_descendant_new_location"}},
 		{"collision detection", func(g *guards) { g.collisions = false }, []string{"member_collision_lossy_encoder"}},
