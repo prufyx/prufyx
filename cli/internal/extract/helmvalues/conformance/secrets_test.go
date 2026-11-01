@@ -54,11 +54,12 @@ func TestReleaseSecretPayloadIsDropped(t *testing.T) {
 }
 
 // No non-test Go source of the module names a Helm release Secret or a
-// Secret-reading helper, so no code path can take values from one. Adding
-// such a path makes this test fail until it is reviewed.
+// Secret-reading helper, so no code path can take values from one. This is
+// a tripwire, not proof: a token list cannot see a Secret read under another
+// name. Adding such a path makes it fail until it is reviewed.
 func TestNoSourceDecodesAHelmRelease(t *testing.T) {
 	root := filepath.Join("..", "..", "..", "..") // cli/
-	tokens := []string{"sh.helm.release", "helm.sh/release", "release.v1", "ReadSecret"}
+	tokens := []string{"sh.helm.release", "helm.sh/release", "release.v1", "ReadSecret", ".Secrets(", "corev1.Secret", "GetSecret", "SecretInterface", "SecretLister"}
 	checked := 0
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
