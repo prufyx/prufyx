@@ -413,6 +413,9 @@ func projectReceipts(indexRaw []byte) ([]ProjectTargetReceipt, error) {
 	}
 	result := []ProjectTargetReceipt{}
 	for _, entry := range index.Entries() {
+		if !index.Readable(entry.Project) {
+			continue
+		}
 		result = append(result, ProjectTargetReceipt{Project: entry.Project, TargetPath: entry.TargetPath, Revision: entry.Revision, Length: entry.Length, Digest: entry.Digest})
 	}
 	return result, nil
