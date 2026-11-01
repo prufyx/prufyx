@@ -135,7 +135,8 @@ type guards struct {
 func defaultGuards() guards {
 	return guards{
 		parse: parseGuards{strict: true, secret: true, nonCRD: true, limits: true, unmodel: true,
-			quotedFlow: true, quotedProof: true, kustomize: true, kustomizeProof: true},
+			quotedFlow: true, quotedProof: true, kustomize: true, kustomizeProof: true,
+			kustomizeMarker: true, kustomizeStrict: true, kustomizeEntries: true, kustomizeSize: true, quotedBreaks: true},
 		servedOnly: true, webhook: true, versionSpecific: true, preserve: true, status: true,
 		rename: true, presence: true, collisions: true, subtrees: true, enumSig: true, emptyOnCap: true, ledger: defaultLedgerGuards(),
 		fieldEnc: membercode.Field, enumEnc: membercode.Enum,
