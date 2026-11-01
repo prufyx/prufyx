@@ -143,12 +143,14 @@ func TestMutationEveryGuardIsLoadBearing(t *testing.T) {
 		{"rename candidate field", func(g *guards) { g.rename = false }, []string{"rename_new_location"}},
 		{"rename candidate enum", func(g *guards) { g.rename = false }, []string{"enum_rename_new_location"}},
 		{"unmodelled keyword", func(g *guards) { g.parse.unmodel = false }, []string{"anyof_above_removed_path"}},
-		{"strict yaml", func(g *guards) { g.parse.strict = false }, []string{"parse_duplicate_keys", "parse_anchor_alias", "parse_anchor_only", "parse_merge_key", "parse_custom_tag"}},
+		{"strict yaml", func(g *guards) { g.parse.strict = false }, []string{"parse_duplicate_keys", "parse_anchor_alias", "parse_anchor_only", "parse_merge_key", "parse_custom_tag", "parse_flow_quoted"}},
 		{"secret kind", func(g *guards) { g.parse.secret = false }, []string{"secret_document", "secret_document_after_crd"}},
 		{"non crd document", func(g *guards) { g.parse.nonCRD = false }, []string{"non_crd_document"}},
 		{"size and depth limits", func(g *guards) { g.parse.limits = false }, []string{"too_large_file", "too_deep_schema"}},
 		{"served versions only", func(g *guards) { g.servedOnly = false }, []string{"unserved_version_ignored"}},
 		{"presence", func(g *guards) { g.presence = false }, []string{"crd_absent_in_to"}},
+		{"typed additionalProperties in B", func(g *guards) { g.preserve = false }, []string{"additional_properties_schema_to"}},
+		{"enum: B version lacks the field", func(g *guards) { g.preserve = false }, []string{"enum_version_lacks_field_preserve"}},
 		{"unlisted subtree", func(g *guards) { g.subtrees = false }, []string{"unlisted_subtree"}},
 		{"rename of a descendant", func(g *guards) { g.rename = false }, []string{"rename_descendant_new_location"}},
 		{"collision detection", func(g *guards) { g.collisions = false }, []string{"member_collision_lossy_encoder"}},
@@ -262,6 +264,17 @@ func TestReaderErrorsAbort(t *testing.T) {
 	cancel()
 	if _, err := Derive(ctx, c.reader(), testTarget, commitA, commitB); !errors.Is(err, context.Canceled) {
 		t.Fatalf("err = %v, want context.Canceled", err)
+	}
+}
+
+func TestRootDirAndDot(t *testing.T) {
+	if err := (Target{Repo: repo, Dirs: []string{""}}).validate(); err != nil {
+		t.Fatalf("root dir rejected: %v", err)
+	}
+	for _, tg := range []Target{{Repo: repo, Dirs: []string{"."}}, {Repo: repo, Files: []string{"."}}, {Repo: repo, Files: []string{""}}} {
+		if err := tg.validate(); err == nil {
+			t.Errorf("%+v accepted", tg)
+		}
 	}
 }
 

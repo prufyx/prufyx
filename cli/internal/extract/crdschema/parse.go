@@ -234,11 +234,17 @@ func parseDoc(file string, root *yaml.Node, g parseGuards) (*crdDoc, *fault) {
 // from the bytes alone.
 func checkYAML(root *yaml.Node, g parseGuards) error {
 	count := 0
-	var walk func(n *yaml.Node, depth int) error
-	walk = func(n *yaml.Node, depth int) error {
+	var walk func(n *yaml.Node, depth int, inFlow bool) error
+	walk = func(n *yaml.Node, depth int, inFlow bool) error {
 		count++
 		if g.limits && (count > maxYAMLNodes || depth > maxYAMLDepth) {
 			return errTooLarge
+		}
+		inFlow = inFlow || (n.Kind != yaml.ScalarNode && n.Style&yaml.FlowStyle != 0)
+		if g.strict && inFlow && n.Kind == yaml.ScalarNode &&
+			n.Style&(yaml.DoubleQuotedStyle|yaml.SingleQuotedStyle|yaml.LiteralStyle|yaml.FoldedStyle) != 0 {
+			// A flow collection is only proven when it holds plain scalars.
+			return errUnproven
 		}
 		if g.strict {
 			if n.Kind == yaml.AliasNode || n.Anchor != "" || n.Style&yaml.TaggedStyle != 0 {
@@ -276,13 +282,13 @@ func checkYAML(root *yaml.Node, g parseGuards) error {
 			}
 		}
 		for _, c := range n.Content {
-			if err := walk(c, depth+1); err != nil {
+			if err := walk(c, depth+1, inFlow); err != nil {
 				return err
 			}
 		}
 		return nil
 	}
-	return walk(root, 0)
+	return walk(root, 0, false)
 }
 
 // tree is the flattened schema of one served version.
@@ -303,6 +309,7 @@ type enumInfo struct {
 	present   bool
 	nonString bool
 	vals      map[string]bool
+	raw       map[string]bool // every entry as tag and scalar text
 }
 
 func (n *pnode) chainPreserve() bool { return n.preserve || n.ancP }
@@ -412,8 +419,9 @@ func buildTree(schema *yaml.Node, g parseGuards) (*tree, error) {
 				if v.Kind != yaml.SequenceNode {
 					return errUnproven
 				}
-				pn.enum = enumInfo{present: true, vals: map[string]bool{}}
+				pn.enum = enumInfo{present: true, vals: map[string]bool{}, raw: map[string]bool{}}
 				for _, e := range v.Content {
+					pn.enum.raw[e.Tag+"\x00"+e.Value] = true
 					if !isStr(e) {
 						pn.enum.nonString = true
 						continue
