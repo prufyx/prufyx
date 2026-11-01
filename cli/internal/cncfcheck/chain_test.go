@@ -169,3 +169,61 @@ func TestCheckChainRefusesDuplicateKeys(t *testing.T) {
 		t.Fatalf("duplicate key accepted by the chain: %v", err)
 	}
 }
+
+// A chain that passes: two synthetic exact-pair copies of the published CronJob rule on versions no published rule
+// covers (never shipped), so every hop holds exactly one deciding PASS claim and the end-to-end pair has no rule.
+func TestCheckChainPassesWhenEveryHopIsDecidedAndPasses(t *testing.T) {
+	t.Parallel()
+	var cron Entry
+	for _, e := range syntheticBase(t).Entries {
+		if ruleID(t, e) == cronJobRuleID {
+			cron = e
+		}
+	}
+	if cron.Rule == nil {
+		t.Fatal("published CronJob rule missing")
+	}
+	copyFor := func(from, to string) Entry {
+		var rule map[string]any
+		if err := json.Unmarshal(cron.Rule, &rule); err != nil {
+			t.Fatal(err)
+		}
+		delete(rule, "range")
+		rule["id"] = "kubernetes.synthetic-chain-pass." + strings.ReplaceAll(from, ".", "-") + "-to-" + strings.ReplaceAll(to, ".", "-")
+		subject := rule["subject"].(map[string]any)
+		subject["from"], subject["to"] = from, to
+		raw, err := json.Marshal(rule)
+		if err != nil {
+			t.Fatal(err)
+		}
+		e := cron
+		e.Rule = raw
+		return e
+	}
+	b, err := assembleSynthetic(syntheticPack(t, packSchemaRanged, nil, copyFor("1.70.0", "1.71.0"), copyFor("1.71.0", "1.72.0")), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := currentKubernetesReviewClock(t, rangeReviewClock)
+	evaluate := func(raw []byte) (Report, error) { return b.check("kubernetes", "", raw, now) }
+	chain, err := checkChain(evaluate, "kubernetes", kubernetesInput(t, "1.70.0", "1.72.0", false), []string{"1.71.0"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if chain.Verdict != ChainPass || ChainExit(chain) != 0 || chain.Whole.Verdict != ChainNoRule {
+		t.Fatalf("verdict %s exit %d whole %s", chain.Verdict, ChainExit(chain), chain.Whole.Verdict)
+	}
+	for _, hop := range chain.Hops {
+		if hop.Verdict != ChainPass || hop.Decided == 0 {
+			t.Fatalf("hop %d: %+v", hop.Index, hop)
+		}
+	}
+	if chain.Scope != ChainScope || chain.InputFileDigest == "" {
+		t.Fatalf("scope %q digest %q", chain.Scope, chain.InputFileDigest)
+	}
+	// the same path with the CronJob present is blocked on both hops
+	blocked, err := checkChain(evaluate, "kubernetes", kubernetesInput(t, "1.70.0", "1.72.0", true), []string{"1.71.0"})
+	if err != nil || blocked.Verdict != ChainBlocked {
+		t.Fatalf("blocked chain: %v %+v", err, blocked.Verdict)
+	}
+}

@@ -35,7 +35,7 @@ func (r runtime) cncfChain(project string, input []byte, via []string, now time.
 	}
 	writeChainHop(&b, "end-to-end", chain.Whole, showPasses)
 	fmt.Fprintf(&b, "next action: %s\n", chain.NextAction)
-	b.WriteString("scope: the same facts are used on every hop; only the hops you declared are checked; runtime behavior is not verified\n")
+	fmt.Fprintf(&b, "scope: %s; only the hops you declared are checked; runtime behavior is not verified\n", chain.Scope)
 	if _, err := fmt.Fprint(r.stdout, b.String()); err != nil {
 		return ExitIntegrity
 	}
@@ -54,11 +54,13 @@ func writeChainHop(b *strings.Builder, label string, hop cncfcheck.ChainHop, sho
 			fmt.Fprintf(b, "             %s: BLOCKED (%s)\n             %s\n", claim.RuleID, claim.ReasonCode, claim.NextAction)
 		case claim.Status == "PASS" && showPasses:
 			fmt.Fprintf(b, "             %s: PASS\n", claim.RuleID)
-		case claim.Status != "PASS":
+		case claim.Status != "PASS" && claim.ReasonCode != "RULE_TRANSITION_NOT_REVIEWED":
 			undecided++
 		}
 	}
-	if hop.Verdict == cncfcheck.ChainUnknown && hop.Decided == 0 {
+	if hop.Verdict == cncfcheck.ChainNoRule {
+		b.WriteString("             no reviewed rule for the end-to-end pair\n")
+	} else if hop.Verdict == cncfcheck.ChainUnknown && hop.Decided == 0 {
 		b.WriteString("             no reviewed rule matches this transition\n")
 	} else if undecided > 0 {
 		fmt.Fprintf(b, "             %d rule(s) not decided; check this pair alone for the reasons\n", undecided)
