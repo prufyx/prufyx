@@ -60,13 +60,13 @@ func TestCNCFCLIViaChainsTheHops(t *testing.T) {
 	}
 
 	for name, args := range map[string][]string{
-		"descending":          base(blocked, "--via", "1.24.17,1.24.2"),
-		"equal to from":       base(blocked, "--via", "1.23.5"),
-		"empty":               base(blocked, "--via", ""),
-		"with --from":         append(base(blocked, "--via", "1.24.17"), "--from", "1.23.5"),
-		"with knowledge-db":   append(base(blocked, "--via", "1.24.17"), "--knowledge-db", t.TempDir()),
-		"with replay":         append(base(blocked, "--via", "1.24.17"), "--replay-report", clear),
-		"on a native route":   {"check", "cncf", "--project", "kubernetes", "--native-resource", clear, "--from", "1.24.0", "--to", "1.25.0", "--via", "1.24.5", "--now", now},
+		"descending":           base(blocked, "--via", "1.24.17,1.24.2"),
+		"equal to from":        base(blocked, "--via", "1.23.5"),
+		"empty":                base(blocked, "--via", ""),
+		"with --from":          append(base(blocked, "--via", "1.24.17"), "--from", "1.23.5"),
+		"with knowledge-db":    append(base(blocked, "--via", "1.24.17"), "--knowledge-db", t.TempDir()),
+		"with replay":          append(base(blocked, "--via", "1.24.17"), "--replay-report", clear),
+		"on a native route":    {"check", "cncf", "--project", "kubernetes", "--native-resource", clear, "--from", "1.24.0", "--to", "1.25.0", "--via", "1.24.5", "--now", now},
 		"without a declared v": base(blocked, "--via", "1.24.x"),
 	} {
 		if code, stdout, _ := runCNCFCLI(t, args...); code != ExitUsage || stdout != "" {
