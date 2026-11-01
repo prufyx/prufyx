@@ -662,3 +662,39 @@ func TestReasonsAreNotRedundant(t *testing.T) {
 	}
 	assertComplete(t, q, false, whySnapshotTruncated)
 }
+
+// A release-scoped attestation made at other releases than the snapshot's
+// decides nothing in the default report either: the pair is a gap, not A, so
+// the README block cannot show a decision the complete predicate refuses.
+func TestReleaseScopedAttestationMismatchIsAGap(t *testing.T) {
+	ok := strimziScenario("0.49", "0.50", "0.51")
+	if got := statuses(ok.project(t)); got != "AA" {
+		t.Fatalf("matching releases: %s, want AA", got)
+	}
+	cases := map[string]func(a *lineattest.LineAttestation){
+		"attestation lists fewer releases of the from line": func(a *lineattest.LineAttestation) {
+			if a.Line == "0.50" {
+				a.Releases.From = a.Releases.From[:1]
+			}
+		},
+		"attestation lists a release the snapshot lacks": func(a *lineattest.LineAttestation) {
+			if a.Line == "0.51" {
+				a.Releases.To = append(a.Releases.To, lineattest.Release{Version: "0.51.2", Commit: rev})
+			}
+		},
+	}
+	for name, mutate := range cases {
+		t.Run(name, func(t *testing.T) {
+			s := strimziScenario("0.49", "0.50", "0.51")
+			s.mutate = mutate
+			if got := statuses(s.project(t)); !strings.Contains(got, "G") {
+				t.Fatalf("statuses = %s, want a gap", got)
+			}
+		})
+	}
+	s := strimziScenario("0.49", "0.50", "0.51")
+	s.noSnapshotReleases = true
+	if got := statuses(s.project(t)); got != "GG" {
+		t.Fatalf("snapshot without releases: %s, want GG", got)
+	}
+}
