@@ -91,6 +91,7 @@ func TestParseExternalIndexRejectsMalformedIndexes(t *testing.T) {
 		"empty":        reencodeIndex(t, index.Bytes, func(d *externalIndexDocument) { d.Projects = []ExternalIndexEntry{} }),
 		"engine": reencodeIndex(t, index.Bytes, func(d *externalIndexDocument) {
 			d.EngineCapabilityDigest = "sha256:" + string(bytes.Repeat([]byte("0"), 64))
+			d.BaseCapabilityDigest = d.EngineCapabilityDigest
 		}),
 		"bad revision": reencodeIndex(t, index.Bytes, func(d *externalIndexDocument) { d.Projects[0].Revision = "0" }),
 		// The schema of the other layout: v2 for a pack without records,

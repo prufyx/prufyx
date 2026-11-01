@@ -31,7 +31,7 @@ func NewStoreScanKnowledge(bundles map[string]ExternalBundle) (*ScanKnowledge, e
 		return nil, err
 	}
 	catalog := bundle{landscape: base.landscape, community: base.community, priority: base.priority, registry: base.registry, catalogueDigest: base.catalogueDigest, attestations: lineattest.NewIndex(nil), pathPolicies: upgradepath.NewIndex(nil)}
-	k := &ScanKnowledge{b: catalog, rules: map[string][]ScanRule{}, selected: map[string]bundle{}}
+	k := &ScanKnowledge{b: catalog, rules: map[string][]ScanRule{}, selected: map[string]bundle{}, deferred: map[string]int{}}
 	for project, external := range bundles {
 		if !external.valid() || !base.hasKnowledgeProject(project) || external.registry.Digest() != base.registry.Digest() {
 			return nil, ErrIntegrity
@@ -48,6 +48,16 @@ func NewStoreScanKnowledge(bundles map[string]ExternalBundle) (*ScanKnowledge, e
 		}
 		if selected.pack, err = packWithEmbeddedCrossing(base.pack, external.pack, project); err != nil {
 			return nil, err
+		}
+		// A project with a rule this build cannot evaluate keeps its bundle
+		// but gets no scan rule: a scan could otherwise pass a hop only
+		// because the rule that blocks it is missing. The selectors of the
+		// bundle give it no claim either, and scanrun reports the gap.
+		if external.hasDeferred() {
+			k.deferred[project] = len(external.DeferredRules())
+			k.selected[project] = selected
+			k.rules[project] = nil
+			continue
 		}
 		var rules []ScanRule
 		for _, entry := range external.pack.Entries {

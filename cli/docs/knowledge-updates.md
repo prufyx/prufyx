@@ -165,7 +165,13 @@ change. Giving `--source` or `--release-plan` keeps the rules described above
   The embedded knowledge and the current local database stay in use.
   The capability changes when a project is added to the supported table, when a
   fact is registered, or when the engine changes; rule and attestation updates for
-  existing projects do not change it. So `prufyx db update` delivers feed
+  existing projects do not change it.
+  From the build that carries forward-compatible reading (`baseCapabilityDigest`
+  in the index), a feed that only registers more facts or lists more projects is
+  read instead of refused: rules needing an unknown fact are listed as
+  `deferredRules`, stay UNKNOWN and never PASS, projects the build does not know
+  are ignored, and an engine-contract or policy change is still a mismatch.
+  Earlier builds keep the behaviour described here. So `prufyx db update` delivers feed
   updates only while the feed was built for the same capability as the
   installed prufyx; after such a change, older builds report the mismatch until
   they are upgraded. If a database from the old feed is installed and you

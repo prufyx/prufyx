@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"regexp"
+	"sort"
 	"strconv"
 	"time"
 	"unicode/utf8"
@@ -128,6 +129,13 @@ func ParseExternalBundle(raw []byte) (ExternalBundle, error) {
 // when base is nil. Callers that admit many targets in one operation pass the
 // base they already loaded; every check is identical.
 func parseExternalBundle(raw []byte, base *bundle) (ExternalBundle, error) {
+	return parseExternalBundleCompat(raw, base, "")
+}
+
+// parseExternalBundleCompat is parseExternalBundle for a target listed by an
+// index in compat mode (forwardcompat.go). compatCapability is that index's
+// engine capability digest, or "" for the exact mode of every other caller.
+func parseExternalBundleCompat(raw []byte, base *bundle, compatCapability string) (ExternalBundle, error) {
 	if err := scanExternalJSON(raw); err != nil || validateExternalEnvelopeShape(raw) != nil {
 		return ExternalBundle{}, ErrInvalid
 	}
@@ -147,14 +155,20 @@ func parseExternalBundle(raw []byte, base *bundle) (ExternalBundle, error) {
 	if err != nil {
 		return ExternalBundle{}, ErrIntegrity
 	}
-	if document.EngineCapabilityDigest != capability {
+	if compatCapability != "" {
+		// The index named the capability and its base; the target must carry
+		// exactly that capability. Nothing else about it is assumed.
+		if document.EngineCapabilityDigest != compatCapability {
+			return ExternalBundle{}, errors.Join(ErrIntegrity, ErrCapabilityMismatch)
+		}
+	} else if document.EngineCapabilityDigest != capability {
 		return ExternalBundle{}, errors.Join(ErrIntegrity, ErrCapabilityMismatch)
 	}
 	var packValue rulePack
 	if err := json.Unmarshal(document.Pack, &packValue); err != nil {
 		return ExternalBundle{}, ErrInvalid
 	}
-	if err := validateExternalPack(*base, packValue, document.Revision, records); err != nil {
+	if err := validateExternalPack(*base, packValue, document.Revision, records, compatCapability != ""); err != nil {
 		return ExternalBundle{}, err
 	}
 	if records {
@@ -163,15 +177,22 @@ func parseExternalBundle(raw []byte, base *bundle) (ExternalBundle, error) {
 		}
 	}
 	candidate := bundle{landscape: base.landscape, community: base.community, priority: base.priority, pack: packValue, registry: base.registry, packDigest: digest(raw), catalogueDigest: base.catalogueDigest}
-	rules, err := candidate.parseRulesCorpus(candidate.packRules(), nil)
-	if err != nil {
-		return ExternalBundle{}, ErrIntegrity
+	evaluable := candidate.packRules()
+	var rules constraintengine.RuleSet
+	if len(evaluable) > 0 || !hasDeferred(packValue) {
+		if rules, err = candidate.parseRulesCorpus(evaluable, nil); err != nil {
+			return ExternalBundle{}, ErrIntegrity
+		}
 	}
 	admission := ExternalAdmission{Revision: document.Revision, Purpose: document.Purpose, EngineCapabilityDigest: document.EngineCapabilityDigest, HasRule: len(packValue.Entries) > 0, HasRecords: records}
 	if admission.HasRule || admission.HasRecords {
-		admission.RuleDigest, err = rules.Digest()
-		if err != nil {
-			return ExternalBundle{}, ErrIntegrity
+		if len(evaluable) > 0 || !hasDeferred(packValue) {
+			// With deferred rules this digest covers the evaluable subset
+			// only; the signed bytes are bound by the target digest.
+			admission.RuleDigest, err = rules.Digest()
+			if err != nil {
+				return ExternalBundle{}, ErrIntegrity
+			}
 		}
 		admission.EvidenceExpiresAt, err = earliestExternalExpiry(packValue)
 		if err != nil {
@@ -389,6 +410,10 @@ func (b ExternalBundle) evaluate(project, selectedRuleID string, inputRaw []byte
 			report.NextAction = trustPolicyNextAction
 		}
 	}
+	if deferred := deferredOf(b.pack, project); len(deferred) > 0 {
+		report.DeferredRules = deferred
+		report.NextAction = deferredNextAction + "; " + report.NextAction
+	}
 	report.seal = &reportSeal{}
 	encoded, err := json.Marshal(report)
 	if err != nil {
@@ -423,7 +448,7 @@ func validExternalRevision(value string) bool {
 // distribution records: they are not scoped to one project and have no
 // target yet, so a pack holding them is refused rather than admitted
 // without them.
-func validateExternalPack(base bundle, packValue rulePack, revision string, records bool) error {
+func validateExternalPack(base bundle, packValue rulePack, revision string, records, compat bool) error {
 	if len(packValue.Distributions) > 0 {
 		return ErrIntegrity
 	}
@@ -455,25 +480,39 @@ func validateExternalPack(base bundle, packValue rulePack, revision string, reco
 	if chart, err := constraintengine.AnyChartRule(rules); err != nil || chart {
 		return ErrIntegrity
 	}
-	if !validPackSchema(packValue) || packValue.Revision != revision || packValue.PolicyID != base.pack.PolicyID || packValue.PolicyDigest != base.pack.PolicyDigest || packValue.LandscapeFileDigest != base.landscape.LandscapeFileDigest || packValue.RegistryDigest != base.registry.Digest() || len(packValue.Entries) > maxExternalEntries {
+	if !validPackSchema(packValue) || packValue.Revision != revision || packValue.PolicyID != base.pack.PolicyID || packValue.PolicyDigest != base.pack.PolicyDigest || (!compat && (packValue.LandscapeFileDigest != base.landscape.LandscapeFileDigest || packValue.RegistryDigest != base.registry.Digest())) || len(packValue.Entries) > maxExternalEntries {
 		return ErrIntegrity
 	}
 	definitions := map[string]constraintengine.FactDefinition{}
 	for _, definition := range compiledDefinitions() {
 		definitions[definition.ID] = definition
 	}
-	for _, entry := range packValue.Entries {
+	for i, entry := range packValue.Entries {
 		if _, found := base.identities()[entry.Project]; !found || entry.Description == "" || len(entry.Description) > 2048 {
 			return ErrInvalid
 		}
 		seenFacts := map[string]bool{}
+		var unknown []string
 		for _, fact := range entry.RequiredFacts {
 			definition, found := definitions[fact.ID]
 			key := fact.Side + "/" + fact.Component + "/" + fact.ID
-			if seenFacts[key] || (fact.Side != "current" && fact.Side != "proposed") || !found || definition.Component != fact.Component || definition.Type != fact.Type || fact.Description == "" || len(fact.Description) > 2048 || !sameStrings(definition.EnumTokens, fact.EnumTokens) {
+			if seenFacts[key] || (fact.Side != "current" && fact.Side != "proposed") || fact.Description == "" || len(fact.Description) > 2048 {
 				return ErrInvalid
 			}
+			if !found || definition.Component != fact.Component || definition.Type != fact.Type || !sameStrings(definition.EnumTokens, fact.EnumTokens) {
+				// A fact this build does not register, or registers
+				// differently. Only a compat index may carry one, and the
+				// rule is then deferred, never evaluated (forwardcompat.go).
+				if !compat || !futureFactShape(fact) {
+					return ErrInvalid
+				}
+				unknown = append(unknown, fact.ID)
+			}
 			seenFacts[key] = true
+		}
+		if len(unknown) > 0 {
+			sort.Strings(unknown)
+			packValue.Entries[i].deferred = unknown
 		}
 		var shape ruleShape
 		if json.Unmarshal(entry.Rule, &shape) != nil || shape.Subject.Component != subjectComponent(entry.Project, base.identities()[entry.Project].RepositoryURL) {

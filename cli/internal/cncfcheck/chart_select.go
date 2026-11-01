@@ -60,6 +60,11 @@ func declaredCharts(raw []byte) (map[string]constraintengine.ChartRef, error) {
 // A chart rule about another chart, and every rule about a component the
 // input does not declare as a chart hop, is never selected.
 func (b bundle) selectChartFamily(project string, facts []string, raw []byte, charts map[string]constraintengine.ChartRef) (selection, error) {
+	if len(deferredOf(b.pack, project)) > 0 {
+		// A rule of the project is not evaluable by this build: no other
+		// rule may give a claim (a pass) for a hop the missing rule may block.
+		return b.admit(nil, nil)
+	}
 	allowed := map[string]bool{}
 	for _, fact := range facts {
 		allowed[fact] = true
@@ -83,7 +88,7 @@ func (b bundle) selectChartFamily(project string, facts []string, raw []byte, ch
 	matched := make([]json.RawMessage, 0)
 	verdicts := 0
 	for _, entry := range b.pack.Entries {
-		if entry.Project != project {
+		if entry.Project != project || entry.deferred != nil {
 			continue
 		}
 		var shape ruleShape

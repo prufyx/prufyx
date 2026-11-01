@@ -304,6 +304,13 @@ func verifySplitTargets(u *updater.Updater, targets *metadata.Metadata[metadata.
 		if err != nil {
 			return nil, &splitTargetError{reason: fmt.Sprintf("target %s is missing or does not match its signed length and hash", entry.TargetPath), cause: err}
 		}
+		if !index.Readable(entry.Project) {
+			// A project this build does not know (a compat index): the TUF
+			// download above verified its signed length and hash. The bytes
+			// are kept so the stored package re-verifies, never parsed.
+			projects[entry.Project] = append([]byte(nil), raw...)
+			continue
+		}
 		if _, err := cncfcheck.AdmitExternalProjectTarget(index, entry.Project, raw); err != nil {
 			if errors.Is(err, cncfcheck.ErrUnreadableTarget) {
 				return nil, unsupportedFailure(cncfMinOrEmpty(indexRaw), "target %s is not readable by this build", entry.TargetPath)
@@ -464,6 +471,7 @@ func withProjectReceipts(receipt ImportReceipt, profile profileSpec, indexRaw []
 	if projects, err := projectReceipts(indexRaw); err == nil {
 		receipt.ProjectTargets = projects
 	}
+	receipt.Compat, receipt.UnreadableProjects = compatSummary(indexRaw)
 	return receipt
 }
 
@@ -486,6 +494,25 @@ func VerifyConstraintsProjects(req VerifyRequest) (PackageVerificationReceipt, e
 func InspectConstraintsProjects(storeRoot string) (Status, error) {
 	return inspectProfile(storeRoot, constraintsProjectsProfile())
 }
+
+// compatSummary reports whether an index is read in compat mode and which of
+// its projects this build does not know.
+func compatSummary(indexRaw []byte) (bool, []string) {
+	index, err := cncfcheck.ParseExternalIndex(indexRaw)
+	if err != nil || !index.Compat() {
+		return false, nil
+	}
+	var unreadable []string
+	for _, entry := range index.Entries() {
+		if !index.Readable(entry.Project) {
+			unreadable = append(unreadable, entry.Project)
+		}
+	}
+	return true, unreadable
+}
+
+// IndexCompat is compatSummary for callers outside the package.
+func IndexCompat(indexRaw []byte) (bool, []string) { return compatSummary(indexRaw) }
 
 // OpenSelectedCNCF opens the selected CNCF revision in either layout. For a
 // per-project store only the named projects are read and verified, together

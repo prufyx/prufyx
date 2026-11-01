@@ -62,6 +62,7 @@ const (
 	GapPathNotPlannable        GapKey = ReasonPathNotPlannable
 	GapComponentNotCovered     GapKey = ReasonComponentNotCovered
 	GapVersionNotDetected      GapKey = ReasonVersionNotDetected
+	GapProjectRulesDeferred    GapKey = ReasonProjectNotInKnowledge + "/rules-deferred"
 	GapVersionConflict         GapKey = ReasonVersionConflict
 	GapDeclarationScope        GapKey = ReasonDeclarationMissing + "/scope"
 	GapDeclarationApply        GapKey = ReasonDeclarationMissing + "/apply"
@@ -194,6 +195,8 @@ var gapMessages = map[GapKey]gapMessage{
 		"run prufyx check cncf --project %[1]s, or verify its upgrade notes by hand", 1},
 	GapProjectNotInKnowledge: {"the selected knowledge database has no knowledge for %[1]s, so nothing about it was checked",
 		"update the knowledge database to a revision that covers %[1]s, or verify its upgrade notes by hand", 1},
+	GapProjectRulesDeferred: {"rules of %[1]s in the knowledge database need facts this prufyx does not know; nothing about it was checked",
+		"upgrade prufyx, then scan again; the other projects are checked normally", 1},
 	GapVersionNotDetected: {"the current %[1]s version is not declared and was not detected in the manifests",
 		"declare it with --from %[1]s=VERSION or under current: in prufyx.yaml", 1},
 	GapVersionConflict: {"the manifests give conflicting or unusable version signals for %[1]s, so no version was detected",
@@ -541,6 +544,7 @@ const (
 	labelKnowledgeStore         = "knowledge database %s; layout %s; target %s; trust receipt %s"
 	labelKnowledgeProject       = "knowledge for %s: target %s revision %s digest %s"
 	labelKnowledgeProjectAbsent = "knowledge for %s: absent from the selected index"
+	labelKnowledgeCompat        = "knowledge database: feed of a later release, %d project(s) unknown to this prufyx kept unread"
 	labelHopStatus              = "  hop %d %s -> %s: %s"
 	labelDocuments              = "%d documents"
 	labelDocumentOne            = "1 document"

@@ -78,6 +78,11 @@ type Entry struct {
 	Description   string          `json:"description"`
 	RequiredFacts []Fact          `json:"requiredFacts"`
 	Rule          json.RawMessage `json:"rule"`
+	// deferred lists the facts of RequiredFacts that this build does not
+	// register (or registers differently). It is set only on an entry of a
+	// target listed by a compat index and is never serialized. Such a rule
+	// is never given to the engine (forwardcompat.go).
+	deferred []string
 }
 
 type rulePack struct {
@@ -422,6 +427,9 @@ func (b bundle) ruleSet(project string) (constraintengine.RuleSet, error) {
 func (b bundle) packRules() []json.RawMessage {
 	rules := make([]json.RawMessage, 0, len(b.pack.Entries))
 	for _, entry := range b.pack.Entries {
+		if entry.deferred != nil {
+			continue
+		}
 		rules = append(rules, entry.Rule)
 	}
 	return rules
@@ -611,6 +619,11 @@ func (b bundle) rulesForAdmittedInput(project string, raw []byte) (constrainteng
 // selectForInput selects the project's rules whose transition matches the
 // input, or every project rule when no verdict rule matches, and admits them.
 func (b bundle) selectForInput(project string, raw []byte) (selection, error) {
+	if len(deferredOf(b.pack, project)) > 0 {
+		// A rule of the project is not evaluable by this build: no other
+		// rule may give a claim (a pass) for a hop the missing rule may block.
+		return b.admit(nil, nil)
+	}
 	var input struct {
 		Current  sideShape `json:"current"`
 		Proposed sideShape `json:"proposed"`
@@ -629,7 +642,7 @@ func (b bundle) selectForInput(project string, raw []byte) (selection, error) {
 	matched := make([]json.RawMessage, 0)
 	verdicts := 0
 	for _, entry := range b.pack.Entries {
-		if entry.Project != project {
+		if entry.Project != project || entry.deferred != nil {
 			continue
 		}
 		subject, err := ruleTransition(entry.Rule)
@@ -697,7 +710,7 @@ func (b bundle) fallbackRules(candidates, matched []json.RawMessage) []json.RawM
 func (b bundle) projectRules(project string) []json.RawMessage {
 	rules := make([]json.RawMessage, 0)
 	for _, entry := range b.pack.Entries {
-		if entry.Project == project {
+		if entry.Project == project && entry.deferred == nil {
 			rules = append(rules, entry.Rule)
 		}
 	}
@@ -721,6 +734,11 @@ func (b bundle) factFamilyRuleSet(project string, facts []string, raw []byte) (c
 
 // selectFamily is factFamilyRuleSet's selection, admitted.
 func (b bundle) selectFamily(project string, facts []string, raw []byte) (selection, error) {
+	if len(deferredOf(b.pack, project)) > 0 {
+		// A rule of the project is not evaluable by this build: no other
+		// rule may give a claim (a pass) for a hop the missing rule may block.
+		return b.admit(nil, nil)
+	}
 	allowed := map[string]bool{}
 	for _, fact := range facts {
 		allowed[fact] = true
@@ -745,7 +763,7 @@ func (b bundle) selectFamily(project string, facts []string, raw []byte) (select
 	transitionOnly := make([]json.RawMessage, 0)
 	verdicts := 0
 	for _, entry := range b.pack.Entries {
-		if entry.Project != project {
+		if entry.Project != project || entry.deferred != nil {
 			continue
 		}
 		factIDs, err := ruleFactIDs(entry.Rule)
@@ -853,9 +871,14 @@ func (b bundle) selectedRuleSet(project, ruleID string) (constraintengine.RuleSe
 
 // selectRule selects and admits the one project rule with ruleID.
 func (b bundle) selectRule(project, ruleID string) (selection, error) {
+	if len(deferredOf(b.pack, project)) > 0 {
+		// A rule of the project is not evaluable by this build: no other
+		// rule may give a claim (a pass) for a hop the missing rule may block.
+		return b.admit(nil, nil)
+	}
 	selected := make([]json.RawMessage, 0, 1)
 	for _, entry := range b.pack.Entries {
-		if entry.Project != project {
+		if entry.Project != project || entry.deferred != nil {
 			continue
 		}
 		var shape struct {

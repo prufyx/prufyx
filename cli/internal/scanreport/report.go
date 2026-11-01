@@ -476,6 +476,11 @@ type KnowledgeStore struct {
 	Purpose            string                  `json:"purpose"`
 	ImportedVerifiedAt string                  `json:"importedVerifiedAt"`
 	Projects           []KnowledgeStoreProject `json:"projects,omitempty"`
+	// Compat is true when the database holds a feed of a later release read
+	// in compat mode; UnreadableProjects are the projects it lists that this
+	// prufyx does not know.
+	Compat             bool     `json:"compat,omitempty"`
+	UnreadableProjects []string `json:"unreadableProjects,omitempty"`
 }
 
 // KnowledgeSelection is the automatic choice of knowledge. Chosen is
