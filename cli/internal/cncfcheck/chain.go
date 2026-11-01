@@ -50,16 +50,16 @@ type ChainHop struct {
 // PASS only when every hop passed on at least one decided claim and the
 // end-to-end transition did not object, UNKNOWN otherwise.
 type ChainReport struct {
-	Schema  string     `json:"schema"`
-	Project string     `json:"project"`
-	Verdict string     `json:"verdict"`
-	Path    []string   `json:"path"`
+	Schema  string   `json:"schema"`
+	Project string   `json:"project"`
+	Verdict string   `json:"verdict"`
+	Path    []string `json:"path"`
 	// InputFileDigest is the digest of the input bytes the caller gave.
 	InputFileDigest string `json:"inputFileDigest"`
 	// Scope is fixed text: what the facts of the input mean on every hop.
-	Scope   string     `json:"scope"`
-	Hops    []ChainHop `json:"hops"`
-	Whole   ChainHop   `json:"whole"`
+	Scope string     `json:"scope"`
+	Hops  []ChainHop `json:"hops"`
+	Whole ChainHop   `json:"whole"`
 	// NextAction names what the verdict still needs.
 	NextAction string `json:"nextAction"`
 }
