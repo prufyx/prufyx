@@ -1,0 +1,11 @@
+{
+  "complete": false,
+  "enums": [],
+  "exclusions": [],
+  "fields": [],
+  "lossy": false,
+  "omissions": [
+    "CRD_PRESENCE_UNSTABLE|example.io/Widget|1",
+    "SECRET_KIND|crd/crd.yaml|1"
+  ]
+}

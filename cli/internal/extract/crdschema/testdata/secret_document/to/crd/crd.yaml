@@ -1,0 +1,6 @@
+# A Secret must never be read.
+apiVersion: v1
+kind: Secret
+metadata: {name: s}
+stringData:
+  token: CANARY-do-not-print-0xC0FFEE

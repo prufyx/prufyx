@@ -1,0 +1,10 @@
+{
+  "complete": false,
+  "enums": [],
+  "exclusions": [],
+  "fields": [],
+  "lossy": false,
+  "omissions": [
+    "MEMBER_TOO_LONG|example.io/Widget|1"
+  ]
+}

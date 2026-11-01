@@ -1,0 +1,10 @@
+{
+  "complete": false,
+  "enums": [],
+  "exclusions": [],
+  "fields": [],
+  "lossy": false,
+  "omissions": [
+    "PRESERVE_UNKNOWN|example.io/Widget|1"
+  ]
+}
