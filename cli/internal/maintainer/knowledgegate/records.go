@@ -734,10 +734,10 @@ func crossCheckAttestation(out *extract.Output, floor string, a lineattest.LineA
 			// extractor's proof). Every pair into the line is checked.
 			n, lerr := proofLedgerLen(pair.Proof)
 			if lerr != nil {
-				return fmt.Errorf("line %s: %w", a.Line, lerr)
+				return fmt.Errorf("pair %s->%s: line %s: %w", pair.From, pair.To, a.Line, lerr)
 			}
 			if n > 0 {
-				return fmt.Errorf("the extractor withheld %d item(s) on line %s and does not attest it", n, a.Line)
+				return fmt.Errorf("pair %s->%s: the extractor withheld %d item(s) on line %s and does not attest it", pair.From, pair.To, n, a.Line)
 			}
 		}
 	}

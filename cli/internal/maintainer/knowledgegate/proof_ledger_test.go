@@ -60,11 +60,11 @@ func TestCrossCheckAttestationRefusesProofLedger(t *testing.T) {
 	}
 	a := lineattest.LineAttestation{Component: recordComponent, Line: "1.30", FactFamily: lineattest.FamilyKubernetesRemovedServedGVK, RuleIDs: []string{}}
 	err := crossCheckAttestation(out(map[string]any{"ledger": []map[string]string{{"code": "A_CODE", "item": "a"}}}), "", a, nil)
-	if err == nil || !strings.Contains(err.Error(), "withheld 1 item(s)") {
+	if err == nil || !strings.Contains(err.Error(), "pair 1.29.0->1.30.0: the extractor withheld 1 item(s)") {
 		t.Fatalf("proof with a ledger and an attestation: %v", err)
 	}
 	err = crossCheckAttestation(out(map[string]any{"ledger": 3}), "", a, nil)
-	if err == nil || !strings.Contains(err.Error(), "not an array") {
+	if err == nil || !strings.Contains(err.Error(), "pair 1.29.0->1.30.0: line 1.30: pair proof ledger") {
 		t.Fatalf("unreadable ledger: %v", err)
 	}
 	// Control: an empty ledger passes this check and goes on to the
@@ -87,7 +87,24 @@ func TestCrossCheckAttestationChecksEveryPairOfTheLine(t *testing.T) {
 	a := lineattest.LineAttestation{Component: recordComponent, Line: "1.30", FactFamily: lineattest.FamilyKubernetesRemovedServedGVK, RuleIDs: []string{}}
 	out := &extract.Output{Manifest: extract.Manifest{Pairs: []extract.PairRecord{pair("1.30.0", withLedger), pair("1.30.1", map[string]any{})}}}
 	err := crossCheckAttestation(out, "", a, nil)
-	if err == nil || !strings.Contains(err.Error(), "withheld 1 item(s)") {
+	if err == nil || !strings.Contains(err.Error(), "pair 1.29.0->1.30.0: the extractor withheld 1 item(s)") {
 		t.Fatalf("ledger on the earlier pair of the line: %v", err)
+	}
+}
+
+// crdschemaResultGolden is the canonical JSON of a crdschema.Result with one
+// ledger entry. The same literal is pinned in the crdschema package
+// (TestResultGoldenShape): this test and that one together tie the gate's
+// reading of a pair proof to the shape the extractor writes. The gate check
+// and crdschema live in different branches until both merge; after that a
+// test here could import crdschema directly (no import cycle: crdschema
+// imports only extract, constraintengine and membercode).
+const crdschemaResultGolden = `{"schema":"prufyx.io/crd-schema-removal/v2","from":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","to":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","fields":{"members":[],"complete":false},"enums":{"members":[],"complete":false},"omissions":[{"reason":"MEMBER_CHARSET","subject":"example.io/Widget","count":1}],"ledger":[{"code":"MEMBER_CHARSET","item":"example.io/Widget"}],"exclusions":[]}`
+
+func TestProofLedgerReadsTheCrdschemaResultShape(t *testing.T) {
+	t.Parallel()
+	n, err := proofLedgerLen(json.RawMessage(crdschemaResultGolden))
+	if err != nil || n != 1 {
+		t.Fatalf("ledger entries = %d, %v; want 1", n, err)
 	}
 }
