@@ -44,6 +44,17 @@ type parseGuards struct {
 	nonCRD  bool
 	limits  bool
 	unmodel bool
+	// quotedFlow accepts quoted scalars inside flow collections when the
+	// source text proves them simple (see quotedSimple); quotedProof is that
+	// proof. With quotedFlow off every quoted flow scalar is refused; with
+	// quotedProof off every one is accepted (tests only).
+	quotedFlow  bool
+	quotedProof bool
+	// kustomize skips a provable kustomize file in a listed directory;
+	// kustomizeProof is the proof (see isKustomizeFile). With the proof off
+	// any file with a kustomize name is skipped (tests only).
+	kustomize      bool
+	kustomizeProof bool
 }
 
 var errUnproven = errors.New("unproven")
@@ -90,7 +101,7 @@ func parseFile(file string, data []byte, g parseGuards) (docs []*crdDoc, faults 
 	}
 	seen := map[string]bool{}
 	for _, root := range roots {
-		doc, f := parseDoc(file, root, g)
+		doc, f := parseDoc(file, root, g, data)
 		if f != nil {
 			faults = append(faults, *f)
 			continue
@@ -142,7 +153,7 @@ func boolOf(n *yaml.Node) (v, ok bool) {
 	return false, false
 }
 
-func parseDoc(file string, root *yaml.Node, g parseGuards) (*crdDoc, *fault) {
+func parseDoc(file string, root *yaml.Node, g parseGuards, src []byte) (*crdDoc, *fault) {
 	f := func(reason string) (*crdDoc, *fault) { return nil, &fault{reason: reason, file: file} }
 	if root.Kind != yaml.MappingNode {
 		if g.nonCRD {
@@ -165,7 +176,7 @@ func parseDoc(file string, root *yaml.Node, g parseGuards) (*crdDoc, *fault) {
 			return f(ReasonNonCRD)
 		}
 	}
-	if err := checkYAML(root, g); err != nil {
+	if err := checkYAML(root, g, src); err != nil {
 		if errors.Is(err, errTooLarge) {
 			return f(ReasonTooLarge)
 		}
@@ -232,8 +243,9 @@ func parseDoc(file string, root *yaml.Node, g parseGuards) (*crdDoc, *fault) {
 
 // checkYAML refuses any construct whose meaning the extractor cannot fix
 // from the bytes alone.
-func checkYAML(root *yaml.Node, g parseGuards) error {
+func checkYAML(root *yaml.Node, g parseGuards, src []byte) error {
 	count := 0
+	var lines [][]byte
 	var walk func(n *yaml.Node, depth int, inFlow bool) error
 	walk = func(n *yaml.Node, depth int, inFlow bool) error {
 		count++
@@ -241,10 +253,25 @@ func checkYAML(root *yaml.Node, g parseGuards) error {
 			return errTooLarge
 		}
 		inFlow = inFlow || (n.Kind != yaml.ScalarNode && n.Style&yaml.FlowStyle != 0)
-		if g.strict && inFlow && n.Kind == yaml.ScalarNode &&
-			n.Style&(yaml.DoubleQuotedStyle|yaml.SingleQuotedStyle|yaml.LiteralStyle|yaml.FoldedStyle) != 0 {
-			// A flow collection is only proven when it holds plain scalars.
-			return errUnproven
+		if g.strict && inFlow && n.Kind == yaml.ScalarNode {
+			switch {
+			case n.Style&(yaml.LiteralStyle|yaml.FoldedStyle) != 0:
+				return errUnproven
+			case n.Style&(yaml.DoubleQuotedStyle|yaml.SingleQuotedStyle) != 0:
+				// A flow collection holds plain scalars, and quoted ones only
+				// when the source text shows a plain string.
+				if !g.quotedFlow {
+					return errUnproven
+				}
+				if g.quotedProof {
+					if lines == nil {
+						lines = bytes.Split(src, []byte("\n"))
+					}
+					if !quotedSimple(n, lines) {
+						return errUnproven
+					}
+				}
+			}
 		}
 		if g.strict {
 			if n.Kind == yaml.AliasNode || n.Anchor != "" || n.Style&yaml.TaggedStyle != 0 {
@@ -458,4 +485,42 @@ func buildTree(schema *yaml.Node, g parseGuards) (*tree, error) {
 		return nil, err
 	}
 	return t, nil
+}
+
+// quotedSimple proves, from the source line, that a quoted scalar is a plain
+// one-line string: it is a string without a tag or anchor, the node starts at
+// the opening quote, the closing quote is on the same line, no escape sequence
+// ("\\" in a double-quoted scalar, a doubled quote in a single-quoted one) is
+// used, and the text between the quotes is exactly the decoded value. Quoting
+// fixes the type, so a value such as "true", "null" or "1e3" stays a string.
+func quotedSimple(n *yaml.Node, lines [][]byte) bool {
+	if n.Tag != "!!str" || n.Anchor != "" || n.Style&yaml.TaggedStyle != 0 || n.Line < 1 || n.Line > len(lines) || n.Column < 1 {
+		return false
+	}
+	var q rune
+	switch {
+	case n.Style&yaml.DoubleQuotedStyle != 0 && n.Style&yaml.SingleQuotedStyle == 0:
+		q = '"'
+	case n.Style&yaml.SingleQuotedStyle != 0 && n.Style&yaml.DoubleQuotedStyle == 0:
+		q = '\''
+	default:
+		return false
+	}
+	line := []rune(string(lines[n.Line-1]))
+	start := n.Column - 1
+	if start >= len(line) || line[start] != q {
+		return false
+	}
+	for j := start + 1; j < len(line); j++ {
+		switch {
+		case q == '"' && line[j] == '\\':
+			return false
+		case line[j] == q:
+			if q == '\'' && j+1 < len(line) && line[j+1] == '\'' {
+				return false
+			}
+			return string(line[start+1:j]) == n.Value
+		}
+	}
+	return false // no closing quote on the line: a multi-line scalar
 }
