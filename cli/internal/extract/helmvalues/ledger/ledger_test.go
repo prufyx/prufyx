@@ -9,8 +9,9 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/fs"
 	"math/rand"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -349,13 +350,24 @@ func TestEveryKeyClassIsPlaced(t *testing.T) {
 		t.Fatalf("got %+v", got)
 	}
 	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, "..", func(fi fs.FileInfo) bool { return !strings.HasSuffix(fi.Name(), "_test.go") }, 0)
+	entries, err := os.ReadDir("..")
 	if err != nil {
 		t.Fatal(err)
 	}
+	var files []*ast.File
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".go") || strings.HasSuffix(e.Name(), "_test.go") {
+			continue
+		}
+		f, err := parser.ParseFile(fset, filepath.Join("..", e.Name()), nil, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		files = append(files, f)
+	}
 	n := 0
-	for _, pkg := range pkgs {
-		for _, f := range pkg.Files {
+	{
+		for _, f := range files {
 			for _, d := range f.Decls {
 				gd, ok := d.(*ast.GenDecl)
 				if !ok || gd.Tok != token.CONST {
