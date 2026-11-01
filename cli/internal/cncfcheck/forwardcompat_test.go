@@ -210,7 +210,7 @@ func TestCompatModeRefusals(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := AdmitExternalProjectTarget(relabelled, feed.project, otherCapability); !errors.Is(err, ErrCapabilityMismatch) {
+	if _, err := AdmitExternalProjectTarget(relabelled, feed.project, otherCapability); !errors.Is(err, ErrIntegrity) {
 		t.Errorf("target of another capability than its index: %v", err)
 	}
 	// An exact index (this build's own capability) never defers: the same
