@@ -86,7 +86,7 @@ func TestExternalEnvelopeLeavesCrossingRulesOut(t *testing.T) {
 	held := stripped
 	held.Entries = with.pack.Entries
 	held.Schema = packSchemaCrossing
-	if err := validateExternalPack(with, held, "1", false); !errors.Is(err, ErrIntegrity) {
+	if err := validateExternalPack(with, held, "1", false, false); !errors.Is(err, ErrIntegrity) {
 		t.Fatalf("external pack holding a crossing rule: %v", err)
 	}
 	// A pack without a crossing rule is returned as it is.
