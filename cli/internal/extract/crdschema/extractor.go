@@ -38,6 +38,8 @@ const (
 // family on the extractor to prove the attested path.
 const attestedFamily = ""
 
+var errNoSources = errors.New("crdschema: no CRD file to cite")
+
 var errTooManySources = errors.New("crdschema: too many cited files")
 
 var slugRE = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
@@ -343,6 +345,8 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, p extra
 	default:
 		c, err := x.attestation(r, p, a, b, fromFiles, toFiles)
 		switch {
+		case errors.Is(err, errNoSources):
+			e.NotAttested = "no CRD file was read, so there is nothing to cite"
 		case errors.Is(err, errTooManySources):
 			e.NotAttested = "the derivation read more CRD files than an attestation can cite"
 		case err != nil:
@@ -362,7 +366,9 @@ func (x *Extractor) attestation(r extract.PinnedReader, p extract.VersionPair, a
 	if !ok {
 		return extract.AttestationCandidate{}, fmt.Errorf("crdschema: no line for %s", p.To)
 	}
-	if n := len(fromFiles) + len(toFiles); n == 0 || n > maxCited {
+	if n := len(fromFiles) + len(toFiles); n == 0 {
+		return extract.AttestationCandidate{}, errNoSources
+	} else if n > maxCited {
 		return extract.AttestationCandidate{}, errTooManySources
 	}
 	c := extract.AttestationCandidate{Component: x.component, Line: line, FactFamily: x.family, RuleIDs: []string{}}
