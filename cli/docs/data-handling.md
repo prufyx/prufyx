@@ -72,7 +72,9 @@ under a looked-for path, a key beside a looked-for path that cannot be written
 as a member, more than 1000 objects of one project, and more than 256 members.
 Two cases can block when the setting is not really in force: the same object
 written twice (the members of every copy are kept) and `apiVersion`, which is
-not consulted.
+not consulted. The number of looked-for enum paths set to a value that is not
+a looked-for member (`NonMemberEnumValues`) is a count only: the values are
+never kept.
 
 Hashes are content identifiers, not anonymization or proof of a trusted origin.
 Identical input can produce an identical digest. Keep original artifacts locally

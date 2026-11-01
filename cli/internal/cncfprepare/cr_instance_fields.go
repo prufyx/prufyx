@@ -114,6 +114,11 @@ type CRInstanceSet struct {
 	Complete bool
 }
 
+// Supported reports whether the set may be declared as a fact value at all:
+// a set above constraintengine.MaxSetMembers is unsupported whatever its
+// Complete flag says. The C2-2 wiring must require it.
+func (s CRInstanceSet) Supported() bool { return len(s.Members) <= constraintengine.MaxSetMembers }
+
 // CRInstanceOmission is an omission code with the number of times it occurred.
 type CRInstanceOmission struct {
 	Code  CRInstanceOmissionCode

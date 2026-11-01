@@ -267,9 +267,12 @@ func TestCRInstanceMemberOverflowIsNotTruncated(t *testing.T) {
 	if len(got.Fields.Members) != 257 || got.Fields.Complete || !slices.Equal(codesOf(got), []string{string(CRMemberOverflow)}) {
 		t.Fatalf("members=%d complete=%v codes=%v", len(got.Fields.Members), got.Fields.Complete, codesOf(got))
 	}
+	if got.Fields.Supported() {
+		t.Fatal("an over-256 set must not be supported")
+	}
 	// 256 is the most a set may hold and is not an overflow.
 	got = crCollect(t, crDecode(t, "m.yaml", widget("a", spec.String())), fieldsAllow(members[:256]...), true)["proj"]
-	if len(got.Fields.Members) != 256 || !got.Fields.Complete {
+	if len(got.Fields.Members) != 256 || !got.Fields.Complete || !got.Fields.Supported() {
 		t.Fatalf("256 members: %v", codesOf(got))
 	}
 }
