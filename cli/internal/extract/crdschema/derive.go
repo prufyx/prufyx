@@ -36,7 +36,7 @@ import (
 )
 
 // ResultSchema identifies the canonical JSON of a Result.
-const ResultSchema = "prufyx.io/crd-schema-removal/v1"
+const ResultSchema = "prufyx.io/crd-schema-removal/v2"
 
 // Target names where the CRD files of a project live. Paths are
 // repository-relative. A directory is read one level deep (files ending in
