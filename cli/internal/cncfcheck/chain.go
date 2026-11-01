@@ -54,11 +54,18 @@ type ChainReport struct {
 	Project string     `json:"project"`
 	Verdict string     `json:"verdict"`
 	Path    []string   `json:"path"`
+	// InputFileDigest is the digest of the input bytes the caller gave.
+	InputFileDigest string `json:"inputFileDigest"`
+	// Scope is fixed text: what the facts of the input mean on every hop.
+	Scope   string     `json:"scope"`
 	Hops    []ChainHop `json:"hops"`
 	Whole   ChainHop   `json:"whole"`
 	// NextAction names what the verdict still needs.
 	NextAction string `json:"nextAction"`
 }
+
+// ChainScope is the fixed scope statement of every chained report.
+const ChainScope = "facts of the input are applied unchanged to every hop; proposed-side facts describe the final target"
 
 // CheckChain checks an upgrade from the input's current version to its
 // proposed version through the versions in via, in order. Every hop is
@@ -87,7 +94,7 @@ func checkChain(evaluate func([]byte) (Report, error), project string, inputRaw 
 			return ChainReport{}, ErrInvalid
 		}
 	}
-	chain := ChainReport{Schema: ChainSchema, Project: project, Path: path}
+	chain := ChainReport{Schema: ChainSchema, Project: project, Path: path, InputFileDigest: digest(inputRaw), Scope: ChainScope}
 	for i := 0; i+1 < len(path); i++ {
 		hop, err := chainHop(evaluate, inputRaw, path[i], path[i+1])
 		if err != nil {
@@ -175,7 +182,7 @@ func ChainExit(chain ChainReport) int {
 
 // MarshalChain verifies every sealed report of the chain and encodes it.
 func MarshalChain(chain ChainReport) ([]byte, error) {
-	if chain.Schema != ChainSchema || len(chain.Hops) == 0 || len(chain.Path) != len(chain.Hops)+1 {
+	if chain.Schema != ChainSchema || chain.Scope != ChainScope || chain.InputFileDigest == "" || len(chain.Hops) == 0 || len(chain.Path) != len(chain.Hops)+1 {
 		return nil, ErrIntegrity
 	}
 	for _, hop := range append(append([]ChainHop(nil), chain.Hops...), chain.Whole) {
