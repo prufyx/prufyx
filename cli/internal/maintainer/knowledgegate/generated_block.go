@@ -197,7 +197,7 @@ func coverageReportOf(t Tree) (coveragereport.Report, []byte, time.Time, error) 
 	if err != nil {
 		return coveragereport.Report{}, nil, time.Time{}, err
 	}
-	report, err := coveragereport.Compute(coveragereport.Input{Pack: pack, Lines: linesRaw, Now: now, CRDVersionProjects: len(crd), CRDTargetComponents: crd, CommunityPack: community})
+	report, err := coveragereport.Compute(coveragereport.Input{Pack: pack, Lines: linesRaw, Now: now, CRDVersionProjects: len(crd), CRDTargetComponents: crd, CommunityPack: community, V2: true})
 	if err != nil {
 		return coveragereport.Report{}, nil, time.Time{}, err
 	}

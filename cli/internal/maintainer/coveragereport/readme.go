@@ -81,7 +81,44 @@ func RenderREADMEBlock(r Report, inventoryJSON []byte, now time.Time) (string, e
 	w("| Gap, no valid rule (G) | %d | %s |\n\n", f.G, readmePct(f.G, f.Pairs))
 	w("Kubernetes: %d valid rules, but %d fall in its window %s to %s; %d of %d upgrades in that window are gaps.\n\n", k.ValidRules, k.RulesInWindow, k.Window[0], k.Window[len(k.Window)-1], k.G, k.A+k.B+k.S+k.G)
 	w("Decided means a valid rule or attestation covers every version of both release lines. It never means a whole-upgrade PASS. %s An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.\n", decidedSplitSentence(r.split, f.A+f.B))
+	if r.V2 != nil {
+		renderV2(&b, r.V2)
+	}
 	return b.String(), nil
+}
+
+// renderV2 prints the metric v2 section beside the v1 table (both are
+// shown for one release). Every number comes from the report; the wording keeps
+// declared, reachable, bounded and open apart.
+func renderV2(b *strings.Builder, v *V2) {
+	w := func(format string, args ...any) { fmt.Fprintf(b, format, args...) }
+	w("\nMetric v2, Decided Pair Coverage, shown beside the v1 table above (v1 measures one fact family, so its share is not comparable). ")
+	w("It covers the last two upgrades (last three release lines) of %d Tier 1 and %d Tier 2 projects: %d upgrades, split into %d cells, one per fact family that applies to the project.", v.Tier1, v.Tier2, v.Pairs, v.Cells)
+	if !v.TiersVerified {
+		w(" Tier 1 is the priority portfolio; no reviewed tier definition exists yet.")
+	}
+	if v.Tier2 == 0 {
+		w(" Tier 2 has no reviewed list yet.")
+	}
+	w("\n\n| Measure | Value |\n| --- | --- |\n")
+	w("| DPC-declared: weighted share of cells with a line attestation | %s |\n", v2Pct(v.declNum, v.den))
+	w("| DPC-reachable: the same, counting only cells whose fact the shipped client can read from manifests | %s |\n", v2Pct(v.reachNum, v.den))
+	w("| Cells attested | %d of %d (%d of them reachable, %d declared only) |\n", v.Attested, v.Cells, v.Reachable, v.DeclaredOnly)
+	w("| Cells bounded by a rule range only, not counted | %d |\n", v.Bounded)
+	w("| Cells open, not counted | %d |\n", v.Open)
+	w("| Upgrades with every cell attested | %d of %d |\n\n", v.FullPairs, v.Pairs)
+	w("| Fact family | Cells | Attested | Reachable | Producer in the shipped client (for at least one project) |\n| --- | --- | --- | --- | --- |\n")
+	for _, f := range v.Families {
+		w("| `%s` | %d | %d | %d | %s |\n", f.Family, f.Cells, f.Attested, f.Reachable, f.Producer)
+	}
+	w("\nDeclared means a reviewed line attestation exists in the knowledge. Reachable also needs the shipped client to produce that fact from manifests; an attested cell without a producer is declared only and is not in the reachable share. A bounded or open cell is not coverage, and a family with no measurement yet counts as open, never as not applicable (%d project-family-upgrade cells exempted by reviewed exemptions). Weights: Tier 1 three times Tier 2, the newest upgrade twice the one before.", v.Exempt)
+	if len(v.Excluded) > 0 {
+		w(" Tiered community-catalog projects are excluded: %s.", strings.Join(v.Excluded, ", "))
+	}
+	if len(v.NoLines) > 0 {
+		w(" Tiered projects without a release-line snapshot are not in these numbers: %s.", strings.Join(v.NoLines, ", "))
+	}
+	w(" Neither share says that any upgrade is safe.\n")
 }
 
 // decidedSplitSentence says, from the report, how many decided upgrades can

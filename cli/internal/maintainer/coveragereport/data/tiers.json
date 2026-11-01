@@ -1,0 +1,46 @@
+{
+  "schema": "prufyx.io/coverage-tiers/v1",
+  "verified": false,
+  "source": "Tier 1 is the priority portfolio; no reviewed tier definition exists yet. Tier 2 is empty.",
+  "tiers": [
+    {
+      "tier": 1,
+      "projects": [
+        "argo-cd",
+        "cert-manager",
+        "cilium",
+        "containerd",
+        "coredns",
+        "cri-o",
+        "crossplane",
+        "dragonfly",
+        "envoy",
+        "etcd",
+        "falco",
+        "fluentd",
+        "flux",
+        "harbor",
+        "helm",
+        "istio",
+        "jaeger",
+        "keda",
+        "kubernetes",
+        "kuma",
+        "kyverno",
+        "linkerd",
+        "longhorn",
+        "opa",
+        "opentelemetry",
+        "prometheus",
+        "rook",
+        "thanos",
+        "velero",
+        "vitess"
+      ]
+    },
+    {
+      "tier": 2,
+      "projects": []
+    }
+  ]
+}
