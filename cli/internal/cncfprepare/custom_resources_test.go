@@ -193,7 +193,15 @@ func TestCustomResourceVersionsSharedArgoGroup(t *testing.T) {
 	}
 	// A project that lists the whole group beside argo-cd's kinds is refused.
 	shared := customresources.Projects()
-	shared = append(shared, customresources.Project{Slug: "argo-workflows", FactProject: "argo_workflows", Component: "pkg:github/argoproj/argo-workflows", Groups: []customresources.Group{{Name: "argoproj.io"}}})
+	if !customresources.Validate(shared) {
+		t.Fatal("the reviewed table is not valid")
+	}
+	shared = append(shared, customresources.Project{Slug: "zz-argo-workflows", Catalog: customresources.CatalogCNCF, FactProject: "zz_argo_workflows", Component: "pkg:github/argoproj/argo-workflows", Groups: []customresources.Group{{Name: "argoproj.io", Source: "https://github.com/argoproj/argo-workflows/blob/0123456789abcdef0123456789abcdef01234567/manifests/base/crds/full/argoproj.io_workflows.yaml"}}})
+	disjoint := append([]customresources.Project(nil), shared...)
+	disjoint[len(disjoint)-1].Groups = []customresources.Group{{Name: "argoproj.io", Source: shared[len(shared)-1].Groups[0].Source, Kinds: []string{"Workflow"}}}
+	if !customresources.Validate(disjoint) {
+		t.Fatal("a disjoint by-kind listing beside argo-cd was refused")
+	}
 	if customresources.Validate(shared) {
 		t.Fatal("a whole-group listing beside argo-cd's kinds was accepted")
 	}
