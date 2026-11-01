@@ -64,6 +64,21 @@ var relnotesUnreviewedRemovals = map[string][]string{
 	},
 }
 
+// relnotesCrossFactRemovals lists, per source fact, members whose release
+// also removed things that a rule over another fact of the same component
+// decides: when the source set declares one, the target set cannot be
+// complete for those rules. falco 0.37.0 removed the command-line options
+// -u/--userspace, -k, -K, --k8s-api, --k8s-api-cert and --k8s-node together
+// with the config keys outputs.rate and outputs.max_burst; the two 0.37.0
+// rules read only the config keys, so a clean config-key set must not pass
+// beside a declared flag the release removed.
+var relnotesCrossFactRemovals = map[string][]struct {
+	target  string
+	members []string
+}{
+	factFalcoFlags: {{target: factFalcoConfigKey, members: []string{"K", "k", "k8s-api", "k8s-api-cert", "k8s-node", "u", "userspace"}}},
+}
+
 const relnotesUnreviewedNextAction = "a declared set holds flags or keys that the same release removed and no reviewed rule covers; the rule stays UNKNOWN for them: remove them, or retain UNKNOWN"
 
 // guardRelnotesSets returns the input to evaluate and whether any complete
@@ -90,6 +105,11 @@ func guardRelnotesSets(raw []byte) ([]byte, bool, error) {
 		for _, rawComponent := range components {
 			component, _ := rawComponent.(map[string]any)
 			facts, _ := component["facts"].([]any)
+			type guardedSet struct {
+				value map[string]any
+				names []string
+			}
+			sets := map[string]guardedSet{}
 			for _, rawFact := range facts {
 				fact, _ := rawFact.(map[string]any)
 				id, _ := fact["id"].(string)
@@ -109,9 +129,27 @@ func guardRelnotesSets(raw []byte) ([]byte, bool, error) {
 					}
 					names = append(names, name)
 				}
-				if complete, _ := value["complete"].(bool); complete && side == "current" && unreviewedSibling(id, names) {
-					value["complete"] = false
+				if value != nil {
+					sets[id] = guardedSet{value, names}
+				}
+			}
+			if side != "current" {
+				continue
+			}
+			downgrade := func(target guardedSet) {
+				if complete, _ := target.value["complete"].(bool); complete {
+					target.value["complete"] = false
 					changed, downgraded = true, true
+				}
+			}
+			for id, set := range sets {
+				if unreviewedSibling(id, set.names) {
+					downgrade(set)
+				}
+				for _, removal := range relnotesCrossFactRemovals[id] {
+					if target, ok := sets[removal.target]; ok && unreviewedMember(removal.members, set.names) {
+						downgrade(target)
+					}
 				}
 			}
 		}
@@ -133,6 +171,15 @@ func relnotesSpelling(factID, name string) bool {
 		return true
 	}
 	return factID == factFalcoFlags && len(name) == 1
+}
+
+func unreviewedMember(removed, names []string) bool {
+	for _, name := range names {
+		if slices.Contains(removed, name) {
+			return true
+		}
+	}
+	return false
 }
 
 func unreviewedSibling(factID string, names []string) bool {
