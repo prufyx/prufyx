@@ -622,7 +622,7 @@ func Compute(in Input) (Report, error) {
 		}
 		row.Expiring += expiringAtt[slug]
 		for i := 0; i+1 < len(lines); i++ {
-			pair := classify(slug, lines[i], lines[i+1], byProject[slug], attsByProject[slug], byID)
+			pair := classify(slug, lines[i], lines[i+1], byProject[slug], attsByProject[slug], byID, pl.Releases)
 			row.Pairs = append(row.Pairs, pair)
 			if !community && (pair.Status == StatusA || pair.Status == StatusB) {
 				if pair.canBlock {
@@ -778,10 +778,10 @@ func Compute(in Input) (Report, error) {
 }
 
 // classify decides one pair, strongest status first: A, B, S, G.
-func classify(project, fromLine, toLine string, rules []*ruleRec, atts []lineattest.LineAttestation, byID map[string]*ruleRec) Pair {
+func classify(project, fromLine, toLine string, rules []*ruleRec, atts []lineattest.LineAttestation, byID map[string]*ruleRec, releases map[string][]string) Pair {
 	pair := Pair{From: fromLine, To: toLine, Status: StatusG}
 	if lineMapped(project) {
-		if fams, listed := attestedFamilies(fromLine, toLine, atts, byID); len(fams) > 0 {
+		if fams, listed := attestedFamilies(fromLine, toLine, atts, byID, releases); len(fams) > 0 {
 			// A valid line-wide rule bounding the same pair can still lead to BLOCKED
 			// even when the attestation lists no rule.
 			if !listed {
@@ -811,9 +811,12 @@ func classify(project, fromLine, toLine string, rules []*ruleRec, atts []lineatt
 
 // attestedFamilies returns the families with a current attestation for the
 // target line whose hop is exactly fromLine->toLine and whose listed rules are all
-// valid and line-wide for that line. listed reports whether any of those
+// valid and line-wide for that line. For a release-scoped family the releases
+// the attestation names on each side must also be exactly the snapshot's final
+// releases of those lines (the same clause as the complete predicate): an
+// attestation made at other releases decides nothing for this snapshot. listed reports whether any of those
 // attestations lists a rule, the only way an attestation can lead to BLOCKED.
-func attestedFamilies(fromLine, toLine string, atts []lineattest.LineAttestation, byID map[string]*ruleRec) (families []string, listed bool) {
+func attestedFamilies(fromLine, toLine string, atts []lineattest.LineAttestation, byID map[string]*ruleRec, releases map[string][]string) (families []string, listed bool) {
 	set := map[string]bool{}
 	for _, a := range atts {
 		if a.Line != toLine || a.Completeness != lineattest.Completeness {
@@ -824,6 +827,9 @@ func attestedFamilies(fromLine, toLine string, atts []lineattest.LineAttestation
 		}
 		family, ok := lineattest.LookupFamily(a.FactFamily)
 		if !ok {
+			continue
+		}
+		if family.ReleaseScoped() && !releasesMatch(a.Releases, releases[fromLine], releases[toLine]) {
 			continue
 		}
 		wide := true
