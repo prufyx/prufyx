@@ -98,8 +98,8 @@ func TestFutureFeedImportsInCompatMode(t *testing.T) {
 	for _, project := range receipt.ProjectTargets {
 		listed = listed || project.Project == "zz-future-project"
 	}
-	if !listed {
-		t.Fatal("the receipt does not list the project of the later release")
+	if listed || len(receipt.ProjectTargets) == 0 {
+		t.Fatal("the receipt lists the project of the later release, or none at all")
 	}
 	if found, _ := filepath.Glob(filepath.Join(f.store, "*", "*", "projects", "zz-future-project.json")); len(found) != 0 {
 		t.Fatalf("the unknown project target was stored: %v", found)
