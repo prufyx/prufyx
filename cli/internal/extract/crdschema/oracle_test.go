@@ -149,6 +149,8 @@ func TestMutationEveryGuardIsLoadBearing(t *testing.T) {
 		{"size and depth limits", func(g *guards) { g.parse.limits = false }, []string{"too_large_file", "too_deep_schema"}},
 		{"served versions only", func(g *guards) { g.servedOnly = false }, []string{"unserved_version_ignored"}},
 		{"presence", func(g *guards) { g.presence = false }, []string{"crd_absent_in_to"}},
+		{"unlisted subtree", func(g *guards) { g.subtrees = false }, []string{"unlisted_subtree"}},
+		{"rename of a descendant", func(g *guards) { g.rename = false }, []string{"rename_descendant_new_location"}},
 		{"collision detection", func(g *guards) { g.collisions = false }, []string{"member_collision_lossy_encoder"}},
 		{"member charset", func(g *guards) { g.fieldEnc = laxField; g.enumEnc = laxEnum }, []string{"member_charset"}},
 		{"member too long", func(g *guards) { g.fieldEnc = laxField }, []string{"member_too_long"}},
