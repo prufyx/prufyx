@@ -150,7 +150,9 @@ func refSet(m map[string]any, parts []string) bool {
 		}
 	}
 	// A null default counts: Helm keeps it through the merge, so the key
-	// exists for the schema.
+	// exists for the schema. This mirrors the extractor on purpose: it is
+	// the conservative direction (a key counted present is never claimed
+	// removed).
 	return true
 }
 
@@ -259,6 +261,7 @@ func TestRemovalsMatchIndependentDiff(t *testing.T) {
 		toVals, toSch      string
 		wantHard, wantSoft []string
 		wantWithheld       bool
+		deps               []string
 	}{
 		{name: "scalar removed", fromVals: "a: {keep: 1, gone: 2}\n", toVals: "a: {keep: 1}\n", toSch: closedKeep,
 			wantHard: []string{"a.gone"}, wantSoft: []string{"a.gone"}},
@@ -291,6 +294,21 @@ func TestRemovalsMatchIndependentDiff(t *testing.T) {
 			wantHard: []string{}, wantSoft: []string{"a.gone"}},
 		{name: "global values", fromVals: "global: {x: 1}\n", toVals: "z: 1\n", toSch: `{"additionalProperties":false,"properties":{"z":{}}}`,
 			wantHard: []string{}, wantSoft: []string{"global"}},
+		{name: "subchart key is never derived from the parent's files", deps: []string{"dep"},
+			fromVals: "dep: {keep: 1, gone: 2}\n", toVals: "dep: {keep: 1}\n",
+			toSch:    `{"properties":{"dep":{"type":"object","additionalProperties":false,"properties":{"keep":{}}}}}`,
+			wantHard: []string{}, wantSoft: []string{"dep.gone"}},
+		{name: "list of mappings is one key", fromVals: "items: [{x: 1}, {w: 2}]\nz: 1\n", toVals: "z: 1\n", toSch: `{"additionalProperties":false,"properties":{"z":{}}}`,
+			wantHard: []string{"items"}, wantSoft: []string{"items"}},
+		{name: "reference at the root", fromVals: "keep: 1\ngone: 2\n", toVals: "keep: 1\n",
+			toSch:    `{"$ref":"#/definitions/x","additionalProperties":false,"properties":{"keep":{}}}`,
+			wantHard: []string{}, wantSoft: []string{"gone"}},
+		{name: "pattern properties leave the object open", fromVals: "a: {keep: 1, gone: 2}\n", toVals: "a: {keep: 1}\n",
+			toSch:    `{"properties":{"a":{"type":"object","additionalProperties":false,"patternProperties":{"^g":{}},"properties":{"keep":{}}}}}`,
+			wantHard: []string{}, wantSoft: []string{"a.gone"}},
+		{name: "required beside a closed object", fromVals: "a: {keep: 1, gone: 2}\n", toVals: "a: {keep: 1}\n",
+			toSch:    `{"properties":{"a":{"type":"object","required":["keep"],"additionalProperties":false,"properties":{"keep":{}}}}}`,
+			wantHard: []string{"a.gone"}, wantSoft: []string{"a.gone"}},
 		{name: "mapping became a scalar", fromVals: "a: {keep: 1, gone: 2}\n", toVals: "a: 5\n", toSch: `{"properties":{"a":{}}}`,
 			wantHard: []string{}, wantSoft: []string{"a.gone", "a.keep"}},
 		{name: "anchor alone is refused", fromVals: "a: &x {keep: 1, gone: 2}\n", toVals: "a: {keep: 1}\n", toSch: closedKeep,
@@ -300,14 +318,20 @@ func TestRemovalsMatchIndependentDiff(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			run := runPairFiles(t, chartFiles("90.0.0", tc.fromVals, tc.fromSch), chartFiles("90.1.0", tc.toVals, tc.toSch))
+			ff, tf := chartFiles("90.0.0", tc.fromVals, tc.fromSch), chartFiles("90.1.0", tc.toVals, tc.toSch)
+			if len(tc.deps) > 0 {
+				dep := "dependencies:\n  - name: " + tc.deps[0] + "\n    version: 1.0.0\n"
+				ff["Chart.yaml"] += dep
+				tf["Chart.yaml"] += dep
+			}
+			run := runPairFiles(t, ff, tf)
 			if run.withheld != tc.wantWithheld {
 				t.Fatalf("withheld %v, want %v", run.withheld, tc.wantWithheld)
 			}
 			// The independent method reads the same documents (leniently:
 			// it resolves anchors).
 			fv, tv := refDecode(t, tc.fromVals), refDecode(t, tc.toVals)
-			refHardSet := refHard(fv, refDecodeSchema(t, tc.fromSch), tv, refDecodeSchema(t, tc.toSch), nil)
+			refHardSet := refHard(fv, refDecodeSchema(t, tc.fromSch), tv, refDecodeSchema(t, tc.toSch), tc.deps)
 			var refSoft []string
 			refRemoved(fv, tv, "", &refSoft)
 			if refSoft == nil {

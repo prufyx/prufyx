@@ -6,7 +6,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"io/fs"
 	"math/rand"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -147,6 +152,19 @@ func TestEveryReasonIsReachable(t *testing.T) {
 			c["values.schema.json"] = `{"required":[` + strings.Join(req, ",") + `]}`
 			return c
 		}, from, ledger.ScopeRequired, ledger.MemberOverBound, ""},
+		{"unread notice, later chart has no templates", func() chart { return good() },
+			func() chart { c := from(); c["templates/d.yaml"] = "x: {{ .Values.a.gone }}\n"; return c }, ledger.ScopeUnread, ledger.NoticeUnproven, "a.gone"},
+		{"unread notice, later schema names the key", func() chart {
+			c := good()
+			c["templates/d.yaml"] = "kind: X\n"
+			c["values.schema.json"] = `{"properties":{"a":{"type":"object","properties":{"gone":{}}}}}`
+			return c
+		}, func() chart { c := from(); c["templates/d.yaml"] = "x: {{ .Values.a.gone }}\n"; return c }, ledger.ScopeUnread, ledger.NoticeSchemaNamed, "a.gone"},
+		{"changed default with an ambiguous reading", func() chart { return baseChart("90.1.0", "a: {v: \"no\"}\n", "") },
+			func() chart { return baseChart("90.0.0", "a: {v: \"yes\"}\n", "") }, ledger.ScopeChanged, ledger.NoticeAmbiguousScalar, "a.v"},
+		{"changed default the later schema refuses", func() chart {
+			return baseChart("90.1.0", "a: {v: 2}\n", `{"properties":{"a":{"type":"object","additionalProperties":false,"properties":{"w":{}}}}}`)
+		}, func() chart { return baseChart("90.0.0", "a: {v: 1}\n", "") }, ledger.ScopeChanged, ledger.NoticeSchemaNamed, "a.v"},
 	}
 	reached := map[ledger.Reason]bool{}
 	for _, tc := range tests {
@@ -178,7 +196,7 @@ func TestEveryReasonIsReachable(t *testing.T) {
 		})
 	}
 	for _, r := range ledger.All() {
-		if r != ledger.UnclassifiedProblem && !reached[r] {
+		if r != ledger.UnclassifiedProblem && r != ledger.UnclassifiedKey && !reached[r] {
 			t.Errorf("reason %s is never reached by a case", r)
 		}
 	}
@@ -263,5 +281,107 @@ func TestFromAny(t *testing.T) {
 	}
 	if len(live) != 1 || len(stored) != 1 || live[0].Reason != stored[0].Reason || stored[0].Reason != ledger.ValuesNotFile {
 		t.Fatalf("live %+v stored %+v", live, stored)
+	}
+}
+
+// A read problem is matched on its exact wording. Text that only mentions
+// a wording, or carries one after other text, is not classified by it.
+func TestProblemWordingsAreAnchored(t *testing.T) {
+	for _, tc := range []struct {
+		problem string
+		want    ledger.Reason
+	}{
+		{"the chart directory keda does not exist", ledger.ChartDirMissing},
+		{"keda/Chart.yaml is not a file", ledger.ChartYAMLNotFile},
+		{"keda/values.yaml is not a file", ledger.ValuesNotFile},
+		{"keda/values.schema.json is not a file", ledger.SchemaNotFile},
+		{"requirements.yaml is not a file", ledger.RequirementsNotFile},
+		{"keda/values.yaml is not a mapping", ledger.ValuesNotMapping},
+		{`keda/Chart.yaml names chart "x", not "keda"`, ledger.ChartNameMismatch},
+		{"keda/Chart.yaml declares version 1.0.0, the tag names 1.1.0", ledger.ChartVersionMismatch},
+		{"keda/Chart.yaml: anything", ledger.ChartYAMLInvalid},
+		{"keda/values.yaml: anything", ledger.ValuesOutsideSubset},
+		{"keda/values.schema.json: anything", ledger.SchemaInvalid},
+		{"requirements.yaml: anything", ledger.RequirementsInvalid},
+		{"templates: anything", ledger.TemplatesOverBound},
+		// look-alikes
+		{"see the chart directory keda does not exist", ledger.UnclassifiedProblem},
+		{"keda/Chart.yaml: keda/values.yaml is not a file", ledger.ChartYAMLInvalid},
+		{"note: Chart.yaml is not a file", ledger.UnclassifiedProblem},
+		{"keda/values.yaml is not a file at all", ledger.UnclassifiedProblem},
+		{"x names chart", ledger.UnclassifiedProblem},
+		{"the templates: dir", ledger.UnclassifiedProblem},
+	} {
+		got := ledger.Collect("p", &helmvalues.PairProof{From: &helmvalues.SideRecord{Tag: "v1", Problem: tc.problem}})
+		if len(got) != 1 || got[0].Reason != tc.want {
+			t.Errorf("%q: %+v, want %s", tc.problem, got, tc.want)
+		}
+	}
+}
+
+// Detail never echoes a read error, which can quote file content, and is
+// bounded.
+func TestDetailEchoesNoFileContent(t *testing.T) {
+	r := memchart.New()
+	put(r, c0, baseChart("90.0.0", "a: 1\n", ""))
+	c := baseChart("90.1.0", "a: {b: 1\nsecretish-canary: [\n", "")
+	put(r, c1, c)
+	proof, withheld := proofOf(t, r)
+	if !withheld {
+		t.Fatal("not withheld")
+	}
+	for _, e := range ledger.Collect("p", proof) {
+		if strings.Contains(e.Detail, "canary") || len([]rune(e.Detail)) > 96 {
+			t.Errorf("detail %q", e.Detail)
+		}
+	}
+	long := &helmvalues.PairProof{Required: &helmvalues.RequiredRecord{Opaque: []helmvalues.OpaqueNode{{Path: "a", Reason: strings.Repeat("x", 500)}}}}
+	if got := ledger.Collect("p", long); len(got) != 1 || len([]rune(got[0].Detail)) != 96 {
+		t.Fatalf("%+v", got)
+	}
+}
+
+// A key class nobody placed is listed, and every Class constant of the
+// extractor is placed as a decision or a refusal.
+func TestEveryKeyClassIsPlaced(t *testing.T) {
+	proof := &helmvalues.PairProof{Removed: &helmvalues.RemovedRecord{Keys: []helmvalues.KeyClass{{Path: "a", Class: "brand-new"}}}}
+	if got := ledger.Collect("p", proof); len(got) != 1 || got[0].Reason != ledger.UnclassifiedKey {
+		t.Fatalf("got %+v", got)
+	}
+	fset := token.NewFileSet()
+	pkgs, err := parser.ParseDir(fset, "..", func(fi fs.FileInfo) bool { return !strings.HasSuffix(fi.Name(), "_test.go") }, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	for _, pkg := range pkgs {
+		for _, f := range pkg.Files {
+			for _, d := range f.Decls {
+				gd, ok := d.(*ast.GenDecl)
+				if !ok || gd.Tok != token.CONST {
+					continue
+				}
+				for _, sp := range gd.Specs {
+					vs := sp.(*ast.ValueSpec)
+					for i, name := range vs.Names {
+						if !strings.HasPrefix(name.Name, "Class") || i >= len(vs.Values) {
+							continue
+						}
+						lit, ok := vs.Values[i].(*ast.BasicLit)
+						if !ok {
+							continue
+						}
+						v, _ := strconv.Unquote(lit.Value)
+						n++
+						if !ledger.KnownClass(v) {
+							t.Errorf("%s (%q) is neither a decision nor a refusal in the ledger", name.Name, v)
+						}
+					}
+				}
+			}
+		}
+	}
+	if n < 20 {
+		t.Fatalf("found %d Class constants; the walk is wrong", n)
 	}
 }
