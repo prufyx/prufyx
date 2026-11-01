@@ -293,12 +293,6 @@ func verifySplitTargets(u *updater.Updater, targets *metadata.Metadata[metadata.
 		if only != nil && !only[entry.Project] {
 			continue
 		}
-		// A project this build does not know (a compat index): its target
-		// was bound to the signed targets role above and is neither
-		// downloaded nor read.
-		if !index.Readable(entry.Project) {
-			continue
-		}
 		info, err := u.GetTargetInfo(entry.TargetPath)
 		if err != nil {
 			return nil, err
@@ -309,6 +303,12 @@ func verifySplitTargets(u *updater.Updater, targets *metadata.Metadata[metadata.
 		_, raw, err := u.DownloadTarget(info, filepath.Join(targetDir, "project-"+entry.Project+".json"), "https://offline.invalid/targets")
 		if err != nil {
 			return nil, &splitTargetError{reason: fmt.Sprintf("target %s is missing or does not match its signed length and hash", entry.TargetPath), cause: err}
+		}
+		if !index.Readable(entry.Project) {
+			// A project this build does not know (a compat index): the TUF
+			// download above verified its signed length and hash; nothing
+			// in it is read or kept.
+			continue
 		}
 		if _, err := cncfcheck.AdmitExternalProjectTarget(index, entry.Project, raw); err != nil {
 			if errors.Is(err, cncfcheck.ErrUnreadableTarget) {
