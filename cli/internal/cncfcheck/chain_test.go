@@ -157,3 +157,15 @@ func TestCheckChainOverPublishedRules(t *testing.T) {
 		t.Fatalf("hops without a rule: %s", none.Verdict)
 	}
 }
+
+// A duplicate key is refused as a single check refuses it; the re-encoding of a hop must not launder it.
+func TestCheckChainRefusesDuplicateKeys(t *testing.T) {
+	t.Parallel()
+	raw := strings.Replace(string(kubernetesInput(t, "1.23.5", "1.25.3", true)), `"boolValue":true`, `"boolValue":true,"boolValue":false`, 1)
+	if _, err := Check("kubernetes", []byte(raw), rangeReviewClock); err == nil {
+		t.Skip("a single check accepts duplicate keys; nothing to keep in step")
+	}
+	if _, err := (Checker{}).CheckChain("kubernetes", []byte(raw), []string{"1.24.17"}, rangeReviewClock); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("duplicate key accepted by the chain: %v", err)
+	}
+}
