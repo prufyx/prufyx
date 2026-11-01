@@ -63,6 +63,9 @@ type parseGuards struct {
 	kustomizeStrict  bool
 	kustomizeEntries bool
 	kustomizeSize    bool
+	// kustomizeCovered requires every sibling YAML file of the directory to
+	// be named in resources or bases.
+	kustomizeCovered bool
 	quotedBreaks     bool
 }
 

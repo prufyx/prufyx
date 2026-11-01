@@ -136,7 +136,7 @@ func defaultGuards() guards {
 	return guards{
 		parse: parseGuards{strict: true, secret: true, nonCRD: true, limits: true, unmodel: true,
 			quotedFlow: true, quotedProof: true, kustomize: true, kustomizeProof: true,
-			kustomizeMarker: true, kustomizeStrict: true, kustomizeEntries: true, kustomizeSize: true, quotedBreaks: true},
+			kustomizeMarker: true, kustomizeStrict: true, kustomizeEntries: true, kustomizeSize: true, kustomizeCovered: true, quotedBreaks: true},
 		servedOnly: true, webhook: true, versionSpecific: true, preserve: true, status: true,
 		rename: true, presence: true, collisions: true, subtrees: true, enumSig: true, emptyOnCap: true, ledger: defaultLedgerGuards(),
 		fieldEnc: membercode.Field, enumEnc: membercode.Enum,
@@ -189,6 +189,12 @@ type side struct {
 func readSide(ctx context.Context, r extract.PinnedReader, t Target, commit string, g guards) (*side, error) {
 	s := &side{crds: map[string]*crdDoc{}, blocks: map[string]bool{}}
 	files := append([]string(nil), t.Files...)
+	explicit := map[string]bool{}
+	for _, f := range t.Files {
+		explicit[f] = true
+	}
+	// dirYAML holds, per listed directory, the base names of its YAML files.
+	dirYAML := map[string][]string{}
 	for _, d := range t.Dirs {
 		entries, err := r.List(t.Repo, commit, d)
 		if errors.Is(err, extract.ErrNotFound) {
@@ -219,6 +225,7 @@ func readSide(ctx context.Context, r extract.PinnedReader, t Target, commit stri
 				continue
 			}
 			files = append(files, e.Path)
+			dirYAML[path.Dir(e.Path)] = append(dirYAML[path.Dir(e.Path)], path.Base(e.Path))
 		}
 	}
 	sort.Strings(files)
@@ -237,7 +244,9 @@ func readSide(ctx context.Context, r extract.PinnedReader, t Target, commit stri
 		if err != nil {
 			return nil, fmt.Errorf("crdschema: read %s: %w", f, err)
 		}
-		if g.parse.kustomize && isKustomizeFile(f, data, g.parse) {
+		// Only a file found by listing a directory can be skipped as a
+		// kustomize file; a file the target names explicitly is read.
+		if g.parse.kustomize && !explicit[f] && isKustomizeFile(f, data, siblingsOf(dirYAML[path.Dir(f)], path.Base(f)), g.parse) {
 			s.skipped = append(s.skipped, f)
 			continue
 		}
@@ -835,4 +844,15 @@ func unionSig(vs []served, k string) string {
 		}
 	}
 	return strings.Join(sortedKeys(set), ",")
+}
+
+// siblingsOf returns the base names of a directory's YAML files without self.
+func siblingsOf(all []string, self string) []string {
+	var out []string
+	for _, n := range all {
+		if n != self {
+			out = append(out, n)
+		}
+	}
+	return out
 }
