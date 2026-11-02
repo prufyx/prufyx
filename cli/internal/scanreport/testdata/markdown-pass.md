@@ -1,4 +1,4 @@
-# PASS FOR THE DECLARED SCOPE
+# PASS FOR THE DECLARED SCOPE (Kubernetes API versions in the supplied manifests only; not a whole-upgrade pass)
 
 Read 2 documents over 6 hops; 1 of 1 component has rules. 11 checks passed (--show-passes).
 

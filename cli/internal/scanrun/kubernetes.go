@@ -345,7 +345,6 @@ func removalApplies(removal k8sremovals.RemovedVersion, group, version, kind, ta
 		!lineattest.LineLess(targetLine, removal.Line)
 }
 
-// servedGroupSet is the groups a found served list names.
 // unevaluatedKinds names the kinds of the supplied documents that the
 // Kubernetes check never reads: objects of a group that is neither a reserved
 // Kubernetes group nor named by the target's served list. It returns the
@@ -374,6 +373,7 @@ func (r *kubernetesRun) unevaluatedKinds(to string) (labels []string, counts map
 	return labels, counts
 }
 
+// servedGroupSet is the groups a found served list names.
 func servedGroupSet(status ServedStatus) map[string]bool {
 	groups := map[string]bool{}
 	if status.Found {
