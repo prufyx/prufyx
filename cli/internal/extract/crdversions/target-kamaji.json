@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "kamaji",
+    "catalog": "community",
+    "name": "kamaji",
+    "repo": "github.com/clastix/kamaji",
+    "component": "pkg:github/clastix/kamaji",
+    "factProject": "kamaji",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.2",
+    "paths": [
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

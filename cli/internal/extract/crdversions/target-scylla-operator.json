@@ -1,0 +1,24 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "scylla-operator",
+    "catalog": "community",
+    "name": "scylla-operator",
+    "repo": "github.com/scylladb/scylla-operator",
+    "component": "pkg:github/scylladb/scylla-operator",
+    "factProject": "scylla_operator",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.19",
+    "paths": [
+      {"path": "bundle/manifests/scylla.scylladb.com_nodeconfigs.yaml"},
+      {"path": "bundle/manifests/scylla.scylladb.com_scyllaclusters.yaml"},
+      {"path": "bundle/manifests/scylla.scylladb.com_scylladbdatacenternodesstatusreports.yaml"},
+      {"path": "bundle/manifests/scylla.scylladb.com_scylladbdatacenters.yaml"},
+      {"path": "bundle/manifests/scylla.scylladb.com_scylladbmanagerclusterregistrations.yaml"},
+      {"path": "bundle/manifests/scylla.scylladb.com_scylladbmanagertasks.yaml"},
+      {"path": "bundle/manifests/scylla.scylladb.com_scylladbmonitorings.yaml"},
+      {"path": "bundle/manifests/scylla.scylladb.com_scyllaoperatorconfigs.yaml"}
+    ],
+    "exclude": []
+  }
+}
