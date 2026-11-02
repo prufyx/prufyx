@@ -5,6 +5,7 @@ package cncfcheck
 import (
 	"bytes"
 	"encoding/json"
+	"slices"
 	"strings"
 	"time"
 
@@ -192,11 +193,11 @@ func MarshalChain(chain ChainReport) ([]byte, error) {
 	}
 	// the verdicts are derived data: a chain whose verdicts do not follow from its sealed reports does not encode
 	for i, hop := range chain.Hops {
-		if hop.From != chain.Path[i] || hop.To != chain.Path[i+1] || hop.Verdict != hopVerdict(hop.Report) {
+		if !slices.Equal([]string{hop.From, hop.To}, chain.Path[i:i+2]) || hop.Verdict != hopVerdict(hop.Report) {
 			return nil, ErrIntegrity
 		}
 	}
-	if chain.Whole.From != chain.Path[0] || chain.Whole.To != chain.Path[len(chain.Path)-1] {
+	if !slices.Equal([]string{chain.Whole.From, chain.Whole.To}, []string{chain.Path[0], chain.Path[len(chain.Path)-1]}) {
 		return nil, ErrIntegrity
 	}
 	if want := hopVerdict(chain.Whole.Report); chain.Whole.Verdict != want && !(chain.Whole.Verdict == ChainNoRule && want == ChainUnknown) {
