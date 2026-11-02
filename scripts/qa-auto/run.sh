@@ -4,6 +4,7 @@
 # python3 + git on the host. Builds main at a sha, regenerates the coverage report, then runs
 #   crd_oracle.py   served CRD GVKs at real upstream tags vs `prufyx scan`
 #   k8s_oracle.py   swagger removed-API sets vs scan (range, single GVK) and `plan` stages
+#   rules_oracle.py every forbid_predicate_value / forbid_set_member rule: trigger must BLOCK, then wrapper/obfuscation corpus must stay non-PASS
 #   kind_probe.py   one kind cluster qa-auto-<sha8>: removed built-in APIs, live CRD dumps, assess
 # and writes one summary + one verdict line:  WRONGPASS=n MISMATCH=n NEWMISMATCH=n ERR=n ...
 # WRONGPASS = a served GVK/API is gone at the target version and scan/plan exits 0 or says PASS.
@@ -24,6 +25,7 @@
 #   QA_PROJECTS       comma list: check only these projects (ad-hoc runs and seeded-failure proofs)
 #   QA_DB_SUITE       path of the db suite run.sh [SHA] [OUTDIR]; QA_DB=1 forces it (nightly); STATE/db-allow.json = allowed failing ids
 #   STATE/review-allow.json  allowed open review findings {"ID": {"wi": "WI-n", "reason": ...}}; ids outside the review findings are refused, a stale entry alarms
+#   STATE/rules-allow.json   allowed documented PASS cases {"<rule id>#<variant>" | "*#<variant>": {"ref": ..., "reason": ...}}; list only shrinks, a stale entry alarms
 #   QA_NO_KIND=1      skip the kind probes
 #   QA_ALARM_HOOK     executable called with the alarm file path when an alarm is raised
 #   QA_PRE_BUILD      shell script run in the scratch checkout before the build (seeded-failure proofs only)
@@ -157,6 +159,10 @@ python3 -X utf8 bp325.py "$QA_BIN" "$RUN/tmp/bp325" --cases "$OUT/bp325.cases.js
 # findings {"ID": {"wi": "WI-1", "reason": "..."}}; a stale entry (case now passes) alarms, an empty list is the release gate.
 QA_STATE=$QA_STATE QA_DEVBOX=$QA_DEVBOX python3 -X utf8 review_cases.py --out "$OUT/review.cases.json" --allow "$QA_STATE/review-allow.json" >"$OUT/review.log" 2>&1 || log "review cases crashed"
 [ -s "$OUT/review.cases.json" ] || placeholder "$OUT/review.cases.json" review
+
+# 4e. rules suite (trigger per rule entry must BLOCK, then the wrapper/obfuscation corpus must stay non-PASS; QA_PROJECTS narrows it)
+QA_STATE=$QA_STATE python3 -X utf8 rules_oracle.py --out "$OUT/rules.cases.json" --allow "$QA_STATE/rules-allow.json" >"$OUT/rules.log" 2>&1 || log "rules suite crashed"
+[ -s "$OUT/rules.cases.json" ] || placeholder "$OUT/rules.cases.json" rules
 
 # 4c. db suite (slow, tens of minutes when the host runs a job queue): only for db/knowledge diffs or QA_DB=1 (nightly),
 # never in the fast path. QA_DB_SUITE = path to the db suite run.sh, supplied by the operator (any job queueing is the
