@@ -3,6 +3,7 @@
 package communityapp
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -40,5 +41,23 @@ func TestUsageErrorsNameTheProblem(t *testing.T) {
 				t.Fatalf("code=%d stdout=%q stderr=%q; want %q", code, stdout, stderr, tc.want)
 			}
 		})
+	}
+}
+
+// A flag name spelled other than the project spells it exits 2 and says why.
+func TestCheckCNCFMemberSpellingNamesTheReason(t *testing.T) {
+	dir := privateDir(t)
+	fact := func(version string) string {
+		return `{"components":[{"component":"pkg:github/cortexproject/cortex","version":"` + version + `","facts":[{"id":"component.cortex.cli_flags_set","state":"declared","setValue":{"members":["Store.max-look-back-period"],"complete":true}}]}]}`
+	}
+	path := filepath.Join(dir, "in.json")
+	body := `{"schema":"prufyx.io/operator-declared-constraint-input/v1alpha1","authority":"OPERATOR_DECLARED_MINIMIZED","current":` + fact("1.8.1") + `,"proposed":` + fact("1.9.0") + `}`
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr strings.Builder
+	code := Run(context.Background(), []string{"check", "cncf", "--project", "cortex", "--input", path, "--now", "2026-11-20T00:00:00Z"}, &stdout, &stderr, "test")
+	if code != ExitUsage || !strings.Contains(stderr.String(), "not spelled as the project spells it") {
+		t.Fatalf("code=%d stderr=%s", code, stderr.String())
 	}
 }

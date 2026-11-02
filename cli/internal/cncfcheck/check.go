@@ -180,7 +180,7 @@ func ValidateCanonicalInput(project string, inputRaw []byte) error {
 		return ErrInvalid
 	}
 	if _, _, err := parseGuarded(inputRaw, b.registry); err != nil {
-		return ErrInvalid
+		return invalidReason(err)
 	}
 	return nil
 }
@@ -211,7 +211,7 @@ func (b bundle) check(project, selectedRuleID string, inputRaw []byte, now time.
 	}
 	input, _, err := parseGuarded(inputRaw, b.registry)
 	if err != nil {
-		return Report{}, ErrInvalid
+		return Report{}, invalidReason(err)
 	}
 	var selected selection
 	if selectedRuleID != "" {
@@ -268,7 +268,7 @@ func (b bundle) checkFacts(project string, facts []string, inputRaw []byte, now 
 	}
 	input, _, err := parseGuarded(inputRaw, b.registry)
 	if err != nil {
-		return Report{}, ErrInvalid
+		return Report{}, invalidReason(err)
 	}
 	// An input that declares a chart hop is served by the chart selector;
 	// every other input is selected exactly as before chart hops existed.
@@ -434,4 +434,13 @@ func ClaimExit(report Report) int {
 		}
 	}
 	return 0
+}
+
+// invalidReason is ErrInvalid, or ErrMemberSpelling (also ErrInvalid) when the
+// refusal is a flag name spelled other than the project spells it.
+func invalidReason(err error) error {
+	if errors.Is(err, ErrMemberSpelling) {
+		return ErrMemberSpelling
+	}
+	return ErrInvalid
 }
