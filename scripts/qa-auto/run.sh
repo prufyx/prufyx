@@ -274,7 +274,11 @@ def load(rev):
     r = subprocess.run(["git", "-C", src, "show", f"{rev}:{rf}"], capture_output=True, text=True)
     if r.returncode:
         return None
-    return {e["rule"]["id"]: json.dumps(e, sort_keys=True) for e in json.loads(r.stdout).get("entries", [])}
+    es = json.loads(r.stdout).get("entries", [])
+    d = {e["rule"]["id"]: json.dumps(e, sort_keys=True) for e in es}
+    if len(d) != len(es):  # duplicate ids would hide a changed entry: treat as unreadable, i.e. ALL
+        return None
+    return d
 try:
     b, h = load(base), load(head)
     if b is None or h is None:
@@ -288,7 +292,7 @@ PY
   if [ "$ids" = ALL ] || [ -n "$ids" ]; then
     if [ -f "$HERE/rules_oracle.py" ]; then
       export QA_RULES_IDS=$([ "$ids" = ALL ] && echo "" || echo "$ids") QA_RULES_ALL=$([ "$ids" = ALL ] && echo 1 || echo 0)
-      python3 -X utf8 rules_oracle.py --out "$OUT/rules.cases.json" >"$OUT/rules.log" 2>&1 9>&- || log "rules oracle crashed"
+      QA_STATE=$QA_STATE python3 -X utf8 rules_oracle.py --out "$OUT/rules.cases.json" --allow "$QA_STATE/rules-allow.json" >"$OUT/rules.log" 2>&1 9>&- || log "rules oracle crashed"
       [ -s "$OUT/rules.cases.json" ] || placeholder "$OUT/rules.cases.json" rules
     else
       # changed rules and no oracle to check them: inconclusive, never an informational skip
