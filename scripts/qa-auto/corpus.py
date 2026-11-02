@@ -11,6 +11,10 @@ apply to the scan-style inputs and are not part of this input shape.
 """
 import base64, copy, json
 
+# Variants that legitimately PASS in some cases (prerelease sorts below the bound; a side swap is a downgrade, both-sides
+# a no-op upgrade): a PASS is acceptable there, a crash or hang is still a mismatch.
+PASS_OK = {"val.version-prerelease@current", "val.version-prerelease@proposed", "scope.side-swap", "scope.both-sides"}
+
 
 class Anchor:
     def __init__(self, name, obj):

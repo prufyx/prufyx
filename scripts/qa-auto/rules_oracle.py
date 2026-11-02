@@ -6,30 +6,36 @@ Nothing here trusts the rule under test. For every entry of cli/internal/cncfche
 forbid_predicate_value or forbid_set_member (step 1; the version-bound operators and release-note members follow) the
 generator builds the one input the rule's own appliesWhen / condition / setCondition describes, and runs
 `check cncf --project P --input F`:
-  control   the trigger itself must BLOCK (exit 10). Anything else means the black-box input cannot reach the rule:
-            INFO "unreachable", counted and listed in the summary case, never a failure.
+  control   the trigger itself must BLOCK (exit 10). Exit 11 (UNKNOWN), 2/3 (refused/integrity) or 15 (newer pack) mean the
+            black-box input cannot reach the rule: INFO "unreachable", counted in the summary. Exit 0 is a wrong-PASS
+            candidate ("control-pass:<rule id>", wrongpass + mismatch; allow-list key '<rule id>#control'); a hang or any
+            other exit code is "control-crash:<rule id>" (mismatch). The corpus of such a rule is skipped.
   corpus    for every reachable rule each variant of corpus.py (encoding, structure, value, wrapper, scoping) must be
             non-PASS. BLOCK, UNKNOWN (11), integrity (3), a refused input (2) and a newer-pack refusal (15) are fine.
-WRONGPASS = exit 0 or a PASS-like verdict. MISMATCH = a crash (any other exit code) or a run over 20 s.
+WRONGPASS = exit 0 (verdict text is never matched loosely). Variants in corpus.PASS_OK may PASS. MISMATCH = a crash (any other exit code) or a run over 20 s.
 Case key = "<rule id>#<variant id>".
 
 Allow-list STATE/rules-allow.json = {"<rule id>#<variant id>" | "*#<variant id>": {"ref": "tracking reference", "reason": "..."}}
 for documented, scoped PASS cases. An allowed key that still passes is reported and does not alarm; an allowed key whose
-case is now non-PASS (or a "*" key that matched nothing although the variant ran) is a STALE entry and alarms (mismatch
+case is now non-PASS (or a "*" key that matched nothing although the variant ran, or a key whose rule id left rules.json
+or whose in-scope rule did not run it) is a STALE entry and alarms (mismatch
 + error), so the list only shrinks. A malformed entry is an error. A missing or empty list is the release gate.
 Environment: the qalib variables plus QA_PROJECTS (comma list, only these projects), QA_JOBS (parallel runs, default 3).
 """
 import argparse, concurrent.futures as cf, base64, json, os, subprocess, sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from qalib import BIN, SRC, TMP, NOW, ENV, case, counts, dump, is_pass, write_private
+from qalib import BIN, SRC, TMP, NOW, ENV, case, counts, dump, write_private
 import corpus
+PASS_OK = corpus.PASS_OK
 
 RULES = "cli/internal/cncfcheck/data/rules.json"
 OPS = ("forbid_predicate_value", "forbid_set_member")
 BLOCKED = 10
 NOT_PASS = {2, 3, 10, 11, 15}
 TIMEOUT = 20
+PASS_VERDICTS = {"PASS", "SCOPE_COMPLETE_PASS"}  # the CLI's verdict enum (cli/internal/**: VerdictPass); exact match only
+UNREACHABLE = {2, 3, 11, 15}  # control refused / integrity / UNKNOWN / newer pack: the input cannot reach the rule
 PROBE_NOW = NOW or "2026-11-20T00:00:00Z"
 ap = argparse.ArgumentParser()
 ap.add_argument("--out", required=True)
@@ -90,7 +96,10 @@ def run(project, data, tag):
     except Exception:
         j = None
     note = (r.stdout[:200] + r.stderr[:200]).replace("\n", " ")
-    return (0 if is_pass(r.returncode, j) and r.returncode != 0 else r.returncode), note, cmd
+    verdict = j.get("verdict") if isinstance(j, dict) else None
+    if r.returncode != 0 and verdict in PASS_VERDICTS:
+        note = "exit %d with verdict %s; " % (r.returncode, verdict) + note
+    return r.returncode, note, cmd
 
 
 try:
@@ -101,6 +110,8 @@ except Exception as e:
     raise SystemExit(0)
 only = {p for p in ENV("QA_PROJECTS", "").split(",") if p}
 entries = [e for e in data["entries"] if e["rule"]["operator"] in OPS and (not only or e["project"] in only)]
+ALL_IDS = {e["rule"]["id"] for e in data["entries"]}
+RUN_IDS = {e["rule"]["id"] for e in entries}
 JOBS = int(ENV("QA_JOBS", "3") or 3)
 
 # controls ------------------------------------------------------------------------------------------------------
@@ -110,7 +121,7 @@ for i, e in enumerate(entries):
         work.append((e,) + trigger(e) + ("c%d" % i,))
     except Exception as ex:
         work.append((e, None, None, None, None, repr(ex)))
-reach, unreach, nobuild = [], [], []
+reach, unreach, nobuild, ctl_bad = [], [], [], []
 
 
 def control(w):
@@ -128,8 +139,10 @@ with cf.ThreadPoolExecutor(JOBS) as ex:
             nobuild.append(rid)
         elif res[0] == BLOCKED:
             reach.append(w)
-        else:
+        elif res[0] in UNREACHABLE:
             unreach.append((rid, res[0]))
+        else:  # 0 = PASS on the rule's own trigger, -9 = hang, anything else = crash: never silently skipped
+            ctl_bad.append((w, res))
 
 # corpus --------------------------------------------------------------------------------------------------------
 jobs = []  # (entry, doc, variant)
@@ -176,6 +189,19 @@ def repro(data, cmd):
 
 
 cases, matched, ran_variants, ran_keys = [], set(), set(), set()
+# The trigger is built from the rule's own appliesWhen/condition, so exit 0 on it is a wrong-PASS candidate (the generator
+# has no "not reliably constructible" marker; a legitimate PASS is documented in the allow-list as '<rule id>#control').
+for w, (code, note) in ctl_bad:
+    e = w[0]
+    rid = e["rule"]["id"]
+    ckey = rid + "#control"
+    ran_keys.add(ckey)
+    if code == 0 and ckey in allow and not bad:
+        matched.add(ckey)
+        continue
+    kind = "control-pass:" if code == 0 else "control-crash:"
+    cases.append(case("rules", kind + rid, wrongpass=(code == 0), mismatch=True, project=e["project"], rule=rid, exit=code,
+                      note=note, why="trigger built from the rule did not BLOCK (exit %s)" % code))
 for key, rid, vid, project, code, note, data, cmd in OBS:
     ran_keys.add(key)
     ran_variants.add(vid)
@@ -185,6 +211,8 @@ for key, rid, vid, project, code, note, data, cmd in OBS:
                               why="FIXED - remove from allow-list"))
         continue
     passed = code == 0
+    if passed and vid in PASS_OK:
+        continue  # semantically different input (prerelease below bound, downgrade): PASS is correct; crash/hang still alarms
     entry = allow.get(key) or allow.get("*#" + vid)
     if entry and not bad and passed:
         matched.add(key if key in allow else "*#" + vid)
@@ -198,7 +226,15 @@ for k in allow:
         if k[2:] in ran_variants and k not in matched:
             cases.append(case("rules", "stale-allow:" + k, mismatch=True, error=True, ref=allow[k].get("ref"), why="matched no wrong PASS - remove"))
     elif k not in ran_keys:
-        cases.append(case("rules", "allowed-not-run:" + k, ref=allow[k].get("ref")))
+        rid = k.split("#", 1)[0]
+        if rid not in ALL_IDS:
+            cases.append(case("rules", "stale-allow:" + k, mismatch=True, error=True, ref=allow[k].get("ref"),
+                              why="rule id is no longer in rules.json - remove"))
+        elif rid in RUN_IDS:
+            cases.append(case("rules", "stale-allow:" + k, mismatch=True, error=True, ref=allow[k].get("ref"),
+                              why="rule is in scope but the key did not run (no BLOCKing control, or variant gone) - remove"))
+        else:
+            cases.append(case("rules", "allowed-not-run:" + k, ref=allow[k].get("ref")))  # outside QA_PROJECTS scope: INFO
 for msg in bad:
     cases.append(case("rules", "allow-list", error=True, why=msg))
 for rid in nobuild:
