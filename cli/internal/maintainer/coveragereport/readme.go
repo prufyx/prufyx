@@ -80,7 +80,11 @@ func RenderREADMEBlock(r Report, inventoryJSON []byte, now time.Time) (string, e
 	w("| Rule for one exact version pair only (S) | %d | %s |\n", f.S, readmePct(f.S, f.Pairs))
 	w("| Gap, no valid rule (G) | %d | %s |\n\n", f.G, readmePct(f.G, f.Pairs))
 	w("Kubernetes: %d valid rules, but %d fall in its window %s to %s; %d of %d upgrades in that window are gaps.\n\n", k.ValidRules, k.RulesInWindow, k.Window[0], k.Window[len(k.Window)-1], k.G, k.A+k.B+k.S+k.G)
-	w("Decided means a valid rule or attestation covers every version of both release lines. It never means a whole-upgrade PASS. %s An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.\n", decidedSplitSentence(r.split, f.A+f.B))
+	split, err := decidedSplitSentence(r.split, f.A+f.B)
+	if err != nil {
+		return "", err
+	}
+	w("Decided means a valid rule or attestation covers every version of both release lines. It never means a whole-upgrade PASS. %s An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.\n", split)
 	return b.String(), nil
 }
 
@@ -89,12 +93,12 @@ func RenderREADMEBlock(r Report, inventoryJSON []byte, now time.Time) (string, e
 // produce only a family-scoped PASS ("PASS within <family> only" in the scan
 // output), never BLOCKED. total is the decided count the table prints; the
 // split must add up to it.
-func decidedSplitSentence(d decidedSplit, total int) string {
+func decidedSplitSentence(d decidedSplit, total int) (string, error) {
 	if d.total() != total {
-		return fmt.Sprintf("(the split of the %d decided upgrades is unavailable)", total)
+		return "", fmt.Errorf("report: the split of the %d decided upgrades does not add up (split total %d)", total, d.total())
 	}
 	if len(d.noBlock) == 0 {
-		return fmt.Sprintf("All %d decided upgrades are decided by a rule, or by an attestation that lists rules, so the answer for them can be BLOCKED or UNKNOWN.", total)
+		return fmt.Sprintf("All %d decided upgrades are decided by a rule, or by an attestation that lists rules, so the answer for them can be BLOCKED or UNKNOWN.", total), nil
 	}
 	var parts []string
 	rest := 0
@@ -102,7 +106,7 @@ func decidedSplitSentence(d decidedSplit, total int) string {
 		parts = append(parts, fmt.Sprintf("%d by `%s`", f.pairs, f.families))
 		rest += f.pairs
 	}
-	return fmt.Sprintf("Only %d of the %d decided upgrades are decided by a rule, or by an attestation that lists rules, so the answer for them can be BLOCKED or UNKNOWN. The other %d are decided only by line attestations that list no rule (%s): for them an attestation can only give a family-scoped PASS (`scan` prints \"PASS within <family> only\"), never BLOCKED.", d.canBlock, total, rest, strings.Join(parts, ", "))
+	return fmt.Sprintf("Only %d of the %d decided upgrades are decided by a rule, or by an attestation that lists rules, so the answer for them can be BLOCKED or UNKNOWN. The other %d are decided only by line attestations that list no rule (%s): for them an attestation can only give a family-scoped PASS (`scan` prints \"PASS within <family> only\"), never BLOCKED.", d.canBlock, total, rest, strings.Join(parts, ", ")), nil
 }
 
 // SpliceBlock returns doc with the lines between the begin and end marker

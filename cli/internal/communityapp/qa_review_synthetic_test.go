@@ -73,12 +73,15 @@ type qaScenario struct {
 	storeRefused   bool // the store build is expected to be refused (counts as blocked)
 }
 
+// qaPinnedNow is the fixed clock of this test, so its output does not depend on the day it runs.
+var qaPinnedNow = time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
+
 func TestQAReviewCrossing(t *testing.T) {
 	outPath := os.Getenv("QA_REVIEW_OUT")
 	if outPath == "" {
 		t.Skip("QA_REVIEW_OUT is not set")
 	}
-	day := time.Now().UTC().Truncate(24 * time.Hour)
+	day := qaPinnedNow.Truncate(24 * time.Hour)
 	rv, un := day.AddDate(0, 0, -1), day.AddDate(0, 0, 30)
 	plain := qaEntry(qaCortexP, "cortex.qa-review-plain.1-8-2-to-1-9-0", "qa-other-flag", false, rv, un)
 	crossing := qaEntry(qaCortexP, qaID, qaFlag, true, rv, un)
@@ -132,7 +135,7 @@ func TestQAReviewCrossing(t *testing.T) {
 		}
 		defer restore()
 		in := writeInputs([]qaProject{qaCortexP})
-		code, so, se := runCNCFCLI(t, "check", "cncf", "--project", "cortex", "--input", in["cortex"], "--format", "json", "--now", time.Now().UTC().Format(time.RFC3339))
+		code, so, se := runCNCFCLI(t, "check", "cncf", "--project", "cortex", "--input", in["cortex"], "--format", "json", "--now", qaPinnedNow.Format(time.RFC3339))
 		rec("R1.embedded", "block", code, so, se)
 	}()
 
@@ -151,7 +154,7 @@ func TestQAReviewCrossing(t *testing.T) {
 	for _, sc := range scenarios {
 		t.Run(sc.name, func(t *testing.T) {
 			useDefaultStoreHome(t)
-			autoClock = func() time.Time { return time.Now().UTC() }
+			autoClock = func() time.Time { return qaPinnedNow }
 			if sc.modes == "" {
 				sc.modes = "eab"
 			}
@@ -213,11 +216,11 @@ func TestQAReviewCrossing(t *testing.T) {
 	// golden: hops without a crossing rule answer the same with and without a store (shipped knowledge)
 	t.Run("golden", func(t *testing.T) {
 		useDefaultStoreHome(t)
-		autoClock = func() time.Time { return time.Now().UTC() }
+		autoClock = func() time.Time { return qaPinnedNow }
 		installDefaultStore(t)
 		forceComparison(t, newer, same, false)
 		store := filepath.Join(os.Getenv("XDG_DATA_HOME"), "prufyx", "knowledge", "cncf-projects")
-		now := time.Now().UTC().Format(time.RFC3339)
+		now := qaPinnedNow.Format(time.RFC3339)
 		ky := autoCheckArgs(t, "--format", "json")
 		code, so, se := runCNCFCLI(t, append(append([]string{}, ky...), "--knowledge=embedded", "--now", now)...)
 		rec("G.kyverno.embedded", "info", code, so, se)
