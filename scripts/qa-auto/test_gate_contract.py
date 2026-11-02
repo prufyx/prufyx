@@ -79,9 +79,20 @@ class ScopedVerdictTests(unittest.TestCase):
             self.assertFalse(q.removal_claim("kubernetes.removal", "kubernetes", "kubernetes.removed_served_gvk", "other/v1/Widget"))
 
     def test_missing_input_document_is_error(self):
-        self.assertTrue(q.complete_scan_scope({"summary": {"documentsRead": 2}}, 2))
+        self.assertTrue(q.complete_scan_scope({"summary": {"documentsRead": 2, "documentsOmitted": 0}, "omitted": []}, 2))
         for report in ({}, {"summary": {"documentsRead": 1}}, {"summary": {"documentsRead": True}}):
             self.assertFalse(q.complete_scan_scope(report, 2))
+
+    def test_actual_intake_omissions_fail_complete_scope(self):
+        fixture = Path(__file__).resolve().parents[2] / "cli/internal/scanrun/testdata/blocked-templated.json"
+        report = json.loads(fixture.read_text())
+        requested = report["summary"]["documentsRead"]
+        self.assertEqual({item["reason"] for item in report["omitted"]}, {"UNPARSEABLE", "TEMPLATED"})
+        self.assertFalse(q.complete_scan_scope(report, requested))
+        for omitted_count, omitted in ((0, report["omitted"]), (2, []), (0, None), (False, [])):
+            with self.subTest(omitted_count=omitted_count, omitted=omitted):
+                altered = dict(report, summary=dict(report["summary"], documentsOmitted=omitted_count), omitted=omitted)
+                self.assertFalse(q.complete_scan_scope(altered, requested))
 
     def test_missing_requested_release_line_is_error(self):
         with tempfile.TemporaryDirectory() as td:

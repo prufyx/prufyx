@@ -13,7 +13,8 @@ UNKNOWN without the expected finding is a mismatch, never evidence of safety.
 Historical mismatch baselines cannot waive mismatches in a publication gate.
 
 Failed Git reads, incomplete YAML, missing requested release lines, unavailable
-swagger data and invalid scan responses fail closed. Empty served source scope
+swagger data and invalid scan responses fail closed. A read document count
+is insufficient when any document was omitted, templated or unparseable. Empty served source scope
 and omitted alpha-only single-object probes are explicit SKIP errors; they
 cannot supply green cases. The gate
 intentionally omits kind probes; this omission does not validate live behavior.

@@ -149,6 +149,11 @@ def scoped_result(code, report, removed, component, family):
 
 
 def complete_scan_scope(report, requested):
-    """The scan must acknowledge every supplied synthetic document."""
-    observed = report.get("summary", {}).get("documentsRead")
-    return type(observed) is int and observed == requested
+    """Every supplied synthetic document must be read without an intake omission."""
+    summary = report.get("summary", {})
+    observed = summary.get("documentsRead")
+    omitted_count = summary.get("documentsOmitted")
+    omitted = report.get("omitted")
+    return (type(observed) is int and observed == requested and
+            type(omitted_count) is int and omitted_count == 0 and
+            isinstance(omitted, list) and not omitted)
