@@ -226,4 +226,17 @@ func TestCheckChainPassesWhenEveryHopIsDecidedAndPasses(t *testing.T) {
 	if err != nil || blocked.Verdict != ChainBlocked {
 		t.Fatalf("blocked chain: %v %+v", err, blocked.Verdict)
 	}
+	// a chain whose verdicts do not follow from its sealed reports does not encode, so it cannot exit 0
+	forged := blocked
+	forged.Hops = append([]ChainHop(nil), blocked.Hops...)
+	forged.Verdict = ChainPass
+	if _, err := MarshalChain(forged); err == nil || ChainExit(forged) != 3 {
+		t.Fatalf("forged chain verdict: %v exit %d", err, ChainExit(forged))
+	}
+	forged = chain
+	forged.Hops = append([]ChainHop(nil), chain.Hops...)
+	forged.Hops[0].Verdict = ChainBlocked
+	if _, err := MarshalChain(forged); err == nil {
+		t.Fatal("forged hop verdict encoded")
+	}
 }

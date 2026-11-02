@@ -130,17 +130,22 @@ func chainHop(evaluate func([]byte) (Report, error), inputRaw []byte, from, to s
 			hop.Decided++
 		}
 	}
+	if ClaimExit(report) == 3 {
+		return ChainHop{}, ErrIntegrity
+	}
+	hop.Verdict = hopVerdict(report)
+	return hop, nil
+}
+
+// hopVerdict is the verdict of one sealed report: PASS and BLOCKED from ClaimExit, UNKNOWN for anything else.
+func hopVerdict(report Report) string {
 	switch ClaimExit(report) {
 	case 0:
-		hop.Verdict = ChainPass
+		return ChainPass
 	case 10:
-		hop.Verdict = ChainBlocked
-	case 3:
-		return ChainHop{}, ErrIntegrity
-	default:
-		hop.Verdict = ChainUnknown
+		return ChainBlocked
 	}
-	return hop, nil
+	return ChainUnknown
 }
 
 // chainVerdict combines the hop verdicts: any BLOCKED wins, then any UNKNOWN
@@ -183,6 +188,21 @@ func ChainExit(chain ChainReport) int {
 // MarshalChain verifies every sealed report of the chain and encodes it.
 func MarshalChain(chain ChainReport) ([]byte, error) {
 	if chain.Schema != ChainSchema || chain.Scope != ChainScope || chain.InputFileDigest == "" || len(chain.Hops) == 0 || len(chain.Path) != len(chain.Hops)+1 {
+		return nil, ErrIntegrity
+	}
+	// the verdicts are derived data: a chain whose verdicts do not follow from its sealed reports does not encode
+	for i, hop := range chain.Hops {
+		if hop.From != chain.Path[i] || hop.To != chain.Path[i+1] || hop.Verdict != hopVerdict(hop.Report) {
+			return nil, ErrIntegrity
+		}
+	}
+	if chain.Whole.From != chain.Path[0] || chain.Whole.To != chain.Path[len(chain.Path)-1] {
+		return nil, ErrIntegrity
+	}
+	if want := hopVerdict(chain.Whole.Report); chain.Whole.Verdict != want && !(chain.Whole.Verdict == ChainNoRule && want == ChainUnknown) {
+		return nil, ErrIntegrity
+	}
+	if verdict, _ := chainVerdict(chain.Hops, chain.Whole); verdict != chain.Verdict {
 		return nil, ErrIntegrity
 	}
 	for _, hop := range append(append([]ChainHop(nil), chain.Hops...), chain.Whole) {
