@@ -239,4 +239,19 @@ func TestCheckChainPassesWhenEveryHopIsDecidedAndPasses(t *testing.T) {
 	if _, err := MarshalChain(forged); err == nil {
 		t.Fatal("forged hop verdict encoded")
 	}
+	// an end-to-end pair that holds decided claims cannot be relabelled NO_RULE, and a wrong claim count does not encode
+	forged = blocked
+	forged.Whole.Verdict = ChainNoRule
+	if _, err := MarshalChain(forged); err == nil {
+		t.Fatal("decided end-to-end pair relabelled NO_RULE encoded")
+	}
+	forged = chain
+	forged.Whole.Decided = 1
+	if _, err := MarshalChain(forged); err == nil {
+		t.Fatal("forged decided count encoded")
+	}
+	// fact strings keep < > & in the encoded chain
+	if out, err := marshalPlain(map[string]string{"k": "a<b>&"}); err != nil || string(out) != `{"k":"a<b>&"}` {
+		t.Fatalf("marshalPlain %q %v", out, err)
+	}
 }

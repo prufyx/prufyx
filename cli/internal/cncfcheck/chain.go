@@ -108,7 +108,7 @@ func checkChain(evaluate func([]byte) (Report, error), project string, inputRaw 
 	if err != nil {
 		return ChainReport{}, err
 	}
-	if whole.Verdict == ChainUnknown && whole.Decided == 0 && (whole.Report.TrustPolicy == nil || whole.Report.TrustPolicy.ExcludedRules == 0) {
+	if whole.Verdict == ChainUnknown && noRule(whole.Report) {
 		whole.Verdict = ChainNoRule
 	}
 	chain.Whole = whole
@@ -125,17 +125,40 @@ func chainHop(evaluate func([]byte) (Report, error), inputRaw []byte, from, to s
 	if err != nil {
 		return ChainHop{}, err
 	}
-	hop := ChainHop{From: from, To: to, Report: report}
-	for _, claim := range report.Check.Claims {
-		if !claim.IsVerdictNeutral() && claim.ReasonCode != reasonTransitionNotReviewed {
-			hop.Decided++
-		}
-	}
+	hop := ChainHop{From: from, To: to, Report: report, Decided: decidedClaims(report)}
 	if ClaimExit(report) == 3 {
 		return ChainHop{}, ErrIntegrity
 	}
 	hop.Verdict = hopVerdict(report)
 	return hop, nil
+}
+
+// decidedClaims counts the verdict claims of rules that match the transition of the report.
+func decidedClaims(report Report) int {
+	decided := 0
+	for _, claim := range report.Check.Claims {
+		if !claim.IsVerdictNeutral() && claim.ReasonCode != reasonTransitionNotReviewed {
+			decided++
+		}
+	}
+	return decided
+}
+
+// noRule reports whether no reviewed rule matches the transition and the trust policy left none out: the only case
+// in which the end-to-end pair is NO_RULE (neutral) instead of UNKNOWN.
+func noRule(report Report) bool {
+	return decidedClaims(report) == 0 && (report.TrustPolicy == nil || report.TrustPolicy.ExcludedRules == 0)
+}
+
+// marshalPlain encodes v as JSON without HTML escaping (fact strings keep their < > &).
+func marshalPlain(v any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	return bytes.TrimSuffix(buf.Bytes(), []byte("\n")), nil
 }
 
 // hopVerdict is the verdict of one sealed report: PASS and BLOCKED from ClaimExit, UNKNOWN for anything else.
@@ -193,14 +216,25 @@ func MarshalChain(chain ChainReport) ([]byte, error) {
 	}
 	// the verdicts are derived data: a chain whose verdicts do not follow from its sealed reports does not encode
 	for i, hop := range chain.Hops {
-		if !slices.Equal([]string{hop.From, hop.To}, chain.Path[i:i+2]) || hop.Verdict != hopVerdict(hop.Report) {
+		if !slices.Equal([]string{hop.From, hop.To}, chain.Path[i:i+2]) || hop.Verdict != hopVerdict(hop.Report) || hop.Decided != decidedClaims(hop.Report) {
 			return nil, ErrIntegrity
 		}
 	}
 	if !slices.Equal([]string{chain.Whole.From, chain.Whole.To}, []string{chain.Path[0], chain.Path[len(chain.Path)-1]}) {
 		return nil, ErrIntegrity
 	}
-	if want := hopVerdict(chain.Whole.Report); chain.Whole.Verdict != want && !(chain.Whole.Verdict == ChainNoRule && want == ChainUnknown) {
+	if chain.Whole.Decided != decidedClaims(chain.Whole.Report) {
+		return nil, ErrIntegrity
+	}
+	// NO_RULE is neutral in the chain verdict: it must be the UNKNOWN of a pair without any rule, never a relabelled gap
+	want := hopVerdict(chain.Whole.Report)
+	if chain.Whole.Verdict == ChainNoRule {
+		want = ChainUnknown
+		if !noRule(chain.Whole.Report) {
+			return nil, ErrIntegrity
+		}
+	}
+	if chain.Whole.Verdict != want {
 		return nil, ErrIntegrity
 	}
 	if verdict, _ := chainVerdict(chain.Hops, chain.Whole); verdict != chain.Verdict {
@@ -211,7 +245,7 @@ func MarshalChain(chain ChainReport) ([]byte, error) {
 			return nil, ErrIntegrity
 		}
 	}
-	raw, err := json.Marshal(chain)
+	raw, err := marshalPlain(chain)
 	if err != nil {
 		return nil, ErrIntegrity
 	}
@@ -254,7 +288,7 @@ func withTransition(raw []byte, from, to string) ([]byte, error) {
 		}
 		component["version"] = version
 	}
-	out, err := json.Marshal(document)
+	out, err := marshalPlain(document)
 	if err != nil {
 		return nil, ErrInvalid
 	}
