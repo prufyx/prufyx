@@ -1006,5 +1006,8 @@ func (r runtime) cncfError(message string, err error) int {
 	if errors.Is(err, cncfcheck.ErrIntegrity) || errors.Is(err, currentbundle.ErrIntegrity) {
 		return r.fail(message, ExitIntegrity)
 	}
+	if errors.Is(err, cncfcheck.ErrMemberSpelling) {
+		return r.fail(message+": a declared flag name is not spelled as the project spells it (flags are lowercase, without leading dashes; falco short flags are one letter); fix the spelling and run again", ExitUsage)
+	}
 	return r.fail(withPermissionHint(message, err), ExitUsage)
 }

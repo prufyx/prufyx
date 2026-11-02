@@ -59,6 +59,8 @@ func TestEmbeddedRelnotesRulesRefuseNonCanonicalCase(t *testing.T) {
 	} {
 		if _, err := CheckRule(tc.c.project, tc.c.ruleID, tc.c.input(true, tc.c.to, tc.members...), now); !errors.Is(err, ErrInvalid) {
 			t.Fatalf("%s %v: err=%v, want ErrInvalid", tc.c.ruleID, tc.members, err)
+		} else if !errors.Is(err, ErrMemberSpelling) {
+			t.Fatalf("%s %v: err=%v, want the spelling reason ErrMemberSpelling", tc.c.ruleID, tc.members, err)
 		}
 		if err := ValidateCanonicalInput(tc.c.project, tc.c.input(true, tc.c.to, tc.members...)); !errors.Is(err, ErrInvalid) {
 			t.Fatalf("%s %v: ValidateCanonicalInput err=%v", tc.c.ruleID, tc.members, err)

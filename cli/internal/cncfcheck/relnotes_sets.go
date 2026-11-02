@@ -5,6 +5,8 @@ package cncfcheck
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"slices"
@@ -105,7 +107,7 @@ func guardRelnotesSets(raw []byte) ([]byte, bool, error) {
 						return raw, false, nil // the engine's own parser reports it
 					}
 					if !relnotesSpelling(id, name) {
-						return nil, false, ErrInvalid
+						return nil, false, ErrMemberSpelling
 					}
 					names = append(names, name)
 				}
@@ -127,6 +129,11 @@ func guardRelnotesSets(raw []byte) ([]byte, bool, error) {
 	}
 	return bytes.TrimSuffix(out.Bytes(), []byte("\n")), downgraded, nil
 }
+
+// ErrMemberSpelling is a refused request (still ErrInvalid) whose reason the
+// caller may print: a declared flag name of a release-note rule set is not
+// spelled the way the project spells it. The request is refused, never passed.
+var ErrMemberSpelling = fmt.Errorf("%w: a declared flag name is not spelled as the project spells it", ErrInvalid)
 
 func relnotesSpelling(factID, name string) bool {
 	if name == strings.ToLower(name) {
@@ -153,6 +160,9 @@ func parseGuarded(raw []byte, registry constraintengine.Registry) (input constra
 		return constraintengine.Input{}, false, ErrInvalid
 	}
 	guarded, downgraded, err := guardRelnotesSets(raw)
+	if errors.Is(err, ErrMemberSpelling) {
+		return constraintengine.Input{}, false, err
+	}
 	if err != nil {
 		return constraintengine.Input{}, false, ErrInvalid
 	}
