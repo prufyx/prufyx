@@ -4,7 +4,8 @@ name: Merge policy
 # merged with a merge commit (no fast-forward, no squash, no rebase). The
 # repository ruleset enforces this for everyone; this workflow is the required
 # status check that makes the rule visible and catches anything that slips
-# past it.
+# past it. Inside a pull request the history stays linear: no merge commits,
+# and the branch sits on the current main tip (updated only by rebase).
 
 on:
   pull_request:
@@ -32,6 +33,34 @@ jobs:
             exit 1
           fi
           echo "topic branch: ${HEAD_REF}"
+
+      - name: Checkout pull request head with full history
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Pull request has no merge commits and sits on the main tip
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          fix="rebase onto origin/main (git rebase origin/main && git push --force-with-lease); never merge main into a branch"
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          base="$(git merge-base origin/main HEAD)"
+          merges="$(git rev-list --merges "${base}..HEAD")"
+          if [ -n "${merges}" ]; then
+            echo "::error title=Merge policy::the pull request contains merge commits: ${fix}"
+            printf '%s\n' "${merges}"
+            exit 1
+          fi
+          tip="$(git rev-parse origin/main)"
+          if [ "${base}" != "${tip}" ]; then
+            echo "::error title=Merge policy::branch is not on the main tip (merge base ${base}, main ${tip}): ${fix}"
+            exit 1
+          fi
+          echo "linear branch on the main tip ${tip}"
 
       - name: Checkout full history
         if: github.event_name == 'push'
