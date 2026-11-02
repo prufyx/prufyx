@@ -46,6 +46,9 @@ func TestCertManagerCleanRouteReturnsScopedPass(t *testing.T) {
 	if code != ExitOK || !strings.Contains(stdout.String(), "aggregate: UNKNOWN") {
 		t.Fatalf("code=%d stdout=%s stderr=%s", code, stdout.String(), stderr.String())
 	}
+	if !strings.HasPrefix(stdout.String(), "cert-manager removed monitor values: PASS (scoped)\nWhole upgrade: not proven.\n") {
+		t.Fatalf("a scoped PASS must say so in its headline: %s", stdout.String())
+	}
 }
 
 func TestCertManagerLatestRouteCoversFiveChartOriginsAndPinsDigests(t *testing.T) {
