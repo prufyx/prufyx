@@ -390,7 +390,10 @@ func (r runtime) externalCertManager(args externalCertRequest) int {
 }
 
 func writeExternalCertHuman(w io.Writer, report knowledgecheck.Report) {
-	fmt.Fprintf(w, "cert-manager removed monitor values: %s\n", report.Check.Claim.Status)
+	fmt.Fprintf(w, "cert-manager removed monitor values: %s\n", scopedHeadline(report.Check.Claim.Status))
+	if report.Check.Claim.Status == "PASS" {
+		fmt.Fprintln(w, "Whole upgrade: not proven.")
+	}
 	fmt.Fprintf(w, "claim: %s\nreason: %s\n", report.Check.Claim.ReasonCode, report.Check.Claim.Reason)
 	if len(report.Check.MatchedPaths) > 0 {
 		fmt.Fprintf(w, "matched curated paths: %s\n", strings.Join(report.Check.MatchedPaths, ", "))
