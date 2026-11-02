@@ -91,7 +91,7 @@ jobs:
         working-directory: cli
         run: |
           go run ./cmd/prufyx-maintainer release-notes --repo .. \
-            --from v0.0.1-alpha.1 --to b55e9425f44b --to-label v0.1.0-beta.0 \
+            --from v0.0.1-alpha.1 --to 0a58fd2c5741 --to-label v0.1.0-beta.0 \
             --into docs/release-notes-v0.1.0-beta.0.md --check
 
   test-core:
