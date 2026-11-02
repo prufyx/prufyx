@@ -140,13 +140,13 @@ def repo_of(txt):
     return r
 try:
     known = {x.strip() for x in os.environ.get("QA_GATE_REPOS", "").split(",") if x.strip()}
-    ls = subprocess.run(["git", "-C", src, "ls-tree", "--name-only", base, TD], capture_output=True, text=True).stdout.split()
+    ls = subprocess.run(["git", "-C", src, "ls-tree", "-r", "--name-only", base, TD], capture_output=True, text=True, check=True).stdout.split()
     for f in ls:
         if re.fullmatch(re.escape(TD) + r"target-[\w.-]+\.json", f, re.A):
             t = show(base, f)
             if t:
                 try: known.add(repo_of(t))
-                except Exception: pass
+                except Exception: raise ValueError("base target unreadable")
     bad = []
     for p in open(changed).read().split("\n"):
         if re.fullmatch(re.escape(TD) + r"target-[\w.-]+\.json", p, re.A):
@@ -212,6 +212,7 @@ export QA_COV=""
 if [ -n "$L" ] && "$QA_DEVBOX" -w "$RUN/src/cli" sh -c 'GOFLAGS=-mod=vendor go run ./cmd/prufyx-maintainer coverage report --lines "$1" --now "$2" --window ALL --json-out "$3"' _ "${L#"$RUN/src/cli/"}" "$QA_NOW" "$RUN/cov.json" </dev/null >"$RUN/cov.log" 2>&1 9>&-; then
   QA_COV=$RUN/cov.json
 else
+  if [ "$GATE" = 1 ]; then log "coverage report failed in gate mode"; exit 3; fi
   log "coverage report failed; pairs derived from upstream tags"
 fi
 
@@ -223,9 +224,9 @@ if [ "$GATE" = 1 ] && [ "$mode" != full ] && [ -z "$projects" ]; then
   # gate mode only: nothing project-specific changed (crd_oracle would treat an empty list as "all"): one counted OK case, not a silent skip
   python3 -I -c 'import json,sys;json.dump([{"suite":"crd","key":"no-changed-projects","wrongpass":False,"mismatch":False,"error":False,"detail":{}}],open(sys.argv[1],"w"))' "$OUT/crd.cases.json"
 else
-  python3 -X utf8 crd_oracle.py "${sel_args[@]}" --out "$OUT/crd.cases.json" >"$OUT/crd.log" 2>&1 9>&- || log "crd oracle crashed"
+  python3 -X utf8 crd_oracle.py "${sel_args[@]}" --out "$OUT/crd.cases.json" >"$OUT/crd.log" 2>&1 9>&- || rm -f "$OUT/crd.cases.json"
 fi
-python3 -X utf8 k8s_oracle.py --out "$OUT/k8s.cases.json" >"$OUT/k8s.log" 2>&1 9>&- || log "k8s oracle crashed"
+python3 -X utf8 k8s_oracle.py --out "$OUT/k8s.cases.json" >"$OUT/k8s.log" 2>&1 9>&- || rm -f "$OUT/k8s.cases.json"
 skipped=()
 placeholder() { # FILE SUITE: error case so a crashed or empty suite can never be green
   python3 -I -c 'import json,sys;json.dump([{"suite":sys.argv[2],"key":"suite-crashed","wrongpass":False,"mismatch":False,"error":True,"detail":{}}],open(sys.argv[1],"w"))' "$1" "$2"
@@ -321,6 +322,8 @@ printf '%s\n' "${skipped[@]:-}" | python3 -I -c 'import json,sys;json.dump([l.st
 # 5. verdict, state, alarm
 python3 "$HERE/summarize.py" --dir "$OUT" --state "$QA_STATE" --sha "$sha" --mode "$mode" --note "$(( $(date +%s) - t0 ))s" "${adhoc_flag[@]}"
 rc=$?
+# Gate mode deliberately omits kind; this documented omission is not a runner failure.
+if [ "$GATE" = 1 ] && [ "$rc" = 4 ] && [ "${skipped[*]}" = kind ]; then rc=0; fi
 if [ "$ADHOC" = 0 ]; then
   # retry (poll again) after setup/inconclusive runs: last_checked only for green, alarm and partial
   case $rc in 0|2|4) echo "$sha" >"$QA_STATE/last_checked";; esac

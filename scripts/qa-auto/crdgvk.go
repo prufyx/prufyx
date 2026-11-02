@@ -31,7 +31,11 @@ func main() {
 	strip := flag.Bool("strip", false, "relax CRD schemas")
 	sample := flag.Bool("sample", false, "emit sample custom resources")
 	flag.Parse()
-	raw, _ := io.ReadAll(os.Stdin)
+	raw, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 	dec := yaml.NewDecoder(bytes.NewReader(raw))
 	out := []gvk{}
 	var docs []any
@@ -40,6 +44,7 @@ func main() {
 		if err := dec.Decode(&d); err != nil {
 			if err != io.EOF {
 				fmt.Fprintln(os.Stderr, "yaml:", err)
+				os.Exit(1)
 			}
 			break
 		}
@@ -50,7 +55,15 @@ func main() {
 		names, _ := spec["names"].(map[string]any)
 		g, _ := spec["group"].(string)
 		k, _ := names["kind"].(string)
+		if g == "" || k == "" {
+			fmt.Fprintln(os.Stderr, "CRD group or kind missing")
+			os.Exit(1)
+		}
 		vs, _ := spec["versions"].([]any)
+		if len(vs) == 0 && spec["version"] == nil {
+			fmt.Fprintln(os.Stderr, "CRD versions missing")
+			os.Exit(1)
+		}
 		if len(vs) == 0 {
 			if v, ok := spec["version"].(string); ok {
 				out = append(out, gvk{g, v, k, true, true})
@@ -59,7 +72,11 @@ func main() {
 		for _, x := range vs {
 			m, _ := x.(map[string]any)
 			n, _ := m["name"].(string)
-			s, _ := m["served"].(bool)
+			s, validServed := m["served"].(bool)
+			if n == "" || !validServed {
+				fmt.Fprintln(os.Stderr, "CRD version name or served flag invalid")
+				os.Exit(1)
+			}
 			st, _ := m["storage"].(bool)
 			out = append(out, gvk{g, n, k, s, st})
 			if *sample && s {

@@ -74,11 +74,12 @@ gate_one() {
   local head=$1 base=$2 s8=${1:0:8} rc out line
   [[ "$head" =~ ^[0-9a-f]{40}$ ]] || { echo "GATE ${s8} bad head sha (need 40 hex)" >&2; return 3; }
   [ -n "$base" ] || { echo "GATE $s8 cannot resolve base" >&2; return 3; }
+  local run_id; run_id=$(python3 -I -c 'import uuid; print(uuid.uuid4().hex)')
   local t0; t0=$(date +%s)
   local log; log=$(mktemp "${TMPDIR:-/tmp}/qa-gate-log.XXXXXX")
   # the gate raises its own alarm below: keep run.sh's hook, the kind probes and the db suite out of it
   # own session = own process group: on timeout/TERM/INT the whole group (oracles, binaries) is killed, never orphaned
-  QA_SHA=$head QA_BASE=$base QA_NO_KIND=1 QA_DB_SUITE= QA_DB=0 QA_POLL=0 QA_ALARM_HOOK= \
+  QA_RUN_ID=$run_id QA_SHA=$head QA_BASE=$base QA_NO_KIND=1 QA_DB_SUITE= QA_DB=0 QA_POLL=0 QA_ALARM_HOOK= \
     setsid timeout -k 30 "$QA_GATE_CAP" "$QA_GATE_RUN" >"$log" 2>&1 </dev/null &
   GPID=$!
   trap 'kill -TERM -- -"$GPID" 2>/dev/null; sleep 2; kill -KILL -- -"$GPID" 2>/dev/null; exit 143' TERM INT
@@ -114,10 +115,16 @@ PY
     return 3
   fi
   rm -f "$log"
-  python3 -I - "$out/summary.json" "$head" "$base" "$G" "$rc" "$(main_tip)" <<'PY'
+  python3 -I - "$out/summary.json" "$head" "$base" "$G" "$rc" "$(main_tip)" "$run_id" <<'PY'
 import json, sys, time
-summ, head, base, gdir, rc, tip = sys.argv[1:]
+summ, head, base, gdir, rc, tip, run_id = sys.argv[1:]
 s = json.load(open(summ))
+run_error = (int(rc) != 0 or
+             s.get("run_id") != run_id or s.get("base") != base or
+             not isinstance(s.get("cases"), int) or s["cases"] <= 0)
+s["errors"] = s.get("errors", 0) + int(run_error)
+if run_error:
+    print(f"gate: runner exit/binding invalid (exit {rc})", file=sys.stderr)
 if s.get("sha") != head:  # results dir is found by 8-char prefix: the full sha must match
     print(f"gate: summary sha {s.get('sha')!r} != head {head}", file=sys.stderr)
     sys.exit(3)

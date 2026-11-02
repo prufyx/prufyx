@@ -68,6 +68,8 @@ def match_names(pattern, files):
     try:
         r = subprocess.run([sys.executable, "-I", "-c", _MATCH_CODE], input=json.dumps({"m": pattern, "f": files}),
                            capture_output=True, text=True, timeout=MATCH_TIMEOUT)
+        if r.returncode:
+            raise ValueError("matcher child failed")
         return json.loads(r.stdout)
     except subprocess.TimeoutExpired:
         raise MatchTimeout(pattern[:80])
@@ -75,31 +77,41 @@ def match_names(pattern, files):
         raise MatchTimeout(f"match failed: {type(e).__name__}")
 
 
+def checked(*args):
+    r = sh(*args)
+    if r.returncode:
+        raise ValueError("command failed: " + " ".join(args[:4]))
+    return r.stdout
+
+
 def crd_text(tj, gd, tag):
     """Concatenated CRD YAML of one project at one tag (from the bare clone gd)."""
     txt = ""
     for p in tj["paths"]:
         if p.get("directory"):
-            fl = sh("git", "-C", gd, "ls-tree", "-r", "--name-only", "--end-of-options", tag, p["path"] + "/").stdout.split()
+            fl = checked("git", "-C", gd, "ls-tree", "-r", "--name-only", "--end-of-options", tag, p["path"] + "/").splitlines()
             fl = match_names(p["match"], fl)
+            if not fl:
+                raise ValueError("no files matched requested directory")
         else:
             fl = [p["path"]]
         for f in fl:
-            txt += "\n---\n" + sh("git", "-C", gd, "show", "--end-of-options", f"{tag}:{f}").stdout
+            txt += "\n---\n" + checked("git", "-C", gd, "show", "--end-of-options", f"{tag}:{f}")
     return txt
 
 
 def run(proj, cov):
     try:
         return _run(proj, cov)
-    except MatchTimeout as e:  # fail closed: an error case, never a skip
-        return [case("crd", proj, error=True, why="target match regex exceeded %ss or failed: %s" % (MATCH_TIMEOUT, e))]
+    except Exception as e:  # fail closed: an error case, never a skip
+        return [case("crd", proj, error=True, why="oracle failed: %s" % e)]
 
 
 def _run(proj, cov):
     S = "crd"
     try:
-        tj = json.load(open(f"{TD}/target-{proj}.json"))["target"]
+        with open(f"{TD}/target-{proj}.json") as target_file:
+            tj = json.load(target_file)["target"]
     except Exception as e:
         return [case(S, proj, error=True, why="target unreadable: %s" % e)]
     repo, bad = validate_target(tj)
@@ -118,7 +130,7 @@ def _run(proj, cov):
     if r.returncode:
         return [case(S, proj, error=True, why="fetch tags: " + r.stderr[:200])]
     pref = tj["tagPrefixes"][0]
-    tags = sh("git", "-C", gd, "tag", "-l").stdout.split()
+    tags = checked("git", "-C", gd, "tag", "-l").splitlines()
     lines = {}
     for t in tags:
         if re.fullmatch(re.escape(pref) + r"\d+\.\d+\.\d+", t):
@@ -130,6 +142,8 @@ def _run(proj, cov):
     def served(tag):
         if tag not in cache:
             r = sh(CRDGVK, inp=crd_text(tj, gd, tag))
+            if r.returncode:
+                raise ValueError("CRD YAML helper failed")
             cache[tag] = {(x["G"], x["V"], x["K"]) for x in json.loads(r.stdout) if x["Served"]}
         return cache[tag]
 
@@ -145,9 +159,13 @@ def _run(proj, cov):
         l1 = tuple(int(x) for x in pr["from"].split("."))
         l2 = tuple(int(x) for x in pr["to"].split("."))
         if l1 not in lines or l2 not in lines:
+            out.append(case(S, proj + "|" + pr["from"] + "|" + pr["to"], error=True, why="requested release line missing"))
             continue
         for f in sorted({lines[l1][0], lines[l1][-1]}, key=vkey):
             sf = served(f)
+            if not sf:
+                out.append(case(S, proj + "|" + f, error=True, why="SKIP: verified empty served source scope", status="SKIP"))
+                continue
             docs = "---\n".join(doc(g, v, k) for (g, v, k) in sorted(sf))
             for t in sorted({lines[l2][0], lines[l2][-1]}, key=vkey):
                 removed = sorted(sf - served(t))
@@ -159,19 +177,15 @@ def _run(proj, cov):
                 key = f"{proj}|{f}|{t}"
                 if j is None and "community catalog" in tail:
                     # community-catalog projects are not scanned yet (documented refusal), nothing to compare
-                    return [case(S, proj, note="skipped: community catalog, scan does not check it", why=tail[:120])]
+                    return [case(S, proj, error=True, note="SKIP: community catalog, scan does not check it", why=tail[:120])]
                 if j is None:
                     out.append(case(S, key, error=True, why=tail))
                     continue
                 fnd = j.get("findings", [])
-                crd = [x["status"] for p in j.get("paths", []) for h in p.get("hops", [])
-                       for x in h.get("families", []) if x.get("family") == "crd.custom_resource_versions"]
                 exp = ["/".join(x) for x in removed]
-                wp = bool(exp) and is_pass(code, j)
-                mm = (not wp) and ((bool(exp) and not fnd) or (not exp and bool(fnd)) or
-                                   (not exp and crd != [] and "PASS" not in crd))
-                out.append(case(S, key, wrongpass=wp, mismatch=mm, exit=code, verdict=j.get("verdict"),
-                                crd=crd, expectRemoved=exp[:200], nExpect=len(exp), nFindings=len(fnd),
+                wp, mm, missing, crd = scoped_result(code, j, removed, proj, "crd.custom_resource_versions")
+                out.append(case(S, key, wrongpass=wp, mismatch=mm, error=not complete_scan_scope(j, len(sf)), exit=code, verdict=j.get("verdict"),
+                                crd=crd, missing=missing, requested=len(sf), executed=j.get("summary", {}).get("documentsRead"), expectRemoved=exp[:200], nExpect=len(exp), nFindings=len(fnd),
                                 gaps=sorted({g.get("reason", "") for g in j.get("gaps", [])})[:3]))
     if not out:
         out.append(case(S, proj, error=True, why="no usable pairs"))
@@ -185,7 +199,7 @@ if __name__ == "__main__":
     ap.add_argument("--all", action="store_true")
     ap.add_argument("--jobs", type=int, default=int(ENV("QA_JOBS", "3")))
     a = ap.parse_args()
-    cov = json.load(open(COV))["projects"] if COV and os.path.exists(COV) else []
+    cov = json.load(open(COV))["projects"] if COV else []
     ps = projects_all() if a.all or not a.projects else a.projects.split(",")
     cases = []
     with ThreadPoolExecutor(a.jobs) as ex:

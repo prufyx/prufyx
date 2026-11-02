@@ -25,12 +25,16 @@ def swagger(m):
         open(fn + ".part", "wb").write(data)
         os.replace(fn + ".part", fn)
     s = set()
-    for df in json.load(open(fn))["definitions"].values():
+    with open(fn) as swagger_file:
+        definitions = json.load(swagger_file)["definitions"]
+    for df in definitions.values():
         for g in df.get("x-kubernetes-group-version-kind", []):
             k = g["kind"]
             if k.endswith("List") or k in SKIP_KINDS:
                 continue
             s.add((g["group"], g["version"], k))
+    if not s:
+        raise ValueError("swagger contains no served object scope")
     _sw[m] = s
     return s
 
@@ -48,10 +52,7 @@ def main():
     ap.add_argument("--hi", type=int, default=int(ENV("QA_K8S_HI", "37")))
     a = ap.parse_args()
     hi = a.hi
-    try:
-        swagger(hi)
-    except Exception:
-        hi -= 1  # newest minor not published yet
+    swagger(hi)  # every requested minor must be read; transport/parse failures are not absence
     cases = []
     for m in range(a.lo, hi):
         sa, sb = swagger(m), swagger(m + 1)
@@ -62,11 +63,10 @@ def main():
         if j is None:
             cases.append(case("k8s-range", key, error=True, why=tail))
         else:
-            txt = json.dumps(j.get("findings", []))
-            miss = [x for x in removed if "alpha" not in x[1] and not (x[2] in txt and x[1] in txt)]
-            cases.append(case("k8s-range", key, wrongpass=bool(removed) and is_pass(code, j),
-                              mismatch=bool(miss) and not is_pass(code, j), exit=code,
-                              verdict=j.get("verdict"), removed=len(removed), notMentioned=["/".join(x) for x in miss[:12]]))
+            wp, mm, missing, statuses = scoped_result(code, j, removed, "kubernetes", "kubernetes.removed_served_gvk")
+            cases.append(case("k8s-range", key, wrongpass=wp, mismatch=mm, error=not complete_scan_scope(j, len(sa)), exit=code,
+                              verdict=j.get("verdict"), removed=len(removed), notMentioned=missing,
+                              requested=len(sa), executed=j.get("summary", {}).get("documentsRead"), families=statuses))
         for x in removed:
             if "alpha" in x[1]:
                 continue
@@ -75,9 +75,9 @@ def main():
             if j is None:
                 cases.append(case("k8s-single", key, error=True, why=tail))
             else:
-                cases.append(case("k8s-single", key, wrongpass=is_pass(code, j),
-                                  mismatch=j.get("verdict") not in ("BLOCKED", "UNKNOWN") and not is_pass(code, j),
-                                  exit=code, verdict=j.get("verdict")))
+                wp, mm, missing, statuses = scoped_result(code, j, [x], "kubernetes", "kubernetes.removed_served_gvk")
+                cases.append(case("k8s-single", key, wrongpass=wp, mismatch=mm, error=not complete_scan_scope(j, 1),
+                                  exit=code, verdict=j.get("verdict"), missing=missing, families=statuses))
     for lo, h in [(20, 30), (24, 37), (30, 37), (28, 29), (36, 37)]:
         if lo < a.lo or h > hi:
             continue
@@ -86,6 +86,10 @@ def main():
         if j is None:
             cases.append(case("k8s-plan", f"1.{lo}->1.{h}", error=True, why=tail))
             continue
+        expected_stages = [(f"1.{m}", f"1.{m+1}") for m in range(lo, h)]
+        actual_stages = [(s["from"], s["to"]) for s in j.get("stages", [])]
+        if len(actual_stages) != h - lo or any(not fr.startswith(a + ".") or not to.startswith(b + ".") for (fr, to), (a, b) in zip(actual_stages, expected_stages)):
+            cases.append(case("k8s-plan", f"1.{lo}->1.{h} scope", error=True, why="requested stages missing or different"))
         anyexp = False
         for s in j.get("stages", []):
             k = int(s["to"].split(".")[1])

@@ -5,7 +5,7 @@ QA_SRC source checkout, QA_CACHE persistent cache (bare clones, swagger),
 QA_NOW pinned scan time, QA_TMP per-run scratch.
 A case is {"suite","key","wrongpass","mismatch","error","detail"}.
 """
-import json, os, re, shlex, subprocess, sys
+import hashlib, json, os, re, shlex, subprocess, sys
 
 ENV = os.environ.get
 BIN = ENV("QA_BIN", "prufyx")
@@ -37,9 +37,13 @@ def vkey(t):
     return tuple(int(x) for x in re.findall(r"\d+", t))
 
 
+def object_name(g, v, k):
+    return "qa-" + hashlib.sha256(json.dumps([g, v, k]).encode()).hexdigest()[:24]
+
+
 def doc(g, v, k, name=None):
     av = f"{g}/{v}" if g else v
-    name = name or f"qa-{k.lower()}-{v}-{(g or 'core').replace('.', '-')}"
+    name = name or object_name(g, v, k)
     return f"apiVersion: {av}\nkind: {k}\nmetadata:\n  name: {name}\n  namespace: default\n"
 
 
@@ -55,9 +59,14 @@ def prufyx(cmd, path, frm, to, bin_=None):
     args = [bin_ or BIN, cmd, path, "--from", frm, "--to", to] + SCAN_FLAGS
     if NOW:
         args += ["--now", NOW]
-    r = sh(*args)
+    try:
+        r = subprocess.run(boxed(args), capture_output=True, text=True, timeout=float(ENV("QA_SCAN_TIMEOUT", "120")))
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return 124, None, type(e).__name__
     try:
         j = json.loads(r.stdout)
+        if not isinstance(j, dict) or r.returncode not in (0, 10, 11, 2, 3):
+            j = None
     except Exception:
         j = None
     return r.returncode, j, (r.stdout[:200] + r.stderr[:200]).replace("\n", " ")
@@ -80,3 +89,26 @@ def dump(cases, path):
 
 def counts(cases):
     return {k: sum(1 for c in cases if c[k]) for k in ("wrongpass", "mismatch", "error")}
+
+
+def scoped_result(code, report, removed, component, family):
+    """Compare exact synthetic GVK objects and their component's scoped claims."""
+    paths = [p for p in report.get("paths", []) if p.get("component") == component]
+    statuses = [f.get("status") for p in paths for h in p.get("hops", [])
+                for f in h.get("families", []) if f.get("family") == family]
+    missing = []
+    for g, v, k in removed:
+        if not any(f.get("component") == component and
+                   any(loc.get("kind") == k and loc.get("name") == object_name(g, v, k)
+                       for loc in f.get("locations", [])) for f in report.get("findings", [])):
+            missing.append("/".join((g, v, k)))
+    wp = bool(removed) and (is_pass(code, report) or "PASS" in statuses)
+    mismatch = bool(missing) or (not removed and any(
+        f.get("component") == component for f in report.get("findings", [])))
+    return wp, mismatch and not wp, missing, statuses
+
+
+def complete_scan_scope(report, requested):
+    """The scan must acknowledge every supplied synthetic document."""
+    observed = report.get("summary", {}).get("documentsRead")
+    return type(observed) is int and observed == requested
