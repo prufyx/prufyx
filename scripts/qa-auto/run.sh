@@ -217,6 +217,7 @@ else
 fi
 
 # 4. suites
+export QA_SCOPE_HEAD=$sha
 export QA_BIN=$RUN/bin/prufyx QA_CRDGVK=$RUN/bin/crdgvk QA_SRC=$RUN/src QA_CACHE=$QA_STATE/cache QA_TMP=$RUN/tmp
 cd "$HERE" || exit 1
 if [ "$mode" = full ]; then sel_args=(--all); else sel_args=(--projects "$projects"); fi

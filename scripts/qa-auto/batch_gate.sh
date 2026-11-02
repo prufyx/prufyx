@@ -115,14 +115,19 @@ PY
     return 3
   fi
   rm -f "$log"
-  python3 -I - "$out/summary.json" "$head" "$base" "$G" "$rc" "$(main_tip)" "$run_id" <<'PY'
+  python3 -I - "$out/summary.json" "$head" "$base" "$G" "$rc" "$(main_tip)" "$run_id" "$HERE" <<'PY'
 import json, sys, time
-summ, head, base, gdir, rc, tip, run_id = sys.argv[1:]
+summ, head, base, gdir, rc, tip, run_id, script_dir = sys.argv[1:]
+sys.path.insert(0, script_dir)
+import qa_scope
 s = json.load(open(summ))
 run_error = (int(rc) != 0 or
              s.get("run_id") != run_id or s.get("base") != base or
              not isinstance(s.get("cases"), int) or s["cases"] <= 0)
-s["errors"] = s.get("errors", 0) + int(run_error)
+scope_errors = qa_scope.errors(s.get("scope", {}), head, base, run_id)
+s["errors"] = s.get("errors", 0) + int(run_error) + int(bool(scope_errors))
+if scope_errors:
+    print("gate: " + "; ".join(scope_errors), file=sys.stderr)
 if run_error:
     print(f"gate: runner exit/binding invalid (exit {rc})", file=sys.stderr)
 if s.get("sha") != head:  # results dir is found by 8-char prefix: the full sha must match
@@ -146,7 +151,7 @@ code = 2 if s["wrongpass"] else (3 if s["errors"] or bad or m else 0)
 json.dump({"sha": head, "base": base, "line": line, "exit": code, "state": {0: "GREEN", 2: "WRONGPASS", 3: "INCONCLUSIVE"}[code],
            "time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "mode": s["mode"], "skipped": skipped,
            "main": tip, "wrongpass": s["wrongpass"], "mismatch": m, "errors": s["errors"], "cases": s["cases"],
-           "wrongpass_cases": s["wrongpass_cases"], "error_cases": s["error_cases"], "summary": summ},
+           "wrongpass_cases": s["wrongpass_cases"], "error_cases": s["error_cases"], "summary": summ, "scope": s.get("scope")},
           open(f"{gdir}/{head}.json.tmp", "w"), indent=1)
 print(line)
 if code == 2:

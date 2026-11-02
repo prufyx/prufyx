@@ -10,6 +10,7 @@ from unittest.mock import patch
 import crd_oracle as crd
 import qalib as q
 import k8s_oracle as k8s
+import qa_scope
 
 
 class ScopedVerdictTests(unittest.TestCase):
@@ -129,7 +130,10 @@ p = Path(os.environ['QA_STATE']) / 'results' / ('test-' + os.environ['QA_SHA'][:
 p.mkdir(parents=True)
 s = dict(sha=os.environ['QA_SHA'], base=os.environ['QA_BASE'], run_id=os.environ['QA_RUN_ID'],
          wrongpass=0, mismatch=0, errors=0, cases=1, skipped=[], mode='full', wrongpass_cases=[], error_cases=[])
-''' + ("s['run_id'] = 'different'\n" if not binding else "") +
+''' + f"import sys\nsys.path.insert(0, {str(here)!r})\nimport qa_scope\n" +
+                    "scope = qa_scope.declare(os.environ['QA_SHA'], os.environ['QA_BASE'], os.environ['QA_RUN_ID'], ['k8s-range|test'], [], [])\n" +
+                    "scope.update(executed=['k8s-range|test'], state='COMPLETE')\ns['scope'] = scope\n" +
+                    ("s['run_id'] = 'different'\n" if not binding else "") +
                     f"s['mismatch'] = {mismatch}\ns['new_mismatch'] = 0\n" +
                     "json.dump([], open(Path(os.environ['QA_STATE']) / 'known-mismatch.json', 'w'))\n" +
                     f"json.dump(s, open(p / 'summary.json', 'w'))\nraise SystemExit({rc})\n")
