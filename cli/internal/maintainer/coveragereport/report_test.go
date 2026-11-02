@@ -165,7 +165,9 @@ func TestEmbeddedPackBaseline(t *testing.T) {
 		// The six release-note removal rules (crossing-only; falco, cortex,
 		// thanos) decide pairs of old lines, which are outside the
 		// 2026-10-08 window, so the figures equal the pack without them.
-		now, want = supersedeids.Clock(), fleetFigures{Projects: 55, Pairs: 275, A: 29, B: 3, S: 40, G: 203, C1: 53, C3: 6}
+		// That snapshot lists no releases, so the release-scoped attestations
+		// decide nothing in it (24 A pairs fall back to B, S or G).
+		now, want = supersedeids.Clock(), fleetFigures{Projects: 55, Pairs: 275, A: 5, B: 3, S: 43, G: 224, C1: 53, C3: 1}
 	} else if head.Revision != baseline {
 		// Only the reviewed generation is tied to the baseline revision: a
 		// bumped revision means a new baseline, which this file records.
@@ -514,7 +516,8 @@ func TestCustomResourceFamilyCountsA(t *testing.T) {
 		crdAttJSON("0.51", "0.50.0", "0.51.0", "strimzi.kafka.0-50-0-to-0-51-0"),
 		crdAttJSON("1.1", "1.0.0", "1.1.0"),
 	}
-	snapshot := []byte(fmt.Sprintf(`{"schema":%q,"projects":{"strimzi":{"component":%q,"lines":["0.49","0.50","0.51","1.0","1.1"]}}}`, LinesSchema, strimzi))
+	snapshot := []byte(fmt.Sprintf(`{"schema":%q,"projects":{"strimzi":{"component":%q,"lines":["0.49","0.50","0.51","1.0","1.1"],`+
+		`"releases":{"0.49":["0.49.0"],"0.50":["0.50.0"],"0.51":["0.51.0"],"1.0":["1.0.0"],"1.1":["1.1.0"]}}}}`, LinesSchema, strimzi))
 	report, err := Compute(Input{Pack: pack([]string{rule}, atts), Lines: snapshot, Now: baselineNow})
 	if err != nil {
 		t.Fatal(err)

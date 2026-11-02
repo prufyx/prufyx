@@ -120,7 +120,7 @@ func (s scenario) report(t *testing.T) Report {
 	packBytes := []byte(`{"schema":"test","revision":"synthetic","entries":[` + strings.Join(s.extra, ",") + `]` + section + `}`)
 	file := LinesFile{Schema: LinesSchema, CapturedOn: s.capturedOn, Projects: map[string]ProjectLines{}}
 	if len(s.lines) > 0 {
-		pl := ProjectLines{Lines: s.lines, Releases: s.releases, Scheme: s.scheme}
+		pl := ProjectLines{Component: s.component, Lines: s.lines, Releases: s.releases, Scheme: s.scheme}
 		if s.noSnapshotReleases {
 			pl.Releases = nil
 		}
