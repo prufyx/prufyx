@@ -240,8 +240,9 @@ func TestCheckChainPassesWhenEveryHopIsDecidedAndPasses(t *testing.T) {
 		t.Fatal("forged hop verdict encoded")
 	}
 	// an end-to-end pair that holds decided claims cannot be relabelled NO_RULE, and a wrong claim count does not encode
-	forged = blocked
-	forged.Whole.Verdict = ChainNoRule
+	forged = chain
+	forged.Whole = chain.Hops[0]
+	forged.Whole.From, forged.Whole.To, forged.Whole.Verdict = chain.Path[0], chain.Path[len(chain.Path)-1], ChainNoRule
 	if _, err := MarshalChain(forged); err == nil {
 		t.Fatal("decided end-to-end pair relabelled NO_RULE encoded")
 	}
