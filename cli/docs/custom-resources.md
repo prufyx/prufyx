@@ -100,14 +100,14 @@ ship, and `scheduling.sigs.k8s.io`), and every other reserved group belongs to
 no project.
 
 `argoproj.io` is shared upstream: Argo CD, Argo Workflows, Argo Rollouts and
-Argo Events all define CRDs in it. The catalog project `argo-cd` stands for the
-whole Argo project, so the group is listed once, for `argo-cd`, and objects of
-the other Argo components (a `Rollout`, a `Workflow`) join the `argo-cd` set.
-That cannot cause a wrong answer while the rules name only Argo CD's own
-kinds. If another project ever listed `argoproj.io` too, the group would become
-shared in the table: every `argoproj.io` object would then belong to no set
-and keep every set incomplete, so a removed Argo CD version would no longer
-block. Prufyx would first have to assign such objects by group and kind.
+Argo Events all define CRDs in it. The table lists it by kind. `argo-cd` owns
+the three kinds of its `manifests/crds` (`AppProject`, `Application`,
+`ApplicationSet`); any other `argoproj.io` kind (a `Rollout`, a `Workflow`, an
+`EventSource`) belongs to no project until the table lists it for the project
+that defines it. Such an object is not part of the `argo-cd` set and keeps that
+set incomplete, so a rule on the set answers UNKNOWN for a bundle that holds
+one, never a wrong PASS. A project may list the group only with kinds disjoint
+from every other listing.
 
 ## What is recorded
 
