@@ -345,6 +345,34 @@ func removalApplies(removal k8sremovals.RemovedVersion, group, version, kind, ta
 		!lineattest.LineLess(targetLine, removal.Line)
 }
 
+// unevaluatedKinds names the kinds of the supplied documents that the
+// Kubernetes check never reads: objects of a group that is neither a reserved
+// Kubernetes group nor named by the target's served list. It returns the
+// "apiVersion Kind" labels, sorted, with the document count of each.
+func (r *kubernetesRun) unevaluatedKinds(to string) (labels []string, counts map[string]int) {
+	servedGroups := map[string]bool{}
+	if line, ok := lineattest.LineOf(to); ok {
+		servedGroups = servedGroupSet(r.knowledge.ServedAPIs(r.component, line, r.now))
+	}
+	counts = map[string]int{}
+	for _, document := range r.workspace.Documents {
+		group, _, found := strings.Cut(document.APIVersion, "/")
+		if !found {
+			group = ""
+		}
+		if builtInGroup(group, servedGroups) {
+			continue
+		}
+		label := document.APIVersion + " " + document.Kind
+		if counts[label] == 0 {
+			labels = append(labels, label)
+		}
+		counts[label]++
+	}
+	sort.Strings(labels)
+	return labels, counts
+}
+
 // servedGroupSet is the groups a found served list names.
 func servedGroupSet(status ServedStatus) map[string]bool {
 	groups := map[string]bool{}

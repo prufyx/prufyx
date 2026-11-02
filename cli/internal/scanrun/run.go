@@ -469,6 +469,9 @@ func Run(request Request, options Options) (Result, error) {
 			skew = scanreport.OmissionNodeSkewDeclared
 		}
 		report.Omissions = append(report.Omissions, skew, scanreport.OmissionKubernetesScope)
+		if labels, counts := run.unevaluatedKinds(component.Target); len(labels) > 0 {
+			report.Omissions = append(report.Omissions, scanreport.OmissionCustomResources(labels, counts))
+		}
 		kubeletUsed = true
 		if kubelet.Minimum != "" {
 			report.Provenance.KubeletVersions = &scanreport.KubeletVersions{Minimum: kubelet.Minimum, Maximum: kubelet.Maximum, Source: kubelet.Source}

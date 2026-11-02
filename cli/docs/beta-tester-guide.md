@@ -91,8 +91,14 @@ supply (not whole manifests).
 prufyx catalog cncf                              # list projects
 prufyx catalog checks --project SLUG --from X --to Y   # rules, command and input each reads
 prufyx check cncf --project SLUG --help          # that project's input flags
-prufyx check cncf --project SLUG --input input.json --from X --to Y --now 2026-10-18T00:00:00Z
+prufyx check cncf --project SLUG --input input.json --now 2026-10-18T00:00:00Z
 ```
+
+The last line is the generic route. For projects such as etcd the input file
+names its own transition and `--from`/`--to` are refused there (exit `2`). A native route takes them, for
+example `prufyx check cncf --project etcd --native-resource FILE --from 3.5.17
+--to 3.6.0 --now RFC3339`. `catalog checks` prints the exact command for each
+rule.
 
 Notes from the help text:
 

@@ -168,7 +168,7 @@ func TestVerdict(t *testing.T) {
 	}
 	report := covered()
 	Finalize(&report)
-	if report.Headline != "PASS FOR THE DECLARED SCOPE" {
+	if report.Headline != "PASS FOR THE DECLARED SCOPE (Kubernetes API versions in the supplied manifests only; not a whole-upgrade pass)" {
 		t.Fatal(report.Headline)
 	}
 	report.Gaps = []Gap{{}}
@@ -301,5 +301,24 @@ func TestCheckedLine(t *testing.T) {
 	Finalize(&pass)
 	if got := checkedLine(pass); got != "Read 1 document over 1 hop; 1 of 1 component has rules." {
 		t.Fatalf("pass: %q", got)
+	}
+}
+
+func TestOmissionCustomResources(t *testing.T) {
+	counts := map[string]int{"a.example.com/v1 A": 2, "b.example.com/v1 B": 1}
+	got := OmissionCustomResources([]string{"a.example.com/v1 A", "b.example.com/v1 B"}, counts)
+	want := "Kubernetes: 3 documents of custom resources or kinds outside the Kubernetes API groups not evaluated: a.example.com/v1 A (2), b.example.com/v1 B (1)"
+	if got != want {
+		t.Fatalf("got %q", got)
+	}
+	var labels []string
+	many := map[string]int{}
+	for _, name := range []string{"a", "b", "c", "d", "e", "f", "g"} {
+		label := name + ".example.com/v1 K"
+		labels = append(labels, label)
+		many[label] = 1
+	}
+	if got := OmissionCustomResources(labels, many); !strings.HasSuffix(got, ", and 2 more kinds") {
+		t.Fatalf("got %q", got)
 	}
 }

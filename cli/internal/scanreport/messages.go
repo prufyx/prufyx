@@ -400,7 +400,7 @@ const (
 	headlineNotServedNone = "UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading"
 	headlineNotServedOne  = "UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading (1 other area was not checked)"
 	headlineNotServedMany = "UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading (%d other areas were not checked)"
-	headlinePass          = "PASS FOR THE DECLARED SCOPE"
+	headlinePass          = "PASS FOR THE DECLARED SCOPE (Kubernetes API versions in the supplied manifests only; not a whole-upgrade pass)"
 )
 
 // somethingRan is true when at least one hop was checked against a component
@@ -494,6 +494,34 @@ const (
 	// OmissionKubernetesScope says what the Kubernetes evaluation reads.
 	OmissionKubernetesScope = "Kubernetes: only API versions in the supplied manifests are evaluated; live cluster objects, CRDs, stored versions, admission and component configuration are not"
 )
+
+// maxOmittedKinds is how many custom-resource kinds an omission names before
+// it counts the rest.
+const maxOmittedKinds = 5
+
+// OmissionCustomResources says which supplied documents the Kubernetes check
+// did not read: custom resources and other kinds outside the Kubernetes API
+// groups. labels are sorted "apiVersion Kind" strings; counts holds the
+// documents of each.
+func OmissionCustomResources(labels []string, counts map[string]int) string {
+	documents := 0
+	named := make([]string, 0, maxOmittedKinds)
+	for i, label := range labels {
+		documents += counts[label]
+		if i < maxOmittedKinds {
+			named = append(named, fmt.Sprintf("%s (%d)", label, counts[label]))
+		}
+	}
+	list := strings.Join(named, ", ")
+	if len(labels) > maxOmittedKinds {
+		list += fmt.Sprintf(", and %d more kinds", len(labels)-maxOmittedKinds)
+	}
+	noun := "documents"
+	if documents == 1 {
+		noun = "document"
+	}
+	return fmt.Sprintf("Kubernetes: %d %s of custom resources or kinds outside the Kubernetes API groups not evaluated: %s", documents, noun, list)
+}
 
 // PermissionNote is the notice for files other users can read.
 func PermissionNote(files int) string {
