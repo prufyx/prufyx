@@ -196,6 +196,22 @@
       ]
     },
     {
+      "slug": "clusterpedia",
+      "catalog": "cncf",
+      "factProject": "clusterpedia",
+      "component": "pkg:github/clusterpedia-io/clusterpedia",
+      "groups": [
+        {
+          "name": "cluster.clusterpedia.io",
+          "source": "https://github.com/clusterpedia-io/clusterpedia/blob/264a1b3bc900fe54d84b9cb02cc6ec5e6152ecc8/kustomize/crds/cluster.clusterpedia.io_pediaclusters.yaml"
+        },
+        {
+          "name": "policy.clusterpedia.io",
+          "source": "https://github.com/clusterpedia-io/clusterpedia/blob/264a1b3bc900fe54d84b9cb02cc6ec5e6152ecc8/kustomize/crds/policy.clusterpedia.io_pediaclusterlifecycles.yaml"
+        }
+      ]
+    },
+    {
       "slug": "contour",
       "catalog": "cncf",
       "factProject": "contour",
@@ -284,6 +300,24 @@
       ]
     },
     {
+      "slug": "db-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "db-operator",
+        "repository": "https://github.com/kloeckner-i/db-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/kloeckner-i/db-operator/blob/88b17c4a9bbaff2f7cc2fbcc2ad7be496fbb8e80/LICENSE"
+      },
+      "factProject": "db_operator",
+      "component": "pkg:github/kloeckner-i/db-operator",
+      "groups": [
+        {
+          "name": "kci.rocks",
+          "source": "https://github.com/kloeckner-i/db-operator/blob/88b17c4a9bbaff2f7cc2fbcc2ad7be496fbb8e80/config/crd/bases/kci.rocks_dbusers.yaml"
+        }
+      ]
+    },
+    {
       "slug": "dex",
       "catalog": "cncf",
       "factProject": "dex",
@@ -292,6 +326,24 @@
         {
           "name": "dex.coreos.com",
           "source": "https://github.com/dexidp/dex/blob/05a275057112ba93e17db21f600b756f000f1c21/scripts/manifests/crds/authcodes.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "dynatrace-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "dynatrace-operator",
+        "repository": "https://github.com/dynatrace/dynatrace-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/dynatrace/dynatrace-operator/blob/fd131c9cab4cc4880b13ee570feeb570eb1a528b/LICENSE"
+      },
+      "factProject": "dynatrace_operator",
+      "component": "pkg:github/dynatrace/dynatrace-operator",
+      "groups": [
+        {
+          "name": "dynatrace.com",
+          "source": "https://github.com/dynatrace/dynatrace-operator/blob/fd131c9cab4cc4880b13ee570feeb570eb1a528b/config/crd/bases/dynatrace.com_prometheusmonitorings.yaml"
         }
       ]
     },
@@ -586,6 +638,24 @@
       ]
     },
     {
+      "slug": "kamaji",
+      "catalog": "community",
+      "upstream": {
+        "name": "kamaji",
+        "repository": "https://github.com/clastix/kamaji",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/clastix/kamaji/blob/f4c0cec4f9e689e1351297021b65e15870b7d7f4/LICENSE"
+      },
+      "factProject": "kamaji",
+      "component": "pkg:github/clastix/kamaji",
+      "groups": [
+        {
+          "name": "kamaji.clastix.io",
+          "source": "https://github.com/clastix/kamaji/blob/f4c0cec4f9e689e1351297021b65e15870b7d7f4/config/crd/bases/kamaji.clastix.io_tenantcontrolplanes.yaml"
+        }
+      ]
+    },
+    {
       "slug": "kanister",
       "catalog": "cncf",
       "factProject": "kanister",
@@ -694,6 +764,24 @@
         {
           "name": "keda.sh",
           "source": "https://github.com/kedacore/keda/blob/626ded5d783108bedf647e20bbc83f8e458e02e4/config/crd/bases/keda.sh_triggerauthentications.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "keycloak-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "keycloak-operator",
+        "repository": "https://github.com/hostzero-gmbh/keycloak-operator",
+        "license": "MIT",
+        "licenseSource": "https://github.com/hostzero-gmbh/keycloak-operator/blob/45f0345181740da318efe5c4b08475dd5fbe7a8b/LICENSE"
+      },
+      "factProject": "keycloak_operator",
+      "component": "pkg:github/hostzero-gmbh/keycloak-operator",
+      "groups": [
+        {
+          "name": "keycloak.hostzero.com",
+          "source": "https://github.com/hostzero-gmbh/keycloak-operator/blob/45f0345181740da318efe5c4b08475dd5fbe7a8b/config/crd/bases/keycloak.hostzero.com_keycloakusers.yaml"
         }
       ]
     },
@@ -842,6 +930,24 @@
         {
           "name": "k8s.nginx.org",
           "source": "https://github.com/nginx/kubernetes-ingress/blob/205828534dd07f1a73440dce23a25a7feefcc395/config/crd/bases/k8s.nginx.org_virtualservers.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "kubernetes-nmstate",
+      "catalog": "community",
+      "upstream": {
+        "name": "kubernetes-nmstate",
+        "repository": "https://github.com/nmstate/kubernetes-nmstate",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/nmstate/kubernetes-nmstate/blob/5245b16f44c19d720474ddf5db57bf7dd1c6ffbe/LICENSE"
+      },
+      "factProject": "kubernetes_nmstate",
+      "component": "pkg:github/nmstate/kubernetes-nmstate",
+      "groups": [
+        {
+          "name": "nmstate.io",
+          "source": "https://github.com/nmstate/kubernetes-nmstate/blob/5245b16f44c19d720474ddf5db57bf7dd1c6ffbe/deploy/crds/nmstate.io_nodenetworkstates.yaml"
         }
       ]
     },
@@ -1128,6 +1234,24 @@
         {
           "name": "nfd.k8s-sigs.io",
           "source": "https://github.com/kubernetes-sigs/node-feature-discovery/blob/45d276ed9d3f0f67fb642aa78969721df3034451/deployment/base/nfd-crds/nfd-api-crds.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "node-healthcheck-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "node-healthcheck-operator",
+        "repository": "https://github.com/medik8s/node-healthcheck-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/medik8s/node-healthcheck-operator/blob/a49ec14c47c5c1f0e5b81c68bf2880ff17ec4a5f/LICENSE"
+      },
+      "factProject": "node_healthcheck_operator",
+      "component": "pkg:github/medik8s/node-healthcheck-operator",
+      "groups": [
+        {
+          "name": "remediation.medik8s.io",
+          "source": "https://github.com/medik8s/node-healthcheck-operator/blob/a49ec14c47c5c1f0e5b81c68bf2880ff17ec4a5f/config/crd/bases/remediation.medik8s.io_nodehealthchecks.yaml"
         }
       ]
     },
@@ -1464,6 +1588,24 @@
       ]
     },
     {
+      "slug": "scylla-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "scylla-operator",
+        "repository": "https://github.com/scylladb/scylla-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/scylladb/scylla-operator/blob/8473052a829d5545aedad9e359bd1c82a48850c7/LICENSE"
+      },
+      "factProject": "scylla_operator",
+      "component": "pkg:github/scylladb/scylla-operator",
+      "groups": [
+        {
+          "name": "scylla.scylladb.com",
+          "source": "https://github.com/scylladb/scylla-operator/blob/8473052a829d5545aedad9e359bd1c82a48850c7/bundle/manifests/scylla.scylladb.com_scyllaoperatorconfigs.yaml"
+        }
+      ]
+    },
+    {
       "slug": "sealed-secrets",
       "catalog": "community",
       "upstream": {
@@ -1478,6 +1620,24 @@
         {
           "name": "bitnami.com",
           "source": "https://github.com/bitnami/sealed-secrets/blob/6772bee54ff8c7ef27bdeeaf15ec329854796c69/helm/sealed-secrets/crds/bitnami.com_sealedsecrets.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "slurm-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "slurm-operator",
+        "repository": "https://github.com/slinkyproject/slurm-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/slinkyproject/slurm-operator/blob/05650d869a2db1f7bc7e6c83e1c67828974af7b5/LICENSE"
+      },
+      "factProject": "slurm_operator",
+      "component": "pkg:github/slinkyproject/slurm-operator",
+      "groups": [
+        {
+          "name": "slinky.slurm.net",
+          "source": "https://github.com/slinkyproject/slurm-operator/blob/05650d869a2db1f7bc7e6c83e1c67828974af7b5/config/crd/bases/slinky.slurm.net_tokens.yaml"
         }
       ]
     },
@@ -1544,6 +1704,36 @@
       ]
     },
     {
+      "slug": "trickster",
+      "catalog": "cncf",
+      "factProject": "trickster",
+      "component": "pkg:github/trickstercache/trickster",
+      "groups": [
+        {
+          "name": "trickstercache.org",
+          "source": "https://github.com/trickstercache/trickster/blob/7788e6dbacb461b8da009ed3d403286024c9a4cc/deploy/kube/crds/trickstercachepolicies.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "trident",
+      "catalog": "community",
+      "upstream": {
+        "name": "trident",
+        "repository": "https://github.com/netapp/trident",
+        "license": "NOASSERTION",
+        "licenseSource": "https://github.com/netapp/trident/blob/55dd1d776aadca0e07caf00991dc84a8c79bac9c/LICENSE"
+      },
+      "factProject": "trident",
+      "component": "pkg:github/netapp/trident",
+      "groups": [
+        {
+          "name": "trident.netapp.io",
+          "source": "https://github.com/netapp/trident/blob/55dd1d776aadca0e07caf00991dc84a8c79bac9c/deploy/crds/trident.netapp.io_tridentorchestrators_crd.yaml"
+        }
+      ]
+    },
+    {
       "slug": "trivy-operator",
       "catalog": "community",
       "upstream": {
@@ -1558,6 +1748,24 @@
         {
           "name": "aquasecurity.github.io",
           "source": "https://github.com/aquasecurity/trivy-operator/blob/047f1d95f4f8355569aadbdad0f1c74550c6cbec/deploy/helm/crds/aquasecurity.github.io_vulnerabilityreports.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "vals-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "vals-operator",
+        "repository": "https://github.com/digitalis-io/vals-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/digitalis-io/vals-operator/blob/85263b2c7da0b702bc05deffd74a662d405ca14c/LICENSE"
+      },
+      "factProject": "vals_operator",
+      "component": "pkg:github/digitalis-io/vals-operator",
+      "groups": [
+        {
+          "name": "digitalis.io",
+          "source": "https://github.com/digitalis-io/vals-operator/blob/85263b2c7da0b702bc05deffd74a662d405ca14c/config/crd/bases/digitalis.io_dbsecrets.yaml"
         }
       ]
     },

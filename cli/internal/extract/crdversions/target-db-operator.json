@@ -1,0 +1,18 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "db-operator",
+    "catalog": "community",
+    "name": "db-operator",
+    "repo": "github.com/kloeckner-i/db-operator",
+    "component": "pkg:github/kloeckner-i/db-operator",
+    "factProject": "db_operator",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.6",
+    "paths": [
+      {"path": "config/crd/bases/kci.rocks_dbinstances.yaml"},
+      {"path": "config/crd/bases/kci.rocks_dbusers.yaml", "optional": true}
+    ],
+    "exclude": []
+  }
+}

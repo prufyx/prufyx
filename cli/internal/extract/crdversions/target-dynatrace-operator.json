@@ -1,0 +1,19 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "dynatrace-operator",
+    "catalog": "community",
+    "name": "dynatrace-operator",
+    "repo": "github.com/dynatrace/dynatrace-operator",
+    "component": "pkg:github/dynatrace/dynatrace-operator",
+    "factProject": "dynatrace_operator",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.6",
+    "paths": [
+      {"path": "config/crd/bases/dynatrace.com_dynakubes.yaml"},
+      {"path": "config/crd/bases/dynatrace.com_edgeconnects.yaml"},
+      {"path": "config/crd/bases/dynatrace.com_prometheusmonitorings.yaml", "optional": true}
+    ],
+    "exclude": []
+  }
+}

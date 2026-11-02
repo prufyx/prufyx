@@ -19,12 +19,15 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `cilium` | CNCF | `component.cilium.custom_resource_versions_set` | `cilium.io` |
 | `cloudnativepg` | CNCF | `component.cloudnativepg.custom_resource_versions_set` | `postgresql.cnpg.io` |
 | `cluster-api` | community | `component.cluster_api.custom_resource_versions_set` | `cluster.x-k8s.io`, `clusterctl.cluster.x-k8s.io`, `runtime.cluster.x-k8s.io` |
+| `clusterpedia` | CNCF | `component.clusterpedia.custom_resource_versions_set` | `cluster.clusterpedia.io`, `policy.clusterpedia.io` |
 | `contour` | CNCF | `component.contour.custom_resource_versions_set` | `projectcontour.io` |
 | `crossplane` | CNCF | `component.crossplane.custom_resource_versions_set` | `apiextensions.crossplane.io`, `ops.crossplane.io`, `pkg.crossplane.io`, `protection.crossplane.io`, `secrets.crossplane.io` |
 | `cyclops` | community | `component.cyclops.custom_resource_versions_set` | `cyclops-ui.com` |
 | `dapr` | CNCF | `component.dapr.custom_resource_versions_set` | `dapr.io` |
 | `datadog-operator` | community | `component.datadog_operator.custom_resource_versions_set` | `datadoghq.com` |
+| `db-operator` | community | `component.db_operator.custom_resource_versions_set` | `kci.rocks` |
 | `dex` | CNCF | `component.dex.custom_resource_versions_set` | `dex.coreos.com` |
+| `dynatrace-operator` | community | `component.dynatrace_operator.custom_resource_versions_set` | `dynatrace.com` |
 | `eck-operator` | community | `component.eck_operator.custom_resource_versions_set` | `agent.k8s.elastic.co`, `apm.k8s.elastic.co`, `autoops.k8s.elastic.co`, `autoscaling.k8s.elastic.co`, `beat.k8s.elastic.co`, `elasticsearch.k8s.elastic.co`, `enterprisesearch.k8s.elastic.co`, `kibana.k8s.elastic.co`, `logstash.k8s.elastic.co`, `maps.k8s.elastic.co`, `packageregistry.k8s.elastic.co`, `stackconfigpolicy.k8s.elastic.co` |
 | `eraser` | CNCF | `component.eraser.custom_resource_versions_set` | `eraser.sh` |
 | `external-secrets` | CNCF | `component.external_secrets.custom_resource_versions_set` | `external-secrets.io`, `generators.external-secrets.io` |
@@ -39,11 +42,13 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `k8gb` | CNCF | `component.k8gb.custom_resource_versions_set` | `k8gb.absa.oss`, `k8gb.io` |
 | `k8s-cleaner` | community | `component.k8s_cleaner.custom_resource_versions_set` | `apps.projectsveltos.io` |
 | `k8up` | CNCF | `component.k8up.custom_resource_versions_set` | `k8up.io` |
+| `kamaji` | community | `component.kamaji.custom_resource_versions_set` | `kamaji.clastix.io` |
 | `kanister` | CNCF | `component.kanister.custom_resource_versions_set` | `cr.kanister.io` |
 | `karmada` | CNCF | `component.karmada.custom_resource_versions_set` | `apps.karmada.io`, `autoscaling.karmada.io`, `config.karmada.io`, `networking.karmada.io`, `operator.karmada.io`, `policy.karmada.io`, `remedy.karmada.io`, `work.karmada.io` |
 | `kbind` | CNCF | `component.kbind.custom_resource_versions_set` | `kube-bind.io` |
 | `kcp` | CNCF | `component.kcp.custom_resource_versions_set` | `apis.kcp.io`, `cache.kcp.io`, `core.kcp.io`, `migration.kcp.io`, `tenancy.kcp.io`, `topology.kcp.io` |
 | `keda` | CNCF | `component.keda.custom_resource_versions_set` | `eventing.keda.sh`, `keda.sh` |
+| `keycloak-operator` | community | `component.keycloak_operator.custom_resource_versions_set` | `keycloak.hostzero.com` |
 | `kmesh` | CNCF | `component.kmesh.custom_resource_versions_set` | `kmesh.net` |
 | `kong-ingress-controller` | community | `component.kong_ingress_controller.custom_resource_versions_set` | `configuration.konghq.com` |
 | `koordinator` | CNCF | `component.koordinator.custom_resource_versions_set` | `analysis.koordinator.sh`, `config.koordinator.sh`, `quota.koordinator.sh`, `scheduling.koordinator.sh`, `slo.koordinator.sh` |
@@ -52,6 +57,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `kubemod` | community | `component.kubemod.custom_resource_versions_set` | `api.kubemod.io` |
 | `kuberhealthy` | CNCF | `component.kuberhealthy.custom_resource_versions_set` | `kuberhealthy.github.io` |
 | `kubernetes-ingress` | community | `component.kubernetes_ingress.custom_resource_versions_set` | `appprotect.f5.com`, `appprotectdos.f5.com`, `externaldns.nginx.org`, `k8s.nginx.org` |
+| `kubernetes-nmstate` | community | `component.kubernetes_nmstate.custom_resource_versions_set` | `nmstate.io` |
 | `kubestellar` | CNCF | `component.kubestellar.custom_resource_versions_set` | `control.kubestellar.io` |
 | `kubeswift` | community | `component.kubeswift.custom_resource_versions_set` | `fleet.kubeswift.io`, `gpu.kubeswift.io`, `image.kubeswift.io`, `kernel.kubeswift.io`, `migration.kubeswift.io`, `sandbox.kubeswift.io`, `seed.kubeswift.io`, `snapshot.kubeswift.io`, `storage.kubeswift.io`, `swift.kubeswift.io` |
 | `kubevela` | CNCF | `component.kubevela.custom_resource_versions_set` | `core.oam.dev`, `cue.oam.dev` |
@@ -67,6 +73,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `mongodb-kubernetes` | community | `component.mongodb_kubernetes.custom_resource_versions_set` | `ai.mongodb.com`, `mongodb.com`, `mongodbcommunity.mongodb.com` |
 | `movetokube-postgres-operator` | community | `component.movetokube_postgres_operator.custom_resource_versions_set` | `db.movetokube.com` |
 | `node-feature-discovery` | community | `component.node_feature_discovery.custom_resource_versions_set` | `nfd.k8s-sigs.io` |
+| `node-healthcheck-operator` | community | `component.node_healthcheck_operator.custom_resource_versions_set` | `remediation.medik8s.io` |
 | `ollama-operator` | community | `component.ollama_operator.custom_resource_versions_set` | `ollama.ayaka.io` |
 | `onepassword-operator` | community | `component.onepassword_operator.custom_resource_versions_set` | `onepassword.com` |
 | `openchoreo` | CNCF | `component.openchoreo.custom_resource_versions_set` | `openchoreo.dev` |
@@ -84,12 +91,17 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `renovate-operator` | community | `component.renovate_operator.custom_resource_versions_set` | `renovate-operator.mogenius.com` |
 | `rook` | CNCF | `component.rook.custom_resource_versions_set` | `ceph.rook.io`, `objectbucket.io` |
 | `schemahero` | CNCF | `component.schemahero.custom_resource_versions_set` | `databases.schemahero.io`, `schemas.schemahero.io` |
+| `scylla-operator` | community | `component.scylla_operator.custom_resource_versions_set` | `scylla.scylladb.com` |
 | `sealed-secrets` | community | `component.sealed_secrets.custom_resource_versions_set` | `bitnami.com` |
+| `slurm-operator` | community | `component.slurm_operator.custom_resource_versions_set` | `slinky.slurm.net` |
 | `strimzi` | CNCF | `component.strimzi.custom_resource_versions_set` | `core.strimzi.io`, `kafka.strimzi.io` |
 | `submariner` | CNCF | `component.submariner.custom_resource_versions_set` | `submariner.io` |
 | `tekton` | CNCF | `component.tekton.custom_resource_versions_set` | `resolution.tekton.dev`, `tekton.dev` |
 | `temporal-operator` | community | `component.temporal_operator.custom_resource_versions_set` | `temporal.io` |
+| `trickster` | CNCF | `component.trickster.custom_resource_versions_set` | `trickstercache.org` |
+| `trident` | community | `component.trident.custom_resource_versions_set` | `trident.netapp.io` |
 | `trivy-operator` | community | `component.trivy_operator.custom_resource_versions_set` | `aquasecurity.github.io` |
+| `vals-operator` | community | `component.vals_operator.custom_resource_versions_set` | `digitalis.io` |
 | `vault-secrets-operator` | community | `component.vault_secrets_operator.custom_resource_versions_set` | `ricoberger.de` |
 | `velero` | CNCF | `component.velero.custom_resource_versions_set` | `velero.io` |
 | `volcano` | CNCF | `component.volcano.custom_resource_versions_set` | `batch.volcano.sh`, `bus.volcano.sh`, `config.volcano.sh`, `flow.volcano.sh`, `nodeinfo.volcano.sh`, `scheduling.volcano.sh`, `shard.volcano.sh`, `topology.volcano.sh` |
@@ -106,6 +118,8 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `cluster-api` | Cluster API | https://github.com/kubernetes-sigs/cluster-api | [`Apache-2.0`](https://github.com/kubernetes-sigs/cluster-api/blob/560d4acf507bc7cac34b2da449fa5cd53eaeb149/LICENSE) |
 | `cyclops` | cyclops | https://github.com/cyclops-ui/cyclops | [`Apache-2.0`](https://github.com/cyclops-ui/cyclops/blob/e2965366f0e52472e32d37475fbbb5d3507199d0/LICENSE) |
 | `datadog-operator` | datadog-operator | https://github.com/datadog/datadog-operator | [`Apache-2.0`](https://github.com/datadog/datadog-operator/blob/db6a88ca8796d8fff93c96b0c3e41fef85e2bdd1/LICENSE) |
+| `db-operator` | db-operator | https://github.com/kloeckner-i/db-operator | [`Apache-2.0`](https://github.com/kloeckner-i/db-operator/blob/88b17c4a9bbaff2f7cc2fbcc2ad7be496fbb8e80/LICENSE) |
+| `dynatrace-operator` | dynatrace-operator | https://github.com/dynatrace/dynatrace-operator | [`Apache-2.0`](https://github.com/dynatrace/dynatrace-operator/blob/fd131c9cab4cc4880b13ee570feeb570eb1a528b/LICENSE) |
 | `eck-operator` | Elastic Cloud on Kubernetes | https://github.com/elastic/cloud-on-k8s | [`Elastic-2.0`](https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/LICENSE.txt) |
 | `fluent-operator` | fluent-operator | https://github.com/fluent/fluent-operator | [`Apache-2.0`](https://github.com/fluent/fluent-operator/blob/cf5582c23d9e8d96ba1d77d3c7ac48a0456ff7c2/LICENSE) |
 | `function-mesh` | function-mesh | https://github.com/streamnative/function-mesh | [`NOASSERTION`](https://github.com/streamnative/function-mesh/blob/eced1f28126f7ea789522b1a7dd1a59331659f71/LICENSE) |
@@ -115,10 +129,13 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `grafana-operator` | grafana-operator | https://github.com/grafana/grafana-operator | [`Apache-2.0`](https://github.com/grafana/grafana-operator/blob/3e68ec4c3c706d5d3ca45c7f2d141a5336f243e4/LICENSE) |
 | `k6-operator` | k6-operator | https://github.com/grafana/k6-operator | [`Apache-2.0`](https://github.com/grafana/k6-operator/blob/925e2a750ca572a4ff3f0414c4b11dd649d040cb/LICENSE) |
 | `k8s-cleaner` | k8s-cleaner | https://github.com/gianlucam76/k8s-cleaner | [`Apache-2.0`](https://github.com/gianlucam76/k8s-cleaner/blob/d733e5954391774658eea53dcb111f8272e8a23f/LICENSE) |
+| `kamaji` | kamaji | https://github.com/clastix/kamaji | [`Apache-2.0`](https://github.com/clastix/kamaji/blob/f4c0cec4f9e689e1351297021b65e15870b7d7f4/LICENSE) |
+| `keycloak-operator` | keycloak-operator | https://github.com/hostzero-gmbh/keycloak-operator | [`MIT`](https://github.com/hostzero-gmbh/keycloak-operator/blob/45f0345181740da318efe5c4b08475dd5fbe7a8b/LICENSE) |
 | `kong-ingress-controller` | Kong Ingress Controller | https://github.com/kong/kubernetes-ingress-controller | [`Apache-2.0`](https://github.com/kong/kubernetes-ingress-controller/blob/17f5dafd2a447a7e5ff7be84006a83787ac2882c/LICENSE) |
 | `kube-green` | kube-green | https://github.com/kube-green/kube-green | [`MIT`](https://github.com/kube-green/kube-green/blob/335696fad48024429afc421c104f5a76088a667d/LICENSE) |
 | `kubemod` | kubemod | https://github.com/kubemod/kubemod | [`BSD-3-Clause`](https://github.com/kubemod/kubemod/blob/f030b2756ec873d0290e0561f95b8ab64a78dd95/LICENSE) |
 | `kubernetes-ingress` | kubernetes-ingress | https://github.com/nginx/kubernetes-ingress | [`Apache-2.0`](https://github.com/nginx/kubernetes-ingress/blob/2598147d84065276946301ee57534ba6c11b7a8e/LICENSE) |
+| `kubernetes-nmstate` | kubernetes-nmstate | https://github.com/nmstate/kubernetes-nmstate | [`Apache-2.0`](https://github.com/nmstate/kubernetes-nmstate/blob/5245b16f44c19d720474ddf5db57bf7dd1c6ffbe/LICENSE) |
 | `kubeswift` | kubeswift | https://github.com/kubeswift-io/kubeswift | [`AGPL-3.0-only`](https://github.com/kubeswift-io/kubeswift/blob/70947a12aab3c586aa63454f967afd77120e8cb9/LICENSE) |
 | `kueue` | Kueue | https://github.com/kubernetes-sigs/kueue | [`Apache-2.0`](https://github.com/kubernetes-sigs/kueue/blob/f850823bead72095aaba55025a7efadfdfe3782a/LICENSE) |
 | `mariadb-operator` | mariadb-operator | https://github.com/mariadb-operator/mariadb-operator | [`MIT`](https://github.com/mariadb-operator/mariadb-operator/blob/236803d7f86c9c86842723d6cdfb1f369eb525d6/LICENSE) |
@@ -126,6 +143,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `mongodb-kubernetes` | MongoDB Controllers for Kubernetes | https://github.com/mongodb/mongodb-kubernetes | [`Apache-2.0 OR LicenseRef-MongoDB-Customer-Agreement`](https://github.com/mongodb/mongodb-kubernetes/blob/75fa89bca8c1395a1beb0f244723f255f67f8719/LICENSE-MCK) |
 | `movetokube-postgres-operator` | postgres-operator | https://github.com/movetokube/postgres-operator | [`MIT`](https://github.com/movetokube/postgres-operator/blob/5b969e3c1a16803430cfecaa68f3989774af1f4d/LICENSE) |
 | `node-feature-discovery` | Node Feature Discovery | https://github.com/kubernetes-sigs/node-feature-discovery | [`Apache-2.0`](https://github.com/kubernetes-sigs/node-feature-discovery/blob/45d276ed9d3f0f67fb642aa78969721df3034451/LICENSE) |
+| `node-healthcheck-operator` | node-healthcheck-operator | https://github.com/medik8s/node-healthcheck-operator | [`Apache-2.0`](https://github.com/medik8s/node-healthcheck-operator/blob/a49ec14c47c5c1f0e5b81c68bf2880ff17ec4a5f/LICENSE) |
 | `ollama-operator` | ollama-operator | https://github.com/nekomeowww/ollama-operator | [`Apache-2.0`](https://github.com/nekomeowww/ollama-operator/blob/f95b0dd404df5ef5e26848400884817a8b5777ea/LICENSE) |
 | `onepassword-operator` | onepassword-operator | https://github.com/1password/onepassword-operator | [`MIT`](https://github.com/1password/onepassword-operator/blob/a42a96bd263eb919715197e09e58c9855fd840df/LICENSE) |
 | `opentelemetry-operator` | opentelemetry-operator | https://github.com/open-telemetry/opentelemetry-operator | [`Apache-2.0`](https://github.com/open-telemetry/opentelemetry-operator/blob/513d6053adfc942b62f7f65502aad938c9ab0ff3/LICENSE) |
@@ -136,9 +154,13 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `rancher` | Rancher | https://github.com/rancher/rancher | [`Apache-2.0`](https://github.com/rancher/rancher/blob/9994cd93198c4b1692bcda733eb08d1e81c26eed/LICENSE) |
 | `redis-operator` | redis-operator | https://github.com/ot-container-kit/redis-operator | [`Apache-2.0`](https://github.com/ot-container-kit/redis-operator/blob/e23140a8522f8e6f1aac2cdf51dfe560c0e90004/LICENSE) |
 | `renovate-operator` | renovate-operator | https://github.com/mogenius/renovate-operator | [`MIT`](https://github.com/mogenius/renovate-operator/blob/01b4299e9bd2af6f8a6dfcbed8cff65610cc64bf/LICENSE) |
+| `scylla-operator` | scylla-operator | https://github.com/scylladb/scylla-operator | [`Apache-2.0`](https://github.com/scylladb/scylla-operator/blob/8473052a829d5545aedad9e359bd1c82a48850c7/LICENSE) |
 | `sealed-secrets` | sealed-secrets | https://github.com/bitnami/sealed-secrets | [`Apache-2.0`](https://github.com/bitnami/sealed-secrets/blob/6dc880366d1cafa16683173cc3c8e3b58e930937/LICENSE) |
+| `slurm-operator` | slurm-operator | https://github.com/slinkyproject/slurm-operator | [`Apache-2.0`](https://github.com/slinkyproject/slurm-operator/blob/05650d869a2db1f7bc7e6c83e1c67828974af7b5/LICENSE) |
 | `temporal-operator` | temporal-operator | https://github.com/alexandrevilain/temporal-operator | [`Apache-2.0`](https://github.com/alexandrevilain/temporal-operator/blob/0b07bcd4d922265b2f1e5d5d3c55397707189c7e/LICENSE) |
+| `trident` | trident | https://github.com/netapp/trident | [`NOASSERTION`](https://github.com/netapp/trident/blob/55dd1d776aadca0e07caf00991dc84a8c79bac9c/LICENSE) |
 | `trivy-operator` | trivy-operator | https://github.com/aquasecurity/trivy-operator | [`Apache-2.0`](https://github.com/aquasecurity/trivy-operator/blob/3d073500cfb4956371435fa4085f2f59b9ff6d57/LICENSE) |
+| `vals-operator` | vals-operator | https://github.com/digitalis-io/vals-operator | [`Apache-2.0`](https://github.com/digitalis-io/vals-operator/blob/85263b2c7da0b702bc05deffd74a662d405ca14c/LICENSE) |
 | `vault-secrets-operator` | vault-secrets-operator | https://github.com/ricoberger/vault-secrets-operator | [`MIT`](https://github.com/ricoberger/vault-secrets-operator/blob/98bf4bef7ec2a4a5bd57ba6780d9a96d824bff49/LICENSE) |
 
 ## Groups in reserved namespaces
