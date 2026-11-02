@@ -1,4 +1,4 @@
-PASS FOR THE DECLARED SCOPE
+PASS FOR THE DECLARED SCOPE (Kubernetes API versions in the supplied manifests only; not a whole-upgrade pass)
 
 kubernetes 1.24.17 -> 1.30.4: 6 hops (path policy sequential_minor)
 

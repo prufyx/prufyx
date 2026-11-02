@@ -65,7 +65,7 @@ func TestScanQuickstartMigrated(t *testing.T) {
 		return result
 	}
 	pass := run(newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"}))
-	if pass.Exit != scanreport.ExitPass || pass.Report.Verdict != scanreport.VerdictPass || pass.Report.Headline != "PASS FOR THE DECLARED SCOPE" {
+	if pass.Exit != scanreport.ExitPass || pass.Report.Verdict != scanreport.VerdictPass || pass.Report.Headline != "PASS FOR THE DECLARED SCOPE (Kubernetes API versions in the supplied manifests only; not a whole-upgrade pass)" {
 		t.Fatalf("all lines reviewed: exit %d gaps %v", pass.Exit, gapReasons(pass.Report))
 	}
 	golden(t, "quickstart-migrated-pass.txt", scanreport.Human(pass.Report, scanreport.HumanOptions{}))
@@ -771,4 +771,27 @@ func mergeFiles(a, b map[string]string) map[string]string {
 		out[k] = v
 	}
 	return out
+}
+
+// TestScanListsCustomResourcesNotEvaluated: a document of a custom resource is
+// never read by the Kubernetes check; the report says so in its omissions.
+func TestScanListsCustomResourcesNotEvaluated(t *testing.T) {
+	dir, _ := files(t, map[string]string{"applyset.yaml": cronjobV1 + "---\napiVersion: foo.example.com/v1\nkind: Foo\nmetadata:\n  name: a\n  namespace: default\n"})
+	var result Result
+	inDir(t, dir, func() {
+		result = mustScan(t, newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"}), args([]string{"applyset.yaml"}, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4")...)
+	})
+	want := "Kubernetes: 1 document of custom resources or kinds outside the Kubernetes API groups not evaluated: foo.example.com/v1 Foo (1)"
+	found := false
+	for _, omission := range result.Report.Omissions {
+		found = found || omission == want
+	}
+	if !found {
+		t.Fatalf("omissions %q", result.Report.Omissions)
+	}
+	for _, omission := range result.Report.Omissions {
+		if strings.Contains(omission, "ConfigMap") || strings.Contains(omission, "CronJob") {
+			t.Fatalf("a Kubernetes kind is listed as not evaluated: %q", omission)
+		}
+	}
 }

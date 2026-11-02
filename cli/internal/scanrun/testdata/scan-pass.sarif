@@ -15,7 +15,7 @@
         {
           "executionSuccessful": true,
           "exitCode": 0,
-          "exitCodeDescription": "PASS FOR THE DECLARED SCOPE",
+          "exitCodeDescription": "PASS FOR THE DECLARED SCOPE (Kubernetes API versions in the supplied manifests only; not a whole-upgrade pass)",
           "startTimeUtc": "2026-11-20T00:00:00Z",
           "toolExecutionNotifications": []
         }
@@ -23,7 +23,7 @@
       "results": [],
       "properties": {
         "verdict": "SCOPE_COMPLETE_PASS",
-        "headline": "PASS FOR THE DECLARED SCOPE",
+        "headline": "PASS FOR THE DECLARED SCOPE (Kubernetes API versions in the supplied manifests only; not a whole-upgrade pass)",
         "summary": {
           "blockers": 0,
           "gaps": 0,

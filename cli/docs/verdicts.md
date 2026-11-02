@@ -36,6 +36,11 @@ then not checked (`11`), then pass.
 - **Does not mean:** the upgrade is safe. `scan` reads only the manifests you
   give it; it does not look at a live cluster, custom resources, stored
   versions, admission or component configuration, or node version skew.
+- **Headline:** the headline names the scope: `PASS FOR THE DECLARED SCOPE
+  (Kubernetes API versions in the supplied manifests only; not a whole-upgrade
+  pass)`. Documents of custom resources or other kinds outside the Kubernetes
+  API groups are listed under "Scope limits" (JSON field `omissions`) as not
+  evaluated; they do not turn the answer into UNKNOWN.
 - **Today:** with the knowledge built into this source tree `scan` cannot reach
   this answer yet (the reviewed records it needs are not shipped; see the
   [README](../../README.md#what-scan-covers-today)).
