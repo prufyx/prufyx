@@ -6,13 +6,36 @@ Suites: k8s-range (all GVKs of minor m, scan m -> m+1), k8s-single (each removed
 non-alpha GVK alone), k8s-plan (multi-hop `prufyx plan`, per-stage verdicts).
 WRONGPASS: a removed GVK is in the input and scan/plan exits 0 / says PASS.
 """
-import argparse, json, os, sys, urllib.request
+import argparse, json, os, sys, urllib.error, urllib.request
 from qalib import *
 import qa_scope
 
 SKIP_KINDS = ("DeleteOptions", "WatchEvent", "Status", "CreateOptions", "UpdateOptions",
               "PatchOptions", "Scale", "Eviction", "Binding", "EphemeralContainers")
 _sw = {}
+
+
+class UnavailableVersion(Exception):
+    def __init__(self, evidence):
+        self.evidence = evidence
+
+
+def verified_absent_ref(minor):
+    source = "https://github.com/kubernetes/kubernetes.git"
+    missing, previous = f"refs/tags/v1.{minor}.0", f"refs/tags/v1.{minor-1}.0"
+    result = subprocess.run(["git", "ls-remote", "--refs", "--tags", source, missing, previous],
+                            text=True, capture_output=True, timeout=30)
+    if result.returncode:
+        raise ValueError("official version-ref lookup failed")
+    refs = {}
+    for line in result.stdout.splitlines():
+        sha, ref = line.split()
+        if not re.fullmatch(r"[0-9a-f]{40}", sha) or ref not in (missing, previous) or ref in refs:
+            raise ValueError("official version-ref response malformed")
+        refs[ref] = sha
+    if missing in refs or previous not in refs:
+        raise ValueError("404 did not establish an unavailable version")
+    return dict(source=source, missing_ref=missing, previous_ref=previous, previous_ref_sha=refs[previous])
 
 
 def swagger(m):
@@ -22,7 +45,12 @@ def swagger(m):
     if not os.path.exists(fn):
         os.makedirs(CACHE, exist_ok=True)
         url = f"https://raw.githubusercontent.com/kubernetes/kubernetes/v1.{m}.0/api/openapi-spec/swagger.json"
-        data = urllib.request.urlopen(url, timeout=120).read()
+        try:
+            data = urllib.request.urlopen(url, timeout=120).read()
+        except urllib.error.HTTPError as error:
+            if error.code != 404:
+                raise
+            raise UnavailableVersion(verified_absent_ref(m)) from error
         open(fn + ".part", "wb").write(data)
         os.replace(fn + ".part", fn)
     s = set()
@@ -114,12 +142,44 @@ def main():
     ap.add_argument("--hi", type=int, default=int(ENV("QA_K8S_HI", "37")))
     a = ap.parse_args()
     hi = a.hi
-    # Read the complete requested truth and declare the scope before invoking the candidate.
+    # An unavailable version is a pre-execution exclusion, never a lower maximum.
+    unavailable, source_errors = {}, {}
     for minor in range(a.lo, hi + 1):
-        swagger(minor)
+        try:
+            swagger(minor)
+        except UnavailableVersion as error:
+            unavailable[minor] = error.evidence
+        except Exception as error:
+            source_errors[minor] = type(error).__name__
     requested, singles, excluded = set(), {}, []
+    executed = set()
+
+    def unavailable_target(target, minors):
+        proof = next((unavailable[minor] for minor in minors if minor in unavailable), None)
+        if proof:
+            excluded.append(dict(target=target, kind="unavailable-version", evidence=proof,
+                                 reason="swagger 404 and checked official absent version ref; no PASS claim",
+                                 next_test="retry the exact version when its official release ref appears"))
+            return True
+        return False
+
+    for minor in range(a.lo, hi + 1):
+        target = f"k8s-version|1.{minor}.0"
+        requested.add(target)
+        if minor not in source_errors and not unavailable_target(target, [minor]):
+            executed.add(target)
     for minor in range(a.lo, hi):
-        requested.add(f"k8s-range|1.{minor}->1.{minor+1}")
+        band = f"1.{minor}->1.{minor+1}"
+        range_target, set_target = "k8s-range|" + band, "k8s-single-set|" + band
+        requested.update([range_target, set_target])
+        if minor in source_errors or minor + 1 in source_errors:
+            singles[set_target] = ("", "", "")
+            continue
+        if unavailable_target(range_target, [minor, minor + 1]):
+            unavailable_target(set_target, [minor, minor + 1])
+            singles[set_target] = ("", "", "")
+            continue
+        executed.add(set_target)
         for gvk in sorted(swagger(minor) - swagger(minor + 1)):
             target = f"k8s-single|1.{minor}->1.{minor+1} {'/'.join(gvk)}"
             requested.add(target)
@@ -129,15 +189,23 @@ def main():
                                      next_test="add an alpha-scoped removal rule and reproduce this single object across its removal boundary"))
     windows = [(lo, end) for lo, end in [(20, 30), (24, 37), (30, 37), (28, 29), (36, 37)] if lo >= a.lo and end <= hi]
     for lo, end in windows:
-        requested.add(f"k8s-plan|1.{lo}->1.{end} overall")
-        requested.update(f"k8s-plan|1.{lo}->1.{end} stage 1.{minor}.0->1.{minor+1}.0" for minor in range(lo, end))
+        targets = {f"k8s-plan|1.{lo}->1.{end} overall"}
+        targets.update(f"k8s-plan|1.{lo}->1.{end} stage 1.{minor}.0->1.{minor+1}.0" for minor in range(lo, end))
+        requested.update(targets)
+        if not any(minor in source_errors for minor in range(lo, end + 1)):
+            for target in targets:
+                unavailable_target(target, range(lo, end + 1))
     head, base, run_id = ENV("QA_SCOPE_HEAD", ENV("QA_SHA", "")), ENV("QA_BASE", ""), ENV("QA_RUN_ID", "")
     scope = qa_scope.declare(head, base, run_id, requested, required_single_targets(singles), excluded)
     scope_path = a.out.removesuffix(".cases.json") + ".scope.json"
     dump(scope, scope_path + ".declared")
-    executed = set()
     cases = []
+    if source_errors:
+        for minor, reason in source_errors.items():
+            cases.append(case("k8s", f"version-1.{minor}.0", error=True, why=reason))
     for m in range(a.lo, hi):
+        if source_errors or m in unavailable or m + 1 in unavailable:
+            continue
         sa, sb = swagger(m), swagger(m + 1)
         removed = sorted(sa - sb)
         fr, to = f"kubernetes=1.{m}.0", f"kubernetes=1.{m+1}.0"
@@ -155,9 +223,6 @@ def main():
                               requested=len(sa), executed=j.get("summary", {}).get("documentsRead"), families=statuses))
         for x in removed:
             if "alpha" in x[1]:
-                cases.append(case("k8s-single", f"1.{m}->1.{m+1} {'/'.join(x)}",
-                                  status="EXCLUDED", why="declared single-alpha exclusion; no PASS claim",
-                                  requested=1, executed=0))
                 continue
             code, j, tail = prufyx("scan", inp({x}, "single"), fr, to)
             key = f"1.{m}->1.{m+1} {'/'.join(x)}"
@@ -170,6 +235,8 @@ def main():
                 cases.append(case("k8s-single", key, wrongpass=wp, mismatch=mm, error=not complete_scan_scope(j, 1),
                                   exit=code, verdict=j.get("verdict"), missing=missing, families=statuses))
     for lo, h in windows:
+        if source_errors or any(minor in unavailable for minor in range(lo, h + 1)):
+            continue
         gv = {x for x in swagger(lo) if "alpha" not in x[1]}
         code, j, tail = prufyx("plan", inp(gv, "plan"), f"kubernetes=1.{lo}.0", f"kubernetes=1.{h}.0")
         executed.add(f"k8s-plan|1.{lo}->1.{h} overall")
@@ -193,7 +260,10 @@ def main():
                               verdict=got, expectedBlocked=bool(exp)))
         cases.append(case("k8s-plan", f"1.{lo}->1.{h} overall", wrongpass=anyexp and is_pass(code, j),
                           exit=code, verdict=j.get("verdict")))
+    qa_scope.remaining_omitted(scope, executed, "upstream read or candidate execution incomplete; retry this exact target")
     scope.update(executed=sorted(executed), state="COMPLETE")
+    for exclusion in scope["excluded"]:
+        cases.append(case("k8s", exclusion["target"], status="EXCLUDED", **exclusion))
     for reason in qa_scope.errors(scope, head, base, run_id):
         cases.append(case("k8s", "declared-scope", error=True, why=reason))
     dump(scope, scope_path)

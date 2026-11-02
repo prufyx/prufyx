@@ -1,0 +1,96 @@
+"""Actual run.sh admission boundary, with trusted build/oracle companions stubbed."""
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import tempfile
+import unittest
+
+
+HERE = Path(__file__).resolve().parent
+
+
+class RunAdmissionTests(unittest.TestCase):
+    def test_executable_diff_rejected_and_data_diff_runs_cleanly(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            source, installed = root / "source", root / "installed"
+            source.mkdir()
+            installed.mkdir()
+            def git(*args):
+                return subprocess.run(["git", "-C", str(source)] + list(args), check=True, capture_output=True, text=True).stdout.strip()
+            git("init", "-q")
+            git("config", "user.name", "Spas Atanasov")
+            git("config", "user.email", "11156623+airstand@users.noreply.github.com")
+            files = {
+                "cli/internal/extract/crdversions/target-sample.json": '{"target":{"repo":"example/sample"}}',
+                "cli/internal/cncfcheck/data/rules.json": '{"entries":[]}',
+                "cli/internal/maintainer/coveragereport/testdata/lines-synthetic.json": '{}',
+            }
+            for name, content in files.items():
+                path = source / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(content)
+            git("add", ".")
+            git("commit", "-qm", "Synthetic base")
+            base = git("rev-parse", "HEAD")
+            rules = source / "cli/internal/cncfcheck/data/rules.json"
+            rules.write_text('{"entries":[{"project":"sample","rule":{"id":"sample.control"}}]}')
+            git("add", ".")
+            git("commit", "-qm", "Synthetic data control")
+            data_head = git("rev-parse", "HEAD")
+            git("checkout", "--detach", base)
+            executable = source / "cli/cmd/control.go"
+            executable.parent.mkdir(parents=True)
+            executable.write_text("package control\n")
+            git("add", ".")
+            git("commit", "-qm", "Synthetic code control")
+            code_head = git("rev-parse", "HEAD")
+            for name in ("run.sh", "select_projects.py", "summarize.py", "qa_scope.py", "crdgvk.go"):
+                shutil.copy2(HERE / name, installed / name)
+            # Companion stubs prove admission, not compatibility or sandbox fidelity.
+            companion = '''import json, os, sys
+from pathlib import Path
+import qa_scope
+name = Path(sys.argv[0]).stem
+suite = {'crd_oracle':'crd','k8s_oracle':'k8s','bp325':'bp325','review_cases':'review','rules_oracle':'rules'}[name]
+flag = '--cases' if name == 'bp325' else '--out'
+output = Path(sys.argv[sys.argv.index(flag)+1])
+output.write_text(json.dumps([dict(suite=suite, key='synthetic', wrongpass=False, mismatch=False, error=False, detail={})]))
+if suite in ('crd','k8s'):
+    target = suite + '-project|synthetic' if suite == 'crd' else 'k8s-range|synthetic'
+    profile = qa_scope.CRD_PROFILE if suite == 'crd' else qa_scope.PROFILE
+    scope = qa_scope.declare(os.environ['QA_SHA'], os.environ['QA_BASE'], os.environ['QA_RUN_ID'], [target], [], [], profile)
+    scope.update(executed=[target], state='COMPLETE')
+    output.with_name(suite+'.scope.json').write_text(json.dumps(scope))
+'''
+            for name in ("crd_oracle.py", "k8s_oracle.py", "bp325.py", "review_cases.py", "rules_oracle.py"):
+                (installed / name).write_text(companion)
+            devbox = root / "devbox"
+            devbox.write_text('''#!/usr/bin/env python3
+import json, os, sys
+from pathlib import Path
+Path(os.environ['ADMISSION_MARKER']).write_text('trusted build companion reached')
+if 'coverage report' in ' '.join(sys.argv):
+    Path(sys.argv[-1]).write_text(json.dumps({'projects':[]}))
+''')
+            devbox.chmod(0o700)
+            for name, head, expected in (("data", data_head, 0), ("code", code_head, 3)):
+                with self.subTest(diff=name):
+                    marker = root / (name + "-build")
+                    env = dict(os.environ, QA_SHA=head, QA_BASE=base, QA_RUN_ID="synthetic-" + name,
+                               QA_REPO_URL=str(source), QA_STATE=str(root / (name + "-state")),
+                               QA_WORK_ROOT=str(root / (name + "-work")), QA_DEVBOX=str(devbox),
+                               QA_RUNBOX="/unused-sandbox-prefix", QA_NO_KIND="1", QA_MAXLOAD="999",
+                               QA_MODE="auto", ADMISSION_MARKER=str(marker))
+                    result = subprocess.run([str(installed / "run.sh")], env=env, capture_output=True, text=True, timeout=20)
+                    self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
+                    self.assertEqual(marker.exists(), name == "data")
+                    if name == "code":
+                        self.assertIn("code change in bot batch", result.stderr)
+                    else:
+                        self.assertIn("WRONGPASS=0", result.stdout)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -222,8 +222,8 @@ export QA_BIN=$RUN/bin/prufyx QA_CRDGVK=$RUN/bin/crdgvk QA_SRC=$RUN/src QA_CACHE
 cd "$HERE" || exit 1
 if [ "$mode" = full ]; then sel_args=(--all); else sel_args=(--projects "$projects"); fi
 if [ "$GATE" = 1 ] && [ "$mode" != full ] && [ -z "$projects" ]; then
-  # gate mode only: nothing project-specific changed (crd_oracle would treat an empty list as "all"): one counted OK case, not a silent skip
-  python3 -I -c 'import json,sys;json.dump([{"suite":"crd","key":"no-changed-projects","wrongpass":False,"mismatch":False,"error":False,"detail":{}}],open(sys.argv[1],"w"))' "$OUT/crd.cases.json"
+  # A verified empty selection still emits its bound CRD inventory.
+  python3 -X utf8 crd_oracle.py --no-changed-projects --out "$OUT/crd.cases.json" >"$OUT/crd.log" 2>&1 9>&- || rm -f "$OUT/crd.cases.json"
 else
   python3 -X utf8 crd_oracle.py "${sel_args[@]}" --out "$OUT/crd.cases.json" >"$OUT/crd.log" 2>&1 9>&- || rm -f "$OUT/crd.cases.json"
 fi

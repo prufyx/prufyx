@@ -26,14 +26,15 @@ if a.mode != "none":
         if not any(c["suite"].split("-")[0] == suite for c in cases):  # k8s-range, k8s-single, k8s-plan count as k8s
             cases.append({"suite": suite, "key": "no-cases", "wrongpass": False, "mismatch": False, "error": True,
                           "detail": {"why": "suite produced no cases"}})
-scope = None
+scopes = {}
 if a.mode != "none":
     try:
-        with open(a.dir + "/k8s.scope.json") as scope_file:
-            scope = json.load(scope_file)
-        scope_errors = qa_scope.errors(scope, a.sha, os.environ.get("QA_BASE", ""), os.environ.get("QA_RUN_ID", ""))
+        for suite in ("k8s", "crd"):
+            with open(a.dir + "/" + suite + ".scope.json") as scope_file:
+                scopes[suite] = json.load(scope_file)
+        scope_errors = qa_scope.bundle_errors(scopes, a.sha, os.environ.get("QA_BASE", ""), os.environ.get("QA_RUN_ID", ""))
     except (OSError, ValueError):
-        scope_errors = ["declared Kubernetes scope missing or unreadable"]
+        scope_errors = ["declared Kubernetes or CRD scope missing or unreadable"]
     for reason in scope_errors:
         cases.append({"suite": "k8s", "key": "scope", "wrongpass": False, "mismatch": False,
                       "error": True, "detail": {"why": reason}})
@@ -51,7 +52,7 @@ alarm = bool(wp or new)
 state = "ALARM" if alarm else ("INCONCLUSIVE" if er else ("GREEN-PARTIAL" if skipped else "GREEN"))
 line = f"WRONGPASS={len(wp)} MISMATCH={len(mm)} NEWMISMATCH={len(new)} ERR={len(er)} sha={a.sha[:8]} mode={a.mode} {state}"
 now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-summ = {"scope": scope, "run_id": os.environ.get("QA_RUN_ID", ""), "base": os.environ.get("QA_BASE", ""), "time": now, "sha": a.sha, "mode": a.mode, "state": state, "verdict": line, "wrongpass": len(wp),
+summ = {"scopes": scopes, "run_id": os.environ.get("QA_RUN_ID", ""), "base": os.environ.get("QA_BASE", ""), "time": now, "sha": a.sha, "mode": a.mode, "state": state, "verdict": line, "wrongpass": len(wp),
         "mismatch": len(mm), "new_mismatch": len(new), "errors": len(er), "cases": len(cases),
         "baseline_seeded": seeded, "skipped": skipped, "adhoc": a.adhoc, "note": a.note,
         "wrongpass_cases": wp[:50], "new_mismatch_cases": new[:50], "error_cases": er[:20]}

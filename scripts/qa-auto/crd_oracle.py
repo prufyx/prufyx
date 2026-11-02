@@ -11,6 +11,7 @@ MISMATCH: any other disagreement (missed finding, false finding, CRD family not 
 import argparse, glob, json, os, re, shutil, subprocess, sys
 from concurrent.futures import ThreadPoolExecutor
 from qalib import *
+import qa_scope
 
 TD = os.path.join(SRC, "cli/internal/extract/crdversions")
 COV = ENV("QA_COV", "")
@@ -128,28 +129,29 @@ def run(proj, cov):
         return [case("crd", proj, error=True, why="oracle failed: %s" % e)]
 
 
-def _run(proj, cov):
-    S = "crd"
-    try:
-        with open(f"{TD}/target-{proj}.json") as target_file:
-            tj = json.load(target_file)["target"]
-    except Exception as e:
-        return [case(S, proj, error=True, why="target unreadable: %s" % e)]
+def prepare(proj, cov, plan):
+    """Resolve the whole source inventory before any candidate scan is started."""
+    plan["requested"].add("crd-project|" + proj)
+    comp = next((x for x in cov if x["project"] == proj), None)
+    if comp is not None:
+        plan["requested"].update(f"crd-line|{proj}|{pair['from']}|{pair['to']}" for pair in comp["pairs"])
+    with open(f"{TD}/target-{proj}.json") as target_file:
+        tj = json.load(target_file)["target"]
     repo, bad = validate_target(tj)
     if bad:
-        return [case(S, proj, error=True, why="target rejected: " + bad)]
+        raise ValueError("target rejected: " + bad)
     if not re.fullmatch(r"[A-Za-z0-9_][\w.-]*", proj, re.A):
-        return [case(S, proj, error=True, why="project name rejected")]
+        raise ValueError("project name rejected")
     gd = f"{GITROOT}/{proj}.git"
     os.makedirs(os.path.dirname(gd), exist_ok=True)
     if not os.path.isdir(gd):
         r = sh("git", "clone", "-q", "--bare", "--filter=blob:none", "--", f"https://github.com/{repo}.git", gd)
         if r.returncode:
             shutil.rmtree(gd, ignore_errors=True)
-            return [case(S, proj, error=True, why="clone: " + r.stderr[:200])]
+            raise ValueError("clone failed")
     r = sh("git", "-C", gd, "fetch", "-q", "--tags", "--force")
     if r.returncode:
-        return [case(S, proj, error=True, why="fetch tags: " + r.stderr[:200])]
+        raise ValueError("fetch tags failed")
     pref = tj["tagPrefixes"][0]
     tags = checked("git", "-C", gd, "tag", "-l").splitlines()
     lines = {}
@@ -165,68 +167,146 @@ def _run(proj, cov):
             cache[tag] = served_set(tj, gd, tag)
         return cache[tag]
 
-    comp = next((x for x in cov if x["project"] == proj), None)
     if comp is None:
         ls = sorted(lines)
         pairs = [{"from": ".".join(map(str, a)), "to": ".".join(map(str, b))} for a, b in zip(ls, ls[1:])]
     else:
         pairs = comp["pairs"]
-    out = []
-    n = 0
+    if not pairs:
+        raise ValueError("no usable pairs")
+    plan.update(proj=proj, pref=pref)
+    known_pairs = []
+    missing_line = False
     for pr in pairs:
+        line_target = f"crd-line|{proj}|{pr['from']}|{pr['to']}"
+        plan["requested"].add(line_target)
         l1 = tuple(int(x) for x in pr["from"].split("."))
         l2 = tuple(int(x) for x in pr["to"].split("."))
         if l1 not in lines or l2 not in lines:
-            out.append(case(S, proj + "|" + pr["from"] + "|" + pr["to"], error=True, why="requested release line missing"))
+            missing_line = True
             continue
-        for f in sorted({lines[l1][0], lines[l1][-1]}, key=vkey):
-            sf = served(f)
-            if not sf:
-                for t in sorted({lines[l2][0], lines[l2][-1]}, key=vkey):
-                    out.append(case(S, proj + "|" + f + "|" + t, error=True,
-                                    why="SKIP: verified empty served source scope", status="SKIP",
-                                    requested=0, executed=0))
-                continue
-            docs = "---\n".join(doc(g, v, k) for (g, v, k) in sorted(sf))
-            for t in sorted({lines[l2][0], lines[l2][-1]}, key=vkey):
-                removed = sorted(sf - served(t))
-                n += 1
-                fn = f"{TMP}/crd/{proj}-{n}.yaml"
-                write_private(fn, docs)
-                code, j, tail = prufyx("scan", fn, f"{proj}={f[len(pref):]}", f"{proj}={t[len(pref):]}")
-                os.remove(fn)
-                key = f"{proj}|{f}|{t}"
-                if j is None and "community catalog" in tail:
-                    # community-catalog projects are not scanned yet (documented refusal), nothing to compare
-                    return [case(S, proj, error=True, note="SKIP: community catalog, scan does not check it", why=tail[:120])]
-                if j is None:
-                    out.append(case(S, key, error=True, why=tail))
-                    continue
-                fnd = j.get("findings", [])
-                exp = ["/".join(x) for x in removed]
-                wp, mm, missing, crd = scoped_result(code, j, removed, proj, "crd.custom_resource_versions")
-                out.append(case(S, key, wrongpass=wp, mismatch=mm, error=not complete_scan_scope(j, len(sf)), exit=code, verdict=j.get("verdict"),
-                                crd=crd, missing=missing, requested=len(sf), executed=j.get("summary", {}).get("documentsRead"), expectRemoved=exp[:200], nExpect=len(exp), nFindings=len(fnd),
-                                gaps=sorted({g.get("reason", "") for g in j.get("gaps", [])})[:3]))
-    if not out:
-        out.append(case(S, proj, error=True, why="no usable pairs"))
-    return out
+        exact = [(f, t) for f in sorted({lines[l1][0], lines[l1][-1]}, key=vkey)
+                 for t in sorted({lines[l2][0], lines[l2][-1]}, key=vkey)]
+        plan["requested"].update(f"crd|{proj}|{f}|{t}" for f, t in exact)
+        known_pairs.extend((line_target, f, t) for f, t in exact)
+    if missing_line:
+        raise ValueError("requested release line missing")
+    for line_target, f, t in known_pairs:
+        sf, st = served(f), served(t)
+        target = f"crd|{proj}|{f}|{t}"
+        if not sf:
+            plan["excluded"].append(dict(target=target, evidence="complete served-set read: empty",
+                reason="verified empty served source scope; no PASS claim",
+                next_test="select a source release with served objects or review this empty-source boundary"))
+        else:
+            plan["jobs"].append((target, f, t, sf, sorted(sf - st)))
+        plan["metadata"].add(line_target)
+    plan["metadata"].add("crd-project|" + proj)
 
 
-if __name__ == "__main__":
+def execute(plan):
+    out, executed, omitted = [], set(plan["metadata"]), []
+    proj, pref = plan["proj"], plan["pref"]
+    for n, (target, f, t, sf, removed) in enumerate(plan["jobs"]):
+        docs = "---\n".join(doc(g, v, k) for (g, v, k) in sorted(sf))
+        fn = f"{TMP}/crd/{proj}-{n}.yaml"
+        write_private(fn, docs)
+        try:
+            code, j, tail = prufyx("scan", fn, f"{proj}={f[len(pref):]}", f"{proj}={t[len(pref):]}")
+        finally:
+            os.remove(fn)
+        executed.add(target)
+        key = f"{proj}|{f}|{t}"
+        if j is None:
+            omitted.append(dict(target=target, reason="candidate response unreadable; replay the full input"))
+            out.append(case("crd", key, error=True, why=tail))
+            continue
+        wp, mm, missing, crd = scoped_result(code, j, removed, proj, "crd.custom_resource_versions")
+        complete = complete_scan_scope(j, len(sf))
+        if not complete:
+            omitted.append(dict(target=target, reason="input omitted or incomplete; replay the full input"))
+        out.append(case("crd", key, wrongpass=wp, mismatch=mm, error=not complete, exit=code,
+                        verdict=j.get("verdict"), crd=crd, missing=missing, requested=len(sf),
+                        executed=j.get("summary", {}).get("documentsRead"), expectRemoved=["/".join(x) for x in removed],
+                        nExpect=len(removed), nFindings=len(j.get("findings", []))))
+    for exclusion in plan["excluded"]:
+        out.append(case("crd", exclusion["target"], status="EXCLUDED", **exclusion))
+    return out, executed, omitted
+
+
+def new_plan():
+    return dict(requested=set(), metadata=set(), excluded=[], jobs=[])
+
+
+def _run(proj, cov):
+    plan = new_plan()
+    prepare(proj, cov, plan)
+    return execute(plan)[0]
+
+
+def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
     ap.add_argument("--projects", default="")
     ap.add_argument("--all", action="store_true")
+    ap.add_argument("--no-changed-projects", action="store_true")
     ap.add_argument("--jobs", type=int, default=int(ENV("QA_JOBS", "3")))
     a = ap.parse_args()
-    cov = json.load(open(COV))["projects"] if COV else []
-    ps = projects_all() if a.all or not a.projects else a.projects.split(",")
+    cov = []
+    if COV:
+        with open(COV) as coverage_file:
+            cov = json.load(coverage_file)["projects"]
+    ps = [] if a.no_changed_projects else (projects_all() if a.all or not a.projects else a.projects.split(","))
+    if not ps and not a.no_changed_projects:
+        raise ValueError("requested project inventory empty")
+    plans = {}
     cases = []
-    with ThreadPoolExecutor(a.jobs) as ex:
-        for p, res in zip(ps, ex.map(lambda p: run(p, cov), ps)):
-            cases += res
-            c = counts(res)
-            print(f"crd {p} cases={len(res)} wrongpass={c['wrongpass']} mismatch={c['mismatch']} error={c['error']}", flush=True)
+    # All source plans, including failed requests, exist before any scan.
+    for project in ps:
+        plan = plans[project] = new_plan()
+        try:
+            prepare(project, cov, plan)
+        except Exception as error:
+            plan["error"] = str(error)
+    requested = set().union(*(plan["requested"] for plan in plans.values()))
+    excluded = [entry for plan in plans.values() if "error" not in plan for entry in plan["excluded"]]
+    executed = set()
+    if a.no_changed_projects:
+        requested.add("crd-project|no-changed-projects")
+    required = set(requested) if GATE and ps else set()
+    if ENV("QA_REQUIRED_CRD_TARGETS", ""):
+        with open(ENV("QA_REQUIRED_CRD_TARGETS")) as required_file:
+            extra = json.load(required_file)
+        if not isinstance(extra, list) or not all(isinstance(target, str) for target in extra):
+            raise ValueError("additional required CRD targets invalid")
+        required.update(extra)
+    head, base, run_id = ENV("QA_SCOPE_HEAD", ENV("QA_SHA", "")), ENV("QA_BASE", ""), ENV("QA_RUN_ID", "")
+    scope = qa_scope.declare(head, base, run_id, requested, required, excluded, qa_scope.CRD_PROFILE)
+    scope_path = a.out.removesuffix(".cases.json") + ".scope.json"
+    dump(scope, scope_path + ".declared")
+    if a.no_changed_projects:
+        executed.update(requested)
+        cases.append(case("crd", "no-changed-projects", status="VERIFIED_ABSENCE",
+                          next_test="reselect projects on the next changed target or rule diff"))
+    for project, plan in plans.items():
+        if "error" in plan:
+            cases.append(case("crd", project, error=True, why=plan["error"]))
+            continue
+        try:
+            result, completed, omitted = execute(plan)
+            cases.extend(result)
+            executed.update(completed)
+            scope["omitted"].extend(omitted)
+        except Exception as error:
+            cases.append(case("crd", project, error=True, why="execution failed: " + str(error)))
+    qa_scope.remaining_omitted(scope, executed, "source or execution failed; repair and replay this target")
+    scope.update(executed=sorted(executed), state="COMPLETE")
+    for reason in qa_scope.errors(scope, head, base, run_id, qa_scope.CRD_PROFILE):
+        cases.append(case("crd", "declared-scope", error=True, why=reason))
+    dump(scope, scope_path)
     dump(cases, a.out)
     print("crd total", json.dumps(counts(cases)))
+
+
+if __name__ == "__main__":
+    main()

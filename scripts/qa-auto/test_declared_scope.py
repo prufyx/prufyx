@@ -88,6 +88,9 @@ class ScopeContractTests(unittest.TestCase):
                     scope["run_id"] = "old-run"
                 if mode != "missing":
                     Path(output, "k8s.scope.json").write_text(json.dumps(scope))
+                crd = qa_scope.declare("head", "base", "run", ["crd-project|synthetic"], [], [], qa_scope.CRD_PROFILE)
+                crd.update(executed=["crd-project|synthetic"], state="COMPLETE")
+                Path(output, "crd.scope.json").write_text(json.dumps(crd))
                 env = dict(os.environ, QA_BASE="base", QA_RUN_ID="run")
                 result = subprocess.run(["python3", str(script_dir / "summarize.py"), "--dir", str(output),
                                          "--state", str(state), "--sha", "head", "--mode", "incremental", "--adhoc"],
@@ -96,7 +99,7 @@ class ScopeContractTests(unittest.TestCase):
                 summary = json.loads(Path(output, "summary.json").read_text())
                 self.assertEqual(bool(summary["errors"]), expected != 0)
                 if mode == "valid":
-                    self.assertEqual(summary["scope"]["excluded"][0]["target"], ALPHA)
+                    self.assertEqual(summary["scopes"]["k8s"]["excluded"][0]["target"], ALPHA)
 
     def test_declared_before_candidate_and_range_still_executes(self):
         with tempfile.TemporaryDirectory() as td:
@@ -116,7 +119,7 @@ class ScopeContractTests(unittest.TestCase):
                 oracle.main()
             self.assertEqual(len(declarations), 1)
             final = json.loads(Path(td, "k8s.scope.json").read_text())
-            self.assertEqual(final["executed"], [RANGE])
+            self.assertEqual(set(final["executed"]), {RANGE, "k8s-version|1.20.0", "k8s-version|1.21.0", "k8s-single-set|1.20->1.21"})
             self.assertEqual(final["excluded"][0]["target"], ALPHA)
             self.assertFalse(any(case["error"] for case in json.loads(output.read_text())))
 

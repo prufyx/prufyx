@@ -123,8 +123,8 @@ import qa_scope
 s = json.load(open(summ))
 run_error = (int(rc) != 0 or
              s.get("run_id") != run_id or s.get("base") != base or
-             not isinstance(s.get("cases"), int) or s["cases"] <= 0)
-scope_errors = qa_scope.errors(s.get("scope", {}), head, base, run_id)
+             type(s.get("cases")) is not int or s["cases"] <= 0)
+scope_errors = qa_scope.bundle_errors(s.get("scopes", {}), head, base, run_id)
 s["errors"] = s.get("errors", 0) + int(run_error) + int(bool(scope_errors))
 if scope_errors:
     print("gate: " + "; ".join(scope_errors), file=sys.stderr)
@@ -151,7 +151,7 @@ code = 2 if s["wrongpass"] else (3 if s["errors"] or bad or m else 0)
 json.dump({"sha": head, "base": base, "line": line, "exit": code, "state": {0: "GREEN", 2: "WRONGPASS", 3: "INCONCLUSIVE"}[code],
            "time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "mode": s["mode"], "skipped": skipped,
            "main": tip, "wrongpass": s["wrongpass"], "mismatch": m, "errors": s["errors"], "cases": s["cases"],
-           "wrongpass_cases": s["wrongpass_cases"], "error_cases": s["error_cases"], "summary": summ, "scope": s.get("scope")},
+           "wrongpass_cases": s["wrongpass_cases"], "error_cases": s["error_cases"], "summary": summ, "scopes": s.get("scopes")},
           open(f"{gdir}/{head}.json.tmp", "w"), indent=1)
 print(line)
 if code == 2:

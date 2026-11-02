@@ -132,7 +132,9 @@ s = dict(sha=os.environ['QA_SHA'], base=os.environ['QA_BASE'], run_id=os.environ
          wrongpass=0, mismatch=0, errors=0, cases=1, skipped=[], mode='full', wrongpass_cases=[], error_cases=[])
 ''' + f"import sys\nsys.path.insert(0, {str(here)!r})\nimport qa_scope\n" +
                     "scope = qa_scope.declare(os.environ['QA_SHA'], os.environ['QA_BASE'], os.environ['QA_RUN_ID'], ['k8s-range|test'], [], [])\n" +
-                    "scope.update(executed=['k8s-range|test'], state='COMPLETE')\ns['scope'] = scope\n" +
+                    "scope.update(executed=['k8s-range|test'], state='COMPLETE')\n" +
+                    "crd = qa_scope.declare(os.environ['QA_SHA'], os.environ['QA_BASE'], os.environ['QA_RUN_ID'], ['crd-project|test'], [], [], qa_scope.CRD_PROFILE)\n" +
+                    "crd.update(executed=['crd-project|test'], state='COMPLETE')\ns['scopes'] = dict(k8s=scope, crd=crd)\n" +
                     ("s['run_id'] = 'different'\n" if not binding else "") +
                     f"s['mismatch'] = {mismatch}\ns['new_mismatch'] = 0\n" +
                     "json.dump([], open(Path(os.environ['QA_STATE']) / 'known-mismatch.json', 'w'))\n" +
