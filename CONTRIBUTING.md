@@ -184,7 +184,10 @@ Every change, including the maintainer's, goes on a topic branch and reaches
 and rebase merges, direct pushes to `main`, force pushes and branch deletion are
 refused by the repository ruleset for everyone. A pull request merges only when
 the `CI` and `Merge policy` checks pass on a branch that is up to date with
-`main`.
+`main`. Keep the branch on the `main` tip by rebasing
+(`git rebase origin/main && git push --force-with-lease`); the `Merge policy`
+check refuses merge commits inside a pull request and branches that are not on
+the current `main` tip.
 
 ## Review
 
