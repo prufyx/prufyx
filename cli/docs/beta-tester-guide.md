@@ -232,7 +232,7 @@ expired rule, a missing declaration. Read the reason lines. Full tables:
   --bootstrap-root-digest sha256:...`: you need a package source you operate
   and a root you verified independently.
 - `prufyx db verify FILE` checks a package offline; `db import` installs a
-  package you carried over; `db status` shows the selected store.
+  package you carried over; `db status` (no flags) shows the default store, or the age of the embedded knowledge when none is installed.
 - Offline behaviour: checks never touch the network. With no store they use the
   embedded knowledge. If a default local store exists, the newer knowledge wins:
   the latest evidence review date of the store and of the embedded knowledge are

@@ -64,7 +64,8 @@ func TestDatabaseStatusDefaultStore(t *testing.T) {
 		{"explicit db-root wins", empty, []string{"--profile", "cncf-projects", "--db-root", store}, ExitOK, "knowledge database state: READY"},
 		{"explicit empty db-root still errors", installed, []string{"--profile", "cncf-projects", "--db-root", ""}, ExitUsage, ""},
 		{"profile without default location", installed, []string{"--profile", "cncf"}, ExitUsage, ""},
-		{"default profile without default location", installed, nil, ExitUsage, ""},
+		{"bare db status asks about the default store", installed, nil, ExitOK, "knowledge database state: READY"},
+		{"bare db status without a store shows the embedded knowledge age", empty, nil, ExitUnknown, "embedded knowledge: the earliest active rule ends"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
