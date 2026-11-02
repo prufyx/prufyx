@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
@@ -60,7 +59,11 @@ func TestScanAutoKnowledge(t *testing.T) {
 	// The older store's report is the embedded report except for the stated
 	// selection: the replay form is unchanged.
 	_, olderOut, _ := runScan(t, args...)
-	_, nowOut, _ := runScan(t, append(append([]string{}, args...), "--now", time.Now().UTC().Truncate(time.Second).Format(time.RFC3339))...)
+	olderReport, err := scanreport.DecodeJSON([]byte(olderOut))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, nowOut, _ := runScan(t, append(append([]string{}, args...), "--now", olderReport.Provenance.EvaluatedAt)...)
 	if stripSelection(t, olderOut) != stripSelection(t, nowOut) {
 		t.Fatalf("older store differs from embedded:\n%s\n%s", olderOut, nowOut)
 	}
