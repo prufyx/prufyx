@@ -226,7 +226,7 @@ configuration, cluster snapshots or credentials.
 
 <!-- release-notes:begin -->
 
-Changes from `v0.0.1-alpha.1` (a96744cd69a6) to `v0.1.0-beta.0` (b55e9425f44b), computed by `prufyx-maintainer release-notes` from the data files of the two trees. No figure or list below is typed by hand.
+Changes from `v0.0.1-alpha.1` (a96744cd69a6) to `v0.1.0-beta.0` (0a58fd2c5741), computed by `prufyx-maintainer release-notes` from the data files of the two trees. No figure or list below is typed by hand.
 
 ### Summary
 
@@ -234,30 +234,31 @@ Changes from `v0.0.1-alpha.1` (a96744cd69a6) to `v0.1.0-beta.0` (b55e9425f44b), 
 | --- | --- | --- | --- |
 | Projects catalogued with retained public sources | 58 | 58 | 0 |
 |   of them source-only, no check | 11 | 11 | 0 |
-| Projects with at least one executable check | 65 | 65 | 0 |
-| CNCF source rules, active | 190 | 245 | +55 |
+| Projects with at least one executable check | 65 | 67 | +2 |
+| CNCF source rules, active | 190 | 252 | +62 |
 | CNCF projects with a rule | 53 | 53 | 0 |
-| Rules for non-CNCF projects | 34 | 34 | 0 |
-| Non-CNCF projects with a rule | 8 | 8 | 0 |
-| Line attestations | 0 | 97 | +97 |
+| Rules for non-CNCF projects | 34 | 42 | +8 |
+| Non-CNCF projects with a rule | 8 | 10 | +2 |
+| Line attestations | 0 | 104 | +104 |
 | Kubernetes minors with a line attestation | 0 | 18 | +18 |
 | Projects with a release-line snapshot (README coverage block) | 55 | 78 | +23 |
 | Upgrades between consecutive release lines | 275 | 390 | +115 |
-| Decided for the whole release-line pair (A+B) | 0 | 40 | +40 |
+| Decided for the whole release-line pair (A+B) | 0 | 46 | +46 |
 | Rule for one exact version pair only (S) | 44 | 40 | -4 |
-| Gap, no valid rule (G) | 231 | 310 | +79 |
+| Gap, no valid rule (G) | 231 | 304 | +73 |
 
-The release-line figures are the README coverage block, generated on 2026-10-08 (v0.0.1-alpha.1) and 2026-10-30 (v0.1.0-beta.0) by `scripts/readme-coverage.sh`; the block comes from `prufyx-maintainer coverage report`.
+The release-line figures are the README coverage block, generated on 2026-10-08 (v0.0.1-alpha.1) and 2026-10-31 (v0.1.0-beta.0) by `scripts/readme-coverage.sh`; the block comes from `prufyx-maintainer coverage report`.
 
-### Projects added to the support inventory (0)
+### Projects added to the support inventory (2)
 
-No project was added.
+- `airflow` (Apache Airflow): executable check
+- `opensearch` (OpenSearch): executable check
 
 ### Catalogued projects that gained their first executable check (0)
 
 None.
 
-### Onboarding batches (7 approved, 40 project entries)
+### Onboarding batches (8 approved, 54 project entries)
 
 - batch `ob-20261016-2`, decision `approve`:
   - `dex` (cncf, new): proof pair v2.45.0 to v2.46.0
@@ -306,20 +307,37 @@ None.
   - `metal3-io` (cncf, new): proof pair v0.13.0 to v0.14.0
   - `onepassword-operator` (community, new): proof pair v1.11.0 to v1.12.0
   - `vault-secrets-operator` (community, new): proof pair v1.27.0 to v1.28.0
+- batch `ob-20261030-2`, decision `approve`:
+  - `cass-operator` (community, new): proof pair v1.32.0 to v1.33.0
+  - `chaosblade-operator` (community, new): proof pair v1.7.0 to v1.8.0
+  - `datadog-operator` (community, new): proof pair v1.30.0 to v1.31.0
+  - `function-mesh` (community, new): proof pair v0.29.0 to v0.30.0
+  - `github-actions-runner-operator` (community, new): proof pair v0.10.0 to v0.11.0
+  - `kbind` (cncf, new): proof pair v0.7.0 to v0.8.0
+  - `kubemod` (community, new): proof pair v0.20.0 to v0.21.0
+  - `moco` (community, new): proof pair v0.37.0 to v0.38.0
+  - `movetokube-postgres-operator` (community, new): proof pair 2.3.0 to 2.4.0
+  - `ollama-operator` (community, new): proof pair v0.9.1 to v0.10.0
+  - `openfunction` (cncf, new): proof pair v1.1.0 to v1.2.0
+  - `percona-server-mysql-operator` (community, new): proof pair v1.2.0 to v1.3.0
+  - `renovate-operator` (community, new): proof pair 6.6.0 to 6.7.0
+  - `temporal-operator` (community, new): proof pair v0.21.0 to v0.22.0
 
 Only approved batches are counted. A project entry names the project and the proof pair of versions the batch rests on; it does not by itself add a project to the catalogue (see the support inventory list above).
 
-### Projects with custom-resource version checks (73)
+### Projects with custom-resource version checks (87)
 
-The from-release has no table file; all 73 projects are listed.
+The from-release has no table file; all 87 projects are listed.
 
 - `akri` (cncf): 1 CRD group
 - `antrea` (cncf): 2 CRD groups
 - `argo-cd` (cncf): 1 CRD group
 - `awx-operator` (community): 1 CRD group
 - `burrito` (community): 1 CRD group
+- `cass-operator` (community): 2 CRD groups
 - `cert-manager` (cncf): 2 CRD groups
 - `chaos-mesh` (cncf): 1 CRD group
+- `chaosblade-operator` (community): 1 CRD group
 - `cilium` (cncf): 1 CRD group
 - `cloudnativepg` (cncf): 1 CRD group
 - `cluster-api` (community): 3 CRD groups
@@ -327,13 +345,16 @@ The from-release has no table file; all 73 projects are listed.
 - `crossplane` (cncf): 5 CRD groups
 - `cyclops` (community): 1 CRD group
 - `dapr` (cncf): 1 CRD group
+- `datadog-operator` (community): 1 CRD group
 - `dex` (cncf): 1 CRD group
 - `eck-operator` (community): 12 CRD groups
 - `eraser` (cncf): 1 CRD group
 - `external-secrets` (cncf): 2 CRD groups
 - `fluent-operator` (community): 2 CRD groups
+- `function-mesh` (community): 1 CRD group
 - `furiko` (community): 1 CRD group
 - `gateway-api` (community): 1 CRD group
+- `github-actions-runner-operator` (community): 1 CRD group
 - `grafana-operator` (community): 1 CRD group
 - `istio` (cncf): 4 CRD groups
 - `k6-operator` (community): 1 CRD group
@@ -342,6 +363,7 @@ The from-release has no table file; all 73 projects are listed.
 - `k8up` (cncf): 1 CRD group
 - `kanister` (cncf): 1 CRD group
 - `karmada` (cncf): 8 CRD groups
+- `kbind` (cncf): 1 CRD group
 - `kcp` (cncf): 6 CRD groups
 - `keda` (cncf): 2 CRD groups
 - `kmesh` (cncf): 1 CRD group
@@ -349,6 +371,7 @@ The from-release has no table file; all 73 projects are listed.
 - `koordinator` (cncf): 5 CRD groups
 - `kube-green` (community): 1 CRD group
 - `kubean` (cncf): 1 CRD group
+- `kubemod` (community): 1 CRD group
 - `kuberhealthy` (cncf): 1 CRD group
 - `kubernetes-ingress` (community): 4 CRD groups
 - `kubestellar` (cncf): 1 CRD group
@@ -362,43 +385,55 @@ The from-release has no table file; all 73 projects are listed.
 - `mariadb-operator` (community): 1 CRD group
 - `metal3-io` (cncf): 1 CRD group
 - `metallb` (cncf): 1 CRD group
+- `moco` (community): 1 CRD group
 - `mongodb-kubernetes` (community): 3 CRD groups
+- `movetokube-postgres-operator` (community): 1 CRD group
 - `node-feature-discovery` (community): 1 CRD group
+- `ollama-operator` (community): 1 CRD group
 - `onepassword-operator` (community): 1 CRD group
 - `openchoreo` (cncf): 1 CRD group
+- `openfunction` (cncf): 2 CRD groups
 - `openkruise` (cncf): 2 CRD groups
 - `opentelemetry-operator` (community): 1 CRD group
 - `openyurt` (cncf): 4 CRD groups
 - `operator-lifecycle-manager` (community): 1 CRD group
 - `percona-postgresql-operator` (community): 2 CRD groups
+- `percona-server-mysql-operator` (community): 1 CRD group
 - `prometheus-operator` (community): 1 CRD group
 - `radius` (cncf): 2 CRD groups
 - `rancher` (community): 9 CRD groups
 - `redis-operator` (community): 1 CRD group
+- `renovate-operator` (community): 1 CRD group
 - `rook` (cncf): 2 CRD groups
 - `schemahero` (cncf): 2 CRD groups
 - `sealed-secrets` (community): 1 CRD group
 - `strimzi` (cncf): 2 CRD groups
 - `submariner` (cncf): 1 CRD group
 - `tekton` (cncf): 2 CRD groups
+- `temporal-operator` (community): 1 CRD group
 - `trivy-operator` (community): 1 CRD group
 - `vault-secrets-operator` (community): 1 CRD group
 - `velero` (cncf): 1 CRD group
 - `volcano` (cncf): 8 CRD groups
 - `wasmcloud` (cncf): 1 CRD group
 
-### Rules by project (80 added, 25 removed)
+### Rules by project (95 added, 25 removed)
 
 | Catalogue | Project | Added | Removed | Rules now |
 | --- | --- | --- | --- | --- |
 | CNCF | `cilium` | 1 | 0 | 4 |
+| CNCF | `cortex` | 2 | 0 | 7 |
 | CNCF | `crossplane` | 2 | 0 | 3 |
+| CNCF | `falco` | 4 | 0 | 6 |
 | CNCF | `kubernetes` | 62 | 25 | 63 |
 | CNCF | `kyverno` | 1 | 0 | 7 |
 | CNCF | `openfga` | 1 | 0 | 2 |
 | CNCF | `spire` | 1 | 0 | 2 |
 | CNCF | `strimzi` | 10 | 0 | 11 |
+| CNCF | `thanos` | 1 | 0 | 7 |
 | CNCF | `vitess` | 2 | 0 | 3 |
+| community-project | `airflow` | 4 | 0 | 4 |
+| community-project | `opensearch` | 4 | 0 | 4 |
 
 Counts include rules that are withdrawn; withdrawn rules are not used and are listed below.
 
@@ -406,7 +441,7 @@ Counts include rules that are withdrawn; withdrawn rules are not used and are li
 
 None.
 
-### Line attestations by project (16)
+### Line attestations by project (18)
 
 - `ansible/awx-operator`: 5 now; new lines 2.15, 2.16, 2.17, 2.18, 2.19
 - `aquasecurity/trivy-operator`: 5 now; new lines 0.32, 0.33, 0.34, 0.35, 0.36
@@ -421,15 +456,17 @@ None.
 - `kumahq/kuma`: 5 now; new lines 2.10, 2.11, 2.12, 2.13, 2.14
 - `mongodb/mongodb-kubernetes`: 6 now; new lines 1.9, 1.10, 1.11, 1.12, 1.13, 1.14
 - `nginx/kubernetes-ingress`: 5 now; new lines 5.3, 5.4, 5.5, 5.6, 5.7
+- `openkruise/kruise`: 2 now; new lines 1.8, 1.9
 - `strimzi/strimzi-kafka-operator`: 5 now; new lines 0.50, 0.51, 1.1, 1.2, 1.3
 - `tektoncd/pipeline`: 6 now; new lines 1.13, 1.14, 1.15, 1.16, 1.17, 1.18
 - `velero-io/velero`: 5 now; new lines 1.14, 1.15, 1.16, 1.17, 1.18
+- `volcano-sh/volcano`: 5 now; new lines 1.11, 1.12, 1.13, 1.14, 1.15
 
 ### Kubernetes minors
 
 Lines with a line attestation (18): 1.20, 1.21, 1.22, 1.23, 1.24, 1.25, 1.26, 1.27, 1.28, 1.29, 1.30, 1.31, 1.32, 1.33, 1.34, 1.35, 1.36, 1.37. New since `v0.0.1-alpha.1`: 1.20, 1.21, 1.22, 1.23, 1.24, 1.25, 1.26, 1.27, 1.28, 1.29, 1.30, 1.31, 1.32, 1.33, 1.34, 1.35, 1.36, 1.37.
 
-### Merged pull requests (204)
+### Merged pull requests (241)
 
 - #71 crd.version-removal 2.0.0: release lines, full-tree scan, line-wide ranges, targets as data
 - #74 Line attestations per component: crd.custom_resource_versions (scoped results in scan)
@@ -635,6 +672,43 @@ Lines with a line attestation (18): 1.20, 1.21, 1.22, 1.23, 1.24, 1.25, 1.26, 1.
 - #306 knowledge: too-new signed packages are rejected without recording trust (exit 15)
 - #318 action: fail-on defaults to blocked,unknown
 - #321 fix(db update): human header says already up to date when nothing imported
+- #320 release: reproducible rpm build host, install cpio
+- #311 docs: generate README rule-basis and validity claims from data; landscape licence
+- #322 check cncf: headline states the verdict for UNKNOWN and BLOCKED
+- #328 knowledge: factory batch 1bb1d9839816 (1 gate passes)
+- #323 knowledge: scan and check fall back to embedded for a store this build cannot read
+- #325 buildpacks: cross-check lifecycle Platform API labels against reviewed sets
+- #327 docs: AGENTS.md for coding agents
+- #326 release: install cpio when missing, record rpm cross-host dry run
+- #324 docs: beta.0 release notes known limitations and generated tables
+- #334 onboarding: batch ob-20261030-2
+- #332 Knowledge publish self-check and weekly re-sign
+- #331 ci: release dry run repeatable from CI
+- #329 extract: attest dex, k8up, volcano, openyurt, submariner, openkruise and contour lines
+- #336 knowledge: store fallback also triggers on release-stamped builds (QA-33)
+- #337 docs: catalogued vs decided coverage; community-catalog projects not scannable in beta.0
+- #340 knowledge publish: publish across an engine capability change; distinct capability-mismatch reason
+- #341 ci: pin the oldest supported client to da54bad7 (capability-mismatch aware)
+- #335 qa-auto: automated wrong-PASS oracle and kind probes after main merges
+- #339 scan, check cncf: too-new --knowledge-db reports exit 15 with its own reason
+- #342 docs: db status on an unreadable store (known limitation)
+- #343 knowledge: factory batch f182ad13565f (2 gate passes)
+- #347 projectprepare: effective-config preparers for airflow.cfg and opensearch.yml removed keys
+- #344 knowledge: register set facts for flags and config keys of falco, thanos, cortex
+- #345 knowledge: removal-crossing rules stay embedded-only (external envelopes, targets, store scan, store choice)
+- #349 extract: attest percona-server-mysql-operator lines
+- #350 ci: race detector also covers knowledgeauto and communityapp
+- #353 cncfcheck: release-note sets refuse non-canonical case; unreviewed same-release removals stay UNKNOWN
+- #352 Fail closed on uncovered opensearch settings; show preparer omissions
+- #346 community: Airflow and OpenSearch removed-config-key source rules
+- #354 Evaluate embedded crossing rules on every store path
+- #348 knowledge: six release-note removal rules (falco, cortex, thanos), schema v1alpha11
+- #351 qa-auto: permanent regression cases from an independent review (stage 4d)
+- #356 docs+generator: numbers generated, decided split by family
+- #358 qa-auto review cases: match the #348 release-note rules
+- #359 ci: check the generated release-notes block against its regeneration
+- #361 coverage: lines snapshot 2026-10-31
+- #373 docs: beta.0 known limitation for knowledge updates after beta.1
 
 ### How to read these figures
 
