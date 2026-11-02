@@ -28,6 +28,11 @@ const (
 // applies to every CRD, whether or not it declares a status subresource.
 const ReasonStatusPath = "CRD_STATUS_PATH"
 
+// ReasonKustomizeSkipped is an info line, not a withhold: a file of a listed
+// directory that is provably a kustomize file (see isKustomizeFile) was not
+// read as a CRD. The subject is the configured file path.
+const ReasonKustomizeSkipped = "KUSTOMIZE_FILE_SKIPPED"
+
 // Limits. Anything above them is withheld, never truncated.
 const (
 	maxFileBytes   = 8 << 20

@@ -82,7 +82,7 @@ func allCases(t testing.TB) []testCase {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return append(td, syntheticCases()...)
+	return append(append(td, syntheticCases()...), narrowingCases()...)
 }
 
 // A derived pair is complete exactly when its withhold set is empty.
@@ -157,6 +157,17 @@ func TestMutationEveryGuardIsLoadBearing(t *testing.T) {
 		{"rename of a descendant", func(g *guards) { g.rename = false }, []string{"rename_descendant_new_location"}},
 		{"collision detection", func(g *guards) { g.collisions = false }, []string{"member_collision_lossy_encoder"}},
 		{"member charset", func(g *guards) { g.fieldEnc = laxField; g.enumEnc = laxEnum }, []string{"member_charset"}},
+		{"member set over the cap is empty", func(g *guards) { g.emptyOnCap = false }, []string{"too_many_members"}},
+		{"kustomize skip", func(g *guards) { g.parse.kustomize = false }, []string{"kustomize_skipped", "kustomize_yml_component_skipped"}},
+		{"kustomize siblings must be named", func(g *guards) { g.parse.kustomizeCovered = false }, []string{"kustomize_hidden_removal", "kustomize_foreign_resource"}},
+		{"kustomize proof", func(g *guards) { g.parse.kustomizeProof = false }, []string{"kustomize_crd_marker", "kustomize_patches", "kustomize_foreign_apiversion", "kustomize_malformed", "kustomize_two_documents", "kustomize_wrong_kind"}},
+		{"quoted flow scalars", func(g *guards) { g.parse.quotedFlow = false }, []string{"flow_quoted_double", "flow_quoted_single", "flow_quoted_mixed", "flow_quoted_coercible_strings", "flow_quoted_enum_strings"}},
+		{"quoted flow proof", func(g *guards) { g.parse.quotedProof = false }, []string{"flow_quoted_escape", "flow_quoted_hex_escape", "flow_quoted_single_escape", "flow_quoted_multiline"}},
+		{"kustomize marker scan is case-insensitive", func(g *guards) { g.parse.kustomizeMarker = false }, []string{"kustomize_crd_marker", "kustomize_crd_marker_upper"}},
+		{"kustomize strict yaml", func(g *guards) { g.parse.kustomizeStrict = false }, []string{"kustomize_duplicate_key", "kustomize_anchor"}},
+		{"kustomize resource entries are strings", func(g *guards) { g.parse.kustomizeEntries = false }, []string{"kustomize_resource_entry_map"}},
+		{"kustomize size limit", func(g *guards) { g.parse.kustomizeSize = false }, []string{"kustomize_oversize"}},
+		{"quoted flow: other line breaks", func(g *guards) { g.parse.quotedBreaks = false }, []string{"flow_quoted_after_unicode_break"}},
 		{"member too long", func(g *guards) { g.fieldEnc = laxField }, []string{"member_too_long"}},
 		{"member ambiguous", func(g *guards) { g.fieldEnc = laxField; g.enumEnc = laxEnum }, []string{"member_reserved_name", "member_slash_name", "enum_value_with_slash"}},
 	}

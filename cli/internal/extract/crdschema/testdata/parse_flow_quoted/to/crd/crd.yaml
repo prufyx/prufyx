@@ -11,4 +11,4 @@ spec:
     served: true
     storage: true
     schema:
-      openAPIV3Schema: {type: object, required: [], default: {}, properties: {spec: {type: object, properties: {keep: {type: string}, tags: {description: "q", type: array, items: {type: string}}}}}}
+      openAPIV3Schema: {type: object, required: [], default: {}, properties: {spec: {type: object, properties: {keep: {type: string}, tags: {description: "q\tx", type: array, items: {type: string}}}}}}
