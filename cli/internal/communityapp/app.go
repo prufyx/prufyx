@@ -345,21 +345,8 @@ func (r runtime) certManager(args []string) int {
 	}
 }
 
-// scopedHeadline is the verdict word of a headline for a check that decides
-// one curated claim only: a PASS reads "PASS (scoped)", as on the other check
-// routes.
-func scopedHeadline(status string) string {
-	if status != "PASS" {
-		return status
-	}
-	return "PASS (scoped)"
-}
-
 func writeCertHuman(w io.Writer, report certmanagervalues.Report) {
-	fmt.Fprintf(w, "cert-manager removed monitor values: %s\n", scopedHeadline(report.Claim.Status))
-	if report.Claim.Status == "PASS" {
-		fmt.Fprintln(w, "Whole upgrade: not proven.")
-	}
+	fmt.Fprintf(w, "cert-manager removed monitor values: %s\n", report.Claim.Status)
 	fmt.Fprintf(w, "claim: %s\n", report.Claim.ReasonCode)
 	fmt.Fprintf(w, "reason: %s\n", report.Claim.Reason)
 	if len(report.MatchedPaths) > 0 {
@@ -467,7 +454,7 @@ func (r runtime) prometheus(ctx context.Context, args []string, legacy bool) int
 	if *format == "json" {
 		fmt.Fprintln(r.stdout, string(raw))
 	} else {
-		fmt.Fprintf(r.stdout, "Prometheus agent-mode preservation: %s (%s)\naggregate: UNKNOWN\nnext action: %s\n", scopedHeadline(report.Claim.Status), report.Claim.ReasonCode, report.Claim.NextAction)
+		fmt.Fprintf(r.stdout, "Prometheus agent-mode preservation: %s (%s)\naggregate: UNKNOWN\nnext action: %s\n", report.Claim.Status, report.Claim.ReasonCode, report.Claim.NextAction)
 	}
 	if report.Claim.Status == "PASS" {
 		return ExitOK
