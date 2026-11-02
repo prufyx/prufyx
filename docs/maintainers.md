@@ -6,6 +6,36 @@ maintain a public project, you can tell us where those facts live.
 
 ## Send information
 
+If you can supply the files, the preferred route is an
+[onboarding bundle pull request](../contrib/onboard-bundles/README.md). A
+bundle contains hints for one public project; passing validation establishes
+that it is well-formed, not that its contents are compatible or correct.
+
+To collect a bounded public-source snapshot for your own review, follow the
+[project onboarding guide](../cli/docs/project-onboarding.md). After building
+the runner as described there, set `PRIVATE` outside the checkout and shared
+directories, then create a private corpus directory, request and snapshot:
+
+```sh
+umask 077
+mkdir -m 700 -p "$PRIVATE/corpus"
+prufyx-maintainer project init \
+  --repository https://github.com/OWNER/REPOSITORY \
+  --release-limit 5 \
+  --output "$PRIVATE/project-request.json"
+prufyx-maintainer project sync \
+  --manifest "$PRIVATE/project-request.json" \
+  --output-parent "$PRIVATE/corpus"
+```
+
+The request and snapshot stay private; `init` leaves the project unreviewed
+and not admitted. Prepare the bundle separately using the documented layout,
+and submit only public material you can redistribute. CI validates changed
+bundles using the validator built from the pull request's base branch; it does
+not establish the truth of the hints or add a compatibility claim.
+
+If you prefer to send a suggestion as an issue, use the existing form:
+
 Open the
 [maintainer form](https://github.com/prufyx/prufyx/issues/new?template=maintainer-project.yml).
 Required: project name, repository URL, your relation to the project, and a
