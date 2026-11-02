@@ -227,14 +227,14 @@ func MarshalChain(chain ChainReport) ([]byte, error) {
 		return nil, ErrIntegrity
 	}
 	// NO_RULE is neutral in the chain verdict: it must be the UNKNOWN of a pair without any rule, never a relabelled gap
-	want := hopVerdict(chain.Whole.Report)
-	if chain.Whole.Verdict == ChainNoRule {
-		want = ChainUnknown
+	wholeVerdict := chain.Whole.Verdict
+	if wholeVerdict == ChainNoRule {
 		if !noRule(chain.Whole.Report) {
 			return nil, ErrIntegrity
 		}
+		wholeVerdict = ChainUnknown
 	}
-	if chain.Whole.Verdict != want {
+	if wholeVerdict != hopVerdict(chain.Whole.Report) {
 		return nil, ErrIntegrity
 	}
 	if verdict, _ := chainVerdict(chain.Hops, chain.Whole); verdict != chain.Verdict {
