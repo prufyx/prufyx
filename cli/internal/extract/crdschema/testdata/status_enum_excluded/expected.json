@@ -1,0 +1,10 @@
+{
+  "complete": true,
+  "enums": [],
+  "exclusions": [
+    "CRD_STATUS_PATH|example.io/Widget|1"
+  ],
+  "fields": [],
+  "lossy": false,
+  "omissions": []
+}

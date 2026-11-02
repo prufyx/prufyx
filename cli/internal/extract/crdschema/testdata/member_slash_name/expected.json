@@ -1,0 +1,10 @@
+{
+  "complete": false,
+  "enums": [],
+  "exclusions": [],
+  "fields": [],
+  "lossy": false,
+  "omissions": [
+    "MEMBER_AMBIGUOUS|example.io/Widget|1"
+  ]
+}

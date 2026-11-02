@@ -1,0 +1,11 @@
+{
+  "complete": true,
+  "enums": [],
+  "exclusions": [],
+  "fields": [
+    "example.io/Widget/spec/x",
+    "other.io/Gadget/spec/b"
+  ],
+  "lossy": false,
+  "omissions": []
+}

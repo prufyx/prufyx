@@ -1,0 +1,33 @@
+# Shape after the karmada-io/karmada PropagationPolicy CRD (Apache-2.0), trimmed.
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: propagationpolicys.policy.karmada.io
+spec:
+  group: policy.karmada.io
+  names:
+    kind: PropagationPolicy
+    plural: propagationpolicys
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              failover:
+                type: object
+                properties:
+                  application:
+                    type: object
+                    properties:
+                      purgeMode:
+                        type: string
+                        enum:
+                          - Immediately
+                          - Never

@@ -1,0 +1,11 @@
+{
+  "complete": true,
+  "enums": [],
+  "exclusions": [],
+  "fields": [
+    "keda.sh/ScaledJob/spec/jobTargetRef/template/spec/workloadRef",
+    "keda.sh/ScaledJob/spec/jobTargetRef/template/spec/workloadRef/name"
+  ],
+  "lossy": false,
+  "omissions": []
+}
