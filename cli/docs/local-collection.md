@@ -113,3 +113,11 @@ These controls do not authenticate `kubectl`, an exec plugin, `PATH` contents,
 or files referenced by the kubeconfig. Review those local inputs and use a
 least-privilege read-only cluster identity before collection. The v3 component
 profile adds no Kubernetes API read beyond the opt-in request set above.
+
+Manifest-based collection of custom-resource fields is separate from this
+cluster collection. The `prufyx-collector` makes no read for it and no
+Kubernetes API request is added: the instance collector only reads rendered
+manifest files you pass to a scan. It keeps nothing but allowlisted public
+members (custom-resource spec paths and enum tokens named by rules) and counts;
+see [Data handling](data-handling.md) for what is kept and what makes a result
+incomplete.
