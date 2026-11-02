@@ -75,18 +75,76 @@ def match_names(pattern, files):
         raise MatchTimeout(f"match failed: {type(e).__name__}")
 
 
+class ExpectedSetError(Exception):
+    """The expected (served) GVK set of a tag could not be computed completely: never use a partial set."""
+
+
+def _git(gd, *args):
+    r = sh("git", "-C", gd, *args)
+    if r.returncode:
+        raise ExpectedSetError("git %s failed (exit %s): %s" % (args[0], r.returncode, (r.stderr or "")[:120].replace("\n", " ")))
+    return r.stdout
+
+
 def crd_text(tj, gd, tag):
-    """Concatenated CRD YAML of one project at one tag (from the bare clone gd)."""
+    """Concatenated CRD YAML of one project at one tag (from the bare clone gd); raises ExpectedSetError on any read failure."""
     txt = ""
     for p in tj["paths"]:
         if p.get("directory"):
-            fl = sh("git", "-C", gd, "ls-tree", "-r", "--name-only", "--end-of-options", tag, p["path"] + "/").stdout.split()
-            fl = match_names(p["match"], fl)
+            listed = _git(gd, "ls-tree", "-r", "--name-only", "--end-of-options", tag, p["path"] + "/").split()
+            fl = match_names(p["match"], listed)
         else:
-            fl = [p["path"]]
+            # a path the tree does not hold at this tag is a fact (ls-tree succeeded and printed nothing); a failing ls-tree is not
+            fl = [p["path"]] if _git(gd, "ls-tree", "--name-only", "--end-of-options", tag, p["path"]).strip() else []
         for f in fl:
-            txt += "\n---\n" + sh("git", "-C", gd, "show", "--end-of-options", f"{tag}:{f}").stdout
+            body = _git(gd, "show", "--end-of-options", f"{tag}:{f}")
+            if not body.strip():
+                raise ExpectedSetError("%s: %s read as empty" % (tag, f))
+            txt += "\n---\n" + body
     return txt
+
+
+def served_set(tj, gd, tag):
+    """Served (group, version, kind) set at a tag; ExpectedSetError on any subprocess, read or parse problem."""
+    txt = crd_text(tj, gd, tag)
+    r = sh(CRDGVK, inp=txt)
+    if r.returncode:
+        raise ExpectedSetError("crdgvk failed (exit %s): %s" % (r.returncode, (r.stderr or "")[:120].replace("\n", " ")))
+    try:
+        items = json.loads(r.stdout)
+        if not isinstance(items, list):
+            raise ValueError("not a list")
+        got = {(x["G"], x["V"], x["K"]) for x in items if x["Served"]}
+        if not all(isinstance(t, str) for g in got for t in g):
+            raise ValueError("non-string GVK")
+    except Exception as e:
+        raise ExpectedSetError("crdgvk output unusable (%s: %s)" % (type(e).__name__, str(e)[:80]))
+    if not items and "CustomResourceDefinition" in txt:
+        raise ExpectedSetError("%s: CRD text read but crdgvk found no CRD versions" % tag)
+    return got
+
+
+def judge(code, j, removed):
+    """Verdict of one scan against the expected removed GVKs (sorted (g, v, k) tuples) of the probe file.
+
+    A removed GVK is covered only when a finding has a location naming its probe object (kind and name). The scan
+    can still answer PASS for the crd family, so a family PASS (or an exit-0/PASS verdict) with any removed GVK that
+    no finding covers is a wrong PASS, whatever the aggregate verdict says. Uncovered without a PASS claim is a mismatch.
+    Returns (wrongpass, mismatch, detail)."""
+    j = j if isinstance(j, dict) else {}
+
+    def items(x):  # dict items of a list, [] for any other shape
+        return [y for y in x if isinstance(y, dict)] if isinstance(x, list) else []
+    fnd = items(j.get("findings"))
+    named = {(l.get("kind"), l.get("name")) for f in fnd for l in items(f.get("locations"))}
+    crd = [x.get("status") for p in items(j.get("paths")) for h in items(p.get("hops"))
+           for x in items(h.get("families")) if x.get("family") == "crd.custom_resource_versions"]
+    uncovered = ["/".join(x) for x in removed if (x[2], doc_name(*x)) not in named]
+    fam_pass = any("PASS" in str(s) for s in crd)
+    wp = bool(removed) and (is_pass(code, j) or (bool(uncovered) and fam_pass))
+    mm = (not wp) and ((bool(removed) and bool(uncovered)) or (not removed and bool(fnd)) or
+                       (not removed and crd != [] and "PASS" not in crd))
+    return wp, mm, {"crd": crd, "nFindings": len(fnd), "uncovered": uncovered[:200]}
 
 
 def run(proj, cov):
@@ -118,27 +176,39 @@ def _run(proj, cov):
     if r.returncode:
         return [case(S, proj, error=True, why="fetch tags: " + r.stderr[:200])]
     pref = tj["tagPrefixes"][0]
-    tags = sh("git", "-C", gd, "tag", "-l").stdout.split()
+    r = sh("git", "-C", gd, "tag", "-l")
+    if r.returncode:
+        return [case(S, proj, error=True, why="tag list: " + r.stderr[:200])]
+    tags = r.stdout.split()
     lines = {}
     for t in tags:
         if re.fullmatch(re.escape(pref) + r"\d+\.\d+\.\d+", t):
             lines.setdefault(vkey(t)[:2], []).append(t)
     for l in lines:
         lines[l].sort(key=vkey)
-    cache = {}
-
-    def served(tag):
-        if tag not in cache:
-            r = sh(CRDGVK, inp=crd_text(tj, gd, tag))
-            cache[tag] = {(x["G"], x["V"], x["K"]) for x in json.loads(r.stdout) if x["Served"]}
-        return cache[tag]
-
     comp = next((x for x in cov if x["project"] == proj), None)
     if comp is None:
         ls = sorted(lines)
         pairs = [{"from": ".".join(map(str, a)), "to": ".".join(map(str, b))} for a, b in zip(ls, ls[1:])]
     else:
         pairs = comp["pairs"]
+    return compare_pairs(proj, tj, gd, pref, lines, pairs)
+
+
+def compare_pairs(proj, tj, gd, pref, lines, pairs):
+    S = "crd"
+    cache = {}
+
+    def served(tag):
+        if tag not in cache:
+            try:
+                cache[tag] = served_set(tj, gd, tag)
+            except ExpectedSetError as e:
+                cache[tag] = e
+        if isinstance(cache[tag], ExpectedSetError):
+            raise cache[tag]
+        return cache[tag]
+
     out = []
     n = 0
     for pr in pairs:
@@ -147,31 +217,31 @@ def _run(proj, cov):
         if l1 not in lines or l2 not in lines:
             continue
         for f in sorted({lines[l1][0], lines[l1][-1]}, key=vkey):
-            sf = served(f)
-            docs = "---\n".join(doc(g, v, k) for (g, v, k) in sorted(sf))
             for t in sorted({lines[l2][0], lines[l2][-1]}, key=vkey):
-                removed = sorted(sf - served(t))
                 n += 1
+                key = f"{proj}|{f}|{t}"
+                try:  # any unread/unparsed source is an error case for this pair, never a smaller expected set
+                    sf = served(f)
+                    removed = sorted(sf - served(t))
+                except ExpectedSetError as e:
+                    out.append(case(S, key, error=True, why="expected set: %s" % e))
+                    continue
+                docs = "---\n".join(doc(g, v, k) for (g, v, k) in sorted(sf))
                 fn = f"{TMP}/crd/{proj}-{n}.yaml"
                 write_private(fn, docs)
                 code, j, tail = prufyx("scan", fn, f"{proj}={f[len(pref):]}", f"{proj}={t[len(pref):]}")
                 os.remove(fn)
-                key = f"{proj}|{f}|{t}"
                 if j is None and "community catalog" in tail:
                     # community-catalog projects are not scanned yet (documented refusal), nothing to compare
                     return [case(S, proj, note="skipped: community catalog, scan does not check it", why=tail[:120])]
                 if j is None:
                     out.append(case(S, key, error=True, why=tail))
                     continue
-                fnd = j.get("findings", [])
-                crd = [x["status"] for p in j.get("paths", []) for h in p.get("hops", [])
-                       for x in h.get("families", []) if x.get("family") == "crd.custom_resource_versions"]
+                wp, mm, d = judge(code, j, removed)
                 exp = ["/".join(x) for x in removed]
-                wp = bool(exp) and is_pass(code, j)
-                mm = (not wp) and ((bool(exp) and not fnd) or (not exp and bool(fnd)) or
-                                   (not exp and crd != [] and "PASS" not in crd))
                 out.append(case(S, key, wrongpass=wp, mismatch=mm, exit=code, verdict=j.get("verdict"),
-                                crd=crd, expectRemoved=exp[:200], nExpect=len(exp), nFindings=len(fnd),
+                                crd=d["crd"], expectRemoved=exp[:200], nExpect=len(exp), nFindings=d["nFindings"],
+                                uncovered=d["uncovered"],
                                 gaps=sorted({g.get("reason", "") for g in j.get("gaps", [])})[:3]))
     if not out:
         out.append(case(S, proj, error=True, why="no usable pairs"))

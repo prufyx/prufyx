@@ -7,6 +7,9 @@
 //	           conversion/subresources/printer columns removed, so any object applies (live probes only)
 //	-sample    prints one minimal custom resource per served version of every CRD
 //
+// Any read, parse or shape failure exits non-zero with a message on stderr and NOTHING on stdout: the caller
+// must never see a partial list (a shorter expected set would hide a removed GVK).
+//
 // run.sh copies this file to cli/cmd/crdgvkqa/main.go inside the scratch checkout and builds it with
 // GOFLAGS=-mod=vendor, so it uses the module's vendored gopkg.in/yaml.v3.
 package main
@@ -27,11 +30,19 @@ type gvk struct {
 	Served, Store bool
 }
 
+func fail(format string, a ...any) {
+	fmt.Fprintf(os.Stderr, "crdgvk: "+format+"\n", a...)
+	os.Exit(1)
+}
+
 func main() {
 	strip := flag.Bool("strip", false, "relax CRD schemas")
 	sample := flag.Bool("sample", false, "emit sample custom resources")
 	flag.Parse()
-	raw, _ := io.ReadAll(os.Stdin)
+	raw, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		fail("read stdin: %v", err)
+	}
 	dec := yaml.NewDecoder(bytes.NewReader(raw))
 	out := []gvk{}
 	var docs []any
@@ -39,7 +50,7 @@ func main() {
 		var d map[string]any
 		if err := dec.Decode(&d); err != nil {
 			if err != io.EOF {
-				fmt.Fprintln(os.Stderr, "yaml:", err)
+				fail("yaml: %v", err)
 			}
 			break
 		}
@@ -51,14 +62,25 @@ func main() {
 		g, _ := spec["group"].(string)
 		k, _ := names["kind"].(string)
 		vs, _ := spec["versions"].([]any)
+		if spec != nil && g == "" && k == "" && len(vs) == 0 && spec["version"] == nil {
+			continue // generator placeholder (empty group, kind and versions): it declares no version
+		}
+		if g == "" || k == "" {
+			fail("CustomResourceDefinition without spec.group or spec.names.kind")
+		}
 		if len(vs) == 0 {
-			if v, ok := spec["version"].(string); ok {
-				out = append(out, gvk{g, v, k, true, true})
+			v, ok := spec["version"].(string)
+			if !ok || v == "" {
+				fail("CustomResourceDefinition %s/%s has no versions", g, k)
 			}
+			out = append(out, gvk{g, v, k, true, true})
 		}
 		for _, x := range vs {
 			m, _ := x.(map[string]any)
 			n, _ := m["name"].(string)
+			if n == "" {
+				fail("CustomResourceDefinition %s/%s has a version without a name", g, k)
+			}
 			s, _ := m["served"].(bool)
 			st, _ := m["storage"].(bool)
 			out = append(out, gvk{g, n, k, s, st})
@@ -87,11 +109,24 @@ func main() {
 		}
 	}
 	if *strip || *sample {
+		var buf bytes.Buffer
 		for _, d := range docs {
-			b, _ := yaml.Marshal(d)
-			fmt.Printf("---\n%s", b)
+			b, err := yaml.Marshal(d)
+			if err != nil {
+				fail("marshal: %v", err)
+			}
+			fmt.Fprintf(&buf, "---\n%s", b)
+		}
+		if _, err := os.Stdout.Write(buf.Bytes()); err != nil {
+			fail("write: %v", err)
 		}
 		return
 	}
-	json.NewEncoder(os.Stdout).Encode(out)
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(out); err != nil {
+		fail("encode: %v", err)
+	}
+	if _, err := os.Stdout.Write(buf.Bytes()); err != nil {
+		fail("write: %v", err)
+	}
 }

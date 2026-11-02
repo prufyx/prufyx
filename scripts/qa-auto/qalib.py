@@ -37,9 +37,14 @@ def vkey(t):
     return tuple(int(x) for x in re.findall(r"\d+", t))
 
 
+def doc_name(g, v, k):
+    """metadata.name of the probe object doc() writes for a group/version/kind (unique per GVK)."""
+    return f"qa-{k.lower()}-{v}-{(g or 'core').replace('.', '-')}"
+
+
 def doc(g, v, k, name=None):
     av = f"{g}/{v}" if g else v
-    name = name or f"qa-{k.lower()}-{v}-{(g or 'core').replace('.', '-')}"
+    name = name or doc_name(g, v, k)
     return f"apiVersion: {av}\nkind: {k}\nmetadata:\n  name: {name}\n  namespace: default\n"
 
 
