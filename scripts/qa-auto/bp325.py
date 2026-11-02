@@ -4,7 +4,7 @@ An honest/lying proposal that must be refused (expected exits exclude 0) but exi
 any other unexpected exit is a MISMATCH. --cases writes the qa-auto case list."""
 import json,subprocess,os,sys
 sys.path.insert(0,os.path.dirname(os.path.abspath(__file__)))
-from qalib import case,dump
+from qalib import case,dump,boxed
 P=sys.argv[1]; W=sys.argv[2]; os.makedirs(W,exist_ok=True)
 CASES=[]
 DEP=["0.3","0.4","0.5","0.6"]; S0=["0.3","0.4","0.5","0.6","0.7","0.8","0.9","0.10","0.11"]; S1=S0+["0.12"]
@@ -16,7 +16,7 @@ def cfg(path,ver,sup,dep=DEP,drop_apis=False):
 def run(name,cur,prop,api,frm="0.16.5",to="0.17.7",expect=None):
     c=f"{W}/{name}-c.json"; p=f"{W}/{name}-p.json"
     cur(c); prop(p)
-    r=subprocess.run([P,"check","cncf","--project","buildpacks","--current-lifecycle-config",c,"--proposed-lifecycle-config",p,"--from",frm,"--to",to,"--current-platform-api","0.11","--proposed-platform-api",api,"--now","2026-09-10T17:00:00Z","--format","json"],capture_output=True,text=True)
+    r=subprocess.run(boxed([P,"check","cncf","--project","buildpacks","--current-lifecycle-config",c,"--proposed-lifecycle-config",p,"--from",frm,"--to",to,"--current-platform-api","0.11","--proposed-platform-api",api,"--now","2026-09-10T17:00:00Z","--format","json"]),capture_output=True,text=True)
     try: j=json.loads(r.stdout); v=j.get("verdict") or j.get("result",{}).get("status")
     except Exception: v="?"
     ok = r.returncode in expect
