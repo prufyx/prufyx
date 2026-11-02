@@ -83,3 +83,17 @@ func TestDatabaseStatusDefaultStore(t *testing.T) {
 		})
 	}
 }
+
+// A JSON consumer gets no human text on stdout when no store is installed.
+func TestDatabaseStatusJSONWithoutStoreHasNoHumanAge(t *testing.T) {
+	empty := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(empty, "prufyx", "knowledge"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("XDG_DATA_HOME", empty)
+	var stdout, stderr bytes.Buffer
+	code := runtime{stdout: &stdout, stderr: &stderr}.databaseStatus([]string{"--format", "json"})
+	if code != ExitUnknown || strings.Contains(stdout.String(), "embedded knowledge") {
+		t.Fatalf("code=%d out=%s err=%s", code, stdout.String(), stderr.String())
+	}
+}

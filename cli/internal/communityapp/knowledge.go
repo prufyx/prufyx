@@ -221,7 +221,9 @@ func (r runtime) databaseStatus(args []string) int {
 			return r.knowledgeError("knowledge database status failed", err)
 		}
 		if !present {
-			r.embeddedAgeStatus()
+			if *format == "human" {
+				r.embeddedAgeStatus()
+			}
 			return r.fail("no verified knowledge database is selected; checks use the embedded knowledge", ExitUnknown)
 		}
 		*dbRoot = root
