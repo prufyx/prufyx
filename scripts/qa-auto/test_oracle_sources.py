@@ -1,0 +1,101 @@
+"""Source failures cannot reduce the expected GVK set."""
+import json
+import os
+from pathlib import Path
+import subprocess
+import tempfile
+import unittest
+from unittest.mock import patch
+
+import crd_oracle as oracle
+import qalib
+
+
+class SourceReadTests(unittest.TestCase):
+    def test_empty_requested_blob_is_an_error(self):
+        for body in ("", " \n\t"):
+            with self.subTest(body=body), patch.object(oracle, "sh", return_value=subprocess.CompletedProcess([], 0, body, "")):
+                with self.assertRaises(ValueError):
+                    oracle.crd_text({"paths": [{"path": "crd.yaml"}]}, "unused", "v1")
+
+    def test_every_helper_row_is_validated_even_when_not_served(self):
+        good = dict(G="sample.example", V="v1", K="Widget", Served=True, Store=True)
+        bad_rows = [dict(G="sample.example", V="", K="Widget", Served=False, Store=False),
+                    dict(G="sample.example", V="v1", Served=False, Store=False),
+                    dict(good, Served="false"), dict(good, Store=None), None]
+        for bad in bad_rows:
+            with self.subTest(row=bad), patch.object(oracle, "crd_text", return_value="kind: CustomResourceDefinition"), patch.object(
+                    oracle, "sh", return_value=subprocess.CompletedProcess([], 0, json.dumps([good, bad]), "")):
+                with self.assertRaises(ValueError):
+                    oracle.served_set({}, "unused", "v1")
+
+    def test_failed_tree_or_blob_prevents_any_candidate_scan(self):
+        for failing_command in ("ls-tree", "show"):
+            with self.subTest(command=failing_command), tempfile.TemporaryDirectory() as td:
+                target = {"target": {"repo": "example/sample", "tagPrefixes": ["v"],
+                          "paths": [{"path": "crds", "directory": True, "match": "yaml$"}]}}
+                Path(td, "target-sample.json").write_text(json.dumps(target))
+                Path(td, "sample.git").mkdir()
+                def command(*args, **kwargs):
+                    if failing_command in args:
+                        return subprocess.CompletedProcess(args, 128, "", "unreadable")
+                    output = "v1.0.0\nv1.1.0\n" if "tag" in args else ("crds/a.yaml\n" if "ls-tree" in args else "")
+                    return subprocess.CompletedProcess(args, 0, output, "")
+                with patch.object(oracle, "TD", td), patch.object(oracle, "GITROOT", td), patch.object(
+                        oracle, "sh", side_effect=command), patch.object(oracle, "prufyx") as scan:
+                    cases = oracle.run("sample", [{"project": "sample", "pairs": [{"from": "1.0", "to": "1.1"}]}])
+                    self.assertEqual(len(cases), 1)
+                    self.assertTrue(cases[0]["error"])
+                    scan.assert_not_called()
+
+    def test_one_finding_cannot_cover_multiple_removed_gvks(self):
+        first, second = ("sample.example", "v1", "Widget"), ("sample.example", "v2", "Widget")
+        entry = {"project": "sample", "rule": {"operator": "forbid_set_member", "setCondition": {
+            "factId": "component.sample.custom_resource_versions_set", "members": ["/".join(first)]}}}
+        report = {"verdict": "UNKNOWN", "paths": [{"component": "sample", "hops": [{"families": [
+            {"family": "crd.custom_resource_versions", "status": "PASS"}]}]}], "findings": [
+            {"ruleId": "first", "component": "sample", "locations": [{"kind": "Widget", "name": qalib.object_name(*first)}]}]}
+        with patch.object(qalib, "claim_registry", return_value={"first": entry}):
+            wrongpass, _, missing, _ = qalib.scoped_result(11, report, [first, second], "sample", "crd.custom_resource_versions")
+        self.assertTrue(wrongpass)
+        self.assertEqual(missing, ["/".join(second)])
+
+    def test_malformed_scan_cannot_hide_removed_object(self):
+        first = ("sample.example", "v1", "Widget")
+        for report in ({}, {"findings": "malformed"}, {"paths": [None]}):
+            with self.subTest(report=report):
+                # The project wrapper converts malformed result shapes into an error case.
+                with patch.object(oracle, "_run", side_effect=lambda *args: qalib.scoped_result(
+                        11, report, [first], "sample", "crd.custom_resource_versions")):
+                    result = oracle.run("sample", [])
+                if isinstance(result, tuple):
+                    self.assertTrue(result[1])
+                else:
+                    self.assertTrue(result[0]["error"])
+
+
+class HelperShapeTests(unittest.TestCase):
+    @unittest.skipUnless(os.environ.get("QA_TEST_CRDGVK"), "set QA_TEST_CRDGVK to the built helper")
+    def test_legacy_version_and_output_errors_are_fatal(self):
+        helper = os.environ["QA_TEST_CRDGVK"]
+        prefix = "apiVersion: apiextensions.k8s.io/v1beta1\nkind: CustomResourceDefinition\nspec:\n  group: sample.example\n  names:\n    kind: Widget\n"
+        valid = prefix + "  version: v1\n"
+        good = subprocess.run([helper], input=valid, text=True, capture_output=True)
+        self.assertEqual(good.returncode, 0)
+        self.assertEqual(json.loads(good.stdout)[0]["V"], "v1")
+        for value in ("0", "false", "''", "'  '", "[]"):
+            for flag in ([], ["-strip"], ["-sample"]):
+                with self.subTest(version=value, flag=flag):
+                    result = subprocess.run([helper] + flag, input=valid + "---\n" + prefix + "  version: " + value + "\n",
+                                            text=True, capture_output=True)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertEqual(result.stdout, "")
+        if Path("/dev/full").exists():
+            for flag in ([], ["-strip"], ["-sample"]):
+                with self.subTest(write_flag=flag), open("/dev/full", "wb") as full:
+                    result = subprocess.run([helper] + flag, input=valid, text=True, stdout=full, stderr=subprocess.PIPE)
+                    self.assertNotEqual(result.returncode, 0)
+
+
+if __name__ == "__main__":
+    unittest.main()

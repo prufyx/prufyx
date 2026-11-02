@@ -96,8 +96,29 @@ def crd_text(tj, gd, tag):
         else:
             fl = [p["path"]]
         for f in fl:
-            txt += "\n---\n" + checked("git", "-C", gd, "show", "--end-of-options", f"{tag}:{f}")
+            body = checked("git", "-C", gd, "show", "--end-of-options", f"{tag}:{f}")
+            if not body.strip():
+                raise ValueError("requested blob was empty")
+            txt += "\n---\n" + body
     return txt
+
+
+def served_set(tj, gd, tag):
+    text = crd_text(tj, gd, tag)
+    result = sh(CRDGVK, inp=text)
+    if result.returncode:
+        raise ValueError("CRD YAML helper failed")
+    rows = json.loads(result.stdout)
+    if not isinstance(rows, list):
+        raise ValueError("helper output must be a list")
+    for row in rows:
+        if (not isinstance(row, dict) or
+                any(not isinstance(row.get(key), str) or not row[key].strip() for key in ("G", "V", "K")) or
+                any(type(row.get(key)) is not bool for key in ("Served", "Store"))):
+            raise ValueError("helper output contains an invalid GVK row")
+    if not rows and "CustomResourceDefinition" in text:
+        raise ValueError("helper omitted every CRD version")
+    return {(row["G"], row["V"], row["K"]) for row in rows if row["Served"]}
 
 
 def run(proj, cov):
@@ -141,10 +162,7 @@ def _run(proj, cov):
 
     def served(tag):
         if tag not in cache:
-            r = sh(CRDGVK, inp=crd_text(tj, gd, tag))
-            if r.returncode:
-                raise ValueError("CRD YAML helper failed")
-            cache[tag] = {(x["G"], x["V"], x["K"]) for x in json.loads(r.stdout) if x["Served"]}
+            cache[tag] = served_set(tj, gd, tag)
         return cache[tag]
 
     comp = next((x for x in cov if x["project"] == proj), None)

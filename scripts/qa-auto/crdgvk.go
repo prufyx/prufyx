@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 
@@ -84,15 +85,22 @@ func main() {
 			fmt.Fprintln(os.Stderr, "CRD group or kind missing")
 			os.Exit(1)
 		}
-		vs, _ := spec["versions"].([]any)
+		vs, validVersions := spec["versions"].([]any)
+		if _, present := spec["versions"]; present && !validVersions {
+			fmt.Fprintln(os.Stderr, "CRD versions must be a list")
+			os.Exit(1)
+		}
 		if len(vs) == 0 && spec["version"] == nil {
 			fmt.Fprintln(os.Stderr, "CRD versions missing")
 			os.Exit(1)
 		}
 		if len(vs) == 0 {
-			if v, ok := spec["version"].(string); ok {
-				out = append(out, gvk{g, v, k, true, true})
+			v, ok := spec["version"].(string)
+			if !ok || strings.TrimSpace(v) == "" {
+				fmt.Fprintln(os.Stderr, "CRD legacy version must be a nonempty string")
+				os.Exit(1)
 			}
+			out = append(out, gvk{g, v, k, true, true})
 		}
 		for _, x := range vs {
 			m, _ := x.(map[string]any)
@@ -128,12 +136,22 @@ func main() {
 			docs = append(docs, d)
 		}
 	}
+	var output bytes.Buffer
 	if *strip || *sample {
 		for _, d := range docs {
-			b, _ := yaml.Marshal(d)
-			fmt.Printf("---\n%s", b)
+			b, err := yaml.Marshal(d)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "marshal:", err)
+				os.Exit(1)
+			}
+			fmt.Fprintf(&output, "---\n%s", b)
 		}
-		return
+	} else if err := json.NewEncoder(&output).Encode(out); err != nil {
+		fmt.Fprintln(os.Stderr, "encode:", err)
+		os.Exit(1)
 	}
-	json.NewEncoder(os.Stdout).Encode(out)
+	if _, err := os.Stdout.Write(output.Bytes()); err != nil {
+		fmt.Fprintln(os.Stderr, "write:", err)
+		os.Exit(1)
+	}
 }
