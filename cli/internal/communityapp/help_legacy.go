@@ -20,6 +20,7 @@ const checkHelpLegacy = `Usage:
   prufyx check cncf --project containerd --containerd-config FILE --runtime-handler NAME --from 1.7.28 --to 2.0.0 --containerd-config-complete --containerd-config-precedence-resolved --containerd-official-upstream --containerd-official-bundled-runtimes-only --now RFC3339 [--containerd-config-digest SHA256] [--format human|json]
   prufyx check cncf --project SLUG --input FILE --now RFC3339 [--input-digest SHA256] [--format human|json]
   prufyx check cncf --project SLUG --input FILE --knowledge-db DIR [--input-digest SHA256] [--format human|json]
+  prufyx check cncf --project SLUG --input FILE --via V1,V2 --now RFC3339 [--input-digest SHA256] [--format human|json]
   prufyx check project --project airflow --effective-config FILE --from 3.0.6 --to 3.1.0 --effective-config-complete --precedence-resolved --now RFC3339 [--effective-config-digest SHA256] [--format human|json]
   prufyx check project --project opensearch --effective-config FILE --from 2.19.7 --to 3.0.0 --effective-config-complete --precedence-resolved --now RFC3339 [--effective-config-digest SHA256] [--format human|json]
   prufyx check project --project grafana|kibana|loki --effective-config FILE --from VERSION --to VERSION --effective-config-complete --precedence-resolved --now RFC3339 [--effective-config-digest SHA256] [--format human|json]
