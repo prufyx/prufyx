@@ -2,8 +2,9 @@
 
 This guide describes the default `cert-manager` profile. Generic CNCF rules use
 the separate [CNCF knowledge profile](cncf-knowledge-database.md) and must have
-their own store directory. `db import` and `db status` default to cert-manager;
-pass `--profile cncf` explicitly for the generic store.
+their own store directory. `db import` defaults to cert-manager; pass `--profile cncf`
+explicitly for the generic store. A bare `db status` reports the default
+`cncf-projects` store that `db update` installs into.
 
 The knowledge database is an unreleased, explicit opt-in path for evaluating the same bounded cert-manager predicate with operator-provisioned signed data. The default `prufyx check cert-manager-values` behavior remains the embedded alpha release behavior. Prometheus mode continues to use its embedded reviewed knowledge.
 

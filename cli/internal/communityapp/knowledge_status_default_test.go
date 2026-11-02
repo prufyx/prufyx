@@ -64,7 +64,8 @@ func TestDatabaseStatusDefaultStore(t *testing.T) {
 		{"explicit db-root wins", empty, []string{"--profile", "cncf-projects", "--db-root", store}, ExitOK, "knowledge database state: READY"},
 		{"explicit empty db-root still errors", installed, []string{"--profile", "cncf-projects", "--db-root", ""}, ExitUsage, ""},
 		{"profile without default location", installed, []string{"--profile", "cncf"}, ExitUsage, ""},
-		{"default profile without default location", installed, nil, ExitUsage, ""},
+		{"bare db status asks about the default store", installed, nil, ExitOK, "knowledge database state: READY"},
+		{"bare db status without a store shows the embedded knowledge age", empty, nil, ExitUnknown, "embedded knowledge: the earliest active rule ends"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -80,5 +81,19 @@ func TestDatabaseStatusDefaultStore(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// A JSON consumer gets no human text on stdout when no store is installed.
+func TestDatabaseStatusJSONWithoutStoreHasNoHumanAge(t *testing.T) {
+	empty := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(empty, "prufyx", "knowledge"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("XDG_DATA_HOME", empty)
+	var stdout, stderr bytes.Buffer
+	code := runtime{stdout: &stdout, stderr: &stderr}.databaseStatus([]string{"--format", "json"})
+	if code != ExitUnknown || strings.Contains(stdout.String(), "embedded knowledge") {
+		t.Fatalf("code=%d out=%s err=%s", code, stdout.String(), stderr.String())
 	}
 }

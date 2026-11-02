@@ -11,10 +11,12 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/certmanagervalues"
 	"github.com/prufyx/prufyx/cli/internal/currentbundle"
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
+	"github.com/prufyx/prufyx/cli/internal/knowledgeage"
 	"github.com/prufyx/prufyx/cli/internal/knowledgeauto"
 	"github.com/prufyx/prufyx/cli/internal/knowledgecheck"
 )
@@ -204,8 +206,12 @@ func (r runtime) databaseStatus(args []string) int {
 		return r.usage("invalid database status arguments; use --help")
 	}
 	// Without --db-root the default profile reads the default store location,
-	// the one db update installs into; other profiles have none.
+	// the one db update installs into; other profiles have none. A bare
+	// `db status` therefore asks about that store, not cert-manager.
 	if *dbRoot == "" {
+		if !flagProvided(args, "profile") {
+			*profile = knowledgeauto.Profile
+		}
 		if _, ok := knowledgeauto.DefaultRoot(); *profile != knowledgeauto.Profile || !ok {
 			return r.usage("invalid database status arguments; use --help")
 		}
@@ -215,7 +221,10 @@ func (r runtime) databaseStatus(args []string) int {
 			return r.knowledgeError("knowledge database status failed", err)
 		}
 		if !present {
-			return r.fail("no verified knowledge database is selected", ExitUnknown)
+			if *format == "human" {
+				r.embeddedAgeStatus()
+			}
+			return r.fail("no verified knowledge database is selected; checks use the embedded knowledge", ExitUnknown)
 		}
 		*dbRoot = root
 	}
@@ -260,6 +269,32 @@ func (r runtime) databaseStatus(args []string) int {
 		fmt.Fprintln(r.stdout, "authority: synthetic test knowledge only; no official Prufyx trust root or upstream compatibility authority")
 	}
 	return databaseStatusExit(status)
+}
+
+// embeddedAgeStatus says how old the knowledge built into this binary is: the
+// earliest end date among its active rules, and the expiry note when rules
+// have ended or are about to. It is the only knowledge there is when no
+// database is installed.
+func (r runtime) embeddedAgeStatus() {
+	sources, err := batchEmbeddedAge()
+	if err != nil {
+		return
+	}
+	now := autoClock().UTC()
+	var earliest time.Time
+	for _, source := range sources {
+		for _, end := range source.Expiries {
+			if earliest.IsZero() || end.Before(earliest) {
+				earliest = end
+			}
+		}
+	}
+	if !earliest.IsZero() {
+		fmt.Fprintf(r.stdout, "embedded knowledge: the earliest active rule ends %s\n", earliest.UTC().Format("2006-01-02"))
+	}
+	if line := knowledgeage.Line(knowledgeage.Summarize(sources, now), now, true); line != "" {
+		fmt.Fprintln(r.stdout, line)
+	}
 }
 
 func validKnowledgeProfile(profile string) bool {
