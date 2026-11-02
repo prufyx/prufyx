@@ -8,16 +8,71 @@ is not in it, from consecutive minor lines found in the tags.
 WRONGPASS: a served GVK is gone at TO and the scan exits 0 / says PASS.
 MISMATCH: any other disagreement (missed finding, false finding, CRD family not PASS).
 """
-import argparse, glob, json, os, re, shutil, sys
+import argparse, glob, json, os, re, shutil, subprocess, sys
 from concurrent.futures import ThreadPoolExecutor
 from qalib import *
 
 TD = os.path.join(SRC, "cli/internal/extract/crdversions")
 COV = ENV("QA_COV", "")
+# PR/gate mode (QA_BASE set): clones of head-named repos go to the per-run scratch, never into the persistent cache,
+# so an attacker repo named by a head cannot become the CRD truth of later runs.
+GATE = bool(ENV("QA_BASE", ""))
+GITROOT = os.path.join(TMP, "git") if GATE else os.path.join(CACHE, "git")
+NAME = re.compile(r"[A-Za-z0-9_][\w.-]*", re.A)
+
+
+def _safe_path(x):
+    return (isinstance(x, str) and 0 < len(x) <= 300 and re.fullmatch(r"[A-Za-z0-9_][\w./-]*", x, re.A) is not None
+            and ".." not in x.split("/") and not x.startswith("/"))
+
+
+def validate_target(tj):
+    """Fail closed on any target value that could steer git or a regex engine; returns (repo, error)."""
+    try:
+        repo = str(tj["repo"])
+        repo = repo[len("github.com/"):] if repo.startswith("github.com/") else repo
+        o, _, n = repo.partition("/")
+        if not (NAME.fullmatch(o) and NAME.fullmatch(n)):
+            return "", f"repo {repo[:80]!r} is not owner/name"
+        prefs = tj["tagPrefixes"]
+        if not isinstance(prefs, list) or not prefs or not all(isinstance(x, str) and re.fullmatch(r"[\w./-]*", x, re.A) and not x.startswith("-") for x in prefs):
+            return "", "tagPrefixes invalid"
+        for p in tj["paths"]:
+            if not _safe_path(p.get("path")):
+                return "", f"path {str(p.get('path'))[:80]!r} invalid"
+            if p.get("directory"):
+                m = p["match"]
+                if not isinstance(m, str) or len(m) > 200 or "(" in m or "\\" in m and re.search(r"\\[1-9]", m) or re.search(r"[+*}]\?*[+*{]", m) or len(re.findall(r"[*+]|\{\d*,\d*\}", m)) > 2:
+                    return "", "match invalid (length, any group, backreference or stacked quantifier or more than 2 unbounded quantifiers)"
+                re.compile(m)
+        return repo, ""
+    except Exception as e:
+        return "", f"target invalid: {type(e).__name__}"
 
 
 def projects_all():
     return sorted(re.sub(r"^target-|\.json$", "", os.path.basename(p)) for p in glob.glob(TD + "/target-*.json"))
+
+
+class MatchTimeout(Exception):
+    pass
+
+
+_MATCH_CODE = ("import json,re,sys\nd=json.load(sys.stdin)\nr=re.compile(d['m'])\n"
+               "print(json.dumps([f for f in d['f'] if len(f.split('/')[-1])<=255 and r.search(f.split('/')[-1])]))")
+MATCH_TIMEOUT = float(ENV("QA_MATCH_TIMEOUT", "5"))
+
+
+def match_names(pattern, files):
+    """The target's `match` regex is head-supplied: apply it in a child process under a hard wall-clock bound."""
+    try:
+        r = subprocess.run([sys.executable, "-I", "-c", _MATCH_CODE], input=json.dumps({"m": pattern, "f": files}),
+                           capture_output=True, text=True, timeout=MATCH_TIMEOUT)
+        return json.loads(r.stdout)
+    except subprocess.TimeoutExpired:
+        raise MatchTimeout(pattern[:80])
+    except Exception as e:
+        raise MatchTimeout(f"match failed: {type(e).__name__}")
 
 
 def crd_text(tj, gd, tag):
@@ -25,26 +80,37 @@ def crd_text(tj, gd, tag):
     txt = ""
     for p in tj["paths"]:
         if p.get("directory"):
-            fl = sh("git", "-C", gd, "ls-tree", "-r", "--name-only", tag, p["path"] + "/").stdout.split()
-            fl = [f for f in fl if re.search(p["match"], f.split("/")[-1])]
+            fl = sh("git", "-C", gd, "ls-tree", "-r", "--name-only", "--end-of-options", tag, p["path"] + "/").stdout.split()
+            fl = match_names(p["match"], fl)
         else:
             fl = [p["path"]]
         for f in fl:
-            txt += "\n---\n" + sh("git", "-C", gd, "show", f"{tag}:{f}").stdout
+            txt += "\n---\n" + sh("git", "-C", gd, "show", "--end-of-options", f"{tag}:{f}").stdout
     return txt
 
 
 def run(proj, cov):
+    try:
+        return _run(proj, cov)
+    except MatchTimeout as e:  # fail closed: an error case, never a skip
+        return [case("crd", proj, error=True, why="target match regex exceeded %ss or failed: %s" % (MATCH_TIMEOUT, e))]
+
+
+def _run(proj, cov):
     S = "crd"
     try:
         tj = json.load(open(f"{TD}/target-{proj}.json"))["target"]
     except Exception as e:
         return [case(S, proj, error=True, why="target unreadable: %s" % e)]
-    repo = tj["repo"].replace("github.com/", "")
-    gd = f"{CACHE}/git/{proj}.git"
+    repo, bad = validate_target(tj)
+    if bad:
+        return [case(S, proj, error=True, why="target rejected: " + bad)]
+    if not re.fullmatch(r"[A-Za-z0-9_][\w.-]*", proj, re.A):
+        return [case(S, proj, error=True, why="project name rejected")]
+    gd = f"{GITROOT}/{proj}.git"
     os.makedirs(os.path.dirname(gd), exist_ok=True)
     if not os.path.isdir(gd):
-        r = sh("git", "clone", "-q", "--bare", "--filter=blob:none", f"https://github.com/{repo}.git", gd)
+        r = sh("git", "clone", "-q", "--bare", "--filter=blob:none", "--", f"https://github.com/{repo}.git", gd)
         if r.returncode:
             shutil.rmtree(gd, ignore_errors=True)
             return [case(S, proj, error=True, why="clone: " + r.stderr[:200])]

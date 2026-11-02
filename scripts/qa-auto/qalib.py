@@ -5,7 +5,7 @@ QA_SRC source checkout, QA_CACHE persistent cache (bare clones, swagger),
 QA_NOW pinned scan time, QA_TMP per-run scratch.
 A case is {"suite","key","wrongpass","mismatch","error","detail"}.
 """
-import json, os, re, subprocess, sys
+import json, os, re, shlex, subprocess, sys
 
 ENV = os.environ.get
 BIN = ENV("QA_BIN", "prufyx")
@@ -18,8 +18,19 @@ SCAN_FLAGS = ["--format", "json", "--distribution", "official_upstream",
               "--resource-scope-complete", "--target-api-apply-required"]
 
 
+RUNBOX = ENV("QA_RUNBOX", "")  # command prefix (word-split) that runs head-built binaries in a throwaway sandbox
+
+
+def boxed(a):
+    """argv with the QA_RUNBOX prefix when it runs a binary built from the PR head (QA_BIN / QA_CRDGVK)."""
+    a = list(a)
+    if RUNBOX and a and a[0] in (BIN, CRDGVK):
+        return shlex.split(RUNBOX) + a
+    return a
+
+
 def sh(*a, inp=None, cwd=None):
-    return subprocess.run(a, input=inp, capture_output=True, text=True, cwd=cwd)
+    return subprocess.run(boxed(a), input=inp, capture_output=True, text=True, cwd=cwd)
 
 
 def vkey(t):

@@ -25,7 +25,7 @@ Environment: the qalib variables plus QA_PROJECTS (comma list, only these projec
 import argparse, concurrent.futures as cf, base64, json, os, subprocess, sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from qalib import BIN, SRC, TMP, NOW, ENV, case, counts, dump, write_private
+from qalib import BIN, SRC, boxed, TMP, NOW, ENV, case, counts, dump, write_private
 import corpus
 PASS_OK = corpus.PASS_OK
 
@@ -88,7 +88,7 @@ def run(project, data, tag):
         fh.write(data)
     cmd = [BIN, "check", "cncf", "--project", project, "--input", f, "--now", PROBE_NOW, "--format", "json"]
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=TIMEOUT, errors="replace")
+        r = subprocess.run(boxed(cmd), capture_output=True, text=True, timeout=TIMEOUT, errors="replace")
     except subprocess.TimeoutExpired:
         return -9, "timeout", cmd
     try:
@@ -109,7 +109,9 @@ except Exception as e:
     print("rules unreadable", e)
     raise SystemExit(0)
 only = {p for p in ENV("QA_PROJECTS", "").split(",") if p}
-entries = [e for e in data["entries"] if e["rule"]["operator"] in OPS and (not only or e["project"] in only)]
+only_ids = {i for i in ENV("QA_RULES_IDS", "").split(",") if i}  # PR gate: changed rule ids only (empty = all)
+entries = [e for e in data["entries"] if e["rule"]["operator"] in OPS and (not only or e["project"] in only)
+           and (not only_ids or e["rule"]["id"] in only_ids)]
 ALL_IDS = {e["rule"]["id"] for e in data["entries"]}
 RUN_IDS = {e["rule"]["id"] for e in entries}
 JOBS = int(ENV("QA_JOBS", "3") or 3)
