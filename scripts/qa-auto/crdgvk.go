@@ -20,6 +20,9 @@ import (
 	"os"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
+	"github.com/prufyx/prufyx/cli/internal/k8sremovals"
 )
 
 type gvk struct {
@@ -30,7 +33,29 @@ type gvk struct {
 func main() {
 	strip := flag.Bool("strip", false, "relax CRD schemas")
 	sample := flag.Bool("sample", false, "emit sample custom resources")
+	removalFacts := flag.Bool("removal-facts", false, "emit Kubernetes removal fact GVKs")
 	flag.Parse()
+	if *removalFacts {
+		facts := map[string][]string{}
+		for _, removals := range k8sremovals.ByTargetMinor() {
+			for _, removal := range removals {
+				for _, kind := range removal.Kinds {
+					facts[removal.Fact] = append(facts[removal.Fact], removal.Group+"/"+removal.Removed+"/"+kind)
+				}
+			}
+		}
+		for _, removal := range k8sremovals.RemovedVersions() {
+			if removal.Line == "1.32" {
+				for _, kind := range removal.Kinds {
+					facts[cncfprepare.KubernetesFlowControlFact] = append(facts[cncfprepare.KubernetesFlowControlFact], removal.Group+"/"+removal.Version+"/"+kind)
+				}
+			}
+		}
+		if err := json.NewEncoder(os.Stdout).Encode(facts); err != nil {
+			os.Exit(1)
+		}
+		return
+	}
 	raw, err := io.ReadAll(os.Stdin)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

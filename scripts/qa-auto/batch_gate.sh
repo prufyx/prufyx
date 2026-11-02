@@ -22,7 +22,7 @@
 # STALE once main moved and the head is no longer on the main tip: re-run after rebasing (a new head sha is a new gate).
 # Skipped suites: only the known "rules(absent)" (rules_oracle.py not on this base yet) and "kind" (the gate always
 # sets QA_NO_KIND=1) are informational; any other skipped suite makes the gate inconclusive (3), never green.
-# MISMATCH = mismatches not in STATE/known-mismatch.json (all mismatches when no baseline exists); MISMATCH>0 is inconclusive (3).
+# MISMATCH counts every mismatch, including historical baselines; MISMATCH>0 is inconclusive (3).
 # A merge needs a green line for the CURRENT head sha: a new head sha is a new gate.
 #
 # Parameters (environment, all optional):
@@ -128,10 +128,8 @@ if run_error:
 if s.get("sha") != head:  # results dir is found by 8-char prefix: the full sha must match
     print(f"gate: summary sha {s.get('sha')!r} != head {head}", file=sys.stderr)
     sys.exit(3)
-# MISMATCH: new vs baseline; without a baseline file every mismatch is "new" and the total is shown
-m = s["new_mismatch"] if s.get("new_mismatch") is not None else s["mismatch"]
-if not __import__("os").path.exists(summ.rsplit("/results/", 1)[0] + "/known-mismatch.json"):
-    m = s["mismatch"]
+# Publication requires every mismatch to be resolved; a historical baseline cannot waive it.
+m = s["mismatch"]
 # skipped suites: "rules(absent)" is known and informational until rules_oracle.py lands on main (it would otherwise
 # keep every gate inconclusive); "kind" is skipped by the gate itself (QA_NO_KIND=1). ANY other skip => inconclusive.
 skipped = list(s.get("skipped", []))
@@ -143,7 +141,7 @@ if "rules(absent)" in info:
 if bad:
     line += " SKIPPED=" + ",".join(bad)
 line += f" base={base[:8]}"
-# a mismatch (new vs the baseline; every one when there is no baseline) is never green
+# Any mismatch is inconclusive, including one recorded in a historical baseline.
 code = 2 if s["wrongpass"] else (3 if s["errors"] or bad or m else 0)
 json.dump({"sha": head, "base": base, "line": line, "exit": code, "state": {0: "GREEN", 2: "WRONGPASS", 3: "INCONCLUSIVE"}[code],
            "time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "mode": s["mode"], "skipped": skipped,
@@ -159,7 +157,7 @@ if code == 3:
     if bad:
         print(f"  SKIPPED suites (inconclusive): {', '.join(bad)}", file=sys.stderr)
     if m:
-        print(f"  MISMATCH={m} (new vs baseline; all when STATE has no known-mismatch.json): triage before merge", file=sys.stderr)
+        print(f"  MISMATCH={m} (total, including historical baselines): triage before merge", file=sys.stderr)
     for c in s["error_cases"][:5]:
         print(f"  ERR {c['suite']}|{c['key']} {json.dumps(c['detail'])[:200]}", file=sys.stderr)
 sys.exit(code)

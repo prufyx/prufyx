@@ -164,7 +164,10 @@ def _run(proj, cov):
         for f in sorted({lines[l1][0], lines[l1][-1]}, key=vkey):
             sf = served(f)
             if not sf:
-                out.append(case(S, proj + "|" + f, error=True, why="SKIP: verified empty served source scope", status="SKIP"))
+                for t in sorted({lines[l2][0], lines[l2][-1]}, key=vkey):
+                    out.append(case(S, proj + "|" + f + "|" + t, error=True,
+                                    why="SKIP: verified empty served source scope", status="SKIP",
+                                    requested=0, executed=0))
                 continue
             docs = "---\n".join(doc(g, v, k) for (g, v, k) in sorted(sf))
             for t in sorted({lines[l2][0], lines[l2][-1]}, key=vkey):

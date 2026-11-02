@@ -63,12 +63,15 @@ def main():
         if j is None:
             cases.append(case("k8s-range", key, error=True, why=tail))
         else:
-            wp, mm, missing, statuses = scoped_result(code, j, removed, "kubernetes", "kubernetes.removed_served_gvk")
+            wp, mm, missing, statuses = scoped_result(code, j, [x for x in removed if "alpha" not in x[1]], "kubernetes", "kubernetes.removed_served_gvk")
             cases.append(case("k8s-range", key, wrongpass=wp, mismatch=mm, error=not complete_scan_scope(j, len(sa)), exit=code,
                               verdict=j.get("verdict"), removed=len(removed), notMentioned=missing,
                               requested=len(sa), executed=j.get("summary", {}).get("documentsRead"), families=statuses))
         for x in removed:
             if "alpha" in x[1]:
+                cases.append(case("k8s-single", f"1.{m}->1.{m+1} {'/'.join(x)}", error=True,
+                                  status="SKIP", why="alpha API outside the declared family scope",
+                                  requested=1, executed=0))
                 continue
             code, j, tail = prufyx("scan", inp({x}, "single"), fr, to)
             key = f"1.{m}->1.{m+1} {'/'.join(x)}"

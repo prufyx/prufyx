@@ -13,10 +13,19 @@ import k8s_oracle as k8s
 
 
 class ScopedVerdictTests(unittest.TestCase):
+    def setUp(self):
+        registry = {"sample.removal": {"project": "sample", "rule": {
+            "operator": "forbid_set_member", "setCondition": {
+                "factId": "component.sample.custom_resource_versions_set",
+                "members": ["sample.example/v1/Widget"]}}}}
+        self.registry = patch.object(q, "claim_registry", return_value=registry)
+        self.registry.start()
+        self.addCleanup(self.registry.stop)
+
     def report(self, verdict="UNKNOWN", status=None, locations=None):
         return {"verdict": verdict, "paths": [{"component": "sample", "hops": [
             {"families": [{"family": "crd.custom_resource_versions", "status": status}]}]}],
-            "findings": [{"component": "sample", "locations": locations or []}]}
+            "findings": [{"component": "sample", "ruleId": "sample.removal", "locations": locations or []}]}
 
     def check(self, report):
         return q.scoped_result(11, report, [("sample.example", "v1", "Widget")],
@@ -36,6 +45,8 @@ class ScopedVerdictTests(unittest.TestCase):
     def test_exact_object_blocker_matches(self):
         report = self.report(locations=[{"kind": "Widget", "name": q.object_name("sample.example", "v1", "Widget")}])
         self.assertEqual(self.check(report)[:3], (False, False, []))
+        report["findings"][0]["ruleId"] = "unrelated.rule"
+        self.assertTrue(self.check(report)[1])
         report["findings"][0]["component"] = "unrelated"
         self.assertTrue(self.check(report)[1])
 
@@ -57,6 +68,15 @@ class ScopedVerdictTests(unittest.TestCase):
             kwargs = {"side_effect": result} if isinstance(result, Exception) else {"return_value": result}
             with patch.object(q.subprocess, "run", **kwargs):
                 self.assertIsNone(q.prufyx("scan", "unused", "a=1", "a=2")[1])
+
+    def test_removal_rule_must_name_exact_gvk(self):
+        registry = {"kubernetes.removal": {"project": "kubernetes", "rule": {
+            "operator": "forbid_predicate_value", "condition": {
+                "factId": "component.kubernetes.example_removed_gvk_present"}}}}
+        facts = {"component.kubernetes.example_removed_gvk_present": ["example/v1/Widget"]}
+        with patch.object(q, "claim_registry", return_value=registry), patch.object(q, "kubernetes_removal_facts", return_value=facts):
+            self.assertTrue(q.removal_claim("kubernetes.removal", "kubernetes", "kubernetes.removed_served_gvk", "example/v1/Widget"))
+            self.assertFalse(q.removal_claim("kubernetes.removal", "kubernetes", "kubernetes.removed_served_gvk", "other/v1/Widget"))
 
     def test_missing_input_document_is_error(self):
         self.assertTrue(q.complete_scan_scope({"summary": {"documentsRead": 2}}, 2))
@@ -86,8 +106,9 @@ class ScopedVerdictTests(unittest.TestCase):
 class GateRunnerTests(unittest.TestCase):
     def test_summary_cannot_hide_runner_failure_or_wrong_binding(self):
         here = Path(__file__).resolve().parent
-        for rc, binding, expected in ((0, True, 0), (124, True, 3), (1, True, 3), (0, False, 3)):
-            with self.subTest(rc=rc, binding=binding), tempfile.TemporaryDirectory() as td:
+        for rc, binding, mismatch, expected in ((0, True, 0, 0), (124, True, 0, 3),
+                                                (1, True, 0, 3), (0, False, 0, 3), (0, True, 1, 3)):
+            with self.subTest(rc=rc, binding=binding, mismatch=mismatch), tempfile.TemporaryDirectory() as td:
                 root = Path(td)
                 runner = root / "runner"
                 runner.write_text('''#!/usr/bin/env python3
@@ -98,6 +119,8 @@ p.mkdir(parents=True)
 s = dict(sha=os.environ['QA_SHA'], base=os.environ['QA_BASE'], run_id=os.environ['QA_RUN_ID'],
          wrongpass=0, mismatch=0, errors=0, cases=1, skipped=[], mode='full', wrongpass_cases=[], error_cases=[])
 ''' + ("s['run_id'] = 'different'\n" if not binding else "") +
+                    f"s['mismatch'] = {mismatch}\ns['new_mismatch'] = 0\n" +
+                    "json.dump([], open(Path(os.environ['QA_STATE']) / 'known-mismatch.json', 'w'))\n" +
                     f"json.dump(s, open(p / 'summary.json', 'w'))\nraise SystemExit({rc})\n")
                 runner.chmod(0o700)
                 git = root / "git"
@@ -108,7 +131,8 @@ s = dict(sha=os.environ['QA_SHA'], base=os.environ['QA_BASE'], run_id=os.environ
                 result = subprocess.run([str(here / "batch_gate.sh"), "--trust-operator", "a" * 40, "b" * 40],
                                         env=env, capture_output=True, text=True, timeout=10)
                 self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
-                self.assertIn("ERR=" + ("0" if expected == 0 else "1"), result.stdout)
+                self.assertIn("ERR=" + ("0" if expected == 0 or mismatch else "1"), result.stdout)
+                self.assertIn("MISMATCH=" + str(mismatch), result.stdout)
 
 
 class YAMLReadTests(unittest.TestCase):
@@ -126,6 +150,11 @@ spec:
     storage: true
 """
         helper = os.environ["QA_TEST_CRDGVK"]
+        fact_run = subprocess.run([helper, "-removal-facts"], text=True, capture_output=True)
+        self.assertEqual(fact_run.returncode, 0)
+        facts = json.loads(fact_run.stdout)
+        self.assertIn("networking.k8s.io/v1beta1/Ingress", facts["component.kubernetes.ingress_networking_v1beta1_removed_gvk_present"])
+        self.assertIn("flowcontrol.apiserver.k8s.io/v1beta3/FlowSchema", facts["component.kubernetes.flowcontrol_v1beta3_removed_gvk_present"])
         good = subprocess.run([helper], input=valid + "---\n" + valid, text=True, capture_output=True)
         self.assertEqual(good.returncode, 0)
         self.assertEqual(len(json.loads(good.stdout)), 2)

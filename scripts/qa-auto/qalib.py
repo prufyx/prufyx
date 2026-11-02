@@ -6,6 +6,7 @@ QA_NOW pinned scan time, QA_TMP per-run scratch.
 A case is {"suite","key","wrongpass","mismatch","error","detail"}.
 """
 import hashlib, json, os, re, shlex, subprocess, sys
+from functools import lru_cache
 
 ENV = os.environ.get
 BIN = ENV("QA_BIN", "prufyx")
@@ -91,6 +92,44 @@ def counts(cases):
     return {k: sum(1 for c in cases if c[k]) for k in ("wrongpass", "mismatch", "error")}
 
 
+@lru_cache(maxsize=1)
+def claim_registry():
+    with open(os.path.join(SRC, "cli/internal/cncfcheck/data/rules.json")) as rules_file:
+        entries = json.load(rules_file)["entries"]
+    registry = {entry["rule"]["id"]: entry for entry in entries}
+    if len(registry) != len(entries):
+        raise ValueError("duplicate rule identifiers")
+    return registry
+
+
+@lru_cache(maxsize=1)
+def kubernetes_removal_facts():
+    result = sh(CRDGVK, "-removal-facts")
+    if result.returncode:
+        raise ValueError("Kubernetes removal fact map unreadable")
+    facts = json.loads(result.stdout)
+    if not isinstance(facts, dict) or not facts:
+        raise ValueError("Kubernetes removal fact map empty")
+    return facts
+
+
+def removal_claim(rule_id, component, family, member):
+    entry = claim_registry().get(rule_id, {})
+    rule = entry.get("rule", {})
+    if entry.get("project") != component:
+        return False
+    if family == "crd.custom_resource_versions":
+        condition = rule.get("setCondition", {})
+        return (rule.get("operator") == "forbid_set_member" and
+                condition.get("factId", "").endswith(".custom_resource_versions_set") and
+                member in condition.get("members", []))
+    condition = rule.get("condition", {})
+    return (rule.get("operator") == "forbid_predicate_value" and
+            re.fullmatch(r"component\.kubernetes\.[a-z0-9_]+_removed_gvk_present",
+                         condition.get("factId", "")) is not None and
+            member in kubernetes_removal_facts().get(condition["factId"], []))
+
+
 def scoped_result(code, report, removed, component, family):
     """Compare exact synthetic GVK objects and their component's scoped claims."""
     paths = [p for p in report.get("paths", []) if p.get("component") == component]
@@ -99,6 +138,7 @@ def scoped_result(code, report, removed, component, family):
     missing = []
     for g, v, k in removed:
         if not any(f.get("component") == component and
+                   removal_claim(f.get("ruleId"), component, family, "/".join((g, v, k))) and
                    any(loc.get("kind") == k and loc.get("name") == object_name(g, v, k)
                        for loc in f.get("locations", [])) for f in report.get("findings", [])):
             missing.append("/".join((g, v, k)))
