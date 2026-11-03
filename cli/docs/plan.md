@@ -72,3 +72,14 @@ Prufyx cannot know the newest release. The component is reported as
 otherwise; usage and integrity errors as `scan`. `plan` refuses `--fail-on`; the exit code is
 the plan verdict. The scan-only output flags (`--show-passes`, `--verbose`,
 `--only-blocked`) do not change a plan.
+
+JSON stages include the scan's hop input and engine contract digests when
+available. Staged findings and unsupported results include their scan hop,
+source citations and any available rule digest or crossed-line evidence;
+staged notices include their original scan evidence. A whole-upgrade finding's
+hop identifies the whole transition; the containing stage's digest identifies
+only that stage. A crossed-line finding carries the digest for its decided
+step. Missing source evidence or digests are not inferred. Results that cannot
+be placed in a stage are reported as gaps and do not carry this evidence.
+These additive JSON fields may require updates to strict JSON consumers. The
+plan does not include the input bytes and these references do not verify them.
