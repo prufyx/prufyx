@@ -177,7 +177,13 @@ func Build(report scanreport.Report, latest []string, caps Capabilities) Plan {
 		}
 		return paths[i].Component < paths[j].Component
 	})
-	hasK8s := len(paths) > 0 && paths[0].Component == kubernetes && len(paths[0].Hops) > 0
+	planned := map[string]bool{}
+	for _, path := range paths {
+		if path.Gap == "" && len(path.Hops) > 0 {
+			planned[path.Component] = true
+		}
+	}
+	hasK8s := planned[kubernetes]
 
 	used := map[string]bool{}
 	components := len(latest)
@@ -196,7 +202,7 @@ func Build(report scanreport.Report, latest []string, caps Capabilities) Plan {
 			continue
 		}
 		for _, hop := range path.Hops {
-			plan.Stages = append(plan.Stages, newStage(path, hop, hasK8s, report, caps, used))
+			plan.Stages = append(plan.Stages, newStage(path, hop, hasK8s, len(planned) > 1, report, caps, used))
 		}
 	}
 	for i := range plan.Stages {
@@ -212,7 +218,7 @@ func Build(report scanreport.Report, latest []string, caps Capabilities) Plan {
 	return plan
 }
 
-func newStage(path scanreport.Path, hop scanreport.Hop, hasK8s bool, report scanreport.Report, caps Capabilities, used map[string]bool) Stage {
+func newStage(path scanreport.Path, hop scanreport.Hop, hasK8s, multipleComponents bool, report scanreport.Report, caps Capabilities, used map[string]bool) Stage {
 	stage := Stage{Component: path.Component, From: hop.From.String(), To: hop.To.String(), HopStatus: hop.Status,
 		Findings: []Finding{}, Unsupported: []Finding{}, Notices: []string{}, Reasons: []string{}, Gaps: []Gap{}}
 	switch {
@@ -222,6 +228,8 @@ func newStage(path scanreport.Path, hop scanreport.Hop, hasK8s bool, report scan
 		stage.Order = Order{OrderInferred, "no reviewed path policy"}
 	case hasK8s:
 		stage.Order = Order{OrderInferred, "placed after the last Kubernetes hop; no support-range data orders it earlier"}
+	case multipleComponents:
+		stage.Order = Order{OrderInferred, "no reviewed order between planned components; verify their upgrade order"}
 	default:
 		stage.Order = Order{OrderFree, "no other component is planned"}
 	}
