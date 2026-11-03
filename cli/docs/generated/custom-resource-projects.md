@@ -19,6 +19,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `cilium` | CNCF | `component.cilium.custom_resource_versions_set` | `cilium.io` |
 | `cloudnativepg` | CNCF | `component.cloudnativepg.custom_resource_versions_set` | `postgresql.cnpg.io` |
 | `cluster-api` | community | `component.cluster_api.custom_resource_versions_set` | `cluster.x-k8s.io`, `clusterctl.cluster.x-k8s.io`, `runtime.cluster.x-k8s.io` |
+| `clusterpedia` | CNCF | `component.clusterpedia.custom_resource_versions_set` | `cluster.clusterpedia.io`, `policy.clusterpedia.io` |
 | `contour` | CNCF | `component.contour.custom_resource_versions_set` | `projectcontour.io` |
 | `crossplane` | CNCF | `component.crossplane.custom_resource_versions_set` | `apiextensions.crossplane.io`, `ops.crossplane.io`, `pkg.crossplane.io`, `protection.crossplane.io`, `secrets.crossplane.io` |
 | `cyclops` | community | `component.cyclops.custom_resource_versions_set` | `cyclops-ui.com` |

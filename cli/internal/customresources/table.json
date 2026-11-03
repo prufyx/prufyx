@@ -201,6 +201,22 @@
       ]
     },
     {
+      "slug": "clusterpedia",
+      "catalog": "cncf",
+      "factProject": "clusterpedia",
+      "component": "pkg:github/clusterpedia-io/clusterpedia",
+      "groups": [
+        {
+          "name": "cluster.clusterpedia.io",
+          "source": "https://github.com/clusterpedia-io/clusterpedia/blob/264a1b3bc900fe54d84b9cb02cc6ec5e6152ecc8/kustomize/crds/cluster.clusterpedia.io_pediaclusters.yaml"
+        },
+        {
+          "name": "policy.clusterpedia.io",
+          "source": "https://github.com/clusterpedia-io/clusterpedia/blob/264a1b3bc900fe54d84b9cb02cc6ec5e6152ecc8/kustomize/crds/policy.clusterpedia.io_pediaclusterlifecycles.yaml"
+        }
+      ]
+    },
+    {
       "slug": "contour",
       "catalog": "cncf",
       "factProject": "contour",
