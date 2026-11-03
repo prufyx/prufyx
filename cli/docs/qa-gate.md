@@ -11,6 +11,8 @@ family PASS is wrong when that family's input contains a removed object, includi
 aggregate UNKNOWN or BLOCKED. Unrelated findings cannot cover a missing object.
 UNKNOWN without the expected finding is a mismatch, never evidence of safety.
 Historical mismatch baselines cannot waive mismatches in a publication gate.
+Persistent review and rules allow-lists apply only to diagnostic runs. Batch mode
+ignores them, so an actual failure remains in publication totals.
 
 Failed Git reads, incomplete YAML, missing requested release lines and invalid
 scan responses fail closed. A read document count is insufficient when any
@@ -22,6 +24,16 @@ The `kubernetes-api-removals-v2` and `crd-removals-v1` inventories record every
 requested, executed, omitted and excluded target, required targets, and their
 head, base and invocation identity. The summary and gate require both bound
 inventories. Older Kubernetes-only receipts cannot validate this scope.
+
+Kubernetes plan checks use a companion scan of the same synthetic file and exact
+range. Its complete intake and matching input digest are required. Each expected
+removal must have an exact object/removal-rule finding in that scan at the same
+hop, and that rule must appear in the plan stage. Each stage must have a known
+verdict matching its expected removals and no gaps or unsupported findings.
+An UNKNOWN stage, including one without expected removals, an empty stage list,
+a missing finding or incomplete input stays erroneous and omitted from executed
+plan scope. Release-line endpoints and explicit patch-zero endpoints identify
+the same requested minor hop.
 
 Kubernetes range scans retain alpha objects and aggregate checks. Unsupported
 single-alpha probes have explicit exclusions. A swagger HTTP 404 is insufficient
@@ -47,6 +59,9 @@ an excluded empty-source pair therefore remains an error for publication.
 `QA_REQUIRED_CRD_TARGETS` adds CRD requirements. Neither can remove inferred
 requirements. A required excluded or unrequested target, incomplete inventory,
 changed declaration or stale identity makes the gate inconclusive.
+In batch mode `QA_PROJECTS` can only add CRD projects to the inferred scope; a
+full selection stays full. Changed rule IDs determine rules scope independently
+of that diagnostic filter.
 
 The entrypoint regression controls use synthetic upstream responses and scan
 reports. The paired `run.sh` admission test stubs trusted build/oracle companions

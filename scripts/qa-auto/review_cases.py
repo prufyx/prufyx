@@ -18,7 +18,8 @@ Allow-list STATE/review-allow.json = {"ID": {"ref": "tracking reference", "reaso
 (the open known findings) may be listed. An allowed id that returns the known wrong PASS (exit 0 on a gate case) is
 reported and does not alarm; any other deviation (crash, exit -1, exit 2, ...) stays a mismatch. An allowed id that now
 passes as expected is a STALE entry and alarms (mismatch + error), so the list only shrinks. An empty or missing list
-is the release gate. Malformed entries are errors. Every skipped case raises an error case.
+is the diagnostic gate. Batch publication (QA_BASE set) ignores this diagnostic list;
+every actual failure remains in the totals. Malformed diagnostic entries are errors. Every skipped case raises an error case.
 """
 import argparse, json, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -165,7 +166,7 @@ for cid, res, frm, to, ok in (("R4.ingress-ext-1.21-1.22", "ingress-ext", "1.21.
 
 # verdict -------------------------------------------------------------------------------------------------------
 allow, bad = {}, []
-if os.path.exists(a.allow):
+if not ENV("QA_BASE", "") and os.path.exists(a.allow):
     try:
         allow = json.load(open(a.allow))
         assert isinstance(allow, dict)

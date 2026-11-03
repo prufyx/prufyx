@@ -30,7 +30,7 @@
 #                     rules suite (scripts/qa-auto/rules_oracle.py, run when present, else a counted "rules(absent)" skip; the ids
 #                     reach it as QA_RULES_IDS=comma list and QA_RULES_ALL=1 when the diff cannot be narrowed), and the fast
 #                     review suite always runs. last_green is not used. Ad-hoc. A diff that touches code/tooling selects a full run.
-#   QA_PROJECTS       comma list: check only these projects (ad-hoc runs and seeded-failure proofs)
+#   QA_PROJECTS       comma list: diagnostic selection; in batch mode only adds CRD projects to inferred scope
 #   QA_DB_SUITE       path of the db suite run.sh [SHA] [OUTDIR]; QA_DB=1 forces it (nightly); STATE/db-allow.json = allowed failing ids
 #   STATE/review-allow.json  allowed open review findings {"ID": {"wi": "WI-n", "reason": ...}}; ids outside the review findings are refused, a stale entry alarms
 #   STATE/rules-allow.json   allowed documented PASS cases {"<rule id>#<variant>" | "*#<variant>": {"ref": ..., "reason": ...}}; list only shrinks, a stale entry alarms
@@ -184,7 +184,13 @@ selmode=$(python3 -I -c 'import json,sys;print(json.loads(sys.argv[1])["mode"])'
 projects=$(python3 -I -c 'import json,sys;print(",".join(json.loads(sys.argv[1])["projects"]))' "$sel")
 [ "$selmode" = full ] && mode=full
 [ "$GATE" = 1 ] && [ "$selmode" != full ] && mode=incremental
-if [ -n "${QA_PROJECTS:-}" ]; then mode=incremental; selmode=incremental; projects=$QA_PROJECTS; fi
+if [ "$GATE" = 1 ]; then
+  # Preserve full/diff-required scope. Rules are selected by changed IDs, never by this diagnostic filter.
+  projects=$(python3 -I -c 'import sys; print(",".join(sorted({p for arg in sys.argv[1:] for p in arg.split(",") if p})))' "$projects" "${QA_PROJECTS:-}") || exit 3
+  export QA_PROJECTS=
+elif [ -n "${QA_PROJECTS:-}" ]; then
+  mode=incremental; selmode=incremental; projects=$QA_PROJECTS
+fi
 echo "$sel" >"$OUT/select.json"
 if [ "$mode" = incremental ] && [ "$selmode" = none ] && [ "$GATE" = 0 ]; then
   log "$s8: nothing relevant changed since ${lg:0:8}; recording green"
