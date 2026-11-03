@@ -3,11 +3,104 @@
 package cncfcheck
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
 )
+
+func TestChainConstructionSeal(t *testing.T) {
+	t.Parallel()
+	now := currentKubernetesReviewClock(t, rangeReviewClock)
+	raw := kubernetesInput(t, "1.23.5", "1.25.3", true)
+	via := []string{"1.24.17"}
+	fresh := func(t *testing.T, input []byte) ChainReport {
+		t.Helper()
+		chain, err := (Checker{}).CheckChain("kubernetes", input, via, now)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return chain
+	}
+	first, err := MarshalChain(fresh(t, raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := MarshalChain(fresh(t, raw))
+	if err != nil || !bytes.Equal(first, second) {
+		t.Fatalf("fresh evaluation differs: %v", err)
+	}
+	other := fresh(t, kubernetesInput(t, "1.23.5", "1.25.3", false))
+	for name, mutate := range map[string]func(*ChainReport){
+		"schema":       func(c *ChainReport) { c.Schema += "/unsupported" },
+		"project":      func(c *ChainReport) { c.Project = "other-project" },
+		"input digest": func(c *ChainReport) { c.InputFileDigest = other.InputFileDigest },
+		"scope":        func(c *ChainReport) { c.Scope += " changed" },
+		"next action":  func(c *ChainReport) { c.NextAction = "different action" },
+		"index":        func(c *ChainReport) { c.Hops[0].Index = 9 },
+		"consistent path relabel": func(c *ChainReport) {
+			c.Path[1] = "1.24.18"
+			c.Hops[0].To, c.Hops[1].From = c.Path[1], c.Path[1]
+		},
+		"outer relabel": func(c *ChainReport) {
+			c.Path[0], c.Hops[0].From, c.Whole.From = "1.22.0", "1.22.0", "1.22.0"
+		},
+		"reorder": func(c *ChainReport) { c.Hops[0], c.Hops[1] = c.Hops[1], c.Hops[0] },
+		"omit": func(c *ChainReport) {
+			c.Hops = c.Hops[1:]
+			c.Path = c.Path[1:]
+			c.Hops[0].Index = 1
+			c.Whole.From = c.Path[0]
+		},
+		"changed child":     func(c *ChainReport) { c.Hops[0].Report.NextAction = "changed" },
+		"cross chain child": func(c *ChainReport) { c.Hops[0].Report = other.Hops[0].Report },
+		"cross chain whole": func(c *ChainReport) { c.Whole.Report = other.Whole.Report },
+		"reconstructed": func(c *ChainReport) {
+			*c = ChainReport{Schema: c.Schema, Project: c.Project, Verdict: c.Verdict, Path: c.Path,
+				InputFileDigest: c.InputFileDigest, Scope: c.Scope, Hops: c.Hops, Whole: c.Whole, NextAction: c.NextAction}
+		},
+		"deserialized": func(c *ChainReport) {
+			var decoded ChainReport
+			if err := json.Unmarshal(first, &decoded); err != nil {
+				t.Fatal(err)
+			}
+			*c = decoded
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			chain := fresh(t, raw)
+			mutate(&chain)
+			if _, err := MarshalChain(chain); !errors.Is(err, ErrIntegrity) || ChainExit(chain) != 3 {
+				t.Fatalf("mutated chain: error %v exit %d", err, ChainExit(chain))
+			}
+		})
+	}
+}
+
+func TestChainConstructionRejectsUnrelatedSealedChildren(t *testing.T) {
+	t.Parallel()
+	now := currentKubernetesReviewClock(t, rangeReviewClock)
+	raw := kubernetesInput(t, "1.23.5", "1.25.3", true)
+	via := []string{"1.24.17"}
+	for _, substituteAt := range []int{1, 2, 3} { // both hops and Whole
+		calls := 0
+		evaluate := func(input []byte) (Report, error) {
+			calls++
+			if calls == substituteAt {
+				input = bytes.Replace(input, []byte(`"boolValue":true`), []byte(`"boolValue":false`), 1)
+			}
+			return (Checker{}).Check("kubernetes", input, now)
+		}
+		if _, err := checkChain(evaluate, "kubernetes", raw, via); !errors.Is(err, ErrIntegrity) {
+			t.Fatalf("unrelated input at position %d: %v", substituteAt, err)
+		}
+	}
+	evaluate := func(input []byte) (Report, error) { return (Checker{}).Check("kubernetes", input, now) }
+	if _, err := checkChain(evaluate, "other-project", raw, via); !errors.Is(err, ErrIntegrity) {
+		t.Fatalf("unrelated project: %v", err)
+	}
+}
 
 func hopOf(verdict string) ChainHop { return ChainHop{From: "1.0.0", To: "1.1.0", Verdict: verdict} }
 

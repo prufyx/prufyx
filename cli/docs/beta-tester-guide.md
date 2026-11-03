@@ -185,6 +185,13 @@ between the input's two versions, and needs `--now` (no `--knowledge-db`, no
 `--replay-report`, no `--from`/`--to`). The facts in the input are used on every
 hop; Prufyx does not plan intermediate versions for you.
 
+Before encoding a chain, the checker verifies its private in-memory binding to
+the project, original input digest, ordered path, child reports and derived
+fields. Mutating or reconstructing that object fails with integrity exit `3`.
+This binding is not a signature and does not authenticate saved JSON. To compare
+saved output, evaluate the same original inputs and context again; chain replay
+through `--replay-report` remains unsupported.
+
 ## 5. Read the answer
 
 | Answer | Exit | Meaning |
