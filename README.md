@@ -138,6 +138,30 @@ declarations in a `prufyx.yaml` to stop typing them (see
 
 **Several hops or several components?** `prufyx plan` takes the same inputs and flags as `scan` and prints the whole route as ordered stages, one per hop, with each stage's blockers, gaps and the reason it is not `PASS`. Today no stage is `PASS`: hop actions and node rolls are not checked yet. See [plan.md](cli/docs/plan.md).
 
+From the repository root, try a synthetic multi-component example. The [sample manifests](examples/multi-hop/rendered.yaml) are scan fixtures, not deployable resources. Copy them to an owner-only file and run:
+
+```sh
+demo_dir=$(mktemp -d)
+cp examples/multi-hop/rendered.yaml "$demo_dir/rendered.yaml"
+chmod 600 "$demo_dir/rendered.yaml"
+prufyx plan "$demo_dir/rendered.yaml" \
+  --from kubernetes=1.24.17 --to kubernetes=1.26.0 \
+  --from cilium=1.19.0 --to cilium=1.20.0 \
+  --from crossplane=1.20.0 --to crossplane=2.0.0 \
+  --distribution official_upstream --resource-scope-complete \
+  --target-api-apply-required --format json
+```
+
+The declarations describe this synthetic apply set, not your environment. In a
+local development run evaluated at `2026-11-03T00:00:00Z` with embedded
+knowledge revision `cncf-2026-09-13.8`, the plan returned `BLOCKED` (exit `10`): three stages were `BLOCKED` and one
+was `UNKNOWN`. It showed two required Kubernetes hops and inferred the Cilium
+and Crossplane order; verify that order before upgrading. The three findings
+cite upstream sources, and each of the four stages includes hop input and
+engine contract digests. Those evidence fields require a build containing the
+staged evidence changes. This example does not check a live environment, hop
+actions or node rolls. Results can change with the binary and knowledge used.
+
 **Never add a declaration flag that is not true.** Prufyx does not default any
 of them, because a false one turns `UNKNOWN` into an answer the evidence does
 not support.

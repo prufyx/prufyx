@@ -1,0 +1,15 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: nightly-report
+  namespace: default
+---
+apiVersion: cilium.io/v2alpha1
+kind: CiliumNodeConfig
+metadata:
+  name: sample
+---
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: CompositionRevision
+metadata:
+  name: sample
