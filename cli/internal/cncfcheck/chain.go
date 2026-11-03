@@ -63,7 +63,12 @@ type ChainReport struct {
 	Whole ChainHop   `json:"whole"`
 	// NextAction names what the verdict still needs.
 	NextAction string `json:"nextAction"`
+	seal       *chainSeal
 }
+
+// chainSeal binds only an object constructed here. It is not a signature or
+// an authenticity proof for serialized reports.
+type chainSeal struct{ digest string }
 
 // ChainScope is the fixed scope statement of every chained report.
 const ChainScope = "facts of the input are applied unchanged to every hop; proposed-side facts describe the final target"
@@ -97,14 +102,14 @@ func checkChain(evaluate func([]byte) (Report, error), project string, inputRaw 
 	}
 	chain := ChainReport{Schema: ChainSchema, Project: project, Path: path, InputFileDigest: digest(inputRaw), Scope: ChainScope}
 	for i := 0; i+1 < len(path); i++ {
-		hop, err := chainHop(evaluate, inputRaw, path[i], path[i+1])
+		hop, err := chainHop(evaluate, project, inputRaw, path[i], path[i+1])
 		if err != nil {
 			return ChainReport{}, err
 		}
 		hop.Index = i + 1
 		chain.Hops = append(chain.Hops, hop)
 	}
-	whole, err := chainHop(evaluate, inputRaw, from, to)
+	whole, err := chainHop(evaluate, project, inputRaw, from, to)
 	if err != nil {
 		return ChainReport{}, err
 	}
@@ -113,10 +118,15 @@ func checkChain(evaluate func([]byte) (Report, error), project string, inputRaw 
 	}
 	chain.Whole = whole
 	chain.Verdict, chain.NextAction = chainVerdict(chain.Hops, whole)
+	sealedDigest, err := chainDigest(chain)
+	if err != nil {
+		return ChainReport{}, err
+	}
+	chain.seal = &chainSeal{digest: sealedDigest}
 	return chain, nil
 }
 
-func chainHop(evaluate func([]byte) (Report, error), inputRaw []byte, from, to string) (ChainHop, error) {
+func chainHop(evaluate func([]byte) (Report, error), project string, inputRaw []byte, from, to string) (ChainHop, error) {
 	raw, err := withTransition(inputRaw, from, to)
 	if err != nil {
 		return ChainHop{}, err
@@ -126,7 +136,7 @@ func chainHop(evaluate func([]byte) (Report, error), inputRaw []byte, from, to s
 		return ChainHop{}, err
 	}
 	hop := ChainHop{From: from, To: to, Report: report, Decided: decidedClaims(report)}
-	if ClaimExit(report) == 3 {
+	if ClaimExit(report) == 3 || report.Project != project || report.InputFileDigest != digest(raw) {
 		return ChainHop{}, ErrIntegrity
 	}
 	hop.Verdict = hopVerdict(report)
@@ -209,9 +219,33 @@ func ChainExit(chain ChainReport) int {
 	return 11
 }
 
-// MarshalChain verifies every sealed report of the chain and encodes it.
+// chainDigest binds the complete versioned envelope and ordered verified child
+// bytes. JSON serialization omits the private construction seal.
+func chainDigest(chain ChainReport) (string, error) {
+	children := make([]json.RawMessage, 0, len(chain.Hops)+1)
+	for _, hop := range append(append([]ChainHop(nil), chain.Hops...), chain.Whole) {
+		raw, err := MarshalReport(hop.Report)
+		if err != nil {
+			return "", ErrIntegrity
+		}
+		children = append(children, raw)
+	}
+	raw, err := marshalPlain(struct {
+		Version  string            `json:"version"`
+		Chain    ChainReport       `json:"chain"`
+		Children []json.RawMessage `json:"children"`
+	}{"prufyx.io/cncf-chain-seal/v1", chain, children})
+	if err != nil {
+		return "", ErrIntegrity
+	}
+	return digest(raw), nil
+}
+
+// MarshalChain verifies the private construction seal and every child report,
+// then encodes the chain. Decoded or reconstructed reports cannot be verified;
+// comparing serialized bytes requires fresh evaluation of the original input.
 func MarshalChain(chain ChainReport) ([]byte, error) {
-	if chain.Schema != ChainSchema || chain.Scope != ChainScope || chain.InputFileDigest == "" || len(chain.Hops) == 0 || len(chain.Path) != len(chain.Hops)+1 {
+	if chain.seal == nil || chain.Schema != ChainSchema || chain.Scope != ChainScope || chain.InputFileDigest == "" || len(chain.Hops) == 0 || len(chain.Path) != len(chain.Hops)+1 {
 		return nil, ErrIntegrity
 	}
 	// the verdicts are derived data: a chain whose verdicts do not follow from its sealed reports does not encode
@@ -240,10 +274,8 @@ func MarshalChain(chain ChainReport) ([]byte, error) {
 	if verdict, _ := chainVerdict(chain.Hops, chain.Whole); verdict != chain.Verdict {
 		return nil, ErrIntegrity
 	}
-	for _, hop := range append(append([]ChainHop(nil), chain.Hops...), chain.Whole) {
-		if _, err := MarshalReport(hop.Report); err != nil {
-			return nil, ErrIntegrity
-		}
+	if sealedDigest, err := chainDigest(chain); err != nil || sealedDigest != chain.seal.digest {
+		return nil, ErrIntegrity
 	}
 	raw, err := marshalPlain(chain)
 	if err != nil {
