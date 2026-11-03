@@ -19,13 +19,14 @@ Allow-list STATE/rules-allow.json = {"<rule id>#<variant id>" | "*#<variant id>"
 for documented, scoped PASS cases. An allowed key that still passes is reported and does not alarm; an allowed key whose
 case is now non-PASS (or a "*" key that matched nothing although the variant ran, or a key whose rule id left rules.json
 or whose in-scope rule did not run it) is a STALE entry and alarms (mismatch
-+ error), so the list only shrinks. A malformed entry is an error. A missing or empty list is the release gate.
-Environment: the qalib variables plus QA_PROJECTS (comma list, only these projects), QA_JOBS (parallel runs, default 3).
++ error), so the list only shrinks. A malformed entry is an error. Batch publication (QA_BASE set) ignores
+this diagnostic list and the QA_PROJECTS filter: every actual failure stays in the totals.
+Environment: the qalib variables plus QA_PROJECTS (diagnostic project filter), QA_JOBS (parallel runs, default 3).
 """
 import argparse, concurrent.futures as cf, base64, json, os, subprocess, sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from qalib import BIN, SRC, TMP, NOW, ENV, case, counts, dump, write_private
+from qalib import BIN, SRC, boxed, TMP, NOW, ENV, case, counts, dump, write_private
 import corpus
 PASS_OK = corpus.PASS_OK
 
@@ -88,7 +89,7 @@ def run(project, data, tag):
         fh.write(data)
     cmd = [BIN, "check", "cncf", "--project", project, "--input", f, "--now", PROBE_NOW, "--format", "json"]
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=TIMEOUT, errors="replace")
+        r = subprocess.run(boxed(cmd), capture_output=True, text=True, timeout=TIMEOUT, errors="replace")
     except subprocess.TimeoutExpired:
         return -9, "timeout", cmd
     try:
@@ -108,8 +109,10 @@ except Exception as e:
     dump([case("rules", "rules-unreadable", error=True, why=repr(e))], a.out)
     print("rules unreadable", e)
     raise SystemExit(0)
-only = {p for p in ENV("QA_PROJECTS", "").split(",") if p}
-entries = [e for e in data["entries"] if e["rule"]["operator"] in OPS and (not only or e["project"] in only)]
+only = set() if ENV("QA_BASE", "") else {p for p in ENV("QA_PROJECTS", "").split(",") if p}
+only_ids = {i for i in ENV("QA_RULES_IDS", "").split(",") if i}  # PR gate: changed rule ids only (empty = all)
+entries = [e for e in data["entries"] if e["rule"]["operator"] in OPS and (not only or e["project"] in only)
+           and (not only_ids or e["rule"]["id"] in only_ids)]
 ALL_IDS = {e["rule"]["id"] for e in data["entries"]}
 RUN_IDS = {e["rule"]["id"] for e in entries}
 JOBS = int(ENV("QA_JOBS", "3") or 3)
@@ -165,7 +168,7 @@ with cf.ThreadPoolExecutor(JOBS) as ex:
 
 # verdict -------------------------------------------------------------------------------------------------------
 allow, bad = {}, []
-if os.path.exists(a.allow):
+if not ENV("QA_BASE", "") and os.path.exists(a.allow):
     try:
         allow = json.load(open(a.allow))
         assert isinstance(allow, dict)

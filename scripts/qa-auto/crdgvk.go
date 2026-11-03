@@ -18,8 +18,12 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
+	"github.com/prufyx/prufyx/cli/internal/k8sremovals"
 )
 
 type gvk struct {
@@ -30,8 +34,34 @@ type gvk struct {
 func main() {
 	strip := flag.Bool("strip", false, "relax CRD schemas")
 	sample := flag.Bool("sample", false, "emit sample custom resources")
+	removalFacts := flag.Bool("removal-facts", false, "emit Kubernetes removal fact GVKs")
 	flag.Parse()
-	raw, _ := io.ReadAll(os.Stdin)
+	if *removalFacts {
+		facts := map[string][]string{}
+		for _, removals := range k8sremovals.ByTargetMinor() {
+			for _, removal := range removals {
+				for _, kind := range removal.Kinds {
+					facts[removal.Fact] = append(facts[removal.Fact], removal.Group+"/"+removal.Removed+"/"+kind)
+				}
+			}
+		}
+		for _, removal := range k8sremovals.RemovedVersions() {
+			if removal.Line == "1.32" {
+				for _, kind := range removal.Kinds {
+					facts[cncfprepare.KubernetesFlowControlFact] = append(facts[cncfprepare.KubernetesFlowControlFact], removal.Group+"/"+removal.Version+"/"+kind)
+				}
+			}
+		}
+		if err := json.NewEncoder(os.Stdout).Encode(facts); err != nil {
+			os.Exit(1)
+		}
+		return
+	}
+	raw, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 	dec := yaml.NewDecoder(bytes.NewReader(raw))
 	out := []gvk{}
 	var docs []any
@@ -40,6 +70,7 @@ func main() {
 		if err := dec.Decode(&d); err != nil {
 			if err != io.EOF {
 				fmt.Fprintln(os.Stderr, "yaml:", err)
+				os.Exit(1)
 			}
 			break
 		}
@@ -50,16 +81,35 @@ func main() {
 		names, _ := spec["names"].(map[string]any)
 		g, _ := spec["group"].(string)
 		k, _ := names["kind"].(string)
-		vs, _ := spec["versions"].([]any)
+		if g == "" || k == "" {
+			fmt.Fprintln(os.Stderr, "CRD group or kind missing")
+			os.Exit(1)
+		}
+		vs, validVersions := spec["versions"].([]any)
+		if _, present := spec["versions"]; present && !validVersions {
+			fmt.Fprintln(os.Stderr, "CRD versions must be a list")
+			os.Exit(1)
+		}
+		if len(vs) == 0 && spec["version"] == nil {
+			fmt.Fprintln(os.Stderr, "CRD versions missing")
+			os.Exit(1)
+		}
 		if len(vs) == 0 {
-			if v, ok := spec["version"].(string); ok {
-				out = append(out, gvk{g, v, k, true, true})
+			v, ok := spec["version"].(string)
+			if !ok || strings.TrimSpace(v) == "" {
+				fmt.Fprintln(os.Stderr, "CRD legacy version must be a nonempty string")
+				os.Exit(1)
 			}
+			out = append(out, gvk{g, v, k, true, true})
 		}
 		for _, x := range vs {
 			m, _ := x.(map[string]any)
 			n, _ := m["name"].(string)
-			s, _ := m["served"].(bool)
+			s, validServed := m["served"].(bool)
+			if n == "" || !validServed {
+				fmt.Fprintln(os.Stderr, "CRD version name or served flag invalid")
+				os.Exit(1)
+			}
 			st, _ := m["storage"].(bool)
 			out = append(out, gvk{g, n, k, s, st})
 			if *sample && s {
@@ -86,12 +136,22 @@ func main() {
 			docs = append(docs, d)
 		}
 	}
+	var output bytes.Buffer
 	if *strip || *sample {
 		for _, d := range docs {
-			b, _ := yaml.Marshal(d)
-			fmt.Printf("---\n%s", b)
+			b, err := yaml.Marshal(d)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "marshal:", err)
+				os.Exit(1)
+			}
+			fmt.Fprintf(&output, "---\n%s", b)
 		}
-		return
+	} else if err := json.NewEncoder(&output).Encode(out); err != nil {
+		fmt.Fprintln(os.Stderr, "encode:", err)
+		os.Exit(1)
 	}
-	json.NewEncoder(os.Stdout).Encode(out)
+	if _, err := os.Stdout.Write(output.Bytes()); err != nil {
+		fmt.Fprintln(os.Stderr, "write:", err)
+		os.Exit(1)
+	}
 }
