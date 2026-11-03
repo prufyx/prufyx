@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/scanconfig"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 )
@@ -119,12 +120,15 @@ type Stage struct {
 	From      string `json:"from"`
 	To        string `json:"to"`
 	Order     Order  `json:"order"`
+	InputDigest          string              `json:"inputDigest,omitempty"`
+	EngineContractDigest string              `json:"engineContractDigest,omitempty"`
+	NoticeEvidence       []scanreport.Notice `json:"noticeEvidence,omitempty"`
 	// HopStatus is the scan's status of the hop.
-	HopStatus   string    `json:"hopStatus"`
-	Verdict     string    `json:"verdict"`
-	Findings    []Finding `json:"findings"`
-	Unsupported []Finding `json:"unsupported"`
-	Notices     []string  `json:"notices"`
+	HopStatus            string              `json:"hopStatus"`
+	Verdict              string              `json:"verdict"`
+	Findings             []Finding           `json:"findings"`
+	Unsupported          []Finding           `json:"unsupported"`
+	Notices              []string            `json:"notices"`
 	// Reasons are the codes that keep the stage from PASS other than a
 	// finding: scan gaps of the hop, the order, unchecked actions.
 	Reasons []string `json:"reasons"`
@@ -136,12 +140,42 @@ type Stage struct {
 
 // Finding is a rule result placed in a stage.
 type Finding struct {
-	RuleID string `json:"ruleId"`
-	Title  string `json:"title"`
-	Fix    string `json:"fix"`
+	Evidence Evidence `json:"evidence"`
+	RuleID   string   `json:"ruleId"`
+	Title    string   `json:"title"`
+	Fix      string   `json:"fix"`
 	// Whole is true when the rule decided the end-to-end upgrade; it is
 	// shown in exactly one stage.
 	Whole bool `json:"whole,omitempty"`
+}
+
+// Evidence identifies the scan result placed in a stage.
+type Evidence struct {
+	Hop         scanreport.HopRef                 `json:"hop"`
+	AlsoAt      []scanreport.HopRef               `json:"alsoAt,omitempty"`
+	Citations   []constraintengine.SourceEvidence `json:"citations"`
+	RuleDigest  string                            `json:"ruleDigest,omitempty"`
+	CrossedLine *scanreport.CrossedLine           `json:"crossedLine,omitempty"`
+}
+
+func findingEvidence(f scanreport.Finding) Evidence {
+	e := Evidence{Hop: f.Hop, AlsoAt: clone(f.AlsoAt), Citations: clone(f.Citations), RuleDigest: f.RuleDigest}
+	if f.CrossedLine != nil {
+		c := *f.CrossedLine
+		e.CrossedLine = &c
+	}
+	return e
+}
+func unsupportedEvidence(u scanreport.Unsupported) Evidence {
+	return Evidence{Hop: u.Hop, AlsoAt: clone(u.AlsoAt), Citations: clone(u.Citations)}
+}
+func clone[T any](s []T) []T {
+	if s == nil {
+		return nil
+	}
+	result := make([]T, len(s))
+	copy(result, s)
+	return result
 }
 
 // Gap is a reason part of the answer is missing.
@@ -219,7 +253,7 @@ func Build(report scanreport.Report, latest []string, caps Capabilities) Plan {
 }
 
 func newStage(path scanreport.Path, hop scanreport.Hop, hasK8s, multipleComponents bool, report scanreport.Report, caps Capabilities, used map[string]bool) Stage {
-	stage := Stage{Component: path.Component, From: hop.From.String(), To: hop.To.String(), HopStatus: hop.Status,
+	stage := Stage{Component: path.Component, From: hop.From.String(), To: hop.To.String(), HopStatus: hop.Status, InputDigest: hop.InputDigest, EngineContractDigest: hop.EngineContractDigest,
 		Findings: []Finding{}, Unsupported: []Finding{}, Notices: []string{}, Reasons: []string{}, Gaps: []Gap{}}
 	switch {
 	case path.Component == kubernetes && path.Policy != "":
@@ -235,19 +269,22 @@ func newStage(path scanreport.Path, hop scanreport.Hop, hasK8s, multipleComponen
 	}
 	for _, f := range report.Findings {
 		if f.Component == path.Component && !f.Hop.WholeUpgrade && f.Hop.Index == hop.Index {
-			stage.Findings = append(stage.Findings, Finding{RuleID: f.RuleID, Title: f.Title, Fix: f.Fix})
+			stage.Findings = append(stage.Findings, Finding{RuleID: f.RuleID, Title: f.Title, Fix: f.Fix, Evidence: findingEvidence(f)})
 			used["f:"+key(f.Component, f.RuleID)] = true
 		}
 	}
 	for _, u := range report.Unsupported {
 		if u.Component == path.Component && !u.Hop.WholeUpgrade && u.Hop.Index == hop.Index {
-			stage.Unsupported = append(stage.Unsupported, Finding{RuleID: u.RuleID, Title: u.Reason, Fix: u.Fix})
+			stage.Unsupported = append(stage.Unsupported, Finding{RuleID: u.RuleID, Title: u.Reason, Fix: u.Fix, Evidence: unsupportedEvidence(u)})
 			used["u:"+key(u.Component, u.RuleID)] = true
 		}
 	}
 	for _, n := range report.Notices {
 		if n.Component == path.Component && !n.Hop.WholeUpgrade && n.Hop.Index == hop.Index {
 			stage.Notices = append(stage.Notices, n.RuleID+": "+n.Text)
+			n.AlsoAt = clone(n.AlsoAt)
+			n.Citations = clone(n.Citations)
+			stage.NoticeEvidence = append(stage.NoticeEvidence, n)
 		}
 	}
 	for i, g := range report.Gaps {
@@ -274,7 +311,7 @@ func placeWhole(plan *Plan, report scanreport.Report, used map[string]bool) {
 			continue
 		}
 		if i, ok := last[f.Component]; ok {
-			plan.Stages[i].Findings = append(plan.Stages[i].Findings, Finding{RuleID: f.RuleID, Title: f.Title, Fix: f.Fix, Whole: true})
+			plan.Stages[i].Findings = append(plan.Stages[i].Findings, Finding{RuleID: f.RuleID, Title: f.Title, Fix: f.Fix, Whole: true, Evidence: findingEvidence(f)})
 			plan.Stages[i].WholeUpgrade = true
 			used["f:"+key(f.Component, f.RuleID)] = true
 		}
@@ -293,7 +330,7 @@ func placeWhole(plan *Plan, report scanreport.Report, used map[string]bool) {
 			continue
 		}
 		if i, ok := last[u.Component]; ok {
-			plan.Stages[i].Unsupported = append(plan.Stages[i].Unsupported, Finding{RuleID: u.RuleID, Title: u.Reason, Fix: u.Fix, Whole: true})
+			plan.Stages[i].Unsupported = append(plan.Stages[i].Unsupported, Finding{RuleID: u.RuleID, Title: u.Reason, Fix: u.Fix, Whole: true, Evidence: unsupportedEvidence(u)})
 			plan.Stages[i].WholeUpgrade = true
 			used["u:"+key(u.Component, u.RuleID)] = true
 		}

@@ -3,10 +3,12 @@
 package upgradeplan
 
 import (
+	"encoding/json"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 )
 
@@ -212,5 +214,95 @@ func TestFinishReportUnknownLowersPlan(t *testing.T) {
 	finish(plan, scanreport.Report{Verdict: scanreport.VerdictUnknown}, 1)
 	if plan.Verdict != VerdictUnknown || plan.ExitCode != ExitUnknown {
 		t.Fatalf("verdict=%s exit=%d", plan.Verdict, plan.ExitCode)
+	}
+}
+
+func TestStageEvidenceRetained(t *testing.T) {
+	r := report()
+	r.Paths[1].Hops[1].InputDigest = "hop-input"
+	r.Paths[1].Hops[1].EngineContractDigest = "hop-contract"
+	r.Findings[0].Citations = []constraintengine.SourceEvidence{{ID: "source", URL: "https://example.test", StartLine: 4}}
+	r.Findings[0].RuleDigest = "rule-digest"
+	raw, err := json.Marshal(Build(r, nil, Capabilities{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got struct {
+		Stages []struct {
+			InputDigest string `json:"inputDigest"`
+			Findings    []struct {
+				Evidence struct {
+					Citations  []constraintengine.SourceEvidence `json:"citations"`
+					RuleDigest string                            `json:"ruleDigest"`
+				} `json:"evidence"`
+			} `json:"findings"`
+		} `json:"stages"`
+	}
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Stages[1].InputDigest != "hop-input" || got.Stages[1].Findings[0].Evidence.RuleDigest != "rule-digest" || len(got.Stages[1].Findings[0].Evidence.Citations) != 1 {
+		t.Fatalf("stage evidence lost: %s", raw)
+	}
+}
+
+func TestStageEvidenceSourcesAndCopies(t *testing.T) {
+	r := report()
+	r.Paths[1].Hops[0].InputDigest = "first"
+	r.Paths[1].Hops[1].InputDigest = "second"
+	r.Paths[1].Hops[1].EngineContractDigest = "contract"
+	r.Findings = []scanreport.Finding{
+		{RuleID: "same", Component: "kubernetes", Hop: scanreport.HopRef{Index: 1}, AlsoAt: []scanreport.HopRef{{Index: 2}}, Citations: []constraintengine.SourceEvidence{{ID: "first"}}, RuleDigest: "rule1", CrossedLine: &scanreport.CrossedLine{InputDigest: "step", EngineContractDigest: "step-contract"}},
+		{RuleID: "same", Component: "kubernetes", Hop: scanreport.HopRef{Index: 2}, Citations: []constraintengine.SourceEvidence{{ID: "second"}}},
+		{RuleID: "whole", Component: "kubernetes", Hop: scanreport.HopRef{WholeUpgrade: true, From: "1", To: "3"}, Citations: []constraintengine.SourceEvidence{{ID: "whole"}}},
+	}
+	r.Unsupported = []scanreport.Unsupported{{RuleID: "u", Component: "kubernetes", Hop: scanreport.HopRef{Index: 1}, AlsoAt: []scanreport.HopRef{{Index: 2}}, Citations: []constraintengine.SourceEvidence{{ID: "unsupported"}}}}
+	r.Notices = []scanreport.Notice{{RuleID: "n", Component: "kubernetes", Hop: scanreport.HopRef{Index: 1}, AlsoAt: []scanreport.HopRef{{Index: 2}}, Text: "notice", Established: true, Citations: []constraintengine.SourceEvidence{{ID: "notice"}}}}
+	p := Build(r, nil, Capabilities{})
+	a, b := &p.Stages[0], &p.Stages[1]
+	if a.InputDigest != "first" || b.InputDigest != "second" || b.EngineContractDigest != "contract" || p.Verdict != VerdictBlocked || a.Verdict != VerdictBlocked || b.Verdict != VerdictBlocked {
+		t.Fatal("stage digests or verdict changed")
+	}
+	if a.Findings[0].Evidence.Citations[0].ID != "first" || b.Findings[0].Evidence.Citations[0].ID != "second" || !b.Findings[1].Evidence.Hop.WholeUpgrade || b.Findings[1].Evidence.Citations[0].ID != "whole" || a.Findings[0].Evidence.CrossedLine.InputDigest != "step" || a.Findings[0].Evidence.CrossedLine.EngineContractDigest != "step-contract" {
+		t.Fatal("finding evidence mismatch")
+	}
+	if a.Unsupported[0].Evidence.Citations[0].ID != "unsupported" || a.Notices[0] != "n: notice" || a.NoticeEvidence[0].Citations[0].ID != "notice" {
+		t.Fatal("unsupported or notice evidence mismatch")
+	}
+	r.Findings[0].Citations[0].ID = "changed"
+	r.Findings[0].AlsoAt[0].Index = 9
+	r.Findings[0].CrossedLine.InputDigest = "changed"
+	r.Unsupported[0].Citations[0].ID = "changed"
+	r.Notices[0].Citations[0].ID = "changed"
+	r.Notices[0].AlsoAt[0].Index = 9
+	if a.Findings[0].Evidence.Citations[0].ID != "first" || a.Findings[0].Evidence.AlsoAt[0].Index != 2 || a.Findings[0].Evidence.CrossedLine.InputDigest != "step" || a.Unsupported[0].Evidence.Citations[0].ID != "unsupported" || a.NoticeEvidence[0].Citations[0].ID != "notice" || a.NoticeEvidence[0].AlsoAt[0].Index != 2 {
+		t.Fatal("plan aliases report")
+	}
+	a.Unsupported[0].Evidence.AlsoAt[0].Index = 7
+	if r.Unsupported[0].AlsoAt[0].Index != 2 {
+		t.Fatal("report aliases plan")
+	}
+	if b.Findings[0].Evidence.AlsoAt != nil || b.Findings[0].Evidence.CrossedLine != nil {
+		t.Fatal("absent evidence invented")
+	}
+}
+
+func TestEvidenceJSONAndEmptySlices(t *testing.T) {
+	r := report()
+	r.Findings[0].Citations = []constraintengine.SourceEvidence{}
+	p := Build(r, nil, Capabilities{})
+	if p.Stages[1].Findings[0].Evidence.Citations == nil {
+		t.Fatal("empty citations became nil")
+	}
+	raw, err := json.Marshal(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded Plan
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if decoded.Stages[1].Findings[0].Evidence.Citations == nil || decoded.Stages[1].Findings[0].RuleID != r.Findings[0].RuleID || decoded.Verdict != p.Verdict {
+		t.Fatal("round trip lost evidence or existing fields")
 	}
 }
