@@ -115,20 +115,20 @@ type Order struct {
 
 // Stage is one hop of one component, in plan order.
 type Stage struct {
-	Index     int    `json:"index"`
-	Component string `json:"component"`
-	From      string `json:"from"`
-	To        string `json:"to"`
-	Order     Order  `json:"order"`
+	Index                int                 `json:"index"`
+	Component            string              `json:"component"`
+	From                 string              `json:"from"`
+	To                   string              `json:"to"`
+	Order                Order               `json:"order"`
 	InputDigest          string              `json:"inputDigest,omitempty"`
 	EngineContractDigest string              `json:"engineContractDigest,omitempty"`
 	NoticeEvidence       []scanreport.Notice `json:"noticeEvidence,omitempty"`
 	// HopStatus is the scan's status of the hop.
-	HopStatus            string              `json:"hopStatus"`
-	Verdict              string              `json:"verdict"`
-	Findings             []Finding           `json:"findings"`
-	Unsupported          []Finding           `json:"unsupported"`
-	Notices              []string            `json:"notices"`
+	HopStatus   string    `json:"hopStatus"`
+	Verdict     string    `json:"verdict"`
+	Findings    []Finding `json:"findings"`
+	Unsupported []Finding `json:"unsupported"`
+	Notices     []string  `json:"notices"`
 	// Reasons are the codes that keep the stage from PASS other than a
 	// finding: scan gaps of the hop, the order, unchecked actions.
 	Reasons []string `json:"reasons"`
