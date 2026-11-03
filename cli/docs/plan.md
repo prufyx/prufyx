@@ -21,9 +21,10 @@ the scan, with the same rule id and fix.
 
 - Kubernetes stages come first, one per hop, in the order of the reviewed
   `sequential_minor` path policy (order label `required`).
-- Other components follow, one stage per hop (order label `inferred`: no
-  support-range data says an app must move earlier or later; label `free`
-  when no Kubernetes path is planned).
+- Other components follow, one stage per hop. Their order is `inferred` when
+  a Kubernetes path is planned or multiple components have planned hops:
+  reviewed evidence does not establish their relative order. Verify the order
+  before upgrading. With only one planned component, the order is `free`.
 - A whole-upgrade finding is shown in exactly one stage: the last stage of its
   component.
 - A component whose path the scan could not plan (a gap, no reviewed path
@@ -36,7 +37,7 @@ documented support range), `UNKNOWN`, `PASS`. The plan verdict is the worst
 stage; a plan with any not-planned component is at best `UNKNOWN`.
 
 A stage is `PASS` only when all of these hold: its hop is `COVERED` by the
-scan, the scan has no gap for the component, the order is `required`, the hop
+scan, the scan has no gap for the component, the order is `required` or `free`, the hop
 actions (CRD stored-version migrations and similar) are checked, and the node
 rolls are planned. **This version checks no hop actions and plans no node
 rolls, so no stage is `PASS` yet.** A `COVERED` hop shows as `UNKNOWN` with

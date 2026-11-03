@@ -113,6 +113,34 @@ func TestUnsupportedAndExit(t *testing.T) {
 	}
 }
 
+func TestAppOrderRequiresEvidenceForMultiplePlannedComponents(t *testing.T) {
+	app := func(name string) scanreport.Path {
+		return scanreport.Path{Component: name, Hops: []scanreport.Hop{hop(1, "1.0.0", "1.1.0", scanreport.HopCovered)}}
+	}
+	for _, tc := range []struct {
+		name           string
+		paths          []scanreport.Path
+		order, verdict string
+	}{
+		{"two apps", []scanreport.Path{app("a"), app("b")}, OrderInferred, VerdictUnknown},
+		{"one app", []scanreport.Path{app("a")}, OrderFree, VerdictPass},
+		{"one app and empty path", []scanreport.Path{app("a"), {Component: "b"}}, OrderFree, VerdictPass},
+		{"one app and unplanned Kubernetes", []scanreport.Path{app("a"), {Component: "kubernetes", Gap: "unplanned", Hops: []scanreport.Hop{hop(1, "1.0.0", "1.1.0", scanreport.HopCovered)}}}, OrderFree, VerdictPass},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := Build(scanreport.Report{Verdict: scanreport.VerdictPass, Paths: tc.paths}, nil, Capabilities{ActionsChecked: true})
+			for _, s := range p.Stages {
+				if s.Order.Kind != tc.order || s.Verdict != tc.verdict || slices.Contains(s.Reasons, ReasonOrderInferred) != (tc.order == OrderInferred) {
+					t.Fatalf("stage: %+v", s)
+				}
+			}
+			if tc.name == "two apps" && (p.Verdict != VerdictUnknown || p.ExitCode != ExitUnknown) {
+				t.Fatalf("plan: %+v", p)
+			}
+		})
+	}
+}
+
 func TestLatestAndUnplannedAreGaps(t *testing.T) {
 	r := scanreport.Report{Verdict: scanreport.VerdictUnknown, Paths: []scanreport.Path{{Component: "x", From: "1.0.0", To: "2.0.0", Gap: "PATH_NOT_PLANNABLE"}}}
 	plan := Build(r, []string{"cilium"}, Capabilities{})
