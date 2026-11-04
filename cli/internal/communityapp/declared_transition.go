@@ -16,6 +16,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/certmanagervalues"
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/currentbundle"
 )
 
@@ -268,7 +269,7 @@ func evaluateDeclared(req declaredRequest, artifacts map[string]admittedDeclared
 			result.Stages = append(result.Stages, r)
 			continue
 		}
-		if from != s.From || to != s.To {
+		if (constraintengine.RuleTransition{From: from, To: to}).Match(s.From, s.To) != constraintengine.MatchAnchor {
 			return result, cncfcheck.ErrIntegrity
 		}
 		if fromMode != toMode {
@@ -363,7 +364,8 @@ func evaluateDeclaredRoute(ctx declaredContext, s declaredStage, before, after a
 	if err != nil || now.Location() != time.UTC || now.Nanosecond() != 0 {
 		return cncfcheck.ErrInvalid
 	}
-	report, err := cncfcheck.WithTrustPolicy(policy).CheckFacts(s.Component, facts, p.CanonicalInputJSON, now)
+	r := runtime{trust: policy}
+	report, err := r.cncfChecker().CheckFacts(s.Component, facts, p.CanonicalInputJSON, now)
 	if err != nil {
 		return err
 	}
@@ -410,7 +412,7 @@ func evaluateDeclaredCert(ctx declaredContext, s declaredStage, e declaredEntry,
 		return cncfcheck.ErrIntegrity
 	}
 	if report.Transition.DeclaredTransitionState == "exact_reviewed" {
-		if report.Transition.ReviewedFrom != s.From || report.Transition.ReviewedTo != s.To {
+		if (constraintengine.RuleTransition{From: report.Transition.ReviewedFrom, To: report.Transition.ReviewedTo}).Match(s.From, s.To) != constraintengine.MatchAnchor {
 			return cncfcheck.ErrIntegrity
 		}
 	} else {
