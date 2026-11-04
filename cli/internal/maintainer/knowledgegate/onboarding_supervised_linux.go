@@ -29,7 +29,7 @@ func (s *supervisedInputs) read(flags supervisedFlags) (draft, keys, export, dai
 		}
 	}
 	inputFlags, inputErr := unix.FcntlInt(0, unix.F_GETFL, 0)
-	if inputErr != nil || identities[0].Mode&unix.S_IFMT != unix.S_IFIFO || inputFlags&unix.O_ACCMODE != unix.O_RDONLY {
+	if inputErr != nil || inputFlags&unix.O_PATH != 0 || identities[0].Mode&unix.S_IFMT != unix.S_IFIFO || inputFlags&unix.O_ACCMODE != unix.O_RDONLY {
 		err = errors.New("descriptor 0 must be a read-only key input pipe")
 		return
 	}

@@ -1540,8 +1540,8 @@ existing key-file digest semantics. Inherited file offsets are ignored.
 Descriptors cannot alias each other or standard streams. All fixed slots are
 discovered and protected before wrapping any descriptor can initialize the
 runtime poller. Already close-on-exec handles were not transferred across exec
-and remain untouched on refusal. Stdin must be a read-only pipe before
-readiness. Descriptor 4 closes after its
+and remain untouched on refusal. Stdin must be a readable, read-only pipe before
+readiness; path-only handles are refused. Descriptor 4 closes after its
 running-executable match; the remaining owned inputs close on return. Git and
 upstream helper subprocesses do not inherit these objects.
 
