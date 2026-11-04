@@ -751,6 +751,12 @@ func listDetail(items []string) string {
 }
 
 func (r *Report) packChecks(cls *Classification, opts Options) {
+	r.packChecksWith(cls, opts, func(spec PackSpec) (AdmitOpts, bool) { return r.packOpts(spec, opts) })
+}
+
+// packChecksWith also validates an unsigned onboarding proposal against its
+// checked proposed table. Selecting data here never admits a change or signature.
+func (r *Report) packChecksWith(cls *Classification, opts Options, selectOpts func(PackSpec) (AdmitOpts, bool)) {
 	loosenedWeeks := map[string]map[string]bool{}
 	for _, c := range cls.Changes {
 		if c.Class != ClassLoosening || c.head == nil || c.head.Evidence.State != "active" {
@@ -780,7 +786,14 @@ func (r *Report) packChecks(cls *Classification, opts Options) {
 			r.add("admit/"+spec.Name, !b.Present, "the pack file is missing")
 			continue
 		}
-		stats, err := r.admitPack(spec, opts)
+		admission, selected := selectOpts(spec)
+		var stats PackStats
+		var err error
+		if selected {
+			stats, err = spec.AdmitWith(opts.Head, admission)
+		} else {
+			stats, err = spec.Admit(opts.Head)
+		}
 		if err != nil {
 			r.add("admit/"+spec.Name, false, "the engine does not admit the pack: %v", err)
 		} else {
@@ -795,7 +808,13 @@ func (r *Report) packChecks(cls *Classification, opts Options) {
 		r.attestationRulecheck(spec, h)
 		r.staggerCheck(spec, h, loosenedWeeks[spec.Name])
 		r.recordStaggerCheck(cls, spec, b, h, loosenedWeeks[spec.Name])
-		r.attestationCheck(spec, opts)
+		var want []byte
+		if selected {
+			want, err = spec.AttestWith(opts.Head, admission)
+		} else {
+			want, err = spec.Attest(opts.Head)
+		}
+		r.attestationCheck(spec, opts, want, err)
 		r.basisCheck(spec, h)
 	}
 }
@@ -814,22 +833,6 @@ func (r *Report) packOpts(spec PackSpec, opts Options) (AdmitOpts, bool) {
 		return AdmitOpts{Definitions: definitions}, true
 	}
 	return AdmitOpts{}, false
-}
-
-// admitPack is spec.Admit, or spec.AdmitWith under packOpts.
-func (r *Report) admitPack(spec PackSpec, opts Options) (PackStats, error) {
-	if o, ok := r.packOpts(spec, opts); ok {
-		return spec.AdmitWith(opts.Head, o)
-	}
-	return spec.Admit(opts.Head)
-}
-
-// attestPack is spec.Attest, or spec.AttestWith under packOpts.
-func (r *Report) attestPack(spec PackSpec, opts Options) ([]byte, error) {
-	if o, ok := r.packOpts(spec, opts); ok {
-		return spec.AttestWith(opts.Head, o)
-	}
-	return spec.Attest(opts.Head)
 }
 
 func (r *Report) sizeCheck(spec PackSpec, stats PackStats, baseLen, headLen int, loosens bool) {
@@ -909,8 +912,7 @@ func (r *Report) staggerCheck(spec PackSpec, h *loadedPack, weeks map[string]boo
 	r.add("stagger/"+spec.Name, len(over) == 0, "cap %d rules per ISO week%s", limit, listDetail(over))
 }
 
-func (r *Report) attestationCheck(spec PackSpec, opts Options) {
-	want, err := r.attestPack(spec, opts)
+func (r *Report) attestationCheck(spec PackSpec, opts Options, want []byte, err error) {
 	if err != nil {
 		r.add("attestation/"+spec.Name, false, "cannot regenerate the corpus attestation: %v", err)
 		return

@@ -1154,7 +1154,11 @@ authorize admission. An approval commit must add only its batch file on top of
 the exact bound unsigned candidate. Git replacement objects are ignored.
 
 The bot signing command performs offline admission, real BASE-history caps,
-source dry runs and Git/ref/snapshot checks before accessing the private key.
+source dry runs, pack/corpus-attestation and generated-output checks, and
+Git/ref/snapshot checks before accessing the private key. The unsigned candidate
+must not already add an approval. After key input, the command rechecks local
+refs, object/caller snapshots and the current clock before signing; this local
+recheck does not refresh remote controls.
 It requires an expected public bot key ID instead of deriving that ID from
 the private key during preparation. The limits remain 15 new projects per
 batch and 14 bot batches/210 projects per seven-day window, counted by

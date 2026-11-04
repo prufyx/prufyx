@@ -292,6 +292,19 @@ func cmdOnboardingSign(args []string, env approvalEnv, layout Layout, stdout io.
 	if envl.binding != nil && keyID != admission.expectedKey {
 		return 2, errors.New("private key does not match expected admitted bot key")
 	}
+	verifiedAt := now
+	if envl.binding != nil {
+		// Key input may block after readiness. Check the actual local refs,
+		// immutable objects, caller snapshots and clock again before signing.
+		verifiedAt = env.now().UTC().Truncate(time.Second)
+		admissionOpts.Now = verifiedAt
+		if err := checkBotAdmission(context.Background(), envl, keys, admissionOpts, true); err != nil {
+			return 2, err
+		}
+		if err := equalAdmissionTrees(base, head, inputBase, inputHead); err != nil {
+			return 2, err
+		}
+	}
 	rec.Identity, rec.Decision = identity, ApprovalDecisionApprove
 	rec.DecidedAt = now.Format("2006-01-02T15:04:05Z")
 	rec.NotAfter = notAfter.Format("2006-01-02T15:04:05Z")
@@ -307,7 +320,7 @@ func cmdOnboardingSign(args []string, env approvalEnv, layout Layout, stdout io.
 		return 2, err
 	}
 	raw = append(raw, '\n')
-	if err := verifyOnboardingSignature(envl, keys, now); err != nil {
+	if err := verifyOnboardingSignature(envl, keys, verifiedAt); err != nil {
 		return 2, fmt.Errorf("the signed batch does not verify: %w", err)
 	}
 	if why := st.checkEnvelopeDigests(envl); why != "" {
@@ -316,7 +329,7 @@ func cmdOnboardingSign(args []string, env approvalEnv, layout Layout, stdout io.
 	if why := refuseOnboarding(envl, baseFiles); why != "" {
 		return 2, errors.New(why)
 	}
-	if why := botOnboardingLimits(envl, keys, baseFiles, now, false); why != "" {
+	if why := botOnboardingLimits(envl, keys, baseFiles, verifiedAt, false); why != "" {
 		return 2, errors.New(why)
 	}
 	if err := writeApprovalFile(output, raw); err != nil {

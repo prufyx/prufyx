@@ -83,6 +83,7 @@ func (a admissionFlags) signOptions(layout Layout, base, head Tree, keysDigest s
 // prepareBotAdmission performs actual offline and upstream admission before a
 // private key is loaded. It never substitutes an owner or throwaway signature.
 func prepareBotAdmission(ctx context.Context, opts Options, keys ApprovalKeys, rec OnboardingRecord, export OnboardingExportBinding, kid string) (OnboardingEnvelope, error) {
+	opts.defaults()
 	g := opts.OnboardingGit
 	if err := checkAdmissionRefs(ctx, g); err != nil {
 		return OnboardingEnvelope{}, err
@@ -118,9 +119,12 @@ func prepareBotAdmission(ctx context.Context, opts Options, keys ApprovalKeys, r
 	if err != nil {
 		return OnboardingEnvelope{}, err
 	}
-	_, files, err := onboardingFiles(opts)
+	added, files, err := onboardingFiles(opts)
 	if err != nil {
 		return OnboardingEnvelope{}, err
+	}
+	if len(added) != 0 {
+		return OnboardingEnvelope{}, errors.New("unsigned candidate must not already add an onboarding approval")
 	}
 	hash, err := domainDigest(OnboardingSchemaV2+"/history\x00", files)
 	if err != nil {
@@ -162,10 +166,54 @@ func prepareBotAdmission(ctx context.Context, opts Options, keys ApprovalKeys, r
 			return OnboardingEnvelope{}, fmt.Errorf("pre-key dry run %s: %w", p.Slug, err)
 		}
 	}
+	if err := checkOnboardingContent(ctx, opts, keys, st); err != nil {
+		return OnboardingEnvelope{}, err
+	}
 	if err := checkBotAdmission(ctx, e, keys, opts, true); err != nil {
 		return OnboardingEnvelope{}, err
 	}
 	return e, nil
+}
+
+// checkOnboardingContent runs the gate's applicable content checks without
+// asserting that an unsigned approval or its registry change was admitted.
+// O2 has already restricted classification to the proposed registryDigest;
+// it excludes rule, record, chain, schema and trust changes requiring proofs.
+func checkOnboardingContent(ctx context.Context, opts Options, keys ApprovalKeys, st *onboardingState) error {
+	r := newReport(st.cls, opts)
+	r.ChangedPaths = st.changedPaths
+	special, err := opts.Head.SpecialFiles(cliDir)
+	if err != nil {
+		return err
+	}
+	r.add("tree", len(special) == 0, "%d links or special files under %s%s", len(special), cliDir, listDetail(special))
+	r.packChecksWith(st.cls, opts, func(spec PackSpec) (AdmitOpts, bool) {
+		return AdmitOpts{TableRaw: st.head.table}, spec.Name == opts.Layout.Onboarding.Pack
+	})
+	r.generatedChecks(opts)
+	r.blockChecks(opts)
+	r.trustCheck(opts)
+	r.recordsTrustCheck(st.cls, opts)
+	r.modeCheck(opts)
+	loadKeys := func() (*ApprovalKeys, error) { return &keys, nil }
+	r.baselineApprovalsUsed = r.baselinesCheck(opts, loadKeys, &baseApprovals{opts: opts})
+	r.recordCheck(st.cls, map[string]statementResult{}, opts)
+	r.onboardingRecordsCheck(opts, nil)
+	r.citationCheck(ctx, st.cls, opts)
+	r.emptyListCitations(st.cls)
+	r.budgetCheck(opts)
+	r.shardStaleCheck(opts)
+	r.limitChecks(st.cls, opts)
+	var problems []string
+	for _, check := range r.Checks {
+		if !check.OK {
+			problems = append(problems, check.Name+": "+check.Detail)
+		}
+	}
+	if len(problems) != 0 {
+		return fmt.Errorf("pre-key gate content checks: %s", strings.Join(problems, "; "))
+	}
+	return nil
 }
 
 func marshalOnboardingEnvelope(e OnboardingEnvelope) ([]byte, error) {

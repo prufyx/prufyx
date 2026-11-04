@@ -547,6 +547,101 @@ func TestOnboardingV2SigningPreKeyOrder(t *testing.T) {
 	}
 }
 
+func TestOnboardingV2PreKeyContentChecks(t *testing.T) {
+	t.Parallel()
+	for _, mode := range []string{"corpus attestation", "generated JSON", "generated Markdown", "existing batch"} {
+		t.Run(mode, func(t *testing.T) {
+			a := newAdmissionFixture(t, nil)
+			var path string
+			switch mode {
+			case "corpus attestation":
+				for _, spec := range a.opts.Layout.Packs {
+					if spec.Name == a.opts.Layout.Onboarding.Pack {
+						path = spec.AttestationPath
+					}
+				}
+			case "generated JSON":
+				path = a.opts.Layout.Generated[0].JSONPath
+			case "generated Markdown":
+				path = a.opts.Layout.Generated[0].MarkdownPath
+			case "existing batch":
+				path = a.opts.Layout.Onboarding.Dir + "/" + a.f.draft.BatchID + ".json"
+			}
+			writeFile(t, filepath.Join(a.opts.Head.Root, filepath.FromSlash(path)), []byte("{}\n"))
+			g := a.opts.OnboardingGit
+			g.HeadCommit = admissionCommit(t, g.GitDir, a.opts.Head, g.BaseCommit)
+			gitIn(t, g.GitDir, "update-ref", admissionHeadRef, g.HeadCommit)
+			patch, err := admissionGit(context.Background(), g, "diff", "--no-ext-diff", "--no-textconv", "--no-color", "--no-renames", g.BaseCommit, g.HeadCommit, "--")
+			if err != nil {
+				t.Fatal(err)
+			}
+			a.env.binding.Export.PublicLineHash = onboardingLineHash(patch)
+			reader, fd := admissionTestPipe(t)
+			reads := 0
+			env := approvalEnv{onboardingSource: a.f.src, stdin: bytes.NewReader(a.bot.pemKey(t)), checkStdin: func(io.Reader) error {
+				reads++
+				return errors.New("key input reached")
+			}, now: func() time.Time { return gateNow }, random: bytes.NewReader(make([]byte, 128)), confirm: func(string) (string, error) { return a.f.draft.BatchID, nil }}
+			args := append(admissionSignArgs(t, a), "--admission-ready-fd", strconv.Itoa(fd))
+			output := filepath.Join(t.TempDir(), filepath.Base(a.opts.Layout.Onboarding.Dir), a.f.draft.BatchID+".json")
+			args = append(args, "--output", output)
+			var out, errs bytes.Buffer
+			if code := approvalMain(args, env, DefaultLayout(), &out, &errs); code != 2 || reads != 0 {
+				t.Fatalf("code=%d key accesses=%d error=%s", code, reads, errs.String())
+			}
+			if raw, err := io.ReadAll(reader); err != nil || len(raw) != 0 {
+				t.Fatalf("failed content checks emitted readiness: %q %v", raw, err)
+			}
+			if _, err := os.Stat(output); !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("failed content checks wrote a signature: %v", err)
+			}
+		})
+	}
+}
+
+func TestOnboardingV2PostKeyRecheck(t *testing.T) {
+	t.Parallel()
+	for _, mode := range []string{"ref", "caller snapshot", "clock"} {
+		t.Run(mode, func(t *testing.T) {
+			a := newAdmissionFixture(t, nil)
+			reader, fd := admissionTestPipe(t)
+			result := make(chan error, 1)
+			go func() { _, err := ReadOnboardingReadiness(reader, readinessExpected(a)); result <- err }()
+			advanced := false
+			reads := 0
+			env := approvalEnv{onboardingSource: a.f.src, stdin: bytes.NewReader(a.bot.pemKey(t)), checkStdin: func(io.Reader) error {
+				if err := <-result; err != nil {
+					t.Fatalf("readiness: %v", err)
+				}
+				reads++
+				switch mode {
+				case "ref":
+					g := a.opts.OnboardingGit
+					gitIn(t, g.GitDir, "update-ref", admissionHeadRef, g.BaseCommit)
+				case "caller snapshot":
+					writeFile(t, filepath.Join(a.opts.Head.Root, "README.md"), []byte("changed during key input\n"))
+				case "clock":
+					advanced = true
+				}
+				return nil
+			}, now: func() time.Time {
+				if advanced {
+					return gateNow.Add(73 * time.Hour)
+				}
+				return gateNow
+			}, random: bytes.NewReader(make([]byte, 128)), confirm: func(string) (string, error) { return a.f.draft.BatchID, nil }}
+			args := append(admissionSignArgs(t, a), "--admission-ready-fd", strconv.Itoa(fd))
+			var out, errs bytes.Buffer
+			if code := approvalMain(args, env, DefaultLayout(), &out, &errs); code != 2 || reads != 1 {
+				t.Fatalf("code=%d key accesses=%d error=%s", code, reads, errs.String())
+			}
+			if a.opts.Head.Exists(a.opts.Layout.Onboarding.Dir + "/" + a.f.draft.BatchID + ".json") {
+				t.Fatal("changed local admission signed and wrote a batch")
+			}
+		})
+	}
+}
+
 func readinessExpected(a admissionFixture) OnboardingReadinessExpected {
 	draft, _ := json.Marshal(a.f.draft)
 	binding := *a.env.binding
