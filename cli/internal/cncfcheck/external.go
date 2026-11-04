@@ -105,7 +105,7 @@ func externalProfile(base bundle, canary bool) (*externalProfileDescriptor, erro
 	// ownership contract; it does not authenticate a producer or signing key.
 	p.capability = externalDigestJSON(struct {
 		Profile, LegacyCapability, RegistryDigest, Admission, Ownership, AdmissionPolicy string
-	}{"mariadb-galera-canary-v1", legacyCapability, p.registry.Digest(), digest([]byte(p.canaryEntry)), projectprepare.MariaDBOperatorProject + "/" + MariaDBCanaryRuleID, "legacy-plus-exact-entry;added-facts-exclusive-to-entry"})
+	}{"mariadb-galera-canary-v1", legacyCapability, p.registry.Digest(), digest([]byte(p.canaryEntry)), projectprepare.MariaDBOperatorProject + "/" + MariaDBCanaryRuleID, "legacy-plus-exact-entry;added-facts-exclusive-to-entry;reserved-id-exclusive-to-canary-profile-and-entry"})
 	return p, nil
 }
 
@@ -564,6 +564,15 @@ func validateExternalPackProfile(base bundle, profile *externalProfileDescriptor
 		definitions[definition.ID] = definition
 	}
 	for _, entry := range packValue.Entries {
+		var identity struct {
+			ID string `json:"id"`
+		}
+		if json.Unmarshal(entry.Rule, &identity) != nil {
+			return ErrIntegrity
+		}
+		if identity.ID == MariaDBCanaryRuleID && (profile.canaryEntry == "" || canonicalEntry(entry) != profile.canaryEntry) {
+			return ErrIntegrity
+		}
 		if _, found := base.identities()[entry.Project]; !found || entry.Description == "" || len(entry.Description) > 2048 {
 			return ErrInvalid
 		}

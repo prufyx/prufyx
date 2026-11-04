@@ -14,6 +14,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfknowledge"
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/customresources"
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
 	"github.com/prufyx/prufyx/cli/internal/knowledgefixture"
@@ -295,6 +296,8 @@ func TestMariaDBExternalSignedSelection(t *testing.T) {
 		{"missing", strings.Replace(mariadbOperatorTestResource, `"autoUpdateDataPlane":true`, "", 1), ExitUnknown},
 		{"null", strings.Replace(mariadbOperatorTestResource, `"autoUpdateDataPlane":true`, `"autoUpdateDataPlane":null`, 1), ExitUnknown},
 		{"invalid-galera", strings.Replace(mariadbOperatorTestResource, `"enabled":true`, `"enabled":"true"`, 1), ExitUnknown},
+		{"standalone", strings.Replace(mariadbOperatorTestResource, `"enabled":true`, `"enabled":false`, 1), ExitUnknown},
+		{"replication", strings.Replace(mariadbOperatorTestResource, `"galera":`, `"replication":{"enabled":true},"galera":`, 1), ExitUnknown},
 		{"invalid-replication", strings.Replace(mariadbOperatorTestResource, `"galera":`, `"replication":{"enabled":null},"galera":`, 1), ExitUnknown},
 		{"phase", mariadbOperatorTestResource, ExitUnknown},
 		{"complete", mariadbOperatorTestResource, ExitUnknown},
@@ -521,5 +524,97 @@ func TestMariaDBExternalHumanBinding(t *testing.T) {
 	}
 	if code != want || stderr != "" || !strings.Contains(out, receipt.TrustReceiptDigest) || !strings.Contains(out, digestCommunityBytes(target)) || !strings.Contains(out, "whole-upgrade assessment: UNKNOWN") || strings.Contains(out, "PRIVATE_OPERATOR_NATIVE") {
 		t.Fatalf("human code=%d out=%s stderr=%s", code, out, stderr)
+	}
+}
+
+// mariaDBFixtureRuleDigest uses the engine independently of target admission
+// so an invalid semantic identity still has a correctly bound signed index.
+func mariaDBFixtureRuleDigest(t *testing.T, envelope map[string]any, canary bool) string {
+	t.Helper()
+	definitions := cncfcheck.CompiledFactDefinitions()
+	if canary {
+		for _, id := range []string{projectprepare.MariaDBOperatorAutoUpdateFact, projectprepare.MariaDBOperatorGaleraFact, projectprepare.MariaDBOperatorReplicationFact, projectprepare.MariaDBOperatorPreUpdateFact, projectprepare.MariaDBOperatorResourceCompleteFact} {
+			definitions = append(definitions, constraintengine.FactDefinition{ID: id, Component: projectprepare.MariaDBOperatorComponent, Type: constraintengine.FactBool})
+		}
+	}
+	registry, err := constraintengine.NewCompiledRegistry(definitions)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pack := envelope["pack"].(map[string]any)
+	if registry.Digest() != pack["registryDigest"] {
+		t.Fatal("fixture registry differs from selected profile")
+	}
+	rule, err := json.Marshal(pack["entries"].([]any)[0].(map[string]any)["rule"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	rules := []json.RawMessage{rule}
+	schema, err := constraintengine.RulesSchemaFor(rules)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(map[string]any{"schema": schema, "revision": pack["revision"], "policyId": pack["policyId"], "policyDigest": pack["policyDigest"], "rules": rules})
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := constraintengine.ParseRuleSet(raw, registry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest, err := parsed.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return digest
+}
+
+func TestMariaDBExternalReservedIDSubstitution(t *testing.T) {
+	repo, err := knowledgefixture.NewProjectsRepository(time.Now().UTC().Truncate(time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer repo.Close()
+	for _, canary := range []bool{false, true} {
+		name := "legacy"
+		if canary {
+			name = "canary"
+		}
+		t.Run(name, func(t *testing.T) {
+			original, _ := mariaDBCRDTarget(t, canary)
+			targets := mariaDBTargets(t, original, "mariadb-operator")
+			_, receipt, err := importMariaDBFixture(t, repo, targets, nil)
+			if err != nil || receipt.Status != "IMPORTED" {
+				t.Fatalf("legitimate CRD import=%+v err=%v", receipt, err)
+			}
+			var envelope map[string]any
+			if json.Unmarshal(original, &envelope) != nil {
+				t.Fatal("fixture")
+			}
+			envelope["pack"].(map[string]any)["entries"].([]any)[0].(map[string]any)["rule"].(map[string]any)["id"] = cncfcheck.MariaDBCanaryRuleID
+			forged, err := json.Marshal(envelope)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := cncfcheck.ParseExternalBundle(forged); err == nil {
+				t.Error("direct reserved semantic ID substitution admitted")
+			}
+			var index mariaDBTestIndex
+			if json.Unmarshal(targets[cncfcheck.ExternalIndexTargetPath], &index) != nil {
+				t.Fatal("index")
+			}
+			index.Projects[0].Digest = digestCommunityBytes(forged)
+			index.Projects[0].Length = int64(len(forged))
+			index.Projects[0].RuleDigest = mariaDBFixtureRuleDigest(t, envelope, canary)
+			targets[cncfcheck.ProjectTargetPath("mariadb-operator")] = forged
+			targets[cncfcheck.ExternalIndexTargetPath], err = json.Marshal(index)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, receipt, err = importMariaDBFixture(t, repo, targets, nil)
+			if err == nil || receipt.Status == "IMPORTED" {
+				t.Errorf("valid-signed reserved semantic ID substitution admitted: status=%s err=%v", receipt.Status, err)
+			}
+		})
 	}
 }
