@@ -495,16 +495,14 @@ such versions the extractor emits one rule:
     (twice) and `TARGET_SERIES`, so the engine knows the release boundary;
   - a new major or skipped minor numbers: each whole line, bounds
     `UPGRADE_FROM_SERIES` (twice) and `TARGET_SERIES` (twice);
-- next action: `change apiVersion of <Kind> to <group>/<version> before
-  upgrading to <To>`, naming the highest version the later anchor serves, or
-  `migrate <Kind> objects before upgrading to <To>` when it serves none. When a
-  removed version was the CRD's storage version at any release read (see
-  `storageHistory`), objects may still be stored in it and it stays in the
-  CRD's `status.storedVersions`, and an API server refuses a definition that
-  drops a stored version; the next action then says so first: `migrate stored
-  <Kind> objects to <version> and remove <removed versions> from
-  status.storedVersions, then change apiVersion to <group>/<version> before
-  upgrading to <To>` (or the same without a replacement version);
+- next action: migrate manifests and clients to the highest version the later
+  anchor serves, or identify a supported migration when it serves none. For
+  controller-managed objects, establish and follow a supported controller
+  migration path; the CRD does not establish which objects are managed or
+  whether such a path exists. When a removed version was a storage version
+  at any release read, complete and verify storage migration before removing
+  old versions from `status.storedVersions`. The highest served replacement
+  need not be the storage version. A missing migration path remains unresolved;
 - sources (each with the whole-file sha256 of the bytes read):
   `crd-versions-<release>`, the lines of the removed version entries at the
   earlier anchor (or, for a version only a later earlier-line release served,

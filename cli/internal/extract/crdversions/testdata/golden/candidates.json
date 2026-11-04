@@ -19,7 +19,7 @@
         "extractor": {
           "codeDigest": "sha256:CODE",
           "id": "crd.version-removal.argo-cd",
-          "version": "2.7.0"
+          "version": "2.8.0"
         },
         "reviewedAt": "2026-10-04T00:00:00Z",
         "sources": [
@@ -44,7 +44,7 @@
         "validUntil": "2027-01-02T00:00:00Z"
       },
       "id": "argo-cd.crd-version-removal.gadgets-fixture-argoproj-io.90-0-0-to-90-1-0",
-      "nextAction": "change apiVersion of Gadget to fixture.argoproj.io/v1 before upgrading to 90.1.0",
+      "nextAction": "migrate Gadget manifests/clients to fixture.argoproj.io/v1; for managed objects, follow supported controller migration or investigate before upgrade to 90.1.0",
       "operator": "forbid_set_member",
       "range": {
         "bounds": [
@@ -114,7 +114,7 @@
         "extractor": {
           "codeDigest": "sha256:CODE",
           "id": "crd.version-removal.argo-cd",
-          "version": "2.7.0"
+          "version": "2.8.0"
         },
         "reviewedAt": "2026-10-04T00:00:00Z",
         "sources": [
@@ -139,7 +139,7 @@
         "validUntil": "2027-01-02T00:00:00Z"
       },
       "id": "argo-cd.crd-version-removal.widgets-fixture-argoproj-io.90-0-0-to-90-1-0",
-      "nextAction": "change apiVersion of Widget to fixture.argoproj.io/v1 before upgrading to 90.1.0",
+      "nextAction": "migrate Widget manifests/clients to fixture.argoproj.io/v1; for managed objects, follow supported controller migration or investigate before upgrade to 90.1.0",
       "operator": "forbid_set_member",
       "range": {
         "bounds": [

@@ -38,7 +38,7 @@ const (
 	// IDPrefix is followed by the project slug: one extractor id per
 	// project, since a run reads one repository.
 	IDPrefix = "crd.version-removal."
-	Version  = "2.7.0"
+	Version  = "2.8.0"
 	// SourceDir is this package's directory under the module's internal/.
 	SourceDir = "extract/crdversions"
 )
@@ -1746,19 +1746,13 @@ func replacement(t *CRD) string {
 // listed in status.storedVersions, and an API server refuses a definition
 // that drops a stored version: the objects are migrated first.
 func nextAction(f *CRD, repl string, stored []string, to string) string {
-	if len(stored) == 0 {
-		if repl == "" {
-			return fmt.Sprintf("migrate %s objects before upgrading to %s", f.Kind, to)
-		}
-		return fmt.Sprintf("change apiVersion of %s to %s/%s before upgrading to %s", f.Kind, f.Group, repl, to)
+	api := fmt.Sprintf("identify a supported migration for %s manifests/clients", f.Kind)
+	if repl != "" {
+		api = fmt.Sprintf("migrate %s manifests/clients to %s/%s", f.Kind, f.Group, repl)
 	}
-	vs := strings.Join(stored, ", ")
-	if repl == "" {
-		return fmt.Sprintf("migrate stored %s objects off %s and remove it from status.storedVersions before upgrading to %s", f.Kind, vs, to)
-	}
-	next := fmt.Sprintf("migrate stored %s objects to %s and remove %s from status.storedVersions, then change apiVersion to %s/%s before upgrading to %s", f.Kind, repl, vs, f.Group, repl, to)
-	if len(next) > maxNext {
-		next = fmt.Sprintf("migrate stored %s objects to %s and prune status.storedVersions, then change apiVersion to %s/%s before upgrading to %s", f.Kind, repl, f.Group, repl, to)
+	next := fmt.Sprintf("%s; for managed objects, follow supported controller migration or investigate before upgrade to %s", api, to)
+	if len(stored) > 0 {
+		next = "verify completed storage migration before removing old status.storedVersions; " + next
 	}
 	return next
 }

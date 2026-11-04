@@ -335,11 +335,11 @@ func TestStoredVersionNextAction(t *testing.T) {
 	out := runSynth(t, synthTarget(), s)
 	_, proof := pairOf(t, out, "1.0.0", "1.1.0")
 	a := ruleOf(t, out, "argo-cd.crd-version-removal.alphas-synth-example-io.1-0-0-to-1-1-0")
-	if want := "migrate stored Alpha objects to v1 and remove v1beta1 from status.storedVersions, then change apiVersion to synth.example.io/v1 before upgrading to 1.1.0"; a.Rule.NextAction != want {
+	if want := "verify completed storage migration before removing old status.storedVersions; migrate Alpha manifests/clients to synth.example.io/v1; for managed objects, follow supported controller migration or investigate before upgrade to 1.1.0"; a.Rule.NextAction != want {
 		t.Fatalf("next action %q", a.Rule.NextAction)
 	}
 	b := ruleOf(t, out, "argo-cd.crd-version-removal.betas-synth-example-io.1-0-0-to-1-1-0")
-	if b.Rule.NextAction != "change apiVersion of Beta to synth.example.io/v1 before upgrading to 1.1.0" {
+	if b.Rule.NextAction != "migrate Beta manifests/clients to synth.example.io/v1; for managed objects, follow supported controller migration or investigate before upgrade to 1.1.0" {
 		t.Fatalf("next action %q", b.Rule.NextAction)
 	}
 	var hist []string
@@ -354,13 +354,10 @@ func TestStoredVersionNextAction(t *testing.T) {
 			t.Fatalf("removal %+v", rm)
 		}
 	}
-	if !strings.HasPrefix(nextAction(&CRD{Kind: "Alpha", Group: synthGroup}, "", []string{"v1beta1"}, "1.1.0"), "migrate stored Alpha objects off v1beta1") {
-		t.Fatal("no replacement")
+	if got := nextAction(&CRD{Kind: "Alpha", Group: synthGroup}, "", []string{"v1beta1"}, "1.1.0"); !strings.Contains(got, "identify a supported migration") || !strings.Contains(got, "verify completed storage migration") {
+		t.Fatalf("no replacement: %q", got)
 	}
-	long := nextAction(&CRD{Kind: "Alpha", Group: strings.Repeat("g", 120) + ".io"}, "v1", []string{"v1beta1"}, "1.1.0")
-	if len(long) > maxNext || !strings.Contains(long, "prune status.storedVersions") {
-		t.Fatalf("long next action %d %q", len(long), long)
-	}
+
 }
 
 // Exclusion entries and default segments match whole path segments.
@@ -426,5 +423,44 @@ func TestCitationPrefersTheEarlierAnchor(t *testing.T) {
 	}
 	if !slices.Equal(cited, []string{"crd-versions-1-0-0@" + commitOf("v1.0.0")}) {
 		t.Fatalf("sources %+v", e.Rule.Evidence.Sources)
+	}
+}
+
+func TestMigrationGuidanceDoesNotAssumeStorageOrOwnership(t *testing.T) {
+	later := &CRD{Group: "apiextensions.crossplane.io", Kind: "CompositionRevision", StorageVersion: "v1beta1", Versions: []CRDVersion{
+		{Name: "v1", Served: true}, {Name: "v1beta1", Served: true, Storage: true},
+	}}
+	repl := replacement(later)
+	if repl != "v1" || repl == later.StorageVersion {
+		t.Fatalf("replacement %q storage %q", repl, later.StorageVersion)
+	}
+	got := nextAction(later, repl, []string{"v1alpha1"}, "2.0.0")
+	for _, want := range []string{"verify completed storage migration", "manifests/clients to apiextensions.crossplane.io/v1", "managed objects, follow supported controller migration or investigate"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing %q in %q", want, got)
+		}
+	}
+	for _, bad := range []string{"stored CompositionRevision objects to v1", "change apiVersion", "edit CompositionRevision"} {
+		if strings.Contains(got, bad) {
+			t.Fatalf("unsafe guidance %q", got)
+		}
+	}
+	if len(got) > maxNext {
+		t.Fatalf("guidance exceeds bound: %d", len(got))
+	}
+}
+
+func TestOverlongMigrationGuidanceWithholdsPair(t *testing.T) {
+	kind := strings.Repeat("A", 63)
+	old := strings.Replace(strings.Replace(crd(kind, "v1beta1", "v1"), "storage: false", "storage: X", 1), "storage: true", "storage: false", 1)
+	old = strings.Replace(old, "storage: X", "storage: true", 1)
+	s := newSynth(
+		release{"v1.0.0", map[string]string{"deploy/crds/a.yaml": old}},
+		release{"v1.1.0", map[string]string{"deploy/crds/a.yaml": crd(kind, "v1")}},
+	)
+	out := runSynth(t, synthTarget(), s)
+	p, _ := pairOf(t, out, "1.0.0", "1.1.0")
+	if p.Status != extract.PairWithheld || !strings.Contains(p.Reason, "next action") || len(p.Rules) != 0 {
+		t.Fatalf("expected withheld pair: %+v", p)
 	}
 }

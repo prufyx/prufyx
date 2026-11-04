@@ -137,7 +137,7 @@ func TestCRDGolden(t *testing.T) {
 	if w.Rule.Operator != "forbid_set_member" || !slices.Equal(w.Rule.SetCondition.Members, []string{group + "/v1alpha2/Widget"}) || w.Rule.SetCondition.FactID != "component.argo_cd.custom_resource_versions_set" || w.Rule.Subject.From != "90.0.0" || w.Rule.Subject.To != "90.1.0" || w.Rule.Subject.Component != "pkg:github/argoproj/argo-cd" {
 		t.Fatalf("widget rule %+v", w.Rule)
 	}
-	if w.Rule.NextAction != "change apiVersion of Widget to fixture.argoproj.io/v1 before upgrading to 90.1.0" {
+	if w.Rule.NextAction != "migrate Widget manifests/clients to fixture.argoproj.io/v1; for managed objects, follow supported controller migration or investigate before upgrade to 90.1.0" {
 		t.Fatalf("next action %q", w.Rule.NextAction)
 	}
 	wl := fixtureLines(t, c0, "manifests/crds/widget-crd.yaml")
