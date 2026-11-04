@@ -58,14 +58,18 @@ func PrepareMariaDBOperatorResource(raw []byte, from, to string, complete, preOp
 	} else if !supported {
 		reason = "MARIADB_OPERATOR_RESOURCE_SHAPE_UNSUPPORTED"
 	} else {
-		facts[0].State, facts[0].BoolValue = "declared", operatorBoolPointer(autoUpdate)
-		facts[1].State, facts[1].BoolValue = "declared", operatorBoolPointer(galera)
+		for index, value := range []*bool{autoUpdate, galera, nil, replication, nil} {
+			if value != nil {
+				facts[index].State, facts[index].BoolValue = "declared", value
+			}
+		}
 		facts[2].State, facts[2].BoolValue = "declared", operatorBoolPointer(preOperatorUpdate)
-		facts[3].State, facts[3].BoolValue = "declared", operatorBoolPointer(replication)
 		facts[4].State, facts[4].BoolValue = "declared", operatorBoolPointer(complete)
-		if !complete || !preOperatorUpdate {
+		if galera == nil || replication == nil || autoUpdate == nil {
+			reason = "MARIADB_OPERATOR_RESOURCE_SHAPE_UNSUPPORTED"
+		} else if !complete || !preOperatorUpdate {
 			reason = "MARIADB_OPERATOR_RESOURCE_COMPLETENESS_OR_PHASE_UNDECLARED"
-		} else if galera && !replication {
+		} else if *galera && !*replication {
 			state, reason = "PREPARED", "MARIADB_OPERATOR_GALERA_RESOURCE_PREREQUISITE_DECLARED"
 		} else {
 			reason = "MARIADB_OPERATOR_GALERA_SCOPE_OR_DECLARATION_UNRESOLVED"
@@ -91,49 +95,40 @@ func PrepareMariaDBOperatorResource(raw []byte, from, to string, complete, preOp
 	}, nil
 }
 
-func mariaDBOperatorFacts(root map[string]any) (galera, replication, autoUpdate, supported bool) {
+func mariaDBOperatorFacts(root map[string]any) (galera, replication, autoUpdate *bool, supported bool) {
 	apiVersion, ok := exactString(root, "apiVersion")
 	if !ok || apiVersion != "k8s.mariadb.com/v1alpha1" {
-		return false, false, false, false
+		return nil, nil, nil, false
 	}
 	kind, ok := exactString(root, "kind")
 	if !ok || kind != "MariaDB" {
-		return false, false, false, false
+		return nil, nil, nil, false
 	}
 	spec, ok := exactObject(root, "spec")
 	if !ok {
-		return false, false, false, false
+		return nil, nil, nil, false
 	}
-	galeraObject, ok := exactObject(spec, "galera")
-	if !ok {
-		return false, false, false, false
-	}
-	galeraValue, ok := exactBool(galeraObject, "enabled")
-	if !ok {
-		return false, false, false, false
+	if object, ok := exactObject(spec, "galera"); ok {
+		if value, ok := exactBool(object, "enabled"); ok {
+			galera = operatorBoolPointer(value)
+		}
 	}
 	if value, exists := spec["replication"]; exists {
-		replicationObject, ok := value.(map[string]any)
-		if !ok || hasCaseVariant(spec, "replication") {
-			return false, false, false, false
+		if object, ok := value.(map[string]any); ok && !hasCaseVariant(spec, "replication") {
+			if value, ok := exactBool(object, "enabled"); ok {
+				replication = operatorBoolPointer(value)
+			}
 		}
-		replicationValue, ok := exactBool(replicationObject, "enabled")
-		if !ok {
-			return false, false, false, false
+	} else if !hasCaseVariant(spec, "replication") {
+		// Preserve the route's existing absent separate-replication mode.
+		replication = operatorBoolPointer(false)
+	}
+	if object, ok := exactObject(spec, "updateStrategy"); ok {
+		if value, ok := exactBool(object, "autoUpdateDataPlane"); ok {
+			autoUpdate = operatorBoolPointer(value)
 		}
-		replication = replicationValue
-	} else if hasCaseVariant(spec, "replication") {
-		return false, false, false, false
 	}
-	updateStrategy, ok := exactObject(spec, "updateStrategy")
-	if !ok {
-		return false, false, false, false
-	}
-	autoUpdate, ok = exactBool(updateStrategy, "autoUpdateDataPlane")
-	if !ok {
-		return false, false, false, false
-	}
-	return galeraValue, replication, autoUpdate, true
+	return galera, replication, autoUpdate, true
 }
 
 func exactBool(object map[string]any, key string) (bool, bool) {
