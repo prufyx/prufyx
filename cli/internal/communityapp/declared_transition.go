@@ -349,12 +349,14 @@ func evaluateDeclaredRoute(ctx declaredContext, s declaredStage, before, after a
 		return cncfcheck.ErrIntegrity
 	}
 	out.PreparedInputDigest = p.InputDigest
-	policy, err := cncfcheck.ParseTrustPolicy(ctx.TrustBases)
-	if err != nil {
-		return err
-	}
+	policy := cncfcheck.DefaultTrustPolicy()
 	if ctx.TrustBases == "" {
 		out.Gaps = append(out.Gaps, "declare the accepted evidence bases explicitly; the engine used its default policy")
+	} else {
+		policy, err = cncfcheck.ParseTrustPolicy(ctx.TrustBases)
+		if err != nil {
+			return err
+		}
 	}
 	now, err := time.Parse(time.RFC3339, ctx.EvaluatedAt)
 	if ctx.EvaluatedAt == "" {
@@ -399,8 +401,13 @@ func evaluateDeclaredCert(ctx declaredContext, s declaredStage, e declaredEntry,
 		return err
 	}
 	targetDigest := ""
+	targetFound := false
 	for _, ae := range after.manifest.Entries {
 		if ae.Role == "cert-manager" {
+			if targetFound {
+				return cncfcheck.ErrIntegrity
+			}
+			targetFound = true
 			targetDigest = ae.ChartDigest
 		}
 	}

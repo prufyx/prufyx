@@ -164,8 +164,11 @@ revision, pack digest and rule-source policy identity for context assertions.
 An initially empty policy/knowledge assertion is reported as a gap, allowing
 inspection of the authentic child report before pinning and re-evaluating.
 `trustBases` names the accepted evidence bases (for example
-`reviewed,mechanical,empirical,consensus`). Cert-manager's source-contract digest
-is separate from the CNCF pack digest; its report exposes that exact digest as
+`reviewed,mechanical,empirical,consensus`).
+An empty `trustBases` uses that documented default for scoped evaluation and
+adds an explicit missing-policy gap; it never establishes a caller policy.
+Cert-manager's source-contract digest is separate from the CNCF pack digest;
+its report exposes that exact digest as
 `inputs.knowledgeRevisionDigest`. It has no general policy/clock input.
 
 The output retains each canonical manifest, its verified identity, stage

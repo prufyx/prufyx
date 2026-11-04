@@ -395,6 +395,110 @@ func TestDeclaredRealReevaluationRejectsStaleContext(t *testing.T) {
 	}
 }
 
+func TestDeclaredCertTargetMultiplicityRejected(t *testing.T) {
+	for _, wrongFirst := range []bool{true, false} {
+		t.Run(map[bool]string{true: "wrong-first-valid-last", false: "valid-first-wrong-last"}[wrongFirst], func(t *testing.T) {
+			req, dir := declaredFixture(t)
+			a := &req.Artifacts[4]
+			first, last := a.Manifest.Entries[0], a.Manifest.Entries[0]
+			first.LogicalName = "a-values"
+			last.LogicalName = "z-values"
+			if wrongFirst {
+				first.ChartDigest = "sha256:" + strings.Repeat("0", 64)
+			} else {
+				last.ChartDigest = "sha256:" + strings.Repeat("0", 64)
+			}
+			a.Manifest.Entries = append([]declaredEntry{first, last}, a.Manifest.Entries[1:]...)
+			f := a.Files[0]
+			f.LogicalName = first.LogicalName
+			g := a.Files[0]
+			g.LogicalName = last.LogicalName
+			a.Files = append([]declaredFile{f, g}, a.Files[1:]...)
+			manifest, _ := json.Marshal(a.Manifest)
+			req.Stages[3].AfterDigest = declaredHash(manifest)
+			// Both permutations have canonical (role, logicalName) order. Both
+			// complete inputs remain admitted; neither may select a target by order.
+			raw, _ := json.Marshal(req)
+			if _, err := decodeDeclared(raw); err != nil {
+				t.Fatal(err)
+			}
+			admitted, err := admitDeclared(req, dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(admitted["B4"].inputs) != 4 {
+				t.Fatal("required inputs dropped")
+			}
+			if _, err := evaluateDeclared(req, admitted); !errors.Is(err, cncfcheck.ErrIntegrity) {
+				t.Fatalf("ambiguous target accepted: %v", err)
+			}
+		})
+	}
+}
+
+func TestDeclaredMissingTrustBasesDefaultAndBlocker(t *testing.T) {
+	for _, blocked := range []bool{false, true} {
+		t.Run(map[bool]string{false: "missing-policy-clean", true: "missing-policy-blocked"}[blocked], func(t *testing.T) {
+			req, dir := declaredFixture(t)
+			req.Context.TrustBases = ""
+			if blocked {
+				s := req.Stages[1]
+				s.Index = 0
+				s.Before = "B0"
+				b, _ := json.Marshal(req.Artifacts[0].Manifest)
+				s.BeforeDigest = declaredHash(b)
+				req.Stages = []declaredStage{s}
+			}
+			r, _ := evaluateDeclaredFixture(t, req, dir)
+			if r.Context.TrustBases != "" {
+				t.Fatal("invented caller policy")
+			}
+			index := 1
+			status := "UNKNOWN"
+			if blocked {
+				index = 0
+				status = "BLOCKED"
+			}
+			if r.Status != status || r.Stages[index].Status != status || !strings.Contains(strings.Join(r.Stages[index].Gaps, " "), "engine used its default policy") {
+				t.Fatalf("missing policy result %+v", r)
+			}
+			var report cncfcheck.Report
+			if err := json.Unmarshal(r.Stages[index].Report, &report); err != nil {
+				t.Fatal(err)
+			}
+			found := false
+			for _, c := range report.Check.Claims {
+				if c.RuleID == "kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0" {
+					found = true
+					want := "PASS"
+					if blocked {
+						want = "BLOCKED"
+					}
+					if c.Status != want || len(c.Sources) == 0 {
+						t.Fatalf("named finding lost %+v", c)
+					}
+				}
+			}
+			if !found {
+				t.Fatal("named finding missing")
+			}
+		})
+	}
+	for _, policy := range []string{"unrecognized", "reviewed,reviewed"} {
+		t.Run("malformed-"+policy, func(t *testing.T) {
+			req, dir := declaredFixture(t)
+			req.Context.TrustBases = policy
+			a, err := admitDeclared(req, dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := evaluateDeclared(req, a); !errors.Is(err, cncfcheck.ErrInvalid) {
+				t.Fatalf("malformed policy accepted: %v", err)
+			}
+		})
+	}
+}
+
 func TestDeclaredFileAdmissionAndCLI(t *testing.T) {
 	req, dir := declaredFixture(t)
 	raw, _ := json.Marshal(req)
