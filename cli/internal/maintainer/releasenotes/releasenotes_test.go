@@ -430,3 +430,25 @@ func TestReadSnapshotRejectsBadCRDTable(t *testing.T) {
 		})
 	}
 }
+
+func TestRenderOmitMergedPRs(t *testing.T) {
+	a, _ := ReadSnapshot(DirTree{writeTree(t, fromFiles())})
+	b, _ := ReadSnapshot(DirTree{writeTree(t, toFiles())})
+	opts := Options{FromLabel: "v1", ToLabel: "v2", FromCommit: "aaa", ToCommit: "bbb", PRs: []PR{{Number: 12, Title: "milestone planning"}}}
+	full := Render(a, b, opts)
+	if !strings.Contains(full, "#12 milestone planning") {
+		t.Fatal("default list missing")
+	}
+	opts.OmitMergedPRs = true
+	omitted := Render(a, b, opts)
+	if strings.Contains(omitted, "Merged pull requests") || strings.Contains(omitted, "milestone planning") {
+		t.Fatal("PR list not omitted")
+	}
+	section := "### Merged pull requests (1)\n\n- #12 milestone planning\n\n"
+	if strings.Replace(full, section, "", 1) != omitted {
+		t.Fatal("omission changed other generated content")
+	}
+	if Render(a, b, opts) != omitted {
+		t.Fatal("output is not deterministic")
+	}
+}

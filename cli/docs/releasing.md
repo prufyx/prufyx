@@ -47,6 +47,8 @@ attestation and the `SHA256SUMS` of a version must stay one-to-one.
    hand-written text and an empty marker pair. `--into` rewrites only the text between the
    `<!-- release-notes:begin -->` and `<!-- release-notes:end -->` lines of the
    file and refuses a file without exactly one such pair.
+   Add `--omit-merged-prs` to omit the pull request list while retaining the
+   generated data comparison. Use the same option with `--check`.
    For `CHANGELOG.md`, first run `scripts/changelog-assemble.sh` from the repository root: it moves
    the `changelog.d/` fragments into `CHANGELOG.md` below the generated block
    and deletes them (`--check` only validates). The new section headings land above the hand-written
