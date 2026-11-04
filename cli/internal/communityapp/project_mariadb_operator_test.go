@@ -96,6 +96,9 @@ func TestMariaDBOperatorPartialFactsReachActualCheck(t *testing.T) {
 					t.Fatalf("claim %+v", claim)
 				}
 				if tc.name == "missing-auto" {
+					if claim.ReasonCode != "RULE_FACT_UNAVAILABLE" || !strings.Contains(claim.NextAction, projectprepare.MariaDBOperatorAutoUpdateFact) || strings.Contains(claim.NextAction, projectprepare.MariaDBOperatorGaleraFact) {
+						t.Fatalf("missing setting was not identified: %+v", claim)
+					}
 					found := false
 					for _, f := range claim.RequiredFacts {
 						if f.FactID == projectprepare.MariaDBOperatorAutoUpdateFact {
