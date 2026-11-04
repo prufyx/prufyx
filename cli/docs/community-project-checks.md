@@ -425,6 +425,13 @@ false is BLOCKED because the retained 26.6.0 upgrade guide documents enabling
 the data-plane update before updating the operator. Missing, null, non-Boolean,
 wrong-type, incomplete, post-update, standalone, replication-only, and
 unreviewed version-pair inputs remain UNKNOWN or fail private-file admission.
+For the exact reviewed pair and resource identity, an unsupported field leaves
+the independently known facts intact. For example, known Galera mode with a
+missing auto-update setting remains UNKNOWN and names the missing setting;
+absence, null, wrong types and case ambiguity never manufacture `false` for it.
+Invalid replication declarations likewise remain unsupported; an absent
+replication object retains the route's separate-replication-mode `false`.
+Unsupported API, kind, spec shape or version pairs retain no supported facts.
 The route does not inspect a cluster, perform Kubernetes admission, run the
 operator, execute Helm, or establish data-plane completion or whole-upgrade
 safety. The MariaDB Operator identity is separate from the MariaDB Server
