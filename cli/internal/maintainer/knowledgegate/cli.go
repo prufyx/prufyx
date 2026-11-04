@@ -240,6 +240,7 @@ func exitFor(r *Report) int {
 
 func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout io.Writer) (int, error) {
 	var t treeFlags
+	var admission admissionFlags
 	var source, author, sender, owner, bot, headSHA, commits, digest, keysDigest, rerun, now, report, summary string
 	var max, concurrency int
 	var citeTimeout time.Duration
@@ -249,6 +250,7 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	var metricsFile, alarmsFile, alarmsMD string
 	var m monitorFlags
 	f := newFlags("gate verify", &t)
+	admission.register(f)
 	m.register(f)
 	f.BoolVar(&shadow, "shadow", false, "shadow mode: compute everything, never be eligible for automatic merging")
 	f.BoolVar(&botPaused, "bot-signer-paused", false, "refuse every onboarding batch signed with an onboarding-bot key")
@@ -293,6 +295,15 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 		return 2, errors.New("--rest-budget must not be negative")
 	}
 	opts := Options{Layout: layout, Base: base, Head: head, Author: author, Sender: sender, Owner: owner, BotLogin: bot, HeadSHA: headSHA, MaxLoosening: max, TrustRootDigest: digest, ApprovalKeysDigest: keysDigest, RederiveAll: all, Concurrency: concurrency, Shadow: shadow, BotSignerPaused: botPaused}
+	opts.AdmissionRESTBudget = restBudget
+	if admission.gitDir != "" {
+		if opts.OnboardingGit, err = admission.context(); err != nil {
+			return 2, err
+		}
+		if opts.OnboardingGit.HeadCommit != headSHA {
+			return 2, errors.New("admission HEAD differs from checked head")
+		}
+	}
 	m.apply(&opts)
 	if shardSpec != "" && !all {
 		return 2, errors.New("--shard needs --rederive-all")

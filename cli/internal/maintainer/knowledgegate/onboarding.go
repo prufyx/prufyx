@@ -172,6 +172,7 @@ type OnboardingEnvelope struct {
 	Record    OnboardingRecord `json:"record"`
 	KeyID     string           `json:"keyId"`
 	Signature string           `json:"signature"`
+	binding   *OnboardingAdmissionBinding
 }
 
 // onboardingFindingClasses are the scan classes a proof may list (the
@@ -325,6 +326,16 @@ func decodeOnboarding(raw []byte) (OnboardingEnvelope, error) {
 	if len(raw) > maxOnboardingBytes {
 		return env, errors.New("onboarding batch too large")
 	}
+	var schema struct {
+		Schema string `json:"schema"`
+	}
+	if err := json.Unmarshal(raw, &schema); err == nil && schema.Schema == OnboardingSchemaV2 {
+		var v2 OnboardingEnvelopeV2
+		if err := strictDecode(bytes.TrimSuffix(raw, []byte("\n")), &v2); err != nil {
+			return env, fmt.Errorf("onboarding batch: %w", err)
+		}
+		return OnboardingEnvelope{Schema: v2.Schema, Record: v2.Record.OnboardingRecord, KeyID: v2.KeyID, Signature: v2.Signature, binding: &v2.Record.AdmissionBinding}, nil
+	}
 	if err := strictDecode(bytes.TrimSuffix(raw, []byte("\n")), &env); err != nil {
 		return env, fmt.Errorf("onboarding batch: %w", err)
 	}
@@ -359,7 +370,11 @@ func onboardingSample(core onboardingCore) ([]int, error) {
 	if err != nil {
 		return nil, err
 	}
-	seed := sha256.Sum256(append([]byte(onboardingSampleDomain), raw...))
+	return onboardingSampleBytes(raw, onboardingSampleDomain, len(core.Projects))
+}
+
+func onboardingSampleBytes(raw []byte, domain string, n int) ([]int, error) {
+	seed := sha256.Sum256(append([]byte(domain), raw...))
 	var counter uint64
 	draw := func() uint64 {
 		var buf [40]byte
@@ -377,7 +392,6 @@ func onboardingSample(core onboardingCore) ([]int, error) {
 			}
 		}
 	}
-	n := len(core.Projects)
 	k := batchSampleSize(n)
 	idx := make([]int, n)
 	for i := range idx {
@@ -400,7 +414,7 @@ func onboardingSample(core onboardingCore) ([]int, error) {
 // It checks nothing about the trees.
 func verifyOnboardingSignature(env OnboardingEnvelope, keys ApprovalKeys, now time.Time) error {
 	r := env.Record
-	signed, err := SignedOnboardingBytes(r)
+	signed, err := signedOnboardingEnvelopeBytes(env)
 	if err != nil {
 		return fmt.Errorf("onboarding batch: %w", err)
 	}
@@ -423,6 +437,9 @@ func verifyOnboardingSignature(env OnboardingEnvelope, keys ApprovalKeys, now ti
 	}
 	if err := checkOnboardingTier(*key, keys, r); err != nil {
 		return err
+	}
+	if env.Schema == OnboardingSchemaV2 && !key.botTier() {
+		return errors.New("onboarding v2 is bot-only")
 	}
 	if r.Decision != ApprovalDecisionApprove {
 		return fmt.Errorf("onboarding batch: decision is %q", r.Decision)

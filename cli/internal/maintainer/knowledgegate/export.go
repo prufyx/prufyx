@@ -286,6 +286,7 @@ func checkExportPath(p string) error {
 
 func gitCommand(ctx context.Context, opts ExportOptions, args ...string) *exec.Cmd {
 	full := append([]string{
+		"--no-replace-objects",
 		"--git-dir=" + opts.GitDir,
 		"-c", "core.attributesFile=/dev/null",
 		"-c", "core.autocrlf=false",

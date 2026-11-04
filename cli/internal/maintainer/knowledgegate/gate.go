@@ -103,6 +103,10 @@ type Options struct {
 	// BotSignerPaused refuses every onboarding batch signed with an
 	// onboarding-bot key (owner batches are unaffected).
 	BotSignerPaused bool
+	// OnboardingGit is mandatory for new bot-v2 admission; its refs and API
+	// observations come from the trusted fetch boundary, never the candidate.
+	OnboardingGit       *OnboardingGitContext
+	AdmissionRESTBudget int64
 	// DailyLoosening is the number of loosening changes already merged by
 	// the automation in the last day, counted by the caller. Nil means it
 	// is unknown: the change is then never eligible for automatic merging.

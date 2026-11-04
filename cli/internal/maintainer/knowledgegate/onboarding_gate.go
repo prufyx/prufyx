@@ -116,6 +116,14 @@ func runOnboarding(ctx context.Context, opts Options, cls *Classification, chang
 	if why := botOnboardingLimits(env, *keys, baseFiles, opts.Now, opts.BotSignerPaused); why != "" {
 		return fail("%s", why)
 	}
+	if err := refuseNewBotV1(env, *keys); err != nil {
+		return fail("O1: %s", err)
+	}
+	if env.binding != nil {
+		if err := checkBotAdmission(ctx, env, *keys, opts, false); err != nil {
+			return fail("O1: %s", err)
+		}
+	}
 	if why := refuseOnboarding(env, baseFiles); why != "" {
 		return fail("O1: %s", why)
 	}
@@ -123,14 +131,14 @@ func runOnboarding(ctx context.Context, opts Options, cls *Classification, chang
 	if err != nil {
 		return fail("O4: %s", logSafe(err.Error()))
 	}
-	res.summary = st.summary(rec)
+	res.summary = st.envelopeSummary(env)
 	if problems := st.check(rec, res.path); len(problems) > 0 {
 		return fail("%d problems%s", len(problems), listDetail(problems))
 	}
 	if why := onboardingModes(opts, changedPaths); why != "" {
 		return fail("O2: %s", why)
 	}
-	if why := st.checkDigests(rec); why != "" {
+	if why := st.checkEnvelopeDigests(env); why != "" {
 		return fail("O7: %s", why)
 	}
 	rows := projectsBySlug(st.head.projects)
