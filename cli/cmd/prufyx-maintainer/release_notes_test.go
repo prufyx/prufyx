@@ -44,6 +44,20 @@ func TestReleaseNotesDirectories(t *testing.T) {
 	if b, _ := os.ReadFile(cl); !strings.Contains(string(b), "#### Summary") || strings.Contains(string(b), "stale") || !strings.HasSuffix(string(b), "### Added\n") {
 		t.Errorf("changelog = %q", b)
 	}
+	// The opt-in omits the PR section and --check uses the same rendering.
+	omitArgs := []string{"release-notes", "--from-dir", from, "--to-dir", to, "--into", cl, "--omit-merged-prs"}
+	if err := run(omitArgs, &out, &errOut); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(cl); strings.Contains(string(b), "Merged pull requests") || !strings.Contains(string(b), "### Summary") {
+		t.Fatalf("omitted output %q", b)
+	}
+	if err := run(append(omitArgs, "--check"), &out, &errOut); err != nil {
+		t.Fatal(err)
+	}
+	if err := run([]string{"release-notes", "--from-dir", from, "--to-dir", to, "--into", cl, "--level", "4"}, &out, &errOut); err != nil {
+		t.Fatal(err)
+	}
 	// --check passes on the regenerated file, fails on a stale block and
 	// never writes.
 	args := []string{"release-notes", "--from-dir", from, "--to-dir", to, "--into", cl, "--level", "4", "--check"}

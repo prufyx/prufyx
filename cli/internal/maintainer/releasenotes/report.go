@@ -16,6 +16,8 @@ type Options struct {
 	// PRs is nil with a non-empty PRNote when the pull requests are unknown.
 	PRs    []PR
 	PRNote string
+	// OmitMergedPRs excludes the merged pull request section.
+	OmitMergedPRs bool
 	// FromCommit and ToCommit, when set, name the commits the labels resolve to.
 	FromCommit string
 	ToCommit   string
@@ -44,7 +46,9 @@ func Render(from, to *Snapshot, o Options) string {
 	customResources(&b, from, to, o)
 	rules(&b, from, to)
 	lines(&b, from, to, o)
-	pullRequests(&b, o)
+	if !o.OmitMergedPRs {
+		pullRequests(&b, o)
+	}
 	b.WriteString("### How to read these figures\n\n")
 	b.WriteString("A catalogued project is not tested coverage: a catalogue entry says Prufyx holds retained public sources for the project, and only an executable check can block an upgrade. ")
 	b.WriteString("Decided means a valid rule or attestation covers every version of both release lines, so the answer is BLOCKED or UNKNOWN, never a whole-upgrade PASS; decided is not safe. ")

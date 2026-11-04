@@ -11,7 +11,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/maintainer/releasenotes"
 )
 
-const releaseNotesUsage = "release-notes: usage: prufyx-maintainer release-notes (--from REV [--to REV] [--repo DIR] | --from-dir DIR --to-dir DIR) [--to-label NAME] [--level 3|4] [--out FILE | --into FILE [--check]]"
+const releaseNotesUsage = "release-notes: usage: prufyx-maintainer release-notes (--from REV [--to REV] [--repo DIR] | --from-dir DIR --to-dir DIR) [--to-label NAME] [--omit-merged-prs] [--level 3|4] [--out FILE | --into FILE [--check]]"
 
 // runReleaseNotes prints, as Markdown, what the data files of one tree add to
 // another: projects, rules, line attestations, onboarding batches and the
@@ -29,6 +29,7 @@ func runReleaseNotes(args []string, stdout io.Writer) error {
 	out := flags.String("out", "", "write the Markdown to this file (default: stdout)")
 	into := flags.String("into", "", "replace the block between the "+releasenotes.MarkerBegin+" and "+releasenotes.MarkerEnd+" lines of this Markdown file")
 	check := flags.Bool("check", false, "with --into: do not write; exit 1 when the block of the file differs from the regeneration")
+	omitPRs := flags.Bool("omit-merged-prs", false, "omit the merged pull request list")
 	level := flags.Int("level", 3, "heading level of the sections: 3, or 4 under the level-3 categories of a CHANGELOG entry")
 	if err := flags.Parse(args); err != nil || flags.NArg() != 0 || (*out != "" && *into != "") || (*check && *into == "") || (*level != 3 && *level != 4) {
 		return &commandError{code: 2, message: releaseNotesUsage, err: err}
@@ -50,11 +51,13 @@ func runReleaseNotes(args []string, stdout io.Writer) error {
 		if opts.ToCommit, err = releasenotes.Commit(*repo, *toRev); err != nil {
 			return &commandError{code: 2, message: "release-notes: cannot resolve --to", err: err}
 		}
-		prs, err := releasenotes.MergedPRs(*repo, *fromRev, *toRev)
-		if err != nil {
-			return &commandError{code: 2, message: "release-notes: cannot list the merged pull requests", err: err}
+		if !*omitPRs {
+			prs, err := releasenotes.MergedPRs(*repo, *fromRev, *toRev)
+			if err != nil {
+				return &commandError{code: 2, message: "release-notes: cannot list the merged pull requests", err: err}
+			}
+			opts.PRs = prs
 		}
-		opts.PRs = prs
 	case *fromDir != "" && *toDir != "" && *fromRev == "":
 		from = releasenotes.DirTree{Root: *fromDir}
 		to = releasenotes.DirTree{Root: *toDir}
@@ -71,6 +74,7 @@ func runReleaseNotes(args []string, stdout io.Writer) error {
 	if err != nil {
 		return &commandError{code: 2, message: "release-notes: cannot read the tree to describe", err: err}
 	}
+	opts.OmitMergedPRs = *omitPRs
 	opts.Level = *level
 	text := releasenotes.Render(a, b, opts)
 	if *into != "" {
