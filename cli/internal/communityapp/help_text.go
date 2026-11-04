@@ -118,8 +118,11 @@ Exit: 0 prepared, 11 unresolved preparation, 2 invalid input, 3 integrity failur
 const checkProjectHelp = `Usage:
   prufyx check project --project SLUG --effective-config FILE [flags]
 
-Check one non-CNCF project's upgrade against its effective configuration. This preview is
-embedded-only: --knowledge-db, --profile and replay flags are not supported.
+Check one non-CNCF project's upgrade against its effective configuration.
+The default is embedded-only. One project-specific check additionally accepts
+--knowledge-db DIR instead of --now; see the per-project usage and docs.
+An explicit store uses verifier time and never falls back to embedded rules.
+--profile and replay flags are not supported.
 
 Examples:
   prufyx check project --project loki --loki-schema-config schema.yaml --from 2.9.8 --to 3.0.0 \
@@ -132,7 +135,8 @@ Flags:
   --effective-config FILE  effective configuration; loki, fluent-bit and ceph name their own
                            input flag (see --project SLUG --help)
   --from, --to VERSION     versions to compare
-  --now RFC3339            evaluation time
+  --now RFC3339            embedded evaluation time
+  --knowledge-db DIR       explicit signed store for the documented project check only
   --format human|json      report format (default human)
 
 Per-project usage and prose: prufyx check project --project SLUG --help

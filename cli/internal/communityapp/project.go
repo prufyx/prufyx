@@ -9,8 +9,12 @@ import (
 	"io"
 	"regexp"
 	"slices"
+	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/cncfknowledge"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/knowledge"
 	"github.com/prufyx/prufyx/cli/internal/projectcheck"
 	"github.com/prufyx/prufyx/cli/internal/projectprepare"
 )
@@ -18,6 +22,7 @@ import (
 var projectDigestRE = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 
 type projectArguments struct {
+	knowledgeDB                                                                                                                                                                                                                                                                                                                                                                                                     string
 	project, config, schemaConfig, workload, osdMetadata, mariadbResource, selectedOSDID, from, to, configPin, schemaConfigPin, workloadPin, osdMetadataPin, mariadbResourcePin, now, format, requireInnoDBDefragmentation                                                                                                                                                                                          string
 	verbose, complete, precedenceResolved, upstreamDistribution, useReviewedTargetDefault, workloadComplete, osdMetadataComplete, mariadbResourceComplete, mariadbPreOperatorUpdate, currentDefaultWasUsed, preserveHTTP2Enabled, requireHTTP2, fullStatusWithoutMonitor, fullStatusWithoutMonitorDeclared, requireInnoDBDefragmentationDeclared, mariadbResourceCompleteDeclared, mariadbPreOperatorUpdateDeclared bool
 }
@@ -41,6 +46,7 @@ func parseProjectArguments(args []string, check bool) (projectArguments, bool) {
 	fs.StringVar(&result.osdMetadataPin, "selected-osd-metadata-digest", "", "optional exact selected metadata SHA-256")
 	fs.StringVar(&result.mariadbResourcePin, "mariadb-resource-digest", "", "optional exact MariaDB resource SHA-256")
 	fs.StringVar(&result.now, "now", "", "explicit UTC evaluation time")
+	fs.StringVar(&result.knowledgeDB, "knowledge-db", "", "explicit verified local knowledge store for the MariaDB Galera canary")
 	fs.StringVar(&result.format, "format", "human", "human, json, or input")
 	fs.BoolVar(&result.verbose, "verbose", false, "human output: also list every rule, cited source and the provenance")
 	fs.BoolVar(&result.verbose, "v", false, "same as --verbose")
@@ -123,10 +129,15 @@ func parseProjectArguments(args []string, check bool) (projectArguments, bool) {
 		return projectArguments{}, false
 	}
 	if check {
-		if result.now == "" {
+		if result.knowledgeDB != "" {
+			transition := constraintengine.RuleTransition{Component: projectprepare.MariaDBOperatorComponent, From: projectprepare.MariaDBOperatorFrom, To: projectprepare.MariaDBOperatorTo}
+			if result.project != projectprepare.MariaDBOperatorProject || !transition.IsAnchor(result.from, result.to) || flagProvided(args, "now") {
+				return projectArguments{}, false
+			}
+		} else if result.now == "" || flagProvided(args, "knowledge-db") {
 			return projectArguments{}, false
 		}
-	} else if result.now != "" || (result.format != "human" && result.format != "json" && result.format != "input") {
+	} else if flagProvided(args, "knowledge-db") || result.now != "" || (result.format != "human" && result.format != "json" && result.format != "input") {
 		return projectArguments{}, false
 	}
 	return result, true
@@ -194,13 +205,20 @@ func (r runtime) project(args []string) int {
 	if request.format != "human" && request.format != "json" {
 		return r.usage(fmt.Sprintf("unsupported --format %q for check; use human or json", request.format))
 	}
-	now, err := parseUTC(request.now)
+	var now time.Time
+	var err error
+	if request.knowledgeDB == "" {
+		now, err = parseUTC(request.now)
+	}
 	if err != nil || now.Nanosecond() != 0 {
 		return r.usage("invalid check project UTC time; use --help")
 	}
 	prepared, exit := r.prepareProjectInput(request)
 	if exit != ExitOK && exit != ExitUnknown {
 		return exit
+	}
+	if request.knowledgeDB != "" {
+		return r.mariaDBProjectExternal(request, prepared)
 	}
 	ruleID := ""
 	if request.schemaConfig != "" {
@@ -268,6 +286,32 @@ func (r runtime) project(args []string) int {
 		}
 	}
 	return projectcheck.ClaimExit(report)
+}
+
+func (r runtime) mariaDBProjectExternal(request projectArguments, prepared projectprepare.Prepared) int {
+	report, err := r.evaluateCurrent(cncfknowledge.Request{Selection: knowledge.SelectionRequest{StoreRoot: request.knowledgeDB}, Project: projectprepare.MariaDBOperatorProject, SelectedRuleID: cncfcheck.MariaDBCanaryRuleID, Input: prepared.CanonicalInputJSON, InputDigest: prepared.InputDigest})
+	if err != nil {
+		return r.cncfKnowledgeError("external MariaDB project check failed", err)
+	}
+	if report.Knowledge.TargetPath != knowledge.ConstraintsProjectsIndexTargetPath || report.Knowledge.ProjectTarget == nil {
+		return r.fail("external MariaDB project check requires a verified per-project index", ExitIntegrity)
+	}
+	encoded, err := cncfknowledge.MarshalReport(report)
+	if err != nil {
+		return r.fail("external MariaDB report integrity failure", ExitIntegrity)
+	}
+	if request.format == "json" {
+		_, err = fmt.Fprintln(r.stdout, string(encoded))
+	} else {
+		err = writeHumanReport(r.stdout, humanRoute{exit: cncfknowledge.ClaimExit(report), claims: report.Check.Check.Claims, project: request.project, from: request.from, to: request.to, verbose: request.verbose, showPasses: true, trust: report.Check.TrustPolicy,
+			knowledge:  "Knowledge: explicitly selected signed local store. No network used.",
+			provenance: []string{"source digest " + prepared.SourceDigest + "  canonical input digest " + prepared.InputDigest, "knowledge revision " + report.Knowledge.Revision + "  bundle digest " + report.Knowledge.BundleDigest, "project target " + report.Knowledge.ProjectTarget.Status + "  digest " + report.Knowledge.ProjectTarget.Digest, "trust receipt digest " + report.Knowledge.TrustReceiptDigest, "engine identity digest " + report.Engine.IdentityDigest, "aggregate UNKNOWN (whole-upgrade assessment: UNKNOWN)"},
+			trailer:    []string{"next action: " + report.Check.NextAction}})
+	}
+	if err != nil {
+		return ExitIntegrity
+	}
+	return cncfknowledge.ClaimExit(report)
 }
 
 // preparationQualifications renders each preparer omission as one preamble line.

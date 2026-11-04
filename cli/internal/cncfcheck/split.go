@@ -95,6 +95,7 @@ func ExternalIndexMinClient(raw []byte) (string, bool) {
 
 // ExternalIndex is a parser-issued, sealed view of an index target.
 type ExternalIndex struct {
+	profile   *externalProfileDescriptor
 	raw       []byte
 	document  externalIndexDocument
 	admission ExternalAdmission
@@ -167,12 +168,9 @@ func parseExternalIndex(raw []byte, base *bundle) (ExternalIndex, error) {
 		}
 		base = &loaded
 	}
-	capability, err := externalCapabilityDigest(*base)
+	profile, err := selectExternalProfile(*base, document.EngineCapabilityDigest)
 	if err != nil {
-		return ExternalIndex{}, ErrIntegrity
-	}
-	if document.EngineCapabilityDigest != capability {
-		return ExternalIndex{}, errors.Join(ErrIntegrity, ErrCapabilityMismatch)
+		return ExternalIndex{}, err
 	}
 	var earliest time.Time
 	withRecords, withCommunity := 0, 0
@@ -225,7 +223,7 @@ func parseExternalIndex(raw []byte, base *bundle) (ExternalIndex, error) {
 		bindings = append(bindings, ruleBinding{Project: entry.Project, Revision: entry.Revision, RuleDigest: entry.RuleDigest, Records: entry.Records, Catalog: entry.Catalog})
 	}
 	admission := ExternalAdmission{Revision: document.Revision, Purpose: document.Purpose, EngineCapabilityDigest: document.EngineCapabilityDigest, HasRule: true, RuleDigest: externalDigestJSON(bindings), EvidenceExpiresAt: earliest.Format(time.RFC3339)}
-	return ExternalIndex{raw: append([]byte(nil), raw...), document: document, admission: admission, base: base, seal: &externalBundleSeal{}}, nil
+	return ExternalIndex{profile: profile, raw: append([]byte(nil), raw...), document: document, admission: admission, base: base, seal: &externalBundleSeal{}}, nil
 }
 
 // Admission returns the aggregate semantic identity of the index. RuleDigest
@@ -273,7 +271,7 @@ func AdmitExternalProjectTarget(index ExternalIndex, project string, raw []byte)
 	if !ok || int64(len(raw)) != entry.Length || digest(raw) != entry.Digest {
 		return ExternalBundle{}, ErrIntegrity
 	}
-	bundle, err := parseExternalBundle(raw, index.base)
+	bundle, err := parseExternalBundleWithProfile(raw, index.base, index.profile)
 	if err != nil {
 		// A target the pinned root signed and the index lists, but this
 		// build cannot parse (unknown field, newer schema), is distinct from
@@ -316,6 +314,25 @@ func EmptyExternalBundle(revision, purpose string) (ExternalBundle, error) {
 		return ExternalBundle{}, err
 	}
 	return ParseExternalBundle(raw)
+}
+
+// EmptyExternalBundle binds absent coverage to this sealed index's profile.
+// It grants no rule and cannot substitute an embedded claim.
+func (x ExternalIndex) EmptyExternalBundle() (ExternalBundle, error) {
+	if x.seal == nil || x.profile == nil || x.base == nil || x.profile.capability != x.document.EngineCapabilityDigest {
+		return ExternalBundle{}, ErrIntegrity
+	}
+	base := *x.base
+	pack := rulePack{Schema: packSchema, Revision: x.document.Revision, PolicyID: base.pack.PolicyID, PolicyDigest: base.pack.PolicyDigest, LandscapeFileDigest: base.pack.LandscapeFileDigest, RegistryDigest: x.profile.registry.Digest(), Entries: []Entry{}}
+	packRaw, err := json.Marshal(pack)
+	if err != nil {
+		return ExternalBundle{}, err
+	}
+	raw, err := json.Marshal(externalBundleDocument{Schema: externalBundleSchema, Revision: x.document.Revision, Purpose: x.document.Purpose, EngineCapabilityDigest: x.profile.capability, Pack: packRaw})
+	if err != nil {
+		return ExternalBundle{}, ErrIntegrity
+	}
+	return parseExternalBundleWithProfile(raw, x.base, x.profile)
 }
 
 // BuildEmbeddedExternalTargets splits the embedded CNCF pack into one target
