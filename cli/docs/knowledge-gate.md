@@ -1518,13 +1518,13 @@ file are still written and the exit code is 3. The flag is refused with
 ### Sealed supervised onboarding inputs
 
 On Linux, `approval sign-supervised` uses the existing bot admission and v2
-signature path with fixed inherited descriptors. It adopts every descriptor
-before parsing command options and closes them on every return. The legacy
+signature path with fixed inherited descriptors. It adopts the transferred descriptors
+before parsing command options and closes its owned inputs on every return. The legacy
 `approval sign` commands retain their input and dispatch semantics.
 
 | Descriptor | Role | Required access |
 | --- | --- | --- |
-| 0 | Existing private-key stdin, supplied only after admitted readiness | Readable pipe |
+| 0 | Existing private-key stdin, supplied only after admitted readiness | Read-only pipe |
 | 3 | Dedicated readiness channel | Write-only pipe |
 | 4 | The executable actually running | Read-only sealed regular file |
 | 5 | Unsigned onboarding draft | Read-only sealed regular file |
@@ -1537,8 +1537,11 @@ Descriptors 4–8 require write, grow, shrink and seal seals. The five
 raw bytes using bare 64-character hexadecimal SHA256 values. The raw keys hash
 includes any final newline; the existing `--keys-digest` continues to use its
 existing key-file digest semantics. Inherited file offsets are ignored.
-Descriptors cannot alias each other or standard streams, and are marked
-close-on-exec before any input is validated. Descriptor 4 closes after its
+Descriptors cannot alias each other or standard streams. All fixed slots are
+discovered and protected before wrapping any descriptor can initialize the
+runtime poller. Already close-on-exec handles were not transferred across exec
+and remain untouched on refusal. Stdin must be a read-only pipe before
+readiness. Descriptor 4 closes after its
 running-executable match; the remaining owned inputs close on return. Git and
 upstream helper subprocesses do not inherit these objects.
 

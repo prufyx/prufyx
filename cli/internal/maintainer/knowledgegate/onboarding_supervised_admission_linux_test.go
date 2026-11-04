@@ -105,7 +105,7 @@ func TestSupervisedAdmission(t *testing.T) {
 	}
 	dummyKey := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der})
 	allSeals := unix.F_SEAL_WRITE | unix.F_SEAL_GROW | unix.F_SEAL_SHRINK | unix.F_SEAL_SEAL
-	for _, mode := range []string{"valid", "owner", "pathname", "key-file", "source-failure", "malformed-binding", "malformed-daily", "wrong-pin"} {
+	for _, mode := range []string{"valid", "owner", "pathname", "key-file", "source-failure", "malformed-binding", "malformed-daily", "wrong-pin", "regular-stdin", "write-only-stdin"} {
 		t.Run(mode, func(t *testing.T) {
 			raw := [][]byte{program, draft, keys, binding, daily}
 			if mode == "malformed-binding" {
@@ -182,6 +182,17 @@ func TestSupervisedAdmission(t *testing.T) {
 			cmd := exec.Command("/proc/self/fd/4", "-test.run=^TestSupervisedAdmissionWorker$", "-test.count=1")
 			cmd.ExtraFiles = extra
 			cmd.Stdin = keyRead
+			if mode == "regular-stdin" {
+				input, err := os.CreateTemp(dir, "not-key-pipe")
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer input.Close()
+				cmd.Stdin = input
+			}
+			if mode == "write-only-stdin" {
+				cmd.Stdin = keyWrite
+			}
 			cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "SUPERVISED_ADMISSION_WORKER=" + string(cfgRaw), "SUPERVISED_PROBE_EXECUTABLE=" + executable, "SUPERVISED_FD_IDENTITIES=" + string(ids)}
 			var log bytes.Buffer
 			cmd.Stdout = &log

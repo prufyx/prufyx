@@ -247,6 +247,13 @@ func TestSupervisedInputDescriptors(t *testing.T) {
 			ids, _ := json.Marshal(identities)
 			sum, _ := json.Marshal(hashes)
 			cmd := exec.Command("/proc/self/fd/4", "-test.run=^TestSupervisedDescriptorWorker$", "-test.count=1")
+			keyRead, keyWrite, err := os.Pipe()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer keyRead.Close()
+			defer keyWrite.Close()
+			cmd.Stdin = keyRead
 			cmd.ExtraFiles = extra
 			cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "SUPERVISED_DESCRIPTOR_WORKER=" + mode, "SUPERVISED_HASHES=" + string(sum), "SUPERVISED_FD_IDENTITIES=" + string(ids), "SUPERVISED_PROBE_EXECUTABLE=" + executable}
 			var out bytes.Buffer
