@@ -7,7 +7,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -263,5 +265,172 @@ func TestProofMutationDoesNotChangeRequestedScope(t *testing.T) {
 	raw, _ := json.Marshal(p)
 	if bytes.Contains(raw, []byte("associations")) {
 		t.Fatal("proof embeds authority")
+	}
+}
+
+type graphFixtureReader struct {
+	materials map[string]Materials
+	reads     map[string]int
+	inspector *fixtureReader
+}
+
+func (g *graphFixtureReader) Materialize(_ context.Context, p Proof) (Materials, error) {
+	id, err := p.Tuple.CaseID()
+	if err != nil {
+		return Materials{}, err
+	}
+	g.reads[id]++
+	m, ok := g.materials[id]
+	if !ok {
+		return Materials{}, errors.New("graph fixture missing case")
+	}
+	return m, nil
+}
+
+func (g *graphFixtureReader) Inspect(ctx context.Context, b []byte) (Output, error) {
+	return g.inspector.Inspect(ctx, b)
+}
+
+// Children follow their parents in edges; depths are absolute from the root,
+// matching the dependency format. Shared nodes retain identical proof bytes.
+func replayGraphFixture(t *testing.T, edges [][]int, depths []int) (Proof, BasePolicy, *graphFixtureReader, *fixtureRenderer, time.Time) {
+	t.Helper()
+	_, policy, inspector, renderer, now := proofFixture()
+	policy.Associations = nil
+	reader := &graphFixtureReader{materials: map[string]Materials{}, reads: map[string]int{}, inspector: inspector}
+	proofs, raws := make([]Proof, len(edges)), make([][]byte, len(edges))
+	for i := len(edges) - 1; i >= 0; i-- {
+		p, _, fixture, _, _ := proofFixture()
+		p.Tuple.ConfigID = fmt.Sprintf("graph-case-%02d", i)
+		for _, child := range edges[i] {
+			if child <= i || child >= len(edges) {
+				t.Fatal("invalid fixture edge")
+			}
+			id, _ := proofs[child].Tuple.CaseID()
+			p.Dependencies = append(p.Dependencies, Dependency{CaseID: id, ProofDigest: Digest(raws[child]), Depth: depths[child], Enabled: true, PredicateDigest: Digest([]byte("enabled synthetic condition"))})
+			fixture.materials.Dependencies[id] = raws[child]
+		}
+		sort.Slice(p.Dependencies, func(i, j int) bool { return p.Dependencies[i].CaseID < p.Dependencies[j].CaseID })
+		id, _ := p.Tuple.CaseID()
+		policy.Associations = append(policy.Associations, Association{CaseID: id, InputDigest: InputDigest(p)})
+		proofs[i], raws[i], reader.materials[id] = p, encodeFixture(t, p), fixture.materials
+	}
+	return proofs[0], policy, reader, renderer, now
+}
+
+func TestReplayClosure(t *testing.T) {
+	t.Run("recursive positive", func(t *testing.T) {
+		p, policy, reader, renderer, now := replayGraphFixture(t, [][]int{{1}, {2}, {}}, []int{0, 1, 2})
+		if _, err := CheckReplay(context.Background(), encodeFixture(t, p), p.Tuple, policy, reader, renderer, now); err != nil {
+			t.Fatal(err)
+		}
+		if len(reader.reads) != 3 || renderer.calls != 3 || reader.inspector.inspections != 3 {
+			t.Fatal("recursive replay skipped a boundary")
+		}
+	})
+	t.Run("whole root transitive bound", func(t *testing.T) {
+		// Each node is individually below sixteen, but the root has eighteen
+		// unique transitive dependencies: two parents and sixteen leaves.
+		edges, depths := make([][]int, 19), make([]int, 19)
+		edges[0], depths[1], depths[2] = []int{1, 2}, 1, 1
+		for i := 3; i < 19; i++ {
+			parent := 1
+			if i >= 11 {
+				parent = 2
+			}
+			edges[parent], depths[i] = append(edges[parent], i), 2
+		}
+		p, policy, reader, renderer, now := replayGraphFixture(t, edges, depths)
+		_, err := CheckReplay(context.Background(), encodeFixture(t, p), p.Tuple, policy, reader, renderer, now)
+		if err == nil {
+			t.Fatal("accepted more than sixteen transitive dependencies")
+		}
+		if len(reader.reads) > MaxDependencies+1 || renderer.calls > MaxDependencies+1 {
+			t.Fatal("performed unbounded work before refusing the closure")
+		}
+	})
+	t.Run("repeated DAG work bounded", func(t *testing.T) {
+		// Seventeen unique nodes expand to 341 recursive replays without a
+		// root-wide exact-proof cache: four fully connected levels of four.
+		edges, depths := make([][]int, 17), make([]int, 17)
+		edges[0] = []int{1, 2, 3, 4}
+		for i := 1; i < 17; i++ {
+			depths[i] = (i-1)/4 + 1
+			if depths[i] < MaxDependencyDepth {
+				first := 1 + depths[i]*4
+				edges[i] = []int{first, first + 1, first + 2, first + 3}
+			}
+		}
+		p, policy, reader, renderer, now := replayGraphFixture(t, edges, depths)
+		if _, err := CheckReplay(context.Background(), encodeFixture(t, p), p.Tuple, policy, reader, renderer, now); err != nil {
+			t.Fatal(err)
+		}
+		if len(reader.reads) != MaxDependencies+1 || renderer.calls != MaxDependencies+1 || reader.inspector.inspections != MaxDependencies+1 {
+			t.Fatalf("amplified DAG work: unique=%d renders=%d inspections=%d", len(reader.reads), renderer.calls, reader.inspector.inspections)
+		}
+		for id, count := range reader.reads {
+			if count != 1 {
+				t.Fatalf("case %s materialized %d times", id, count)
+			}
+		}
+	})
+	t.Run("shared case cannot substitute proof bytes", func(t *testing.T) {
+		p, policy, reader, renderer, now := replayGraphFixture(t, [][]int{{1, 2}, {3}, {3}, {}}, []int{0, 1, 1, 2})
+		rootID, _ := p.Tuple.CaseID()
+		// Mutate the parent replayed second so the shared leaf is already
+		// verified. Both parents remain independently anchored fixtures.
+		laterParent := p.Dependencies[1].CaseID
+		parent, err := Decode(reader.materials[rootID].Dependencies[laterParent])
+		if err != nil {
+			t.Fatal(err)
+		}
+		leafID := parent.Dependencies[0].CaseID
+		leaf, err := Decode(reader.materials[laterParent].Dependencies[leafID])
+		if err != nil {
+			t.Fatal(err)
+		}
+		leaf.Output.Digest = Digest([]byte("substituted rendered output"))
+		substituted := encodeFixture(t, leaf)
+		parent.Dependencies[0].ProofDigest = Digest(substituted)
+		reader.materials[laterParent].Dependencies[leafID] = substituted
+		parentBytes := encodeFixture(t, parent)
+		p.Dependencies[1].ProofDigest = Digest(parentBytes)
+		reader.materials[rootID].Dependencies[laterParent] = parentBytes
+		for i, a := range policy.Associations {
+			switch a.CaseID {
+			case laterParent:
+				policy.Associations[i].InputDigest = InputDigest(parent)
+			case rootID:
+				policy.Associations[i].InputDigest = InputDigest(p)
+			}
+		}
+		_, err = CheckReplay(context.Background(), encodeFixture(t, p), p.Tuple, policy, reader, renderer, now)
+		if err == nil || !strings.Contains(err.Error(), "different proof bytes") || reader.reads[leafID] != 1 {
+			t.Fatalf("substitution reused the shared result: error=%v shared reads=%d", err, reader.reads[leafID])
+		}
+	})
+}
+
+type cancelingFixtureReader struct {
+	*fixtureReader
+	cancel context.CancelFunc
+}
+
+func (r *cancelingFixtureReader) Inspect(ctx context.Context, b []byte) (Output, error) {
+	r.cancel()
+	return r.fixtureReader.Inspect(ctx, b)
+}
+
+func TestReplayInspectionCancellation(t *testing.T) {
+	p, policy, fixture, renderer, now := proofFixture()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	reader := &cancelingFixtureReader{fixtureReader: fixture, cancel: cancel}
+	result, err := CheckReplay(ctx, encodeFixture(t, p), p.Tuple, policy, reader, renderer, now)
+	if !errors.Is(err, context.Canceled) || result.CaseID != "" {
+		t.Fatalf("canceled inspection yielded a replay: result=%+v error=%v", result, err)
+	}
+	if renderer.calls != 1 || fixture.inspections != 1 {
+		t.Fatal("fixture did not reach the matching-output inspection")
 	}
 }

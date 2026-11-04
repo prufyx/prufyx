@@ -125,10 +125,44 @@ func checkFiles(inventory []File, files map[string]MaterializedFile) error {
 // dependency closure. No proof may choose its own policy, tuple or artifact path.
 // Missing real integrations must remain unavailable in admission, O6 and QA.
 func CheckReplay(ctx context.Context, raw []byte, want Tuple, policy BasePolicy, reader Materializer, renderer Renderer, now time.Time) (ReplayCheck, error) {
-	return checkReplay(ctx, raw, want, policy, reader, renderer, now, 0, map[string]bool{})
+	// One call owns one policy snapshot and cache; no result crosses a BASE,
+	// invocation clock, materializer or renderer boundary.
+	policy.Associations = append([]Association(nil), policy.Associations...)
+	want.Families = append([]string(nil), want.Families...)
+	state := &replayState{identities: map[string]string{}, active: map[string]bool{}, checked: map[string]checkedReplay{}}
+	return checkReplay(ctx, raw, want, policy, reader, renderer, now, 0, state)
 }
 
-func checkReplay(ctx context.Context, raw []byte, want Tuple, policy BasePolicy, reader Materializer, renderer Renderer, now time.Time, depth int, active map[string]bool) (ReplayCheck, error) {
+type checkedReplay struct {
+	tuple       Tuple
+	proofDigest string
+	depth       int
+	result      ReplayCheck
+}
+
+type replayState struct {
+	identities map[string]string
+	active     map[string]bool
+	checked    map[string]checkedReplay
+}
+
+func (s *replayState) declare(id, proofDigest string) error {
+	if previous, found := s.identities[id]; found {
+		if previous != proofDigest {
+			return errors.New("dependency case names different proof bytes")
+		}
+		return nil
+	}
+	// This includes the root itself and all declared dependencies, including
+	// disabled entries. Per-node limits cannot bound the transitive closure.
+	if len(s.identities) >= MaxDependencies+1 {
+		return errors.New("whole-root dependency bound exceeded")
+	}
+	s.identities[id] = proofDigest
+	return nil
+}
+
+func checkReplay(ctx context.Context, raw []byte, want Tuple, policy BasePolicy, reader Materializer, renderer Renderer, now time.Time, depth int, state *replayState) (ReplayCheck, error) {
 	var result ReplayCheck
 	if depth > MaxDependencyDepth {
 		return result, errors.New("dependency recursion bound exceeded")
@@ -147,15 +181,33 @@ func checkReplay(ctx context.Context, raw []byte, want Tuple, policy BasePolicy,
 		return result, err
 	}
 	id, _ := want.CaseID()
-	if active[id] {
+	proofDigest := Digest(raw)
+	if err := state.declare(id, proofDigest); err != nil {
+		return result, err
+	}
+	if state.active[id] {
 		return result, errors.New("dependency cycle")
 	}
-	active[id] = true
-	defer delete(active, id)
 	observed, _ := time.Parse(time.RFC3339, p.Origin.ObservedAt)
 	expires, _ := time.Parse(time.RFC3339, p.Origin.ExpiresAt)
 	if now.IsZero() || now.Before(observed) || !now.Before(expires) || now.Sub(observed) > policy.MaxObservationAge || expires.Sub(observed) > policy.MaxObservationAge {
 		return result, errors.New("observation is future or expired")
+	}
+	if err := ctx.Err(); err != nil {
+		return result, err
+	}
+	if prior, found := state.checked[id]; found {
+		if prior.proofDigest != proofDigest || prior.depth != depth || !reflect.DeepEqual(prior.tuple, want) {
+			return result, errors.New("cached dependency identity, configuration or depth differs")
+		}
+		return prior.result, nil
+	}
+	state.active[id] = true
+	defer delete(state.active, id)
+	for _, dep := range p.Dependencies {
+		if err := state.declare(dep.CaseID, dep.ProofDigest); err != nil {
+			return result, err
+		}
 	}
 	if reader == nil {
 		return result, &Unavailable{"complete retained-input materializer"}
@@ -231,7 +283,7 @@ func checkReplay(ctx context.Context, raw []byte, want Tuple, policy BasePolicy,
 			return result, errors.New("dependency identity or depth differs")
 		}
 		if dep.Enabled {
-			if _, e := checkReplay(ctx, data, child.Tuple, policy, reader, renderer, now, depth+1, active); e != nil {
+			if _, e := checkReplay(ctx, data, child.Tuple, policy, reader, renderer, now, depth+1, state); e != nil {
 				return result, e
 			}
 		}
@@ -256,6 +308,9 @@ func checkReplay(ctx context.Context, raw []byte, want Tuple, policy BasePolicy,
 	if err != nil {
 		return result, err
 	}
+	if err := renderCtx.Err(); err != nil {
+		return result, err
+	}
 	if actual.Digest != Digest(regenerated) || !reflect.DeepEqual(actual, p.Output) {
 		return result, errors.New("independent output/CRD extraction differs")
 	}
@@ -265,5 +320,8 @@ func checkReplay(ctx context.Context, raw []byte, want Tuple, policy BasePolicy,
 	if !strings.HasSuffix(result.PublicPath, ".json") {
 		return ReplayCheck{}, errors.New("invalid derived path")
 	}
+	cacheTuple := want
+	cacheTuple.Families = append([]string(nil), want.Families...)
+	state.checked[id] = checkedReplay{tuple: cacheTuple, proofDigest: proofDigest, depth: depth, result: result}
 	return result, nil
 }
