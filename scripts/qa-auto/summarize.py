@@ -7,6 +7,7 @@ Baseline: STATE/known-mismatch.json (list of "suite|key"); seeded from a full ru
 """
 import argparse, glob, json, os, time
 import qa_scope
+import qa_batch_scope
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--dir", required=True)
@@ -35,6 +36,17 @@ if a.mode != "none":
         scope_errors = qa_scope.bundle_errors(scopes, a.sha, os.environ.get("QA_BASE", ""), os.environ.get("QA_RUN_ID", ""))
     except (OSError, ValueError):
         scope_errors = ["declared Kubernetes or CRD scope missing or unreadable"]
+    try:
+        contract = qa_batch_scope.environment_contract()
+        if contract is not None:
+            declarations = {}
+            if contract["envelopes"]:
+                for suite in ("crd", "k8s"):
+                    with open(a.dir + "/" + suite + ".scope.json.declared") as declared_file:
+                        declarations[suite] = json.load(declared_file)
+            scope_errors.extend(qa_batch_scope.validate(contract, scopes, cases, declarations))
+    except (OSError, ValueError, KeyError, TypeError):
+        scope_errors.append("frozen batch scope missing, malformed or changed")
     for reason in scope_errors:
         cases.append({"suite": "k8s", "key": "scope", "wrongpass": False, "mismatch": False,
                       "error": True, "detail": {"why": reason}})

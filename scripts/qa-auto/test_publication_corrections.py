@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from test_batch_envelope_scope import gate_source
 from unittest.mock import patch
 
 import crd_oracle as crd
@@ -161,16 +162,14 @@ class PublicationCorrectionTests(unittest.TestCase):
                 runner.write_text("#!/usr/bin/env python3\nimport sys\nsys.path.insert(0, " + repr(str(HERE)) +
                                   ")\nfrom test_publication_corrections import publication_runner\nraise SystemExit(publication_runner())\n")
                 runner.chmod(0o700)
-                git = root / "git"
-                git.write_text("#!/bin/sh\nexit 0\n")
-                git.chmod(0o700)
+                remote, head, base = gate_source(root)
                 env = dict(os.environ, CONTROL=mode, QA_STATE=str(root / "state"), QA_GATE_RUN=str(runner),
-                           QA_GATE_TRIES="1", QA_SCOPE_HEAD="a" * 40, QA_PROJECTS="diagnostic-other",
-                           PATH=str(root) + ":" + os.environ["PATH"])
-                result = subprocess.run([str(HERE / "batch_gate.sh"), "--trust-operator", "a" * 40, "b" * 40],
+                           QA_GATE_TRIES="1", QA_SCOPE_HEAD=head, QA_PROJECTS="diagnostic-other",
+                           QA_REPO_URL=remote)
+                result = subprocess.run([str(HERE / "batch_gate.sh"), "--trust-operator", head, base],
                                         env=env, text=True, capture_output=True, timeout=15)
                 self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
-                out = root / "state/results/control-aaaaaaaa"
+                out = root / ("state/results/control-" + head[:8])
                 summary = json.loads((out / "summary.json").read_text())
                 self.assertEqual(summary["skipped"], [])
                 self.assertTrue(summary["scopes"]["crd"]["required"])

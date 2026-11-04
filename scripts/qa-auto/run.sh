@@ -83,17 +83,20 @@ t0=$(date +%s)
 
 # 1. source at sha (+ last green for the diff)
 git init -q "$RUN/src" && cd "$RUN/src" || exit 1
-git fetch -q --depth 1 "$QA_REPO_URL" "$sha" && git checkout -q FETCH_HEAD || { log "fetch $sha failed"; exit 1; }
+git fetch -q --depth 1 "$QA_REPO_URL" "$sha:refs/qa-batch/head" && git checkout -q --detach refs/qa-batch/head \
+  && [ "$(git rev-parse HEAD)" = "$sha" ] || { log "fetch $sha failed"; exit 1; }
 lg=$(cat "$QA_STATE/last_green" 2>/dev/null || true)
 : >"$RUN/changed"
 GATE=0; base_sha=""
 if [ -n "${QA_BASE:-}" ]; then
   # PR mode: the base is given, last_green is irrelevant
   GATE=1
-  git fetch -q --depth 1 "$QA_REPO_URL" "$QA_BASE" && base_sha=$(git rev-parse FETCH_HEAD) \
+  git fetch -q --depth 1 "$QA_REPO_URL" "$QA_BASE:refs/qa-batch/base" && base_sha=$(git rev-parse refs/qa-batch/base) \
+    && [ "$base_sha" = "$QA_BASE" ] \
     && git diff --name-only --no-renames "$base_sha" "$sha" >"$RUN/changed" \
     && git diff --raw --no-renames "$base_sha" "$sha" >"$RUN/changed.raw" || { log "fetch/diff base $QA_BASE failed"; exit 1; }
   lg=$base_sha
+  export QA_SCOPE_HEAD_REF=refs/qa-batch/head QA_SCOPE_BASE_REF=refs/qa-batch/base
   # SECURITY: a bot/onboarding batch is generated from untrusted upstream input under a trusted login, so the author
   # allow-list does not bound its CONTENT. Gate mode accepts DATA only; any other path (Go, vendor, go.mod, scripts,
   # workflows, symlinks, odd file names) is refused, never downgraded to a full run.
@@ -179,7 +182,10 @@ if [ "$mode" = auto ]; then
   mode=incremental
   { [ -z "$lg" ] || [ $(( $(date +%s) - last_full )) -gt $(( QA_FULL_EVERY_H * 3600 )) ]; } && mode=full
 fi
-sel=$(python3 -I "$HERE/select_projects.py" --changed "$RUN/changed" --src "$RUN/src") || sel='{"mode":"full","projects":[],"relevant":true,"reasons":["select failed"]}'
+sel=$(python3 -I "$HERE/select_projects.py" --changed "$RUN/changed" --src "$RUN/src") || {
+  [ "$GATE" != 1 ] || { log "scope selection failed"; exit 3; }
+  sel='{"mode":"full","projects":[],"relevant":true,"reasons":["select failed"]}'
+}
 selmode=$(python3 -I -c 'import json,sys;print(json.loads(sys.argv[1])["mode"])' "$sel")
 projects=$(python3 -I -c 'import json,sys;print(",".join(json.loads(sys.argv[1])["projects"]))' "$sel")
 [ "$selmode" = full ] && mode=full
@@ -192,6 +198,20 @@ elif [ -n "${QA_PROJECTS:-}" ]; then
   mode=incremental; selmode=incremental; projects=$QA_PROJECTS
 fi
 echo "$sel" >"$OUT/select.json"
+if [ "$GATE" = 1 ] && [ -z "${QA_BATCH_SCOPE_FILE:-}" ]; then
+  # Standalone diagnostic runs also retain their declaration outside box mounts.
+  export QA_BATCH_SCOPE_FILE=$OUT/batch-scope.json
+  QA_BATCH_SCOPE_DIGEST=$(python3 -I - "$OUT/select.json" "$QA_BATCH_SCOPE_FILE" "$HERE" <<'PY'
+import json, sys
+sys.path.insert(0, sys.argv[3])
+import qa_batch_scope
+value = json.load(open(sys.argv[1]))["batch_scope"]
+json.dump(value, open(sys.argv[2], "w"), sort_keys=True)
+print(qa_batch_scope.digest(value))
+PY
+  ) || exit 3
+  export QA_BATCH_SCOPE_DIGEST
+fi
 if [ "$mode" = incremental ] && [ "$selmode" = none ] && [ "$GATE" = 0 ]; then
   log "$s8: nothing relevant changed since ${lg:0:8}; recording green"
   python3 -I -c 'import json,sys;json.dump([],open(sys.argv[1],"w"))' "$OUT/none.cases.json"

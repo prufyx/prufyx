@@ -12,6 +12,7 @@ import argparse, glob, json, os, re, shutil, subprocess, sys
 from concurrent.futures import ThreadPoolExecutor
 from qalib import *
 import qa_scope
+import qa_batch_scope
 
 TD = os.path.join(SRC, "cli/internal/extract/crdversions")
 COV = ENV("QA_COV", "")
@@ -135,8 +136,11 @@ def prepare(proj, cov, plan):
     comp = next((x for x in cov if x["project"] == proj), None)
     if comp is not None:
         plan["requested"].update(f"crd-line|{proj}|{pair['from']}|{pair['to']}" for pair in comp["pairs"])
-    with open(f"{TD}/target-{proj}.json") as target_file:
-        tj = json.load(target_file)["target"]
+    if plan.get("binding"):
+        tj = plan["binding"]["target"]["spec"]
+    else:
+        with open(f"{TD}/target-{proj}.json") as target_file:
+            tj = json.load(target_file)["target"]
     repo, bad = validate_target(tj)
     if bad:
         raise ValueError("target rejected: " + bad)
@@ -152,6 +156,17 @@ def prepare(proj, cov, plan):
     r = sh("git", "-C", gd, "fetch", "-q", "--tags", "--force")
     if r.returncode:
         raise ValueError("fetch tags failed")
+    pinned = {}
+    for pair in plan.get("proof_pairs", {}).values():
+        for side in ("from", "to"):
+            tag, expected = pair[side + "Tag"], pair[side + "Commit"]
+            if tag not in pinned:
+                actual = checked("git", "-C", gd, "rev-parse", "--verify", "refs/tags/" + tag + "^{commit}").strip()
+                if not re.fullmatch(r"[0-9a-f]{40}", actual):
+                    raise ValueError("proof tag did not resolve to a commit")
+                pinned[tag] = actual
+            if pinned[tag] != expected:
+                raise ValueError("proof tag moved or commit differs")
     pref = tj["tagPrefixes"][0]
     tags = checked("git", "-C", gd, "tag", "-l").splitlines()
     lines = {}
@@ -164,7 +179,7 @@ def prepare(proj, cov, plan):
 
     def served(tag):
         if tag not in cache:
-            cache[tag] = served_set(tj, gd, tag)
+            cache[tag] = served_set(tj, gd, pinned.get(tag, tag))
         return cache[tag]
 
     if comp is None:
@@ -191,6 +206,16 @@ def prepare(proj, cov, plan):
         known_pairs.extend((line_target, f, t) for f, t in exact)
     if missing_line:
         raise ValueError("requested release line missing")
+    # The envelope's exact pair may be neither the first nor last patch of a
+    # release line. Keep it as its own immutable, mandatory execution.
+    for target, pair in plan.get("proof_pairs", {}).items():
+        f, t = pair["fromTag"], pair["toTag"]
+        if not f.startswith(pref) or not t.startswith(pref):
+            raise ValueError("proof tags do not match target prefix")
+        sf, st = served(f), served(t)
+        if not sf:
+            raise ValueError("required proof pair source served set empty")
+        plan["jobs"].append((target, f, t, sf, sorted(sf - st)))
     for line_target, f, t in known_pairs:
         sf, st = served(f), served(t)
         target = f"crd|{proj}|{f}|{t}"
@@ -216,7 +241,7 @@ def execute(plan):
         finally:
             os.remove(fn)
         executed.add(target)
-        key = f"{proj}|{f}|{t}"
+        key = target if target.startswith("crd-proof|") else f"{proj}|{f}|{t}"
         if j is None:
             omitted.append(dict(target=target, reason="candidate response unreadable; replay the full input"))
             out.append(case("crd", key, error=True, why=tail))
@@ -228,7 +253,8 @@ def execute(plan):
         out.append(case("crd", key, wrongpass=wp, mismatch=mm, error=not complete, exit=code,
                         verdict=j.get("verdict"), crd=crd, missing=missing, requested=len(sf),
                         executed=j.get("summary", {}).get("documentsRead"), expectRemoved=["/".join(x) for x in removed],
-                        nExpect=len(removed), nFindings=len(j.get("findings", []))))
+                        nExpect=len(removed), nFindings=len(j.get("findings", [])),
+                        **({"proof_pair": plan["proof_pairs"][target]} if target in plan.get("proof_pairs", {}) else {})))
     for exclusion in plan["excluded"]:
         out.append(case("crd", exclusion["target"], status="EXCLUDED", **exclusion))
     return out, executed, omitted
@@ -257,6 +283,14 @@ def main():
         with open(COV) as coverage_file:
             cov = json.load(coverage_file)["projects"]
     ps = [] if a.no_changed_projects else (projects_all() if a.all or not a.projects else a.projects.split(","))
+    contract = qa_batch_scope.environment_contract()
+    bindings = {}
+    if contract is not None:
+        if (contract["head"], contract["base"], contract["run_id"]) != (
+                ENV("QA_SCOPE_HEAD", ENV("QA_SHA", "")), ENV("QA_BASE", ""), ENV("QA_RUN_ID", "")):
+            raise ValueError("scope contract identity differs")
+        ps = sorted(set(ps) | set(contract["projects"]))
+        bindings = {p["slug"]: p for e in contract["envelopes"] for p in e["projects"]}
     if not ps and not a.no_changed_projects:
         raise ValueError("requested project inventory empty")
     plans = {}
@@ -264,6 +298,12 @@ def main():
     # All source plans, including failed requests, exist before any scan.
     for project in ps:
         plan = plans[project] = new_plan()
+        if project in bindings:
+            plan["binding"] = bindings[project]
+            pair = bindings[project]["proof"]["pair"]
+            target = qa_batch_scope.proof_target(project, pair)
+            plan["proof_pairs"] = {target: pair}
+            plan["requested"].update({"crd-project|" + project, target})
         try:
             prepare(project, cov, plan)
         except Exception as error:

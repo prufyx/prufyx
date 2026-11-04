@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from test_batch_envelope_scope import gate_source
 from unittest.mock import patch
 
 import crd_oracle as crd
@@ -129,8 +130,9 @@ from pathlib import Path
 p = Path(os.environ['QA_STATE']) / 'results' / ('test-' + os.environ['QA_SHA'][:8])
 p.mkdir(parents=True)
 s = dict(sha=os.environ['QA_SHA'], base=os.environ['QA_BASE'], run_id=os.environ['QA_RUN_ID'],
-         wrongpass=0, mismatch=0, errors=0, cases=1, skipped=[], mode='full', wrongpass_cases=[], error_cases=[])
+         wrongpass=0, mismatch=0, errors=0, cases=5, skipped=[], mode='full', wrongpass_cases=[], error_cases=[])
 ''' + f"import sys\nsys.path.insert(0, {str(here)!r})\nimport qa_scope\n" +
+                    "json.dump([dict(suite=s, key='synthetic', wrongpass=False, mismatch=False, error=False, detail={}) for s in ('crd','k8s','bp325','review','rules')], open(p / 'control.cases.json', 'w'))\n" +
                     "scope = qa_scope.declare(os.environ['QA_SHA'], os.environ['QA_BASE'], os.environ['QA_RUN_ID'], ['k8s-range|test'], [], [])\n" +
                     "scope.update(executed=['k8s-range|test'], state='COMPLETE')\n" +
                     "crd = qa_scope.declare(os.environ['QA_SHA'], os.environ['QA_BASE'], os.environ['QA_RUN_ID'], ['crd-project|test'], [], [], qa_scope.CRD_PROFILE)\n" +
@@ -140,12 +142,10 @@ s = dict(sha=os.environ['QA_SHA'], base=os.environ['QA_BASE'], run_id=os.environ
                     "json.dump([], open(Path(os.environ['QA_STATE']) / 'known-mismatch.json', 'w'))\n" +
                     f"json.dump(s, open(p / 'summary.json', 'w'))\nraise SystemExit({rc})\n")
                 runner.chmod(0o700)
-                git = root / "git"
-                git.write_text('#!/bin/sh\nexit 0\n')
-                git.chmod(0o700)
+                remote, head, base = gate_source(root)
                 env = dict(os.environ, QA_STATE=str(root / "state"), QA_GATE_RUN=str(runner),
-                           QA_GATE_TRIES="1", PATH=str(root) + ":" + os.environ["PATH"])
-                result = subprocess.run([str(here / "batch_gate.sh"), "--trust-operator", "a" * 40, "b" * 40],
+                           QA_GATE_TRIES="1", QA_REPO_URL=remote)
+                result = subprocess.run([str(here / "batch_gate.sh"), "--trust-operator", head, base],
                                         env=env, capture_output=True, text=True, timeout=10)
                 self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
                 self.assertIn("ERR=" + ("0" if expected == 0 or mismatch else "1"), result.stdout)
