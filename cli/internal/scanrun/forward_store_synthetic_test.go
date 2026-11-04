@@ -140,7 +140,21 @@ func signedForwardScanStore(t *testing.T, mode string) (*storeFixture, knowledge
 			t.Fatal(err)
 		}
 		delete(pack, "lineAttestations")
-		delete(pack, "servedAPIs")
+		if mode == "opaque" {
+			// Retain a real served-API section in the opaque signed bytes;
+			// none of its records may enter the evaluated empty target.
+			rawRecords, err := os.ReadFile("../cncfcheck/data/rules.json")
+			if err != nil {
+				t.Fatal(err)
+			}
+			var source map[string]json.RawMessage
+			if json.Unmarshal(rawRecords, &source) != nil || len(source["servedAPIs"]) == 0 {
+				t.Fatal("served fixture absent")
+			}
+			pack["servedAPIs"] = source["servedAPIs"]
+		} else {
+			delete(pack, "servedAPIs")
+		}
 		if len(pack["pathPolicies"]) == 0 {
 			t.Fatal("test needs the reviewed path policy")
 		}

@@ -52,7 +52,15 @@ func NewStoreScanKnowledge(bundles map[string]ExternalBundle) (*ScanKnowledge, e
 		if selected.pathPolicies, err = admitPathPolicies(external.pack.PathPolicies, len(external.pack.PathPolicies) > 0, base.landscape.Projects); err != nil {
 			return nil, ErrIntegrity
 		}
-		if selected.servedAPIs, err = admitServedAPIs(external.document.Pack, external.pack.ServedAPIs, base.landscape.Projects); err != nil {
+		recordPack := external.document.Pack
+		if external.unreadableProject != "" {
+			// Opaque signed bytes retain identity but grant no record authority.
+			recordPack, err = json.Marshal(external.pack)
+			if err != nil {
+				return nil, ErrIntegrity
+			}
+		}
+		if selected.servedAPIs, err = admitServedAPIs(recordPack, external.pack.ServedAPIs, base.landscape.Projects); err != nil {
 			return nil, ErrIntegrity
 		}
 		if selected.pack, err = packWithEmbeddedCrossing(base.pack, external.pack, project); err != nil {
