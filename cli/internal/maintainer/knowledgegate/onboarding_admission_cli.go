@@ -20,6 +20,7 @@ import (
 type admissionFlags struct {
 	gitDir, base, head, daily, paused, observed, expectedKey, export, source string
 	readyFD                                                                  int
+	dailyRaw                                                                 []byte // owned supervised descriptor bytes; never a pathname fallback
 }
 
 func (a *admissionFlags) register(f *flag.FlagSet) {
@@ -32,12 +33,16 @@ func (a *admissionFlags) register(f *flag.FlagSet) {
 }
 
 func (a admissionFlags) context() (*OnboardingGitContext, error) {
-	if a.gitDir == "" || a.base == "" || a.head == "" || a.daily == "" || a.observed == "" || a.paused != "false" {
+	if a.gitDir == "" || a.base == "" || a.head == "" || (a.daily == "" && a.dailyRaw == nil) || a.observed == "" || a.paused != "false" {
 		return nil, errors.New("complete authenticated admission context and pause=false required")
 	}
-	raw, err := readBoundedFile(a.daily, maxDailyCommitsFile)
-	if err != nil {
-		return nil, err
+	raw := a.dailyRaw
+	if raw == nil {
+		var err error
+		raw, err = readBoundedFile(a.daily, maxDailyCommitsFile)
+		if err != nil {
+			return nil, err
+		}
 	}
 	daily, err := ParseDailyCommits(raw)
 	if err != nil || daily == nil {

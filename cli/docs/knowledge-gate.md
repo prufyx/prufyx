@@ -1169,8 +1169,9 @@ classified loosening changes, not projects or signatures; unknown history
 refuses bot admission. The automation login used by the daily counter is
 distinct from the pinned onboarding signer identity.
 
-Bot v2 requires `--key-stdin` and `--admission-ready-fd FD`, a separate write-only
-pipe descriptor at least 3. The command marks it close-on-exec before source
+Bot v2 requires `--key-stdin` and a separate write-only readiness pipe.
+The pathname action uses `--admission-ready-fd FD` (descriptor at least 3);
+`sign-supervised` uses fixed descriptor 3, as described below. The command marks it close-on-exec before source
 subprocesses run, refuses aliases of human stdout/stderr or key stdin, and
 transfers ownership of that descriptor. After preparation, confirmation and
 final local checks it writes one canonical JSON line with schema
@@ -1513,3 +1514,46 @@ must stop on an incomplete run pass `--fail-on-missing`: the worklist and wants
 file are still written and the exit code is 3. The flag is refused with
 `--source http`, like `--wants-out` and `--mirror-state`
 ([evidence-repin.md](evidence-repin.md#--fail-on-missing)).
+
+### Sealed supervised onboarding inputs
+
+On Linux, `approval sign-supervised` uses the existing bot admission and v2
+signature path with fixed inherited descriptors. It adopts the transferred descriptors
+before parsing command options and closes its owned inputs on every return. The legacy
+`approval sign` commands retain their input and dispatch semantics.
+
+| Descriptor | Role | Required access |
+| --- | --- | --- |
+| 0 | Existing private-key stdin, supplied only after admitted readiness | Read-only pipe |
+| 3 | Dedicated readiness channel | Write-only pipe |
+| 4 | The executable actually running | Read-only sealed regular file |
+| 5 | Unsigned onboarding draft | Read-only sealed regular file |
+| 6 | Authenticated BASE public approval key file | Read-only sealed regular file |
+| 7 | Typed export binding | Read-only sealed regular file |
+| 8 | Daily observations | Read-only sealed regular file |
+
+Descriptors 4–8 require write, grow, shrink and seal seals. The five
+`--admission-{executable,draft,keys,export,daily}-sha256` options bind their exact
+raw bytes using bare 64-character hexadecimal SHA256 values. The raw keys hash
+includes any final newline; the existing `--keys-digest` continues to use its
+existing key-file digest semantics. Inherited file offsets are ignored.
+Descriptors cannot alias each other or standard streams. All fixed slots are
+discovered and protected before wrapping any descriptor can initialize the
+runtime poller. Already close-on-exec handles were not transferred across exec
+and remain untouched on refusal. Stdin must be a readable, read-only pipe before
+readiness; path-only handles are refused. Descriptor 4 closes after its
+running-executable match; the remaining owned inputs close on return. Git and
+upstream helper subprocesses do not inherit these objects.
+
+The action requires the pinned bot tier and `--key-stdin`; it rejects owner
+fallback, key files, `--onboarding`, `--keys`, `--admission-export`,
+`--admission-daily-commits`, `--admission-ready-fd`, and batch mode. Existing
+Git context, expected public key, source, observation, pause and admission
+checks still apply before readiness. Unsupported systems refuse this action.
+
+The hashes prove byte correspondence only. The supervisor must authenticate
+the BASE executable, source evidence and input capture independently, validate
+the readiness frame, and immediately recheck its authoritative live controls
+before releasing key stdin. This interface supplies neither that authority
+nor protection against another process with the same user identity inspecting
+process descriptors. It does not activate a signing service or publication.
