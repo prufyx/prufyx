@@ -20,7 +20,13 @@ func admissionTestPipe(t *testing.T) (*os.File, int) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := r.SetReadDeadline(time.Now().Add(30 * time.Second)); err != nil {
+	// Preparation includes the real gate checks and can exceed 30s under -race.
+	// Bound the fixture independently without expiring before that preparation.
+	deadline := time.Now().Add(5 * time.Minute)
+	if end, ok := t.Deadline(); ok && end.Before(deadline) {
+		deadline = end
+	}
+	if err := r.SetReadDeadline(deadline); err != nil {
 		t.Fatal(err)
 	}
 	fd, err := unix.Dup(int(w.Fd()))
