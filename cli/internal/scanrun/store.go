@@ -30,9 +30,10 @@ type StoreInfo struct {
 	// for; nothing about them can be checked.
 	Absent map[string]bool
 	// Deferred counts, per opened project, the rules of its target this
-	// build cannot evaluate (a feed from a later release). Such a project is
-	// not checked and is reported with a gap.
-	Deferred map[string]int
+	// build cannot evaluate (a feed from a later release). A gap remains
+	// alongside independently evaluable findings.
+	Deferred   map[string]int
+	Unreadable map[string]bool
 }
 
 // Store is knowledge selected from a verified local knowledge database.
@@ -103,7 +104,7 @@ func OpenStore(path string, projects []string) (*Store, error) {
 	bundles := map[string]cncfcheck.ExternalBundle{}
 	digests := map[string]string{}
 	info := StoreInfo{
-		EvaluatedAt: selection.EvaluatedAt, Absent: map[string]bool{}, Deferred: map[string]int{},
+		EvaluatedAt: selection.EvaluatedAt, Absent: map[string]bool{}, Deferred: map[string]int{}, Unreadable: map[string]bool{},
 		Provenance: scanreport.KnowledgeStore{
 			Path: filepath.Clean(path), Layout: selection.Layout, TargetPath: selection.TargetPath,
 			TrustReceiptDigest: selection.TrustReceiptDigest, Purpose: selection.Purpose, ImportedVerifiedAt: selection.ImportedVerifiedAt,
@@ -120,7 +121,9 @@ func OpenStore(path string, projects []string) (*Store, error) {
 		info.Provenance.Projects = append(info.Provenance.Projects, scanreport.KnowledgeStoreProject{
 			Project: target.Project, Status: target.Status, TargetPath: target.TargetPath, Revision: target.Revision, Digest: target.Digest,
 		})
-		if target.Status != "present" {
+		if target.Status == "unreadable_target" {
+			info.Unreadable[project.Project] = true
+		} else if target.Status != "present" {
 			info.Absent[project.Project] = true
 		}
 	}

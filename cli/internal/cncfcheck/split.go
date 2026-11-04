@@ -71,6 +71,7 @@ type externalIndexDocument struct {
 	Revision               string               `json:"revision"`
 	Purpose                string               `json:"purpose"`
 	EngineCapabilityDigest string               `json:"engineCapabilityDigest"`
+	BaseCapabilityDigest   string               `json:"baseCapabilityDigest,omitempty"`
 	Projects               []ExternalIndexEntry `json:"projects"`
 	// MinClientVersion is the oldest prufyx that may read this package, as
 	// vMAJOR.MINOR.PATCH[-pre.N]. Absent means every client that reads the
@@ -101,6 +102,7 @@ type ExternalIndex struct {
 	admission ExternalAdmission
 	base      *bundle
 	seal      *externalBundleSeal
+	compat    bool
 }
 
 // ExternalTarget is one built target: its TUF path and exact bytes.
@@ -170,6 +172,22 @@ func parseExternalIndex(raw []byte, base *bundle) (ExternalIndex, error) {
 	}
 	profile, err := selectExternalProfile(*base, document.EngineCapabilityDigest)
 	if err != nil {
+		legacy, legacyErr := externalProfile(*base, false)
+		if legacyErr != nil {
+			return ExternalIndex{}, legacyErr
+		}
+		compat, admissionErr := admitIndexCapability(*base, document.EngineCapabilityDigest, document.BaseCapabilityDigest, legacy.capability)
+		if admissionErr != nil || !compat {
+			return ExternalIndex{}, err
+		}
+		profile = legacy
+		profile.compat = true
+		profile.remoteCapability = document.EngineCapabilityDigest
+	} else if profile.canaryEntry != "" {
+		if document.BaseCapabilityDigest != "" {
+			return ExternalIndex{}, ErrIntegrity
+		}
+	} else if _, err := admitIndexCapability(*base, document.EngineCapabilityDigest, document.BaseCapabilityDigest, profile.capability); err != nil {
 		return ExternalIndex{}, err
 	}
 	var earliest time.Time
@@ -184,10 +202,17 @@ func parseExternalIndex(raw []byte, base *bundle) (ExternalIndex, error) {
 		if i > 0 && document.Projects[i-1].Project >= entry.Project {
 			return ExternalIndex{}, ErrInvalid
 		}
-		if !base.hasKnowledgeProject(entry.Project) || entry.Catalog != base.catalogOf(entry.Project) || entry.TargetPath != ProjectTargetPath(entry.Project) || !validExternalRevision(entry.Revision) || entry.Length < 1 || entry.Length > MaxExternalTargetBytes || !digestPattern.MatchString(entry.Digest) || !digestPattern.MatchString(entry.RuleDigest) {
+		if !validExternalRevision(entry.Revision) || entry.Length < 1 || entry.Length > MaxExternalTargetBytes || !digestPattern.MatchString(entry.Digest) || !digestPattern.MatchString(entry.RuleDigest) {
 			return ExternalIndex{}, ErrInvalid
 		}
-		if _, ok := ProjectFromTargetPath(entry.TargetPath); !ok {
+		if base.hasKnowledgeProject(entry.Project) {
+			if entry.Catalog != base.catalogOf(entry.Project) || entry.TargetPath != ProjectTargetPath(entry.Project) {
+				return ExternalIndex{}, ErrIntegrity
+			}
+			if _, ok := ProjectFromTargetPath(entry.TargetPath); !ok {
+				return ExternalIndex{}, ErrInvalid
+			}
+		} else if !profile.compat || !futureProjectEntryShape(entry) {
 			return ExternalIndex{}, ErrInvalid
 		}
 		expires, err := time.Parse(time.RFC3339, entry.EvidenceExpiresAt)
@@ -223,7 +248,7 @@ func parseExternalIndex(raw []byte, base *bundle) (ExternalIndex, error) {
 		bindings = append(bindings, ruleBinding{Project: entry.Project, Revision: entry.Revision, RuleDigest: entry.RuleDigest, Records: entry.Records, Catalog: entry.Catalog})
 	}
 	admission := ExternalAdmission{Revision: document.Revision, Purpose: document.Purpose, EngineCapabilityDigest: document.EngineCapabilityDigest, HasRule: true, RuleDigest: externalDigestJSON(bindings), EvidenceExpiresAt: earliest.Format(time.RFC3339)}
-	return ExternalIndex{profile: profile, raw: append([]byte(nil), raw...), document: document, admission: admission, base: base, seal: &externalBundleSeal{}}, nil
+	return ExternalIndex{profile: profile, raw: append([]byte(nil), raw...), document: document, admission: admission, base: base, seal: &externalBundleSeal{}, compat: profile.compat}, nil
 }
 
 // Admission returns the aggregate semantic identity of the index. RuleDigest
@@ -271,14 +296,48 @@ func AdmitExternalProjectTarget(index ExternalIndex, project string, raw []byte)
 	if !ok || int64(len(raw)) != entry.Length || digest(raw) != entry.Digest {
 		return ExternalBundle{}, ErrIntegrity
 	}
+	if index.seal == nil || index.profile == nil || index.base == nil || scanExternalJSON(raw) != nil {
+		return ExternalBundle{}, ErrIntegrity
+	}
+	var header externalBundleDocument
+	if json.Unmarshal(raw, &header) != nil || header.EngineCapabilityDigest != index.document.EngineCapabilityDigest || header.Revision != entry.Revision || header.Purpose != index.document.Purpose {
+		return ExternalBundle{}, ErrIntegrity
+	}
+	if header.Schema == "" {
+		return ExternalBundle{}, ErrIntegrity
+	}
+	if header.Schema != externalBundleSchema && header.Schema != externalBundleSchemaRecords {
+		return ExternalBundle{}, ErrUnreadableTarget
+	}
+	if validateExternalEnvelopeShape(raw) != nil {
+		return ExternalBundle{}, ErrIntegrity
+	}
+	var pack rulePack
+	if json.Unmarshal(header.Pack, &pack) != nil || validateReservedExternalEntries(index.profile, pack) != nil {
+		return ExternalBundle{}, ErrIntegrity
+	}
+	if !index.Readable(project) {
+		if !validPackSchema(pack) || pack.Revision != header.Revision || pack.PolicyID != index.base.pack.PolicyID || pack.PolicyDigest != index.base.pack.PolicyDigest {
+			return ExternalBundle{}, ErrIntegrity
+		}
+		registry, err := structuralExternalRegistry(index.profile.registry, pack)
+		if err != nil {
+			return ExternalBundle{}, ErrIntegrity
+		}
+		structural := *index.base
+		structural.registry = registry
+		structural.pack = pack
+		rules := make([]json.RawMessage, 0, len(pack.Entries))
+		for _, e := range pack.Entries {
+			rules = append(rules, e.Rule)
+		}
+		if _, err := structural.parseRulesCorpus(rules, nil); err != nil {
+			return ExternalBundle{}, ErrIntegrity
+		}
+		return ExternalBundle{}, ErrUnreadableTarget
+	}
 	bundle, err := parseExternalBundleWithProfile(raw, index.base, index.profile)
 	if err != nil {
-		// A target the pinned root signed and the index lists, but this
-		// build cannot parse (unknown field, newer schema), is distinct from
-		// a mismatch: callers may treat it as "needs a newer prufyx".
-		if errors.Is(err, ErrInvalid) {
-			return ExternalBundle{}, ErrUnreadableTarget
-		}
 		return ExternalBundle{}, ErrIntegrity
 	}
 	admission, err := bundle.Admission()
@@ -319,7 +378,7 @@ func EmptyExternalBundle(revision, purpose string) (ExternalBundle, error) {
 // EmptyExternalBundle binds absent coverage to this sealed index's profile.
 // It grants no rule and cannot substitute an embedded claim.
 func (x ExternalIndex) EmptyExternalBundle() (ExternalBundle, error) {
-	if x.seal == nil || x.profile == nil || x.base == nil || x.profile.capability != x.document.EngineCapabilityDigest {
+	if x.seal == nil || x.profile == nil || x.base == nil || x.profile.remoteCapability != x.document.EngineCapabilityDigest {
 		return ExternalBundle{}, ErrIntegrity
 	}
 	base := *x.base
@@ -328,11 +387,38 @@ func (x ExternalIndex) EmptyExternalBundle() (ExternalBundle, error) {
 	if err != nil {
 		return ExternalBundle{}, err
 	}
-	raw, err := json.Marshal(externalBundleDocument{Schema: externalBundleSchema, Revision: x.document.Revision, Purpose: x.document.Purpose, EngineCapabilityDigest: x.profile.capability, Pack: packRaw})
+	raw, err := json.Marshal(externalBundleDocument{Schema: externalBundleSchema, Revision: x.document.Revision, Purpose: x.document.Purpose, EngineCapabilityDigest: x.profile.remoteCapability, Pack: packRaw})
 	if err != nil {
 		return ExternalBundle{}, ErrIntegrity
 	}
 	return parseExternalBundleWithProfile(raw, x.base, x.profile)
+}
+
+// UnreadableExternalBundle retains exact signed raw identity and the selected
+// local profile, but grants no rule or semantic identity to opaque content.
+// Independently admitted embedded removal-crossing rules remain available.
+func (x ExternalIndex) UnreadableExternalBundle(project string, raw []byte) (ExternalBundle, error) {
+	if _, err := AdmitExternalProjectTarget(x, project, raw); !errors.Is(err, ErrUnreadableTarget) {
+		return ExternalBundle{}, ErrIntegrity
+	}
+	b, err := x.EmptyExternalBundle()
+	if err != nil {
+		return ExternalBundle{}, err
+	}
+	var header externalBundleDocument
+	if json.Unmarshal(raw, &header) != nil {
+		return ExternalBundle{}, ErrIntegrity
+	}
+	b.unreadableProject = project
+	b.raw = append([]byte(nil), raw...)
+	b.bundleDigest = digest(raw)
+	b.document = header
+	b.documentDigest = externalDigestJSON(header)
+	b.pack.Revision = header.Revision
+	b.packDigest = externalDigestJSON(b.pack)
+	b.admission.Revision = header.Revision
+	b.admissionDigest = externalDigestJSON(b.admission)
+	return b, nil
 }
 
 // BuildEmbeddedExternalTargets splits the embedded CNCF pack into one target
@@ -345,6 +431,29 @@ func BuildEmbeddedExternalTargets(revision string, projectRevisions map[string]s
 		}
 		return revision, nil
 	})
+}
+
+// BuildEmbeddedCompatibleExternalTargets explicitly selects the new legacy
+// forward contract. The existing publisher/export functions remain byte-stable.
+func BuildEmbeddedCompatibleExternalTargets(revision string, projectRevisions map[string]string) (ExternalTarget, []ExternalTarget, error) {
+	index, targets, err := BuildEmbeddedExternalTargets(revision, projectRevisions)
+	if err != nil {
+		return index, targets, err
+	}
+	base, err := load()
+	if err != nil {
+		return ExternalTarget{}, nil, err
+	}
+	var document externalIndexDocument
+	if json.Unmarshal(index.Bytes, &document) != nil {
+		return ExternalTarget{}, nil, ErrIntegrity
+	}
+	document.BaseCapabilityDigest = baseCapabilityDigest(base)
+	index.Bytes, err = json.Marshal(document)
+	if err != nil {
+		return ExternalTarget{}, nil, ErrIntegrity
+	}
+	return index, targets, nil
 }
 
 // BuildEmbeddedExternalTargetsFrom builds the per-project layout at revision

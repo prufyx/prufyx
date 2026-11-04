@@ -167,10 +167,23 @@ change. Giving `--source` or `--release-plan` keeps the rules described above
   fact is registered, or when the engine changes; rule and attestation updates for
   existing projects do not change it.
   From the build that carries forward-compatible reading (`baseCapabilityDigest`
-  in the index), a feed that only registers more facts or lists more projects is
-  read instead of refused: rules needing an unknown fact are listed as
-  `deferredRules`, stay UNKNOWN and never PASS, projects the build does not know
-  are ignored, and an engine-contract or policy change is still a mismatch.
+  in an explicitly selected new export), the legacy profile may read additional
+  facts or projects only under a base contract that also binds admission,
+  ownership, reserved identities and namespace policy. The canary profile
+  remains exact only. Rules needing unknown facts are listed as `deferredRules`
+  and cannot authorize PASS; independent BLOCKED findings remain visible.
+  Known fact-definition collisions, reserved-ID substitutions and malformed
+  known schemas reject before deferral. Unknown definitions validate and hash
+  the complete signed rule structure only, never becoming evaluator authority.
+  Whole-target semantic digests must match the signed index even when only a
+  subset can be evaluated. Opaque newer schemas remain unreadable, with no
+  target-derived claim and no embedded fallback. Signed lengths, raw hashes,
+  revision, expiry and exact remote index-to-target capability still bind.
+  Existing weekly exports keep their legacy bytes without the new marker;
+  `BuildEmbeddedCompatibleExternalTargets` explicitly selects the new format,
+  which older strict clients reject even when its capability otherwise matches.
+  No publication, channel replacement or signature authority follows from this
+  reader or export API.
   Earlier builds keep the behaviour described here. So `prufyx db update` delivers feed
   updates only while the feed was built for the same capability as the
   installed prufyx; after such a change, older builds report the mismatch until

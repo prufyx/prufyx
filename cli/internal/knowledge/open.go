@@ -377,6 +377,9 @@ func inspectProfile(storeRoot string, profile profileSpec) (Status, error) {
 					}
 					if stateMatches && verified.refreshErr == nil && digestBytes(verified.target) == selection.BundleDigest {
 						integrityOK = true
+						if profile.split {
+							s.UnreadableProjects = unreadableProjectTargets(target, storedProjects)
+						}
 					} else if stateMatches && errors.Is(classifyTUFError(verified.refreshErr), ErrExpired) {
 						integrityOK = true
 						s.Freshness = "expired"

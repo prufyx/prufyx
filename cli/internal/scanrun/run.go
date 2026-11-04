@@ -407,7 +407,9 @@ func Run(request Request, options Options) (Result, error) {
 			report.Inventory = append(report.Inventory, *component)
 			if gap, unavailable := storeGap(store, slug); unavailable {
 				report.Gaps = append(report.Gaps, gap)
-				continue
+				if store.Absent[slug] {
+					continue
+				}
 			}
 			run := &helmChartRun{knowledge: knowledge, now: now, report: &report, workspace: manifests, slug: slug, component: component.Component, decl: decl, policy: request.TrustPolicy}
 			if value, ok := effective.Current[kubernetesSlug]; ok {
@@ -433,7 +435,9 @@ func Run(request Request, options Options) (Result, error) {
 			report.Inventory = append(report.Inventory, *component)
 			if gap, unavailable := storeGap(store, slug); unavailable {
 				report.Gaps = append(report.Gaps, gap)
-				continue
+				if store.Absent[slug] {
+					continue
+				}
 			}
 			if err := run.evaluate(component.Current, component.Target); err != nil {
 				return Result{}, err
@@ -451,8 +455,10 @@ func Run(request Request, options Options) (Result, error) {
 			// or policy can apply, and nothing is borrowed from the embedded
 			// knowledge.
 			report.Gaps = append(report.Gaps, gap)
-			report.Inventory = append(report.Inventory, *component)
-			continue
+			if store.Absent[slug] {
+				report.Inventory = append(report.Inventory, *component)
+				continue
+			}
 		}
 		component.Covered = true
 		report.Inventory = append(report.Inventory, *component)
@@ -821,6 +827,11 @@ func storeGap(store *StoreInfo, slug string) (scanreport.Gap, bool) {
 	}
 	if store.Absent[slug] {
 		return scanreport.NewGap(slug, nil, scanreport.GapProjectNotInKnowledge, slug), true
+	}
+	if store.Unreadable[slug] {
+		gap := scanreport.NewGap(slug, nil, scanreport.GapProjectRulesDeferred, slug)
+		gap.Detail = "selected target semantic identity is unverified; upgrade to a compatible reader; no target-derived rule was evaluated"
+		return gap, true
 	}
 	if n := store.Deferred[slug]; n > 0 {
 		return scanreport.NewGap(slug, nil, scanreport.GapProjectRulesDeferred, slug), true

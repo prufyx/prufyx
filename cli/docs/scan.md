@@ -185,9 +185,10 @@ no directory at that path; the directory must be private to its owner (mode
   not checked: it is reported with the gap `PROJECT_NOT_IN_KNOWLEDGE` and the
   answer cannot pass.
 - A project whose target in the database holds rules that need facts this
-  prufyx does not know (a database built from a later release) is not checked
-  either: it is reported with the gap `PROJECT_NOT_IN_KNOWLEDGE` (variant
-  `rules-deferred`) and the answer cannot pass.
+  prufyx does not know (a database built from a later release) is reported
+  with the gap `PROJECT_NOT_IN_KNOWLEDGE` (variant `rules-deferred`) and the
+  answer cannot pass. Independently supported rules, including applicable
+  embedded removal-crossing blockers, still run; their BLOCKED findings remain.
   The report's `knowledgeStore.compat` is true and `unreadableProjects` lists
   the projects of the database this prufyx does not know.
 - Expired, not yet valid and withdrawn rules in the database behave exactly

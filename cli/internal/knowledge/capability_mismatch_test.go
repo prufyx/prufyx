@@ -51,6 +51,11 @@ func TestTooNewIsNotCapabilityMismatch(t *testing.T) {
 func futureProjectsTargets(t *testing.T, revision string) map[string][]byte {
 	t.Helper()
 	targets := projectsTargets(t, revision, nil)
+	compatible, _, err := cncfcheck.BuildEmbeddedCompatibleExternalTargets(revision, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	targets[ConstraintsProjectsIndexTargetPath] = compatible.Bytes
 	var index struct {
 		Schema                 string                         `json:"schema"`
 		Revision               string                         `json:"revision"`
@@ -73,7 +78,28 @@ func futureProjectsTargets(t *testing.T, revision string) map[string][]byte {
 		targets[entry.TargetPath] = raw
 		index.Projects[i].Length, index.Projects[i].Digest = int64(len(raw)), cncfcheck.TargetDigest(raw)
 	}
-	unknown := []byte(`{"a":"project of a later release"}`)
+	var sample map[string]json.RawMessage
+	if err := json.Unmarshal(targets[index.Projects[0].TargetPath], &sample); err != nil {
+		t.Fatal(err)
+	}
+	var pack map[string]json.RawMessage
+	if err := json.Unmarshal(sample["pack"], &pack); err != nil {
+		t.Fatal(err)
+	}
+	pack["entries"] = json.RawMessage(`[]`)
+	delete(pack, "lineAttestations")
+	delete(pack, "pathPolicies")
+	delete(pack, "servedAPIs")
+	pack["schema"] = json.RawMessage(`"prufyx.io/cncf-source-rule-pack/v1alpha1"`)
+	sample["schema"] = json.RawMessage(`"prufyx.io/operator-cncf-knowledge/v1alpha1"`)
+	sample["pack"], err = json.Marshal(pack)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unknown, err := json.Marshal(sample)
+	if err != nil {
+		t.Fatal(err)
+	}
 	path := cncfcheck.ProjectTargetPath("zz-future-project")
 	targets[path] = unknown
 	index.Projects = append(index.Projects, cncfcheck.ExternalIndexEntry{Project: "zz-future-project", TargetPath: path, Revision: revision, Length: int64(len(unknown)), Digest: cncfcheck.TargetDigest(unknown), RuleDigest: cncfcheck.TargetDigest([]byte("r")), EvidenceExpiresAt: "2027-01-01T00:00:00Z"})

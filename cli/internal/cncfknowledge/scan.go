@@ -93,8 +93,12 @@ func OpenScan(storeRoot string, projects []string) (ScanSelection, error) {
 			return ScanSelection{}, ErrIntegrity
 		}
 		result.Purpose = admission.Purpose
+		if target != nil && target.Status == "unreadable_target" {
+			result.UnreadableProjects = append(result.UnreadableProjects, project)
+		}
 		result.Projects = append(result.Projects, ScanProject{Project: project, Target: target, Bundle: bundle})
 	}
+	sort.Strings(result.UnreadableProjects)
 	return result, nil
 }
 

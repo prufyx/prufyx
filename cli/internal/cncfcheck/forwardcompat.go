@@ -5,6 +5,7 @@ package cncfcheck
 import (
 	"encoding/json"
 	"errors"
+	"sort"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 )
@@ -16,9 +17,9 @@ import (
 // project, therefore has another capability digest than every earlier build,
 // and an exact comparison made every such build refuse the whole package.
 //
-// An index may also carry baseCapabilityDigest: the digest of the part a
-// client cannot extend (engine contract, policy, pack schema). A build whose
-// base digest equals it reads the package in compat mode:
+// An explicitly selected new export may carry baseCapabilityDigest. It binds
+// engine, schema, policy, legacy ownership/admission and reserved identities.
+// Only the legacy profile permits forward reads; the canary remains exact.
 //
 //   - the index still has to parse strictly and its signed entries are bound
 //     to the TUF targets role exactly as before;
@@ -26,29 +27,39 @@ import (
 //     but its target is neither parsed nor stored nor evaluated: the project
 //     has no knowledge in this build, which every check reports as UNKNOWN;
 //   - in a target of a known project, a rule whose required facts include one
-//     this build does not register (or registers differently) is deferred:
+//     this build does not register is deferred:
 //     it is never given to the engine, never produces a claim, never a PASS,
 //     and every report of the project says that N rules were not evaluated;
 //   - the registry and landscape digests of the pack header are not compared
 //     (they cannot be recomputed), everything else is checked as before;
-//   - the semantic rule digest of a target that holds deferred rules is not
-//     compared (it covers rules this build cannot parse); the target bytes
-//     remain bound to the signed length and sha256.
+//   - unknown definitions validate and hash the entire strict rule structure
+//     without ever becoming evaluator authority. The whole signed semantic
+//     digest is checked separately from each evaluated subset. Known-definition
+//     collisions, reserved identities and malformed known schemas reject.
 //
 // A differing engine contract or policy is still a capability mismatch.
 // Only the split per-project layout uses this mode; ParseExternalBundle and
 // the single-target profiles stay exact.
 
 type baseCapabilityDocument struct {
-	Schema               string `json:"schema"`
-	EngineContractDigest string `json:"engineContractDigest"`
-	PolicyID             string `json:"policyId"`
-	PolicyDigest         string `json:"policyDigest"`
+	Schema                string `json:"schema"`
+	EngineContractDigest  string `json:"engineContractDigest"`
+	PolicyID              string `json:"policyId"`
+	PolicyDigest          string `json:"policyDigest"`
+	AdmissionPolicyDigest string `json:"admissionPolicyDigest"`
 }
 
 // baseCapabilityDigest is the part of the capability a client cannot extend.
 func baseCapabilityDigest(base bundle) string {
-	raw, err := json.Marshal(baseCapabilityDocument{Schema: externalBundleSchema + "#base", EngineContractDigest: constraintengine.EngineContractDigest(), PolicyID: base.pack.PolicyID, PolicyDigest: base.pack.PolicyDigest})
+	entry, err := mariaDBCanaryEntry()
+	if err != nil {
+		return ""
+	}
+	policy := externalDigestJSON(struct {
+		Version, RuleAdmission, CommunityAdmission, Ownership, Namespace, KnownDefinitions, ReservedID string
+		ReservedFacts                                                                                  []Fact
+	}{"legacy-forward-v2", "strict known schemas; no notices, consensus, leads, support ranges, removal crossings, charts or require_set_member in external targets", "same-project proposed forbid_set_member CRD removals only", "compiled project-to-component and rule ownership", "CNCF and community target prefixes remain distinct", "immutable known IDs and definitions; unknown definitions hash-only", MariaDBCanaryRuleID, entry.RequiredFacts})
+	raw, err := json.Marshal(baseCapabilityDocument{Schema: externalBundleSchema + "#base-v2", EngineContractDigest: constraintengine.EngineContractDigest(), PolicyID: base.pack.PolicyID, PolicyDigest: base.pack.PolicyDigest, AdmissionPolicyDigest: policy})
 	if err != nil {
 		return ""
 	}
@@ -64,7 +75,7 @@ func admitIndexCapability(base bundle, indexCapability, indexBase, ownCapability
 	}
 	if indexCapability == ownCapability {
 		if indexBase != "" && indexBase != own {
-			return false, ErrInvalid
+			return false, ErrIntegrity
 		}
 		return false, nil
 	}
@@ -118,13 +129,73 @@ func (x ExternalIndex) Readable(project string) bool {
 	return x.base.hasKnowledgeProject(project)
 }
 
-// compatCapability is the capability digest the project targets must carry
-// in compat mode, or "" in exact mode.
-func (x ExternalIndex) compatCapability() string {
-	if !x.compat {
-		return ""
+// structuralExternalRegistry is a non-evaluating schema capability. Its
+// definitions may validate and hash future rules, but are never installed in
+// an evaluator or retained by ExternalBundle.
+func structuralExternalRegistry(compiled constraintengine.Registry, pack rulePack) (constraintengine.Registry, error) {
+	definitions := compiled.Definitions()
+	known := map[string]constraintengine.FactDefinition{}
+	for _, d := range definitions {
+		known[d.ID] = d
 	}
-	return x.document.EngineCapabilityDigest
+	for _, entry := range pack.Entries {
+		for _, f := range entry.RequiredFacts {
+			d := constraintengine.FactDefinition{ID: f.ID, Component: f.Component, Type: f.Type, EnumTokens: f.EnumTokens}
+			if prior, ok := known[f.ID]; ok {
+				if prior.Component != d.Component || prior.Type != d.Type || !sameStrings(prior.EnumTokens, d.EnumTokens) {
+					return constraintengine.Registry{}, ErrIntegrity
+				}
+				continue
+			}
+			known[f.ID] = d
+			definitions = append(definitions, d)
+		}
+	}
+	sort.Slice(definitions, func(i, j int) bool { return definitions[i].ID < definitions[j].ID })
+	registry, err := constraintengine.NewCompiledRegistry(definitions)
+	if err != nil {
+		return constraintengine.Registry{}, ErrIntegrity
+	}
+	return registry, nil
+}
+
+func validateReservedExternalEntries(profile *externalProfileDescriptor, pack rulePack) error {
+	known := map[string]constraintengine.FactDefinition{}
+	for _, d := range profile.registry.Definitions() {
+		known[d.ID] = d
+	}
+	ids := map[string]bool{}
+	for _, entry := range pack.Entries {
+		if entry.Description == "" || len(entry.Description) > 2048 {
+			return ErrIntegrity
+		}
+		id, err := ruleEntryID(entry)
+		if err != nil || id == "" || ids[id] {
+			return ErrIntegrity
+		}
+		ids[id] = true
+		if id == MariaDBCanaryRuleID && (profile.canaryEntry == "" || canonicalEntry(entry) != profile.canaryEntry) {
+			return ErrIntegrity
+		}
+		seen := map[string]bool{}
+		for _, f := range entry.RequiredFacts {
+			key := f.Side + "/" + f.Component + "/" + f.ID
+			if seen[key] || (f.Side != "current" && f.Side != "proposed") || f.Description == "" || len(f.Description) > 2048 {
+				return ErrIntegrity
+			}
+			seen[key] = true
+			if profile.canaryFacts[f.ID] && canonicalEntry(entry) != profile.canaryEntry {
+				return ErrIntegrity
+			}
+			if !futureFactShape(f) {
+				return ErrIntegrity
+			}
+			if d, ok := known[f.ID]; ok && (d.Component != f.Component || d.Type != f.Type || !sameStrings(d.EnumTokens, f.EnumTokens)) {
+				return ErrIntegrity
+			}
+		}
+	}
+	return nil
 }
 
 // DeferredRule is a rule of a signed target that this build did not

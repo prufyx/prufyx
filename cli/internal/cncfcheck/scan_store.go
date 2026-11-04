@@ -31,12 +31,21 @@ func NewStoreScanKnowledge(bundles map[string]ExternalBundle) (*ScanKnowledge, e
 		return nil, err
 	}
 	catalog := bundle{landscape: base.landscape, community: base.community, priority: base.priority, registry: base.registry, catalogueDigest: base.catalogueDigest, attestations: lineattest.NewIndex(nil), pathPolicies: upgradepath.NewIndex(nil)}
-	k := &ScanKnowledge{b: catalog, rules: map[string][]ScanRule{}, selected: map[string]bundle{}, deferred: map[string]int{}}
+	k := &ScanKnowledge{b: catalog, rules: map[string][]ScanRule{}, selected: map[string]bundle{}, deferred: map[string]int{}, unreadable: map[string]bool{}}
+	localProfile, remoteCapability := "", ""
 	for project, external := range bundles {
-		if !external.valid() || !base.hasKnowledgeProject(project) || external.registry.Digest() != base.registry.Digest() {
+		if !external.valid() || !base.hasKnowledgeProject(project) {
+			return nil, ErrIntegrity
+		}
+		if localProfile == "" {
+			localProfile = external.profile.capability
+			remoteCapability = external.profile.remoteCapability
+			k.b.registry = external.registry
+		} else if localProfile != external.profile.capability || remoteCapability != external.profile.remoteCapability {
 			return nil, ErrIntegrity
 		}
 		selected := bundle{landscape: base.landscape, community: base.community, priority: base.priority, pack: external.pack, registry: external.registry, packDigest: external.bundleDigest, catalogueDigest: base.catalogueDigest, external: true}
+		selected.unverifiedSemantic = external.unreadableProject != ""
 		if selected.attestations, err = admitAttestations(external.pack.LineAttestations, len(external.pack.LineAttestations) > 0, external.pack.Entries); err != nil {
 			return nil, ErrIntegrity
 		}
@@ -49,19 +58,20 @@ func NewStoreScanKnowledge(bundles map[string]ExternalBundle) (*ScanKnowledge, e
 		if selected.pack, err = packWithEmbeddedCrossing(base.pack, external.pack, project); err != nil {
 			return nil, err
 		}
-		// A project with a rule this build cannot evaluate keeps its bundle
-		// but gets no scan rule: a scan could otherwise pass a hop only
-		// because the rule that blocks it is missing. The selectors of the
-		// bundle give it no claim either, and scanrun reports the gap.
+		// Retain independent supported rules while recording incomplete
+		// coverage. The scan gap prevents a whole-result PASS.
 		if external.hasDeferred() {
 			k.deferred[project] = len(external.DeferredRules())
-			k.selected[project] = selected
-			k.rules[project] = nil
-			continue
+		}
+		if external.unreadableProject != "" {
+			if external.unreadableProject != project {
+				return nil, ErrIntegrity
+			}
+			k.unreadable[project] = true
 		}
 		var rules []ScanRule
 		for _, entry := range external.pack.Entries {
-			if entry.Project != project {
+			if entry.Project != project || entry.deferred != nil {
 				continue
 			}
 			rule, err := NewScanRule(entry.Project, entry.Description, entry.Rule)

@@ -91,6 +91,57 @@ func TestSyntheticStoreEvaluationKeepsEmbeddedCrossingBlock(t *testing.T) {
 	}
 }
 
+func TestSyntheticDeferredTargetKeepsIndependentCrossingBlock(t *testing.T) {
+	restore, err := UseSyntheticKnowledge(nil, []Entry{syntheticCrossingEntry(t)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer restore()
+	feed := buildFutureFeedFor(t, "kubernetes")
+	index, err := ParseExternalIndex(feed.index)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, err := AdmitExternalProjectTarget(index, "kubernetes", feed.targets["kubernetes"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !store.hasDeferred() {
+		t.Fatal("missing deferred control")
+	}
+	input := crossingGateInput(t)
+	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	checks := map[string]func() (Report, error){"check": func() (Report, error) { return store.Evaluate("kubernetes", input, now) }, "selected": func() (Report, error) { return store.EvaluateRule("kubernetes", syntheticRuleID, input, now) }, "scan": func() (Report, error) {
+		k, err := NewStoreScanKnowledge(map[string]ExternalBundle{"kubernetes": store})
+		if err != nil {
+			return Report{}, err
+		}
+		return k.CheckFacts("kubernetes", cncfprepare.KubernetesComponentConfigAllFacts(), input, now)
+	}}
+	for name, check := range checks {
+		t.Run(name, func(t *testing.T) {
+			report, err := check()
+			if err != nil || ClaimExit(report) != 10 || len(report.DeferredRules) == 0 {
+				t.Fatalf("lost independent blocker: exit%d err%v report%+v", ClaimExit(report), err, report)
+			}
+			found := false
+			for _, c := range report.Check.Claims {
+				if c.RuleID == syntheticRuleID && c.Status == "BLOCKED" {
+					found = true
+				}
+				for _, d := range report.DeferredRules {
+					if c.RuleID == d.RuleID {
+						t.Fatal("deferred rule issued a claim")
+					}
+				}
+			}
+			if !found {
+				t.Fatal("wrong blocker")
+			}
+		})
+	}
+}
+
 // The rule document needs ascending ids: an embedded crossing rule whose id
 // sorts before the store's rules must still evaluate (no integrity failure).
 func TestSyntheticStoreCrossingRuleSortingFirst(t *testing.T) {

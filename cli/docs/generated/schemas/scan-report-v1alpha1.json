@@ -1246,7 +1246,8 @@
         "status": {
           "enum": [
             "present",
-            "absent_from_index"
+            "absent_from_index",
+            "unreadable_target"
           ]
         },
         "targetPath": {

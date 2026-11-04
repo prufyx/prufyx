@@ -157,7 +157,7 @@ func decidedClaims(report Report) int {
 // noRule reports whether no reviewed rule matches the transition and the trust policy left none out: the only case
 // in which the end-to-end pair is NO_RULE (neutral) instead of UNKNOWN.
 func noRule(report Report) bool {
-	return decidedClaims(report) == 0 && (report.TrustPolicy == nil || report.TrustPolicy.ExcludedRules == 0)
+	return decidedClaims(report) == 0 && !report.UnverifiedSemanticIdentity && len(report.DeferredRules) == 0 && (report.TrustPolicy == nil || report.TrustPolicy.ExcludedRules == 0)
 }
 
 // marshalPlain encodes v as JSON without HTML escaping (fact strings keep their < > &).

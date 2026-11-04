@@ -112,8 +112,9 @@ type rulePack struct {
 }
 
 type bundle struct {
-	landscape landscapeDocument
-	priority  priorityDocument
+	unverifiedSemantic bool
+	landscape          landscapeDocument
+	priority           priorityDocument
 	// community holds the identities of the community projects of the
 	// reviewed custom-resource table (community.go). They are never
 	// landscape projects.
@@ -619,11 +620,6 @@ func (b bundle) rulesForAdmittedInput(project string, raw []byte) (constrainteng
 // selectForInput selects the project's rules whose transition matches the
 // input, or every project rule when no verdict rule matches, and admits them.
 func (b bundle) selectForInput(project string, raw []byte) (selection, error) {
-	if len(deferredOf(b.pack, project)) > 0 {
-		// A rule of the project is not evaluable by this build: no other
-		// rule may give a claim (a pass) for a hop the missing rule may block.
-		return b.admit(nil, nil)
-	}
 	var input struct {
 		Current  sideShape `json:"current"`
 		Proposed sideShape `json:"proposed"`
@@ -734,11 +730,6 @@ func (b bundle) factFamilyRuleSet(project string, facts []string, raw []byte) (c
 
 // selectFamily is factFamilyRuleSet's selection, admitted.
 func (b bundle) selectFamily(project string, facts []string, raw []byte) (selection, error) {
-	if len(deferredOf(b.pack, project)) > 0 {
-		// A rule of the project is not evaluable by this build: no other
-		// rule may give a claim (a pass) for a hop the missing rule may block.
-		return b.admit(nil, nil)
-	}
 	allowed := map[string]bool{}
 	for _, fact := range facts {
 		allowed[fact] = true
@@ -871,11 +862,6 @@ func (b bundle) selectedRuleSet(project, ruleID string) (constraintengine.RuleSe
 
 // selectRule selects and admits the one project rule with ruleID.
 func (b bundle) selectRule(project, ruleID string) (selection, error) {
-	if len(deferredOf(b.pack, project)) > 0 {
-		// A rule of the project is not evaluable by this build: no other
-		// rule may give a claim (a pass) for a hop the missing rule may block.
-		return b.admit(nil, nil)
-	}
 	selected := make([]json.RawMessage, 0, 1)
 	for _, entry := range b.pack.Entries {
 		if entry.Project != project || entry.deferred != nil {

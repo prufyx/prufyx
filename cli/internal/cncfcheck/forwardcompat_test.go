@@ -8,6 +8,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 )
 
 // futureFeed turns the embedded per-project feed into a synthetic feed from
@@ -29,6 +31,10 @@ type futureFeed struct {
 }
 
 func buildFutureFeed(t *testing.T) futureFeed {
+	return buildFutureFeedFor(t, "")
+}
+
+func buildFutureFeedFor(t *testing.T, project string) futureFeed {
 	t.Helper()
 	base, err := load()
 	if err != nil {
@@ -37,6 +43,9 @@ func buildFutureFeed(t *testing.T) futureFeed {
 	index, targets := buildSplit(t, "9")
 	feed := futureFeed{targets: map[string][]byte{}, unknown: "zz-future-project"}
 	for _, vector := range reviewedVectors(t) {
+		if project != "" && vector.Project != project {
+			continue
+		}
 		for _, entry := range base.pack.Entries {
 			id, _ := ruleEntryID(entry)
 			if entry.Project == vector.Project && id == vector.RuleID && len(entry.RequiredFacts) > 0 && len(vector.Cases) > 0 {
@@ -71,8 +80,11 @@ func buildFutureFeed(t *testing.T) futureFeed {
 	for i, entry := range document.Projects {
 		raw := feed.targets[entry.Project]
 		document.Projects[i].Length, document.Projects[i].Digest = int64(len(raw)), digest(raw)
+		document.Projects[i].RuleDigest = futureWholeDigest(t, raw)
 	}
-	unknownBytes := []byte(`{"a":"target of a project this build does not know"}`)
+	unknownPack := rulePack{Schema: packSchema, Revision: "9", PolicyID: base.pack.PolicyID, PolicyDigest: base.pack.PolicyDigest, RegistryDigest: base.registry.Digest(), LandscapeFileDigest: base.landscape.LandscapeFileDigest, Entries: []Entry{}}
+	packRaw, _ := json.Marshal(unknownPack)
+	unknownBytes, _ := json.Marshal(externalBundleDocument{Schema: externalBundleSchema, Revision: "9", Purpose: document.Purpose, EngineCapabilityDigest: feed.capacity, Pack: packRaw})
 	feed.targets[feed.unknown] = unknownBytes
 	document.Projects = append(document.Projects, ExternalIndexEntry{Project: feed.unknown, TargetPath: ProjectTargetPath(feed.unknown), Revision: "9", Length: int64(len(unknownBytes)), Digest: digest(unknownBytes), RuleDigest: digest([]byte("r")), EvidenceExpiresAt: "2027-01-01T00:00:00Z"})
 	feed.index, err = json.Marshal(document)
@@ -80,6 +92,61 @@ func buildFutureFeed(t *testing.T) futureFeed {
 		t.Fatal(err)
 	}
 	return feed
+}
+
+func futureWholeDigest(t *testing.T, raw []byte) string {
+	t.Helper()
+	base, err := load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc externalBundleDocument
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	var pack rulePack
+	if err := json.Unmarshal(doc.Pack, &pack); err != nil {
+		t.Fatal(err)
+	}
+	definitions := base.registry.Definitions()
+	known := map[string]bool{}
+	for _, d := range definitions {
+		known[d.ID] = true
+	}
+	rules := []json.RawMessage{}
+	for _, entry := range pack.Entries {
+		rules = append(rules, entry.Rule)
+		for _, f := range entry.RequiredFacts {
+			if !known[f.ID] {
+				definitions = append(definitions, constraintengine.FactDefinition{ID: f.ID, Component: f.Component, Type: f.Type, EnumTokens: f.EnumTokens})
+				known[f.ID] = true
+			}
+		}
+	}
+	registry, err := constraintengine.NewCompiledRegistry(definitions)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base.pack = pack
+	ruleJSON, err := base.ruleDocumentBytes(rules, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := constraintengine.ParseRuleSet(ruleJSON, registry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	value, err := parsed.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if doc.Schema == externalBundleSchemaRecords {
+		value, err = knowledgeContentDigest(value, pack)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	return value
 }
 
 // TestFutureFeedIsReadInCompatMode: a signed feed that registers a fact this
@@ -229,7 +296,7 @@ func TestCompatModeRefusals(t *testing.T) {
 // TestStoreScanKnowledgeDropsProjectWithDeferredRule: a scan could pass a
 // hop only because the rule that blocks it is missing, so a project holding
 // a deferred rule has no scan knowledge from the store.
-func TestStoreScanKnowledgeDropsProjectWithDeferredRule(t *testing.T) {
+func TestStoreScanKnowledgeKeepsIndependentRulesWithDeferredCoverage(t *testing.T) {
 	t.Parallel()
 	feed := buildFutureFeed(t)
 	index, err := ParseExternalIndex(feed.index)
@@ -255,13 +322,18 @@ func TestStoreScanKnowledgeDropsProjectWithDeferredRule(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(knowledge.Rules(feed.project)) != 0 || knowledge.DeferredRules(feed.project) == 0 {
+	if knowledge.DeferredRules(feed.project) == 0 {
 		t.Fatalf("project with a deferred rule: %d scan rules, %d deferred", len(knowledge.Rules(feed.project)), knowledge.DeferredRules(feed.project))
+	}
+	for _, r := range knowledge.Rules(feed.project) {
+		if r.Scope.ID == feed.ruleID {
+			t.Fatal("deferred rule became scan authority")
+		}
 	}
 	// The project stays in the snapshot: a hop on it is answered, never an
 	// integrity failure, and the answer holds no claim.
 	report, err := knowledge.CheckFacts(feed.project, []string{feed.oldFact}, feed.input, reviewClock(t))
-	if errors.Is(err, ErrIntegrity) || (err == nil && len(report.Check.Claims) != 0) {
+	if errors.Is(err, ErrIntegrity) || (err == nil && ClaimExit(report) == 0) {
 		t.Fatalf("deferred project answered: err %v, claims %d", err, len(report.Check.Claims))
 	}
 }

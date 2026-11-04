@@ -27,6 +27,7 @@ type mariaDBTestIndex struct {
 	Revision   string                         `json:"revision"`
 	Purpose    string                         `json:"purpose"`
 	Capability string                         `json:"engineCapabilityDigest"`
+	BaseDigest string                         `json:"baseCapabilityDigest,omitempty"`
 	Projects   []cncfcheck.ExternalIndexEntry `json:"projects"`
 	MinClient  string                         `json:"minClientVersion,omitempty"`
 }
@@ -172,6 +173,46 @@ func TestMariaDBExternalReleasedClientProfiles(t *testing.T) {
 		}
 		t.Logf("released incompatible import min=%q exit=%d trust=%s selection=%s unchanged", minClient, code, after.TrustStateDigest, after.SelectedBundleDigest)
 	}
+	// The explicitly selected new legacy contract changes the index format,
+	// even with the exact legacy capability. It must never reach an old client
+	// as an implicitly compatible weekly export.
+	compatible, _, err := cncfcheck.BuildEmbeddedCompatibleExternalTargets("7", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var marker mariaDBTestIndex
+	if json.Unmarshal(compatible.Bytes, &marker) != nil || marker.BaseDigest == "" {
+		t.Fatal("explicit compatibility marker missing")
+	}
+	targets = mariaDBTargets(t, legacy, "mariadb-operator")
+	if json.Unmarshal(targets[cncfcheck.ExternalIndexTargetPath], &index) != nil {
+		t.Fatal("legacy index")
+	}
+	index.BaseDigest = marker.BaseDigest
+	targets[cncfcheck.ExternalIndexTargetPath], _ = json.Marshal(index)
+	pack, err = repo.Package(knowledgefixture.ProjectsPackage{Version: 4, Targets: targets})
+	if err != nil {
+		t.Fatal(err)
+	}
+	path = writeCNCFFile(t, "explicit-compatible.tar", pack, 0o600)
+	code, out = run("db", "import", path, "--profile", "cncf-projects", "--db-root", store, "--format", "json")
+	if code != 15 {
+		t.Fatalf("released new format exit%d output%s", code, out)
+	}
+	after, err := knowledge.InspectConstraintsProjects(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before.TrustStateDigest != after.TrustStateDigest || before.SelectedBundleDigest != after.SelectedBundleDigest || before.SelectedRevision != after.SelectedRevision {
+		t.Fatal("new format advanced released-client trust/store")
+	}
+	t.Logf("released explicit compatible-index format exit=%d trust/store unchanged", code)
+	newStore := filepath.Join(t.TempDir(), "new-client-store")
+	newCode, newOut, newErr := runCNCFCLI(t, "db", "import", path, "--profile", "cncf-projects", "--db-root", newStore, "--bootstrap-root", root, "--bootstrap-root-digest", repo.RootDigest, "--format", "json")
+	if newCode != 0 || newErr != "" {
+		t.Fatalf("new client compatible-index import exit%d out%s err%s", newCode, newOut, newErr)
+	}
+	t.Logf("new client explicit compatible-index import exit=%d", newCode)
 }
 
 func TestMariaDBExternalCurrentCRDProfiles(t *testing.T) {
@@ -199,6 +240,61 @@ func TestMariaDBExternalCurrentCRDProfiles(t *testing.T) {
 		if err != nil || cncfknowledge.ClaimExit(report) != ExitUnknown || len(report.Check.Check.Claims) != 1 || report.Check.Check.Claims[0].Status != "PASS" || report.Assessment != "UNKNOWN" || report.Knowledge.ProjectTarget == nil || report.Knowledge.ProjectTarget.Digest != digestCommunityBytes(raw) {
 			t.Fatalf("library CRD profile report=%+v err=%v", report, err)
 		}
+	}
+}
+
+func TestMariaDBForwardSignedProfileSwaps(t *testing.T) {
+	repo, err := knowledgefixture.NewProjectsRepository(time.Now().UTC().Truncate(time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer repo.Close()
+	legacy, _ := mariaDBCRDTarget(t, false)
+	canary := mariaDBCanaryTarget(t)
+	explicit, _, err := cncfcheck.BuildEmbeddedCompatibleExternalTargets("7", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var marker mariaDBTestIndex
+	if json.Unmarshal(explicit.Bytes, &marker) != nil || marker.BaseDigest == "" {
+		t.Fatal("marker")
+	}
+	for _, direction := range []string{"legacy-index-canary-target", "canary-index-legacy-target", "legacy-forward-hidden-canary", "canary-with-legacy-base"} {
+		t.Run(direction, func(t *testing.T) {
+			indexTarget, target := legacy, canary
+			if direction == "canary-index-legacy-target" {
+				indexTarget, target = canary, legacy
+			}
+			if direction == "canary-with-legacy-base" {
+				indexTarget, target = canary, canary
+			}
+			targets := mariaDBTargets(t, indexTarget, "mariadb-operator")
+			var index mariaDBTestIndex
+			if json.Unmarshal(targets[cncfcheck.ExternalIndexTargetPath], &index) != nil {
+				t.Fatal("index")
+			}
+			if direction == "legacy-forward-hidden-canary" {
+				index.Capability = digestCommunityBytes([]byte("future legacy profile"))
+				index.BaseDigest = marker.BaseDigest
+				var envelope map[string]json.RawMessage
+				if json.Unmarshal(target, &envelope) != nil {
+					t.Fatal("target")
+				}
+				envelope["engineCapabilityDigest"], _ = json.Marshal(index.Capability)
+				target, _ = json.Marshal(envelope)
+			}
+			if direction == "canary-with-legacy-base" {
+				index.BaseDigest = marker.BaseDigest
+			}
+			index.Projects[0].Length = int64(len(target))
+			index.Projects[0].Digest = digestCommunityBytes(target)
+			targets[cncfcheck.ProjectTargetPath("mariadb-operator")] = target
+			targets[cncfcheck.ExternalIndexTargetPath], _ = json.Marshal(index)
+			_, receipt, err := importMariaDBFixture(t, repo, targets, nil)
+			if err == nil || receipt.Status == "IMPORTED" {
+				t.Fatalf("signed profile swap admitted: %+v %v", receipt, err)
+			}
+		})
 	}
 }
 

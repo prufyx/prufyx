@@ -25,12 +25,15 @@ type ScanKnowledge struct {
 	selected map[string]bundle
 	// deferred counts, per project of the store, the rules this build did
 	// not evaluate (forwardcompat.go).
-	deferred map[string]int
+	deferred   map[string]int
+	unreadable map[string]bool
 }
 
 // DeferredRules is the number of rules of project that this build cannot
 // evaluate; the project has no scan rule while it is not zero.
 func (k *ScanKnowledge) DeferredRules(project string) int { return k.deferred[project] }
+
+func (k *ScanKnowledge) UnreadableTarget(project string) bool { return k.unreadable[project] }
 
 // ScanRule is the selection view of one admitted rule: its scope for line
 // attestations (id, subject component, line, fact families, reviewed
