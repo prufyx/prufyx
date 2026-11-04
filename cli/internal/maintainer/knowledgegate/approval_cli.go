@@ -60,6 +60,11 @@ const approvalUsage = `usage: prufyx-maintainer approval <sign|verify|public-key
               --admission-ready-fd FD (dedicated supervisor pipe; key bytes remain on stdin)
               --admission-git-dir DIR --admission-base SHA --admission-head SHA
               --admission-daily-commits FILE --admission-paused false --admission-observed-at UTC
+  sign-supervised --base DIR --head DIR --keys-digest sha256:... --identity LOGIN --key-stdin
+              --expected-key-id ID --admission-source github (Linux bot-only fixed descriptors 3..8)
+              --admission-executable-sha256 HEX --admission-draft-sha256 HEX
+              --admission-keys-sha256 HEX --admission-export-sha256 HEX --admission-daily-sha256 HEX
+              (other admission Git, pause and observation flags as above; no input pathname overrides)
   verify      --onboarding FILE --base DIR --head DIR --keys FILE --keys-digest sha256:... [--now RFC3339]
               v2 also requires the admission Git/history/pause observation flags above
   public-key  (--key FILE | --key-stdin)
@@ -78,6 +83,7 @@ type approvalEnv struct {
 	random  io.Reader
 	// Tests can inject upstream bytes; production bot signing uses GitHub.
 	onboardingSource Source
+	supervised       *supervisedInputs
 }
 
 // checkKeyStdin accepts only a pipe. A terminal would echo a typed or
@@ -118,6 +124,9 @@ func ApprovalMain(args []string, stdin io.Reader, stdout, stderr io.Writer) int 
 }
 
 func approvalMain(args []string, env approvalEnv, layout Layout, stdout, stderr io.Writer) int {
+	if env.supervised == nil && len(args) > 0 && args[0] == "sign-supervised" {
+		return supervisedApprovalMain(args, env, layout, stdout, stderr)
+	}
 	if len(args) == 0 {
 		fmt.Fprintln(stderr, approvalUsage)
 		return 2
@@ -125,8 +134,10 @@ func approvalMain(args []string, env approvalEnv, layout Layout, stdout, stderr 
 	var code int
 	var err error
 	switch args[0] {
-	case "sign":
-		if hasBatchFlag(args[1:]) {
+	case "sign", "sign-supervised":
+		if env.supervised != nil {
+			code, err = cmdOnboardingSign(args[1:], env, layout, stdout)
+		} else if hasBatchFlag(args[1:]) {
 			code, err = cmdBatchSign(args[1:], env, layout, stdout)
 		} else if hasFlag(args[1:], "onboarding") {
 			code, err = cmdOnboardingSign(args[1:], env, layout, stdout)

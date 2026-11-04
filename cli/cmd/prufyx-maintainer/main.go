@@ -22,6 +22,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencerepin"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/factorymirror"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgeexport"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgegate"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgepack"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgetargets"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/localkind"
@@ -65,6 +66,12 @@ func main() {
 }
 
 func run(args []string, stdout, stderr io.Writer) error {
+	if handled, code := knowledgegate.SupervisedApprovalMain(args, os.Stdin, stdout, stderr); handled {
+		if code != 0 {
+			return &commandError{code: code, message: "approval failed", printed: true}
+		}
+		return nil
+	}
 	if len(args) == 0 {
 		return usageError()
 	}

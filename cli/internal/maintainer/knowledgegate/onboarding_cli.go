@@ -78,6 +78,7 @@ func cmdOnboardingSign(args []string, env approvalEnv, layout Layout, stdout io.
 	var validFor time.Duration
 	var k keyFlags
 	var admission admissionFlags
+	var supervised supervisedFlags
 	f := flag.NewFlagSet("approval sign --onboarding", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
 	f.StringVar(&draftPath, "onboarding", "", "the proposal's unsigned draft")
@@ -91,6 +92,7 @@ func cmdOnboardingSign(args []string, env approvalEnv, layout Layout, stdout io.
 	f.DurationVar(&validFor, "valid-for", MaxOnboardingValidity, "notAfter - decidedAt, at most 72h")
 	k.register(f)
 	admission.register(f)
+	supervised.register(f)
 	f.StringVar(&admission.expectedKey, "expected-key-id", "", "expected pinned public onboarding-bot key ID (no private-key derivation)")
 	f.StringVar(&admission.export, "admission-export", "", "opaque retained plan/manifest/draft SHA256 bindings")
 	f.StringVar(&admission.source, "admission-source", "", "pre-key upstream checks: github")
@@ -98,7 +100,33 @@ func cmdOnboardingSign(args []string, env approvalEnv, layout Layout, stdout io.
 	if err := parseApprovalFlags(f, args); err != nil {
 		return 2, err
 	}
-	if draftPath == "" || baseDir == "" || headDir == "" || keysPath == "" || keysDigest == "" || identity == "" {
+	var rawDraft, rawKeys, rawExport []byte
+	var err error
+	provided := map[string]bool{}
+	f.Visit(func(v *flag.Flag) { provided[v.Name] = true })
+	if env.supervised == nil {
+		for _, name := range []string{"admission-executable-sha256", "admission-draft-sha256", "admission-keys-sha256", "admission-export-sha256", "admission-daily-sha256"} {
+			if provided[name] {
+				return 2, errors.New("sealed input bindings require sign-supervised")
+			}
+		}
+	}
+	if env.supervised != nil {
+		for _, name := range []string{"onboarding", "keys", "admission-export", "admission-daily-commits", "admission-ready-fd", "batch"} {
+			if provided[name] {
+				return 2, errors.New("supervised mode rejects pathname, batch and descriptor overrides")
+			}
+		}
+		if !k.stdin || k.file != "" {
+			return 2, errors.New("supervised bot mode requires only --key-stdin")
+		}
+		rawDraft, rawKeys, rawExport, admission.dailyRaw, err = env.supervised.read(supervised)
+		if err != nil {
+			return 2, err
+		}
+		admission.readyFD = 3
+	}
+	if (draftPath == "" && env.supervised == nil) || baseDir == "" || headDir == "" || (keysPath == "" && env.supervised == nil) || keysDigest == "" || identity == "" {
 		return 2, usageError{"--onboarding, --base, --head, --keys, --keys-digest and --identity are required"}
 	}
 	if validFor < time.Minute || validFor > MaxOnboardingValidity {
@@ -107,9 +135,11 @@ func cmdOnboardingSign(args []string, env approvalEnv, layout Layout, stdout io.
 	if layout.Onboarding.Dir == "" {
 		return 2, errors.New("this layout has no onboarding directory")
 	}
-	rawDraft, err := readBoundedFile(draftPath, maxOnboardingBytes+1)
-	if err != nil {
-		return 2, err
+	if env.supervised == nil {
+		rawDraft, err = readBoundedFile(draftPath, maxOnboardingBytes+1)
+		if err != nil {
+			return 2, err
+		}
 	}
 	var draft onboardingDraft
 	if err := strictDecode([]byte(strings.TrimSuffix(string(rawDraft), "\n")), &draft); err != nil {
@@ -136,22 +166,34 @@ func cmdOnboardingSign(args []string, env approvalEnv, layout Layout, stdout io.
 	if err != nil {
 		return 2, err
 	}
-	keys, err := loadKeysFile(keysPath, keysDigest)
+	var keys ApprovalKeys
+	if env.supervised != nil {
+		keys, err = LoadApprovalKeys(rawKeys, keysDigest)
+	} else {
+		keys, err = loadKeysFile(keysPath, keysDigest)
+	}
 	if err != nil {
 		return 2, err
 	}
 	var ready *os.File
+	if env.supervised != nil && !keys.isBot(identity) {
+		return 2, errors.New("supervised inputs are onboarding-bot only; no owner fallback")
+	}
 	if keys.isBot(identity) {
 		if !k.stdin || k.file != "" {
 			return 2, errors.New("bot v2 requires --key-stdin and a supervisor that refreshes live controls after admission readiness")
 		}
-		if admission.expectedKey == "" || admission.export == "" {
+		if admission.expectedKey == "" || (admission.export == "" && rawExport == nil) {
 			return 2, errors.New("bot signing requires expected public key and complete v2 admission inputs")
 		}
-		if ready, err = claimOnboardingReadyPipe(admission.readyFD); err != nil {
-			return 2, err
+		if env.supervised != nil {
+			ready = env.supervised.files[0]
+		} else {
+			if ready, err = claimOnboardingReadyPipe(admission.readyFD); err != nil {
+				return 2, err
+			}
+			defer ready.Close()
 		}
-		defer ready.Close()
 		info, err := ready.Stat()
 		if err != nil {
 			return 2, err
@@ -227,9 +269,13 @@ func cmdOnboardingSign(args []string, env approvalEnv, layout Layout, stdout io.
 	rec.NotAfter = now.Add(validFor).Format("2006-01-02T15:04:05Z")
 	envl := OnboardingEnvelope{Schema: OnboardingSchema, Record: rec}
 	if keys.isBot(identity) {
-		raw, readErr := readBoundedFile(admission.export, maxOnboardingBytes)
-		if readErr != nil {
-			return 2, readErr
+		raw := rawExport
+		if env.supervised == nil {
+			var readErr error
+			raw, readErr = readBoundedFile(admission.export, maxOnboardingBytes)
+			if readErr != nil {
+				return 2, readErr
+			}
 		}
 		var export OnboardingExportBinding
 		if err := strictDecode(raw, &export); err != nil {
