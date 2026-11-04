@@ -120,6 +120,15 @@ func runOnboarding(ctx context.Context, opts Options, cls *Classification, chang
 		return fail("O1: %s", err)
 	}
 	if env.binding != nil {
+		base, head, cleanup, err := exportAdmissionTrees(ctx, opts.OnboardingGit)
+		if err != nil {
+			return fail("O1: %s", err)
+		}
+		defer cleanup()
+		if err := equalAdmissionTrees(base, head, opts.Base, opts.Head); err != nil {
+			return fail("O1: %s", err)
+		}
+		opts.Base, opts.Head = base, head
 		if err := checkBotAdmission(ctx, env, *keys, opts, false); err != nil {
 			return fail("O1: %s", err)
 		}

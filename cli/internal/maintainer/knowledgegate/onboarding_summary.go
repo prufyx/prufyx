@@ -17,6 +17,10 @@ import (
 // printable ASCII is escaped (termSafe).
 
 func (st *onboardingState) summary(rec OnboardingRecord) string {
+	return st.summaryForTier(rec, false)
+}
+
+func (st *onboardingState) summaryForTier(rec OnboardingRecord, bot bool) string {
 	var b strings.Builder
 	w := func(format string, args ...any) { fmt.Fprintf(&b, format, args...) }
 	sampled := map[int]bool{}
@@ -33,7 +37,11 @@ func (st *onboardingState) summary(rec OnboardingRecord) string {
 		}
 	}
 	w("# Onboarding batch %s\n\n", cell(rec.BatchID))
-	w("Candidate: %s. Projects: %d (at most %d). Sample read in full: %d. Nonce: %s.\n\n", cell(rec.CandidateID), len(rec.Projects), MaxOnboardingProjects, len(rec.Sample), cell(rec.Nonce))
+	if bot {
+		w("Candidate: %s. Projects: %d (at most %d). Sample drawn, not human-reviewed: %d. Nonce: %s.\n\n", cell(rec.CandidateID), len(rec.Projects), MaxBotOnboardingProjects, len(rec.Sample), cell(rec.Nonce))
+	} else {
+		w("Candidate: %s. Projects: %d (at most %d). Sample read in full: %d. Nonce: %s.\n\n", cell(rec.CandidateID), len(rec.Projects), MaxOnboardingProjects, len(rec.Sample), cell(rec.Nonce))
+	}
 	if len(attest) > 0 {
 		w("**Attestation turned on: %s.** An attesting target can turn answers into a scope-complete PASS once its line attestations are admitted. The gate admits it only when its own dry run attests the newest pair; the refuted-claims count is the proposal's own.\n\n", cell(strings.Join(attest, ", ")))
 	}
@@ -62,6 +70,9 @@ func (st *onboardingState) summary(rec OnboardingRecord) string {
 		read := ""
 		if sampled[i] || p.Kind == OnboardingKindAttest {
 			read = "in full"
+			if bot {
+				read = "drawn, not read"
+			}
 		}
 		c := p.Proof.Claims
 		w("| %d | %s | %s | %s | %s | %s | %s -> %s | %d | %d/%d/%d | %s |\n", i, cell(p.Slug), p.Kind, cell(repo), cell(paths), cell(strings.Join(p.Groups, ", ")),

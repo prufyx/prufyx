@@ -54,15 +54,28 @@ func TestOnboardingReadinessPipeIsolation(t *testing.T) {
 	if err != nil || flags&unix.FD_CLOEXEC == 0 {
 		t.Fatal("control pipe is inherited across exec")
 	}
-	cmd := exec.Command("sh", "-c", "if printf forged >&"+strconv.Itoa(fd)+" 2>/dev/null; then exit 91; fi")
+	// POSIX shells need not accept multi-digit redirection syntax. /dev/fd
+	// probes the actual descriptor at any allocation number instead.
+	probe := func(n int) string {
+		return "if [ -e /dev/fd/" + strconv.Itoa(n) + " ]; then printf forged > /dev/fd/" + strconv.Itoa(n) + "; exit 91; fi"
+	}
+	cmd := exec.Command("sh", "-c", probe(fd))
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("child inherited readiness descriptor: %v", err)
+	}
+	// Positive control: explicit ExtraFiles inheritance must be detected.
+	inherited := exec.Command("sh", "-c", probe(3))
+	inherited.ExtraFiles = []*os.File{pipe}
+	if err := inherited.Run(); err == nil {
+		t.Fatal("descriptor probe missed explicit inheritance")
+	} else if exit, ok := err.(*exec.ExitError); !ok || exit.ExitCode() != 91 {
+		t.Fatalf("descriptor positive control failed: %v", err)
 	}
 	_ = pipe.Close()
 	raw := make([]byte, 16)
 	n, _ := r.Read(raw)
-	if n != 0 {
-		t.Fatalf("source subprocess injected control bytes: %q", raw[:n])
+	if string(raw[:n]) != "forged" {
+		t.Fatalf("control channel isolation/positive control mismatch: %q", raw[:n])
 	}
 	for _, bad := range []int{-1, 0, 1, 2} {
 		if _, err := claimOnboardingReadyPipe(bad); err == nil {

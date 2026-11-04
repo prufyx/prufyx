@@ -193,6 +193,7 @@ func admissionSample(r OnboardingRecord, b OnboardingAdmissionBinding) ([]int, e
 func (st *onboardingState) envelopeSummary(e OnboardingEnvelope) string {
 	s := st.summary(e.Record)
 	if e.binding != nil {
+		s = st.summaryForTier(e.Record, true)
 		raw, _ := json.Marshal(e.binding)
 		s += "\n## Admission binding (v2)\n\n```json\n" + string(raw) + "\n```\n"
 	}
@@ -400,9 +401,15 @@ func checkBotAdmission(ctx context.Context, e OnboardingEnvelope, keys ApprovalK
 	if err := checkAdmissionRefs(ctx, g); err != nil {
 		return err
 	}
-	if err := checkAdmissionTrees(ctx, g, opts); err != nil {
+	baseSnapshot, headSnapshot, cleanup, err := exportAdmissionTrees(ctx, g)
+	if err != nil {
 		return err
 	}
+	defer cleanup()
+	if err := equalAdmissionTrees(baseSnapshot, headSnapshot, opts.Base, opts.Head); err != nil {
+		return err
+	}
+	opts.Base, opts.Head = baseSnapshot, headSnapshot
 	if g.Paused == nil || *g.Paused || opts.BotSignerPaused || g.ObservedAt.IsZero() || g.ObservedAt.After(opts.Now.Add(approvalClockSkew)) || opts.Now.Sub(g.ObservedAt) > 5*time.Minute {
 		return errors.New("pause/clock observation missing, stale or paused")
 	}
@@ -411,6 +418,9 @@ func checkBotAdmission(ctx context.Context, e OnboardingEnvelope, keys ApprovalK
 	}
 	unsigned := g.HeadCommit
 	if !prekey {
+		if opts.HeadSHA != g.HeadCommit {
+			return errors.New("checked head differs from authenticated approval commit")
+		}
 		parents, err := admissionGit(ctx, g, "show", "-s", "--format=%P", g.HeadCommit)
 		if err != nil || strings.Fields(string(parents)) == nil || len(strings.Fields(string(parents))) != 1 {
 			return errors.New("approval must have exactly one parent")
@@ -553,21 +563,32 @@ func checkBotAdmission(ctx context.Context, e OnboardingEnvelope, keys ApprovalK
 	return checkAdmissionRefs(ctx, g)
 }
 
-func checkAdmissionTrees(ctx context.Context, g *OnboardingGitContext, opts Options) error {
+func exportAdmissionTrees(ctx context.Context, g *OnboardingGitContext) (Tree, Tree, func(), error) {
+	if err := checkAdmissionRefs(ctx, g); err != nil {
+		return Tree{}, Tree{}, nil, err
+	}
 	dir, err := os.MkdirTemp("", "onboarding-git-trees-")
 	if err != nil {
-		return err
+		return Tree{}, Tree{}, nil, err
 	}
-	defer os.RemoveAll(dir)
-	for i, side := range []struct {
-		commit string
-		tree   Tree
-	}{{g.BaseCommit, opts.Base}, {g.HeadCommit, opts.Head}} {
+	cleanup := func() { _ = os.RemoveAll(dir) }
+	for i, commit := range []string{g.BaseCommit, g.HeadCommit} {
 		out := filepath.Join(dir, fmt.Sprint(i))
-		if err := Export(ctx, ExportOptions{GitDir: g.GitDir, Commit: side.commit, Out: out}); err != nil {
-			return err
+		if err := Export(ctx, ExportOptions{GitDir: g.GitDir, Commit: commit, Out: out}); err != nil {
+			cleanup()
+			return Tree{}, Tree{}, nil, err
 		}
-		paths, err := ChangedPaths(Tree{Root: out}, side.tree)
+	}
+	if err := checkAdmissionRefs(ctx, g); err != nil {
+		cleanup()
+		return Tree{}, Tree{}, nil, err
+	}
+	return Tree{Root: filepath.Join(dir, "0")}, Tree{Root: filepath.Join(dir, "1")}, cleanup, nil
+}
+
+func equalAdmissionTrees(base, head, inputBase, inputHead Tree) error {
+	for _, pair := range [][2]Tree{{base, inputBase}, {head, inputHead}} {
+		paths, err := ChangedPaths(pair[0], pair[1])
 		if err != nil {
 			return err
 		}

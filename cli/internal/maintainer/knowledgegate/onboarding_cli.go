@@ -179,6 +179,27 @@ func cmdOnboardingSign(args []string, env approvalEnv, layout Layout, stdout io.
 	if !keys.isBot(identity) && !keys.isOwner(identity) {
 		return 2, errors.New("identity is not pinned")
 	}
+	inputBase, inputHead := base, head
+	var admissionOpts Options
+	if keys.isBot(identity) {
+		if admissionOpts, err = admission.signOptions(layout, base, head, keysDigest, now, env.onboardingSource); err != nil {
+			return 2, err
+		}
+		if gh, ok := admissionOpts.Source.(*GitHubSource); ok {
+			defer gh.Close()
+		}
+		var cleanup func()
+		if base, head, cleanup, err = exportAdmissionTrees(context.Background(), admissionOpts.OnboardingGit); err != nil {
+			return 2, err
+		}
+		defer cleanup()
+		if err := equalAdmissionTrees(base, head, inputBase, inputHead); err != nil {
+			return 2, err
+		}
+		// Prepare from owned object exports, never from a caller directory that
+		// could change and be restored around a later equivalence check.
+		admissionOpts.Base, admissionOpts.Head = base, head
+	}
 	nonceBytes := make([]byte, batchNonceHexBytes)
 	if _, err := io.ReadFull(env.random, nonceBytes); err != nil {
 		return 2, errors.New("the review nonce cannot be drawn")
@@ -205,14 +226,7 @@ func cmdOnboardingSign(args []string, env approvalEnv, layout Layout, stdout io.
 	rec.DecidedAt = now.Format("2006-01-02T15:04:05Z")
 	rec.NotAfter = now.Add(validFor).Format("2006-01-02T15:04:05Z")
 	envl := OnboardingEnvelope{Schema: OnboardingSchema, Record: rec}
-	var admissionOpts Options
 	if keys.isBot(identity) {
-		if admissionOpts, err = admission.signOptions(layout, base, head, keysDigest, now, env.onboardingSource); err != nil {
-			return 2, err
-		}
-		if gh, ok := admissionOpts.Source.(*GitHubSource); ok {
-			defer gh.Close()
-		}
 		raw, readErr := readBoundedFile(admission.export, maxOnboardingBytes)
 		if readErr != nil {
 			return 2, readErr
@@ -224,7 +238,7 @@ func cmdOnboardingSign(args []string, env approvalEnv, layout Layout, stdout io.
 		if export.DraftDigest != CandidateDigest(rawDraft) {
 			return 2, errors.New("draft byte binding differs")
 		}
-		if envl, err = prepareBotAdmission(context.Background(), admissionOpts, keys, rec, st, export, admission.expectedKey); err != nil {
+		if envl, err = prepareBotAdmission(context.Background(), admissionOpts, keys, rec, export, admission.expectedKey); err != nil {
 			return 2, err
 		}
 		rec = envl.Record
@@ -257,6 +271,9 @@ func cmdOnboardingSign(args []string, env approvalEnv, layout Layout, stdout io.
 	if envl.binding != nil {
 		admissionOpts.Now = env.now().UTC().Truncate(time.Second)
 		if err := checkBotAdmission(context.Background(), envl, keys, admissionOpts, true); err != nil {
+			return 2, err
+		}
+		if err := equalAdmissionTrees(base, head, inputBase, inputHead); err != nil {
 			return 2, err
 		}
 		if err := writeOnboardingReadiness(ready, envl); err != nil {
@@ -394,12 +411,23 @@ func cmdOnboardingVerify(args []string, env approvalEnv, layout Layout, stdout i
 			return refused(err.Error())
 		}
 		opts.Now, opts.ApprovalKeysDigest, opts.OnboardingGit = at, keysDigest, g
+		opts.HeadSHA = g.HeadCommit
 		opts.BotLogin, opts.MaxLoosening, opts.MaxWithdrawPercent, opts.MaxWithdrawProject = DefaultBotLogin, 200, 5, 20
 		opts.MaxDailyLoosening, opts.DailyLoosening, opts.AdmissionRESTBudget = 50, &count, 900
+		base, head, cleanup, err := exportAdmissionTrees(context.Background(), g)
+		if err != nil {
+			return refused(err.Error())
+		}
+		defer cleanup()
+		if err := equalAdmissionTrees(base, head, opts.Base, opts.Head); err != nil {
+			return refused(err.Error())
+		}
+		opts.Base, opts.Head = base, head
 		if err := checkBotAdmission(context.Background(), envl, keys, opts, false); err != nil {
 			return refused(err.Error())
 		}
 	}
+	base, head = opts.Base, opts.Head
 	cls, err := Classify(layout, base, head)
 	if err != nil {
 		return 2, err

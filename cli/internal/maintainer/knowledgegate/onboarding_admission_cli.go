@@ -82,11 +82,26 @@ func (a admissionFlags) signOptions(layout Layout, base, head Tree, keysDigest s
 
 // prepareBotAdmission performs actual offline and upstream admission before a
 // private key is loaded. It never substitutes an owner or throwaway signature.
-func prepareBotAdmission(ctx context.Context, opts Options, keys ApprovalKeys, rec OnboardingRecord, st *onboardingState, export OnboardingExportBinding, kid string) (OnboardingEnvelope, error) {
+func prepareBotAdmission(ctx context.Context, opts Options, keys ApprovalKeys, rec OnboardingRecord, export OnboardingExportBinding, kid string) (OnboardingEnvelope, error) {
 	g := opts.OnboardingGit
 	if err := checkAdmissionRefs(ctx, g); err != nil {
 		return OnboardingEnvelope{}, err
 	}
+	base, head, cleanup, err := exportAdmissionTrees(ctx, g)
+	if err != nil {
+		return OnboardingEnvelope{}, err
+	}
+	defer cleanup()
+	if err := equalAdmissionTrees(base, head, opts.Base, opts.Head); err != nil {
+		return OnboardingEnvelope{}, err
+	}
+	opts.Base, opts.Head = base, head
+	prepared, st, err := prepareOnboarding(opts.Layout, base, head, onboardingDraft{BatchID: rec.BatchID, CandidateID: rec.CandidateID, Projects: rec.Projects}, rec.Nonce, opts.Layout.Onboarding.Dir+"/"+rec.BatchID+".json")
+	if err != nil {
+		return OnboardingEnvelope{}, err
+	}
+	prepared.Identity, prepared.Decision, prepared.DecidedAt, prepared.NotAfter = rec.Identity, rec.Decision, rec.DecidedAt, rec.NotAfter
+	rec = prepared
 	baseTree, err := admissionObject(ctx, g, g.BaseCommit+"^{tree}")
 	if err != nil {
 		return OnboardingEnvelope{}, err

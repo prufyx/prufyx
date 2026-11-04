@@ -76,7 +76,7 @@ func newAdmissionFixture(t *testing.T, history func(*onboardingFixture, testAppr
 	}
 	g := &OnboardingGitContext{GitDir: repo, BaseCommit: base, HeadCommit: head, DailyCommits: []DailyCommit{}, Paused: &paused, ObservedAt: gateNow}
 	opts := Options{Layout: DefaultLayout(), Base: f.base, Head: f.head, Source: f.src, Now: gateNow, OnboardingGit: g, ApprovalKeysDigest: pinnedDigest(keyRaw), BotLogin: DefaultBotLogin, MaxLoosening: 200, MaxWithdrawPercent: 5, MaxWithdrawProject: 20, MaxDailyLoosening: 50, DailyLoosening: &zero, AdmissionRESTBudget: 900, Author: botLogin, Sender: botLogin}
-	rec, st, err := prepareOnboarding(opts.Layout, f.base, f.head, f.draft, obNonce, opts.Layout.Onboarding.Dir+"/"+f.draft.BatchID+".json")
+	rec, _, err := prepareOnboarding(opts.Layout, f.base, f.head, f.draft, obNonce, opts.Layout.Onboarding.Dir+"/"+f.draft.BatchID+".json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func newAdmissionFixture(t *testing.T, history func(*onboardingFixture, testAppr
 		t.Fatal(err)
 	}
 	export := OnboardingExportBinding{PlanDigest: CandidateDigest([]byte("plan fixture")), ManifestDigest: CandidateDigest([]byte("manifest fixture")), DraftDigest: CandidateDigest([]byte("draft fixture")), FactsDigest: CandidateDigest([]byte("facts fixture")), BundleDigest: CandidateDigest([]byte("bundle fixture")), ExportLineHash: onboardingLineHash(patch), PublicLineHash: onboardingLineHash(patch)}
-	e, err := prepareBotAdmission(context.Background(), opts, keys, rec, st, export, ApprovalKeyID(bot.public))
+	e, err := prepareBotAdmission(context.Background(), opts, keys, rec, export, ApprovalKeyID(bot.public))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,8 +145,36 @@ func TestOnboardingV2AdmissionAndGate(t *testing.T) {
 	if err := checkBotAdmission(context.Background(), a.env, a.keys, a.opts, false); err != nil {
 		t.Fatal(err)
 	}
+	wrongHead := a.opts
+	wrongHead.HeadSHA = a.opts.OnboardingGit.BaseCommit
+	if err := checkBotAdmission(context.Background(), a.env, a.keys, wrongHead, false); err == nil {
+		t.Fatal("verified report accepted a different head label")
+	}
 	r := runGate(t, a.opts)
 	requirePass(t, r)
+	c, _ := check(r, CheckOnboarding)
+	if !strings.Contains(c.Detail, "bot tier: sample drawn, not read") {
+		t.Fatalf("bot review scope: %s", c.Detail)
+	}
+	cls, err := Classify(a.opts.Layout, a.opts.Base, a.opts.Head)
+	if err != nil {
+		t.Fatal(err)
+	}
+	paths, err := ChangedPaths(a.opts.Base, a.opts.Head)
+	if err != nil {
+		t.Fatal(err)
+	}
+	st, err := newOnboardingState(a.opts.Layout, a.opts.Base, a.opts.Head, cls, paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	summary := st.envelopeSummary(a.env)
+	if !strings.Contains(summary, "Sample drawn, not human-reviewed") || strings.Contains(summary, "Sample read in full:") || strings.Contains(summary, "| in full |") {
+		t.Fatal("v2 summary implies human source reading")
+	}
+	if !strings.Contains(st.summary(a.env.Record), "Sample read in full:") {
+		t.Fatal("v1 summary bytes changed")
+	}
 	if r.AutoMerge.Eligible || !strings.Contains(strings.Join(r.AutoMerge.Reasons, ";"), "onboarding batch") {
 		t.Fatalf("onboarding automatic merge changed: %+v", r.AutoMerge)
 	}
@@ -164,6 +192,58 @@ func TestOnboardingV2AdmissionAndGate(t *testing.T) {
 	sig, _ := base64.StdEncoding.DecodeString(a.env.Signature)
 	if ed25519.Verify(a.bot.public, v1, sig) {
 		t.Fatal("v2 verifies in v1 domain")
+	}
+}
+
+func TestOnboardingV2RejectsRestoredCallerState(t *testing.T) {
+	t.Parallel()
+	a := newAdmissionFixture(t, nil)
+	draftRaw, _ := json.Marshal(a.f.draft)
+	var draft onboardingDraft
+	if err := json.Unmarshal(draftRaw, &draft); err != nil {
+		t.Fatal(err)
+	}
+	rel := draft.Projects[0].Artifacts[0].Path
+	original, err := a.opts.Head.Read(rel, MaxFileBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tampered := append(append([]byte{}, original...), '\n')
+	path := filepath.Join(a.opts.Head.Root, filepath.FromSlash(rel))
+	if err := os.WriteFile(path, tampered, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	draft.Projects[0].Artifacts[0].Digest = CandidateDigest(tampered)
+	stale, _, err := prepareOnboarding(a.opts.Layout, a.opts.Base, a.opts.Head, draft, obNonce, a.opts.Layout.Onboarding.Dir+"/"+draft.BatchID+".json")
+	if err != nil {
+		t.Fatalf("could not reproduce caller-derived stale semantic state: %v", err)
+	}
+	stale.Identity, stale.Decision, stale.DecidedAt, stale.NotAfter = a.env.Record.Identity, a.env.Record.Decision, a.env.Record.DecidedAt, a.env.Record.NotAfter
+	if err := os.WriteFile(path, original, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// The caller bytes now match Git again, but its previously prepared state
+	// and artifact proof name different bytes. Preparation must rederive from
+	// its own object exports instead of accepting that stale semantic state.
+	if _, err := prepareBotAdmission(context.Background(), a.opts, a.keys, stale, a.env.binding.Export, a.env.KeyID); err == nil {
+		t.Fatal("restored caller state bypassed authenticated semantic derivation")
+	}
+	base, head, cleanup, err := exportAdmissionTrees(context.Background(), a.opts.OnboardingGit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	if base.Root == a.opts.Base.Root || head.Root == a.opts.Head.Root {
+		t.Fatal("caller directories used as semantic authority")
+	}
+	if err := os.WriteFile(path, tampered, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := equalAdmissionTrees(base, head, a.opts.Base, a.opts.Head); err == nil {
+		t.Fatal("swapped caller view passed the additional equivalence check")
+	}
+	if _, _, err := prepareOnboarding(a.opts.Layout, base, head, a.f.draft, obNonce, a.opts.Layout.Onboarding.Dir+"/"+draft.BatchID+".json"); err != nil {
+		t.Fatalf("owned semantic snapshot changed with caller: %v", err)
 	}
 }
 

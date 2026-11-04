@@ -1201,7 +1201,10 @@ For bot signing, add these flags to `approval sign --onboarding`:
 
 V2 `approval verify --onboarding` and `gate verify` require the Git/history/pause
 context flags too. They verify full exported trees against Git objects rather
-than trusting the input directories or a sidecar's assertions. Public CI
+than trusting the input directories or a sidecar's assertions. Bot preparation
+and v2 verification derive semantic state from owned object exports; caller
+directories are additional equivalence checks, and cannot supply stale state
+by changing and restoring their files around those checks. Public CI
 validates its authenticated job snapshot; a timestamp does not turn that
 snapshot into a live Variables API check. The privileged caller must refresh
 its existing authoritative refs, pins and pause immediately before private-key
