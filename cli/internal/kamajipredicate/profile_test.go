@@ -59,9 +59,20 @@ type testContext struct {
 	Mode, Intent, TargetSchema, HostVersion                            string
 	CELRecord, OldAcceptanceRecord, TargetInstallRecord                string
 	FactDigest, Expires                                                string
+	InputDigest                                                        string
+	SelectionExplicit, SelectionComplete                               bool
 }
 
 type signedTestRecord struct{ Bytes, Signature []byte }
+type capturedTestInput struct {
+	raw       []byte
+	selection Selection
+	records   map[string]signedTestRecord
+}
+type testRecord struct {
+	Schema, Role, Old, Target, Host, InputDigest string
+	Selection                                    Selection
+}
 type testProfile struct {
 	issuer     ed25519.PublicKey
 	key        ed25519.PrivateKey
@@ -69,7 +80,6 @@ type testProfile struct {
 	rules      constraintengine.RuleSet
 	entry      []byte
 	capability string
-	records    map[string]signedTestRecord
 }
 
 func newTestProfile(t *testing.T) testProfile {
@@ -92,29 +102,45 @@ func newTestProfile(t *testing.T) testProfile {
 		t.Fatal(err)
 	}
 	capability := hash(jsonBytes(struct{ Registry, Entry, Policy, Ownership string }{registry.Digest(), hash(entry), hash([]byte(testPolicy)), Profile + "/" + RuleID + "/" + FactID}))
-	p := testProfile{pub, key, registry, rules, entry, capability, map[string]signedTestRecord{}}
+	return testProfile{pub, key, registry, rules, entry, capability}
+}
+
+func (p testProfile) capture(raw []byte, selection Selection) capturedTestInput {
+	input := capturedTestInput{append([]byte(nil), raw...), selection, map[string]signedTestRecord{}}
 	for _, role := range []string{"cel-functions", "old-acceptance", "target-installation"} {
 		// Independent immutable fixture records, not context-supplied hashes or
 		// a caller success flag. They represent no real Kubernetes execution.
-		b := jsonBytes(struct{ Schema, Role, Old, Target, Host string }{"synthetic-test-record/v1", role, oldSource, newSource, "1.31.0"})
-		p.records[role] = signedTestRecord{b, ed25519.Sign(key, b)}
+		b := jsonBytes(testRecord{"synthetic-test-record/v1", role, oldSource, newSource, "1.31.0", hash(input.raw), input.selection})
+		input.records[role] = signedTestRecord{b, ed25519.Sign(p.key, b)}
 	}
-	return p
+	return input
 }
 
-func (p testProfile) context(result Result) testContext {
+func recordDigest(input capturedTestInput, role string) string {
+	r, ok := input.records[role]
+	if !ok || len(r.Bytes) == 0 {
+		return ""
+	}
+	return hash(r.Bytes)
+}
+
+func (p testProfile) context(input capturedTestInput) testContext {
+	result, err := Produce(input.raw, input.selection)
+	if err != nil {
+		panic("invalid test capture")
+	}
 	return testContext{Schema: "test-only-kamaji-claim-context/v1", Project: "kamaji", Component: Component, Rule: RuleID, Profile: Profile, Capability: p.capability, EntryDigest: hash(p.entry),
 		FromTag: "26.6.5-edge", FromCommit: oldCommit, FromSource: oldSource, ToTag: "26.11.2-edge", ToCommit: newCommit, ToSource: newSource,
-		Group: "kamaji.clastix.io", Version: "v1alpha1", Kind: "TenantControlPlane", Selection: 0, Complete: true, Mode: "raw", Intent: "apply",
-		TargetSchema: newSource, HostVersion: "1.31.0", CELRecord: hash(p.records["cel-functions"].Bytes), OldAcceptanceRecord: hash(p.records["old-acceptance"].Bytes), TargetInstallRecord: hash(p.records["target-installation"].Bytes),
-		FactDigest: hash(jsonBytes(result)), Expires: "2026-11-05T00:00:00Z"}
+		Group: "kamaji.clastix.io", Version: "v1alpha1", Kind: "TenantControlPlane", Selection: input.selection.Index, Complete: true, Mode: "raw", Intent: "apply",
+		TargetSchema: newSource, HostVersion: "1.31.0", CELRecord: recordDigest(input, "cel-functions"), OldAcceptanceRecord: recordDigest(input, "old-acceptance"), TargetInstallRecord: recordDigest(input, "target-installation"),
+		FactDigest: hash(jsonBytes(result)), Expires: "2026-11-05T00:00:00Z", InputDigest: hash(input.raw), SelectionExplicit: input.selection.Explicit, SelectionComplete: input.selection.Complete}
 }
 
 var errTestIntegrity = errors.New("test profile integrity refusal")
 
 // evaluate verifies the entire closed test context before invoking the actual
 // existing boolean engine. No caller assertion can bypass the fixture issuer.
-func (p testProfile) evaluate(result Result, entry, raw, signature []byte, now time.Time) (string, error) {
+func (p testProfile) evaluate(captured capturedTestInput, entry, raw, signature []byte, now time.Time) (string, error) {
 	if len(raw) == 0 {
 		return "UNKNOWN", nil
 	}
@@ -128,6 +154,10 @@ func (p testProfile) evaluate(result Result, entry, raw, signature []byte, now t
 	if !bytes.Equal(entry, p.entry) {
 		return "", errTestIntegrity
 	}
+	result, err := Produce(captured.raw, captured.selection)
+	if err != nil {
+		return "", errTestIntegrity
+	}
 	expires, err := time.Parse(time.RFC3339, ctx.Expires)
 	if err != nil {
 		return "", errTestIntegrity
@@ -135,17 +165,20 @@ func (p testProfile) evaluate(result Result, entry, raw, signature []byte, now t
 	if now.Before(time.Date(2026, 11, 4, 0, 0, 0, 0, time.UTC)) || !expires.After(now) || !ctx.Complete || ctx.HostVersion == "" || ctx.CELRecord == "" || ctx.OldAcceptanceRecord == "" || ctx.TargetInstallRecord == "" {
 		return "UNKNOWN", nil
 	}
-	want := p.context(result)
+	want := p.context(captured)
 	want.Expires = ctx.Expires
 	if ctx != want {
 		return "", errTestIntegrity
 	}
-	for role, record := range p.records {
+	if len(captured.records) != 3 {
+		return "UNKNOWN", nil
+	}
+	for role, record := range captured.records {
 		if !ed25519.Verify(p.issuer, record.Bytes, record.Signature) {
 			return "", errTestIntegrity
 		}
-		var doc struct{ Schema, Role, Old, Target, Host string }
-		if strictjson.Decode(record.Bytes, &doc) != nil || doc.Schema != "synthetic-test-record/v1" || doc.Role != role || doc.Old != oldSource || doc.Target != newSource || doc.Host != ctx.HostVersion {
+		var doc testRecord
+		if strictjson.Decode(record.Bytes, &doc) != nil || doc.Schema != "synthetic-test-record/v1" || doc.Role != role || doc.Old != oldSource || doc.Target != newSource || doc.Host != ctx.HostVersion || doc.InputDigest != hash(captured.raw) || doc.Selection != captured.selection {
 			return "", errTestIntegrity
 		}
 	}
@@ -175,16 +208,13 @@ func TestClosedTestOnlyProfile(t *testing.T) {
 	now := time.Date(2026, 11, 4, 12, 0, 0, 0, time.UTC)
 	t.Log("test-only canonical entry fingerprint", hash(p.entry), "capability", p.capability)
 	for _, tc := range []struct{ list, status string }{{`["10.0.0.0/16","10.0.0.0/16"]`, "BLOCKED"}, {`["10.0.0.0/16","2001:db8::/64"]`, "PASS"}, {`["10.0.0.0/16"]`, "PASS"}, {`null`, "UNKNOWN"}} {
-		result, err := Produce(resource(tc.list), selected)
-		if err != nil {
-			t.Fatal(err)
-		}
-		raw := jsonBytes(p.context(result))
-		status, err := p.evaluate(result, p.entry, raw, ed25519.Sign(p.key, raw), now)
+		captured := p.capture(resource(tc.list), selected)
+		raw := jsonBytes(p.context(captured))
+		status, err := p.evaluate(captured, p.entry, raw, ed25519.Sign(p.key, raw), now)
 		if err != nil || status != tc.status {
 			t.Fatalf("status=%s err=%v", status, err)
 		}
-		if status, err = p.evaluate(result, p.entry, nil, nil, now); err != nil || status != "UNKNOWN" {
+		if status, err = p.evaluate(captured, p.entry, nil, nil, now); err != nil || status != "UNKNOWN" {
 			t.Fatal("missing evidence escaped", status, err)
 		}
 	}
@@ -193,7 +223,7 @@ func TestClosedTestOnlyProfile(t *testing.T) {
 func TestContextSubstitutionAndUnavailableEvidence(t *testing.T) {
 	p := newTestProfile(t)
 	now := time.Date(2026, 11, 4, 12, 0, 0, 0, time.UTC)
-	result, _ := Produce(resource(`["10.0.0.0/16","10.1.0.0/16"]`), selected)
+	captured := p.capture(resource(`["10.0.0.0/16","10.1.0.0/16"]`), selected)
 	for name, mut := range map[string]func(*testContext){
 		"wrong-host-tenant-confusion": func(c *testContext) { c.HostVersion = "1.30.0" },
 		"wrong-gvk":                   func(c *testContext) { c.Version = "v1beta1" }, "wrong-component": func(c *testContext) { c.Component = "pkg:github/example/other" },
@@ -205,42 +235,42 @@ func TestContextSubstitutionAndUnavailableEvidence(t *testing.T) {
 		"record-replay": func(c *testContext) { c.OldAcceptanceRecord = c.TargetInstallRecord },
 	} {
 		t.Run(name, func(t *testing.T) {
-			c := p.context(result)
+			c := p.context(captured)
 			mut(&c)
 			raw := jsonBytes(c)
-			if _, err := p.evaluate(result, p.entry, raw, ed25519.Sign(p.key, raw), now); !errors.Is(err, errTestIntegrity) {
+			if _, err := p.evaluate(captured, p.entry, raw, ed25519.Sign(p.key, raw), now); !errors.Is(err, errTestIntegrity) {
 				t.Fatal("substitution accepted", err)
 			}
 		})
 	}
 	for name, mut := range map[string]func(*testContext){"missing-cel": func(c *testContext) { c.CELRecord = "" }, "missing-host": func(c *testContext) { c.HostVersion = "" }, "missing-install": func(c *testContext) { c.TargetInstallRecord = "" }, "missing-old": func(c *testContext) { c.OldAcceptanceRecord = "" }, "incomplete": func(c *testContext) { c.Complete = false }, "stale": func(c *testContext) { c.Expires = "2026-11-03T00:00:00Z" }} {
 		t.Run(name, func(t *testing.T) {
-			c := p.context(result)
+			c := p.context(captured)
 			mut(&c)
 			raw := jsonBytes(c)
-			status, err := p.evaluate(result, p.entry, raw, ed25519.Sign(p.key, raw), now)
+			status, err := p.evaluate(captured, p.entry, raw, ed25519.Sign(p.key, raw), now)
 			if err != nil || status != "UNKNOWN" {
 				t.Fatal(status, err)
 			}
 		})
 	}
-	raw := jsonBytes(p.context(result))
+	raw := jsonBytes(p.context(captured))
 	_, otherKey, _ := ed25519.GenerateKey(rand.Reader)
-	if _, err := p.evaluate(result, p.entry, raw, ed25519.Sign(otherKey, raw), now); !errors.Is(err, errTestIntegrity) {
+	if _, err := p.evaluate(captured, p.entry, raw, ed25519.Sign(otherKey, raw), now); !errors.Is(err, errTestIntegrity) {
 		t.Fatal("self-issued context accepted")
 	}
 	changed := bytes.Replace(p.entry, []byte(`"boolValue":true`), []byte(`"boolValue":false`), 1)
-	if _, err := p.evaluate(result, changed, raw, ed25519.Sign(p.key, raw), now); !errors.Is(err, errTestIntegrity) {
+	if _, err := p.evaluate(captured, changed, raw, ed25519.Sign(p.key, raw), now); !errors.Is(err, errTestIntegrity) {
 		t.Fatal("conflicting entry accepted")
 	}
 	duplicate := append([]byte(`{"Schema":"duplicate",`), raw[1:]...)
-	if _, err := p.evaluate(result, p.entry, duplicate, ed25519.Sign(p.key, duplicate), now); !errors.Is(err, errTestIntegrity) {
+	if _, err := p.evaluate(captured, p.entry, duplicate, ed25519.Sign(p.key, duplicate), now); !errors.Is(err, errTestIntegrity) {
 		t.Fatal("duplicate context accepted")
 	}
-	record := p.records["cel-functions"]
+	record := captured.records["cel-functions"]
 	record.Bytes = append(record.Bytes, ' ')
-	p.records["cel-functions"] = record
-	if _, err := p.evaluate(result, p.entry, raw, ed25519.Sign(p.key, raw), now); !errors.Is(err, errTestIntegrity) {
+	captured.records["cel-functions"] = record
+	if _, err := p.evaluate(captured, p.entry, raw, ed25519.Sign(p.key, raw), now); !errors.Is(err, errTestIntegrity) {
 		t.Fatal("unverified record accepted")
 	}
 }
@@ -252,15 +282,44 @@ func TestTenantVersionCannotSupplyHostEvidence(t *testing.T) {
 		t.Fatal(err)
 	}
 	object["spec"].(map[string]any)["kubernetes"] = map[string]any{"version": "1.31.0"}
-	result, err := Produce(jsonBytes(object), selected)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx := p.context(result)
+	captured := p.capture(jsonBytes(object), selected)
+	ctx := p.context(captured)
 	ctx.HostVersion = ""
 	raw := jsonBytes(ctx)
-	status, err := p.evaluate(result, p.entry, raw, ed25519.Sign(p.key, raw), time.Date(2026, 11, 4, 12, 0, 0, 0, time.UTC))
+	status, err := p.evaluate(captured, p.entry, raw, ed25519.Sign(p.key, raw), time.Date(2026, 11, 4, 12, 0, 0, 0, time.UTC))
 	if err != nil || status != "UNKNOWN" {
 		t.Fatal("tenant version supplied host evidence", status, err)
+	}
+}
+
+func TestContextCannotReplayAcrossResourceBytesAndSelection(t *testing.T) {
+	p := newTestProfile(t)
+	now := time.Date(2026, 11, 4, 12, 0, 0, 0, time.UTC)
+	a := resource(`["10.0.0.0/16","10.1.0.0/16"]`)
+	b := resource(`["10.2.0.0/16","10.3.0.0/16"]`)
+	list := append(append(append([]byte("["), a...), ','), b...)
+	list = append(list, ']')
+	for name, pair := range map[string][2]capturedTestInput{
+		"different-resource-same-predicate":  {p.capture(a, selected), p.capture(b, selected)},
+		"different-selection-same-predicate": {p.capture(list, selected), p.capture(list, Selection{Index: 1, Explicit: true, Complete: true})},
+	} {
+		t.Run(name, func(t *testing.T) {
+			ctx := jsonBytes(p.context(pair[0]))
+			sig := ed25519.Sign(p.key, ctx)
+			if _, err := p.evaluate(pair[1], p.entry, ctx, sig, now); !errors.Is(err, errTestIntegrity) {
+				t.Fatal("resource-specific context replay accepted")
+			}
+			own := jsonBytes(p.context(pair[1]))
+			if status, err := p.evaluate(pair[1], p.entry, own, ed25519.Sign(p.key, own), now); err != nil || status != "BLOCKED" {
+				t.Fatal("matching capture refused", status, err)
+			}
+			// Even a valid issuer signature on an old-acceptance record from
+			// the other resource cannot be relabelled with fresh self-hashes.
+			pair[1].records["old-acceptance"] = pair[0].records["old-acceptance"]
+			rebound := jsonBytes(p.context(pair[1]))
+			if _, err := p.evaluate(pair[1], p.entry, rebound, ed25519.Sign(p.key, rebound), now); !errors.Is(err, errTestIntegrity) {
+				t.Fatal("resource-specific acceptance replay accepted")
+			}
+		})
 	}
 }
