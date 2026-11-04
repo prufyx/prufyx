@@ -304,9 +304,23 @@ func verifySplitTargets(u *updater.Updater, targets *metadata.Metadata[metadata.
 		if err != nil {
 			return nil, &splitTargetError{reason: fmt.Sprintf("target %s is missing or does not match its signed length and hash", entry.TargetPath), cause: err}
 		}
+		if !index.Readable(entry.Project) {
+			if _, err := cncfcheck.AdmitExternalProjectTarget(index, entry.Project, raw); !errors.Is(err, cncfcheck.ErrUnreadableTarget) {
+				return nil, &splitTargetError{reason: fmt.Sprintf("target %s deferred identity admission", entry.TargetPath), cause: err}
+			}
+			// A project this build does not know (a compat index): the TUF
+			// download above verified its signed length and hash. The bytes
+			// are kept so the stored package re-verifies, never parsed.
+			projects[entry.Project] = append([]byte(nil), raw...)
+			continue
+		}
 		if _, err := cncfcheck.AdmitExternalProjectTarget(index, entry.Project, raw); err != nil {
 			if errors.Is(err, cncfcheck.ErrUnreadableTarget) {
-				return nil, unsupportedFailure(cncfMinOrEmpty(indexRaw), "target %s is not readable by this build", entry.TargetPath)
+				if !index.Compat() {
+					return nil, unsupportedFailure(cncfMinOrEmpty(indexRaw), "target %s is not readable by this build", entry.TargetPath)
+				}
+				projects[entry.Project] = append([]byte(nil), raw...)
+				continue
 			}
 			// The index was readable, so a project target it lists that fails
 			// admission (e.g. foreign records) is corruption, not a newer format.
@@ -457,14 +471,36 @@ func sameProjects(a, b map[string][]byte) bool {
 
 // withProjectReceipts attaches the verified project list of a per-project
 // import to its receipt. Other profiles are returned unchanged.
-func withProjectReceipts(receipt ImportReceipt, profile profileSpec, indexRaw []byte) ImportReceipt {
+func withProjectReceipts(receipt ImportReceipt, profile profileSpec, indexRaw []byte, targets map[string][]byte) ImportReceipt {
 	if !profile.split {
 		return receipt
 	}
 	if projects, err := projectReceipts(indexRaw); err == nil {
 		receipt.ProjectTargets = projects
 	}
+	receipt.Compat, receipt.UnreadableProjects = compatSummary(indexRaw)
+	receipt.UnreadableProjects = unreadableProjectTargets(indexRaw, targets)
 	return receipt
+}
+
+func unreadableProjectTargets(indexRaw []byte, targets map[string][]byte) []string {
+	index, err := cncfcheck.ParseExternalIndex(indexRaw)
+	if err != nil {
+		return nil
+	}
+	var result []string
+	for _, entry := range index.Entries() {
+		if !index.Readable(entry.Project) {
+			result = append(result, entry.Project)
+			continue
+		}
+		if raw, ok := targets[entry.Project]; ok {
+			if _, err := cncfcheck.AdmitExternalProjectTarget(index, entry.Project, raw); errors.Is(err, cncfcheck.ErrUnreadableTarget) {
+				result = append(result, entry.Project)
+			}
+		}
+	}
+	return result
 }
 
 // ImportConstraintsProjects imports a per-project CNCF package: the index
@@ -486,6 +522,25 @@ func VerifyConstraintsProjects(req VerifyRequest) (PackageVerificationReceipt, e
 func InspectConstraintsProjects(storeRoot string) (Status, error) {
 	return inspectProfile(storeRoot, constraintsProjectsProfile())
 }
+
+// compatSummary reports whether an index is read in compat mode and which of
+// its projects this build does not know.
+func compatSummary(indexRaw []byte) (bool, []string) {
+	index, err := cncfcheck.ParseExternalIndex(indexRaw)
+	if err != nil || !index.Compat() {
+		return false, nil
+	}
+	var unreadable []string
+	for _, entry := range index.Entries() {
+		if !index.Readable(entry.Project) {
+			unreadable = append(unreadable, entry.Project)
+		}
+	}
+	return true, unreadable
+}
+
+// IndexCompat is compatSummary for callers outside the package.
+func IndexCompat(indexRaw []byte) (bool, []string) { return compatSummary(indexRaw) }
 
 // OpenSelectedCNCF opens the selected CNCF revision in either layout. For a
 // per-project store only the named projects are read and verified, together

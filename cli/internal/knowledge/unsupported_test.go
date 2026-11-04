@@ -4,6 +4,7 @@ package knowledge
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -211,5 +212,166 @@ func TestCNCFMinOrEmptyHintsOnlyWhenNotMet(t *testing.T) {
 	err := unsupportedFailure(cncfMinOrEmpty([]byte(`{"schema":"v9","minClientVersion":"v0.1.0"}`)), "index target parse")
 	if got := UnsupportedMinVersion(err); got != "" {
 		t.Fatalf("hint for a met minimum: %q", got)
+	}
+}
+
+// Unknown outer extensions of an exact profile are unreadable, but cannot
+// hide malformed known content or advance trust merely by being rejected.
+type exactOuterIndex struct {
+	Schema     string                         `json:"schema"`
+	Revision   string                         `json:"revision"`
+	Purpose    string                         `json:"purpose"`
+	Capability string                         `json:"engineCapabilityDigest"`
+	Base       string                         `json:"baseCapabilityDigest,omitempty"`
+	Projects   []cncfcheck.ExternalIndexEntry `json:"projects"`
+	Min        string                         `json:"minClientVersion,omitempty"`
+}
+
+func TestExactOuterExtensionClassification(t *testing.T) {
+	for _, canary := range []bool{false, true} {
+		t.Run(fmt.Sprintf("canary-%t", canary), func(t *testing.T) {
+			all := projectsTargets(t, "5", nil)
+			first, _ := firstProjects(all)
+			var target map[string]json.RawMessage
+			if json.Unmarshal(all[first], &target) != nil {
+				t.Fatal("fixture")
+			}
+			var pack map[string]json.RawMessage
+			if json.Unmarshal(target["pack"], &pack) != nil {
+				t.Fatal("pack fixture")
+			}
+			if canary {
+				req, err := cncfcheck.MariaDBCanaryProfileRequirements()
+				if err != nil {
+					t.Fatal(err)
+				}
+				target["engineCapabilityDigest"], _ = json.Marshal(req.EngineCapabilityDigest)
+				pack["registryDigest"], _ = json.Marshal(req.RegistryDigest)
+				target["pack"], _ = json.Marshal(pack)
+			}
+			raw, _ := json.Marshal(target)
+			b, err := cncfcheck.ParseExternalBundle(raw)
+			if err != nil {
+				t.Fatal(err)
+			}
+			a, err := b.Admission()
+			if err != nil {
+				t.Fatal(err)
+			}
+			var index exactOuterIndex
+			_ = json.Unmarshal(all[ConstraintsProjectsIndexTargetPath], &index)
+			entries := index.Projects
+			var selected cncfcheck.ExternalIndexEntry
+			for _, e := range entries {
+				if e.TargetPath == first {
+					selected = e
+				}
+			}
+			selected.Length, selected.Digest = int64(len(raw)), digestBytes(raw)
+			index.Projects = []cncfcheck.ExternalIndexEntry{selected}
+			index.Capability = a.EngineCapabilityDigest
+			if selected.Records {
+				index.Schema = cncfcheck.ExternalIndexSchemaRecords
+			} else {
+				index.Schema = cncfcheck.ExternalIndexSchema
+			}
+			indexRaw, _ := json.Marshal(index)
+			base := map[string][]byte{first: raw, ConstraintsProjectsIndexTargetPath: indexRaw}
+			for _, mode := range []string{"extension", "unknown-null", "direct-null", "known-null", "missing-known", "wrong-type", "collision", "alias", "digest-mismatch", "expiry-mismatch", "reserved-id"} {
+				t.Run(mode, func(t *testing.T) {
+					var envelope map[string]json.RawMessage
+					_ = json.Unmarshal(raw, &envelope)
+					envelope["futureField"] = json.RawMessage(`{"nested":true}`)
+					var content map[string]json.RawMessage
+					_ = json.Unmarshal(envelope["pack"], &content)
+					switch mode {
+					case "unknown-null":
+						envelope["futureField"] = json.RawMessage(`{"nested":[null]}`)
+					case "direct-null":
+						envelope["futureField"] = json.RawMessage(`null`)
+					case "known-null":
+						content["entries"] = json.RawMessage(`null`)
+					case "missing-known":
+						delete(content, "policyId")
+					case "wrong-type":
+						content["entries"] = json.RawMessage(`{}`)
+					case "collision":
+						var es []map[string]json.RawMessage
+						_ = json.Unmarshal(content["entries"], &es)
+						var facts []map[string]json.RawMessage
+						_ = json.Unmarshal(es[0]["requiredFacts"], &facts)
+						facts[0]["component"] = json.RawMessage(`"pkg:github/other/other"`)
+						es[0]["requiredFacts"], _ = json.Marshal(facts)
+						content["entries"], _ = json.Marshal(es)
+					case "reserved-id":
+						var es []map[string]json.RawMessage
+						_ = json.Unmarshal(content["entries"], &es)
+						var rule map[string]json.RawMessage
+						_ = json.Unmarshal(es[0]["rule"], &rule)
+						rule["id"], _ = json.Marshal(cncfcheck.MariaDBCanaryRuleID)
+						es[0]["rule"], _ = json.Marshal(rule)
+						content["entries"], _ = json.Marshal(es)
+					case "alias":
+						envelope["Schema"] = envelope["schema"]
+					}
+					envelope["pack"], _ = json.Marshal(content)
+					changedRaw, _ := json.Marshal(envelope)
+					entry := selected
+					entry.Length, entry.Digest = int64(len(changedRaw)), digestBytes(changedRaw)
+					if mode == "digest-mismatch" {
+						entry.RuleDigest = "sha256:" + strings.Repeat("ab", 32)
+					}
+					if mode == "expiry-mismatch" {
+						entry.EvidenceExpiresAt = "2099-01-01T00:00:00Z"
+					}
+					changedIndex := index
+					changedIndex.Projects = []cncfcheck.ExternalIndexEntry{entry}
+					changedIndexRaw, _ := json.Marshal(changedIndex)
+					changed := map[string][]byte{first: changedRaw, ConstraintsProjectsIndexTargetPath: changedIndexRaw}
+					f := newProjectsFixture(t)
+					good, err := f.importPackage(f.write(t, knowledgefixture.ProjectsPackage{Targets: base}))
+					if err != nil {
+						t.Fatal(err)
+					}
+					receipt, err := f.importPackage(f.write(t, knowledgefixture.ProjectsPackage{Targets: changed}))
+					if mode == "extension" || mode == "unknown-null" || mode == "direct-null" {
+						if !errors.Is(err, ErrUnsupportedKnowledge) || errors.Is(err, ErrIntegrity) || receipt.TrustStateAdvanced || receipt.TrustStateDigest != good.TrustStateDigest || receipt.SelectionChanged {
+							t.Fatalf("unsupported extension: %v %+v", err, receipt)
+						}
+					} else if !errors.Is(err, ErrIntegrity) || errors.Is(err, ErrUnsupportedKnowledge) || receipt.SelectionChanged {
+						t.Fatalf("malformed extension: %v %+v", err, receipt)
+					}
+				})
+			}
+		})
+	}
+}
+
+func TestCompatOuterExtensionsRemainIntegrity(t *testing.T) {
+	base := futureProjectsTargets(t, "5")
+	first, _ := firstProjects(base)
+	old := base[first]
+	for _, extension := range []string{`"futureField":true`, `"futureField":null`} {
+		t.Run(extension, func(t *testing.T) {
+			raw := append(append([]byte(nil), old[:len(old)-1]...), []byte(","+extension+"}")...)
+			index := bytes.Replace(base[ConstraintsProjectsIndexTargetPath], []byte(fmt.Sprintf(`"length":%d,"digest":"%s"`, len(old), digestBytes(old))), []byte(fmt.Sprintf(`"length":%d,"digest":"%s"`, len(raw), digestBytes(raw))), 1)
+			if bytes.Equal(index, base[ConstraintsProjectsIndexTargetPath]) {
+				t.Fatal("target binding absent")
+			}
+			changed := make(map[string][]byte)
+			for k, v := range base {
+				changed[k] = v
+			}
+			changed[first] = raw
+			changed[ConstraintsProjectsIndexTargetPath] = index
+			f := newProjectsFixture(t)
+			if _, err := f.importPackage(f.write(t, knowledgefixture.ProjectsPackage{Targets: base})); err != nil {
+				t.Fatal(err)
+			}
+			receipt, err := f.importPackage(f.write(t, knowledgefixture.ProjectsPackage{Targets: changed}))
+			if !errors.Is(err, ErrIntegrity) || errors.Is(err, ErrUnsupportedKnowledge) || receipt.SelectionChanged {
+				t.Fatalf("compat extension: %v %+v", err, receipt)
+			}
+		})
 	}
 }

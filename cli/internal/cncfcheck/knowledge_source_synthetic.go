@@ -127,6 +127,68 @@ func useSynthetic(definitions []constraintengine.FactDefinition, entries []Entry
 		pack.Entries = kept
 	}
 	pack.Entries = append(pack.Entries, entries...)
+	return installSyntheticPack(pack, definitions, records)
+}
+
+// UseSyntheticCrossingReplacement is a test-only in-place widening fixture.
+// It requires the exact compiled old entry, one occurrence, the same rule ID,
+// and identical canonical content after removing the one added crossing field.
+// Production admission and overlap checks remain unchanged.
+func UseSyntheticCrossingReplacement(before, after Entry, records SyntheticRecords) (func(), error) {
+	beforeID, err := ruleEntryID(before)
+	if err != nil {
+		return nil, ErrInvalid
+	}
+	afterID, err := ruleEntryID(after)
+	if err != nil || beforeID != afterID {
+		return nil, ErrInvalid
+	}
+	var oldRule, newRule map[string]json.RawMessage
+	if json.Unmarshal(before.Rule, &oldRule) != nil || json.Unmarshal(after.Rule, &newRule) != nil {
+		return nil, ErrInvalid
+	}
+	if _, present := oldRule["crossing"]; present {
+		return nil, ErrInvalid
+	}
+	added, present := newRule["crossing"]
+	if !present || string(added) == "null" {
+		return nil, ErrInvalid
+	}
+	delete(newRule, "crossing")
+	unchanged := after
+	unchanged.Rule, err = json.Marshal(newRule)
+	if err != nil || canonicalEntry(unchanged) != canonicalEntry(before) {
+		return nil, ErrInvalid
+	}
+	raw, err := packagedFiles.ReadFile("data/rules.json")
+	if err != nil {
+		return nil, err
+	}
+	var pack rulePack
+	if strictJSON(raw, &pack) != nil {
+		return nil, ErrInvalid
+	}
+	count := 0
+	for i, e := range pack.Entries {
+		id, err := ruleEntryID(e)
+		if err != nil {
+			return nil, ErrInvalid
+		}
+		if id == beforeID {
+			count++
+			if canonicalEntry(e) != canonicalEntry(before) {
+				return nil, ErrIntegrity
+			}
+			pack.Entries[i] = after
+		}
+	}
+	if count != 1 {
+		return nil, ErrInvalid
+	}
+	return installSyntheticPack(pack, nil, records)
+}
+
+func installSyntheticPack(pack rulePack, definitions []constraintengine.FactDefinition, records SyntheticRecords) (func(), error) {
 	pack.LineAttestations, pack.PathPolicies, pack.ServedAPIs = records.LineAttestations, records.PathPolicies, records.ServedAPIs
 	ruleIDs := make([]string, len(pack.Entries))
 	for index, entry := range pack.Entries {

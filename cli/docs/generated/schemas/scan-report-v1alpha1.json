@@ -1183,6 +1183,15 @@
           "items": {
             "$ref": "#/$defs/knowledgeStoreProject"
           }
+        },
+        "compat": {
+          "type": "boolean"
+        },
+        "unreadableProjects": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
@@ -1237,7 +1246,8 @@
         "status": {
           "enum": [
             "present",
-            "absent_from_index"
+            "absent_from_index",
+            "unreadable_target"
           ]
         },
         "targetPath": {

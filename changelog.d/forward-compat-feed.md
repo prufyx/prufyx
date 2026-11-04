@@ -1,0 +1,4 @@
+### Changed
+
+- The per-project feed can read additions under an explicitly selected, policy-bound legacy forward contract. The canary profile remains exact only. Unknown rules are deferred without evaluator authority; whole-target semantic digests still bind, known-definition and reserved-identity collisions reject, and independent blockers remain visible. Default legacy exports retain their bytes; the new compatible export format is explicit and requires separately approved publication.
+- `prufyx db status`, the import output and the scan report's `knowledgeStore` now say when the database holds a feed of a later release (`compat`, `unreadableProjects`); a scan reports a project whose target holds rules this build cannot evaluate with the gap `PROJECT_NOT_IN_KNOWLEDGE` (variant `rules-deferred`) instead of failing.

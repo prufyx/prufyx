@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"regexp"
+	"sort"
 	"strconv"
 	"time"
 	"unicode/utf8"
@@ -45,17 +46,18 @@ var externalRevisionPattern = regexp.MustCompile(`^[1-9][0-9]*$`)
 // bounded data that passed the compiled registry, policy, landscape, and
 // constraint-engine checks. It carries no signature or source-truth claim.
 type ExternalBundle struct {
-	profile         *externalProfileDescriptor
-	raw             []byte
-	document        externalBundleDocument
-	pack            rulePack
-	registry        constraintengine.Registry
-	bundleDigest    string
-	documentDigest  string
-	packDigest      string
-	admission       ExternalAdmission
-	admissionDigest string
-	seal            *externalBundleSeal
+	unreadableProject string
+	profile           *externalProfileDescriptor
+	raw               []byte
+	document          externalBundleDocument
+	pack              rulePack
+	registry          constraintengine.Registry
+	bundleDigest      string
+	documentDigest    string
+	packDigest        string
+	admission         ExternalAdmission
+	admissionDigest   string
+	seal              *externalBundleSeal
 	// policy is the caller's trust policy (WithTrustPolicy). It is not part
 	// of the admitted bundle and changes none of its digests.
 	policy TrustPolicy
@@ -66,22 +68,28 @@ type externalBundleSeal struct{}
 // A descriptor binds definitions and the complete ownership/admission policy.
 // Only exact compiled capability identities select one; parsing never retries.
 type externalProfileDescriptor struct {
-	registry    constraintengine.Registry
-	capability  string
-	canaryEntry string
-	canaryFacts map[string]bool
+	registry         constraintengine.Registry
+	capability       string
+	remoteCapability string
+	compat           bool
+	canaryEntry      string
+	canaryFacts      map[string]bool
 }
 
 func externalProfile(base bundle, canary bool) (*externalProfileDescriptor, error) {
 	p := &externalProfileDescriptor{registry: base.registry}
-	if !canary {
-		var err error
-		p.capability, err = externalCapabilityDigest(base)
-		return p, err
-	}
 	entry, err := mariaDBCanaryEntry()
 	if err != nil {
 		return nil, err
+	}
+	p.canaryFacts = make(map[string]bool, len(entry.RequiredFacts))
+	for _, fact := range entry.RequiredFacts {
+		p.canaryFacts[fact.ID] = true
+	}
+	if !canary {
+		p.capability, err = externalCapabilityDigest(base)
+		p.remoteCapability = p.capability
+		return p, err
 	}
 	definitions := base.registry.Definitions()
 	p.canaryFacts = make(map[string]bool, len(entry.RequiredFacts))
@@ -106,6 +114,7 @@ func externalProfile(base bundle, canary bool) (*externalProfileDescriptor, erro
 	p.capability = externalDigestJSON(struct {
 		Profile, LegacyCapability, RegistryDigest, Admission, Ownership, AdmissionPolicy string
 	}{"mariadb-galera-canary-v1", legacyCapability, p.registry.Digest(), digest([]byte(p.canaryEntry)), projectprepare.MariaDBOperatorProject + "/" + MariaDBCanaryRuleID, "legacy-plus-exact-entry;added-facts-exclusive-to-entry;reserved-id-exclusive-to-canary-profile-and-entry"})
+	p.remoteCapability = p.capability
 	return p, nil
 }
 
@@ -234,7 +243,7 @@ func parseExternalBundleWithProfile(raw []byte, base *bundle, profile *externalP
 	if err != nil {
 		return ExternalBundle{}, err
 	}
-	if document.EngineCapabilityDigest != profile.capability {
+	if document.EngineCapabilityDigest != profile.remoteCapability {
 		return ExternalBundle{}, errors.Join(ErrIntegrity, ErrCapabilityMismatch)
 	}
 	var packValue rulePack
@@ -252,7 +261,20 @@ func parseExternalBundleWithProfile(raw []byte, base *bundle, profile *externalP
 		}
 	}
 	candidate := bundle{landscape: base.landscape, community: base.community, priority: base.priority, pack: packValue, registry: profile.registry, packDigest: digest(raw), catalogueDigest: base.catalogueDigest}
-	rules, err := candidate.parseRulesCorpus(candidate.packRules(), nil)
+	// Unknown definitions validate the complete signed structure only. The
+	// resulting registry is never stored on candidate or used for evaluation.
+	whole := candidate
+	if profile.compat {
+		whole.registry, err = structuralExternalRegistry(profile.registry, packValue)
+		if err != nil {
+			return ExternalBundle{}, err
+		}
+	}
+	allRules := make([]json.RawMessage, 0, len(packValue.Entries))
+	for _, entry := range packValue.Entries {
+		allRules = append(allRules, entry.Rule)
+	}
+	rules, err := whole.parseRulesCorpus(allRules, nil)
 	if err != nil {
 		return ExternalBundle{}, ErrIntegrity
 	}
@@ -482,6 +504,14 @@ func (b ExternalBundle) evaluate(project, selectedRuleID string, inputRaw []byte
 			report.NextAction = trustPolicyNextAction
 		}
 	}
+	if deferred := deferredOf(b.pack, project); len(deferred) > 0 {
+		report.DeferredRules = deferred
+		report.NextAction = deferredNextAction + "; " + report.NextAction
+	}
+	if b.unreadableProject != "" {
+		report.UnverifiedSemanticIdentity = true
+		report.NextAction = "selected target semantic identity is unverified; upgrade to a compatible reader; only independently verified embedded removal-crossing rules were evaluated"
+	}
 	report.seal = &reportSeal{}
 	encoded, err := json.Marshal(report)
 	if err != nil {
@@ -492,7 +522,7 @@ func (b ExternalBundle) evaluate(project, selectedRuleID string, inputRaw []byte
 }
 
 func (b ExternalBundle) valid() bool {
-	return b.seal != nil && b.profile != nil && b.profile.capability == b.document.EngineCapabilityDigest && b.registry.Digest() == b.profile.registry.Digest() && digest(b.raw) == b.bundleDigest && externalDigestJSON(b.document) == b.documentDigest && externalDigestJSON(b.pack) == b.packDigest && externalDigestJSON(b.admission) == b.admissionDigest
+	return b.seal != nil && b.profile != nil && b.profile.remoteCapability == b.document.EngineCapabilityDigest && b.registry.Digest() == b.profile.registry.Digest() && digest(b.raw) == b.bundleDigest && externalDigestJSON(b.document) == b.documentDigest && externalDigestJSON(b.pack) == b.packDigest && externalDigestJSON(b.admission) == b.admissionDigest
 }
 
 func externalDigestJSON(value any) string {
@@ -525,6 +555,9 @@ func validateExternalPack(base bundle, packValue rulePack, revision string, reco
 }
 
 func validateExternalPackProfile(base bundle, profile *externalProfileDescriptor, packValue rulePack, revision string, records bool) error {
+	if err := validateReservedExternalEntries(profile, packValue); err != nil {
+		return err
+	}
 	if len(packValue.Distributions) > 0 {
 		return ErrIntegrity
 	}
@@ -556,14 +589,14 @@ func validateExternalPackProfile(base bundle, profile *externalProfileDescriptor
 	if chart, err := constraintengine.AnyChartRule(rules); err != nil || chart {
 		return ErrIntegrity
 	}
-	if !validPackSchema(packValue) || packValue.Revision != revision || packValue.PolicyID != base.pack.PolicyID || packValue.PolicyDigest != base.pack.PolicyDigest || packValue.LandscapeFileDigest != base.landscape.LandscapeFileDigest || packValue.RegistryDigest != base.registry.Digest() || len(packValue.Entries) > maxExternalEntries {
+	if !validPackSchema(packValue) || packValue.Revision != revision || packValue.PolicyID != base.pack.PolicyID || packValue.PolicyDigest != base.pack.PolicyDigest || (!profile.compat && (packValue.LandscapeFileDigest != base.landscape.LandscapeFileDigest || packValue.RegistryDigest != base.registry.Digest())) || !digestPattern.MatchString(packValue.RegistryDigest) || !digestPattern.MatchString(packValue.LandscapeFileDigest) || len(packValue.Entries) > maxExternalEntries {
 		return ErrIntegrity
 	}
 	definitions := map[string]constraintengine.FactDefinition{}
 	for _, definition := range profile.registry.Definitions() {
 		definitions[definition.ID] = definition
 	}
-	for _, entry := range packValue.Entries {
+	for index, entry := range packValue.Entries {
 		var identity struct {
 			ID string `json:"id"`
 		}
@@ -577,14 +610,25 @@ func validateExternalPackProfile(base bundle, profile *externalProfileDescriptor
 			return ErrInvalid
 		}
 		seenFacts := map[string]bool{}
+		var unknown []string
 		for _, fact := range entry.RequiredFacts {
 			if profile.canaryFacts[fact.ID] && canonicalEntry(entry) != profile.canaryEntry {
 				return ErrIntegrity
 			}
 			definition, found := definitions[fact.ID]
 			key := fact.Side + "/" + fact.Component + "/" + fact.ID
-			if seenFacts[key] || (fact.Side != "current" && fact.Side != "proposed") || !found || definition.Component != fact.Component || definition.Type != fact.Type || fact.Description == "" || len(fact.Description) > 2048 || !sameStrings(definition.EnumTokens, fact.EnumTokens) {
+			if seenFacts[key] || (fact.Side != "current" && fact.Side != "proposed") || fact.Description == "" || len(fact.Description) > 2048 {
 				return ErrInvalid
+			}
+			if found {
+				if definition.Component != fact.Component || definition.Type != fact.Type || !sameStrings(definition.EnumTokens, fact.EnumTokens) {
+					return ErrIntegrity
+				}
+			} else {
+				if !profile.compat || !futureFactShape(fact) {
+					return ErrIntegrity
+				}
+				unknown = append(unknown, fact.ID)
 			}
 			seenFacts[key] = true
 		}
@@ -607,6 +651,10 @@ func validateExternalPackProfile(base bundle, profile *externalProfileDescriptor
 			if !seenFacts[key] {
 				return ErrInvalid
 			}
+		}
+		if len(unknown) > 0 {
+			sort.Strings(unknown)
+			packValue.Entries[index].deferred = unknown
 		}
 	}
 	return nil
@@ -691,12 +739,18 @@ func externalCapabilityDigest(base bundle) (string, error) {
 // uses enumTokens:null for boolean facts, so that one optional shape is allowed
 // and then checked against the compiled fact type.
 func scanExternalJSON(raw []byte) error {
+	return scanExternalTargetJSON(raw, false)
+}
+
+// scanExternalTargetJSON keeps structural bounds for opaque outer extensions.
+// All ordinary parser callers retain the strict null semantics.
+func scanExternalTargetJSON(raw []byte, outerExtensions bool) error {
 	if len(raw) == 0 || len(raw) > maxExternalBundleBytes || !utf8.Valid(raw) {
 		return ErrInvalid
 	}
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.UseNumber()
-	if err := consumeExternalJSON(decoder, 0, false); err != nil {
+	if err := consumeExternalJSON(decoder, 0, false, outerExtensions, false); err != nil {
 		return ErrInvalid
 	}
 	if _, err := decoder.Token(); err != io.EOF {
@@ -705,7 +759,7 @@ func scanExternalJSON(raw []byte) error {
 	return nil
 }
 
-func consumeExternalJSON(decoder *json.Decoder, depth int, allowNull bool) error {
+func consumeExternalJSON(decoder *json.Decoder, depth int, allowNull, outerExtensions, opaque bool) error {
 	if depth > maxExternalJSONDepth {
 		return ErrInvalid
 	}
@@ -715,7 +769,7 @@ func consumeExternalJSON(decoder *json.Decoder, depth int, allowNull bool) error
 	}
 	switch value := token.(type) {
 	case nil:
-		if !allowNull {
+		if !allowNull && !opaque {
 			return ErrInvalid
 		}
 	case string:
@@ -745,7 +799,7 @@ func consumeExternalJSON(decoder *json.Decoder, depth int, allowNull bool) error
 					return ErrInvalid
 				}
 				seen[folded] = true
-				if err := consumeExternalJSON(decoder, depth+1, name == "enumTokens"); err != nil {
+				if err := consumeExternalJSON(decoder, depth+1, name == "enumTokens", false, opaque || (outerExtensions && depth == 0 && !knownExternalOuterMember(name))); err != nil {
 					return err
 				}
 			}
@@ -755,7 +809,7 @@ func consumeExternalJSON(decoder *json.Decoder, depth int, allowNull bool) error
 			}
 		case '[':
 			for count := 0; decoder.More(); count++ {
-				if count >= maxExternalArrayItems || consumeExternalJSON(decoder, depth+1, false) != nil {
+				if count >= maxExternalArrayItems || consumeExternalJSON(decoder, depth+1, false, false, opaque) != nil {
 					return ErrInvalid
 				}
 			}

@@ -286,6 +286,13 @@ func selectedBundle(project string, selected knowledge.VerifiedRevision) (cncfch
 		return bundle, admission, &ProjectTargetBinding{Project: project, Status: "absent_from_index"}, nil
 	}
 	bundle, err := cncfcheck.AdmitExternalProjectTarget(index, project, target.Bytes())
+	if errors.Is(err, cncfcheck.ErrUnreadableTarget) && index.Compat() {
+		bundle, err = index.UnreadableExternalBundle(project, target.Bytes())
+		if err != nil {
+			return cncfcheck.ExternalBundle{}, cncfcheck.ExternalAdmission{}, nil, ErrIntegrity
+		}
+		return bundle, admission, &ProjectTargetBinding{Project: project, Status: "unreadable_target", TargetPath: target.Path, Revision: target.Revision, Digest: target.Digest}, nil
+	}
 	if err != nil || bundle.BundleDigest() != target.Digest {
 		return cncfcheck.ExternalBundle{}, cncfcheck.ExternalAdmission{}, nil, ErrIntegrity
 	}

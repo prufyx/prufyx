@@ -35,8 +35,14 @@ type Report struct {
 	// at least one candidate rule, so every report without exclusions keeps
 	// its bytes.
 	TrustPolicy *TrustPolicyDisclosure `json:"trustPolicy,omitempty"`
-	seal        *reportSeal
-	digest      string
+	// DeferredRules lists the rules of the project that were not evaluated
+	// because they need facts this build does not register (a signed feed
+	// newer than the build). They produce no claim; the report stays UNKNOWN
+	// for them. Absent for every other report, so those keep their bytes.
+	DeferredRules              []DeferredRule `json:"deferredRules,omitempty"`
+	UnverifiedSemanticIdentity bool           `json:"unverifiedSemanticIdentity,omitempty"`
+	seal                       *reportSeal
+	digest                     string
 }
 type reportSeal struct{}
 
@@ -342,6 +348,14 @@ func (b bundle) reportSelection(project, selectedRuleID string, family bool, inp
 			}
 		}
 	}
+	if deferred := deferredOf(b.pack, project); len(deferred) > 0 {
+		report.DeferredRules = deferred
+		report.NextAction = deferredNextAction + "; " + report.NextAction
+	}
+	if b.unverifiedSemantic {
+		report.UnverifiedSemanticIdentity = true
+		report.NextAction = "selected target semantic identity is unverified; upgrade to a compatible reader; only independently verified embedded removal-crossing rules were evaluated"
+	}
 	report.seal = &reportSeal{}
 	raw, err := json.Marshal(report)
 	if err != nil {
@@ -408,7 +422,7 @@ func ClaimExit(report Report) int {
 	}
 	// A verdict rule the trust policy left out was not evaluated: the
 	// result cannot be a pass.
-	decided, unknown := 0, report.TrustPolicy != nil && report.TrustPolicy.ExcludedRules > 0
+	decided, unknown := 0, report.UnverifiedSemanticIdentity || len(report.DeferredRules) > 0 || (report.TrustPolicy != nil && report.TrustPolicy.ExcludedRules > 0)
 	for _, claim := range report.Check.Claims {
 		if claim.IsVerdictNeutral() {
 			continue

@@ -356,7 +356,7 @@ func importWithProfile(req ImportRequest, profile profileSpec, admit AdmitFunc, 
 			return rejected, ErrIntegrity
 		}
 		if expectedVerificationDigest == "" || old.ExpectedVerificationAssertionsDigest == expectedVerificationDigest {
-			return finish(withProjectReceipts(ImportReceipt{APIVersion: "prufyx.io/knowledge-import-receipt/v1", Status: "IMPORTED", TrustStateAdvanced: trustChanged, SelectionChanged: false, TrustStateDigest: verified.material.stateDigest, TrustReceipt: old, TrustReceiptDigest: existing.TrustReceiptDigest, AdmissionPath: rel}, profile, verified.target), nil)
+			return finish(withProjectReceipts(ImportReceipt{APIVersion: "prufyx.io/knowledge-import-receipt/v1", Status: "IMPORTED", TrustStateAdvanced: trustChanged, SelectionChanged: false, TrustStateDigest: verified.material.stateDigest, TrustReceipt: old, TrustReceiptDigest: existing.TrustReceiptDigest, AdmissionPath: rel}, profile, verified.target, verified.projects), nil)
 		}
 		// A valid manual v1 admission does not claim it checked a later release
 		// plan. Fall through after re-verifying this request and mint a v2
@@ -403,7 +403,7 @@ func importWithProfile(req ImportRequest, profile profileSpec, admit AdmitFunc, 
 	if err = runImportHook(hook, "selection-published", store); err != nil {
 		return failureReceipt(err)
 	}
-	return finish(withProjectReceipts(ImportReceipt{APIVersion: "prufyx.io/knowledge-import-receipt/v1", Status: "IMPORTED", TrustStateAdvanced: trustChanged, SelectionChanged: true, TrustStateDigest: verified.material.stateDigest, TrustReceipt: receipt, TrustReceiptDigest: receiptDigest, AdmissionPath: filepath.ToSlash(relative)}, profile, verified.target), nil)
+	return finish(withProjectReceipts(ImportReceipt{APIVersion: "prufyx.io/knowledge-import-receipt/v1", Status: "IMPORTED", TrustStateAdvanced: trustChanged, SelectionChanged: true, TrustStateDigest: verified.material.stateDigest, TrustReceipt: receipt, TrustReceiptDigest: receiptDigest, AdmissionPath: filepath.ToSlash(relative)}, profile, verified.target, verified.projects), nil)
 }
 
 func durableFailureReceipt(store *storeFS, active *importPending, profile profileSpec, admit AdmitFunc, cause error) (ImportReceipt, error) {
