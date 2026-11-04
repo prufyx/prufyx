@@ -1,9 +1,42 @@
 # Community project checks
 
-`prufyx check project` is a separate, embedded-only source-rule preview for a
+`prufyx check project` defaults to a separate embedded source-rule preview for a
 small maintainer-reviewed registry separate from the bundled CNCF Landscape
 identity registry. It does not assert CNCF membership and does not use the
-CNCF knowledge profile or store.
+CNCF knowledge profile or store by default.
+
+The exact MariaDB Operator `26.3.0` → `26.6.0` Galera prerequisite canary
+additionally accepts `--knowledge-db DIR` instead of `--now`. This selects the
+verified local `cncf-projects` store, signed index and MariaDB community target;
+it uses the verifier clock and never substitutes embedded knowledge. The
+canary profile freezes the complete existing rule, five facts, guards, eight
+citations and evidence dates. This consumer adds no newly decided pair,
+evidence renewal, published target or signing authority.
+
+```sh
+prufyx check project --project mariadb-operator --mariadb-resource resource.json \
+  --from 26.3.0 --to 26.6.0 --resource-complete --pre-operator-update \
+  --knowledge-db /path/to/verified-store --format json
+```
+
+The report binds the minimized input, selected index and project-target
+digests, trust receipt, policy and engine identity. Retain the raw resource
+and optional `--mariadb-resource-digest` separately for raw-byte identity.
+Missing facts or absent canary coverage remain UNKNOWN; invalid signatures,
+source/guard rewrites or digest bindings refuse. A scoped PASS covers only
+this prerequisite; whole-upgrade assessment remains UNKNOWN. Legacy
+capability exports and the beta.0-compatible channel remain separate and
+unchanged. A canary index requires matching newly enveloped target bytes;
+it cannot reuse target bytes from the legacy profile.
+
+This exception applies only to the semantic `check project` command above.
+Generic `check cncf --project mariadb-operator --input ...` still refuses the
+project before selecting an external store when it has no embedded CNCF-pack
+data. The native `--custom-resources` route remains restricted to embedded
+knowledge. Library tests of retained CRD rules under both capability profiles
+do not establish a CLI route or client-visible CRD coverage. Released beta.0
+can import a compatible MariaDB target but its generic check still reports
+unknown project; that import is not a compatibility decision.
 
 Every route documented below, including the Ceph and Argo Workflows workload
 routes and the Grafana, Kibana, and Fluent Bit target-only pairs, is also

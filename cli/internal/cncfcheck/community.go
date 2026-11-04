@@ -9,6 +9,8 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/customresources"
+	"github.com/prufyx/prufyx/cli/internal/projectcheck"
+	"github.com/prufyx/prufyx/cli/internal/projectprepare"
 )
 
 // The community catalog.
@@ -230,6 +232,52 @@ func IsCommunityProject(slug string) bool { return isCommunitySlug(slug) }
 // CommunityLabel is how every user-facing text names the catalog of a
 // community project.
 const CommunityLabel = customresources.CommunityLabel
+
+// MariaDBCanaryRuleID names the existing, exact Galera prerequisite claim.
+// Its external admission is separate from the legacy community CRD policy.
+const MariaDBCanaryRuleID = "mariadb-operator.upgrade-26-6.requires-dataplane-prerequisite"
+
+// mariaDBCanaryEntry reads the reviewed entry without granting signing or
+// evidence-renewal authority. Every member, including evidence dates, stays frozen.
+func mariaDBCanaryEntry() (Entry, error) {
+	raw, err := projectcheck.EmbeddedRulePack()
+	if err != nil {
+		return Entry{}, ErrIntegrity
+	}
+	_, entries, err := projectcheck.AdmittedPackView(raw)
+	if err != nil {
+		return Entry{}, ErrIntegrity
+	}
+	for _, raw := range entries {
+		var entry Entry
+		var identity struct {
+			ID string `json:"id"`
+		}
+		if json.Unmarshal(raw, &entry) != nil || json.Unmarshal(entry.Rule, &identity) != nil {
+			return Entry{}, ErrIntegrity
+		}
+		if identity.ID == MariaDBCanaryRuleID {
+			if entry.Project != projectprepare.MariaDBOperatorProject || len(entry.RequiredFacts) != 5 {
+				return Entry{}, ErrIntegrity
+			}
+			return entry, nil
+		}
+	}
+	return Entry{}, ErrIntegrity
+}
+
+func canonicalEntry(entry Entry) string {
+	var value any
+	raw, err := json.Marshal(entry)
+	if err != nil || json.Unmarshal(raw, &value) != nil {
+		return ""
+	}
+	raw, err = json.Marshal(value)
+	if err != nil {
+		return ""
+	}
+	return string(raw)
+}
 
 // ProjectCatalogLabel is the user-facing catalog label of a knowledge
 // project: CommunityLabel for a community project, "" for any other slug

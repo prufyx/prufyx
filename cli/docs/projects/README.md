@@ -45,6 +45,7 @@ Shared flags, exit status and the other routes: [routes.md](routes.md).
 - [kyverno](kyverno.md)
 - [linkerd](linkerd.md)
 - [loki](loki.md)
+- [mariadb-operator](mariadb-operator.md)
 - [metallb](metallb.md)
 - [nats](nats.md)
 - [opencost](opencost.md)

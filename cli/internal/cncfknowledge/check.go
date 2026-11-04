@@ -279,7 +279,7 @@ func selectedBundle(project string, selected knowledge.VerifiedRevision) (cncfch
 		return cncfcheck.ExternalBundle{}, cncfcheck.ExternalAdmission{}, nil, ErrIntegrity
 	}
 	if !loaded {
-		bundle, err := cncfcheck.EmptyExternalBundle(admission.Revision, admission.Purpose)
+		bundle, err := index.EmptyExternalBundle()
 		if err != nil {
 			return cncfcheck.ExternalBundle{}, cncfcheck.ExternalAdmission{}, nil, ErrIntegrity
 		}

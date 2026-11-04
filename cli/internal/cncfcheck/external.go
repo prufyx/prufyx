@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/projectprepare"
 	"github.com/prufyx/prufyx/cli/internal/strictjson"
 )
 
@@ -44,6 +45,7 @@ var externalRevisionPattern = regexp.MustCompile(`^[1-9][0-9]*$`)
 // bounded data that passed the compiled registry, policy, landscape, and
 // constraint-engine checks. It carries no signature or source-truth claim.
 type ExternalBundle struct {
+	profile         *externalProfileDescriptor
 	raw             []byte
 	document        externalBundleDocument
 	pack            rulePack
@@ -60,6 +62,84 @@ type ExternalBundle struct {
 }
 
 type externalBundleSeal struct{}
+
+// A descriptor binds definitions and the complete ownership/admission policy.
+// Only exact compiled capability identities select one; parsing never retries.
+type externalProfileDescriptor struct {
+	registry    constraintengine.Registry
+	capability  string
+	canaryEntry string
+	canaryFacts map[string]bool
+}
+
+func externalProfile(base bundle, canary bool) (*externalProfileDescriptor, error) {
+	p := &externalProfileDescriptor{registry: base.registry}
+	if !canary {
+		var err error
+		p.capability, err = externalCapabilityDigest(base)
+		return p, err
+	}
+	entry, err := mariaDBCanaryEntry()
+	if err != nil {
+		return nil, err
+	}
+	definitions := base.registry.Definitions()
+	p.canaryFacts = make(map[string]bool, len(entry.RequiredFacts))
+	for _, fact := range entry.RequiredFacts {
+		p.canaryFacts[fact.ID] = true
+		definitions = append(definitions, constraintengine.FactDefinition{ID: fact.ID, Component: fact.Component, Type: fact.Type, EnumTokens: fact.EnumTokens})
+	}
+	p.registry, err = constraintengine.NewCompiledRegistry(definitions)
+	if err != nil {
+		return nil, ErrIntegrity
+	}
+	p.canaryEntry = canonicalEntry(entry)
+	if p.canaryEntry == "" {
+		return nil, ErrIntegrity
+	}
+	legacyCapability, err := externalCapabilityDigest(base)
+	if err != nil {
+		return nil, ErrIntegrity
+	}
+	// This identity freezes the registry AND exact additional admission and
+	// ownership contract; it does not authenticate a producer or signing key.
+	p.capability = externalDigestJSON(struct {
+		Profile, LegacyCapability, RegistryDigest, Admission, Ownership, AdmissionPolicy string
+	}{"mariadb-galera-canary-v1", legacyCapability, p.registry.Digest(), digest([]byte(p.canaryEntry)), projectprepare.MariaDBOperatorProject + "/" + MariaDBCanaryRuleID, "legacy-plus-exact-entry;added-facts-exclusive-to-entry"})
+	return p, nil
+}
+
+func selectExternalProfile(base bundle, capability string) (*externalProfileDescriptor, error) {
+	legacy, err := externalProfile(base, false)
+	if err != nil {
+		return nil, ErrIntegrity
+	}
+	if capability == legacy.capability {
+		return legacy, nil
+	}
+	canary, err := externalProfile(base, true)
+	if err != nil {
+		return nil, err
+	}
+	if capability == canary.capability {
+		return canary, nil
+	}
+	return nil, errors.Join(ErrIntegrity, ErrCapabilityMismatch)
+}
+
+// MariaDBCanaryProfileRequirements exposes only the distinct construction
+// identities. It authorizes neither a signed feed nor evidence renewal.
+func MariaDBCanaryProfileRequirements() (ProfileRequirements, error) {
+	base, err := load()
+	if err != nil {
+		return ProfileRequirements{}, err
+	}
+	p, err := externalProfile(base, true)
+	if err != nil {
+		return ProfileRequirements{}, err
+	}
+	return ProfileRequirements{Schema: externalBundleSchema, PackSchema: packSchemaCommunity, EngineCapabilityDigest: p.capability, PolicyID: base.pack.PolicyID, PolicyDigest: base.pack.PolicyDigest, RegistryDigest: p.registry.Digest(), LandscapeFileDigest: base.landscape.LandscapeFileDigest}, nil
+}
 
 type externalBundleDocument struct {
 	Schema                 string          `json:"schema"`
@@ -128,6 +208,10 @@ func ParseExternalBundle(raw []byte) (ExternalBundle, error) {
 // when base is nil. Callers that admit many targets in one operation pass the
 // base they already loaded; every check is identical.
 func parseExternalBundle(raw []byte, base *bundle) (ExternalBundle, error) {
+	return parseExternalBundleWithProfile(raw, base, nil)
+}
+
+func parseExternalBundleWithProfile(raw []byte, base *bundle, profile *externalProfileDescriptor) (ExternalBundle, error) {
 	if err := scanExternalJSON(raw); err != nil || validateExternalEnvelopeShape(raw) != nil {
 		return ExternalBundle{}, ErrInvalid
 	}
@@ -143,26 +227,31 @@ func parseExternalBundle(raw []byte, base *bundle) (ExternalBundle, error) {
 		}
 		base = &loaded
 	}
-	capability, err := externalCapabilityDigest(*base)
-	if err != nil {
-		return ExternalBundle{}, ErrIntegrity
+	var err error
+	if profile == nil {
+		profile, err = selectExternalProfile(*base, document.EngineCapabilityDigest)
 	}
-	if document.EngineCapabilityDigest != capability {
+	if err != nil {
+		return ExternalBundle{}, err
+	}
+	if document.EngineCapabilityDigest != profile.capability {
 		return ExternalBundle{}, errors.Join(ErrIntegrity, ErrCapabilityMismatch)
 	}
 	var packValue rulePack
 	if err := json.Unmarshal(document.Pack, &packValue); err != nil {
 		return ExternalBundle{}, ErrInvalid
 	}
-	if err := validateExternalPack(*base, packValue, document.Revision, records); err != nil {
+	selectedBase := *base
+	selectedBase.registry = profile.registry
+	if err := validateExternalPackProfile(selectedBase, profile, packValue, document.Revision, records); err != nil {
 		return ExternalBundle{}, err
 	}
 	if records {
-		if err := admitExternalRecords(*base, document.Pack, packValue); err != nil {
+		if err := admitExternalRecords(selectedBase, document.Pack, packValue); err != nil {
 			return ExternalBundle{}, err
 		}
 	}
-	candidate := bundle{landscape: base.landscape, community: base.community, priority: base.priority, pack: packValue, registry: base.registry, packDigest: digest(raw), catalogueDigest: base.catalogueDigest}
+	candidate := bundle{landscape: base.landscape, community: base.community, priority: base.priority, pack: packValue, registry: profile.registry, packDigest: digest(raw), catalogueDigest: base.catalogueDigest}
 	rules, err := candidate.parseRulesCorpus(candidate.packRules(), nil)
 	if err != nil {
 		return ExternalBundle{}, ErrIntegrity
@@ -184,7 +273,7 @@ func parseExternalBundle(raw []byte, base *bundle) (ExternalBundle, error) {
 			return ExternalBundle{}, ErrIntegrity
 		}
 	}
-	return ExternalBundle{raw: append([]byte(nil), raw...), document: document, pack: packValue, registry: base.registry, bundleDigest: digest(raw), documentDigest: externalDigestJSON(document), packDigest: externalDigestJSON(packValue), admission: admission, admissionDigest: externalDigestJSON(admission), seal: &externalBundleSeal{}}, nil
+	return ExternalBundle{profile: profile, raw: append([]byte(nil), raw...), document: document, pack: packValue, registry: profile.registry, bundleDigest: digest(raw), documentDigest: externalDigestJSON(document), packDigest: externalDigestJSON(packValue), admission: admission, admissionDigest: externalDigestJSON(admission), seal: &externalBundleSeal{}}, nil
 }
 
 // ExternalCapabilityDigest identifies this compiled parser/engine/registry and
@@ -333,11 +422,15 @@ func (b ExternalBundle) evaluate(project, selectedRuleID string, inputRaw []byte
 	selected := bundle{landscape: base.landscape, community: base.community, priority: base.priority, pack: pack, registry: b.registry, packDigest: b.bundleDigest, catalogueDigest: base.catalogueDigest, policy: b.policy}
 	// A community project is named only when this envelope holds data for
 	// it; without data it is refused as an unknown project is.
-	if !base.hasProject(project) && !(base.isCommunity(project) && selected.communityHasData(project)) {
+	canarySelection := b.profile.canaryEntry != "" && project == projectprepare.MariaDBOperatorProject && selectedRuleID == MariaDBCanaryRuleID
+	if !base.hasProject(project) && !(base.isCommunity(project) && selected.communityHasData(project)) && !canarySelection {
 		return Report{}, ErrInvalid
 	}
 	if selectedRuleID != "" {
 		owned, ownershipErr := base.ownsRuleID(project, selectedRuleID)
+		if canarySelection {
+			owned = true
+		}
 		if ownershipErr != nil {
 			return Report{}, ErrIntegrity
 		}
@@ -399,7 +492,7 @@ func (b ExternalBundle) evaluate(project, selectedRuleID string, inputRaw []byte
 }
 
 func (b ExternalBundle) valid() bool {
-	return b.seal != nil && digest(b.raw) == b.bundleDigest && externalDigestJSON(b.document) == b.documentDigest && externalDigestJSON(b.pack) == b.packDigest && externalDigestJSON(b.admission) == b.admissionDigest
+	return b.seal != nil && b.profile != nil && b.profile.capability == b.document.EngineCapabilityDigest && b.registry.Digest() == b.profile.registry.Digest() && digest(b.raw) == b.bundleDigest && externalDigestJSON(b.document) == b.documentDigest && externalDigestJSON(b.pack) == b.packDigest && externalDigestJSON(b.admission) == b.admissionDigest
 }
 
 func externalDigestJSON(value any) string {
@@ -424,6 +517,14 @@ func validExternalRevision(value string) bool {
 // target yet, so a pack holding them is refused rather than admitted
 // without them.
 func validateExternalPack(base bundle, packValue rulePack, revision string, records bool) error {
+	profile, err := externalProfile(base, false)
+	if err != nil {
+		return err
+	}
+	return validateExternalPackProfile(base, profile, packValue, revision, records)
+}
+
+func validateExternalPackProfile(base bundle, profile *externalProfileDescriptor, packValue rulePack, revision string, records bool) error {
 	if len(packValue.Distributions) > 0 {
 		return ErrIntegrity
 	}
@@ -459,7 +560,7 @@ func validateExternalPack(base bundle, packValue rulePack, revision string, reco
 		return ErrIntegrity
 	}
 	definitions := map[string]constraintengine.FactDefinition{}
-	for _, definition := range compiledDefinitions() {
+	for _, definition := range profile.registry.Definitions() {
 		definitions[definition.ID] = definition
 	}
 	for _, entry := range packValue.Entries {
@@ -468,6 +569,9 @@ func validateExternalPack(base bundle, packValue rulePack, revision string, reco
 		}
 		seenFacts := map[string]bool{}
 		for _, fact := range entry.RequiredFacts {
+			if profile.canaryFacts[fact.ID] && canonicalEntry(entry) != profile.canaryEntry {
+				return ErrIntegrity
+			}
 			definition, found := definitions[fact.ID]
 			key := fact.Side + "/" + fact.Component + "/" + fact.ID
 			if seenFacts[key] || (fact.Side != "current" && fact.Side != "proposed") || !found || definition.Component != fact.Component || definition.Type != fact.Type || fact.Description == "" || len(fact.Description) > 2048 || !sameStrings(definition.EnumTokens, fact.EnumTokens) {
@@ -479,7 +583,7 @@ func validateExternalPack(base bundle, packValue rulePack, revision string, reco
 		if json.Unmarshal(entry.Rule, &shape) != nil || shape.Subject.Component != subjectComponent(entry.Project, base.identities()[entry.Project].RepositoryURL) {
 			return ErrIntegrity
 		}
-		if base.isCommunity(entry.Project) && !communityRuleAdmitted(entry, shape) {
+		if base.isCommunity(entry.Project) && !communityRuleAdmitted(entry, shape) && !(profile.canaryEntry != "" && canonicalEntry(entry) == profile.canaryEntry) {
 			return ErrIntegrity
 		}
 		conditions := shape.conditions()
