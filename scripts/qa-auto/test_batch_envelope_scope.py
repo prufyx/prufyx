@@ -64,7 +64,7 @@ def envelope_runner():
         (output / (suite + ".scope.json.declared")).write_text(json.dumps(scope))
         scope.update(executed=list(scope["requested"]), state="COMPLETE")
     cases = [dict(suite=s, key="synthetic", wrongpass=False, mismatch=False, error=False, detail={})
-             for s in ("k8s", "bp325", "review", "rules")]
+             for s in ("k8s-range", "bp325", "review", "rules")]
     cases += [dict(suite="crd", key=batch.proof_target(project, pair), wrongpass=False, mismatch=False, error=False,
                    detail=dict(proof_pair=pair, requested=1, executed=1)) for project, pair in pairs]
     scope = scopes["crd"]
@@ -77,6 +77,9 @@ def envelope_runner():
         cases = [c for c in cases if c["suite"] != "crd"]
     if mode == "missing-suite":
         cases = [c for c in cases if c["suite"] != "review"]
+    if mode == "missing-k8s-case":
+        cases = [c for c in cases if c["suite"] != "k8s-range"]
+        cases.append(dict(suite="k8s", key="metadata", wrongpass=False, mismatch=False, error=False, detail={}))
     if mode in ("wrongpass", "hidden-wrongpass"):
         cases[-1]["wrongpass"] = True
     if mode == "empty-served":
@@ -299,7 +302,7 @@ class BatchScopeTests(unittest.TestCase):
         k8s_scope.update(executed=["k8s-range|synthetic"], state="COMPLETE")
         original = dict(crd=crd_scope, k8s=k8s_scope)
         cases = [dict(suite=s, key="synthetic", wrongpass=False, mismatch=False, error=False, detail={})
-                 for s in ("k8s", "bp325", "review", "rules")]
+                 for s in ("k8s-range", "bp325", "review", "rules")]
         cases.append(dict(suite="crd", key=exact, wrongpass=False, mismatch=False, error=False,
                           detail=dict(proof_pair=pair, requested=1, executed=1)))
         self.assertEqual(batch.validate(contract, original, cases, original), [])
@@ -420,7 +423,7 @@ class BatchScopeTests(unittest.TestCase):
                           ")\nfrom test_batch_envelope_scope import envelope_runner\nraise SystemExit(envelope_runner())\n")
         runner.chmod(0o700)
         for mode, expected in (("clean", 0), ("dropped-project", 3), ("dropped-pair", 3),
-                               ("missing-case", 3), ("missing-suite", 3), ("empty-served", 3),
+                               ("missing-case", 3), ("missing-suite", 3), ("missing-k8s-case", 3), ("empty-served", 3),
                                ("skipped-suite", 3), ("changed-contract", 3),
                                ("wrongpass", 2), ("hidden-wrongpass", 2)):
             with self.subTest(mode=mode):

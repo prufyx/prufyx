@@ -161,6 +161,13 @@ def validate(contract, scopes, cases, declarations):
         matching = [c for c in cases if c.get("suite") == "crd" and c.get("key") == key]
         if len(matching) != 1:
             errors.append("SCOPE_INCOMPLETE: exact scan case missing or duplicated " + target)
+    for target in scopes.get("k8s", {}).get("executed", []):
+        suite, _, key = target.partition("|")
+        if suite not in ("k8s-range", "k8s-single", "k8s-plan"):
+            continue  # Version discovery and served-set inventories are metadata.
+        matching = [c for c in cases if c.get("suite") == suite and c.get("key") == key]
+        if len(matching) != 1:
+            errors.append("SCOPE_INCOMPLETE: Kubernetes scan case missing or duplicated " + target)
     for project, pair in required_pairs(contract):
         matching = [c for c in cases if c.get("suite") == "crd" and c.get("key") == proof_target(project, pair)]
         if len(matching) != 1:
