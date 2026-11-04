@@ -83,3 +83,97 @@ step. Missing source evidence or digests are not inferred. Results that cannot
 be placed in a stage are reported as gaps and do not carry this evidence.
 These additive JSON fields may require updates to strict JSON consumers. The
 plan does not include the input bytes and these references do not verify them.
+
+## Declared reference states (preview)
+
+`prufyx plan --declared-state REQUEST.json` is a separate, JSON-only mode for
+linking **authored reference states** to newly evaluated scoped reports. It
+supports three embedded routes: Kubernetes served-API removal over a rendered
+apply set, Cilium nonempty requires fields over a declared policy set, and
+cert-manager's three removed monitoring values over exact merged JSON values.
+Other knowledge origins and deployment modes remain UNKNOWN. It reads private
+local files only and performs no cluster, network, apply or upgrade operation.
+
+Each stage evaluates the selected component using the **before** state's input
+bytes and the exact before/after component versions. An adjacent stage must
+reference the identical manifest digest left by the preceding stage. A
+`declared-edit` stage records an authored edit only. For example, B0 → B1 can
+declare removal of an obsolete API and B1 → B2 can check the newly supplied B1
+apply set. B1 is never represented as an observed remediation or upgrade output.
+App ordering, migrations, storage, provider, runtime and workload effects remain
+UNKNOWN. Every stage and aggregate is UNKNOWN unless a real rule blocks it;
+scoped PASS claims in child reports do not establish whole-upgrade safety.
+Cert-manager cannot bind an evaluation clock or general policy in its embedded
+report; those missing bindings remain explicit gaps even when its values claim
+passes. Real cert-manager blockers are preserved.
+
+The request and every input file must be regular, single-link, owner-readable
+files with no group/other permission bits. All path components must avoid
+symlinks. Input locators are clean relative paths below the request directory;
+absolute paths, `..`, links, changed files, oversize files and digest mismatches
+are rejected. Each file is read once through the bounded reader, and that same
+byte slice supplies both the digest and parser. No raw input document is emitted
+in the report. Supply minimized route inputs; exclude Secrets, credentials and
+unrelated objects. Limits are 1 MiB per file/request, 8 MiB total source bytes,
+16 artifacts, 8 components and entries per artifact, and 32 stages.
+
+### Request encoding
+
+This preview uses fixed typed JSON rather than a general JSON canonicalization
+standard. Emit compact UTF-8 JSON with the fields in the following order,
+including explicit empty strings, null completeness, and empty arrays. One
+trailing newline is accepted. Unknown/duplicate fields, alternate field order
+or whitespace, and omitted schema fields are rejected. Hash the compact manifest
+bytes without a trailing newline; hash source files byte-for-byte, including
+their whitespace. Every digest uses the `sha256:` prefix and lowercase hex.
+Paths are locators outside the manifest, so moving unchanged files does not
+change the state identity.
+
+| Object | Fields in encoding order |
+| --- | --- |
+| Request | `schema`, `context`, `artifacts`, `stages` |
+| Context | `target`, `intent`, `policyId`, `policyDigest`, `trustBases`, `evaluatedAt`, `knowledgeOrigin`, `knowledgeRevision`, `knowledgeDigest`, `certManagerKnowledgeDigest` |
+| Artifact | `name`, `manifest`, `files` |
+| Manifest | `schema`, `target`, `intent`, `components`, `entries` |
+| Component | `name`, `version`, `mode` |
+| Entry | `role`, `logicalName`, `length`, `digest`, `distribution`, `complete`, `targetApplyRequired`, `schemaValidation`, `chartDigest` |
+| File | `role`, `logicalName`, `path` |
+| Stage | `index`, `component`, `from`, `to`, `before`, `after`, `beforeDigest`, `afterDigest` |
+
+Both schemas are `prufyx.io/declared-state-plan/v1alpha1`. Components are sorted
+uniquely by name, entries by `(role, logicalName)`; files correspond to entries
+in the same order. Names are explicit artifact references; stages have contiguous
+zero-based indices. `beforeDigest` and `afterDigest` assert the hashes of those
+artifacts' manifests. Missing referenced artifacts or assertions leave gaps;
+present conflicting identities or endpoint labels fail integrity.
+
+`target` and `intent` must agree between context and every manifest. Component
+names/entry roles are `kubernetes`, `cilium` and `cert-manager`. The corresponding
+modes are `official-rendered-apply-set`, `official-policy-set` and
+`official-chart-merged-values`. A stage selects one route; `declared-edit` needs
+empty `from`/`to` and issues no compatibility verdict. Unselected fields in entries
+use empty strings or false. Kubernetes uses `distribution`, `complete`, and
+`targetApplyRequired`. Cilium uses `complete` (null means undeclared).
+Cert-manager uses `schemaValidation` (`required` or `disabled`) and the before
+and after entries' official `chartDigest` assertions. See the
+[cert-manager check](projects/routes.md#check-cert-manager-values) for its exact chart contract.
+
+Select `knowledgeOrigin: "embedded"` explicitly. Use an exact second-resolution
+UTC `evaluatedAt` ending in `Z`; the issued CNCF report supplies the embedded
+revision, pack digest and rule-source policy identity for context assertions.
+An initially empty policy/knowledge assertion is reported as a gap, allowing
+inspection of the authentic child report before pinning and re-evaluating.
+`trustBases` names the accepted evidence bases (for example
+`reviewed,mechanical,empirical,consensus`). Cert-manager's source-contract digest
+is separate from the CNCF pack digest; its report exposes that exact digest as
+`inputs.knowledgeRevisionDigest`. It has no general policy/clock input.
+
+The output retains each canonical manifest, its verified identity, stage
+associations, evaluation context, separate source/prepared/engine input digests,
+and newly issued sealed child report bytes with their original citations and
+omissions. The in-memory seal detects mutation before serialization; it is not
+a signature or proof of authenticity for serialized JSON. Deterministic replay
+means re-running the actual adapters with the original bytes/context and
+comparing output, never accepting a caller-supplied report or checksum as proof.
+Exit codes are `10` for a preserved blocker, `11` for UNKNOWN, `2` for request
+syntax, and `3` for admission, evaluation or integrity failure.

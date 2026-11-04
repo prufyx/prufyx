@@ -27,6 +27,8 @@ Inputs and flags are those of prufyx scan (see prufyx scan --help), except:
                             ships, so the component is reported as not planned.
                             Give an explicit version.
   --format F                human (default), json or markdown
+  --declared-state FILE     separate bounded reference-state evaluation;
+                            canonical private JSON, embedded knowledge only.
 
 A stage is PASS only when Prufyx can prove it. This version checks no hop
 actions and plans no node rolls, so no stage is PASS yet; BLOCKED and
@@ -39,6 +41,9 @@ func (r runtime) plan(args []string, stdin io.Reader) int {
 	if slices.Contains(args, "--help") || slices.Contains(args, "-h") {
 		fmt.Fprintln(r.stdout, planUsage)
 		return ExitOK
+	}
+	if slices.Contains(args, "--declared-state") {
+		return r.declaredPlan(args)
 	}
 	for _, a := range args {
 		if a == "--fail-on" || strings.HasPrefix(a, "--fail-on=") {
