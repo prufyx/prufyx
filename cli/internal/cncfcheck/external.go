@@ -739,12 +739,18 @@ func externalCapabilityDigest(base bundle) (string, error) {
 // uses enumTokens:null for boolean facts, so that one optional shape is allowed
 // and then checked against the compiled fact type.
 func scanExternalJSON(raw []byte) error {
+	return scanExternalTargetJSON(raw, false)
+}
+
+// scanExternalTargetJSON keeps structural bounds for opaque outer extensions.
+// All ordinary parser callers retain the strict null semantics.
+func scanExternalTargetJSON(raw []byte, outerExtensions bool) error {
 	if len(raw) == 0 || len(raw) > maxExternalBundleBytes || !utf8.Valid(raw) {
 		return ErrInvalid
 	}
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.UseNumber()
-	if err := consumeExternalJSON(decoder, 0, false); err != nil {
+	if err := consumeExternalJSON(decoder, 0, false, outerExtensions, false); err != nil {
 		return ErrInvalid
 	}
 	if _, err := decoder.Token(); err != io.EOF {
@@ -753,7 +759,7 @@ func scanExternalJSON(raw []byte) error {
 	return nil
 }
 
-func consumeExternalJSON(decoder *json.Decoder, depth int, allowNull bool) error {
+func consumeExternalJSON(decoder *json.Decoder, depth int, allowNull, outerExtensions, opaque bool) error {
 	if depth > maxExternalJSONDepth {
 		return ErrInvalid
 	}
@@ -763,7 +769,7 @@ func consumeExternalJSON(decoder *json.Decoder, depth int, allowNull bool) error
 	}
 	switch value := token.(type) {
 	case nil:
-		if !allowNull {
+		if !allowNull && !opaque {
 			return ErrInvalid
 		}
 	case string:
@@ -793,7 +799,7 @@ func consumeExternalJSON(decoder *json.Decoder, depth int, allowNull bool) error
 					return ErrInvalid
 				}
 				seen[folded] = true
-				if err := consumeExternalJSON(decoder, depth+1, name == "enumTokens"); err != nil {
+				if err := consumeExternalJSON(decoder, depth+1, name == "enumTokens", false, opaque || (outerExtensions && depth == 0 && !knownExternalOuterMember(name))); err != nil {
 					return err
 				}
 			}
@@ -803,7 +809,7 @@ func consumeExternalJSON(decoder *json.Decoder, depth int, allowNull bool) error
 			}
 		case '[':
 			for count := 0; decoder.More(); count++ {
-				if count >= maxExternalArrayItems || consumeExternalJSON(decoder, depth+1, false) != nil {
+				if count >= maxExternalArrayItems || consumeExternalJSON(decoder, depth+1, false, false, opaque) != nil {
 					return ErrInvalid
 				}
 			}

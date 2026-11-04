@@ -8,6 +8,7 @@ import (
 	"errors"
 	"regexp"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -296,7 +297,7 @@ func AdmitExternalProjectTarget(index ExternalIndex, project string, raw []byte)
 	if !ok || int64(len(raw)) != entry.Length || digest(raw) != entry.Digest {
 		return ExternalBundle{}, ErrIntegrity
 	}
-	if index.seal == nil || index.profile == nil || index.base == nil || scanExternalJSON(raw) != nil {
+	if index.seal == nil || index.profile == nil || index.base == nil || scanExternalTargetJSON(raw, !index.Compat()) != nil {
 		return ExternalBundle{}, ErrIntegrity
 	}
 	var header externalBundleDocument
@@ -309,6 +310,65 @@ func AdmitExternalProjectTarget(index ExternalIndex, project string, raw []byte)
 	if header.Schema != externalBundleSchema && header.Schema != externalBundleSchemaRecords {
 		return ExternalBundle{}, ErrUnreadableTarget
 	}
+	validationRaw, extended, err := knownExternalEnvelope(raw, index.Compat())
+	if err != nil {
+		return ExternalBundle{}, ErrIntegrity
+	}
+	bundle, err := admitExternalKnownProjectContent(index, project, entry, header, validationRaw)
+	if err != nil {
+		return ExternalBundle{}, err
+	}
+	if extended {
+		return ExternalBundle{}, ErrUnreadableTarget
+	}
+	return bundle, nil
+}
+
+func knownExternalOuterMember(name string) bool {
+	switch name {
+	case "schema", "revision", "purpose", "engineCapabilityDigest", "pack":
+		return true
+	}
+	return false
+}
+
+// knownExternalEnvelope projects only exact known outer members for validation.
+// Extended exact-profile envelopes never yield an admitted bundle.
+func knownExternalEnvelope(raw []byte, compat bool) ([]byte, bool, error) {
+	var object map[string]json.RawMessage
+	if json.Unmarshal(raw, &object) != nil {
+		return nil, false, ErrIntegrity
+	}
+	names := []string{"schema", "revision", "purpose", "engineCapabilityDigest", "pack"}
+	known := make(map[string]json.RawMessage, len(names))
+	extended := false
+	for key, value := range object {
+		matched := false
+		for _, name := range names {
+			if key == name {
+				known[name] = value
+				matched = true
+				break
+			}
+			if strings.EqualFold(key, name) {
+				return nil, false, ErrIntegrity
+			}
+		}
+		if !matched {
+			extended = true
+		}
+	}
+	if len(known) != len(names) || (extended && compat) {
+		return nil, false, ErrIntegrity
+	}
+	if !extended {
+		return raw, false, nil
+	}
+	projected, err := json.Marshal(known)
+	return projected, true, err
+}
+
+func admitExternalKnownProjectContent(index ExternalIndex, project string, entry ExternalIndexEntry, header externalBundleDocument, raw []byte) (ExternalBundle, error) {
 	if validateExternalEnvelopeShape(raw) != nil {
 		return ExternalBundle{}, ErrIntegrity
 	}
