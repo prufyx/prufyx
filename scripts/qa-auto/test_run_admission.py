@@ -55,7 +55,7 @@ class RunAdmissionTests(unittest.TestCase):
             git("add", ".")
             git("commit", "-qm", "Synthetic code control")
             code_head = git("rev-parse", "HEAD")
-            for name in ("run.sh", "select_projects.py", "summarize.py", "qa_scope.py", "crdgvk.go"):
+            for name in ("run.sh", "select_projects.py", "summarize.py", "qa_scope.py", "qa_batch_scope.py", "crdgvk.go"):
                 shutil.copy2(HERE / name, installed / name)
             # Companion stubs prove admission, not compatibility or sandbox fidelity.
             companion = '''import json, os, sys

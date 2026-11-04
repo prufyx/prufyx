@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from test_batch_envelope_scope import gate_source
 import urllib.error
 from unittest.mock import patch
 
@@ -83,15 +84,13 @@ class OracleToGateTests(unittest.TestCase):
                 runner.write_text("#!/usr/bin/env python3\nimport sys\nsys.path.insert(0, " + repr(str(HERE)) +
                                   ")\nfrom test_task4_scope import oracle_runner\nraise SystemExit(oracle_runner())\n")
                 runner.chmod(0o700)
-                git = root / "git"
-                git.write_text("#!/bin/sh\nexit 0\n")
-                git.chmod(0o700)
+                remote, head, base = gate_source(root)
                 env = dict(os.environ, CONTROL=mode, QA_STATE=str(root / "state"), QA_GATE_RUN=str(runner),
-                           QA_GATE_TRIES="1", QA_SCOPE_HEAD="a" * 40, PATH=str(root) + ":" + os.environ["PATH"])
-                result = subprocess.run([str(HERE / "batch_gate.sh"), "--trust-operator", "a" * 40, "b" * 40],
+                           QA_GATE_TRIES="1", QA_SCOPE_HEAD=head, QA_REPO_URL=remote)
+                result = subprocess.run([str(HERE / "batch_gate.sh"), "--trust-operator", head, base],
                                         env=env, text=True, capture_output=True, timeout=15)
                 self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
-                output = root / "state/results/control-aaaaaaaa"
+                output = root / ("state/results/control-" + head[:8])
                 scope = json.loads((output / "k8s.scope.json").read_text())
                 self.assertIn("k8s-version|1.21.0", scope["requested"])
                 if mode in ("unproved-404", "required-404", "timeout", "503", "bad-json", "404"):
