@@ -130,7 +130,8 @@ func parseProjectArguments(args []string, check bool) (projectArguments, bool) {
 	}
 	if check {
 		if result.knowledgeDB != "" {
-			if result.project != projectprepare.MariaDBOperatorProject || result.from != projectprepare.MariaDBOperatorFrom || result.to != projectprepare.MariaDBOperatorTo || flagProvided(args, "now") {
+			transition := constraintengine.RuleTransition{Component: projectprepare.MariaDBOperatorComponent, From: projectprepare.MariaDBOperatorFrom, To: projectprepare.MariaDBOperatorTo}
+			if result.project != projectprepare.MariaDBOperatorProject || !transition.IsAnchor(result.from, result.to) || flagProvided(args, "now") {
 				return projectArguments{}, false
 			}
 		} else if result.now == "" || flagProvided(args, "knowledge-db") {

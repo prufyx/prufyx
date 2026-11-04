@@ -618,3 +618,17 @@ func TestMariaDBExternalReservedIDSubstitution(t *testing.T) {
 		})
 	}
 }
+
+func TestMariaDBExternalArgumentTransition(t *testing.T) {
+	for _, tc := range []struct {
+		name, from, to string
+		want           bool
+	}{{"exact", "26.3.0", "26.6.0", true}, {"other-origin", "26.2.0", "26.6.0", false}, {"other-target", "26.3.0", "26.10.0", false}, {"tag-spelling", "v26.3.0", "26.6.0", false}, {"reverse", "26.6.0", "26.3.0", false}} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, ok := parseProjectArguments([]string{"--project", "mariadb-operator", "--mariadb-resource", "fixture.json", "--from", tc.from, "--to", tc.to, "--knowledge-db", "store"}, true)
+			if ok != tc.want {
+				t.Fatalf("transition admitted=%t want=%t", ok, tc.want)
+			}
+		})
+	}
+}

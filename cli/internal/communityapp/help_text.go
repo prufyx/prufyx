@@ -119,9 +119,9 @@ const checkProjectHelp = `Usage:
   prufyx check project --project SLUG --effective-config FILE [flags]
 
 Check one non-CNCF project's upgrade against its effective configuration.
-The default is embedded-only. Only the MariaDB Operator 26.3.0 -> 26.6.0
-Galera canary additionally accepts --knowledge-db DIR instead of --now.
-That explicit store uses verifier time and never falls back to embedded rules.
+The default is embedded-only. One project-specific check additionally accepts
+--knowledge-db DIR instead of --now; see the per-project usage and docs.
+An explicit store uses verifier time and never falls back to embedded rules.
 --profile and replay flags are not supported.
 
 Examples:
@@ -136,7 +136,7 @@ Flags:
                            input flag (see --project SLUG --help)
   --from, --to VERSION     versions to compare
   --now RFC3339            embedded evaluation time
-  --knowledge-db DIR       explicit signed store for the MariaDB Galera canary only
+  --knowledge-db DIR       explicit signed store for the documented project check only
   --format human|json      report format (default human)
 
 Per-project usage and prose: prufyx check project --project SLUG --help
