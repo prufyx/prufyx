@@ -1137,6 +1137,92 @@ code. `verify` runs the same offline checks; the dry run needs upstream and is
 run by the gate only. The claims counts are the proposal's and are shown, not
 checked.
 
+### Bot onboarding v2 admission
+
+New bot-tier approvals use `prufyx.io/knowledge-onboarding-batch/v2` and its
+separate signature and sample domains. The gate refuses a newly added bot-v1
+batch even when its signature is valid. Historical v1 bytes remain verifiable
+and count toward the same non-owner weekly limits alongside v2. Owner-v1 keeps
+its existing manual route; v2 grants no owner-key or automatic-merge route.
+
+The v2 signed record includes a typed published-gate profile, retained-input
+SHA256 identities, exact BASE and unsigned candidate commits/trees, complete
+changed paths with both modes/blobs/byte hashes, and daily/history observations.
+The profile is recomputed from the BASE-built verifier and pinned BASE keyset;
+a proposed policy file or a matching caller-supplied policy hash cannot
+authorize admission. An approval commit must add only its batch file on top of
+the exact bound unsigned candidate. Git replacement objects are ignored.
+
+The bot signing command performs offline admission, real BASE-history caps,
+source dry runs, pack/corpus-attestation and generated-output checks, and
+Git/ref/snapshot checks before accessing the private key. The unsigned candidate
+must not already add an approval. After key input, the command rechecks local
+refs, object/caller snapshots and the current clock before signing; this local
+recheck does not refresh remote controls.
+It requires an expected public bot key ID instead of deriving that ID from
+the private key during preparation. The limits remain 15 new projects per
+batch and 14 bot batches/210 projects per seven-day window, counted by
+`notAfter`. The separate gate options remain `--max-loosening 200`,
+`--max-withdraw-percent 5`, `--max-withdraw-project 20`,
+`--max-daily-loosening 50`, and `--rest-budget 900`. The daily limit counts
+classified loosening changes, not projects or signatures; unknown history
+refuses bot admission. The automation login used by the daily counter is
+distinct from the pinned onboarding signer identity.
+
+Bot v2 requires `--key-stdin` and `--admission-ready-fd FD`, a separate write-only
+pipe descriptor at least 3. The command marks it close-on-exec before source
+subprocesses run, refuses aliases of human stdout/stderr or key stdin, and
+transfers ownership of that descriptor. After preparation, confirmation and
+final local checks it writes one canonical JSON line with schema
+`prufyx.io/onboarding-admission-ready/v1`, expected `keyId`, the complete typed
+v2 `request`, and `requestDigest` (SHA256 of its exact domain-separated signing
+bytes), then closes the control pipe. Human and source output cannot be used
+as a readiness channel.
+
+The trusted supervisor validates the frame against its immutable inputs and
+requires EOF after exactly one frame; `ReadOnboardingReadiness` implements the
+bounded decoder. Missing, duplicate, wrong, noncanonical or truncated frames
+refuse. The supervisor owns its read deadline and producer authentication,
+refreshes its authoritative live controls after this frame, and only then
+opens/feeds key stdin. Preloading the key before preparation defeats that
+boundary. This nonsecret control channel adds no secret transport, signature
+or publication permission. The actual privileged supervisor and its live
+refresh still need independent implementation and testing.
+
+For bot signing, add these flags to `approval sign --onboarding`:
+
+| Flag | Required input |
+| --- | --- |
+| `--expected-key-id` | The expected pinned public bot-tier key ID |
+| `--admission-ready-fd` | Dedicated write-only supervisor control pipe; the command closes it after one bounded canonical frame, before reading key stdin |
+| `--admission-export` | Strict JSON with `planDigest`, `manifestDigest`, `draftDigest`, `factsDigest`, `bundleDigest` (SHA256), and `exportLineHash`, `publicLineHash` (legacy changed-line SHA1); raw input byte identities do not establish the producer's correctness |
+| `--admission-source` | `github`; the source checks run before key access |
+| `--admission-git-dir` | Authenticated object store with fixed `refs/admission/base` and `refs/admission/head` |
+| `--admission-base`, `--admission-head` | Exact BASE and unsigned candidate commit IDs; for verification, HEAD is the approval commit |
+| `--admission-daily-commits` | Complete authenticated commit/first-parent/login observations using the existing daily-count JSON format; verification may supply a broader observed window covering the signed daily window |
+| `--admission-paused` | Observed pause value, exactly `false`; absent/unknown values refuse |
+| `--admission-observed-at` | UTC capture time of those observations; a stale or future capture refuses |
+
+V2 `approval verify --onboarding` and `gate verify` require the Git/history/pause
+context flags too. They verify full exported trees against Git objects rather
+than trusting the input directories or a sidecar's assertions. Bot preparation
+and v2 verification derive semantic state from owned object exports; caller
+directories are additional equivalence checks, and cannot supply stale state
+by changing and restoring their files around those checks. Public CI
+validates its authenticated job snapshot; a timestamp does not turn that
+snapshot into a live Variables API check. The privileged caller must refresh
+its existing authoritative refs, pins and pause immediately before private-key
+access and before publication. Missing capabilities remain a refusal; these
+commands grant no new credential permission or live-control authority.
+
+Opaque retained-input hashes support replay only when the corresponding bytes
+are available. Old maintainers reject v2; the new verifier still understands
+historical v1. Customer knowledge packages do not contain these repository
+approval files, and no new package target or customer v2 audit decoder is
+introduced here. Package layout and oldest-client compatibility still require
+their own release verification. Onboarding remains ineligible for automatic
+merge regardless of a passing gate report.
+
 ## Commands
 
 `classify`, `limits` and `verify` take `--base DIR` and `--head DIR`

@@ -56,7 +56,12 @@ const approvalUsage = `usage: prufyx-maintainer approval <sign|verify|public-key
   sign        --onboarding DRAFT --base DIR --head DIR --keys FILE --keys-digest sha256:...
               --identity LOGIN (--key FILE | --key-stdin) [--output FILE] [--summary-out FILE]
               [--valid-for DURATION (at most 72h)]
+              bot only: --expected-key-id ID --admission-export FILE --admission-source github
+              --admission-ready-fd FD (dedicated supervisor pipe; key bytes remain on stdin)
+              --admission-git-dir DIR --admission-base SHA --admission-head SHA
+              --admission-daily-commits FILE --admission-paused false --admission-observed-at UTC
   verify      --onboarding FILE --base DIR --head DIR --keys FILE --keys-digest sha256:... [--now RFC3339]
+              v2 also requires the admission Git/history/pause observation flags above
   public-key  (--key FILE | --key-stdin)
   keys-digest --keys FILE`
 
@@ -71,6 +76,8 @@ type approvalEnv struct {
 	// (batch signing); random is the source of the batch review nonce.
 	confirm func(prompt string) (string, error)
 	random  io.Reader
+	// Tests can inject upstream bytes; production bot signing uses GitHub.
+	onboardingSource Source
 }
 
 // checkKeyStdin accepts only a pipe. A terminal would echo a typed or

@@ -3,9 +3,9 @@
 package knowledgegate
 
 import (
+	"context"
 	"crypto/ed25519"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -77,6 +77,7 @@ func cmdOnboardingSign(args []string, env approvalEnv, layout Layout, stdout io.
 	var draftPath, baseDir, headDir, keysPath, keysDigest, identity, output, summaryOut string
 	var validFor time.Duration
 	var k keyFlags
+	var admission admissionFlags
 	f := flag.NewFlagSet("approval sign --onboarding", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
 	f.StringVar(&draftPath, "onboarding", "", "the proposal's unsigned draft")
@@ -89,6 +90,11 @@ func cmdOnboardingSign(args []string, env approvalEnv, layout Layout, stdout io.
 	f.StringVar(&summaryOut, "summary-out", "", "also write the review summary to this new file")
 	f.DurationVar(&validFor, "valid-for", MaxOnboardingValidity, "notAfter - decidedAt, at most 72h")
 	k.register(f)
+	admission.register(f)
+	f.StringVar(&admission.expectedKey, "expected-key-id", "", "expected pinned public onboarding-bot key ID (no private-key derivation)")
+	f.StringVar(&admission.export, "admission-export", "", "opaque retained plan/manifest/draft SHA256 bindings")
+	f.StringVar(&admission.source, "admission-source", "", "pre-key upstream checks: github")
+	f.IntVar(&admission.readyFD, "admission-ready-fd", -1, "dedicated supervisor write-only readiness pipe descriptor (not stdout or key stdin)")
 	if err := parseApprovalFlags(f, args); err != nil {
 		return 2, err
 	}
@@ -134,18 +140,65 @@ func cmdOnboardingSign(args []string, env approvalEnv, layout Layout, stdout io.
 	if err != nil {
 		return 2, err
 	}
-	key, err := k.load(env)
-	if err != nil {
-		return 2, err
+	var ready *os.File
+	if keys.isBot(identity) {
+		if !k.stdin || k.file != "" {
+			return 2, errors.New("bot v2 requires --key-stdin and a supervisor that refreshes live controls after admission readiness")
+		}
+		if admission.expectedKey == "" || admission.export == "" {
+			return 2, errors.New("bot signing requires expected public key and complete v2 admission inputs")
+		}
+		if ready, err = claimOnboardingReadyPipe(admission.readyFD); err != nil {
+			return 2, err
+		}
+		defer ready.Close()
+		info, err := ready.Stat()
+		if err != nil {
+			return 2, err
+		}
+		channels := []*os.File{os.Stdout, os.Stderr}
+		if input, ok := env.stdin.(*os.File); ok {
+			channels = append(channels, input)
+		}
+		for _, channel := range channels {
+			other, err := channel.Stat()
+			if err != nil {
+				return 2, err
+			}
+			if os.SameFile(info, other) {
+				return 2, errors.New("admission control, human output and key input must use separate pipes")
+			}
+		}
+	} else if admission.readyFD != -1 {
+		return 2, errors.New("admission readiness is bot-only")
 	}
-	defer wipe(key)
 	if env.random == nil || env.confirm == nil {
 		return 2, errors.New("no source of randomness or terminal to confirm on")
 	}
 	now := env.now().UTC().Truncate(time.Second)
-	keyID, err := checkOnboardingSigner(keys, key, identity, now)
-	if err != nil {
-		return 2, err
+	if !keys.isBot(identity) && !keys.isOwner(identity) {
+		return 2, errors.New("identity is not pinned")
+	}
+	inputBase, inputHead := base, head
+	var admissionOpts Options
+	if keys.isBot(identity) {
+		if admissionOpts, err = admission.signOptions(layout, base, head, keysDigest, now, env.onboardingSource); err != nil {
+			return 2, err
+		}
+		if gh, ok := admissionOpts.Source.(*GitHubSource); ok {
+			defer gh.Close()
+		}
+		var cleanup func()
+		if base, head, cleanup, err = exportAdmissionTrees(context.Background(), admissionOpts.OnboardingGit); err != nil {
+			return 2, err
+		}
+		defer cleanup()
+		if err := equalAdmissionTrees(base, head, inputBase, inputHead); err != nil {
+			return 2, err
+		}
+		// Prepare from owned object exports, never from a caller directory that
+		// could change and be restored around a later equivalence check.
+		admissionOpts.Base, admissionOpts.Head = base, head
 	}
 	nonceBytes := make([]byte, batchNonceHexBytes)
 	if _, err := io.ReadFull(env.random, nonceBytes); err != nil {
@@ -169,8 +222,35 @@ func cmdOnboardingSign(args []string, env approvalEnv, layout Layout, stdout io.
 	if err != nil {
 		return 2, err
 	}
-	summary := st.summary(rec)
+	rec.Identity, rec.Decision = identity, ApprovalDecisionApprove
+	rec.DecidedAt = now.Format("2006-01-02T15:04:05Z")
+	rec.NotAfter = now.Add(validFor).Format("2006-01-02T15:04:05Z")
+	envl := OnboardingEnvelope{Schema: OnboardingSchema, Record: rec}
+	if keys.isBot(identity) {
+		raw, readErr := readBoundedFile(admission.export, maxOnboardingBytes)
+		if readErr != nil {
+			return 2, readErr
+		}
+		var export OnboardingExportBinding
+		if err := strictDecode(raw, &export); err != nil {
+			return 2, err
+		}
+		if export.DraftDigest != CandidateDigest(rawDraft) {
+			return 2, errors.New("draft byte binding differs")
+		}
+		if envl, err = prepareBotAdmission(context.Background(), admissionOpts, keys, rec, export, admission.expectedKey); err != nil {
+			return 2, err
+		}
+		rec = envl.Record
+	} else if admission.expectedKey != "" || admission.export != "" || admission.gitDir != "" {
+		return 2, errors.New("v2 admission is bot-only; no owner fallback")
+	}
+	summary := st.envelopeSummary(envl)
 	rec.SummaryDigest = CandidateDigest([]byte(summary))
+	envl.Record = rec
+	if why := refuseOnboarding(envl, baseFiles); why != "" {
+		return 2, errors.New(why)
+	}
 	fmt.Fprintln(stdout, summary)
 	if summaryOut != "" {
 		if err := writeApprovalFile(summaryOut, []byte(summary)); err != nil {
@@ -179,8 +259,8 @@ func cmdOnboardingSign(args []string, env approvalEnv, layout Layout, stdout io.
 		fmt.Fprintf(stdout, "review summary written: %s\n", logSafe(summaryOut))
 	}
 	notAfter := now.Add(validFor)
-	prompt := fmt.Sprintf("Signer %s, key %s. Valid %s to %s (%s). %d projects enter the catalogue; read in full: sample %s. The gate re-runs every project's dry run before it admits the batch.\nType the batch id %s to sign, anything else aborts: ",
-		logSafe(identity), keyID, now.Format("2006-01-02T15:04:05Z"), notAfter.Format("2006-01-02T15:04:05Z"), validFor, len(rec.Projects), indexList(rec.Sample), draft.BatchID)
+	prompt := fmt.Sprintf("Signer %s. Valid %s to %s (%s). %d projects enter the catalogue; sample %s. The gate re-runs every project's dry run before it admits the batch.\nType the batch id %s to sign, anything else aborts: ",
+		logSafe(identity), now.Format("2006-01-02T15:04:05Z"), notAfter.Format("2006-01-02T15:04:05Z"), validFor, len(rec.Projects), indexList(rec.Sample), draft.BatchID)
 	answer, err := env.confirm(prompt)
 	if err != nil {
 		return 2, err
@@ -188,29 +268,68 @@ func cmdOnboardingSign(args []string, env approvalEnv, layout Layout, stdout io.
 	if answer != draft.BatchID {
 		return 2, errors.New("not confirmed; nothing was signed or written")
 	}
-	rec.Identity, rec.Decision = identity, ApprovalDecisionApprove
-	rec.DecidedAt = now.Format("2006-01-02T15:04:05Z")
-	rec.NotAfter = notAfter.Format("2006-01-02T15:04:05Z")
-	msg, err := SignedOnboardingBytes(rec)
+	if envl.binding != nil {
+		admissionOpts.Now = env.now().UTC().Truncate(time.Second)
+		if err := checkBotAdmission(context.Background(), envl, keys, admissionOpts, true); err != nil {
+			return 2, err
+		}
+		if err := equalAdmissionTrees(base, head, inputBase, inputHead); err != nil {
+			return 2, err
+		}
+		if err := writeOnboardingReadiness(ready, envl); err != nil {
+			return 2, err
+		}
+	}
+	key, err := k.load(env)
 	if err != nil {
 		return 2, err
 	}
-	envl := OnboardingEnvelope{Schema: OnboardingSchema, Record: rec, KeyID: keyID, Signature: base64.StdEncoding.EncodeToString(ed25519.Sign(key, msg))}
-	raw, err := json.MarshalIndent(envl, "", "  ")
+	defer wipe(key)
+	keyID, err := checkOnboardingSigner(keys, key, identity, env.now().UTC())
+	if err != nil {
+		return 2, err
+	}
+	if envl.binding != nil && keyID != admission.expectedKey {
+		return 2, errors.New("private key does not match expected admitted bot key")
+	}
+	verifiedAt := now
+	if envl.binding != nil {
+		// Key input may block after readiness. Check the actual local refs,
+		// immutable objects, caller snapshots and clock again before signing.
+		verifiedAt = env.now().UTC().Truncate(time.Second)
+		admissionOpts.Now = verifiedAt
+		if err := checkBotAdmission(context.Background(), envl, keys, admissionOpts, true); err != nil {
+			return 2, err
+		}
+		if err := equalAdmissionTrees(base, head, inputBase, inputHead); err != nil {
+			return 2, err
+		}
+	}
+	rec.Identity, rec.Decision = identity, ApprovalDecisionApprove
+	rec.DecidedAt = now.Format("2006-01-02T15:04:05Z")
+	rec.NotAfter = notAfter.Format("2006-01-02T15:04:05Z")
+	envl.Record = rec
+	msg, err := signedOnboardingEnvelopeBytes(envl)
+	if err != nil {
+		return 2, err
+	}
+	envl.KeyID = keyID
+	envl.Signature = base64.StdEncoding.EncodeToString(ed25519.Sign(key, msg))
+	raw, err := marshalOnboardingEnvelope(envl)
 	if err != nil {
 		return 2, err
 	}
 	raw = append(raw, '\n')
-	if err := verifyOnboardingSignature(envl, keys, now); err != nil {
+	if err := verifyOnboardingSignature(envl, keys, verifiedAt); err != nil {
 		return 2, fmt.Errorf("the signed batch does not verify: %w", err)
 	}
-	if why := st.checkDigests(rec); why != "" {
+	if why := st.checkEnvelopeDigests(envl); why != "" {
 		return 2, fmt.Errorf("the signed batch does not verify: %s", why)
 	}
 	if why := refuseOnboarding(envl, baseFiles); why != "" {
 		return 2, errors.New(why)
 	}
-	if why := botOnboardingLimits(envl, keys, baseFiles, now, false); why != "" {
+	if why := botOnboardingLimits(envl, keys, baseFiles, verifiedAt, false); why != "" {
 		return 2, errors.New(why)
 	}
 	if err := writeApprovalFile(output, raw); err != nil {
@@ -224,8 +343,10 @@ func cmdOnboardingSign(args []string, env approvalEnv, layout Layout, stdout io.
 
 func cmdOnboardingVerify(args []string, env approvalEnv, layout Layout, stdout io.Writer) (int, error) {
 	var file, baseDir, headDir, keysPath, keysDigest, now string
+	var admission admissionFlags
 	f := flag.NewFlagSet("approval verify --onboarding", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
+	admission.register(f)
 	f.StringVar(&file, "onboarding", "", "the onboarding batch file")
 	f.StringVar(&baseDir, "base", "", "the base checkout")
 	f.StringVar(&headDir, "head", "", "the proposed checkout")
@@ -286,6 +407,40 @@ func cmdOnboardingVerify(args []string, env approvalEnv, layout Layout, stdout i
 	if why := botOnboardingLimits(envl, keys, baseFiles, at, false); why != "" {
 		return refused(why)
 	}
+	if err := refuseNewBotV1(envl, keys); err != nil {
+		return refused(err.Error())
+	}
+	if envl.binding != nil {
+		g, err := admission.context()
+		if err != nil {
+			return refused(err.Error())
+		}
+		daily, err := admissionDailyWindow(context.Background(), g, at)
+		if err != nil {
+			return refused(err.Error())
+		}
+		count, err := DailyCount(context.Background(), layout, g.GitDir, daily, DefaultBotLogin)
+		if err != nil {
+			return refused(err.Error())
+		}
+		opts.Now, opts.ApprovalKeysDigest, opts.OnboardingGit = at, keysDigest, g
+		opts.HeadSHA = g.HeadCommit
+		opts.BotLogin, opts.MaxLoosening, opts.MaxWithdrawPercent, opts.MaxWithdrawProject = DefaultBotLogin, 200, 5, 20
+		opts.MaxDailyLoosening, opts.DailyLoosening, opts.AdmissionRESTBudget = 50, &count, 900
+		base, head, cleanup, err := exportAdmissionTrees(context.Background(), g)
+		if err != nil {
+			return refused(err.Error())
+		}
+		defer cleanup()
+		if err := equalAdmissionTrees(base, head, opts.Base, opts.Head); err != nil {
+			return refused(err.Error())
+		}
+		opts.Base, opts.Head = base, head
+		if err := checkBotAdmission(context.Background(), envl, keys, opts, false); err != nil {
+			return refused(err.Error())
+		}
+	}
+	base, head = opts.Base, opts.Head
 	cls, err := Classify(layout, base, head)
 	if err != nil {
 		return 2, err
@@ -304,7 +459,7 @@ func cmdOnboardingVerify(args []string, env approvalEnv, layout Layout, stdout i
 	if why := onboardingModes(opts, paths); why != "" {
 		return refused(why)
 	}
-	if why := st.checkDigests(rec); why != "" {
+	if why := st.checkEnvelopeDigests(envl); why != "" {
 		return refused(why)
 	}
 	fmt.Fprintf(stdout, "onboarding batch OK: %s\n", logSafe(file))

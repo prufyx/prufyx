@@ -491,17 +491,13 @@ func TestBotOnboardingGate(t *testing.T) {
 		}
 	}
 
-	t.Run("admitted", func(t *testing.T) {
+	t.Run("new bot v1 requires binding even with a valid signature", func(t *testing.T) {
 		f := newOnboardingFixture(t)
 		bot := f.pinBot(t, "2027-01-01T00:00:00Z")
 		signBot(t, f, bot, nil)
 		r := f.gate(t)
-		requirePass(t, r)
-		c, _ := check(r, CheckOnboarding)
-		if !c.OK || !strings.Contains(c.Detail, "bot tier: sample drawn, not read") || !strings.Contains(c.Detail, botLogin) {
-			t.Fatalf("detail %+v", c)
-		}
-		if r.AutoMerge.Eligible || !strings.Contains(strings.Join(r.Alarms, ";"), "onboarding batch (admitted)") {
+		failed(t, r, "new bot approvals require onboarding v2")
+		if r.AutoMerge.Eligible || !strings.Contains(strings.Join(r.Alarms, ";"), "onboarding batch (refused)") {
 			t.Fatalf("auto merge %+v alarms %v", r.AutoMerge, r.Alarms)
 		}
 	})
@@ -557,7 +553,7 @@ func TestBotOnboardingGate(t *testing.T) {
 		signBot(t, f, bot, nil)
 		failed(t, f.gate(t), "O8c")
 	})
-	t.Run("last batch under the weekly cap", func(t *testing.T) {
+	t.Run("last batch under the weekly cap still requires v2", func(t *testing.T) {
 		f := newOnboardingFixture(t)
 		bot := f.pinBot(t, "2027-01-01T00:00:00Z")
 		for i := 1; i < MaxBotBatchesWeek; i++ {
@@ -566,7 +562,7 @@ func TestBotOnboardingGate(t *testing.T) {
 			f.writeBatch(t, f.head, name, raw)
 		}
 		signBot(t, f, bot, nil)
-		requirePass(t, f.gate(t))
+		failed(t, f.gate(t), "new bot approvals require onboarding v2")
 	})
 	t.Run("file outside the onboarding change", func(t *testing.T) {
 		f := newOnboardingFixture(t)
