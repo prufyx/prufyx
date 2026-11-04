@@ -433,6 +433,9 @@ class BatchScopeTests(unittest.TestCase):
                 result = subprocess.run([str(HERE / "batch_gate.sh"), "--trust-operator", self.head, self.base],
                                         env=env, text=True, capture_output=True, timeout=15)
                 self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
+                self.assertEqual(list(state.glob("scope-parent.*")), [], "temporary parent Git checkout leaked")
+                self.assertEqual(len(list((state / "gate").glob(self.head + ".*.scope.json"))), 1,
+                                 "original frozen contract not retained")
                 if expected == 0:
                     receipt = json.loads((state / "gate" / (self.head + ".json")).read_text())
                     self.assertEqual(receipt["kind"], "not_executed")

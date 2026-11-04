@@ -19,6 +19,12 @@ the contract and checks the original scope declarations and suite case files.
 Missing projects, pairs, cases, suites, omitted input, changed bindings, and
 failed cases cannot be removed to manufacture zero errors.
 
+The original-declaration and exact project/pair case comparisons apply to runs
+that add a v2 envelope. Non-onboarding data runs retain their existing suite
+and internally declared inventory checks; they do not gain those additional
+envelope comparisons. Temporary parent Git checkouts are removed on exit,
+while the frozen contract and original suite artifacts remain as evidence.
+
 The fast batch receipt explicitly records kind and database checks as
 `not_executed`. Its green result covers only its declared suites. Separate
 required checks on the same candidate, signature verification, data review,

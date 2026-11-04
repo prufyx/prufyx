@@ -70,15 +70,17 @@ PY
 }
 
 # gate_one HEAD BASE -> prints the GATE line, writes STATE/gate/<head>.json when conclusive; returns the exit code
-gate_one() {
+gate_one() (
   local head=$1 base=$2 s8=${1:0:8} rc out line
   [[ "$head" =~ ^[0-9a-f]{40}$ ]] || { echo "GATE ${s8} bad head sha (need 40 hex)" >&2; return 3; }
   [ -n "$base" ] || { echo "GATE $s8 cannot resolve base" >&2; return 3; }
   local run_id; run_id=$(python3 -I -c 'import uuid; print(uuid.uuid4().hex)')
   # Keep authenticated source objects and the expected contract outside every
   # candidate build/run mount. The final verdict re-derives from these objects.
-  local scope_root scope_digest
+  local scope_root scope_digest scope_file
   scope_root=$(mktemp -d "$QA_STATE/scope-parent.XXXXXX") || return 3
+  trap 'rm -rf -- "$scope_root"' EXIT
+  scope_file=$G/$head.$run_id.scope.json
   mkdir -p "$scope_root/src"
   git init -q "$scope_root/src" &&
     git -C "$scope_root/src" fetch -q --depth 64 "$QA_REPO_URL" \
@@ -88,12 +90,12 @@ gate_one() {
       echo "gate: SCOPE_PROVENANCE exact fetched head/base ancestry unavailable" >&2; return 3;
     }
   scope_digest=$(python3 -I "$HERE/qa_batch_scope.py" --src "$scope_root/src" --head "$head" \
-    --base "$base" --run-id "$run_id" --out "$scope_root/contract.json") || return 3
+    --base "$base" --run-id "$run_id" --out "$scope_file") || return 3
   local t0; t0=$(date +%s)
   local log; log=$(mktemp "${TMPDIR:-/tmp}/qa-gate-log.XXXXXX")
   # the gate raises its own alarm below: keep run.sh's hook, the kind probes and the db suite out of it
   # own session = own process group: on timeout/TERM/INT the whole group (oracles, binaries) is killed, never orphaned
-  QA_BATCH_SCOPE_FILE=$scope_root/contract.json QA_BATCH_SCOPE_DIGEST=$scope_digest \
+  QA_BATCH_SCOPE_FILE=$scope_file QA_BATCH_SCOPE_DIGEST=$scope_digest \
     QA_RUN_ID=$run_id QA_SHA=$head QA_BASE=$base QA_NO_KIND=1 QA_DB_SUITE= QA_DB=0 QA_POLL=0 QA_ALARM_HOOK= \
     setsid timeout -k 30 "$QA_GATE_CAP" "$QA_GATE_RUN" >"$log" 2>&1 </dev/null &
   GPID=$!
@@ -130,10 +132,10 @@ PY
     return 3
   fi
   rm -f "$log"
-  python3 -I - "$out/summary.json" "$head" "$base" "$G" "$rc" "$(main_tip)" "$run_id" "$HERE" "$scope_root" "$scope_digest" <<'PY'
+  python3 -I - "$out/summary.json" "$head" "$base" "$G" "$rc" "$(main_tip)" "$run_id" "$HERE" "$scope_root" "$scope_file" "$scope_digest" <<'PY'
 import json, sys, time
 from pathlib import Path
-summ, head, base, gdir, rc, tip, run_id, script_dir, scope_root, expected_digest = sys.argv[1:]
+summ, head, base, gdir, rc, tip, run_id, script_dir, scope_root, scope_file, expected_digest = sys.argv[1:]
 sys.path.insert(0, script_dir)
 import qa_scope
 import qa_batch_scope
@@ -144,7 +146,7 @@ run_error = (int(rc) != 0 or
 scope_errors = qa_scope.bundle_errors(s.get("scopes", {}), head, base, run_id)
 contract = {}
 try:
-    contract = qa_batch_scope.parse(Path(scope_root, "contract.json").read_bytes())
+    contract = qa_batch_scope.parse(Path(scope_file).read_bytes())
     recomputed = qa_batch_scope.freeze(Path(scope_root, "src"), head, base, run_id, contract["extra_projects"])
     if qa_batch_scope.digest(contract) != expected_digest or contract != recomputed:
         raise ValueError("SCOPE_MISMATCH: original frozen contract differs")
@@ -232,7 +234,7 @@ PY
     "$QA_ALARM_HOOK" "$G/$head.alarm.json" || echo "gate: alarm hook failed with exit $?" >&2
   fi
   return $rc
-}
+)
 
 # stale_check HEAD MAIN_TIP: a recorded GREEN was gated against an older main. It stays valid only while the head sits on
 # the current main tip; otherwise the record is rewritten as STALE (exit 3) until the head is rebased (new sha = new gate).
