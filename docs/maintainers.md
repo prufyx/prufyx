@@ -34,18 +34,28 @@ and submit only public material you can redistribute. CI validates changed
 bundles using the validator built from the pull request's base branch; it does
 not establish the truth of the hints or add a compatibility claim.
 
-If you prefer to send a suggestion as an issue, use the existing form:
+If you prefer to send a project observation request as an issue, use the
+[onboarding request form](https://github.com/prufyx/prufyx/issues/new?template=onboarding-request.yml).
+It asks for a public repository URL, a license declaration, and consent that
+the repository is public and contains no private or personal data. Optional
+fields provide a slug, release count, tag prefix, and changelog paths. The
+issue is public.
 
-Open the
-[maintainer form](https://github.com/prufyx/prufyx/issues/new?template=maintainer-project.yml).
-Required: project name, repository URL, your relation to the project, and a
-consent checkbox. Everything else is optional: release tag pattern, CRD
-locations, Helm chart location, supported Kubernetes versions per release
-line, upgrade notes and breaking changes, deprecations, versions to exclude,
-and how you want to be contacted.
+The separate [maintainer project form](https://github.com/prufyx/prufyx/issues/new?template=maintainer-project.yml)
+collects different fields and is not the form represented by the current
+onboarding-request adapter. It asks for project name, repository, relation,
+release and CRD pointers, chart and Kubernetes-version details, notes,
+deprecations, exclusions, and contact preference. Use the onboarding request
+form above for the documented observation request; do not treat the separate
+maintainer form as accepted by the staged adapter. Do not put email addresses,
+customer data, cluster data, credentials, or private links in either public
+issue.
 
-The issue is public. Do not put email addresses, customer data, cluster data
-or credentials in it.
+The [maintainer intake demo](maintainer-intake-demo.md) uses fictional form
+values and checked-in example files. It does not submit an issue or show a
+live intake status. The issue-to-analysis route and a returned maintainer
+status are not demonstrated as live; a form submission alone does not mean
+the project was analyzed or covered.
 
 ## How the information is used
 
