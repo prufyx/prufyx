@@ -16,7 +16,9 @@ umask 077
 work=$(mktemp -d)
 mkdir "$work/inputs" "$work/reports"
 go -C cli build -o "$work/prufyx" ./cmd/prufyx-community
-cp cli/examples/projects/mariadb-operator/{broken,fixed,unknown}.json "$work/inputs/"
+cp cli/examples/projects/mariadb-operator/broken.json \
+  cli/examples/projects/mariadb-operator/fixed.json \
+  cli/examples/projects/mariadb-operator/unknown.json "$work/inputs/"
 
 # These are three separate reference artifacts, not observed cluster state.
 sha256sum "$work"/inputs/*.json > "$work/inputs.sha256"
