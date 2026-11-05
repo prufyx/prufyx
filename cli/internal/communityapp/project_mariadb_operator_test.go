@@ -96,6 +96,9 @@ func TestMariaDBOperatorPartialFactsReachActualCheck(t *testing.T) {
 					t.Fatalf("claim %+v", claim)
 				}
 				if tc.name == "missing-auto" {
+					if !strings.Contains(report.NextAction, "spec.updateStrategy.autoUpdateDataPlane") || !strings.Contains(report.NextAction, "--mariadb-resource") {
+						t.Fatalf("native resource next action missing: %s", report.NextAction)
+					}
 					if claim.ReasonCode != "RULE_FACT_UNAVAILABLE" || !strings.Contains(claim.NextAction, projectprepare.MariaDBOperatorAutoUpdateFact) || strings.Contains(claim.NextAction, projectprepare.MariaDBOperatorGaleraFact) {
 						t.Fatalf("missing setting was not identified: %+v", claim)
 					}
@@ -109,6 +112,9 @@ func TestMariaDBOperatorPartialFactsReachActualCheck(t *testing.T) {
 						t.Fatal("missing auto-update fact not named")
 					}
 				}
+			}
+			if tc.name != "missing-auto" && tc.name != "null-auto" && tc.name != "string-auto" && tc.name != "case-auto" && tc.name != "ambiguous-auto" && strings.Contains(report.NextAction, "spec.updateStrategy.autoUpdateDataPlane") {
+				t.Fatalf("auto-update guidance for unrelated outcome: %s", report.NextAction)
 			}
 			prepared, err := projectprepare.PrepareMariaDBOperatorResource([]byte(tc.raw), from, "26.6.0", complete, phase)
 			if err != nil {
@@ -125,6 +131,24 @@ func TestMariaDBOperatorPartialFactsReachActualCheck(t *testing.T) {
 				t.Fatalf("digest mismatch exit%d", code)
 			}
 		})
+	}
+}
+
+func TestMariaDBOperatorMissingSettingHumanAction(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "resource.json")
+	raw := strings.Replace(mariadbOperatorTestResource, `"autoUpdateDataPlane":true`, ``, 1)
+	if err := os.WriteFile(path, []byte(raw), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, verbose := range []bool{false, true} {
+		args := []string{"check", "project", "--project", "mariadb-operator", "--mariadb-resource", path, "--from", "26.3.0", "--to", "26.6.0", "--resource-complete", "--pre-operator-update", "--now", "2026-09-13T09:00:00Z"}
+		if verbose {
+			args = append(args, "--verbose")
+		}
+		var out, stderr bytes.Buffer
+		if code := Run(t.Context(), args, &out, &stderr, "test"); code != ExitUnknown || stderr.Len() != 0 || !strings.Contains(out.String(), "spec.updateStrategy.autoUpdateDataPlane") || !strings.Contains(out.String(), "--mariadb-resource") {
+			t.Fatalf("exit=%d stdout=%s stderr=%s", code, out.String(), stderr.String())
+		}
 	}
 }
 

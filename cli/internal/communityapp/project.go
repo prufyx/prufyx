@@ -278,7 +278,7 @@ func (r runtime) project(args []string) int {
 		for _, rule := range report.NotEvaluated {
 			route.notEvaluated = append(route.notEvaluated, rule.RuleID+": "+rule.NextAction)
 		}
-		if len(report.Check.Claims) == 0 {
+		if len(report.Check.Claims) == 0 || (request.project == projectprepare.MariaDBOperatorProject && len(report.Check.Claims) == 1 && report.Check.Claims[0].Status == "UNKNOWN" && report.Check.Claims[0].ReasonCode == "RULE_FACT_UNAVAILABLE") {
 			route.trailer = []string{"next action: " + report.NextAction}
 		}
 		if err := writeHumanReport(r.stdout, route); err != nil {

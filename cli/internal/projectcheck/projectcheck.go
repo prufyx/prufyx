@@ -13,6 +13,7 @@ import (
 	"errors"
 	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
@@ -551,6 +552,13 @@ func checkWithBundleRoute(b bundle, project string, inputRaw []byte, now time.Ti
 		nextAction = "the only reviewed rules for this transition are support ranges that need a dependency version this route cannot declare; " + notEvaluatedAction
 	} else if selected == 0 {
 		nextAction = "no reviewed rule matches this exact project transition; retain UNKNOWN or add independently reviewed embedded rule metadata"
+	}
+	// Explain the native input without changing the engine's sealed claim.
+	if native && project == "mariadb-operator" && requestedRuleID == "mariadb-operator.upgrade-26-6.requires-dataplane-prerequisite" && selectedRuleID == requestedRuleID && len(result.Claims) == 1 {
+		claim := result.Claims[0]
+		if claim.RuleID == selectedRuleID && claim.Status == "UNKNOWN" && claim.ReasonCode == "RULE_FACT_UNAVAILABLE" && strings.HasPrefix(claim.NextAction, "fact `component.mariadb_operator.auto_update_data_plane` is missing from the input:") {
+			nextAction = "declare spec.updateStrategy.autoUpdateDataPlane as an explicit JSON boolean in the selected --mariadb-resource file, then rerun the same check; this native-resource action takes precedence over the claim's generic facts-array hint; whole-upgrade behavior remains UNKNOWN"
+		}
 	}
 	report := Report{Schema: "prufyx.io/community-project-source-check/v1alpha1", Project: project, RequestedRuleID: requestedRuleID, SelectedRuleID: selectedRuleID, Assessment: "UNKNOWN", KnowledgeOrigin: "embedded_only", KnowledgeRevision: b.pack.Revision, KnowledgePackDigest: b.packDigest, ProjectRegistryDigest: b.registryDigest, InputFileDigest: digest(inputRaw), SourceAuthority: "PACKAGED_MAINTAINER_REVIEWED_EXTERNAL_PROJECT_RULES_NOT_RUNTIME_PROOF", NextAction: nextAction, NotEvaluated: skipped, Check: result}
 	report.seal = &reportSeal{}

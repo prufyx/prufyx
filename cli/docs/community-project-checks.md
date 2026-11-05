@@ -462,6 +462,14 @@ For the exact reviewed pair and resource identity, an unsupported field leaves
 the independently known facts intact. For example, known Galera mode with a
 missing auto-update setting remains UNKNOWN and names the missing setting;
 absence, null, wrong types and case ambiguity never manufacture `false` for it.
+When the auto-update setting is unavailable, follow the JSON report's top-level
+`nextAction` (also shown in human output): declare
+`spec.updateStrategy.autoUpdateDataPlane` as an explicit JSON boolean in the
+selected `--mariadb-resource` file and rerun. This native-resource instruction
+takes precedence over the inner claim's generic canonical `facts`-array hint;
+the sealed claim and its evidence remain unchanged. Declare the intended value,
+then review the resulting scoped PASS or BLOCKED; this does not prove the whole
+upgrade safe.
 Invalid replication declarations likewise remain unsupported; an absent
 replication object retains the route's separate-replication-mode `false`.
 Unsupported API, kind, spec shape or version pairs retain no supported facts.
