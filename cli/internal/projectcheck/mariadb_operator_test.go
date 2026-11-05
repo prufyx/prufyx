@@ -7,8 +7,48 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/projectprepare"
 )
+
+func TestMariaDBOperatorNativeActionPreservesSealedCheck(t *testing.T) {
+	raw := []byte(`{"apiVersion":"k8s.mariadb.com/v1alpha1","kind":"MariaDB","spec":{"galera":{"enabled":true}}}`)
+	prepared, err := projectprepare.PrepareMariaDBOperatorResource(raw, "26.3.0", "26.6.0", true, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 9, 13, 9, 0, 0, 0, time.UTC)
+	native, err := CheckRule(projectprepare.MariaDBOperatorProject, prepared.CanonicalInputJSON, now, "mariadb-operator.upgrade-26-6.requires-dataplane-prerequisite")
+	if err != nil {
+		t.Fatal(err)
+	}
+	generic, err := Check(projectprepare.MariaDBOperatorProject, prepared.CanonicalInputJSON, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nativeCheck, err := constraintengine.MarshalReport(native.Check)
+	if err != nil {
+		t.Fatal(err)
+	}
+	genericCheck, err := constraintengine.MarshalReport(generic.Check)
+	if err != nil || !bytes.Equal(nativeCheck, genericCheck) {
+		t.Fatalf("native guidance changed engine report: err=%v", err)
+	}
+	if native.NextAction == generic.NextAction || bytes.Contains([]byte(generic.NextAction), []byte("--mariadb-resource")) || ClaimExit(native) != 11 {
+		t.Fatal("native action escaped its route or changed the verdict")
+	}
+	if _, err := MarshalReport(native); err != nil {
+		t.Fatal(err)
+	}
+	native.NextAction = generic.NextAction
+	if _, err := MarshalReport(native); err != ErrIntegrity {
+		t.Fatal("outer action mutation passed the existing seal")
+	}
+	stale, err := CheckRule(projectprepare.MariaDBOperatorProject, prepared.CanonicalInputJSON, now.AddDate(1, 0, 0), "mariadb-operator.upgrade-26-6.requires-dataplane-prerequisite")
+	if err != nil || bytes.Contains([]byte(stale.NextAction), []byte("--mariadb-resource")) {
+		t.Fatalf("native missing-fact instruction masked stale evidence: err=%v", err)
+	}
+}
 
 func TestMariaDBOperatorScopedOutcomesAndPrivacy(t *testing.T) {
 	now := time.Date(2026, 9, 13, 9, 0, 0, 0, time.UTC)
