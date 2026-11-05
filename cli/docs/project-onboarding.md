@@ -6,6 +6,13 @@ snapshot for maintainer review.
 It is a source-observation workflow: a successful sync does not create a rule,
 assert compatibility, or publish a project.
 
+To request that a public project be observed, use the
+[onboarding request form](https://github.com/prufyx/prufyx/issues/new?template=onboarding-request.yml).
+The form is a request for maintainer review; an issue submission alone does
+not mean a snapshot was created, analysis was completed, or the project is
+covered. See [For project maintainers](../../docs/maintainers.md) for the
+request's limits and other submission routes.
+
 ## Build the local runner
 
 Run these commands from a shell with Go 1.26.10. Replace the two path values;
