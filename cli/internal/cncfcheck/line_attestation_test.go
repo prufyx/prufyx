@@ -126,6 +126,17 @@ func TestEmbeddedPackLineAttestations(t *testing.T) {
 		if err := lineattest.Validate(all); err != nil {
 			t.Fatal(err)
 		}
+		// The review instant is the latest reviewedAt the pack records, so a
+		// re-derive needs no edit here.
+		for _, a := range all {
+			at, err := constraintengine.ParseUTC(a.Evidence.ReviewedAt)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if at.After(now) {
+				now = at
+			}
+		}
 		// The Kubernetes attestations are checked against the stated set;
 		// the rest are the custom-resource batch's.
 		var atts []lineattest.LineAttestation
