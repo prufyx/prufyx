@@ -197,6 +197,17 @@ func Run(ctx context.Context, ex Extractor, tags TagSource, reader PinnedReader,
 			families[f] = true
 		}
 	}
+	var vocab map[string]bool
+	if lv, ok := ex.(LedgerVocabulary); ok {
+		v, err := ledgerVocabulary(lv.LedgerCodes())
+		if err != nil {
+			return nil, fmt.Errorf("extractor %s: %w", ex.ID(), err)
+		}
+		vocab = v
+		if vocab == nil {
+			vocab = map[string]bool{}
+		}
+	}
 	for _, pair := range pairs {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -216,7 +227,13 @@ func Run(ctx context.Context, ex Extractor, tags TagSource, reader PinnedReader,
 			return nil, fmt.Errorf("pair %s: %w", pair.Key(), err)
 		}
 		pr.Status, pr.Proof = PairDerived, res.Proof
-		pr.Ledger = normalizeLedger(res.Ledger)
+		if err := checkLedgerReserved(res.Ledger); err != nil {
+			return nil, fmt.Errorf("pair %s: extractor %s: %w", pair.Key(), ex.ID(), err)
+		}
+		pr.Ledger = restrictLedger(normalizeLedger(res.Ledger), vocab)
+		if len(pr.Ledger) > 0 && len(res.Attestations) > 0 && !ledgerGuards.noAttestVeto {
+			return nil, fmt.Errorf("pair %s: extractor %s returned a ledger together with attestations", pair.Key(), ex.ID())
+		}
 		for _, c := range res.Candidates {
 			entry, err := stamp(c, rec, identity, derivedAt, validUntil)
 			if err != nil {
@@ -233,9 +250,9 @@ func Run(ctx context.Context, ex Extractor, tags TagSource, reader PinnedReader,
 		if !attests && (len(res.Attestations) > 0 || res.NotAttested != "") {
 			return nil, fmt.Errorf("pair %s: extractor %s returned attestations but does not attest lines", pair.Key(), ex.ID())
 		}
-		if attests && len(pr.Ledger) > 0 && !ledgerGuards.noAttestVeto {
-			// Withheld items: whatever the extractor claims, the pair is
-			// not attested and its attestation candidates are dropped.
+		if attests && len(pr.Ledger) > 0 {
+			// Withheld items: the pair is not attested (an extractor that
+			// also returned attestation candidates was refused above).
 			pr.Attestation = &PairAttestation{Status: PairNotAttested, Line: line, Families: []string{}, Reason: ledgerReason(pr.Ledger)}
 		} else if attests {
 			pa := &PairAttestation{Status: PairNotAttested, Line: line, Families: []string{}}

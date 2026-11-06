@@ -739,15 +739,14 @@ func crossCheckAttestation(out *extract.Output, floor string, a lineattest.LineA
 			if n > 0 {
 				return fmt.Errorf("pair %s->%s: the extractor withheld %d item(s) on line %s and does not attest it", pair.From, pair.To, n, a.Line)
 			}
+			if len(pair.Ledger) > 0 {
+				// The recorded ledger is authoritative too (extract.CheckPairLedger).
+				return fmt.Errorf("pair %s->%s: the extractor withheld %d item(s) on line %s and does not attest it", pair.From, pair.To, len(pair.Ledger), a.Line)
+			}
 		}
 	}
 	if pair == nil {
 		return fmt.Errorf("the extractor derives no pair into line %s from the pinned upstream bytes", a.Line)
-	}
-	if len(pair.Ledger) > 0 {
-		// An extractor that withheld items attests nothing for the line,
-		// whatever the pair record says (extract.CheckPairLedger).
-		return fmt.Errorf("the extractor withheld %d item(s) on line %s and does not attest it", len(pair.Ledger), a.Line)
 	}
 	if pair.Status != extract.PairDerived || pair.Attestation == nil || pair.Attestation.Status != extract.PairAttested || !containsKind(pair.Attestation.Families, a.FactFamily) {
 		reason := pair.Reason

@@ -125,7 +125,11 @@ func scenarioDedupe() error {
 }
 
 func scenarioAttestVeto() error {
-	out, err := runLedgerToy(ledgerToy{ledger: validLedger(), claim: true})
+	// A ledger together with attestation candidates is refused outright.
+	if _, err := runLedgerToy(ledgerToy{ledger: validLedger(), claim: true}); err == nil {
+		return fmt.Errorf("ledger with attestation candidates accepted")
+	}
+	out, err := runLedgerToy(ledgerToy{ledger: validLedger()})
 	if err != nil {
 		return err
 	}
@@ -188,7 +192,7 @@ func TestLedgerNeverYieldsAttested(t *testing.T) {
 	}
 	// Each framework fault (invalid, overflow) is a non-empty ledger too.
 	bad := []LedgerEntry{{Code: "lower", Item: "a"}}
-	out, err = runLedgerToy(ledgerToy{ledger: bad, claim: true})
+	out, err = runLedgerToy(ledgerToy{ledger: bad})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -226,7 +230,7 @@ func TestLedgerMutations(t *testing.T) {
 // attestation, and that what is recorded is canonical.
 func TestLedgerNeverAttestedProperty(t *testing.T) {
 	rng := rand.New(rand.NewPCG(1, 2))
-	codes := []string{"A_CODE", "B_CODE", "bad", "LEDGER_INVALID", "X", strings.Repeat("A", 49), "OK_CODE"}
+	codes := []string{"A_CODE", "B_CODE", "bad", "X", strings.Repeat("A", 49), "OK_CODE"}
 	items := []string{"a", "a.b", "a[0].b", "has space", "", strings.Repeat("a", 201), "x/y:z", "\x00"}
 	for i := 0; i < 200; i++ {
 		var l []LedgerEntry
@@ -238,7 +242,12 @@ func TestLedgerNeverAttestedProperty(t *testing.T) {
 				l = append(l, LedgerEntry{Code: "OK_CODE", Item: fmt.Sprintf("i%d", j)})
 			}
 		}
-		out, err := runLedgerToy(ledgerToy{ledger: l, claim: true})
+		if len(l) > 0 {
+			if _, err := runLedgerToy(ledgerToy{ledger: l, claim: true}); err == nil {
+				t.Fatalf("ledger %v with a claim accepted", l)
+			}
+		}
+		out, err := runLedgerToy(ledgerToy{ledger: l})
 		if err != nil {
 			t.Fatalf("ledger %v: %v", l, err)
 		}
@@ -381,4 +390,84 @@ func TestCheckPairLedger(t *testing.T) {
 			}
 		})
 	}
+}
+
+// vocabToy closes the ledger vocabulary.
+type vocabToy struct {
+	ledgerToy
+	codes []string
+}
+
+func (v vocabToy) LedgerCodes() []string { return v.codes }
+
+func TestLedgerReservedPrefixIsAnError(t *testing.T) {
+	for _, code := range []string{LedgerInvalid, LedgerOverflow, "LEDGER_OTHER"} {
+		if _, err := runLedgerToy(ledgerToy{ledger: []LedgerEntry{{Code: code, Item: "a"}}}); err == nil {
+			t.Fatalf("reserved code %s accepted", code)
+		}
+	}
+	// Overflow stays a fault entry, not an error.
+	var in []LedgerEntry
+	for i := 0; i <= MaxLedgerEntries; i++ {
+		in = append(in, LedgerEntry{Code: "CODE_OK", Item: fmt.Sprintf("i%d", i)})
+	}
+	out, err := runLedgerToy(ledgerToy{ledger: in})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := out.Manifest.Pairs[0].Ledger; len(got) != 1 || got[0].Code != LedgerOverflow {
+		t.Fatalf("overflow = %v", got)
+	}
+}
+
+func TestLedgerItemRejectsEquals(t *testing.T) {
+	if err := wantFault("equals", normalizeLedger([]LedgerEntry{{Code: "CODE_OK", Item: "a=b"}}), LedgerInvalid); err != nil {
+		t.Fatal(err)
+	}
+	if got := normalizeLedger([]LedgerEntry{{Code: "CODE_OK", Item: strings.Repeat("a", MaxLedgerItemLen)}}); len(got) != 1 || got[0].Code != "CODE_OK" {
+		t.Fatalf("max-length item refused: %v", got)
+	}
+}
+
+func TestLedgerDeclaredVocabulary(t *testing.T) {
+	l := []LedgerEntry{{Code: "FIELD_UNENCODABLE", Item: "a"}}
+	// Not implemented: open vocabulary.
+	out, err := runLedgerToy(ledgerToy{ledger: l})
+	if err != nil || out.Manifest.Pairs[0].Ledger[0].Code != "FIELD_UNENCODABLE" {
+		t.Fatalf("open vocabulary: %v, %v", out, err)
+	}
+	// Implemented and listing the code: kept.
+	out, err = runLedgerToy2(vocabToy{ledgerToy{ledger: l}, []string{"FIELD_UNENCODABLE"}})
+	if err != nil || out.Manifest.Pairs[0].Ledger[0].Code != "FIELD_UNENCODABLE" {
+		t.Fatalf("listed code: %v, %v", out, err)
+	}
+	// Implemented and not listing it: LEDGER_INVALID, pair not attested.
+	for _, codes := range [][]string{{"OTHER_CODE"}, nil} {
+		out, err = runLedgerToy2(vocabToy{ledgerToy{ledger: l}, codes})
+		if err != nil {
+			t.Fatal(err)
+		}
+		p := out.Manifest.Pairs[0]
+		if err := wantFault("unknown code", p.Ledger, LedgerInvalid); err != nil || p.Attestation.Status != PairNotAttested {
+			t.Fatalf("unknown code: %v %+v", err, p)
+		}
+	}
+	// A malformed or reserved declared vocabulary is an error.
+	for _, bad := range []string{"lower", LedgerInvalid} {
+		if _, err := runLedgerToy2(vocabToy{ledgerToy{ledger: l}, []string{bad}}); err == nil {
+			t.Fatalf("vocabulary code %q accepted", bad)
+		}
+	}
+}
+
+func runLedgerToy2(x Extractor) (*Output, error) {
+	root, err := os.MkdirTemp("", "ledger-toy")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(root)
+	writeFixture(root)
+	fr := FixtureReader{Root: root}
+	r, _ := ParseRepo(testRepo)
+	return Run(context.Background(), x, fr, fr, Options{Repo: r, DerivedAt: toyTime})
 }
