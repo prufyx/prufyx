@@ -1,0 +1,9 @@
+package extkingpin
+
+import (
+	"github.com/alecthomas/kingpin/v2"
+)
+
+type AppClause interface {
+	Flag(name, help string) *kingpin.FlagClause
+}

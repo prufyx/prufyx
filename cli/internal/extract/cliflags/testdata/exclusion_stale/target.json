@@ -1,0 +1,12 @@
+{
+ "exclude": [
+  {
+   "dir": "hack/gen",
+   "reason": "code generator, not shipped"
+  },
+  {
+   "dir": "cmd/gone",
+   "reason": "stale row"
+  }
+ ]
+}

@@ -1,0 +1,9 @@
+// +build darwin
+
+package main
+
+import (
+	"flag"
+)
+
+func addExtra() { flag.String("darwin-only", "", "u") }

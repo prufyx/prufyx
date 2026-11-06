@@ -1,0 +1,17 @@
+{
+ "note": "",
+ "ledger": [
+  "INVENTORY_FAULT_PARSE_ERROR cmd/t"
+ ],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/t",
+   "members": [],
+   "complete": false,
+   "class": "",
+   "idioms": [],
+   "flags": {}
+  }
+ ]
+}

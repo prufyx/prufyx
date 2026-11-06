@@ -1,0 +1,14 @@
+package main
+
+import (
+	"github.com/alecthomas/kingpin/v2"
+)
+
+func main() {
+	a := kingpin.New("t", "t")
+	a.Flag("verbose", "v").Short('v').Bool()
+	out := a.Flag("out", "o")
+	out.Short('o')
+	out.String()
+	a.Flag("plain", "p").String()
+}

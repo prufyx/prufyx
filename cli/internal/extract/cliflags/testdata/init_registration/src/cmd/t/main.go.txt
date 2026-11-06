@@ -1,0 +1,9 @@
+package main
+
+import (
+	"flag"
+)
+
+func init() { flag.String("initflag", "", "u") }
+
+func main() { flag.Parse() }

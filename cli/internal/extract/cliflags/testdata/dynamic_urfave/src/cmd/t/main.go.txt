@@ -1,0 +1,9 @@
+package main
+
+import (
+	"github.com/urfave/cli/v2"
+)
+
+func main() {
+	_ = []cli.Flag{&cli.StringFlag{Name: nameVar}, &cli.BoolFlag{Name: "ok"}}
+}

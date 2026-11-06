@@ -1,0 +1,11 @@
+package main
+
+import (
+	"github.com/urfave/cli/v2"
+)
+
+func main() {
+	flags := []cli.Flag{&cli.BoolFlag{Name: "ok"}}
+	app := &cli.App{Flags: flags}
+	_ = app
+}

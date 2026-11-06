@@ -1,0 +1,23 @@
+package main
+
+import (
+	"flag"
+	"os"
+)
+
+type P struct{ Parse func([]string) error }
+
+func myParse(a []string) error {
+	for _, x := range a {
+		if x == "--legacy" {
+			return nil
+		}
+	}
+	return nil
+}
+
+func main() {
+	flag.String("real", "", "u")
+	p := P{Parse: myParse}
+	_ = p.Parse(os.Args[1:])
+}

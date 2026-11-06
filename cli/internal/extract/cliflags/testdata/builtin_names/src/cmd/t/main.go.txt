@@ -1,0 +1,12 @@
+package main
+
+import (
+	"flag"
+)
+
+func main() {
+	flag.Bool("help", false, "u")
+	flag.Bool("version", false, "u")
+	flag.Bool("ok", false, "u")
+	flag.Parse()
+}

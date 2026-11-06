@@ -1,0 +1,20 @@
+{
+ "note": "a decoy flag set in a reachable function is over-approximated: its flag is a member",
+ "ledger": [],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/t",
+   "members": [
+    "decoy-only",
+    "real"
+   ],
+   "complete": true,
+   "class": "single-dash-long",
+   "idioms": [
+    "flag"
+   ],
+   "flags": {}
+  }
+ ]
+}

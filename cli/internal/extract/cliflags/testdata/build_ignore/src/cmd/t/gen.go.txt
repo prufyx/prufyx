@@ -1,0 +1,9 @@
+//go:build ignore
+
+package main
+
+import (
+	"flag"
+)
+
+func init() { flag.Bool("ignored-flag", false, "never built") }

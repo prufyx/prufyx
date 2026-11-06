@@ -1,0 +1,17 @@
+{
+ "note": "vendored copies are not hashed by the go tool; only replacements are visible",
+ "ledger": [],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/t",
+   "members": [],
+   "complete": true,
+   "class": "single-dash-long",
+   "idioms": [
+    "flag"
+   ],
+   "flags": {}
+  }
+ ]
+}

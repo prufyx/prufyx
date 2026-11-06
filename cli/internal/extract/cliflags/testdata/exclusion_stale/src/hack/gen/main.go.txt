@@ -1,0 +1,8 @@
+package main
+
+import (
+	"flag"
+	"github.com/foo/bar"
+)
+
+func main() { flag.String("gen-flag", "", "u"); bar.Run() }

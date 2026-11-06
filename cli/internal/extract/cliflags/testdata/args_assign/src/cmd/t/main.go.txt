@@ -1,0 +1,12 @@
+package main
+
+import (
+	"flag"
+	"os"
+)
+
+func main() {
+	os.Args = append(os.Args[:1], "-x")
+	flag.String("real", "", "u")
+	flag.Parse()
+}

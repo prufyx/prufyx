@@ -1,0 +1,12 @@
+package main
+
+import (
+	"github.com/spf13/cobra"
+)
+
+func main() {
+	cmd := &cobra.Command{Use: "t"}
+	cmd.Flags().String("real", "", "u")
+	cmd.SetArgs([]string{"--x"})
+	_ = cmd.Execute()
+}

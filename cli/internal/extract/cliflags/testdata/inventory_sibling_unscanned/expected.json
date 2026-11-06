@@ -1,0 +1,21 @@
+{
+ "note": "cmd/b registers foo and was not scanned: cmd/a must not be complete",
+ "ledger": [
+  "INVENTORY_FAULT_NESTED_MODULE cmd/b"
+ ],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/a",
+   "members": [
+    "bar"
+   ],
+   "complete": false,
+   "class": "single-dash-long",
+   "idioms": [
+    "flag"
+   ],
+   "flags": {}
+  }
+ ]
+}

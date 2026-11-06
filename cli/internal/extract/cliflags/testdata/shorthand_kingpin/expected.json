@@ -1,0 +1,32 @@
+{
+ "note": "",
+ "ledger": [],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/t",
+   "members": [
+    "out",
+    "plain",
+    "verbose"
+   ],
+   "complete": true,
+   "class": "double-dash",
+   "idioms": [
+    "kingpin"
+   ],
+   "flags": {
+    "out": {
+     "withheld": [
+      "FLAG_HAS_SHORTHAND"
+     ]
+    },
+    "verbose": {
+     "withheld": [
+      "FLAG_HAS_SHORTHAND"
+     ]
+    }
+   }
+  }
+ ]
+}

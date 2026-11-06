@@ -1,0 +1,11 @@
+package main
+
+import (
+	"flag"
+)
+
+func main() {
+	fs := flag.NewFlagSet("x", flag.ExitOnError)
+	fs.String("dup", "", "a")
+	fs.Int("dup", 0, "b")
+}

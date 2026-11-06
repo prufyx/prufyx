@@ -1,0 +1,16 @@
+package main
+
+import (
+	"flag"
+	"runtime"
+)
+
+func main() {
+	switch runtime.GOARCH {
+	case "arm64":
+		flag.String("arm-only", "", "u")
+	default:
+		flag.String("other", "", "u")
+	}
+	flag.Parse()
+}

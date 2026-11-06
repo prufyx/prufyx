@@ -1,0 +1,33 @@
+{
+ "note": "every package main directory is a binary; nothing is configured",
+ "ledger": [
+  "FLAG_IDIOM_UNSUPPORTED hack/gen"
+ ],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/a",
+   "members": [
+    "a-flag"
+   ],
+   "complete": true,
+   "class": "single-dash-long",
+   "idioms": [
+    "flag"
+   ],
+   "flags": {}
+  },
+  {
+   "dir": "hack/gen",
+   "members": [
+    "gen-flag"
+   ],
+   "complete": false,
+   "class": "single-dash-long",
+   "idioms": [
+    "flag"
+   ],
+   "flags": {}
+  }
+ ]
+}

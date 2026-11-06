@@ -1,0 +1,26 @@
+{
+ "note": "",
+ "ledger": [],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/prom",
+   "members": [
+    "enable-feature",
+    "storage.path",
+    "web.enable-lifecycle",
+    "web.listen-address"
+   ],
+   "complete": true,
+   "class": "double-dash",
+   "idioms": [
+    "kingpin"
+   ],
+   "flags": {
+    "enable-feature": {
+     "hidden": true
+    }
+   }
+  }
+ ]
+}

@@ -1,0 +1,14 @@
+package main
+
+import (
+	"flag"
+	"example.com/m/internal/lib"
+)
+
+func main() {
+	flag.String("live", "", "u")
+	lib.Used()
+	flag.Parse()
+}
+
+func orphan() { flag.String("legacy", "", "never called") }

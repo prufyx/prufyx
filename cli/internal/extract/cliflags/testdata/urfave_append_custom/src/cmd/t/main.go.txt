@@ -1,0 +1,14 @@
+package main
+
+import (
+	"github.com/urfave/cli/v2"
+)
+
+type myFlag struct{}
+
+func main() {
+	flags := []cli.Flag{}
+	flags = append(flags, &myFlag{})
+	app := &cli.App{}
+	app.Flags = flags
+}

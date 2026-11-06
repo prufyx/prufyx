@@ -1,0 +1,19 @@
+{
+ "note": "",
+ "ledger": [],
+ "excluded": [],
+ "binaries": [
+  {
+   "dir": "cmd/d",
+   "members": [
+    "deep"
+   ],
+   "complete": true,
+   "class": "double-dash",
+   "idioms": [
+    "pflag"
+   ],
+   "flags": {}
+  }
+ ]
+}
