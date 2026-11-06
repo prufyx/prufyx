@@ -189,7 +189,7 @@ def prepare(proj, cov, plan):
         pairs = comp["pairs"]
     if not pairs:
         raise ValueError("no usable pairs")
-    plan.update(proj=proj, pref=pref)
+    plan.update(proj=proj, pref=pref, catalog=tj.get("catalog", ""))
     known_pairs = []
     missing_line = False
     for pr in pairs:
@@ -229,6 +229,11 @@ def prepare(proj, cov, plan):
     plan["metadata"].add("crd-project|" + proj)
 
 
+def community_refusal(catalog, tail):
+    """True only for a community-catalog target whose scan refused it with the documented usage message."""
+    return catalog == "community" and "is in the community catalog" in tail and "does not check community projects" in tail
+
+
 def execute(plan):
     out, executed, omitted = [], set(plan["metadata"]), []
     proj, pref = plan["proj"], plan["pref"]
@@ -242,6 +247,11 @@ def execute(plan):
             os.remove(fn)
         executed.add(target)
         key = target if target.startswith("crd-proof|") else f"{proj}|{f}|{t}"
+        if j is None and community_refusal(plan.get("catalog"), tail):
+            # scan declares community-catalog projects unsupported: not a verdict, so nothing to compare.
+            # Still executed every night, so the first release whose scan accepts them is checked automatically.
+            out.append(case("crd", key, status="UNSUPPORTED_COMMUNITY", exit=code, why=tail))
+            continue
         if j is None:
             omitted.append(dict(target=target, reason="candidate response unreadable; replay the full input"))
             out.append(case("crd", key, error=True, why=tail))
