@@ -23797,6 +23797,600 @@
       }
     },
     {
+      "component": "pkg:github/istio/istio",
+      "line": "1.27",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.26.0",
+            "commit": "c2e9871f340c0e0b114bcd1b73208284f1d17c9e"
+          },
+          {
+            "version": "1.26.1",
+            "commit": "2ce3ad897b984a045d9d5f80a8c1bb8eefdf88f5"
+          },
+          {
+            "version": "1.26.2",
+            "commit": "455f269485eacc3c4a6cdb4993db5438589d3e2d"
+          },
+          {
+            "version": "1.26.3",
+            "commit": "d45b04f5c1dcd50cfcb2df3785c26a4a2838c20c"
+          },
+          {
+            "version": "1.26.4",
+            "commit": "a4817234aa4f36c25fd86a7358d6005a7467e43b"
+          },
+          {
+            "version": "1.26.5",
+            "commit": "e1f97ec6453c8541e810a185455b5bdd5f592449"
+          },
+          {
+            "version": "1.26.6",
+            "commit": "383fb0e3f774dbdce184c0444b949499a2af7925"
+          },
+          {
+            "version": "1.26.7",
+            "commit": "4f578be02c1495c71e79860b2884fc726b2d01ec"
+          },
+          {
+            "version": "1.26.8",
+            "commit": "4ea27a1efd955d5ed1db8b817d3c8dd70a7ae52a"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.27.0",
+            "commit": "7359d8be2504f2b191f7d94156af08e6590d2d1c"
+          },
+          {
+            "version": "1.27.1",
+            "commit": "4ac359928d0699a368218a600e8f68b4eccbd148"
+          },
+          {
+            "version": "1.27.2",
+            "commit": "9e5b7fbff90e5859b8182363c481415a0d061ad5"
+          },
+          {
+            "version": "1.27.3",
+            "commit": "df538c2279a633544e6c0961a03ab772729933be"
+          },
+          {
+            "version": "1.27.4",
+            "commit": "ffe4497cbd36250c914c7ab3f01e37e447f1726e"
+          },
+          {
+            "version": "1.27.5",
+            "commit": "4e291059a25d05161759d4d848308dd25251b3fe"
+          },
+          {
+            "version": "1.27.6",
+            "commit": "24bc7826a01a398e20642342aada30d26a8c2112"
+          },
+          {
+            "version": "1.27.7",
+            "commit": "044f05ec0a1c9ba4bf80a26d801a39f70b58af81"
+          },
+          {
+            "version": "1.27.8",
+            "commit": "4aee98e195c1af3f5e9385c637050db22d8c41d8"
+          },
+          {
+            "version": "1.27.9",
+            "commit": "b9159ca3e5d56b05f69f3a58d687b8767d5639dd"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.istio",
+          "version": "2.8.0",
+          "codeDigest": "sha256:04b0fcabb8873325d10ee337209a881e5eb114d07c0d71bc5229514ccf28383c"
+        },
+        "derivedAt": "2026-11-06T18:12:47Z",
+        "reviewedAt": "2026-11-06T18:12:47Z",
+        "validUntil": "2027-02-04T18:12:47Z",
+        "sources": [
+          {
+            "id": "crds-1-26-0",
+            "url": "https://github.com/istio/istio/blob/c2e9871f340c0e0b114bcd1b73208284f1d17c9e/manifests/charts/base/files/crd-all.gen.yaml",
+            "revision": "c2e9871f340c0e0b114bcd1b73208284f1d17c9e",
+            "contentDigest": "sha256:1e3625aa78418b4e150b0e0fb92ad33a2893b0e02eefa8784a12af08c69ba065",
+            "startLine": 1,
+            "endLine": 17425
+          },
+          {
+            "id": "crds-1-27-0",
+            "url": "https://github.com/istio/istio/blob/7359d8be2504f2b191f7d94156af08e6590d2d1c/manifests/charts/base/files/crd-all.gen.yaml",
+            "revision": "7359d8be2504f2b191f7d94156af08e6590d2d1c",
+            "contentDigest": "sha256:88ad815127f8d400fab07404630bc2cb2b2a8934e3396eea5972295bd36c354b",
+            "startLine": 1,
+            "endLine": 17536
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/istio/istio",
+      "line": "1.28",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.27.0",
+            "commit": "7359d8be2504f2b191f7d94156af08e6590d2d1c"
+          },
+          {
+            "version": "1.27.1",
+            "commit": "4ac359928d0699a368218a600e8f68b4eccbd148"
+          },
+          {
+            "version": "1.27.2",
+            "commit": "9e5b7fbff90e5859b8182363c481415a0d061ad5"
+          },
+          {
+            "version": "1.27.3",
+            "commit": "df538c2279a633544e6c0961a03ab772729933be"
+          },
+          {
+            "version": "1.27.4",
+            "commit": "ffe4497cbd36250c914c7ab3f01e37e447f1726e"
+          },
+          {
+            "version": "1.27.5",
+            "commit": "4e291059a25d05161759d4d848308dd25251b3fe"
+          },
+          {
+            "version": "1.27.6",
+            "commit": "24bc7826a01a398e20642342aada30d26a8c2112"
+          },
+          {
+            "version": "1.27.7",
+            "commit": "044f05ec0a1c9ba4bf80a26d801a39f70b58af81"
+          },
+          {
+            "version": "1.27.8",
+            "commit": "4aee98e195c1af3f5e9385c637050db22d8c41d8"
+          },
+          {
+            "version": "1.27.9",
+            "commit": "b9159ca3e5d56b05f69f3a58d687b8767d5639dd"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.28.0",
+            "commit": "b8d1df54465060428c2a2a38286e360beb85fb31"
+          },
+          {
+            "version": "1.28.1",
+            "commit": "6268e25f089a4b0f726082053cf630490c235cdc"
+          },
+          {
+            "version": "1.28.2",
+            "commit": "ab413ac6c1f40b2f7c69d97e0db4e712e4ef1ecc"
+          },
+          {
+            "version": "1.28.3",
+            "commit": "4c1f845d839e9086ee85ad9337f2647492322eb4"
+          },
+          {
+            "version": "1.28.4",
+            "commit": "0cc9a3e0b248766541f79f0256668e84b02d4bc8"
+          },
+          {
+            "version": "1.28.5",
+            "commit": "7da6662175184479cb9281f3d814d6994bf1009f"
+          },
+          {
+            "version": "1.28.6",
+            "commit": "db606cedf03cac76d91a05a4a5628fa47bd537f3"
+          },
+          {
+            "version": "1.28.7",
+            "commit": "643dcbd03cf4227a4062c2264be8f6b835e00288"
+          },
+          {
+            "version": "1.28.8",
+            "commit": "07e4afa45ead54de23687a30c0730f50a5261065"
+          },
+          {
+            "version": "1.28.9",
+            "commit": "4c6838d7f5b97e2e3bc80c7492e99e6707e61ca4"
+          },
+          {
+            "version": "1.28.10",
+            "commit": "ff49c1889ebad8d444b8f82425a2fd326c039e54"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.istio",
+          "version": "2.8.0",
+          "codeDigest": "sha256:04b0fcabb8873325d10ee337209a881e5eb114d07c0d71bc5229514ccf28383c"
+        },
+        "derivedAt": "2026-11-06T18:12:47Z",
+        "reviewedAt": "2026-11-06T18:12:47Z",
+        "validUntil": "2027-02-04T18:12:47Z",
+        "sources": [
+          {
+            "id": "crds-1-27-0",
+            "url": "https://github.com/istio/istio/blob/7359d8be2504f2b191f7d94156af08e6590d2d1c/manifests/charts/base/files/crd-all.gen.yaml",
+            "revision": "7359d8be2504f2b191f7d94156af08e6590d2d1c",
+            "contentDigest": "sha256:88ad815127f8d400fab07404630bc2cb2b2a8934e3396eea5972295bd36c354b",
+            "startLine": 1,
+            "endLine": 17536
+          },
+          {
+            "id": "crds-1-28-0",
+            "url": "https://github.com/istio/istio/blob/b8d1df54465060428c2a2a38286e360beb85fb31/manifests/charts/base/files/crd-all.gen.yaml",
+            "revision": "b8d1df54465060428c2a2a38286e360beb85fb31",
+            "contentDigest": "sha256:9b6971fdad8a2d9148d88e051407376f4a806f13d195493290ad960d329d4244",
+            "startLine": 1,
+            "endLine": 17765
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/istio/istio",
+      "line": "1.29",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.28.0",
+            "commit": "b8d1df54465060428c2a2a38286e360beb85fb31"
+          },
+          {
+            "version": "1.28.1",
+            "commit": "6268e25f089a4b0f726082053cf630490c235cdc"
+          },
+          {
+            "version": "1.28.2",
+            "commit": "ab413ac6c1f40b2f7c69d97e0db4e712e4ef1ecc"
+          },
+          {
+            "version": "1.28.3",
+            "commit": "4c1f845d839e9086ee85ad9337f2647492322eb4"
+          },
+          {
+            "version": "1.28.4",
+            "commit": "0cc9a3e0b248766541f79f0256668e84b02d4bc8"
+          },
+          {
+            "version": "1.28.5",
+            "commit": "7da6662175184479cb9281f3d814d6994bf1009f"
+          },
+          {
+            "version": "1.28.6",
+            "commit": "db606cedf03cac76d91a05a4a5628fa47bd537f3"
+          },
+          {
+            "version": "1.28.7",
+            "commit": "643dcbd03cf4227a4062c2264be8f6b835e00288"
+          },
+          {
+            "version": "1.28.8",
+            "commit": "07e4afa45ead54de23687a30c0730f50a5261065"
+          },
+          {
+            "version": "1.28.9",
+            "commit": "4c6838d7f5b97e2e3bc80c7492e99e6707e61ca4"
+          },
+          {
+            "version": "1.28.10",
+            "commit": "ff49c1889ebad8d444b8f82425a2fd326c039e54"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.29.0",
+            "commit": "2300e2458ab713c2c514a58da1ea8b03343ada7e"
+          },
+          {
+            "version": "1.29.1",
+            "commit": "6991a379e1fcfbe21e64da2eda5d56624a5547b4"
+          },
+          {
+            "version": "1.29.2",
+            "commit": "0c774325b938c4dbda4ea4ad4fb6156e80a12de8"
+          },
+          {
+            "version": "1.29.3",
+            "commit": "4a7da1efa3f7e80fd69587831a3df7ccc2bd7622"
+          },
+          {
+            "version": "1.29.4",
+            "commit": "e339c3903bcf276ba1dd83ea98ceebf049e3b385"
+          },
+          {
+            "version": "1.29.5",
+            "commit": "fe1d6ad986110a26ad4e8b4044589f2b112daac1"
+          },
+          {
+            "version": "1.29.6",
+            "commit": "7019d6d3608e4995e9a36d2977cfec3a341431cd"
+          },
+          {
+            "version": "1.29.7",
+            "commit": "f7dacc321aeb4a13962fba25d0cbab9cd2c02322"
+          },
+          {
+            "version": "1.29.8",
+            "commit": "a4698730500919a2c449b04a6743d5359f5fd775"
+          },
+          {
+            "version": "1.29.9",
+            "commit": "46c9beb3406813d1ef52fae1f6af266d3508acca"
+          },
+          {
+            "version": "1.29.10",
+            "commit": "cca610c61900bd48b5a7b3ee3d8af19ff265c495"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.istio",
+          "version": "2.8.0",
+          "codeDigest": "sha256:04b0fcabb8873325d10ee337209a881e5eb114d07c0d71bc5229514ccf28383c"
+        },
+        "derivedAt": "2026-11-06T18:12:47Z",
+        "reviewedAt": "2026-11-06T18:12:47Z",
+        "validUntil": "2027-02-04T18:12:47Z",
+        "sources": [
+          {
+            "id": "crds-1-28-0",
+            "url": "https://github.com/istio/istio/blob/b8d1df54465060428c2a2a38286e360beb85fb31/manifests/charts/base/files/crd-all.gen.yaml",
+            "revision": "b8d1df54465060428c2a2a38286e360beb85fb31",
+            "contentDigest": "sha256:9b6971fdad8a2d9148d88e051407376f4a806f13d195493290ad960d329d4244",
+            "startLine": 1,
+            "endLine": 17765
+          },
+          {
+            "id": "crds-1-29-0",
+            "url": "https://github.com/istio/istio/blob/2300e2458ab713c2c514a58da1ea8b03343ada7e/manifests/charts/base/files/crd-all.gen.yaml",
+            "revision": "2300e2458ab713c2c514a58da1ea8b03343ada7e",
+            "contentDigest": "sha256:126c195eaa38471f70e482f25a4e033fafeff01ff524a86e0a8de22dfb46db2f",
+            "startLine": 1,
+            "endLine": 17843
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/istio/istio",
+      "line": "1.30",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.29.0",
+            "commit": "2300e2458ab713c2c514a58da1ea8b03343ada7e"
+          },
+          {
+            "version": "1.29.1",
+            "commit": "6991a379e1fcfbe21e64da2eda5d56624a5547b4"
+          },
+          {
+            "version": "1.29.2",
+            "commit": "0c774325b938c4dbda4ea4ad4fb6156e80a12de8"
+          },
+          {
+            "version": "1.29.3",
+            "commit": "4a7da1efa3f7e80fd69587831a3df7ccc2bd7622"
+          },
+          {
+            "version": "1.29.4",
+            "commit": "e339c3903bcf276ba1dd83ea98ceebf049e3b385"
+          },
+          {
+            "version": "1.29.5",
+            "commit": "fe1d6ad986110a26ad4e8b4044589f2b112daac1"
+          },
+          {
+            "version": "1.29.6",
+            "commit": "7019d6d3608e4995e9a36d2977cfec3a341431cd"
+          },
+          {
+            "version": "1.29.7",
+            "commit": "f7dacc321aeb4a13962fba25d0cbab9cd2c02322"
+          },
+          {
+            "version": "1.29.8",
+            "commit": "a4698730500919a2c449b04a6743d5359f5fd775"
+          },
+          {
+            "version": "1.29.9",
+            "commit": "46c9beb3406813d1ef52fae1f6af266d3508acca"
+          },
+          {
+            "version": "1.29.10",
+            "commit": "cca610c61900bd48b5a7b3ee3d8af19ff265c495"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.30.0",
+            "commit": "badd809ed7d57954d4c16e12e75e15a7722a7b96"
+          },
+          {
+            "version": "1.30.1",
+            "commit": "10229c76f2854420eeac94906ffff949b9aab746"
+          },
+          {
+            "version": "1.30.2",
+            "commit": "f888ab4c8a0c3d0427bb0053fbebbe6b1f7e9a91"
+          },
+          {
+            "version": "1.30.3",
+            "commit": "56df41f63e513f834c9a3af33d8aed82d1d961f2"
+          },
+          {
+            "version": "1.30.4",
+            "commit": "4220640be99e4cad69652d9eb2010bc5257f6a8e"
+          },
+          {
+            "version": "1.30.5",
+            "commit": "55b832fad2bc55f47e658b68cd1a7abf9540dbc9"
+          },
+          {
+            "version": "1.30.6",
+            "commit": "b85dac9587f2f997151d205e069e4f4ff091c7c5"
+          },
+          {
+            "version": "1.30.7",
+            "commit": "7209fe474ce6229c303170be35e76d21619e302a"
+          },
+          {
+            "version": "1.30.8",
+            "commit": "f6879bae446c19c398d0f844d66fe1c3801b2b25"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.istio",
+          "version": "2.8.0",
+          "codeDigest": "sha256:04b0fcabb8873325d10ee337209a881e5eb114d07c0d71bc5229514ccf28383c"
+        },
+        "derivedAt": "2026-11-06T18:12:47Z",
+        "reviewedAt": "2026-11-06T18:12:47Z",
+        "validUntil": "2027-02-04T18:12:47Z",
+        "sources": [
+          {
+            "id": "crds-1-29-0",
+            "url": "https://github.com/istio/istio/blob/2300e2458ab713c2c514a58da1ea8b03343ada7e/manifests/charts/base/files/crd-all.gen.yaml",
+            "revision": "2300e2458ab713c2c514a58da1ea8b03343ada7e",
+            "contentDigest": "sha256:126c195eaa38471f70e482f25a4e033fafeff01ff524a86e0a8de22dfb46db2f",
+            "startLine": 1,
+            "endLine": 17843
+          },
+          {
+            "id": "crds-1-30-0",
+            "url": "https://github.com/istio/istio/blob/badd809ed7d57954d4c16e12e75e15a7722a7b96/manifests/charts/base/files/crd-all.gen.yaml",
+            "revision": "badd809ed7d57954d4c16e12e75e15a7722a7b96",
+            "contentDigest": "sha256:dcb43ff6b9af2f629b80b6a82597f5a91db259c757e66cc5353ac007da28351a",
+            "startLine": 1,
+            "endLine": 18236
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/istio/istio",
+      "line": "1.31",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.30.0",
+            "commit": "badd809ed7d57954d4c16e12e75e15a7722a7b96"
+          },
+          {
+            "version": "1.30.1",
+            "commit": "10229c76f2854420eeac94906ffff949b9aab746"
+          },
+          {
+            "version": "1.30.2",
+            "commit": "f888ab4c8a0c3d0427bb0053fbebbe6b1f7e9a91"
+          },
+          {
+            "version": "1.30.3",
+            "commit": "56df41f63e513f834c9a3af33d8aed82d1d961f2"
+          },
+          {
+            "version": "1.30.4",
+            "commit": "4220640be99e4cad69652d9eb2010bc5257f6a8e"
+          },
+          {
+            "version": "1.30.5",
+            "commit": "55b832fad2bc55f47e658b68cd1a7abf9540dbc9"
+          },
+          {
+            "version": "1.30.6",
+            "commit": "b85dac9587f2f997151d205e069e4f4ff091c7c5"
+          },
+          {
+            "version": "1.30.7",
+            "commit": "7209fe474ce6229c303170be35e76d21619e302a"
+          },
+          {
+            "version": "1.30.8",
+            "commit": "f6879bae446c19c398d0f844d66fe1c3801b2b25"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.31.0",
+            "commit": "eed52ebb66ade45214088877b0f82855d954060d"
+          },
+          {
+            "version": "1.31.1",
+            "commit": "190ae921b848ec010b8be4457533837ed8fce258"
+          },
+          {
+            "version": "1.31.2",
+            "commit": "e2f3a7949a358af7dd901a6f9ccd6ecdd7270271"
+          },
+          {
+            "version": "1.31.3",
+            "commit": "edd80bca5f71bd564711ef43ccd085acb545a6b4"
+          },
+          {
+            "version": "1.31.4",
+            "commit": "a079f649cbcb984cd8d9330699e165b89ff1f6a1"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.istio",
+          "version": "2.8.0",
+          "codeDigest": "sha256:04b0fcabb8873325d10ee337209a881e5eb114d07c0d71bc5229514ccf28383c"
+        },
+        "derivedAt": "2026-11-06T18:12:47Z",
+        "reviewedAt": "2026-11-06T18:12:47Z",
+        "validUntil": "2027-02-04T18:12:47Z",
+        "sources": [
+          {
+            "id": "crds-1-30-0",
+            "url": "https://github.com/istio/istio/blob/badd809ed7d57954d4c16e12e75e15a7722a7b96/manifests/charts/base/files/crd-all.gen.yaml",
+            "revision": "badd809ed7d57954d4c16e12e75e15a7722a7b96",
+            "contentDigest": "sha256:dcb43ff6b9af2f629b80b6a82597f5a91db259c757e66cc5353ac007da28351a",
+            "startLine": 1,
+            "endLine": 18236
+          },
+          {
+            "id": "crds-1-31-0",
+            "url": "https://github.com/istio/istio/blob/eed52ebb66ade45214088877b0f82855d954060d/manifests/charts/base/files/crd-all.gen.yaml",
+            "revision": "eed52ebb66ade45214088877b0f82855d954060d",
+            "contentDigest": "sha256:c0ad59e008658765412badb836e73a523a355e3d792a32ad3c0711a728be5aff",
+            "startLine": 1,
+            "endLine": 19263
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/kedacore/keda",
       "line": "2.17",
       "factFamily": "crd.custom_resource_versions",
