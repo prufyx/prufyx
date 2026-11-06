@@ -36,6 +36,30 @@ class MinFrom(unittest.TestCase):
         self.assertEqual(pairs, [{"from": "0.36", "to": "1.0"}])
         self.assertIn("dropped_pairs=2", output.getvalue())
 
+    def test_floor_rejects_observed_served_line_below_it(self):
+        served = {("example.io", "v1", "Widget")}
+        crd.check_served_floor("0.36", (0, 36), served)
+        crd.check_served_floor("0.36", (0, 35), set())
+        with self.assertRaisesRegex(ValueError, "minFrom 0.36 exceeds observed served line 0.35"):
+            crd.check_served_floor("0.36", (0, 35), served)
+
+    def test_coverage_pair_below_floor_fails_before_scan(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / "sample.git").mkdir()
+            (root / "target-sample.json").write_text(json.dumps({"target": {
+                "repo": "example/sample", "tagPrefixes": ["v"], "minFrom": "1.1",
+                "paths": [{"path": "crd.yaml"}]}}))
+            def source(*args, **kwargs):
+                return subprocess.CompletedProcess(args, 0, "v1.0.0\nv1.1.0\n" if "tag" in args else "", "")
+            with patch.object(crd, "TD", td), patch.object(crd, "GITROOT", td), patch.object(
+                    crd, "sh", side_effect=source), patch.object(crd, "served_set", return_value={('g', 'v1', 'K')}), patch.object(
+                    crd, "prufyx") as scan:
+                result = crd.run("sample", [{"project": "sample", "pairs": [{"from": "1.0", "to": "1.1"}]}])
+            self.assertTrue(result[0]["error"])
+            self.assertIn("minFrom 1.1 exceeds observed served line 1.0", result[0]["detail"]["why"])
+            scan.assert_not_called()
+
 
 class Counts(unittest.TestCase):
     def test_unsupported_community_is_counted_not_an_error(self):
