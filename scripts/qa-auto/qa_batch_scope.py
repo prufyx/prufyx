@@ -58,6 +58,22 @@ def diff_reader(src, base_ref, head_ref):
     return lambda path: (one(base_ref, path), one(head_ref, path))
 
 
+def base_components(src, base_ref):
+    """purl -> slug from target-*.json at the trusted base; a conflicting purl or bad target raises."""
+    out = {}
+    for path in git(src, "ls-tree", "-r", "--name-only", base_ref, "--", TARGET_DIR).splitlines():
+        m = re.fullmatch(re.escape(TARGET_DIR) + r"target-([a-z0-9-]+)\.json", path)
+        if not m:
+            continue
+        target = parse(blob(src, base_ref, path)[1])
+        comp = target["target"].get("component") if isinstance(target, dict) and isinstance(target.get("target"), dict) else None
+        if comp is None:
+            continue
+        if not isinstance(comp, str) or out.setdefault(comp, m.group(1)) != m.group(1):
+            raise ValueError("SCOPE_INVALID: target component binding")
+    return out
+
+
 def proof_target(project, pair):
     return "crd-proof|" + "|".join([project] + [pair[k] for k in ("fromTag", "fromCommit", "toTag", "toCommit")])
 
@@ -75,7 +91,11 @@ def freeze(src, head, base, run_id, extra_projects=()):
     paths = git(src, "ls-tree", "-r", "--name-only", head, "--", TARGET_DIR).splitlines()
     slugs = sorted(p[len(TARGET_DIR + "target-"):-5] for p in paths
                    if re.fullmatch(re.escape(TARGET_DIR) + r"target-[a-z0-9-]+\.json", p))
-    selected = selection(changed, slugs, diff_reader(src, BASE_REF, HEAD_REF))
+    try:
+        trusted = base_components(src, BASE_REF)
+    except (ValueError, KeyError, subprocess.SubprocessError, OSError):
+        trusted = None  # aggregate data files then stay full
+    selected = selection(changed, slugs, diff_reader(src, BASE_REF, HEAD_REF), trusted)
     projects = set(slugs if selected["mode"] == "full" else selected["projects"]) | set(extra_projects)
     batch_paths = [p for p in changed if p.startswith(BATCH_DIR)]
     envelopes = []

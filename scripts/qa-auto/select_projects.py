@@ -33,11 +33,20 @@ def _pairs(pairs):
     return out
 
 
+def _const(name):
+    raise Unattributable("non-finite number " + name)
+
+
+def _canon(v):
+    # type-exact comparison: true != 1, 1 != 1.0
+    return json.dumps(v, sort_keys=True, allow_nan=False)
+
+
 def _load(raw):
     if raw is None or len(raw) > 16 * 1024 * 1024:
         raise Unattributable("missing or oversized JSON")
     try:
-        return json.loads(raw, object_pairs_hook=_pairs)
+        return json.loads(raw, object_pairs_hook=_pairs, parse_constant=_const)
     except (ValueError, RecursionError) as e:
         raise Unattributable("unparseable JSON: %s" % e)
 
@@ -60,7 +69,7 @@ def _entries(doc):
     return out
 
 
-def _component_map(*entry_sets):
+def _component_map(entry_sets):
     m = {}
     for es in entry_sets:
         for e in es.values():
@@ -72,13 +81,15 @@ def _component_map(*entry_sets):
     return m
 
 
-def _attribute(component, cmap, known):
+def _attribute(component, cmap, known, trusted):
+    """Union of every trusted binding (base target purl, base entries, last-segment slug); empty => unattributable."""
     _need(isinstance(component, str), "component shape")
-    if component in cmap:
-        return set(cmap[component])
+    got = set(cmap.get(component, ())) | ({trusted[component]} if component in trusted else set())
     last = component.rsplit("/", 1)[-1]
-    _need(last in known, "component not attributable: " + component[:80])
-    return {last}
+    if last in known:
+        got.add(last)
+    _need(got, "component not attributable: " + component[:80])
+    return got
 
 
 def _keyed(doc, name, fields):
@@ -94,24 +105,25 @@ def _keyed(doc, name, fields):
 
 
 def _changed_keys(a, b):
-    return [k for k in set(a) | set(b) if a.get(k) != b.get(k)]
+    return [k for k in set(a) | set(b) if (_canon(a[k]) if k in a else None) != (_canon(b[k]) if k in b else None)]
 
 
-def aggregate_projects(path, old_raw, new_raw, slugs, rules_pair=None):
+def aggregate_projects(path, old_raw, new_raw, slugs, rules_pair=None, trusted=None):
     """Projects whose entries differ between old and new aggregate data file; raises Unattributable (=> full)."""
     old, new = _load(old_raw), _load(new_raw)
     _need(isinstance(old, dict) and isinstance(new, dict) and set(old) == set(new), "top-level shape differs")
-    _need(old.get("schema") == new.get("schema") and isinstance(new.get("schema"), str), "schema differs")
+    _need(_canon(old.get("schema")) == _canon(new.get("schema")) and isinstance(new.get("schema"), str), "schema differs")
     if rules_pair is None:
         rules_pair = (old, new) if path == RULES else None
     _need(rules_pair is not None, "rules.json unavailable")
+    _need(isinstance(trusted, dict), "no trusted base component bindings")
     oe, ne = _entries(rules_pair[0]), _entries(rules_pair[1])
-    cmap = _component_map(oe, ne)
-    known = set(slugs) | {e["project"] for e in list(oe.values()) + list(ne.values())}
+    cmap = _component_map([oe])  # base entries only: the PR cannot bind components
+    known = set(slugs) | {e["project"] for e in oe.values()}
     found = set()
     if path == RULES:
         for k in set(old) - {"schema", "entries"} - RULES_META - set(RULES_KEYED):
-            _need(old[k] == new[k], "unknown section changed: " + str(k)[:40])
+            _need(_canon(old[k]) == _canon(new[k]), "unknown section changed: " + str(k)[:40])
         for k in RULES_META:
             _need(isinstance(old.get(k), str) and isinstance(new.get(k), str), "metadata shape")
         for rid in _changed_keys(oe, ne):
@@ -121,22 +133,21 @@ def aggregate_projects(path, old_raw, new_raw, slugs, rules_pair=None):
         for name, fields in RULES_KEYED.items():
             ok, nk = _keyed(old, name, fields), _keyed(new, name, fields)
             for key in _changed_keys(ok, nk):
-                found |= _attribute(key[0], cmap, known)
+                found |= _attribute(key[0], cmap, known, trusted)
     else:
         for k in set(old) - {"schema", "components"} - ATTEST_META:
-            _need(old[k] == new[k], "unknown section changed: " + str(k)[:40])
+            _need(_canon(old[k]) == _canon(new[k]), "unknown section changed: " + str(k)[:40])
         for k in ATTEST_META:
             _need(isinstance(old.get(k), (str, int)) and isinstance(new.get(k), (str, int)), "metadata shape")
         oc, nc = old.get("components"), new.get("components")
         _need(isinstance(oc, list) and isinstance(nc, list), "components shape")
         _need(all(isinstance(c, str) for c in oc + nc) and len(set(oc)) == len(oc) and len(set(nc)) == len(nc), "components shape")
         for c in set(oc) ^ set(nc):
-            found |= _attribute(c, cmap, known)
-    _need(found <= known, "unknown project")
+            found |= _attribute(c, cmap, known, trusted)
     return found & set(slugs)
 
 
-def selection(changed, slugs, reader=None):
+def selection(changed, slugs, reader=None, trusted=None):
     """reader(path) -> (base_bytes|None, head_bytes|None); without one, aggregate data files stay full."""
     projects, reasons, full, db = set(), [], False, False
     DBRE = re.compile(r"^cli/(internal/)?(knowledge|[a-z]*db[a-z]*)")
@@ -159,7 +170,7 @@ def selection(changed, slugs, reader=None):
                     if p == ATTEST:
                         r_old, r_new = reader(RULES)
                         pair = (_load(r_old), _load(r_new))
-                    got = aggregate_projects(p, old, new, slugs, pair)
+                    got = aggregate_projects(p, old, new, slugs, pair, trusted)
                 except (Unattributable, OSError, ValueError, KeyError, TypeError, AttributeError, subprocess.SubprocessError) as e:
                     full = True; reasons.append("data aggregate unattributable (%s) %s" % (e, p)); continue
                 projects.update(got); reasons.append("data aggregate %s -> %s" % (p, sorted(got))); continue
@@ -187,13 +198,17 @@ if __name__ == "__main__":
     changed = open(a.changed).read().splitlines()
     slugs = sorted(re.sub(r"^target-|\.json$", "", os.path.basename(p))
                    for p in glob.glob(a.src + "/cli/internal/extract/crdversions/target-*.json"))
-    reader = None
+    reader = trusted = None
     if os.environ.get("QA_BASE"):
         # -I excludes the script directory; import only this trusted companion.
         sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
         import qa_batch_scope
         reader = qa_batch_scope.diff_reader(a.src, qa_batch_scope.BASE_REF, qa_batch_scope.HEAD_REF)
-    selected = selection(changed, slugs, reader)
+        try:
+            trusted = qa_batch_scope.base_components(a.src, qa_batch_scope.BASE_REF)
+        except (ValueError, OSError, subprocess.SubprocessError):
+            trusted = None
+    selected = selection(changed, slugs, reader, trusted)
     if os.environ.get("QA_BASE"):
         try:
             if (os.environ.get("QA_SCOPE_HEAD_REF") != qa_batch_scope.HEAD_REF or
