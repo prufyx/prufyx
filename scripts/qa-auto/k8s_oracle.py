@@ -23,7 +23,13 @@ class UnavailableVersion(Exception):
 # A plan stage also reports areas the scanner does not evaluate for the component at all. These are scope
 # statements, not input problems: input completeness is proved separately by complete_scan_scope on the
 # bound scan, and the removed-GVK claims are compared object by object. Any other gap stays an error.
-SCOPE_LIMIT_GAPS = {"COMPONENT_NOT_COVERED"}
+# API_VERSION_NOT_REVIEWED is raised because this oracle's input deliberately holds every GA kind of the source
+# release, including the ones the target no longer serves (those are exactly what the removal claims check).
+# DECLARATION_MISSING (kubelet skew), INTERMEDIATE_LINE_NOT_COVERED_BY_RANGE (dockershim) and LINE_NOT_ATTESTED
+# name rule families or hops other than the per-hop removed-GVK claims compared here; a PASS on an expected
+# removal is still WRONGPASS, and a missing or extra removal finding is still an error.
+SCOPE_LIMIT_GAPS = {"COMPONENT_NOT_COVERED", "API_VERSION_NOT_REVIEWED", "DECLARATION_MISSING",
+                    "INTERMEDIATE_LINE_NOT_COVERED_BY_RANGE", "LINE_NOT_ATTESTED"}
 
 
 def stage_is_complete(stage, got, expect_removed, input_complete, missing, wrongpass, mismatch):

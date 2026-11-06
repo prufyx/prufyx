@@ -41,6 +41,10 @@ class StageCompleteness(unittest.TestCase):
     def test_blocked_stage_with_scope_gap_is_complete(self):
         self.assertTrue(self.call(self.uncovered, "BLOCKED", True))
 
+    def test_api_version_not_reviewed_gap_is_scope_limit(self):
+        stage = {"component": "kubernetes", "gaps": [{"reason": "API_VERSION_NOT_REVIEWED"}]}
+        self.assertTrue(self.call(stage, "UNKNOWN", False))
+
     def test_unknown_without_removals_from_uncovered_areas_is_complete(self):
         self.assertTrue(self.call(self.uncovered, "UNKNOWN", False))
 
