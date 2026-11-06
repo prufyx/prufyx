@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sample-web
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sample-web
+  template:
+    metadata:
+      labels:
+        app: sample-web
+    spec:
+      containers:
+        - name: web
+          image: registry.example.invalid/sample-web:1.0.0
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sample-web
+  namespace: default
+spec:
+  selector:
+    app: sample-web
+  ports:
+    - port: 80
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: nightly-report
+  namespace: default
+spec:
+  schedule: "0 3 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: report
+              image: registry.example.invalid/report:1.0.0
