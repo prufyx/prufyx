@@ -321,19 +321,19 @@ Generated on 2026-10-31 by `scripts/readme-coverage.sh` (do not edit this block 
 | Projects with a rule or attestation that decides at least one of their last five minor upgrades (A, B or S below) | 43 of 78 |
 | Projects catalogued with retained public sources | 58 (11 of them source-only, no check) |
 | Projects with reviewed CRD targets (a reviewed `crd.custom_resource_versions` target) | 87 |
-| Projects with a published CRD rule or line attestation | 19 |
+| Projects with a published CRD rule or line attestation | 18 |
 
 Version-coverage depth, measured over the last five minor upgrades of each of the 78 projects with a release-line snapshot (390 upgrades between consecutive release lines):
 
 | Status | Upgrades | Share |
 | --- | --- | --- |
-| Decided for the whole release-line pair (A attested, B bounded) | 46 | 11.7% |
-| Rule for one exact version pair only (S) | 40 | 10.2% |
-| Gap, no valid rule (G) | 304 | 77.9% |
+| Decided for the whole release-line pair (A attested, B bounded) | 41 | 10.5% |
+| Rule for one exact version pair only (S) | 41 | 10.5% |
+| Gap, no valid rule (G) | 308 | 78.9% |
 
 Kubernetes: 63 valid rules, but 19 fall in its window 1.32 to 1.37; 0 of 5 upgrades in that window are gaps.
 
-Decided means a valid rule or attestation covers every version of both release lines. It never means a whole-upgrade PASS. Only 8 of the 46 decided upgrades are decided by a rule, or by an attestation that lists rules, so the answer for them can be BLOCKED or UNKNOWN. The other 38 are decided only by line attestations that list no rule (38 by `crd.custom_resource_versions`): for them an attestation can only give a family-scoped PASS (`scan` prints "PASS within <family> only"), never BLOCKED. An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.
+Decided means a valid rule or attestation covers every version of both release lines. It never means a whole-upgrade PASS. Only 8 of the 41 decided upgrades are decided by a rule, or by an attestation that lists rules, so the answer for them can be BLOCKED or UNKNOWN. The other 33 are decided only by line attestations that list no rule (33 by `crd.custom_resource_versions`): for them an attestation can only give a family-scoped PASS (`scan` prints "PASS within <family> only"), never BLOCKED. An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.
 
 Metric v2, Decided Pair Coverage, shown beside the v1 table above (v1 measures one fact family, so its share is not comparable). It covers the last two upgrades (last three release lines) of 30 Tier 1 and 0 Tier 2 projects: 60 upgrades, split into 420 cells, one per fact family that applies to the project. Tier 1 is the priority portfolio; no reviewed tier definition exists yet. Tier 2 has no reviewed list yet.
 
