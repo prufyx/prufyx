@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strings"
 )
 
 // LedgerEntry names one item an extractor withheld from a derived pair and
@@ -21,7 +22,7 @@ type LedgerEntry struct {
 // and answers with a NotAttested pair; it never truncates.
 const (
 	// MaxLedgerEntries is the most distinct entries one pair may carry.
-	MaxLedgerEntries = 256
+	MaxLedgerEntries = 1024
 	// MaxLedgerItemLen is the longest Item, in bytes.
 	MaxLedgerItemLen = 200
 )
@@ -43,12 +44,13 @@ const (
 
 var (
 	ledgerCodeRE = regexp.MustCompile(`^[A-Z][A-Z0-9_]{2,47}$`)
-	ledgerItemRE = regexp.MustCompile(`^[A-Za-z0-9_.:/@+=*\[\]-]{1,200}$`)
+	ledgerItemRE = regexp.MustCompile(fmt.Sprintf(`^[A-Za-z0-9_.:/@+*\[\]-]{1,%d}$`, MaxLedgerItemLen))
 )
 
 // ledgerGuards is a test seam: each field switches one guard off so a test
 // can show that the test named for the guard fails without it. All false in
-// production; only tests set it.
+// production; only tests set it. It is a package global, so it is safe only
+// because no test in this package uses t.Parallel.
 var ledgerGuards ledgerGuardSet
 
 type ledgerGuardSet struct {
@@ -106,6 +108,54 @@ func normalizeLedger(in []LedgerEntry) []LedgerEntry {
 		return faultLedger(LedgerOverflow)
 	}
 	return out
+}
+
+// LedgerVocabulary is optionally implemented by an extractor that closes its
+// ledger code vocabulary. When it is implemented, a ledger code outside
+// LedgerCodes is a LEDGER_INVALID fault; when it is not, the vocabulary is
+// open (any well-formed non-reserved code).
+type LedgerVocabulary interface {
+	LedgerCodes() []string
+}
+
+// checkLedgerReserved refuses, as a programming error, an extractor ledger
+// that uses a framework (reserved-prefix) code.
+func checkLedgerReserved(in []LedgerEntry) error {
+	for _, e := range in {
+		if strings.HasPrefix(e.Code, ledgerReservedPrefix) {
+			return fmt.Errorf("ledger code %q uses the reserved %s prefix", e.Code, ledgerReservedPrefix)
+		}
+	}
+	return nil
+}
+
+// ledgerVocabulary validates a declared vocabulary and returns it as a set.
+func ledgerVocabulary(v []string) (map[string]bool, error) {
+	set := map[string]bool{}
+	for _, c := range v {
+		if !ledgerCodeRE.MatchString(c) || strings.HasPrefix(c, ledgerReservedPrefix) {
+			return nil, fmt.Errorf("ledger vocabulary code %q is malformed or reserved", c)
+		}
+		set[c] = true
+	}
+	return set, nil
+}
+
+// restrictLedger turns a normalized ledger into the LEDGER_INVALID fault when
+// it holds a code outside vocab. A framework fault passes through.
+func restrictLedger(l []LedgerEntry, vocab map[string]bool) []LedgerEntry {
+	if vocab == nil {
+		return l
+	}
+	for _, e := range l {
+		if e.Item == LedgerFrameworkItem && strings.HasPrefix(e.Code, ledgerReservedPrefix) {
+			return l
+		}
+		if !vocab[e.Code] {
+			return faultLedger(LedgerInvalid)
+		}
+	}
+	return l
 }
 
 func faultLedger(code string) []LedgerEntry {
