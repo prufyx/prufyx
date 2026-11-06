@@ -65,7 +65,8 @@ state = "ALARM" if alarm else ("INCONCLUSIVE" if er else ("GREEN-PARTIAL" if ski
 line = f"WRONGPASS={len(wp)} MISMATCH={len(mm)} NEWMISMATCH={len(new)} ERR={len(er)} sha={a.sha[:8]} mode={a.mode} {state}"
 now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 summ = {"scopes": scopes, "run_id": os.environ.get("QA_RUN_ID", ""), "base": os.environ.get("QA_BASE", ""), "time": now, "sha": a.sha, "mode": a.mode, "state": state, "verdict": line, "wrongpass": len(wp),
-        "mismatch": len(mm), "new_mismatch": len(new), "errors": len(er), "cases": len(cases),
+        "mismatch": len(mm), "new_mismatch": len(new), "errors": len(er),
+        "unsupported_community": sum(1 for c in cases if c.get("detail", {}).get("status") == "UNSUPPORTED_COMMUNITY"), "cases": len(cases),
         "baseline_seeded": seeded, "skipped": skipped, "adhoc": a.adhoc, "note": a.note,
         "wrongpass_cases": wp[:50], "new_mismatch_cases": new[:50], "error_cases": er[:20]}
 json.dump(summ, open(a.dir + "/summary.json", "w"), indent=1)

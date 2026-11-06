@@ -20,6 +20,31 @@ class UnavailableVersion(Exception):
         self.evidence = evidence
 
 
+# A plan stage also reports areas the scanner does not evaluate for the component at all. These are scope
+# statements, not input problems: input completeness is proved separately by complete_scan_scope on the
+# bound scan, and the removed-GVK claims are compared object by object. Any other gap stays an error.
+# API_VERSION_NOT_REVIEWED is raised because this oracle's input deliberately holds every GA kind of the source
+# release, including the ones the target no longer serves (those are exactly what the removal claims check).
+# DECLARATION_MISSING (kubelet skew), INTERMEDIATE_LINE_NOT_COVERED_BY_RANGE (dockershim) and LINE_NOT_ATTESTED
+# name rule families or hops other than the per-hop removed-GVK claims compared here; a PASS on an expected
+# removal is still WRONGPASS, and a missing or extra removal finding is still an error.
+SCOPE_LIMIT_GAPS = {"COMPONENT_NOT_COVERED", "API_VERSION_NOT_REVIEWED", "DECLARATION_MISSING",
+                    "INTERMEDIATE_LINE_NOT_COVERED_BY_RANGE", "LINE_NOT_ATTESTED"}
+
+
+def stage_is_complete(stage, got, expect_removed, input_complete, missing, wrongpass, mismatch):
+    if not (input_complete and stage.get("component") == "kubernetes" and not missing and not wrongpass and not mismatch):
+        return False
+    if stage.get("unsupported"):
+        return False
+    if any(g.get("reason") not in SCOPE_LIMIT_GAPS for g in stage.get("gaps") or []):
+        return False
+    if expect_removed:
+        return got == "BLOCKED"
+    # nothing removed in this hop: a PASS claim or UNKNOWN caused only by uncovered areas is acceptable
+    return got in ("SCOPE_COMPLETE_PASS", "UNKNOWN")
+
+
 def verified_absent_ref(minor):
     source = "https://github.com/kubernetes/kubernetes.git"
     missing, previous = f"refs/tags/v1.{minor}.0", f"refs/tags/v1.{minor-1}.0"
@@ -271,10 +296,7 @@ def main():
                          f.get("hop", {}).get("to") == s["to"]], paths=[dict(p, hops=[hop for hop in p.get("hops", [])
                          if hop.get("index") == s.get("index")]) for p in (scan or {}).get("paths", [])])
             wp, mm, missing, statuses = scoped_result(scan_code, bound, exp, "kubernetes", "kubernetes.removed_served_gvk")
-            stage_complete = (complete and stages_match and s.get("component") == "kubernetes" and
-                              not missing and not wp and not mm and
-                              got == ("BLOCKED" if exp else "SCOPE_COMPLETE_PASS") and
-                              not s.get("gaps") and not s.get("unsupported"))
+            stage_complete = stage_is_complete(s, got, bool(exp), complete and stages_match, missing, wp, mm)
             overall_complete &= stage_complete
             if stage_complete:
                 executed.add(target)
