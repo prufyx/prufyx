@@ -16,6 +16,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/extract"
+	"github.com/prufyx/prufyx/cli/internal/extract/membercode"
 )
 
 func TestFixtures(t *testing.T) {
@@ -260,13 +261,34 @@ func TestMemberPatternNeverAdmitsForbidden(t *testing.T) {
 		if MemberCode(name) != "" {
 			continue
 		}
-		if strings.ToLower(name) != name || strings.Contains(name, "/") || len(name) < 2 || !memberRE.MatchString(name) || !constraintengine.ValidSetMember(name) {
-			t.Fatalf("%q admitted", name)
+		enc, err := membercode.Flag(name)
+		if err != nil || enc != name || strings.ToLower(name) != name || strings.Contains(name, "/") || len(name) < 2 || !constraintengine.ValidSetMember(name) {
+			t.Fatalf("%q admitted (encoder %q, %v)", name, enc, err)
 		}
 	}
 	for _, c := range []byte("/ABZ") {
-		if memberRE.MatchString("a" + string(c)) {
-			t.Errorf("pattern admits %q", c)
+		if MemberCode("a"+string(c)) == "" {
+			t.Errorf("contract admits %q", c)
+		}
+	}
+	// A name the shared encoder refuses is never a member, and a name it
+	// encodes is a member exactly when it is long and lower case.
+	for i := 0; i < 20000; i++ {
+		b := make([]byte, rng.IntN(8))
+		for j := range b {
+			b[j] = alphabet[rng.IntN(len(alphabet))]
+		}
+		name := string(b)
+		enc, err := membercode.Flag(name)
+		member := MemberCode(name) == ""
+		if err != nil && member {
+			t.Fatalf("%q refused by the encoder (%v) but admitted", name, err)
+		}
+		if err == nil && member && enc != name {
+			t.Fatalf("%q admitted but encodes to %q", name, enc)
+		}
+		if err == nil && member != (len(name) >= 2 && strings.ToLower(name) == name) {
+			t.Fatalf("%q member=%v", name, member)
 		}
 	}
 }
@@ -473,7 +495,7 @@ func TestSourceSetCoversTheScanner(t *testing.T) {
 	for _, f := range files {
 		got[f.Path] = true
 	}
-	for _, want := range []string{"imports.go", "scan.go", "walk.go", "ledger.go", "reasons.go"} {
+	for _, want := range []string{"imports.go", "scan.go", "walk.go", "ledger.go", "reasons.go", "membercode_membercode.go"} {
 		found := false
 		for p := range got {
 			found = found || strings.HasSuffix(p, "/"+want)

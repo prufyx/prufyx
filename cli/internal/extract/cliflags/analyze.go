@@ -3,16 +3,17 @@
 package cliflags
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/token"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/extract/membercode"
 )
 
 // rk is what a receiver expression is proven to be.
@@ -428,44 +429,31 @@ func litString(e ast.Expr) (string, bool) {
 	return v, true
 }
 
-var memberRE = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,127}$`)
-
-// memberCharsetRE is the member pattern with upper case admitted, used to
-// tell an upper-case name from a name outside the charset.
-var memberCharsetRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
-
 // MemberCode classifies a registered flag name against the member contract
-// and returns "" when it can be a set member. The contract is the exact
-// pattern
+// and returns "" when it can be a set member. The encoding itself is the
+// shared member encoder (membercode.Flag); this adds only what a flag name
+// needs on top of it: a name is a long name (two or more bytes) and lower
+// case, because the member guard refuses upper case. A name that fails gives
+// the reason:
 //
-//	^[a-z0-9][a-z0-9._-]{0,127}$
-//
-// that is: a long name (two or more bytes), at most MaxMemberBytes bytes,
-// lower case, from [a-z0-9._-], starting with a letter or digit. It is the
-// set-member pattern of the constraint engine
-// (^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$) without upper case, which the member
-// guard refuses, and without "/", which is the separator of structured
-// members and never part of a flag name. A name that fails gives the reason:
-//
-//	one byte                          FLAG_NAME_NOT_LONG
-//	more than 128 bytes               MEMBER_TOO_LONG
-//	upper case, otherwise valid       FLAG_NAME_UPPERCASE
-//	anything else (including "/")     MEMBER_CHARSET
+//	one byte                              FLAG_NAME_NOT_LONG
+//	encoder: too long                     MEMBER_TOO_LONG
+//	encoder: charset or ambiguous ("/")   MEMBER_CHARSET
+//	upper case, otherwise encodable       FLAG_NAME_UPPERCASE
 func MemberCode(name string) string {
-	switch {
-	case len(name) == 1:
+	if len(name) == 1 {
 		return ReasonNameNotLong
-	case len(name) > MaxMemberBytes:
+	}
+	m, err := membercode.Flag(name)
+	switch {
+	case errors.Is(err, membercode.ErrTooLong):
 		return ReasonMemberTooLong
-	case memberRE.MatchString(name):
-		if !constraintengine.ValidSetMember(name) {
-			return ReasonMemberCharset
-		}
-		return ""
-	case memberCharsetRE.MatchString(name):
+	case err != nil: // ErrCharset, ErrAmbiguous and anything unforeseen
+		return ReasonMemberCharset
+	case strings.ToLower(m) != m:
 		return ReasonNameUppercase
 	}
-	return ReasonMemberCharset
+	return ""
 }
 
 func clip(name string) string {

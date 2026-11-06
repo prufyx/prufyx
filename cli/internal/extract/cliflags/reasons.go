@@ -11,7 +11,9 @@ const (
 	// a urfave flag literal without a literal Name.
 	ReasonDynamicRegistration = "FLAG_DYNAMIC_REGISTRATION"
 	// ReasonRegistrationInLoop: a registration inside a for or range body,
-	// or in a function called from one.
+	// or in a function called from one that
+	// is followed through an untyped parameter (a callee that declares the
+	// library flag set type itself is judged by its own pass).
 	ReasonRegistrationInLoop = "FLAG_REGISTRATION_IN_LOOP"
 	// ReasonBuildConstrained: a registration in a file with a build
 	// constraint or a GOOS/GOARCH file name suffix, or under a runtime.GOOS
@@ -21,7 +23,9 @@ const (
 	// in-module, nor on the reviewed allowlist (see imports.go).
 	ReasonIdiomUnsupported = "FLAG_IDIOM_UNSUPPORTED"
 	// ReasonInitRegistration: a registration inside init() or inside a
-	// function literal (callback), or in a function called from either.
+	// function literal (callback), or in a function called from either that
+	// is followed through an untyped parameter (a callee that declares the
+	// library flag set type itself is judged by its own pass).
 	ReasonInitRegistration = "FLAG_INIT_REGISTRATION"
 	// ReasonDelegatedUnresolved: a flag set escapes where it cannot be
 	// followed (unresolvable callee, delegation deeper than MaxFollowDepth,
