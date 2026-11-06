@@ -142,3 +142,81 @@ func TestRelnotesParseGuardedKeepsTheEngineGate(t *testing.T) {
 		}
 	}
 }
+
+func falcoTwoSetInput(flags []string, flagsComplete bool, keys []string, keysComplete bool) []byte {
+	set := func(id string, members []string, complete bool) string {
+		quoted := make([]string, len(members))
+		for i, m := range members {
+			quoted[i] = fmt.Sprintf("%q", m)
+		}
+		return fmt.Sprintf(`{"id":%q,"state":"declared","setValue":{"members":[%s],"complete":%t}}`, id, strings.Join(quoted, ","), complete)
+	}
+	return []byte(fmt.Sprintf(`{"schema":"prufyx.io/operator-declared-constraint-input/v1alpha1","authority":"OPERATOR_DECLARED_MINIMIZED","current":{"components":[{"component":"pkg:github/falcosecurity/falco","version":"0.36.2","facts":[%s,%s]}]},"proposed":{"components":[{"component":"pkg:github/falcosecurity/falco","version":"0.37.0","facts":[]}]}}`,
+		set(factFalcoConfigKey, keys, keysComplete), set(factFalcoFlags, flags, flagsComplete)))
+}
+
+// falco 0.37.0 removed command-line options beside the config keys its two
+// rules read: a declared removed option keeps the clean config-key set from
+// being complete, whether or not the flag set itself is complete.
+func TestRelnotesCrossFactRemovalsDowngradeTheConfigKeySet(t *testing.T) {
+	t.Parallel()
+	for _, removed := range relnotesCrossFactRemovals[factFalcoFlags][0].members {
+		for _, flagsComplete := range []bool{true, false} {
+			got, down, err := guardRelnotesSets(falcoTwoSetInput([]string{removed}, flagsComplete, nil, true))
+			if err != nil || !down {
+				t.Fatalf("%s complete=%v: down=%v err=%v", removed, flagsComplete, down, err)
+			}
+			// Only the config-key set changes; the flag set keeps its own state.
+			if bytes.Count(got, []byte(`"complete":false`)) != 1+btoi(!flagsComplete) {
+				t.Fatalf("%s complete=%v: unexpected rewrite %s", removed, flagsComplete, got)
+			}
+		}
+	}
+	// An unrelated flag, or no config-key set, changes nothing.
+	for _, raw := range [][]byte{
+		falcoTwoSetInput([]string{"v"}, true, nil, true),
+		falcoTwoSetInput([]string{"userspace"}, true, []string{"outputs.rate"}, false),
+	} {
+		if got, down, err := guardRelnotesSets(raw); err != nil || down || !bytes.Equal(got, raw) {
+			t.Fatalf("changed: down=%v err=%v", down, err)
+		}
+	}
+	for fact, removals := range relnotesCrossFactRemovals {
+		for _, removal := range removals {
+			if !relnotesGuardedFacts[fact] || !relnotesGuardedFacts[removal.target] || !slices.IsSorted(removal.members) {
+				t.Fatalf("%s -> %s: not guarded facts or unsorted", fact, removal.target)
+			}
+			for _, m := range removal.members {
+				if !relnotesSpelling(fact, m) {
+					t.Fatalf("%s: member %s not canonical", fact, m)
+				}
+			}
+		}
+	}
+}
+
+func btoi(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+// A repeated config-key fact id must not let an earlier complete set escape
+// the downgrade.
+func TestRelnotesCrossFactRemovalsCoverRepeatedFactIDs(t *testing.T) {
+	t.Parallel()
+	raw := falcoTwoSetInput([]string{"userspace"}, true, nil, true)
+	one := fmt.Sprintf(`{"id":%q,"state":"declared","setValue":{"members":[],"complete":true}}`, factFalcoConfigKey)
+	if !bytes.Contains(raw, []byte(one)) {
+		t.Fatalf("fixture shape changed: %s", raw)
+	}
+	raw = bytes.Replace(raw, []byte(one), []byte(one+","+one), 1)
+	got, down, err := guardRelnotesSets(raw)
+	if err != nil || !down {
+		t.Fatalf("down=%v err=%v", down, err)
+	}
+	if n := bytes.Count(got, []byte(`"complete":false`)); n != 2 {
+		t.Fatalf("both config-key sets must be downgraded, got %d: %s", n, got)
+	}
+}
