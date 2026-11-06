@@ -22896,12 +22896,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.dapr",
-          "version": "2.7.0",
-          "codeDigest": "sha256:a29d554284b3a6d7d550f4b3a1454ed3a83c1c4ec0cd9e1b6ad63236663c76c3"
+          "version": "2.8.0",
+          "codeDigest": "sha256:718ad12305340072bd6e23ec9671102dbe006286e29b1d0cb8208d6b00e6dd02"
         },
-        "derivedAt": "2026-10-29T11:43:08Z",
-        "reviewedAt": "2026-10-29T11:43:08Z",
-        "validUntil": "2027-01-27T11:43:08Z",
+        "derivedAt": "2026-11-06T14:50:08Z",
+        "reviewedAt": "2026-11-06T14:50:08Z",
+        "validUntil": "2027-02-04T14:50:08Z",
         "sources": [
           {
             "id": "crds-1-13-0",
@@ -23022,12 +23022,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.dapr",
-          "version": "2.7.0",
-          "codeDigest": "sha256:a29d554284b3a6d7d550f4b3a1454ed3a83c1c4ec0cd9e1b6ad63236663c76c3"
+          "version": "2.8.0",
+          "codeDigest": "sha256:718ad12305340072bd6e23ec9671102dbe006286e29b1d0cb8208d6b00e6dd02"
         },
-        "derivedAt": "2026-10-29T11:43:08Z",
-        "reviewedAt": "2026-10-29T11:43:08Z",
-        "validUntil": "2027-01-27T11:43:08Z",
+        "derivedAt": "2026-11-06T14:50:08Z",
+        "reviewedAt": "2026-11-06T14:50:08Z",
+        "validUntil": "2027-02-04T14:50:08Z",
         "sources": [
           {
             "id": "crds-1-14-0",
@@ -23212,12 +23212,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.dapr",
-          "version": "2.7.0",
-          "codeDigest": "sha256:a29d554284b3a6d7d550f4b3a1454ed3a83c1c4ec0cd9e1b6ad63236663c76c3"
+          "version": "2.8.0",
+          "codeDigest": "sha256:718ad12305340072bd6e23ec9671102dbe006286e29b1d0cb8208d6b00e6dd02"
         },
-        "derivedAt": "2026-10-29T11:43:08Z",
-        "reviewedAt": "2026-10-29T11:43:08Z",
-        "validUntil": "2027-01-27T11:43:08Z",
+        "derivedAt": "2026-11-06T14:50:08Z",
+        "reviewedAt": "2026-11-06T14:50:08Z",
+        "validUntil": "2027-02-04T14:50:08Z",
         "sources": [
           {
             "id": "crds-1-15-0",
@@ -23411,6 +23411,10 @@
           {
             "version": "1.17.18",
             "commit": "37fb2fb515694d6e04ca882cfca6e465b7e49208"
+          },
+          {
+            "version": "1.17.19",
+            "commit": "0bd0aa32a1fa6b089d16f456b985a4da783c2f63"
           }
         ]
       },
@@ -23418,12 +23422,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.dapr",
-          "version": "2.7.0",
-          "codeDigest": "sha256:a29d554284b3a6d7d550f4b3a1454ed3a83c1c4ec0cd9e1b6ad63236663c76c3"
+          "version": "2.8.0",
+          "codeDigest": "sha256:718ad12305340072bd6e23ec9671102dbe006286e29b1d0cb8208d6b00e6dd02"
         },
-        "derivedAt": "2026-10-29T11:43:08Z",
-        "reviewedAt": "2026-10-29T11:43:08Z",
-        "validUntil": "2027-01-27T11:43:08Z",
+        "derivedAt": "2026-11-06T14:50:08Z",
+        "reviewedAt": "2026-11-06T14:50:08Z",
+        "validUntil": "2027-02-04T14:50:08Z",
         "sources": [
           {
             "id": "crds-1-16-0",
@@ -23527,6 +23531,10 @@
           {
             "version": "1.17.18",
             "commit": "37fb2fb515694d6e04ca882cfca6e465b7e49208"
+          },
+          {
+            "version": "1.17.19",
+            "commit": "0bd0aa32a1fa6b089d16f456b985a4da783c2f63"
           }
         ],
         "to": [
@@ -23569,6 +23577,10 @@
           {
             "version": "1.18.9",
             "commit": "7b4c3832127d09af128e1d8f121117a1ffbc502f"
+          },
+          {
+            "version": "1.18.10",
+            "commit": "9afd6ada6bd9c8abaa2b38441946a34c9a18998c"
           }
         ]
       },
@@ -23576,12 +23588,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.dapr",
-          "version": "2.7.0",
-          "codeDigest": "sha256:a29d554284b3a6d7d550f4b3a1454ed3a83c1c4ec0cd9e1b6ad63236663c76c3"
+          "version": "2.8.0",
+          "codeDigest": "sha256:718ad12305340072bd6e23ec9671102dbe006286e29b1d0cb8208d6b00e6dd02"
         },
-        "derivedAt": "2026-10-29T11:43:08Z",
-        "reviewedAt": "2026-10-29T11:43:08Z",
-        "validUntil": "2027-01-27T11:43:08Z",
+        "derivedAt": "2026-11-06T14:50:08Z",
+        "reviewedAt": "2026-11-06T14:50:08Z",
+        "validUntil": "2027-02-04T14:50:08Z",
         "sources": [
           {
             "id": "crds-1-17-0",
@@ -23649,12 +23661,20 @@
           {
             "version": "1.18.9",
             "commit": "7b4c3832127d09af128e1d8f121117a1ffbc502f"
+          },
+          {
+            "version": "1.18.10",
+            "commit": "9afd6ada6bd9c8abaa2b38441946a34c9a18998c"
           }
         ],
         "to": [
           {
             "version": "1.19.0",
             "commit": "cd59bfba89c39344bfaca73f1eb7c76ec411c258"
+          },
+          {
+            "version": "1.19.1",
+            "commit": "cfb5ee090dda7cfc26145c7703605d831350aa2a"
           }
         ]
       },
@@ -23662,12 +23682,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.dapr",
-          "version": "2.7.0",
-          "codeDigest": "sha256:a29d554284b3a6d7d550f4b3a1454ed3a83c1c4ec0cd9e1b6ad63236663c76c3"
+          "version": "2.8.0",
+          "codeDigest": "sha256:718ad12305340072bd6e23ec9671102dbe006286e29b1d0cb8208d6b00e6dd02"
         },
-        "derivedAt": "2026-10-29T11:43:08Z",
-        "reviewedAt": "2026-10-29T11:43:08Z",
-        "validUntil": "2027-01-27T11:43:08Z",
+        "derivedAt": "2026-11-06T14:50:08Z",
+        "reviewedAt": "2026-11-06T14:50:08Z",
+        "validUntil": "2027-02-04T14:50:08Z",
         "sources": [
           {
             "id": "crds-1-18-0",
