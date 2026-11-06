@@ -77,13 +77,13 @@ func TestCLI(t *testing.T) {
 	}
 	writeFile(t, commits, rawCommits)
 	bot := []string{"verify", "--base", base.Root, "--head", head.Root, "--now", now, "--source", "fixture:" + servedFixture, "--author", DefaultBotLogin}
-	if code, out = runCLI(t, bot...); code != 0 || strings.Contains(out, "auto-merge: eligible") {
+	if code, out = runCLI(t, bot...); code != 0 || strings.Contains(out, "auto-merge policy candidacy: eligible") {
 		t.Fatalf("verify tightening without provenance: %d %s", code, out)
 	}
-	if code, out = runCLI(t, append(bot, "--sender", DefaultBotLogin, "--head-sha", testHeadSHA, "--commits", commits)...); code != 0 || strings.Contains(out, "auto-merge: eligible") {
+	if code, out = runCLI(t, append(bot, "--sender", DefaultBotLogin, "--head-sha", testHeadSHA, "--commits", commits)...); code != 0 || strings.Contains(out, "auto-merge policy candidacy: eligible") {
 		t.Fatalf("verify tightening without a daily count must not be eligible: %d %s", code, out)
 	}
-	if code, out = runCLI(t, append(bot, "--sender", DefaultBotLogin, "--head-sha", testHeadSHA, "--commits", commits, "--daily-loosening-count", "0")...); code != 0 || strings.Contains(out, "auto-merge: eligible") {
+	if code, out = runCLI(t, append(bot, "--sender", DefaultBotLogin, "--head-sha", testHeadSHA, "--commits", commits, "--daily-loosening-count", "0")...); code != 0 || strings.Contains(out, "auto-merge policy candidacy: eligible") {
 		t.Fatalf("verify tightening: %d %s", code, out)
 	}
 
