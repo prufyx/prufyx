@@ -1,5 +1,12 @@
 """Nightly harness proofs: community-catalog refusals and plan stages limited only by uncovered areas."""
+import json
+import io
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
 import unittest
+from unittest.mock import patch
 
 import crd_oracle as crd
 import k8s_oracle as k8s
@@ -22,6 +29,12 @@ class MinFrom(unittest.TestCase):
         self.assertEqual(crd.lines_from(lines, "0.36"), [(0, 36), (1, 0)])
         self.assertEqual(crd.lines_from(lines, ""), lines)
         self.assertEqual(crd.lines_from(lines, None), lines)
+
+    def test_dropped_pair_count_includes_boundary_pair(self):
+        with patch("sys.stdout", new_callable=io.StringIO) as output:
+            pairs = crd.adjacent_pairs([(0, 13), (0, 35), (0, 36), (1, 0)], "0.36", "sample")
+        self.assertEqual(pairs, [{"from": "0.36", "to": "1.0"}])
+        self.assertIn("dropped_pairs=2", output.getvalue())
 
 
 class Counts(unittest.TestCase):
@@ -60,6 +73,41 @@ class StageCompleteness(unittest.TestCase):
         self.assertFalse(self.call(self.kube, "BLOCKED", True, missing=["a/v1/K"]))
         self.assertFalse(self.call(self.kube, "BLOCKED", True, ok=False))
         self.assertFalse(self.call(self.kube, "BLOCKED", True, wp=True))
+
+    def test_scope_gaps_do_not_hide_missed_removal(self):
+        for reason in ("DECLARATION_MISSING", "INTERMEDIATE_LINE_NOT_COVERED_BY_RANGE"):
+            stage = {"component": "kubernetes", "gaps": [{"reason": reason}]}
+            for verdict, code, expected in (("SCOPE_COMPLETE_PASS", 0, "wrongpass"), ("BLOCKED", 10, "mismatch")):
+                with self.subTest(reason=reason, verdict=verdict):
+                    report = {"verdict": verdict, "paths": [], "findings": []}
+                    wp, mm, missing, _ = k8s.scoped_result(code, report, [("example.io", "v1", "Widget")],
+                                                            "kubernetes", "kubernetes.removed_served_gvk")
+                    self.assertTrue(wp if expected == "wrongpass" else mm)
+                    self.assertEqual(missing, ["example.io/v1/Widget"])
+                    self.assertFalse(self.call(stage, verdict, True, missing=missing, wp=wp, mm=mm))
+
+
+class SummaryRise(unittest.TestCase):
+    def test_comparable_previous_run_and_adhoc_preserves_status(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            out, state = root / "out", root / "state"
+            out.mkdir()
+            state.mkdir()
+            status = state / "status.json"
+            status.write_text(json.dumps({"mode": "incremental", "unsupported_community": 1}))
+            cases = [{"suite": "crd", "key": str(i), "wrongpass": False, "mismatch": False,
+                      "error": False, "detail": {"status": "UNSUPPORTED_COMMUNITY"}} for i in range(2)]
+            (out / "crd.cases.json").write_text(json.dumps(cases))
+            cmd = [sys.executable, str(Path(__file__).with_name("summarize.py")), "--dir", str(out),
+                   "--state", str(state), "--sha", "a" * 40, "--mode", "incremental", "--adhoc"]
+            result = subprocess.run(cmd, text=True, capture_output=True)
+            self.assertIn("UNSUPPORTED_COMMUNITY_RISE=1->2", result.stdout)
+            self.assertTrue(json.loads((out / "summary.json").read_text())["unsupported_community_rise"])
+            self.assertEqual(json.loads(status.read_text())["unsupported_community"], 1)
+            status.write_text(json.dumps({"mode": "full", "unsupported_community": 1}))
+            subprocess.run(cmd, text=True, capture_output=True, check=False)
+            self.assertIsNone(json.loads((out / "summary.json").read_text())["unsupported_community_rise"])
 
 
 if __name__ == "__main__":

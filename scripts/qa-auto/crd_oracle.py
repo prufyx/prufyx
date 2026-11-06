@@ -145,6 +145,15 @@ def lines_from(lines, min_from):
     return [l for l in lines if l >= floor]
 
 
+def adjacent_pairs(lines, min_from, project):
+    retained = lines_from(lines, min_from)
+    dropped = max(0, len(lines) - 1) - max(0, len(retained) - 1)
+    if min_from:
+        print(f"crd {project}: minFrom={min_from} dropped_pairs={dropped}", flush=True)
+    return [{"from": ".".join(map(str, a)), "to": ".".join(map(str, b))}
+            for a, b in zip(retained, retained[1:])]
+
+
 def served_set(tj, gd, tag, tagname=None):
     text = crd_text(tj, gd, tag, tagname)
     result = sh(CRDGVK, inp=text)
@@ -224,8 +233,7 @@ def prepare(proj, cov, plan):
         return cache[tag]
 
     if comp is None:
-        ls = lines_from(sorted(lines), tj.get("minFrom"))
-        pairs = [{"from": ".".join(map(str, a)), "to": ".".join(map(str, b))} for a, b in zip(ls, ls[1:])]
+        pairs = adjacent_pairs(sorted(lines), tj.get("minFrom"), proj)
     else:
         pairs = comp["pairs"]
     if not pairs:
