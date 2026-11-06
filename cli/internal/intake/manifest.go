@@ -203,7 +203,8 @@ func (w *Workspace) add(source Source, value any, listMetadata any, listAPI, ite
 		omit(ReasonTemplated)
 		return
 	}
-	isList := kind == "List" || strings.HasSuffix(kind, "List")
+	_, hasItems := object["items"]
+	isList := kind == "List" || (strings.HasSuffix(kind, "List") && hasItems)
 	if isList {
 		if source.Item >= 0 {
 			omit(ReasonNestedList)

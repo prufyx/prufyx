@@ -26,6 +26,7 @@ func TestDecodeShapes(t *testing.T) {
 		want []string
 	}{
 		"single":                    {"apiVersion: v1\nkind: ConfigMap\nmetadata: {name: a, namespace: n}\n", []string{"doc 0/-1 v1 ConfigMap n/a"}},
+		"resource ending in List":   {"apiVersion: example.io/v1\nkind: ImageList\nmetadata: {name: images}\nspec: {images: [example]}\n", []string{"doc 0/-1 example.io/v1 ImageList /images"}},
 		"separators and empties":    {"---\n---\napiVersion: v1\nkind: Pod\n---\n# nothing\n---\napiVersion: v1\nkind: Service\n", []string{"doc 0/-1 v1 Pod /", "doc 1/-1 v1 Service /"}},
 		"v1 list":                   {"apiVersion: v1\nkind: List\nitems:\n- {apiVersion: v1, kind: Pod}\n- {apiVersion: apps/v1, kind: Deployment}\n", []string{"doc 0/0 v1 Pod /", "doc 0/1 apps/v1 Deployment /"}},
 		"typed list infers items":   {"apiVersion: apps/v1\nkind: DeploymentList\nitems:\n- metadata: {name: web}\n", []string{"doc 0/0 apps/v1 Deployment /web"}},
@@ -33,6 +34,8 @@ func TestDecodeShapes(t *testing.T) {
 		"nested list":               {"apiVersion: v1\nkind: List\nitems:\n- {apiVersion: v1, kind: Pod}\n- {apiVersion: v1, kind: List, items: [{apiVersion: v1, kind: Pod}]}\n", []string{"doc 0/0 v1 Pod /", "omit 0/1 NESTED_LIST"}},
 		"core list not v1":          {"apiVersion: v2\nkind: List\nitems: [{apiVersion: v1, kind: Pod}]\n", []string{"omit 0/-1 LIST_SHAPE_UNRESOLVED"}},
 		"empty list":                {"apiVersion: v1\nkind: List\nitems: []\n", []string{"omit 0/-1 LIST_SHAPE_UNRESOLVED"}},
+		"malformed typed list":      {"apiVersion: apps/v1\nkind: DeploymentList\nitems: invalid\n", []string{"omit 0/-1 LIST_SHAPE_UNRESOLVED"}},
+		"missing core list items":   {"apiVersion: v1\nkind: List\n", []string{"omit 0/-1 LIST_SHAPE_UNRESOLVED"}},
 		"values file":               {"replicas: 2\nimage: {tag: x}\n", []string{"omit 0/-1 NOT_KUBERNETES_SHAPED"}},
 		"scalar document":           {"hello\n", []string{"omit 0/-1 NOT_KUBERNETES_SHAPED"}},
 		"list item missing":         {"apiVersion: v1\nkind: List\nitems:\n- {name: x}\n", []string{"omit 0/0 NOT_KUBERNETES_SHAPED"}},
