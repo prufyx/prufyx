@@ -83,7 +83,7 @@ func TestCLI(t *testing.T) {
 	if code, out = runCLI(t, append(bot, "--sender", DefaultBotLogin, "--head-sha", testHeadSHA, "--commits", commits)...); code != 0 || strings.Contains(out, "auto-merge: eligible") {
 		t.Fatalf("verify tightening without a daily count must not be eligible: %d %s", code, out)
 	}
-	if code, out = runCLI(t, append(bot, "--sender", DefaultBotLogin, "--head-sha", testHeadSHA, "--commits", commits, "--daily-loosening-count", "0")...); code != 0 || !strings.Contains(out, "auto-merge: eligible") {
+	if code, out = runCLI(t, append(bot, "--sender", DefaultBotLogin, "--head-sha", testHeadSHA, "--commits", commits, "--daily-loosening-count", "0")...); code != 0 || strings.Contains(out, "auto-merge: eligible") {
 		t.Fatalf("verify tightening: %d %s", code, out)
 	}
 

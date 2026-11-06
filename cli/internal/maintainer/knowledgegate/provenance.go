@@ -94,10 +94,15 @@ func commitListReasons(opts Options, login string, verified bool, who string) []
 	if list.BehindBy != 0 || list.AheadBy < 1 || list.Status != "ahead" {
 		reasons = append(reasons, fmt.Sprintf("the head is not strictly ahead of the base (status %s)", logSafe(list.Status)))
 	}
-	if list.TotalCommits != len(list.Commits) || len(list.Commits) == 0 {
+	if list.TotalCommits != len(list.Commits) || list.AheadBy != list.TotalCommits || len(list.Commits) == 0 || len(list.Commits) > 100 {
 		reasons = append(reasons, fmt.Sprintf("the commit list is incomplete (%d of %d commits)", len(list.Commits), list.TotalCommits))
 	}
+	seen := make(map[string]bool)
 	for _, c := range list.Commits {
+		if !shaRE.MatchString(c.SHA) || seen[c.SHA] {
+			reasons = append(reasons, "the commit list has an invalid or duplicate SHA")
+		}
+		seen[c.SHA] = true
 		switch {
 		case c.Author == nil || c.Author.Login != login:
 			reasons = append(reasons, fmt.Sprintf("commit %s is not authored by %s", shortSHA(c.SHA), who))

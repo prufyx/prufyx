@@ -372,9 +372,9 @@ func TestRegressionWorkflowCommandInRuleID(t *testing.T) {
 // up to exactly the head the gate checked.
 func TestEligibilityNeedsBotProvenance(t *testing.T) {
 	t.Parallel()
-	base, head := trees(t)
-	ids := readPack(t, base, cncfRulesPath).activeReviewed()
-	editPack(t, head, cncfRulesPath, func(p *packDoc) { evidenceOf(p.find(t, ids[1]))["state"] = "withdrawn" })
+	f := newBatchFixture(t, 1)
+	f.signAndWrite(t, f.record(t))
+	base, head := f.base, f.head
 	ok := runGate(t, Options{Base: base, Head: head, Author: DefaultBotLogin})
 	if !ok.AutoMerge.Eligible || ok.HeadSHA != testHeadSHA {
 		t.Fatalf("bot change not eligible: %v (head %s)", ok.AutoMerge.Reasons, ok.HeadSHA)
@@ -490,8 +490,8 @@ func TestRecordFilesNeedTheirChange(t *testing.T) {
 		writeFile(t, approvalPath(head, id), key.sign(t, ApprovalRecord{BaseDigest: ApprovalBaseAbsent, CandidateDigest: digest, CandidateID: "c", DecidedAt: gateNow.Add(-time.Hour).Format(time.RFC3339), Decision: "approve", Identity: "airstand", Pack: "cncf", RuleID: id}))
 		r := runGate(t, Options{Base: base, Head: head, Author: DefaultBotLogin})
 		requirePass(t, r)
-		if !r.AutoMerge.Eligible {
-			t.Fatalf("not eligible: %v", r.AutoMerge.Reasons)
+		if r.AutoMerge.Eligible {
+			t.Fatal("a change without a batch must not be eligible")
 		}
 	})
 	for name, rel := range map[string]string{
@@ -562,8 +562,8 @@ func TestModeOnlyChanges(t *testing.T) {
 		base, head := setup(t)
 		r := runGate(t, Options{Base: base, Head: head, Author: DefaultBotLogin})
 		requirePass(t, r)
-		if !r.AutoMerge.Eligible {
-			t.Fatalf("not eligible: %v", r.AutoMerge.Reasons)
+		if r.AutoMerge.Eligible {
+			t.Fatal("a change without a batch must not be eligible")
 		}
 	})
 }

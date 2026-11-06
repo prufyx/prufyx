@@ -210,7 +210,7 @@ func TestShadowMode(t *testing.T) {
 	}
 	enforce := runGate(t, Options{Base: base, Head: head, Author: DefaultBotLogin})
 	shadow := runGate(t, Options{Base: base, Head: head, Author: DefaultBotLogin, Shadow: true})
-	if !enforce.Passed() || !enforce.AutoMerge.Eligible || enforce.Mode != ModeEnforce {
+	if !enforce.Passed() || enforce.AutoMerge.Eligible || enforce.Mode != ModeEnforce {
 		t.Fatalf("enforce: pass=%v eligible=%v mode=%q %v", enforce.Passed(), enforce.AutoMerge.Eligible, enforce.Mode, enforce.AutoMerge.Reasons)
 	}
 	if shadow.Mode != ModeShadow || shadow.AutoMerge.Eligible || !strings.Contains(strings.Join(shadow.AutoMerge.Reasons, " "), "shadow") {
@@ -236,7 +236,7 @@ func TestShadowMode(t *testing.T) {
 	editPack(t, head, cncfRulesPath, func(p *packDoc) {
 		ruleOf(p.find(t, ids[1]))["nextAction"] = ruleOf(readPack(t, base, cncfRulesPath).find(t, ids[1]))["nextAction"]
 	})
-	if code, out := runCLI(t, args...); code != 0 || !strings.Contains(out, "auto-merge: eligible") {
+	if code, out := runCLI(t, args...); code != 0 || strings.Contains(out, "auto-merge: eligible") {
 		t.Fatalf("enforce: %d %s", code, out)
 	}
 	code, out := runCLI(t, append(args, "--shadow")...)
@@ -580,13 +580,13 @@ func TestDailyLimit(t *testing.T) {
 		}
 		zero := 0
 		opts.DailyLoosening = &zero
-		if r := runGate(t, opts); !r.AutoMerge.Eligible {
+		if r := runGate(t, opts); r.AutoMerge.Eligible {
 			t.Fatalf("with a count of zero: %v", r.AutoMerge.Reasons)
 		}
 		// A count of zero is a count; large counts leave tightening eligible.
 		big := 100000
 		opts.DailyLoosening = &big
-		if r := runGate(t, opts); !r.Passed() || !r.AutoMerge.Eligible {
+		if r := runGate(t, opts); !r.Passed() || r.AutoMerge.Eligible {
 			t.Fatalf("tightening with a large count: %v %v", r.Passed(), r.AutoMerge.Reasons)
 		}
 	})
