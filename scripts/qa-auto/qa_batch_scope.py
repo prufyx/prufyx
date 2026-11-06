@@ -48,6 +48,16 @@ def blob(src, ref, path):
     return entry[2], raw
 
 
+def diff_reader(src, base_ref, head_ref):
+    """reader(path) -> (base bytes|None, head bytes|None) from the fixed objects; None when absent/nonregular."""
+    def one(ref, path):
+        try:
+            return blob(src, ref, path)[1]
+        except (ValueError, subprocess.SubprocessError, OSError):
+            return None
+    return lambda path: (one(base_ref, path), one(head_ref, path))
+
+
 def proof_target(project, pair):
     return "crd-proof|" + "|".join([project] + [pair[k] for k in ("fromTag", "fromCommit", "toTag", "toCommit")])
 
@@ -65,7 +75,7 @@ def freeze(src, head, base, run_id, extra_projects=()):
     paths = git(src, "ls-tree", "-r", "--name-only", head, "--", TARGET_DIR).splitlines()
     slugs = sorted(p[len(TARGET_DIR + "target-"):-5] for p in paths
                    if re.fullmatch(re.escape(TARGET_DIR) + r"target-[a-z0-9-]+\.json", p))
-    selected = selection(changed, slugs)
+    selected = selection(changed, slugs, diff_reader(src, BASE_REF, HEAD_REF))
     projects = set(slugs if selected["mode"] == "full" else selected["projects"]) | set(extra_projects)
     batch_paths = [p for p in changed if p.startswith(BATCH_DIR)]
     envelopes = []
