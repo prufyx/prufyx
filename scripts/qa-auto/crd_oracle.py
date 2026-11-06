@@ -154,6 +154,12 @@ def adjacent_pairs(lines, min_from, project):
             for a, b in zip(retained, retained[1:])]
 
 
+def check_served_floor(min_from, line, served):
+    """Reject a floor above a line whose target CRDs were actually read as served."""
+    if min_from and served and tuple(map(int, min_from.split("."))) > line:
+        raise ValueError(f"minFrom {min_from} exceeds observed served line {line[0]}.{line[1]}")
+
+
 def served_set(tj, gd, tag, tagname=None):
     text = crd_text(tj, gd, tag, tagname)
     result = sh(CRDGVK, inp=text)
@@ -230,6 +236,7 @@ def prepare(proj, cov, plan):
         if tag not in cache:
             ref = pinned.get(tag, tag)
             cache[tag] = served_set(tj, gd, ref, tag) if tj.get("remote") else served_set(tj, gd, ref)
+            check_served_floor(tj.get("minFrom"), vkey(tag[len(pref):])[:2], cache[tag])
         return cache[tag]
 
     if comp is None:
