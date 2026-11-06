@@ -106,6 +106,12 @@ type Extraction struct {
 	// parsed and why each claim holds). It is recorded in the manifest and
 	// must marshal deterministically.
 	Proof any
+	// Ledger lists the items the extractor withheld from this pair (a
+	// member it could not encode, a file it could not parse). The framework
+	// validates, sorts and deduplicates it and records it next to Proof. A
+	// non-empty ledger means the pair is never attested, whatever
+	// Attestations or NotAttested say.
+	Ledger []LedgerEntry
 	// Attestations are the line attestations of an extractor that
 	// implements LineAttester; any other extractor must leave it empty.
 	Attestations []AttestationCandidate
