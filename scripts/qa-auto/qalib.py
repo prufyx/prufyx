@@ -89,7 +89,11 @@ def dump(cases, path):
 
 
 def counts(cases):
-    return {k: sum(1 for c in cases if c[k]) for k in ("wrongpass", "mismatch", "error")}
+    n = {k: sum(1 for c in cases if c[k]) for k in ("wrongpass", "mismatch", "error")}
+    unsupported = sum(1 for c in cases if c.get("detail", {}).get("status") == "UNSUPPORTED_COMMUNITY")
+    if unsupported:
+        n["unsupported_community"] = unsupported
+    return n
 
 
 @lru_cache(maxsize=1)

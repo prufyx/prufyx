@@ -105,6 +105,14 @@ def crd_text(tj, gd, tag):
     return txt
 
 
+def lines_from(lines, min_from):
+    """Release lines at or above the target's minFrom ("0.36"); the target declares nothing older is served from its path."""
+    if not min_from:
+        return lines
+    floor = tuple(int(x) for x in str(min_from).split("."))
+    return [l for l in lines if l >= floor]
+
+
 def served_set(tj, gd, tag):
     text = crd_text(tj, gd, tag)
     result = sh(CRDGVK, inp=text)
@@ -183,7 +191,7 @@ def prepare(proj, cov, plan):
         return cache[tag]
 
     if comp is None:
-        ls = sorted(lines)
+        ls = lines_from(sorted(lines), tj.get("minFrom"))
         pairs = [{"from": ".".join(map(str, a)), "to": ".".join(map(str, b))} for a, b in zip(ls, ls[1:])]
     else:
         pairs = comp["pairs"]

@@ -16,6 +16,21 @@ class CommunityRefusal(unittest.TestCase):
         self.assertFalse(crd.community_refusal("community", "is in the community catalog"))
 
 
+class MinFrom(unittest.TestCase):
+    def test_lines_below_min_from_are_dropped(self):
+        lines = [(0, 13), (0, 35), (0, 36), (1, 0)]
+        self.assertEqual(crd.lines_from(lines, "0.36"), [(0, 36), (1, 0)])
+        self.assertEqual(crd.lines_from(lines, ""), lines)
+        self.assertEqual(crd.lines_from(lines, None), lines)
+
+
+class Counts(unittest.TestCase):
+    def test_unsupported_community_is_counted_not_an_error(self):
+        import qalib
+        cases = [qalib.case("crd", "a", status="UNSUPPORTED_COMMUNITY"), qalib.case("crd", "b")]
+        self.assertEqual(qalib.counts(cases), {"wrongpass": 0, "mismatch": 0, "error": 0, "unsupported_community": 1})
+
+
 class StageCompleteness(unittest.TestCase):
     kube = {"component": "kubernetes"}
     uncovered = {"component": "kubernetes", "gaps": [{"reason": "COMPONENT_NOT_COVERED"}]}
