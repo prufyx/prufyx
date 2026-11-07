@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/maintainer/coveragereport"
 )
@@ -310,5 +311,140 @@ func TestCoverageFloorShippedData(t *testing.T) {
 	r.coverageFloorCheck(Options{Layout: DefaultLayout(), Base: tree, Head: tree})
 	if len(r.Checks) != 1 || !r.Checks[0].OK {
 		t.Fatalf("%+v", r.Checks)
+	}
+}
+
+// shippedSlice copies, into a new tree, the shipped files the published
+// coverage numbers are computed from. The synthetic fixture packs carry no
+// line attestations, so the re-derive is played on the shipped data.
+func shippedSlice(t *testing.T) Tree {
+	t.Helper()
+	tr := Tree{Root: t.TempDir()}
+	ol := DefaultLayout().Onboarding
+	rels := []string{cncfRulesPath, commRulesPath, coveragereport.PinnedLinesPath, inventoryJSON, coveragereport.BaselinePath}
+	names, err := filepath.Glob(filepath.Join(repoRoot, filepath.FromSlash(ol.TargetsDir), "target-*.json"))
+	if err != nil || len(names) == 0 {
+		t.Fatalf("targets: %v", err)
+	}
+	for _, n := range names {
+		rels = append(rels, ol.TargetsDir+"/"+filepath.Base(n))
+	}
+	for _, rel := range rels {
+		raw, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(rel)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, filepath.Join(tr.Root, filepath.FromSlash(rel)), raw)
+	}
+	return tr
+}
+
+func shippedFloorCheck(base, head Tree) Check {
+	r := &Report{}
+	r.coverageFloorCheck(Options{Layout: DefaultLayout(), Base: base, Head: head})
+	return r.Checks[0]
+}
+
+// rederiveLineAttestations plays a data-only re-derive: every line
+// attestation of the CNCF pack is replaced by one whose derivedAt and
+// reviewedAt are newer than the evaluation clock of the README block (noon of
+// pinnedOn, or of capturedOn when there is no pin). The README clock does not
+// move with the data, so an attestation reviewed after it is not yet in force
+// and its pair stops being decided. It returns the clock the block is
+// evaluated on.
+func rederiveLineAttestations(t *testing.T, tr Tree) time.Time {
+	t.Helper()
+	_, _, clock, err := coverageReportOf(tr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	newer := clock.Add(24 * time.Hour).Format(time.RFC3339)
+	until := clock.Add(24 * time.Hour * 89).Format(time.RFC3339)
+	p := readPack(t, tr, cncfRulesPath)
+	var atts []map[string]any
+	if err := json.Unmarshal(p.fields["lineAttestations"], &atts); err != nil {
+		t.Fatal(err)
+	}
+	if len(atts) == 0 {
+		t.Fatal("the fixture pack has no line attestations")
+	}
+	for _, a := range atts {
+		ev, ok := a["evidence"].(map[string]any)
+		if !ok {
+			t.Fatal("a line attestation has no evidence")
+		}
+		ev["derivedAt"] = newer
+		ev["reviewedAt"] = newer
+		ev["validUntil"] = until
+	}
+	raw, err := json.Marshal(atts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.fields["lineAttestations"] = raw
+	p.write(t, tr, cncfRulesPath)
+	return clock
+}
+
+func decidedPairs(t *testing.T, tr Tree) int {
+	t.Helper()
+	report, _, _, err := coverageReportOf(tr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return report.Fleet.A + report.Fleet.B
+}
+
+// Regression for the dapr incident class (decided pairs 46 -> 41 after a
+// re-derive): a data PR that replaces line attestations with newer
+// reviewedAt/derivedAt dates while the pinned README clock stays put lowers
+// the published decided pairs, and the coverage floor of the BASE branch
+// refuses that PR with the decided-pairs message. The floor, not the
+// generator, is the protection: the generator is deterministic and would
+// publish the lower number.
+//
+// The fix route for a re-derive is a deliberate pinnedOn bump in the same PR
+// (lines file), which moves the clock past the new reviewedAt dates so the
+// pairs stay decided; see the second half of the test. The floor is never
+// edited to excuse a drop.
+func TestCoverageFloorRefusesRederiveWithNewerDatesUnderOldClock(t *testing.T) {
+	t.Parallel()
+	base, head := shippedSlice(t), shippedSlice(t)
+	before := decidedPairs(t, base)
+	if before == 0 {
+		t.Fatal("the fixture has no decided pairs")
+	}
+	clock := rederiveLineAttestations(t, head)
+	after := decidedPairs(t, head)
+	if after >= before {
+		t.Fatalf("the re-derive under the old clock did not lower decided pairs (%d -> %d): the fixture no longer reproduces the incident", before, after)
+	}
+	c := shippedFloorCheck(base, head)
+	if c.OK || !strings.Contains(c.Detail, "decided pairs fell to") {
+		t.Fatalf("a re-derive that lowers decided pairs %d -> %d is not refused by the floor: %+v", before, after, c)
+	}
+
+	// Fix route: the same data with the pinned clock advanced in the same
+	// change keeps the pairs decided, and the floor holds.
+	linesPath := filepath.Join(head.Root, filepath.FromSlash(coveragereport.PinnedLinesPath))
+	raw, err := os.ReadFile(linesPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var lines map[string]any
+	if err := json.Unmarshal(raw, &lines); err != nil {
+		t.Fatal(err)
+	}
+	lines["pinnedOn"] = clock.Add(48 * time.Hour).Format("2006-01-02")
+	raw, err = json.Marshal(lines)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, linesPath, raw)
+	if got := decidedPairs(t, head); got < before {
+		t.Fatalf("advancing pinnedOn did not restore decided pairs (%d, floor %d)", got, before)
+	}
+	if c := shippedFloorCheck(base, head); !c.OK {
+		t.Fatalf("the floor refuses a re-derive with a deliberate pinnedOn bump: %s", c.Detail)
 	}
 }
