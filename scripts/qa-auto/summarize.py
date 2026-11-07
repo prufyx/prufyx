@@ -50,26 +50,38 @@ if a.mode != "none":
     for reason in scope_errors:
         cases.append({"suite": "k8s", "key": "scope", "wrongpass": False, "mismatch": False,
                       "error": True, "detail": {"why": reason}})
+def candidate(c):
+    """A whole-CRD candidate that ends as a mismatch is a regression of the documented-design class: no baseline excuses it."""
+    return bool(c.get("detail", {}).get("wholeCrdCandidate"))
+
+
 bp = a.state + "/known-mismatch.json"
 seeded = False
 if not os.path.exists(bp) and a.mode == "full" and not a.adhoc:
-    json.dump(sorted({f"{c['suite']}|{c['key']}" for c in cases if c["mismatch"] and not c["wrongpass"]}), open(bp, "w"))
+    json.dump(sorted({f"{c['suite']}|{c['key']}" for c in cases if c["mismatch"] and not c["wrongpass"] and not candidate(c)}), open(bp, "w"))
     seeded = True
 base = set(json.load(open(bp))) if os.path.exists(bp) else set()
 wp = [c for c in cases if c["wrongpass"]]
 mm = [c for c in cases if c["mismatch"] and not c["wrongpass"]]
-new = [c for c in mm if f"{c['suite']}|{c['key']}" not in base]
+new = [c for c in mm if f"{c['suite']}|{c['key']}" not in base or candidate(c)]
 er = [c for c in cases if c["error"]]
-design = sum(1 for c in cases if c.get("detail", {}).get("status") == "DESIGN_UNKNOWN_WHOLE_CRD_REMOVAL")
+design = sum(1 for c in cases if c.get("detail", {}).get("status") == "DESIGN_UNKNOWN_WHOLE_CRD_REMOVAL" and not c["error"])
+DESIGN_HARD_CAP = 80
 try:
     with open(a.state + "/status.json") as prev_file:
-        prev_design = int(json.load(prev_file).get("design_unknown_whole_crd_removal", 0))
+        prev_status = json.load(prev_file)
+    prev_design = prev_status.get("design_unknown_whole_crd_baseline")
+    prev_design = prev_design if type(prev_design) is int and prev_design > 0 else None
 except (OSError, ValueError, TypeError, AttributeError):
-    prev_design = 0
-design_rise = design > prev_design and not a.adhoc
+    prev_design = None
+# growth beyond +20% (at least +5) of the last accepted full-run count, or past the hard cap, is a scanner regression until proven otherwise
+cap_breach = design > DESIGN_HARD_CAP or (a.mode == "full" and prev_design is not None and design > prev_design + max(5, -(-prev_design // 5)))
+design_rise = a.mode == "full" and prev_design is not None and design > prev_design
+design_drop = a.mode == "full" and prev_design is not None and prev_design >= 10 and design * 2 < prev_design
+design_baseline = prev_design if (cap_breach or a.mode != "full" or a.adhoc) else (design or None)
 alarm = bool(wp or new)
-state = "ALARM" if alarm else ("INCONCLUSIVE" if er else ("GREEN-PARTIAL" if skipped else "GREEN"))
-line = f"WRONGPASS={len(wp)} MISMATCH={len(mm)} NEWMISMATCH={len(new)} ERR={len(er)} DESIGN_UNKNOWN_WHOLE_CRD={design}{" RISE" if design_rise else ""} sha={a.sha[:8]} mode={a.mode} {state}"
+state = "ALARM" if alarm else ("INCONCLUSIVE" if (er or cap_breach) else ("GREEN-PARTIAL" if skipped else "GREEN"))
+line = f"WRONGPASS={len(wp)} MISMATCH={len(mm)} NEWMISMATCH={len(new)} ERR={len(er)} DESIGN_UNKNOWN_WHOLE_CRD={design}{" RISE" if design_rise else ""}{" CAP" if cap_breach else ""}{" DROP" if design_drop else ""} sha={a.sha[:8]} mode={a.mode} {state}"
 now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 unsupported = sum(1 for c in cases if c.get("detail", {}).get("status") == "UNSUPPORTED_COMMUNITY")
 unknown_floor = sum(1 for c in cases if c.get("detail", {}).get("status") == "UNKNOWN_EARLIEST_SERVED")
@@ -84,11 +96,11 @@ rise = (unsupported > previous_count if type(previous_count) is int and a.mode !
 summ = {"scopes": scopes, "run_id": os.environ.get("QA_RUN_ID", ""), "base": os.environ.get("QA_BASE", ""), "time": now, "sha": a.sha, "mode": a.mode, "state": state, "verdict": line, "wrongpass": len(wp),
         "mismatch": len(mm), "new_mismatch": len(new), "errors": len(er),
         "unsupported_community": unsupported, "unsupported_community_rise": rise, "unknown_earliest_served": unknown_floor,
-        "design_unknown_whole_crd_removal": design, "design_unknown_whole_crd_rise": design_rise, "cases": len(cases),
+        "design_unknown_whole_crd_removal": design, "design_unknown_whole_crd_rise": design_rise, "design_unknown_whole_crd_cap_breach": cap_breach, "design_unknown_whole_crd_drop": design_drop, "design_unknown_whole_crd_baseline": design_baseline, "cases": len(cases),
         "baseline_seeded": seeded, "skipped": skipped, "adhoc": a.adhoc, "note": a.note,
         "wrongpass_cases": wp[:50], "new_mismatch_cases": new[:50], "error_cases": er[:20]}
 json.dump(summ, open(a.dir + "/summary.json", "w"), indent=1)
-status = {k: summ[k] for k in ("time", "sha", "mode", "state", "verdict", "wrongpass", "mismatch", "new_mismatch", "errors", "design_unknown_whole_crd_removal", "design_unknown_whole_crd_rise")}
+status = {k: summ[k] for k in ("time", "sha", "mode", "state", "verdict", "wrongpass", "mismatch", "new_mismatch", "errors", "design_unknown_whole_crd_removal", "design_unknown_whole_crd_rise", "design_unknown_whole_crd_cap_breach", "design_unknown_whole_crd_drop", "design_unknown_whole_crd_baseline")}
 status.update(unknown_earliest_served=unknown_floor, unsupported_community=unsupported, unsupported_community_rise=rise)
 status["alarm"] = alarm
 if not a.adhoc:
@@ -104,4 +116,4 @@ if unknown_floor:
     print(f"UNKNOWN_EARLIEST_SERVED={unknown_floor}")
 if rise:
     print(f"UNSUPPORTED_COMMUNITY_RISE={previous_count}->{unsupported}")
-raise SystemExit(2 if alarm else (3 if er else (4 if skipped else 0)))
+raise SystemExit(2 if alarm else (3 if (er or cap_breach) else (4 if skipped else 0)))

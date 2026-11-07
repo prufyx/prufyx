@@ -187,6 +187,20 @@ def defined_kinds(tj, gd, tag, tagname=None):
     return {(row["G"], row["K"]) for row in crd_rows(tj, gd, tag, tagname)}
 
 
+def classify_whole(tj, gd, tag, removed, cache):
+    """Whole-CRD part of `removed`, or [] on any failed, empty or otherwise doubtful read of the later tag (fail closed)."""
+    if not removed:
+        return []
+    try:
+        if tag not in cache:
+            cache[tag] = defined_kinds(tj, gd, tag)
+        if not cache[tag]:
+            return []  # nothing defined at the later tag: a silent partial read cannot prove an absence
+        return whole_removed(removed, cache[tag])
+    except Exception:
+        return []
+
+
 def whole_removed(removed, later_defined):
     """Removed GVKs whose (group, kind) CRD is absent from the later line (whole-CRD removal).
     A version served:false/removed inside a still-defined CRD is not in this set. Fail closed: no definition set means none."""
@@ -270,14 +284,7 @@ def prepare(proj, cov, plan):
     defined_cache = {}
 
     def whole(tag, removed):
-        if not removed:
-            return []
-        try:
-            if tag not in defined_cache:
-                defined_cache[tag] = defined_kinds(tj, gd, pinned.get(tag, tag))
-            return whole_removed(removed, defined_cache[tag])
-        except Exception:
-            return []  # fail closed: unattributable stays a version-level expectation
+        return classify_whole(tj, gd, pinned.get(tag, tag), removed, defined_cache)
 
     plan.update(proj=proj, pref=pref, catalog=tj.get("catalog", ""))
     known_pairs = []
@@ -322,6 +329,28 @@ def prepare(proj, cov, plan):
 DESIGN_STATUS = "DESIGN_UNKNOWN_WHOLE_CRD_REMOVAL"
 
 
+# Gap reason the scanner gives (observed, cilium 1.17.0 -> 1.18.0 with only a removed CRD) a pair whose only difference is a CRD the later anchor no longer defines: no rule exists, so the hop has no data.
+DESIGN_GAP_REASONS = frozenset({"COMPONENT_NOT_COVERED"})
+
+
+def whole_removal_signal(report, component):
+    """The scan output must look like the documented whole-CRD outcome, not just any UNKNOWN: no findings, no unsupported
+    combination, nothing omitted, and at least one gap for the component with every gap reason in the removed-definition set."""
+    if report.get("findings") or report.get("unsupported") or report.get("omitted"):
+        return False
+    gaps = [g for g in report.get("gaps") or [] if isinstance(g, dict)]
+    if len(gaps) != len(report.get("gaps") or []):
+        return False
+    mine = [g for g in gaps if g.get("component") == component]
+    if not (mine and len(mine) == len(gaps) and all(g.get("reason") in DESIGN_GAP_REASONS for g in mine)):
+        return False
+    hops = [h for p in report.get("paths") or [] if isinstance(p, dict) and p.get("component") == component
+            for h in p.get("hops") or []]
+    # observed for a whole-CRD pair: every hop NO_DATA with only the same reason, no family evaluated
+    return bool(hops) and all(isinstance(h, dict) and h.get("status") == "NO_DATA"
+                              and set(h.get("reasons") or []) <= DESIGN_GAP_REASONS and not h.get("families") for h in hops)
+
+
 def crd_verdict(code, report, removed, whole_crd, component):
     """(wrongpass, mismatch, missing, statuses, design) for one pair.
     A CRD defined earlier and absent later is a whole-CRD removal; by documented design (definitionsRemoved)
@@ -338,7 +367,7 @@ def crd_verdict(code, report, removed, whole_crd, component):
         return True, False, missing, statuses, False
     unknown = report.get("verdict") == "UNKNOWN"
     if not version:
-        if unknown and code == 11 and not report.get("findings"):
+        if unknown and code == 11 and whole_removal_signal(report, component):
             return False, False, [], statuses, True
         return False, True, ["/".join(x) for x in sorted(whole_set)], statuses, False
     if not unknown:
@@ -378,6 +407,7 @@ def execute(plan):
         if not complete:
             omitted.append(dict(target=target, reason="input omitted or incomplete; replay the full input"))
         out.append(case("crd", key, wrongpass=wp, mismatch=mm, error=not complete, exit=code,
+                        **({"wholeCrdCandidate": True} if whole_crd else {}),
                         **({"status": DESIGN_STATUS, "wholeCrdRemoved": ["/".join(x) for x in whole_crd]} if design else {}),
                         verdict=j.get("verdict"), crd=crd, missing=missing, requested=len(sf),
                         executed=j.get("summary", {}).get("documentsRead"), expectRemoved=["/".join(x) for x in removed],
