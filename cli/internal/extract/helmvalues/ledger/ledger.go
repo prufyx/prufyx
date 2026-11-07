@@ -347,16 +347,20 @@ func All() []Reason {
 }
 
 // kubeReason classifies the anchor proof without copying source text into the ledger.
+// The comparisons below are consistency checks over the two sides recorded in
+// one proof (does the recorded classification match the recorded constraint,
+// do both sides read the same inventory commit). They are not rule transition
+// matching between a rule's from/to versions, so constraintengine.RuleTransition
+// does not apply to them.
 func kubeReason(p *helmvalues.PairProof) Reason {
-	earlierSide, laterSide := p.From, p.To
-	if (earlierSide != nil && earlierSide.Problem != "") || (laterSide != nil && laterSide.Problem != "") {
+	if sideProblem(p.From) || sideProblem(p.To) {
 		return ""
 	}
-	if earlierSide != nil && laterSide != nil && earlierSide.Tag == "inventory" && laterSide.Tag == "inventory" && earlierSide.Commit != "" && earlierSide.Commit == laterSide.Commit {
+	if sameInventoryCommit(p.From, p.To) {
 		return ""
 	}
 	k := p.KubeVersion
-	if k == nil || earlierSide == nil || laterSide == nil || k.From.Constraint != earlierSide.KubeVersion || k.To.Constraint != laterSide.KubeVersion || !helmvalues.ValidKubeMinimum(k.From) || !helmvalues.ValidKubeMinimum(k.To) {
+	if !kubeConsistent(p) {
 		return KubeVersionUnclassified
 	}
 	switch k.To.Shape {
@@ -397,4 +401,20 @@ func compareMinimum(a, b string) int {
 		}
 	}
 	return 0
+}
+
+func sideProblem(s *helmvalues.SideRecord) bool { return s != nil && s.Problem != "" }
+
+// sameInventoryCommit reports two inventory sides that read one commit.
+func sameInventoryCommit(a, b *helmvalues.SideRecord) bool {
+	return a != nil && b != nil && a.Tag == "inventory" && b.Tag == "inventory" && a.Commit != "" && a.Commit == b.Commit
+}
+
+// kubeConsistent reports a kubeVersion record that matches both recorded sides.
+func kubeConsistent(p *helmvalues.PairProof) bool {
+	return sidesMatchKube(p.KubeVersion, p.From, p.To)
+}
+
+func sidesMatchKube(k *helmvalues.KubeRecord, a, b *helmvalues.SideRecord) bool {
+	return k != nil && a != nil && b != nil && k.From.Constraint == a.KubeVersion && k.To.Constraint == b.KubeVersion && helmvalues.ValidKubeMinimum(k.From) && helmvalues.ValidKubeMinimum(k.To)
 }
