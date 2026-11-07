@@ -154,6 +154,51 @@ def attestation_touches_kubernetes():
     found = sp.aggregate_projects(sp.ATTEST, old, new, slugs, (rules_old_doc, rules_new_doc), trusted)
     return any(project == "kubernetes" or project.startswith(("kube", "k8s")) for project in found)
 
+def _kubernetes_like(name):
+    low = str(name).lower()
+    return low == "kubernetes" or "kube" in low or "k8s" in low
+
+def rules_metadata_is_non_kubernetes(before_raw, after_raw):
+    """Non-entries rule-pack differences are tolerated only when each is a keyed section or metadata change that
+    is attributable (by trusted base bindings, never PR head content) to non-Kubernetes components, and at least
+    one such attributable change exists. Anything else raises (fail closed => every single required)."""
+    import select_projects as sp
+    inputs = attestation_inputs()
+    trusted, slugs = inputs[4], inputs[5]
+    old, new = sp._load(before_raw), sp._load(after_raw)
+    sp._need(isinstance(old, dict) and isinstance(new, dict), "rules shape")
+    oe = sp._entries(old)
+    slugs = set(slugs) | {"kubernetes"} | {e["project"] for e in oe.values()}
+    # validates schema/top-level keys/unknown sections/metadata shape; raises Unattributable otherwise
+    sp.aggregate_projects(sp.RULES, before_raw, after_raw, slugs, (old, new), trusted)
+    for k in sp.RULES_META:
+        if sp._canon(old.get(k)) != sp._canon(new.get(k)):
+            raise ValueError("rule-pack revision/digest changed; effect on attestation activation not audited")
+    ne = sp._entries(new)
+    cmap = sp._component_map([oe])
+    known = set(slugs)
+    changed = 0
+    for name, fields in sp.RULES_KEYED.items():
+        ok, nk = sp._keyed(old, name, fields), sp._keyed(new, name, fields)
+        for key in sp._changed_keys(ok, nk):
+            changed += 1
+            if name == "lineAttestations":
+                for item in (ok.get(key), nk.get(key)):
+                    if item is None:
+                        continue
+                    ids = item.get("ruleIds")
+                    sp._need(isinstance(ids, list), "ruleIds shape")
+                    for rid in ids:
+                        sp._need(isinstance(rid, str), "ruleId shape")
+                        projects = {e[rid]["project"] for e in (oe, ne) if rid in e}
+                        if not projects or any(_kubernetes_like(p) for p in projects):
+                            raise ValueError("attestation rule id unresolved or Kubernetes-related")
+            if _kubernetes_like(key[0]) or any(_kubernetes_like(p) for p in sp._attribute(key[0], cmap, known, trusted)):
+                raise ValueError("changed rule-pack data touches Kubernetes")
+    changed += len(sp._changed_keys(oe, ne))
+    if not changed:
+        raise ValueError("rule-pack metadata changed without an attributable change")
+
 def required_single_targets(singles):
     """Infer requirements from the exact data diff; operator input can only add."""
     required = set()
@@ -178,7 +223,7 @@ def required_single_targets(singles):
                             raise ValueError("ambiguous rules")
                         entries.append(indexed)
                     if {k: v for k, v in documents[0].items() if k != "entries"} != {k: v for k, v in documents[1].items() if k != "entries"}:
-                        raise ValueError("changed rule-pack metadata")
+                        rules_metadata_is_non_kubernetes(before.stdout, after.stdout)
                     for rule_id in set(entries[0]) | set(entries[1]):
                         if entries[0].get(rule_id) == entries[1].get(rule_id):
                             continue

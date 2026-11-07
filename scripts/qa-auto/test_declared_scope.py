@@ -132,6 +132,94 @@ class ScopeContractTests(unittest.TestCase):
                 oracle, "kubernetes_removal_facts", return_value={"fact": ["sample.example/v1/Widget"]}):
             self.assertEqual(oracle.required_single_targets(singles), {stable})
 
+    RULES = "cli/internal/cncfcheck/data/rules.json"
+
+    def meta_run(self, before, after, trusted=None, inputs_fail=False):
+        stable = "k8s-single|1.20->1.21 sample.example/v1/Widget"
+        singles = {ALPHA: ("sample.example", "v1alpha1", "Widget"), stable: ("sample.example", "v1", "Widget")}
+        base = {"schema": "s", "revision": "r1", "policyDigest": "p", "landscapeFileDigest": "l", "registryDigest": "g",
+                "entries": [{"project": "alpha", "rule": {"id": "a"}, "requiredFacts": [{"component": "pkg:github/o/alpha"}]},
+                            {"project": "kubernetes", "rule": {"id": "k", "condition": {"factId": "fact"}},
+                             "requiredFacts": [{"component": "pkg:github/kubernetes/kubernetes"}]}],
+                "lineAttestations": [], "servedAPIs": [], "pathPolicies": []}
+        def make(change):
+            doc = json.loads(json.dumps(base))
+            if callable(change):
+                change(doc)
+            elif change is not None:
+                doc.update(change)
+            return doc
+        results = [subprocess.CompletedProcess([], 0, self.RULES + "\n", ""),
+                   subprocess.CompletedProcess([], 0, json.dumps(make(before)) if not isinstance(before, str) else before, ""),
+                   subprocess.CompletedProcess([], 0, json.dumps(make(after)) if not isinstance(after, str) else after, "")]
+        inputs = ("{}", "{}", "{}", "{}", trusted or {}, {"alpha"})
+        with patch.dict(os.environ, QA_BASE="base", QA_SHA="head"), patch.object(oracle, "sh", side_effect=results), patch.object(
+                oracle, "attestation_inputs", return_value=inputs), patch.object(
+                oracle, "kubernetes_removal_facts", return_value={"fact": ["sample.example/v1/Widget"]}):
+            return oracle.required_single_targets(singles), set(singles), stable
+
+    @staticmethod
+    def line(component, line="1.0"):
+        return {"component": component, "line": line, "factFamily": "f", "ruleIds": []}
+
+    def test_rules_line_attestation_non_kubernetes_with_metadata_stays_narrow(self):
+        got, _, _ = self.meta_run(None, {"lineAttestations": [self.line("pkg:github/o/alpha")]})
+        self.assertEqual(got, set())
+        got, _, _ = self.meta_run(None, {"lineAttestations": [dict(self.line("pkg:github/o/alpha"), ruleIds=["a"])]})
+        self.assertEqual(got, set())
+        # unknown component bound by the trusted base binding to a non-kubernetes slug
+        got, _, _ = self.meta_run(None, {"lineAttestations": [self.line("pkg:github/o/renamed")]},
+                                  trusted={"pkg:github/o/renamed": "alpha"})
+        self.assertEqual(got, set())
+
+    def test_rules_non_kubernetes_entry_and_attestation_together_stay_narrow(self):
+        def change(doc):
+            doc["entries"][0]["rule"]["extra"] = 1
+            doc["servedAPIs"] = [{"component": "pkg:github/o/alpha", "line": "1"}]
+        got, _, _ = self.meta_run(None, change)
+        self.assertEqual(got, set())
+
+    def test_rules_kubernetes_attestation_requires_all(self):
+        for comp in ("pkg:github/kubernetes/kubernetes", "pkg:github/o/kube-proxy", "pkg:generic/k8s-thing"):
+            got, every, _ = self.meta_run(None, {"lineAttestations": [self.line("pkg:github/o/alpha"), self.line(comp)]})
+            self.assertEqual(got, every, comp)
+        got, every, _ = self.meta_run(None, {"pathPolicies": [{"component": "pkg:github/o/renamed", "policy": "p"}]},
+                                      trusted={"pkg:github/o/renamed": "kubernetes"})
+        self.assertEqual(got, every)
+
+    def test_rules_ruleids_and_digest_changes_require_all(self):
+        for ids in (["k"], ["missing"], ["a", "k"], "a", [1]):
+            got, every, _ = self.meta_run(None, {"lineAttestations": [dict(self.line("pkg:github/o/alpha"), ruleIds=ids)]})
+            self.assertEqual(got, every, ids)
+        for key in ("revision", "registryDigest", "landscapeFileDigest", "policyDigest"):
+            got, every, _ = self.meta_run(None, {key: "changed", "lineAttestations": [self.line("pkg:github/o/alpha")]})
+            self.assertEqual(got, every, key)
+
+    def test_rules_unknown_or_unattributable_metadata_requires_all(self):
+        for after in ({"revision": "r2", "newSection": []},
+                      {"revision": "r2"},
+                      {"lineAttestations": [self.line("pkg:github/o/unknown-thing")]},
+                      {"revision": 2, "lineAttestations": [self.line("pkg:github/o/alpha")]},
+                      {"schema": "t", "lineAttestations": [self.line("pkg:github/o/alpha")]},
+                      {"lineAttestations": [self.line("pkg:github/o/alpha"), self.line("pkg:github/o/alpha")]}):
+            got, every, _ = self.meta_run(None, after)
+            self.assertEqual(got, every, after)
+        got, every, _ = self.meta_run(None, lambda d: d.update(extraKey=1))
+        self.assertEqual(got, every)
+        got, every, _ = self.meta_run(None, "{not json")
+        self.assertEqual(got, every)
+
+    def test_rules_kubernetes_entry_change_requires_that_fact(self):
+        def change(doc):
+            doc["entries"][1]["rule"]["extra"] = 1
+        got, _, stable = self.meta_run(None, change)
+        self.assertEqual(got, {stable})
+        def both(doc):
+            change(doc)
+            doc["lineAttestations"] = [self.line("pkg:github/o/alpha")]
+        got, _, stable = self.meta_run(None, both)
+        self.assertEqual(got, {stable})
+
     def test_summary_rejects_missing_bound_scope_and_required_exclusions(self):
         script_dir = Path(__file__).resolve().parent
         for mode, expected in (("valid", 0), ("missing", 3), ("required-excluded", 3), ("wrong-run", 3)):
