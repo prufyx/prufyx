@@ -1,0 +1,5 @@
+apiVersion: release-notes/v2
+kind: removal
+area: installation
+releaseNotes:
+  - 'Removed the requirement to set `--foo`.'
