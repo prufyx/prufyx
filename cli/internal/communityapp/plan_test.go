@@ -85,6 +85,8 @@ func TestPlanCommand(t *testing.T) {
 // examples/old-to-latest apply set. A kubelet declaration is one fixed
 // version, so no single declaration spans every hop up to the newest covered
 // line: each run below is COVERED on every hop, and neither is a PASS.
+// The COVERED and PARTIAL counts below depend on knowledge revision
+// cncf-2026-09-13.8; a new revision can change them.
 func TestPlanOldToLatestExample(t *testing.T) {
 	raw, err := os.ReadFile(filepath.Join("..", "..", "..", "examples", "old-to-latest", "rendered.yaml"))
 	if err != nil {
@@ -127,6 +129,17 @@ func TestPlanOldToLatestExample(t *testing.T) {
 	var plan upgradeplan.Plan
 	if err := json.Unmarshal([]byte(stdout), &plan); err != nil || code != ExitBlocked || plan.Verdict != upgradeplan.VerdictBlocked {
 		t.Fatalf("full span %d %v", code, err)
+	}
+	last := plan.Stages[len(plan.Stages)-1]
+	if last.To != "1.37.0" {
+		t.Fatalf("full span last stage targets %s", last.To)
+	}
+	skew := false
+	for _, f := range last.Findings {
+		skew = skew || strings.HasPrefix(f.RuleID, "kubernetes.kubelet-version-skew.")
+	}
+	if !skew || last.Verdict != upgradeplan.VerdictBlocked {
+		t.Fatalf("full span last stage: verdict %s findings %+v", last.Verdict, last.Findings)
 	}
 	// Without the kubelet declaration the hops that carry a skew rule stay PARTIAL.
 	code, stdout, _ = runPlan(t, append([]string{path, "--from", "kubernetes=1.29.15", "--to", "kubernetes=1.36.0"}, declared...)...)

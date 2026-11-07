@@ -81,8 +81,12 @@ input from you:
   that are the whole set. A manifest that uses an API version removed on the
   route is reported, correctly, instead of being covered.
 
-One declared kubelet version is checked against every hop target, and Kubernetes
-allows a kubelet up to three minor lines behind the API server and never newer.
+The declared kubelet minimum is checked only on hops that have a kubelet-skew
+rule (1.33 onward). The first three hops are `COVERED` without testing the
+declared kubelet, so the declaration describes the nodes after the control plane
+reaches 1.33; a kubelet newer than the API server is not valid Kubernetes, and
+the early hops do not test for it. Kubernetes allows a kubelet up to three minor
+lines behind the API server and never newer.
 No single version satisfies the 1.33 and the 1.37.0 hops together, so a run to
 `newest-covered` (1.37.0) from 1.29.15 is `BLOCKED` by the skew rule on some hop
 whatever one version you declare. Plan the route in legs, each with the kubelet
