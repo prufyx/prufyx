@@ -187,13 +187,13 @@ def defined_kinds(tj, gd, tag, tagname=None):
     return {(row["G"], row["K"]) for row in crd_rows(tj, gd, tag, tagname)}
 
 
-def classify_whole(tj, gd, tag, removed, cache):
+def classify_whole(tj, gd, tag, removed, cache, tagname=None):
     """Whole-CRD part of `removed`, or [] on any failed, empty or otherwise doubtful read of the later tag (fail closed)."""
     if not removed:
         return []
     try:
         if tag not in cache:
-            cache[tag] = defined_kinds(tj, gd, tag)
+            cache[tag] = defined_kinds(tj, gd, tag, tagname)
         if not cache[tag]:
             return []  # nothing defined at the later tag: a silent partial read cannot prove an absence
         return whole_removed(removed, cache[tag])
@@ -284,7 +284,7 @@ def prepare(proj, cov, plan):
     defined_cache = {}
 
     def whole(tag, removed):
-        return classify_whole(tj, gd, pinned.get(tag, tag), removed, defined_cache)
+        return classify_whole(tj, gd, pinned.get(tag, tag), removed, defined_cache, tag if tj.get("remote") else None)
 
     plan.update(proj=proj, pref=pref, catalog=tj.get("catalog", ""))
     known_pairs = []
