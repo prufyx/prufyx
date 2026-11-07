@@ -1,0 +1,4 @@
+apiVersion: v2
+name: demo
+name: other
+version: 1.2.3

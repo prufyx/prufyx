@@ -1,0 +1,10 @@
+apiVersion: v2
+name: demo
+version: 1.2.3
+annotations:
+  artifacthub.io/changes: |
+    - kind: deprecated
+      description: The `--a` flag will be removed in the next release.
+      links:
+        - name: Pull request
+          url: https://example.com/pull/1
