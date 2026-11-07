@@ -28,6 +28,7 @@ func read(t *testing.T, rel string) []byte {
 type wf struct {
 	On   map[string]any `yaml:"on"`
 	Jobs map[string]struct {
+		If    string `yaml:"if"`
 		Steps []struct {
 			Name string            `yaml:"name"`
 			If   string            `yaml:"if"`
@@ -62,6 +63,20 @@ func TestWorkflowShape(t *testing.T) {
 	var w wf
 	if err := yaml.Unmarshal(read(t, ".github/workflows/merge-policy.yml"), &w); err != nil {
 		t.Fatal(err)
+	}
+	if w.Jobs["merge-policy"].If != "" {
+		t.Fatal("the merge-policy job must have no job-level if: a skipped required check passes unchecked")
+	}
+	var ci wf
+	if err := yaml.Unmarshal(read(t, ".github/workflows/ci.yml"), &ci); err != nil {
+		t.Fatal(err)
+	}
+	fan := ci.Jobs["build-test"]
+	if fan.If != "always()" {
+		t.Fatalf("build-test fan-in must keep if: always(), got %q", fan.If)
+	}
+	if len(fan.Steps) == 0 || !strings.Contains(fan.Steps[0].Run, `!= "success"`) || !strings.Contains(fan.Steps[0].Run, "exit 1") {
+		t.Fatal("build-test fan-in must reject every non-success needs result")
 	}
 	steps := w.Jobs["merge-policy"].Steps
 	if len(steps) == 0 {
@@ -179,21 +194,23 @@ func TestQueuePositive(t *testing.T) {
 }
 
 var wantMsg = map[string]string{
-	"wrong ref shape":     "queue ref shape",
-	"sha differs":         "not the merge_group head",
-	"base ref not main":   "base_ref",
-	"missing input":       "missing input",
+	"wrong ref shape":     "unexpected queue ref shape",
+	"sha differs":         "run sha",
+	"base ref not main":   "base_ref is not refs/heads/main",
+	"missing input":       "missing input REPO",
 	"one parent":          "exactly 2 parents",
 	"parent1 not base":    "first parent",
 	"head not X":          "second parent",
-	"pr closed":           "not open",
-	"pr base not main":    "not main",
-	"head ref is main":    "topic branch",
+	"pr closed":           "is closed, not open",
+	"pr base not main":    "targets dev, not main",
+	"head ref is main":    "comes from main",
 	"commit count":        "by the API",
 	"unresolved pr":       "cannot read pull request",
-	"empty api payload":   "missing",
-	"merge inside pr":     "merge commits",
-	"base lacks main tip": "main tip",
+	"empty api payload":   "missing .state",
+	"merge inside pr":     "contains merge commits",
+	"base lacks main tip": "does not contain the main tip",
+	"head_ref differs":    "head_ref differs",
+	"malformed base sha":  "base_sha is not a full sha",
 }
 
 func TestQueueNegative(t *testing.T) {
@@ -236,6 +253,10 @@ func TestQueueNegative(t *testing.T) {
 			s.env["QUEUE_REF"], s.env["MQ_HEAD_REF"] = ref, ref
 			s.json = fmt.Sprintf(`{"state":"open","base":{"ref":"main"},"head":{"ref":"topic","sha":"%s"},"commits":4}`, x)
 		},
+		"head_ref differs": func(t *testing.T, s *scenario) {
+			s.env["MQ_HEAD_REF"] = "refs/heads/gh-readonly-queue/main/pr-7-" + strings.Repeat("a", 40)
+		},
+		"malformed base sha": func(t *testing.T, s *scenario) { s.env["MQ_BASE_SHA"] = "main" },
 		"base lacks main tip": func(t *testing.T, s *scenario) {
 			// main advances after the queue chain was built.
 			git(t, s.dir, "checkout", "-q", "main")
@@ -257,5 +278,26 @@ func TestQueueNegative(t *testing.T) {
 				t.Fatalf("failed for another reason (want %q):\n%s", wantMsg[name], out)
 			}
 		})
+	}
+}
+
+// A queued pull request stacked on the previous queue commit: its head is based
+// on the old main, the queue base is main plus pull request 1. Only the pull
+// request's own commits count, so this passes.
+func TestQueueStacked(t *testing.T) {
+	s := newScenario(t)
+	git(t, s.dir, "checkout", "-q", "--detach", s.mainTip)
+	commit(t, s.dir, "pr1")
+	pr1 := git(t, s.dir, "rev-parse", "HEAD")
+	git(t, s.dir, "checkout", "-q", "--detach", s.mainTip)
+	git(t, s.dir, "merge", "-q", "--no-ff", "-m", "queue1", pr1)
+	q1 := git(t, s.dir, "rev-parse", "HEAD")
+	git(t, s.dir, "merge", "-q", "--no-ff", "-m", "queue2", s.x)
+	q2 := git(t, s.dir, "rev-parse", "HEAD")
+	ref := "refs/heads/gh-readonly-queue/main/pr-7-" + q2
+	s.env["MQ_BASE_SHA"], s.env["QUEUE_SHA"], s.env["MQ_HEAD_SHA"] = q1, q2, q2
+	s.env["QUEUE_REF"], s.env["MQ_HEAD_REF"] = ref, ref
+	if out, err := s.run(t); err != nil {
+		t.Fatalf("stacked case failed: %v\n%s", err, out)
 	}
 }

@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 # Merge policy for a merge queue run. Every failure path exits 1 (fail closed).
+# The script REQUIRES the queue to be configured with merge method MERGE and
+# max_entries_to_merge=1; any other shape (squash, rebase, grouped entries)
+# fails closed by design.
 # Run from a full-history checkout of the queue commit (merge_group head_sha).
 # Inputs (environment, never interpolated into a script):
 #   QUEUE_REF       github.ref
