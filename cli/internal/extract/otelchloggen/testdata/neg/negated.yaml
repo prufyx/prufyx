@@ -1,0 +1,4 @@
+change_type: breaking
+component: service
+note: The `--a` flag is not removed.
+issues: [1234]

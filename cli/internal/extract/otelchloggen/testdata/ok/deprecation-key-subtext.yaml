@@ -1,0 +1,6 @@
+change_type: deprecation
+component: batchprocessor
+note: Deprecate the `send_batch_legacy` config key.
+issues: [1234]
+subtext: |
+  A warning is logged at startup.

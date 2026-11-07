@@ -1,0 +1,4 @@
+change_type: deprecation
+component: confmap
+note: The `--legacy-mode` flag will be removed.
+issues: [1234]

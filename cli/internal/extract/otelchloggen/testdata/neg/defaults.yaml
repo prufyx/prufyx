@@ -1,0 +1,4 @@
+change_type: breaking
+component: service
+note: Remove `--a`; the default is off.
+issues: [1234]
