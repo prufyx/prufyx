@@ -138,6 +138,9 @@ type KubeMinimum struct {
 	Shape string `json:"shape"`
 }
 
+// ValidKubeMinimum reports whether a recorded classification matches its constraint.
+func ValidKubeMinimum(k KubeMinimum) bool { return parseKubeVersion(k.Constraint) == k }
+
 // parseKubeVersion classifies a kubeVersion constraint. Any upper bound,
 // "||", "~", "^", wildcard, hyphen range or exact match is "other": Helm
 // refuses versions such a constraint excludes that a lower bound alone
