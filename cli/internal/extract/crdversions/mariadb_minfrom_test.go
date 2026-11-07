@@ -64,3 +64,52 @@ func TestMariadbOperatorLinesFrom034(t *testing.T) {
 		}
 	}
 }
+
+// The repository vendors an install manifest of another project under
+// examples/: it defines that project's toolkit definitions, none of the
+// operator's. The target excludes exactly that path; the exclusion must
+// clear that one finding and no other.
+func TestMariadbOperatorVendoredExampleExclusion(t *testing.T) {
+	const vendored = "examples/flux/clusters/production/flux-system/gotk-components.yaml"
+	tg := mariadbTarget(t)
+	var entry *Exclusion
+	for i := range tg.Exclude {
+		if tg.Exclude[i].Path == vendored {
+			entry = &tg.Exclude[i]
+		}
+	}
+	if entry == nil || len(tg.Exclude) != 1 || entry.Repo != tg.Repo || entry.Copies || entry.PrePatch != "" {
+		t.Fatalf("exclude %+v: want exactly one plain entry for %s", tg.Exclude, vendored)
+	}
+	if got := tg.placeOf(vendored); got.kind != locReviewed || got.entry != vendored {
+		t.Fatalf("place %+v", got)
+	}
+	build := func(extra string) synthRepo {
+		files := func(v string) map[string]string {
+			f := map[string]string{"config/crd/bases/mariadb.yaml": crd("Alpha", v)}
+			f[extra] = crd("Gamma", "v1")
+			return f
+		}
+		return newSynth(
+			release{"v0.34.0", files("v1beta1")},
+			release{"v0.35.0", files("v1beta1")},
+		)
+	}
+	// The vendored manifest at its exact path: the scan is clean.
+	_, proof := pairOf(t, runSynth(t, tg, build(vendored)), "0.34.0", "0.35.0")
+	if !proof.Completeness.Scan || !proof.Completeness.Attestable {
+		t.Fatalf("with the exclusion: %+v", proof.Completeness)
+	}
+	// An extra definition file anywhere else still blocks, a sibling of the
+	// same name in another environment directory included.
+	for _, other := range []string{
+		"examples/flux/clusters/staging/flux-system/gotk-components.yaml",
+		"examples/other/crds.yaml",
+		"deploy/extra-crds.yaml",
+	} {
+		_, proof := pairOf(t, runSynth(t, tg, build(other)), "0.34.0", "0.35.0")
+		if proof.Completeness.Attestable {
+			t.Fatalf("an extra definition at %s must still block attestation: %+v", other, proof.Completeness)
+		}
+	}
+}

@@ -13,6 +13,8 @@
     "paths": [
       {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
     ],
-    "exclude": []
+    "exclude": [
+      {"path": "examples/flux/clusters/production/flux-system/gotk-components.yaml", "repo": "github.com/mariadb-operator/mariadb-operator", "reason": "a vendored install manifest of another project's controllers, kept as a GitOps example; it defines that project's toolkit CustomResourceDefinitions and none of the operator's", "evidence": "Read at v0.34.0 and v0.38.1: the file exists at this one path and the full-tree scan of v0.34.0 to v0.38.0 reports it as the only extra definition file; it defines ten CustomResourceDefinitions in the toolkit.fluxcd.io API groups, none in a mariadb group, and the operator's own definitions are the nine under config/crd/bases."}
+    ]
   }
 }
