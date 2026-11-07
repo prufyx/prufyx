@@ -197,6 +197,20 @@ func (ix Index) OpenShiftTable(now time.Time) k8sversion.OpenShiftMap {
 
 func copyRecord(r Record) Record {
 	r.KubernetesMapping = append([]Mapping(nil), r.KubernetesMapping...)
+	r.Lifecycle = append([]Lifecycle(nil), r.Lifecycle...)
+	for i := range r.Lifecycle {
+		l := &r.Lifecycle[i]
+		if l.ExtendedRequiresOptIn != nil {
+			v := *l.ExtendedRequiresOptIn
+			l.ExtendedRequiresOptIn = &v
+		}
+		if l.ForcedUpgrade != nil {
+			f := *l.ForcedUpgrade
+			l.ForcedUpgrade = &f
+		}
+	}
+	r.Channels = append([]Channel(nil), r.Channels...)
+	r.Deprecations = append([]Deprecation(nil), r.Deprecations...)
 	r.Evidence = copyEvidence(r.Evidence)
 	return r
 }

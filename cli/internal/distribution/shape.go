@@ -15,8 +15,12 @@ import (
 // so every section has one written form.
 var (
 	sectionFields       = fieldSet("records", "applicability")
-	recordFields        = fieldSet("distribution", "controlPlane", "kubernetesMapping?", "evidence")
+	recordFields        = fieldSet("distribution", "controlPlane", "kubernetesMapping?", "lifecycle?", "channels?", "deprecations?", "evidence")
 	mappingFields       = fieldSet("line", "kubernetes")
+	lifecycleFields     = fieldSet("line", "ga?", "standardEnd?", "extendedEnd?", "extendedRequiresOptIn?", "maintenanceStart?", "forcedUpgrade?", "precision")
+	forcedUpgradeFields = fieldSet("date", "sentenceId")
+	channelFields       = fieldSet("line", "channel", "available?", "autoUpgrade?", "precision")
+	deprecationFields   = fieldSet("id", "summary", "firstLine")
 	applicabilityFields = fieldSet("distribution", "family", "status", "reason?", "evidence")
 	evidenceFields      = fieldSet("state", "basis?", "extractor?", "derivedAt?", "reviewedAt", "validUntil", "sources")
 	extractorFields     = fieldSet("id", "version", "codeDigest")
@@ -63,6 +67,12 @@ func checkShape(raw []byte) error {
 						return evidence(v)
 					case "kubernetesMapping":
 						return arrayOf(v, mappingFields)
+					case "lifecycle":
+						return lifecycleShape(v)
+					case "channels":
+						return arrayOf(v, channelFields)
+					case "deprecations":
+						return arrayOf(v, deprecationFields)
 					}
 					return nil
 				})
@@ -96,6 +106,25 @@ func evidence(v any) error {
 		}
 		return nil
 	})
+}
+
+func lifecycleShape(v any) error {
+	items, ok := v.([]any)
+	if !ok {
+		return fmt.Errorf("expected an array")
+	}
+	for _, item := range items {
+		err := object(item, lifecycleFields, func(name string, v any) error {
+			if name == "forcedUpgrade" {
+				return object(v, forcedUpgradeFields, nil)
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func arrayOf(v any, fields map[string]bool) error {

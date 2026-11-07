@@ -152,7 +152,13 @@ type Record struct {
 	// present: OpenShift lines and their Kubernetes lines, both strictly
 	// increasing.
 	KubernetesMapping []Mapping `json:"kubernetesMapping,omitempty"`
-	Evidence          Evidence  `json:"evidence"`
+	// Lifecycle, Channels and Deprecations are the provider's own announced
+	// support dates, release channels and removals (lifecycle.go). All three
+	// are optional, advisory and covered by the record's evidence.
+	Lifecycle    []Lifecycle   `json:"lifecycle,omitempty"`
+	Channels     []Channel     `json:"channels,omitempty"`
+	Deprecations []Deprecation `json:"deprecations,omitempty"`
+	Evidence     Evidence      `json:"evidence"`
 }
 
 // Applicability is one statement that a rule family applies, or does not
@@ -278,6 +284,9 @@ func (r Record) Validate() error {
 		if err := validateMapping(r.KubernetesMapping); err != nil {
 			return err
 		}
+	}
+	if err := r.validateProviderFacts(); err != nil {
+		return err
 	}
 	return r.Evidence.validate()
 }
