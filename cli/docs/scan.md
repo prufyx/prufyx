@@ -63,6 +63,10 @@ but not yet a pass. `applyset.yaml:1` is the line of the CronJob's
 `apiVersion`; for a document without a known line the location is
 `file#document` (and `/item` for an object inside a `List`).
 
+A resource whose kind ends in `List` is treated as a typed list when it has
+a top-level `items` field; without that field it is read as a resource. A
+`List` still requires valid, non-empty `items`.
+
 ## Command
 
 ```text
