@@ -179,7 +179,15 @@ func projects(b *strings.Builder, from, to *Snapshot) {
 }
 
 func list(b *strings.Builder, heading string, items []string, empty string) {
+	listNote(b, heading, "", items, empty)
+}
+
+// listNote is list with one explanatory sentence under the heading.
+func listNote(b *strings.Builder, heading, note string, items []string, empty string) {
 	fmt.Fprintf(b, "%s (%d)\n\n", heading, len(items))
+	if note != "" {
+		fmt.Fprintf(b, "%s\n\n", note)
+	}
 	if len(items) == 0 {
 		fmt.Fprintf(b, "%s\n\n", empty)
 		return
@@ -372,6 +380,7 @@ func lines(b *strings.Builder, from, to *Snapshot, o Options) {
 		items = append(items, s)
 	}
 	list(b, "### Line attestations by project", items, "No line attestation was added or removed.")
+	attestationDetail(b, from, to)
 	k := to.Lines[kubernetesPackage]
 	if len(k) == 0 {
 		b.WriteString("### Kubernetes minors\n\nNo Kubernetes line attestation in this tree.\n\n")
@@ -405,4 +414,56 @@ func pullRequests(b *strings.Builder, o Options) {
 		}
 	}
 	list(b, "### Merged pull requests", items, "No pull request was merged.")
+}
+
+// attestationDetail lists, per project, the versions that the attestations
+// of the tree cover and those of the previous tree did not, and the lines whose attestation was
+// derived again (extractor version, extractor digest or derivation time
+// changed) with the extractor versions before and after.
+func attestationDetail(b *strings.Builder, from, to *Snapshot) {
+	var added, rederived []string
+	for _, c := range sortedKeys(to.Attested) {
+		name := strings.TrimPrefix(c, "pkg:github/")
+		var redo []string
+		var oldX, newX = map[string]bool{}, map[string]bool{}
+		seen, now := map[string]bool{}, map[string]bool{}
+		for _, o := range from.Attested[c] {
+			for v := range o.Versions {
+				seen[v] = true
+			}
+		}
+		for _, l := range sortedLines(to.Lines[c]) {
+			n := to.Attested[c][l]
+			for v := range n.Versions {
+				if !seen[v] {
+					now[v] = true
+				}
+			}
+			o, ok := from.Attested[c][l]
+			if !ok {
+				continue
+			}
+			if o.Extractor != n.Extractor || o.Digest != n.Digest || o.DerivedAt != n.DerivedAt {
+				redo = append(redo, l)
+				oldX[versionText(o.Extractor)] = true
+				newX[versionText(n.Extractor)] = true
+			}
+		}
+		vers := sortedLines(now)
+		if len(vers) > 0 {
+			added = append(added, fmt.Sprintf("- `%s`: %d newly covered versions: %s", name, len(vers), strings.Join(vers, ", ")))
+		}
+		if len(redo) > 0 {
+			rederived = append(rederived, fmt.Sprintf("- `%s`: lines %s; extractor %s -> %s", name, strings.Join(redo, ", "), strings.Join(sortedKeys(oldX), "/"), strings.Join(sortedKeys(newX), "/")))
+		}
+	}
+	listNote(b, "### Versions newly covered by attestations (including new lines)", "Versions listed in line attestations; not an upgrade verdict.", added, "No attestation covers a version that the previous tree did not.")
+	list(b, "### Re-derived line attestations", rederived, "No attestation of an existing line was derived again.")
+}
+
+func versionText(v string) string {
+	if v == "" {
+		return "none"
+	}
+	return v
 }

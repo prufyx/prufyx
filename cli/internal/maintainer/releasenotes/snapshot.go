@@ -66,6 +66,15 @@ type CRDProject struct {
 	Groups  int
 }
 
+// Attestation is what one line attestation records that the notes compare:
+// the versions it covers and how it was derived.
+type Attestation struct {
+	Versions  map[string]bool
+	Extractor string // extractor version
+	Digest    string // extractor code digest
+	DerivedAt string
+}
+
 // Snapshot is what is read from one tree.
 type Snapshot struct {
 	Counts     map[string]int
@@ -74,6 +83,7 @@ type Snapshot struct {
 	Rules      map[projectKey]map[string]bool
 	Withdrawn  map[string]bool
 	Lines      map[string]map[string]bool // component -> attested lines
+	Attested   map[string]map[string]Attestation
 	Onboarding map[string][]OnboardedProject
 	Decisions  map[string]string // batchId -> decision
 	Depth      *Depth
@@ -107,6 +117,21 @@ type ruleFile struct {
 	LineAttestations []struct {
 		Component string `json:"component"`
 		Line      string `json:"line"`
+		Releases  struct {
+			From []struct {
+				Version string `json:"version"`
+			} `json:"from"`
+			To []struct {
+				Version string `json:"version"`
+			} `json:"to"`
+		} `json:"releases"`
+		Evidence struct {
+			Extractor struct {
+				Version    string `json:"version"`
+				CodeDigest string `json:"codeDigest"`
+			} `json:"extractor"`
+			DerivedAt string `json:"derivedAt"`
+		} `json:"evidence"`
 	} `json:"lineAttestations"`
 }
 
@@ -162,6 +187,7 @@ func ReadSnapshot(t Tree) (*Snapshot, error) {
 		Rules:      map[projectKey]map[string]bool{},
 		Withdrawn:  map[string]bool{},
 		Lines:      map[string]map[string]bool{},
+		Attested:   map[string]map[string]Attestation{},
 		Onboarding: map[string][]OnboardedProject{},
 		Decisions:  map[string]string{},
 		CRD:        map[string]CRDProject{},
@@ -196,6 +222,22 @@ func ReadSnapshot(t Tree) (*Snapshot, error) {
 				s.Lines[a.Component] = map[string]bool{}
 			}
 			s.Lines[a.Component][a.Line] = true
+			if s.Attested[a.Component] == nil {
+				s.Attested[a.Component] = map[string]Attestation{}
+			}
+			at := Attestation{
+				Versions:  map[string]bool{},
+				Extractor: a.Evidence.Extractor.Version,
+				Digest:    a.Evidence.Extractor.CodeDigest,
+				DerivedAt: a.Evidence.DerivedAt,
+			}
+			for _, r := range a.Releases.From {
+				at.Versions[r.Version] = true
+			}
+			for _, r := range a.Releases.To {
+				at.Versions[r.Version] = true
+			}
+			s.Attested[a.Component][a.Line] = at
 		}
 	}
 	raw, err := readOptional(t, inventoryPath, s)
