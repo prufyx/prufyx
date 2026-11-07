@@ -163,16 +163,17 @@ class ScopeContractTests(unittest.TestCase):
         return {"component": component, "line": line, "factFamily": "f", "ruleIds": []}
 
     def test_rules_line_attestation_non_kubernetes_with_metadata_stays_narrow(self):
-        got, _, _ = self.meta_run(None, {"revision": "r2", "lineAttestations": [self.line("pkg:github/o/alpha")]})
+        got, _, _ = self.meta_run(None, {"lineAttestations": [self.line("pkg:github/o/alpha")]})
+        self.assertEqual(got, set())
+        got, _, _ = self.meta_run(None, {"lineAttestations": [dict(self.line("pkg:github/o/alpha"), ruleIds=["a"])]})
         self.assertEqual(got, set())
         # unknown component bound by the trusted base binding to a non-kubernetes slug
-        got, _, _ = self.meta_run(None, {"revision": "r2", "lineAttestations": [self.line("pkg:github/o/renamed")]},
+        got, _, _ = self.meta_run(None, {"lineAttestations": [self.line("pkg:github/o/renamed")]},
                                   trusted={"pkg:github/o/renamed": "alpha"})
         self.assertEqual(got, set())
 
     def test_rules_non_kubernetes_entry_and_attestation_together_stay_narrow(self):
         def change(doc):
-            doc["revision"] = "r2"
             doc["entries"][0]["rule"]["extra"] = 1
             doc["servedAPIs"] = [{"component": "pkg:github/o/alpha", "line": "1"}]
         got, _, _ = self.meta_run(None, change)
@@ -180,22 +181,30 @@ class ScopeContractTests(unittest.TestCase):
 
     def test_rules_kubernetes_attestation_requires_all(self):
         for comp in ("pkg:github/kubernetes/kubernetes", "pkg:github/o/kube-proxy", "pkg:generic/k8s-thing"):
-            got, every, _ = self.meta_run(None, {"revision": "r2", "lineAttestations": [self.line("pkg:github/o/alpha"), self.line(comp)]})
+            got, every, _ = self.meta_run(None, {"lineAttestations": [self.line("pkg:github/o/alpha"), self.line(comp)]})
             self.assertEqual(got, every, comp)
-        got, every, _ = self.meta_run(None, {"revision": "r2", "pathPolicies": [{"component": "pkg:github/o/renamed", "policy": "p"}]},
+        got, every, _ = self.meta_run(None, {"pathPolicies": [{"component": "pkg:github/o/renamed", "policy": "p"}]},
                                       trusted={"pkg:github/o/renamed": "kubernetes"})
         self.assertEqual(got, every)
+
+    def test_rules_ruleids_and_digest_changes_require_all(self):
+        for ids in (["k"], ["missing"], ["a", "k"], "a", [1]):
+            got, every, _ = self.meta_run(None, {"lineAttestations": [dict(self.line("pkg:github/o/alpha"), ruleIds=ids)]})
+            self.assertEqual(got, every, ids)
+        for key in ("revision", "registryDigest", "landscapeFileDigest", "policyDigest"):
+            got, every, _ = self.meta_run(None, {key: "changed", "lineAttestations": [self.line("pkg:github/o/alpha")]})
+            self.assertEqual(got, every, key)
 
     def test_rules_unknown_or_unattributable_metadata_requires_all(self):
         for after in ({"revision": "r2", "newSection": []},
                       {"revision": "r2"},
-                      {"revision": "r2", "lineAttestations": [self.line("pkg:github/o/unknown-thing")]},
+                      {"lineAttestations": [self.line("pkg:github/o/unknown-thing")]},
                       {"revision": 2, "lineAttestations": [self.line("pkg:github/o/alpha")]},
                       {"schema": "t", "lineAttestations": [self.line("pkg:github/o/alpha")]},
                       {"lineAttestations": [self.line("pkg:github/o/alpha"), self.line("pkg:github/o/alpha")]}):
             got, every, _ = self.meta_run(None, after)
             self.assertEqual(got, every, after)
-        got, every, _ = self.meta_run(None, lambda d: d.update(extraKey=1) or d.update(revision="r2"))
+        got, every, _ = self.meta_run(None, lambda d: d.update(extraKey=1))
         self.assertEqual(got, every)
         got, every, _ = self.meta_run(None, "{not json")
         self.assertEqual(got, every)
@@ -207,7 +216,6 @@ class ScopeContractTests(unittest.TestCase):
         self.assertEqual(got, {stable})
         def both(doc):
             change(doc)
-            doc["revision"] = "r2"
             doc["lineAttestations"] = [self.line("pkg:github/o/alpha")]
         got, _, stable = self.meta_run(None, both)
         self.assertEqual(got, {stable})

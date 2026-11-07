@@ -171,6 +171,10 @@ def rules_metadata_is_non_kubernetes(before_raw, after_raw):
     slugs = set(slugs) | {"kubernetes"} | {e["project"] for e in oe.values()}
     # validates schema/top-level keys/unknown sections/metadata shape; raises Unattributable otherwise
     sp.aggregate_projects(sp.RULES, before_raw, after_raw, slugs, (old, new), trusted)
+    for k in sp.RULES_META:
+        if sp._canon(old.get(k)) != sp._canon(new.get(k)):
+            raise ValueError("rule-pack revision/digest changed; effect on attestation activation not audited")
+    ne = sp._entries(new)
     cmap = sp._component_map([oe])
     known = set(slugs)
     changed = 0
@@ -178,9 +182,20 @@ def rules_metadata_is_non_kubernetes(before_raw, after_raw):
         ok, nk = sp._keyed(old, name, fields), sp._keyed(new, name, fields)
         for key in sp._changed_keys(ok, nk):
             changed += 1
+            if name == "lineAttestations":
+                for item in (ok.get(key), nk.get(key)):
+                    if item is None:
+                        continue
+                    ids = item.get("ruleIds")
+                    sp._need(isinstance(ids, list), "ruleIds shape")
+                    for rid in ids:
+                        sp._need(isinstance(rid, str), "ruleId shape")
+                        projects = {e[rid]["project"] for e in (oe, ne) if rid in e}
+                        if not projects or any(_kubernetes_like(p) for p in projects):
+                            raise ValueError("attestation rule id unresolved or Kubernetes-related")
             if _kubernetes_like(key[0]) or any(_kubernetes_like(p) for p in sp._attribute(key[0], cmap, known, trusted)):
                 raise ValueError("changed rule-pack data touches Kubernetes")
-    changed += len(sp._changed_keys(oe, sp._entries(new)))
+    changed += len(sp._changed_keys(oe, ne))
     if not changed:
         raise ValueError("rule-pack metadata changed without an attributable change")
 
