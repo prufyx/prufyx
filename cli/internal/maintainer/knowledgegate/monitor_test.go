@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/prufyx/prufyx/cli/internal/maintainer/coveragereport"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -16,6 +15,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/prufyx/prufyx/cli/internal/maintainer/coveragereport"
 )
 
 // withdrawProject withdraws n active reviewed rules of one project in the
