@@ -119,10 +119,70 @@ func TestPaddedMinorLines(t *testing.T) {
 			}
 		}
 	}
-	// The same commit under both spellings is still ambiguous.
-	same := extract.ReleaseIndex{Tags: []extract.Tag{{Name: "v26.02.0", Commit: sha("a")}, {Name: "v26.2.0", Commit: sha("a")}}}
-	if l := x.releaseLines(same); l[0].Problem == "" {
-		t.Error("same-commit padded and canonical tags accepted")
+	// A padded twin at the same commit is one release, kept under the
+	// unpadded spelling whatever the order; at another commit it is a
+	// conflict.
+	for _, names := range [][]string{{"v26.02.0", "v26.2.0"}, {"v26.2.0", "v26.02.0"}} {
+		same := extract.ReleaseIndex{}
+		for _, n := range names {
+			same.Tags = append(same.Tags, extract.Tag{Name: n, Commit: sha("a")})
+		}
+		l := x.releaseLines(same)
+		if len(l) != 1 || l[0].Problem != "" || !slices.Equal(l[0].Versions, []string{"26.2.0"}) || l[0].Tags[0].Name != "v26.2.0" {
+			t.Errorf("%v: same-commit twin: %+v", names, l)
+		}
+		if l := x.releaseLines(tags(names...)); len(l) != 1 || l[0].Problem == "" {
+			t.Errorf("%v: different-commit twin: %+v", names, l)
+		}
+	}
+	// A twin next to other releases of the line, and next to other lines.
+	mix := extract.ReleaseIndex{Tags: []extract.Tag{
+		{Name: "v25.08.0", Commit: sha("a")}, {Name: "v25.8.0", Commit: sha("a")},
+		{Name: "v25.8.1", Commit: sha("b")}, {Name: "v25.10.0", Commit: sha("c")}, {Name: "v25.0.0", Commit: sha("d")},
+	}}
+	if l := x.releaseLines(mix); len(l) != 3 || l[1].key() != "25.8" || l[1].Problem != "" ||
+		!slices.Equal(l[1].Versions, []string{"25.8.0", "25.8.1"}) || l[0].Problem != "" || l[2].Problem != "" {
+		t.Errorf("twin among releases: %+v", l)
+	}
+	// A padded-only release and a different canonical-only release stay
+	// ambiguous even when a twin is also present.
+	amb := extract.ReleaseIndex{Tags: []extract.Tag{
+		{Name: "v25.08.0", Commit: sha("a")}, {Name: "v25.8.0", Commit: sha("a")},
+		{Name: "v25.08.1", Commit: sha("b")}, {Name: "v25.8.2", Commit: sha("c")},
+	}}
+	if l := x.releaseLines(amb); len(l) != 1 || !strings.Contains(l[0].Problem, "ambiguous") {
+		t.Errorf("mixed spellings of different releases: %+v", l)
+	}
+	// Dual prefix and zero-padding combinations.
+	x3 := New(Target{TagPrefixes: []string{"v", ""}})
+	for _, c := range []struct {
+		commits []string
+		problem bool
+	}{
+		{[]string{"a", "a", "a", "a"}, false},
+		{[]string{"a", "a", "a", "b"}, true},
+		{[]string{"a", "b", "a", "a"}, true},
+		{[]string{"b", "a", "a", "a"}, true},
+	} {
+		var idx extract.ReleaseIndex
+		for i, n := range []string{"v25.08.0", "25.08.0", "v25.8.0", "25.8.0"} {
+			idx.Tags = append(idx.Tags, extract.Tag{Name: n, Commit: sha(c.commits[i])})
+		}
+		l := x3.releaseLines(idx)
+		if len(l) != 1 || (l[0].Problem != "") != c.problem || (!c.problem && (len(l[0].Versions) != 1 || l[0].Tags[0].Name != "v25.8.0")) {
+			t.Errorf("%v: %+v", c.commits, l)
+		}
+	}
+	// Three spellings, two agree and one differs.
+	idx3 := extract.ReleaseIndex{Tags: []extract.Tag{
+		{Name: "v25.08.0", Commit: sha("a")}, {Name: "v25.8.0", Commit: sha("a")}, {Name: "25.8.0", Commit: sha("b")},
+	}}
+	if l := x3.releaseLines(idx3); len(l) != 1 || l[0].Problem == "" {
+		t.Errorf("two agree, one differs: %+v", l)
+	}
+	// Without twins nothing changes: a line of one spelling has no problem.
+	if l := x.releaseLines(tags("v25.8.0", "v25.8.1")); len(l) != 1 || l[0].Problem != "" || l[0].Tags[0].Name != "v25.8.0" {
+		t.Errorf("no twin: %+v", l)
 	}
 	// Padded tags of the same line under two prefixes are one spelling.
 	x2 := New(Target{TagPrefixes: []string{"v", ""}})
