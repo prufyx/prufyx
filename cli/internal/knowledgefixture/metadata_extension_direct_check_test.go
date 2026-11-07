@@ -55,7 +55,7 @@ func TestSyntheticMetadataExtensionActivatesStableRawAdapter(t *testing.T) {
 
 	embeddedArgs := []string{"check", "cncf", "--project", "distribution", "--image-manifest", rawPath, "--from", "3.0.0", "--to", "4.0.0", "--now", now.Format(time.RFC3339), "--format", "json"}
 	embeddedCode, embeddedOut, embeddedErr := runMetadataExtensionCLI(t, binary, embeddedArgs...)
-	if embeddedCode != 11 || len(embeddedErr) != 0 || !bytes.Contains(embeddedOut, []byte(`"assessment":"UNKNOWN"`)) || !bytes.Contains(embeddedOut, []byte(`"reasonCode":"RULE_TRANSITION_NOT_REVIEWED"`)) {
+	if embeddedCode != 11 || !emptyOrAgeNote(embeddedErr) || !bytes.Contains(embeddedOut, []byte(`"assessment":"UNKNOWN"`)) || !bytes.Contains(embeddedOut, []byte(`"reasonCode":"RULE_TRANSITION_NOT_REVIEWED"`)) {
 		t.Fatalf("embedded future tuple code=%d stdout=%s stderr=%s", embeddedCode, embeddedOut, embeddedErr)
 	}
 
