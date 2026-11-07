@@ -71,3 +71,31 @@ func OpenShiftTable(now time.Time) (k8sversion.OpenShiftMap, error) {
 func (k *ScanKnowledge) DistributionRecord(distributionID string, now time.Time) (distribution.Record, string, bool) {
 	return k.b.distributions.Record(distributionID, now)
 }
+
+// ProviderFactsMinClientVersion is the first release whose clients read the
+// provider fields of a distribution record (lifecycle, channels,
+// deprecations). A package that carries such a record must name this version
+// or a later one as its minClientVersion, so an older client reports the
+// package as too new (exit 15) instead of failing it as an integrity error.
+// It is a build-time constant: raising it is a code change.
+const ProviderFactsMinClientVersion = "v0.1.0-beta.1"
+
+// PackCarriesProviderFacts reports whether a distributions section (the pack
+// member's exact bytes) holds a record with a provider field. Anything that
+// cannot be read as a section counts as carrying them, so a caller that
+// refuses on true refuses on doubt.
+func PackCarriesProviderFacts(section json.RawMessage) bool {
+	if len(section) == 0 {
+		return false
+	}
+	parsed, err := distribution.Parse(section)
+	if err != nil {
+		return true
+	}
+	for _, r := range parsed.Records {
+		if r.Lifecycle != nil || r.Channels != nil || r.Deprecations != nil {
+			return true
+		}
+	}
+	return false
+}

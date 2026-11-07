@@ -119,6 +119,11 @@ type Options struct {
 	// Nil means no upstream is available: a change that cites sources then
 	// fails the citations check, it is never skipped.
 	Citations CitationChecker
+	// Excerpts is where provider rows are re-derived from committed
+	// excerpts (see distribution_gate.go). Nil refuses every provider row.
+	Excerpts *ExcerptStore
+	// derivers replaces the compiled provider derivers (tests only).
+	derivers map[string]ProviderDeriver
 }
 
 // CitationChecker verifies citation items against upstream; the production
@@ -193,6 +198,9 @@ type Report struct {
 	// servedIntroduced names the packs whose servedAPIs member this change
 	// introduces with an owner approval (admitServedIntroduction).
 	servedIntroduced map[string]bool
+	// distributionsIntroduced names the packs whose distributions member
+	// this change introduces with an owner approval.
+	distributionsIntroduced map[string]bool
 	// batch is the decision on the batch approval the change adds (nil:
 	// none).
 	batch *batchResult
@@ -457,7 +465,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	onboarding := runOnboarding(ctx, opts, cls, r.ChangedPaths, loadKeys)
 	r.onboarding = onboarding
 
-	var mechanical, removals, schemaChanges, registryChanges []*Change
+	var mechanical, removals, schemaChanges, registryChanges, distChanges []*Change
 	consensusChecks := &consensusRun{}
 	defer consensusChecks.close()
 	for _, c := range cls.Changes {
@@ -497,6 +505,14 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 			// A record: mechanical ones only by re-derivation, never
 			// through a statement or an approval.
 			switch {
+			case c.Section == sectionDistributions:
+				// Provider facts: re-derived from the committed excerpts,
+				// never through a statement, a batch or an approval.
+				if err := distributionPre(c, cls.base[c.Pack], opts); err != nil {
+					c.fail(err.Error())
+					continue
+				}
+				distChanges = append(distChanges, c)
 			case c.rhead != nil && c.rhead.served != nil:
 				// Re-derived from the line's pinned specification, never
 				// through a statement or an approval.
@@ -563,7 +579,9 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	}
 	rederive(ctx, opts.Source, opts.Catalog, opts.Concurrency, opts.Layout, mechanical)
 	emptyListPost(cls.Changes, opts)
+	rederiveDistributions(opts, distChanges)
 	r.servedIntroduced = admitServedIntroduction(cls, opts, loadKeys, approvals)
+	r.distributionsIntroduced = admitDistributionIntroduction(cls, opts, loadKeys, approvals)
 	for _, c := range removals {
 		admitSupersede(c, opts)
 	}

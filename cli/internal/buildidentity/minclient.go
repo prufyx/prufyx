@@ -106,3 +106,15 @@ func compareSemver(a, b string) int {
 	}
 	return 0
 }
+
+// AtLeast reports whether version have is at least min, both semantic
+// versions (vMAJOR.MINOR.PATCH[-pre.N]) with the shape ValidVersion
+// accepts. Unlike MeetsMinimum it reads no build state and never treats a
+// development version specially: a version that cannot be read is not at
+// least anything.
+func AtLeast(have, min string) bool {
+	if !ValidVersion(have) || !ValidVersion(min) {
+		return false
+	}
+	return compareSemver(have, min) >= 0
+}

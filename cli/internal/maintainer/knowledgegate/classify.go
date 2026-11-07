@@ -113,6 +113,13 @@ func diffPacks(base, head *loadedPack) []*Change {
 		if recordSection(head.Spec, m) {
 			if records := diffRecords(base, head, m); len(records) > 0 {
 				out = append(out, records...)
+				// What of a record section is not a record (the
+				// applicability statements of a distributions section) is
+				// a pack-member change of its own, never carried along
+				// with a record change.
+				if m == sectionDistributions && !bytes.Equal(base.DistResidue, head.DistResidue) {
+					out = append(out, &Change{Pack: head.Spec.Name, Member: m, Class: ClassLoosening, Kinds: []string{KindPackMember}})
+				}
 				continue
 			}
 		}

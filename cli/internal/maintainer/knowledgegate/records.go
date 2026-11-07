@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/distribution"
 	"github.com/prufyx/prufyx/cli/internal/extract"
 	"github.com/prufyx/prufyx/cli/internal/extract/k8sservedapis"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
@@ -69,6 +70,11 @@ const (
 	sectionAttestations = lineattest.PackMember
 	sectionPolicies     = upgradepath.PackMember
 	sectionServed       = servedapis.PackMember
+	// sectionDistributions holds one record per distribution. Only the
+	// provider fields of a record (lifecycle, channels, deprecations and
+	// the record's evidence) are classified, see distribution_gate.go; the
+	// applicability statements of the section stay a pack-member change.
+	sectionDistributions = distribution.PackMember
 )
 
 // Approval subjects.
@@ -104,6 +110,7 @@ type record struct {
 	attestation *lineattest.LineAttestation
 	policy      *upgradepath.Record
 	served      *servedapis.Record
+	dist        *distribution.Record
 }
 
 func (r *record) mechanical() bool { return r.Basis == constraintengine.BasisMechanical }
@@ -119,8 +126,10 @@ func attestationScope(a lineattest.LineAttestation) string {
 // parsers), computes each record's ID from its scope as evidence repin does
 // (evidencerepin.LineAttestationRecordID, PathPolicyRecordID) and indexes
 // the records by ID; two records with one ID refuse the pack. Any other
-// pack member, such as a distributions section, is not read here: it stays
-// a pack-member change.
+// pack member is not read here: it stays a pack-member change. The
+// distributions section is read record by record (one record per
+// distribution); its applicability statements are not records (see
+// distributionResidue).
 func loadRecords(raw []byte) (map[string]*record, []string, error) {
 	out := map[string]*record{}
 	var order []string
@@ -217,7 +226,46 @@ func loadRecords(raw []byte) (map[string]*record, []string, error) {
 			}
 		}
 	}
+	section, present, err = lineattest.PackMemberSection(raw, sectionDistributions)
+	if err != nil {
+		return nil, nil, err
+	}
+	if present {
+		parsed, err := distribution.Parse(section)
+		if err != nil {
+			return nil, nil, err
+		}
+		var parts struct {
+			Records []json.RawMessage `json:"records"`
+		}
+		if err := json.Unmarshal(section, &parts); err != nil || len(parts.Records) != len(parsed.Records) {
+			return nil, nil, fmt.Errorf("the distributions section does not split into its %d records", len(parsed.Records))
+		}
+		for i := range parsed.Records {
+			d := parsed.Records[i]
+			r := &record{
+				ID: DistributionRecordID(d.Distribution), Section: sectionDistributions,
+				Project: RecordProjectDistributions, Scope: "distribution " + d.Distribution, Raw: parts.Records[i], dist: &d,
+				Basis: constraintengine.EffectiveBasis(d.Evidence.Basis), State: d.Evidence.State,
+				Extractor: d.Evidence.Extractor, DerivedAt: d.Evidence.DerivedAt, ReviewedAt: d.Evidence.ReviewedAt, ValidUntil: d.Evidence.ValidUntil,
+			}
+			if err := add(r); err != nil {
+				return nil, nil, err
+			}
+		}
+	}
 	return out, order, nil
+}
+
+// RecordProjectDistributions stands in for a rule's project on a
+// distribution record.
+const RecordProjectDistributions = "distributions"
+
+// DistributionRecordID is the record ID of the record of one distribution.
+// It contains a slash, so it is never a rule id, a record ID of another
+// section or an approval file name.
+func DistributionRecordID(distributionID string) string {
+	return "distribution/" + distributionID
 }
 
 // splitRecords returns the exact bytes of each element of a parsed section.
@@ -232,7 +280,7 @@ func splitRecords(section json.RawMessage, want int) ([]json.RawMessage, error) 
 // recordSection reports whether member is a record section the pack's
 // records are diffed for.
 func recordSection(spec PackSpec, member string) bool {
-	return spec.Records && (member == sectionAttestations || member == sectionPolicies || member == sectionServed)
+	return spec.Records && (member == sectionAttestations || member == sectionPolicies || member == sectionServed || member == sectionDistributions)
 }
 
 // diffRecords classifies every record of one section that differs between

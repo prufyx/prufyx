@@ -50,6 +50,11 @@ type loadedPack struct {
 	// record ID, read only for a pack whose spec has Records.
 	Records     map[string]*record
 	RecordOrder []string
+	// DistResidue is the canonical JSON of the distributions section
+	// without its records (its applicability statements), the empty
+	// section's when the pack has none; read only for a pack whose spec
+	// has Records.
+	DistResidue []byte
 }
 
 // loadPack reads a pack as the engine admits it: a pack with a repeated or
@@ -81,6 +86,9 @@ func parsePack(spec PackSpec, raw []byte) (*loadedPack, error) {
 	if spec.Records {
 		if p.Records, p.RecordOrder, err = loadRecords(raw); err != nil {
 			return nil, fmt.Errorf("%s: the pack's records cannot be read: %w", spec.Path, err)
+		}
+		if p.DistResidue, err = distributionResidue(raw); err != nil {
+			return nil, fmt.Errorf("%s: the pack's distributions section cannot be read: %w", spec.Path, err)
 		}
 	}
 	for i, admitted := range entries {

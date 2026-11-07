@@ -366,3 +366,43 @@ func TestKnowledgeUpdateCapabilityMismatch(t *testing.T) {
 		t.Fatalf("store changed: %+v %v", st, err)
 	}
 }
+
+// A package that carries provider facts names the first client that reads
+// them as its minimum. A client below it reports the package as too new
+// (exit 15, trust not advanced, store untouched), never as an integrity
+// failure (exit 3).
+func TestKnowledgeUpdateProviderFactsFloorIsTooNewNotIntegrity(t *testing.T) {
+	old := buildidentity.Version
+	buildidentity.Version = "v0.1.0-beta.0"
+	t.Cleanup(func() { buildidentity.Version = old })
+	if buildidentity.AtLeast(buildidentity.Version, cncfcheck.ProviderFactsMinClientVersion) {
+		t.Fatal("the test client already reads provider facts")
+	}
+	env := newDefaultUpdateEnv(t)
+	if code, _, stderr := runDefaultUpdate(t, perProjectPackage(t, env.repo, 1, "4")); code != ExitOK {
+		t.Fatal(code, stderr)
+	}
+	index, projects, err := cncfcheck.BuildEmbeddedExternalTargets("5", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexRaw := append(append([]byte(nil), index.Bytes[:len(index.Bytes)-1]...), []byte(`,"minClientVersion":"`+cncfcheck.ProviderFactsMinClientVersion+`"}`)...)
+	targets := map[string][]byte{index.Path: indexRaw}
+	for _, project := range projects {
+		targets[project.Path] = project.Bytes
+	}
+	raw, err := env.repo.Package(knowledgefixture.ProjectsPackage{Version: 2, Targets: targets})
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, out, _ := runDefaultUpdate(t, raw)
+	if code != ExitKnowledgeTooNew || code == ExitIntegrity || out.ReasonCode != "KNOWLEDGE_TOO_NEW_FOR_THIS_CLIENT" || out.Rejection == nil || out.Rejection.TrustStateAdvanced || out.ImportReceipt != nil {
+		t.Fatalf("code=%d out=%+v", code, out)
+	}
+	if !strings.Contains(out.NextAction, "upgrade prufyx to >= "+cncfcheck.ProviderFactsMinClientVersion) {
+		t.Fatalf("next action = %q", out.NextAction)
+	}
+	if st, err := knowledge.InspectConstraintsProjects(env.store); err != nil || st.State != "READY" || st.SelectedRevision != "4" {
+		t.Fatalf("store changed: %+v %v", st, err)
+	}
+}
