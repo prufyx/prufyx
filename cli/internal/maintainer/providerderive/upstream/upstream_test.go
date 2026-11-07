@@ -6,13 +6,15 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/distribution"
-	"github.com/prufyx/prufyx/cli/internal/maintainer/providerderive/shared"
+	pd "github.com/prufyx/prufyx/cli/internal/maintainer/providerderive"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/providerderive/derivetest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/providerexcerpt"
 )
 
@@ -114,47 +116,47 @@ func mutate(t *testing.T, name, from, to string) string {
 
 func TestScheduleFailClosed(t *testing.T) {
 	cases := map[string]struct{ body, kind string }{
-		"duplicate release":    {mutate(t, "schedule.yaml", `release: "1.36"`, `release: "1.37"`), shared.KindFormat},
-		"duplicate key":        {mutate(t, "schedule.yaml", "  releaseDate: \"2026-08-26\"\n", "  releaseDate: \"2026-08-26\"\n  releaseDate: \"2026-08-27\"\n"), shared.KindFormat},
-		"unknown top key":      {read(t, "schedule.yaml") + "extra: 1\n", shared.KindHeader},
-		"unknown entry key":    {mutate(t, "schedule.yaml", "  endOfLifeDate: \"2027-10-28\"\n", "  endOfLifeDate: \"2027-10-28\"\n  surprise: x\n"), shared.KindHeader},
-		"missing eol":          {mutate(t, "schedule.yaml", "  endOfLifeDate: \"2026-10-27\"\n", ""), shared.KindMissing},
-		"missing maintenance":  {mutate(t, "schedule.yaml", "  maintenanceModeStartDate: \"2026-08-27\"\n", ""), shared.KindMissing},
-		"next without release": {mutate(t, "schedule.yaml", "    release: 1.37.2\n", ""), shared.KindMissing},
-		"bad date":             {mutate(t, "schedule.yaml", `"2026-08-26"`, `"2026-13-40"`), shared.KindUnparsable},
-		"unquoted date":        {mutate(t, "schedule.yaml", `"2026-08-26"`, `2026-08-26`), shared.KindUnparsable},
-		"float minor":          {mutate(t, "schedule.yaml", `release: "1.35"`, `release: 1.3`), shared.KindUnparsable},
-		"patch as minor":       {mutate(t, "schedule.yaml", `release: "1.35"`, `release: "1.35.1"`), shared.KindUnparsable},
-		"patch of other line":  {mutate(t, "schedule.yaml", `release: 1.37.2`, `release: 1.36.2`), shared.KindUnparsable},
-		"prerelease patch":     {mutate(t, "schedule.yaml", `release: 1.37.2`, `release: 1.37.0-beta.0`), shared.KindPrerelease},
-		"dates out of order":   {mutate(t, "schedule.yaml", `"2027-08-28"`, `"2028-08-28"`), shared.KindUnparsable},
-		"anchor":               {mutate(t, "schedule.yaml", "- release: \"1.35\"", "- &a\n  release: \"1.35\""), shared.KindFormat},
-		"empty":                {"", shared.KindEmpty},
-		"html":                 {"<html><body>404</body></html>", shared.KindFormat},
-		"no schedules":         {"upcoming_releases: []\n", shared.KindMissing},
-		"bad upcoming":         {mutate(t, "schedule.yaml", `targetDate: "2026-11-11"`, `targetDate: soon`), shared.KindUnparsable},
+		"duplicate release":    {mutate(t, "schedule.yaml", `release: "1.36"`, `release: "1.37"`), pd.KindStructure},
+		"duplicate key":        {mutate(t, "schedule.yaml", "  releaseDate: \"2026-08-26\"\n", "  releaseDate: \"2026-08-26\"\n  releaseDate: \"2026-08-27\"\n"), pd.KindStructure},
+		"unknown top key":      {read(t, "schedule.yaml") + "extra: 1\n", pd.KindHeader},
+		"unknown entry key":    {mutate(t, "schedule.yaml", "  endOfLifeDate: \"2027-10-28\"\n", "  endOfLifeDate: \"2027-10-28\"\n  surprise: x\n"), pd.KindHeader},
+		"missing eol":          {mutate(t, "schedule.yaml", "  endOfLifeDate: \"2026-10-27\"\n", ""), pd.KindStructure},
+		"missing maintenance":  {mutate(t, "schedule.yaml", "  maintenanceModeStartDate: \"2026-08-27\"\n", ""), pd.KindStructure},
+		"next without release": {mutate(t, "schedule.yaml", "    release: 1.37.2\n", ""), pd.KindStructure},
+		"bad date":             {mutate(t, "schedule.yaml", `"2026-08-26"`, `"2026-13-40"`), pd.KindCell},
+		"unquoted date":        {mutate(t, "schedule.yaml", `"2026-08-26"`, `2026-08-26`), pd.KindCell},
+		"float minor":          {mutate(t, "schedule.yaml", `release: "1.35"`, `release: 1.3`), pd.KindCell},
+		"patch as minor":       {mutate(t, "schedule.yaml", `release: "1.35"`, `release: "1.35.1"`), pd.KindCell},
+		"patch of other line":  {mutate(t, "schedule.yaml", `release: 1.37.2`, `release: 1.36.2`), pd.KindCell},
+		"prerelease patch":     {mutate(t, "schedule.yaml", `release: 1.37.2`, `release: 1.37.0-beta.0`), pd.KindCell},
+		"dates out of order":   {mutate(t, "schedule.yaml", `"2027-08-28"`, `"2028-08-28"`), pd.KindRow},
+		"anchor":               {mutate(t, "schedule.yaml", "- release: \"1.35\"", "- &a\n  release: \"1.35\""), pd.KindStructure},
+		"empty":                {"", pd.KindEmpty},
+		"html":                 {"<html><body>404</body></html>", pd.KindStructure},
+		"no schedules":         {"upcoming_releases: []\n", pd.KindStructure},
+		"bad upcoming":         {mutate(t, "schedule.yaml", `targetDate: "2026-11-11"`, `targetDate: soon`), pd.KindCell},
 	}
 	for name, c := range cases {
-		if _, err := ParseSchedule(c.body); shared.KindOf(err) != c.kind {
-			t.Errorf("%s: kind %q err %v", name, shared.KindOf(err), err)
+		if _, err := ParseSchedule(c.body); derivetest.Kind(err) != c.kind {
+			t.Errorf("%s: kind %q err %v", name, derivetest.Kind(err), err)
 		}
 	}
 }
 
 func TestEOLFailClosed(t *testing.T) {
 	cases := map[string]struct{ body, kind string }{
-		"unknown top key":  {read(t, "eol.yaml") + "x: 1\n", shared.KindHeader},
-		"missing final":    {mutate(t, "eol.yaml", "  finalPatchRelease: 1.33.13\n", ""), shared.KindMissing},
-		"duplicate":        {mutate(t, "eol.yaml", `release: "1.26"`, `release: "1.33"`), shared.KindFormat},
-		"float minor":      {mutate(t, "eol.yaml", `release: "1.26"`, `release: 1.26`), shared.KindUnparsable},
-		"final not patch":  {mutate(t, "eol.yaml", `finalPatchRelease: 1.33.13`, `finalPatchRelease: 1.33`), shared.KindUnparsable},
-		"bad date":         {mutate(t, "eol.yaml", `"2026-06-28"`, `"2026-06-31"`), shared.KindUnparsable},
-		"final prerelease": {mutate(t, "eol.yaml", `finalPatchRelease: 1.33.13`, `finalPatchRelease: 1.33.13-rc.1`), shared.KindPrerelease},
-		"empty":            {"", shared.KindEmpty},
+		"unknown top key":  {read(t, "eol.yaml") + "x: 1\n", pd.KindHeader},
+		"missing final":    {mutate(t, "eol.yaml", "  finalPatchRelease: 1.33.13\n", ""), pd.KindStructure},
+		"duplicate":        {mutate(t, "eol.yaml", `release: "1.26"`, `release: "1.33"`), pd.KindStructure},
+		"float minor":      {mutate(t, "eol.yaml", `release: "1.26"`, `release: 1.26`), pd.KindCell},
+		"final not patch":  {mutate(t, "eol.yaml", `finalPatchRelease: 1.33.13`, `finalPatchRelease: 1.33`), pd.KindCell},
+		"bad date":         {mutate(t, "eol.yaml", `"2026-06-28"`, `"2026-06-31"`), pd.KindCell},
+		"final prerelease": {mutate(t, "eol.yaml", `finalPatchRelease: 1.33.13`, `finalPatchRelease: 1.33.13-rc.1`), pd.KindCell},
+		"empty":            {"", pd.KindEmpty},
 	}
 	for name, c := range cases {
-		if _, err := ParseEOL(c.body); shared.KindOf(err) != c.kind {
-			t.Errorf("%s: %q %v", name, shared.KindOf(err), err)
+		if _, err := ParseEOL(c.body); derivetest.Kind(err) != c.kind {
+			t.Errorf("%s: %q %v", name, derivetest.Kind(err), err)
 		}
 	}
 	if _, err := ParseEOL(mutate(t, "eol.yaml", `note: 1.26.15 was`, "note: [1, 2]\n  was")); err == nil {
@@ -171,11 +173,11 @@ func TestStable(t *testing.T) {
 		t.Fatal(err)
 	}
 	for in, kind := range map[string]string{
-		"v1.38.0-rc.1": shared.KindPrerelease, "v1.38.0-alpha.1": shared.KindPrerelease,
-		"v1.37": shared.KindUnparsable, "1.37.2": shared.KindUnparsable, "<html>v1.37.2</html>": shared.KindUnparsable,
-		"v1.37.2\n\n": shared.KindUnparsable, "": shared.KindEmpty, "v2.0.0": shared.KindUnparsable, "v1.037.2": shared.KindUnparsable,
+		"v1.38.0-rc.1": pd.KindCell, "v1.38.0-alpha.1": pd.KindCell,
+		"v1.37": pd.KindCell, "1.37.2": pd.KindCell, "<html>v1.37.2</html>": pd.KindCell,
+		"v1.37.2\n\n": pd.KindCell, "": pd.KindEmpty, "v2.0.0": pd.KindCell, "v1.037.2": pd.KindCell,
 	} {
-		if _, _, err := ParseStable(in); shared.KindOf(err) != kind {
+		if _, _, err := ParseStable(in); derivetest.Kind(err) != kind {
 			t.Errorf("%q: %v", in, err)
 		}
 	}
@@ -183,29 +185,29 @@ func TestStable(t *testing.T) {
 
 func TestDeriveFailClosed(t *testing.T) {
 	s, e := good(t)
-	if _, err := Derive(s, e, []byte("v1.50.0")); shared.KindOf(err) != shared.KindConflict {
+	if _, err := Derive(s, e, []byte("v1.50.0")); derivetest.Kind(err) != pd.KindConflict {
 		t.Errorf("unknown stable line: %v", err)
 	}
-	if _, err := Derive(s, e, []byte("v1.38.0-rc.1")); shared.KindOf(err) != shared.KindPrerelease {
+	if _, err := Derive(s, e, []byte("v1.38.0-rc.1")); derivetest.Kind(err) != pd.KindCell {
 		t.Errorf("prerelease stable: %v", err)
 	}
 	dup := input("eol.yaml", AnchorEOL, strings.Replace(mutate(t, "eol.yaml", `release: "1.26"`, `release: "1.34"`), "finalPatchRelease: 1.26.15", "finalPatchRelease: 1.34.15", 1))
-	if _, err := Derive(s, dup, nil); shared.KindOf(err) != shared.KindConflict {
+	if _, err := Derive(s, dup, nil); derivetest.Kind(err) != pd.KindConflict {
 		t.Errorf("both files: %v", err)
 	}
 	wrong := s
 	wrong.Entry.Anchor = AnchorEOL
-	if _, err := Derive(wrong, e, nil); shared.KindOf(err) != shared.KindExcerpt {
+	if _, err := Derive(wrong, e, nil); derivetest.Kind(err) != pd.KindExcerpt {
 		t.Errorf("anchor: %v", err)
 	}
 	other := input("eol.yaml", AnchorSchedule, read(t, "schedule.yaml"))
-	if _, err := Derive(other, e, nil); shared.KindOf(err) != shared.KindExcerpt {
+	if _, err := Derive(other, e, nil); derivetest.Kind(err) != pd.KindExcerpt {
 		t.Errorf("file/anchor mismatch: %v", err)
 	}
 	tam := s
 	tam.Data = append([]byte(nil), s.Data...)
 	tam.Data[len(tam.Data)-3] ^= 1
-	if _, err := Derive(tam, e, nil); shared.KindOf(err) != shared.KindExcerpt {
+	if _, err := Derive(tam, e, nil); derivetest.Kind(err) != pd.KindExcerpt {
 		t.Errorf("tampered: %v", err)
 	}
 	badS := input("schedule.yaml", AnchorSchedule, mutate(t, "schedule.yaml", `"2026-08-26"`, `"2026-13-40"`))
@@ -222,5 +224,13 @@ func TestDeriveFailClosed(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("no stale-next warning: %v", res.Warnings)
+	}
+}
+
+func TestErrorsAreBaseDriftErrors(t *testing.T) {
+	_, err := ParseSchedule(mutate(t, "schedule.yaml", `release: "1.35"`, `release: 1.3`))
+	var de *pd.DriftError
+	if !errors.Is(err, pd.ErrDrift) || !errors.As(err, &de) || de.Source != source || de.Kind != pd.KindCell {
+		t.Fatalf("not a base drift error: %#v %v", de, err)
 	}
 }

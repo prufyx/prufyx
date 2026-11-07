@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/distribution"
-	"github.com/prufyx/prufyx/cli/internal/maintainer/providerderive/shared"
+	pd "github.com/prufyx/prufyx/cli/internal/maintainer/providerderive"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/providerexcerpt"
 )
 
@@ -53,9 +54,13 @@ func checkInput(in Input, anchor, file string) (string, error) {
 	m := sourceRE.FindStringSubmatch(e.SourceURL)
 	if e.Provider != Provider || e.Anchor != anchor || m == nil || m[3] != file ||
 		e.Licence != providerexcerpt.LicencePermissive || e.Form != providerexcerpt.FormVerbatim {
-		return "", shared.Drift(shared.KindExcerpt, "entry %s is not the %s excerpt of the upstream release data", e.ID, anchor)
+		return "", drift(pd.KindExcerpt, "entry %s is not the %s excerpt of the upstream release data", e.ID, anchor)
 	}
-	return shared.Body(e, in.Data)
+	lines, err := pd.Body(source, pd.Excerpt{Entry: e, Data: in.Data})
+	if err != nil {
+		return "", err
+	}
+	return strings.Join(lines, "\n") + "\n", nil
 }
 
 // Derive turns the schedule and eol excerpts (and optionally the stable
@@ -79,11 +84,11 @@ func Derive(schedule, eol Input, stable []byte) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	d1, err := shared.FetchedDate(schedule.Entry)
+	d1, err := pd.FetchDay(source, schedule.Entry)
 	if err != nil {
 		return Result{}, err
 	}
-	d2, err := shared.FetchedDate(eol.Entry)
+	d2, err := pd.FetchDay(source, eol.Entry)
 	if err != nil {
 		return Result{}, err
 	}
@@ -104,7 +109,7 @@ func Derive(schedule, eol Input, stable []byte) (Result, error) {
 	}
 	for _, m := range e.Minors {
 		if _, dup := byLine[m.Line]; dup {
-			return Result{}, shared.Drift(shared.KindConflict, "line %s is in both the schedule and the end-of-life list", m.Line)
+			return Result{}, drift(pd.KindConflict, "line %s is in both the schedule and the end-of-life list", m.Line)
 		}
 		byLine[m.Line] = &Line{Minor: m, LatestPatch: m.FinalPatch}
 		order = append(order, m.Line)
@@ -116,7 +121,7 @@ func Derive(schedule, eol Input, stable []byte) (Result, error) {
 		}
 		l, ok := byLine[line]
 		if !ok {
-			return Result{}, shared.Drift(shared.KindConflict, "stable marker line %s is not a scheduled line", line)
+			return Result{}, drift(pd.KindConflict, "stable marker line %s is not a scheduled line", line)
 		}
 		if l.NextPatch != "" && l.NextPatch != patch {
 			res.Warnings = append(res.Warnings, fmt.Sprintf("schedule next patch %s differs from stable marker %s; the marker is used", l.NextPatch, patch))

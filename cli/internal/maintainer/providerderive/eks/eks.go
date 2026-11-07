@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/distribution"
+	pd "github.com/prufyx/prufyx/cli/internal/maintainer/providerderive"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/providerderive/shared"
 )
 
@@ -33,10 +34,10 @@ const Heading = "## Amazon EKS Kubernetes release calendar"
 // YYYY-MM, YYYY-Qn, or "" with Precision tbd.
 type Row struct {
 	Line        string
-	Upstream    shared.Cell
-	Release     shared.Cell
-	StandardEnd shared.Cell
-	ExtendedEnd shared.Cell
+	Upstream    shared.DateCell
+	Release     shared.DateCell
+	StandardEnd shared.DateCell
+	ExtendedEnd shared.DateCell
 }
 
 var versionMD = regexp.MustCompile("^`(1\\.(?:0|[1-9][0-9]{0,5}))`$")
@@ -45,24 +46,24 @@ var versionHTML = regexp.MustCompile(`^(1\.(?:0|[1-9][0-9]{0,5}))$`)
 // ParseMarkdown parses the markdown twin. Exactly one table must exist, under
 // Heading, with exactly the Columns header; every row must parse.
 func ParseMarkdown(page []byte) ([]Row, error) {
-	if err := shared.CheckBody(page); err != nil {
+	if err := shared.CheckBody(source, page); err != nil {
 		return nil, err
 	}
 	if strings.Count(string(page), "\r") > 0 {
-		return nil, shared.Drift(shared.KindFormat, "carriage return in markdown")
+		return nil, drift(pd.KindStructure, "carriage return in markdown")
 	}
 	lines := strings.Split(string(page), "\n")
 	head := -1
 	for i, l := range lines {
 		if strings.TrimRight(l, " ") == Heading {
 			if head >= 0 {
-				return nil, shared.Drift(shared.KindHeader, "heading appears twice")
+				return nil, drift(pd.KindHeader, "heading appears twice")
 			}
 			head = i
 		}
 	}
 	if head < 0 {
-		return nil, shared.Drift(shared.KindMissing, "release calendar heading")
+		return nil, drift(pd.KindStructure, "release calendar heading")
 	}
 	// count table blocks over the whole page
 	blocks, first := 0, -1
@@ -77,15 +78,15 @@ func ParseMarkdown(page []byte) ([]Row, error) {
 		}
 	}
 	if blocks != 1 {
-		return nil, shared.Drift(shared.KindHeader, "%d tables on the page, exactly 1 expected", blocks)
+		return nil, drift(pd.KindHeader, "%d tables on the page, exactly 1 expected", blocks)
 	}
 	// the table must follow the heading with only blank lines or prose before it
 	if first < head {
-		return nil, shared.Drift(shared.KindHeader, "table precedes the calendar heading")
+		return nil, drift(pd.KindHeader, "table precedes the calendar heading")
 	}
 	for _, l := range lines[head+1 : first] {
 		if strings.HasPrefix(l, "## ") || strings.HasPrefix(l, "# ") {
-			return nil, shared.Drift(shared.KindHeader, "another section sits between the heading and the table")
+			return nil, drift(pd.KindHeader, "another section sits between the heading and the table")
 		}
 	}
 	var tbl []string
@@ -93,7 +94,7 @@ func ParseMarkdown(page []byte) ([]Row, error) {
 		tbl = append(tbl, strings.TrimSpace(lines[i]))
 	}
 	if len(tbl) < 3 {
-		return nil, shared.Drift(shared.KindMissing, "table has no data rows")
+		return nil, drift(pd.KindStructure, "table has no data rows")
 	}
 	hdr, err := mdCells(tbl[0])
 	if err != nil {
@@ -104,11 +105,11 @@ func ParseMarkdown(page []byte) ([]Row, error) {
 	}
 	del, err := mdCells(tbl[1])
 	if err != nil || len(del) != len(Columns) {
-		return nil, shared.Drift(shared.KindHeader, "delimiter row")
+		return nil, drift(pd.KindHeader, "delimiter row")
 	}
 	for _, c := range del {
 		if strings.Trim(c, "-") != "" || len(c) < 3 {
-			return nil, shared.Drift(shared.KindHeader, "delimiter row")
+			return nil, drift(pd.KindHeader, "delimiter row")
 		}
 	}
 	var rows [][]string
@@ -124,7 +125,7 @@ func ParseMarkdown(page []byte) ([]Row, error) {
 
 func mdCells(line string) ([]string, error) {
 	if !strings.HasPrefix(line, "|") || !strings.HasSuffix(line, "|") || len(line) < 2 {
-		return nil, shared.Drift(shared.KindUnparsable, "table line without outer pipes")
+		return nil, drift(pd.KindCell, "table line without outer pipes")
 	}
 	parts := strings.Split(line[1:len(line)-1], "|")
 	for i := range parts {
@@ -135,11 +136,11 @@ func mdCells(line string) ([]string, error) {
 
 func checkHeader(h []string) error {
 	if len(h) != len(Columns) {
-		return shared.Drift(shared.KindHeader, "%d header columns, %d expected", len(h), len(Columns))
+		return drift(pd.KindHeader, "%d header columns, %d expected", len(h), len(Columns))
 	}
 	for i := range h {
 		if h[i] != Columns[i] {
-			return shared.Drift(shared.KindHeader, "header column %d is %q, expected %q", i+1, h[i], Columns[i])
+			return drift(pd.KindHeader, "header column %d is %q, expected %q", i+1, h[i], Columns[i])
 		}
 	}
 	return nil
@@ -162,16 +163,16 @@ func htmlText(s string) string {
 // ParseHTML parses the HTML page: exactly one table, a thead with exactly the
 // Columns, then rows of five plain cells (no rowspan or colspan).
 func ParseHTML(page []byte) ([]Row, error) {
-	if err := shared.CheckBody(page); err != nil {
+	if err := shared.CheckBody(source, page); err != nil {
 		return nil, err
 	}
 	s := string(page)
 	if n := len(tableOpen.FindAllStringIndex(s, -1)); n != 1 {
-		return nil, shared.Drift(shared.KindHeader, "%d tables on the page, exactly 1 expected", n)
+		return nil, drift(pd.KindHeader, "%d tables on the page, exactly 1 expected", n)
 	}
 	th := theadRE.FindAllStringSubmatchIndex(s, -1)
 	if len(th) != 1 {
-		return nil, shared.Drift(shared.KindHeader, "%d table heads, exactly 1 expected", len(th))
+		return nil, drift(pd.KindHeader, "%d table heads, exactly 1 expected", len(th))
 	}
 	headHTML := s[th[0][2]:th[0][3]]
 	var hdr []string
@@ -184,14 +185,14 @@ func ParseHTML(page []byte) ([]Row, error) {
 	rest := s[th[0][1]:]
 	end := strings.Index(strings.ToLower(rest), "</table>")
 	if end < 0 {
-		return nil, shared.Drift(shared.KindFormat, "table is not closed")
+		return nil, drift(pd.KindStructure, "table is not closed")
 	}
 	var rows [][]string
 	for _, tr := range trRE.FindAllStringSubmatch(rest[:end], -1) {
 		var cells []string
 		for _, td := range tdRE.FindAllStringSubmatch(tr[1], -1) {
 			if spanRE.MatchString(td[1]) {
-				return nil, shared.Drift(shared.KindUnparsable, "rowspan or colspan in a data row")
+				return nil, drift(pd.KindCell, "rowspan or colspan in a data row")
 			}
 			cells = append(cells, htmlText(td[2]))
 		}
@@ -202,23 +203,23 @@ func ParseHTML(page []byte) ([]Row, error) {
 
 func buildRows(raw [][]string, ver *regexp.Regexp) ([]Row, error) {
 	if len(raw) == 0 {
-		return nil, shared.Drift(shared.KindMissing, "table has no data rows")
+		return nil, drift(pd.KindStructure, "table has no data rows")
 	}
 	var out []Row
 	prev := -1
 	for i, c := range raw {
 		if len(c) != len(Columns) {
-			return nil, shared.Drift(shared.KindUnparsable, "row %d has %d cells, %d expected", i+1, len(c), len(Columns))
+			return nil, drift(pd.KindRow, "row %d has %d cells, %d expected", i+1, len(c), len(Columns))
 		}
 		m := ver.FindStringSubmatch(c[0])
-		if m == nil {
-			return nil, shared.Drift(shared.KindUnparsable, "row %d version cell %q", i+1, c[0])
+		if m == nil || !pd.ParseLine(m[1]) {
+			return nil, drift(pd.KindCell, "row %d version cell %q", i+1, c[0])
 		}
 		r := Row{Line: m[1]}
 		var err error
-		cells := []*shared.Cell{&r.Upstream, &r.Release, &r.StandardEnd, &r.ExtendedEnd}
+		cells := []*shared.DateCell{&r.Upstream, &r.Release, &r.StandardEnd, &r.ExtendedEnd}
 		for j, dst := range cells {
-			if *dst, err = shared.ParseCell(c[j+1], false); err != nil {
+			if *dst, err = shared.GrammarCell(source, c[j+1], false); err != nil {
 				return nil, fmt.Errorf("row %d (%s): %w", i+1, r.Line, err)
 			}
 		}
@@ -227,7 +228,7 @@ func buildRows(raw [][]string, ver *regexp.Regexp) ([]Row, error) {
 		}
 		n := lineNum(r.Line)
 		if prev >= 0 && n >= prev {
-			return nil, shared.Drift(shared.KindUnparsable, "row %d (%s): versions must be strictly descending", i+1, r.Line)
+			return nil, drift(pd.KindRow, "row %d (%s): versions must be strictly descending", i+1, r.Line)
 		}
 		prev = n
 		out = append(out, r)
@@ -235,9 +236,9 @@ func buildRows(raw [][]string, ver *regexp.Regexp) ([]Row, error) {
 	return out, nil
 }
 
+// lineNum is the minor number of a line already checked with pd.ParseLine.
 func lineNum(l string) int {
-	var n int
-	fmt.Sscanf(l, "1.%d", &n)
+	n, _ := pd.LineNum(l)
 	return n
 }
 
@@ -246,19 +247,19 @@ func lineNum(l string) int {
 func checkRow(r Row) error {
 	p := r.Release.Precision
 	if r.StandardEnd.Precision != p || r.ExtendedEnd.Precision != p {
-		return shared.Drift(shared.KindUnparsable, "release and end dates mix precisions (%s, %s, %s)", r.Release.Precision, r.StandardEnd.Precision, r.ExtendedEnd.Precision)
+		return drift(pd.KindRow, "release and end dates mix precisions (%s, %s, %s)", r.Release.Precision, r.StandardEnd.Precision, r.ExtendedEnd.Precision)
 	}
 	if p == distribution.PrecisionTBD {
 		return nil
 	}
 	if r.Upstream.Precision == distribution.PrecisionTBD {
-		return shared.Drift(shared.KindUnparsable, "upstream release is TBD while the EKS release is dated")
+		return drift(pd.KindRow, "upstream release is TBD while the EKS release is dated")
 	}
 	if !(r.Release.Value <= r.StandardEnd.Value && r.StandardEnd.Value <= r.ExtendedEnd.Value) {
-		return shared.Drift(shared.KindUnparsable, "dates out of order (release <= standard end <= extended end)")
+		return drift(pd.KindRow, "dates out of order (release <= standard end <= extended end)")
 	}
 	if r.Upstream.Precision == p && r.Upstream.Value > r.Release.Value {
-		return shared.Drift(shared.KindUnparsable, "EKS release is before the upstream release")
+		return drift(pd.KindRow, "EKS release is before the upstream release")
 	}
 	return nil
 }
@@ -267,17 +268,17 @@ func checkRow(r Row) error {
 // is a conflict and neither is picked.
 func Agree(md, htm []Row) error {
 	if len(md) != len(htm) {
-		return shared.Drift(shared.KindConflict, "markdown has %d rows, html %d", len(md), len(htm))
+		return drift(pd.KindConflict, "markdown has %d rows, html %d", len(md), len(htm))
 	}
 	for i := range md {
 		if md[i] != htm[i] {
-			return shared.Drift(shared.KindConflict, "row %s differs between the markdown and the html page", md[i].Line)
+			return drift(pd.KindConflict, "row %s differs between the markdown and the html page", md[i].Line)
 		}
 	}
 	return nil
 }
 
-func cellText(c shared.Cell) string {
+func cellText(c shared.DateCell) string {
 	if c.Precision == distribution.PrecisionTBD {
 		return "tbd"
 	}
@@ -294,3 +295,8 @@ func Canonical(rows []Row) string {
 	}
 	return b.String()
 }
+
+// source names this extractor in every drift error.
+const source = "eks-calendar"
+
+func drift(kind, format string, args ...any) error { return pd.Drift(source, kind, format, args...) }

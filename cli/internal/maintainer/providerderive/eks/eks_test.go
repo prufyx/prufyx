@@ -6,12 +6,15 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/distribution"
+	pd "github.com/prufyx/prufyx/cli/internal/maintainer/providerderive"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/providerderive/derivetest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/providerderive/shared"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/providerexcerpt"
 )
@@ -45,7 +48,7 @@ func input(body string) Input {
 	return Input{e, data}
 }
 
-func kind(err error) string { return shared.KindOf(err) }
+func kind(err error) string { return derivetest.Kind(err) }
 
 func TestTwinsAgreeAndGolden(t *testing.T) {
 	md, err := ParseMarkdown([]byte(read(t, "page.md")))
@@ -107,26 +110,26 @@ func TestMarkdownFailClosed(t *testing.T) {
 	hdr := "| Kubernetes version | Upstream release | Amazon EKS release | End of standard support | End of extended support | "
 	row := "|  `1.37`  | August 26, 2026 | October 1, 2026 | December 1, 2027 | December 1, 2028 | "
 	cases := map[string]struct{ page, kind string }{
-		"renamed header":  {mutate(t, "page.md", "End of standard support", "Standard support ends"), shared.KindHeader},
-		"swapped columns": {mutate(t, "page.md", "| Upstream release | Amazon EKS release |", "| Amazon EKS release | Upstream release |"), shared.KindHeader},
-		"sixth column":    {strings.ReplaceAll(mutate(t, "page.md", hdr, hdr+"Notes | "), "| --- | --- | --- | --- | --- |", "| --- | --- | --- | --- | --- | --- |"), shared.KindHeader},
-		"missing column":  {strings.Replace(read(t, "page.md"), " End of extended support | ", "", 1), shared.KindHeader},
-		"no heading":      {mutate(t, "page.md", "## Amazon EKS Kubernetes release calendar", "## Something else"), shared.KindMissing},
-		"two tables":      {read(t, "page.md") + "\n| a | b |\n| --- | --- |\n| 1 | 2 |\n", shared.KindHeader},
-		"iso date":        {mutate(t, "page.md", "December 1, 2027", "2027-12-01x"), shared.KindUnparsable},
-		"short month":     {mutate(t, "page.md", "December 1, 2027", "Dec 1, 2027"), shared.KindUnparsable},
-		"tbd mixed":       {mutate(t, "page.md", "December 1, 2027", "TBD"), shared.KindUnparsable},
-		"footnote":        {mutate(t, "page.md", "December 1, 2027", "December 1, 2027*"), shared.KindUnparsable},
-		"patch version":   {mutate(t, "page.md", "`1.37`", "`1.37.1`"), shared.KindUnparsable},
-		"bare version":    {mutate(t, "page.md", "`1.37`", "1.37"), shared.KindUnparsable},
-		"non-monotonic":   {mutate(t, "page.md", "`1.35`", "`1.38`"), shared.KindUnparsable},
-		"short row":       {mutate(t, "page.md", "| December 1, 2028 | \n", "\n"), shared.KindUnparsable},
-		"extended < std":  {mutate(t, "page.md", "December 1, 2028", "June 1, 2027"), shared.KindUnparsable},
-		"mixed precision": {mutate(t, "page.md", "December 1, 2028", "December 2028"), shared.KindUnparsable},
-		"empty":           {"", shared.KindEmpty},
-		"interstitial":    {"<html><title>Sign in</title></html>", shared.KindMissing},
-		"no rows":         {strings.Join(strings.Split(read(t, "page.md"), "\n")[:9], "\n") + "\n", shared.KindMissing},
-		"crlf":            {strings.ReplaceAll(read(t, "page.md"), "\n", "\r\n"), shared.KindFormat},
+		"renamed header":  {mutate(t, "page.md", "End of standard support", "Standard support ends"), pd.KindHeader},
+		"swapped columns": {mutate(t, "page.md", "| Upstream release | Amazon EKS release |", "| Amazon EKS release | Upstream release |"), pd.KindHeader},
+		"sixth column":    {strings.ReplaceAll(mutate(t, "page.md", hdr, hdr+"Notes | "), "| --- | --- | --- | --- | --- |", "| --- | --- | --- | --- | --- | --- |"), pd.KindHeader},
+		"missing column":  {strings.Replace(read(t, "page.md"), " End of extended support | ", "", 1), pd.KindHeader},
+		"no heading":      {mutate(t, "page.md", "## Amazon EKS Kubernetes release calendar", "## Something else"), pd.KindStructure},
+		"two tables":      {read(t, "page.md") + "\n| a | b |\n| --- | --- |\n| 1 | 2 |\n", pd.KindHeader},
+		"iso date":        {mutate(t, "page.md", "December 1, 2027", "2027-12-01x"), pd.KindCell},
+		"short month":     {mutate(t, "page.md", "December 1, 2027", "Dec 1, 2027"), pd.KindCell},
+		"tbd mixed":       {mutate(t, "page.md", "December 1, 2027", "TBD"), pd.KindRow},
+		"footnote":        {mutate(t, "page.md", "December 1, 2027", "December 1, 2027*"), pd.KindCell},
+		"patch version":   {mutate(t, "page.md", "`1.37`", "`1.37.1`"), pd.KindCell},
+		"bare version":    {mutate(t, "page.md", "`1.37`", "1.37"), pd.KindCell},
+		"non-monotonic":   {mutate(t, "page.md", "`1.35`", "`1.38`"), pd.KindRow},
+		"short row":       {mutate(t, "page.md", "| December 1, 2028 | \n", "\n"), pd.KindCell},
+		"extended < std":  {mutate(t, "page.md", "December 1, 2028", "June 1, 2027"), pd.KindRow},
+		"mixed precision": {mutate(t, "page.md", "December 1, 2028", "December 2028"), pd.KindRow},
+		"empty":           {"", pd.KindEmpty},
+		"interstitial":    {"<html><title>Sign in</title></html>", pd.KindStructure},
+		"no rows":         {strings.Join(strings.Split(read(t, "page.md"), "\n")[:9], "\n") + "\n", pd.KindStructure},
+		"crlf":            {strings.ReplaceAll(read(t, "page.md"), "\n", "\r\n"), pd.KindStructure},
 	}
 	_ = row
 	for name, c := range cases {
@@ -143,14 +146,14 @@ func TestMarkdownFailClosed(t *testing.T) {
 
 func TestHTMLFailClosed(t *testing.T) {
 	cases := map[string]struct{ page, kind string }{
-		"renamed header": {mutate(t, "page.html", "End of standard support", "Standard support ends"), shared.KindHeader},
-		"two tables":     {read(t, "page.html") + "<table><tr><td>x</td></tr></table>", shared.KindHeader},
-		"no table":       {"<html><body>login required</body></html>", shared.KindHeader},
-		"colspan":        {mutate(t, "page.html", "<td><p>August 26, 2026", "<td colspan=\"2\"><p>August 26, 2026"), shared.KindUnparsable},
-		"bad cell":       {mutate(t, "page.html", "October 1, 2026", "1 Oct 2026"), shared.KindUnparsable},
-		"missing cell":   {mutate(t, "page.html", "<td><p>December 1, 2028</p></td>", ""), shared.KindUnparsable},
-		"empty":          {"", shared.KindEmpty},
-		"no rows":        {"<table><thead><tr><th>Kubernetes version</th><th>Upstream release</th><th>Amazon EKS release</th><th>End of standard support</th><th>End of extended support</th></tr></thead></table>", shared.KindMissing},
+		"renamed header": {mutate(t, "page.html", "End of standard support", "Standard support ends"), pd.KindHeader},
+		"two tables":     {read(t, "page.html") + "<table><tr><td>x</td></tr></table>", pd.KindHeader},
+		"no table":       {"<html><body>login required</body></html>", pd.KindHeader},
+		"colspan":        {mutate(t, "page.html", "<td><p>August 26, 2026", "<td colspan=\"2\"><p>August 26, 2026"), pd.KindCell},
+		"bad cell":       {mutate(t, "page.html", "October 1, 2026", "1 Oct 2026"), pd.KindCell},
+		"missing cell":   {mutate(t, "page.html", "<td><p>December 1, 2028</p></td>", ""), pd.KindRow},
+		"empty":          {"", pd.KindEmpty},
+		"no rows":        {"<table><thead><tr><th>Kubernetes version</th><th>Upstream release</th><th>Amazon EKS release</th><th>End of standard support</th><th>End of extended support</th></tr></thead></table>", pd.KindStructure},
 	}
 	for name, c := range cases {
 		if _, err := ParseHTML([]byte(c.page)); kind(err) != c.kind {
@@ -165,15 +168,15 @@ func TestTwinDisagreement(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if kind(Agree(md, hm)) != shared.KindConflict || kind(Agree(md, hm[1:])) != shared.KindConflict {
+	if kind(Agree(md, hm)) != pd.KindConflict || kind(Agree(md, hm[1:])) != pd.KindConflict {
 		t.Fatal("disagreement not a conflict")
 	}
 }
 
 func TestResponseGuards(t *testing.T) {
-	if kind(shared.CheckResponse(404, "text/markdown", []byte("x"), "text/markdown")) != shared.KindStatus ||
-		kind(shared.CheckResponse(200, "text/markdown", nil, "text/markdown")) != shared.KindEmpty ||
-		kind(shared.CheckResponse(200, "text/html", []byte("<html>"), "text/markdown")) != shared.KindFormat {
+	if kind(shared.CheckResponse("eks-calendar", 404, "text/markdown", []byte("x"), "text/markdown")) != pd.KindStructure ||
+		kind(shared.CheckResponse("eks-calendar", 200, "text/markdown", nil, "text/markdown")) != pd.KindEmpty ||
+		kind(shared.CheckResponse("eks-calendar", 200, "text/html", []byte("<html>"), "text/markdown")) != pd.KindStructure {
 		t.Fatal("response guard")
 	}
 }
@@ -181,15 +184,15 @@ func TestResponseGuards(t *testing.T) {
 func TestDeriveFailClosed(t *testing.T) {
 	good := read(t, "excerpt-body.golden.txt")
 	cases := map[string]struct{ body, kind string }{
-		"garbage line":    {good + "eks 1.33 upstream today\n", shared.KindUnparsable},
-		"bad date":        {strings.Replace(good, "2027-12-01", "2027-13-01", 1), shared.KindUnparsable},
-		"ascending":       {"eks 1.34 upstream 2025-08-27 release 2025-10-02 standard-end 2026-12-02 extended-end 2027-12-02\neks 1.37 upstream 2026-08-26 release 2026-10-01 standard-end 2027-12-01 extended-end 2028-12-01\n", shared.KindUnparsable},
-		"extended order":  {strings.Replace(good, "extended-end 2028-12-01", "extended-end 2027-01-01", 1), shared.KindUnparsable},
-		"patch line":      {strings.Replace(good, "eks 1.37 ", "eks 1.37.1 ", 1), shared.KindUnparsable},
-		"mixed precision": {strings.Replace(good, "extended-end 2028-12-01", "extended-end 2028-12", 1), shared.KindUnparsable},
-		"tbd mixed":       {strings.Replace(good, "extended-end 2028-12-01", "extended-end tbd", 1), shared.KindUnparsable},
-		"markup":          {"| eks 1.37 |\n", shared.KindExcerpt},
-		"quote":           {"eks 1.37 \"quoted\"\n", shared.KindExcerpt},
+		"garbage line":    {good + "eks 1.33 upstream today\n", pd.KindRow},
+		"bad date":        {strings.Replace(good, "2027-12-01", "2027-13-01", 1), pd.KindCell},
+		"ascending":       {"eks 1.34 upstream 2025-08-27 release 2025-10-02 standard-end 2026-12-02 extended-end 2027-12-02\neks 1.37 upstream 2026-08-26 release 2026-10-01 standard-end 2027-12-01 extended-end 2028-12-01\n", pd.KindRow},
+		"extended order":  {strings.Replace(good, "extended-end 2028-12-01", "extended-end 2027-01-01", 1), pd.KindRow},
+		"patch line":      {strings.Replace(good, "eks 1.37 ", "eks 1.37.1 ", 1), pd.KindRow},
+		"mixed precision": {strings.Replace(good, "extended-end 2028-12-01", "extended-end 2028-12", 1), pd.KindRow},
+		"tbd mixed":       {strings.Replace(good, "extended-end 2028-12-01", "extended-end tbd", 1), pd.KindRow},
+		"markup":          {"| eks 1.37 |\n", pd.KindExcerpt},
+		"quote":           {"eks 1.37 \"quoted\"\n", pd.KindExcerpt},
 	}
 	for name, c := range cases {
 		res, err := Derive(input(c.body))
@@ -208,7 +211,7 @@ func TestDeriveFailClosed(t *testing.T) {
 	foreign := in
 	foreign.Entry.SourceURL = "https://docs.aws.amazon.com/eks/latest/userguide/other.md"
 	for name, x := range map[string]Input{"anchor": w, "tampered": tam, "verbatim": verb, "foreign url": foreign} {
-		if _, err := Derive(x); kind(err) != shared.KindExcerpt {
+		if _, err := Derive(x); kind(err) != pd.KindExcerpt {
 			t.Errorf("%s: %v", name, err)
 		}
 	}
@@ -246,7 +249,7 @@ func TestTBDRow(t *testing.T) {
 
 func TestNotYetReleasedPrecision(t *testing.T) {
 	const day = "2026-11-07" // 2026-Q4
-	cell := func(v, p string) shared.Cell { return shared.Cell{Value: v, Precision: p} }
+	cell := func(v, p string) shared.DateCell { return shared.DateCell{Value: v, Precision: p} }
 	for _, c := range []struct {
 		name, up, rel, relP string
 		future              bool
@@ -274,5 +277,16 @@ func TestNotYetReleasedPrecision(t *testing.T) {
 		if !c.future && (len(res.NotYetReleased) != 0 || len(res.Lifecycle) != 1) {
 			t.Fatalf("%s: want released row, got %+v", c.name, res)
 		}
+	}
+}
+
+func TestErrorsAreBaseDriftErrors(t *testing.T) {
+	_, err := ParseMarkdown([]byte(mutate(t, "page.md", "End of standard support", "Standard support ends")))
+	var de *pd.DriftError
+	if !errors.Is(err, pd.ErrDrift) || !errors.As(err, &de) || de.Source != source || de.Kind != pd.KindHeader {
+		t.Fatalf("not a base drift error: %#v %v", de, err)
+	}
+	if _, err := ParseMarkdown(nil); !errors.Is(err, pd.ErrDrift) {
+		t.Fatalf("empty body: %v", err)
 	}
 }

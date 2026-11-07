@@ -5,6 +5,7 @@ package derivetest
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"testing"
 
@@ -49,4 +50,13 @@ func Golden(t testing.TB, path string, v any) {
 	if string(want) != string(got) {
 		t.Fatalf("golden mismatch for %s:\n%s", path, got)
 	}
+}
+
+// Kind returns the drift kind of err, or "" when err is not a *DriftError.
+func Kind(err error) string {
+	var de *pd.DriftError
+	if errors.As(err, &de) {
+		return de.Kind
+	}
+	return ""
 }

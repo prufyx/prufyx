@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/distribution"
+	pd "github.com/prufyx/prufyx/cli/internal/maintainer/providerderive"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/providerderive/shared"
 	"gopkg.in/yaml.v3"
 )
@@ -52,10 +53,10 @@ type mapping struct {
 
 func asMapping(n *yaml.Node, path string, allowed ...string) (mapping, error) {
 	if n.Kind != yaml.MappingNode {
-		return mapping{}, shared.Drift(shared.KindFormat, "%s: mapping expected", path)
+		return mapping{}, drift(pd.KindStructure, "%s: mapping expected", path)
 	}
 	if n.Anchor != "" || n.Alias != nil {
-		return mapping{}, shared.Drift(shared.KindFormat, "%s: anchors and aliases are not accepted", path)
+		return mapping{}, drift(pd.KindStructure, "%s: anchors and aliases are not accepted", path)
 	}
 	ok := map[string]bool{}
 	for _, a := range allowed {
@@ -65,13 +66,13 @@ func asMapping(n *yaml.Node, path string, allowed ...string) (mapping, error) {
 	for i := 0; i+1 < len(n.Content); i += 2 {
 		k, v := n.Content[i], n.Content[i+1]
 		if k.Kind != yaml.ScalarNode || k.Anchor != "" {
-			return mapping{}, shared.Drift(shared.KindFormat, "%s: non-scalar key", path)
+			return mapping{}, drift(pd.KindStructure, "%s: non-scalar key", path)
 		}
 		if !ok[k.Value] {
-			return mapping{}, shared.Drift(shared.KindHeader, "%s: unknown key %q", path, k.Value)
+			return mapping{}, drift(pd.KindHeader, "%s: unknown key %q", path, k.Value)
 		}
 		if _, dup := m.kv[k.Value]; dup {
-			return mapping{}, shared.Drift(shared.KindFormat, "%s: duplicate key %q", path, k.Value)
+			return mapping{}, drift(pd.KindStructure, "%s: duplicate key %q", path, k.Value)
 		}
 		m.kv[k.Value] = v
 	}
@@ -81,7 +82,7 @@ func asMapping(n *yaml.Node, path string, allowed ...string) (mapping, error) {
 func (m mapping) req(key string) (*yaml.Node, error) {
 	v, ok := m.kv[key]
 	if !ok {
-		return nil, shared.Drift(shared.KindMissing, "%s: missing %q", m.path, key)
+		return nil, drift(pd.KindStructure, "%s: missing %q", m.path, key)
 	}
 	return v, nil
 }
@@ -95,11 +96,11 @@ func (m mapping) text(key string, mustQuote bool) (string, error) {
 		return "", err
 	}
 	if v.Kind != yaml.ScalarNode || v.Anchor != "" {
-		return "", shared.Drift(shared.KindUnparsable, "%s.%s: scalar expected", m.path, key)
+		return "", drift(pd.KindCell, "%s.%s: scalar expected", m.path, key)
 	}
 	quoted := v.Style&(yaml.DoubleQuotedStyle|yaml.SingleQuotedStyle) != 0
 	if v.Tag != "!!str" || (mustQuote && !quoted) {
-		return "", shared.Drift(shared.KindUnparsable, "%s.%s: %q is not a string value (quote it)", m.path, key, v.Value)
+		return "", drift(pd.KindCell, "%s.%s: %q is not a string value (quote it)", m.path, key, v.Value)
 	}
 	return v.Value, nil
 }
@@ -109,9 +110,9 @@ func (m mapping) date(key string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	c, err := shared.ParseCell(s, false)
+	c, err := shared.GrammarCell(source, s, false)
 	if err != nil || c.Precision != distribution.PrecisionDay || c.Value != s {
-		return "", shared.Drift(shared.KindUnparsable, "%s.%s: %q is not a YYYY-MM-DD date", m.path, key, s)
+		return "", drift(pd.KindCell, "%s.%s: %q is not a YYYY-MM-DD date", m.path, key, s)
 	}
 	return s, nil
 }
@@ -121,8 +122,8 @@ func (m mapping) minor(key string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if !minorRE.MatchString(s) {
-		return "", shared.Drift(shared.KindUnparsable, "%s.%s: %q is not a 1.N minor", m.path, key, s)
+	if !minorRE.MatchString(s) || !pd.ParseLine(s) {
+		return "", drift(pd.KindCell, "%s.%s: %q is not a 1.N minor", m.path, key, s)
 	}
 	return s, nil
 }
@@ -133,16 +134,16 @@ func (m mapping) patch(key, line string) (string, error) {
 		return "", err
 	}
 	if strings.ContainsAny(s, "-+") {
-		return "", shared.Drift(shared.KindPrerelease, "%s.%s: %q is a prerelease or build", m.path, key, s)
+		return "", drift(pd.KindCell, "%s.%s: %q is a prerelease or build", m.path, key, s)
 	}
 	if !patchRE.MatchString(s) || !strings.HasPrefix(s, line+".") {
-		return "", shared.Drift(shared.KindUnparsable, "%s.%s: %q is not a patch of %s", m.path, key, s, line)
+		return "", drift(pd.KindCell, "%s.%s: %q is not a patch of %s", m.path, key, s, line)
 	}
 	return s, nil
 }
 
 func parseDoc(body string) (mapping, *yaml.Node, error) {
-	if err := shared.CheckBody([]byte(body)); err != nil {
+	if err := shared.CheckBody(source, []byte(body)); err != nil {
 		return mapping{}, nil, err
 	}
 	var docs []*yaml.Node
@@ -153,25 +154,25 @@ func parseDoc(body string) (mapping, *yaml.Node, error) {
 			if errors.Is(err, io.EOF) {
 				break
 			}
-			return mapping{}, nil, shared.Drift(shared.KindFormat, "yaml: %v", err)
+			return mapping{}, nil, drift(pd.KindStructure, "yaml: %v", err)
 		}
 		docs = append(docs, &n)
 		if len(docs) > 1 {
-			return mapping{}, nil, shared.Drift(shared.KindFormat, "more than one yaml document")
+			return mapping{}, nil, drift(pd.KindStructure, "more than one yaml document")
 		}
 	}
 	if len(docs) != 1 || docs[0].Kind != yaml.DocumentNode || len(docs[0].Content) != 1 {
-		return mapping{}, nil, shared.Drift(shared.KindEmpty, "no yaml document")
+		return mapping{}, nil, drift(pd.KindEmpty, "no yaml document")
 	}
 	return mapping{}, docs[0].Content[0], nil
 }
 
 func seq(n *yaml.Node, path string) ([]*yaml.Node, error) {
 	if n.Kind != yaml.SequenceNode || n.Anchor != "" {
-		return nil, shared.Drift(shared.KindFormat, "%s: list expected", path)
+		return nil, drift(pd.KindStructure, "%s: list expected", path)
 	}
 	if len(n.Content) == 0 || len(n.Content) > 256 {
-		return nil, shared.Drift(shared.KindFormat, "%s: 1-256 entries expected", path)
+		return nil, drift(pd.KindStructure, "%s: 1-256 entries expected", path)
 	}
 	return n.Content, nil
 }
@@ -211,7 +212,7 @@ func ParseSchedule(body string) (Schedule, error) {
 			return Schedule{}, err
 		}
 		if seen[line] {
-			return Schedule{}, shared.Drift(shared.KindFormat, "%s: duplicate release %s", path, line)
+			return Schedule{}, drift(pd.KindStructure, "%s: duplicate release %s", path, line)
 		}
 		seen[line] = true
 		mn := Minor{Line: line}
@@ -225,7 +226,7 @@ func ParseSchedule(body string) (Schedule, error) {
 			return Schedule{}, err
 		}
 		if !(mn.ReleaseDate <= mn.MaintenanceStart && mn.MaintenanceStart <= mn.EndOfLife) {
-			return Schedule{}, shared.Drift(shared.KindUnparsable, "%s: dates out of order (release <= maintenance <= end of life)", path)
+			return Schedule{}, drift(pd.KindRow, "%s: dates out of order (release <= maintenance <= end of life)", path)
 		}
 		if nx, ok := m.kv["next"]; ok {
 			nm, err := asMapping(nx, path+".next", "cherryPickDeadline", "release", "targetDate")
@@ -320,7 +321,7 @@ func ParseEOL(body string) (EOL, error) {
 			return EOL{}, err
 		}
 		if seen[line] {
-			return EOL{}, shared.Drift(shared.KindFormat, "%s: duplicate release %s", path, line)
+			return EOL{}, drift(pd.KindStructure, "%s: duplicate release %s", path, line)
 		}
 		seen[line] = true
 		mn := Minor{Line: line}
@@ -345,26 +346,31 @@ func ParseEOL(body string) (EOL, error) {
 // optional trailing LF. A prerelease, a missing patch, markup or anything
 // else is rejected. It returns the line and the patch version ("1.37.2").
 func ParseStable(body string) (line, patch string, err error) {
-	if err := shared.CheckBody([]byte(body)); err != nil {
+	if err := shared.CheckBody(source, []byte(body)); err != nil {
 		return "", "", err
 	}
 	s := strings.TrimSuffix(body, "\n")
 	if strings.ContainsAny(s, "-+") && strings.HasPrefix(s, "v1.") && !strings.ContainsAny(s, "<> \t\n") {
-		return "", "", shared.Drift(shared.KindPrerelease, "stable marker %q is a prerelease", s)
+		return "", "", drift(pd.KindCell, "stable marker %q is a prerelease", s)
 	}
 	m := stableRE.FindStringSubmatch(s)
-	if m == nil {
-		return "", "", shared.Drift(shared.KindUnparsable, "stable marker %q", s)
+	if m == nil || !pd.ParseLine(m[1]) {
+		return "", "", drift(pd.KindCell, "stable marker %q", s)
 	}
 	return m[1], m[1] + "." + m[2], nil
 }
 
+// lineNum is the minor number of a line already checked with pd.ParseLine.
 func lineNum(l string) int {
-	var n int
-	fmt.Sscanf(l, "1.%d", &n)
+	n, _ := pd.LineNum(l)
 	return n
 }
 
 func sortMinors(m []Minor) {
 	sort.Slice(m, func(i, j int) bool { return lineNum(m[i].Line) < lineNum(m[j].Line) })
 }
+
+// source names this extractor in every drift error.
+const source = "upstream-release-data"
+
+func drift(kind, format string, args ...any) error { return pd.Drift(source, kind, format, args...) }

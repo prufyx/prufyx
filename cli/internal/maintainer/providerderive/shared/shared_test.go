@@ -5,9 +5,12 @@ package shared
 import (
 	"errors"
 	"testing"
+
+	pd "github.com/prufyx/prufyx/cli/internal/maintainer/providerderive"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/providerderive/derivetest"
 )
 
-func TestParseCell(t *testing.T) {
+func TestGrammarCell(t *testing.T) {
 	good := []struct {
 		raw, val, prec, foot string
 		fn                   bool
@@ -24,7 +27,7 @@ func TestParseCell(t *testing.T) {
 		{"December 2027", "2027-12", "month", "", true},
 	}
 	for _, c := range good {
-		got, err := ParseCell(c.raw, c.fn)
+		got, err := GrammarCell("t", c.raw, c.fn)
 		if err != nil || got.Value != c.val || got.Precision != c.prec || got.Footnote != c.foot {
 			t.Errorf("%q: %+v %v", c.raw, got, err)
 		}
@@ -39,14 +42,14 @@ func TestParseCell(t *testing.T) {
 		{"December 32, 2027", false}, {"1999-01-01", false},
 	}
 	for _, c := range bad {
-		if _, err := ParseCell(c.raw, c.fn); err == nil || !errors.Is(err, ErrDrift) || KindOf(err) != KindUnparsable {
+		if _, err := GrammarCell("t", c.raw, c.fn); err == nil || !errors.Is(err, pd.ErrDrift) || derivetest.Kind(err) != pd.KindCell {
 			t.Errorf("%q accepted or wrong error: %v", c.raw, err)
 		}
 	}
 }
 
 func TestCheckResponse(t *testing.T) {
-	if err := CheckResponse(200, "text/plain; charset=utf-8", []byte("x"), "text/plain"); err != nil {
+	if err := CheckResponse("t", 200, "text/plain; charset=utf-8", []byte("x"), "text/plain"); err != nil {
 		t.Fatal(err)
 	}
 	for name, c := range map[string]struct {
@@ -55,14 +58,14 @@ func TestCheckResponse(t *testing.T) {
 		body []byte
 		kind string
 	}{
-		"404":      {404, "text/plain", []byte("x"), KindStatus},
-		"empty":    {200, "text/plain", nil, KindEmpty},
-		"html":     {200, "text/html", []byte("<html>"), KindFormat},
-		"non-utf8": {200, "text/plain", []byte{0xff, 0xfe}, KindFormat},
-		"nul":      {200, "text/plain", []byte("a\x00b"), KindFormat},
-		"oversize": {200, "text/plain", make([]byte, MaxPage+1), KindFormat},
+		"404":      {404, "text/plain", []byte("x"), pd.KindStructure},
+		"empty":    {200, "text/plain", nil, pd.KindEmpty},
+		"html":     {200, "text/html", []byte("<html>"), pd.KindStructure},
+		"non-utf8": {200, "text/plain", []byte{0xff, 0xfe}, pd.KindStructure},
+		"nul":      {200, "text/plain", []byte("a\x00b"), pd.KindStructure},
+		"oversize": {200, "text/plain", make([]byte, MaxPage+1), pd.KindSize},
 	} {
-		if err := CheckResponse(c.st, c.ct, c.body, "text/plain"); KindOf(err) != c.kind {
+		if err := CheckResponse("t", c.st, c.ct, c.body, "text/plain"); derivetest.Kind(err) != c.kind {
 			t.Errorf("%s: %v", name, err)
 		}
 	}

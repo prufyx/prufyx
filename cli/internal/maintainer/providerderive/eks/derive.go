@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/distribution"
+	pd "github.com/prufyx/prufyx/cli/internal/maintainer/providerderive"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/providerderive/shared"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/providerexcerpt"
 )
@@ -49,11 +50,11 @@ var (
 // source sentence before shipping in a pack. A change is one reviewed edit.
 const extendedRequiresOptIn = false
 
-func tokCell(t string) (shared.Cell, error) {
+func tokCell(t string) (shared.DateCell, error) {
 	if t == "tbd" {
-		return shared.ParseCell("TBD", false)
+		return shared.GrammarCell(source, "TBD", false)
 	}
-	return shared.ParseCell(t, false)
+	return shared.GrammarCell(source, t, false)
 }
 
 // Derive reads the paraphrase excerpt body (see Canonical) and derives the
@@ -63,24 +64,25 @@ func Derive(in Input) (Result, error) {
 	e := in.Entry
 	if e.Provider != Provider || e.Anchor != Anchor || !sourceRE.MatchString(e.SourceURL) ||
 		e.Licence != providerexcerpt.LicenceUnknown || e.Form != providerexcerpt.FormParaphrase {
-		return Result{}, shared.Drift(shared.KindExcerpt, "entry %s is not the EKS release calendar excerpt", e.ID)
+		return Result{}, drift(pd.KindExcerpt, "entry %s is not the EKS release calendar excerpt", e.ID)
 	}
-	body, err := shared.Body(e, in.Data)
+	lines, err := pd.Body(source, pd.Excerpt{Entry: e, Data: in.Data})
 	if err != nil {
 		return Result{}, err
 	}
-	day, err := shared.FetchedDate(e)
+	body := strings.Join(lines, "\n")
+	day, err := pd.FetchDay(source, e)
 	if err != nil {
 		return Result{}, err
 	}
 	var rows []Row
 	for i, l := range strings.Split(strings.TrimSuffix(body, "\n"), "\n") {
 		m := lineRE.FindStringSubmatch(l)
-		if m == nil {
-			return Result{}, shared.Drift(shared.KindUnparsable, "excerpt line %d is outside the grammar", i+1)
+		if m == nil || !pd.ParseLine(m[1]) {
+			return Result{}, drift(pd.KindRow, "excerpt line %d is outside the grammar", i+1)
 		}
 		r := Row{Line: m[1]}
-		for j, dst := range []*shared.Cell{&r.Upstream, &r.Release, &r.StandardEnd, &r.ExtendedEnd} {
+		for j, dst := range []*shared.DateCell{&r.Upstream, &r.Release, &r.StandardEnd, &r.ExtendedEnd} {
 			if *dst, err = tokCell(m[j+2]); err != nil {
 				return Result{}, fmt.Errorf("excerpt line %d: %w", i+1, err)
 			}
@@ -89,7 +91,7 @@ func Derive(in Input) (Result, error) {
 			return Result{}, fmt.Errorf("excerpt line %d (%s): %w", i+1, r.Line, err)
 		}
 		if len(rows) > 0 && lineNum(r.Line) >= lineNum(rows[len(rows)-1].Line) {
-			return Result{}, shared.Drift(shared.KindUnparsable, "excerpt line %d (%s): versions must be strictly descending", i+1, r.Line)
+			return Result{}, drift(pd.KindRow, "excerpt line %d (%s): versions must be strictly descending", i+1, r.Line)
 		}
 		rows = append(rows, r)
 	}
@@ -99,7 +101,7 @@ func Derive(in Input) (Result, error) {
 // afterDay reports whether a dated cell lies after the fetch day (YYYY-MM-DD)
 // at the cell's own precision: day, month (YYYY-MM) and quarter (YYYY-Qn). A
 // month or quarter that contains the fetch day is not after it.
-func afterDay(c shared.Cell, day string) bool {
+func afterDay(c shared.DateCell, day string) bool {
 	switch c.Precision {
 	case distribution.PrecisionDay:
 		return c.Value > day
