@@ -1,0 +1,4 @@
+change_type: breaking
+component: service
+note: Remove the `Foo.Bar` field.
+issues: [1234]

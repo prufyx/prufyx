@@ -1,0 +1,4 @@
+change_type: breaking
+component: otlpexporter
+note: Drop support for the `retry_legacy` config key.
+issues: [1234]

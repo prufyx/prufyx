@@ -1,0 +1,4 @@
+change_type: breaking
+component: service
+note: !!str Remove the `--a` flag.
+issues: [1]

@@ -1,0 +1,4 @@
+change_type: breaking
+component: service
+note: Removal in 0.100 of the `--a` flag.
+issues: [1234]

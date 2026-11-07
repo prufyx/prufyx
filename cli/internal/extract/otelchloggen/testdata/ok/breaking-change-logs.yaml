@@ -1,0 +1,5 @@
+change_type: breaking
+component: service
+note: Remove the `--logged-flag` flag.
+issues: [1]
+change_logs: [user, api]
