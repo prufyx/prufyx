@@ -42,8 +42,15 @@ class Mixed(unittest.TestCase):
         r = self.verdict(10, blocked([finding(V1), finding(V2)], [GAP]))
         self.assertEqual((r[0], r[1], r[2], r[4]), (False, False, [], True))
 
-    def test_exact_with_no_gap_is_design_too(self):
-        self.assertTrue(self.verdict(10, blocked([finding(V1), finding(V2)]))[4])
+    def test_exact_with_no_gap_is_not_design(self):
+        rep = blocked([finding(V1), finding(V2)])
+        r = crd.classify_pair(10, rep, [W, V1, V2], [W], P)
+        self.assertEqual((r[1], r[4], r[5]), (True, False, "NO_GAP"))
+
+    def test_non_dict_finding_is_mismatch(self):
+        for bad in ("x", None, 3):
+            r = self.verdict(10, blocked([finding(V1), finding(V2), bad], [GAP]))
+            self.assertEqual((r[1], r[4]), (True, False), bad)
 
     def test_missing_version_finding_is_mismatch(self):
         r = self.verdict(10, blocked([finding(V1)], [GAP]))
@@ -80,6 +87,31 @@ class Mixed(unittest.TestCase):
         rep["paths"][0]["hops"][0]["families"][0]["status"] = "PASS"
         r = self.verdict(10, rep)
         self.assertEqual((r[0], r[4]), (True, False))
+
+
+class WholeFixture(unittest.TestCase):
+    """Fixed fixture: version-level removals inside still-defined CRDs must never be classified as whole-CRD removals."""
+    REMOVED = [("core.oam.dev", "v1alpha2", "Application"), ("core.oam.dev", "v1alpha2", "ApplicationRevision"),
+               ("pkg.example", "v1alpha1", "ControllerConfig")]
+    DEFINED = {("core.oam.dev", "Application"), ("core.oam.dev", "ApplicationRevision")}
+
+    def test_only_absent_kind_is_whole(self):
+        self.assertEqual(crd.whole_removed(self.REMOVED, self.DEFINED), [("pkg.example", "v1alpha1", "ControllerConfig")])
+
+    def test_classify_whole_through_defined_kinds(self):
+        with patch.object(crd, "defined_kinds", return_value=self.DEFINED):
+            self.assertEqual(crd.classify_whole({}, "gd", "v2", self.REMOVED, {}), [("pkg.example", "v1alpha1", "ControllerConfig")])
+        with patch.object(crd, "defined_kinds", return_value=self.DEFINED | {("pkg.example", "ControllerConfig")}):
+            self.assertEqual(crd.classify_whole({}, "gd", "v2", self.REMOVED, {}), [])
+
+    def test_version_level_miss_is_not_excused_as_design(self):
+        # scanner missed the Application removals while the CRD is still defined: nothing whole, so UNKNOWN stays a mismatch
+        whole = crd.whole_removed(self.REMOVED[:2], self.DEFINED)
+        self.assertEqual(whole, [])
+        rep = {"verdict": "UNKNOWN", "findings": [], "gaps": [GAP],
+               "paths": [{"component": P, "hops": [{"status": "NO_DATA", "reasons": ["COMPONENT_NOT_COVERED"]}]}]}
+        r = crd.crd_verdict(11, rep, self.REMOVED[:2], whole, P)
+        self.assertEqual((r[1], r[4]), (True, False))
 
 
 class Diagnostics(unittest.TestCase):
@@ -156,6 +188,47 @@ class Registry(unittest.TestCase):
             self.gaps(bad)
             r, summ = run_summary(self.s, [mm("k1")])
             self.assertEqual((summ["new_mismatch"], summ["known_gap"], r.returncode), (1, 0, 2), bad)
+
+    def test_sig_matches_covers_and_changed_nature_alarms(self):
+        c = mm("k1", missing=["g/v/K"], exit=11, verdict="UNKNOWN")
+        self.gaps(entry("crd|k1", sig=qalib.case_sig(c)))
+        r, summ = run_summary(self.s, [c])
+        self.assertEqual((summ["known_gap"], summ["new_mismatch"], summ["known_gap_nosig"], r.returncode), (1, 0, [], 0))
+        for changed in (mm("k1", missing=["g/v/K", "g/v/L"], exit=11, verdict="UNKNOWN"), mm("k1", missing=["g/v/K"], exit=10, verdict="BLOCKED"),
+                        mm("k1", missing=["g/v/K"], exit=11, verdict="UNKNOWN", status="X")):
+            r, summ = run_summary(self.s, [changed])
+            self.assertEqual((summ["known_gap"], summ["new_mismatch"], r.returncode), (0, 1, 2))
+
+    def test_wrong_or_non_string_sig_never_covers(self):
+        for sig in ("0" * 64, 5, ["x"]):
+            self.gaps(entry("crd|k1", sig=sig))
+            r, summ = run_summary(self.s, [mm("k1")])
+            self.assertEqual((summ["known_gap"], summ["new_mismatch"]), (0, 1), sig)
+
+    def test_no_sig_is_covered_with_warning(self):
+        self.gaps(entry("crd|k1"))
+        r, summ = run_summary(self.s, [mm("k1")])
+        self.assertEqual((summ["known_gap"], summ["known_gap_nosig"], r.returncode), (1, ["crd|k1"], 0))
+        self.assertIn("known-gap entry crd|k1 has no sig", r.stdout)
+        self.assertEqual(json.load(open(self.s + "/status.json"))["known_gap_nosig"], ["crd|k1"])
+
+    def test_sig_cli_prints_sig_of_the_mismatch(self):
+        c = mm("k1", missing=["g/v/K"], exit=11, verdict="UNKNOWN")
+        d = tempfile.mkdtemp()
+        json.dump([c], open(d + "/crd.cases.json", "w"))
+        r = subprocess.run([sys.executable, os.path.join(HERE, "qalib.py"), "sig", d, "crd|k1"], capture_output=True, text=True)
+        self.assertEqual(r.stdout.strip(), qalib.case_sig(c))
+        r = subprocess.run([sys.executable, os.path.join(HERE, "qalib.py"), "sig", d, "crd|nope"], capture_output=True, text=True)
+        self.assertNotEqual(r.returncode, 0)
+
+    def test_registry_over_cap_with_missing_or_corrupt_status_is_inconclusive(self):
+        self.gaps(*[entry(f"crd|k{i}") for i in range(11)])
+        r, summ = run_summary(self.s, [mm(f"k{i}") for i in range(11)])
+        self.assertEqual(r.returncode, 3)
+        self.gaps(*[entry(f"crd|k{i}") for i in range(11)])
+        open(self.s + "/status.json", "w").write("{corrupt")
+        r, summ = run_summary(self.s, [mm(f"k{i}") for i in range(11)], "full")
+        self.assertEqual((summ["state"], r.returncode), ("INCONCLUSIVE", 3))
 
     def test_malformed_file_is_ignored(self):
         open(self.s + "/known-gaps.json", "w").write("{not json")
@@ -246,6 +319,23 @@ class DigestReset(unittest.TestCase):
         self.assertIsNone(summ["unsupported_community_rise"])
         self.assertFalse(summ["design_unknown_whole_crd_cap_breach"])
         self.assertEqual(json.load(open(s + "/status.json"))["oracle_digest"], qalib.oracle_digest())
+
+    def test_changed_digest_with_percent_cap_growth_is_reset_not_flagged_but_marked(self):
+        s = tempfile.mkdtemp()
+        run_summary(s, self.design(20), "full")
+        st = json.load(open(s + "/status.json"))
+        st["oracle_digest"] = "0" * 64
+        json.dump(st, open(s + "/status.json", "w"))
+        r, summ = run_summary(s, self.design(60), "full")  # +200% but oracle changed: no CAP, hard cap 80 not hit
+        self.assertFalse(summ["design_unknown_whole_crd_cap_breach"])
+        self.assertIn("ORACLE_CHANGED", r.stdout.splitlines()[0])
+        r, summ = run_summary(s, self.design(61), "full")
+        self.assertNotIn("ORACLE_CHANGED", r.stdout.splitlines()[0])
+
+    def test_digest_covers_scope_modules(self):
+        import hashlib
+        self.assertIn("qa_scope.py", open(os.path.join(HERE, "qalib.py")).read())
+        self.assertIn("qa_batch_scope.py", open(os.path.join(HERE, "qalib.py")).read())
 
     def test_changed_digest_hard_cap_still_applies_and_baseline_not_stored(self):
         s = tempfile.mkdtemp()

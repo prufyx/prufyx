@@ -70,6 +70,7 @@ try:
 except ValueError:
     pass
 registry = {}
+gap_sigs = {}
 try:
     with open(a.state + "/known-gaps.json") as gaps_file:
         raw_gaps = json.load(gaps_file)
@@ -80,6 +81,9 @@ try:
                 and isinstance(e.get("reason"), str) and e["reason"].strip()
                 and isinstance(e.get("owner"), str) and e["owner"].strip()):
             registry[e["key"]] = e
+            sig = e.get("sig")
+            if sig not in (None, ""):
+                gap_sigs[e["key"]] = sig if isinstance(sig, str) else None  # a non-string sig never matches
         else:
             print(f"known-gaps: entry ignored (needs key, reason and owner): {str(e)[:80]}", file=sys.stderr)
 except FileNotFoundError:
@@ -89,8 +93,16 @@ except (OSError, ValueError) as err:
 wp = [c for c in cases if c["wrongpass"]]
 mm = [c for c in cases if c["mismatch"] and not c["wrongpass"]]
 ckey = lambda c: f"{c['suite']}|{c['key']}"
-known_gap = [c for c in mm if not candidate(c) and ckey(c) in registry]
-new = [c for c in mm if (ckey(c) not in base or candidate(c)) and not (not candidate(c) and ckey(c) in registry)]
+def covered(c):
+    """A plain mismatch is explained by a valid entry; when the entry carries a sig the mismatch must still have that exact nature."""
+    k = ckey(c)
+    if candidate(c) or k not in registry:
+        return False
+    return k not in gap_sigs or gap_sigs[k] == qalib.case_sig(c)
+known_gap = [c for c in mm if covered(c)]
+new = [c for c in mm if (ckey(c) not in base or candidate(c)) and not covered(c)]
+nosig = sorted(k for k in registry if k not in gap_sigs)
+
 # only a plain mismatch can be explained: a registered key whose case is wrongpass is reported, not resolved or honoured
 resolved_gaps = sorted(k for k in registry if a.mode == "full" and not a.adhoc
                        and not any(ckey(c) == k and (c["mismatch"] or c["wrongpass"]) for c in cases))
@@ -130,7 +142,7 @@ baseline_stored = not (cap_breach or a.mode != "full" or a.adhoc)
 design_baseline = (design or None) if baseline_stored else kept_design
 alarm = bool(wp or new)
 state = "ALARM" if alarm else ("INCONCLUSIVE" if (er or cap_breach or gaps_breach) else ("GREEN-PARTIAL" if skipped else "GREEN"))
-line = f"WRONGPASS={len(wp)} MISMATCH={len(mm)} NEWMISMATCH={len(new)} KNOWN_GAP={len(known_gap)} ERR={len(er)} DESIGN_UNKNOWN_WHOLE_CRD={design}{" RISE" if design_rise else ""}{" CAP" if cap_breach else ""}{" DROP" if design_drop else ""} sha={a.sha[:8]} mode={a.mode} {state}"
+line = f"WRONGPASS={len(wp)} MISMATCH={len(mm)} NEWMISMATCH={len(new)} KNOWN_GAP={len(known_gap)} ERR={len(er)} DESIGN_UNKNOWN_WHOLE_CRD={design}{" ORACLE_CHANGED" if oracle_changed else ""}{" RISE" if design_rise else ""}{" CAP" if cap_breach else ""}{" DROP" if design_drop else ""} sha={a.sha[:8]} mode={a.mode} {state}"
 now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 unsupported = sum(1 for c in cases if c.get("detail", {}).get("status") == "UNSUPPORTED_COMMUNITY")
 unknown_floor = sum(1 for c in cases if c.get("detail", {}).get("status") == "UNKNOWN_EARLIEST_SERVED")
@@ -143,7 +155,7 @@ except (OSError, ValueError):
 previous_count = previous.get("unsupported_community") if (previous.get("mode") == a.mode and not oracle_changed) else None
 rise = (unsupported > previous_count if type(previous_count) is int and a.mode != "none" else None)
 summ = {"scopes": scopes, "run_id": os.environ.get("QA_RUN_ID", ""), "base": os.environ.get("QA_BASE", ""), "time": now, "sha": a.sha, "mode": a.mode, "state": state, "verdict": line, "wrongpass": len(wp),
-        "mismatch": len(mm), "new_mismatch": len(new), "known_gap": len(known_gap), "known_gap_cases": [ckey(c) for c in known_gap],
+        "mismatch": len(mm), "new_mismatch": len(new), "known_gap": len(known_gap), "known_gap_cases": [ckey(c) for c in known_gap], "known_gap_nosig": nosig,
         "resolved_gaps": resolved_gaps, "known_gap_registration_breach": gaps_breach, "errors": len(er),
         "unsupported_community": unsupported, "unsupported_community_rise": rise, "unknown_earliest_served": unknown_floor,
         "design_unknown_whole_crd_removal": design, "design_unknown_whole_crd_rise": design_rise, "design_unknown_whole_crd_cap_breach": cap_breach, "design_unknown_whole_crd_drop": design_drop, "design_unknown_whole_crd_baseline": design_baseline, "cases": len(cases),
@@ -152,7 +164,7 @@ summ = {"scopes": scopes, "run_id": os.environ.get("QA_RUN_ID", ""), "base": os.
 json.dump(summ, open(a.dir + "/summary.json", "w"), indent=1)
 status = {k: summ[k] for k in ("time", "sha", "mode", "state", "verdict", "wrongpass", "mismatch", "new_mismatch", "errors", "design_unknown_whole_crd_removal", "design_unknown_whole_crd_rise", "design_unknown_whole_crd_cap_breach", "design_unknown_whole_crd_drop", "design_unknown_whole_crd_baseline")}
 kept_digest = oracle_digest if (baseline_stored or not os.path.exists(a.state + "/status.json")) else prev_digest
-status.update(known_gap=len(known_gap), known_gap_cases=[ckey(c) for c in known_gap], resolved_gaps=resolved_gaps,
+status.update(known_gap_nosig=nosig, known_gap=len(known_gap), known_gap_cases=[ckey(c) for c in known_gap], resolved_gaps=resolved_gaps,
               known_gap_registration_breach=gaps_breach, oracle_changed=oracle_changed, oracle_digest=kept_digest,
               known_gap_keys=sorted(prev_gap_keys if (gaps_breach or a.mode != "full" or a.adhoc) else registry),
               unknown_earliest_served=unknown_floor, unsupported_community=unsupported, unsupported_community_rise=rise)
@@ -166,6 +178,8 @@ if alarm:
                "raised": now, "verdict": line, "wrongpass_cases": wp[:50], "new_mismatch_cases": new[:50],
                "summary": a.dir + "/summary.json"}, open(f"{a.state}/alarms/{a.sha[:8]}.alarm.json", "w"), indent=1)
 print(line)
+for k in nosig:
+    print(f"known-gap entry {k} has no sig")
 if unknown_floor:
     print(f"UNKNOWN_EARLIEST_SERVED={unknown_floor}")
 if resolved_gaps:

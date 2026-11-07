@@ -340,7 +340,7 @@ def whole_signal_clause(report, component, require_gap=True, allow_findings=Fals
     """None when the scan output has the documented whole-CRD shape, else a short code naming the first failing clause.
     Whole-only shape: no findings, no unsupported combination, nothing omitted, at least one gap for the component, every gap
     reason in the removed-definition set, every hop of the component NO_DATA with only those reasons and no family evaluated.
-    Mixed shape (allow_findings, no gap/hop requirement): the same gap rules for any gap present; findings are judged elsewhere."""
+    Mixed shape (allow_findings): the same gap rules (at least one design gap, none foreign), no hop check; findings are judged elsewhere."""
     if report.get("unsupported"):
         return "UNSUPPORTED"
     if report.get("omitted"):
@@ -355,10 +355,10 @@ def whole_signal_clause(report, component, require_gap=True, allow_findings=Fals
         return "GAP_COMPONENT"
     if any(g.get("reason") not in DESIGN_GAP_REASONS for g in mine):
         return "GAP_REASON"
-    if allow_findings:
-        return None
     if not mine:
         return "NO_GAP"
+    if allow_findings:
+        return None
     hops = [h for p in report.get("paths") or [] if isinstance(p, dict) and p.get("component") == component
             for h in p.get("hops") or []]
     if not hops:

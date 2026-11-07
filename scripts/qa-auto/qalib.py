@@ -167,10 +167,30 @@ def complete_scan_scope(report, requested):
 
 
 def oracle_digest():
-    """sha256 over the oracle's own sources (crd_oracle.py, summarize.py, qalib.py): a change resets the rise baselines."""
+    """sha256 over the oracle's own sources (crd_oracle.py, summarize.py, qalib.py, qa_scope.py, qa_batch_scope.py): a change resets the rise baselines."""
     here = os.path.dirname(os.path.abspath(__file__))
     digest = hashlib.sha256()
-    for name in ("crd_oracle.py", "summarize.py", "qalib.py"):
+    for name in ("crd_oracle.py", "summarize.py", "qalib.py", "qa_scope.py", "qa_batch_scope.py"):
         with open(os.path.join(here, name), "rb") as src:
             digest.update(hashlib.sha256(src.read()).digest())
     return digest.hexdigest()
+
+
+def case_sig(c):
+    """Fingerprint of the nature of a mismatch: sha256 of the sorted missing list, status, verdict and scan exit code.
+    A known-gap entry registered with this sig stops covering the case when any of them changes."""
+    d = c.get("detail", {})
+    blob = json.dumps([sorted(d.get("missing") or []), d.get("status"), d.get("verdict"), d.get("exit")], sort_keys=True)
+    return hashlib.sha256(blob.encode()).hexdigest()
+
+
+if __name__ == "__main__":
+    # usage: python3 qalib.py sig RESULTS_DIR "suite|key"   prints the sig to put into known-gaps.json
+    import glob
+    if len(sys.argv) != 4 or sys.argv[1] != "sig":
+        raise SystemExit("usage: qalib.py sig RESULTS_DIR suite|key")
+    found = [c for f in sorted(glob.glob(sys.argv[2] + "/*.cases.json")) for c in json.load(open(f))
+             if f"{c['suite']}|{c['key']}" == sys.argv[3] and c.get("mismatch")]
+    if len(found) != 1:
+        raise SystemExit(f"expected exactly one mismatch case for {sys.argv[3]}, found {len(found)}")
+    print(case_sig(found[0]))
