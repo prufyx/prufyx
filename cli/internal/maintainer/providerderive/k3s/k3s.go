@@ -84,6 +84,9 @@ func Derive(in []providerderive.Input) (providerderive.Result, error) {
 	if err != nil {
 		return providerderive.Result{}, err
 	}
+	if err := providerderive.CheckDisjoint(Provider, rows, unk); err != nil {
+		return providerderive.Result{}, err
+	}
 	providerderive.SortUnknown(unk)
 	return providerderive.Result{Rows: rows, Unknown: unk}, nil
 }

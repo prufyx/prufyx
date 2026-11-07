@@ -108,8 +108,9 @@ func Open(provider, repo string, in Input) (Header, []string, error) {
 		return Header{}, nil, Drift(provider, id, "excerpt belongs to provider %q", in.Entry.Provider)
 	}
 	u, err := url.Parse(in.Entry.SourceURL)
-	if err != nil || u.Host != "github.com" || !strings.HasPrefix(u.Path, "/"+repo+"/releases/") {
-		return Header{}, nil, Drift(provider, id, "source is not %s releases on github.com", repo)
+	if err != nil || u.Scheme != "https" || u.Host != "github.com" || u.RawQuery != "" || u.Fragment != "" ||
+		!strings.HasPrefix(u.Path, "/"+repo+"/releases/tag/") {
+		return Header{}, nil, Drift(provider, id, "source is not a %s release tag page on github.com", repo)
 	}
 	if in.Entry.Form != providerexcerpt.FormVerbatim {
 		return Header{}, nil, Drift(provider, id, "release excerpt must be verbatim")
@@ -120,7 +121,32 @@ func Open(provider, repo string, in Input) (Header, []string, error) {
 	}
 	all := strings.Split(strings.TrimSuffix(string(in.Data), "\n"), "\n")
 	body := all[start-1:]
-	return ParseBody(provider, id, body)
+	h, rest, err := ParseBody(provider, id, body)
+	if err != nil {
+		return h, nil, err
+	}
+	// The source page must be exactly this release's tag page. u.Path is the
+	// decoded path, so a literal '+' and %2B both match the tag once; a
+	// double-escaped tag (%252B) decodes to "%2B" and is rejected.
+	if u.Path != "/"+repo+"/releases/tag/"+h.Tag {
+		return Header{}, nil, Drift(provider, id, "source URL path %q does not match header tag %q", u.Path, h.Tag)
+	}
+	return h, rest, nil
+}
+
+// CheckDisjoint fails when one tag is both a mapped row and an unknown (two
+// excerpts of the same release disagreeing); no output may be produced.
+func CheckDisjoint(provider string, rows []Row, unk []Unknown) error {
+	mapped := make(map[string]string, len(rows))
+	for _, r := range rows {
+		mapped[r.ProviderVersion] = r.Excerpt
+	}
+	for _, u := range unk {
+		if ex, ok := mapped[u.Tag]; ok {
+			return Drift(provider, u.Excerpt, "tag %s is mapped by excerpt %s and unknown (%s) here", u.Tag, ex, u.Reason)
+		}
+	}
+	return nil
 }
 
 // ParseBody splits body lines into the metadata header and the release text.
