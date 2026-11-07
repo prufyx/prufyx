@@ -122,7 +122,7 @@ func TestDiscoverCompleteEmbeddedIdentityCatalog(t *testing.T) {
 			t.Fatalf("community generic route exposed: %#v", item)
 		}
 	}
-	if bound != 202+kubernetesExtra() {
+	if bound != 211+kubernetesExtra() {
 		t.Fatalf("bound native routes = %d", bound)
 	}
 }
