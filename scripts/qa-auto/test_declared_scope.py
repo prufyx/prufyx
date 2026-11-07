@@ -73,6 +73,65 @@ class ScopeContractTests(unittest.TestCase):
                     oracle, "sh", side_effect=results), patch.object(oracle, "kubernetes_removal_facts", return_value={"fact": ["sample.example/v1/Widget"]}):
                 self.assertEqual(oracle.required_single_targets(singles), {ALPHA, stable})
 
+    ATTEST = "cli/internal/cncfcheck/data/corpus-attestation.json"
+
+    def attest_run(self, components_before, components_after, trusted=None, rules=None, extra_paths=(), inputs=None):
+        stable = "k8s-single|1.20->1.21 sample.example/v1/Widget"
+        singles = {ALPHA: ("sample.example", "v1alpha1", "Widget"), stable: ("sample.example", "v1", "Widget")}
+        att = lambda comps: json.dumps({"schema": "s", "revision": "r", "packDigest": "d", "ruleSetDigest": "d", "ruleCount": 1, "components": comps})
+        rule = lambda proj, comp: {"project": proj, "rule": {"id": proj}, "requiredFacts": [{"component": comp}]}
+        rules_doc = json.dumps(rules or {"schema": "s", "entries": [rule("alpha", "pkg:github/o/alpha"), rule("kubernetes", "pkg:github/kubernetes/kubernetes")]})
+        if inputs is None:
+            inputs = (att(components_before), att(components_after), rules_doc, rules_doc,
+                      trusted if trusted is not None else {}, {"alpha"})
+        listing = subprocess.CompletedProcess([], 0, "\n".join([self.ATTEST, *extra_paths]) + "\n", "")
+        with patch.dict(os.environ, QA_BASE="base", QA_SHA="head"), patch.object(
+                oracle, "sh", return_value=listing), patch.object(oracle, "attestation_inputs", return_value=inputs):
+            return oracle.required_single_targets(singles), set(singles)
+
+    def test_attestation_non_kubernetes_change_stays_narrow(self):
+        got, _ = self.attest_run(["pkg:github/o/alpha"], ["pkg:github/o/alpha", "pkg:github/other/alpha"],
+                                 extra_paths=["README.md", "cli/docs/generated/community-support-inventory.json"])
+        self.assertEqual(got, set())
+        got, _ = self.attest_run(["pkg:github/o/alpha"], [])
+        self.assertEqual(got, set())
+
+    def test_attestation_kubernetes_component_requires_all(self):
+        for before, after in (([], ["pkg:github/kubernetes/kubernetes"]), (["pkg:github/o/kube-proxy"], []),
+                              ([], ["pkg:generic/k8s-thing"])):
+            got, every = self.attest_run(before, after)
+            self.assertEqual(got, every)
+
+    def test_attestation_kubernetes_attributed_via_trusted_binding_requires_all(self):
+        got, every = self.attest_run([], ["pkg:github/o/renamed"], trusted={"pkg:github/o/renamed": "kubernetes"})
+        self.assertEqual(got, every)
+
+    def test_attestation_unattributable_or_unparseable_requires_all(self):
+        got, every = self.attest_run([], ["pkg:github/o/unknown-thing"])
+        self.assertEqual(got, every)
+        got, every = self.attest_run(None, None, inputs=("{not json", "{}", "{}", "{}", {}, set()))
+        self.assertEqual(got, every)
+        def boom():
+            raise ValueError("unreadable")
+        with patch.object(oracle, "attestation_inputs", side_effect=boom), patch.dict(os.environ, QA_BASE="base", QA_SHA="head"), patch.object(
+                oracle, "sh", return_value=subprocess.CompletedProcess([], 0, self.ATTEST + "\n", "")):
+            self.assertEqual(oracle.required_single_targets({ALPHA: ("a", "b", "c")}), {ALPHA})
+
+    def test_attestation_with_kubernetes_rules_change_requires_that_fact(self):
+        stable = "k8s-single|1.20->1.21 sample.example/v1/Widget"
+        singles = {ALPHA: ("sample.example", "v1alpha1", "Widget"), stable: ("sample.example", "v1", "Widget")}
+        entry = {"project": "kubernetes", "rule": {"id": "removal", "condition": {"factId": "fact"}}}
+        results = [subprocess.CompletedProcess([], 0, f"{self.ATTEST}\ncli/internal/cncfcheck/data/rules.json\n", ""),
+                   subprocess.CompletedProcess([], 0, json.dumps({"entries": []}), ""),
+                   subprocess.CompletedProcess([], 0, json.dumps({"entries": [entry]}), "")]
+        att = json.dumps({"schema": "s", "revision": "r", "packDigest": "d", "ruleSetDigest": "d", "ruleCount": 1, "components": []})
+        att2 = json.dumps({"schema": "s", "revision": "r", "packDigest": "d", "ruleSetDigest": "d", "ruleCount": 1, "components": ["pkg:github/o/alpha"]})
+        rules = json.dumps({"schema": "s", "entries": [{"project": "alpha", "rule": {"id": "a"}, "requiredFacts": [{"component": "pkg:github/o/alpha"}]}]})
+        with patch.dict(os.environ, QA_BASE="base", QA_SHA="head"), patch.object(oracle, "sh", side_effect=results), patch.object(
+                oracle, "attestation_inputs", return_value=(att, att2, rules, rules, {}, {"alpha"})), patch.object(
+                oracle, "kubernetes_removal_facts", return_value={"fact": ["sample.example/v1/Widget"]}):
+            self.assertEqual(oracle.required_single_targets(singles), {stable})
+
     def test_summary_rejects_missing_bound_scope_and_required_exclusions(self):
         script_dir = Path(__file__).resolve().parent
         for mode, expected in (("valid", 0), ("missing", 3), ("required-excluded", 3), ("wrong-run", 3)):
