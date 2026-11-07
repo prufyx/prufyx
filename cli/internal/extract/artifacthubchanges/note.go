@@ -114,6 +114,19 @@ func checkNode(n *yaml.Node, depth int) error {
 	if n.Kind != yaml.DocumentNode && !allowedTags[n.Tag] {
 		return fmt.Errorf("tag %q", n.Tag)
 	}
+	if n.Kind == yaml.MappingNode {
+		keys := map[string]bool{}
+		for i := 0; i+1 < len(n.Content); i += 2 {
+			k := n.Content[i]
+			if k.Kind != yaml.ScalarNode {
+				return errors.New("non-scalar key")
+			}
+			if keys[k.Value] {
+				return errors.New("duplicate key")
+			}
+			keys[k.Value] = true
+		}
+	}
 	for _, c := range n.Content {
 		if err := checkNode(c, depth+1); err != nil {
 			return err
