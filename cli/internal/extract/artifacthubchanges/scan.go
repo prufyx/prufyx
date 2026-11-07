@@ -108,7 +108,13 @@ var (
 	valuesKeyRE = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+$`)
 	// hostLikeRE: a trailing top level domain or file extension makes the
 	// token a host name or file name rather than a values key.
-	hostLikeRE = regexp.MustCompile(`(?i)\.(com|io|org|net|dev|yaml|yml|json|md|txt|tpl|go|sh)$`)
+	hostLikeRE = regexp.MustCompile(`(?i)\.(com|io|org|net|dev|co|cloud|local|internal|lan|home|app|svc|cluster|arpa|yaml|yml|json|md|txt|tpl|go|sh)$`)
+	// versionSegRE: an API version segment ("v1", "v1beta1") marks a group
+	// version such as apps.v1, not a values key.
+	versionSegRE = regexp.MustCompile(`(?i)^v\d+((alpha|beta)\d*)?$`)
+	// typeWordRE: a values key is accepted only when the text calls it one.
+	typeWordBefore = `(?i)\b(?:value|values|key|keys|option|options|parameter|parameters|setting|settings)\s+$`
+	typeWordAfter  = `(?i)^\s+(?:value|values|key|keys|option|options|parameter|parameters|setting|settings)\b`
 
 	removedRE   = regexp.MustCompile(`\b(removed|removes|removal|remove)\b`)
 	futureRE    = regexp.MustCompile(`\b(will be|to be|is going to be|are going to be|scheduled to be|will soon be)\s+removed\b`)
@@ -124,7 +130,8 @@ var (
 
 // Scan reads the changes annotation of the listed charts at commit sha. The
 // reader must be pinned: sha is a full 40-character commit. At least one
-// chart path is required.
+// chart path is required. The PinnedReader returns whole files, so
+// MaxChartBytes bounds parsing, not the transfer; the reader owns that bound.
 func Scan(ctx context.Context, r extract.PinnedReader, t Target, sha string) (res *Result, err error) {
 	if !extract.IsCommitSHA(sha) {
 		return nil, errors.New("artifacthubchanges: sha must be a full 40-character commit SHA")
@@ -380,6 +387,10 @@ func (s *scanner) entry(file string, c *chart, ann text, ch change, kind string)
 		s.l.add(ReasonAmbiguous, file)
 		return Candidate{}, false
 	}
+	if tok.typ == TypeValuesKey && !namedAsKey(quote, tok.raw) {
+		s.l.add(ReasonUnclassified, file)
+		return Candidate{}, false
+	}
 	comp := ""
 	if tok.typ == TypeFlag {
 		comp = ComponentUnknown
@@ -405,6 +416,26 @@ func adjacent(quote, raw string) bool {
 	return pre.MatchString(quote) || post.MatchString(quote)
 }
 
+func hasVersionSegment(t string) bool {
+	for _, p := range strings.Split(t, ".") {
+		if versionSegRE.MatchString(p) {
+			return true
+		}
+	}
+	return false
+}
+
+// namedAsKey reports whether a word such as "value" or "key" stands directly
+// before or after the backticked token.
+func namedAsKey(quote, raw string) bool {
+	q := "`" + raw + "`"
+	i := strings.Index(quote, q)
+	if i < 0 {
+		return false
+	}
+	return regexp.MustCompile(typeWordBefore).MatchString(quote[:i]) || regexp.MustCompile(typeWordAfter).MatchString(quote[i+len(q):])
+}
+
 type token struct {
 	typ, member, raw string
 }
@@ -420,7 +451,7 @@ func classify(t string) (token, bool) {
 		}
 		return token{typ: TypeFlag, member: mem}, true
 	}
-	if valuesKeyRE.MatchString(t) && !hostLikeRE.MatchString(t) {
+	if valuesKeyRE.MatchString(t) && !hostLikeRE.MatchString(t) && !hasVersionSegment(t) {
 		var segs []membercode.Seg
 		for _, p := range strings.Split(t, ".") {
 			segs = append(segs, membercode.Seg{Kind: membercode.Prop, Name: p})
