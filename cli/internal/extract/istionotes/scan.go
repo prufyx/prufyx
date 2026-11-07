@@ -18,7 +18,7 @@ import (
 // ResultSchema identifies the canonical JSON of a Result.
 const ResultSchema = "prufyx.io/istio-notes-scan/v1"
 
-// EvidenceBasis is the basis of every candidate. It is never "mechanical".
+// EvidenceBasis is the basis of every candidate. It is a lead for a reviewer and never a derived basis.
 const EvidenceBasis = "draft"
 
 // NotesDir is where Istio keeps the fragments.
@@ -40,6 +40,10 @@ const (
 	TypeCRDKind = "crd_kind"
 )
 
+// ComponentUnknown marks a flag candidate whose binary or component the note
+// does not state.
+const ComponentUnknown = "unknown"
+
 // Actions.
 const (
 	ActionRemoved    = "removed"
@@ -56,9 +60,12 @@ const (
 // encoder (flag name, or encoded field path); it is empty for a CRD kind,
 // which the shared encoder has no form for (Group and Kind identify it).
 type Candidate struct {
-	Type          string `json:"type"`
-	Action        string `json:"action"`
-	Member        string `json:"member,omitempty"`
+	Type   string `json:"type"`
+	Action string `json:"action"`
+	Member string `json:"member,omitempty"`
+	// Component is "unknown" for a flag: a note does not name the binary
+	// that owns it, so a reviewer must attribute it before any use.
+	Component     string `json:"component,omitempty"`
 	Group         string `json:"group,omitempty"`
 	Kind          string `json:"kind,omitempty"`
 	File          string `json:"file"`
@@ -127,7 +134,12 @@ var (
 	futureRE    = regexp.MustCompile(`\b(will be|to be|is going to be|are going to be|scheduled to be|will soon be)\s+removed\b`)
 	deprecateRE = regexp.MustCompile(`\b(deprecated|deprecates|deprecate|deprecation)\b`)
 	negationRE  = regexp.MustCompile(`\b(not|never|no longer|isn't|aren't|won't|without)\b[^.\n]{0,24}\b(removed|remove|deprecated|deprecate)\b`)
-	replaceRE   = regexp.MustCompile(`\b(instead|replaced|replaces|replace|replacement|migrate|use|renamed|rename|now)\b`)
+	replaceRE   = regexp.MustCompile(`\b(instead|replaced|replaces|replace|replacement|migrate|use|renamed|rename|now|requirement|requires|required|default|defaults|defaulted|value|values|changed|changes)\b`)
+	// modalRE: modal, planned or versioned prose is a forecast or a
+	// possibility, not a statement that something was removed.
+	modalRE = regexp.MustCompile(`\b(may|can|could|should|would|might|shall|must)\s+(also\s+|soon\s+)?(be\s+)?(removed|deprecated)\b|\b(planned|scheduled|slated|intended)\s+(for\s+)?(removal|deprecation|to be removed)\b|\bremoval\s+(in|from|by)\b|\bremoved\s+(in|from|by)\s+(the\s+)?(next|upcoming|following|v?\d)|\b(if|unless|when|once)\b[^.\n]{0,60}\b(removed|deprecated)\b`)
+	verbRE  = `(?:removed|removes|deprecated|deprecates)\*{0,2}`
+	listRE  = "(?:`[^`\\n]+`\\s*(?:,|and|or)?\\s*)*"
 )
 
 // Scan reads the notes of the repository at commit sha. The reader must be
@@ -318,7 +330,7 @@ func span(t text) (start, end int, exact bool) {
 }
 
 type token struct {
-	typ, member, group, kind string
+	typ, member, group, kind, raw string
 }
 
 // unit classifies one text. It returns (candidates, true) or withholds the
@@ -344,7 +356,7 @@ func (s *scanner) unit(file string, n *note, u unit) ([]Candidate, bool) {
 	if !removed && !deprecated && kindAction == "" {
 		return nil, false
 	}
-	if negationRE.MatchString(lower) || (removed && deprecated) {
+	if modalRE.MatchString(lower) || negationRE.MatchString(lower) || (removed && deprecated) {
 		s.l.add(ReasonAmbiguous, file)
 		return nil, false
 	}
@@ -376,6 +388,7 @@ func (s *scanner) unit(file string, n *note, u unit) ([]Candidate, bool) {
 	var toks []token
 	for _, m := range matches {
 		tk, ok := classify(strings.TrimSpace(m[1]))
+		tk.raw = strings.TrimSpace(m[1])
 		if !ok {
 			s.l.add(ReasonUnclassified, file)
 			return nil, false
@@ -389,16 +402,26 @@ func (s *scanner) unit(file string, n *note, u unit) ([]Candidate, bool) {
 			toks = append(toks, tk)
 		}
 	}
-	if len(toks) > 1 && replaceRE.MatchString(lower) {
-		// The text probably names a replacement next to the removed name;
-		// which token the action applies to cannot be decided.
+	if replaceRE.MatchString(lower) {
+		// The text probably names a replacement, a default or a requirement
+		// next to the name; what the action applies to cannot be decided.
 		s.l.add(ReasonAmbiguous, file)
 		return nil, false
 	}
+	for _, tk := range toks {
+		if !adjacent(u.quote, tk.raw) {
+			s.l.add(ReasonAmbiguous, file)
+			return nil, false
+		}
+	}
 	var out []Candidate
 	for _, tk := range toks {
+		comp := ""
+		if tk.typ == TypeFlag {
+			comp = ComponentUnknown
+		}
 		out = append(out, Candidate{
-			Type: tk.typ, Action: action, Member: tk.member, Group: tk.group, Kind: tk.kind,
+			Component: comp, Type: tk.typ, Action: action, Member: tk.member, Group: tk.group, Kind: tk.kind,
 			File: file, NoteKind: n.Kind, Area: n.Area, Section: u.section, Quote: u.quote,
 			StartLine: u.start, EndLine: u.end, SpanExact: u.exact,
 			SourceURL:     s.repo.BlobURL(s.sha, file),
@@ -406,6 +429,17 @@ func (s *scanner) unit(file string, n *note, u unit) ([]Candidate, bool) {
 		})
 	}
 	return out, true
+}
+
+// adjacent reports whether the action verb stands right next to the token:
+// before it ("Removed the flag `x`", also through a list of tokens) or after
+// it ("`x` flag is removed", "`x` will be removed").
+func adjacent(quote, raw string) bool {
+	q := regexp.QuoteMeta("`" + raw + "`")
+	art := `(?:\s+(?:the|a|an|flags?|fields?|kinds?|options?|resources?))*\s+`
+	pre := regexp.MustCompile(`(?i)` + verbRE + art + listRE + q)
+	post := regexp.MustCompile(`(?i)` + q + `(?:\s*(?:,|and|or)\s*` + "`[^`\\n]+`" + `)*(?:\s+(?:flag|field|kind))?\s+(?:(?:is|are|was|were|has been|have been|will be|to be)\s+)` + verbRE)
+	return pre.MatchString(quote) || post.MatchString(quote)
 }
 
 // classify turns one backticked token into a typed token. ok is false when

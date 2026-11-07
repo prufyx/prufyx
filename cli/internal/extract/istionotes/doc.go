@@ -7,7 +7,7 @@
 //
 // A fragment is human prose with a few structured fields. It is structured
 // intent, not a derivation: nothing here can be re-derived by the gate and
-// nothing here is mechanical. Every candidate therefore carries the evidence
+// nothing here is a derived fact. Every candidate therefore carries the evidence
 // basis "draft" and NeedsReview; it is a lead for a reviewer, never a rule,
 // and it can never authorise a pass. The package is inert: it registers
 // nothing, writes nothing and is not wired into the extract runner, the rule
@@ -22,6 +22,16 @@
 // field of such a kind. Anything else, including a text that mixes actions,
 // names a replacement, quotes a code block or names nothing, is a ledger
 // entry and no candidate. A non-empty ledger means the result is incomplete.
+//
+// Modal, planned, conditional, negated or versioned prose ("may be removed",
+// "planned for removal", "removal in 1.30"), a named replacement, default or
+// requirement, and a token the action verb does not stand next to are all
+// withheld. A flag candidate has Component "unknown": a note does not name
+// its binary.
+//
+// knownKinds, the kind to API group table, is hand-written. When this reader
+// is wired into anything, it must be cross-checked against the CRD set of the
+// pinned Istio tree first.
 //
 // Limits are fixed (see the Max constants). There is no network access and
 // no execution: bytes come only through extract.PinnedReader.

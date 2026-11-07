@@ -7,10 +7,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go/parser"
+	gotoken "go/token"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -156,6 +159,14 @@ func TestNegativeFixtures(t *testing.T) {
 		"code-fence":        ReasonUnclassified,
 		"tag":               ReasonParse,
 		"bad-area":          ReasonParse,
+		"may-be-removed":    ReasonAmbiguous,
+		"planned":           ReasonAmbiguous,
+		"removal-in":        ReasonAmbiguous,
+		"next-release":      ReasonAmbiguous,
+		"requirement":       ReasonAmbiguous,
+		"defaults":          ReasonAmbiguous,
+		"replaced-with":     ReasonAmbiguous,
+		"not-adjacent":      ReasonAmbiguous,
 	}
 	files := fixtures(t, "neg")
 	if len(files) != len(want) {
@@ -181,7 +192,7 @@ func TestNegativeDoesNotHideOthers(t *testing.T) {
 		files[p] = c
 	}
 	res := scan(t, &memReader{files: files})
-	if len(res.Ledger) != 17 || len(res.Candidates) != 5 {
+	if len(res.Ledger) != 25 || len(res.Candidates) != 5 {
 		t.Fatalf("ledger %d candidates %d", len(res.Ledger), len(res.Candidates))
 	}
 }
@@ -339,7 +350,7 @@ func TestLedgerCanonical(t *testing.T) {
 func TestResultJSONGolden(t *testing.T) {
 	res := scan(t, &memReader{files: map[string]string{NotesDir + "/a.yaml": head + "releaseNotes:\n  - |\n    Removed `--old`.\n"}})
 	b, _ := json.Marshal(res)
-	want := `{"schema":"prufyx.io/istio-notes-scan/v1","commit":"` + commitA + `","filesRead":1,"candidates":[{"type":"flag","action":"removed","member":"old","file":"releasenotes/notes/a.yaml","noteKind":"removal","area":"installation","section":"releaseNotes","quote":"Removed ` + "`--old`" + `.","startLine":6,"endLine":6,"spanExact":true,"sourceUrl":"https://github.com/istio/istio/blob/` + commitA + `/releasenotes/notes/a.yaml","evidenceBasis":"draft","needsReview":true}],"ledger":[]}`
+	want := `{"schema":"prufyx.io/istio-notes-scan/v1","commit":"` + commitA + `","filesRead":1,"candidates":[{"type":"flag","action":"removed","member":"old","component":"unknown","file":"releasenotes/notes/a.yaml","noteKind":"removal","area":"installation","section":"releaseNotes","quote":"Removed ` + "`--old`" + `.","startLine":6,"endLine":6,"spanExact":true,"sourceUrl":"https://github.com/istio/istio/blob/` + commitA + `/releasenotes/notes/a.yaml","evidenceBasis":"draft","needsReview":true}],"ledger":[]}`
 	if string(b) != want {
 		t.Fatalf("\n%s\n%s", b, want)
 	}
@@ -370,15 +381,148 @@ func TestSourceSetCoversEncoder(t *testing.T) {
 	}
 }
 
+func nonTestSources(t *testing.T) []string {
+	t.Helper()
+	m, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []string
+	for _, f := range m {
+		if !strings.HasSuffix(f, "_test.go") {
+			out = append(out, f)
+		}
+	}
+	if len(out) < 5 {
+		t.Fatalf("sources %v", out)
+	}
+	return out
+}
+
 func TestNeverMechanical(t *testing.T) {
 	if EvidenceBasis != "draft" {
 		t.Fatal(EvidenceBasis)
 	}
-	src, err := os.ReadFile("scan.go")
-	if err != nil {
-		t.Fatal(err)
+	for _, f := range nonTestSources(t) {
+		b, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(strings.ToLower(string(b)), "mechanical") {
+			t.Fatalf("%s mentions the mechanical basis", f)
+		}
 	}
-	if strings.Contains(string(src), "BasisMechanical") || strings.Contains(string(src), "constraintengine") {
-		t.Fatal("scan.go must not reference mechanical basis")
+	res := scan(t, &memReader{files: fixtures(t, "ok")})
+	if len(res.Candidates) == 0 {
+		t.Fatal("no candidates")
+	}
+	for _, c := range res.Candidates {
+		if c.EvidenceBasis != "draft" || !c.NeedsReview {
+			t.Fatalf("%+v", c)
+		}
+		if c.Type == TypeFlag && c.Component != ComponentUnknown {
+			t.Fatalf("flag without unknown component: %+v", c)
+		}
+	}
+}
+
+var importAllow = map[string]bool{
+	"bytes": true, "context": true, "embed": true, "errors": true, "fmt": true,
+	"io": true, "io/fs": true, "path": true, "regexp": true, "sort": true,
+	"strconv": true, "strings": true, "testing/fstest": true,
+	"gopkg.in/yaml.v3": true,
+	"github.com/prufyx/prufyx/cli/internal/extract":            true,
+	"github.com/prufyx/prufyx/cli/internal/extract/membercode": true,
+}
+
+func disallowedImports(name string, src any) ([]string, error) {
+	f, err := parser.ParseFile(gotoken.NewFileSet(), name, src, parser.ImportsOnly)
+	if err != nil {
+		return nil, err
+	}
+	var bad []string
+	for _, im := range f.Imports {
+		p, _ := strconv.Unquote(im.Path.Value)
+		if !importAllow[p] {
+			bad = append(bad, p)
+		}
+	}
+	return bad, nil
+}
+
+func TestImportAllowlist(t *testing.T) {
+	for _, f := range nonTestSources(t) {
+		bad, err := disallowedImports(f, nil)
+		if err != nil || len(bad) > 0 {
+			t.Fatalf("%s: %v %v", f, bad, err)
+		}
+	}
+	// The guard is load-bearing: it refuses network, exec and file access.
+	src := "package x\nimport (\n\"net/http\"\n\"os/exec\"\n\"os\"\n\"unsafe\"\n)\n"
+	bad, err := disallowedImports("x.go", src)
+	if err != nil || len(bad) != 4 {
+		t.Fatalf("%v %v", bad, err)
+	}
+}
+
+func TestBoundsAreEnforced(t *testing.T) {
+	// Exactly at the limit is accepted, one over is withheld.
+	base := head + "releaseNotes:\n  - Removed `--a`.\n#"
+	atLimit := base + strings.Repeat("x", MaxNoteBytes-len(base)-1) + "\n"
+	if len(atLimit) != MaxNoteBytes {
+		t.Fatal(len(atLimit))
+	}
+	if res := scan(t, one(atLimit)); len(res.Candidates) != 1 || len(res.Ledger) != 0 {
+		t.Fatalf("%+v", res)
+	}
+	over := head + "releaseNotes:\n  - Removed `--a`.\n#" + strings.Repeat("x", MaxNoteBytes) + "\n"
+	if res := scan(t, one(over)); len(res.Ledger) != 1 || res.Ledger[0].Code != ReasonTooLarge {
+		t.Fatalf("%+v", res.Ledger)
+	}
+	quote := func(n int) string {
+		pad := n - len("Removed `--a` ")
+		return head + "releaseNotes:\n  - 'Removed `--a` " + strings.Repeat("y", pad) + "'\n"
+	}
+	if res := scan(t, one(quote(MaxQuoteBytes))); len(res.Candidates) != 1 {
+		t.Fatalf("%+v", res)
+	}
+	if res := scan(t, one(quote(MaxQuoteBytes+1))); len(res.Candidates) != 0 || res.Ledger[0].Code != ReasonTextTooLarge {
+		t.Fatalf("%+v", res)
+	}
+	notes := func(n int) string {
+		b := head + "releaseNotes:\n"
+		for i := 0; i < n; i++ {
+			b += fmt.Sprintf("  - Removed `--f%d`.\n", i)
+		}
+		return b
+	}
+	if res := scan(t, one(notes(MaxCandidatesPerNote))); len(res.Candidates) != MaxCandidatesPerNote {
+		t.Fatalf("%d %+v", len(res.Candidates), res.Ledger)
+	}
+	if res := scan(t, one(notes(MaxCandidatesPerNote+1))); len(res.Candidates) != 0 || res.Ledger[0].Code != ReasonTooManyCandidates {
+		t.Fatalf("%+v", res)
+	}
+	m := &memReader{files: map[string]string{}}
+	for i := 0; i < MaxCandidates/MaxCandidatesPerNote+1; i++ {
+		b := head + "releaseNotes:\n"
+		for j := 0; j < MaxCandidatesPerNote; j++ {
+			b += fmt.Sprintf("  - Removed `--f%d`.\n", j)
+		}
+		m.files[fmt.Sprintf("%s/n%03d.yaml", NotesDir, i)] = b
+	}
+	res := scan(t, m)
+	if len(res.Candidates) != 0 || len(res.Ledger) != 1 || res.Ledger[0].Code != ReasonTooManyCandidates {
+		t.Fatalf("%d %+v", len(res.Candidates), res.Ledger)
+	}
+}
+
+func TestNestingDepth(t *testing.T) {
+	deep := head + "releaseNotes:\n  - " + strings.Repeat("[", maxDepth+2) + "a" + strings.Repeat("]", maxDepth+2) + "\n"
+	_, err := decodeNote([]byte(deep))
+	if err == nil || !strings.Contains(err.Error(), "nested too deep") {
+		t.Fatalf("%v", err)
+	}
+	if res := scan(t, one(deep)); len(res.Ledger) != 1 || res.Ledger[0].Code != ReasonParse {
+		t.Fatalf("%+v", res)
 	}
 }
