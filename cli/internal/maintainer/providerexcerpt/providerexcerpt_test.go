@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 )
@@ -25,8 +26,12 @@ const pageDigest = "sha256:00000000000000000000000000000000000000000000000000000
 
 // build returns a valid entry and file for the given licence and body.
 func build(licence, form, body string) (Entry, []byte) {
+	src := "https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html"
+	if licence == LicencePermissive {
+		src = "https://github.com/kubernetes/website/blob/main/data/releases/schedule.yaml"
+	}
 	e := Entry{ID: "eks-1-33", Provider: "eks", Path: "eks/eks-1-33.txt",
-		SourceURL: "https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html",
+		SourceURL: src,
 		FetchedAt: "2026-11-07T10:00:00Z", Anchor: "standard-support", Licence: licence, Form: form}
 	hdr := FileMagic + "\nsource: " + e.SourceURL + "\nfetchedAt: " + e.FetchedAt + "\nanchor: " + e.Anchor +
 		"\nlicence: " + licence + "\nform: " + form + "\npageSha256: " + pageDigest + "\n"
@@ -51,6 +56,91 @@ func TestExcerptAccepted(t *testing.T) {
 	e2, d2 := build(LicencePermissive, FormVerbatim, "| 1.33 | 2026-07-29 |\n")
 	if _, _, err := ParseExcerpt(e2, d2); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestPermissiveOnlyOnPermissiveSource(t *testing.T) {
+	e, _ := build(LicencePermissive, FormVerbatim, "x\n")
+	for _, u := range []string{
+		"https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html",
+		"https://github.com/aws/eks-distro/releases",
+		"https://github.com/kubernetes/other/blob/main/a",
+		"https://github.com/kubernetes/website",
+		"https://raw.githubusercontent.com/someone/else/main/a",
+		"https://cloud.google.com/kubernetes-engine/docs/release-schedule",
+	} {
+		x := e
+		x.SourceURL = u
+		if err := validateEntry(x); err == nil {
+			t.Errorf("verbatim/permissive accepted for %s", u)
+		}
+	}
+	for _, u := range []string{
+		"https://kubernetes.io/releases/",
+		"https://raw.githubusercontent.com/k3s-io/k3s/main/a",
+	} {
+		x := e
+		x.SourceURL = u
+		if err := validateEntry(x); err != nil {
+			t.Errorf("%s refused: %v", u, err)
+		}
+	}
+}
+
+func TestFetchedAtFuture(t *testing.T) {
+	e, _ := okParaphrase()
+	old := nowFn
+	defer func() { nowFn = old }()
+	nowFn = func() time.Time { return time.Date(2026, 11, 7, 10, 0, 0, 0, time.UTC).Add(-25 * time.Hour) }
+	if err := validateEntry(e); err == nil {
+		t.Fatal("far-future fetchedAt accepted")
+	}
+	nowFn = func() time.Time { return time.Date(2026, 11, 7, 10, 0, 0, 0, time.UTC).Add(-23 * time.Hour) }
+	if err := validateEntry(e); err != nil {
+		t.Fatalf("within 24h refused: %v", err)
+	}
+}
+
+func TestFetchedAfterCommitRefused(t *testing.T) {
+	e, data := okParaphrase()
+	dir, rev := repo(t, e, data) // commit time is now (2020s real clock), fetchedAt 2026-11-07
+	m, _ := ParseManifest(manifestJSON(t, e))
+	s := source(e, rev, 10, 10)
+	early := func(string) (time.Time, error) { return time.Date(2026, 11, 7, 9, 0, 0, 0, time.UTC), nil }
+	late := func(string) (time.Time, error) { return time.Date(2026, 11, 7, 11, 0, 0, 0, time.UTC), nil }
+	fail := func(string) (time.Time, error) { return time.Time{}, errors.New("x") }
+	read := GitReader(dir)
+	if err := CheckSourcesAt(m, []constraintengine.SourceEvidence{s}, read, early); err == nil {
+		t.Error("fetchedAt after commit accepted")
+	}
+	if err := CheckSourcesAt(m, []constraintengine.SourceEvidence{s}, read, fail); err == nil {
+		t.Error("commit-time failure accepted")
+	}
+	if err := CheckSourcesAt(m, []constraintengine.SourceEvidence{s}, read, late); err != nil {
+		t.Errorf("valid refused: %v", err)
+	}
+}
+
+func TestVerifyTreeSymlinkedManifestAndReadme(t *testing.T) {
+	e, data := okParaphrase()
+	root := t.TempDir()
+	mk := func() {
+		_ = os.MkdirAll(filepath.Join(root, "eks"), 0o755)
+		_ = os.WriteFile(filepath.Join(root, "real.json"), manifestJSON(t, e), 0o644)
+		_ = os.WriteFile(filepath.Join(root, e.Path), data, 0o644)
+	}
+	mk()
+	if err := os.Symlink("real.json", filepath.Join(root, "manifest.json")); err != nil {
+		t.Skip("no symlinks")
+	}
+	if _, err := VerifyTree(root); err == nil {
+		t.Fatal("symlinked manifest accepted")
+	}
+	_ = os.Remove(filepath.Join(root, "manifest.json"))
+	_ = os.WriteFile(filepath.Join(root, "manifest.json"), manifestJSON(t, e), 0o644)
+	_ = os.Symlink("real.json", filepath.Join(root, "README.md"))
+	if _, err := VerifyTree(root); err == nil {
+		t.Fatal("symlinked README accepted")
 	}
 }
 

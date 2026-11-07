@@ -21,6 +21,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -160,6 +161,9 @@ func validateEntry(e Entry) error {
 	if err != nil || t.UTC().Format(time.RFC3339) != e.FetchedAt || t.Year() < 2020 {
 		return bad("entry %s fetchedAt", e.ID)
 	}
+	if t.After(nowFn().Add(24 * time.Hour)) {
+		return bad("entry %s: fetchedAt is in the future", e.ID)
+	}
 	if !digestRE.MatchString(e.SHA256) {
 		return bad("entry %s sha256", e.ID)
 	}
@@ -168,6 +172,9 @@ func validateEntry(e Entry) error {
 	}
 	switch e.Licence {
 	case LicencePermissive:
+		if !permissiveSource(e.SourceURL) {
+			return bad("entry %s: source is not on the permissive-quote list; use %s", e.ID, LicenceUnknown)
+		}
 		if e.Form != FormVerbatim && e.Form != FormParaphrase {
 			return bad("entry %s form", e.ID)
 		}
@@ -180,6 +187,37 @@ func validateEntry(e Entry) error {
 		return bad("entry %s licence", e.ID)
 	}
 	return nil
+}
+
+// nowFn is the clock for the future-timestamp bound (replaced in tests).
+var nowFn = time.Now
+
+// permissiveRepos is the closed list of repositories whose content may be
+// quoted verbatim (licence named in the provider design). Adding one is a code
+// change. Every other source is paraphrase-only.
+var permissiveRepos = map[string]bool{
+	"kubernetes/website":    true,
+	"kubernetes/kubernetes": true,
+	"kubernetes-sigs/kind":  true,
+	"k3s-io/k3s":            true,
+	"rancher/rke2":          true,
+}
+
+// permissiveSource reports whether verbatim text may be stored for raw. The
+// manifest licence label never decides this; the source does.
+func permissiveSource(raw string) bool {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return false
+	}
+	switch u.Host {
+	case "kubernetes.io":
+		return true
+	case "github.com", "raw.githubusercontent.com":
+		parts := strings.Split(strings.TrimPrefix(u.Path, "/"), "/")
+		return len(parts) >= 3 && permissiveRepos[parts[0]+"/"+parts[1]]
+	}
+	return false
 }
 
 func checkSourceURL(raw string) error {
@@ -347,6 +385,33 @@ func VerifyAt(m Manifest, revision string, read Reader) error {
 // digest equal to the manifest digest, the file at the revision hashing to
 // it, and the cited span inside the excerpt body.
 func CheckSources(m Manifest, sources []constraintengine.SourceEvidence, read Reader) error {
+	return CheckSourcesAt(m, sources, read, nil)
+}
+
+// CommitTimer returns the commit time of a revision.
+type CommitTimer func(revision string) (time.Time, error)
+
+// GitCommitTime reads commit times from the git object store of dir.
+func GitCommitTime(dir string) CommitTimer {
+	return func(revision string) (time.Time, error) {
+		if !revisionRE.MatchString(revision) {
+			return time.Time{}, bad("revision")
+		}
+		out, err := exec.Command("git", "-C", dir, "show", "-s", "--format=%ct", revision).Output()
+		if err != nil {
+			return time.Time{}, bad("commit time %s: %v", revision, err)
+		}
+		n, err := strconv.ParseInt(strings.TrimSpace(string(out)), 10, 64)
+		if err != nil {
+			return time.Time{}, bad("commit time %s", revision)
+		}
+		return time.Unix(n, 0).UTC(), nil
+	}
+}
+
+// CheckSourcesAt is CheckSources plus, when commitTime is non-nil, a refusal
+// of any entry fetched after the citing commit (fail-closed on lookup error).
+func CheckSourcesAt(m Manifest, sources []constraintengine.SourceEvidence, read Reader, commitTime CommitTimer) error {
 	if err := constraintengine.ValidateSources(sources); err != nil {
 		return bad("sources: %v", err)
 	}
@@ -365,6 +430,16 @@ func CheckSources(m Manifest, sources []constraintengine.SourceEvidence, read Re
 		}
 		if s.ContentDigest != e.SHA256 {
 			return bad("source %s: digest differs from the manifest", s.ID)
+		}
+		if commitTime != nil {
+			ct, err := commitTime(s.Revision)
+			if err != nil {
+				return err
+			}
+			ft, perr := time.Parse(time.RFC3339, e.FetchedAt)
+			if perr != nil || ft.After(ct) {
+				return bad("source %s: fetchedAt is after the citing commit", s.ID)
+			}
 		}
 		data, err := read(s.Revision, Dir+"/"+path)
 		if err != nil {
@@ -425,7 +500,29 @@ func excerptPathFromURL(raw, revision string) (string, error) {
 // manifest.json): the manifest parses, every entry file is present and valid,
 // and nothing else is stored (no unlisted file, symlink or directory other
 // than provider directories).
+// requireRegular Lstat-checks p: it must be a regular file (absent allowed
+// only when required is false).
+func requireRegular(p string, required bool) error {
+	fi, err := os.Lstat(p)
+	if err != nil {
+		if !required && errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
+		return err
+	}
+	if !fi.Mode().IsRegular() {
+		return errors.New("not a regular file")
+	}
+	return nil
+}
+
 func VerifyTree(root string) (Manifest, error) {
+	if err := requireRegular(filepath.Join(root, "manifest.json"), true); err != nil {
+		return Manifest{}, bad("manifest: %v", err)
+	}
+	if err := requireRegular(filepath.Join(root, "README.md"), false); err != nil {
+		return Manifest{}, bad("README.md: %v", err)
+	}
 	raw, err := os.ReadFile(filepath.Join(root, "manifest.json"))
 	if err != nil {
 		return Manifest{}, bad("manifest: %v", err)
