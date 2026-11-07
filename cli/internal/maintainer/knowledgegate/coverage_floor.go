@@ -21,6 +21,10 @@ const CheckCoverageFloor = "coverage-floor"
 // baseline on the base, an unreadable head baseline or head data that cannot
 // be evaluated fails the check; nothing is skipped.
 //
+// Floors and withdrawals are ratchet-only: a floor can rise, a withdrawal
+// can be added by a change that the base then carries, and a deliberate
+// re-baseline path does not exist yet (follow-up).
+//
 // The check belongs to the README coverage block: a layout without generated
 // blocks (the synthetic layouts of the tests) publishes no numbers and has
 // nothing to compare. The shipped layout always has them.

@@ -87,7 +87,7 @@ func TestCoverageFloorRefusesDroppedProject(t *testing.T) {
 	writeFloor(t, base, b)
 	writeFloor(t, head, b)
 	c := floorCheck(t, runGate(t, Options{Base: base, Head: head}))
-	if c.OK || !strings.Contains(c.Detail, project) && !strings.Contains(c.Detail, "decided pairs fell") {
+	if c.OK || !(strings.Contains(c.Detail, project) || strings.Contains(c.Detail, "decided pairs fell")) {
 		t.Fatalf("a dropped project passes: %+v", c)
 	}
 }
@@ -251,5 +251,32 @@ func TestBaselinePathIsNotMechanical(t *testing.T) {
 	r := runGate(t, Options{Base: base, Head: head, Author: DefaultBotLogin})
 	if r.AutoMerge.Eligible {
 		t.Fatal("a change to the baseline file is eligible for automatic merging")
+	}
+}
+
+// The shipped data satisfies the committed baseline, with the real layout:
+// base and head are the repository itself.
+func TestCoverageFloorShippedData(t *testing.T) {
+	t.Parallel()
+	root, err := filepath.Abs(repoRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tree := Tree{Root: root}
+	if len(DefaultLayout().GeneratedBlocks) == 0 {
+		t.Fatal("the shipped layout has no generated blocks, so the floor would be skipped")
+	}
+	if err := coverageFloor(tree, tree); err != nil {
+		t.Fatal(err)
+	}
+	report, _, _, err := coverageReportOf(tree)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("decided pairs %d, CRD projects %d", report.Fleet.A+report.Fleet.B, report.CRDPublishedProjects)
+	r := &Report{}
+	r.coverageFloorCheck(Options{Layout: DefaultLayout(), Base: tree, Head: tree})
+	if len(r.Checks) != 1 || !r.Checks[0].OK {
+		t.Fatalf("%+v", r.Checks)
 	}
 }
