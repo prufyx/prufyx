@@ -18,7 +18,10 @@ type Comparison struct {
 }
 
 // Compare takes the older and the newer scan. The caller is responsible for
-// the order of the two commits; Compare only refuses equal commits and
+// the order of the two commits, and a consumer must bind that order to the
+// release tags of the two pinned commits: with the arguments swapped, a real
+// removal reads as an addition and never as a removal, but an unbound order
+// would let a forged pair choose which side is "newer"; Compare only refuses equal commits and
 // different repositories. Both results must come from Scan.
 func Compare(older, newer Result) (Comparison, error) {
 	if older.syms == nil || newer.syms == nil {
@@ -73,8 +76,8 @@ func Compare(older, newer Result) (Comparison, error) {
 // candidate's member is only a key), and the newer side must declare the same
 // message without the name, with the number not in use, and reserve both.
 func removalProven(older, newer Result, c Candidate) bool {
-	msgName, fieldName, ok := splitLast(c.Member)
-	if !ok {
+	msgName, fieldName := c.msg, c.field
+	if msgName == "" || fieldName == "" {
 		return false
 	}
 	om := older.syms[msgName]
@@ -104,13 +107,4 @@ func removalProven(older, newer Result, c Candidate) bool {
 		}
 	}
 	return false
-}
-
-func splitLast(member string) (string, string, bool) {
-	for i := len(member) - 1; i > 0; i-- {
-		if member[i] == '.' {
-			return member[:i], member[i+1:], true
-		}
-	}
-	return "", "", false
 }

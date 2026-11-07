@@ -226,10 +226,9 @@ message Shown {
 	r := mustScan(t, one(src))
 	eq(t, members(r),
 		"field:envoy.a.v3.Shown.blank_line_breaks",
-		"field:envoy.a.v3.Shown.block",
 		"field:envoy.a.v3.Shown.trailing",
 		"field:envoy.a.v3.Shown.v")
-	if r.Hidden != 3 { // Hidden, its field a (inherited), Shown.h
+	if r.Hidden != 4 { // Hidden, its field a (inherited), Shown.h, Shown.block (marker in a block comment)
 		t.Fatalf("hidden=%d", r.Hidden)
 	}
 }
@@ -314,10 +313,6 @@ func TestFailClosedTreeShapes(t *testing.T) {
 }
 
 func TestBounds(t *testing.T) {
-	body := func(n int) string {
-		return hdr + "message M {\n" + strings.Repeat("string a = 1;\n", 0) + "}\n" + strings.Repeat("", n)
-	}
-	_ = body
 	run := func(files map[string]string, lim limits) Result {
 		r, err := scan(tree(files), repo, commitA, lim)
 		if err != nil {
@@ -342,6 +337,14 @@ func TestBounds(t *testing.T) {
 	expect("size at", run(one(src), l), true, "")
 	l.fileBytes = len(src) - 1
 	expect("size over", run(one(src), l), false, ReasonFileTooLarge)
+	// total bytes over all files
+	pair2 := map[string]string{Root + "/a.proto": hdr + "message A {}\n", Root + "/b.proto": hdr + "message B {}\n"}
+	sum := len(pair2[Root+"/a.proto"]) + len(pair2[Root+"/b.proto"])
+	l = base
+	l.total = sum
+	expect("total at", run(pair2, l), true, "")
+	l.total = sum - 1
+	expect("total over", run(pair2, l), false, ReasonLimit)
 	// file count
 	two := map[string]string{Root + "/a.proto": hdr + "message A {}\n", Root + "/b.proto": hdr + "message B {}\n"}
 	l = base

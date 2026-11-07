@@ -34,6 +34,11 @@ type lexed struct {
 	toks        []token
 	commentOnly map[int]bool
 	hide        map[int]bool
+	// blockLines are lines a block comment touches. They do not break the
+	// run of comment lines above a declaration, and a hide marker inside a
+	// block comment counts as a marker: a hidden declaration can never become
+	// visible by a comment inserted between marker and declaration.
+	blockLines map[int]bool
 }
 
 var errLex = errors.New("lexical error")
@@ -50,7 +55,7 @@ func isIdentByte(c byte) bool {
 // refuses (error) NUL bytes, bytes outside ASCII outside comments and
 // strings, unterminated strings and unterminated block comments.
 func lex(src []byte) (*lexed, error) {
-	out := &lexed{commentOnly: map[int]bool{}, hide: map[int]bool{}}
+	out := &lexed{commentOnly: map[int]bool{}, hide: map[int]bool{}, blockLines: map[int]bool{}}
 	line := 1
 	lastTokLine := 0
 	i := 0
@@ -83,6 +88,7 @@ func lex(src []byte) (*lexed, error) {
 		case c == '/' && i+1 < n && src[i+1] == '*':
 			j := i + 2
 			closed := false
+			startLine := line
 			for j+1 < n {
 				if src[j] == 0 {
 					return nil, errLex
@@ -99,8 +105,16 @@ func lex(src []byte) (*lexed, error) {
 			if !closed {
 				return nil, errLex
 			}
+			if strings.Contains(string(src[i:j]), hideMarker) {
+				out.hide[startLine] = true
+			}
+			if lastTokLine != startLine {
+				for k := startLine; k <= line; k++ {
+					out.blockLines[k] = true
+				}
+			}
 			i = j + 2
-			lastTokLine = line // a block comment ends a comment run
+			lastTokLine = line
 		case c == '"' || c == '\'':
 			j := i + 1
 			for {

@@ -25,7 +25,9 @@
 // refuses, goes into the ledger and makes the scan incomplete. Compare states
 // nothing mechanical when either side is incomplete. Comments never
 // contribute: the word "deprecated" in a comment, a string literal or a
-// block comment is not a marker. The only comment convention read is
+// block comment is not a marker. A block comment between a hide marker and
+// its declaration does not break the marker's reach, and a marker inside a
+// block comment counts as a marker. The only comment convention read is
 // "// [#not-implemented-hide:" in the comment-only lines directly above a
 // declaration; the declaration (and what it contains) is then not a
 // candidate. A hidden field still counts as declared when Compare asks
@@ -36,8 +38,9 @@
 // membercode.ConfigKey over one property segment per dotted name part. The
 // shared encoder has no form specific to protobuf symbols; ConfigKey is the
 // existing dotted form and refuses reserved or illegal segments, which then
-// go to the ledger. A dedicated protobuf encoder in membercode would be a
-// separate reviewed change.
+// go to the ledger. A distinct protobuf member form in membercode is REQUIRED
+// before this output is wired anywhere (needs-audit): a config key and a proto
+// symbol must not share one encoding. Until then the output stays inert.
 //
 // Not read: deprecated_at_minor_version written as a bare option name (it is
 // only valid as the parenthesised extension), runtime_features.cc, and enum
@@ -88,6 +91,10 @@ type Candidate struct {
 	DeprecatedAtMinor   string `json:"deprecated_at_minor_version,omitempty"`
 	DisallowedByDefault bool   `json:"disallowed_by_default,omitempty"`
 	Number              int64  `json:"number,omitempty"`
+
+	// msg and field are the symbol names the scan itself saw (not parsed back
+	// out of Member); only Scan sets them, and Compare reads them.
+	msg, field string
 }
 
 // Result is the scan of one commit.
@@ -111,12 +118,13 @@ type limits struct {
 	depth     int
 	files     int
 	fileBytes int
+	total     int
 	items     int
 	nest      int
 }
 
 func defaultLimits() limits {
-	return limits{dirs: 2048, depth: 16, files: 8192, fileBytes: 1 << 20, items: 500000, nest: 16}
+	return limits{dirs: 2048, depth: 16, files: 8192, fileBytes: 1 << 20, total: 64 << 20, items: 500000, nest: 16}
 }
 
 // Scan reads Root at commit.
@@ -190,6 +198,7 @@ func scan(r extract.PinnedReader, repo extract.RepoRef, commit string, lim limit
 	}
 	sort.Strings(files)
 	items := 0
+	total := 0
 	for _, f := range files {
 		if limited {
 			break
@@ -206,17 +215,24 @@ func scan(r extract.PinnedReader, repo extract.RepoRef, commit string, lim limit
 			fault(ReasonFileTooLarge, f)
 			continue
 		}
+		total += len(data)
+		if total > lim.total {
+			fault(ReasonLimit, "total-bytes")
+			limited = true
+			break
+		}
 		res.Files++
 		p, err := parseProto(f, data, lim.nest, lim.items-items)
 		if err != nil {
 			var pf *parseFault
 			if errors.As(err, &pf) {
-				if strings.Contains(pf.reason, "limit") {
+				switch pf.kind {
+				case faultLimit:
 					fault(ReasonLimit, f)
 					limited = true
-				} else if strings.Contains(pf.reason, "deprecated option value") || strings.Contains(pf.reason, "disallowed_by_default value") || strings.Contains(pf.reason, "deprecated_at_minor_version") {
+				case faultOption:
 					fault(ReasonOptionValue, fmt.Sprintf("%s:%d", f, pf.line))
-				} else {
+				default:
 					fault(ReasonParse, fmt.Sprintf("%s:%d", f, pf.line))
 				}
 			} else {
@@ -239,7 +255,11 @@ func scan(r extract.PinnedReader, repo extract.RepoRef, commit string, lim limit
 		names = append(names, n)
 	}
 	sort.Strings(names)
-	add := func(full, kind, file, atMinor string, disallowed bool, number int64) {
+	add := func(msg, fieldName, kind, file, atMinor string, disallowed bool, number int64) {
+		full := msg
+		if fieldName != "" {
+			full = msg + "." + fieldName
+		}
 		m, err := member(full)
 		if err != nil {
 			switch {
@@ -255,7 +275,7 @@ func scan(r extract.PinnedReader, repo extract.RepoRef, commit string, lim limit
 			return
 		}
 		res.Candidates = append(res.Candidates, Candidate{Member: m, Kind: kind, Status: StatusDraft, File: file,
-			DeprecatedAtMinor: atMinor, DisallowedByDefault: disallowed, Number: number})
+			DeprecatedAtMinor: atMinor, DisallowedByDefault: disallowed, Number: number, msg: msg, field: fieldName})
 	}
 	for _, n := range names {
 		s := res.syms[n]
@@ -266,7 +286,7 @@ func scan(r extract.PinnedReader, repo extract.RepoRef, commit string, lim limit
 			if s.isEnum {
 				kind = KindEnum
 			}
-			add(s.full, kind, s.file, "", false, 0)
+			add(s.full, "", kind, s.file, "", false, 0)
 		}
 		fn := make([]string, 0, len(s.fields))
 		for k := range s.fields {
@@ -279,7 +299,7 @@ func scan(r extract.PinnedReader, repo extract.RepoRef, commit string, lim limit
 			case f.hidden:
 				res.Hidden++
 			case f.deprecated || f.atMinor != "":
-				add(s.full+"."+f.name, KindField, f.file, f.atMinor, f.disallowed, f.number)
+				add(s.full, f.name, KindField, f.file, f.atMinor, f.disallowed, f.number)
 			}
 		}
 		vn := make([]string, 0, len(s.values))
@@ -293,7 +313,7 @@ func scan(r extract.PinnedReader, repo extract.RepoRef, commit string, lim limit
 			case v.hidden:
 				res.Hidden++
 			case v.deprecated || v.atMinor != "":
-				add(s.full+"."+v.name, KindEnumValue, s.file, v.atMinor, false, 0)
+				add(s.full, v.name, KindEnumValue, s.file, v.atMinor, false, 0)
 			}
 		}
 	}

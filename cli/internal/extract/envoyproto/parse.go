@@ -61,21 +61,31 @@ type parser struct {
 	maxItems int
 }
 
+// Fault kinds, mapped to ledger reasons by the scanner.
+const (
+	faultSyntax = iota
+	faultLimit
+	faultOption
+)
+
 type parseFault struct {
 	line   int
+	kind   int
 	reason string
 }
 
 func (e *parseFault) Error() string { return fmt.Sprintf("line %d: %s", e.line, e.reason) }
 
-func (p *parser) fail(reason string) error {
+func (p *parser) fail(reason string) error { return p.failKind(faultSyntax, reason) }
+
+func (p *parser) failKind(kind int, reason string) error {
 	line := 0
 	if p.pos < len(p.lx.toks) {
 		line = p.lx.toks[p.pos].line
 	} else if len(p.lx.toks) > 0 {
 		line = p.lx.toks[len(p.lx.toks)-1].line
 	}
-	return &parseFault{line: line, reason: reason}
+	return &parseFault{line: line, kind: kind, reason: reason}
 }
 
 func (p *parser) more() bool { return p.pos < len(p.lx.toks) }
@@ -117,7 +127,7 @@ func (p *parser) ident() (string, error) {
 // hidden reports whether the declaration whose first token is at line carries
 // the hide marker in the comment-only lines directly above it.
 func (p *parser) hiddenAt(line int) bool {
-	for l := line - 1; l >= 1 && p.lx.commentOnly[l]; l-- {
+	for l := line - 1; l >= 1 && (p.lx.commentOnly[l] || p.lx.blockLines[l]); l-- {
 		if p.lx.hide[l] {
 			return true
 		}
@@ -177,6 +187,7 @@ func (p *parser) skipBlock() error {
 }
 
 func (p *parser) parseFile() error {
+	declared := false
 	for p.more() {
 		t := p.lx.toks[p.pos]
 		switch {
@@ -191,7 +202,7 @@ func (p *parser) parseFile() error {
 		case t.text == "package":
 			p.pos++
 			name, ok := p.peek(0)
-			if !ok || name.kind != tIdent || strings.HasPrefix(name.text, ".") || p.pkg != "" {
+			if !ok || name.kind != tIdent || strings.HasPrefix(name.text, ".") || p.pkg != "" || declared {
 				return p.fail("bad or repeated package")
 			}
 			p.pkg = name.text
@@ -200,14 +211,17 @@ func (p *parser) parseFile() error {
 				return err
 			}
 		case t.text == "message":
+			declared = true
 			if err := p.parseMessage(p.pkg, 1, false); err != nil {
 				return err
 			}
 		case t.text == "enum":
+			declared = true
 			if err := p.parseEnum(p.pkg, false); err != nil {
 				return err
 			}
 		case t.text == "service" || t.text == "extend":
+			declared = true
 			p.pos++
 			for p.more() && !p.isPunct(0, "{") {
 				p.pos++
@@ -233,7 +247,7 @@ func join(scope, name string) string {
 func (p *parser) count() error {
 	p.out.items++
 	if p.out.items > p.maxItems {
-		return p.fail("declaration limit")
+		return p.failKind(faultLimit, "declaration limit")
 	}
 	return nil
 }
@@ -314,7 +328,7 @@ func (p *parser) interpret(name, value []token, enumValue bool) (optionEffect, e
 	case len(name) == 1 && name[0].kind == tIdent && name[0].text == "deprecated":
 		b, ok := isBool()
 		if !ok {
-			return eff, p.fail("deprecated option value is not true or false")
+			return eff, p.failKind(faultOption, "deprecated option value is not true or false")
 		}
 		eff.deprecated = b
 	case len(name) == 3 && name[0].text == "(" && name[2].text == ")" && name[1].kind == tIdent:
@@ -322,17 +336,17 @@ func (p *parser) interpret(name, value []token, enumValue bool) (optionEffect, e
 		switch ann {
 		case annDeprecatedAt, annDeprecatedAtEnum:
 			if len(value) != 1 || value[0].kind != tString {
-				return eff, p.fail("deprecated_at_minor_version is not a string")
+				return eff, p.failKind(faultOption, "deprecated_at_minor_version is not a string")
 			}
 			v := value[0].text
 			if v == "" || len(v) > 16 || strings.Trim(v, "0123456789.") != "" {
-				return eff, p.fail("deprecated_at_minor_version has an unexpected form")
+				return eff, p.failKind(faultOption, "deprecated_at_minor_version has an unexpected form")
 			}
 			eff.atMinor = v
 		case annDisallowed, annDisallowedEnum:
 			b, ok := isBool()
 			if !ok {
-				return eff, p.fail("disallowed_by_default value is not true or false")
+				return eff, p.failKind(faultOption, "disallowed_by_default value is not true or false")
 			}
 			eff.disallowed = b
 		}
@@ -442,7 +456,7 @@ func (p *parser) parseReserved(s *symbol) error {
 
 func (p *parser) parseMessage(scope string, depth int, parentHidden bool) error {
 	if depth > p.maxNest {
-		return p.fail("message nesting limit")
+		return p.failKind(faultLimit, "message nesting limit")
 	}
 	start := p.lx.toks[p.pos]
 	p.pos++ // message
@@ -458,7 +472,23 @@ func (p *parser) parseMessage(scope string, depth int, parentHidden bool) error 
 	if err := p.expectPunct("{"); err != nil {
 		return err
 	}
-	return p.messageBody(s, depth, false)
+	if err := p.messageBody(s, depth, false); err != nil {
+		return err
+	}
+	// A field whose number is reserved, or whose name is reserved, in its own
+	// message is not a tree protoc accepts. Refuse it: such a message is how a
+	// removal pair would be forged.
+	for _, f := range s.fields {
+		if s.resNames[f.name] {
+			return p.fail("field name is reserved in its own message")
+		}
+		for _, r := range s.resNums {
+			if f.number >= r.lo && f.number <= r.hi {
+				return p.fail("field number is reserved in its own message")
+			}
+		}
+	}
+	return nil
 }
 
 func (p *parser) messageBody(s *symbol, depth int, inOneof bool) error {
@@ -579,6 +609,9 @@ func (p *parser) parseField(s *symbol) error {
 	num, err := p.parseNumber()
 	if err != nil {
 		return err
+	}
+	if num < 1 || num >= 19000 && num <= 19999 {
+		return p.fail("field number is zero or in the implementation range")
 	}
 	var eff optionEffect
 	if p.isPunct(0, "[") {
