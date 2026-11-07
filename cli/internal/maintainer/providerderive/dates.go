@@ -141,3 +141,18 @@ func Coarser(a, b string) string {
 	}
 	return a
 }
+
+// LineNum parses a minor line of the 1.N grammar (N one to three ASCII
+// digits) and returns N; ok is false for anything else.
+func LineNum(line string) (n int, ok bool) {
+	if len(line) < 3 || len(line) > 5 || line[0] != '1' || line[1] != '.' || !allDigits(line[2:]) {
+		return 0, false
+	}
+	return atoi(line[2:]), true
+}
+
+// ParseLine reports whether s is a minor line of the 1.N grammar.
+func ParseLine(s string) bool {
+	_, ok := LineNum(s)
+	return ok
+}

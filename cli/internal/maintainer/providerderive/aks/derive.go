@@ -26,7 +26,7 @@ func tokCell(tok string) (Cell, bool) {
 		return Cell{Kind: KindTBD, Date: pd.Date{Precision: distribution.PrecisionTBD}}, true
 	case strings.HasPrefix(tok, "until:"):
 		l := strings.TrimPrefix(tok, "until:")
-		return Cell{Kind: KindUntil, UntilLine: l, Date: pd.Date{Precision: distribution.PrecisionTBD}}, lineRE.MatchString(l)
+		return Cell{Kind: KindUntil, UntilLine: l, Date: pd.Date{Precision: distribution.PrecisionTBD}}, pd.ParseLine(l)
 	}
 	d, ok := pd.ParseISO(tok)
 	if !ok || d.Precision == distribution.PrecisionQuarter {
@@ -52,7 +52,7 @@ func DeriveSupport(xs []pd.Excerpt) (Facts, error) {
 		if x.Entry.Provider != Distribution || x.Entry.SourceURL != "https://"+SupportHost+SupportPath {
 			return Facts{}, pd.Drift(srcSupport, pd.KindExcerpt, "excerpt %s cites a source outside the anchored one", x.Entry.ID)
 		}
-		body, err := pd.Body(x)
+		body, err := pd.Body(srcSupport, x)
 		if err != nil {
 			return Facts{}, err
 		}
@@ -61,7 +61,7 @@ func DeriveSupport(xs []pd.Excerpt) (Facts, error) {
 		}
 		for _, ln := range body[1:] {
 			f := strings.Split(ln, " ")
-			if len(f) != 8 || (f[0] != "std" && f[0] != "lts") || !lineRE.MatchString(f[1]) {
+			if len(f) != 8 || (f[0] != "std" && f[0] != "lts") || !pd.ParseLine(f[1]) {
 				return Facts{}, pd.Drift(srcSupport, pd.KindExcerpt, "%s: bad row", x.Entry.ID)
 			}
 			r := Row{Line: f[1]}
@@ -76,7 +76,7 @@ func DeriveSupport(xs []pd.Excerpt) (Facts, error) {
 				}
 				*d = c
 			}
-			if n := atoi(r.Line[2:]); n <= last[f[0]] {
+			if n := lineN(r.Line); n <= last[f[0]] {
 				return Facts{}, pd.Drift(srcSupport, pd.KindExcerpt, "%s: lines not strictly ascending at %s", x.Entry.ID, r.Line)
 			} else {
 				last[f[0]] = n

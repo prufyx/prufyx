@@ -9,7 +9,6 @@ package gke
 import (
 	"errors"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/distribution"
@@ -49,7 +48,6 @@ type Row struct {
 type Schedule struct{ Rows []Row }
 
 var (
-	lineRE    = regexp.MustCompile(`^1\.[0-9]{1,3}$`)
 	markersOK = map[string]bool{"4": true, "5": true}
 )
 
@@ -163,7 +161,7 @@ func parseRow(cells []htmltable.Cell) (Row, error) {
 			return r, fmt.Errorf("cell %d uses a span", i+1)
 		}
 	}
-	if !lineRE.MatchString(cells[0].Text) || len(cells[0].Markers) != 0 {
+	if !pd.ParseLine(cells[0].Text) || len(cells[0].Markers) != 0 {
 		return r, fmt.Errorf("first cell is not a minor line")
 	}
 	r.Line = cells[0].Text
@@ -205,14 +203,14 @@ func parseCell(c htmltable.Cell) (Cell, error) {
 func (s Schedule) check() error {
 	prev := -1
 	for _, r := range s.Rows {
-		n := atoi(r.Line[2:])
+		n := lineN(r.Line)
 		if n <= prev {
 			return pd.Drift(srcSchedule, pd.KindRow, "lines are not strictly ascending at %s", r.Line)
 		}
 		prev = n
 		for ch := 0; ch < 4; ch++ {
 			if !leq(r.Dates[2*ch], r.Dates[2*ch+1]) {
-				return pd.Drift(srcSchedule, pd.KindRow, "%s: available is after auto upgrade (%s)", r.Line, Channels2[ch])
+				return pd.Drift(srcSchedule, pd.KindRow, "%s: available is after auto upgrade (%s)", r.Line, headerChannels[ch])
 			}
 		}
 		if !leq(r.Dates[8], r.Dates[9]) {
@@ -222,14 +220,11 @@ func (s Schedule) check() error {
 	return nil
 }
 
-// Channels2 is the header order of the channel pairs.
-var Channels2 = []string{"rapid", "regular", "stable", "extended"}
+// headerChannels is the header order of the channel pairs.
+var headerChannels = []string{"rapid", "regular", "stable", "extended"}
 
-func atoi(s string) int {
-	n := 0
-	for _, c := range s {
-		n = n*10 + int(c-'0')
-	}
+func lineN(line string) int {
+	n, _ := pd.LineNum(line)
 	return n
 }
 

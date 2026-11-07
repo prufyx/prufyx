@@ -65,12 +65,10 @@ type Support struct {
 var (
 	stdHeader = []string{"Kubernetes version", "Upstream release", "AKS preview", "AKS GA", "End of life", "Platform support", "Platform-initiated upgrade"}
 	ltsHeader = []string{"Kubernetes version", "Upstream release", "AKS preview", "AKS GA", "End of life", "LTS End of life", "Platform-initiated upgrade"}
-
-	lineRE  = regexp.MustCompile(`^1\.[0-9]{1,3}$`)
-	untilRE = regexp.MustCompile(`^Until (1\.[0-9]{1,3}) GA$`)
-	monthD  = regexp.MustCompile(`^([A-Z][a-z]{2}) ([0-9]{4})$`)
-	dayD    = regexp.MustCompile(`^([A-Z][a-z]{2}) ([0-9]{1,2}), ([0-9]{4})$`)
-	months  = map[string]string{"Jan": "01", "Feb": "02", "Mar": "03", "Apr": "04", "May": "05", "Jun": "06", "Jul": "07", "Aug": "08", "Sep": "09", "Oct": "10", "Nov": "11", "Dec": "12"}
+	untilRE   = regexp.MustCompile(`^Until (1\.[0-9]{1,3}) GA$`)
+	monthD    = regexp.MustCompile(`^([A-Z][a-z]{2}) ([0-9]{4})$`)
+	dayD      = regexp.MustCompile(`^([A-Z][a-z]{2}) ([0-9]{1,2}), ([0-9]{4})$`)
+	months    = map[string]string{"Jan": "01", "Feb": "02", "Mar": "03", "Apr": "04", "May": "05", "Jun": "06", "Jul": "07", "Aug": "08", "Sep": "09", "Oct": "10", "Nov": "11", "Dec": "12"}
 )
 
 func headerIs(row []htmltable.Cell, want []string) bool {
@@ -142,7 +140,7 @@ func parseTable(t htmltable.Table, lts bool) ([]Row, error) {
 				return nil, pd.Drift(srcSupport, pd.KindRow, "%s row %d: header cell, span or marker in a data row", name, i+1)
 			}
 		}
-		if !lineRE.MatchString(cells[0].Text) {
+		if !pd.ParseLine(cells[0].Text) {
 			return nil, pd.Drift(srcSupport, pd.KindCell, "%s row %d: first cell is not a minor line", name, i+1)
 		}
 		r := Row{Line: cells[0].Text}
@@ -157,7 +155,7 @@ func parseTable(t htmltable.Table, lts bool) ([]Row, error) {
 			}
 			*d = c
 		}
-		n := atoi(r.Line[2:])
+		n := lineN(r.Line)
 		if n <= prev {
 			return nil, pd.Drift(srcSupport, pd.KindRow, "%s table lines are not strictly ascending at %s", name, r.Line)
 		}
@@ -167,11 +165,8 @@ func parseTable(t htmltable.Table, lts bool) ([]Row, error) {
 	return out, nil
 }
 
-func atoi(s string) int {
-	n := 0
-	for _, c := range s {
-		n = n*10 + int(c-'0')
-	}
+func lineN(line string) int {
+	n, _ := pd.LineNum(line)
 	return n
 }
 
@@ -240,7 +235,7 @@ func (s Support) Merge() ([]Line, error) {
 	}
 	// Ascending numeric order.
 	for i := 1; i < len(order); i++ {
-		for j := i; j > 0 && atoi(order[j][2:]) < atoi(order[j-1][2:]); j-- {
+		for j := i; j > 0 && lineN(order[j]) < lineN(order[j-1]); j-- {
 			order[j], order[j-1] = order[j-1], order[j]
 		}
 	}

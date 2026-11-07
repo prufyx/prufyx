@@ -4,6 +4,7 @@ package providerderive
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/distribution"
@@ -52,5 +53,46 @@ func TestDriftErrorIsTyped(t *testing.T) {
 	var de *DriftError
 	if !errors.As(err, &de) || !errors.Is(err, ErrDrift) || de.Kind != KindRow {
 		t.Fatal("not typed")
+	}
+}
+
+func TestLineNumGrammar(t *testing.T) {
+	for s, want := range map[string]int{"1.0": 0, "1.34": 34, "1.123": 123} {
+		if n, ok := LineNum(s); !ok || n != want || !ParseLine(s) {
+			t.Fatalf("%q: %d %v", s, n, ok)
+		}
+	}
+	for _, s := range []string{"", "1.", "1.1234", "2.3", "1.+3", "1.3a", "1.٣", " 1.3", "1.-1"} {
+		if _, ok := LineNum(s); ok || ParseLine(s) {
+			t.Fatalf("%q accepted", s)
+		}
+	}
+}
+
+func TestExcerptFailuresAreDrift(t *testing.T) {
+	_, err := Body("src-x", Excerpt{})
+	var d *DriftError
+	if !errors.As(err, &d) || !errors.Is(err, ErrDrift) || d.Kind != KindExcerpt || d.Source != "src-x" {
+		t.Fatalf("Body: %v", err)
+	}
+	_, _, err = Compose("src-y", Spec{ID: "x"}, "b")
+	if !errors.As(err, &d) || !errors.Is(err, ErrDrift) || d.Kind != KindExcerpt || d.Source != "src-y" {
+		t.Fatalf("Compose: %v", err)
+	}
+}
+
+func TestChunkLinesCapsLines(t *testing.T) {
+	var rows []string
+	for i := 0; i < 130; i++ {
+		rows = append(rows, "r")
+	}
+	out, err := ChunkLines("s", "h", rows, 1<<20)
+	if err != nil || len(out) < 3 {
+		t.Fatalf("%d %v", len(out), err)
+	}
+	for _, c := range out {
+		if n := strings.Count(c, "\n"); n > 64 {
+			t.Fatalf("chunk of %d lines", n)
+		}
 	}
 }

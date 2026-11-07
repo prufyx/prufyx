@@ -43,13 +43,19 @@ type DriftError struct {
 	Source string // "gke-schedule", "gke-feed", "aks-support", "aks-releases"
 	Kind   string
 	Detail string
+	cause  error // optional underlying error, kept for errors.Is/As
 }
 
 func (e *DriftError) Error() string {
 	return fmt.Sprintf("%s: %s drift: %s", e.Source, e.Kind, e.Detail)
 }
 
-func (e *DriftError) Unwrap() error { return ErrDrift }
+func (e *DriftError) Unwrap() []error {
+	if e.cause == nil {
+		return []error{ErrDrift}
+	}
+	return []error{ErrDrift, e.cause}
+}
 
 // Drift builds a *DriftError.
 func Drift(source, kind, format string, args ...any) error {
@@ -63,14 +69,19 @@ type Excerpt struct {
 }
 
 // Body validates an excerpt exactly as providerexcerpt does (digest, caps,
-// paraphrase rules) and returns its body lines.
-func Body(x Excerpt) ([]string, error) {
+// paraphrase rules) and returns its body lines. A refusal is a *DriftError of
+// source and KindExcerpt that keeps the cause.
+func Body(source string, x Excerpt) ([]string, error) {
 	start, _, err := providerexcerpt.ParseExcerpt(x.Entry, x.Data)
 	if err != nil {
-		return nil, err
+		return nil, wrapExcerpt(source, x.Entry.ID, err)
 	}
 	lines := strings.Split(strings.TrimSuffix(string(x.Data), "\n"), "\n")
 	return lines[start-1:], nil
+}
+
+func wrapExcerpt(source, id string, cause error) error {
+	return &DriftError{Source: source, Kind: KindExcerpt, Detail: fmt.Sprintf("%s: %v", id, cause), cause: cause}
 }
 
 // Spec describes an excerpt file to compose.
@@ -88,7 +99,7 @@ func PageDigest(page []byte) string {
 // Compose builds the paraphrase excerpt file and manifest entry of a body
 // (unknown-licence terms: paraphrase only) and validates both. The factory
 // commits the file; this is the only writer-side format knowledge.
-func Compose(s Spec, body string) (providerexcerpt.Entry, []byte, error) {
+func Compose(source string, s Spec, body string) (providerexcerpt.Entry, []byte, error) {
 	if !strings.HasSuffix(body, "\n") {
 		body += "\n"
 	}
@@ -102,22 +113,23 @@ func Compose(s Spec, body string) (providerexcerpt.Entry, []byte, error) {
 		Licence: providerexcerpt.LicenceUnknown, Form: providerexcerpt.FormParaphrase,
 	}
 	if _, _, err := providerexcerpt.ParseExcerpt(e, data); err != nil {
-		return providerexcerpt.Entry{}, nil, err
+		return providerexcerpt.Entry{}, nil, wrapExcerpt(source, s.ID, err)
 	}
 	return e, data, nil
 }
 
-// ChunkLines packs head plus as many of rows as fit in max bytes per chunk
-// (each chunk starts with head). A row that cannot fit alone is an error.
-func ChunkLines(source, head string, rows []string, max int) ([]string, error) {
+// ChunkLines packs head plus as many of rows as fit in maxBytes bytes and
+// providerexcerpt.MaxBodyLines lines per chunk (each chunk starts with head).
+// A row that cannot fit alone is an error.
+func ChunkLines(source, head string, rows []string, maxBytes int) ([]string, error) {
 	var out []string
 	cur := head + "\n"
 	n := 0
 	for _, r := range rows {
-		if len(head)+1+len(r)+1 > max {
+		if len(head)+1+len(r)+1 > maxBytes {
 			return nil, Drift(source, KindSize, "one row does not fit an excerpt body")
 		}
-		if len(cur)+len(r)+1 > max {
+		if len(cur)+len(r)+1 > maxBytes || n+2 > providerexcerpt.MaxBodyLines {
 			out = append(out, cur)
 			cur, n = head+"\n", 0
 		}

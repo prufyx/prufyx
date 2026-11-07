@@ -112,7 +112,7 @@ func ParseFeed(feed []byte) ([]Entry, error) {
 // of builds that directly follows each (separated only by space or commas).
 // Builds named anywhere else in the prose are not mapped to a channel and are
 // ignored, never guessed. A sentence naming a channel outside the closed set
-// ("no channel") yields no releases.
+// ("no channel") is drift.
 func scanContent(day, content string) ([]Release, error) {
 	txt := tagRE.ReplaceAllString(content, " ")
 	txt = strings.ReplaceAll(html.UnescapeString(txt), "\u00a0", " ")
@@ -120,7 +120,7 @@ func scanContent(day, content string) ([]Release, error) {
 	for _, m := range sentRE.FindAllStringSubmatchIndex(txt, -1) {
 		ch := strings.ToLower(strings.Join(strings.Fields(txt[m[2]:m[3]]), " "))
 		if !validChannel(ch) {
-			continue
+			return nil, pd.Drift(srcFeed, pd.KindCell, "release sentence names unknown channel %q on %s", ch, day)
 		}
 		tail := txt[m[1]:]
 		for {
@@ -199,7 +199,7 @@ func DeriveFeed(xs []pd.Excerpt) ([]Release, error) {
 		if err := checkSource(x, srcFeed, FeedPath); err != nil {
 			return nil, err
 		}
-		body, err := pd.Body(x)
+		body, err := pd.Body(srcFeed, x)
 		if err != nil {
 			return nil, err
 		}

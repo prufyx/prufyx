@@ -278,7 +278,7 @@ func feed(n int, mut func(i int, title, updated, content *string)) string {
 		updated := fmt.Sprintf("2032-%02d-%02dT00:00:00-08:00", num, day)
 		content := fmt.Sprintf(`<h2>%s</h2><h3>Rapid channel</h3><p>The following versions are now available in the Rapid channel:</p><ul><li>1.71.%d-gke.%d000</li><li>1.72.%d-gke.%d000</li></ul><p>In version 1.99.9-gke.99 and later, a feature appears.</p>`, title, i, i+1, i, i+2)
 		if i == 0 {
-			content += `<h3>Stable channel</h3><p>The following versions are now available in the Stable channel: 1.70.3-gke.77, 1.70.3-gke.77, 1.71.0-gke.500+preview</p><h3>No channel</h3><p>The following versions are now available in the No channel: 1.60.1-gke.5</p>`
+			content += `<h3>Stable channel</h3><p>The following versions are now available in the Stable channel: 1.70.3-gke.77, 1.70.3-gke.77, 1.71.0-gke.500+preview</p>`
 		}
 		if mut != nil {
 			mut(i, &title, &updated, &content)
@@ -354,6 +354,11 @@ func TestFeedFailClosed(t *testing.T) {
 				*u = "soon"
 			}
 		}), pd.KindRow},
+		"unknown channel": {feed(30, func(i int, ti, u, c *string) {
+			if i == 1 {
+				*c += `<p>The following versions are now available in the No channel: 1.60.1-gke.5</p>`
+			}
+		}), pd.KindCell},
 		"unknown suffix": {feed(30, func(i int, ti, u, c *string) {
 			if i == 1 {
 				*c += `<p>The following versions are now available in the Regular channel: 1.71.1-gke.9+nightly</p>`

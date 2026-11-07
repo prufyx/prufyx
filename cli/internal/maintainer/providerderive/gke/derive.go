@@ -59,7 +59,7 @@ func DeriveSchedule(xs []pd.Excerpt) (Facts, error) {
 		if err := checkSource(x, srcSchedule, SchedulePath); err != nil {
 			return Facts{}, err
 		}
-		body, err := pd.Body(x)
+		body, err := pd.Body(srcSchedule, x)
 		if err != nil {
 			return Facts{}, err
 		}
@@ -68,7 +68,7 @@ func DeriveSchedule(xs []pd.Excerpt) (Facts, error) {
 		}
 		for _, ln := range body[1:] {
 			f := strings.Split(ln, " ")
-			if len(f) != 11 || !lineRE.MatchString(f[0]) {
+			if len(f) != 11 || !pd.ParseLine(f[0]) {
 				return Facts{}, pd.Drift(srcSchedule, pd.KindExcerpt, "%s: row is not 11 fields", x.Entry.ID)
 			}
 			r := Row{Line: f[0]}
@@ -79,7 +79,7 @@ func DeriveSchedule(xs []pd.Excerpt) (Facts, error) {
 				}
 				r.Dates[i] = d
 			}
-			n := atoi(r.Line[2:])
+			n := lineN(r.Line)
 			if n <= prev {
 				return Facts{}, pd.Drift(srcSchedule, pd.KindExcerpt, "%s: lines not strictly ascending at %s", x.Entry.ID, r.Line)
 			}
@@ -95,12 +95,14 @@ func DeriveSchedule(xs []pd.Excerpt) (Facts, error) {
 	for _, r := range rows {
 		p, v := pd.Unify(r.Dates[8], r.Dates[9])
 		l := distribution.Lifecycle{Line: r.Line, StandardEnd: v[0], ExtendedEnd: v[1], Precision: p}
+		// The distribution record refuses extendedRequiresOptIn without an
+		// extendedEnd, so a TBD extended end leaves the flag unset.
 		if l.ExtendedEnd != "" {
 			b := yes
 			l.ExtendedRequiresOptIn = &b
 		}
 		f.Lifecycle = append(f.Lifecycle, l)
-		for i, ch := range Channels2 {
+		for i, ch := range headerChannels {
 			p, v := pd.Unify(r.Dates[2*i], r.Dates[2*i+1])
 			f.Channels = append(f.Channels, distribution.Channel{Line: r.Line, Channel: ch, Available: v[0], AutoUpgrade: v[1], Precision: p})
 		}
@@ -109,7 +111,7 @@ func DeriveSchedule(xs []pd.Excerpt) (Facts, error) {
 	sort.SliceStable(f.Channels, func(i, j int) bool {
 		a, b := f.Channels[i], f.Channels[j]
 		if a.Line != b.Line {
-			return atoi(a.Line[2:]) < atoi(b.Line[2:])
+			return lineN(a.Line) < lineN(b.Line)
 		}
 		return a.Channel < b.Channel
 	})

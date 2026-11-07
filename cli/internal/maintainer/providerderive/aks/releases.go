@@ -173,7 +173,7 @@ func DeriveReleases(xs []pd.Excerpt) (Releases, error) {
 		if x.Entry.Provider != Distribution || x.Entry.SourceURL != "https://github.com"+ReleasesPath {
 			return Releases{}, pd.Drift(srcReleases, pd.KindExcerpt, "excerpt %s cites a source outside the anchored one", x.Entry.ID)
 		}
-		body, err := pd.Body(x)
+		body, err := pd.Body(srcReleases, x)
 		if err != nil {
 			return Releases{}, err
 		}

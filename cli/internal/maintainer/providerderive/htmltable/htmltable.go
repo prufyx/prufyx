@@ -47,26 +47,25 @@ func Parse(page []byte) ([]Table, error) {
 	}
 	s := string(page)
 	var (
-		tables   []Table
-		inTable  bool
-		row      []Cell
-		inRow    bool
-		cur      *Cell
-		buf      strings.Builder
-		sup      strings.Builder
-		italic   int
-		supD     int
-		anyIt    bool
-		anyPlain bool
+		tables  []Table
+		inTable bool
+		row     []Cell
+		inRow   bool
+		cur     *Cell
+		buf     strings.Builder
+		sup     strings.Builder
+		italic  int
+		supD    int
+		anyIt   bool
 	)
 	flushCell := func() {
 		cur.Text = strings.Join(strings.Fields(buf.String()), " ")
-		cur.Italic = anyIt && !anyPlain
+		cur.Italic = anyIt
 		row = append(row, *cur)
 		cur = nil
 		buf.Reset()
 		sup.Reset()
-		italic, supD, anyIt, anyPlain = 0, 0, false, false
+		italic, supD, anyIt = 0, 0, false
 	}
 	text := func(t string) {
 		if cur == nil {
@@ -81,8 +80,6 @@ func Parse(page []byte) ([]Table, error) {
 		if strings.TrimSpace(t) != "" {
 			if italic > 0 {
 				anyIt = true
-			} else {
-				anyPlain = true
 			}
 		}
 	}
@@ -127,7 +124,7 @@ func Parse(page []byte) ([]Table, error) {
 			return nil, bad("stray less-than")
 		}
 		if !closing && (name == "script" || name == "style") {
-			k := strings.Index(strings.ToLower(s[i:]), "</"+name)
+			k := indexCloseTag(s, i, name)
 			if k < 0 {
 				return nil, bad("unterminated %s", name)
 			}
@@ -312,7 +309,7 @@ func span(attrs, name string) (int, error) {
 	return x, nil
 }
 
-// Grid expands the spans of the first nHeader rows into a rectangular grid of
+// Grid expands the spans of the rows into a rectangular grid of
 // cell texts, one string per column slot; it errors on overlapping spans or
 // ragged rows.
 func Grid(rows [][]Cell) ([][]string, error) {
@@ -362,4 +359,31 @@ func Grid(rows [][]Cell) ([][]string, error) {
 		}
 	}
 	return grid, nil
+}
+
+// indexCloseTag returns the offset from start of the first "</name" in s at or
+// after start, compared ASCII case-insensitively without copying or
+// lowercasing (a Unicode lowercase can change byte length), or -1.
+func indexCloseTag(s string, start int, name string) int {
+	n := len(name) + 2
+	for i := start; i+n <= len(s); i++ {
+		if s[i] != '<' || s[i+1] != '/' {
+			continue
+		}
+		ok := true
+		for j := 0; j < len(name); j++ {
+			c := s[i+2+j]
+			if 'A' <= c && c <= 'Z' {
+				c += 'a' - 'A'
+			}
+			if c != name[j] {
+				ok = false
+				break
+			}
+		}
+		if ok {
+			return i - start
+		}
+	}
+	return -1
 }

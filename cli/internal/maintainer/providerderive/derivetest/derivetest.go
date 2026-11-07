@@ -16,7 +16,7 @@ func Excerpts(t testing.TB, provider, id, url, anchor string, page []byte, bodie
 	t.Helper()
 	var out []pd.Excerpt
 	for i, b := range bodies {
-		e, data, err := pd.Compose(pd.Spec{
+		e, data, err := pd.Compose(id, pd.Spec{
 			ID: id + "-" + string(rune('a'+i)), Provider: provider, SourceURL: url, FetchedAt: "2026-11-07T09:47:40Z",
 			Anchor: anchor, Sentence: "s-" + string(rune('a'+i)), PageSHA256: pd.PageDigest(page),
 		}, b)
