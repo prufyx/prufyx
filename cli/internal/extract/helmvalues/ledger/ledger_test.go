@@ -166,6 +166,9 @@ func TestEveryReasonIsReachable(t *testing.T) {
 		{"changed default the later schema refuses", func() chart {
 			return baseChart("90.1.0", "a: {v: 2}\n", `{"properties":{"a":{"type":"object","additionalProperties":false,"properties":{"w":{}}}}}`)
 		}, func() chart { return baseChart("90.0.0", "a: {v: 1}\n", "") }, ledger.ScopeChanged, ledger.NoticeSchemaNamed, "a.v"},
+		{"kubeVersion absent", func() chart { return good() }, from, ledger.ScopeKubeVersion, ledger.KubeVersionAbsent, ""},
+		{"kubeVersion not a single lower bound", func() chart { c := good(); c["Chart.yaml"] += "kubeVersion: \">=1.25.0-0 <1.30.0\"\n"; return c }, from, ledger.ScopeKubeVersion, ledger.KubeVersionUnsupported, ""},
+		{"kubeVersion without the -0 suffix", func() chart { c := good(); c["Chart.yaml"] += "kubeVersion: \">=1.25.0\"\n"; return c }, from, ledger.ScopeKubeVersion, ledger.KubeVersionVendorSuffix, ""},
 	}
 	reached := map[ledger.Reason]bool{}
 	for _, tc := range tests {
@@ -197,7 +200,7 @@ func TestEveryReasonIsReachable(t *testing.T) {
 		})
 	}
 	for _, r := range ledger.All() {
-		if r != ledger.UnclassifiedProblem && r != ledger.UnclassifiedKey && !reached[r] {
+		if r != ledger.UnclassifiedProblem && r != ledger.UnclassifiedKey && r != ledger.KubeVersionUnclassified && !reached[r] {
 			t.Errorf("reason %s is never reached by a case", r)
 		}
 	}
@@ -214,8 +217,8 @@ func TestUnknownProblemIsListed(t *testing.T) {
 	if len(got) != 1 || got[0].Reason != ledger.UnclassifiedProblem || got[0].Scope != ledger.ScopePair {
 		t.Fatalf("got %+v", got)
 	}
-	if ledger.Collect("x", nil) != nil {
-		t.Fatal("a nil proof lists a refusal")
+	if got := ledger.Collect("x", nil); len(got) != 1 || got[0].Reason != ledger.KubeVersionUnclassified {
+		t.Fatalf("missing proof: %+v", got)
 	}
 }
 
@@ -224,7 +227,9 @@ func TestUnknownProblemIsListed(t *testing.T) {
 func TestDecisionsAreNotRefusals(t *testing.T) {
 	r := memchart.New()
 	put(r, c0, baseChart("90.0.0", "a: {keep: 1, gone: 2, kept: 3}\n", ""))
-	put(r, c1, baseChart("90.1.0", "a: {keep: 1, kept: 3}\n", `{"properties":{"a":{"type":"object","additionalProperties":false,"properties":{"keep":{},"kept":{}}}}}`))
+	c := baseChart("90.1.0", "a: {keep: 1, kept: 3}\n", `{"properties":{"a":{"type":"object","additionalProperties":false,"properties":{"keep":{},"kept":{}}}}}`)
+	c["Chart.yaml"] += "kubeVersion: \">=1.25.0-0\"\n"
+	put(r, c1, c)
 	proof, withheld := proofOf(t, r)
 	if withheld {
 		t.Fatal("withheld")
@@ -336,7 +341,7 @@ func TestDetailEchoesNoFileContent(t *testing.T) {
 			t.Errorf("detail %q", e.Detail)
 		}
 	}
-	long := &helmvalues.PairProof{Required: &helmvalues.RequiredRecord{Opaque: []helmvalues.OpaqueNode{{Path: "a", Reason: strings.Repeat("x", 500)}}}}
+	long := &helmvalues.PairProof{From: &helmvalues.SideRecord{Tag: "inventory", Commit: c0}, To: &helmvalues.SideRecord{Tag: "inventory", Commit: c0}, Required: &helmvalues.RequiredRecord{Opaque: []helmvalues.OpaqueNode{{Path: "a", Reason: strings.Repeat("x", 500)}}}}
 	if got := ledger.Collect("p", long); len(got) != 1 || len([]rune(got[0].Detail)) != 96 {
 		t.Fatalf("%+v", got)
 	}
@@ -345,7 +350,7 @@ func TestDetailEchoesNoFileContent(t *testing.T) {
 // A key class nobody placed is listed, and every Class constant of the
 // extractor is placed as a decision or a refusal.
 func TestEveryKeyClassIsPlaced(t *testing.T) {
-	proof := &helmvalues.PairProof{Removed: &helmvalues.RemovedRecord{Keys: []helmvalues.KeyClass{{Path: "a", Class: "brand-new"}}}}
+	proof := &helmvalues.PairProof{From: &helmvalues.SideRecord{Tag: "inventory", Commit: c0}, To: &helmvalues.SideRecord{Tag: "inventory", Commit: c0}, Removed: &helmvalues.RemovedRecord{Keys: []helmvalues.KeyClass{{Path: "a", Class: "brand-new"}}}}
 	if got := ledger.Collect("p", proof); len(got) != 1 || got[0].Reason != ledger.UnclassifiedKey {
 		t.Fatalf("got %+v", got)
 	}
