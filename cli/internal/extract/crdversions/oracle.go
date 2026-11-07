@@ -92,6 +92,15 @@ func Oracle(outDir string, expectedRaw []byte) ([]string, error) {
 		rec   extract.PairRecord
 		proof PairProof
 	}
+	pairs2inventories := func(pairs map[string]*pairInfo) []*Inventory {
+		var out []*Inventory
+		for _, info := range pairs {
+			if info.rec.Status == extract.PairDerived {
+				out = append(out, info.proof.From, info.proof.To)
+			}
+		}
+		return out
+	}
 	pairs := map[string]*pairInfo{}
 	key := func(from, to string) string { return from + "->" + to }
 	for _, p := range m.Pairs {
@@ -223,6 +232,33 @@ func Oracle(outDir string, expectedRaw []byte) ([]string, error) {
 			diffs = append(diffs, fmt.Sprintf("ATTESTABLE %s: expected %v", what, *e.Attestable))
 		}
 	}
+	diffs = append(diffs, sourceDiffs(pairs2inventories(pairs))...)
 	sort.Strings(diffs)
 	return diffs, nil
+}
+
+// sourceDiffs checks, for every definition of a derived pair that was read
+// from a source apiVersion other than v1, what no expectation can state: the
+// apiVersion is the one the narrow reader admits, and the lines of every
+// version (entry, served, storage) are set, so a citation never points at
+// line 0.
+func sourceDiffs(invs []*Inventory) []string {
+	var diffs []string
+	for _, inv := range invs {
+		if inv == nil {
+			continue
+		}
+		for _, c := range inv.CRDs {
+			if c.SourceAPIVersion == "" {
+				continue
+			}
+			if c.SourceAPIVersion != crdAPIVersionV1beta1 {
+				diffs = append(diffs, fmt.Sprintf("SOURCE %s at %s: unexpected sourceApiVersion %q", c.Name, inv.Tag, c.SourceAPIVersion))
+			}
+			if err := checkCitedLines(c); err != nil {
+				diffs = append(diffs, fmt.Sprintf("LINES %s at %s: %v", c.Name, inv.Tag, err))
+			}
+		}
+	}
+	return diffs
 }

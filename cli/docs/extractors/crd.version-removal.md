@@ -1,6 +1,6 @@
 # Extractor `crd.version-removal`
 
-Version 2.9.0. Derives `forbid_set_member` rules for custom-resource
+Version 2.10.0. Derives `forbid_set_member` rules for custom-resource
 versions that a project's release line no longer serves, from the
 CustomResourceDefinition manifests the project ships in its repository. It is
 deterministic, reads only upstream source pinned by full commit SHA, and
@@ -255,6 +255,19 @@ Through the offline factory mirror (or a fixture tree), never the network.
   group, kind, plural and scope, and for every entry of `spec.versions` the
   name, `served` and `storage` flags and the lines of the entry and of its two
   flags.
+- **A listed `apiextensions.k8s.io/v1beta1` CustomResourceDefinition, only when
+  it is complete**: it states `spec.versions` as a non-empty list, every entry
+  has boolean `served` and `storage` keys written in the file, and
+  `spec.version`, when given, is the name of the first entry. It is read like a
+  v1 definition (same bounds, same checks, same recorded lines) and its record
+  carries `sourceApiVersion: apiextensions.k8s.io/v1beta1`; a v1 record has no
+  such member. The `spec.version`-only form (served and stored only by API
+  default, no line to cite), a missing or non-boolean flag, a `spec.version`
+  that is not the first entry and any other incomplete shape stay refused with
+  the reason of the v1-only reader. Schema, conversion and
+  `preserveUnknownFields` are not read or normalised. The `v1beta2` version of
+  the API group and v1beta1 definitions anywhere else (the full-tree scan,
+  fragments) keep their earlier handling.
 - **The whole repository tree (full-tree scan).** Every directory is listed
   (none is skipped), and every file outside the listed paths of these kinds is
   read: `*.yaml`, `*.yml`, `*.json` and files named `Kustomization`; template,
@@ -751,6 +764,13 @@ version must come from a full run of that project's id with this build (which
 then carries the id's own digest), not from an edit of a record that carries
 the old shared digest. From then on, a change to one target only requires
 re-deriving the records of that target's id.
+## Changes from version 2.9.0
+
+Version 2.10.0 reads a complete `apiextensions.k8s.io/v1beta1` definition in a
+listed file as a source (above), with the `sourceApiVersion` member on its
+record. Output is unchanged for every target and file none of this applies to,
+except the extractor version and the code digest.
+
 ## Changes from version 2.8.0
 
 Version 2.9.0 adds the `defines` member of a reviewed exclusion (the one

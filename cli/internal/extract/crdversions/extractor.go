@@ -38,7 +38,7 @@ const (
 	// IDPrefix is followed by the project slug: one extractor id per
 	// project, since a run reads one repository.
 	IDPrefix = "crd.version-removal."
-	Version  = "2.9.0"
+	Version  = "2.10.0"
 	// SourceDir is this package's directory under the module's internal/.
 	SourceDir = "extract/crdversions"
 )
@@ -566,7 +566,7 @@ func readDefinitions(r extract.PinnedReader, repo extract.RepoRef, commit string
 		if err != nil {
 			return inv, err
 		}
-		rec, crds, err := parseFile(f, data)
+		rec, crds, err := parseInventoryFile(f, data)
 		var included []FileRecord
 		if err != nil && other == nil {
 			// A template of the admitted spec-include shape (specinclude.go);

@@ -83,6 +83,11 @@ type CRD struct {
 	// absent for a definition of the release's own repository.
 	Repo   string `json:"repo,omitempty"`
 	Commit string `json:"commit,omitempty"`
+	// SourceAPIVersion is the apiextensions apiVersion the definition was
+	// read from when it is not v1: "apiextensions.k8s.io/v1beta1" for a
+	// definition read by the narrow v1beta1 reader. It is empty for v1,
+	// which keeps every v1 record byte-identical to earlier output.
+	SourceAPIVersion string `json:"sourceApiVersion,omitempty"`
 }
 
 // version returns the named version entry.
@@ -121,6 +126,71 @@ func parseFile(path string, data []byte) (FileRecord, []CRD, error) {
 
 // parseValues is parseFile that also returns the decoded documents.
 func parseValues(path string, data []byte) (FileRecord, []CRD, []any, error) {
+	return parseValuesAs(path, data, false)
+}
+
+// parseInventoryFile is parseFile for a listed definition file, the source
+// of a fact: it also reads a complete apiextensions.k8s.io/v1beta1
+// definition (see v1beta1Refusal for what makes one complete).
+func parseInventoryFile(path string, data []byte) (FileRecord, []CRD, error) {
+	rec, crds, _, err := parseValuesAs(path, data, true)
+	return rec, crds, err
+}
+
+// v1beta1Refusal returns why a v1beta1 definition is not read as a source:
+// the empty string when it states spec.versions as a non-empty list whose
+// entries all carry boolean served and storage, and spec.version, when
+// given, names the first entry. The spec.version-only form states no served
+// or storage line to cite, so it is never read.
+func v1beta1Refusal(obj map[string]any) string {
+	spec := mapping(obj, "spec")
+	items, ok := spec["versions"].([]any)
+	if !ok || len(items) == 0 {
+		return "it has no spec.versions list (the spec.version-only form states no served or storage line)"
+	}
+	for i, item := range items {
+		vm, ok := item.(map[string]any)
+		if !ok {
+			return fmt.Sprintf("spec.versions[%d] is not a mapping", i)
+		}
+		if _, ok := vm["served"].(bool); !ok {
+			return fmt.Sprintf("spec.versions[%d] does not state served as a boolean", i)
+		}
+		if _, ok := vm["storage"].(bool); !ok {
+			return fmt.Sprintf("spec.versions[%d] does not state storage as a boolean", i)
+		}
+	}
+	if single, has := spec["version"]; has {
+		first, _ := items[0].(map[string]any)
+		name, _ := single.(string)
+		if fn, _ := first["name"].(string); name == "" || name != fn {
+			return "spec.version is not the name of the first spec.versions entry"
+		}
+	}
+	return ""
+}
+
+// afterParseV1beta1 is nil in production. A test sets it to alter a parsed
+// v1beta1 definition (for example to zero a line) before the citation guard
+// runs, so that removing the guard call fails a test.
+var afterParseV1beta1 func(*CRD)
+
+// checkCitedLines refuses a definition whose citation lines are not all
+// set: a zero line cannot be cited. It guards every definition read from a
+// source apiVersion other than v1.
+func checkCitedLines(c CRD) error {
+	if c.StartLine < 1 || c.VersionsLine < 1 {
+		return problemf("%s: no citable line for the definition or its spec.versions", c.Name)
+	}
+	for _, v := range c.Versions {
+		if v.StartLine < 1 || v.EndLine < v.StartLine || v.ServedLine < 1 || v.StorageLine < 1 {
+			return problemf("%s: version %s has no citable served and storage lines", c.Name, v.Name)
+		}
+	}
+	return nil
+}
+
+func parseValuesAs(path string, data []byte, narrowV1beta1 bool) (FileRecord, []CRD, []any, error) {
 	sum := sha256.Sum256(data)
 	rec := FileRecord{Path: path, SHA256: "sha256:" + hex.EncodeToString(sum[:]), Size: len(data), Lines: extract.CountLines(data)}
 	if len(data) > MaxFileBytes {
@@ -163,8 +233,21 @@ func parseValues(path string, data []byte) (FileRecord, []CRD, []any, error) {
 			rec.OtherDocuments++
 			continue
 		}
+		v1beta1 := false
 		if apiVersion != crdAPIVersion {
-			return rec, nil, nil, problemf("%s document %d is a CustomResourceDefinition of apiVersion %q; only %s is read", path, doc, apiVersion, crdAPIVersion)
+			refusal := ""
+			if narrowV1beta1 && apiVersion == crdAPIVersionV1beta1 {
+				if refusal = v1beta1Refusal(obj); refusal == "" {
+					v1beta1 = true
+				}
+			}
+			if !v1beta1 {
+				msg := fmt.Sprintf("%s document %d is a CustomResourceDefinition of apiVersion %q; only %s is read", path, doc, apiVersion, crdAPIVersion)
+				if refusal != "" {
+					msg += " (" + crdAPIVersionV1beta1 + " is read only with spec.versions: " + refusal + ")"
+				}
+				return rec, nil, nil, problem{msg}
+			}
 		}
 		next := 0
 		if i+1 < len(nodes) {
@@ -172,7 +255,21 @@ func parseValues(path string, data []byte) (FileRecord, []CRD, []any, error) {
 		}
 		crd, err := parseCRD(path, doc, obj, nodes[i], next, lines)
 		if err != nil {
+			if pr, ok := asProblem(err); ok && v1beta1 {
+				// Every refusal of a v1beta1 definition keeps the reason
+				// of the v1-only reader and adds the detail.
+				return rec, nil, nil, problemf("%s document %d is a CustomResourceDefinition of apiVersion %q; only %s is read (%s is read only when complete: %s)", path, doc, apiVersion, crdAPIVersion, crdAPIVersionV1beta1, pr.msg)
+			}
 			return rec, nil, nil, err
+		}
+		if v1beta1 {
+			crd.SourceAPIVersion = crdAPIVersionV1beta1
+			if afterParseV1beta1 != nil {
+				afterParseV1beta1(&crd)
+			}
+			if err := checkCitedLines(crd); err != nil {
+				return rec, nil, nil, err
+			}
 		}
 		crds = append(crds, crd)
 	}
