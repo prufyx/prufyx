@@ -1,0 +1,6 @@
+change_type: deprecation
+component: service
+note: Deprecate the `--a` flag.
+issues: [1234]
+subtext: |
+  The flag is not deprecated for the debug build.

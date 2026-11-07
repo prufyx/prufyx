@@ -1,0 +1,4 @@
+change_type: breaking
+component: service
+note: Remove the `exporter.foo.bar` feature gate.
+issues: [1234]

@@ -1,0 +1,7 @@
+change_type: breaking
+component: service
+note: |
+  ```
+  Remove `--a`
+  ```
+issues: [1]

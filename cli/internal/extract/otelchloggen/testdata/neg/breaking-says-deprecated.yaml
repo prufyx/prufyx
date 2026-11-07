@@ -1,0 +1,4 @@
+change_type: breaking
+component: service
+note: Deprecate the `--a` flag.
+issues: [1234]
