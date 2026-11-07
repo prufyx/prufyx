@@ -93,7 +93,7 @@ def counts(cases):
     unsupported = sum(1 for c in cases if c.get("detail", {}).get("status") == "UNSUPPORTED_COMMUNITY")
     if unsupported:
         n["unsupported_community"] = unsupported
-    design = sum(1 for c in cases if c.get("detail", {}).get("status") == "DESIGN_UNKNOWN_WHOLE_CRD_REMOVAL")
+    design = sum(1 for c in cases if c.get("detail", {}).get("status") == "DESIGN_UNKNOWN_WHOLE_CRD_REMOVAL" and not c["error"])
     if design:
         n["design_unknown_whole_crd_removal"] = design
     return n
