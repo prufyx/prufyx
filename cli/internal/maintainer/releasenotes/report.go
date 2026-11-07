@@ -179,7 +179,15 @@ func projects(b *strings.Builder, from, to *Snapshot) {
 }
 
 func list(b *strings.Builder, heading string, items []string, empty string) {
+	listNote(b, heading, "", items, empty)
+}
+
+// listNote is list with one explanatory sentence under the heading.
+func listNote(b *strings.Builder, heading, note string, items []string, empty string) {
 	fmt.Fprintf(b, "%s (%d)\n\n", heading, len(items))
+	if note != "" {
+		fmt.Fprintf(b, "%s\n\n", note)
+	}
 	if len(items) == 0 {
 		fmt.Fprintf(b, "%s\n\n", empty)
 		return
@@ -449,7 +457,7 @@ func attestationDetail(b *strings.Builder, from, to *Snapshot) {
 			rederived = append(rederived, fmt.Sprintf("- `%s`: lines %s; extractor %s -> %s", name, strings.Join(redo, ", "), strings.Join(sortedKeys(oldX), "/"), strings.Join(sortedKeys(newX), "/")))
 		}
 	}
-	list(b, "### Newly covered versions in attested lines", added, "No attestation covers a version that the previous tree did not.")
+	listNote(b, "### Versions newly covered by attestations (including new lines)", "Versions listed in line attestations; not an upgrade verdict.", added, "No attestation covers a version that the previous tree did not.")
 	list(b, "### Re-derived line attestations", rederived, "No attestation of an existing line was derived again.")
 }
 

@@ -135,7 +135,8 @@ func TestReleaseNotesAttestationDetail(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		"### Newly covered versions in attested lines (1)",
+		"### Versions newly covered by attestations (including new lines) (1)",
+		"Versions listed in line attestations; not an upgrade verdict.",
 		"- `istio/istio`: 2 newly covered versions: 1.31.4, 1.32.0",
 		"### Re-derived line attestations (1)",
 		"- `dapr/dapr`: lines 1.18, 1.19; extractor 2.7.0 -> 2.8.0",

@@ -462,7 +462,9 @@ None.
 - `velero-io/velero`: 5 now; new lines 1.14, 1.15, 1.16, 1.17, 1.18
 - `volcano-sh/volcano`: 5 now; new lines 1.11, 1.12, 1.13, 1.14, 1.15
 
-### Newly covered versions in attested lines (17)
+### Versions newly covered by attestations (including new lines) (17)
+
+Versions listed in line attestations; not an upgrade verdict.
 
 - `ansible/awx-operator`: 8 newly covered versions: 2.14.0, 2.15.0, 2.16.0, 2.16.1, 2.17.0, 2.18.0, 2.19.0, 2.19.1
 - `aquasecurity/trivy-operator`: 8 newly covered versions: 0.31.0, 0.31.1, 0.31.2, 0.32.0, 0.33.0, 0.34.0, 0.35.0, 0.36.0
