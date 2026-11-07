@@ -123,7 +123,7 @@ def publication_runner():
         target = "crd|synthetic|v1.0.0|v1.1.0"
         plan["requested"].update(["crd-project|synthetic", target])
         plan["metadata"].add("crd-project|synthetic")
-        plan["jobs"].append((target, "v1.0.0", "v1.1.0", {RETAINED}, []))
+        plan["jobs"].append((target, "v1.0.0", "v1.1.0", {RETAINED}, [], []))
     with patch.object(crd, "COV", ""), patch.object(crd, "GATE", True), patch.object(
             crd, "prepare", side_effect=prepare), patch.object(crd, "TMP", str(out / "tmp")), patch.object(
             crd, "prufyx", return_value=(11, dict(verdict="UNKNOWN", paths=[], findings=[],
