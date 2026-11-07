@@ -383,3 +383,43 @@ func TestCoverageNumbersKeepBaseline(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// The per-project floors and the published total must agree. The fleet total
+// the README prints counts the CNCF-catalog projects only; a community-catalog
+// project may carry a floor but its pairs are counted apart. So the floors of
+// the non-community projects must add up to the fleet decided pairs exactly.
+func TestBaselineProjectFloorsMatchFleet(t *testing.T) {
+	t.Parallel()
+	root, err := filepath.Abs(repoRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tree := Tree{Root: root}
+	raw, err := tree.Read(coveragereport.BaselinePath, MaxFileBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := coveragereport.ParseBaseline(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, _, _, err := coverageReportOf(tree)
+	if err != nil {
+		t.Fatal(err)
+	}
+	community := map[string]bool{}
+	for _, p := range report.Projects {
+		if p.Catalog == coveragereport.CatalogCommunity {
+			community[p.Project] = true
+		}
+	}
+	sum := 0
+	for p, n := range b.ProjectPairs {
+		if !community[p] {
+			sum += n
+		}
+	}
+	if sum != b.DecidedPairs || sum != report.Fleet.A+report.Fleet.B {
+		t.Fatalf("per-project floors of CNCF-catalog projects add up to %d; decidedPairs floor %d, published fleet decided pairs %d (community-catalog projects are counted apart); update testdata/readme-baseline.json deliberately", sum, b.DecidedPairs, report.Fleet.A+report.Fleet.B)
+	}
+}
