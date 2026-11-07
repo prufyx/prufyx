@@ -30,6 +30,13 @@ var readmeInventoryCounts = []string{
 }
 
 // readmePct is the share a/b as the block prints it: floored to one decimal.
+// README row labels the baseline test reads back; the generator and the test
+// share them so they cannot drift.
+const (
+	readmeDecidedLabel = "Decided for the whole release-line pair (A attested, B bounded)"
+	readmeCRDLabel     = "Projects with a published CRD rule or line attestation"
+)
+
 func readmePct(a, b int) string {
 	if b == 0 {
 		return "0%"
@@ -77,10 +84,10 @@ func RenderREADMEBlock(r Report, inventoryJSON []byte, now time.Time) (string, e
 	w("| Projects with a rule or attestation that decides at least one of their last five minor upgrades (A, B or S below) | %d of %d |\n", r.withPairs, f.Projects)
 	w("| Projects catalogued with retained public sources | %d (%d of them source-only, no check) |\n", c["selectedSourceProjects"], c["selectedSourceOnlyProjects"])
 	w("| Projects with reviewed CRD targets (a reviewed `crd.custom_resource_versions` target) | %d |\n", r.CRDVersionProjects)
-	w("| Projects with a published CRD rule or line attestation | %d |\n\n", r.CRDPublishedProjects)
+	w("| "+readmeCRDLabel+" | %d |\n\n", r.CRDPublishedProjects)
 	w("Version-coverage depth, measured over the last five minor upgrades of each of the %d projects with a release-line snapshot (%d upgrades between consecutive release lines):\n\n", f.Projects, f.Pairs)
 	w("| Status | Upgrades | Share |\n| --- | --- | --- |\n")
-	w("| Decided for the whole release-line pair (A attested, B bounded) | %d | %s |\n", f.A+f.B, readmePct(f.A+f.B, f.Pairs))
+	w("| "+readmeDecidedLabel+" | %d | %s |\n", f.A+f.B, readmePct(f.A+f.B, f.Pairs))
 	w("| Rule for one exact version pair only (S) | %d | %s |\n", f.S, readmePct(f.S, f.Pairs))
 	w("| Gap, no valid rule (G) | %d | %s |\n\n", f.G, readmePct(f.G, f.Pairs))
 	w("Kubernetes: %d valid rules, but %d fall in its window %s to %s; %d of %d upgrades in that window are gaps.\n\n", k.ValidRules, k.RulesInWindow, k.Window[0], k.Window[len(k.Window)-1], k.G, k.A+k.B+k.S+k.G)
