@@ -92,8 +92,10 @@ jobs:
         # Fail closed: a missing or unreadable base file, an unreachable base
         # ref, or a missing head file fails the step. It runs on pull requests
         # only: on a push the base would be the pushed commit itself, and a
-        # file compared with itself proves nothing; main only changes through
-        # a pull request that already passed this step.
+        # file compared with itself proves nothing. That a pull request has
+        # passed this step before main moves depends on branch protection
+        # (required status check, up to date, code-owner review); a direct
+        # push to main skips the step by design.
         if: github.event_name == 'pull_request'
         working-directory: cli
         env:
