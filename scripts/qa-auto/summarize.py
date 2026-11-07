@@ -60,17 +60,24 @@ wp = [c for c in cases if c["wrongpass"]]
 mm = [c for c in cases if c["mismatch"] and not c["wrongpass"]]
 new = [c for c in mm if f"{c['suite']}|{c['key']}" not in base]
 er = [c for c in cases if c["error"]]
+design = sum(1 for c in cases if c.get("detail", {}).get("status") == "DESIGN_UNKNOWN_WHOLE_CRD_REMOVAL")
+try:
+    with open(a.state + "/status.json") as prev_file:
+        prev_design = int(json.load(prev_file).get("design_unknown_whole_crd_removal", 0))
+except (OSError, ValueError, TypeError, AttributeError):
+    prev_design = 0
+design_rise = design > prev_design and not a.adhoc
 alarm = bool(wp or new)
 state = "ALARM" if alarm else ("INCONCLUSIVE" if er else ("GREEN-PARTIAL" if skipped else "GREEN"))
-line = f"WRONGPASS={len(wp)} MISMATCH={len(mm)} NEWMISMATCH={len(new)} ERR={len(er)} sha={a.sha[:8]} mode={a.mode} {state}"
+line = f"WRONGPASS={len(wp)} MISMATCH={len(mm)} NEWMISMATCH={len(new)} ERR={len(er)} DESIGN_UNKNOWN_WHOLE_CRD={design}{" RISE" if design_rise else ""} sha={a.sha[:8]} mode={a.mode} {state}"
 now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 summ = {"scopes": scopes, "run_id": os.environ.get("QA_RUN_ID", ""), "base": os.environ.get("QA_BASE", ""), "time": now, "sha": a.sha, "mode": a.mode, "state": state, "verdict": line, "wrongpass": len(wp),
         "mismatch": len(mm), "new_mismatch": len(new), "errors": len(er),
-        "unsupported_community": sum(1 for c in cases if c.get("detail", {}).get("status") == "UNSUPPORTED_COMMUNITY"), "cases": len(cases),
+        "unsupported_community": sum(1 for c in cases if c.get("detail", {}).get("status") == "UNSUPPORTED_COMMUNITY"), "design_unknown_whole_crd_removal": design, "design_unknown_whole_crd_rise": design_rise, "cases": len(cases),
         "baseline_seeded": seeded, "skipped": skipped, "adhoc": a.adhoc, "note": a.note,
         "wrongpass_cases": wp[:50], "new_mismatch_cases": new[:50], "error_cases": er[:20]}
 json.dump(summ, open(a.dir + "/summary.json", "w"), indent=1)
-status = {k: summ[k] for k in ("time", "sha", "mode", "state", "verdict", "wrongpass", "mismatch", "new_mismatch", "errors")}
+status = {k: summ[k] for k in ("time", "sha", "mode", "state", "verdict", "wrongpass", "mismatch", "new_mismatch", "errors", "design_unknown_whole_crd_removal", "design_unknown_whole_crd_rise")}
 status["alarm"] = alarm
 if not a.adhoc:
     json.dump(status, open(a.state + "/status.json.tmp", "w"))
