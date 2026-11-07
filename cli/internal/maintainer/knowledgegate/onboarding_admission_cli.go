@@ -197,6 +197,7 @@ func checkOnboardingContent(ctx context.Context, opts Options, keys ApprovalKeys
 	})
 	r.generatedChecks(opts)
 	r.blockChecks(opts)
+	r.coverageFloorCheck(opts)
 	r.trustCheck(opts)
 	r.recordsTrustCheck(st.cls, opts)
 	r.modeCheck(opts)

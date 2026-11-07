@@ -15,6 +15,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/prufyx/prufyx/cli/internal/maintainer/coveragereport"
 )
 
 // withdrawProject withdraws n active reviewed rules of one project in the
@@ -106,6 +108,10 @@ func TestWithdrawalBreaker(t *testing.T) {
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				base, head := trees(t)
+				// The test is about the breaker, not the coverage floor.
+				for _, tr := range []Tree{base, head} {
+					writeFloor(t, tr, coveragereport.Baseline{ProjectPairs: map[string]int{}, Withdrawals: []coveragereport.Withdrawal{}})
+				}
 				// Spread over projects so only the pack breaker can trip.
 				editPack(t, head, cncfRulesPath, func(p *packDoc) {
 					per := map[any]int{}

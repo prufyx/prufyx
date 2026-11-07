@@ -90,7 +90,12 @@ var (
 // reviewed rules and not the batch this is the repository's own bytes.
 func copyKnowledge(t *testing.T) Tree {
 	t.Helper()
-	knowledgeTemplateOnce.Do(func() { knowledgeTemplateFiles, knowledgeTemplateErr = buildKnowledgeTemplate() })
+	knowledgeTemplateOnce.Do(func() {
+		knowledgeTemplateFiles, knowledgeTemplateErr = buildKnowledgeTemplate()
+		if knowledgeTemplateErr == nil {
+			knowledgeTemplateErr = addTemplateBaseline(knowledgeTemplateFiles)
+		}
+	})
 	if knowledgeTemplateErr != nil {
 		t.Fatal(knowledgeTemplateErr)
 	}
@@ -382,6 +387,7 @@ func runGateExact(t *testing.T, opts Options) *Report {
 	}
 	pinBaseKeys(&opts)
 	fromBot(&opts)
+	seedBaseline(t, opts)
 	r, err := Verify(context.Background(), opts)
 	if err != nil {
 		t.Fatalf("gate: %v", err)
@@ -483,4 +489,66 @@ func fromBot(opts *Options) {
 			opts.DailyLoosening = &none
 		}
 	}
+}
+
+// seedBaseline gives a fixture base without a coverage baseline one made of
+// its own numbers (the fixture packs are not the shipped ones, so the shipped
+// floors do not apply to them), and a head without one a copy of the base's.
+func seedBaseline(t *testing.T, opts Options) {
+	t.Helper()
+	path := filepath.Join(opts.Base.Root, filepath.FromSlash(coveragereport.BaselinePath))
+	if _, err := os.Stat(path); err != nil {
+		raw, err := floorOf(opts.Base)
+		if err != nil {
+			return
+		}
+		writeFile(t, path, raw)
+	}
+	headPath := filepath.Join(opts.Head.Root, filepath.FromSlash(coveragereport.BaselinePath))
+	if _, err := os.Stat(headPath); err != nil {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, headPath, raw)
+	}
+}
+
+// addTemplateBaseline adds to the fixture files a coverage baseline made of
+// the fixture's own numbers: the fixture packs are not the shipped ones.
+func addTemplateBaseline(files map[string][]byte) error {
+	dir, err := os.MkdirTemp("", "baseline-template")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(dir)
+	for rel, raw := range files {
+		p := filepath.Join(dir, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(p, raw, 0o644); err != nil {
+			return err
+		}
+	}
+	raw, err := floorOf(Tree{Root: dir})
+	if err != nil {
+		return err
+	}
+	files[coveragereport.BaselinePath] = raw
+	return nil
+}
+
+func floorOf(tr Tree) ([]byte, error) {
+	report, _, _, err := coverageReportOf(tr)
+	if err != nil {
+		return nil, err
+	}
+	b := coveragereport.Baseline{DecidedPairs: report.Fleet.A + report.Fleet.B, CRDProjects: report.CRDPublishedProjects, ProjectPairs: map[string]int{}, Withdrawals: []coveragereport.Withdrawal{}}
+	for _, p := range report.Projects {
+		if p.A+p.B > 0 {
+			b.ProjectPairs[p.Project] = p.A + p.B
+		}
+	}
+	return json.Marshal(b)
 }
