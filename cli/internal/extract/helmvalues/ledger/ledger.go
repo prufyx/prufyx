@@ -348,14 +348,15 @@ func All() []Reason {
 
 // kubeReason classifies the anchor proof without copying source text into the ledger.
 func kubeReason(p *helmvalues.PairProof) Reason {
-	if (p.From != nil && p.From.Problem != "") || (p.To != nil && p.To.Problem != "") {
+	earlierSide, laterSide := p.From, p.To
+	if (earlierSide != nil && earlierSide.Problem != "") || (laterSide != nil && laterSide.Problem != "") {
 		return ""
 	}
-	if p.From != nil && p.To != nil && p.From.Tag == "inventory" && p.To.Tag == "inventory" && p.From.Commit != "" && p.From.Commit == p.To.Commit {
+	if earlierSide != nil && laterSide != nil && earlierSide.Tag == "inventory" && laterSide.Tag == "inventory" && earlierSide.Commit != "" && earlierSide.Commit == laterSide.Commit {
 		return ""
 	}
 	k := p.KubeVersion
-	if k == nil || p.From == nil || p.To == nil || k.From.Constraint != p.From.KubeVersion || k.To.Constraint != p.To.KubeVersion || !helmvalues.ValidKubeMinimum(k.From) || !helmvalues.ValidKubeMinimum(k.To) {
+	if k == nil || earlierSide == nil || laterSide == nil || k.From.Constraint != earlierSide.KubeVersion || k.To.Constraint != laterSide.KubeVersion || !helmvalues.ValidKubeMinimum(k.From) || !helmvalues.ValidKubeMinimum(k.To) {
 		return KubeVersionUnclassified
 	}
 	switch k.To.Shape {
