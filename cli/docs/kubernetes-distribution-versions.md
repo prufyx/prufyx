@@ -82,6 +82,29 @@ The section holds two lists:
   `kubernetes.feature_gates`, `kubernetes.component_config` and
   `kubernetes.node`.
 
+- A record may also carry three optional provider-fact lists, all covered
+  by the record's own evidence block (same sources, same freshness, same
+  90-day window), and each never empty when present:
+  - `lifecycle`: one row per provider line (`1.N`; `4.N` for `openshift`),
+    unique and strictly increasing, with `ga`, `standardEnd`, `extendedEnd`,
+    `maintenanceStart` and `forcedUpgrade` (`date` plus the `sentenceId` of the
+    source sentence that states it), all optional, and a required
+    `precision`: `day` (`YYYY-MM-DD`), `month` (`YYYY-MM`), `quarter`
+    (`YYYY-Qn`) or `tbd` (no date). Every date of a row has the row's
+    precision. `extendedEnd` requires `extendedRequiresOptIn` (true or false)
+    and the flag is refused without it. `ga <= standardEnd <= extendedEnd`.
+    A missing `forcedUpgrade` means unknown, not none.
+  - `channels`: one row per (line, channel), ascending, with optional
+    `available` and `autoUpgrade` dates and a `precision`. The channel names
+    are closed per distribution: `gke` takes `rapid`, `regular`, `stable`,
+    `extended`; `openshift` takes `candidate`, `fast`, `stable`, `eus`; no
+    other distribution takes channels.
+  - `deprecations`: provider-specific removals, each with a unique `id`,
+    a `summary` (at most 256 bytes) and the `firstLine` it applies to.
+  These are what the provider announces. They are advisory: they can add a
+  finding, never remove one, and never authorize a SAFE result. Nothing reads
+  them in a scan yet.
+
 Absence is never a pass:
 
 - A distribution without a current record, or a family without a current
