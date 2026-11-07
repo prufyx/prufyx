@@ -145,6 +145,21 @@ def lines_from(lines, min_from):
     return [l for l in lines if l >= floor]
 
 
+def adjacent_pairs(lines, min_from, project):
+    retained = lines_from(lines, min_from)
+    dropped = max(0, len(lines) - 1) - max(0, len(retained) - 1)
+    if min_from:
+        print(f"crd {project}: minFrom={min_from} dropped_pairs={dropped}", flush=True)
+    return [{"from": ".".join(map(str, a)), "to": ".".join(map(str, b))}
+            for a, b in zip(retained, retained[1:])]
+
+
+def check_served_floor(min_from, line, served):
+    """Reject a floor above a line whose target CRDs were actually read as served."""
+    if min_from and served and tuple(map(int, min_from.split("."))) > line:
+        raise ValueError(f"minFrom {min_from} exceeds observed served line {line[0]}.{line[1]}")
+
+
 def served_set(tj, gd, tag, tagname=None):
     text = crd_text(tj, gd, tag, tagname)
     result = sh(CRDGVK, inp=text)
@@ -221,11 +236,16 @@ def prepare(proj, cov, plan):
         if tag not in cache:
             ref = pinned.get(tag, tag)
             cache[tag] = served_set(tj, gd, ref, tag) if tj.get("remote") else served_set(tj, gd, ref)
+            check_served_floor(tj.get("minFrom"), vkey(tag[len(pref):])[:2], cache[tag])
         return cache[tag]
 
     if comp is None:
-        ls = lines_from(sorted(lines), tj.get("minFrom"))
-        pairs = [{"from": ".".join(map(str, a)), "to": ".".join(map(str, b))} for a, b in zip(ls, ls[1:])]
+        pairs = adjacent_pairs(sorted(lines), tj.get("minFrom"), proj)
+        if tj.get("minFrom") and lines_from(sorted(lines), "") != lines_from(sorted(lines), tj.get("minFrom")):
+            # target data has no independent earliest-served field: releases below minFrom were not observed
+            plan["floor_unknown"] = dict(floor=tj["minFrom"], evidence="minFrom is declared, not independently observed below the floor",
+                reason="earliest served line unverified for uninspected releases; no PASS claim below minFrom",
+                next_test="add an independent earliest-served field to the target data or inspect the older releases")
     else:
         pairs = comp["pairs"]
     if not pairs:
@@ -308,6 +328,8 @@ def execute(plan):
                         **({"proof_pair": plan["proof_pairs"][target]} if target in plan.get("proof_pairs", {}) else {})))
     for exclusion in plan["excluded"]:
         out.append(case("crd", exclusion["target"], status="EXCLUDED", **exclusion))
+    if plan.get("floor_unknown"):
+        out.append(case("crd", f"crd-floor|{proj}", status="UNKNOWN_EARLIEST_SERVED", **plan["floor_unknown"]))
     return out, executed, omitted
 
 
