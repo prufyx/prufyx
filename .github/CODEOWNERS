@@ -20,6 +20,7 @@
 
 # The gate and the code its checks rest on.
 /cli/internal/maintainer/knowledgegate/ @airstand
+/cli/internal/maintainer/coveragereport/ @airstand
 /cli/cmd/prufyx-maintainer/gate.go @airstand
 /cli/internal/strictjson/ @airstand
 /cli/internal/validation/ @airstand
