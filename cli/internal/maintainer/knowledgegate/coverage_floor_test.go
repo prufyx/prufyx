@@ -420,7 +420,10 @@ func TestCoverageFloorRefusesRederiveWithNewerDatesUnderOldClock(t *testing.T) {
 		t.Fatalf("the re-derive under the old clock did not lower decided pairs (%d -> %d): the fixture no longer reproduces the incident", before, after)
 	}
 	c := shippedFloorCheck(base, head)
-	if c.OK || !strings.Contains(c.Detail, "decided pairs fell to") {
+	// HasPrefix, not Contains: the per-project message ("<project>: decided
+	// pairs fell to") would otherwise satisfy this when the fleet check
+	// (coveragereport/baseline.go, the decidedPairs comparison) is deleted.
+	if c.OK || !strings.HasPrefix(c.Detail, "decided pairs fell to") {
 		t.Fatalf("a re-derive that lowers decided pairs %d -> %d is not refused by the floor: %+v", before, after, c)
 	}
 
