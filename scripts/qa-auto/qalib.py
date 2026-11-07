@@ -164,3 +164,13 @@ def complete_scan_scope(report, requested):
     return (type(observed) is int and observed == requested and
             type(omitted_count) is int and omitted_count == 0 and
             isinstance(omitted, list) and not omitted)
+
+
+def oracle_digest():
+    """sha256 over the oracle's own sources (crd_oracle.py, summarize.py, qalib.py): a change resets the rise baselines."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    digest = hashlib.sha256()
+    for name in ("crd_oracle.py", "summarize.py", "qalib.py"):
+        with open(os.path.join(here, name), "rb") as src:
+            digest.update(hashlib.sha256(src.read()).digest())
+    return digest.hexdigest()

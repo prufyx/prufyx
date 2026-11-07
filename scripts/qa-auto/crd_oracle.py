@@ -333,22 +333,105 @@ DESIGN_STATUS = "DESIGN_UNKNOWN_WHOLE_CRD_REMOVAL"
 DESIGN_GAP_REASONS = frozenset({"COMPONENT_NOT_COVERED"})
 
 
-def whole_removal_signal(report, component):
-    """The scan output must look like the documented whole-CRD outcome, not just any UNKNOWN: no findings, no unsupported
-    combination, nothing omitted, and at least one gap for the component with every gap reason in the removed-definition set."""
-    if report.get("findings") or report.get("unsupported") or report.get("omitted"):
-        return False
+FAMILY = "crd.custom_resource_versions"
+
+
+def whole_signal_clause(report, component, require_gap=True, allow_findings=False):
+    """None when the scan output has the documented whole-CRD shape, else a short code naming the first failing clause.
+    Whole-only shape: no findings, no unsupported combination, nothing omitted, at least one gap for the component, every gap
+    reason in the removed-definition set, every hop of the component NO_DATA with only those reasons and no family evaluated.
+    Mixed shape (allow_findings, no gap/hop requirement): the same gap rules for any gap present; findings are judged elsewhere."""
+    if report.get("unsupported"):
+        return "UNSUPPORTED"
+    if report.get("omitted"):
+        return "OMITTED"
+    if report.get("findings") and not allow_findings:
+        return "FINDINGS"
     gaps = [g for g in report.get("gaps") or [] if isinstance(g, dict)]
     if len(gaps) != len(report.get("gaps") or []):
-        return False
+        return "GAP_MALFORMED"
     mine = [g for g in gaps if g.get("component") == component]
-    if not (mine and len(mine) == len(gaps) and all(g.get("reason") in DESIGN_GAP_REASONS for g in mine)):
-        return False
+    if len(mine) != len(gaps):
+        return "GAP_COMPONENT"
+    if any(g.get("reason") not in DESIGN_GAP_REASONS for g in mine):
+        return "GAP_REASON"
+    if allow_findings:
+        return None
+    if not mine:
+        return "NO_GAP"
     hops = [h for p in report.get("paths") or [] if isinstance(p, dict) and p.get("component") == component
             for h in p.get("hops") or []]
+    if not hops:
+        return "NO_HOP"
     # observed for a whole-CRD pair: every hop NO_DATA with only the same reason, no family evaluated
-    return bool(hops) and all(isinstance(h, dict) and h.get("status") == "NO_DATA"
-                              and set(h.get("reasons") or []) <= DESIGN_GAP_REASONS and not h.get("families") for h in hops)
+    if not all(isinstance(h, dict) and h.get("status") == "NO_DATA" for h in hops):
+        return "HOP_STATUS"
+    if not all(set(h.get("reasons") or []) <= DESIGN_GAP_REASONS for h in hops):
+        return "HOP_REASON"
+    if any(h.get("families") for h in hops):
+        return "HOP_FAMILIES"
+    return None
+
+
+def whole_removal_signal(report, component):
+    return whole_signal_clause(report, component) is None
+
+
+def version_findings_clause(report, version, component):
+    """None only when the findings are exactly the version-level expected removals: each expected one reported by this component's
+    removal rule, and no finding that is not one of them."""
+    findings = report.get("findings") or []
+    if not all(isinstance(f, dict) for f in findings):
+        return "EXTRA_FINDING"
+    def matches(f, item):
+        g, v, k = item
+        return (f.get("component") == component and removal_claim(f.get("ruleId"), component, FAMILY, "/".join(item)) and
+                any(loc.get("kind") == k and loc.get("name") == object_name(g, v, k) for loc in f.get("locations", []) if isinstance(loc, dict)))
+    if any(not any(matches(f, x) for f in findings) for x in version):
+        return "VERSION_MISSING"
+    if any(not any(matches(f, x) for x in version) for f in findings):
+        return "EXTRA_FINDING"
+    return None
+
+
+def whole_diagnostics(code, report, component, whole, clause=None):
+    """Compact record of why a whole-removal candidate was or was not classified, so no re-run is needed to analyse it."""
+    report = report or {}
+    gaps = [g for g in report.get("gaps") or [] if isinstance(g, dict)]
+    hops = [h for p in report.get("paths") or [] if isinstance(p, dict) and p.get("component") == component
+            for h in p.get("hops") or [] if isinstance(h, dict)]
+    return {"scanExit": code, "verdict": report.get("verdict"), "nFindings": len(report.get("findings") or []),
+            "gapReasons": sorted({str(g.get("reason")) for g in gaps}),
+            "hopStatuses": sorted({str(h.get("status")) for h in hops}),
+            "clause": clause or whole_signal_clause(report, component) or "OK"}
+
+
+def classify_pair(code, report, removed, whole_crd, component):
+    """(wrongpass, mismatch, missing, statuses, design, clause); clause is a short code for diagnostics."""
+    whole_set = set(whole_crd) & set(removed)
+    version = [x for x in removed if x not in whole_set]
+    wp, mm, missing, statuses = scoped_result(code, report, version, component, FAMILY)
+    if not whole_set:
+        return wp, mm, missing, statuses, False, "NO_WHOLE"
+    if is_pass(code, report) or "PASS" in statuses:
+        return True, False, missing, statuses, False, "PASS"
+    unknown = report.get("verdict") == "UNKNOWN"
+    if not version:
+        clause = "EXIT" if code != 11 else ("NOT_UNKNOWN" if not unknown else whole_signal_clause(report, component))
+        if clause is None:
+            return False, False, [], statuses, True, "OK"
+        return False, True, ["/".join(x) for x in sorted(whole_set)], statuses, False, clause
+    # mixed: version-level removals are reported by their rules, the whole-CRD part is silent by documented design
+    if code == 10 and report.get("verdict") == "BLOCKED":
+        clause = whole_signal_clause(report, component, allow_findings=True) or version_findings_clause(report, version, component)
+        if clause is None and not missing and not mm:
+            return False, False, [], statuses, True, "OK"
+    else:
+        clause = "EXIT" if code != 10 else "NOT_BLOCKED"
+    clause = clause or "VERSION_MISSING"
+    if not unknown or not missing:
+        missing = missing + ["/".join(x) for x in sorted(whole_set)]
+    return False, True, missing, statuses, False, clause
 
 
 def crd_verdict(code, report, removed, whole_crd, component):
@@ -356,23 +439,9 @@ def crd_verdict(code, report, removed, whole_crd, component):
     A CRD defined earlier and absent later is a whole-CRD removal; by documented design (definitionsRemoved)
     the scanner reports UNKNOWN (exit 11, no findings) because the effect depends on the install method.
     That exact outcome, and only for a set made entirely of whole-CRD removals, is DESIGN_UNKNOWN_WHOLE_CRD_REMOVAL.
-    Any PASS stays WRONGPASS; anything else unattributable stays MISMATCH."""
-    family = "crd.custom_resource_versions"
-    whole_set = set(whole_crd) & set(removed)
-    version = [x for x in removed if x not in whole_set]
-    wp, mm, missing, statuses = scoped_result(code, report, version, component, family)
-    if not whole_set:
-        return wp, mm, missing, statuses, False
-    if is_pass(code, report) or "PASS" in statuses:
-        return True, False, missing, statuses, False
-    unknown = report.get("verdict") == "UNKNOWN"
-    if not version:
-        if unknown and code == 11 and whole_removal_signal(report, component):
-            return False, False, [], statuses, True
-        return False, True, ["/".join(x) for x in sorted(whole_set)], statuses, False
-    if not unknown:
-        missing = missing + ["/".join(x) for x in sorted(whole_set)]
-    return False, bool(missing) or mm, missing, statuses, False
+    A mixed set (version-level plus whole-CRD) is design only when the scan is BLOCKED (exit 10), its findings are exactly the
+    version-level expected removals and every gap is a design gap. Any PASS stays WRONGPASS; anything else stays MISMATCH."""
+    return classify_pair(code, report, removed, whole_crd, component)[:5]
 
 
 def community_refusal(catalog, tail):
@@ -402,12 +471,12 @@ def execute(plan):
             omitted.append(dict(target=target, reason="candidate response unreadable; replay the full input"))
             out.append(case("crd", key, error=True, why=tail))
             continue
-        wp, mm, missing, crd, design = crd_verdict(code, j, removed, whole_crd, proj)
+        wp, mm, missing, crd, design, clause = classify_pair(code, j, removed, whole_crd, proj)
         complete = complete_scan_scope(j, len(sf))
         if not complete:
             omitted.append(dict(target=target, reason="input omitted or incomplete; replay the full input"))
         out.append(case("crd", key, wrongpass=wp, mismatch=mm, error=not complete, exit=code,
-                        **({"wholeCrdCandidate": True} if whole_crd else {}),
+                        **({"wholeCrdCandidate": True, "whole": whole_diagnostics(code, j, proj, whole_crd, clause)} if whole_crd else {}),
                         **({"status": DESIGN_STATUS, "wholeCrdRemoved": ["/".join(x) for x in whole_crd]} if design else {}),
                         verdict=j.get("verdict"), crd=crd, missing=missing, requested=len(sf),
                         executed=j.get("summary", {}).get("documentsRead"), expectRemoved=["/".join(x) for x in removed],

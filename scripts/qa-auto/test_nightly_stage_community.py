@@ -9,6 +9,7 @@ import unittest
 from unittest.mock import patch
 
 import crd_oracle as crd
+import qalib
 import k8s_oracle as k8s
 
 REFUSAL = ('prufyx: "moco" is in the community catalog (not in the embedded CNCF landscape catalog; '
@@ -141,7 +142,7 @@ class SummaryRise(unittest.TestCase):
             out.mkdir()
             state.mkdir()
             status = state / "status.json"
-            status.write_text(json.dumps({"mode": "incremental", "unsupported_community": 1}))
+            status.write_text(json.dumps({"mode": "incremental", "unsupported_community": 1, "oracle_digest": qalib.oracle_digest()}))
             cases = [{"suite": "crd", "key": str(i), "wrongpass": False, "mismatch": False,
                       "error": False, "detail": {"status": "UNSUPPORTED_COMMUNITY"}} for i in range(2)]
             (out / "crd.cases.json").write_text(json.dumps(cases))
@@ -151,7 +152,7 @@ class SummaryRise(unittest.TestCase):
             self.assertIn("UNSUPPORTED_COMMUNITY_RISE=1->2", result.stdout)
             self.assertTrue(json.loads((out / "summary.json").read_text())["unsupported_community_rise"])
             self.assertEqual(json.loads(status.read_text())["unsupported_community"], 1)
-            status.write_text(json.dumps({"mode": "full", "unsupported_community": 1}))
+            status.write_text(json.dumps({"mode": "full", "unsupported_community": 1, "oracle_digest": qalib.oracle_digest()}))
             subprocess.run(cmd, text=True, capture_output=True, check=False)
             self.assertIsNone(json.loads((out / "summary.json").read_text())["unsupported_community_rise"])
 
