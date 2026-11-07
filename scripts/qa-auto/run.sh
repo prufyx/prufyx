@@ -23,6 +23,8 @@
 #   QA_RUNBOX         command prefix that runs a binary built from the PR head (prufyx, crdgvk) in a throwaway sandbox (no network,
 #                     read-only tree, no state, no secrets); exported QA_BOX_DIR = the per-run scratch it may mount. REQUIRED in PR/gate
 #                     mode (QA_BASE), which also accepts DATA-only diffs: any other path => exit 3 "code change in bot batch"
+#   QA_LOCK_WAIT      seconds to wait for the run lock before exit 75 (integer 0..7200; default and invalid = 0, no wait).
+#                     Ignored when QA_POLL=1 or QA_BASE is set, so poll and gate runs never queue behind each other
 #   QA_MAXLOAD        skip (exit 75) when the 1-minute load is not below this (default 8)
 #   QA_JOBS           parallel projects in the CRD oracle (default 3)
 #   QA_BASE           PR/batch mode (with QA_SHA = the head): diff QA_BASE..QA_SHA selects the work. Changed projects drive the
@@ -57,7 +59,14 @@ ADHOC=0; for v in QA_PROJECTS QA_SHA QA_PRE_BUILD QA_NO_KIND QA_BASE; do [ -n "$
 adhoc_flag=(); [ "$ADHOC" = 1 ] && adhoc_flag=(--adhoc)
 
 exec 9>"$QA_STATE/lock"
-flock -n 9 || { echo "qa-auto: another run holds the lock"; exit 75; }
+# QA_LOCK_WAIT: seconds to wait for the lock (integer 0..7200, else 0 = non-blocking). Ignored in poll and gate mode.
+lock_wait=0; lw=${QA_LOCK_WAIT:-0}
+case "$lw" in
+  ''|*[!0-9]*) ;;
+  *) [ "${#lw}" -le 4 ] && [ "$((10#$lw))" -le 7200 ] && lock_wait=$((10#$lw)) ;;
+esac
+{ [ "${QA_POLL:-0}" = 1 ] || [ -n "${QA_BASE:-}" ]; } && lock_wait=0
+flock -w "$lock_wait" 9 || { echo "qa-auto: another run holds the lock"; exit 75; }
 load=$(cut -d' ' -f1 /proc/loadavg)
 awk -v l="$load" -v m="$QA_MAXLOAD" 'BEGIN{exit !(l<m)}' || { echo "qa-auto: load $load >= $QA_MAXLOAD, skipped"; exit 75; }
 
