@@ -29,6 +29,8 @@ type wf struct {
 	On   map[string]any `yaml:"on"`
 	Jobs map[string]struct {
 		If    string `yaml:"if"`
+		COE   any    `yaml:"continue-on-error"`
+		Name  string `yaml:"name"`
 		Steps []struct {
 			Name string            `yaml:"name"`
 			If   string            `yaml:"if"`
@@ -300,4 +302,90 @@ func TestQueueStacked(t *testing.T) {
 	if out, err := s.run(t); err != nil {
 		t.Fatalf("stacked case failed: %v\n%s", err, out)
 	}
+}
+
+// TestRequiredCheckJobsCannotSkip: GitHub counts a skipped job under a required
+// check name as success, so no job carrying a required context name may have a
+// job-level if or continue-on-error. The fan-in is the one exception: its
+// always() makes it run on every upstream result and it fails on non-success.
+// The knowledge-gate workflow is read here only; its own tests live elsewhere.
+func TestRequiredCheckJobsCannotSkip(t *testing.T) {
+	required := map[string]bool{"Build, vet, test": true, "Secret scan (gitleaks)": true, "Merge policy": true, "Knowledge gate": true}
+	seen := map[string]bool{}
+	for _, f := range []string{"ci.yml", "merge-policy.yml", "knowledge-gate.yml"} {
+		var w wf
+		if err := yaml.Unmarshal(read(t, ".github/workflows/"+f), &w); err != nil {
+			t.Fatal(err)
+		}
+		for id, job := range w.Jobs {
+			if !required[job.Name] {
+				continue
+			}
+			seen[job.Name] = true
+			if job.COE != nil {
+				t.Fatalf("%s: job %s (%s) has continue-on-error", f, id, job.Name)
+			}
+			if job.If != "" && !(job.Name == "Build, vet, test" && job.If == "always()") {
+				t.Fatalf("%s: job %s (%s) has a job-level if: %q", f, id, job.Name, job.If)
+			}
+		}
+	}
+	for n := range required {
+		if !seen[n] {
+			t.Fatalf("required check job %q not found", n)
+		}
+	}
+}
+
+func (s *scenario) runPR(t *testing.T) (string, error) {
+	t.Helper()
+	script, err := filepath.Abs(filepath.Join(repoRoot, "scripts", "merge-policy-pr.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("bash", script)
+	cmd.Dir = s.dir
+	cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + s.dir, "GIT_CONFIG_GLOBAL=/dev/null"}
+	out, err := cmd.CombinedOutput()
+	return string(out), err
+}
+
+func TestPullRequestPolicy(t *testing.T) {
+	t.Run("on the main tip passes", func(t *testing.T) {
+		s := newScenario(t)
+		git(t, s.dir, "checkout", "-q", "--detach", s.x)
+		if out, err := s.runPR(t); err != nil {
+			t.Fatalf("%v\n%s", err, out)
+		}
+	})
+	t.Run("behind main passes", func(t *testing.T) {
+		s := newScenario(t)
+		git(t, s.dir, "checkout", "-q", "main")
+		commit(t, s.dir, "newer")
+		git(t, s.dir, "push", "-q", "origin", "main")
+		git(t, s.dir, "checkout", "-q", "--detach", s.x)
+		if out, err := s.runPR(t); err != nil {
+			t.Fatalf("%v\n%s", err, out)
+		}
+	})
+	t.Run("merge commit inside fails", func(t *testing.T) {
+		s := newScenario(t)
+		git(t, s.dir, "checkout", "-q", "-b", "side", s.base)
+		commit(t, s.dir, "e")
+		git(t, s.dir, "checkout", "-q", "topic")
+		git(t, s.dir, "merge", "-q", "--no-ff", "-m", "m", "side")
+		out, err := s.runPR(t)
+		if err == nil || !strings.Contains(out, "contains merge commits") {
+			t.Fatalf("expected merge commit failure, got %v\n%s", err, out)
+		}
+	})
+	t.Run("unrelated history fails", func(t *testing.T) {
+		s := newScenario(t)
+		git(t, s.dir, "checkout", "-q", "--orphan", "other")
+		commit(t, s.dir, "z")
+		out, err := s.runPR(t)
+		if err == nil || !strings.Contains(out, "shares no history") {
+			t.Fatalf("expected no-history failure, got %v\n%s", err, out)
+		}
+	})
 }

@@ -5,7 +5,7 @@ name: Merge policy
 # repository ruleset enforces this for everyone; this workflow is the required
 # status check that makes the rule visible and catches anything that slips
 # past it. Inside a pull request the history stays linear: no merge commits,
-# and the branch sits on the current main tip (updated only by rebase).
+# and the branch branches from main (the merge queue tests the combined commit).
 
 on:
   pull_request:
@@ -47,25 +47,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Pull request has no merge commits and sits on the main tip
+      - name: Pull request has no merge commits and branches from main
         if: github.event_name == 'pull_request'
-        run: |
-          set -euo pipefail
-          fix="rebase onto origin/main (git rebase origin/main && git push --force-with-lease); never merge main into a branch"
-          git fetch --no-tags origin main:refs/remotes/origin/main
-          base="$(git merge-base origin/main HEAD)"
-          merges="$(git rev-list --merges "${base}..HEAD")"
-          if [ -n "${merges}" ]; then
-            echo "::error title=Merge policy::the pull request contains merge commits: ${fix}"
-            printf '%s\n' "${merges}"
-            exit 1
-          fi
-          tip="$(git rev-parse origin/main)"
-          if [ "${base}" != "${tip}" ]; then
-            echo "::error title=Merge policy::branch is not on the main tip (merge base ${base}, main ${tip}): ${fix}"
-            exit 1
-          fi
-          echo "linear branch on the main tip ${tip}"
+        # A branch behind main passes: the merge queue re-validates the
+        # combined commit, and the ruleset keeps strict status checks.
+        run: scripts/merge-policy-pr.sh
 
       - name: Checkout full history
         if: github.event_name == 'push'
