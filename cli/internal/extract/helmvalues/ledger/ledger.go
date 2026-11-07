@@ -9,8 +9,10 @@ package ledger
 import (
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"regexp"
 	"sort"
+	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/extract/helmvalues"
 )
@@ -21,7 +23,8 @@ type Scope string
 // Scopes.
 const (
 	// ScopePair: the whole pair was withheld; Key is empty.
-	ScopePair Scope = "pair"
+	ScopePair        Scope = "pair"
+	ScopeKubeVersion Scope = "kube-version"
 	// ScopeRemoved: a key of the earlier chart the later schema might refuse.
 	ScopeRemoved Scope = "removed"
 	// ScopeRequired: a key the later schema requires.
@@ -55,6 +58,13 @@ const (
 	// UnclassifiedProblem is a read problem this package has no name for;
 	// it is listed rather than dropped.
 	UnclassifiedProblem Reason = "unclassified-problem"
+)
+
+const (
+	KubeVersionAbsent       Reason = "kube-version-absent"
+	KubeVersionUnsupported  Reason = "kube-version-unsupported"
+	KubeVersionVendorSuffix Reason = "kube-version-vendor-suffix"
+	KubeVersionUnclassified Reason = "kube-version-unclassified"
 )
 
 // Key-level reasons.
@@ -102,7 +112,7 @@ type Ledger struct {
 // other. Only what the extractor declined to classify is listed.
 func Collect(pair string, p *helmvalues.PairProof) []Entry {
 	if p == nil {
-		return nil
+		return []Entry{{Pair: pair, Scope: ScopeKubeVersion, Reason: KubeVersionUnclassified}}
 	}
 	var out []Entry
 	add := func(scope Scope, key string, class, detail string) {
@@ -122,6 +132,9 @@ func Collect(pair string, p *helmvalues.PairProof) []Entry {
 		for _, name := range side.Templates.Refused {
 			out = append(out, Entry{Pair: pair, Scope: ScopeTemplates, Key: name, Reason: TemplateNotScanned, Detail: bound(side.Tag)})
 		}
+	}
+	if reason := kubeReason(p); reason != "" {
+		out = append(out, Entry{Pair: pair, Scope: ScopeKubeVersion, Reason: reason})
 	}
 	if p.Required != nil {
 		for _, n := range p.Required.Opaque {
@@ -329,5 +342,58 @@ func All() []Reason {
 		RequirementsInvalid, RequirementsNotFile, TemplatesOverBound, UnclassifiedProblem,
 		SchemaOpaque, SubchartKey, PackagedSubchart, MemberUnexpressible, MemberOverBound, TemplateNotScanned,
 		NoticeUnproven, NoticeAmbiguousScalar, NoticeSchemaNamed, UnclassifiedKey,
+		KubeVersionAbsent, KubeVersionUnsupported, KubeVersionVendorSuffix, KubeVersionUnclassified,
 	}
+}
+
+// kubeReason classifies the anchor proof without copying source text into the ledger.
+func kubeReason(p *helmvalues.PairProof) Reason {
+	if (p.From != nil && p.From.Problem != "") || (p.To != nil && p.To.Problem != "") {
+		return ""
+	}
+	if p.From != nil && p.To != nil && p.From.Tag == "inventory" && p.To.Tag == "inventory" && p.From.Commit != "" && p.From.Commit == p.To.Commit {
+		return ""
+	}
+	k := p.KubeVersion
+	if k == nil || p.From == nil || p.To == nil || k.From.Constraint != p.From.KubeVersion || k.To.Constraint != p.To.KubeVersion || !helmvalues.ValidKubeMinimum(k.From) || !helmvalues.ValidKubeMinimum(k.To) {
+		return KubeVersionUnclassified
+	}
+	switch k.To.Shape {
+	case "absent":
+		if k.Outcome == "no rule: the later chart declares no kubeVersion" {
+			return KubeVersionAbsent
+		}
+	case "other":
+		if k.Outcome == "no rule: the later kubeVersion is not a single lower bound" {
+			return KubeVersionUnsupported
+		}
+	case "minimum":
+		if !k.To.PreRelease {
+			if k.Outcome == "no rule: the later kubeVersion has no -0 suffix, so Helm also refuses cluster versions with a vendor suffix at or above the bound, which a declared X.Y.Z version cannot show" {
+				return KubeVersionVendorSuffix
+			}
+			break
+		}
+		earlier := "0.0.0"
+		if k.From.Shape == "minimum" {
+			earlier = k.From.Minimum
+		}
+		cmp := compareMinimum(k.To.Minimum, earlier)
+		if (k.Outcome == "rule" && cmp > 0) || (k.Outcome == "no rule: the later lower bound is not above the earlier one" && cmp <= 0) {
+			return ""
+		}
+	}
+	return KubeVersionUnclassified
+}
+
+func compareMinimum(a, b string) int {
+	aa, bb := strings.Split(a, "."), strings.Split(b, ".")
+	for i := 0; i < 3; i++ {
+		x, _ := new(big.Int).SetString(aa[i], 10)
+		y, _ := new(big.Int).SetString(bb[i], 10)
+		if n := x.Cmp(y); n != 0 {
+			return n
+		}
+	}
+	return 0
 }
