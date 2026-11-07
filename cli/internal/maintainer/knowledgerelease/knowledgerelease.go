@@ -126,8 +126,10 @@ type Result struct {
 	Revision         string                               `json:"revision"`
 	ContentDigest    string                               `json:"contentDigest"`
 	IndexDigest      string                               `json:"indexDigest"`
-	PackageDigest    string                               `json:"packageDigest"`
-	TimestampVersion int64                                `json:"timestampVersion"`
+	// EvidenceExpiresAt is the evidence expiry bound into the signed package.
+	EvidenceExpiresAt string `json:"evidenceExpiresAt"`
+	PackageDigest     string `json:"packageDigest"`
+	TimestampVersion  int64  `json:"timestampVersion"`
 	// PreviousPackageDigest is the verified live package this release replaces.
 	PreviousPackageDigest string `json:"previousPackageDigest,omitempty"`
 }
@@ -139,6 +141,23 @@ type Digests struct {
 	ContentDigest string `json:"contentDigest"`
 	// IndexDigest is the index digest (per-project) or bundle digest (single).
 	IndexDigest string `json:"indexDigest"`
+	// EvidenceExpiresAt is the canonical UTC RFC3339 expiry of the evidence
+	// bundle behind the targets; a planned expiry is min(now+21d, this value).
+	// It is never guessed: a target set whose evidence expiry is absent or not
+	// canonical is refused (ErrEvidenceExpiryUnknown).
+	EvidenceExpiresAt string `json:"evidenceExpiresAt"`
+}
+
+// ErrEvidenceExpiryUnknown is returned when the evidence expiry of the
+// exported targets is absent or not canonical UTC RFC3339.
+var ErrEvidenceExpiryUnknown = errors.Join(ErrRejected, errors.New("evidence expiry unknown"))
+
+// evidenceExpiry returns value only when it is canonical UTC RFC3339.
+func evidenceExpiry(value string) (string, error) {
+	if _, err := parseUTC(value); err != nil {
+		return "", ErrEvidenceExpiryUnknown
+	}
+	return value, nil
 }
 
 // built is the exported target set of one release.
@@ -192,12 +211,16 @@ func buildTargets(o Options) (built, error) {
 		return built{}, ErrRejected
 	}
 	admission, err := bundle.Admission()
-	if err != nil || admission.EvidenceExpiresAt == "" {
+	if err != nil {
 		return built{}, ErrRejected
+	}
+	evidence, err := evidenceExpiry(admission.EvidenceExpiresAt)
+	if err != nil {
+		return built{}, err
 	}
 	all := []knowledgepublish.Target{{Path: knowledge.ConstraintsTargetPath, Raw: target}}
 	return built{target: target, targetRel: knowledge.ConstraintsTargetPath, all: all, admission: admission,
-		digests: Digests{ContentDigest: ContentDigest(all), IndexDigest: bundle.BundleDigest()}}, nil
+		digests: Digests{ContentDigest: ContentDigest(all), IndexDigest: bundle.BundleDigest(), EvidenceExpiresAt: evidence}}, nil
 }
 
 func buildProjectTargets(o Options) (built, error) {
@@ -225,8 +248,12 @@ func buildProjectTargets(o Options) (built, error) {
 		return built{}, ErrRejected
 	}
 	admission, err := parsed.Admission()
-	if err != nil || admission.EvidenceExpiresAt == "" {
+	if err != nil {
 		return built{}, ErrRejected
+	}
+	evidence, err := evidenceExpiry(admission.EvidenceExpiresAt)
+	if err != nil {
+		return built{}, err
 	}
 	set := make([]knowledgepublish.Target, 0, len(projects))
 	for _, project := range projects {
@@ -235,7 +262,7 @@ func buildProjectTargets(o Options) (built, error) {
 	all := append([]knowledgepublish.Target{{Path: index.Path, Raw: index.Bytes}}, set...)
 	sum := sha256.Sum256(index.Bytes)
 	return built{target: index.Bytes, targetRel: index.Path, projects: set, all: all, admission: admission,
-		digests: Digests{ContentDigest: ContentDigest(all), IndexDigest: "sha256:" + hex.EncodeToString(sum[:])}}, nil
+		digests: Digests{ContentDigest: ContentDigest(all), IndexDigest: "sha256:" + hex.EncodeToString(sum[:]), EvidenceExpiresAt: evidence}}, nil
 }
 
 // Run builds, signs, verifies and writes one release. Every guard runs before
@@ -327,7 +354,7 @@ func Run(o Options) (Result, error) {
 	}
 	result := Result{
 		Expires: targetsExp, TimestampExpires: timestampExp, Receipt: receipt, Revision: o.Revision,
-		ContentDigest: b.digests.ContentDigest, IndexDigest: b.digests.IndexDigest, PackageDigest: receipt.PackageDigest,
+		ContentDigest: b.digests.ContentDigest, IndexDigest: b.digests.IndexDigest, EvidenceExpiresAt: b.digests.EvidenceExpiresAt, PackageDigest: receipt.PackageDigest,
 		TimestampVersion: o.Version,
 	}
 	if previous != nil {

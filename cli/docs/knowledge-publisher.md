@@ -220,9 +220,14 @@ these checks run before any key file is read; a refusal writes nothing.
   digest is the index digest (per-project) or bundle digest. Both are keyless:
   `knowledge-publish content-digest --revision N [--profile cncf-projects
   (--previous-index ABS | --first-release)]` prints them. The JSON of `release`
-  carries `contentDigest`, `indexDigest`, `packageDigest`, `timestampVersion`,
+  carries `contentDigest`, `indexDigest`, `evidenceExpiresAt`, `packageDigest`, `timestampVersion`,
   `previousPackageDigest`, `expires` and `timestampExpires`. After signing, the
   verified target digest must still equal the expected index digest.
+- `content-digest` and `release` also report `evidenceExpiresAt`, the canonical
+  UTC RFC3339 expiry of the evidence bundle behind the targets, so a planner can
+  take min(now+21d, `evidenceExpiresAt`). It is read from the exported targets'
+  admission, never guessed: if it is absent or not canonical UTC the command
+  refuses (exit non-zero, no digests printed) instead of emitting an empty value.
 - The previous package must verify against the pinned root and have the
   expected digest; `--version` must exceed its timestamp version and
   `--revision` its revision. More than 14 days without a publish makes it
