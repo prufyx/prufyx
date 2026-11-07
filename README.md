@@ -7,7 +7,7 @@ Prufyx checks a planned upgrade against upstream evidence and returns
 file, and line range it relies on, and says how it was established.
 
 <!-- basis-counts:begin -->
-Of the 294 active rules shipped today, 251 with basis `reviewed`, 43 with basis `mechanical`. A `reviewed` rule was established by a person who read the cited upstream evidence. A `mechanical` rule was derived from upstream source by an extractor program that is re-run and checked before the rule is accepted; no person reviewed it rule by rule. The 123 release-line attestations and served-API lists are separate records: 123 with basis `mechanical`.
+Of the 294 active rules shipped today, 251 with basis `reviewed`, 43 with basis `mechanical`. A `reviewed` rule was established by a person who read the cited upstream evidence. A `mechanical` rule was derived from upstream source by an extractor program that is re-run and checked before the rule is accepted; no person reviewed it rule by rule. The 128 release-line attestations and served-API lists are separate records: 128 with basis `mechanical`.
 <!-- basis-counts:end -->
 
 Each rule states which way it was established, and
@@ -318,22 +318,22 @@ Generated on 2026-11-07 by `scripts/readme-coverage.sh` (do not edit this block 
 | CNCF source rules, active | 252 across 53 projects (1 withdrawn, not used) |
 | Rules for further, non-CNCF projects | 42 across 10 projects |
 | Projects with at least one executable check (a rule, a named check or a profile; says nothing about which upgrades it decides) | 67 |
-| Projects with a rule or attestation that decides at least one of their last five minor upgrades (A, B or S below) | 43 of 78 |
+| Projects with a rule or attestation that decides at least one of their last five minor upgrades (A, B or S below) | 44 of 78 |
 | Projects catalogued with retained public sources | 58 (11 of them source-only, no check) |
 | Projects with reviewed CRD targets (a reviewed `crd.custom_resource_versions` target) | 87 |
-| Projects with a published CRD rule or line attestation | 19 |
+| Projects with a published CRD rule or line attestation | 20 |
 
 Version-coverage depth, measured over the last five minor upgrades of each of the 78 projects with a release-line snapshot (390 upgrades between consecutive release lines):
 
 | Status | Upgrades | Share |
 | --- | --- | --- |
-| Decided for the whole release-line pair (A attested, B bounded) | 46 | 11.7% |
+| Decided for the whole release-line pair (A attested, B bounded) | 49 | 12.5% |
 | Rule for one exact version pair only (S) | 40 | 10.2% |
-| Gap, no valid rule (G) | 304 | 77.9% |
+| Gap, no valid rule (G) | 301 | 77.1% |
 
 Kubernetes: 63 valid rules, but 19 fall in its window 1.32 to 1.37; 0 of 5 upgrades in that window are gaps.
 
-Decided means a valid rule or attestation covers every version of both release lines. It never means a whole-upgrade PASS. Only 8 of the 46 decided upgrades are decided by a rule, or by an attestation that lists rules, so the answer for them can be BLOCKED or UNKNOWN. The other 38 are decided only by line attestations that list no rule (38 by `crd.custom_resource_versions`): for them an attestation can only give a family-scoped PASS (`scan` prints "PASS within <family> only"), never BLOCKED. An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.
+Decided means a valid rule or attestation covers every version of both release lines. It never means a whole-upgrade PASS. Only 8 of the 49 decided upgrades are decided by a rule, or by an attestation that lists rules, so the answer for them can be BLOCKED or UNKNOWN. The other 41 are decided only by line attestations that list no rule (41 by `crd.custom_resource_versions`): for them an attestation can only give a family-scoped PASS (`scan` prints "PASS within <family> only"), never BLOCKED. An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.
 
 Metric v2, Decided Pair Coverage, shown beside the v1 table above (v1 measures one fact family, so its share is not comparable). It covers the last two upgrades (last three release lines) of 30 Tier 1 and 0 Tier 2 projects: 60 upgrades, split into 420 cells, one per fact family that applies to the project. Tier 1 is the priority portfolio; no reviewed tier definition exists yet. Tier 2 has no reviewed list yet.
 
