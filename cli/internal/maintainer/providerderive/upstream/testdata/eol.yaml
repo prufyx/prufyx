@@ -1,0 +1,11 @@
+branches:
+- release: "1.33"
+  endOfLifeDate: "2026-06-28"
+  finalPatchRelease: 1.33.13
+- release: "1.26"
+  endOfLifeDate: "2024-02-28"
+  finalPatchRelease: 1.26.15
+  note: 1.26.15 was released after the end of life date to pick up a toolchain fix.
+- release: "1.2"
+  endOfLifeDate: "2016-10-23"
+  finalPatchRelease: 1.2.7

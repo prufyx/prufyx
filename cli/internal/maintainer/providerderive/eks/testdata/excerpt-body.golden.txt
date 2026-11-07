@@ -1,0 +1,4 @@
+eks 1.37 upstream 2026-08-26 release 2026-10-01 standard-end 2027-12-01 extended-end 2028-12-01
+eks 1.36 upstream 2026-04-22 release 2026-06-03 standard-end 2027-08-03 extended-end 2028-08-03
+eks 1.35 upstream 2025-12-17 release 2026-01-29 standard-end 2027-03-29 extended-end 2028-03-29
+eks 1.34 upstream 2025-08-27 release 2025-10-02 standard-end 2026-12-02 extended-end 2027-12-02
