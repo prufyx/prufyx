@@ -317,8 +317,17 @@ func TestExpiredRuleDoesNotPoisonAnUnrelatedComponent(t *testing.T) {
 	if !block.Resolved || block.UnresolvedReason != "" {
 		t.Fatalf("scope block=%+v", block)
 	}
-	if block.OutOfScopeRules != len(b.pack.Entries)-1 {
-		t.Fatalf("outOfScopeRules=%d, want %d", block.OutOfScopeRules, len(b.pack.Entries)-1)
+	// The operator's own rules for other transitions are in scope of the
+	// component but not of this pair: they are not counted as out of scope, and
+	// below they are listed as not applicable.
+	operatorRules := 0
+	for _, e := range b.pack.Entries {
+		if e.Project == "mariadb-operator" {
+			operatorRules++
+		}
+	}
+	if block.OutOfScopeRules != len(b.pack.Entries)-operatorRules {
+		t.Fatalf("outOfScopeRules=%d, want %d", block.OutOfScopeRules, len(b.pack.Entries)-operatorRules)
 	}
 	if _, err := MarshalScopeReport(report); err != nil {
 		t.Fatalf("marshal scope report: %v", err)
@@ -460,9 +469,24 @@ func TestUndeclaredFactStaysUnknown(t *testing.T) {
 	if block.Resolved || block.UnresolvedReason != "APPLICABILITY_UNDETERMINED" {
 		t.Fatalf("scope block=%+v", block)
 	}
-	skipped := block.Components[0].NotEvaluated
-	if len(skipped) != 1 || skipped[0].Applicability != constraintengine.ApplicabilityUndetermined {
-		t.Fatalf("notEvaluated=%+v", skipped)
+	// Exactly one rule is undetermined: the Galera prerequisite. The operator's
+	// CRD-pair rules belong to other transitions and are not applicable here.
+	undetermined := 0
+	for _, skipped := range block.Components[0].NotEvaluated {
+		switch skipped.Applicability {
+		case constraintengine.ApplicabilityUndetermined:
+			undetermined++
+			if skipped.RuleID != "mariadb-operator.upgrade-26-6.requires-dataplane-prerequisite" {
+				t.Fatalf("undetermined rule %+v", skipped)
+			}
+		default:
+			if skipped.ReasonCode != "RULE_TRANSITION_NOT_REVIEWED" || !strings.HasPrefix(skipped.RuleID, "mariadb-operator.") {
+				t.Fatalf("unexpected not-evaluated entry %+v", skipped)
+			}
+		}
+	}
+	if undetermined != 1 {
+		t.Fatalf("notEvaluated=%+v", block.Components[0].NotEvaluated)
 	}
 }
 

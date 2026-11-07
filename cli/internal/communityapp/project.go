@@ -116,6 +116,11 @@ func parseProjectArguments(args []string, check bool) (projectArguments, bool) {
 	if result.project == projectprepare.MariaDBOperatorProject && result.mariadbResource == "" {
 		return projectArguments{}, false
 	}
+	// The CRD-family pairs have no pre-operator-update phase: the flag belongs to
+	// the Galera prerequisite route only, and is refused here rather than ignored.
+	if result.project == projectprepare.MariaDBOperatorProject && projectprepare.IsMariaDBOperatorCRDPair(result.from, result.to) && result.mariadbPreOperatorUpdateDeclared {
+		return projectArguments{}, false
+	}
 	if result.project == projectprepare.KibanaProject && anyFlagProvided(args, "full-status-without-monitor-required") && (result.to != "9.5.3" || !projectprepare.KibanaLatestOrigin(result.from)) {
 		return projectArguments{}, false
 	}
@@ -220,12 +225,15 @@ func (r runtime) project(args []string) int {
 	if request.knowledgeDB != "" {
 		return r.mariaDBProjectExternal(request, prepared)
 	}
+	// A MariaDB Operator CRD-family pair evaluates every reviewed rule of that exact
+	// pair on the native route; the Galera prerequisite stays a single selected rule.
+	crdPairRoute := request.project == projectprepare.MariaDBOperatorProject && projectprepare.IsMariaDBOperatorCRDPair(request.from, request.to)
 	ruleID := ""
 	if request.schemaConfig != "" {
 		ruleID = projectprepare.LokiStructuredMetadataRuleID
 	} else if request.config != "" && request.project == projectprepare.LokiProject {
 		ruleID = projectprepare.LokiCompactorRuleID
-	} else if request.project == projectprepare.MariaDBOperatorProject {
+	} else if request.project == projectprepare.MariaDBOperatorProject && !crdPairRoute {
 		ruleID = "mariadb-operator.upgrade-26-6.requires-dataplane-prerequisite"
 	}
 	var report projectcheck.Report
@@ -244,7 +252,7 @@ func (r runtime) project(args []string) int {
 	if err != nil {
 		return r.fail("community project report integrity failure", ExitIntegrity)
 	}
-	removedKeyRoute := request.project == projectprepare.AirflowProject || request.project == projectprepare.OpenSearchProject
+	removedKeyRoute := request.project == projectprepare.AirflowProject || request.project == projectprepare.OpenSearchProject || crdPairRoute
 	if request.format == "json" {
 		if removedKeyRoute {
 			encoded = withPreparationOmissions(encoded, prepared.Omissions)

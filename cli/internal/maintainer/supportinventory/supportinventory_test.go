@@ -136,8 +136,20 @@ func TestSupportInventory_MariaDBOperatorUsesResourcePreparerMetadata(t *testing
 		if project.ProjectID != "mariadb-operator" {
 			continue
 		}
-		if len(project.Capabilities) != 1 || len(project.Capabilities[0].Rules) != 1 {
+		if len(project.Capabilities) != 1 || len(project.Capabilities[0].Rules) != 10 {
 			t.Fatalf("incorrect MariaDB Operator capability shape: %#v", project.Capabilities)
+		}
+		galera, crd := 0, 0
+		for _, rule := range project.Capabilities[0].Rules {
+			switch {
+			case strings.Contains(rule.Limit, "Galera-only"):
+				galera++
+			case strings.HasPrefix(rule.Limit, "Scoped CRD-field constraint") && strings.Contains(rule.Limit, "whole-upgrade safety"):
+				crd++
+			}
+		}
+		if galera != 1 || crd != 9 {
+			t.Fatalf("MariaDB Operator rule limits: galera=%d crd=%d", galera, crd)
 		}
 		preparer := project.Capabilities[0].LocalPreparer
 		for _, flag := range []string{"--mariadb-resource", "--resource-complete", "--pre-operator-update", "--from", "26.3.0", "--to", "26.6.0"} {
@@ -145,7 +157,7 @@ func TestSupportInventory_MariaDBOperatorUsesResourcePreparerMetadata(t *testing
 				t.Fatalf("MariaDB Operator declaration flag missing from discovery command %q: %#v", flag, preparer.Command)
 			}
 		}
-		if preparer.MetadataState != "implemented_native_mariadb_operator_resource_minimizer" || strings.Contains(preparer.Limit, "effective-configuration") || !strings.Contains(preparer.Limit, "data-plane completion") || !strings.Contains(project.Capabilities[0].Rules[0].Limit, "Galera-only") {
+		if preparer.MetadataState != "implemented_native_mariadb_operator_resource_minimizer" || strings.Contains(preparer.Limit, "effective-configuration") || !strings.Contains(preparer.Limit, "data-plane completion") {
 			t.Fatalf("incorrect MariaDB Operator inventory metadata: %#v", project.Capabilities)
 		}
 		return

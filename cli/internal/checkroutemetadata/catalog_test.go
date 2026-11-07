@@ -107,7 +107,7 @@ func TestDiscoverCompleteEmbeddedIdentityCatalog(t *testing.T) {
 			relnotes++
 		}
 	}
-	if result.Schema != Schema || len(result.Checks) != 270+kubernetesExtra()+len(crdbatchIDs())+len(crdbatchids.Foreign())+relnotes {
+	if result.Schema != Schema || len(result.Checks) != 279+kubernetesExtra()+len(crdbatchIDs())+len(crdbatchids.Foreign())+relnotes {
 		t.Fatalf("catalog schema/count = %q/%d", result.Schema, len(result.Checks))
 	}
 	if result.Scope.SourceEvidenceFreshness != "NOT_EVALUATED" {
@@ -268,7 +268,7 @@ func TestDiscoverRefusesAMixOfBothGenerations(t *testing.T) {
 				bound++
 			}
 		}
-		if want := 177 + len(identities) - len(base); bound != want {
+		if want := 186 + len(identities) - len(base); bound != want {
 			t.Errorf("%s: bound %d, want %d", name, bound, want)
 		}
 	}

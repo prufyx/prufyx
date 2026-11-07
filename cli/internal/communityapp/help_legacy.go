@@ -424,6 +424,8 @@ const checkProjectLegacy = `Usage: prufyx check project --project airflow --effe
    or: prufyx check project --project argo-workflows --workload FILE --from 3.4.18|3.5.15|3.6.19|3.7.18|4.0.11 --to 4.1.3 --workload-complete --now RFC3339 [--workload-digest SHA256] [--format human|json]
    or: prufyx check project --project ceph --selected-osd-metadata FILE --selected-osd-id ID --from VERSION --to VERSION --selected-osd-metadata-complete --now RFC3339 [--selected-osd-metadata-digest SHA256] [--format human|json]
    or: prufyx check project --project mariadb-operator --mariadb-resource FILE --from 26.3.0 --to 26.6.0 --resource-complete --pre-operator-update (--now RFC3339 | --knowledge-db DIR) [--mariadb-resource-digest SHA256] [--format human|json]
+   or: prufyx check project --project mariadb-operator --mariadb-resource FILE --from 0.38.1 --to 25.0.0 --resource-complete --now RFC3339 [--mariadb-resource-digest SHA256] [--format human|json]
+   or: prufyx check project --project mariadb-operator --mariadb-resource FILE --from 25.8.4 --to 25.10.4 --resource-complete --now RFC3339 [--mariadb-resource-digest SHA256] [--format human|json]
 The default uses embedded knowledge. Only the exact MariaDB Operator Galera canary accepts an explicit --knowledge-db instead of --now; it uses verifier time and never falls back to embedded rules. --profile and replay flags are not supported.`
 
 const prepareProjectLegacy = `Usage: prufyx prepare project --project airflow --effective-config FILE --from 3.0.6 --to 3.1.0 --effective-config-complete --precedence-resolved [--effective-config-digest SHA256] [--format human|json|input]
