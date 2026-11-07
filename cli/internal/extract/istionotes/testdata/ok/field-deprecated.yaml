@@ -1,0 +1,11 @@
+apiVersion: release-notes/v2
+kind: deprecation
+area: traffic-management
+issue: ["https://github.com/istio/istio/issues/1"]
+releaseNotes:
+  - |
+    **Deprecated** `VirtualService.spec.http.mirrorPercent` is deprecated.
+upgradeNotes:
+  - title: Mirror percent
+    content: |
+      The field `VirtualService.spec.http.mirrorPercent` is deprecated and will be handled later.
