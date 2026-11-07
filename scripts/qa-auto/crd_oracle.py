@@ -160,7 +160,7 @@ def check_served_floor(min_from, line, served):
         raise ValueError(f"minFrom {min_from} exceeds observed served line {line[0]}.{line[1]}")
 
 
-def served_set(tj, gd, tag, tagname=None):
+def crd_rows(tj, gd, tag, tagname=None):
     text = crd_text(tj, gd, tag, tagname)
     result = sh(CRDGVK, inp=text)
     if result.returncode:
@@ -175,7 +175,24 @@ def served_set(tj, gd, tag, tagname=None):
             raise ValueError("helper output contains an invalid GVK row")
     if not rows and "CustomResourceDefinition" in text:
         raise ValueError("helper omitted every CRD version")
-    return {(row["G"], row["V"], row["K"]) for row in rows if row["Served"]}
+    return rows
+
+
+def served_set(tj, gd, tag, tagname=None):
+    return {(row["G"], row["V"], row["K"]) for row in crd_rows(tj, gd, tag, tagname) if row["Served"]}
+
+
+def defined_kinds(tj, gd, tag, tagname=None):
+    """(group, kind) of every CRD defined at the tag, served or not."""
+    return {(row["G"], row["K"]) for row in crd_rows(tj, gd, tag, tagname)}
+
+
+def whole_removed(removed, later_defined):
+    """Removed GVKs whose (group, kind) CRD is absent from the later line (whole-CRD removal).
+    A version served:false/removed inside a still-defined CRD is not in this set. Fail closed: no definition set means none."""
+    if later_defined is None:
+        return []
+    return [x for x in removed if (x[0], x[2]) not in later_defined]
 
 
 def run(proj, cov):
@@ -250,6 +267,18 @@ def prepare(proj, cov, plan):
         pairs = comp["pairs"]
     if not pairs:
         raise ValueError("no usable pairs")
+    defined_cache = {}
+
+    def whole(tag, removed):
+        if not removed:
+            return []
+        try:
+            if tag not in defined_cache:
+                defined_cache[tag] = defined_kinds(tj, gd, pinned.get(tag, tag))
+            return whole_removed(removed, defined_cache[tag])
+        except Exception:
+            return []  # fail closed: unattributable stays a version-level expectation
+
     plan.update(proj=proj, pref=pref, catalog=tj.get("catalog", ""))
     known_pairs = []
     missing_line = False
@@ -276,7 +305,7 @@ def prepare(proj, cov, plan):
         sf, st = served(f), served(t)
         if not sf:
             raise ValueError("required proof pair source served set empty")
-        plan["jobs"].append((target, f, t, sf, sorted(sf - st)))
+        plan["jobs"].append((target, f, t, sf, sorted(sf - st), whole(t, sorted(sf - st))))
     for line_target, f, t in known_pairs:
         sf, st = served(f), served(t)
         target = f"crd|{proj}|{f}|{t}"
@@ -285,9 +314,36 @@ def prepare(proj, cov, plan):
                 reason="verified empty served source scope; no PASS claim",
                 next_test="select a source release with served objects or review this empty-source boundary"))
         else:
-            plan["jobs"].append((target, f, t, sf, sorted(sf - st)))
+            plan["jobs"].append((target, f, t, sf, sorted(sf - st), whole(t, sorted(sf - st))))
         plan["metadata"].add(line_target)
     plan["metadata"].add("crd-project|" + proj)
+
+
+DESIGN_STATUS = "DESIGN_UNKNOWN_WHOLE_CRD_REMOVAL"
+
+
+def crd_verdict(code, report, removed, whole_crd, component):
+    """(wrongpass, mismatch, missing, statuses, design) for one pair.
+    A CRD defined earlier and absent later is a whole-CRD removal; by documented design (definitionsRemoved)
+    the scanner reports UNKNOWN (exit 11, no findings) because the effect depends on the install method.
+    That exact outcome, and only for a set made entirely of whole-CRD removals, is DESIGN_UNKNOWN_WHOLE_CRD_REMOVAL.
+    Any PASS stays WRONGPASS; anything else unattributable stays MISMATCH."""
+    family = "crd.custom_resource_versions"
+    whole_set = set(whole_crd) & set(removed)
+    version = [x for x in removed if x not in whole_set]
+    wp, mm, missing, statuses = scoped_result(code, report, version, component, family)
+    if not whole_set:
+        return wp, mm, missing, statuses, False
+    if is_pass(code, report) or "PASS" in statuses:
+        return True, False, missing, statuses, False
+    unknown = report.get("verdict") == "UNKNOWN"
+    if not version:
+        if unknown and code == 11 and not report.get("findings"):
+            return False, False, [], statuses, True
+        return False, True, ["/".join(x) for x in sorted(whole_set)], statuses, False
+    if not unknown:
+        missing = missing + ["/".join(x) for x in sorted(whole_set)]
+    return False, bool(missing) or mm, missing, statuses, False
 
 
 def community_refusal(catalog, tail):
@@ -298,7 +354,7 @@ def community_refusal(catalog, tail):
 def execute(plan):
     out, executed, omitted = [], set(plan["metadata"]), []
     proj, pref = plan["proj"], plan["pref"]
-    for n, (target, f, t, sf, removed) in enumerate(plan["jobs"]):
+    for n, (target, f, t, sf, removed, whole_crd) in enumerate(plan["jobs"]):
         docs = "---\n".join(doc(g, v, k) for (g, v, k) in sorted(sf))
         fn = f"{TMP}/crd/{proj}-{n}.yaml"
         write_private(fn, docs)
@@ -317,11 +373,12 @@ def execute(plan):
             omitted.append(dict(target=target, reason="candidate response unreadable; replay the full input"))
             out.append(case("crd", key, error=True, why=tail))
             continue
-        wp, mm, missing, crd = scoped_result(code, j, removed, proj, "crd.custom_resource_versions")
+        wp, mm, missing, crd, design = crd_verdict(code, j, removed, whole_crd, proj)
         complete = complete_scan_scope(j, len(sf))
         if not complete:
             omitted.append(dict(target=target, reason="input omitted or incomplete; replay the full input"))
         out.append(case("crd", key, wrongpass=wp, mismatch=mm, error=not complete, exit=code,
+                        **({"status": DESIGN_STATUS, "wholeCrdRemoved": ["/".join(x) for x in whole_crd]} if design else {}),
                         verdict=j.get("verdict"), crd=crd, missing=missing, requested=len(sf),
                         executed=j.get("summary", {}).get("documentsRead"), expectRemoved=["/".join(x) for x in removed],
                         nExpect=len(removed), nFindings=len(j.get("findings", [])),
