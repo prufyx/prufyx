@@ -52,8 +52,8 @@ func TestGateTighteningOnlyPasses(t *testing.T) {
 			t.Fatalf("%s proof %q", c.RuleID, c.Proof)
 		}
 	}
-	if !r.AutoMerge.Eligible {
-		t.Fatalf("not eligible: %v", r.AutoMerge.Reasons)
+	if r.AutoMerge.Eligible {
+		t.Fatal("a change without a batch must not be eligible")
 	}
 	// The same change by a person is not eligible, and neither is one
 	// that also touches a file outside the knowledge files.

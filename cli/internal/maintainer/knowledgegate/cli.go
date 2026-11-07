@@ -506,7 +506,7 @@ func printChecks(w io.Writer, r *Report) {
 	}
 	fmt.Fprintf(w, "gate: %s (%d tightening, %d loosening; kill switch %s; mode %s)\n", strings.ToUpper(r.Result), r.Totals.Tightening, r.Totals.Loosening, onOff(r.Paused), r.Mode)
 	if r.AutoMerge.Eligible {
-		fmt.Fprintln(w, "auto-merge: eligible")
+		fmt.Fprintln(w, "auto-merge policy candidacy: eligible")
 	} else if r.Schema != "" && r.AutoMerge.Reasons != nil {
 		fmt.Fprintf(w, "auto-merge: not eligible (%s)\n", logSafe(strings.Join(r.AutoMerge.Reasons, "; ")))
 	}
@@ -568,7 +568,7 @@ func writeSummary(w io.Writer, r *Report) {
 		fmt.Fprintf(w, "\nOnboarding batch review summary (rendered by the gate):\n\n````text\n%s\n````\n", strings.ReplaceAll(r.onboarding.summary, "`", "'"))
 	}
 	if r.AutoMerge.Eligible {
-		fmt.Fprintln(w, "\nAutomatic merge: eligible.")
+		fmt.Fprintln(w, "\nAutomatic merge policy candidacy: eligible.")
 	} else {
 		fmt.Fprintf(w, "\nAutomatic merge: not eligible (%s).\n", mdEscape(strings.Join(r.AutoMerge.Reasons, "; ")))
 	}

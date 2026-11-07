@@ -247,8 +247,8 @@ func TestGateRecordRenewal(t *testing.T) {
 	if ch, ok := check(r, "stagger/community/records"); !ok || !ch.OK {
 		t.Fatalf("record stagger check %+v", ch)
 	}
-	if !r.AutoMerge.Eligible {
-		t.Fatalf("not eligible: %v", r.AutoMerge.Reasons)
+	if r.AutoMerge.Eligible {
+		t.Fatal("a change without a batch must not be eligible")
 	}
 
 	// The same renewal against a pack the gate does not read records of

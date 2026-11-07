@@ -960,20 +960,22 @@ func (r *Report) generatedChecks(opts Options) {
 }
 
 func (r *Report) autoMerge(opts Options) {
-	blocks := opts.Layout.admittedBlocks(opts.Base, opts.Head)
 	var reasons []string
 	if !r.Passed() {
 		reasons = append(reasons, "the gate did not pass")
 	}
-	if opts.Author == "" || opts.Author != opts.BotLogin {
+	if opts.BotLogin != DefaultBotLogin {
+		reasons = append(reasons, "the automation account is not the production bot")
+	}
+	if opts.Author != DefaultBotLogin {
 		reasons = append(reasons, fmt.Sprintf("author %q is not the automation account %q", logSafe(opts.Author), logSafe(opts.BotLogin)))
 	}
-	if opts.Sender != opts.BotLogin {
+	if opts.Sender != DefaultBotLogin {
 		reasons = append(reasons, fmt.Sprintf("the run was triggered by %q, not the automation account", logSafe(opts.Sender)))
 	}
 	reasons = append(reasons, commitReasons(opts)...)
-	if r.batch != nil {
-		reasons = append(reasons, "the change carries a batch approval; batch approvals are merged by the owner, never automatically")
+	if r.batch == nil || !r.batch.ok {
+		reasons = append(reasons, "a verified owner batch approval is required")
 	}
 	if r.onboarding != nil {
 		reasons = append(reasons, "the change carries an onboarding batch; onboarding batches are merged by the owner, never automatically")
@@ -999,14 +1001,21 @@ func (r *Report) autoMerge(opts Options) {
 	if len(r.Changes) == 0 && len(r.ChainsChanged) == 0 {
 		reasons = append(reasons, "the change holds no knowledge change")
 	}
+	allowed := map[string]bool{}
+	if r.batch != nil && r.batch.ok {
+		allowed = batchAllowedPaths(opts.Layout, opts.Base, opts.Head, r.batch.path)
+	}
 	var outside []string
 	for _, p := range r.ChangedPaths {
-		if !opts.Layout.autoMergePath(p) && !blocks[p] {
+		if !allowed[p] || opts.Layout.trustPath(p) || !opts.Base.regularDataOrAbsent(p) || !opts.Head.regularDataOrAbsent(p) {
 			outside = append(outside, p)
 		}
 	}
 	if len(outside) > 0 {
 		reasons = append(reasons, "the change touches files outside the knowledge files"+listDetail(outside))
+	}
+	if opts.BotSignerPaused || r.Paused {
+		reasons = append(reasons, "automation is paused")
 	}
 	if opts.Shadow {
 		reasons = append(reasons, "shadow mode: nothing merges automatically")
