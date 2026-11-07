@@ -48,6 +48,52 @@ Reason codes: `ORDER_INFERRED`, `HOP_ACTIONS_NOT_CHECKED`,
 `NODE_ROLLS_NOT_PLANNED`, `HOP_NOT_COVERED`, `BLOCKED_BY_EARLIER_FINDING`,
 `COMPONENT_GAP`, `LATEST_NOT_RESOLVED`, `PATH_NOT_PLANNED`.
 
+## Example: a long route (1.29 to 1.36)
+
+[`examples/old-to-latest/rendered.yaml`](../../examples/old-to-latest/rendered.yaml)
+is a synthetic apply set that uses only API versions Kubernetes 1.37 serves
+(copy it to an owner-only file before use). A golden test
+(`TestPlanOldToLatestExample`) pins the statuses below.
+
+```sh
+prufyx plan rendered.yaml --from kubernetes=1.29.15 --to kubernetes=1.36.0 \
+  --kubelet-version-min 1.33.0 \
+  --distribution official_upstream --resource-scope-complete --target-api-apply-required
+```
+
+What is printed (knowledge revision `cncf-2026-09-13.8`): 7 stages, 1.29.15 to 1.30
+up to 1.35 to 1.36.0; each `hop status: COVERED`, verdict `UNKNOWN`, reasons
+`HOP_ACTIONS_NOT_CHECKED` and `NODE_ROLLS_NOT_PLANNED`; plan verdict `UNKNOWN`,
+exit `11`. This is not a whole-upgrade `PASS`. What stays unknown: hop actions
+(stored-version migrations and similar), node rolls, the live environment, and
+every component other than Kubernetes.
+
+A `COVERED` hop needs every rule of that hop decided. Two kinds of rule need
+input from you:
+
+- Kubelet version skew rules, which exist for the hops from 1.32 to 1.33
+  onward. They need `--kubelet-version-min` (or `minimumKubeletVersion` in
+  `prufyx.yaml`). Without it these hops are `PARTIAL` with a
+  `DECLARATION_MISSING` gap. The hops 1.29.15 to 1.30, 1.30 to 1.31 and 1.31 to
+  1.32 carry no such rule, so they are `COVERED` with no kubelet input.
+- Served-API removal rules need the complete apply set:
+  `--resource-scope-complete` and `--target-api-apply-required`, with manifests
+  that are the whole set. A manifest that uses an API version removed on the
+  route is reported, correctly, instead of being covered.
+
+The declared kubelet minimum is checked only on hops that have a kubelet-skew
+rule (1.33 onward). The first three hops are `COVERED` without testing the
+declared kubelet, so the declaration describes the nodes after the control plane
+reaches 1.33; a kubelet newer than the API server is not valid Kubernetes, and
+the early hops do not test for it. Kubernetes allows a kubelet up to three minor
+lines behind the API server and never newer.
+No single version satisfies the 1.33 and the 1.37.0 hops together, so a run to
+`newest-covered` (1.37.0) from 1.29.15 is `BLOCKED` by the skew rule on some hop
+whatever one version you declare. Plan the route in legs, each with the kubelet
+version the nodes will have then, for example
+`--from kubernetes=1.33.5 --to kubernetes=newest-covered --kubelet-version-min 1.34.0`
+(4 stages to 1.37.0, all `COVERED`, plan verdict `UNKNOWN`).
+
 ## `newest-covered`
 
 `--to kubernetes=newest-covered` sets the target to the `.0` release of the

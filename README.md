@@ -162,6 +162,19 @@ engine contract digests. Those evidence fields require a build containing the
 staged evidence changes. This example does not check a live environment, hop
 actions or node rolls. Results can change with the binary and knowledge used.
 
+**From an old release to a much newer one.** The [old-to-latest example](examples/old-to-latest/rendered.yaml) is a synthetic apply set that uses only API versions Kubernetes 1.37 still serves. It shows what `plan` prints for a long route. Copy it to an owner-only file first, as above:
+
+```sh
+prufyx plan "$demo_dir/rendered.yaml" \
+  --from kubernetes=1.29.15 --to kubernetes=1.36.0 \
+  --kubelet-version-min 1.33.0 \
+  --distribution official_upstream --resource-scope-complete --target-api-apply-required
+```
+
+With embedded knowledge revision `cncf-2026-09-13.8`, the plan prints seven stages, 1.29.15 to 1.30 through 1.35 to 1.36.0. Every stage shows `hop status: COVERED` and verdict `UNKNOWN`, with the reasons `HOP_ACTIONS_NOT_CHECKED` and `NODE_ROLLS_NOT_PLANNED`. The plan verdict is `UNKNOWN` (exit `11`). It is not a whole-upgrade `PASS`: CRD stored-version migrations and similar hop actions are not checked, and node rolls are not planned. `--resource-scope-complete` and `--target-api-apply-required` declare that the manifests are the complete apply set. `--kubelet-version-min` declares, it does not observe, the lowest kubelet version; declare only what is true.
+
+Two limits show up in the same example. Without `--kubelet-version-min`, the three hops through 1.32 are still `COVERED`, because no kubelet skew rule applies to them, and the hops from 1.32 to 1.33 onward are `PARTIAL` with a `DECLARATION_MISSING` gap. The declared kubelet minimum is checked only on hops that have a kubelet-skew rule (1.33 onward); the first three hops are `COVERED` without testing it, so the declaration describes the nodes after the control plane reaches 1.33 (a kubelet newer than the API server is not valid Kubernetes, and the early hops do not test for it). And a single kubelet declaration is one fixed version: Kubernetes allows a kubelet up to three minor lines older than the API server, never newer, so no one version fits every hop from 1.29 to 1.37. With `--to kubernetes=newest-covered` and `--kubelet-version-min 1.33.0` the plan resolves 1.37.0 but is `BLOCKED` (exit `10`) at 1.37.0, as the kubelet is then four lines behind. Plan a second leg for the end of the route, for example `--from kubernetes=1.33.5 --to kubernetes=newest-covered --kubelet-version-min 1.34.0`: four stages to 1.37.0, all `COVERED`, still `UNKNOWN`. The kubelet versions in the two legs describe different points of the upgrade; roll the nodes between them yourself.
+
 **Never add a declaration flag that is not true.** Prufyx does not default any
 of them, because a false one turns `UNKNOWN` into an answer the evidence does
 not support.
