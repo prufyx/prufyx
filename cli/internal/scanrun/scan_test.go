@@ -499,7 +499,7 @@ func TestScanUsage(t *testing.T) {
 	t.Parallel()
 	for _, command := range [][]string{
 		{"--to"}, {"--to", "kubernetes"}, {"--to", "=1.2.3"}, {"--format", "xml"}, {"--format", "SARIF"}, {"--now", "2026-10-04T00:00:00+02:00"},
-		{"--now", "2026-10-04T00:00:00.5Z"}, {"--input-permissions", "loose"}, {"--distribution", "eks"}, {"--bogus"},
+		{"--now", "2026-10-04T00:00:00.5Z"}, {"--input-permissions", "loose"}, {"--distribution", "mystery"}, {"--distribution", "openshift"}, {"--bogus"},
 		{"--knowledge-db", "dir", "--knowledge-db", "dir"}, {"--knowledge-db", ""}, {"--knowledge-db", "a\nb"}, {"--knowledge-db"},
 		{"--knowledge-db", "a\u009b31mX"}, {"--knowledge-db", "a\x9bb"}, {"--knowledge-db", "db\u202egnp.txt"}, {"--knowledge-db", "a\u200bb"},
 		{"--knowledge-db", "a\u2028b"}, {"--knowledge-db", "a\x7fb"},

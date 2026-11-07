@@ -102,8 +102,10 @@ The section holds two lists:
   - `deprecations`: provider-specific removals, each with a unique `id`,
     a `summary` (at most 256 bytes) and the `firstLine` it applies to.
   These are what the provider announces. They are advisory: they can add a
-  finding, never remove one, and never authorize a SAFE result. Nothing reads
-  them in a scan yet.
+  finding, never remove one, and never authorize a SAFE result. `scan` and
+  `plan` read the lifecycle rows of a declared provider as advisory facts
+  (see [scan.md](scan.md#provider-facts-advisory)); channels and deprecations
+  are not read yet.
 
 Absence is never a pass:
 

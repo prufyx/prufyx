@@ -263,7 +263,7 @@ func ParseArgs(args []string) (Request, error) {
 			if err != nil {
 				return Request{}, err
 			}
-			if v != "official_upstream" && v != "custom_build" {
+			if !scanconfig.ValidDistribution(v) {
 				return Request{}, usage(scanreport.UsageBadValue, display)
 			}
 			request.Distribution = &v

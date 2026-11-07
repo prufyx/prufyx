@@ -19,6 +19,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/buildidentity"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/providerfacts"
 )
 
 // Schema is the report schema.
@@ -66,6 +67,10 @@ type Report struct {
 	// Unsupported are combinations outside a documented support range:
 	// never a blocker, never a pass; each keeps its hop undecided.
 	Unsupported []Unsupported `json:"unsupported"`
+	// Provider holds the advisory provider facts for a declared provider
+	// distribution. It is never part of the verdict, the headline, the exit
+	// code or any count: it can only add information.
+	Provider *providerfacts.Section `json:"provider,omitempty"`
 	// TrustPolicy is present only when the trust policy left out a rule
 	// that applies to the upgrade.
 	TrustPolicy *TrustPolicy `json:"trustPolicy,omitempty"`

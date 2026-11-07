@@ -89,7 +89,7 @@ prufyx scan [PATH ...] [-] --to COMPONENT=VERSION [--from COMPONENT=VERSION ...]
 | `--to C=V` | Target version of component `C`, a project name from `prufyx catalog cncf`. Repeatable; at least one target is required (here or in `prufyx.yaml`). |
 | `--from C=V` | Version of `C` in use now. Repeatable. `scan` never reads the Kubernetes version from manifests: without it the answer names the gap. |
 | `--config FILE` | The [`prufyx.yaml`](scan-config.md) to read. Default: `prufyx.yaml` next to the first `PATH`. Flags override the file key by key. |
-| `--distribution` | `official_upstream` or `custom_build`. Only `official_upstream` is evaluated. |
+| `--distribution` | `official_upstream`, `custom_build`, or a provider: `eks`, `gke`, `aks`, `k3s`. Only `official_upstream` is evaluated as upstream Kubernetes; a provider is treated like `custom_build` by every rule (gap `DISTRIBUTION_NOT_COVERED`) and additionally gets the advisory provider facts below. |
 | `--resource-scope-complete` | Declares that the inputs are every manifest you apply. |
 | `--target-api-apply-required` | Declares that the inputs are applied to the target Kubernetes API. |
 | `--kubelet-version-min X.Y.Z` | Declares the lowest kubelet version of any node after the control plane upgrade. It feeds the Kubernetes version-skew rules. The version is declared by you and not observed: see "Declared kubelet versions". Each flag at most once. |
@@ -231,6 +231,23 @@ knowledge for kubernetes: target knowledge/cncf/projects/kubernetes.v1.json revi
 
 (That database holds a test-signed copy of the built-in knowledge, not the
 official feed. `prufyx db update` fetches the official feed.)
+
+## Provider facts (advisory)
+
+With `--distribution eks|gke|aks|k3s` (or `declarations.kubernetes.distribution` in `prufyx.yaml`), a scan with a Kubernetes `--from` or `--to` adds a `PROVIDER FACTS` section (`provider` in the JSON report; human and Markdown output; not in SARIF or CSV). It shows what the provider announces about the declared line, for the current line, the target line and each line between them. The line is the `major.minor` of the declared Kubernetes version.
+
+State of this feature: **the evaluation is present, provider data is not yet published.** No shipped knowledge pack carries provider lifecycle rows, so today every provider line reads `UNKNOWN provider_record_absent`. A knowledge database selected with `--knowledge-db` holds no provider records either. Nothing is read from your cluster.
+
+What it states, always attributed to the provider's own source with the knowledge revision and the source reference:
+
+- `provider_support_ended` / `provider_support_ending` (WARN): the standard support end has passed, or falls within 90 days of the evaluation time. The deadline is the **standard** support end. Extended support is shown as `extended (paid)` with its opt-in requirement, is never assumed, and is never recommended as a path; no flag declares it yet.
+- `provider_support_current` (INFO): the standard support end is still ahead. This is what the provider announces globally; availability in your region or channel is UNKNOWN.
+- `provider_forced_upgrade`: the date the provider upgrades a line itself, only when an official sentence is recorded (WARN when passed or within 90 days). Otherwise the date is UNKNOWN, never "none".
+- Typed `UNKNOWN` rows with a next action: `provider_record_absent` (no record, a withdrawn record, or one dated after `--now`), `provider_lifecycle_stale` (the evidence window ended), `provider_source_unavailable` (a record without lifecycle rows), `provider_version_unknown` (the line is not in the attested rows, or the version cannot be read), `provider_version_prerelease`, `provider_date_imprecise` (a month, quarter or undated row gives no day-level deadline), `provider_mapping_conflict` (the version identifies as another distribution, or maps to another upstream minor than the one declared), `provider_unrecognized`.
+
+Provider facts are advisory only: they never produce `SAFE` or a pass, never change a finding, gap, verdict or exit code, and a provider declaration is never evaluated as upstream. Dates are compared with `--now` (or the real time), so a report replays.
+
+Not implemented yet: provider upgrade-path rules, provider deprecations, release channels, component pins, the source-drift state, declaring extended support, and OpenShift, Talos and other mapped distributions (their versions are not yet mapped to a provider line).
 
 ## Knowledge age note
 

@@ -134,6 +134,12 @@ func Human(report Report, options HumanOptions) []byte {
 			line("    "+labelLeadCheck, lead.Text)
 		}
 	}
+	if provider := ProviderLines(report.Provider, options.Verbose); len(provider) > 0 {
+		line("")
+		for _, text := range provider {
+			line("%s", text)
+		}
+	}
 	if options.ShowPasses && len(report.Passes) > 0 {
 		line("")
 		line(labelPassed, len(report.Passes))

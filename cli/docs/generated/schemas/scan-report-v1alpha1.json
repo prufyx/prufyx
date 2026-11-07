@@ -114,6 +114,9 @@
     },
     "provenance": {
       "$ref": "#/$defs/provenance"
+    },
+    "provider": {
+      "$ref": "#/$defs/providerSection"
     }
   },
   "$defs": {
@@ -1314,6 +1317,122 @@
         },
         "digest": {
           "type": "string"
+        }
+      }
+    },
+    "providerSection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "now",
+        "knowledgeRevision",
+        "lines",
+        "notes"
+      ],
+      "properties": {
+        "provider": {
+          "type": "string"
+        },
+        "now": {
+          "type": "string"
+        },
+        "knowledgeRevision": {
+          "type": "string"
+        },
+        "lines": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/providerLine"
+          }
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "providerLine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "findings"
+      ],
+      "properties": {
+        "line": {
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "declared",
+            "current",
+            "target",
+            "current_target",
+            "intermediate"
+          ]
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/providerFinding"
+          }
+        }
+      }
+    },
+    "providerFinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule",
+        "severity",
+        "provider",
+        "text",
+        "knowledgeRevision",
+        "sources"
+      ],
+      "properties": {
+        "rule": {
+          "type": "string"
+        },
+        "severity": {
+          "enum": [
+            "INFO",
+            "WARN",
+            "UNKNOWN"
+          ]
+        },
+        "provider": {
+          "type": "string"
+        },
+        "line": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "next": {
+          "type": "string"
+        },
+        "knowledgeRevision": {
+          "type": "string"
+        },
+        "basis": {
+          "type": "string"
+        },
+        "reviewedAt": {
+          "type": "string"
+        },
+        "validUntil": {
+          "type": "string"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/citation"
+          }
         }
       }
     }

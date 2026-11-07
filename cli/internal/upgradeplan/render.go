@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/prufyx/prufyx/cli/internal/providerfacts"
 )
 
 // Formats are the plan output formats.
@@ -79,8 +81,23 @@ func render(plan Plan, md bool) []byte {
 		for _, g := range s.Gaps {
 			line("         gap %s: %s", g.Reason, g.Detail)
 		}
+		for _, f := range s.Provider {
+			providerLine(line, "         ", f)
+		}
 		if len(s.Reasons) > 0 {
 			line("         not PASS because: %s", strings.Join(s.Reasons, ", "))
+		}
+	}
+	if p := plan.Provider; p != nil {
+		head(fmt.Sprintf("Provider: %s (declared), evaluated at %s, knowledge revision %s", p.Provider, p.Now, p.KnowledgeRevision))
+		for _, f := range p.Target {
+			providerLine(line, "  Target  ", f)
+		}
+		for _, f := range p.Other {
+			providerLine(line, "  ", f)
+		}
+		for _, n := range p.Notes {
+			line("  %s", n)
 		}
 	}
 	if len(plan.Gaps) > 0 {
@@ -93,6 +110,16 @@ func render(plan Plan, md bool) []byte {
 		}
 	}
 	return out.Bytes()
+}
+
+func providerLine(line func(string, ...any), indent string, f providerfacts.Finding) {
+	line("%s%s %s: %s", indent, f.Severity, f.Rule, f.Text)
+	if f.Next != "" {
+		line("%s  Next: %s", indent, f.Next)
+	}
+	for _, s := range f.Sources {
+		line("%s  source: %s lines %d-%d at %s sha256 %s", indent, s.URL, s.StartLine, s.EndLine, s.Revision, s.ContentDigest)
+	}
 }
 
 // clean strips control characters from rendered strings, so knowledge text

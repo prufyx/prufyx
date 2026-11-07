@@ -94,6 +94,25 @@ version the nodes will have then, for example
 `--from kubernetes=1.33.5 --to kubernetes=newest-covered --kubelet-version-min 1.34.0`
 (4 stages to 1.37.0, all `COVERED`, plan verdict `UNKNOWN`).
 
+## Provider support dates (advisory)
+
+With `--distribution eks|gke|aks|k3s` the plan places the scan's [provider facts](scan.md#provider-facts-advisory) next to the stages: each Kubernetes stage lists the facts of the line the hop leaves, and a `Provider` block after the stages shows the target line, the forced-upgrade date (UNKNOWN unless an official sentence is recorded), anything that could not be read and the standing notes. Extended support is always labelled `extended (paid)` and is never recommended as a path.
+
+Example (synthetic dates, evaluated at `--now 2026-11-07T00:00:00Z`, EKS 1.29.15 to 1.33.0 with a record that lists 1.31 to 1.33 only):
+
+```
+Stage 1  kubernetes 1.29.15 -> 1.30  UNKNOWN  [...]
+         UNKNOWN provider_version_unknown: EKS 1.29 is not in the attested lifecycle rows, so its end-of-support dates are unknown
+           Next: refresh the knowledge bundle, or confirm the dates with the provider
+Stage 3  kubernetes 1.31 -> 1.32  UNKNOWN  [...]
+         WARN provider_support_ended: EKS says 1.31 standard support ended 2025-11-26 (announced globally); extended (paid) ends 2026-11-26, automatic per the provider; extended support is not assumed, no opt-in was declared
+Provider: eks (declared), evaluated at 2026-11-07T00:00:00Z, knowledge revision ...
+  Target  WARN provider_support_ended: EKS says 1.33 standard support ended 2026-07-29 ...
+  Target  INFO provider_forced_upgrade: EKS says it upgrades clusters still on 1.33 on 2027-07-29 (sentence ...)
+```
+
+State: **the evaluation is present, provider data is not yet published**, so a plan today shows `UNKNOWN provider_record_absent` on every stage. Provider facts never change a stage verdict, the plan verdict or the exit code, and never make a stage `PASS`. The plan evaluates no provider rule of its own: it places what the scan reported.
+
 ## `newest-covered`
 
 `--to kubernetes=newest-covered` sets the target to the `.0` release of the

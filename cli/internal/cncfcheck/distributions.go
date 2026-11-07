@@ -64,3 +64,10 @@ func OpenShiftTable(now time.Time) (k8sversion.OpenShiftMap, error) {
 	}
 	return b.distributions.OpenShiftTable(now), nil
 }
+
+// DistributionRecord returns the distribution's record from this knowledge,
+// with its freshness at now. Knowledge selected from a verified store holds
+// no distribution records (found is false).
+func (k *ScanKnowledge) DistributionRecord(distributionID string, now time.Time) (distribution.Record, string, bool) {
+	return k.b.distributions.Record(distributionID, now)
+}

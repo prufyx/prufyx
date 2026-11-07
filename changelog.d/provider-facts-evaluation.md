@@ -1,0 +1,3 @@
+### Added
+
+- `scan` and `plan` accept `--distribution eks`, `gke`, `aks` or `k3s` (and the same value in `prufyx.yaml`). A provider is not evaluated as upstream Kubernetes (the Kubernetes rules treat it as not covered, like `custom_build`), and the report adds advisory provider facts: support end against `--now` (the standard end is the deadline, extended support is shown as paid and never assumed), forced-upgrade date only when recorded, and typed UNKNOWN rows with a next action when the record is absent, stale, undated or in conflict. They never produce a pass and never change a verdict or exit code. The evaluation is present; no provider data is published yet, so today every provider line reads UNKNOWN.

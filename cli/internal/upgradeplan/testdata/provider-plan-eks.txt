@@ -1,0 +1,41 @@
+Upgrade plan: 1 components, 4 hops in 4 stages. Verdict: UNKNOWN (BLOCKED 0, UNSUPPORTED 0, UNKNOWN 4, PASS 0).
+Not decided: 4 of 4 stages. Prufyx never reports PASS for a stage it cannot prove.
+
+Routes
+  kubernetes  1.29.15 -> 1.33.0  (sequential_minor; 4 hops)
+
+Stages
+Stage 1  kubernetes 1.29.15 -> 1.30  UNKNOWN  [required order: reviewed path policy sequential_minor forces one hop per minor line]
+         hop status: COVERED
+         UNKNOWN provider_version_unknown: EKS 1.29 is not in the attested lifecycle rows, so its end-of-support dates are unknown
+           Next: refresh the knowledge bundle, or confirm the dates with the provider
+           source: https://github.com/example/docs/blob/0123456789abcdef0123456789abcdef01234567/eks.md lines 1-9 at 0123456789abcdef0123456789abcdef01234567 sha256 sha256:0000000000000000000000000000000000000000000000000000000000000000
+         not PASS because: HOP_ACTIONS_NOT_CHECKED, NODE_ROLLS_NOT_PLANNED
+Stage 2  kubernetes 1.30 -> 1.31  UNKNOWN  [required order: reviewed path policy sequential_minor forces one hop per minor line]
+         hop status: COVERED
+         UNKNOWN provider_version_unknown: EKS 1.30 is not in the attested lifecycle rows, so its end-of-support dates are unknown
+           Next: refresh the knowledge bundle, or confirm the dates with the provider
+           source: https://github.com/example/docs/blob/0123456789abcdef0123456789abcdef01234567/eks.md lines 1-9 at 0123456789abcdef0123456789abcdef01234567 sha256 sha256:0000000000000000000000000000000000000000000000000000000000000000
+         not PASS because: HOP_ACTIONS_NOT_CHECKED, NODE_ROLLS_NOT_PLANNED
+Stage 3  kubernetes 1.31 -> 1.32  UNKNOWN  [required order: reviewed path policy sequential_minor forces one hop per minor line]
+         hop status: COVERED
+         WARN provider_support_ended: EKS says 1.31 standard support ended 2025-11-26 (announced globally); extended (paid) ends 2026-11-26, automatic per the provider; extended support is not assumed, no opt-in was declared
+           Next: plan the upgrade to a line whose support end is later; check the provider console for your region
+           source: https://github.com/example/docs/blob/0123456789abcdef0123456789abcdef01234567/eks.md lines 1-9 at 0123456789abcdef0123456789abcdef01234567 sha256 sha256:0000000000000000000000000000000000000000000000000000000000000000
+         not PASS because: HOP_ACTIONS_NOT_CHECKED, NODE_ROLLS_NOT_PLANNED
+Stage 4  kubernetes 1.32 -> 1.33.0  UNKNOWN  [required order: reviewed path policy sequential_minor forces one hop per minor line]
+         hop status: COVERED
+         WARN provider_support_ended: EKS says 1.32 standard support ended 2026-03-23 (announced globally); extended (paid) ends 2027-03-23, automatic per the provider; extended support is not assumed, no opt-in was declared
+           Next: plan the upgrade to a line whose support end is later; check the provider console for your region
+           source: https://github.com/example/docs/blob/0123456789abcdef0123456789abcdef01234567/eks.md lines 1-9 at 0123456789abcdef0123456789abcdef01234567 sha256 sha256:0000000000000000000000000000000000000000000000000000000000000000
+         not PASS because: HOP_ACTIONS_NOT_CHECKED, NODE_ROLLS_NOT_PLANNED
+
+Provider: eks (declared), evaluated at 2026-11-07T00:00:00Z, knowledge revision rev-synthetic
+  Target  WARN provider_support_ended: EKS says 1.33 standard support ended 2026-07-29 (announced globally); extended (paid) ends 2027-07-29, automatic per the provider; extended support is not assumed, no opt-in was declared
+  Target    Next: plan the upgrade to a line whose support end is later; check the provider console for your region
+  Target    source: https://github.com/example/docs/blob/0123456789abcdef0123456789abcdef01234567/eks.md lines 1-9 at 0123456789abcdef0123456789abcdef01234567 sha256 sha256:0000000000000000000000000000000000000000000000000000000000000000
+  Target  INFO provider_forced_upgrade: EKS says it upgrades clusters still on 1.33 on 2027-07-29 (sentence synthetic-1)
+  Target    source: https://github.com/example/docs/blob/0123456789abcdef0123456789abcdef01234567/eks.md lines 1-9 at 0123456789abcdef0123456789abcdef01234567 sha256 sha256:0000000000000000000000000000000000000000000000000000000000000000
+  Provider facts are advisory: they never make a scan SAFE and never change a verdict.
+  Dates are what the provider announces globally; availability in your region or channel is UNKNOWN (check the provider console).
+  Extended support is paid and provider-specific; Prufyx does not recommend it as a path.

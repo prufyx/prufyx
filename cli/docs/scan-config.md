@@ -31,7 +31,7 @@ is never ignored. The file holds exactly one YAML document.
 | `inputs` | no | 1 to 64 paths of manifests or directories to read. Each is relative to the directory of the file, in clean form (no `..`, no `./` prefix, no empty or doubled slashes, not absolute). One trailing slash is allowed (`rendered/`). |
 | `current` | no | Map from project name to the version in use now. |
 | `target` | no | Map from project name to the version you plan to move to. |
-| `declarations.kubernetes.distribution` | no | `official_upstream` or `custom_build`. Same as `--distribution`. |
+| `declarations.kubernetes.distribution` | no | `official_upstream`, `custom_build`, `eks`, `gke`, `aks` or `k3s`. Same as `--distribution`. |
 | `declarations.kubernetes.resourceScopeComplete` | no | `true` or `false`: the supplied resources are the complete set. Same as `--resource-scope-complete`. |
 | `declarations.kubernetes.targetApplyRequired` | no | `true` or `false`: the resources are required for applying to the target API. Same as `--target-api-apply-required`. |
 | `declarations.kubernetes.minimumKubeletVersion` | no | The lowest kubelet version of any node, exactly `x.y.z` (a quoted string). Declared, not observed. Same as `--kubelet-version-min`; see [Declared kubelet versions](scan.md#declared-kubelet-versions). |

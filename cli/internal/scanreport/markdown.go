@@ -163,6 +163,14 @@ func Markdown(report Report, options MarkdownOptions) []byte {
 			line("| %s | %s | %s |", mdText(lead.Component+" "+hopLabel(lead.Hop)), mdCode(lead.RuleID), mdText(fmt.Sprintf(labelLeadMessage, lead.Text)))
 		}
 	}
+	if provider := ProviderLines(report.Provider, options.Verbose); len(provider) > 0 {
+		line("")
+		line("## %s", mdText(provider[0]))
+		line("")
+		for _, text := range provider[1:] {
+			line("- %s", mdText(text))
+		}
+	}
 	if options.ShowPasses && len(report.Passes) > 0 {
 		line("")
 		line("## "+labelPassed, len(report.Passes))

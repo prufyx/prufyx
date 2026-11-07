@@ -492,6 +492,9 @@ func Run(request Request, options Options) (Result, error) {
 		report.Notes = append(report.Notes, scanreport.NoteKubeletUnused)
 	}
 
+	if section, ok := providerSection(effective, knowledge, now); ok {
+		report.Provider = &section
+	}
 	dropShadowedNotDetected(&report)
 	if pinnedNowGap != nil {
 		report.Gaps = append(report.Gaps, *pinnedNowGap)
