@@ -1,0 +1,4 @@
+change_type: breaking
+component: otlpreceiver
+note: Remove the `protocols.legacy_http` config key.
+issues: [1234]

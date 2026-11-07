@@ -1,0 +1,4 @@
+change_type: breaking
+component: service
+note: Remove `--a` and deprecate `--b`.
+issues: [1234]

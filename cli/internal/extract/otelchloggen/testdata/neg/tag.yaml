@@ -1,0 +1,4 @@
+change_type: breaking
+component: service
+note: !!binary UmVtb3Zl
+issues: [1]

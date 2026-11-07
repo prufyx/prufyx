@@ -1,0 +1,4 @@
+change_type: breaking
+component: service
+note: Remove the `--a` flag, instead rely on config.
+issues: [1234]

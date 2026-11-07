@@ -1,0 +1,4 @@
+change_type: deprecation
+component: service
+note: The `--a` flag will be deprecated.
+issues: [1234]

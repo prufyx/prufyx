@@ -1,0 +1,4 @@
+change_type: breaking
+component: mystery
+note: Remove the `--a` flag.
+issues: [1234]

@@ -1,0 +1,4 @@
+change_type: breaking
+component: service
+note: Remove the legacy option.
+issues: [1234]
