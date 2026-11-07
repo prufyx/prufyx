@@ -1,0 +1,116 @@
+{
+ "Lifecycle": [
+  {
+   "line": "1.2",
+   "standardEnd": "2016-10-23",
+   "precision": "day"
+  },
+  {
+   "line": "1.26",
+   "standardEnd": "2024-02-28",
+   "precision": "day"
+  },
+  {
+   "line": "1.33",
+   "standardEnd": "2026-06-28",
+   "precision": "day"
+  },
+  {
+   "line": "1.34",
+   "ga": "2025-08-27",
+   "standardEnd": "2026-10-27",
+   "maintenanceStart": "2026-08-27",
+   "precision": "day"
+  },
+  {
+   "line": "1.35",
+   "ga": "2025-12-17",
+   "standardEnd": "2027-02-17",
+   "maintenanceStart": "2026-12-17",
+   "precision": "day"
+  },
+  {
+   "line": "1.36",
+   "ga": "2026-04-22",
+   "standardEnd": "2027-06-22",
+   "maintenanceStart": "2027-04-22",
+   "precision": "day"
+  },
+  {
+   "line": "1.37",
+   "ga": "2026-08-26",
+   "standardEnd": "2027-10-28",
+   "maintenanceStart": "2027-08-28",
+   "precision": "day"
+  }
+ ],
+ "Lines": [
+  {
+   "Line": "1.2",
+   "ReleaseDate": "",
+   "MaintenanceStart": "",
+   "EndOfLife": "2016-10-23",
+   "FinalPatch": "1.2.7",
+   "NextPatch": "",
+   "LatestPatch": "1.2.7"
+  },
+  {
+   "Line": "1.26",
+   "ReleaseDate": "",
+   "MaintenanceStart": "",
+   "EndOfLife": "2024-02-28",
+   "FinalPatch": "1.26.15",
+   "NextPatch": "",
+   "LatestPatch": "1.26.15"
+  },
+  {
+   "Line": "1.33",
+   "ReleaseDate": "",
+   "MaintenanceStart": "",
+   "EndOfLife": "2026-06-28",
+   "FinalPatch": "1.33.13",
+   "NextPatch": "",
+   "LatestPatch": "1.33.13"
+  },
+  {
+   "Line": "1.34",
+   "ReleaseDate": "2025-08-27",
+   "MaintenanceStart": "2026-08-27",
+   "EndOfLife": "2026-10-27",
+   "FinalPatch": "",
+   "NextPatch": "",
+   "LatestPatch": ""
+  },
+  {
+   "Line": "1.35",
+   "ReleaseDate": "2025-12-17",
+   "MaintenanceStart": "2026-12-17",
+   "EndOfLife": "2027-02-17",
+   "FinalPatch": "",
+   "NextPatch": "",
+   "LatestPatch": ""
+  },
+  {
+   "Line": "1.36",
+   "ReleaseDate": "2026-04-22",
+   "MaintenanceStart": "2027-04-22",
+   "EndOfLife": "2027-06-22",
+   "FinalPatch": "",
+   "NextPatch": "1.36.6",
+   "LatestPatch": "1.36.6"
+  },
+  {
+   "Line": "1.37",
+   "ReleaseDate": "2026-08-26",
+   "MaintenanceStart": "2027-08-28",
+   "EndOfLife": "2027-10-28",
+   "FinalPatch": "",
+   "NextPatch": "1.37.2",
+   "LatestPatch": "1.37.2"
+  }
+ ],
+ "AsOf": "2026-11-07",
+ "Warnings": [
+  "1.34 is listed in the schedule but its end of life 2026-10-27 is past"
+ ]
+}

@@ -1,0 +1,38 @@
+{
+ "Lifecycle": [
+  {
+   "line": "1.34",
+   "ga": "2025-10-02",
+   "standardEnd": "2026-12-02",
+   "extendedEnd": "2027-12-02",
+   "extendedRequiresOptIn": false,
+   "precision": "day"
+  },
+  {
+   "line": "1.35",
+   "ga": "2026-01-29",
+   "standardEnd": "2027-03-29",
+   "extendedEnd": "2028-03-29",
+   "extendedRequiresOptIn": false,
+   "precision": "day"
+  },
+  {
+   "line": "1.36",
+   "ga": "2026-06-03",
+   "standardEnd": "2027-08-03",
+   "extendedEnd": "2028-08-03",
+   "extendedRequiresOptIn": false,
+   "precision": "day"
+  },
+  {
+   "line": "1.37",
+   "ga": "2026-10-01",
+   "standardEnd": "2027-12-01",
+   "extendedEnd": "2028-12-01",
+   "extendedRequiresOptIn": false,
+   "precision": "day"
+  }
+ ],
+ "NotYetReleased": null,
+ "Warnings": null
+}
