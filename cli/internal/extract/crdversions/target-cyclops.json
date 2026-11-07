@@ -11,7 +11,7 @@
     "minFrom": "0.16",
     "attest": true,
     "paths": [
-      {"path": "cyclops-ctrl/config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+      {"path": "cyclops-ctrl/config/crd/bases", "directory": true, "match": "^[^._][^/]*\\.ya?ml$", "guard": "(?i)crd"}
     ],
     "exclude": []
   }
