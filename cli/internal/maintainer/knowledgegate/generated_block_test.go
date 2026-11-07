@@ -351,3 +351,35 @@ func TestGateRendererSourceChange(t *testing.T) {
 		requireFail(t, r, "generated/"+readmePath)
 	})
 }
+
+// The published decided-pair and covered-project counts may not fall below
+// the committed baseline unless a named withdrawal accounts for the drop.
+func TestCoverageNumbersKeepBaseline(t *testing.T) {
+	t.Parallel()
+	root, err := filepath.Abs(repoRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tree := Tree{Root: root}
+	raw, err := tree.Read(coveragereport.BaselinePath, MaxFileBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := coveragereport.ParseBaseline(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, _, _, err := coverageReportOf(tree)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pp := map[string]int{}
+	for _, p := range report.Projects {
+		if p.A+p.B > 0 {
+			pp[p.Project] = p.A + p.B
+		}
+	}
+	if err := coveragereport.CheckBaseline(b, report.Fleet.A+report.Fleet.B, report.CRDPublishedProjects, pp); err != nil {
+		t.Fatal(err)
+	}
+}

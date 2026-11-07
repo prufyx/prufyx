@@ -1,0 +1,3 @@
+### Fixed
+
+- The README coverage block counts the dapr line attestations again. The lines snapshot keeps its 2026-10-31 capture date; only the dapr entry was re-captured on 2026-11-06 (it lists 1.17.19, 1.18.10 and 1.19.1), the other projects are the 2026-10-31 capture and no upstream recapture was done. A new `pinnedOn` field sets the date the block is evaluated on (2026-11-07, after the re-derivation) and the block prints it. A committed baseline test fails when the decided-pair or covered-project count falls without a named withdrawal, and a CI step refuses a pull request that lowers the baseline.

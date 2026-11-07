@@ -125,6 +125,11 @@ lines are calendar months `YY.M` (month 1 to 12), its releases `YY.M.N`, and
 the line before `YY.1` is `(YY-1).12`. Absent means final semver tags. Any
 other value is rejected.
 
+`pinnedOn` is optional (`YYYY-MM-DD`, not before `capturedOn`): the date the
+README coverage block is evaluated on, noon of that day. It is not a capture
+date and is printed beside it. Absent, the block is evaluated on `capturedOn`.
+A binary that predates it rejects a file that holds it.
+
 `releases` maps a line to the final releases of that line, ascending
 (`"releases": {"1.28": ["1.28.0", "1.28.1"]}`). Every key must be a listed
 line and every version a final release of that line. The ALL window compares

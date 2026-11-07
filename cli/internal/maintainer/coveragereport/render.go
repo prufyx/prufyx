@@ -40,7 +40,11 @@ func (r Report) Markdown() []byte {
 	if captured == "" {
 		captured = "not stated"
 	}
-	fmt.Fprintf(&b, "- Lines snapshot: `%s` (captured %s)\n", r.Lines.Digest, captured)
+	if r.Lines.PinnedOn != "" {
+		fmt.Fprintf(&b, "- Lines snapshot: `%s` (captured %s, evaluated on %s)\n", r.Lines.Digest, captured, r.Lines.PinnedOn)
+	} else {
+		fmt.Fprintf(&b, "- Lines snapshot: `%s` (captured %s)\n", r.Lines.Digest, captured)
+	}
 	fmt.Fprintf(&b, "- Projects with a valid rule or attestation in the pack: %d\n\n", r.PackProjects)
 
 	b.WriteString("## Fleet\n\n")

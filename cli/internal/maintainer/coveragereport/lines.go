@@ -59,8 +59,12 @@ const maxLineReleases = 1024
 type LinesFile struct {
 	Schema string `json:"schema"`
 	// CapturedOn is an optional YYYY-MM-DD date of the snapshot.
-	CapturedOn string                  `json:"capturedOn,omitempty"`
-	Projects   map[string]ProjectLines `json:"projects"`
+	CapturedOn string `json:"capturedOn,omitempty"`
+	// PinnedOn is an optional YYYY-MM-DD date the snapshot is evaluated on
+	// (the README block clock is noon of that day). It is not a capture date;
+	// it is absent when the snapshot is evaluated on its capture date.
+	PinnedOn string                  `json:"pinnedOn,omitempty"`
+	Projects map[string]ProjectLines `json:"projects"`
 }
 
 var (
@@ -84,6 +88,12 @@ func ParseLines(raw []byte) (LinesFile, error) {
 	}
 	if f.CapturedOn != "" && !dateRE.MatchString(f.CapturedOn) {
 		return LinesFile{}, fmt.Errorf("%w: lines: capturedOn is not a date", ErrInvalid)
+	}
+	if f.PinnedOn != "" && !dateRE.MatchString(f.PinnedOn) {
+		return LinesFile{}, fmt.Errorf("%w: lines: pinnedOn is not a date", ErrInvalid)
+	}
+	if f.PinnedOn != "" && f.CapturedOn != "" && f.PinnedOn < f.CapturedOn {
+		return LinesFile{}, fmt.Errorf("%w: lines: pinnedOn is before capturedOn", ErrInvalid)
 	}
 	if len(f.Projects) == 0 {
 		return LinesFile{}, fmt.Errorf("%w: lines: no projects", ErrInvalid)

@@ -169,6 +169,7 @@ type Report struct {
 	} `json:"pack"`
 	Lines struct {
 		CapturedOn string `json:"capturedOn,omitempty"`
+		PinnedOn   string `json:"pinnedOn,omitempty"`
 		Digest     string `json:"digest"`
 	} `json:"lines"`
 	// LinesSnapshot and Declared are present in the ALL window only: the
@@ -520,6 +521,7 @@ func Compute(in Input) (Report, error) {
 	report.Pack.Schema = pack.Schema
 	report.Pack.Digest = digestOf(in.Pack)
 	report.Lines.CapturedOn = linesFile.CapturedOn
+	report.Lines.PinnedOn = linesFile.PinnedOn
 	report.Lines.Digest = digestOf(in.Lines)
 
 	var comp *completer
