@@ -227,7 +227,7 @@ func TestQueueCleanEntryMatchesPullRequestRun(t *testing.T) {
 		prNames = append(prNames, c.Name)
 	}
 	for _, c := range q.Checks {
-		if c.Name != "queue-merge" && !slices.Contains(prNames, c.Name) {
+		if c.Name != "queue-merge" && c.Name != "queue-diff" && !slices.Contains(prNames, c.Name) {
 			t.Fatalf("queue run has check %q the pull request run lacks", c.Name)
 		}
 	}

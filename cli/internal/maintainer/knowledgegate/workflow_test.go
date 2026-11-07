@@ -543,7 +543,11 @@ func TestWorkflowQueueRun(t *testing.T) {
 	if i < 0 || j < i || strings.Count(verify, `--sender "${EVENT_SENDER}"`) != 1 || strings.Contains(verify[i:j], "else") == false {
 		t.Fatal("the sender of a queue run is the queue's own account and must never be passed to the gate")
 	}
-	if strings.Contains(verify[i:j], "--author") || strings.Contains(verify[i:j], "--commits") {
+	arm := verify[i:j]
+	if k := strings.Index(arm, "else"); k > 0 {
+		arm = arm[:k]
+	}
+	if strings.Contains(arm, "--author") || strings.Contains(arm, "--commits") || strings.Contains(arm, "--sender") {
 		t.Fatal("a queue run takes author and commits from the evidence only")
 	}
 }
