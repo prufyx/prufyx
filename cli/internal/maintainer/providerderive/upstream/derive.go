@@ -25,19 +25,12 @@ type Input struct {
 	Data  []byte
 }
 
-// Status of a minor on the reference day.
-const (
-	StatusSupported   = "supported"
-	StatusMaintenance = "maintenance"
-	StatusEOL         = "eol"
-)
-
-// Line is one upstream minor with its status on the reference day. Presence
-// in schedule.yaml does not mean supported: Status is by date.
+// Line is one upstream minor. Presence in schedule.yaml does not mean
+// supported: no status is exported, evaluation decides by date against its
+// own --now.
 type Line struct {
 	Minor
 	LatestPatch string // stable marker patch for the stable line, else NextPatch
-	Status      string
 }
 
 // Result is the deterministic derivation.
@@ -47,8 +40,10 @@ type Result struct {
 	// precision, no extended end. Advisory, never a SAFE signal.
 	Lifecycle []distribution.Lifecycle
 	Lines     []Line
-	AsOf      string // YYYY-MM-DD, the later fetch day of the two excerpts
-	Warnings  []string
+	// AsOf is the later fetch day of the two excerpts. Advisory, computed at
+	// derive time; it is not copied into lifecycle rows.
+	AsOf     string // YYYY-MM-DD
+	Warnings []string
 }
 
 var sourceRE = regexp.MustCompile(`^https://(?:raw\.githubusercontent\.com/kubernetes/website/(main|[0-9a-f]{40})|github\.com/kubernetes/website/blob/(main|[0-9a-f]{40}))/data/releases/(schedule|eol)\.yaml$`)
@@ -101,15 +96,7 @@ func Derive(schedule, eol Input, stable []byte) (Result, error) {
 	var order []string
 	for _, m := range s.Minors {
 		l := &Line{Minor: m, LatestPatch: m.NextPatch}
-		switch {
-		case asOf >= m.EndOfLife:
-			l.Status = StatusEOL
-		case asOf >= m.MaintenanceStart:
-			l.Status = StatusMaintenance
-		default:
-			l.Status = StatusSupported
-		}
-		if l.Status == StatusEOL {
+		if asOf >= m.EndOfLife {
 			res.Warnings = append(res.Warnings, fmt.Sprintf("%s is listed in the schedule but its end of life %s is past", m.Line, m.EndOfLife))
 		}
 		byLine[m.Line] = l
@@ -119,7 +106,7 @@ func Derive(schedule, eol Input, stable []byte) (Result, error) {
 		if _, dup := byLine[m.Line]; dup {
 			return Result{}, shared.Drift(shared.KindConflict, "line %s is in both the schedule and the end-of-life list", m.Line)
 		}
-		byLine[m.Line] = &Line{Minor: m, LatestPatch: m.FinalPatch, Status: StatusEOL}
+		byLine[m.Line] = &Line{Minor: m, LatestPatch: m.FinalPatch}
 		order = append(order, m.Line)
 	}
 	if stable != nil {

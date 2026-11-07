@@ -243,3 +243,36 @@ func TestTBDRow(t *testing.T) {
 		t.Fatalf("%+v", l)
 	}
 }
+
+func TestNotYetReleasedPrecision(t *testing.T) {
+	const day = "2026-11-07" // 2026-Q4
+	cell := func(v, p string) shared.Cell { return shared.Cell{Value: v, Precision: p} }
+	for _, c := range []struct {
+		name, up, rel, relP string
+		future              bool
+	}{
+		{"future quarter", "2026-10-01", "2027-Q1", "quarter", true},
+		{"current quarter", "2026-10-01", "2026-Q4", "quarter", false},
+		{"past quarter", "2026-07-01", "2026-Q3", "quarter", false},
+		{"future month", "2026-10-01", "2026-12", "month", true},
+		{"current month", "2026-10-01", "2026-11", "month", false},
+		{"future upstream month", "2026-12", "2026-11", "month", true},
+		{"current upstream month", "2026-11", "2026-11", "month", false},
+	} {
+		upP := distribution.PrecisionDay
+		if len(c.up) == 7 {
+			upP = distribution.PrecisionMonth
+		}
+		res, err := FromRows([]Row{{Line: "1.99", Upstream: cell(c.up, upP), Release: cell(c.rel, c.relP),
+			StandardEnd: cell("2028-01", "month"), ExtendedEnd: cell("2029-01", "month")}}, day)
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		if c.future && (len(res.NotYetReleased) != 1 || len(res.Lifecycle) != 0) {
+			t.Fatalf("%s: want not yet released, got %+v", c.name, res)
+		}
+		if !c.future && (len(res.NotYetReleased) != 0 || len(res.Lifecycle) != 1) {
+			t.Fatalf("%s: want released row, got %+v", c.name, res)
+		}
+	}
+}

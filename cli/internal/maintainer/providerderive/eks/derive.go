@@ -44,6 +44,11 @@ var (
 	lineRE   = regexp.MustCompile(`^eks (1\.(?:0|[1-9][0-9]{0,5})) upstream ` + dateTok + ` release ` + dateTok + ` standard-end ` + dateTok + ` extended-end ` + dateTok + `$`)
 )
 
+// extendedRequiresOptIn is the single source of the opt-in flag written to
+// every row. EXTENDED SUPPORT AUTOMATIC ON EKS: confirm from an official
+// source sentence before shipping in a pack. A change is one reviewed edit.
+const extendedRequiresOptIn = false
+
 func tokCell(t string) (shared.Cell, error) {
 	if t == "tbd" {
 		return shared.ParseCell("TBD", false)
@@ -91,24 +96,34 @@ func Derive(in Input) (Result, error) {
 	return FromRows(rows, day)
 }
 
+// afterDay reports whether a dated cell lies after the fetch day (YYYY-MM-DD)
+// at the cell's own precision: day, month (YYYY-MM) and quarter (YYYY-Qn). A
+// month or quarter that contains the fetch day is not after it.
+func afterDay(c shared.Cell, day string) bool {
+	switch c.Precision {
+	case distribution.PrecisionDay:
+		return c.Value > day
+	case distribution.PrecisionMonth:
+		return c.Value > day[:7]
+	case distribution.PrecisionQuarter:
+		mo := int(day[5]-'0')*10 + int(day[6]-'0')
+		return c.Value > fmt.Sprintf("%s-Q%d", day[:4], (mo-1)/3+1)
+	}
+	return false
+}
+
 // FromRows derives lifecycle rows from a parsed table as of a fetch day
 // (YYYY-MM-DD).
 func FromRows(rows []Row, day string) (Result, error) {
 	var res Result
-	optIn := false
 	for _, r := range rows {
-		if r.Release.Precision == distribution.PrecisionDay || r.Release.Precision == distribution.PrecisionMonth {
-			future := (r.Upstream.Precision == distribution.PrecisionDay && r.Upstream.Value > day) ||
-				(r.Release.Precision == distribution.PrecisionDay && r.Release.Value > day) ||
-				(r.Release.Precision == distribution.PrecisionMonth && r.Release.Value > day[:7])
-			if future {
-				res.NotYetReleased = append(res.NotYetReleased, r.Line)
-				continue
-			}
+		if afterDay(r.Upstream, day) || afterDay(r.Release, day) {
+			res.NotYetReleased = append(res.NotYetReleased, r.Line)
+			continue
 		}
 		l := distribution.Lifecycle{Line: r.Line, Precision: r.Release.Precision}
 		if r.Release.Precision != distribution.PrecisionTBD {
-			opt := optIn
+			opt := extendedRequiresOptIn
 			l.GA, l.StandardEnd, l.ExtendedEnd = r.Release.Value, r.StandardEnd.Value, r.ExtendedEnd.Value
 			l.ExtendedRequiresOptIn = &opt
 		}

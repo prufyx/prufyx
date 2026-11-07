@@ -74,10 +74,7 @@ func TestDeriveGolden(t *testing.T) {
 		t.Fatal("not deterministic")
 	}
 	for _, l := range res.Lines {
-		if l.Line == "1.34" && l.Status != StatusEOL {
-			t.Fatalf("1.34 is past its end of life by date but status is %s", l.Status)
-		}
-		if l.Line == "1.37" && (l.Status != StatusSupported || l.LatestPatch != "1.37.2") {
+		if l.Line == "1.37" && l.LatestPatch != "1.37.2" {
 			t.Fatalf("1.37 %+v", l)
 		}
 	}

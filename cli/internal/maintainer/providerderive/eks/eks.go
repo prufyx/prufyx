@@ -5,6 +5,12 @@
 // of that table into lifecycle rows of the distribution record shape. It is
 // pure: bytes in, rows out, no network, no clock, no join to eks-distro.
 // Extended support is automatic on EKS, so extendedRequiresOptIn is false.
+//
+// The later watcher that fetches the page and commits the excerpt must
+// guarantee: excerpts are generated only through ParseMarkdown, ParseHTML,
+// Agree and Canonical (a hand-edited excerpt is rejected); each excerpt is
+// bound to the fetched digest, status and content type, and any drift fails
+// closed; the markdown and HTML checks use the same fetch day.
 package eks
 
 import (
