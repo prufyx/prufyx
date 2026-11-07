@@ -1,0 +1,8 @@
+apiVersion: v2
+name: demo
+version: 1.2.3
+surprise: true
+annotations:
+  artifacthub.io/changes: |
+    - kind: removed
+      description: Removed `--a` flag.
