@@ -44,6 +44,17 @@ func (*issueRef) UnmarshalYAML(n *yaml.Node) error {
 	return nil
 }
 
+// logName accepts one string scalar (a change_logs entry).
+type logName string
+
+func (l *logName) UnmarshalYAML(n *yaml.Node) error {
+	if n.Kind != yaml.ScalarNode || n.Tag != "!!str" {
+		return errors.New("expected a string")
+	}
+	*l = logName(n.Value)
+	return nil
+}
+
 // fragment is the closed shape of a .chloggen entry. Unknown fields fail the
 // decode.
 type fragment struct {
@@ -52,6 +63,9 @@ type fragment struct {
 	Note       text       `yaml:"note"`
 	Issues     []issueRef `yaml:"issues"`
 	Subtext    text       `yaml:"subtext"`
+	// ChangeLogs is checked against a closed set and otherwise ignored: it
+	// takes no part in classification or the quote.
+	ChangeLogs []logName `yaml:"change_logs"`
 }
 
 // decodeFragment parses exactly one YAML document strictly: unknown fields,
@@ -89,6 +103,9 @@ func checkNode(n *yaml.Node, depth int) error {
 	}
 	if n.Kind == yaml.AliasNode || n.Anchor != "" {
 		return errors.New("alias or anchor")
+	}
+	if n.Style&yaml.TaggedStyle != 0 {
+		return errors.New("explicit tag")
 	}
 	if n.Kind != yaml.DocumentNode && !allowedTags[n.Tag] {
 		return fmt.Errorf("tag %q", n.Tag)

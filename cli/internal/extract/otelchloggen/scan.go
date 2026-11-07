@@ -30,6 +30,7 @@ const (
 	MaxFragmentBytes         = 64 << 10
 	MaxQuoteBytes            = 4096
 	MaxIssues                = 32
+	MaxChangeLogs            = 4
 	MaxCandidatesPerFragment = 32
 	MaxCandidates            = 4096
 )
@@ -125,6 +126,12 @@ var knownComponents = map[string]string{
 var changeTypes = map[string]bool{
 	"breaking": true, "deprecation": true, "new_component": true, "enhancement": true, "bug_fix": true,
 }
+
+// changeLogNames is the closed set of change_logs values.
+var changeLogNames = map[logName]bool{"user": true, "api": true}
+
+// fileSuffixes are never a config key: a token that ends in one names a file.
+var fileSuffixes = []string{".yaml", ".yml", ".json", ".go", ".md"}
 
 // ignoredNames are the two non-fragment files the tool keeps in the same
 // directory. They are skipped by name and nothing else is.
@@ -282,9 +289,15 @@ func ledgerSafeItem(p string) string {
 func (s *scanner) fragment(file string, data []byte) []Candidate {
 	f, err := decodeFragment(data)
 	if err != nil || !componentRE.MatchString(f.Component) || strings.TrimSpace(f.Note.Value) == "" ||
-		len(f.Issues) == 0 || len(f.Issues) > MaxIssues {
+		len(f.Issues) == 0 || len(f.Issues) > MaxIssues || len(f.ChangeLogs) > MaxChangeLogs {
 		s.l.add(ReasonParse, file)
 		return nil
+	}
+	for _, c := range f.ChangeLogs {
+		if !changeLogNames[c] {
+			s.l.add(ReasonParse, file)
+			return nil
+		}
 	}
 	if !changeTypes[f.ChangeType] {
 		s.l.add(ReasonChangeTypeUnknown, file)
@@ -462,6 +475,11 @@ func classify(t string) (token, bool) {
 			return token{}, true
 		}
 		return token{typ: TypeFlag, member: mem}, true
+	}
+	for _, suf := range fileSuffixes {
+		if strings.HasSuffix(t, suf) {
+			return token{}, false
+		}
 	}
 	if keyRE.MatchString(t) && !reservedKeys[t] {
 		var segs []membercode.Seg
