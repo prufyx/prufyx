@@ -43,12 +43,18 @@ x="${parts[2]}"
 
 # c. the pull request is open, targets main, comes from a topic branch, and is at X
 json="$(gh api "repos/${REPO}/pulls/${pr}")" || fail "cannot read pull request ${pr}"
-field() { printf '%s' "${json}" | jq -er "$1" 2>/dev/null || fail "pull request ${pr}: missing $1"; }
-state="$(field .state)"
-base_ref="$(field .base.ref)"
-head_ref="$(field .head.ref)"
-head_sha="$(field .head.sha)"
-commits="$(field .commits)"
+# field NAME PATH: set NAME from the payload; a missing or null value fails (the
+# error is printed here, outside a command substitution, so it is not swallowed).
+field() {
+  local val
+  val="$(printf '%s' "${json}" | jq -er "$2" 2>/dev/null)" || fail "pull request ${pr}: missing $2"
+  printf -v "$1" '%s' "${val}"
+}
+field state .state
+field base_ref .base.ref
+field head_ref .head.ref
+field head_sha .head.sha
+field commits .commits
 [ "${state}" = "open" ] || fail "pull request ${pr} is ${state}, not open"
 [ "${base_ref}" = "main" ] || fail "pull request ${pr} targets ${base_ref}, not main"
 [ "${head_ref}" != "main" ] || fail "pull request ${pr} comes from main, not a topic branch"
