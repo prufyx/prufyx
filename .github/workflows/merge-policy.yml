@@ -12,6 +12,8 @@ on:
     branches: [main]
   push:
     branches: [main]
+  merge_group:
+    types: [checks_requested]
 
 permissions:
   contents: read
@@ -21,6 +23,9 @@ jobs:
     name: Merge policy
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - name: Pull request comes from a topic branch
         if: github.event_name == 'pull_request'
@@ -87,3 +92,32 @@ jobs:
             exit 1
           fi
           echo "every change on main since ${POLICY_START} arrived as a merge commit"
+
+      - name: Checkout the queue commit with full history
+        if: github.event_name == 'merge_group'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.merge_group.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Queue commit is a merge of one open pull request on the main chain
+        if: github.event_name == 'merge_group'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          QUEUE_REF: ${{ github.ref }}
+          QUEUE_SHA: ${{ github.sha }}
+          MQ_BASE_REF: ${{ github.event.merge_group.base_ref }}
+          MQ_BASE_SHA: ${{ github.event.merge_group.base_sha }}
+          MQ_HEAD_REF: ${{ github.event.merge_group.head_ref }}
+          MQ_HEAD_SHA: ${{ github.event.merge_group.head_sha }}
+        run: scripts/merge-policy-queue.sh
+
+      - name: Unknown event fails closed
+        if: github.event_name != 'pull_request' && github.event_name != 'push' && github.event_name != 'merge_group'
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          echo "::error title=Merge policy::no policy for event ${EVENT_NAME}"
+          exit 1
