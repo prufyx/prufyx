@@ -170,3 +170,21 @@ class OptionalRemoteTests(unittest.TestCase):
     def test_validate_target_rejects_non_boolean_optional(self):
         t = {"repo": "o/r", "tagPrefixes": ["v"], "paths": [{"path": "crds", "directory": True, "match": "y$", "optional": "yes"}]}
         self.assertNotEqual(oracle.validate_target(t)[1], "")
+
+
+class RealGitProbeTests(unittest.TestCase):
+    def test_absent_path_is_empty_and_present_path_lists(self):
+        with tempfile.TemporaryDirectory() as td:
+            env = dict(os.environ, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@e.x", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@e.x")
+            def git(*a):
+                subprocess.run(["git", "-C", td, *a], check=True, capture_output=True, env=env)
+            git("init", "-q")
+            Path(td, "crds").mkdir()
+            Path(td, "crds", "a.yaml").write_text("kind: X\n")
+            git("add", "."); git("commit", "-qm", "c"); git("tag", "v1")
+            self.assertFalse(oracle.path_absent(td + "/.git", "v1", "crds"))
+            self.assertFalse(oracle.path_absent(td + "/.git", "v1", "crds/a.yaml"))
+            self.assertTrue(oracle.path_absent(td + "/.git", "v1", "nope"))
+            self.assertTrue(oracle.path_absent(td + "/.git", "v1", "nope/sub"))
+            with self.assertRaises(ValueError):
+                oracle.path_absent(td + "/.git", "nosuchtag", "crds")
