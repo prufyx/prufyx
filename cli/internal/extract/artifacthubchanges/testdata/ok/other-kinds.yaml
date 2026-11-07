@@ -1,0 +1,15 @@
+apiVersion: v2
+name: demo
+version: 1.2.3
+annotations:
+  artifacthub.io/changes: |
+    - kind: added
+      description: Added `--new-flag` support.
+    - kind: changed
+      description: Removed `--changed-flag` from the docs.
+    - kind: fixed
+      description: Fixed `--fixed-flag` handling.
+    - kind: security
+      description: Deprecated `--sec-flag` in a CVE fix.
+    - kind: removed
+      description: "Removed `--gone` flag."
