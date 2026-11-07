@@ -318,9 +318,10 @@ func TestCRDWithhold(t *testing.T) {
 				return strings.Replace(s, "app.kubernetes.io/part-of: fixture", "app.kubernetes.io/part-of: \"{{ .Release.Name }}\"", 1)
 			})
 		}, "contains template syntax"},
-		{"v1beta1 CRD", func(t *testing.T, dir string) {
+		{"v1beta1 CRD without served and storage lines", func(t *testing.T, dir string) {
 			edit(t, filepath.Join(dir, "gadget-crd.yaml"), func(s string) string {
-				return strings.Replace(s, "apiextensions.k8s.io/v1\n", "apiextensions.k8s.io/v1beta1\n", 1)
+				s = strings.Replace(s, "apiextensions.k8s.io/v1\n", "apiextensions.k8s.io/v1beta1\n", 1)
+				return strings.Replace(s, "    served: false\n", "", 1)
 			})
 		}, "only apiextensions.k8s.io/v1 is read"},
 		{"duplicate CRD name", func(t *testing.T, dir string) {
