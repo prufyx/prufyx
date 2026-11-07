@@ -1,0 +1,3 @@
+### Added
+
+- Maintainer tooling: pure extractors that turn the GKE release schedule page and release-notes feed, and the AKS supported-versions page and release list, into provider lifecycle rows of the distribution record shape. Page parsing is strict (exact header set, every row and cell, one bad row is a typed drift error with no partial output); precision is day, month, quarter or tbd per row; extended support always carries the opt-in flag; preview builds are prerelease and never a release fact. Derivation reads committed paraphrase excerpts only, offline. Not wired into any registry, pack or scan; no shipped data uses it.

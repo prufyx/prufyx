@@ -1,0 +1,94 @@
+{
+  "Lifecycle": [
+    {
+      "line": "1.70",
+      "ga": "2030-07",
+      "standardEnd": "2031-08",
+      "extendedEnd": "2032-07",
+      "extendedRequiresOptIn": true,
+      "precision": "month"
+    },
+    {
+      "line": "1.72",
+      "ga": "2031-04",
+      "standardEnd": "2032-03",
+      "extendedEnd": "2033-03",
+      "extendedRequiresOptIn": true,
+      "precision": "month"
+    },
+    {
+      "line": "1.73",
+      "ga": "2031-08",
+      "standardEnd": "2032-07",
+      "extendedEnd": "2033-07",
+      "extendedRequiresOptIn": true,
+      "precision": "month"
+    },
+    {
+      "line": "1.74",
+      "ga": "2031-12",
+      "standardEnd": "2032-11",
+      "extendedEnd": "2033-11",
+      "extendedRequiresOptIn": true,
+      "precision": "month"
+    },
+    {
+      "line": "1.75",
+      "ga": "2032-04",
+      "standardEnd": "2033-03",
+      "precision": "month"
+    },
+    {
+      "line": "1.76",
+      "ga": "2032-08",
+      "standardEnd": "2033-07",
+      "precision": "month"
+    },
+    {
+      "line": "1.77",
+      "ga": "2032-12",
+      "standardEnd": "2033-11",
+      "precision": "month"
+    }
+  ],
+  "Prerelease": [
+    "1.78"
+  ],
+  "PlatformUpgrade": {
+    "1.70": {
+      "Value": "2033-06",
+      "Precision": "month",
+      "Estimate": false
+    },
+    "1.72": {
+      "Value": "2033-06",
+      "Precision": "month",
+      "Estimate": false
+    },
+    "1.73": {
+      "Value": "2033-10",
+      "Precision": "month",
+      "Estimate": false
+    },
+    "1.74": {
+      "Value": "2034-02",
+      "Precision": "month",
+      "Estimate": false
+    },
+    "1.75": {
+      "Value": "2034-06",
+      "Precision": "month",
+      "Estimate": false
+    },
+    "1.76": {
+      "Value": "2034-10",
+      "Precision": "month",
+      "Estimate": false
+    },
+    "1.77": {
+      "Value": "2035-02",
+      "Precision": "month",
+      "Estimate": false
+    }
+  }
+}
