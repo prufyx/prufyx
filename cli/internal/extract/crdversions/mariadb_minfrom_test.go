@@ -70,24 +70,23 @@ func TestMariadbOperatorLinesFrom034(t *testing.T) {
 // operator's. The target excludes exactly that path; the exclusion must
 // clear that one finding and no other.
 func TestMariadbOperatorVendoredExampleExclusion(t *testing.T) {
-	const vendored = "examples/flux/clusters/production/flux-system/gotk-components.yaml"
+	const dir = "examples/flux/clusters/production/flux-system/"
+	const vendored = dir + "gotk-components.yaml"
 	tg := mariadbTarget(t)
-	var entry *Exclusion
-	for i := range tg.Exclude {
-		if tg.Exclude[i].Path == vendored {
-			entry = &tg.Exclude[i]
-		}
+	if len(tg.Exclude) != 1 || tg.Exclude[0].Path != dir || tg.Exclude[0].Repo != tg.Repo || tg.Exclude[0].Copies || tg.Exclude[0].PrePatch != "" {
+		t.Fatalf("exclude %+v: want exactly one plain directory entry %s", tg.Exclude, dir)
 	}
-	if entry == nil || len(tg.Exclude) != 1 || entry.Repo != tg.Repo || entry.Copies || entry.PrePatch != "" {
-		t.Fatalf("exclude %+v: want exactly one plain entry for %s", tg.Exclude, vendored)
-	}
-	if got := tg.placeOf(vendored); got.kind != locReviewed || got.entry != vendored {
+	if got := tg.placeOf(vendored); got.kind != locReviewed || got.entry != dir {
 		t.Fatalf("place %+v", got)
 	}
+	// The directory also holds the kustomization that lists the manifest:
+	// the install-surface guard must not void the entry.
+	kustomization := "resources:\n  - gotk-components.yaml\n"
 	build := func(extra string) synthRepo {
 		files := func(v string) map[string]string {
 			f := map[string]string{"config/crd/bases/mariadb.yaml": crd("Alpha", v)}
 			f[extra] = crd("Gamma", "v1")
+			f[dir+"kustomization.yaml"] = kustomization
 			return f
 		}
 		return newSynth(
@@ -95,13 +94,14 @@ func TestMariadbOperatorVendoredExampleExclusion(t *testing.T) {
 			release{"v0.35.0", files("v1beta1")},
 		)
 	}
-	// The vendored manifest at its exact path: the scan is clean.
-	_, proof := pairOf(t, runSynth(t, tg, build(vendored)), "0.34.0", "0.35.0")
-	if !proof.Completeness.Scan || !proof.Completeness.Attestable {
-		t.Fatalf("with the exclusion: %+v", proof.Completeness)
+	for _, in := range []string{vendored, dir + "other-name.yaml"} {
+		_, proof := pairOf(t, runSynth(t, tg, build(in)), "0.34.0", "0.35.0")
+		if !proof.Completeness.Scan || !proof.Completeness.Attestable {
+			t.Fatalf("a definition file inside the excluded directory (%s) is excluded by design: %+v", in, proof.Completeness)
+		}
 	}
-	// An extra definition file anywhere else still blocks, a sibling of the
-	// same name in another environment directory included.
+	// An extra definition file in any other directory still blocks, a
+	// sibling environment included.
 	for _, other := range []string{
 		"examples/flux/clusters/staging/flux-system/gotk-components.yaml",
 		"examples/other/crds.yaml",
