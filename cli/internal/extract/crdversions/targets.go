@@ -534,6 +534,12 @@ func (tj targetJSON) target() (Target, error) {
 				if exclusionMatches(other.Path, ej.Path) || exclusionMatches(other.Path, path.Dir(ej.Path)+"/") {
 					return t, fmt.Errorf("exclusion %q: defines none under the exclusion %q, which would place its files", ej.Path, other.Path)
 				}
+				// A pattern earlier in the same directory would win
+				// first-match placement for some of the files the entry
+				// names, and the claim would be checked only in part.
+				if path.Dir(other.Path) == path.Dir(ej.Path) && strings.ContainsAny(path.Base(other.Path), "*?[\\") {
+					return t, fmt.Errorf("exclusion %q: defines none after the glob pattern %q in the same directory, which could place some of its files", ej.Path, other.Path)
+				}
 			}
 		}
 		if ej.PrePatch != "" {
