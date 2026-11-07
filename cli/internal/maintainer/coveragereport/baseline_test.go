@@ -3,7 +3,9 @@
 package coveragereport
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -81,26 +83,70 @@ func TestCheckBaselineMove(t *testing.T) {
 	}
 }
 
+// compareBaselineFiles reads the baseline on main and the baseline of this
+// tree and refuses when either is missing, unreadable or invalid, or when
+// the second lowers the first. It never treats a missing file as success.
+func compareBaselineFiles(mainPath, headPath string) error {
+	read := func(p string) (Baseline, error) {
+		raw, err := os.ReadFile(p)
+		if err != nil {
+			return Baseline{}, err
+		}
+		return ParseBaseline(raw)
+	}
+	m, err := read(mainPath)
+	if err != nil {
+		return fmt.Errorf("base baseline: %w", err)
+	}
+	h, err := read(headPath)
+	if err != nil {
+		return fmt.Errorf("head baseline: %w", err)
+	}
+	return CheckBaselineMove(m, h)
+}
+
 // TestBaselineNotLowered is the CI step's check: PRUFYX_BASELINE_MAIN names
 // a copy of the baseline on main; the baseline of this tree must not lower it.
+// With PRUFYX_BASELINE_REQUIRED set (CI) an unset PRUFYX_BASELINE_MAIN fails
+// instead of skipping.
 func TestBaselineNotLowered(t *testing.T) {
 	path := os.Getenv("PRUFYX_BASELINE_MAIN")
 	if path == "" {
+		if os.Getenv("PRUFYX_BASELINE_REQUIRED") != "" {
+			t.Fatal("PRUFYX_BASELINE_MAIN not set but the comparison is required")
+		}
 		t.Skip("PRUFYX_BASELINE_MAIN not set")
 	}
-	read := func(p string) Baseline {
-		raw, err := os.ReadFile(p)
-		if err != nil {
-			t.Fatal(err)
-		}
-		b, err := ParseBaseline(raw)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return b
-	}
-	if err := CheckBaselineMove(read(path), read("testdata/readme-baseline.json")); err != nil {
+	if err := compareBaselineFiles(path, "testdata/readme-baseline.json"); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestCompareBaselineFilesFailsClosed(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	good := filepath.Join(dir, "good.json")
+	if err := os.WriteFile(good, []byte(`{"decidedPairs":2,"crdPublishedProjects":1,"withdrawals":[]}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	empty := filepath.Join(dir, "empty.json")
+	if err := os.WriteFile(empty, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	missing := filepath.Join(dir, "missing.json")
+	if err := compareBaselineFiles(good, good); err != nil {
+		t.Fatalf("identical valid files: %v", err)
+	}
+	for name, c := range map[string][2]string{
+		"missing base file": {missing, good},
+		"deleted head file": {good, missing},
+		"empty base file":   {empty, good},
+		"empty head file":   {good, empty},
+		"both missing":      {missing, missing},
+	} {
+		if err := compareBaselineFiles(c[0], c[1]); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
 	}
 }
 
