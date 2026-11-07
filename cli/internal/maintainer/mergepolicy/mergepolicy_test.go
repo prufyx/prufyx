@@ -156,7 +156,11 @@ func newScenario(t *testing.T) *scenario {
 
 func (s *scenario) run(t *testing.T) (string, error) {
 	t.Helper()
-	cmd := exec.Command("bash", filepath.Join(repoRoot, "scripts", "merge-policy-queue.sh"))
+	script, err := filepath.Abs(filepath.Join(repoRoot, "scripts", "merge-policy-queue.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("bash", script)
 	cmd.Dir = s.dir
 	cmd.Env = []string{"PATH=" + s.bin + ":" + os.Getenv("PATH"), "HOME=" + s.dir, "GIT_CONFIG_GLOBAL=/dev/null", "GH_JSON=" + s.json}
 	for k, v := range s.env {
@@ -172,6 +176,24 @@ func TestQueuePositive(t *testing.T) {
 	if out, err := s.run(t); err != nil {
 		t.Fatalf("positive case failed: %v\n%s", err, out)
 	}
+}
+
+var wantMsg = map[string]string{
+	"wrong ref shape":     "queue ref shape",
+	"sha differs":         "not the merge_group head",
+	"base ref not main":   "base_ref",
+	"missing input":       "missing input",
+	"one parent":          "exactly 2 parents",
+	"parent1 not base":    "first parent",
+	"head not X":          "second parent",
+	"pr closed":           "not open",
+	"pr base not main":    "not main",
+	"head ref is main":    "topic branch",
+	"commit count":        "by the API",
+	"unresolved pr":       "cannot read pull request",
+	"empty api payload":   "missing",
+	"merge inside pr":     "merge commits",
+	"base lacks main tip": "main tip",
 }
 
 func TestQueueNegative(t *testing.T) {
@@ -227,8 +249,12 @@ func TestQueueNegative(t *testing.T) {
 			s := newScenario(t)
 			git(t, s.dir, "checkout", "-q", "--detach", s.queue)
 			mutate(t, s)
-			if out, err := s.run(t); err == nil {
+			out, err := s.run(t)
+			if err == nil {
 				t.Fatalf("expected failure, got success:\n%s", out)
+			}
+			if !strings.Contains(out, wantMsg[name]) {
+				t.Fatalf("failed for another reason (want %q):\n%s", wantMsg[name], out)
 			}
 		})
 	}
