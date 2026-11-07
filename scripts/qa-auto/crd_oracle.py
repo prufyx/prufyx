@@ -241,6 +241,11 @@ def prepare(proj, cov, plan):
 
     if comp is None:
         pairs = adjacent_pairs(sorted(lines), tj.get("minFrom"), proj)
+        if tj.get("minFrom") and lines_from(sorted(lines), "") != lines_from(sorted(lines), tj.get("minFrom")):
+            # target data has no independent earliest-served field: releases below minFrom were not observed
+            plan["floor_unknown"] = dict(floor=tj["minFrom"], evidence="minFrom is declared, not independently observed below the floor",
+                reason="earliest served line unverified for uninspected releases; no PASS claim below minFrom",
+                next_test="add an independent earliest-served field to the target data or inspect the older releases")
     else:
         pairs = comp["pairs"]
     if not pairs:
@@ -323,6 +328,8 @@ def execute(plan):
                         **({"proof_pair": plan["proof_pairs"][target]} if target in plan.get("proof_pairs", {}) else {})))
     for exclusion in plan["excluded"]:
         out.append(case("crd", exclusion["target"], status="EXCLUDED", **exclusion))
+    if plan.get("floor_unknown"):
+        out.append(case("crd", f"crd-floor|{proj}", status="UNKNOWN_EARLIEST_SERVED", **plan["floor_unknown"]))
     return out, executed, omitted
 
 
