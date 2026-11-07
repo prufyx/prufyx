@@ -24,6 +24,10 @@ func Build(ctx context.Context, o Options) (*Packet, error) {
 	if err := validateInput(&o.Input); err != nil {
 		return nil, err
 	}
+	trusted, err := newTrusted(o.TrustedUserIDs)
+	if err != nil {
+		return nil, err
+	}
 	r := repo{dir: o.Repo}
 	base, err := r.resolve(ctx, o.Base)
 	if err != nil {
@@ -62,7 +66,7 @@ func Build(ctx context.Context, o Options) (*Packet, error) {
 	}
 	used := map[int]bool{}
 	for _, m := range merges {
-		e, err := entryFor(ctx, r, m, inputs, used)
+		e, err := entryFor(ctx, r, m, inputs, used, trusted)
 		if err != nil {
 			return nil, err
 		}
@@ -100,7 +104,21 @@ func Build(ctx context.Context, o Options) (*Packet, error) {
 	return p, nil
 }
 
-func entryFor(ctx context.Context, r repo, m string, inputs map[int]*PRInput, used map[int]bool) (Entry, error) {
+func newTrusted(ids []int64) (trustedSet, error) {
+	if len(ids) == 0 {
+		return nil, errors.New("trusted user ids are required")
+	}
+	t := trustedSet{}
+	for _, id := range ids {
+		if id <= 0 {
+			return nil, fmt.Errorf("trusted user id %d is not positive", id)
+		}
+		t[id] = true
+	}
+	return t, nil
+}
+
+func entryFor(ctx context.Context, r repo, m string, inputs map[int]*PRInput, used map[int]bool, trusted trustedSet) (Entry, error) {
 	parents, err := r.parents(ctx, m)
 	if err != nil {
 		return Entry{}, err
@@ -142,13 +160,13 @@ func entryFor(ctx context.Context, r repo, m string, inputs map[int]*PRInput, us
 	} else {
 		e.Flags = append(e.Flags, "no pull request input")
 	}
-	e.Class, e.ClassReason = classify(pr, files)
+	e.Class, e.ClassReason = classify(pr, files, readmeOutside(ctx, r, parents[0], m, files))
 	if e.Class == ClassData {
 		date, err := r.committerDate(ctx, head)
 		if err != nil {
 			return Entry{}, fmt.Errorf("committer date of %s: %w", head[:8], err)
 		}
-		e.Gate, e.Review = checkGate(pr, head, date), checkReview(pr, head, date)
+		e.Gate, e.Review = checkGate(pr, head, date, trusted), checkReview(pr, head, date, trusted)
 	} else {
 		e.Gate, e.Review = Marker{Status: NotChecked}, Marker{Status: NotChecked}
 	}

@@ -61,6 +61,9 @@ func validateInput(in *Input) error {
 			if _, err := time.Parse(time.RFC3339, c.CreatedAt); err != nil {
 				return fmt.Errorf("input PR %d comment time %q: %w", pr.Number, c.CreatedAt, err)
 			}
+			if _, err := time.Parse(time.RFC3339, c.UpdatedAt); err != nil {
+				return fmt.Errorf("input PR %d comment updated time %q: %w", pr.Number, c.UpdatedAt, err)
+			}
 		}
 	}
 	return nil

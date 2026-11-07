@@ -103,11 +103,15 @@ func prInput(n int, head, author string, comments ...Comment) PRInput {
 	return PRInput{Number: n, Head: head, Author: author, Ref: fmt.Sprintf("factory/export-%012x", n), Title: "export", Comments: comments}
 }
 
-func airstand(body, at string) Comment { return Comment{Author: "airstand", CreatedAt: at, Body: body} }
+const trustedID int64 = 1001
+
+func airstand(body, at string) Comment {
+	return Comment{Author: "airstand", AuthorID: trustedID, CreatedAt: at, UpdatedAt: at, Body: body}
+}
 
 func build(t *testing.T, dir, base string, in Input) (*Packet, error) {
 	t.Helper()
-	return Build(context.Background(), Options{Repo: dir, Base: base, Head: "main", PreviousRevision: 7, Input: in})
+	return Build(context.Background(), Options{Repo: dir, Base: base, Head: "main", PreviousRevision: 7, Input: in, TrustedUserIDs: []int64{trustedID}})
 }
 
 func findEntry(t *testing.T, p *Packet, n int) Entry {
@@ -192,7 +196,7 @@ func TestMarkerRejections(t *testing.T) {
 	other := strings.Repeat("a", 40)
 	cases := map[string][]Comment{
 		"stale":     {airstand(strictGate(head), earlier), airstand("DATA REVIEW: GO "+head, earlier)},
-		"foreign":   {{Author: "mallory", CreatedAt: later, Body: strictGate(head)}, {Author: "mallory", CreatedAt: later, Body: "DATA REVIEW: GO " + head}},
+		"foreign":   {{Author: "mallory", AuthorID: 2002, CreatedAt: later, UpdatedAt: later, Body: strictGate(head)}, {Author: "mallory", AuthorID: 2002, CreatedAt: later, UpdatedAt: later, Body: "DATA REVIEW: GO " + head}},
 		"wrongsha":  {airstand(strictGate(other), later), airstand("DATA REVIEW: GO "+other, later)},
 		"nogo":      {airstand(strictGate(head), later), airstand("DATA REVIEW: NO-GO "+head, later)},
 		"nonzero":   {airstand("QA batch gate on the exact head: GATE "+head[:8]+" WRONGPASS=1 MISMATCH=0 ERR=0 head="+head, later), airstand("DATA REVIEW: GO "+head, later)},
@@ -204,7 +208,7 @@ func TestMarkerRejections(t *testing.T) {
 	for name, comments := range cases {
 		in := Input{Schema: InputSchema, PRs: []PRInput{prInput(12, head, "prufyx-bot", comments...)}}
 		if name == "badstatus" {
-			in.PRs[0].Statuses = []Status{{Context: "qa-gate", State: "success", Creator: "mallory", ID: 1}}
+			in.PRs[0].Statuses = []Status{{Context: "qa-gate", State: "success", Creator: "mallory", CreatorID: 2002, ID: 1}}
 		}
 		p, err := build(t, dir, base, in)
 		if err != nil {
@@ -224,7 +228,7 @@ func TestQAGateStatusCounts(t *testing.T) {
 	dir, base := newRepo(t)
 	_, head := mergePR(t, dir, 13, map[string]string{cncfRules: rulesJSON("one", "two")})
 	in := Input{Schema: InputSchema, PRs: []PRInput{prInput(13, head, "prufyx-bot", airstand("DATA REVIEW: GO "+head, later))}}
-	in.PRs[0].Statuses = []Status{{Context: "qa-gate", State: "failure", Creator: "airstand", ID: 1}, {Context: "qa-gate", State: "success", Creator: "airstand", ID: 2}}
+	in.PRs[0].Statuses = []Status{{Context: "qa-gate", State: "failure", Creator: "airstand", CreatorID: trustedID, ID: 1}, {Context: "qa-gate", State: "success", Creator: "airstand", CreatorID: trustedID, ID: 2}}
 	p, err := build(t, dir, base, in)
 	if err != nil {
 		t.Fatal(err)
@@ -248,10 +252,10 @@ func TestNonDataTrustPathAndDirectCommits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if findEntry(t, p, 20).Class != ClassNonData || findEntry(t, p, 21).Class != ClassTrustPath || findEntry(t, p, 22).Class != ClassNonData {
+	if findEntry(t, p, 20).Class != ClassNonData || findEntry(t, p, 21).Class != ClassTrustPath || findEntry(t, p, 22).Class != ClassTrustPath {
 		t.Fatalf("classes: %+v", p.Entries)
 	}
-	if len(p.DirectCommits) != 1 || p.Summary.NonData != 2 || p.Summary.TrustPath != 1 || p.Summary.DirectCommits != 1 {
+	if len(p.DirectCommits) != 1 || p.Summary.NonData != 1 || p.Summary.TrustPath != 2 || p.Summary.DirectCommits != 1 {
 		t.Fatalf("direct=%v summary=%+v", p.DirectCommits, p.Summary)
 	}
 	md := p.Markdown()
@@ -405,7 +409,7 @@ func TestRunWritesNothingOnError(t *testing.T) {
 	write(t, out, "in.json", `{"schema":"bogus"}`)
 	var so, se bytes.Buffer
 	err := Run([]string{"--repo", dir, "--base", base, "--head", "main", "--previous-revision", "7", "--input", inPath,
-		"--out-json", filepath.Join(out, "p.json"), "--out-md", filepath.Join(out, "p.md")}, &so, &se)
+		"--out-json", filepath.Join(out, "p.json"), "--out-md", filepath.Join(out, "p.md"), "--trusted-user-ids", "1001"}, &so, &se)
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -416,12 +420,163 @@ func TestRunWritesNothingOnError(t *testing.T) {
 	}
 	write(t, out, "in.json", `{"schema":"`+InputSchema+`","prs":[]}`)
 	if err := Run([]string{"--repo", dir, "--base", base, "--head", "main", "--previous-revision", "7", "--input", inPath,
-		"--out-json", filepath.Join(out, "p.json"), "--out-md", filepath.Join(out, "p.md")}, &so, &se); err != nil {
+		"--out-json", filepath.Join(out, "p.json"), "--out-md", filepath.Join(out, "p.md"), "--trusted-user-ids", "1001"}, &so, &se); err != nil {
 		t.Fatal(err)
 	}
 	for _, f := range []string{"p.json", "p.md"} {
 		if _, err := os.Stat(filepath.Join(out, f)); err != nil {
 			t.Errorf("%s missing", f)
+		}
+	}
+}
+
+// verifiedInput builds a data PR that would be fully VERIFIED with the given comments.
+func dataPR(t *testing.T, n int, comments func(head string) []Comment) (string, string, Input) {
+	t.Helper()
+	dir, base := newRepo(t)
+	_, head := mergePR(t, dir, n, map[string]string{cncfRules: rulesJSON("one", "two")})
+	return dir, base, Input{Schema: InputSchema, PRs: []PRInput{prInput(n, head, "prufyx-bot", comments(head)...)}}
+}
+
+func TestEditedMarkerIsUnverified(t *testing.T) {
+	dir, base, in := dataPR(t, 40, func(h string) []Comment {
+		g, r := airstand(strictGate(h), later), airstand("DATA REVIEW: GO "+h, later)
+		g.UpdatedAt, r.UpdatedAt = "2026-11-03T10:00:00Z", "2026-11-03T10:00:00Z"
+		return []Comment{g, r}
+	})
+	p, err := build(t, dir, base, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := findEntry(t, p, 40)
+	for name, m := range map[string]Marker{"gate": e.Gate, "review": e.Review} {
+		if m.Status != Unverified || !strings.Contains(m.Reason, "edited") {
+			t.Errorf("%s = %+v", name, m)
+		}
+	}
+}
+
+func TestMarkerMatchesUserIDNotLogin(t *testing.T) {
+	dir, base, in := dataPR(t, 41, func(h string) []Comment {
+		g, r := airstand(strictGate(h), later), airstand("DATA REVIEW: GO "+h, later)
+		g.AuthorID, r.AuthorID = 2002, 2002 // login airstand, other account id
+		return []Comment{g, r}
+	})
+	in.PRs[0].Statuses = []Status{{Context: "qa-gate", State: "success", Creator: "airstand", CreatorID: 2002, ID: 1}}
+	p, err := build(t, dir, base, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e := findEntry(t, p, 41); e.Gate.Status != Unverified || e.Review.Status != Unverified {
+		t.Fatalf("login-only match accepted: %+v", e)
+	}
+	// the other direction: another login, trusted id, is accepted
+	dir, base, in = dataPR(t, 42, func(h string) []Comment {
+		g, r := airstand(strictGate(h), later), airstand("DATA REVIEW: GO "+h, later)
+		g.Author, r.Author = "renamed", "renamed"
+		return []Comment{g, r}
+	})
+	p, err = build(t, dir, base, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e := findEntry(t, p, 42); e.Gate.Status != Verified || e.Review.Status != Verified {
+		t.Fatalf("trusted id rejected: %+v", e)
+	}
+}
+
+func TestEmptyOrInvalidTrustedIDsFailClosed(t *testing.T) {
+	dir, base, in := dataPR(t, 43, func(h string) []Comment { return nil })
+	for name, ids := range map[string][]int64{"empty": nil, "zero": {0}, "negative": {-5}} {
+		_, err := Build(context.Background(), Options{Repo: dir, Base: base, Head: "main", PreviousRevision: 7, Input: in, TrustedUserIDs: ids})
+		if err == nil {
+			t.Errorf("%s trusted ids accepted", name)
+		}
+	}
+}
+
+func TestInputRejectsBadMarkerFields(t *testing.T) {
+	good := `{"schema":"` + InputSchema + `","prs":[{"number":1,"head":"` + strings.Repeat("a", 40) + `","comments":[{"author":"a","authorId":1,"createdAt":"2026-11-02T10:00:00Z","updatedAt":"%s","body":"x"}]}]}`
+	if _, err := ParseInput(strings.NewReader(fmt.Sprintf(good, "2026-11-02T10:00:00Z"))); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ParseInput(strings.NewReader(fmt.Sprintf(good, "yesterday"))); err == nil {
+		t.Error("bad updatedAt accepted")
+	}
+	if _, err := ParseInput(strings.NewReader(fmt.Sprintf(good, ""))); err == nil {
+		t.Error("empty updatedAt accepted")
+	}
+	if _, err := ParseInput(strings.NewReader(`{"schema":"prufyx.io/knowledge-packet-input/v1","prs":[]}`)); err == nil {
+		t.Error("v1 input accepted")
+	}
+}
+
+func TestTrustPathClassCoversPacketAndPackageProducers(t *testing.T) {
+	paths := []string{
+		".github/workflows/x.yml", "cli/internal/knowledgepin/a.go", "cli/internal/maintainer/knowledgepacket/a.go",
+		"cli/cmd/prufyx-maintainer/main.go", "cli/internal/knowledge/open.go", "cli/internal/knowledgereleaseplan/a.go", "scripts/x.sh",
+	}
+	for i, path := range paths {
+		dir, base := newRepo(t)
+		_, head := mergePR(t, dir, 50+i, map[string]string{path: "x\n", cncfRules: rulesJSON("one", "two")})
+		p, err := build(t, dir, base, Input{Schema: InputSchema, PRs: []PRInput{prInput(50+i, head, "prufyx-bot")}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if e := findEntry(t, p, 50+i); e.Class != ClassTrustPath {
+			t.Errorf("%s: class %s", path, e.Class)
+		}
+	}
+}
+
+func TestReadmeOutsideCoverageBlockIsNonData(t *testing.T) {
+	cases := map[string]struct {
+		body string
+		want string
+	}{
+		"inside block": {readme("253", "67", "44"), ClassData},
+		"tail":         {strings.Replace(readme("252", "67", "44"), "tail", "tail with free text", 1), ClassNonData},
+		"head":         {strings.Replace(readme("252", "67", "44"), "# x", "# y", 1), ClassNonData},
+		"both":         {strings.Replace(readme("253", "67", "44"), "tail", "free text", 1), ClassNonData},
+		"no markers":   {"# x\nno block\n", ClassNonData},
+	}
+	i := 0
+	for name, c := range cases {
+		i++
+		dir, base := newRepo(t)
+		_, head := mergePR(t, dir, 70+i, map[string]string{"README.md": c.body})
+		p, err := build(t, dir, base, Input{Schema: InputSchema, PRs: []PRInput{prInput(70+i, head, "prufyx-bot")}})
+		if name == "no markers" {
+			if err == nil {
+				t.Errorf("%s: expected delta error", name)
+			}
+			continue
+		}
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if e := findEntry(t, p, 70+i); e.Class != c.want {
+			t.Errorf("%s: class %s (%s), want %s", name, e.Class, e.ClassReason, c.want)
+		}
+	}
+}
+
+func TestMarkdownStatesAutomationDomainAndSelfReferenceResidual(t *testing.T) {
+	dir, base := newRepo(t)
+	p, err := build(t, dir, base, Input{Schema: InputSchema, PRs: []PRInput{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	md := p.Markdown()
+	for _, want := range []string{
+		"code at the signing commit generated this packet about itself",
+		"a trust-path change can lie in its own packet",
+		"the independent control is the merge-time check, not the packet",
+		"both trusted logins live in the automation domain",
+		"markers are claims by the automation",
+	} {
+		if !strings.Contains(md, want) {
+			t.Errorf("markdown lacks %q", want)
 		}
 	}
 }

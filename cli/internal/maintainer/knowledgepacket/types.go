@@ -15,7 +15,7 @@ package knowledgepacket
 // Schema identifiers.
 const (
 	PacketSchema = "prufyx.io/knowledge-packet/v1"
-	InputSchema  = "prufyx.io/knowledge-packet-input/v1"
+	InputSchema  = "prufyx.io/knowledge-packet-input/v2"
 )
 
 // Classes of a merged pull request.
@@ -51,10 +51,15 @@ type PRInput struct {
 	Checks   []Check   `json:"checks"`
 }
 
-// Comment is one pull request comment. CreatedAt is RFC 3339.
+// Comment is one pull request comment. AuthorID is the numeric user id of
+// the author (user.id), the only identity a marker is matched on; Author is
+// the login, shown for humans and never trusted. CreatedAt and UpdatedAt are
+// RFC 3339; a comment whose UpdatedAt differs from CreatedAt was edited.
 type Comment struct {
 	Author    string `json:"author"`
+	AuthorID  int64  `json:"authorId"`
 	CreatedAt string `json:"createdAt"`
+	UpdatedAt string `json:"updatedAt"`
 	Body      string `json:"body"`
 }
 
@@ -64,6 +69,8 @@ type Status struct {
 	Context string `json:"context"`
 	State   string `json:"state"`
 	Creator string `json:"creator"`
+	// CreatorID is the numeric user id of the creator; the login is never trusted.
+	CreatorID int64 `json:"creatorId"`
 }
 
 // Check is one check run of the head commit, listed for information only.
@@ -79,6 +86,9 @@ type Options struct {
 	Head             string
 	PreviousRevision int
 	Input            Input
+	// TrustedUserIDs is the allow-list of numeric user ids whose markers
+	// count. It must not be empty.
+	TrustedUserIDs []int64
 }
 
 // Marker is the result of one marker check.

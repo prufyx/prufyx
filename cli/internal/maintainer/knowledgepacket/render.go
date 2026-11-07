@@ -39,6 +39,8 @@ func (p *Packet) Markdown() string {
 	s := p.Summary
 	fmt.Fprintf(&b, "# Knowledge signing packet\n\n")
 	fmt.Fprintf(&b, "Candidate commit %s, previous revision %d (source %s).\n\n", code(p.SourceCommit), p.PreviousRevision.Revision, code(p.PreviousRevision.SourceCommit))
+	b.WriteString("Residual, in plain words: code at the signing commit generated this packet about itself; a trust-path change can lie in its own packet; the independent control is the merge-time check, not the packet.\n\n")
+	b.WriteString("Markers: both trusted logins live in the automation domain, so the GATE and DATA REVIEW markers are claims by the automation, matched on numeric user id and never on login; an edited marker (updated_at differs from created_at) is UNVERIFIED. The rule, attestation, project and README deltas below are recomputed from git and are the owner's real review basis.\n\n")
 	fmt.Fprintf(&b, "Approve only if UNVERIFIED=0, NON-DATA=0, TRUST-PATH=0, DIRECT=0 and DECREASES=0, or each one is understood.\n\n")
 	fmt.Fprintf(&b, "DATA=%d VERIFIED=%d UNVERIFIED=%d NON-DATA=%d TRUST-PATH=%d DIRECT=%d DECREASES=%d\n\n",
 		s.DataPRs, s.Verified, s.Unverified, s.NonData, s.TrustPath, s.DirectCommits, s.Decreases)

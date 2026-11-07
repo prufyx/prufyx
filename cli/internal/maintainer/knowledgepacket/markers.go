@@ -8,8 +8,25 @@ import (
 	"time"
 )
 
-// markerAuthor is the only account whose comments and statuses count.
+// markerAuthor is the login of the data owner. It classifies pull requests
+// only; a marker is trusted by numeric user id, never by login.
 const markerAuthor = "airstand"
+
+// trustedSet is the allow-list of numeric user ids whose markers count.
+type trustedSet map[int64]bool
+
+const editedReason = "marker comment was edited (updated_at differs from created_at)"
+
+// trusted reports whether a comment is an unedited-or-edited comment of an
+// allowed user id; edited is reported separately and never verifies.
+func (t trustedSet) comment(c Comment) (ok, edited bool) {
+	if c.AuthorID <= 0 || !t[c.AuthorID] {
+		return false, false
+	}
+	cr, _ := time.Parse(time.RFC3339, c.CreatedAt)
+	up, err := time.Parse(time.RFC3339, c.UpdatedAt)
+	return true, err != nil || !cr.Equal(up)
+}
 
 const maxQuotedLine = 240
 
@@ -45,7 +62,7 @@ func quote(s string) string {
 
 // checkGate verifies the exact-head gate for head. Comment times were
 // validated when the input was parsed.
-func checkGate(pr *PRInput, head string, headDate time.Time) Marker {
+func checkGate(pr *PRInput, head string, headDate time.Time, tr trustedSet) Marker {
 	if pr == nil {
 		return Marker{Status: Unverified, Reason: "no pull request input for this merge"}
 	}
@@ -59,19 +76,24 @@ func checkGate(pr *PRInput, head string, headDate time.Time) Marker {
 			latest = s
 		}
 	}
-	if latest != nil && latest.Creator == markerAuthor && latest.State == "success" {
-		return Marker{Status: Verified, Source: "status", Line: "qa-gate status success by " + markerAuthor}
+	if latest != nil && latest.CreatorID > 0 && tr[latest.CreatorID] && latest.State == "success" {
+		return Marker{Status: Verified, Source: "status", Line: "qa-gate status success by trusted user id"}
 	}
 	re := gateLine(head)
 	var nearMiss string
 	for _, c := range pr.Comments {
-		if c.Author != markerAuthor {
+		ok, edited := tr.comment(c)
+		if !ok {
 			continue
 		}
 		at, _ := time.Parse(time.RFC3339, c.CreatedAt)
 		body := strings.ReplaceAll(c.Body, "\r", "")
 		for _, line := range strings.Split(body, "\n") {
-			if re.MatchString(line) {
+			if edited && strings.Contains(line, "GATE ") {
+				nearMiss = editedReason
+			} else if edited {
+				continue
+			} else if re.MatchString(line) {
 				if at.After(headDate) {
 					return Marker{Status: Verified, Source: "comment", Line: quote(line)}
 				}
@@ -81,16 +103,16 @@ func checkGate(pr *PRInput, head string, headDate time.Time) Marker {
 			}
 		}
 	}
-	return gateReason(pr, nearMiss)
+	return gateReason(pr, nearMiss, tr)
 }
 
-func gateReason(pr *PRInput, near string) Marker {
+func gateReason(pr *PRInput, near string, tr trustedSet) Marker {
 	if near == "" {
-		return Marker{Status: Unverified, Reason: "no gate marker from " + markerAuthor}
+		return Marker{Status: Unverified, Reason: "no gate marker from a trusted user id"}
 	}
 	line := ""
 	for _, c := range pr.Comments {
-		if c.Author != markerAuthor {
+		if ok, _ := tr.comment(c); !ok {
 			continue
 		}
 		for _, l := range strings.Split(strings.ReplaceAll(c.Body, "\r", ""), "\n") {
@@ -105,7 +127,7 @@ func gateReason(pr *PRInput, near string) Marker {
 // checkReview verifies the data-review verdict: a comment of the marker
 // author, newer than the head commit, whose first line is exactly
 // "DATA REVIEW: GO <head>".
-func checkReview(pr *PRInput, head string, headDate time.Time) Marker {
+func checkReview(pr *PRInput, head string, headDate time.Time, tr trustedSet) Marker {
 	if pr == nil {
 		return Marker{Status: Unverified, Reason: "no pull request input for this merge"}
 	}
@@ -115,12 +137,15 @@ func checkReview(pr *PRInput, head string, headDate time.Time) Marker {
 	want := "DATA REVIEW: GO " + head
 	near, nearLine := "", ""
 	for _, c := range pr.Comments {
-		if c.Author != markerAuthor {
+		ok, edited := tr.comment(c)
+		if !ok {
 			continue
 		}
 		at, _ := time.Parse(time.RFC3339, c.CreatedAt)
 		first := firstLine(c.Body)
 		switch {
+		case edited && strings.HasPrefix(strings.ToLower(first), "data review"):
+			near, nearLine = editedReason, quote(first)
 		case first == want && at.After(headDate):
 			return Marker{Status: Verified, Source: "comment", Line: quote(first)}
 		case first == want:
@@ -130,7 +155,7 @@ func checkReview(pr *PRInput, head string, headDate time.Time) Marker {
 		}
 	}
 	if near == "" {
-		return Marker{Status: Unverified, Reason: "no data-review verdict from " + markerAuthor}
+		return Marker{Status: Unverified, Reason: "no data-review verdict from a trusted user id"}
 	}
 	return Marker{Status: Unverified, Reason: near, Line: nearLine}
 }
