@@ -1,0 +1,4 @@
+change_type: breaking
+component: service
+note: Remove the `config.yaml` file.
+issues: [1]

@@ -112,6 +112,7 @@ func TestPositiveFixtures(t *testing.T) {
 		}
 	}
 	want := []k{
+		{"breaking-change-logs.yaml", "flag", "removed", "logged-flag", "unknown"},
 		{"breaking-dropped-key.yaml", "config_key", "removed_or_changed", "retry_legacy", "exporter/otlp"},
 		{"breaking-removed-flag.yaml", "flag", "removed", "legacy-flag", "unknown"},
 		{"breaking-removed-key.yaml", "config_key", "removed", "protocols.legacy_http", "receiver/otlp"},
@@ -121,7 +122,7 @@ func TestPositiveFixtures(t *testing.T) {
 	if fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Fatalf("got %v\nwant %v", got, want)
 	}
-	if res.FilesRead != 5 {
+	if res.FilesRead != 6 {
 		t.Fatalf("files read %d", res.FilesRead)
 	}
 }
@@ -155,6 +156,9 @@ func TestNegativeFixtures(t *testing.T) {
 		"issue-not-int":            ReasonParse,
 		"empty-note":               ReasonParse,
 		"bad-component":            ReasonParse,
+		"change-logs-unknown":      ReasonParse,
+		"explicit-str-tag":         ReasonParse,
+		"file-name-token":          ReasonUnclassified,
 		"bad-change-type":          ReasonChangeTypeUnknown,
 		"component-unknown":        ReasonComponentUnknown,
 		"may-be-removed":           ReasonAmbiguous,
@@ -200,7 +204,7 @@ func TestNegativeDoesNotHideOthers(t *testing.T) {
 		files[p] = c
 	}
 	res := scan(t, &memReader{files: files})
-	if len(res.Ledger) != 30 || len(res.Candidates) != 5 {
+	if len(res.Ledger) != 33 || len(res.Candidates) != 6 {
 		t.Fatalf("ledger %d candidates %d", len(res.Ledger), len(res.Candidates))
 	}
 }
@@ -324,6 +328,29 @@ func TestStructuralFaults(t *testing.T) {
 				t.Fatalf("ledger %+v lacks %s", res.Ledger, c.code)
 			}
 		})
+	}
+}
+
+func TestExactlyMaxFilesAccepted(t *testing.T) {
+	m := &memReader{files: map[string]string{}}
+	for i := 0; i < MaxFiles; i++ {
+		m.files[fmt.Sprintf("%s/n%d.yaml", ChloggenDir, i)] = "change_type: enhancement\ncomponent: service\nnote: x\nissues: [1]\n"
+	}
+	res := scan(t, m)
+	if len(res.Ledger) != 0 || res.FilesRead != MaxFiles {
+		t.Fatalf("%d %+v", res.FilesRead, res.Ledger)
+	}
+}
+
+func TestChangeLogsBound(t *testing.T) {
+	mk := func(n int) string {
+		return head + "note: Remove `--a`.\nchange_logs: [" + strings.Repeat("user,", n-1) + "user]\n"
+	}
+	if res := scan(t, one(mk(MaxChangeLogs))); len(res.Candidates) != 1 {
+		t.Fatalf("%+v", res)
+	}
+	if res := scan(t, one(mk(MaxChangeLogs+1))); len(res.Candidates) != 0 || res.Ledger[0].Code != ReasonParse {
+		t.Fatalf("%+v", res)
 	}
 }
 

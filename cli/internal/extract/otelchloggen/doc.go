@@ -13,6 +13,8 @@
 // authorise a pass. The package is inert: it registers nothing, writes nothing
 // and is not wired into the extract runner, the rule data or the factory.
 //
+// change_logs is accepted from a closed set (user, api) and otherwise ignored.
+//
 // Method. A fragment is decoded with a strict, closed YAML shape (unknown
 // fields, duplicate keys, aliases, anchors, explicit tags and extra documents
 // are refused). Only change_type breaking and deprecation can produce
