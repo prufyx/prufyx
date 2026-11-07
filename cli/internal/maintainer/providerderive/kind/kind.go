@@ -88,7 +88,7 @@ func Derive(in []providerderive.Input) (providerderive.Result, error) {
 			unk = append(unk, providerderive.Unknown{Excerpt: id, Tag: h.Tag, Reason: reason})
 			continue
 		}
-		return providerderive.Result{}, providerderive.Drift(Provider, id, "tag %q is not in the kind tag grammar", h.Tag)
+		return providerderive.Result{}, providerderive.DriftID(Provider, providerderive.KindCell, id, "tag %q is not in the kind tag grammar", h.Tag)
 	}
 	rows, err := providerderive.Merge(Provider, rows, less)
 	if err != nil {
@@ -120,13 +120,13 @@ func mapping(id string, body []string) (k8s, image string, found bool, err error
 		}
 		m := defaultRE.FindStringSubmatch(l)
 		if m == nil {
-			return "", "", false, providerderive.Drift(Provider, id, "unparsable default node image sentence")
+			return "", "", false, providerderive.DriftID(Provider, providerderive.KindCell, id, "unparsable default node image sentence")
 		}
 		image, k8s, digest = m[1], m[2], m[3]
 		n++
 	}
 	if n > 1 {
-		return "", "", false, providerderive.Drift(Provider, id, "more than one default node image sentence")
+		return "", "", false, providerderive.DriftID(Provider, providerderive.KindConflict, id, "more than one default node image sentence")
 	}
 	list, err := imageList(id, body)
 	if err != nil {
@@ -136,7 +136,7 @@ func mapping(id string, body []string) (k8s, image string, found bool, err error
 		return "", "", false, nil
 	}
 	if want, ok := list[k8s]; ok && want != digest {
-		return "", "", false, providerderive.Drift(Provider, id, "default image digest differs from the pre-built list for %s", k8s)
+		return "", "", false, providerderive.DriftID(Provider, providerderive.KindConflict, id, "default image digest differs from the pre-built list for %s", k8s)
 	}
 	return k8s, image, true, nil
 }
@@ -150,7 +150,7 @@ func imageList(id string, body []string) (map[string]string, error) {
 	for i, l := range body {
 		if l == listHeading {
 			if heading >= 0 {
-				return nil, providerderive.Drift(Provider, id, "more than one pre-built image list")
+				return nil, providerderive.DriftID(Provider, providerderive.KindConflict, id, "more than one pre-built image list")
 			}
 			heading = i
 		}
@@ -165,13 +165,13 @@ func imageList(id string, body []string) (map[string]string, error) {
 	for ; j < len(body) && oddBulletRE.MatchString(body[j]); j++ {
 		m := bulletRE.FindStringSubmatch(body[j])
 		if m == nil {
-			return nil, providerderive.Drift(Provider, id, "unparsable pre-built image bullet")
+			return nil, providerderive.DriftID(Provider, providerderive.KindCell, id, "unparsable pre-built image bullet")
 		}
 		if m[1] != m[3] {
-			return nil, providerderive.Drift(Provider, id, "image label %s differs from image tag %s", m[1], m[3])
+			return nil, providerderive.DriftID(Provider, providerderive.KindConflict, id, "image label %s differs from image tag %s", m[1], m[3])
 		}
 		if _, dup := out[m[1]]; dup {
-			return nil, providerderive.Drift(Provider, id, "duplicate pre-built image %s", m[1])
+			return nil, providerderive.DriftID(Provider, providerderive.KindConflict, id, "duplicate pre-built image %s", m[1])
 		}
 		out[m[1]] = m[4]
 	}

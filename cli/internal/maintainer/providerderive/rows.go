@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// Package providerderive holds the shared, pure pieces of the provider
+// Rows: the shared, pure pieces of the provider
 // version mapping extractors (subpackages k3s and kind). An extractor turns
 // committed anchored release excerpts (providerexcerpt) into rows that map a
 // provider version to the upstream Kubernetes version it ships. Nothing here
@@ -21,7 +21,6 @@
 package providerderive
 
 import (
-	"errors"
 	"fmt"
 	"net/url"
 	"sort"
@@ -39,33 +38,14 @@ const (
 	ReasonBeforeFirstKind = "release_before_first_mapped"
 )
 
-// ErrDrift is wrapped by every DriftError.
-var ErrDrift = errors.New("provider source drift")
-
-// DriftError is the typed error for an unparsable required field, a
-// mismatch or a mapping conflict. Excerpt is the manifest id concerned.
-type DriftError struct {
-	Provider string
-	Excerpt  string
-	Detail   string
-}
-
-func (e *DriftError) Error() string {
-	return fmt.Sprintf("provider-source-drift: %s excerpt %q: %s", e.Provider, e.Excerpt, e.Detail)
-}
-
-func (e *DriftError) Unwrap() error { return ErrDrift }
-
-// Drift builds a DriftError.
-func Drift(provider, excerpt, format string, args ...any) error {
-	return &DriftError{Provider: provider, Excerpt: excerpt, Detail: fmt.Sprintf(format, args...)}
+// DriftID builds the shared *DriftError (Drift) for an excerpt: source is the
+// provider and the manifest id is named in the detail.
+func DriftID(source, kind, id, format string, args ...any) error {
+	return Drift(source, kind, "excerpt %q: %s", id, fmt.Sprintf(format, args...))
 }
 
 // Input is one committed excerpt: its manifest entry and file bytes.
-type Input struct {
-	Entry providerexcerpt.Entry
-	Data  []byte
-}
+type Input = Excerpt
 
 // Row maps one provider version to an upstream Kubernetes version.
 type Row struct {
@@ -105,22 +85,20 @@ type Header struct {
 func Open(provider, repo string, in Input) (Header, []string, error) {
 	id := in.Entry.ID
 	if in.Entry.Provider != provider {
-		return Header{}, nil, Drift(provider, id, "excerpt belongs to provider %q", in.Entry.Provider)
+		return Header{}, nil, DriftID(provider, KindStructure, id, "excerpt belongs to provider %q", in.Entry.Provider)
 	}
 	u, err := url.Parse(in.Entry.SourceURL)
 	if err != nil || u.Scheme != "https" || u.Host != "github.com" || u.RawQuery != "" || u.Fragment != "" ||
 		!strings.HasPrefix(u.Path, "/"+repo+"/releases/tag/") {
-		return Header{}, nil, Drift(provider, id, "source is not a %s release tag page on github.com", repo)
+		return Header{}, nil, DriftID(provider, KindStructure, id, "source is not a %s release tag page on github.com", repo)
 	}
 	if in.Entry.Form != providerexcerpt.FormVerbatim {
-		return Header{}, nil, Drift(provider, id, "release excerpt must be verbatim")
+		return Header{}, nil, DriftID(provider, KindStructure, id, "release excerpt must be verbatim")
 	}
-	start, _, err := providerexcerpt.ParseExcerpt(in.Entry, in.Data)
+	body, err := Body(provider, in)
 	if err != nil {
-		return Header{}, nil, Drift(provider, id, "%v", err)
+		return Header{}, nil, err
 	}
-	all := strings.Split(strings.TrimSuffix(string(in.Data), "\n"), "\n")
-	body := all[start-1:]
 	h, rest, err := ParseBody(provider, id, body)
 	if err != nil {
 		return h, nil, err
@@ -129,7 +107,7 @@ func Open(provider, repo string, in Input) (Header, []string, error) {
 	// decoded path, so a literal '+' and %2B both match the tag once; a
 	// double-escaped tag (%252B) decodes to "%2B" and is rejected.
 	if u.Path != "/"+repo+"/releases/tag/"+h.Tag {
-		return Header{}, nil, Drift(provider, id, "source URL path %q does not match header tag %q", u.Path, h.Tag)
+		return Header{}, nil, DriftID(provider, KindStructure, id, "source URL path %q does not match header tag %q", u.Path, h.Tag)
 	}
 	return h, rest, nil
 }
@@ -143,7 +121,7 @@ func CheckDisjoint(provider string, rows []Row, unk []Unknown) error {
 	}
 	for _, u := range unk {
 		if ex, ok := mapped[u.Tag]; ok {
-			return Drift(provider, u.Excerpt, "tag %s is mapped by excerpt %s and unknown (%s) here", u.Tag, ex, u.Reason)
+			return DriftID(provider, KindConflict, u.Excerpt, "tag %s is mapped by excerpt %s and unknown (%s) here", u.Tag, ex, u.Reason)
 		}
 	}
 	return nil
@@ -154,7 +132,7 @@ func CheckDisjoint(provider string, rows []Row, unk []Unknown) error {
 func ParseBody(provider, id string, body []string) (Header, []string, error) {
 	var h Header
 	if len(body) < 3 {
-		return h, nil, Drift(provider, id, "missing tag/prerelease/draft header")
+		return h, nil, DriftID(provider, KindHeader, id, "missing tag/prerelease/draft header")
 	}
 	var err error
 	if h.Tag, err = field(provider, id, body[0], "tag"); err != nil {
@@ -184,7 +162,7 @@ func ParseBody(provider, id string, body []string) (Header, []string, error) {
 func field(provider, id, line, key string) (string, error) {
 	v, ok := strings.CutPrefix(strings.TrimSuffix(line, "\r"), key+": ")
 	if !ok || v == "" || v != strings.TrimSpace(v) {
-		return "", Drift(provider, id, "header field %q missing or malformed", key)
+		return "", DriftID(provider, KindHeader, id, "header field %q missing or malformed", key)
 	}
 	return v, nil
 }
@@ -196,7 +174,7 @@ func boolean(provider, id, key, v string) (bool, error) {
 	case "false":
 		return false, nil
 	}
-	return false, Drift(provider, id, "header field %q is not true/false", key)
+	return false, DriftID(provider, KindCell, id, "header field %q is not true/false", key)
 }
 
 // Merge sorts rows with less, drops exact duplicates and fails on a conflict:
@@ -213,7 +191,7 @@ func Merge(provider string, rows []Row, less func(a, b Row) bool) ([]Row, error)
 		if n := len(out); n > 0 && out[n-1].ProviderVersion == r.ProviderVersion {
 			p := out[n-1]
 			if p.Kubernetes != r.Kubernetes || p.NodeImage != r.NodeImage {
-				return nil, Drift(provider, r.Excerpt, "mapping conflict for %s: %s (excerpt %s) vs %s", r.ProviderVersion, p.Kubernetes, p.Excerpt, r.Kubernetes)
+				return nil, DriftID(provider, KindConflict, r.Excerpt, "mapping conflict for %s: %s (excerpt %s) vs %s", r.ProviderVersion, p.Kubernetes, p.Excerpt, r.Kubernetes)
 			}
 			continue
 		}
@@ -237,7 +215,7 @@ func CheckDistinctIDs(provider string, in []Input) error {
 	seen := map[string]bool{}
 	for _, i := range in {
 		if seen[i.Entry.ID] {
-			return Drift(provider, i.Entry.ID, "duplicate excerpt id")
+			return DriftID(provider, KindStructure, i.Entry.ID, "duplicate excerpt id")
 		}
 		seen[i.Entry.ID] = true
 	}

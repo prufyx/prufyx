@@ -62,7 +62,7 @@ func Derive(in []providerderive.Input) (providerderive.Result, error) {
 				continue
 			}
 			if k8s != core {
-				return providerderive.Result{}, providerderive.Drift(Provider, id, "body Kubernetes version %s differs from tag %s", k8s, h.Tag)
+				return providerderive.Result{}, providerderive.DriftID(Provider, providerderive.KindConflict, id, "body Kubernetes version %s differs from tag %s", k8s, h.Tag)
 			}
 			rows = append(rows, providerderive.Row{
 				Distribution: Distribution, ProviderVersion: h.Tag, Kubernetes: k8s,
@@ -78,7 +78,7 @@ func Derive(in []providerderive.Input) (providerderive.Result, error) {
 			unk = append(unk, providerderive.Unknown{Excerpt: id, Tag: h.Tag, Reason: reason})
 			continue
 		}
-		return providerderive.Result{}, providerderive.Drift(Provider, id, "tag %q is not in the k3s tag grammar", h.Tag)
+		return providerderive.Result{}, providerderive.DriftID(Provider, providerderive.KindCell, id, "tag %q is not in the k3s tag grammar", h.Tag)
 	}
 	rows, err := providerderive.Merge(Provider, rows, less)
 	if err != nil {
@@ -102,13 +102,13 @@ func sentence(id string, body []string) (string, bool, error) {
 		}
 		m := sentenceRE.FindStringSubmatch(l)
 		if m == nil {
-			return "", false, providerderive.Drift(Provider, id, "unparsable Kubernetes version sentence")
+			return "", false, providerderive.DriftID(Provider, providerderive.KindCell, id, "unparsable Kubernetes version sentence")
 		}
 		got = m[1]
 		n++
 	}
 	if n > 1 {
-		return "", false, providerderive.Drift(Provider, id, "more than one Kubernetes version sentence")
+		return "", false, providerderive.DriftID(Provider, providerderive.KindConflict, id, "more than one Kubernetes version sentence")
 	}
 	return got, n == 1, nil
 }
