@@ -701,3 +701,33 @@ func TestWeakenedExclusionIsNarrowing(t *testing.T) {
 		t.Fatalf("weakened %d exclusions, Diff lists %d: %+v", n, got, Diff(base, head))
 	}
 }
+
+// Declaring that an existing entry's files define nothing (a guarded
+// exclusion becomes a checked one that //go:embed no longer voids) is a
+// changed exclusion, listed as narrowing.
+func TestDefinesNoneIsNarrowing(t *testing.T) {
+	base := mustLoad(t, realTree(t), false)
+	head := mustLoad(t, realTree(t), false)
+	n := 0
+	for i := range head.Targets {
+		head.Targets[i].Exclude = append([]crdversions.Exclusion(nil), head.Targets[i].Exclude...)
+		for j := range head.Targets[i].Exclude {
+			if e := head.Targets[i].Exclude[j]; !e.Copies && e.PrePatch == "" && !e.DefinesNone {
+				head.Targets[i].Exclude[j].DefinesNone = true
+				n++
+			}
+		}
+	}
+	if n == 0 {
+		t.Fatal("no plain exclusion in the data: the case is void")
+	}
+	got := 0
+	for _, r := range Diff(base, head) {
+		if r.Kind == KindNarrowed && strings.HasPrefix(r.Detail, "excludeChanged:") {
+			got++
+		}
+	}
+	if got != n {
+		t.Fatalf("changed %d exclusions, Diff lists %d", n, got)
+	}
+}
