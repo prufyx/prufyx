@@ -158,6 +158,7 @@ var obRefusedClasses = map[string]string{
 	crdversions.ClassExcludedUnread: "an unread file under a reviewed exclusion: a batch's target has no exclusion",
 	crdversions.ClassPrePatchCopy:   "a copy under a reviewed pre-patch exclusion: a batch's target has no exclusion",
 	crdversions.ClassPrePatch:       "a kustomization of a reviewed pre-patch exclusion: a batch's target has no exclusion",
+	crdversions.ClassNoDefinition:   "a file under a reviewed exclusion that defines nothing: a batch's target has no exclusion",
 }
 
 func TestOnboardingRefusedFindingClasses(t *testing.T) {
