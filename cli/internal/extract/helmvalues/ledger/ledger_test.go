@@ -166,6 +166,9 @@ func TestEveryReasonIsReachable(t *testing.T) {
 		{"changed default the later schema refuses", func() chart {
 			return baseChart("90.1.0", "a: {v: 2}\n", `{"properties":{"a":{"type":"object","additionalProperties":false,"properties":{"w":{}}}}}`)
 		}, func() chart { return baseChart("90.0.0", "a: {v: 1}\n", "") }, ledger.ScopeChanged, ledger.NoticeSchemaNamed, "a.v"},
+		{"kubeVersion absent", func() chart { return good() }, from, ledger.ScopeKubeVersion, ledger.KubeVersionAbsent, ""},
+		{"kubeVersion not a single lower bound", func() chart { c := good(); c["Chart.yaml"] += "kubeVersion: \">=1.25.0-0 <1.30.0\"\n"; return c }, from, ledger.ScopeKubeVersion, ledger.KubeVersionUnsupported, ""},
+		{"kubeVersion without the -0 suffix", func() chart { c := good(); c["Chart.yaml"] += "kubeVersion: \">=1.25.0\"\n"; return c }, from, ledger.ScopeKubeVersion, ledger.KubeVersionVendorSuffix, ""},
 	}
 	reached := map[ledger.Reason]bool{}
 	for _, tc := range tests {
@@ -197,7 +200,7 @@ func TestEveryReasonIsReachable(t *testing.T) {
 		})
 	}
 	for _, r := range ledger.All() {
-		if r != ledger.UnclassifiedProblem && r != ledger.UnclassifiedKey && r != ledger.KubeVersionAbsent && r != ledger.KubeVersionUnsupported && r != ledger.KubeVersionVendorSuffix && r != ledger.KubeVersionUnclassified && !reached[r] {
+		if r != ledger.UnclassifiedProblem && r != ledger.UnclassifiedKey && r != ledger.KubeVersionUnclassified && !reached[r] {
 			t.Errorf("reason %s is never reached by a case", r)
 		}
 	}
