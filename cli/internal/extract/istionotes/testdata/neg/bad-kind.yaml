@@ -1,0 +1,3 @@
+apiVersion: release-notes/v2
+kind: surprise
+area: installation

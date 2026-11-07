@@ -1,0 +1,6 @@
+apiVersion: release-notes/v2
+kind: removal
+area: installation
+extra: 1
+releaseNotes:
+  - Removed `--a`.
