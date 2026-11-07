@@ -8,7 +8,7 @@
     "component": "pkg:github/mariadb-operator/mariadb-operator",
     "factProject": "mariadb_operator",
     "tagPrefixes": ["v"],
-    "minFrom": "0.38",
+    "minFrom": "0.34",
     "attest": true,
     "paths": [
       {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
