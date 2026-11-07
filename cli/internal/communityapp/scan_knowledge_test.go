@@ -42,7 +42,7 @@ func TestScanKnowledgeDB(t *testing.T) {
 
 	code, stdout, stderr := runScan(t, append(scanArgs, "--knowledge-db", store, "--format", "json")...)
 	selected, err := scanreport.DecodeJSON([]byte(stdout))
-	if err != nil || stderr != "" || selected.Provenance.KnowledgeOrigin != "external_signed_local" || selected.Provenance.KnowledgeStore == nil || selected.Provenance.KnowledgeStore.Layout != "cncf-projects" {
+	if err != nil || withoutExpiryNote(stderr) != "" || selected.Provenance.KnowledgeOrigin != "external_signed_local" || selected.Provenance.KnowledgeStore == nil || selected.Provenance.KnowledgeStore.Layout != "cncf-projects" {
 		t.Fatalf("database scan: %d %v\n%s\n%s", code, err, stdout, stderr)
 	}
 	embeddedCode, embeddedOut, _ := runScan(t, append(scanArgs, "--now", selected.Provenance.EvaluatedAt, "--format", "json")...)

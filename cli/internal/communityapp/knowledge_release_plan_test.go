@@ -439,7 +439,7 @@ func assertCurrentKyvernoRuleOutcomes(t *testing.T, dir, store string, release p
 				"--format", "json",
 			)
 			var routed cncfknowledge.Report
-			if stderr != "" || json.Unmarshal([]byte(stdout), &routed) != nil {
+			if withoutExpiryNote(stderr) != "" || json.Unmarshal([]byte(stdout), &routed) != nil {
 				t.Fatalf("public route code=%d stdout=%q stderr=%q", code, stdout, stderr)
 			}
 			if routed.Assessment != "UNKNOWN" || routed.Knowledge.Origin != "external_signed_local" || routed.Knowledge.TrustSource != "OPERATOR_PROVISIONED" || routed.Knowledge.Purpose != "operator_provided" || routed.Knowledge.Revision != release.revision || routed.Knowledge.BundleDigest != receipt.TrustReceipt.TargetDigest || routed.Knowledge.TrustReceiptDigest != receipt.TrustReceiptDigest || routed.Knowledge.TrustReceipt.APIVersion != "prufyx.io/knowledge-trust-receipt/v2" || routed.Knowledge.TrustReceipt.ExpectedVerificationAssertionsDigest != receipt.TrustReceipt.ExpectedVerificationAssertionsDigest || routed.Knowledge.CurrentNonRevocation != "not_checked_offline" || routed.Check.KnowledgeOrigin != "external_declared" || routed.Check.KnowledgeRevision != release.revision || routed.Check.KnowledgePackDigest != receipt.TrustReceipt.TargetDigest || routed.Check.NetworkUsed || len(routed.Check.Check.Claims) != 1 || routed.Check.Check.Claims[0].RuleID != kyvernoReportsChunkSizeRuleID {
