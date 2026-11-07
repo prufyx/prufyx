@@ -10,6 +10,9 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/extract"
 )
 
+// The fixture carries both the plain and the v-prefixed spelling of each tag
+// (upstream publishes both); the target's tagPrefixes ["v"] select only the
+// v-prefixed ones, and other prefixes (chart, olm, ...) are not releases.
 // The tag list is a fixture of tag names only (testdata/tags), taken once from
 // the public repository; commits are synthetic.
 func mariadbTarget(t *testing.T) Target {
@@ -98,6 +101,37 @@ func TestMariadbOperatorVendoredExampleExclusion(t *testing.T) {
 		_, proof := pairOf(t, runSynth(t, tg, build(in)), "0.34.0", "0.35.0")
 		if !proof.Completeness.Scan || !proof.Completeness.Attestable {
 			t.Fatalf("a definition file inside the excluded directory (%s) is excluded by design: %+v", in, proof.Completeness)
+		}
+	}
+	// ACCEPTED RISK, listed for the independent trust review: the scope is
+	// the whole directory and has no version scope, so a later operator
+	// definition placed in it (other-name.yaml above) would be hidden, and the
+	// evidence covers v0.34.0 to v0.38.1 only.
+	//
+	// The guard still trips when an install surface reaches the directory, and
+	// a definition file that the in-directory kustomization pulls in from
+	// outside the directory is an extra file in the open tree.
+	rootRef := "resources:\n  - flux/clusters/production/flux-system\n"
+	for name, tc := range map[string]struct {
+		extra     map[string]string
+		wantVoid  bool
+		attestOff bool
+	}{
+		"install surface lists the directory": {map[string]string{"examples/kustomization.yaml": rootRef}, true, true},
+		"directory kustomization pulls another definition file": {map[string]string{
+			dir + "kustomization.yaml": "resources:\n  - gotk-components.yaml\n  - ../../../../deploy/pulled-crds.yaml\n",
+			"deploy/pulled-crds.yaml":  crd("Delta", "v1"),
+		}, false, true},
+	} {
+		s := build(vendored)
+		for i := range s.tags {
+			for p, c := range tc.extra {
+				s.files[s.tags[i].Commit+":"+p] = []byte(c)
+			}
+		}
+		_, proof := pairOf(t, runSynth(t, tg, s), "0.34.0", "0.35.0")
+		if (len(voidFindings(proof)) > 0) != tc.wantVoid || proof.Completeness.Attestable == tc.attestOff {
+			t.Fatalf("%s: void %+v, completeness %+v", name, voidFindings(proof), proof.Completeness)
 		}
 	}
 	// An extra definition file in any other directory still blocks, a
