@@ -346,6 +346,51 @@ This command creates no release plan, feed, trust bootstrap, or custody proof.
 It preserves a complete valid empty replacement target for an intentional
 withdrawal; malformed or incomplete target metadata is rejected.
 
+## Signing packet generator
+
+`prufyx-maintainer knowledge-packet` builds the packet an approver reads before
+a knowledge release is signed. It is not yet wired into any workflow, signs
+nothing, holds no key or token and uses no network. It reads a local git
+repository with full history and one input file.
+
+```
+prufyx-maintainer knowledge-packet --repo . --base <last published source commit> \
+  --head <candidate commit> --previous-revision <n> --input prs.json \
+  --out-json packet.json --out-md summary.md
+```
+
+The input file (`prufyx.io/knowledge-packet-input/v1`) is what a wrapper read
+from the code host: for each merged pull request its number, head commit,
+author, branch, comments (author, RFC 3339 time, body), commit statuses and
+check runs. Unknown fields, a wrong schema, a bad time or sha, a repeated or
+out-of-range pull request, an unreadable rules file or README coverage block,
+or a base that is not an ancestor of the head are errors: nothing is written.
+
+For every first-parent merge in the range the packet records the merge commit,
+the merged head (second parent), the changed files and a class:
+
+- `DATA`: author `prufyx-bot` or `airstand` and every file under the knowledge
+  data trees, the CNCF and project rule data, `changelog.d/` or `README.md`.
+- `TRUST-PATH`: touches `.github/workflows/` or `cli/internal/knowledgepin/`.
+- `NON-DATA`: everything else, including a pull request with no input. Always
+  flagged at the top of the summary, as is any direct (non-merge) commit.
+
+Only for `DATA` entries the gate and data-review markers are checked, with the
+same strict shapes the merge queue accepts and only from comments or statuses
+of `airstand` newer than the head commit: the gate line
+`QA batch gate on the exact head: GATE <sha8> WRONGPASS=0 MISMATCH=0 ERR=0 ... head=<sha40>`
+(or a `qa-gate` success status), and a comment whose first line is
+`DATA REVIEW: GO <sha40>`. Anything else is `UNVERIFIED`, with the reason and
+the quoted first line seen; it is never omitted.
+
+`packet.json` (`prufyx.io/knowledge-packet/v1`) has `sourceCommit`,
+`previousRevision` (`revision`, `sourceCommit`), `entries[]`, `directCommits[]`,
+`deltas` (rule and attestation counts with added, removed and changed
+identities; data-file changes; project slugs added and removed; README coverage
+rows with before, after and a `decrease` flag), `summary`, `contentDigest` (sha256 of the compact
+JSON of `entries`) and `packetDigest` (sha256 of the compact JSON of the packet
+without `packetDigest`). The same inputs give byte-identical outputs.
+
 ## Hosted knowledge publish workflow
 
 `.github/workflows/knowledge-publish.yml` signs and publishes the knowledge
