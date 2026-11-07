@@ -102,3 +102,49 @@ func TestReleaseNotesUsageErrors(t *testing.T) {
 		}
 	}
 }
+
+func TestReleaseNotesAttestationDetail(t *testing.T) {
+	from, to := t.TempDir(), t.TempDir()
+	att := func(comp, line, extractor, derived string, versions ...string) string {
+		vs := ""
+		for i, v := range versions {
+			if i > 0 {
+				vs += ","
+			}
+			vs += `{"version":"` + v + `"}`
+		}
+		return `{"component":"` + comp + `","line":"` + line + `","releases":{"from":[],"to":[` + vs + `]},"evidence":{"extractor":{"version":"` + extractor + `","codeDigest":"sha256:x"},"derivedAt":"` + derived + `"}}`
+	}
+	rules := filepath.Join("cli", "internal", "cncfcheck", "data", "rules.json")
+	for dir, body := range map[string]string{
+		from: `{"entries":[],"lineAttestations":[` + att("pkg:github/istio/istio", "1.31", "1.0.0", "d1", "1.31.0", "1.31.3") + `,` +
+			att("pkg:github/dapr/dapr", "1.18", "2.7.0", "d1", "1.18.0") + `,` + att("pkg:github/dapr/dapr", "1.19", "2.7.0", "d1", "1.19.0") + `]}`,
+		to: `{"entries":[],"lineAttestations":[` + att("pkg:github/istio/istio", "1.31", "1.0.0", "d1", "1.31.0", "1.31.3", "1.31.4") + `,` + att("pkg:github/istio/istio", "1.32", "1.0.0", "d1", "1.32.0") + `,` +
+			att("pkg:github/dapr/dapr", "1.18", "2.8.0", "d2", "1.18.0") + `,` + att("pkg:github/dapr/dapr", "1.19", "2.8.0", "d2", "1.19.0") + `]}`,
+	} {
+		p := filepath.Join(dir, rules)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var out, errOut bytes.Buffer
+	if err := run([]string{"release-notes", "--from-dir", from, "--to-dir", to}, &out, &errOut); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"### Newly covered versions in attested lines (1)",
+		"- `istio/istio`: 2 newly covered versions: 1.31.4, 1.32.0",
+		"### Re-derived line attestations (1)",
+		"- `dapr/dapr`: lines 1.18, 1.19; extractor 2.7.0 -> 2.8.0",
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("output lacks %q\n%s", want, out.String())
+		}
+	}
+	if strings.Contains(out.String(), "`istio/istio`: lines") {
+		t.Error("an unchanged-extractor attestation was reported as re-derived")
+	}
+}
