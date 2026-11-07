@@ -170,6 +170,11 @@ func v1beta1Refusal(obj map[string]any) string {
 	return ""
 }
 
+// afterParseV1beta1 is nil in production. A test sets it to alter a parsed
+// v1beta1 definition (for example to zero a line) before the citation guard
+// runs, so that removing the guard call fails a test.
+var afterParseV1beta1 func(*CRD)
+
 // checkCitedLines refuses a definition whose citation lines are not all
 // set: a zero line cannot be cited. It guards every definition read from a
 // source apiVersion other than v1.
@@ -259,6 +264,9 @@ func parseValuesAs(path string, data []byte, narrowV1beta1 bool) (FileRecord, []
 		}
 		if v1beta1 {
 			crd.SourceAPIVersion = crdAPIVersionV1beta1
+			if afterParseV1beta1 != nil {
+				afterParseV1beta1(&crd)
+			}
 			if err := checkCitedLines(crd); err != nil {
 				return rec, nil, nil, err
 			}

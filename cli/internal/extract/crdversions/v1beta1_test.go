@@ -3,6 +3,7 @@
 package crdversions
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -186,8 +187,18 @@ func TestV1beta1PairsAndOracle(t *testing.T) {
 	if c := proof.From.CRDs[0]; c.SourceAPIVersion != crdAPIVersionV1beta1 || proof.To.CRDs[0].SourceAPIVersion != "" {
 		t.Fatalf("source versions: from %q to %q", c.SourceAPIVersion, proof.To.CRDs[0].SourceAPIVersion)
 	}
-	if rm := proof.Removals[0]; rm.FromStartLine != lineNumberOf(t, text, "- name: v1beta1", 0) || rm.FromStartLine < 1 || rm.FromEndLine < rm.FromStartLine {
+	if rm := proof.Removals[0]; rm.FromStartLine != lineNumberOf(t, text, "- name: v1beta1", 0) || rm.FromStartLine < 1 || rm.FromEndLine < rm.FromStartLine || rm.ToLine < 0 {
 		t.Fatalf("cited lines %+v", rm)
+	}
+	for _, rm := range proof.Removals {
+		if rm.FromStartLine < 1 || rm.FromEndLine < 1 {
+			t.Fatalf("removal cites line 0: %+v", rm)
+		}
+	}
+	for _, v := range proof.From.CRDs[0].Versions {
+		if v.StartLine < 1 || v.EndLine < 1 || v.ServedLine < 1 || v.StorageLine < 1 {
+			t.Fatalf("v1beta1 side cites line 0: %+v", v)
+		}
 	}
 	// v1beta1 to v1beta1 (storage v1 -> v2, v1 stays served).
 	p2, proof2 := pairOf(t, out, "1.1.0", "1.2.0")
@@ -297,4 +308,55 @@ func FuzzV1beta1Source(f *testing.F) {
 			}
 		}
 	})
+}
+
+// The citation guard runs inside the reader: a v1beta1 definition whose
+// parsed lines are not citable is refused by parseInventoryFile itself, for
+// each line. Deleting the guard call makes these reads succeed.
+func TestV1beta1GuardRunsInReader(t *testing.T) {
+	text := []byte(betaCRD("Alpha", "v1beta1", "v1"))
+	for name, mutate := range map[string]func(c *CRD){
+		"start":    func(c *CRD) { c.StartLine = 0 },
+		"versions": func(c *CRD) { c.VersionsLine = 0 },
+		"entry":    func(c *CRD) { c.Versions[0].StartLine = 0 },
+		"end":      func(c *CRD) { c.Versions[1].EndLine = 0 },
+		"served":   func(c *CRD) { c.Versions[1].ServedLine = 0 },
+		"storage":  func(c *CRD) { c.Versions[0].StorageLine = 0 },
+	} {
+		t.Run(name, func(t *testing.T) {
+			afterParseV1beta1 = mutate
+			defer func() { afterParseV1beta1 = nil }()
+			_, crds, err := parseInventoryFile("deploy/crds/a.yaml", text)
+			if err == nil || len(crds) != 0 || !strings.Contains(err.Error(), "citable") {
+				t.Fatalf("line 0 read: %v %v", crds, err)
+			}
+		})
+	}
+	// Without the hook the same file is read.
+	if _, crds, err := parseInventoryFile("deploy/crds/a.yaml", text); err != nil || len(crds) != 1 {
+		t.Fatalf("%v %v", crds, err)
+	}
+	// The hook never touches v1 definitions.
+	afterParseV1beta1 = func(c *CRD) { c.StartLine = 0 }
+	defer func() { afterParseV1beta1 = nil }()
+	if _, crds, err := parseInventoryFile("deploy/crds/a.yaml", []byte(crd("Alpha", "v1"))); err != nil || len(crds) != 1 {
+		t.Fatalf("v1 %v %v", crds, err)
+	}
+}
+
+// sourceApiVersion is part of the canonical proof bytes, hence of every
+// digest over them: the same definition read as v1beta1 and with the member
+// dropped digests differently.
+func TestV1beta1SourceMemberChangesDigest(t *testing.T) {
+	_, crds, err := parseInventoryFile("deploy/crds/a.yaml", []byte(betaCRD("Alpha", "v1beta1", "v1")))
+	must(t, err)
+	with, err := extract.Canonical(Inventory{CRDs: crds})
+	must(t, err)
+	dropped := crds[0]
+	dropped.SourceAPIVersion = ""
+	without, err := extract.Canonical(Inventory{CRDs: []CRD{dropped}})
+	must(t, err)
+	if sha256.Sum256(with) == sha256.Sum256(without) || !strings.Contains(string(with), "sourceApiVersion") || strings.Contains(string(without), "sourceApiVersion") {
+		t.Fatalf("digest does not cover sourceApiVersion:\n%s\n%s", with, without)
+	}
 }
