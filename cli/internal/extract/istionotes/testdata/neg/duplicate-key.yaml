@@ -1,0 +1,4 @@
+apiVersion: release-notes/v2
+kind: removal
+kind: feature
+area: installation

@@ -1,0 +1,8 @@
+apiVersion: release-notes/v2
+kind: removal
+area: installation
+issue:
+  - 12345
+releaseNotes:
+  - |
+    **Removed** the `--old-flag` flag.
