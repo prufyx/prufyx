@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  merge_group:
+    types: [checks_requested]
   schedule:
     # Nightly full run, including the knowledgegate race package.
     - cron: '17 2 * * *'
