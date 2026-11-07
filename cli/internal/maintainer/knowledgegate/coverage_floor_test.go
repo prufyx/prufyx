@@ -87,8 +87,40 @@ func TestCoverageFloorRefusesDroppedProject(t *testing.T) {
 	writeFloor(t, base, b)
 	writeFloor(t, head, b)
 	c := floorCheck(t, runGate(t, Options{Base: base, Head: head}))
-	if c.OK || !(strings.Contains(c.Detail, project) || strings.Contains(c.Detail, "decided pairs fell")) {
-		t.Fatalf("a dropped project passes: %+v", c)
+	if c.OK || !strings.Contains(c.Detail, "decided pairs fell to") || strings.Contains(c.Detail, project+":") {
+		t.Fatalf("a fleet-wide drop is not refused with the fleet message: %+v", c)
+	}
+}
+
+// The fleet total holds but one project's floor alone is raised: the
+// per-project path trips, with its own message.
+func TestCoverageFloorRefusesOneProjectAlone(t *testing.T) {
+	t.Parallel()
+	base, head, project := floorTrees(t)
+	b := readFloor(t, base)
+	b.ProjectPairs[project]++
+	writeFloor(t, base, b)
+	writeFloor(t, head, b)
+	c := floorCheck(t, runGate(t, Options{Base: base, Head: head}))
+	if c.OK || !strings.Contains(c.Detail, project+": decided pairs fell to") {
+		t.Fatalf("a single dropped project is not refused per project: %+v", c)
+	}
+}
+
+// A layout without generated blocks does not skip the floor when the base
+// carries a baseline.
+func TestCoverageFloorNoBlocksWithBaselineFails(t *testing.T) {
+	t.Parallel()
+	base, head, _ := floorTrees(t)
+	r := &Report{}
+	r.coverageFloorCheck(Options{Base: base, Head: head})
+	if len(r.Checks) != 1 || r.Checks[0].OK {
+		t.Fatalf("%+v", r.Checks)
+	}
+	empty := &Report{}
+	empty.coverageFloorCheck(Options{Base: Tree{Root: t.TempDir()}, Head: head})
+	if len(empty.Checks) != 0 {
+		t.Fatalf("a base without a baseline and a layout without blocks: %+v", empty.Checks)
 	}
 }
 

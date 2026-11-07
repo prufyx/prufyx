@@ -30,6 +30,11 @@ const CheckCoverageFloor = "coverage-floor"
 // nothing to compare. The shipped layout always has them.
 func (r *Report) coverageFloorCheck(opts Options) {
 	if len(opts.Layout.GeneratedBlocks) == 0 {
+		// Nothing is published by this layout; but a base that carries a
+		// baseline file expects the floor to be held, so it is not skipped.
+		if raw, err := opts.Base.ReadOptional(coveragereport.BaselinePath, MaxFileBytes); err != nil || len(raw) > 0 {
+			r.add(CheckCoverageFloor, false, "the layout has no generated blocks but the base branch carries a coverage baseline")
+		}
 		return
 	}
 	if err := coverageFloor(opts.Base, opts.Head); err != nil {
