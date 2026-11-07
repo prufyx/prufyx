@@ -60,6 +60,28 @@ class MinFrom(unittest.TestCase):
             self.assertIn("minFrom 1.1 exceeds observed served line 1.0", result[0]["detail"]["why"])
             scan.assert_not_called()
 
+    def test_unobserved_floor_is_explicit_unknown_not_silent(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / "sample.git").mkdir()
+            (root / "target-sample.json").write_text(json.dumps({"target": {
+                "repo": "example/sample", "tagPrefixes": ["v"], "minFrom": "1.1",
+                "paths": [{"path": "crd.yaml"}]}}))
+            def source(*args, **kwargs):
+                return subprocess.CompletedProcess(args, 0, "v1.0.0\nv1.1.0\nv1.2.0\n" if "tag" in args else "", "")
+            with patch.object(crd, "TD", td), patch.object(crd, "GITROOT", td), patch.object(
+                    crd, "sh", side_effect=source), patch.object(crd, "served_set", return_value={("g", "v1", "K")}), patch.object(
+                    crd, "prufyx", return_value=(0, {"verdict": "X", "findings": [], "summary": {}}, "")):
+                plan = crd.new_plan()
+                crd.prepare("sample", [], plan)
+            self.assertEqual(plan["floor_unknown"]["floor"], "1.1")
+            plan = crd.new_plan()
+            with patch.object(crd, "TD", td), patch.object(crd, "GITROOT", td), patch.object(
+                    crd, "sh", side_effect=source), patch.object(crd, "served_set", return_value={("g", "v1", "K")}):
+                crd.prepare("sample", [], plan)
+            out = crd.execute({**plan, "jobs": []})[0]
+            self.assertTrue(any(c["key"] == "crd-floor|sample" and c["detail"]["status"] == "UNKNOWN_EARLIEST_SERVED" and not c["error"] for c in out))
+
 
 class Counts(unittest.TestCase):
     def test_unsupported_community_is_counted_not_an_error(self):

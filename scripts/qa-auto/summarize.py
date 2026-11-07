@@ -65,6 +65,7 @@ state = "ALARM" if alarm else ("INCONCLUSIVE" if er else ("GREEN-PARTIAL" if ski
 line = f"WRONGPASS={len(wp)} MISMATCH={len(mm)} NEWMISMATCH={len(new)} ERR={len(er)} sha={a.sha[:8]} mode={a.mode} {state}"
 now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 unsupported = sum(1 for c in cases if c.get("detail", {}).get("status") == "UNSUPPORTED_COMMUNITY")
+unknown_floor = sum(1 for c in cases if c.get("detail", {}).get("status") == "UNKNOWN_EARLIEST_SERVED")
 previous = {}
 try:
     with open(a.state + "/status.json") as previous_file:
@@ -75,12 +76,12 @@ previous_count = previous.get("unsupported_community") if previous.get("mode") =
 rise = (unsupported > previous_count if type(previous_count) is int and a.mode != "none" else None)
 summ = {"scopes": scopes, "run_id": os.environ.get("QA_RUN_ID", ""), "base": os.environ.get("QA_BASE", ""), "time": now, "sha": a.sha, "mode": a.mode, "state": state, "verdict": line, "wrongpass": len(wp),
         "mismatch": len(mm), "new_mismatch": len(new), "errors": len(er),
-        "unsupported_community": unsupported, "unsupported_community_rise": rise, "cases": len(cases),
+        "unsupported_community": unsupported, "unsupported_community_rise": rise, "unknown_earliest_served": unknown_floor, "cases": len(cases),
         "baseline_seeded": seeded, "skipped": skipped, "adhoc": a.adhoc, "note": a.note,
         "wrongpass_cases": wp[:50], "new_mismatch_cases": new[:50], "error_cases": er[:20]}
 json.dump(summ, open(a.dir + "/summary.json", "w"), indent=1)
 status = {k: summ[k] for k in ("time", "sha", "mode", "state", "verdict", "wrongpass", "mismatch", "new_mismatch", "errors")}
-status.update(unsupported_community=unsupported, unsupported_community_rise=rise)
+status.update(unknown_earliest_served=unknown_floor, unsupported_community=unsupported, unsupported_community_rise=rise)
 status["alarm"] = alarm
 if not a.adhoc:
     json.dump(status, open(a.state + "/status.json.tmp", "w"))
@@ -91,6 +92,8 @@ if alarm:
                "raised": now, "verdict": line, "wrongpass_cases": wp[:50], "new_mismatch_cases": new[:50],
                "summary": a.dir + "/summary.json"}, open(f"{a.state}/alarms/{a.sha[:8]}.alarm.json", "w"), indent=1)
 print(line)
+if unknown_floor:
+    print(f"UNKNOWN_EARLIEST_SERVED={unknown_floor}")
 if rise:
     print(f"UNSUPPORTED_COMMUNITY_RISE={previous_count}->{unsupported}")
 raise SystemExit(2 if alarm else (3 if er else (4 if skipped else 0)))
