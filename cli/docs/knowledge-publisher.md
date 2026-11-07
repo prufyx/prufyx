@@ -501,6 +501,10 @@ without `packetDigest`). The same inputs give byte-identical outputs.
 
 ## Hosted knowledge publish workflow
 
+Note: the triggers, the single approval-free `sign` job and the run-number
+deploy rule described in this section are replaced by "Daily signing" below
+once the owner step there is done.
+
 `.github/workflows/knowledge-publish.yml` signs and publishes the knowledge
 database that `prufyx db update` fetches. The workflow runs on
 every push to `main` that touches `cli/knowledge/**`, weekly, and on manual
@@ -542,6 +546,88 @@ The pinned root is `cli/internal/knowledgepin/root.json`. The workflow stops
 unless that file, the compiled-in pin and the repository variable
 `KNOWLEDGE_ROOT_DIGEST` agree. Release tag builds make the same check when the
 variable is set (nothing is checked when it is not).
+
+### Daily signing
+
+Status: not active until the owner adds the required reviewer to the
+environment `knowledge-release` (and creates `knowledge-refresh`). Until then
+the first job of the workflow fails closed, so nothing is signed.
+
+This replaces the per-push signing described above: the push trigger and the
+weekly cron are gone. The workflow runs once a day (05:17 UTC) and on manual
+dispatch. A manual dispatch has the input `dry_run`, true by default: it plans
+and shows the packet and never signs. It needs the maintainer subcommands
+`knowledge-packet` (pull request #460) and `knowledge-publish release`,
+`content-digest`, `live-state` and `deploy-guard` (pull request #461); neither
+is merged at the time of writing, and this workflow must not merge before both.
+
+Jobs:
+
+1. `plan` (no key, no environment). First it checks the gate: the environment
+   `knowledge-release` must have a required reviewer `airstand`, "prevent
+   self-review" off and the deployment branch policy exactly `main`;
+   `knowledge-refresh` must exist with no reviewer and branch `main`; no
+   repository-level secret may have a key secret name. A failed check fails the
+   run (in a dry run it is only a warning, and nothing can be signed). Then it
+   refuses to start while another run of this workflow waits for approval or is
+   still running and is younger than 26 hours (the summary says `SKIPPED`). It
+   finds the previous state as before, builds the packet of everything merged
+   since the source commit of the last published run (summary page plus the
+   artifact `knowledge-plan-<run id>`), and writes a plan that binds the
+   approval: source commit, revision, minimum TUF version, expiry, the content
+   digest and index digest from `knowledge-publish content-digest`, the packet
+   hash and the state it saw. If nothing that can change the knowledge was
+   merged (no change under the old push paths, no trust-path file, no
+   unverified marker, no direct commit) the run ends without an approval
+   request.
+2. `cancel-stale` (own permissions: `actions: write` only, no secret). Cancels
+   runs of this workflow that have waited more than 26 hours, after reading
+   each run again. The workflow has no workflow-level concurrency group, because
+   a run waiting for approval would hold it and the cancel could never start;
+   `sign` and `deploy` each have a group that never cancels a running job.
+3. `sign` (environment `knowledge-release`; runs only when the dry run is off,
+   the gate check passed and there is something to publish). Before any key is
+   read it refuses a run attempt other than 1, a commit other than the planned
+   one, a packet that differs from the plan and a plan older than 48 hours. It
+   then derives the state and the digests again and requires the same digests
+   as the approved plan, takes the signing version as the live timestamp
+   version plus one, and signs with `--expires`, `--expect-content-digest`,
+   `--expect-index-digest`, `--previous-package` and
+   `--expect-previous-package-digest` (CI mode requires them). The verified
+   index digest must equal the plan. The oldest-supported-client check is
+   unchanged. The packet is kept as the artifact `packet-final-<revision>-<sha256>`.
+4. `deploy` as before, but the run-number rule is replaced by
+   `knowledge-publish deploy-guard` (candidate built over exactly the live
+   package, higher TUF version, higher revision or identical targets and
+   snapshot) plus a check that no later run has published. `status.json` gains a
+   `packet` object (source commit, packet hash, content digest, index digest,
+   run id).
+
+A dry run also runs the job `token-probe` (`actions: write` only), which tries to approve a deployment of its own run with the job token and prints the answer in the summary; a 403 "not accessible by integration" is the expected result. It never fails the run and proves the token scope only when the answer is that 403.
+
+What a dry run shows and cannot show: the gate checks (whether the job token can
+read environments, branch policies and repository secrets, and whether it is
+refused when it tries to approve a deployment) are only proven by a real run;
+the dry run is the first such run.
+
+Owner steps (nothing here changes a key, the root or the pin):
+
+1. On `knowledge-release`: add the required reviewer `airstand`, keep the
+   deployment branch policy `main`, and do not enable "prevent self-review".
+2. Create `knowledge-refresh` (branch `main`, no reviewer) with only the
+   timestamp key and the passphrase, uploaded with `gh secret set --env`.
+3. Make sure the token agents use cannot approve deployments or edit
+   environments, so the approval is the owner's alone.
+4. Run the workflow once with `dry_run=true`, read the summary, then merge
+   (or enable) and approve the first real run.
+
+Known limits: the expiry of the plan is `min(now + 21 days, evidence expiry)`
+when the publisher reports the evidence expiry in the `content-digest` output,
+otherwise `now + 21 days` and a release that needs less is refused at sign
+time. The live package is read from this workflow's artifacts; a timestamp-only
+refresh (planned) must publish through the same state source or the guard
+refuses the next signing run. A day without a content change keeps the feed
+alive only through that refresh, so this workflow must not be enabled alone.
 
 ### Publish self-check
 

@@ -86,6 +86,11 @@ jobs:
           scripts/readme-coverage.sh --check
           scripts/preview-coverage.sh --check
 
+      - name: Check the knowledge publish workflow guards
+        # Fake-API tests of scripts/knowledge-daily.sh and the static contract of
+        # .github/workflows/knowledge-publish.yml (needs jq, git, python3 PyYAML).
+        run: bash scripts/knowledge-daily-test.sh
+
       - name: Check the coverage baseline is not lowered
         # The decided-pair and covered-project floors in
         # readme-baseline.json may not be lowered, and a project floor may not
