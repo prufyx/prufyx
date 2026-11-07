@@ -42,6 +42,8 @@ def validate_target(tj):
         for p in tj["paths"]:
             if not _safe_path(p.get("path")):
                 return "", f"path {str(p.get('path'))[:80]!r} invalid"
+            if type(p.get("optional", False)) is not bool:
+                return "", "optional must be a boolean"
             if p.get("directory"):
                 m = p["match"]
                 if not isinstance(m, str) or len(m) > 200 or "(" in m or "\\" in m and re.search(r"\\[1-9]", m) or re.search(r"[+*}]\?*[+*{]", m) or len(re.findall(r"[*+]|\{\d*,\d*\}", m)) > 2:
@@ -86,10 +88,40 @@ def checked(*args):
     return r.stdout
 
 
-def crd_text(tj, gd, tag):
-    """Concatenated CRD YAML of one project at one tag (from the bare clone gd)."""
+def path_absent(gd, tag, path):
+    """True only when git answers successfully and the path is not in the tree (a git failure raises)."""
+    return not checked("git", "-C", gd, "ls-tree", "--name-only", "--end-of-options", tag, path).strip()
+
+
+def remote_applies(tj, tagname):
+    """Mirror of the extractor's Remote.appliesTo: releases from `fromLine` on read their CRDs from another repository."""
+    rm = tj.get("remote")
+    if not rm:
+        return False
+    try:
+        floor = tuple(int(x) for x in str(rm["fromLine"]).split("."))
+        if len(floor) != 2:
+            raise ValueError
+    except Exception:
+        raise ValueError("remote fromLine invalid")
+    m = re.search(r"(\d+)\.(\d+)", tagname or "")
+    if not m:  # cannot place the release on a line: never assume it is served locally
+        raise ValueError("remote-served target: release line of %r unknown" % (tagname,))
+    return (int(m.group(1)), int(m.group(2))) >= floor
+
+
+def crd_text(tj, gd, tag, tagname=None):
+    """Concatenated CRD YAML of one project at one tag (from the bare clone gd).
+    Semantics mirror the extractor: an Optional path that is absent at the tag contributes nothing, a missing
+    non-optional path is an error, a present directory without matching files is an error. A release that the
+    target serves from a Remote repository is not readable from this mirror: explicit error, never empty."""
+    if remote_applies(tj, tagname if tagname is not None else tag):
+        raise ValueError("remote-served release (%s from %s): remote repository is not in the oracle mirror" % (
+            tagname or tag, tj["remote"].get("repo", "?")))
     txt = ""
     for p in tj["paths"]:
+        if p.get("optional") and path_absent(gd, tag, p["path"]):
+            continue
         if p.get("directory"):
             fl = checked("git", "-C", gd, "ls-tree", "-r", "--name-only", "--end-of-options", tag, p["path"] + "/").splitlines()
             fl = match_names(p["match"], fl)
@@ -113,8 +145,8 @@ def lines_from(lines, min_from):
     return [l for l in lines if l >= floor]
 
 
-def served_set(tj, gd, tag):
-    text = crd_text(tj, gd, tag)
+def served_set(tj, gd, tag, tagname=None):
+    text = crd_text(tj, gd, tag, tagname)
     result = sh(CRDGVK, inp=text)
     if result.returncode:
         raise ValueError("CRD YAML helper failed")
@@ -187,7 +219,8 @@ def prepare(proj, cov, plan):
 
     def served(tag):
         if tag not in cache:
-            cache[tag] = served_set(tj, gd, pinned.get(tag, tag))
+            ref = pinned.get(tag, tag)
+            cache[tag] = served_set(tj, gd, ref, tag) if tj.get("remote") else served_set(tj, gd, ref)
         return cache[tag]
 
     if comp is None:
