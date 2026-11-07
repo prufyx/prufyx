@@ -6,7 +6,7 @@ Suites: k8s-range (all GVKs of minor m, scan m -> m+1), k8s-single (each removed
 non-alpha GVK alone), k8s-plan (multi-hop `prufyx plan`, per-stage verdicts).
 WRONGPASS: a removed GVK is in the input and scan/plan exits 0 / says PASS.
 """
-import argparse, json, os, sys, urllib.error, urllib.request
+import argparse, json, os, re, sys, urllib.error, urllib.request
 from qalib import *
 import qa_scope
 
@@ -108,6 +108,52 @@ def record_input(scope, target, report, requested):
             reason="input was not completely processed; replay the full synthetic input"))
 
 
+ATTEST_PATH = "cli/internal/cncfcheck/data/corpus-attestation.json"
+RULES_PATH = "cli/internal/cncfcheck/data/rules.json"
+TARGET_DIR = "cli/internal/extract/crdversions/"
+
+def _git_show(ref, path):
+    result = sh("git", "-C", SRC, "show", f"{ref}:{path}")
+    if result.returncode:
+        raise ValueError("unreadable " + path)
+    return result.stdout
+
+def attestation_inputs():
+    """Raw base/head attestation and rules plus the trusted base component bindings (purl -> slug)."""
+    base, head = ENV("QA_BASE"), ENV("QA_SHA")
+    trusted, slugs = {}, set()
+    listing = sh("git", "-C", SRC, "ls-tree", "-r", "--name-only", base, "--", TARGET_DIR)
+    if listing.returncode:
+        raise ValueError("targets unreadable")
+    for path in listing.stdout.splitlines():
+        m = re.fullmatch(re.escape(TARGET_DIR) + r"target-([a-z0-9-]+)\.json", path)
+        if not m:
+            continue
+        slugs.add(m.group(1))
+        target = json.loads(_git_show(base, path))
+        comp = target["target"].get("component") if isinstance(target, dict) and isinstance(target.get("target"), dict) else None
+        if comp is None:
+            continue
+        if not isinstance(comp, str) or trusted.setdefault(comp, m.group(1)) != m.group(1):
+            raise ValueError("conflicting component binding")
+    return (_git_show(base, ATTEST_PATH), _git_show(head, ATTEST_PATH),
+            _git_show(base, RULES_PATH), _git_show(head, RULES_PATH), trusted, slugs)
+
+def attestation_touches_kubernetes():
+    """True unless every changed attestation component is attributable and none is Kubernetes-related; errors fail closed."""
+    import select_projects as sp
+    old, new, rules_old, rules_new, trusted, slugs = attestation_inputs()
+    old_doc, new_doc = sp._load(old), sp._load(new)
+    changed = set(old_doc.get("components") or []) ^ set(new_doc.get("components") or [])
+    for component in changed:
+        low = str(component).lower()
+        if "kube" in low or "k8s" in low:
+            return True
+    rules_old_doc, rules_new_doc = sp._load(rules_old), sp._load(rules_new)
+    slugs = set(slugs) | {"kubernetes"} | set(sp._entries(rules_old_doc) and {e["project"] for e in sp._entries(rules_old_doc).values()})
+    found = sp.aggregate_projects(sp.ATTEST, old, new, slugs, (rules_old_doc, rules_new_doc), trusted)
+    return any(project == "kubernetes" or project.startswith(("kube", "k8s")) for project in found)
+
 def required_single_targets(singles):
     """Infer requirements from the exact data diff; operator input can only add."""
     required = set()
@@ -146,6 +192,9 @@ def required_single_targets(singles):
                             for member in members:
                                 matches = {target for target, gvk in singles.items() if "/".join(gvk) == member}
                                 required.update(matches or {"k8s-single|required:" + member})
+                elif path == ATTEST_PATH:
+                    if attestation_touches_kubernetes():
+                        raise ValueError("changed attestation touches Kubernetes")
                 elif path.startswith("cli/") and not (path.endswith(".md") or path.startswith("cli/docs/") or
                         path.startswith("cli/internal/extract/crdversions/target-") or path == "cli/internal/customresources/table.json"):
                     raise ValueError("changed data cannot be narrowed")
