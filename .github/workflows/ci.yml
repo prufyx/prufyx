@@ -89,19 +89,40 @@ jobs:
         # readme-baseline.json may not be lowered, and a project floor may not
         # be removed, relative to the base branch. A number may fall only
         # through a new named withdrawal entry in the same file.
+        # Fail closed: a missing or unreadable base file, an unreachable base
+        # ref, or a missing head file fails the step. It runs on pull requests
+        # only: on a push the base would be the pushed commit itself, and a
+        # file compared with itself proves nothing; main only changes through
+        # a pull request that already passed this step.
+        if: github.event_name == 'pull_request'
         working-directory: cli
         env:
-          BASE_REF: ${{ github.base_ref || 'main' }}
+          BASE_REF: ${{ github.base_ref }}
         run: |
           set -euo pipefail
           path=cli/internal/maintainer/coveragereport/testdata/readme-baseline.json
-          git fetch --no-tags --depth=1 origin "${BASE_REF}"
-          if ! git cat-file -e "FETCH_HEAD:${path}" 2>/dev/null; then
-            echo "no baseline on ${BASE_REF}, nothing to compare"
-            exit 0
+          if [ -z "${BASE_REF}" ]; then
+            echo "::error::no base ref for this pull request, cannot compare the baseline"
+            exit 1
+          fi
+          if ! git fetch --no-tags --depth=1 origin "${BASE_REF}"; then
+            echo "::error::cannot fetch base ref ${BASE_REF}, cannot compare the baseline"
+            exit 1
+          fi
+          if ! git cat-file -e "FETCH_HEAD:${path}"; then
+            echo "::error::${path} is missing on ${BASE_REF}; the baseline must exist on the base branch"
+            exit 1
+          fi
+          if [ ! -s "../${path}" ]; then
+            echo "::error::${path} is missing or empty in this change; the baseline may not be deleted"
+            exit 1
           fi
           git show "FETCH_HEAD:${path}" > "${RUNNER_TEMP}/readme-baseline-main.json"
-          PRUFYX_BASELINE_MAIN="${RUNNER_TEMP}/readme-baseline-main.json" \
+          if [ ! -s "${RUNNER_TEMP}/readme-baseline-main.json" ]; then
+            echo "::error::${path} on ${BASE_REF} is empty"
+            exit 1
+          fi
+          PRUFYX_BASELINE_REQUIRED=1 PRUFYX_BASELINE_MAIN="${RUNNER_TEMP}/readme-baseline-main.json" \
             go test ./internal/maintainer/coveragereport/ -run 'TestBaselineNotLowered' -count=1
 
       - name: Check generated release-notes block
