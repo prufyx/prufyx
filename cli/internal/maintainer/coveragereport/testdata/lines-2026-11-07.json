@@ -1,6 +1,7 @@
 {
   "schema": "prufyx.io/coverage-lines/v1",
-  "capturedOn": "2026-11-07",
+  "capturedOn": "2026-10-31",
+  "pinnedOn": "2026-11-07",
   "projects": {
     "antrea": {
       "lines": [

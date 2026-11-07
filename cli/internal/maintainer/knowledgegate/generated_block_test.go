@@ -373,7 +373,13 @@ func TestCoverageNumbersKeepBaseline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := coveragereport.CheckBaseline(b, report.Fleet.A+report.Fleet.B, report.CRDPublishedProjects); err != nil {
+	pp := map[string]int{}
+	for _, p := range report.Projects {
+		if p.A+p.B > 0 {
+			pp[p.Project] = p.A + p.B
+		}
+	}
+	if err := coveragereport.CheckBaseline(b, report.Fleet.A+report.Fleet.B, report.CRDPublishedProjects, pp); err != nil {
 		t.Fatal(err)
 	}
 }

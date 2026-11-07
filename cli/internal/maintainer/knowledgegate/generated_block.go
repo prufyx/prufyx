@@ -188,7 +188,11 @@ func coverageReportOf(t Tree) (coveragereport.Report, []byte, time.Time, error) 
 	if err != nil {
 		return coveragereport.Report{}, nil, time.Time{}, err
 	}
-	captured, err := time.Parse("2006-01-02", lines.CapturedOn)
+	clockDate := lines.CapturedOn
+	if lines.PinnedOn != "" {
+		clockDate = lines.PinnedOn
+	}
+	captured, err := time.Parse("2006-01-02", clockDate)
 	if err != nil {
 		return coveragereport.Report{}, nil, time.Time{}, fmt.Errorf("the pinned lines snapshot has no captured date")
 	}

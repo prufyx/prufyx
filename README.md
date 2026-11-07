@@ -311,7 +311,7 @@ community projects that hold CRD knowledge.
 ## Coverage
 
 <!-- coverage:begin -->
-Generated on 2026-11-07 by `scripts/readme-coverage.sh` (do not edit this block by hand).
+Generated on 2026-11-07 by `scripts/readme-coverage.sh` (do not edit this block by hand). Release lines captured 2026-10-31, evaluated on 2026-11-07.
 
 | Executable rules | Count |
 | --- | --- |

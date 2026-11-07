@@ -65,7 +65,11 @@ func RenderREADMEBlock(r Report, inventoryJSON []byte, now time.Time) (string, e
 	f := r.Fleet
 	var b strings.Builder
 	w := func(format string, args ...any) { fmt.Fprintf(&b, format, args...) }
-	w("Generated on %s by `scripts/readme-coverage.sh` (do not edit this block by hand).\n\n", now.UTC().Format("2006-01-02"))
+	w("Generated on %s by `scripts/readme-coverage.sh` (do not edit this block by hand).", now.UTC().Format("2006-01-02"))
+	if r.Lines.PinnedOn != "" {
+		w(" Release lines captured %s, evaluated on %s.", r.Lines.CapturedOn, r.Lines.PinnedOn)
+	}
+	w("\n\n")
 	w("| Executable rules | Count |\n| --- | --- |\n")
 	w("| CNCF source rules, active | %d across %d projects (%d withdrawn, not used) |\n", c["cncfSourceRules"], c["cncfRuleProjects"], c["cncfSourceRulesWithdrawn"])
 	w("| Rules for further, non-CNCF projects | %d across %d projects |\n", c["communityProjectSourceRules"], c["communityProjectRuleProjects"])

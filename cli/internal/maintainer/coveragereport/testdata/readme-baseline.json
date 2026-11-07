@@ -1,5 +1,21 @@
 {
   "decidedPairs": 46,
   "crdPublishedProjects": 19,
+  "projectPairs": {
+    "cert-manager": 2,
+    "cilium": 2,
+    "crossplane": 1,
+    "dapr": 5,
+    "keda": 5,
+    "kubernetes": 5,
+    "kuma": 4,
+    "kyverno": 1,
+    "mongodb-kubernetes": 5,
+    "openkruise": 2,
+    "strimzi": 5,
+    "tekton": 5,
+    "velero": 5,
+    "volcano": 4
+  },
   "withdrawals": []
 }

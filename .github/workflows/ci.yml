@@ -84,6 +84,26 @@ jobs:
           scripts/readme-coverage.sh --check
           scripts/preview-coverage.sh --check
 
+      - name: Check the coverage baseline is not lowered
+        # The decided-pair and covered-project floors in
+        # readme-baseline.json may not be lowered, and a project floor may not
+        # be removed, relative to the base branch. A number may fall only
+        # through a new named withdrawal entry in the same file.
+        working-directory: cli
+        env:
+          BASE_REF: ${{ github.base_ref || 'main' }}
+        run: |
+          set -euo pipefail
+          path=cli/internal/maintainer/coveragereport/testdata/readme-baseline.json
+          git fetch --no-tags --depth=1 origin "${BASE_REF}"
+          if ! git cat-file -e "FETCH_HEAD:${path}" 2>/dev/null; then
+            echo "no baseline on ${BASE_REF}, nothing to compare"
+            exit 0
+          fi
+          git show "FETCH_HEAD:${path}" > "${RUNNER_TEMP}/readme-baseline-main.json"
+          PRUFYX_BASELINE_MAIN="${RUNNER_TEMP}/readme-baseline-main.json" \
+            go test ./internal/maintainer/coveragereport/ -run 'TestBaselineNotLowered' -count=1
+
       - name: Check generated release-notes block
         # The generated block of the beta.0 release notes must equal its
         # regeneration from the two revisions it names. This catches a hand
