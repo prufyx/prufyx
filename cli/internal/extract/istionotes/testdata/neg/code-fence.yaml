@@ -1,0 +1,9 @@
+apiVersion: release-notes/v2
+kind: removal
+area: installation
+releaseNotes:
+  - |
+    Removed:
+    ```
+    --a
+    ```
