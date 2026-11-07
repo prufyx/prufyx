@@ -99,3 +99,92 @@ class HelperShapeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OptionalRemoteTests(unittest.TestCase):
+    """Optional/remote semantics mirror the extractor; nothing missing becomes empty truth silently."""
+    DIR = {"path": "crds", "directory": True, "match": "yaml$"}
+
+    def fake(self, tree, blobs=None, fail_on=None):
+        blobs = blobs or {}
+
+        def run(*a, **k):
+            if "ls-tree" in a:
+                if fail_on == "ls-tree":
+                    return subprocess.CompletedProcess([], 128, "", "bad")
+                path = a[-1]
+                if "-r" in a:
+                    return subprocess.CompletedProcess([], 0, "\n".join(f for f in tree if f.startswith(path)), "")
+                return subprocess.CompletedProcess([], 0, "\n".join(f for f in tree if f == path.rstrip("/") or f.startswith(path.rstrip("/") + "/")), "")
+            f = a[-1].split(":", 1)[1]
+            return subprocess.CompletedProcess([], 0, blobs.get(f, "kind: CustomResourceDefinition\n"), "")
+        return patch.object(oracle, "sh", side_effect=run)
+
+    def test_optional_directory_missing_is_ignored(self):
+        t = {"paths": [dict(self.DIR, optional=True), {"path": "base", "directory": True, "match": "yaml$"}]}
+        with self.fake(["base/a.yaml"], {"base/a.yaml": "A"}):
+            self.assertEqual(oracle.crd_text(t, "g", "v1"), "\n---\nA")
+
+    def test_optional_file_missing_is_ignored(self):
+        with self.fake(["a.yaml"], {"a.yaml": "A"}):
+            t = {"paths": [{"path": "a.yaml"}, {"path": "b.yaml", "optional": True}]}
+            self.assertEqual(oracle.crd_text(t, "g", "v1"), "\n---\nA")
+
+    def test_non_optional_missing_is_error(self):
+        with self.fake([]):
+            with self.assertRaises(ValueError):
+                oracle.crd_text({"paths": [self.DIR]}, "g", "v1")
+
+    def test_optional_present_is_read(self):
+        with self.fake(["crds/a.yaml"], {"crds/a.yaml": "A"}):
+            self.assertEqual(oracle.crd_text({"paths": [dict(self.DIR, optional=True)]}, "g", "v1"), "\n---\nA")
+
+    def test_optional_present_without_matches_is_error(self):
+        with self.fake(["crds/readme.md"]):
+            with self.assertRaises(ValueError):
+                oracle.crd_text({"paths": [dict(self.DIR, optional=True)]}, "g", "v1")
+
+    def test_git_failure_on_optional_probe_is_error_not_absent(self):
+        with self.fake([], fail_on="ls-tree"):
+            with self.assertRaises(ValueError):
+                oracle.crd_text({"paths": [dict(self.DIR, optional=True)]}, "g", "v1")
+
+    def test_remote_line_is_explicit_error(self):
+        t = {"paths": [self.DIR], "remote": {"fromLine": "3.4", "repo": "github.com/o/r"}}
+        with self.fake(["crds/a.yaml"]):
+            for name in ("v3.4.0", "v3.10.2", "v4.0.0"):
+                with self.subTest(tag=name), self.assertRaises(ValueError):
+                    oracle.crd_text(t, "g", "deadbeef", name)
+
+    def test_before_remote_line_reads_own_paths(self):
+        t = {"paths": [self.DIR], "remote": {"fromLine": "3.4", "repo": "github.com/o/r"}}
+        with self.fake(["crds/a.yaml"], {"crds/a.yaml": "A"}):
+            self.assertEqual(oracle.crd_text(t, "g", "deadbeef", "v3.3.1"), "\n---\nA")
+
+    def test_remote_with_unknown_line_fails_closed(self):
+        t = {"paths": [self.DIR], "remote": {"fromLine": "3.4", "repo": "github.com/o/r"}}
+        with self.fake(["crds/a.yaml"]):
+            with self.assertRaises(ValueError):
+                oracle.crd_text(t, "g", "deadbeef")
+
+    def test_validate_target_rejects_non_boolean_optional(self):
+        t = {"repo": "o/r", "tagPrefixes": ["v"], "paths": [{"path": "crds", "directory": True, "match": "y$", "optional": "yes"}]}
+        self.assertNotEqual(oracle.validate_target(t)[1], "")
+
+
+class RealGitProbeTests(unittest.TestCase):
+    def test_absent_path_is_empty_and_present_path_lists(self):
+        with tempfile.TemporaryDirectory() as td:
+            env = dict(os.environ, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@e.x", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@e.x")
+            def git(*a):
+                subprocess.run(["git", "-C", td, *a], check=True, capture_output=True, env=env)
+            git("init", "-q")
+            Path(td, "crds").mkdir()
+            Path(td, "crds", "a.yaml").write_text("kind: X\n")
+            git("add", "."); git("commit", "-qm", "c"); git("tag", "v1")
+            self.assertFalse(oracle.path_absent(td + "/.git", "v1", "crds"))
+            self.assertFalse(oracle.path_absent(td + "/.git", "v1", "crds/a.yaml"))
+            self.assertTrue(oracle.path_absent(td + "/.git", "v1", "nope"))
+            self.assertTrue(oracle.path_absent(td + "/.git", "v1", "nope/sub"))
+            with self.assertRaises(ValueError):
+                oracle.path_absent(td + "/.git", "nosuchtag", "crds")
