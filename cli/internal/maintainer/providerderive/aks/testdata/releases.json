@@ -1,0 +1,42 @@
+[
+ {
+  "tag_name": "2032-03-14",
+  "name": "Release 2032-03-14",
+  "body": "## Release Notes - 2032-03-14\n\nSynthetic body.\n",
+  "draft": false,
+  "prerelease": false,
+  "published_at": "2032-03-16T12:00:00Z"
+ },
+ {
+  "tag_name": "2032-03-02",
+  "name": "Release 2032-03-02",
+  "body": "## Release Notes - 2032-03-02\n\nSynthetic body.\n",
+  "draft": false,
+  "prerelease": false,
+  "published_at": "2032-03-03T12:00:00Z"
+ },
+ {
+  "tag_name": "AppNet-2032-02-19",
+  "name": "Release AppNet-2032-02-19",
+  "body": "## Release Notes - AppNet-2032-02-19\n\nSynthetic body.\n",
+  "draft": false,
+  "prerelease": false,
+  "published_at": "2032-02-19T12:00:00Z"
+ },
+ {
+  "tag_name": "2032-02-12",
+  "name": "Release 2032-02-12 preview",
+  "body": "## Release Notes - 2032-02-12\n\nSynthetic body.\n",
+  "draft": false,
+  "prerelease": false,
+  "published_at": "2032-02-14T12:00:00Z"
+ },
+ {
+  "tag_name": "2032-01-30",
+  "name": "Release 2032-01-30",
+  "body": "## Release Notes - 2032-01-30\n\nSynthetic body.\n",
+  "draft": false,
+  "prerelease": false,
+  "published_at": "2032-01-31T12:00:00Z"
+ }
+]

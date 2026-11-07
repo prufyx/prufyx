@@ -1,0 +1,214 @@
+{
+  "Lifecycle": [
+    {
+      "line": "1.71",
+      "standardEnd": "2032-03-15",
+      "extendedEnd": "2033-01-26",
+      "extendedRequiresOptIn": true,
+      "precision": "day"
+    },
+    {
+      "line": "1.72",
+      "standardEnd": "2032-06-07",
+      "extendedEnd": "2033-04-18",
+      "extendedRequiresOptIn": true,
+      "precision": "day"
+    },
+    {
+      "line": "1.73",
+      "standardEnd": "2032-12-07",
+      "extendedEnd": "2033-08-22",
+      "extendedRequiresOptIn": true,
+      "precision": "day"
+    },
+    {
+      "line": "1.74",
+      "standardEnd": "2033-04-12",
+      "extendedEnd": "2034-02-01",
+      "extendedRequiresOptIn": true,
+      "precision": "day"
+    },
+    {
+      "line": "1.75",
+      "standardEnd": "2033-09",
+      "extendedEnd": "2034-06",
+      "extendedRequiresOptIn": true,
+      "precision": "month"
+    },
+    {
+      "line": "1.76",
+      "standardEnd": "2033-12-06",
+      "precision": "day"
+    }
+  ],
+  "Channels": [
+    {
+      "line": "1.71",
+      "channel": "extended",
+      "available": "2031-01-26",
+      "autoUpgrade": "2031-07-13",
+      "precision": "day"
+    },
+    {
+      "line": "1.71",
+      "channel": "rapid",
+      "available": "2031-01-05",
+      "autoUpgrade": "2031-02-02",
+      "precision": "day"
+    },
+    {
+      "line": "1.71",
+      "channel": "regular",
+      "available": "2031-01-26",
+      "autoUpgrade": "2031-04-06",
+      "precision": "day"
+    },
+    {
+      "line": "1.71",
+      "channel": "stable",
+      "available": "2031-03-09",
+      "autoUpgrade": "2031-05-04",
+      "precision": "day"
+    },
+    {
+      "line": "1.72",
+      "channel": "extended",
+      "available": "2031-05-18",
+      "autoUpgrade": "2031-10-12",
+      "precision": "day"
+    },
+    {
+      "line": "1.72",
+      "channel": "rapid",
+      "available": "2031-04-27",
+      "autoUpgrade": "2031-05-25",
+      "precision": "day"
+    },
+    {
+      "line": "1.72",
+      "channel": "regular",
+      "available": "2031-05-18",
+      "autoUpgrade": "2031-08-03",
+      "precision": "day"
+    },
+    {
+      "line": "1.72",
+      "channel": "stable",
+      "available": "2031-06-22",
+      "autoUpgrade": "2031-09-14",
+      "precision": "day"
+    },
+    {
+      "line": "1.73",
+      "channel": "extended",
+      "available": "2031-09-07",
+      "autoUpgrade": "2032-02-08",
+      "precision": "day"
+    },
+    {
+      "line": "1.73",
+      "channel": "rapid",
+      "available": "2031-08-10",
+      "autoUpgrade": "2031-09-14",
+      "precision": "day"
+    },
+    {
+      "line": "1.73",
+      "channel": "regular",
+      "available": "2031-09-07",
+      "autoUpgrade": "2031-12-14",
+      "precision": "day"
+    },
+    {
+      "line": "1.73",
+      "channel": "stable",
+      "available": "2031-10-19",
+      "autoUpgrade": "2032-01-18",
+      "precision": "day"
+    },
+    {
+      "line": "1.74",
+      "channel": "extended",
+      "available": "2032-02",
+      "autoUpgrade": "2032-09",
+      "precision": "month"
+    },
+    {
+      "line": "1.74",
+      "channel": "rapid",
+      "available": "2032-01-12",
+      "autoUpgrade": "2032-02-09",
+      "precision": "day"
+    },
+    {
+      "line": "1.74",
+      "channel": "regular",
+      "available": "2032-02-01",
+      "autoUpgrade": "2032-05-10",
+      "precision": "day"
+    },
+    {
+      "line": "1.74",
+      "channel": "stable",
+      "available": "2032-03-14",
+      "autoUpgrade": "2032-06-14",
+      "precision": "day"
+    },
+    {
+      "line": "1.75",
+      "channel": "extended",
+      "available": "2032-Q2",
+      "autoUpgrade": "2033-Q3",
+      "precision": "quarter"
+    },
+    {
+      "line": "1.75",
+      "channel": "rapid",
+      "available": "2032-05",
+      "autoUpgrade": "2032-06",
+      "precision": "month"
+    },
+    {
+      "line": "1.75",
+      "channel": "regular",
+      "available": "2032-05-31",
+      "autoUpgrade": "2032-11-08",
+      "precision": "day"
+    },
+    {
+      "line": "1.75",
+      "channel": "stable",
+      "available": "2032-10",
+      "autoUpgrade": "2033-01",
+      "precision": "month"
+    },
+    {
+      "line": "1.76",
+      "channel": "extended",
+      "available": "2032-Q4",
+      "autoUpgrade": "2034-Q2",
+      "precision": "quarter"
+    },
+    {
+      "line": "1.76",
+      "channel": "rapid",
+      "available": "2032-09",
+      "autoUpgrade": "2032-11",
+      "precision": "month"
+    },
+    {
+      "line": "1.76",
+      "channel": "regular",
+      "available": "2032-10",
+      "autoUpgrade": "2033-01",
+      "precision": "month"
+    },
+    {
+      "line": "1.76",
+      "channel": "stable",
+      "available": "2033-Q1",
+      "autoUpgrade": "2033-Q1",
+      "precision": "quarter"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+[
+  {
+    "Day": "2032-03-30",
+    "Channel": "rapid",
+    "Version": "1.71.0-gke.1000",
+    "Prerelease": false
+  },
+  {
+    "Day": "2032-03-30",
+    "Channel": "rapid",
+    "Version": "1.72.0-gke.2000",
+    "Prerelease": false
+  },
+  {
+    "Day": "2032-03-30",
+    "Channel": "stable",
+    "Version": "1.70.3-gke.77",
+    "Prerelease": false
+  },
+  {
+    "Day": "2032-03-30",
+    "Channel": "stable",
+    "Version": "1.71.0-gke.500",
+    "Prerelease": true
+  }
+]
