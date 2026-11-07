@@ -15,6 +15,16 @@
 // any parse problem each add a ledger entry, and a result with any ledger
 // entry is never attestable.
 //
+// A key absent from a Go struct does not prove the configuration stopped
+// accepting it: non-strict decoders ignore unknown keys, and legacy aliases,
+// decode hooks and shims can keep an old key alive; a rename also shows as a
+// removal. The walk is therefore evidence for review only. Its basis is never
+// mechanical, RemovalCandidates yields draft candidates that need review, and
+// Attestable is always false, so nothing here can back a mechanical removal
+// fact. TODO (reviewed target metadata, not implemented): record per target
+// whether the decode site is strict (KnownFields, DisallowUnknownFields,
+// ErrorUnused) and whether aliases or hooks exist.
+//
 // Not covered by this slice (listed in the change description): the generated
 // configuration documentation parser, per-project targets, cross-package
 // types, build-constraint evaluation, protobuf-defined configuration.
@@ -40,12 +50,11 @@ import (
 // ResultSchema names the result layout.
 const ResultSchema = "configkeys.v1"
 
-// Evidence bases. Only a complete, ledger-free struct-tag walk is mechanical;
-// everything else is withheld. A documentation-only source would be a draft
-// for review; this slice has no documentation parser.
+// Evidence bases. A complete, ledger-free walk is a draft for review, never
+// mechanical (see the package comment); everything else is withheld.
 const (
-	BasisMechanical = "mechanical"
-	BasisWithheld   = "withheld"
+	BasisDraft    = "draft"
+	BasisWithheld = "withheld"
 )
 
 // Tags the walker understands.
@@ -76,7 +85,7 @@ func (t Target) validate() error {
 	if t.Repo.Key == "" || strings.HasPrefix(t.Dir, "/") || strings.Contains(t.Dir, "..") || strings.Contains(t.Dir, "\\") {
 		return errors.New("configkeys: bad target directory or repository")
 	}
-	if !ast.IsExported(t.Root) && t.Root == "" {
+	if t.Root == "" {
 		return errors.New("configkeys: empty root type")
 	}
 	for _, r := range t.Root {
@@ -94,6 +103,7 @@ func (t Target) validate() error {
 // Result is the canonical outcome of one walk.
 type Result struct {
 	Schema   string        `json:"schema"`
+	Repo     string        `json:"repo"`
 	Commit   string        `json:"commit"`
 	Dir      string        `json:"dir"`
 	Root     string        `json:"root"`
@@ -104,11 +114,13 @@ type Result struct {
 	Ledger   []LedgerEntry `json:"ledger"`
 }
 
-// Attestable reports whether the result may back an attestation: only when
-// nothing was withheld, at least one key was found and the basis is
-// mechanical. A non-empty ledger never yields one, whatever other fields say.
-func (r *Result) Attestable() bool {
-	return r != nil && len(r.Ledger) == 0 && r.Complete && r.Basis == BasisMechanical && len(r.Keys) > 0
+// Attestable is always false: a walk of Go struct tags cannot back a
+// mechanical removal fact (see the package comment).
+func (r *Result) Attestable() bool { return false }
+
+// CleanWalk reports a complete walk with no ledger entry and at least one key.
+func (r *Result) CleanWalk() bool {
+	return r != nil && len(r.Ledger) == 0 && r.Complete && r.Basis == BasisDraft && len(r.Keys) > 0
 }
 
 // Has reports whether member is a key of the walked document.
@@ -117,20 +129,31 @@ func (r *Result) Has(member string) bool {
 	return i < len(r.Keys) && r.Keys[i] == member
 }
 
-// RemovalCandidates returns the keys in old and not in next, sorted. It
-// answers only when both results are attestable and walk the same root with
-// the same tag family; otherwise ok is false and nothing may be derived.
-func RemovalCandidates(old, next *Result) (removed []string, ok bool) {
-	if !old.Attestable() || !next.Attestable() || old.Root != next.Root || old.Tag != next.Tag {
-		return nil, false
+// Removal is a set of draft removal candidates. It always needs review.
+type Removal struct {
+	Members     []string
+	Basis       string
+	NeedsReview bool
+}
+
+// RemovalCandidates returns the keys in old and not in next as draft
+// candidates. It answers only when both walks are clean, have the same schema,
+// repository, directory, root and tag family, and different commits;
+// otherwise ok is false and nothing may be derived.
+func RemovalCandidates(old, next *Result) (rm Removal, ok bool) {
+	if !old.CleanWalk() || !next.CleanWalk() {
+		return Removal{}, false
 	}
-	removed = []string{}
+	if old.Schema != next.Schema || old.Repo != next.Repo || old.Dir != next.Dir || old.Root != next.Root || old.Tag != next.Tag || old.Commit == next.Commit {
+		return Removal{}, false
+	}
+	rm = Removal{Members: []string{}, Basis: BasisDraft, NeedsReview: true}
 	for _, k := range old.Keys {
 		if !next.Has(k) {
-			removed = append(removed, k)
+			rm.Members = append(rm.Members, k)
 		}
 	}
-	return removed, true
+	return rm, true
 }
 
 // guards are switched off only by tests.
@@ -161,7 +184,7 @@ func scan(ctx context.Context, r extract.PinnedReader, t Target, sha string, g g
 		return nil, err
 	}
 	w.safeWalk(t.Root)
-	res := &Result{Schema: ResultSchema, Commit: sha, Dir: t.Dir, Root: t.Root, Tag: t.Tag, Keys: []string{}}
+	res := &Result{Schema: ResultSchema, Repo: t.Repo.Key, Commit: sha, Dir: t.Dir, Root: t.Root, Tag: t.Tag, Keys: []string{}}
 	for k := range w.keys {
 		res.Keys = append(res.Keys, k)
 	}
@@ -172,7 +195,7 @@ func scan(ctx context.Context, r extract.PinnedReader, t Target, sha string, g g
 		res.Complete = true
 	}
 	if res.Complete && len(res.Keys) > 0 {
-		res.Basis = BasisMechanical
+		res.Basis = BasisDraft
 	} else {
 		res.Basis = BasisWithheld
 	}
@@ -210,9 +233,10 @@ func (w *walker) load(ctx context.Context, r extract.PinnedReader, t Target, sha
 	var names []string
 	for _, e := range entries {
 		b := path.Base(e.Path)
-		if e.Type == "blob" && strings.HasSuffix(b, ".go") && !strings.HasSuffix(b, "_test.go") {
-			names = append(names, e.Path)
+		if e.Type != "blob" || !strings.HasSuffix(b, ".go") || strings.HasSuffix(b, "_test.go") || strings.HasPrefix(b, "_") || strings.HasPrefix(b, ".") {
+			continue // the go tool ignores these files
 		}
+		names = append(names, e.Path)
 	}
 	sort.Strings(names)
 	if len(names) > maxFiles {
@@ -242,7 +266,7 @@ func (w *walker) load(ctx context.Context, r extract.PinnedReader, t Target, sha
 			w.add(ReasonPackages, base)
 		}
 		pkgName = f.Name.Name
-		if hasConstraint(f) {
+		if hasConstraint(f) || platformSuffix(base) {
 			w.add(ReasonBuildConstr, base)
 		}
 		fi := &fileInfo{name: base, imports: map[string]string{}}
@@ -329,6 +353,21 @@ func hasConstraint(f *ast.File) bool {
 		}
 	}
 	return false
+}
+
+var knownOS = map[string]bool{"aix": true, "android": true, "darwin": true, "dragonfly": true, "freebsd": true, "hurd": true, "illumos": true, "ios": true, "js": true, "linux": true, "nacl": true, "netbsd": true, "openbsd": true, "plan9": true, "solaris": true, "wasip1": true, "windows": true, "zos": true}
+
+var knownArch = map[string]bool{"386": true, "amd64": true, "amd64p32": true, "arm": true, "armbe": true, "arm64": true, "arm64be": true, "loong64": true, "mips": true, "mipsle": true, "mips64": true, "mips64le": true, "mips64p32": true, "mips64p32le": true, "ppc": true, "ppc64": true, "ppc64le": true, "riscv": true, "riscv64": true, "s390": true, "s390x": true, "sparc": true, "sparc64": true, "wasm": true}
+
+// platformSuffix reports a GOOS or GOARCH file name suffix. Such files are
+// withheld, as constraints are not evaluated.
+func platformSuffix(base string) bool {
+	parts := strings.Split(strings.TrimSuffix(base, ".go"), "_")
+	n := len(parts)
+	if n < 2 {
+		return false
+	}
+	return knownOS[parts[n-1]] || knownArch[parts[n-1]]
 }
 
 func (w *walker) safeWalk(root string) {
@@ -502,6 +541,14 @@ type tagInfo struct {
 	inline bool
 }
 
+// tagOptions are the reviewed options per tag family; any other option
+// (mapstructure remain, for one) changes decoding in a way not modelled.
+var tagOptions = map[string]map[string]bool{
+	TagYAML:         {"omitempty": true, "flow": true, "inline": true},
+	TagJSON:         {"omitempty": true, "omitzero": true, "string": true},
+	TagMapstructure: {"omitempty": true, "squash": true},
+}
+
 func (w *walker) parseTag(f *ast.Field, goPath string) (tagInfo, bool) {
 	var ti tagInfo
 	if f.Tag == nil {
@@ -527,6 +574,10 @@ func (w *walker) parseTag(f *ast.Field, goPath string) (tagInfo, bool) {
 	parts := strings.Split(v, ",")
 	ti.name, ti.has = parts[0], true
 	for _, o := range parts[1:] {
+		if !tagOptions[w.tag][o] {
+			w.add(ReasonUnknownOption, goPath)
+			return ti, false
+		}
 		if o == "inline" || o == "squash" {
 			ti.inline = true
 		}
@@ -589,13 +640,16 @@ func (w *walker) field(f *ast.Field, fi *fileInfo, path []membercode.Seg, goPath
 			}
 		}
 		if w.g.collision {
-			if prev, dup := lv[key]; dup {
+			fold := key
+			if w.tag != TagYAML {
+				fold = strings.ToLower(key) // json and mapstructure match case-insensitively
+			}
+			if _, dup := lv[fold]; dup {
 				w.add(ReasonKeyCollision, fp)
-				_ = prev
 				continue
 			}
+			lv[fold] = fp
 		}
-		lv[key] = fp
 		child := append(clone(path), membercode.Seg{Kind: membercode.Prop, Name: key})
 		if !w.emit(child, fp) {
 			continue

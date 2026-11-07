@@ -110,6 +110,7 @@ const (
 	ReasonImplicitName  = "CONFIG_IMPLICIT_NAME"
 	ReasonKeyCollision  = "CONFIG_KEY_COLLISION"
 	ReasonAmbiguousType = "CONFIG_AMBIGUOUS_TYPE"
+	ReasonUnknownOption = "CONFIG_UNKNOWN_OPTION"
 	ReasonBadTag        = "CONFIG_BAD_TAG"
 	ReasonParse         = "CONFIG_PARSE_FAILED"
 	ReasonBuildConstr   = "CONFIG_BUILD_CONSTRAINT"

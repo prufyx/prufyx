@@ -67,14 +67,14 @@ func TestYAMLBasic(t *testing.T) {
 	if !reflect.DeepEqual(r.Keys, want) {
 		t.Fatalf("keys %v", r.Keys)
 	}
-	if !r.Attestable() || r.Basis != BasisMechanical || len(r.Ledger) != 0 {
+	if !r.CleanWalk() || r.Basis != BasisDraft || len(r.Ledger) != 0 {
 		t.Fatalf("not attestable: %+v", r)
 	}
 }
 
 func TestOmitemptyKeepsKey(t *testing.T) {
 	r := run(t, TagJSON, "type Config struct { A string `json:\"a,omitempty\"` }\n")
-	if !r.Has("a") || !r.Attestable() {
+	if !r.Has("a") || !r.CleanWalk() {
 		t.Fatal(r)
 	}
 }
@@ -82,25 +82,25 @@ func TestOmitemptyKeepsKey(t *testing.T) {
 func TestEmbeddedAndInline(t *testing.T) {
 	src := "type Config struct { Base `yaml:\",inline\"`; Plain; Own string `yaml:\"own\"` }\ntype Base struct { B string `yaml:\"b\"` }\ntype Plain struct { P string `yaml:\"p\"` }\n"
 	r := run(t, TagYAML, src)
-	if !reflect.DeepEqual(r.Keys, []string{"b", "own", "plain", "plain.p"}) || !r.Attestable() {
+	if !reflect.DeepEqual(r.Keys, []string{"b", "own", "plain", "plain.p"}) || !r.CleanWalk() {
 		t.Fatalf("%v %v", r.Keys, r.Ledger)
 	}
 	j := run(t, TagJSON, "type Config struct { Base; Named Plain `json:\"named\"` }\ntype Base struct { B string `json:\"b\"` }\ntype Plain struct { P string `json:\"p\"` }\n")
-	if !reflect.DeepEqual(j.Keys, []string{"b", "named", "named.p"}) || !j.Attestable() {
+	if !reflect.DeepEqual(j.Keys, []string{"b", "named", "named.p"}) || !j.CleanWalk() {
 		t.Fatalf("%v %v", j.Keys, j.Ledger)
 	}
 }
 
 func TestInlineMapIsDynamic(t *testing.T) {
 	r := run(t, TagYAML, "type Config struct { A string `yaml:\"a\"`; Extra map[string]any `yaml:\",inline\"` }\n")
-	if r.Attestable() || !reflect.DeepEqual(codes(r), []string{ReasonDynamicMap}) {
+	if r.CleanWalk() || !reflect.DeepEqual(codes(r), []string{ReasonDynamicMap}) {
 		t.Fatalf("%v", r.Ledger)
 	}
 }
 
 func TestDynamicMapAndAny(t *testing.T) {
 	r := run(t, TagYAML, "type Config struct { Labels map[string]string `yaml:\"labels\"`; X any `yaml:\"x\"`; Y interface{} `yaml:\"y\"` }\n")
-	if r.Attestable() || !r.Has("labels") {
+	if r.CleanWalk() || !r.Has("labels") {
 		t.Fatal(r)
 	}
 	if !reflect.DeepEqual(codes(r), []string{ReasonDynamicAny, ReasonDynamicAny, ReasonDynamicMap}) {
@@ -110,7 +110,7 @@ func TestDynamicMapAndAny(t *testing.T) {
 
 func TestCustomUnmarshalWithholds(t *testing.T) {
 	r := run(t, TagYAML, "type Config struct { L Level `yaml:\"l\"` }\ntype Level struct { V string `yaml:\"v\"` }\nfunc (l *Level) UnmarshalYAML(f func(any) error) error { return nil }\n")
-	if r.Attestable() || !reflect.DeepEqual(codes(r), []string{ReasonCustomUnmarsh}) || r.Has("l.v") {
+	if r.CleanWalk() || !reflect.DeepEqual(codes(r), []string{ReasonCustomUnmarsh}) || r.Has("l.v") {
 		t.Fatalf("%v %v", r.Keys, r.Ledger)
 	}
 }
@@ -122,7 +122,7 @@ func TestMemberRefusals(t *testing.T) {
 		"reserved": {"type Config struct { A string `yaml:\"_item_\"` }\n", ReasonAmbiguous},
 	} {
 		r := run(t, TagYAML, tc.src)
-		if r.Attestable() || len(r.Ledger) != 1 || r.Ledger[0].Code != tc.code && !(name == "dot" && r.Ledger[0].Code == ReasonCharset) {
+		if r.CleanWalk() || len(r.Ledger) != 1 || r.Ledger[0].Code != tc.code && !(name == "dot" && r.Ledger[0].Code == ReasonCharset) {
 			t.Errorf("%s: %v", name, r.Ledger)
 		}
 		if len(r.Keys) != 0 {
@@ -134,7 +134,7 @@ func TestMemberRefusals(t *testing.T) {
 func TestImplicitNameJSONAndMapstructure(t *testing.T) {
 	for _, tag := range []string{TagJSON, TagMapstructure} {
 		r := run(t, tag, "type Config struct { A string\n B string `"+tag+":\"b\"` }\n")
-		if r.Attestable() || !reflect.DeepEqual(codes(r), []string{ReasonImplicitName}) || !r.Has("b") {
+		if r.CleanWalk() || !reflect.DeepEqual(codes(r), []string{ReasonImplicitName}) || !r.Has("b") {
 			t.Errorf("%s: %v", tag, r.Ledger)
 		}
 	}
@@ -142,7 +142,7 @@ func TestImplicitNameJSONAndMapstructure(t *testing.T) {
 
 func TestCollision(t *testing.T) {
 	r := run(t, TagYAML, "type Config struct { Base `yaml:\",inline\"`; A string `yaml:\"a\"` }\ntype Base struct { A string `yaml:\"a\"` }\n")
-	if r.Attestable() || !reflect.DeepEqual(codes(r), []string{ReasonKeyCollision}) {
+	if r.CleanWalk() || !reflect.DeepEqual(codes(r), []string{ReasonKeyCollision}) {
 		t.Fatalf("%v", r.Ledger)
 	}
 }
@@ -158,7 +158,7 @@ func TestUnresolvable(t *testing.T) {
 		"duplicate type": "type X struct{}\ntype X struct{}\ntype Config struct { A X `yaml:\"a\"` }\n",
 	} {
 		r := run(t, TagYAML, src)
-		if r.Attestable() || len(r.Ledger) == 0 {
+		if r.CleanWalk() || len(r.Ledger) == 0 {
 			t.Errorf("%s attestable: %+v", name, r)
 		}
 	}
@@ -166,11 +166,11 @@ func TestUnresolvable(t *testing.T) {
 
 func TestRootMissingAndParseFailure(t *testing.T) {
 	r := run(t, TagYAML, "type Other struct{}\n")
-	if r.Attestable() || codes(r)[0] != ReasonRootNotFound {
+	if r.CleanWalk() || codes(r)[0] != ReasonRootNotFound {
 		t.Fatal(r.Ledger)
 	}
 	r2, err := Scan(context.Background(), mem{"config/c.go": "package config\ntype Config struct {"}, tgt(TagYAML), sha)
-	if err != nil || r2.Attestable() || codes(r2)[0] != ReasonParse {
+	if err != nil || r2.CleanWalk() || codes(r2)[0] != ReasonParse {
 		t.Fatalf("%v %v", r2, err)
 	}
 }
@@ -178,12 +178,12 @@ func TestRootMissingAndParseFailure(t *testing.T) {
 func TestBuildConstraintAndMultiplePackages(t *testing.T) {
 	m := mem{"config/a.go": "//go:build linux\n\npackage config\ntype Config struct { A string `yaml:\"a\"` }\n"}
 	r, _ := Scan(context.Background(), m, tgt(TagYAML), sha)
-	if r.Attestable() || codes(r)[0] != ReasonBuildConstr {
+	if r.CleanWalk() || codes(r)[0] != ReasonBuildConstr {
 		t.Fatal(r.Ledger)
 	}
 	m = mem{"config/a.go": "package config\ntype Config struct { A string `yaml:\"a\"` }\n", "config/b.go": "package other\n"}
 	r, _ = Scan(context.Background(), m, tgt(TagYAML), sha)
-	if r.Attestable() || codes(r)[0] != ReasonPackages {
+	if r.CleanWalk() || codes(r)[0] != ReasonPackages {
 		t.Fatal(r.Ledger)
 	}
 }
@@ -191,7 +191,7 @@ func TestBuildConstraintAndMultiplePackages(t *testing.T) {
 func TestTestFilesIgnored(t *testing.T) {
 	m := mem{"config/a.go": "package config\ntype Config struct { A string `yaml:\"a\"` }\n", "config/a_test.go": "package config\ntype Config struct{}\n"}
 	r, _ := Scan(context.Background(), m, tgt(TagYAML), sha)
-	if !r.Attestable() {
+	if !r.CleanWalk() {
 		t.Fatal(r.Ledger)
 	}
 }
@@ -199,26 +199,44 @@ func TestTestFilesIgnored(t *testing.T) {
 func TestRenamedAndMovedKeys(t *testing.T) {
 	old := run(t, TagYAML, "type Config struct { A string `yaml:\"old_name\"`; S S `yaml:\"s\"`; Keep string `yaml:\"keep\"` }\ntype S struct { Moved string `yaml:\"moved\"` }\n")
 	next := run(t, TagYAML, "type Config struct { A string `yaml:\"new_name\"`; S S `yaml:\"s\"`; Keep string `yaml:\"keep\"`; Moved string `yaml:\"moved\"` }\ntype S struct{}\n")
+	next.Commit = strings.Repeat("b", 40)
 	got, ok := RemovalCandidates(old, next)
-	// A rename and a move are removals at the old path.
-	if !ok || !reflect.DeepEqual(got, []string{"old_name", "s.moved"}) {
+	// A rename and a move show as removals at the old path: draft only.
+	if !ok || !reflect.DeepEqual(got.Members, []string{"old_name", "s.moved"}) || got.Basis != BasisDraft || !got.NeedsReview {
 		t.Fatalf("%v %v", got, ok)
 	}
 }
 
 func TestRemovalRefusesIncompleteOrMismatched(t *testing.T) {
-	good := run(t, TagYAML, "type Config struct { A string `yaml:\"a\"` }\n")
-	bad := run(t, TagYAML, "type Config struct { A string `yaml:\"a\"`; M map[string]int `yaml:\"m\"` }\n")
-	if _, ok := RemovalCandidates(good, bad); ok {
-		t.Fatal("incomplete new accepted")
+	src := "type Config struct { A string `yaml:\"a\"` }\n"
+	mk := func() (*Result, *Result) {
+		o, n := run(t, TagYAML, src), run(t, TagYAML, src)
+		n.Commit = strings.Repeat("b", 40)
+		return o, n
 	}
-	if _, ok := RemovalCandidates(bad, good); ok {
-		t.Fatal("incomplete old accepted")
+	if o, n := mk(); true {
+		if _, ok := RemovalCandidates(o, n); !ok {
+			t.Fatal("baseline refused")
+		}
 	}
-	j := run(t, TagJSON, "type Config struct { A string `json:\"a\"` }\n")
-	if _, ok := RemovalCandidates(good, j); ok {
-		t.Fatal("tag mismatch accepted")
+	for name, mut := range map[string]func(o, n *Result){
+		"schema":      func(o, n *Result) { n.Schema = "configkeys.v2" },
+		"repo":        func(o, n *Result) { n.Repo = "github.com/other/project" },
+		"dir":         func(o, n *Result) { n.Dir = "other" },
+		"root":        func(o, n *Result) { n.Root = "Other" },
+		"tag":         func(o, n *Result) { n.Tag = TagJSON },
+		"same commit": func(o, n *Result) { n.Commit = o.Commit },
+		"incomplete":  func(o, n *Result) { n.Complete = false },
+		"ledger":      func(o, n *Result) { o.Ledger = []LedgerEntry{{Code: "XXX", Item: "y"}} },
+		"withheld":    func(o, n *Result) { o.Basis = BasisWithheld },
+	} {
+		o, n := mk()
+		mut(o, n)
+		if _, ok := RemovalCandidates(o, n); ok {
+			t.Errorf("%s accepted", name)
+		}
 	}
+	good, _ := mk()
 	if _, ok := RemovalCandidates(nil, good); ok {
 		t.Fatal("nil accepted")
 	}
@@ -241,7 +259,7 @@ func TestTargetAndShaValidation(t *testing.T) {
 	if _, err := Scan(context.Background(), mem{}, tgt(TagYAML), "main"); err == nil {
 		t.Error("short sha accepted")
 	}
-	if r, err := Scan(context.Background(), mem{}, tgt(TagYAML), sha); err != nil || r.Attestable() || codes(r)[0] != ReasonRootNotFound {
+	if r, err := Scan(context.Background(), mem{}, tgt(TagYAML), sha); err != nil || r.CleanWalk() || codes(r)[0] != ReasonRootNotFound {
 		t.Error("empty directory must withhold")
 	}
 }
@@ -250,19 +268,23 @@ func TestPanicBecomesLedger(t *testing.T) {
 	g := defaultGuards()
 	g.hook = func(string) { panic("x") }
 	r := runG(t, TagYAML, "type Config struct { A string `yaml:\"a\"` }\n", g)
-	if r.Attestable() || codes(r)[0] != ReasonPanic {
+	if r.CleanWalk() || codes(r)[0] != ReasonPanic {
 		t.Fatal(r.Ledger)
 	}
 }
 
 func TestAttestableRefusesAnyLedger(t *testing.T) {
-	r := &Result{Complete: true, Basis: BasisMechanical, Keys: []string{"a"}, Ledger: []LedgerEntry{{Code: "X", Item: "y"}}}
-	if r.Attestable() {
+	r := &Result{Complete: true, Basis: BasisDraft, Keys: []string{"a"}, Ledger: []LedgerEntry{{Code: "X", Item: "y"}}}
+	if r.CleanWalk() {
 		t.Fatal("ledger ignored")
 	}
 	var n *Result
-	if n.Attestable() {
-		t.Fatal("nil attestable")
+	if n.CleanWalk() {
+		t.Fatal("nil clean")
+	}
+	clean := run(t, TagYAML, "type Config struct { A string `yaml:\"a\"` }\n")
+	if !clean.CleanWalk() || clean.Attestable() {
+		t.Fatal("a struct tag walk must never be attestable")
 	}
 }
 
@@ -299,12 +321,12 @@ func TestGuardMutations(t *testing.T) {
 		"collision": {TagYAML, col, func(g *guards) { g.collision = false }},
 		"allowlist": {TagYAML, foreign, func(g *guards) { g.allowlist = false }},
 	} {
-		if run(t, tc.tag, tc.src).Attestable() {
+		if run(t, tc.tag, tc.src).CleanWalk() {
 			t.Errorf("%s: default guards attest", name)
 		}
 		g := defaultGuards()
 		tc.off(&g)
-		if !runG(t, tc.tag, tc.src, g).Attestable() {
+		if !runG(t, tc.tag, tc.src, g).CleanWalk() {
 			t.Errorf("%s: guard is not what withholds", name)
 		}
 	}
@@ -361,5 +383,42 @@ func TestLedgerRules(t *testing.T) {
 	g4.item = false
 	if got := ledgerOf([]LedgerEntry{{"AAA", "bad item"}}, g4); got[0].Code == LedgerInvalid {
 		t.Error("item guard inert")
+	}
+}
+
+func TestUnknownOptionsAndCaseFoldedCollisions(t *testing.T) {
+	r := run(t, TagMapstructure, "type Config struct { A map[string]string `mapstructure:\",remain\"` }\n")
+	if r.CleanWalk() || !reflect.DeepEqual(codes(r), []string{ReasonUnknownOption}) {
+		t.Fatalf("%v", r.Ledger)
+	}
+	r = run(t, TagYAML, "type Config struct { A string `yaml:\"a,weird\"` }\n")
+	if r.CleanWalk() || codes(r)[0] != ReasonUnknownOption {
+		t.Fatal(r.Ledger)
+	}
+	for _, tag := range []string{TagJSON, TagMapstructure} {
+		r = run(t, tag, "type Config struct { A string `"+tag+":\"foo\"`; B string `"+tag+":\"Foo\"` }\n")
+		if r.CleanWalk() || codes(r)[0] != ReasonKeyCollision {
+			t.Errorf("%s: %v", tag, r.Ledger)
+		}
+	}
+	r = run(t, TagYAML, "type Config struct { A string `yaml:\"foo\"`; B string `yaml:\"Foo\"` }\n")
+	if !r.CleanWalk() {
+		t.Fatal("yaml is case sensitive", r.Ledger)
+	}
+}
+
+func TestFileNameRules(t *testing.T) {
+	base := "package config\ntype Config struct { A string `yaml:\"a\"` }\n"
+	for _, n := range []string{"c_windows.go", "c_arm64.go", "c_linux_amd64.go"} {
+		r, _ := Scan(context.Background(), mem{"config/c.go": base, "config/" + n: "package config\n"}, tgt(TagYAML), sha)
+		if r.CleanWalk() || codes(r)[0] != ReasonBuildConstr {
+			t.Errorf("%s: %v", n, r.Ledger)
+		}
+	}
+	for _, n := range []string{"_x.go", ".x.go"} {
+		r, _ := Scan(context.Background(), mem{"config/c.go": base, "config/" + n: "package broken {"}, tgt(TagYAML), sha)
+		if !r.CleanWalk() {
+			t.Errorf("%s not ignored: %v", n, r.Ledger)
+		}
 	}
 }
