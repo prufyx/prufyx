@@ -382,3 +382,19 @@ func TestInputRecordsNotMutated(t *testing.T) {
 		t.Fatal("evaluation shares source slices with the index")
 	}
 }
+
+func TestZeroNowIsTypedUnknown(t *testing.T) {
+	idx := recordWith(t, nil)
+	s, ok := Evaluate(Input{Provider: "eks", Records: idx, KnowledgeRevision: "rev-test",
+		Current: Endpoint{Version: "1.33.0"}, Target: Endpoint{Version: "1.33.0"}})
+	if !ok || len(s.Lines) != 1 || len(s.Lines[0].Findings) != 1 {
+		t.Fatalf("zero Now: want one declared UNKNOWN finding, got %+v (ok=%v)", s, ok)
+	}
+	f := s.Lines[0].Findings[0]
+	if s.Lines[0].Role != RoleDeclared || f.Rule != RuleNowMissing || f.Severity != SeverityUnknown || f.Next == "" {
+		t.Fatalf("zero Now: got %+v", f)
+	}
+	if s.Now != "" {
+		t.Fatalf("zero Now must not render a fabricated timestamp, got %q", s.Now)
+	}
+}

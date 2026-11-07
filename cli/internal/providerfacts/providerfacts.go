@@ -38,6 +38,7 @@ const (
 // Rule ids.
 const (
 	RuleUnrecognized        = "provider_unrecognized"
+	RuleNowMissing          = "provider_now_missing"
 	RuleRecordAbsent        = "provider_record_absent"
 	RuleSourceUnavailable   = "provider_source_unavailable"
 	RuleVersionUnknown      = "provider_version_unknown"
@@ -154,6 +155,15 @@ func Evaluable(provider string) bool {
 func Evaluate(in Input) (Section, bool) {
 	if in.Provider == "" || distribution.UpstreamEquivalent(in.Provider) {
 		return Section{}, false
+	}
+	if in.Now.IsZero() {
+		// Fail closed: without a clock no date comparison is meaningful.
+		s := Section{Provider: in.Provider, KnowledgeRevision: in.KnowledgeRevision, Lines: []LineFacts{}, Notes: append([]string(nil), Notes...)}
+		e := &evaluator{in: in}
+		s.Lines = append(s.Lines, LineFacts{Role: RoleDeclared, Findings: []Finding{e.unknown(RuleNowMissing, "",
+			"no evaluation time was supplied, so no provider date is compared",
+			"supply a valid --now (or run with the system clock)", distribution.Evidence{})}})
+		return s, true
 	}
 	s := Section{Provider: in.Provider, Now: in.Now.UTC().Format(time.RFC3339), KnowledgeRevision: in.KnowledgeRevision, Lines: []LineFacts{}, Notes: append([]string(nil), Notes...)}
 	e := &evaluator{in: in}
