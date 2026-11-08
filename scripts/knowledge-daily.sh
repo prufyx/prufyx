@@ -13,6 +13,8 @@
 #   check-live  refuse unless both families still have exactly the runs the plan recorded
 #   trusted-ids numeric ids whose markers count (pinned here, the lookup only cross-checks)
 #   collect     read the merged pull requests of a range into the packet input file
+#   orphan-bind recovery over an orphan refresh: the supplied package must be that refresh (prints its digest)
+#   served-check refuse unless the served feed is the plan's recorded predecessor
 #   has-content decide from a packet whether anything can change the knowledge
 #   plan-json   write the plan file that binds the approval to the signature
 #   sign-check  checks the sign job runs before any key is read
@@ -247,6 +249,41 @@ cmd_check_live() {
   echo "check-live: OK (live ${fam})"
 }
 
+# orphan-bind LIVE_JSON PREV_REVISION PREV_TUF: recovery over an orphan refresh
+# (the live artifact is a refresh whose content run expired). The owner-supplied
+# package must BE that refresh package: same revision, same timestamp version,
+# and its digest (from the artifact name) is printed to become the expected
+# digest of the verify call. A pre-refresh package (lower timestamp) would let a
+# candidate deploy at or below the served timestamp version (client rollback).
+cmd_orphan_bind() {
+  local file="${1:-}" prev_rev="${2:-}" prev_tuf="${3:-}" fam art rev tuf hex
+  [ -n "${file}" ] && [ -s "${file}" ] || die "orphan-bind: the live state is missing."
+  [[ "${prev_rev}" =~ ^[1-9][0-9]{0,17}$ ]] && [[ "${prev_tuf}" =~ ^[1-9][0-9]{0,17}$ ]] || die "orphan-bind: previous_revision and previous_tuf_version must be positive integers."
+  fam="$(jq -er '.live.family' "${file}")" || die "orphan-bind: the live state is unreadable."
+  [ "${fam}" = refresh-orphan ] || die "orphan-bind: the live state is not an orphan refresh (${fam})."
+  art="$(jq -er '.refresh.artifact' "${file}")" || die "orphan-bind: the refresh artifact is unknown."
+  [[ "${art}" =~ ^knowledge-refresh-([1-9][0-9]{0,17})-([1-9][0-9]{0,17})-([0-9a-f]{64})$ ]] || die "orphan-bind: the refresh artifact name is malformed."
+  rev="${BASH_REMATCH[1]}"; tuf="${BASH_REMATCH[2]}"; hex="${BASH_REMATCH[3]}"
+  [ "${prev_rev}" = "${rev}" ] && [ "${prev_tuf}" = "${tuf}" ] \
+    || die "the live state is the refresh package (revision ${rev}, timestamp ${tuf}); previous_revision and previous_tuf_version must name that package, not an older one (it would roll the feed back). Download the refresh artifact and supply it."
+  echo "sha256:${hex}"
+}
+
+# served-check FEED_FILE PLAN: the feed that is served right now must be the
+# package the plan recorded as predecessor. Anything else (a refresh or release
+# that landed after the plan, or a CDN still serving an older package right
+# after a deploy) is refused: replan.
+cmd_served_check() {
+  local feed="${1:-}" plan="${2:-}" want got
+  [ -n "${feed}" ] && [ -f "${feed}" ] && [ -s "${feed}" ] || die "served-check: the served feed is missing or empty; nothing was deployed."
+  [ -n "${plan}" ] && [ -s "${plan}" ] || die "served-check: the plan is missing."
+  want="$(jq -er '.previous.packageDigest' "${plan}")" || die "served-check: the plan has no predecessor digest."
+  [[ "${want}" =~ ^sha256:[0-9a-f]{64}$ ]] || die "served-check: the predecessor digest is malformed."
+  got="sha256:$(sha256sum "${feed}" | cut -d' ' -f1)"
+  [ "${got}" = "${want}" ] || die "the served feed (${got}) is not the recorded predecessor (${want}): a newer package was published, or the CDN still serves an older one; replan and retry later."
+  echo "served-check: OK"
+}
+
 # ---------------------------------------------------------------- trusted-ids
 # Prints the comma separated numeric ids whose gate and review markers count.
 # The ids are constants; a lookup of each login must return exactly that id,
@@ -396,5 +433,7 @@ case "${sub}" in
   has-content) cmd_has_content "$@" ;;
   plan-json) cmd_plan_json "$@" ;;
   sign-check) cmd_sign_check "$@" ;;
+  orphan-bind) cmd_orphan_bind "$@" ;;
+  served-check) cmd_served_check "$@" ;;
   *) echo "usage: knowledge-daily.sh gate|pending|cancel|live-runs|check-live|trusted-ids|collect|has-content|plan-json|sign-check" >&2; exit 2 ;;
 esac

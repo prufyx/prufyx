@@ -265,6 +265,10 @@ jobs:
             live="$(bash "${GITHUB_WORKSPACE}/scripts/knowledge-daily.sh" live-runs)" || fail "the published state cannot be read from the runs of both workflows."
             if [ "$(jq -r '.live.family' <<< "${live}")" = refresh-orphan ]; then
               refresh_run_id="$(jq -r '.refresh.runId' <<< "${live}")"
+              # The owner-supplied package must BE the orphan refresh package
+              # (a pre-refresh package has a lower timestamp: rollback).
+              printf '%s' "${live}" > "${state}/live.json"
+              expected_digest="$(bash "${GITHUB_WORKSPACE}/scripts/knowledge-daily.sh" orphan-bind "${state}/live.json" "${PREV_REVISION}" "${PREV_TUF}")" || fail "recovery over a live refresh artifact needs that refresh package itself as previous_index (revision and timestamp version of the refresh artifact); see the runbook."
             fi
           else
             # The live package is the newest live artifact across the content
@@ -1047,6 +1051,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           EXPECTED: ${{ vars.KNOWLEDGE_ROOT_DIGEST }}
+          FEED_URL: "https://prufyx.github.io/prufyx/knowledge/cncf-projects.tar"
         working-directory: cli
         run: |
           set -euo pipefail
@@ -1064,6 +1069,14 @@ jobs:
           if [ "${mode}" != first ]; then
             prev="${RUNNER_TEMP}/plan/previous.tar"
             [ "sha256:$(sha256sum "${prev}" | cut -d' ' -f1)" = "$(jq -er '.previous.packageDigest' "${plan}")" ] || fail "the previous package differs from the plan."
+            # The served feed must be the recorded predecessor (every mode): a
+            # newer package, or a CDN still serving an older one, replans.
+            served="$(mktemp -d "${RUNNER_TEMP}/knowledge-served.XXXXXX")"
+            curl --proto '=https' --max-redirs 0 --max-filesize "${MAX_PACKAGE_BYTES}" --max-time 60 -fsS \
+              -H 'Cache-Control: no-cache' -o "${served}/cncf-projects.tar" -- "${FEED_URL}" \
+              || fail "the served feed could not be downloaded; nothing was deployed."
+            bash "${GITHUB_WORKSPACE}/scripts/knowledge-daily.sh" served-check "${served}/cncf-projects.tar" "${plan}" \
+              || fail "the served feed is not the recorded predecessor; nothing was deployed, replan."
             "${RUNNER_TEMP}/prufyx-maintainer" knowledge-publish deploy-guard --profile cncf-projects \
               --live-package "${prev}" --candidate-package "${RUNNER_TEMP}/signed/cncf-projects.tar" \
               --root "${root}" --root-digest "${root_digest}" \

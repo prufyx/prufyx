@@ -271,6 +271,35 @@ expect_fail "check-live: state mode over an orphan refresh refused (no live pack
 cplan "" 31 "${h2}" capability
 expect_fail "check-live: capability mode over an orphan refresh refused" check-live "${root}/cl.json"
 
+# orphan-bind: recovery over an orphan refresh must be given the refresh
+# package itself (same revision and TUF version) and binds its digest; the
+# pre-refresh package (lower timestamp) would roll the feed back.
+orphan
+run live-runs; cp "${root}/out" "${root}/orphan-live.json"
+expect_ok "orphan-bind: the refresh package is accepted" orphan-bind "${root}/orphan-live.json" 4 12
+[ "$(cat "${root}/out")" = "sha256:${h2}" ] && ok "orphan-bind: the digest of the orphan artifact is bound" || bad "orphan-bind: digest" "$(cat "${root}/out")"
+expect_fail "orphan-bind: the pre-refresh package (older timestamp) refused" orphan-bind "${root}/orphan-live.json" 4 11
+expect_fail "orphan-bind: another revision refused" orphan-bind "${root}/orphan-live.json" 3 12
+expect_fail "orphan-bind: empty inputs refused" orphan-bind "${root}/orphan-live.json" "" ""
+expect_fail "orphan-bind: missing live file refused" orphan-bind "${root}/nonexistent.json" 4 12
+fams "knowledge-4-${h}" "knowledge-refresh-4-12-${h2}"; run live-runs; cp "${root}/out" "${root}/refresh-live.json"
+expect_fail "orphan-bind: a live package (not an orphan) refused" orphan-bind "${root}/refresh-live.json" 4 12
+printf '{"live":{"family":"refresh-orphan"},"refresh":{"artifact":"knowledge-refresh-4-12-xyz","revision":"4","tufVersion":"12"}}' > "${root}/bad-live.json"
+expect_fail "orphan-bind: a malformed artifact name refused" orphan-bind "${root}/bad-live.json" 4 12
+
+# served-check: deploy must not replace a served feed that is not the recorded predecessor.
+printf 'served-package' > "${root}/feed.tar"
+sd="sha256:$(sha256sum "${root}/feed.tar" | cut -d' ' -f1)"
+sdoc() { printf '{"mode":"%s","previous":{"packageDigest":"%s"}}' "$1" "$2" > "${root}/sc.json"; }
+sdoc state "${sd}"; expect_ok "served-check: the served feed is the recorded predecessor" served-check "${root}/feed.tar" "${root}/sc.json"
+sdoc recovery "${sd}"; expect_ok "served-check: recovery with the served predecessor" served-check "${root}/feed.tar" "${root}/sc.json"
+sdoc state "sha256:${h}"; expect_fail "served-check: a served feed that differs (CDN lag or newer refresh) refused" served-check "${root}/feed.tar" "${root}/sc.json"
+sdoc state ""; expect_fail "served-check: no recorded digest refused" served-check "${root}/feed.tar" "${root}/sc.json"
+sdoc state "${sd}"; expect_fail "served-check: missing feed file refused" served-check "${root}/nofeed.tar" "${root}/sc.json"
+: > "${root}/empty.tar"; expect_fail "served-check: empty feed refused" served-check "${root}/empty.tar" "${root}/sc.json"
+sdoc capability "${sd}"; expect_ok "served-check: capability mode with the served predecessor" served-check "${root}/feed.tar" "${root}/sc.json"
+sdoc capability "sha256:${h}"; expect_fail "served-check: capability mode differing refused" served-check "${root}/feed.tar" "${root}/sc.json"
+
 # ================================================================ trusted ids (pinned numbers, lookup only cross-checks)
 good_users() { newfake users; fx "users/airstand" '{"id":11156623,"login":"airstand"}'; fx "users/prufyx-bot" '{"id":343087959,"login":"prufyx-bot"}'; }
 good_users
@@ -583,6 +612,8 @@ if not pv or "live-runs" not in pv[0].get("run", ""): e("plan does not pick the 
 # refresh-orphan: recovery records the orphan refresh run, regular mode refuses it by name
 if pv and pv[0].get("run", "").count("refresh-orphan") < 2: e("plan does not handle the refresh-orphan family (recovery records it, regular mode refuses it)")
 if pv and not re.search(r'"\$\{live_family\}" != refresh-orphan \]\] \|\| fail|"\$\{live_family\}" != refresh-orphan \] \|\| fail', pv[0].get("run", "")): e("regular mode does not refuse an orphan refresh with a clear text")
+if pv and not re.search(r'knowledge-daily\.sh" orphan-bind ', pv[0].get("run", "")): e("recovery over an orphan refresh does not bind the refresh package (orphan-bind)")
+if not dg or not re.search(r'knowledge-daily\.sh" served-check ', dg[0].get("run", "")): e("deploy does not compare the served feed with the recorded predecessor (served-check)")
 # B4: ids pinned in the script, never looked up in the workflow
 if "users/" in raw or "gh api users" in raw: e("trusted ids are resolved from logins in the workflow")
 if "trusted-ids" not in raw: e("workflow lacks trusted-ids")
@@ -627,6 +658,8 @@ if python3 -I -c 'import yaml' 2> /dev/null; then
   mut "cancel-in-progress true" '0,/cancel-in-progress: false/ s/cancel-in-progress: false/cancel-in-progress: true/' "cancel-in-progress"
   mut "liveness skipped on empty recorded run id" 's/check-live "${plan}"/[ -z "${prun}" ] || check-live "${plan}"/' "empty recorded run id"
   mut "single family latest-run is back" '0,/live-runs/ s/live-runs/latest-run/' "latest-run"
+  mut "recovery stops binding the orphan digest" 's/knowledge-daily.sh" orphan-bind/knowledge-daily.sh" orphan-skip/' "orphan-bind"
+  mut "deploy stops checking the served feed" 's/knowledge-daily.sh" served-check/knowledge-daily.sh" served-skip/' "served-check"
   mut "recovery stops recording the orphan refresh" 's/refresh-orphan/refresh-gone/' "refresh-orphan"
   mut "ids resolved from logins" 's/trusted-ids/gh api users\/airstand trusted-ids/' "resolved from logins"
 else

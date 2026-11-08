@@ -430,6 +430,40 @@ func TestKnowledgePublishLivenessSpansBothFamilies(t *testing.T) {
 	}
 }
 
+// Recovery over an orphan refresh must be handed the refresh package itself
+// (digest bound), and every deploy compares the served feed with the recorded
+// predecessor: neither the owner-supplied package nor a CDN-lagged feed may
+// let a candidate replace a state that is not the predecessor.
+func TestKnowledgePublishBindsOrphanAndServedFeed(t *testing.T) {
+	wf, raw := loadPublishWorkflow(t)
+	pv := stepRun(t, wf.Jobs["plan"], "Find and verify the previous state")
+	if !strings.Contains(pv, `knowledge-daily.sh" orphan-bind `) {
+		t.Error("recovery over an orphan refresh must call orphan-bind")
+	}
+	if !strings.Contains(pv, `expected_digest="$(`) || !strings.Contains(pv, "orphan-bind") {
+		t.Error("the orphan refresh digest must become the expected digest of the verify call")
+	}
+	if i, j := strings.Index(pv, "orphan-bind"), strings.Index(pv, `if verify "${pkg}"`); i < 0 || j < 0 || i > j {
+		t.Error("orphan-bind must run before the previous package is verified")
+	}
+	dg := stepRun(t, wf.Jobs["deploy"], "Refuse unless the candidate follows the live package")
+	if !strings.Contains(dg, `knowledge-daily.sh" served-check `) {
+		t.Error("deploy must compare the served feed with the recorded predecessor (served-check)")
+	}
+	if !strings.Contains(dg, `-- "${FEED_URL}"`) || !strings.Contains(dg, "Cache-Control: no-cache") || !strings.Contains(dg, "--proto '=https'") || !strings.Contains(dg, "--max-redirs 0") {
+		t.Error("the served feed must be fetched over https, without redirects and without cache")
+	}
+	if i, j := strings.Index(dg, "served-check"), strings.Index(dg, "deploy-guard"); i < 0 || j < 0 || i > j {
+		t.Error("served-check must run before the deploy guard")
+	}
+	if strings.Contains(dg, `= recovery`) {
+		t.Error("served-check must apply to every mode")
+	}
+	if !strings.Contains(raw, `FEED_URL: "https://prufyx.github.io/prufyx/knowledge/cncf-projects.tar"`) {
+		t.Error("deploy must pin the feed URL")
+	}
+}
+
 // The packet digest the workflow consumes is entriesDigest. The keyless export
 // contentDigest that binds the signature keeps its name and is never read from
 // the packet; the step summary shows both with distinct labels.
