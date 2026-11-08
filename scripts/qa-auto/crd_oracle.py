@@ -151,12 +151,15 @@ def kustomization_resources(name, body):
 
     def scalar(v):
         v = v.strip()
-        if len(v) >= 2 and v[0] == v[-1] and v[0] in "'\"":
-            v = v[1:-1]
-            if v[:1] in "'\"" or "\\" in v or "'" in v or '"' in v:
+        q = re.fullmatch(r"(['\"])([^'\"\\#]*)\1(?:\s+#.*)?", v)
+        if q:
+            v = q.group(2)
+        else:
+            v = re.split(r"\s+#", v, maxsplit=1)[0].strip()  # a trailing comment needs leading whitespace
+            if not v or v[0] in "&*!|>{[%@`'\"#-?:," or "#" in v or ": " in v or v.endswith(":"):
                 raise ValueError(f"{name} has a scalar this reader does not model")
-        elif not v or v[0] in "&*!|>{[%@`'\"#-?:," or " #" in v or ": " in v or v.endswith(":"):
-            raise ValueError(f"{name} has a scalar this reader does not model")
+        if not v:
+            raise ValueError(f"{name} has an empty scalar")
         return v
 
     doc, res, in_res, started = {}, None, False, False
