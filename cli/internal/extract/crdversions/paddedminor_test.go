@@ -144,14 +144,13 @@ func TestPaddedMinorLines(t *testing.T) {
 		!slices.Equal(l[1].Versions, []string{"25.8.0", "25.8.1"}) || l[0].Problem != "" || l[2].Problem != "" {
 		t.Errorf("twin among releases: %+v", l)
 	}
-	// A padded-only release and a different canonical-only release stay
-	// ambiguous even when a twin is also present.
+	// A twin beside a padded-only release is ambiguous, as in the gate.
 	amb := extract.ReleaseIndex{Tags: []extract.Tag{
 		{Name: "v25.08.0", Commit: sha("a")}, {Name: "v25.8.0", Commit: sha("a")},
-		{Name: "v25.08.1", Commit: sha("b")}, {Name: "v25.8.2", Commit: sha("c")},
+		{Name: "v25.08.1", Commit: sha("b")},
 	}}
 	if l := x.releaseLines(amb); len(l) != 1 || !strings.Contains(l[0].Problem, "ambiguous") {
-		t.Errorf("mixed spellings of different releases: %+v", l)
+		t.Errorf("twin beside a padded-only release: %+v", l)
 	}
 	// Dual prefix and zero-padding combinations.
 	x3 := New(Target{TagPrefixes: []string{"v", ""}})
@@ -221,6 +220,40 @@ func TestPaddedMinorAlias(t *testing.T) {
 		}
 		if lines := x.releaseLines(extract.ReleaseIndex{Tags: got}); len(lines) != 2 || lines[0].Problem != "" {
 			t.Fatalf("%q: alias read as a release: %+v", prefixes, lines)
+		}
+	}
+}
+
+// FinalSet is the one twin rule of the extractor and the knowledge gate.
+func TestFinalSetTwinRule(t *testing.T) {
+	type tag struct {
+		v      string
+		padded bool
+		commit string
+	}
+	for _, c := range []struct {
+		name string
+		tags []tag
+		want []string
+		err  bool
+	}{
+		{"twin same commit", []tag{{"25.8.0", true, "a"}, {"25.8.0", false, "a"}}, []string{"25.8.0"}, false},
+		{"twin same commit, other order", []tag{{"25.8.0", false, "a"}, {"25.8.0", true, "a"}}, []string{"25.8.0"}, false},
+		{"twin different commit", []tag{{"25.8.0", true, "a"}, {"25.8.0", false, "b"}}, nil, true},
+		{"three spellings, one differs", []tag{{"25.8.0", true, "a"}, {"25.8.0", false, "a"}, {"25.8.0", false, "b"}}, nil, true},
+		{"same spelling two prefixes, two commits", []tag{{"25.8.0", false, "a"}, {"25.8.0", false, "b"}}, nil, true},
+		{"twin and canonical release", []tag{{"25.8.0", true, "a"}, {"25.8.0", false, "a"}, {"25.8.1", false, "b"}}, []string{"25.8.0", "25.8.1"}, false},
+		{"twin and padded-only release", []tag{{"25.8.0", true, "a"}, {"25.8.0", false, "a"}, {"25.8.1", true, "b"}}, nil, true},
+		{"padded-only and canonical-only", []tag{{"25.8.0", true, "a"}, {"25.8.1", false, "b"}}, nil, true},
+		{"padded only", []tag{{"25.8.0", true, "a"}, {"25.8.1", true, "b"}}, []string{"25.8.0", "25.8.1"}, false},
+		{"canonical only", []tag{{"25.8.0", false, "a"}, {"25.8.1", false, "b"}}, []string{"25.8.0", "25.8.1"}, false},
+	} {
+		var s FinalSet
+		for _, tg := range c.tags {
+			s.Add(tg.v, tg.padded, tg.commit)
+		}
+		if err := s.Err(); (err != nil) != c.err || (!c.err && !slices.Equal(s.Versions(), c.want)) {
+			t.Errorf("%s: %v %v", c.name, s.Versions(), err)
 		}
 	}
 }

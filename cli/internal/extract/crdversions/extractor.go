@@ -160,17 +160,9 @@ func (x *Extractor) releaseLines(index extract.ReleaseIndex) []*releaseLine {
 		padded              bool
 	}
 	byVersion := map[string]rel{}
-	conflicts := map[string]bool{}
 	unread := map[string]bool{}
-	// forms records, per version, whether a tag spells its minor padded
-	// (v26.02.0) and whether one spells it canonically (v26.2.0). Both
-	// spellings of one version at one commit are a padded twin: one release,
-	// kept under the canonical spelling. A line is ambiguous when one of its
-	// releases is spelled only padded and another only canonically, or when
-	// the twins of a release name different commits.
-	type spelling struct{ padded, canonical bool }
-	forms := map[string]spelling{}
-	twinConflict := map[string]bool{}
+	// sets applies the one twin rule (FinalSet) per line.
+	sets := map[string]*FinalSet{}
 	for _, t := range index.Tags {
 		if x.target.ReleaseScheme == SchemeCalverEdge {
 			// A tag shaped like a release that the grammar cannot read may
@@ -191,20 +183,12 @@ func (x *Extractor) releaseLines(index extract.ReleaseIndex) []*releaseLine {
 		minor, _ := strconv.Atoi(parts[1])
 		patch, _ := strconv.Atoi(parts[2])
 		r := rel{major, minor, patch, t, version, rank, padded}
-		sp := forms[version]
-		if padded {
-			sp.padded = true
-		} else {
-			sp.canonical = true
+		lk := fmt.Sprintf("%d.%d", major, minor)
+		if sets[lk] == nil {
+			sets[lk] = &FinalSet{}
 		}
-		forms[version] = sp
+		sets[lk].Add(version, padded, t.Commit)
 		if prev, dup := byVersion[version]; dup {
-			if prev.tag.Commit != t.Commit {
-				conflicts[fmt.Sprintf("%d.%d", major, minor)] = true
-				if prev.padded != padded {
-					twinConflict[fmt.Sprintf("%d.%d", major, minor)] = true
-				}
-			}
 			// Keep the canonical spelling, then the earlier prefix of the
 			// table.
 			if prev.padded == padded && prev.rank <= rank || !prev.padded && padded {
@@ -240,25 +224,14 @@ func (x *Extractor) releaseLines(index extract.ReleaseIndex) []*releaseLine {
 		l.Tags = append(l.Tags, r.tag)
 		l.Versions = append(l.Versions, r.version)
 	}
-	// A release spelled only padded and another only canonically make their
-	// line ambiguous; a twin (both spellings) is neutral.
-	onlyPadded, onlyCanonical := map[string]bool{}, map[string]bool{}
-	for v, sp := range forms {
-		parts := strings.Split(v, ".")
-		k := parts[0] + "." + parts[1]
-		switch {
-		case sp.padded && !sp.canonical:
-			onlyPadded[k] = true
-		case sp.canonical && !sp.padded:
-			onlyCanonical[k] = true
-		}
-	}
 	for _, l := range out {
+		var setErr error
+		if sets[l.key()] != nil {
+			setErr = sets[l.key()].Err()
+		}
 		switch {
-		case onlyPadded[l.key()] && onlyCanonical[l.key()], twinConflict[l.key()]:
-			l.Problem = "the line has release tags with a zero-padded minor and with a canonical minor, so its releases are ambiguous"
-		case conflicts[l.key()]:
-			l.Problem = "a release of the line is tagged twice, at different commits"
+		case setErr != nil:
+			l.Problem = setErr.Error()
 		case unread[l.key()]:
 			l.Problem = "a tag of the line has the shape of a release the release grammar does not read"
 		case len(l.Tags) > maxTagsPerLine:

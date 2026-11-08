@@ -293,9 +293,10 @@ func releasesComplete(c *Change, opts Options, tagCache map[string][]extract.Tag
 // (crdversions.CalverEdgeRelease) instead of the prefixes.
 func finalReleases(tags []extract.Tag, prefixes []string, scheme, line string) ([]lineattest.Release, error) {
 	byVersion := map[string]string{}
-	// A line with a tag of a zero-padded minor (v26.02.0) and one of the
-	// canonical minor (v26.2.0) has ambiguous releases.
-	var sawPadded, sawCanonical bool
+	// The twin rule of the extractor (crdversions.FinalSet): a version at one
+	// commit under both spellings is one release; a padded-only release
+	// beside a canonical one makes the line ambiguous.
+	var set crdversions.FinalSet
 	for _, t := range tags {
 		var versions []string
 		if scheme == crdversions.SchemeCalverEdge {
@@ -318,22 +319,17 @@ func finalReleases(tags []extract.Tag, prefixes []string, scheme, line string) (
 			if l, ok := lineattest.LineOf(version); !ok || l != line {
 				continue
 			}
-			if paddedOf[version] {
-				sawPadded = true
-			} else {
-				sawCanonical = true
-			}
-			if sawPadded && sawCanonical {
-				return nil, fmt.Errorf("line %s has release tags with a zero-padded minor and with a canonical minor, so its releases are ambiguous", line)
-			}
 			if !commitHexRE.MatchString(t.Commit) {
 				return nil, fmt.Errorf("tag %s has no full commit", logSafe(t.Name))
 			}
-			if prev, dup := byVersion[version]; dup && prev != t.Commit {
-				return nil, fmt.Errorf("version %s is tagged at two commits", version)
+			if err := set.Add(version, paddedOf[version], t.Commit); err != nil {
+				return nil, fmt.Errorf("line %s: %w", line, err)
 			}
 			byVersion[version] = t.Commit
 		}
+	}
+	if err := set.Err(); err != nil {
+		return nil, fmt.Errorf("line %s: %w", line, err)
 	}
 	out := make([]lineattest.Release, 0, len(byVersion))
 	for v, commit := range byVersion {
