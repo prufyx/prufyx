@@ -37,7 +37,8 @@ type finalEntry struct {
 }
 
 // Add records one tag read as version (canonical X.Y.Z) with its spelling and
-// commit. It returns the first error of the set, which stays.
+// commit. It returns the sticky error of the set (two commits of one release); the
+// mixed-spelling check depends on the whole set and is read once, by Err.
 func (s *FinalSet) Add(version string, padded bool, commit string) error {
 	if s.versions == nil {
 		s.versions = map[string]*finalEntry{}
@@ -47,7 +48,7 @@ func (s *FinalSet) Add(version string, padded bool, commit string) error {
 		e = &finalEntry{commit: commit}
 		s.versions[version] = e
 	} else if e.commit != commit && s.err == nil {
-		if padded && e.canonic || !padded && e.padded {
+		if (padded && e.canonic) || (!padded && e.padded) {
 			s.err = ErrAmbiguousSpelling
 		} else {
 			s.err = fmt.Errorf("a release of the line is tagged twice, at two commits (%s)", version)
@@ -58,7 +59,7 @@ func (s *FinalSet) Add(version string, padded bool, commit string) error {
 	} else {
 		e.canonic = true
 	}
-	return s.Err()
+	return s.err
 }
 
 // Err is the first error of the set, or the mixed-spelling error: a

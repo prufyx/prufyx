@@ -135,6 +135,13 @@ func TestFinalReleasesPaddedMinor(t *testing.T) {
 	if got, err := finalReleases(calverTags("v26.02.0", "v26.2.0"), prefixes, "", "26.2"); err == nil {
 		t.Fatalf("twin at two commits: %v", got)
 	}
+	// Ascending ls-remote order, two prefixes: a canonical release, the
+	// padded twin, then its canonical spelling at the same commit.
+	ord := calverTags("25.8.1", "v25.08.0", "v25.8.0")
+	ord[2].Commit = ord[1].Commit
+	if got, err := finalReleases(ord, []string{"v", ""}, "", "25.8"); err != nil || len(got) != 2 || got[0].Version != "25.8.0" || got[1].Version != "25.8.1" {
+		t.Fatalf("three-tag order: %v %v", got, err)
+	}
 	// The other line is unaffected.
 	if got, err := finalReleases(calverTags("v26.02.0", "v26.2.0", "v26.10.0"), prefixes, "", "26.10"); err != nil || len(got) != 1 {
 		t.Fatalf("26.10: %v %v", got, err)

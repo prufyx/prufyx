@@ -172,6 +172,14 @@ func TestPaddedMinorLines(t *testing.T) {
 			t.Errorf("%v: %+v", c.commits, l)
 		}
 	}
+	// Ascending ls-remote order: a canonical release, then the padded twin,
+	// then its canonical spelling at the same commit: one line, no problem.
+	ord := extract.ReleaseIndex{Tags: []extract.Tag{
+		{Name: "25.8.1", Commit: sha("b")}, {Name: "v25.08.0", Commit: sha("a")}, {Name: "v25.8.0", Commit: sha("a")},
+	}}
+	if l := New(Target{TagPrefixes: []string{"v", ""}}).releaseLines(ord); len(l) != 1 || l[0].Problem != "" || len(l[0].Versions) != 2 {
+		t.Errorf("three-tag order: %+v", l)
+	}
 	// Three spellings, two agree and one differs.
 	idx3 := extract.ReleaseIndex{Tags: []extract.Tag{
 		{Name: "v25.08.0", Commit: sha("a")}, {Name: "v25.8.0", Commit: sha("a")}, {Name: "25.8.0", Commit: sha("b")},
@@ -244,6 +252,7 @@ func TestFinalSetTwinRule(t *testing.T) {
 		{"same spelling two prefixes, two commits", []tag{{"25.8.0", false, "a"}, {"25.8.0", false, "b"}}, nil, true},
 		{"twin and canonical release", []tag{{"25.8.0", true, "a"}, {"25.8.0", false, "a"}, {"25.8.1", false, "b"}}, []string{"25.8.0", "25.8.1"}, false},
 		{"twin and padded-only release", []tag{{"25.8.0", true, "a"}, {"25.8.0", false, "a"}, {"25.8.1", true, "b"}}, nil, true},
+		{"three tags, canonical release before the padded twin", []tag{{"25.8.1", false, "b"}, {"25.8.0", true, "a"}, {"25.8.0", false, "a"}}, []string{"25.8.0", "25.8.1"}, false},
 		{"padded-only and canonical-only", []tag{{"25.8.0", true, "a"}, {"25.8.1", false, "b"}}, nil, true},
 		{"padded only", []tag{{"25.8.0", true, "a"}, {"25.8.1", true, "b"}}, []string{"25.8.0", "25.8.1"}, false},
 		{"canonical only", []tag{{"25.8.0", false, "a"}, {"25.8.1", false, "b"}}, []string{"25.8.0", "25.8.1"}, false},

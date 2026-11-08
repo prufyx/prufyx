@@ -191,7 +191,7 @@ func (x *Extractor) releaseLines(index extract.ReleaseIndex) []*releaseLine {
 		if prev, dup := byVersion[version]; dup {
 			// Keep the canonical spelling, then the earlier prefix of the
 			// table.
-			if prev.padded == padded && prev.rank <= rank || !prev.padded && padded {
+			if (prev.padded == padded && prev.rank <= rank) || (!prev.padded && padded) {
 				continue
 			}
 		}
