@@ -239,6 +239,7 @@ func TestPublishVerifyScript(t *testing.T) {
 		evidence      time.Time // zero: signed + 60d
 		runStarted    time.Time // start of the newest successful run that holds a live knowledge artifact (a signed run)
 		planOnlyAt    time.Time // non-zero: a newer successful run without any artifact (plan only, signing skipped) started then
+		planOnlyCount int       // non-zero: this many newer plan-only successes (daily runs) in front of the signed run
 		noSignedRun   bool      // no successful run holds an artifact (the merge was never approved)
 		noRun         bool
 		merge         time.Time // committer time of the no-ff merge commit on main
@@ -322,6 +323,17 @@ func TestPublishVerifyScript(t *testing.T) {
 			s.lastMod = now.Add(-1 * day)
 			s.runStarted = now.Add(-2 * day)
 			s.merge = now.Add(-3 * day)
+		}, 0, "publish-verify: OK"),
+		// Daily plan-only successes pile up behind a content release (one per day,
+		// a content run every ~60 days): the signed run must not fall off the page.
+		with("evidence-bound, the signed run sits behind 150 plan-only successes", func(s *scenario) {
+			s.evidence = now.Add(6 * day)
+			s.contentSigned = now.Add(-2 * day)
+			s.signed = now.Add(-1 * day)
+			s.lastMod = now.Add(-4 * day) // older than the merge: only the signed run proves the content was published after it
+			s.runStarted = now.Add(-2 * day)
+			s.merge = now.Add(-3 * day)
+			s.planOnlyCount = 150
 		}, 0, "publish-verify: OK"),
 		with("no knowledge merge at all", func(s *scenario) { s.noMerge = true }, 0, "publish-verify: OK"),
 		with("feed does not verify", func(s *scenario) { s.verifyFail = true }, 1, "feed does not verify against the pinned root"),
@@ -435,6 +447,9 @@ func TestPublishVerifyScript(t *testing.T) {
 				if !sc.planOnlyAt.IsZero() {
 					rows = append(rows, fmt.Sprintf(`{"id":2,"run_started_at":%q}`, ts(sc.planOnlyAt)))
 				}
+				for i := 0; i < sc.planOnlyCount; i++ {
+					rows = append(rows, fmt.Sprintf(`{"id":%d,"run_started_at":%q}`, 1000+i, ts(now.Add(-time.Duration(i+1)*time.Hour))))
+				}
 				rows = append(rows, fmt.Sprintf(`{"id":1,"run_started_at":%q}`, ts(sc.runStarted)))
 				runs = `{"workflow_runs":[` + strings.Join(rows, ",") + `]}`
 			}
@@ -468,10 +483,15 @@ case "${url}" in
   *knowledge-publish.yml/runs*)
     # Only successful runs of the branch main are ever asked for.
     case "${url}" in *branch=main*status=success*) ;; *) exit 22 ;; esac
-    cat "$d/runs.json" ;;
+    # Like the real API: per_page (default 30) and page (default 1) slice the
+    # newest-first list; a client that reads one page sees only that page.
+    pp=30; pg=1
+    [[ "${url}" =~ per_page=([0-9]+) ]] && pp="${BASH_REMATCH[1]}"
+    [[ "${url}" =~ [\?\&]page=([0-9]+) ]] && pg="${BASH_REMATCH[1]}"
+    jq -c --argjson pp "${pp}" --argjson pg "${pg}" '.workflow_runs |= .[(($pg-1)*$pp):($pg*$pp)]' "$d/runs.json" ;;
   */actions/runs/*/artifacts*)
     id="${url#*/actions/runs/}"; id="${id%%/*}"
-    cat "$d/artifacts-${id}.json" ;;
+    if [ -e "$d/artifacts-${id}.json" ]; then cat "$d/artifacts-${id}.json"; else cat "$d/artifacts-2.json"; fi ;;
   *)
     [ ! -e "$d/feed_fail" ] || exit 22
     cp "$d/headers" "${hdr}"; echo tar > "${out}" ;;

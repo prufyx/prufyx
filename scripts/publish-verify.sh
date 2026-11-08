@@ -148,18 +148,25 @@ ev_e=""
 # a plan-only day (signing skipped, or never approved) and counts for nothing.
 signed_run_e=""
 signed_run_lookup() {
-  local rows id art
-  rows="$(gh_get "actions/workflows/knowledge-publish.yml/runs?branch=main&status=success&per_page=60" \
-    | jq -r '.workflow_runs[] | [.id, (.run_started_at // "")] | @tsv' 2>/dev/null)" || return 0
-  while IFS=$'\t' read -r id started; do
-    [[ "${id}" =~ ^[1-9][0-9]{0,17}$ ]] || continue
-    art="$(gh_get "actions/runs/${id}/artifacts?per_page=100" \
-      | jq -r '[.artifacts[] | select(.expired == false) | select(.name | test("^knowledge-[0-9]+-[0-9a-f]{64}$"))] | length' 2>/dev/null)" || continue
-    if [ "${art}" != "0" ] && [ -n "${art}" ]; then
-      signed_run_e="$(epoch "${started}")" || signed_run_e=""
-      return 0
-    fi
-  done <<< "${rows}"
+  local rows id art page
+  # Newest first, up to 3 pages of 100: the signed run can sit behind many
+  # plan-only successes (one a day, a content release every ~60 days), so a
+  # single short page could miss it. A short or unreadable page ends the walk.
+  for page in 1 2 3; do
+    rows="$(gh_get "actions/workflows/knowledge-publish.yml/runs?branch=main&status=success&per_page=100&page=${page}" \
+      | jq -r '.workflow_runs[] | [.id, (.run_started_at // "")] | @tsv' 2>/dev/null)" || return 0
+    [ -n "${rows}" ] || return 0
+    while IFS=$'\t' read -r id started; do
+      [[ "${id}" =~ ^[1-9][0-9]{0,17}$ ]] || continue
+      art="$(gh_get "actions/runs/${id}/artifacts?per_page=100" \
+        | jq -r '[.artifacts[] | select(.expired == false) | select(.name | test("^knowledge-[0-9]+-[0-9a-f]{64}$"))] | length' 2>/dev/null)" || continue
+      if [ "${art}" != "0" ] && [ -n "${art}" ]; then
+        signed_run_e="$(epoch "${started}")" || signed_run_e=""
+        return 0
+      fi
+    done <<< "${rows}"
+    [ "$(printf '%s\n' "${rows}" | wc -l)" -ge 100 ] || return 0
+  done
 }
 [ -z "${evidence}" ] || ev_e="$(epoch "${evidence}")" || ev_e=""
 lm="$(grep -i '^last-modified:' "${work}/headers" | tail -n 1 | cut -d: -f2- | tr -d '\r' | sed 's/^ *//')"

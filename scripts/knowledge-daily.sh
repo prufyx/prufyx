@@ -191,10 +191,13 @@ cmd_live_runs() {
   IFS='|' read -r rrun rsha rart <<< "${r}"
   if [ -n "${cart}" ]; then rest="${cart#knowledge-}"; crev="${rest%%-*}"; fi
   if [ -n "${rart}" ]; then rest="${rart#knowledge-refresh-}"; rrev="${rest%%-*}"; rest="${rest#*-}"; rtuf="${rest%%-*}"; fi
-  if [ -n "${rart}" ] && [ -z "${cart}" ]; then
-    die "a live refresh artifact exists but no content run has a live artifact; use the recovery inputs, see the runbook."
-  fi
-  if [ -n "${rart}" ] && [ "${rrev}" -gt "${crev}" ]; then
+  # A live refresh artifact whose content run is gone (retention, the >90 day
+  # case) is not a live package: nothing can be derived from it, only the
+  # recovery inputs can sign over that state. The family is reported as
+  # refresh-orphan so that recovery can record and accept it and every other
+  # mode refuses it by name; live stays empty.
+  if [ -n "${rart}" ] && [ -z "${cart}" ]; then family="refresh-orphan"; fi
+  if [ -n "${rart}" ] && [ -n "${cart}" ] && [ "${rrev}" -gt "${crev}" ]; then
     die "the newest refresh (revision ${rrev}) is for a newer revision than the newest content run (revision ${crev}); the state is inconsistent, use the recovery inputs."
   fi
   if [ -n "${cart}" ]; then
@@ -230,9 +233,14 @@ cmd_check_live() {
   [ "${act_c}" = "${rec_c}" ] || die "the published state moved since the plan: the newest content run is '${act_c}', the plan saw '${rec_c}'; the next plan replans."
   [ "${act_r}" = "${rec_r}" ] || die "the published state moved since the plan: the newest refresh run is '${act_r}', the plan saw '${rec_r}'; the next plan replans."
   case "${mode}" in
-    first | recovery) [ "${fam}" = none ] || die "a ${mode} plan, but a live package exists (${fam} run $(jq -r '.live.runId' <<< "${live}"))." ;;
+    first) [ "${fam}" = none ] || die "a first plan, but a live package or an orphan refresh artifact exists (${fam})." ;;
+    recovery)
+      # An orphan refresh (its content run expired) is the expected state of a
+      # recovery: the plan recorded that refresh run (checked above), so it is
+      # the same state; a real live package is not.
+      case "${fam}" in none | refresh-orphan) ;; *) die "a recovery plan, but a live package exists (${fam} run $(jq -r '.live.runId' <<< "${live}"))." ;; esac ;;
     state | capability)
-      [ "${fam}" != none ] || die "a ${mode} plan, but no live package exists."
+      [ "${fam}" != none ] && [ "${fam}" != refresh-orphan ] || die "a ${mode} plan, but no live package exists (${fam})."
       [ "$(jq -r '.live.digest' <<< "${live}")" = "${digest}" ] || die "the live ${fam} package is not the package the plan holds; the next plan replans." ;;
     *) die "check-live: unknown mode '${mode}'." ;;
   esac

@@ -258,12 +258,21 @@ jobs:
               || fail "could not download the previous package."
             expected_revision="${PREV_REVISION}"
             mode=recovery
+            # An orphan refresh artifact (its content run expired, the >90 day
+            # case) must not block recovery: record its run, sign and deploy
+            # re-check that exactly this state is still there. Any other live
+            # package is refused when sign re-checks liveness.
+            live="$(bash "${GITHUB_WORKSPACE}/scripts/knowledge-daily.sh" live-runs)" || fail "the published state cannot be read from the runs of both workflows."
+            if [ "$(jq -r '.live.family' <<< "${live}")" = refresh-orphan ]; then
+              refresh_run_id="$(jq -r '.refresh.runId' <<< "${live}")"
+            fi
           else
             # The live package is the newest live artifact across the content
             # family and the refresh family; the content run gives the source
             # commit and the revision (a refresh keeps both).
             live="$(bash "${GITHUB_WORKSPACE}/scripts/knowledge-daily.sh" live-runs)" || fail "the published state cannot be read from the runs of both workflows."
             live_family="$(jq -r '.live.family' <<< "${live}")"
+            [ "${live_family}" != refresh-orphan ] || fail "a live refresh artifact exists but its content run has no live artifact (retention is 90 days): there is no package to build on; use the recovery inputs, see the runbook."
             [ "${live_family}" != none ] || fail "no run of the content or the refresh workflow has a live knowledge artifact (retention is 90 days) and no first release is requested; use the recovery inputs, see the runbook."
             live_name="$(jq -r '.live.artifact' <<< "${live}")"
             [[ "${live_name}" =~ ^knowledge(-refresh)?-[0-9]+(-[0-9]+)?-[0-9a-f]{64}$ ]] || fail "the live artifact name is malformed."
@@ -783,10 +792,24 @@ jobs:
           keys="$(mktemp -d "${RUNNER_TEMP}/knowledge-keys.XXXXXX")"
           work="$(mktemp -d "${RUNNER_TEMP}/knowledge-build.XXXXXX")"
           trap 'rm -rf "${keys}"' EXIT
-          printf '%s\n' "${TARGETS_KEY}" > "${keys}/targets.key.pem"
-          printf '%s\n' "${SNAPSHOT_KEY}" > "${keys}/snapshot.key.pem"
-          printf '%s\n' "${TIMESTAMP_KEY}" > "${keys}/timestamp.key.pem"
+          # Each key file ends in exactly one newline, whatever the secret holds
+          # (a pasted secret often ends in one or more): the inner command
+          # substitution drops every trailing newline, the outer printf adds one.
+          printf '%s\n' "$(printf '%s' "${TARGETS_KEY}")" > "${keys}/targets.key.pem"
+          printf '%s\n' "$(printf '%s' "${SNAPSHOT_KEY}")" > "${keys}/snapshot.key.pem"
+          printf '%s\n' "$(printf '%s' "${TIMESTAMP_KEY}")" > "${keys}/timestamp.key.pem"
           printf '%s' "${PASSPHRASE}" > "${keys}/passphrase"
+          # A key file that is not one PEM block (no BEGIN first line, no END last
+          # line, a blank line inside) can never be used by the publisher: say so
+          # here, before the release call, instead of reporting a digest or state
+          # mismatch after the owner approved.
+          for role in targets snapshot timestamp; do
+            kf="${keys}/${role}.key.pem"
+            head -n 1 "${kf}" | grep -q '^-----BEGIN [A-Z0-9 ]*-----$' \
+              && tail -n 1 "${kf}" | grep -q '^-----END [A-Z0-9 ]*-----$' \
+              && ! grep -q '^[[:space:]]*$' "${kf}" \
+              || fail "key file or passphrase unusable: the ${role} key secret is not a single PEM block; nothing was signed."
+          done
 
           # The exact flag set per mode (the publisher refuses any other):
           #   first       fresh layout, nothing live          --first-release --no-live-package

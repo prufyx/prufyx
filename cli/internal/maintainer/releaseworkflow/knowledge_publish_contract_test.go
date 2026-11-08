@@ -29,9 +29,10 @@ import (
 // from the predecessor check) come from the publisher change that must merge
 // before this workflow (merge order). PRUFYX_MAINTAINER_BIN may name a binary
 // built from that change; otherwise the binary is built from this tree. The
-// test skips, with a message, ONLY when the binary does not know
-// --no-live-package; every other problem (build failure, refusal, wrong
-// output) fails.
+// test FAILS (never skips) when the binary does not know --no-live-package,
+// like every other problem (build failure, refusal, wrong output): a skip
+// that stays silent after a later edit of the usage text would hide the
+// whole contract.
 func maintainerForContract(t *testing.T, repo string) string {
 	t.Helper()
 	bin := os.Getenv("PRUFYX_MAINTAINER_BIN")
@@ -48,7 +49,7 @@ func maintainerForContract(t *testing.T, repo string) string {
 		t.Fatalf("the publisher does not answer release --help: %v\n%s", err, help)
 	}
 	if !strings.Contains(string(help), "--no-live-package") {
-		t.Skip("the publisher in this build has no --no-live-package: the publisher change it depends on is not merged yet; set PRUFYX_MAINTAINER_BIN to a build of that change")
+		t.Fatalf("the publisher does not know --no-live-package: the contract is not tested. The publisher change this workflow depends on must be in the tree under test; before it is on main, set PRUFYX_MAINTAINER_BIN to a build of that change")
 	}
 	return bin
 }
@@ -62,6 +63,7 @@ type contractFixture struct {
 	rootDig   string
 	keys      map[string]string
 	pass      string
+	key       func(role, secret string) string // optional: what the environment secret holds
 }
 
 func newContractFixture(t *testing.T) *contractFixture {
@@ -102,8 +104,9 @@ func newContractFixture(t *testing.T) *contractFixture {
 		if err != nil {
 			t.Fatal(err)
 		}
-		// The secret is stored without the final newline (the step adds one).
-		f.keys[r] = strings.TrimRight(string(raw), "\n")
+		// The secret as the file holds it: one final newline. The step must
+		// cope with none, one or several (see the trailing-newline test).
+		f.keys[r] = string(raw)
 	}
 	f.workspace = filepath.Join(dir, "ws")
 	pin := filepath.Join(f.workspace, "cli", "internal", "knowledgepin")
@@ -120,6 +123,13 @@ func newContractFixture(t *testing.T) *contractFixture {
 		t.Fatal(err)
 	}
 	return f
+}
+
+func (f *contractFixture) secret(role string) string {
+	if f.key != nil {
+		return f.key(role, f.keys[role])
+	}
+	return f.keys[role]
 }
 
 func (f *contractFixture) publisher(args ...string) []byte {
@@ -185,7 +195,7 @@ func (f *contractFixture) signWith(mode, revision, version, content, index strin
 	cmd.Dir = repoRoot(f.t) // the workflow runs at the repository root
 	cmd.Env = append(os.Environ(),
 		"RUNNER_TEMP="+f.dir, "GITHUB_WORKSPACE="+f.workspace, "GITHUB_OUTPUT="+gho, "GITHUB_RUN_ATTEMPT=1",
-		"TARGETS_KEY="+f.keys["targets"], "SNAPSHOT_KEY="+f.keys["snapshot"], "TIMESTAMP_KEY="+f.keys["timestamp"], "PASSPHRASE="+f.pass,
+		"TARGETS_KEY="+f.secret("targets"), "SNAPSHOT_KEY="+f.secret("snapshot"), "TIMESTAMP_KEY="+f.secret("timestamp"), "PASSPHRASE="+f.pass,
 		"ROOT_DIGEST="+f.rootDig, "MODE="+mode, "REVISION="+revision, "VERSION="+version,
 		"EXPIRES="+time.Now().UTC().Add(60*time.Hour).Format("2006-01-02T15:04:05Z"), "LAYOUT_INDEX="+layoutIndex)
 	out, err := cmd.CombinedOutput()
@@ -256,6 +266,46 @@ func TestKnowledgePublishSignCallContractPerMode(t *testing.T) {
 			}
 		})
 	}
+
+	// An environment secret may end in no newline, one or several: the step
+	// normalizes to exactly one, so the publisher never refuses a key after the
+	// owner approved for a reason that is only a pasted newline.
+	for _, tc := range []struct{ name, suffix string }{{"none", ""}, {"one", "\n"}, {"two", "\n\n"}} {
+		t.Run("key secret with trailing newlines: "+tc.name, func(t *testing.T) {
+			f.key = func(_, secret string) string { return strings.TrimRight(secret, "\n") + tc.suffix }
+			defer func() { f.key = nil }()
+			ok, _, out := f.sign("state", "2", "2", withIndex(live, "--previous-index", idx), idx, nil)
+			if !ok {
+				t.Fatalf("secret ending %q was refused:\n%s", tc.suffix, out)
+			}
+		})
+	}
+
+	// A key file the publisher cannot use is reported as such, before the
+	// release call, and not as a digest or state mismatch.
+	t.Run("unusable key file has its own text", func(t *testing.T) {
+		for name, mangle := range map[string]func(string) string{
+			"not a key":   func(string) string { return "not a key" },
+			"blank lines": func(s string) string { return strings.Replace(s, "\n", "\n\n", 1) },
+			"truncated":   func(s string) string { return s[:len(s)/2] },
+		} {
+			f.key = func(role, secret string) string {
+				if role == "snapshot" {
+					return mangle(secret)
+				}
+				return secret
+			}
+			ok, _, out := f.sign("state", "2", "2", withIndex(live, "--previous-index", idx), idx, nil)
+			f.key = nil
+			if ok {
+				t.Errorf("%s: an unusable key was accepted", name)
+				continue
+			}
+			if !strings.Contains(out, "key file or passphrase unusable") || strings.Contains(out, "the release was refused") {
+				t.Errorf("%s: the refusal does not name the key file:\n%s", name, out)
+			}
+		}
+	})
 
 	// The test has teeth: a wrong flag set or a wrong plan is refused by the
 	// same real publisher, so a green run above is not vacuous.

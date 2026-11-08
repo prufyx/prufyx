@@ -194,7 +194,7 @@ expect_fail "live-runs: refresh run list unreadable refused" live-runs
 fams "knowledge-4-${h}" ""; art 10 '{"name":"x","expired":true}'; art 9 '{"name":"y","expired":true}'; fx "${RRUNS}" '{"workflow_runs":[]}'
 run live-runs; [ "$(jq -r '.live.family,.content.runId' "${root}/out" | paste -sd,)" = "none," ] && ok "live-runs: nothing live" || bad "live-runs: none" "$(cat "${root}/out")"
 fams "knowledge-4-${h}" ""; art 9 '{"name":"knowledge-3-xyz","expired":true}'; fx "${RRUNS}" '{"workflow_runs":[{"id":31}]}'; art 31 "{\"name\":\"knowledge-refresh-4-12-${h2}\",\"expired\":false}"; art 10 '{"name":"z","expired":true}'
-expect_fail "live-runs: a live refresh without any live content run refused" live-runs
+run live-runs; [ "$(jq -r '.live.family,.live.runId,.live.digest,.content.runId,.refresh.runId' "${root}/out" | paste -sd,)" = "refresh-orphan,,,,31" ] && ok "live-runs: a live refresh without any live content run is the family refresh-orphan (no live package)" || bad "live-runs: refresh-orphan" "$(cat "${root}/out")"
 
 # More than one page of runs: 100 successful runs without any knowledge artifact
 # (plan-only days) in front of the run that holds the live package. Only a
@@ -253,6 +253,23 @@ expect_fail "check-live: missing plan refused" check-live "${root}/nope.json"
 fams "knowledge-4-${h}" ""; rm "${FAKE_DIR}/$(printf '%s' "${CRUNS}" | tr '/?=&' '____').json"
 cplan 10 "" "${h}" state
 expect_fail "check-live: API failure refused" check-live "${root}/cl.json"
+
+# refresh-orphan: a live refresh artifact whose content run expired (the >90 day
+# case). Only a recovery plan that recorded that refresh run may sign over it.
+orphan() { fams "knowledge-4-${h}" "knowledge-refresh-4-12-${h2}"; art 10 '{"name":"x","expired":true}'; art 9 '{"name":"y","expired":true}'; }
+orphan
+cplan "" 31 "" recovery
+expect_ok "check-live: recovery over an orphan refresh that the plan recorded" check-live "${root}/cl.json"
+cplan "" "" "" recovery
+expect_fail "check-live: recovery that did not record the orphan refresh refused (moved state)" check-live "${root}/cl.json"
+cplan "" 30 "" recovery
+expect_fail "check-live: recovery that recorded another refresh run refused" check-live "${root}/cl.json"
+cplan "" 31 "" first
+expect_fail "check-live: a first-release plan over an orphan refresh refused" check-live "${root}/cl.json"
+cplan "" 31 "${h2}" state
+expect_fail "check-live: state mode over an orphan refresh refused (no live package)" check-live "${root}/cl.json"
+cplan "" 31 "${h2}" capability
+expect_fail "check-live: capability mode over an orphan refresh refused" check-live "${root}/cl.json"
 
 # ================================================================ trusted ids (pinned numbers, lookup only cross-checks)
 good_users() { newfake users; fx "users/airstand" '{"id":11156623,"login":"airstand"}'; fx "users/prufyx-bot" '{"id":343087959,"login":"prufyx-bot"}'; }
@@ -393,6 +410,7 @@ echo mktemp >> "${SHIM_LOG}"
 exec /usr/bin/mktemp "$@"
 SHIMEOF
   chmod +x "${root}/shim/mktemp"
+  pem="$(printf -- '-----BEGIN TEST KEY-----\nQUJD\n-----END TEST KEY-----\n\n')"
   signstep() { # name-of-input-to-blank value -> runs the Sign step with stubs; RT = runner temp
     RT="${root}/rt-$1"; rm -rf "${RT}"; mkdir -p "${RT}/bin" "${RT}/plan" "${root}/ws/cli/internal/knowledgepin"
     echo '{}' > "${root}/ws/cli/internal/knowledgepin/root.json"
@@ -400,11 +418,15 @@ SHIMEOF
     printf '#!/usr/bin/env bash\necho called >> "${SHIM_LOG}.maint"\necho "{}"\n' > "${RT}/bin/prufyx-maintainer"; chmod +x "${RT}/bin/prufyx-maintainer"
     : > "${root}/shimlog"; rm -f "${root}/shimlog.maint"; : > "${root}/gho"
     env -i PATH="${root}/shim:/usr/bin:/bin" SHIM_LOG="${root}/shimlog" RUNNER_TEMP="${RT}" GITHUB_WORKSPACE="${root}/ws" GITHUB_OUTPUT="${root}/gho" \
-      TARGETS_KEY=a SNAPSHOT_KEY=b TIMESTAMP_KEY=c PASSPHRASE=d ROOT_DIGEST="sha256:$(printf '0%.0s' $(seq 64))" MODE=state REVISION=5 VERSION=9 \
+      TARGETS_KEY="${pem}" SNAPSHOT_KEY="${pem}" TIMESTAMP_KEY="${pem}" PASSPHRASE=d ROOT_DIGEST="sha256:$(printf '0%.0s' $(seq 64))" MODE=state REVISION=5 VERSION=9 \
       EXPIRES=2027-01-30T00:00:00Z LAYOUT_INDEX="${RT}/idx.json" "$1=$2" bash "${root}/sign-step.sh" > "${root}/out" 2>&1
   }
   signstep NONE x
   if [ $? -eq 0 ] && [ -f "${root}/shimlog.maint" ]; then ok "sign step: with all four inputs present it proceeds to the release call"; else bad "sign step: positive control" "$(head -c 300 "${root}/out")"; fi
+  signstep TARGETS_KEY "not a key"
+  if [ $? -ne 0 ] && grep -q "key file or passphrase unusable" "${root}/out" && [ ! -f "${root}/shimlog.maint" ]; then ok "sign step: a key secret that is not a PEM block is refused with its own text before the release call"; else bad "sign step: unusable key" "$(head -c 300 "${root}/out")"; fi
+  signstep SNAPSHOT_KEY "$(printf -- '-----BEGIN TEST KEY-----\n\nQUJD\n-----END TEST KEY-----')"
+  if [ $? -ne 0 ] && grep -q "key file or passphrase unusable" "${root}/out"; then ok "sign step: a key with a blank line inside is refused with its own text"; else bad "sign step: blank line key" "$(head -c 300 "${root}/out")"; fi
   for v in TARGETS_KEY SNAPSHOT_KEY TIMESTAMP_KEY PASSPHRASE; do
     for val in "" "   "; do
       signstep "${v}" "${val}"
@@ -558,6 +580,9 @@ dg = [s for s in deploy.get("steps", []) if s.get("name") == "Refuse unless the 
 if not dg or "check-live" not in dg[0].get("run", ""): e("deploy does not re-check liveness over both families (check-live)")
 pv = [s for s in plan.get("steps", []) if s.get("name") == "Find and verify the previous state"]
 if not pv or "live-runs" not in pv[0].get("run", ""): e("plan does not pick the live package across both families (live-runs)")
+# refresh-orphan: recovery records the orphan refresh run, regular mode refuses it by name
+if pv and pv[0].get("run", "").count("refresh-orphan") < 2: e("plan does not handle the refresh-orphan family (recovery records it, regular mode refuses it)")
+if pv and not re.search(r'"\$\{live_family\}" != refresh-orphan \]\] \|\| fail|"\$\{live_family\}" != refresh-orphan \] \|\| fail', pv[0].get("run", "")): e("regular mode does not refuse an orphan refresh with a clear text")
 # B4: ids pinned in the script, never looked up in the workflow
 if "users/" in raw or "gh api users" in raw: e("trusted ids are resolved from logins in the workflow")
 if "trusted-ids" not in raw: e("workflow lacks trusted-ids")
@@ -602,6 +627,7 @@ if python3 -I -c 'import yaml' 2> /dev/null; then
   mut "cancel-in-progress true" '0,/cancel-in-progress: false/ s/cancel-in-progress: false/cancel-in-progress: true/' "cancel-in-progress"
   mut "liveness skipped on empty recorded run id" 's/check-live "${plan}"/[ -z "${prun}" ] || check-live "${plan}"/' "empty recorded run id"
   mut "single family latest-run is back" '0,/live-runs/ s/live-runs/latest-run/' "latest-run"
+  mut "recovery stops recording the orphan refresh" 's/refresh-orphan/refresh-gone/' "refresh-orphan"
   mut "ids resolved from logins" 's/trusted-ids/gh api users\/airstand trusted-ids/' "resolved from logins"
 else
   bad "workflow: static checks" "python3 with PyYAML is required"
