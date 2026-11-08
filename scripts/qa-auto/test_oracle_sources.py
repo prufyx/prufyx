@@ -1,6 +1,7 @@
 """Source failures cannot reduce the expected GVK set."""
 import json
 import os
+import shutil
 from pathlib import Path
 import subprocess
 import tempfile
@@ -97,10 +98,6 @@ class HelperShapeTests(unittest.TestCase):
                     self.assertNotEqual(result.returncode, 0)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class OptionalRemoteTests(unittest.TestCase):
     """Optional/remote semantics mirror the extractor; nothing missing becomes empty truth silently."""
     DIR = {"path": "crds", "directory": True, "match": "yaml$"}
@@ -149,7 +146,7 @@ class OptionalRemoteTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 oracle.crd_text({"paths": [dict(self.DIR, optional=True)]}, "g", "v1")
 
-    def test_remote_line_is_explicit_error(self):
+    def test_remote_line_without_remote_clone_is_explicit_error(self):
         t = {"paths": [self.DIR], "remote": {"fromLine": "3.4", "repo": "github.com/o/r"}}
         with self.fake(["crds/a.yaml"]):
             for name in ("v3.4.0", "v3.10.2", "v4.0.0"):
@@ -239,3 +236,214 @@ class ScanVersionGitTests(unittest.TestCase):
             git("tag", "-f", "v25.9.0")
             self.assertEqual(oracle.scan_version(td + "/.git", "v", "25.08.0"), "25.8.0")
             self.assertEqual(oracle.scan_version(td + "/.git", "v", "25.09.0"), "25.09.0")
+
+
+KUST = "apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\nresources:\n"
+CRD = "apiVersion: apiextensions.k8s.io/v1\nkind: CustomResourceDefinition\n"
+
+
+class RemoteServedTests(unittest.TestCase):
+    """Remote-served releases are read from a pinned second clone, mirroring the extractor; every doubt is an error."""
+    URL = "https://github.com/o/cfg/config/crd/ic?ref=%s"
+
+    def setUp(self):
+        self.td = tempfile.TemporaryDirectory()
+        self.root = Path(self.td.name)
+        self.env = dict(os.environ, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@e.x", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@e.x")
+
+    def tearDown(self):
+        self.td.cleanup()
+
+    def git(self, wt, *a):
+        return subprocess.run(["git", "-C", str(wt), *a], check=True, capture_output=True, text=True, env=self.env).stdout.strip()
+
+    def repo(self, name, files, tag):
+        wt = self.root / name
+        shutil.rmtree(wt, ignore_errors=True)
+        wt.mkdir()
+        self.git(wt, "init", "-q")
+        self.commit(wt, files, tag)
+        return wt
+
+    def commit(self, wt, files, tag):
+        for rel, body in files.items():
+            f = wt / rel
+            f.parent.mkdir(parents=True, exist_ok=True)
+            if f.is_symlink() or f.exists():
+                f.unlink()
+            if isinstance(body, tuple):
+                os.symlink(body[0], f)
+            else:
+                f.write_text(body)
+        self.git(wt, "add", "-A")
+        self.git(wt, "commit", "-qm", "c")
+        self.git(wt, "tag", "-f", tag)
+        return self.git(wt, "rev-parse", "HEAD")
+
+    def world(self, rel_kust=None, dir_files=None, pin=True, ref="v1.0.0"):
+        rel_kust = rel_kust if rel_kust is not None else KUST + "- " + self.URL % ref + "\n"
+        self.rel = self.repo("rel", {"config/crd/kustomization.yaml": rel_kust}, "v3.4.0")
+        files = dir_files if dir_files is not None else {
+            "config/crd/ic/kustomization.yaml": KUST + "- a.yaml\n- b.yaml\n",
+            "config/crd/ic/a.yaml": CRD + "metadata: {name: a}\n", "config/crd/ic/b.yaml": CRD + "metadata: {name: b}\n",
+            "config/crd/ic/unlisted.yaml": "not read\n"}
+        self.cfg = self.repo("cfg", files, ref)
+        commit = self.git(self.cfg, "rev-parse", "HEAD")
+        self.tj = {"paths": [{"path": "config/crd/bases", "directory": True, "match": "yaml$"}], "remote": {
+            "fromLine": "3.4", "kustomization": "config/crd/kustomization.yaml", "repo": "github.com/o/cfg",
+            "directory": "config/crd/ic", "pins": [{"tag": ref, "commit": commit}] if pin else []}}
+        return str(self.rel / ".git"), str(self.cfg / ".git")
+
+    def text(self, gd, rgd, tag="v3.4.0", name="v3.4.0"):
+        return oracle.crd_text(self.tj, gd, tag, name, rgd)
+
+    def test_reads_listed_files_at_the_pinned_commit(self):
+        gd, rgd = self.world()
+        t = self.text(gd, rgd)
+        self.assertEqual(t.count("CustomResourceDefinition"), 2)
+        self.assertNotIn("not read", t)
+
+    def test_release_before_the_line_is_not_remote(self):
+        gd, rgd = self.world()
+        with self.assertRaises(ValueError):  # own path absent: error, and never the remote files
+            oracle.crd_text(self.tj, gd, "v3.4.0", "v3.3.0", rgd)
+
+    def test_no_pin_is_error(self):
+        gd, rgd = self.world(pin=False)
+        with self.assertRaises(ValueError):
+            self.text(gd, rgd)
+
+    def test_pin_for_another_tag_is_error(self):
+        gd, rgd = self.world()
+        self.tj["remote"]["pins"][0]["tag"] = "v1.0.1"
+        with self.assertRaises(ValueError):
+            self.text(gd, rgd)
+
+    def test_moved_tag_is_error(self):
+        gd, rgd = self.world()
+        self.commit(self.cfg, {"config/crd/ic/a.yaml": CRD + "metadata: {name: moved}\n"}, "v1.0.0")
+        with self.assertRaises(ValueError):
+            self.text(gd, rgd)
+
+    def test_missing_or_unreadable_remote_clone_is_error(self):
+        gd, _ = self.world()
+        for rgd in (None, "", str(self.root / "absent.git"), str(self.root)):
+            with self.subTest(rgd=rgd), self.assertRaises(ValueError):
+                self.text(gd, rgd)
+
+    def test_extra_key_in_either_kustomization_is_error(self):
+        extra = "namePrefix: x-\n"
+        gd, rgd = self.world(rel_kust=KUST + "- " + self.URL % "v1.0.0" + "\n" + extra)
+        with self.assertRaises(ValueError):
+            self.text(gd, rgd)
+        gd, rgd = self.world(dir_files={"config/crd/ic/kustomization.yaml": KUST + "- a.yaml\n" + "patches:\n- x.yaml\n",
+                                        "config/crd/ic/a.yaml": CRD})
+        with self.assertRaises(ValueError):
+            self.text(gd, rgd)
+
+    def test_release_resource_must_be_exactly_the_declared_remote(self):
+        for res in ("https://github.com/o/other/config/crd/ic?ref=v1.0.0", "http://github.com/o/cfg/config/crd/ic?ref=v1.0.0",
+                    "https://github.com/o/cfg/config/crd/ic", "https://github.com/o/cfg/config/crd/ic?ref=main",
+                    "https://github.com/o/cfg/config/crd/ic?ref=v1.0.0&x=y", "https://github.com/o/cfg/config/crd/ic?ref=v1.0.0#f",
+                    "https://u@github.com/o/cfg/config/crd/ic?ref=v1.0.0", "../x.yaml"):
+            with self.subTest(res=res):
+                gd, rgd = self.world(rel_kust=KUST + "- " + res + "\n")
+                with self.assertRaises(ValueError):
+                    self.text(gd, rgd)
+        gd, rgd = self.world(rel_kust=KUST + "- " + self.URL % "v1.0.0" + "\n- local.yaml\n")
+        with self.assertRaises(ValueError):
+            self.text(gd, rgd)
+
+    def test_symlink_resource_is_error(self):
+        gd, rgd = self.world(dir_files={"config/crd/ic/kustomization.yaml": KUST + "- a.yaml\n", "config/crd/ic/real.yaml": CRD,
+                                        "config/crd/ic/a.yaml": ("real.yaml",)})
+        with self.assertRaises(ValueError):
+            self.text(gd, rgd)
+
+    def test_listed_but_missing_or_non_plain_names_are_errors(self):
+        for names in ("- gone.yaml\n", "- ../a.yaml\n", "- sub/a.yaml\n", "- a.yaml\n- a.yaml\n", "- kustomization.yaml\n", "- a.json\n"):
+            with self.subTest(names=names):
+                gd, rgd = self.world(dir_files={"config/crd/ic/kustomization.yaml": KUST + names, "config/crd/ic/a.yaml": CRD})
+                with self.assertRaises(ValueError):
+                    self.text(gd, rgd)
+
+    def test_oversized_definition_blob_is_error_remote_and_local(self):
+        limit = oracle.MAX_DEFINITION_BYTES
+        self.assertEqual(limit, 8 << 20)
+        for size, ok in ((limit, True), (limit + 1, False)):
+            body = CRD + "#" * (size - len(CRD.encode()) - 1) + "\n"
+            self.assertEqual(len(body.encode()), size)
+            with self.subTest(size=size, where="remote"):
+                gd, rgd = self.world(dir_files={"config/crd/ic/kustomization.yaml": KUST + "- a.yaml\n", "config/crd/ic/a.yaml": body})
+                if ok:
+                    self.assertIn("CustomResourceDefinition", self.text(gd, rgd))
+                else:
+                    with self.assertRaises(ValueError):
+                        self.text(gd, rgd)
+            with self.subTest(size=size, where="local"):
+                gd = str(self.repo("loc", {"crds/a.yaml": body}, "v1.0.0") / ".git")
+                tj = {"paths": [{"path": "crds/a.yaml"}]}
+                if ok:
+                    self.assertIn("CustomResourceDefinition", oracle.crd_text(tj, gd, "v1.0.0", "v1.0.0"))
+                else:
+                    with self.assertRaises(ValueError):
+                        oracle.crd_text(tj, gd, "v1.0.0", "v1.0.0")
+
+    def test_empty_blob_and_template_are_errors(self):
+        gd, rgd = self.world(dir_files={"config/crd/ic/kustomization.yaml": KUST + "- a.yaml\n", "config/crd/ic/a.yaml": "\n"})
+        with self.assertRaises(ValueError):
+            self.text(gd, rgd)
+        gd, rgd = self.world(dir_files={"config/crd/ic/kustomization.yaml": KUST + "- '{{ x }}.yaml'\n", "config/crd/ic/a.yaml": CRD})
+        with self.assertRaises(ValueError):
+            self.text(gd, rgd)
+
+    def test_missing_release_kustomization_is_error(self):
+        gd, rgd = self.world()
+        with self.assertRaises(ValueError):
+            oracle.crd_text(self.tj, gd, "nosuchtag", "v3.4.0", rgd)
+
+    def test_kustomization_reader_is_strict(self):
+        ok = oracle.kustomization_resources("k", "# c\n---\n" + KUST + "  - a.yaml # c\n  - 'b.yaml'\n  - \"c.yaml\" # d\n")
+        self.assertEqual(ok, ["a.yaml", "b.yaml", "c.yaml"])
+        for bad in ("", KUST, KUST + "- a.yaml\n" + "kind: Kustomization\n", "kind: Kustomization\nresources:\n- a.yaml\n",
+                    KUST.replace("v1beta1", "v1") + "- a.yaml\n", KUST + "- &a a.yaml\n", KUST + "- a.yaml#c\n", KUST + "- 'a.yaml\n",
+                    KUST + "- {a: b}\n", KUST + "- a.yaml\n---\n" + KUST + "- b.yaml\n", "resources: [a.yaml]\n" + KUST,
+                    KUST.replace("resources:", "resources: x") + "- a.yaml\n", KUST + "- a.yaml\n\tx: y\n",
+                    KUST + "- a.yaml\n  - b.yaml\n", KUST + "  - a.yaml\n- b.yaml\n", KUST + "  - a.yaml\n    - b.yaml\n",
+                    KUST + "  - a.yaml\n - b.yaml\n", KUST + "- a.yaml\n\t- b.yaml\n", KUST + "  - a.yaml\n\t- b.yaml\n",
+                    KUST + "- " + "\n- ".join("f%d.yaml" % i for i in range(513)) + "\n"):
+            with self.subTest(bad=bad[:40]), self.assertRaises(ValueError):
+                oracle.kustomization_resources("k", bad)
+
+    def test_validate_target_checks_the_remote_block(self):
+        base = {"repo": "o/r", "tagPrefixes": ["v"], "paths": [{"path": "crds"}]}
+        rm = {"fromLine": "3.4", "kustomization": "k/kustomization.yaml", "repo": "github.com/o/cfg", "directory": "d",
+              "pins": [{"tag": "v1.0.0", "commit": "a" * 40}]}
+        self.assertEqual(oracle.validate_target(dict(base, remote=rm))[1], "")
+        for bad in (dict(rm, pins=[{"tag": "main", "commit": "a" * 40}]), dict(rm, pins=[{"tag": "v1.0.0", "commit": "abc"}]),
+                    dict(rm, pins=[]), dict(rm, directory="../x"), dict(rm, repo="o"), dict(rm, kustomization="-x")):
+            with self.subTest(bad=bad), self.assertRaises(AssertionError):
+                self.assertEqual(oracle.validate_target(dict(base, remote=bad))[1], "")
+
+
+@unittest.skipUnless(os.environ.get("QA_GOLDEN_JSONL"), "needs QA_GOLDEN_JSONL, QA_GOLDEN_REL and QA_GOLDEN_REMOTE (bare clones, network to fetch them)")
+class RemoteGoldenTests(unittest.TestCase):
+    """Rows the extractor's remote reader yields per release (one JSON object per line: tag, rows "G|V|K|served") must
+    equal the rows the oracle derives from the same two clones; a release either side refuses fails the test."""
+
+    def test_oracle_rows_equal_the_extractor_reader(self):
+        tj = json.loads(Path(oracle.TD, "target-kong-ingress-controller.json").read_text())["target"]
+        rel, rem = os.environ["QA_GOLDEN_REL"], os.environ["QA_GOLDEN_REMOTE"]
+        n = 0
+        for line in Path(os.environ["QA_GOLDEN_JSONL"]).read_text().splitlines():
+            g = json.loads(line)
+            with self.subTest(tag=g["tag"]):
+                self.assertNotIn("err", g)
+                rows = oracle.crd_rows(tj, rel, g["tag"], g["tag"], rem)
+                self.assertEqual(sorted("%s|%s|%s|%s" % (r["G"], r["V"], r["K"], str(r["Served"]).lower()) for r in rows), sorted(g["rows"]))
+                n += 1
+        self.assertGreater(n, 0)
+
+
+if __name__ == "__main__":
+    unittest.main()

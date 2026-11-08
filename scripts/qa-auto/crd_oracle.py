@@ -49,9 +49,41 @@ def validate_target(tj):
                 if not isinstance(m, str) or len(m) > 200 or "(" in m or "\\" in m and re.search(r"\\[1-9]", m) or re.search(r"[+*}]\?*[+*{]", m) or len(re.findall(r"[*+]|\{\d*,\d*\}", m)) > 2:
                     return "", "match invalid (length, any group, backreference or stacked quantifier or more than 2 unbounded quantifiers)"
                 re.compile(m)
+        if tj.get("remote") is not None:
+            bad = validate_remote(tj["remote"])
+            if bad:
+                return "", bad
         return repo, ""
     except Exception as e:
         return "", f"target invalid: {type(e).__name__}"
+
+
+REF_RE = re.compile(r"v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?", re.A)
+RESOURCE_FILE_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\.ya?ml", re.A)
+KUSTOMIZATION_API = "kustomize.config.k8s.io/v1beta1"
+MAX_KUSTOMIZATION_RESOURCES = 512  # extractor MaxCRDsPerTag
+MAX_KUSTOMIZATION_BYTES = 1 << 20
+MAX_DEFINITION_BYTES = 8 << 20  # the extractor's crdversions.MaxFileBytes
+
+
+def validate_remote(rm):
+    """Fail closed on a remote block that could steer git; returns an error text or ''."""
+    try:
+        o, _, n = str(rm["repo"]).removeprefix("github.com/").partition("/")
+        if not (NAME.fullmatch(o) and NAME.fullmatch(n)):
+            return "remote repo is not owner/name"
+        if not _safe_path(rm["directory"]) or not _safe_path(rm["kustomization"]):
+            return "remote directory or kustomization path invalid"
+        pins = rm["pins"]
+        if not isinstance(pins, list) or not pins:
+            return "remote pins missing"
+        for pin in pins:
+            if set(pin) != {"tag", "commit"} or not isinstance(pin["tag"], str) or REF_RE.fullmatch(pin["tag"]) is None \
+                    or not isinstance(pin["commit"], str) or re.fullmatch(r"[0-9a-f]{40}", pin["commit"], re.A) is None:
+                return "remote pin invalid"
+        return ""
+    except Exception as e:
+        return f"remote invalid: {type(e).__name__}"
 
 
 def projects_all():
@@ -110,14 +142,135 @@ def remote_applies(tj, tagname):
     return (int(m.group(1)), int(m.group(2))) >= floor
 
 
-def crd_text(tj, gd, tag, tagname=None):
+def kustomization_resources(name, body):
+    """Strict reading of a kustomization, mirroring the extractor's kustomizationResources: one document of exactly the
+    keys apiVersion, kind and resources (kustomize v1beta1 Kustomization), resources a non-empty list of plain strings.
+    The reader is deliberately narrower than YAML (block style, whole-line comments, plain or simply quoted scalars);
+    anything else is refused, never guessed."""
+    if len(body) > MAX_KUSTOMIZATION_BYTES or "{{" in body or "\t" in body or "\r" in body:
+        raise ValueError(f"{name} is not a plain strictly readable kustomization")
+
+    def scalar(v):
+        v = v.strip()
+        q = re.fullmatch(r"(['\"])([^'\"\\#]*)\1(?:\s+#.*)?", v)
+        if q:
+            v = q.group(2)
+        else:
+            v = re.split(r"\s+#", v, maxsplit=1)[0].strip()  # a trailing comment needs leading whitespace
+            if not v or v[0] in "&*!|>{[%@`'\"#-?:," or "#" in v or ": " in v or v.endswith(":"):
+                raise ValueError(f"{name} has a scalar this reader does not model")
+        if not v:
+            raise ValueError(f"{name} has an empty scalar")
+        return v
+
+    doc, res, in_res, started, item_indent = {}, None, False, False, None
+    for raw in body.split("\n"):
+        line = raw.rstrip(" ")
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if line == "---" and not started and not doc:
+            started = True
+            continue
+        m = re.fullmatch(r"( *)- (.+)", line)
+        if m and in_res:
+            if item_indent is None:  # every item of a list sits at the first item's indent (the key is at column 0)
+                item_indent = len(m.group(1))
+            elif len(m.group(1)) != item_indent:
+                raise ValueError(f"{name} resources items are not at one indent")
+            res.append(scalar(m.group(2)))
+            continue
+        m = re.fullmatch(r"([A-Za-z]+):(?: (.*))?", line)
+        if not m or m.group(1) in doc:
+            raise ValueError(f"{name} is not one plain document of apiVersion, kind and resources")
+        key, val = m.group(1), m.group(2)
+        if key not in ("apiVersion", "kind", "resources"):
+            raise ValueError(f"{name} has the key {key!r}: only apiVersion, kind and resources are modelled")
+        in_res = key == "resources"
+        if in_res:
+            if val is not None and val.strip():
+                raise ValueError(f"{name} resources is not a block list")
+            res, item_indent = [], None
+            doc[key] = res
+        else:
+            if val is None:
+                raise ValueError(f"{name} has an empty {key}")
+            doc[key] = scalar(val)
+    if doc.get("apiVersion") != KUSTOMIZATION_API or doc.get("kind") != "Kustomization":
+        raise ValueError(f"{name} is not a {KUSTOMIZATION_API} Kustomization")
+    items = doc.get("resources")
+    if not items or len(items) > MAX_KUSTOMIZATION_RESOURCES:
+        raise ValueError(f"{name} has no resources list of a supported size")
+    return items
+
+
+def remote_ref(rm, name, body):
+    """The tag named by the release's one remote resource https://github.com/<repo>/<directory>?ref=<tag>."""
+    items = kustomization_resources(name, body)
+    if len(items) != 1:
+        raise ValueError(f"{name} lists {len(items)} resources: exactly one remote resource is modelled")
+    want = str(rm["repo"]).removeprefix("github.com/") + "/" + rm["directory"]
+    m = re.fullmatch(r"https://github\.com/([^?#%\s]+)\?ref=([^?#%\s&=]+)", items[0], re.A)
+    if not m or m.group(1) != want or REF_RE.fullmatch(m.group(2)) is None:
+        raise ValueError(f"{name} names a resource other than https://github.com/{want}?ref=<release tag>")
+    return m.group(2)
+
+
+def remote_text(tj, gd, tag, rgd):
+    """Mirror of the extractor's readRemoteInventory: the release's kustomization at `tag` of the release clone gd names
+    one tag of the remote repository; the target's pin for that tag, confirmed against the remote clone rgd, gives the
+    commit whose directory kustomization lists the plain files that hold the definitions. Any doubt is an error."""
+    rm = tj["remote"]
+    bad = validate_remote(rm)
+    if bad:
+        raise ValueError(bad)
+    if not rgd or not os.path.isdir(rgd):
+        raise ValueError("remote clone unavailable")
+    ref = remote_ref(rm, rm["kustomization"], checked("git", "-C", gd, "show", "--end-of-options", f"{tag}:{rm['kustomization']}"))
+    pins = [p["commit"] for p in rm["pins"] if p["tag"] == ref]
+    if not pins:
+        raise ValueError(f"{rm['kustomization']} names the tag {ref} of {rm['repo']}, which the target does not pin to a commit")
+    pinned = pins[0]
+    actual = checked("git", "-C", rgd, "rev-parse", "--verify", "refs/tags/" + ref + "^{commit}").strip()
+    if actual != pinned:
+        raise ValueError(f"remote tag {ref} moved or differs from its pin")
+    d = rm["directory"]
+    names = kustomization_resources(d + "/kustomization.yaml", checked(
+        "git", "-C", rgd, "show", "--end-of-options", f"{pinned}:{d}/kustomization.yaml"))
+    if len(set(names)) != len(names) or any(RESOURCE_FILE_RE.fullmatch(n) is None or n == "kustomization.yaml" for n in names):
+        raise ValueError(f"{d}/kustomization.yaml lists a resource other than distinct plain file names")
+    tree = {}
+    for ent in checked("git", "-C", rgd, "ls-tree", "-r", "-z", "--end-of-options", pinned, d + "/").split("\0"):
+        if ent:
+            meta, _, p = ent.partition("\t")
+            tree[p] = meta.split()[0]
+    txt = ""
+    for n in sorted(names):
+        mode = tree.get(d + "/" + n)
+        if mode is None:
+            raise ValueError(f"listed file {n} does not exist in {d} at the pinned commit")
+        if mode not in ("100644", "100755"):
+            raise ValueError(f"{n} is a symbolic link or not a regular file")
+        body = checked("git", "-C", rgd, "show", "--end-of-options", f"{pinned}:{d}/{n}")
+        txt += "\n---\n" + definition_blob(body)
+    return txt
+
+
+def definition_blob(body):
+    if not body.strip():
+        raise ValueError("requested blob was empty")
+    if len(body.encode("utf-8", "surrogateescape")) > MAX_DEFINITION_BYTES:
+        raise ValueError("requested blob is over the extractor's size bound")
+    return body
+
+
+def crd_text(tj, gd, tag, tagname=None, rgd=None):
     """Concatenated CRD YAML of one project at one tag (from the bare clone gd).
     Semantics mirror the extractor: an Optional path that is absent at the tag contributes nothing, a missing
     non-optional path is an error, a present directory without matching files is an error. A release that the
-    target serves from a Remote repository is not readable from this mirror: explicit error, never empty."""
+    target serves from a Remote repository is read through its pinned remote clone rgd (remote_text); no pin, a moved
+    tag, a missing clone or any unmodelled shape is an explicit error, never empty."""
     if remote_applies(tj, tagname if tagname is not None else tag):
-        raise ValueError("remote-served release (%s from %s): remote repository is not in the oracle mirror" % (
-            tagname or tag, tj["remote"].get("repo", "?")))
+        return remote_text(tj, gd, tag, rgd)
     txt = ""
     for p in tj["paths"]:
         if p.get("optional") and path_absent(gd, tag, p["path"]):
@@ -131,9 +284,7 @@ def crd_text(tj, gd, tag, tagname=None):
             fl = [p["path"]]
         for f in fl:
             body = checked("git", "-C", gd, "show", "--end-of-options", f"{tag}:{f}")
-            if not body.strip():
-                raise ValueError("requested blob was empty")
-            txt += "\n---\n" + body
+            txt += "\n---\n" + definition_blob(body)
     return txt
 
 
@@ -186,8 +337,8 @@ def check_served_floor(min_from, line, served):
         raise ValueError(f"minFrom {min_from} exceeds observed served line {line[0]}.{line[1]}")
 
 
-def crd_rows(tj, gd, tag, tagname=None):
-    text = crd_text(tj, gd, tag, tagname)
+def crd_rows(tj, gd, tag, tagname=None, rgd=None):
+    text = crd_text(tj, gd, tag, tagname, rgd)
     result = sh(CRDGVK, inp=text)
     if result.returncode:
         raise ValueError("CRD YAML helper failed")
@@ -204,22 +355,22 @@ def crd_rows(tj, gd, tag, tagname=None):
     return rows
 
 
-def served_set(tj, gd, tag, tagname=None):
-    return {(row["G"], row["V"], row["K"]) for row in crd_rows(tj, gd, tag, tagname) if row["Served"]}
+def served_set(tj, gd, tag, tagname=None, rgd=None):
+    return {(row["G"], row["V"], row["K"]) for row in crd_rows(tj, gd, tag, tagname, rgd) if row["Served"]}
 
 
-def defined_kinds(tj, gd, tag, tagname=None):
+def defined_kinds(tj, gd, tag, tagname=None, rgd=None):
     """(group, kind) of every CRD defined at the tag, served or not."""
-    return {(row["G"], row["K"]) for row in crd_rows(tj, gd, tag, tagname)}
+    return {(row["G"], row["K"]) for row in crd_rows(tj, gd, tag, tagname, rgd)}
 
 
-def classify_whole(tj, gd, tag, removed, cache, tagname=None):
+def classify_whole(tj, gd, tag, removed, cache, tagname=None, rgd=None):
     """Whole-CRD part of `removed`, or [] on any failed, empty or otherwise doubtful read of the later tag (fail closed)."""
     if not removed:
         return []
     try:
         if tag not in cache:
-            cache[tag] = defined_kinds(tj, gd, tag, tagname)
+            cache[tag] = defined_kinds(tj, gd, tag, tagname, rgd)
         if not cache[tag]:
             return []  # nothing defined at the later tag: a silent partial read cannot prove an absence
         return whole_removed(removed, cache[tag])
@@ -268,6 +419,18 @@ def prepare(proj, cov, plan):
     r = sh("git", "-C", gd, "fetch", "-q", "--tags", "--force")
     if r.returncode:
         raise ValueError("fetch tags failed")
+    rgd = None
+    if tj.get("remote"):  # the remote-served releases read their definitions from this second clone
+        rgd = f"{GITROOT}/{proj}.remote.git"
+        rrepo = str(tj["remote"]["repo"]).removeprefix("github.com/")
+        if not os.path.isdir(rgd):
+            r = sh("git", "clone", "-q", "--bare", "--filter=blob:none", "--", f"https://github.com/{rrepo}.git", rgd)
+            if r.returncode:
+                shutil.rmtree(rgd, ignore_errors=True)
+                raise ValueError("remote clone failed")
+        r = sh("git", "-C", rgd, "fetch", "-q", "--tags", "--force")
+        if r.returncode:
+            raise ValueError("remote fetch tags failed")
     pinned = {}
     for pair in plan.get("proof_pairs", {}).values():
         for side in ("from", "to"):
@@ -292,7 +455,7 @@ def prepare(proj, cov, plan):
     def served(tag):
         if tag not in cache:
             ref = pinned.get(tag, tag)
-            cache[tag] = served_set(tj, gd, ref, tag) if tj.get("remote") else served_set(tj, gd, ref)
+            cache[tag] = served_set(tj, gd, ref, tag, rgd) if tj.get("remote") else served_set(tj, gd, ref)
             check_served_floor(tj.get("minFrom"), vkey(tag[len(pref):])[:2], cache[tag])
         return cache[tag]
 
@@ -311,7 +474,7 @@ def prepare(proj, cov, plan):
 
     def whole(tag, removed):
         ref = pinned.get(tag, tag)
-        result = classify_whole(tj, gd, ref, removed, defined_cache, tag if tj.get("remote") else None)
+        result = classify_whole(tj, gd, ref, removed, defined_cache, tag, rgd) if tj.get("remote") else classify_whole(tj, gd, ref, removed, defined_cache)
         if defined_cache.get(ref):  # groups that still have a CRD at the later tag (only a non-empty, successful read)
             plan.setdefault("later_groups", {})[tag] = {g for g, _ in defined_cache[ref]}
         return result
