@@ -63,6 +63,7 @@ RESOURCE_FILE_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\.ya?ml", re.A)
 KUSTOMIZATION_API = "kustomize.config.k8s.io/v1beta1"
 MAX_KUSTOMIZATION_RESOURCES = 512  # extractor MaxCRDsPerTag
 MAX_KUSTOMIZATION_BYTES = 1 << 20
+MAX_DEFINITION_BYTES = 8 << 20  # the extractor's crdversions.MaxFileBytes
 
 
 def validate_remote(rm):
@@ -162,7 +163,7 @@ def kustomization_resources(name, body):
             raise ValueError(f"{name} has an empty scalar")
         return v
 
-    doc, res, in_res, started = {}, None, False, False
+    doc, res, in_res, started, item_indent = {}, None, False, False, None
     for raw in body.split("\n"):
         line = raw.rstrip(" ")
         if not line.strip() or line.lstrip().startswith("#"):
@@ -172,6 +173,10 @@ def kustomization_resources(name, body):
             continue
         m = re.fullmatch(r"( *)- (.+)", line)
         if m and in_res:
+            if item_indent is None:  # every item of a list sits at the first item's indent (the key is at column 0)
+                item_indent = len(m.group(1))
+            elif len(m.group(1)) != item_indent:
+                raise ValueError(f"{name} resources items are not at one indent")
             res.append(scalar(m.group(2)))
             continue
         m = re.fullmatch(r"([A-Za-z]+):(?: (.*))?", line)
@@ -184,7 +189,8 @@ def kustomization_resources(name, body):
         if in_res:
             if val is not None and val.strip():
                 raise ValueError(f"{name} resources is not a block list")
-            res = doc[key] = []
+            res, item_indent = [], None
+            doc[key] = res
         else:
             if val is None:
                 raise ValueError(f"{name} has an empty {key}")
@@ -245,10 +251,16 @@ def remote_text(tj, gd, tag, rgd):
         if mode not in ("100644", "100755"):
             raise ValueError(f"{n} is a symbolic link or not a regular file")
         body = checked("git", "-C", rgd, "show", "--end-of-options", f"{pinned}:{d}/{n}")
-        if not body.strip():
-            raise ValueError("requested blob was empty")
-        txt += "\n---\n" + body
+        txt += "\n---\n" + definition_blob(body)
     return txt
+
+
+def definition_blob(body):
+    if not body.strip():
+        raise ValueError("requested blob was empty")
+    if len(body.encode("utf-8", "surrogateescape")) > MAX_DEFINITION_BYTES:
+        raise ValueError("requested blob is over the extractor's size bound")
+    return body
 
 
 def crd_text(tj, gd, tag, tagname=None, rgd=None):
@@ -272,9 +284,7 @@ def crd_text(tj, gd, tag, tagname=None, rgd=None):
             fl = [p["path"]]
         for f in fl:
             body = checked("git", "-C", gd, "show", "--end-of-options", f"{tag}:{f}")
-            if not body.strip():
-                raise ValueError("requested blob was empty")
-            txt += "\n---\n" + body
+            txt += "\n---\n" + definition_blob(body)
     return txt
 
 

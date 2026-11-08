@@ -367,6 +367,28 @@ class RemoteServedTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     self.text(gd, rgd)
 
+    def test_oversized_definition_blob_is_error_remote_and_local(self):
+        limit = oracle.MAX_DEFINITION_BYTES
+        self.assertEqual(limit, 8 << 20)
+        for size, ok in ((limit, True), (limit + 1, False)):
+            body = CRD + "#" * (size - len(CRD.encode()) - 1) + "\n"
+            self.assertEqual(len(body.encode()), size)
+            with self.subTest(size=size, where="remote"):
+                gd, rgd = self.world(dir_files={"config/crd/ic/kustomization.yaml": KUST + "- a.yaml\n", "config/crd/ic/a.yaml": body})
+                if ok:
+                    self.assertIn("CustomResourceDefinition", self.text(gd, rgd))
+                else:
+                    with self.assertRaises(ValueError):
+                        self.text(gd, rgd)
+            with self.subTest(size=size, where="local"):
+                gd = str(self.repo("loc", {"crds/a.yaml": body}, "v1.0.0") / ".git")
+                tj = {"paths": [{"path": "crds/a.yaml"}]}
+                if ok:
+                    self.assertIn("CustomResourceDefinition", oracle.crd_text(tj, gd, "v1.0.0", "v1.0.0"))
+                else:
+                    with self.assertRaises(ValueError):
+                        oracle.crd_text(tj, gd, "v1.0.0", "v1.0.0")
+
     def test_empty_blob_and_template_are_errors(self):
         gd, rgd = self.world(dir_files={"config/crd/ic/kustomization.yaml": KUST + "- a.yaml\n", "config/crd/ic/a.yaml": "\n"})
         with self.assertRaises(ValueError):
@@ -381,12 +403,14 @@ class RemoteServedTests(unittest.TestCase):
             oracle.crd_text(self.tj, gd, "nosuchtag", "v3.4.0", rgd)
 
     def test_kustomization_reader_is_strict(self):
-        ok = oracle.kustomization_resources("k", "# c\n---\n" + KUST + "  - a.yaml # c\n- 'b.yaml'\n- \"c.yaml\" # d\n")
+        ok = oracle.kustomization_resources("k", "# c\n---\n" + KUST + "  - a.yaml # c\n  - 'b.yaml'\n  - \"c.yaml\" # d\n")
         self.assertEqual(ok, ["a.yaml", "b.yaml", "c.yaml"])
         for bad in ("", KUST, KUST + "- a.yaml\n" + "kind: Kustomization\n", "kind: Kustomization\nresources:\n- a.yaml\n",
                     KUST.replace("v1beta1", "v1") + "- a.yaml\n", KUST + "- &a a.yaml\n", KUST + "- a.yaml#c\n", KUST + "- 'a.yaml\n",
                     KUST + "- {a: b}\n", KUST + "- a.yaml\n---\n" + KUST + "- b.yaml\n", "resources: [a.yaml]\n" + KUST,
                     KUST.replace("resources:", "resources: x") + "- a.yaml\n", KUST + "- a.yaml\n\tx: y\n",
+                    KUST + "- a.yaml\n  - b.yaml\n", KUST + "  - a.yaml\n- b.yaml\n", KUST + "  - a.yaml\n    - b.yaml\n",
+                    KUST + "  - a.yaml\n - b.yaml\n", KUST + "- a.yaml\n\t- b.yaml\n", KUST + "  - a.yaml\n\t- b.yaml\n",
                     KUST + "- " + "\n- ".join("f%d.yaml" % i for i in range(513)) + "\n"):
             with self.subTest(bad=bad[:40]), self.assertRaises(ValueError):
                 oracle.kustomization_resources("k", bad)
