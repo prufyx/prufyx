@@ -293,15 +293,23 @@ jobs:
           [ "sha256:$(sha256sum "${live}" | cut -d' ' -f1)" = "${LIVE_DIGEST}" ] || fail "the live artifact differs from the package the decision verified."
           keys="$(mktemp -d "${RUNNER_TEMP}/knowledge-keys.XXXXXX")"
           trap 'rm -rf "${keys}"' EXIT
-          printf '%s\n' "${TIMESTAMP_KEY}" > "${keys}/timestamp.key.pem"
+          printf '%s\n' "$(printf '%s' "${TIMESTAMP_KEY}")" > "${keys}/timestamp.key.pem"
           printf '%s' "${PASSPHRASE}" > "${keys}/passphrase"
           out="${RUNNER_TEMP}/refreshed"
+          classify_refusal() { # stderr file, result file: a refusal with nothing produced that names the key or passphrase and no digest or state is a key problem
+            cat "$1" >&2
+            if [ ! -s "$2" ] && grep -qiE 'passphrase|key file|private key|decrypt|pem' "$1" && ! grep -qiE 'digest|state|live|identity' "$1"; then
+              fail "key file or passphrase unusable; nothing was signed."
+            fi
+            fail "the publisher refused the refresh (unverifiable live package, identity assertion, no extension or cap); nothing was signed."
+          }
           "${maint}" knowledge-publish refresh-timestamp --profile cncf-projects \
             --live-package "${live}" --expect-live-package-digest "${LIVE_DIGEST}" \
             --root "${root}" --root-digest "${ROOT_DIGEST}" \
             --timestamp-key "${keys}/timestamp.key.pem" --passphrase-file "${keys}/passphrase" \
-            --output-dir "${out}" > "${RUNNER_TEMP}/refresh-result.json" \
-            || fail "the publisher refused the refresh (unverifiable live package, identity assertion, no extension or cap); nothing was signed."
+            --output-dir "${out}" > "${RUNNER_TEMP}/refresh-result.json" 2> "${RUNNER_TEMP}/refresh-stderr.txt" \
+            || classify_refusal "${RUNNER_TEMP}/refresh-stderr.txt" "${RUNNER_TEMP}/refresh-result.json"
+          cat "${RUNNER_TEMP}/refresh-stderr.txt" >&2
           rm -rf "${keys}"
           result="${RUNNER_TEMP}/refresh-result.json"
           revision="$(jq -er '.revision | select(test("^[1-9][0-9]{0,17}$"))' "${result}")" || fail "the result has no valid revision."
@@ -418,6 +426,7 @@ jobs:
       pages: write
       id-token: write
       contents: read
+      actions: read
     steps:
       - name: Check out main
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -445,11 +454,44 @@ jobs:
           PACKAGE_DIGEST: ${{ needs.refresh.outputs.package_digest }}
           PREDECESSOR: ${{ needs.decide.outputs.live_digest }}
           EXPECTED: ${{ vars.KNOWLEDGE_ROOT_DIGEST }}
+          REVISION: ${{ needs.refresh.outputs.revision }}
+          ARTIFACT_NAME: ${{ needs.refresh.outputs.artifact_name }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         working-directory: cli
         run: |
           set -euo pipefail
           umask 077
           fail() { echo "::error::$*"; exit 1; }
+          newest_artifact() { # workflow file, name regex -> artifact name of the newest successful run that has one
+            local runs id name
+            runs="$(gh api --paginate -X GET "repos/${GH_REPO}/actions/workflows/$1/runs" -f branch=main -f status=success -f per_page=100 --jq '.workflow_runs[].id')"
+            for id in ${runs}; do
+              name="$(gh api --paginate -X GET "repos/${GH_REPO}/actions/runs/${id}/artifacts" -f per_page=100 \
+                --jq ".artifacts[] | select(.expired == false) | select(.name | test(\"$2\")) | .name" | sed -n 1p)"
+              if [ -n "${name}" ]; then echo "${name}"; return 0; fi
+            done
+            return 0
+          }
+          artifact_crosscheck() { # candidate revision, candidate timestamp version: refuse when a newer content or refresh run exists
+            local cand_rev="$1" cand_ver="$2" content rev refresh rest rrev rver
+            [[ "${cand_rev}" =~ ^[1-9][0-9]{0,17}$ ]] && [[ "${cand_ver}" =~ ^[1-9][0-9]{0,17}$ ]] || fail "the candidate revision or timestamp version is not valid; nothing was deployed."
+            content="$(newest_artifact knowledge-publish.yml '^knowledge-[0-9]+-[0-9a-f]{64}$')"
+            [ -n "${content}" ] || fail "no successful content run with a live artifact was found; nothing was deployed."
+            rev="${content#knowledge-}"; rev="${rev%%-*}"
+            [ "${rev}" -le "${cand_rev}" ] || fail "a newer content release (revision ${rev}) exists than the candidate (revision ${cand_rev}); nothing was deployed."
+            refresh="$(newest_artifact knowledge-refresh.yml '^knowledge-refresh-[0-9]+-[0-9]+-[0-9a-f]{64}$')"
+            if [ -n "${refresh}" ]; then
+              rest="${refresh#knowledge-refresh-}"
+              rrev="${rest%%-*}"; rest="${rest#*-}"; rver="${rest%%-*}"
+              if [ "${rrev}" -gt "${cand_rev}" ] || { [ "${rrev}" -eq "${cand_rev}" ] && [ "${rver}" -gt "${cand_ver}" ]; }; then
+                fail "a newer refresh (revision ${rrev}, timestamp ${rver}) exists than the candidate (revision ${cand_rev}, timestamp ${cand_ver}); nothing was deployed."
+              fi
+            fi
+          }
+          [[ "${ARTIFACT_NAME}" =~ ^knowledge-refresh-${REVISION}-([0-9]+)-[0-9a-f]{64}$ ]] || fail "the artifact name does not match the refresh revision; nothing was deployed."
+          CAND_REVISION="${REVISION}"; CAND_TS_VERSION="${BASH_REMATCH[1]}"
+          artifact_crosscheck "${CAND_REVISION}" "${CAND_TS_VERSION}"
           root="${GITHUB_WORKSPACE}/cli/internal/knowledgepin/root.json"
           [ -s "${root}" ] || fail "cli/internal/knowledgepin/root.json is missing; nothing was deployed."
           root_digest="sha256:$(sha256sum "${root}" | cut -d' ' -f1)"
