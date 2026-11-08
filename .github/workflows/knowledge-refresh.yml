@@ -403,7 +403,7 @@ jobs:
   deploy:
     name: Deploy to Pages
     needs: [decide, refresh]
-    if: ${{ needs.refresh.result == 'success' && github.ref == 'refs/heads/main' }}
+    if: ${{ needs.refresh.result == 'success' && github.ref == 'refs/heads/main' && github.run_attempt == 1 }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

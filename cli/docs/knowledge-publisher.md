@@ -546,9 +546,7 @@ variable is set (nothing is checked when it is not).
 ### Timestamp refresh
 
 Status: inactive until the owner creates the environment `knowledge-refresh`
-with the timestamp key. It also needs the publisher subcommands
-`refresh-timestamp`, `live-state` and `deploy-guard` of
-`prufyx-maintainer knowledge-publish`, which are not part of this change.
+with the timestamp key.
 
 `.github/workflows/knowledge-refresh.yml` keeps the feed alive when a content
 release is late. It runs every 6 hours and on dispatch (`dry_run`, default
@@ -599,6 +597,13 @@ Run it first with `dry_run` left at `true`. The refreshed package is uploaded as
 the artifact `knowledge-refresh-<revision>-<timestamp version>-<sha256>`; the
 content workflow must read the live timestamp version at signing time, not
 from its own previous artifact, because refreshes move it.
+
+#### Refresh artifacts
+
+The name `knowledge-refresh-<revision>-<timestamp version>-<sha256>` is a
+published interface. A reader that needs the live state must consider both this
+family and the content workflow artifacts and take the live package digest from
+the verified `live-state` output, not from the newest artifact name alone.
 
 ### Publish self-check
 

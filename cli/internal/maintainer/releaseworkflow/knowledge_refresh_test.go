@@ -155,6 +155,27 @@ func TestKnowledgeRefreshWorkflowIsHardened(t *testing.T) {
 	if !strings.Contains(raw, "knowledge-publish deploy-guard") || !strings.Contains(raw, "knowledge-publish refresh-timestamp") || !strings.Contains(raw, "knowledge-publish live-state") {
 		t.Error("the workflow must use refresh-timestamp, live-state and deploy-guard")
 	}
+	// The refresh call must carry the live digest the decision verified.
+	if !strings.Contains(raw, "knowledge-publish refresh-timestamp --profile cncf-projects \\\n            --live-package \"${live}\" --expect-live-package-digest \"${LIVE_DIGEST}\"") {
+		t.Error("the refresh call must pass --expect-live-package-digest \"${LIVE_DIGEST}\"")
+	}
+	// Deploy runs only on the first attempt: a re-run of failed jobs must not redeploy.
+	for _, w := range []string{"github.run_attempt == 1", "github.ref == 'refs/heads/main'", "needs.refresh.result == 'success'"} {
+		if !strings.Contains(d.If, w) {
+			t.Errorf("deploy if %q lacks %s", d.If, w)
+		}
+	}
+	// Published interface (read by the content workflow): the artifact name and
+	// the live digest source are defined in exactly one place each.
+	if n := strings.Count(raw, "echo \"artifact_name=knowledge-refresh-${revision}-${tsver}-${hex}\""); n != 1 {
+		t.Errorf("artifact name pattern defined %d times, want 1", n)
+	}
+	if n := strings.Count(raw, "echo \"live_digest=${digest}\""); n != 1 {
+		t.Errorf("live digest source defined %d times, want 1", n)
+	}
+	if !strings.Contains(raw, "digest=\"$(jq -er '.packageDigest | select(test(\"^sha256:[0-9a-f]{64}$\"))' \"${state}/live.json\")\"") {
+		t.Error("the live digest must come from the verified live-state packageDigest")
+	}
 	// The alarm job fails the run and holds nothing.
 	var alarmRuns strings.Builder
 	for _, st := range wf.Jobs["alarm"].Steps {
