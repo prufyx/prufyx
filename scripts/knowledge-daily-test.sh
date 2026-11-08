@@ -24,10 +24,11 @@ cat > "${root}/bin/gh" <<'EOF'
 shift # api
 method=GET
 ep=""
+paginate=0
 while [ $# -gt 0 ]; do
   case "$1" in
     -X) method="$2"; shift 2 ;;
-    --paginate) shift ;;
+    --paginate) paginate=1; shift ;;
     -*) shift ;;
     *) ep="$1"; shift ;;
   esac
@@ -36,7 +37,9 @@ echo "${method} ${ep}" >> "${FAKE_LOG}"
 if [ "${method}" != GET ]; then echo '{}'; exit 0; fi
 f="${FAKE_DIR}/$(printf '%s' "${ep}" | tr '/?=&' '____').json"
 [ -f "${f}" ] || exit 1
-cat "${f}"
+# A fixture holds one page per line. Without --paginate only the first page is
+# returned, exactly like the real API; with it every page, one after the other.
+if [ "${paginate}" = 1 ]; then cat "${f}"; else head -n 1 "${f}"; fi
 EOF
 chmod +x "${root}/bin/gh"
 export PATH="${root}/bin:${PATH}"
@@ -192,6 +195,22 @@ fams "knowledge-4-${h}" ""; art 10 '{"name":"x","expired":true}'; art 9 '{"name"
 run live-runs; [ "$(jq -r '.live.family,.content.runId' "${root}/out" | paste -sd,)" = "none," ] && ok "live-runs: nothing live" || bad "live-runs: none" "$(cat "${root}/out")"
 fams "knowledge-4-${h}" ""; art 9 '{"name":"knowledge-3-xyz","expired":true}'; fx "${RRUNS}" '{"workflow_runs":[{"id":31}]}'; art 31 "{\"name\":\"knowledge-refresh-4-12-${h2}\",\"expired\":false}"; art 10 '{"name":"z","expired":true}'
 expect_fail "live-runs: a live refresh without any live content run refused" live-runs
+
+# More than one page of runs: 100 successful runs without any knowledge artifact
+# (plan-only days) in front of the run that holds the live package. Only a
+# paginated read finds it; a single page would report "nothing live".
+many() { # filler-count live-run-id
+  local i rows=""
+  for i in $(seq 1 "$1"); do rows="${rows:+${rows},}{\"id\":$((1000 + i)),\"head_sha\":\"${sha9}\"}"; art $((1000 + i)) '{"name":"knowledge-plan-1","expired":false}'; done
+  printf '%s\n%s\n' "{\"workflow_runs\":[${rows}]}" "{\"workflow_runs\":[{\"id\":$2,\"head_sha\":\"${sha10}\"}]}" > "${FAKE_DIR}/$(printf '%s' "${CRUNS}" | tr '/?=&' '____').json"
+}
+fams "knowledge-4-${h}" "knowledge-refresh-4-12-${h2}"; many 100 10
+run live-runs; [ "$(jq -r '.live.family,.live.runId,.content.runId,.content.sha' "${root}/out" | paste -sd,)" = "refresh,31,10,${sha10}" ] && ok "live-runs: the live content run behind 100 content-free runs is found" || bad "live-runs: pagination (content)" "$(cat "${root}/out")"
+grep -q 'knowledge-publish.yml/runs' "${FAKE_LOG}" && ok "live-runs: runs are read" || bad "live-runs: log" "$(cat "${FAKE_LOG}")"
+fams "knowledge-4-${h}" ""; many 100 10; art 10 "{\"name\":\"knowledge-4-${h}\",\"expired\":false}"
+run live-runs; [ "$(jq -r '.live.family,.live.runId' "${root}/out" | paste -sd,)" = "content,10" ] && ok "live-runs: content only, behind 100 content-free runs" || bad "live-runs: pagination (content only)" "$(cat "${root}/out")"
+fams "knowledge-4-${h}" ""; many 100 10; art 10 '{"name":"x","expired":true}'
+run live-runs; [ "$(jq -r '.live.family' "${root}/out")" = none ] && ok "live-runs: nothing live over several pages" || bad "live-runs: pagination (none)" "$(cat "${root}/out")"
 
 cplan() { # content-run refresh-run live-digest-hex mode -> plan file ${root}/cl.json
   jq -n --arg c "$1" --arg r "$2" --arg d "sha256:$3" --arg m "$4" '{mode: $m, previous: {contentRunId: $c, refreshRunId: $r, packageDigest: $d}}' > "${root}/cl.json"

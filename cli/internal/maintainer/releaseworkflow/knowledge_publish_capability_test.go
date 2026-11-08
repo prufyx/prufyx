@@ -83,17 +83,22 @@ func TestKnowledgePublishCapabilityChangeSteps(t *testing.T) {
 		}
 	}
 	// The sign job re-derives the layout: first-release layout unless mode state
-	// (so capability mode uses it), the TUF version continues from the live
-	// package, and the revision is the one the approval bound.
+	// or recovery (the last index, taken from the live or the recovered package;
+	// capability mode uses the fresh layout), the TUF version continues from the
+	// live package, and the revision is the one the approval bound.
 	rr := sign[rederive].Run
-	for _, want := range []string{"layout=(--first-release)", `if [ "${mode}" = state ]; then`, "layout=(--previous-index", `version="$(jq -er '.minNextVersion'`, `revision="$(pj '.revision')"`} {
+	for _, want := range []string{"layout=(--first-release)", `if [ "${mode}" = state ] || [ "${mode}" = recovery ]; then`, "layout=(--previous-index", `version="$(jq -er '.minNextVersion'`, `revision="$(pj '.revision')"`} {
 		if !strings.Contains(rr, want) {
 			t.Errorf("re-derive step lacks %q", want)
 		}
 	}
 	sr := sign[signed].Run
-	if !strings.Contains(sr, `if [ "${MODE}" = state ]; then`) || !strings.Contains(sr, "layout=(--first-release)") {
-		t.Error("the signing step lacks the first-release layout for capability mode")
+	// The per-mode flag sets themselves are executed against the real publisher
+	// in knowledge_publish_contract_test.go; here only the shape is pinned.
+	for _, want := range []string{"first) flags=(--first-release --no-live-package) ;;", "state | recovery)", `flags=(--previous-index "${LAYOUT_INDEX}" "${live[@]}")`, `capability) flags=(--first-release "${live[@]}") ;;`} {
+		if !strings.Contains(sr, want) {
+			t.Errorf("the signing step lacks %q", want)
+		}
 	}
 	// A capability change never skips signing for want of content: the plan
 	// treats every mode but state as having content.

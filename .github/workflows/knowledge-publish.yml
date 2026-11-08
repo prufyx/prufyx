@@ -432,11 +432,14 @@ jobs:
           esac
 
           # Layout of the next release and its keyless digests.
-          if [ "${MODE}" = state ]; then
-            layout=(--previous-index "${PREV_INDEX_FILE}")
-          else
-            layout=(--first-release)
-          fi
+          # The index layout follows the committed index of the last release for a
+          # regular release and for a recovery (taken from the recovered package);
+          # first and capability start a fresh layout.
+          case "${MODE}" in
+            state | recovery) layout=(--previous-index "${PREV_INDEX_FILE}") ;;
+            first | capability) layout=(--first-release) ;;
+            *) fail "unknown mode '${MODE}'." ;;
+          esac
           digests="$("${maint}" knowledge-publish content-digest --profile cncf-projects "${layout[@]}" --revision "${revision}")" \
             || fail "the content digest could not be computed."
           content_digest="$(jq -er '.contentDigest' <<< "${digests}")"
@@ -723,7 +726,7 @@ jobs:
               --expect-targets-digest "$(pj '.previous.targetsDigest')" --expect-snapshot-digest "$(pj '.previous.snapshotDigest')")" \
               || fail "the live state moved since the plan or the previous package does not verify."
             version="$(jq -er '.minNextVersion' <<< "${state}")"
-            if [ "${mode}" = state ]; then
+            if [ "${mode}" = state ] || [ "${mode}" = recovery ]; then
               members="$(tar -tf "${pkg}" | head -n 1000 | grep -E '^targets/knowledge/cncf/[0-9a-f]{64}\.index\.v1\.json$' || true)"
               [ "$(grep -c . <<< "${members}")" = 1 ] || fail "previous package does not hold exactly one index."
               idx="${RUNNER_TEMP}/previous-index.json"
@@ -746,7 +749,7 @@ jobs:
             echo "revision=${revision}"
             echo "version=${version}"
             echo "expires=${expires}"
-            echo "layout_index=$([ "${mode}" = state ] && echo "${idx}" || true)"
+            echo "layout_index=$({ [ "${mode}" = state ] || [ "${mode}" = recovery ]; } && echo "${idx}" || true)"
           } >> "${GITHUB_OUTPUT}"
 
       # The only step with secrets. It signs and nothing else; its keys directory
@@ -785,19 +788,28 @@ jobs:
           printf '%s\n' "${TIMESTAMP_KEY}" > "${keys}/timestamp.key.pem"
           printf '%s' "${PASSPHRASE}" > "${keys}/passphrase"
 
-          if [ "${MODE}" = state ]; then
-            layout=(--previous-index "${LAYOUT_INDEX}")
-          else
-            layout=(--first-release)
-          fi
-          prev=()
+          # The exact flag set per mode (the publisher refuses any other):
+          #   first       fresh layout, nothing live          --first-release --no-live-package
+          #   state       last index, live package            --previous-index --previous-package --expect-previous-package-digest
+          #   capability  fresh layout, live package          --first-release --previous-package --expect-previous-package-digest
+          #   recovery    index of the recovered package, and
+          #               the recovered package is live       --previous-index --previous-package --expect-previous-package-digest
+          live=()
           if [ "${MODE}" != first ]; then
-            prev=(--previous-package "${RUNNER_TEMP}/plan/previous.tar" --expect-previous-package-digest "$(jq -er '.previous.packageDigest' "${plan}")")
+            live=(--previous-package "${RUNNER_TEMP}/plan/previous.tar" --expect-previous-package-digest "$(jq -er '.previous.packageDigest' "${plan}")")
           fi
+          case "${MODE}" in
+            first) flags=(--first-release --no-live-package) ;;
+            state | recovery)
+              [ -n "${LAYOUT_INDEX}" ] || fail "the previous index of mode ${MODE} is unknown."
+              flags=(--previous-index "${LAYOUT_INDEX}" "${live[@]}") ;;
+            capability) flags=(--first-release "${live[@]}") ;;
+            *) fail "unknown mode '${MODE}'." ;;
+          esac
           # CI mode is enabled only by the explicit --ci flag (never detected from
           # the environment): --expires and every --expect-* flag are required and
           # checked before a key is read; attempt other than 1 is refused.
-          "${maint}" knowledge-publish release --ci --profile cncf-projects "${layout[@]}" \
+          "${maint}" knowledge-publish release --ci --profile cncf-projects "${flags[@]}" \
             --revision "${REVISION}" --version "${VERSION}" \
             --root "${root}" --root-digest "${ROOT_DIGEST}" \
             --targets-key "${keys}/targets.key.pem" \
@@ -807,7 +819,6 @@ jobs:
             --expires "${EXPIRES}" \
             --expect-content-digest "$(jq -er '.contentDigest' "${plan}")" \
             --expect-index-digest "$(jq -er '.indexDigest' "${plan}")" \
-            "${prev[@]}" \
             --output-dir "${work}/final" > "${work}/release.json" \
             || fail "the release was refused (digest or state mismatch, evidence expired, version not advancing or invalid input)."
           echo "work=${work}" >> "${GITHUB_OUTPUT}"

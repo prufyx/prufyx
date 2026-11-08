@@ -14,7 +14,7 @@
 #   timestamp expiry beyond the 14 day cap / targets or snapshot expiry beyond the 21 day cap
 #   verified feed without a readable targets or snapshot expiry
 #   no successful Knowledge publish run on main / last one older than 8 days
-#   feed not newer than the newest cli/knowledge merge on main
+#   feed not newer than the newest cli/knowledge merge on main (plan-only runs do not count)
 #
 # Usage: publish-verify.sh --bin PRUFYX --root FILE --root-digest sha256:HEX --repo OWNER/REPO
 #                          --git DIR [--git-ref REF] [--feed URL]
@@ -143,6 +143,24 @@ fi
 signed=""
 content_signed=""
 ev_e=""
+# Start of the newest successful publish run that HAS a live content artifact
+# (knowledge-<revision>-<sha256>): a signed run. A successful run without one is
+# a plan-only day (signing skipped, or never approved) and counts for nothing.
+signed_run_e=""
+signed_run_lookup() {
+  local rows id art
+  rows="$(gh_get "actions/workflows/knowledge-publish.yml/runs?branch=main&status=success&per_page=60" \
+    | jq -r '.workflow_runs[] | [.id, (.run_started_at // "")] | @tsv' 2>/dev/null)" || return 0
+  while IFS=$'\t' read -r id started; do
+    [[ "${id}" =~ ^[1-9][0-9]{0,17}$ ]] || continue
+    art="$(gh_get "actions/runs/${id}/artifacts?per_page=100" \
+      | jq -r '[.artifacts[] | select(.expired == false) | select(.name | test("^knowledge-[0-9]+-[0-9a-f]{64}$"))] | length' 2>/dev/null)" || continue
+    if [ "${art}" != "0" ] && [ -n "${art}" ]; then
+      signed_run_e="$(epoch "${started}")" || signed_run_e=""
+      return 0
+    fi
+  done <<< "${rows}"
+}
 [ -z "${evidence}" ] || ev_e="$(epoch "${evidence}")" || ev_e=""
 lm="$(grep -i '^last-modified:' "${work}/headers" | tail -n 1 | cut -d: -f2- | tr -d '\r' | sed 's/^ *//')"
 lm_e=""
@@ -155,7 +173,11 @@ fi
 if [ "${tgt_e}" -ne "${exp_e}" ] && [ -n "${ev_e}" ] && [ "${tgt_e}" -lt "${ev_e}" ]; then
   content_signed=$((tgt_e - TARGETS_CAP_DAYS * 86400))
 else
-  content_signed="${lm_e}"
+  # Not derivable from the metadata (evidence expiry or the former layout bound
+  # it): the start of the newest signed run. The Last-Modified of the feed is
+  # only the last resort, because every timestamp refresh resets it.
+  signed_run_lookup
+  content_signed="${signed_run_e:-${lm_e}}"
 fi
 if [ -z "${signed}" ]; then
   fail "feed age unknown (no cap-bound expiry, no Last-Modified)"
@@ -189,15 +211,15 @@ fi
 # time is the committer time of the first-parent commit of main that touched
 # cli/knowledge (the no-ff merge commit; the GitHub commits API would return
 # the older branch commit). A merge younger than the grace window is still
-# being published; a later successful run that skipped the deploy (unchanged
-# bundle) also accounts for the merge.
+# being published. No successful run accounts for a merge by itself: a plan-only
+# run (signing skipped or never approved) is a success too, so only the signing
+# time of the content (section 3) does.
 m_e="$(git -C "${gitdir}" log --first-parent -1 --format=%ct "${gitref}" -- cli/knowledge 2>/dev/null)" || m_e="__err__"
 if [ "${m_e}" = "__err__" ] || { [ -n "${m_e}" ] && ! [[ "${m_e}" =~ ^[0-9]+$ ]]; }; then
   fail "cannot read the newest knowledge merge on main from the checkout"
 elif [ -n "${m_e}" ]; then
-  if [ -n "${content_signed}" ] && [ "${content_signed}" -lt "${m_e}" ] && [ $((now - m_e)) -gt "${MERGE_GRACE_SECONDS}" ] \
-       && { [ -z "${rs_e:-}" ] || [ "${rs_e}" -lt "${m_e}" ]; }; then
-    fail "feed not newer than the newest knowledge merge on main ($(date -u -d "@${m_e}" +%Y-%m-%dT%H:%M:%SZ)) and no later successful publish run"
+  if [ -n "${content_signed}" ] && [ "${content_signed}" -lt "${m_e}" ] && [ $((now - m_e)) -gt "${MERGE_GRACE_SECONDS}" ]; then
+    fail "feed not newer than the newest knowledge merge on main ($(date -u -d "@${m_e}" +%Y-%m-%dT%H:%M:%SZ)) and no later signed publish run"
   fi
 fi
 

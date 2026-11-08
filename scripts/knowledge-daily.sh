@@ -167,7 +167,9 @@ cmd_cancel() {
 # run of R, a content run of R+1 is newer than any refresh of R.
 family_newest() { # workflow-file artifact-regex -> "run|sha|artifact" of the newest successful main run with a live matching artifact; empty if none
   local runs id sha art
-  runs="$(gh_get "repos/${GH_REPO}/actions/workflows/$1/runs?branch=main&status=success&per_page=100" | jq -r '.workflow_runs[] | [.id, (.head_sha // "")] | @tsv')" \
+  # Paginated, newest first: the run that holds the live package can sit behind
+  # many successful runs without an artifact (plan-only days).
+  runs="$(gh_get --paginate "repos/${GH_REPO}/actions/workflows/$1/runs?branch=main&status=success&per_page=100" | jq -r '.workflow_runs[] | [.id, (.head_sha // "")] | @tsv')" \
     || die "cannot list the successful runs of $1."
   while IFS=$'\t' read -r id sha; do
     [ -n "${id}" ] || continue

@@ -237,7 +237,9 @@ func TestPublishVerifyScript(t *testing.T) {
 		noRoleExpiry  bool      // the receipt carries no targets/snapshot expiry
 		legacy        bool      // package of the former layout: every role expires at signed + 14d
 		evidence      time.Time // zero: signed + 60d
-		runStarted    time.Time
+		runStarted    time.Time // start of the newest successful run that holds a live knowledge artifact (a signed run)
+		planOnlyAt    time.Time // non-zero: a newer successful run without any artifact (plan only, signing skipped) started then
+		noSignedRun   bool      // no successful run holds an artifact (the merge was never approved)
 		noRun         bool
 		merge         time.Time // committer time of the no-ff merge commit on main
 		branchCommit  time.Time // zero: 30 days before the merge (the commit the GitHub commits API would return)
@@ -274,10 +276,52 @@ func TestPublishVerifyScript(t *testing.T) {
 			s.runStarted = now.Add(-4 * day)
 		}, 1, "feed not newer than the newest knowledge merge"),
 		with("merge inside grace", func(s *scenario) { s.merge = now.Add(-30 * time.Minute); s.runStarted = now.Add(-1 * day) }, 0, "publish-verify: OK"),
-		with("later skipped run accounts for the merge", func(s *scenario) {
+		// A plan-only run is a success too (signing skipped or never approved), so it
+		// accounts for nothing: only a signed run, visible in the signing times, does.
+		with("a later plan-only success does not account for the merge", func(s *scenario) {
 			s.signed = now.Add(-3 * day)
 			s.merge = now.Add(-2 * day)
+			s.runStarted = now.Add(-4 * day)
+			s.planOnlyAt = now.Add(-1 * day)
+		}, 1, "feed not newer than the newest knowledge merge"),
+		with("unapproved merge: no run holds a signed package", func(s *scenario) {
+			s.signed = now.Add(-3 * day)
+			s.merge = now.Add(-2 * day)
+			s.noSignedRun = true
+			s.planOnlyAt = now.Add(-1 * day)
+		}, 1, "feed not newer than the newest knowledge merge"),
+		// A run cancelled after 26 hours is not a success: the list of successful
+		// runs (the stub refuses any other status) never holds it.
+		with("merge whose waiting run was cancelled after 26 hours", func(s *scenario) {
+			s.signed = now.Add(-3 * day)
+			s.merge = now.Add(-40 * time.Hour)
+			s.runStarted = now.Add(-3 * day)
+		}, 1, "feed not newer than the newest knowledge merge"),
+		with("a signed run after the merge accounts for it", func(s *scenario) {
+			s.contentSigned = now.Add(-1 * day)
+			s.signed = now.Add(-1 * day)
+			s.merge = now.Add(-2 * day)
 			s.runStarted = now.Add(-1 * day)
+		}, 0, "publish-verify: OK"),
+		// Evidence-bound expiry (equal role expiry, evidence expires first): the content
+		// signing time comes from the newest signed run, never from the Last-Modified of
+		// the feed, which every timestamp refresh resets.
+		with("evidence-bound, refresh resets Last-Modified, merge never signed", func(s *scenario) {
+			s.evidence = now.Add(6 * day)
+			s.contentSigned = now.Add(-6 * day)
+			s.signed = now.Add(-1 * day)
+			s.lastMod = now.Add(-1 * day)
+			s.runStarted = now.Add(-6 * day)
+			s.planOnlyAt = now.Add(-1 * day)
+			s.merge = now.Add(-3 * day)
+		}, 1, "feed not newer than the newest knowledge merge"),
+		with("evidence-bound, signed run after the merge", func(s *scenario) {
+			s.evidence = now.Add(6 * day)
+			s.contentSigned = now.Add(-2 * day)
+			s.signed = now.Add(-1 * day)
+			s.lastMod = now.Add(-1 * day)
+			s.runStarted = now.Add(-2 * day)
+			s.merge = now.Add(-3 * day)
 		}, 0, "publish-verify: OK"),
 		with("no knowledge merge at all", func(s *scenario) { s.noMerge = true }, 0, "publish-verify: OK"),
 		with("feed does not verify", func(s *scenario) { s.verifyFail = true }, 1, "feed does not verify against the pinned root"),
@@ -387,9 +431,20 @@ func TestPublishVerifyScript(t *testing.T) {
 			write("headers", "HTTP/2 200\r\nlast-modified: "+lastMod.Format("Mon, 02 Jan 2006 15:04:05")+" GMT\r\n\r\n")
 			runs := `{"workflow_runs":[]}`
 			if !sc.noRun {
-				runs = fmt.Sprintf(`{"workflow_runs":[{"run_started_at":%q}]}`, ts(sc.runStarted))
+				var rows []string
+				if !sc.planOnlyAt.IsZero() {
+					rows = append(rows, fmt.Sprintf(`{"id":2,"run_started_at":%q}`, ts(sc.planOnlyAt)))
+				}
+				rows = append(rows, fmt.Sprintf(`{"id":1,"run_started_at":%q}`, ts(sc.runStarted)))
+				runs = `{"workflow_runs":[` + strings.Join(rows, ",") + `]}`
 			}
 			write("runs.json", runs)
+			write("artifacts-2.json", `{"artifacts":[{"name":"knowledge-plan-2","expired":false}]}`)
+			signedArtifacts := `{"artifacts":[{"name":"knowledge-7-` + strings.Repeat("a", 64) + `","expired":false}]}`
+			if sc.noSignedRun {
+				signedArtifacts = `{"artifacts":[{"name":"knowledge-7-` + strings.Repeat("a", 64) + `","expired":true}]}`
+			}
+			write("artifacts-1.json", signedArtifacts)
 			repoDir := makeMergeRepo(t, filepath.Join(dir, "repo"), sc.merge, sc.branchCommit, sc.noMerge)
 			write("root.json", "{}")
 			if sc.feedFail {
@@ -410,7 +465,13 @@ while [ $# -gt 0 ]; do
   esac
 done
 case "${url}" in
-  *knowledge-publish.yml/runs*) cat "$d/runs.json" ;;
+  *knowledge-publish.yml/runs*)
+    # Only successful runs of the branch main are ever asked for.
+    case "${url}" in *branch=main*status=success*) ;; *) exit 22 ;; esac
+    cat "$d/runs.json" ;;
+  */actions/runs/*/artifacts*)
+    id="${url#*/actions/runs/}"; id="${id%%/*}"
+    cat "$d/artifacts-${id}.json" ;;
   *)
     [ ! -e "$d/feed_fail" ] || exit 22
     cp "$d/headers" "${hdr}"; echo tar > "${out}" ;;
