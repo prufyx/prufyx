@@ -527,7 +527,7 @@ class DigestReset(unittest.TestCase):
         self.assertEqual(json.load(open(s + "/status.json"))["oracle_digest"], "0" * 64)
 
 
-LISTED = {"a.example", "b.example"}  # groups the reviewed table attributes to some project
+LISTED = {"a.example": None, "b.example": None}  # group -> None (every kind) or its kinds, as the reviewed table attributes
 F1 = ("f.example", "v1", "Foreign")  # served group no project lists: always one unowned manifest
 F2 = ("f.example", "v1", "Foreign2")
 KEPT = ("a.example", "v1", "Kept")   # defined at both releases
@@ -604,9 +604,26 @@ class ForeignServedGroup(unittest.TestCase):
         r = self.whole([], rep=rep, later={"a.example"}, served={W, KEPT, F1})
         self.assertEqual((r[1], r[4], r[5]), (True, False, "FINDINGS"))
 
+    def test_kind_listed_group_owns_only_its_kinds(self):
+        listed = {"argoproj.io": {"Application"}, "a.example": None}
+        other = ("argoproj.io", "v1", "Rollout")
+        mine = ("argoproj.io", "v1alpha1", "Application")
+        self.assertEqual(crd.unowned_served({other, mine, KEPT}, [W], listed), {other})
+        self.assertEqual(crd.unowned_served({other, mine}, [other], listed), set())  # removal not owned: nothing derived
+        self.assertEqual(crd.unowned_served({other}, [W], {"argoproj.io": set(), "a.example": None}), {other})
+
+    def test_kubernetes_groups_are_not_unowned(self):
+        listed = {"a.example": None, "cluster.x-k8s.io": None}
+        served = {("apps", "v1", "Deployment"), ("snapshot.storage.k8s.io", "v1", "VolumeSnapshot"),
+                  ("cluster.x-k8s.io", "v1", "Cluster"), ("x.example", "v1", "Foreign"), ("gateway.networking.x-k8s.io", "v1", "X")}
+        self.assertEqual(crd.unowned_served(served, [W], listed),
+                         {("x.example", "v1", "Foreign"), ("gateway.networking.x-k8s.io", "v1", "X")})
+        self.assertEqual(crd.unowned_served({("apps", "v1", "Deployment")}, [("apps", "v1", "Deployment")], listed), set())
+
     def test_listed_groups_reads_table_and_fails_closed(self):
         groups = crd.listed_groups()
         self.assertIn("core.oam.dev", groups)
+        self.assertEqual(groups["argoproj.io"], {"AppProject", "Application", "ApplicationSet"})
         with patch.object(crd, "SRC", "/nonexistent"):
             self.assertIsNone(crd.listed_groups())
 

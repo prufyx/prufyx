@@ -421,9 +421,73 @@ class RemoteServedTests(unittest.TestCase):
               "pins": [{"tag": "v1.0.0", "commit": "a" * 40}]}
         self.assertEqual(oracle.validate_target(dict(base, remote=rm))[1], "")
         for bad in (dict(rm, pins=[{"tag": "main", "commit": "a" * 40}]), dict(rm, pins=[{"tag": "v1.0.0", "commit": "abc"}]),
-                    dict(rm, pins=[]), dict(rm, directory="../x"), dict(rm, repo="o"), dict(rm, kustomization="-x")):
+                    dict(rm, pins=[]), dict(rm, directory="../x"), dict(rm, repo="o"), dict(rm, kustomization="-x"),
+                    dict(rm, repo="o/cfg"), dict(rm, repo="github.com/O/cfg"), dict(rm, repo="github.com/o/r"),
+                    dict(rm, repo="github.com/O/R"), dict(rm, fromLine="3"), dict(rm, fromLine="3.x"), dict(rm, fromLine=3.4),
+                    dict(rm, fromLine="3.4.1"), dict(rm, fromLine="-1.4"), {k: v for k, v in rm.items() if k != "fromLine"}):
             with self.subTest(bad=bad), self.assertRaises(AssertionError):
                 self.assertEqual(oracle.validate_target(dict(base, remote=bad))[1], "")
+
+
+class RemoteCloneTests(unittest.TestCase):
+    """prepare() keys the remote clone by the declared remote repository and never continues on a failed or foreign clone."""
+    RM = {"fromLine": "3.4", "kustomization": "k/kustomization.yaml", "repo": "github.com/o/cfg", "directory": "d",
+          "pins": [{"tag": "v1.0.0", "commit": "a" * 40}]}
+
+    def run_prepare(self, td, remote, source, project="sample"):
+        root = Path(td)
+        (root / (project + ".git")).mkdir(exist_ok=True)
+        (root / ("target-%s.json" % project)).write_text(json.dumps({"target": {
+            "repo": "example/sample", "tagPrefixes": ["v"], "paths": [{"path": "crd.yaml"}], "remote": remote}}))
+        with patch.object(oracle, "TD", td), patch.object(oracle, "GITROOT", td), patch.object(oracle, "sh", side_effect=source), \
+                patch.object(oracle, "checked", side_effect=lambda *a: source(*a).stdout), patch.object(oracle, "served_set", return_value=set()):
+            return oracle.prepare(project, [], oracle.new_plan())
+
+    @staticmethod
+    def ok(*args, **kwargs):
+        return subprocess.CompletedProcess(args, 0, "v1.0.0\n" if "tag" in args else "", "")
+
+    def test_remote_clone_or_fetch_failure_raises(self):
+        def failing(step):
+            def source(*args, **kwargs):
+                bad = ("clone" in args and any("cfg" in x for x in args)) if step == "clone" else (
+                    "fetch" in args and any("remote--" in x for x in args))
+                return subprocess.CompletedProcess(args, 1 if bad else 0, "v1.0.0\n" if "tag" in args else "", "")
+            return source
+        for step in ("clone", "fetch"):
+            with self.subTest(step=step), tempfile.TemporaryDirectory() as td:
+                if step == "fetch":
+                    (Path(td) / "remote--o--cfg.git").mkdir()
+                    src = failing(step)
+                    def source(*a, _s=src, **k):
+                        return _s(*a, **k) if "get-url" not in a else subprocess.CompletedProcess(a, 0, "https://github.com/o/cfg.git\n", "")
+                else:
+                    source = failing(step)
+                with self.assertRaises(ValueError):
+                    self.run_prepare(td, self.RM, source)
+
+    def test_clone_is_keyed_by_the_declared_remote_repo(self):
+        cloned = []
+        def source(*args, **kwargs):
+            if "clone" in args:
+                cloned.append(args[-1])
+            return subprocess.CompletedProcess(args, 0, "v1.0.0\n" if "tag" in args else "", "")
+        with tempfile.TemporaryDirectory() as td:
+            try:
+                self.run_prepare(td, self.RM, source)
+            except ValueError:
+                pass
+            self.assertTrue(any(x.endswith("remote--o--cfg.git") for x in cloned), cloned)
+            self.assertFalse(any(x.endswith("sample.remote.git") for x in cloned))
+
+    def test_existing_clone_of_another_repo_is_refused(self):
+        def source(*args, **kwargs):
+            out = "https://github.com/evil/cfg.git\n" if "get-url" in args else ("v1.0.0\n" if "tag" in args else "")
+            return subprocess.CompletedProcess(args, 0, out, "")
+        with tempfile.TemporaryDirectory() as td:
+            (Path(td) / "remote--o--cfg.git").mkdir()
+            with self.assertRaises(ValueError):
+                self.run_prepare(td, self.RM, source)
 
 
 @unittest.skipUnless(os.environ.get("QA_GOLDEN_JSONL"), "needs QA_GOLDEN_JSONL, QA_GOLDEN_REL and QA_GOLDEN_REMOTE (bare clones, network to fetch them)")
