@@ -746,6 +746,13 @@ func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extr
 			}
 		}
 	}
+	// A pinned foreign entry is live whether or not its file is in the tree:
+	// an absent pinned file fails its check and voids the entry.
+	for _, e := range excl {
+		if e.Foreign != nil {
+			present[e.Path] = true
+		}
+	}
 	if len(present) == 0 {
 		return nil, nil, nil
 	}

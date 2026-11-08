@@ -479,15 +479,21 @@ Through the offline factory mirror (or a fixture tree), never the network.
     kustomization or chart by its fields, and holds no mapping of the kind with
     a `spec` and no manifest of the kind in a string. A file that fails a check
     makes the entry void at that release (the finding names the check), whether
-    or not anything refers to it. When the checks hold, one kind of reference
+    or not anything refers to it; so does a pinned path that is absent or is
+    not a regular file at that release. When the checks hold, one kind of reference
     stops being a void: a kustomization that names exactly the pinned file as
     an item of `resources` and is itself a plain list (one document, exactly
     `apiVersion` `kustomize.config.k8s.io/v1beta1`, `kind: Kustomization` and
     `resources` of local strings, nothing else: no patch, replacement,
     generator, transformer, component, name, namespace or label change), and
     only when every kustomization that reaches it is a plain list too. Every
-    other referrer (a chart, Makefile, document, script, container build, nix
-    file, `//go:embed`, any other kustomization) still voids the entry. The
+    other referrer that names the file (a chart, a Makefile or document or
+    script that names the file path, container build, nix file, `//go:embed`,
+    any other kustomization) still voids the entry. Limit: a Makefile or
+    script that applies the file's directory (`-k <dir>`) reaches the file
+    only through the plain kustomization and is not a void; the guard matches
+    the file path only and tracks kustomizations and charts, not such
+    directory references. The
     loader refuses the member together with `copies`, `prePatch` or `defines`,
     on a directory or a pattern (no `*?[` or backslash anywhere in the path),
     on an extension other than lower-case `.yaml`, `.yml` or `.json`, on a

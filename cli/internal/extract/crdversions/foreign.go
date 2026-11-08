@@ -148,12 +148,12 @@ func foreignBundleProblem(b *ForeignBundle, data []byte, groups []string) string
 	if b == nil || len(b.Groups) == 0 || len(b.SHA256) == 0 {
 		return "the entry declares no pin"
 	}
+	if len(data) > maxForeignBytes {
+		return fmt.Sprintf("the file is over the %d-byte bound", maxForeignBytes)
+	}
 	sum := sha256.Sum256(data)
 	if !slices.Contains(b.SHA256, sha256Prefix+hex.EncodeToString(sum[:])) {
 		return "the file's digest is not one of the pinned digests"
-	}
-	if len(data) > maxForeignBytes {
-		return fmt.Sprintf("the file is over the %d-byte bound", maxForeignBytes)
 	}
 	if bytes.Contains(data, []byte(templateMarker)) {
 		return "the file holds template syntax"

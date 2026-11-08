@@ -511,3 +511,20 @@ func TestPlainKustomization(t *testing.T) {
 		}
 	}
 }
+
+// An absent pinned file voids the entry at the release where it is missing,
+// and the pair does not attest when the earlier release lacks it.
+func TestPinnedBundleMissingFile(t *testing.T) {
+	b := pbBundle()
+	// Absent at both releases, nothing refers to it.
+	p, proof := pbSame(t, nil, pbEntry(pbGroups, b))
+	pbVoid(t, p, proof, "not a regular file")
+	// Present at the earlier release, absent at the later one.
+	p, proof = pbRun(t, pbFiles(b, pbPlainKust), nil, nil, pbEntry(pbGroups, b))
+	pbVoid(t, p, proof, "not a regular file")
+	// Absent at the earlier release only: the pair does not attest.
+	_, proof = pbRun(t, nil, pbFiles(b, pbPlainKust), nil, pbEntry(pbGroups, b))
+	if proof.Completeness.Attestable {
+		t.Fatalf("a pair with a void earlier release attests: %+v", proof.Completeness)
+	}
+}
