@@ -93,6 +93,9 @@ func TestEveryExtractorDigestCoversItsPackageOnDisk(t *testing.T) {
 			}
 			data, err := os.ReadFile(filepath.Join(pkg, name))
 			if err != nil {
+				if pkg != disk {
+					t.Fatalf("%s: the digest covers %s, which is not a file of %s any more (stale encoder file): %v", id, base, pkg, err)
+				}
 				t.Fatalf("%s: %v", id, err)
 			}
 			sum := sha256.Sum256(data)

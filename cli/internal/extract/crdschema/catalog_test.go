@@ -178,10 +178,10 @@ func TestCatalogLedgerFlowsAndNothingIsAttested(t *testing.T) {
 	}
 }
 
-func TestFrameworkLedgerKeepsEntriesInOrder(t *testing.T) {
+func TestFrameworkLedgerKeepsOrderAndRenamesFaults(t *testing.T) {
 	in := &Result{Ledger: []LedgerEntry{{Code: "A_CODE", Item: "x"}, {Code: "LEDGER_INVALID", Item: "ledger"}}}
 	got := frameworkLedger(in)
-	want := []extract.LedgerEntry{{Code: "A_CODE", Item: "x"}, {Code: "LEDGER_INVALID", Item: "ledger"}}
+	want := []extract.LedgerEntry{{Code: "A_CODE", Item: "x"}, {Code: "SCHEMA_LEDGER_INVALID", Item: "ledger"}}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("%v", got)
 	}
@@ -237,5 +237,63 @@ func TestCatalogProjectsMapAndExcludedAreNotListed(t *testing.T) {
 				t.Errorf("%s is refused by the mapper and must not be listed", p)
 			}
 		}
+	}
+}
+
+// A crdschema ledger fault (an item the ledger cannot carry) must not abort
+// the run: its pair is recorded not attested, with a non-reserved code, and
+// the next pair is still derived.
+type faultingExtractor struct{ *Catalog }
+
+func (f faultingExtractor) Extract(ctx context.Context, r extract.PinnedReader, p extract.VersionPair) (extract.Extraction, error) {
+	if p.To != "1.1.0" {
+		return f.Catalog.Extract(ctx, r, p)
+	}
+	res := &Result{Schema: ResultSchema, From: p.FromCommit, To: p.ToCommit,
+		Omissions: []Omission{{Reason: "MEMBER_CHARSET", Subject: "a=b", Count: 1}}, Exclusions: []Omission{}}
+	res.seal([]string{}, []string{}, defaultLedgerGuards())
+	return extract.Extraction{Proof: res, Ledger: frameworkLedger(res), NotAttested: "the pair withheld items"}, nil
+}
+
+type threeTags struct{}
+
+func (threeTags) Tags(extract.RepoRef) ([]extract.Tag, error) {
+	return []extract.Tag{{Name: "v1.0.0", Commit: commitA}, {Name: "v1.1.0", Commit: commitB}, {Name: "v1.2.0", Commit: commitC}}, nil
+}
+
+func TestLedgerFaultMakesOnePairNotAttestedAndTheRunContinues(t *testing.T) {
+	m := newMem()
+	for _, c := range []string{commitA, commitB, commitC} {
+		m.put(c, "crd/crd.yaml", simpleCRD("k"))
+	}
+	out, err := extract.Run(context.Background(), faultingExtractor{newCatalog(t, []string{"v"}, [2]int{1, 0})}, threeTags{}, m, runOpts)
+	if err != nil {
+		t.Fatalf("a ledger fault aborted the run: %v", err)
+	}
+	ps := out.Manifest.Pairs
+	if len(ps) != 2 {
+		t.Fatalf("%d pairs", len(ps))
+	}
+	if len(ps[0].Ledger) != 1 || ps[0].Ledger[0].Code != "SCHEMA_LEDGER_INVALID" || ps[0].Attestation == nil || ps[0].Attestation.Status != extract.PairNotAttested {
+		t.Fatalf("faulted pair %+v", ps[0])
+	}
+	if ps[1].Status != extract.PairDerived {
+		t.Fatalf("next pair %+v", ps[1])
+	}
+}
+
+func TestCloneIsIndependentAndEquivalent(t *testing.T) {
+	a := newCatalog(t, []string{"v"}, [2]int{1, 1})
+	b := a.Clone()
+	if a.Extractor == b.Extractor || a.ID() != b.ID() || len(b.AttestedFamilies()) != 0 {
+		t.Fatalf("clone %v %v", a.ID(), b.ID())
+	}
+	idx := lineIndex("v1.0.0", "v1.1.0", "v1.2.0")
+	if !reflect.DeepEqual(pairNames(a.Pairs(idx)), pairNames(b.Pairs(idx))) {
+		t.Fatal("clone pairs differ")
+	}
+	b.Pairs(lineIndex("v1.5.0"))
+	if _, err := a.Extract(context.Background(), newMem(), a.Pairs(idx)[0]); err != nil {
+		t.Fatalf("original disturbed by the clone: %v", err)
 	}
 }

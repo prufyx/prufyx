@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
@@ -359,14 +360,25 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, p extra
 	return e, nil
 }
 
+// faultCodePrefix renames a crdschema fault entry (LEDGER_ prefix) for the
+// framework, which reserves that prefix and aborts a whole run on it.
+const faultCodePrefix = "SCHEMA_"
+
 // frameworkLedger is the Result's ledger in the framework's shape, the same
-// (code, item) pairs in the same order. Result.Ledger is authoritative (it is
-// what the Proof records); the framework validates and records the copy next
-// to the Proof, and a non-empty ledger means the pair is never attested.
+// (code, item) pairs in the same order, except that a crdschema fault entry
+// (reserved LEDGER_ prefix: an invalid or too large ledger) is renamed
+// SCHEMA_LEDGER_INVALID or SCHEMA_LEDGER_OVERFLOW, so one bad CRD makes its
+// pair not attested instead of aborting the run. Result.Ledger stays
+// authoritative (it is what the Proof records); a non-empty ledger means the
+// pair is never attested.
 func frameworkLedger(r *Result) []extract.LedgerEntry {
 	out := make([]extract.LedgerEntry, 0, len(r.Ledger))
 	for _, e := range r.Ledger {
-		out = append(out, extract.LedgerEntry{Code: e.Code, Item: e.Item})
+		code := e.Code
+		if strings.HasPrefix(code, ledgerReservedPrefix) {
+			code = faultCodePrefix + code
+		}
+		out = append(out, extract.LedgerEntry{Code: code, Item: e.Item})
 	}
 	return out
 }

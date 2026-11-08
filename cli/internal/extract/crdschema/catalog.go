@@ -53,6 +53,19 @@ type Catalog struct {
 	minFrom  [2]int
 }
 
+// Clone returns a fresh extractor of the same target (an extractor holds the
+// release lines of its last Pairs call, so each run needs its own). It cannot
+// fail: the target was validated when c was built.
+func (c *Catalog) Clone() *Catalog {
+	x := c.Extractor
+	return &Catalog{
+		Extractor: &Extractor{slug: x.slug, target: x.target, component: x.component, family: attestedFamily,
+			lines: map[string]*releaseLine{}, lineOf: map[string]string{}},
+		prefixes: append([]string{}, c.prefixes...),
+		minFrom:  c.minFrom,
+	}
+}
+
 // Pairs implements extract.Extractor. The release index is filtered to the
 // target's tag prefixes first (so a sibling spelling or another component's
 // tag never becomes a release line), then the pairs whose earlier line is

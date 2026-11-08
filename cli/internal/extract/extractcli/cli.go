@@ -102,14 +102,8 @@ func Catalog() map[string]Spec {
 		out[id] = Spec{
 			ID:   id,
 			Repo: t.Repo,
-			New: func(int) extract.Extractor {
-				// One extractor per run: it holds the lines of its last Pairs call.
-				y, err := crdschema.FromCRDVersions(t)
-				if err != nil {
-					panic(err)
-				}
-				return y
-			},
+			// One extractor per run: it holds the lines of its last Pairs call.
+			New: func(int) extract.Extractor { return x.Clone() },
 		}
 	}
 	return out

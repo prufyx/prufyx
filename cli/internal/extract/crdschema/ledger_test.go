@@ -39,7 +39,7 @@ func scenarioReserved(g ledgerGuards) error {
 }
 
 func scenarioItem(g ledgerGuards) error {
-	for _, item := range []string{"has space", "", "quote\"d", "line\nbreak", strings.Repeat("a", MaxLedgerItemLen+1), "é"} {
+	for _, item := range []string{"has space", "", "quote\"d", "line\nbreak", strings.Repeat("a", MaxLedgerItemLen+1), "é", "a=b", "example.io/Widget=x"} {
 		if err := wantFault(fmt.Sprintf("item %q", item), ledgerOf([]Omission{om("MEMBER_CHARSET", item)}, g), LedgerInvalid); err != nil {
 			return err
 		}
