@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "absent",
+    "candidateDigest": "sha256:562695abb6e55917d1e97848ca3559e98ddb8ab43c9d231b01fbc99b44137b8c",
+    "candidateId": "pr-457",
+    "decidedAt": "2026-11-08T17:35:29Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "community",
+    "ruleId": "mariadb-operator.removed-field-replication-probes-enabled.25-8-4-to-25-10-4"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "2+GRxY7nTUdF9GHqGH004qicELbGOQmsdQAX5CjlYLnC1R+wav8OEUwD5S6yLfF9dLY/oF6u1NrWe5i7V5wKCQ=="
+}
