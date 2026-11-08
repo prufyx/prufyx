@@ -694,6 +694,48 @@ prufyx-maintainer approval sign \
 | `--subject` | what the approval is for: `rule` (the default), `lineAttestation`, `pathPolicy`, `repinBaseline`, `registryDigest` or `servedAPIs` |
 | `--record` | with `--subject pathPolicy`, in place of `--rule`: the path policy's record ID; the proposed pack must hold it as a reviewed policy and the base pack must hold no record with that ID. With `--subject lineAttestation`, in place of `--rule`: the line attestation's record ID; the proposed pack must hold it with evidence basis `reviewed`, it must differ from the base record, the base record must not be mechanical, and the change must loosen (a change that only shortens `validUntil` is refused) |
 
+### Signing many rule approvals at once
+
+When one change adds or loosens several rules, `approval sign --rules-file`
+signs them in one run. The rules file holds one rule id per line (blank lines
+ignored; at most 64; no duplicates). Every rule is read and checked with the
+same code as a single `--rule` signing, so a rule that is not reviewed, is
+unchanged, is tightening or is missing from the head refuses the whole run.
+
+First print the list and its digest. This reads no key and writes nothing
+(`--key` is refused with `--dry-run`), so it can be done by anyone and the
+expected list recorded for the owner:
+
+```sh
+prufyx-maintainer approval sign --dry-run --pack community \
+  --rules-file RULES_FILE --base-pack /path/to/base-community.json \
+  --head-pack cli/internal/projectcheck/data/rules.json
+```
+
+It prints one line per rule (pack/id, first 12 hex digits of the base and
+candidate digests) and `list digest: sha256:…`, a digest of the sorted list of
+pack, id, base digest and candidate digest. The owner signs with the same
+arguments and confirms that list once, either by typing `sign N DIGEST12` on
+the terminal (N the count, DIGEST12 the first 12 hex digits of the list
+digest) or with both flags, which refuse a changed set:
+
+```sh
+prufyx-maintainer approval sign --pack community --rules-file RULES_FILE \
+  --base-pack /path/to/base-community.json \
+  --head-pack cli/internal/projectcheck/data/rules.json \
+  --keys /path/to/base-keys.json --keys-digest sha256:… \
+  --identity OWNER_LOGIN --candidate-id pr-123 \
+  --key "$HOME/web-approval-key.pem" \
+  --output-dir cli/knowledge/approvals/community \
+  --expect-count N --expect-list-digest sha256:…
+```
+
+The key is read once, after the list is confirmed. All records are signed and
+verified in memory (the same `decidedAt`, so the same 14 day window), staged
+beside `--output-dir`, and then moved in; if any step fails nothing remains. An
+existing approval file for any listed rule refuses the run. The file written
+for a rule is byte for byte the one `--rule` writes.
+
 A line attestation approval names `"subject": "lineAttestation"` and the
 record's `scope`, and its digests are those of the base and proposed record.
 Mechanical attestations and existing path policies cannot be approved. The gate uses a
