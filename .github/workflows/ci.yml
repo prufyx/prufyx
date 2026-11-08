@@ -442,7 +442,13 @@ jobs:
             selected="${base_packages}"
           fi
           matrix=$(for pkg in ${selected}; do
-            jq -cn --arg p "${pkg}" '{package: $p, timeout_minutes: 50, go_timeout: "40m"}'
+            # communityapp has the slowest end-to-end tests (one runs ~12 min under -race
+            # on an idle 10-core host); it gets the same budget as the nightly package.
+            if [ "${pkg}" = "./internal/communityapp/" ]; then
+              jq -cn --arg p "${pkg}" '{package: $p, timeout_minutes: 90, go_timeout: "85m"}'
+            else
+              jq -cn --arg p "${pkg}" '{package: $p, timeout_minutes: 50, go_timeout: "40m"}'
+            fi
           done | jq -cs '.')
           if [ "${EVENT_NAME}" = "schedule" ]; then
             # knowledgegate is too slow under -race for every commit; the nightly covers it.
