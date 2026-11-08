@@ -511,14 +511,10 @@ Helm values, command-line flags, the replication migration or the Galera
 data-plane update that the 25.10.0 guide describes, admission, controller
 behavior or runtime state. A scoped PASS never means the upgrade is safe.
 
-The other consecutive pairs of the calendar-version releases carry no CRD rule
-here: `25.0.0` → `25.8.4`, `25.10.4` → `26.3.0` and `26.6.0` → `26.10.2`. A
-mechanical comparison of the published CRD schemas of those pairs found no
-removed CRD, no removed non-status field, no retyped field, no narrowed enum and
-no new required field inside a structure that already existed (the only changes
-are added CRDs, added fields and one widened enum). That comparison is a review
-input, not a published claim, and these pairs stay undecided by any rule of
-this route. `26.3.0` → `26.6.0` keeps its Galera prerequisite rule.
+The other consecutive pairs of the calendar-version releases (`25.0.0` →
+`25.8.4`, `25.10.4` → `26.3.0` and `26.6.0` → `26.10.2`) carry no CRD rule here
+and stay undecided by any rule of this route. `26.3.0` → `26.6.0` keeps its
+Galera prerequisite rule.
 
 The public synthetic examples in
 [`examples/projects/mariadb-operator`](../examples/projects/mariadb-operator)
