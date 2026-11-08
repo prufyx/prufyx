@@ -50,7 +50,7 @@ def validate_target(tj):
                     return "", "match invalid (length, any group, backreference or stacked quantifier or more than 2 unbounded quantifiers)"
                 re.compile(m)
         if tj.get("remote") is not None:
-            bad = validate_remote(tj["remote"])
+            bad = validate_remote(tj["remote"], repo)
             if bad:
                 return "", bad
         return repo, ""
@@ -66,12 +66,20 @@ MAX_KUSTOMIZATION_BYTES = 1 << 20
 MAX_DEFINITION_BYTES = 8 << 20  # the extractor's crdversions.MaxFileBytes
 
 
-def validate_remote(rm):
-    """Fail closed on a remote block that could steer git; returns an error text or ''."""
+def validate_remote(rm, own=None):
+    """Fail closed on a remote block that could steer git; returns an error text or ''. Mirrors the extractor's
+    remote(): fromLine is major.minor, the repo is github.com/<owner>/<name> and is another repository than the target's
+    own (own, owner/name, when known)."""
     try:
-        o, _, n = str(rm["repo"]).removeprefix("github.com/").partition("/")
+        if not isinstance(rm["repo"], str) or not rm["repo"].startswith("github.com/") or rm["repo"] != rm["repo"].lower():
+            return "remote repo is not github.com/owner/name"
+        o, _, n = rm["repo"].removeprefix("github.com/").partition("/")
         if not (NAME.fullmatch(o) and NAME.fullmatch(n)):
             return "remote repo is not owner/name"
+        if own is not None and f"{o}/{n}".lower() == str(own).removeprefix("github.com/").lower():
+            return "remote repo is the target's own repository"
+        if not isinstance(rm["fromLine"], str) or re.fullmatch(r"(0|[1-9]\d{0,3})\.(0|[1-9]\d{0,3})", rm["fromLine"], re.A) is None:
+            return "remote fromLine is not major.minor"
         if not _safe_path(rm["directory"]) or not _safe_path(rm["kustomization"]):
             return "remote directory or kustomization path invalid"
         pins = rm["pins"]
@@ -421,13 +429,16 @@ def prepare(proj, cov, plan):
         raise ValueError("fetch tags failed")
     rgd = None
     if tj.get("remote"):  # the remote-served releases read their definitions from this second clone
-        rgd = f"{GITROOT}/{proj}.remote.git"
         rrepo = str(tj["remote"]["repo"]).removeprefix("github.com/")
+        rurl = f"https://github.com/{rrepo}.git"
+        rgd = f"{GITROOT}/remote--{rrepo.replace('/', '--')}.git"  # keyed by the declared remote repository, never the project
         if not os.path.isdir(rgd):
-            r = sh("git", "clone", "-q", "--bare", "--filter=blob:none", "--", f"https://github.com/{rrepo}.git", rgd)
+            r = sh("git", "clone", "-q", "--bare", "--filter=blob:none", "--", rurl, rgd)
             if r.returncode:
                 shutil.rmtree(rgd, ignore_errors=True)
                 raise ValueError("remote clone failed")
+        elif checked("git", "-C", rgd, "remote", "get-url", "origin").strip() != rurl:
+            raise ValueError("remote clone belongs to another repository")
         r = sh("git", "-C", rgd, "fetch", "-q", "--tags", "--force")
         if r.returncode:
             raise ValueError("remote fetch tags failed")
@@ -534,25 +545,51 @@ FAMILY = "crd.custom_resource_versions"
 
 
 def listed_groups():
-    """Every API group the reviewed custom-resource table attributes to some project, or None when the table cannot be read
-    (then no unowned-document expectation is derived and the unowned-group gap stays refused)."""
+    """The reviewed custom-resource table as {group: None | set of kinds}: None when some project lists the group without
+    kinds (it owns every kind), else the union of the kinds listed for it (an empty list owns nothing), as the scanner's
+    Index.OwnerOf attributes. None (not a mapping) when the table cannot be read; then no unowned-document expectation is
+    derived and the unowned-group gap stays refused."""
     try:
         with open(os.path.join(SRC, "cli/internal/customresources/table.json")) as handle:
             table = json.load(handle)
-        groups = {g["name"] for p in table["projects"] for g in p["groups"]}
-        return groups if groups and all(isinstance(g, str) and g for g in groups) else None
-    except (OSError, ValueError, KeyError, TypeError):
+        listed = {}
+        for p in table["projects"]:
+            for g in p["groups"]:
+                name, kinds = g["name"], g.get("kinds")
+                if not isinstance(name, str) or not name or not (kinds is None or isinstance(kinds, list)
+                                                                   and all(isinstance(k, str) and k for k in kinds)):
+                    return None
+                if name in listed and listed[name] is None or kinds is None:
+                    listed[name] = None
+                else:
+                    listed[name] = listed.get(name, set()) | set(kinds)
+        return listed or None
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
         return None
 
 
+def owned(listed, doc):
+    """The scanner's OwnerOf: a group listed without kinds owns every kind, one listed with kinds only those."""
+    kinds = listed.get(doc[0], False)
+    return kinds is None or (kinds is not False and doc[-1] in kinds)
+
+
+def kubernetes_group(listed, group):
+    """The scanner's KubernetesGroup: a dotless group or a *.k8s.io group without a reviewed (listed) ownership record is
+    checked against the served API, never reported as an unattributed document."""
+    return "." not in group or (group.endswith(".k8s.io") and group not in listed)
+
+
 def unowned_served(served, removed, listed):
-    """Served documents whose group no reviewed project lists: the scanner cannot attribute them, so it reports them as one
-    unowned-group gap whatever the release pair is. Empty (nothing derived) when the inputs are unread, or when any expected
-    removal lies in such a group, because a removal the scanner cannot see must never be excused by this count."""
+    """Served documents no reviewed project owns by (group, kind) and that are not Kubernetes groups: the scanner cannot
+    attribute them, so it reports them as one unowned-group gap whatever the release pair is. Empty (nothing derived) when
+    the inputs are unread, or when any expected removal is not owned, because a removal the scanner cannot see must never
+    be excused by this count."""
     if served is None or listed is None:
         return set()
-    unowned = {x for x in served if x[0] not in listed}
-    return set() if any(x[0] not in listed for x in removed) else unowned
+    if any(not owned(listed, x) for x in removed):
+        return set()
+    return {x for x in served if not owned(listed, x) and not kubernetes_group(listed, x[0])}
 
 
 def unowned_gap_ok(gap, whole_docs):
