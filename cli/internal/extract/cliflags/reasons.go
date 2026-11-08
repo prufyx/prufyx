@@ -132,6 +132,10 @@ const (
 	// binary of the newer one; the flags it registered are not stated as
 	// removed (the binary may have moved or been renamed).
 	ReasonBinaryRemoved = "FLAG_BINARY_REMOVED"
+	// ReasonLibUnhashed: go.mod (either side) requires a flag-registering
+	// library that is neither bundled in the tree nor replaced, so flags it
+	// registers are invisible to the scan and the sweep. Withholds the pair.
+	ReasonLibUnhashed = "FLAG_LIB_UNHASHED"
 )
 
 // limits bound one scan. Anything above them is withheld, never truncated.

@@ -22,11 +22,24 @@ const PairSchema = "prufyx.io/cli-flags-pair/v1"
 
 // FactRef names the set fact a pair's removals would feed, and whether the
 // registry knows it. A removal is stated only for a registered fact.
+//
+// Digest is a SHA-256 over the matched registry definition (id, component,
+// type, enum tokens) and the fixed shape of the fact; it is empty when the
+// fact is unregistered. It is recorded in the Proof because the registry is
+// not part of the code digest: a Proof derived against one registry is never
+// byte-equal to one derived against another. A registry change can only turn
+// "unregistered" into "registered", which adds candidates; it never removes a
+// withhold of any other kind.
 type FactRef struct {
 	ID         string
 	Component  string
 	Registered bool
+	Digest     string
 }
+
+// FactShape is the contract of the member of a cli_flags_set fact, hashed
+// into FactRef.Digest.
+const FactShape = "cli_flags_set:set:long-flag-names-without-dashes"
 
 // PairResult is the comparison of two scans. It is the Proof of a pair. It
 // states removal candidates and a ledger, and nothing else: it never says
@@ -40,12 +53,16 @@ type FactRef struct {
 // no non-test Go file of the newer tree holds a string literal that spells it.
 // Anything else is a ledger entry and the pair is not attested.
 type PairResult struct {
-	Schema    string  `json:"schema"`
-	Component string  `json:"component"`
-	FactID    string  `json:"factId"`
-	FactKnown bool    `json:"factRegistered"`
-	From      *Result `json:"from"`
-	To        *Result `json:"to"`
+	Schema    string `json:"schema"`
+	Component string `json:"component"`
+	FactID    string `json:"factId"`
+	FactKnown bool   `json:"factRegistered"`
+	// FactDigest is FactRef.Digest.
+	FactDigest string `json:"factDigest"`
+	// SourceNote says what the rule sources of this pair prove.
+	SourceNote string  `json:"sourceNote"`
+	From       *Result `json:"from"`
+	To         *Result `json:"to"`
 	// Exclusions are the reviewed exclusions that matched a directory, per
 	// side. They are carried here as well as inside the scans.
 	Exclusions PairExclusions `json:"exclusions"`
@@ -71,7 +88,7 @@ type PairExclusions struct {
 
 // Residual risks, recorded in every Proof.
 var pairResidual = []string{
-	"flag libraries that the module imports but does not vendor or replace are not read, so a flag registered inside one is invisible to both scans and to the literal sweep",
+	"a flag name built by concatenation or Sprintf is not a literal and is not seen by the sweep",
 	"environment variable forms of a flag are not inspected",
 	"a renamed flag is stated as an ordinary removal; the replacement is not named",
 }
@@ -105,8 +122,9 @@ func (b *pairBuilder) add(reason, subject, detail string) {
 }
 
 func comparePair(ctx context.Context, r extract.PinnedReader, t Target, from, to *Result, fact FactRef) (*PairResult, error) {
-	res := &PairResult{Schema: PairSchema, Component: fact.Component, FactID: fact.ID, FactKnown: fact.Registered,
-		From: from, To: to, Removed: []string{}, Omissions: []Omission{}, Ledger: []LedgerEntry{},
+	res := &PairResult{Schema: PairSchema, Component: fact.Component, FactID: fact.ID, FactKnown: fact.Registered, FactDigest: fact.Digest,
+		SourceNote: "rule sources cite go.mod at both commits as a pin of the tree only; the flags were read from the binary directories listed in from.binaries and to.binaries",
+		From:       from, To: to, Removed: []string{}, Omissions: []Omission{}, Ledger: []LedgerEntry{},
 		Exclusions: PairExclusions{From: nonNilExcl(from.Excluded), To: nonNilExcl(to.Excluded)},
 		Residual:   append([]string{}, pairResidual...)}
 	b := &pairBuilder{res: res}
@@ -123,6 +141,16 @@ func comparePair(ctx context.Context, r extract.PinnedReader, t Target, from, to
 	}{{"from", from}, {"to", to}} {
 		if !s.r.Attestable() {
 			b.add(ReasonScanIncomplete, s.side, "")
+			blocked = true
+		}
+	}
+	for _, side := range []struct{ name, sha string }{{"from", from.Commit}, {"to", to.Commit}} {
+		libs, err := unhashedLibs(ctx, r, t.Repo, side.sha)
+		if err != nil {
+			return nil, err
+		}
+		for _, l := range libs {
+			b.add(ReasonLibUnhashed, side.name+":"+l, "")
 			blocked = true
 		}
 	}
@@ -299,9 +327,9 @@ func sweepLiterals(ctx context.Context, r extract.PinnedReader, repo extract.Rep
 }
 
 func sweepLimited(ctx context.Context, r extract.PinnedReader, repo extract.RepoRef, sha string, names []string, lim limits) (map[string]string, string, error) {
-	want := map[string]bool{}
+	want := map[string][]string{}
 	for _, n := range names {
-		want[n] = true
+		want[norm(n)] = append(want[norm(n)], n)
 	}
 	sw := &sweeper{ctx: ctx, r: r, repo: repo, sha: sha, want: want, hits: map[string]string{}, lim: lim}
 	if err := sw.walk("", 0); err != nil {
@@ -318,7 +346,7 @@ type sweeper struct {
 	r           extract.PinnedReader
 	repo        extract.RepoRef
 	sha         string
-	want        map[string]bool
+	want        map[string][]string
 	hits        map[string]string
 	lim         limits
 	dirs, files int
@@ -445,14 +473,18 @@ func clipPath(p string) string {
 	return p
 }
 
-// spelled returns the wanted names that literal v spells.
-func spelled(v string, want map[string]bool) []string {
+// norm folds the spellings a flag library may treat alike: case, and
+// underscore versus dash.
+func norm(v string) string {
+	return strings.ReplaceAll(strings.ToLower(v), "_", "-")
+}
+
+// spelled returns the wanted names that literal v spells, after folding case
+// and underscore/dash. want is keyed by the folded name.
+func spelled(v string, want map[string][]string) []string {
 	var out []string
-	try := func(c string) {
-		if want[c] {
-			out = append(out, c)
-		}
-	}
+	v = norm(v)
+	try := func(c string) { out = append(out, want[c]...) }
 	try(v)
 	for _, dash := range []string{"-", "--"} {
 		rest, ok := strings.CutPrefix(v, dash)
@@ -465,6 +497,102 @@ func spelled(v string, want map[string]bool) []string {
 		}
 	}
 	return out
+}
+
+// flagLibs are the flag libraries whose registrations live in their own code.
+var flagLibs = []string{
+	"github.com/spf13/pflag", "github.com/spf13/cobra", "github.com/alecthomas/kingpin",
+	"gopkg.in/alecthomas/kingpin", "github.com/urfave/cli", "gopkg.in/urfave/cli",
+	"k8s.io/component-base", "github.com/alecthomas/kong",
+}
+
+func isFlagLib(path string) (string, bool) {
+	for _, l := range flagLibs {
+		if path == l || strings.HasPrefix(path, l+"/") || strings.HasPrefix(path, l+".") {
+			return l, true
+		}
+	}
+	return "", false
+}
+
+// unhashedLibs lists the flag libraries go.mod requires that are neither
+// bundled in the tree (listed by vendor/modules.txt) nor replaced: their
+// source is not part of the pinned tree, so a registration inside one is
+// invisible to the scan and the sweep. Items are the required module paths.
+func unhashedLibs(ctx context.Context, r extract.PinnedReader, repo extract.RepoRef, sha string) ([]string, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	gm, err := r.Read(repo, sha, "go.mod")
+	if errors.Is(err, extract.ErrNotFound) {
+		return nil, nil // the scan has its own fault for this
+	}
+	if err != nil {
+		return nil, fmt.Errorf("cliflags: read go.mod: %w", err)
+	}
+	required, replaced := goModLibs(string(gm))
+	var out []string
+	var vendored string
+	loaded := false
+	for _, mod := range required {
+		if _, ok := isFlagLib(mod); !ok || replaced[mod] {
+			continue
+		}
+		if !loaded {
+			loaded = true
+			mt, err := r.Read(repo, sha, "vendor/modules.txt")
+			switch {
+			case errors.Is(err, extract.ErrNotFound):
+			case err != nil:
+				return nil, fmt.Errorf("cliflags: read vendor/modules.txt: %w", err)
+			default:
+				vendored = string(mt)
+			}
+		}
+		bundled := false
+		for _, line := range strings.Split(vendored, "\n") {
+			if f := strings.Fields(line); len(f) >= 2 && f[0] == "#" && f[1] == mod {
+				bundled = true
+			}
+		}
+		if !bundled {
+			out = append(out, mod)
+		}
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
+// goModLibs reads the required module paths and the old paths of replace
+// directives of a go.mod, in single-line and block forms.
+func goModLibs(gomod string) (required []string, replaced map[string]bool) {
+	replaced = map[string]bool{}
+	block := ""
+	for _, line := range strings.Split(gomod, "\n") {
+		if i := strings.Index(line, "//"); i >= 0 {
+			line = line[:i]
+		}
+		f := strings.Fields(line)
+		if len(f) == 0 {
+			continue
+		}
+		unq := func(x string) string { return strings.Trim(x, `"`) }
+		switch {
+		case block != "" && f[0] == ")":
+			block = ""
+		case block == "require":
+			required = append(required, unq(f[0]))
+		case block == "replace":
+			replaced[unq(f[0])] = true
+		case len(f) >= 2 && f[1] == "(" && (f[0] == "require" || f[0] == "replace"):
+			block = f[0]
+		case f[0] == "require" && len(f) >= 2:
+			required = append(required, unq(f[1]))
+		case f[0] == "replace" && len(f) >= 2:
+			replaced[unq(f[1])] = true
+		}
+	}
+	return required, replaced
 }
 
 // ---- ledger ----

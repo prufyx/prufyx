@@ -310,7 +310,7 @@ func TestCompiledRegistryRegistersCortexFalcoThanos(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !x.factRegistered() {
+		if ok, _ := x.factRegistered(); !ok {
 			t.Errorf("%s: the compiled registry does not hold %s", slug, x.FactID())
 		}
 	}
@@ -322,7 +322,7 @@ func TestCompiledRegistryRegistersCortexFalcoThanos(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if x.factRegistered() {
+		if ok, _ := x.factRegistered(); ok {
 			t.Errorf("%s/%s must not be registered", slug, comp)
 		}
 	}
@@ -556,7 +556,7 @@ func TestPairRunIsDeterministicAndProofHasTopLevelLedger(t *testing.T) {
 func TestPairProofStatesTheResidualRisk(t *testing.T) {
 	_, pr := runPair(t, newTestExtractor(t, testSlug, testComponent), tree(prog("keep", "gone"), nil), tree(prog("keep"), nil))
 	r := strings.Join(proofOf(t, pr).Residual, "\n")
-	for _, w := range []string{"vendor or replace", "environment variable", "renamed"} {
+	for _, w := range []string{"concatenation", "environment variable", "renamed"} {
 		if !strings.Contains(r, w) {
 			t.Errorf("residual lacks %q", w)
 		}
@@ -664,5 +664,125 @@ func TestSweepLimits(t *testing.T) {
 	cancel()
 	if _, _, err := sweepLimited(ctx, tr, repo, commitB, []string{"gone"}, defaultLimits()); !errors.Is(err, context.Canceled) {
 		t.Fatalf("cancel: %v", err)
+	}
+}
+
+// ---- review round: registry digest, unhashed libraries, folded spellings ----
+
+func TestPairProofBindsTheFactDefinition(t *testing.T) {
+	from, to := tree(prog("keep", "gone"), nil), tree(prog("keep"), nil)
+	proof := func(def constraintengine.FactDefinition) (string, *PairResult) {
+		x := newTestExtractor(t, testSlug, testComponent)
+		x.registry = func() []constraintengine.FactDefinition { return []constraintengine.FactDefinition{def} }
+		_, pr := runPair(t, x, from, to)
+		b, _ := json.Marshal(pr.Proof)
+		return string(b), proofOf(t, pr)
+	}
+	base := constraintengine.FactDefinition{ID: testFactID, Component: testComponent, Type: constraintengine.FactSet}
+	b1, p1 := proof(base)
+	b2, _ := proof(base)
+	if b1 != b2 || !strings.HasPrefix(p1.FactDigest, "sha256:") || len(p1.FactDigest) != 71 {
+		t.Fatalf("digest %q", p1.FactDigest)
+	}
+	changed := base
+	changed.EnumTokens = []string{"x"}
+	if b3, p3 := proof(changed); b3 == b1 || p3.FactDigest == p1.FactDigest {
+		t.Fatal("a changed fact definition did not change the Proof")
+	}
+	// Unregistered: no digest.
+	x := newTestExtractor(t, "other", "pkg:github/example/other")
+	_, pr := runPair(t, x, from, to)
+	if proofOf(t, pr).FactDigest != "" {
+		t.Fatal("digest for an unregistered fact")
+	}
+}
+
+func TestPairUnhashedFlagLibraryWithholds(t *testing.T) {
+	req := func(path string) map[string]string {
+		return map[string]string{"go.mod": goMod + "\nrequire " + path + " v1.0.0\n"}
+	}
+	block := map[string]string{"go.mod": goMod + "\nrequire (\n\tgithub.com/spf13/cobra v1.8.0 // indirect\n)\n"}
+	for name, c := range map[string]struct {
+		extra map[string]string
+		want  string
+	}{
+		"pflag":     {req("github.com/spf13/pflag"), "github.com/spf13/pflag"},
+		"cobra blk": {block, "github.com/spf13/cobra"},
+		"urfave v2": {req("github.com/urfave/cli/v2"), "github.com/urfave/cli/v2"},
+		"kingpin":   {req("gopkg.in/alecthomas/kingpin.v2"), "gopkg.in/alecthomas/kingpin.v2"},
+		"base":      {req("k8s.io/component-base"), "k8s.io/component-base"},
+		"kong":      {req("github.com/alecthomas/kong"), "github.com/alecthomas/kong"},
+	} {
+		for _, side := range []string{"from", "to"} {
+			t.Run(name+" "+side, func(t *testing.T) {
+				f, tt := tree(prog("keep", "gone"), nil), tree(prog("keep"), nil)
+				if side == "from" {
+					f["go.mod"] = c.extra["go.mod"]
+				} else {
+					tt["go.mod"] = c.extra["go.mod"]
+				}
+				out, pr := runPair(t, newTestExtractor(t, testSlug, testComponent), f, tt)
+				wantNoRule(t, out, pr, "FLAG_LIB_UNHASHED "+side+":"+ledgerItem(c.want))
+			})
+		}
+	}
+	// Allowed: bundled, replaced, or no flag library at all.
+	pf := "\nrequire github.com/spf13/pflag v1.0.5\n"
+	for name, extra := range map[string]map[string]string{
+		"bundled":     {"go.mod": goMod + pf, "vendor/modules.txt": "# github.com/spf13/pflag v1.0.5\n## explicit\ngithub.com/spf13/pflag\n"},
+		"replaced":    {"go.mod": goMod + pf + "replace github.com/spf13/pflag => ./third_party/pflag\n"},
+		"replace blk": {"go.mod": goMod + pf + "replace (\n\tgithub.com/spf13/pflag v1.0.5 => ./third_party/pflag\n)\n"},
+		"no library":  {"go.mod": goMod + "\nrequire example.org/other v1.0.0\n"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			f, tt := tree(prog("keep", "gone"), extra), tree(prog("keep"), extra)
+			out, pr := runPair(t, newTestExtractor(t, testSlug, testComponent), f, tt)
+			if len(pr.Ledger) != 0 || len(out.Entries) != 1 {
+				t.Fatalf("rules %d ledger %v", len(out.Entries), codes(pr.Ledger))
+			}
+		})
+	}
+	// A bundled list that names another module does not cover it.
+	extra := map[string]string{"go.mod": goMod + pf, "vendor/modules.txt": "# github.com/spf13/pflagx v1.0.5\n"}
+	out, pr := runPair(t, newTestExtractor(t, testSlug, testComponent), tree(prog("keep", "gone"), extra), tree(prog("keep"), extra))
+	if len(out.Entries) != 0 || len(pr.Ledger) == 0 {
+		t.Fatalf("rules %d ledger %v", len(out.Entries), codes(pr.Ledger))
+	}
+}
+
+func TestPairFoldedSpellingsAreStillPresent(t *testing.T) {
+	for name, c := range map[string]struct{ flag, lit string }{
+		"underscore": {"gone-flag", "gone_flag"},
+		"dash":       {"gone_flag", "gone-flag"},
+		"case":       {"gone-flag", "Gone-Flag"},
+		"prefixed":   {"gone-flag", "--GONE_FLAG=%s"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			to := tree(prog("keep"), map[string]string{"internal/s/s.go": "package s\n\nvar A = " + fmt.Sprintf("%q", c.lit) + "\n"})
+			out, pr := runPair(t, newTestExtractor(t, testSlug, testComponent), tree(prog("keep", c.flag), nil), to)
+			wantNoRule(t, out, pr, "FLAG_NAME_STILL_PRESENT "+ledgerItem(c.flag))
+		})
+	}
+}
+
+func TestPairNormalizeFuncWithholds(t *testing.T) {
+	norm := "package main\n\nimport \"github.com/spf13/pflag\"\n\nfunc main() {\n\tfs := pflag.NewFlagSet(\"x\", pflag.ExitOnError)\n\tfs.SetNormalizeFunc(func(f *pflag.FlagSet, n string) pflag.NormalizedName { return pflag.NormalizedName(n) })\n\tfs.String(\"keep\", \"\", \"u\")\n}\n"
+	out, pr := runPair(t, newTestExtractor(t, testSlug, testComponent), tree(prog("keep", "gone"), nil), tree(norm, nil))
+	if len(out.Entries) != 0 || len(pr.Ledger) == 0 {
+		t.Fatalf("rules %d ledger %v", len(out.Entries), codes(pr.Ledger))
+	}
+	found := false
+	for _, e := range pr.Ledger {
+		found = found || strings.HasPrefix(e.Code, "FLAG_NORMALIZE_FUNC")
+	}
+	if !found {
+		t.Fatalf("no normalize entry: %v", codes(pr.Ledger))
+	}
+}
+
+func TestPairSourceNoteStatesGoModIsAPin(t *testing.T) {
+	_, pr := runPair(t, newTestExtractor(t, testSlug, testComponent), tree(prog("keep", "gone"), nil), tree(prog("keep"), nil))
+	if n := proofOf(t, pr).SourceNote; !strings.Contains(n, "pin of the tree only") || !strings.Contains(n, "binary directories") {
+		t.Fatalf("note %q", n)
 	}
 }

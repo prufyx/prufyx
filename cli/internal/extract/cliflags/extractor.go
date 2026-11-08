@@ -4,6 +4,8 @@ package cliflags
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io/fs"
 	"regexp"
@@ -99,18 +101,22 @@ func (x *Extractor) FactID() string {
 }
 
 // factRegistered reports whether the registry holds the extractor's fact as
-// a set fact of its component.
-func (x *Extractor) factRegistered() bool {
+// a set fact of its component, and the digest of the matched definition.
+func (x *Extractor) factRegistered() (bool, string) {
 	defs := cncfcheck.CompiledFactDefinitions
 	if x.registry != nil {
 		defs = x.registry
 	}
 	for _, d := range defs() {
 		if d.ID == x.FactID() && d.Component == x.component && d.Type == constraintengine.FactSet {
-			return true
+			h := sha256.New()
+			for _, f := range []string{d.ID, d.Component, string(d.Type), strings.Join(d.EnumTokens, ","), FactShape} {
+				fmt.Fprintf(h, "%d:%s\n", len(f), f)
+			}
+			return true, "sha256:" + hex.EncodeToString(h.Sum(nil))
 		}
 	}
-	return false
+	return false, ""
 }
 
 var (
@@ -192,7 +198,8 @@ func (x *Extractor) Pairs(index extract.ReleaseIndex) []extract.VersionPair {
 // Extract implements extract.Extractor. A read failure aborts the run (fail
 // closed): it is never a quiet pair.
 func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, p extract.VersionPair) (extract.Extraction, error) {
-	fact := FactRef{ID: x.FactID(), Component: x.component, Registered: x.factRegistered()}
+	ok, digest := x.factRegistered()
+	fact := FactRef{ID: x.FactID(), Component: x.component, Registered: ok, Digest: digest}
 	res, err := ComparePair(ctx, r, x.target, p.FromCommit, p.ToCommit, fact)
 	if err != nil {
 		return extract.Extraction{}, err
