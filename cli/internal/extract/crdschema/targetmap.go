@@ -19,7 +19,7 @@ import (
 //
 // A crdversions target is mapped only when everything it says is something
 // crdschema does itself. Otherwise TargetFromCRDVersions returns the zero
-// Target and one reason per refused feature; there is never a partial Target.
+// Target and one reason per refused feature; there is never a partial Mapping.
 //
 // Refused, and why:
 //
@@ -43,9 +43,14 @@ import (
 // Not carried: MinFrom. crdschema has no such field and pairs every two
 // consecutive minor lines; the wiring layer must apply the crdversions MinFrom
 // to the pairs it keeps (a mapped Target says nothing about it).
-// crdschema also reads a bare or v-prefixed tag whichever the target names, so
-// for a single prefix it reads a superset of the tags; a tag of the other
-// spelling at another commit can only add a withheld line, never a claim.
+//
+// Tag prefixes are carried in Mapping.TagPrefixes. crdschema itself reads both
+// the v-prefixed and the bare spelling whichever the target names. That
+// superset is NOT safe by itself: a v-only target in a repository with bare
+// sibling tags (another component's 2.0.0) would get a line crdversions never
+// treats as a release, and a pair could be attested for a version the target
+// rejects. The wiring change MUST pass the release index through FilterIndex
+// (or FilterTags) with Mapping.TagPrefixes before any release-line derivation.
 
 // Mapper refusal codes. They are stable: the real-table test pins them.
 const (
@@ -58,6 +63,51 @@ const (
 	ReasonMapRemote        = "MAP_REMOTE"
 	ReasonMapPath          = "MAP_PATH"
 )
+
+// Mapping is a mapped target and the exact tag prefixes of the crdversions
+// target (in its order). The zero Mapping means refused.
+type Mapping struct {
+	Target      Target
+	TagPrefixes []string
+}
+
+// FilterTags returns the tags that are final releases of one of the prefixes,
+// in the input order, using the crdversions final-tag grammar (a padded or
+// duplicate spelling is kept, so that the line derivation withholds it).
+// Anything else (other prefixes, chart or component names, pre-releases) is
+// dropped, as crdversions ignores it.
+func FilterTags(tags []string, prefixes []string) []string {
+	out := []string{}
+	for _, t := range tags {
+		for _, p := range prefixes {
+			if _, _, ok := crdversions.ReadFinalTag(p, 4, t); ok {
+				out = append(out, t)
+				break
+			}
+		}
+	}
+	return out
+}
+
+// FilterIndex returns the release index reduced to the tags FilterTags keeps.
+func FilterIndex(index extract.ReleaseIndex, prefixes []string) extract.ReleaseIndex {
+	names := make([]string, len(index.Tags))
+	for i, t := range index.Tags {
+		names[i] = t.Name
+	}
+	keep := map[string]bool{}
+	for _, n := range FilterTags(names, prefixes) {
+		keep[n] = true
+	}
+	out := index
+	out.Tags = nil
+	for _, t := range index.Tags {
+		if keep[t.Name] {
+			out.Tags = append(out.Tags, t)
+		}
+	}
+	return out
+}
 
 // Reason is one refusal: a stable code and a short detail naming the
 // feature (a path, a prefix), never file content.
@@ -86,9 +136,9 @@ func equalPrefixes(got []string, want ...string) bool {
 	return true
 }
 
-// TargetFromCRDVersions maps a crdversions target to a crdschema Target, or
+// TargetFromCRDVersions maps a crdversions target to a crdschema Mapping, or
 // refuses it with every reason found (in a fixed order).
-func TargetFromCRDVersions(c crdversions.Target) (Target, Reasons) {
+func TargetFromCRDVersions(c crdversions.Target) (Mapping, Reasons) {
 	var rs Reasons
 	add := func(code, detail string) { rs = append(rs, Reason{code, detail}) }
 
@@ -140,11 +190,11 @@ func TargetFromCRDVersions(c crdversions.Target) (Target, Reasons) {
 		}
 	}
 	if len(rs) > 0 {
-		return Target{}, rs
+		return Mapping{}, rs
 	}
 	t := Target{Repo: repo, Files: files, Dirs: dirs}
 	if err := t.validate(); err != nil {
-		return Target{}, Reasons{{ReasonMapPath, err.Error()}}
+		return Mapping{}, Reasons{{ReasonMapPath, err.Error()}}
 	}
-	return t, nil
+	return Mapping{Target: t, TagPrefixes: append([]string{}, c.TagPrefixes...)}, nil
 }

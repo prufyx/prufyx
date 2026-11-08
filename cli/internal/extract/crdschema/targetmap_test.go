@@ -102,7 +102,8 @@ func TestTargetFromCRDVersionsSynthetic(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			in := okTarget()
 			c.mut(&in)
-			got, rs := TargetFromCRDVersions(in)
+			m, rs := TargetFromCRDVersions(in)
+			got := m.Target
 			if c.want == nil {
 				if len(rs) != 0 {
 					t.Fatalf("refused: %v", rs)
@@ -118,8 +119,8 @@ func TestTargetFromCRDVersionsSynthetic(t *testing.T) {
 			if !reflect.DeepEqual(codes(rs), c.want) {
 				t.Fatalf("reasons %v want %v", codes(rs), c.want)
 			}
-			if !reflect.DeepEqual(got, Target{}) {
-				t.Fatalf("refusal returned a partial target: %+v", got)
+			if !reflect.DeepEqual(m, Mapping{}) {
+				t.Fatalf("refusal returned a partial mapping: %+v", m)
 			}
 		})
 	}
@@ -194,12 +195,13 @@ func TestTargetFromCRDVersionsPilots(t *testing.T) {
 			continue
 		}
 		seen[tg.Project] = true
-		got, rs := TargetFromCRDVersions(tg)
+		m, rs := TargetFromCRDVersions(tg)
+		got := m.Target
 		if !reflect.DeepEqual(codes(rs), append([]string{}, w...)) && !(w == nil && len(rs) == 0) {
 			t.Errorf("%s: reasons %v want %v; pilots must be re-evaluated deliberately", tg.Project, codes(rs), w)
 		}
 		if w == nil {
-			if !reflect.DeepEqual(got.Dirs, []string{"manifests/crds"}) || len(got.Files) != 0 || got.Repo.Key != "github.com/argoproj/argo-cd" {
+			if !reflect.DeepEqual(got.Dirs, []string{"manifests/crds"}) || len(got.Files) != 0 || got.Repo.Key != "github.com/argoproj/argo-cd" || !reflect.DeepEqual(m.TagPrefixes, []string{"v"}) {
 				t.Errorf("argo-cd mapped %+v", got)
 			}
 		}
@@ -217,14 +219,15 @@ func TestTargetFromCRDVersionsRealInvariants(t *testing.T) {
 	closed := map[string]bool{ReasonMapRepo: true, ReasonMapNotAttested: true, ReasonMapTagPrefix: true,
 		ReasonMapReleaseScheme: true, ReasonMapExclude: true, ReasonMapChannels: true, ReasonMapRemote: true, ReasonMapPath: true}
 	for _, tg := range realTargets(t) {
-		got, rs := TargetFromCRDVersions(tg)
-		got2, rs2 := TargetFromCRDVersions(tg)
-		if !reflect.DeepEqual(got, got2) || !reflect.DeepEqual(rs, rs2) {
+		m, rs := TargetFromCRDVersions(tg)
+		got := m.Target
+		m2, rs2 := TargetFromCRDVersions(tg)
+		if !reflect.DeepEqual(m, m2) || !reflect.DeepEqual(rs, rs2) {
 			t.Errorf("%s: not deterministic", tg.Project)
 		}
 		if len(rs) > 0 {
-			if !reflect.DeepEqual(got, Target{}) {
-				t.Errorf("%s: partial target with reasons", tg.Project)
+			if !reflect.DeepEqual(m, Mapping{}) {
+				t.Errorf("%s: partial mapping with reasons", tg.Project)
 			}
 			for _, r := range rs {
 				if !closed[r.Code] {
@@ -235,6 +238,9 @@ func TestTargetFromCRDVersionsRealInvariants(t *testing.T) {
 		}
 		if err := got.validate(); err != nil {
 			t.Errorf("%s maps to an invalid target: %v", tg.Project, err)
+		}
+		if !reflect.DeepEqual(m.TagPrefixes, tg.TagPrefixes) {
+			t.Errorf("%s: tag prefixes %v differ from the source %v", tg.Project, m.TagPrefixes, tg.TagPrefixes)
 		}
 		var files, dirs []string
 		for _, p := range tg.Paths {
