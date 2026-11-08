@@ -11,10 +11,12 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
 )
 
-// CatalogProjects are the projects whose crd.schema-removal extractor the
-// maintainer catalog registers: the reviewed pilot set, each of which maps
-// cleanly from its crdversions target. A project is added here only
-// deliberately; a target the mapper refuses is never registered.
+// CatalogProjects is the reviewed pilot allow-list of projects whose
+// crd.schema-removal extractor the maintainer catalog registers. It is a
+// temporary gate until crdversions.Target carries a per-target opt-in field.
+// Until then, adding a project means editing this list and moving the code
+// digest, so every addition is reviewed. A target the mapper refuses is never
+// registered.
 var CatalogProjects = []string{"argo-cd"}
 
 // FromCRDVersions returns the catalog extractor of one reviewed crdversions

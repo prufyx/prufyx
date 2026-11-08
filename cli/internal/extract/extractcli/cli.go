@@ -94,8 +94,9 @@ func Catalog() map[string]Spec {
 		}
 		x, err := crdschema.FromCRDVersions(t)
 		if err != nil {
-			// A pilot that stopped mapping is not registered; a test pins
-			// that every pilot is present.
+			// A pilot that stopped mapping is not registered.
+			// TestCatalogListsTheCRDSchemaPilots is the only guard that
+			// fails when a pilot silently stops mapping.
 			continue
 		}
 		id := x.ID()
