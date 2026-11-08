@@ -28,3 +28,27 @@ func TestMeetsMinimum(t *testing.T) {
 		}
 	}
 }
+
+func TestAtLeast(t *testing.T) {
+	cases := []struct {
+		have, min string
+		want      bool
+	}{
+		{"v0.1.0-beta.1", "v0.1.0-beta.1", true},
+		{"v0.1.0-beta.0", "v0.1.0-beta.1", false},
+		{"v0.1.0-alpha.9", "v0.1.0-beta.1", false},
+		{"v0.1.0", "v0.1.0-beta.1", true},
+		{"v0.2.0", "v0.1.0-beta.1", true},
+		{"v0.0.9", "v0.1.0-beta.1", false},
+		{DevelopmentVersion, "v0.1.0-beta.1", false}, // no special case for a development build
+		{"v0.1.0-beta.1", "garbage", false},
+		{"garbage", "v0.1.0-beta.1", false},
+		{"", "v0.1.0-beta.1", false},
+		{"v0.1.0-beta.1", "", false},
+	}
+	for _, tc := range cases {
+		if got := AtLeast(tc.have, tc.min); got != tc.want {
+			t.Errorf("AtLeast(%q, %q) = %v, want %v", tc.have, tc.min, got, tc.want)
+		}
+	}
+}

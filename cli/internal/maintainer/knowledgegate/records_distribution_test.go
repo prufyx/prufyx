@@ -48,7 +48,8 @@ func TestRecordsAreReadBesideADistributionSection(t *testing.T) {
 	if len(cls.Changes) != 1 || cls.Changes[0].RuleID != withdrawn || cls.Changes[0].Class != ClassTightening {
 		t.Fatalf("changes %+v", cls.Changes)
 	}
-	if n := len(cls.head["cncf"].Records); n != 1 {
+	// The line attestation and the distribution record.
+	if n := len(cls.head["cncf"].Records); n != 2 {
 		t.Fatalf("%d records read", n)
 	}
 }

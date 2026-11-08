@@ -390,3 +390,54 @@ func TestDistributionPackMember(t *testing.T) {
 		t.Fatal("distribution.PackMember is not a pack member")
 	}
 }
+
+// A package that carries provider facts must name a minimum client that can
+// read them, and no package carries them yet: the split refuses a pack whose
+// section holds a provider field.
+func TestProviderFactsFloorAndRefusal(t *testing.T) {
+	t.Parallel()
+	if !strings.HasPrefix(ProviderFactsMinClientVersion, "v") || strings.Count(ProviderFactsMinClientVersion, ".") < 2 {
+		t.Fatalf("floor %q is not a version", ProviderFactsMinClientVersion)
+	}
+	plain, err := distribution.Marshal(distribution.Section{
+		Records:       []distribution.Record{{Distribution: "eks", ControlPlane: distribution.ControlPlaneManaged, Evidence: testDistributionEvidence()}},
+		Applicability: []distribution.Applicability{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	withFacts, err := distribution.Marshal(distribution.Section{
+		Records: []distribution.Record{{
+			Distribution: "eks", ControlPlane: distribution.ControlPlaneManaged, Evidence: testDistributionEvidence(),
+			Lifecycle: []distribution.Lifecycle{{Line: "1.33", StandardEnd: "2026-07-29", Precision: distribution.PrecisionDay}},
+		}},
+		Applicability: []distribution.Applicability{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, tc := range map[string]struct {
+		section string
+		want    bool
+	}{
+		"none":          {"", false},
+		"identity only": {string(plain), false},
+		"a lifecycle":   {string(withFacts), true},
+		"unreadable":    {`{"records":`, true},
+		"not a section": {`[{}]`, true},
+		"empty section": {`{}`, true},
+	} {
+		if got := PackCarriesProviderFacts(json.RawMessage(tc.section)); got != tc.want {
+			t.Errorf("%s: %v, want %v", name, got, tc.want)
+		}
+	}
+	base, err := load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	base.pack.Distributions = json.RawMessage(withFacts)
+	same := func(string, func(string) ([]byte, error)) (string, error) { return "7", nil }
+	if _, _, err := buildExternalTargets(base, "7", "operator_provided", same); !errors.Is(err, ErrIntegrity) || !errors.Is(err, ErrDistributionsNotPublishable) {
+		t.Fatalf("a provider-bearing pack was built: %v", err)
+	}
+}

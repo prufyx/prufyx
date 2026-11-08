@@ -499,6 +499,16 @@ to them, because those checks run before the version is known and a client that
 fails them treats the package as an integrity failure. The oldest-client gate
 above enforces this: a package it refuses is not published.
 
+**Provider facts.** The provider fields of a distribution record (lifecycle,
+channels, deprecations) are readable only from the first release that has them
+(`cncfcheck.ProviderFactsMinClientVersion`, a build-time constant). A package
+carrying them must name that version as `minClientVersion`, so an older client
+exits `15` (too new for this client) and never treats the package as an
+integrity failure. Until a target can carry distribution records the publisher
+refuses any pack whose `distributions` section is not empty, and the
+knowledge gate admits no provider fact while the oldest supported client pin is
+below that release (see [knowledge-gate.md](knowledge-gate.md#provider-facts)).
+
 Until the first beta tag exists, `ref` is a commit of `main`. After the
 `v0.1.0-beta.0` cut, a PR sets `ref` to that tag.
 

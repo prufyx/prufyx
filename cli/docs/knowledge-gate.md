@@ -54,8 +54,9 @@ classification rules (see [Line attestations and path
 policies](#line-attestations-and-path-policies)). A change to any other
 top-level pack member (`schema`, `revision`, the policy and digest members, or
 a new member) is a loosening change that this version of the gate never
-admits. The one exception is the `servedAPIs` member, see [Served-API
-lists](#served-api-lists). A reattestation statement must therefore keep the pack's `revision`,
+admits. The exceptions are the `servedAPIs` member, see [Served-API
+lists](#served-api-lists), and the provider fields of the `distributions`
+member, see [Provider facts](#provider-facts). A reattestation statement must therefore keep the pack's `revision`,
 and adding the first record of a section, or removing the last one, changes
 the pack's `schema` and is not admitted either. In the community pack the
 record sections have no classification rules.
@@ -868,6 +869,66 @@ when the window has passed. All lists of one run have the same `validUntil`
 (`--now` plus 89 days) and so fall in one ISO week; the record stagger cap
 (15 percent of the pack's rules and records per ISO week) must have room for
 them in that week.
+
+## Provider facts
+
+A distribution record (`distributions` pack member, one record per
+distribution, id `distribution/<id>`) is classified record by record. Only its
+provider fields (`lifecycle`, `channels`, `deprecations` and the record's
+`evidence`) can change through the gate, and only mechanically. A record is
+admitted when all of these hold; anything else is refused, with no approval
+that admits it:
+
+1. the base and head records are canonically identical outside the provider
+   fields (the distribution, its control plane and its OpenShift mapping never
+   change through the gate), and the base record is mechanical too;
+2. the head record is mechanical, active, has at least one provider field,
+   names an extractor, and equals byte for byte (canonical JSON) what the
+   deriver compiled into the gate derives from the excerpts it cites, with the
+   record's own `derivedAt` and `validUntil`; `derivedAt` lies in the window
+   of every mechanical record (24 hours before to 5 minutes after the gate's
+   clock) and the extractor id, version and code digest equal the gate's;
+3. the cited excerpts pass the excerpt store check
+   (`providerexcerpt.CheckSourcesAt`): each is a file of this repository that
+   was committed on the base before this change, hashes to its manifest digest
+   (the base's `cli/knowledge/provider-excerpts/manifest.json`), was fetched no
+   later than the commit that cites it, and the cited span lies in its body;
+4. the oldest-supported-client pin of the base and of the head
+   (`cli/knowledge/oldest-supported-client.txt`) names a version at or above the
+   first release that reads provider facts (a build-time constant, currently
+   `v0.1.0-beta.1`), so no provider fact is admitted while an older client is
+   still supported.
+
+A removed record, a record for a distribution the base's section lacks, a
+reviewed record, a record of an unknown deriver and a missing excerpt store
+are refused. The applicability statements of the section are never a record
+change: a change to them is a pack-member change, refused, also when it comes
+beside a record change.
+
+No deriver is compiled into the gate yet, so the gate admits no provider fact
+until one is added by a reviewed code change. The excerpt store is built by
+the caller (`GitExcerptStore`); a gate run without one refuses every provider
+record.
+
+The first change that adds the member (the base has none) also needs an owner
+approval of subject `distributions`, `ruleId` `member.distributions`, `scope`
+`distributions` and no base digest, at
+`cli/knowledge/approvals/<pack>/member.distributions.json`. It verifies under
+the base's pinned owner keys and binds the statement
+`prufyx.io/distribution-records-introduction/v1`: every record's distribution,
+record ID and digest of its canonical bytes, and the digests of the base and
+head pack files. The introduction carries no applicability statement. The
+pack's `schema` bump rides the existing [schema path](#tightening-and-loosening)
+and is admitted only to the lowest level the content requires, when every
+record change is admitted. Sign with
+`approval sign --subject distributions --pack cncf --base-root DIR --head-root DIR`
+(the other options as for `servedAPIs`).
+
+A package that carries provider facts must name `minClientVersion` at or above
+that release, so an older client reports it as too new (exit 15). No target
+carries distribution records yet: the publisher refuses any pack whose
+`distributions` section is not empty (see
+[knowledge-publisher.md](knowledge-publisher.md)).
 
 ## Batch approvals
 

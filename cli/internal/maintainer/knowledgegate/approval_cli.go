@@ -47,6 +47,12 @@ const approvalUsage = `usage: prufyx-maintainer approval <sign|verify|public-key
               build of the base, whose deriver identity the statement binds)
   verify      --approval FILE --subject servedAPIs --pack cncf --base-root DIR --head-root DIR
               --keys FILE --keys-digest sha256:... [--now RFC3339]
+  sign        --subject distributions --pack cncf --base-root DIR --head-root DIR
+              --keys FILE --keys-digest sha256:... --identity LOGIN --candidate-id ID
+              (--key FILE | --key-stdin) --output FILE (introducing the distributions member,
+              every record of the head is bound)
+  verify      --approval FILE --subject distributions --pack cncf --base-root DIR --head-root DIR
+              --keys FILE --keys-digest sha256:... [--now RFC3339]
   verify      --approval FILE --subject repinBaseline --repository OWNER/REPO --head-baselines FILE
               [--base-baselines FILE] --base-root DIR --keys FILE --keys-digest sha256:... [--now RFC3339]
   sign        --batch --base DIR --head DIR --batch-id b-YYYYMMDD-N --candidate-id ID
@@ -217,8 +223,8 @@ type subjectFlags struct {
 }
 
 func (s *subjectFlags) register(f *flag.FlagSet) {
-	f.StringVar(&s.subject, "subject", ApprovalSubjectRule, "what the approval is for: rule, lineAttestation, pathPolicy, repinBaseline, registryDigest or servedAPIs")
-	f.StringVar(&s.headRoot, "head-root", "", "registryDigest, servedAPIs: the head checkout (the change as proposed)")
+	f.StringVar(&s.subject, "subject", ApprovalSubjectRule, "what the approval is for: rule, lineAttestation, pathPolicy, repinBaseline, registryDigest, servedAPIs or distributions")
+	f.StringVar(&s.headRoot, "head-root", "", "registryDigest, servedAPIs, distributions: the head checkout (the change as proposed)")
 	f.StringVar(&s.record, "record", "", "lineAttestation, pathPolicy: the record ID (in place of --rule)")
 	f.StringVar(&s.repository, "repository", "", "repinBaseline: the repository (owner/repo), spelled as its entry spells it")
 	f.StringVar(&s.baseBaselines, "base-baselines", "", "repinBaseline: the baseline file as it is on the base branch (omit when the base has none)")
@@ -267,11 +273,11 @@ func (s *subjectFlags) load(layout Layout) (ApprovalSubject, ApprovalKeys, error
 	if s.subject == ApprovalSubjectRepinBaseline {
 		return s.loadBaseline()
 	}
-	if s.subject == ApprovalSubjectRegistry || s.subject == ApprovalSubjectServed {
+	if memberSubject(s.subject) {
 		return s.loadRegistry(layout)
 	}
 	if s.headRoot != "" {
-		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--head-root belongs to --subject registryDigest or servedAPIs"}
+		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--head-root belongs to --subject registryDigest, servedAPIs or distributions"}
 	}
 	switch {
 	case s.subject == ApprovalSubjectRule && s.record != "":
@@ -335,7 +341,7 @@ func (s *subjectFlags) loadRegistry(layout Layout) (ApprovalSubject, ApprovalKey
 		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--pack, --base-root, --head-root, --keys and --keys-digest are required"}
 	}
 	if s.rule != "" || s.record != "" || s.basePack != "" || s.headPack != "" || s.repository != "" || s.baseBaselines != "" || s.headBaselines != "" {
-		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--subject registryDigest and servedAPIs take --pack, --base-root and --head-root only"}
+		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--subject registryDigest, servedAPIs and distributions take --pack, --base-root and --head-root only"}
 	}
 	var spec *PackSpec
 	for i := range layout.Packs {
@@ -358,9 +364,12 @@ func (s *subjectFlags) loadRegistry(layout Layout) (ApprovalSubject, ApprovalKey
 		return ApprovalSubject{}, ApprovalKeys{}, err
 	}
 	var subject ApprovalSubject
-	if s.subject == ApprovalSubjectServed {
+	switch s.subject {
+	case ApprovalSubjectServed:
 		subject, _, err = ServedApprovalSubject(*spec, Tree{Root: s.baseRoot}, Tree{Root: s.headRoot})
-	} else {
+	case ApprovalSubjectDistributions:
+		subject, _, err = DistributionsApprovalSubject(*spec, Tree{Root: s.baseRoot}, Tree{Root: s.headRoot})
+	default:
 		subject, _, err = RegistryApprovalSubject(*spec, Tree{Root: s.baseRoot}, Tree{Root: s.headRoot})
 	}
 	if err != nil {
@@ -465,15 +474,15 @@ func cmdApprovalSign(args []string, env approvalEnv, layout Layout, stdout io.Wr
 	f.StringVar(&identity, "identity", "", "the owner's login, as pinned in the key file")
 	f.StringVar(&candidateID, "candidate-id", "", "a reference for the change, for example its pull request")
 	f.StringVar(&output, "output", "", "new approval file to write")
-	f.StringVar(&s.baseRoot, "base-root", "", "registryDigest, servedAPIs: the base checkout")
+	f.StringVar(&s.baseRoot, "base-root", "", "registryDigest, servedAPIs, distributions: the base checkout")
 	if err := parseApprovalFlags(f, args); err != nil {
 		return 2, err
 	}
 	if identity == "" || candidateID == "" || output == "" {
 		return 2, usageError{"--identity, --candidate-id and --output are required"}
 	}
-	if s.baseRoot != "" && s.subject != ApprovalSubjectRegistry && s.subject != ApprovalSubjectServed {
-		return 2, usageError{"--base-root belongs to --subject registryDigest or servedAPIs when signing"}
+	if s.baseRoot != "" && !memberSubject(s.subject) {
+		return 2, usageError{"--base-root belongs to --subject registryDigest, servedAPIs or distributions when signing"}
 	}
 	subject, keys, err := s.load(layout)
 	if err != nil {
@@ -521,6 +530,8 @@ func printApproval(w io.Writer, rec ApprovalRecord, key ApprovalKey) {
 		fmt.Fprintf(w, "  subject    fact registry addition %s/%s\n", rec.Pack, rec.RuleID)
 	case ApprovalSubjectServed:
 		fmt.Fprintf(w, "  subject    served-API lists introduction %s/%s\n", rec.Pack, rec.RuleID)
+	case ApprovalSubjectDistributions:
+		fmt.Fprintf(w, "  subject    distribution records introduction %s/%s\n", rec.Pack, rec.RuleID)
 	default:
 		fmt.Fprintf(w, "  subject    rule %s/%s\n", rec.Pack, rec.RuleID)
 	}
@@ -537,7 +548,7 @@ func cmdApprovalVerify(args []string, env approvalEnv, layout Layout, stdout io.
 	f := flag.NewFlagSet("approval verify", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
 	s.register(f)
-	f.StringVar(&s.baseRoot, "base-root", "", "lineAttestation, pathPolicy, repinBaseline, registryDigest, servedAPIs: the base checkout, whose approvals the gate checks for single use and forward-only decisions")
+	f.StringVar(&s.baseRoot, "base-root", "", "lineAttestation, pathPolicy, repinBaseline, registryDigest, servedAPIs, distributions: the base checkout, whose approvals the gate checks for single use and forward-only decisions")
 	f.StringVar(&approval, "approval", "", "the approval file")
 	f.StringVar(&now, "now", "", "the clock, RFC 3339 UTC (default: now)")
 	if err := parseApprovalFlags(f, args); err != nil {
@@ -554,12 +565,12 @@ func cmdApprovalVerify(args []string, env approvalEnv, layout Layout, stdout io.
 		}
 	}
 	baseRoot := s.baseRoot
-	checksBase := s.subject == ApprovalSubjectLineAttestation || s.subject == ApprovalSubjectPathPolicy || s.subject == ApprovalSubjectRepinBaseline || s.subject == ApprovalSubjectRegistry || s.subject == ApprovalSubjectServed
+	checksBase := s.subject == ApprovalSubjectLineAttestation || s.subject == ApprovalSubjectPathPolicy || s.subject == ApprovalSubjectRepinBaseline || memberSubject(s.subject)
 	switch {
 	case checksBase && baseRoot == "":
 		return 2, usageError{"--base-root is required: the gate refuses an approval the base already holds or has superseded, and verify must say so before it says OK"}
 	case !checksBase && baseRoot != "":
-		return 2, usageError{"--base-root belongs to --subject lineAttestation, pathPolicy, repinBaseline, registryDigest or servedAPIs"}
+		return 2, usageError{"--base-root belongs to --subject lineAttestation, pathPolicy, repinBaseline, registryDigest, servedAPIs or distributions"}
 	}
 	subject, keys, err := s.load(layout)
 	if err != nil {
@@ -574,8 +585,8 @@ func cmdApprovalVerify(args []string, env approvalEnv, layout Layout, stdout io.
 		return 1, nil
 	}
 	if checksBase {
-		// A registryDigest or servedAPIs subject was read from --base-root itself.
-		if s.subject != ApprovalSubjectRegistry && s.subject != ApprovalSubjectServed {
+		// A registryDigest, servedAPIs or distributions subject was read from --base-root itself.
+		if !memberSubject(s.subject) {
 			if err := s.checkBaseRoot(layout, baseRoot); err != nil {
 				return 2, err
 			}
@@ -650,4 +661,11 @@ func cmdApprovalKeysDigest(args []string, stdout io.Writer) (int, error) {
 	}
 	fmt.Fprintln(stdout, ApprovalKeysDigest(raw))
 	return 0, nil
+}
+
+// memberSubject reports whether an approval subject is one of the pack
+// members the gate introduces or changes as a whole: it is read from a base
+// and a head checkout, never from one record.
+func memberSubject(subject string) bool {
+	return subject == ApprovalSubjectRegistry || subject == ApprovalSubjectServed || subject == ApprovalSubjectDistributions
 }
