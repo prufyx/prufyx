@@ -1,0 +1,18 @@
+{
+  "note": "Unmodified upstream CRD manifests, each at a pinned release tag, used as extractor test data. Files sit at <project>/<tag>/crd/<file>. Both projects are Apache-2.0.",
+  "files": [
+    {"project": "cert-manager", "repo": "https://github.com/cert-manager/cert-manager", "tag": "v1.5.0", "commit": "0c93a2b2b9e735153615aabfbb61d71144c2d2f8", "upstream_path": "deploy/crds/crd-certificaterequests.yaml", "sha256": "c0befaf33780a5d16a4980d357a24f3e805e506ec152ca29bdca7f61c026f4a9"},
+    {"project": "cert-manager", "repo": "https://github.com/cert-manager/cert-manager", "tag": "v1.6.0", "commit": "49914a057b39c887be0974c4657c095bd7724bc7", "upstream_path": "deploy/crds/crd-certificaterequests.yaml", "sha256": "a2ec4d218a1c8ff25a689957b1a6c927078f365661523a920343e9ccbbe62846"},
+    {"project": "cert-manager", "repo": "https://github.com/cert-manager/cert-manager", "tag": "v1.15.0", "commit": "34032515413d5422af06f597a313e43bb5d646a0", "upstream_path": "deploy/crds/crd-certificates.yaml", "sha256": "c97ed0ef52914a59fe1013ac162089036c6ce4449f2e42f9496f2f447ae5c8e7"},
+    {"project": "cert-manager", "repo": "https://github.com/cert-manager/cert-manager", "tag": "v1.18.0", "commit": "83dae3ef37f50973c0f3b3a818fc7d1b35fff341", "upstream_path": "deploy/crds/crd-certificates.yaml", "sha256": "25f58d784b3e7f9520dcb101db8d86f93294d2c91fc37616b378516f9a94cf28"},
+    {"project": "argo-cd", "repo": "https://github.com/argoproj/argo-cd", "tag": "v2.14.0", "commit": "4745e08d4fbd9b115e208880eac9a63119a8821c", "upstream_path": "manifests/crds/appproject-crd.yaml", "sha256": "d9a63cb9a12ef66bbf4e811c94fbaa3922af00ed7bb3af791e85dcd7337ffe4c"},
+    {"project": "argo-cd", "repo": "https://github.com/argoproj/argo-cd", "tag": "v3.2.0", "commit": "66b2f302d91a42cc151808da0eec0846bbe1062c", "upstream_path": "manifests/crds/appproject-crd.yaml", "sha256": "d3b1e7d1c88146d6476d6458c824fea85aac56c1129f7d9c97acca14d98f76ad"}
+  ],
+  "pairs": [
+    {"name": "certmanager_certificates_1.15_to_1.18", "project": "cert-manager", "from": "v1.15.0", "to": "v1.18.0"},
+    {"name": "certmanager_certificates_1.18_to_1.15", "project": "cert-manager", "from": "v1.18.0", "to": "v1.15.0"},
+    {"name": "certmanager_certificaterequests_1.5_to_1.6", "project": "cert-manager", "from": "v1.5.0", "to": "v1.6.0"},
+    {"name": "argocd_appproject_2.14_to_3.2", "project": "argo-cd", "from": "v2.14.0", "to": "v3.2.0"},
+    {"name": "argocd_appproject_3.2_to_2.14", "project": "argo-cd", "from": "v3.2.0", "to": "v2.14.0"}
+  ]
+}

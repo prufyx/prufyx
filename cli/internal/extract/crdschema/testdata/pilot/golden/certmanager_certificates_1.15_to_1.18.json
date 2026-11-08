@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-schema-removal/v2",
+  "from": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "to": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "fields": {
+    "members": [],
+    "complete": true
+  },
+  "enums": {
+    "members": [],
+    "complete": true
+  },
+  "omissions": [],
+  "ledger": [],
+  "exclusions": []
+}
+

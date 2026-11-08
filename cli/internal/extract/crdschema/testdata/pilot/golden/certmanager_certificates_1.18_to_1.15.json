@@ -1,0 +1,22 @@
+{
+  "schema": "prufyx.io/crd-schema-removal/v2",
+  "from": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "to": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "fields": {
+    "members": [
+      "cert-manager.io/Certificate/spec/keystores/jks/password",
+      "cert-manager.io/Certificate/spec/keystores/pkcs12/password",
+      "cert-manager.io/Certificate/spec/renewBeforePercentage",
+      "cert-manager.io/Certificate/spec/signatureAlgorithm"
+    ],
+    "complete": true
+  },
+  "enums": {
+    "members": [],
+    "complete": true
+  },
+  "omissions": [],
+  "ledger": [],
+  "exclusions": []
+}
+

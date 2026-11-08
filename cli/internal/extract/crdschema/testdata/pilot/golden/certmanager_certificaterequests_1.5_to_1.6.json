@@ -1,0 +1,28 @@
+{
+  "schema": "prufyx.io/crd-schema-removal/v2",
+  "from": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "to": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "fields": {
+    "members": [],
+    "complete": false
+  },
+  "enums": {
+    "members": [],
+    "complete": false
+  },
+  "omissions": [
+    {
+      "reason": "CRD_CONVERSION_WEBHOOK",
+      "subject": "cert-manager.io/CertificateRequest",
+      "count": 1
+    }
+  ],
+  "ledger": [
+    {
+      "code": "CRD_CONVERSION_WEBHOOK",
+      "item": "cert-manager.io/CertificateRequest"
+    }
+  ],
+  "exclusions": []
+}
+

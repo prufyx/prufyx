@@ -1,0 +1,20 @@
+{
+  "schema": "prufyx.io/crd-schema-removal/v2",
+  "from": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "to": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "fields": {
+    "members": [
+      "argoproj.io/AppProject/spec/syncWindows/_item_/andOperator",
+      "argoproj.io/AppProject/spec/syncWindows/_item_/description"
+    ],
+    "complete": true
+  },
+  "enums": {
+    "members": [],
+    "complete": true
+  },
+  "omissions": [],
+  "ledger": [],
+  "exclusions": []
+}
+
