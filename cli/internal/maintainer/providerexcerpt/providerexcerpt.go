@@ -456,6 +456,25 @@ func CheckSourcesAt(m Manifest, sources []constraintengine.SourceEvidence, read 
 	return nil
 }
 
+// Cite is one (revision, path) pair a source cites: the repository-relative
+// path of the excerpt file at the cited revision.
+type Cite struct{ Revision, Path string }
+
+// CitedReads returns the exact (revision, path) pairs the sources cite, the
+// only files a deriver of the record may read. A source whose URL does not
+// name an excerpt of this store at its revision is an error.
+func CitedReads(sources []constraintengine.SourceEvidence) ([]Cite, error) {
+	out := make([]Cite, 0, len(sources))
+	for _, s := range sources {
+		rel, err := excerptPathFromURL(s.URL, s.Revision)
+		if err != nil {
+			return nil, bad("source %s: %v", s.ID, err)
+		}
+		out = append(out, Cite{Revision: s.Revision, Path: Dir + "/" + rel})
+	}
+	return out, nil
+}
+
 func excerptPathFromURL(raw, revision string) (string, error) {
 	u, err := url.Parse(raw)
 	if err != nil {

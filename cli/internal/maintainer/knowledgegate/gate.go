@@ -508,7 +508,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 			case c.Section == sectionDistributions:
 				// Provider facts: re-derived from the committed excerpts,
 				// never through a statement, a batch or an approval.
-				if err := distributionPre(c, cls.base[c.Pack], opts); err != nil {
+				if err := distributionPre(c, cls.base[c.Pack], cls.head[c.Pack], opts); err != nil {
 					c.fail(err.Error())
 					continue
 				}
