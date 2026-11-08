@@ -166,11 +166,31 @@ def complete_scan_scope(report, requested):
             isinstance(omitted, list) and not omitted)
 
 
+ORACLE_FILES = ("crd_oracle.py", "summarize.py", "qalib.py", "qa_scope.py", "qa_batch_scope.py", "k8s_oracle.py", "seeds.py")
+
+
+def rules_control_wrongpass(code):
+    """rules oracle: the trigger built from a rule's own condition must BLOCK; exit 0 on it is a wrong-PASS candidate."""
+    return code == 0
+
+
+def rules_variant_wrongpass(code, variant_id, pass_ok, allowed=False):
+    """rules oracle: a corpus variant that exits 0 is a wrong PASS unless the variant may legitimately PASS or is allow-listed."""
+    return code == 0 and variant_id not in pass_ok and not allowed
+
+
+def seeds_digest():
+    """sha256 of the installed seeds.py (what a seeded result must be bound to)."""
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "seeds.py"), "rb") as f:
+        return hashlib.sha256(f.read()).hexdigest()
+
+
 def oracle_digest():
-    """sha256 over the oracle's own sources (crd_oracle.py, summarize.py, qalib.py, qa_scope.py, qa_batch_scope.py): a change resets the rise baselines."""
+    """sha256 over the oracle's own sources (ORACLE_FILES: crd_oracle.py, summarize.py, qalib.py, qa_scope.py, qa_batch_scope.py,
+    k8s_oracle.py and the seeded wrong-PASS cases seeds.py): a change resets the rise baselines."""
     here = os.path.dirname(os.path.abspath(__file__))
     digest = hashlib.sha256()
-    for name in ("crd_oracle.py", "summarize.py", "qalib.py", "qa_scope.py", "qa_batch_scope.py"):
+    for name in ORACLE_FILES:
         with open(os.path.join(here, name), "rb") as src:
             digest.update(hashlib.sha256(src.read()).digest())
     return digest.hexdigest()

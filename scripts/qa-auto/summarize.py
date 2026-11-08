@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Merge suite case files into one summary, one verdict line, an alarm file and a status file.
 
-usage: summarize.py --dir RUNDIR --state STATE --sha SHA --mode MODE [--seed-baseline]
+usage: summarize.py --dir RUNDIR --state STATE --sha SHA --mode MODE [--require-seeded] [--seed-baseline]
+Seeded wrong-PASS cases (seeds.py): RUNDIR/seeded.json carries the result of the injected wrong PASSes. An uncaught seed is a
+wrongpass case (suite "seeds") and ALARMS; a missing (with --require-seeded), malformed, digest-mismatched or errored seed result is
+an error case. Either way the real suites are not trusted: only the seed cases count, never a green verdict. The line carries
+SEEDED=caught/total (SEEDED=none when no usable result exists); summary.json field "seeded".
 exit 0 green, 2 alarm (WRONGPASS>0 or a mismatch not in the baseline), 3 inconclusive (errors only)
 Baseline: STATE/known-mismatch.json (list of "suite|key"); seeded from a full run when missing.
 Explained gaps: STATE/known-gaps.json, a hand-edited list of {key, reason, owner, since, ref, sig} ("suite|key"); a plain mismatch
@@ -22,19 +26,61 @@ ap.add_argument("--sha", required=True)
 ap.add_argument("--mode", required=True)
 ap.add_argument("--note", default="")
 ap.add_argument("--adhoc", action="store_true")
+ap.add_argument("--require-seeded", action="store_true")
 a = ap.parse_args()
 cases = []
 for f in sorted(glob.glob(a.dir + "/*.cases.json")):
     cases += json.load(open(f))
 skipped = json.load(open(a.dir + "/skipped.json")) if os.path.exists(a.dir + "/skipped.json") else []
+
+
+def read_seeded(path, required):
+    """(seeded summary dict | None, cases): fail closed, a result that cannot be proven is an error case, never silently absent."""
+    def err(why):
+        return None, [{"suite": "seeds", "key": "seeded-unproven", "wrongpass": False, "mismatch": False, "error": True,
+                       "detail": {"why": why}}]
+    if not os.path.exists(path):
+        return err("seeded result missing") if required else (None, [])
+    try:
+        with open(path) as f:
+            d = json.load(f)
+        total, caught, unc, ids = d["total"], d["caught"], d["uncaught"], d["ids"]
+        digest = d["digest"]
+        if not (type(total) is int and type(caught) is int and 0 < total and 0 <= caught <= total
+                and isinstance(unc, list) and all(isinstance(x, str) for x in unc)
+                and isinstance(ids, list) and len(ids) == total and isinstance(digest, str)
+                and (d.get("error") is None or isinstance(d["error"], str))):
+            raise ValueError("malformed")
+        if not d.get("error") and caught != total - len(unc):
+            raise ValueError("caught/uncaught disagree")
+        want = qalib.seeds_digest()
+        if digest != want:
+            raise ValueError("seed file digest differs from the installed seeds.py")
+    except (OSError, ValueError, KeyError, TypeError):
+        return err("seeded result malformed or tampered")
+    seed_cases = [{"suite": "seeds", "key": x, "wrongpass": True, "mismatch": False, "error": False,
+                   "detail": {"why": "injected wrong PASS not caught"}} for x in unc]
+    if d.get("error"):
+        seed_cases.append({"suite": "seeds", "key": "seeded-unproven", "wrongpass": False, "mismatch": False, "error": True,
+                           "detail": {"why": str(d["error"])[:300]}})
+    return {"caught": caught, "total": total, "digest": digest, "uncaught": list(unc), "error": d.get("error") or None}, seed_cases
+
+
+seed_state, seed_cases = (None, [])
 if a.mode != "none":
+    seed_state, seed_cases = read_seeded(a.dir + "/seeded.json", a.require_seeded)
+seed_failed = bool(seed_cases)
+if seed_failed:
+    cases = list(seed_cases)  # the real corpus is not trusted when an injected wrong PASS slipped through
+if a.mode != "none" and not seed_failed:
     # empty coverage must never be green: every mandatory suite needs at least one case
     for suite in ("crd", "k8s", "bp325", "review", "rules"):
         if not any(c["suite"].split("-")[0] == suite for c in cases):  # k8s-range, k8s-single, k8s-plan count as k8s
             cases.append({"suite": suite, "key": "no-cases", "wrongpass": False, "mismatch": False, "error": True,
                           "detail": {"why": "suite produced no cases"}})
+
 scopes = {}
-if a.mode != "none":
+if a.mode != "none" and not seed_failed:
     try:
         for suite in ("k8s", "crd"):
             with open(a.dir + "/" + suite + ".scope.json") as scope_file:
@@ -147,11 +193,12 @@ oracle_rise = a.mode == "full" and oracle_changed and kept_design is not None an
 cap_breach = design > DESIGN_HARD_CAP or (a.mode == "full" and prev_design is not None and design > prev_design + max(5, -(-prev_design // 5)))
 design_rise = a.mode == "full" and prev_design is not None and design > prev_design
 design_drop = a.mode == "full" and prev_design is not None and prev_design >= 10 and design * 2 < prev_design
-baseline_stored = not (cap_breach or oracle_rise or a.mode != "full" or a.adhoc)
+baseline_stored = not (cap_breach or oracle_rise or a.mode != "full" or a.adhoc or seed_failed)
 design_baseline = (design or None) if baseline_stored else kept_design
 alarm = bool(wp or new)
 state = "ALARM" if alarm else ("INCONCLUSIVE" if (er or cap_breach or oracle_rise or gaps_breach) else ("GREEN-PARTIAL" if skipped else "GREEN"))
-line = f"WRONGPASS={len(wp)} MISMATCH={len(mm)} NEWMISMATCH={len(new)} KNOWN_GAP={len(known_gap)} ERR={len(er)} DESIGN_UNKNOWN_WHOLE_CRD={design}{f" ORACLE_CHANGED design={kept_design or 0}->{design}" if oracle_changed else ""}{" ORACLE_RISE" if oracle_rise else ""}{" RISE" if design_rise else ""}{" CAP" if cap_breach else ""}{" DROP" if design_drop else ""} sha={a.sha[:8]} mode={a.mode} {state}"
+seed_field = " SEEDED=none" if (seed_state is None and seed_failed) else (f" SEEDED={seed_state['caught']}/{seed_state['total']}" if seed_state else "")
+line = f"WRONGPASS={len(wp)} MISMATCH={len(mm)} NEWMISMATCH={len(new)} KNOWN_GAP={len(known_gap)} ERR={len(er)} DESIGN_UNKNOWN_WHOLE_CRD={design}{f" ORACLE_CHANGED design={kept_design or 0}->{design}" if oracle_changed else ""}{" ORACLE_RISE" if oracle_rise else ""}{" RISE" if design_rise else ""}{" CAP" if cap_breach else ""}{" DROP" if design_drop else ""}{seed_field} sha={a.sha[:8]} mode={a.mode} {state}"
 now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 unsupported = sum(1 for c in cases if c.get("detail", {}).get("status") == "UNSUPPORTED_COMMUNITY")
 unknown_floor = sum(1 for c in cases if c.get("detail", {}).get("status") == "UNKNOWN_EARLIEST_SERVED")
@@ -168,16 +215,22 @@ summ = {"scopes": scopes, "run_id": os.environ.get("QA_RUN_ID", ""), "base": os.
         "resolved_gaps": resolved_gaps, "known_gap_registration_breach": gaps_breach, "errors": len(er),
         "unsupported_community": unsupported, "unsupported_community_rise": rise, "unknown_earliest_served": unknown_floor,
         "design_unknown_whole_crd_removal": design, "design_unknown_whole_crd_rise": design_rise, "design_unknown_whole_crd_cap_breach": cap_breach, "design_unknown_whole_crd_oracle_rise": oracle_rise, "design_unknown_whole_crd_drop": design_drop, "design_unknown_whole_crd_baseline": design_baseline, "cases": len(cases),
-        "baseline_seeded": seeded, "skipped": skipped, "adhoc": a.adhoc, "note": a.note,
+        "baseline_seeded": seeded, "seeded": seed_state, "skipped": skipped, "adhoc": a.adhoc, "note": a.note,
         "wrongpass_cases": wp[:50], "new_mismatch_cases": new[:50], "error_cases": er[:20]}
 json.dump(summ, open(a.dir + "/summary.json", "w"), indent=1)
 status = {k: summ[k] for k in ("time", "sha", "mode", "state", "verdict", "wrongpass", "mismatch", "new_mismatch", "errors", "design_unknown_whole_crd_removal", "design_unknown_whole_crd_rise", "design_unknown_whole_crd_cap_breach", "design_unknown_whole_crd_drop", "design_unknown_whole_crd_baseline")}
 kept_digest = oracle_digest if (baseline_stored or not os.path.exists(a.state + "/status.json")) else prev_digest
+status["seeded"] = None if seed_state is None else f"{seed_state['caught']}/{seed_state['total']}"
 status.update(known_gap_nosig=nosig, known_gap=len(known_gap), known_gap_cases=[ckey(c) for c in known_gap], resolved_gaps=resolved_gaps,
               known_gap_registration_breach=gaps_breach, oracle_changed=oracle_changed, oracle_digest=kept_digest,
-              known_gap_keys=sorted(prev_gap_keys if (gaps_breach or a.mode != "full" or a.adhoc) else registry),
+              known_gap_keys=sorted(prev_gap_keys if (gaps_breach or a.mode != "full" or a.adhoc or seed_failed) else registry),
               unknown_earliest_served=unknown_floor, unsupported_community=unsupported, unsupported_community_rise=rise)
 status["alarm"] = alarm
+if seed_failed:
+    # the real suites did not run: keep every previous counter and baseline, record only the failed verdict
+    kept = dict(previous)
+    kept.update({k: status[k] for k in ("time", "sha", "mode", "state", "verdict", "wrongpass", "errors", "seeded", "alarm")})
+    status = kept
 if not a.adhoc:
     json.dump(status, open(a.state + "/status.json.tmp", "w"))
     os.replace(a.state + "/status.json.tmp", a.state + "/status.json")

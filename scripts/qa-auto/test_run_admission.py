@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from seeded_support import install_stub_seeds
 
 
 HERE = Path(__file__).resolve().parent
@@ -78,6 +79,7 @@ if suite in ('crd','k8s'):
 '''
             for name in ("crd_oracle.py", "k8s_oracle.py", "bp325.py", "review_cases.py", "rules_oracle.py"):
                 (installed / name).write_text(companion)
+            install_stub_seeds(installed)
             devbox = root / "devbox"
             devbox.write_text('''#!/usr/bin/env python3
 import json, os, sys
