@@ -115,10 +115,32 @@ func TestFinalReleasesPaddedMinor(t *testing.T) {
 		}
 	}
 	// Both spellings of one line: its releases are ambiguous, in either order.
-	for _, names := range [][]string{{"v26.02.0", "v26.2.0"}, {"v26.2.1", "v26.02.0"}} {
+	for _, names := range [][]string{{"v26.2.1", "v26.02.0"}, {"v26.02.1", "v26.2.0"}} {
 		if got, err := finalReleases(calverTags(names...), prefixes, "", "26.2"); err == nil || !strings.Contains(err.Error(), "ambiguous") {
 			t.Fatalf("%v: %v %v", names, got, err)
 		}
+	}
+	// A twin at one commit is one release; at two commits, or beside a
+	// padded-only release, the line is refused.
+	tw := calverTags("v26.02.0", "v26.2.0")
+	for i := range tw {
+		tw[i].Commit = tw[0].Commit
+	}
+	if got, err := finalReleases(tw, prefixes, "", "26.2"); err != nil || len(got) != 1 || got[0].Version != "26.2.0" {
+		t.Fatalf("twin: %v %v", got, err)
+	}
+	if got, err := finalReleases(append(tw, calverTags("v26.02.1")...), prefixes, "", "26.2"); err == nil {
+		t.Fatalf("twin beside padded-only: %v", got)
+	}
+	if got, err := finalReleases(calverTags("v26.02.0", "v26.2.0"), prefixes, "", "26.2"); err == nil {
+		t.Fatalf("twin at two commits: %v", got)
+	}
+	// Ascending ls-remote order, two prefixes: a canonical release, the
+	// padded twin, then its canonical spelling at the same commit.
+	ord := calverTags("25.8.1", "v25.08.0", "v25.8.0")
+	ord[2].Commit = ord[1].Commit
+	if got, err := finalReleases(ord, []string{"v", ""}, "", "25.8"); err != nil || len(got) != 2 || got[0].Version != "25.8.0" || got[1].Version != "25.8.1" {
+		t.Fatalf("three-tag order: %v %v", got, err)
 	}
 	// The other line is unaffected.
 	if got, err := finalReleases(calverTags("v26.02.0", "v26.2.0", "v26.10.0"), prefixes, "", "26.10"); err != nil || len(got) != 1 {
