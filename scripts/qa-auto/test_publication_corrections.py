@@ -82,7 +82,10 @@ def publication_runner():
             if no_removals:
                 stage.update(verdict="SCOPE_COMPLETE_PASS", findings=[])
             if mode == "retained-unknown":
-                stage["verdict"] = "UNKNOWN"
+                # an UNKNOWN stage is only acceptable when every gap is a declared scope limit; this one is not
+                stage.update(verdict="UNKNOWN", gaps=[dict(reason="missing evidence")])
+            if mode == "retained-unknown-scope-limit":
+                stage.update(verdict="UNKNOWN", gaps=[dict(reason="LINE_NOT_ATTESTED")])
             if mode == "plan-gap":
                 stage["gaps"] = [dict(reason="missing evidence")]
             if mode == "plan-line-endpoint":
@@ -155,7 +158,7 @@ class PublicationCorrectionTests(unittest.TestCase):
                                ("plan-no-finding", 3), ("plan-wrong-rule", 3), ("plan-wrong-object", 3),
                                ("plan-omitted", 3), ("plan-foreign-input", 3), ("plan-gap", 3),
                                ("plan-empty-stages", 3), ("plan-line-endpoint", 0),
-                               ("retained-clean", 0), ("retained-unknown", 3), ("retained-empty-input", 3)):
+                               ("retained-clean", 0), ("retained-unknown", 3), ("retained-unknown-scope-limit", 0), ("retained-empty-input", 3)):
             with self.subTest(mode=mode), tempfile.TemporaryDirectory() as td:
                 root = Path(td)
                 runner = root / "runner"
@@ -180,7 +183,7 @@ class PublicationCorrectionTests(unittest.TestCase):
                 self.assertEqual(calls[-2][0], "scan")
                 self.assertEqual(calls[-1][0], "plan")
                 self.assertEqual(calls[-2][1:], calls[-1][1:])
-                if mode in ("clean", "review-pass", "rules-pass", "retained-clean", "plan-line-endpoint"):
+                if mode in ("clean", "review-pass", "rules-pass", "retained-clean", "retained-unknown-scope-limit", "plan-line-endpoint"):
                     self.assertIn(PLAN + " overall", scope["executed"])
                     self.assertEqual(scope["omitted"], [])
                 else:
