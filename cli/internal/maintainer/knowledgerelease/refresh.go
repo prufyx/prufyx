@@ -60,7 +60,9 @@ func Refresh(o RefreshOptions) (RefreshResult, error) {
 			return RefreshResult{}, ErrRejected
 		}
 	}
-	if o.RootDigest == "" || o.Now.IsZero() {
+	// The expected live digest is mandatory: a refresh never signs over a
+	// package nobody named.
+	if o.RootDigest == "" || o.ExpectLivePackageDigest == "" || o.Now.IsZero() {
 		return RefreshResult{}, ErrRejected
 	}
 	rootRaw, err := read(o.Root, knowledgepublish.MaxRootBytes)
@@ -72,7 +74,7 @@ func Refresh(o RefreshOptions) (RefreshResult, error) {
 	if err != nil {
 		return RefreshResult{}, guard("live package does not verify against the pinned root")
 	}
-	if o.ExpectLivePackageDigest != "" && live.PackageDigest != o.ExpectLivePackageDigest {
+	if live.PackageDigest != o.ExpectLivePackageDigest {
 		return RefreshResult{}, guard("live package digest differs from the expected one")
 	}
 	liveRaw, err := currentbundle.ReadBoundedFile(o.LivePackage, maxLivePackageBytes)
@@ -136,7 +138,7 @@ func Refresh(o RefreshOptions) (RefreshResult, error) {
 	}
 	after, err := verifyBytes(packageRaw, o.Root, o.RootDigest, live.Profile)
 	if err != nil {
-		return RefreshResult{}, guard("refreshed package does not verify: %v", err)
+		return RefreshResult{}, guard("refreshed package does not verify")
 	}
 	if after.TimestampVersion != version || after.TimestampDigest != digestOf(timestampRaw) ||
 		after.TargetsDigest != live.TargetsDigest || after.SnapshotDigest != live.SnapshotDigest ||

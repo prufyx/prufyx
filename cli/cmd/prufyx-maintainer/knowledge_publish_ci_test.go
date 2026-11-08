@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -63,3 +64,45 @@ func TestKnowledgePublishCIFlagFailClosed(t *testing.T) {
 }
 
 func ptr(s string) *string { return &s }
+
+func refreshArgs(parent, rootDigest, live, out string, extra ...string) []string {
+	keys := filepath.Join(parent, "keys")
+	return append([]string{"knowledge-publish", "refresh-timestamp", "--profile", "cncf-projects", "--live-package", live,
+		"--root", filepath.Join(keys, "root.json"), "--root-digest", rootDigest,
+		"--timestamp-key", filepath.Join(keys, "timestamp.key.pem"), "--passphrase-file", filepath.Join(parent, "pass"), "--output-dir", out}, extra...)
+}
+
+// A guard refusal of refresh-timestamp names the guard; the text carries no
+// path or key material. A refusal that is not a guard stays generic. Neither
+// writes output.
+func TestKnowledgePublishRefreshRefusalText(t *testing.T) {
+	parent, rootDigest := perProjectFixture(t)
+	rel := filepath.Join(parent, "rel")
+	var stdout, stderr bytes.Buffer
+	if err := run(ciReleaseArgs(parent, rootDigest, rel), &stdout, &stderr); err != nil {
+		t.Fatal(err)
+	}
+	live := filepath.Join(rel, "cncf-projects-5.tar")
+	zero := "sha256:" + strings.Repeat("0", 64)
+	out := filepath.Join(parent, "refused-guard")
+	err := run(refreshArgs(parent, rootDigest, live, out, "--expect-live-package-digest", zero), &stdout, &stderr)
+	if err == nil || !strings.Contains(err.Error(), "refresh refused: live package does not verify against the pinned root") {
+		t.Fatalf("guard refusal not surfaced: %v", err)
+	}
+	for _, bad := range []string{parent, "pem", "passphrase", "BEGIN"} {
+		if strings.Contains(err.Error(), bad) {
+			t.Fatalf("refusal text carries %q: %v", bad, err)
+		}
+	}
+	// Mandatory digest: omitted is a plain rejection, not a guard.
+	out2 := filepath.Join(parent, "refused-nodigest")
+	err = run(refreshArgs(parent, rootDigest, live, out2), &stdout, &stderr)
+	if err == nil || err.Error() != "knowledge-publish: operation rejected" {
+		t.Fatalf("missing digest: %v", err)
+	}
+	for _, o := range []string{out, out2} {
+		if _, e := os.Stat(o); e == nil {
+			t.Fatal("output written for a refused refresh")
+		}
+	}
+}

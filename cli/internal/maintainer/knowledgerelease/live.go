@@ -4,6 +4,7 @@ package knowledgerelease
 
 import (
 	"strconv"
+	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
 )
@@ -69,8 +70,17 @@ func StateUnchanged(a, b LiveState) bool {
 // built over exactly the live package (predecessor digest), its timestamp
 // version is higher, and either its revision is higher or it is a pure refresh
 // of the same revision (targets and snapshot byte-identical). It replaces the
-// workflow run number as the ordering rule.
-func CheckDeploy(live, candidate LiveState, predecessorDigest string) error {
+// workflow run number as the ordering rule. Clients do not cap the timestamp,
+// so the guard does: the candidate timestamp must be unexpired at now and must
+// not outlive min(snapshot, targets, evidence expiry) nor now+TimestampLifetime,
+// the same cap refresh-timestamp applies. Unparseable times refuse.
+func CheckDeploy(live, candidate LiveState, predecessorDigest string, now time.Time) error {
+	if now.IsZero() {
+		return guard("deploy guard has no clock")
+	}
+	if err := checkTimestampCap(candidate, now.UTC()); err != nil {
+		return err
+	}
 	if predecessorDigest == "" || live.PackageDigest == "" || predecessorDigest != live.PackageDigest {
 		return guard("candidate was not built over the live package")
 	}
@@ -93,6 +103,30 @@ func CheckDeploy(live, candidate LiveState, predecessorDigest string) error {
 		if candidate.TargetsVersion < live.TargetsVersion || candidate.SnapshotVersion < live.SnapshotVersion {
 			return guard("targets or snapshot version moves backwards")
 		}
+	}
+	return nil
+}
+
+func checkTimestampCap(c LiveState, now time.Time) error {
+	ts, err := parseUTC(c.TimestampExpires)
+	if err != nil {
+		return guard("candidate timestamp expiry is not canonical UTC")
+	}
+	limit := now.Add(TimestampLifetime)
+	for _, v := range []struct{ name, value string }{
+		{"snapshot", c.SnapshotExpires}, {"targets", c.TargetsExpires}, {"evidence", c.EvidenceExpiresAt},
+	} {
+		end, perr := parseUTC(v.value)
+		if perr != nil {
+			return guard("candidate %s expiry is not canonical UTC", v.name)
+		}
+		limit = minTime(limit, end)
+	}
+	if !ts.After(now) {
+		return guard("candidate timestamp is already expired")
+	}
+	if ts.After(limit) {
+		return guard("candidate timestamp expires %s, after the cap %s", ts.Format(time.RFC3339), limit.Format(time.RFC3339))
 	}
 	return nil
 }

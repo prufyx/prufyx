@@ -243,11 +243,15 @@ checks run before any key file is read; a refusal writes nothing.
 
 `knowledge-publish refresh-timestamp --live-package ABS --root ABS --root-digest
 sha256:... --timestamp-key ABS --passphrase-file ABS --output-dir ABS
-[--profile cncf-projects] [--expect-live-package-digest D] [--expires UTC]`
+--expect-live-package-digest D [--profile cncf-projects] [--expires UTC]`
 signs a new timestamp over the live, unchanged snapshot and targets. Only the
 timestamp key is loaded; there is no option for another key.
 
 - The live package must verify against the pinned root, else nothing is signed.
+  `--expect-live-package-digest` is mandatory; without it, or when it differs,
+  the refresh is refused before any key is read. A guard refusal prints its
+  reason (role names, versions, RFC3339 times only; never a path or key
+  material); other failures print the generic rejection.
 - The new timestamp version is the live timestamp version plus one: a client
   keeps the old timestamp when the version does not increase.
 - The output holds `timestamp.json` and the repackaged package. Every package
@@ -276,7 +280,13 @@ timestamp key is loaded; there is no option for another key.
   --root ABS --root-digest D --predecessor-digest D` replaces the run-number
   rule of the deploy job: the candidate must have been built over exactly the
   live package, have a higher timestamp version, and either a higher revision
-  or the same revision with identical targets and snapshot.
+  or the same revision with identical targets and snapshot. It also caps the
+  candidate timestamp, which clients do not do: the timestamp must be unexpired
+  at the guard's clock (UTC now, no flag) and expire no later than the earliest
+  of the candidate snapshot, targets and evidence expiry and now plus the 14 day
+  timestamp lifetime, the same cap `refresh-timestamp` applies. An equal expiry
+  passes, one second later refuses; an unparseable time refuses. The command
+  keeps its flags; only its behaviour is stricter.
 - Workflow wiring (plan, sign, refresh and deploy jobs) is separate and not part
   of this change.
 

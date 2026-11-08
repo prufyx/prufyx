@@ -515,7 +515,7 @@ func runRefreshTimestamp(args []string, stdout io.Writer) error {
 	var o knowledgerelease.RefreshOptions
 	flags.StringVar(&o.Profile, "profile", "", "cncf (default) or cncf-projects")
 	flags.StringVar(&o.LivePackage, "live-package", "", "absolute path of the live package")
-	flags.StringVar(&o.ExpectLivePackageDigest, "expect-live-package-digest", "", "expected digest of the live package")
+	flags.StringVar(&o.ExpectLivePackageDigest, "expect-live-package-digest", "", "required: digest of the live package the refresh may sign over")
 	flags.StringVar(&o.Root, "root", "", "signed public TUF root")
 	flags.StringVar(&o.RootDigest, "root-digest", "", "independently verified root SHA-256")
 	flags.StringVar(&o.TimestampKey, "timestamp-key", "", "encrypted timestamp role key file (the only key loaded)")
@@ -524,7 +524,7 @@ func runRefreshTimestamp(args []string, stdout io.Writer) error {
 	flags.StringVar(&o.Expires, "expires", "", "optional earlier timestamp expiry as exact UTC RFC3339")
 	if err := flags.Parse(args); err != nil {
 		if err == flag.ErrHelp {
-			_, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer knowledge-publish refresh-timestamp --live-package ABS --root ABS --root-digest sha256:... --timestamp-key ABS --passphrase-file ABS --output-dir ABS [--profile cncf-projects] [--expect-live-package-digest D] [--expires UTC]")
+			_, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer knowledge-publish refresh-timestamp --live-package ABS --root ABS --root-digest sha256:... --timestamp-key ABS --passphrase-file ABS --output-dir ABS --expect-live-package-digest D [--profile cncf-projects] [--expires UTC]")
 			return e
 		}
 		return knowledgePublishError()
@@ -535,6 +535,10 @@ func runRefreshTimestamp(args []string, stdout io.Writer) error {
 	o.Now = time.Now().UTC()
 	result, err := knowledgerelease.Refresh(o)
 	if err != nil {
+		if errors.Is(err, knowledgerelease.ErrGuard) {
+			// Guard text carries only role names, versions and RFC3339 times.
+			return &commandError{code: 2, message: "knowledge-publish: refresh refused: " + err.Error()}
+		}
 		return knowledgePublishError()
 	}
 	return printJSON(stdout, result)
@@ -591,7 +595,7 @@ func runDeployGuard(args []string, stdout io.Writer) error {
 	if err != nil {
 		return knowledgePublishError()
 	}
-	if err := knowledgerelease.CheckDeploy(l, c, predecessor); err != nil {
+	if err := knowledgerelease.CheckDeploy(l, c, predecessor, time.Now().UTC()); err != nil {
 		return &commandError{code: 2, message: "knowledge-publish: deploy refused: " + err.Error()}
 	}
 	return printJSON(stdout, map[string]any{"status": "OK", "liveTimestampVersion": l.TimestampVersion, "candidateTimestampVersion": c.TimestampVersion, "candidateRevision": c.Revision})

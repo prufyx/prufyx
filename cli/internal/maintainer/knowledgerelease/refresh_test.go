@@ -18,8 +18,13 @@ import (
 
 func refreshOpts(t *testing.T, base Options, live string, now time.Time) RefreshOptions {
 	t.Helper()
+	// The expected digest is mandatory: name the package that is about to be refreshed.
+	digest := "sha256:" + strings.Repeat("0", 64) // unverifiable live packages are refused whatever is named
+	if state, err := InspectLive(live, base.Root, base.RootDigest, ProfileCNCFProjects, ""); err == nil {
+		digest = state.PackageDigest
+	}
 	return RefreshOptions{
-		Profile: ProfileCNCFProjects, LivePackage: live, Root: base.Root, RootDigest: base.RootDigest,
+		Profile: ProfileCNCFProjects, LivePackage: live, ExpectLivePackageDigest: digest, Root: base.Root, RootDigest: base.RootDigest,
 		TimestampKey: base.TimestampKey, PassphraseFile: base.PassphraseFile,
 		OutputDir: filepath.Join(t.TempDir(), "refresh"), Now: now,
 	}
@@ -86,7 +91,7 @@ func TestRefreshExtendsOnlyTheTimestamp(t *testing.T) {
 	if !StateUnchanged(liveState, state) {
 		t.Fatal("a refresh must leave the state unchanged")
 	}
-	if err := CheckDeploy(liveState, state, liveState.PackageDigest); err != nil {
+	if err := CheckDeploy(liveState, state, liveState.PackageDigest, o2.Now); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -104,6 +109,7 @@ func TestRefreshRefusals(t *testing.T) {
 		"snapshot and targets expired":      func(o *RefreshOptions) { o.Now = first.Now.Add(22 * 24 * time.Hour) },
 		"less than a day for the others":    func(o *RefreshOptions) { o.Now = first.Now.Add(21*24*time.Hour - time.Hour) },
 		"live digest mismatch":              func(o *RefreshOptions) { o.ExpectLivePackageDigest = zero },
+		"empty expected live digest":        func(o *RefreshOptions) { o.ExpectLivePackageDigest = "" },
 		"wrong pinned root digest":          func(o *RefreshOptions) { o.RootDigest = zero },
 		"snapshot key instead of timestamp": func(o *RefreshOptions) { o.TimestampKey = first.SnapshotKey },
 		"targets key instead of timestamp":  func(o *RefreshOptions) { o.TimestampKey = first.TargetsKey },
@@ -112,7 +118,6 @@ func TestRefreshRefusals(t *testing.T) {
 	for name, mutate := range cases {
 		t.Run(name, func(t *testing.T) {
 			o := refreshOpts(t, first, live, now)
-			o.ExpectLivePackageDigest = ""
 			_ = fr
 			mutate(&o)
 			if _, err := Refresh(o); err == nil {
@@ -261,9 +266,19 @@ func TestStateAndDeployGuards(t *testing.T) {
 	if StateUnchanged(live, cand) {
 		t.Fatal("a content release changes the state")
 	}
-	if err := CheckDeploy(live, cand, live.PackageDigest); err != nil {
+	candExpiry, perr := parseUTC(cand.TimestampExpires)
+	if perr != nil {
+		t.Fatal(perr)
+	}
+	// The latest instant at which the candidate timestamp is still within Now+TimestampLifetime.
+	boundary := candExpiry.Add(-TimestampLifetime)
+	if err := CheckDeploy(live, cand, live.PackageDigest, boundary); err != nil {
 		t.Fatalf("content candidate over the live package: %v", err)
 	}
+	if err := CheckDeploy(live, cand, live.PackageDigest, boundary.Add(time.Hour)); err != nil {
+		t.Fatalf("candidate well inside the lifetime cap: %v", err)
+	}
+	checkDeployCap(t, live, cand)
 	refuse := map[string]func(l, c *LiveState, pred *string){
 		"predecessor mismatch":         func(l, c *LiveState, p *string) { *p = "sha256:" + strings.Repeat("1", 64) },
 		"empty predecessor":            func(l, c *LiveState, p *string) { *p = "" },
@@ -277,9 +292,61 @@ func TestStateAndDeployGuards(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			l, c, p := live, cand, live.PackageDigest
 			mutate(&l, &c, &p)
-			if err := CheckDeploy(l, c, p); err == nil {
+			if err := CheckDeploy(l, c, p, boundary); err == nil {
 				t.Fatal("expected refusal")
 			}
 		})
 	}
+}
+
+// checkDeployCap (run from TestStateAndDeployGuards, red first): a timestamp
+// signed outside refresh-timestamp must not outlive its roles or the lifetime cap.
+func checkDeployCap(t *testing.T, live, cand LiveState) {
+	exp, err := parseUTC(cand.TimestampExpires)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := exp.Add(-TimestampLifetime)
+	at := func(mutate func(c *LiveState), now time.Time) error {
+		c := cand
+		c.SnapshotExpires, c.TargetsExpires, c.EvidenceExpiresAt = utc(exp), utc(exp), utc(exp)
+		mutate(&c)
+		return CheckDeploy(live, c, live.PackageDigest, now)
+	}
+	none := func(*LiveState) {}
+	if err := at(none, now); err != nil {
+		t.Fatalf("equal to every cap must pass: %v", err)
+	}
+	for name, m := range map[string]func(*LiveState){
+		"snapshot":              func(c *LiveState) { c.SnapshotExpires = utc(exp.Add(-time.Second)) },
+		"targets":               func(c *LiveState) { c.TargetsExpires = utc(exp.Add(-time.Second)) },
+		"evidence":              func(c *LiveState) { c.EvidenceExpiresAt = utc(exp.Add(-time.Second)) },
+		"snapshot unparseable":  func(c *LiveState) { c.SnapshotExpires = "" },
+		"targets unparseable":   func(c *LiveState) { c.TargetsExpires = "x" },
+		"evidence unparseable":  func(c *LiveState) { c.EvidenceExpiresAt = "" },
+		"timestamp unparseable": func(c *LiveState) { c.TimestampExpires = "" },
+	} {
+		t.Run("refuses "+name, func(t *testing.T) {
+			err := at(m, now)
+			if err == nil || !errors.Is(err, ErrGuard) {
+				t.Fatalf("expected a guard refusal, got %v", err)
+			}
+		})
+	}
+	t.Run("refuses lifetime cap plus one second", func(t *testing.T) {
+		if err := at(none, now.Add(-time.Second)); err == nil || !errors.Is(err, ErrGuard) {
+			t.Fatalf("expected a guard refusal, got %v", err)
+		}
+	})
+	t.Run("refuses an already expired candidate", func(t *testing.T) {
+		if err := at(none, exp); err == nil || !errors.Is(err, ErrGuard) {
+			t.Fatalf("expected a guard refusal, got %v", err)
+		}
+	})
+	t.Run("refusal text carries only times", func(t *testing.T) {
+		err := at(func(c *LiveState) { c.SnapshotExpires = utc(exp.Add(-time.Second)) }, now)
+		if err == nil || strings.Contains(err.Error(), "/") || strings.Contains(strings.ToLower(err.Error()), "key") {
+			t.Fatalf("unexpected text %v", err)
+		}
+	})
 }
