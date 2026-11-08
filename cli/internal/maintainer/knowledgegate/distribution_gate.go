@@ -108,6 +108,7 @@ var ErrUncitedRead = errors.New("a deriver may read only the excerpts its record
 // that swallows the refusal still fails the record.
 type citedReader struct {
 	mu      sync.Mutex
+	closed  bool
 	allowed map[providerexcerpt.Cite]bool
 	read    providerexcerpt.Reader
 	reads   []providerexcerpt.Cite
@@ -131,7 +132,9 @@ func (c *citedReader) Read(revision, path string) ([]byte, error) {
 	ct := providerexcerpt.Cite{Revision: revision, Path: path}
 	c.mu.Lock()
 	c.reads = append(c.reads, ct)
-	ok := c.allowed[ct]
+	// After check() the reader is closed: a stashed Read called later (for
+	// example from a goroutine) is refused and recorded, never served.
+	ok := c.allowed[ct] && !c.closed
 	if !ok {
 		c.refused = append(c.refused, ct)
 	}
@@ -146,6 +149,11 @@ func (c *citedReader) Read(revision, path string) ([]byte, error) {
 func (c *citedReader) check() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.closed = true
+	if len(c.refused) > 0 {
+		ct := c.refused[0]
+		return fmt.Errorf("the deriver read %s at %s: %w", logSafe(ct.Path), logSafe(ct.Revision), ErrUncitedRead)
+	}
 	for _, ct := range c.reads {
 		if !c.allowed[ct] {
 			return fmt.Errorf("the deriver read %s at %s: %w", logSafe(ct.Path), logSafe(ct.Revision), ErrUncitedRead)
@@ -239,14 +247,27 @@ func distributionResidue(raw []byte) ([]byte, error) {
 		return nil, err
 	}
 	if !present {
-		return canonicalOf(map[string]any{"applicability": []any{}}), nil
+		return encodeResidue(map[string]any{"applicability": []any{}})
 	}
 	generic, err := decodeGeneric(section)
 	if err != nil {
 		return nil, err
 	}
 	delete(generic, "records")
-	return canonicalOf(generic), nil
+	return encodeResidue(generic)
+}
+
+// encodeResidue canonicalises a residue; an encoding failure is an error, never
+// a nil residue (two failed sides would compare equal).
+func encodeResidue(v any) ([]byte, error) {
+	raw, err := extract.Canonical(v)
+	if err != nil {
+		return nil, err
+	}
+	if len(raw) == 0 {
+		return nil, errors.New("the distributions residue encodes to nothing")
+	}
+	return raw, nil
 }
 
 // providerFields are the members of a distribution record the deriver owns.
@@ -283,7 +304,13 @@ func applicabilityUnchanged(base, head *loadedPack) error {
 	}
 	baseResidue := base.DistResidue
 	if !base.Present {
-		baseResidue = canonicalOf(map[string]any{"applicability": []any{}})
+		var err error
+		if baseResidue, err = encodeResidue(map[string]any{"applicability": []any{}}); err != nil {
+			return errors.Join(ErrApplicabilityChange, err)
+		}
+	}
+	if len(baseResidue) == 0 || len(head.DistResidue) == 0 {
+		return errors.Join(ErrApplicabilityChange, errors.New("a distributions residue could not be encoded: the statements cannot be compared"))
 	}
 	if !bytes.Equal(baseResidue, head.DistResidue) {
 		return errors.Join(ErrApplicabilityChange, errors.New("the record change adds, removes or changes an applicability statement: statements are never part of a provider change"))

@@ -996,3 +996,64 @@ func TestProviderRecordChangeRefusesApplicabilityStatements(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 }
+
+// Two residues that failed to encode are not "equal": the gate refuses.
+func TestApplicabilityUnchangedRefusesUnencodableResidues(t *testing.T) {
+	for name, tc := range map[string]struct{ base, head *loadedPack }{
+		"both nil":  {&loadedPack{Present: true}, &loadedPack{Present: true}},
+		"head nil":  {&loadedPack{Present: true, DistResidue: []byte(`{"applicability":[]}`)}, &loadedPack{Present: true}},
+		"base nil":  {&loadedPack{Present: true}, &loadedPack{Present: true, DistResidue: []byte(`{"applicability":[]}`)}},
+		"both zero": {&loadedPack{Present: true, DistResidue: []byte{}}, &loadedPack{Present: true, DistResidue: []byte{}}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := applicabilityUnchanged(tc.base, tc.head); !errors.Is(err, ErrApplicabilityChange) {
+				t.Fatalf("got %v", err)
+			}
+		})
+	}
+	if _, err := encodeResidue(map[string]any{"x": make(chan int)}); err == nil {
+		t.Fatal("a value that cannot be encoded must be an error, not a nil residue")
+	}
+}
+
+// A deriver that keeps Read and calls it after Derive returned gets a typed
+// refusal, and the call is recorded.
+func TestCitedReaderRefusesReadsAfterClose(t *testing.T) {
+	f := newProvFix(t, provCommit, provGoodPin)
+	cr, err := newCitedReader(f.source(""), f.store.Read)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cited := providerexcerpt.Dir + "/" + provExcerptPath
+	stash := cr.Read
+	if err := cr.check(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := stash(f.baseSHA, cited); !errors.Is(err, ErrUncitedRead) {
+		t.Fatalf("a cited read after close must be refused: %v", err)
+	}
+	if len(cr.refused) != 1 || cr.check() == nil {
+		t.Fatalf("refused %v", cr.refused)
+	}
+}
+
+func TestProviderDeriverStashedReadFailsAfterDerive(t *testing.T) {
+	managed := distribution.ControlPlaneManaged
+	cited := providerexcerpt.Dir + "/" + provExcerptPath
+	f := newProvFix(t, provCommit, provGoodPin)
+	inner := provDeriver(provIdentity)
+	var stash providerexcerpt.Reader
+	head := provPack(t, f.record(t, "eks", managed, nil, provDerivedAt, 30))
+	f.derivers = map[string]ProviderDeriver{provIdentity.ID: {Identity: provIdentity, Derive: func(in ProviderDeriveInput) (distribution.Record, error) {
+		stash = in.Read
+		return inner.Derive(in)
+	}}}
+	base := provPack(t)
+	_, admitted := provDecide(t, f, base, head, signDistributions(t, f.key, base, head))
+	if !admitted["cncf"] {
+		t.Fatal("not admitted")
+	}
+	if _, err := stash(f.baseSHA, cited); !errors.Is(err, ErrUncitedRead) {
+		t.Fatalf("a read after Derive returned must be refused: %v", err)
+	}
+}
