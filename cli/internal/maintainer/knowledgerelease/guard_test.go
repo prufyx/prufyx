@@ -101,7 +101,7 @@ func TestReleaseGuardsRefuseBeforeAnyKeyIsRead(t *testing.T) {
 		"expires in the past":              func(o *Options) { o.Expires = utc(o.Now.Add(-time.Hour)) },
 		"timestamp expires above 14 days":  func(o *Options) { o.TimestampExpires = utc(o.Now.Add(15 * 24 * time.Hour)) },
 		"same version as live":             func(o *Options) { o.Version = 1 },
-		"first release with a previous":    func(o *Options) { o.FirstRelease, o.PreviousIndex = true, "" },
+		"no live package with a previous":  func(o *Options) { o.NoLivePackage = true },
 	}
 	for name, mutate := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -168,5 +168,151 @@ func TestNonCIKeepsWorkingWithoutAttemptCounter(t *testing.T) {
 	o.RunAttempt = "1"
 	if _, err := Run(o); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// firstCI is the fully specified CI release of a deployment with no live
+// package at all: fresh layout and the explicit no-live-package declaration.
+func firstCI(t *testing.T, base Options) Options {
+	t.Helper()
+	o := base
+	o.FirstRelease, o.NoLivePackage = true, true
+	o.CI, o.RunAttempt = true, "1"
+	o.Expires = utc(base.Now.Add(18 * 24 * time.Hour))
+	o.OutputDir = filepath.Join(filepath.Dir(base.OutputDir), "out-first-ci")
+	d, err := ComputeDigests(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	o.ExpectContentDigest, o.ExpectIndexDigest = d.ContentDigest, d.IndexDigest
+	return o
+}
+
+// capabilityCI is the CI release after an engine capability change: fresh
+// index layout over a verified live package.
+func capabilityCI(t *testing.T, first Options, fr Result) Options {
+	t.Helper()
+	o := ciNext(t, first, fr)
+	o.FirstRelease, o.PreviousIndex = true, ""
+	d, err := ComputeDigests(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	o.ExpectContentDigest, o.ExpectIndexDigest = d.ContentDigest, d.IndexDigest
+	return o
+}
+
+func noKeys(o *Options) {
+	o.TargetsKey = filepath.Join(filepath.Dir(o.Root), "absent-1.pem")
+	o.SnapshotKey = filepath.Join(filepath.Dir(o.Root), "absent-2.pem")
+	o.TimestampKey = filepath.Join(filepath.Dir(o.Root), "absent-3.pem")
+}
+
+// The four daily modes, each with the exact option set the workflow passes.
+func TestCIModeFlagSetsAreAccepted(t *testing.T) {
+	first, fr := firstPackage(t)
+	modes := map[string]func() Options{
+		"first (no live package)": func() Options { return firstCI(t, first) },
+		"regular":                 func() Options { return ciNext(t, first, fr) },
+		"capability (fresh layout over a live package)":         func() Options { return capabilityCI(t, first, fr) },
+		"recovery (index and package of the recovered package)": func() Options { return ciNext(t, first, fr) },
+	}
+	for name, mk := range modes {
+		t.Run(name, func(t *testing.T) {
+			o := mk()
+			o.OutputDir = filepath.Join(filepath.Dir(first.OutputDir), "out-"+strings.Fields(name)[0])
+			r, err := Run(o)
+			if err != nil {
+				t.Fatal(err)
+			}
+			wantPrev := ""
+			if !o.NoLivePackage {
+				wantPrev = fr.PackageDigest
+			}
+			if r.PreviousPackageDigest != wantPrev {
+				t.Fatalf("previous package digest %q, want %q", r.PreviousPackageDigest, wantPrev)
+			}
+		})
+	}
+}
+
+func TestCIModeWrongFlagSetsAreRefused(t *testing.T) {
+	first, fr := firstPackage(t)
+	cases := map[string]func() Options{
+		"first layout without the no-live declaration": func() Options {
+			o := firstCI(t, first)
+			o.NoLivePackage = false
+			return o
+		},
+		"capability without a previous package": func() Options {
+			o := capabilityCI(t, first, fr)
+			o.PreviousPackage, o.ExpectPreviousPackageDigest = "", ""
+			return o
+		},
+		"capability without the previous digest": func() Options {
+			o := capabilityCI(t, first, fr)
+			o.ExpectPreviousPackageDigest = ""
+			return o
+		},
+		"no-live with a previous package": func() Options {
+			o := firstCI(t, first)
+			o.PreviousPackage = filepath.Join(first.OutputDir, "cncf-projects-91.tar")
+			o.ExpectPreviousPackageDigest = fr.PackageDigest
+			return o
+		},
+		"no-live with only a previous package path": func() Options {
+			o := firstCI(t, first)
+			o.PreviousPackage = filepath.Join(first.OutputDir, "cncf-projects-91.tar")
+			return o
+		},
+		"no-live with only a previous digest": func() Options {
+			o := firstCI(t, first)
+			o.ExpectPreviousPackageDigest = fr.PackageDigest
+			return o
+		},
+		"no-live over a previous package in the regular set": func() Options {
+			o := ciNext(t, first, fr)
+			o.NoLivePackage = true
+			return o
+		},
+		"no-live with a previous index layout": func() Options {
+			o := firstCI(t, first)
+			o.FirstRelease, o.Revision, o.Version = false, "92", 2
+			o.PreviousIndex = filepath.Join(first.OutputDir, "knowledge", "cncf", "index.v1.json")
+			return o
+		},
+		"no-live outside CI with a previous package": func() Options {
+			o := ciNext(t, first, fr)
+			o.NoLivePackage, o.CI, o.RunAttempt = true, false, ""
+			return o
+		},
+		"regular without a previous package": func() Options {
+			o := ciNext(t, first, fr)
+			o.PreviousPackage, o.ExpectPreviousPackageDigest = "", ""
+			return o
+		},
+		"capability that does not exceed the live version": func() Options {
+			o := capabilityCI(t, first, fr)
+			o.Version = 1
+			return o
+		},
+		"capability that does not exceed the live revision": func() Options {
+			o := capabilityCI(t, first, fr)
+			o.Revision = "91"
+			return o
+		},
+	}
+	for name, mk := range cases {
+		t.Run(name, func(t *testing.T) {
+			o := mk()
+			noKeys(&o)
+			_, err := Run(o)
+			if err == nil || !errors.Is(err, ErrGuard) {
+				t.Fatalf("want a pre-signing guard refusal, got %v", err)
+			}
+			if _, statErr := os.Stat(o.OutputDir); statErr == nil {
+				t.Fatal("output directory exists after a refusal")
+			}
+		})
 	}
 }

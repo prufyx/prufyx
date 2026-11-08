@@ -469,13 +469,14 @@ func runKnowledgeRelease(args []string, stdout io.Writer) error {
 	flags.StringVar(&o.ExpectIndexDigest, "expect-index-digest", "", "index digest of the reviewed packet; refuses on mismatch before and after signing")
 	flags.StringVar(&o.ExpectPreviousPackageDigest, "expect-previous-package-digest", "", "digest of the live package this release replaces")
 	flags.StringVar(&o.PreviousPackage, "previous-package", "", "absolute path of the live package (verified against the pinned root)")
+	flags.BoolVar(&o.NoLivePackage, "no-live-package", false, "no package is live at all (the very first publication); excludes --previous-package and --expect-previous-package-digest; the only way --ci may sign without a previous package")
 	flags.BoolVar(&o.CI, "ci", false, "CI mode: enforce the unattended release guards (never implied by environment variables)")
 	flags.StringVar(&o.Profile, "profile", "", "cncf (default, single bundle) or cncf-projects (index plus one target per project)")
 	flags.StringVar(&o.PreviousIndex, "previous-index", "", "cncf-projects: absolute path of the committed previously published index")
-	flags.BoolVar(&o.FirstRelease, "first-release", false, "cncf-projects: no index was published before (instead of --previous-index)")
+	flags.BoolVar(&o.FirstRelease, "first-release", false, "cncf-projects: start a fresh index layout (no index published yet, or an engine capability change); instead of --previous-index; says nothing about a live package")
 	if err := flags.Parse(args); err != nil {
 		if err == flag.ErrHelp {
-			if _, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer knowledge-publish release --revision N --version N --root ABS --root-digest sha256:... --targets-key ABS --snapshot-key ABS --timestamp-key ABS --passphrase-file ABS --package-url https://... --output-dir ABS [--expires UTC] [--timestamp-expires UTC] [--expect-content-digest D] [--expect-index-digest D] [--previous-package ABS --expect-previous-package-digest D] [--ci]"); e != nil {
+			if _, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer knowledge-publish release --revision N --version N --root ABS --root-digest sha256:... --targets-key ABS --snapshot-key ABS --timestamp-key ABS --passphrase-file ABS --package-url https://... --output-dir ABS [--expires UTC] [--timestamp-expires UTC] [--expect-content-digest D] [--expect-index-digest D] [--previous-package ABS --expect-previous-package-digest D | --no-live-package] [--ci]"); e != nil {
 				return e
 			}
 			_, e := fmt.Fprintln(stdout, "per-project layout: add --profile cncf-projects and exactly one of --previous-index ABS (the committed index of the last release) or --first-release; --package-url is then unused and no release plan is written.")
@@ -608,7 +609,7 @@ func runContentDigest(args []string, stdout io.Writer) error {
 	flags.StringVar(&o.Revision, "revision", "", "positive knowledge revision")
 	flags.StringVar(&o.Profile, "profile", "", "cncf (default) or cncf-projects")
 	flags.StringVar(&o.PreviousIndex, "previous-index", "", "cncf-projects: absolute path of the previously published index")
-	flags.BoolVar(&o.FirstRelease, "first-release", false, "cncf-projects: no index was published before")
+	flags.BoolVar(&o.FirstRelease, "first-release", false, "cncf-projects: start a fresh index layout")
 	if err := flags.Parse(args); err != nil || flags.NArg() != 0 {
 		return knowledgePublishError()
 	}

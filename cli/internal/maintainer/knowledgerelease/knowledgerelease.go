@@ -65,8 +65,11 @@ type Options struct {
 	// PreviousIndex is, for ProfileCNCFProjects, the last published index
 	// (a committed, generated file). Projects whose target bytes did not
 	// change keep their previous revision, and Revision must be greater than
-	// the previous index revision. FirstRelease stands in for it when no
-	// index was ever published; exactly one of the two is required.
+	// the previous index revision. FirstRelease stands in for it and starts a
+	// fresh index layout (no index was published, or an engine capability
+	// change made the old one unreadable); exactly one of the two is required.
+	// FirstRelease decides the index layout only: it says nothing about
+	// whether a live package exists (see NoLivePackage).
 	PreviousIndex string
 	FirstRelease  bool
 	// Revision is the positive knowledge revision; Version is the positive
@@ -99,7 +102,7 @@ type Options struct {
 	Now time.Time
 
 	// CI marks an unattended run, set only by the explicit --ci flag: Expires, the content and index expectations
-	// and (unless FirstRelease) the previous package expectation are required,
+	// and the previous package expectation (unless NoLivePackage) are required,
 	// and the run attempt must be exactly "1".
 	CI bool
 	// RunAttempt is the CI run attempt counter (GITHUB_RUN_ATTEMPT), supplied only under --ci. A value
@@ -114,6 +117,10 @@ type Options struct {
 	// digest must equal ExpectPreviousPackageDigest.
 	PreviousPackage             string
 	ExpectPreviousPackageDigest string
+	// NoLivePackage declares that no package is live at all (the very first
+	// publication). It is the only way CI mode may sign without a predecessor,
+	// and it excludes PreviousPackage and ExpectPreviousPackageDigest.
+	NoLivePackage bool
 }
 
 // Result describes the written release.
@@ -406,12 +413,15 @@ func (o Options) preflight(b built) (*LiveState, error) {
 		if o.ExpectContentDigest == "" || o.ExpectIndexDigest == "" {
 			return nil, guard("CI mode needs the expected content and index digests")
 		}
-		if !o.FirstRelease && (o.ExpectPreviousPackageDigest == "" || o.PreviousPackage == "") {
+		if !o.NoLivePackage && (o.ExpectPreviousPackageDigest == "" || o.PreviousPackage == "") {
 			return nil, guard("CI mode needs the previous package and its expected digest")
 		}
 	}
-	if o.FirstRelease && (o.ExpectPreviousPackageDigest != "" || o.PreviousPackage != "") {
-		return nil, guard("a first release has no previous package")
+	if o.NoLivePackage && (o.ExpectPreviousPackageDigest != "" || o.PreviousPackage != "") {
+		return nil, guard("no live package cannot be combined with a previous package")
+	}
+	if o.NoLivePackage && o.Profile == ProfileCNCFProjects && !o.FirstRelease {
+		return nil, guard("no live package means no published index: it needs the first-release layout")
 	}
 	if o.ExpectContentDigest != "" && o.ExpectContentDigest != b.digests.ContentDigest {
 		return nil, guard("content digest differs from the expected one")

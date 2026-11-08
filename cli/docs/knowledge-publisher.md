@@ -216,8 +216,10 @@ passes `--ci`, and a contract test on that workflow asserts it. All of these
 checks run before any key file is read; a refusal writes nothing.
 
 - `--expires` is required in CI mode. Also required: `--expect-content-digest`
-  and `--expect-index-digest` (from the reviewed packet) and, unless
-  `--first-release`, `--previous-package ABS` with `--expect-previous-package-digest`.
+  and `--expect-index-digest` (from the reviewed packet) and
+  `--previous-package ABS` with `--expect-previous-package-digest`, unless
+  `--no-live-package` says that no package is live at all. `--first-release`
+  does not waive the previous package: it only chooses the index layout.
 - The content digest is the sha256 of the sorted lines `<target path> <sha256 hex>\n`
   over every exported target (index or bundle plus project targets); the index
   digest is the index digest (per-project) or bundle digest. Both are keyless:
@@ -349,10 +351,29 @@ index cannot bump every project and move every rollback floor:
   that the previous index parses under the compiled engine capability and that
   the new revision is greater than the index revision; it does not verify that
   the file is the one last published, nor that no project revision was lowered.
-- `--first-release`: no index was ever published. Use it only then, or when the
+- `--first-release`: start a fresh index layout instead of reading
+  `--previous-index`. Use it when no index was ever published, or when the
   engine capability changed (an index of an older capability no longer parses
-  and every target changes anyway); the new revision must still be larger than
-  every revision published before.
+  and every target changes anyway). It says nothing about a live package; the
+  new revision must still be larger than every revision published before.
+- `--no-live-package`: no package is live at all, the very first publication.
+  It cannot be combined with `--previous-package` or
+  `--expect-previous-package-digest`, and the per-project layout needs
+  `--first-release` with it. It is the only way `--ci` signs without a
+  previous package. With a previous package the new TUF version and revision
+  must exceed the live ones.
+
+The four daily modes pass these layout and predecessor flags (on top of the
+`--ci` set above):
+
+| Mode | Index layout | Predecessor |
+|---|---|---|
+| first (nothing live) | `--first-release` | `--no-live-package` |
+| regular | `--previous-index ABS` (committed index) | `--previous-package ABS --expect-previous-package-digest D` |
+| capability change | `--first-release` | `--previous-package ABS --expect-previous-package-digest D` |
+| recovery (lost artifact) | `--previous-index ABS` (from the recovered package) | `--previous-package ABS --expect-previous-package-digest D` (the recovered package) |
+
+Any other combination is refused before a key is read.
 
 The output directory holds `root.json`, `<version>.targets.json`,
 `<version>.snapshot.json`, `timestamp.json`, `cncf-projects-<revision>.tar` and
@@ -574,7 +595,8 @@ token; step 1 holds only the read-only workflow token it always had):
    client (`GOTOOLCHAIN=local`, no network) and run the same `db verify` against
    the pinned root of this tree and the digest in the artifact name. Only if it
    exits `0` with `VERIFIED` does the run continue, in mode `capability`.
-3. The release uses `--first-release` with revision and TUF version one above
+3. The release uses `--first-release` (fresh index layout) together with
+   `--previous-package` and its digest, and with revision and TUF version one above
    the previous ones. Every project is released again at that revision, so the
    revision floors and TUF versions of existing clients keep advancing. The cron
    and the skip rule are unchanged; mode `capability` never skips.
