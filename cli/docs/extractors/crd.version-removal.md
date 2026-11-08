@@ -1,6 +1,6 @@
 # Extractor `crd.version-removal`
 
-Version 2.10.0. Derives `forbid_set_member` rules for custom-resource
+Version 2.11.0. Derives `forbid_set_member` rules for custom-resource
 versions that a project's release line no longer serves, from the
 CustomResourceDefinition manifests the project ships in its repository. It is
 deterministic, reads only upstream source pinned by full commit SHA, and
@@ -29,7 +29,8 @@ copies of the listed definitions, the flag `copies` that makes the scan check
 that claim, or, for the generated sources a kustomization renders into a
 listed bundle, the kustomization `prePatch` whose rendering the scan checks,
 or, for YAML or JSON data files that define no CRD, `"defines": "none"`, a
-claim the scan checks.
+claim the scan checks, or, for one vendored third-party bundle of other API
+groups, a `"foreign"` pin by content digest, which the scan holds the file to.
 
 An entry of a project outside the CNCF landscape catalog carries
 `"catalog": "community"` (an entry without the field is a CNCF catalog
@@ -460,6 +461,47 @@ Through the offline factory mirror (or a fixture tree), never the network.
     guarded (below), except against `//go:embed`. A definition encoded in a
     string (base64, compressed) that a program decodes is not read: that
     part of the claim rests on the reviewer's evidence.
+  - A reviewed exclusion with `"foreign": {"groups": [...], "sha256": [...]}`
+    (an entry for exactly one file) states that the file is a vendored
+    third-party bundle that defines only the listed other API groups, and pins
+    its bytes: at every release the entry must hold at, the file needs one of
+    the listed digests (`sha256:<hex>`, one per distinct content; any changed
+    byte is another digest). The scan checks, at every release and on the
+    pinned bytes only: the digest is one of the pin; the file is a regular file
+    of at most 1 MiB without template syntax, strictly decodable (the decoder
+    of `"defines": "none"`: no duplicate key, anchor, alias, merge key or
+    second value in a document); the release defines at least one API group,
+    none of them is a declared group, and none appears anywhere in the file in
+    any letter case; every document is a mapping with a `kind`; a
+    `CustomResourceDefinition` is `apiextensions.k8s.io/v1` of a declared group
+    and named `<plural>.<group>`; any other document is no other
+    `apiextensions.k8s.io` object, no `Kustomization` or `Component`, no
+    kustomization or chart by its fields, and holds no mapping of the kind with
+    a `spec` and no manifest of the kind in a string. A file that fails a check
+    makes the entry void at that release (the finding names the check), whether
+    or not anything refers to it. When the checks hold, one kind of reference
+    stops being a void: a kustomization that names exactly the pinned file as
+    an item of `resources` and is itself a plain list (one document, exactly
+    `apiVersion` `kustomize.config.k8s.io/v1beta1`, `kind: Kustomization` and
+    `resources` of local strings, nothing else: no patch, replacement,
+    generator, transformer, component, name, namespace or label change), and
+    only when every kustomization that reaches it is a plain list too. Every
+    other referrer (a chart, Makefile, document, script, container build, nix
+    file, `//go:embed`, any other kustomization) still voids the entry. The
+    loader refuses the member together with `copies`, `prePatch` or `defines`,
+    on a directory or a pattern (no `*?[` or backslash anywhere in the path),
+    on an extension other than lower-case `.yaml`, `.yml` or `.json`, on a
+    kustomization, `Chart.yaml`, `requirements.yaml` or `values.yaml` name,
+    without groups or digests, with more than 16 of either, with groups or
+    digests that are not well formed (a group is a lower-case name with a dot;
+    a digest is `sha256:` and 64 lower-case hex digits; a git blob id is not
+    accepted), unsorted or repeated, with an unknown member, and under the same
+    placement conditions as `"defines": "none"`. The entry may not lie under an
+    install directory. A change of the member is a changed exclusion for the
+    target guard. A sync controller that applies the directory with patches of
+    its own (the patches live in a custom resource of that controller, not in a
+    kustomization) is outside what the scan reads: that part of the claim rests
+    on the reviewer's evidence.
 
   **Reviewed exclusions carry evidence and are guarded.** Every entry of the
   table names its repository, the path (a directory prefix ending in `/`, one

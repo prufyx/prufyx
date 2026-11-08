@@ -731,3 +731,61 @@ func TestDefinesNoneIsNarrowing(t *testing.T) {
 		t.Fatalf("changed %d exclusions, Diff lists %d", n, got)
 	}
 }
+
+// Adding, removing or changing the pin of a vendored bundle on an existing
+// entry is a changed exclusion, listed as narrowing: the pin relaxes the
+// install-surface guard for that file.
+func TestForeignPinIsNarrowing(t *testing.T) {
+	pin := func(sha string) *crdversions.ForeignBundle {
+		return &crdversions.ForeignBundle{Groups: []string{"a.example.net"}, SHA256: []string{"sha256:" + strings.Repeat(sha, 64)}}
+	}
+	for name, tc := range map[string]struct{ base, head *crdversions.ForeignBundle }{
+		"added":           {nil, pin("1")},
+		"removed":         {pin("1"), nil},
+		"another digest":  {pin("1"), pin("2")},
+		"another group":   {pin("1"), &crdversions.ForeignBundle{Groups: []string{"b.example.net"}, SHA256: pin("1").SHA256}},
+		"an added digest": {pin("1"), &crdversions.ForeignBundle{Groups: pin("1").Groups, SHA256: []string{pin("1").SHA256[0], "sha256:" + strings.Repeat("2", 64)}}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			base := mustLoad(t, realTree(t), false)
+			head := mustLoad(t, realTree(t), false)
+			done := false
+			for i := range head.Targets {
+				if len(head.Targets[i].Exclude) == 0 || done {
+					continue
+				}
+				base.Targets[i].Exclude = append([]crdversions.Exclusion(nil), base.Targets[i].Exclude...)
+				head.Targets[i].Exclude = append([]crdversions.Exclusion(nil), head.Targets[i].Exclude...)
+				base.Targets[i].Exclude[0].Foreign = tc.base
+				head.Targets[i].Exclude[0].Foreign = tc.head
+				done = true
+			}
+			if !done {
+				t.Fatal("no exclusion in the data: the case is void")
+			}
+			got := 0
+			for _, r := range Diff(base, head) {
+				if r.Kind == KindNarrowed && strings.HasPrefix(r.Detail, "excludeChanged:") {
+					got++
+				}
+			}
+			if got != 1 {
+				t.Fatalf("Diff lists %d changed exclusions", got)
+			}
+		})
+	}
+	// The same pin on both sides is no change.
+	base := mustLoad(t, realTree(t), false)
+	head := mustLoad(t, realTree(t), false)
+	for _, tg := range []*crdversions.Target{&base.Targets[0], &head.Targets[0]} {
+		if len(tg.Exclude) > 0 {
+			tg.Exclude = append([]crdversions.Exclusion(nil), tg.Exclude...)
+			tg.Exclude[0].Foreign = pin("1")
+		}
+	}
+	for _, r := range Diff(base, head) {
+		if strings.HasPrefix(r.Detail, "excludeChanged:") {
+			t.Fatalf("the same pin is a change: %+v", r)
+		}
+	}
+}

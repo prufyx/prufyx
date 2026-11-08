@@ -596,7 +596,7 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 	}
 	// The install-surface guard: a reviewed exclusion that something
 	// installing refers to does not hold at this tag.
-	voids, voided, err := x.guard(ctx, r, repo, commit, blobs, commits)
+	voids, voided, err := x.guard(ctx, r, repo, commit, blobs, commits, inv)
 	if err != nil {
 		return nil, err
 	}

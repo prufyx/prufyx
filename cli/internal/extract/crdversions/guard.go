@@ -48,6 +48,15 @@ import (
 //     checked file by file at every tag, and a program that embeds such a
 //     file installs nothing from it.
 //
+// An entry that pins a vendored third-party bundle by content digest
+// (Exclusion.Foreign) is checked first: when the pinned file's bytes fail any
+// check of foreignBundleProblem at this tag, the entry is void. When they
+// hold, one kind of reference is not a void: a kustomization that is a plain
+// resources list (plainKustomization), and every kustomization that reaches
+// it is one too, naming exactly the pinned file. Every other referrer (a
+// document, script or Makefile that names the file, a kustomization with
+// anything else in it, a chart) still voids the entry.
+//
 // A reference voids the exclusion for that tag: the files under it are
 // classified like the files of a default-excluded directory (location
 // "void: <entry>"; Go sources are read too), and a finding of class
@@ -179,6 +188,9 @@ type surfaceInfo struct {
 	embeds []string
 	// unread says why the file cannot be checked ("" when it was).
 	unread string
+	// plain: the bytes are a kustomization that only lists local files
+	// under resources (see plainKustomization).
+	plain bool
 }
 
 func isSepRune(r rune) bool {
@@ -433,6 +445,7 @@ func summarizeSurface(kind int, data []byte) *surfaceInfo {
 	switch kind {
 	case surfRefs:
 		info.tokens, info.unread = refTokens(data)
+		info.plain = plainKustomization(data)
 	case surfMake:
 		info.lines, info.unread = makeLines(data)
 	case surfDoc, surfShell:
@@ -705,7 +718,7 @@ func refKind(p string) string {
 // finding for each exclusion that has files at the tag and is referenced,
 // and the set of those exclusions (by entry path). blobs are all the files
 // of the tree, commits its submodules.
-func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extract.RepoRef, commit string, blobs []extract.TreeEntry, commits []string) ([]Finding, map[string]bool, error) {
+func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extract.RepoRef, commit string, blobs []extract.TreeEntry, commits []string, inv *Inventory) ([]Finding, map[string]bool, error) {
 	var excl []Exclusion
 	for _, e := range x.target.Exclude {
 		if !e.checked() {
@@ -780,6 +793,23 @@ func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extr
 		if d := kodataDir(base); d != "" {
 			record(e, hit{kind: "the excluded path lies under a ko kodata directory", by: d})
 		}
+	}
+
+	// Pinned foreign bundles: the bytes at this tag must hold the pin.
+	pinned := map[string]bool{}
+	for _, e := range live {
+		if e.Foreign == nil {
+			continue
+		}
+		why, err := x.pinnedProblem(r, repo, commit, e, blobs, inv)
+		if err != nil {
+			return nil, nil, err
+		}
+		if why == "" {
+			pinned[e.Path] = true
+			continue
+		}
+		record(e, hit{kind: "the pinned foreign bundle fails its check (" + why + ")"})
 	}
 
 	// What to read.
@@ -922,6 +952,14 @@ func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extr
 		}
 	}
 	refNames := []string{"kustomization.yaml", "kustomization.yml", "Kustomization", "Chart.yaml", "requirements.yaml"}
+	// parents are the surface files that reach a kustomization or chart;
+	// relax are the references to a pinned file that are not yet a void.
+	parents := map[string][]string{}
+	type relaxed struct {
+		e       Exclusion
+		by, ref string
+	}
+	var relax []relaxed
 	for len(queue) > 0 {
 		p := queue[0]
 		queue = queue[1:]
@@ -935,9 +973,14 @@ func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extr
 				continue
 			}
 			for _, e := range live {
-				if hitsPath(e, ref) {
-					record(e, hit{kind: refKind(p), by: p, ref: ref})
+				if !hitsPath(e, ref) {
+					continue
 				}
+				if e.Foreign != nil && pinned[e.Path] && ref == e.Path {
+					relax = append(relax, relaxed{e, p, ref})
+					continue
+				}
+				record(e, hit{kind: refKind(p), by: p, ref: ref})
 			}
 			var next []string
 			if _, ok := refInfo[ref]; ok {
@@ -949,11 +992,20 @@ func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extr
 				}
 			}
 			for _, n := range next {
+				parents[n] = append(parents[n], p)
 				if !seen[n] {
 					seen[n] = true
 					queue = append(queue, n)
 				}
 			}
+		}
+	}
+	// A reference to a pinned file stops being a void only when the
+	// kustomization that lists it, and every file that reaches it, is a
+	// plain resources list.
+	for _, rl := range relax {
+		if !plainChain(rl.by, refInfo, parents) {
+			record(rl.e, hit{kind: refKind(rl.by), by: rl.by, ref: rl.ref})
 		}
 	}
 
@@ -1049,6 +1101,49 @@ func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extr
 		findings = append(findings, Finding{Path: h.by, Class: ClassVoided, Location: e.Path, Detail: h.detail(e)})
 	}
 	return findings, voided, nil
+}
+
+// plainChain reports whether the surface file p and every file that reaches
+// it (parents, transitively) is a kustomization that is a plain resources
+// list. A file that is not (a chart, a kustomization with a patch or any
+// other field) breaks the chain.
+func plainChain(p string, info map[string]*surfaceInfo, parents map[string][]string) bool {
+	seen := map[string]bool{}
+	stack := []string{p}
+	for len(stack) > 0 {
+		q := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if seen[q] {
+			continue
+		}
+		seen[q] = true
+		if i := info[q]; i == nil || !i.plain || !isKustomizationName(path.Base(q)) {
+			return false
+		}
+		stack = append(stack, parents[q]...)
+	}
+	return true
+}
+
+// pinnedProblem reads the file of a pinned foreign bundle at a tag and
+// checks it ("" when it holds). A path that is not a regular file of the
+// tree is a problem; a reader error aborts.
+func (x *Extractor) pinnedProblem(r extract.PinnedReader, repo extract.RepoRef, commit string, e Exclusion, blobs []extract.TreeEntry, inv *Inventory) (string, error) {
+	var found *extract.TreeEntry
+	for i := range blobs {
+		if blobs[i].Path == e.Path {
+			found = &blobs[i]
+			break
+		}
+	}
+	if found == nil || found.Type != "blob" || (found.Mode != "100644" && found.Mode != "100755") {
+		return "the pinned path is not a regular file", nil
+	}
+	data, err := r.Read(repo, commit, e.Path)
+	if err != nil {
+		return "", fmt.Errorf("guard reading %s at %s: %w", e.Path, commit, err)
+	}
+	return foreignBundleProblem(e.Foreign, data, targetGroups(inv)), nil
 }
 
 // voidPrefix starts the location of a file under a void reviewed exclusion.
