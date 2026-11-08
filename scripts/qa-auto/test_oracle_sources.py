@@ -402,5 +402,24 @@ class RemoteServedTests(unittest.TestCase):
                 self.assertEqual(oracle.validate_target(dict(base, remote=bad))[1], "")
 
 
+@unittest.skipUnless(os.environ.get("QA_GOLDEN_JSONL"), "needs QA_GOLDEN_JSONL, QA_GOLDEN_REL and QA_GOLDEN_REMOTE (bare clones, network to fetch them)")
+class RemoteGoldenTests(unittest.TestCase):
+    """Rows the extractor's remote reader yields per release (one JSON object per line: tag, rows "G|V|K|served") must
+    equal the rows the oracle derives from the same two clones; a release either side refuses fails the test."""
+
+    def test_oracle_rows_equal_the_extractor_reader(self):
+        tj = json.loads(Path(oracle.TD, "target-kong-ingress-controller.json").read_text())["target"]
+        rel, rem = os.environ["QA_GOLDEN_REL"], os.environ["QA_GOLDEN_REMOTE"]
+        n = 0
+        for line in Path(os.environ["QA_GOLDEN_JSONL"]).read_text().splitlines():
+            g = json.loads(line)
+            with self.subTest(tag=g["tag"]):
+                self.assertNotIn("err", g)
+                rows = oracle.crd_rows(tj, rel, g["tag"], g["tag"], rem)
+                self.assertEqual(sorted("%s|%s|%s|%s" % (r["G"], r["V"], r["K"], str(r["Served"]).lower()) for r in rows), sorted(g["rows"]))
+                n += 1
+        self.assertGreater(n, 0)
+
+
 if __name__ == "__main__":
     unittest.main()
