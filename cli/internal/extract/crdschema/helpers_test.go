@@ -115,7 +115,7 @@ func loadTestdata() ([]testCase, error) {
 	}
 	var out []testCase
 	for _, e := range entries {
-		if !e.IsDir() {
+		if !e.IsDir() || e.Name() == "pilot" { // pilot has its own test
 			continue
 		}
 		c := testCase{name: e.Name(), from: map[string][]byte{}, to: map[string][]byte{}}
