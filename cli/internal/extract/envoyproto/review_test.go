@@ -184,8 +184,8 @@ func TestPathologicalInputs(t *testing.T) {
 		"deep braces statement": "option x = " + deep + ";\n",
 		"deep brackets option":  "message M { string a = 1 [x = " + strings.Repeat("[", 100000) + "]; }\n",
 		"deep parens":           "message M { string a = 1 [" + strings.Repeat("(", 100000) + "]; }\n",
-		"escaped quotes":        "message M { string a = 1 [json_name = \"a\\\"b [deprecated = true]\"]; }\n",
-		"single quotes":         "message M { string a = 1 [json_name = 'a\\'b [deprecated = true]']; }\n",
+		"escaped quotes":        "message M { string a = 1 [(x.y) = \"a\\\"b [deprecated = true]\"]; }\n",
+		"single quotes":         "message M { string a = 1 [(x.y) = 'a\\'b [deprecated = true]']; }\n",
 		"non-ascii string":      "message M { string a = 1 [json_name = \"é中 [deprecated = true]\"]; }\n// é deprecated = true\n",
 		"non-ascii outside":     "message é {}\n",
 		"many commas":           "message M { reserved " + strings.Repeat("1,", 100000) + "1; }\n",
@@ -193,7 +193,7 @@ func TestPathologicalInputs(t *testing.T) {
 	}
 	for name, body := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := mustScan(t, one(body))
+			r := mustScan(t, one(hdr+body))
 			for _, c := range r.Candidates {
 				if c.Status != StatusDraft {
 					t.Fatal("mechanical from a single scan")

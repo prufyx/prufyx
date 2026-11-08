@@ -95,6 +95,15 @@ func removalProven(older, newer Result, c Candidate) bool {
 	if _, still := nm.fields[fieldName]; still {
 		return false
 	}
+	// The newer message must not still accept the removed field's JSON path.
+	gone := jsonNames(of)
+	for _, nf := range nm.fields {
+		for n := range jsonNames(nf) {
+			if gone[n] {
+				return false
+			}
+		}
+	}
 	if _, used := nm.fieldNumber[of.number]; used {
 		return false
 	}
@@ -107,4 +116,38 @@ func removalProven(older, newer Result, c Candidate) bool {
 		}
 	}
 	return false
+}
+
+// jsonNames are the names a field is accepted under by the protobuf JSON
+// mapping: the proto name and the json_name (explicit, else lowerCamel of the
+// name).
+func jsonNames(f *fieldInfo) map[string]bool {
+	out := map[string]bool{f.name: true}
+	if f.jsonName != "" {
+		out[f.jsonName] = true
+	} else {
+		out[lowerCamel(f.name)] = true
+	}
+	return out
+}
+
+// lowerCamel is protoc's default json_name: underscores are dropped and the
+// letter after each is upper-cased.
+func lowerCamel(name string) string {
+	b := make([]byte, 0, len(name))
+	up := false
+	for i := 0; i < len(name); i++ {
+		c := name[i]
+		switch {
+		case c == '_':
+			up = true
+		case up && c >= 'a' && c <= 'z':
+			b = append(b, c-'a'+'A')
+			up = false
+		default:
+			b = append(b, c)
+			up = false
+		}
+	}
+	return string(b)
 }

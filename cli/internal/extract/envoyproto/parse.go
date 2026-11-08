@@ -22,6 +22,7 @@ type fieldInfo struct {
 	disallowed bool
 	hidden     bool
 	file       string
+	jsonName   string // explicit json_name option, "" when absent
 }
 
 type valueInfo struct {
@@ -66,6 +67,7 @@ const (
 	faultSyntax = iota
 	faultLimit
 	faultOption
+	faultPackage
 )
 
 type parseFault struct {
@@ -233,6 +235,9 @@ func (p *parser) parseFile() error {
 			return p.fail("unknown top-level statement")
 		}
 	}
+	if p.pkg == "" {
+		return p.failKind(faultPackage, "no package statement")
+	}
 	p.out.pkg = p.pkg
 	return nil
 }
@@ -299,6 +304,7 @@ func (p *parser) optionPair(term func(token) bool) (name, value []token, err err
 // optionEffect interprets one option. It returns what the option says about
 // deprecation; anything it does not recognise has no effect.
 type optionEffect struct {
+	jsonName   string
 	deprecated bool
 	atMinor    string
 	disallowed bool
@@ -325,6 +331,11 @@ func (p *parser) interpret(name, value []token, enumValue bool) (optionEffect, e
 		return false, false
 	}
 	switch {
+	case len(name) == 1 && name[0].kind == tIdent && name[0].text == "json_name":
+		if len(value) != 1 || value[0].kind != tString || value[0].text == "" || strings.ContainsRune(value[0].text, '\\') {
+			return eff, p.failKind(faultOption, "json_name is not a plain string literal")
+		}
+		eff.jsonName = value[0].text
 	case len(name) == 1 && name[0].kind == tIdent && name[0].text == "deprecated":
 		b, ok := isBool()
 		if !ok {
@@ -364,7 +375,7 @@ func (p *parser) parseNumber() (int64, error) {
 	if !ok || t.kind != tNumber {
 		return 0, p.fail("expected a number")
 	}
-	v, err := strconv.ParseInt(t.text, 0, 64)
+	v, err := parseProtoInt(t.text)
 	if err != nil || v > maxFieldNumber {
 		return 0, p.fail("number out of range")
 	}
@@ -398,6 +409,9 @@ func (p *parser) bracketOptions(enumValue bool) (optionEffect, error) {
 			total.atMinor = eff.atMinor
 		}
 		total.disallowed = total.disallowed || eff.disallowed
+		if eff.jsonName != "" {
+			total.jsonName = eff.jsonName
+		}
 		sep := p.lx.toks[p.pos].text
 		p.pos++
 		if sep == "]" {
@@ -632,7 +646,7 @@ func (p *parser) parseField(s *symbol) error {
 		return p.fail("duplicate field number")
 	}
 	s.fields[name] = &fieldInfo{name: name, number: num, deprecated: eff.deprecated, atMinor: eff.atMinor,
-		disallowed: eff.disallowed, hidden: s.hidden || p.hiddenAt(start.line), file: s.file}
+		disallowed: eff.disallowed, hidden: s.hidden || p.hiddenAt(start.line), file: s.file, jsonName: eff.jsonName}
 	s.fieldNumber[num] = name
 	return nil
 }
@@ -733,4 +747,14 @@ func parseProto(file string, src []byte, maxNest, maxItems int) (*parsed, error)
 		return nil, err
 	}
 	return p.out, nil
+}
+
+// parseProtoInt reads an integer literal the way protoc does: decimal, 0x hex
+// or leading-zero octal. Go's 0b and 0o prefixes and digit separators are not
+// proto syntax and are refused.
+func parseProtoInt(text string) (int64, error) {
+	if strings.ContainsRune(text, '_') || len(text) > 1 && text[0] == '0' && strings.ContainsRune("bBoO", rune(text[1])) {
+		return 0, strconv.ErrSyntax
+	}
+	return strconv.ParseInt(text, 0, 64)
 }

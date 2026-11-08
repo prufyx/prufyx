@@ -38,9 +38,23 @@
 // membercode.ConfigKey over one property segment per dotted name part. The
 // shared encoder has no form specific to protobuf symbols; ConfigKey is the
 // existing dotted form and refuses reserved or illegal segments, which then
-// go to the ledger. A distinct protobuf member form in membercode is REQUIRED
-// before this output is wired anywhere (needs-audit): a config key and a proto
-// symbol must not share one encoding. Until then the output stays inert.
+// go to the ledger.
+//
+// Wiring blockers. This output must not be wired into the registry, the
+// knowledge data or the factory until all of these are done:
+//   - a distinct protobuf member form in membercode (a config key and a proto
+//     symbol must not share one encoding; needs-audit);
+//   - a bump of ResultSchema to v2 together with that member form;
+//   - a consumer that binds older and newer to two release tags, ordered by
+//     the semver order of extract.TagSource, because Compare trusts the caller
+//     for the order of its arguments.
+//
+// JSON names. Envoy loads configuration through the protobuf JSON mapping,
+// which accepts both the proto name and the json_name of a field. Compare
+// therefore refuses MECHANICAL when any field of the newer message (hidden or
+// not) still accepts a JSON name the removed field accepted: its own name or
+// json_name, or the lowerCamel form of its name. A file without a package
+// statement is withheld (ENVOY_PACKAGE).
 //
 // Not read: deprecated_at_minor_version written as a bare option name (it is
 // only valid as the parenthesised extension), runtime_features.cc, and enum
@@ -230,6 +244,8 @@ func scan(r extract.PinnedReader, repo extract.RepoRef, commit string, lim limit
 				case faultLimit:
 					fault(ReasonLimit, f)
 					limited = true
+				case faultPackage:
+					fault(ReasonPackage, f)
 				case faultOption:
 					fault(ReasonOptionValue, fmt.Sprintf("%s:%d", f, pf.line))
 				default:
