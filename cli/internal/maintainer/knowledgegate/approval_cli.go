@@ -25,10 +25,11 @@ const approvalUsage = `usage: prufyx-maintainer approval <sign|verify|public-key
               --keys FILE --keys-digest sha256:... --identity LOGIN --candidate-id ID
               (--key FILE | --key-stdin) --output FILE [--subject rule]
   sign        --rules-file FILE --pack cncf|community --base-pack FILE --head-pack FILE
-              --keys FILE --keys-digest sha256:... --identity LOGIN --candidate-id ID
+              --keys FILE --keys-digest sha256:... --identity LOGIN --candidate-id ID --key-id sha256:...
               (--key FILE | --key-stdin) --output-dir DIR (many NEW or loosened rules, one record each;
-              confirm once: on the terminal, or --expect-count N --expect-list-digest sha256:...)
+              confirm once: type the line printed by --dry-run, or --expect-count N --expect-list-digest sha256:...)
   sign        --dry-run --rules-file FILE --pack ... --base-pack FILE --head-pack FILE
+              --identity LOGIN --candidate-id ID --key-id sha256:...
               (prints the list and its digest; reads no key, writes nothing)
   sign        --subject lineAttestation --record ID (in place of --rule ID; the other options as above)
   sign        --subject pathPolicy --record ID (a NEW reviewed path policy; the other options as for lineAttestation)

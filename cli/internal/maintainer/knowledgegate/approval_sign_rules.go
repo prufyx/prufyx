@@ -5,7 +5,6 @@ package knowledgegate
 import (
 	"bytes"
 	"crypto/ed25519"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -62,12 +61,15 @@ func ParseRulesFile(raw []byte) ([]string, error) {
 	return ids, nil
 }
 
-// RulesListDigest is the digest of the exact list of subjects: for every
-// rule, sorted by id, its pack, id, base digest and candidate digest.
-func RulesListDigest(subjects []ApprovalSubject) string {
+// RulesListDigest is the digest of the exact signing: the identity, the
+// candidate id and the key id the records will carry, and for every rule,
+// sorted by id, its pack, id, base digest and candidate digest. Changing any
+// of them changes the digest the owner confirmed.
+func RulesListDigest(subjects []ApprovalSubject, identity, candidateID, keyID string) string {
 	var b bytes.Buffer
+	fmt.Fprintf(&b, "prufyx rules approval list v1\nidentity\t%q\ncandidate\t%q\nkey\t%q\n", identity, candidateID, keyID)
 	for _, s := range subjects {
-		fmt.Fprintf(&b, "rule\t%s\t%s\t%s\t%s\n", s.Pack, s.RuleID, s.BaseDigest(), CandidateDigest(s.Candidate))
+		fmt.Fprintf(&b, "rule\t%q\t%q\t%s\t%s\n", s.Pack, s.RuleID, s.BaseDigest(), CandidateDigest(s.Candidate))
 	}
 	sum := sha256.Sum256(b.Bytes())
 	return "sha256:" + hex.EncodeToString(sum[:])
@@ -87,7 +89,8 @@ func RuleApprovalSubjects(spec PackSpec, basePack, headPack []byte, ids []string
 	return out, nil
 }
 
-func printRulesList(w io.Writer, subjects []ApprovalSubject, digest string) {
+func printRulesList(w io.Writer, subjects []ApprovalSubject, identity, candidateID, keyID, digest string) {
+	fmt.Fprintf(w, "identity: %s\ncandidate id: %s\nkey id: %s\n", logSafe(identity), logSafe(candidateID), logSafe(keyID))
 	fmt.Fprintf(w, "rules to approve: %d\n", len(subjects))
 	for _, s := range subjects {
 		fmt.Fprintf(w, "  %s/%s  base %s  candidate %s\n", s.Pack, s.RuleID, rulesShortDigest(s.BaseDigest()), rulesShortDigest(CandidateDigest(s.Candidate)))
@@ -121,7 +124,7 @@ func SignApprovals(subjects []ApprovalSubject, o SignApprovalOptions) ([][]byte,
 
 func cmdApprovalSignRules(args []string, env approvalEnv, layout Layout, stdout io.Writer) (int, error) {
 	var pack, basePack, headPack, keysPath, keysDigest, rulesFile, outDir string
-	var identity, candidateID, expectDigest string
+	var identity, candidateID, keyID, expectDigest string
 	var expectCount int
 	var dryRun bool
 	var k keyFlags
@@ -137,22 +140,26 @@ func cmdApprovalSignRules(args []string, env approvalEnv, layout Layout, stdout 
 	f.StringVar(&outDir, "output-dir", "", "the approvals directory of the pack (cli/knowledge/approvals/<pack>)")
 	f.StringVar(&identity, "identity", "", "the owner's login, as pinned in the key file")
 	f.StringVar(&candidateID, "candidate-id", "", "a reference for the change, for example its pull request")
+	f.StringVar(&keyID, "key-id", "", "the key id of the owner's signing key (from approval public-key); the key read must match it")
 	f.BoolVar(&dryRun, "dry-run", false, "print the list and its digest; read no key, write nothing")
 	f.IntVar(&expectCount, "expect-count", -1, "the number of rules the owner reviewed (with --expect-list-digest)")
 	f.StringVar(&expectDigest, "expect-list-digest", "", "the list digest the owner reviewed (with --expect-count)")
 	if err := parseApprovalFlags(f, args); err != nil {
 		return 2, err
 	}
-	if pack == "" || basePack == "" || headPack == "" || rulesFile == "" {
-		return 2, usageError{"--pack, --base-pack, --head-pack and --rules-file are required"}
+	if pack == "" || basePack == "" || headPack == "" || rulesFile == "" || identity == "" || candidateID == "" || keyID == "" {
+		return 2, usageError{"--pack, --base-pack, --head-pack, --rules-file, --identity, --candidate-id and --key-id are required"}
+	}
+	if !approvalTokenRE.MatchString(identity) || !approvalTokenRE.MatchString(candidateID) || !approvalDigestRE.MatchString(keyID) {
+		return 2, usageError{"--identity, --candidate-id or --key-id is not a valid value"}
 	}
 	if dryRun {
-		if k.file != "" || k.stdin || expectCount != -1 || expectDigest != "" || outDir != "" {
-			return 2, usageError{"--dry-run reads no key and writes nothing: it takes none of --key, --key-stdin, --output-dir, --expect-count and --expect-list-digest"}
+		if k.file != "" || k.stdin || expectCount != -1 || expectDigest != "" || outDir != "" || keysPath != "" || keysDigest != "" {
+			return 2, usageError{"--dry-run reads no key and writes nothing: it takes none of --key, --key-stdin, --keys, --keys-digest, --output-dir, --expect-count and --expect-list-digest"}
 		}
 	} else {
-		if keysPath == "" || keysDigest == "" || identity == "" || candidateID == "" || outDir == "" {
-			return 2, usageError{"--keys, --keys-digest, --identity, --candidate-id and --output-dir are required"}
+		if keysPath == "" || keysDigest == "" || outDir == "" {
+			return 2, usageError{"--keys, --keys-digest and --output-dir are required"}
 		}
 		if (expectCount == -1) != (expectDigest == "") {
 			return 2, usageError{"give both --expect-count and --expect-list-digest, or neither (the owner then confirms on the terminal)"}
@@ -193,15 +200,29 @@ func cmdApprovalSignRules(args []string, env approvalEnv, layout Layout, stdout 
 	if err != nil {
 		return 2, err
 	}
-	digest := RulesListDigest(subjects)
-	printRulesList(stdout, subjects, digest)
+	digest := RulesListDigest(subjects, identity, candidateID, keyID)
+	printRulesList(stdout, subjects, identity, candidateID, keyID, digest)
+	typed := fmt.Sprintf("sign %d %s", len(subjects), strings.TrimPrefix(digest, "sha256:"))
 	if dryRun {
+		fmt.Fprintf(stdout, "terminal confirmation: %s\n", typed)
 		fmt.Fprintln(stdout, "dry run: no key was read, nothing was written")
 		return 0, nil
 	}
 	keys, err := loadKeysFile(keysPath, keysDigest)
 	if err != nil {
 		return 2, err
+	}
+	var pinnedKey *ApprovalKey
+	for i := range keys.Keys {
+		if keys.Keys[i].KeyID == keyID {
+			pinnedKey = &keys.Keys[i]
+		}
+	}
+	if pinnedKey == nil {
+		return 2, fmt.Errorf("--key-id %s is not pinned in the approval key file", logSafe(keyID))
+	}
+	if !pinnedKey.ownerTier() {
+		return 2, errBotTierKey("--key-id "+keyID, *pinnedKey)
 	}
 	paths := make([]string, len(subjects))
 	for i, s := range subjects {
@@ -218,12 +239,11 @@ func cmdApprovalSignRules(args []string, env approvalEnv, layout Layout, stdout 
 			return 2, errors.New("--expect-list-digest does not match the list digest above; nothing was signed")
 		}
 	} else {
-		want := fmt.Sprintf("sign %d %s", len(subjects), rulesShortDigest(digest))
-		line, err := env.confirm(fmt.Sprintf("Type %q to sign these %d approvals: ", want, len(subjects)))
+		line, err := env.confirm(fmt.Sprintf("Identity %s, candidate %s, key %s.\nType %q to sign these %d approvals: ", identity, candidateID, keyID, typed, len(subjects)))
 		if err != nil {
 			return 2, err
 		}
-		if line != want {
+		if line != typed {
 			return 2, errors.New("the confirmation does not match; nothing was signed")
 		}
 	}
@@ -231,7 +251,10 @@ func cmdApprovalSignRules(args []string, env approvalEnv, layout Layout, stdout 
 	if err != nil {
 		return 2, err
 	}
-	keyID := ApprovalKeyID(key.Public().(ed25519.PublicKey))
+	if got := ApprovalKeyID(key.Public().(ed25519.PublicKey)); got != keyID {
+		wipe(key)
+		return 2, fmt.Errorf("the key read has key id %s, which does not match --key-id; nothing was signed", got)
+	}
 	raws, recs, err := SignApprovals(subjects, SignApprovalOptions{CandidateID: candidateID, Identity: identity, Keys: keys, Key: key, Now: env.now()})
 	wipe(key)
 	if err != nil {
@@ -253,51 +276,5 @@ func cmdApprovalSignRules(args []string, env approvalEnv, layout Layout, stdout 
 	return 0, nil
 }
 
-// writeApprovalFiles writes <ids[i]>.json with raws[i] into dir, all or
-// none. Every file is first written (no-follow, exclusive) to a staging
-// directory beside dir; the staging directory is renamed to dir when dir
-// does not exist, else each file is hard-linked in (which never replaces a
-// file) and the links are removed again when one fails. The staging
-// directory is removed in every case.
-func writeApprovalFiles(dir string, ids []string, raws [][]byte) error {
-	if len(ids) != len(raws) || len(ids) == 0 {
-		return errors.New("no approvals to write")
-	}
-	dir = filepath.Clean(dir)
-	parent := filepath.Dir(dir)
-	var nonce [8]byte
-	if _, err := rand.Read(nonce[:]); err != nil {
-		return err
-	}
-	stage := filepath.Join(parent, ".approval-stage-"+hex.EncodeToString(nonce[:]))
-	defer func() { _ = os.RemoveAll(stage) }()
-	for i, id := range ids {
-		if err := writeApprovalFile(filepath.Join(stage, id+".json"), raws[i]); err != nil {
-			return err
-		}
-	}
-	info, err := os.Lstat(dir)
-	switch {
-	case os.IsNotExist(err):
-		if err := os.Rename(stage, dir); err != nil {
-			return fmt.Errorf("cannot create %s: %w", logSafe(dir), err)
-		}
-		return nil
-	case err != nil:
-		return err
-	case !info.IsDir():
-		return fmt.Errorf("%s is not a directory", logSafe(dir))
-	}
-	var linked []string
-	for _, id := range ids {
-		final := filepath.Join(dir, id+".json")
-		if err := os.Link(filepath.Join(stage, id+".json"), final); err != nil {
-			for _, p := range linked {
-				_ = os.Remove(p)
-			}
-			return fmt.Errorf("cannot create %s: %w; no approval was written", logSafe(final), err)
-		}
-		linked = append(linked, final)
-	}
-	return nil
-}
+// afterApprovalLink is a test seam, called after each file is linked in.
+var afterApprovalLink = func(string) {}
