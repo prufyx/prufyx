@@ -80,10 +80,15 @@ def publication_runner():
             if mode == "plan-foreign-input":
                 provenance["inputDigest"] = "different-input"
             if no_removals:
-                stage.update(verdict="SCOPE_COMPLETE_PASS", findings=[])
+                stage.update(verdict="UNKNOWN", findings=[], hopStatus="COVERED",
+                             reasons=["HOP_ACTIONS_NOT_CHECKED", "NODE_ROLLS_NOT_PLANNED"])
             if mode == "retained-unknown":
                 # an UNKNOWN stage is only acceptable when every gap is a declared scope limit; this one is not
                 stage.update(verdict="UNKNOWN", gaps=[dict(reason="missing evidence")])
+            if mode == "retained-unknown-no-data":
+                # a knowledge hole on a no-removal hop: no gaps, but the hop itself is not covered
+                stage.update(verdict="UNKNOWN", hopStatus="NO_DATA",
+                             reasons=["HOP_NOT_COVERED", "HOP_ACTIONS_NOT_CHECKED", "NODE_ROLLS_NOT_PLANNED"])
             if mode == "retained-unknown-scope-limit":
                 stage.update(verdict="UNKNOWN", gaps=[dict(reason="LINE_NOT_ATTESTED")])
             if mode == "plan-gap":
@@ -158,7 +163,7 @@ class PublicationCorrectionTests(unittest.TestCase):
                                ("plan-no-finding", 3), ("plan-wrong-rule", 3), ("plan-wrong-object", 3),
                                ("plan-omitted", 3), ("plan-foreign-input", 3), ("plan-gap", 3),
                                ("plan-empty-stages", 3), ("plan-line-endpoint", 0),
-                               ("retained-clean", 0), ("retained-unknown", 3), ("retained-unknown-scope-limit", 0), ("retained-empty-input", 3)):
+                               ("retained-clean", 0), ("retained-unknown", 3), ("retained-unknown-no-data", 3), ("retained-unknown-scope-limit", 0), ("retained-empty-input", 3)):
             with self.subTest(mode=mode), tempfile.TemporaryDirectory() as td:
                 root = Path(td)
                 runner = root / "runner"
