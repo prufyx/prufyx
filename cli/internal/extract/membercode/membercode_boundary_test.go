@@ -18,7 +18,7 @@ func wantNameByte(c byte) bool {
 // each range edge and its neighbours.
 func TestNameByteEveryValue(t *testing.T) {
 	edges := map[byte]bool{
-		'0' - 1: false /* '/' */, '0': true, '9': true, '9' + 1: false,
+		'0' - 1: false, '0': true, '9': true, '9' + 1: false,
 		'A' - 1: false, 'A': true, 'Z': true, 'Z' + 1: false,
 		'a' - 1: false, 'a': true, 'z': true, 'z' + 1: false,
 		'.': true, '_': true, '-': true,
@@ -58,7 +58,6 @@ func TestNameByteThroughEncoders(t *testing.T) {
 			"config": func() (string, error) { return ConfigKey(p(name)) },
 		}
 		for label, f := range encoders {
-			c := c
 			got, err := f()
 			if c == '.' && label == "config" {
 				if !errors.Is(err, ErrAmbiguous) {
@@ -111,7 +110,7 @@ func TestSeparatorInNameIsAmbiguous(t *testing.T) {
 // TestExactLengthLimit: a member of exactly MaxSetMemberBytes is accepted, one
 // more byte is ErrTooLong, for every encoder.
 func TestExactLengthLimit(t *testing.T) {
-	max := constraintengine.MaxSetMemberBytes
+	limit := constraintengine.MaxSetMemberBytes
 	// pad returns a name so that prefix+name has the wanted total length.
 	pad := func(total, prefix int) string { return strings.Repeat("a", total-prefix) }
 	cases := []struct {
@@ -127,23 +126,23 @@ func TestExactLengthLimit(t *testing.T) {
 		}},
 	}
 	for _, tc := range cases {
-		got, err := tc.enc(max)
-		if err != nil || len(got) != max {
-			t.Errorf("%s at %d: got (len %d, %v)", tc.name, max, len(got), err)
+		got, err := tc.enc(limit)
+		if err != nil || len(got) != limit {
+			t.Errorf("%s at %d: got (len %d, %v)", tc.name, limit, len(got), err)
 		}
-		got, err = tc.enc(max - 1)
-		if err != nil || len(got) != max-1 {
-			t.Errorf("%s at %d: got (len %d, %v)", tc.name, max-1, len(got), err)
+		got, err = tc.enc(limit - 1)
+		if err != nil || len(got) != limit-1 {
+			t.Errorf("%s at %d: got (len %d, %v)", tc.name, limit-1, len(got), err)
 		}
-		if got, err = tc.enc(max + 1); !errors.Is(err, ErrTooLong) || got != "" {
-			t.Errorf("%s at %d: got (%q, %v), want ErrTooLong", tc.name, max+1, got, err)
+		if got, err = tc.enc(limit + 1); !errors.Is(err, ErrTooLong) || got != "" {
+			t.Errorf("%s at %d: got (%q, %v), want ErrTooLong", tc.name, limit+1, got, err)
 		}
 	}
 }
 
 func TestDecodeAtLimit(t *testing.T) {
-	max := constraintengine.MaxSetMemberBytes
-	m, err := Field("g.io", "K", p(strings.Repeat("a", max-len("g.io/K/"))))
+	limit := constraintengine.MaxSetMemberBytes
+	m, err := Field("g.io", "K", p(strings.Repeat("a", limit-len("g.io/K/"))))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,5 +151,53 @@ func TestDecodeAtLimit(t *testing.T) {
 	}
 	if _, _, _, ok := DecodeField(m + "a"); ok {
 		t.Error("DecodeField accepts a member over the limit")
+	}
+}
+
+// TestLeadingByte: the first byte of a member must be [A-Za-z0-9]. A leading
+// '.', '_' or '-' passes the name check and is refused by the member pattern;
+// a leading '/' or the config separator is ambiguous.
+func TestLeadingByte(t *testing.T) {
+	cases := []struct {
+		lead string
+		want error
+		cfg  error
+	}{
+		{".", ErrCharset, ErrAmbiguous},
+		{"_", ErrCharset, ErrCharset},
+		{"-", ErrCharset, ErrCharset},
+		{"/", ErrAmbiguous, ErrAmbiguous},
+		{"a", nil, nil},
+		{"Z", nil, nil},
+		{"0", nil, nil},
+	}
+	for _, tc := range cases {
+		name := tc.lead + "a"
+		later := tc.want
+		if tc.lead != "/" {
+			later = nil
+		}
+		encoders := map[string]struct {
+			f    func() (string, error)
+			want error
+		}{
+			"flag":   {func() (string, error) { return Flag(name) }, tc.want},
+			"config": {func() (string, error) { return ConfigKey(p(name)) }, tc.cfg},
+			// only the member's first byte (the group's) is constrained:
+			// a later segment may start with '.', '_' or '-'.
+			"field": {func() (string, error) { return Field("g.io", "K", p(name)) }, later},
+			"enum":  {func() (string, error) { return Enum("g.io", "K", p("m"), name) }, later},
+			"group": {func() (string, error) { return Field(name, "K", p("m")) }, tc.want},
+		}
+		for label, e := range encoders {
+			got, err := e.f()
+			if !errors.Is(err, e.want) || (e.want == nil) != (got != "") {
+				t.Errorf("%s %q: got (%q, %v), want %v", label, name, got, err, e.want)
+			}
+		}
+	}
+	// a leading dash or dot on a later segment is fine
+	if _, err := Field("g.io", "K", p("a", "-b", "_c", ".d")); err != nil {
+		t.Errorf("later segments: %v", err)
 	}
 }
