@@ -1,0 +1,3 @@
+### Changed
+
+- Nine CRD extractor targets now enable line attestation: burrito (5 attestable pairs), chaosblade-operator (5), furiko (3), github-actions-runner-operator (5), k8s-cleaner (5), kmesh (2), kubemod (5), movetokube-postgres-operator (4, 2.0 through 2.4) and ollama-operator (5). The pair counts come from a dry run of the derive loop with attestation on: every scan was clean, nothing was withheld, and all hops are previous-minor. The change only turns the switch on; attested pairs appear only after the factory re-derives them and the resulting data change passes the QA gate and data review.

@@ -8,6 +8,7 @@
     "factProject": "kmesh",
     "tagPrefixes": ["v"],
     "minFrom": "1.0",
+    "attest": true,
     "paths": [
       {"path": "deploy/yaml/crd", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
     ],

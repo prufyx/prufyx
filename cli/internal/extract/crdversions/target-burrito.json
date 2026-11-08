@@ -9,6 +9,7 @@
     "factProject": "burrito",
     "tagPrefixes": ["v"],
     "minFrom": "0.10",
+    "attest": true,
     "paths": [
       {"path": "manifests/crds/config.terraform.padok.cloud_terraformlayers.yaml"},
       {"path": "manifests/crds/config.terraform.padok.cloud_terraformpullrequests.yaml"},
