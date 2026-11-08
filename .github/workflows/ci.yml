@@ -514,7 +514,7 @@ jobs:
         # binary is pinned by version and verified against a hard-coded digest.
         run: |
           set -euo pipefail
-          curl -sSLO "https://github.com/dominikh/go-tools/releases/download/${STATICCHECK_VERSION}/staticcheck_linux_amd64.tar.gz"
+          curl --fail --silent --show-error --location --retry 5 --retry-all-errors --retry-delay 15 --connect-timeout 20 --max-time 180 -o staticcheck_linux_amd64.tar.gz "https://github.com/dominikh/go-tools/releases/download/${STATICCHECK_VERSION}/staticcheck_linux_amd64.tar.gz"
           echo "${STATICCHECK_SHA256}  staticcheck_linux_amd64.tar.gz" | sha256sum -c -
           tar -xzf staticcheck_linux_amd64.tar.gz staticcheck/staticcheck
           install -m 0755 staticcheck/staticcheck /usr/local/bin/staticcheck
@@ -581,7 +581,8 @@ jobs:
       - name: Install gitleaks
         run: |
           set -euo pipefail
-          curl -sSLO "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          # --fail: an HTTP error page is an error, never a file. The digest is still verified before extraction.
+          curl --fail --silent --show-error --location --retry 5 --retry-all-errors --retry-delay 15 --connect-timeout 20 --max-time 180 -o "gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
           echo "${GITLEAKS_SHA256}  gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | sha256sum -c -
           tar -xzf "gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" gitleaks
           install -m 0755 gitleaks /usr/local/bin/gitleaks
