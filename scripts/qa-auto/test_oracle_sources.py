@@ -188,3 +188,54 @@ class RealGitProbeTests(unittest.TestCase):
             self.assertTrue(oracle.path_absent(td + "/.git", "v1", "nope/sub"))
             with self.assertRaises(ValueError):
                 oracle.path_absent(td + "/.git", "nosuchtag", "crds")
+
+
+class ScanVersionTests(unittest.TestCase):
+    def commits(self, table):
+        def fake(gd, tag):
+            if tag not in table:
+                raise ValueError("no such tag")
+            return table[tag]
+        return patch.object(oracle, "tag_commit", fake)
+
+    def test_padded_minor_with_same_commit_is_canonical(self):
+        with self.commits({"v25.08.0": "a" * 40, "v25.8.0": "a" * 40}):
+            self.assertEqual(oracle.scan_version("gd", "v", "25.08.0"), "25.8.0")
+
+    def test_unpadded_version_unchanged(self):
+        self.assertEqual(oracle.scan_version("gd", "v", "25.10.4"), "25.10.4")
+        self.assertEqual(oracle.scan_version("gd", "v", "25.8.0"), "25.8.0")
+
+    def test_moved_tag_fails_closed(self):
+        with self.commits({"v25.08.0": "a" * 40, "v25.8.0": "b" * 40}):
+            self.assertEqual(oracle.scan_version("gd", "v", "25.08.0"), "25.08.0")
+
+    def test_missing_canonical_tag_fails_closed(self):
+        with self.commits({"v25.08.0": "a" * 40}):
+            self.assertEqual(oracle.scan_version("gd", "v", "25.08.0"), "25.08.0")
+
+    def test_no_repo_fails_closed(self):
+        self.assertEqual(oracle.scan_version(None, "v", "25.08.0"), "25.08.0")
+
+    def test_other_leading_zeros_and_low_majors_fail_closed(self):
+        same = {f"v{x}": "a" * 40 for x in ("1.02.3", "1.2.3", "19.09.0", "19.9.0", "25.00.0", "25.0.0", "25.08.01", "25.8.1",
+                                           "100.02.0", "100.2.0", "25.008.0", "25.8.0")}
+        with self.commits(same):
+            for v in ("1.02.3", "19.09.0", "25.00.0", "25.08.01", "100.02.0", "25.008.0"):
+                self.assertEqual(oracle.scan_version("gd", "v", v), v)
+
+
+class ScanVersionGitTests(unittest.TestCase):
+    def test_real_repo(self):
+        with tempfile.TemporaryDirectory() as td:
+            def git(*a):
+                subprocess.run(["git", "-C", td, "-c", "user.name=t", "-c", "user.email=t@example.com", *a], check=True, capture_output=True)
+            git("init", "-q")
+            git("commit", "-q", "--allow-empty", "-m", "a")
+            git("tag", "v25.08.0"); git("tag", "v25.8.0")
+            git("commit", "-q", "--allow-empty", "-m", "b")
+            git("tag", "v25.09.0"); git("tag", "v25.9.0")
+            git("commit", "-q", "--allow-empty", "-m", "c")
+            git("tag", "-f", "v25.9.0")
+            self.assertEqual(oracle.scan_version(td + "/.git", "v", "25.08.0"), "25.8.0")
+            self.assertEqual(oracle.scan_version(td + "/.git", "v", "25.09.0"), "25.09.0")
