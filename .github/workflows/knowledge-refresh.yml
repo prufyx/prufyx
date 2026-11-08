@@ -155,10 +155,10 @@ jobs:
           fail() { echo "::error::$*"; exit 1; }
           newest_artifact() { # workflow file, name regex -> artifact name of the newest successful run that has one
             local runs id name
-            runs="$(gh api -X GET "repos/${GH_REPO}/actions/workflows/$1/runs" -f branch=main -f status=success -f per_page=30 --jq '.workflow_runs[].id')"
+            runs="$(gh api --paginate -X GET "repos/${GH_REPO}/actions/workflows/$1/runs" -f branch=main -f status=success -f per_page=100 --jq '.workflow_runs[].id')"
             for id in ${runs}; do
-              name="$(gh api -X GET "repos/${GH_REPO}/actions/runs/${id}/artifacts" \
-                --jq "[.artifacts[] | select(.expired == false) | select(.name | test(\"$2\"))] | (first // empty) | .name")"
+              name="$(gh api --paginate -X GET "repos/${GH_REPO}/actions/runs/${id}/artifacts" -f per_page=100 \
+                --jq ".artifacts[] | select(.expired == false) | select(.name | test(\"$2\")) | .name" | sed -n 1p)"
               if [ -n "${name}" ]; then echo "${name}"; return 0; fi
             done
             return 0

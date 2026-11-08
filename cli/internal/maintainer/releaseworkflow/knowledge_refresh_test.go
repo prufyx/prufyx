@@ -298,3 +298,163 @@ func itoa(n int64) string {
 	b, _ := json.Marshal(n)
 	return string(b)
 }
+
+// extractShellFunc returns the shell function `name` from the workflow text:
+// from its opening line to the first line that is just its closing brace at
+// the same indent.
+func extractShellFunc(t *testing.T, raw, name string) string {
+	t.Helper()
+	lines := strings.Split(raw, "\n")
+	for i, l := range lines {
+		if !strings.HasSuffix(l, name+"() {") && !strings.Contains(l, name+"() { #") {
+			continue
+		}
+		indent := l[:len(l)-len(strings.TrimLeft(l, " "))]
+		for j := i + 1; j < len(lines); j++ {
+			if lines[j] == indent+"}" {
+				return strings.TrimSpace(strings.Join(lines[i:j+1], "\n"))
+			}
+		}
+	}
+	t.Fatalf("function %s not found in the workflow", name)
+	return ""
+}
+
+const fakeGH = `#!/usr/bin/env bash
+# Fake gh api: serves FAKE_DIR/runs.json (newest first) and FAKE_DIR/artifacts-<id>.json
+# in pages of per_page (default 30). Without --paginate only page 1 is returned.
+set -euo pipefail
+paginate=false; per=30; jqx=; path=
+while [ $# -gt 0 ]; do
+  case "$1" in
+    api) ;;
+    --paginate) paginate=true ;;
+    -X) shift ;;
+    -f) shift; case "$1" in per_page=*) per="${1#per_page=}" ;; esac ;;
+    --jq) shift; jqx="$1" ;;
+    *) path="$1" ;;
+  esac
+  shift
+done
+if [[ "$path" == */runs ]]; then key=workflow_runs; src="$FAKE_DIR/runs.json"
+elif [[ "$path" =~ /actions/runs/([0-9]+)/artifacts$ ]]; then key=artifacts; src="$FAKE_DIR/artifacts-${BASH_REMATCH[1]}.json"
+else echo "unexpected path $path" >&2; exit 2; fi
+n="$(jq length "$src")"
+pages=1; [ "$paginate" = true ] && pages=$(( (n + per - 1) / per ))
+for ((p = 0; p < pages; p++)); do
+  jq -r --argjson s $((p * per)) --argjson e $(((p + 1) * per)) "{${key}: .[\$s:\$e]} | ${jqx}" "$src"
+done
+`
+
+// The refresh decision must find the newest successful content run that still
+// has a live artifact even when more than one API page of content-free
+// successful runs (the daily plan-only runs) sits in front of it, and must
+// find an artifact that is not on the first page of a run's artifact list.
+func TestKnowledgeRefreshNewestArtifactPaginates(t *testing.T) {
+	for _, tool := range []string{"bash", "jq", "sed"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Skip(tool + " not available")
+		}
+	}
+	_, raw := loadRefreshWorkflow(t)
+	fn := extractShellFunc(t, raw, "newest_artifact")
+	hex := strings.Repeat("c", 64)
+	want := "knowledge-77-" + hex
+	const re = `^knowledge-[0-9]+-[0-9a-f]{64}$`
+
+	writeJSON := func(dir, name string, v any) {
+		b, _ := json.Marshal(v)
+		if err := os.WriteFile(filepath.Join(dir, name), b, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	type art struct {
+		Name    string `json:"name"`
+		Expired bool   `json:"expired"`
+	}
+	type run struct {
+		ID int `json:"id"`
+	}
+	setup := func(t *testing.T, empty, tail int, arts []art) (string, string) {
+		dir := t.TempDir()
+		var runs []run
+		for i := 0; i < empty; i++ { // newest first: content-free runs
+			id := 1000 - i
+			runs = append(runs, run{id})
+			writeJSON(dir, "artifacts-"+itoa(int64(id))+".json", []art{{"plan-only-" + itoa(int64(id)), false}})
+		}
+		runs = append(runs, run{500}) // the newest content run
+		writeJSON(dir, "artifacts-500.json", arts)
+		for i := 0; i < tail; i++ { // older content run with a different artifact
+			id := 400 - i
+			runs = append(runs, run{id})
+			writeJSON(dir, "artifacts-"+itoa(int64(id))+".json", []art{{"knowledge-1-" + hex, false}})
+		}
+		writeJSON(dir, "runs.json", runs)
+		bin := filepath.Join(dir, "bin")
+		if err := os.Mkdir(bin, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(bin, "gh"), []byte(fakeGH), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		return dir, bin
+	}
+	call := func(t *testing.T, dir, bin string) string {
+		script := "set -euo pipefail\nGH_REPO=o/r\n" + fn + "\nnewest_artifact knowledge-publish.yml '" + re + "'\n"
+		cmd := exec.Command("bash", "-c", script)
+		cmd.Env = []string{"PATH=" + bin + ":" + os.Getenv("PATH"), "FAKE_DIR=" + dir}
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("%v: %s", err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+
+	t.Run("more than 30 content-free runs before the newest content run", func(t *testing.T) {
+		dir, bin := setup(t, 65, 3, []art{{want, false}})
+		if got := call(t, dir, bin); got != want {
+			t.Fatalf("got %q, want %q (run listing not paginated?)", got, want)
+		}
+	})
+	t.Run("artifact beyond the first page of a run's artifacts", func(t *testing.T) {
+		var arts []art
+		for i := 0; i < 40; i++ {
+			arts = append(arts, art{"other-" + itoa(int64(i)), false})
+		}
+		arts = append(arts, art{want, false})
+		dir, bin := setup(t, 0, 0, arts)
+		if got := call(t, dir, bin); got != want {
+			t.Fatalf("got %q, want %q (artifact listing not paginated?)", got, want)
+		}
+	})
+	t.Run("expired artifact is skipped and the next run's live one is used", func(t *testing.T) {
+		dir, bin := setup(t, 35, 2, []art{{want, true}})
+		if got, w := call(t, dir, bin), "knowledge-1-"+hex; got != w {
+			t.Fatalf("got %q, want %q", got, w)
+		}
+	})
+	t.Run("no live artifact anywhere yields nothing", func(t *testing.T) {
+		dir, bin := setup(t, 65, 0, []art{{want, true}})
+		if got := call(t, dir, bin); got != "" {
+			t.Fatalf("got %q, want empty", got)
+		}
+	})
+}
+
+// Every run and artifact listing in the refresh workflow must paginate; an
+// unpaginated list silently truncates at one page.
+func TestKnowledgeRefreshListingsPaginate(t *testing.T) {
+	_, raw := loadRefreshWorkflow(t)
+	fn := extractShellFunc(t, raw, "newest_artifact")
+	if n := strings.Count(fn, "gh api --paginate -X GET"); n != 2 {
+		t.Errorf("newest_artifact has %d paginated gh api calls, want 2 (runs and artifacts)", n)
+	}
+	if strings.Contains(fn, "per_page=30") || strings.Count(fn, "gh api ") != 2 {
+		t.Error("newest_artifact must not use an unpaginated or 30-item listing")
+	}
+	// The pending-run listing is not paginated but is guarded by total_count.
+	if !strings.Contains(raw, `-le 100 ] || fail "more than 100 ${status} runs`) {
+		t.Error("the pending-run listing must fail closed beyond one page")
+	}
+}
