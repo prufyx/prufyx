@@ -82,7 +82,7 @@ class OracleBoxTests(unittest.TestCase):
         self.src = src
         self.inst = self.root / "installed"
         self.inst.mkdir()
-        for name in ("run.sh", "select_projects.py", "summarize.py", "qa_scope.py", "qa_batch_scope.py", "crdgvk.go"):
+        for name in ("run.sh", "select_projects.py", "summarize.py", "qalib.py", "qa_scope.py", "qa_batch_scope.py", "crdgvk.go"):
             shutil.copy2(HERE / name, self.inst / name)
         for name in ("crd_oracle.py", "k8s_oracle.py", "bp325.py", "review_cases.py", "rules_oracle.py"):
             (self.inst / name).write_text(COMPANION)
