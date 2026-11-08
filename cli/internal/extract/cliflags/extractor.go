@@ -259,7 +259,7 @@ func (x *Extractor) candidate(p extract.VersionPair, res *PairResult) (extract.C
 	}
 	return extract.Candidate{
 		Project: x.slug,
-		Description: fmt.Sprintf("%s %s registers none of the %d command line flag(s) listed, which %s registered: the binaries of the pinned tree at each tag were read from source and no registration, string literal or alias of the name was found at %s. Shorthand spellings, environment variable forms and flags registered inside libraries the module does not vendor are not checked.",
+		Description: fmt.Sprintf("%s %s registers none of the %d command line flag(s) listed, which %s registered: the binaries of the pinned tree at each tag were read from source and no registration, string literal or alias of the name was found at %s. A flag that was renamed is reported as the removal of the old spelling only: the replacement spelling, if any, is not named, and a human must confirm what replaces it. Shorthand spellings, environment variable forms and flags registered inside libraries the module does not vendor are not checked.",
 			x.slug, p.To, len(res.Removed), p.From, p.To),
 		RequiredFacts: []extract.Fact{{
 			Side: "proposed", ID: x.FactID(), Component: x.component, Type: string(constraintengine.FactSet),
@@ -272,7 +272,7 @@ func (x *Extractor) candidate(p extract.VersionPair, res *PairResult) (extract.C
 			SetCondition: &extract.SetCondition{Side: "proposed", Component: x.component, FactID: x.FactID(),
 				Members: append([]string(nil), res.Removed...)},
 			ReasonCode: ReasonCode,
-			NextAction: fmt.Sprintf("remove each listed flag from the %s arguments before upgrading to %s; the binary no longer registers it", x.slug, p.To),
+			NextAction: fmt.Sprintf("remove each listed %s flag before upgrading to %s; a rename shows as removal of the old name only, the new name is not given: a human must confirm it", x.slug, p.To),
 		},
 		Sources: []extract.SourceRef{
 			{ID: "from-go-mod", Repo: p.Repo, Commit: p.FromCommit, Path: "go.mod"},

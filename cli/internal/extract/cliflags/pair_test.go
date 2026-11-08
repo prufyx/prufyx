@@ -786,3 +786,58 @@ func TestPairSourceNoteStatesGoModIsAPin(t *testing.T) {
 		t.Fatalf("note %q", n)
 	}
 }
+
+// pflagProg registers each name with pflag; mark is a statement template
+// applied to the name (for example MarkHidden).
+func pflagProg(mark string, names ...string) string {
+	var b strings.Builder
+	b.WriteString("package main\n\nimport \"github.com/spf13/pflag\"\n\nfunc main() {\n")
+	for _, n := range names {
+		fmt.Fprintf(&b, "\tpflag.String(%q, \"\", \"u\")\n", n)
+		if mark != "" {
+			fmt.Fprintf(&b, "\t"+mark+"\n", n)
+		}
+	}
+	b.WriteString("\tpflag.Parse()\n}\n")
+	return b.String()
+}
+
+var bundledPflag = map[string]string{
+	"go.mod":             goMod + "\nrequire github.com/spf13/pflag v1.0.5\n",
+	"vendor/modules.txt": "# github.com/spf13/pflag v1.0.5\n## explicit\ngithub.com/spf13/pflag\n",
+}
+
+// A hidden or deprecated flag is still accepted, so one that disappears from
+// the newer tree is an ordinary removal candidate (the flag stays a set
+// member; see Flag.Hidden and Flag.Deprecated).
+func TestPairHiddenOrDeprecatedOlderFlagIsAnOrdinaryRemoval(t *testing.T) {
+	for name, mark := range map[string]string{
+		"hidden":     "pflag.CommandLine.MarkHidden(%q)",
+		"deprecated": "pflag.CommandLine.MarkDeprecated(%q, \"use other\")",
+	} {
+		t.Run(name, func(t *testing.T) {
+			out, pr := runPair(t, newTestExtractor(t, testSlug, testComponent),
+				tree(pflagProg(mark, "gone"), bundledPflag), tree(pflagProg("", "keep"), bundledPflag))
+			if len(out.Entries) != 1 || !reflect.DeepEqual(out.Entries[0].Rule.SetCondition.Members, []string{"gone"}) {
+				t.Fatalf("rules %+v ledger %v", out.Entries, codes(pr.Ledger))
+			}
+			if len(pr.Ledger) != 0 {
+				t.Fatalf("ledger %v", codes(pr.Ledger))
+			}
+		})
+	}
+}
+
+// A flag the newer tree keeps, even as hidden or deprecated, is not removed.
+func TestPairHiddenOrDeprecatedNewerFlagIsNotARemoval(t *testing.T) {
+	for name, mark := range map[string]string{
+		"hidden":     "pflag.CommandLine.MarkHidden(%q)",
+		"deprecated": "pflag.CommandLine.MarkDeprecated(%q, \"use other\")",
+	} {
+		t.Run(name, func(t *testing.T) {
+			out, pr := runPair(t, newTestExtractor(t, testSlug, testComponent),
+				tree(pflagProg("", "gone"), bundledPflag), tree(pflagProg(mark, "gone"), bundledPflag))
+			wantNoRule(t, out, pr)
+		})
+	}
+}
