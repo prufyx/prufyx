@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // markerAuthor is the login of the data owner. It classifies pull requests
@@ -55,7 +56,11 @@ func quote(s string) string {
 	}
 	out := b.String()
 	if len(out) > maxQuotedLine {
-		out = out[:maxQuotedLine] + "..."
+		cut := maxQuotedLine
+		for cut > 0 && !utf8.RuneStart(out[cut]) {
+			cut--
+		}
+		out = out[:cut] + "..."
 	}
 	return out
 }

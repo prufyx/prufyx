@@ -30,7 +30,9 @@ func cell(s string) string {
 	return s
 }
 
-func code(s string) string { return "`" + strings.ReplaceAll(s, "`", "'") + "`" }
+func code(s string) string {
+	return "`" + strings.NewReplacer("|", "\\|", "`", "'", "\n", " ", "\r", " ", "<", "&lt;", ">", "&gt;").Replace(s) + "`"
+}
 
 // Markdown returns the step summary: the loudest findings first, then the
 // table, the deltas and the digests. No timestamps; the order is stable.
@@ -108,6 +110,6 @@ func (p *Packet) Markdown() string {
 			fmt.Fprintf(&b, "| %s | %s | %s | %t |\n", cell(d.Label), cell(d.Before), cell(d.After), d.Decrease)
 		}
 	}
-	fmt.Fprintf(&b, "\n## Digests\n\ncontentDigest %s\n\npacketDigest %s\n", code(p.ContentDigest), code(p.PacketDigest))
+	fmt.Fprintf(&b, "\n## Digests\n\nentriesDigest %s\n\npacketDigest %s\n", code(p.EntriesDigest), code(p.PacketDigest))
 	return b.String()
 }

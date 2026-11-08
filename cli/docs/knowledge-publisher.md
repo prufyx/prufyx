@@ -387,7 +387,7 @@ the quoted first line seen; it is never omitted.
 `previousRevision` (`revision`, `sourceCommit`), `entries[]`, `directCommits[]`,
 `deltas` (rule and attestation counts with added, removed and changed
 identities; data-file changes; project slugs added and removed; README coverage
-rows with before, after and a `decrease` flag), `summary`, `contentDigest` (sha256 of the compact
+rows with before, after and a `decrease` flag), `summary`, `entriesDigest` (sha256, not the plan or release `contentDigest` that binds the signature; the sha256 of the compact
 JSON of `entries`) and `packetDigest` (sha256 of the compact JSON of the packet
 without `packetDigest`). The same inputs give byte-identical outputs.
 

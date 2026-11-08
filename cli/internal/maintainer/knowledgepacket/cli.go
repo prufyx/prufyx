@@ -63,8 +63,8 @@ func Run(args []string, stdout, stderr io.Writer) error {
 	if err := writeFile(*outMD, []byte(p.Markdown())); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "knowledge-packet: entries=%d unverified=%d nonData=%d trustPath=%d contentDigest=%s packetDigest=%s\n",
-		len(p.Entries), p.Summary.Unverified, p.Summary.NonData, p.Summary.TrustPath, p.ContentDigest, p.PacketDigest)
+	fmt.Fprintf(stdout, "knowledge-packet: entries=%d unverified=%d nonData=%d trustPath=%d entriesDigest=%s packetDigest=%s\n",
+		len(p.Entries), p.Summary.Unverified, p.Summary.NonData, p.Summary.TrustPath, p.EntriesDigest, p.PacketDigest)
 	return nil
 }
 

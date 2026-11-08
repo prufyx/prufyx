@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 const (
@@ -344,10 +345,10 @@ func TestDeterministicAndDigests(t *testing.T) {
 		t.Fatal(err)
 	}
 	sum := sha256.Sum256(canon)
-	if pk.ContentDigest != "sha256:"+hex.EncodeToString(sum[:]) || !strings.HasPrefix(pk.PacketDigest, "sha256:") || pk.PacketDigest == pk.ContentDigest {
-		t.Fatalf("digests: %s %s", pk.ContentDigest, pk.PacketDigest)
+	if pk.EntriesDigest != "sha256:"+hex.EncodeToString(sum[:]) || !strings.HasPrefix(pk.PacketDigest, "sha256:") || pk.PacketDigest == pk.EntriesDigest {
+		t.Fatalf("digests: %s %s", pk.EntriesDigest, pk.PacketDigest)
 	}
-	if !json.Valid(outs[0]) || !bytes.Contains(outs[0], []byte(`"contentDigest"`)) {
+	if !json.Valid(outs[0]) || !bytes.Contains(outs[0], []byte(`"entriesDigest"`)) {
 		t.Fatal("bad json")
 	}
 }
@@ -358,7 +359,7 @@ func TestEmptyRangeYieldsEmptyPacket(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(p.Entries) != 0 || p.ContentDigest == "" {
+	if len(p.Entries) != 0 || p.EntriesDigest == "" {
 		t.Fatalf("packet = %+v", p)
 	}
 }
@@ -578,5 +579,59 @@ func TestMarkdownStatesAutomationDomainAndSelfReferenceResidual(t *testing.T) {
 		if !strings.Contains(md, want) {
 			t.Errorf("markdown lacks %q", want)
 		}
+	}
+}
+
+func TestRenderHostileCellsStaySingleRow(t *testing.T) {
+	long := strings.Repeat("x", 300)
+	hostile := "a|b`c<img src=x onerror=1>\nd" + long
+	p := &Packet{
+		Schema:       PacketSchema,
+		SourceCommit: strings.Repeat("a", 40),
+		Entries: []Entry{{Number: 1, Class: ClassData, Author: hostile, MergeCommit: strings.Repeat("b", 40), Head: strings.Repeat("c", 40),
+			Gate:   Marker{Status: Unverified, Reason: "r", Line: hostile},
+			Review: Marker{Status: Unverified, Reason: "r", Line: hostile}}},
+		Deltas: Deltas{Rules: []RuleDelta{{Path: "p|q`r<b>\nz.json", Before: 1, After: 2}}},
+	}
+	p.EntriesDigest = "sha256:x"
+	md := p.Markdown()
+	if strings.Contains(md, "<img") || strings.Contains(md, "<b>") {
+		t.Fatalf("raw html in output:\n%s", md)
+	}
+	rows := 0
+	for _, l := range strings.Split(md, "\n") {
+		want := 0
+		switch {
+		case strings.HasPrefix(l, "| #1 "):
+			want = 8
+		case strings.HasPrefix(l, "| `p"):
+			want = 7
+		default:
+			continue
+		}
+		rows++
+		if n := strings.Count(strings.ReplaceAll(l, "\\|", ""), "|"); n != want {
+			t.Fatalf("row has %d unescaped pipes, want %d: %q", n, want, l)
+		}
+	}
+	if rows != 2 {
+		t.Fatalf("rows = %d, want 2:\n%s", rows, md)
+	}
+	if !strings.Contains(md, "| `p\\|q'r&lt;b&gt; z.json` |") {
+		t.Fatalf("path not escaped inside code:\n%s", md)
+	}
+}
+
+func TestQuoteTruncatesOnRuneBoundary(t *testing.T) {
+	s := strings.Repeat("a", maxQuotedLine-1) + "éé"
+	out := quote(s)
+	if !utf8.ValidString(out) {
+		t.Fatalf("invalid utf8: %q", out)
+	}
+	if !strings.HasSuffix(out, "...") || len(out) > maxQuotedLine+3 {
+		t.Fatalf("bad truncation: %q", out)
+	}
+	if got := quote(strings.Repeat("é", 200)); !utf8.ValidString(got) {
+		t.Fatalf("invalid utf8 multi: %q", got)
 	}
 }

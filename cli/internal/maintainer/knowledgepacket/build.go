@@ -95,7 +95,7 @@ func Build(ctx context.Context, o Options) (*Packet, error) {
 	if err != nil {
 		return nil, err
 	}
-	p.ContentDigest = digest(content)
+	p.EntriesDigest = digest(content)
 	whole, err := canonical(p)
 	if err != nil {
 		return nil, err

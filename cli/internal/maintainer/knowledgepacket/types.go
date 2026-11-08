@@ -171,7 +171,7 @@ type Summary struct {
 	Decreases     int `json:"decreases"`
 }
 
-// Packet is the artifact. ContentDigest is the sha256 of the compact JSON of
+// Packet is the artifact. EntriesDigest (not the plan or release contentDigest that binds the signature) is the sha256 of the compact JSON of
 // Entries; PacketDigest is the sha256 of the compact JSON of the packet with
 // PacketDigest empty.
 type Packet struct {
@@ -182,6 +182,6 @@ type Packet struct {
 	DirectCommits    []string         `json:"directCommits"`
 	Deltas           Deltas           `json:"deltas"`
 	Summary          Summary          `json:"summary"`
-	ContentDigest    string           `json:"contentDigest"`
+	EntriesDigest    string           `json:"entriesDigest"`
 	PacketDigest     string           `json:"packetDigest,omitempty"`
 }
