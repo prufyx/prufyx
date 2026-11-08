@@ -1,0 +1,118 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package k8slifecycle
+
+import (
+	"regexp"
+	"sort"
+	"strconv"
+	"strings"
+)
+
+// LedgerEntry names one thing the scanner withheld and why. It carries
+// identifiers only (a reason code and a group, version, kind or file identifier), never source text,
+// marker values or comment text. Result.Ledger is canonical: sorted by (Code, Item), without
+// duplicates, at most MaxLedgerEntries entries.
+type LedgerEntry struct {
+	Code string `json:"code"`
+	Item string `json:"item"`
+}
+
+// Ledger bounds. Exceeding one is recorded as a fault entry, never truncated.
+const (
+	MaxLedgerEntries = 256
+	MaxLedgerItemLen = 200
+)
+
+// Fault entries. They stand alone in a ledger that broke a rule; the LEDGER_
+// prefix is reserved for them.
+const (
+	LedgerInvalid   = "LEDGER_INVALID"
+	LedgerOverflow  = "LEDGER_OVERFLOW"
+	LedgerFaultItem = "ledger"
+
+	ledgerReservedPrefix = "LEDGER_"
+)
+
+var (
+	ledgerCodeRE = regexp.MustCompile(`^[A-Z][A-Z0-9_]{2,47}$`)
+	ledgerItemRE = regexp.MustCompile(`^[A-Za-z0-9_.:/@+=*\[\]-]{1,` + strconv.Itoa(MaxLedgerItemLen) + `}$`)
+)
+
+// ledgerGuards are switched off only by tests.
+type ledgerGuards struct {
+	code, item, reserved, limit, order, dedupe, veto bool
+}
+
+func defaultLedgerGuards() ledgerGuards {
+	return ledgerGuards{code: true, item: true, reserved: true, limit: true, order: true, dedupe: true, veto: true}
+}
+
+// ledgerOf canonicalises entries. An entry that breaks a rule, or too many
+// entries, give the single fault entry instead.
+func ledgerOf(in []LedgerEntry, g ledgerGuards) []LedgerEntry {
+	if len(in) == 0 {
+		return []LedgerEntry{}
+	}
+	out := make([]LedgerEntry, 0, len(in))
+	for _, e := range in {
+		if g.code && !ledgerCodeRE.MatchString(e.Code) {
+			return faultLedger(LedgerInvalid)
+		}
+		if g.reserved && strings.HasPrefix(e.Code, ledgerReservedPrefix) {
+			return faultLedger(LedgerInvalid)
+		}
+		if g.item && !ledgerItemRE.MatchString(e.Item) {
+			return faultLedger(LedgerInvalid)
+		}
+		out = append(out, e)
+	}
+	if g.order {
+		sort.Slice(out, func(i, j int) bool {
+			if out[i].Code != out[j].Code {
+				return out[i].Code < out[j].Code
+			}
+			return out[i].Item < out[j].Item
+		})
+	}
+	if g.dedupe {
+		w := 0
+		for i, e := range out {
+			if i > 0 && e == out[w-1] {
+				continue
+			}
+			out[w] = e
+			w++
+		}
+		out = out[:w]
+	}
+	if g.limit && len(out) > MaxLedgerEntries {
+		return faultLedger(LedgerOverflow)
+	}
+	return out
+}
+
+func faultLedger(code string) []LedgerEntry {
+	return []LedgerEntry{{Code: code, Item: LedgerFaultItem}}
+}
+
+// Ledger reason codes.
+const (
+	ReasonParse          = "LIFECYCLE_PARSE_FAILED"
+	ReasonTooLarge       = "LIFECYCLE_FILE_TOO_LARGE"
+	ReasonTooMany        = "LIFECYCLE_TOO_MANY"
+	ReasonGenerated      = "LIFECYCLE_GENERATED_FILE"
+	ReasonBuildConstr    = "LIFECYCLE_BUILD_CONSTRAINT"
+	ReasonVersionSkew    = "LIFECYCLE_VERSION_SKEW"
+	ReasonTypesMissing   = "LIFECYCLE_TYPES_MISSING"
+	ReasonGroupUnknown   = "LIFECYCLE_GROUP_UNKNOWN"
+	ReasonMarkerBad      = "LIFECYCLE_MARKER_MALFORMED"
+	ReasonMarkerUnknown  = "LIFECYCLE_MARKER_UNKNOWN"
+	ReasonMarkerConflict = "LIFECYCLE_MARKER_CONFLICT"
+	ReasonOrder          = "LIFECYCLE_RELEASE_ORDER"
+	ReasonDuplicateType  = "LIFECYCLE_DUPLICATE_TYPE"
+	ReasonFieldName      = "LIFECYCLE_FIELD_NAME"
+	ReasonMember         = "LIFECYCLE_MEMBER_REFUSED"
+	ReasonTypesOutside   = "LIFECYCLE_TYPES_OUTSIDE"
+	ReasonPanic          = "LIFECYCLE_SCAN_PANIC"
+)
