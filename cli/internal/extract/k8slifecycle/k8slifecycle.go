@@ -341,6 +341,9 @@ func (s *scanner) run(ctx context.Context) error {
 			continue
 		}
 		for _, v := range vers {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
 			if s.g.limits && s.versions >= s.g.lim.versions {
 				s.add(ReasonTooMany, "versions")
 				return nil
@@ -465,6 +468,9 @@ func (s *scanner) version(ctx context.Context, grp, ver string) (err error) {
 			group, ok = groupName(rf)
 		}
 	}
+	if s.over {
+		return nil // aggregate cap passed: types.go is not read
+	}
 	if ok && !groupRE.MatchString(group) {
 		ok = false // a GroupName that is not a plausible API group is not read
 	}
@@ -550,12 +556,15 @@ func (s *scanner) outside(base, item, group, ver string) error {
 		return nil
 	}
 	for _, b := range names {
+		if s.over {
+			break // aggregate cap passed: nothing more is read
+		}
 		data, missing, err := s.read(path.Join(base, b))
 		if err != nil {
 			return err
 		}
 		if missing || s.over {
-			continue
+			continue // a file read past the cap is not parsed
 		}
 		bad := func() { s.add(ReasonTypesOutside, item) }
 		if s.g.limits && len(data) > s.g.lim.fileBytes {

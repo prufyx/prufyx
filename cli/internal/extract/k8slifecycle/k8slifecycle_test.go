@@ -736,3 +736,47 @@ func TestMechanicalNeedsCrossCheck(t *testing.T) {
 		t.Fatalf("incomplete result handed out: %+v", got)
 	}
 }
+
+type countRd struct {
+	mem
+	reads int
+	after func()
+}
+
+func (c *countRd) Read(r extract.RepoRef, s, p string) ([]byte, error) {
+	c.reads++
+	if c.after != nil {
+		c.after()
+	}
+	return c.mem.Read(r, s, p)
+}
+
+func TestNoReadsAfterTotalCap(t *testing.T) {
+	d := apiDir + "/a/v1beta1/"
+	m := merge(tree("a", "v1beta1", mark(triple)+"type A struct{}\n"),
+		mem{d + "x.go": "package v1beta1\n", d + "y.go": "package v1beta1\n"})
+	g := defaultGuards()
+	g.lim.totalBytes = 1 // the first read passes the cap
+	c := &countRd{mem: m}
+	r, err := scan(context.Background(), c, tgt(), sha, g)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Complete || !contains(codes(r), ReasonTooLarge) {
+		t.Fatalf("cap not reported: %v", codes(r))
+	}
+	if c.reads != 1 {
+		t.Fatalf("reads after the cap: %d", c.reads)
+	}
+}
+
+func TestContextCancelledPerVersion(t *testing.T) {
+	m := merge(tree("a", "v1beta1", mark(triple)+"type A struct{}\n"))
+	m2 := tree("a", "v1beta2", mark(triple)+"type A struct{}\n")
+	m = merge(m, m2)
+	ctx, cancel := context.WithCancel(context.Background())
+	c := &countRd{mem: m, after: cancel}
+	if _, err := scan(ctx, c, tgt(), sha, defaultGuards()); err == nil {
+		t.Fatal("cancel inside a group not honoured")
+	}
+}

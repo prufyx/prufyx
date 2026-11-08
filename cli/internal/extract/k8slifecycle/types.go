@@ -272,6 +272,8 @@ func (s *scanner) deprecation(group, ver, kind, field, source, item string) {
 
 func (s *scanner) fields(st *ast.StructType, group, ver, kind, tItem string) {
 	for _, fl := range st.Fields.List {
+		// Markers are read from the field's own doc comment only; markers
+		// attached elsewhere are ignored on purpose (draft-only).
 		var m markers
 		m.collect(fl.Doc)
 		doc := docDeprecated(fl.Doc)
