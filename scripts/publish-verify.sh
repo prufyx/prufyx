@@ -11,6 +11,8 @@
 #   feed unreachable / feed does not verify
 #   feed age > 8 days
 #   timestamp expires in < 5 days
+#   timestamp expiry beyond the 14 day cap / targets or snapshot expiry beyond the 21 day cap
+#   verified feed without a readable targets or snapshot expiry
 #   no successful Knowledge publish run on main / last one older than 8 days
 #   feed not newer than the newest cli/knowledge merge on main
 #
@@ -27,8 +29,10 @@ export LC_ALL=C
 
 MAX_AGE_DAYS=8
 MIN_EXPIRY_DAYS=5
-MERGE_GRACE_SECONDS=7200   # a merge needs time to be published
-CAP_DAYS=14                # the publish workflow signs expiry = min(now + 14d, evidence expiry)
+MERGE_GRACE_SECONDS=108000 # 30 h: a merge is published by the next daily run (05:17 UTC) plus its approval
+TS_CAP_DAYS=14             # timestamp expiry = min(signing time + 14d, targets expiry)
+TARGETS_CAP_DAYS=21        # targets and snapshot expiry = min(content signing time + 21d, evidence expiry)
+CAP_SLACK_SECONDS=3600     # clock and rounding slack for the cap checks
 FEED_DEFAULT="https://prufyx.github.io/prufyx/knowledge/cncf-projects.tar"
 MAX_BYTES=8388608
 
@@ -99,6 +103,17 @@ if [ -z "${exp_e}" ]; then
   fail "verified feed has no readable timestamp expiry"
   finish ""
 fi
+tgt_x="$(jq -r '.targets.expires // empty' <<< "${receipt}")"
+snap_x="$(jq -r '.snapshot.expires // empty' <<< "${receipt}")"
+tgt_e=""; snap_e=""
+[ -z "${tgt_x}" ] || tgt_e="$(epoch "${tgt_x}")" || tgt_e=""
+[ -z "${snap_x}" ] || snap_e="$(epoch "${snap_x}")" || snap_e=""
+if [ -z "${tgt_e}" ] || [ -z "${snap_e}" ]; then
+  fail "verified feed has no readable targets or snapshot expiry"
+  finish ""
+fi
+role_e="${tgt_e}"
+[ "${snap_e}" -ge "${role_e}" ] || role_e="${snap_e}"
 
 # 2. Expiry margin.
 left=$((exp_e - now))
@@ -106,17 +121,41 @@ if [ "${left}" -lt $((MIN_EXPIRY_DAYS * 86400)) ]; then
   fail "timestamp expires in $((left / 86400)) days (${expires}), minimum ${MIN_EXPIRY_DAYS}"
 fi
 
-# 3. Feed age. Signing time is exact when the 14-day cap was the binding
-# expiry (signed = expires - 14d, both from the verified metadata); otherwise
-# (evidence expiry was earlier) the Last-Modified of the deploy is the proxy.
+# Caps: the publisher never signs a timestamp beyond 14 days or targets and
+# snapshot beyond 21 days; a verified feed beyond a cap was not signed by it.
+if [ $((exp_e - now)) -gt $((TS_CAP_DAYS * 86400 + CAP_SLACK_SECONDS)) ]; then
+  fail "timestamp expiry ${expires} is more than the ${TS_CAP_DAYS} day cap away"
+fi
+if [ $((role_e - now)) -gt $((TARGETS_CAP_DAYS * 86400 + CAP_SLACK_SECONDS)) ]; then
+  fail "targets and snapshot expiry is more than the ${TARGETS_CAP_DAYS} day cap away"
+fi
+
+# 3. Two signing times, both from the verified metadata when a cap was the
+# binding expiry, else the Last-Modified of the deploy as the proxy:
+#   signed          the timestamp: expiry - 14d when the 14 day cap bound, that is
+#                   the timestamp expires before targets, snapshot and evidence. A
+#                   content release or a timestamp refresh both set it. Feed age.
+#   content_signed  targets and snapshot: expiry - 21d when the 21 day cap bound
+#                   (expiry before the evidence expiry) and the timestamp was not
+#                   itself capped by the targets (equal expiry also is the former
+#                   layout, with one 14 day expiry for every role, and then the
+#                   deploy time is used). Compared with the newest merge.
 signed=""
+content_signed=""
 ev_e=""
 [ -z "${evidence}" ] || ev_e="$(epoch "${evidence}")" || ev_e=""
-if [ -n "${ev_e}" ] && [ "${exp_e}" -lt "${ev_e}" ]; then
-  signed=$((exp_e - CAP_DAYS * 86400))
+lm="$(grep -i '^last-modified:' "${work}/headers" | tail -n 1 | cut -d: -f2- | tr -d '\r' | sed 's/^ *//')"
+lm_e=""
+[ -z "${lm}" ] || lm_e="$(epoch "${lm}")" || lm_e=""
+if [ "${exp_e}" -lt "${role_e}" ] && [ -n "${ev_e}" ] && [ "${exp_e}" -lt "${ev_e}" ]; then
+  signed=$((exp_e - TS_CAP_DAYS * 86400))
 else
-  lm="$(grep -i '^last-modified:' "${work}/headers" | tail -n 1 | cut -d: -f2- | tr -d '\r' | sed 's/^ *//')"
-  [ -z "${lm}" ] || signed="$(epoch "${lm}")" || signed=""
+  signed="${lm_e}"
+fi
+if [ "${tgt_e}" -ne "${exp_e}" ] && [ -n "${ev_e}" ] && [ "${tgt_e}" -lt "${ev_e}" ]; then
+  content_signed=$((tgt_e - TARGETS_CAP_DAYS * 86400))
+else
+  content_signed="${lm_e}"
 fi
 if [ -z "${signed}" ]; then
   fail "feed age unknown (no cap-bound expiry, no Last-Modified)"
@@ -156,7 +195,7 @@ m_e="$(git -C "${gitdir}" log --first-parent -1 --format=%ct "${gitref}" -- cli/
 if [ "${m_e}" = "__err__" ] || { [ -n "${m_e}" ] && ! [[ "${m_e}" =~ ^[0-9]+$ ]]; }; then
   fail "cannot read the newest knowledge merge on main from the checkout"
 elif [ -n "${m_e}" ]; then
-  if [ -n "${signed}" ] && [ "${signed}" -lt "${m_e}" ] && [ $((now - m_e)) -gt "${MERGE_GRACE_SECONDS}" ] \
+  if [ -n "${content_signed}" ] && [ "${content_signed}" -lt "${m_e}" ] && [ $((now - m_e)) -gt "${MERGE_GRACE_SECONDS}" ] \
        && { [ -z "${rs_e:-}" ] || [ "${rs_e}" -lt "${m_e}" ]; }; then
     fail "feed not newer than the newest knowledge merge on main ($(date -u -d "@${m_e}" +%Y-%m-%dT%H:%M:%SZ)) and no later successful publish run"
   fi

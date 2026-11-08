@@ -8,7 +8,10 @@
 #   gate        self-check of the approval gate and the key environments
 #   pending     one-pending-run rule: young waiting run => skip, old => stale list
 #   cancel      cancel the listed runs of THIS workflow if still older than the limit
-#   latest-run  id of the newest successful run of this workflow with a live artifact
+#   live-runs   the newest live artifact of each family (content runs of this
+#               workflow, refresh runs of knowledge-refresh.yml) and the live package
+#   check-live  refuse unless both families still have exactly the runs the plan recorded
+#   trusted-ids numeric ids whose markers count (pinned here, the lookup only cross-checks)
 #   collect     read the merged pull requests of a range into the packet input file
 #   has-content decide from a packet whether anything can change the knowledge
 #   plan-json   write the plan file that binds the approval to the signature
@@ -21,9 +24,19 @@ umask 077
 export LC_ALL=C
 
 WORKFLOW_FILE="knowledge-publish.yml"
+REFRESH_WORKFLOW_FILE="knowledge-refresh.yml"
+CONTENT_ARTIFACT_RE='^knowledge-[0-9]+-[0-9a-f]{64}$'
+REFRESH_ARTIFACT_RE='^knowledge-refresh-[0-9]+-[0-9]+-[0-9a-f]{64}$'
+# Trusted marker authors, by numeric account id: a login can be renamed or
+# re-registered, an id cannot. The lookup of the login only cross-checks these
+# constants and fails closed on any difference. An empty bot id would mean no
+# bot-trusted markers; it is set because the account exists.
+OWNER_LOGIN="airstand"
+OWNER_USER_ID=11156623
+BOT_LOGIN="prufyx-bot"
+BOT_USER_ID=343087959
 KEY_ENV="knowledge-release"
 REFRESH_ENV="knowledge-refresh"
-KEY_SECRETS="KNOWLEDGE_TARGETS_KEY KNOWLEDGE_SNAPSHOT_KEY KNOWLEDGE_TIMESTAMP_KEY KNOWLEDGE_KEY_PASSPHRASE"
 MAX_AGE_HOURS_DEFAULT=26
 PLAN_MAX_AGE_SECONDS=172800
 PLAN_SCHEMA="prufyx.io/knowledge-plan/v1"
@@ -41,8 +54,10 @@ is_sha40() { [[ "$1" =~ ^[0-9a-f]{40}$ ]]; }
 # Requires: knowledge-release has a required reviewer (login REVIEWER_LOGIN,
 # default airstand), prevent_self_review off (the schedule actor is the only
 # reviewer), the deployment branch policy is exactly main; knowledge-refresh
-# exists, has no reviewer and is limited to main; no repository secret has a
-# key secret name. DRY_RUN=true turns a failed self-check into a warning, and
+# exists, has no reviewer and is limited to main. It does not list repository
+# secrets (the job token has no such scope, so the call could only fail): the
+# presence of the key secrets is owner-verified, and the Sign step refuses an
+# empty key input before it writes any key file. DRY_RUN=true turns a failed self-check into a warning, and
 # the caller still never signs (gate_ok=false).
 cmd_gate() {
   need_repo
@@ -72,18 +87,6 @@ cmd_gate() {
   }
   env_checks "${KEY_ENV}" true
   env_checks "${REFRESH_ENV}" false
-  # Repository-level secrets with a key name would shadow nothing but would be
-  # reachable by every workflow; the keys may only live in environments.
-  if ! j="$(gh_get "repos/${GH_REPO}/actions/secrets?per_page=100" 2>/dev/null)" || ! jq -e '.secrets | type == "array"' <<< "${j}" > /dev/null 2>&1; then
-    problems+=("repository secrets cannot be listed, so the key names cannot be shown to be unshadowed")
-  else
-    local n
-    for n in ${KEY_SECRETS}; do
-      if jq -e --arg n "${n}" '[.secrets[] | select(.name == $n)] | length > 0' <<< "${j}" > /dev/null; then
-        problems+=("a repository-level secret named ${n} exists")
-      fi
-    done
-  fi
   if [ "${#problems[@]}" -eq 0 ]; then
     echo "gate self-check: OK"
     out "gate_ok=true"
@@ -155,19 +158,101 @@ cmd_cancel() {
   done
 }
 
-# ---------------------------------------------------------------- latest-run
-cmd_latest_run() {
-  need_repo
-  local runs id art
-  runs="$(gh_get "repos/${GH_REPO}/actions/workflows/${WORKFLOW_FILE}/runs?branch=main&status=success&per_page=100" | jq -r '.workflow_runs[].id')" \
-    || die "cannot list successful runs."
-  for id in ${runs}; do
+# ---------------------------------------------------------------- live-runs
+# Two artifact families carry the published state: content runs (this workflow,
+# knowledge-<revision>-<sha256>) and refresh runs (knowledge-refresh.yml,
+# knowledge-refresh-<revision>-<timestamp version>-<sha256>). A refresh keeps the
+# revision and the targets and only renews the timestamp, so the live package
+# is the newest across both: a refresh of revision R is newer than the content
+# run of R, a content run of R+1 is newer than any refresh of R.
+family_newest() { # workflow-file artifact-regex -> "run|sha|artifact" of the newest successful main run with a live matching artifact; empty if none
+  local runs id sha art
+  runs="$(gh_get "repos/${GH_REPO}/actions/workflows/$1/runs?branch=main&status=success&per_page=100" | jq -r '.workflow_runs[] | [.id, (.head_sha // "")] | @tsv')" \
+    || die "cannot list the successful runs of $1."
+  while IFS=$'\t' read -r id sha; do
+    [ -n "${id}" ] || continue
+    is_pos_int "${id}" || die "run id ${id} is not a number."
     art="$(gh_get "repos/${GH_REPO}/actions/runs/${id}/artifacts?per_page=100" \
-      | jq -r '[.artifacts[] | select(.expired == false) | select(.name | test("^knowledge-[0-9]+-[0-9a-f]{64}$"))] | length')" \
-      || die "cannot list artifacts of run ${id}."
-    if [ "${art}" != 0 ]; then echo "${id}"; return 0; fi
+      | jq -r --arg re "$2" '[.artifacts[] | select(.expired == false) | select(.name | test($re))] | (first // empty) | .name')" \
+      || die "cannot list the artifacts of run ${id}."
+    if [ -n "${art}" ]; then printf '%s|%s|%s\n' "${id}" "${sha}" "${art}"; return 0; fi
+  done <<< "${runs}"
+  return 0
+}
+
+cmd_live_runs() {
+  need_repo
+  local c r crun csha cart rrun rsha rart crev="" rrev="" rtuf="" rest family="none" lrun="" lart="" ldigest="" lrev=""
+  c="$(family_newest "${WORKFLOW_FILE}" "${CONTENT_ARTIFACT_RE}")" || exit 1
+  r="$(family_newest "${REFRESH_WORKFLOW_FILE}" "${REFRESH_ARTIFACT_RE}")" || exit 1
+  IFS='|' read -r crun csha cart <<< "${c}"
+  IFS='|' read -r rrun rsha rart <<< "${r}"
+  if [ -n "${cart}" ]; then rest="${cart#knowledge-}"; crev="${rest%%-*}"; fi
+  if [ -n "${rart}" ]; then rest="${rart#knowledge-refresh-}"; rrev="${rest%%-*}"; rest="${rest#*-}"; rtuf="${rest%%-*}"; fi
+  if [ -n "${rart}" ] && [ -z "${cart}" ]; then
+    die "a live refresh artifact exists but no content run has a live artifact; use the recovery inputs, see the runbook."
+  fi
+  if [ -n "${rart}" ] && [ "${rrev}" -gt "${crev}" ]; then
+    die "the newest refresh (revision ${rrev}) is for a newer revision than the newest content run (revision ${crev}); the state is inconsistent, use the recovery inputs."
+  fi
+  if [ -n "${cart}" ]; then
+    family=content; lrun="${crun}"; lart="${cart}"; lrev="${crev}"
+    if [ -n "${rart}" ] && [ "${rrev}" -ge "${crev}" ]; then family=refresh; lrun="${rrun}"; lart="${rart}"; lrev="${rrev}"; fi
+    ldigest="sha256:${lart##*-}"
+  fi
+  jq -n --arg crun "${crun}" --arg csha "${csha}" --arg cart "${cart}" --arg rrun "${rrun}" --arg rart "${rart}" \
+    --arg crev "${crev}" --arg rrev "${rrev}" --arg fam "${family}" --arg lrun "${lrun}" --arg lart "${lart}" --arg ldig "${ldigest}" --arg lrev "${lrev}" --arg rtuf "${rtuf}" \
+    '{content: {runId: $crun, sha: $csha, artifact: $cart, revision: $crev}, refresh: {runId: $rrun, artifact: $rart, revision: $rrev, tufVersion: $rtuf},
+      live: {family: $fam, runId: $lrun, artifact: $lart, digest: $ldig, revision: $lrev}}'
+}
+
+# check-live PLAN: sign and deploy call this. The run of each family must be
+# exactly the one the plan recorded, unconditionally: an empty record equals an
+# empty family (first release, recovery) and nothing else; a refresh or content
+# run that appeared after the plan, or one that vanished, is a moved state and
+# the next plan replans. The live artifact must also be the package the plan
+# holds (digest in its name), so deploy and release are checked against the
+# real live package, never a stale copy.
+cmd_check_live() {
+  need_repo
+  local plan="${1:?}" live rec_c rec_r mode digest act_c act_r fam
+  jq -e '.previous | type == "object"' "${plan}" > /dev/null 2>&1 || die "check-live: the plan has no previous state."
+  rec_c="$(jq -r '.previous.contentRunId // ""' "${plan}")"
+  rec_r="$(jq -r '.previous.refreshRunId // ""' "${plan}")"
+  mode="$(jq -r '.mode // ""' "${plan}")"
+  digest="$(jq -r '.previous.packageDigest // ""' "${plan}")"
+  live="$(cmd_live_runs)" || die "check-live: the live state cannot be read."
+  act_c="$(jq -r '.content.runId' <<< "${live}")"
+  act_r="$(jq -r '.refresh.runId' <<< "${live}")"
+  fam="$(jq -r '.live.family' <<< "${live}")"
+  [ "${act_c}" = "${rec_c}" ] || die "the published state moved since the plan: the newest content run is '${act_c}', the plan saw '${rec_c}'; the next plan replans."
+  [ "${act_r}" = "${rec_r}" ] || die "the published state moved since the plan: the newest refresh run is '${act_r}', the plan saw '${rec_r}'; the next plan replans."
+  case "${mode}" in
+    first | recovery) [ "${fam}" = none ] || die "a ${mode} plan, but a live package exists (${fam} run $(jq -r '.live.runId' <<< "${live}"))." ;;
+    state | capability)
+      [ "${fam}" != none ] || die "a ${mode} plan, but no live package exists."
+      [ "$(jq -r '.live.digest' <<< "${live}")" = "${digest}" ] || die "the live ${fam} package is not the package the plan holds; the next plan replans." ;;
+    *) die "check-live: unknown mode '${mode}'." ;;
+  esac
+  echo "check-live: OK (live ${fam})"
+}
+
+# ---------------------------------------------------------------- trusted-ids
+# Prints the comma separated numeric ids whose gate and review markers count.
+# The ids are constants; a lookup of each login must return exactly that id,
+# otherwise (rename, re-registration, unreadable answer) nothing is trusted.
+cmd_trusted_ids() {
+  need_repo
+  local pairs=("${OWNER_LOGIN}:${OWNER_USER_ID}") got ids="" pair login want
+  if [ -n "${BOT_USER_ID}" ]; then pairs+=("${BOT_LOGIN}:${BOT_USER_ID}"); fi
+  for pair in "${pairs[@]}"; do
+    login="${pair%%:*}"; want="${pair#*:}"
+    is_pos_int "${want}" || die "the pinned id of ${login} is malformed."
+    got="$(gh_get "users/${login}" | jq -er 'select(.id | type == "number") | .id')" || die "cannot look up ${login} to cross-check its pinned id."
+    [ "${got}" = "${want}" ] || die "the login ${login} now resolves to id ${got}, not the pinned ${want}; no marker is trusted."
+    ids="${ids:+${ids},}${want}"
   done
-  echo ""
+  echo "${ids}"
 }
 
 # ---------------------------------------------------------------- collect
@@ -215,7 +300,9 @@ cmd_collect() {
 
 # ---------------------------------------------------------------- has-content
 # has-content PACKET MODE: prints true when the range can change what is published.
-# The paths are the push triggers of the former workflow.
+# The paths are the former push triggers and every other input of the engine
+# capability or the exported knowledge: a path that is missing here would let a
+# real change wait for the next refresh without an approval request.
 cmd_has_content() {
   local packet="${1:?}" mode="${2:?}"
   jq -e '.schema == "prufyx.io/knowledge-packet/v1" and (.entries | type == "array")' "${packet}" > /dev/null || die "has-content: not a packet."
@@ -224,7 +311,7 @@ cmd_has_content() {
       ((.directCommits | length) > 0)
       or ((.summary.unverified // 0) > 0) or ((.summary.trustPath // 0) > 0)
       or ([.entries[] | select(.class == "TRUST-PATH")] | length > 0)
-      or ([.entries[] | .files[]? | select(test("^cli/(knowledge/|internal/customresources/table\\.json$|internal/cncfcheck/data/|internal/constraintengine/)"))] | length > 0)
+      or ([.entries[] | .files[]? | select(test("^cli/(knowledge/|internal/customresources/(table|guard)\\.json$|internal/[a-z0-9]+/data/|internal/constraintengine/)"))] | length > 0)
     ' "${packet}" > /dev/null; then echo true; else echo false; fi
 }
 
@@ -238,22 +325,27 @@ cmd_plan_json() {
   is_pos_int "${REVISION}" && is_pos_int "${MIN_VERSION}" && is_pos_int "${CREATED_EPOCH}" && is_pos_int "${RUN_ID}" || die "plan-json: bad number."
   is_digest "${CONTENT_DIGEST}" && is_digest "${INDEX_DIGEST}" || die "plan-json: bad digest."
   [[ "${EXPIRES}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]] || die "plan-json: expires is not exact UTC."
+  local entries_digest
+  entries_digest="$(jq -er '.entriesDigest' "${PACKET}")" || die "plan-json: the packet has no entriesDigest."
+  is_digest "${entries_digest}" || die "plan-json: bad entriesDigest."
+  [ -z "${PREV_CONTENT_RUN_ID:-}" ] || is_pos_int "${PREV_CONTENT_RUN_ID}" || die "plan-json: bad previous content run id."
+  [ -z "${PREV_REFRESH_RUN_ID:-}" ] || is_pos_int "${PREV_REFRESH_RUN_ID}" || die "plan-json: bad previous refresh run id."
+  case "${MODE}" in state | capability) [ -n "${PREV_CONTENT_RUN_ID:-}" ] || die "plan-json: ${MODE} mode needs the content run of the previous package." ;; esac
   if [ "${MODE}" != first ]; then
     : "${PREV_REVISION:?}" "${PREV_TUF:?}" "${PREV_PACKAGE_DIGEST:?}" "${PREV_TARGETS_DIGEST:?}" "${PREV_SNAPSHOT_DIGEST:?}" "${PREV_INDEX_SHA:?}"
     is_pos_int "${PREV_REVISION}" && is_pos_int "${PREV_TUF}" || die "plan-json: bad previous number."
     is_digest "${PREV_PACKAGE_DIGEST}" && is_digest "${PREV_TARGETS_DIGEST}" && is_digest "${PREV_SNAPSHOT_DIGEST}" && is_digest "${PREV_INDEX_SHA}" || die "plan-json: bad previous digest."
-    [ -z "${PREV_RUN_ID:-}" ] || is_pos_int "${PREV_RUN_ID}" || die "plan-json: bad previous run id."
   fi
   local packet_sha
   packet_sha="sha256:$(sha256sum "${PACKET}" | cut -d' ' -f1)"
   jq -n --arg schema "${PLAN_SCHEMA}" --arg mode "${MODE}" --arg src "${SOURCE_COMMIT}" --argjson rev "${REVISION}" --argjson minv "${MIN_VERSION}" \
-    --arg exp "${EXPIRES}" --arg cd "${CONTENT_DIGEST}" --arg id "${INDEX_DIGEST}" --arg psha "${packet_sha}" --argjson created "${CREATED_EPOCH}" \
+    --arg exp "${EXPIRES}" --arg cd "${CONTENT_DIGEST}" --arg ed "${entries_digest}" --arg id "${INDEX_DIGEST}" --arg psha "${packet_sha}" --argjson created "${CREATED_EPOCH}" \
     --argjson run "${RUN_ID}" --arg hc "${HAS_CONTENT:-true}" --arg dry "${DRY_RUN:-false}" \
-    --arg prun "${PREV_RUN_ID:-}" --arg prev "${PREV_REVISION:-0}" --arg ptuf "${PREV_TUF:-0}" --arg ppd "${PREV_PACKAGE_DIGEST:-}" \
+    --arg pcrun "${PREV_CONTENT_RUN_ID:-}" --arg prrun "${PREV_REFRESH_RUN_ID:-}" --arg prev "${PREV_REVISION:-0}" --arg ptuf "${PREV_TUF:-0}" --arg ppd "${PREV_PACKAGE_DIGEST:-}" \
     --arg ptd "${PREV_TARGETS_DIGEST:-}" --arg psd "${PREV_SNAPSHOT_DIGEST:-}" --arg pis "${PREV_INDEX_SHA:-}" \
-    '{schema: $schema, mode: $mode, sourceCommit: $src, revision: $rev, minTufVersion: $minv, expires: $exp, contentDigest: $cd, indexDigest: $id,
+    '{schema: $schema, mode: $mode, sourceCommit: $src, revision: $rev, minTufVersion: $minv, expires: $exp, contentDigest: $cd, entriesDigest: $ed, indexDigest: $id,
       packetSha256: $psha, createdEpoch: $created, planRunId: $run, hasContent: ($hc == "true"), dryRun: ($dry == "true"),
-      previous: {runId: $prun, revision: ($prev | tonumber), tufVersion: ($ptuf | tonumber), packageDigest: $ppd, targetsDigest: $ptd, snapshotDigest: $psd, indexSha256: $pis}}' > "${outfile}"
+      previous: {contentRunId: $pcrun, refreshRunId: $prrun, revision: ($prev | tonumber), tufVersion: ($ptuf | tonumber), packageDigest: $ppd, targetsDigest: $ptd, snapshotDigest: $psd, indexSha256: $pis}}' > "${outfile}"
 }
 
 # ---------------------------------------------------------------- sign-check
@@ -268,6 +360,8 @@ cmd_sign_check() {
   [ "$(jq -r '.hasContent' "${plan}")" = true ] || die "sign refused: the plan says nothing changes."
   [ "$(jq -r '.packetSha256' "${plan}")" = "sha256:$(sha256sum "${packet}" | cut -d' ' -f1)" ] || die "sign refused: packet.json differs from the one the plan describes."
   jq -e '.schema == "prufyx.io/knowledge-packet/v1" and .sourceCommit == $s' --arg s "${GITHUB_SHA}" "${packet}" > /dev/null 2>&1 || die "sign refused: packet.json is not the packet of this commit."
+  jq -e '(.entriesDigest | type == "string") and (.entriesDigest | test("^sha256:[0-9a-f]{64}$"))' "${plan}" > /dev/null 2>&1 || die "sign refused: the plan has no well-formed entriesDigest."
+  [ "$(jq -r '.entriesDigest' "${plan}")" = "$(jq -r '.entriesDigest' "${packet}")" ] || die "sign refused: the packet entriesDigest differs from the plan."
   local created now
   created="$(jq -r '.createdEpoch' "${plan}")"
   is_pos_int "${created}" || die "sign refused: the plan has no creation time."
@@ -285,10 +379,12 @@ case "${sub}" in
   gate) cmd_gate "$@" ;;
   pending) cmd_pending "$@" ;;
   cancel) cmd_cancel "$@" ;;
-  latest-run) cmd_latest_run "$@" ;;
+  live-runs) cmd_live_runs "$@" ;;
+  check-live) cmd_check_live "$@" ;;
+  trusted-ids) cmd_trusted_ids "$@" ;;
   collect) cmd_collect "$@" ;;
   has-content) cmd_has_content "$@" ;;
   plan-json) cmd_plan_json "$@" ;;
   sign-check) cmd_sign_check "$@" ;;
-  *) echo "usage: knowledge-daily.sh gate|pending|cancel|latest-run|collect|has-content|plan-json|sign-check" >&2; exit 2 ;;
+  *) echo "usage: knowledge-daily.sh gate|pending|cancel|live-runs|check-live|trusted-ids|collect|has-content|plan-json|sign-check" >&2; exit 2 ;;
 esac

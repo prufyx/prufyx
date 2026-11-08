@@ -229,19 +229,24 @@ func TestPublishVerifyScript(t *testing.T) {
 	day := 24 * time.Hour
 
 	type scenario struct {
-		name         string
-		signed       time.Time // feed signing time; expires = signed + 14d
-		evidence     time.Time // zero: signed + 60d
-		runStarted   time.Time
-		noRun        bool
-		merge        time.Time // committer time of the no-ff merge commit on main
-		branchCommit time.Time // zero: 30 days before the merge (the commit the GitHub commits API would return)
-		noMerge      bool
-		lastMod      time.Time
-		verifyFail   bool
-		feedFail     bool
-		wantExit     int
-		wantIn       string
+		name          string
+		signed        time.Time // timestamp signing time (a content release or a refresh); timestamp expires = min(signed + 14d, targets expiry)
+		contentSigned time.Time // targets and snapshot signing time; zero: signed; they expire at min(contentSigned + 21d, evidence)
+		tsExpires     time.Time // zero: derived as above (tests of a package that violates the caps)
+		tgtExpires    time.Time // zero: derived as above
+		noRoleExpiry  bool      // the receipt carries no targets/snapshot expiry
+		legacy        bool      // package of the former layout: every role expires at signed + 14d
+		evidence      time.Time // zero: signed + 60d
+		runStarted    time.Time
+		noRun         bool
+		merge         time.Time // committer time of the no-ff merge commit on main
+		branchCommit  time.Time // zero: 30 days before the merge (the commit the GitHub commits API would return)
+		noMerge       bool
+		lastMod       time.Time
+		verifyFail    bool
+		feedFail      bool
+		wantExit      int
+		wantIn        string
 	}
 	good := scenario{signed: now.Add(-1 * day), runStarted: now.Add(-1 * day), merge: now.Add(-3 * day), wantExit: 0, wantIn: "publish-verify: OK revision 7"}
 	with := func(name string, f func(*scenario), exit int, in string) scenario {
@@ -259,12 +264,12 @@ func TestPublishVerifyScript(t *testing.T) {
 		with("no successful run", func(s *scenario) { s.noRun = true }, 1, "no successful Knowledge publish run on main"),
 		with("feed not newer than merge", func(s *scenario) {
 			s.signed = now.Add(-3 * day)
-			s.merge = now.Add(-1 * day)
+			s.merge = now.Add(-2 * day) // older than the 30 hour window
 			s.runStarted = now.Add(-4 * day)
 		}, 1, "feed not newer than the newest knowledge merge"),
 		with("old branch commit, recent merge, stale feed", func(s *scenario) {
 			s.signed = now.Add(-3 * day)
-			s.merge = now.Add(-1 * day)
+			s.merge = now.Add(-2 * day) // older than the 30 hour window
 			s.branchCommit = now.Add(-10 * day)
 			s.runStarted = now.Add(-4 * day)
 		}, 1, "feed not newer than the newest knowledge merge"),
@@ -282,6 +287,54 @@ func TestPublishVerifyScript(t *testing.T) {
 			s.lastMod = now.Add(-10 * day)
 		}, 1, "feed age 10 days"),
 		with("two reasons on one line", func(s *scenario) { s.signed = now.Add(-12 * day); s.runStarted = now.Add(-9 * day) }, 1, "; "),
+		// Daily cadence: a merge is published by the next daily run plus its approval, so the
+		// grace window is 30 hours, not 2.
+		with("merge 10 hours old, still inside the daily window", func(s *scenario) {
+			s.signed = now.Add(-3 * day)
+			s.merge = now.Add(-10 * time.Hour)
+			s.runStarted = now.Add(-1 * day)
+		}, 0, "publish-verify: OK"),
+		with("merge 29 hours old, still inside the daily window", func(s *scenario) {
+			s.signed = now.Add(-3 * day)
+			s.merge = now.Add(-29 * time.Hour)
+			s.runStarted = now.Add(-2 * day)
+		}, 0, "publish-verify: OK"),
+		with("merge 31 hours old and not published", func(s *scenario) {
+			s.signed = now.Add(-3 * day)
+			s.merge = now.Add(-31 * time.Hour)
+			s.runStarted = now.Add(-2 * day)
+		}, 1, "feed not newer than the newest knowledge merge"),
+		// Signed-time derivation with a refresh: the timestamp is renewed, the content is not.
+		with("refresh over content signed 3 days ago, merge older than the content", func(s *scenario) {
+			s.contentSigned = now.Add(-3 * day)
+			s.signed = now.Add(-1 * day)
+			s.merge = now.Add(-5 * day)
+			s.runStarted = now.Add(-1 * day)
+		}, 0, "publish-verify: OK"),
+		with("refresh hides nothing: content older than the newest merge", func(s *scenario) {
+			s.contentSigned = now.Add(-5 * day)
+			s.signed = now.Add(-1 * day)
+			s.merge = now.Add(-3 * day)
+			s.runStarted = now.Add(-4 * day)
+		}, 1, "feed not newer than the newest knowledge merge"),
+		with("old content, fresh refresh: feed age is the timestamp age", func(s *scenario) {
+			s.contentSigned = now.Add(-6 * day)
+			s.signed = now.Add(-1 * day)
+			s.merge = now.Add(-7 * day)
+		}, 0, "publish-verify: OK"),
+		with("refresh older than 8 days", func(s *scenario) {
+			s.contentSigned = now.Add(-3 * day)
+			s.signed = now.Add(-9 * day)
+			s.merge = now.Add(-20 * day)
+		}, 1, "feed age 9 days"),
+		with("package of the former layout (equal role expiry) uses Last-Modified", func(s *scenario) {
+			s.legacy = true
+			s.signed = now.Add(-2 * day)
+		}, 0, "publish-verify: OK"),
+		// Caps: the publisher never signs beyond 14 days (timestamp) and 21 days (targets, snapshot).
+		with("timestamp beyond the 14 day cap", func(s *scenario) { s.tsExpires = now.Add(20 * day) }, 1, "timestamp expiry"),
+		with("targets beyond the 21 day cap", func(s *scenario) { s.tgtExpires = now.Add(25 * day) }, 1, "targets and snapshot expiry"),
+		with("no targets or snapshot expiry in the receipt", func(s *scenario) { s.noRoleExpiry = true }, 1, "no readable targets or snapshot expiry"),
 	}
 
 	for _, sc := range scenarios {
@@ -291,13 +344,32 @@ func TestPublishVerifyScript(t *testing.T) {
 			if err := os.Mkdir(bin, 0o755); err != nil {
 				t.Fatal(err)
 			}
-			expires := sc.signed.Add(14 * day)
+			contentSigned := sc.contentSigned
+			if contentSigned.IsZero() {
+				contentSigned = sc.signed
+			}
 			evidence := sc.evidence
 			if evidence.IsZero() {
-				evidence = sc.signed.Add(60 * day)
-			} else {
-				expires = evidence
+				evidence = contentSigned.Add(60 * day)
 			}
+			minTime := func(a, b time.Time) time.Time {
+				if a.Before(b) {
+					return a
+				}
+				return b
+			}
+			tgtExp := minTime(contentSigned.Add(21*day), evidence)
+			tsExp := minTime(sc.signed.Add(14*day), tgtExp)
+			if sc.legacy {
+				tgtExp, tsExp = sc.signed.Add(14*day), sc.signed.Add(14*day)
+			}
+			if !sc.tsExpires.IsZero() {
+				tsExp = sc.tsExpires
+			}
+			if !sc.tgtExpires.IsZero() {
+				tgtExp = sc.tgtExpires
+			}
+			expires := tsExp
 			lastMod := sc.lastMod
 			if lastMod.IsZero() {
 				lastMod = sc.signed
@@ -307,7 +379,11 @@ func TestPublishVerifyScript(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			write("receipt.json", fmt.Sprintf(`{"status":"VERIFIED","knowledgeRevision":7,"timestamp":{"version":7,"expires":%q},"evidenceExpiresAt":%q}`, ts(expires), ts(evidence)))
+			roles := fmt.Sprintf(`,"snapshot":{"version":7,"expires":%q},"targets":{"version":7,"expires":%q}`, ts(tgtExp), ts(tgtExp))
+			if sc.noRoleExpiry {
+				roles = ""
+			}
+			write("receipt.json", fmt.Sprintf(`{"status":"VERIFIED","knowledgeRevision":7,"timestamp":{"version":7,"expires":%q}%s,"evidenceExpiresAt":%q}`, ts(expires), roles, ts(evidence)))
 			write("headers", "HTTP/2 200\r\nlast-modified: "+lastMod.Format("Mon, 02 Jan 2006 15:04:05")+" GMT\r\n\r\n")
 			runs := `{"workflow_runs":[]}`
 			if !sc.noRun {

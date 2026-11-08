@@ -15,10 +15,22 @@
 #   deploy  environment github-pages: no keys. Re-verifies the artifact, checks
 #           that the live package is still the one the plan saw, deploys.
 #
-# Not active until the owner adds the required reviewer to knowledge-release
-# (and creates knowledge-refresh): the gate self-check of `plan` fails closed
-# until then. A manual dispatch has dry_run=true by default: it runs `plan` and
-# can never reach `sign`.
+# Merge order. Removing the push and weekly triggers means that merging this
+# workflow before the owner steps leaves nothing signing, and more than 14 days
+# without a signed package cannot be recovered. So this change stays a draft
+# until the owner steps are done, and lands last:
+#   1. the packet generator (#460), then the publisher (#461)
+#   2. owner steps: the required reviewer on the environment knowledge-release
+#      (branch main only), and the environment knowledge-refresh (branch main
+#      only, no reviewer) holding ONLY the timestamp key and the passphrase
+#   3. the refresh workflow (#462), then this workflow (#463; it also carries
+#      the scripts/publish-verify.sh limits that match the daily cadence)
+# The gate self-check of `plan` fails closed until step 2 is done, and a manual
+# dispatch has dry_run=true by default: it runs `plan` and can never reach `sign`.
+#
+# The key secrets are checked by the owner, not by the workflow: the job token
+# has no scope to list secrets. The Sign step refuses, before it writes any key
+# file, when one of its four inputs is empty.
 #
 # The workflow runs only when the repository variable KNOWLEDGE_RELEASE_ENABLED
 # is exactly "true", and only from main. It never runs pull request code.
@@ -28,15 +40,19 @@
 #   secrets.KNOWLEDGE_SNAPSHOT_KEY     snapshot role key file (encrypted PEM)
 #   secrets.KNOWLEDGE_TIMESTAMP_KEY    timestamp role key file (encrypted PEM)
 #   secrets.KNOWLEDGE_KEY_PASSPHRASE   passphrase of the three role keys
-#   (environment secrets of knowledge-release only, never repository secrets)
+#   (environment secrets of knowledge-release only, never repository secrets;
+#   their presence is owner-verified)
 #   vars.KNOWLEDGE_ROOT_DIGEST         "sha256:<hex>" of the pinned root, checked
 #                                      against cli/internal/knowledgepin/root.json
 # The root signing key is never used here and stays offline.
 #
 # Needs the maintainer subcommands knowledge-packet and knowledge-publish
-# release/content-digest/live-state/deploy-guard (CI mode). State (previous
-# revision, TUF version, previous index) comes from the last successful run of
-# this workflow on main, never from the Pages CDN. See
+# release/content-digest/live-state/deploy-guard (CI mode). State comes from the
+# newest live artifact across BOTH families, never from the Pages CDN: content
+# runs of this workflow (knowledge-<rev>-<sha>) and refresh runs of
+# knowledge-refresh.yml (knowledge-refresh-<rev>-<ver>-<sha>). The content run
+# also gives the source commit and the revision; sign and deploy refuse unless
+# the newest run of each family is still the one the plan recorded. See
 # cli/docs/knowledge-publisher.md ("Daily signing") for the runbook.
 
 name: Knowledge publish
@@ -178,10 +194,11 @@ jobs:
           go build -trimpath -buildvcs=false -o "${RUNNER_TEMP}/bin/prufyx" ./cmd/prufyx-community
           go build -trimpath -buildvcs=false -o "${RUNNER_TEMP}/bin/prufyx-maintainer" ./cmd/prufyx-maintainer
 
-      # The previous revision, TUF version and index come from the last
-      # successful run on main, found with the API (uncached), not from the
-      # Pages CDN. The artifact is untrusted until `db verify` has accepted it
-      # against the pinned root and the digest in the artifact NAME.
+      # The previous revision, TUF version and index come from the live package:
+      # the newest live artifact across the content family and the refresh
+      # family, found with the API (uncached), not from the Pages CDN. The
+      # artifact is untrusted until `db verify` has accepted it against the
+      # pinned root and the digest in the artifact NAME.
       - name: Find and verify the previous state
         id: prev
         if: ${{ steps.pending.outputs.pending == '' }}
@@ -201,10 +218,6 @@ jobs:
           state="$(mktemp -d "${RUNNER_TEMP}/knowledge-state.XXXXXX")"
           fail() { echo "::error::$*"; exit 1; }
 
-          runs="$(gh api --paginate -X GET "repos/${GH_REPO}/actions/workflows/knowledge-publish.yml/runs" \
-            -f branch=main -f status=success -f per_page=100 \
-            --jq '.workflow_runs[] | [.id, .head_sha] | @tsv')"
-
           verify() { # package expected-digest expected-revision
             local args=(db verify "$1" --profile cncf-projects --bootstrap-root "${root}" --bootstrap-root-digest "${ROOT_DIGEST}" --format json)
             [ -z "$2" ] || args+=(--expected-package-digest "$2")
@@ -212,15 +225,21 @@ jobs:
             "${bin}" "${args[@]}"
           }
           prev_sha=""
-          prev_run_id=""
+          content_run_id=""
+          refresh_run_id=""
+          content_revision=""
 
           if [ "${FIRST_RELEASE}" = "true" ]; then
             if [ -n "${PREV_REVISION}${PREV_TUF}${PREV_URL}" ]; then
               fail "first_release cannot be combined with the recovery inputs."
             fi
+            runs="$(gh api --paginate -X GET "repos/${GH_REPO}/actions/workflows/knowledge-publish.yml/runs" \
+              -f branch=main -f status=success -f per_page=100 --jq '.workflow_runs[].id')"
             if [ -n "${runs}" ]; then
               fail "first_release=true refused: a successful run of this workflow already exists on main."
             fi
+            live="$(bash "${GITHUB_WORKSPACE}/scripts/knowledge-daily.sh" live-runs)" || fail "the published state cannot be read."
+            [ "$(jq -r '.live.family' <<< "${live}")" = none ] || fail "first_release=true refused: a live package exists."
             echo "mode=first" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
@@ -240,15 +259,21 @@ jobs:
             expected_revision="${PREV_REVISION}"
             mode=recovery
           else
-            [ -n "${runs}" ] || fail "no successful run of this workflow exists on main; use first_release=true for the very first publish."
-            found=""
-            while IFS=$'\t' read -r id sha; do
-              [ -n "${id}" ] || continue
-              found="$(gh api -X GET "repos/${GH_REPO}/actions/runs/${id}/artifacts" \
-                --jq '[.artifacts[] | select(.expired == false) | select(.name | test("^knowledge-[0-9]+-[0-9a-f]{64}$"))] | (first // empty) | [.id, .name, .size_in_bytes, .created_at] | @tsv')"
-              if [ -n "${found}" ]; then prev_sha="${sha}"; prev_run_id="${id}"; break; fi
-            done <<< "${runs}"
-            [ -n "${found}" ] || fail "no run has a live knowledge artifact (retention is 90 days); use the recovery inputs, see the runbook."
+            # The live package is the newest live artifact across the content
+            # family and the refresh family; the content run gives the source
+            # commit and the revision (a refresh keeps both).
+            live="$(bash "${GITHUB_WORKSPACE}/scripts/knowledge-daily.sh" live-runs)" || fail "the published state cannot be read from the runs of both workflows."
+            live_family="$(jq -r '.live.family' <<< "${live}")"
+            [ "${live_family}" != none ] || fail "no run of the content or the refresh workflow has a live knowledge artifact (retention is 90 days) and no first release is requested; use the recovery inputs, see the runbook."
+            live_name="$(jq -r '.live.artifact' <<< "${live}")"
+            [[ "${live_name}" =~ ^knowledge(-refresh)?-[0-9]+(-[0-9]+)?-[0-9a-f]{64}$ ]] || fail "the live artifact name is malformed."
+            prev_sha="$(jq -r '.content.sha' <<< "${live}")"
+            content_run_id="$(jq -r '.content.runId' <<< "${live}")"
+            refresh_run_id="$(jq -r '.refresh.runId' <<< "${live}")"
+            content_revision="$(jq -r '.content.revision' <<< "${live}")"
+            found="$(gh api -X GET "repos/${GH_REPO}/actions/runs/$(jq -r '.live.runId' <<< "${live}")/artifacts?per_page=100" \
+              --jq "[.artifacts[] | select(.expired == false) | select(.name == \"${live_name}\")] | (first // empty) | [.id, .name, .size_in_bytes, .created_at] | @tsv")"
+            [ -n "${found}" ] || fail "the live artifact ${live_name} is no longer available."
             IFS=$'\t' read -r aid aname asize created <<< "${found}"
             [ "${asize}" -le $((MAX_PACKAGE_BYTES * 2)) ] || fail "previous artifact is larger than expected."
             gh api "repos/${GH_REPO}/actions/artifacts/${aid}/zip" > "${state}/previous.zip"
@@ -278,7 +303,9 @@ jobs:
               {
                 echo "mismatch=true"
                 echo "prev_sha=${prev_sha}"
-                echo "prev_run_id=${prev_run_id}"
+                echo "content_run_id=${content_run_id}"
+                echo "refresh_run_id=${refresh_run_id}"
+                echo "content_revision=${content_revision}"
                 echo "pkg=${pkg}"
                 echo "state_dir=${state}"
                 echo "expected_digest=${expected_digest}"
@@ -294,7 +321,9 @@ jobs:
           {
             echo "pkg=${pkg}"
             echo "prev_sha=${prev_sha}"
-            echo "prev_run_id=${prev_run_id}"
+            echo "content_run_id=${content_run_id}"
+            echo "refresh_run_id=${refresh_run_id}"
+            echo "content_revision=${content_revision}"
             echo "expected_digest=${expected_digest}"
           } >> "${GITHUB_OUTPUT}"
 
@@ -358,7 +387,9 @@ jobs:
           PREV_INDEX_FILE: ${{ steps.prevcap.outputs.index || steps.prev.outputs.index }}
           EXPECTED_DIGEST: ${{ steps.prevcap.outputs.digest || steps.prev.outputs.expected_digest }}
           PREV_SHA: ${{ steps.prev.outputs.prev_sha }}
-          PREV_RUN_ID: ${{ steps.prev.outputs.prev_run_id }}
+          PREV_CONTENT_RUN_ID: ${{ steps.prev.outputs.content_run_id }}
+          PREV_REFRESH_RUN_ID: ${{ steps.prev.outputs.refresh_run_id }}
+          CONTENT_REVISION: ${{ steps.prev.outputs.content_revision }}
           SINCE_SHA: ${{ inputs.since_sha }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
           RUN_ID: ${{ github.run_id }}
@@ -392,6 +423,12 @@ jobs:
               [[ "${PREV_REVISION}" =~ ^[1-9][0-9]{0,17}$ ]] || fail "the previous revision is not a positive integer."
               revision=$((PREV_REVISION + 1)); prev_rev="${PREV_REVISION}" ;;
             *) fail "unknown mode '${MODE}'." ;;
+          esac
+
+          # The verified live package and the newest content run must agree on
+          # the revision (a refresh keeps it); any difference is a moved state.
+          case "${MODE}" in
+            state | capability) [ "${CONTENT_REVISION}" = "${PREV_REVISION}" ] || fail "the revision of the verified live package (${PREV_REVISION}) differs from the revision of the newest content run (${CONTENT_REVISION})." ;;
           esac
 
           # Layout of the next release and its keyless digests.
@@ -436,12 +473,8 @@ jobs:
           expires="$(date -u -d "@${exp_epoch}" +%Y-%m-%dT%H:%M:%SZ)"
 
           # The packet: every pull request merged since the last published source commit.
-          ids=""
-          for login in airstand prufyx-bot; do
-            id="$(gh api -X GET "users/${login}" --jq '.id')" || fail "cannot resolve the user id of ${login}."
-            [[ "${id}" =~ ^[1-9][0-9]{0,17}$ ]] || fail "bad user id for ${login}."
-            ids="${ids:+${ids},}${id}"
-          done
+          # Numeric ids are pinned in the script; the login lookup only cross-checks them.
+          ids="$(bash "${daily}" trusted-ids)" || fail "the trusted user ids could not be confirmed; nothing can be signed."
           bash "${daily}" collect "${GITHUB_WORKSPACE}" "${base}" "${head}" "${stage}/input.json"
           "${maint}" knowledge-packet --repo "${GITHUB_WORKSPACE}" --base "${base}" --head "${head}" --previous-revision "${prev_rev}" \
             --input "${stage}/input.json" --out-json "${stage}/packet.json" --out-md "${stage}/packet.md" --trusted-user-ids "${ids}" \
@@ -460,7 +493,8 @@ jobs:
             echo ""
             echo "- source commit: \`${head}\` (range from \`${base}\`)"
             echo "- mode: ${MODE}; dry run: ${DRY_RUN}; content to publish: ${has_content}"
-            echo "- content digest: \`${content_digest}\`"
+            echo "- export content digest (binds the signature): \`${content_digest}\`"
+            echo "- packet entries digest: \`$(jq -er '.entriesDigest' "${stage}/packet.json")\`"
             echo "- index digest: \`${index_digest}\`"
             echo "- minimum TUF version: ${min_version} (the signed version is the live version plus one, computed at sign time)"
             echo "- roles expire: ${expires}"
@@ -674,14 +708,14 @@ jobs:
           pj() { jq -er "$1" "${plan}"; }
           mode="$(pj '.mode')"
           revision="$(pj '.revision')"
-          latest="$(bash scripts/knowledge-daily.sh latest-run)"
+          # Unconditional, over both families: the newest content run and the
+          # newest refresh run must be exactly the ones the plan recorded, and the
+          # live artifact must be the package the plan holds. A refresh that was
+          # deployed after the plan makes this refuse; the next plan replans.
+          bash scripts/knowledge-daily.sh check-live "${plan}"
           version=1
           layout=(--first-release)
-          if [ "${mode}" = first ]; then
-            [ -z "${latest}" ] || fail "first release refused: a successful run of this workflow exists."
-          else
-            prun="$(pj '.previous.runId')"
-            [ -z "${prun}" ] || [ "${latest}" = "${prun}" ] || fail "the published state moved since the plan (run ${latest} is the newest, the plan saw ${prun}); the next plan replans."
+          if [ "${mode}" != first ]; then
             pkg="${RUNNER_TEMP}/plan/previous.tar"
             [ -f "${pkg}" ] && [ ! -L "${pkg}" ] || fail "the plan holds no previous package."
             state="$("${maint}" knowledge-publish live-state --package "${pkg}" --root "${root}" --root-digest "${ROOT_DIGEST}" --profile cncf-projects \
@@ -716,7 +750,9 @@ jobs:
           } >> "${GITHUB_OUTPUT}"
 
       # The only step with secrets. It signs and nothing else; its keys directory
-      # is removed by the EXIT trap, and the steps after it hold no secret.
+      # is removed by the EXIT trap, and the steps after it hold no secret. The
+      # four inputs must be present: the owner verifies the key material, and an
+      # empty input stops the step before any key file or directory exists.
       - name: Sign
         id: sign
         env:
@@ -735,6 +771,9 @@ jobs:
           umask 077
           export LC_ALL=C
           fail() { echo "::error::$*"; exit 1; }
+          for name in TARGETS_KEY SNAPSHOT_KEY TIMESTAMP_KEY PASSPHRASE; do
+            [ -n "${!name//[[:space:]]/}" ] || fail "the signing input ${name} is empty: the matching environment secret of knowledge-release is missing; nothing was signed."
+          done
           maint="${RUNNER_TEMP}/bin/prufyx-maintainer"
           root="${GITHUB_WORKSPACE}/cli/internal/knowledgepin/root.json"
           plan="${RUNNER_TEMP}/plan/plan.json"
@@ -818,6 +857,8 @@ jobs:
             echo "- TUF version: ${VERSION}"
             echo "- package digest: sha256:${hex}"
             echo "- index digest (equals the packet): $(jq -r '.indexDigest' "${plan}")"
+            echo "- export content digest (binds the signature): $(jq -r '.contentDigest' "${plan}")"
+            echo "- packet entries digest: $(jq -r '.entriesDigest' "${plan}")"
             echo "- roles expire: $(jq -r '.expires' "${release}")"
           } >> "${GITHUB_STEP_SUMMARY}"
 
@@ -983,12 +1024,10 @@ jobs:
           go build -trimpath -buildvcs=false -o "${RUNNER_TEMP}/prufyx-maintainer" ./cmd/prufyx-maintainer
           plan="${RUNNER_TEMP}/plan/plan.json"
           mode="$(jq -er '.mode' "${plan}")"
-          latest="$(bash "${GITHUB_WORKSPACE}/scripts/knowledge-daily.sh" latest-run)"
-          if [ "${mode}" = first ]; then
-            [ -z "${latest}" ] || fail "a successful run of this workflow exists; the first release must not deploy."
-          else
-            prun="$(jq -er '.previous.runId' "${plan}")"
-            [ -z "${prun}" ] || [ "${latest}" = "${prun}" ] || fail "a later run of this workflow has already succeeded; this run must not deploy."
+          # Unconditional, over both families (see the sign job): a refresh or a
+          # content run that succeeded after the plan must not be rolled back.
+          bash "${GITHUB_WORKSPACE}/scripts/knowledge-daily.sh" check-live "${plan}"
+          if [ "${mode}" != first ]; then
             prev="${RUNNER_TEMP}/plan/previous.tar"
             [ "sha256:$(sha256sum "${prev}" | cut -d' ' -f1)" = "$(jq -er '.previous.packageDigest' "${plan}")" ] || fail "the previous package differs from the plan."
             "${RUNNER_TEMP}/prufyx-maintainer" knowledge-publish deploy-guard --profile cncf-projects \
@@ -1030,7 +1069,7 @@ jobs:
           cp "${root}" "${site}/knowledge/root.json"
           jq --slurpfile p "${plan}" --arg run "${GITHUB_RUN_ID}" \
             '{revision: .knowledgeRevision, packageDigest: .packageDigest, bundleDigest: .targetDigest, timestampVersion: .timestamp.version, expires: .timestamp.expires, evidenceExpiresAt: .evidenceExpiresAt,
-              packet: {sourceCommit: $p[0].sourceCommit, packetSha256: $p[0].packetSha256, contentDigest: $p[0].contentDigest, indexDigest: $p[0].indexDigest, runId: $run}}' \
+              packet: {sourceCommit: $p[0].sourceCommit, packetSha256: $p[0].packetSha256, contentDigest: $p[0].contentDigest, entriesDigest: $p[0].entriesDigest, indexDigest: $p[0].indexDigest, runId: $run}}' \
             <<< "${receipt}" > "${site}/knowledge/status.json"
           {
             echo "### Knowledge package deployed"

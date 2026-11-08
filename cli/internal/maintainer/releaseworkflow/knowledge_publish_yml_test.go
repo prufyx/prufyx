@@ -364,3 +364,164 @@ func TestOldestSupportedClientPin(t *testing.T) {
 		}
 	}
 }
+
+func readRepoFile(t *testing.T, rel ...string) string {
+	t.Helper()
+	_, self, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("cannot locate the test source")
+	}
+	repo := filepath.Join(filepath.Dir(self), "..", "..", "..", "..")
+	raw, err := os.ReadFile(filepath.Join(append([]string{repo}, rel...)...))
+	if err != nil {
+		t.Skip("source file not present: " + filepath.Join(rel...))
+	}
+	return string(raw)
+}
+
+func stepRun(t *testing.T, job publishJob, name string) string {
+	t.Helper()
+	i := stepIndex(job.Steps, name)
+	if i < 0 {
+		t.Fatalf("step %q not found", name)
+	}
+	return job.Steps[i].Run
+}
+
+// The live package is the newest live artifact across the content family and
+// the refresh family. Plan picks it from both, sign and deploy re-check both
+// families unconditionally (an empty recorded run id is a state to compare, not
+// a reason to skip), and nothing reads only the content family any more.
+func TestKnowledgePublishLivenessSpansBothFamilies(t *testing.T) {
+	wf, raw := loadPublishWorkflow(t)
+	if !strings.Contains(stepRun(t, wf.Jobs["plan"], "Find and verify the previous state"), "knowledge-daily.sh\" live-runs") {
+		t.Error("plan must pick the live package with live-runs (both families)")
+	}
+	if !strings.Contains(stepRun(t, wf.Jobs["sign"], "Re-derive state, digests and version"), "knowledge-daily.sh check-live \"${plan}\"") {
+		t.Error("sign must re-check liveness over both families with check-live")
+	}
+	if !strings.Contains(stepRun(t, wf.Jobs["deploy"], "Refuse unless the candidate follows the live package"), "check-live \"${plan}\"") {
+		t.Error("deploy must re-check liveness over both families with check-live")
+	}
+	if strings.Contains(raw, "latest-run") {
+		t.Error("the single-family latest-run lookup is still used")
+	}
+	for _, line := range strings.Split(raw, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "#") {
+			continue
+		}
+		if strings.Contains(line, `-z "${prun}"`) {
+			t.Errorf("liveness skipped on an empty recorded run id: %s", strings.TrimSpace(line))
+		}
+	}
+	// The sign version is the live timestamp version plus one, from the live-state
+	// of the package the plan holds (the live package), never a copy of an older one.
+	rd := stepRun(t, wf.Jobs["sign"], "Re-derive state, digests and version")
+	if !strings.Contains(rd, `version="$(jq -er '.minNextVersion' <<< "${state}")"`) || !strings.Contains(rd, "--expect-package-digest") {
+		t.Error("the signing version must be the live-state minNextVersion of the live package")
+	}
+	sg := stepRun(t, wf.Jobs["sign"], "Sign")
+	if !strings.Contains(sg, `--expect-previous-package-digest "$(jq -er '.previous.packageDigest'`) {
+		t.Error("release must be pinned to the live package digest")
+	}
+	dg := stepRun(t, wf.Jobs["deploy"], "Refuse unless the candidate follows the live package")
+	if !strings.Contains(dg, "deploy-guard") || !strings.Contains(dg, `--live-package "${prev}"`) || !strings.Contains(dg, `--predecessor-digest "$(jq -er '.previous.packageDigest'`) {
+		t.Error("deploy-guard must get the live package and its digest")
+	}
+}
+
+// The packet digest the workflow consumes is entriesDigest. The keyless export
+// contentDigest that binds the signature keeps its name and is never read from
+// the packet; the step summary shows both with distinct labels.
+func TestKnowledgePublishPacketDigestIsEntriesDigest(t *testing.T) {
+	wf, raw := loadPublishWorkflow(t)
+	plan := stepRun(t, wf.Jobs["plan"], "Build the packet and the plan")
+	if !strings.Contains(plan, `jq -er '.entriesDigest' "${stage}/packet.json"`) {
+		t.Error("the plan summary must read entriesDigest from the packet")
+	}
+	for _, label := range []string{"export content digest (binds the signature)", "packet entries digest"} {
+		if !strings.Contains(plan, label) {
+			t.Errorf("plan summary lacks the label %q", label)
+		}
+	}
+	if !strings.Contains(raw, "entriesDigest: $p[0].entriesDigest") {
+		t.Error("status.json must carry the packet entriesDigest next to the export contentDigest")
+	}
+	for _, line := range strings.Split(raw, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "#") {
+			continue
+		}
+		if strings.Contains(line, "packet.json") && strings.Contains(line, ".contentDigest") {
+			t.Errorf("the packet digest is read as contentDigest: %s", strings.TrimSpace(line))
+		}
+	}
+}
+
+// Key presence is owner-verified; the Sign step refuses an empty key input before
+// any key file or directory exists, and nothing lists repository secrets.
+func TestKnowledgePublishSignRefusesEmptyKeyInputsFirst(t *testing.T) {
+	wf, raw := loadPublishWorkflow(t)
+	sg := stepRun(t, wf.Jobs["sign"], "Sign")
+	guard := strings.Index(sg, "TARGETS_KEY SNAPSHOT_KEY TIMESTAMP_KEY PASSPHRASE")
+	if guard < 0 || !strings.Contains(sg, `[ -n "${!name//[[:space:]]/}" ]`) {
+		t.Fatal("the Sign step has no empty-input guard over all four key inputs")
+	}
+	for _, later := range []string{"mktemp", "printf", "> \"${keys}"} {
+		if i := strings.Index(sg, later); i >= 0 && i < guard {
+			t.Errorf("%q comes before the key input guard", later)
+		}
+	}
+	script := readRepoFile(t, "scripts", "knowledge-daily.sh")
+	for _, s := range []string{raw, script} {
+		for _, line := range strings.Split(s, "\n") {
+			if !strings.HasPrefix(strings.TrimSpace(line), "#") && strings.Contains(line, "actions/secrets") {
+				t.Errorf("repository secrets are listed: %s", strings.TrimSpace(line))
+			}
+		}
+	}
+}
+
+// The trusted marker authors are pinned numeric ids in the script; a login
+// lookup may only cross-check them.
+func TestKnowledgeDailyPinsTrustedUserIDs(t *testing.T) {
+	script := readRepoFile(t, "scripts", "knowledge-daily.sh")
+	for _, want := range []string{"OWNER_USER_ID=11156623", "BOT_USER_ID=343087959"} {
+		if !strings.Contains(script, want) {
+			t.Errorf("script lacks the pinned constant %s", want)
+		}
+	}
+	_, raw := loadPublishWorkflow(t)
+	if strings.Contains(raw, "users/") || strings.Contains(raw, "gh api users") {
+		t.Error("the workflow resolves trusted ids from logins")
+	}
+}
+
+// Merge order is stated where an editor will see it: the workflow header, and the
+// docs section "Daily signing".
+func TestDailySigningStatesMergeOrderAndOwnerVerifiedKeys(t *testing.T) {
+	_, raw := loadPublishWorkflow(t)
+	var header []string
+	for _, l := range strings.Split(raw, "\n") {
+		if !strings.HasPrefix(l, "#") {
+			break
+		}
+		header = append(header, strings.ToLower(l))
+	}
+	h := strings.Join(header, "\n")
+	for _, want := range []string{"merge order", "draft", "knowledge-refresh", "#460", "#461", "#462", "#463", "owner steps", "owner-verified"} {
+		if !strings.Contains(h, want) {
+			t.Errorf("workflow header lacks %q", want)
+		}
+	}
+	doc := readRepoFile(t, "cli", "docs", "knowledge-publisher.md")
+	i := strings.Index(doc, "Daily signing")
+	if i < 0 {
+		t.Fatal("docs have no Daily signing section")
+	}
+	section := strings.ToLower(doc[i:])
+	for _, want := range []string{"merge order", "draft", "key presence is owner-verified", "knowledge-refresh-<revision>"} {
+		if !strings.Contains(section, want) {
+			t.Errorf("docs 'Daily signing' lacks %q", want)
+		}
+	}
+}
