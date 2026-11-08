@@ -102,6 +102,17 @@ func TestMariadbOperatorVendoredExampleExclusion(t *testing.T) {
 		if !proof.Completeness.Scan || !proof.Completeness.Attestable {
 			t.Fatalf("a definition file inside the excluded directory (%s) is excluded by design: %+v", in, proof.Completeness)
 		}
+		// Recorded, never blocking: the file is listed as excluded at the
+		// directory with its definitions named.
+		recorded := false
+		for _, f := range proof.To.Scan.Findings {
+			if f.Path == in && f.Class == ClassExcluded && f.Location == dir && len(f.CRDs) > 0 {
+				recorded = true
+			}
+		}
+		if !recorded {
+			t.Fatalf("%s is not recorded as an excluded finding: %+v", in, proof.To.Scan.Findings)
+		}
 	}
 	// ACCEPTED RISK, listed for the independent trust review: the scope is
 	// the whole directory and has no version scope, so a later operator
