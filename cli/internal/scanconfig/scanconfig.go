@@ -365,8 +365,8 @@ func parseDeclarations(value any) (DeclarationSet, error) {
 		decl := &KubernetesDeclarations{}
 		if v, present := k["distribution"]; present {
 			s, ok := v.(string)
-			if !ok || (s != DistributionOfficialUpstream && s != DistributionCustomBuild) {
-				return DeclarationSet{}, fail("declarations.kubernetes.distribution must be %s or %s", DistributionOfficialUpstream, DistributionCustomBuild)
+			if !ok || !ValidDistribution(s) {
+				return DeclarationSet{}, fail("declarations.kubernetes.distribution must be one of %s", strings.Join(DistributionValues(), ", "))
 			}
 			decl.Distribution = &s
 		}

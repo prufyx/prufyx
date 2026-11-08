@@ -741,7 +741,8 @@ with where it is and how to fix it, and every area that was not checked.
   --to C=V                  target version of component C (repeatable; at least one)
   --from C=V                current version of component C (repeatable; never read from manifests)
   --config FILE             prufyx.yaml to read; default: prufyx.yaml next to the first PATH
-  --distribution D          official_upstream or custom_build (Kubernetes)
+  --distribution D          official_upstream, custom_build, or a provider: eks, gke, aks, k3s (Kubernetes; a provider is not
+                            evaluated as upstream, its announced support dates are shown as advice)
   --resource-scope-complete[=true|false]   the inputs are every manifest you apply
   --target-api-apply-required[=true|false] the inputs are applied to the target API
   --kubelet-version-min X.Y.Z  the lowest kubelet version of any node (declared, not observed)

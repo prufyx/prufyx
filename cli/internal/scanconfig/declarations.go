@@ -31,12 +31,34 @@ const (
 	DistributionCustomBuild      = "custom_build"
 )
 
+// ProviderDistributions are the managed and packaged Kubernetes providers a
+// caller may declare. Declaring one is not upstream: the Kubernetes rules
+// treat it as not covered (as custom_build), and the advisory provider facts
+// (providerfacts) are evaluated for it.
+var ProviderDistributions = []string{"aks", "eks", "gke", "k3s"}
+
+// DistributionValues is every accepted value of a Kubernetes distribution
+// declaration.
+func DistributionValues() []string {
+	return append([]string{DistributionOfficialUpstream, DistributionCustomBuild}, ProviderDistributions...)
+}
+
+// ValidDistribution reports whether v is an accepted distribution value.
+func ValidDistribution(v string) bool {
+	for _, d := range DistributionValues() {
+		if v == d {
+			return true
+		}
+	}
+	return false
+}
+
 // Declarations lists every declaration the configuration file can carry, in a
 // fixed order. Version 1 covers Kubernetes only.
 func Declarations() []Declaration {
 	return []Declaration{
 		{Key: "declarations.kubernetes.distribution", Project: "kubernetes", Flag: "distribution", Kind: FlagString,
-			Values: []string{DistributionOfficialUpstream, DistributionCustomBuild}},
+			Values: DistributionValues()},
 		{Key: "declarations.kubernetes.resourceScopeComplete", Project: "kubernetes", Flag: "resource-scope-complete", Kind: FlagBool},
 		{Key: "declarations.kubernetes.targetApplyRequired", Project: "kubernetes", Flag: "target-api-apply-required", Kind: FlagBool},
 	}

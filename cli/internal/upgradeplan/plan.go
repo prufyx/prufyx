@@ -19,6 +19,7 @@ import (
 	"sort"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/providerfacts"
 	"github.com/prufyx/prufyx/cli/internal/scanconfig"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 )
@@ -91,6 +92,10 @@ type Plan struct {
 	Undecided int `json:"undecided"`
 	// Notes say how a target was chosen when Prufyx chose it.
 	Notes []string `json:"notes"`
+	// Provider holds the advisory provider facts the scan carried: the
+	// target line and anything that could not be read. It is never read by
+	// the verdict, a stage verdict, the counts or the exit code.
+	Provider *PlanProvider `json:"provider,omitempty"`
 	// Provenance repeats the scan's, so the plan names what it rests on.
 	Provenance scanreport.Provenance `json:"provenance"`
 	ExitCode   int                   `json:"exitCode"`
@@ -136,6 +141,19 @@ type Stage struct {
 	// WholeUpgrade marks a stage that carries a finding of the end-to-end
 	// transition (a rule spanning several lines).
 	WholeUpgrade bool `json:"wholeUpgrade,omitempty"`
+	// Provider holds the advisory provider facts of the hop's current line,
+	// copied from the scan report. They never change the stage verdict.
+	Provider []providerfacts.Finding `json:"provider,omitempty"`
+}
+
+// PlanProvider is the plan-level part of the scan's provider facts.
+type PlanProvider struct {
+	Provider          string                  `json:"provider"`
+	Now               string                  `json:"now"`
+	KnowledgeRevision string                  `json:"knowledgeRevision"`
+	Target            []providerfacts.Finding `json:"target"`
+	Other             []providerfacts.Finding `json:"other"`
+	Notes             []string                `json:"notes"`
 }
 
 // Finding is a rule result placed in a stage.
@@ -249,6 +267,7 @@ func Build(report scanreport.Report, latest []string, caps Capabilities) Plan {
 		finishStage(&plan.Stages[i], caps)
 	}
 	finish(&plan, report, components)
+	attachProvider(&plan, report)
 	return plan
 }
 
@@ -436,4 +455,51 @@ func hopCount(routes []Route) int {
 		n += r.Hops
 	}
 	return n
+}
+
+// attachProvider copies the scan's provider facts into the plan, after the
+// verdict is final: the plan evaluates no provider rule of its own and the
+// facts are placed, never counted.
+func attachProvider(plan *Plan, report scanreport.Report) {
+	section := report.Provider
+	if section == nil {
+		return
+	}
+	byLine := map[string]providerfacts.LineFacts{}
+	out := &PlanProvider{Provider: section.Provider, Now: section.Now, KnowledgeRevision: section.KnowledgeRevision,
+		Target: []providerfacts.Finding{}, Other: []providerfacts.Finding{}, Notes: append([]string(nil), section.Notes...)}
+	for _, l := range section.Lines {
+		switch {
+		case l.Line == "":
+			out.Other = append(out.Other, l.Findings...)
+		default:
+			byLine[l.Line] = l
+			if l.Role == providerfacts.RoleTarget || l.Role == providerfacts.RoleCurrentLine {
+				out.Target = append(out.Target, l.Findings...)
+			}
+		}
+	}
+	for i := range plan.Stages {
+		if plan.Stages[i].Component != kubernetes {
+			continue
+		}
+		if l, ok := byLine[lineOf(plan.Stages[i].From)]; ok && l.Role != providerfacts.RoleTarget {
+			plan.Stages[i].Provider = append([]providerfacts.Finding(nil), l.Findings...)
+		}
+	}
+	plan.Provider = out
+}
+
+// lineOf returns "major.minor" of a version string, or "" when it has none.
+func lineOf(version string) string {
+	dots := 0
+	for i := 0; i < len(version); i++ {
+		if version[i] == '.' {
+			dots++
+			if dots == 2 {
+				return version[:i]
+			}
+		}
+	}
+	return version
 }
