@@ -29,43 +29,113 @@ func repoRoot(t *testing.T) string {
 	return repo
 }
 
-// The weekly cron must re-sign every time, so the timestamp expiry moves
-// every week. The decision is executed from the workflow's own text.
+// The daily cron must reach the signing decision every day, so the timestamp
+// expiry keeps moving: with a clean gate, nothing pending, content and a first
+// attempt the decision is to sign, for the schedule exactly as for a real
+// dispatch. The decision lives in the plan job's Decide step and is executed
+// from the workflow's own text; every other input (dry run, re-run, pending
+// run, empty day, failed gate) fails closed, and the sign job has no skip
+// decision of its own.
 func TestKnowledgePublishCronNeverSkips(t *testing.T) {
 	if _, err := exec.LookPath("bash"); err != nil {
 		t.Skip("bash not available")
 	}
 	wf, _ := loadPublishWorkflow(t)
 	var run string
-	for _, st := range wf.Jobs["sign"].Steps {
-		if st.Name == "Build, sign and verify" {
-			run = st.Run
-			if st.Env["EVENT_NAME"] != "${{ github.event_name }}" {
-				t.Errorf("sign step env EVENT_NAME = %q", st.Env["EVENT_NAME"])
-			}
+	var env map[string]string
+	for _, st := range wf.Jobs["plan"].Steps {
+		if st.Name == "Decide" {
+			run, env = st.Run, st.Env
 		}
 	}
-	start := strings.Index(run, "\nskip=false\n")
-	if start < 0 {
-		t.Fatal("skip decision block not found in the sign step")
+	if run == "" {
+		t.Fatal("decision step not found in the plan job")
 	}
-	end := strings.Index(run[start:], "\nfi\n")
-	if end < 0 {
-		t.Fatal("skip decision block has no end")
+	// A schedule run is never a dry run; a dispatch is one only by its input.
+	if env["DRY_RUN"] != "${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}" {
+		t.Errorf("Decide env DRY_RUN = %q", env["DRY_RUN"])
 	}
-	block := run[start : start+end+len("\nfi\n")]
-	for _, c := range []struct {
-		event string
-		want  string
-	}{{"schedule", "false"}, {"push", "true"}, {"workflow_dispatch", "true"}} {
-		script := "now=1000000; PREV_CREATED=999900; MODE=state; rules=r; PREV_RULES=r; EVENT_NAME=" + c.event + "\n" + block + "\necho \"${skip}\"\n"
+	if env["RUN_ATTEMPT"] != "${{ github.run_attempt }}" || !strings.Contains(env["GATE_OK"], "steps.gate.outputs.gate_ok") ||
+		!strings.Contains(env["PENDING"], "steps.pending.outputs.pending") || !strings.Contains(env["HAS_CONTENT"], "steps.plan.outputs.has_content") {
+		t.Errorf("Decide env = %v", env)
+	}
+	if wf.Jobs["plan"].Steps[len(wf.Jobs["plan"].Steps)-1].Name != "Decide" || wf.Jobs["plan"].Steps[len(wf.Jobs["plan"].Steps)-1].If != "" {
+		t.Error("Decide must be the last plan step and must run unconditionally")
+	}
+	for _, st := range wf.Jobs["sign"].Steps {
+		if strings.Contains(st.If+st.Run, "outputs.skip") || strings.Contains(st.Run, "\nskip=") {
+			t.Errorf("sign step %q carries its own skip decision", st.Name)
+		}
+	}
+	decide := func(gate, pending, content, dry, attempt string) string {
+		script := "GITHUB_OUTPUT=$(mktemp); GITHUB_STEP_SUMMARY=$(mktemp); GATE_OK=" + gate + "; PENDING=" + pending + "; HAS_CONTENT=" + content +
+			"; DRY_RUN=" + dry + "; RUN_ATTEMPT=" + attempt + "\n" + run + "\ncat \"${GITHUB_OUTPUT}\"\n"
 		out, err := exec.Command("bash", "-c", script).CombinedOutput()
 		if err != nil {
-			t.Fatalf("%s: %v: %s", c.event, err, out)
+			t.Fatalf("decide(%s,%s,%s,%s,%s): %v: %s", gate, pending, content, dry, attempt, err, out)
 		}
-		if got := strings.TrimSpace(string(out)); got != c.want {
-			t.Errorf("event %s: skip = %s, want %s (unchanged bundle, previous publish 100s old)", c.event, got, c.want)
+		return strings.TrimSpace(string(out))
+	}
+	if got := decide("true", "''", "true", "false", "1"); got != "sign_ok=true" {
+		t.Errorf("schedule with a clean gate and content: %q, want sign_ok=true", got)
+	}
+	for name, c := range map[string][5]string{
+		"dry run":        {"true", "''", "true", "true", "1"},
+		"re-run":         {"true", "''", "true", "false", "2"},
+		"pending run":    {"true", "123", "true", "false", "1"},
+		"no content":     {"true", "''", "false", "false", "1"},
+		"gate failed":    {"false", "''", "true", "false", "1"},
+		"gate unset":     {"''", "''", "true", "false", "1"},
+		"content unset":  {"true", "''", "''", "false", "1"},
+		"dry run unset":  {"true", "''", "true", "''", "1"},
+		"attempt unset":  {"true", "''", "true", "false", "''"},
+		"attempt 10":     {"true", "''", "true", "false", "10"},
+		"gate truthy":    {"yes", "''", "true", "false", "1"},
+		"content truthy": {"true", "''", "1", "false", "1"},
+	} {
+		if got := decide(c[0], c[1], c[2], c[3], c[4]); got != "sign_ok=false" {
+			t.Errorf("%s: %q, want sign_ok=false (fail closed)", name, got)
 		}
+	}
+}
+
+// Every call that signs carries the explicit --ci flag: the publisher enables
+// its CI checks (required --expires and --expect-* flags, attempt 1 only) from
+// that flag alone, never by detecting the environment, so a signing call
+// without it would sign unchecked.
+func TestKnowledgePublishSigningCallsCarryCI(t *testing.T) {
+	_, raw := loadPublishWorkflow(t)
+	call := regexp.MustCompile(`knowledge-publish (release|refresh-timestamp)\b`)
+	var cmds []string
+	var cur string
+	for _, line := range strings.Split(raw, "\n") {
+		trim := strings.TrimSpace(line)
+		if strings.HasPrefix(trim, "#") {
+			continue
+		}
+		if cur == "" && !call.MatchString(trim) {
+			continue
+		}
+		cur += " " + trim
+		if !strings.HasSuffix(trim, "\\") {
+			cmds = append(cmds, cur)
+			cur = ""
+		}
+	}
+	if len(cmds) == 0 {
+		t.Fatal("no signing call found in the workflow")
+	}
+	ci := regexp.MustCompile(`\s--ci(\s|$)`)
+	for _, c := range cmds {
+		if !ci.MatchString(c) {
+			t.Errorf("signing call without --ci: %s", c)
+		}
+	}
+	if ci.MatchString(" knowledge-publish release --profile x") || !ci.MatchString(" knowledge-publish release --ci --profile x") || ci.MatchString(" release --cia") {
+		t.Error("the --ci matcher is wrong")
+	}
+	if strings.Contains(raw, "--ci=false") || strings.Contains(raw, "--no-ci") {
+		t.Error("the workflow must not weaken CI mode")
 	}
 }
 

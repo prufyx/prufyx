@@ -305,6 +305,15 @@ for s in sign.get("steps", []):
         for flag in ("--expect-content-digest \"", "--expect-previous-package-digest \"", "--expect-index-digest \"", "--expires \"", "knowledge-publish release"):
             if flag not in r: e("Sign lacks " + flag.strip(' "'))
         if "--no-ci" in r or "GITHUB_ACTIONS=false" in r or "CI=false" in r: e("Sign weakens CI mode")
+all_lines = [l.strip() for l in raw.split("\n") if not l.strip().startswith("#")]
+cmds, cur = [], ""
+for l in all_lines:
+    if not cur and not re.search(r"knowledge-publish (release|refresh-timestamp)\b", l): continue
+    cur += " " + l
+    if not l.endswith("\\"): cmds.append(cur); cur = ""
+if not cmds: e("no signing call in the workflow")
+for c in cmds:
+    if not re.search(r"\s--ci(\s|$)", c): e("signing call lacks --ci: " + c[:80])
 all_text = raw
 for flag in ("content-digest", "live-state", "deploy-guard", "knowledge-packet", "--trusted-user-ids", "minNextVersion", "sign-check", "targetDigest // .bundleDigest"):
     if flag not in all_text: e("workflow lacks " + flag)
@@ -348,6 +357,7 @@ if python3 -I -c 'import yaml' 2> /dev/null; then
   mut "unpinned action" '0,/actions\/setup-go@[0-9a-f]\{40\}/ s/actions\/setup-go@[0-9a-f]\{40\}/actions\/setup-go@v5/' "unpinned action"
   mut "run_number guard back" 's/Refuse unless the candidate follows the live package/Refuse unless this is the latest run ${{ github.run_number }}/' "run_number"
   mut "key secret in the plan job" '0,/GH_TOKEN: ${{ github.token }}/ s/GH_TOKEN: ${{ github.token }}/GH_TOKEN: ${{ secrets.KNOWLEDGE_TIMESTAMP_KEY }}/' "plan: uses secrets"
+  mut "release without --ci" 's/knowledge-publish release --ci /knowledge-publish release /' "signing call lacks --ci"
   mut "release without expires" 's/            --expires "${EXPIRES}" \\//' "Sign lacks --expires"
   mut "release without index digest" 's/--expect-index-digest/--no-index-digest/' "Sign lacks --expect-index-digest"
   mut "cancel job gets contents write" '/^  cancel-stale:/,/^  sign:/ s/contents: read/contents: write/' "unexpected write permission contents"

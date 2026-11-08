@@ -755,9 +755,10 @@ jobs:
           if [ "${MODE}" != first ]; then
             prev=(--previous-package "${RUNNER_TEMP}/plan/previous.tar" --expect-previous-package-digest "$(jq -er '.previous.packageDigest' "${plan}")")
           fi
-          # CI mode (GITHUB_ACTIONS=true): --expires and every --expect-* flag are
-          # required and checked before a key is read; attempt other than 1 is refused.
-          "${maint}" knowledge-publish release --profile cncf-projects "${layout[@]}" \
+          # CI mode is enabled only by the explicit --ci flag (never detected from
+          # the environment): --expires and every --expect-* flag are required and
+          # checked before a key is read; attempt other than 1 is refused.
+          "${maint}" knowledge-publish release --ci --profile cncf-projects "${layout[@]}" \
             --revision "${REVISION}" --version "${VERSION}" \
             --root "${root}" --root-digest "${ROOT_DIGEST}" \
             --targets-key "${keys}/targets.key.pem" \

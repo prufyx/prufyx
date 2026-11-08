@@ -15,6 +15,7 @@ import (
 
 type publishJob struct {
 	If          string            `yaml:"if"`
+	Needs       any               `yaml:"needs"`
 	Environment any               `yaml:"environment"`
 	Permissions map[string]string `yaml:"permissions"`
 	Steps       []workflowStep    `yaml:"steps"`
@@ -72,23 +73,113 @@ func TestKnowledgePublishWorkflowIsHardened(t *testing.T) {
 	if _, ok := wf.On["pull_request_target"]; ok {
 		t.Error("must not trigger on pull_request_target")
 	}
-	sign, deploy := wf.Jobs["sign"], wf.Jobs["deploy"]
-	if len(wf.Jobs) != 2 {
-		t.Errorf("jobs = %d, want sign and deploy", len(wf.Jobs))
+	if len(wf.On) != 2 || wf.On["schedule"] == nil || wf.On["workflow_dispatch"] == nil {
+		t.Errorf("triggers = %v, want schedule and workflow_dispatch only", wf.On)
 	}
+	plan, cancel, probe, sign, deploy := wf.Jobs["plan"], wf.Jobs["cancel-stale"], wf.Jobs["token-probe"], wf.Jobs["sign"], wf.Jobs["deploy"]
+	if len(wf.Jobs) != 5 || len(plan.Steps) == 0 || len(cancel.Steps) == 0 || len(probe.Steps) == 0 || len(sign.Steps) == 0 || len(deploy.Steps) == 0 {
+		t.Fatalf("jobs = %d, want exactly plan, cancel-stale, token-probe, sign and deploy", len(wf.Jobs))
+	}
+	// Only the sign job runs in the approval environment; no other job has one
+	// except the Pages deploy.
 	if env, _ := sign.Environment.(string); env != "knowledge-release" {
 		t.Errorf("sign environment = %v, want knowledge-release", sign.Environment)
 	}
-	for _, want := range []string{"refs/heads/main", "KNOWLEDGE_RELEASE_ENABLED"} {
+	for name, job := range map[string]publishJob{"plan": plan, "cancel-stale": cancel, "token-probe": probe} {
+		if job.Environment != nil {
+			t.Errorf("%s must not use an environment", name)
+		}
+	}
+	if env, _ := deploy.Environment.(map[string]any); env["name"] != "github-pages" {
+		t.Errorf("deploy environment = %v, want github-pages", deploy.Environment)
+	}
+	for _, name := range []string{"plan", "sign"} {
+		for _, want := range []string{"refs/heads/main", "KNOWLEDGE_RELEASE_ENABLED"} {
+			if !strings.Contains(wf.Jobs[name].If, want) {
+				t.Errorf("%s if %q lacks %s", name, wf.Jobs[name].If, want)
+			}
+		}
+	}
+	// A dry run can never reach sign; the sign job needs the plan decision.
+	for _, want := range []string{"!inputs.dry_run", "needs.plan.result == 'success'", "needs.plan.outputs.sign_ok == 'true'"} {
 		if !strings.Contains(sign.If, want) {
 			t.Errorf("sign if %q lacks %s", sign.If, want)
 		}
+	}
+	if sign.Needs != "plan" || deploy.Needs != "sign" || cancel.Needs != "plan" || probe.Needs != "plan" {
+		t.Errorf("needs: sign=%v deploy=%v cancel=%v probe=%v", sign.Needs, deploy.Needs, cancel.Needs, probe.Needs)
+	}
+	if !strings.Contains(deploy.If, "needs.sign.result == 'success'") {
+		t.Errorf("deploy if %q must require a successful sign job", deploy.If)
+	}
+	if !strings.Contains(probe.If, "workflow_dispatch") || !strings.Contains(probe.If, "inputs.dry_run") {
+		t.Errorf("token-probe if %q must be limited to dry-run dispatches", probe.If)
+	}
+	// Per-job permissions, each exact: the signing job has no write scope, the
+	// deploy job has the Pages scopes and no key, and the two jobs with actions
+	// write hold no secret and no environment.
+	if !samePermissions(plan.Permissions, map[string]string{"contents": "read", "actions": "read", "pull-requests": "read", "checks": "read", "statuses": "read"}) {
+		t.Errorf("plan permissions = %v", plan.Permissions)
 	}
 	if !samePermissions(sign.Permissions, map[string]string{"contents": "read", "actions": "read"}) {
 		t.Errorf("sign permissions = %v", sign.Permissions)
 	}
 	if !samePermissions(deploy.Permissions, map[string]string{"pages": "write", "id-token": "write", "actions": "read", "contents": "read"}) {
 		t.Errorf("deploy permissions = %v", deploy.Permissions)
+	}
+	if !samePermissions(cancel.Permissions, map[string]string{"actions": "write", "contents": "read"}) {
+		t.Errorf("cancel-stale permissions = %v", cancel.Permissions)
+	}
+	if !samePermissions(probe.Permissions, map[string]string{"actions": "write"}) {
+		t.Errorf("token-probe permissions = %v", probe.Permissions)
+	}
+	for name, job := range wf.Jobs {
+		for k, v := range job.Permissions {
+			if v == "write" && !map[string]bool{"cancel-stale/actions": true, "token-probe/actions": true, "deploy/pages": true, "deploy/id-token": true}[name+"/"+k] {
+				t.Errorf("%s: unexpected write permission %s", name, k)
+			}
+		}
+	}
+	// Secrets: referenced nowhere but the four key env entries of the Sign step
+	// of the sign job (not in any if, with, run, output or other job).
+	inSign := 0
+	for name, job := range wf.Jobs {
+		for _, step := range job.Steps {
+			text := step.If + step.Run
+			for _, v := range step.Env {
+				if name == "sign" && step.Name == "Sign" {
+					continue
+				}
+				text += v
+			}
+			for _, v := range step.With {
+				if s, ok := v.(string); ok {
+					text += s
+				}
+			}
+			if secretsDot.MatchString(text) {
+				t.Errorf("%s: step %q references secrets outside the Sign step", name, step.Name)
+			}
+			if name == "sign" && step.Name == "Sign" {
+				for _, v := range step.Env {
+					if strings.Contains(v, "secrets.") {
+						inSign++
+					}
+				}
+			}
+		}
+	}
+	if inSign != 4 {
+		t.Errorf("the Sign step holds %d secret references, want the four key entries", inSign)
+	}
+	rawSecrets := 0
+	for _, line := range strings.Split(raw, "\n") {
+		if !strings.HasPrefix(strings.TrimSpace(line), "#") {
+			rawSecrets += strings.Count(line, "secrets.")
+		}
+	}
+	if rawSecrets != 4 {
+		t.Errorf("workflow text has %d non-comment secrets references, want exactly the four in the Sign step", rawSecrets)
 	}
 	for name, job := range wf.Jobs {
 		for _, step := range job.Steps {
@@ -133,6 +224,7 @@ func TestKnowledgePublishWorkflowIsHardened(t *testing.T) {
 }
 
 var secretsRef = regexp.MustCompile(`\bsecrets\b`)
+var secretsDot = regexp.MustCompile(`\bsecrets\.`)
 
 func stepIndex(steps []workflowStep, name string) int {
 	for i, s := range steps {
@@ -143,26 +235,43 @@ func stepIndex(steps []workflowStep, name string) int {
 	return -1
 }
 
-// The oldest-supported-client gate runs after the keys are gone, before the
-// upload, holds no secret, and builds a commit-pinned client.
+// The oldest-supported-client gate runs in the sign job after the keys are
+// gone and before the package upload, holds no secret, builds a commit-pinned
+// client and cannot be skipped; the deploy job only receives the uploaded
+// package and uploads the site after re-verifying it.
 func TestKnowledgePublishOldestClientGate(t *testing.T) {
 	wf, _ := loadPublishWorkflow(t)
 	steps := wf.Jobs["sign"].Steps
-	signed := stepIndex(steps, "Build, sign and verify")
+	signed := stepIndex(steps, "Sign")
+	verified := stepIndex(steps, "Verify the signed package")
 	read := stepIndex(steps, "Read the oldest supported client pin")
 	checkout := stepIndex(steps, "Check out the oldest supported client")
 	gate := stepIndex(steps, "Verify with the oldest supported client")
 	upload := stepIndex(steps, "Upload the signed package")
-	if signed < 0 || read < 0 || checkout < 0 || gate < 0 || upload < 0 {
-		t.Fatalf("missing step: sign=%d read=%d checkout=%d gate=%d upload=%d", signed, read, checkout, gate, upload)
+	if signed < 0 || verified < 0 || read < 0 || checkout < 0 || gate < 0 || upload < 0 {
+		t.Fatalf("missing step: sign=%d verified=%d read=%d checkout=%d gate=%d upload=%d", signed, verified, read, checkout, gate, upload)
 	}
-	if !(signed < read && read < checkout && checkout < gate && gate < upload) {
-		t.Errorf("step order wrong: sign=%d read=%d checkout=%d gate=%d upload=%d", signed, read, checkout, gate, upload)
+	if !(signed < verified && verified < read && read < checkout && checkout < gate && gate < upload) {
+		t.Errorf("step order wrong: sign=%d verified=%d read=%d checkout=%d gate=%d upload=%d", signed, verified, read, checkout, gate, upload)
+	}
+	// Pages path: the artifact reaches deploy only through the sign job's
+	// upload (after the gate); deploy verifies it again before the site upload.
+	ds := wf.Jobs["deploy"].Steps
+	dl := stepIndex(ds, "Download the signed package")
+	assemble := stepIndex(ds, "Verify and assemble the site")
+	follow := stepIndex(ds, "Refuse unless the candidate follows the live package")
+	site := stepIndex(ds, "Upload the site")
+	deployed := stepIndex(ds, "Deploy to Pages")
+	if dl < 0 || assemble < 0 || follow < 0 || site < 0 || deployed < 0 {
+		t.Fatalf("deploy: missing step: download=%d follow=%d assemble=%d site=%d deploy=%d", dl, follow, assemble, site, deployed)
+	}
+	if !(dl < follow && follow < assemble && assemble < site && site < deployed) {
+		t.Errorf("deploy order wrong: download=%d follow=%d assemble=%d site=%d deploy=%d", dl, follow, assemble, site, deployed)
 	}
 	for _, i := range []int{read, checkout, gate} {
 		st := steps[i]
-		if !strings.Contains(st.If, "steps.sign.outputs.skip == 'false'") {
-			t.Errorf("%q: if %q must be limited to runs that produce a package", st.Name, st.If)
+		if st.If != "" {
+			t.Errorf("%q: if %q: the gate steps must run on every signing run, never be skipped", st.Name, st.If)
 		}
 		if st.ContinueOnError != nil {
 			t.Errorf("%q: must not set continue-on-error", st.Name)
@@ -183,6 +292,9 @@ func TestKnowledgePublishOldestClientGate(t *testing.T) {
 		if secretsRef.MatchString(st.Run) || strings.Contains(st.Run, "github.token") || strings.Contains(st.Run, "GH_TOKEN") {
 			t.Errorf("%q: run block touches a token or secret", st.Name)
 		}
+	}
+	if !strings.Contains(wf.Jobs["sign"].If, "needs.plan.outputs.sign_ok == 'true'") {
+		t.Error("the sign job (and so the gate) must run only on an approved plan")
 	}
 	if steps[signed].ID != "sign" {
 		t.Errorf("signing step id = %q", steps[signed].ID)

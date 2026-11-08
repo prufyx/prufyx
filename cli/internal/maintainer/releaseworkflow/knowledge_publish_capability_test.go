@@ -14,25 +14,33 @@ import (
 )
 
 // After an engine capability change the previous package is verified by the
-// client of the commit that produced it. The two steps hold no secret, run
-// only in that case, and use a pinned checkout without credentials.
+// client of the commit that produced it. The two steps (in the plan job, which
+// holds no key) hold no secret, run only in that case, and use a pinned
+// checkout without credentials. The sign job re-derives the same state from
+// the approved plan, and the oldest-client gate handles the capability mode.
 func TestKnowledgePublishCapabilityChangeSteps(t *testing.T) {
-	wf, raw := loadPublishWorkflow(t)
-	steps := wf.Jobs["sign"].Steps
+	wf, _ := loadPublishWorkflow(t)
+	steps := wf.Jobs["plan"].Steps
 	prev := stepIndex(steps, "Find and verify the previous state")
 	checkout := stepIndex(steps, "Check out the commit that produced the previous package")
 	verify := stepIndex(steps, "Verify the previous package with the client that produced it")
-	signed := stepIndex(steps, "Build, sign and verify")
-	gate := stepIndex(steps, "Verify with the oldest supported client")
-	if prev < 0 || checkout < 0 || verify < 0 || signed < 0 || gate < 0 {
-		t.Fatalf("missing step: prev=%d checkout=%d verify=%d sign=%d gate=%d", prev, checkout, verify, signed, gate)
+	built := stepIndex(steps, "Build the packet and the plan")
+	if prev < 0 || checkout < 0 || verify < 0 || built < 0 {
+		t.Fatalf("missing step: prev=%d checkout=%d verify=%d plan=%d", prev, checkout, verify, built)
 	}
-	if !(prev < checkout && checkout < verify && verify < signed && signed < gate) {
-		t.Errorf("order wrong: %d %d %d %d %d", prev, checkout, verify, signed, gate)
+	if !(prev < checkout && checkout < verify && verify < built) {
+		t.Errorf("order wrong: %d %d %d %d", prev, checkout, verify, built)
+	}
+	sign := wf.Jobs["sign"].Steps
+	signed := stepIndex(sign, "Sign")
+	rederive := stepIndex(sign, "Re-derive state, digests and version")
+	gate := stepIndex(sign, "Verify with the oldest supported client")
+	if signed < 0 || rederive < 0 || gate < 0 || !(rederive < signed && signed < gate) {
+		t.Fatalf("sign job order: rederive=%d sign=%d gate=%d", rederive, signed, gate)
 	}
 	for _, i := range []int{checkout, verify} {
 		st := steps[i]
-		if st.If != "${{ steps.prev.outputs.mismatch == 'true' }}" {
+		if st.If != "${{ steps.pending.outputs.pending == '' && steps.prev.outputs.mismatch == 'true' }}" {
 			t.Errorf("%q: if = %q", st.Name, st.If)
 		}
 		if st.ContinueOnError != nil {
@@ -67,38 +75,40 @@ func TestKnowledgePublishCapabilityChangeSteps(t *testing.T) {
 	if strings.Contains(run, "producing/cli/internal/knowledgepin") {
 		t.Error("the producing commit's root must not be used")
 	}
-	// The signing step reads the state of either step and uses the first-release
-	// layout in capability mode, with the next revision and TUF version.
-	sr := steps[signed].Run
-	if !strings.Contains(sr, `elif [ "${MODE}" = capability ]; then`) || !strings.Contains(sr, "layout=(--first-release)") {
-		t.Error("the signing step lacks the capability layout")
-	}
-	i := strings.Index(sr, `elif [ "${MODE}" = capability ]; then`)
-	j := strings.Index(sr[i:], "layout=(--first-release)")
-	if block := sr[i : i+j]; !strings.Contains(block, "revision=$((PREV_REVISION + 1))") || !strings.Contains(block, "version=$((PREV_TUF + 1))") {
-		t.Error("capability mode must continue the revision and the TUF version")
-	}
-	for _, k := range []string{"MODE", "PREV_REVISION", "PREV_TUF", "PREV_RULES", "PREV_CREATED", "PREV_INDEX"} {
-		want := "steps.prevcap.outputs."
-		if v := steps[signed].Env[k]; !strings.Contains(v, want) || !strings.Contains(v, "steps.prev.outputs.") {
-			t.Errorf("sign env %s = %q", k, v)
+	// The plan reads the state of either step.
+	for k, p := range map[string]string{"MODE": "mode", "PREV_REVISION": "revision", "PREV_TUF": "tuf", "PREV_PKG": "pkg", "PREV_INDEX_FILE": "index"} {
+		v := steps[built].Env[k]
+		if !strings.Contains(v, "steps.prevcap.outputs."+p) || !strings.Contains(v, "steps.prev.outputs."+p) {
+			t.Errorf("plan env %s = %q", k, v)
 		}
 	}
-	// A capability change never skips: the skip decision needs mode state.
-	if !strings.Contains(sr, `[ "${MODE}" = state ]`) {
-		t.Error("skip must stay limited to mode state")
+	// The sign job re-derives the layout: first-release layout unless mode state
+	// (so capability mode uses it), the TUF version continues from the live
+	// package, and the revision is the one the approval bound.
+	rr := sign[rederive].Run
+	for _, want := range []string{"layout=(--first-release)", `if [ "${mode}" = state ]; then`, "layout=(--previous-index", `version="$(jq -er '.minNextVersion'`, `revision="$(pj '.revision')"`} {
+		if !strings.Contains(rr, want) {
+			t.Errorf("re-derive step lacks %q", want)
+		}
+	}
+	sr := sign[signed].Run
+	if !strings.Contains(sr, `if [ "${MODE}" = state ]; then`) || !strings.Contains(sr, "layout=(--first-release)") {
+		t.Error("the signing step lacks the first-release layout for capability mode")
+	}
+	// A capability change never skips signing for want of content: the plan
+	// treats every mode but state as having content.
+	script, err := os.ReadFile(filepath.Join(repoRoot(t), "scripts", "knowledge-daily.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(script), "first | capability | recovery) echo true; return 0 ;; state) ;;") {
+		t.Error("has-content must be true for first, capability and recovery modes and limited to state otherwise")
 	}
 	// The gate accepts a clean refusal only, and only with a healthy old client.
-	gr := steps[gate].Run
+	gr := sign[gate].Run
 	for _, want := range []string{`[ "${MODE}" = capability ]`, `[ "${orc}" = 15 ]`, "too new for this prufyx", "KNOWLEDGE CAPABILITY MISMATCH", "${PREV_PKG}", "prev-receipt.json"} {
 		if !strings.Contains(gr, want) {
 			t.Errorf("gate run block lacks %q", want)
-		}
-	}
-	// A registry or engine change must trigger a publish.
-	for _, p := range []string{"cli/internal/customresources/table.json", "cli/internal/cncfcheck/data/**", "cli/internal/constraintengine/**"} {
-		if !strings.Contains(raw, `- "`+p+`"`) {
-			t.Errorf("push paths lack %s", p)
 		}
 	}
 }
