@@ -527,5 +527,89 @@ class DigestReset(unittest.TestCase):
         self.assertEqual(json.load(open(s + "/status.json"))["oracle_digest"], "0" * 64)
 
 
+LISTED = {"a.example", "b.example"}  # groups the reviewed table attributes to some project
+F1 = ("f.example", "v1", "Foreign")  # served group no project lists: always one unowned manifest
+F2 = ("f.example", "v1", "Foreign2")
+KEPT = ("a.example", "v1", "Kept")   # defined at both releases
+
+
+class ForeignServedGroup(unittest.TestCase):
+    """A served document of a group no project lists is unowned in every scan of the input, not a sign of a hidden removal:
+    design only when the count is exactly those documents plus the vanished-group removals, the gap is present, and no
+    expected removal lies in an unlisted group."""
+    def setUp(self):
+        for mod in (crd, qalib):
+            p = patch.object(mod, "removal_claim", lambda *a: True)
+            p.start()
+            self.addCleanup(p.stop)
+        self.served = {W, KEPT, V1, F1}
+
+    def whole(self, gaps, removed=(W,), served=None, listed=LISTED, later=None, code=11, rep=None):
+        rep = rep or unknown_only(gaps)
+        return crd.classify_pair(code, rep, list(removed), [W], P, {"a.example"} if later is None else later,
+                                 self.served if served is None else served, listed)
+
+    def test_group_still_defined_kind_removed_with_one_foreign_doc_is_design(self):
+        r = self.whole([GAP, unowned(1)], removed=(W,), later={"a.example"}, served={W, KEPT, F1})
+        self.assertEqual((r[1], r[4], r[5]), (False, True, "OK"))
+
+    def test_foreign_and_vanished_group_counts_add_up(self):
+        r = self.whole([GAP, unowned(2)], later={"b.example"}, served={W, KEPT, F1})
+        self.assertEqual((r[1], r[4], r[5]), (False, True, "OK"))
+        r = self.whole([GAP, unowned(1)], later={"b.example"}, served={W, KEPT, F1})
+        self.assertEqual((r[1], r[4], r[5]), (True, False, "GAP_UNOWNED"))
+
+    def test_count_mismatch_is_mismatch(self):
+        for n in (0, 2, 3):
+            r = self.whole([GAP, unowned(n)], later={"a.example"}, served={W, KEPT, F1})
+            self.assertEqual((r[1], r[4], r[5]), (True, False, "GAP_UNOWNED"), n)
+        r = self.whole([GAP, unowned(1)], later={"a.example"}, served={W, KEPT, F1, F2})
+        self.assertEqual((r[1], r[4], r[5]), (True, False, "GAP_UNOWNED"))
+
+    def test_missing_unowned_gap_is_mismatch(self):
+        r = self.whole([GAP], later={"a.example"}, served={W, KEPT, F1})
+        self.assertEqual((r[1], r[4], r[5]), (True, False, "GAP_UNOWNED_MISSING"))
+
+    def test_nothing_derived_without_table_or_served_set(self):
+        for kw in ({"listed": None}, {"served": set()}):
+            r = self.whole([GAP, unowned(1)], later={"a.example"}, **kw) if "served" not in kw else \
+                crd.classify_pair(11, unknown_only([GAP, unowned(1)]), [W], [W], P, {"a.example"}, None, LISTED)
+            self.assertEqual((r[1], r[4], r[5]), (True, False, "GAP_UNOWNED"), kw)
+
+    def test_removal_inside_unlisted_group_is_never_excused(self):
+        hidden = ("f.example", "v1beta1", "Hidden")
+        r = crd.classify_pair(11, unknown_only([GAP, unowned(2)]), [hidden, W], [W], P, {"a.example"}, {W, hidden, F1}, LISTED)
+        self.assertEqual((r[1], r[4]), (True, False))
+        r = crd.classify_pair(10, blocked([], [GAP, unowned(2)]), [hidden, W], [W], P, {"a.example"}, {W, hidden, F1}, LISTED)
+        self.assertEqual((r[1], r[4]), (True, False))
+
+    def test_pass_stays_wrongpass(self):
+        r = self.whole([], code=0, rep={"verdict": "PASS", "findings": []}, later={"a.example"}, served={W, KEPT, F1})
+        self.assertEqual((r[0], r[1], r[4]), (True, False, False))
+
+    def test_extra_or_missing_findings_stay_mismatch(self):
+        served = {W, KEPT, V1, F1}
+        extra = blocked([finding(V1), finding(("c.example", "v1", "Stray"))], [GAP, unowned(1)])
+        r = crd.classify_pair(10, extra, [W, V1], [W], P, {"a.example", "b.example"}, served, LISTED)
+        self.assertEqual((r[1], r[4], r[5]), (True, False, "EXTRA_FINDING"))
+        miss = blocked([], [GAP, unowned(1)])
+        r = crd.classify_pair(10, miss, [W, V1], [W], P, {"a.example", "b.example"}, served, LISTED)
+        self.assertEqual((r[1], r[4], r[5]), (True, False, "VERSION_MISSING"))
+        ok = blocked([finding(V1)], [GAP, unowned(1)])
+        r = crd.classify_pair(10, ok, [W, V1], [W], P, {"a.example", "b.example"}, served, LISTED)
+        self.assertEqual((r[1], r[4], r[5]), (False, True, "OK"))
+
+    def test_findings_on_a_whole_only_pair_stay_mismatch(self):
+        rep = dict(unknown_only([GAP, unowned(1)]), findings=[finding(V1)])
+        r = self.whole([], rep=rep, later={"a.example"}, served={W, KEPT, F1})
+        self.assertEqual((r[1], r[4], r[5]), (True, False, "FINDINGS"))
+
+    def test_listed_groups_reads_table_and_fails_closed(self):
+        groups = crd.listed_groups()
+        self.assertIn("core.oam.dev", groups)
+        with patch.object(crd, "SRC", "/nonexistent"):
+            self.assertIsNone(crd.listed_groups())
+
+
 if __name__ == "__main__":
     unittest.main()

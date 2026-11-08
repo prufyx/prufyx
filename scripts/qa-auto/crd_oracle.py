@@ -370,6 +370,28 @@ UNOWNED_COUNT = re.compile(r"(\d{1,6}) manifest\(s\) use custom-resource groups 
 FAMILY = "crd.custom_resource_versions"
 
 
+def listed_groups():
+    """Every API group the reviewed custom-resource table attributes to some project, or None when the table cannot be read
+    (then no unowned-document expectation is derived and the unowned-group gap stays refused)."""
+    try:
+        with open(os.path.join(SRC, "cli/internal/customresources/table.json")) as handle:
+            table = json.load(handle)
+        groups = {g["name"] for p in table["projects"] for g in p["groups"]}
+        return groups if groups and all(isinstance(g, str) and g for g in groups) else None
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+def unowned_served(served, removed, listed):
+    """Served documents whose group no reviewed project lists: the scanner cannot attribute them, so it reports them as one
+    unowned-group gap whatever the release pair is. Empty (nothing derived) when the inputs are unread, or when any expected
+    removal lies in such a group, because a removal the scanner cannot see must never be excused by this count."""
+    if served is None or listed is None:
+        return set()
+    unowned = {x for x in served if x[0] not in listed}
+    return set() if any(x[0] not in listed for x in removed) else unowned
+
+
 def unowned_gap_ok(gap, whole_docs):
     """The unowned-group gap is part of the design shape only when its count is exactly the number of whole-CRD removals
     whose whole group is gone at the later release (their documents are the ones no project owns any more); any other count
@@ -378,7 +400,7 @@ def unowned_gap_ok(gap, whole_docs):
     return bool(m) and whole_docs > 0 and int(m.group(1)) == whole_docs
 
 
-def whole_signal_clause(report, component, whole_docs=0, allow_findings=False):
+def whole_signal_clause(report, component, whole_docs=0, allow_findings=False, must_have_unowned=False):
     """None when the scan output has the documented whole-CRD shape, else a short code naming the first failing clause.
     Whole-only shape: no findings, no unsupported combination, nothing omitted, at least one gap for the component, every gap
     reason in the removed-definition set, every hop of the component NO_DATA with only those reasons and no family evaluated.
@@ -400,6 +422,8 @@ def whole_signal_clause(report, component, whole_docs=0, allow_findings=False):
     mine = [g for g in mine if g.get("reason") != UNOWNED_GAP_REASON]
     if len(unowned) > 1 or any(not unowned_gap_ok(g, whole_docs) for g in unowned):
         return "GAP_UNOWNED"
+    if must_have_unowned and not unowned:
+        return "GAP_UNOWNED_MISSING"
     if any(g.get("reason") not in DESIGN_GAP_REASONS for g in mine):
         return "GAP_REASON"
     if not mine:
@@ -453,11 +477,15 @@ def whole_diagnostics(code, report, component, whole, clause=None):
             "clause": clause or whole_signal_clause(report, component) or "OK"}
 
 
-def classify_pair(code, report, removed, whole_crd, component, later_groups=None):
+def classify_pair(code, report, removed, whole_crd, component, later_groups=None, served=None, listed=None):
     """(wrongpass, mismatch, missing, statuses, design, clause); clause is a short code for diagnostics.
     later_groups: groups that still have a CRD at the later release, None when unread (the unowned-group gap is then not accepted)."""
     whole_set = set(whole_crd) & set(removed)
     gone = len(whole_set) if later_groups is not None and all(x[0] not in later_groups for x in whole_set) else 0
+    # served documents of groups no project lists are unowned in every scan of this input; their count joins the expected
+    # unowned-group gap, which must then be present, and the removals themselves never lie in such a group
+    foreign = len(unowned_served(served, removed, listed)) if whole_set else 0
+    gone += foreign
     version = [x for x in removed if x not in whole_set]
     wp, mm, missing, statuses = scoped_result(code, report, version, component, FAMILY)
     if not whole_set:
@@ -466,13 +494,13 @@ def classify_pair(code, report, removed, whole_crd, component, later_groups=None
         return True, False, missing, statuses, False, "PASS"
     unknown = report.get("verdict") == "UNKNOWN"
     if not version:
-        clause = "EXIT" if code != 11 else ("NOT_UNKNOWN" if not unknown else whole_signal_clause(report, component, gone))
+        clause = "EXIT" if code != 11 else ("NOT_UNKNOWN" if not unknown else whole_signal_clause(report, component, gone, must_have_unowned=foreign > 0))
         if clause is None:
             return False, False, [], statuses, True, "OK"
         return False, True, ["/".join(x) for x in sorted(whole_set)], statuses, False, clause
     # mixed: version-level removals are reported by their rules, the whole-CRD part is silent by documented design
     if code == 10 and report.get("verdict") == "BLOCKED":
-        clause = whole_signal_clause(report, component, gone, allow_findings=True) or version_findings_clause(report, version, component)
+        clause = whole_signal_clause(report, component, gone, allow_findings=True, must_have_unowned=foreign > 0) or version_findings_clause(report, version, component)
         if clause is None and not missing and not mm:
             return False, False, [], statuses, True, "OK"
     else:
@@ -483,14 +511,14 @@ def classify_pair(code, report, removed, whole_crd, component, later_groups=None
     return False, True, missing, statuses, False, clause
 
 
-def crd_verdict(code, report, removed, whole_crd, component, later_groups=None):
+def crd_verdict(code, report, removed, whole_crd, component, later_groups=None, served=None, listed=None):
     """(wrongpass, mismatch, missing, statuses, design) for one pair.
     A CRD defined earlier and absent later is a whole-CRD removal; by documented design (definitionsRemoved)
     the scanner reports UNKNOWN (exit 11, no findings) because the effect depends on the install method.
     That exact outcome, and only for a set made entirely of whole-CRD removals, is DESIGN_UNKNOWN_WHOLE_CRD_REMOVAL.
     A mixed set (version-level plus whole-CRD) is design only when the scan is BLOCKED (exit 10), its findings are exactly the
     version-level expected removals and every gap is a design gap. Any PASS stays WRONGPASS; anything else stays MISMATCH."""
-    return classify_pair(code, report, removed, whole_crd, component, later_groups)[:5]
+    return classify_pair(code, report, removed, whole_crd, component, later_groups, served, listed)[:5]
 
 
 def community_refusal(catalog, tail):
@@ -521,7 +549,8 @@ def execute(plan):
             omitted.append(dict(target=target, reason="candidate response unreadable; replay the full input"))
             out.append(case("crd", key, error=True, why=tail))
             continue
-        wp, mm, missing, crd, design, clause = classify_pair(code, j, removed, whole_crd, proj, plan.get("later_groups", {}).get(t))
+        wp, mm, missing, crd, design, clause = classify_pair(code, j, removed, whole_crd, proj, plan.get("later_groups", {}).get(t),
+                                                                  set(sf), listed_groups())
         complete = complete_scan_scope(j, len(sf))
         if not complete:
             omitted.append(dict(target=target, reason="input omitted or incomplete; replay the full input"))
