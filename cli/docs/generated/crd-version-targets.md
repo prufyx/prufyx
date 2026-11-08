@@ -60,7 +60,7 @@ The reviewed targets of the `crd.version-removal` extractor
 | `crd.version-removal.kyverno` | CNCF | `github.com/kyverno/kyverno` | `vX.Y.Z` | 1.14 | yes | files matching `^[^.][^/]*\.ya?ml$` anywhere under `config/crds` | 5 |
 | `crd.version-removal.logging-operator-kube-logging` | CNCF | `github.com/kube-logging/logging-operator` | `X.Y.Z` | 6.4 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.longhorn` | CNCF | `github.com/longhorn/longhorn` | `vX.Y.Z` | 1.8 | yes | `deploy/longhorn.yaml` | 1 |
-| `crd.version-removal.mariadb-operator` | community | `github.com/mariadb-operator/mariadb-operator` | `vX.Y.Z` | 0.38 | yes | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
+| `crd.version-removal.mariadb-operator` | community | `github.com/mariadb-operator/mariadb-operator` | `vX.Y.Z` | 0.34 | yes | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 1 |
 | `crd.version-removal.metal3-io` | CNCF | `github.com/metal3-io/baremetal-operator` | `vX.Y.Z` | 0.9 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/base/crds/bases` | 0 |
 | `crd.version-removal.metallb` | CNCF | `github.com/metallb/metallb` | `vX.Y.Z` | 0.13 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.moco` | community | `github.com/cybozu-go/moco` | `vX.Y.Z` | 0.33 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
