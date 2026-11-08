@@ -137,6 +137,32 @@ def crd_text(tj, gd, tag, tagname=None):
     return txt
 
 
+PADDED_TAG = re.compile(r"([2-9]\d)\.(0[1-9])\.(0|[1-9]\d*)", re.A)
+
+
+def tag_commit(gd, tag):
+    out = checked("git", "-C", gd, "rev-parse", "--verify", "refs/tags/" + tag + "^{commit}").strip()
+    if not re.fullmatch(r"[0-9a-f]{40}", out):
+        raise ValueError("tag did not resolve to a commit")
+    return out
+
+
+def scan_version(gd, pref, version):
+    """Version string for `prufyx scan`. The extractor accepts one leading zero in the minor only for majors 20..99
+    (v25.08.0 is v25.8.0); the scan argument parser rejects it. Substitute the canonical form only when git proves the
+    canonical tag exists on the same commit as the padded tag. Anything else is passed through unchanged and fails closed."""
+    m = PADDED_TAG.fullmatch(version)
+    if not m or not gd:
+        return version
+    canon = f"{m[1]}.{int(m[2])}.{m[3]}"
+    try:
+        if tag_commit(gd, pref + version) == tag_commit(gd, pref + canon):
+            return canon
+    except ValueError:
+        pass
+    return version
+
+
 def lines_from(lines, min_from):
     """Release lines at or above the target's minFrom ("0.36"); the target declares nothing older is served from its path."""
     if not min_from:
@@ -290,7 +316,7 @@ def prepare(proj, cov, plan):
             plan.setdefault("later_groups", {})[tag] = {g for g, _ in defined_cache[ref]}
         return result
 
-    plan.update(proj=proj, pref=pref, catalog=tj.get("catalog", ""))
+    plan.update(proj=proj, pref=pref, gd=gd, catalog=tj.get("catalog", ""))
     known_pairs = []
     missing_line = False
     for pr in pairs:
@@ -480,7 +506,8 @@ def execute(plan):
         fn = f"{TMP}/crd/{proj}-{n}.yaml"
         write_private(fn, docs)
         try:
-            code, j, tail = prufyx("scan", fn, f"{proj}={f[len(pref):]}", f"{proj}={t[len(pref):]}")
+            code, j, tail = prufyx("scan", fn, f"{proj}={scan_version(plan.get('gd'), pref, f[len(pref):])}",
+                                 f"{proj}={scan_version(plan.get('gd'), pref, t[len(pref):])}")
         finally:
             os.remove(fn)
         executed.add(target)
