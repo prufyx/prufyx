@@ -257,6 +257,106 @@ def required_single_targets(singles):
         required.update(added)
     return required
 
+def plan_window_input(lo):
+    """Whole-window plan input: every non-alpha GA GVK served at the window start. The expected removals of
+    every stage are taken from this set, so it is never narrowed."""
+    return {x for x in swagger(lo) if "alpha" not in x[1]}
+
+
+def plan_hop_input(lo, h, m):
+    """Input for judging hop 1.m -> 1.m+1 of the window lo..h: the window input restricted to GVKs that are
+    served at 1.m and either still served at the window end or removed by this very hop. A GVK that was already
+    gone before the hop, or that is only removed in a later hop, is an object the scanner cannot decide for this
+    hop (undecided API_VERSION_NOT_REVIEWED / LINE_NOT_ATTESTED facts that make the hop PARTIAL): an artifact of
+    one shared input, not a knowledge gap. Every GVK removed by this hop and present in the window input stays,
+    so the expected removals of the hop are exactly those of the window input."""
+    at_m, at_next, at_end = swagger(m), swagger(m + 1), swagger(h)
+    return {x for x in plan_window_input(lo) if x in at_m and (x not in at_next or x in at_end)}
+
+
+def hop_stage(report, m):
+    """The single stage of a plan report that is hop 1.m -> 1.m+1, or None when absent or ambiguous."""
+    found = [s for s in (report or {}).get("stages", [])
+             if vkey(s.get("from", ""))[:2] == vkey(f"1.{m}") and vkey(s.get("to", ""))[:2] == vkey(f"1.{m+1}")]
+    return found[0] if len(found) == 1 else None
+
+
+def run_plan_window(lo, h, executed):
+    """Overall plan case plus one case per stage. The overall verdict and the stage list come from the
+    whole-window input; each stage is judged on the plan of its own hop input (plan_hop_input) and is bound to
+    a complete scan of that same file."""
+    cases = []
+    gv = plan_window_input(lo)
+    path = inp(gv, "plan")
+    frm, to = f"kubernetes=1.{lo}.0", f"kubernetes=1.{h}.0"
+    # Plans omit intake counts and object locations. Bind their stages to a complete scan
+    # of the same file and range, including the scan's exact object/removal-rule findings.
+    scan_code, scan, scan_tail = prufyx("scan", path, frm, to)
+    code, j, tail = prufyx("plan", path, frm, to)
+    if j is None:
+        return [case("k8s-plan", f"1.{lo}->1.{h}", error=True, why=tail)]
+    complete = (code in (0, 10, 11) and scan_code in (0, 10, 11) and
+                scan is not None and complete_scan_scope(scan, len(gv)) and
+                bool(scan.get("provenance", {}).get("inputDigest")) and
+                scan["provenance"]["inputDigest"] == j.get("provenance", {}).get("inputDigest"))
+    expected_stages = [(f"1.{m}", f"1.{m+1}") for m in range(lo, h)]
+    actual_stages = [(s["from"], s["to"]) for s in j.get("stages", [])]
+    stages_match = (len(actual_stages) == h - lo and all(vkey(fr)[:2] == vkey(a) and vkey(t)[:2] == vkey(b)
+                    for (fr, t), (a, b) in zip(actual_stages, expected_stages)))
+    if not stages_match:
+        cases.append(case("k8s-plan", f"1.{lo}->1.{h} scope", error=True, why="requested stages missing or different"))
+    overall_complete = complete and stages_match and j.get("verdict") in ("BLOCKED", "SCOPE_COMPLETE_PASS")
+    anyexp = False
+    for window_stage in j.get("stages", []):
+        m = int(window_stage["from"].split(".")[1])
+        target = f"k8s-plan|1.{lo}->1.{h} stage 1.{m}.0->1.{m+1}.0"
+        k = int(window_stage["to"].split(".")[1])
+        exp = sorted(x for x in (swagger(k - 1) - swagger(k)) if x in gv)
+        anyexp |= bool(exp)
+        label = f"1.{lo}->1.{h} stage {window_stage['from']}->{window_stage['to']}"
+        hop_gv = plan_hop_input(lo, h, m)
+        # Fail closed: the hop input must hold every expected removal and nothing outside the window input.
+        if not hop_gv <= gv or sorted(x for x in (swagger(k - 1) - swagger(k)) if x in hop_gv) != exp:
+            overall_complete = False
+            cases.append(case("k8s-plan", label, error=True, why="hop input does not preserve the expected removals"))
+            continue
+        hop_path = inp(hop_gv, f"plan-hop-{lo}-{h}-{m}")
+        hop_scan_code, hop_scan, _ = prufyx("scan", hop_path, frm, to)
+        hop_code, hop_j, hop_tail = prufyx("plan", hop_path, frm, to)
+        s = hop_stage(hop_j, m)
+        if s is None:
+            overall_complete = False
+            cases.append(case("k8s-plan", label, error=True, why=hop_tail or "hop plan has no single stage for this hop"))
+            continue
+        hop_complete = (hop_code in (0, 10, 11) and hop_scan_code in (0, 10, 11) and
+                        hop_scan is not None and complete_scan_scope(hop_scan, len(hop_gv)) and
+                        bool(hop_scan.get("provenance", {}).get("inputDigest")) and
+                        hop_scan["provenance"]["inputDigest"] == hop_j.get("provenance", {}).get("inputDigest"))
+        got = s["verdict"]
+        ids = {finding["ruleId"] for finding in s.get("findings", [])}
+        bound = dict(hop_scan or {}, findings=[f for f in (hop_scan or {}).get("findings", [])
+                     if f.get("ruleId") in ids and f.get("hop", {}).get("from") == s["from"] and
+                     f.get("hop", {}).get("to") == s["to"]], paths=[dict(p, hops=[hop for hop in p.get("hops", [])
+                     if hop.get("index") == s.get("index")]) for p in (hop_scan or {}).get("paths", [])])
+        wp, mm, missing, statuses = scoped_result(hop_scan_code, bound, exp, "kubernetes", "kubernetes.removed_served_gvk")
+        stage_complete = stage_is_complete(s, got, bool(exp), complete and hop_complete and stages_match, missing, wp, mm)
+        overall_complete &= stage_complete
+        if stage_complete:
+            executed.add(target)
+        cases.append(case("k8s-plan", label,
+                          wrongpass=wp or (bool(exp) and "PASS" in got),
+                          mismatch=mm or ((got == "BLOCKED") != bool(exp) and "PASS" not in got),
+                          error=not stage_complete, verdict=got, expectedBlocked=bool(exp),
+                          missing=missing, families=statuses, completeInput=complete and hop_complete,
+                          hopStatus=s.get("hopStatus")))
+    overall_complete &= not (anyexp and is_pass(code, j))
+    if overall_complete:
+        executed.add(f"k8s-plan|1.{lo}->1.{h} overall")
+    cases.append(case("k8s-plan", f"1.{lo}->1.{h} overall", wrongpass=anyexp and is_pass(code, j),
+                      error=not overall_complete, exit=code, verdict=j.get("verdict"), scanNote=scan_tail))
+    return cases
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
@@ -359,54 +459,7 @@ def main():
     for lo, h in windows:
         if source_errors or any(minor in unavailable for minor in range(lo, h + 1)):
             continue
-        gv = {x for x in swagger(lo) if "alpha" not in x[1]}
-        path = inp(gv, "plan")
-        frm, to = f"kubernetes=1.{lo}.0", f"kubernetes=1.{h}.0"
-        # Plans omit intake counts and object locations. Bind their stages to a complete scan
-        # of the same file and range, including the scan's exact object/removal-rule findings.
-        scan_code, scan, scan_tail = prufyx("scan", path, frm, to)
-        code, j, tail = prufyx("plan", path, frm, to)
-        if j is None:
-            cases.append(case("k8s-plan", f"1.{lo}->1.{h}", error=True, why=tail))
-            continue
-        complete = (code in (0, 10, 11) and scan_code in (0, 10, 11) and
-                    scan is not None and complete_scan_scope(scan, len(gv)) and
-                    bool(scan.get("provenance", {}).get("inputDigest")) and
-                    scan["provenance"]["inputDigest"] == j.get("provenance", {}).get("inputDigest"))
-        expected_stages = [(f"1.{m}", f"1.{m+1}") for m in range(lo, h)]
-        actual_stages = [(s["from"], s["to"]) for s in j.get("stages", [])]
-        stages_match = (len(actual_stages) == h - lo and all(vkey(fr)[:2] == vkey(a) and vkey(to)[:2] == vkey(b)
-                        for (fr, to), (a, b) in zip(actual_stages, expected_stages)))
-        if not stages_match:
-            cases.append(case("k8s-plan", f"1.{lo}->1.{h} scope", error=True, why="requested stages missing or different"))
-        overall_complete = complete and stages_match and j.get("verdict") in ("BLOCKED", "SCOPE_COMPLETE_PASS")
-        anyexp = False
-        for s in j.get("stages", []):
-            target = f"k8s-plan|1.{lo}->1.{h} stage 1.{int(s['from'].split('.')[1])}.0->1.{int(s['to'].split('.')[1])}.0"
-            k = int(s["to"].split(".")[1])
-            exp = sorted(x for x in (swagger(k - 1) - swagger(k)) if x in gv)
-            anyexp |= bool(exp)
-            got = s["verdict"]
-            ids = {finding["ruleId"] for finding in s.get("findings", [])}
-            bound = dict(scan or {}, findings=[f for f in (scan or {}).get("findings", [])
-                         if f.get("ruleId") in ids and f.get("hop", {}).get("from") == s["from"] and
-                         f.get("hop", {}).get("to") == s["to"]], paths=[dict(p, hops=[hop for hop in p.get("hops", [])
-                         if hop.get("index") == s.get("index")]) for p in (scan or {}).get("paths", [])])
-            wp, mm, missing, statuses = scoped_result(scan_code, bound, exp, "kubernetes", "kubernetes.removed_served_gvk")
-            stage_complete = stage_is_complete(s, got, bool(exp), complete and stages_match, missing, wp, mm)
-            overall_complete &= stage_complete
-            if stage_complete:
-                executed.add(target)
-            cases.append(case("k8s-plan", f"1.{lo}->1.{h} stage {s['from']}->{s['to']}",
-                              wrongpass=wp or (bool(exp) and "PASS" in got),
-                              mismatch=mm or ((got == "BLOCKED") != bool(exp) and "PASS" not in got),
-                              error=not stage_complete, verdict=got, expectedBlocked=bool(exp),
-                              missing=missing, families=statuses, completeInput=complete))
-        overall_complete &= not (anyexp and is_pass(code, j))
-        if overall_complete:
-            executed.add(f"k8s-plan|1.{lo}->1.{h} overall")
-        cases.append(case("k8s-plan", f"1.{lo}->1.{h} overall", wrongpass=anyexp and is_pass(code, j),
-                          error=not overall_complete, exit=code, verdict=j.get("verdict"), scanNote=scan_tail))
+        cases.extend(run_plan_window(lo, h, executed))
     qa_scope.remaining_omitted(scope, executed, "upstream read or candidate execution incomplete; retry this exact target")
     scope.update(executed=sorted(executed), state="COMPLETE")
     for exclusion in scope["excluded"]:
