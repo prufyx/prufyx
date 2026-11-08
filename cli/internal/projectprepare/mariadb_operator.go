@@ -26,6 +26,14 @@ const (
 // topology. complete and preOperatorUpdate are declarations supplied by the
 // caller and are deliberately required by the CLI route.
 func PrepareMariaDBOperatorResource(raw []byte, from, to string, complete, preOperatorUpdate bool) (Prepared, error) {
+	if IsMariaDBOperatorCRDPair(from, to) {
+		// The CRD-family pairs have no pre-operator-update phase; a caller that
+		// declares one is on the wrong route, not on a quieter version of this one.
+		if preOperatorUpdate {
+			return Prepared{}, ErrInvalid
+		}
+		return PrepareMariaDBOperatorCRDPairResource(raw, from, to, complete)
+	}
 	if len(raw) == 0 || len(raw) > maxInputBytes || !json.Valid(raw) {
 		return Prepared{}, ErrInvalid
 	}
