@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -336,6 +337,7 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
+[ -z "${FAKE_LOG:-}" ] || echo "$path" >> "$FAKE_LOG"
 if [[ "$path" == */runs ]]; then key=workflow_runs; src="$FAKE_DIR/runs.json"
 elif [[ "$path" =~ /actions/runs/([0-9]+)/artifacts$ ]]; then key=artifacts; src="$FAKE_DIR/artifacts-${BASH_REMATCH[1]}.json"
 else echo "unexpected path $path" >&2; exit 2; fi
@@ -373,21 +375,23 @@ func TestKnowledgeRefreshNewestArtifactPaginates(t *testing.T) {
 		Expired bool   `json:"expired"`
 	}
 	type run struct {
-		ID int `json:"id"`
+		ID        int    `json:"id"`
+		CreatedAt string `json:"created_at"`
 	}
+	recent := time.Now().UTC().Add(-time.Hour).Format("2006-01-02T15:04:05Z")
 	setup := func(t *testing.T, empty, tail int, arts []art) (string, string) {
 		dir := t.TempDir()
 		var runs []run
 		for i := 0; i < empty; i++ { // newest first: content-free runs
 			id := 1000 - i
-			runs = append(runs, run{id})
+			runs = append(runs, run{id, recent})
 			writeJSON(dir, "artifacts-"+itoa(int64(id))+".json", []art{{"plan-only-" + itoa(int64(id)), false}})
 		}
-		runs = append(runs, run{500}) // the newest content run
+		runs = append(runs, run{500, recent}) // the newest content run
 		writeJSON(dir, "artifacts-500.json", arts)
 		for i := 0; i < tail; i++ { // older content run with a different artifact
 			id := 400 - i
-			runs = append(runs, run{id})
+			runs = append(runs, run{id, recent})
 			writeJSON(dir, "artifacts-"+itoa(int64(id))+".json", []art{{"knowledge-1-" + hex, false}})
 		}
 		writeJSON(dir, "runs.json", runs)
@@ -401,7 +405,7 @@ func TestKnowledgeRefreshNewestArtifactPaginates(t *testing.T) {
 		return dir, bin
 	}
 	call := func(t *testing.T, dir, bin string) string {
-		script := "set -euo pipefail\nGH_REPO=o/r\n" + fn + "\nnewest_artifact knowledge-publish.yml '" + re + "'\n"
+		script := "set -euo pipefail\nGH_REPO=o/r\nfail() { echo \"REFUSED: $*\" >&2; exit 1; }\n" + fn + "\nnewest_artifact knowledge-publish.yml '" + re + "'\n"
 		cmd := exec.Command("bash", "-c", script)
 		cmd.Env = []string{"PATH=" + bin + ":" + os.Getenv("PATH"), "FAKE_DIR=" + dir}
 		out, err := cmd.CombinedOutput()
@@ -440,6 +444,105 @@ func TestKnowledgeRefreshNewestArtifactPaginates(t *testing.T) {
 			t.Fatalf("got %q, want empty", got)
 		}
 	})
+}
+
+// The newest-artifact walk is bounded: a window with no matching artifact must
+// not walk the API without limit, and a run older than the artifact retention
+// ends the walk.
+func TestKnowledgeRefreshNewestArtifactIsBounded(t *testing.T) {
+	for _, tool := range []string{"bash", "jq", "sed", "date"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Skip(tool + " not available")
+		}
+	}
+	wf, raw := loadRefreshWorkflow(t)
+	hex := strings.Repeat("c", 64)
+	const re = `^knowledge-[0-9]+-[0-9a-f]{64}$`
+	fns := map[string]string{
+		"decide": extractShellFunc(t, raw, "newest_artifact"),
+		"deploy": extractShellFunc(t, stepRun(t, wf, "deploy", "Deploy guard"), "newest_artifact"),
+	}
+	type run struct {
+		ID        int    `json:"id"`
+		CreatedAt string `json:"created_at"`
+	}
+	write := func(dir, name string, v any) {
+		b, _ := json.Marshal(v)
+		if err := os.WriteFile(filepath.Join(dir, name), b, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	setup := func(t *testing.T, n int, created func(i int) string, artifactAt int) (string, string, string) {
+		dir := t.TempDir()
+		var runs []run
+		for i := 0; i < n; i++ {
+			id := 100000 - i
+			runs = append(runs, run{id, created(i)})
+			name := "plan-only-" + itoa(int64(id))
+			if i == artifactAt {
+				name = "knowledge-5-" + hex
+			}
+			write(dir, "artifacts-"+itoa(int64(id))+".json", []map[string]any{{"name": name, "expired": false}})
+		}
+		write(dir, "runs.json", runs)
+		bin := filepath.Join(dir, "bin")
+		if err := os.Mkdir(bin, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(bin, "gh"), []byte(fakeGH), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		return dir, bin, filepath.Join(dir, "calls.log")
+	}
+	call := func(dir, bin, log, fn string) (string, string, error) {
+		script := "set -euo pipefail\nGH_REPO=o/r\nfail() { echo \"REFUSED: $*\" >&2; exit 1; }\n" + fn + "\nout=\"$(newest_artifact knowledge-publish.yml '" + re + "')\"\necho \"[$out]\"\n"
+		cmd := exec.Command("bash", "-c", script)
+		cmd.Env = []string{"PATH=" + bin + ":" + os.Getenv("PATH"), "FAKE_DIR=" + dir, "FAKE_LOG=" + log}
+		var so, se strings.Builder
+		cmd.Stdout, cmd.Stderr = &so, &se
+		err := cmd.Run()
+		b, _ := os.ReadFile(log)
+		return so.String(), se.String() + "\n" + itoa(int64(strings.Count(string(b), "\n"))), err
+	}
+	recent := func(int) string { return time.Now().UTC().Add(-time.Hour).Format("2006-01-02T15:04:05Z") }
+	for name, fn := range fns {
+		t.Run(name+"/unbounded run list stops and refuses", func(t *testing.T) {
+			dir, bin, log := setup(t, 1500, recent, -1)
+			out, info, err := call(dir, bin, log, fn)
+			if err == nil {
+				t.Fatalf("1500 recent runs without a match must refuse, got out=%q", out)
+			}
+			parts := strings.Split(strings.TrimSpace(info), "\n")
+			calls, _ := strconv.Atoi(parts[len(parts)-1])
+			if calls > 400 {
+				t.Fatalf("%d API calls: the walk is not bounded", calls)
+			}
+		})
+		t.Run(name+"/run older than 90 days ends the walk with nothing", func(t *testing.T) {
+			old := func(int) string { return time.Now().UTC().AddDate(0, 0, -100).Format("2006-01-02T15:04:05Z") }
+			dir, bin, log := setup(t, 5, old, 3)
+			out, info, err := call(dir, bin, log, fn)
+			if err != nil || strings.TrimSpace(out) != "[]" {
+				t.Fatalf("old runs must yield nothing: err=%v out=%q", err, out)
+			}
+			if strings.Contains(info, "artifacts") {
+				t.Fatalf("an old run's artifacts were listed: %s", info)
+			}
+		})
+		t.Run(name+"/unparseable created_at refuses", func(t *testing.T) {
+			dir, bin, log := setup(t, 3, func(int) string { return "garbage" }, 1)
+			if out, _, err := call(dir, bin, log, fn); err == nil {
+				t.Fatalf("an unparseable created_at must refuse, got %q", out)
+			}
+		})
+		t.Run(name+"/recent match inside the bound is found", func(t *testing.T) {
+			dir, bin, log := setup(t, 150, recent, 120)
+			out, _, err := call(dir, bin, log, fn)
+			if err != nil || strings.TrimSpace(out) != "[knowledge-5-"+hex+"]" {
+				t.Fatalf("err=%v out=%q", err, out)
+			}
+		})
+	}
 }
 
 // Every run and artifact listing in the refresh workflow must paginate; an
@@ -500,9 +603,11 @@ func TestKnowledgeRefreshDeployGuardCrossCheck(t *testing.T) {
 		// The fake serves one runs.json for both workflows: run 2 holds the
 		// content artifact, run 1 the refresh artifact (if any).
 		type r struct {
-			ID int `json:"id"`
+			ID        int    `json:"id"`
+			CreatedAt string `json:"created_at"`
 		}
-		write("runs.json", []r{{2}, {1}})
+		recent := time.Now().UTC().Add(-time.Hour).Format("2006-01-02T15:04:05Z")
+		write("runs.json", []r{{2, recent}, {1, recent}})
 		write("artifacts-2.json", []art{{"knowledge-" + contentRev + "-" + hex, false}, {"knowledge-refresh-" + refreshRev + "-" + refreshVer + "-" + hex, false}})
 		write("artifacts-1.json", []art{})
 		bin := filepath.Join(dir, "bin")
@@ -611,43 +716,105 @@ func TestKnowledgeRefreshKeyNormalization(t *testing.T) {
 	}
 }
 
-// A refusal before any digest check names the key file or passphrase; a
-// refusal that mentions a digest or the live state keeps the generic message.
-func TestKnowledgeRefreshRefusalClassification(t *testing.T) {
+// The key shape preflight refuses a key secret that is not one PEM block before
+// the publisher runs, names only the role and never prints key bytes.
+func TestKnowledgeRefreshKeyShapePreflight(t *testing.T) {
 	wf, _ := loadRefreshWorkflow(t)
 	run := stepRun(t, wf, "refresh", "Sign the refresh")
-	fn := extractShellFunc(t, run, "classify_refusal")
+	fn := extractShellFunc(t, run, "check_key_shape")
+	const secretMarker = "SECRETBYTES"
 	for _, tc := range []struct {
-		name, stderr string
-		result       bool
-		want         string
+		name, body string
+		ok         bool
 	}{
-		{"bad passphrase", "knowledge-publish: decrypt timestamp key: wrong passphrase\n", false, "key file or passphrase unusable"},
-		{"bad key file", "knowledge-publish: read key file: invalid PEM\n", false, "key file or passphrase unusable"},
-		{"digest mismatch", "knowledge-publish: live package digest mismatch\n", false, "the publisher refused the refresh"},
-		{"state mismatch", "knowledge-publish: live state does not match; key ok\n", false, "the publisher refused the refresh"},
-		{"unrelated", "knowledge-publish: no extension possible\n", false, "the publisher refused the refresh"},
-		{"key text but result written", "knowledge-publish: key passphrase\n", true, "the publisher refused the refresh"},
-		{"empty stderr", "", false, "the publisher refused the refresh"},
+		{"valid", "-----BEGIN ENCRYPTED KEY-----\n" + secretMarker + "\n-----END ENCRYPTED KEY-----\n", true},
+		{"no END", "-----BEGIN ENCRYPTED KEY-----\n" + secretMarker + "\n", false},
+		{"no BEGIN", secretMarker + "\n-----END ENCRYPTED KEY-----\n", false},
+		{"blank line inside", "-----BEGIN ENCRYPTED KEY-----\n" + secretMarker + "\n\n-----END ENCRYPTED KEY-----\n", false},
+		{"whitespace-only line", "-----BEGIN ENCRYPTED KEY-----\n  \n" + secretMarker + "\n-----END ENCRYPTED KEY-----\n", false},
+		{"CRLF", "-----BEGIN ENCRYPTED KEY-----\r\n" + secretMarker + "\r\n-----END ENCRYPTED KEY-----\r\n", false},
+		{"two blocks with a gap", "-----BEGIN ENCRYPTED KEY-----\nA\n-----END ENCRYPTED KEY-----\n\n-----BEGIN ENCRYPTED KEY-----\nB\n-----END ENCRYPTED KEY-----\n", false},
+		{"empty", "", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			dir := t.TempDir()
-			errf, res := filepath.Join(dir, "e"), filepath.Join(dir, "r")
-			_ = os.WriteFile(errf, []byte(tc.stderr), 0o600)
-			content := ""
-			if tc.result {
-				content = "{}"
+			f := filepath.Join(t.TempDir(), "k.pem")
+			if err := os.WriteFile(f, []byte(tc.body), 0o600); err != nil {
+				t.Fatal(err)
 			}
-			_ = os.WriteFile(res, []byte(content), 0o600)
-			cmd := exec.Command("bash", "-c", "set -euo pipefail\nfail() { echo \"$*\"; exit 1; }\n"+fn+"\nclassify_refusal "+errf+" "+res+"\n")
+			cmd := exec.Command("bash", "-c", "set -euo pipefail\nfail() { echo \"$*\"; exit 1; }\n"+fn+"\ncheck_key_shape timestamp "+f+"\n")
 			cmd.Env = []string{"PATH=" + os.Getenv("PATH")}
 			out, err := cmd.CombinedOutput()
-			if err == nil || !strings.Contains(string(out), tc.want) {
-				t.Fatalf("want exit 1 with %q, got err=%v out=%q", tc.want, err, out)
+			if tc.ok {
+				if err != nil {
+					t.Fatalf("a valid key must pass: %v %s", err, out)
+				}
+				return
 			}
-			if tc.want == "key file or passphrase unusable" && strings.Contains(string(out), "digest") {
-				t.Fatalf("key refusal must not mention a digest: %q", out)
+			if err == nil || !strings.Contains(string(out), "key file or passphrase unusable") || !strings.Contains(string(out), "timestamp") {
+				t.Fatalf("want a refusal naming the role, got err=%v out=%q", err, out)
+			}
+			if strings.Contains(string(out), secretMarker) || strings.Contains(string(out), "BEGIN") {
+				t.Fatalf("the refusal leaks key bytes: %q", out)
+			}
+			if got, _ := os.ReadFile(f); string(got) != tc.body {
+				t.Fatal("the preflight modified the key file")
 			}
 		})
+	}
+	// Order and the heuristic: the preflight runs before the publisher, the
+	// output-grepping classifier is gone, and one generic refusal remains.
+	pre := strings.Index(run, "check_key_shape timestamp ")
+	pub := strings.Index(run, `"${maint}" knowledge-publish refresh-timestamp`)
+	if pre < 0 || pub < 0 || pre > pub {
+		t.Error("check_key_shape must run before the publisher call")
+	}
+	if strings.Contains(run, "classify_refusal") || strings.Contains(run, "grep -qiE") {
+		t.Error("the refusal text heuristic must be gone")
+	}
+	if !strings.Contains(run, "digest, state, extension or cap, or the key file or passphrase") {
+		t.Error("the single generic refusal must name digest/state/extension/cap or the key file/passphrase")
+	}
+	if !strings.Contains(run, `[[ "${TIMESTAMP_KEY}" =~ [^[:space:]] ]]`) || !strings.Contains(run, `[[ "${PASSPHRASE}" =~ [^[:space:]] ]]`) {
+		t.Error("the key and passphrase emptiness checks must reject whitespace-only values")
+	}
+}
+
+// The revision is validated before it is used in a pattern.
+func TestKnowledgeRefreshCandidateParse(t *testing.T) {
+	wf, _ := loadRefreshWorkflow(t)
+	run := stepRun(t, wf, "deploy", "Deploy guard")
+	fn := extractShellFunc(t, run, "parse_candidate")
+	hex := strings.Repeat("a", 64)
+	for _, tc := range []struct {
+		name, art, rev string
+		ok             bool
+	}{
+		{"valid", "knowledge-refresh-12-3-" + hex, "12", true},
+		{"mismatching revision", "knowledge-refresh-13-3-" + hex, "12", false},
+		{"wildcard revision", "knowledge-refresh-12-3-" + hex, ".*", false},
+		{"alternation revision", "knowledge-refresh-12-3-" + hex, "12|13", false},
+		{"empty revision", "knowledge-refresh--3-" + hex, "", false},
+		{"leading zero", "knowledge-refresh-012-3-" + hex, "012", false},
+		{"too long", "knowledge-refresh-1234567890123456789-3-" + hex, "1234567890123456789", false},
+		{"bracket revision", "knowledge-refresh-1-3-" + hex, "[0-9]", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			script := "set -euo pipefail\nfail() { echo \"REFUSED: $*\"; exit 1; }\n" + fn + "\nparse_candidate \"$1\" \"$2\"\necho \"$CAND_REVISION $CAND_TS_VERSION\"\n"
+			cmd := exec.Command("bash", "-c", script, "bash", tc.art, tc.rev)
+			cmd.Env = []string{"PATH=" + os.Getenv("PATH")}
+			out, err := cmd.CombinedOutput()
+			if tc.ok {
+				if err != nil || strings.TrimSpace(string(out)) != tc.rev+" 3" {
+					t.Fatalf("err=%v out=%q", err, out)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(string(out), "REFUSED") {
+				t.Fatalf("must refuse, got err=%v out=%q", err, out)
+			}
+		})
+	}
+	if !strings.Contains(run, `parse_candidate "${ARTIFACT_NAME}" "${REVISION}"`) {
+		t.Error("the deploy guard must parse the candidate through parse_candidate")
 	}
 }

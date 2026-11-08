@@ -153,14 +153,20 @@ jobs:
         run: |
           set -euo pipefail
           fail() { echo "::error::$*"; exit 1; }
-          newest_artifact() { # workflow file, name regex -> artifact name of the newest successful run that has one
-            local runs id name
-            runs="$(gh api --paginate -X GET "repos/${GH_REPO}/actions/workflows/$1/runs" -f branch=main -f status=success -f per_page=100 --jq '.workflow_runs[].id')"
-            for id in ${runs}; do
+          newest_artifact() { # workflow file, name regex -> artifact name of the newest successful run that has one; reads at most 200 runs, none older than 90 days (the artifact retention), and refuses beyond that
+            local runs id created name n=0 cutoff
+            cutoff="$(date -u -d '90 days ago' +%Y-%m-%dT%H:%M:%SZ)"
+            runs="$(gh api --paginate -X GET "repos/${GH_REPO}/actions/workflows/$1/runs" -f branch=main -f status=success -f "created=>=${cutoff}" -f per_page=100 --jq '.workflow_runs[] | "\(.id) \(.created_at)"')"
+            while read -r id created; do
+              [ -n "${id}" ] || continue
+              [[ "${id}" =~ ^[0-9]+$ ]] && [[ "${created}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]] || { echo "::error::a run listing entry is not valid; nothing was done." >&2; return 1; }
+              [[ "${created}" > "${cutoff}" ]] || break
+              n=$((n + 1))
+              [ "${n}" -le 200 ] || { echo "::error::no matching artifact within the newest 200 runs; nothing was done." >&2; return 1; }
               name="$(gh api --paginate -X GET "repos/${GH_REPO}/actions/runs/${id}/artifacts" -f per_page=100 \
                 --jq ".artifacts[] | select(.expired == false) | select(.name | test(\"$2\")) | .name" | sed -n 1p)"
               if [ -n "${name}" ]; then echo "${name}"; return 0; fi
-            done
+            done <<< "${runs}"
             return 0
           }
           content="$(newest_artifact knowledge-publish.yml '^knowledge-[0-9]+-[0-9a-f]{64}$')"
@@ -283,7 +289,7 @@ jobs:
           export LC_ALL=C
           fail() { echo "::error::$*"; exit 1; }
           [ "${RUN_ATTEMPT}" = 1 ] || fail "a re-run is refused (run_attempt ${RUN_ATTEMPT}); nothing was signed."
-          [ -n "${TIMESTAMP_KEY}" ] && [ -n "${PASSPHRASE}" ] || fail "the environment knowledge-refresh does not provide the timestamp key and its passphrase; nothing was signed."
+          [[ "${TIMESTAMP_KEY}" =~ [^[:space:]] ]] && [[ "${PASSPHRASE}" =~ [^[:space:]] ]] || fail "the environment knowledge-refresh does not provide the timestamp key and its passphrase; nothing was signed."
           [[ "${LIVE_DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]] || fail "the live package digest from the decision is not valid; nothing was signed."
           maint="${RUNNER_TEMP}/bin/prufyx-maintainer"
           root="${GITHUB_WORKSPACE}/cli/internal/knowledgepin/root.json"
@@ -296,19 +302,19 @@ jobs:
           printf '%s\n' "$(printf '%s' "${TIMESTAMP_KEY}")" > "${keys}/timestamp.key.pem"
           printf '%s' "${PASSPHRASE}" > "${keys}/passphrase"
           out="${RUNNER_TEMP}/refreshed"
-          classify_refusal() { # stderr file, result file: a refusal with nothing produced that names the key or passphrase and no digest or state is a key problem
-            cat "$1" >&2
-            if [ ! -s "$2" ] && grep -qiE 'passphrase|key file|private key|decrypt|pem' "$1" && ! grep -qiE 'digest|state|live|identity' "$1"; then
-              fail "key file or passphrase unusable; nothing was signed."
-            fi
-            fail "the publisher refused the refresh (unverifiable live package, identity assertion, no extension or cap); nothing was signed."
+          check_key_shape() { # role, key file: one PEM block and nothing else; read-only, names the role only and never prints key bytes
+            head -n 1 "$2" | grep -q '^-----BEGIN [A-Z0-9 ]*-----$' \
+              && tail -n 1 "$2" | grep -q '^-----END [A-Z0-9 ]*-----$' \
+              && ! grep -q '^[[:space:]]*$' "$2" \
+              || fail "key file or passphrase unusable: the $1 key secret is not a single PEM block; nothing was signed."
           }
+          check_key_shape timestamp "${keys}/timestamp.key.pem"
           "${maint}" knowledge-publish refresh-timestamp --profile cncf-projects \
             --live-package "${live}" --expect-live-package-digest "${LIVE_DIGEST}" \
             --root "${root}" --root-digest "${ROOT_DIGEST}" \
             --timestamp-key "${keys}/timestamp.key.pem" --passphrase-file "${keys}/passphrase" \
             --output-dir "${out}" > "${RUNNER_TEMP}/refresh-result.json" 2> "${RUNNER_TEMP}/refresh-stderr.txt" \
-            || classify_refusal "${RUNNER_TEMP}/refresh-stderr.txt" "${RUNNER_TEMP}/refresh-result.json"
+            || { cat "${RUNNER_TEMP}/refresh-stderr.txt" >&2; fail "the publisher refused the refresh (digest, state, extension or cap, or the key file or passphrase); nothing was signed."; }
           cat "${RUNNER_TEMP}/refresh-stderr.txt" >&2
           rm -rf "${keys}"
           result="${RUNNER_TEMP}/refresh-result.json"
@@ -463,15 +469,26 @@ jobs:
           set -euo pipefail
           umask 077
           fail() { echo "::error::$*"; exit 1; }
-          newest_artifact() { # workflow file, name regex -> artifact name of the newest successful run that has one
-            local runs id name
-            runs="$(gh api --paginate -X GET "repos/${GH_REPO}/actions/workflows/$1/runs" -f branch=main -f status=success -f per_page=100 --jq '.workflow_runs[].id')"
-            for id in ${runs}; do
+          newest_artifact() { # workflow file, name regex -> artifact name of the newest successful run that has one; reads at most 200 runs, none older than 90 days (the artifact retention), and refuses beyond that
+            local runs id created name n=0 cutoff
+            cutoff="$(date -u -d '90 days ago' +%Y-%m-%dT%H:%M:%SZ)"
+            runs="$(gh api --paginate -X GET "repos/${GH_REPO}/actions/workflows/$1/runs" -f branch=main -f status=success -f "created=>=${cutoff}" -f per_page=100 --jq '.workflow_runs[] | "\(.id) \(.created_at)"')"
+            while read -r id created; do
+              [ -n "${id}" ] || continue
+              [[ "${id}" =~ ^[0-9]+$ ]] && [[ "${created}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]] || { echo "::error::a run listing entry is not valid; nothing was done." >&2; return 1; }
+              [[ "${created}" > "${cutoff}" ]] || break
+              n=$((n + 1))
+              [ "${n}" -le 200 ] || { echo "::error::no matching artifact within the newest 200 runs; nothing was done." >&2; return 1; }
               name="$(gh api --paginate -X GET "repos/${GH_REPO}/actions/runs/${id}/artifacts" -f per_page=100 \
                 --jq ".artifacts[] | select(.expired == false) | select(.name | test(\"$2\")) | .name" | sed -n 1p)"
               if [ -n "${name}" ]; then echo "${name}"; return 0; fi
-            done
+            done <<< "${runs}"
             return 0
+          }
+          parse_candidate() { # artifact name, revision -> CAND_REVISION and CAND_TS_VERSION; the revision is validated before it is used in a pattern
+            [[ "$2" =~ ^[1-9][0-9]{0,17}$ ]] || fail "the refresh revision is not valid; nothing was deployed."
+            [[ "$1" =~ ^knowledge-refresh-$2-([0-9]+)-[0-9a-f]{64}$ ]] || fail "the artifact name does not match the refresh revision; nothing was deployed."
+            CAND_REVISION="$2"; CAND_TS_VERSION="${BASH_REMATCH[1]}"
           }
           artifact_crosscheck() { # candidate revision, candidate timestamp version: refuse when a newer content or refresh run exists
             local cand_rev="$1" cand_ver="$2" content rev refresh rest rrev rver
@@ -489,8 +506,7 @@ jobs:
               fi
             fi
           }
-          [[ "${ARTIFACT_NAME}" =~ ^knowledge-refresh-${REVISION}-([0-9]+)-[0-9a-f]{64}$ ]] || fail "the artifact name does not match the refresh revision; nothing was deployed."
-          CAND_REVISION="${REVISION}"; CAND_TS_VERSION="${BASH_REMATCH[1]}"
+          parse_candidate "${ARTIFACT_NAME}" "${REVISION}"
           artifact_crosscheck "${CAND_REVISION}" "${CAND_TS_VERSION}"
           root="${GITHUB_WORKSPACE}/cli/internal/knowledgepin/root.json"
           [ -s "${root}" ] || fail "cli/internal/knowledgepin/root.json is missing; nothing was deployed."
