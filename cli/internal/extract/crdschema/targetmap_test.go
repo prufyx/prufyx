@@ -5,7 +5,6 @@ package crdschema
 import (
 	"reflect"
 	"regexp"
-	"sort"
 	"strings"
 	"testing"
 
@@ -178,7 +177,9 @@ func realTargets(t *testing.T) []crdversions.Target {
 	return crdversions.Targets
 }
 
-// pilots pins the outcome for the four reviewed pilots.
+// The pilots are pinned exactly. If this fails, the pilots must be
+// re-evaluated deliberately (is the change to the target or the mapper
+// intended?); a new unrelated target never fails here.
 func TestTargetFromCRDVersionsPilots(t *testing.T) {
 	want := map[string][]string{
 		"argo-cd":          nil,
@@ -195,7 +196,7 @@ func TestTargetFromCRDVersionsPilots(t *testing.T) {
 		seen[tg.Project] = true
 		got, rs := TargetFromCRDVersions(tg)
 		if !reflect.DeepEqual(codes(rs), append([]string{}, w...)) && !(w == nil && len(rs) == 0) {
-			t.Errorf("%s: reasons %v want %v", tg.Project, codes(rs), w)
+			t.Errorf("%s: reasons %v want %v; pilots must be re-evaluated deliberately", tg.Project, codes(rs), w)
 		}
 		if w == nil {
 			if !reflect.DeepEqual(got.Dirs, []string{"manifests/crds"}) || len(got.Files) != 0 || got.Repo.Key != "github.com/argoproj/argo-cd" {
@@ -210,43 +211,42 @@ func TestTargetFromCRDVersionsPilots(t *testing.T) {
 	}
 }
 
-// Every real target maps or is refused; the whole table is pinned so a change
-// to a target (or to the mapper) is noticed and reviewed.
-func TestTargetFromCRDVersionsRealTable(t *testing.T) {
-	var mapped []string
-	refused := map[string]string{}
+// Invariants over every real target. A new or changed target file must not
+// break this test: it only requires a closed outcome.
+func TestTargetFromCRDVersionsRealInvariants(t *testing.T) {
+	closed := map[string]bool{ReasonMapRepo: true, ReasonMapNotAttested: true, ReasonMapTagPrefix: true,
+		ReasonMapReleaseScheme: true, ReasonMapExclude: true, ReasonMapChannels: true, ReasonMapRemote: true, ReasonMapPath: true}
 	for _, tg := range realTargets(t) {
 		got, rs := TargetFromCRDVersions(tg)
-		if len(rs) == 0 {
-			if err := got.validate(); err != nil {
-				t.Errorf("%s maps to an invalid target: %v", tg.Project, err)
+		got2, rs2 := TargetFromCRDVersions(tg)
+		if !reflect.DeepEqual(got, got2) || !reflect.DeepEqual(rs, rs2) {
+			t.Errorf("%s: not deterministic", tg.Project)
+		}
+		if len(rs) > 0 {
+			if !reflect.DeepEqual(got, Target{}) {
+				t.Errorf("%s: partial target with reasons", tg.Project)
 			}
-			mapped = append(mapped, tg.Project)
+			for _, r := range rs {
+				if !closed[r.Code] {
+					t.Errorf("%s: unknown reason code %q", tg.Project, r.Code)
+				}
+			}
 			continue
 		}
-		if !reflect.DeepEqual(got, Target{}) {
-			t.Errorf("%s: partial target with reasons", tg.Project)
+		if err := got.validate(); err != nil {
+			t.Errorf("%s maps to an invalid target: %v", tg.Project, err)
 		}
-		var uniq []string
-		for _, c := range codes(rs) {
-			if len(uniq) == 0 || uniq[len(uniq)-1] != c {
-				uniq = append(uniq, c)
+		var files, dirs []string
+		for _, p := range tg.Paths {
+			if p.Dir {
+				dirs = append(dirs, p.Path)
+			} else {
+				files = append(files, p.Path)
 			}
 		}
-		refused[tg.Project] = strings.Join(uniq, ",")
-	}
-	sort.Strings(mapped)
-	if !reflect.DeepEqual(mapped, pinnedMapped) {
-		t.Errorf("mapped projects changed:\n got %v\nwant %v", mapped, pinnedMapped)
-	}
-	for p, c := range refused {
-		if pinnedRefused[p] != c {
-			t.Errorf("%s: refusal %q, pinned %q", p, c, pinnedRefused[p])
-		}
-	}
-	for p := range pinnedRefused {
-		if _, ok := refused[p]; !ok {
-			t.Errorf("%s: pinned as refused but not refused (or gone)", p)
+		if got.Repo.Key != strings.ToLower(tg.Repo) || !reflect.DeepEqual(got.Files, files) || !reflect.DeepEqual(got.Dirs, dirs) ||
+			len(tg.Exclude) != 0 || len(tg.Channels) != 0 || tg.Remote != nil || !tg.Attest {
+			t.Errorf("%s: mapped target disagrees with its source", tg.Project)
 		}
 	}
 }
