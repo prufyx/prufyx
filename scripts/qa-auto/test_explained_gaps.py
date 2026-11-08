@@ -89,6 +89,113 @@ class Mixed(unittest.TestCase):
         self.assertEqual((r[0], r[4]), (True, False))
 
 
+def unowned(n, component=P):
+    return {"component": component, "reason": "DOCUMENTS_NOT_EVALUATED",
+            "detail": f"{n} manifest(s) use custom-resource groups that no reviewed project owns, so no custom-resource set is complete"}
+
+
+def unknown_only(gaps):
+    return {"verdict": "UNKNOWN", "findings": [], "gaps": list(gaps),
+            "paths": [{"component": P, "hops": [{"status": "NO_DATA", "reasons": ["COMPONENT_NOT_COVERED"]}]}]}
+
+
+LG = {"b.example"}  # groups with a CRD left at the later release: the whole-removed group a.example is gone
+
+
+class UnownedGroupGap(unittest.TestCase):
+    """The scanner also reports how many manifests belong to a group no project owns (a CRD gone at the target): design only when
+    that count is exactly the number of whole-CRD removals."""
+    def setUp(self):
+        for mod in (crd, qalib):
+            p = patch.object(mod, "removal_claim", lambda *a: True)
+            p.start()
+            self.addCleanup(p.stop)
+
+    def mixed(self, gaps, findings=(V1, V2), whole=(W,), code=10, **extra):
+        rep = blocked([finding(x) for x in findings], gaps, **extra)
+        return crd.classify_pair(code, rep, [*whole, V1, V2], list(whole), P, LG)
+
+    def test_mixed_with_matching_count_is_design(self):
+        r = self.mixed([GAP, unowned(1)])
+        self.assertEqual((r[0], r[1], r[2], r[4], r[5]), (False, False, [], True, "OK"))
+        r = self.mixed([unowned(2), GAP], whole=(W, ("a.example", "v1", "Gone2")))
+        self.assertEqual((r[1], r[4]), (False, True))
+
+    def test_whole_only_with_matching_count_is_design(self):
+        r = crd.classify_pair(11, unknown_only([GAP, unowned(1)]), [W], [W], P, LG)
+        self.assertEqual((r[0], r[1], r[4], r[5]), (False, False, True, "OK"))
+        w2, w3 = ("c.example", "v1", "Gone2"), ("d.example", "v1", "Gone3")
+        r = crd.classify_pair(11, unknown_only([GAP, unowned(3)]), [W, w2, w3], [W, w2, w3], P, LG)
+        self.assertEqual((r[1], r[4]), (False, True))
+
+    def test_count_must_equal_the_whole_removals(self):
+        for n in (0, 2, 3, 99):
+            r = self.mixed([GAP, unowned(n)])
+            self.assertEqual((r[1], r[4], r[5]), (True, False, "GAP_UNOWNED"), n)
+            r = crd.classify_pair(11, unknown_only([GAP, unowned(n)]), [W], [W], P, LG)
+            self.assertEqual((r[1], r[4], r[5]), (True, False, "GAP_UNOWNED"), n)
+
+    def test_malformed_or_repeated_unowned_gap_is_mismatch(self):
+        for bad in ({"component": P, "reason": "DOCUMENTS_NOT_EVALUATED"},
+                    {"component": P, "reason": "DOCUMENTS_NOT_EVALUATED", "detail": 1},
+                    {"component": P, "reason": "DOCUMENTS_NOT_EVALUATED", "detail": "1 manifest(s) use something else"},
+                    {"component": P, "reason": "DOCUMENTS_NOT_EVALUATED", "detail": "x1 manifest(s) use custom-resource groups that no reviewed project owns"},
+                    unowned(1, "other")):
+            r = self.mixed([GAP, bad])
+            self.assertEqual((r[1], r[4]), (True, False), bad)
+        r = self.mixed([GAP, unowned(1), unowned(1)])
+        self.assertEqual((r[1], r[4], r[5]), (True, False, "GAP_UNOWNED"))
+
+    def test_unowned_gap_without_the_design_gap_is_mismatch(self):
+        r = self.mixed([unowned(1)])
+        self.assertEqual((r[1], r[4], r[5]), (True, False, "NO_GAP"))
+
+    def test_unowned_gap_never_hides_extra_or_missing_findings(self):
+        r = self.mixed([GAP, unowned(1)], findings=(V1, V2, ("c.example", "v1", "Stray")))
+        self.assertEqual((r[1], r[4], r[5]), (True, False, "EXTRA_FINDING"))
+        r = self.mixed([GAP, unowned(1)], findings=(V1,))
+        self.assertEqual((r[1], r[4], r[5]), (True, False, "VERSION_MISSING"))
+        self.assertIn("/".join(V2), r[2])
+        r = self.mixed([GAP, unowned(1)], findings=(V1, V2), unsupported=[{"x": 1}])
+        self.assertEqual((r[1], r[4], r[5]), (True, False, "UNSUPPORTED"))
+
+    def test_other_exit_or_verdict_with_unowned_gap_is_mismatch(self):
+        r = crd.classify_pair(10, unknown_only([GAP, unowned(1)]), [W], [W], P, LG)
+        self.assertEqual((r[1], r[4]), (True, False))
+        r = crd.classify_pair(11, dict(unknown_only([GAP, unowned(1)]), verdict="BLOCKED"), [W], [W], P, LG)
+        self.assertEqual((r[1], r[4]), (True, False))
+        rep = unknown_only([GAP, unowned(1)])
+        rep["paths"][0]["hops"][0]["reasons"] = ["DOCUMENTS_NOT_EVALUATED"]
+        self.assertEqual(crd.classify_pair(11, rep, [W], [W], P, LG)[5], "HOP_REASON")
+
+    def test_pass_with_unowned_gap_stays_wrongpass(self):
+        rep = {"verdict": "PASS", "findings": [], "gaps": [GAP, unowned(1)]}
+        for removed in ([W], [W, V1, V2]):
+            r = crd.classify_pair(0, rep, removed, [W], P, LG)
+            self.assertEqual((r[0], r[4]), (True, False), removed)
+        rep = blocked([finding(V1), finding(V2)], [GAP, unowned(1)])
+        rep["paths"][0]["hops"][0]["families"][0]["status"] = "PASS"
+        r = crd.classify_pair(10, rep, [W, V1, V2], [W], P, LG)
+        self.assertEqual((r[0], r[4]), (True, False))
+
+    def test_group_still_defined_or_unread_is_not_accepted(self):
+        # the removed kind sits in a group that still has CRDs at the later release (the under-report shape): no allowance
+        for groups in ({"a.example"}, {"a.example", "b.example"}, None):
+            r = crd.classify_pair(11, unknown_only([GAP, unowned(1)]), [W], [W], P, groups)
+            self.assertEqual((r[1], r[4], r[5]), (True, False, "GAP_UNOWNED"), groups)
+            r = crd.classify_pair(10, blocked([finding(V1), finding(V2)], [GAP, unowned(1)]), [W, V1, V2], [W], P, groups)
+            self.assertEqual((r[1], r[4], r[5]), (True, False, "GAP_UNOWNED"), groups)
+        # two whole removals, only one of them from a vanished group: refused as a whole
+        w2 = ("c.example", "v1", "Gone2")
+        r = crd.classify_pair(11, unknown_only([GAP, unowned(1)]), [W, w2], [W, w2], P, {"c.example"})
+        self.assertEqual((r[1], r[4], r[5]), (True, False, "GAP_UNOWNED"))
+        r = crd.classify_pair(11, unknown_only([GAP, unowned(2)]), [W, w2], [W, w2], P, {"c.example"})
+        self.assertEqual((r[1], r[4], r[5]), (True, False, "GAP_UNOWNED"))
+
+    def test_no_whole_removal_means_no_unowned_allowance(self):
+        self.assertEqual(crd.whole_signal_clause(unknown_only([GAP, unowned(1)]), P, 0), "GAP_UNOWNED")
+
+
 class WholeFixture(unittest.TestCase):
     """Fixed fixture: version-level removals inside still-defined CRDs must never be classified as whole-CRD removals."""
     REMOVED = [("core.oam.dev", "v1alpha2", "Application"), ("core.oam.dev", "v1alpha2", "ApplicationRevision"),
@@ -144,9 +251,11 @@ class Diagnostics(unittest.TestCase):
         self.assertNotIn("whole", out[0]["detail"])
 
 
-def run_summary(state, cases, mode="none", env=None):
+def run_summary(state, cases, mode="none", env=None, skipped=None):
     d = tempfile.mkdtemp()
     json.dump(cases, open(d + "/crd.cases.json", "w"))
+    if skipped is not None:
+        json.dump(skipped, open(d + "/skipped.json", "w"))
     e = dict(os.environ, **(env or {}))
     r = subprocess.run([sys.executable, os.path.join(HERE, "summarize.py"), "--dir", d, "--state", state, "--sha", "a" * 40, "--mode", mode],
                        capture_output=True, text=True, env=e)
@@ -163,6 +272,11 @@ def mm(key, **detail):
     return qalib.case("crd", key, mismatch=True, **detail)
 
 
+def signed(key, **detail):
+    """Registry entry for the plain mismatch `key` (without the suite prefix) carrying the exact sig of that case."""
+    return entry("crd|" + key, sig=qalib.case_sig(mm(key, **detail)))
+
+
 class Registry(unittest.TestCase):
     def setUp(self):
         self.s = tempfile.mkdtemp()
@@ -171,20 +285,21 @@ class Registry(unittest.TestCase):
         json.dump(list(entries), open(self.s + "/known-gaps.json", "w"))
 
     def test_registered_mismatch_is_known_gap_not_alarm(self):
-        self.gaps(entry("crd|k1"))
+        self.gaps(signed("k1"))
         r, summ = run_summary(self.s, [mm("k1")])
         self.assertEqual((summ["mismatch"], summ["new_mismatch"], summ["known_gap"], r.returncode), (1, 0, 1, 0))
         self.assertIn("KNOWN_GAP=1", r.stdout)
         self.assertEqual(json.load(open(self.s + "/status.json"))["known_gap_cases"], ["crd|k1"])
 
     def test_unregistered_stays_new(self):
-        self.gaps(entry("crd|k1"))
+        self.gaps(signed("k1"))
         r, summ = run_summary(self.s, [mm("k1"), mm("k2")])
         self.assertEqual((summ["new_mismatch"], summ["known_gap"], r.returncode), (1, 1, 2))
 
     def test_missing_reason_or_owner_is_ignored(self):
-        for bad in (entry("crd|k1", reason=""), entry("crd|k1", reason="  "), entry("crd|k1", owner=""),
-                    {"key": "crd|k1", "owner": "o"}, {"key": "crd|k1", "reason": "r"}, "crd|k1"):
+        sig = qalib.case_sig(mm("k1"))
+        for bad in (entry("crd|k1", reason="", sig=sig), entry("crd|k1", reason="  ", sig=sig), entry("crd|k1", owner="", sig=sig),
+                    {"key": "crd|k1", "owner": "o", "sig": sig}, {"key": "crd|k1", "reason": "r", "sig": sig}, "crd|k1"):
             self.gaps(bad)
             r, summ = run_summary(self.s, [mm("k1")])
             self.assertEqual((summ["new_mismatch"], summ["known_gap"], r.returncode), (1, 0, 2), bad)
@@ -205,10 +320,11 @@ class Registry(unittest.TestCase):
             r, summ = run_summary(self.s, [mm("k1")])
             self.assertEqual((summ["known_gap"], summ["new_mismatch"]), (0, 1), sig)
 
-    def test_no_sig_is_covered_with_warning(self):
-        self.gaps(entry("crd|k1"))
-        r, summ = run_summary(self.s, [mm("k1")])
-        self.assertEqual((summ["known_gap"], summ["known_gap_nosig"], r.returncode), (1, ["crd|k1"], 0))
+    def test_no_sig_covers_nothing_and_is_reported(self):
+        for e in (entry("crd|k1"), entry("crd|k1", sig=""), entry("crd|k1", sig=None)):
+            self.gaps(e)
+            r, summ = run_summary(self.s, [mm("k1")])
+            self.assertEqual((summ["known_gap"], summ["new_mismatch"], summ["known_gap_nosig"], r.returncode), (0, 1, ["crd|k1"], 2), e)
         self.assertIn("known-gap entry crd|k1 has no sig", r.stdout)
         self.assertEqual(json.load(open(self.s + "/status.json"))["known_gap_nosig"], ["crd|k1"])
 
@@ -221,14 +337,18 @@ class Registry(unittest.TestCase):
         r = subprocess.run([sys.executable, os.path.join(HERE, "qalib.py"), "sig", d, "crd|nope"], capture_output=True, text=True)
         self.assertNotEqual(r.returncode, 0)
 
-    def test_registry_over_cap_with_missing_or_corrupt_status_is_inconclusive(self):
-        self.gaps(*[entry(f"crd|k{i}") for i in range(11)])
-        r, summ = run_summary(self.s, [mm(f"k{i}") for i in range(11)])
-        self.assertEqual(r.returncode, 3)
-        self.gaps(*[entry(f"crd|k{i}") for i in range(11)])
+    def many(self, n):
+        return [signed(f"k{i:02d}") for i in range(n)], [mm(f"k{i:02d}") for i in range(n)]
+
+    def test_registry_over_cap_with_missing_or_corrupt_status_alarms(self):
+        entries, cases = self.many(11)
+        self.gaps(*entries)
+        r, summ = run_summary(self.s, cases)
+        self.assertEqual((summ["known_gap"], summ["new_mismatch"], r.returncode), (10, 1, 2))
+        self.gaps(*entries)
         open(self.s + "/status.json", "w").write("{corrupt")
-        r, summ = run_summary(self.s, [mm(f"k{i}") for i in range(11)], "full")
-        self.assertEqual((summ["state"], r.returncode), ("INCONCLUSIVE", 3))
+        r, summ = run_summary(self.s, cases, "full")
+        self.assertEqual((summ["state"], summ["known_gap"], summ["new_mismatch"], r.returncode), ("ALARM", 10, 1, 2))
 
     def test_malformed_file_is_ignored(self):
         open(self.s + "/known-gaps.json", "w").write("{not json")
@@ -236,7 +356,7 @@ class Registry(unittest.TestCase):
         self.assertEqual((summ["new_mismatch"], r.returncode), (1, 2))
 
     def test_whole_candidate_regression_not_excused_by_registry(self):
-        self.gaps(entry("crd|k1"))
+        self.gaps(signed("k1", wholeCrdCandidate=True))
         r, summ = run_summary(self.s, [mm("k1", wholeCrdCandidate=True)])
         self.assertEqual((summ["new_mismatch"], summ["known_gap"], r.returncode), (1, 0, 2))
 
@@ -247,37 +367,62 @@ class Registry(unittest.TestCase):
         self.assertNotIn("crd|k1", [x for x in summ["resolved_gaps"]])
 
     def test_resolved_gap_reported_on_full_run(self):
-        self.gaps(entry("crd|k1"))
-        r, summ = run_summary(self.s, [qalib.case("crd", "k1")], "full")
+        self.gaps(signed("k1"))
+        r, summ = run_summary(self.s, [qalib.case("crd", "k1"), qalib.case("crd", "other")], "full")
         self.assertEqual(summ["resolved_gaps"], ["crd|k1"])
         self.assertIn("RESOLVED_GAP=crd|k1", r.stdout)
         r, summ = run_summary(self.s, [qalib.case("crd", "k1")], "none")
         self.assertEqual(summ["resolved_gaps"], [])
 
-    def test_mass_registration_cap_is_inconclusive(self):
-        self.gaps(*[entry(f"crd|k{i}") for i in range(11)])
-        r, summ = run_summary(self.s, [mm(f"k{i}") for i in range(11)])
-        self.assertEqual((summ["state"], r.returncode), ("INCONCLUSIVE", 3))
+    def test_skipped_suite_error_or_absent_suite_is_not_resolved(self):
+        self.gaps(signed("k1"), entry("kind|k2", sig="x" * 64), entry("rules|k3", sig="x" * 64))
+        cases = [qalib.case("crd", "k1", error=True), qalib.case("kind", "other"), qalib.case("rules", "other")]
+        for skipped in ([], ["kind"], ["rules(absent)"]):
+            r, summ = run_summary(self.s, cases, "full", skipped=skipped)
+            self.assertNotIn("crd|k1", summ["resolved_gaps"], "errored case")
+            self.assertEqual("kind|k2" in summ["resolved_gaps"], "kind" not in skipped, skipped)
+            self.assertEqual("rules|k3" in summ["resolved_gaps"], "rules(absent)" not in skipped, skipped)
+        r, summ = run_summary(self.s, [qalib.case("crd", "other")], "full")
+        self.assertEqual(summ["resolved_gaps"], ["crd|k1"])  # crd ran cleanly; kind and rules produced nothing at all
+
+    def test_mass_registration_over_cap_alarms_and_excess_cover_nothing(self):
+        entries, cases = self.many(11)
+        self.gaps(*entries)
+        json.dump([f"crd|k{i:02d}" for i in range(11)], open(self.s + "/known-mismatch.json", "w"))  # the baseline must not excuse them
+        r, summ = run_summary(self.s, cases)
+        self.assertEqual((summ["state"], r.returncode, summ["known_gap"], summ["new_mismatch"]), ("ALARM", 2, 10, 1))
+        self.assertEqual([c["key"] for c in summ["new_mismatch_cases"]], ["k10"])
         self.assertTrue(summ["known_gap_registration_breach"])
         self.assertIn("registry", r.stderr)
 
     def test_cap_allows_ten_then_counts_only_new(self):
-        self.gaps(*[entry(f"crd|k{i}") for i in range(10)])
-        cases = [mm(f"k{i}") for i in range(20)]
+        entries, cases = self.many(31)
+        self.gaps(*entries[:10])
+        r, summ = run_summary(self.s, cases[:20], "full")
+        self.assertFalse(summ["known_gap_registration_breach"])
+        self.gaps(*entries[:20])
+        r, summ = run_summary(self.s, cases[:20], "full")  # 10 new relative to the stored accepted set
+        self.assertFalse(summ["known_gap_registration_breach"])
+        self.gaps(*entries)
         r, summ = run_summary(self.s, cases, "full")
-        self.assertFalse(summ["known_gap_registration_breach"])
-        self.gaps(*[entry(f"crd|k{i}") for i in range(20)])
-        r, summ = run_summary(self.s, cases, "full")  # 10 new relative to the stored accepted set
-        self.assertFalse(summ["known_gap_registration_breach"])
-        self.gaps(*[entry(f"crd|k{i}") for i in range(31)])
-        r, summ = run_summary(self.s, cases + [mm(f"k{i}") for i in range(20, 31)], "full")
         self.assertTrue(summ["known_gap_registration_breach"])
+        self.assertEqual((summ["known_gap"], summ["new_mismatch"]), (20 + 10, 1))
 
     def test_cap_env_override_and_breach_does_not_advance_stored_set(self):
-        self.gaps(entry("crd|k1"), entry("crd|k2"))
+        self.gaps(signed("k1"), signed("k2"))
         r, summ = run_summary(self.s, [mm("k1"), mm("k2")], "full", {"QA_GAPS_MAX_NEW": "1"})
         self.assertTrue(summ["known_gap_registration_breach"])
+        self.assertEqual((summ["known_gap"], summ["new_mismatch"]), (1, 1))
         self.assertEqual(json.load(open(self.s + "/status.json"))["known_gap_keys"], [])
+
+    def test_cap_env_is_clamped_to_documented_upper_bound(self):
+        entries, cases = self.many(31)
+        self.gaps(*entries)
+        r, summ = run_summary(self.s, cases, "full", {"QA_GAPS_MAX_NEW": "1000"})
+        self.assertEqual((summ["known_gap"], summ["new_mismatch"], r.returncode), (25, 6, 2))
+        for bad in ("-3", "x"):
+            r, summ = run_summary(self.s, cases, "full", {"QA_GAPS_MAX_NEW": bad})
+            self.assertEqual(summ["known_gap"], 0 if bad == "-3" else 10, bad)
 
 
 class DigestReset(unittest.TestCase):
@@ -302,20 +447,20 @@ class DigestReset(unittest.TestCase):
         st = json.load(open(s + "/status.json"))
         st["oracle_digest"] = "0" * 64
         json.dump(st, open(s + "/status.json", "w"))
-        r, summ = run_summary(s, self.community(9) + self.design(70), "full")
+        r, summ = run_summary(s, self.community(9) + self.design(44), "full")  # +4 is within the rise threshold
         self.assertFalse(summ["unsupported_community_rise"] or False)
         self.assertFalse(summ["design_unknown_whole_crd_rise"])
         self.assertFalse(summ["design_unknown_whole_crd_cap_breach"])
         self.assertIn("oracle changed: rise baseline reset", r.stderr)
-        self.assertEqual(json.load(open(s + "/status.json"))["design_unknown_whole_crd_baseline"], 70)
+        self.assertEqual(json.load(open(s + "/status.json"))["design_unknown_whole_crd_baseline"], 44)
         # new baseline stored: same digest now, so a later rise fires again
-        r, summ = run_summary(s, self.design(75), "full")
+        r, summ = run_summary(s, self.design(49), "full")
         self.assertTrue(summ["design_unknown_whole_crd_rise"])
 
     def test_legacy_status_without_digest_skips_rise_once(self):
         s = tempfile.mkdtemp()
         json.dump({"mode": "full", "unsupported_community": 1, "design_unknown_whole_crd_baseline": 10}, open(s + "/status.json", "w"))
-        r, summ = run_summary(s, self.community(3) + self.design(30), "full")
+        r, summ = run_summary(s, self.community(3) + self.design(12), "full")
         self.assertIsNone(summ["unsupported_community_rise"])
         self.assertFalse(summ["design_unknown_whole_crd_cap_breach"])
         self.assertEqual(json.load(open(s + "/status.json"))["oracle_digest"], qalib.oracle_digest())
@@ -326,11 +471,35 @@ class DigestReset(unittest.TestCase):
         st = json.load(open(s + "/status.json"))
         st["oracle_digest"] = "0" * 64
         json.dump(st, open(s + "/status.json", "w"))
-        r, summ = run_summary(s, self.design(60), "full")  # +200% but oracle changed: no CAP, hard cap 80 not hit
+        r, summ = run_summary(s, self.design(25), "full")  # +5 is exactly the threshold: reset, no CAP, no RISE
         self.assertFalse(summ["design_unknown_whole_crd_cap_breach"])
-        self.assertIn("ORACLE_CHANGED", r.stdout.splitlines()[0])
-        r, summ = run_summary(s, self.design(61), "full")
+        self.assertIn("ORACLE_CHANGED design=20->25", r.stdout.splitlines()[0])
+        self.assertNotIn("ORACLE_RISE", r.stdout)
+        self.assertEqual(json.load(open(s + "/status.json"))["design_unknown_whole_crd_baseline"], 25)
+        r, summ = run_summary(s, self.design(26), "full")
         self.assertNotIn("ORACLE_CHANGED", r.stdout.splitlines()[0])
+
+    def test_changed_digest_with_rise_over_threshold_is_inconclusive_and_keeps_baseline(self):
+        for before, after in ((20, 26), (100 // 4, 31), (10, 16)):
+            s = tempfile.mkdtemp()
+            run_summary(s, self.design(before), "full")
+            st = json.load(open(s + "/status.json"))
+            st["oracle_digest"] = "0" * 64
+            json.dump(st, open(s + "/status.json", "w"))
+            r, summ = run_summary(s, self.design(after), "full")
+            self.assertEqual((summ["state"], r.returncode, summ["design_unknown_whole_crd_oracle_rise"]), ("INCONCLUSIVE", 3, True), (before, after))
+            self.assertIn(f"ORACLE_CHANGED design={before}->{after} ORACLE_RISE", r.stdout.splitlines()[0])
+            st = json.load(open(s + "/status.json"))
+            self.assertEqual((st["design_unknown_whole_crd_baseline"], st["oracle_digest"]), (before, "0" * 64))
+        # a partial run never judges the count; a drop is never a rise
+        for mode, count in (("none", 90 // 3), ("full", 12)):
+            s = tempfile.mkdtemp()
+            run_summary(s, self.design(20), "full")
+            st = json.load(open(s + "/status.json"))
+            st["oracle_digest"] = "0" * 64
+            json.dump(st, open(s + "/status.json", "w"))
+            r, summ = run_summary(s, self.design(count), mode)
+            self.assertFalse(summ["design_unknown_whole_crd_oracle_rise"], mode)
 
     def test_digest_covers_scope_modules(self):
         import hashlib
