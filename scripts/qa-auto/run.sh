@@ -27,6 +27,19 @@
 #                     Ignored when QA_POLL=1 or QA_BASE is set, so poll and gate runs never queue behind each other
 #   QA_MAXLOAD        skip (exit 75) when the 1-minute load is not below this (default 8)
 #   QA_JOBS           parallel projects in the CRD oracle (default 3)
+#   QA_ORACLE_BOX     optional command prefix (one absolute path to an existing regular executable, owned by root or the current user,
+#                     not group/world-writable) that wraps ONLY the nightly/poll rules-suite invocation:
+#                       "$QA_ORACLE_BOX" python3 -X utf8 rules_oracle.py --out FILE --allow FILE
+#                     Contract: a wrapper may run the suite elsewhere; it must exit with the suite's exit code, leave the --out file
+#                     written locally, and fall back to running the command itself on any infrastructure failure. The cases file it
+#                     leaves must be fresh (written after the suite started) and well formed, else the suite counts as crashed (ERR).
+#                     It runs under `env -i` with only PATH HOME LANG LC_ALL QA_JOBS QA_NOW QA_SRC QA_TMP QA_BIN QA_CRDGVK QA_CACHE
+#                     QA_STATE QA_SCAN_TIMEOUT, with the run lock descriptor closed, under `timeout -k 30 ${QA_ORACLE_BOX_TIMEOUT:-3000}`
+#                     (a timeout counts as a crashed suite). The result must also hold exactly one `summary` case whose entries equals
+#                     the rule-entry count run.sh computes from the checked-out rules.json, with controls_block > 0.
+#                     The path and every parent directory must be owned by root or the current user and not group/world-writable.
+#                     Refused with exit 3 when invalid, in gate/PR mode (QA_BASE, GATE=1, QA_RUNBOX) and in ad-hoc runs. Empty/unset =
+#                     the suite runs directly, exactly as without this option.
 #   QA_BASE           PR/batch mode (with QA_SHA = the head): diff QA_BASE..QA_SHA selects the work. Changed projects drive the
 #                     crd/k8s suites (select_projects.py), changed rule ids of cli/internal/cncfcheck/data/rules.json drive the
 #                     rules suite (scripts/qa-auto/rules_oracle.py, run when present, else a counted "rules(absent)" skip; the ids
@@ -58,6 +71,32 @@ mkdir -p "$QA_STATE/results" "$QA_STATE/cache"
 ADHOC=0; for v in QA_PROJECTS QA_SHA QA_PRE_BUILD QA_NO_KIND QA_BASE; do [ -n "${!v:-}" ] && ADHOC=1; done
 adhoc_flag=(); [ "$ADHOC" = 1 ] && adhoc_flag=(--adhoc)
 
+# QA_ORACLE_BOX validation; runs at startup and again immediately before the wrapper is executed (fail closed: exit 3)
+oracle_box_check() {
+  local own mode d rp
+  if [ "$ADHOC" = 1 ] || [ "${GATE:-0}" = 1 ] || [ -n "${QA_RUNBOX:-}" ]; then
+    echo "qa-auto: QA_ORACLE_BOX is only honored in full nightly/poll runs: refusing" >&2; exit 3
+  fi
+  case "$QA_ORACLE_BOX" in /*) ;; *) echo "qa-auto: QA_ORACLE_BOX must be an absolute path: refusing" >&2; exit 3;; esac
+  if [ ! -f "$QA_ORACLE_BOX" ] || [ ! -x "$QA_ORACLE_BOX" ]; then
+    echo "qa-auto: QA_ORACLE_BOX is not an executable regular file: refusing" >&2; exit 3
+  fi
+  rp=$(realpath -e -- "$QA_ORACLE_BOX" 2>/dev/null) && [ -n "$rp" ] || { echo "qa-auto: QA_ORACLE_BOX path does not resolve: refusing" >&2; exit 3; }
+  d=$rp
+  while :; do  # the file itself, then every parent directory up to /
+    own=$(stat -L -c %u "$d" 2>/dev/null); mode=$(stat -L -c %a "$d" 2>/dev/null)
+    case "$mode" in ''|*[!0-7]*) echo "qa-auto: QA_ORACLE_BOX mode unreadable: refusing" >&2; exit 3;; esac
+    if { [ "$own" != 0 ] && [ "$own" != "$(id -u)" ]; } || [ $(( 8#$mode & 8#022 )) != 0 ]; then
+      echo "qa-auto: QA_ORACLE_BOX and its parent directories must be owned by root or the current user and not group/world-writable ($d): refusing" >&2; exit 3
+    fi
+    [ "$d" = / ] && break
+    d=$(dirname -- "$d")
+  done
+  local t=${QA_ORACLE_BOX_TIMEOUT:-3000}
+  case "$t" in ''|*[!0-9]*|0*) echo "qa-auto: QA_ORACLE_BOX_TIMEOUT must be a positive integer (seconds): refusing" >&2; exit 3;; esac
+  [ "${#t}" -le 5 ] || { echo "qa-auto: QA_ORACLE_BOX_TIMEOUT too large: refusing" >&2; exit 3; }
+}
+[ -z "${QA_ORACLE_BOX:-}" ] || oracle_box_check
 exec 9>"$QA_STATE/lock"
 # QA_LOCK_WAIT: seconds to wait for the lock (integer 0..7200, else 0 = non-blocking). Ignored in poll and gate mode.
 lock_wait=0; lw=${QA_LOCK_WAIT:-0}
@@ -296,7 +335,40 @@ QA_STATE=$QA_STATE QA_DEVBOX=$QA_DEVBOX python3 -X utf8 review_cases.py --out "$
 
 if [ "$GATE" != 1 ]; then
 # 4e. rules suite (trigger per rule entry must BLOCK, then the wrapper/obfuscation corpus must stay non-PASS; QA_PROJECTS narrows it)
+if [ -z "${QA_ORACLE_BOX:-}" ]; then
 QA_STATE=$QA_STATE python3 -X utf8 rules_oracle.py --out "$OUT/rules.cases.json" --allow "$QA_STATE/rules-allow.json" >"$OUT/rules.log" 2>&1 || log "rules suite crashed"
+else
+  oracle_box_check
+  rm -f "$OUT/rules.cases.json"; : >"$RUN/rules.start"
+  # the wrapper gets an explicit environment: no alarm hook, tokens or other operator variables
+  # allowlist: PATH HOME LANG LC_ALL QA_JOBS QA_NOW QA_SRC QA_TMP QA_BIN QA_CRDGVK QA_CACHE QA_STATE QA_SCAN_TIMEOUT
+  oenv=(env -i "PATH=$PATH" "HOME=${HOME:-/}")
+  for v in LANG LC_ALL QA_JOBS QA_NOW QA_SRC QA_TMP QA_BIN QA_CRDGVK QA_CACHE QA_STATE QA_SCAN_TIMEOUT; do
+    [ -z "${!v+x}" ] || oenv+=("$v=${!v}")
+  done
+  "${oenv[@]}" timeout -k 30 "${QA_ORACLE_BOX_TIMEOUT:-3000}" "$QA_ORACLE_BOX" python3 -X utf8 rules_oracle.py --out "$OUT/rules.cases.json" --allow "$QA_STATE/rules-allow.json" >"$OUT/rules.log" 2>&1 9>&-
+  orc=$?
+  [ "$orc" = 0 ] || log "rules suite crashed (exit $orc)"
+  case $orc in 124|137) log "oracle box timed out"; rm -f "$OUT/rules.cases.json";; esac
+  if [ -s "$OUT/rules.cases.json" ]; then
+    # a wrapper's result is untrusted until it is fresh, has the case-file structure summarize.py reads and a summary case
+    # matching the rule-entry count computed here from the checked-out rules.json
+    python3 -I -c 'import json,os,sys
+f,m,rules=sys.argv[1:4]
+try:
+    assert os.stat(f).st_mtime>=os.stat(m).st_mtime
+    n=sum(1 for e in json.load(open(rules))["entries"] if e["rule"]["operator"] in ("forbid_predicate_value","forbid_set_member"))
+    d=json.load(open(f)); assert isinstance(d,list) and d
+    for c in d: assert isinstance(c,dict) and c.get("suite")=="rules" and isinstance(c.get("key"),str) and all(isinstance(c.get(k),bool) for k in ("wrongpass","mismatch","error"))
+    assert not any(c["key"]=="no-reachable-rule" for c in d)
+    sm=[c for c in d if c["key"]=="summary"]; assert len(sm)==1
+    det=sm[0].get("detail"); assert isinstance(det,dict)
+    e,cb=det.get("entries"),det.get("controls_block")
+    assert type(e) is int and e==n and type(cb) is int and cb>0
+except Exception:
+    sys.exit(1)' "$OUT/rules.cases.json" "$RUN/rules.start" "$RUN/src/cli/internal/cncfcheck/data/rules.json" || { log "oracle box left a stale, malformed or incomplete rules.cases.json"; rm -f "$OUT/rules.cases.json"; }
+  fi
+fi
 [ -s "$OUT/rules.cases.json" ] || placeholder "$OUT/rules.cases.json" rules
 fi
 # 4e. rules suite, PR mode only: changed rule ids (by rule.id) between base and head
