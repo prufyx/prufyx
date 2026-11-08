@@ -11,9 +11,10 @@ import (
 )
 
 const (
-	distBegin = "<!-- distribution-lifecycle:begin -->"
-	distEnd   = "<!-- distribution-lifecycle:end -->"
-	distState = "reference/planned: no published facts yet"
+	distHeading = "## Kubernetes distributions"
+	distBegin   = "<!-- distribution-lifecycle:begin -->"
+	distEnd     = "<!-- distribution-lifecycle:end -->"
+	distState   = "reference/planned: no published facts yet"
 )
 
 // distRows are the table rows the README section must carry, each exactly once.
@@ -42,8 +43,17 @@ func checkDistSection(doc string) error {
 		return fmt.Errorf("distribution section markers missing, repeated or out of order")
 	}
 	sec := doc[b+len(distBegin) : e]
+	// the wording lint covers the whole section: heading to the next "## "
+	h := strings.LastIndex(doc[:b], distHeading)
+	if h < 0 || strings.Contains(doc[h+len(distHeading):b], "\n## ") {
+		return fmt.Errorf("distribution section heading %q missing before the table", distHeading)
+	}
+	whole := doc[h:]
+	if n := strings.Index(whole[len(distHeading):], "\n## "); n >= 0 {
+		whole = whole[:len(distHeading)+n]
+	}
 	for _, p := range forbiddenDistPhrases {
-		if m := p.FindString(sec); m != "" {
+		if m := p.FindString(whole); m != "" {
 			return fmt.Errorf("distribution section contains forbidden phrase %q", m)
 		}
 	}
@@ -64,13 +74,17 @@ func checkDistSection(doc string) error {
 }
 
 func TestCheckDistSection(t *testing.T) {
-	good := distBegin + "\n| Distribution | State |\n| --- | --- |\n"
+	good := "## Kubernetes distributions\n\nintro\n\n" + distBegin + "\n| Distribution | State |\n| --- | --- |\n"
 	for _, n := range distRows {
 		good += "| " + n + " | " + distState + " |\n"
 	}
-	good += distEnd
+	good += distEnd + "\n\nProse after the table.\n\n## Next section\n\nmore\n"
 	if err := checkDistSection(good); err != nil {
 		t.Fatalf("good section rejected: %v", err)
+	}
+	// text after the next heading is outside the section
+	if err := checkDistSection(strings.Replace(good, "more", "the only one", 1)); err != nil {
+		t.Fatalf("text of the next section was linted: %v", err)
 	}
 	for _, tc := range []struct{ name, doc string }{
 		{"no markers", "x"},
@@ -81,6 +95,11 @@ func TestCheckDistSection(t *testing.T) {
 		{"only", strings.Replace(good, distEnd, "the only one\n"+distEnd, 1)},
 		{"unique", strings.Replace(good, distEnd, "Unique.\n"+distEnd, 1)},
 		{"private word", strings.Replace(good, distEnd, "see the factory\n"+distEnd, 1)},
+		{"prose after table claims support", strings.Replace(good, "Prose after the table.", "All of these are production-supported.", 1)},
+		{"prose after table guarantees", strings.Replace(good, "Prose after the table.", "Guaranteed to work.", 1)},
+		{"prose before table", strings.Replace(good, "intro", "the first", 1)},
+		{"capitalised only", strings.Replace(good, distEnd, "ONLY these\n"+distEnd, 1)},
+		{"capitalised validated", strings.Replace(good, distEnd, "Validated Against EKS\n"+distEnd, 1)},
 		{"row missing", strings.Replace(good, "| kind | "+distState+" |\n", "", 1)},
 		{"state altered", strings.Replace(good, "| EKS | "+distState, "| EKS | supported", 1)},
 		{"extra row", strings.Replace(good, distEnd, "| RKE2 | "+distState+" |\n"+distEnd, 1)},
