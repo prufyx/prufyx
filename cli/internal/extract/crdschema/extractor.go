@@ -307,7 +307,8 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, p extra
 	}
 	for _, l := range []*releaseLine{a, b} {
 		if l.Problem != "" {
-			return extract.Extraction{Proof: faultResult(p.FromCommit, p.ToCommit, ReasonLineUnread, "line:"+l.key()),
+			fr := faultResult(p.FromCommit, p.ToCommit, ReasonLineUnread, "line:"+l.key())
+			return extract.Extraction{Proof: fr, Ledger: frameworkLedger(fr),
 				NotAttested: "the pair withheld items: a release line could not be read completely"}, nil
 		}
 	}
@@ -334,7 +335,7 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, p extra
 	})
 	res.seal(res.Fields.Members, res.Enums.Members, defaultLedgerGuards())
 
-	e := extract.Extraction{Proof: res}
+	e := extract.Extraction{Proof: res, Ledger: frameworkLedger(res)}
 	switch {
 	case !res.Attestable():
 		e.NotAttested = "the pair withheld items"
@@ -356,6 +357,18 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, p extra
 		}
 	}
 	return e, nil
+}
+
+// frameworkLedger is the Result's ledger in the framework's shape, the same
+// (code, item) pairs in the same order. Result.Ledger is authoritative (it is
+// what the Proof records); the framework validates and records the copy next
+// to the Proof, and a non-empty ledger means the pair is never attested.
+func frameworkLedger(r *Result) []extract.LedgerEntry {
+	out := make([]extract.LedgerEntry, 0, len(r.Ledger))
+	for _, e := range r.Ledger {
+		out = append(out, extract.LedgerEntry{Code: e.Code, Item: e.Item})
+	}
+	return out
 }
 
 // maxCited is the number of sources a line attestation can carry.
