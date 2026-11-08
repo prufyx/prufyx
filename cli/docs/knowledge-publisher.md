@@ -209,8 +209,11 @@ described in [knowledge-updates.md](knowledge-updates.md).
 
 ### Release guards (CI mode)
 
-CI mode is on with `--ci` or when `GITHUB_ACTIONS=true` or `CI=true`. All of
-these checks run before any key file is read; a refusal writes nothing.
+CI mode is on only with the `--ci` flag. The `GITHUB_ACTIONS` and `CI`
+environment variables never change what any command does, so a command run on a
+CI runner without `--ci` behaves like a local run. The daily publish workflow
+passes `--ci`, and a contract test on that workflow asserts it. All of these
+checks run before any key file is read; a refusal writes nothing.
 
 - `--expires` is required in CI mode. Also required: `--expect-content-digest`
   and `--expect-index-digest` (from the reviewed packet) and, unless
@@ -232,8 +235,9 @@ these checks run before any key file is read; a refusal writes nothing.
   expected digest; `--version` must exceed its timestamp version and
   `--revision` its revision. More than 14 days without a publish makes it
   unverifiable and the release is refused (see the recovery runbook).
-- `GITHUB_RUN_ATTEMPT` other than `1` is refused (an approved run is never
-  replayed); in CI mode an absent value is refused too.
+- With `--ci`, `GITHUB_RUN_ATTEMPT` other than `1` is refused (an approved run
+  is never replayed) and an absent value is refused too. Without `--ci` the
+  variable is not read.
 
 ### Timestamp refresh
 

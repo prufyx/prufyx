@@ -98,11 +98,11 @@ type Options struct {
 	// derive the default expiries.
 	Now time.Time
 
-	// CI marks an unattended run: Expires, the content and index expectations
+	// CI marks an unattended run, set only by the explicit --ci flag: Expires, the content and index expectations
 	// and (unless FirstRelease) the previous package expectation are required,
 	// and the run attempt must be exactly "1".
 	CI bool
-	// RunAttempt is the CI run attempt counter (GITHUB_RUN_ATTEMPT). A value
+	// RunAttempt is the CI run attempt counter (GITHUB_RUN_ATTEMPT), supplied only under --ci. A value
 	// other than "1" is always refused; an empty value only outside CI mode.
 	RunAttempt string
 	// ExpectContentDigest and ExpectIndexDigest bind the signature to the

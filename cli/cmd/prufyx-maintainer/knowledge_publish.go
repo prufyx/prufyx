@@ -469,7 +469,7 @@ func runKnowledgeRelease(args []string, stdout io.Writer) error {
 	flags.StringVar(&o.ExpectIndexDigest, "expect-index-digest", "", "index digest of the reviewed packet; refuses on mismatch before and after signing")
 	flags.StringVar(&o.ExpectPreviousPackageDigest, "expect-previous-package-digest", "", "digest of the live package this release replaces")
 	flags.StringVar(&o.PreviousPackage, "previous-package", "", "absolute path of the live package (verified against the pinned root)")
-	flags.BoolVar(&o.CI, "ci", false, "CI mode (also implied by GITHUB_ACTIONS=true or CI=true)")
+	flags.BoolVar(&o.CI, "ci", false, "CI mode: enforce the unattended release guards (never implied by environment variables)")
 	flags.StringVar(&o.Profile, "profile", "", "cncf (default, single bundle) or cncf-projects (index plus one target per project)")
 	flags.StringVar(&o.PreviousIndex, "previous-index", "", "cncf-projects: absolute path of the committed previously published index")
 	flags.BoolVar(&o.FirstRelease, "first-release", false, "cncf-projects: no index was published before (instead of --previous-index)")
@@ -487,8 +487,11 @@ func runKnowledgeRelease(args []string, stdout io.Writer) error {
 		return knowledgePublishError()
 	}
 	o.Now = time.Now().UTC()
-	o.CI = o.CI || ciEnvironment()
-	o.RunAttempt = os.Getenv("GITHUB_RUN_ATTEMPT")
+	// CI mode is explicit: environment variables never change behaviour. The
+	// run attempt is read only under --ci.
+	if o.CI {
+		o.RunAttempt = os.Getenv("GITHUB_RUN_ATTEMPT")
+	}
 	result, err := knowledgerelease.Run(o)
 	if errors.Is(err, cncfcheck.ErrDistributionsNotPublishable) {
 		return &commandError{code: 2, message: "knowledge-publish: the pack holds distribution records, which no per-project target carries yet; release refused"}
@@ -504,11 +507,6 @@ func runKnowledgeRelease(args []string, stdout io.Writer) error {
 		return &commandError{code: 2, message: "knowledge-publish: receipt output failed"}
 	}
 	return nil
-}
-
-// ciEnvironment reports an unattended CI run; fail closed on either marker.
-func ciEnvironment() bool {
-	return os.Getenv("GITHUB_ACTIONS") == "true" || os.Getenv("CI") == "true"
 }
 
 func runRefreshTimestamp(args []string, stdout io.Writer) error {
