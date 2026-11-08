@@ -131,7 +131,8 @@ p = Path(os.environ['QA_STATE']) / 'results' / ('test-' + os.environ['QA_SHA'][:
 p.mkdir(parents=True)
 s = dict(sha=os.environ['QA_SHA'], base=os.environ['QA_BASE'], run_id=os.environ['QA_RUN_ID'],
          wrongpass=0, mismatch=0, errors=0, cases=5, skipped=[], mode='full', wrongpass_cases=[], error_cases=[])
-''' + f"import sys\nsys.path.insert(0, {str(here)!r})\nimport qa_scope\n" +
+''' + f"import sys\nsys.path.insert(0, {str(here)!r})\nimport qa_scope, qalib\n" +
+                    "s['seeded'] = dict(caught=3, total=3, uncaught=[], error=None, digest=qalib.seeds_digest())\n" +
                     "json.dump([dict(suite=s, key='synthetic', wrongpass=False, mismatch=False, error=False, detail={}) for s in ('crd','k8s','bp325','review','rules')], open(p / 'control.cases.json', 'w'))\n" +
                     "scope = qa_scope.declare(os.environ['QA_SHA'], os.environ['QA_BASE'], os.environ['QA_RUN_ID'], ['k8s-range|test'], [], [])\n" +
                     "scope.update(executed=['k8s-range|test'], state='COMPLETE')\n" +

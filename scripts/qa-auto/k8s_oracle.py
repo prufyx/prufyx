@@ -45,6 +45,22 @@ def stage_is_complete(stage, got, expect_removed, input_complete, missing, wrong
     return got in ("SCOPE_COMPLETE_PASS", "UNKNOWN")
 
 
+def plan_stage_outcome(s, scan_code, bound, exp, input_complete):
+    """One plan stage against its expected removals: (wrongpass, mismatch, missing, statuses, stage_complete).
+    exp = the removed GVKs expected at this hop; bound = the bound scan of the same hop; got = the plan's own stage verdict."""
+    got = s["verdict"]
+    wp, mm, missing, statuses = scoped_result(scan_code, bound, exp, "kubernetes", "kubernetes.removed_served_gvk")
+    stage_complete = stage_is_complete(s, got, bool(exp), input_complete, missing, wp, mm)
+    return (wp or (bool(exp) and "PASS" in got),
+            mm or ((got == "BLOCKED") != bool(exp) and "PASS" not in got),
+            missing, statuses, stage_complete)
+
+
+def plan_overall_wrongpass(anyexp, code, report):
+    """The whole plan answers PASS (exit 0 or a PASS-like verdict) although some hop has an expected removal."""
+    return bool(anyexp) and is_pass(code, report)
+
+
 def verified_absent_ref(minor):
     source = "https://github.com/kubernetes/kubernetes.git"
     missing, previous = f"refs/tags/v1.{minor}.0", f"refs/tags/v1.{minor-1}.0"
@@ -392,20 +408,18 @@ def main():
                          if f.get("ruleId") in ids and f.get("hop", {}).get("from") == s["from"] and
                          f.get("hop", {}).get("to") == s["to"]], paths=[dict(p, hops=[hop for hop in p.get("hops", [])
                          if hop.get("index") == s.get("index")]) for p in (scan or {}).get("paths", [])])
-            wp, mm, missing, statuses = scoped_result(scan_code, bound, exp, "kubernetes", "kubernetes.removed_served_gvk")
-            stage_complete = stage_is_complete(s, got, bool(exp), complete and stages_match, missing, wp, mm)
+            wp, mm, missing, statuses, stage_complete = plan_stage_outcome(s, scan_code, bound, exp, complete and stages_match)
             overall_complete &= stage_complete
             if stage_complete:
                 executed.add(target)
             cases.append(case("k8s-plan", f"1.{lo}->1.{h} stage {s['from']}->{s['to']}",
-                              wrongpass=wp or (bool(exp) and "PASS" in got),
-                              mismatch=mm or ((got == "BLOCKED") != bool(exp) and "PASS" not in got),
+                              wrongpass=wp, mismatch=mm,
                               error=not stage_complete, verdict=got, expectedBlocked=bool(exp),
                               missing=missing, families=statuses, completeInput=complete))
-        overall_complete &= not (anyexp and is_pass(code, j))
+        overall_complete &= not plan_overall_wrongpass(anyexp, code, j)
         if overall_complete:
             executed.add(f"k8s-plan|1.{lo}->1.{h} overall")
-        cases.append(case("k8s-plan", f"1.{lo}->1.{h} overall", wrongpass=anyexp and is_pass(code, j),
+        cases.append(case("k8s-plan", f"1.{lo}->1.{h} overall", wrongpass=plan_overall_wrongpass(anyexp, code, j),
                           error=not overall_complete, exit=code, verdict=j.get("verdict"), scanNote=scan_tail))
     qa_scope.remaining_omitted(scope, executed, "upstream read or candidate execution incomplete; retry this exact target")
     scope.update(executed=sorted(executed), state="COMPLETE")
