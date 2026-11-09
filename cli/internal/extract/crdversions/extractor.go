@@ -1119,26 +1119,26 @@ func firstCRDFile(st *tagState) string {
 
 // adjacentPublished is true for a component that is not of the published-line
 // set, and for one that is when both lines are lines the extractor's own tag
-// index showed and from is the highest published line below to, the same
+// index showed and hopFrom is the highest published line below hopTo, the same
 // lineattest.AdjacentPublishedLine the knowledge gate applies to the live
 // tags. A line the index lists but cannot read is still a line, so it blocks
 // the hop; a line the index did not show (a synthetic one-tag line) never
 // passes.
-func (x *Extractor) adjacentPublished(from, to *releaseLine) bool {
+func (x *Extractor) adjacentPublished(hopFrom, hopTo *releaseLine) bool {
 	if !lineattest.PublishedLineComponent(x.target.Component) {
 		return true
 	}
 	x.mu.Lock()
 	defer x.mu.Unlock()
-	if x.lines[from.key()] != from || x.lines[to.key()] != to {
+	if x.lines[hopFrom.key()] != hopFrom || x.lines[hopTo.key()] != hopTo {
 		return false
 	}
 	keys := make([]string, 0, len(x.lines))
 	for k := range x.lines {
 		keys = append(keys, k)
 	}
-	prev, ok := lineattest.AdjacentPublishedLine(keys, to.key())
-	return ok && prev == from.key()
+	prev, ok := lineattest.AdjacentPublishedLine(keys, hopTo.key())
+	return ok && prev == hopFrom.key()
 }
 
 // hopShape names the shape of a pair of lines.

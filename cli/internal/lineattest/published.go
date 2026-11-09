@@ -48,12 +48,12 @@ func publishedHopShape(from, to string) bool {
 // shape the component's own line scheme defines: PreviousLine for an
 // ordinary or calendar component, the published-line shape for a component
 // of publishedLineComponents.
-func LineHop(component, from, to string) bool {
+func LineHop(component, hopFromLine, to string) bool {
 	if PublishedLineComponent(component) {
-		return publishedHopShape(from, to)
+		return publishedHopShape(hopFromLine, to)
 	}
 	previous, ok := PreviousLine(component, to)
-	return ok && previous == from
+	return ok && previous == hopFromLine
 }
 
 // AdjacentPublishedLine is the published line a hop into line to comes from:
@@ -100,9 +100,9 @@ func (a LineAttestation) FromLine() (string, bool) {
 
 // HopFrom reports whether the attestation covers hops from line from: it is
 // the attestation's FromLine.
-func (a LineAttestation) HopFrom(from string) bool {
+func (a LineAttestation) HopFrom(fromLine string) bool {
 	line, ok := a.FromLine()
-	return ok && line == from
+	return ok && line == fromLine
 }
 
 // releasesFromLine reads the one line of a from-release list and checks it
