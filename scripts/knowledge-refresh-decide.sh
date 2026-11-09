@@ -73,6 +73,7 @@ content_e=$((tg_e < sn_e ? tg_e : sn_e))
 content_left=$((content_e - now))
 [ "${ts_left}" -gt 0 ] && [ "${content_left}" -gt 0 ] || fail "the live metadata is already expired: only a content release or the recovery runbook can help"
 
+jq -e 'type == "array" and all(.[]; type == "object" and (.id | type == "number") and (.status | type == "string") and (.created_at | type == "string"))' "${PENDING_RUNS}" > /dev/null 2>&1 || fail "the pending-run list is malformed: every element needs a numeric id and string status and created_at"
 pending="$(jq 'length' "${PENDING_RUNS}")"
 oldest_wait=0
 wait_ids=""

@@ -249,6 +249,10 @@ func TestKnowledgeRefreshDecide(t *testing.T) {
 		{name: "non-string timestampExpires fails closed", tsDays: 5, contentDay: 15, liveRaw: `{"packageDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","timestampExpires":1788000000,"targetsExpires":"2026-11-30T00:00:00Z","snapshotExpires":"2026-11-30T00:00:00Z"}`, wantExit: 1},
 		{name: "live state not JSON fails closed", tsDays: 5, contentDay: 15, liveRaw: "not json", wantExit: 1},
 		{name: "pending list not an array fails closed", tsDays: 5, contentDay: 15, badPending: `{"id":1}`, wantExit: 1},
+		{name: "pending element not an object fails closed", tsDays: 5, contentDay: 15, badPending: `[1]`, wantExit: 1},
+		{name: "pending missing id fails closed", tsDays: 5, contentDay: 15, badPending: `[{"status":"waiting","created_at":"2026-11-01T00:00:00Z"}]`, wantExit: 1},
+		{name: "pending unknown shape fails closed", tsDays: 5, contentDay: 15, badPending: `[{}]`, wantExit: 1},
+		{name: "pending string id fails closed", tsDays: 5, contentDay: 15, badPending: `[{"id":"7","status":"waiting","created_at":"2026-11-01T00:00:00Z"}]`, wantExit: 1},
 		{name: "unreadable run time fails closed", tsDays: 5, contentDay: 15, pending: []map[string]any{{"id": 3, "status": "waiting", "created_at": "yesterday-ish"}}, wantExit: 1},
 		{name: "threshold out of range fails closed", tsDays: 5, contentDay: 15, threshold: "14", wantExit: 1},
 		{name: "threshold not a number fails closed", tsDays: 5, contentDay: 15, threshold: "7;x", wantExit: 1},
@@ -792,6 +796,13 @@ func TestKnowledgeRefreshKeyShapePreflight(t *testing.T) {
 	}
 	if !strings.Contains(run, `[[ "${TIMESTAMP_KEY}" =~ [^[:space:]] ]]`) || !strings.Contains(run, `[[ "${PASSPHRASE}" =~ [^[:space:]] ]]`) {
 		t.Error("the key and passphrase emptiness checks must reject whitespace-only values")
+	}
+	// The secrets leave the environment right after the key files are written,
+	// before any later child process (check_key_shape, the publisher) starts.
+	un := strings.Index(run, "unset TIMESTAMP_KEY PASSPHRASE")
+	wr := strings.Index(run, `> "${keys}/passphrase"`)
+	if un < 0 || wr < 0 || un < wr || un > pre {
+		t.Error("TIMESTAMP_KEY and PASSPHRASE must be unset right after the key files are written and before any later child process")
 	}
 }
 

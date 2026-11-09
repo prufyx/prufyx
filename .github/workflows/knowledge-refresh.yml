@@ -301,6 +301,7 @@ jobs:
           trap 'rm -rf "${keys}"' EXIT
           printf '%s\n' "$(printf '%s' "${TIMESTAMP_KEY}")" > "${keys}/timestamp.key.pem"
           printf '%s' "${PASSPHRASE}" > "${keys}/passphrase"
+          unset TIMESTAMP_KEY PASSPHRASE
           out="${RUNNER_TEMP}/refreshed"
           check_key_shape() { # role, key file: one PEM block and nothing else; read-only, names the role only and never prints key bytes
             head -n 1 "$2" | grep -q '^-----BEGIN [A-Z0-9 ]*-----$' \
