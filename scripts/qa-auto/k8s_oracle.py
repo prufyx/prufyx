@@ -45,6 +45,37 @@ def stage_is_complete(stage, got, expect_removed, input_complete, missing, wrong
     return got in ("SCOPE_COMPLETE_PASS", "UNKNOWN")
 
 
+KUBELET_LIMIT = "kubelet-version-declaration-not-supplied"
+KUBELET_NEXT_TEST = ("declare the lowest kubelet version of this exact hop in the plan input and replay the stage; "
+                     "kubelet-skew rules decide only with a declaration")
+# Reason codes every plan stage carries for areas the plan does not check at all (never a fact about the hop).
+STRUCTURAL_REASONS = {"HOP_NOT_COVERED", "COMPONENT_GAP", "HOP_ACTIONS_NOT_CHECKED", "NODE_ROLLS_NOT_PLANNED", "ORDER_INFERRED"}
+KUBELET_RULE_PREFIX = "rule kubernetes.kubelet-version-skew."
+OTHER_SCOPE_GAPS = {"COMPONENT_NOT_COVERED", "API_VERSION_NOT_REVIEWED"}
+
+
+def stage_scope_limit(stage, got, expect_removed, input_complete, missing, wrongpass, mismatch):
+    """True only for a no-removal hop left PARTIAL by exactly the undeclared kubelet version.
+
+    The oracle plan input declares no kubelet version, so the kubelet-skew rules are undecided by construction:
+    that is an explicit scope limit (no coverage claim), not a coverage claim and not an error. Everything else
+    stays on the normal path: expected removals (BLOCKED required), findings, unsupported facts, any other gap
+    (including DECLARATION_MISSING of another rule or next to another cause), any other reason code.
+    """
+    if not (input_complete and stage.get("component") == "kubernetes" and not missing and not wrongpass
+            and not mismatch and not expect_removed and got == "UNKNOWN"):
+        return False
+    if stage.get("hopStatus") != "PARTIAL" or stage.get("findings") or stage.get("unsupported"):
+        return False
+    if not set(stage.get("reasons") or []) <= STRUCTURAL_REASONS:
+        return False
+    gaps = stage.get("gaps") or []
+    declared = [g for g in gaps if g.get("reason") == "DECLARATION_MISSING"]
+    if not declared or any(not str(g.get("detail", "")).startswith(KUBELET_RULE_PREFIX) for g in declared):
+        return False
+    return all(g.get("reason") in OTHER_SCOPE_GAPS for g in gaps if g not in declared)
+
+
 def verified_absent_ref(minor):
     source = "https://github.com/kubernetes/kubernetes.git"
     missing, previous = f"refs/tags/v1.{minor}.0", f"refs/tags/v1.{minor-1}.0"
@@ -318,6 +349,7 @@ def main():
     scope = qa_scope.declare(head, base, run_id, requested, required_single_targets(singles), excluded)
     scope_path = a.out.removesuffix(".cases.json") + ".scope.json"
     dump(scope, scope_path + ".declared")
+    scope["scope_limits"] = []
     cases = []
     if source_errors:
         for minor, reason in source_errors.items():
@@ -390,14 +422,18 @@ def main():
                          f.get("hop", {}).get("to") == s["to"]], paths=[dict(p, hops=[hop for hop in p.get("hops", [])
                          if hop.get("index") == s.get("index")]) for p in (scan or {}).get("paths", [])])
             wp, mm, missing, statuses = scoped_result(scan_code, bound, exp, "kubernetes", "kubernetes.removed_served_gvk")
-            stage_complete = stage_is_complete(s, got, bool(exp), complete and stages_match, missing, wp, mm)
+            gate = (s, got, bool(exp), complete and stages_match, missing, wp, mm)
+            limited = stage_scope_limit(*gate)
+            stage_complete = limited or stage_is_complete(*gate)
+            if limited:
+                scope["scope_limits"].append(dict(target=target, reason=KUBELET_LIMIT, next_test=KUBELET_NEXT_TEST))
             overall_complete &= stage_complete
             if stage_complete:
                 executed.add(target)
             cases.append(case("k8s-plan", f"1.{lo}->1.{h} stage {s['from']}->{s['to']}",
                               wrongpass=wp or (bool(exp) and "PASS" in got),
                               mismatch=mm or ((got == "BLOCKED") != bool(exp) and "PASS" not in got),
-                              error=not stage_complete, verdict=got, expectedBlocked=bool(exp),
+                              error=not stage_complete, verdict=got, scopeLimit=KUBELET_LIMIT if limited else None, expectedBlocked=bool(exp),
                               missing=missing, families=statuses, completeInput=complete))
         overall_complete &= not (anyexp and is_pass(code, j))
         if overall_complete:

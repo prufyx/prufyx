@@ -6,6 +6,9 @@ import re
 SCHEMA = "prufyx.io/qa-scope/v2"
 PROFILE = "kubernetes-api-removals-v2"
 CRD_PROFILE = "crd-removals-v1"
+# A stage that ran to completion but, by construction of the oracle input, cannot decide one rule family.
+# Recorded at execution time (not declared in advance), so it is not part of the declaration digest.
+SCOPE_LIMIT_REASONS = ("kubelet-version-declaration-not-supplied",)
 DECLARED_FIELDS = ("schema", "profile", "head", "base", "run_id", "requested", "required", "excluded")
 
 
@@ -51,9 +54,28 @@ def errors(scope, head, base, run_id, profile=PROFILE):
             return ["exclusion lacks bounded next test"]
         if omitted:
             return ["input targets omitted or incompletely processed"]
+        if not valid_scope_limits(scope.get("scope_limits", []), executed):
+            return ["scope limit lacks reason or bounded next test"]
         return []
     except (KeyError, TypeError, ValueError, IndexError):
         return ["scope inventory malformed"]
+
+
+def valid_scope_limits(limits, executed):
+    """Each limit names an executed Kubernetes plan stage, a known reason and a bounded next test."""
+    if not isinstance(limits, list):
+        return False
+    targets = []
+    for entry in limits:
+        if not isinstance(entry, dict) or set(entry) != {"target", "reason", "next_test"}:
+            return False
+        target = entry["target"]
+        if (not isinstance(target, str) or not target.startswith("k8s-plan|") or " stage " not in target
+                or target not in executed or entry["reason"] not in SCOPE_LIMIT_REASONS
+                or not isinstance(entry["next_test"], str) or not entry["next_test"].strip()):
+            return False
+        targets.append(target)
+    return len(targets) == len(set(targets))
 
 
 def valid_exclusion(entry, profile):
