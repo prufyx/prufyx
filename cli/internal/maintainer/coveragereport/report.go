@@ -889,7 +889,7 @@ func attestedFamilies(fromLine, toLine string, atts []lineattest.LineAttestation
 		if a.Line != toLine || a.Completeness != lineattest.Completeness {
 			continue
 		}
-		if previous, ok := lineattest.PreviousLine(a.Component, toLine); !ok || previous != fromLine {
+		if !a.HopFrom(fromLine) {
 			continue
 		}
 		family, ok := lineattest.LookupFamily(a.FactFamily)

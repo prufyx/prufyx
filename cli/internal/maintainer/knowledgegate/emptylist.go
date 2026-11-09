@@ -286,6 +286,42 @@ func releasesComplete(c *Change, opts Options, tagCache map[string][]extract.Tag
 	return emptyListErr(emptyListReleasesIncomplete, "no release rule is defined for fact family %s", logSafe(a.FactFamily))
 }
 
+// publishedLines lists every line the tags show a release of, under the same
+// grammar as finalReleases: a tag read as a final release, or shaped like one
+// the release grammar does not read, makes its line a line. Prereleases and
+// alias tags are not read by either grammar, so they never form a line. A line
+// that finalReleases cannot read still counts, so that it blocks the hop.
+func publishedLines(tags []extract.Tag, prefixes []string, scheme string) []string {
+	seen := map[string]bool{}
+	var out []string
+	add := func(line string) {
+		if lineattest.ValidLine(line) && !seen[line] {
+			seen[line] = true
+			out = append(out, line)
+		}
+	}
+	for _, t := range tags {
+		if scheme == crdversions.SchemeCalverEdge {
+			if v, _, ok := crdversions.CalverEdgeRelease(t.Name); ok {
+				if l, ok := lineattest.LineOf(v); ok {
+					add(l)
+				}
+			} else if l, bad := crdversions.CalverEdgeUnread(t.Name); bad {
+				add(l)
+			}
+		}
+		for _, p := range prefixes {
+			if v, _, ok := crdversions.ReadFinalTag(p, 9, t.Name); ok {
+				if l, ok := lineattest.LineOf(v); ok {
+					add(l)
+				}
+			}
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
 // finalReleases lists the final release tags of line under the prefixes,
 // ascending by version. A version tagged twice at one commit counts once; at
 // two commits, or a matching tag with no full commit, is an error. A target
@@ -346,15 +382,56 @@ func crdReleasesComplete(c *Change, tags []extract.Tag) error {
 	if !strings.HasPrefix(id, crdversions.IDPrefix) || !ok {
 		return emptyListErr(emptyListReleasesIncomplete, "extractor %s names no custom-resource target", logSafe(id))
 	}
-	return crdReleasesMatch(target, a, tags)
+	if err := crdReleasesMatch(target, a, tags); err != nil {
+		return err
+	}
+	if lineattest.PublishedLineComponent(a.Component) {
+		return publishedRecordLinesLive(target, c, tags)
+	}
+	return nil
+}
+
+// publishedRecordLinesLive refuses a published-line component's record when a
+// line it names, or its prior extraction record (the base record of the
+// change) names, has no live final tag: the line is unknown, and the hop it
+// would have blocked may look adjacent in the index.
+func publishedRecordLinesLive(target crdversions.Target, c *Change, tags []extract.Tag) error {
+	live := map[string]bool{}
+	for _, l := range publishedLines(tags, target.TagPrefixes, target.ReleaseScheme) {
+		live[l] = true
+	}
+	for _, r := range []*record{c.rhead, c.rbase} {
+		if r == nil || r.attestation == nil {
+			continue
+		}
+		from, ok := r.attestation.FromLine()
+		if !ok {
+			return emptyListErr(emptyListReleasesIncomplete, "a record of %s names no readable from-line", logSafe(r.attestation.Component))
+		}
+		for _, l := range []string{from, r.attestation.Line} {
+			if !live[l] {
+				return emptyListErr(emptyListReleasesIncomplete, "line %s, named by a record of %s, has no final release tag any more: it is an unknown line", logSafe(l), logSafe(r.attestation.Component))
+			}
+		}
+	}
+	return nil
 }
 
 // crdReleasesMatch compares the releases an attestation names with the final
 // release tags of its line and of its previous line (lineattest.PreviousLine).
 func crdReleasesMatch(target crdversions.Target, a *lineattest.LineAttestation, tags []extract.Tag) error {
-	previous, ok := lineattest.PreviousLine(a.Component, a.Line)
+	previous, ok := a.FromLine()
 	if !ok || a.Releases == nil {
 		return emptyListErr(emptyListReleasesIncomplete, "line %s has no previous minor line or the record names no releases", logSafe(a.Line))
+	}
+	if lineattest.PublishedLineComponent(a.Component) {
+		// The from-line is carried by the record; the gate asserts it is the
+		// highest published line below a.Line in the live tags, and that a
+		// line a record names has live final tags (a vanished line would make
+		// a hop look adjacent that is not).
+		if adjacent, ok := lineattest.AdjacentPublishedLine(publishedLines(tags, target.TagPrefixes, target.ReleaseScheme), a.Line); !ok || adjacent != previous {
+			return emptyListErr(emptyListReleasesIncomplete, "line %s is not the published line just below %s in the tags", logSafe(previous), logSafe(a.Line))
+		}
 	}
 	for _, side := range []struct {
 		name string

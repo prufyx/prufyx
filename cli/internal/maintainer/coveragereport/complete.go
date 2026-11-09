@@ -374,12 +374,15 @@ func (c *completer) attested(slug string, r registration, pl ProjectLines, from,
 	if !ok {
 		return false
 	}
-	if previous, ok := lineattest.PreviousLine(r.component, to); !ok || !sameLine(previous, from) {
+	if !lineattest.LineHop(r.component, from, to) {
 		return false
 	}
 	for _, a := range c.atts {
 		if a.Component != r.component || a.FactFamily != r.family || !sameLine(a.Line, to) || a.Completeness != lineattest.Completeness {
 			continue
+		}
+		if !a.HopFrom(from) {
+			return false
 		}
 		if a.Freshness(c.now) != lineattest.FreshnessCurrent || !c.evidenceOK(r, a.Evidence.Basis, a.Evidence.Extractor, a.Evidence.Sources, a.Evidence.ValidUntil) {
 			return false

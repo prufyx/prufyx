@@ -981,8 +981,9 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, pair ex
 	for _, st := range append(append([]*tagState{}, fromTags...), toTags...) {
 		states[st.tag.Name] = st
 	}
-	if len(names) > 0 && lineattest.CalverComponent(x.target.Component) {
-		// Rule bounds are minor lines of one major; a calendar line has none.
+	if len(names) > 0 && (lineattest.CalverComponent(x.target.Component) || lineattest.PublishedLineComponent(x.target.Component)) {
+		// Rule bounds are minor lines of one major; a calendar line or a
+		// published line has none.
 		return withhold(problemf("a removal under the %s release scheme is not derived: rules for calendar lines are not defined", x.target.ReleaseScheme))
 	}
 	var out []extract.Candidate
@@ -1061,6 +1062,8 @@ func (x *Extractor) attestation(pair extract.VersionPair, fromLine, toLine *rele
 		return nil, "the derivation does not establish the whole lines: " + strings.Join(c.Reasons, "; ")
 	case hopShape(x.target.Component, fromLine, toLine) != HopPreviousMinor:
 		return nil, fmt.Sprintf("%s is not the minor line after %s in the same major; only such an upgrade is attested", toLine.key(), fromLine.key())
+	case !x.adjacentPublished(fromLine, toLine):
+		return nil, fmt.Sprintf("%s is not the published line just below %s in the tag index; only such an upgrade is attested", fromLine.key(), toLine.key())
 	}
 	fromFile, toFile := firstCRDFile(fa), firstCRDFile(ta)
 	if fromFile == "" || toFile == "" {
@@ -1114,8 +1117,43 @@ func firstCRDFile(st *tagState) string {
 	return first
 }
 
+// adjacentPublished is true for a component that is not of the published-line
+// set, and for one that is when both lines are lines the extractor's own tag
+// index showed and from is the highest published line below to, the same
+// lineattest.AdjacentPublishedLine the knowledge gate applies to the live
+// tags. A line the index lists but cannot read is still a line, so it blocks
+// the hop; a line the index did not show (a synthetic one-tag line) never
+// passes.
+func (x *Extractor) adjacentPublished(from, to *releaseLine) bool {
+	if !lineattest.PublishedLineComponent(x.target.Component) {
+		return true
+	}
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	if x.lines[from.key()] != from || x.lines[to.key()] != to {
+		return false
+	}
+	keys := make([]string, 0, len(x.lines))
+	for k := range x.lines {
+		keys = append(keys, k)
+	}
+	prev, ok := lineattest.AdjacentPublishedLine(keys, to.key())
+	return ok && prev == from.key()
+}
+
 // hopShape names the shape of a pair of lines.
 func hopShape(component string, from, to *releaseLine) string {
+	if lineattest.PublishedLineComponent(component) {
+		// Published lines: consecutive lines of the tag index, in one era;
+		// whether they are consecutive is the index's (adjacentPublished).
+		switch {
+		case lineattest.LineHop(component, from.key(), to.key()):
+			return HopPreviousMinor
+		case (from.Major < lineattest.CalverMajorFrom) != (to.Major < lineattest.CalverMajorFrom):
+			return HopMajor
+		}
+		return HopSkippedMinor
+	}
 	if lineattest.CalverComponent(component) {
 		// Lines are calendar months: the previous line of January is
 		// December of the year before, and a year is no major.
