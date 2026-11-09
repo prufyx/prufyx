@@ -8,7 +8,7 @@ is not in it, from consecutive minor lines found in the tags.
 WRONGPASS: a served GVK is gone at TO and the scan exits 0 / says PASS.
 MISMATCH: any other disagreement (missed finding, false finding, CRD family not PASS).
 """
-import argparse, glob, json, os, re, shutil, subprocess, sys
+import argparse, glob, json, os, re, shutil, subprocess, sys, time
 from concurrent.futures import ThreadPoolExecutor
 from qalib import *
 import qa_scope
@@ -401,6 +401,28 @@ def run(proj, cov):
         return [case("crd", proj, error=True, why="oracle failed: %s" % e)]
 
 
+FETCH_BACKOFF = (2, 5)  # pause before attempt 2 and 3 of the tag fetch
+FETCH_RETRIES = {}  # project -> retries spent on its tag fetches (summed into the case detail and the summary)
+TRANSIENT = re.compile(r"could not resolve host|unable to access|timed out|timeout|connection (reset|refused|timed)|early eof|rpc failed|"
+                       r"remote end hung up|the requested url returned error: 5|tls|ssl|temporary failure|network is unreachable|"
+                       r"unexpected disconnect|http/2 stream|gnutls|failed to connect", re.I)
+
+
+def fetch_tags(proj, gd):
+    """git fetch --tags with up to 3 attempts, only when the failure looks like a transient network error.
+    Returns after success; after the last failure (or any other failure) returns the failed result: callers fail closed."""
+    r = None
+    for attempt in range(len(FETCH_BACKOFF) + 1):
+        r = sh("git", "-C", gd, "fetch", "-q", "--tags", "--force")
+        if not r.returncode:
+            return r
+        if attempt == len(FETCH_BACKOFF) or not TRANSIENT.search(str(r.stderr or "")):
+            return r
+        FETCH_RETRIES[proj] = FETCH_RETRIES.get(proj, 0) + 1
+        time.sleep(FETCH_BACKOFF[attempt])
+    return r
+
+
 def prepare(proj, cov, plan):
     """Resolve the whole source inventory before any candidate scan is started."""
     plan["requested"].add("crd-project|" + proj)
@@ -424,9 +446,9 @@ def prepare(proj, cov, plan):
         if r.returncode:
             shutil.rmtree(gd, ignore_errors=True)
             raise ValueError("clone failed")
-    r = sh("git", "-C", gd, "fetch", "-q", "--tags", "--force")
+    r = fetch_tags(proj, gd)
     if r.returncode:
-        raise ValueError("fetch tags failed")
+        raise ValueError("fetch tags failed" + (f" (after {FETCH_RETRIES[proj]} retries)" if FETCH_RETRIES.get(proj) else ""))
     rgd = None
     if tj.get("remote"):  # the remote-served releases read their definitions from this second clone
         rrepo = str(tj["remote"]["repo"]).removeprefix("github.com/")
@@ -439,9 +461,9 @@ def prepare(proj, cov, plan):
                 raise ValueError("remote clone failed")
         elif checked("git", "-C", rgd, "remote", "get-url", "origin").strip() != rurl:
             raise ValueError("remote clone belongs to another repository")
-        r = sh("git", "-C", rgd, "fetch", "-q", "--tags", "--force")
+        r = fetch_tags(proj, rgd)
         if r.returncode:
-            raise ValueError("remote fetch tags failed")
+            raise ValueError("remote fetch tags failed" + (f" (after {FETCH_RETRIES[proj]} retries)" if FETCH_RETRIES.get(proj) else ""))
     pinned = {}
     for pair in plan.get("proof_pairs", {}).values():
         for side in ("from", "to"):
@@ -837,16 +859,19 @@ def main():
         cases.append(case("crd", "no-changed-projects", status="VERIFIED_ABSENCE",
                           next_test="reselect projects on the next changed target or rule diff"))
     for project, plan in plans.items():
+        first = len(cases)
         if "error" in plan:
             cases.append(case("crd", project, error=True, why=plan["error"]))
-            continue
-        try:
-            result, completed, omitted = execute(plan)
-            cases.extend(result)
-            executed.update(completed)
-            scope["omitted"].extend(omitted)
-        except Exception as error:
-            cases.append(case("crd", project, error=True, why="execution failed: " + str(error)))
+        else:
+            try:
+                result, completed, omitted = execute(plan)
+                cases.extend(result)
+                executed.update(completed)
+                scope["omitted"].extend(omitted)
+            except Exception as error:
+                cases.append(case("crd", project, error=True, why="execution failed: " + str(error)))
+        if FETCH_RETRIES.get(project) and len(cases) > first:
+            cases[first]["detail"]["fetch_retries"] = FETCH_RETRIES[project]  # visible flakiness; summarize sums it
     qa_scope.remaining_omitted(scope, executed, "source or execution failed; repair and replay this target")
     scope.update(executed=sorted(executed), state="COMPLETE")
     for reason in qa_scope.errors(scope, head, base, run_id, qa_scope.CRD_PROFILE):

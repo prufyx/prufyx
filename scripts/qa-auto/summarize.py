@@ -147,11 +147,14 @@ oracle_rise = a.mode == "full" and oracle_changed and kept_design is not None an
 cap_breach = design > DESIGN_HARD_CAP or (a.mode == "full" and prev_design is not None and design > prev_design + max(5, -(-prev_design // 5)))
 design_rise = a.mode == "full" and prev_design is not None and design > prev_design
 design_drop = a.mode == "full" and prev_design is not None and prev_design >= 10 and design * 2 < prev_design
-baseline_stored = not (cap_breach or oracle_rise or a.mode != "full" or a.adhoc)
+# an errored run (any error case: a source that could not be read produced no design cases, so its count is too low) or any other
+# INCONCLUSIVE state never stores or lowers the baseline: only a clean complete full run may move it
+baseline_stored = not (cap_breach or oracle_rise or er or gaps_breach or a.mode != "full" or a.adhoc)
 design_baseline = (design or None) if baseline_stored else kept_design
 alarm = bool(wp or new)
 state = "ALARM" if alarm else ("INCONCLUSIVE" if (er or cap_breach or oracle_rise or gaps_breach) else ("GREEN-PARTIAL" if skipped else "GREEN"))
 line = f"WRONGPASS={len(wp)} MISMATCH={len(mm)} NEWMISMATCH={len(new)} KNOWN_GAP={len(known_gap)} ERR={len(er)} DESIGN_UNKNOWN_WHOLE_CRD={design}{f" ORACLE_CHANGED design={kept_design or 0}->{design}" if oracle_changed else ""}{" ORACLE_RISE" if oracle_rise else ""}{" RISE" if design_rise else ""}{" CAP" if cap_breach else ""}{" DROP" if design_drop else ""} sha={a.sha[:8]} mode={a.mode} {state}"
+fetch_retries = sum(c.get("detail", {}).get("fetch_retries", 0) for c in cases if type(c.get("detail", {}).get("fetch_retries")) is int)
 now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 unsupported = sum(1 for c in cases if c.get("detail", {}).get("status") == "UNSUPPORTED_COMMUNITY")
 unknown_floor = sum(1 for c in cases if c.get("detail", {}).get("status") == "UNKNOWN_EARLIEST_SERVED")
@@ -166,7 +169,7 @@ rise = (unsupported > previous_count if type(previous_count) is int and a.mode !
 summ = {"scopes": scopes, "run_id": os.environ.get("QA_RUN_ID", ""), "base": os.environ.get("QA_BASE", ""), "time": now, "sha": a.sha, "mode": a.mode, "state": state, "verdict": line, "wrongpass": len(wp),
         "mismatch": len(mm), "new_mismatch": len(new), "known_gap": len(known_gap), "known_gap_cases": [ckey(c) for c in known_gap], "known_gap_nosig": nosig,
         "resolved_gaps": resolved_gaps, "known_gap_registration_breach": gaps_breach, "errors": len(er),
-        "unsupported_community": unsupported, "unsupported_community_rise": rise, "unknown_earliest_served": unknown_floor,
+        "fetch_retries": fetch_retries, "unsupported_community": unsupported, "unsupported_community_rise": rise, "unknown_earliest_served": unknown_floor,
         "design_unknown_whole_crd_removal": design, "design_unknown_whole_crd_rise": design_rise, "design_unknown_whole_crd_cap_breach": cap_breach, "design_unknown_whole_crd_oracle_rise": oracle_rise, "design_unknown_whole_crd_drop": design_drop, "design_unknown_whole_crd_baseline": design_baseline, "cases": len(cases),
         "baseline_seeded": seeded, "skipped": skipped, "adhoc": a.adhoc, "note": a.note,
         "wrongpass_cases": wp[:50], "new_mismatch_cases": new[:50], "error_cases": er[:20]}
@@ -187,6 +190,8 @@ if alarm:
                "raised": now, "verdict": line, "wrongpass_cases": wp[:50], "new_mismatch_cases": new[:50],
                "summary": a.dir + "/summary.json"}, open(f"{a.state}/alarms/{a.sha[:8]}.alarm.json", "w"), indent=1)
 print(line)
+if fetch_retries:
+    print(f"fetch_retries={fetch_retries}")
 for k in nosig:
     print(f"known-gap entry {k} has no sig: it covers nothing")
 if unknown_floor:
