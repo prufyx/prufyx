@@ -134,7 +134,7 @@ class ScopeContractTests(unittest.TestCase):
 
     RULES = "cli/internal/cncfcheck/data/rules.json"
 
-    def meta_run(self, before, after, trusted=None, inputs_fail=False):
+    def meta_run(self, before, after, trusted=None, inputs_fail=False, slugs=None, extra_entries=()):
         stable = "k8s-single|1.20->1.21 sample.example/v1/Widget"
         singles = {ALPHA: ("sample.example", "v1alpha1", "Widget"), stable: ("sample.example", "v1", "Widget")}
         base = {"schema": "s", "revision": "r1", "policyDigest": "p", "landscapeFileDigest": "l", "registryDigest": "g",
@@ -142,6 +142,7 @@ class ScopeContractTests(unittest.TestCase):
                             {"project": "kubernetes", "rule": {"id": "k", "condition": {"factId": "fact"}},
                              "requiredFacts": [{"component": "pkg:github/kubernetes/kubernetes"}]}],
                 "lineAttestations": [], "servedAPIs": [], "pathPolicies": []}
+        base["entries"].extend(json.loads(json.dumps(list(extra_entries))))
         def make(change):
             doc = json.loads(json.dumps(base))
             if callable(change):
@@ -152,7 +153,7 @@ class ScopeContractTests(unittest.TestCase):
         results = [subprocess.CompletedProcess([], 0, self.RULES + "\n", ""),
                    subprocess.CompletedProcess([], 0, json.dumps(make(before)) if not isinstance(before, str) else before, ""),
                    subprocess.CompletedProcess([], 0, json.dumps(make(after)) if not isinstance(after, str) else after, "")]
-        inputs = ("{}", "{}", "{}", "{}", trusted or {}, {"alpha"})
+        inputs = ("{}", "{}", "{}", "{}", trusted or {}, set(slugs or {"alpha"}))
         with patch.dict(os.environ, QA_BASE="base", QA_SHA="head"), patch.object(oracle, "sh", side_effect=results), patch.object(
                 oracle, "attestation_inputs", return_value=inputs), patch.object(
                 oracle, "kubernetes_removal_facts", return_value={"fact": ["sample.example/v1/Widget"]}):
@@ -218,6 +219,51 @@ class ScopeContractTests(unittest.TestCase):
             change(doc)
             doc["lineAttestations"] = [self.line("pkg:github/o/alpha")]
         got, _, stable = self.meta_run(None, both)
+        self.assertEqual(got, {stable})
+
+    THIRD_PARTY = ("k8s-cleaner", "kubemod", "kubevela", "kubemox", "kube-state-metrics")
+
+    def third_party_run(self, after, entries=True):
+        slugs = set(self.THIRD_PARTY) | {"alpha"}
+        extra = [{"project": n, "rule": {"id": "r-" + n}, "requiredFacts": [{"component": "pkg:github/o/" + n}]}
+                 for n in self.THIRD_PARTY] if entries else ()
+        return self.meta_run(None, after, slugs=slugs, extra_entries=extra)
+
+    def test_third_party_line_attestations_with_kube_like_names_stay_narrow(self):
+        comps = ["pkg:github/gianlucam76/k8s-cleaner", "pkg:github/kubemod/kubemod", "pkg:github/kubevela/kubevela",
+                 "pkg:github/o/kubemox", "pkg:github/kubernetes/kube-state-metrics"]
+        got, _, _ = self.third_party_run({"lineAttestations": [self.line(c) for c in comps]}, entries=False)
+        self.assertEqual(got, set())
+        got, _, _ = self.third_party_run({"lineAttestations": [dict(self.line(c), ruleIds=["r-" + n])
+                                                               for c, n in zip(comps, self.THIRD_PARTY)]})
+        self.assertEqual(got, set())
+
+    def test_kubernetes_component_line_attestation_still_requires_all(self):
+        for comp in ("pkg:github/kubernetes/kubernetes", "pkg:golang/k8s.io/kubernetes", "pkg:generic/kubernetes@1.30"):
+            got, every, _ = self.third_party_run({"lineAttestations": [self.line("pkg:github/o/kubemod"), self.line(comp)]})
+            self.assertEqual(got, every, comp)
+
+    def test_kube_like_name_without_trusted_binding_requires_all(self):
+        got, every, _ = self.meta_run(None, {"lineAttestations": [self.line("pkg:github/o/kubemod")]})
+        self.assertEqual(got, every)
+
+    def test_kubernetes_like_is_exact(self):
+        for name in ("kubernetes", "Kubernetes", "pkg:github/kubernetes/kubernetes", "pkg:golang/k8s.io/kubernetes@v1.30.0"):
+            self.assertTrue(oracle._kubernetes_like(name), name)
+        for name in self.THIRD_PARTY + ("pkg:github/gianlucam76/k8s-cleaner", "kubernetes-ingress", "pkg:github/o/kube-proxy", ""):
+            self.assertFalse(oracle._kubernetes_like(name), name)
+
+    def test_changed_third_party_entry_is_not_kubernetes(self):
+        def change(doc):
+            for e in doc["entries"]:
+                if e["project"] == "kubemod":
+                    e["rule"]["extra"] = 1
+        got, _, _ = self.third_party_run(change)
+        self.assertEqual(got, set())
+        def kube(doc):
+            change(doc)
+            doc["entries"][1]["rule"]["extra"] = 1
+        got, _, stable = self.third_party_run(kube)
         self.assertEqual(got, {stable})
 
     def test_summary_rejects_missing_bound_scope_and_required_exclusions(self):

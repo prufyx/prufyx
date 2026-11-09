@@ -155,8 +155,11 @@ def attestation_touches_kubernetes():
     return any(project == "kubernetes" or project.startswith(("kube", "k8s")) for project in found)
 
 def _kubernetes_like(name):
-    low = str(name).lower()
-    return low == "kubernetes" or "kube" in low or "k8s" in low
+    """True only for the Kubernetes core project: the slug, or the final purl path segment, is exactly
+    "kubernetes". Other kube*/k8s* names are separate projects; attribution (_attribute and
+    aggregate_projects) still binds any component the trusted base ties to Kubernetes."""
+    low = re.split(r"[@?#]", str(name).lower(), maxsplit=1)[0].rstrip("/")
+    return low.rsplit("/", 1)[-1] == "kubernetes"
 
 def rules_metadata_is_non_kubernetes(before_raw, after_raw):
     """Non-entries rule-pack differences are tolerated only when each is a keyed section or metadata change that
