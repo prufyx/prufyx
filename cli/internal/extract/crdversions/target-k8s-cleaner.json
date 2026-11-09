@@ -9,6 +9,7 @@
     "factProject": "k8s_cleaner",
     "tagPrefixes": ["v"],
     "minFrom": "0.19",
+    "attest": true,
     "paths": [
       {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
     ],

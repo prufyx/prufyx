@@ -9,6 +9,7 @@
     "factProject": "chaosblade_operator",
     "tagPrefixes": ["v"],
     "minFrom": "1.3",
+    "attest": true,
     "paths": [
       {"path": "deploy/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
     ],
