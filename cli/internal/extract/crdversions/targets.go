@@ -236,6 +236,30 @@ type Exclusion struct {
 	// DefinesNone: the files under Path define no CustomResourceDefinition,
 	// checked at every tag.
 	DefinesNone bool
+	// Foreign: Path is one vendored third-party bundle, pinned by content
+	// digest (nil when the entry is not one). See ForeignBundle.
+	Foreign *ForeignBundle
+}
+
+// ForeignBundle declares that the file an exclusion names is a vendored
+// third-party bundle of definitions of other API groups, pinned by content.
+// The reviewer read the bytes once; the scan holds the claim to those bytes:
+// at every tag the file must have exactly one of the listed SHA-256 digests
+// (any other byte voids the entry), must decode strictly within the size
+// bound without template syntax, every document must be a definition of one
+// of Groups or a kind that is no definition (never a kustomization), and no
+// API group the target itself defines may appear anywhere in the file (see
+// foreignBundleProblem). Only then does the install-surface guard stop
+// treating a plain kustomization that lists exactly this file under
+// resources as a reference that voids the entry (see guard); every other
+// referrer still voids it, and so does a pinned file that fails any check.
+type ForeignBundle struct {
+	// Groups are the API groups of the definitions the bundle holds,
+	// sorted, unique.
+	Groups []string
+	// SHA256 are the accepted digests ("sha256:<64 hex>"), sorted, unique:
+	// one per distinct byte content over the tags the entry must hold at.
+	SHA256 []string
 }
 
 // checked reports an entry whose claim the scan checks (declared copies or
@@ -355,6 +379,13 @@ type exclusionJSON struct {
 	PrePatch string `json:"prePatch,omitempty"`
 	// Defines is "none" or absent (see Exclusion.DefinesNone).
 	Defines string `json:"defines,omitempty"`
+	// Foreign pins a vendored third-party bundle (see ForeignBundle).
+	Foreign *foreignJSON `json:"foreign,omitempty"`
+}
+
+type foreignJSON struct {
+	Groups []string `json:"groups"`
+	SHA256 []string `json:"sha256"`
 }
 
 var (
@@ -527,12 +558,12 @@ func (tj targetJSON) target() (Target, error) {
 		if ej.Repo != t.Repo {
 			return t, fmt.Errorf("exclusion %q names repository %q, not %s", ej.Path, ej.Repo, t.Repo)
 		}
-		if ej.Defines != "" {
+		if ej.Defines != "" || ej.Foreign != nil {
 			// An earlier entry that covers it would place its files, and
 			// the claim would never be checked.
 			for _, other := range tj.Exclude[:i] {
 				if exclusionMatches(other.Path, ej.Path) || exclusionMatches(other.Path, path.Dir(ej.Path)+"/") {
-					return t, fmt.Errorf("exclusion %q: defines none under the exclusion %q, which would place its files", ej.Path, other.Path)
+					return t, fmt.Errorf("exclusion %q: a checked entry under the exclusion %q, which would place its files", ej.Path, other.Path)
 				}
 				// A pattern earlier in the same directory would win
 				// first-match placement for some of the files the entry
@@ -555,7 +586,7 @@ func (tj targetJSON) target() (Target, error) {
 				}
 			}
 		}
-		t.Exclude = append(t.Exclude, Exclusion{Path: ej.Path, Repo: ej.Repo, Reason: ej.Reason, Evidence: ej.Evidence, Copies: ej.Copies, PrePatch: ej.PrePatch, DefinesNone: ej.Defines == definesNoneValue})
+		t.Exclude = append(t.Exclude, Exclusion{Path: ej.Path, Repo: ej.Repo, Reason: ej.Reason, Evidence: ej.Evidence, Copies: ej.Copies, PrePatch: ej.PrePatch, DefinesNone: ej.Defines == definesNoneValue, Foreign: ej.Foreign.bundle()})
 	}
 	if tj.Remote != nil {
 		remote, err := tj.Remote.remote(t)
@@ -754,6 +785,11 @@ func validExclusion(ej exclusionJSON) error {
 	if ej.Defines != "" {
 		if why := validDefinesNone(ej); why != "" {
 			return fmt.Errorf("defines: %s", why)
+		}
+	}
+	if ej.Foreign != nil {
+		if why := validForeign(ej); why != "" {
+			return fmt.Errorf("foreign: %s", why)
 		}
 	}
 	if !ej.Copies && ej.PrePatch == "" {

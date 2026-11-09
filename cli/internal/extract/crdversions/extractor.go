@@ -38,7 +38,7 @@ const (
 	// IDPrefix is followed by the project slug: one extractor id per
 	// project, since a run reads one repository.
 	IDPrefix = "crd.version-removal."
-	Version  = "2.10.0"
+	Version  = "2.11.0"
 	// SourceDir is this package's directory under the module's internal/.
 	SourceDir = "extract/crdversions"
 )
