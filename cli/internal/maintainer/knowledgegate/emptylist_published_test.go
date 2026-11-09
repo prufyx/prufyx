@@ -125,6 +125,38 @@ func TestPublishedRecordLinesLive(t *testing.T) {
 	}
 }
 
+// An unchanged record of the same component and family in the head pack,
+// whose line has no live tag, blocks a first record of another line.
+func TestPublishedRecordLinesLiveHeadPack(t *testing.T) {
+	defer lineattest.SetPublishedLineComponentsForTest(publishedComp)()
+	tags := calverTags("v25.10.1", "v26.3.0")
+	rec := func(line, from, to string) *record {
+		a := publishedAttestation(line,
+			[]lineattest.Release{{Version: from, Commit: strings.Repeat("a", 40)}},
+			[]lineattest.Release{{Version: to, Commit: strings.Repeat("b", 40)}})
+		a.FactFamily = lineattest.FamilyCustomResourceVersions
+		return &record{attestation: a}
+	}
+	head := rec("26.3", "25.10.1", "26.3.0")
+	unchanged := rec("26.1", "25.10.1", "26.1.0")
+	other := rec("26.3", "25.10.1", "26.3.0")
+	other.attestation.Component = "pkg:github/example/other"
+	c := &Change{rhead: head, headRecords: map[string]*record{"a": head, "b": other}}
+	if err := publishedRecordLinesLive(publishedTarget(), c, tags); err != nil {
+		t.Fatalf("live head pack refused: %v", err)
+	}
+	c = &Change{rhead: head, headRecords: map[string]*record{"a": head, "b": unchanged}}
+	err := publishedRecordLinesLive(publishedTarget(), c, tags)
+	if err == nil || !strings.Contains(err.Error(), "26.1") {
+		t.Fatalf("an unchanged head-pack 26.1 record with vanished tags did not block the 25.10 -> 26.3 record: %v", err)
+	}
+	// A record of another family or component does not count.
+	unchanged.attestation.FactFamily = lineattest.FamilyKubernetesRemovedServedGVK
+	if err := publishedRecordLinesLive(publishedTarget(), c, tags); err != nil {
+		t.Fatalf("a record of another family blocked: %v", err)
+	}
+}
+
 func TestPublishedLinesReadOnlyFinalTags(t *testing.T) {
 	tags := calverTags("v25.10.1", "v26.1.0-rc1", "v26.1.0~1", "v26.3.0", "v26.02.0", "v19.02.0", "edge-26.4.0")
 	got := strings.Join(publishedLines(tags, []string{"v"}, ""), " ")

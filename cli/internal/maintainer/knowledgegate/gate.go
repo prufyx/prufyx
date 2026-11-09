@@ -578,6 +578,11 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 		r.alarm(AlarmOnboarding, "the change carries an onboarding batch (%s): %s", map[bool]string{true: "admitted", false: "refused"}[onboarding.ok], onboarding.detail)
 	}
 	rederive(ctx, opts.Source, opts.Catalog, opts.Concurrency, opts.Layout, mechanical)
+	for _, c := range cls.Changes {
+		if hp := cls.head[c.Pack]; hp != nil {
+			c.headRecords = hp.Records
+		}
+	}
 	emptyListPost(cls.Changes, opts)
 	rederiveDistributions(opts, distChanges)
 	r.servedIntroduced = admitServedIntroduction(cls, opts, loadKeys, approvals)

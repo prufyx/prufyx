@@ -441,6 +441,9 @@ func (a LineAttestation) Validate() error {
 	if a.RuleIDs == nil || len(a.RuleIDs) > MaxRuleIDs {
 		return fmt.Errorf("%w: ruleIds must be an array of at most %d ids", ErrInvalid, MaxRuleIDs)
 	}
+	if len(a.RuleIDs) > 0 && PublishedLineComponent(a.Component) {
+		return fmt.Errorf("%w: component %q is a published-line component: a record may not list rule ids", ErrInvalid, a.Component)
+	}
 	for i, id := range a.RuleIDs {
 		if !constraintengine.ValidID(id) {
 			return fmt.Errorf("%w: rule id %q", ErrInvalid, id)

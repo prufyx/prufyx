@@ -393,14 +393,30 @@ func crdReleasesComplete(c *Change, tags []extract.Tag) error {
 
 // publishedRecordLinesLive refuses a published-line component's record when a
 // line it names, or its prior extraction record (the base record of the
-// change) names, has no live final tag: the line is unknown, and the hop it
+// change) names, or any other record of the same component and family in the
+// head pack names, has no live final tag: the line is unknown, and the hop it
 // would have blocked may look adjacent in the index.
 func publishedRecordLinesLive(target crdversions.Target, c *Change, tags []extract.Tag) error {
 	live := map[string]bool{}
 	for _, l := range publishedLines(tags, target.TagPrefixes, target.ReleaseScheme) {
 		live[l] = true
 	}
-	for _, r := range []*record{c.rhead, c.rbase} {
+	recs := []*record{c.rhead, c.rbase}
+	if c.rhead != nil && c.rhead.attestation != nil {
+		self := c.rhead.attestation
+		ids := make([]string, 0, len(c.headRecords))
+		for id := range c.headRecords {
+			ids = append(ids, id)
+		}
+		sort.Strings(ids)
+		for _, id := range ids {
+			r := c.headRecords[id]
+			if r != nil && r.attestation != nil && r.attestation.Component == self.Component && r.attestation.FactFamily == self.FactFamily {
+				recs = append(recs, r)
+			}
+		}
+	}
+	for _, r := range recs {
 		if r == nil || r.attestation == nil {
 			continue
 		}

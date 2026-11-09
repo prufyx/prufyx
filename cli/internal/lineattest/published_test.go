@@ -3,7 +3,12 @@
 package lineattest
 
 import (
+	"bytes"
 	"errors"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
@@ -177,5 +182,47 @@ func TestPublishedComponentHasNoLineTransitions(t *testing.T) {
 	}
 	if family.CoversLine(publishedComponent, tr, "26.3") {
 		t.Fatal("a published-line component must not be covered by a line-wide rule")
+	}
+}
+
+// A record of a published-line component may not list rule ids; with the
+// set empty nothing changes.
+func TestValidateRefusesRuleIDsForPublishedComponent(t *testing.T) {
+	a := crdAttestation("a.rule")
+	if err := a.Validate(); err != nil {
+		t.Fatalf("empty set must not change behaviour: %v", err)
+	}
+	defer SetPublishedLineComponentsForTest(strimzi)()
+	if err := a.Validate(); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("rule ids for a published-line component accepted: %v", err)
+	}
+	if err := crdAttestation().Validate(); err != nil {
+		t.Fatalf("an empty record of a published-line component refused: %v", err)
+	}
+}
+
+// No non-test code may call the test hooks.
+func TestTestHooksHaveNoProductionCallers(t *testing.T) {
+	root := "../.."
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		b, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		for _, hook := range []string{"SetPublishedLineComponentsForTest", "SetCalverComponentsForTest"} {
+			if bytes.Contains(b, []byte(hook+"(")) && !strings.HasSuffix(path, "published.go") && !strings.HasSuffix(path, "calver.go") {
+				t.Errorf("%s calls %s", path, hook)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
