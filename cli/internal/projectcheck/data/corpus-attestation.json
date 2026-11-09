@@ -2,9 +2,9 @@
   "schema": "prufyx.io/community-project-corpus-attestation/v1alpha1",
   "attestation": "COMPLETE_REVIEWED_RULES_FOR_LISTED_COMPONENTS",
   "revision": "community-project-rules-2026-09-12.6",
-  "packDigest": "sha256:621df96aa68a559ef67a831aac4102b70114d7bd4f4e506bffff1978369f26c0",
-  "ruleSetDigest": "sha256:eaf7757185647f2f9c2f567670697381682f04e9c16109bddf88d06707b8955f",
-  "ruleCount": 42,
+  "packDigest": "sha256:ae534e919f4bab2e75646ccbe193756b7d39277948350904a82e93c7ddf5cc88",
+  "ruleSetDigest": "sha256:46548e8384ab9a101d5547cd0a1fd9def73bc5643c1ce9601c2c057e1a4c9e63",
+  "ruleCount": 51,
   "components": [
     "pkg:github/apache/airflow",
     "pkg:github/argoproj/argo-workflows",

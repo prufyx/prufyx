@@ -2737,6 +2737,820 @@
       }
     },
     {
+      "description": "MariaDB Operator 25.10.4 no longer defines the embedded MaxScale specification spec.maxScale in the MariaDB CRD: the 25.8.4 CRD and API define it, while the 25.10.4 CRD and API define only spec.maxScaleRef, a reference to a separate MaxScale resource. This checks only whether one complete caller-selected MariaDB resource (apiVersion k8s.mariadb.com/v1alpha1, kind MariaDB) carries the key spec.maxScale; it reads no value, no other field or resource kind, no Helm values or flags, and says nothing about the rest of the 25.8.4 to 25.10.4 upgrade.",
+      "project": "mariadb-operator",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.mariadb_operator.embedded_max_scale_present",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the selected MariaDB resource carries the key spec.maxScale (any value, including null)."
+        },
+        {
+          "side": "proposed",
+          "id": "component.mariadb_operator.resource_complete",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the caller explicitly declares the selected MariaDB resource complete."
+        }
+      ],
+      "rule": {
+        "id": "mariadb-operator.removed-field-embedded-max-scale.25-8-4-to-25-10-4",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "from": "25.8.4",
+          "to": "25.10.4"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "factId": "component.mariadb_operator.embedded_max_scale_present",
+          "boolValue": true
+        },
+        "appliesWhen": [
+          {
+            "side": "proposed",
+            "component": "pkg:github/mariadb-operator/mariadb-operator",
+            "factId": "component.mariadb_operator.resource_complete",
+            "boolValue": true
+          }
+        ],
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-11-07T12:00:00Z",
+          "validUntil": "2027-02-04T12:00:00Z",
+          "sources": [
+            {
+              "id": "mariadb-operator-v25-10-api-spec-max-scale-ref",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/de26dcac098d1f8da0d5dfe4180d49cbb2e956cc/api/v1alpha1/mariadb_types.go",
+              "revision": "de26dcac098d1f8da0d5dfe4180d49cbb2e956cc",
+              "contentDigest": "sha256:ad55ee4a5794ed195077f8c51981c4f415341752807f6ef85eb06012001a426b",
+              "startLine": 560,
+              "endLine": 563
+            },
+            {
+              "id": "mariadb-operator-v25-10-crd-spec-no-max-scale",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/de26dcac098d1f8da0d5dfe4180d49cbb2e956cc/config/crd/bases/k8s.mariadb.com_mariadbs.yaml",
+              "revision": "de26dcac098d1f8da0d5dfe4180d49cbb2e956cc",
+              "contentDigest": "sha256:b0863d67f92ff66aa053b994f64609e1909c1b769060a0a62aae8984d6f99d6d",
+              "startLine": 2532,
+              "endLine": 2535
+            },
+            {
+              "id": "mariadb-operator-v25-8-api-spec-max-scale",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/8ae3899ec3523669943d80458031fe8259285397/api/v1alpha1/mariadb_types.go",
+              "revision": "8ae3899ec3523669943d80458031fe8259285397",
+              "contentDigest": "sha256:66da85d246f5b4836334bc29bc60f0db6efc6c0ae60a9cd3f8e06723889083ee",
+              "startLine": 627,
+              "endLine": 630
+            },
+            {
+              "id": "mariadb-operator-v25-8-crd-spec-max-scale",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/8ae3899ec3523669943d80458031fe8259285397/config/crd/bases/k8s.mariadb.com_mariadbs.yaml",
+              "revision": "8ae3899ec3523669943d80458031fe8259285397",
+              "contentDigest": "sha256:4056458f3e26c5064690267cf872193960d349414d727fcbac7fe69d3b5c5a13",
+              "startLine": 2505,
+              "endLine": 2510
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Move the embedded MaxScale specification into a separate MaxScale resource referenced by spec.maxScaleRef, then recheck the complete resource. Migrating the MaxScale resource itself is not evaluated."
+      }
+    },
+    {
+      "description": "MariaDB Operator 25.10.4 no longer defines spec.galera.primary.automaticFailover in the MariaDB CRD: the 25.8.4 CRD and API define it as a boolean, the 25.10.4 CRD and API define spec.galera.primary.autoFailover instead, and the 25.10.0 upgrade guide tells Galera users to replace the former with the latter. This checks only whether one complete caller-selected MariaDB resource (apiVersion k8s.mariadb.com/v1alpha1, kind MariaDB) carries the key spec.galera.primary.automaticFailover; it reads no value, no other field or resource kind, no Helm values or flags, and says nothing about the rest of the 25.8.4 to 25.10.4 upgrade.",
+      "project": "mariadb-operator",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.mariadb_operator.galera_primary_automatic_failover_present",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the selected MariaDB resource carries the key spec.galera.primary.automaticFailover (any value, including null)."
+        },
+        {
+          "side": "proposed",
+          "id": "component.mariadb_operator.resource_complete",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the caller explicitly declares the selected MariaDB resource complete."
+        }
+      ],
+      "rule": {
+        "id": "mariadb-operator.removed-field-galera-primary-automatic-failover.25-8-4-to-25-10-4",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "from": "25.8.4",
+          "to": "25.10.4"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "factId": "component.mariadb_operator.galera_primary_automatic_failover_present",
+          "boolValue": true
+        },
+        "appliesWhen": [
+          {
+            "side": "proposed",
+            "component": "pkg:github/mariadb-operator/mariadb-operator",
+            "factId": "component.mariadb_operator.resource_complete",
+            "boolValue": true
+          }
+        ],
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-11-07T12:00:00Z",
+          "validUntil": "2027-02-04T12:00:00Z",
+          "sources": [
+            {
+              "id": "mariadb-operator-v25-10-api-galera-auto-failover",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/de26dcac098d1f8da0d5dfe4180d49cbb2e956cc/api/v1alpha1/mariadb_galera_types.go",
+              "revision": "de26dcac098d1f8da0d5dfe4180d49cbb2e956cc",
+              "contentDigest": "sha256:e06759bfb8220f72ca73ff542190f7ed2d754bf2ea0aac513a6c186e77e9cb7b",
+              "startLine": 63,
+              "endLine": 66
+            },
+            {
+              "id": "mariadb-operator-v25-10-crd-galera-primary-auto-failover",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/de26dcac098d1f8da0d5dfe4180d49cbb2e956cc/config/crd/bases/k8s.mariadb.com_mariadbs.yaml",
+              "revision": "de26dcac098d1f8da0d5dfe4180d49cbb2e956cc",
+              "contentDigest": "sha256:b0863d67f92ff66aa053b994f64609e1909c1b769060a0a62aae8984d6f99d6d",
+              "startLine": 2162,
+              "endLine": 2166
+            },
+            {
+              "id": "mariadb-operator-v25-10-upgrade-guide-galera-autofailover",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/de26dcac098d1f8da0d5dfe4180d49cbb2e956cc/docs/releases/UPGRADE_25.10.0.md",
+              "revision": "de26dcac098d1f8da0d5dfe4180d49cbb2e956cc",
+              "contentDigest": "sha256:d31abe75d1390de661063cd284a1d9c05046c7f5075b155513c1ae39472d9c93",
+              "startLine": 40,
+              "endLine": 40
+            },
+            {
+              "id": "mariadb-operator-v25-8-api-galera-automatic-failover",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/8ae3899ec3523669943d80458031fe8259285397/api/v1alpha1/mariadb_galera_types.go",
+              "revision": "8ae3899ec3523669943d80458031fe8259285397",
+              "contentDigest": "sha256:523c9f0776805206ea468e18aa9fe88621a23486590981cf69ddd01a1555389f",
+              "startLine": 65,
+              "endLine": 68
+            },
+            {
+              "id": "mariadb-operator-v25-8-crd-galera-primary-automatic-failover",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/8ae3899ec3523669943d80458031fe8259285397/config/crd/bases/k8s.mariadb.com_mariadbs.yaml",
+              "revision": "8ae3899ec3523669943d80458031fe8259285397",
+              "contentDigest": "sha256:4056458f3e26c5064690267cf872193960d349414d727fcbac7fe69d3b5c5a13",
+              "startLine": 2132,
+              "endLine": 2136
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Replace spec.galera.primary.automaticFailover with spec.galera.primary.autoFailover before upgrading the CRDs, as the 25.10.0 guide says, then recheck the complete resource. The guide's data-plane update step is not evaluated."
+      }
+    },
+    {
+      "description": "MariaDB Operator 25.10.4 no longer defines spec.replication.primary.automaticFailoverDelay in the MariaDB CRD: the 25.8.4 CRD and API define it as a duration and the 25.10.4 CRD and API define spec.replication.primary.autoFailoverDelay in its place. This checks only whether one complete caller-selected MariaDB resource (apiVersion k8s.mariadb.com/v1alpha1, kind MariaDB) carries the key spec.replication.primary.automaticFailoverDelay; it reads no value, no other field or resource kind, no Helm values or flags, and says nothing about the rest of the 25.8.4 to 25.10.4 upgrade.",
+      "project": "mariadb-operator",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.mariadb_operator.replication_primary_automatic_failover_delay_present",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the selected MariaDB resource carries the key spec.replication.primary.automaticFailoverDelay (any value, including null)."
+        },
+        {
+          "side": "proposed",
+          "id": "component.mariadb_operator.resource_complete",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the caller explicitly declares the selected MariaDB resource complete."
+        }
+      ],
+      "rule": {
+        "id": "mariadb-operator.removed-field-replication-primary-automatic-failover-delay.25-8-4-to-25-10-4",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "from": "25.8.4",
+          "to": "25.10.4"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "factId": "component.mariadb_operator.replication_primary_automatic_failover_delay_present",
+          "boolValue": true
+        },
+        "appliesWhen": [
+          {
+            "side": "proposed",
+            "component": "pkg:github/mariadb-operator/mariadb-operator",
+            "factId": "component.mariadb_operator.resource_complete",
+            "boolValue": true
+          }
+        ],
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-11-07T12:00:00Z",
+          "validUntil": "2027-02-04T12:00:00Z",
+          "sources": [
+            {
+              "id": "mariadb-operator-v25-10-api-replication-auto-failover-delay",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/de26dcac098d1f8da0d5dfe4180d49cbb2e956cc/api/v1alpha1/mariadb_replication_types.go",
+              "revision": "de26dcac098d1f8da0d5dfe4180d49cbb2e956cc",
+              "contentDigest": "sha256:9d41e374c230b9336bbc7486beb0ebbee0193ecde720ed9e14f234f5966fcb50",
+              "startLine": 96,
+              "endLine": 99
+            },
+            {
+              "id": "mariadb-operator-v25-10-crd-replication-primary-auto-failover-delay",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/de26dcac098d1f8da0d5dfe4180d49cbb2e956cc/config/crd/bases/k8s.mariadb.com_mariadbs.yaml",
+              "revision": "de26dcac098d1f8da0d5dfe4180d49cbb2e956cc",
+              "contentDigest": "sha256:b0863d67f92ff66aa053b994f64609e1909c1b769060a0a62aae8984d6f99d6d",
+              "startLine": 4327,
+              "endLine": 4331
+            },
+            {
+              "id": "mariadb-operator-v25-10-upgrade-guide-replication-migration",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/de26dcac098d1f8da0d5dfe4180d49cbb2e956cc/docs/releases/UPGRADE_25.10.0.md",
+              "revision": "de26dcac098d1f8da0d5dfe4180d49cbb2e956cc",
+              "contentDigest": "sha256:d31abe75d1390de661063cd284a1d9c05046c7f5075b155513c1ae39472d9c93",
+              "startLine": 20,
+              "endLine": 20
+            },
+            {
+              "id": "mariadb-operator-v25-8-api-replication-automatic-failover-delay",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/8ae3899ec3523669943d80458031fe8259285397/api/v1alpha1/mariadb_replication_types.go",
+              "revision": "8ae3899ec3523669943d80458031fe8259285397",
+              "contentDigest": "sha256:04a5eef5e19e8b20ac1abb9e6b77b3669b42b0c8091c3cf0f000564f94044175",
+              "startLine": 91,
+              "endLine": 94
+            },
+            {
+              "id": "mariadb-operator-v25-8-crd-replication-primary-automatic-failover-delay",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/8ae3899ec3523669943d80458031fe8259285397/config/crd/bases/k8s.mariadb.com_mariadbs.yaml",
+              "revision": "8ae3899ec3523669943d80458031fe8259285397",
+              "contentDigest": "sha256:4056458f3e26c5064690267cf872193960d349414d727fcbac7fe69d3b5c5a13",
+              "startLine": 4834,
+              "endLine": 4838
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Replace spec.replication.primary.automaticFailoverDelay with spec.replication.primary.autoFailoverDelay and recheck the complete resource. The 25.10.0 guide's replication migration is not evaluated."
+      }
+    },
+    {
+      "description": "MariaDB Operator 25.10.4 no longer defines spec.replication.primary.automaticFailover in the MariaDB CRD: the 25.8.4 CRD and API define it as a boolean and the 25.10.4 CRD and API define spec.replication.primary.autoFailover with the same description. This checks only whether one complete caller-selected MariaDB resource (apiVersion k8s.mariadb.com/v1alpha1, kind MariaDB) carries the key spec.replication.primary.automaticFailover; it reads no value, no other field or resource kind, no Helm values or flags, and says nothing about the rest of the 25.8.4 to 25.10.4 upgrade.",
+      "project": "mariadb-operator",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.mariadb_operator.replication_primary_automatic_failover_present",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the selected MariaDB resource carries the key spec.replication.primary.automaticFailover (any value, including null)."
+        },
+        {
+          "side": "proposed",
+          "id": "component.mariadb_operator.resource_complete",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the caller explicitly declares the selected MariaDB resource complete."
+        }
+      ],
+      "rule": {
+        "id": "mariadb-operator.removed-field-replication-primary-automatic-failover.25-8-4-to-25-10-4",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "from": "25.8.4",
+          "to": "25.10.4"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "factId": "component.mariadb_operator.replication_primary_automatic_failover_present",
+          "boolValue": true
+        },
+        "appliesWhen": [
+          {
+            "side": "proposed",
+            "component": "pkg:github/mariadb-operator/mariadb-operator",
+            "factId": "component.mariadb_operator.resource_complete",
+            "boolValue": true
+          }
+        ],
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-11-07T12:00:00Z",
+          "validUntil": "2027-02-04T12:00:00Z",
+          "sources": [
+            {
+              "id": "mariadb-operator-v25-10-api-replication-auto-failover",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/de26dcac098d1f8da0d5dfe4180d49cbb2e956cc/api/v1alpha1/mariadb_replication_types.go",
+              "revision": "de26dcac098d1f8da0d5dfe4180d49cbb2e956cc",
+              "contentDigest": "sha256:9d41e374c230b9336bbc7486beb0ebbee0193ecde720ed9e14f234f5966fcb50",
+              "startLine": 91,
+              "endLine": 94
+            },
+            {
+              "id": "mariadb-operator-v25-10-crd-replication-primary-auto-failover",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/de26dcac098d1f8da0d5dfe4180d49cbb2e956cc/config/crd/bases/k8s.mariadb.com_mariadbs.yaml",
+              "revision": "de26dcac098d1f8da0d5dfe4180d49cbb2e956cc",
+              "contentDigest": "sha256:b0863d67f92ff66aa053b994f64609e1909c1b769060a0a62aae8984d6f99d6d",
+              "startLine": 4322,
+              "endLine": 4326
+            },
+            {
+              "id": "mariadb-operator-v25-10-upgrade-guide-replication-migration",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/de26dcac098d1f8da0d5dfe4180d49cbb2e956cc/docs/releases/UPGRADE_25.10.0.md",
+              "revision": "de26dcac098d1f8da0d5dfe4180d49cbb2e956cc",
+              "contentDigest": "sha256:d31abe75d1390de661063cd284a1d9c05046c7f5075b155513c1ae39472d9c93",
+              "startLine": 20,
+              "endLine": 20
+            },
+            {
+              "id": "mariadb-operator-v25-8-api-replication-automatic-failover",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/8ae3899ec3523669943d80458031fe8259285397/api/v1alpha1/mariadb_replication_types.go",
+              "revision": "8ae3899ec3523669943d80458031fe8259285397",
+              "contentDigest": "sha256:04a5eef5e19e8b20ac1abb9e6b77b3669b42b0c8091c3cf0f000564f94044175",
+              "startLine": 87,
+              "endLine": 90
+            },
+            {
+              "id": "mariadb-operator-v25-8-crd-replication-primary-automatic-failover",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/8ae3899ec3523669943d80458031fe8259285397/config/crd/bases/k8s.mariadb.com_mariadbs.yaml",
+              "revision": "8ae3899ec3523669943d80458031fe8259285397",
+              "contentDigest": "sha256:4056458f3e26c5064690267cf872193960d349414d727fcbac7fe69d3b5c5a13",
+              "startLine": 4829,
+              "endLine": 4833
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Replace spec.replication.primary.automaticFailover with spec.replication.primary.autoFailover and recheck the complete resource. The 25.10.0 guide's replication migration is not evaluated."
+      }
+    },
+    {
+      "description": "MariaDB Operator 25.10.4 no longer defines spec.replication.probesEnabled in the MariaDB CRD: the 25.8.4 CRD and API define it as a boolean and the 25.10.4 CRD and API do not define it. This checks only whether one complete caller-selected MariaDB resource (apiVersion k8s.mariadb.com/v1alpha1, kind MariaDB) carries the key spec.replication.probesEnabled; it reads no value, no other field or resource kind, no Helm values or flags, and says nothing about the rest of the 25.8.4 to 25.10.4 upgrade.",
+      "project": "mariadb-operator",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.mariadb_operator.replication_probes_enabled_present",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the selected MariaDB resource carries the key spec.replication.probesEnabled (any value, including null)."
+        },
+        {
+          "side": "proposed",
+          "id": "component.mariadb_operator.resource_complete",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the caller explicitly declares the selected MariaDB resource complete."
+        }
+      ],
+      "rule": {
+        "id": "mariadb-operator.removed-field-replication-probes-enabled.25-8-4-to-25-10-4",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "from": "25.8.4",
+          "to": "25.10.4"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "factId": "component.mariadb_operator.replication_probes_enabled_present",
+          "boolValue": true
+        },
+        "appliesWhen": [
+          {
+            "side": "proposed",
+            "component": "pkg:github/mariadb-operator/mariadb-operator",
+            "factId": "component.mariadb_operator.resource_complete",
+            "boolValue": true
+          }
+        ],
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-11-07T12:00:00Z",
+          "validUntil": "2027-01-14T12:00:00Z",
+          "sources": [
+            {
+              "id": "mariadb-operator-v25-10-crd-replication-no-probes-enabled",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/de26dcac098d1f8da0d5dfe4180d49cbb2e956cc/config/crd/bases/k8s.mariadb.com_mariadbs.yaml",
+              "revision": "de26dcac098d1f8da0d5dfe4180d49cbb2e956cc",
+              "contentDigest": "sha256:b0863d67f92ff66aa053b994f64609e1909c1b769060a0a62aae8984d6f99d6d",
+              "startLine": 4335,
+              "endLine": 4338
+            },
+            {
+              "id": "mariadb-operator-v25-10-upgrade-guide-replication-migration",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/de26dcac098d1f8da0d5dfe4180d49cbb2e956cc/docs/releases/UPGRADE_25.10.0.md",
+              "revision": "de26dcac098d1f8da0d5dfe4180d49cbb2e956cc",
+              "contentDigest": "sha256:d31abe75d1390de661063cd284a1d9c05046c7f5075b155513c1ae39472d9c93",
+              "startLine": 20,
+              "endLine": 20
+            },
+            {
+              "id": "mariadb-operator-v25-8-api-replication-probes-enabled",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/8ae3899ec3523669943d80458031fe8259285397/api/v1alpha1/mariadb_replication_types.go",
+              "revision": "8ae3899ec3523669943d80458031fe8259285397",
+              "contentDigest": "sha256:04a5eef5e19e8b20ac1abb9e6b77b3669b42b0c8091c3cf0f000564f94044175",
+              "startLine": 214,
+              "endLine": 217
+            },
+            {
+              "id": "mariadb-operator-v25-8-crd-replication-probes-enabled",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/8ae3899ec3523669943d80458031fe8259285397/config/crd/bases/k8s.mariadb.com_mariadbs.yaml",
+              "revision": "8ae3899ec3523669943d80458031fe8259285397",
+              "contentDigest": "sha256:4056458f3e26c5064690267cf872193960d349414d727fcbac7fe69d3b5c5a13",
+              "startLine": 4845,
+              "endLine": 4849
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Remove spec.replication.probesEnabled and review the replication probe settings in the 25.10 docs; the cited sources name no replacement key. The 25.10.0 guide's replication migration is not evaluated."
+      }
+    },
+    {
+      "description": "MariaDB Operator 25.10.4 no longer defines spec.replication.replica.connectionRetries in the MariaDB CRD: the 25.8.4 CRD and API define it as an integer and the 25.10.4 CRD and API do not define it. This checks only whether one complete caller-selected MariaDB resource (apiVersion k8s.mariadb.com/v1alpha1, kind MariaDB) carries the key spec.replication.replica.connectionRetries; it reads no value, no other field or resource kind, no Helm values or flags, and says nothing about the rest of the 25.8.4 to 25.10.4 upgrade.",
+      "project": "mariadb-operator",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.mariadb_operator.replication_replica_connection_retries_present",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the selected MariaDB resource carries the key spec.replication.replica.connectionRetries (any value, including null)."
+        },
+        {
+          "side": "proposed",
+          "id": "component.mariadb_operator.resource_complete",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the caller explicitly declares the selected MariaDB resource complete."
+        }
+      ],
+      "rule": {
+        "id": "mariadb-operator.removed-field-replication-replica-connection-retries.25-8-4-to-25-10-4",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "from": "25.8.4",
+          "to": "25.10.4"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "factId": "component.mariadb_operator.replication_replica_connection_retries_present",
+          "boolValue": true
+        },
+        "appliesWhen": [
+          {
+            "side": "proposed",
+            "component": "pkg:github/mariadb-operator/mariadb-operator",
+            "factId": "component.mariadb_operator.resource_complete",
+            "boolValue": true
+          }
+        ],
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-11-07T12:00:00Z",
+          "validUntil": "2027-01-14T12:00:00Z",
+          "sources": [
+            {
+              "id": "mariadb-operator-v25-10-crd-replication-replica-no-connection-retries",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/de26dcac098d1f8da0d5dfe4180d49cbb2e956cc/config/crd/bases/k8s.mariadb.com_mariadbs.yaml",
+              "revision": "de26dcac098d1f8da0d5dfe4180d49cbb2e956cc",
+              "contentDigest": "sha256:b0863d67f92ff66aa053b994f64609e1909c1b769060a0a62aae8984d6f99d6d",
+              "startLine": 4698,
+              "endLine": 4701
+            },
+            {
+              "id": "mariadb-operator-v25-10-upgrade-guide-replication-migration",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/de26dcac098d1f8da0d5dfe4180d49cbb2e956cc/docs/releases/UPGRADE_25.10.0.md",
+              "revision": "de26dcac098d1f8da0d5dfe4180d49cbb2e956cc",
+              "contentDigest": "sha256:d31abe75d1390de661063cd284a1d9c05046c7f5075b155513c1ae39472d9c93",
+              "startLine": 20,
+              "endLine": 20
+            },
+            {
+              "id": "mariadb-operator-v25-8-api-replication-replica-connection-retries",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/8ae3899ec3523669943d80458031fe8259285397/api/v1alpha1/mariadb_replication_types.go",
+              "revision": "8ae3899ec3523669943d80458031fe8259285397",
+              "contentDigest": "sha256:04a5eef5e19e8b20ac1abb9e6b77b3669b42b0c8091c3cf0f000564f94044175",
+              "startLine": 136,
+              "endLine": 139
+            },
+            {
+              "id": "mariadb-operator-v25-8-crd-replication-replica-connection-retries",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/8ae3899ec3523669943d80458031fe8259285397/config/crd/bases/k8s.mariadb.com_mariadbs.yaml",
+              "revision": "8ae3899ec3523669943d80458031fe8259285397",
+              "contentDigest": "sha256:4056458f3e26c5064690267cf872193960d349414d727fcbac7fe69d3b5c5a13",
+              "startLine": 4854,
+              "endLine": 4857
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Remove spec.replication.replica.connectionRetries and review the replica connection settings in the 25.10 docs; the cited sources name no replacement key. The guide's replication migration is not evaluated."
+      }
+    },
+    {
+      "description": "MariaDB Operator 25.10.4 no longer defines spec.replication.replica.connectionTimeout in the MariaDB CRD: the 25.8.4 CRD and API define it as a duration and the 25.10.4 CRD and API do not define it. This checks only whether one complete caller-selected MariaDB resource (apiVersion k8s.mariadb.com/v1alpha1, kind MariaDB) carries the key spec.replication.replica.connectionTimeout; it reads no value, no other field or resource kind, no Helm values or flags, and says nothing about the rest of the 25.8.4 to 25.10.4 upgrade.",
+      "project": "mariadb-operator",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.mariadb_operator.replication_replica_connection_timeout_present",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the selected MariaDB resource carries the key spec.replication.replica.connectionTimeout (any value, including null)."
+        },
+        {
+          "side": "proposed",
+          "id": "component.mariadb_operator.resource_complete",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the caller explicitly declares the selected MariaDB resource complete."
+        }
+      ],
+      "rule": {
+        "id": "mariadb-operator.removed-field-replication-replica-connection-timeout.25-8-4-to-25-10-4",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "from": "25.8.4",
+          "to": "25.10.4"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "factId": "component.mariadb_operator.replication_replica_connection_timeout_present",
+          "boolValue": true
+        },
+        "appliesWhen": [
+          {
+            "side": "proposed",
+            "component": "pkg:github/mariadb-operator/mariadb-operator",
+            "factId": "component.mariadb_operator.resource_complete",
+            "boolValue": true
+          }
+        ],
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-11-07T12:00:00Z",
+          "validUntil": "2027-01-14T12:00:00Z",
+          "sources": [
+            {
+              "id": "mariadb-operator-v25-10-crd-replication-replica-no-connection-timeout",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/de26dcac098d1f8da0d5dfe4180d49cbb2e956cc/config/crd/bases/k8s.mariadb.com_mariadbs.yaml",
+              "revision": "de26dcac098d1f8da0d5dfe4180d49cbb2e956cc",
+              "contentDigest": "sha256:b0863d67f92ff66aa053b994f64609e1909c1b769060a0a62aae8984d6f99d6d",
+              "startLine": 4703,
+              "endLine": 4706
+            },
+            {
+              "id": "mariadb-operator-v25-10-upgrade-guide-replication-migration",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/de26dcac098d1f8da0d5dfe4180d49cbb2e956cc/docs/releases/UPGRADE_25.10.0.md",
+              "revision": "de26dcac098d1f8da0d5dfe4180d49cbb2e956cc",
+              "contentDigest": "sha256:d31abe75d1390de661063cd284a1d9c05046c7f5075b155513c1ae39472d9c93",
+              "startLine": 20,
+              "endLine": 20
+            },
+            {
+              "id": "mariadb-operator-v25-8-api-replication-replica-connection-timeout",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/8ae3899ec3523669943d80458031fe8259285397/api/v1alpha1/mariadb_replication_types.go",
+              "revision": "8ae3899ec3523669943d80458031fe8259285397",
+              "contentDigest": "sha256:04a5eef5e19e8b20ac1abb9e6b77b3669b42b0c8091c3cf0f000564f94044175",
+              "startLine": 132,
+              "endLine": 135
+            },
+            {
+              "id": "mariadb-operator-v25-8-crd-replication-replica-connection-timeout",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/8ae3899ec3523669943d80458031fe8259285397/config/crd/bases/k8s.mariadb.com_mariadbs.yaml",
+              "revision": "8ae3899ec3523669943d80458031fe8259285397",
+              "contentDigest": "sha256:4056458f3e26c5064690267cf872193960d349414d727fcbac7fe69d3b5c5a13",
+              "startLine": 4858,
+              "endLine": 4861
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Remove spec.replication.replica.connectionTimeout and review the replica connection settings in the 25.10 docs; the cited sources name no replacement key. The guide's replication migration is not evaluated."
+      }
+    },
+    {
+      "description": "MariaDB Operator 25.10.4 no longer defines spec.replication.replica.waitPoint in the MariaDB CRD: the 25.8.4 CRD and API define it as an enum (AfterSync, AfterCommit) and the 25.10.4 CRD and API do not define it. This checks only whether one complete caller-selected MariaDB resource (apiVersion k8s.mariadb.com/v1alpha1, kind MariaDB) carries the key spec.replication.replica.waitPoint; it reads no value, no other field or resource kind, no Helm values or flags, and says nothing about the rest of the 25.8.4 to 25.10.4 upgrade.",
+      "project": "mariadb-operator",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.mariadb_operator.replication_replica_wait_point_present",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the selected MariaDB resource carries the key spec.replication.replica.waitPoint (any value, including null)."
+        },
+        {
+          "side": "proposed",
+          "id": "component.mariadb_operator.resource_complete",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the caller explicitly declares the selected MariaDB resource complete."
+        }
+      ],
+      "rule": {
+        "id": "mariadb-operator.removed-field-replication-replica-wait-point.25-8-4-to-25-10-4",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "from": "25.8.4",
+          "to": "25.10.4"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "factId": "component.mariadb_operator.replication_replica_wait_point_present",
+          "boolValue": true
+        },
+        "appliesWhen": [
+          {
+            "side": "proposed",
+            "component": "pkg:github/mariadb-operator/mariadb-operator",
+            "factId": "component.mariadb_operator.resource_complete",
+            "boolValue": true
+          }
+        ],
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-11-07T12:00:00Z",
+          "validUntil": "2027-02-04T12:00:00Z",
+          "sources": [
+            {
+              "id": "mariadb-operator-v25-10-crd-replication-replica-no-wait-point",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/de26dcac098d1f8da0d5dfe4180d49cbb2e956cc/config/crd/bases/k8s.mariadb.com_mariadbs.yaml",
+              "revision": "de26dcac098d1f8da0d5dfe4180d49cbb2e956cc",
+              "contentDigest": "sha256:b0863d67f92ff66aa053b994f64609e1909c1b769060a0a62aae8984d6f99d6d",
+              "startLine": 4770,
+              "endLine": 4774
+            },
+            {
+              "id": "mariadb-operator-v25-10-upgrade-guide-replication-migration",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/de26dcac098d1f8da0d5dfe4180d49cbb2e956cc/docs/releases/UPGRADE_25.10.0.md",
+              "revision": "de26dcac098d1f8da0d5dfe4180d49cbb2e956cc",
+              "contentDigest": "sha256:d31abe75d1390de661063cd284a1d9c05046c7f5075b155513c1ae39472d9c93",
+              "startLine": 20,
+              "endLine": 20
+            },
+            {
+              "id": "mariadb-operator-v25-8-api-replication-replica-wait-point",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/8ae3899ec3523669943d80458031fe8259285397/api/v1alpha1/mariadb_replication_types.go",
+              "revision": "8ae3899ec3523669943d80458031fe8259285397",
+              "contentDigest": "sha256:04a5eef5e19e8b20ac1abb9e6b77b3669b42b0c8091c3cf0f000564f94044175",
+              "startLine": 118,
+              "endLine": 121
+            },
+            {
+              "id": "mariadb-operator-v25-8-crd-replication-replica-wait-point",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/8ae3899ec3523669943d80458031fe8259285397/config/crd/bases/k8s.mariadb.com_mariadbs.yaml",
+              "revision": "8ae3899ec3523669943d80458031fe8259285397",
+              "contentDigest": "sha256:4056458f3e26c5064690267cf872193960d349414d727fcbac7fe69d3b5c5a13",
+              "startLine": 4893,
+              "endLine": 4900
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Remove spec.replication.replica.waitPoint and review the semi-synchronous replication settings in the 25.10 docs; the cited sources name no replacement key. The guide's replication migration is not evaluated."
+      }
+    },
+    {
+      "description": "MariaDB Operator 25.0.0 retypes spec.replication.syncBinlog from boolean to integer: the 0.38.1 CRD and API type it boolean (default true) and the 25.0.0 CRD and API type it integer (default 1), so a MariaDB resource that still sets it to true or false no longer matches the schema. This checks only whether one complete caller-selected MariaDB resource (apiVersion k8s.mariadb.com/v1alpha1, kind MariaDB) sets spec.replication.syncBinlog to a boolean; it reads no value, no other field or resource kind, no Helm values or flags, and says nothing about the rest of the 0.38.1 to 25.0.0 upgrade.",
+      "project": "mariadb-operator",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.mariadb_operator.replication_sync_binlog_boolean",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the selected MariaDB resource sets spec.replication.syncBinlog to a JSON boolean (a number or an absent key is false; any other value makes the fact unsupported)."
+        },
+        {
+          "side": "proposed",
+          "id": "component.mariadb_operator.resource_complete",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the caller explicitly declares the selected MariaDB resource complete."
+        }
+      ],
+      "rule": {
+        "id": "mariadb-operator.sync-binlog-retyped-integer.0-38-1-to-25-0-0",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "from": "0.38.1",
+          "to": "25.0.0"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/mariadb-operator/mariadb-operator",
+          "factId": "component.mariadb_operator.replication_sync_binlog_boolean",
+          "boolValue": true
+        },
+        "appliesWhen": [
+          {
+            "side": "proposed",
+            "component": "pkg:github/mariadb-operator/mariadb-operator",
+            "factId": "component.mariadb_operator.resource_complete",
+            "boolValue": true
+          }
+        ],
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-11-07T12:00:00Z",
+          "validUntil": "2027-01-14T12:00:00Z",
+          "sources": [
+            {
+              "id": "mariadb-operator-v0-38-1-api-replication-sync-binlog",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/1d616a2c931a115f503f7cfb5a08ae0aa608799d/api/v1alpha1/mariadb_replication_types.go",
+              "revision": "1d616a2c931a115f503f7cfb5a08ae0aa608799d",
+              "contentDigest": "sha256:70283190a15f693dd89de144df387130503ba2d6ae9c64fd2ab891ce2b3c3f4b",
+              "startLine": 200,
+              "endLine": 205
+            },
+            {
+              "id": "mariadb-operator-v0-38-1-api-replication-sync-binlog-default",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/1d616a2c931a115f503f7cfb5a08ae0aa608799d/api/v1alpha1/mariadb_replication_types.go",
+              "revision": "1d616a2c931a115f503f7cfb5a08ae0aa608799d",
+              "contentDigest": "sha256:70283190a15f693dd89de144df387130503ba2d6ae9c64fd2ab891ce2b3c3f4b",
+              "startLine": 254,
+              "endLine": 254
+            },
+            {
+              "id": "mariadb-operator-v0-38-1-crd-replication-sync-binlog",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/1d616a2c931a115f503f7cfb5a08ae0aa608799d/config/crd/bases/k8s.mariadb.com_mariadbs.yaml",
+              "revision": "1d616a2c931a115f503f7cfb5a08ae0aa608799d",
+              "contentDigest": "sha256:d8eed9e017101409f2cd407f9e871e20c4be1e45e9afdb3082cbf15ab9e2dfc4",
+              "startLine": 4828,
+              "endLine": 4833
+            },
+            {
+              "id": "mariadb-operator-v25-0-api-replication-sync-binlog",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/a6a96c1526151a2917f7db052d1be9b09908baca/api/v1alpha1/mariadb_replication_types.go",
+              "revision": "a6a96c1526151a2917f7db052d1be9b09908baca",
+              "contentDigest": "sha256:21263ddff27bd37a6b665014faaea9627c93fd749e2088bb0515437e233b31ae",
+              "startLine": 208,
+              "endLine": 212
+            },
+            {
+              "id": "mariadb-operator-v25-0-api-replication-sync-binlog-default",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/a6a96c1526151a2917f7db052d1be9b09908baca/api/v1alpha1/mariadb_replication_types.go",
+              "revision": "a6a96c1526151a2917f7db052d1be9b09908baca",
+              "contentDigest": "sha256:21263ddff27bd37a6b665014faaea9627c93fd749e2088bb0515437e233b31ae",
+              "startLine": 262,
+              "endLine": 262
+            },
+            {
+              "id": "mariadb-operator-v25-0-crd-replication-sync-binlog",
+              "url": "https://github.com/mariadb-operator/mariadb-operator/blob/a6a96c1526151a2917f7db052d1be9b09908baca/config/crd/bases/k8s.mariadb.com_mariadbs.yaml",
+              "revision": "a6a96c1526151a2917f7db052d1be9b09908baca",
+              "contentDigest": "sha256:db2ee1b7f48265ee88ca32fd69112beabc84eeb16d7e2b6cc3df2bad5abfe129",
+              "startLine": 4902,
+              "endLine": 4906
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Replace the boolean spec.replication.syncBinlog with an integer before applying the 25.0.0 CRDs; the cited 25.0.0 source defaults it to 1 where 0.38.1 defaulted to true. Other counts are not evaluated."
+      }
+    },
+    {
       "project": "mariadb-operator",
       "description": "MariaDB Operator 26.6.0 requires a Galera data-plane update before the operator update; this checks one complete caller-selected MariaDB resource and does not evaluate cluster state or controller completion.",
       "requiredFacts": [

@@ -478,6 +478,44 @@ operator, execute Helm, or establish data-plane completion or whole-upgrade
 safety. The MariaDB Operator identity is separate from the MariaDB Server
 identity, and CNCF membership is not asserted.
 
+### MariaDB Operator CRD-family pairs
+
+Two further exact pairs use the same `--mariadb-resource` route, without
+`--pre-operator-update` (the flag belongs to the Galera prerequisite pair and is
+refused here) and without `--knowledge-db` (embedded knowledge only):
+
+| Pair | Rule per field | What the published CRD and API sources show |
+|---|---|---|
+| `0.38.1` → `25.0.0` | `sync-binlog-retyped-integer` | `spec.replication.syncBinlog` is a boolean in 0.38.1 and an integer in 25.0.0 |
+| `25.8.4` → `25.10.4` | `removed-field-*` (eight) | the MariaDB CRD no longer defines `spec.maxScale`, `spec.galera.primary.automaticFailover`, `spec.replication.primary.automaticFailover`, `spec.replication.primary.automaticFailoverDelay`, `spec.replication.probesEnabled`, `spec.replication.replica.connectionRetries`, `.connectionTimeout` and `.waitPoint` |
+
+```sh
+prufyx check project \
+  --project mariadb-operator --mariadb-resource ./mariadb-resource.json \
+  --from 25.8.4 --to 25.10.4 --resource-complete \
+  --now 2026-11-10T09:00:00Z
+```
+
+Each rule reads one key of one complete, caller-selected MariaDB resource (the
+presence of the key, any value including null; for `syncBinlog` only whether the
+value is a JSON boolean). A key present is BLOCKED; absent is a scoped PASS for
+that field only; a case variant of a checked key, a non-object where an object
+must be, a wrong API version or kind, or a missing `--resource-complete`
+declaration is UNKNOWN. Evidence for every rule cites the CRD and API source
+lines at both release tags (the last patch of each line); the 25.10.0 upgrade
+guide is cited where it names the replacement.
+
+These pairs cover only those CRD fields of the `MariaDB` kind. They do not cover
+other kinds (for example the `Backup` `spec.logLevel` enum that 25.10.4 adds),
+Helm values, command-line flags, the replication migration or the Galera
+data-plane update that the 25.10.0 guide describes, admission, controller
+behavior or runtime state. A scoped PASS never means the upgrade is safe.
+
+The other consecutive pairs of the calendar-version releases (`25.0.0` →
+`25.8.4`, `25.10.4` → `26.3.0` and `26.6.0` → `26.10.2`) carry no CRD rule here
+and stay undecided by any rule of this route. `26.3.0` → `26.6.0` keeps its
+Galera prerequisite rule.
+
 The public synthetic examples in
 [`examples/projects/mariadb-operator`](../examples/projects/mariadb-operator)
 cover the same route without embedding private workload data. Copy each input

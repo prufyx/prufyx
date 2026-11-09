@@ -391,7 +391,7 @@ func descriptorSet() []descriptor {
 // descriptorsWith is the descriptor set of every project but Kubernetes plus
 // the given Kubernetes descriptors.
 func descriptorsWith(kubernetes []descriptor) []descriptor {
-	result := make([]descriptor, 0, 206)
+	result := make([]descriptor, 0, 215)
 	alertPairs := []struct{ from, id string }{
 		{"2.55.1", "prometheus.alertmanager-api-v1-removed.3-1"},
 		{"3.9.1", "prometheus.alertmanager-api-v1.target-config.3-9-1-to-3-14-0"},
@@ -531,6 +531,21 @@ func descriptorsWith(kubernetes []descriptor) []descriptor {
 	}
 
 	result = append(result, descriptor{family: FamilyCommunity, project: "mariadb-operator", component: "pkg:github/mariadb-operator/mariadb-operator", ruleID: "mariadb-operator.upgrade-26-6.requires-dataplane-prerequisite", from: "26.3.0", to: "26.6.0", command: exactPair([]Argument{literal("check"), literal("project"), literal("--project"), literal("mariadb-operator"), file("--mariadb-resource"), literal("--resource-complete"), literal("--pre-operator-update")}, "26.3.0", "26.6.0"), limit: "One complete selected MariaDB resource before the operator update; controller and data-plane behavior are unassessed."})
+
+	mariaDBCRDBase := extend(projectBase("mariadb-operator"), file("--mariadb-resource"), literal("--resource-complete"))
+	for _, rule := range []struct{ from, to, id, limit string }{
+		{"0.38.1", "25.0.0", "mariadb-operator.sync-binlog-retyped-integer.0-38-1-to-25-0-0", "One selected MariaDB CRD field only (spec.replication.syncBinlog typed boolean); completeness remains a caller declaration. Helm values, flags, admission, runtime behavior, and whole-upgrade safety remain unassessed."},
+		{"25.8.4", "25.10.4", "mariadb-operator.removed-field-embedded-max-scale.25-8-4-to-25-10-4", "One selected MariaDB CRD field only (spec.maxScale removed); completeness remains a caller declaration. Helm values, flags, the replication migration and data-plane update steps, admission, runtime behavior, and whole-upgrade safety remain unassessed."},
+		{"25.8.4", "25.10.4", "mariadb-operator.removed-field-galera-primary-automatic-failover.25-8-4-to-25-10-4", "One selected MariaDB CRD field only (spec.galera.primary.automaticFailover removed); completeness remains a caller declaration. Helm values, flags, the data-plane update step, admission, runtime behavior, and whole-upgrade safety remain unassessed."},
+		{"25.8.4", "25.10.4", "mariadb-operator.removed-field-replication-primary-automatic-failover-delay.25-8-4-to-25-10-4", "One selected MariaDB CRD field only (spec.replication.primary.automaticFailoverDelay removed); completeness remains a caller declaration. The replication migration, Helm values, flags, admission, runtime behavior, and whole-upgrade safety remain unassessed."},
+		{"25.8.4", "25.10.4", "mariadb-operator.removed-field-replication-primary-automatic-failover.25-8-4-to-25-10-4", "One selected MariaDB CRD field only (spec.replication.primary.automaticFailover removed); completeness remains a caller declaration. The replication migration, Helm values, flags, admission, runtime behavior, and whole-upgrade safety remain unassessed."},
+		{"25.8.4", "25.10.4", "mariadb-operator.removed-field-replication-probes-enabled.25-8-4-to-25-10-4", "One selected MariaDB CRD field only (spec.replication.probesEnabled removed); completeness remains a caller declaration. The replication migration, Helm values, flags, admission, runtime behavior, and whole-upgrade safety remain unassessed."},
+		{"25.8.4", "25.10.4", "mariadb-operator.removed-field-replication-replica-connection-retries.25-8-4-to-25-10-4", "One selected MariaDB CRD field only (spec.replication.replica.connectionRetries removed); completeness remains a caller declaration. The replication migration, Helm values, flags, admission, runtime behavior, and whole-upgrade safety remain unassessed."},
+		{"25.8.4", "25.10.4", "mariadb-operator.removed-field-replication-replica-connection-timeout.25-8-4-to-25-10-4", "One selected MariaDB CRD field only (spec.replication.replica.connectionTimeout removed); completeness remains a caller declaration. The replication migration, Helm values, flags, admission, runtime behavior, and whole-upgrade safety remain unassessed."},
+		{"25.8.4", "25.10.4", "mariadb-operator.removed-field-replication-replica-wait-point.25-8-4-to-25-10-4", "One selected MariaDB CRD field only (spec.replication.replica.waitPoint removed); completeness remains a caller declaration. The replication migration, Helm values, flags, admission, runtime behavior, and whole-upgrade safety remain unassessed."},
+	} {
+		result = append(result, descriptor{family: FamilyCommunity, project: "mariadb-operator", component: "pkg:github/mariadb-operator/mariadb-operator", ruleID: rule.id, from: rule.from, to: rule.to, command: exactPair(mariaDBCRDBase, rule.from, rule.to), limit: rule.limit})
+	}
 
 	grafanaBase := extend(projectBase("grafana"), file("--effective-config"), literal("--effective-config-complete"), literal("--precedence-resolved"))
 	grafanaPairs := []struct{ from, to, id string }{
@@ -900,7 +915,7 @@ func discover(cncf []cncfcheck.RuleIdentity, community []projectcheck.RuleIdenti
 		knownProjects[item.Project] = true
 		known[identityKey(FamilyCommunity, item.Project, item.Component, item.RuleID, item.From, item.To)] = true
 	}
-	if want := 177 + len(kubernetes); len(descriptors) != want {
+	if want := 186 + len(kubernetes); len(descriptors) != want {
 		return Result{}, fmt.Errorf("%w: descriptor count=%d", ErrIntegrity, len(descriptors))
 	}
 	for key := range descriptors {

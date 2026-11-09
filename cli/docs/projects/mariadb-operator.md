@@ -11,4 +11,6 @@ the reference text of each route: [routes.md](routes.md).
 
 ```text
 prufyx check project --project mariadb-operator --mariadb-resource FILE --from 26.3.0 --to 26.6.0 --resource-complete --pre-operator-update (--now RFC3339 | --knowledge-db DIR) [--mariadb-resource-digest SHA256] [--format human|json]
+prufyx check project --project mariadb-operator --mariadb-resource FILE --from 0.38.1 --to 25.0.0 --resource-complete --now RFC3339 [--mariadb-resource-digest SHA256] [--format human|json]
+prufyx check project --project mariadb-operator --mariadb-resource FILE --from 25.8.4 --to 25.10.4 --resource-complete --now RFC3339 [--mariadb-resource-digest SHA256] [--format human|json]
 ```
