@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
+	"github.com/prufyx/prufyx/cli/internal/extract/chartrun"
 )
 
 // Test 21 (A4): the mechanical allowlist and the catalog agree both ways. The
@@ -43,6 +44,32 @@ func TestMechanicalAllowlistMatchesCatalog(t *testing.T) {
 		}
 		if emitter && len(ex.(extract.MechanicalEmitter).MechanicalFamilies()) == 0 {
 			t.Errorf("%s declares no mechanical family", id)
+		}
+		// Every attester is a mechanical emitter and its attested families
+		// are a subset of its mechanical families.
+		if att, ok := ex.(extract.LineAttester); ok {
+			if !emitter {
+				t.Errorf("line attester %s is not a MechanicalEmitter", id)
+			} else {
+				mech := map[string]bool{}
+				for _, f := range ex.(extract.MechanicalEmitter).MechanicalFamilies() {
+					mech[f] = true
+				}
+				for _, f := range att.AttestedFamilies() {
+					if !mech[f] {
+						t.Errorf("%s attests family %q outside its mechanical families", id, f)
+					}
+				}
+			}
+		}
+		// Closed set of runners that stamp mechanical without the allowlist:
+		// a catalogued extractor that is not a MechanicalEmitter is a
+		// registered chart extractor (chartrun), nothing else.
+		if _, isChart := chartrun.Unwrap(ex); !emitter && !isChart {
+			t.Errorf("catalogued extractor %s is neither a MechanicalEmitter nor a registered chart extractor", id)
+		}
+		if _, isChart := chartrun.Unwrap(ex); emitter && isChart {
+			t.Errorf("catalogued extractor %s is both a MechanicalEmitter and a chart extractor", id)
 		}
 	}
 	for _, k := range keys {

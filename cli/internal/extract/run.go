@@ -217,6 +217,9 @@ func Run(ctx context.Context, ex Extractor, tags TagSource, reader PinnedReader,
 			if _, ok := lineattest.LookupFamily(f); !ok {
 				return nil, fmt.Errorf("extractor %s attests unknown fact family %q", ex.ID(), f)
 			}
+			if isMech && !mechFamilies[f] {
+				return nil, fmt.Errorf("extractor %s attests family %q outside its mechanical families", ex.ID(), f)
+			}
 			families[f] = true
 		}
 	}
@@ -295,7 +298,7 @@ func Run(ctx context.Context, ex Extractor, tags TagSource, reader PinnedReader,
 		}
 		sort.Strings(pr.Rules)
 		if pr.Drafts > 0 {
-			if len(res.Attestations) > 0 {
+			if len(res.Attestations) > 0 || res.NotAttested != "" {
 				return nil, fmt.Errorf("pair %s: extractor %s returned drafts together with attestations", pair.Key(), ex.ID())
 			}
 			pr.Attestation = &PairAttestation{Status: PairNotAttested, Line: line, Families: []string{}, Reason: PairReasonDraftOnly}

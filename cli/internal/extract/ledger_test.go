@@ -28,6 +28,9 @@ type ledgerToy struct {
 func (ledgerToy) AttestedFamilies() []string {
 	return []string{lineattest.FamilyKubernetesRemovedServedGVK}
 }
+func (ledgerToy) MechanicalFamilies() []string {
+	return []string{"example.flags_set", lineattest.FamilyKubernetesRemovedServedGVK}
+}
 func (ledgerToy) AttestedComponent() string { return attestComponent }
 func (x ledgerToy) Extract(_ context.Context, r PinnedReader, p VersionPair) (Extraction, error) {
 	if _, err := r.Read(p.Repo, p.FromCommit, "decl.go"); err != nil {

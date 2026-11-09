@@ -18,7 +18,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:e174d0f9f2cd360b44e6ef7125940c1e584e0411b1b0b1626bb30b53a219283f",
+            "codeDigest": "sha256:e9a68ea554aba9622da2321f8b9985da7a377024d0fc1130edb29ed7d769af41",
             "id": "k8s.feature-gate-removal",
             "version": "1.0.0"
           },
@@ -90,7 +90,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:e174d0f9f2cd360b44e6ef7125940c1e584e0411b1b0b1626bb30b53a219283f",
+            "codeDigest": "sha256:e9a68ea554aba9622da2321f8b9985da7a377024d0fc1130edb29ed7d769af41",
             "id": "k8s.feature-gate-removal",
             "version": "1.0.0"
           },
@@ -180,7 +180,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:e174d0f9f2cd360b44e6ef7125940c1e584e0411b1b0b1626bb30b53a219283f",
+            "codeDigest": "sha256:e9a68ea554aba9622da2321f8b9985da7a377024d0fc1130edb29ed7d769af41",
             "id": "k8s.feature-gate-removal",
             "version": "1.0.0"
           },
@@ -270,7 +270,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:e174d0f9f2cd360b44e6ef7125940c1e584e0411b1b0b1626bb30b53a219283f",
+            "codeDigest": "sha256:e9a68ea554aba9622da2321f8b9985da7a377024d0fc1130edb29ed7d769af41",
             "id": "k8s.feature-gate-removal",
             "version": "1.0.0"
           },
@@ -342,7 +342,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:e174d0f9f2cd360b44e6ef7125940c1e584e0411b1b0b1626bb30b53a219283f",
+            "codeDigest": "sha256:e9a68ea554aba9622da2321f8b9985da7a377024d0fc1130edb29ed7d769af41",
             "id": "k8s.feature-gate-removal",
             "version": "1.0.0"
           },
@@ -432,7 +432,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:e174d0f9f2cd360b44e6ef7125940c1e584e0411b1b0b1626bb30b53a219283f",
+            "codeDigest": "sha256:e9a68ea554aba9622da2321f8b9985da7a377024d0fc1130edb29ed7d769af41",
             "id": "k8s.feature-gate-removal",
             "version": "1.0.0"
           },
@@ -522,7 +522,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:e174d0f9f2cd360b44e6ef7125940c1e584e0411b1b0b1626bb30b53a219283f",
+            "codeDigest": "sha256:e9a68ea554aba9622da2321f8b9985da7a377024d0fc1130edb29ed7d769af41",
             "id": "k8s.feature-gate-removal",
             "version": "1.0.0"
           },
@@ -594,7 +594,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:e174d0f9f2cd360b44e6ef7125940c1e584e0411b1b0b1626bb30b53a219283f",
+            "codeDigest": "sha256:e9a68ea554aba9622da2321f8b9985da7a377024d0fc1130edb29ed7d769af41",
             "id": "k8s.feature-gate-removal",
             "version": "1.0.0"
           },
@@ -684,7 +684,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:e174d0f9f2cd360b44e6ef7125940c1e584e0411b1b0b1626bb30b53a219283f",
+            "codeDigest": "sha256:e9a68ea554aba9622da2321f8b9985da7a377024d0fc1130edb29ed7d769af41",
             "id": "k8s.feature-gate-removal",
             "version": "1.0.0"
           },
@@ -774,7 +774,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:e174d0f9f2cd360b44e6ef7125940c1e584e0411b1b0b1626bb30b53a219283f",
+            "codeDigest": "sha256:e9a68ea554aba9622da2321f8b9985da7a377024d0fc1130edb29ed7d769af41",
             "id": "k8s.feature-gate-removal",
             "version": "1.0.0"
           },
@@ -846,7 +846,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:e174d0f9f2cd360b44e6ef7125940c1e584e0411b1b0b1626bb30b53a219283f",
+            "codeDigest": "sha256:e9a68ea554aba9622da2321f8b9985da7a377024d0fc1130edb29ed7d769af41",
             "id": "k8s.feature-gate-removal",
             "version": "1.0.0"
           },
@@ -936,7 +936,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:e174d0f9f2cd360b44e6ef7125940c1e584e0411b1b0b1626bb30b53a219283f",
+            "codeDigest": "sha256:e9a68ea554aba9622da2321f8b9985da7a377024d0fc1130edb29ed7d769af41",
             "id": "k8s.feature-gate-removal",
             "version": "1.0.0"
           },
@@ -1026,7 +1026,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:e174d0f9f2cd360b44e6ef7125940c1e584e0411b1b0b1626bb30b53a219283f",
+            "codeDigest": "sha256:e9a68ea554aba9622da2321f8b9985da7a377024d0fc1130edb29ed7d769af41",
             "id": "k8s.feature-gate-removal",
             "version": "1.0.0"
           },
@@ -1098,7 +1098,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:e174d0f9f2cd360b44e6ef7125940c1e584e0411b1b0b1626bb30b53a219283f",
+            "codeDigest": "sha256:e9a68ea554aba9622da2321f8b9985da7a377024d0fc1130edb29ed7d769af41",
             "id": "k8s.feature-gate-removal",
             "version": "1.0.0"
           },
@@ -1188,7 +1188,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:e174d0f9f2cd360b44e6ef7125940c1e584e0411b1b0b1626bb30b53a219283f",
+            "codeDigest": "sha256:e9a68ea554aba9622da2321f8b9985da7a377024d0fc1130edb29ed7d769af41",
             "id": "k8s.feature-gate-removal",
             "version": "1.0.0"
           },

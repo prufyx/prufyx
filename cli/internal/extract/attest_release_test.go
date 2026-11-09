@@ -25,6 +25,9 @@ type attestingToy struct {
 func (attestingToy) AttestedFamilies() []string {
 	return []string{lineattest.FamilyKubernetesRemovedServedGVK}
 }
+func (attestingToy) MechanicalFamilies() []string {
+	return []string{"example.flags_set", lineattest.FamilyKubernetesRemovedServedGVK}
+}
 func (x attestingToy) AttestedComponent() string { return x.component }
 func (x attestingToy) Extract(ctx context.Context, r PinnedReader, p VersionPair) (Extraction, error) {
 	e, err := x.toyExtractor.Extract(ctx, r, p)

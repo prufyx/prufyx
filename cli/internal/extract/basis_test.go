@@ -555,3 +555,36 @@ func TestAllowlistKeyChangeMovesCodeDigest(t *testing.T) {
 		t.Fatal("an allowlist change did not move the code digest")
 	}
 }
+
+// attestOutsideMech is a mechanical emitter that attests a family it does
+// not declare as mechanical: the run refuses it.
+type attestOutsideMech struct{ toyExtractor }
+
+func (attestOutsideMech) AttestedFamilies() []string {
+	return []string{lineattest.FamilyKubernetesRemovedServedGVK}
+}
+
+func TestMechanicalAttesterFamilyOutsideMechanicalIsRunError(t *testing.T) {
+	_, err := runAny(t, attestOutsideMech{toyExtractor{members: []string{"old"}}})
+	if err == nil || !strings.Contains(err.Error(), "outside its mechanical families") {
+		t.Fatalf("err %v", err)
+	}
+}
+
+// strayNotAttested is a draft adapter that also returns a not-attested text.
+type strayNotAttested struct{ draftToy }
+
+func (x strayNotAttested) Extract(ctx context.Context, r PinnedReader, p VersionPair) (Extraction, error) {
+	e, err := x.draftToy.Extract(ctx, r, p)
+	e.NotAttested = "stray text"
+	return e, err
+}
+
+func TestDraftPairWithStrayNotAttestedIsRunError(t *testing.T) {
+	if _, err := runAny(t, strayNotAttested{draftToy{basis: BasisDraft}}); err == nil {
+		t.Fatal("drafts together with a not-attested text accepted")
+	}
+	if _, err := runAny(t, draftToy{basis: BasisDraft}); err != nil {
+		t.Fatal(err)
+	}
+}
