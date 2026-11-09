@@ -254,7 +254,9 @@ const (
 	ReasonUndecodable          = "undecodable"
 	ReasonLegacyUnread         = "v1beta1-unread"
 	ReasonFragment             = "patch-fragment"
-	ReasonFragmentRefused      = "patch-fragment-refused"
+	ReasonPatchNotStrict       = "patch-not-strict"
+	ReasonPatchNotUnderDir     = "patch-not-under-definition-dir"
+	ReasonPatchNameNotListed   = "patch-name-not-in-inventory"
 	ReasonExternalSource       = "external-source"
 	ReasonKustomizationOpen    = "kustomization-open"
 	ReasonKustomizationRefused = "kustomization-refused"
@@ -2061,17 +2063,22 @@ func (x *Extractor) classifyFile(r extract.PinnedReader, repo extract.RepoRef, c
 		// apiextensions.k8s.io/v1beta1 definitions, strictly read: they
 		// are compared with the inventory below.
 	case info.unread != "" && info.fragment != nil && info.fragment.problem == "":
-		fd.Class, fd.Detail = fragmentClass(f.path, info.fragment, inv, dirs, info.unread)
-		fd.Reason = ReasonFragment
+		fd.Class, fd.Detail, fd.Reason = fragmentClass(f.path, info.fragment, inv, dirs, info.unread)
 		return placed(fd, f.at), true, nil
 	case info.unread != "" && (info.kindLike || isChart || isKust):
 		fd.Class, fd.Reason, fd.Detail = ClassUnread, ReasonUndecodable, info.unread
 		switch {
 		case info.legacyProblem != "":
 			fd.Reason, fd.Detail = ReasonLegacyUnread, info.legacyProblem
-		case info.fragment != nil && underDefinitionDir(f.path, dirs):
-			fd.Reason = ReasonFragmentRefused
-			fd.Detail += "; not a patch fragment the scan accepts: " + info.fragment.problem
+		case info.fragment != nil:
+			// Strictly decoded but not a patch document the scan accepts
+			// (condition a): record it, and condition b too.
+			fd.Reason = ReasonPatchNotStrict
+			if underDefinitionDir(f.path, dirs) {
+				fd.Detail += "; not a patch fragment the scan accepts: " + info.fragment.problem
+			} else {
+				fd.Reason += "+" + ReasonPatchNotUnderDir
+			}
 		}
 		return placed(fd, f.at), true, nil
 	case info.unread != "":

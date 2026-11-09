@@ -631,15 +631,26 @@ func knownNames(names []string, inv *Inventory) string {
 // fragmentClass classifies a file whose bytes are patch fragments: class
 // crd-patch below a declared definition kustomization directory when every
 // definition it patches is in the inventory, unread otherwise (unread is
-// the v1 reader's reason).
-func fragmentClass(p string, fr *fragmentRead, inv *Inventory, dirs map[string]bool, unread string) (string, string) {
-	if !underDefinitionDir(p, dirs) {
-		return ClassUnread, unread + "; a patch fragment outside a declared definition kustomization directory"
+// the v1 reader's reason). The reason is ReasonFragment for a patch, and
+// otherwise the code of every condition that failed (b: the directory, c: the
+// names), in that order; it records, it never decides.
+func fragmentClass(p string, fr *fragmentRead, inv *Inventory, dirs map[string]bool, unread string) (string, string, string) {
+	var codes []string
+	outside := !underDefinitionDir(p, dirs)
+	why := knownNames(fr.names, inv)
+	if outside {
+		codes = append(codes, ReasonPatchNotUnderDir)
 	}
-	if why := knownNames(fr.names, inv); why != "" {
-		return ClassUnread, unread + "; a patch fragment: " + why
+	if why != "" {
+		codes = append(codes, ReasonPatchNameNotListed)
 	}
-	return ClassCRDPatch, "a patch fragment that only sets conversion, preserveUnknownFields or metadata labels and annotations of " + strings.Join(fr.names, ", ")
+	if outside {
+		return ClassUnread, unread + "; a patch fragment outside a declared definition kustomization directory", strings.Join(codes, "+")
+	}
+	if why != "" {
+		return ClassUnread, unread + "; a patch fragment: " + why, strings.Join(codes, "+")
+	}
+	return ClassCRDPatch, "a patch fragment that only sets conversion, preserveUnknownFields or metadata labels and annotations of " + strings.Join(fr.names, ", "), ReasonFragment
 }
 
 // scanConfigs reads the transformer configurations a kustomization below a
