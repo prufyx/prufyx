@@ -187,3 +187,6 @@ func removeStaleStages(parent *os.File) {
 		removeStageDir(parent, n)
 	}
 }
+
+// approvalSigningSupported is checked before any confirmation or key read.
+var approvalSigningSupported = true

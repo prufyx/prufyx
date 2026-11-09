@@ -320,13 +320,13 @@ func TestApprovalSignRulesAllOrNothing(t *testing.T) {
 func TestApprovalSignRulesInputRefusals(t *testing.T) {
 	t.Parallel()
 	f := newRulesFixture(t, 2)
-	for name, content := range map[string]string{
-		"empty": "\n\n", "duplicate": f.ids[0] + "\n" + f.ids[0], "bad id": "../x", "comment": "# " + f.ids[0],
-		"too many": strings.Repeat("r\n", 0) + manyIDs(MaxRulesPerSigning+1),
+	for name, c := range map[string]struct{ content, want string }{
+		"empty": {"\n\n", "names no rule"}, "duplicate": {f.ids[0] + "\n" + f.ids[0], "twice"}, "bad id": {"../x", "not a valid rule id"}, "comment": {"# " + f.ids[0], "not a valid rule id"},
+		"too many": {manyIDs(MaxRulesPerSigning + 1), "more than the 64"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			writeFile(t, f.rulesFile, []byte(content))
-			requireCode(t, runApproval(t, nil, signNow, append([]string{"sign", "--dry-run"}, f.packArgs()...)...), 2, "")
+			writeFile(t, f.rulesFile, []byte(c.content))
+			requireCode(t, runApproval(t, nil, signNow, append([]string{"sign", "--dry-run"}, f.packArgs()...)...), 2, c.want)
 		})
 	}
 	t.Run("output dir name", func(t *testing.T) {
@@ -475,4 +475,50 @@ func TestApprovalSignRulesRollbackKeepsSwappedFile(t *testing.T) {
 	if _, err := os.Lstat(filepath.Join(f.outDir, f.ids[1]+".json")); !os.IsNotExist(err) {
 		t.Fatal("untouched link not rolled back")
 	}
+}
+
+func TestApprovalSignRulesDryRunPrintsPackDigests(t *testing.T) {
+	t.Parallel()
+	f := newRulesFixture(t, 2)
+	r := runApproval(t, nil, signNow, append([]string{"sign", "--dry-run"}, f.packArgs()...)...)
+	requireCode(t, r, 0, "rules to approve: 2")
+	for label, root := range map[string]string{"base pack sha256: ": f.base.Root, "head pack sha256: ": f.head.Root} {
+		raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(cncfRulesPath)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := label + sha256Hex(raw) + "\n"; !strings.Contains(r.stdout, want) {
+			t.Fatalf("missing %q in:\n%s", want, r.stdout)
+		}
+	}
+}
+
+func TestApprovalSignRulesHeadEditedAfterDryRun(t *testing.T) {
+	t.Parallel()
+	f := newRulesFixture(t, 2)
+	old := f.listDigest(t)
+	editPack(t, f.head, cncfRulesPath, func(p *packDoc) {
+		evidenceOf(p.find(t, f.ids[0]))["validUntil"] = gateNow.Add(90 * 24 * time.Hour).Format(time.RFC3339)
+	})
+	if f.listDigest(t) == old {
+		t.Fatal("head edit did not change the digest")
+	}
+	r := runApproval(t, f.key.pemKey(t), signNow, f.signArgs2("--expect-count", "2", "--expect-list-digest", old, "--key-stdin")...)
+	requireCode(t, r, 2, "does not match")
+	noFiles(t, f)
+}
+
+func TestApprovalSignRulesUnsupportedPlatformRefusesBeforeKey(t *testing.T) {
+	f := newRulesFixture(t, 2) // not parallel: sets a package variable
+	approvalSigningSupported = false
+	defer func() { approvalSigningSupported = true }()
+	var prompted bool
+	var out, errOut bytes.Buffer
+	env := approvalEnv{stdin: bytes.NewReader(f.key.pemKey(t)), now: func() time.Time { return signNow }, checkStdin: func(io.Reader) error { return nil },
+		confirm: func(string) (string, error) { prompted = true; return "", nil }}
+	code := approvalMain(f.signArgs2("--key-stdin"), env, DefaultLayout(), &out, &errOut)
+	if code != 2 || !strings.Contains(errOut.String(), "Linux and macOS only") || prompted {
+		t.Fatalf("code %d prompted %v: %s", code, prompted, errOut.String())
+	}
+	noFiles(t, f)
 }

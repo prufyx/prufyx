@@ -98,6 +98,11 @@ func printRulesList(w io.Writer, subjects []ApprovalSubject, identity, candidate
 	fmt.Fprintf(w, "list digest: %s\n", digest)
 }
 
+func sha256Hex(b []byte) string {
+	sum := sha256.Sum256(b)
+	return hex.EncodeToString(sum[:])
+}
+
 func rulesShortDigest(d string) string {
 	d = strings.TrimPrefix(d, "sha256:")
 	if len(d) > 12 {
@@ -171,6 +176,9 @@ func cmdApprovalSignRules(args []string, env approvalEnv, layout Layout, stdout 
 			return 2, fmt.Errorf("--output-dir must end in %s, the directory under the approvals directory the gate reads", pack)
 		}
 	}
+	if !dryRun && !approvalSigningSupported {
+		return 2, errors.New("signing many approvals is supported on Linux and macOS only; nothing was read or signed")
+	}
 	var spec *PackSpec
 	for i := range layout.Packs {
 		if layout.Packs[i].Name == pack {
@@ -204,6 +212,7 @@ func cmdApprovalSignRules(args []string, env approvalEnv, layout Layout, stdout 
 	printRulesList(stdout, subjects, identity, candidateID, keyID, digest)
 	typed := fmt.Sprintf("sign %d %s", len(subjects), strings.TrimPrefix(digest, "sha256:"))
 	if dryRun {
+		fmt.Fprintf(stdout, "base pack sha256: %s\nhead pack sha256: %s\n", sha256Hex(base), sha256Hex(head))
 		fmt.Fprintf(stdout, "terminal confirmation: %s\n", typed)
 		fmt.Fprintln(stdout, "dry run: no key was read, nothing was written")
 		return 0, nil
@@ -263,12 +272,7 @@ func cmdApprovalSignRules(args []string, env approvalEnv, layout Layout, stdout 
 	if err := writeApprovalFiles(outDir, ids, raws); err != nil {
 		return 2, err
 	}
-	var pinned ApprovalKey
-	for _, pk := range keys.Keys {
-		if pk.KeyID == keyID {
-			pinned = pk
-		}
-	}
+	pinned := *pinnedKey
 	fmt.Fprintf(stdout, "approvals written: %d in %s\n", len(raws), logSafe(outDir))
 	for _, rec := range recs {
 		printApproval(stdout, rec, pinned)
