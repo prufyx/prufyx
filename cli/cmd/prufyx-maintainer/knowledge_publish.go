@@ -42,6 +42,14 @@ func runKnowledgePublish(args []string, stdout io.Writer) error {
 		return runKnowledgeRelease(args[1:], stdout)
 	case "finalize-package":
 		return runFinalizeKnowledgePackage(args[1:], stdout)
+	case "refresh-timestamp":
+		return runRefreshTimestamp(args[1:], stdout)
+	case "live-state":
+		return runLiveState(args[1:], stdout)
+	case "deploy-guard":
+		return runDeployGuard(args[1:], stdout)
+	case "content-digest":
+		return runContentDigest(args[1:], stdout)
 	default:
 		return knowledgePublishError()
 	}
@@ -455,13 +463,20 @@ func runKnowledgeRelease(args []string, stdout io.Writer) error {
 	flags.StringVar(&o.PassphraseFile, "passphrase-file", "", "file holding the key passphrase (mode 0600)")
 	flags.StringVar(&o.PackageURL, "package-url", "", "exact HTTPS URL the package will be served from")
 	flags.StringVar(&o.OutputDir, "output-dir", "", "new absolute output directory")
-	flags.StringVar(&o.Expires, "expires", "", "optional earlier role expiry as exact UTC RFC3339")
+	flags.StringVar(&o.Expires, "expires", "", "targets and snapshot expiry as exact UTC RFC3339 (max min(evidence expiry, now+21d); required in CI mode)")
+	flags.StringVar(&o.TimestampExpires, "timestamp-expires", "", "optional earlier timestamp expiry as exact UTC RFC3339 (default and max min(expires, now+14d))")
+	flags.StringVar(&o.ExpectContentDigest, "expect-content-digest", "", "content digest of the reviewed packet; refuses on mismatch before signing")
+	flags.StringVar(&o.ExpectIndexDigest, "expect-index-digest", "", "index digest of the reviewed packet; refuses on mismatch before and after signing")
+	flags.StringVar(&o.ExpectPreviousPackageDigest, "expect-previous-package-digest", "", "digest of the live package this release replaces")
+	flags.StringVar(&o.PreviousPackage, "previous-package", "", "absolute path of the live package (verified against the pinned root)")
+	flags.BoolVar(&o.NoLivePackage, "no-live-package", false, "no package is live at all (the very first publication); excludes --previous-package and --expect-previous-package-digest; the only way --ci may sign without a previous package")
+	flags.BoolVar(&o.CI, "ci", false, "CI mode: enforce the unattended release guards (never implied by environment variables)")
 	flags.StringVar(&o.Profile, "profile", "", "cncf (default, single bundle) or cncf-projects (index plus one target per project)")
 	flags.StringVar(&o.PreviousIndex, "previous-index", "", "cncf-projects: absolute path of the committed previously published index")
-	flags.BoolVar(&o.FirstRelease, "first-release", false, "cncf-projects: no index was published before (instead of --previous-index)")
+	flags.BoolVar(&o.FirstRelease, "first-release", false, "cncf-projects: start a fresh index layout (no index published yet, or an engine capability change); instead of --previous-index; says nothing about a live package")
 	if err := flags.Parse(args); err != nil {
 		if err == flag.ErrHelp {
-			if _, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer knowledge-publish release --revision N --version N --root ABS --root-digest sha256:... --targets-key ABS --snapshot-key ABS --timestamp-key ABS --passphrase-file ABS --package-url https://... --output-dir ABS [--expires UTC]"); e != nil {
+			if _, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer knowledge-publish release --revision N --version N --root ABS --root-digest sha256:... --targets-key ABS --snapshot-key ABS --timestamp-key ABS --passphrase-file ABS --package-url https://... --output-dir ABS [--expires UTC] [--timestamp-expires UTC] [--expect-content-digest D] [--expect-index-digest D] [--previous-package ABS --expect-previous-package-digest D | --no-live-package] [--ci]"); e != nil {
 				return e
 			}
 			_, e := fmt.Fprintln(stdout, "per-project layout: add --profile cncf-projects and exactly one of --previous-index ABS (the committed index of the last release) or --first-release; --package-url is then unused and no release plan is written.")
@@ -473,6 +488,11 @@ func runKnowledgeRelease(args []string, stdout io.Writer) error {
 		return knowledgePublishError()
 	}
 	o.Now = time.Now().UTC()
+	// CI mode is explicit: environment variables never change behaviour. The
+	// run attempt is read only under --ci.
+	if o.CI {
+		o.RunAttempt = os.Getenv("GITHUB_RUN_ATTEMPT")
+	}
 	result, err := knowledgerelease.Run(o)
 	if errors.Is(err, cncfcheck.ErrDistributionsNotPublishable) {
 		return &commandError{code: 2, message: "knowledge-publish: the pack holds distribution records, which no per-project target carries yet; release refused"}
@@ -486,6 +506,127 @@ func runKnowledgeRelease(args []string, stdout io.Writer) error {
 	}
 	if _, err := fmt.Fprintln(stdout, string(raw)); err != nil {
 		return &commandError{code: 2, message: "knowledge-publish: receipt output failed"}
+	}
+	return nil
+}
+
+func runRefreshTimestamp(args []string, stdout io.Writer) error {
+	flags := flag.NewFlagSet("knowledge-publish refresh-timestamp", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	var o knowledgerelease.RefreshOptions
+	flags.StringVar(&o.Profile, "profile", "", "cncf (default) or cncf-projects")
+	flags.StringVar(&o.LivePackage, "live-package", "", "absolute path of the live package")
+	flags.StringVar(&o.ExpectLivePackageDigest, "expect-live-package-digest", "", "required: digest of the live package the refresh may sign over")
+	flags.StringVar(&o.Root, "root", "", "signed public TUF root")
+	flags.StringVar(&o.RootDigest, "root-digest", "", "independently verified root SHA-256")
+	flags.StringVar(&o.TimestampKey, "timestamp-key", "", "encrypted timestamp role key file (the only key loaded)")
+	flags.StringVar(&o.PassphraseFile, "passphrase-file", "", "file holding the key passphrase (mode 0600)")
+	flags.StringVar(&o.OutputDir, "output-dir", "", "new absolute output directory")
+	flags.StringVar(&o.Expires, "expires", "", "optional earlier timestamp expiry as exact UTC RFC3339")
+	if err := flags.Parse(args); err != nil {
+		if err == flag.ErrHelp {
+			_, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer knowledge-publish refresh-timestamp --live-package ABS --root ABS --root-digest sha256:... --timestamp-key ABS --passphrase-file ABS --output-dir ABS --expect-live-package-digest D [--profile cncf-projects] [--expires UTC]")
+			return e
+		}
+		return knowledgePublishError()
+	}
+	if flags.NArg() != 0 {
+		return knowledgePublishError()
+	}
+	o.Now = time.Now().UTC()
+	result, err := knowledgerelease.Refresh(o)
+	if err != nil {
+		if errors.Is(err, knowledgerelease.ErrGuard) {
+			// Guard text carries only role names, versions and RFC3339 times.
+			return &commandError{code: 2, message: "knowledge-publish: refresh refused: " + err.Error()}
+		}
+		return knowledgePublishError()
+	}
+	return printJSON(stdout, result)
+}
+
+func runLiveState(args []string, stdout io.Writer) error {
+	flags := flag.NewFlagSet("knowledge-publish live-state", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	var profile, pkg, root, rootDigest, revision, targets, snapshot, packageDigest string
+	flags.StringVar(&profile, "profile", "", "cncf (default) or cncf-projects")
+	flags.StringVar(&pkg, "package", "", "absolute path of the package")
+	flags.StringVar(&root, "root", "", "signed public TUF root")
+	flags.StringVar(&rootDigest, "root-digest", "", "independently verified root SHA-256")
+	flags.StringVar(&revision, "expect-revision", "", "packet revision the live state must still have")
+	flags.StringVar(&targets, "expect-targets-digest", "", "digest of the live targets.json the plan saw")
+	flags.StringVar(&snapshot, "expect-snapshot-digest", "", "digest of the live snapshot.json the plan saw")
+	flags.StringVar(&packageDigest, "expect-package-digest", "", "optional exact package digest")
+	if err := flags.Parse(args); err != nil || flags.NArg() != 0 || !filepath.IsAbs(pkg) || !filepath.IsAbs(root) {
+		return knowledgePublishError()
+	}
+	state, err := knowledgerelease.InspectLive(pkg, root, rootDigest, profile, packageDigest)
+	if err != nil {
+		return knowledgePublishError()
+	}
+	if revision != "" || targets != "" || snapshot != "" {
+		// State unchanged: same revision and byte-identical targets and snapshot.
+		want := state
+		want.Revision, want.TargetsDigest, want.SnapshotDigest = revision, targets, snapshot
+		if revision == "" || targets == "" || snapshot == "" || !knowledgerelease.StateUnchanged(want, state) {
+			return &commandError{code: 2, message: "knowledge-publish: the live state moved since the plan"}
+		}
+	}
+	return printJSON(stdout, state)
+}
+
+func runDeployGuard(args []string, stdout io.Writer) error {
+	flags := flag.NewFlagSet("knowledge-publish deploy-guard", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	var profile, live, candidate, root, rootDigest, predecessor string
+	flags.StringVar(&profile, "profile", "", "cncf (default) or cncf-projects")
+	flags.StringVar(&live, "live-package", "", "absolute path of the currently served package")
+	flags.StringVar(&candidate, "candidate-package", "", "absolute path of the package to deploy")
+	flags.StringVar(&root, "root", "", "signed public TUF root")
+	flags.StringVar(&rootDigest, "root-digest", "", "independently verified root SHA-256")
+	flags.StringVar(&predecessor, "predecessor-digest", "", "package digest the candidate was built over")
+	if err := flags.Parse(args); err != nil || flags.NArg() != 0 || !filepath.IsAbs(live) || !filepath.IsAbs(candidate) || !filepath.IsAbs(root) {
+		return knowledgePublishError()
+	}
+	l, err := knowledgerelease.InspectLive(live, root, rootDigest, profile, "")
+	if err != nil {
+		return knowledgePublishError()
+	}
+	c, err := knowledgerelease.InspectLive(candidate, root, rootDigest, profile, "")
+	if err != nil {
+		return knowledgePublishError()
+	}
+	if err := knowledgerelease.CheckDeploy(l, c, predecessor, time.Now().UTC()); err != nil {
+		return &commandError{code: 2, message: "knowledge-publish: deploy refused: " + err.Error()}
+	}
+	return printJSON(stdout, map[string]any{"status": "OK", "liveTimestampVersion": l.TimestampVersion, "candidateTimestampVersion": c.TimestampVersion, "candidateRevision": c.Revision})
+}
+
+func runContentDigest(args []string, stdout io.Writer) error {
+	flags := flag.NewFlagSet("knowledge-publish content-digest", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	var o knowledgerelease.Options
+	flags.StringVar(&o.Revision, "revision", "", "positive knowledge revision")
+	flags.StringVar(&o.Profile, "profile", "", "cncf (default) or cncf-projects")
+	flags.StringVar(&o.PreviousIndex, "previous-index", "", "cncf-projects: absolute path of the previously published index")
+	flags.BoolVar(&o.FirstRelease, "first-release", false, "cncf-projects: start a fresh index layout")
+	if err := flags.Parse(args); err != nil || flags.NArg() != 0 {
+		return knowledgePublishError()
+	}
+	d, err := knowledgerelease.ComputeDigests(o)
+	if err != nil {
+		return knowledgePublishError()
+	}
+	return printJSON(stdout, d)
+}
+
+func printJSON(stdout io.Writer, v any) error {
+	raw, err := json.Marshal(v)
+	if err != nil {
+		return knowledgePublishError()
+	}
+	if _, err := fmt.Fprintln(stdout, string(raw)); err != nil {
+		return &commandError{code: 2, message: "knowledge-publish: output failed"}
 	}
 	return nil
 }

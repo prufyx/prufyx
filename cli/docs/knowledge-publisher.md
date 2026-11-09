@@ -193,15 +193,104 @@ described in [knowledge-updates.md](knowledge-updates.md).
   are the encrypted files made by `knowledge-sign init`; the passphrase is read
   from `--passphrase-file`, which must be a regular file readable only by its
   owner. Keep the root key offline: it is not used here.
-- Every role expires at the earliest evidence expiry of the exported rules, so
-  metadata never outlives the reviewed knowledge. `--expires` can only make it
-  earlier. A release whose knowledge has already expired is refused.
-- No clock enters the metadata and Ed25519 signing is deterministic, so the
-  same inputs produce byte-identical files.
+- Expiry is split per role. Targets and snapshot expire at `--expires`, which
+  defaults to and may not exceed `min(earliest evidence expiry, now + 21 days)`;
+  the timestamp expires at `min(targets expiry, now + 14 days)` (`--timestamp-expires`
+  can only make it earlier). Metadata never outlives the reviewed knowledge, and
+  the longer-lived targets and snapshot let a timestamp-only refresh keep a
+  package fresh (see "Timestamp refresh"). A release whose knowledge has already
+  expired is refused. Without the optional flags the defaults read the clock;
+  with `--expires` and `--timestamp-expires` fixed, the same inputs give
+  byte-identical files (Ed25519 signing is deterministic).
 - `--version` must be larger than the previous release: clients may keep a rollback
   floor and refuse an older version.
 - It does not choose a trust root and does not change what `scan` uses by
   default; a client still needs the independently verified root and digest.
+
+### Release guards (CI mode)
+
+CI mode is on only with the `--ci` flag. The `GITHUB_ACTIONS` and `CI`
+environment variables never change what any command does, so a command run on a
+CI runner without `--ci` behaves like a local run. The daily publish workflow
+passes `--ci`, and a contract test on that workflow asserts it. All of these
+checks run before any key file is read; a refusal writes nothing.
+
+- `--expires` is required in CI mode. Also required: `--expect-content-digest`
+  and `--expect-index-digest` (from the reviewed packet) and
+  `--previous-package ABS` with `--expect-previous-package-digest`, unless
+  `--no-live-package` says that no package is live at all. `--first-release`
+  does not waive the previous package: it only chooses the index layout.
+- The content digest is the sha256 of the sorted lines `<target path> <sha256 hex>\n`
+  over every exported target (index or bundle plus project targets); the index
+  digest is the index digest (per-project) or bundle digest. Both are keyless:
+  `knowledge-publish content-digest --revision N [--profile cncf-projects
+  (--previous-index ABS | --first-release)]` prints them. The JSON of `release`
+  carries `contentDigest`, `indexDigest`, `evidenceExpiresAt`, `packageDigest`, `timestampVersion`,
+  `previousPackageDigest`, `expires` and `timestampExpires`. After signing, the
+  verified target digest must still equal the expected index digest.
+- `content-digest` and `release` also report `evidenceExpiresAt`, the canonical
+  UTC RFC3339 expiry of the evidence bundle behind the targets, so a planner can
+  take min(now+21d, `evidenceExpiresAt`). It is read from the exported targets'
+  admission, never guessed: if it is absent or not canonical UTC the command
+  refuses (exit non-zero, no digests printed) instead of emitting an empty value.
+- The previous package must verify against the pinned root and have the
+  expected digest; `--version` must exceed its timestamp version and
+  `--revision` its revision. More than 14 days without a publish makes it
+  unverifiable and the release is refused (see the recovery runbook).
+- With `--ci`, `GITHUB_RUN_ATTEMPT` other than `1` is refused (an approved run
+  is never replayed) and an absent value is refused too. Without `--ci` the
+  variable is not read.
+
+### Timestamp refresh
+
+`knowledge-publish refresh-timestamp --live-package ABS --root ABS --root-digest
+sha256:... --timestamp-key ABS --passphrase-file ABS --output-dir ABS
+--expect-live-package-digest D [--profile cncf-projects] [--expires UTC]`
+signs a new timestamp over the live, unchanged snapshot and targets. Only the
+timestamp key is loaded; there is no option for another key.
+
+- The live package must verify against the pinned root, else nothing is signed.
+  `--expect-live-package-digest` is mandatory; without it, or when it differs,
+  the refresh is refused before any key is read. A guard refusal prints its
+  reason (role names, versions, RFC3339 times only; never a path or key
+  material); other failures print the generic rejection.
+- The new timestamp version is the live timestamp version plus one: a client
+  keeps the old timestamp when the version does not increase.
+- The output holds `timestamp.json` and the repackaged package. Every package
+  member except `metadata/timestamp.json` is asserted byte-identical to the
+  live one (same member set, same targets.json and snapshot.json bytes), and
+  the refreshed package is verified again.
+- The publisher enforces the cap because clients do not cap the timestamp:
+  `min(snapshot expiry, targets expiry, evidence expiry, now + 14 days)`.
+  `--expires` can only lower it. The refresh is refused when targets, snapshot
+  or evidence are expired or have less than a day left (a content release is
+  needed), and when the new expiry is not at least a day later than the live
+  timestamp expiry.
+
+### State checks for plan, sign and deploy
+
+- `knowledge-publish live-state --package ABS --root ABS --root-digest D
+  [--profile ...] [--expect-revision N --expect-targets-digest D
+  --expect-snapshot-digest D]` verifies a package against the pinned root and
+  prints its state (revision, per-role version, digest and expiry, package and
+  index digest, `minNextVersion`). With the `--expect-*` flags it exits 2 when
+  the state moved. State unchanged means the same revision and byte-identical
+  targets.json and snapshot.json; a timestamp refresh keeps that true.
+- The signing version is `minNextVersion` of the live package, computed at sign
+  time: the packet carries only a minimum.
+- `knowledge-publish deploy-guard --live-package ABS --candidate-package ABS
+  --root ABS --root-digest D --predecessor-digest D` replaces the run-number
+  rule of the deploy job: the candidate must have been built over exactly the
+  live package, have a higher timestamp version, and either a higher revision
+  or the same revision with identical targets and snapshot. It also caps the
+  candidate timestamp, which clients do not do: the timestamp must be unexpired
+  at the guard's clock (UTC now, no flag) and expire no later than the earliest
+  of the candidate snapshot, targets and evidence expiry and now plus the 14 day
+  timestamp lifetime, the same cap `refresh-timestamp` applies. An equal expiry
+  passes, one second later refuses; an unparseable time refuses. The command
+  keeps its flags; only its behaviour is stricter.
+- Workflow wiring (plan, sign, refresh and deploy jobs) is separate and not part
+  of this change.
 
 ## Per-project layout (`cncf-projects`)
 
@@ -262,10 +351,29 @@ index cannot bump every project and move every rollback floor:
   that the previous index parses under the compiled engine capability and that
   the new revision is greater than the index revision; it does not verify that
   the file is the one last published, nor that no project revision was lowered.
-- `--first-release`: no index was ever published. Use it only then, or when the
+- `--first-release`: start a fresh index layout instead of reading
+  `--previous-index`. Use it when no index was ever published, or when the
   engine capability changed (an index of an older capability no longer parses
-  and every target changes anyway); the new revision must still be larger than
-  every revision published before.
+  and every target changes anyway). It says nothing about a live package; the
+  new revision must still be larger than every revision published before.
+- `--no-live-package`: no package is live at all, the very first publication.
+  It cannot be combined with `--previous-package` or
+  `--expect-previous-package-digest`, and the per-project layout needs
+  `--first-release` with it. It is the only way `--ci` signs without a
+  previous package. With a previous package the new TUF version and revision
+  must exceed the live ones.
+
+The four daily modes pass these layout and predecessor flags (on top of the
+`--ci` set above):
+
+| Mode | Index layout | Predecessor |
+|---|---|---|
+| first (nothing live) | `--first-release` | `--no-live-package` |
+| regular | `--previous-index ABS` (committed index) | `--previous-package ABS --expect-previous-package-digest D` |
+| capability change | `--first-release` | `--previous-package ABS --expect-previous-package-digest D` |
+| recovery (lost artifact) | `--previous-index ABS` (from the recovered package) | `--previous-package ABS --expect-previous-package-digest D` (the recovered package) |
+
+Any other combination is refused before a key is read.
 
 The output directory holds `root.json`, `<version>.targets.json`,
 `<version>.snapshot.json`, `timestamp.json`, `cncf-projects-<revision>.tar` and
@@ -487,7 +595,8 @@ token; step 1 holds only the read-only workflow token it always had):
    client (`GOTOOLCHAIN=local`, no network) and run the same `db verify` against
    the pinned root of this tree and the digest in the artifact name. Only if it
    exits `0` with `VERIFIED` does the run continue, in mode `capability`.
-3. The release uses `--first-release` with revision and TUF version one above
+3. The release uses `--first-release` (fresh index layout) together with
+   `--previous-package` and its digest, and with revision and TUF version one above
    the previous ones. Every project is released again at that revision, so the
    revision floors and TUF versions of existing clients keep advancing. The cron
    and the skip rule are unchanged; mode `capability` never skips.

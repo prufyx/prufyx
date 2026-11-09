@@ -252,6 +252,50 @@ func PrepareTimestamp(opts TimestampOptions) (Preparation, error) {
 	return prepare(metadata.TIMESTAMP, root, rootDigest, role, set.digest, digest(opts.Snapshot))
 }
 
+// TimestampRefreshOptions describes a timestamp-only refresh: a new timestamp
+// role over the already published targets and snapshot, which stay untouched.
+// TargetDigest is the verified index or bundle digest of the live package; it
+// is only bound into the signing request.
+type TimestampRefreshOptions struct {
+	Root, Targets, Snapshot []byte
+	RootDigest              string
+	TargetDigest            string
+	// PreviousVersion is the live timestamp version. Version must be greater:
+	// clients keep the old timestamp when the version does not increase.
+	PreviousVersion int64
+	Version         int64
+	Expires         string
+}
+
+// PrepareTimestampRefresh verifies the signed targets and snapshot against the
+// pinned root and creates the payload of a timestamp with a higher version over
+// them. It needs no target bytes and no key other than the timestamp key.
+func PrepareTimestampRefresh(opts TimestampRefreshOptions) (Preparation, error) {
+	root, rootDigest, err := admitRoot(opts.Root, opts.RootDigest)
+	if err != nil {
+		return Preparation{}, err
+	}
+	if len(opts.TargetDigest) != len("sha256:")+64 || !strings.HasPrefix(opts.TargetDigest, "sha256:") {
+		return Preparation{}, ErrRejected
+	}
+	targets, err := parseTargets(opts.Targets, true)
+	if err != nil || root.VerifyDelegate(metadata.TARGETS, targets) != nil || validateTargetsShape(targets) != nil {
+		return Preparation{}, fmt.Errorf("signed targets: %w", ErrRejected)
+	}
+	snapshot, err := parseSnapshot(opts.Snapshot, true)
+	if err != nil || root.VerifyDelegate(metadata.SNAPSHOT, snapshot) != nil || validateSnapshot(snapshot, opts.Targets, targets.Signed.Version) != nil {
+		return Preparation{}, fmt.Errorf("signed snapshot chain: %w", ErrRejected)
+	}
+	expires, err := parseExpiry(opts.Expires)
+	if err != nil || !validVersion(opts.Version) || !validVersion(opts.PreviousVersion) || opts.Version <= opts.PreviousVersion {
+		return Preparation{}, ErrRejected
+	}
+	role := metadata.Timestamp(expires)
+	role.Signed.Version = opts.Version
+	role.Signed.Meta["snapshot.json"] = metaIdentity(snapshot.Signed.Version, opts.Snapshot)
+	return prepare(metadata.TIMESTAMP, root, rootDigest, role, opts.TargetDigest, digest(opts.Snapshot))
+}
+
 // FinalizeRole attaches externally returned signatures and verifies the
 // authorized threshold under the independently supplied public root.
 func FinalizeRole(rootRaw []byte, rootDigest, roleName string, unsigned, envelopeRaw []byte) ([]byte, error) {
