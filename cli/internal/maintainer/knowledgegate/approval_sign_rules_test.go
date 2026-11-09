@@ -498,7 +498,7 @@ func TestApprovalSignRulesHeadEditedAfterDryRun(t *testing.T) {
 	f := newRulesFixture(t, 2)
 	old := f.listDigest(t)
 	editPack(t, f.head, cncfRulesPath, func(p *packDoc) {
-		evidenceOf(p.find(t, f.ids[0]))["validUntil"] = gateNow.Add(90 * 24 * time.Hour).Format(time.RFC3339)
+		evidenceOf(p.find(t, f.ids[0]))["validUntil"] = gateNow.Add(50 * 24 * time.Hour).Format(time.RFC3339)
 	})
 	if f.listDigest(t) == old {
 		t.Fatal("head edit did not change the digest")
