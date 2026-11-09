@@ -263,6 +263,7 @@ const (
 	ReasonNoTopLevel           = "no-top-level-definition"
 	ReasonEmbedded             = "embedded-manifest"
 	ReasonConfigRefused        = "transformer-config-refused"
+	ReasonKustomizeConfig      = "kustomize-config"
 	ReasonNoDefinition         = "no-definition"
 	ReasonDefinesNoneRefused   = "defines-none-refused"
 	ReasonV1                   = "v1"
@@ -2139,7 +2140,7 @@ func (x *Extractor) classifyFile(r extract.PinnedReader, repo extract.RepoRef, c
 			// key, entry or value.
 			why := info.configProblem
 			if why == "" {
-				fd.Class, fd.Detail = ClassKustomizeConfig, "a kustomize transformer configuration whose field specs of the kind only reach conversion settings and metadata labels and annotations"
+				fd.Class, fd.Reason, fd.Detail = ClassKustomizeConfig, ReasonKustomizeConfig, "a kustomize transformer configuration whose field specs of the kind only reach conversion settings and metadata labels and annotations"
 				return placed(fd, f.at), true, nil
 			}
 			fd.Reason = ReasonConfigRefused

@@ -75,8 +75,10 @@ func TestFragmentFailedConditionRecorded(t *testing.T) {
 	}
 }
 
-// The codes are a fixed set: a reason holds at most three, in the order
-// not-strict, directory, name; the recording is a function of the bytes and
+// The codes are a fixed set, in the order not-strict, directory, name. By
+// construction a reason may hold three; in practice it holds at most two,
+// because a document that is not strict is recorded before its name is
+// read, so not-strict and name never occur together (TestFragmentReasonCombinations); the recording is a function of the bytes and
 // the declared directories, so reading twice gives the same record.
 func TestFragmentReasonsBoundedAndDeterministic(t *testing.T) {
 	order := []string{notStrict, notUnderDir, notListed}
@@ -150,5 +152,59 @@ func TestFragmentReasonsOrdering(t *testing.T) {
 		if reasons[i] != wantReason {
 			t.Fatalf("%s: reason %q, want %q", p, reasons[i], wantReason)
 		}
+	}
+}
+
+// The combinations the scan really records: never more than two codes, and
+// never not-strict together with the name code.
+func TestFragmentReasonCombinations(t *testing.T) {
+	seen := map[string]bool{}
+	for _, c := range fragmentReasonCases {
+		_, proof := fragmentPair(t, c.path, c.file)
+		f := findingOf(proof.To.Scan, c.path)
+		if f == nil {
+			t.Fatalf("%s: no finding", c.name)
+		}
+		parts := strings.Split(f.Reason, "+")
+		if len(parts) > 2 {
+			t.Fatalf("%s: %d codes in %q", c.name, len(parts), f.Reason)
+		}
+		if slices.Contains(parts, notStrict) && slices.Contains(parts, notListed) {
+			t.Fatalf("%s: not-strict with the name code: %q", c.name, f.Reason)
+		}
+		seen[f.Reason] = true
+	}
+	want := []string{ReasonFragment, notStrict, notStrict + "+" + notUnderDir, notUnderDir, notListed, notUnderDir + "+" + notListed}
+	for _, w := range want {
+		if !seen[w] {
+			t.Fatalf("combination %q not exercised: %v", w, seen)
+		}
+	}
+	if len(seen) != len(want) {
+		t.Fatalf("unexpected combinations: %v", seen)
+	}
+}
+
+// An accepted transformer configuration carries its own code, not the one
+// for a file that defines no definition, and does not block.
+func TestKustomizeConfigReason(t *testing.T) {
+	alpha := crd("Alpha", "v1beta1", "v1")
+	files := map[string]string{"deploy/kustomization.yaml": synthKustomization, "deploy/kustomizeconfig.yaml": kustomizeConfig}
+	p, proof := classPair(t, alpha, alpha, files, files)
+	if p.Status != extract.PairDerived || proof.Completeness == nil || !proof.Completeness.Attestable {
+		t.Fatalf("outcome changed: %s %q", p.Status, p.Reason)
+	}
+	for _, inv := range []*Inventory{proof.From, proof.To} {
+		f := findingOf(inv.Scan, "deploy/kustomizeconfig.yaml")
+		if f == nil || f.Class != ClassKustomizeConfig || f.Reason != ReasonKustomizeConfig || f.blocks() {
+			t.Fatalf("%s: finding %+v", inv.Tag, f)
+		}
+	}
+	// A refused configuration keeps its own, different code.
+	bad := map[string]string{"deploy/kustomization.yaml": synthKustomization, "deploy/kustomizeconfig.yaml": strings.Replace(kustomizeConfig, "path: spec/conversion/webhook/clientConfig/service/namespace", "path: spec/versions/name", 1)}
+	_, proof = classPair(t, alpha, alpha, bad, bad)
+	f := findingOf(proof.To.Scan, "deploy/kustomizeconfig.yaml")
+	if f == nil || f.Reason != ReasonConfigRefused || !f.blocks() {
+		t.Fatalf("refused configuration: %+v", f)
 	}
 }
