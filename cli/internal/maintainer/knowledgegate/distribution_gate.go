@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/buildidentity"
@@ -63,8 +64,10 @@ type ProviderDeriveInput struct {
 	Identity distribution.Record
 	// Sources are the excerpts the head record cites.
 	Sources []constraintengine.SourceEvidence
-	// Read returns the bytes of a committed file at a revision; the cited
-	// revisions have been checked by the gate.
+	// Read returns the bytes of a committed file at a revision. The gate
+	// wraps it: only the (revision, path) pairs the record cites can be
+	// read, anything else is refused with ErrUncitedRead, and every read is
+	// recorded. The cited revisions have been checked by the gate.
 	Read     providerexcerpt.Reader
 	Manifest providerexcerpt.Manifest
 	// DerivedAt and ValidUntil are the head record's own, which the record
@@ -93,6 +96,70 @@ func (o Options) providerDerivers() map[string]ProviderDeriver {
 		return o.derivers
 	}
 	return compiledProviderDerivers
+}
+
+// ErrUncitedRead is joined to the error of a deriver that tried to read a
+// file the record does not cite (another path, another revision, a path that
+// is not spelled exactly as cited).
+var ErrUncitedRead = errors.New("a deriver may read only the excerpts its record cites")
+
+// citedReader lets a deriver read exactly the cited (revision, path) pairs.
+// It records every read, allowed or not, and remembers any refusal: a deriver
+// that swallows the refusal still fails the record.
+type citedReader struct {
+	mu      sync.Mutex
+	closed  bool
+	allowed map[providerexcerpt.Cite]bool
+	read    providerexcerpt.Reader
+	reads   []providerexcerpt.Cite
+	refused []providerexcerpt.Cite
+}
+
+func newCitedReader(sources []constraintengine.SourceEvidence, read providerexcerpt.Reader) (*citedReader, error) {
+	cites, err := providerexcerpt.CitedReads(sources)
+	if err != nil {
+		return nil, err
+	}
+	c := &citedReader{allowed: map[providerexcerpt.Cite]bool{}, read: read}
+	for _, ct := range cites {
+		c.allowed[ct] = true
+	}
+	return c, nil
+}
+
+// Read is the providerexcerpt.Reader handed to the deriver.
+func (c *citedReader) Read(revision, path string) ([]byte, error) {
+	ct := providerexcerpt.Cite{Revision: revision, Path: path}
+	c.mu.Lock()
+	c.reads = append(c.reads, ct)
+	// After check() the reader is closed: a stashed Read called later (for
+	// example from a goroutine) is refused and recorded, never served.
+	ok := c.allowed[ct] && !c.closed
+	if !ok {
+		c.refused = append(c.refused, ct)
+	}
+	c.mu.Unlock()
+	if !ok {
+		return nil, fmt.Errorf("read of %s at %s: %w", logSafe(path), logSafe(revision), ErrUncitedRead)
+	}
+	return c.read(revision, path)
+}
+
+// check compares the reads to the citations: any read outside them refuses.
+func (c *citedReader) check() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.closed = true
+	if len(c.refused) > 0 {
+		ct := c.refused[0]
+		return fmt.Errorf("the deriver read %s at %s: %w", logSafe(ct.Path), logSafe(ct.Revision), ErrUncitedRead)
+	}
+	for _, ct := range c.reads {
+		if !c.allowed[ct] {
+			return fmt.Errorf("the deriver read %s at %s: %w", logSafe(ct.Path), logSafe(ct.Revision), ErrUncitedRead)
+		}
+	}
+	return nil
 }
 
 // ExcerptStore is where the gate reads committed excerpts. A nil store
@@ -180,14 +247,27 @@ func distributionResidue(raw []byte) ([]byte, error) {
 		return nil, err
 	}
 	if !present {
-		return canonicalOf(map[string]any{"applicability": []any{}}), nil
+		return encodeResidue(map[string]any{"applicability": []any{}})
 	}
 	generic, err := decodeGeneric(section)
 	if err != nil {
 		return nil, err
 	}
 	delete(generic, "records")
-	return canonicalOf(generic), nil
+	return encodeResidue(generic)
+}
+
+// encodeResidue canonicalises a residue; an encoding failure is an error, never
+// a nil residue (two failed sides would compare equal).
+func encodeResidue(v any) ([]byte, error) {
+	raw, err := extract.Canonical(v)
+	if err != nil {
+		return nil, err
+	}
+	if len(raw) == 0 {
+		return nil, errors.New("the distributions residue encodes to nothing")
+	}
+	return raw, nil
 }
 
 // providerFields are the members of a distribution record the deriver owns.
@@ -208,9 +288,39 @@ func hasProviderFacts(d *distribution.Record) bool {
 	return d.Lifecycle != nil || d.Channels != nil || d.Deprecations != nil
 }
 
+// ErrApplicabilityChange is joined to the refusal of a provider record change
+// whose pack also adds or changes an applicability statement. A statement
+// changes an evaluation outcome, so no provider change carries one: the first
+// introduction of a distribution record carries records only, and later
+// changes leave the statements exactly as the base has them.
+var ErrApplicabilityChange = errors.New("applicability statements are not admitted through the provider gate")
+
+// applicabilityUnchanged refuses unless the head's applicability statements
+// equal the base's (a pack without the section has none), whatever the record
+// change is. A missing pack on either side refuses.
+func applicabilityUnchanged(base, head *loadedPack) error {
+	if base == nil || head == nil {
+		return errors.Join(ErrApplicabilityChange, errors.New("the base or head pack is missing"))
+	}
+	baseResidue := base.DistResidue
+	if !base.Present {
+		var err error
+		if baseResidue, err = encodeResidue(map[string]any{"applicability": []any{}}); err != nil {
+			return errors.Join(ErrApplicabilityChange, err)
+		}
+	}
+	if len(baseResidue) == 0 || len(head.DistResidue) == 0 {
+		return errors.Join(ErrApplicabilityChange, errors.New("a distributions residue could not be encoded: the statements cannot be compared"))
+	}
+	if !bytes.Equal(baseResidue, head.DistResidue) {
+		return errors.Join(ErrApplicabilityChange, errors.New("the record change adds, removes or changes an applicability statement: statements are never part of a provider change"))
+	}
+	return nil
+}
+
 // distributionPre runs the checks of a distribution record change that need
 // no excerpt. base is the pack of the base.
-func distributionPre(c *Change, base *loadedPack, opts Options) error {
+func distributionPre(c *Change, base, head *loadedPack, opts Options) error {
 	h := c.rhead
 	if h == nil || h.dist == nil {
 		return errors.New("a distribution record is not removed through the gate")
@@ -239,6 +349,9 @@ func distributionPre(c *Change, base *loadedPack, opts Options) error {
 		return errors.New("only a mechanical distribution record is changed through the gate: its base record is not")
 	case !bytes.Equal(identityCanonical(c.rbase), identityCanonical(h)):
 		return errors.New("the record differs from its base outside the provider fields (identity, control plane or mapping): not admitted")
+	}
+	if err := applicabilityUnchanged(base, head); err != nil {
+		return err
 	}
 	return freshRecordDerivation(h, opts.Now)
 }
@@ -309,10 +422,17 @@ func rederiveDistribution(opts Options, store *ExcerptStore, manifest providerex
 	if err1 != nil || err2 != nil {
 		return errors.New("derivedAt or validUntil is not a time")
 	}
+	reader, err := newCitedReader(sources, store.Read)
+	if err != nil {
+		return err
+	}
 	want, err := deriver.Derive(ProviderDeriveInput{
 		Identity: distribution.Record{Distribution: h.dist.Distribution, ControlPlane: h.dist.ControlPlane, KubernetesMapping: h.dist.KubernetesMapping},
-		Sources:  sources, Read: store.Read, Manifest: manifest, DerivedAt: derivedAt, ValidUntil: validUntil,
+		Sources:  sources, Read: reader.Read, Manifest: manifest, DerivedAt: derivedAt, ValidUntil: validUntil,
 	})
+	if cerr := reader.check(); cerr != nil {
+		return errors.Join(cerr, err)
+	}
 	if err != nil {
 		return err
 	}

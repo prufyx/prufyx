@@ -219,7 +219,7 @@ func provDecide(t *testing.T, f *provFix, base, head *loadedPack, approval []byt
 		if c.Section != sectionDistributions {
 			t.Fatalf("unexpected change %+v", c)
 		}
-		if err := distributionPre(c, base, opts); err != nil {
+		if err := distributionPre(c, base, head, opts); err != nil {
 			c.fail(err.Error())
 			continue
 		}
@@ -860,5 +860,200 @@ func TestDistributionsApprovalIsWiredIntoTheApprovalCommands(t *testing.T) {
 	r = runApproval(t, nil, signNow, append(append([]string{"verify"}, otherSubject...), "--approval", out)...)
 	if r.code == 0 {
 		t.Fatalf("verify of another introduction: %s", r.stdout)
+	}
+}
+
+// A deriver reads only the (revision, path) pairs its record cites. Anything
+// else is a typed refusal, even when the deriver swallows the error and still
+// returns the right record.
+func TestProviderDeriverReadsOnlyCitedExcerpts(t *testing.T) {
+	managed := distribution.ControlPlaneManaged
+	cited := providerexcerpt.Dir + "/" + provExcerptPath
+	build := func(t *testing.T, rev, path string, swallow bool) ([]*Change, map[string]bool, *provFix) {
+		f := newProvFix(t, provCommit, provGoodPin)
+		inner := provDeriver(provIdentity)
+		head := provPack(t, f.record(t, "eks", managed, nil, provDerivedAt, 30))
+		f.derivers = map[string]ProviderDeriver{provIdentity.ID: {Identity: provIdentity, Derive: func(in ProviderDeriveInput) (distribution.Record, error) {
+			r := rev
+			switch r {
+			case "":
+				r = f.baseSHA
+			case "later":
+				r = f.later
+			}
+			if _, err := in.Read(r, path); err != nil && !swallow {
+				return distribution.Record{}, err
+			}
+			return inner.Derive(in)
+		}}}
+		base := provPack(t)
+		changes, admitted := provDecide(t, f, base, head, signDistributions(t, f.key, base, head))
+		return changes, admitted, f
+	}
+	t.Run("the cited pair is read", func(t *testing.T) {
+		changes, admitted, _ := build(t, "", cited, false)
+		requireAdmitted(t, changes)
+		if !admitted["cncf"] {
+			t.Fatal("not admitted")
+		}
+	})
+	for name, tc := range map[string]struct{ rev, path string }{
+		"an uncited path":            {"", "other.txt"},
+		"an uncited excerpt":         {"", providerexcerpt.Dir + "/eks/eks-1-34.txt"},
+		"a path traversal":           {"", providerexcerpt.Dir + "/eks/../eks/eks-1-33.txt"},
+		"a traversal out of the dir": {"", providerexcerpt.Dir + "/../other.txt"},
+		"a different revision":       {"later", cited},
+		"a symlink-like path":        {"", providerexcerpt.Dir + "/eks/./eks-1-33.txt"},
+		"a trailing separator":       {"", cited + "/"},
+		"a case variant":             {"", strings.ToUpper(cited)},
+	} {
+		for _, swallow := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s swallowed=%v", name, swallow), func(t *testing.T) {
+				changes, admitted, _ := build(t, tc.rev, tc.path, swallow)
+				requireRefused(t, changes, ErrUncitedRead.Error())
+				if admitted["cncf"] {
+					t.Fatal("admitted")
+				}
+			})
+		}
+	}
+}
+
+func TestCitedReaderRecordsEveryRead(t *testing.T) {
+	f := newProvFix(t, provCommit, provGoodPin)
+	cr, err := newCitedReader(f.source(""), f.store.Read)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cited := providerexcerpt.Dir + "/" + provExcerptPath
+	if _, err := cr.Read(f.baseSHA, cited); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cr.Read(f.later, cited); !errors.Is(err, ErrUncitedRead) {
+		t.Fatalf("%v", err)
+	}
+	if len(cr.reads) != 2 || len(cr.refused) != 1 || cr.check() == nil {
+		t.Fatalf("reads %v refused %v", cr.reads, cr.refused)
+	}
+	bad := f.source("")
+	bad[0].URL = "https://example.com/x"
+	if _, err := newCitedReader(bad, f.store.Read); err == nil {
+		t.Fatal("a source that cites no excerpt of this store must refuse")
+	}
+}
+
+// The first introduction of a distribution record carries records only, and a
+// later change never adds, removes or changes an applicability statement: the
+// record change itself is refused with a typed reason, not only the member.
+func TestProviderRecordChangeRefusesApplicabilityStatements(t *testing.T) {
+	f := newProvFix(t, provCommit, provGoodPin)
+	rec := f.record(t, "eks", distribution.ControlPlaneManaged, nil, provDerivedAt, 30)
+	older := f.record(t, "eks", distribution.ControlPlaneManaged, nil, provDerivedAt.Add(-20*time.Hour), 30)
+	statement := distribution.Applicability{Distribution: "eks", Family: distribution.FamilyRemovedServedGVK, Status: distribution.StatusApplies, Evidence: rec.Evidence}
+	changed := statement
+	changed.Status = distribution.StatusNotApplicable
+	section := func(r distribution.Record, apps ...distribution.Applicability) distribution.Section {
+		if apps == nil {
+			apps = []distribution.Applicability{}
+		}
+		return distribution.Section{Records: []distribution.Record{r}, Applicability: apps}
+	}
+	for name, tc := range map[string]struct{ base, head *loadedPack }{
+		"introduced with a statement": {provPack(t), provPackSection(t, section(rec, statement))},
+		"a statement added":           {provPack(t, older), provPackSection(t, section(rec, statement))},
+		"a statement removed":         {provPackSection(t, section(older, statement)), provPackSection(t, section(rec))},
+		"a statement changed":         {provPackSection(t, section(older, statement)), provPackSection(t, section(rec, changed))},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := applicabilityUnchanged(tc.base, tc.head); !errors.Is(err, ErrApplicabilityChange) {
+				t.Fatalf("%v", err)
+			}
+			changes, admitted := provDecide(t, f, tc.base, tc.head, nil)
+			sawRecord := false
+			for _, c := range changes {
+				if c.Section != sectionDistributions {
+					continue
+				}
+				sawRecord = true
+				if c.OK || !strings.Contains(c.Detail, ErrApplicabilityChange.Error()) {
+					t.Fatalf("record change %+v", c)
+				}
+			}
+			if !sawRecord {
+				t.Fatalf("no record change: %+v", changes)
+			}
+			if admitted["cncf"] {
+				t.Fatal("admitted")
+			}
+		})
+	}
+	// Unchanged statements ride along: a renewal that keeps them is not
+	// refused for them.
+	if err := applicabilityUnchanged(provPackSection(t, section(older, statement)), provPackSection(t, section(rec, statement))); err != nil {
+		t.Fatalf("%v", err)
+	}
+	if err := applicabilityUnchanged(nil, provPack(t)); !errors.Is(err, ErrApplicabilityChange) {
+		t.Fatalf("%v", err)
+	}
+}
+
+// Two residues that failed to encode are not "equal": the gate refuses.
+func TestApplicabilityUnchangedRefusesUnencodableResidues(t *testing.T) {
+	for name, tc := range map[string]struct{ base, head *loadedPack }{
+		"both nil":  {&loadedPack{Present: true}, &loadedPack{Present: true}},
+		"head nil":  {&loadedPack{Present: true, DistResidue: []byte(`{"applicability":[]}`)}, &loadedPack{Present: true}},
+		"base nil":  {&loadedPack{Present: true}, &loadedPack{Present: true, DistResidue: []byte(`{"applicability":[]}`)}},
+		"both zero": {&loadedPack{Present: true, DistResidue: []byte{}}, &loadedPack{Present: true, DistResidue: []byte{}}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := applicabilityUnchanged(tc.base, tc.head); !errors.Is(err, ErrApplicabilityChange) {
+				t.Fatalf("got %v", err)
+			}
+		})
+	}
+	if _, err := encodeResidue(map[string]any{"x": make(chan int)}); err == nil {
+		t.Fatal("a value that cannot be encoded must be an error, not a nil residue")
+	}
+}
+
+// A deriver that keeps Read and calls it after Derive returned gets a typed
+// refusal, and the call is recorded.
+func TestCitedReaderRefusesReadsAfterClose(t *testing.T) {
+	f := newProvFix(t, provCommit, provGoodPin)
+	cr, err := newCitedReader(f.source(""), f.store.Read)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cited := providerexcerpt.Dir + "/" + provExcerptPath
+	stash := cr.Read
+	if err := cr.check(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := stash(f.baseSHA, cited); !errors.Is(err, ErrUncitedRead) {
+		t.Fatalf("a cited read after close must be refused: %v", err)
+	}
+	if len(cr.refused) != 1 || cr.check() == nil {
+		t.Fatalf("refused %v", cr.refused)
+	}
+}
+
+func TestProviderDeriverStashedReadFailsAfterDerive(t *testing.T) {
+	managed := distribution.ControlPlaneManaged
+	cited := providerexcerpt.Dir + "/" + provExcerptPath
+	f := newProvFix(t, provCommit, provGoodPin)
+	inner := provDeriver(provIdentity)
+	var stash providerexcerpt.Reader
+	head := provPack(t, f.record(t, "eks", managed, nil, provDerivedAt, 30))
+	f.derivers = map[string]ProviderDeriver{provIdentity.ID: {Identity: provIdentity, Derive: func(in ProviderDeriveInput) (distribution.Record, error) {
+		stash = in.Read
+		return inner.Derive(in)
+	}}}
+	base := provPack(t)
+	_, admitted := provDecide(t, f, base, head, signDistributions(t, f.key, base, head))
+	if !admitted["cncf"] {
+		t.Fatal("not admitted")
+	}
+	if _, err := stash(f.baseSHA, cited); !errors.Is(err, ErrUncitedRead) {
+		t.Fatalf("a read after Derive returned must be refused: %v", err)
 	}
 }

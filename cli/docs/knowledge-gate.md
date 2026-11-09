@@ -897,7 +897,15 @@ that admits it:
    (`cli/knowledge/oldest-supported-client.txt`) names a version at or above the
    first release that reads provider facts (a build-time constant, currently
    `v0.1.0-beta.1`), so no provider fact is admitted while an older client is
-   still supported.
+   still supported;
+5. the deriver reads only the files the record cites: the gate hands it a
+   reader that serves exactly the cited (revision, path) pairs and records
+   every read. Any other read (another path, a path with `..` or `.`, another
+   revision) refuses the record, even if the deriver ignores the error;
+6. the pack's applicability statements equal the base's. The first
+   introduction of a distributions section carries records only; a statement
+   added, removed or changed beside a record change refuses that record
+   change.
 
 A removed record, a record for a distribution the base's section lacks, a
 reviewed record, a record of an unknown deriver and a missing excerpt store
