@@ -791,6 +791,10 @@ func crossCheckAttestation(out *extract.Output, floor string, a lineattest.LineA
 				// The recorded ledger is authoritative too (extract.CheckPairLedger).
 				return fmt.Errorf("pair %s->%s: the extractor withheld %d item(s) on line %s and does not attest it", pair.From, pair.To, len(pair.Ledger), a.Line)
 			}
+			if pair.Drafts > 0 || extract.CheckPairDrafts(*pair) != nil {
+				// A pair that produced drafts is never attested (DRAFT_ONLY).
+				return fmt.Errorf("pair %s->%s: the extractor produced %d draft(s) on line %s and does not attest it", pair.From, pair.To, pair.Drafts, a.Line)
+			}
 		}
 	}
 	if pair == nil {

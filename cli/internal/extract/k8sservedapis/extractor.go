@@ -92,6 +92,11 @@ func New(_ int) *Extractor {
 // ID implements extract.Extractor.
 func (x *Extractor) ID() string { return ID }
 
+// MechanicalFamilies implements extract.MechanicalEmitter.
+func (x *Extractor) MechanicalFamilies() []string {
+	return []string{lineattest.FamilyKubernetesRemovedServedGVK}
+}
+
 // Version implements extract.Extractor.
 func (x *Extractor) Version() string { return Version }
 
@@ -595,7 +600,7 @@ func (x *Extractor) Extract(_ context.Context, r extract.PinnedReader, pair extr
 		ids = []string{}
 	}
 	res.Attestations = []extract.AttestationCandidate{{
-		Component: purl, Line: proof.TargetLine, FactFamily: lineattest.FamilyKubernetesRemovedServedGVK, RuleIDs: ids,
+		Basis: extract.BasisMechanical, Component: purl, Line: proof.TargetLine, FactFamily: lineattest.FamilyKubernetesRemovedServedGVK, RuleIDs: ids,
 		Sources: []extract.SourceRef{
 			{ID: "openapi-" + slug(pair.From), Repo: pair.Repo, Commit: pair.FromCommit, Path: specPath},
 			{ID: "openapi-" + slug(pair.To), Repo: pair.Repo, Commit: pair.ToCommit, Path: specPath},
@@ -709,6 +714,7 @@ func candidate(pair extract.VersionPair, line int, rp removalProof, u useSpan, s
 	}
 	nextMinor := fmt.Sprintf("1.%d.0", line+1)
 	return extract.Candidate{
+		Basis:       extract.BasisMechanical,
 		Project:     project,
 		Description: fmt.Sprintf("Kubernetes 1.%d stops serving %s through %s. Derived from the API lifecycle declarations at %s and the OpenAPI specifications of both release tags. This exact rendered apply-set check does not validate general manifest schema, CRDs, persisted objects, runtime clients, or API server configuration.", line, kinds, gvName, pair.FromTag),
 		RequiredFacts: []extract.Fact{{

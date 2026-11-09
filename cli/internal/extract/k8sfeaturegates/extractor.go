@@ -92,6 +92,11 @@ func New(concurrency int) *Extractor {
 // ID implements extract.Extractor.
 func (x *Extractor) ID() string { return ID }
 
+// MechanicalFamilies implements extract.MechanicalEmitter.
+func (x *Extractor) MechanicalFamilies() []string {
+	return []string{extract.FamilyFeatureGatesSet}
+}
+
 // Version implements extract.Extractor.
 func (x *Extractor) Version() string { return Version }
 
@@ -302,6 +307,7 @@ func candidate(pair extract.VersionPair, comp Component, part int, chunk []*gate
 		gates = "gates"
 	}
 	return extract.Candidate{
+		Basis:       extract.BasisMechanical,
 		Project:     project,
 		Description: fmt.Sprintf("Kubernetes %s no longer declares the %d listed feature %s that %s declared; %s refuses to start when a feature-gate setting names an unrecognised gate. Derived from the complete feature-gate registries at both release tags.", pair.To, len(members), gates, pair.From, comp.Name),
 		RequiredFacts: []extract.Fact{{

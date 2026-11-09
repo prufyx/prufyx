@@ -768,7 +768,7 @@
       "properties": {
         "schema": {
           "type": "string",
-          "const": "prufyx.io/extractor-run-manifest/v1"
+          "const": "prufyx.io/extractor-run-manifest/v2"
         },
         "repo": {
           "$ref": "#/$defs/repo"

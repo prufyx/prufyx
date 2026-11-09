@@ -47,10 +47,11 @@ func (n noComponent) Pairs(ix ReleaseIndex) []VersionPair { return n.x.Pairs(ix)
 func (n noComponent) Extract(ctx context.Context, r PinnedReader, p VersionPair) (Extraction, error) {
 	return n.x.Extract(ctx, r, p)
 }
-func (n noComponent) AttestedFamilies() []string { return n.x.AttestedFamilies() }
+func (n noComponent) AttestedFamilies() []string   { return n.x.AttestedFamilies() }
+func (n noComponent) MechanicalFamilies() []string { return n.x.MechanicalFamilies() }
 
 func attestCandidate(component string) AttestationCandidate {
-	return AttestationCandidate{Component: component, Line: "2.0", FactFamily: lineattest.FamilyKubernetesRemovedServedGVK,
+	return AttestationCandidate{Basis: BasisMechanical, Component: component, Line: "2.0", FactFamily: lineattest.FamilyKubernetesRemovedServedGVK,
 		RuleIDs: []string{"example.toy.1-0-0-to-2-0-0"},
 		Sources: []SourceRef{{ID: "toy-declaration", Repo: repoRef0(), Commit: testCommit, Path: "decl.go", StartLine: 3, EndLine: 3}}}
 }

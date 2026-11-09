@@ -125,6 +125,11 @@ func (x *Extractor) SourceFiles() (string, fs.FS) {
 // Applies implements extract.Extractor.
 func (x *Extractor) Applies(repo extract.RepoRef) bool { return repo.Key == x.target.Repo }
 
+// MechanicalFamilies implements extract.MechanicalEmitter.
+func (x *Extractor) MechanicalFamilies() []string {
+	return []string{lineattest.FamilyCustomResourceVersions}
+}
+
 // AttestedFamilies implements extract.LineAttester: the custom-resource
 // version family, for a target that attests.
 func (x *Extractor) AttestedFamilies() []string {
@@ -1082,7 +1087,7 @@ func (x *Extractor) attestation(pair extract.VersionPair, fromLine, toLine *rele
 		return out
 	}
 	return &extract.AttestationCandidate{
-		Component: x.target.Component, Line: toLine.key(), FactFamily: lineattest.FamilyCustomResourceVersions, RuleIDs: ids,
+		Basis: extract.BasisMechanical, Component: x.target.Component, Line: toLine.key(), FactFamily: lineattest.FamilyCustomResourceVersions, RuleIDs: ids,
 		Releases: &lineattest.Releases{From: releases(fromLine), To: releases(toLine)},
 		Sources: []extract.SourceRef{
 			{ID: "crds-" + slug(pair.From), Repo: pair.Repo, Commit: pair.FromCommit, Path: fromFile},
@@ -1913,6 +1918,7 @@ func (x *Extractor) candidate(pair extract.VersionPair, fromLine, toLine *releas
 		rng = lineRange(fromLine, toLine, fromSource, toSource)
 	}
 	return extract.Candidate{
+		Basis:       extract.BasisMechanical,
 		Project:     tg.Project,
 		Description: what + " " + basis + " Storage versions, stored objects, conversion and schema changes are not checked.",
 		RequiredFacts: []extract.Fact{{

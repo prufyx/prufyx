@@ -35,7 +35,7 @@ func (x ledgerToy) Extract(_ context.Context, r PinnedReader, p VersionPair) (Ex
 	}
 	e := Extraction{Proof: map[string]any{}, Ledger: x.ledger}
 	if x.claim {
-		e.Attestations = []AttestationCandidate{{Component: attestComponent, Line: "2.0", FactFamily: lineattest.FamilyKubernetesRemovedServedGVK,
+		e.Attestations = []AttestationCandidate{{Basis: BasisMechanical, Component: attestComponent, Line: "2.0", FactFamily: lineattest.FamilyKubernetesRemovedServedGVK,
 			Sources: []SourceRef{{ID: "toy-declaration", Repo: p.Repo, Commit: p.FromCommit, Path: "decl.go", StartLine: 3, EndLine: 3}}}}
 	}
 	return e, nil

@@ -396,7 +396,7 @@ func (x *Extractor) attestation(r extract.PinnedReader, p extract.VersionPair, a
 	} else if n > maxCited {
 		return extract.AttestationCandidate{}, errTooManySources
 	}
-	c := extract.AttestationCandidate{Component: x.component, Line: line, FactFamily: x.family, RuleIDs: []string{}}
+	c := extract.AttestationCandidate{Basis: extract.BasisMechanical, Component: x.component, Line: line, FactFamily: x.family, RuleIDs: []string{}}
 	for _, side := range []struct {
 		prefix, commit string
 		files          []string

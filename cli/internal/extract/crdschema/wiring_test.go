@@ -89,7 +89,7 @@ func (x wiredExtractor) Extract(ctx context.Context, r extract.PinnedReader, p e
 		return extract.Extraction{}, err
 	}
 	e.Attestations = []extract.AttestationCandidate{{
-		Component: wiredComponent, Line: "2.0", FactFamily: lineattest.FamilyKubernetesRemovedServedGVK, RuleIDs: []string{},
+		Basis: extract.BasisMechanical, Component: wiredComponent, Line: "2.0", FactFamily: lineattest.FamilyKubernetesRemovedServedGVK, RuleIDs: []string{},
 		Sources: []extract.SourceRef{{ID: "crd", Repo: p.Repo, Commit: p.FromCommit, Path: from[0]}},
 	}}
 	return e, nil
