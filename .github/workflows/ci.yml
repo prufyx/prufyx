@@ -514,7 +514,7 @@ jobs:
         # binary is pinned by version and verified against a hard-coded digest.
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --location --retry 5 --retry-all-errors --retry-delay 15 --connect-timeout 20 --max-time 180 -o staticcheck_linux_amd64.tar.gz "https://github.com/dominikh/go-tools/releases/download/${STATICCHECK_VERSION}/staticcheck_linux_amd64.tar.gz"
+          curl --fail --silent --show-error --location --retry 5 --retry-all-errors --retry-delay 15 --connect-timeout 20 --max-time 180 --retry-max-time 300 -o staticcheck_linux_amd64.tar.gz "https://github.com/dominikh/go-tools/releases/download/${STATICCHECK_VERSION}/staticcheck_linux_amd64.tar.gz"
           echo "${STATICCHECK_SHA256}  staticcheck_linux_amd64.tar.gz" | sha256sum -c -
           tar -xzf staticcheck_linux_amd64.tar.gz staticcheck/staticcheck
           install -m 0755 staticcheck/staticcheck /usr/local/bin/staticcheck
@@ -568,7 +568,7 @@ jobs:
   gitleaks:
     name: Secret scan (gitleaks)
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 20
     env:
       GITLEAKS_VERSION: 8.30.1
       GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
@@ -582,7 +582,7 @@ jobs:
         run: |
           set -euo pipefail
           # --fail: an HTTP error page is an error, never a file. The digest is still verified before extraction.
-          curl --fail --silent --show-error --location --retry 5 --retry-all-errors --retry-delay 15 --connect-timeout 20 --max-time 180 -o "gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl --fail --silent --show-error --location --retry 5 --retry-all-errors --retry-delay 15 --connect-timeout 20 --max-time 180 --retry-max-time 300 -o "gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
           echo "${GITLEAKS_SHA256}  gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | sha256sum -c -
           tar -xzf "gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" gitleaks
           install -m 0755 gitleaks /usr/local/bin/gitleaks
