@@ -311,7 +311,7 @@ community projects that hold CRD knowledge.
 ## Coverage
 
 <!-- coverage:begin -->
-Generated on 2026-11-10 by `scripts/readme-coverage.sh` (do not edit this block by hand). Release lines captured 2026-10-31, evaluated on 2026-11-07. 9 projects were appended to the snapshot with their own capture dates; the block is evaluated on 2026-11-10 (the later of the snapshot's evaluation date and every capture date).
+Generated on 2026-11-12 by `scripts/readme-coverage.sh` (do not edit this block by hand). Release lines captured 2026-10-31, evaluated on 2026-11-07. 9 projects were appended to the snapshot with their own capture dates; the date clock of the block is 2026-11-10 (the later of the snapshot's evaluation date and every capture date). The block is evaluated at 2026-11-12T14:51:24Z, the time of the newest line attestation, which is later than the date clock above.
 
 | Executable rules | Count |
 | --- | --- |
