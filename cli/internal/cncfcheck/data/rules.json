@@ -22301,6 +22301,296 @@
       }
     },
     {
+      "component": "pkg:github/chaosblade-io/chaosblade-operator",
+      "line": "1.4",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.3.0",
+            "commit": "0ca4d68cbfb0ab6af42949212b17954a3cd5787b"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.4.0",
+            "commit": "207759888faec2ded01482564cf8eb73907b81b4"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.chaosblade-operator",
+          "version": "2.11.0",
+          "codeDigest": "sha256:d386004b65b995b944bbd74054216a8f4088aeea4a5dc30d517ae61b3bca7534"
+        },
+        "derivedAt": "2026-11-09T18:14:36Z",
+        "reviewedAt": "2026-11-09T18:14:36Z",
+        "validUntil": "2027-02-07T18:14:36Z",
+        "sources": [
+          {
+            "id": "crds-1-3-0",
+            "url": "https://github.com/chaosblade-io/chaosblade-operator/blob/0ca4d68cbfb0ab6af42949212b17954a3cd5787b/deploy/crds/chaosblade.io_chaosblades_crd.yaml",
+            "revision": "0ca4d68cbfb0ab6af42949212b17954a3cd5787b",
+            "contentDigest": "sha256:c6c810e658cd5008e7f23790cf580c0205d5d5dc4afce119d2881d8671fd5192",
+            "startLine": 1,
+            "endLine": 155
+          },
+          {
+            "id": "crds-1-4-0",
+            "url": "https://github.com/chaosblade-io/chaosblade-operator/blob/207759888faec2ded01482564cf8eb73907b81b4/deploy/crds/chaosblade.io_chaosblades_crd.yaml",
+            "revision": "207759888faec2ded01482564cf8eb73907b81b4",
+            "contentDigest": "sha256:c6c810e658cd5008e7f23790cf580c0205d5d5dc4afce119d2881d8671fd5192",
+            "startLine": 1,
+            "endLine": 155
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/chaosblade-io/chaosblade-operator",
+      "line": "1.5",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.4.0",
+            "commit": "207759888faec2ded01482564cf8eb73907b81b4"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.5.0",
+            "commit": "db9cecb4311e4d48b7fdcc01403876a53a750703"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.chaosblade-operator",
+          "version": "2.11.0",
+          "codeDigest": "sha256:d386004b65b995b944bbd74054216a8f4088aeea4a5dc30d517ae61b3bca7534"
+        },
+        "derivedAt": "2026-11-09T18:14:36Z",
+        "reviewedAt": "2026-11-09T18:14:36Z",
+        "validUntil": "2027-02-07T18:14:36Z",
+        "sources": [
+          {
+            "id": "crds-1-4-0",
+            "url": "https://github.com/chaosblade-io/chaosblade-operator/blob/207759888faec2ded01482564cf8eb73907b81b4/deploy/crds/chaosblade.io_chaosblades_crd.yaml",
+            "revision": "207759888faec2ded01482564cf8eb73907b81b4",
+            "contentDigest": "sha256:c6c810e658cd5008e7f23790cf580c0205d5d5dc4afce119d2881d8671fd5192",
+            "startLine": 1,
+            "endLine": 155
+          },
+          {
+            "id": "crds-1-5-0",
+            "url": "https://github.com/chaosblade-io/chaosblade-operator/blob/db9cecb4311e4d48b7fdcc01403876a53a750703/deploy/crds/chaosblade.io_chaosblades_crd.yaml",
+            "revision": "db9cecb4311e4d48b7fdcc01403876a53a750703",
+            "contentDigest": "sha256:2800f5454e0a9225259ddbfeb5b7b31e16833d573a4ff2d94a633564863cffca",
+            "startLine": 1,
+            "endLine": 154
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/chaosblade-io/chaosblade-operator",
+      "line": "1.6",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.5.0",
+            "commit": "db9cecb4311e4d48b7fdcc01403876a53a750703"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.6.0",
+            "commit": "b574e20a22b1927d6bbe37bef839625687c40067"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.chaosblade-operator",
+          "version": "2.11.0",
+          "codeDigest": "sha256:d386004b65b995b944bbd74054216a8f4088aeea4a5dc30d517ae61b3bca7534"
+        },
+        "derivedAt": "2026-11-09T18:14:36Z",
+        "reviewedAt": "2026-11-09T18:14:36Z",
+        "validUntil": "2027-02-07T18:14:36Z",
+        "sources": [
+          {
+            "id": "crds-1-5-0",
+            "url": "https://github.com/chaosblade-io/chaosblade-operator/blob/db9cecb4311e4d48b7fdcc01403876a53a750703/deploy/crds/chaosblade.io_chaosblades_crd.yaml",
+            "revision": "db9cecb4311e4d48b7fdcc01403876a53a750703",
+            "contentDigest": "sha256:2800f5454e0a9225259ddbfeb5b7b31e16833d573a4ff2d94a633564863cffca",
+            "startLine": 1,
+            "endLine": 154
+          },
+          {
+            "id": "crds-1-6-0",
+            "url": "https://github.com/chaosblade-io/chaosblade-operator/blob/b574e20a22b1927d6bbe37bef839625687c40067/deploy/crds/chaosblade.io_chaosblades_crd.yaml",
+            "revision": "b574e20a22b1927d6bbe37bef839625687c40067",
+            "contentDigest": "sha256:2800f5454e0a9225259ddbfeb5b7b31e16833d573a4ff2d94a633564863cffca",
+            "startLine": 1,
+            "endLine": 154
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/chaosblade-io/chaosblade-operator",
+      "line": "1.7",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.6.0",
+            "commit": "b574e20a22b1927d6bbe37bef839625687c40067"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.7.0",
+            "commit": "f3def73980c6618338f916505a0d66c7f4a5121c"
+          },
+          {
+            "version": "1.7.1",
+            "commit": "ede5157b2fce21fad877ac4d77b5e6f09d0a44a8"
+          },
+          {
+            "version": "1.7.2",
+            "commit": "11087a87ad1ba55c0044321bcbce70ff30c75fa1"
+          },
+          {
+            "version": "1.7.3",
+            "commit": "9d37bb42e3839bc41fdb91ff2428206a5f8fc64e"
+          },
+          {
+            "version": "1.7.4",
+            "commit": "9578dfba3832b0121494e5e62f67efaba4551225"
+          },
+          {
+            "version": "1.7.5",
+            "commit": "bf01b083f9b5213c8cf1f594eb3b6bff6be463e7"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.chaosblade-operator",
+          "version": "2.11.0",
+          "codeDigest": "sha256:d386004b65b995b944bbd74054216a8f4088aeea4a5dc30d517ae61b3bca7534"
+        },
+        "derivedAt": "2026-11-09T18:14:36Z",
+        "reviewedAt": "2026-11-09T18:14:36Z",
+        "validUntil": "2027-02-07T18:14:36Z",
+        "sources": [
+          {
+            "id": "crds-1-6-0",
+            "url": "https://github.com/chaosblade-io/chaosblade-operator/blob/b574e20a22b1927d6bbe37bef839625687c40067/deploy/crds/chaosblade.io_chaosblades_crd.yaml",
+            "revision": "b574e20a22b1927d6bbe37bef839625687c40067",
+            "contentDigest": "sha256:2800f5454e0a9225259ddbfeb5b7b31e16833d573a4ff2d94a633564863cffca",
+            "startLine": 1,
+            "endLine": 154
+          },
+          {
+            "id": "crds-1-7-0",
+            "url": "https://github.com/chaosblade-io/chaosblade-operator/blob/f3def73980c6618338f916505a0d66c7f4a5121c/deploy/crds/chaosblade.io_chaosblades_crd.yaml",
+            "revision": "f3def73980c6618338f916505a0d66c7f4a5121c",
+            "contentDigest": "sha256:2800f5454e0a9225259ddbfeb5b7b31e16833d573a4ff2d94a633564863cffca",
+            "startLine": 1,
+            "endLine": 154
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/chaosblade-io/chaosblade-operator",
+      "line": "1.8",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.7.0",
+            "commit": "f3def73980c6618338f916505a0d66c7f4a5121c"
+          },
+          {
+            "version": "1.7.1",
+            "commit": "ede5157b2fce21fad877ac4d77b5e6f09d0a44a8"
+          },
+          {
+            "version": "1.7.2",
+            "commit": "11087a87ad1ba55c0044321bcbce70ff30c75fa1"
+          },
+          {
+            "version": "1.7.3",
+            "commit": "9d37bb42e3839bc41fdb91ff2428206a5f8fc64e"
+          },
+          {
+            "version": "1.7.4",
+            "commit": "9578dfba3832b0121494e5e62f67efaba4551225"
+          },
+          {
+            "version": "1.7.5",
+            "commit": "bf01b083f9b5213c8cf1f594eb3b6bff6be463e7"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.8.0",
+            "commit": "e778bef0d9944b4ed70f39ee50e4b8f8fe1b069b"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.chaosblade-operator",
+          "version": "2.11.0",
+          "codeDigest": "sha256:d386004b65b995b944bbd74054216a8f4088aeea4a5dc30d517ae61b3bca7534"
+        },
+        "derivedAt": "2026-11-09T18:14:36Z",
+        "reviewedAt": "2026-11-09T18:14:36Z",
+        "validUntil": "2027-02-07T18:14:36Z",
+        "sources": [
+          {
+            "id": "crds-1-7-0",
+            "url": "https://github.com/chaosblade-io/chaosblade-operator/blob/f3def73980c6618338f916505a0d66c7f4a5121c/deploy/crds/chaosblade.io_chaosblades_crd.yaml",
+            "revision": "f3def73980c6618338f916505a0d66c7f4a5121c",
+            "contentDigest": "sha256:2800f5454e0a9225259ddbfeb5b7b31e16833d573a4ff2d94a633564863cffca",
+            "startLine": 1,
+            "endLine": 154
+          },
+          {
+            "id": "crds-1-8-0",
+            "url": "https://github.com/chaosblade-io/chaosblade-operator/blob/e778bef0d9944b4ed70f39ee50e4b8f8fe1b069b/deploy/crds/chaosblade.io_chaosblades_crd.yaml",
+            "revision": "e778bef0d9944b4ed70f39ee50e4b8f8fe1b069b",
+            "contentDigest": "sha256:2800f5454e0a9225259ddbfeb5b7b31e16833d573a4ff2d94a633564863cffca",
+            "startLine": 1,
+            "endLine": 154
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/cilium/cilium",
       "line": "1.16",
       "factFamily": "crd.custom_resource_versions",
@@ -23709,6 +23999,364 @@
       }
     },
     {
+      "component": "pkg:github/evryfs/github-actions-runner-operator",
+      "line": "0.7",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.6.0",
+            "commit": "442e89af4a63caaa70e5ed1815f26e508b369a60"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.7.0",
+            "commit": "455304998d9621a50676773142adf5f62038cf90"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.github-actions-runner-operator",
+          "version": "2.11.0",
+          "codeDigest": "sha256:38de48515589d424178e02cce9eb7068b1a639582817d21b90ac926efc183f60"
+        },
+        "derivedAt": "2026-11-09T18:15:23Z",
+        "reviewedAt": "2026-11-09T18:15:23Z",
+        "validUntil": "2027-02-07T18:15:23Z",
+        "sources": [
+          {
+            "id": "crds-0-6-0",
+            "url": "https://github.com/evryfs/github-actions-runner-operator/blob/442e89af4a63caaa70e5ed1815f26e508b369a60/config/crd/bases/garo.tietoevry.com_githubactionrunners.yaml",
+            "revision": "442e89af4a63caaa70e5ed1815f26e508b369a60",
+            "contentDigest": "sha256:ca09e69dfc6ff0f7752d9f615759386840c4ea09e05b883660a1e037e5e866f3",
+            "startLine": 1,
+            "endLine": 6364
+          },
+          {
+            "id": "crds-0-7-0",
+            "url": "https://github.com/evryfs/github-actions-runner-operator/blob/455304998d9621a50676773142adf5f62038cf90/config/crd/bases/garo.tietoevry.com_githubactionrunners.yaml",
+            "revision": "455304998d9621a50676773142adf5f62038cf90",
+            "contentDigest": "sha256:f61d969d118c20afecacd6811976a5b4ba947b9d7c372d7b8311a2967c7ee3b2",
+            "startLine": 1,
+            "endLine": 6427
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/evryfs/github-actions-runner-operator",
+      "line": "0.8",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.7.0",
+            "commit": "455304998d9621a50676773142adf5f62038cf90"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.8.0",
+            "commit": "386ba1ac2567849973d3f6b6bf104ca50f7423c6"
+          },
+          {
+            "version": "0.8.1",
+            "commit": "6c4dd70d4ab6dc192f5affcb0d15d16eeef5fb05"
+          },
+          {
+            "version": "0.8.2",
+            "commit": "9c2be0fb86753d5e5f8e038e38608fa1d8b801ce"
+          },
+          {
+            "version": "0.8.3",
+            "commit": "d260261be96925edc3ee3473cdc191fd0adb56dc"
+          },
+          {
+            "version": "0.8.4",
+            "commit": "2067ceba829cb64dcd8dff30727e619e723a01b7"
+          },
+          {
+            "version": "0.8.5",
+            "commit": "537859b71da1a86c0464951183be808374e03e52"
+          },
+          {
+            "version": "0.8.6",
+            "commit": "69fb2d524212d9371bc7948190d5e09d0e27df3f"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.github-actions-runner-operator",
+          "version": "2.11.0",
+          "codeDigest": "sha256:38de48515589d424178e02cce9eb7068b1a639582817d21b90ac926efc183f60"
+        },
+        "derivedAt": "2026-11-09T18:15:23Z",
+        "reviewedAt": "2026-11-09T18:15:23Z",
+        "validUntil": "2027-02-07T18:15:23Z",
+        "sources": [
+          {
+            "id": "crds-0-7-0",
+            "url": "https://github.com/evryfs/github-actions-runner-operator/blob/455304998d9621a50676773142adf5f62038cf90/config/crd/bases/garo.tietoevry.com_githubactionrunners.yaml",
+            "revision": "455304998d9621a50676773142adf5f62038cf90",
+            "contentDigest": "sha256:f61d969d118c20afecacd6811976a5b4ba947b9d7c372d7b8311a2967c7ee3b2",
+            "startLine": 1,
+            "endLine": 6427
+          },
+          {
+            "id": "crds-0-8-0",
+            "url": "https://github.com/evryfs/github-actions-runner-operator/blob/386ba1ac2567849973d3f6b6bf104ca50f7423c6/config/crd/bases/garo.tietoevry.com_githubactionrunners.yaml",
+            "revision": "386ba1ac2567849973d3f6b6bf104ca50f7423c6",
+            "contentDigest": "sha256:bb1df31676947a8ab09636029d4881f94c5c01eaa346a89be951680a8139df6a",
+            "startLine": 1,
+            "endLine": 6434
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/evryfs/github-actions-runner-operator",
+      "line": "0.9",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.8.0",
+            "commit": "386ba1ac2567849973d3f6b6bf104ca50f7423c6"
+          },
+          {
+            "version": "0.8.1",
+            "commit": "6c4dd70d4ab6dc192f5affcb0d15d16eeef5fb05"
+          },
+          {
+            "version": "0.8.2",
+            "commit": "9c2be0fb86753d5e5f8e038e38608fa1d8b801ce"
+          },
+          {
+            "version": "0.8.3",
+            "commit": "d260261be96925edc3ee3473cdc191fd0adb56dc"
+          },
+          {
+            "version": "0.8.4",
+            "commit": "2067ceba829cb64dcd8dff30727e619e723a01b7"
+          },
+          {
+            "version": "0.8.5",
+            "commit": "537859b71da1a86c0464951183be808374e03e52"
+          },
+          {
+            "version": "0.8.6",
+            "commit": "69fb2d524212d9371bc7948190d5e09d0e27df3f"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.9.0",
+            "commit": "5d83b943ed8bba06b5d6277b9929393ed663ed0b"
+          },
+          {
+            "version": "0.9.1",
+            "commit": "981dea304e5811d69bb343067d8c394eb01dfbfc"
+          },
+          {
+            "version": "0.9.2",
+            "commit": "11144cab86ab97fa02ab3d7fa591843b4cada358"
+          },
+          {
+            "version": "0.9.3",
+            "commit": "6eec58a400590d00cbd669f59aecd3c38d5c6e41"
+          },
+          {
+            "version": "0.9.4",
+            "commit": "1079d0a5209bfdfb493951c5ae9d18a83ba1970e"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.github-actions-runner-operator",
+          "version": "2.11.0",
+          "codeDigest": "sha256:38de48515589d424178e02cce9eb7068b1a639582817d21b90ac926efc183f60"
+        },
+        "derivedAt": "2026-11-09T18:15:23Z",
+        "reviewedAt": "2026-11-09T18:15:23Z",
+        "validUntil": "2027-02-07T18:15:23Z",
+        "sources": [
+          {
+            "id": "crds-0-8-0",
+            "url": "https://github.com/evryfs/github-actions-runner-operator/blob/386ba1ac2567849973d3f6b6bf104ca50f7423c6/config/crd/bases/garo.tietoevry.com_githubactionrunners.yaml",
+            "revision": "386ba1ac2567849973d3f6b6bf104ca50f7423c6",
+            "contentDigest": "sha256:bb1df31676947a8ab09636029d4881f94c5c01eaa346a89be951680a8139df6a",
+            "startLine": 1,
+            "endLine": 6434
+          },
+          {
+            "id": "crds-0-9-0",
+            "url": "https://github.com/evryfs/github-actions-runner-operator/blob/5d83b943ed8bba06b5d6277b9929393ed663ed0b/config/crd/bases/garo.tietoevry.com_githubactionrunners.yaml",
+            "revision": "5d83b943ed8bba06b5d6277b9929393ed663ed0b",
+            "contentDigest": "sha256:119ef44029396458050c09b96b5a5567294e8f5fd5f1040fdfc4dede5da2a522",
+            "startLine": 1,
+            "endLine": 3899
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/evryfs/github-actions-runner-operator",
+      "line": "0.10",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.9.0",
+            "commit": "5d83b943ed8bba06b5d6277b9929393ed663ed0b"
+          },
+          {
+            "version": "0.9.1",
+            "commit": "981dea304e5811d69bb343067d8c394eb01dfbfc"
+          },
+          {
+            "version": "0.9.2",
+            "commit": "11144cab86ab97fa02ab3d7fa591843b4cada358"
+          },
+          {
+            "version": "0.9.3",
+            "commit": "6eec58a400590d00cbd669f59aecd3c38d5c6e41"
+          },
+          {
+            "version": "0.9.4",
+            "commit": "1079d0a5209bfdfb493951c5ae9d18a83ba1970e"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.10.0",
+            "commit": "cd45f4622e9db24533687895695af24279e9563b"
+          },
+          {
+            "version": "0.10.1",
+            "commit": "3e2e7102a6a1ed368f1031749c9106f718274f93"
+          },
+          {
+            "version": "0.10.2",
+            "commit": "c7fe20db725c3c8a18d51d3849cf4c422544750b"
+          },
+          {
+            "version": "0.10.3",
+            "commit": "c683bab8e7ab0223fe988bf2b9b5861f662adcf3"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.github-actions-runner-operator",
+          "version": "2.11.0",
+          "codeDigest": "sha256:38de48515589d424178e02cce9eb7068b1a639582817d21b90ac926efc183f60"
+        },
+        "derivedAt": "2026-11-09T18:15:23Z",
+        "reviewedAt": "2026-11-09T18:15:23Z",
+        "validUntil": "2027-02-07T18:15:23Z",
+        "sources": [
+          {
+            "id": "crds-0-10-0",
+            "url": "https://github.com/evryfs/github-actions-runner-operator/blob/cd45f4622e9db24533687895695af24279e9563b/config/crd/bases/garo.tietoevry.com_githubactionrunners.yaml",
+            "revision": "cd45f4622e9db24533687895695af24279e9563b",
+            "contentDigest": "sha256:0f9de484ca0f8fd9a9973f913f702ce9bf1045715f1dac711de7232983a6cd3c",
+            "startLine": 1,
+            "endLine": 7028
+          },
+          {
+            "id": "crds-0-9-0",
+            "url": "https://github.com/evryfs/github-actions-runner-operator/blob/5d83b943ed8bba06b5d6277b9929393ed663ed0b/config/crd/bases/garo.tietoevry.com_githubactionrunners.yaml",
+            "revision": "5d83b943ed8bba06b5d6277b9929393ed663ed0b",
+            "contentDigest": "sha256:119ef44029396458050c09b96b5a5567294e8f5fd5f1040fdfc4dede5da2a522",
+            "startLine": 1,
+            "endLine": 3899
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/evryfs/github-actions-runner-operator",
+      "line": "0.11",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.10.0",
+            "commit": "cd45f4622e9db24533687895695af24279e9563b"
+          },
+          {
+            "version": "0.10.1",
+            "commit": "3e2e7102a6a1ed368f1031749c9106f718274f93"
+          },
+          {
+            "version": "0.10.2",
+            "commit": "c7fe20db725c3c8a18d51d3849cf4c422544750b"
+          },
+          {
+            "version": "0.10.3",
+            "commit": "c683bab8e7ab0223fe988bf2b9b5861f662adcf3"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.11.0",
+            "commit": "4b39140ecedabb6624ce92bf852713b80d1422d6"
+          },
+          {
+            "version": "0.11.1",
+            "commit": "8c7bb9b740b55b370a868eb0c901866d78b7ed5d"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.github-actions-runner-operator",
+          "version": "2.11.0",
+          "codeDigest": "sha256:38de48515589d424178e02cce9eb7068b1a639582817d21b90ac926efc183f60"
+        },
+        "derivedAt": "2026-11-09T18:15:23Z",
+        "reviewedAt": "2026-11-09T18:15:23Z",
+        "validUntil": "2027-02-07T18:15:23Z",
+        "sources": [
+          {
+            "id": "crds-0-10-0",
+            "url": "https://github.com/evryfs/github-actions-runner-operator/blob/cd45f4622e9db24533687895695af24279e9563b/config/crd/bases/garo.tietoevry.com_githubactionrunners.yaml",
+            "revision": "cd45f4622e9db24533687895695af24279e9563b",
+            "contentDigest": "sha256:0f9de484ca0f8fd9a9973f913f702ce9bf1045715f1dac711de7232983a6cd3c",
+            "startLine": 1,
+            "endLine": 7028
+          },
+          {
+            "id": "crds-0-11-0",
+            "url": "https://github.com/evryfs/github-actions-runner-operator/blob/4b39140ecedabb6624ce92bf852713b80d1422d6/config/crd/bases/garo.tietoevry.com_githubactionrunners.yaml",
+            "revision": "4b39140ecedabb6624ce92bf852713b80d1422d6",
+            "contentDigest": "sha256:b855d54736a802d59ec1de06c393637dcf3192efa925d1d8f13b9cbdb6ed645b",
+            "startLine": 1,
+            "endLine": 7360
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/fluent/fluent-operator",
       "line": "3.10",
       "factFamily": "crd.custom_resource_versions",
@@ -23812,6 +24460,418 @@
             "contentDigest": "sha256:841d85ff0d25e531883f1be188eab0c8636d824757498c8a2cee546ed793c85d",
             "startLine": 1,
             "endLine": 978
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/furiko-io/furiko",
+      "line": "0.1",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.0.1",
+            "commit": "a477b3f342560e410d81577acb3ade6cd864ccbf"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.1.0",
+            "commit": "b4307899a46b2a02db937b341ffb77cff63653dd"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.furiko",
+          "version": "2.11.0",
+          "codeDigest": "sha256:d6ad46ad70112cd4ce16f447a42c687d8a941522e9c1cf99ec272d0d1abf6d63"
+        },
+        "derivedAt": "2026-11-09T18:16:19Z",
+        "reviewedAt": "2026-11-09T18:16:19Z",
+        "validUntil": "2027-02-07T18:16:19Z",
+        "sources": [
+          {
+            "id": "crds-0-0-1",
+            "url": "https://github.com/furiko-io/furiko/blob/a477b3f342560e410d81577acb3ade6cd864ccbf/config/crd/bases/execution.furiko.io_jobconfigs.yaml",
+            "revision": "a477b3f342560e410d81577acb3ade6cd864ccbf",
+            "contentDigest": "sha256:a9aadb455040d8f705c29752e11a262002c35d10d67d3bd6e84ada380b41b004",
+            "startLine": 1,
+            "endLine": 4349
+          },
+          {
+            "id": "crds-0-1-0",
+            "url": "https://github.com/furiko-io/furiko/blob/b4307899a46b2a02db937b341ffb77cff63653dd/config/crd/bases/execution.furiko.io_jobconfigs.yaml",
+            "revision": "b4307899a46b2a02db937b341ffb77cff63653dd",
+            "contentDigest": "sha256:968aa694b1006bce43f7808ab912f9462833ea5141cefeca127c2a6bb7111c66",
+            "startLine": 1,
+            "endLine": 4381
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/furiko-io/furiko",
+      "line": "0.2",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.1.0",
+            "commit": "b4307899a46b2a02db937b341ffb77cff63653dd"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.2.0",
+            "commit": "a110df6802b8535d20fd0dd1dcd252a73218b6dd"
+          },
+          {
+            "version": "0.2.1",
+            "commit": "3a7eeea566dc045b39e19c2e8882376702230774"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.furiko",
+          "version": "2.11.0",
+          "codeDigest": "sha256:d6ad46ad70112cd4ce16f447a42c687d8a941522e9c1cf99ec272d0d1abf6d63"
+        },
+        "derivedAt": "2026-11-09T18:16:19Z",
+        "reviewedAt": "2026-11-09T18:16:19Z",
+        "validUntil": "2027-02-07T18:16:19Z",
+        "sources": [
+          {
+            "id": "crds-0-1-0",
+            "url": "https://github.com/furiko-io/furiko/blob/b4307899a46b2a02db937b341ffb77cff63653dd/config/crd/bases/execution.furiko.io_jobconfigs.yaml",
+            "revision": "b4307899a46b2a02db937b341ffb77cff63653dd",
+            "contentDigest": "sha256:968aa694b1006bce43f7808ab912f9462833ea5141cefeca127c2a6bb7111c66",
+            "startLine": 1,
+            "endLine": 4381
+          },
+          {
+            "id": "crds-0-2-0",
+            "url": "https://github.com/furiko-io/furiko/blob/a110df6802b8535d20fd0dd1dcd252a73218b6dd/config/crd/bases/execution.furiko.io_jobconfigs.yaml",
+            "revision": "a110df6802b8535d20fd0dd1dcd252a73218b6dd",
+            "contentDigest": "sha256:11555528ff8cf592650dae6aaa635becf940067333392c9a2f62237dc9cabbd2",
+            "startLine": 1,
+            "endLine": 367
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/furiko-io/furiko",
+      "line": "0.3",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.2.0",
+            "commit": "a110df6802b8535d20fd0dd1dcd252a73218b6dd"
+          },
+          {
+            "version": "0.2.1",
+            "commit": "3a7eeea566dc045b39e19c2e8882376702230774"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.3.0",
+            "commit": "927154ab64f3b25d7fd4c665474648ab32261989"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.furiko",
+          "version": "2.11.0",
+          "codeDigest": "sha256:d6ad46ad70112cd4ce16f447a42c687d8a941522e9c1cf99ec272d0d1abf6d63"
+        },
+        "derivedAt": "2026-11-09T18:16:19Z",
+        "reviewedAt": "2026-11-09T18:16:19Z",
+        "validUntil": "2027-02-07T18:16:19Z",
+        "sources": [
+          {
+            "id": "crds-0-2-0",
+            "url": "https://github.com/furiko-io/furiko/blob/a110df6802b8535d20fd0dd1dcd252a73218b6dd/config/crd/bases/execution.furiko.io_jobconfigs.yaml",
+            "revision": "a110df6802b8535d20fd0dd1dcd252a73218b6dd",
+            "contentDigest": "sha256:11555528ff8cf592650dae6aaa635becf940067333392c9a2f62237dc9cabbd2",
+            "startLine": 1,
+            "endLine": 367
+          },
+          {
+            "id": "crds-0-3-0",
+            "url": "https://github.com/furiko-io/furiko/blob/927154ab64f3b25d7fd4c665474648ab32261989/config/crd/bases/execution.furiko.io_jobconfigs.yaml",
+            "revision": "927154ab64f3b25d7fd4c665474648ab32261989",
+            "contentDigest": "sha256:fae969b7c3e82f6796b04f0e9e974b796b1e6606e83afea6a4b895ecfc7d958d",
+            "startLine": 1,
+            "endLine": 562
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/gianlucam76/k8s-cleaner",
+      "line": "0.20",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.19.0",
+            "commit": "7c355c5068c79cec154550aef7542cd3638a28d8"
+          },
+          {
+            "version": "0.19.1",
+            "commit": "d733e5954391774658eea53dcb111f8272e8a23f"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.20.0",
+            "commit": "d059f0c2d2e1f72ad0ea63e5fd87c2d087c2cc65"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.k8s-cleaner",
+          "version": "2.11.0",
+          "codeDigest": "sha256:42e805a3ea1649292a6d7c96bb3fce5cc313d31bac59ad8f1cf1ab27817453f3"
+        },
+        "derivedAt": "2026-11-09T19:04:42Z",
+        "reviewedAt": "2026-11-09T19:04:42Z",
+        "validUntil": "2027-02-07T19:04:42Z",
+        "sources": [
+          {
+            "id": "crds-0-19-0",
+            "url": "https://github.com/gianlucam76/k8s-cleaner/blob/7c355c5068c79cec154550aef7542cd3638a28d8/config/crd/bases/apps.projectsveltos.io_cleaners.yaml",
+            "revision": "7c355c5068c79cec154550aef7542cd3638a28d8",
+            "contentDigest": "sha256:0d8f68a61b40c01d834d2ea9cc24248485e405e1b8838352d472f50c181d3279",
+            "startLine": 1,
+            "endLine": 293
+          },
+          {
+            "id": "crds-0-20-0",
+            "url": "https://github.com/gianlucam76/k8s-cleaner/blob/d059f0c2d2e1f72ad0ea63e5fd87c2d087c2cc65/config/crd/bases/apps.projectsveltos.io_cleaners.yaml",
+            "revision": "d059f0c2d2e1f72ad0ea63e5fd87c2d087c2cc65",
+            "contentDigest": "sha256:0d8f68a61b40c01d834d2ea9cc24248485e405e1b8838352d472f50c181d3279",
+            "startLine": 1,
+            "endLine": 293
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/gianlucam76/k8s-cleaner",
+      "line": "0.21",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.20.0",
+            "commit": "d059f0c2d2e1f72ad0ea63e5fd87c2d087c2cc65"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.21.0",
+            "commit": "5d25f01dbcbeeb484a720e1c5c38d379e7fec1a0"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.k8s-cleaner",
+          "version": "2.11.0",
+          "codeDigest": "sha256:42e805a3ea1649292a6d7c96bb3fce5cc313d31bac59ad8f1cf1ab27817453f3"
+        },
+        "derivedAt": "2026-11-09T19:04:42Z",
+        "reviewedAt": "2026-11-09T19:04:42Z",
+        "validUntil": "2027-02-07T19:04:42Z",
+        "sources": [
+          {
+            "id": "crds-0-20-0",
+            "url": "https://github.com/gianlucam76/k8s-cleaner/blob/d059f0c2d2e1f72ad0ea63e5fd87c2d087c2cc65/config/crd/bases/apps.projectsveltos.io_cleaners.yaml",
+            "revision": "d059f0c2d2e1f72ad0ea63e5fd87c2d087c2cc65",
+            "contentDigest": "sha256:0d8f68a61b40c01d834d2ea9cc24248485e405e1b8838352d472f50c181d3279",
+            "startLine": 1,
+            "endLine": 293
+          },
+          {
+            "id": "crds-0-21-0",
+            "url": "https://github.com/gianlucam76/k8s-cleaner/blob/5d25f01dbcbeeb484a720e1c5c38d379e7fec1a0/config/crd/bases/apps.projectsveltos.io_cleaners.yaml",
+            "revision": "5d25f01dbcbeeb484a720e1c5c38d379e7fec1a0",
+            "contentDigest": "sha256:e9b3f7cefd509dd55abfbfd15b0275c3e32d1fa92987e888b1ba89bbdf4848b1",
+            "startLine": 1,
+            "endLine": 354
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/gianlucam76/k8s-cleaner",
+      "line": "0.22",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.21.0",
+            "commit": "5d25f01dbcbeeb484a720e1c5c38d379e7fec1a0"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.22.0",
+            "commit": "273d5ce4493bc9c5dc3861c3e2645a1c23b74ef7"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.k8s-cleaner",
+          "version": "2.11.0",
+          "codeDigest": "sha256:42e805a3ea1649292a6d7c96bb3fce5cc313d31bac59ad8f1cf1ab27817453f3"
+        },
+        "derivedAt": "2026-11-09T19:04:42Z",
+        "reviewedAt": "2026-11-09T19:04:42Z",
+        "validUntil": "2027-02-07T19:04:42Z",
+        "sources": [
+          {
+            "id": "crds-0-21-0",
+            "url": "https://github.com/gianlucam76/k8s-cleaner/blob/5d25f01dbcbeeb484a720e1c5c38d379e7fec1a0/config/crd/bases/apps.projectsveltos.io_cleaners.yaml",
+            "revision": "5d25f01dbcbeeb484a720e1c5c38d379e7fec1a0",
+            "contentDigest": "sha256:e9b3f7cefd509dd55abfbfd15b0275c3e32d1fa92987e888b1ba89bbdf4848b1",
+            "startLine": 1,
+            "endLine": 354
+          },
+          {
+            "id": "crds-0-22-0",
+            "url": "https://github.com/gianlucam76/k8s-cleaner/blob/273d5ce4493bc9c5dc3861c3e2645a1c23b74ef7/config/crd/bases/apps.projectsveltos.io_cleaners.yaml",
+            "revision": "273d5ce4493bc9c5dc3861c3e2645a1c23b74ef7",
+            "contentDigest": "sha256:6f224ee479cb25adfbe2b0c77f4aa403bed1cc93040b141198d6a3c38d3e76cf",
+            "startLine": 1,
+            "endLine": 389
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/gianlucam76/k8s-cleaner",
+      "line": "0.23",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.22.0",
+            "commit": "273d5ce4493bc9c5dc3861c3e2645a1c23b74ef7"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.23.0",
+            "commit": "e863ec5ea7d0361695fec5df134e103f9d1f62d8"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.k8s-cleaner",
+          "version": "2.11.0",
+          "codeDigest": "sha256:42e805a3ea1649292a6d7c96bb3fce5cc313d31bac59ad8f1cf1ab27817453f3"
+        },
+        "derivedAt": "2026-11-09T19:04:42Z",
+        "reviewedAt": "2026-11-09T19:04:42Z",
+        "validUntil": "2027-02-07T19:04:42Z",
+        "sources": [
+          {
+            "id": "crds-0-22-0",
+            "url": "https://github.com/gianlucam76/k8s-cleaner/blob/273d5ce4493bc9c5dc3861c3e2645a1c23b74ef7/config/crd/bases/apps.projectsveltos.io_cleaners.yaml",
+            "revision": "273d5ce4493bc9c5dc3861c3e2645a1c23b74ef7",
+            "contentDigest": "sha256:6f224ee479cb25adfbe2b0c77f4aa403bed1cc93040b141198d6a3c38d3e76cf",
+            "startLine": 1,
+            "endLine": 389
+          },
+          {
+            "id": "crds-0-23-0",
+            "url": "https://github.com/gianlucam76/k8s-cleaner/blob/e863ec5ea7d0361695fec5df134e103f9d1f62d8/config/crd/bases/apps.projectsveltos.io_cleaners.yaml",
+            "revision": "e863ec5ea7d0361695fec5df134e103f9d1f62d8",
+            "contentDigest": "sha256:0d43aaf4c8d51b2343853b4fe3b446114cd8f3ac2990cbc5432f998a6a04f3ea",
+            "startLine": 1,
+            "endLine": 428
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/gianlucam76/k8s-cleaner",
+      "line": "0.24",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.23.0",
+            "commit": "e863ec5ea7d0361695fec5df134e103f9d1f62d8"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.24.0",
+            "commit": "a1ae3c37cee8e31709098e5032a628e09b016b41"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.k8s-cleaner",
+          "version": "2.11.0",
+          "codeDigest": "sha256:42e805a3ea1649292a6d7c96bb3fce5cc313d31bac59ad8f1cf1ab27817453f3"
+        },
+        "derivedAt": "2026-11-09T19:04:42Z",
+        "reviewedAt": "2026-11-09T19:04:42Z",
+        "validUntil": "2027-02-07T19:04:42Z",
+        "sources": [
+          {
+            "id": "crds-0-23-0",
+            "url": "https://github.com/gianlucam76/k8s-cleaner/blob/e863ec5ea7d0361695fec5df134e103f9d1f62d8/config/crd/bases/apps.projectsveltos.io_cleaners.yaml",
+            "revision": "e863ec5ea7d0361695fec5df134e103f9d1f62d8",
+            "contentDigest": "sha256:0d43aaf4c8d51b2343853b4fe3b446114cd8f3ac2990cbc5432f998a6a04f3ea",
+            "startLine": 1,
+            "endLine": 428
+          },
+          {
+            "id": "crds-0-24-0",
+            "url": "https://github.com/gianlucam76/k8s-cleaner/blob/a1ae3c37cee8e31709098e5032a628e09b016b41/config/crd/bases/apps.projectsveltos.io_cleaners.yaml",
+            "revision": "a1ae3c37cee8e31709098e5032a628e09b016b41",
+            "contentDigest": "sha256:2dbc709ed5feb6c959a108858919d22c1e6dfb31b72ab21adbe2ef845b58852c",
+            "startLine": 1,
+            "endLine": 428
           }
         ]
       }
@@ -24724,6 +25784,380 @@
             "contentDigest": "sha256:54693ed66e4a602f09137bef80297b381bb51c1a55980e8d4844524c074bac1a",
             "startLine": 1,
             "endLine": 173
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kmesh-net/kmesh",
+      "line": "1.1",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.0.0",
+            "commit": "44069d88ffd77e8be3aa81f890fd37f0f02a51f7"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.1.0",
+            "commit": "eed5c73e9fff91f475db4097bb9c4a913eba3ea0"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.kmesh",
+          "version": "2.11.0",
+          "codeDigest": "sha256:6ffe49b111c6b6336714b00fee7d40968d66ecbead38faae48066f898470e236"
+        },
+        "derivedAt": "2026-11-09T18:18:14Z",
+        "reviewedAt": "2026-11-09T18:18:14Z",
+        "validUntil": "2027-02-07T18:18:14Z",
+        "sources": [
+          {
+            "id": "crds-1-0-0",
+            "url": "https://github.com/kmesh-net/kmesh/blob/44069d88ffd77e8be3aa81f890fd37f0f02a51f7/deploy/yaml/crd/kmesh.net_kmeshnodeinfos.yaml",
+            "revision": "44069d88ffd77e8be3aa81f890fd37f0f02a51f7",
+            "contentDigest": "sha256:e191be042efa1390dc7b85bb65b5823cd4452ae4e9095102bc6f073c520cf920",
+            "startLine": 1,
+            "endLine": 78
+          },
+          {
+            "id": "crds-1-1-0",
+            "url": "https://github.com/kmesh-net/kmesh/blob/eed5c73e9fff91f475db4097bb9c4a913eba3ea0/deploy/yaml/crd/kmesh.net_kmeshnodeinfos.yaml",
+            "revision": "eed5c73e9fff91f475db4097bb9c4a913eba3ea0",
+            "contentDigest": "sha256:e191be042efa1390dc7b85bb65b5823cd4452ae4e9095102bc6f073c520cf920",
+            "startLine": 1,
+            "endLine": 78
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kmesh-net/kmesh",
+      "line": "1.2",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.1.0",
+            "commit": "eed5c73e9fff91f475db4097bb9c4a913eba3ea0"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.2.0",
+            "commit": "14b6c6c6c91c77dc50df93d4e8a2d41d7dcc2138"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.kmesh",
+          "version": "2.11.0",
+          "codeDigest": "sha256:6ffe49b111c6b6336714b00fee7d40968d66ecbead38faae48066f898470e236"
+        },
+        "derivedAt": "2026-11-09T18:18:14Z",
+        "reviewedAt": "2026-11-09T18:18:14Z",
+        "validUntil": "2027-02-07T18:18:14Z",
+        "sources": [
+          {
+            "id": "crds-1-1-0",
+            "url": "https://github.com/kmesh-net/kmesh/blob/eed5c73e9fff91f475db4097bb9c4a913eba3ea0/deploy/yaml/crd/kmesh.net_kmeshnodeinfos.yaml",
+            "revision": "eed5c73e9fff91f475db4097bb9c4a913eba3ea0",
+            "contentDigest": "sha256:e191be042efa1390dc7b85bb65b5823cd4452ae4e9095102bc6f073c520cf920",
+            "startLine": 1,
+            "endLine": 78
+          },
+          {
+            "id": "crds-1-2-0",
+            "url": "https://github.com/kmesh-net/kmesh/blob/14b6c6c6c91c77dc50df93d4e8a2d41d7dcc2138/deploy/yaml/crd/kmesh.net_kmeshnodeinfos.yaml",
+            "revision": "14b6c6c6c91c77dc50df93d4e8a2d41d7dcc2138",
+            "contentDigest": "sha256:e191be042efa1390dc7b85bb65b5823cd4452ae4e9095102bc6f073c520cf920",
+            "startLine": 1,
+            "endLine": 78
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kubemod/kubemod",
+      "line": "0.17",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.16.0",
+            "commit": "ed1cb55a5dd0f29e3f6f9925d0fbd502f6ec11e6"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.17.0",
+            "commit": "8902b34f80ee1be8d19d8fe62832354ec70fa60e"
+          },
+          {
+            "version": "0.17.1",
+            "commit": "86359ad61e4c816c6402523e4de1f65628c41fea"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.kubemod",
+          "version": "2.11.0",
+          "codeDigest": "sha256:b8dfffc9228a70a3dbdb70cd3e9f77866c10dfa0d6e6dd0f96717709a5dd5359"
+        },
+        "derivedAt": "2026-11-09T15:00:39Z",
+        "reviewedAt": "2026-11-09T15:00:39Z",
+        "validUntil": "2027-02-07T15:00:39Z",
+        "sources": [
+          {
+            "id": "crds-0-16-0",
+            "url": "https://github.com/kubemod/kubemod/blob/ed1cb55a5dd0f29e3f6f9925d0fbd502f6ec11e6/config/crd/bases/api.kubemod.io_modrules.yaml",
+            "revision": "ed1cb55a5dd0f29e3f6f9925d0fbd502f6ec11e6",
+            "contentDigest": "sha256:79af96a80e669159a719ad991335e396adf89c47e39fc41f22cfa6f78344e5ec",
+            "startLine": 1,
+            "endLine": 190
+          },
+          {
+            "id": "crds-0-17-0",
+            "url": "https://github.com/kubemod/kubemod/blob/8902b34f80ee1be8d19d8fe62832354ec70fa60e/config/crd/bases/api.kubemod.io_modrules.yaml",
+            "revision": "8902b34f80ee1be8d19d8fe62832354ec70fa60e",
+            "contentDigest": "sha256:79af96a80e669159a719ad991335e396adf89c47e39fc41f22cfa6f78344e5ec",
+            "startLine": 1,
+            "endLine": 190
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kubemod/kubemod",
+      "line": "0.18",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.17.0",
+            "commit": "8902b34f80ee1be8d19d8fe62832354ec70fa60e"
+          },
+          {
+            "version": "0.17.1",
+            "commit": "86359ad61e4c816c6402523e4de1f65628c41fea"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.18.0",
+            "commit": "5d664064c3232726c5a7186e0317dab9aa5c7b5d"
+          },
+          {
+            "version": "0.18.1",
+            "commit": "565574d9e5e46c0612f63d447ed53584fac8168d"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.kubemod",
+          "version": "2.11.0",
+          "codeDigest": "sha256:b8dfffc9228a70a3dbdb70cd3e9f77866c10dfa0d6e6dd0f96717709a5dd5359"
+        },
+        "derivedAt": "2026-11-09T15:00:39Z",
+        "reviewedAt": "2026-11-09T15:00:39Z",
+        "validUntil": "2027-02-07T15:00:39Z",
+        "sources": [
+          {
+            "id": "crds-0-17-0",
+            "url": "https://github.com/kubemod/kubemod/blob/8902b34f80ee1be8d19d8fe62832354ec70fa60e/config/crd/bases/api.kubemod.io_modrules.yaml",
+            "revision": "8902b34f80ee1be8d19d8fe62832354ec70fa60e",
+            "contentDigest": "sha256:79af96a80e669159a719ad991335e396adf89c47e39fc41f22cfa6f78344e5ec",
+            "startLine": 1,
+            "endLine": 190
+          },
+          {
+            "id": "crds-0-18-0",
+            "url": "https://github.com/kubemod/kubemod/blob/5d664064c3232726c5a7186e0317dab9aa5c7b5d/config/crd/bases/api.kubemod.io_modrules.yaml",
+            "revision": "5d664064c3232726c5a7186e0317dab9aa5c7b5d",
+            "contentDigest": "sha256:dbe096f886dac2c1c4ce18f63e5a4ff14b4a7b5ca34351b8d348a04798393b70",
+            "startLine": 1,
+            "endLine": 207
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kubemod/kubemod",
+      "line": "0.19",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.18.0",
+            "commit": "5d664064c3232726c5a7186e0317dab9aa5c7b5d"
+          },
+          {
+            "version": "0.18.1",
+            "commit": "565574d9e5e46c0612f63d447ed53584fac8168d"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.19.0",
+            "commit": "14ddbd4cfe68806d33330f97ee7ada24f5f55068"
+          },
+          {
+            "version": "0.19.1",
+            "commit": "97d0b9847e096f05ee1c4f153d06691448fb010c"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.kubemod",
+          "version": "2.11.0",
+          "codeDigest": "sha256:b8dfffc9228a70a3dbdb70cd3e9f77866c10dfa0d6e6dd0f96717709a5dd5359"
+        },
+        "derivedAt": "2026-11-09T15:00:39Z",
+        "reviewedAt": "2026-11-09T15:00:39Z",
+        "validUntil": "2027-02-07T15:00:39Z",
+        "sources": [
+          {
+            "id": "crds-0-18-0",
+            "url": "https://github.com/kubemod/kubemod/blob/5d664064c3232726c5a7186e0317dab9aa5c7b5d/config/crd/bases/api.kubemod.io_modrules.yaml",
+            "revision": "5d664064c3232726c5a7186e0317dab9aa5c7b5d",
+            "contentDigest": "sha256:dbe096f886dac2c1c4ce18f63e5a4ff14b4a7b5ca34351b8d348a04798393b70",
+            "startLine": 1,
+            "endLine": 207
+          },
+          {
+            "id": "crds-0-19-0",
+            "url": "https://github.com/kubemod/kubemod/blob/14ddbd4cfe68806d33330f97ee7ada24f5f55068/config/crd/bases/api.kubemod.io_modrules.yaml",
+            "revision": "14ddbd4cfe68806d33330f97ee7ada24f5f55068",
+            "contentDigest": "sha256:7bb436ae48a9286ad1589aa5bdf2de63d455377c5e4ec262944c15bc62f29831",
+            "startLine": 1,
+            "endLine": 210
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kubemod/kubemod",
+      "line": "0.20",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.19.0",
+            "commit": "14ddbd4cfe68806d33330f97ee7ada24f5f55068"
+          },
+          {
+            "version": "0.19.1",
+            "commit": "97d0b9847e096f05ee1c4f153d06691448fb010c"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.20.0",
+            "commit": "4ad72f16918f611220caccba0b09e78f4441e19e"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.kubemod",
+          "version": "2.11.0",
+          "codeDigest": "sha256:b8dfffc9228a70a3dbdb70cd3e9f77866c10dfa0d6e6dd0f96717709a5dd5359"
+        },
+        "derivedAt": "2026-11-09T15:00:39Z",
+        "reviewedAt": "2026-11-09T15:00:39Z",
+        "validUntil": "2027-02-07T15:00:39Z",
+        "sources": [
+          {
+            "id": "crds-0-19-0",
+            "url": "https://github.com/kubemod/kubemod/blob/14ddbd4cfe68806d33330f97ee7ada24f5f55068/config/crd/bases/api.kubemod.io_modrules.yaml",
+            "revision": "14ddbd4cfe68806d33330f97ee7ada24f5f55068",
+            "contentDigest": "sha256:7bb436ae48a9286ad1589aa5bdf2de63d455377c5e4ec262944c15bc62f29831",
+            "startLine": 1,
+            "endLine": 210
+          },
+          {
+            "id": "crds-0-20-0",
+            "url": "https://github.com/kubemod/kubemod/blob/4ad72f16918f611220caccba0b09e78f4441e19e/config/crd/bases/api.kubemod.io_modrules.yaml",
+            "revision": "4ad72f16918f611220caccba0b09e78f4441e19e",
+            "contentDigest": "sha256:7bb436ae48a9286ad1589aa5bdf2de63d455377c5e4ec262944c15bc62f29831",
+            "startLine": 1,
+            "endLine": 210
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kubemod/kubemod",
+      "line": "0.21",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.20.0",
+            "commit": "4ad72f16918f611220caccba0b09e78f4441e19e"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.21.0",
+            "commit": "f030b2756ec873d0290e0561f95b8ab64a78dd95"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.kubemod",
+          "version": "2.11.0",
+          "codeDigest": "sha256:b8dfffc9228a70a3dbdb70cd3e9f77866c10dfa0d6e6dd0f96717709a5dd5359"
+        },
+        "derivedAt": "2026-11-09T15:00:39Z",
+        "reviewedAt": "2026-11-09T15:00:39Z",
+        "validUntil": "2027-02-07T15:00:39Z",
+        "sources": [
+          {
+            "id": "crds-0-20-0",
+            "url": "https://github.com/kubemod/kubemod/blob/4ad72f16918f611220caccba0b09e78f4441e19e/config/crd/bases/api.kubemod.io_modrules.yaml",
+            "revision": "4ad72f16918f611220caccba0b09e78f4441e19e",
+            "contentDigest": "sha256:7bb436ae48a9286ad1589aa5bdf2de63d455377c5e4ec262944c15bc62f29831",
+            "startLine": 1,
+            "endLine": 210
+          },
+          {
+            "id": "crds-0-21-0",
+            "url": "https://github.com/kubemod/kubemod/blob/f030b2756ec873d0290e0561f95b8ab64a78dd95/config/crd/bases/api.kubemod.io_modrules.yaml",
+            "revision": "f030b2756ec873d0290e0561f95b8ab64a78dd95",
+            "contentDigest": "sha256:7bb436ae48a9286ad1589aa5bdf2de63d455377c5e4ec262944c15bc62f29831",
+            "startLine": 1,
+            "endLine": 210
           }
         ]
       }
@@ -27749,6 +29183,528 @@
       }
     },
     {
+      "component": "pkg:github/movetokube/postgres-operator",
+      "line": "2.1",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.0.0",
+            "commit": "dd9c20f0abd7537fa864cd3e09bbbbc4511f51eb"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.1.0",
+            "commit": "f72306cbc95ad34dc39ca53e20196b1b1f3f3928"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.movetokube-postgres-operator",
+          "version": "2.11.0",
+          "codeDigest": "sha256:ac2c156f639d39ea7c3867e0678a59acccd435cb0e4f9945a6cdadd60d09aab5"
+        },
+        "derivedAt": "2026-11-09T18:17:17Z",
+        "reviewedAt": "2026-11-09T18:17:17Z",
+        "validUntil": "2027-02-07T18:17:17Z",
+        "sources": [
+          {
+            "id": "crds-2-0-0",
+            "url": "https://github.com/movetokube/postgres-operator/blob/dd9c20f0abd7537fa864cd3e09bbbbc4511f51eb/config/crd/bases/db.movetokube.com_postgres.yaml",
+            "revision": "dd9c20f0abd7537fa864cd3e09bbbbc4511f51eb",
+            "contentDigest": "sha256:a5bb61b2c3e8db2f2aee977a7952ef2bf3fab0fef6703532c33eaa3f71894827",
+            "startLine": 1,
+            "endLine": 98
+          },
+          {
+            "id": "crds-2-1-0",
+            "url": "https://github.com/movetokube/postgres-operator/blob/f72306cbc95ad34dc39ca53e20196b1b1f3f3928/config/crd/bases/db.movetokube.com_postgres.yaml",
+            "revision": "f72306cbc95ad34dc39ca53e20196b1b1f3f3928",
+            "contentDigest": "sha256:a5bb61b2c3e8db2f2aee977a7952ef2bf3fab0fef6703532c33eaa3f71894827",
+            "startLine": 1,
+            "endLine": 98
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/movetokube/postgres-operator",
+      "line": "2.2",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.1.0",
+            "commit": "f72306cbc95ad34dc39ca53e20196b1b1f3f3928"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.2.0",
+            "commit": "49b04616f52b90364b9d42aaa606f46f293751ee"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.movetokube-postgres-operator",
+          "version": "2.11.0",
+          "codeDigest": "sha256:ac2c156f639d39ea7c3867e0678a59acccd435cb0e4f9945a6cdadd60d09aab5"
+        },
+        "derivedAt": "2026-11-09T18:17:17Z",
+        "reviewedAt": "2026-11-09T18:17:17Z",
+        "validUntil": "2027-02-07T18:17:17Z",
+        "sources": [
+          {
+            "id": "crds-2-1-0",
+            "url": "https://github.com/movetokube/postgres-operator/blob/f72306cbc95ad34dc39ca53e20196b1b1f3f3928/config/crd/bases/db.movetokube.com_postgres.yaml",
+            "revision": "f72306cbc95ad34dc39ca53e20196b1b1f3f3928",
+            "contentDigest": "sha256:a5bb61b2c3e8db2f2aee977a7952ef2bf3fab0fef6703532c33eaa3f71894827",
+            "startLine": 1,
+            "endLine": 98
+          },
+          {
+            "id": "crds-2-2-0",
+            "url": "https://github.com/movetokube/postgres-operator/blob/49b04616f52b90364b9d42aaa606f46f293751ee/config/crd/bases/db.movetokube.com_postgres.yaml",
+            "revision": "49b04616f52b90364b9d42aaa606f46f293751ee",
+            "contentDigest": "sha256:a5bb61b2c3e8db2f2aee977a7952ef2bf3fab0fef6703532c33eaa3f71894827",
+            "startLine": 1,
+            "endLine": 98
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/movetokube/postgres-operator",
+      "line": "2.3",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.2.0",
+            "commit": "49b04616f52b90364b9d42aaa606f46f293751ee"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.3.0",
+            "commit": "c9b2ac520012e6927ca32045821e157bcf095bf5"
+          },
+          {
+            "version": "2.3.1",
+            "commit": "fd58e963500eaae1e7eb6545f40ea644876f52d9"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.movetokube-postgres-operator",
+          "version": "2.11.0",
+          "codeDigest": "sha256:ac2c156f639d39ea7c3867e0678a59acccd435cb0e4f9945a6cdadd60d09aab5"
+        },
+        "derivedAt": "2026-11-09T18:17:17Z",
+        "reviewedAt": "2026-11-09T18:17:17Z",
+        "validUntil": "2027-02-07T18:17:17Z",
+        "sources": [
+          {
+            "id": "crds-2-2-0",
+            "url": "https://github.com/movetokube/postgres-operator/blob/49b04616f52b90364b9d42aaa606f46f293751ee/config/crd/bases/db.movetokube.com_postgres.yaml",
+            "revision": "49b04616f52b90364b9d42aaa606f46f293751ee",
+            "contentDigest": "sha256:a5bb61b2c3e8db2f2aee977a7952ef2bf3fab0fef6703532c33eaa3f71894827",
+            "startLine": 1,
+            "endLine": 98
+          },
+          {
+            "id": "crds-2-3-0",
+            "url": "https://github.com/movetokube/postgres-operator/blob/c9b2ac520012e6927ca32045821e157bcf095bf5/config/crd/bases/db.movetokube.com_postgres.yaml",
+            "revision": "c9b2ac520012e6927ca32045821e157bcf095bf5",
+            "contentDigest": "sha256:d8e2972994476e3d7674ec56d61658aa18fcda8e6507f991c1aafbbd31d23738",
+            "startLine": 1,
+            "endLine": 93
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/movetokube/postgres-operator",
+      "line": "2.4",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.3.0",
+            "commit": "c9b2ac520012e6927ca32045821e157bcf095bf5"
+          },
+          {
+            "version": "2.3.1",
+            "commit": "fd58e963500eaae1e7eb6545f40ea644876f52d9"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.4.0",
+            "commit": "5b969e3c1a16803430cfecaa68f3989774af1f4d"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.movetokube-postgres-operator",
+          "version": "2.11.0",
+          "codeDigest": "sha256:ac2c156f639d39ea7c3867e0678a59acccd435cb0e4f9945a6cdadd60d09aab5"
+        },
+        "derivedAt": "2026-11-09T18:17:17Z",
+        "reviewedAt": "2026-11-09T18:17:17Z",
+        "validUntil": "2027-02-07T18:17:17Z",
+        "sources": [
+          {
+            "id": "crds-2-3-0",
+            "url": "https://github.com/movetokube/postgres-operator/blob/c9b2ac520012e6927ca32045821e157bcf095bf5/config/crd/bases/db.movetokube.com_postgres.yaml",
+            "revision": "c9b2ac520012e6927ca32045821e157bcf095bf5",
+            "contentDigest": "sha256:d8e2972994476e3d7674ec56d61658aa18fcda8e6507f991c1aafbbd31d23738",
+            "startLine": 1,
+            "endLine": 93
+          },
+          {
+            "id": "crds-2-4-0",
+            "url": "https://github.com/movetokube/postgres-operator/blob/5b969e3c1a16803430cfecaa68f3989774af1f4d/config/crd/bases/db.movetokube.com_postgres.yaml",
+            "revision": "5b969e3c1a16803430cfecaa68f3989774af1f4d",
+            "contentDigest": "sha256:d8e2972994476e3d7674ec56d61658aa18fcda8e6507f991c1aafbbd31d23738",
+            "startLine": 1,
+            "endLine": 93
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/nekomeowww/ollama-operator",
+      "line": "0.6",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.5.0",
+            "commit": "9ba6174c5264bc5cc8b80cdc96ad357e549c27dc"
+          },
+          {
+            "version": "0.5.1",
+            "commit": "7069afb6c783b9b5db61b39044290b47cea0b139"
+          },
+          {
+            "version": "0.5.2",
+            "commit": "cbf7f90de55bf28c15832c76cee3b4c7a1016d18"
+          },
+          {
+            "version": "0.5.3",
+            "commit": "fb5e13278dfba2852dee36a827b58d54e652cb92"
+          },
+          {
+            "version": "0.5.4",
+            "commit": "ddf6a17dd04a5ad79614f18b45b0a535dbddf9c9"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.6.0",
+            "commit": "e25cf54a3b12ec73f8eabe97d5cfc36d1ddb393c"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.ollama-operator",
+          "version": "2.11.0",
+          "codeDigest": "sha256:67efca2e60c701da4580b325d80ece9ec8c09ce8387489faeff131952919db52"
+        },
+        "derivedAt": "2026-11-09T18:19:08Z",
+        "reviewedAt": "2026-11-09T18:19:08Z",
+        "validUntil": "2027-02-07T18:19:08Z",
+        "sources": [
+          {
+            "id": "crds-0-5-0",
+            "url": "https://github.com/nekomeowww/ollama-operator/blob/9ba6174c5264bc5cc8b80cdc96ad357e549c27dc/config/crd/bases/ollama.ayaka.io_models.yaml",
+            "revision": "9ba6174c5264bc5cc8b80cdc96ad357e549c27dc",
+            "contentDigest": "sha256:a924c67ca68392cd4b1ec1014bf6e93898e4c71fbe18343e992287f2a269f2ba",
+            "startLine": 1,
+            "endLine": 188
+          },
+          {
+            "id": "crds-0-6-0",
+            "url": "https://github.com/nekomeowww/ollama-operator/blob/e25cf54a3b12ec73f8eabe97d5cfc36d1ddb393c/config/crd/bases/ollama.ayaka.io_models.yaml",
+            "revision": "e25cf54a3b12ec73f8eabe97d5cfc36d1ddb393c",
+            "contentDigest": "sha256:a924c67ca68392cd4b1ec1014bf6e93898e4c71fbe18343e992287f2a269f2ba",
+            "startLine": 1,
+            "endLine": 188
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/nekomeowww/ollama-operator",
+      "line": "0.7",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.6.0",
+            "commit": "e25cf54a3b12ec73f8eabe97d5cfc36d1ddb393c"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.7.0",
+            "commit": "85cb75957f95f12e31f1021cfcbe9379163b17a2"
+          },
+          {
+            "version": "0.7.1",
+            "commit": "48206ef6b368e9d67d89e7a8ab12827307a57b3d"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.ollama-operator",
+          "version": "2.11.0",
+          "codeDigest": "sha256:67efca2e60c701da4580b325d80ece9ec8c09ce8387489faeff131952919db52"
+        },
+        "derivedAt": "2026-11-09T18:19:08Z",
+        "reviewedAt": "2026-11-09T18:19:08Z",
+        "validUntil": "2027-02-07T18:19:08Z",
+        "sources": [
+          {
+            "id": "crds-0-6-0",
+            "url": "https://github.com/nekomeowww/ollama-operator/blob/e25cf54a3b12ec73f8eabe97d5cfc36d1ddb393c/config/crd/bases/ollama.ayaka.io_models.yaml",
+            "revision": "e25cf54a3b12ec73f8eabe97d5cfc36d1ddb393c",
+            "contentDigest": "sha256:a924c67ca68392cd4b1ec1014bf6e93898e4c71fbe18343e992287f2a269f2ba",
+            "startLine": 1,
+            "endLine": 188
+          },
+          {
+            "id": "crds-0-7-0",
+            "url": "https://github.com/nekomeowww/ollama-operator/blob/85cb75957f95f12e31f1021cfcbe9379163b17a2/config/crd/bases/ollama.ayaka.io_models.yaml",
+            "revision": "85cb75957f95f12e31f1021cfcbe9379163b17a2",
+            "contentDigest": "sha256:0df4e6ba34fe0f2449b36e4d13280035cc2de4a44078245022828bd7f3e88f2f",
+            "startLine": 1,
+            "endLine": 246
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/nekomeowww/ollama-operator",
+      "line": "0.8",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.7.0",
+            "commit": "85cb75957f95f12e31f1021cfcbe9379163b17a2"
+          },
+          {
+            "version": "0.7.1",
+            "commit": "48206ef6b368e9d67d89e7a8ab12827307a57b3d"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.8.0",
+            "commit": "1c0700d040ac7de68591b416eb7929599e393c6f"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.ollama-operator",
+          "version": "2.11.0",
+          "codeDigest": "sha256:67efca2e60c701da4580b325d80ece9ec8c09ce8387489faeff131952919db52"
+        },
+        "derivedAt": "2026-11-09T18:19:08Z",
+        "reviewedAt": "2026-11-09T18:19:08Z",
+        "validUntil": "2027-02-07T18:19:08Z",
+        "sources": [
+          {
+            "id": "crds-0-7-0",
+            "url": "https://github.com/nekomeowww/ollama-operator/blob/85cb75957f95f12e31f1021cfcbe9379163b17a2/config/crd/bases/ollama.ayaka.io_models.yaml",
+            "revision": "85cb75957f95f12e31f1021cfcbe9379163b17a2",
+            "contentDigest": "sha256:0df4e6ba34fe0f2449b36e4d13280035cc2de4a44078245022828bd7f3e88f2f",
+            "startLine": 1,
+            "endLine": 246
+          },
+          {
+            "id": "crds-0-8-0",
+            "url": "https://github.com/nekomeowww/ollama-operator/blob/1c0700d040ac7de68591b416eb7929599e393c6f/config/crd/bases/ollama.ayaka.io_models.yaml",
+            "revision": "1c0700d040ac7de68591b416eb7929599e393c6f",
+            "contentDigest": "sha256:0df4e6ba34fe0f2449b36e4d13280035cc2de4a44078245022828bd7f3e88f2f",
+            "startLine": 1,
+            "endLine": 246
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/nekomeowww/ollama-operator",
+      "line": "0.9",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.8.0",
+            "commit": "1c0700d040ac7de68591b416eb7929599e393c6f"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.9.1",
+            "commit": "2717e823f4936ff212bd7d11234f67c132741477"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.ollama-operator",
+          "version": "2.11.0",
+          "codeDigest": "sha256:67efca2e60c701da4580b325d80ece9ec8c09ce8387489faeff131952919db52"
+        },
+        "derivedAt": "2026-11-09T18:19:08Z",
+        "reviewedAt": "2026-11-09T18:19:08Z",
+        "validUntil": "2027-02-07T18:19:08Z",
+        "sources": [
+          {
+            "id": "crds-0-8-0",
+            "url": "https://github.com/nekomeowww/ollama-operator/blob/1c0700d040ac7de68591b416eb7929599e393c6f/config/crd/bases/ollama.ayaka.io_models.yaml",
+            "revision": "1c0700d040ac7de68591b416eb7929599e393c6f",
+            "contentDigest": "sha256:0df4e6ba34fe0f2449b36e4d13280035cc2de4a44078245022828bd7f3e88f2f",
+            "startLine": 1,
+            "endLine": 246
+          },
+          {
+            "id": "crds-0-9-1",
+            "url": "https://github.com/nekomeowww/ollama-operator/blob/2717e823f4936ff212bd7d11234f67c132741477/config/crd/bases/ollama.ayaka.io_models.yaml",
+            "revision": "2717e823f4936ff212bd7d11234f67c132741477",
+            "contentDigest": "sha256:0df4e6ba34fe0f2449b36e4d13280035cc2de4a44078245022828bd7f3e88f2f",
+            "startLine": 1,
+            "endLine": 246
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/nekomeowww/ollama-operator",
+      "line": "0.10",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.9.1",
+            "commit": "2717e823f4936ff212bd7d11234f67c132741477"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.10.0",
+            "commit": "f95b0dd404df5ef5e26848400884817a8b5777ea"
+          },
+          {
+            "version": "0.10.1",
+            "commit": "6eae886ab06bb474f43567999ecb4e19ccb9e968"
+          },
+          {
+            "version": "0.10.2",
+            "commit": "13ff74a088d064e676379f60a526a13cdad71d38"
+          },
+          {
+            "version": "0.10.3",
+            "commit": "52ff4a99f9cda64a790d9411ba2ff058b2b704d6"
+          },
+          {
+            "version": "0.10.4",
+            "commit": "ed2b72c82640714ae13bece64d53f8c9ea494dd1"
+          },
+          {
+            "version": "0.10.5",
+            "commit": "cbdfae9cfa460173a45b5939d124c991b8e65b34"
+          },
+          {
+            "version": "0.10.6",
+            "commit": "2ca048b63fda1d9e2c7870467b45e57e511ea4c4"
+          },
+          {
+            "version": "0.10.7",
+            "commit": "9f6c55cf6e0d6cbf4f58c7a7bda200a98f420c05"
+          },
+          {
+            "version": "0.10.8",
+            "commit": "5d876794b8a3a56c4ccc2ab0c8f76b5a8710a4c2"
+          },
+          {
+            "version": "0.10.9",
+            "commit": "74f48f55f61d7be90cec9fbf644a103324cc3cfc"
+          },
+          {
+            "version": "0.10.10",
+            "commit": "4a8765463cd83da9d5d6de523f4a71f45ac0bb2f"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.ollama-operator",
+          "version": "2.11.0",
+          "codeDigest": "sha256:67efca2e60c701da4580b325d80ece9ec8c09ce8387489faeff131952919db52"
+        },
+        "derivedAt": "2026-11-09T18:19:08Z",
+        "reviewedAt": "2026-11-09T18:19:08Z",
+        "validUntil": "2027-02-07T18:19:08Z",
+        "sources": [
+          {
+            "id": "crds-0-10-0",
+            "url": "https://github.com/nekomeowww/ollama-operator/blob/f95b0dd404df5ef5e26848400884817a8b5777ea/config/crd/bases/ollama.ayaka.io_models.yaml",
+            "revision": "f95b0dd404df5ef5e26848400884817a8b5777ea",
+            "contentDigest": "sha256:b06d6a227af0c878a1a134bed16371b298e9fd27470e45def5792b1bd681c54b",
+            "startLine": 1,
+            "endLine": 8329
+          },
+          {
+            "id": "crds-0-9-1",
+            "url": "https://github.com/nekomeowww/ollama-operator/blob/2717e823f4936ff212bd7d11234f67c132741477/config/crd/bases/ollama.ayaka.io_models.yaml",
+            "revision": "2717e823f4936ff212bd7d11234f67c132741477",
+            "contentDigest": "sha256:0df4e6ba34fe0f2449b36e4d13280035cc2de4a44078245022828bd7f3e88f2f",
+            "startLine": 1,
+            "endLine": 246
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/nginx/kubernetes-ingress",
       "line": "5.3",
       "factFamily": "crd.custom_resource_versions",
@@ -28278,6 +30234,280 @@
             "contentDigest": "sha256:566aa1893987752211c7c4721e821ea871b70cac22020ac3df0926a5019d6e80",
             "startLine": 1,
             "endLine": 713
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/padok-team/burrito",
+      "line": "0.11",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.10.0",
+            "commit": "08431668a19a75dab289d9bb55c74ef1c6ef772a"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.11.0",
+            "commit": "7ef56627f242a99f1d4f4c78bb62d8688a7f0a70"
+          },
+          {
+            "version": "0.11.1",
+            "commit": "c74baefe0b669b0da8ec42f4e91d296b3dc4e883"
+          },
+          {
+            "version": "0.11.2",
+            "commit": "3faa00e8cbbd44ae3d077de199b43d7859480f2f"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.burrito",
+          "version": "2.11.0",
+          "codeDigest": "sha256:1ae099f1f3f55730059003b76e6b23a1a574fe269367d25579defa7c62339e64"
+        },
+        "derivedAt": "2026-11-09T18:20:04Z",
+        "reviewedAt": "2026-11-09T18:20:04Z",
+        "validUntil": "2027-02-07T18:20:04Z",
+        "sources": [
+          {
+            "id": "crds-0-10-0",
+            "url": "https://github.com/padok-team/burrito/blob/08431668a19a75dab289d9bb55c74ef1c6ef772a/manifests/crds/config.terraform.padok.cloud_terraformlayers.yaml",
+            "revision": "08431668a19a75dab289d9bb55c74ef1c6ef772a",
+            "contentDigest": "sha256:fc632af6a0035c6ba5db05d83b96a0f0bbcb251d8fb0ce886ce5d44342533328",
+            "startLine": 1,
+            "endLine": 5009
+          },
+          {
+            "id": "crds-0-11-0",
+            "url": "https://github.com/padok-team/burrito/blob/7ef56627f242a99f1d4f4c78bb62d8688a7f0a70/manifests/crds/config.terraform.padok.cloud_terraformlayers.yaml",
+            "revision": "7ef56627f242a99f1d4f4c78bb62d8688a7f0a70",
+            "contentDigest": "sha256:fc632af6a0035c6ba5db05d83b96a0f0bbcb251d8fb0ce886ce5d44342533328",
+            "startLine": 1,
+            "endLine": 5009
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/padok-team/burrito",
+      "line": "0.12",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.11.0",
+            "commit": "7ef56627f242a99f1d4f4c78bb62d8688a7f0a70"
+          },
+          {
+            "version": "0.11.1",
+            "commit": "c74baefe0b669b0da8ec42f4e91d296b3dc4e883"
+          },
+          {
+            "version": "0.11.2",
+            "commit": "3faa00e8cbbd44ae3d077de199b43d7859480f2f"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.12.0",
+            "commit": "afe11b40480eb87a6575729d5b316bdb7b64ff84"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.burrito",
+          "version": "2.11.0",
+          "codeDigest": "sha256:1ae099f1f3f55730059003b76e6b23a1a574fe269367d25579defa7c62339e64"
+        },
+        "derivedAt": "2026-11-09T18:20:04Z",
+        "reviewedAt": "2026-11-09T18:20:04Z",
+        "validUntil": "2027-02-07T18:20:04Z",
+        "sources": [
+          {
+            "id": "crds-0-11-0",
+            "url": "https://github.com/padok-team/burrito/blob/7ef56627f242a99f1d4f4c78bb62d8688a7f0a70/manifests/crds/config.terraform.padok.cloud_terraformlayers.yaml",
+            "revision": "7ef56627f242a99f1d4f4c78bb62d8688a7f0a70",
+            "contentDigest": "sha256:fc632af6a0035c6ba5db05d83b96a0f0bbcb251d8fb0ce886ce5d44342533328",
+            "startLine": 1,
+            "endLine": 5009
+          },
+          {
+            "id": "crds-0-12-0",
+            "url": "https://github.com/padok-team/burrito/blob/afe11b40480eb87a6575729d5b316bdb7b64ff84/manifests/crds/config.terraform.padok.cloud_terraformlayers.yaml",
+            "revision": "afe11b40480eb87a6575729d5b316bdb7b64ff84",
+            "contentDigest": "sha256:2de1da46247d2dfcd0d21898a80a365d1af1482cc6ccb04ee65c170bd2168adf",
+            "startLine": 1,
+            "endLine": 5007
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/padok-team/burrito",
+      "line": "0.13",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.12.0",
+            "commit": "afe11b40480eb87a6575729d5b316bdb7b64ff84"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.13.0",
+            "commit": "d37b9231c69bf40f4a50a526459e2c1632bc3934"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.burrito",
+          "version": "2.11.0",
+          "codeDigest": "sha256:1ae099f1f3f55730059003b76e6b23a1a574fe269367d25579defa7c62339e64"
+        },
+        "derivedAt": "2026-11-09T18:20:04Z",
+        "reviewedAt": "2026-11-09T18:20:04Z",
+        "validUntil": "2027-02-07T18:20:04Z",
+        "sources": [
+          {
+            "id": "crds-0-12-0",
+            "url": "https://github.com/padok-team/burrito/blob/afe11b40480eb87a6575729d5b316bdb7b64ff84/manifests/crds/config.terraform.padok.cloud_terraformlayers.yaml",
+            "revision": "afe11b40480eb87a6575729d5b316bdb7b64ff84",
+            "contentDigest": "sha256:2de1da46247d2dfcd0d21898a80a365d1af1482cc6ccb04ee65c170bd2168adf",
+            "startLine": 1,
+            "endLine": 5007
+          },
+          {
+            "id": "crds-0-13-0",
+            "url": "https://github.com/padok-team/burrito/blob/d37b9231c69bf40f4a50a526459e2c1632bc3934/manifests/crds/config.terraform.padok.cloud_terraformlayers.yaml",
+            "revision": "d37b9231c69bf40f4a50a526459e2c1632bc3934",
+            "contentDigest": "sha256:2de1da46247d2dfcd0d21898a80a365d1af1482cc6ccb04ee65c170bd2168adf",
+            "startLine": 1,
+            "endLine": 5007
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/padok-team/burrito",
+      "line": "0.14",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.13.0",
+            "commit": "d37b9231c69bf40f4a50a526459e2c1632bc3934"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.14.0",
+            "commit": "b07b2bf9cb93ec6fcf76a08f73cab06a5056be4b"
+          },
+          {
+            "version": "0.14.1",
+            "commit": "b26a0ed42688ad519c85ad7938eb7a395a8926c5"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.burrito",
+          "version": "2.11.0",
+          "codeDigest": "sha256:1ae099f1f3f55730059003b76e6b23a1a574fe269367d25579defa7c62339e64"
+        },
+        "derivedAt": "2026-11-09T18:20:04Z",
+        "reviewedAt": "2026-11-09T18:20:04Z",
+        "validUntil": "2027-02-07T18:20:04Z",
+        "sources": [
+          {
+            "id": "crds-0-13-0",
+            "url": "https://github.com/padok-team/burrito/blob/d37b9231c69bf40f4a50a526459e2c1632bc3934/manifests/crds/config.terraform.padok.cloud_terraformlayers.yaml",
+            "revision": "d37b9231c69bf40f4a50a526459e2c1632bc3934",
+            "contentDigest": "sha256:2de1da46247d2dfcd0d21898a80a365d1af1482cc6ccb04ee65c170bd2168adf",
+            "startLine": 1,
+            "endLine": 5007
+          },
+          {
+            "id": "crds-0-14-0",
+            "url": "https://github.com/padok-team/burrito/blob/b07b2bf9cb93ec6fcf76a08f73cab06a5056be4b/manifests/crds/config.terraform.padok.cloud_terraformlayers.yaml",
+            "revision": "b07b2bf9cb93ec6fcf76a08f73cab06a5056be4b",
+            "contentDigest": "sha256:621afd9db97497f9acd19b72b85eb8682a6802363ff434f6a91cdb64ef932165",
+            "startLine": 1,
+            "endLine": 5607
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/padok-team/burrito",
+      "line": "0.15",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.14.0",
+            "commit": "b07b2bf9cb93ec6fcf76a08f73cab06a5056be4b"
+          },
+          {
+            "version": "0.14.1",
+            "commit": "b26a0ed42688ad519c85ad7938eb7a395a8926c5"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.15.0",
+            "commit": "aed126436961d7aa69fa1305688e0332f3b71bb5"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.burrito",
+          "version": "2.11.0",
+          "codeDigest": "sha256:1ae099f1f3f55730059003b76e6b23a1a574fe269367d25579defa7c62339e64"
+        },
+        "derivedAt": "2026-11-09T18:20:04Z",
+        "reviewedAt": "2026-11-09T18:20:04Z",
+        "validUntil": "2027-02-07T18:20:04Z",
+        "sources": [
+          {
+            "id": "crds-0-14-0",
+            "url": "https://github.com/padok-team/burrito/blob/b07b2bf9cb93ec6fcf76a08f73cab06a5056be4b/manifests/crds/config.terraform.padok.cloud_terraformlayers.yaml",
+            "revision": "b07b2bf9cb93ec6fcf76a08f73cab06a5056be4b",
+            "contentDigest": "sha256:621afd9db97497f9acd19b72b85eb8682a6802363ff434f6a91cdb64ef932165",
+            "startLine": 1,
+            "endLine": 5607
+          },
+          {
+            "id": "crds-0-15-0",
+            "url": "https://github.com/padok-team/burrito/blob/aed126436961d7aa69fa1305688e0332f3b71bb5/manifests/crds/config.terraform.padok.cloud_terraformlayers.yaml",
+            "revision": "aed126436961d7aa69fa1305688e0332f3b71bb5",
+            "contentDigest": "sha256:ed19c169f1639151454c46eac9c0d3581e2e205ab7903bf364258001529c1f95",
+            "startLine": 1,
+            "endLine": 5615
           }
         ]
       }
