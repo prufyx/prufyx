@@ -4,23 +4,36 @@ name: Knowledge gate
 # attestations, the support inventory, reattestation records) before it can
 # merge, and re-derives every mechanical rule once a day.
 #
-# The gate is always built from the base branch and only reads the proposed
-# change's files: nothing from the change is executed. That is why this
-# workflow runs on pull_request_target (the workflow definition and the gate
-# code come from the base branch, so a change cannot weaken its own gate).
-# It holds no secrets beyond read-only tokens and never merges anything; it
+# The gate code is always built from the live tip of main and only reads the
+# proposed change's files: nothing from the change is executed. The trust
+# control is the pull_request_target run (the workflow definition and the gate
+# code come from the base branch, so a change cannot weaken its own gate). It
+# holds no secrets beyond read-only tokens and never merges anything; it
 # reports whether the change would be eligible for automatic merging, and
 # for which head commit.
 #
 # Both trees are exported from git objects (never checked out), so the
 # change's own .gitattributes cannot make the files the gate checks differ
-# from the blobs that merge. A pull request must be up to date with the
-# current tip of main.
+# from the blobs that merge. A pull request is gated as it would land: the
+# tree of merging the live tip of main and the change head (git merge-tree);
+# a conflict fails.
+#
+# merge_group (the merge queue) is a CORRECTNESS check, not a trust control.
+# A merge_group run executes the workflow definition of the queued commit,
+# which is the pull request's own content, so the pull request can edit its
+# own queue run. The queue run re-gates the exact queue commit against the
+# queue base, so a main that moved since the pull request run is covered, and
+# it requires GitHub's record of a successful pull_request_target run of this
+# workflow on the pull request head (the only gate a change cannot rewrite).
+# The queue run uses no secret: it runs in an environment that holds none and
+# names none.
 
 on:
   pull_request_target:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+  merge_group:
+    types: [checks_requested]
   schedule:
     - cron: "23 4 * * *"
   workflow_dispatch:
@@ -34,7 +47,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: knowledge-gate-${{ github.event.pull_request.number || github.ref }}
+  group: knowledge-gate-${{ github.event.pull_request.number || github.event.merge_group.head_sha || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -42,9 +55,14 @@ jobs:
     name: Knowledge gate
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    # The queue run gets an environment that holds no secrets; the read-only
+    # App key lives in the environment of the pull_request_target run only.
+    environment: ${{ github.event_name == 'merge_group' && 'knowledge-gate-queue' || 'knowledge-gate' }}
     env:
-      PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-      HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+      MQ_BASE_SHA: ${{ github.event.merge_group.base_sha }}
+      MQ_BASE_REF: ${{ github.event.merge_group.base_ref }}
+      MQ_HEAD_REF: ${{ github.event.merge_group.head_ref }}
       HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
       PR_AUTHOR: ${{ github.event.pull_request.user.login }}
       EVENT_SENDER: ${{ github.event.sender.login }}
@@ -86,21 +104,38 @@ jobs:
             echo "The head commit id is not a full commit id."
             exit 1
           fi
+          # The gate code always comes from the live tip of main, never from
+          # the base or head commit of the event.
+          tip="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/main | cut -f1)"
+          if ! [[ "${tip}" =~ ${sha_re} ]]; then
+            echo "Cannot resolve the tip of main."
+            exit 1
+          fi
           case "${GITHUB_EVENT_NAME}" in
             pull_request_target)
-              tip="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/main | cut -f1)"
-              if ! [[ "${tip}" =~ ${sha_re} ]]; then
-                echo "Cannot resolve the tip of main."
-                exit 1
-              fi
-              if [ "${PR_BASE_SHA}" != "${tip}" ]; then
-                echo "main has moved since this run was triggered; update the branch so the gate compares exactly what would merge."
-                exit 1
-              fi
+              # A change is gated as it would land on the live tip.
               base="${tip}"
               ;;
-            *)
+            merge_group)
+              # The queue base is a chain of earlier queue entries on main,
+              # not the live tip; the chain is checked against the tip once
+              # the objects are fetched.
+              if [ "${MQ_BASE_REF}" != "refs/heads/main" ]; then
+                echo "The merge queue is not for main."
+                exit 1
+              fi
+              base="${MQ_BASE_SHA}"
+              if [ "${base}" = "${HEAD_SHA}" ]; then
+                echo "The queue base equals the queue head: nothing would merge."
+                exit 1
+              fi
+              ;;
+            schedule|workflow_dispatch)
               base="${HEAD_SHA}"
+              ;;
+            *)
+              echo "Unknown event ${GITHUB_EVENT_NAME}: the gate does not run."
+              exit 1
               ;;
           esac
           if ! [[ "${base}" =~ ${sha_re} ]]; then
@@ -108,12 +143,13 @@ jobs:
             exit 1
           fi
           echo "BASE_SHA=${base}" >> "${GITHUB_ENV}"
-          echo "sha=${base}" >> "${GITHUB_OUTPUT}"
+          echo "LIVE_TIP=${tip}" >> "${GITHUB_ENV}"
+          echo "gate_sha=${tip}" >> "${GITHUB_OUTPUT}"
 
-      - name: Check out the base (gate code only)
+      - name: Check out the live main tip (gate code only)
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          ref: ${{ steps.base.outputs.sha }}
+          ref: ${{ steps.base.outputs.gate_sha }}
           path: gate-src
           persist-credentials: false
 
@@ -123,7 +159,7 @@ jobs:
           go-version-file: gate-src/cli/go.mod
           cache: false
 
-      - name: Build the gate from the base
+      - name: Build the gate from the live main tip
         working-directory: gate-src/cli
         run: go build -buildvcs=false -trimpath -o "${RUNNER_TEMP}/prufyx-maintainer" ./cmd/prufyx-maintainer
 
@@ -135,7 +171,7 @@ jobs:
       # the change never sees the token.
       - name: Create the read-only App token
         id: app-token
-        if: vars.KNOWLEDGE_GATE_APP_ID != ''
+        if: github.event_name != 'merge_group' && vars.KNOWLEDGE_GATE_APP_ID != ''
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           app-id: ${{ vars.KNOWLEDGE_GATE_APP_ID }}
@@ -143,23 +179,45 @@ jobs:
           permission-contents: read
           permission-metadata: read
 
-      - name: Fetch both commits and require the head to contain the base
+      - name: Fetch both commits and check how they relate
         run: |
           set -euo pipefail
           objects="${RUNNER_TEMP}/objects.git"
           git init -q --bare "${objects}"
           git -C "${objects}" fetch --no-tags --quiet "https://github.com/${GITHUB_REPOSITORY}.git" "+${BASE_SHA}:refs/admission/base"
+          git -C "${objects}" fetch --no-tags --quiet "https://github.com/${GITHUB_REPOSITORY}.git" "+${LIVE_TIP}:refs/admission/tip"
           git -C "${objects}" fetch --no-tags --quiet "https://github.com/${HEAD_REPO}.git" "+${HEAD_SHA}:refs/admission/head"
-          if ! git -C "${objects}" merge-base --is-ancestor "${BASE_SHA}" "${HEAD_SHA}"; then
-            echo "The change does not contain the current base; update it so the gate compares exactly what would merge."
-            exit 1
+          # Whether the head contains the base decides what the onboarding
+          # admission may rely on (it reads the head's own git history).
+          if git -C "${objects}" merge-base --is-ancestor "${BASE_SHA}" "${HEAD_SHA}"; then
+            echo "HEAD_CONTAINS_BASE=yes" >> "${GITHUB_ENV}"
+          else
+            echo "HEAD_CONTAINS_BASE=no" >> "${GITHUB_ENV}"
+            if [ "${GITHUB_EVENT_NAME}" != "pull_request_target" ]; then
+              echo "The head does not contain the base."
+              exit 1
+            fi
+          fi
+          if [ "${GITHUB_EVENT_NAME}" = "merge_group" ]; then
+            # The queue chain must contain the live tip of main.
+            if ! git -C "${objects}" merge-base --is-ancestor "${LIVE_TIP}" "${BASE_SHA}"; then
+              echo "The queue base does not contain the current tip of main."
+              exit 1
+            fi
           fi
 
       - name: Export both trees from git objects (no checkout, no attributes)
         run: |
           set -euo pipefail
           "${RUNNER_TEMP}/prufyx-maintainer" gate export --git-dir "${RUNNER_TEMP}/objects.git" --commit "${BASE_SHA}" --out base
-          "${RUNNER_TEMP}/prufyx-maintainer" gate export --git-dir "${RUNNER_TEMP}/objects.git" --commit "${HEAD_SHA}" --out head
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request_target" ]; then
+            # What would land: the live tip with the change merged in. A
+            # conflict fails here.
+            tree="$("${RUNNER_TEMP}/prufyx-maintainer" gate merge-tree --git-dir "${RUNNER_TEMP}/objects.git" --base "${BASE_SHA}" --head "${HEAD_SHA}")"
+            "${RUNNER_TEMP}/prufyx-maintainer" gate export --git-dir "${RUNNER_TEMP}/objects.git" --tree "${tree}" --out head
+          else
+            "${RUNNER_TEMP}/prufyx-maintainer" gate export --git-dir "${RUNNER_TEMP}/objects.git" --commit "${HEAD_SHA}" --out head
+          fi
 
       - name: List the change's commits
         if: github.event_name == 'pull_request_target'
@@ -174,8 +232,40 @@ jobs:
             rm -f "${RUNNER_TEMP}/commits.json"
           fi
 
+      # The queue run has no commit list of its own and no sender: both come
+      # from GitHub's record of the pull request and of the gate's
+      # pull_request_target run on its head, assembled here and decided by
+      # the gate (gate verify --queue-merge).
+      - name: Collect the queue entry's evidence
+        if: github.event_name == 'merge_group'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          head_ref_re='^(refs/heads/)?gh-readonly-queue/main/pr-([1-9][0-9]{0,8})-[0-9a-f]{40}$'
+          if ! [[ "${MQ_HEAD_REF}" =~ ${head_ref_re} ]]; then
+            echo "The queue head ref does not name a pull request."
+            exit 1
+          fi
+          number="${BASH_REMATCH[2]}"
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${number}" \
+            --jq '{number, state, baseRef: .base.ref, headSha: .head.sha, userLogin: (.user.login // ""), commitCount: .commits}')"
+          head_sha="$(jq -r '.headSha' <<<"${pr}")"
+          commits="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${number}/commits?per_page=100" \
+            --jq '.[] | {sha, parents: (.parents | length), author: (.author.login // ""), committer: (.committer.login // ""), verified: (.commit.verification.verified == true)}' | jq -s '.')"
+          runs="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs?event=pull_request_target&head_sha=${head_sha}&per_page=100" \
+            --jq '.workflow_runs[] | {path, event, headSha: .head_sha, status, conclusion: (.conclusion // ""), createdAt: .created_at, actor: (.actor.login // ""), triggeringActor: (.triggering_actor.login // "")}' | jq -s '.')"
+          parents="$(git -C "${RUNNER_TEMP}/objects.git" rev-list --parents -n 1 "${HEAD_SHA}")"
+          jq -n --argjson pr "${pr}" --argjson commits "${commits}" --argjson runs "${runs}" \
+            --arg parents "${parents}" --arg event "${GITHUB_EVENT_NAME}" \
+            --arg baseRef "${MQ_BASE_REF}" --arg baseSha "${MQ_BASE_SHA}" \
+            --arg headSha "${HEAD_SHA}" --arg headRef "${MQ_HEAD_REF}" \
+            '{schema: "prufyx.io/knowledge-gate-queue-merge/v1", event: $event, baseRef: $baseRef, baseSha: $baseSha, headSha: $headSha, headRef: $headRef,
+              mergeParents: ($parents | split(" ") | .[1:]), pullRequest: $pr, commits: $commits, runs: $runs}' \
+            > "${RUNNER_TEMP}/queue-merge.json"
+
       - name: Count the loosening changes the automation merged in the last day
-        if: github.event_name == 'pull_request_target'
+        if: github.event_name == 'pull_request_target' || github.event_name == 'merge_group'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -201,7 +291,7 @@ jobs:
           # Retain author observations covering the maximum onboarding validity
           # plus its daily window. The verifier checks exact Git membership and
           # parents; missing/oversized observations refuse v2 admission.
-          if [ -n "$(git -C "${RUNNER_TEMP}/objects.git" diff --name-only "${BASE_SHA}" "${HEAD_SHA}" -- cli/knowledge/onboarding)" ]; then
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request_target" ] && [ -n "$(git -C "${RUNNER_TEMP}/objects.git" diff --name-only "${BASE_SHA}" "${HEAD_SHA}" -- cli/knowledge/onboarding)" ]; then
             admission_since="$(date -u -d '4 days ago' +%Y-%m-%dT%H:%M:%SZ)"
             if ! gh api --paginate "repos/${GITHUB_REPOSITORY}/commits?sha=${BASE_SHA}&since=${admission_since}&per_page=100" \
               --jq '.[] | {sha, parent: (.parents[0].sha // null), author: (.author.login // null)}' | jq -s '.' > "${RUNNER_TEMP}/admission-commits.json"; then
@@ -267,7 +357,7 @@ jobs:
                 --report "${RUNNER_TEMP}/gate-report.json" --summary "${GITHUB_STEP_SUMMARY}"
                 --metrics "${RUNNER_TEMP}/gate-metrics.json"
                 --alarms "${RUNNER_TEMP}/gate-alarms.json" --alarms-markdown "${RUNNER_TEMP}/gate-alarms.md")
-          if [ "${BOT_SIGNER_PAUSED}" = false ] && [ -f "${RUNNER_TEMP}/admission-commits.json" ]; then
+          if [ "${BOT_SIGNER_PAUSED}" = false ] && [ "${GITHUB_EVENT_NAME}" = "pull_request_target" ] && [ "${HEAD_CONTAINS_BASE}" = yes ] && [ -f "${RUNNER_TEMP}/admission-commits.json" ]; then
             args+=(--admission-git-dir "${RUNNER_TEMP}/objects.git"
                    --admission-base "${BASE_SHA}" --admission-head "${HEAD_SHA}"
                    --admission-daily-commits "${RUNNER_TEMP}/admission-commits.json"
@@ -282,14 +372,24 @@ jobs:
           if [ -f "${RUNNER_TEMP}/daily-count.txt" ]; then
             args+=(--daily-loosening-count "$(cat "${RUNNER_TEMP}/daily-count.txt")")
           fi
-          if [ -n "${PR_AUTHOR}" ]; then
-            args+=(--author "${PR_AUTHOR}")
-          fi
-          if [ -n "${EVENT_SENDER}" ]; then
-            args+=(--sender "${EVENT_SENDER}")
-          fi
-          if [ -f "${RUNNER_TEMP}/commits.json" ]; then
-            args+=(--commits "${RUNNER_TEMP}/commits.json")
+          if [ "${GITHUB_EVENT_NAME}" = "merge_group" ]; then
+            # No author, sender or commit list: the sender of a merge_group
+            # event is the queue's own account. They come from the evidence.
+            if [ ! -f "${RUNNER_TEMP}/queue-merge.json" ]; then
+              echo "The queue entry's evidence is unavailable."
+              exit 1
+            fi
+            args+=(--queue-merge "${RUNNER_TEMP}/queue-merge.json")
+          else
+            if [ -n "${PR_AUTHOR}" ]; then
+              args+=(--author "${PR_AUTHOR}")
+            fi
+            if [ -n "${EVENT_SENDER}" ]; then
+              args+=(--sender "${EVENT_SENDER}")
+            fi
+            if [ -f "${RUNNER_TEMP}/commits.json" ]; then
+              args+=(--commits "${RUNNER_TEMP}/commits.json")
+            fi
           fi
           if [ -n "${REATTEST_TRUST_ROOT_DIGEST}" ]; then
             args+=(--trust-root-digest "${REATTEST_TRUST_ROOT_DIGEST}")
@@ -327,6 +427,7 @@ jobs:
             ${{ runner.temp }}/gate-report.json
             ${{ runner.temp }}/classify.json
             ${{ runner.temp }}/commits.json
+            ${{ runner.temp }}/queue-merge.json
             ${{ runner.temp }}/gate-metrics.json
             ${{ runner.temp }}/gate-alarms.json
             ${{ runner.temp }}/gate-alarms.md
@@ -342,7 +443,7 @@ jobs:
   alarm:
     name: Gate alarms
     needs: gate
-    if: ${{ always() && needs.gate.outputs.alarm-count != '' && needs.gate.outputs.alarm-count != '0' && (github.event_name != 'pull_request_target' || github.event.pull_request.user.login == (vars.KNOWLEDGE_BOT_LOGIN || 'prufyx-factory[bot]')) }}
+    if: ${{ always() && github.event_name != 'merge_group' && needs.gate.outputs.alarm-count != '' && needs.gate.outputs.alarm-count != '0' && (github.event_name != 'pull_request_target' || github.event.pull_request.user.login == (vars.KNOWLEDGE_BOT_LOGIN || 'prufyx-factory[bot]')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions: {}

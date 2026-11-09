@@ -23,7 +23,8 @@ import (
 )
 
 const usage = `usage:
-  prufyx-maintainer gate export   --git-dir DIR --commit SHA --out DIR
+  prufyx-maintainer gate export   --git-dir DIR (--commit SHA | --tree SHA) --out DIR
+  prufyx-maintainer gate merge-tree --git-dir DIR --base SHA --head SHA
   prufyx-maintainer gate classify --base DIR --head DIR [--json]
   prufyx-maintainer gate daily-count --git-dir DIR --commits FILE [--bot-login LOGIN]
   prufyx-maintainer gate limits   --base DIR --head DIR [--max-loosening N] [--json]
@@ -57,6 +58,8 @@ func mainWith(args []string, getenv func(string) string, stdout, stderr io.Write
 	switch args[0] {
 	case "export":
 		code, err = cmdExport(args[1:])
+	case "merge-tree":
+		code, err = cmdMergeTree(args[1:], stdout)
 	case "classify":
 		code, err = cmdClassify(args[1:], layout, stdout)
 	case "daily-count":
@@ -124,18 +127,43 @@ func cmdExport(args []string) (int, error) {
 	f.SetOutput(io.Discard)
 	f.StringVar(&o.GitDir, "git-dir", "", "repository holding the commit")
 	f.StringVar(&o.Commit, "commit", "", "full commit id to export")
+	f.StringVar(&o.Tree, "tree", "", "full tree id to export (a synthetic merge tree) instead of a commit")
 	f.StringVar(&o.Out, "out", "", "directory to create")
 	if err := parse(f, args); err != nil {
 		return 2, err
 	}
-	if o.GitDir == "" || o.Commit == "" || o.Out == "" {
-		return 2, errors.New("--git-dir, --commit and --out are required\n" + usage)
+	if o.GitDir == "" || (o.Commit == "") == (o.Tree == "") || o.Out == "" {
+		return 2, errors.New("--git-dir, --out and exactly one of --commit and --tree are required\n" + usage)
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	if err := Export(ctx, o); err != nil {
 		return 2, err
 	}
+	return 0, nil
+}
+
+func cmdMergeTree(args []string, stdout io.Writer) (int, error) {
+	var o ExportOptions
+	var base, head string
+	f := flag.NewFlagSet("gate merge-tree", flag.ContinueOnError)
+	f.SetOutput(io.Discard)
+	f.StringVar(&o.GitDir, "git-dir", "", "repository holding both commits")
+	f.StringVar(&base, "base", "", "full commit id of the live tip")
+	f.StringVar(&head, "head", "", "full commit id of the change")
+	if err := parse(f, args); err != nil {
+		return 2, err
+	}
+	if o.GitDir == "" || base == "" || head == "" {
+		return 2, errors.New("--git-dir, --base and --head are required\n" + usage)
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	tree, err := MergeTree(ctx, o, base, head)
+	if err != nil {
+		return 1, err
+	}
+	fmt.Fprintln(stdout, tree)
 	return 0, nil
 }
 
@@ -241,6 +269,7 @@ func exitFor(r *Report) int {
 func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout io.Writer) (int, error) {
 	var t treeFlags
 	var admission admissionFlags
+	var queueFile string
 	var source, author, sender, owner, bot, headSHA, commits, digest, keysDigest, rerun, now, report, summary string
 	var max, concurrency int
 	var citeTimeout time.Duration
@@ -261,6 +290,7 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	f.StringVar(&author, "author", "", "the change's author login")
 	f.StringVar(&sender, "sender", "", "the login of the account whose action triggered this run")
 	f.StringVar(&headSHA, "head-sha", "", "the head commit being checked")
+	f.StringVar(&queueFile, "queue-merge", "", "merge queue run: the evidence file of the queue entry (replaces --author, --sender and --commits; --head-sha is the queue commit)")
 	f.StringVar(&commits, "commits", "", "the change's commit list (GitHub compare API JSON)")
 	f.StringVar(&keysDigest, "approval-keys-digest", "", "pinned digest of the owner approval key file")
 	f.StringVar(&owner, "owner-login", DefaultOwnerLogin, "the repository owner's login; only the owner's change may supersede a reviewed rule")
@@ -296,6 +326,21 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	}
 	opts := Options{Layout: layout, Base: base, Head: head, Author: author, Sender: sender, Owner: owner, BotLogin: bot, HeadSHA: headSHA, MaxLoosening: max, TrustRootDigest: digest, ApprovalKeysDigest: keysDigest, RederiveAll: all, Concurrency: concurrency, Shadow: shadow, BotSignerPaused: botPaused}
 	opts.AdmissionRESTBudget = restBudget
+	if queueFile != "" {
+		if author != "" || sender != "" || commits != "" || admission.gitDir != "" {
+			return 2, errors.New("--queue-merge excludes --author, --sender, --commits and the admission flags: a queue run takes its author, sender and commits from the queue evidence")
+		}
+		raw, err := readBoundedFile(queueFile, maxQueueEvidenceBytes)
+		if err != nil {
+			return 2, err
+		}
+		if opts.Queue, err = ParseQueueMerge(raw); err != nil {
+			return 2, err
+		}
+		if headSHA != opts.Queue.HeadSHA {
+			return 2, errors.New("--head-sha must be the queue head commit the queue evidence names")
+		}
+	}
 	if admission.gitDir != "" {
 		if opts.OnboardingGit, err = admission.context(); err != nil {
 			return 2, err

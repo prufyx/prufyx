@@ -70,6 +70,13 @@ type Options struct {
 	// verification. Both are required for automatic-merge eligibility.
 	HeadSHA string
 	Commits *CommitList
+	// Queue is set for a merge queue run: the author, sender, head and
+	// commit list are then taken from GitHub's record of the queue entry
+	// (see queue.go) and must not be supplied. Every problem with the
+	// record fails the gate. A queue run is a correctness re-check of what
+	// is about to land, not a trust control (its workflow definition is the
+	// queued commit's own).
+	Queue *QueueMerge
 	// MaxLoosening caps loosening changes; 0 means DefaultMaxLoosening.
 	MaxLoosening int
 	// TrustRootDigest pins the reattestation trust root read from Base.
@@ -375,6 +382,7 @@ func (r *Report) finish(changes bool) {
 // Verify runs the whole gate.
 func Verify(ctx context.Context, opts Options) (*Report, error) {
 	opts.defaults()
+	queueProblems := opts.applyQueue()
 	cls, err := Classify(opts.Layout, opts.Base, opts.Head)
 	if err != nil {
 		return nil, err
@@ -390,6 +398,12 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 		return nil, err
 	}
 	r.add("tree", len(special) == 0, "%d links or special files under %s/%s", len(special), cliDir, listDetail(special))
+	if opts.Queue != nil {
+		r.add("queue-merge", len(queueProblems) == 0, "%s", queueDetail(queueProblems))
+		// A queue entry that changes nothing against its base would pass
+		// every check vacuously (for instance a base compared with itself).
+		r.add("queue-diff", len(r.ChangedPaths) > 0, "%d paths differ between the queue base and the queue head", len(r.ChangedPaths))
+	}
 
 	// Statements appended to a chain are verified whether or not a rule
 	// change needs them: the chain is published knowledge too.

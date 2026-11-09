@@ -31,8 +31,12 @@ type ExportOptions struct {
 	Git string
 	// GitDir is a repository (usually bare) holding the commit.
 	GitDir string
-	// Commit is the full 40-hex commit id.
+	// Commit is the full 40-hex commit id. Exactly one of Commit and Tree
+	// is set.
 	Commit string
+	// Tree is the full 40-hex id of a tree object (a synthetic merge tree
+	// from MergeTree), exported in place of a commit's tree.
+	Tree string
 	// Out is the directory to create; it must not exist.
 	Out string
 	// Only, when set, limits what is written to these repository paths: a
@@ -68,16 +72,31 @@ type treeEntry struct {
 // are written (links last, as links, never followed); a submodule, a path
 // component "." or ".." or ".git", or any limit exceeded fails the export.
 func Export(ctx context.Context, opts ExportOptions) error {
-	if !shaRE.MatchString(opts.Commit) {
-		return fmt.Errorf("commit %q is not a full commit id", logSafe(opts.Commit))
+	if (opts.Commit == "") == (opts.Tree == "") {
+		return errors.New("exactly one of a commit and a tree must be named")
+	}
+	root := opts.Commit
+	if opts.Tree != "" {
+		root = opts.Tree
+	}
+	if !shaRE.MatchString(root) {
+		return fmt.Errorf("%q is not a full object id", logSafe(root))
 	}
 	if opts.Git == "" {
 		opts.Git = "git"
 	}
+	if opts.Tree != "" {
+		// A commit id here would be exported as its tree and look like a
+		// merge result; only a tree object is accepted.
+		kind, err := gitOutput(ctx, opts, "cat-file", "-t", opts.Tree)
+		if err != nil || strings.TrimSpace(string(kind)) != "tree" {
+			return fmt.Errorf("%s is not a tree object", opts.Tree)
+		}
+	}
 	if _, err := os.Lstat(opts.Out); err == nil {
 		return fmt.Errorf("%s already exists", opts.Out)
 	}
-	listing, err := gitOutput(ctx, opts, "ls-tree", "-r", "-z", "-l", "--full-tree", opts.Commit)
+	listing, err := gitOutput(ctx, opts, "ls-tree", "-r", "-z", "-l", "--full-tree", root)
 	if err != nil {
 		return fmt.Errorf("list commit tree: %w", err)
 	}
@@ -315,4 +334,39 @@ func gitOutput(ctx context.Context, opts ExportOptions, args ...string) ([]byte,
 		return nil, fmt.Errorf("%v: %s", err, logSafe(stderr.String()))
 	}
 	return out, nil
+}
+
+// MergeTree computes the tree that merging head onto base would produce,
+// without a work tree and without writing a commit: the tree of what would
+// land if the change were merged now. A conflict, or anything that is not a
+// clean merge of two commits that exist, is an error.
+func MergeTree(ctx context.Context, opts ExportOptions, base, head string) (string, error) {
+	if !shaRE.MatchString(base) || !shaRE.MatchString(head) {
+		return "", errors.New("merge-tree needs two full commit ids")
+	}
+	if opts.Git == "" {
+		opts.Git = "git"
+	}
+	for _, c := range []string{base, head} {
+		kind, err := gitOutput(ctx, opts, "cat-file", "-t", c)
+		if err != nil || strings.TrimSpace(string(kind)) != "commit" {
+			return "", fmt.Errorf("%s is not a commit in the object store", c)
+		}
+	}
+	cmd := gitCommand(ctx, opts, "merge-tree", "--write-tree", "--no-messages", base, head)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		var exit *exec.ExitError
+		if errors.As(err, &exit) && exit.ExitCode() == 1 {
+			return "", errors.New("the change conflicts with the current main: merge conflict")
+		}
+		return "", fmt.Errorf("git merge-tree: %v: %s", err, logSafe(stderr.String()))
+	}
+	tree := strings.TrimSpace(string(out))
+	if !shaRE.MatchString(tree) {
+		return "", errors.New("git merge-tree did not return a single tree id")
+	}
+	return tree, nil
 }

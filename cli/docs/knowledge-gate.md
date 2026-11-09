@@ -392,6 +392,10 @@ job output `head-sha`). It is eligible only when:
 - it adds no fact definition (an admitted `registryDigest` change, see [Adding
   fact definitions](#adding-fact-definitions)).
 
+In a merge queue run the author, sender and commit list come from the queue
+evidence (see [Merge queue](#merge-queue)); eligibility reported by a queue run
+is output only, and the consumer decides on the pull request run's output.
+
 Trust material is never on that list. A consumer that merges automatically
 must merge exactly the commit in `head-sha` (for example with the expected
 head commit of the merge request), and only when the gate job succeeded, not
@@ -1304,7 +1308,8 @@ never form a CI log command.
 
 ### `gate export`
 
-Writes the tree of one commit into a new directory with the exact bytes of
+Writes the tree of one commit (or, with `--tree`, of one tree object such as
+the output of `gate merge-tree`) into a new directory with the exact bytes of
 every blob, read with `git cat-file` from the object store (no checkout, no
 attributes, no filters). Symbolic links are written as links; a submodule, a
 path component `.`, `..` or `.git`, or a tree over the size bounds fails.
@@ -1313,7 +1318,17 @@ path component `.`, `..` or `.git`, or a tree over the size bounds fails.
 | --- | --- |
 | `--git-dir DIR` | repository (usually bare) holding the commit |
 | `--commit SHA` | full 40-hex commit id |
+| `--tree SHA` | full 40-hex tree id, instead of `--commit` (exactly one of the two; a commit id is refused) |
 | `--out DIR` | directory to create; it must not exist |
+
+### `gate merge-tree`
+
+`gate merge-tree --git-dir DIR --base SHA --head SHA` prints the id of the
+tree that merging `head` onto `base` would produce (`git merge-tree
+--write-tree`: no work tree, no commit). A conflict, or a commit that is not in
+the object store, exits `1` without output. The workflow exports that tree with
+`gate export --tree`, so a pull request is gated as it would land on the live
+tip of `main`.
 
 ### `gate classify`
 
@@ -1393,7 +1408,8 @@ The whole gate.
 | `--author LOGIN` | the change's author, for automatic-merge eligibility and trust material |
 | `--sender LOGIN` | the account whose action triggered the run |
 | `--bot-login LOGIN` | the automation account (default `prufyx-factory[bot]`) |
-| `--head-sha SHA` | the head commit being checked; reported as `headSha` |
+| `--head-sha SHA` | the head commit being checked; reported as `headSha` (with `--queue-merge`: the queue commit, which must be the one the evidence names) |
+| `--queue-merge FILE` | a merge queue run: the evidence file of the queue entry (see [Merge queue](#merge-queue)). Excludes `--author`, `--sender`, `--commits` and the admission flags; any problem with the evidence fails the gate (check `queue-merge`), and a queue entry whose tree equals its base fails (check `queue-diff`) |
 | `--commits FILE` | the change's commits as GitHub's compare API returns them (`status`, `ahead_by`, `behind_by`, `total_commits`, and per commit `sha`, `author.login`, `committer.login`, `commit.verification.verified`) |
 | `--approval-keys-digest sha256:…` | pinned digest of the base's owner-approval key file; without it no approval is accepted |
 | `--max-loosening N` | cap on loosening changes (default 200) |
@@ -1465,47 +1481,82 @@ auto-merge: not eligible (author "" is not the automation account "prufyx-factor
 ## The workflow
 
 `Knowledge gate` runs on `pull_request_target` so that its definition and
-the gate code always come from the base branch. For a pull request it resolves
-the tip of `main` at run time and fails when the pull request's base is not
-that tip (the branch must be up to date). It checks out only the base, without
-stored credentials, and builds the gate from it with module caching off. It
-fetches the base and head commits into a bare repository, requires the head to
-contain the base, and exports both trees with `gate export`. It lists the
-change's commits with GitHub's compare API, then runs `gate classify` and
-`gate verify --source github` with the author, the event sender, the head
-commit and the commit list; gate output is printed with workflow commands
-stopped. When a statement chain changed it first runs `evidence repin` itself
-and passes the result as `--rerun-worklist`. For a pull request it also counts
-the loosening changes the automation merged in the last day (`gate daily-count`
-over the history of `main`) and passes the number. The token is read-only. When
-the repository variable `KNOWLEDGE_GATE_APP_ID` is set, re-derivation reads the
+the gate code come from the base branch: that run is the trust control, because
+a change cannot rewrite it. The job resolves the live tip of `main` itself, and
+the gate source is always checked out from that tip (never from the event's
+base or head commit), without stored credentials, and built with module caching
+off. For a pull request the base is the live tip, and the head is the tree of
+merging the live tip and the pull request head (`gate merge-tree`, exported
+with `gate export --tree`): the gate checks what would land, and a conflict
+fails. A pull request that does not contain the tip is no longer refused; it
+is simply not eligible for automatic merging (its commit list is not strictly
+ahead) and its onboarding admission, which reads the head's own history, is not
+offered. The job fetches the commits into a bare repository and runs
+`gate classify` and `gate verify --source github` with the author, the event
+sender, the head commit and the commit list from GitHub's compare API; gate
+output is printed with workflow commands stopped. When a statement chain changed
+it first runs `evidence repin` itself and passes the result as
+`--rerun-worklist`. For a pull request or a queue entry it also counts the
+loosening changes the automation merged in the last day (`gate daily-count` over
+the history of `main`) and passes the number. The token is read-only. When the
+repository variable `KNOWLEDGE_GATE_APP_ID` is set, re-derivation reads the
 upstream projects with an installation token of a read-only GitHub App
 (contents and metadata read, about 5000 REST requests an hour instead of about
 1000 for the workflow token) and the default `--rest-budget` is 4000 instead of
 900. The App's private key (`KNOWLEDGE_GATE_APP_PRIVATE_KEY`) reaches only the
-pinned `actions/create-github-app-token` step; no run step sees a secret. The
-only other secret in the workflow belongs to the separate `Gate alarms` job.
-On the daily run it adds `--rederive-all`.
+pinned `actions/create-github-app-token` step, which is skipped for a queue run;
+no run step sees a secret. The only other secret in the workflow belongs to the
+separate `Gate alarms` job, which never runs for a queue entry. On the daily run
+(`schedule`, `workflow_dispatch`) it adds `--rederive-all`; any other event
+fails the base step instead of choosing a base.
 
-It does not run for a merge queue: a `merge_group` run would use the workflow
-definition of the queued commit. Pull requests must instead be up to date with
-`main` before they merge (branch protection "require branches to be up to
-date"), so the merged tree is the tree the gate checked.
+### Merge queue
 
-Repository variables: `REATTEST_TRUST_ROOT_DIGEST` (the pinned trust root
-digest; unset means no statement is accepted), `WEB_APPROVAL_KEYS_DIGEST` (the
-pinned owner-approval key file digest; unset means no approval is accepted),
-`KNOWLEDGE_BOT_LOGIN` (default `prufyx-factory[bot]`), `KNOWLEDGE_MAX_LOOSENING`
-(default 200), `KNOWLEDGE_MAX_DAILY_LOOSENING` (default 50),
-`KNOWLEDGE_MAX_WITHDRAW_PERCENT` (default 5), `KNOWLEDGE_MAX_WITHDRAW_PROJECT`
-(default 20), `KNOWLEDGE_GATE_SHADOW` (`true` for shadow mode) and, for alarm
-issues, `OPS_ISSUES_REPO`.
+The workflow also runs for `merge_group` (`checks_requested`). Read this
+honestly: **a `merge_group` run executes the workflow definition of the queue
+commit, which is the pull request's own content, so the pull request can edit
+its own queue run. The queue run is a correctness check (it re-gates the exact
+tree that is about to land, so a `main` that moved since the pull request run
+is covered), not a trust control, and it is not pinned to the base branch.** The
+only gate a change cannot rewrite is the `pull_request_target` run on the pull
+request head, and GitHub allows a pull request into the queue only after its
+required checks passed on that head. Protect the queue accordingly: the
+required check must be the pull request run, and the queue run is additional.
 
-The job's outputs `result`, `auto-merge-eligible`, `head-sha` and `alarm-count` and the
-uploaded `knowledge-gate-report` artifact carry the result. The workflow never
-merges. The factory must open its pull requests with its GitHub App token
-(pull requests opened with the workflow token start no workflows) and create
-its commits as the App, so they are authored, committed and signed by it.
+The sender of a `merge_group` event is the queue's own account, so the rules
+that depend on who triggered a run (the automation tier, the owner's own
+supersede, trust material) cannot read it. A queue run passes no `--author`,
+`--sender` or `--commits`; the workflow assembles GitHub's record of the entry
+into the evidence file `--queue-merge` reads
+(`prufyx.io/knowledge-gate-queue-merge/v1`, unknown or repeated members
+refused), and the gate takes the author, the sender and the commit list from it
+and fails closed on anything unresolved or unknown:
+
+- the event is `merge_group`; the queue and the pull request are for `main`;
+  the head ref is `gh-readonly-queue/main/pr-<N>-<40 hex>`, `<N>` is the pull
+  request in the API record, and the 40 hex are the queue base;
+- the queue commit's parents are exactly `[queue base, pull request head]`
+  (merge method; squash and rebase entries are refused), the pull request head
+  is the API's `head.sha`, and the pull request is open;
+- the pull request's own commit list is complete, ends at its head and holds
+  only single-parent commits (a merge commit inside the pull request is
+  refused); the author is the API's `user.login`, empty is refused;
+- the workflow runs API lists a `pull_request_target` run of
+  `.github/workflows/knowledge-gate.yml` on exactly that head, and the latest
+  such run is `completed` and `success`; runs of another path, event or commit
+  never count. The sender the rules see is the actor of those runs, only when
+  every run's actor is also its triggering actor and they all agree; otherwise
+  no sender is known and the owner and automation rules fail;
+- the queue base contains the live tip of `main` (checked in the job), the queue
+  base and queue head differ, and the tree differs from the base (`queue-diff`:
+  an empty diff never passes vacuously).
+
+The queue run uses no secret: its job runs in the `knowledge-gate-queue`
+environment, which holds none (the pull request run uses the `knowledge-gate`
+environment, which holds the App key), and a test pins that no step that can run
+in a merge queue names a secret. Not offered in a queue run: bot onboarding v2
+admission (it reads the head's own history), so such a batch has to be merged
+outside the queue until that is built.
 
 ## Regenerating the attestation for a candidate tree
 
