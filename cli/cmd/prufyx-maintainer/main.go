@@ -24,6 +24,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgeexport"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgegate"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgepack"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgepacket"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgetargets"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/localkind"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/onboardbundle"
@@ -131,6 +132,11 @@ func run(args []string, stdout, stderr io.Writer) error {
 			return &commandError{code: 1, message: "release-freshness: " + err.Error()}
 		}
 		return nil
+	case "knowledge-packet":
+		if err := knowledgepacket.Run(args[1:], stdout, stderr); err != nil {
+			return &commandError{code: 1, message: "knowledge-packet: " + err.Error()}
+		}
+		return nil
 	case "release-sign":
 		return runReleaseSign(args[1:], stdout, stderr)
 	case "release":
@@ -225,7 +231,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 		}
 		return nil
 	case "help", "-h", "--help":
-		fmt.Fprintln(stdout, "usage: prufyx-maintainer <project|contribution|contribution-candidates|selected-source-import|source-corpus|corpus-attestation|review-record|public-source-capture|evidence|factory|extract|consensus|served-lists|chart-versions|gate|approval|rule|onboard-bundle|target-check|coverage|export-knowledge|knowledge-targets|package-knowledge|knowledge-publish|knowledge-sign|support-inventory|docs-tables|release-notes|release-gate|staging-receipt|release|local-kind|release-*> [options]")
+		fmt.Fprintln(stdout, "usage: prufyx-maintainer <project|contribution|contribution-candidates|selected-source-import|source-corpus|corpus-attestation|review-record|public-source-capture|evidence|factory|extract|consensus|served-lists|chart-versions|gate|approval|rule|onboard-bundle|target-check|coverage|export-knowledge|knowledge-targets|package-knowledge|knowledge-publish|knowledge-packet|knowledge-sign|support-inventory|docs-tables|release-notes|release-gate|staging-receipt|release|local-kind|release-*> [options]")
 		return nil
 	default:
 		return usageError()
