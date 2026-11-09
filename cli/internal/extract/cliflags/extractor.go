@@ -259,7 +259,7 @@ func (x *Extractor) candidate(p extract.VersionPair, res *PairResult) (extract.C
 	}
 	return extract.Candidate{
 		Project: x.slug,
-		Description: fmt.Sprintf("%s %s registers none of the %d command line flag(s) listed, which %s registered: the binaries of the pinned tree at each tag were read from source and no registration, string literal or alias of the name was found at %s. A flag that was renamed is reported as the removal of the old spelling only: the replacement spelling, if any, is not named, and a human must confirm what replaces it. Shorthand spellings, environment variable forms and flags registered inside libraries the module does not vendor are not checked.",
+		Description: fmt.Sprintf("%s %s registers none of the %d command line flag(s) listed, which %s registered: the binaries of the pinned tree at each tag were read from source and no registration, string literal or alias of the name was found at %s. A flag that was renamed is reported as the removal of the old spelling only: the replacement spelling, if any, is not named, and a human must confirm what replaces it. A flag name built at run time (concatenation or Sprintf) is not seen, and the literal sweep matches whole string literals only, so a name inside a longer literal is not a hit. Shorthand spellings, environment variable forms and flags registered inside libraries the module does not vendor are not checked.",
 			x.slug, p.To, len(res.Removed), p.From, p.To),
 		RequiredFacts: []extract.Fact{{
 			Side: "proposed", ID: x.FactID(), Component: x.component, Type: string(constraintengine.FactSet),

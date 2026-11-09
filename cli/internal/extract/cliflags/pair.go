@@ -536,6 +536,8 @@ func unhashedLibs(ctx context.Context, r extract.PinnedReader, repo extract.Repo
 	loaded := false
 	for _, mod := range required {
 		if _, ok := isFlagLib(mod); !ok || replaced[mod] {
+			// replaced[mod] is true only for a "./"-relative target, which lies
+			// inside the pinned tree; any other replacement is not hashed.
 			continue
 		}
 		if !loaded {
@@ -564,7 +566,10 @@ func unhashedLibs(ctx context.Context, r extract.PinnedReader, repo extract.Repo
 }
 
 // goModLibs reads the required module paths and the old paths of replace
-// directives of a go.mod, in single-line and block forms.
+// directives of a go.mod, in single-line and block forms. A module counts as
+// replaced only when its replace target starts with "./": that source is part
+// of the pinned tree. Any other target (parent directory, absolute path or
+// another module) is outside it, so the library stays unhashed.
 func goModLibs(gomod string) (required []string, replaced map[string]bool) {
 	replaced = map[string]bool{}
 	block := ""
@@ -583,16 +588,34 @@ func goModLibs(gomod string) (required []string, replaced map[string]bool) {
 		case block == "require":
 			required = append(required, unq(f[0]))
 		case block == "replace":
-			replaced[unq(f[0])] = true
+			noteReplace(replaced, f)
 		case len(f) >= 2 && f[1] == "(" && (f[0] == "require" || f[0] == "replace"):
 			block = f[0]
 		case f[0] == "require" && len(f) >= 2:
 			required = append(required, unq(f[1]))
 		case f[0] == "replace" && len(f) >= 2:
-			replaced[unq(f[1])] = true
+			noteReplace(replaced, f[1:])
 		}
 	}
 	return required, replaced
+}
+
+// noteReplace records one replace directive body, "old [ver] => new [ver]".
+// A malformed body or any later non-local target for the same module clears
+// the mark (fail closed).
+func noteReplace(replaced map[string]bool, f []string) {
+	old := strings.Trim(f[0], `"`)
+	local := false
+	for i, x := range f {
+		if x == "=>" && i+1 < len(f) {
+			local = strings.HasPrefix(strings.Trim(f[i+1], `"`), "./")
+			break
+		}
+	}
+	if prev, seen := replaced[old]; seen && !prev {
+		return
+	}
+	replaced[old] = local
 }
 
 // ---- ledger ----

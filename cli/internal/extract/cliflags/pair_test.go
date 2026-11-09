@@ -706,12 +706,15 @@ func TestPairUnhashedFlagLibraryWithholds(t *testing.T) {
 		extra map[string]string
 		want  string
 	}{
-		"pflag":     {req("github.com/spf13/pflag"), "github.com/spf13/pflag"},
-		"cobra blk": {block, "github.com/spf13/cobra"},
-		"urfave v2": {req("github.com/urfave/cli/v2"), "github.com/urfave/cli/v2"},
-		"kingpin":   {req("gopkg.in/alecthomas/kingpin.v2"), "gopkg.in/alecthomas/kingpin.v2"},
-		"base":      {req("k8s.io/component-base"), "k8s.io/component-base"},
-		"kong":      {req("github.com/alecthomas/kong"), "github.com/alecthomas/kong"},
+		"pflag":            {req("github.com/spf13/pflag"), "github.com/spf13/pflag"},
+		"cobra blk":        {block, "github.com/spf13/cobra"},
+		"urfave v2":        {req("github.com/urfave/cli/v2"), "github.com/urfave/cli/v2"},
+		"kingpin":          {req("gopkg.in/alecthomas/kingpin.v2"), "gopkg.in/alecthomas/kingpin.v2"},
+		"base":             {req("k8s.io/component-base"), "k8s.io/component-base"},
+		"kong":             {req("github.com/alecthomas/kong"), "github.com/alecthomas/kong"},
+		"replace parent":   {map[string]string{"go.mod": goMod + "\nrequire github.com/spf13/pflag v1.0.5\nreplace github.com/spf13/pflag => ../pflag\n"}, "github.com/spf13/pflag"},
+		"replace fork":     {map[string]string{"go.mod": goMod + "\nrequire github.com/spf13/pflag v1.0.5\nreplace github.com/spf13/pflag => github.com/fork/pflag v1.0.0\n"}, "github.com/spf13/pflag"},
+		"replace blk fork": {map[string]string{"go.mod": goMod + "\nrequire github.com/spf13/pflag v1.0.5\nreplace (\n\tgithub.com/spf13/pflag => github.com/fork/pflag v1.0.0\n)\n"}, "github.com/spf13/pflag"},
 	} {
 		for _, side := range []string{"from", "to"} {
 			t.Run(name+" "+side, func(t *testing.T) {
