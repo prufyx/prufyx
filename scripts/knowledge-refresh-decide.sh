@@ -37,12 +37,35 @@ now="${NOW:-$(date -u +%s)}"
 [ -f "${LIVE_STATE}" ] && [ -f "${PENDING_RUNS}" ] || fail "input file missing"
 jq -e 'type == "array"' "${PENDING_RUNS}" > /dev/null || fail "pending runs are not a JSON array"
 
-epoch() { date -u -d "$1" +%s 2>/dev/null; }
-field() { jq -er "$1 | select(type == \"string\" and length > 0)" "${LIVE_STATE}" 2>/dev/null || fail "live state lacks $1"; }
-ts_e="$(epoch "$(field .timestampExpires)")" || fail "unreadable timestamp expiry"
-tg_e="$(epoch "$(field .targetsExpires)")" || fail "unreadable targets expiry"
-sn_e="$(epoch "$(field .snapshotExpires)")" || fail "unreadable snapshot expiry"
-field .packageDigest > /dev/null
+# Every value is extracted and validated in the main shell: `fail` inside a
+# command substitution would only end the subshell and let an empty value reach
+# the date arithmetic (GNU date reads an empty string as midnight today).
+iso_re='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'
+field() { # field <jq path> -> FIELD_VALUE (non-empty string) or exit 1
+  local v
+  v="$(jq -er "$1 | select(type == \"string\" and length > 0)" "${LIVE_STATE}" 2> /dev/null)" || fail "live state lacks $1"
+  [ -n "${v}" ] || fail "live state lacks $1"
+  FIELD_VALUE="${v}"
+}
+epoch_of() { # epoch_of <jq path> -> EPOCH_VALUE from a strict UTC timestamp field
+  local v e
+  field "$1"
+  v="${FIELD_VALUE}"
+  [[ "${v}" =~ ${iso_re} ]] || fail "live state $1 is not a UTC timestamp"
+  e="$(date -u -d "${v}" +%s 2> /dev/null)" || fail "live state $1 is unreadable"
+  [[ "${e}" =~ ^[0-9]+$ ]] || fail "live state $1 is unreadable"
+  EPOCH_VALUE="${e}"
+}
+epoch() { # epoch <timestamp> (run times): strict, non-empty
+  [ -n "$1" ] && [[ "$1" =~ ${iso_re} ]] && date -u -d "$1" +%s 2> /dev/null
+}
+epoch_of .timestampExpires
+ts_e="${EPOCH_VALUE}"
+epoch_of .targetsExpires
+tg_e="${EPOCH_VALUE}"
+epoch_of .snapshotExpires
+sn_e="${EPOCH_VALUE}"
+field .packageDigest
 
 day=86400
 ts_left=$((ts_e - now))

@@ -197,6 +197,7 @@ type decideCase struct {
 	wantAction string
 	wantAlarm  string
 	badLive    bool
+	liveRaw    string // verbatim live state, overrides the generated one
 	badPending string
 }
 
@@ -234,6 +235,19 @@ func TestKnowledgeRefreshDecide(t *testing.T) {
 		{name: "expired live timestamp fails closed", tsDays: -1, contentDay: 15, wantExit: 1},
 		{name: "expired targets fails closed", tsDays: 5, contentDay: -1, wantExit: 1},
 		{name: "unreadable live state fails closed", tsDays: 5, contentDay: 15, badLive: true, wantExit: 1},
+		{name: "live state without timestampExpires fails closed", tsDays: 5, contentDay: 15, liveRaw: `{"packageDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","targetsExpires":"2026-11-30T00:00:00Z","snapshotExpires":"2026-11-30T00:00:00Z"}`, wantExit: 1},
+		{name: "live state without targetsExpires fails closed", tsDays: 5, contentDay: 15, liveRaw: `{"packageDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","timestampExpires":"2026-11-20T00:00:00Z","snapshotExpires":"2026-11-30T00:00:00Z"}`, wantExit: 1},
+		{name: "live state without snapshotExpires fails closed", tsDays: 5, contentDay: 15, liveRaw: `{"packageDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","timestampExpires":"2026-11-20T00:00:00Z","targetsExpires":"2026-11-30T00:00:00Z"}`, wantExit: 1},
+		{name: "live state without packageDigest fails closed", tsDays: 5, contentDay: 15, liveRaw: `{"timestampExpires":"2026-11-20T00:00:00Z","targetsExpires":"2026-11-30T00:00:00Z","snapshotExpires":"2026-11-30T00:00:00Z"}`, wantExit: 1},
+		{name: "empty timestampExpires fails closed", tsDays: 5, contentDay: 15, liveRaw: `{"packageDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","timestampExpires":"","targetsExpires":"2026-11-30T00:00:00Z","snapshotExpires":"2026-11-30T00:00:00Z"}`, wantExit: 1},
+		{name: "empty targetsExpires fails closed", tsDays: 5, contentDay: 15, liveRaw: `{"packageDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","timestampExpires":"2026-11-20T00:00:00Z","targetsExpires":"","snapshotExpires":"2026-11-30T00:00:00Z"}`, wantExit: 1},
+		{name: "empty snapshotExpires fails closed", tsDays: 5, contentDay: 15, liveRaw: `{"packageDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","timestampExpires":"2026-11-20T00:00:00Z","targetsExpires":"2026-11-30T00:00:00Z","snapshotExpires":""}`, wantExit: 1},
+		{name: "non-date timestampExpires fails closed", tsDays: 5, contentDay: 15, liveRaw: `{"packageDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","timestampExpires":"soon","targetsExpires":"2026-11-30T00:00:00Z","snapshotExpires":"2026-11-30T00:00:00Z"}`, wantExit: 1},
+		{name: "non-date targetsExpires fails closed", tsDays: 5, contentDay: 15, liveRaw: `{"packageDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","timestampExpires":"2026-11-20T00:00:00Z","targetsExpires":"tomorrow","snapshotExpires":"2026-11-30T00:00:00Z"}`, wantExit: 1},
+		{name: "non-date snapshotExpires fails closed", tsDays: 5, contentDay: 15, liveRaw: `{"packageDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","timestampExpires":"2026-11-20T00:00:00Z","targetsExpires":"2026-11-30T00:00:00Z","snapshotExpires":"next week"}`, wantExit: 1},
+		{name: "relative-date timestampExpires fails closed", tsDays: 5, contentDay: 15, liveRaw: `{"packageDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","timestampExpires":"now + 30 days","targetsExpires":"2026-11-30T00:00:00Z","snapshotExpires":"2026-11-30T00:00:00Z"}`, wantExit: 1},
+		{name: "non-string timestampExpires fails closed", tsDays: 5, contentDay: 15, liveRaw: `{"packageDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","timestampExpires":1788000000,"targetsExpires":"2026-11-30T00:00:00Z","snapshotExpires":"2026-11-30T00:00:00Z"}`, wantExit: 1},
+		{name: "live state not JSON fails closed", tsDays: 5, contentDay: 15, liveRaw: "not json", wantExit: 1},
 		{name: "pending list not an array fails closed", tsDays: 5, contentDay: 15, badPending: `{"id":1}`, wantExit: 1},
 		{name: "unreadable run time fails closed", tsDays: 5, contentDay: 15, pending: []map[string]any{{"id": 3, "status": "waiting", "created_at": "yesterday-ish"}}, wantExit: 1},
 		{name: "threshold out of range fails closed", tsDays: 5, contentDay: 15, threshold: "14", wantExit: 1},
@@ -243,7 +257,9 @@ func TestKnowledgeRefreshDecide(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			dir := t.TempDir()
 			livePath := filepath.Join(dir, "live.json")
-			if c.badLive {
+			if c.liveRaw != "" {
+				_ = os.WriteFile(livePath, []byte(c.liveRaw), 0o600)
+			} else if c.badLive {
 				_ = os.WriteFile(livePath, []byte(`{"packageDigest":"sha256:aa"}`), 0o600)
 			} else {
 				live := map[string]any{"packageDigest": "sha256:" + strings.Repeat("a", 64), "timestampExpires": iso(days(c.tsDays)), "targetsExpires": iso(days(c.contentDay)), "snapshotExpires": iso(days(c.contentDay))}
