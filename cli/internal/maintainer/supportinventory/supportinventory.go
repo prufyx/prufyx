@@ -1075,6 +1075,9 @@ func communityProjects(rules, registry map[string]any) ([]map[string]any, commun
 			limit = "Scoped explicit requirement for removed upstream MariaDB InnoDB defragmentation behavior; option presence alone does not assert startup failure, packaged or fork behavior, whole-upgrade safety, or runtime behavior."
 		} else if project == "mariadb-operator" {
 			limit = "Scoped Galera-only prerequisite for one complete caller-selected MariaDB resource before the 26.3.0 to 26.6.0 operator update; it does not inspect admission, cluster state, runtime behavior, controller progress, data-plane completion, or whole-upgrade safety."
+			if id != "mariadb-operator.upgrade-26-6.requires-dataplane-prerequisite" {
+				limit = "Scoped CRD-field constraint (one key of the MariaDB kind, removed or retyped between two published releases) for one complete caller-selected MariaDB resource; it reads no value, no other field or resource kind, no Helm values or flags, and does not inspect admission, cluster state, runtime behavior, migration steps, or whole-upgrade safety."
+			}
 		}
 		item := map[string]any{"ruleID": id, "transition": tr, "evidence": normalized, "evidenceState": "active", "limit": limit}
 		switch kind {
