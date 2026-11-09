@@ -418,6 +418,39 @@ each target release serves. Anything the knowledge does not cover ends in
 [`scan` guide](cli/docs/scan.md). To run it in a workflow, see the
 [GitHub Action](cli/docs/github-action.md).
 
+## Kubernetes distributions
+
+Prufyx recognises the version strings of several Kubernetes distributions and
+maps them to an upstream Kubernetes version (see
+[distribution versions](cli/docs/kubernetes-distribution-versions.md)). A
+distribution can also carry a reviewed record with provider lifecycle facts
+(support end dates, extended support, forced upgrades); `scan` and `plan` read
+those lifecycle facts as advisory findings that can add a warning and never
+remove a finding or authorize a pass (see
+[provider facts](cli/docs/scan.md#provider-facts-advisory)). The checking
+machinery is merged, but no provider fact extractor is compiled in and no
+provider fact has been published to the knowledge feed. Today no distribution
+below has a published lifecycle fact.
+
+<!-- distribution-lifecycle:begin -->
+| Distribution | Version string recognised | Lifecycle facts | State |
+| --- | --- | --- | --- |
+| EKS | yes (`v1.N.P-eks-<hex>`) | none published | reference/planned: no published facts yet |
+| GKE | yes (`1.N.P-gke.<build>`) | none published | reference/planned: no published facts yet |
+| AKS | yes, with a declared distribution | none published | reference/planned: no published facts yet |
+| k3s | yes (`v1.N.P+k3s<n>`) | none published | reference/planned: no published facts yet |
+| kind | no distribution record | none published | reference/planned: no published facts yet |
+| Upstream | yes (`official_upstream`, takes no record) | not a provider | reference/planned: no published facts yet |
+<!-- distribution-lifecycle:end -->
+
+Reading the table: "recognised" means the version string is parsed; it does not
+mean the distribution behaves like upstream Kubernetes. A distribution without
+a current reviewed record is a gap, never a pass. kind is a local test
+environment, not a lifecycle-tracked distribution; a result from kind or any
+other local cluster says nothing about the fidelity of a managed or production
+cluster. These rows are catalogue entries, not tested coverage: no row is
+listed as supported for production use.
+
 ## Recent changes
 
 The [changelog](CHANGELOG.md) is the full list. Merged and user-visible, by
