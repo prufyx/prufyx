@@ -316,3 +316,30 @@ func TestReadmeDisclosureOnlyWithAdditions(t *testing.T) {
 		t.Error("an empty list is printed")
 	}
 }
+
+func TestAdditionComponentMustBeUnowned(t *testing.T) {
+	t.Parallel()
+	withComponent := func(slug, component string) AdditionEntry {
+		e := sealed(t, slug, tagsK8s, "2026-11-10")
+		e.Component = component
+		e.EntryDigest = EntryDigestOf(e)
+		return e
+	}
+	pinned := []byte(fmt.Sprintf(`{"schema":%q,"capturedOn":"2026-11-07","projects":{"other":{"component":"pkg:github/o/other","lines":["1.0","1.1"]}}}`, LinesSchema))
+	run := func(entries map[string]AdditionEntry) error {
+		_, err := Compute(Input{Pack: pack(nil, nil), Lines: pinned, Additions: additionsJSON(t, entries), Now: baselineNow})
+		return err
+	}
+	if err := run(map[string]AdditionEntry{"zz": withComponent("zz", "pkg:github/o/zz")}); err != nil {
+		t.Fatalf("a unique component is refused: %v", err)
+	}
+	if err := run(map[string]AdditionEntry{"zz": withComponent("zz", "pkg:github/o/other")}); err == nil || !strings.Contains(err.Error(), "already owned by other") {
+		t.Fatalf("an addition with a pinned component was accepted: %v", err)
+	}
+	same := map[string]AdditionEntry{"aa": withComponent("aa", "pkg:github/o/x"), "bb": withComponent("bb", "pkg:github/o/x")}
+	for i := 0; i < 20; i++ { // deterministic, whatever the map order
+		if err := run(same); err == nil || !strings.Contains(err.Error(), "already owned by aa") {
+			t.Fatalf("two additions with one component: %v", err)
+		}
+	}
+}

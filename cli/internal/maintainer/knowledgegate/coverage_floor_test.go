@@ -329,6 +329,11 @@ func shippedSlice(t *testing.T) Tree {
 	for _, n := range names {
 		rels = append(rels, ol.TargetsDir+"/"+filepath.Base(n))
 	}
+	extra, err := additionFiles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	rels = append(rels, extra...)
 	for _, rel := range rels {
 		raw, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(rel)))
 		if err != nil {

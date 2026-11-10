@@ -221,6 +221,9 @@ func TestAdditionsMoveTheClockAndAddProjects(t *testing.T) {
 	if r.Additions == nil || r.Additions.Entries != 1 {
 		t.Fatalf("report %+v", r.Additions)
 	}
+	// The moved clock is gate-checked on the shipped data: a failure here
+	// would mean an old attestation expires under the 11-10 clock.
+	mustPass(t, "clock moved by an addition", base, head)
 	rb, _, _, _ := coverageReportOf(base)
 	if r.Fleet.Projects != rb.Fleet.Projects+1 {
 		t.Errorf("projects %d -> %d", rb.Fleet.Projects, r.Fleet.Projects)
@@ -265,13 +268,59 @@ func TestAdditionsPathsAreAllowedButNotMechanical(t *testing.T) {
 	}
 }
 
-// A change to the additions file is never eligible for an automatic merge.
+// A change to the additions file is never eligible for an automatic merge, and
+// the reason names it as outside the knowledge files. Control: the same trees
+// without the addition carry no such reason.
 func TestAdditionsChangeIsNotEligibleForAutoMerge(t *testing.T) {
 	t.Parallel()
+	outside := func(r *Report) string {
+		for _, reason := range r.AutoMerge.Reasons {
+			if strings.Contains(reason, "outside the knowledge files") {
+				return reason
+			}
+		}
+		return ""
+	}
 	base, head, _ := floorTrees(t)
+	if got := outside(runGate(t, Options{Base: base, Head: head, Author: DefaultBotLogin})); got != "" {
+		t.Fatalf("control: the trees without an addition already touch outside files: %s", got)
+	}
 	putAdditions(t, head, "2026-11-07", "zz-new")
 	r := runGate(t, Options{Base: base, Head: head, Author: DefaultBotLogin})
 	if r.AutoMerge.Eligible {
 		t.Fatal("a change to the additions file is eligible for automatic merging")
+	}
+	got := outside(r)
+	if !strings.Contains(got, coveragereport.PinnedAdditionsPath) {
+		t.Fatalf("the refusal does not name the additions file: %q", got)
+	}
+}
+
+// The shipped-tree helpers copy the additions file and the tag files when the
+// source tree has them, so the shipped-tree tests follow the README block.
+func TestShippedSliceIncludesAdditionsWhenPresent(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	got, err := additionFilesIn(root)
+	if err != nil || len(got) != 0 {
+		t.Fatalf("an empty tree lists %v (%v)", got, err)
+	}
+	writeFile(t, filepath.Join(root, filepath.FromSlash(coveragereport.PinnedAdditionsPath)), []byte("{}"))
+	writeFile(t, filepath.Join(root, filepath.FromSlash(coveragereport.PinnedTagsDir), "zz.tags"), []byte("v1.0.0\n"))
+	got, err = additionFilesIn(root)
+	want := []string{coveragereport.PinnedAdditionsPath, coveragereport.PinnedTagsDir + "/zz.tags"}
+	if err != nil || strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("listed %v (%v), want %v", got, err, want)
+	}
+	// And the slice of the real tree holds whatever the repository has.
+	slice := shippedSlice(t)
+	real, err := additionFiles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, rel := range real {
+		if !slice.Exists(rel) {
+			t.Errorf("the shipped slice lacks %s", rel)
+		}
 	}
 }

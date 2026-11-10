@@ -192,17 +192,40 @@ func VerifyAdditionFromTags(project string, e AdditionEntry, tags []byte) error 
 	return nil
 }
 
-// CheckDisjoint refuses an addition whose key is also a pinned project.
+// CheckDisjoint refuses an addition whose key is also a pinned project, and an
+// addition whose non-empty component is owned by a pinned entry or by another
+// addition. Attestations are attributed by component, so an owner must be
+// unique: the attribution never depends on map order over the union.
 func CheckDisjoint(pinned LinesFile, add AdditionsFile) error {
 	var dup []string
+	owner := map[string]string{}
+	for slug, p := range pinned.Projects {
+		if p.Component != "" {
+			owner[p.Component] = slug
+		}
+	}
+	slugs := make([]string, 0, len(add.Additions))
 	for slug := range add.Additions {
+		slugs = append(slugs, slug)
+	}
+	sort.Strings(slugs)
+	for _, slug := range slugs {
 		if _, ok := pinned.Projects[slug]; ok {
 			dup = append(dup, slug)
 		}
 	}
 	if len(dup) > 0 {
-		sort.Strings(dup)
 		return fmt.Errorf("%w: additions: %v is already in the pinned snapshot; an addition never overrides a pinned entry", ErrInvalid, dup)
+	}
+	for _, slug := range slugs {
+		c := add.Additions[slug].Component
+		if c == "" {
+			continue
+		}
+		if o, ok := owner[c]; ok {
+			return fmt.Errorf("%w: additions: %s: component %s is already owned by %s", ErrInvalid, slug, c, o)
+		}
+		owner[c] = slug
 	}
 	return nil
 }

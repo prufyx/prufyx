@@ -220,7 +220,7 @@ pinned snapshot to be byte-identical to the base branch's, (b) regenerates
 and validates every entry of the additions file against its committed tag file
 with the repository's own offline tag reader, and (c) refuses a change that
 removes or renames the additions file or an added project, or changes an
-existing entry by a byte. A base without the file is the empty set (the
+existing entry (compared as the canonical, digest-bound entry: file formatting around an entry may differ, no member of it may). A base without the file is the empty set (the
 introducing change is a code change). The file and the `tags/<slug>.tags` files
 are allowed in a batch or onboarding change, never in the automatic-merge
 paths, and the baseline file is not writable by a bot.

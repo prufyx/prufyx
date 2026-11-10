@@ -94,6 +94,9 @@ func linesIntegrity(base, head Tree) error {
 		if !ok {
 			return fmt.Errorf("the change removes or renames the added project %s", logSafe(slug))
 		}
+		// Semantic identity: both entries are validated and bound by their
+		// digest, and compared by their canonical JSON; formatting of the file
+		// around an entry may differ, no member of the entry may.
 		bb, _ := json.Marshal(be)
 		hb, _ := json.Marshal(he)
 		if !bytes.Equal(bb, hb) {
