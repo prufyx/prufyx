@@ -68,12 +68,10 @@ func kvTree(versions []string, edit func(map[string]string)) map[string]string {
 	return m
 }
 
-// kvTargetFile is the target data these tests exercise: the reviewed
-// kubevela target with its generation declaration and pinned template. It
-// is not in the package's own target table yet: the knowledge gate loads the
-// target files of a change with the code of the base, which does not know the
-// new members.
-const kvTargetFile = "testdata/kubevela/target-kubevela.json"
+// kvTargetFile is the shipped kubevela target (generation declaration and
+// pinned template): the tests exercise the file the extractor ships, so the
+// reviewed data cannot drift from a second copy.
+const kvTargetFile = "target-kubevela.json"
 
 func kvReviewedTarget(t *testing.T) Target {
 	t.Helper()

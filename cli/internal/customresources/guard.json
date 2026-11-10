@@ -7,6 +7,20 @@
       "detail": "exclude:samples/security/spire/spire-quickstart.yaml@github.com/istio/istio",
       "seq": 0,
       "reason": "Sample manifest of a third-party system (SPIRE, group spire.spiffe.io), applied by hand from the sample README; read at 1.26.0 and 1.31.2: no chart, Makefile, kustomization or Go source refers to it and the istio definitions are in manifests/charts/base/files/crd-all.gen.yaml."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "kubevela",
+      "detail": "generation:config/crd/kustomization.yaml",
+      "seq": 0,
+      "reason": "Makefile manifests (v1.6.0 to v1.9.11): kustomize build config/crd, cleanup.sh, dispatch.go into charts/vela-core/crds; base file never committed. Unprovable by the scan: that the output equals the committed files."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "kubevela",
+      "detail": "exclude:references/cli/adopt-templates/default.cue@github.com/kubevela/kubevela",
+      "seq": 0,
+      "reason": "Read: adopt-templates/default.cue is the cue template of vela adopt, embedded by adopt.go; applies nothing, ships no definition, no apiextensions text. Three byte contents pinned by sha256 (v1.7.0-v1.10.5). A changed byte voids the entry."
     }
   ],
   "noTarget": []
