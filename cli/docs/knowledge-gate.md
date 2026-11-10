@@ -694,6 +694,62 @@ prufyx-maintainer approval sign \
 | `--subject` | what the approval is for: `rule` (the default), `lineAttestation`, `pathPolicy`, `repinBaseline`, `registryDigest` or `servedAPIs` |
 | `--record` | with `--subject pathPolicy`, in place of `--rule`: the path policy's record ID; the proposed pack must hold it as a reviewed policy and the base pack must hold no record with that ID. With `--subject lineAttestation`, in place of `--rule`: the line attestation's record ID; the proposed pack must hold it with evidence basis `reviewed`, it must differ from the base record, the base record must not be mechanical, and the change must loosen (a change that only shortens `validUntil` is refused) |
 
+### Signing many rule approvals at once
+
+When one change adds or loosens several rules, `approval sign --rules-file`
+signs them in one run, for the `community` or the `cncf` pack. The rules file
+holds one rule id per line (blank lines ignored; at most 64; no duplicates).
+Every rule is read and checked with the same code as a single `--rule`
+signing, so a rule that is not reviewed, is unchanged, is tightening or is
+missing from the head refuses the whole run.
+
+First print the list and its digest. This reads no key and writes nothing
+(`--key`, `--key-stdin`, `--keys` and `--output-dir` are refused with
+`--dry-run`), so anyone can do it and the expected list can be recorded for
+the owner. `--key-id` is the owner's key id, which `approval public-key` prints:
+
+```sh
+prufyx-maintainer approval sign --dry-run --pack community \
+  --rules-file RULES_FILE --base-pack /path/to/base-community.json \
+  --head-pack cli/internal/projectcheck/data/rules.json \
+  --identity OWNER_LOGIN --candidate-id pr-123 --key-id sha256:…
+```
+
+It prints the identity, candidate id and key id, one line per rule (pack/id,
+first 12 hex digits of the base and candidate digests), `list digest:
+sha256:…` and the exact terminal confirmation. The digest covers the identity,
+candidate id, key id and the sorted list of pack, id, base digest and candidate
+digest in full, so a change to any of them is a different digest. The owner
+signs with the same arguments and confirms that list once, either by typing
+`sign N DIGEST` on the terminal (N the count, DIGEST the 64 hex digits of the
+list digest, without `sha256:`) or with both flags, which refuse a changed set:
+
+```sh
+prufyx-maintainer approval sign --pack community --rules-file RULES_FILE \
+  --base-pack /path/to/base-community.json \
+  --head-pack cli/internal/projectcheck/data/rules.json \
+  --keys /path/to/base-keys.json --keys-digest sha256:… \
+  --identity OWNER_LOGIN --candidate-id pr-123 --key-id sha256:… \
+  --key "$HOME/web-approval-key.pem" \
+  --output-dir cli/knowledge/approvals/community \
+  --expect-count N --expect-list-digest sha256:…
+```
+
+`--key-id` must be pinned (owner tier) in the key file, and the key that is read
+must have that id, or the run stops before anything is signed. The key is read
+once, after the list is confirmed. All records are signed and verified in
+memory (the same `decidedAt`, so the same 14 day window), staged in a
+`.approval-stage-*` directory beside `--output-dir`, and then moved in; if any
+step fails nothing remains. The parent of `--output-dir` (`cli/knowledge/approvals`)
+must exist; it is opened without following a symbolic link, and every later step
+is relative to it. An existing approval file for any listed rule refuses the
+run, and a link never replaces a file. When a link fails part way, the links
+already made are removed, each only if it is still the file this run linked;
+a process that swaps a file in the instant between that check and the removal
+cannot be excluded. A staging directory left by a killed run (same owner, older
+than an hour) is removed by the next run. The file written for a rule is byte
+for byte the one `--rule` writes.
+
 A line attestation approval names `"subject": "lineAttestation"` and the
 record's `scope`, and its digests are those of the base and proposed record.
 Mechanical attestations and existing path policies cannot be approved. The gate uses a
