@@ -34,6 +34,7 @@ var mechanicalExtractorIDs = []string{
 	"k8s.feature-gate-removal",
 	"k8s.served-api-removal",
 	"crd.version-removal.",
+	"crd.schema-removal.",
 }
 
 // MechanicalExtractorPrefixes returns a copy of the allowlist keys.
