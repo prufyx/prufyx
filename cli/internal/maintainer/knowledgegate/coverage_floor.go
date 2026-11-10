@@ -37,11 +37,14 @@ func (r *Report) coverageFloorCheck(opts Options) {
 		}
 		return
 	}
-	if err := coverageFloor(opts.Base, opts.Head); err != nil {
+	// An invalid addition speaks first: it is checked before the numbers are
+	// evaluated with it (coverageFloor runs the integrity checks before the
+	// floor).
+	if err := additionsNotFuture(opts.Head, opts.Now); err != nil {
 		r.add(CheckCoverageFloor, false, "%s", logSafe(err.Error()))
 		return
 	}
-	if err := additionsNotFuture(opts.Head, opts.Now); err != nil {
+	if err := coverageFloor(opts.Base, opts.Head); err != nil {
 		r.add(CheckCoverageFloor, false, "%s", logSafe(err.Error()))
 		return
 	}

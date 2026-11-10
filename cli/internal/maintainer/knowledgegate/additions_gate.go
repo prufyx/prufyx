@@ -137,7 +137,7 @@ func linesIntegrity(base, head Tree) error {
 func additionsNotFuture(head Tree, now time.Time) error {
 	adds, _, _, err := treeAdditions(head)
 	if err != nil {
-		return err
+		return fmt.Errorf("the change's additions file is unreadable or invalid: %w", err)
 	}
 	if now.IsZero() {
 		now = time.Now()
