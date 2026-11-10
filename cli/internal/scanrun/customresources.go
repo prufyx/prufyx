@@ -383,7 +383,7 @@ func (r *customResourceRun) lineReview(hop upgradepath.Hop, ref scanreport.HopRe
 		// upgrade to scan separately.
 		result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapCustomResourceLineSameLine, r.slug, fromVersion, toVersion))
 		return nil
-	case !isPreviousLine(r.component, fromLine, toLine):
+	case !isPreviousLine(r.component, fromLine, toLine) || !a.HopFrom(fromLine):
 		result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapCustomResourceLineHopShape, r.slug, fromVersion, toVersion))
 		return nil
 	case !status.Current():
@@ -628,6 +628,5 @@ func uniqueStrings(values []string) []string {
 // isPreviousLine reports whether fromLine is the line a hop into toLine comes
 // from, by the component's own line scheme (lineattest.PreviousLine).
 func isPreviousLine(component, fromLine, toLine string) bool {
-	previous, ok := lineattest.PreviousLine(component, toLine)
-	return ok && previous == fromLine
+	return lineattest.LineHop(component, fromLine, toLine)
 }

@@ -124,11 +124,12 @@ func (f Family) Scope() string { return f.scope }
 // previous minor line, [M.(m-1).0, M.m.0), to any release of the line,
 // [M.m.0, M.(m+1).0). ok is false when the line has no previous minor line
 // in the same major (m = 0) or the family defines no hop shape. ok is also
-// false for a calendar component (CalverComponent): bounds across a year
+// false for a calendar or published-line component (CalverComponent,
+// PublishedLineComponent): bounds across a year
 // rollover would break the one-minor-line width of a range, so such a
 // component has no line-wide rules.
 func (f Family) LineTransitions(component, line string) (from, to constraintengine.VersionBound, ok bool) {
-	if !f.fromPreviousLine || !ValidLine(line) || CalverComponent(component) {
+	if !f.fromPreviousLine || !ValidLine(line) || CalverComponent(component) || PublishedLineComponent(component) {
 		return from, to, false
 	}
 	major, minor := lineNumbers(line)
@@ -440,6 +441,9 @@ func (a LineAttestation) Validate() error {
 	if a.RuleIDs == nil || len(a.RuleIDs) > MaxRuleIDs {
 		return fmt.Errorf("%w: ruleIds must be an array of at most %d ids", ErrInvalid, MaxRuleIDs)
 	}
+	if len(a.RuleIDs) > 0 && PublishedLineComponent(a.Component) {
+		return fmt.Errorf("%w: component %q is a published-line component: a record may not list rule ids", ErrInvalid, a.Component)
+	}
 	for i, id := range a.RuleIDs {
 		if !constraintengine.ValidID(id) {
 			return fmt.Errorf("%w: rule id %q", ErrInvalid, id)
@@ -467,9 +471,9 @@ var commitRE = regexp.MustCompile(`^[0-9a-f]{40}$`)
 // MaxReleases releases of the previous line (PreviousLine) and of line M.m, each a release
 // version with a pinned commit, in strictly ascending version order.
 func (r *Releases) validate(component, line string) error {
-	previous, ok := PreviousLine(component, line)
-	if !ok {
-		return fmt.Errorf("%w: line %s has no previous line to name releases of", ErrInvalid, line)
+	previous, err := fromLineOf(component, line, r)
+	if err != nil {
+		return err
 	}
 	for _, side := range []struct {
 		name, line string

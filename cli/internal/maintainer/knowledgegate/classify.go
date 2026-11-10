@@ -79,6 +79,9 @@ type Change struct {
 	// evidence.reviewedAt and a later evidence.validUntil.
 	rbase, rhead *record
 	renewal      bool
+	// headRecords is every record of the head pack of this change (set by the
+	// gate before the empty-list post checks; nil otherwise).
+	headRecords map[string]*record
 	// derivedGroup is every line attestation the re-derivation group of this
 	// record derived, in canonical JSON by record ID (nil until re-derived).
 	derivedGroup map[string][]byte
