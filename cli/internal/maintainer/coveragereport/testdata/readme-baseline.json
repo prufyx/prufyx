@@ -1,6 +1,6 @@
 {
-  "decidedPairs": 49,
-  "crdPublishedProjects": 20,
+  "decidedPairs": 51,
+  "crdPublishedProjects": 29,
   "projectPairs": {
     "cert-manager": 2,
     "cilium": 2,
@@ -8,6 +8,7 @@
     "dapr": 5,
     "istio": 3,
     "keda": 5,
+    "kmesh": 2,
     "kubernetes": 5,
     "kuma": 4,
     "kyverno": 1,
