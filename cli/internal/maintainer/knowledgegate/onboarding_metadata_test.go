@@ -3,12 +3,14 @@
 package knowledgegate
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -317,4 +319,74 @@ func TestOnboardingMetadataOfflineGitBoundary(t *testing.T) {
 		t.Fatal("missing repository/object unexpectedly accepted")
 	}
 	// Git without the no-lazy-fetch capability must fail before repository access.
+}
+
+// Precreate complete exports before restricting the subprocess umask: a
+// whole command can already refuse when that mask removes directory access.
+func TestOnboardingMetadataUmask(t *testing.T) {
+	if os.Getenv("PRUFYX_METADATA_UMASK_CHILD") == "1" {
+		base, head := Tree{Root: os.Getenv("PRUFYX_METADATA_BASE")}, Tree{Root: os.Getenv("PRUFYX_METADATA_HEAD")}
+		rel := os.Getenv("PRUFYX_METADATA_PATH")
+		o := ExportOptions{GitDir: os.Getenv("PRUFYX_METADATA_GIT"), offline: true}
+		listing, err := gitOutput(context.Background(), o, "ls-tree", "-l", "-z", os.Getenv("PRUFYX_METADATA_COMMIT"), "--", rel)
+		if err != nil {
+			t.Fatal(err)
+		}
+		entries, err := parseLsTree(listing)
+		if err != nil || len(entries) != 1 || entries[0].mode != "100755" {
+			t.Fatalf("actual Git executable entry: %v %v", entries, err)
+		}
+		if err := os.Remove(filepath.Join(head.Root, rel)); err != nil {
+			t.Fatal(err)
+		}
+		cmd := gitCommand(context.Background(), o, "cat-file", "--batch")
+		stdin, err := cmd.StdinPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+		exportErr := exportBlobs(head.Root, entries, stdin, bufio.NewReader(stdout), true)
+		stdin.Close()
+		waitErr := cmd.Wait()
+		if exportErr != nil || waitErr != nil {
+			t.Fatalf("blob export: %v / %v", exportErr, waitErr)
+		}
+		info, err := os.Stat(filepath.Join(head.Root, rel))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.Mode().Perm() != 0755 {
+			t.Errorf("Git 100755 exported as %04o under umask 0111", info.Mode().Perm())
+		}
+		if _, err := prepareOnboardingMetadata(DefaultLayout(), base, head); err == nil {
+			t.Error("actual export concealed executable input or unrelated mode change")
+		}
+		return
+	}
+	metadataGitSupported(t)
+	for _, rel := range []string{cncfAttestPath, targetPath(DefaultLayout().Onboarding, obSlug)} {
+		t.Run(filepath.Base(rel), func(t *testing.T) {
+			repo, baseSHA, _ := metadataRepo(t)
+			gitIn(t, repo, "update-index", "--chmod=+x", rel)
+			gitIn(t, repo, "commit", "-qm", "executable data")
+			headSHA := gitIn(t, repo, "rev-parse", "HEAD")
+			parent := t.TempDir()
+			for i, sha := range []string{baseSHA, headSHA} {
+				if err := Export(context.Background(), ExportOptions{GitDir: filepath.Join(repo, ".git"), Commit: sha, Out: filepath.Join(parent, []string{"base", "head"}[i]), offline: true}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			cmd := exec.Command("/bin/sh", "-c", `umask 0111; exec "$@"`, "sh", os.Args[0], "-test.run=^TestOnboardingMetadataUmask$", "-test.v")
+			cmd.Env = append(os.Environ(), "PRUFYX_METADATA_UMASK_CHILD=1", "PRUFYX_METADATA_BASE="+filepath.Join(parent, "base"), "PRUFYX_METADATA_HEAD="+filepath.Join(parent, "head"), "PRUFYX_METADATA_PATH="+rel, "PRUFYX_METADATA_GIT="+filepath.Join(repo, ".git"), "PRUFYX_METADATA_COMMIT="+headSHA)
+			if out, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("umask subprocess: %v\n%s", err, out)
+			}
+		})
+	}
 }

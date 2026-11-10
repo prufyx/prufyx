@@ -120,7 +120,7 @@ func Export(ctx context.Context, opts ExportOptions) error {
 	if err := cmd.Start(); err != nil {
 		return err
 	}
-	exportErr := exportBlobs(opts.Out, entries, stdin, bufio.NewReader(stdout))
+	exportErr := exportBlobs(opts.Out, entries, stdin, bufio.NewReader(stdout), opts.offline)
 	stdin.Close()
 	if err := cmd.Wait(); err != nil && exportErr == nil {
 		exportErr = fmt.Errorf("git cat-file: %v: %s", err, logSafe(stderr.String()))
@@ -128,7 +128,7 @@ func Export(ctx context.Context, opts ExportOptions) error {
 	return exportErr
 }
 
-func exportBlobs(out string, entries []treeEntry, stdin io.Writer, stdout *bufio.Reader) error {
+func exportBlobs(out string, entries []treeEntry, stdin io.Writer, stdout *bufio.Reader, preserveMode bool) error {
 	read := func(e treeEntry) ([]byte, error) {
 		if _, err := io.WriteString(stdin, e.object+"\n"); err != nil {
 			return nil, err
@@ -175,6 +175,12 @@ func exportBlobs(out string, entries []treeEntry, stdin io.Writer, stdout *bufio
 		f, err := os.OpenFile(full, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
 		if err != nil {
 			return err
+		}
+		if preserveMode {
+			if err := f.Chmod(perm); err != nil {
+				f.Close()
+				return err
+			}
 		}
 		_, werr := f.Write(raw)
 		if cerr := f.Close(); werr == nil {
