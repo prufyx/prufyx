@@ -1242,6 +1242,46 @@ class of the scanner is refused until the list is extended.
 
 ### Signing and checking an onboarding batch
 
+Before preparing a new-project data proposal, a trusted binary built from
+the operational BASE can prepare the CNCF pack's registry metadata offline:
+
+```sh
+prufyx-maintainer gate prepare-onboarding-metadata \
+  --git-dir REPOSITORY/.git --base BASE_COMMIT --head CANDIDATE_COMMIT > unsigned-pack.json
+```
+
+Land the tooling before using it: the operational BASE must contain this
+command, and the binary must be built from that exact BASE using a trusted
+build. A binary with unmerged tooling changes does not qualify merely because
+its registry digest matches. Binary provenance is the caller's responsibility;
+the command checks registry consistency, not executable authenticity.
+
+The command requires trusted `/usr/bin/git` with `--no-lazy-fetch` support
+(Git 2.45 or newer). Missing local objects refuse; lazy fetching and all
+transports are disabled. Full commit IDs and BASE ancestry are required.
+Complete object exports are compared under a private temporary directory;
+no proposed code, hooks, filters or upstream requests run.
+
+The candidate may add canonical table rows and their new targets only, with
+the CNCF pack either unchanged or already carrying the exact computed digest.
+Existing rows, reserved groups, existing targets, every other pack and every
+unrelated path must remain unchanged. Inputs must be regular non-executable
+data. The output preserves every pack byte except the top-level
+`registryDigest` string value; revisions and rules stay unchanged.
+
+Stdout contains only the fully prepared unsigned pack JSON. Check the exit
+status before using redirected output: a failed write can leave partial
+bytes. Review the pack, place it at
+`cli/internal/cncfcheck/data/rules.json` in the separate data proposal, then
+run the normal table-aware corpus attestation, inventory, documentation and
+coverage generators. No approval, source proof or claims are created.
+
+Metadata preparation grants no admission. The normal O2–O7 checks, real source
+proofs, owner authorization/signature, review and required test gates remain.
+Malformed or missing proof fields fail the applicable offline signer checks;
+structurally valid evidence that fails the upstream dry run is rejected by
+the gate's O6. Neither this command nor the signer runs O6.
+
 ```sh
 prufyx-maintainer approval sign --onboarding draft.json --base BASE --head HEAD \
   --keys web-approval-keys.json --keys-digest sha256:... --identity LOGIN --key-stdin

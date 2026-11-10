@@ -27,6 +27,8 @@ const (
 
 // ExportOptions names a commit to export.
 type ExportOptions struct {
+	// offline is reserved for commands that require local objects only.
+	offline bool
 	// Git is the git executable; empty means "git" on PATH.
 	Git string
 	// GitDir is a repository (usually bare) holding the commit.
@@ -285,6 +287,10 @@ func checkExportPath(p string) error {
 }
 
 func gitCommand(ctx context.Context, opts ExportOptions, args ...string) *exec.Cmd {
+	if opts.offline {
+		opts.Git = "/usr/bin/git"
+		args = append([]string{"--no-lazy-fetch", "-c", "protocol.allow=never", "-c", "core.hooksPath=/dev/null"}, args...)
+	}
 	full := append([]string{
 		"--no-replace-objects",
 		"--git-dir=" + opts.GitDir,
@@ -302,6 +308,9 @@ func gitCommand(ctx context.Context, opts ExportOptions, args ...string) *exec.C
 		"GIT_CONFIG_GLOBAL=/dev/null",
 		"GIT_ATTR_NOSYSTEM=1",
 		"LC_ALL=C",
+	}
+	if opts.offline {
+		cmd.Env = append(cmd.Env, "GIT_NO_LAZY_FETCH=1", "GIT_ALLOW_PROTOCOL=", "GIT_TERMINAL_PROMPT=0")
 	}
 	return cmd
 }

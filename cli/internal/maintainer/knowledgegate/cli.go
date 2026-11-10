@@ -23,6 +23,7 @@ import (
 )
 
 const usage = `usage:
+	prufyx-maintainer gate prepare-onboarding-metadata --git-dir DIR --base SHA --head SHA
   prufyx-maintainer gate export   --git-dir DIR --commit SHA --out DIR
   prufyx-maintainer gate classify --base DIR --head DIR [--json]
   prufyx-maintainer gate daily-count --git-dir DIR --commits FILE [--bot-login LOGIN]
@@ -55,6 +56,8 @@ func mainWith(args []string, getenv func(string) string, stdout, stderr io.Write
 	var code int
 	var err error
 	switch args[0] {
+	case "prepare-onboarding-metadata":
+		code, err = cmdOnboardingMetadata(args[1:], layout, stdout)
 	case "export":
 		code, err = cmdExport(args[1:])
 	case "classify":
