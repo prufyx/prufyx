@@ -274,6 +274,10 @@ func (st *onboardingState) allowedPaths(rec OnboardingRecord, batchPath string) 
 	for rel := range st.layout.admittedBlocks(st.baseTree, st.headTree) {
 		allowed[rel] = true
 	}
+	// The additions file and its <slug>.tags files (see batchAllowedPaths).
+	for rel := range additionsAllowedPaths(st.headTree) {
+		allowed[rel] = true
+	}
 	return allowed
 }
 

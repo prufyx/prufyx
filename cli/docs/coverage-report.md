@@ -164,6 +164,77 @@ scheme `calver-edge` is read with that scheme and gets `"scheme": "calver-edge"`
 (`stable-2.X.Y`, `version-2.X.Y`) and `cloud-custodian` (`0.9.N[.M]` to line
 `9.N`).
 
+### Additions: projects appended to the snapshot
+
+The pinned snapshot is not edited. Projects that are not in it are appended in
+a second, append-only file, `--additions FILE` (schema
+`prufyx.io/coverage-lines-additions/v1`, in the repository
+`cli/internal/maintainer/coveragereport/testdata/lines-additions.json`, a path
+pinned in code like the snapshot's). An absent or empty file, or one with an
+empty `additions` object, is valid and changes no number.
+
+```
+{"schema": "prufyx.io/coverage-lines-additions/v1",
+ "additions": {"<project>": {
+   "capturedOn": "YYYY-MM-DD", "tagFileSha256": "sha256:<hex>",
+   "entryDigest": "sha256:<hex>", "lines": [...], "releases": {...},
+   "priority": true, "component": "...", "scheme": "..."}}}
+```
+
+An entry has the per-project members of the snapshot plus: `capturedOn`
+(required, a real date, the date of the tag listing the entry came from; it is
+per entry), `tagFileSha256` (the digest of the committed
+`tags/<project>.tags` file the entry is derived from) and `entryDigest` (the
+digest of the canonical entry without that member). A bad date, a malformed
+digest, an entry digest that does not match, an entry without lines or an
+unknown member refuses the whole file. Keys must be disjoint from the
+snapshot's: a project in both is an error, an addition never overrides a
+pinned entry.
+
+The report measures the union of the snapshot and the additions and reports
+two digests, one for each file (`lines.digest`, `additions.digest`), never a
+merged buffer. `additions` is present in the report only when the file holds
+entries.
+
+**The clock.** The README block is evaluated at noon UTC of one date: the later
+of the snapshot's evaluation date (`pinnedOn`, else `capturedOn`) and the
+`capturedOn` of every addition. With no additions it is the snapshot's date
+exactly. An attestation counts only if it was reviewed at or before the clock
+and is still valid at it, so an attestation reviewed after the clock of an
+added project decides nothing: that project adds pairs to the universe and no
+decided pair, and the block names it as attested but not yet counted. The
+offline report equals the gate when `--now` is that clock (the block prints the
+date) and `--additions` is given. In the ALL window an added project is judged
+by its own `capturedOn` (snapshot-future, snapshot-stale), not the snapshot's.
+Old projects are protected by the floor of the base branch: an old attestation
+that expires under a later clock fails the floor, and the fix is to
+re-attest, never to edit the floor.
+
+**Disclosure.** When the additions file holds entries the block also lists the
+projects with a rule or attestation but no release lines in the snapshot, and
+the projects with an attestation reviewed after the evaluation date, so a
+project is never silently left out.
+
+**What the gate holds.** On every change the knowledge gate (a) requires the
+pinned snapshot to be byte-identical to the base branch's, (b) regenerates
+and validates every entry of the additions file against its committed tag file
+with the repository's own offline tag reader, and (c) refuses a change that
+removes or renames the additions file or an added project, or changes an
+existing entry by a byte. A base without the file is the empty set (the
+introducing change is a code change). The file and the `tags/<slug>.tags` files
+are allowed in a batch or onboarding change, never in the automatic-merge
+paths, and the baseline file is not writable by a bot.
+
+**Provenance, stated plainly.** Regenerating an entry from its tag file proves
+that the entry is the reading of that tag file; it does not prove that the tag
+file is the upstream tag set. A tag file that leaves out the newest patch
+release or line would make undecided pairs look decided. Until a cross-check of
+the committed tag set against the upstream final tags exists in the gate, the
+measure rests on the owner's review of the tag list in the batch change that
+adds an entry. The tag file digest and the entry digest are members of the
+signed batch record only once that record carries them (planned, not yet in
+force).
+
 ## Output
 
 The JSON report holds the schema, evaluation time, window, pack and lines

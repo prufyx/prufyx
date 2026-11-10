@@ -94,6 +94,9 @@ type completer struct {
 	decls           map[declKey]Declaration
 	declsByProject  map[string][]Declaration
 	snapshotReasons []string
+	// capturedBy maps an added project to its own capture date; the
+	// snapshot reasons of such a project use that date, not the pinned one.
+	capturedBy map[string]string
 }
 
 func newCompleter(now time.Time, atts []lineattest.LineAttestation, byID map[string]*ruleRec, decls []Declaration, capturedOn string) *completer {
@@ -102,21 +105,26 @@ func newCompleter(now time.Time, atts []lineattest.LineAttestation, byID map[str
 		c.decls[d.key()] = d
 		c.declsByProject[d.Project] = append(c.declsByProject[d.Project], d)
 	}
-	switch {
-	case capturedOn == "":
-		c.snapshotReasons = append(c.snapshotReasons, whySnapshotUndated)
-	default:
-		captured, err := time.Parse("2006-01-02", capturedOn)
-		switch {
-		case err != nil:
-			c.snapshotReasons = append(c.snapshotReasons, whySnapshotUndated)
-		case captured.After(now):
-			c.snapshotReasons = append(c.snapshotReasons, whySnapshotFuture)
-		case now.Sub(captured) > ExpiryHorizon:
-			c.snapshotReasons = append(c.snapshotReasons, whySnapshotStale)
-		}
-	}
+	c.snapshotReasons = snapshotReasonsAt(now, capturedOn)
 	return c
+}
+
+// snapshotReasonsAt is why a snapshot captured on capturedOn cannot support
+// completeness at now: undated, from the future or stale.
+func snapshotReasonsAt(now time.Time, capturedOn string) []string {
+	if capturedOn == "" {
+		return []string{whySnapshotUndated}
+	}
+	captured, err := time.Parse("2006-01-02", capturedOn)
+	switch {
+	case err != nil:
+		return []string{whySnapshotUndated}
+	case captured.After(now):
+		return []string{whySnapshotFuture}
+	case now.Sub(captured) > ExpiryHorizon:
+		return []string{whySnapshotStale}
+	}
+	return nil
 }
 
 // snapshotInfo reports the snapshot's date and age at now.
@@ -177,7 +185,11 @@ func allWindow(lines []string, regs []registration) []string {
 func (c *completer) evaluate(slug string, pl ProjectLines, window []string) *Completion {
 	regs := registrations(slug)
 	why := map[string]bool{}
-	for _, r := range c.snapshotReasons {
+	reasons := c.snapshotReasons
+	if on, ok := c.capturedBy[slug]; ok {
+		reasons = snapshotReasonsAt(c.now, on)
+	}
+	for _, r := range reasons {
 		why[r] = true
 	}
 	if len(regs) == 0 {

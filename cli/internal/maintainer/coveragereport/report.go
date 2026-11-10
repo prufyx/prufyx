@@ -43,10 +43,14 @@ const (
 
 // Input is everything a report depends on.
 type Input struct {
-	Pack   []byte
-	Lines  []byte
-	Now    time.Time
-	Window int
+	Pack  []byte
+	Lines []byte
+	// Additions is the optional additions file (AdditionsSchema). Nil, empty
+	// or an empty "additions" object is the valid empty set and changes no
+	// number. The measure is the union of Lines and Additions.
+	Additions []byte
+	Now       time.Time
+	Window    int
 	// All selects the ALL window: every line from the project's minFrom. It
 	// adds the completeness members and ignores Window, which must be 0.
 	All bool
@@ -174,8 +178,10 @@ type Report struct {
 	} `json:"lines"`
 	// LinesSnapshot and Declared are present in the ALL window only: the
 	// complete predicate is relative to this snapshot and this declared file.
-	LinesSnapshot *SnapshotInfo `json:"linesSnapshot,omitempty"`
-	Declared      *DeclaredInfo `json:"declared,omitempty"`
+	// Additions is present only when the additions file holds entries.
+	Additions     *AdditionsInfo `json:"additions,omitempty"`
+	LinesSnapshot *SnapshotInfo  `json:"linesSnapshot,omitempty"`
+	Declared      *DeclaredInfo  `json:"declared,omitempty"`
 	// PackProjects is the number of projects with a valid rule or
 	// attestation in the pack, whether or not lines are known for them. A
 	// community project counts only through a current attestation.
@@ -200,6 +206,10 @@ type Report struct {
 	// lines in the snapshot (a community project: a current attestation).
 	// Their pairs are unknown, never counted as covered.
 	WithoutLines []string `json:"projectsWithoutLines"`
+	// AttestedAfterClock lists projects with a line attestation reviewed after
+	// the evaluation clock: attested, not yet counted. Nothing is guessed: the
+	// attestation is simply not in force at the clock.
+	AttestedAfterClock []string `json:"attestedAfterClock,omitempty"`
 	// ExpiringProjects lists projects with an entry expiring within 14 days.
 	ExpiringProjects []string `json:"expiringProjects"`
 	// V2 is the metric v2 section; present only when Input.V2 is set.
@@ -413,6 +423,21 @@ func Compute(in Input) (Report, error) {
 	if err != nil {
 		return Report{}, err
 	}
+	additions, err := ParseAdditions(in.Additions)
+	if err != nil {
+		return Report{}, err
+	}
+	if err := CheckDisjoint(linesFile, additions); err != nil {
+		return Report{}, err
+	}
+	// The union: pinned entries plus additions. linesFile.Projects is the
+	// decoded copy, so adding to it touches no input. Each addition keeps its
+	// own capture date for the complete predicate.
+	addedOn := map[string]string{}
+	for slug, e := range additions.Additions {
+		linesFile.Projects[slug] = e.ProjectLines
+		addedOn[slug] = e.CapturedOn
+	}
 	var pack packDoc
 	if err := json.Unmarshal(in.Pack, &pack); err != nil {
 		return Report{}, fmt.Errorf("%w: pack: %v", ErrInvalid, err)
@@ -496,12 +521,16 @@ func Compute(in Input) (Report, error) {
 	expiringAtt := map[string]int{}
 	validAtt := map[string]int{}
 	crdAttComponent := map[string]bool{}
+	afterClock := map[string]bool{}
 	for _, a := range atts {
 		project, ok := componentProject[a.Component]
 		if !ok {
 			continue
 		}
-		if a.Freshness(now) != lineattest.FreshnessCurrent {
+		if f := a.Freshness(now); f != lineattest.FreshnessCurrent {
+			if f == lineattest.FreshnessClockBeforeReview {
+				afterClock[project] = true
+			}
 			continue
 		}
 		attsByProject[project] = append(attsByProject[project], a)
@@ -523,6 +552,13 @@ func Compute(in Input) (Report, error) {
 	report.Lines.CapturedOn = linesFile.CapturedOn
 	report.Lines.PinnedOn = linesFile.PinnedOn
 	report.Lines.Digest = digestOf(in.Lines)
+	if len(additions.Additions) > 0 {
+		clockOn, err := EvaluationClockDate(linesFile, additions)
+		if err != nil {
+			return Report{}, err
+		}
+		report.Additions = &AdditionsInfo{Digest: digestOf(in.Additions), Entries: len(additions.Additions), ClockOn: clockOn}
+	}
 
 	var comp *completer
 	famCounts := map[string]*Counts{}
@@ -538,6 +574,7 @@ func Compute(in Input) (Report, error) {
 		report.LinesSnapshot = snapshotInfo(report.Lines.Digest, linesFile.CapturedOn, now)
 		report.Declared = &DeclaredInfo{Digest: digestOf(declaredRaw), Records: len(declared.Declarations)}
 		comp = newCompleter(now, atts, byID, declared.Declarations, linesFile.CapturedOn)
+		comp.capturedBy = addedOn
 	}
 
 	covered := map[string]bool{}
@@ -780,6 +817,10 @@ func Compute(in Input) (Report, error) {
 		}
 	}
 	sort.Strings(report.WithoutLines)
+	for project := range afterClock {
+		report.AttestedAfterClock = append(report.AttestedAfterClock, project)
+	}
+	sort.Strings(report.AttestedAfterClock)
 	report.ExpiringProjects = []string{}
 	for _, p := range report.Projects {
 		if p.Expiring > 0 {
@@ -922,4 +963,13 @@ func sortedKeys(set map[string]bool) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// AdditionsInfo describes the additions file a report was measured with.
+type AdditionsInfo struct {
+	Digest  string `json:"digest"`
+	Entries int    `json:"entries"`
+	// ClockOn is the evaluation date: the later of the pinned snapshot's
+	// evaluation date and the capture date of every addition.
+	ClockOn string `json:"clockOn"`
 }

@@ -20,6 +20,11 @@ const (
 	READMEEnd   = "<!-- coverage:end -->"
 	// PinnedLinesPath is the repository path of the pinned lines snapshot.
 	PinnedLinesPath = "cli/internal/maintainer/coveragereport/testdata/lines-2026-11-07.json"
+	// PinnedAdditionsPath is the repository path of the append-only additions
+	// file (AdditionsSchema). The path is pinned here; the file may grow, only
+	// additively, and its entries are held by the knowledge gate. An absent or
+	// empty file is the valid empty set.
+	PinnedAdditionsPath = "cli/internal/maintainer/coveragereport/testdata/lines-additions.json"
 )
 
 // readmeInventoryCounts are the support-inventory counts the block prints.
@@ -76,6 +81,11 @@ func RenderREADMEBlock(r Report, inventoryJSON []byte, now time.Time) (string, e
 	if r.Lines.PinnedOn != "" {
 		w(" Release lines captured %s, evaluated on %s.", r.Lines.CapturedOn, r.Lines.PinnedOn)
 	}
+	if r.Additions != nil {
+		// Only with additions: the clock moves to the later date, and each
+		// project's own capture date is in the additions file.
+		w(" %d projects were appended to the snapshot with their own capture dates; the block is evaluated on %s (the later of the snapshot's evaluation date and every capture date).", r.Additions.Entries, r.Additions.ClockOn)
+	}
 	w("\n\n")
 	w("| Executable rules | Count |\n| --- | --- |\n")
 	w("| CNCF source rules, active | %d across %d projects (%d withdrawn, not used) |\n", c["cncfSourceRules"], c["cncfRuleProjects"], c["cncfSourceRulesWithdrawn"])
@@ -96,6 +106,16 @@ func RenderREADMEBlock(r Report, inventoryJSON []byte, now time.Time) (string, e
 		return "", err
 	}
 	w("Decided means a valid rule or attestation covers every version of both release lines. It never means a whole-upgrade PASS. %s An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.\n", split)
+	// Disclosure (only when additions exist, so a tree without them renders
+	// exactly as before): what the numbers leave out.
+	if r.Additions != nil {
+		if len(r.WithoutLines) > 0 {
+			w("\nProjects with a valid rule or attestation but no release lines in the snapshot (their upgrades are unknown, not counted): %s.\n", strings.Join(r.WithoutLines, ", "))
+		}
+		if len(r.AttestedAfterClock) > 0 {
+			w("\nProjects with a line attestation reviewed after the evaluation date, attested but not yet counted: %s.\n", strings.Join(r.AttestedAfterClock, ", "))
+		}
+	}
 	if r.V2 != nil {
 		renderV2(&b, r.V2)
 	}

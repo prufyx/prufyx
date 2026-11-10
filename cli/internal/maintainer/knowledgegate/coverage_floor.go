@@ -41,10 +41,20 @@ func (r *Report) coverageFloorCheck(opts Options) {
 		r.add(CheckCoverageFloor, false, "%s", logSafe(err.Error()))
 		return
 	}
+	if err := additionsNotFuture(opts.Head, opts.Now); err != nil {
+		r.add(CheckCoverageFloor, false, "%s", logSafe(err.Error()))
+		return
+	}
 	r.add(CheckCoverageFloor, true, "the published coverage numbers of the change are not below the baseline of the base branch")
 }
 
 func coverageFloor(base, head Tree) error {
+	// What the numbers are measured against is held first: the pinned
+	// snapshot byte-identical, the additions file append-only and
+	// regenerated from its tag files.
+	if err := linesIntegrity(base, head); err != nil {
+		return err
+	}
 	baseRaw, err := base.Read(coveragereport.BaselinePath, MaxFileBytes)
 	if err != nil {
 		return fmt.Errorf("the base branch has no readable coverage baseline: %w", err)
