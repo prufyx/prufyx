@@ -18,7 +18,7 @@ func runSynthConcurrent(t *testing.T, tg Target, s synthRepo, concurrency int) *
 	t.Helper()
 	repo, err := extract.ParseRepo(tg.Repo)
 	must(t, err)
-	out, err := extract.Run(context.Background(), NewConcurrent(tg, concurrency), s, s, extract.Options{Repo: repo, DerivedAt: derivedAt})
+	out, err := extract.Run(context.Background(), NewConcurrent(tg, concurrency).WithIndex(syntheticOwnership(tg, synthGroup)), s, s, extract.Options{Repo: repo, DerivedAt: derivedAt})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +39,14 @@ func outputBytes(t *testing.T, out *extract.Output) map[string][]byte {
 // attestable, and the versions it no longer serves are recorded (upstream
 // fixture, testdata/oracle/PROVENANCE.txt).
 func TestRookExamplesInstall(t *testing.T) {
-	out := mustRun(t, "rook", extract.FixtureReader{Root: "testdata/oracle"})
+	// Retain the source-gap regression independently of the now-required CSI path.
+	tg := target(t, "rook")
+	tg.Paths = tg.Paths[:1]
+	repo, err := extract.ParseRepo(tg.Repo)
+	must(t, err)
+	src := extract.FixtureReader{Root: "testdata/oracle"}
+	out, err := extract.Run(context.Background(), New(tg), src, src, extract.Options{Repo: repo, DerivedAt: derivedAt})
+	must(t, err)
 	p, proof := pairOf(t, out, "1.17.0", "1.18.0")
 	if p.Status != extract.PairDerived || len(p.Rules) != 0 || len(proof.Removals) != 0 {
 		t.Fatalf("pair %+v", p)

@@ -3,12 +3,14 @@
 package crdversions
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/prufyx/prufyx/cli/internal/customresources"
 	"github.com/prufyx/prufyx/cli/internal/extract"
 )
 
@@ -39,6 +41,26 @@ func istioFixture(t *testing.T, from, to string) string {
 	return root
 }
 
+// ownedIstioFixture gives these synthetic source tests explicit, kind-scoped
+// ownership without changing the reviewed table or their removal assertions.
+func ownedIstioFixture(t *testing.T, from, to string, groups ...customresources.Group) *extract.Output {
+	t.Helper()
+	tg := target(t, "istio")
+	ps := customresources.Projects()
+	for i := range ps {
+		if ps[i].Slug == tg.Project {
+			ps[i].Groups = append(ps[i].Groups, groups...)
+		}
+	}
+	x := New(tg).WithIndex(customresources.NewIndex(ps))
+	src := extract.FixtureReader{Root: istioFixture(t, from, to)}
+	repo, err := extract.ParseRepo(tg.Repo)
+	must(t, err)
+	out, err := extract.Run(context.Background(), x, src, src, extract.Options{Repo: repo, DerivedAt: derivedAt})
+	must(t, err)
+	return out
+}
+
 func onlyPair(t *testing.T, out *extract.Output) extract.PairRecord {
 	t.Helper()
 	if len(out.Manifest.Pairs) != 1 {
@@ -52,7 +74,9 @@ func onlyPair(t *testing.T, out *extract.Output) extract.PairRecord {
 func TestRuleIDsDoNotCollide(t *testing.T) {
 	from := crdDoc("bar.x.io", "Foo", "foo", "v1alpha1 true false", "v1 true true") + "---\n" + crdDoc("x.io", "FooBar", "foo-bar", "v1alpha1 true false", "v1 true true")
 	to := crdDoc("bar.x.io", "Foo", "foo", "v1 true true") + "---\n" + crdDoc("x.io", "FooBar", "foo-bar", "v1 true true")
-	out := mustRun(t, "istio", extract.FixtureReader{Root: istioFixture(t, from, to)})
+	out := ownedIstioFixture(t, from, to,
+		customresources.Group{Name: "bar.x.io", Kinds: []string{"Foo"}},
+		customresources.Group{Name: "x.io", Kinds: []string{"FooBar"}})
 	p := onlyPair(t, out)
 	want := []string{"istio.crd-version-removal.foo--bar-x-io.1-30-0-to-1-31-0", "istio.crd-version-removal.foo-bar-x-io.1-30-0-to-1-31-0"}
 	if p.Status != extract.PairDerived || len(p.Rules) != 2 || p.Rules[0] != want[0] || p.Rules[1] != want[1] {
@@ -138,7 +162,8 @@ func TestServedFalseCitations(t *testing.T) {
 		{from, to, []string{"crd-1-31-0", "crd-versions-1-30-0"}},
 		{fromFew, toFew, []string{"crd-versions-1-30-0", "served-false-v1alpha7-1-31-0", "served-false-v1alpha8-1-31-0"}},
 	} {
-		out := mustRun(t, "istio", extract.FixtureReader{Root: istioFixture(t, crdDoc("x.io", "Thing", "things", tc.from...), crdDoc("x.io", "Thing", "things", tc.to...))})
+		out := ownedIstioFixture(t, crdDoc("x.io", "Thing", "things", tc.from...), crdDoc("x.io", "Thing", "things", tc.to...),
+			customresources.Group{Name: "x.io", Kinds: []string{"Thing"}})
 		if len(out.Entries) != 1 {
 			t.Fatalf("entries %d", len(out.Entries))
 		}

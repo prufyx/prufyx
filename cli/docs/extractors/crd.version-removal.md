@@ -1,6 +1,6 @@
 # Extractor `crd.version-removal`
 
-Version 2.11.0. Derives `forbid_set_member` rules for custom-resource
+Version 2.13.0. Derives `forbid_set_member` rules for custom-resource
 versions that a project's release line no longer serves, from the
 CustomResourceDefinition manifests the project ships in its repository. It is
 deterministic, reads only upstream source pinned by full commit SHA, and
@@ -8,8 +8,28 @@ involves no model.
 
 A run reads one repository, so the extractor is registered once per project,
 as `crd.version-removal.<project>`; every registration runs the same code and
-carries the same version. Its code digest covers that code and its own target
-file only, so each id has its own digest (see Running and verifying).
+carries the same version. Its code digest covers that code, its own target
+file, and the reviewed ownership listings of its own API groups, including
+listings by projects sharing those groups. These listings determine positive
+rule eligibility, and each id has its own digest (see Running and verifying).
+
+Rules use only definitions whose exact API group and kind the reviewed
+custom-resource table attributes uniquely to the target project. Unknown or
+ambiguous definitions remain in the source inventory and removal proof, but
+the extractor emits no rule assigning them to that project. Any such suppressed
+removal also prevents a line attestation, alongside existing refusal reasons.
+Quiet, fully read unknown definitions do not establish ownership or compatibility
+of an optional external operator. The attested family covers only the project's
+own served CRD versions; client input containing unattributed custom resources
+remains incomplete and cannot pass that family.
+
+The ownership index must be configured before source identity or inventory reads.
+Changing it afterwards leaves the original index intact and makes subsequent
+extraction fail, preventing replay with cached data from another index.
+Canonical derivation and gate replay must use the same reviewed index. The
+scoped ownership listings in the digest do not establish equivalence for
+arbitrary alternate indexes: other listings also affect which definitions
+the inventory filters as foreign.
 
 ## Projects and paths
 
@@ -814,8 +834,10 @@ lines; a run that misses one names it under `--wants-out` and exits 3.
 fails unless every output file is byte-identical. The code digest is sha256
 over the sorted lines `<dir>/<file> NUL <sha256> LF` of the non-test Go files
 of `internal/extract` and `internal/extract/crdversions` and of the id's own
-target file `target-<project>.json`, and of no other target file; the manifest
-lists them. No derivation of one id reads another target: the other files are
+target file `target-<project>.json`, and the reviewed ownership listings of its
+own API groups, including listings by projects sharing those groups. It covers
+no other target file; the manifest lists the digest inputs. No derivation of
+one id reads another target: the other files are
 read only to check, when the program starts, that no two targets name the same
 project, fact, repository or component.
 

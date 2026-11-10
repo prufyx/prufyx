@@ -76,7 +76,7 @@ func pbRun(t *testing.T, from, to map[string]string, links []string, exclude ...
 	}
 	repo, err := extract.ParseRepo("github.com/argoproj/argo-cd")
 	must(t, err)
-	out, err := extract.Run(context.Background(), New(synthTarget(exclude...)), ls, ls, extract.Options{Repo: repo, DerivedAt: derivedAt})
+	out, err := extract.Run(context.Background(), New(synthTarget(exclude...)).WithIndex(syntheticOwnership(synthTarget(), synthGroup)), ls, ls, extract.Options{Repo: repo, DerivedAt: derivedAt})
 	must(t, err)
 	return pairOf(t, out, "1.0.0", "1.1.0")
 }

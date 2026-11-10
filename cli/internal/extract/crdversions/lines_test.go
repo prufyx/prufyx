@@ -89,7 +89,7 @@ func runSynth(t *testing.T, tg Target, s synthRepo) *extract.Output {
 	t.Helper()
 	repo, err := extract.ParseRepo(tg.Repo)
 	must(t, err)
-	out, err := extract.Run(context.Background(), New(tg), ReleaseTags(New(tg), s), s, extract.Options{Repo: repo, DerivedAt: derivedAt})
+	out, err := extract.Run(context.Background(), New(tg).WithIndex(syntheticOwnership(tg, synthGroup)), ReleaseTags(New(tg), s), s, extract.Options{Repo: repo, DerivedAt: derivedAt})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -573,12 +573,26 @@ func TestLoadTargets(t *testing.T) {
 // Cilium 1.19 -> 1.20, Kyverno 1.15 -> 1.16 and Longhorn 1.8 -> 1.9, read
 // at every release of both lines (testdata/oracle, see PROVENANCE.txt).
 // Cilium 1.20.2 serves CiliumNodeConfig v2alpha1 again, so its rule holds
-// for the anchor pair only. Rook 1.17 -> 1.18 has no removal under its
-// listed path and is not attestable (deploy/examples/csi-operator.yaml).
+// for the anchor pair only. The Rook oracle retains the historical one-path
+// source-gap regression; TestRookRequiredCSIHasNoRookRules separately checks
+// the current required read and retained unowned CSI removal proof.
 func TestUpstreamOracles(t *testing.T) {
 	for _, project := range []string{"cilium", "kyverno", "longhorn", "rook"} {
 		t.Run(project, func(t *testing.T) {
-			out := mustRun(t, project, extract.FixtureReader{Root: "testdata/oracle"})
+			src := extract.FixtureReader{Root: "testdata/oracle"}
+			var out *extract.Output
+			if project == "rook" {
+				// Oracle requires each listed removal to have a blocking rule;
+				// unknown-owner proof removals intentionally cannot satisfy that.
+				tg := target(t, project)
+				tg.Paths = tg.Paths[:1]
+				repo, err := extract.ParseRepo(tg.Repo)
+				must(t, err)
+				out, err = extract.Run(context.Background(), New(tg), src, src, extract.Options{Repo: repo, DerivedAt: derivedAt})
+				must(t, err)
+			} else {
+				out = mustRun(t, project, src)
+			}
 			dir := t.TempDir()
 			must(t, out.Write(dir))
 			expected, err := os.ReadFile("testdata/oracle-" + project + ".json")

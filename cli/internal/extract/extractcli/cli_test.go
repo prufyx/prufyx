@@ -93,9 +93,10 @@ func TestServedAPIRunVerifyOracleOnFixture(t *testing.T) {
 }
 
 func TestCRDRunVerifyOracleOnFixture(t *testing.T) {
+	argoFixture, argoOracle := ownedArgoFixture(t)
 	for _, tc := range []struct{ id, fx, expected, summary string }{
 		{"crd.version-removal.strimzi", "../crdversions/testdata/strimzi", "../crdversions/testdata/oracle-strimzi.json", "1 pairs (1 derived, 0 withheld), 10 rules, 30 vectors"},
-		{"crd.version-removal.argo-cd", "../crdversions/testdata/fixture", "../crdversions/testdata/oracle-fixture.json", "2 pairs (2 derived, 0 withheld), 2 rules, 6 vectors"},
+		{"crd.version-removal.argo-cd", argoFixture, argoOracle, "2 pairs (2 derived, 0 withheld), 2 rules, 6 vectors"},
 	} {
 		dir := filepath.Join(t.TempDir(), "out")
 		code, out, errs := run("run", "--extractor", tc.id, "--fixture", tc.fx, "--out", dir, "--derived-at", "2026-10-04T00:00:00Z")
