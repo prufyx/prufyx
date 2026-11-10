@@ -5,6 +5,7 @@ package knowledgegate
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -188,9 +189,30 @@ func TestAdditionsAreRegeneratedFromTheirTagFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Deterministic: the first slug (sorted) whose every addTags tag yields a
+	// release line through the gate's own tag mapping. A project with its own
+	// tag scheme yields none, and SealAddition would refuse it before the
+	// gate under test runs.
+	slugs := make([]string, 0, len(lf.Projects))
 	for s := range lf.Projects {
-		pinned = s
-		break
+		slugs = append(slugs, s)
+	}
+	sort.Strings(slugs)
+	for _, s := range slugs {
+		ok := true
+		for _, tag := range strings.Fields(addTags) {
+			if _, got := coveragereport.LineOfTag(s, tag); !got {
+				ok = false
+				break
+			}
+		}
+		if ok {
+			pinned = s
+			break
+		}
+	}
+	if pinned == "" {
+		t.Fatal("no pinned project takes the fixed tag file")
 	}
 	putAdditions(t, head, "2026-11-07", pinned)
 	mustFail(t, "key also pinned", base, head, "never overrides")
