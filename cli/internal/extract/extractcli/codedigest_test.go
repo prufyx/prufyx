@@ -72,13 +72,30 @@ func TestEveryExtractorDigestCoversItsPackageOnDisk(t *testing.T) {
 				// Synthetic: the table listings of the id's groups, not a file.
 				continue
 			}
-			covered[base] = true
-			coveredBy[disk][base] = true
-			if strings.HasSuffix(base, ".json") {
-				jsonIDs[disk][base]++
+			// A source set may add the shared member encoder under the prefix
+			// "membercode_": it is read from, and checked against, that package.
+			pkg, name := disk, base
+			if rest, ok := strings.CutPrefix(base, memberEncoderPrefix); ok && disk == filepath.Join("..", "crdschema") {
+				pkg, name = filepath.Join("..", "membercode"), rest
+				if coveredBy[pkg] == nil {
+					coveredBy[pkg] = map[string]bool{}
+				}
+				coveredBy[pkg][name] = true
+				if !strings.HasSuffix(name, ".go") {
+					t.Errorf("%s: %s is not code", id, f.Path)
+				}
+			} else {
+				covered[base] = true
+				coveredBy[disk][base] = true
+				if strings.HasSuffix(base, ".json") {
+					jsonIDs[disk][base]++
+				}
 			}
-			data, err := os.ReadFile(filepath.Join(disk, base))
+			data, err := os.ReadFile(filepath.Join(pkg, name))
 			if err != nil {
+				if pkg != disk {
+					t.Fatalf("%s: the digest covers %s, which is not a file of %s any more (stale encoder file): %v", id, base, pkg, err)
+				}
 				t.Fatalf("%s: %v", id, err)
 			}
 			sum := sha256.Sum256(data)
@@ -161,6 +178,10 @@ func TestEveryExtractorDigestCoversItsPackageOnDisk(t *testing.T) {
 		}
 	}
 }
+
+// memberEncoderPrefix is the prefix under which a source set adds the shared
+// member encoder's files (see crdschema.SourceSet).
+const memberEncoderPrefix = "membercode_"
 
 // digestOf is the code digest a run of the registered extractor records
 // (extract.Run): the framework's source set and the extractor's own.

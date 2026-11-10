@@ -39,7 +39,7 @@ const (
 
 var (
 	ledgerCodeRE = regexp.MustCompile(`^[A-Z][A-Z0-9_]{2,47}$`)
-	ledgerItemRE = regexp.MustCompile(`^[A-Za-z0-9_.:/@+=*\[\]-]{1,` + strconv.Itoa(MaxLedgerItemLen) + `}$`)
+	ledgerItemRE = regexp.MustCompile(`^[A-Za-z0-9_.:/@+*\[\]-]{1,` + strconv.Itoa(MaxLedgerItemLen) + `}$`)
 )
 
 // ledgerGuards are switched off only by tests (see guards).

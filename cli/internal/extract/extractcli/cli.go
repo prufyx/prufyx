@@ -15,6 +15,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"slices"
 	"sort"
 	"strings"
 	"syscall"
@@ -22,6 +23,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
 	"github.com/prufyx/prufyx/cli/internal/extract/chartrun"
+	"github.com/prufyx/prufyx/cli/internal/extract/crdschema"
 	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
 	"github.com/prufyx/prufyx/cli/internal/extract/helmvalues"
 	"github.com/prufyx/prufyx/cli/internal/extract/k8sfeaturegates"
@@ -84,6 +86,25 @@ func Catalog() map[string]Spec {
 			Repo:   t.Repo,
 			New:    func(int) extract.Extractor { return chartrun.Register(helmvalues.New(t)) },
 			Oracle: helmvalues.Oracle,
+		}
+	}
+	for _, t := range crdversions.Targets {
+		if !slices.Contains(crdschema.CatalogProjects, t.Project) {
+			continue
+		}
+		x, err := crdschema.FromCRDVersions(t)
+		if err != nil {
+			// A pilot that stopped mapping is not registered.
+			// TestCatalogListsTheCRDSchemaPilots is the only guard that
+			// fails when a pilot silently stops mapping.
+			continue
+		}
+		id := x.ID()
+		out[id] = Spec{
+			ID:   id,
+			Repo: t.Repo,
+			// One extractor per run: it holds the lines of its last Pairs call.
+			New: func(int) extract.Extractor { return x.Clone() },
 		}
 	}
 	return out
