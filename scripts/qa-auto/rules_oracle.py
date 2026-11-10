@@ -26,7 +26,7 @@ Environment: the qalib variables plus QA_PROJECTS (diagnostic project filter), Q
 import argparse, concurrent.futures as cf, base64, json, os, subprocess, sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from qalib import BIN, SRC, boxed, TMP, NOW, ENV, case, counts, dump, write_private
+from qalib import BIN, SRC, boxed, TMP, NOW, ENV, case, counts, dump, write_private, rules_control_wrongpass, rules_variant_wrongpass
 import corpus
 PASS_OK = corpus.PASS_OK
 
@@ -203,7 +203,7 @@ for w, (code, note) in ctl_bad:
         matched.add(ckey)
         continue
     kind = "control-pass:" if code == 0 else "control-crash:"
-    cases.append(case("rules", kind + rid, wrongpass=(code == 0), mismatch=True, project=e["project"], rule=rid, exit=code,
+    cases.append(case("rules", kind + rid, wrongpass=rules_control_wrongpass(code), mismatch=True, project=e["project"], rule=rid, exit=code,
                       note=note, why="trigger built from the rule did not BLOCK (exit %s)" % code))
 for key, rid, vid, project, code, note, data, cmd in OBS:
     ran_keys.add(key)
@@ -220,7 +220,7 @@ for key, rid, vid, project, code, note, data, cmd in OBS:
     if entry and not bad and passed:
         matched.add(key if key in allow else "*#" + vid)
         continue
-    cases.append(case("rules", key, wrongpass=passed, mismatch=not passed, project=project, rule=rid, variant=vid, exit=code,
+    cases.append(case("rules", key, wrongpass=rules_variant_wrongpass(code, vid, PASS_OK), mismatch=not passed, project=project, rule=rid, variant=vid, exit=code,
                       note=note, command="prufyx " + " ".join(cmd[1:]), **repro(data, cmd)))
 for k in allow:
     if "#" not in k or bad:

@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from seeded_support import install_stub_seeds
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -86,6 +87,7 @@ class OracleBoxTests(unittest.TestCase):
             shutil.copy2(HERE / name, self.inst / name)
         for name in ("crd_oracle.py", "k8s_oracle.py", "bp325.py", "review_cases.py", "rules_oracle.py"):
             (self.inst / name).write_text(COMPANION)
+        install_stub_seeds(self.inst)
         (self.inst / "kind_probe.py").write_text(KIND)
         self.devbox = self.root / "devbox"
         self.devbox.write_text(DEVBOX)

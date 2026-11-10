@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from seeded_support import write_seeded
 from test_batch_envelope_scope import gate_source
 import urllib.error
 from unittest.mock import patch
@@ -55,6 +56,7 @@ def oracle_runner():
     (out / "other.cases.json").write_text(json.dumps([
         dict(suite=suite, key="synthetic", wrongpass=False, mismatch=False, error=False, detail={})
         for suite in ("bp325", "review", "rules")]))
+    write_seeded(out)
     result = subprocess.run([sys.executable, str(HERE / "summarize.py"), "--dir", str(out),
         "--state", os.environ["QA_STATE"], "--sha", os.environ["QA_SHA"], "--mode", "incremental", "--adhoc"])
     path = out / "summary.json"

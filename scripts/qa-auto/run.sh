@@ -271,6 +271,31 @@ if [ "$mode" = incremental ] && [ "$selmode" = none ] && [ "$GATE" = 0 ]; then
   exit $rc
 fi
 
+# 1b. seeded wrong-PASS cases (hermetic, no build, no scanner): the installed classifier must flag every injected wrong PASS before
+# the real corpus counts. The seeds come from this installed directory ($HERE, the base), never from the candidate checkout.
+# An uncaught seed (exit 2) or a seed run that cannot prove itself (exit 3: refused, pinned digest mismatch, crash) skips the
+# real suites; summarize.py then reports the seed failure and never a green verdict.
+SEEDED_OK=1
+if ! python3 -I -X utf8 "$HERE/seeds.py" --out "$OUT/seeded.json" --src "$RUN/src" >"$OUT/seeded.log" 2>&1 9>&-; then
+  SEEDED_OK=0
+  log "seeded wrong-PASS cases NOT all caught: $(head -c 300 "$OUT/seeded.log")"
+fi
+[ -s "$OUT/seeded.json" ] || SEEDED_OK=0
+if [ "$SEEDED_OK" = 0 ]; then
+  printf '[]\n' >"$OUT/skipped.json"
+  python3 "$HERE/summarize.py" --dir "$OUT" --state "$QA_STATE" --sha "$sha" --mode "$mode" --note "seeded failure" --require-seeded "${adhoc_flag[@]}"
+  rc=$?
+  [ "$rc" = 2 ] || [ "$rc" = 3 ] || rc=3   # never green, never "partial"
+  [ "$ADHOC" = 0 ] && [ "$rc" = 2 ] && echo "$sha" >"$QA_STATE/last_checked"
+  if [ $rc = 2 ]; then
+    log "ALARM: $QA_STATE/alarms/$s8.alarm.json"
+    if [ -n "${QA_ALARM_HOOK:-}" ] && [ -x "$QA_ALARM_HOOK" ]; then
+      "$QA_ALARM_HOOK" "$QA_STATE/alarms/$s8.alarm.json" || log "alarm hook failed with exit $?"
+    fi
+  fi
+  exit $rc
+fi
+
 # 2. build prufyx + helper in the devbox
 mkdir -p "$RUN/src/cli/cmd/crdgvkqa" "$RUN/bin" "$RUN/tmp"
 cp "$HERE/crdgvk.go" "$RUN/src/cli/cmd/crdgvkqa/main.go"
@@ -428,7 +453,7 @@ fi
 printf '%s\n' "${skipped[@]:-}" | python3 -I -c 'import json,sys;json.dump([l.strip() for l in sys.stdin if l.strip()],open(sys.argv[1],"w"))' "$OUT/skipped.json"
 
 # 5. verdict, state, alarm
-python3 "$HERE/summarize.py" --dir "$OUT" --state "$QA_STATE" --sha "$sha" --mode "$mode" --note "$(( $(date +%s) - t0 ))s" "${adhoc_flag[@]}"
+python3 "$HERE/summarize.py" --dir "$OUT" --state "$QA_STATE" --sha "$sha" --mode "$mode" --note "$(( $(date +%s) - t0 ))s" --require-seeded "${adhoc_flag[@]}"
 rc=$?
 # Gate mode deliberately omits kind; this documented omission is not a runner failure.
 if [ "$GATE" = 1 ] && [ "$rc" = 4 ] && [ "${skipped[*]}" = kind ]; then rc=0; fi
