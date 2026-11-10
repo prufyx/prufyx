@@ -13,14 +13,14 @@
       "project": "kubevela",
       "detail": "generation:config/crd/kustomization.yaml",
       "seq": 0,
-      "reason": "Makefile manifests (v1.6.0 to v1.9.11): kustomize build config/crd, cleanup.sh, dispatch.go into charts/vela-core/crds; base file never committed. Unprovable by the scan: that the output equals the committed files."
+      "reason": "Makefile manifests: kustomize build config/crd, dispatch.go into charts/vela-core/crds (identical v1.9.0-v1.9.14; v1.6-v1.8 dispatch also copies elsewhere; v1.10+ no cleanup.sh); base never committed. Unprovable by the scan: output equals committed files."
     },
     {
       "kind": "target-narrowed",
       "project": "kubevela",
       "detail": "exclude:references/cli/adopt-templates/default.cue@github.com/kubevela/kubevela",
       "seq": 0,
-      "reason": "Read: adopt-templates/default.cue is the cue template of vela adopt, embedded by adopt.go; applies nothing, ships no definition, no apiextensions text. Three byte contents pinned by sha256 (v1.7.0-v1.10.5). A changed byte voids the entry."
+      "reason": "Read: adopt-templates/default.cue is the cue template of vela adopt, embedded by adopt.go; applies nothing, ships no definition, no apiextensions text. Pinned by sha256: v1.7.0-v1.7.7, v1.8.0-v1.8.2, v1.9.0-v1.10.9. A changed byte voids the entry."
     }
   ],
   "noTarget": []
