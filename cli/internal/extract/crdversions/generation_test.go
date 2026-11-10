@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"io/fs"
 	"os"
 	"strings"
 	"testing"
@@ -69,12 +68,25 @@ func kvTree(versions []string, edit func(map[string]string)) map[string]string {
 	return m
 }
 
+// kvTargetFile is the target data these tests exercise: the reviewed
+// kubevela target with its generation declaration and pinned template. It
+// is not in the package's own target table yet: the knowledge gate loads the
+// target files of a change with the code of the base, which does not know the
+// new members.
+const kvTargetFile = "testdata/kubevela/target-kubevela.json"
+
+func kvReviewedTarget(t *testing.T) Target {
+	t.Helper()
+	raw, err := os.ReadFile(kvTargetFile)
+	must(t, err)
+	tg, err := LoadTarget(TargetFileName("kubevela"), raw)
+	must(t, err)
+	return tg
+}
+
 func kvTarget(t *testing.T, edit func(*Target)) Target {
 	t.Helper()
-	tg, ok := TargetFor("kubevela")
-	if !ok {
-		t.Fatal("no kubevela target")
-	}
+	tg := kvReviewedTarget(t)
 	if edit != nil {
 		edit(&tg)
 	}
@@ -259,7 +271,7 @@ func TestGenerationJSON6902InTheKustomizationBlocksAttestation(t *testing.T) {
 
 // The loader refuses every malformed declaration.
 func TestGenerationLoader(t *testing.T) {
-	raw, err := fs.ReadFile(source, TargetFileName("kubevela"))
+	raw, err := os.ReadFile(kvTargetFile)
 	must(t, err)
 	good := func() map[string]any {
 		var doc map[string]any

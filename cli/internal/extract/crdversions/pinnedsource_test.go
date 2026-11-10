@@ -9,7 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/fs"
+	"os"
 	"strings"
 	"testing"
 
@@ -257,7 +257,7 @@ func TestPinnedSourceEmbedGlobRelaxesOnlyThePinnedFile(t *testing.T) {
 
 // The loader refuses every malformed pinned entry.
 func TestPinnedSourceLoader(t *testing.T) {
-	raw, err := fs.ReadFile(source, TargetFileName("kubevela"))
+	raw, err := os.ReadFile(kvTargetFile)
 	must(t, err)
 	good := func() map[string]any {
 		var doc map[string]any
