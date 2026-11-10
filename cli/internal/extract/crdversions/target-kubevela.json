@@ -11,6 +11,15 @@
     "paths": [
       {"path": "charts/vela-core/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
     ],
-    "exclude": []
+    "exclude": [],
+    "generation": [
+      {
+        "kustomization": "config/crd/kustomization.yaml",
+        "output": "charts/vela-core/crds",
+        "repo": "github.com/kubevela/kubevela",
+        "reason": "kubebuilder kustomization whose build output is committed under charts/vela-core/crds",
+        "evidence": "Makefile target manifests (v1.6.0 to v1.9.11): kustomize build config/crd -o config/crd/base/core.oam.dev_applications.yaml, then hack/crd/cleanup.sh, then go run ./hack/crd/dispatch/dispatch.go config/crd/base charts/vela-core/crds, then rm -f config/crd/base/*. The base file is never committed; the output of the run is charts/vela-core/crds. Not provable by the scan: that the output equals the committed files."
+      }
+    ]
   }
 }

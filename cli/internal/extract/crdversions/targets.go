@@ -75,6 +75,9 @@ type Target struct {
 	// full-tree scan records without letting them block attestation, each
 	// with its reviewed reason. A listed path is never excluded.
 	Exclude []Exclusion
+	// Generation lists the reviewed declarations of kustomizations that
+	// generate the committed definitions (see Generation).
+	Generation []Generation
 	// Attest makes the extractor attest the target's lines for the
 	// custom-resource version family. Only a project of the reviewed
 	// custom-resource table (its set fact is registered) may attest; a
@@ -94,6 +97,30 @@ type Target struct {
 	// voided are the Exclude entries that do not hold at the release being
 	// scanned (see guard.go); set on a copy made for one scan.
 	voided map[string]bool
+}
+
+// Generation is a reviewed declaration that a kustomization of the
+// repository is the build step of definitions committed under a listed
+// path: its directory is then a declared definition kustomization
+// directory at every tag where the kustomization is present and readable
+// (definitionDirs), though none of its resources is a file of the tree (the
+// build output is removed after the run). The declaration decides no
+// version: a file below the directory is still accepted only by its bytes
+// (the fragment allow-list), only for a definition of the listed paths.
+// The program cannot prove that the generated output equals the committed
+// files; the evidence is the reviewer's statement of it.
+type Generation struct {
+	// Kustomization is the repository path of the kustomization file.
+	Kustomization string
+	// Output is the listed path (or a path below it) the build writes.
+	Output string
+	// Repo is the repository key of the target.
+	Repo string
+	// Reason is why the directory is a generation directory.
+	Reason string
+	// Evidence is what the reviewer read: the build recipe, the
+	// post-processing, the output directory and the tags read.
+	Evidence string
 }
 
 // Remote is a per-line source switch: from release line FromLine on, the
@@ -332,12 +359,13 @@ type targetJSON struct {
 	FactProject string   `json:"factProject"`
 	TagPrefixes []string `json:"tagPrefixes,omitempty"`
 	// ReleaseScheme replaces tagPrefixes; see Target.
-	ReleaseScheme string          `json:"releaseScheme,omitempty"`
-	MinFrom       string          `json:"minFrom"`
-	Attest        bool            `json:"attest"`
-	Paths         []pathJSON      `json:"paths"`
-	Exclude       []exclusionJSON `json:"exclude"`
-	Remote        *remoteJSON     `json:"remote,omitempty"`
+	ReleaseScheme string           `json:"releaseScheme,omitempty"`
+	MinFrom       string           `json:"minFrom"`
+	Attest        bool             `json:"attest"`
+	Paths         []pathJSON       `json:"paths"`
+	Exclude       []exclusionJSON  `json:"exclude"`
+	Generation    []generationJSON `json:"generation,omitempty"`
+	Remote        *remoteJSON      `json:"remote,omitempty"`
 	// DeclaredChannel and Channels: see Target.
 	DeclaredChannel string        `json:"declaredChannel,omitempty"`
 	Channels        []channelJSON `json:"channels,omitempty"`
@@ -381,6 +409,14 @@ type exclusionJSON struct {
 	Defines string `json:"defines,omitempty"`
 	// Foreign pins a vendored third-party bundle (see ForeignBundle).
 	Foreign *foreignJSON `json:"foreign,omitempty"`
+}
+
+type generationJSON struct {
+	Kustomization string `json:"kustomization"`
+	Output        string `json:"output"`
+	Repo          string `json:"repo"`
+	Reason        string `json:"reason"`
+	Evidence      string `json:"evidence"`
 }
 
 type foreignJSON struct {
@@ -588,6 +624,9 @@ func (tj targetJSON) target() (Target, error) {
 		}
 		t.Exclude = append(t.Exclude, Exclusion{Path: ej.Path, Repo: ej.Repo, Reason: ej.Reason, Evidence: ej.Evidence, Copies: ej.Copies, PrePatch: ej.PrePatch, DefinesNone: ej.Defines == definesNoneValue, Foreign: ej.Foreign.bundle()})
 	}
+	if err := tj.generations(&t); err != nil {
+		return t, fmt.Errorf("generation: %w", err)
+	}
 	if tj.Remote != nil {
 		remote, err := tj.Remote.remote(t)
 		if err != nil {
@@ -596,6 +635,65 @@ func (tj targetJSON) target() (Target, error) {
 		t.Remote = remote
 	}
 	return t, nil
+}
+
+// maxGenerations bounds the declarations of one target.
+const maxGenerations = 4
+
+// generations validates a target's generation declarations: each a clean
+// kustomization file name below the repository root (not in a default
+// excluded directory and not under an exclusion, which would place the
+// file), an output equal to or below a listed path, the target's own
+// repository, a reason and evidence that name the directory and the output,
+// and no duplicate. Anything else refuses the target file.
+func (tj targetJSON) generations(t *Target) error {
+	if len(tj.Generation) > maxGenerations {
+		return fmt.Errorf("at most %d declarations", maxGenerations)
+	}
+	seen := map[string]bool{}
+	for _, gj := range tj.Generation {
+		k := gj.Kustomization
+		switch {
+		case !cleanRepoPath(k) || !isKustomizationName(path.Base(k)):
+			return fmt.Errorf("%q is not the clean repository path of a kustomization", k)
+		case path.Dir(k) == ".":
+			return fmt.Errorf("%q is at the repository root", k)
+		case defaultSegment(k) != "":
+			return fmt.Errorf("%q is under the default excluded directory %s", k, defaultSegment(k))
+		case seen[k]:
+			return fmt.Errorf("%q is declared twice", k)
+		case gj.Repo != t.Repo:
+			return fmt.Errorf("%q names repository %q, not %s", k, gj.Repo, t.Repo)
+		case !cleanRepoPath(gj.Output):
+			return fmt.Errorf("output %q is not a clean repository path", gj.Output)
+		}
+		seen[k] = true
+		for _, e := range t.Exclude {
+			if exclusionMatches(e.Path, k) {
+				return fmt.Errorf("%q is under the exclusion %q", k, e.Path)
+			}
+		}
+		listed := false
+		for _, ps := range t.allListedPaths() {
+			if gj.Output == ps.Path || strings.HasPrefix(gj.Output, ps.Path+"/") {
+				listed = true
+			}
+		}
+		if !listed {
+			return fmt.Errorf("output %q is not a listed path or below one", gj.Output)
+		}
+		if r := strings.TrimSpace(gj.Reason); r != gj.Reason || len(r) < 12 || len(r) > 300 {
+			return fmt.Errorf("%q: a reason of 12 to 300 characters is required", k)
+		}
+		if e := strings.TrimSpace(gj.Evidence); e != gj.Evidence || len(e) < 40 || len(e) > 800 {
+			return fmt.Errorf("%q: evidence of 40 to 800 characters is required", k)
+		}
+		if !strings.Contains(gj.Evidence, path.Dir(k)) || !strings.Contains(gj.Evidence, gj.Output) {
+			return fmt.Errorf("%q: the evidence must name the directory %s and the output %s", k, path.Dir(k), gj.Output)
+		}
+		t.Generation = append(t.Generation, Generation{Kustomization: k, Output: gj.Output, Repo: gj.Repo, Reason: gj.Reason, Evidence: gj.Evidence})
+	}
+	return nil
 }
 
 var channelNameRE = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}$`)

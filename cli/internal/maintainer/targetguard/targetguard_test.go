@@ -789,3 +789,33 @@ func TestForeignPinIsNarrowing(t *testing.T) {
 		}
 	}
 }
+
+// Adding or changing a generation declaration widens what the scan
+// accepts: it is listed as narrowing. Removing one, or the same declaration
+// on both sides, is not listed.
+func TestGenerationIsListed(t *testing.T) {
+	gen := func(evidence string) []crdversions.Generation {
+		return []crdversions.Generation{{Kustomization: "x/kustomization.yaml", Output: "out", Repo: "github.com/a/b", Reason: "a reviewed reason", Evidence: evidence}}
+	}
+	count := func(prefix string, base, head []crdversions.Generation) int {
+		b := mustLoad(t, realTree(t), false)
+		h := mustLoad(t, realTree(t), false)
+		b.Targets[0].Generation, h.Targets[0].Generation = base, head
+		n := 0
+		for _, r := range Diff(b, h) {
+			if r.Kind == KindNarrowed && strings.HasPrefix(r.Detail, prefix) && r.Project == b.Targets[0].Project {
+				n++
+			}
+		}
+		return n
+	}
+	if count("generation:", nil, gen("e")) != 1 {
+		t.Error("an added declaration is not listed")
+	}
+	if count("generationChanged:", gen("e"), gen("f")) != 1 {
+		t.Error("a changed declaration is not listed")
+	}
+	if count("generation", gen("e"), nil) != 0 || count("generation", gen("e"), gen("e")) != 0 {
+		t.Error("a removed or unchanged declaration is listed")
+	}
+}

@@ -741,7 +741,7 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 			return nil, errs[i]
 		}
 	}
-	defDirs := definitionDirs(files, infos, inv)
+	defDirs := definitionDirs(files, infos, inv, tg)
 	// The files that templates of the spec-include shape include are read
 	// with the template, not as files of their own.
 	claimed := map[string]bool{}

@@ -1,0 +1,6 @@
+The three files under config/crd are copied byte for byte from the public
+repository https://github.com/kubevela/kubevela at tag v1.8.0 (raw files). They
+are identical at v1.6.0, v1.8.0, v1.9.0 and v1.9.11:
+  config/crd/kustomization.yaml                          sha256 0bfb0de4814b7d8077f3c813b553166057f2acbc3ac02542c7f1fe3f6943a8f1
+  config/crd/patches/cainjection_in_applications.yaml    sha256 59ad96c87fc71e776796c0d4e25d6b94e4af41fb063b6d1054606fffaf865925
+  config/crd/patches/webhook_in_applications.yaml        sha256 33c7bf7b6b176ddafe41b97e3ebd8d7ec988d0a8ab5e08e3f6a97460ff260cdf

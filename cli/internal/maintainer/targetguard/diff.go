@@ -159,6 +159,23 @@ func narrowed(b, h crdversions.Target) []string {
 			out = append(out, "excludeChanged:"+name)
 		}
 	}
+	// A generation declaration makes the directory of a kustomization a
+	// declared definition directory: an added or changed one widens what
+	// the scan accepts, so it is listed like an exclusion. A removed one
+	// only makes the scan stricter.
+	baseGen := map[string]crdversions.Generation{}
+	for _, g := range b.Generation {
+		baseGen[g.Kustomization] = g
+	}
+	for _, g := range h.Generation {
+		bg, ok := baseGen[g.Kustomization]
+		switch {
+		case !ok:
+			out = append(out, "generation:"+g.Kustomization)
+		case bg != g:
+			out = append(out, "generationChanged:"+g.Kustomization)
+		}
+	}
 	out = append(out, remoteChanges(b.Remote, h.Remote)...)
 	sort.Strings(out)
 	return out

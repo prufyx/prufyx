@@ -571,8 +571,10 @@ func parseCRDV1beta1(doc int, obj map[string]any, root *yaml.Node) (CRD, error) 
 // definitionDirs are the declared definition kustomization directories at
 // one tag: the directories (not the repository root) of the kustomization
 // files whose local resources or bases name a file of the inventory, or a
-// directory that holds one.
-func definitionDirs(files []scanFile, infos []*blobInfo, inv *Inventory) map[string]bool {
+// directory that holds one; and the directories of the target's reviewed
+// generation declarations whose kustomization is present and readable at
+// this tag (generationDirs).
+func definitionDirs(files []scanFile, infos []*blobInfo, inv *Inventory, tg Target) map[string]bool {
 	out := map[string]bool{}
 	if inv == nil || len(inv.Files) == 0 {
 		return out
@@ -597,7 +599,32 @@ func definitionDirs(files []scanFile, infos []*blobInfo, inv *Inventory) map[str
 			}
 		}
 	}
+	generationDirs(files, infos, tg, out)
 	return out
+}
+
+// generationDirs adds the directory of each declared generation
+// kustomization that is present at this tag, strictly decoded, a
+// kustomization with no remote resource, no open replacement or
+// configuration list that cannot be followed. Its k.problem (kubevela's
+// strategic merge patches are not checked as a list) is ignored, as for the
+// directories above: every file below is proved byte by byte by fragmentDoc
+// and its definition names are checked against the inventory, so the
+// declaration widens only where a file may be looked for, never what it may
+// contain. A kustomization that is missing or fails any condition leaves the
+// directory undeclared and its files unread.
+func generationDirs(files []scanFile, infos []*blobInfo, tg Target, out map[string]bool) {
+	for _, g := range tg.Generation {
+		for i, f := range files {
+			if f.path != g.Kustomization {
+				continue
+			}
+			k := infos[i].kust
+			if k != nil && len(k.remote) == 0 && k.open == "" && k.configBad == "" {
+				out[path.Dir(f.path)] = true
+			}
+		}
+	}
 }
 
 // underDefinitionDir reports a path below a declared definition
