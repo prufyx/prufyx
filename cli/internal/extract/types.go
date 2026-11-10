@@ -143,6 +143,9 @@ type ComponentAttester interface {
 // AttestationCandidate is one line attestation an extractor proposes. The
 // framework adds the basis, extractor identity, times and source digests.
 type AttestationCandidate struct {
+	// Basis must be BasisMechanical; any other value is refused when the
+	// attestation is stamped.
+	Basis      string
 	Component  string
 	Line       string
 	FactFamily string
@@ -171,9 +174,45 @@ func IsWithheld(err error) (*Withheld, bool) {
 	return nil, false
 }
 
+// Candidate basis tokens. The basis is explicit and default-closed: a
+// Candidate whose Basis is empty or any other string is NeedsReview, never
+// mechanical. Only an extractor that implements MechanicalEmitter and is
+// covered by the family allowlist may emit a mechanical Candidate.
+const (
+	BasisMechanical  = "mechanical"
+	BasisDraft       = "draft"
+	BasisNeedsReview = "needs_review"
+)
+
+// NormalizeBasis resolves a Candidate basis token by exact match. Empty and
+// unknown tokens (including different case) resolve to BasisNeedsReview.
+func NormalizeBasis(b string) string {
+	switch b {
+	case BasisMechanical, BasisDraft, BasisNeedsReview:
+		return b
+	}
+	return BasisNeedsReview
+}
+
+// MechanicalEmitter is implemented by an extractor that derives mechanical
+// rules. It names the fact families whose rules it may emit; the framework
+// checks every mechanical Candidate's required facts against them.
+type MechanicalEmitter interface {
+	MechanicalFamilies() []string
+}
+
 // Candidate is one rule an extractor proposes. The framework adds the
 // evidence state, basis, extractor identity, times and source digests.
 type Candidate struct {
+	// Basis is mechanical, draft or needs_review. Empty or unknown means
+	// needs_review (see NormalizeBasis). A draft or needs_review Candidate is
+	// a lead for a person: it is never stamped as a rule.
+	Basis string
+	// Quote and Reason are used by a draft or needs_review Candidate only:
+	// the verbatim upstream text (sanitized by the framework) and why the
+	// extractor could not derive a rule.
+	Quote         string
+	Reason        string
 	Project       string
 	Description   string
 	RequiredFacts []Fact

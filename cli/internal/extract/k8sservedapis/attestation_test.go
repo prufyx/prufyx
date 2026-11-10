@@ -190,6 +190,7 @@ func (n notAttester) ID() string                                          { retu
 func (n notAttester) Version() string                                     { return n.x.Version() }
 func (n notAttester) Applies(r extract.RepoRef) bool                      { return n.x.Applies(r) }
 func (n notAttester) SourceFiles() (string, fs.FS)                        { return n.x.SourceFiles() }
+func (n notAttester) MechanicalFamilies() []string                        { return n.x.MechanicalFamilies() }
 func (n notAttester) Pairs(ix extract.ReleaseIndex) []extract.VersionPair { return n.x.Pairs(ix) }
 func (n notAttester) Extract(ctx context.Context, r extract.PinnedReader, p extract.VersionPair) (extract.Extraction, error) {
 	return n.x.Extract(ctx, r, p)

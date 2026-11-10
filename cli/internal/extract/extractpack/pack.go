@@ -216,6 +216,19 @@ func LoadRun(dir string) (*Run, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrRun, err)
 	}
+	// A run with drafts is not a pack run: drafts.json is never read here,
+	// and its presence, a listed output, or a draft count refuses the run.
+	if _, has := m.Outputs[extract.FileDrafts]; has || m.Totals.Drafts != 0 {
+		return nil, fmt.Errorf("%w: a run with drafts cannot be applied to a pack", ErrRun)
+	}
+	for _, pr := range m.Pairs {
+		if pr.Drafts != 0 {
+			return nil, fmt.Errorf("%w: pair %s->%s has drafts and cannot be applied to a pack", ErrRun, pr.From, pr.To)
+		}
+	}
+	if _, err := os.Lstat(filepath.Join(dir, extract.FileDrafts)); err == nil {
+		return nil, fmt.Errorf("%w: %s is present; a run with drafts cannot be applied to a pack", ErrRun, extract.FileDrafts)
+	}
 	read := func(name string) ([]byte, error) {
 		raw, err := os.ReadFile(filepath.Join(dir, name))
 		if err != nil {
@@ -269,6 +282,9 @@ func LoadRun(dir string) (*Run, error) {
 	}
 	have := map[string]bool{}
 	for _, e := range r.Entries {
+		if err := refuseDraftKeys(e); err != nil {
+			return nil, fmt.Errorf("%w: %v", ErrRun, err)
+		}
 		v, err := viewOf(e)
 		if err != nil {
 			return nil, fmt.Errorf("%w: %v", ErrRun, err)
@@ -285,6 +301,35 @@ func LoadRun(dir string) (*Run, error) {
 		return nil, fmt.Errorf("%w: the manifest lists %d rules, candidates.json holds %d", ErrRun, len(listed), len(have))
 	}
 	return r, nil
+}
+
+// refuseDraftKeys refuses a candidates.json entry that carries a draft or
+// basis key at the entry or the rule level: a mechanical pack entry holds its
+// basis only inside rule.evidence, and a lead is never a pack entry.
+func refuseDraftKeys(raw json.RawMessage) error {
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &top); err != nil {
+		return fmt.Errorf("candidates: %v", err)
+	}
+	check := func(level string, m map[string]json.RawMessage) error {
+		for _, k := range []string{"basis", "draft"} {
+			if _, bad := m[k]; bad {
+				return fmt.Errorf("candidates: an entry carries %q at the %s level; a draft is never a pack entry", k, level)
+			}
+		}
+		return nil
+	}
+	if err := check("entry", top); err != nil {
+		return err
+	}
+	if r, ok := top["rule"]; ok {
+		var rule map[string]json.RawMessage
+		if err := json.Unmarshal(r, &rule); err != nil {
+			return fmt.Errorf("candidates: rule: %v", err)
+		}
+		return check("rule", rule)
+	}
+	return nil
 }
 
 func digestOf(b []byte) string {

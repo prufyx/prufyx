@@ -191,6 +191,12 @@ func TestGateMechanicalTamperedFails(t *testing.T) {
 			evidenceOf(e)["derivedAt"] = shiftTime(t, evidenceOf(e)["derivedAt"], time.Hour)
 		}, "differs from what extractor"},
 		"rule id": {func(e map[string]any) { ruleOf(e)["id"] = ruleID(e) + ".x" }, "does not derive this rule"},
+		"class-5 adapter id": {func(e map[string]any) {
+			evidenceOf(e)["extractor"].(map[string]any)["id"] = "class5.release-notes.example"
+		}, "unknown extractor"},
+		"class-5 id on a catalogued prefix": {func(e map[string]any) {
+			evidenceOf(e)["extractor"].(map[string]any)["id"] = "class5.crd.version-removal.strimzi"
+		}, "unknown extractor"},
 		"code digest": {func(e map[string]any) {
 			evidenceOf(e)["extractor"].(map[string]any)["codeDigest"] = "sha256:" + strings.Repeat("1", 64)
 		}, "this gate runs"},

@@ -23,7 +23,7 @@ import (
 )
 
 // ManifestSchema identifies manifest.json.
-const ManifestSchema = "prufyx.io/extractor-run-manifest/v1"
+const ManifestSchema = "prufyx.io/extractor-run-manifest/v2"
 
 // DefaultLease is the validity window given to every derived rule.
 const DefaultLease = 90 * 24 * time.Hour
@@ -73,8 +73,12 @@ type PairRecord struct {
 	// ledger is never attested.
 	Ledger []LedgerEntry `json:"ledger,omitempty"`
 	// Attestation is recorded for every pair of an extractor that attests
-	// lines, and omitted for any other extractor.
+	// lines, and omitted for any other extractor. A pair with drafts always
+	// records NotAttested with reason DRAFT_ONLY.
 	Attestation *PairAttestation `json:"attestation,omitempty"`
+	// Drafts counts the draft and needs_review leads the pair produced
+	// (drafts.json); omitted when zero. A pair with drafts is never attested.
+	Drafts int `json:"drafts,omitempty"`
 }
 
 // PairAttestation records whether a pair's target line was attested.
@@ -118,11 +122,16 @@ type Totals struct {
 	Attestations int `json:"attestations,omitempty"`
 	// LedgerItems counts ledger entries over all pairs; omitted when zero.
 	LedgerItems int `json:"ledgerItems,omitempty"`
+	// Drafts counts the entries of drafts.json; omitted when zero.
+	Drafts int `json:"drafts,omitempty"`
 }
 
 // Output is a complete run result, rendered to files by Files.
 type Output struct {
-	Entries  []Entry
+	Entries []Entry
+	// Drafts are the stamped leads (drafts.json). They are never pack
+	// entries and are written only when there is at least one.
+	Drafts   []DraftEntry
 	Vectors  []Vector
 	Manifest Manifest
 	// Attestations are the stamped line attestations, in canonical order.
@@ -183,6 +192,20 @@ func Run(ctx context.Context, ex Extractor, tags TagSource, reader PinnedReader,
 	*m = Manifest{Schema: ManifestSchema, Extractor: identity, CodeFiles: files, Repo: opts.Repo.Key, DerivedAt: derivedAt, ValidUntil: validUntil, Pairs: []PairRecord{}, Outputs: map[string]string{}}
 	passByRule := map[string][]string{}
 	attester, attests := ex.(LineAttester)
+	emitter, isMech := ex.(MechanicalEmitter)
+	allowed := mechanicalAllowed(ex.ID())
+	if isMech != allowed {
+		return nil, fmt.Errorf("extractor %s: MechanicalEmitter (%t) and the mechanical allowlist (%t) must agree", ex.ID(), isMech, allowed)
+	}
+	mechFamilies := map[string]bool{}
+	if isMech {
+		for _, f := range emitter.MechanicalFamilies() {
+			mechFamilies[f] = true
+		}
+		if len(mechFamilies) == 0 {
+			return nil, fmt.Errorf("extractor %s declares no mechanical family", ex.ID())
+		}
+	}
 	families := map[string]bool{}
 	component := ""
 	if ca, ok := ex.(ComponentAttester); ok && attests {
@@ -193,6 +216,9 @@ func Run(ctx context.Context, ex Extractor, tags TagSource, reader PinnedReader,
 		for _, f := range attester.AttestedFamilies() {
 			if _, ok := lineattest.LookupFamily(f); !ok {
 				return nil, fmt.Errorf("extractor %s attests unknown fact family %q", ex.ID(), f)
+			}
+			if isMech && !mechFamilies[f] {
+				return nil, fmt.Errorf("extractor %s attests family %q outside its mechanical families", ex.ID(), f)
 			}
 			families[f] = true
 		}
@@ -235,6 +261,30 @@ func Run(ctx context.Context, ex Extractor, tags TagSource, reader PinnedReader,
 			return nil, fmt.Errorf("pair %s: extractor %s returned a ledger together with attestations", pair.Key(), ex.ID())
 		}
 		for _, c := range res.Candidates {
+			basis := NormalizeBasis(c.Basis)
+			if isMech && basis != BasisMechanical {
+				// Symmetric veto: a mechanical extractor never drops a
+				// blocker into drafts.
+				return nil, fmt.Errorf("pair %s: mechanical extractor %s emitted a Candidate with basis %q", pair.Key(), ex.ID(), c.Basis)
+			}
+			if basis != BasisMechanical {
+				if attests {
+					return nil, fmt.Errorf("pair %s: extractor %s attests lines and may not emit drafts", pair.Key(), ex.ID())
+				}
+				d, err := stampDraft(c, basis, pair, rec, identity)
+				if err != nil {
+					return nil, fmt.Errorf("pair %s: %w", pair.Key(), err)
+				}
+				out.Drafts = append(out.Drafts, d)
+				pr.Drafts++
+				continue
+			}
+			if !isMech || !allowed {
+				return nil, fmt.Errorf("pair %s: extractor %s emitted a mechanical Candidate but is not an allowlisted mechanical emitter", pair.Key(), ex.ID())
+			}
+			if err := checkMechanicalCandidate(ex.ID(), mechFamilies, c); err != nil {
+				return nil, fmt.Errorf("pair %s: %w", pair.Key(), err)
+			}
 			entry, err := stamp(c, rec, identity, derivedAt, validUntil)
 			if err != nil {
 				return nil, fmt.Errorf("pair %s: %w", pair.Key(), err)
@@ -247,6 +297,14 @@ func Run(ctx context.Context, ex Extractor, tags TagSource, reader PinnedReader,
 			pr.Rules = append(pr.Rules, entry.Rule.ID)
 		}
 		sort.Strings(pr.Rules)
+		if pr.Drafts > 0 {
+			if len(res.Attestations) > 0 || res.NotAttested != "" {
+				return nil, fmt.Errorf("pair %s: extractor %s returned drafts together with attestations", pair.Key(), ex.ID())
+			}
+			pr.Attestation = &PairAttestation{Status: PairNotAttested, Line: line, Families: []string{}, Reason: PairReasonDraftOnly}
+			m.Pairs = append(m.Pairs, pr)
+			continue
+		}
 		if !attests && (len(res.Attestations) > 0 || res.NotAttested != "") {
 			return nil, fmt.Errorf("pair %s: extractor %s returned attestations but does not attest lines", pair.Key(), ex.ID())
 		}
@@ -307,12 +365,15 @@ func Run(ctx context.Context, ex Extractor, tags TagSource, reader PinnedReader,
 	if err := checkAttestations(out); err != nil {
 		return nil, err
 	}
+	if err := sortDrafts(out.Drafts); err != nil {
+		return nil, err
+	}
 	for _, c := range rec.Commits(opts.Repo) {
 		reads := rec.CommitReads(opts.Repo, c)
 		out.reads[c] = reads
 		m.Commits = append(m.Commits, CommitRecord{Commit: c, Reads: len(reads), Listings: rec.Listings(opts.Repo, c), ReadsDigest: digest(readsTSV(reads))})
 	}
-	m.Totals = Totals{Pairs: len(m.Pairs), Rules: len(out.Entries), Vectors: len(out.Vectors), CommitsRd: len(m.Commits), Attestations: len(out.Attestations)}
+	m.Totals = Totals{Pairs: len(m.Pairs), Rules: len(out.Entries), Vectors: len(out.Vectors), CommitsRd: len(m.Commits), Attestations: len(out.Attestations), Drafts: len(out.Drafts)}
 	for _, p := range m.Pairs {
 		m.Totals.LedgerItems += len(p.Ledger)
 		if p.Status == PairDerived {
@@ -328,6 +389,9 @@ func Run(ctx context.Context, ex Extractor, tags TagSource, reader PinnedReader,
 // provenance. Source digests and line counts come from the recorder, so a
 // candidate can only cite bytes the extractor actually read.
 func stamp(c Candidate, rec *Recorder, id constraintengine.Extractor, derivedAt, validUntil string) (Entry, error) {
+	if c.Basis != BasisMechanical {
+		return Entry{}, fmt.Errorf("rule %s: only an explicit mechanical Candidate is stamped as a rule", c.Rule.ID)
+	}
 	if c.Rule.SetCondition != nil {
 		cond := *c.Rule.SetCondition
 		cond.Members = append([]string(nil), cond.Members...)
@@ -336,7 +400,7 @@ func stamp(c Candidate, rec *Recorder, id constraintengine.Extractor, derivedAt,
 	e := Entry{Project: c.Project, Description: c.Description, RequiredFacts: append([]Fact(nil), c.RequiredFacts...), Rule: RuleJSON{
 		ID: c.Rule.ID, Operator: c.Rule.Operator, Subject: c.Rule.Subject, SetCondition: c.Rule.SetCondition, Range: c.Rule.Range, Condition: c.Rule.Condition,
 		ReasonCode: c.Rule.ReasonCode, NextAction: c.Rule.NextAction,
-		Evidence: Evidence{State: "active", Basis: constraintengine.BasisMechanical, Extractor: id, DerivedAt: derivedAt, ReviewedAt: derivedAt, ValidUntil: validUntil},
+		Evidence: Evidence{State: "active", Basis: BasisMechanical, Extractor: id, DerivedAt: derivedAt, ReviewedAt: derivedAt, ValidUntil: validUntil},
 	}}
 	sources, err := stampSources("rule "+c.Rule.ID, c.Sources, rec)
 	if err != nil {
@@ -377,6 +441,9 @@ func stampSources(what string, refs []SourceRef, rec *Recorder) ([]constrainteng
 // rules' lease.
 func stampAttestation(c AttestationCandidate, rec *Recorder, repo RepoRef, tags []Tag, id constraintengine.Extractor, derivedAt, validUntil string) (lineattest.LineAttestation, error) {
 	extractor := id
+	if c.Basis != BasisMechanical {
+		return lineattest.LineAttestation{}, fmt.Errorf("attestation of %s: only an explicit mechanical attestation is stamped", c.Component)
+	}
 	ids := append([]string{}, c.RuleIDs...)
 	sort.Strings(ids)
 	a := lineattest.LineAttestation{Component: c.Component, Line: c.Line, FactFamily: c.FactFamily, Completeness: lineattest.Completeness, RuleIDs: ids,
@@ -531,6 +598,12 @@ func (o *Output) Files() (map[string][]byte, error) {
 		}
 		m.Outputs[FileAttestations] = digest(files[FileAttestations])
 	}
+	if len(o.Drafts) > 0 {
+		if files[FileDrafts], err = Canonical(o.Drafts); err != nil {
+			return nil, err
+		}
+		m.Outputs[FileDrafts] = digest(files[FileDrafts])
+	}
 	for c, reads := range o.reads {
 		name := DirReads + "/" + c + ".tsv"
 		files[name] = readsTSV(reads)
@@ -615,7 +688,13 @@ func Verify(ctx context.Context, ex Extractor, tags TagSource, reader PinnedRead
 		if err := CheckPairLedger(p); err != nil {
 			problems = append(problems, "manifest.json: "+err.Error())
 		}
+		if err := CheckPairDrafts(p); err != nil {
+			problems = append(problems, "manifest.json: "+err.Error())
+		}
 	}
+	candRaw, _ := os.ReadFile(filepath.Join(dir, FileCandidates))
+	draftRaw, _ := os.ReadFile(filepath.Join(dir, FileDrafts))
+	problems = append(problems, checkDraftOutputs(candRaw, draftRaw)...)
 	if out.Manifest.Extractor != m.Extractor {
 		problems = append(problems, fmt.Sprintf("extractor identity differs: recorded %s %s %s, this binary %s %s %s", m.Extractor.ID, m.Extractor.Version, m.Extractor.CodeDigest, out.Manifest.Extractor.ID, out.Manifest.Extractor.Version, out.Manifest.Extractor.CodeDigest))
 	}

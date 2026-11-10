@@ -97,6 +97,15 @@ func (x *Extractor) SourceFiles() (string, fs.FS) {
 	return s.Dir, s.Files
 }
 
+// FamilyCRDSchema is the fact family of the CRD schema facts. It is not in the
+// line attestation vocabulary and no fact rule maps to it yet, so the
+// extractor can neither attest nor emit a mechanical rule until the C2-2
+// registry work adds both: any Candidate over another family is refused.
+const FamilyCRDSchema = "crd.schema"
+
+// MechanicalFamilies implements extract.MechanicalEmitter.
+func (x *Extractor) MechanicalFamilies() []string { return []string{FamilyCRDSchema} }
+
 // AttestedFamilies implements extract.LineAttester.
 func (x *Extractor) AttestedFamilies() []string {
 	if x.family == "" {
@@ -396,7 +405,7 @@ func (x *Extractor) attestation(r extract.PinnedReader, p extract.VersionPair, a
 	} else if n > maxCited {
 		return extract.AttestationCandidate{}, errTooManySources
 	}
-	c := extract.AttestationCandidate{Component: x.component, Line: line, FactFamily: x.family, RuleIDs: []string{}}
+	c := extract.AttestationCandidate{Basis: extract.BasisMechanical, Component: x.component, Line: line, FactFamily: x.family, RuleIDs: []string{}}
 	for _, side := range []struct {
 		prefix, commit string
 		files          []string

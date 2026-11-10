@@ -692,7 +692,7 @@
     }
   ],
   "repo": "github.com/kedacore/charts",
-  "schema": "prufyx.io/extractor-run-manifest/v1",
+  "schema": "prufyx.io/extractor-run-manifest/v2",
   "totals": {
     "commitsRead": 5,
     "derived": 2,

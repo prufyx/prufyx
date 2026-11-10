@@ -377,7 +377,13 @@ type toyExtractor struct {
 	startLine int
 	endLine   int
 	withhold  bool
+	// basis is the Candidate basis; empty means an explicit mechanical one
+	// unless rawBasis is set (then it is used as given, empty included).
+	basis    string
+	rawBasis bool
 }
+
+func (toyExtractor) MechanicalFamilies() []string { return []string{"example.flags_set"} }
 
 func (toyExtractor) ID() string             { return "toy.removal" }
 func (toyExtractor) Version() string        { return "1.0.0" }
@@ -406,7 +412,12 @@ func (x toyExtractor) Extract(_ context.Context, r PinnedReader, p VersionPair) 
 	if cite == "" {
 		cite = "decl.go"
 	}
+	basis := x.basis
+	if !x.rawBasis {
+		basis = BasisMechanical
+	}
 	return Extraction{Proof: map[string]any{"removed": x.members}, Candidates: []Candidate{{
+		Basis:   basis,
 		Project: "example", Description: x.desc,
 		RequiredFacts: []Fact{{Side: "proposed", ID: "component.example.flags_set", Component: "pkg:github/example/project", Type: "set", Description: "Flags."}},
 		Rule: Rule{ID: "example.toy.1-0-0-to-2-0-0", Operator: "forbid_set_member",

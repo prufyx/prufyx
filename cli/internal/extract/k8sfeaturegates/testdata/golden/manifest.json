@@ -561,7 +561,7 @@
     }
   ],
   "repo": "github.com/kubernetes/kubernetes",
-  "schema": "prufyx.io/extractor-run-manifest/v1",
+  "schema": "prufyx.io/extractor-run-manifest/v2",
   "totals": {
     "commitsRead": 6,
     "derived": 3,

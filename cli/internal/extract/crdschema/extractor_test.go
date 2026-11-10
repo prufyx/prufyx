@@ -38,9 +38,22 @@ func newExtractor(t *testing.T, withFamily bool) *Extractor {
 	return x
 }
 
+// borrowedFamily declares the family a test borrows for the attested path as
+// mechanical too (the real extractor declares only FamilyCRDSchema, which has
+// no registered attestation family yet). Test-only: no production table moves.
+type borrowedFamily struct{ *Extractor }
+
+func (b borrowedFamily) MechanicalFamilies() []string {
+	return append(b.Extractor.MechanicalFamilies(), b.family)
+}
+
 func runOne(t *testing.T, x *Extractor, tags tagList, rd extract.PinnedReader) (*extract.Output, extract.PairRecord, []LedgerEntry) {
 	t.Helper()
-	out, err := extract.Run(context.Background(), x, tags, rd, runOpts)
+	var ex extract.Extractor = x
+	if x.family != "" {
+		ex = borrowedFamily{x}
+	}
+	out, err := extract.Run(context.Background(), ex, tags, rd, runOpts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -289,5 +302,20 @@ func TestSkippedKustomizationIsNotCited(t *testing.T) {
 		if !strings.HasSuffix(s.URL, "/crd/widget.yaml") {
 			t.Fatalf("cites %s", s.URL)
 		}
+	}
+}
+
+// The real extractor attests no family it does not declare mechanical: with
+// a borrowed family and no declaration the run is refused.
+func TestAttestedFamilyOutsideMechanicalFamiliesIsRefused(t *testing.T) {
+	x := newExtractor(t, true)
+	c := caseNamed(t, "added_only")
+	tags := tagList{{Name: "v1.0.0", Commit: commitA}, {Name: "v1.1.0", Commit: commitB}}
+	_, err := extract.Run(context.Background(), x, tags, c.reader(), runOpts)
+	if err == nil || !strings.Contains(err.Error(), "outside its mechanical families") {
+		t.Fatalf("err %v", err)
+	}
+	if got := x.MechanicalFamilies(); len(got) != 1 || got[0] != FamilyCRDSchema {
+		t.Fatalf("families %v", got)
 	}
 }

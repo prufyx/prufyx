@@ -1037,7 +1037,7 @@
     }
   ],
   "repo": "github.com/argoproj/argo-cd",
-  "schema": "prufyx.io/extractor-run-manifest/v1",
+  "schema": "prufyx.io/extractor-run-manifest/v2",
   "totals": {
     "attestations": 2,
     "commitsRead": 3,
