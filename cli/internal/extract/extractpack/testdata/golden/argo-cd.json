@@ -18,7 +18,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:10efd3db897eb7050bfbca24ad0765d508d41056c032210aacd0276f850aa785",
+            "codeDigest": "sha256:22fda59174238d1227870fcb9c4ca6f3ccf84c073e793d958acadc04e6ff454e",
             "id": "crd.version-removal.argo-cd",
             "version": "2.11.0"
           },
@@ -113,7 +113,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:10efd3db897eb7050bfbca24ad0765d508d41056c032210aacd0276f850aa785",
+            "codeDigest": "sha256:22fda59174238d1227870fcb9c4ca6f3ccf84c073e793d958acadc04e6ff454e",
             "id": "crd.version-removal.argo-cd",
             "version": "2.11.0"
           },
@@ -199,7 +199,7 @@
         "basis": "mechanical",
         "derivedAt": "2026-10-04T00:00:00Z",
         "extractor": {
-          "codeDigest": "sha256:10efd3db897eb7050bfbca24ad0765d508d41056c032210aacd0276f850aa785",
+          "codeDigest": "sha256:22fda59174238d1227870fcb9c4ca6f3ccf84c073e793d958acadc04e6ff454e",
           "id": "crd.version-removal.argo-cd",
           "version": "2.11.0"
         },
@@ -256,7 +256,7 @@
         "basis": "mechanical",
         "derivedAt": "2026-10-04T00:00:00Z",
         "extractor": {
-          "codeDigest": "sha256:10efd3db897eb7050bfbca24ad0765d508d41056c032210aacd0276f850aa785",
+          "codeDigest": "sha256:22fda59174238d1227870fcb9c4ca6f3ccf84c073e793d958acadc04e6ff454e",
           "id": "crd.version-removal.argo-cd",
           "version": "2.11.0"
         },

@@ -215,12 +215,95 @@ type ScanRecord struct {
 	NotRead []string `json:"notRead"`
 	// Copies are the files of class copy, sorted.
 	Copies []string `json:"copies"`
+	// CopyRecords say, for each file of Copies, what makes it a copy (a
+	// reason code), its digest and the definitions it holds. They only
+	// record: nothing reads them to decide a pair.
+	CopyRecords []CopyRecord `json:"copyRecords,omitempty"`
 	// ForeignCopies name, for the files of Copies and Findings that hold
 	// definitions the reviewed table assigns to another project (left out
 	// of the comparison), those definitions; absent when there are none.
 	ForeignCopies []ForeignCopy `json:"foreignCopies,omitempty"`
 	// Findings are the files of every other class, sorted by path.
 	Findings []Finding `json:"findings"`
+}
+
+// CopyRecord is one file of class copy: why the scan took it for a copy.
+type CopyRecord struct {
+	Path     string `json:"path"`
+	SHA256   string `json:"sha256,omitempty"`
+	Location string `json:"location,omitempty"`
+	// Reason is a code: the form the definitions were read in (v1, v1beta1,
+	// gzip, templated) with "-same-serving", or with "-foreign-only" when
+	// every definition is another project's.
+	Reason string `json:"reason"`
+	// Definitions are the names of the project's own definitions in the
+	// file, sorted, at most maxRecordedNames (then an "and N more" entry).
+	Definitions []string `json:"definitions,omitempty"`
+}
+
+// The codes of Finding.Reason and CopyRecord.Reason. They only name what
+// the scan did; no code changes how a file is classified.
+const (
+	ReasonSubmodule            = "submodule"
+	ReasonPackagedChart        = "packaged-chart"
+	ReasonSourceTemplate       = "source-template"
+	ReasonGoBuilt              = "go-built"
+	ReasonGzipUnread           = "gzip-unread"
+	ReasonTemplateUnread       = "template-unread"
+	ReasonTemplateNotCopy      = "template-not-copy"
+	ReasonUndecodable          = "undecodable"
+	ReasonLegacyUnread         = "v1beta1-unread"
+	ReasonFragment             = "patch-fragment"
+	ReasonPatchNotStrict       = "patch-not-strict"
+	ReasonPatchNotUnderDir     = "patch-not-under-definition-dir"
+	ReasonPatchNameNotListed   = "patch-name-not-in-inventory"
+	ReasonExternalSource       = "external-source"
+	ReasonKustomizationOpen    = "kustomization-open"
+	ReasonKustomizationRefused = "kustomization-refused"
+	ReasonNoTopLevel           = "no-top-level-definition"
+	ReasonEmbedded             = "embedded-manifest"
+	ReasonConfigRefused        = "transformer-config-refused"
+	ReasonKustomizeConfig      = "kustomize-config"
+	ReasonNoDefinition         = "no-definition"
+	ReasonDefinesNoneRefused   = "defines-none-refused"
+	ReasonV1                   = "v1"
+	ReasonLegacy               = "v1beta1"
+	ReasonGzip                 = "gzip"
+	ReasonTemplated            = "templated"
+
+	maxRecordedNames = 16
+)
+
+// reasoned sets a definition-compared finding's reason code from the form
+// the definitions were read in and the class compareDefinitions gave, and
+// keeps the names of the file's own definitions for the copy record. It
+// changes nothing else.
+func reasoned(fd Finding, form string, crds []CRD, at attribution) Finding {
+	var own []CRD
+	for _, c := range crds {
+		if !at.foreign(c.Group, c.Kind) {
+			own = append(own, c)
+		}
+	}
+	switch fd.Class {
+	case ClassCopy:
+		if len(own) == 0 {
+			fd.Reason = form + "-foreign-only"
+		} else {
+			fd.Reason = form + "-same-serving"
+		}
+		names, _ := definitionsOf(own)
+		if len(names) > maxRecordedNames {
+			rest := len(names) - maxRecordedNames
+			names = append(names[:maxRecordedNames:maxRecordedNames], fmt.Sprintf("and %d more", rest))
+		}
+		fd.copyNames = names
+	case ClassConflict:
+		fd.Reason = form + "-conflict"
+	case ClassExtra:
+		fd.Reason = form + "-extra"
+	}
+	return fd
 }
 
 // ForeignCopy is the definitions of one file left out because the table
@@ -250,6 +333,12 @@ type Finding struct {
 	// shows why a file is a copy. Absent when there are none.
 	Foreign []string `json:"foreign,omitempty"`
 	Detail  string   `json:"detail,omitempty"`
+	// Reason is a short code for why the scan gave the file this class (the
+	// Reason constants); Detail is the text.
+	Reason string `json:"reason,omitempty"`
+	// copyNames are the file's own definitions when it is a copy (for the
+	// copy record; not serialised).
+	copyNames []string
 }
 
 // blocks reports whether a finding keeps the scan from being clean.
@@ -608,7 +697,7 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 		if at.kind != locTree {
 			hits[at.entry] = true
 		}
-		rec.Findings = append(rec.Findings, placed(Finding{Path: p, Class: ClassUnread, Detail: "a submodule: its files are not in this repository"}, at))
+		rec.Findings = append(rec.Findings, placed(Finding{Path: p, Class: ClassUnread, Reason: ReasonSubmodule, Detail: "a submodule: its files are not in this repository"}, at))
 	}
 	for _, e := range blobs {
 		if e.Mode == "120000" || declared[e.Path] {
@@ -623,7 +712,7 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 			hits[at.entry] = true
 		}
 		if kind == kindPackagedChart {
-			rec.Findings = append(rec.Findings, placed(Finding{Path: e.Path, Class: ClassUnsupported, Detail: "a packaged Helm chart: its files are not read"}, at))
+			rec.Findings = append(rec.Findings, placed(Finding{Path: e.Path, Class: ClassUnsupported, Reason: ReasonPackagedChart, Detail: "a packaged Helm chart: its files are not read"}, at))
 			continue
 		}
 		files = append(files, scanFile{path: e.Path, oid: e.SHA, kind: kind, at: at})
@@ -687,6 +776,7 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 		}
 		if fd.Class == ClassCopy {
 			rec.Copies = append(rec.Copies, f.path)
+			rec.CopyRecords = append(rec.CopyRecords, CopyRecord{Path: f.path, SHA256: fd.SHA256, Location: fd.Location, Reason: fd.Reason, Definitions: fd.copyNames})
 			continue
 		}
 		rec.Findings = append(rec.Findings, fd)
@@ -709,6 +799,7 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 	}
 	sort.Strings(rec.Exclusions)
 	sort.Slice(rec.Findings, func(i, j int) bool { return rec.Findings[i].Path < rec.Findings[j].Path })
+	sort.Slice(rec.CopyRecords, func(i, j int) bool { return rec.CopyRecords[i].Path < rec.CopyRecords[j].Path })
 	return x.storeScan(commit, rec), nil
 }
 
@@ -1375,6 +1466,13 @@ func (x *Extractor) checkPrePatch(r extract.PinnedReader, repo extract.RepoRef, 
 		}
 	}
 	rec.Copies = append([]string{}, copies...)
+	var records []CopyRecord
+	for _, c := range rec.CopyRecords {
+		if acc.files[c.Path] == nil {
+			records = append(records, c)
+		}
+	}
+	rec.CopyRecords = records
 	var out []Finding
 	for _, f := range rec.Findings {
 		if acc.files[f.Path] == nil && f.Path != e.PrePatch {
@@ -1881,7 +1979,7 @@ func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commi
 		return x.classifyFile(r, repo, commit, f, info, inv, dirs)
 	}
 	if f.kind == kindNoDef && info.noDef == "" {
-		return Finding{Path: f.path, SHA256: info.sha256, Class: ClassNoDefinition, Location: f.at.entry, Detail: "a YAML or JSON file that defines no CustomResourceDefinition: strictly decoded, no definition, no mapping that names the kind with a spec, no manifest in a string, not a kustomization or a chart"}, true, nil
+		return Finding{Path: f.path, SHA256: info.sha256, Class: ClassNoDefinition, Reason: ReasonNoDefinition, Location: f.at.entry, Detail: "a YAML or JSON file that defines no CustomResourceDefinition: strictly decoded, no definition, no mapping that names the kind with a spec, no manifest in a string, not a kustomization or a chart"}, true, nil
 	}
 	fd, found, err := x.classifyFile(r, repo, commit, f, info, inv, dirs)
 	// A copy is not a finding (the scan lists it under copies): here it
@@ -1893,7 +1991,7 @@ func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commi
 	if f.kind != kindNoDef {
 		why = "it is not a YAML or JSON data file the claim can be checked for (a kustomization, a chart, a template, Go source)"
 	}
-	return Finding{Path: f.path, SHA256: info.sha256, Class: ClassUnread, Location: f.at.entry, Detail: "declared to define nothing, but " + why}, true, nil
+	return Finding{Path: f.path, SHA256: info.sha256, Class: ClassUnread, Reason: ReasonDefinesNoneRefused, Location: f.at.entry, Detail: "declared to define nothing, but " + why}, true, nil
 }
 
 // classifyFile classifies a file outside an entry that declares its files
@@ -1908,22 +2006,23 @@ func (x *Extractor) classifyFile(r extract.PinnedReader, repo extract.RepoRef, c
 		if info.words == 0 {
 			return fd, false, nil
 		}
-		fd.Class, fd.Detail = ClassUnsupported, "a template, jsonnet or cue source that names the CustomResourceDefinition kind: it is not read"
+		fd.Class, fd.Reason, fd.Detail = ClassUnsupported, ReasonSourceTemplate, "a template, jsonnet or cue source that names the CustomResourceDefinition kind: it is not read"
 		return placed(fd, f.at), true, nil
 	case kindGo:
 		switch g := info.gzip; {
 		case info.goConstruct:
-			fd.Class, fd.Detail = ClassGoDefined, "a CustomResourceDefinition built in Go code: its served versions are not read"
+			fd.Class, fd.Reason, fd.Detail = ClassGoDefined, ReasonGoBuilt, "a CustomResourceDefinition built in Go code: its served versions are not read"
 		case g == nil:
 			return fd, false, nil
 		case g.unread != "":
-			fd.Class, fd.Detail = ClassUnread, g.unread
+			fd.Class, fd.Reason, fd.Detail = ClassUnread, ReasonGzipUnread, g.unread
 		case len(g.crds) > 0:
 			// Definitions compressed into the source (velero install):
 			// compared definition by definition like a YAML file.
 			fd = compareDefinitions(fd, g.crds, inv, x.attribution())
+			fd = reasoned(fd, ReasonGzip, g.crds, x.attribution())
 		case g.kinds > 0:
-			fd.Class, fd.Detail = ClassReference, "gzip-compressed string literals hold the CustomResourceDefinition kind but define none at the top level"
+			fd.Class, fd.Reason, fd.Detail = ClassReference, ReasonNoTopLevel, "gzip-compressed string literals hold the CustomResourceDefinition kind but define none at the top level"
 		default:
 			return fd, false, nil
 		}
@@ -1959,21 +2058,28 @@ func (x *Extractor) classifyFile(r extract.PinnedReader, repo extract.RepoRef, c
 		// read without its directives.
 	case info.unread != "" && tpl != nil && tpl.unread != "" && (f.at.copies || info.kindLike || isChart || isKust || tpl.kindTemplated):
 		// A declared copy that cannot be read is never accepted.
-		fd.Class, fd.Detail = ClassUnread, tpl.unread
+		fd.Class, fd.Reason, fd.Detail = ClassUnread, ReasonTemplateUnread, tpl.unread
 		return placed(fd, f.at), true, nil
 	case info.unread != "" && info.legacy != nil:
 		// apiextensions.k8s.io/v1beta1 definitions, strictly read: they
 		// are compared with the inventory below.
 	case info.unread != "" && info.fragment != nil && info.fragment.problem == "":
-		fd.Class, fd.Detail = fragmentClass(f.path, info.fragment, inv, dirs, info.unread)
+		fd.Class, fd.Detail, fd.Reason = fragmentClass(f.path, info.fragment, inv, dirs, info.unread)
 		return placed(fd, f.at), true, nil
 	case info.unread != "" && (info.kindLike || isChart || isKust):
-		fd.Class, fd.Detail = ClassUnread, info.unread
+		fd.Class, fd.Reason, fd.Detail = ClassUnread, ReasonUndecodable, info.unread
 		switch {
 		case info.legacyProblem != "":
-			fd.Detail = info.legacyProblem
-		case info.fragment != nil && underDefinitionDir(f.path, dirs):
-			fd.Detail += "; not a patch fragment the scan accepts: " + info.fragment.problem
+			fd.Reason, fd.Detail = ReasonLegacyUnread, info.legacyProblem
+		case info.fragment != nil:
+			// Strictly decoded but not a patch document the scan accepts
+			// (condition a): record it, and condition b too.
+			fd.Reason = ReasonPatchNotStrict
+			if underDefinitionDir(f.path, dirs) {
+				fd.Detail += "; not a patch fragment the scan accepts: " + info.fragment.problem
+			} else {
+				fd.Reason += "+" + ReasonPatchNotUnderDir
+			}
 		}
 		return placed(fd, f.at), true, nil
 	case info.unread != "":
@@ -1986,7 +2092,7 @@ func (x *Extractor) classifyFile(r extract.PinnedReader, repo extract.RepoRef, c
 		if !isChart {
 			what = "a kustomize resource"
 		}
-		fd.Class, fd.Detail = ClassExternal, fmt.Sprintf("%s from another repository, whose definitions are not read: %s", what, strings.Join(external, "; "))
+		fd.Class, fd.Reason, fd.Detail = ClassExternal, ReasonExternalSource, fmt.Sprintf("%s from another repository, whose definitions are not read: %s", what, strings.Join(external, "; "))
 		return placed(fd, f.at), true, nil
 	}
 	crds := info.crds
@@ -2000,7 +2106,7 @@ func (x *Extractor) classifyFile(r extract.PinnedReader, repo extract.RepoRef, c
 		fromTemplate, crds = true, tpl.crds
 	}
 	if isKust && info.kust != nil && info.kust.open != "" && !info.embedded && underDefinitionDir(f.path, dirs) {
-		fd.Class, fd.Detail = ClassReference, info.kust.open
+		fd.Class, fd.Reason, fd.Detail = ClassReference, ReasonKustomizationOpen, info.kust.open
 		return placed(fd, f.at), true, nil
 	}
 	if info.words == 0 {
@@ -2021,24 +2127,36 @@ func (x *Extractor) classifyFile(r extract.PinnedReader, repo extract.RepoRef, c
 				fd.Class = ClassSchemaPatch
 				return placed(fd, f.at), true, nil
 			}
-			fd.Class, fd.Detail = ClassReference, why
+			fd.Class, fd.Reason, fd.Detail = ClassReference, ReasonKustomizationRefused, why
 			return placed(fd, f.at), true, nil
 		}
-		fd.Class, fd.Detail = ClassReference, "holds the CustomResourceDefinition kind but defines none at the top level"
+		fd.Class, fd.Reason, fd.Detail = ClassReference, ReasonNoTopLevel, "holds the CustomResourceDefinition kind but defines none at the top level"
+		if info.embedded {
+			fd.Reason = ReasonEmbedded
+		}
 		if !isKust && !info.embedded && underDefinitionDir(f.path, dirs) {
 			// Every mapping of the kind in an accepted configuration is
 			// one of its checked field specs: the reader refuses any other
 			// key, entry or value.
 			why := info.configProblem
 			if why == "" {
-				fd.Class, fd.Detail = ClassKustomizeConfig, "a kustomize transformer configuration whose field specs of the kind only reach conversion settings and metadata labels and annotations"
+				fd.Class, fd.Reason, fd.Detail = ClassKustomizeConfig, ReasonKustomizeConfig, "a kustomize transformer configuration whose field specs of the kind only reach conversion settings and metadata labels and annotations"
 				return placed(fd, f.at), true, nil
 			}
+			fd.Reason = ReasonConfigRefused
 			fd.Detail += "; not a transformer configuration the scan accepts: " + why
 		}
 		return placed(fd, f.at), true, nil
 	}
 	fd = compareDefinitions(fd, crds, inv, x.attribution())
+	form := ReasonV1
+	switch {
+	case fromTemplate:
+		form = ReasonTemplated
+	case info.legacy != nil:
+		form = ReasonLegacy
+	}
+	fd = reasoned(fd, form, crds, x.attribution())
 	switch {
 	case fromTemplate && f.at.copies:
 		// A declared copy keeps its class: copy, or the conflict or extra
@@ -2056,7 +2174,7 @@ func (x *Extractor) classifyFile(r extract.PinnedReader, repo extract.RepoRef, c
 		if fd.Class == ClassConflict {
 			what = fd.Detail
 		}
-		fd.Class, fd.Detail = ClassUnread, "with template directives removed, it is not a copy of the listed paths: "+what
+		fd.Class, fd.Reason, fd.Detail = ClassUnread, ReasonTemplateNotCopy, "with template directives removed, it is not a copy of the listed paths: "+what
 	case info.legacy != nil && fd.Class == ClassCopy:
 		fd.Class, fd.Detail = ClassLegacyCopy, "apiextensions.k8s.io/v1beta1 definitions with the versions and served flags of the listed paths"
 	case info.legacy != nil && fd.Class == ClassConflict:
