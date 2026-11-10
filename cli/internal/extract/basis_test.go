@@ -588,3 +588,18 @@ func TestDraftPairWithStrayNotAttestedIsRunError(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// attesterNotListed is a line attester that is neither a MechanicalEmitter
+// nor on the allowlist, and emits a mechanical Candidate.
+type attesterNotListed struct{ emitterless }
+
+func (attesterNotListed) ID() string                 { return "cli.flag-removal.notlisted" }
+func (attesterNotListed) AttestedFamilies() []string { return []string{} }
+
+func TestNonAllowlistedLineAttesterMechanicalCandidateIsRefused(t *testing.T) {
+	_, err := runAny(t, attesterNotListed{emitterless{x: toyExtractor{members: []string{"old"}}}})
+	want := "emitted a mechanical Candidate but is not an allowlisted mechanical emitter"
+	if err == nil || !strings.Contains(err.Error(), want) {
+		t.Fatalf("err %v, want %q", err, want)
+	}
+}
