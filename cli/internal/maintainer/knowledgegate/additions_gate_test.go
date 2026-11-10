@@ -312,15 +312,39 @@ func TestShippedSliceIncludesAdditionsWhenPresent(t *testing.T) {
 	if err != nil || strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("listed %v (%v), want %v", got, err, want)
 	}
-	// And the slice of the real tree holds whatever the repository has.
+	// The fixtures never carry the repository's own additions or tag files.
 	slice := shippedSlice(t)
+	if slice.Exists(coveragereport.PinnedAdditionsPath) || slice.Exists(coveragereport.PinnedTagsDir) {
+		t.Error("the shipped slice carries the repository's additions")
+	}
+	tmpl := copyKnowledge(t)
+	if tmpl.Exists(coveragereport.PinnedAdditionsPath) || tmpl.Exists(coveragereport.PinnedTagsDir) {
+		t.Error("the knowledge template carries the repository's additions")
+	}
+	// The with-additions slice holds whatever the repository has.
+	full := shippedSliceWithAdditions(t)
 	real, err := additionFiles()
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, rel := range real {
-		if !slice.Exists(rel) {
-			t.Errorf("the shipped slice lacks %s", rel)
+		if !full.Exists(rel) {
+			t.Errorf("the slice with additions lacks %s", rel)
 		}
+	}
+}
+
+// The gate's checks on the REAL shipped data including its additions, at a fixed
+// gate date after every capture date: the pinned snapshot, the additions
+// (regenerated from their tag files) and the floor all hold, and the numbers
+// are the README's.
+func TestCoverageFloorOnShippedTreeWithItsAdditions(t *testing.T) {
+	t.Parallel()
+	tree := shippedSliceWithAdditions(t)
+	if c := shippedFloorCheck(tree, tree); !c.OK {
+		t.Fatalf("the shipped data with its additions is refused: %s", c.Detail)
+	}
+	if err := additionsNotFuture(tree, gateDate); err != nil {
+		t.Fatal(err)
 	}
 }

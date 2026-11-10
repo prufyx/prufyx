@@ -321,7 +321,7 @@ func shippedSlice(t *testing.T) Tree {
 	t.Helper()
 	tr := Tree{Root: t.TempDir()}
 	ol := DefaultLayout().Onboarding
-	rels := []string{cncfRulesPath, commRulesPath, coveragereport.PinnedLinesPath, inventoryJSON, coveragereport.BaselinePath}
+	rels := []string{cncfRulesPath, commRulesPath, coveragereport.PinnedLinesPath, inventoryJSON}
 	names, err := filepath.Glob(filepath.Join(repoRoot, filepath.FromSlash(ol.TargetsDir), "target-*.json"))
 	if err != nil || len(names) == 0 {
 		t.Fatalf("targets: %v", err)
@@ -329,12 +329,40 @@ func shippedSlice(t *testing.T) Tree {
 	for _, n := range names {
 		rels = append(rels, ol.TargetsDir+"/"+filepath.Base(n))
 	}
+	// The slice never carries the repository's additions or tag files (see
+	// shippedSliceWithAdditions for the real ones).
+	for _, rel := range rels {
+		raw, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(rel)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, filepath.Join(tr.Root, filepath.FromSlash(rel)), raw)
+	}
+	// The slice is stripped of the repository's additions, so the repository's
+	// floors do not describe it: its baseline is made of its own numbers.
+	floor, err := floorOf(tr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(tr.Root, filepath.FromSlash(coveragereport.BaselinePath)), floor)
+	return tr
+}
+
+// gateDate is the fixed gate clock of the shipped-tree tests: after the capture
+// date of any addition the repository holds or these tests build.
+var gateDate = time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)
+
+// shippedSliceWithAdditions is shippedSlice plus the repository's own
+// additions file and tag files, when it has them.
+func shippedSliceWithAdditions(t *testing.T) Tree {
+	t.Helper()
+	tr := shippedSlice(t)
 	extra, err := additionFiles()
 	if err != nil {
 		t.Fatal(err)
 	}
-	rels = append(rels, extra...)
-	for _, rel := range rels {
+	// With the real additions the real baseline applies too.
+	for _, rel := range append(extra, coveragereport.BaselinePath) {
 		raw, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(rel)))
 		if err != nil {
 			t.Fatal(err)
@@ -346,7 +374,7 @@ func shippedSlice(t *testing.T) Tree {
 
 func shippedFloorCheck(base, head Tree) Check {
 	r := &Report{}
-	r.coverageFloorCheck(Options{Layout: DefaultLayout(), Base: base, Head: head})
+	r.coverageFloorCheck(Options{Layout: DefaultLayout(), Base: base, Head: head, Now: gateDate})
 	return r.Checks[0]
 }
 
