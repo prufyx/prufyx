@@ -49,8 +49,8 @@ line-wide.
 
 ## Metric v2: Decided Pair Coverage
 
-The README block prints metric v2 beside the v1 table above (v1 measures one
-fact family, so the two shares are not comparable). It is computed by
+The metric is computed internally but not published in the README or elsewhere
+until a second fact family exists. It comes from
 `coverage readme` (`Input.V2` in the library) from two embedded data files in
 `cli/internal/maintainer/coveragereport/data/`:
 
