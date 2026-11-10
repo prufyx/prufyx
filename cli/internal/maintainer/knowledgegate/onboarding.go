@@ -164,6 +164,10 @@ type OnboardingRecord struct {
 	Projects        []OnboardingProject `json:"projects"`
 	Sample          []int               `json:"sample"`
 	SummaryDigest   string              `json:"summaryDigest"`
+	// adds is the additions binding of a v3 record, by slug. It is never
+	// part of the JSON of this type: only a v3 file (OnboardingRecordV3)
+	// fills it, so a v1 or v2 record never carries it.
+	adds map[string]OnboardingAdditions
 }
 
 // OnboardingEnvelope is the committed file.
@@ -329,6 +333,13 @@ func decodeOnboarding(raw []byte) (OnboardingEnvelope, error) {
 	var schema struct {
 		Schema string `json:"schema"`
 	}
+	if err := json.Unmarshal(raw, &schema); err == nil && schema.Schema == OnboardingSchemaV3 {
+		var v3 OnboardingEnvelopeV3
+		if err := strictDecode(bytes.TrimSuffix(raw, []byte("\n")), &v3); err != nil {
+			return env, fmt.Errorf("onboarding batch: %w", err)
+		}
+		return OnboardingEnvelope{Schema: v3.Schema, Record: v3.Record.split(), KeyID: v3.KeyID, Signature: v3.Signature}, nil
+	}
 	if err := json.Unmarshal(raw, &schema); err == nil && schema.Schema == OnboardingSchemaV2 {
 		var v2 OnboardingEnvelopeV2
 		if err := strictDecode(bytes.TrimSuffix(raw, []byte("\n")), &v2); err != nil {
@@ -440,6 +451,9 @@ func verifyOnboardingSignature(env OnboardingEnvelope, keys ApprovalKeys, now ti
 	}
 	if env.Schema == OnboardingSchemaV2 && !key.botTier() {
 		return errors.New("onboarding v2 is bot-only")
+	}
+	if env.Schema == OnboardingSchemaV3 && !key.ownerTier() {
+		return errors.New("onboarding v3 is owner-only")
 	}
 	if r.Decision != ApprovalDecisionApprove {
 		return fmt.Errorf("onboarding batch: decision is %q", r.Decision)

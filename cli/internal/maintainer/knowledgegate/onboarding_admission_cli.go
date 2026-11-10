@@ -223,6 +223,12 @@ func checkOnboardingContent(ctx context.Context, opts Options, keys ApprovalKeys
 }
 
 func marshalOnboardingEnvelope(e OnboardingEnvelope) ([]byte, error) {
+	if e.Schema == OnboardingSchemaV3 {
+		if e.binding != nil {
+			return nil, errors.New("inconsistent onboarding schema/binding")
+		}
+		return json.MarshalIndent(OnboardingEnvelopeV3{Schema: e.Schema, Record: joinV3(e.Record), KeyID: e.KeyID, Signature: e.Signature}, "", "  ")
+	}
 	if e.binding == nil {
 		return json.MarshalIndent(e, "", "  ")
 	}

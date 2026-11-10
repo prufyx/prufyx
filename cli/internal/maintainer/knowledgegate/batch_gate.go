@@ -83,12 +83,8 @@ func batchAllowedPaths(layout Layout, base, head Tree, batchPath string) map[str
 	for p := range layout.admittedBlocks(base, head) {
 		allowed[p] = true
 	}
-	// The additions file and the <slug>.tags files it is derived from. Never
-	// the baseline file, never AutoMergePaths; the coverage floor check holds
-	// the contents (append-only, regenerated from the tag files).
-	for p := range additionsAllowedPaths(head) {
-		allowed[p] = true
-	}
+	// The additions file and the tag files are NOT allowed here: they enter
+	// only through a v3 onboarding batch that binds them per slug.
 	return allowed
 }
 

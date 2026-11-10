@@ -231,8 +231,14 @@ with the repository's own offline tag reader, and (c) refuses a change that
 removes or renames the additions file or an added project, or changes an
 existing entry (compared as the canonical, digest-bound entry: file formatting around an entry may differ, no member of it may). A base without the file is the empty set (the
 introducing change is a code change). The file and the `tags/<slug>.tags` files
-are allowed in a batch or onboarding change, never in the automatic-merge
-paths, and the baseline file is not writable by a bot.
+are admitted only by an owner-signed onboarding v3 batch, which binds per new
+project the tag file (`tagFileSha256`) and the entry (`entryDigest`); the gate
+requires the head tag file and entry to equal them, the entries the change adds
+to be exactly the bound projects, and the tag path to be only the bound slugs'.
+A batch of any other schema, a plain batch, and a change with no record fail
+closed in the gate's admission of these paths. A human data change with no record at all (no batch) is
+decided by the owner's merge, never automatically; they are never in the
+automatic-merge paths, and the baseline file is not writable by a bot.
 
 **Provenance, stated plainly.** Regenerating an entry from its tag file proves
 that the entry is the reading of that tag file; it does not prove that the tag
@@ -241,8 +247,8 @@ release or line would make undecided pairs look decided. Until a cross-check of
 the committed tag set against the upstream final tags exists in the gate, the
 measure rests on the owner's review of the tag list in the batch change that
 adds an entry. The tag file digest and the entry digest are members of the
-signed batch record only once that record carries them (planned, not yet in
-force).
+signed v3 batch record (in force for batches that add them); the upstream
+cross-check of the tag set itself is planned, not yet in force.
 
 ## Output
 

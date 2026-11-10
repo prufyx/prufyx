@@ -31,22 +31,115 @@ func treeAdditions(t Tree) (file coveragereport.AdditionsFile, raw []byte, prese
 	return file, raw, present, err
 }
 
-// additionsAllowedPaths are the paths of the additions mechanism a batch or
-// onboarding change may carry: the additions file and, in the head's tags
-// directory, the regular files named <slug>.tags. They are never in
-// AutoMergePaths and never include the baseline file.
-func additionsAllowedPaths(head Tree) map[string]bool {
-	out := map[string]bool{coveragereport.PinnedAdditionsPath: true}
-	files, err := head.Dir(coveragereport.PinnedTagsDir, MaxFileBytes, maxTagFiles)
-	if err != nil {
-		return out // unreadable: nothing of the directory is allowed; the floor check fails the change
+// additionsPaths are the paths of the additions mechanism a change may carry
+// under rec: only a v3 record that binds additions admits them, and then only
+// the additions file and tags/<slug>.tags of the slugs it binds. A record
+// without additions (v1, v2, a plain batch, no record) admits none, so a
+// change that touches these paths without a record fails closed. They are
+// never in AutoMergePaths and never include the baseline file.
+func additionsPaths(rec OnboardingRecord) map[string]bool {
+	out := map[string]bool{}
+	if len(rec.adds) == 0 {
+		return out
 	}
-	for name := range files {
-		if slug, ok := strings.CutSuffix(name, ".tags"); ok && coveragereport.ValidSlug(slug) {
-			out[coveragereport.PinnedTagsDir+"/"+name] = true
-		}
+	out[coveragereport.PinnedAdditionsPath] = true
+	for slug := range rec.adds {
+		out[coveragereport.PinnedTagsDir+"/"+coveragereport.TagFileName(slug)] = true
 	}
 	return out
+}
+
+// additionsProblems is the gate's check of the additions a v3 record binds
+// (O9), all or nothing with the rest of the batch. For every bound slug (kind
+// new only): the head tag file hashes to the record's tagFileSha256 and is a
+// new file, the head entry carries the record's entryDigest and is the
+// offline reading of that tag file. The entries the head adds to the
+// additions file are exactly the bound slugs, and every base entry is
+// unchanged. A record without additions has nothing to check here; its
+// additions paths are refused by the path allow-list.
+func (st *onboardingState) additionsProblems(rec OnboardingRecord) []string {
+	if len(rec.adds) == 0 {
+		return nil
+	}
+	var problems []string
+	bad := func(format string, args ...any) { problems = append(problems, "O9: "+fmt.Sprintf(format, args...)) }
+	baseAdds, _, _, err := treeAdditions(st.baseTree)
+	if err != nil {
+		bad("the base additions file is unreadable or invalid: %s", logSafe(err.Error()))
+		return problems
+	}
+	headAdds, _, _, err := treeAdditions(st.headTree)
+	if err != nil {
+		bad("the change's additions file is unreadable or invalid: %s", logSafe(err.Error()))
+		return problems
+	}
+	kinds := map[string]string{}
+	for _, p := range rec.Projects {
+		kinds[p.Slug] = p.Kind
+	}
+	slugs := make([]string, 0, len(rec.adds))
+	for s := range rec.adds {
+		slugs = append(slugs, s)
+	}
+	sort.Strings(slugs)
+	for _, slug := range slugs {
+		a := rec.adds[slug]
+		if kinds[slug] != OnboardingKindNew || !coveragereport.ValidSlug(slug) {
+			bad("%s: additions are bound only for a new project", logSafe(slug))
+			continue
+		}
+		rel := coveragereport.PinnedTagsDir + "/" + coveragereport.TagFileName(slug)
+		if st.baseTree.Exists(rel) {
+			bad("%s: the tag file %s already exists in the base; a batch adds a new one", logSafe(slug), rel)
+			continue
+		}
+		raw, err := st.headTree.Read(rel, MaxFileBytes)
+		if err != nil {
+			bad("%s: the tag file %s is unreadable: %s", logSafe(slug), rel, logSafe(err.Error()))
+			continue
+		}
+		if coveragereport.TagFileDigest(raw) != a.TagFileSha256 {
+			bad("%s: the tag file is not the one the batch was signed for", logSafe(slug))
+			continue
+		}
+		if _, inBase := baseAdds.Additions[slug]; inBase {
+			bad("%s: the project already has an additions entry in the base", logSafe(slug))
+			continue
+		}
+		entry, ok := headAdds.Additions[slug]
+		if !ok {
+			bad("%s: the additions file has no entry for it", logSafe(slug))
+			continue
+		}
+		if entry.EntryDigest != a.EntryDigest {
+			bad("%s: the additions entry is not the one the batch was signed for", logSafe(slug))
+			continue
+		}
+		if err := coveragereport.VerifyAdditionFromTags(slug, entry, raw); err != nil {
+			bad("%s: %s", logSafe(slug), logSafe(err.Error()))
+		}
+	}
+	for slug := range headAdds.Additions {
+		if _, inBase := baseAdds.Additions[slug]; inBase {
+			continue
+		}
+		if _, bound := rec.adds[slug]; !bound {
+			bad("%s: the change adds an additions entry the batch does not bind", logSafe(slug))
+		}
+	}
+	for slug, be := range baseAdds.Additions {
+		he, ok := headAdds.Additions[slug]
+		if !ok {
+			bad("%s: the change removes an added project", logSafe(slug))
+			continue
+		}
+		bb, _ := json.Marshal(be)
+		hb, _ := json.Marshal(he)
+		if !bytes.Equal(bb, hb) {
+			bad("%s: the change edits an added project; an added entry is immutable", logSafe(slug))
+		}
+	}
+	return problems
 }
 
 // linesIntegrity holds what the published measure is measured against:

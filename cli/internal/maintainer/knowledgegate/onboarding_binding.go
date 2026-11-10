@@ -136,6 +136,15 @@ func SignedOnboardingV2Bytes(r OnboardingRecordV2) ([]byte, error) {
 }
 
 func signedOnboardingEnvelopeBytes(e OnboardingEnvelope) ([]byte, error) {
+	if e.Schema == OnboardingSchemaV3 {
+		if e.binding != nil {
+			return nil, errors.New("inconsistent onboarding schema/binding")
+		}
+		return SignedOnboardingV3Bytes(joinV3(e.Record))
+	}
+	if len(e.Record.adds) != 0 {
+		return nil, errors.New("only onboarding v3 carries additions")
+	}
 	if e.Schema == OnboardingSchemaV2 && e.binding != nil {
 		return SignedOnboardingV2Bytes(OnboardingRecordV2{AdmissionBinding: *e.binding, OnboardingRecord: e.Record})
 	}
@@ -191,6 +200,9 @@ func admissionSample(r OnboardingRecord, b OnboardingAdmissionBinding) ([]int, e
 }
 
 func (st *onboardingState) envelopeSummary(e OnboardingEnvelope) string {
+	if e.Schema == OnboardingSchemaV3 {
+		return st.summary(e.Record) + additionsSummary(e.Record)
+	}
 	s := st.summary(e.Record)
 	if e.binding != nil {
 		s = st.summaryForTier(e.Record, true)
@@ -201,6 +213,25 @@ func (st *onboardingState) envelopeSummary(e OnboardingEnvelope) string {
 }
 
 func (st *onboardingState) checkEnvelopeDigests(e OnboardingEnvelope) string {
+	if e.Schema == OnboardingSchemaV3 {
+		if e.binding != nil || len(e.Record.adds) == 0 {
+			return "the v3 binding is inconsistent"
+		}
+		if e.Record.ChangeSetDigest != st.changeSetDigest {
+			return "the change set differs from the one the batch was signed for"
+		}
+		sample, err := recordSample(e.Record)
+		if err != nil {
+			return err.Error()
+		}
+		if !equalInts(sample, e.Record.Sample) {
+			return "the sample is not the one drawn from the manifest"
+		}
+		if CandidateDigest([]byte(st.envelopeSummary(e))) != e.Record.SummaryDigest {
+			return "the summary digest does not match the summary of this change"
+		}
+		return ""
+	}
 	if e.binding == nil {
 		return st.checkDigests(e.Record)
 	}

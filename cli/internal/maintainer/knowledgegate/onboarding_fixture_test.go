@@ -136,6 +136,8 @@ type onboardingFixture struct {
 	src        *obSource
 	draft      onboardingDraft
 	signedAt   time.Time
+	// addSlugs are the projects whose additions the record binds (v3).
+	addSlugs []string
 }
 
 func onboardingRepoFiles(t *testing.T, tr Tree) {
@@ -357,11 +359,20 @@ func (f *onboardingFixture) tryRecord(t *testing.T) (OnboardingRecord, bool) {
 		return OnboardingRecord{}, false
 	}
 	rec := OnboardingRecord{Base: st.base.state, Head: st.head.state, BatchID: f.draft.BatchID, CandidateID: f.draft.CandidateID, ChangeSetDigest: st.changeSetDigest, Nonce: obNonce, Projects: f.draft.Projects}
-	if rec.Sample, err = onboardingSample(rec.core()); err != nil {
+	if len(f.addSlugs) > 0 {
+		if rec.adds, err = additionsFromHead(f.head, f.addSlugs); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if rec.Sample, err = recordSample(rec); err != nil {
 		t.Fatal(err)
 	}
 	problems := st.check(rec, layout.Onboarding.Dir+"/"+rec.BatchID+".json")
-	rec.SummaryDigest = CandidateDigest([]byte(st.summary(rec)))
+	summary := st.summary(rec)
+	if len(rec.adds) > 0 {
+		summary += additionsSummary(rec)
+	}
+	rec.SummaryDigest = CandidateDigest([]byte(summary))
 	rec.Identity, rec.Decision = obOwner, ApprovalDecisionApprove
 	rec.DecidedAt = f.signedAt.UTC().Format("2006-01-02T15:04:05Z")
 	rec.NotAfter = f.signedAt.Add(MaxOnboardingValidity).UTC().Format("2006-01-02T15:04:05Z")
@@ -373,6 +384,17 @@ func (f *onboardingFixture) tryRecord(t *testing.T) (OnboardingRecord, bool) {
 
 func (k testApprovalKey) signOnboarding(t *testing.T, r OnboardingRecord) []byte {
 	t.Helper()
+	if len(r.adds) > 0 {
+		msg, err := SignedOnboardingV3Bytes(joinV3(r))
+		if err != nil {
+			t.Fatal(err)
+		}
+		raw, err := json.MarshalIndent(OnboardingEnvelopeV3{Schema: OnboardingSchemaV3, Record: joinV3(r), KeyID: ApprovalKeyID(k.public), Signature: base64.StdEncoding.EncodeToString(ed25519.Sign(k.private, msg))}, "", "  ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return append(raw, '\n')
+	}
 	msg, err := SignedOnboardingBytes(r)
 	if err != nil {
 		t.Fatal(err)

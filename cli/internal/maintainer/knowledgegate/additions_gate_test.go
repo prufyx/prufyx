@@ -252,32 +252,13 @@ func TestAdditionsMoveTheClockAndAddProjects(t *testing.T) {
 	}
 }
 
-// R3: the additions file and the tag files are allowed in a batch and an
-// onboarding change, only as <slug>.tags, never the baseline, never in
-// AutoMergePaths.
-func TestAdditionsPathsAreAllowedButNotMechanical(t *testing.T) {
+// R3 (as bound by a v3 record, see TestAdditionsPathsNotAllowedWithoutV3Record):
+// the additions paths are never in AutoMergePaths, and the additions file is
+// not a generated block.
+func TestAdditionsPathsAreNotMechanical(t *testing.T) {
 	t.Parallel()
 	layout := DefaultLayout()
-	base, head := shippedSlice(t), shippedSlice(t)
-	putAdditions(t, head, "2026-11-07", "zz-new")
-	writeFile(t, filepath.Join(head.Root, filepath.FromSlash(coveragereport.PinnedTagsDir), "Bad_Name.tags"), []byte("x"))
-	// Bad_Name.tags is in the head, so the directory must read; it is not allowed.
 	tagRel := coveragereport.PinnedTagsDir + "/" + coveragereport.TagFileName("zz-new")
-	st := &onboardingState{layout: layout, baseTree: base, headTree: head}
-	for name, allowed := range map[string]map[string]bool{
-		"batch":      batchAllowedPaths(layout, base, head, "batch.json"),
-		"onboarding": st.allowedPaths(OnboardingRecord{}, "batch.json"),
-	} {
-		if !allowed[coveragereport.PinnedAdditionsPath] || !allowed[tagRel] {
-			t.Errorf("%s: the additions file or its tag file is not allowed", name)
-		}
-		if allowed[coveragereport.PinnedTagsDir+"/Bad_Name.tags"] || allowed[coveragereport.PinnedTagsDir+"/other.txt"] {
-			t.Errorf("%s: a tag path outside <slug>.tags is allowed", name)
-		}
-		if allowed[coveragereport.BaselinePath] || allowed[coveragereport.PinnedLinesPath] {
-			t.Errorf("%s: the baseline or the pinned snapshot is allowed (bots never write them)", name)
-		}
-	}
 	for _, rel := range []string{coveragereport.PinnedAdditionsPath, tagRel, coveragereport.BaselinePath, coveragereport.PinnedLinesPath} {
 		if layout.autoMergePath(rel) {
 			t.Errorf("%s is an auto-merge path", rel)

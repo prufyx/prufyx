@@ -29,6 +29,10 @@ type onboardingDraft struct {
 	BatchID     string              `json:"batchId"`
 	CandidateID string              `json:"candidateId"`
 	Projects    []OnboardingProject `json:"projects"`
+	// Additions names the kind-new projects whose release-line tag file and
+	// additions entry the batch binds (onboarding v3, owner tier only). The
+	// signer reads both digests from the head tree and prints them.
+	Additions []string `json:"additions,omitempty"`
 }
 
 // hasFlag reports whether a command line names the flag.
@@ -64,7 +68,12 @@ func prepareOnboarding(layout Layout, base, head Tree, draft onboardingDraft, no
 		Base: st.base.state, Head: st.head.state, BatchID: draft.BatchID, CandidateID: draft.CandidateID,
 		ChangeSetDigest: st.changeSetDigest, Nonce: nonce, Projects: draft.Projects,
 	}
-	if rec.Sample, err = onboardingSample(rec.core()); err != nil {
+	if len(draft.Additions) > 0 {
+		if rec.adds, err = additionsFromHead(head, draft.Additions); err != nil {
+			return OnboardingRecord{}, nil, err
+		}
+	}
+	if rec.Sample, err = recordSample(rec); err != nil {
 		return OnboardingRecord{}, nil, err
 	}
 	if problems := st.check(rec, batchPath); len(problems) > 0 {
@@ -268,6 +277,12 @@ func cmdOnboardingSign(args []string, env approvalEnv, layout Layout, stdout io.
 	rec.DecidedAt = now.Format("2006-01-02T15:04:05Z")
 	rec.NotAfter = now.Add(validFor).Format("2006-01-02T15:04:05Z")
 	envl := OnboardingEnvelope{Schema: OnboardingSchema, Record: rec}
+	if len(rec.adds) > 0 {
+		if keys.isBot(identity) {
+			return 2, errors.New("onboarding v3 (additions) is owner-only; no bot fallback")
+		}
+		envl.Schema = OnboardingSchemaV3
+	}
 	if keys.isBot(identity) {
 		raw := rawExport
 		if env.supervised == nil {

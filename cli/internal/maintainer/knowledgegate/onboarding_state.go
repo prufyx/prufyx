@@ -274,8 +274,9 @@ func (st *onboardingState) allowedPaths(rec OnboardingRecord, batchPath string) 
 	for rel := range st.layout.admittedBlocks(st.baseTree, st.headTree) {
 		allowed[rel] = true
 	}
-	// The additions file and its <slug>.tags files (see batchAllowedPaths).
-	for rel := range additionsAllowedPaths(st.headTree) {
+	// The additions file and the tag files of exactly the slugs the (v3)
+	// record binds; nothing else of tags/ and nothing for v1 and v2.
+	for rel := range additionsPaths(rec) {
 		allowed[rel] = true
 	}
 	return allowed
@@ -382,6 +383,8 @@ func (st *onboardingState) check(rec OnboardingRecord, batchPath string) []strin
 	if len(outside) > 0 {
 		bad("O2: an onboarding change may change only the batch file, the listed projects' target files, the custom-resource table, the %s pack file, its corpus attestation, the generated support inventory and the regenerated README coverage block and CNCF source preview counts; it also changes %d other files%s", ol.Pack, len(outside), listDetail(outside))
 	}
+	// O9: the additions a v3 batch binds.
+	problems = append(problems, st.additionsProblems(rec)...)
 	// O2: the classification holds, with a new project, the pack's
 	// registryDigest; nothing else. The pack's revision never changes: it is
 	// a release step, not part of a data change.
