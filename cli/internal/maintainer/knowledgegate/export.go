@@ -27,6 +27,8 @@ const (
 
 // ExportOptions names a commit to export.
 type ExportOptions struct {
+	// offline is reserved for commands that require local objects only.
+	offline bool
 	// Git is the git executable; empty means "git" on PATH.
 	Git string
 	// GitDir is a repository (usually bare) holding the commit.
@@ -118,7 +120,7 @@ func Export(ctx context.Context, opts ExportOptions) error {
 	if err := cmd.Start(); err != nil {
 		return err
 	}
-	exportErr := exportBlobs(opts.Out, entries, stdin, bufio.NewReader(stdout))
+	exportErr := exportBlobs(opts.Out, entries, stdin, bufio.NewReader(stdout), opts.offline)
 	stdin.Close()
 	if err := cmd.Wait(); err != nil && exportErr == nil {
 		exportErr = fmt.Errorf("git cat-file: %v: %s", err, logSafe(stderr.String()))
@@ -126,7 +128,7 @@ func Export(ctx context.Context, opts ExportOptions) error {
 	return exportErr
 }
 
-func exportBlobs(out string, entries []treeEntry, stdin io.Writer, stdout *bufio.Reader) error {
+func exportBlobs(out string, entries []treeEntry, stdin io.Writer, stdout *bufio.Reader, preserveMode bool) error {
 	read := func(e treeEntry) ([]byte, error) {
 		if _, err := io.WriteString(stdin, e.object+"\n"); err != nil {
 			return nil, err
@@ -173,6 +175,12 @@ func exportBlobs(out string, entries []treeEntry, stdin io.Writer, stdout *bufio
 		f, err := os.OpenFile(full, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
 		if err != nil {
 			return err
+		}
+		if preserveMode {
+			if err := f.Chmod(perm); err != nil {
+				f.Close()
+				return err
+			}
 		}
 		_, werr := f.Write(raw)
 		if cerr := f.Close(); werr == nil {
@@ -285,6 +293,10 @@ func checkExportPath(p string) error {
 }
 
 func gitCommand(ctx context.Context, opts ExportOptions, args ...string) *exec.Cmd {
+	if opts.offline {
+		opts.Git = "/usr/bin/git"
+		args = append([]string{"--no-lazy-fetch", "-c", "protocol.allow=never", "-c", "core.hooksPath=/dev/null"}, args...)
+	}
 	full := append([]string{
 		"--no-replace-objects",
 		"--git-dir=" + opts.GitDir,
@@ -302,6 +314,9 @@ func gitCommand(ctx context.Context, opts ExportOptions, args ...string) *exec.C
 		"GIT_CONFIG_GLOBAL=/dev/null",
 		"GIT_ATTR_NOSYSTEM=1",
 		"LC_ALL=C",
+	}
+	if opts.offline {
+		cmd.Env = append(cmd.Env, "GIT_NO_LAZY_FETCH=1", "GIT_ALLOW_PROTOCOL=", "GIT_TERMINAL_PROMPT=0")
 	}
 	return cmd
 }
