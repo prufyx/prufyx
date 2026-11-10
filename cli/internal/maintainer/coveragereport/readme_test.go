@@ -2,7 +2,10 @@
 
 package coveragereport
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestSpliceBlock(t *testing.T) {
 	t.Parallel()
@@ -59,5 +62,30 @@ func TestReadmePct(t *testing.T) {
 		if got := readmePct(c.a, c.b); got != c.want {
 			t.Errorf("%d/%d: %s want %s", c.a, c.b, got, c.want)
 		}
+	}
+}
+
+func TestReadmeCommunityLine(t *testing.T) {
+	t.Parallel()
+	r := Report{Fleet: Totals{Projects: 79, Pairs: 395}, CommunityCatalog: &Totals{Projects: 18, Pairs: 88, A: 40, B: 2}}
+	out, err := readmeFixture(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"each of the 79 CNCF-catalog projects of the snapshot (97 projects have one; 395 upgrades",
+		"Community catalogue, measured separately and not part of the table above: 42 of 88 upgrades decided (A or B) over 18 projects.",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+	r.CommunityCatalog = nil
+	out, err = readmeFixture(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out, "Community catalogue") || !strings.Contains(out, "(79 projects have one;") {
+		t.Error("without a community catalog the line must be absent and the count equal the fleet")
 	}
 }
