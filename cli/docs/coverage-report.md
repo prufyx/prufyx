@@ -47,17 +47,15 @@ Projects whose release lines are not the `major.minor` of the engine version
 on exact pairs only: their ranges, crossings and attestations are never read as
 line-wide.
 
-## Metric v2: Decided Pair Coverage
+## Per-family cell method (internal)
 
-The metric is computed internally but not published in the README or elsewhere
-until a second fact family exists. It comes from
+An internal method, not published; it is not shown in the README. It comes from
 `coverage readme` (`Input.V2` in the library) from two embedded data files in
 `cli/internal/maintainer/coveragereport/data/`:
 
 - `tiers.json`: Tier 1 and Tier 2 project lists, with `verified` and a
   `source`. Tier 1 is the priority portfolio of the pinned lines snapshot;
-  Tier 2 is empty until a reviewed list exists. While `verified` is false the
-  README says no reviewed tier definition exists yet.
+  Tier 2 is empty until a reviewed list exists.
 - `family-applicability.json`: reviewed exemptions only (project, family,
   reason, basis). Every family applies to every project otherwise.
 
@@ -71,9 +69,9 @@ range) or `open`. Only `attested` counts. A family without a measurement
 source yet (all but `crd.versions` and `k8s.api`) is `open`, never "not
 applicable".
 
-DPC-declared is the weighted share of attested cells (an upgrade with 1 of 7
+The declared share is the weighted share of attested cells (an upgrade with 1 of 7
 cells attested counts 1/7). Weights: Tier 1 three times Tier 2, the newest
-upgrade twice the one before. DPC-reachable counts an attested cell only when
+upgrade twice the one before. The reachable share counts an attested cell only when
 the shipped client can produce its fact from manifests: `crd.versions` for
 projects with a CNCF custom-resource row, `k8s.api` for Kubernetes. The
 producer is derived from the scan routes, not read from a fact definition

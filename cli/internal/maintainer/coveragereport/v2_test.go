@@ -226,6 +226,14 @@ func TestReadmeBlockDoesNotPublishV2(t *testing.T) {
 			t.Errorf("README block publishes %q", bad)
 		}
 	}
+	r.V2 = nil
+	out2, err := readmeFixture(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out2 != out {
+		t.Error("README block differs with and without V2")
+	}
 }
 
 func TestCheckExemptionsRefusesUntieredProject(t *testing.T) {
