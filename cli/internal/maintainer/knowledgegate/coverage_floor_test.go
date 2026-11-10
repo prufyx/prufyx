@@ -321,7 +321,7 @@ func shippedSlice(t *testing.T) Tree {
 	t.Helper()
 	tr := Tree{Root: t.TempDir()}
 	ol := DefaultLayout().Onboarding
-	rels := []string{cncfRulesPath, commRulesPath, coveragereport.PinnedLinesPath, inventoryJSON, coveragereport.BaselinePath}
+	rels := []string{cncfRulesPath, commRulesPath, coveragereport.PinnedLinesPath, inventoryJSON}
 	names, err := filepath.Glob(filepath.Join(repoRoot, filepath.FromSlash(ol.TargetsDir), "target-*.json"))
 	if err != nil || len(names) == 0 {
 		t.Fatalf("targets: %v", err)
@@ -338,6 +338,13 @@ func shippedSlice(t *testing.T) Tree {
 		}
 		writeFile(t, filepath.Join(tr.Root, filepath.FromSlash(rel)), raw)
 	}
+	// The slice is stripped of the repository's additions, so the repository's
+	// floors do not describe it: its baseline is made of its own numbers.
+	floor, err := floorOf(tr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(tr.Root, filepath.FromSlash(coveragereport.BaselinePath)), floor)
 	return tr
 }
 
@@ -354,7 +361,8 @@ func shippedSliceWithAdditions(t *testing.T) Tree {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, rel := range extra {
+	// With the real additions the real baseline applies too.
+	for _, rel := range append(extra, coveragereport.BaselinePath) {
 		raw, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(rel)))
 		if err != nil {
 			t.Fatal(err)
