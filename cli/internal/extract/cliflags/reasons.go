@@ -99,12 +99,43 @@ const (
 const (
 	// ReasonNameStillPresent: the name is still registered by some binary of
 	// the newer commit, so its removal from another binary is not a removal
-	// from the component.
+	// from the component. Also: a non-test Go file of the newer tree holds a
+	// string literal that spells the name (design 3.3: dynamic registration,
+	// alias, shim, deprecated-but-kept, a vendored library).
 	ReasonNameStillPresent = "FLAG_NAME_STILL_PRESENT"
 	// ReasonRenameCandidate is information only: a rename is an ordinary
 	// removal, and "possible replacement" is all a same-target flag proves.
 	// Only a MarkDeprecated literal is authoritative about a replacement.
 	ReasonRenameCandidate = "FLAG_RENAME_CANDIDATE"
+)
+
+// Pair comparison codes (pair.go). Each withholds: a ledger entry, so the
+// pair is never attested. The first group withholds every removal of the
+// pair, the second one name or one binary.
+const (
+	// ReasonFactUnregistered: the component has no registered cli_flags_set
+	// fact, so a removal would feed a fact nothing can supply.
+	ReasonFactUnregistered = "FACT_UNREGISTERED"
+	// ReasonScanIncomplete: one side's scan is not attestable (any ledger
+	// entry, no binary, an incomplete set). Stands next to the scan's own
+	// entries, which are carried with the side as a prefix of the item.
+	ReasonScanIncomplete = "FLAG_SCAN_INCOMPLETE"
+	// ReasonExclusionMismatch: the reviewed exclusions that matched a
+	// directory differ between the two sides, so the sides did not read the
+	// same set of binaries.
+	ReasonExclusionMismatch = "FLAG_EXCLUSION_MISMATCH"
+	// ReasonSweepIncomplete: the newer tree could not be swept completely
+	// for string literals (a limit, an unreadable or unparsable file, a
+	// submodule or link).
+	ReasonSweepIncomplete = "FLAG_SWEEP_INCOMPLETE"
+	// ReasonBinaryRemoved: a binary directory of the older tree is not a
+	// binary of the newer one; the flags it registered are not stated as
+	// removed (the binary may have moved or been renamed).
+	ReasonBinaryRemoved = "FLAG_BINARY_REMOVED"
+	// ReasonLibUnhashed: go.mod (either side) requires a flag-registering
+	// library that is neither bundled in the tree nor replaced, so flags it
+	// registers are invisible to the scan and the sweep. Withholds the pair.
+	ReasonLibUnhashed = "FLAG_LIB_UNHASHED"
 )
 
 // limits bound one scan. Anything above them is withheld, never truncated.
