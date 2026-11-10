@@ -99,31 +99,37 @@ func ParseLines(raw []byte) (LinesFile, error) {
 		return LinesFile{}, fmt.Errorf("%w: lines: no projects", ErrInvalid)
 	}
 	for slug, p := range f.Projects {
-		if !slugRE.MatchString(slug) {
-			return LinesFile{}, fmt.Errorf("%w: lines: bad project slug", ErrInvalid)
-		}
-		if p.Scheme != "" && !slices.Contains(crdversions.ReleaseSchemes, p.Scheme) {
-			return LinesFile{}, fmt.Errorf("%w: lines: %s: unknown scheme %q", ErrInvalid, slug, p.Scheme)
-		}
-		for i, line := range p.Lines {
-			if !lineattest.ValidLine(line) {
-				return LinesFile{}, fmt.Errorf("%w: lines: %s: bad line %q", ErrInvalid, slug, line)
-			}
-			if p.Scheme != "" {
-				// A calendar line has a month; any other number is no line.
-				if !lineattest.ValidCalverLine(line) {
-					return LinesFile{}, fmt.Errorf("%w: lines: %s: %q is not a calendar line", ErrInvalid, slug, line)
-				}
-			}
-			if i > 0 && !lineattest.LineLess(p.Lines[i-1], line) {
-				return LinesFile{}, fmt.Errorf("%w: lines: %s: lines must be strictly ascending", ErrInvalid, slug)
-			}
-		}
-		if err := checkReleases(slug, p); err != nil {
+		if err := validateProject(slug, p); err != nil {
 			return LinesFile{}, err
 		}
 	}
 	return f, nil
+}
+
+// validateProject checks one project's entry: slug, scheme, lines and the
+// optional releases. The lines file and the additions file share it.
+func validateProject(slug string, p ProjectLines) error {
+	if !slugRE.MatchString(slug) {
+		return fmt.Errorf("%w: lines: bad project slug", ErrInvalid)
+	}
+	if p.Scheme != "" && !slices.Contains(crdversions.ReleaseSchemes, p.Scheme) {
+		return fmt.Errorf("%w: lines: %s: unknown scheme %q", ErrInvalid, slug, p.Scheme)
+	}
+	for i, line := range p.Lines {
+		if !lineattest.ValidLine(line) {
+			return fmt.Errorf("%w: lines: %s: bad line %q", ErrInvalid, slug, line)
+		}
+		if p.Scheme != "" {
+			// A calendar line has a month; any other number is no line.
+			if !lineattest.ValidCalverLine(line) {
+				return fmt.Errorf("%w: lines: %s: %q is not a calendar line", ErrInvalid, slug, line)
+			}
+		}
+		if i > 0 && !lineattest.LineLess(p.Lines[i-1], line) {
+			return fmt.Errorf("%w: lines: %s: lines must be strictly ascending", ErrInvalid, slug)
+		}
+	}
+	return checkReleases(slug, p)
 }
 
 // checkReleases validates the optional releases of one project: every key a

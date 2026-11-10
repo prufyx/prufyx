@@ -146,7 +146,8 @@ func (r *Report) blockChecks(opts Options) {
 // CNCF rule pack, the pinned lines snapshot, the generated support
 // inventory and the reviewed CRD version targets. Every input is read
 // through the tree (no links, bounded sizes). The evaluation time is the
-// snapshot's captured date at 12:00:00Z, so nothing depends on the clock.
+// snapshot's evaluation date (or the latest capture date of an addition) at
+// 12:00:00Z, so nothing depends on the clock.
 func coverageBlock(t Tree) (string, error) {
 	report, inventory, now, err := coverageReportOf(t)
 	if err != nil {
@@ -188,20 +189,21 @@ func coverageReportOf(t Tree) (coveragereport.Report, []byte, time.Time, error) 
 	if err != nil {
 		return coveragereport.Report{}, nil, time.Time{}, err
 	}
-	clockDate := lines.CapturedOn
-	if lines.PinnedOn != "" {
-		clockDate = lines.PinnedOn
-	}
-	captured, err := time.Parse("2006-01-02", clockDate)
+	// The additions file is optional: absent or empty is the empty set and the
+	// clock is the pinned one. Present but unreadable or invalid fails.
+	additions, additionsRaw, _, err := treeAdditions(t)
 	if err != nil {
-		return coveragereport.Report{}, nil, time.Time{}, fmt.Errorf("the pinned lines snapshot has no captured date")
+		return coveragereport.Report{}, nil, time.Time{}, fmt.Errorf("the additions file: %w", err)
 	}
-	now := captured.Add(12 * time.Hour).UTC()
+	now, err := coveragereport.EvaluationClock(lines, additions)
+	if err != nil {
+		return coveragereport.Report{}, nil, time.Time{}, err
+	}
 	crd, err := crdProjectComponents(t)
 	if err != nil {
 		return coveragereport.Report{}, nil, time.Time{}, err
 	}
-	report, err := coveragereport.Compute(coveragereport.Input{Pack: pack, Lines: linesRaw, Now: now, CRDVersionProjects: len(crd), CRDTargetComponents: crd, CommunityPack: community, V2: true})
+	report, err := coveragereport.Compute(coveragereport.Input{Pack: pack, Lines: linesRaw, Additions: additionsRaw, Now: now, CRDVersionProjects: len(crd), CRDTargetComponents: crd, CommunityPack: community, V2: true})
 	if err != nil {
 		return coveragereport.Report{}, nil, time.Time{}, err
 	}

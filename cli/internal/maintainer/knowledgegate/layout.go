@@ -298,6 +298,7 @@ func DefaultLayout() Layout {
 				"cli/internal/maintainer/coveragereport/readme.go",
 				"cli/internal/maintainer/coveragereport/claims.go",
 				"cli/internal/maintainer/coveragereport/report.go",
+				"cli/internal/maintainer/coveragereport/additions.go",
 				"cli/internal/maintainer/coveragereport/families.go",
 				"cli/internal/maintainer/coveragereport/v2.go",
 				"cli/internal/maintainer/coveragereport/data/tiers.json",

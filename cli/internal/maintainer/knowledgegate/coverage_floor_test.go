@@ -329,6 +329,11 @@ func shippedSlice(t *testing.T) Tree {
 	for _, n := range names {
 		rels = append(rels, ol.TargetsDir+"/"+filepath.Base(n))
 	}
+	extra, err := additionFiles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	rels = append(rels, extra...)
 	for _, rel := range rels {
 		raw, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(rel)))
 		if err != nil {
@@ -403,10 +408,10 @@ func decidedPairs(t *testing.T, tr Tree) int {
 // generator, is the protection: the generator is deterministic and would
 // publish the lower number.
 //
-// The fix route for a re-derive is a deliberate pinnedOn bump in the same PR
-// (lines file), which moves the clock past the new reviewedAt dates so the
-// pairs stay decided; see the second half of the test. The floor is never
-// edited to excuse a drop.
+// The pinned snapshot is held byte-identical between base and head, so a data
+// change cannot move the clock either: the fix route for a re-derive is to
+// re-attest (never a floor edit) or a code change that moves the pin; see
+// TestPinnedLinesByteIdentity.
 func TestCoverageFloorRefusesRederiveWithNewerDatesUnderOldClock(t *testing.T) {
 	t.Parallel()
 	base, head := shippedSlice(t), shippedSlice(t)
@@ -427,8 +432,8 @@ func TestCoverageFloorRefusesRederiveWithNewerDatesUnderOldClock(t *testing.T) {
 		t.Fatalf("a re-derive that lowers decided pairs %d -> %d is not refused by the floor: %+v", before, after, c)
 	}
 
-	// Fix route: the same data with the pinned clock advanced in the same
-	// change keeps the pairs decided, and the floor holds.
+	// A data change that advances the pinned clock to restore the pairs is not
+	// a fix route any more: the pinned snapshot must stay byte-identical.
 	linesPath := filepath.Join(head.Root, filepath.FromSlash(coveragereport.PinnedLinesPath))
 	raw, err := os.ReadFile(linesPath)
 	if err != nil {
@@ -444,10 +449,7 @@ func TestCoverageFloorRefusesRederiveWithNewerDatesUnderOldClock(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeFile(t, linesPath, raw)
-	if got := decidedPairs(t, head); got < before {
-		t.Fatalf("advancing pinnedOn did not restore decided pairs (%d, floor %d)", got, before)
-	}
-	if c := shippedFloorCheck(base, head); !c.OK {
-		t.Fatalf("the floor refuses a re-derive with a deliberate pinnedOn bump: %s", c.Detail)
+	if c := shippedFloorCheck(base, head); c.OK || !strings.Contains(c.Detail, "differs from the base branch") {
+		t.Fatalf("a data change of the pinned snapshot is not refused: %+v", c)
 	}
 }

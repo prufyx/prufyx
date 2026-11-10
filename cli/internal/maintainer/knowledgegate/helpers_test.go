@@ -121,6 +121,28 @@ func withoutLineAttestations(raw []byte) ([]byte, error) {
 	return p.Render()
 }
 
+// additionFiles are the repository files of the additions mechanism that exist
+// in the source tree (none before the data change that introduces them): the
+// additions file and the tag files under the tags directory.
+func additionFiles() ([]string, error) { return additionFilesIn(repoRoot) }
+
+func additionFilesIn(root string) ([]string, error) {
+	var out []string
+	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(coveragereport.PinnedAdditionsPath))); err == nil {
+		out = append(out, coveragereport.PinnedAdditionsPath)
+	} else if !os.IsNotExist(err) {
+		return nil, err
+	}
+	names, err := filepath.Glob(filepath.Join(root, filepath.FromSlash(coveragereport.PinnedTagsDir), "*.tags"))
+	if err != nil {
+		return nil, err
+	}
+	for _, n := range names {
+		out = append(out, coveragereport.PinnedTagsDir+"/"+filepath.Base(n))
+	}
+	return out, nil
+}
+
 func buildKnowledgeTemplate() (map[string][]byte, error) {
 	files := map[string][]byte{}
 	rebuilt := false
@@ -128,7 +150,11 @@ func buildKnowledgeTemplate() (map[string][]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	for _, rel := range append(append([]string{}, knowledgeFiles...), targetFiles...) {
+	extra, err := additionFiles()
+	if err != nil {
+		return nil, err
+	}
+	for _, rel := range append(append(append([]string{}, knowledgeFiles...), targetFiles...), extra...) {
 		raw, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(rel)))
 		if err != nil {
 			return nil, err

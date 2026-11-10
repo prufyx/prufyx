@@ -116,6 +116,7 @@ func runCoverageReport(args []string, stdout io.Writer) error {
 	flags.SetOutput(io.Discard)
 	packPath := flags.String("pack", "", "rule pack file (default: the embedded pack)")
 	linesPath := flags.String("lines", "", "lines snapshot file (required)")
+	additionsPath := flags.String("additions", "", "additions file (schema prufyx.io/coverage-lines-additions/v1); the measure is the union with --lines; absent = none")
 	nowText := flags.String("now", "", "evaluation time, RFC 3339 UTC (required)")
 	windowText := flags.String("window", "", "lines per project window: a number (default 6) or ALL for every line from minFrom")
 	declaredPath := flags.String("declared", "", "declared-unknown file (ALL window only; default: the embedded file)")
@@ -123,7 +124,7 @@ func runCoverageReport(args []string, stdout io.Writer) error {
 	jsonOut := flags.String("json-out", "", "write the JSON report to this file")
 	mdOut := flags.String("md-out", "", "write the Markdown summary to this file")
 	if err := flags.Parse(args); err != nil || flags.NArg() != 0 || *linesPath == "" || *nowText == "" {
-		return &commandError{code: 2, message: "coverage report: usage: --lines FILE --now RFC3339 [--pack FILE] [--window N|ALL] [--declared FILE] [--complete] [--json-out FILE] [--md-out FILE]"}
+		return &commandError{code: 2, message: "coverage report: usage: --lines FILE [--additions FILE] --now RFC3339 [--pack FILE] [--window N|ALL] [--declared FILE] [--complete] [--json-out FILE] [--md-out FILE]"}
 	}
 	all, window := false, 0
 	switch {
@@ -169,13 +170,19 @@ func runCoverageReport(args []string, stdout io.Writer) error {
 	if err != nil {
 		return &commandError{code: 2, message: "coverage report: lines file is unreadable", err: err}
 	}
+	var additions []byte
+	if *additionsPath != "" {
+		if additions, err = readBounded(*additionsPath); err != nil {
+			return &commandError{code: 2, message: "coverage report: additions file is unreadable", err: err}
+		}
+	}
 	var declared []byte
 	if *declaredPath != "" {
 		if declared, err = readBounded(*declaredPath); err != nil {
 			return &commandError{code: 2, message: "coverage report: declared file is unreadable", err: err}
 		}
 	}
-	report, err := coveragereport.Compute(coveragereport.Input{Pack: pack, Lines: lines, Now: now, Window: window, All: all, Declared: declared, CRDVersionProjects: coveragereport.CRDProjectCount(), CRDTargetComponents: coveragereport.CRDProjectComponents(), CommunityPack: community})
+	report, err := coveragereport.Compute(coveragereport.Input{Pack: pack, Lines: lines, Additions: additions, Now: now, Window: window, All: all, Declared: declared, CRDVersionProjects: coveragereport.CRDProjectCount(), CRDTargetComponents: coveragereport.CRDProjectComponents(), CommunityPack: community})
 	if err != nil {
 		return &commandError{code: 2, message: "coverage report: input rejected", err: err}
 	}

@@ -15,6 +15,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/extract"
 	"github.com/prufyx/prufyx/cli/internal/extract/k8sservedapis"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/coveragereport"
 )
 
 const coverageFixtures = "../../internal/maintainer/coveragereport/testdata/"
@@ -210,5 +211,68 @@ func TestMaintainerCLI_CoverageComplete(t *testing.T) {
 	// Two weeks on the snapshot is stale: nothing is complete.
 	if got := complete("2026-10-23T12:00:00Z"); got != "" {
 		t.Fatalf("stale snapshot: complete = %q", got)
+	}
+}
+
+func TestMaintainerCLI_CoverageAdditions(t *testing.T) {
+	dir := t.TempDir()
+	var plain, errOut bytes.Buffer
+	if err := run(coverageArgs(), &plain, &errOut); err != nil {
+		t.Fatal(err)
+	}
+	// An empty additions file changes nothing.
+	empty := filepath.Join(dir, "empty.json")
+	if err := os.WriteFile(empty, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var withEmpty bytes.Buffer
+	if err := run(coverageArgs("--additions", empty), &withEmpty, &errOut); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(withEmpty.Bytes(), plain.Bytes()) {
+		t.Fatal("an empty additions file changed the report")
+	}
+	// A real addition adds a project and reports both digests.
+	e, err := coveragereport.SealAddition("zz-new", []byte("v1.1.0\nv1.2.0\nv1.3.0\n"), "2026-10-08", false, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := coveragereport.MarshalAdditions(coveragereport.AdditionsFile{Additions: map[string]coveragereport.AdditionEntry{"zz-new": e}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "add.json")
+	if err := os.WriteFile(path, raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var with bytes.Buffer
+	if err := run(coverageArgs("--additions", path), &with, &errOut); err != nil {
+		t.Fatal(err)
+	}
+	var a, b struct {
+		Fleet     struct{ Projects int }
+		Additions *struct {
+			Entries int
+			ClockOn string
+		}
+	}
+	if err := json.Unmarshal(plain.Bytes(), &a); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(with.Bytes(), &b); err != nil {
+		t.Fatal(err)
+	}
+	if b.Fleet.Projects != a.Fleet.Projects+1 || b.Additions == nil || b.Additions.Entries != 1 {
+		t.Fatalf("projects %d -> %d, additions %+v", a.Fleet.Projects, b.Fleet.Projects, b.Additions)
+	}
+	// Refused: missing file, invalid file.
+	bad := filepath.Join(dir, "bad.json")
+	if err := os.WriteFile(bad, []byte(`{"schema":"x"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []string{filepath.Join(dir, "missing.json"), bad} {
+		if err := run(coverageArgs("--additions", p), &bytes.Buffer{}, &errOut); err == nil {
+			t.Errorf("--additions %s accepted", p)
+		}
 	}
 }
