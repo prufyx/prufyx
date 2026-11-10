@@ -213,6 +213,17 @@ projects with a rule or attestation but no release lines in the snapshot, and
 the projects with an attestation reviewed after the evaluation date, so a
 project is never silently left out.
 
+**Entry rule for catalogue table projects.** This is a policy, not a check
+the gate enforces on its own: a project from the CNCF catalogue table is added
+to the pinned lines snapshot or the additions file only when its `attest`
+member in the project's target file is enabled (the onboarding step for
+attestation projects is the path that reads that member). A project whose
+flag is off is not added, whatever its catalogue status. Being listed in the
+catalogue is catalogue coverage, not a tested or safety claim. A decided pair
+is rule or attestation coverage and is the only kind of pair counted as decided.
+The community catalogue stays a separate line and is not merged into the table
+projects' numbers.
+
 **What the gate holds.** On every change the knowledge gate (a) requires the
 pinned snapshot to be byte-identical to the base branch's, (b) regenerates
 and validates every entry of the additions file against its committed tag file
