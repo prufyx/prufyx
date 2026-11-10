@@ -329,12 +329,32 @@ func shippedSlice(t *testing.T) Tree {
 	for _, n := range names {
 		rels = append(rels, ol.TargetsDir+"/"+filepath.Base(n))
 	}
+	// The slice never carries the repository's additions or tag files (see
+	// shippedSliceWithAdditions for the real ones).
+	for _, rel := range rels {
+		raw, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(rel)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, filepath.Join(tr.Root, filepath.FromSlash(rel)), raw)
+	}
+	return tr
+}
+
+// gateDate is the fixed gate clock of the shipped-tree tests: after the capture
+// date of any addition the repository holds or these tests build.
+var gateDate = time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)
+
+// shippedSliceWithAdditions is shippedSlice plus the repository's own
+// additions file and tag files, when it has them.
+func shippedSliceWithAdditions(t *testing.T) Tree {
+	t.Helper()
+	tr := shippedSlice(t)
 	extra, err := additionFiles()
 	if err != nil {
 		t.Fatal(err)
 	}
-	rels = append(rels, extra...)
-	for _, rel := range rels {
+	for _, rel := range extra {
 		raw, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(rel)))
 		if err != nil {
 			t.Fatal(err)
@@ -346,7 +366,7 @@ func shippedSlice(t *testing.T) Tree {
 
 func shippedFloorCheck(base, head Tree) Check {
 	r := &Report{}
-	r.coverageFloorCheck(Options{Layout: DefaultLayout(), Base: base, Head: head})
+	r.coverageFloorCheck(Options{Layout: DefaultLayout(), Base: base, Head: head, Now: gateDate})
 	return r.Checks[0]
 }
 

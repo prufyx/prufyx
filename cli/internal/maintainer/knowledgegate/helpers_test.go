@@ -150,11 +150,16 @@ func buildKnowledgeTemplate() (map[string][]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	// The template never carries the repository's additions file or tag
+	// files: the fixtures must not depend on whether the real tree has them
+	// (the dedicated additions tests build their own, with an explicit gate
+	// date). The README is regenerated below without them.
 	extra, err := additionFiles()
 	if err != nil {
 		return nil, err
 	}
-	for _, rel := range append(append(append([]string{}, knowledgeFiles...), targetFiles...), extra...) {
+	rebuilt = len(extra) > 0
+	for _, rel := range append(append([]string{}, knowledgeFiles...), targetFiles...) {
 		raw, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(rel)))
 		if err != nil {
 			return nil, err
@@ -172,7 +177,7 @@ func buildKnowledgeTemplate() (map[string][]byte, error) {
 			if err != nil {
 				return nil, err
 			}
-			rebuilt = !bytes.Equal(raw, prior)
+			rebuilt = rebuilt || !bytes.Equal(raw, prior)
 			raw = prior
 			// The shipped line attestations are derived from the upstream
 			// tags, which the small upstream fixtures of these tests do
