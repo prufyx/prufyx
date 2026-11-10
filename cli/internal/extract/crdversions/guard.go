@@ -749,7 +749,7 @@ func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extr
 	// A pinned foreign entry is live whether or not its file is in the tree:
 	// an absent pinned file fails its check and voids the entry.
 	for _, e := range excl {
-		if e.Foreign != nil {
+		if e.Foreign != nil || e.Pinned != nil {
 			present[e.Path] = true
 		}
 	}
@@ -819,6 +819,23 @@ func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extr
 		record(e, hit{kind: "the pinned foreign bundle fails its check (" + why + ")"})
 	}
 
+	// Pinned sources: the bytes at this tag must hold the pin.
+	pinnedSrc := map[string]bool{}
+	for _, e := range live {
+		if e.Pinned == nil {
+			continue
+		}
+		why, err := x.pinnedSourceCheck(r, repo, commit, e, blobs)
+		if err != nil {
+			return nil, nil, err
+		}
+		if why == "" {
+			pinnedSrc[e.Path] = true
+			continue
+		}
+		record(e, hit{kind: "the pinned source fails its check (" + why + ")"})
+	}
+
 	// What to read.
 	type job struct {
 		e    extract.TreeEntry
@@ -842,7 +859,11 @@ func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extr
 	// declares its files define nothing is not checked against embeds.
 	var embedLive []Exclusion
 	for _, e := range live {
-		if !e.DefinesNone {
+		// An entry whose files define nothing, and a pinned source whose
+		// pin holds at this tag, are not checked against embeds: embedding
+		// a file the reviewer read and that applies nothing installs
+		// nothing. Every other referrer still voids a pinned source.
+		if !e.DefinesNone && !(e.Pinned != nil && pinnedSrc[e.Path]) {
 			embedLive = append(embedLive, e)
 		}
 	}
@@ -1151,6 +1172,27 @@ func (x *Extractor) pinnedProblem(r extract.PinnedReader, repo extract.RepoRef, 
 		return "", fmt.Errorf("guard reading %s at %s: %w", e.Path, commit, err)
 	}
 	return foreignBundleProblem(e.Foreign, data, targetGroups(inv)), nil
+}
+
+// pinnedSourceCheck reads the file of a pinned source at a tag and checks it
+// ("" when it holds). A path that is not a regular file of the tree is a
+// problem; a reader error aborts.
+func (x *Extractor) pinnedSourceCheck(r extract.PinnedReader, repo extract.RepoRef, commit string, e Exclusion, blobs []extract.TreeEntry) (string, error) {
+	var found *extract.TreeEntry
+	for i := range blobs {
+		if blobs[i].Path == e.Path {
+			found = &blobs[i]
+			break
+		}
+	}
+	if found == nil || found.Type != "blob" || (found.Mode != "100644" && found.Mode != "100755") {
+		return "the pinned path is not a regular file", nil
+	}
+	data, err := r.Read(repo, commit, e.Path)
+	if err != nil {
+		return "", fmt.Errorf("guard reading %s at %s: %w", e.Path, commit, err)
+	}
+	return pinnedSourceProblem(e.Pinned, data), nil
 }
 
 // voidPrefix starts the location of a file under a void reviewed exclusion.

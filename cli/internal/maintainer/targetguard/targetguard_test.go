@@ -789,3 +789,75 @@ func TestForeignPinIsNarrowing(t *testing.T) {
 		}
 	}
 }
+
+// Adding or changing a generation declaration widens what the scan
+// accepts: it is listed as narrowing. Removing one, or the same declaration
+// on both sides, is not listed.
+func TestGenerationIsListed(t *testing.T) {
+	gen := func(evidence string) []crdversions.Generation {
+		return []crdversions.Generation{{Kustomization: "x/kustomization.yaml", Output: "out", Repo: "github.com/a/b", Reason: "a reviewed reason", Evidence: evidence}}
+	}
+	count := func(prefix string, base, head []crdversions.Generation) int {
+		b := mustLoad(t, realTree(t), false)
+		h := mustLoad(t, realTree(t), false)
+		b.Targets[0].Generation, h.Targets[0].Generation = base, head
+		n := 0
+		for _, r := range Diff(b, h) {
+			if r.Kind == KindNarrowed && strings.HasPrefix(r.Detail, prefix) && r.Project == b.Targets[0].Project {
+				n++
+			}
+		}
+		return n
+	}
+	if count("generation:", nil, gen("e")) != 1 {
+		t.Error("an added declaration is not listed")
+	}
+	if count("generationChanged:", gen("e"), gen("f")) != 1 {
+		t.Error("a changed declaration is not listed")
+	}
+	if count("generation", gen("e"), nil) != 0 || count("generation", gen("e"), gen("e")) != 0 {
+		t.Error("a removed or unchanged declaration is listed")
+	}
+}
+
+// A changed pin of a pinned source is a changed exclusion, listed as
+// narrowing: the pin relaxes the install-surface guard for that file.
+func TestPinnedSourcePinIsNarrowing(t *testing.T) {
+	pin := func(sha string) *crdversions.PinnedSource {
+		return &crdversions.PinnedSource{SHA256: []string{"sha256:" + strings.Repeat(sha, 64)}}
+	}
+	for name, tc := range map[string]struct{ base, head *crdversions.PinnedSource }{
+		"added":           {nil, pin("1")},
+		"removed":         {pin("1"), nil},
+		"another digest":  {pin("1"), pin("2")},
+		"an added digest": {pin("1"), &crdversions.PinnedSource{SHA256: []string{pin("1").SHA256[0], "sha256:" + strings.Repeat("2", 64)}}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			base := mustLoad(t, realTree(t), false)
+			head := mustLoad(t, realTree(t), false)
+			done := false
+			for i := range head.Targets {
+				if len(head.Targets[i].Exclude) == 0 || done {
+					continue
+				}
+				base.Targets[i].Exclude = append([]crdversions.Exclusion(nil), base.Targets[i].Exclude...)
+				head.Targets[i].Exclude = append([]crdversions.Exclusion(nil), head.Targets[i].Exclude...)
+				base.Targets[i].Exclude[0].Pinned = tc.base
+				head.Targets[i].Exclude[0].Pinned = tc.head
+				done = true
+			}
+			if !done {
+				t.Fatal("no exclusion in the data: the case is void")
+			}
+			got := 0
+			for _, r := range Diff(base, head) {
+				if r.Kind == KindNarrowed && strings.HasPrefix(r.Detail, "excludeChanged:") {
+					got++
+				}
+			}
+			if got != 1 {
+				t.Fatalf("Diff lists %d changed exclusions", got)
+			}
+		})
+	}
+}

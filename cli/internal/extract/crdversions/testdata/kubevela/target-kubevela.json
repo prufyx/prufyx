@@ -1,0 +1,37 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "kubevela",
+    "name": "KubeVela",
+    "repo": "github.com/kubevela/kubevela",
+    "component": "pkg:github/kubevela/kubevela",
+    "factProject": "kubevela",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.6",
+    "paths": [
+      {"path": "charts/vela-core/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": [
+      {
+        "path": "references/cli/adopt-templates/default.cue",
+        "repo": "github.com/kubevela/kubevela",
+        "reason": "read-only cue template of vela adopt, pinned by content",
+        "evidence": "Read: references/cli/adopt-templates/default.cue is the cue template of vela adopt (resourceTypes lists of kinds to adopt), embedded by references/cli/adopt.go through //go:embed adopt-templates/default.cue; it applies nothing and ships no definition and holds no apiextensions text. Three byte contents: blob 3dc4bdfb at v1.7.0 to v1.7.7, a02dfa02 at v1.8.0 to v1.8.2, cae5e499 at v1.9.0 to v1.10.5; absent before v1.7.0. A changed byte voids the entry.",
+        "pinned": {"sha256": [
+          "sha256:4be8f4849897bc83c1c20a6ac5205692100796653a5b76b4538f3e4bbaac1612",
+          "sha256:4d385dfcac2b624a3bb21f6c3e129a2283c0375d11f6136eab3b593d065caf63",
+          "sha256:c5fe15984c934a8a5649a5e5c6e2e1ae0ba6c947b8778f135687bbaa980aa723"
+        ]}
+      }
+    ],
+    "generation": [
+      {
+        "kustomization": "config/crd/kustomization.yaml",
+        "output": "charts/vela-core/crds",
+        "repo": "github.com/kubevela/kubevela",
+        "reason": "kubebuilder kustomization whose build output is committed under charts/vela-core/crds",
+        "evidence": "Makefile target manifests (v1.6.0 to v1.9.11): kustomize build config/crd -o config/crd/base/core.oam.dev_applications.yaml, then hack/crd/cleanup.sh, then go run ./hack/crd/dispatch/dispatch.go config/crd/base charts/vela-core/crds, then rm -f config/crd/base/*. The base file is never committed; the output of the run is charts/vela-core/crds. Not provable by the scan: that the output equals the committed files."
+      }
+    ]
+  }
+}
