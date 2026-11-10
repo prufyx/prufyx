@@ -508,6 +508,49 @@ Through the offline factory mirror (or a fixture tree), never the network.
     its own (the patches live in a custom resource of that controller, not in a
     kustomization) is outside what the scan reads: that part of the claim rests
     on the reviewer's evidence.
+  - A reviewed exclusion with `"pinned": {"sha256": [...]}` (an entry for
+    exactly one file with the lower-case extension `.cue`) states that the file
+    is a read-only source the reviewer read (a template that names the kind and
+    that nothing applies), and pins its bytes. At every release the entry must
+    hold at: the path is a regular file of at most 1 MiB, its digest is one of
+    the pin, it holds no template syntax and no text of the `apiextensions.k8s.io`
+    group in any letter case (a heuristic belt: the digest is the control). The
+    file then has the class `excluded` with the reason `pinned-source`: it is
+    neither opaque nor blocking, so a definition that the later release no
+    longer lists is not held by it. A file that fails a check, a pinned path that
+    is absent or is not a regular file (a symbolic link too) makes the entry void
+    at that release: the file is opaque again and a pair whose later release has
+    it is withheld, as with any unreadable source. The pin relaxes the
+    install-surface guard for `//go:embed` only (embedding a file that applies
+    nothing installs nothing, a pattern that reaches a sibling relaxes nothing
+    for the sibling); a kustomization, chart, Makefile, document, script,
+    container build or nix file that names the file still voids the entry. The
+    loader refuses the member together with `copies`, `prePatch`, `defines` or
+    `foreign`, on a directory or a pattern, on any extension but `.cue`, without
+    digests or with more than 16, with digests that are not well formed,
+    unsorted or repeated, and on an unknown member. A change of the member is a
+    changed exclusion for the target guard. The proof is the bytes the reviewer
+    read; nothing parses the template.
+  - A target may carry `"generation"` declarations (at most four): the clean
+    path of a kustomization file below the repository root (not in a default
+    excluded directory and not under an exclusion), the `output` it builds
+    (equal to or below a listed path), the repository of the target, a reason
+    of 12 to 300 characters and evidence of 40 to 800 characters that names the
+    kustomization directory and the output (the build recipe, its
+    post-processing and the tags read). At a release where that kustomization
+    is present, strictly decoded and has no remote resource, no open
+    replacement and no `configurations` list that cannot be followed, its
+    directory is a declared definition kustomization directory although none of
+    its resources is a file of the tree (the build output is not committed). A
+    strategic merge patch list is not itself checked (it never is); every file
+    below the directory is still accepted only by its bytes (the fragment
+    allow-list) and only for a definition of the listed paths. The declaration
+    decides no version. A kustomization that is missing or fails a condition
+    leaves its fragments unread. A patch of the kind in the kustomization is a
+    reference, which blocks attestation. The program cannot prove that the
+    generated output equals the committed files: that part of the claim rests on
+    the reviewer's evidence. An added or changed declaration is listed by the
+    target guard.
 
   **Reviewed exclusions carry evidence and are guarded.** Every entry of the
   table names its repository, the path (a directory prefix ending in `/`, one

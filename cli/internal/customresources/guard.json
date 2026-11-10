@@ -11,6 +11,13 @@
     {
       "kind": "target-narrowed",
       "project": "kubevela",
+      "detail": "exclude:references/cli/adopt-templates/default.cue@github.com/kubevela/kubevela",
+      "seq": 0,
+      "reason": "Cue template of vela adopt (lists of kinds to adopt), embedded into the CLI; read at v1.7.0 to v1.10.5 in three pinned byte contents; it applies nothing and ships no definition; a changed byte voids the entry."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "kubevela",
       "detail": "generation:config/crd/kustomization.yaml",
       "seq": 0,
       "reason": "Kubebuilder kustomization whose build output is committed under charts/vela-core/crds (Makefile target manifests, v1.6.0 to v1.9.11); only its two patch fragments, proved byte by byte, are accepted below it."

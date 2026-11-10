@@ -123,7 +123,9 @@ func TestGenerationDeclaresTheRealKustomization(t *testing.T) {
 			}
 		}
 		for _, f := range inv.Scan.Findings {
-			if f.Path != kvKust && f.blocks() {
+			// The tree has no adopt template: the pinned entry of the
+			// target is void there (see pinnedsource_test.go).
+			if f.Path != kvKust && f.Class != ClassVoided && f.blocks() {
 				t.Errorf("%s: unexpected blocking finding %+v", inv.Tag, f)
 			}
 		}

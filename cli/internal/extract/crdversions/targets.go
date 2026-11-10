@@ -266,6 +266,9 @@ type Exclusion struct {
 	// Foreign: Path is one vendored third-party bundle, pinned by content
 	// digest (nil when the entry is not one). See ForeignBundle.
 	Foreign *ForeignBundle
+	// Pinned: Path is one read-only source file (a cue template) pinned by
+	// content digest (nil when the entry is not one). See PinnedSource.
+	Pinned *PinnedSource
 }
 
 // ForeignBundle declares that the file an exclusion names is a vendored
@@ -409,6 +412,8 @@ type exclusionJSON struct {
 	Defines string `json:"defines,omitempty"`
 	// Foreign pins a vendored third-party bundle (see ForeignBundle).
 	Foreign *foreignJSON `json:"foreign,omitempty"`
+	// Pinned pins a read-only source file (see PinnedSource).
+	Pinned *pinnedJSON `json:"pinned,omitempty"`
 }
 
 type generationJSON struct {
@@ -594,7 +599,7 @@ func (tj targetJSON) target() (Target, error) {
 		if ej.Repo != t.Repo {
 			return t, fmt.Errorf("exclusion %q names repository %q, not %s", ej.Path, ej.Repo, t.Repo)
 		}
-		if ej.Defines != "" || ej.Foreign != nil {
+		if ej.Defines != "" || ej.Foreign != nil || ej.Pinned != nil {
 			// An earlier entry that covers it would place its files, and
 			// the claim would never be checked.
 			for _, other := range tj.Exclude[:i] {
@@ -622,7 +627,7 @@ func (tj targetJSON) target() (Target, error) {
 				}
 			}
 		}
-		t.Exclude = append(t.Exclude, Exclusion{Path: ej.Path, Repo: ej.Repo, Reason: ej.Reason, Evidence: ej.Evidence, Copies: ej.Copies, PrePatch: ej.PrePatch, DefinesNone: ej.Defines == definesNoneValue, Foreign: ej.Foreign.bundle()})
+		t.Exclude = append(t.Exclude, Exclusion{Path: ej.Path, Repo: ej.Repo, Reason: ej.Reason, Evidence: ej.Evidence, Copies: ej.Copies, PrePatch: ej.PrePatch, DefinesNone: ej.Defines == definesNoneValue, Foreign: ej.Foreign.bundle(), Pinned: ej.Pinned.source()})
 	}
 	if err := tj.generations(&t); err != nil {
 		return t, fmt.Errorf("generation: %w", err)
@@ -890,6 +895,11 @@ func validExclusion(ej exclusionJSON) error {
 			return fmt.Errorf("foreign: %s", why)
 		}
 	}
+	if ej.Pinned != nil {
+		if why := validPinned(ej); why != "" {
+			return fmt.Errorf("pinned: %s", why)
+		}
+	}
 	if !ej.Copies && ej.PrePatch == "" {
 		if seg := installSegment(ej.Path); seg != "" {
 			return fmt.Errorf("%q lies under a %q directory: definitions there are installed or generated for install and are never excluded", ej.Path, seg)
@@ -1010,6 +1020,9 @@ type place struct {
 	// definesNone: a reviewed exclusion that declares its files define
 	// nothing (location "defines none: <entry>").
 	definesNone bool
+	// pinned: a pinned source whose pin held at this release (the void
+	// check comes first, so a pinned place implies the pin held).
+	pinned bool
 	// void: a reviewed exclusion that an install surface refers to at this
 	// release. The place is a default-like one ("void: <entry>"): the files
 	// are classified, block attestation and never withhold a pair, but a
@@ -1029,7 +1042,7 @@ func (t Target) placeOf(p string) place {
 			if e.DefinesNone {
 				return place{kind: locReviewed, entry: definesNonePrefix + e.Path, definesNone: true}
 			}
-			return place{kind: locReviewed, entry: e.Path, copies: e.Copies, prePatch: e.PrePatch}
+			return place{kind: locReviewed, entry: e.Path, copies: e.Copies, prePatch: e.PrePatch, pinned: e.Pinned != nil}
 		}
 	}
 	if d := defaultSegment(p); d != "" {

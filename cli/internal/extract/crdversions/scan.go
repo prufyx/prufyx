@@ -254,6 +254,7 @@ const (
 	ReasonUndecodable          = "undecodable"
 	ReasonLegacyUnread         = "v1beta1-unread"
 	ReasonFragment             = "patch-fragment"
+	ReasonPinnedSource         = "pinned-source"
 	ReasonPatchNotStrict       = "patch-not-strict"
 	ReasonPatchNotUnderDir     = "patch-not-under-definition-dir"
 	ReasonPatchNameNotListed   = "patch-name-not-in-inventory"
@@ -814,6 +815,12 @@ func placed(f Finding, at place) Finding {
 	}
 	f.Location = at.entry
 	if at.kind != locReviewed || at.copies || at.prePatch != "" || at.definesNone {
+		return f
+	}
+	if at.pinned && (f.Class == ClassUnread || f.Class == ClassUnsupported) {
+		// A pinned source whose bytes the reviewer read: not opaque, not
+		// blocking (the pin held at this release, see guard).
+		f.Class, f.Reason = ClassExcluded, ReasonPinnedSource
 		return f
 	}
 	switch f.Class {

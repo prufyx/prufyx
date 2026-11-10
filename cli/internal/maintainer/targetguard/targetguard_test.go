@@ -819,3 +819,45 @@ func TestGenerationIsListed(t *testing.T) {
 		t.Error("a removed or unchanged declaration is listed")
 	}
 }
+
+// A changed pin of a pinned source is a changed exclusion, listed as
+// narrowing: the pin relaxes the install-surface guard for that file.
+func TestPinnedSourcePinIsNarrowing(t *testing.T) {
+	pin := func(sha string) *crdversions.PinnedSource {
+		return &crdversions.PinnedSource{SHA256: []string{"sha256:" + strings.Repeat(sha, 64)}}
+	}
+	for name, tc := range map[string]struct{ base, head *crdversions.PinnedSource }{
+		"added":           {nil, pin("1")},
+		"removed":         {pin("1"), nil},
+		"another digest":  {pin("1"), pin("2")},
+		"an added digest": {pin("1"), &crdversions.PinnedSource{SHA256: []string{pin("1").SHA256[0], "sha256:" + strings.Repeat("2", 64)}}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			base := mustLoad(t, realTree(t), false)
+			head := mustLoad(t, realTree(t), false)
+			done := false
+			for i := range head.Targets {
+				if len(head.Targets[i].Exclude) == 0 || done {
+					continue
+				}
+				base.Targets[i].Exclude = append([]crdversions.Exclusion(nil), base.Targets[i].Exclude...)
+				head.Targets[i].Exclude = append([]crdversions.Exclusion(nil), head.Targets[i].Exclude...)
+				base.Targets[i].Exclude[0].Pinned = tc.base
+				head.Targets[i].Exclude[0].Pinned = tc.head
+				done = true
+			}
+			if !done {
+				t.Fatal("no exclusion in the data: the case is void")
+			}
+			got := 0
+			for _, r := range Diff(base, head) {
+				if r.Kind == KindNarrowed && strings.HasPrefix(r.Detail, "excludeChanged:") {
+					got++
+				}
+			}
+			if got != 1 {
+				t.Fatalf("Diff lists %d changed exclusions", got)
+			}
+		})
+	}
+}

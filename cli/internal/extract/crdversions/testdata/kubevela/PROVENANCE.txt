@@ -4,3 +4,12 @@ are identical at v1.6.0, v1.8.0, v1.9.0 and v1.9.11:
   config/crd/kustomization.yaml                          sha256 0bfb0de4814b7d8077f3c813b553166057f2acbc3ac02542c7f1fe3f6943a8f1
   config/crd/patches/cainjection_in_applications.yaml    sha256 59ad96c87fc71e776796c0d4e25d6b94e4af41fb063b6d1054606fffaf865925
   config/crd/patches/webhook_in_applications.yaml        sha256 33c7bf7b6b176ddafe41b97e3ebd8d7ec988d0a8ab5e08e3f6a97460ff260cdf
+
+references/cli/adopt.go is the file at tag v1.9.0 (raw, byte for byte). The
+three default.cue.<tag> files are references/cli/adopt-templates/default.cue at
+the tags v1.7.0, v1.8.0 and v1.9.0; the file has three byte contents over
+v1.7.0 to v1.10.5 (git blob ids 3dc4bdfb at v1.7.0 to v1.7.7, a02dfa02 at v1.8.0
+to v1.8.2, cae5e499 at v1.9.0 to v1.10.5):
+  default.cue.v1.7.0   sha256 4be8f4849897bc83c1c20a6ac5205692100796653a5b76b4538f3e4bbaac1612
+  default.cue.v1.8.0   sha256 c5fe15984c934a8a5649a5e5c6e2e1ae0ba6c947b8778f135687bbaa980aa723
+  default.cue.v1.9.0   sha256 4d385dfcac2b624a3bb21f6c3e129a2283c0375d11f6136eab3b593d065caf63
