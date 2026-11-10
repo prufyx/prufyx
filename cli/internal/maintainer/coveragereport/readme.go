@@ -75,6 +75,10 @@ func RenderREADMEBlock(r Report, inventoryJSON []byte, now time.Time) (string, e
 		return "", fmt.Errorf("report: the kubernetes row or its window is missing")
 	}
 	f := r.Fleet
+	commProjects := 0
+	if r.CommunityCatalog != nil {
+		commProjects = r.CommunityCatalog.Projects
+	}
 	var b strings.Builder
 	w := func(format string, args ...any) { fmt.Fprintf(&b, format, args...) }
 	w("Generated on %s by `scripts/readme-coverage.sh` (do not edit this block by hand).", now.UTC().Format("2006-01-02"))
@@ -95,11 +99,14 @@ func RenderREADMEBlock(r Report, inventoryJSON []byte, now time.Time) (string, e
 	w("| Projects catalogued with retained public sources | %d (%d of them source-only, no check) |\n", c["selectedSourceProjects"], c["selectedSourceOnlyProjects"])
 	w("| Projects with reviewed CRD targets (a reviewed `crd.custom_resource_versions` target) | %d |\n", r.CRDVersionProjects)
 	w("| "+readmeCRDLabel+" | %d |\n\n", r.CRDPublishedProjects)
-	w("Version-coverage depth, measured over the last five minor upgrades of each of the %d projects with a release-line snapshot (%d upgrades between consecutive release lines):\n\n", f.Projects, f.Pairs)
+	w("Version-coverage depth, measured over the last five minor upgrades of each of the %d CNCF-catalog projects of the snapshot (%d projects have one; %d upgrades between consecutive release lines):\n\n", f.Projects, f.Projects+commProjects, f.Pairs)
 	w("| Status | Upgrades | Share |\n| --- | --- | --- |\n")
 	w("| "+readmeDecidedLabel+" | %d | %s |\n", f.A+f.B, readmePct(f.A+f.B, f.Pairs))
 	w("| Rule for one exact version pair only (S) | %d | %s |\n", f.S, readmePct(f.S, f.Pairs))
 	w("| Gap, no valid rule (G) | %d | %s |\n\n", f.G, readmePct(f.G, f.Pairs))
+	if cc := r.CommunityCatalog; cc != nil {
+		w("Community catalogue, measured separately and not part of the table above: %d of %d upgrades decided (A or B) over %d projects.\n\n", cc.A+cc.B, cc.Pairs, cc.Projects)
+	}
 	w("Kubernetes: %d valid rules, but %d fall in its window %s to %s; %d of %d upgrades in that window are gaps.\n\n", k.ValidRules, k.RulesInWindow, k.Window[0], k.Window[len(k.Window)-1], k.G, k.A+k.B+k.S+k.G)
 	split, err := decidedSplitSentence(r.split, f.A+f.B)
 	if err != nil {

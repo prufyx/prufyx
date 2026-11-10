@@ -323,13 +323,15 @@ Generated on 2026-11-10 by `scripts/readme-coverage.sh` (do not edit this block 
 | Projects with reviewed CRD targets (a reviewed `crd.custom_resource_versions` target) | 87 |
 | Projects with a published CRD rule or line attestation | 29 |
 
-Version-coverage depth, measured over the last five minor upgrades of each of the 79 projects with a release-line snapshot (395 upgrades between consecutive release lines):
+Version-coverage depth, measured over the last five minor upgrades of each of the 79 CNCF-catalog projects of the snapshot (97 projects have one; 395 upgrades between consecutive release lines):
 
 | Status | Upgrades | Share |
 | --- | --- | --- |
 | Decided for the whole release-line pair (A attested, B bounded) | 51 | 12.9% |
 | Rule for one exact version pair only (S) | 40 | 10.1% |
 | Gap, no valid rule (G) | 304 | 76.9% |
+
+Community catalogue, measured separately and not part of the table above: 42 of 88 upgrades decided (A or B) over 18 projects.
 
 Kubernetes: 63 valid rules, but 19 fall in its window 1.32 to 1.37; 0 of 5 upgrades in that window are gaps.
 
