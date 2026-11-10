@@ -207,27 +207,32 @@ func TestV2PctExact(t *testing.T) {
 	}
 }
 
-func TestRenderV2KeepsDeclaredApartFromReachable(t *testing.T) {
+// Metric v2 is computed but not published in the README block until a second
+// fact family exists.
+func TestReadmeBlockDoesNotPublishV2(t *testing.T) {
 	t.Parallel()
 	crd := lineattest.FamilyCustomResourceVersions
 	r := v2Report(Project{Project: "zzz-declared-only", Pairs: []Pair{{From: "1.0", To: "1.1", Status: StatusA, Families: []string{crd}}}})
-	applyV2(&r, testTiers([]string{"zzz-declared-only", "gone"}, nil), ApplicabilityFile{})
-	var b strings.Builder
-	renderV2(&b, r.V2)
-	out := b.String()
-	for _, want := range []string{
-		"| DPC-declared: weighted share of cells with a line attestation | 14.2% |",
-		"| DPC-reachable: the same, counting only cells whose fact the shipped client can read from manifests | 0% |",
-		"1 of 7 (0 of them reachable, 1 declared only)",
-		"no reviewed tier definition exists yet",
-		"Tier 2 has no reviewed list yet",
-		"never as not applicable",
-		"without a release-line snapshot are not in these numbers: gone.",
-		"Neither share says that any upgrade is safe.",
-	} {
-		if !strings.Contains(out, want) {
-			t.Errorf("missing %q in:\n%s", want, out)
+	applyV2(&r, testTiers([]string{"zzz-declared-only"}, nil), ApplicabilityFile{})
+	if r.V2 == nil || r.V2.DPCDeclared == 0 {
+		t.Fatal("metric v2 is no longer computed")
+	}
+	out, err := readmeFixture(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, bad := range []string{"Metric v2", "Decided Pair Coverage", "DPC-"} {
+		if strings.Contains(out, bad) {
+			t.Errorf("README block publishes %q", bad)
 		}
+	}
+	r.V2 = nil
+	out2, err := readmeFixture(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out2 != out {
+		t.Error("README block differs with and without V2")
 	}
 }
 
