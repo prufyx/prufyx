@@ -8,6 +8,7 @@
     "factProject": "crossplane",
     "tagPrefixes": ["v"],
     "minFrom": "1.20",
+    "attest": true,
     "paths": [
       {"path": "cluster/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
     ],
