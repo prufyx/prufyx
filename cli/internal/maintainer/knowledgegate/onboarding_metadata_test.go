@@ -383,6 +383,11 @@ func TestOnboardingMetadataUmask(t *testing.T) {
 				}
 			}
 			cmd := exec.Command("/bin/sh", "-c", `umask 0111; exec "$@"`, "sh", os.Args[0], "-test.run=^TestOnboardingMetadataUmask$", "-test.v")
+			if testing.CoverMode() != "" {
+				// Coverage must not create its directory after umask removes
+				// directory access bits. Keep the child instrumented.
+				cmd.Args = append(cmd.Args, "-test.gocoverdir="+t.TempDir())
+			}
 			cmd.Env = append(os.Environ(), "PRUFYX_METADATA_UMASK_CHILD=1", "PRUFYX_METADATA_BASE="+filepath.Join(parent, "base"), "PRUFYX_METADATA_HEAD="+filepath.Join(parent, "head"), "PRUFYX_METADATA_PATH="+rel, "PRUFYX_METADATA_GIT="+filepath.Join(repo, ".git"), "PRUFYX_METADATA_COMMIT="+headSHA)
 			if out, err := cmd.CombinedOutput(); err != nil {
 				t.Fatalf("umask subprocess: %v\n%s", err, out)
