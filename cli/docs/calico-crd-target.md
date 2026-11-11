@@ -7,8 +7,7 @@ release-line snapshot contains five consecutive pairs from 3.28 to 3.33;
 this enrollment publishes no decided pair. A later attestation change must
 establish complete source evidence for each pair before it can decide it.
 
-The exact upstream repository is absent from the
-[pinned CNCF catalogue](https://github.com/cncf/landscape/blob/c1ef02752bbb9bbff9c405541ebed483e736f9c5/landscape.yml).
+Calico appears in the [full pinned landscape](https://github.com/cncf/landscape/blob/c1ef02752bbb9bbff9c405541ebed483e736f9c5/landscape.yml#L4000-L4005) without a CNCF-project marker and is absent from Prufyx's derived CNCF-project catalogue.
 The generated coverage report therefore moves Calico's five snapshot pairs
 from the CNCF denominator to the community denominator: 395 to 390 CNCF
 pairs and 88 to 93 community pairs. Decided counts remain 53 and 42,
