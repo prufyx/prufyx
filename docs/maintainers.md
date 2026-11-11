@@ -98,7 +98,7 @@ handled by maintainers by hand and is reported, if at all, as a comment from a
 maintainer. No time frame is given for any stage.
 
 Review: maintainers review every submission and every batch. Nothing is
-published without that review and the project owner's signature on the
+published without that review and the Prufyx maintainers' signature on the
 knowledge bundle. Passing validation, a merge of your bundle, or a status of
 "validated" is not a compatibility claim.
 

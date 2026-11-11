@@ -89,7 +89,7 @@ automatic import of merged bundles. Until then maintainers answer by hand.
 No time frame is promised.
 
 Never collected: secrets, credentials, cluster data. Nothing is published
-without maintainer review and the owner's signature on the knowledge bundle.
+without maintainer review and the Prufyx maintainers' signature on the knowledge bundle.
 
 ## What happens next
 
