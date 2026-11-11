@@ -4,6 +4,7 @@ package knowledgegate
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -120,6 +121,15 @@ func TestCLI(t *testing.T) {
 		if code, out := runCLI(t, args...); code != 2 {
 			t.Fatalf("%v: exit %d, want 2: %s", args, code, out)
 		}
+	}
+	// An explicit zero time is the same as no clock: refused, never replaced
+	// by the host's clock.
+	if code, out := runCLI(t, "verify", "--base", base.Root, "--head", head.Root, "--now", "0001-01-01T00:00:00Z"); code != 2 || !strings.Contains(out, "zero time") {
+		t.Fatalf("verify with a zero --now: exit %d: %s", code, out)
+	}
+	// Verify itself refuses a zero Options.Now.
+	if _, err := Verify(context.Background(), Options{Layout: DefaultLayout(), Base: base, Head: head}); err == nil || !strings.Contains(err.Error(), "no clock") {
+		t.Fatalf("Verify with a zero Now: %v", err)
 	}
 	// The gate's clock is never the host's: an omitted --now fails closed.
 	if code, out := runCLI(t, "verify", "--base", base.Root, "--head", head.Root); code != 2 || !strings.Contains(out, "--now is required") {

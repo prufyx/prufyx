@@ -356,6 +356,9 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 		if opts.Now, err = time.Parse(time.RFC3339, now); err != nil || !strings.HasSuffix(now, "Z") {
 			return 2, errors.New("--now must be RFC 3339 UTC")
 		}
+		if opts.Now.IsZero() {
+			return 2, errors.New("--now must not be the zero time")
+		}
 	}
 	if opts.Source, opts.Citations, err = sourceFlag(source, citeTimeout, getenv); err != nil {
 		return 2, err

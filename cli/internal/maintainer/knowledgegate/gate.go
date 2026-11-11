@@ -56,7 +56,8 @@ type Options struct {
 	// Catalog is the extractor catalog; nil means extractcli.Catalog().
 	Catalog     map[string]extractcli.Spec
 	Concurrency int
-	// Now is the gate's clock; zero means time.Now().
+	// Now is the gate's clock; Verify refuses a zero Now (Limits and the
+	// onboarding pre-key admission still read zero as time.Now()).
 	Now time.Time
 	// Author is the change's author login; Sender the login of the
 	// account whose action triggered this run; BotLogin the automation's.
@@ -373,7 +374,15 @@ func (r *Report) finish(changes bool) {
 }
 
 // Verify runs the whole gate.
+//
+// The gate's clock must be given: a zero Now is refused before the defaults
+// run (they would replace it with the host's wall clock, which bounds the line
+// attestation and capture times). Limits and the onboarding pre-key admission
+// are not the admission verdict and keep the zero-means-wall-clock default.
 func Verify(ctx context.Context, opts Options) (*Report, error) {
+	if opts.Now.IsZero() {
+		return nil, errors.New("the gate has no clock: Options.Now must be set, the host clock is never used for the admission verdict")
+	}
 	opts.defaults()
 	cls, err := Classify(opts.Layout, opts.Base, opts.Head)
 	if err != nil {
