@@ -546,12 +546,14 @@ jobs:
         with:
           persist-credentials: false
 
-      # The release toolchain patch release, so a stdlib fix is what is scanned
-      # (setup-go reads the go directive, not the toolchain line, of go.mod).
+      # Scans with the newest Go patch release so a stdlib fix is what is scanned
+      # (1.26.11 fixes GO-2026-6859); release builds stay on their pinned
+      # toolchain. setup-go reads the go directive, not the toolchain line, of
+      # go.mod.
       - name: Set up Go
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
-          go-version: "1.26.10"
+          go-version: "1.26.11"
           cache-dependency-path: cli/go.sum
 
       - name: Install govulncheck
