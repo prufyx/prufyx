@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import crd_oracle as crd
 import qalib
+import test_support
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 P = "proj"
@@ -251,15 +252,21 @@ class Diagnostics(unittest.TestCase):
         self.assertNotIn("whole", out[0]["detail"])
 
 
-def run_summary(state, cases, mode="none", env=None, skipped=None):
+def run_summary(state, cases, mode="none", env=None, skipped=None, clean=False):
     d = tempfile.mkdtemp()
     json.dump(cases, open(d + "/crd.cases.json", "w"))
+    if clean:
+        test_support.complete_full_run(d, "a" * 40)
     if skipped is not None:
         json.dump(skipped, open(d + "/skipped.json", "w"))
     e = dict(os.environ, **(env or {}))
     r = subprocess.run([sys.executable, os.path.join(HERE, "summarize.py"), "--dir", d, "--state", state, "--sha", "a" * 40, "--mode", mode],
                        capture_output=True, text=True, env=e)
     return r, json.load(open(d + "/summary.json"))
+
+
+def run_clean(state, cases, mode="none", **kw):
+    return run_summary(state, cases, mode, clean=(mode == "full"), **kw)
 
 
 def entry(key, **kw):
@@ -434,59 +441,59 @@ class DigestReset(unittest.TestCase):
 
     def test_unchanged_digest_rise_still_fires(self):
         s = tempfile.mkdtemp()
-        run_summary(s, self.community(2) + self.design(40), "full")
-        r, summ = run_summary(s, self.community(5) + self.design(46), "full")
+        run_clean(s, self.community(2) + self.design(40), "full")
+        r, summ = run_clean(s, self.community(5) + self.design(46), "full")
         self.assertTrue(summ["unsupported_community_rise"])
         self.assertTrue(summ["design_unknown_whole_crd_rise"])
-        r, summ = run_summary(s, self.design(70), "full")
+        r, summ = run_clean(s, self.design(70), "full")
         self.assertTrue(summ["design_unknown_whole_crd_cap_breach"])
 
     def test_changed_digest_skips_rise_and_pct_cap_resets_baseline(self):
         s = tempfile.mkdtemp()
-        run_summary(s, self.community(2) + self.design(40), "full")
+        run_clean(s, self.community(2) + self.design(40), "full")
         st = json.load(open(s + "/status.json"))
         st["oracle_digest"] = "0" * 64
         json.dump(st, open(s + "/status.json", "w"))
-        r, summ = run_summary(s, self.community(9) + self.design(44), "full")  # +4 is within the rise threshold
+        r, summ = run_clean(s, self.community(9) + self.design(44), "full")  # +4 is within the rise threshold
         self.assertFalse(summ["unsupported_community_rise"] or False)
         self.assertFalse(summ["design_unknown_whole_crd_rise"])
         self.assertFalse(summ["design_unknown_whole_crd_cap_breach"])
         self.assertIn("oracle changed: rise baseline reset", r.stderr)
         self.assertEqual(json.load(open(s + "/status.json"))["design_unknown_whole_crd_baseline"], 44)
         # new baseline stored: same digest now, so a later rise fires again
-        r, summ = run_summary(s, self.design(49), "full")
+        r, summ = run_clean(s, self.design(49), "full")
         self.assertTrue(summ["design_unknown_whole_crd_rise"])
 
     def test_legacy_status_without_digest_skips_rise_once(self):
         s = tempfile.mkdtemp()
         json.dump({"mode": "full", "unsupported_community": 1, "design_unknown_whole_crd_baseline": 10}, open(s + "/status.json", "w"))
-        r, summ = run_summary(s, self.community(3) + self.design(12), "full")
+        r, summ = run_clean(s, self.community(3) + self.design(12), "full")
         self.assertIsNone(summ["unsupported_community_rise"])
         self.assertFalse(summ["design_unknown_whole_crd_cap_breach"])
         self.assertEqual(json.load(open(s + "/status.json"))["oracle_digest"], qalib.oracle_digest())
 
     def test_changed_digest_with_percent_cap_growth_is_reset_not_flagged_but_marked(self):
         s = tempfile.mkdtemp()
-        run_summary(s, self.design(20), "full")
+        run_clean(s, self.design(20), "full")
         st = json.load(open(s + "/status.json"))
         st["oracle_digest"] = "0" * 64
         json.dump(st, open(s + "/status.json", "w"))
-        r, summ = run_summary(s, self.design(25), "full")  # +5 is exactly the threshold: reset, no CAP, no RISE
+        r, summ = run_clean(s, self.design(25), "full")  # +5 is exactly the threshold: reset, no CAP, no RISE
         self.assertFalse(summ["design_unknown_whole_crd_cap_breach"])
         self.assertIn("ORACLE_CHANGED design=20->25", r.stdout.splitlines()[0])
         self.assertNotIn("ORACLE_RISE", r.stdout)
         self.assertEqual(json.load(open(s + "/status.json"))["design_unknown_whole_crd_baseline"], 25)
-        r, summ = run_summary(s, self.design(26), "full")
+        r, summ = run_clean(s, self.design(26), "full")
         self.assertNotIn("ORACLE_CHANGED", r.stdout.splitlines()[0])
 
     def test_changed_digest_with_rise_over_threshold_is_inconclusive_and_keeps_baseline(self):
         for before, after in ((20, 26), (100 // 4, 31), (10, 16)):
             s = tempfile.mkdtemp()
-            run_summary(s, self.design(before), "full")
+            run_clean(s, self.design(before), "full")
             st = json.load(open(s + "/status.json"))
             st["oracle_digest"] = "0" * 64
             json.dump(st, open(s + "/status.json", "w"))
-            r, summ = run_summary(s, self.design(after), "full")
+            r, summ = run_clean(s, self.design(after), "full")
             self.assertEqual((summ["state"], r.returncode, summ["design_unknown_whole_crd_oracle_rise"]), ("INCONCLUSIVE", 3, True), (before, after))
             self.assertIn(f"ORACLE_CHANGED design={before}->{after} ORACLE_RISE", r.stdout.splitlines()[0])
             st = json.load(open(s + "/status.json"))
@@ -494,11 +501,11 @@ class DigestReset(unittest.TestCase):
         # a partial run never judges the count; a drop is never a rise
         for mode, count in (("none", 90 // 3), ("full", 12)):
             s = tempfile.mkdtemp()
-            run_summary(s, self.design(20), "full")
+            run_clean(s, self.design(20), "full")
             st = json.load(open(s + "/status.json"))
             st["oracle_digest"] = "0" * 64
             json.dump(st, open(s + "/status.json", "w"))
-            r, summ = run_summary(s, self.design(count), mode)
+            r, summ = run_clean(s, self.design(count), mode)
             self.assertFalse(summ["design_unknown_whole_crd_oracle_rise"], mode)
 
     def test_digest_covers_scope_modules(self):
@@ -508,22 +515,22 @@ class DigestReset(unittest.TestCase):
 
     def test_changed_digest_hard_cap_still_applies_and_baseline_not_stored(self):
         s = tempfile.mkdtemp()
-        run_summary(s, self.design(40), "full")
+        run_clean(s, self.design(40), "full")
         st = json.load(open(s + "/status.json"))
         st["oracle_digest"] = "0" * 64
         json.dump(st, open(s + "/status.json", "w"))
-        r, summ = run_summary(s, self.design(81), "full")
+        r, summ = run_clean(s, self.design(81), "full")
         self.assertTrue(summ["design_unknown_whole_crd_cap_breach"])
         st = json.load(open(s + "/status.json"))
         self.assertEqual((st["design_unknown_whole_crd_baseline"], st["oracle_digest"]), (40, "0" * 64))
 
     def test_changed_digest_partial_run_keeps_old_digest(self):
         s = tempfile.mkdtemp()
-        run_summary(s, self.design(40), "full")
+        run_clean(s, self.design(40), "full")
         st = json.load(open(s + "/status.json"))
         st["oracle_digest"] = "0" * 64
         json.dump(st, open(s + "/status.json", "w"))
-        run_summary(s, self.design(41), "none")
+        run_clean(s, self.design(41), "none")
         self.assertEqual(json.load(open(s + "/status.json"))["oracle_digest"], "0" * 64)
 
 

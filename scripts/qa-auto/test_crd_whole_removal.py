@@ -3,6 +3,7 @@ import json, os, subprocess, sys, tempfile, unittest
 
 import crd_oracle as crd
 import qalib
+import test_support
 
 W1 = ("a.example", "v1", "Gone")
 W2 = ("a.example", "v1", "AlsoGone")
@@ -114,6 +115,8 @@ class Counters(unittest.TestCase):
     def run_summary(self, state, cases, mode="none"):
         d = tempfile.mkdtemp()
         json.dump(cases, open(d + "/crd.cases.json", "w"))
+        if mode == "full":  # a clean full run: baselines only move on those
+            test_support.complete_full_run(d, "a" * 40)
         r = subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "summarize.py"),
                             "--dir", d, "--state", state, "--sha", "a" * 40, "--mode", mode], capture_output=True, text=True)
         return r, json.load(open(d + "/summary.json"))
