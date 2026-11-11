@@ -57,6 +57,61 @@ live intake status. The issue-to-analysis route and a returned maintainer
 status are not demonstrated as live; a form submission alone does not mean
 the project was analyzed or covered.
 
+## Steps, and what you will see afterwards
+
+You need no access to anything except this public repository.
+
+1. Build the maintainer tool from a checkout (`cd cli && go build ./cmd/prufyx-maintainer`).
+2. Optional: run `project init` (and `project sync` if you want a private
+   snapshot) as shown above. Both stay on your machine.
+3. Either prepare a bundle and validate it offline:
+
+   ```sh
+   cd cli
+   go run ./cmd/prufyx-maintainer onboard-bundle validate --dir-is-slug ../contrib/onboard-bundles/<slug>
+   ```
+
+   then open a pull request, or open the
+   [onboarding request form](https://github.com/prufyx/prufyx/issues/new?template=onboarding-request.yml)
+   as an issue. The validator reads only the bundle directory, runs nothing
+   from it and needs no network. It checks structure and refuses, among other
+   things, secret-shaped values, owner-environment names, unknown files and a
+   licence identifier outside its allowlist (see the bundle
+   [licence rules](../contrib/onboard-bundles/README.md#licence-and-cla)).
+
+What happens next, today:
+
+- Pull request route (implemented): CI validates the changed bundle with the
+  validator from the base branch and reports pass or findings on the pull
+  request. Maintainers review the diff by hand. A merge does not publish a
+  rule or claim.
+- Issue route (partly implemented): the issue is public and maintainers read
+  it. The issue adapter is not accepted as live intake, see above.
+
+Planned, not live today: automatic status comments, and an automatic import of
+accepted submissions into the build pipeline. When they exist, you will be told
+the stages in this order: received, validated, imported, then classified as in
+scope, blocked with a reason, or out of scope (for example a project with no
+CRDs), draft target proposed, included in a batch pull request, merged, and
+release pairs decided (n of m). Until then, any stage after validation is
+handled by maintainers by hand and is reported, if at all, as a comment from a
+maintainer. No time frame is given for any stage.
+
+Review: maintainers review every submission and every batch. Nothing is
+published without that review and the project owner's signature on the
+knowledge bundle. Passing validation, a merge of your bundle, or a status of
+"validated" is not a compatibility claim.
+
+Licence and consent: submit only public projects whose licence lets us
+redistribute the facts. BUSL, ELv2, SSPL and proprietary or unlicensed
+projects are not accepted. Pull request authors sign the
+[CLA](../CLA.md); the issue form requires a consent checkbox that the
+repository is public and no private or personal data is included.
+
+Never collected: secrets, credentials, cluster data or any customer data. The
+tools above read public repositories only; do not put such data in a bundle,
+an issue or a comment.
+
 ## How the information is used
 
 What you send is a hint. It tells us where to look and what to ask. It is
