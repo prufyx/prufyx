@@ -82,14 +82,7 @@ func RenderREADMEBlock(r Report, inventoryJSON []byte, now time.Time) (string, e
 	var b strings.Builder
 	w := func(format string, args ...any) { fmt.Fprintf(&b, format, args...) }
 	w("Generated on %s by `scripts/readme-coverage.sh` (do not edit this block by hand).", now.UTC().Format("2006-01-02"))
-	if r.Lines.PinnedOn != "" {
-		w(" Release lines captured %s, evaluated on %s.", r.Lines.CapturedOn, r.Lines.PinnedOn)
-	}
-	if r.Additions != nil {
-		// Only with additions: the clock moves to the later date, and each
-		// project's own capture date is in the additions file.
-		w(" %d projects were appended to the snapshot with their own capture dates; the block is evaluated on %s (the later of the snapshot's evaluation date and every capture date).", r.Additions.Entries, r.Additions.ClockOn)
-	}
+	w("%s", readmeClockText(r))
 	w("\n\n")
 	w("| Executable rules | Count |\n| --- | --- |\n")
 	w("| CNCF source rules, active | %d across %d projects (%d withdrawn, not used) |\n", c["cncfSourceRules"], c["cncfRuleProjects"], c["cncfSourceRulesWithdrawn"])
@@ -201,4 +194,31 @@ func RenderCRDCatalogue(r Report) (string, error) {
 		return "", fmt.Errorf("report: no reviewed CRD version target")
 	}
 	return fmt.Sprintf("A project is catalogued when it has a reviewed custom-resource target (%d projects: %d of the CNCF landscape catalog, %d of the community catalog). It is decided only for the upgrades that a rule or line attestation covers for the whole release-line pair (A or B in the table below). Of the %d community-catalog projects, %d hold a published rule or current line attestation for the CRD version family and %d hold none.\n", c.cncf+c.community, c.cncf, c.community, c.community, c.communityPublished, c.community-c.communityPublished), nil
+}
+
+// readmeClockText is the part of the block's first line that says what the
+// block is evaluated on. Without an attestation clock it is exactly the text
+// the block has always had.
+func readmeClockText(r Report) string {
+	var b strings.Builder
+	w := func(format string, args ...any) { fmt.Fprintf(&b, format, args...) }
+	if r.Lines.PinnedOn != "" {
+		w(" Release lines captured %s, evaluated on %s.", r.Lines.CapturedOn, r.Lines.PinnedOn)
+	}
+	if r.Additions != nil {
+		// Only with additions: the date clock moves to the later date, and
+		// each project's own capture date is in the additions file.
+		clock := "the block is evaluated on"
+		if r.ClockAttestedAt != "" {
+			clock = "the date clock of the block is"
+		}
+		w(" %d projects were appended to the snapshot with their own capture dates; %s %s (the later of the snapshot's evaluation date and every capture date).", r.Additions.Entries, clock, r.Additions.ClockOn)
+	}
+	if r.ClockAttestedAt != "" {
+		// Only when a line attestation is newer than the date clock: the block
+		// is evaluated at that attestation's time, and an attestation that
+		// ends before it no longer counts. Without it the bytes are unchanged.
+		w(" The block is evaluated at %s, the time of the newest line attestation, which is later than the date clock above.", r.ClockAttestedAt)
+	}
+	return b.String()
 }

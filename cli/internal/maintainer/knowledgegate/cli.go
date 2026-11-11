@@ -35,7 +35,7 @@ const usage = `usage:
                                   [--head-sha SHA] [--commits FILE] [--max-loosening N]
                                   [--trust-root-digest sha256:...] [--approval-keys-digest sha256:...]
                                   [--rerun-worklist FILE]
-                                  [--rederive-all [--shard all|i/n|day/n|least/n] [--shard-state FILE]] [--rest-budget N] [--cache-dir DIR] [--concurrency N] [--now RFC3339]
+                                  [--rederive-all [--shard all|i/n|day/n|least/n] [--shard-state FILE]] [--rest-budget N] [--cache-dir DIR] [--concurrency N] --now RFC3339
                                   [--max-withdraw-percent N] [--max-withdraw-project N]
                                   [--daily-loosening-count N] [--max-daily-loosening N] [--shadow]
                                   [--report FILE] [--summary FILE]
@@ -278,7 +278,7 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	f.StringVar(&cacheDir, "cache-dir", "", "directory that keeps verified git trees and small blobs between runs")
 	f.IntVar(&concurrency, "concurrency", 0, "concurrent upstream reads for re-derivation")
 	f.DurationVar(&citeTimeout, "citations-timeout", rulecheck.DefaultCitationTimeout, "overall deadline of the citation verification; a run that does not finish in time fails the citations check")
-	f.StringVar(&now, "now", "", "the gate's clock, RFC 3339 UTC (default: now)")
+	f.StringVar(&now, "now", "", "the gate's clock, RFC 3339 UTC (required)")
 	f.StringVar(&report, "report", "", "write the JSON report to this file")
 	f.StringVar(&summary, "summary", "", "append a Markdown summary to this file")
 	if err := parse(f, args); err != nil {
@@ -296,6 +296,12 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	}
 	if restBudget < 0 {
 		return 2, errors.New("--rest-budget must not be negative")
+	}
+	// The gate's clock bounds the line attestation and capture times and is
+	// recorded with the run: it is always given (the workflow passes the
+	// runner's observation time), never the host's clock by default.
+	if now == "" {
+		return 2, errors.New("--now is required: the gate does not default to the host clock")
 	}
 	opts := Options{Layout: layout, Base: base, Head: head, Author: author, Sender: sender, Owner: owner, BotLogin: bot, HeadSHA: headSHA, MaxLoosening: max, TrustRootDigest: digest, ApprovalKeysDigest: keysDigest, RederiveAll: all, Concurrency: concurrency, Shadow: shadow, BotSignerPaused: botPaused}
 	opts.AdmissionRESTBudget = restBudget
@@ -315,10 +321,8 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	if clock.IsZero() {
 		clock = time.Now()
 	}
-	if now != "" {
-		if t, err := time.Parse(time.RFC3339, now); err == nil {
-			clock = t
-		}
+	if t, err := time.Parse(time.RFC3339, now); err == nil {
+		clock = t
 	}
 	if opts.Shard, err = ParseShard(shardSpec, clock); err != nil {
 		return 2, err
@@ -351,6 +355,9 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	if now != "" {
 		if opts.Now, err = time.Parse(time.RFC3339, now); err != nil || !strings.HasSuffix(now, "Z") {
 			return 2, errors.New("--now must be RFC 3339 UTC")
+		}
+		if opts.Now.IsZero() {
+			return 2, errors.New("--now must not be the zero time")
 		}
 	}
 	if opts.Source, opts.Citations, err = sourceFlag(source, citeTimeout, getenv); err != nil {

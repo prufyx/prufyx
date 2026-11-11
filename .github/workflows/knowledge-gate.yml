@@ -259,7 +259,9 @@ jobs:
             fi
           done < <(git -C "${RUNNER_TEMP}/objects.git" diff --name-only "${BASE_SHA}" "${HEAD_SHA}" -- 'cli/knowledge/onboarding/*.json'))"
           if [ "${bot_v2}" = yes ]; then REST_BUDGET=900; fi
-          args=(gate verify --base base --head head --source github
+          # The gate's clock is the runner's observation time captured in the
+          # "Resolve the base" step; the gate refuses to run without --now.
+          args=(gate verify --base base --head head --source github --now "${ADMISSION_OBSERVED_AT}"
                 --bot-login "${BOT_LOGIN}" --max-loosening "${MAX_LOOSENING}"
                 --head-sha "${HEAD_SHA}" --rest-budget "${REST_BUDGET}"
                 --max-withdraw-percent "${MAX_WITHDRAW_PERCENT}" --max-withdraw-project "${MAX_WITHDRAW_PROJECT}"

@@ -166,8 +166,36 @@ func crdBlock(t Tree) (string, error) {
 	return coveragereport.RenderCRDCatalogue(report)
 }
 
+// treeEvalClock is the evaluation clock of a tree, as coverageReportOf uses
+// it: EvaluationClockFromPack over the tree's pinned snapshot, additions and
+// both rule packs.
+func treeEvalClock(t Tree) (time.Time, error) {
+	pack, err := t.Read(cncfRulesPath, MaxFileBytes)
+	if err != nil {
+		return time.Time{}, err
+	}
+	community, err := t.Read(commRulesPath, MaxFileBytes)
+	if err != nil {
+		return time.Time{}, err
+	}
+	linesRaw, err := t.Read(coveragereport.PinnedLinesPath, MaxFileBytes)
+	if err != nil {
+		return time.Time{}, err
+	}
+	lines, err := coveragereport.ParseLines(linesRaw)
+	if err != nil {
+		return time.Time{}, err
+	}
+	additions, _, _, err := treeAdditions(t)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("the additions file: %w", err)
+	}
+	return coveragereport.EvaluationClockFromPack(lines, additions, pack, community)
+}
+
 // coverageReportOf computes the report the README regions are rendered from,
-// with the support inventory it is paired with and its evaluation time.
+// with the support inventory it is paired with and its evaluation time. The
+// time is treeEvalClock, the one function the merge gate uses too.
 func coverageReportOf(t Tree) (coveragereport.Report, []byte, time.Time, error) {
 	pack, err := t.Read(cncfRulesPath, MaxFileBytes)
 	if err != nil {
@@ -185,17 +213,13 @@ func coverageReportOf(t Tree) (coveragereport.Report, []byte, time.Time, error) 
 	if err != nil {
 		return coveragereport.Report{}, nil, time.Time{}, err
 	}
-	lines, err := coveragereport.ParseLines(linesRaw)
-	if err != nil {
-		return coveragereport.Report{}, nil, time.Time{}, err
-	}
 	// The additions file is optional: absent or empty is the empty set and the
 	// clock is the pinned one. Present but unreadable or invalid fails.
-	additions, additionsRaw, _, err := treeAdditions(t)
+	_, additionsRaw, _, err := treeAdditions(t)
 	if err != nil {
 		return coveragereport.Report{}, nil, time.Time{}, fmt.Errorf("the additions file: %w", err)
 	}
-	now, err := coveragereport.EvaluationClock(lines, additions)
+	now, err := treeEvalClock(t)
 	if err != nil {
 		return coveragereport.Report{}, nil, time.Time{}, err
 	}

@@ -308,7 +308,7 @@ func TestCoverageFloorShippedData(t *testing.T) {
 	}
 	t.Logf("decided pairs %d, CRD projects %d", report.Fleet.A+report.Fleet.B, report.CRDPublishedProjects)
 	r := &Report{}
-	r.coverageFloorCheck(Options{Layout: DefaultLayout(), Base: tree, Head: tree})
+	r.coverageFloorCheck(Options{Layout: DefaultLayout(), Base: tree, Head: tree, Now: gateDate})
 	if len(r.Checks) != 1 || !r.Checks[0].OK {
 		t.Fatalf("%+v", r.Checks)
 	}
@@ -428,19 +428,19 @@ func decidedPairs(t *testing.T, tr Tree) int {
 	return report.Fleet.A + report.Fleet.B
 }
 
-// Regression for the dapr incident class (decided pairs 46 -> 41 after a
-// re-derive): a data PR that replaces line attestations with newer
-// reviewedAt/derivedAt dates while the pinned README clock stays put lowers
-// the published decided pairs, and the coverage floor of the BASE branch
-// refuses that PR with the decided-pairs message. The floor, not the
-// generator, is the protection: the generator is deterministic and would
-// publish the lower number.
+// A data PR that replaces line attestations with newer reviewedAt/derivedAt
+// dates (a renewal: the factory stamps the real derive time, after the pin)
+// no longer lowers the published decided pairs: the evaluation clock of the
+// tree follows its newest attestation, so the renewal is in force at it and
+// the coverage floor of the BASE branch holds. This replaces the old
+// regression, where the frozen pinned clock made the same re-derive lose
+// pairs (dapr 46 -> 41, cert-manager 49 -> 47, istio 49 -> 46).
 //
-// The pinned snapshot is held byte-identical between base and head, so a data
-// change cannot move the clock either: the fix route for a re-derive is to
-// re-attest (never a floor edit) or a code change that moves the pin; see
-// TestPinnedLinesByteIdentity.
-func TestCoverageFloorRefusesRederiveWithNewerDatesUnderOldClock(t *testing.T) {
+// The bound that keeps this honest is the gate's clock: an attestation dated
+// after it is refused, so no attestation makes itself current. The pinned
+// snapshot stays byte-identical between base and head, so a data change
+// cannot move the pin either.
+func TestCoverageFloorAcceptsRederiveWithNewerDatesAtTheTreeClock(t *testing.T) {
 	t.Parallel()
 	base, head := shippedSlice(t), shippedSlice(t)
 	before := decidedPairs(t, base)
@@ -449,21 +449,63 @@ func TestCoverageFloorRefusesRederiveWithNewerDatesUnderOldClock(t *testing.T) {
 	}
 	clock := rederiveLineAttestations(t, head)
 	after := decidedPairs(t, head)
-	if after >= before {
-		t.Fatalf("the re-derive under the old clock did not lower decided pairs (%d -> %d): the fixture no longer reproduces the incident", before, after)
+	if after < before {
+		t.Fatalf("a re-derive lowered the decided pairs by the clock alone (%d -> %d)", before, after)
 	}
-	c := shippedFloorCheck(base, head)
-	// HasPrefix, not Contains: the per-project message ("<project>: decided
-	// pairs fell to") would otherwise satisfy this when the fleet check
-	// (coveragereport/baseline.go, the decidedPairs comparison) is deleted.
-	if c.OK || !strings.HasPrefix(c.Detail, "decided pairs fell to") {
-		t.Fatalf("a re-derive that lowers decided pairs %d -> %d is not refused by the floor: %+v", before, after, c)
+	_, _, headClock, err := coverageReportOf(head)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !headClock.Equal(clock.Add(24 * time.Hour)) {
+		t.Fatalf("the head clock %s is not the newest attestation time %s", headClock, clock.Add(24*time.Hour))
+	}
+	if c := shippedFloorCheck(base, head); !c.OK {
+		t.Fatalf("a renewal at the tree clock is refused: %+v", c)
+	}
+	// Negative: the same head under a gate whose clock is before its newest
+	// attestation is refused with the named reason, in the floor check itself.
+	for _, gate := range []time.Time{clock, headClock.Add(-time.Second)} {
+		r := &Report{}
+		r.coverageFloorCheck(Options{Layout: DefaultLayout(), Base: base, Head: head, Now: gate})
+		if c := r.Checks[0]; c.OK || !strings.Contains(c.Detail, "after the gate's clock") {
+			t.Fatalf("an attestation dated after the gate clock %s is not refused: %+v", gate, c)
+		}
+	}
+	// The gate clock equal to the newest attestation is the boundary that holds.
+	r := &Report{}
+	r.coverageFloorCheck(Options{Layout: DefaultLayout(), Base: base, Head: head, Now: headClock})
+	if c := r.Checks[0]; !c.OK {
+		t.Fatalf("the boundary is refused: %+v", c)
+	}
+	// An attestation far in the future never makes itself current.
+	future := shippedSlice(t)
+	rederiveLineAttestations(t, future)
+	p := readPack(t, future, cncfRulesPath)
+	var atts []map[string]any
+	if err := json.Unmarshal(p.fields["lineAttestations"], &atts); err != nil {
+		t.Fatal(err)
+	}
+	ev := atts[0]["evidence"].(map[string]any)
+	ev["derivedAt"], ev["reviewedAt"], ev["validUntil"] = "2027-01-01T00:00:00Z", "2027-01-01T00:00:00Z", "2027-02-01T00:00:00Z"
+	atts[0]["evidence"] = ev
+	raw, err := json.Marshal(atts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.fields["lineAttestations"] = raw
+	p.write(t, future, cncfRulesPath)
+	if c := shippedFloorCheck(base, future); c.OK || !strings.Contains(c.Detail, "after the gate's clock") {
+		t.Fatalf("a future-dated attestation is not refused: %+v", c)
+	}
+	// An unreadable attestation section fails closed.
+	if err := attestationsNotFuture(Tree{Root: t.TempDir()}, gateDate); err == nil {
+		t.Fatal("a tree without a rule pack passed the attestation time bound")
 	}
 
 	// A data change that advances the pinned clock to restore the pairs is not
 	// a fix route any more: the pinned snapshot must stay byte-identical.
 	linesPath := filepath.Join(head.Root, filepath.FromSlash(coveragereport.PinnedLinesPath))
-	raw, err := os.ReadFile(linesPath)
+	raw, err = os.ReadFile(linesPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -479,5 +521,147 @@ func TestCoverageFloorRefusesRederiveWithNewerDatesUnderOldClock(t *testing.T) {
 	writeFile(t, linesPath, raw)
 	if c := shippedFloorCheck(base, head); c.OK || !strings.Contains(c.Detail, "differs from the base branch") {
 		t.Fatalf("a data change of the pinned snapshot is not refused: %+v", c)
+	}
+}
+
+func withoutAttestations(t *testing.T, tr Tree) {
+	t.Helper()
+	p := readPack(t, tr, cncfRulesPath)
+	delete(p.fields, "lineAttestations")
+	p.write(t, tr, cncfRulesPath)
+}
+
+// The clock follows the newest attestation, so a head that removes or
+// backdates it would roll the clock back and revive attestations that
+// expired at the base's clock. The gate refuses a head whose tree clock is
+// earlier than the base's, so the tree clock is monotone over admitted
+// history; equal and later clocks are accepted.
+func TestCoverageFloorRefusesClockRollback(t *testing.T) {
+	t.Parallel()
+	newer := func() Tree { tr := shippedSlice(t); rederiveLineAttestations(t, tr); return tr }
+	base := newer()
+	baseClock, err := treeEvalClock(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	refused := func(name string, b, h Tree) {
+		t.Helper()
+		if c := shippedFloorCheck(b, h); c.OK || !strings.Contains(c.Detail, "earlier than the base branch's") {
+			t.Fatalf("%s is not refused for its clock: %+v", name, c)
+		}
+	}
+	// Backdated: attestations ending soon after the head's own (earlier)
+	// clock, which would count there and not at the base's clock.
+	back := shippedSlice(t)
+	backClock, err := treeEvalClock(back)
+	if err != nil || !backClock.Before(baseClock) {
+		t.Fatalf("the backdated head is not earlier: %v %v", backClock, err)
+	}
+	p := readPack(t, back, cncfRulesPath)
+	var atts []map[string]any
+	if err := json.Unmarshal(p.fields["lineAttestations"], &atts); err != nil {
+		t.Fatal(err)
+	}
+	for _, a := range atts {
+		a["evidence"].(map[string]any)["validUntil"] = backClock.Add(time.Hour).Format(time.RFC3339)
+	}
+	raw, err := json.Marshal(atts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.fields["lineAttestations"] = raw
+	p.write(t, back, cncfRulesPath)
+	refused("a backdated head", base, back)
+	// Removed: the head holds no attestation at all.
+	removed := newer()
+	withoutAttestations(t, removed)
+	refused("a head without its attestations", base, removed)
+	// Equal clock.
+	if c := shippedFloorCheck(base, newer()); !c.OK {
+		t.Fatalf("an equal clock is refused: %+v", c)
+	}
+	// Later clock: the head renews on top of the base.
+	later := newer()
+	rederiveLineAttestations(t, later)
+	laterClock, err := treeEvalClock(later)
+	if err != nil || !laterClock.After(baseClock) {
+		t.Fatalf("the later head is not later: %v %v", laterClock, err)
+	}
+	if c := shippedFloorCheck(base, later); !c.OK {
+		t.Fatalf("a later clock is refused: %+v", c)
+	}
+	// Chain: the lower tree is refused against the base, so the next
+	// admission still starts from the base's clock (or higher): the later
+	// head is admitted, and then the lower tree is refused against it too.
+	refused("the lower tree against the base", base, back)
+	if c := shippedFloorCheck(base, later); !c.OK {
+		t.Fatalf("the later head is refused: %+v", c)
+	}
+	refused("the lower tree after the later head", later, back)
+	refused("the base after the later head", later, base)
+	// Publication: the block is rendered with the clock the gate uses, also
+	// for the rolled-back tree (which the gate refuses above).
+	for _, tr := range []Tree{base, back, later} {
+		want, err := treeEvalClock(tr)
+		_, _, got, err2 := coverageReportOf(tr)
+		if err != nil || err2 != nil || !got.Equal(want) {
+			t.Fatalf("render clock %v, gate clock %v (%v %v)", got, want, err2, err)
+		}
+	}
+}
+
+// The gate's time bound never falls back to the host clock: a zero clock
+// refuses, for the attestations and for the additions. A community-pack
+// attestation dated after the gate's clock is refused like a CNCF one and
+// moves the tree's clock.
+func TestAttestationBoundFailsClosedAndCoversCommunity(t *testing.T) {
+	t.Parallel()
+	tr := shippedSlice(t)
+	if err := attestationsNotFuture(tr, time.Time{}); err == nil || !strings.Contains(err.Error(), "no clock") {
+		t.Fatalf("a zero gate clock was accepted: %v", err)
+	}
+	if err := additionsNotFuture(tr, time.Time{}); err == nil || !strings.Contains(err.Error(), "no clock") {
+		t.Fatalf("a zero gate clock was accepted for the additions: %v", err)
+	}
+	r := &Report{}
+	r.coverageFloorCheck(Options{Layout: DefaultLayout(), Base: tr, Head: tr})
+	if c := r.Checks[0]; c.OK || !strings.Contains(c.Detail, "no clock") {
+		t.Fatalf("the floor check ran without a gate clock: %+v", c)
+	}
+	before, err := treeEvalClock(tr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cn := readPack(t, tr, cncfRulesPath)
+	var atts []map[string]any
+	if err := json.Unmarshal(cn.fields["lineAttestations"], &atts); err != nil || len(atts) == 0 {
+		t.Fatalf("no attestation to copy: %v", err)
+	}
+	ev := atts[0]["evidence"].(map[string]any)
+	ev["derivedAt"], ev["reviewedAt"], ev["validUntil"] = "2027-01-01T00:00:00Z", "2027-01-01T00:00:00Z", "2027-02-01T00:00:00Z"
+	raw, err := json.Marshal(atts[:1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	cm := readPack(t, tr, commRulesPath)
+	cm.fields["lineAttestations"] = raw
+	cm.write(t, tr, commRulesPath)
+	if err := attestationsNotFuture(tr, gateDate); err == nil || !strings.Contains(err.Error(), "after the gate's clock") {
+		t.Fatalf("a future community attestation was accepted: %v", err)
+	}
+	after, err := treeEvalClock(tr)
+	if err != nil || !after.After(before) {
+		t.Fatalf("a community attestation did not move the clock: %v -> %v %v", before, after, err)
+	}
+}
+
+func TestTreeEvalClockIsTheReportClock(t *testing.T) {
+	t.Parallel()
+	for _, tr := range []Tree{shippedSlice(t), shippedSliceWithAdditions(t)} {
+		got, err := treeEvalClock(tr)
+		_, _, want, err2 := coverageReportOf(tr)
+		if err != nil || err2 != nil || !got.Equal(want) {
+			t.Fatalf("%v %v %v %v", got, want, err, err2)
+		}
 	}
 }

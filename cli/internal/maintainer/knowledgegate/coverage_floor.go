@@ -4,6 +4,7 @@ package knowledgegate
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/maintainer/coveragereport"
 )
@@ -20,6 +21,9 @@ const CheckCoverageFloor = "coverage-floor"
 // may not move below the base's (CheckBaselineMove). A missing or unreadable
 // baseline on the base, an unreadable head baseline or head data that cannot
 // be evaluated fails the check; nothing is skipped.
+//
+// The floors count decided pairs, not which pairs: new coverage in a project
+// can offset expired coverage there (stated residual, not checked per pair).
 //
 // Floors and withdrawals are ratchet-only: a floor can rise, a withdrawal
 // can be added by a change that the base then carries, and a deliberate
@@ -44,6 +48,10 @@ func (r *Report) coverageFloorCheck(opts Options) {
 		r.add(CheckCoverageFloor, false, "%s", logSafe(err.Error()))
 		return
 	}
+	if err := attestationsNotFuture(opts.Head, opts.Now); err != nil {
+		r.add(CheckCoverageFloor, false, "%s", logSafe(err.Error()))
+		return
+	}
 	if err := coverageFloor(opts.Base, opts.Head); err != nil {
 		r.add(CheckCoverageFloor, false, "%s", logSafe(err.Error()))
 		return
@@ -57,6 +65,24 @@ func coverageFloor(base, head Tree) error {
 	// regenerated from its tag files.
 	if err := linesIntegrity(base, head); err != nil {
 		return err
+	}
+	// The evaluation clock follows the newest attestation, so removing or
+	// backdating the newest one would roll the head's clock back and revive
+	// attestations that have expired at the later clock. The tree clock must
+	// therefore be monotone over admitted history: a head whose clock is
+	// earlier than the base's is refused (the same function for both, and the
+	// one the published block is rendered with), so no admitted tree carries
+	// a lower clock for the next admission to start from.
+	baseClock, err := treeEvalClock(base)
+	if err != nil {
+		return fmt.Errorf("cannot compute the evaluation clock of the base branch: %w", err)
+	}
+	headClock, err := treeEvalClock(head)
+	if err != nil {
+		return fmt.Errorf("cannot compute the evaluation clock of the change: %w", err)
+	}
+	if headClock.Before(baseClock) {
+		return fmt.Errorf("the evaluation clock of the change %s is earlier than the base branch's %s: its newest line attestation was removed or backdated", headClock.UTC().Format(time.RFC3339), baseClock.UTC().Format(time.RFC3339))
 	}
 	baseRaw, err := base.Read(coveragereport.BaselinePath, MaxFileBytes)
 	if err != nil {
