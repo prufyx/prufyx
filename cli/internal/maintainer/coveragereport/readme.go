@@ -19,7 +19,7 @@ const (
 	READMEBegin = "<!-- coverage:begin -->"
 	READMEEnd   = "<!-- coverage:end -->"
 	// PinnedLinesPath is the repository path of the pinned lines snapshot.
-	PinnedLinesPath = "cli/internal/maintainer/coveragereport/testdata/lines-2026-11-07.json"
+	PinnedLinesPath = "cli/internal/maintainer/coveragereport/testdata/lines-2026-11-11.json"
 	// PinnedAdditionsPath is the repository path of the append-only additions
 	// file (AdditionsSchema). The path is pinned here; the file may grow, only
 	// additively, and its entries are held by the knowledge gate. An absent or
