@@ -699,9 +699,47 @@ def whole_diagnostics(code, report, component, whole, clause=None):
             "clause": clause or whole_signal_clause(report, component) or "OK"}
 
 
+UNOWNED_STATUS = "UNOWNED_REMOVAL_UNKNOWN"
+
+
+def split_unowned(removed, listed, whole_crd=()):
+    """(owned, unowned) expected removals by the reviewed ownership table. Without a readable table nothing is split
+    (all owned: today's behaviour). Whole-CRD removals keep their own documented class and are never split."""
+    if listed is None:
+        return list(removed), []
+    return ([x for x in removed if x in whole_crd or owned(listed, x)],
+            [x for x in removed if x not in whole_crd and not owned(listed, x)])
+
+
 def classify_pair(code, report, removed, whole_crd, component, later_groups=None, served=None, listed=None):
     """(wrongpass, mismatch, missing, statuses, design, clause); clause is a short code for diagnostics.
-    later_groups: groups that still have a CRD at the later release, None when unread (the unowned-group gap is then not accepted)."""
+    later_groups: groups that still have a CRD at the later release, None when unread (the unowned-group gap is then not accepted).
+    A removal whose (group, kind) the reviewed table does not own cannot be attributed by the product: the owned part is
+    judged exactly as before, the unowned part must stay unattributed (no finding naming it, never a PASS); that outcome has
+    clause UNOWNED_UNKNOWN and no mismatch. A removal the scanner cannot see is never excused into a pass."""
+    # a pair with whole-CRD removals keeps its documented design shape (including the unowned-group gap count) unchanged
+    own, unowned = (split_unowned(removed, listed, set(whole_crd)) if not set(whole_crd) & set(removed) else (list(removed), []))
+    if not unowned:
+        return classify_owned(code, report, removed, whole_crd, component, later_groups, served, listed)
+    wp, mm, missing, statuses, design, clause = classify_owned(
+        code, report, own, whole_crd, component, later_groups, served, listed)
+    if wp or is_pass(code, report) or "PASS" in statuses:
+        return True, False, missing, statuses, False, "PASS"
+    named = [x for x in unowned if any(
+        isinstance(f, dict) and f.get("component") == component and any(
+            isinstance(loc, dict) and loc.get("kind") == x[2] and loc.get("name") == object_name(*x)
+            for loc in f.get("locations") or []) for f in report.get("findings") or [])]
+    if named:
+        return False, True, missing + ["/".join(x) for x in named], statuses, False, "UNOWNED_ATTRIBUTED"
+    if mm:
+        return False, True, missing, statuses, False, clause
+    if not own and (code != 11 or report.get("verdict") != "UNKNOWN"):
+        return False, True, ["/".join(x) for x in unowned], statuses, False, "UNOWNED_NOT_UNKNOWN"
+    return False, False, [], statuses, design, "UNOWNED_UNKNOWN"
+
+
+def classify_owned(code, report, removed, whole_crd, component, later_groups=None, served=None, listed=None):
+    """classify_pair for removals the reviewed table owns."""
     whole_set = set(whole_crd) & set(removed)
     gone = len(whole_set) if later_groups is not None and all(x[0] not in later_groups for x in whole_set) else 0
     # served documents of groups no project lists are unowned in every scan of this input; their count joins the expected
@@ -778,7 +816,9 @@ def execute(plan):
             omitted.append(dict(target=target, reason="input omitted or incomplete; replay the full input"))
         out.append(case("crd", key, wrongpass=wp, mismatch=mm, error=not complete, exit=code,
                         **({"wholeCrdCandidate": True, "whole": whole_diagnostics(code, j, proj, whole_crd, clause)} if whole_crd else {}),
-                        **({"status": DESIGN_STATUS, "wholeCrdRemoved": ["/".join(x) for x in whole_crd]} if design else {}),
+                        **({"wholeCrdRemoved": ["/".join(x) for x in whole_crd]} if design else {}),
+                        **({"status": UNOWNED_STATUS, "unownedRemoved": ["/".join(x) for x in split_unowned(removed, listed_groups(), set(whole_crd))[1]]}
+                           if clause == "UNOWNED_UNKNOWN" else ({"status": DESIGN_STATUS} if design else {})),
                         verdict=j.get("verdict"), crd=crd, missing=missing, requested=len(sf),
                         executed=j.get("summary", {}).get("documentsRead"), expectRemoved=["/".join(x) for x in removed],
                         nExpect=len(removed), nFindings=len(j.get("findings", [])),
