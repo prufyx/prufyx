@@ -88,6 +88,12 @@ def dump(cases, path):
         json.dump(cases, f)
 
 
+def unowned_removals(cases):
+    """Number of unowned removals (group/kind entries) in the clean UNOWNED_REMOVAL_UNKNOWN cases."""
+    return sum(len(c["detail"].get("unownedRemoved") or []) for c in cases
+               if c.get("detail", {}).get("status") == "UNOWNED_REMOVAL_UNKNOWN" and not c["error"])
+
+
 def counts(cases):
     n = {k: sum(1 for c in cases if c[k]) for k in ("wrongpass", "mismatch", "error")}
     unsupported = sum(1 for c in cases if c.get("detail", {}).get("status") == "UNSUPPORTED_COMMUNITY")
@@ -96,6 +102,9 @@ def counts(cases):
     design = sum(1 for c in cases if c.get("detail", {}).get("status") == "DESIGN_UNKNOWN_WHOLE_CRD_REMOVAL" and not c["error"])
     if design:
         n["design_unknown_whole_crd_removal"] = design
+    unowned = unowned_removals(cases)
+    if unowned:
+        n["unowned_removal_unknown"] = unowned
     return n
 
 
