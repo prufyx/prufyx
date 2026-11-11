@@ -300,7 +300,7 @@ upgrade surface they decide.
 Catalogued is not the same as decided.
 
 <!-- crd-catalogue:begin -->
-A project is catalogued when it has a reviewed custom-resource target (87 projects: 46 of the CNCF landscape catalog, 41 of the community catalog). It is decided only for the upgrades that a rule or line attestation covers for the whole release-line pair (A or B in the table below). Of the 41 community-catalog projects, 15 hold a published rule or current line attestation for the CRD version family and 26 hold none.
+A project is catalogued when it has a reviewed custom-resource target (88 projects: 46 of the CNCF landscape catalog, 42 of the community catalog). It is decided only for the upgrades that a rule or line attestation covers for the whole release-line pair (A or B in the table below). Of the 42 community-catalog projects, 15 hold a published rule or current line attestation for the CRD version family and 27 hold none.
 <!-- crd-catalogue:end -->
 
 In beta.0, a community-catalog project without data in the embedded knowledge
@@ -318,20 +318,20 @@ Generated on 2026-11-10 by `scripts/readme-coverage.sh` (do not edit this block 
 | CNCF source rules, active | 252 across 53 projects (1 withdrawn, not used) |
 | Rules for further, non-CNCF projects | 51 across 10 projects |
 | Projects with at least one executable check (a rule, a named check or a profile; says nothing about which upgrades it decides) | 67 |
-| Projects with a rule or attestation that decides at least one of their last five minor upgrades (A, B or S below) | 45 of 79 |
+| Projects with a rule or attestation that decides at least one of their last five minor upgrades (A, B or S below) | 45 of 78 |
 | Projects catalogued with retained public sources | 58 (11 of them source-only, no check) |
-| Projects with reviewed CRD targets (a reviewed `crd.custom_resource_versions` target) | 87 |
+| Projects with reviewed CRD targets (a reviewed `crd.custom_resource_versions` target) | 88 |
 | Projects with a published CRD rule or line attestation | 29 |
 
-Version-coverage depth, measured over the last five minor upgrades of each of the 79 CNCF-catalog projects of the snapshot (97 projects have one; 395 upgrades between consecutive release lines):
+Version-coverage depth, measured over the last five minor upgrades of each of the 78 CNCF-catalog projects of the snapshot (97 projects have one; 390 upgrades between consecutive release lines):
 
 | Status | Upgrades | Share |
 | --- | --- | --- |
-| Decided for the whole release-line pair (A attested, B bounded) | 53 | 13.4% |
-| Rule for one exact version pair only (S) | 40 | 10.1% |
-| Gap, no valid rule (G) | 302 | 76.4% |
+| Decided for the whole release-line pair (A attested, B bounded) | 53 | 13.5% |
+| Rule for one exact version pair only (S) | 40 | 10.2% |
+| Gap, no valid rule (G) | 297 | 76.1% |
 
-Community catalogue, measured separately and not part of the table above: 42 of 88 upgrades decided (A or B) over 18 projects.
+Community catalogue, measured separately and not part of the table above: 42 of 93 upgrades decided (A or B) over 19 projects.
 
 Kubernetes: 63 valid rules, but 19 fall in its window 1.32 to 1.37; 0 of 5 upgrades in that window are gaps.
 
