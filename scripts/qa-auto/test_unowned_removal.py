@@ -21,8 +21,13 @@ def finding(item, component=P):
     return {"component": component, "ruleId": "r", "locations": [{"kind": k, "name": crd.object_name(g, v, k)}]}
 
 
-def unknown(findings=()):
-    return {"verdict": "UNKNOWN", "findings": list(findings), "gaps": [], "paths": []}
+def gap(n):
+    return {"component": P, "reason": "DOCUMENTS_NOT_EVALUATED",
+            "detail": f"{n} manifest(s) use custom-resource groups that no reviewed project owns, so no custom-resource set is complete"}
+
+
+def unknown(findings=(), gaps=None):
+    return {"verdict": "UNKNOWN", "findings": list(findings), "gaps": [gap(5)] if gaps is None else gaps, "paths": []}
 
 
 def blocked(findings):
@@ -37,12 +42,34 @@ class Classify(unittest.TestCase):
             p.start()
             self.addCleanup(p.stop)
 
-    def pair(self, code, rep, removed, whole=(), listed=LISTED):
-        return crd.classify_pair(code, rep, list(removed), list(whole), P, listed=listed)
+    def pair(self, code, rep, removed, whole=(), listed=LISTED, served=None):
+        served = set(OWNED + UNOWNED) if served is None else served
+        return crd.classify_pair(code, rep, list(removed), list(whole), P, served=served, listed=listed)
 
     def test_all_unowned_unknown_is_own_status_no_mismatch(self):
         wp, mm, missing, _, design, clause = self.pair(11, unknown(), UNOWNED)
         self.assertEqual((wp, mm, missing, design, clause), (False, False, [], False, "UNOWNED_UNKNOWN"))
+
+    def test_unknown_without_the_unowned_gap_is_mismatch(self):
+        for gaps in ([], [gap(4)], [gap(6)], [gap(5), gap(5)], [{"component": P, "reason": "COMPONENT_NOT_COVERED"}],
+                     [dict(gap(5), component="other")]):
+            r = self.pair(11, unknown(gaps=gaps), UNOWNED)
+            self.assertEqual((r[0], r[1], r[5]), (False, True, "UNOWNED_GAP"), gaps)
+        r = crd.classify_pair(11, unknown(), UNOWNED, [], P, served=None, listed=LISTED)
+        self.assertEqual((r[1], r[5]), (True, "UNOWNED_GAP"))
+
+    def test_ruleid_naming_unowned_is_attribution(self):
+        f = {"component": P, "ruleId": "x/" + "/".join(UNOWNED[0]), "locations": []}
+        self.assertEqual(self.pair(10, blocked([f]), UNOWNED)[5], "UNOWNED_ATTRIBUTED")
+
+    def test_group_listed_with_kinds_owns_only_those(self):
+        listed = {"csi.ceph.io": {"Driver"}, "ceph.rook.io": None}
+        self.assertEqual(crd.split_unowned(UNOWNED, listed)[1], [x for x in UNOWNED if x[2] != "Driver"])
+        r = self.pair(11, unknown(gaps=[gap(4)]), UNOWNED[:2], listed=listed, served=set(UNOWNED))
+        self.assertEqual((r[1], r[5]), (False, "UNOWNED_UNKNOWN"))
+        r = self.pair(11, unknown(), UNOWNED, listed={"csi.ceph.io": []}, served=set(UNOWNED))
+        self.assertEqual(r[5], "UNOWNED_UNKNOWN")
+        self.assertEqual(crd.split_unowned(UNOWNED, {"csi.ceph.io": None}), (UNOWNED, []))
 
     def test_old_behaviour_without_ownership_is_mismatch(self):
         self.assertTrue(self.pair(11, unknown(), UNOWNED, listed=None)[1])
@@ -90,6 +117,14 @@ class Classify(unittest.TestCase):
 
     def test_whole_crd_removals_keep_their_own_class(self):
         self.assertEqual(crd.split_unowned(UNOWNED, LISTED, set(UNOWNED[:2])), (UNOWNED[:2], UNOWNED[2:]))
+
+    def test_whole_crd_plus_unowned_keeps_old_shape(self):
+        whole = [("a.example", "v1", "Gone")]
+        for code, rep in ((11, unknown()), (11, unknown(gaps=[{"component": P, "reason": "COMPONENT_NOT_COVERED"}]))):
+            new = crd.classify_pair(code, rep, whole + UNOWNED, whole, P, {"b.example"}, set(whole + UNOWNED), LISTED)
+            old = crd.classify_owned(code, rep, whole + UNOWNED, whole, P, {"b.example"}, set(whole + UNOWNED), LISTED)
+            self.assertEqual(new, old)
+            self.assertNotEqual(new[5], "UNOWNED_UNKNOWN")
 
     def test_unowned_served_never_excuses_unseen_removal(self):
         # invariant: a removal the scanner cannot see is never excused by the unowned-group gap count
@@ -148,6 +183,37 @@ class Summary(unittest.TestCase):
         r, summ = self.run_summary(s, self.cases(4))
         self.assertFalse(summ["unowned_removal_unknown_rise"])
         self.assertFalse(summ["unowned_removal_unknown_cap_breach"])
+
+    def test_zero_is_kept_as_baseline_and_drop_noted(self):
+        s = tempfile.mkdtemp()
+        self.run_summary(s, self.cases(4))
+        r, summ = self.run_summary(s, [qalib.case("crd", "z")])
+        self.assertEqual((summ["unowned_removal_unknown_baseline"], summ["unowned_removal_unknown_drop"]), (0, True))
+        self.assertIn("UNOWNED_DROP", r.stdout)
+        self.assertEqual(json.load(open(s + "/status.json"))["unowned_removal_unknown_baseline"], 0)
+        r, summ = self.run_summary(s, self.cases(2))  # from a zero baseline any growth past +5 is a breach; below is a rise
+        self.assertTrue(summ["unowned_removal_unknown_rise"])
+        r, summ = self.run_summary(s, self.cases(2))
+        self.assertTrue(summ["unowned_removal_unknown_cap_breach"])  # 10 > 0 + 5
+        self.assertEqual(summ["unowned_removal_unknown_baseline"], 0)
+
+    def test_errored_run_does_not_store_baseline(self):
+        s = tempfile.mkdtemp()
+        self.run_summary(s, self.cases(4))
+        r, summ = self.run_summary(s, self.cases(1) + [qalib.case("crd", "e", error=True)])
+        self.assertEqual(summ["unowned_removal_unknown_baseline"], 20)
+        self.assertEqual(json.load(open(s + "/status.json"))["unowned_removal_unknown_baseline"], 20)
+
+    def test_oracle_digest_reset_keeps_the_hard_cap(self):
+        s = tempfile.mkdtemp()
+        self.run_summary(s, self.cases(4))
+        st = json.load(open(s + "/status.json"))
+        st["oracle_digest"] = "0" * 64
+        json.dump(st, open(s + "/status.json", "w"))
+        r, summ = self.run_summary(s, self.cases(5))
+        self.assertTrue(summ["unowned_removal_unknown_cap_breach"])
+        self.assertEqual((summ["state"], r.returncode), ("INCONCLUSIVE", 3))
+        self.assertEqual(json.load(open(s + "/status.json"))["unowned_removal_unknown_baseline"], 20)
 
     def test_error_case_not_counted(self):
         c = qalib.case("crd", "e", error=True, status=S, unownedRemoved=["g/v/k"])

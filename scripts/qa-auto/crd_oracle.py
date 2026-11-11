@@ -614,6 +614,13 @@ def unowned_served(served, removed, listed):
     return {x for x in served if not owned(listed, x) and not kubernetes_group(listed, x[0])}
 
 
+def unowned_served_count(served, listed):
+    """Number of served documents no reviewed project owns and that are not Kubernetes groups (None when unread)."""
+    if served is None or listed is None:
+        return None
+    return len([x for x in served if not owned(listed, x) and not kubernetes_group(listed, x[0])])
+
+
 def unowned_gap_ok(gap, whole_docs):
     """The unowned-group gap is part of the design shape only when its count is exactly the number of whole-CRD removals
     whose whole group is gone at the later release (their documents are the ones no project owns any more); any other count
@@ -728,13 +735,20 @@ def classify_pair(code, report, removed, whole_crd, component, later_groups=None
     named = [x for x in unowned if any(
         isinstance(f, dict) and f.get("component") == component and any(
             isinstance(loc, dict) and loc.get("kind") == x[2] and loc.get("name") == object_name(*x)
-            for loc in f.get("locations") or []) for f in report.get("findings") or [])]
+            for loc in f.get("locations") or []) or "/".join(x) in str(f.get("ruleId")) for f in report.get("findings") or [])]
     if named:
         return False, True, missing + ["/".join(x) for x in named], statuses, False, "UNOWNED_ATTRIBUTED"
     if mm:
         return False, True, missing, statuses, False, clause
-    if not own and (code != 11 or report.get("verdict") != "UNKNOWN"):
-        return False, True, ["/".join(x) for x in unowned], statuses, False, "UNOWNED_NOT_UNKNOWN"
+    if not own:
+        if code != 11 or report.get("verdict") != "UNKNOWN":
+            return False, True, ["/".join(x) for x in unowned], statuses, False, "UNOWNED_NOT_UNKNOWN"
+        # the scanner's own reason must be present: the unowned-group gap whose count is exactly the served documents
+        # no reviewed project owns; an UNKNOWN for any other reason is never excused
+        count = unowned_served_count(served, listed)
+        gaps = [g for g in report.get("gaps") or [] if isinstance(g, dict) and g.get("component") == component and g.get("reason") == UNOWNED_GAP_REASON]
+        if count is None or len(gaps) != 1 or not unowned_gap_ok(gaps[0], count):
+            return False, True, ["/".join(x) for x in unowned], statuses, False, "UNOWNED_GAP"
     return False, False, [], statuses, design, "UNOWNED_UNKNOWN"
 
 

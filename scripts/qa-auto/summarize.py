@@ -136,7 +136,7 @@ try:
     prev_design = prev_design if type(prev_design) is int and prev_design > 0 else None
     prev_digest = prev_status.get("oracle_digest")
     prev_unowned = prev_status.get("unowned_removal_unknown_baseline")
-    prev_unowned = prev_unowned if type(prev_unowned) is int and prev_unowned > 0 else None
+    prev_unowned = prev_unowned if type(prev_unowned) is int and prev_unowned >= 0 else None
 except (OSError, ValueError, TypeError, AttributeError):
     prev_design, prev_digest, prev_unowned = None, None, None
 kept_design = prev_design
@@ -152,6 +152,7 @@ oracle_rise = a.mode == "full" and oracle_changed and kept_design is not None an
 # growth beyond +20% (at least +5) of the last accepted full-run count, or past the hard cap, is a scanner regression until proven otherwise
 cap_breach = design > DESIGN_HARD_CAP or (a.mode == "full" and prev_design is not None and design > prev_design + max(5, -(-prev_design // 5)))
 unowned_cap_breach = unowned_n > UNOWNED_HARD_CAP or (a.mode == "full" and prev_unowned is not None and unowned_n > prev_unowned + max(5, -(-prev_unowned // 5)))
+unowned_drop = a.mode == "full" and prev_unowned is not None and prev_unowned > 0 and (unowned_n == 0 or (prev_unowned >= 10 and unowned_n * 2 < prev_unowned))
 unowned_rise = a.mode == "full" and prev_unowned is not None and unowned_n > prev_unowned
 design_rise = a.mode == "full" and prev_design is not None and design > prev_design
 design_drop = a.mode == "full" and prev_design is not None and prev_design >= 10 and design * 2 < prev_design
@@ -159,10 +160,10 @@ design_drop = a.mode == "full" and prev_design is not None and prev_design >= 10
 # INCONCLUSIVE state never stores or lowers the baseline: only a clean complete full run may move it
 baseline_stored = not (cap_breach or unowned_cap_breach or oracle_rise or er or gaps_breach or a.mode != "full" or a.adhoc)
 design_baseline = (design or None) if baseline_stored else kept_design
-unowned_baseline = (unowned_n or None) if baseline_stored else kept_unowned
+unowned_baseline = unowned_n if baseline_stored else kept_unowned
 alarm = bool(wp or new)
 state = "ALARM" if alarm else ("INCONCLUSIVE" if (er or cap_breach or unowned_cap_breach or oracle_rise or gaps_breach) else ("GREEN-PARTIAL" if skipped else "GREEN"))
-line = f"WRONGPASS={len(wp)} MISMATCH={len(mm)} NEWMISMATCH={len(new)} KNOWN_GAP={len(known_gap)} ERR={len(er)} DESIGN_UNKNOWN_WHOLE_CRD={design}{f" ORACLE_CHANGED design={kept_design or 0}->{design}" if oracle_changed else ""}{" ORACLE_RISE" if oracle_rise else ""}{" RISE" if design_rise else ""}{" CAP" if cap_breach else ""} UNOWNED_REMOVAL_UNKNOWN={unowned_n}{" UNOWNED_RISE" if unowned_rise else ""}{" UNOWNED_CAP" if unowned_cap_breach else ""}{" DROP" if design_drop else ""} sha={a.sha[:8]} mode={a.mode} {state}"
+line = f"WRONGPASS={len(wp)} MISMATCH={len(mm)} NEWMISMATCH={len(new)} KNOWN_GAP={len(known_gap)} ERR={len(er)} DESIGN_UNKNOWN_WHOLE_CRD={design}{f" ORACLE_CHANGED design={kept_design or 0}->{design}" if oracle_changed else ""}{" ORACLE_RISE" if oracle_rise else ""}{" RISE" if design_rise else ""}{" CAP" if cap_breach else ""} UNOWNED_REMOVAL_UNKNOWN={unowned_n}{" UNOWNED_RISE" if unowned_rise else ""}{" UNOWNED_CAP" if unowned_cap_breach else ""}{" UNOWNED_DROP" if unowned_drop else ""}{" DROP" if design_drop else ""} sha={a.sha[:8]} mode={a.mode} {state}"
 fetch_retries = sum(c.get("detail", {}).get("fetch_retries", 0) for c in cases if type(c.get("detail", {}).get("fetch_retries")) is int)
 now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 unsupported = sum(1 for c in cases if c.get("detail", {}).get("status") == "UNSUPPORTED_COMMUNITY")
@@ -179,11 +180,11 @@ summ = {"scopes": scopes, "run_id": os.environ.get("QA_RUN_ID", ""), "base": os.
         "mismatch": len(mm), "new_mismatch": len(new), "known_gap": len(known_gap), "known_gap_cases": [ckey(c) for c in known_gap], "known_gap_nosig": nosig,
         "resolved_gaps": resolved_gaps, "known_gap_registration_breach": gaps_breach, "errors": len(er),
         "fetch_retries": fetch_retries, "unsupported_community": unsupported, "unsupported_community_rise": rise, "unknown_earliest_served": unknown_floor,
-        "design_unknown_whole_crd_removal": design, "design_unknown_whole_crd_rise": design_rise, "design_unknown_whole_crd_cap_breach": cap_breach, "design_unknown_whole_crd_oracle_rise": oracle_rise, "design_unknown_whole_crd_drop": design_drop, "design_unknown_whole_crd_baseline": design_baseline, "unowned_removal_unknown": unowned_n, "unowned_removal_unknown_rise": unowned_rise, "unowned_removal_unknown_cap_breach": unowned_cap_breach, "unowned_removal_unknown_baseline": unowned_baseline, "cases": len(cases),
+        "design_unknown_whole_crd_removal": design, "design_unknown_whole_crd_rise": design_rise, "design_unknown_whole_crd_cap_breach": cap_breach, "design_unknown_whole_crd_oracle_rise": oracle_rise, "design_unknown_whole_crd_drop": design_drop, "design_unknown_whole_crd_baseline": design_baseline, "unowned_removal_unknown": unowned_n, "unowned_removal_unknown_rise": unowned_rise, "unowned_removal_unknown_drop": unowned_drop, "unowned_removal_unknown_cap_breach": unowned_cap_breach, "unowned_removal_unknown_baseline": unowned_baseline, "cases": len(cases),
         "baseline_seeded": seeded, "skipped": skipped, "adhoc": a.adhoc, "note": a.note,
         "wrongpass_cases": wp[:50], "new_mismatch_cases": new[:50], "error_cases": er[:20]}
 json.dump(summ, open(a.dir + "/summary.json", "w"), indent=1)
-status = {k: summ[k] for k in ("time", "sha", "mode", "state", "verdict", "wrongpass", "mismatch", "new_mismatch", "errors", "design_unknown_whole_crd_removal", "design_unknown_whole_crd_rise", "design_unknown_whole_crd_cap_breach", "design_unknown_whole_crd_drop", "design_unknown_whole_crd_baseline", "unowned_removal_unknown", "unowned_removal_unknown_rise", "unowned_removal_unknown_cap_breach", "unowned_removal_unknown_baseline")}
+status = {k: summ[k] for k in ("time", "sha", "mode", "state", "verdict", "wrongpass", "mismatch", "new_mismatch", "errors", "design_unknown_whole_crd_removal", "design_unknown_whole_crd_rise", "design_unknown_whole_crd_cap_breach", "design_unknown_whole_crd_drop", "design_unknown_whole_crd_baseline", "unowned_removal_unknown", "unowned_removal_unknown_rise", "unowned_removal_unknown_drop", "unowned_removal_unknown_cap_breach", "unowned_removal_unknown_baseline")}
 kept_digest = oracle_digest if (baseline_stored or not os.path.exists(a.state + "/status.json")) else prev_digest
 status.update(known_gap_nosig=nosig, known_gap=len(known_gap), known_gap_cases=[ckey(c) for c in known_gap], resolved_gaps=resolved_gaps,
               known_gap_registration_breach=gaps_breach, oracle_changed=oracle_changed, oracle_digest=kept_digest,
