@@ -135,6 +135,12 @@ class FetchRetry(unittest.TestCase):
         r, n, sleeps = self.run_fetch([result(128, "fatal: not a git repository")])
         self.assertEqual((r.returncode, n, sleeps, crd.FETCH_RETRIES.get("p")), (128, 1, [], None))
 
+    def test_permanent_access_failure_not_retried(self):
+        for msg in ("fatal: unable to access 'https://x/': The requested URL returned error: 403",
+                    "fatal: unable to access 'https://x/': SSL certificate problem: unable to get local issuer certificate"):
+            r, n, sleeps = self.run_fetch([result(128, msg)])
+            self.assertEqual((r.returncode, n, sleeps), (128, 1, []), msg)
+
     def test_first_try_no_retry(self):
         r, n, sleeps = self.run_fetch([result(0)])
         self.assertEqual((n, sleeps, crd.FETCH_RETRIES.get("p")), (1, [], None))

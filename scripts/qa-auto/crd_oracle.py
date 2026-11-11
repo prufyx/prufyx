@@ -403,8 +403,8 @@ def run(proj, cov):
 
 FETCH_BACKOFF = (2, 5)  # pause before attempt 2 and 3 of the tag fetch
 FETCH_RETRIES = {}  # project -> retries spent on its tag fetches (summed into the case detail and the summary)
-TRANSIENT = re.compile(r"could not resolve host|unable to access|timed out|timeout|connection (reset|refused|timed)|early eof|rpc failed|"
-                       r"remote end hung up|the requested url returned error: 5|tls|ssl|temporary failure|network is unreachable|"
+TRANSIENT = re.compile(r"could not resolve host|timed out|operation timed out|connection (reset|refused|timed)|early eof|rpc failed|"
+                       r"remote end hung up|the requested url returned error: 5|temporary failure|network is unreachable|"
                        r"unexpected disconnect|http/2 stream|gnutls|failed to connect", re.I)
 
 
