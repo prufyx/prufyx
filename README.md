@@ -300,7 +300,7 @@ upgrade surface they decide.
 Catalogued is not the same as decided.
 
 <!-- crd-catalogue:begin -->
-A project is catalogued when it has a reviewed custom-resource target (87 projects: 46 of the CNCF landscape catalog, 41 of the community catalog). It is decided only for the upgrades that a rule or line attestation covers for the whole release-line pair (A or B in the table below). Of the 41 community-catalog projects, 15 hold a published rule or current line attestation for the CRD version family and 26 hold none.
+A project is catalogued when it has a reviewed custom-resource target (88 projects: 47 of the CNCF landscape catalog, 41 of the community catalog). It is decided only for the upgrades that a rule or line attestation covers for the whole release-line pair (A or B in the table below). Of the 41 community-catalog projects, 15 hold a published rule or current line attestation for the CRD version family and 26 hold none.
 <!-- crd-catalogue:end -->
 
 In beta.0, a community-catalog project without data in the embedded knowledge
@@ -320,7 +320,7 @@ Generated on 2026-11-10 by `scripts/readme-coverage.sh` (do not edit this block 
 | Projects with at least one executable check (a rule, a named check or a profile; says nothing about which upgrades it decides) | 67 |
 | Projects with a rule or attestation that decides at least one of their last five minor upgrades (A, B or S below) | 45 of 79 |
 | Projects catalogued with retained public sources | 58 (11 of them source-only, no check) |
-| Projects with reviewed CRD targets (a reviewed `crd.custom_resource_versions` target) | 87 |
+| Projects with reviewed CRD targets (a reviewed `crd.custom_resource_versions` target) | 88 |
 | Projects with a published CRD rule or line attestation | 29 |
 
 Version-coverage depth, measured over the last five minor upgrades of each of the 79 CNCF-catalog projects of the snapshot (97 projects have one; 395 upgrades between consecutive release lines):
