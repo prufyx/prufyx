@@ -179,9 +179,13 @@ type Report struct {
 	// LinesSnapshot and Declared are present in the ALL window only: the
 	// complete predicate is relative to this snapshot and this declared file.
 	// Additions is present only when the additions file holds entries.
-	Additions     *AdditionsInfo `json:"additions,omitempty"`
-	LinesSnapshot *SnapshotInfo  `json:"linesSnapshot,omitempty"`
-	Declared      *DeclaredInfo  `json:"declared,omitempty"`
+	Additions *AdditionsInfo `json:"additions,omitempty"`
+	// ClockAttestedAt is set when the evaluation time is the newest line
+	// attestation's derivedAt or reviewedAt and that is later than the date
+	// clock (see EvaluationClockFromPack): the block then discloses it.
+	ClockAttestedAt string        `json:"clockAttestedAt,omitempty"`
+	LinesSnapshot   *SnapshotInfo `json:"linesSnapshot,omitempty"`
+	Declared        *DeclaredInfo `json:"declared,omitempty"`
 	// PackProjects is the number of projects with a valid rule or
 	// attestation in the pack, whether or not lines are known for them. A
 	// community project counts only through a current attestation.
@@ -558,6 +562,12 @@ func Compute(in Input) (Report, error) {
 			return Report{}, err
 		}
 		report.Additions = &AdditionsInfo{Digest: digestOf(in.Additions), Entries: len(additions.Additions), ClockOn: clockOn}
+	}
+
+	if newest, ok, err := NewestAttestationTime(in.Pack, in.CommunityPack); err == nil && ok && now.Equal(newest) {
+		if dateClock, err := EvaluationClock(linesFile, additions); err == nil && newest.After(dateClock) {
+			report.ClockAttestedAt = newest.Format(time.RFC3339)
+		}
 	}
 
 	var comp *completer

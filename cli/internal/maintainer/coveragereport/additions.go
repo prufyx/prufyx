@@ -12,6 +12,9 @@ import (
 	"regexp"
 	"sort"
 	"time"
+
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/lineattest"
 )
 
 // AdditionsSchema identifies the append-only additions file: release lines of
@@ -261,6 +264,80 @@ func EvaluationClock(pinned LinesFile, add AdditionsFile) (time.Time, error) {
 		return time.Time{}, fmt.Errorf("%w: clock date: %v", ErrInvalid, err)
 	}
 	return d.Add(12 * time.Hour).UTC(), nil
+}
+
+// NewestAttestationTime is the latest derivedAt or reviewedAt among the line
+// attestations of the given rule packs (the CNCF pack and the community
+// pack), read with the parser Compute reads them with. Empty packs are
+// skipped. ok is false when no pack holds a line attestation. A pack whose
+// attestations do not parse fails: nothing is guessed.
+func NewestAttestationTime(packs ...[]byte) (newest time.Time, ok bool, err error) {
+	for _, pack := range packs {
+		if len(pack) == 0 {
+			continue
+		}
+		section, present, err := lineattest.PackSection(pack)
+		if err != nil {
+			return time.Time{}, false, fmt.Errorf("%w: pack: %v", ErrInvalid, err)
+		}
+		if !present {
+			continue
+		}
+		atts, err := lineattest.Parse(section)
+		if err != nil {
+			return time.Time{}, false, fmt.Errorf("%w: pack attestations: %v", ErrInvalid, err)
+		}
+		t, found, err := newestOf(atts)
+		if err != nil {
+			return time.Time{}, false, err
+		}
+		if found && (!ok || t.After(newest)) {
+			newest, ok = t, true
+		}
+	}
+	return newest, ok, nil
+}
+
+func newestOf(atts []lineattest.LineAttestation) (newest time.Time, ok bool, err error) {
+	for _, a := range atts {
+		for _, s := range []string{a.Evidence.DerivedAt, a.Evidence.ReviewedAt} {
+			if s == "" {
+				continue
+			}
+			t, err := constraintengine.ParseUTC(s)
+			if err != nil {
+				return time.Time{}, false, fmt.Errorf("%w: attestation time %q: %v", ErrInvalid, s, err)
+			}
+			if !ok || t.After(newest) {
+				newest, ok = t, true
+			}
+		}
+	}
+	return newest.UTC(), ok, nil
+}
+
+// EvaluationClockFromPack is the deterministic evaluation clock of a tree: the
+// later of EvaluationClock (noon UTC of the pinned date and of every
+// addition's capture date) and the newest derivedAt or reviewedAt of the
+// packs' line attestations (CNCF and community), as the exact timestamp. A renewal or a new
+// attestation made after the snapshot was pinned is therefore in force at the
+// clock of the tree that carries it; the wall clock is never read. The clock
+// can only move forward with attestation times, so another attestation may
+// reach its validUntil under it (it then stops counting, as always). A caller
+// with a gate time must refuse a clock beyond it (see the merge gate).
+func EvaluationClockFromPack(pinned LinesFile, add AdditionsFile, packs ...[]byte) (time.Time, error) {
+	clock, err := EvaluationClock(pinned, add)
+	if err != nil {
+		return time.Time{}, err
+	}
+	newest, ok, err := NewestAttestationTime(packs...)
+	if err != nil {
+		return time.Time{}, err
+	}
+	if ok && newest.After(clock) {
+		return newest, nil
+	}
+	return clock, nil
 }
 
 // ValidSlug reports whether s is a project slug the lines files accept.

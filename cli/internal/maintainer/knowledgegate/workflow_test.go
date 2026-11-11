@@ -171,6 +171,8 @@ func TestWorkflowShape(t *testing.T) {
 		`"+${BASE_SHA}:refs/admission/base"`, `"+${HEAD_SHA}:refs/admission/head"`,
 		`--admission-git-dir "${RUNNER_TEMP}/objects.git"`,
 		`--admission-observed-at "${ADMISSION_OBSERVED_AT}"`,
+		// The gate's clock is the observation time, never the host default.
+		`--now "${ADMISSION_OBSERVED_AT}"`,
 		// Both trees from git objects, at exactly these commits.
 		`gate export --git-dir "${RUNNER_TEMP}/objects.git" --commit "${BASE_SHA}" --out base`,
 		`gate export --git-dir "${RUNNER_TEMP}/objects.git" --commit "${HEAD_SHA}" --out head`,

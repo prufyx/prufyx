@@ -194,13 +194,32 @@ two digests, one for each file (`lines.digest`, `additions.digest`), never a
 merged buffer. `additions` is present in the report only when the file holds
 entries.
 
-**The clock.** The README block is evaluated at noon UTC of one date: the later
-of the snapshot's evaluation date (`pinnedOn`, else `capturedOn`) and the
-`capturedOn` of every addition. With no additions it is the snapshot's date
-exactly. An attestation counts only if it was reviewed at or before the clock
-and is still valid at it, so an attestation reviewed after the clock of an
-added project decides nothing: that project adds pairs to the universe and no
-decided pair, and the block names it as attested but not yet counted. The
+**The clock.** The README block is evaluated at the later of noon UTC of the
+snapshot's evaluation date (`pinnedOn`, else `capturedOn`), noon UTC of the
+`capturedOn` of every addition, and the exact time of the newest `derivedAt` or
+`reviewedAt` among the line attestations of the evaluated CNCF and community
+rule packs (`EvaluationClockFromPack`); the wall clock is never read, and the same tree
+always gives the same clock. A renewal or a new attestation made after the
+snapshot was pinned is therefore in force at the clock of the tree that carries
+it. An attestation counts only if it was reviewed at or before the clock and is
+still valid at it (validUntil later than the clock), so a clock moved later by
+one attestation can end another whose validUntil has passed; when the clock is
+an attestation's time the block says so. The merge gate refuses a head whose
+newest attestation is dated after the gate's own time (`--now`, the admission
+observation time; no tolerance), so no attestation makes itself current; a gate without a clock refuses. The
+coverage floor refuses a head whose tree clock is earlier than the base's (newest
+attestation removed or backdated), so the clock is monotone over admitted
+history and cannot be rolled back to revive expired attestations; the published
+block is rendered with the same clock function. The
+offline report has no gate time: it takes `--now` as given (the block prints
+the clock), and the README generator uses the tree-derived clock, the bound
+being the gate's check. The floor compares the base's stored baseline numbers
+with the numbers of the head evaluated at the head's clock, so it never
+compares two clocks of one tree. It counts what the decided count counts (an attestation is current
+while its validUntil is later than the clock); the 14-day expiry horizon applies
+only to the ALL-window completeness clauses and the "expiring" figure. The
+floors protect counts, not which pairs are decided: new coverage in a project
+can offset expired coverage there (a stated residual). The
 offline report equals the gate when `--now` is that clock (the block prints the
 date) and `--additions` is given. In the ALL window an added project is judged
 by its own `capturedOn` (snapshot-future, snapshot-stale), not the snapshot's.

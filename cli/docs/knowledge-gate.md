@@ -1484,6 +1484,7 @@ The whole gate.
 
 | Flag | Meaning |
 | --- | --- |
+| `--now RFC3339Z` | required: the gate's clock (the workflow passes the runner's observation time); bounds the line attestation and capture times; an omitted flag is refused, the gate never defaults to the host clock |
 | `--source github` | fetch pinned upstream bytes from GitHub for re-derivation |
 | `--source fixture:DIR` | read them from a fixture tree instead (`<host>/<owner>/<name>/tags.json` and `commits/<sha>/…`, the layout `extract run --fixture` reads) |
 | `--author LOGIN` | the change's author, for automatic-merge eligibility and trust material |
@@ -1538,7 +1539,7 @@ merging (no knowledge change):
 
 ```sh
 cd cli
-go run ./cmd/prufyx-maintainer gate verify --base .. --head ..
+go run ./cmd/prufyx-maintainer gate verify --base .. --head .. --now 2026-11-11T12:00:00Z
 ```
 
 ```text

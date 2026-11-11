@@ -5,6 +5,7 @@ package knowledgegate
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -140,13 +141,43 @@ func additionsNotFuture(head Tree, now time.Time) error {
 		return fmt.Errorf("the change's additions file is unreadable or invalid: %w", err)
 	}
 	if now.IsZero() {
-		now = time.Now()
+		return errors.New("the gate has no clock to bound the additions' capture dates with")
 	}
 	today := now.UTC().Format("2006-01-02")
 	for slug, e := range adds.Additions {
 		if e.CapturedOn > today {
 			return fmt.Errorf("the added project %s is captured on %s, after the gate's date %s", logSafe(slug), e.CapturedOn, today)
 		}
+	}
+	return nil
+}
+
+// attestationsNotFuture refuses a head whose newest line attestation
+// (derivedAt or reviewedAt, CNCF or community pack) is later than the gate's
+// clock: the evaluation clock of the tree follows its attestations
+// (EvaluationClockFromPack), so an attestation stamped in the future must not
+// make itself current. The bound has no tolerance: the factory stamps the
+// derivation before the gate observes the change. A zero gate clock refuses:
+// this bound never falls back to the host's wall clock. Unreadable
+// attestations fail.
+func attestationsNotFuture(head Tree, now time.Time) error {
+	if now.IsZero() {
+		return errors.New("the gate has no clock to bound the line attestation times with")
+	}
+	pack, err := head.Read(cncfRulesPath, MaxFileBytes)
+	if err != nil {
+		return fmt.Errorf("the change's rule pack is unreadable: %w", err)
+	}
+	community, err := head.Read(commRulesPath, MaxFileBytes)
+	if err != nil {
+		return fmt.Errorf("the change's community rule pack is unreadable: %w", err)
+	}
+	newest, ok, err := coveragereport.NewestAttestationTime(pack, community)
+	if err != nil {
+		return fmt.Errorf("the change's line attestations are unreadable or invalid: %w", err)
+	}
+	if ok && newest.After(now) {
+		return fmt.Errorf("a line attestation is dated %s, after the gate's clock %s", newest.UTC().Format(time.RFC3339), now.UTC().Format(time.RFC3339))
 	}
 	return nil
 }
