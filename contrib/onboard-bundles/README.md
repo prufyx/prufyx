@@ -63,6 +63,34 @@ redistribute: file names, digests, commits and short upstream quotes of a
 project whose licence allows it. Source-available licences (BUSL, ELv2, SSPL)
 and proprietary projects are not accepted.
 
+How the validator enforces this: `project.json` declares the licence file
+(`path`, `commit`, `sha256`) and an identifier `spdxGuess`. The identifier must
+be exactly one of the schema's allowlist (Apache-2.0, MIT, BSD-2-Clause,
+BSD-3-Clause, MPL-2.0, ISC, GPL-2.0, GPL-3.0, LGPL-3.0, AGPL-3.0). Any other
+value is a finding: BUSL, ELv2, SSPL, proprietary, unlicensed, unknown,
+compound expressions, case or spacing variants, a non-string value, and a
+missing field. The check cannot read the licence file's contents (it stays
+offline and sees only the digest), so `spdxGuess` is a declaration;
+maintainers compare it with the upstream file in review.
+
+## Steps
+
+1. Pick the slug and create `contrib/onboard-bundles/<slug>/` with the files
+   above.
+2. Run the offline check from "Check before you open the pull request".
+3. Open the pull request against `main` and sign the CLA when asked.
+4. CI re-runs the check with the validator from the base branch.
+
+Implemented today: steps 1-4 and the maintainers' manual review. Planned, not
+live: automatic status comments (received, validated, imported, classified in
+scope or blocked with a reason or out of scope, for example no CRDs, draft
+target proposed, in a batch pull request, merged, pairs decided n of m) and an
+automatic import of merged bundles. Until then maintainers answer by hand.
+No time frame is promised.
+
+Never collected: secrets, credentials, cluster data. Nothing is published
+without maintainer review and the Prufyx maintainers' signature on the knowledge bundle.
+
 ## What happens next
 
 A maintainer reviews the diff. A merged bundle may let the project into the

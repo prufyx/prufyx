@@ -4,6 +4,7 @@ package onboardbundle
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -291,4 +292,100 @@ func TestKeysAndVersionsScanned(t *testing.T) {
 			}
 		})
 	}
+}
+
+// The declared licence identifier is a closed allowlist in the schema. Anything
+// else, including source-available and proprietary identifiers, spelling and
+// case variants, and an empty or missing value, must produce a finding.
+func TestLicenceDispositionRefused(t *testing.T) {
+	refused := []string{
+		"BUSL-1.1", "BSL-1.1", "busl-1.1", "BUSL", "Elastic-2.0", "ELv2", "elv2",
+		"SSPL-1.0", "sspl-1.0", "SSPL", "proprietary", "Proprietary", "unlicensed",
+		"UNLICENSED", "NONE", "NOASSERTION", "unknown", "",
+		" Apache-2.0", "Apache-2.0 ", "apache-2.0", "APACHE-2.0", "mit", "Apache 2.0",
+		"Apache-2.0 OR BUSL-1.1", "MIT AND SSPL-1.0", "LicenseRef-proprietary",
+		"Apache-2.0\n", "Apache-2.0​",
+	}
+	for _, id := range refused {
+		t.Run("spdxGuess "+id, func(t *testing.T) {
+			findings, err := Validate(fixture(t, func(d string) {
+				rewrite(t, d, "project.json", `"spdxGuess": "Apache-2.0"`, `"spdxGuess": `+jsonString(id))
+			}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !contains(findings, "licence.spdxGuess: not one of") {
+				t.Fatalf("want a licence.spdxGuess finding for %q, got %v", id, findings)
+			}
+		})
+	}
+	nonString := []string{"null", "1", "true", `["MIT"]`, `{"id":"MIT"}`}
+	for _, v := range nonString {
+		t.Run("spdxGuess type "+v, func(t *testing.T) {
+			findings, err := Validate(fixture(t, func(d string) {
+				rewrite(t, d, "project.json", `"spdxGuess": "Apache-2.0"`, `"spdxGuess": `+v)
+			}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !contains(findings, "licence.spdxGuess") {
+				t.Fatalf("want a licence.spdxGuess finding for %s, got %v", v, findings)
+			}
+		})
+	}
+	t.Run("missing spdxGuess", func(t *testing.T) {
+		findings, err := Validate(fixture(t, func(d string) {
+			rewrite(t, d, "project.json", ",\n    \"spdxGuess\": \"Apache-2.0\"", "")
+		}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !contains(findings, "missing spdxGuess") {
+			t.Fatalf("want a licence finding, got %v", findings)
+		}
+	})
+	t.Run("missing licence object", func(t *testing.T) {
+		findings, err := Validate(fixture(t, func(d string) {
+			src := mustRead(t, "testdata/valid/project.json")
+			i := strings.Index(src, "  \"licence\": {")
+			j := strings.Index(src[i:], "},\n")
+			write(t, d, "project.json", src[:i]+src[i+j+3:])
+		}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !contains(findings, "missing licence") {
+			t.Fatalf("want a licence finding, got %v", findings)
+		}
+	})
+	for _, ok := range []string{"Apache-2.0", "MIT", "BSD-3-Clause", "MPL-2.0", "AGPL-3.0"} {
+		t.Run("accepted "+ok, func(t *testing.T) {
+			findings, err := Validate(fixture(t, func(d string) {
+				rewrite(t, d, "project.json", `"spdxGuess": "Apache-2.0"`, `"spdxGuess": "`+ok+`"`)
+			}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if contains(findings, "licence.spdxGuess") {
+				t.Fatalf("unexpected licence finding for %q: %v", ok, findings)
+			}
+		})
+	}
+}
+
+func jsonString(s string) string {
+	b, err := json.Marshal(s)
+	if err != nil {
+		panic(err)
+	}
+	return string(b)
+}
+
+func mustRead(t *testing.T, p string) string {
+	t.Helper()
+	raw, err := os.ReadFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(raw)
 }
