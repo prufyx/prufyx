@@ -1,12 +1,12 @@
 {
-  "decidedPairs": 51,
+  "decidedPairs": 53,
   "crdPublishedProjects": 29,
   "projectPairs": {
     "cert-manager": 2,
     "cilium": 2,
     "crossplane": 1,
     "dapr": 5,
-    "istio": 3,
+    "istio": 5,
     "keda": 5,
     "kmesh": 2,
     "kubernetes": 5,

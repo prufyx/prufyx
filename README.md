@@ -327,15 +327,15 @@ Version-coverage depth, measured over the last five minor upgrades of each of th
 
 | Status | Upgrades | Share |
 | --- | --- | --- |
-| Decided for the whole release-line pair (A attested, B bounded) | 51 | 12.9% |
+| Decided for the whole release-line pair (A attested, B bounded) | 53 | 13.4% |
 | Rule for one exact version pair only (S) | 40 | 10.1% |
-| Gap, no valid rule (G) | 304 | 76.9% |
+| Gap, no valid rule (G) | 302 | 76.4% |
 
 Community catalogue, measured separately and not part of the table above: 42 of 88 upgrades decided (A or B) over 18 projects.
 
 Kubernetes: 63 valid rules, but 19 fall in its window 1.32 to 1.37; 0 of 5 upgrades in that window are gaps.
 
-Decided means a valid rule or attestation covers every version of both release lines. It never means a whole-upgrade PASS. Only 8 of the 51 decided upgrades are decided by a rule, or by an attestation that lists rules, so the answer for them can be BLOCKED or UNKNOWN. The other 43 are decided only by line attestations that list no rule (43 by `crd.custom_resource_versions`): for them an attestation can only give a family-scoped PASS (`scan` prints "PASS within <family> only"), never BLOCKED. An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.
+Decided means a valid rule or attestation covers every version of both release lines. It never means a whole-upgrade PASS. Only 8 of the 53 decided upgrades are decided by a rule, or by an attestation that lists rules, so the answer for them can be BLOCKED or UNKNOWN. The other 45 are decided only by line attestations that list no rule (45 by `crd.custom_resource_versions`): for them an attestation can only give a family-scoped PASS (`scan` prints "PASS within <family> only"), never BLOCKED. An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.
 <!-- coverage:end -->
 
 Update the block with `scripts/readme-coverage.sh` (`--check` fails when it is
