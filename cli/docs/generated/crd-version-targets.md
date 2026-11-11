@@ -89,6 +89,7 @@ The reviewed targets of the `crd.version-removal` extractor
 | `crd.version-removal.submariner` | CNCF | `github.com/submariner-io/submariner` | `vX.Y.Z` | 0.22 | yes | files matching `^[^.][^/]*\.ya?ml$` in `deploy/crds` | 0 |
 | `crd.version-removal.tekton` | CNCF | `github.com/tektoncd/pipeline` | `vX.Y.Z` | 1.12 | yes | files matching `^[^.][^/]*\.ya?ml$` in `config/300-crds` | 0 |
 | `crd.version-removal.temporal-operator` | community | `github.com/alexandrevilain/temporal-operator` | `vX.Y.Z` | 0.17 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
+| `crd.version-removal.traefik` | community | `github.com/traefik/traefik` | `vX.Y.Z` | 3.2 | yes | `docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml` | 2 |
 | `crd.version-removal.trivy-operator` | community | `github.com/aquasecurity/trivy-operator` | `vX.Y.Z` | 0.31 | yes | files matching `^[^.][^/]*\.ya?ml$` in `deploy/helm/crds` | 0 |
 | `crd.version-removal.vault-secrets-operator` | community | `github.com/ricoberger/vault-secrets-operator` | `vX.Y.Z`, then `X.Y.Z` | 1.23 | no | files matching `^[^.][^/]*\.ya?ml$` in `charts/vault-secrets-operator/crds` | 0 |
 | `crd.version-removal.velero` | CNCF | `github.com/velero-io/velero` | `vX.Y.Z` | 1.13 | yes | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/v1/bases`, files matching `^[^.][^/]*\.ya?ml$` in `config/crd/v2alpha1/bases` | 4 |

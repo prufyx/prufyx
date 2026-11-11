@@ -1549,6 +1549,36 @@
       ]
     },
     {
+      "slug": "traefik",
+      "catalog": "community",
+      "upstream": {
+        "name": "traefik",
+        "repository": "https://github.com/traefik/traefik",
+        "license": "MIT",
+        "licenseSource": "https://github.com/traefik/traefik/blob/04aa6bb4f9776f2ba87e5cd181d250e3610e6419/LICENSE.md"
+      },
+      "factProject": "traefik",
+      "component": "pkg:github/traefik/traefik",
+      "groups": [
+        {
+          "name": "traefik.io",
+          "source": "https://github.com/traefik/traefik/blob/04aa6bb4f9776f2ba87e5cd181d250e3610e6419/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml",
+          "kinds": [
+            "IngressRoute",
+            "IngressRouteTCP",
+            "IngressRouteUDP",
+            "Middleware",
+            "MiddlewareTCP",
+            "ServersTransport",
+            "ServersTransportTCP",
+            "TLSOption",
+            "TLSStore",
+            "TraefikService"
+          ]
+        }
+      ]
+    },
+    {
       "slug": "trivy-operator",
       "catalog": "community",
       "upstream": {

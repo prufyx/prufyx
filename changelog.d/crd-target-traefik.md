@@ -1,0 +1,3 @@
+### Added
+
+- A CRD extractor target for Traefik (group traefik.io, ten kinds) read from the aggregate definition file in the upstream reference documentation, from 3.2 onward, with line attestation enabled. Two exclusions (a legacy-group reference copy and the integration-test fixtures) are reviewed in the target; their evidence is partly inferred from file names and layout. In a dry run of the derive loop, all five pairs (3.2 to 3.3 through 3.6 to 3.7) are attestable with no removals. Attested pairs appear only after the factory re-derives them and the data change passes the QA gate and data review.

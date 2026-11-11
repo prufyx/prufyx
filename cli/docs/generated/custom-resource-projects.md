@@ -89,6 +89,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `submariner` | CNCF | `component.submariner.custom_resource_versions_set` | `submariner.io` |
 | `tekton` | CNCF | `component.tekton.custom_resource_versions_set` | `resolution.tekton.dev`, `tekton.dev` |
 | `temporal-operator` | community | `component.temporal_operator.custom_resource_versions_set` | `temporal.io` |
+| `traefik` | community | `component.traefik.custom_resource_versions_set` | `traefik.io` (IngressRoute, IngressRouteTCP, IngressRouteUDP, Middleware, MiddlewareTCP, ServersTransport, ServersTransportTCP, TLSOption, TLSStore, TraefikService) |
 | `trivy-operator` | community | `component.trivy_operator.custom_resource_versions_set` | `aquasecurity.github.io` |
 | `vault-secrets-operator` | community | `component.vault_secrets_operator.custom_resource_versions_set` | `ricoberger.de` |
 | `velero` | CNCF | `component.velero.custom_resource_versions_set` | `velero.io` |
@@ -138,6 +139,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `renovate-operator` | renovate-operator | https://github.com/mogenius/renovate-operator | [`MIT`](https://github.com/mogenius/renovate-operator/blob/01b4299e9bd2af6f8a6dfcbed8cff65610cc64bf/LICENSE) |
 | `sealed-secrets` | sealed-secrets | https://github.com/bitnami/sealed-secrets | [`Apache-2.0`](https://github.com/bitnami/sealed-secrets/blob/6dc880366d1cafa16683173cc3c8e3b58e930937/LICENSE) |
 | `temporal-operator` | temporal-operator | https://github.com/alexandrevilain/temporal-operator | [`Apache-2.0`](https://github.com/alexandrevilain/temporal-operator/blob/0b07bcd4d922265b2f1e5d5d3c55397707189c7e/LICENSE) |
+| `traefik` | traefik | https://github.com/traefik/traefik | [`MIT`](https://github.com/traefik/traefik/blob/04aa6bb4f9776f2ba87e5cd181d250e3610e6419/LICENSE.md) |
 | `trivy-operator` | trivy-operator | https://github.com/aquasecurity/trivy-operator | [`Apache-2.0`](https://github.com/aquasecurity/trivy-operator/blob/3d073500cfb4956371435fa4085f2f59b9ff6d57/LICENSE) |
 | `vault-secrets-operator` | vault-secrets-operator | https://github.com/ricoberger/vault-secrets-operator | [`MIT`](https://github.com/ricoberger/vault-secrets-operator/blob/98bf4bef7ec2a4a5bd57ba6780d9a96d824bff49/LICENSE) |
 

@@ -1,0 +1,31 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "traefik",
+    "catalog": "community",
+    "name": "traefik",
+    "repo": "github.com/traefik/traefik",
+    "component": "pkg:github/traefik/traefik",
+    "factProject": "traefik",
+    "tagPrefixes": ["v"],
+    "minFrom": "3.2",
+    "attest": true,
+    "paths": [
+      {"path": "docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml"}
+    ],
+    "exclude": [
+      {
+        "path": "docs/content/reference/dynamic-configuration/traefik.containo.us_tlsoptions.yaml",
+        "repo": "github.com/traefik/traefik",
+        "reason": "reference documentation copy of a legacy-group definition beside the declared aggregate file",
+        "evidence": "Read at v3.5.0: the file sits in the documentation reference directory docs/content/reference/dynamic-configuration, next to kubernetes-crd-definition-v1.yml, which is the declared surface; docs/ is documentation source and nothing applies it."
+      },
+      {
+        "path": "integration/fixtures/",
+        "repo": "github.com/traefik/traefik",
+        "reason": "fixtures of the integration tests (kubernetes, gateway-api conformance, knative conformance)",
+        "evidence": "Read at v3.7.0: integration/ holds the Go integration tests k8s_test.go, gateway_api_conformance_test.go and knative_conformance_test.go beside the fixtures directories k8s, k8s-conformance, gateway-api-conformance and knative that carry the same names."
+      }
+    ]
+  }
+}
