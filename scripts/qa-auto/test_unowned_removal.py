@@ -148,6 +148,36 @@ class Execute(unittest.TestCase):
         self.assertEqual(qalib.counts(out)["unowned_removal_unknown"], 5)
 
 
+class RealShape(unittest.TestCase):
+    """Real scanner output (rook v1.17.0 -> v1.18.0, 24 documents) captured from the built command."""
+    def load(self):
+        with open(os.path.join(HERE, "testdata", "rook_unowned_removal_scan.json")) as f:
+            d = json.load(f)
+        t = lambda xs: [tuple(x.split("/")) for x in xs]
+        return d["report"], t(d["removed"]), set(t(d["served"]))
+
+    def test_real_report_is_unowned_unknown(self):
+        rep, removed, served = self.load()
+        r = crd.classify_pair(11, rep, removed, [], "rook", served=served, listed=crd.listed_groups())
+        self.assertEqual((r[0], r[1], r[5]), (False, False, "UNOWNED_UNKNOWN"))
+
+    def test_real_report_fail_closed(self):
+        rep, removed, served = self.load()
+        L = crd.listed_groups()
+        self.assertEqual(crd.classify_pair(0, dict(rep, verdict="PASS", gaps=[]), removed, [], "rook", served=served, listed=L)[0], True)
+        self.assertEqual(crd.classify_pair(11, dict(rep, gaps=rep["gaps"][:1]), removed, [], "rook", served=served, listed=L)[5], "UNOWNED_GAP")
+        f = {"component": "rook", "ruleId": "r", "locations": [{"kind": removed[0][2], "name": crd.object_name(*removed[0])}]}
+        self.assertEqual(crd.classify_pair(10, dict(rep, verdict="BLOCKED", findings=[f]), removed, [], "rook", served=served, listed=L)[5], "UNOWNED_ATTRIBUTED")
+
+    def test_case_detail_carries_clause(self):
+        rep, removed, served = self.load()
+        plan = dict(proj="rook", pref="v", metadata=set(), excluded=[], later_groups={}, jobs=[("crd|rook|a|b", "a", "b", served, removed, [])])
+        for code, report, clause in ((11, rep, "UNOWNED_UNKNOWN"), (11, dict(rep, gaps=[]), "UNOWNED_GAP")):
+            with patch.object(crd, "prufyx", return_value=(code, report, "")), patch.object(crd, "write_private"), patch.object(os, "remove"):
+                out, _, _ = crd.execute(plan)
+            self.assertEqual(out[0]["detail"]["clause"], clause)
+
+
 class Summary(unittest.TestCase):
     def cases(self, pairs):
         return [qalib.case("crd", f"p{i}", status=S, unownedRemoved=["g/v/k%d" % j for j in range(5)]) for i in range(pairs)]

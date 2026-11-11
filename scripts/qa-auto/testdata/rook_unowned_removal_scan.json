@@ -1,0 +1,94 @@
+{
+ "removed": [
+  "csi.ceph.io/v1alpha1/CephConnection",
+  "csi.ceph.io/v1alpha1/ClientProfile",
+  "csi.ceph.io/v1alpha1/ClientProfileMapping",
+  "csi.ceph.io/v1alpha1/Driver",
+  "csi.ceph.io/v1alpha1/OperatorConfig"
+ ],
+ "report": {
+  "findings": [],
+  "gaps": [
+   {
+    "action": "verify the rest of the rook upgrade notes by hand",
+    "component": "rook",
+    "detail": "scan checks rook only for custom-resource versions its target release no longer serves; nothing else about it is evaluated yet",
+    "reason": "COMPONENT_NOT_COVERED"
+   },
+   {
+    "action": "check those custom resources by hand; they are never assigned to a project by guess",
+    "component": "rook",
+    "detail": "5 manifest(s) use custom-resource groups that no reviewed project owns, so no custom-resource set is complete",
+    "reason": "DOCUMENTS_NOT_EVALUATED"
+   }
+  ],
+  "omitted": [],
+  "paths": [
+   {
+    "component": "rook",
+    "from": "1.17.0",
+    "hops": [
+     {
+      "engineContractDigest": "sha256:170350db4774ea8531d1d2ea03bbd4873930fa81418c3148dc300e40d5542293",
+      "from": {
+       "version": "1.17.0"
+      },
+      "index": 1,
+      "inputDigest": "sha256:c9c3e0d831528371c40a8a44dc5b383f653d85dc0181738fc134582c24767cc8",
+      "reasons": [
+       "COMPONENT_NOT_COVERED"
+      ],
+      "status": "NO_DATA",
+      "to": {
+       "version": "1.18.0"
+      }
+     }
+    ],
+    "policy": "",
+    "to": "1.18.0"
+   }
+  ],
+  "summary": {
+   "blockers": 0,
+   "componentsCovered": 0,
+   "componentsDetected": 1,
+   "componentsWithRules": 0,
+   "documentsOmitted": 0,
+   "documentsRead": 24,
+   "gaps": 2,
+   "hops": 1,
+   "leads": 0,
+   "notices": 0,
+   "passes": 0,
+   "unsupported": 0
+  },
+  "verdict": "UNKNOWN"
+ },
+ "served": [
+  "ceph.rook.io/v1/CephBlockPool",
+  "ceph.rook.io/v1/CephBlockPoolRadosNamespace",
+  "ceph.rook.io/v1/CephBucketNotification",
+  "ceph.rook.io/v1/CephBucketTopic",
+  "ceph.rook.io/v1/CephCOSIDriver",
+  "ceph.rook.io/v1/CephClient",
+  "ceph.rook.io/v1/CephCluster",
+  "ceph.rook.io/v1/CephFilesystem",
+  "ceph.rook.io/v1/CephFilesystemMirror",
+  "ceph.rook.io/v1/CephFilesystemSubVolumeGroup",
+  "ceph.rook.io/v1/CephNFS",
+  "ceph.rook.io/v1/CephObjectRealm",
+  "ceph.rook.io/v1/CephObjectStore",
+  "ceph.rook.io/v1/CephObjectStoreUser",
+  "ceph.rook.io/v1/CephObjectZone",
+  "ceph.rook.io/v1/CephObjectZoneGroup",
+  "ceph.rook.io/v1/CephRBDMirror",
+  "csi.ceph.io/v1alpha1/CephConnection",
+  "csi.ceph.io/v1alpha1/ClientProfile",
+  "csi.ceph.io/v1alpha1/ClientProfileMapping",
+  "csi.ceph.io/v1alpha1/Driver",
+  "csi.ceph.io/v1alpha1/OperatorConfig",
+  "objectbucket.io/v1alpha1/ObjectBucket",
+  "objectbucket.io/v1alpha1/ObjectBucketClaim"
+ ],
+ "whole": []
+}
