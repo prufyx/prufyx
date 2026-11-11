@@ -12,6 +12,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `argo-cd` | CNCF | `component.argo_cd.custom_resource_versions_set` | `argoproj.io` (AppProject, Application, ApplicationSet) |
 | `awx-operator` | community | `component.awx_operator.custom_resource_versions_set` | `awx.ansible.com` |
 | `burrito` | community | `component.burrito.custom_resource_versions_set` | `config.terraform.padok.cloud` |
+| `calico` | community | `component.calico.custom_resource_versions_set` | `crd.projectcalico.org`, `migration.projectcalico.org`, `projectcalico.org` |
 | `cass-operator` | community | `component.cass_operator.custom_resource_versions_set` | `cassandra.datastax.com`, `control.k8ssandra.io` |
 | `cert-manager` | CNCF | `component.cert_manager.custom_resource_versions_set` | `acme.cert-manager.io`, `cert-manager.io` |
 | `chaos-mesh` | CNCF | `component.chaos_mesh.custom_resource_versions_set` | `chaos-mesh.org` |
@@ -101,6 +102,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | --- | --- | --- | --- |
 | `awx-operator` | awx-operator | https://github.com/ansible/awx-operator | [`Apache-2.0`](https://github.com/ansible/awx-operator/blob/5e66b6aeb06c30ddc7300893145d7a31b1655ccd/LICENSE) |
 | `burrito` | burrito | https://github.com/padok-team/burrito | [`Apache-2.0`](https://github.com/padok-team/burrito/blob/08431668a19a75dab289d9bb55c74ef1c6ef772a/LICENSE) |
+| `calico` | Calico | https://github.com/projectcalico/calico | [`Apache-2.0`](https://github.com/projectcalico/calico/blob/fbaa371111636a37ecc82625fce8453064a7fff2/LICENSE.md) |
 | `cass-operator` | cass-operator | https://github.com/k8ssandra/cass-operator | [`Apache-2.0`](https://github.com/k8ssandra/cass-operator/blob/f88f577347336c300419a5567e258ba8eb5c5a07/LICENSE.txt) |
 | `chaosblade-operator` | chaosblade-operator | https://github.com/chaosblade-io/chaosblade-operator | [`Apache-2.0`](https://github.com/chaosblade-io/chaosblade-operator/blob/e778bef0d9944b4ed70f39ee50e4b8f8fe1b069b/LICENSE) |
 | `cluster-api` | Cluster API | https://github.com/kubernetes-sigs/cluster-api | [`Apache-2.0`](https://github.com/kubernetes-sigs/cluster-api/blob/560d4acf507bc7cac34b2da449fa5cd53eaeb149/LICENSE) |
