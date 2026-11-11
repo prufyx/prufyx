@@ -335,23 +335,26 @@ func TestLicenceDispositionRefused(t *testing.T) {
 	}
 	t.Run("missing spdxGuess", func(t *testing.T) {
 		findings, err := Validate(fixture(t, func(d string) {
-			rewrite(t, d, "project.json", `"spdxGuess": "Apache-2.0"`, `"note": "x"`)
+			rewrite(t, d, "project.json", ",\n    \"spdxGuess\": \"Apache-2.0\"", "")
 		}))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !contains(findings, "licence") {
+		if !contains(findings, "missing spdxGuess") {
 			t.Fatalf("want a licence finding, got %v", findings)
 		}
 	})
 	t.Run("missing licence object", func(t *testing.T) {
 		findings, err := Validate(fixture(t, func(d string) {
-			write(t, d, "project.json", strings.Replace(mustRead(t, "testdata/valid/project.json"), `"licence": {`, `"licenceX": {`, 1))
+			src := mustRead(t, "testdata/valid/project.json")
+			i := strings.Index(src, "  \"licence\": {")
+			j := strings.Index(src[i:], "},\n")
+			write(t, d, "project.json", src[:i]+src[i+j+3:])
 		}))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !contains(findings, "licence") {
+		if !contains(findings, "missing licence") {
 			t.Fatalf("want a licence finding, got %v", findings)
 		}
 	})
