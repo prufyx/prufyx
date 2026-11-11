@@ -9,7 +9,7 @@
     "factProject": "calico",
     "tagPrefixes": ["v"],
     "minFrom": "3.28",
-    "attest": true,
+    "attest": false,
     "paths": [
       {"path": "libcalico-go/config/crd", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"},
       {"path": "api/config/crd", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd", "optional": true},
