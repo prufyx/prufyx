@@ -833,7 +833,7 @@ def execute(plan):
                         **({"wholeCrdRemoved": ["/".join(x) for x in whole_crd]} if design else {}),
                         **({"status": UNOWNED_STATUS, "unownedRemoved": ["/".join(x) for x in split_unowned(removed, listed_groups(), set(whole_crd))[1]]}
                            if clause == "UNOWNED_UNKNOWN" else ({"status": DESIGN_STATUS} if design else {})),
-                        verdict=j.get("verdict"), crd=crd, missing=missing, requested=len(sf),
+                        clause=clause, verdict=j.get("verdict"), crd=crd, missing=missing, requested=len(sf),
                         executed=j.get("summary", {}).get("documentsRead"), expectRemoved=["/".join(x) for x in removed],
                         nExpect=len(removed), nFindings=len(j.get("findings", [])),
                         **({"proof_pair": plan["proof_pairs"][target]} if target in plan.get("proof_pairs", {}) else {})))
