@@ -1,0 +1,20 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "calico",
+    "catalog": "community",
+    "name": "Calico",
+    "repo": "github.com/projectcalico/calico",
+    "component": "pkg:github/projectcalico/calico",
+    "factProject": "calico",
+    "tagPrefixes": ["v"],
+    "minFrom": "3.28",
+    "attest": true,
+    "paths": [
+      {"path": "libcalico-go/config/crd", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"},
+      {"path": "api/config/crd", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd", "optional": true},
+      {"path": "kube-controllers/pkg/apis/migration/v1/crd", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd", "optional": true}
+    ],
+    "exclude": []
+  }
+}

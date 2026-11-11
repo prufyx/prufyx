@@ -83,6 +83,32 @@
       ]
     },
     {
+      "slug": "calico",
+      "catalog": "community",
+      "upstream": {
+        "name": "Calico",
+        "repository": "https://github.com/projectcalico/calico",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/projectcalico/calico/blob/fbaa371111636a37ecc82625fce8453064a7fff2/LICENSE.md"
+      },
+      "factProject": "calico",
+      "component": "pkg:github/projectcalico/calico",
+      "groups": [
+        {
+          "name": "crd.projectcalico.org",
+          "source": "https://github.com/projectcalico/calico/blob/fbaa371111636a37ecc82625fce8453064a7fff2/libcalico-go/config/crd/crd.projectcalico.org_bgpconfigurations.yaml"
+        },
+        {
+          "name": "migration.projectcalico.org",
+          "source": "https://github.com/projectcalico/calico/blob/fbaa371111636a37ecc82625fce8453064a7fff2/kube-controllers/pkg/apis/migration/v1/crd/migration.projectcalico.org_datastoremigrations.yaml"
+        },
+        {
+          "name": "projectcalico.org",
+          "source": "https://github.com/projectcalico/calico/blob/fbaa371111636a37ecc82625fce8453064a7fff2/api/config/crd/projectcalico.org_bgpconfigurations.yaml"
+        }
+      ]
+    },
+    {
       "slug": "cass-operator",
       "catalog": "community",
       "upstream": {
