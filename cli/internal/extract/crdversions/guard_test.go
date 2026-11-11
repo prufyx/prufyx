@@ -591,7 +591,7 @@ func TestGuardKodata(t *testing.T) {
 	ls := linkRepo{synthRepo: s, links: map[string]bool{"cmd/app/kodata/crds": true}}
 	repo, err := extract.ParseRepo("github.com/argoproj/argo-cd")
 	must(t, err)
-	out, err := extract.Run(context.Background(), New(synthTarget(fixtureExclusion())), ls, ls, extract.Options{Repo: repo, DerivedAt: derivedAt})
+	out, err := extract.Run(context.Background(), New(synthTarget(fixtureExclusion())).WithIndex(syntheticOwnership(synthTarget(), synthGroup)), ls, ls, extract.Options{Repo: repo, DerivedAt: derivedAt})
 	must(t, err)
 	_, proof = pairOf(t, out, "1.0.0", "1.1.0")
 	if v := voidFindings(proof); len(v) != 1 || v[0].Path != "cmd/app/kodata/crds" || !strings.Contains(v[0].Detail, "kodata") {
@@ -705,7 +705,7 @@ func TestGuardSymbolicLinks(t *testing.T) {
 			ls := linkRepo{synthRepo: s, links: map[string]bool{tc.link: true}}
 			repo, err := extract.ParseRepo("github.com/argoproj/argo-cd")
 			must(t, err)
-			out, err := extract.Run(context.Background(), New(synthTarget(fixtureExclusion())), ls, ls, extract.Options{Repo: repo, DerivedAt: derivedAt})
+			out, err := extract.Run(context.Background(), New(synthTarget(fixtureExclusion())).WithIndex(syntheticOwnership(synthTarget(), synthGroup)), ls, ls, extract.Options{Repo: repo, DerivedAt: derivedAt})
 			must(t, err)
 			_, proof := pairOf(t, out, "1.0.0", "1.1.0")
 			voids := voidFindings(proof)
@@ -776,7 +776,7 @@ func TestGuardChartAndSubmodule(t *testing.T) {
 	ls := submodules{synthRepo: s, paths: map[string]bool{"test/fixtures/sub": true}}
 	repo, err := extract.ParseRepo("github.com/argoproj/argo-cd")
 	must(t, err)
-	out, err := extract.Run(context.Background(), New(synthTarget(fixtureExclusion())), ls, ls, extract.Options{Repo: repo, DerivedAt: derivedAt})
+	out, err := extract.Run(context.Background(), New(synthTarget(fixtureExclusion())).WithIndex(syntheticOwnership(synthTarget(), synthGroup)), ls, ls, extract.Options{Repo: repo, DerivedAt: derivedAt})
 	must(t, err)
 	_, proof = pairOf(t, out, "1.0.0", "1.1.0")
 	if v := voidFindings(proof); len(v) != 1 || v[0].Path != "Makefile" {

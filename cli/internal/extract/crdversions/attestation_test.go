@@ -287,7 +287,7 @@ func TestFrameworkChecksAttestedComponentAndReleases(t *testing.T) {
 		"no releases":               {func(c *extract.AttestationCandidate) { c.Releases = nil }, "releases is required"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			x := tampering{New(attestingTarget()), tc.change}
+			x := tampering{New(attestingTarget()).WithIndex(syntheticOwnership(attestingTarget(), synthGroup)), tc.change}
 			_, err := extract.Run(context.Background(), x, s, s, extract.Options{Repo: repo, DerivedAt: derivedAt})
 			if err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("got %v, want %q", err, tc.want)

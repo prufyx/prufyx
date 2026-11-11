@@ -56,7 +56,7 @@ func runOn(t *testing.T, project string, src pinnedSource) (*extract.Output, err
 	if err != nil {
 		t.Fatal(err)
 	}
-	return extract.Run(context.Background(), New(tg), src, src, extract.Options{Repo: repo, DerivedAt: derivedAt})
+	return extract.Run(context.Background(), fixtureExtractor(tg), src, src, extract.Options{Repo: repo, DerivedAt: derivedAt})
 }
 
 func mustRun(t *testing.T, project string, src pinnedSource) *extract.Output {
@@ -535,7 +535,7 @@ func TestCRDReproducible(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "out")
 	must(t, fixtureOutput(t).Write(dir))
 	verify := func(root string) []string {
-		problems, err := extract.Verify(context.Background(), New(tg), extract.FixtureReader{Root: root}, extract.FixtureReader{Root: root}, dir, nil)
+		problems, err := extract.Verify(context.Background(), fixtureExtractor(tg), extract.FixtureReader{Root: root}, extract.FixtureReader{Root: root}, dir, nil)
 		must(t, err)
 		return problems
 	}

@@ -82,7 +82,7 @@ The reviewed targets of the `crd.version-removal` extractor
 | `crd.version-removal.rancher` | community | `github.com/rancher/rancher` | `vX.Y.Z` | 2.10 | no | files matching `^[^.][^/]*\.ya?ml$` in `pkg/crds/yaml/generated` | 0 |
 | `crd.version-removal.redis-operator` | community | `github.com/ot-container-kit/redis-operator` | `vX.Y.Z` | 0.22 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.renovate-operator` | community | `github.com/mogenius/renovate-operator` | `X.Y.Z` | 6.2 | no | files matching `^[^.][^/]*\.ya?ml$` in `charts/renovate-operator/crd` | 0 |
-| `crd.version-removal.rook` | CNCF | `github.com/rook/rook` | `vX.Y.Z` | 1.16 | no | `deploy/examples/crds.yaml` | 1 |
+| `crd.version-removal.rook` | CNCF | `github.com/rook/rook` | `vX.Y.Z` | 1.16 | yes | `deploy/examples/crds.yaml`, `deploy/examples/csi-operator.yaml` | 1 |
 | `crd.version-removal.schemahero` | CNCF | `github.com/schemahero/schemahero` | `vX.Y.Z` | 0.21 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crds/v1` | 0 |
 | `crd.version-removal.sealed-secrets` | community | `github.com/bitnami/sealed-secrets` | `vX.Y.Z` | 0.36 | no | files matching `^[^.][^/]*\.ya?ml$` in `helm/sealed-secrets/crds` | 0 |
 | `crd.version-removal.strimzi` | CNCF | `github.com/strimzi/strimzi-kafka-operator` | `X.Y.Z` | 0.49 | yes | files matching `^[0-9A-Za-z]{3}-Crd-[A-Za-z0-9-]+\.ya?ml$` in `install/access-operator` (when present), files matching `^[0-9A-Za-z]{3}-Crd-[A-Za-z0-9-]+\.ya?ml$` in `install/cluster-operator` | 3 |

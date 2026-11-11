@@ -127,7 +127,7 @@ func TestEmptyListConditionsForACommunityTarget(t *testing.T) {
 		if err := releasesComplete(c, o, map[string][]extract.Tag{}); err != nil {
 			t.Fatalf("control: %v", err)
 		}
-		o.Source = editedTags{FixtureReader: argoFixture, from: 1, calls: new(atomic.Int32), edit: func(tags []extract.Tag) []extract.Tag {
+		o.Source = editedTags{Source: argoFixture, from: 1, calls: new(atomic.Int32), edit: func(tags []extract.Tag) []extract.Tag {
 			return append(tags, extract.Tag{Name: "v90.2.1", Commit: otherCommit})
 		}}
 		err := releasesComplete(c, o, map[string][]extract.Tag{})

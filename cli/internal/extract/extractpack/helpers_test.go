@@ -15,7 +15,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/customresources"
 	"github.com/prufyx/prufyx/cli/internal/extract"
+	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
 	"github.com/prufyx/prufyx/cli/internal/extract/extractcli"
 	"github.com/prufyx/prufyx/cli/internal/extract/extractpack"
 	"github.com/prufyx/prufyx/cli/internal/extract/supersedefixture"
@@ -48,7 +50,25 @@ func runDir(t *testing.T, c kase, at time.Time) string {
 		t.Fatal(err)
 	}
 	src := extract.FixtureReader{Root: c.fixture}
-	out, err := extract.Run(context.Background(), spec.New(0), src, src, extract.Options{Repo: repo, DerivedAt: at})
+	ex := spec.New(0)
+	if c.id == "crd.version-removal.argo-cd" {
+		// These pack-application fixtures test synthetic removals and change
+		// classification, not canonical ownership or gate rederivation. Give
+		// only their four fixture kinds explicit local ownership; preserve the
+		// original source bytes, object ids, rule ids and citation assertions.
+		ps := customresources.Projects()
+		for i := range ps {
+			if ps[i].Slug == "argo-cd" {
+				ps[i].Groups = append(ps[i].Groups, customresources.Group{Name: "fixture.argoproj.io", Kinds: []string{"Doohickey", "Gadget", "Gizmo", "Widget"}})
+			}
+		}
+		x, ok := ex.(*crdversions.Extractor)
+		if !ok {
+			t.Fatalf("unexpected Argo CD extractor %T", ex)
+		}
+		x.WithIndex(customresources.NewIndex(ps))
+	}
+	out, err := extract.Run(context.Background(), ex, src, src, extract.Options{Repo: repo, DerivedAt: at})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,6 +77,45 @@ func runDir(t *testing.T, c kase, at time.Time) string {
 		t.Fatal(err)
 	}
 	return dir
+}
+
+// The local fixture index must never be confused with public ownership. The
+// very same source bytes under the reviewed default index retain their unknown
+// removal proof but produce no rules or removal-line attestation.
+func TestSyntheticArgoFixtureRequiresExplicitOwnership(t *testing.T) {
+	owner, attribution := customresources.DefaultIndex().OwnerOf("fixture.argoproj.io", "Widget")
+	if owner != "" || attribution != customresources.Unknown {
+		t.Fatalf("synthetic fixture acquired public ownership: %q %v", owner, attribution)
+	}
+	c := cases[3]
+	spec := extractcli.Catalog()[c.id]
+	repo, err := extract.ParseRepo(spec.Repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := extract.FixtureReader{Root: c.fixture}
+	out, err := extract.Run(context.Background(), spec.New(0), src, src, extract.Options{Repo: repo, DerivedAt: derivedAt})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Entries) != 0 || len(out.Manifest.Pairs) != 2 {
+		t.Fatalf("default index emitted synthetic rules: %+v", out.Manifest.Totals)
+	}
+	p := out.Manifest.Pairs[0]
+	if p.Attestation == nil || p.Attestation.Status != extract.PairNotAttested || !strings.Contains(p.Attestation.Reason, "not attributed uniquely to argo-cd") {
+		t.Fatalf("default index attested unknown removals: %+v", p)
+	}
+	raw, err := json.Marshal(p.Proof)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var proof crdversions.PairProof
+	if err := json.Unmarshal(raw, &proof); err != nil {
+		t.Fatal(err)
+	}
+	if len(proof.Removals) != 2 || !proof.Completeness.Attestable {
+		t.Fatalf("unknown proof/source completeness changed: %+v", proof)
+	}
 }
 
 // packDir copies a real pack and the registry files the loader needs beside

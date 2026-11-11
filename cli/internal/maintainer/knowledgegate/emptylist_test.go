@@ -51,14 +51,14 @@ func (f forbiddenSource) Tags(extract.RepoRef) ([]extract.Tag, error) {
 // on (1 = every listing): the first listings are the real ones, so a change
 // can pass re-derivation and meet the tags a release published later shows.
 type editedTags struct {
-	extract.FixtureReader
+	Source
 	from  int
 	calls *atomic.Int32
 	edit  func([]extract.Tag) []extract.Tag
 }
 
 func (e editedTags) Tags(repo extract.RepoRef) ([]extract.Tag, error) {
-	tags, err := e.FixtureReader.Tags(repo)
+	tags, err := e.Source.Tags(repo)
 	if err != nil {
 		return nil, err
 	}
@@ -413,7 +413,7 @@ func TestEmptyListReleasesAtTheGate(t *testing.T) {
 	}
 	t.Run("kubernetes anchor tag gone", func(t *testing.T) {
 		base, head := k8sQuietTrees(t, nil)
-		src := editedTags{FixtureReader: extract.FixtureReader{Root: servedFixture}, from: 2, calls: new(atomic.Int32), edit: func(tags []extract.Tag) []extract.Tag {
+		src := editedTags{Source: extract.FixtureReader{Root: servedFixture}, from: 2, calls: new(atomic.Int32), edit: func(tags []extract.Tag) []extract.Tag {
 			return slices.DeleteFunc(tags, func(tg extract.Tag) bool { return tg.Name == "v1.31.0" })
 		}}
 		c := run(t, base, head, src, attestationID("1.31"))
@@ -424,14 +424,14 @@ func TestEmptyListReleasesAtTheGate(t *testing.T) {
 	})
 	t.Run("custom resources release published later", func(t *testing.T) {
 		base, head := crdQuietTrees(t, nil)
-		src := editedTags{FixtureReader: argoFixture, from: 2, calls: new(atomic.Int32), edit: func(tags []extract.Tag) []extract.Tag {
+		src := editedTags{Source: argoFixture, from: 2, calls: new(atomic.Int32), edit: func(tags []extract.Tag) []extract.Tag {
 			return append(tags, extract.Tag{Name: "v90.2.1", Commit: otherCommit})
 		}}
 		requireEmptyListCode(t, run(t, base, head, src, crdAttestationID("90.2")), "releases-incomplete")
 	})
 	t.Run("the real tags are consistent", func(t *testing.T) {
 		base, head := crdQuietTrees(t, nil)
-		src := editedTags{FixtureReader: argoFixture, from: 2, calls: new(atomic.Int32), edit: func(tags []extract.Tag) []extract.Tag { return tags }}
+		src := editedTags{Source: argoFixture, from: 2, calls: new(atomic.Int32), edit: func(tags []extract.Tag) []extract.Tag { return tags }}
 		if c := run(t, base, head, src, crdAttestationID("90.2")); !c.OK {
 			t.Fatalf("change %+v", c)
 		}

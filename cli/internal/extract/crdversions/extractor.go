@@ -38,7 +38,7 @@ const (
 	// IDPrefix is followed by the project slug: one extractor id per
 	// project, since a run reads one repository.
 	IDPrefix = "crd.version-removal."
-	Version  = "2.12.0"
+	Version  = "2.13.0"
 	// SourceDir is this package's directory under the module's internal/.
 	SourceDir = "extract/crdversions"
 )
@@ -73,10 +73,12 @@ type Extractor struct {
 	// index is the table that decides which project a definition belongs to.
 	index customresources.Index
 
-	mu    sync.Mutex
-	cache map[string]inventoryResult
-	scans map[string]*ScanRecord
-	blobs map[string]*blobInfo
+	mu          sync.Mutex
+	indexFrozen bool
+	indexError  error
+	cache       map[string]inventoryResult
+	scans       map[string]*ScanRecord
+	blobs       map[string]*blobInfo
 	// surfaces holds each install-surface file's summary (see guard.go).
 	surfaces map[string]*surfaceInfo
 	// lines is the release lines of the last Pairs call, by line key.
@@ -101,10 +103,25 @@ func NewConcurrent(t Target, concurrency int) *Extractor {
 
 // WithIndex makes the extractor attribute definitions by ix instead of the
 // embedded reviewed table: an onboarding dry run passes the table the change
-// proposes, which the embedded one does not hold yet.
+// proposes, which the embedded one does not hold yet. Configure it before
+// reading source identity or inventories. A later call leaves the index
+// unchanged and makes subsequent extraction fail.
 func (x *Extractor) WithIndex(ix customresources.Index) *Extractor {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	if x.indexFrozen {
+		x.indexError = errors.New("custom-resource ownership index cannot change after source identity or inventory reads")
+		return x
+	}
 	x.index = ix
 	return x
+}
+
+func (x *Extractor) freezeIndex() (customresources.Index, error) {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	x.indexFrozen = true
+	return x.index, x.indexError
 }
 
 // ID implements extract.Extractor.
@@ -119,7 +136,8 @@ func (x *Extractor) Version() string { return Version }
 // the listings of the table (the index the extractor attributes by) that can
 // change what this project's extraction keeps: see CodeViewWithIndex.
 func (x *Extractor) SourceFiles() (string, fs.FS) {
-	return SourceDir, CodeViewWithIndex(source, x.target.Project, x.index)
+	ix, _ := x.freezeIndex()
+	return SourceDir, CodeViewWithIndex(source, x.target.Project, ix)
 }
 
 // Applies implements extract.Extractor.
@@ -380,6 +398,9 @@ type PathRecord struct {
 }
 
 func (x *Extractor) inventory(r extract.PinnedReader, repo extract.RepoRef, tag, commit, version string) (*Inventory, error) {
+	if _, err := x.freezeIndex(); err != nil {
+		return nil, err
+	}
 	x.mu.Lock()
 	res, ok := x.cache[commit]
 	x.mu.Unlock()
@@ -870,6 +891,9 @@ func (x *Extractor) readTag(ctx context.Context, r extract.PinnedReader, repo ex
 
 // Extract implements extract.Extractor.
 func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, pair extract.VersionPair) (extract.Extraction, error) {
+	if _, err := x.freezeIndex(); err != nil {
+		return extract.Extraction{}, err
+	}
 	if !x.Applies(pair.Repo) {
 		return extract.Extraction{}, fmt.Errorf("repository %s", pair.Repo.Key)
 	}
@@ -992,7 +1016,22 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, pair ex
 		return withhold(problemf("a removal under the %s release scheme is not derived: rules for calendar lines are not defined", x.target.ReleaseScheme))
 	}
 	var out []extract.Candidate
+	var suppressed []string
+	seenSuppressed := map[string]bool{}
 	for _, name := range names {
+		f, _, err := removalDefinitions(states, fa, ta, byCRD[name])
+		if err != nil {
+			return withhold(err)
+		}
+		owner, attribution := x.index.OwnerOf(f.Group, f.Kind)
+		if attribution != customresources.Owned || owner != x.target.Project {
+			identity := f.Group + "/" + f.Kind
+			if !seenSuppressed[identity] {
+				suppressed = append(suppressed, identity)
+				seenSuppressed[identity] = true
+			}
+			continue
+		}
 		c, err := x.candidate(pair, fromLine, toLine, states, fa, ta, byCRD[name], lines.LineWide)
 		if err != nil {
 			return withhold(err)
@@ -1004,12 +1043,20 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, pair ex
 	}
 	// A rule must not forbid a version that an unread or templated CRD
 	// source at the later anchor may still serve.
-	if u := ta.scan.unreadable(); len(out) > 0 && len(u) > 0 {
+	if u := ta.scan.unreadable(); len(names) > 0 && len(u) > 0 {
 		return withhold(problemf("at %s: %s is %s (%s): a version the rules forbid may still be served there", ta.tag.Name, u[0].Path, u[0].Class, u[0].Detail))
 	}
 	proof.Completeness = completeness(x.target.Component, fromLine, toLine, fromTags, toTags, lines, proof.DefinitionsRemoved, proof.UnlistedRemovals)
 	res := extract.Extraction{Candidates: out, Proof: proof}
 	att, why := x.attestation(pair, fromLine, toLine, fa, ta, out, proof.Completeness)
+	if len(suppressed) > 0 {
+		sort.Strings(suppressed)
+		att = nil
+		if why != "" {
+			why += "; "
+		}
+		why += "removals not attributed uniquely to " + x.target.Project + ": " + strings.Join(suppressed, ", ")
+	}
 	if att != nil {
 		res.Attestations = []extract.AttestationCandidate{*att}
 	} else {
@@ -1824,13 +1871,51 @@ func lineRange(from, to *releaseLine, fromSource, toSource string) *constrainten
 	return r
 }
 
-func (x *Extractor) candidate(pair extract.VersionPair, fromLine, toLine *releaseLine, states map[string]*tagState, fa, ta *tagState, removed []Removal, lineWide bool) (extract.Candidate, error) {
-	tg := x.target
+// removalDefinitions selects exactly the definitions candidate cites, including
+// a definition first added in an earlier-line patch. A conflicting patch
+// elsewhere must not replace the anchor identity during anchor fallback.
+func removalDefinitions(states map[string]*tagState, fa, ta *tagState, removed []Removal) (*CRD, *CRD, error) {
+	if len(removed) == 0 || fa == nil || ta == nil {
+		return nil, nil, problemf("removal has no anchor identity")
+	}
 	f := fa.byName[removed[0].CRD]
 	if f == nil {
-		f = states[removed[0].FromTag].byName[removed[0].CRD]
+		if st := states[removed[0].FromTag]; st != nil {
+			f = st.byName[removed[0].CRD]
+		}
+	}
+	if f == nil {
+		return nil, nil, problemf("removal %s has no cited earlier definition", removed[0].CRD)
 	}
 	t := ta.byName[f.Name]
+	if t != nil && (t.Group != f.Group || t.Kind != f.Kind) {
+		return nil, nil, problemf("removal %s has conflicting anchor identities", f.Name)
+	}
+	for _, rm := range removed {
+		st := states[rm.FromTag]
+		if st == nil || st.byName[rm.CRD] == nil {
+			return nil, nil, problemf("removal %s has no definition at %s", rm.CRD, rm.FromTag)
+		}
+		c := st.byName[rm.CRD]
+		if c.Name != f.Name || c.Group != f.Group || c.Kind != f.Kind || rm.Member != member(f.Group, rm.Version, f.Kind) || t == nil {
+			return nil, nil, problemf("removal %s has inconsistent member or definition identity", rm.CRD)
+		}
+		earlier, present := c.version(rm.Version)
+		later, retained := t.version(rm.Version)
+		if !present || !earlier.Served || (retained && later.Served) ||
+			(!retained && rm.Reason != ReasonAbsent) || (retained && rm.Reason != ReasonUnserved) {
+			return nil, nil, problemf("removal %s is not a served-to-unserved member transition", rm.CRD)
+		}
+	}
+	return f, t, nil
+}
+
+func (x *Extractor) candidate(pair extract.VersionPair, fromLine, toLine *releaseLine, states map[string]*tagState, fa, ta *tagState, removed []Removal, lineWide bool) (extract.Candidate, error) {
+	tg := x.target
+	f, t, err := removalDefinitions(states, fa, ta, removed)
+	if err != nil {
+		return extract.Candidate{}, err
+	}
 	members := make([]string, 0, len(removed))
 	versions := make([]string, 0, len(removed))
 	type span struct{ start, end int }

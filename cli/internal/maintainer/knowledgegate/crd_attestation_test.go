@@ -4,13 +4,19 @@ package knowledgegate
 
 import (
 	"context"
+	"crypto/sha1" //nolint:gosec // synthetic fixture git object identities
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/customresources"
 	"github.com/prufyx/prufyx/cli/internal/extract"
 	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
 	"github.com/prufyx/prufyx/cli/internal/extract/extractcli"
@@ -23,7 +29,126 @@ import (
 // and line 90.2 (quiet). Argo CD's set fact is registered, so its rules are
 // admitted.
 
-var argoFixture = extract.FixtureReader{Root: filepath.Join("..", "..", "extract", "crdversions", "testdata", "fixture")}
+var argoFixture = argoCRDFixture{extract.FixtureReader{Root: filepath.Join("..", "..", "extract", "crdversions", "testdata", "fixture")}}
+
+// The shared synthetic files stay untouched. Only CRD gate fixture reads map
+// the two removal definitions to reviewed Argo CD kinds. Derive and replay
+// receive identical bytes, including unchanged quiet unknown definitions.
+// No fixture setup runs in unrelated tests or their restricted-umask children.
+type argoCRDFixture struct{ extract.FixtureReader }
+
+func (f argoCRDFixture) Read(repo extract.RepoRef, commit, p string) ([]byte, error) {
+	raw, err := f.FixtureReader.Read(repo, commit, p)
+	if err != nil {
+		return nil, err
+	}
+	var kind, plural, oldKind, oldPlural string
+	switch p {
+	case "manifests/crds/widget-crd.yaml":
+		kind, plural, oldKind, oldPlural = "Application", "applications", "Widget", "widgets"
+	case "manifests/crds/gadget-crd.yaml":
+		kind, plural, oldKind, oldPlural = "AppProject", "appprojects", "Gadget", "gadgets"
+	default:
+		return raw, nil
+	}
+	owner, attribution := customresources.DefaultIndex().OwnerOf("argoproj.io", kind)
+	if attribution != customresources.Owned || owner != "argo-cd" {
+		return nil, fmt.Errorf("gate fixture kind argoproj.io/%s is not owned by argo-cd", kind)
+	}
+	return []byte(strings.NewReplacer("fixture.argoproj.io", "argoproj.io", oldKind, kind, oldPlural, plural).Replace(string(raw))), nil
+}
+
+// Listings must describe the transformed bytes, including ancestor tree ids;
+// keeping the original ids would let content-addressed caches reuse wrong data.
+func (f argoCRDFixture) List(repo extract.RepoRef, commit, dir string) ([]extract.TreeEntry, error) {
+	entries, err := f.FixtureReader.List(repo, commit, dir)
+	if err != nil {
+		return nil, err
+	}
+	for i := range entries {
+		e := &entries[i]
+		var data []byte
+		if e.Type == "tree" {
+			children, err := f.List(repo, commit, e.Path)
+			if err != nil {
+				return nil, err
+			}
+			// FixtureReader returns Git tree order. Paths themselves are unchanged.
+			for _, c := range children {
+				oid, err := hex.DecodeString(c.SHA)
+				if err != nil {
+					return nil, err
+				}
+				mode := c.Mode
+				if c.Type == "tree" {
+					mode = "40000"
+				}
+				data = append(data, []byte(mode+" "+filepath.Base(c.Path)+"\x00")...)
+				data = append(data, oid...)
+			}
+		} else {
+			data, err = f.Read(repo, commit, e.Path)
+			if err != nil {
+				return nil, err
+			}
+		}
+		e.SHA = argoFixtureObjectID(e.Type, data)
+	}
+	return entries, nil
+}
+
+func argoFixtureObjectID(kind string, data []byte) string {
+	header := []byte(fmt.Sprintf("%s %d\x00", kind, len(data)))
+	sum := sha1.Sum(append(header, data...)) //nolint:gosec // synthetic fixture git object identities
+	return hex.EncodeToString(sum[:])
+}
+
+// Cross-check transformed object ids against the ordinary filesystem-backed
+// fixture reader, rather than trusting the wrapper's own hashing helper.
+func TestArgoCRDFixtureObjectIdentity(t *testing.T) {
+	repo, err := extract.ParseRepo("github.com/argoproj/argo-cd")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tags, err := argoFixture.Tags(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	copy := extract.FixtureReader{Root: t.TempDir()}
+	if err := os.CopyFS(copy.Root, os.DirFS(argoFixture.Root)); err != nil {
+		t.Fatal(err)
+	}
+	for _, tag := range tags {
+		// The fixture's pre-floor 2.13 tag deliberately has no source tree.
+		if !strings.HasPrefix(tag.Name, "v90.") {
+			continue
+		}
+		for _, name := range []string{"widget-crd.yaml", "gadget-crd.yaml"} {
+			p := "manifests/crds/" + name
+			raw, err := argoFixture.Read(repo, tag.Commit, p)
+			if err != nil {
+				t.Fatal(err)
+			}
+			dst := filepath.Join(copy.Root, repo.Key, "commits", tag.Commit, p)
+			if err := os.WriteFile(dst, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		for _, dir := range []string{"", "manifests", "manifests/crds"} {
+			got, err := argoFixture.List(repo, tag.Commit, dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want, err := copy.List(repo, tag.Commit, dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(got, want) {
+				t.Fatalf("fixture object identity differs at %s:%s: got %+v, want %+v", tag.Commit, dir, got, want)
+			}
+		}
+	}
+}
 
 const argoComponent = "pkg:github/argoproj/argo-cd"
 
@@ -352,12 +477,12 @@ func TestCrossCheckCRDAttestation(t *testing.T) {
 		t.Fatalf("hidden removal: %v", err)
 	}
 	// A rule over the same set with other members does not decide it.
-	other := pack.Entries["argo-cd.crd-version-removal.widgets-fixture-argoproj-io.90-0-0-to-90-1-0"]
+	other := pack.Entries["argo-cd.crd-version-removal.applications-argoproj-io.90-0-0-to-90-1-0"]
 	var e map[string]any
 	if err := json.Unmarshal(other.Raw, &e); err != nil {
 		t.Fatal(err)
 	}
-	ruleOf(e)["setCondition"].(map[string]any)["members"] = []any{"fixture.argoproj.io/v9/Widget"}
+	ruleOf(e)["setCondition"].(map[string]any)["members"] = []any{"argoproj.io/v9/Application"}
 	shape, _ := json.Marshal(ruleOf(e))
 	listed, err := readRuleShape(shape)
 	if err != nil {

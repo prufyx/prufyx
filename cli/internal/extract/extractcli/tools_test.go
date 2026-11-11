@@ -278,11 +278,12 @@ type wantsDoc struct {
 // the wants and running again succeeds, and across the rounds the wants are
 // exactly the files the extractor reads.
 func TestWantsOutAgainstAnOfflineMirror(t *testing.T) {
+	argoFixture, _ := ownedArgoFixture(t)
 	for _, tc := range []struct {
 		id, fixture, key, summary string
 	}{
 		{"k8s.feature-gate-removal", "../k8sfeaturegates/testdata/fixture", "github.com/kubernetes/kubernetes", "3 pairs (3 derived, 0 withheld), 15 rules, 45 vectors"},
-		{"crd.version-removal.argo-cd", "../crdversions/testdata/fixture", "github.com/argoproj/argo-cd", "2 pairs (2 derived, 0 withheld), 2 rules, 6 vectors"},
+		{"crd.version-removal.argo-cd", argoFixture, "github.com/argoproj/argo-cd", "2 pairs (2 derived, 0 withheld), 2 rules, 6 vectors"},
 		{"k8s.served-api-removal", "../k8sservedapis/testdata/fixture", "github.com/kubernetes/kubernetes", "4 pairs (4 derived, 0 withheld), 6 rules, 18 vectors"},
 	} {
 		t.Run(tc.id, func(t *testing.T) {
