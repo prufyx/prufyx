@@ -281,7 +281,7 @@ log "$s8 mode=$mode build"
 
 # 3. coverage report (pairs come from here; every pair is checked regardless of its status)
 export QA_NOW=${QA_NOW:-$(date -u -d '+1 day' +%Y-%m-%dT00:00:00Z)}
-L=$(ls "$RUN"/src/cli/internal/maintainer/coveragereport/testdata/lines-*.json 2>/dev/null | tail -1)
+L=$(ls "$RUN"/src/cli/internal/maintainer/coveragereport/testdata/lines-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].json 2>/dev/null | tail -1)
 export QA_COV=""
 if [ -n "$L" ] && "$QA_DEVBOX" -w "$RUN/src/cli" sh -c 'GOFLAGS=-mod=vendor go run ./cmd/prufyx-maintainer coverage report --lines "$1" --now "$2" --window ALL --json-out "$3"' _ "${L#"$RUN/src/cli/"}" "$QA_NOW" "$RUN/cov.json" </dev/null >"$RUN/cov.log" 2>&1 9>&-; then
   QA_COV=$RUN/cov.json
