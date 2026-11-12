@@ -35,6 +35,9 @@ type Input struct {
 	Tags        []string
 	Source      Source
 	Rules       *Rules
+	// StrictWindow turns a shrunk window (older tags withheld) into the
+	// typed stop window-shortened.
+	StrictWindow bool
 }
 
 // Result is the successful output of a run.
@@ -162,6 +165,9 @@ func Generate(in Input) (*Result, error) {
 		return nil, &StopError{Stops: sortStops(ruleStops)}
 	}
 
+	if in.StrictWindow && len(dropped) > 0 {
+		return nil, &StopError{Stops: []Stop{stop(StopWindowShortened, dropped[len(dropped)-1].Tag, fmt.Sprintf("%d older tag(s) withheld; last: %s", len(dropped), dropped[len(dropped)-1].Reason))}}
+	}
 	minFrom := fmt.Sprintf("%d.%d", tags[first].Major, tags[first].Minor)
 	return build(in, catalog, component, fact, ownerRepo, prefix, minFrom, rules, window, dropped, newest)
 }
@@ -373,7 +379,10 @@ func classify(tag, commit string, fs []*finding, rules *Rules, slug string, inde
 			stopAt(StopUnreadableShape, f.Path, f.Unreadable)
 			continue
 		}
-		allForeign := true
+		// A foreign group in a file the extractor skips by default is a
+		// third-party copy; anywhere else (documentation, fixtures) the
+		// file needs a pinned rule, the generator will not guess.
+		allForeign := defaultExcludedPath(f.Path)
 		for _, c := range f.CRDs {
 			o, a := index.Owner(c.Group)
 			if owned[c.Group] || a == customresources.Unknown || o == slug {
@@ -387,6 +396,8 @@ func classify(tag, commit string, fs []*finding, rules *Rules, slug string, inde
 		}
 		if hasDocsSegment(f.Path) {
 			stopAt(StopDocsOnlyCRDSource, f.Path, "groups "+groupList(f.CRDs))
+		} else if !defaultExcludedPath(f.Path) && foreignOnly(f.CRDs, slug, owned, index) {
+			stopAt(StopForeignCopyUnpinned, f.Path, "groups "+groupList(f.CRDs)+" are listed by other projects but the file is not under a default-excluded directory")
 		} else {
 			stopAt(StopUnpinnedExclusion, f.Path, "groups "+groupList(f.CRDs))
 		}
@@ -508,4 +519,34 @@ func digestFacts(window []*tagResult) string {
 
 func blobURL(ownerRepo, commit, p string) string {
 	return "https://github.com/" + ownerRepo + "/blob/" + commit + "/" + path.Clean(p)
+}
+
+// defaultExcludedPath mirrors the extractor's rule for a file under a
+// default-excluded directory: some directory segment of the path is one of
+// crdversions.DefaultExcludedSegments (the file name itself does not count).
+func defaultExcludedPath(p string) bool {
+	segs := strings.Split(p, "/")
+	for _, s := range segs[:len(segs)-1] {
+		for _, d := range crdversions.DefaultExcludedSegments {
+			if s == d {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// foreignOnly reports that every group of the file is listed by another
+// project and none is owned by the target.
+func foreignOnly(cs []crd, slug string, owned map[string]bool, index customresources.Index) bool {
+	if len(cs) == 0 {
+		return false
+	}
+	for _, c := range cs {
+		o, a := index.Owner(c.Group)
+		if owned[c.Group] || a == customresources.Unknown || o == slug {
+			return false
+		}
+	}
+	return true
 }

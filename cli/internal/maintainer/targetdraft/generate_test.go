@@ -6,9 +6,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
 )
 
 func mustGenerate(t *testing.T, in Input) *Result {
@@ -22,13 +25,16 @@ func mustGenerate(t *testing.T, in Input) *Result {
 
 func wantCanonicalEqual(t *testing.T, label string, got, golden []byte) {
 	t.Helper()
-	c, err := Canonical(golden)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(got, c) {
+	// Raw bytes: the targets are embedded and covered by the extractor's
+	// code digest, so a whitespace difference is a different digest.
+	if !bytes.Equal(got, golden) {
 		diffs, _ := Diff(got, golden)
-		t.Fatalf("%s differs from the reviewed target: %v", label, diffs)
+		n := 0
+		for n < len(got) && n < len(golden) && got[n] == golden[n] {
+			n++
+		}
+		lo := max(0, n-30)
+		t.Fatalf("%s differs byte for byte from the reviewed target at offset %d (structural diff %v)\ngot:    %q\ngolden: %q", label, n, diffs, got[lo:min(len(got), n+30)], golden[lo:min(len(golden), n+30)])
 	}
 }
 
@@ -245,6 +251,9 @@ func TestTypedStops(t *testing.T) {
 		code string
 	}{
 		{"third-party bundle without a pinned rule", func() error { return kn(nil, nil) }, StopUnpinnedExclusion},
+		{"foreign group in a fixtures file without a pin", func() error {
+			return kn(all(func(m *memTree) { m.files["fixtures/cert-manager.yaml"] = crdFile("cert-manager.io", "Issuer") }), kr())
+		}, StopForeignCopyUnpinned},
 		{"docs-only CRD source without an accepted surface", func() error { return tr(nil, &Rules{Schema: RulesSchema, Upstream: trr().Upstream}) }, StopDocsOnlyCRDSource},
 		{"template syntax", func() error {
 			return kn(all(func(m *memTree) {
@@ -366,20 +375,60 @@ func TestParseRulesFailsClosed(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, raw := range map[string]string{
-		"unknown field":   `{"schema":"` + RulesSchema + `","extra":1,"installSurface":[],"exclusions":[]}`,
-		"wrong schema":    `{"schema":"x","installSurface":[],"exclusions":[]}`,
-		"trailing data":   good + `{}`,
-		"unknown class":   `{"schema":"` + RulesSchema + `","installSurface":[],"exclusions":[{"class":"glob","path":"a/","reason":"r","evidence":"e"}]}`,
-		"dir for file":    `{"schema":"` + RulesSchema + `","installSurface":[],"exclusions":[{"class":"exact-file","path":"a/","reason":"r","evidence":"e"}]}`,
-		"file for dir":    `{"schema":"` + RulesSchema + `","installSurface":[],"exclusions":[{"class":"fixture-dir","path":"a/b.yaml","reason":"r","evidence":"e"}]}`,
-		"no evidence":     `{"schema":"` + RulesSchema + `","installSurface":[],"exclusions":[{"class":"exact-file","path":"a/b.yaml","reason":"r","evidence":""}]}`,
-		"path traversal":  `{"schema":"` + RulesSchema + `","installSurface":[],"exclusions":[{"class":"exact-file","path":"../b.yaml","reason":"r","evidence":"e"}]}`,
-		"duplicate rule":  `{"schema":"` + RulesSchema + `","installSurface":[],"exclusions":[{"class":"exact-file","path":"a.yaml","reason":"r","evidence":"e"},{"class":"exact-file","path":"a.yaml","reason":"r","evidence":"e"}]}`,
-		"surface no why":  `{"schema":"` + RulesSchema + `","installSurface":[{"path":"a.yaml","reason":""}],"exclusions":[]}`,
-		"surface is dir":  `{"schema":"` + RulesSchema + `","installSurface":[{"path":"a/","reason":"r"}],"exclusions":[]}`,
+		"unknown field":  `{"schema":"` + RulesSchema + `","extra":1,"installSurface":[],"exclusions":[]}`,
+		"wrong schema":   `{"schema":"x","installSurface":[],"exclusions":[]}`,
+		"trailing data":  good + `{}`,
+		"unknown class":  `{"schema":"` + RulesSchema + `","installSurface":[],"exclusions":[{"class":"glob","path":"a/","reason":"r","evidence":"e"}]}`,
+		"dir for file":   `{"schema":"` + RulesSchema + `","installSurface":[],"exclusions":[{"class":"exact-file","path":"a/","reason":"r","evidence":"e"}]}`,
+		"file for dir":   `{"schema":"` + RulesSchema + `","installSurface":[],"exclusions":[{"class":"fixture-dir","path":"a/b.yaml","reason":"r","evidence":"e"}]}`,
+		"no evidence":    `{"schema":"` + RulesSchema + `","installSurface":[],"exclusions":[{"class":"exact-file","path":"a/b.yaml","reason":"r","evidence":""}]}`,
+		"path traversal": `{"schema":"` + RulesSchema + `","installSurface":[],"exclusions":[{"class":"exact-file","path":"../b.yaml","reason":"r","evidence":"e"}]}`,
+		"duplicate rule": `{"schema":"` + RulesSchema + `","installSurface":[],"exclusions":[{"class":"exact-file","path":"a.yaml","reason":"r","evidence":"e"},{"class":"exact-file","path":"a.yaml","reason":"r","evidence":"e"}]}`,
+		"surface no why": `{"schema":"` + RulesSchema + `","installSurface":[{"path":"a.yaml","reason":""}],"exclusions":[]}`,
+		"surface is dir": `{"schema":"` + RulesSchema + `","installSurface":[{"path":"a/","reason":"r"}],"exclusions":[]}`,
 	} {
 		if _, err := ParseRules([]byte(raw)); err == nil {
 			t.Errorf("%s: accepted", name)
 		}
+	}
+}
+
+func TestDefaultExcludedPathMirrorsTheExtractor(t *testing.T) {
+	for _, seg := range crdversions.DefaultExcludedSegments {
+		if !defaultExcludedPath("a/"+seg+"/x.yaml") || defaultExcludedPath(seg) || defaultExcludedPath("a/"+seg+"x/y.yaml") {
+			t.Errorf("segment %q handled differently from the extractor's directory-segment rule", seg)
+		}
+		if !testLikeSegments[seg] {
+			t.Errorf("segment %q missing from the test-like set", seg)
+		}
+	}
+	for _, p := range []string{"docs/x.yaml", "fixtures/x.yaml", "doc/x.yaml", "fixture/x.yaml"} {
+		if defaultExcludedPath(p) {
+			t.Errorf("%s must not be auto-accepted as a foreign copy", p)
+		}
+	}
+}
+
+// Every shipped target file that this generator can express is reproduced
+// byte for byte by its output format.
+func TestOutputFormatEqualsShippedTargets(t *testing.T) {
+	files, _ := filepath.Glob("../../extract/crdversions/target-*.json")
+	if len(files) == 0 {
+		t.Fatal("no shipped targets found")
+	}
+	same := 0
+	for _, f := range files {
+		raw := readFile(t, f)
+		c, err := Canonical(raw)
+		if err != nil {
+			continue // carries fields the generator never writes
+		}
+		if !bytes.Equal(c, raw) {
+			t.Errorf("%s: generator format differs from the shipped bytes", f)
+		}
+		same++
+	}
+	if same < 5 {
+		t.Fatalf("only %d shipped targets compared", same)
 	}
 }

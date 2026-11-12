@@ -126,3 +126,123 @@ func TestRunUsageErrors(t *testing.T) {
 		}
 	}
 }
+
+func TestShrunkWindowWarnsAndStrictStops(t *testing.T) {
+	src := knativeSource(t, func(tag string, m *memTree) {
+		if tag == "v0.46.9" {
+			delete(m.files, "config/core/300-resources/route.yaml")
+		}
+	})
+	rules := "testdata/knative/rules.json"
+	args := func(out string, extra ...string) []string {
+		return append([]string{"generate", "--dir", "x", "--slug", "knative", "--name", "Knative", "--repo", "github.com/knative/serving",
+			"--tags", strings.Join(knativeTags, ","), "--rules", rules, "--out", out}, extra...)
+	}
+	open := func(string) Source { return src }
+	var so, se bytes.Buffer
+	out := filepath.Join(t.TempDir(), "d")
+	if code := run(args(out), &so, &se, open); code != 0 || !strings.Contains(so.String(), "WARNING window-shrunk") {
+		t.Fatalf("exit %d: %s %s", code, so.String(), se.String())
+	}
+	rep := readFile(t, filepath.Join(out, "report.json"))
+	if !bytes.Contains(rep, []byte("WARNING window-shrunk")) {
+		t.Error("the report carries no warning")
+	}
+	so.Reset()
+	out2 := filepath.Join(t.TempDir(), "d2")
+	if code := run(args(out2, "--strict-window"), &so, &se, open); code != 1 || !strings.Contains(so.String(), "STOP window-shortened") {
+		t.Fatalf("exit %d: %s", code, so.String())
+	}
+	if _, err := os.Stat(out2); err == nil {
+		t.Error("a stop wrote a draft")
+	}
+}
+
+func TestFailedRunLeavesOutEmpty(t *testing.T) {
+	repo := knativeRepo(t)
+	base := []string{"generate", "--dir", repo, "--slug", "knative", "--name", "Knative", "--repo", "github.com/knative/serving",
+		"--tags", strings.Join(knativeTags, ","), "--rules", "testdata/knative/rules.json"}
+	bad := filepath.Join(t.TempDir(), "bad.json")
+	if err := os.WriteFile(bad, bytes.Replace(readFile(t, "testdata/knative/golden-b.json"), []byte(`"minFrom": "0.46"`), []byte(`"minFrom": "0.47"`), 1), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	parent := t.TempDir()
+	out := filepath.Join(parent, "draft")
+	var so, se bytes.Buffer
+	if code := Run(append(append([]string{}, base...), "--out", out, "--compare-b", bad), &so, &se); code != 1 {
+		t.Fatalf("mismatch: exit %d", code)
+	}
+	if ents, _ := os.ReadDir(parent); len(ents) != 0 {
+		t.Errorf("a compare mismatch left %d entries beside --out", len(ents))
+	}
+	// An I/O error while writing: --out is a path below a regular file.
+	blocker := filepath.Join(parent, "file")
+	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if code := Run(append(append([]string{}, base...), "--out", filepath.Join(blocker, "draft")), &so, &se); code != 2 {
+		t.Fatalf("io error: exit %d", code)
+	}
+	// An existing empty --out stays empty when the run fails.
+	empty := filepath.Join(parent, "empty")
+	if err := os.Mkdir(empty, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if code := Run(append(append([]string{}, base...), "--out", empty, "--compare-b", bad), &so, &se); code != 1 {
+		t.Fatalf("exit %d", code)
+	}
+	if ents, _ := os.ReadDir(empty); len(ents) != 0 {
+		t.Errorf("--out holds %d entries after a failed run", len(ents))
+	}
+}
+
+func TestRawByteDifferenceIsReported(t *testing.T) {
+	repo := knativeRepo(t)
+	golden := readFile(t, "testdata/knative/golden-b.json")
+	spaced := filepath.Join(t.TempDir(), "spaced.json")
+	if err := os.WriteFile(spaced, bytes.Replace(golden, []byte(`["v"]`), []byte(`[ "v" ]`), 1), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var so, se bytes.Buffer
+	code := Run([]string{"generate", "--dir", repo, "--slug", "knative", "--name", "Knative", "--repo", "github.com/knative/serving",
+		"--tags", strings.Join(knativeTags, ","), "--rules", "testdata/knative/rules.json", "--out", filepath.Join(t.TempDir(), "d"), "--compare-b", spaced}, &so, &se)
+	if code != 1 || !strings.Contains(so.String(), "bytes differ") {
+		t.Fatalf("exit %d: %s", code, so.String())
+	}
+}
+
+// Only the facts digest differs: the targets are equal, so the target
+// comparison is silent, and the report comparison must fail the run.
+func TestCompareReportCatchesFactsOnlyDifference(t *testing.T) {
+	const route = "config/core/300-resources/route.yaml"
+	two := func(m *memTree) {
+		replaceCRD(m, route, "    storage: true\n", "    storage: true\n  - name: v1beta1\n    served: true\n    storage: false\n")
+	}
+	baseSrc := knativeSource(t, func(_ string, m *memTree) { two(m) })
+	seededSrc := knativeSource(t, func(tag string, m *memTree) {
+		two(m)
+		if tag == "v0.51.0" {
+			replaceCRD(m, route, "  - name: v1beta1\n    served: true\n    storage: false\n", "")
+		}
+	})
+	args := func(out string, extra ...string) []string {
+		return append([]string{"generate", "--dir", "x", "--slug", "knative", "--name", "Knative", "--repo", "github.com/knative/serving",
+			"--tags", strings.Join(knativeTags, ","), "--rules", "testdata/knative/rules.json", "--out", out}, extra...)
+	}
+	var so, se bytes.Buffer
+	d1 := filepath.Join(t.TempDir(), "base")
+	if code := run(args(d1), &so, &se, func(string) Source { return baseSrc }); code != 0 {
+		t.Fatalf("base: exit %d %s %s", code, so.String(), se.String())
+	}
+	reviewedReport := filepath.Join(d1, "report.json")
+	targetA, targetB := filepath.Join(d1, "a", "target-knative.json"), filepath.Join(d1, "b", "target-knative.json")
+	so.Reset()
+	code := run(args(filepath.Join(t.TempDir(), "seeded"), "--compare-a", targetA, "--compare-b", targetB, "--compare-report", reviewedReport), &so, &se, func(string) Source { return seededSrc })
+	if code != 1 || !strings.Contains(so.String(), "DIFF facts") || strings.Contains(so.String(), "DIFF A") || strings.Contains(so.String(), "DIFF B") {
+		t.Fatalf("exit %d: %s", code, so.String())
+	}
+	so.Reset()
+	if code := run(args(filepath.Join(t.TempDir(), "same"), "--compare-a", targetA, "--compare-b", targetB, "--compare-report", reviewedReport), &so, &se, func(string) Source { return baseSrc }); code != 0 {
+		t.Fatalf("equal facts: exit %d %s", code, so.String())
+	}
+}

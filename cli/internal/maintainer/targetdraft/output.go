@@ -33,6 +33,8 @@ const (
 	StopNoCRDSource           = "no-crd-source"
 	StopWindowTooShort        = "window-too-short"
 	StopCommunityUpstream     = "community-upstream-missing"
+	StopForeignCopyUnpinned   = "foreign-copy-unpinned"
+	StopWindowShortened       = "window-shortened"
 )
 
 var nextAction = map[string]string{
@@ -55,6 +57,8 @@ var nextAction = map[string]string{
 	StopGroupOwnedElsewhere:   "another table project lists the group; use a kinds-only row after review",
 	StopNoCRDSource:           "no install path holds a definition; give an installSurface rule or choose another source",
 	StopWindowTooShort:        "fewer than two tags read the same files; widen the tag set or fix the unreadable tag",
+	StopForeignCopyUnpinned:   "a definition file of another project's group sits outside the default-excluded directories (documentation or fixtures); add a reviewed pinned exclusion rule for the exact file or fixture directory",
+	StopWindowShortened:       "older tags were withheld and --strict-window forbids a shorter window; fix the withheld tags or drop the flag after review",
 	StopCommunityUpstream:     "a community-catalog row needs the upstream block (name, repository, license, licenseSource) in the rules file",
 }
 
@@ -149,6 +153,7 @@ type Report struct {
 	MinFrom     string       `json:"minFrom"`
 	Tags        []TagFact    `json:"tags"`
 	Dropped     []DroppedTag `json:"droppedTags"`
+	Warnings    []string     `json:"warnings"`
 	Decisions   []Decision   `json:"decisions"`
 	Groups      []GroupFact  `json:"groups"`
 	CRDCount    int          `json:"crdCount"`
@@ -230,7 +235,66 @@ func Canonical(raw []byte) ([]byte, error) {
 	if d.Target.Exclude == nil {
 		d.Target.Exclude = []exclOut{}
 	}
-	return marshal(d)
+	return marshalTarget(d)
+}
+
+func jstr(s string) string {
+	var b bytes.Buffer
+	enc := json.NewEncoder(&b)
+	enc.SetEscapeHTML(false)
+	_ = enc.Encode(s)
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func jlist(items []string) string {
+	q := make([]string, len(items))
+	for i, s := range items {
+		q[i] = jstr(s)
+	}
+	return "[" + strings.Join(q, ", ") + "]"
+}
+
+// marshalTarget writes a target file in the exact on-disk format of the
+// shipped target-*.json files: two-space indented keys, the tag prefix list
+// on one line, and one compact object per line for paths and exclusions. The
+// shipped files are embedded into the extractor and covered by its code
+// digest, so digest equality needs byte equality with this format.
+func marshalTarget(d targetDoc) ([]byte, error) {
+	t := d.Target
+	var b strings.Builder
+	b.WriteString("{\n  \"schema\": " + jstr(d.Schema) + ",\n  \"target\": {\n")
+	line := func(k, v string) { b.WriteString("    \"" + k + "\": " + v + ",\n") }
+	line("project", jstr(t.Project))
+	if t.Catalog != "" {
+		line("catalog", jstr(t.Catalog))
+	}
+	line("name", jstr(t.Name))
+	line("repo", jstr(t.Repo))
+	line("component", jstr(t.Component))
+	line("factProject", jstr(t.FactProject))
+	line("tagPrefixes", jlist(t.TagPrefixes))
+	line("minFrom", jstr(t.MinFrom))
+	if t.Attest {
+		line("attest", "true")
+	}
+	var objs []string
+	for _, p := range t.Paths {
+		objs = append(objs, "{\"path\": "+jstr(p.Path)+"}")
+	}
+	b.WriteString("    \"paths\": " + objList(objs) + ",\n")
+	objs = nil
+	for _, e := range t.Exclude {
+		objs = append(objs, "{\"path\": "+jstr(e.Path)+", \"repo\": "+jstr(e.Repo)+", \"reason\": "+jstr(e.Reason)+", \"evidence\": "+jstr(e.Evidence)+"}")
+	}
+	b.WriteString("    \"exclude\": " + objList(objs) + "\n  }\n}\n")
+	return []byte(b.String()), nil
+}
+
+func objList(objs []string) string {
+	if len(objs) == 0 {
+		return "[]"
+	}
+	return "[\n      " + strings.Join(objs, ",\n      ") + "\n    ]"
 }
 
 func build(in Input, catalog, component, fact, ownerRepo, prefix, minFrom string, rules *Rules, window []*tagResult, dropped []DroppedTag, newest *tagResult) (*Result, error) {
@@ -243,7 +307,7 @@ func build(in Input, catalog, component, fact, ownerRepo, prefix, minFrom string
 	for _, i := range ordered {
 		body.Paths = append(body.Paths, pathOut{Path: i.Path})
 	}
-	a, err := marshal(targetDoc{Schema: "prufyx.io/crd-version-target/v1", Target: body})
+	a, err := marshalTarget(targetDoc{Schema: "prufyx.io/crd-version-target/v1", Target: body})
 	if err != nil {
 		return nil, err
 	}
@@ -257,7 +321,7 @@ func build(in Input, catalog, component, fact, ownerRepo, prefix, minFrom string
 	if excls != nil {
 		bb.Exclude = excls
 	}
-	b, err := marshal(targetDoc{Schema: "prufyx.io/crd-version-target/v1", Target: bb})
+	b, err := marshalTarget(targetDoc{Schema: "prufyx.io/crd-version-target/v1", Target: bb})
 	if err != nil {
 		return nil, err
 	}
@@ -304,6 +368,10 @@ func build(in Input, catalog, component, fact, ownerRepo, prefix, minFrom string
 	rep := Report{Schema: ReportSchema, Slug: in.Slug, TagPrefix: prefix, MinFrom: minFrom, Groups: gfacts, CRDCount: crdCount, Dropped: dropped}
 	if rep.Dropped == nil {
 		rep.Dropped = []DroppedTag{}
+	}
+	rep.Warnings = []string{}
+	if len(dropped) > 0 {
+		rep.Warnings = append(rep.Warnings, fmt.Sprintf("WARNING window-shrunk: %d older tag(s) withheld, so minFrom is %s; see droppedTags", len(dropped), minFrom))
 	}
 	seen := map[Decision]bool{}
 	add := func(d Decision) {

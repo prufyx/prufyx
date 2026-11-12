@@ -111,19 +111,25 @@ func setDiff(label string, generated, reviewed []string) []string {
 	return out
 }
 
-const usage = "usage: prufyx-maintainer target-draft generate --dir CHECKOUT --slug SLUG --name NAME --repo github.com/OWNER/NAME --tags TAG[,TAG...] --out DIR [--catalog cncf|community] [--component PURL] [--fact-project ID] [--rules FILE] [--compare-a FILE] [--compare-b FILE]"
+const usage = "usage: prufyx-maintainer target-draft generate --dir CHECKOUT --slug SLUG --name NAME --repo github.com/OWNER/NAME --tags TAG[,TAG...] --out DIR [--catalog cncf|community] [--component PURL] [--fact-project ID] [--rules FILE] [--compare-a FILE] [--compare-b FILE] [--compare-report FILE] [--strict-window]\n" +
+	"the targets are embedded in the extractor and covered by its code digest, so a reviewed target equals the draft only when the bytes are equal; --compare-a and --compare-b report any byte difference (a whitespace-only one too) and --compare-report compares the facts digest of a reviewed report.json; a shrunk window (older tags withheld) is a WARNING window-shrunk and exit 0, a typed stop window-shortened with --strict-window"
 
 // Run implements "target-draft generate". Exit codes: 0 drafts written (and
 // every given reviewed file equal), 1 typed stop or a difference from a
 // reviewed file, 2 usage or I/O error. It never uses the network.
 func Run(args []string, stdout, stderr io.Writer) int {
+	return run(args, stdout, stderr, func(dir string) Source { return GitSource{Dir: dir} })
+}
+
+func run(args []string, stdout, stderr io.Writer, open func(dir string) Source) int {
 	if len(args) == 0 || args[0] != "generate" {
 		fmt.Fprintln(stderr, usage)
 		return 2
 	}
 	fl := flag.NewFlagSet("target-draft generate", flag.ContinueOnError)
 	fl.SetOutput(io.Discard)
-	var dir, slug, name, repo, tags, out, catalog, component, fact, rulesPath, cmpA, cmpB string
+	var dir, slug, name, repo, tags, out, catalog, component, fact, rulesPath, cmpA, cmpB, cmpRep string
+	var strict bool
 	fl.StringVar(&dir, "dir", "", "")
 	fl.StringVar(&slug, "slug", "", "")
 	fl.StringVar(&name, "name", "", "")
@@ -136,6 +142,8 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	fl.StringVar(&rulesPath, "rules", "", "")
 	fl.StringVar(&cmpA, "compare-a", "", "")
 	fl.StringVar(&cmpB, "compare-b", "", "")
+	fl.StringVar(&cmpRep, "compare-report", "", "")
+	fl.BoolVar(&strict, "strict-window", false, "")
 	if err := fl.Parse(args[1:]); err != nil || fl.NArg() != 0 || dir == "" || slug == "" || name == "" || repo == "" || tags == "" || out == "" {
 		fmt.Fprintln(stderr, usage)
 		return 2
@@ -163,7 +171,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		}
 	}
 	res, err := Generate(Input{Slug: slug, Name: name, Repo: repo, Component: component, FactProject: fact, Catalog: catalog,
-		Tags: strings.Split(tags, ","), Source: GitSource{Dir: dir}, Rules: rules})
+		Tags: strings.Split(tags, ","), Source: open(dir), Rules: rules, StrictWindow: strict})
 	if err != nil {
 		var se *StopError
 		if errors.As(err, &se) {
@@ -191,27 +199,13 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		names = append(names, n)
 	}
 	sort.Strings(names)
-	for _, n := range names {
-		p := filepath.Join(out, filepath.FromSlash(n))
-		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
-			fmt.Fprintf(stderr, "target-draft: %v\n", err)
-			return 2
-		}
-		f, err := os.OpenFile(p, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
-		if err == nil {
-			_, err = f.Write(files[n])
-			if cerr := f.Close(); err == nil {
-				err = cerr
-			}
-		}
-		if err != nil {
-			fmt.Fprintf(stderr, "target-draft: %v\n", err)
-			return 2
-		}
-		fmt.Fprintf(stdout, "wrote %s\n", p)
-	}
+	// Compare first, then write everything into a temporary directory next
+	// to --out and rename it, so a failed run leaves --out absent or empty.
 	status := 0
-	for _, c := range []struct{ label, file string; got []byte }{{"A", cmpA, res.A}, {"B", cmpB, res.B}} {
+	for _, c := range []struct {
+		label, file string
+		got         []byte
+	}{{"A", cmpA, res.A}, {"B", cmpB, res.B}} {
 		if c.file == "" {
 			continue
 		}
@@ -225,6 +219,9 @@ func Run(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintf(stderr, "target-draft: %v\n", err)
 			return 2
 		}
+		if len(diffs) == 0 && !bytes.Equal(c.got, raw) {
+			diffs = []string{"bytes differ although the structure is equal (whitespace or order); the embedded file would get another code digest"}
+		}
 		for _, d := range diffs {
 			fmt.Fprintf(stdout, "DIFF %s: %s\n", c.label, d)
 		}
@@ -232,8 +229,81 @@ func Run(args []string, stdout, stderr io.Writer) int {
 			status = 1
 		}
 	}
+	if cmpRep != "" {
+		raw, err := readBounded(cmpRep)
+		var rr struct {
+			FactsDigest string `json:"factsDigest"`
+		}
+		if err == nil {
+			err = json.Unmarshal(raw, &rr)
+		}
+		if err != nil || rr.FactsDigest == "" {
+			fmt.Fprintf(stderr, "target-draft: --compare-report: need a report.json with a factsDigest (%v)\n", err)
+			return 2
+		}
+		if rr.FactsDigest != res.Report.FactsDigest {
+			fmt.Fprintf(stdout, "DIFF facts: generated %s, reviewed %s\n", res.Report.FactsDigest, rr.FactsDigest)
+			status = 1
+		}
+	}
+	if status != 0 {
+		fmt.Fprintln(stdout, "target-draft: differs from the reviewed files; no draft written")
+		return status
+	}
+	if err := writeAtomic(out, names, files); err != nil {
+		fmt.Fprintf(stderr, "target-draft: %v\n", err)
+		return 2
+	}
+	for _, n := range names {
+		fmt.Fprintf(stdout, "wrote %s\n", filepath.Join(out, filepath.FromSlash(n)))
+	}
+	if len(res.Report.Dropped) > 0 {
+		fmt.Fprintf(stdout, "WARNING window-shrunk: %d older tag(s) withheld, minFrom is %s (see droppedTags in report.json)\n", len(res.Report.Dropped), res.Report.MinFrom)
+	}
 	fmt.Fprintf(stdout, "target-draft: %s: %d CRDs in %d groups, minFrom %s, %d tags in the window\n", slug, res.Report.CRDCount, len(res.Report.Groups), res.Report.MinFrom, len(res.Report.Tags))
-	return status
+	return 0
+}
+
+// writeAtomic writes every file below a temporary directory beside out and
+// renames it to out (an existing empty out is replaced). On any error the
+// temporary directory is removed and out is left as it was.
+func writeAtomic(out string, names []string, files map[string][]byte) error {
+	parent := filepath.Dir(filepath.Clean(out))
+	if err := os.MkdirAll(parent, 0o755); err != nil {
+		return err
+	}
+	tmp, err := os.MkdirTemp(parent, ".target-draft-")
+	if err != nil {
+		return err
+	}
+	ok := false
+	defer func() {
+		if !ok {
+			os.RemoveAll(tmp)
+		}
+	}()
+	for _, n := range names {
+		p := filepath.Join(tmp, filepath.FromSlash(n))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(p, files[n], 0o644); err != nil {
+			return err
+		}
+	}
+	if err := os.Chmod(tmp, 0o755); err != nil {
+		return err
+	}
+	if st, err := os.Stat(out); err == nil && st.IsDir() {
+		if err := os.Remove(out); err != nil {
+			return err
+		}
+	}
+	if err := os.Rename(tmp, out); err != nil {
+		return err
+	}
+	ok = true
+	return nil
 }
 
 func readBounded(p string) ([]byte, error) {
