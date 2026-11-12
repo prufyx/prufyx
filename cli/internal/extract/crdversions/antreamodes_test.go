@@ -5,12 +5,14 @@ package crdversions
 import (
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/prufyx/prufyx/cli/internal/customresources"
 	"github.com/prufyx/prufyx/cli/internal/extract"
 )
 
@@ -109,8 +111,135 @@ func TestAntreaWholeDeleteStrict(t *testing.T) {
 }
 
 func antreaModeState(tag string, modes map[string][]string) *tagState {
+	_, proof := antreaDependencyFixture()
+	proof.Modes = modes
 	return &tagState{tag: extract.Tag{Name: tag}, inv: &Inventory{Complete: true},
-		scan: &ScanRecord{Complete: true, AntreaModes: &AntreaModeRecord{Modes: modes, verified: true}}}
+		scan: &ScanRecord{Complete: true, AntreaModes: proof}}
+}
+
+func antreaDependencyFixture() (*Inventory, *AntreaModeRecord) {
+	commit := "a13d931239e8ac2c94e002dc82ce923d0a28b71d"
+	inv := &Inventory{Commit: commit, Complete: true, CRDs: []CRD{{Name: "alphas.crd.antrea.io", Group: "crd.antrea.io", Kind: "Alpha"}}}
+	proof := &AntreaModeRecord{SourceSHA256: antreaModePins[commit], verified: true, dependencies: map[string]CRD{},
+		Modes: map[string][]string{"leader": {}, "leader-global": {}, "leader-ns": {}, "member": {}}}
+	for _, spec := range antreaMCSDependencies {
+		c := CRD{Name: spec.name, Group: "multicluster.x-k8s.io", Kind: spec.kind,
+			Plural: strings.Split(spec.name, ".")[0], Scope: "Namespaced", Path: spec.file,
+			StorageVersion: "v1alpha1", Versions: []CRDVersion{{Name: "v1alpha1", Served: true, Storage: true}}}
+		inv.CRDs = append(inv.CRDs, c)
+		inv.Files = append(inv.Files, FileRecord{Path: spec.file, SHA256: spec.sha256, CRDs: 1})
+		proof.dependencies[spec.name] = c
+		proof.Modes["member"] = append(proof.Modes["member"], member(c.Group, "v1alpha1", c.Kind))
+	}
+	return inv, proof
+}
+
+func TestAntreaInstalledDependencies(t *testing.T) {
+	repo, _ := extract.ParseRepo("github.com/antrea-io/antrea")
+	target := Target{Project: "antrea", Repo: repo.Key, Component: antreaComponent}
+	x := New(target)
+	raw, proof := antreaDependencyFixture()
+	before, _ := json.Marshal(raw)
+	got, err := x.attributedAntreaInventory(repo, raw, proof)
+	if err != nil || len(got.CRDs) != 1 || len(got.Foreign) != 2 || len(got.Files) != 2 {
+		t.Fatalf("installed dependency classification: %+v, %v", got, err)
+	}
+	after, _ := json.Marshal(raw)
+	if string(before) != string(after) {
+		t.Fatal("cached raw inventory changed")
+	}
+	got.Files[0].SHA256 = "changed receipt"
+	if raw.Files[0].SHA256 != antreaMCSDependencies[0].sha256 {
+		t.Fatal("attributed inventory shares mutable file receipts with the raw cache")
+	}
+	for _, spec := range antreaMCSDependencies {
+		if _, attribution := customresources.DefaultIndex().OwnerOf("multicluster.x-k8s.io", spec.kind); attribution != customresources.Unknown {
+			t.Fatal("unmapped customer MCS resources must remain unknown")
+		}
+	}
+	otherOwner := New(target).WithIndex(customresources.NewIndex([]customresources.Project{
+		{Slug: "antrea", Groups: []customresources.Group{{Name: "crd.antrea.io"}}},
+		{Slug: "other", Groups: []customresources.Group{{Name: "multicluster.x-k8s.io"}}},
+	}))
+	if inv, err := otherOwner.attributedAntreaInventory(repo, raw, proof); err != nil || len(inv.Foreign) != 2 {
+		t.Fatalf("a unique other owner was not preserved: %+v, %v", inv, err)
+	}
+	for _, tc := range []struct {
+		name string
+		edit func(*Inventory, *AntreaModeRecord, *Extractor)
+	}{
+		{"own object as foreign", func(i *Inventory, _ *AntreaModeRecord, _ *Extractor) { i.CRDs[1].Group = "crd.antrea.io" }},
+		{"missing object", func(i *Inventory, _ *AntreaModeRecord, _ *Extractor) { i.CRDs = i.CRDs[:2] }},
+		{"missing listed receipt", func(i *Inventory, _ *AntreaModeRecord, _ *Extractor) { i.Files = i.Files[:1] }},
+		{"changed body receipt", func(i *Inventory, _ *AntreaModeRecord, _ *Extractor) {
+			i.Files[0].SHA256 = "sha256:" + strings.Repeat("0", 64)
+		}},
+		{"changed dependency API", func(i *Inventory, _ *AntreaModeRecord, _ *Extractor) { i.CRDs[1].Versions[0].Name = "v1alpha2" }},
+		{"missing mode", func(_ *Inventory, p *AntreaModeRecord, _ *Extractor) { delete(p.Modes, "leader-ns") }},
+		{"forged source pin", func(_ *Inventory, p *AntreaModeRecord, _ *Extractor) { p.SourceSHA256 = strings.Repeat("0", 64) }},
+		{"serialized proof", func(_ *Inventory, p *AntreaModeRecord, _ *Extractor) {
+			b, _ := json.Marshal(p)
+			*p = AntreaModeRecord{}
+			_ = json.Unmarshal(b, p)
+		}},
+		{"Antrea ownership", func(_ *Inventory, _ *AntreaModeRecord, x *Extractor) {
+			x.WithIndex(syntheticOwnership(target, "multicluster.x-k8s.io"))
+		}},
+		{"ambiguous ownership", func(_ *Inventory, _ *AntreaModeRecord, x *Extractor) {
+			x.WithIndex(customresources.NewIndex([]customresources.Project{
+				{Slug: "other", Groups: []customresources.Group{{Name: "multicluster.x-k8s.io"}}},
+				{Slug: "second", Groups: []customresources.Group{{Name: "multicluster.x-k8s.io"}}},
+			}))
+		}},
+		{"foreign repository", func(_ *Inventory, _ *AntreaModeRecord, x *Extractor) { x.target.Repo = "github.com/example/other" }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			i, p := antreaDependencyFixture()
+			x := New(target)
+			tc.edit(i, p, x)
+			if got, err := x.attributedAntreaInventory(repo, i, p); err == nil || got != nil {
+				t.Fatal("unproved dependency was classified foreign")
+			}
+		})
+	}
+}
+
+func TestAntreaMCSModeLossCannotHideInUnion(t *testing.T) {
+	m := "multicluster.x-k8s.io/v1alpha1/ServiceExport"
+	base := func() map[string][]string {
+		return map[string][]string{"leader": {m}, "leader-global": {}, "leader-ns": {}, "member": {m}}
+	}
+	from, to := antreaModeState("v2.2.0", base()), antreaModeState("v2.3.0", base())
+	to.scan.AntreaModes.Modes["leader"] = nil
+	got := completeness(antreaComponent, &releaseLine{Major: 2, Minor: 2}, &releaseLine{Major: 2, Minor: 3},
+		[]*tagState{from}, []*tagState{to}, &LinesRecord{LineWide: true}, nil, nil)
+	if !slices.Contains(to.scan.AntreaModes.Modes["member"], m) || got.Attestable {
+		t.Fatalf("MCS removal concealed by the retained union: %+v", got)
+	}
+	to = antreaModeState("v2.3.0", base())
+	to.scan.AntreaModes.Modes["leader"] = append(to.scan.AntreaModes.Modes["leader"], "multicluster.x-k8s.io/v1alpha2/ServiceExport")
+	if len(antreaModeProblems(antreaComponent, []*tagState{from, to})) == 0 {
+		t.Fatal("a changed MCS dependency serving set was accepted")
+	}
+}
+
+func TestAntreaDependencyAttributionBound(t *testing.T) {
+	view := func(ix customresources.Index) string {
+		body, err := fs.ReadFile(CodeViewWithIndex(source, "antrea", ix), AttributionFileName)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(body)
+	}
+	baseline := view(customresources.DefaultIndex())
+	projects := customresources.Projects()
+	projects = append(projects, customresources.Project{Slug: "other", Groups: []customresources.Group{{Name: "multicluster.x-k8s.io"}}})
+	owned := view(customresources.NewIndex(projects))
+	projects = append(projects, customresources.Project{Slug: "second", Groups: []customresources.Group{{Name: "multicluster.x-k8s.io"}}})
+	ambiguous := view(customresources.NewIndex(projects))
+	if baseline == owned || owned == ambiguous || baseline == ambiguous {
+		t.Fatal("consulted MCS attribution changed without changing the code identity input")
+	}
 }
 
 func TestAntreaModeLossCannotHideInUnion(t *testing.T) {
@@ -242,6 +371,8 @@ func TestAntreaCapturedModes(t *testing.T) {
 		"multicluster/config/overlays/leader/prefix_transformer.yaml",
 		"multicluster/hack/generate-manifest.sh", "hack/verify-kustomize.sh",
 		"multicluster/build/yamls/antrea-multicluster-leader-namespaced.yml",
+		"multicluster/config/crd/k8smcs/multicluster.x-k8s.io_serviceexports.yaml",
+		"multicluster/config/crd/k8smcs/multicluster.x-k8s.io_serviceimports.yaml",
 	} {
 		t.Run("changed/"+p, func(t *testing.T) {
 			r := antreaCapturedReader{root: filepath.Join(root, "captured", first.Tag), override: map[string][]byte{p: []byte("unreviewed tool override or transform\n")}}

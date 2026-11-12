@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/prufyx/prufyx/cli/internal/customresources"
 	"github.com/prufyx/prufyx/cli/internal/extract"
 )
 
@@ -58,6 +59,14 @@ type AntreaModeRecord struct {
 	SourceSHA256 string              `json:"sourceSHA256"`
 	Modes        map[string][]string `json:"modes"`
 	verified     bool
+	dependencies map[string]CRD
+}
+
+var antreaMCSDependencies = []struct {
+	name, kind, file, sha256 string
+}{
+	{"serviceexports.multicluster.x-k8s.io", "ServiceExport", "multicluster/config/crd/k8smcs/multicluster.x-k8s.io_serviceexports.yaml", "sha256:09373a675b24a9c926c1c3df19b43a9bf401807e87604f71fdf1311c0f190bb1"},
+	{"serviceimports.multicluster.x-k8s.io", "ServiceImport", "multicluster/config/crd/k8smcs/multicluster.x-k8s.io_serviceimports.yaml", "sha256:99df9b742043f4e69c8b9b4cfc2140d539f368cd94b96468469594923045074d"},
 }
 
 func antreaModeScope(p string) bool {
@@ -124,11 +133,96 @@ func readAntreaModes(r extract.PinnedReader, repo extract.RepoRef, commit string
 	if digest != pin {
 		return nil, problemf("the Antrea mode inventory, generator or transform bytes differ from the reviewed source profile")
 	}
+	dependencies, err := readAntreaDependencies(data)
+	if err != nil {
+		return nil, err
+	}
 	modes, err := projectAntreaModes(data)
 	if err != nil {
 		return nil, err
 	}
-	return &AntreaModeRecord{SourceSHA256: digest, Modes: modes, verified: true}, nil
+	return &AntreaModeRecord{SourceSHA256: digest, Modes: modes, verified: true, dependencies: dependencies}, nil
+}
+
+// These installed dependencies have a fixed source identity, not an Antrea
+// ownership assignment. The independent pins remain mandatory even if a
+// future reviewed mode profile adds a new source digest.
+func readAntreaDependencies(data map[string][]byte) (map[string]CRD, error) {
+	dependencies := map[string]CRD{}
+	for _, spec := range antreaMCSDependencies {
+		body, ok := data[spec.file]
+		if !ok || fmt.Sprintf("sha256:%x", sha256.Sum256(body)) != spec.sha256 {
+			return nil, problemf("installed MCS dependency %s is missing or has changed bytes", spec.file)
+		}
+		crds, err := antreaDefinitions(spec.file, data)
+		if err != nil {
+			return nil, err
+		}
+		if len(crds) != 1 || !antreaDependencyIdentity(crds[0], spec.name, spec.kind) {
+			return nil, problemf("installed MCS dependency %s has a different identity or serving set", spec.file)
+		}
+		dependencies[spec.name] = crds[0]
+	}
+	return dependencies, nil
+}
+
+func antreaDependencyIdentity(c CRD, name, kind string) bool {
+	return c.Name == name && c.Group == "multicluster.x-k8s.io" && c.Kind == kind &&
+		c.Plural+"."+c.Group == name && c.Scope == "Namespaced" && c.SourceAPIVersion == "" &&
+		c.StorageVersion == "v1alpha1" && len(c.Versions) == 1 &&
+		c.Versions[0].Name == "v1alpha1" && c.Versions[0].Served && c.Versions[0].Storage
+}
+
+// attributedAntreaInventory runs only after raw source parsing and the full
+// mode proof. The cached raw inventory is never changed or pre-attributed.
+func (x *Extractor) attributedAntreaInventory(repo extract.RepoRef, raw *Inventory, proof *AntreaModeRecord) (*Inventory, error) {
+	if x.target.Component != antreaComponent || x.target.Project != "antrea" ||
+		x.target.Repo != "github.com/antrea-io/antrea" || repo.Key != x.target.Repo ||
+		raw == nil || !raw.Complete || len(raw.Foreign) != 0 || proof == nil || !proof.verified ||
+		antreaModePins[raw.Commit] == "" || proof.SourceSHA256 != antreaModePins[raw.Commit] ||
+		len(proof.dependencies) != len(antreaMCSDependencies) ||
+		len(antreaModeProblems(antreaComponent, []*tagState{{scan: &ScanRecord{AntreaModes: proof}}})) != 0 {
+		return nil, problemf("installed MCS dependencies require the exact repository and a fresh complete four-mode source proof")
+	}
+	for _, spec := range antreaMCSDependencies {
+		fresh := proof.dependencies[spec.name]
+		if !antreaDependencyIdentity(fresh, spec.name, spec.kind) || fresh.Path != spec.file {
+			return nil, problemf("the fresh MCS dependency identity is missing or changed")
+		}
+		files, objects := 0, 0
+		for _, f := range raw.Files {
+			if f.Path == spec.file {
+				if f.Repo != "" || f.Commit != "" || f.SHA256 != spec.sha256 || f.CRDs != 1 {
+					return nil, problemf("the listed MCS dependency receipt differs from the pinned local source")
+				}
+				files++
+			}
+		}
+		for _, c := range raw.CRDs {
+			if c.Name == spec.name {
+				if c.Path != spec.file || c.Repo != "" || c.Commit != "" || !antreaDependencyIdentity(c, spec.name, spec.kind) || !sameServing(&fresh, &c) {
+					return nil, problemf("the listed MCS dependency object differs from the freshly verified source")
+				}
+				objects++
+			}
+		}
+		owner, attribution := x.index.OwnerOf(fresh.Group, fresh.Kind)
+		if files != 1 || objects != 1 || owner == x.target.Project || attribution == customresources.Ambiguous {
+			return nil, problemf("installed MCS dependency %s is missing, repeated, owned by Antrea or ambiguously attributed", spec.name)
+		}
+	}
+	inv := *raw
+	inv.Paths, inv.Files = slices.Clone(raw.Paths), slices.Clone(raw.Files)
+	inv.CRDs, inv.Foreign = []CRD{}, []string{}
+	for _, c := range raw.CRDs {
+		if _, dependency := proof.dependencies[c.Name]; dependency || x.attribution().foreign(c.Group, c.Kind) {
+			inv.Foreign = append(inv.Foreign, c.Name)
+		} else {
+			inv.CRDs = append(inv.CRDs, c)
+		}
+	}
+	sort.Strings(inv.Foreign)
+	return &inv, nil
 }
 
 func antreaDefinitions(p string, data map[string][]byte) ([]CRD, error) {
@@ -268,8 +362,9 @@ func antreaModeProblems(component string, states []*tagState) []string {
 		return []string{"the four-mode release census is empty"}
 	}
 	seen := map[string]map[string]bool{}
+	previousMCS := map[string][]string{}
 	for _, st := range states {
-		if st.scan == nil || st.scan.AntreaModes == nil || !st.scan.AntreaModes.verified || len(st.scan.AntreaModes.Modes) != len(antreaModes) {
+		if st.scan == nil || st.scan.AntreaModes == nil || !st.scan.AntreaModes.verified || len(st.scan.AntreaModes.Modes) != len(antreaModes) || len(st.scan.AntreaModes.dependencies) != len(antreaMCSDependencies) {
 			return []string{fmt.Sprintf("%s: the four-mode serving proof is missing or unverified", st.tag.Name)}
 		}
 		for _, mode := range antreaModes {
@@ -288,6 +383,17 @@ func antreaModeProblems(component string, states []*tagState) []string {
 			for _, m := range members {
 				seen[mode][m] = true
 			}
+			var mcs []string
+			for _, m := range members {
+				if strings.HasPrefix(m, "multicluster.x-k8s.io/") {
+					mcs = append(mcs, m)
+				}
+			}
+			sort.Strings(mcs)
+			if previous, ok := previousMCS[mode]; ok && !slices.Equal(previous, mcs) {
+				return []string{fmt.Sprintf("%s: mode %s changes an installed MCS dependency serving set", st.tag.Name, mode)}
+			}
+			previousMCS[mode] = mcs
 		}
 	}
 	return nil
