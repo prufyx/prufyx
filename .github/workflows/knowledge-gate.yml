@@ -315,9 +315,24 @@ jobs:
             echo "auto_merge_eligible=$(jq -r 'if .autoMerge.eligible == true then "true" else "false" end' "${RUNNER_TEMP}/gate-report.json")" >> "${GITHUB_OUTPUT}"
             echo "head_sha=${HEAD_SHA}" >> "${GITHUB_OUTPUT}"
           fi
-          if [ -f "${RUNNER_TEMP}/gate-alarms.json" ]; then
-            echo "alarm_count=$(jq -r '.alarms | length' "${RUNNER_TEMP}/gate-alarms.json")" >> "${GITHUB_OUTPUT}"
+          # The alarm job runs only for a numeric, non-zero count, so a missing file, a failed
+          # extraction or a malformed count must fail this step (the required check then
+          # is not a success) instead of leaving the output empty.
+          if [ ! -f "${RUNNER_TEMP}/gate-alarms.json" ]; then
+            echo "The gate wrote no alarm record."
+            exit 1
           fi
+          alarm_count="$(jq -r 'if (.alarms | type) == "array" then (.alarms | length) else error("alarms is not a list") end' "${RUNNER_TEMP}/gate-alarms.json")" || {
+            echo "The alarm record could not be read."
+            exit 1
+          }
+          case "${alarm_count}" in
+            ''|*[!0-9]*)
+              echo "The alarm count is not a number."
+              exit 1
+              ;;
+          esac
+          echo "alarm_count=${alarm_count}" >> "${GITHUB_OUTPUT}"
           exit "${status}"
 
       - name: Keep the gate report
