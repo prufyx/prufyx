@@ -163,7 +163,9 @@ type Report struct {
 	CRDCount    int          `json:"crdCount"`
 	FactsDigest string       `json:"factsDigest"`
 	// NonInstallCopies are the definition files outside the pinned
-	// installPaths at the newest tag; present only when installPaths is used.
+	// installPaths at any window tag, one entry per distinct (path, groups,
+	// unreadable) with the window tags it appears in; sorted. Present only
+	// when installPaths is used.
 	NonInstallCopyCount int              `json:"nonInstallCopyCount,omitempty"`
 	NonInstallCopies    []NonInstallCopy `json:"nonInstallCopies,omitempty"`
 }
@@ -174,6 +176,38 @@ type NonInstallCopy struct {
 	Path       string   `json:"path"`
 	Groups     []string `json:"groups"`
 	Unreadable string   `json:"unreadable,omitempty"`
+	// Tags are the window tags that carry this copy, in window order. Filled
+	// when the report is built.
+	Tags []string `json:"tags,omitempty"`
+}
+
+// unionCopies merges the per-tag copies of the window into one sorted list.
+func unionCopies(window []*tagResult) []NonInstallCopy {
+	idx := map[string]int{}
+	var out []NonInstallCopy
+	for _, r := range window {
+		for _, c := range r.copies {
+			k := c.Path + "\x00" + strings.Join(c.Groups, ",") + "\x00" + c.Unreadable
+			i, ok := idx[k]
+			if !ok {
+				idx[k] = len(out)
+				i = len(out)
+				out = append(out, NonInstallCopy{Path: c.Path, Groups: c.Groups, Unreadable: c.Unreadable})
+			}
+			out[i].Tags = append(out[i].Tags, r.tag)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		x, y := out[i], out[j]
+		if x.Path != y.Path {
+			return x.Path < y.Path
+		}
+		if gx, gy := strings.Join(x.Groups, ","), strings.Join(y.Groups, ","); gx != gy {
+			return gx < gy
+		}
+		return x.Unreadable < y.Unreadable
+	})
+	return out
 }
 
 type pathOut struct {
@@ -419,20 +453,18 @@ func build(in Input, catalog, component, fact, ownerRepo, prefix, minFrom string
 	})
 	rep.FactsDigest = digestFacts(window)
 
-	if len(newest.copies) > 0 {
-		rep.NonInstallCopies = newest.copies
-		rep.NonInstallCopyCount = len(newest.copies)
+	copies := unionCopies(window)
+	if len(copies) > 0 {
+		rep.NonInstallCopies = copies
+		rep.NonInstallCopyCount = len(copies)
 	}
-	log := changelogText(in.Name, crdCount, gnames, prefix, minFrom, ordered, excls, window)
-	if n := len(newest.copies); n > 0 {
-		log = strings.Replace(log, "The paths were derived", fmt.Sprintf("%d further definition file(s) outside the declared install paths are reported as non-install copies and are not read. The paths were derived", n), 1)
-	}
+	log := changelogText(in.Name, crdCount, gnames, prefix, minFrom, ordered, excls, window, len(copies))
 	return &Result{A: a, B: b, TableRow: rowRaw, Changelog: []byte(log), Report: rep}, nil
 }
 
 func strconvQuote(s string) string { b, _ := json.Marshal(s); return string(b) }
 
-func changelogText(name string, crds int, groups []string, prefix, minFrom string, ordered []*inclusion, excls []exclOut, window []*tagResult) string {
+func changelogText(name string, crds int, groups []string, prefix, minFrom string, ordered []*inclusion, excls []exclOut, window []*tagResult, copies int) string {
 	regular, linked := 0, 0
 	for _, i := range ordered {
 		if i.LinkKind {
@@ -461,6 +493,9 @@ func changelogText(name string, crds int, groups []string, prefix, minFrom strin
 			ps = append(ps, "`"+e.Path+"`")
 		}
 		fmt.Fprintf(&b, "%d pinned exclusion(s) are recorded with reviewed evidence: %s. ", len(excls), strings.Join(ps, ", "))
+	}
+	if copies > 0 {
+		fmt.Fprintf(&b, "%d further definition file(s) outside the declared install paths are reported as non-install copies and are not read. ", copies)
 	}
 	fmt.Fprintf(&b, "The paths were derived from the source tree at the release tags %s. Attested pairs appear only after release derivation and a data change.\n", strings.Join(tags, ", "))
 	return b.String()

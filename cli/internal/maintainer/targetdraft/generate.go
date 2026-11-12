@@ -567,6 +567,12 @@ func digestFacts(window []*tagResult) string {
 				lines = append(lines, fmt.Sprintf("%s\t%s\t%s\t%s\t%s", r.tag, i.Path, c.Group, c.Kind, strings.Join(c.Versions, ",")))
 			}
 		}
+		// Non-install copies are facts of the run: a changed list must change
+		// the digest so --compare-report flags it. Such lines exist only when
+		// installPaths is used, so every other digest is unchanged.
+		for _, c := range r.copies {
+			lines = append(lines, fmt.Sprintf("%s\tnon-install-copy\t%s\t%s\t%s", r.tag, c.Path, strings.Join(c.Groups, ","), c.Unreadable))
+		}
 		sort.Strings(lines)
 		for _, l := range lines {
 			h.Write([]byte(l + "\n"))

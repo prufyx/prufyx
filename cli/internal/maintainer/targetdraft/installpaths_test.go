@@ -4,6 +4,7 @@ package targetdraft
 
 import (
 	"bytes"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -124,6 +125,14 @@ func TestInstallPathsStops(t *testing.T) {
 				delete(m.files, "api/config/crd/widgets.example.test_betas.yaml")
 			}
 		}, StopInstallPathNothing},
+		// An entry without a trailing slash is an exact file, never a prefix:
+		// "manifests" does not match manifests/all.yaml, so it matches nothing.
+		{"entry without trailing slash is an exact file and matches nothing", `[` + ipEntry + `,{"path":"manifests","reason":"r","evidence":"e"}]`, nil, StopInstallPathNothing},
+		{"entry without trailing slash does not match a longer sibling", `[` + ipEntry + `,{"path":"manifests-old","reason":"r","evidence":"e"}]`, func(_ string, m *memTree) {
+			m.files["manifests-old/x.yaml"] = ipDocs(ipCRD("widgets.example.test", "Alpha"))
+		}, StopInstallPathNothing},
+		{"case variant matches nothing", `[{"path":"API/config/crd/","reason":"r","evidence":"e"}]`, nil, StopInstallPathNothing},
+		{"unicode lookalike matches nothing", "[{\"path\":\"api/config/\u0441rd/\",\"reason\":\"r\",\"evidence\":\"e\"}]", nil, StopInstallPathNothing},
 		{"duplicate names among the chosen files", `[` + ipEntry + `,{"path":"ocp/crds.yaml","reason":"r","evidence":"e"}]`, nil, StopDuplicateCRD},
 		{"reserved group inside a chosen file", `[` + ipEntry + `]`, func(_ string, m *memTree) {
 			m.files["api/config/crd/policy.networking.k8s.io_cnp.yaml"] = ipDocs(ipCRD("policy.networking.k8s.io", "ClusterNetworkPolicy"))
@@ -221,5 +230,99 @@ func TestNoInstallPathsBehavesAsBefore(t *testing.T) {
 	raw, _ := marshal(res.Report)
 	if strings.Contains(string(raw), "nonInstallCopy") {
 		t.Fatal("report.json gained a field without installPaths")
+	}
+}
+
+// Half B lists exactly the chosen files, with attestation on and no exclusions,
+// byte for byte as the reviewed golden built with installPaths.
+func TestInstallPathsHalfBBytes(t *testing.T) {
+	res := mustGenerate(t, ipInput(ipSource(nil), rulesFrom(t, "testdata/installpaths/rules.json")))
+	golden := readFile(t, "testdata/installpaths/golden-b.json")
+	if !bytes.Equal(res.B, golden) {
+		t.Fatalf("half B differs from golden:\n%s\nwant:\n%s", res.B, golden)
+	}
+	for _, f := range []string{"manifests/all.yaml", "ocp/crds.yaml", "charts/"} {
+		if strings.Contains(string(res.B), f) {
+			t.Fatalf("half B lists %s", f)
+		}
+	}
+}
+
+// Copies at older window tags are in report.json too, with the tags they
+// appear in, sorted by path.
+func TestInstallPathsCopiesAtOlderTagsAreReported(t *testing.T) {
+	src := ipSource(func(tag string, m *memTree) {
+		if tag == "v1.1.0" {
+			m.files["old/legacy.yaml"] = ipDocs(ipCRD("widgets.example.test", "Alpha"))
+		}
+	})
+	res := mustGenerate(t, ipInput(src, rulesFrom(t, "testdata/installpaths/rules.json")))
+	rep := res.Report
+	if rep.NonInstallCopyCount != 4 || len(rep.NonInstallCopies) != 4 {
+		t.Fatalf("copies %+v", rep.NonInstallCopies)
+	}
+	var paths []string
+	for _, c := range rep.NonInstallCopies {
+		paths = append(paths, c.Path)
+		switch c.Path {
+		case "old/legacy.yaml":
+			if strings.Join(c.Tags, ",") != "v1.1.0" {
+				t.Fatalf("legacy tags %v", c.Tags)
+			}
+		default:
+			if strings.Join(c.Tags, ",") != strings.Join(ipTags, ",") {
+				t.Fatalf("%s tags %v", c.Path, c.Tags)
+			}
+		}
+	}
+	if strings.Join(paths, " ") != "charts/x/templates/crds.yaml manifests/all.yaml ocp/crds.yaml old/legacy.yaml" {
+		t.Fatalf("not sorted: %v", paths)
+	}
+	raw, _ := marshal(rep)
+	if !strings.Contains(string(raw), `"path": "old/legacy.yaml"`) || !strings.Contains(string(raw), `"v1.1.0"`) {
+		t.Fatalf("report.json lacks the older copy: %s", raw)
+	}
+	if !strings.Contains(string(res.Changelog), "4 further definition file(s)") {
+		t.Fatalf("changelog: %s", res.Changelog)
+	}
+}
+
+// The non-install-copy list is part of the facts digest: a changed list changes
+// the digest, and --compare-report flags it although both target halves are equal.
+func TestInstallPathsCopyListIsInFactsDigest(t *testing.T) {
+	rules := rulesFrom(t, "testdata/installpaths/rules.json")
+	base := mustGenerate(t, ipInput(ipSource(nil), rules))
+	extra := func(tag string, m *memTree) {
+		if tag == "v1.3.0" {
+			m.files["extra/more.yaml"] = ipDocs(ipCRD("widgets.example.test", "Alpha"))
+		}
+	}
+	seeded := ipSource(extra)
+	other := mustGenerate(t, ipInput(seeded, rules))
+	if base.Report.FactsDigest == other.Report.FactsDigest {
+		t.Fatal("a changed non-install-copy list did not change the facts digest")
+	}
+	if !bytes.Equal(base.A, other.A) || !bytes.Equal(base.B, other.B) {
+		t.Fatal("target halves must be equal for this test")
+	}
+	args := func(out string, extra ...string) []string {
+		return append([]string{"generate", "--dir", "x", "--slug", "widgets", "--name", "Widgets", "--repo", "github.com/example/widgets",
+			"--tags", strings.Join(ipTags, ","), "--rules", "testdata/installpaths/rules.json", "--out", out}, extra...)
+	}
+	baseSrc := ipSource(nil)
+	var so, se bytes.Buffer
+	d1 := filepath.Join(t.TempDir(), "base")
+	if code := run(args(d1), &so, &se, func(string) Source { return baseSrc }); code != 0 {
+		t.Fatalf("base: exit %d %s %s", code, so.String(), se.String())
+	}
+	cmp := []string{"--compare-a", filepath.Join(d1, "a", "target-widgets.json"), "--compare-b", filepath.Join(d1, "b", "target-widgets.json"), "--compare-report", filepath.Join(d1, "report.json")}
+	so.Reset()
+	code := run(args(filepath.Join(t.TempDir(), "seeded"), cmp...), &so, &se, func(string) Source { return seeded })
+	if code != 1 || !strings.Contains(so.String(), "DIFF facts") || strings.Contains(so.String(), "DIFF A") || strings.Contains(so.String(), "DIFF B") {
+		t.Fatalf("exit %d: %s", code, so.String())
+	}
+	so.Reset()
+	if code := run(args(filepath.Join(t.TempDir(), "same"), cmp...), &so, &se, func(string) Source { return baseSrc }); code != 0 {
+		t.Fatalf("equal facts: exit %d %s", code, so.String())
 	}
 }
