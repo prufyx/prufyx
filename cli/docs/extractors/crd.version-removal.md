@@ -1,6 +1,6 @@
 # Extractor `crd.version-removal`
 
-Version 2.13.0. Derives `forbid_set_member` rules for custom-resource
+Version 2.14.0. Derives `forbid_set_member` rules for custom-resource
 versions that a project's release line no longer serves, from the
 CustomResourceDefinition manifests the project ships in its repository. It is
 deterministic, reads only upstream source pinned by full commit SHA, and
@@ -30,6 +30,26 @@ Canonical derivation and gate replay must use the same reviewed index. The
 scoped ownership listings in the digest do not establish equivalence for
 arbitrary alternate indexes: other listings also affect which definitions
 the inventory filters as foreign.
+
+## Antrea multicluster modes
+
+Antrea's multicluster source check covers four reviewed installation modes:
+`leader`, `leader-global`, `leader-ns` and `member`. It binds the complete
+configuration and shipped-output tree inventory, Makefile, generator and helper
+bytes to reviewed commit profiles. Files without a CRD kind word participate in
+this check. Unknown commits, changed recipes, additional or renamed modes,
+source indirections and changed tool selectors or transforms fail the check.
+
+For an accepted profile, the extractor strictly reads whole-definition delete
+patches and compares the selected source CRDs after those deletes with every
+shipped mode's names, groups, kinds and served versions. The namespace-only
+`leader-ns` output must remain empty of CRDs. The check does not execute the
+generator or accept a report of a previous rendering as source authority.
+
+A mode losing a served API prevents line attestation even if another mode still
+serves that API. Existing source completeness and ownership checks also apply;
+the mode proof does not assign ownership of shared API groups or enable a
+target's attestations.
 
 ## Projects and paths
 

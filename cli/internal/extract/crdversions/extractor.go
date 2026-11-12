@@ -1755,6 +1755,10 @@ func completeness(component string, fromLine, toLine *releaseLine, from, to []*t
 	for _, u := range unlisted {
 		c.Reasons = append(c.Reasons, fmt.Sprintf("%s is served outside the listed paths (%s at %s) and by no file of the later line", u.Member, u.Path, u.FromTag))
 	}
+	if problems := antreaModeProblems(component, append(append([]*tagState{}, from...), to...)); len(problems) > 0 {
+		c.Scan = false
+		c.Reasons = append(c.Reasons, problems...)
+	}
 	// An unlisted removal comes from an extra definition, which already
 	// keeps the scan from being clean.
 	c.Attestable = c.Declared && c.Scan && c.LineWide && c.Hop == HopPreviousMinor && len(defs) == 0
