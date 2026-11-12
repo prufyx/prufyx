@@ -10,7 +10,11 @@
 // LinesSchema.
 package coveragereport
 
-import impl "github.com/prufyx/prufyx/cli/internal/maintainer/coveragereport"
+import (
+	"time"
+
+	impl "github.com/prufyx/prufyx/cli/internal/maintainer/coveragereport"
+)
 
 // Input is everything a report depends on: the rule pack, the lines file,
 // optional additions, the evaluation time and the window.
@@ -45,3 +49,25 @@ const (
 // Compute computes the report for the input. Unknown or invalid input is
 // rejected with an error.
 func Compute(in Input) (Report, error) { return impl.Compute(in) }
+
+// CRDProjectComponents maps every project with a reviewed
+// crd.custom_resource_versions target to the component of that target. The
+// maintainer command passes it as Input.CRDTargetComponents; without it the
+// attestations of a target component are not attributed to their project.
+func CRDProjectComponents() map[string]string { return impl.CRDProjectComponents() }
+
+// CRDProjectCount is the number of projects in CRDProjectComponents. The
+// maintainer command passes it as Input.CRDVersionProjects.
+func CRDProjectCount() int { return impl.CRDProjectCount() }
+
+// DefaultInput returns the Input the maintainer command builds for the ALL
+// window: the rule pack, the community pack (nil for none), the lines file and
+// the evaluation time, with the window set to ALL, the embedded declared-unknown
+// file, and the CRD target fields filled. Callers that want the command's
+// numbers should start from it instead of filling Input by hand.
+func DefaultInput(pack, communityPack, lines []byte, now time.Time) Input {
+	return Input{
+		Pack: pack, CommunityPack: communityPack, Lines: lines, Now: now, All: true,
+		CRDVersionProjects: CRDProjectCount(), CRDTargetComponents: CRDProjectComponents(),
+	}
+}
