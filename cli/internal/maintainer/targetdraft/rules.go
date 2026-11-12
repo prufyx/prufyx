@@ -38,6 +38,19 @@ type Rules struct {
 	InstallSurface []SurfaceRule `json:"installSurface"`
 	// Exclusions are the pinned exclusions with their reviewed text.
 	Exclusions []ExclusionRule `json:"exclusions"`
+	// InstallPaths is the optional positive source list. When present, only
+	// definition files under these exact files or directory prefixes are the
+	// install surface; every other definition file is reported as a
+	// non-install copy. Absent, the generator behaves as it always did.
+	InstallPaths []InstallPathRule `json:"installPaths,omitempty"`
+}
+
+// InstallPathRule declares one exact file or one directory prefix (path ends
+// in "/") as a source of the target.
+type InstallPathRule struct {
+	Path     string `json:"path"`
+	Reason   string `json:"reason"`
+	Evidence string `json:"evidence"`
 }
 
 // Upstream mirrors the provenance block of a community table row.
@@ -92,6 +105,22 @@ func ParseRules(raw []byte) (*Rules, error) {
 			return nil, fmt.Errorf("rules: duplicate install surface %q", s.Path)
 		}
 		seen["s:"+s.Path] = true
+	}
+	if len(r.InstallPaths) > 0 && len(r.InstallSurface) > 0 {
+		return nil, errors.New("rules: installPaths and installSurface cannot be combined")
+	}
+	for i, ip := range r.InstallPaths {
+		if err := cleanPath(ip.Path); err != nil || strings.TrimSuffix(ip.Path, "/") == "." {
+			return nil, fmt.Errorf("rules: install path %q is not a clean repository path", ip.Path)
+		}
+		if ip.Reason == "" || ip.Evidence == "" {
+			return nil, fmt.Errorf("rules: install path %q needs a reason and pinned evidence", ip.Path)
+		}
+		for j, o := range r.InstallPaths {
+			if i != j && (ip.Path == o.Path || (strings.HasSuffix(o.Path, "/") && strings.HasPrefix(ip.Path, o.Path))) {
+				return nil, fmt.Errorf("rules: install path %q duplicates or nests inside %q", ip.Path, o.Path)
+			}
+		}
 	}
 	for _, e := range r.Exclusions {
 		if err := cleanPath(e.Path); err != nil {

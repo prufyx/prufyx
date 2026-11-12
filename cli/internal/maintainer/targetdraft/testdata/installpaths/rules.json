@@ -1,0 +1,8 @@
+{
+  "schema": "prufyx.io/target-draft-rules/v1",
+  "installSurface": [],
+  "exclusions": [],
+  "installPaths": [
+    {"path": "api/config/crd/", "reason": "the declared API definitions of the project", "evidence": "synthetic fixture: the project documents this directory as its install source"}
+  ]
+}

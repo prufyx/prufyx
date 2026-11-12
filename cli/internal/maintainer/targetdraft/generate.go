@@ -240,10 +240,33 @@ type tagResult struct {
 	usedExcl    map[string]bool
 	usedSurf    map[string]bool
 	usedExclCls map[string]string
+	usedIP      map[string]bool
+	copies      []NonInstallCopy
+}
+
+// installPathFor returns the installPaths entry that names the file.
+func installPathFor(rules *Rules, p string) *InstallPathRule {
+	for k := range rules.InstallPaths {
+		e := &rules.InstallPaths[k]
+		if e.Path == p || (strings.HasSuffix(e.Path, "/") && strings.HasPrefix(p, e.Path)) {
+			return e
+		}
+	}
+	return nil
+}
+
+func exclusionFor(rules *Rules, p string) *ExclusionRule {
+	for k := range rules.Exclusions {
+		e := &rules.Exclusions[k]
+		if (e.Class == ClassExactFile && p == e.Path) || (e.Class == ClassFixtureDir && strings.HasPrefix(p, e.Path)) {
+			return e
+		}
+	}
+	return nil
 }
 
 func classify(tag, commit string, fs []*finding, rules *Rules, slug string, index customresources.Index) *tagResult {
-	r := &tagResult{tag: tag, commit: commit, included: map[string]*inclusion{}, usedExcl: map[string]bool{}, usedSurf: map[string]bool{}}
+	r := &tagResult{tag: tag, commit: commit, included: map[string]*inclusion{}, usedExcl: map[string]bool{}, usedSurf: map[string]bool{}, usedIP: map[string]bool{}}
 	surface := map[string]bool{}
 	for _, s := range rules.InstallSurface {
 		surface[s.Path] = true
@@ -256,7 +279,24 @@ func classify(tag, commit string, fs []*finding, rules *Rules, slug string, inde
 		var rule string
 		var reach string
 		depth := 0
+		via := ""
 		switch {
+		case len(rules.InstallPaths) > 0:
+			// Positive source list: only the declared paths are read.
+			if ip := installPathFor(rules, f.Path); ip != nil {
+				rule = RuleIncludeInstallPath
+				via = "declared by installPaths entry " + ip.Path
+				r.usedIP[ip.Path] = true
+			} else if exclusionFor(rules, f.Path) == nil {
+				c := NonInstallCopy{Path: f.Path, Groups: groupSet(f.CRDs), Unreadable: f.Unreadable}
+				r.copies = append(r.copies, c)
+				d := "groups " + strings.Join(c.Groups, ",")
+				if c.Unreadable != "" {
+					d += "; unreadable: " + c.Unreadable
+				}
+				r.decisions = append(r.decisions, Decision{Rule: RuleNonInstallCopy, Subject: f.Path, Detail: d})
+				continue
+			}
 		case !testLike(f.Path):
 			rule = RuleIncludeInstallDir
 		default:
@@ -286,7 +326,7 @@ func classify(tag, commit string, fs []*finding, rules *Rules, slug string, inde
 			continue
 		}
 		r.included[f.Path] = &inclusion{Path: f.Path, Rule: rule, CRDs: f.CRDs, Reach: reach, Depth: depth, LinkKind: rule == RuleIncludeSymlinkResolved}
-		detail := ""
+		detail := via
 		if reach != "" {
 			detail = "reached by link " + reach
 		}
@@ -315,6 +355,11 @@ func classify(tag, commit string, fs []*finding, rules *Rules, slug string, inde
 			} else if o, a := index.Owner(c.Group); a != customresources.Unknown && o != slug {
 				stopAt(StopGroupOwnedElsewhere, c.Group, "listed by "+o+" ("+i.Path+")")
 			}
+		}
+	}
+	for _, ip := range rules.InstallPaths {
+		if !r.usedIP[ip.Path] {
+			stopAt(StopInstallPathNothing, ip.Path, "no definition file under this entry")
 		}
 	}
 	if len(inc) == 0 && len(r.stops) == 0 {
@@ -403,6 +448,19 @@ func classify(tag, commit string, fs []*finding, rules *Rules, slug string, inde
 		}
 	}
 	return r
+}
+
+func groupSet(cs []crd) []string {
+	set := map[string]bool{}
+	for _, c := range cs {
+		set[c.Group] = true
+	}
+	g := []string{}
+	for k := range set {
+		g = append(g, k)
+	}
+	sort.Strings(g)
+	return g
 }
 
 func groupList(cs []crd) string {

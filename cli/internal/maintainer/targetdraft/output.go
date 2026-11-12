@@ -35,6 +35,7 @@ const (
 	StopCommunityUpstream     = "community-upstream-missing"
 	StopForeignCopyUnpinned   = "foreign-copy-unpinned"
 	StopWindowShortened       = "window-shortened"
+	StopInstallPathNothing    = "install-path-matches-nothing"
 )
 
 var nextAction = map[string]string{
@@ -59,6 +60,7 @@ var nextAction = map[string]string{
 	StopWindowTooShort:        "fewer than two tags read the same files; widen the tag set or fix the unreadable tag",
 	StopForeignCopyUnpinned:   "a definition file of another project's group sits outside the default-excluded directories (documentation or fixtures); add a reviewed pinned exclusion rule for the exact file or fixture directory",
 	StopWindowShortened:       "older tags were withheld and --strict-window forbids a shorter window; fix the withheld tags or drop the flag after review",
+	StopInstallPathNothing:    "an installPaths entry holds no definition file at this tag; correct the entry, or narrow the window past the tag",
 	StopCommunityUpstream:     "a community-catalog row needs the upstream block (name, repository, license, licenseSource) in the rules file",
 }
 
@@ -108,6 +110,8 @@ const (
 	RuleIncludeInstallDir      = "include-install-dir"
 	RuleIncludeSymlinkResolved = "include-symlink-resolved"
 	RuleIncludePinnedSurface   = "include-pinned-surface"
+	RuleIncludeInstallPath     = "include-install-path"
+	RuleNonInstallCopy         = "non-install-copy"
 	RuleExcludePinnedFile      = "exclude-pinned-file"
 	RuleExcludePinnedFixtures  = "exclude-pinned-fixtures"
 	RuleFixtureDrop            = "fixture-drop"
@@ -158,6 +162,18 @@ type Report struct {
 	Groups      []GroupFact  `json:"groups"`
 	CRDCount    int          `json:"crdCount"`
 	FactsDigest string       `json:"factsDigest"`
+	// NonInstallCopies are the definition files outside the pinned
+	// installPaths at the newest tag; present only when installPaths is used.
+	NonInstallCopyCount int              `json:"nonInstallCopyCount,omitempty"`
+	NonInstallCopies    []NonInstallCopy `json:"nonInstallCopies,omitempty"`
+}
+
+// NonInstallCopy is a definition file the target does not read because it is
+// outside the pinned installPaths. It is reported, never dropped silently.
+type NonInstallCopy struct {
+	Path       string   `json:"path"`
+	Groups     []string `json:"groups"`
+	Unreadable string   `json:"unreadable,omitempty"`
 }
 
 type pathOut struct {
@@ -403,7 +419,14 @@ func build(in Input, catalog, component, fact, ownerRepo, prefix, minFrom string
 	})
 	rep.FactsDigest = digestFacts(window)
 
+	if len(newest.copies) > 0 {
+		rep.NonInstallCopies = newest.copies
+		rep.NonInstallCopyCount = len(newest.copies)
+	}
 	log := changelogText(in.Name, crdCount, gnames, prefix, minFrom, ordered, excls, window)
+	if n := len(newest.copies); n > 0 {
+		log = strings.Replace(log, "The paths were derived", fmt.Sprintf("%d further definition file(s) outside the declared install paths are reported as non-install copies and are not read. The paths were derived", n), 1)
+	}
 	return &Result{A: a, B: b, TableRow: rowRaw, Changelog: []byte(log), Report: rep}, nil
 }
 
