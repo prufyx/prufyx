@@ -27,7 +27,7 @@ class RunAdmissionTests(unittest.TestCase):
                 "cli/internal/extract/crdversions/target-sample.json": '{"target":{"repo":"example/sample"}}',
                 "cli/internal/extract/crdversions/target-required.json": '{"target":{"repo":"example/required"}}',
                 "cli/internal/cncfcheck/data/rules.json": '{"entries":[]}',
-                "cli/internal/maintainer/coveragereport/testdata/lines-synthetic.json": '{}',
+                "cli/internal/maintainer/coveragereport/testdata/lines-2026-01-01.json": '{}',
             }
             for name, content in files.items():
                 path = source / name
