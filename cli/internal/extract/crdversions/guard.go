@@ -808,6 +808,12 @@ func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extr
 		if e.Foreign == nil {
 			continue
 		}
+		// An exact reviewed source grant can prove that a foreign-only
+		// fixture is absent. It grants no permission to skip existing bytes;
+		// pinned remains false, so any install reference still voids it.
+		if x.constructorForeignAbsent(e, blobs, inv) {
+			continue
+		}
 		why, err := x.pinnedProblem(r, repo, commit, e, blobs, inv)
 		if err != nil {
 			return nil, nil, err
@@ -1033,6 +1039,9 @@ func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extr
 	// plain resources list.
 	for _, rl := range relax {
 		if !plainChain(rl.by, refInfo, parents) {
+			if x.kubevirtForeignChain(r, repo, commit, rl.by, rl.e, refInfo, parents, inv) {
+				continue
+			}
 			record(rl.e, hit{kind: refKind(rl.by), by: rl.by, ref: rl.ref})
 		}
 	}
@@ -1172,6 +1181,18 @@ func (x *Extractor) pinnedProblem(r extract.PinnedReader, repo extract.RepoRef, 
 		return "", fmt.Errorf("guard reading %s at %s: %w", e.Path, commit, err)
 	}
 	return foreignBundleProblem(e.Foreign, data, targetGroups(inv)), nil
+}
+
+func (x *Extractor) constructorForeignAbsent(e Exclusion, blobs []extract.TreeEntry, inv *Inventory) bool {
+	if e.Foreign == nil || !e.Foreign.IdentityOnly || x.target.ConstructorProfile != kubevirtProfile || inv == nil || !inv.Complete || inv.ConstructorProfile != kubevirtProfile || inv.ConstructorGrant == nil || !slicesContains(inv.ConstructorGrant.AbsentForeign, e.Path) {
+		return false
+	}
+	for _, b := range blobs {
+		if b.Path == e.Path {
+			return false
+		}
+	}
+	return true
 }
 
 // pinnedSourceCheck reads the file of a pinned source at a tag and checks it

@@ -978,6 +978,42 @@ files were `unread` (fragments, v1beta1 copies) or `reference`
 Rules and vectors are unchanged; the scan records of the inventory and the
 completeness of a pair change where such files exist.
 
+## Pinned KubeVirt constructor sources
+
+The `kubevirt-v1` constructor profile reads the CRD identity and version
+declarations in KubeVirt's Go source, including version names imported from
+the staged API module. It does not execute upstream code. The operator CRD
+manifest must agree with its constructor; the embedded template definitions
+remain declared YAML inputs.
+
+The profile requires reviewed `sourceGrants`. Each grant binds exact source
+tree object IDs and SHA-256 digests of constructor, helper, caller, module,
+workspace and vendor-routing inputs. File absence is explicit. Unknown source
+shapes, changed routing, unresolved expressions, conflicting identities and
+incomplete release inventories withhold the release. These grants are
+extractor inputs covered by its code digest; they are not compatibility facts.
+
+Foreign fixtures may use content-pinned identity checks for unambiguous API
+groups. Every scalar and duplicate branch is inspected; target-group text,
+aliases, embedded definitions and ambiguous identities are refused. Duplicate
+nonidentity schema fields in a foreign fixture do not authorize that syntax
+for the project's own CRDs. An absent foreign fixture needs an explicit grant
+bound to its complete source tree and still fails when an install surface
+references its missing path. Ordinary pinned foreign files retain their
+existing missing-file checks.
+
+For the pinned KubeVirtCI Multus bundle, the profile also checks the exact
+image tag and two logging-argument patches against the literal
+`apps/v1/DaemonSet` target `kube-multus-ds`. The complete caller chain must
+resolve inside the granted source tree. CRD selectors, identity or version
+patches, additional transforms and unresolved ancestors remain unproved.
+
+The profile provides source evidence for the existing custom-resource version
+family. Enabling a target does not publish rules or line attestations: those
+still need a separate derived, verified knowledge change.
+The profile capability and a project's reviewed target are delivered
+separately; source support alone adds no decided pairs.
+
 ## Changes without a version bump
 
 Targets of the community catalog can now attest (`attest` in `targets.json`),
