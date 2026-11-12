@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 	"time"
@@ -831,6 +832,9 @@ func crossCheckAttestation(out *extract.Output, floor string, a lineattest.LineA
 			}
 		}
 	}
+	if err := crossCheckInstallProfiles(*own, a); err != nil {
+		return err
+	}
 	derived := map[string]extract.Entry{}
 	for _, e := range out.Entries {
 		derived[e.Rule.ID] = e
@@ -880,6 +884,37 @@ func crossCheckAttestation(out *extract.Output, floor string, a lineattest.LineA
 	if len(missing) > 0 {
 		sort.Strings(missing)
 		return fmt.Errorf("upstream line %s removes what %s describe, and no rule the attestation lists decides it the same way (same operator and condition)", a.Line, strings.Join(missing, ", "))
+	}
+	return nil
+}
+
+// crossCheckInstallProfiles keeps reviewed records subject to the same target
+// artifact join as the source replay. A review can select fewer releases, but
+// cannot remove a profile predicate or alter its serving/source evidence.
+func crossCheckInstallProfiles(own, reviewed lineattest.LineAttestation) error {
+	if own.InstallProfiles == nil && reviewed.InstallProfiles == nil {
+		return nil
+	}
+	refuse := func() error {
+		return fmt.Errorf("the attestation's install profiles do not match the extractor's source replay for the reviewed releases")
+	}
+	if own.InstallProfiles == nil || reviewed.InstallProfiles == nil || own.Validate() != nil || reviewed.Validate() != nil {
+		return refuse()
+	}
+	selected := map[lineattest.Release]bool{}
+	for _, side := range [][]lineattest.Release{reviewed.Releases.From, reviewed.Releases.To} {
+		for _, r := range side {
+			selected[r] = true
+		}
+	}
+	var expected []lineattest.InstallProfile
+	for _, p := range own.InstallProfiles {
+		if selected[lineattest.Release{Version: p.Version, Commit: p.Commit}] {
+			expected = append(expected, p)
+		}
+	}
+	if !reflect.DeepEqual(expected, reviewed.InstallProfiles) {
+		return refuse()
 	}
 	return nil
 }
