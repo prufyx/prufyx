@@ -359,7 +359,7 @@ jobs:
   alarm:
     name: Gate alarms
     needs: gate
-    if: ${{ always() && needs.gate.outputs.alarm-count != '' && needs.gate.outputs.alarm-count != '0' && (github.event_name != 'pull_request_target' || github.event.pull_request.user.login == (vars.KNOWLEDGE_BOT_LOGIN || 'prufyx-factory[bot]')) }}
+    if: ${{ always() && needs.gate.outputs.alarm-count != '' && needs.gate.outputs.alarm-count != '0' && (github.event_name != 'pull_request_target' || github.event.pull_request.user.login == 'prufyx-bot') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions: {}

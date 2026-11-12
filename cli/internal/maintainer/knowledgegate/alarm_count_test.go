@@ -99,3 +99,20 @@ func TestAlarmCountFailsClosed(t *testing.T) {
 		})
 	}
 }
+
+// A gate pass with no alarms must serialize an empty list, never null or a missing key, or the
+// verify step above would fail a legitimate pass.
+func TestZeroAlarmDocumentSerializesEmptyList(t *testing.T) {
+	for name, r := range map[string]*Report{"empty report": {}, "report with empty alarms": {Alarms: []string{}}, "pass": {Result: "pass", Alarms: nil}} {
+		raw, err := marshalFile(NewAlarmsDocument(r))
+		if err != nil {
+			t.Fatal(name, err)
+		}
+		if !strings.Contains(string(raw), `"alarms": []`) && !strings.Contains(string(raw), `"alarms":[]`) {
+			t.Fatalf("%s: zero alarms serialized as %s", name, raw)
+		}
+		if strings.Contains(string(raw), `"alarms": null`) || strings.Contains(string(raw), `"alarms":null`) {
+			t.Fatalf("%s: null alarms in %s", name, raw)
+		}
+	}
+}
