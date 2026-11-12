@@ -1,0 +1,13 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: podautoscalers.autoscaling.internal.knative.dev
+spec:
+  group: autoscaling.internal.knative.dev
+  names:
+    kind: PodAutoscaler
+    plural: podautoscalers
+  versions:
+  - name: v1
+    served: true
+    storage: true

@@ -1,0 +1,35 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "knative",
+    "name": "Knative",
+    "repo": "github.com/knative/serving",
+    "component": "pkg:github/knative/serving",
+    "factProject": "knative",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.46",
+    "attest": true,
+    "paths": [
+      {"path": "config/core/300-resources/configuration.yaml"},
+      {"path": "config/core/300-resources/domain-mapping.yaml"},
+      {"path": "config/core/300-resources/metric.yaml"},
+      {"path": "config/core/300-resources/podautoscaler.yaml"},
+      {"path": "config/core/300-resources/revision.yaml"},
+      {"path": "config/core/300-resources/route.yaml"},
+      {"path": "config/core/300-resources/service.yaml"},
+      {"path": "vendor/knative.dev/networking/config/certificate.yaml"},
+      {"path": "vendor/knative.dev/networking/config/domain-claim.yaml"},
+      {"path": "vendor/knative.dev/networking/config/ingress.yaml"},
+      {"path": "vendor/knative.dev/networking/config/serverlessservice.yaml"},
+      {"path": "vendor/knative.dev/caching/config/image.yaml"}
+    ],
+    "exclude": [
+      {
+        "path": "third_party/gateway-api-latest/gateway-api.yaml",
+        "repo": "github.com/knative/serving",
+        "reason": "third-party Gateway API CRD bundle used only by the end-to-end test scripts; not in the published serving CRD install manifests",
+        "evidence": "Pinned v0.46.9 (ea05a45b), v0.47.3 (11648690), v0.48.3 (e8037506), v0.49.1 (3bd82a61), v0.50.0 (7ed4aa2a), v0.51.0 (e3c2d9b0). Third-party Gateway API experimental bundle (10 CRDs at v0.46.9, 11 at v0.47.3, 12 from v0.48.3); only reference: ytt input at test/e2e-common.sh line 301 (v0.46.9) or 302. Source finding: hack/generate-yamls.sh builds the install manifests from config/core, config/post-install and config/hpa-autoscaling; only config/core holds CRDs (the 12 declared). Compared with the published serving-crds.yaml and serving-core.yaml of the same commits: exactly those 12 CRDs, no Gateway API CRD. Scope: knative/serving only."
+      }
+    ]
+  }
+}

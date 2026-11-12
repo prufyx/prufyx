@@ -1,0 +1,13 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: issuers.cert-manager.io
+spec:
+  group: cert-manager.io
+  names:
+    kind: Issuer
+    plural: issuers
+  versions:
+  - name: v1
+    served: true
+    storage: true
