@@ -447,7 +447,8 @@ func stampAttestation(c AttestationCandidate, rec *Recorder, repo RepoRef, tags 
 	ids := append([]string{}, c.RuleIDs...)
 	sort.Strings(ids)
 	a := lineattest.LineAttestation{Component: c.Component, Line: c.Line, FactFamily: c.FactFamily, Completeness: lineattest.Completeness, RuleIDs: ids,
-		Evidence: lineattest.Evidence{Basis: constraintengine.BasisMechanical, Extractor: &extractor, DerivedAt: derivedAt, ReviewedAt: derivedAt, ValidUntil: validUntil}}
+		InstallProfiles: lineattest.CopyInstallProfiles(c.InstallProfiles),
+		Evidence:        lineattest.Evidence{Basis: constraintengine.BasisMechanical, Extractor: &extractor, DerivedAt: derivedAt, ReviewedAt: derivedAt, ValidUntil: validUntil}}
 	if c.Releases != nil {
 		r := lineattest.Releases{From: append([]lineattest.Release{}, c.Releases.From...), To: append([]lineattest.Release{}, c.Releases.To...)}
 		read := map[string]bool{}
@@ -471,6 +472,17 @@ func stampAttestation(c AttestationCandidate, rec *Recorder, repo RepoRef, tags 
 		return lineattest.LineAttestation{}, err
 	}
 	a.Evidence.Sources = sources
+	for i := range a.InstallProfiles {
+		p := &a.InstallProfiles[i]
+		for j := range p.Artifacts {
+			f := &p.Artifacts[j]
+			stamped, err := stampSources("install profile", []SourceRef{{ID: f.Source.ID, Repo: repo, Commit: p.Commit, Path: f.Path}}, rec)
+			if err != nil || len(stamped) != 1 || stamped[0].ContentDigest != f.Digest {
+				return lineattest.LineAttestation{}, fmt.Errorf("attestation %s: install artifact was not read at its release", a.Key())
+			}
+			f.Source = stamped[0]
+		}
+	}
 	if err := a.Validate(); err != nil {
 		return lineattest.LineAttestation{}, fmt.Errorf("attestation %s: %w", a.Key(), err)
 	}

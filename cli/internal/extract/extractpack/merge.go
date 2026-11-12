@@ -450,6 +450,9 @@ func renewable(old, nw lineattest.LineAttestation) bool {
 	if err1 != nil || err2 != nil || !nd.After(od) {
 		return false
 	}
+	if !reflect.DeepEqual(old.InstallProfiles, nw.InstallProfiles) {
+		return false
+	}
 	if sameBuild && equalReleases(old.Releases, nw.Releases) {
 		return timeOnlyRenewal(old, nw)
 	}

@@ -120,8 +120,19 @@ forbidden: no rule is derived for it, so a user of the other channel is never
 blocked on a version their install still serves. A definition that only
 another channel still holds is not told from a removed one, and the pair is
 withheld as for a moved file. A rule of such a target says in its description
-which channel it is about. A target with channels never attests its lines,
-and cannot have a `remote`.
+which channel it is about. A target with channels cannot have a `remote` and,
+by default, does not attest its lines.
+
+From version 2.14.0 a reviewed target may set both `"attest": true` and
+`"profileAttestation": true` with its finite channels. All existing release,
+ownership, line-wide and full-tree completeness guards still apply. The
+extractor records each channel's CRD-bearing files and served GVKs separately
+at every release of both lines; it never uses their union to establish a
+family PASS. The framework stamps each artifact from the exact recorded source
+bytes. A missing or invalid source/profile census refuses the attestation.
+`scan` must then join the imported target CRD artifacts and consumed versions
+as described in [../line-attestations.md](../line-attestations.md#crd-install-profiles).
+No target is enabled merely by this format change.
 
 ## Release lines and pairs
 

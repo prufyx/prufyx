@@ -114,6 +114,9 @@ func byScope(side string, atts []LineAttestation) (map[Key]LineAttestation, erro
 func classifyModified(a, b LineAttestation) (Change, bool) {
 	c := Change{Key: a.Key(), Kind: ChangeModified, Basis: b.Evidence.Basis}
 	other := false
+	if !reflect.DeepEqual(a.InstallProfiles, b.InstallProfiles) {
+		c.Fields, other = append(c.Fields, "installProfiles"), true
+	}
 	if a.Completeness != b.Completeness {
 		c.Fields, other = append(c.Fields, "completeness"), true
 	}

@@ -14,6 +14,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/projectprepare"
 	"github.com/prufyx/prufyx/cli/internal/strictjson"
 )
@@ -716,17 +717,18 @@ func earliestExternalExpiry(pack rulePack) (string, error) {
 }
 
 type externalCapabilityDocument struct {
-	Schema               string `json:"schema"`
-	EngineContractDigest string `json:"engineContractDigest"`
-	RegistryDigest       string `json:"registryDigest"`
-	PolicyID             string `json:"policyId"`
-	PolicyDigest         string `json:"policyDigest"`
-	LandscapeRevision    string `json:"landscapeRevision"`
-	LandscapeFileDigest  string `json:"landscapeFileDigest"`
+	InstallProfileContract string `json:"installProfileContract"`
+	Schema                 string `json:"schema"`
+	EngineContractDigest   string `json:"engineContractDigest"`
+	RegistryDigest         string `json:"registryDigest"`
+	PolicyID               string `json:"policyId"`
+	PolicyDigest           string `json:"policyDigest"`
+	LandscapeRevision      string `json:"landscapeRevision"`
+	LandscapeFileDigest    string `json:"landscapeFileDigest"`
 }
 
 func externalCapabilityDigest(base bundle) (string, error) {
-	document := externalCapabilityDocument{Schema: externalBundleSchema, EngineContractDigest: constraintengine.EngineContractDigest(), RegistryDigest: base.registry.Digest(), PolicyID: base.pack.PolicyID, PolicyDigest: base.pack.PolicyDigest, LandscapeRevision: base.landscape.Revision, LandscapeFileDigest: base.landscape.LandscapeFileDigest}
+	document := externalCapabilityDocument{InstallProfileContract: lineattest.InstallProfileContract, Schema: externalBundleSchema, EngineContractDigest: constraintengine.EngineContractDigest(), RegistryDigest: base.registry.Digest(), PolicyID: base.pack.PolicyID, PolicyDigest: base.pack.PolicyDigest, LandscapeRevision: base.landscape.Revision, LandscapeFileDigest: base.landscape.LandscapeFileDigest}
 	raw, err := json.Marshal(document)
 	if err != nil {
 		return "", ErrIntegrity

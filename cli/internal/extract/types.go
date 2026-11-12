@@ -152,8 +152,9 @@ type AttestationCandidate struct {
 	RuleIDs    []string
 	// Releases are the releases of both lines the derivation read, for a
 	// release-scoped family; nil for any other.
-	Releases *lineattest.Releases
-	Sources  []SourceRef
+	Releases        *lineattest.Releases
+	InstallProfiles []lineattest.InstallProfile
+	Sources         []SourceRef
 }
 
 // Withheld means the pair could not be established completely, so no rule
