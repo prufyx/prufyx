@@ -254,7 +254,10 @@ func TestWorkflowShape(t *testing.T) {
 	if alarm.Needs != "gate" || !strings.Contains(alarm.If, "needs.gate.outputs.alarm-count") || !strings.Contains(alarm.If, "always()") {
 		t.Fatalf("the alarm job runs after the gate on its alarms: needs=%v if=%q", alarm.Needs, alarm.If)
 	}
-	if !strings.Contains(alarm.If, "github.event.pull_request.user.login == (vars.KNOWLEDGE_BOT_LOGIN") {
+	// The skip decision must not depend on a repository variable: the bot login is a literal in the
+	// digest-pinned workflow (the merge policy pins the same literal).
+	if strings.Contains(alarm.If, "vars.") || strings.Count(alarm.If, "user.login") != 1 ||
+		!strings.Contains(alarm.If, "github.event.pull_request.user.login == 'prufyx-bot'") {
 		t.Fatal("pull request alarms are for the automation's own pull requests")
 	}
 	if alarm.Environment != "knowledge-alarms" {
