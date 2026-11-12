@@ -27,6 +27,7 @@ func kvFixture(t *testing.T) (extract.FixtureReader, extract.RepoRef, string, st
 		kvComponents + "/virttemplate.go":      "package components\n",
 		"kubevirtci/keep.yaml":                 "kind: ConfigMap\n",
 		"tools/util/marker.go":                 "package util\n",
+		"cmd/virt-operator/marker.go":          "package main\n",
 		"go.mod":                               "module kubevirt.io/kubevirt\ngo 1.24.0\nreplace kubevirt.io/api => ./staging/src/kubevirt.io/api\nreplace kubevirt.io/client-go => ./staging/src/kubevirt.io/client-go\n",
 		"go.sum":                               "",
 		"go.work":                              "go 1.24.0\nuse (\n.\n./staging/src/kubevirt.io/api\n./staging/src/kubevirt.io/client-go\n)\n",
@@ -68,6 +69,23 @@ func kvFixtureGrant(t *testing.T, r extract.PinnedReader, repo extract.RepoRef, 
 	return g
 }
 
+func TestKubeVirtEveryGrantRequiresEntrypointTree(t *testing.T) {
+	r, repo, c, _ := kvFixture(t)
+	grant := kvFixtureGrant(t, r, repo, c)
+	tg := Target{Project: "kubevirt", Repo: repo.Key, Catalog: CatalogCNCF, Component: "pkg:github/kubevirt/kubevirt", FactProject: "kubevirt", ConstructorProfile: kubevirtProfile, SourceGrants: []SourceGrant{grant, grant}}
+	must(t, validateConstructorProfile(tg))
+	var withoutCmd []SourceTreePin
+	for _, pin := range grant.Trees {
+		if pin.Path != "cmd" {
+			withoutCmd = append(withoutCmd, pin)
+		}
+	}
+	tg.SourceGrants[1].Trees = withoutCmd
+	if err := validateConstructorProfile(tg); err == nil {
+		t.Fatal("grant without executable entrypoint tree was accepted")
+	}
+}
+
 func TestKubeVirtGrantRejectsRoutingAndSourceMutants(t *testing.T) {
 	for _, tc := range []struct{ name, path, content string }{
 		{"module route to alternate served-false API", "go.mod", "module kubevirt.io/kubevirt\ngo 1.24.0\nreplace kubevirt.io/api => ./alternate-api\n"},
@@ -76,6 +94,7 @@ func TestKubeVirtGrantRejectsRoutingAndSourceMutants(t *testing.T) {
 		{"new routing input", kvAPI + "/go.sum", "changed\n"},
 		{"hidden constructor", kvComponents + "/hidden.go", "package components\nfunc hidden() {}\n"},
 		{"init mutator", kvComponents + "/init.go", "package components\nfunc init() {}\n"},
+		{"entrypoint init mutator", "cmd/virt-operator/init.go", "package main\nimport corev1 \"kubevirt.io/api/core/v1\"\nfunc init() { corev1.ApiSupportedVersions[1].Served = false }\n"},
 		{"constructor served mutation", kvConstructors, strings.Replace(kvTestConstructor, "Served:true", "Served:false", 1)},
 		{"registry served mutation", kvAPI + "/core/v1/register.go", "package v1\nvar ApiSupportedVersions=[]Version{{Name:\"v1\",Served:false,Storage:false}}\n"},
 	} {

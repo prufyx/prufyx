@@ -40,7 +40,7 @@ type SourceTreePin struct {
 	SHA1 string `json:"sha1"`
 }
 
-var kvTrees = []string{kvComponents, kvInstall, "pkg", "tools", kvAPI, kvClient, "vendor", "kubevirtci"}
+var kvTrees = []string{kvComponents, kvInstall, "pkg", "tools", "cmd", kvAPI, kvClient, "vendor", "kubevirtci"}
 var kvRouting = []string{"go.mod", "go.sum", "go.work", "go.work.sum", kvAPI + "/go.mod", kvAPI + "/go.sum", kvClient + "/go.mod", kvClient + "/go.sum", "vendor/modules.txt"}
 var kvPinnedFiles = append(append([]string{}, kvRouting...), kvConstructors, kvComponents+"/virttemplate.go", kvInstall+"/strategy.go")
 

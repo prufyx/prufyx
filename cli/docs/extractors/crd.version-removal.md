@@ -988,7 +988,8 @@ remain declared YAML inputs.
 
 The profile requires reviewed `sourceGrants`. Each grant binds exact source
 tree object IDs and SHA-256 digests of constructor, helper, caller, module,
-workspace and vendor-routing inputs. File absence is explicit. Unknown source
+workspace and vendor-routing inputs, including the entire `cmd` tree that
+contains executable entrypoints and initialization code. File absence is explicit. Unknown source
 shapes, changed routing, unresolved expressions, conflicting identities and
 incomplete release inventories withhold the release. These grants are
 extractor inputs covered by its code digest; they are not compatibility facts.
