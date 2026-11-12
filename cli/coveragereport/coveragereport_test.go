@@ -39,3 +39,17 @@ func TestComputeMatchesImplementation(t *testing.T) {
 		t.Fatal("public Compute differs from the implementation")
 	}
 }
+
+func TestCRDHelpersMatchImplementation(t *testing.T) {
+	got, want := coveragereport.CRDProjectComponents(), impl.CRDProjectComponents()
+	if len(got) == 0 || !reflect.DeepEqual(got, want) {
+		t.Fatalf("components differ: %d vs %d", len(got), len(want))
+	}
+	if coveragereport.CRDProjectCount() != impl.CRDProjectCount() {
+		t.Fatal("count differs")
+	}
+	in := coveragereport.DefaultInput([]byte("p"), []byte("c"), []byte("l"), time.Unix(0, 0))
+	if !in.All || in.Window != 0 || in.Declared != nil || in.CRDVersionProjects != len(got) || !reflect.DeepEqual(in.CRDTargetComponents, got) || string(in.CommunityPack) != "c" {
+		t.Fatalf("DefaultInput: %+v", in)
+	}
+}
