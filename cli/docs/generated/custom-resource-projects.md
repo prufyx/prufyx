@@ -45,6 +45,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `kcp` | CNCF | `component.kcp.custom_resource_versions_set` | `apis.kcp.io`, `cache.kcp.io`, `core.kcp.io`, `migration.kcp.io`, `tenancy.kcp.io`, `topology.kcp.io` |
 | `keda` | CNCF | `component.keda.custom_resource_versions_set` | `eventing.keda.sh`, `keda.sh` |
 | `kmesh` | CNCF | `component.kmesh.custom_resource_versions_set` | `kmesh.net` |
+| `knative` | CNCF | `component.knative.custom_resource_versions_set` | `autoscaling.internal.knative.dev` (Metric, PodAutoscaler), `caching.internal.knative.dev` (Image), `networking.internal.knative.dev` (Certificate, ClusterDomainClaim, Ingress, ServerlessService), `serving.knative.dev` (Configuration, DomainMapping, Revision, Route, Service) |
 | `kong-ingress-controller` | community | `component.kong_ingress_controller.custom_resource_versions_set` | `configuration.konghq.com` |
 | `koordinator` | CNCF | `component.koordinator.custom_resource_versions_set` | `analysis.koordinator.sh`, `config.koordinator.sh`, `quota.koordinator.sh`, `scheduling.koordinator.sh`, `slo.koordinator.sh` |
 | `kube-green` | community | `component.kube_green.custom_resource_versions_set` | `kube-green.com` |

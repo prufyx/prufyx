@@ -715,6 +715,50 @@
       ]
     },
     {
+      "slug": "knative",
+      "catalog": "cncf",
+      "factProject": "knative",
+      "component": "pkg:github/knative/serving",
+      "groups": [
+        {
+          "name": "autoscaling.internal.knative.dev",
+          "source": "https://github.com/knative/serving/blob/e3c2d9b0382bb48e1dbfa9334d46d863c13ebd42/config/core/300-resources/podautoscaler.yaml",
+          "kinds": [
+            "Metric",
+            "PodAutoscaler"
+          ]
+        },
+        {
+          "name": "caching.internal.knative.dev",
+          "source": "https://github.com/knative/serving/blob/e3c2d9b0382bb48e1dbfa9334d46d863c13ebd42/vendor/knative.dev/caching/config/image.yaml",
+          "kinds": [
+            "Image"
+          ]
+        },
+        {
+          "name": "networking.internal.knative.dev",
+          "source": "https://github.com/knative/serving/blob/e3c2d9b0382bb48e1dbfa9334d46d863c13ebd42/vendor/knative.dev/networking/config/ingress.yaml",
+          "kinds": [
+            "Certificate",
+            "ClusterDomainClaim",
+            "Ingress",
+            "ServerlessService"
+          ]
+        },
+        {
+          "name": "serving.knative.dev",
+          "source": "https://github.com/knative/serving/blob/e3c2d9b0382bb48e1dbfa9334d46d863c13ebd42/config/core/300-resources/service.yaml",
+          "kinds": [
+            "Configuration",
+            "DomainMapping",
+            "Revision",
+            "Route",
+            "Service"
+          ]
+        }
+      ]
+    },
+    {
       "slug": "kong-ingress-controller",
       "catalog": "community",
       "upstream": {
