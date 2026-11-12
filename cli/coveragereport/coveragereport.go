@@ -5,7 +5,8 @@
 //
 // It is a thin wrapper: the types are aliases and Compute delegates to the
 // implementation the maintainer command uses, so both always produce the same
-// report. Report documents use the schema SchemaReport; lines files use
+// report. The field set follows the underlying types. Report documents use
+// the schema SchemaReport; lines files use
 // LinesSchema.
 package coveragereport
 
