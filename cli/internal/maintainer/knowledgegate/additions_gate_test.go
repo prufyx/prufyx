@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/maintainer/coveragereport"
 )
@@ -232,19 +233,25 @@ func TestAdditionsMoveTheClockAndAddProjects(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	putAdditions(t, head, "2026-11-10", "zz-new")
+	// The addition is captured the day after the shipped clock, so the test
+	// does not depend on the calendar date of the shipped data.
+	addDate := before.UTC().AddDate(0, 0, 1).Format("2006-01-02")
+	if day, _ := time.Parse("2006-01-02", addDate); day.After(gateDate) {
+		t.Fatalf("shipped clock %v leaves no day before the gate date %v for an addition: move gateDate", before, gateDate)
+	}
+	putAdditions(t, head, addDate, "zz-new")
 	r, _, after, err := coverageReportOf(head)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !after.After(before) || after.Format("2006-01-02") != "2026-11-10" {
+	if !after.After(before) || after.UTC().Format("2006-01-02") != addDate {
 		t.Fatalf("clock %v -> %v", before, after)
 	}
 	if r.Additions == nil || r.Additions.Entries != 1 {
 		t.Fatalf("report %+v", r.Additions)
 	}
 	// The moved clock is gate-checked on the shipped data: a failure here
-	// would mean an old attestation expires under the 11-10 clock.
+	// would mean an old attestation expires under the moved clock.
 	mustPass(t, "clock moved by an addition", base, head)
 	rb, _, _, _ := coverageReportOf(base)
 	if r.Fleet.Projects != rb.Fleet.Projects+1 {
