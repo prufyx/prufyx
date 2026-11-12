@@ -54,6 +54,7 @@ derived for that line. It carries none for other components.
 | `completeness` | Always `COMPLETE_REVIEWED_RULES_FOR_LINE`. |
 | `ruleIds` | Rule ids in strictly ascending order, no repeats, at most 256. Required, and `[]` for a quiet line (never `null`). |
 | `releases` | Required for a release-scoped family (`crd.custom_resource_versions`), forbidden for any other. `from` and `to` each name 1 to 64 final releases, `{"version": "X.Y.Z", "commit": "<40 hex>"}`, of the previous minor line and of the line, in strictly ascending version order: every release the derivation read. |
+| `installProfiles` | Optional for `crd.custom_resource_versions` only. A complete, pinned source-profile census for every release in `releases`; using the record requires the target artifact join below. Older clients reject this member. |
 | `evidence.basis` | Required: `reviewed` (a maintainer read the sources) or `mechanical` (a versioned extractor derived it from pinned source). |
 | `evidence.extractor`, `evidence.derivedAt` | Required for `mechanical`, forbidden for `reviewed`. A mechanical attestation's `reviewedAt` equals its `derivedAt`. |
 | `evidence.reviewedAt`, `evidence.validUntil` | UTC, `YYYY-MM-DDTHH:MM:SSZ`. `validUntil` is after `reviewedAt` and at most 90 days later, the same window as a rule. |
@@ -62,6 +63,47 @@ derived for that line. It carries none for other components.
 Parsing is exact: every required member must be present, member names are
 case-sensitive (no case or Unicode folding), a member may not repeat, no
 value may be `null`, and unknown members are rejected.
+
+### CRD install profiles
+
+A project can ship different CRD versions through different install channels.
+A profile-bearing record preserves each channel separately. An empty `ruleIds`
+list alone cannot decide such a transition: a version may be served in one
+channel and absent in another at the same release.
+
+`installProfiles` is an array ordered by release version, then profile ID. It
+must contain the same finite set of profile IDs for every release named in
+`releases.from` and `releases.to`, with the exact pinned commits. Each record
+has `version`, `commit`, `id`, `artifacts` and `served`. IDs are bounded lower-case
+names; each profile has at most 64 CRD-bearing source files and 256 served
+`group/version/Kind` members owned by that component. `artifacts` is sorted by
+path, with entries containing `path`, `digest`, and `source`. The source uses
+the existing pinned source-evidence grammar and must name that exact path,
+digest, component repository and release commit. No source file or profile may
+be omitted from the reviewed census to manufacture completeness.
+
+Before granting a custom-resource family PASS, `scan` requires exactly one
+profile of the requested target release to match the complete set of imported
+project CRD source-file hashes. The supplied manifests are the caller's
+**proposed target apply set**: include the complete, unchanged target CRD source
+files alongside the custom resources that will consume them. A profile name,
+replica count, image tag or nearby schema cannot substitute for these bytes.
+Every consumed project GVK must also be served by that selected profile.
+
+Missing, partial, modified, foreign or mixed target artifacts, an ambiguous
+profile, an unlisted release, or a consumed version absent from the target
+profile leaves the family UNKNOWN with a bounded next action. Existing verified
+removal rules still block normally. This prevents a quiet same-channel upgrade
+from authorizing a different-channel transition. The comparison remains local;
+reports do not print imported hashes or raw values. Artifact matching establishes
+source content identity, not a live installation observation.
+
+Profiles add no coverage data themselves. Derivation still requires complete
+release and source inventories, ownership checks and the full-tree guards.
+There is one measured project pair, independent of the number of profiles.
+Existing records without this member retain their prior behavior and bytes.
+The external capability and its base bind this contract; older clients must be
+updated before reading profile-bearing records.
 
 A document is a non-empty array in canonical order (component, then fact
 family, then line in numeric order, so `1.9` comes before `1.10`), with at

@@ -38,7 +38,7 @@ const (
 	// IDPrefix is followed by the project slug: one extractor id per
 	// project, since a run reads one repository.
 	IDPrefix = "crd.version-removal."
-	Version  = "2.13.0"
+	Version  = "2.14.0"
 	// SourceDir is this package's directory under the module's internal/.
 	SourceDir = "extract/crdversions"
 )
@@ -1048,7 +1048,7 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, pair ex
 	}
 	proof.Completeness = completeness(x.target.Component, fromLine, toLine, fromTags, toTags, lines, proof.DefinitionsRemoved, proof.UnlistedRemovals)
 	res := extract.Extraction{Candidates: out, Proof: proof}
-	att, why := x.attestation(pair, fromLine, toLine, fa, ta, out, proof.Completeness)
+	att, why := x.attestation(pair, fromLine, toLine, fa, ta, out, proof.Completeness, states)
 	if len(suppressed) > 0 {
 		sort.Strings(suppressed)
 		att = nil
@@ -1099,12 +1099,12 @@ func dropChannelRetained(removals []Removal, scope []*tagState) ([]Removal, []Ch
 // the same major), for a target that attests and a component the family
 // covers. The attestation names every release of both lines it read, so it
 // covers no release published later.
-func (x *Extractor) attestation(pair extract.VersionPair, fromLine, toLine *releaseLine, fa, ta *tagState, rules []extract.Candidate, c *Completeness) (*extract.AttestationCandidate, string) {
+func (x *Extractor) attestation(pair extract.VersionPair, fromLine, toLine *releaseLine, fa, ta *tagState, rules []extract.Candidate, c *Completeness, states map[string]*tagState) (*extract.AttestationCandidate, string) {
 	family, _ := lineattest.LookupFamily(lineattest.FamilyCustomResourceVersions)
 	switch {
 	case x.target.Remote != nil:
 		return nil, "the target installs from another repository from some line on: its lines are not attested"
-	case len(x.target.Channels) > 0:
+	case len(x.target.Channels) > 0 && !x.target.ProfileAttestation:
 		return nil, "the project ships more than one install channel: its lines are not attested"
 	case !x.target.Attest:
 		return nil, "the target does not attest its lines (attest is off in its target file)"
@@ -1133,14 +1133,20 @@ func (x *Extractor) attestation(pair extract.VersionPair, fromLine, toLine *rele
 		}
 		return out
 	}
-	return &extract.AttestationCandidate{
+	att := &extract.AttestationCandidate{
 		Basis: extract.BasisMechanical, Component: x.target.Component, Line: toLine.key(), FactFamily: lineattest.FamilyCustomResourceVersions, RuleIDs: ids,
 		Releases: &lineattest.Releases{From: releases(fromLine), To: releases(toLine)},
 		Sources: []extract.SourceRef{
 			{ID: "crds-" + slug(pair.From), Repo: pair.Repo, Commit: pair.FromCommit, Path: fromFile},
 			{ID: "crds-" + slug(pair.To), Repo: pair.Repo, Commit: pair.ToCommit, Path: toFile},
 		},
-	}, ""
+	}
+	if x.target.ProfileAttestation {
+		if err := x.installProfiles(pair.Repo, fromLine, toLine, states, att); err != nil {
+			return nil, "install profile source census is incomplete"
+		}
+	}
+	return att, ""
 }
 
 // sourceOf is the repository and commit a definition is cited at: the

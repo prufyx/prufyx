@@ -84,6 +84,9 @@ type Target struct {
 	// test pins the two to each other, so registering a project is also
 	// a new version of this extractor.
 	Attest bool
+	// ProfileAttestation requires exact imported CRD source artifacts when a
+	// multi-channel line review is used. It never relaxes source completeness.
+	ProfileAttestation bool
 	// Remote, when set, moves the source of the target's definitions to
 	// another repository from one release line on (see Remote).
 	Remote *Remote
@@ -362,13 +365,14 @@ type targetJSON struct {
 	FactProject string   `json:"factProject"`
 	TagPrefixes []string `json:"tagPrefixes,omitempty"`
 	// ReleaseScheme replaces tagPrefixes; see Target.
-	ReleaseScheme string           `json:"releaseScheme,omitempty"`
-	MinFrom       string           `json:"minFrom"`
-	Attest        bool             `json:"attest"`
-	Paths         []pathJSON       `json:"paths"`
-	Exclude       []exclusionJSON  `json:"exclude"`
-	Generation    []generationJSON `json:"generation,omitempty"`
-	Remote        *remoteJSON      `json:"remote,omitempty"`
+	ReleaseScheme      string           `json:"releaseScheme,omitempty"`
+	MinFrom            string           `json:"minFrom"`
+	Attest             bool             `json:"attest"`
+	ProfileAttestation bool             `json:"profileAttestation,omitempty"`
+	Paths              []pathJSON       `json:"paths"`
+	Exclude            []exclusionJSON  `json:"exclude"`
+	Generation         []generationJSON `json:"generation,omitempty"`
+	Remote             *remoteJSON      `json:"remote,omitempty"`
 	// DeclaredChannel and Channels: see Target.
 	DeclaredChannel string        `json:"declaredChannel,omitempty"`
 	Channels        []channelJSON `json:"channels,omitempty"`
@@ -509,7 +513,7 @@ func LoadTarget(name string, raw []byte) (Target, error) {
 }
 
 func (tj targetJSON) target() (Target, error) {
-	t := Target{Project: tj.Project, Catalog: CatalogCNCF, Name: tj.Name, Repo: tj.Repo, Component: tj.Component, FactProject: tj.FactProject, TagPrefixes: tj.TagPrefixes, ReleaseScheme: tj.ReleaseScheme, Attest: tj.Attest}
+	t := Target{Project: tj.Project, Catalog: CatalogCNCF, Name: tj.Name, Repo: tj.Repo, Component: tj.Component, FactProject: tj.FactProject, TagPrefixes: tj.TagPrefixes, ReleaseScheme: tj.ReleaseScheme, Attest: tj.Attest, ProfileAttestation: tj.ProfileAttestation}
 	switch tj.Catalog {
 	case "":
 	case CatalogCommunity:
@@ -707,6 +711,9 @@ var channelNameRE = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}$`)
 // when there are others, distinct names, clean non-overlapping paths (each
 // channel with a path that is required), and not together with a Remote.
 func (tj targetJSON) channels(t *Target) error {
+	if tj.ProfileAttestation && (!t.Attest || len(tj.Channels) == 0) {
+		return fmt.Errorf("profileAttestation requires attest and finite install channels")
+	}
 	if len(tj.Channels) == 0 {
 		if tj.DeclaredChannel != "" {
 			return fmt.Errorf("declaredChannel %q without channels", tj.DeclaredChannel)
@@ -719,7 +726,7 @@ func (tj targetJSON) channels(t *Target) error {
 	if tj.Remote != nil {
 		return fmt.Errorf("a target with channels does not install from another repository")
 	}
-	if t.Attest {
+	if t.Attest && !t.ProfileAttestation {
 		return fmt.Errorf("a target with channels does not attest")
 	}
 	t.DeclaredChannel = tj.DeclaredChannel

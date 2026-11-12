@@ -123,6 +123,7 @@ const (
 	GapCustomResourceLineSameLine   GapKey = ReasonLineNotAttested + "/custom-resources-same-line"
 	GapCustomResourceLineRelease    GapKey = ReasonLineNotAttested + "/custom-resources-release"
 	GapCustomResourceLineTrust      GapKey = ReasonLineNotAttested + "/custom-resources-trust-policy"
+	GapCustomResourceInstallProfile GapKey = ReasonLineNotAttested + "/custom-resources-install-profile"
 	// GapChartValuesOnly: a declared chart hop, checked only against the
 	// rules about the chart's values and Kubernetes version.
 	GapChartValuesOnly GapKey = ReasonComponentNotCovered + "/chart-values-only"
@@ -289,6 +290,8 @@ var gapMessages = map[GapKey]gapMessage{
 		"use knowledge reviewed after %[1]s %[3]s, or check its CRDs by hand", 3},
 	GapCustomResourceLineTrust: {"the custom-resource review of %[1]s %[2]s rests on basis %[3]s (see --require-basis)",
 		"add %[3]s to --require-basis, or check the %[1]s %[2]s CRDs by hand", 3},
+	GapCustomResourceInstallProfile: {"target CRDs or consumed versions do not match one reviewed profile of %[1]s %[2]s",
+		"import the complete target CRD source artifacts for this release and profile, then verify every consumed version is served; otherwise compare the target CRDs by hand", 2},
 	GapChartValuesOnly: {"%[1]s chart %[2]s: only its values and Kubernetes-version rules are checked, not the rest of the upgrade",
 		"verify the rest of the chart's upgrade notes and the %[1]s release notes by hand", 2},
 	GapHelmValuesNotComplete: {"%[1]s chart %[2]s: the supplied values are not declared complete, so no required key is confirmed",

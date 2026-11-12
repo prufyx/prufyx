@@ -403,6 +403,10 @@ func (r *customResourceRun) lineReview(hop upgradepath.Hop, ref scanreport.HopRe
 		// The set is not complete: its own gaps name why.
 		return nil
 	}
+	if a.InstallProfiles != nil && !matchesInstallProfile(a, toVersion, r.slug, r.workspace, prepared.Members) {
+		result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapCustomResourceInstallProfile, r.slug, toVersion))
+		return nil
+	}
 	reviewed := true
 	listed := map[string]bool{}
 	anyBlocked := false

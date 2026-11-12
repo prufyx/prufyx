@@ -93,6 +93,7 @@ func (ix Index) AttestationsFor(component, line, family string, now time.Time) [
 func (ix Index) Len() int { return len(ix.byKey) }
 
 func copyOf(a LineAttestation) LineAttestation {
+	a.InstallProfiles = CopyInstallProfiles(a.InstallProfiles)
 	a.RuleIDs = append([]string{}, a.RuleIDs...)
 	a.Evidence.Sources = append([]constraintengine.SourceEvidence(nil), a.Evidence.Sources...)
 	if a.Releases != nil {

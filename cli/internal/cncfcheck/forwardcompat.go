@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/lineattest"
 )
 
 // Forward compatibility of the per-project feed.
@@ -42,11 +43,12 @@ import (
 // the single-target profiles stay exact.
 
 type baseCapabilityDocument struct {
-	Schema                string `json:"schema"`
-	EngineContractDigest  string `json:"engineContractDigest"`
-	PolicyID              string `json:"policyId"`
-	PolicyDigest          string `json:"policyDigest"`
-	AdmissionPolicyDigest string `json:"admissionPolicyDigest"`
+	InstallProfileContract string `json:"installProfileContract"`
+	Schema                 string `json:"schema"`
+	EngineContractDigest   string `json:"engineContractDigest"`
+	PolicyID               string `json:"policyId"`
+	PolicyDigest           string `json:"policyDigest"`
+	AdmissionPolicyDigest  string `json:"admissionPolicyDigest"`
 }
 
 // baseCapabilityDigest is the part of the capability a client cannot extend.
@@ -59,7 +61,7 @@ func baseCapabilityDigest(base bundle) string {
 		Version, RuleAdmission, CommunityAdmission, Ownership, Namespace, KnownDefinitions, ReservedID string
 		ReservedFacts                                                                                  []Fact
 	}{"legacy-forward-v2", "strict known schemas; no notices, consensus, leads, support ranges, removal crossings, charts or require_set_member in external targets", "same-project proposed forbid_set_member CRD removals only", "compiled project-to-component and rule ownership", "CNCF and community target prefixes remain distinct", "immutable known IDs and definitions; unknown definitions hash-only", MariaDBCanaryRuleID, entry.RequiredFacts})
-	raw, err := json.Marshal(baseCapabilityDocument{Schema: externalBundleSchema + "#base-v2", EngineContractDigest: constraintengine.EngineContractDigest(), PolicyID: base.pack.PolicyID, PolicyDigest: base.pack.PolicyDigest, AdmissionPolicyDigest: policy})
+	raw, err := json.Marshal(baseCapabilityDocument{InstallProfileContract: lineattest.InstallProfileContract, Schema: externalBundleSchema + "#base-v2", EngineContractDigest: constraintengine.EngineContractDigest(), PolicyID: base.pack.PolicyID, PolicyDigest: base.pack.PolicyDigest, AdmissionPolicyDigest: policy})
 	if err != nil {
 		return ""
 	}

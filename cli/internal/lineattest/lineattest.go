@@ -246,7 +246,10 @@ type LineAttestation struct {
 	// that the derivation read. It is required for a release-scoped family
 	// and forbidden for any other.
 	Releases *Releases `json:"releases,omitempty"`
-	Evidence Evidence  `json:"evidence"`
+	// InstallProfiles binds a finite source-profile census to every release.
+	// A reader must join actual target artifacts before relying on the record.
+	InstallProfiles []InstallProfile `json:"installProfiles,omitempty"`
+	Evidence        Evidence         `json:"evidence"`
 }
 
 // Releases are the final releases of both lines an attestation's
@@ -462,7 +465,10 @@ func (a LineAttestation) Validate() error {
 			return err
 		}
 	}
-	return a.Evidence.Validate()
+	if err := a.Evidence.Validate(); err != nil {
+		return err
+	}
+	return a.validateInstallProfiles()
 }
 
 var commitRE = regexp.MustCompile(`^[0-9a-f]{40}$`)
@@ -526,7 +532,7 @@ func (e Evidence) Validate() error {
 
 // Field sets of each object level, for the exact shape check.
 var (
-	recordFields    = fields("component", "line", "factFamily", "completeness", "ruleIds", "releases?", "evidence")
+	recordFields    = fields("component", "line", "factFamily", "completeness", "ruleIds", "releases?", "installProfiles?", "evidence")
 	releasesFields  = fields("from", "to")
 	releaseFields   = fields("version", "commit")
 	evidenceFields  = fields("basis", "extractor?", "derivedAt?", "reviewedAt", "validUntil", "sources")
@@ -565,6 +571,8 @@ func checkShape(raw []byte) error {
 	for i, item := range list {
 		if err := object(item, recordFields, func(name string, v any) error {
 			switch name {
+			case "installProfiles":
+				return installProfilesShape(v)
 			case "ruleIds":
 				ids, ok := v.([]any)
 				if !ok {
