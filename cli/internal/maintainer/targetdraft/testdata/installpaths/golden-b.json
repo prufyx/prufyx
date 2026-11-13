@@ -1,0 +1,18 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "widgets",
+    "name": "Widgets",
+    "repo": "github.com/example/widgets",
+    "component": "pkg:github/example/widgets",
+    "factProject": "widgets",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.1",
+    "attest": true,
+    "paths": [
+      {"path": "api/config/crd/widgets.example.test_alphas.yaml"},
+      {"path": "api/config/crd/widgets.example.test_betas.yaml"}
+    ],
+    "exclude": []
+  }
+}

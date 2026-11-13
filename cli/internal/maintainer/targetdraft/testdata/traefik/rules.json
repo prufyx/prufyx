@@ -1,0 +1,29 @@
+{
+  "schema": "prufyx.io/target-draft-rules/v1",
+  "upstream": {
+    "name": "traefik",
+    "repository": "https://github.com/traefik/traefik",
+    "license": "MIT",
+    "licenseSource": "https://github.com/traefik/traefik/blob/04aa6bb4f9776f2ba87e5cd181d250e3610e6419/LICENSE.md"
+  },
+  "installSurface": [
+    {
+      "path": "docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml",
+      "reason": "single aggregate of every traefik.io definition; the definitions ship from another repository"
+    }
+  ],
+  "exclusions": [
+    {
+      "class": "exact-file",
+      "path": "docs/content/reference/dynamic-configuration/traefik.containo.us_tlsoptions.yaml",
+      "reason": "legacy-group tlsoptions.traefik.containo.us, a different CRD from tlsoptions.traefik.io in the declared aggregate; group removed in v3",
+      "evidence": "Pinned at v3.4.5 (9bf14b67) and v3.5.6 (bb10b9df); the file is present v3.4.5..v3.6.7 (blob 6c7fdc91) and absent at v3.2.5, v3.3.7, v3.6.25, v3.7.18. It defines tlsoptions.traefik.containo.us (v1alpha1), not part of the aggregate, which script/code-gen.sh builds as cat traefik.io_*.yaml. Zero references to it in docs text, Makefile, script, CI, integration or packaging at v3.2.5..v3.7.18; docs/content/migrate/v2-to-v3-details.md states the traefik.containo.us API group is removed in v3."
+    },
+    {
+      "class": "fixture-dir",
+      "path": "integration/fixtures/",
+      "reason": "integration test fixtures: third-party Gateway API and Knative CRD bundles, a copy of the aggregate, and a gateway operator test manifest",
+      "evidence": "Pinned v3.2.5..v3.7.18 (03c170f2, 74bc9330, 9bf14b67, bb10b9df, 4b18b24b, 89e11274). CRD files under integration/fixtures/ are k3s test manifests; consumers: k8s_test.go (k8s/), k8s_conformance_test.go (3.2-3.5), gateway_api_conformance_test.go (3.6+), k8s_gateway_test.go, knative_conformance_test.go. Contents: Gateway API and Knative CRDs, and k8s/01-traefik-crd.yml, a code-gen.sh copy of the aggregate (same 10 traefik.io names). Hidden traefik-owned CRD, no claim made: traefikproxies.gateway.traefik.io in gateway-api-conformance/operator/01-operator.yml (v3.7.14+). No Makefile, goreleaser, Dockerfile or install doc references the fixtures."
+    }
+  ]
+}

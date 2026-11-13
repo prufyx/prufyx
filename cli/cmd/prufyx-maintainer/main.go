@@ -39,6 +39,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/stagingreceipt"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/supportinventory"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/targetdraft"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/targetguard"
 )
 
@@ -221,6 +222,11 @@ func run(args []string, stdout, stderr io.Writer) error {
 			return &commandError{code: code, message: "onboard-bundle failed", printed: true}
 		}
 		return nil
+	case "target-draft":
+		if code := targetdraft.Run(args[1:], stdout, stderr); code != 0 {
+			return &commandError{code: code, message: "target-draft failed", printed: true}
+		}
+		return nil
 	case "target-check":
 		root, err := cliRoot()
 		if err != nil {
@@ -231,7 +237,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 		}
 		return nil
 	case "help", "-h", "--help":
-		fmt.Fprintln(stdout, "usage: prufyx-maintainer <project|contribution|contribution-candidates|selected-source-import|source-corpus|corpus-attestation|review-record|public-source-capture|evidence|factory|extract|consensus|served-lists|chart-versions|gate|approval|rule|onboard-bundle|target-check|coverage|export-knowledge|knowledge-targets|package-knowledge|knowledge-publish|knowledge-packet|knowledge-sign|support-inventory|docs-tables|release-notes|release-gate|staging-receipt|release|local-kind|release-*> [options]")
+		fmt.Fprintln(stdout, "usage: prufyx-maintainer <project|contribution|contribution-candidates|selected-source-import|source-corpus|corpus-attestation|review-record|public-source-capture|evidence|factory|extract|consensus|served-lists|chart-versions|gate|approval|rule|onboard-bundle|target-check|target-draft|coverage|export-knowledge|knowledge-targets|package-knowledge|knowledge-publish|knowledge-packet|knowledge-sign|support-inventory|docs-tables|release-notes|release-gate|staging-receipt|release|local-kind|release-*> [options]")
 		return nil
 	default:
 		return usageError()

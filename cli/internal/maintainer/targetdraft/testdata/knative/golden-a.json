@@ -1,0 +1,27 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "knative",
+    "name": "Knative",
+    "repo": "github.com/knative/serving",
+    "component": "pkg:github/knative/serving",
+    "factProject": "knative",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.46",
+    "paths": [
+      {"path": "config/core/300-resources/configuration.yaml"},
+      {"path": "config/core/300-resources/domain-mapping.yaml"},
+      {"path": "config/core/300-resources/metric.yaml"},
+      {"path": "config/core/300-resources/podautoscaler.yaml"},
+      {"path": "config/core/300-resources/revision.yaml"},
+      {"path": "config/core/300-resources/route.yaml"},
+      {"path": "config/core/300-resources/service.yaml"},
+      {"path": "vendor/knative.dev/networking/config/certificate.yaml"},
+      {"path": "vendor/knative.dev/networking/config/domain-claim.yaml"},
+      {"path": "vendor/knative.dev/networking/config/ingress.yaml"},
+      {"path": "vendor/knative.dev/networking/config/serverlessservice.yaml"},
+      {"path": "vendor/knative.dev/caching/config/image.yaml"}
+    ],
+    "exclude": []
+  }
+}

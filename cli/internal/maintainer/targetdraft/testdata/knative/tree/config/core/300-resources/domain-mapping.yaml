@@ -1,0 +1,13 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: domainmappings.serving.knative.dev
+spec:
+  group: serving.knative.dev
+  names:
+    kind: DomainMapping
+    plural: domainmappings
+  versions:
+  - name: v1
+    served: true
+    storage: true
