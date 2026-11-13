@@ -23999,6 +23999,288 @@
       }
     },
     {
+      "component": "pkg:github/dexidp/dex",
+      "line": "2.42",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.41.0",
+            "commit": "257a821cca118f0946db47f9a70e28548db319a1"
+          },
+          {
+            "version": "2.41.1",
+            "commit": "43956db7fd75c488a82c70cf231f44287300a75d"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.42.0",
+            "commit": "7d1a7473c8a07e22ee97925cc10236c70e5ecf34"
+          },
+          {
+            "version": "2.42.1",
+            "commit": "4c3e83b90135339575b66d7cf878fb1a6326c243"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.dex",
+          "version": "2.14.0",
+          "codeDigest": "sha256:d6e5f8cfdb97cbfcffdae33b8dc70189df4affac96a5de30cc6a24bbdff7a8d8"
+        },
+        "derivedAt": "2026-11-13T21:23:13Z",
+        "reviewedAt": "2026-11-13T21:23:13Z",
+        "validUntil": "2027-02-11T21:23:13Z",
+        "sources": [
+          {
+            "id": "crds-2-41-0",
+            "url": "https://github.com/dexidp/dex/blob/257a821cca118f0946db47f9a70e28548db319a1/scripts/manifests/crds/authcodes.yaml",
+            "revision": "257a821cca118f0946db47f9a70e28548db319a1",
+            "contentDigest": "sha256:da1f8327038057d92062b44e34d21f8b6a29a04668e097c233828a93ba06878f",
+            "startLine": 1,
+            "endLine": 20
+          },
+          {
+            "id": "crds-2-42-0",
+            "url": "https://github.com/dexidp/dex/blob/7d1a7473c8a07e22ee97925cc10236c70e5ecf34/scripts/manifests/crds/authcodes.yaml",
+            "revision": "7d1a7473c8a07e22ee97925cc10236c70e5ecf34",
+            "contentDigest": "sha256:da1f8327038057d92062b44e34d21f8b6a29a04668e097c233828a93ba06878f",
+            "startLine": 1,
+            "endLine": 20
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/dexidp/dex",
+      "line": "2.43",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.42.0",
+            "commit": "7d1a7473c8a07e22ee97925cc10236c70e5ecf34"
+          },
+          {
+            "version": "2.42.1",
+            "commit": "4c3e83b90135339575b66d7cf878fb1a6326c243"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.43.0",
+            "commit": "8e96058e71257eb0a32e1b0a42303094dea9d8fb"
+          },
+          {
+            "version": "2.43.1",
+            "commit": "6e602d3315ea09d0cdeef6b51e61f2fd4ae52502"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.dex",
+          "version": "2.14.0",
+          "codeDigest": "sha256:d6e5f8cfdb97cbfcffdae33b8dc70189df4affac96a5de30cc6a24bbdff7a8d8"
+        },
+        "derivedAt": "2026-11-13T21:23:13Z",
+        "reviewedAt": "2026-11-13T21:23:13Z",
+        "validUntil": "2027-02-11T21:23:13Z",
+        "sources": [
+          {
+            "id": "crds-2-42-0",
+            "url": "https://github.com/dexidp/dex/blob/7d1a7473c8a07e22ee97925cc10236c70e5ecf34/scripts/manifests/crds/authcodes.yaml",
+            "revision": "7d1a7473c8a07e22ee97925cc10236c70e5ecf34",
+            "contentDigest": "sha256:da1f8327038057d92062b44e34d21f8b6a29a04668e097c233828a93ba06878f",
+            "startLine": 1,
+            "endLine": 20
+          },
+          {
+            "id": "crds-2-43-0",
+            "url": "https://github.com/dexidp/dex/blob/8e96058e71257eb0a32e1b0a42303094dea9d8fb/scripts/manifests/crds/authcodes.yaml",
+            "revision": "8e96058e71257eb0a32e1b0a42303094dea9d8fb",
+            "contentDigest": "sha256:da1f8327038057d92062b44e34d21f8b6a29a04668e097c233828a93ba06878f",
+            "startLine": 1,
+            "endLine": 20
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/dexidp/dex",
+      "line": "2.44",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.43.0",
+            "commit": "8e96058e71257eb0a32e1b0a42303094dea9d8fb"
+          },
+          {
+            "version": "2.43.1",
+            "commit": "6e602d3315ea09d0cdeef6b51e61f2fd4ae52502"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.44.0",
+            "commit": "2dce75009acfcd9df77d57f2d144aae999a4c569"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.dex",
+          "version": "2.14.0",
+          "codeDigest": "sha256:d6e5f8cfdb97cbfcffdae33b8dc70189df4affac96a5de30cc6a24bbdff7a8d8"
+        },
+        "derivedAt": "2026-11-13T21:23:13Z",
+        "reviewedAt": "2026-11-13T21:23:13Z",
+        "validUntil": "2027-02-11T21:23:13Z",
+        "sources": [
+          {
+            "id": "crds-2-43-0",
+            "url": "https://github.com/dexidp/dex/blob/8e96058e71257eb0a32e1b0a42303094dea9d8fb/scripts/manifests/crds/authcodes.yaml",
+            "revision": "8e96058e71257eb0a32e1b0a42303094dea9d8fb",
+            "contentDigest": "sha256:da1f8327038057d92062b44e34d21f8b6a29a04668e097c233828a93ba06878f",
+            "startLine": 1,
+            "endLine": 20
+          },
+          {
+            "id": "crds-2-44-0",
+            "url": "https://github.com/dexidp/dex/blob/2dce75009acfcd9df77d57f2d144aae999a4c569/scripts/manifests/crds/authcodes.yaml",
+            "revision": "2dce75009acfcd9df77d57f2d144aae999a4c569",
+            "contentDigest": "sha256:da1f8327038057d92062b44e34d21f8b6a29a04668e097c233828a93ba06878f",
+            "startLine": 1,
+            "endLine": 20
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/dexidp/dex",
+      "line": "2.45",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.44.0",
+            "commit": "2dce75009acfcd9df77d57f2d144aae999a4c569"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.45.0",
+            "commit": "bcc2283694018a59e9b84c43c6c50ce996e9409b"
+          },
+          {
+            "version": "2.45.1",
+            "commit": "11d2eeb52b42e1980e14cb91e69dd9e3faab2076"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.dex",
+          "version": "2.14.0",
+          "codeDigest": "sha256:d6e5f8cfdb97cbfcffdae33b8dc70189df4affac96a5de30cc6a24bbdff7a8d8"
+        },
+        "derivedAt": "2026-11-13T21:23:13Z",
+        "reviewedAt": "2026-11-13T21:23:13Z",
+        "validUntil": "2027-02-11T21:23:13Z",
+        "sources": [
+          {
+            "id": "crds-2-44-0",
+            "url": "https://github.com/dexidp/dex/blob/2dce75009acfcd9df77d57f2d144aae999a4c569/scripts/manifests/crds/authcodes.yaml",
+            "revision": "2dce75009acfcd9df77d57f2d144aae999a4c569",
+            "contentDigest": "sha256:da1f8327038057d92062b44e34d21f8b6a29a04668e097c233828a93ba06878f",
+            "startLine": 1,
+            "endLine": 20
+          },
+          {
+            "id": "crds-2-45-0",
+            "url": "https://github.com/dexidp/dex/blob/bcc2283694018a59e9b84c43c6c50ce996e9409b/scripts/manifests/crds/authcodes.yaml",
+            "revision": "bcc2283694018a59e9b84c43c6c50ce996e9409b",
+            "contentDigest": "sha256:da1f8327038057d92062b44e34d21f8b6a29a04668e097c233828a93ba06878f",
+            "startLine": 1,
+            "endLine": 20
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/dexidp/dex",
+      "line": "2.46",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.45.0",
+            "commit": "bcc2283694018a59e9b84c43c6c50ce996e9409b"
+          },
+          {
+            "version": "2.45.1",
+            "commit": "11d2eeb52b42e1980e14cb91e69dd9e3faab2076"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.46.0",
+            "commit": "05a275057112ba93e17db21f600b756f000f1c21"
+          },
+          {
+            "version": "2.46.1",
+            "commit": "75eb19238e10fc4750e7efb05a4031b254b04029"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.dex",
+          "version": "2.14.0",
+          "codeDigest": "sha256:d6e5f8cfdb97cbfcffdae33b8dc70189df4affac96a5de30cc6a24bbdff7a8d8"
+        },
+        "derivedAt": "2026-11-13T21:23:13Z",
+        "reviewedAt": "2026-11-13T21:23:13Z",
+        "validUntil": "2027-02-11T21:23:13Z",
+        "sources": [
+          {
+            "id": "crds-2-45-0",
+            "url": "https://github.com/dexidp/dex/blob/bcc2283694018a59e9b84c43c6c50ce996e9409b/scripts/manifests/crds/authcodes.yaml",
+            "revision": "bcc2283694018a59e9b84c43c6c50ce996e9409b",
+            "contentDigest": "sha256:da1f8327038057d92062b44e34d21f8b6a29a04668e097c233828a93ba06878f",
+            "startLine": 1,
+            "endLine": 20
+          },
+          {
+            "id": "crds-2-46-0",
+            "url": "https://github.com/dexidp/dex/blob/05a275057112ba93e17db21f600b756f000f1c21/scripts/manifests/crds/authcodes.yaml",
+            "revision": "05a275057112ba93e17db21f600b756f000f1c21",
+            "contentDigest": "sha256:da1f8327038057d92062b44e34d21f8b6a29a04668e097c233828a93ba06878f",
+            "startLine": 1,
+            "endLine": 20
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/evryfs/github-actions-runner-operator",
       "line": "0.7",
       "factFamily": "crd.custom_resource_versions",
@@ -25466,6 +25748,280 @@
             "contentDigest": "sha256:c0ad59e008658765412badb836e73a523a355e3d792a32ad3c0711a728be5aff",
             "startLine": 1,
             "endLine": 19263
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/k8up-io/k8up",
+      "line": "2.12",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.11.0",
+            "commit": "e90462780a66dac8e6040ba6f23504ccc9012d72"
+          },
+          {
+            "version": "2.11.1",
+            "commit": "7713061e17d84f541ad18ed0fcb23f8c2e140fb0"
+          },
+          {
+            "version": "2.11.2",
+            "commit": "29fc06f678fc35b51595e2b0b546446ae9d90c69"
+          },
+          {
+            "version": "2.11.3",
+            "commit": "be9529f1242148b614a3d0911e7c655955b2835e"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.12.0",
+            "commit": "0e10a932db96ef91d6fb2b69bbb16439e2fcdb73"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.k8up",
+          "version": "2.14.0",
+          "codeDigest": "sha256:cc35561843c40ca44d61d4f0e5a3e09a7f061c6442fff299f0baf5edce4d0bfa"
+        },
+        "derivedAt": "2026-11-13T21:23:13Z",
+        "reviewedAt": "2026-11-13T21:23:13Z",
+        "validUntil": "2027-02-11T21:23:13Z",
+        "sources": [
+          {
+            "id": "crds-2-11-0",
+            "url": "https://github.com/k8up-io/k8up/blob/e90462780a66dac8e6040ba6f23504ccc9012d72/config/crd/apiextensions.k8s.io/v1/k8up.io_archives.yaml",
+            "revision": "e90462780a66dac8e6040ba6f23504ccc9012d72",
+            "contentDigest": "sha256:7598ab39e4723f514bc65a75ff223e900004b10b6c0dae1548b4567a02626f97",
+            "startLine": 1,
+            "endLine": 1077
+          },
+          {
+            "id": "crds-2-12-0",
+            "url": "https://github.com/k8up-io/k8up/blob/0e10a932db96ef91d6fb2b69bbb16439e2fcdb73/config/crd/apiextensions.k8s.io/v1/k8up.io_archives.yaml",
+            "revision": "0e10a932db96ef91d6fb2b69bbb16439e2fcdb73",
+            "contentDigest": "sha256:7598ab39e4723f514bc65a75ff223e900004b10b6c0dae1548b4567a02626f97",
+            "startLine": 1,
+            "endLine": 1077
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/k8up-io/k8up",
+      "line": "2.13",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.12.0",
+            "commit": "0e10a932db96ef91d6fb2b69bbb16439e2fcdb73"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.13.0",
+            "commit": "4c6934dc94d9373f35fce25529af038cb0c27b21"
+          },
+          {
+            "version": "2.13.1",
+            "commit": "56ca1a38786778474be6260d7c90f65e40a3eff8"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.k8up",
+          "version": "2.14.0",
+          "codeDigest": "sha256:cc35561843c40ca44d61d4f0e5a3e09a7f061c6442fff299f0baf5edce4d0bfa"
+        },
+        "derivedAt": "2026-11-13T21:23:13Z",
+        "reviewedAt": "2026-11-13T21:23:13Z",
+        "validUntil": "2027-02-11T21:23:13Z",
+        "sources": [
+          {
+            "id": "crds-2-12-0",
+            "url": "https://github.com/k8up-io/k8up/blob/0e10a932db96ef91d6fb2b69bbb16439e2fcdb73/config/crd/apiextensions.k8s.io/v1/k8up.io_archives.yaml",
+            "revision": "0e10a932db96ef91d6fb2b69bbb16439e2fcdb73",
+            "contentDigest": "sha256:7598ab39e4723f514bc65a75ff223e900004b10b6c0dae1548b4567a02626f97",
+            "startLine": 1,
+            "endLine": 1077
+          },
+          {
+            "id": "crds-2-13-0",
+            "url": "https://github.com/k8up-io/k8up/blob/4c6934dc94d9373f35fce25529af038cb0c27b21/config/crd/apiextensions.k8s.io/v1/k8up.io_archives.yaml",
+            "revision": "4c6934dc94d9373f35fce25529af038cb0c27b21",
+            "contentDigest": "sha256:7598ab39e4723f514bc65a75ff223e900004b10b6c0dae1548b4567a02626f97",
+            "startLine": 1,
+            "endLine": 1077
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/k8up-io/k8up",
+      "line": "2.14",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.13.0",
+            "commit": "4c6934dc94d9373f35fce25529af038cb0c27b21"
+          },
+          {
+            "version": "2.13.1",
+            "commit": "56ca1a38786778474be6260d7c90f65e40a3eff8"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.14.0",
+            "commit": "fe565d5aff7030af21835da00450b2390bb9d1fe"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.k8up",
+          "version": "2.14.0",
+          "codeDigest": "sha256:cc35561843c40ca44d61d4f0e5a3e09a7f061c6442fff299f0baf5edce4d0bfa"
+        },
+        "derivedAt": "2026-11-13T21:23:13Z",
+        "reviewedAt": "2026-11-13T21:23:13Z",
+        "validUntil": "2027-02-11T21:23:13Z",
+        "sources": [
+          {
+            "id": "crds-2-13-0",
+            "url": "https://github.com/k8up-io/k8up/blob/4c6934dc94d9373f35fce25529af038cb0c27b21/config/crd/apiextensions.k8s.io/v1/k8up.io_archives.yaml",
+            "revision": "4c6934dc94d9373f35fce25529af038cb0c27b21",
+            "contentDigest": "sha256:7598ab39e4723f514bc65a75ff223e900004b10b6c0dae1548b4567a02626f97",
+            "startLine": 1,
+            "endLine": 1077
+          },
+          {
+            "id": "crds-2-14-0",
+            "url": "https://github.com/k8up-io/k8up/blob/fe565d5aff7030af21835da00450b2390bb9d1fe/config/crd/apiextensions.k8s.io/v1/k8up.io_archives.yaml",
+            "revision": "fe565d5aff7030af21835da00450b2390bb9d1fe",
+            "contentDigest": "sha256:3e1fd121a4af2261c01ef77fbf0252ff6cbcccf77ac6629d11351c5987025d58",
+            "startLine": 1,
+            "endLine": 1237
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/k8up-io/k8up",
+      "line": "2.15",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.14.0",
+            "commit": "fe565d5aff7030af21835da00450b2390bb9d1fe"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.15.0",
+            "commit": "0240a0613b2fa15665a71418079c1550ceb19df3"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.k8up",
+          "version": "2.14.0",
+          "codeDigest": "sha256:cc35561843c40ca44d61d4f0e5a3e09a7f061c6442fff299f0baf5edce4d0bfa"
+        },
+        "derivedAt": "2026-11-13T21:23:13Z",
+        "reviewedAt": "2026-11-13T21:23:13Z",
+        "validUntil": "2027-02-11T21:23:13Z",
+        "sources": [
+          {
+            "id": "crds-2-14-0",
+            "url": "https://github.com/k8up-io/k8up/blob/fe565d5aff7030af21835da00450b2390bb9d1fe/config/crd/apiextensions.k8s.io/v1/k8up.io_archives.yaml",
+            "revision": "fe565d5aff7030af21835da00450b2390bb9d1fe",
+            "contentDigest": "sha256:3e1fd121a4af2261c01ef77fbf0252ff6cbcccf77ac6629d11351c5987025d58",
+            "startLine": 1,
+            "endLine": 1237
+          },
+          {
+            "id": "crds-2-15-0",
+            "url": "https://github.com/k8up-io/k8up/blob/0240a0613b2fa15665a71418079c1550ceb19df3/config/crd/apiextensions.k8s.io/v1/k8up.io_archives.yaml",
+            "revision": "0240a0613b2fa15665a71418079c1550ceb19df3",
+            "contentDigest": "sha256:3e1fd121a4af2261c01ef77fbf0252ff6cbcccf77ac6629d11351c5987025d58",
+            "startLine": 1,
+            "endLine": 1237
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/k8up-io/k8up",
+      "line": "2.16",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.15.0",
+            "commit": "0240a0613b2fa15665a71418079c1550ceb19df3"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.16.0",
+            "commit": "343b99d1519385d75738dbb07d6ff45785c3f186"
+          },
+          {
+            "version": "2.16.1",
+            "commit": "8c825c87f7fcf64cc2a3e37d914b64bc698a8b58"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.k8up",
+          "version": "2.14.0",
+          "codeDigest": "sha256:cc35561843c40ca44d61d4f0e5a3e09a7f061c6442fff299f0baf5edce4d0bfa"
+        },
+        "derivedAt": "2026-11-13T21:23:13Z",
+        "reviewedAt": "2026-11-13T21:23:13Z",
+        "validUntil": "2027-02-11T21:23:13Z",
+        "sources": [
+          {
+            "id": "crds-2-15-0",
+            "url": "https://github.com/k8up-io/k8up/blob/0240a0613b2fa15665a71418079c1550ceb19df3/config/crd/apiextensions.k8s.io/v1/k8up.io_archives.yaml",
+            "revision": "0240a0613b2fa15665a71418079c1550ceb19df3",
+            "contentDigest": "sha256:3e1fd121a4af2261c01ef77fbf0252ff6cbcccf77ac6629d11351c5987025d58",
+            "startLine": 1,
+            "endLine": 1237
+          },
+          {
+            "id": "crds-2-16-0",
+            "url": "https://github.com/k8up-io/k8up/blob/343b99d1519385d75738dbb07d6ff45785c3f186/config/crd/apiextensions.k8s.io/v1/k8up.io_archives.yaml",
+            "revision": "343b99d1519385d75738dbb07d6ff45785c3f186",
+            "contentDigest": "sha256:3e1fd121a4af2261c01ef77fbf0252ff6cbcccf77ac6629d11351c5987025d58",
+            "startLine": 1,
+            "endLine": 1237
           }
         ]
       }
