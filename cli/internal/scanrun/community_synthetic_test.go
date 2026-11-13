@@ -189,7 +189,7 @@ func TestScanCommunityProjectFromADatabase(t *testing.T) {
 	for _, layout := range storeLayouts {
 		t.Run(layout, func(t *testing.T) {
 			installCommunity(t)
-			fixture := newStoreFixture(t, layout)
+			fixture := newStoreFixture(t, layout, gwSlug)
 			fixture.importPack(nil, "5")
 			opened, err := OpenStore(fixture.store, []string{gwSlug})
 			if err != nil {

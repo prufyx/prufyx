@@ -177,7 +177,7 @@ func renewedAll(t *testing.T) []byte {
 
 // TestScanKnowledgeAgeStore: the note describes the database's own rules,
 // not the embedded pack, in either layout (a single-target database serves
-// every project's rules, a per-project one the opened project's), and its
+// every held project's rules, a per-project one the opened project's), and its
 // hint does not tell the operator to use a database they already use.
 func TestScanKnowledgeAgeStore(t *testing.T) {
 	reviewed, end := renewedWindow()
@@ -191,9 +191,12 @@ func TestScanKnowledgeAgeStore(t *testing.T) {
 		stale.importPack(nil, "5")
 		dir, _ := files(t, map[string]string{"applyset.yaml": cronjobV1beta1})
 		inDir(t, dir, func() {
-			active := countRules(t, layout, "9999-01-01T00:00:00Z")
+			active := countRules(t, layout, "9999-01-01T00:00:00Z", renewed.projects)
 			if active == 0 {
 				t.Fatal("no rules counted")
+			}
+			if layout == cncfknowledge.LayoutSingleTarget && active <= countRules(t, cncfknowledge.LayoutPerProject, "9999-01-01T00:00:00Z", renewed.projects) {
+				t.Fatal("single-target age fixture must include unopened etcd rules")
 			}
 			note := func(store *Store) string { return scanAt(t, store, "").KnowledgeAge }
 			cases := []struct{ at, want string }{
@@ -211,7 +214,7 @@ func TestScanKnowledgeAgeStore(t *testing.T) {
 			}
 			// The embedded-pack database is described by its own dates: the
 			// embedded end dates are in December, the renewed ones are not.
-			expired := countRules(t, layout, after)
+			expired := countRules(t, layout, after, stale.projects)
 			want := "note: " + itoa(expired) + " knowledge " + plural(expired, "rule has", "rules have") + " expired, the earliest on " + first.Format("2006-01-02") + " (2 days ago). Run `prufyx db update` to fetch newer knowledge, or build from newer source. Expired rules answer UNKNOWN."
 			if got := note(openAt(t, stale.store, after)); got != want || expired == 0 {
 				t.Errorf("%s stale database: %q, want %q", layout, got, want)
@@ -235,9 +238,9 @@ func plural(n int, one, many string) string {
 	return many
 }
 
-// countRules counts the embedded pack's active rules a database of the
-// layout serves for the kubernetes scan whose end date is not after at.
-func countRules(t *testing.T, layout, at string) int {
+// countRules independently counts source rules held by the fixture, not the
+// output of the store under test. A project store opens Kubernetes only.
+func countRules(t *testing.T, layout, at string, projects []string) int {
 	t.Helper()
 	limit, err := time.Parse(time.RFC3339, at)
 	if err != nil {
@@ -250,7 +253,16 @@ func countRules(t *testing.T, layout, at string) int {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, crossing := rule["crossing"]; !crossing && evidence["state"] == "active" && !end.After(limit) && (layout == cncfknowledge.LayoutSingleTarget || project == kubernetesSlug) {
+		selected := project == kubernetesSlug
+		if layout == cncfknowledge.LayoutSingleTarget {
+			selected = false
+			for _, held := range projects {
+				if project == held {
+					selected = true
+				}
+			}
+		}
+		if _, crossing := rule["crossing"]; !crossing && evidence["state"] == "active" && !end.After(limit) && selected {
 			count++
 		}
 		return true

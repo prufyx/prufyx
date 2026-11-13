@@ -24,24 +24,28 @@ import (
 // storeFixture is a local knowledge database signed with ephemeral test
 // keys, in one of the two CNCF layouts.
 type storeFixture struct {
-	t       *testing.T
-	repo    *knowledgefixture.ProjectsRepository
-	dir     string
-	root    string
-	store   string
-	layout  string
-	version int64
+	t        *testing.T
+	repo     *knowledgefixture.ProjectsRepository
+	dir      string
+	root     string
+	store    string
+	layout   string
+	version  int64
+	projects []string
 }
 
-func newStoreFixture(t *testing.T, layout string) *storeFixture {
+func newStoreFixture(t *testing.T, layout string, projects ...string) *storeFixture {
 	t.Helper()
+	if len(projects) == 0 {
+		projects = []string{kubernetesSlug, "etcd"}
+	}
 	repo, err := knowledgefixture.NewProjectsRepository(time.Now().UTC().Truncate(time.Second))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(repo.Close)
 	dir := t.TempDir()
-	f := &storeFixture{t: t, repo: repo, dir: dir, store: filepath.Join(dir, "store"), layout: layout}
+	f := &storeFixture{t: t, repo: repo, dir: dir, store: filepath.Join(dir, "store"), layout: layout, projects: projects}
 	f.root = f.write("root.json", repo.Root)
 	return f
 }
@@ -62,7 +66,7 @@ func (f *storeFixture) importPack(pack []byte, revision string) {
 	targets := map[string][]byte{}
 	switch f.layout {
 	case cncfknowledge.LayoutSingleTarget:
-		raw := boundedLegacyScanFixture(f.t, pack, revision)
+		raw := boundedLegacyScanFixture(f.t, pack, revision, f.projects)
 		targets[knowledge.ConstraintsTargetPath] = raw
 	default:
 		var index cncfcheck.ExternalTarget
@@ -902,9 +906,9 @@ func TestScanStoreCustomResourceProjectAbsent(t *testing.T) {
 	})
 }
 
-// Preserve legacy scan coverage with just the two components exercised here,
+// Preserve legacy scan coverage with the projects declared by each fixture,
 // not an ever-growing aggregate of every published project.
-func boundedLegacyScanFixture(t *testing.T, pack []byte, revision string) []byte {
+func boundedLegacyScanFixture(t *testing.T, pack []byte, revision string, projects []string) []byte {
 	t.Helper()
 	var targets []cncfcheck.ExternalTarget
 	var err error
@@ -922,7 +926,13 @@ func boundedLegacyScanFixture(t *testing.T, pack []byte, revision string) []byte
 	var schemaLevel int
 	for _, target := range targets {
 		project, _ := cncfcheck.ProjectFromTargetPath(target.Path)
-		if project != "kubernetes" && project != "etcd" {
+		selected := false
+		for _, held := range projects {
+			if project == held {
+				selected = true
+			}
+		}
+		if !selected {
 			continue
 		}
 		var document map[string]json.RawMessage
