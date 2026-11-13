@@ -529,3 +529,56 @@ func TestOptionalUsageTextNamesTheEntry(t *testing.T) {
 		}
 	}
 }
+
+// TestOptionalSpawnedGitReceivesLocalOnlyEnvironment puts a fake git first on
+// PATH. It records the three variables that keep git off the network and then
+// runs the real git, so the run still completes. Every call kind of the
+// reader must have received them.
+func TestOptionalSpawnedGitReceivesLocalOnlyEnvironment(t *testing.T) {
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git not available")
+	}
+	repo := optRepo(t, nil)
+	bin := t.TempDir()
+	log := filepath.Join(t.TempDir(), "calls.log")
+	script := "#!/bin/sh\n" +
+		"{ echo \"CALL $*\"; echo \"NLF=${GIT_NO_LAZY_FETCH-unset}\"; echo \"AP=${GIT_ALLOW_PROTOCOL-unset}\"; echo \"HOME=${HOME-unset}\"; } >> '" + log + "'\n" +
+		"exec '" + realGit + "' \"$@\"\n"
+	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// The command is looked up on the parent PATH, so the fake goes first there.
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	mustGenerate(t, optInput(GitSource{Dir: repo}, optRules(t, firstFive...)))
+	raw, err := os.ReadFile(log)
+	if err != nil {
+		t.Fatalf("the fake git was never run: %v", err)
+	}
+	kinds := map[string]int{}
+	var call string
+	for _, line := range strings.Split(strings.TrimSpace(string(raw)), "\n") {
+		switch {
+		case strings.HasPrefix(line, "CALL "):
+			call = line
+			switch {
+			case strings.Contains(call, " rev-parse "):
+				kinds["rev-parse"]++
+			case strings.Contains(call, " ls-tree -r "):
+				kinds["ls-tree -r"]++
+			case strings.Contains(call, " ls-tree "):
+				kinds["ls-tree"]++
+			default:
+				kinds["other"]++ // blob reads; the variables are still required
+			}
+		case line == "NLF=1", line == "AP=none", line == "HOME=/nonexistent":
+		default:
+			t.Fatalf("%s received %q", call, line)
+		}
+	}
+	for _, k := range []string{"rev-parse", "ls-tree -r", "ls-tree"} {
+		if kinds[k] == 0 {
+			t.Fatalf("call kind %q was never observed (%v)", k, kinds)
+		}
+	}
+}

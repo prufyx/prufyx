@@ -48,13 +48,19 @@ configuration. The optional-path probe refuses to run unless that environment is
 in place; a partial clone with a missing object therefore fails instead of
 fetching.
 
+`GIT_NO_LAZY_FETCH` is honoured by git 2.44 and later only. With an older git
+the variable is ignored and only `GIT_ALLOW_PROTOCOL=none` (together with
+`HOME=/nonexistent`) stops a fetch of a missing object. No version floor is
+enforced, so an older git still works; both variables are always set, and a
+test checks that the spawned git receives them.
+
 Two readers exist and they treat tree entries differently.
 
 * `Open` lists the tag with a recursive listing and keeps only regular files
-  (mode 100644 and 100755) and symbolic links (120000). It silently skips submodule
-  entries (160000) and any blob with another mode. A skipped entry is never read
-  as a source file, but its absence from the list is not proof that the path is
-  absent. The listing is never used to prove absence.
+  (mode 100644 and 100755) and symbolic links (120000). It silently skips
+  submodule entries (160000) and any blob with another mode. A skipped entry
+  is never read as a source file, but its absence from the list is not proof
+  that the path is absent. The listing is never used to prove absence.
 * The path probe, used only for optional entries, walks the exact path one
   component at a time from the root tree of the commit and lists each tree
   object on the way. It accepts only the four defined kinds: tree (040000),
@@ -64,11 +70,17 @@ Two readers exist and they treat tree entries differently.
   that is empty or contains a slash, a duplicate of the wanted name) and on any
   error reading a tree object. Git itself canonicalises odd modes when it lists a
   tree, so in practice the refused shapes are a malformed record or name and
-  an unreadable tree object; the check is deliberately stricter than needed. Absence is reported
-  only when a name is missing from a successfully read, fully understood tree
-  listing. A symbolic link, a submodule or a regular file at a parent component,
-  and a link or submodule at the path itself, are reported as such and refused
-  by the generator.
+  an unreadable tree object; the check is deliberately stricter than needed.
+  Absence is reported only when a name is missing from a successfully read,
+  fully understood tree listing. A symbolic link, a submodule or a regular
+  file at a parent component, and a link or submodule at the path itself, are
+  reported as such and refused by the generator.
+
+Exactly what is refused: a submodule (160000) or a symbolic link (120000) at
+the path or at a parent is `optional-path-link`; a directory at the path, a
+regular file as a parent, or any unknown mode, type or record is
+`optional-path-unverifiable`. The recursive reader `Open` skips submodules and
+other blob modes and is never used to prove absence.
 
 The reason for refusing opaque entries: a skipped or misread entry is exactly
 how a file can hide behind a "not found". An optional path is tolerated only
