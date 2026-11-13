@@ -38,6 +38,11 @@ type Input struct {
 	// StrictWindow turns a shrunk window (older tags withheld) into the
 	// typed stop window-shortened.
 	StrictWindow bool
+	// RangeCheckTags are ALL tags of the lines of the run (not only the one
+	// tag per line the run reads). They are used only to prove each ranged
+	// installPaths entry present inside and absent outside its range; they
+	// are never classified. Needs ranged entries.
+	RangeCheckTags []string
 }
 
 // Result is the successful output of a run.
@@ -102,6 +107,10 @@ func Generate(in Input) (*Result, error) {
 	if stops := checkOptionalTags(rules, tags); len(stops) > 0 {
 		return nil, &StopError{Stops: sortStops(stops)}
 	}
+	plan, rstops := planRanges(rules, tags)
+	if len(rstops) > 0 {
+		return nil, &StopError{Stops: sortStops(rstops)}
+	}
 	index := customresources.DefaultIndex()
 	var optFatal []Stop
 	results := make([]*tagResult, len(tags))
@@ -111,11 +120,21 @@ func Generate(in Input) (*Result, error) {
 			return nil, &StopError{Stops: []Stop{stop(StopTagUnreadable, t.Tag, err.Error())}}
 		}
 		fs, scanStops := scanTree(tree)
-		r := classify(t.Tag, commit, fs, rules, in.Slug, index)
+		var rg *rangeCtx
+		if plan != nil {
+			rg = &rangeCtx{entries: plan, idx: i}
+		}
+		r := classify(t.Tag, commit, fs, rules, in.Slug, index, rg)
 		r.stops = append(scanStops, r.stops...)
 		optFatal = append(optFatal, applyOptional(r, tree, rules, t.Tag, i == len(tags)-1)...)
+		if plan != nil {
+			optFatal = append(optFatal, applyRanges(r, tree, plan, i, t.Tag)...)
+			logicalKeys(rules, r)
+		}
 		results[i] = r
 	}
+	checked, cstops := checkRangeTags(in, tags, plan)
+	optFatal = append(optFatal, cstops...)
 	if len(optFatal) > 0 {
 		return nil, &StopError{Stops: sortStops(optFatal)}
 	}
@@ -177,11 +196,16 @@ func Generate(in Input) (*Result, error) {
 		return nil, &StopError{Stops: []Stop{stop(StopWindowShortened, dropped[len(dropped)-1].Tag, fmt.Sprintf("%d older tag(s) withheld; last: %s", len(dropped), dropped[len(dropped)-1].Reason))}}
 	}
 	minFrom := fmt.Sprintf("%d.%d", tags[first].Major, tags[first].Minor)
-	res, err := build(in, catalog, component, fact, ownerRepo, prefix, minFrom, rules, window, dropped, newest)
+	var union map[string]*inclusion
+	if plan != nil {
+		union = unionIncluded(window)
+	}
+	res, err := build(in, catalog, component, fact, ownerRepo, prefix, minFrom, rules, window, dropped, newest, union)
 	if err != nil {
 		return nil, err
 	}
 	annotateOptional(res, rules, window)
+	annotateRanges(res, rules, window, checked)
 	return res, nil
 }
 
@@ -258,6 +282,8 @@ type tagResult struct {
 	optAbsent   map[string]bool   // optional entries verified absent at this tag
 	usedPF      map[string]bool
 	countPF     map[string]int
+	ranged      []RangedFact      // ranged entries selected at this tag
+	logical     map[string]string // included path -> role key, ranged entries only
 	copies      []NonInstallCopy
 	filtered    []FilteredCopy
 }
@@ -273,9 +299,12 @@ func pathFilterFor(rules *Rules, p string) *PathFilterRule {
 }
 
 // installPathFor returns the installPaths entry that names the file.
-func installPathFor(rules *Rules, p string) *InstallPathRule {
+func installPathFor(rules *Rules, p string, rg *rangeCtx) *InstallPathRule {
 	for k := range rules.InstallPaths {
 		e := &rules.InstallPaths[k]
+		if !rg.active(e) {
+			continue
+		}
 		if e.Path == p || (strings.HasSuffix(e.Path, "/") && strings.HasPrefix(p, e.Path)) {
 			return e
 		}
@@ -293,7 +322,7 @@ func exclusionFor(rules *Rules, p string) *ExclusionRule {
 	return nil
 }
 
-func classify(tag, commit string, fs []*finding, rules *Rules, slug string, index customresources.Index) *tagResult {
+func classify(tag, commit string, fs []*finding, rules *Rules, slug string, index customresources.Index, rg *rangeCtx) *tagResult {
 	r := &tagResult{tag: tag, commit: commit, included: map[string]*inclusion{}, usedExcl: map[string]bool{}, usedSurf: map[string]bool{}, usedIP: map[string]bool{}, usedPF: map[string]bool{}, countPF: map[string]int{}}
 	surface := map[string]bool{}
 	for _, s := range rules.InstallSurface {
@@ -313,7 +342,7 @@ func classify(tag, commit string, fs []*finding, rules *Rules, slug string, inde
 		switch {
 		case len(rules.InstallPaths) > 0:
 			// Positive source list: only the declared paths are read.
-			if ip := installPathFor(rules, f.Path); ip != nil {
+			if ip := installPathFor(rules, f.Path, rg); ip != nil {
 				r.usedIP[ip.Path] = true
 				if pf := pathFilterFor(rules, f.Path); pf != nil {
 					// A filter never hides an unreadable file.
@@ -435,6 +464,9 @@ func classify(tag, commit string, fs []*finding, rules *Rules, slug string, inde
 		r.decisions = append(r.decisions, Decision{Rule: RuleFilteredCopy, Subject: f.Path, Detail: "groups " + strings.Join(fc.Groups, ",") + "; pathFilter " + fc.Glob})
 	}
 	for _, pf := range rules.PathFilter {
+		if !filterApplies(rules, pf.Glob, rg) {
+			continue
+		}
 		switch n := r.countPF[pf.Glob]; {
 		case n == 0:
 			stopAt(StopPathFilterNothing, pf.Glob, "no file under installPaths matches this filter")
@@ -442,7 +474,11 @@ func classify(tag, commit string, fs []*finding, rules *Rules, slug string, inde
 			stopAt(StopPathFilterCount, pf.Glob, fmt.Sprintf("matches %d file(s) under installPaths, the entry pins expectFiles %d", n, pf.ExpectFiles))
 		}
 	}
-	for _, ip := range rules.InstallPaths {
+	for k := range rules.InstallPaths {
+		ip := rules.InstallPaths[k]
+		if !rg.active(&rules.InstallPaths[k]) {
+			continue
+		}
 		if !r.usedIP[ip.Path] {
 			stopAt(StopInstallPathNothing, ip.Path, "no definition file under this entry")
 		}
@@ -568,13 +604,14 @@ func differs(r, newest *tagResult) string {
 	}
 	// A verified-absent optional entry is not a difference; every other
 	// missing or extra file is.
-	for p := range newest.included {
-		if r.included[p] == nil && !r.optAbsent[p] {
+	rk, nk := r.keySet(), newest.keySet()
+	for p := range nk {
+		if !rk[p] && !r.optAbsent[p] {
 			return "set"
 		}
 	}
-	for p := range r.included {
-		if newest.included[p] == nil {
+	for p := range rk {
+		if !nk[p] {
 			return "set"
 		}
 	}
@@ -590,14 +627,15 @@ func reasonFor(r, newest *tagResult, boundary bool) string {
 		return strings.Join(cs, ", ")
 	}
 	var miss, extra []string
-	for p := range newest.included {
-		if r.included[p] == nil && !r.optAbsent[p] {
-			miss = append(miss, p)
+	rk, nk := r.keySet(), newest.keySet()
+	for p := range nk {
+		if !rk[p] && !r.optAbsent[p] {
+			miss = append(miss, displayKey(p))
 		}
 	}
-	for p := range r.included {
-		if newest.included[p] == nil {
-			extra = append(extra, p)
+	for p := range rk {
+		if !nk[p] {
+			extra = append(extra, displayKey(p))
 		}
 	}
 	sort.Strings(miss)

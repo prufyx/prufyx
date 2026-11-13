@@ -120,6 +120,12 @@ type InstallPathRule struct {
 	// optional.go.
 	Optional   bool     `json:"optional,omitempty"`
 	AbsentTags []string `json:"absentTags,omitempty"`
+	// Role, FromTag and ToTag make a version-ranged entry; see ranges.go.
+	// Entries of one role are the same logical source moving over time. An
+	// omitted bound is the edge of the run's tag window.
+	Role    string `json:"role,omitempty"`
+	FromTag string `json:"fromTag,omitempty"`
+	ToTag   string `json:"toTag,omitempty"`
 }
 
 // Upstream mirrors the provenance block of a community table row.
@@ -188,6 +194,9 @@ func ParseRules(raw []byte) (*Rules, error) {
 		if ip.Reason == "" || ip.Evidence == "" {
 			return nil, fmt.Errorf("rules: install path %q needs a reason and pinned evidence", ip.Path)
 		}
+		if err := validateRangeEntry(ip); err != nil {
+			return nil, err
+		}
 		if err := validateOptionalEntry(ip); err != nil {
 			return nil, err
 		}
@@ -196,6 +205,9 @@ func ParseRules(raw []byte) (*Rules, error) {
 				return nil, fmt.Errorf("rules: install path %q duplicates or nests inside %q", ip.Path, o.Path)
 			}
 		}
+	}
+	if err := validateRoleShapes(&r); err != nil {
+		return nil, err
 	}
 	if len(r.PathFilter) > 0 && len(r.InstallPaths) == 0 {
 		return nil, errors.New("rules: pathFilter needs installPaths")
@@ -215,6 +227,9 @@ func ParseRules(raw []byte) (*Rules, error) {
 			// removes it from the install surface would contradict that.
 			if ip.Optional && globMatch(pf.Glob, ip.Path) {
 				return nil, fmt.Errorf("rules: path filter %q matches the optional install path %q; a filter never removes an optional entry", pf.Glob, ip.Path)
+			}
+			if ip.Role != "" && !strings.HasSuffix(ip.Path, "/") && globMatch(pf.Glob, ip.Path) {
+				return nil, fmt.Errorf("rules: path filter %q matches the ranged install path %q; a filter never removes a ranged entry", pf.Glob, ip.Path)
 			}
 		}
 		for j, o := range r.PathFilter {
