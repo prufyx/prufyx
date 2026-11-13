@@ -21,6 +21,48 @@
       "detail": "exclude:references/cli/adopt-templates/default.cue@github.com/kubevela/kubevela",
       "seq": 0,
       "reason": "Read: adopt-templates/default.cue is the cue template of vela adopt, embedded by adopt.go; applies nothing, ships no definition, no apiextensions text. Pinned by sha256: v1.7.0-v1.7.7, v1.8.0-v1.8.2, v1.9.0-v1.10.9. A changed byte voids the entry."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "kueue",
+      "detail": "exclude:test/e2e/config/certmanager/cainjection-templates/cainjection_in_*.yaml@github.com/kubernetes-sigs/kueue",
+      "seq": 0,
+      "reason": "Five 7-line patch fragments of the cert-manager e2e overlay (v0.17.0-v0.20.4): one CA-injection annotation each, no spec, no versions; only the overlay kustomization lists them; only the kind e2e script builds it. Read at all 57 tags v0.15.0-v0.20.4."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "kueue",
+      "detail": "exclude:test/e2e/config/certmanager/kustomization.yaml@github.com/kubernetes-sigs/kueue",
+      "seq": 0,
+      "reason": "Cert-manager overlay of the e2e test deployment, patches rendered config/dev manifests, defines no definition; built only by the kind e2e script; no Makefile, workflow, chart, document or Go file names it. Read at all 57 tags v0.15.0-v0.20.4."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "kueue",
+      "detail": "exclude:test/e2e/config/multikueue/kubeflow-manifest-patch/kustomization.yaml@github.com/kubernetes-sigs/kueue",
+      "seq": 0,
+      "reason": "E2E overlay that deletes one Kubeflow definition from the training-operator bundle for the MultiKueue worker clusters; defines no Kueue definition; applied only by the kind e2e script. Read at the 35 tags v0.16.9-v0.20.4."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "kueue",
+      "detail": "exclude:test/e2e/config/multikueue/kubeflow-manifest-patch/patch_crds.yaml@github.com/kubernetes-sigs/kueue",
+      "seq": 0,
+      "reason": "Four-line delete patch for the Kubeflow definition mpijobs.kubeflow.org, no spec; listed only by the kustomization of its directory, applied only by the kind e2e script. One blob at the 35 tags v0.16.9-v0.20.4."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "kueue",
+      "detail": "exclude:test/e2e/config/multikueue/kustomization.yaml@github.com/kubernetes-sigs/kueue",
+      "seq": 0,
+      "reason": "Earlier location (v0.15.0-v0.17.3) of the MultiKueue e2e overlay that deletes one Kubeflow definition from the training-operator bundle; defines no Kueue definition; applied only by the kind e2e script. One blob at 22 tags."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "kueue",
+      "detail": "exclude:test/e2e/config/multikueue/patch_crds.yaml@github.com/kubernetes-sigs/kueue",
+      "seq": 0,
+      "reason": "Earlier location (v0.15.0-v0.17.3) of the four-line delete patch for the Kubeflow definition mpijobs.kubeflow.org, no spec; listed only by the kustomization beside it, applied only by the kind e2e script. One blob at 22 tags."
     }
   ],
   "noTarget": []
