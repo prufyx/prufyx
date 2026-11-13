@@ -52,6 +52,24 @@
       "minFrom": "0.11"
     },
     {
+      "project": "openfga",
+      "name": "OpenFGA",
+      "repo": "github.com/openfga/helm-charts",
+      "component": "pkg:github/openfga/openfga",
+      "factProject": "openfga",
+      "chart": {"source": "https://openfga.github.io/helm-charts", "name": "openfga", "path": "charts/openfga"},
+      "tagPrefix": "openfga-",
+      "minFrom": "0.3",
+      "anchorMapping": {
+        "lines": ["1.17", "1.18", "1.19", "1.20", "1.21", "1.22"],
+        "rows": [
+          {"line": "1.19", "chart": "0.3.13", "chartCommit": "56ebb942e2461ea18605a3b37c4dc1b8b1d4b565", "appVersion": "v1.19.0"},
+          {"line": "1.20", "chart": "0.3.14", "chartCommit": "452f9d9939a51bfad1c7d82cb32033ed17e72c26", "appVersion": "v1.20.0"},
+          {"line": "1.21", "chart": "0.3.15", "chartCommit": "c9fb3c73528ebee3170789b86b2abc173fe0d37f", "appVersion": "v1.21.0"}
+        ]
+      }
+    },
+    {
       "project": "opentelemetry",
       "name": "OpenTelemetry Collector",
       "repo": "github.com/open-telemetry/opentelemetry-helm-charts",

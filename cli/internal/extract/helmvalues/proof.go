@@ -22,6 +22,7 @@ type PairProof struct {
 	Soft         *SoftRecord               `json:"soft,omitempty"`
 	Completeness *Completeness             `json:"completeness,omitempty"`
 	Rules        []string                  `json:"rules,omitempty"`
+	Mapping      *MappingRecord            `json:"mapping,omitempty"`
 }
 
 // SideRecord is one chart release as read.

@@ -1,0 +1,19 @@
+Synthetic chart sources under the OpenFGA chart repository key and its listed
+chart path (charts/openfga). The tag names and commit ids of openfga-0.3.13,
+openfga-0.3.14 and openfga-0.3.15 are the real ones; every file under them is
+hand-written and invented, no byte comes from upstream. The benchmark-0.0.x,
+openfga-operator-0.1.0 and openfga-0.3.16 tags have invented commit ids and
+no files: the mapping must never read them.
+
+openfga-0.3.13 -> openfga-0.3.14 is the hand-written oracle pair. Expected
+refused keys, listed by hand in oracle.json and not derived by the reader:
+  legacy.flag  the earlier schema and values have it, the later schema closes
+               legacy to size only (one removed key)
+  moved        the earlier values and schema have moved.oldPlace, the later
+               ones have relocated.place and the closed root no longer
+               declares moved (one moved key: a move is a removal of the old
+               path, the new path is not a hint)
+Not refused: annotations.tier, which the earlier values set and the later
+ones drop, because annotations is an opaque map (additionalProperties is a
+schema); it must never be listed.
+openfga-0.3.14 -> openfga-0.3.15: no change, nothing refused.

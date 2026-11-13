@@ -52,6 +52,33 @@ type Target struct {
 	// MinFrom is the first earlier line (major, minor) a pair may start
 	// from.
 	MinFrom [2]int
+	// AnchorMapping, when set, names the anchors by a reviewed mapping from a
+	// product line to one pinned chart release, instead of by the chart's own
+	// minor lines. Nil leaves every behaviour of the target unchanged.
+	AnchorMapping *AnchorMapping
+}
+
+// AnchorMapping is the reviewed mapping of a target whose chart versions do
+// not follow the product's lines. Lines is the window of product lines, in
+// ascending order; Rows are the candidate chart releases, each pinned by the
+// commit of its tag. A line with no candidate, or with more than one, is
+// withheld: the newest candidate never wins.
+type AnchorMapping struct {
+	Lines []string
+	Rows  []MappingRow
+}
+
+// MappingRow is one candidate chart release of a product line.
+type MappingRow struct {
+	// Line is the product line, major.minor.
+	Line string
+	// Chart is the chart version; the release tag is TagPrefix + Chart.
+	Chart string
+	// ChartCommit is the full commit the chart's tag names.
+	ChartCommit string
+	// AppVersion is the chart's appVersion as written; a leading "v" is
+	// ignored and a pre-release never counts as a candidate.
+	AppVersion string
 }
 
 // Targets is the reviewed chart table, ordered by project.
@@ -80,6 +107,20 @@ type targetJSON struct {
 	Chart       chartJSON `json:"chart"`
 	TagPrefix   string    `json:"tagPrefix"`
 	MinFrom     string    `json:"minFrom"`
+	// AnchorMapping is optional; without it the target is unchanged.
+	AnchorMapping *anchorMappingJSON `json:"anchorMapping,omitempty"`
+}
+
+type anchorMappingJSON struct {
+	Lines []string         `json:"lines"`
+	Rows  []mappingRowJSON `json:"rows"`
+}
+
+type mappingRowJSON struct {
+	Line        string `json:"line"`
+	Chart       string `json:"chart"`
+	ChartCommit string `json:"chartCommit"`
+	AppVersion  string `json:"appVersion"`
 }
 
 type chartJSON struct {
@@ -176,7 +217,89 @@ func (tj targetJSON) target() (Target, error) {
 	}
 	t.MinFrom[0], _ = strconv.Atoi(m[1])
 	t.MinFrom[1], _ = strconv.Atoi(m[2])
+	if tj.AnchorMapping != nil {
+		am, err := tj.AnchorMapping.mapping()
+		if err != nil {
+			return Target{}, fmt.Errorf("anchorMapping: %w", err)
+		}
+		t.AnchorMapping = am
+	}
 	return t, nil
+}
+
+var (
+	chartVersionRE = regexp.MustCompile(`^(0|[1-9][0-9]{0,3})\.(0|[1-9][0-9]{0,3})\.(0|[1-9][0-9]{0,3})$`)
+	// appVersionRE is an optional v, X.Y.Z and an optional pre-release or
+	// build suffix.
+	appVersionRE    = regexp.MustCompile(`^v?(0|[1-9][0-9]{0,3})\.(0|[1-9][0-9]{0,3})\.(0|[1-9][0-9]{0,3})([-+][0-9A-Za-z.+-]{1,64})?$`)
+	maxMappingLines = 64
+	maxMappingRows  = 256
+)
+
+// normalAppVersion returns the line of an appVersion and whether it is a
+// final release. A leading v is dropped; any suffix makes it a pre-release.
+func normalAppVersion(v string) (line string, final, ok bool) {
+	m := appVersionRE.FindStringSubmatch(v)
+	if m == nil {
+		return "", false, false
+	}
+	return m[1] + "." + m[2], m[4] == "", true
+}
+
+// mapping validates the mapping: lines ascending and unique, every row on a
+// listed line, pinned by a full commit, with a chart version and an
+// appVersion of its own line. Anything else is refused.
+func (aj *anchorMappingJSON) mapping() (*AnchorMapping, error) {
+	if len(aj.Lines) < 2 || len(aj.Lines) > maxMappingLines {
+		return nil, fmt.Errorf("%d lines, want 2 to %d", len(aj.Lines), maxMappingLines)
+	}
+	if len(aj.Rows) == 0 || len(aj.Rows) > maxMappingRows {
+		return nil, fmt.Errorf("%d rows, want 1 to %d", len(aj.Rows), maxMappingRows)
+	}
+	am := &AnchorMapping{}
+	listed := map[string]bool{}
+	var prev [2]int
+	for i, l := range aj.Lines {
+		m := lineRE.FindStringSubmatch(l)
+		if m == nil {
+			return nil, fmt.Errorf("line %q", l)
+		}
+		cur := [2]int{}
+		cur[0], _ = strconv.Atoi(m[1])
+		cur[1], _ = strconv.Atoi(m[2])
+		if i > 0 && (cur[0] < prev[0] || (cur[0] == prev[0] && cur[1] <= prev[1])) {
+			return nil, fmt.Errorf("lines are not ascending at %s", l)
+		}
+		prev = cur
+		listed[l] = true
+		am.Lines = append(am.Lines, l)
+	}
+	seen := map[string]bool{}
+	for i, r := range aj.Rows {
+		if !listed[r.Line] {
+			return nil, fmt.Errorf("row %d: line %q is not in the window", i, r.Line)
+		}
+		if !chartVersionRE.MatchString(r.Chart) {
+			return nil, fmt.Errorf("row %d: chart version %q", i, r.Chart)
+		}
+		if !extract.IsCommitSHA(r.ChartCommit) {
+			return nil, fmt.Errorf("row %d: chartCommit %q is not a full commit (a row must be pinned)", i, r.ChartCommit)
+		}
+		line, _, ok := normalAppVersion(r.AppVersion)
+		if !ok {
+			return nil, fmt.Errorf("row %d: appVersion %q", i, r.AppVersion)
+		}
+		if line != r.Line {
+			return nil, fmt.Errorf("row %d: appVersion %q is not on line %s", i, r.AppVersion, r.Line)
+		}
+		k := r.Line + " " + r.Chart
+		if seen[k] {
+			return nil, fmt.Errorf("row %d: line %s lists chart %s twice", i, r.Line, r.Chart)
+		}
+		seen[k] = true
+		am.Rows = append(am.Rows, MappingRow(r))
+	}
+	return am, nil
 }
 
 func cleanRepoPath(p string) bool {

@@ -58,6 +58,14 @@ func TestEveryActiveChartSourceHasItsValuesPathFactRegistered(t *testing.T) {
 		t.Fatal("the chart-source table has no active row")
 	}
 	for _, target := range Targets {
+		if target.AnchorMapping != nil {
+			// A mapped target is inert and emits no rule, so nothing reads its
+			// fact; the fact definition comes with the attestation family.
+			if _, ok := defined[target.FactID()]; ok {
+				t.Errorf("target %s: %s is defined before the attestation family exists", target.Project, target.FactID())
+			}
+			continue
+		}
 		if _, ok := defined[target.FactID()]; !ok {
 			t.Errorf("target %s: %s is not defined by the fact registry", target.Project, target.FactID())
 		}

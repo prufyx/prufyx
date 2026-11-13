@@ -1,0 +1,10 @@
+replicaCount: 1
+image:
+  repository: example/app
+  tag: ""
+legacy:
+  size: 3
+relocated:
+  place: 1
+annotations:
+  team: a

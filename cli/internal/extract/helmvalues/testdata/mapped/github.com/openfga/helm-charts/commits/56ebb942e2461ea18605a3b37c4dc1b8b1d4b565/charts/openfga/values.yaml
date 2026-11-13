@@ -1,0 +1,12 @@
+replicaCount: 1
+image:
+  repository: example/app
+  tag: ""
+legacy:
+  flag: true
+  size: 3
+moved:
+  oldPlace: 1
+annotations:
+  team: a
+  tier: b

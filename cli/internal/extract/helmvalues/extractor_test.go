@@ -766,6 +766,15 @@ func TestTargetsMatchCatalogAndChartSources(t *testing.T) {
 		if err != nil || norm != tg.Chart.Source {
 			t.Fatalf("%s: chart source %q is not normalised", tg.Project, tg.Chart.Source)
 		}
+		if tg.AnchorMapping != nil {
+			// A mapped target is inert: it has no chart-source row until the
+			// attestation family exists, so a scan never resolves its chart,
+			// and a rule it could emit would fail the chart-source check.
+			if _, ok := rows[tg.Chart.Source+" "+tg.Chart.Name]; ok {
+				t.Fatalf("%s: a mapped target has a chart-source row", tg.Project)
+			}
+			continue
+		}
 		r, ok := rows[tg.Chart.Source+" "+tg.Chart.Name]
 		if !ok || r.Component != tg.Component || r.Project != tg.Project || r.Evidence.State != chartidentity.StateActive {
 			t.Fatalf("%s: chart-source row %+v", tg.Project, r)
