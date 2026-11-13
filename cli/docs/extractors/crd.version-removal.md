@@ -51,14 +51,17 @@ serves that API. Existing source completeness and ownership checks also apply;
 the mode proof does not assign ownership of shared API groups or enable a
 target's attestations.
 
-When both pinned MCS definitions are listed, a fresh four-mode source proof can
-record them in the inventory's `foreign` list as installed dependencies. Their
-file receipts and mode serving views remain in the proof. This narrow source
-identity check does not assign the shared `multicluster.x-k8s.io` group to
+When both pinned MCS definitions and the mandatory NetworkAttachmentDefinition
+definition are listed, a fresh four-mode source proof can record them in the
+inventory's `foreign` list as installed dependencies. The NAD file lies outside
+the mode source scope: its bytes are read separately at the same immutable
+commit and checked against an independent body pin and exact CRD identity.
+File receipts and MCS mode serving views remain in the proof. These checks do
+not assign the shared `multicluster.x-k8s.io` or `k8s.cni.cncf.io` groups to
 Antrea. Missing or changed definitions, ambiguous ownership and Antrea ownership
 claims fail the dependency check. Any mode-specific MCS serving-set change
 prevents attestation, including a removal that another mode retains. Customer
-resources of that group remain unmapped and `UNKNOWN` unless the reviewed table
+resources of either group remain unmapped and `UNKNOWN` unless the reviewed table
 attributes them uniquely to another project.
 
 ## Projects and paths

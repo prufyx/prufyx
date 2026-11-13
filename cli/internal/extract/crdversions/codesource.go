@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/fs"
 	"path"
+	"slices"
 	"strings"
 	"time"
 
@@ -50,8 +51,8 @@ func CodeViewWithIndex(fsys fs.FS, project string, ix customresources.Index) fs.
 	if project == "antrea" {
 		// Dependency attribution can veto an Antrea line even when the
 		// shared group is not in Antrea's ownership listing.
-		for _, dependency := range antreaMCSDependencies {
-			owner, attribution := ix.OwnerOf("multicluster.x-k8s.io", dependency.kind)
+		for _, dependency := range append(slices.Clone(antreaMCSDependencies), antreaNADDependency) {
+			owner, attribution := ix.OwnerOf(dependency.group, dependency.kind)
 			lines = append(lines, fmt.Sprintf("installed-dependency\t%s\t%s\t%d", dependency.name, owner, attribution))
 		}
 	}
