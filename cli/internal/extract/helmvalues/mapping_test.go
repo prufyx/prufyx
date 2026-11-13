@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -446,6 +447,58 @@ func TestSchemaGates(t *testing.T) {
 				t.Fatalf("totals %+v", out.Manifest.Totals)
 			}
 		})
+	}
+}
+
+// The row's appVersion is hand-typed: the chart at the pinned commit must
+// say the same line, else the pair is withheld before anything is derived.
+func TestMappingAppVersionMismatch(t *testing.T) {
+	tg := openfga(t)
+	setApp := func(sha, app string) func(root string) {
+		return func(r string) {
+			f := chartFile(r, sha, "Chart.yaml")
+			raw, err := os.ReadFile(f)
+			must(t, err)
+			out := regexp.MustCompile(`(?m)^appVersion:.*$`).ReplaceAllString(string(raw), `appVersion: "`+app+`"`)
+			must(t, os.WriteFile(f, []byte(out), 0o644))
+		}
+	}
+	for _, tc := range []struct {
+		name string
+		edit func(root string)
+		want string
+	}{
+		{"matching rows pass the gate", func(string) {}, ReasonMappedInert},
+		{"matching without the v prefix", setApp(sha14, "1.20.0"), ReasonMappedInert},
+		{"later chart belongs to another line", setApp(sha14, "v1.21.0"), ReasonMappingAppVersion},
+		{"earlier chart belongs to another line", setApp(sha13, "v1.18.2"), ReasonMappingAppVersion},
+		{"pre-release of the line", setApp(sha14, "v1.20.0-rc.1"), ReasonMappingAppVersion},
+		{"unparseable appVersion", setApp(sha14, "latest"), ReasonMappingAppVersion},
+		{"no appVersion", func(r string) {
+			f := chartFile(r, sha14, "Chart.yaml")
+			raw, err := os.ReadFile(f)
+			must(t, err)
+			must(t, os.WriteFile(f, []byte(regexp.MustCompile(`(?m)^appVersion:.*\n?`).ReplaceAllString(string(raw), "")), 0o644))
+		}, ReasonMappingAppVersion},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := copyMapped(t, tc.edit)
+			proof, reason := proofOf(t, root, tg, "0.3.13", "0.3.14")
+			if !strings.HasPrefix(reason, tc.want+":") {
+				t.Fatalf("reason %q, want %s", reason, tc.want)
+			}
+			if tc.want == ReasonMappingAppVersion && (proof.Removed != nil || proof.Required != nil || len(proof.Rules) != 0) {
+				t.Fatalf("derivation ran before the gate: %+v", proof)
+			}
+		})
+	}
+}
+
+// The test exemptions for targets with an anchorMapping (extractor_test.go,
+// registry_facts_test.go) assume a mapped target emits nothing.
+func TestAnchorMappingExemptionsGoWithTheSwitch(t *testing.T) {
+	if mappedTargetsEmitRules {
+		t.Fatal("remove the anchorMapping test exemptions when flipping mappedTargetsEmitRules")
 	}
 }
 

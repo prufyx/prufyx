@@ -579,6 +579,9 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, pair ex
 	mapped := x.target.AnchorMapping != nil
 	if mapped {
 		proof.Mapping = x.mappingRecord()
+		if x.appVersionGate(pair, from, to) != "" {
+			return chartrun.Extraction{}, &extract.Withheld{Reason: fmt.Sprintf("%s: %s at %s and %s", ReasonMappingAppVersion, x.target.Chart.Name, from.tag, to.tag), Proof: proof}
+		}
 		// Checked before any derivation: a missing or open schema is a
 		// named withhold, never an empty rule list read as "nothing refused".
 		if reason := schemaGate(from, to); reason != "" {

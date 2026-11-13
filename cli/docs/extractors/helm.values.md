@@ -90,6 +90,17 @@ for this. A line with no candidate (`mapping-missing`) or with more than one
 newest candidate never wins. A pair is made of two consecutive lines of the
 window that both resolved; anchors are anchor-only (no range is claimed).
 
+The `appVersion` of a row is typed by hand, so it is checked against the chart:
+the `appVersion` in `Chart.yaml` at each pinned commit, normalised the same way
+(leading `v` dropped, pre-release excluded), must be the line of the row that
+pins it, else the pair is withheld (`mapping-appversion-mismatch`) before
+anything is derived.
+
+Mapping rows are hand-listed and pinned by commit. Ambiguity can only be seen
+among the listed rows, so a chart release added later to a mapped line is not
+seen until the row set is reviewed again. That is safe: each line resolves to
+the one pinned commit, never to a newer tag.
+
 Before any derivation, a mapped pair is also withheld when the earlier side has
 no `values.schema.json` (`NO_SCHEMA_EARLIER_SIDE`), when the later side has
 none (`NO_SCHEMA_LATER_SIDE`), or when the root of either schema does not set

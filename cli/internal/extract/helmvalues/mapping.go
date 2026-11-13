@@ -21,6 +21,9 @@ const (
 	ReasonMappingTagMissing = "mapping-tag-missing"
 	// ReasonMappingCommit: the tag names another commit than the row pins.
 	ReasonMappingCommit = "mapping-commit-mismatch"
+	// ReasonMappingAppVersion: the Chart.yaml appVersion at the pinned commit
+	// is not a final release of the row's line.
+	ReasonMappingAppVersion = "mapping-appversion-mismatch"
 	// ReasonNoSchemaEarlier and ReasonNoSchemaLater: a side has no
 	// values.schema.json. Checked before any derivation; an empty rule list
 	// is never read as "nothing refused" when a side has no schema.
@@ -198,4 +201,29 @@ func schemaGate(from, to *side) string {
 func rootClosed(s schemaNode) bool {
 	v, ok := s["additionalProperties"].(bool)
 	return ok && !v
+}
+
+// appVersionGate is checked before any derivation of a mapped pair: the
+// appVersion in Chart.yaml at each pinned commit, normalised like the row
+// (leading v dropped, pre-release excluded), must be the line of the row
+// that pinned it. A hand-typed row that maps another line's chart is
+// withheld, never trusted.
+func (x *Extractor) appVersionGate(pair extract.VersionPair, from, to *side) string {
+	m := x.target.AnchorMapping
+	for _, c := range []struct {
+		s          *side
+		chart, sha string
+	}{{from, pair.From, pair.FromCommit}, {to, pair.To, pair.ToCommit}} {
+		var want string
+		for _, r := range m.Rows {
+			if r.Chart == c.chart && r.ChartCommit == c.sha {
+				want = r.Line
+			}
+		}
+		line, final, ok := normalAppVersion(c.s.meta.AppVersion)
+		if want == "" || !ok || !final || line != want {
+			return ReasonMappingAppVersion
+		}
+	}
+	return ""
 }

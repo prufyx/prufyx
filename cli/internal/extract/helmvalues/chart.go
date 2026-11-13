@@ -16,6 +16,9 @@ import (
 type chartMeta struct {
 	Name    string
 	Version string // strict X.Y.Z after removing one leading "v"
+	// AppVersion is the appVersion as written, "" when absent or not a
+	// string. Only the anchor mapping reads it.
+	AppVersion string
 	// KubeVersion is the kubeVersion constraint as written, "" when
 	// absent; KubeVersionLine is its line.
 	KubeVersion     string
@@ -60,6 +63,9 @@ func parseChartYAML(data []byte) (chartMeta, error) {
 	}
 	if c.Version, ok = normalVersion(raw); !ok {
 		return chartMeta{}, fmt.Errorf("Chart.yaml version %q is not X.Y.Z", raw)
+	}
+	if av, ok := m["appVersion"].(string); ok {
+		c.AppVersion = av
 	}
 	if kv, present := m["kubeVersion"]; present && kv != nil {
 		s, ok := kv.(string)
