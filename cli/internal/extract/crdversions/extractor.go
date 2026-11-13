@@ -357,13 +357,15 @@ func (x *Extractor) lineFor(tag, commit, version string) *releaseLine {
 // Inventory is every CRD under the listed paths at one commit: the proof
 // of what each tag serves and stores.
 type Inventory struct {
-	Tag      string       `json:"tag"`
-	Commit   string       `json:"commit"`
-	Complete bool         `json:"complete"`
-	Problem  string       `json:"problem,omitempty"`
-	Paths    []PathRecord `json:"paths"`
-	Files    []FileRecord `json:"files"`
-	CRDs     []CRD        `json:"crds"`
+	ConstructorGrant   *SourceGrant `json:"constructorGrant,omitempty"`
+	ConstructorProfile string       `json:"constructorProfile,omitempty"`
+	Tag                string       `json:"tag"`
+	Commit             string       `json:"commit"`
+	Complete           bool         `json:"complete"`
+	Problem            string       `json:"problem,omitempty"`
+	Paths              []PathRecord `json:"paths"`
+	Files              []FileRecord `json:"files"`
+	CRDs               []CRD        `json:"crds"`
 	// Foreign names the definitions found under the listed paths that were
 	// left out because the reviewed custom-resource table assigns their
 	// group and kind to another project; absent when there are none.
@@ -499,6 +501,11 @@ func readInventory(r extract.PinnedReader, repo extract.RepoRef, t Target, at at
 	}
 	if _, err := readDefinitions(r, repo, commit, files, inv, nil, at); err != nil {
 		return inv, err
+	}
+	if t.ConstructorProfile != "" {
+		if err := readKubeVirtConstructors(r, repo, commit, t, inv); err != nil {
+			return inv, err
+		}
 	}
 	// The other install channels, each read in full: a definition is
 	// unique within its channel, and the channels are free to define the
@@ -1634,17 +1641,26 @@ func removalFor(name, m string, from []*tagState, ta *tagState) (Removal, error)
 		return Removal{}, fmt.Errorf("internal: no earlier release serves %s", m)
 	}
 	rm := Removal{CRD: name, Member: m, Version: entry.Name, FromTag: cite.tag.Name, FromPath: crd.Path, FromStartLine: entry.StartLine, FromEndLine: entry.EndLine}
+	if entry.SourcePath != "" {
+		rm.FromPath = entry.SourcePath
+	}
 	t := ta.byName[name]
 	if t == nil {
 		return Removal{}, fmt.Errorf("internal: %s is not defined at %s", name, ta.tag.Name)
 	}
 	rm.ToPath = t.Path
+	if t.VersionsPath != "" {
+		rm.ToPath = t.VersionsPath
+	}
 	lv, present := t.version(entry.Name)
 	switch {
 	case !present:
 		rm.Reason = ReasonAbsent
 	case !lv.Served:
 		rm.Reason, rm.ToLine = ReasonUnserved, lv.ServedLine
+		if lv.SourcePath != "" {
+			rm.ToPath = lv.SourcePath
+		}
 	default:
 		return Removal{}, fmt.Errorf("internal: %s is served at %s", m, ta.tag.Name)
 	}
@@ -1924,7 +1940,10 @@ func (x *Extractor) candidate(pair extract.VersionPair, fromLine, toLine *releas
 	}
 	members := make([]string, 0, len(removed))
 	versions := make([]string, 0, len(removed))
-	type span struct{ start, end int }
+	type span struct {
+		start, end int
+		path       string
+	}
 	fromSpans := map[string]*span{}
 	var fromOrder []string
 	var toSources []extract.SourceRef
@@ -1934,24 +1953,31 @@ func (x *Extractor) candidate(pair extract.VersionPair, fromLine, toLine *releas
 		versions = append(versions, rm.Version)
 		sp := fromSpans[rm.FromTag]
 		if sp == nil {
-			sp = &span{1 << 30, 0}
+			sp = &span{start: 1 << 30, path: rm.FromPath}
 			fromSpans[rm.FromTag] = sp
 			fromOrder = append(fromOrder, rm.FromTag)
 		}
 		sp.start, sp.end = min(sp.start, rm.FromStartLine), max(sp.end, rm.FromEndLine)
+		if sp.path != rm.FromPath {
+			return extract.Candidate{}, problemf("removal spans multiple constructor source files")
+		}
 		switch rm.Reason {
 		case ReasonAbsent:
 			absent = true
 		default:
 			repo, commit := sourceOf(pair.Repo, pair.ToCommit, t)
-			toSources = append(toSources, extract.SourceRef{ID: "served-false-" + rm.Version + "-" + slug(pair.To), Repo: repo, Commit: commit, Path: t.Path, StartLine: rm.ToLine, EndLine: rm.ToLine})
+			toSources = append(toSources, extract.SourceRef{ID: "served-false-" + rm.Version + "-" + slug(pair.To), Repo: repo, Commit: commit, Path: rm.ToPath, StartLine: rm.ToLine, EndLine: rm.ToLine})
 		}
 	}
 	sort.Strings(members)
 	sort.Slice(versions, func(i, j int) bool { return higher(versions[j], versions[i]) })
 	if absent || len(toSources) > 7 {
 		repo, commit := sourceOf(pair.Repo, pair.ToCommit, t)
-		toSources = []extract.SourceRef{{ID: "crd-" + slug(pair.To), Repo: repo, Commit: commit, Path: t.Path}}
+		toPath := t.Path
+		if t.VersionsPath != "" {
+			toPath = t.VersionsPath
+		}
+		toSources = []extract.SourceRef{{ID: "crd-" + slug(pair.To), Repo: repo, Commit: commit, Path: toPath}}
 	}
 	// The anchor first, then any later earlier-line release, by tag.
 	sort.SliceStable(fromOrder, func(i, j int) bool {
@@ -1965,7 +1991,7 @@ func (x *Extractor) candidate(pair extract.VersionPair, fromLine, toLine *releas
 		st := states[tagName]
 		sp := fromSpans[tagName]
 		repo, commit := sourceOf(pair.Repo, st.tag.Commit, st.byName[f.Name])
-		sources = append(sources, extract.SourceRef{ID: "crd-versions-" + slug(st.version), Repo: repo, Commit: commit, Path: st.byName[f.Name].Path, StartLine: sp.start, EndLine: sp.end})
+		sources = append(sources, extract.SourceRef{ID: "crd-versions-" + slug(st.version), Repo: repo, Commit: commit, Path: sp.path, StartLine: sp.start, EndLine: sp.end})
 	}
 	fromSource, toSource := sources[0].ID, toSources[0].ID
 	sources = append(sources, toSources...)

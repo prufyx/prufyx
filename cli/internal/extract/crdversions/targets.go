@@ -87,6 +87,8 @@ type Target struct {
 	// ProfileAttestation requires exact imported CRD source artifacts when a
 	// multi-channel line review is used. It never relaxes source completeness.
 	ProfileAttestation bool
+	ConstructorProfile string
+	SourceGrants       []SourceGrant
 	// Remote, when set, moves the source of the target's definitions to
 	// another repository from one release line on (see Remote).
 	Remote *Remote
@@ -287,6 +289,7 @@ type Exclusion struct {
 // resources as a reference that voids the entry (see guard); every other
 // referrer still voids it, and so does a pinned file that fails any check.
 type ForeignBundle struct {
+	IdentityOnly bool
 	// Groups are the API groups of the definitions the bundle holds,
 	// sorted, unique.
 	Groups []string
@@ -357,13 +360,15 @@ const targetFilePattern = "target-*.json"
 func TargetFileName(project string) string { return "target-" + project + ".json" }
 
 type targetJSON struct {
-	Project     string   `json:"project"`
-	Catalog     string   `json:"catalog,omitempty"`
-	Name        string   `json:"name"`
-	Repo        string   `json:"repo"`
-	Component   string   `json:"component"`
-	FactProject string   `json:"factProject"`
-	TagPrefixes []string `json:"tagPrefixes,omitempty"`
+	ConstructorProfile string        `json:"constructorProfile,omitempty"`
+	SourceGrants       []SourceGrant `json:"sourceGrants,omitempty"`
+	Project            string        `json:"project"`
+	Catalog            string        `json:"catalog,omitempty"`
+	Name               string        `json:"name"`
+	Repo               string        `json:"repo"`
+	Component          string        `json:"component"`
+	FactProject        string        `json:"factProject"`
+	TagPrefixes        []string      `json:"tagPrefixes,omitempty"`
 	// ReleaseScheme replaces tagPrefixes; see Target.
 	ReleaseScheme      string           `json:"releaseScheme,omitempty"`
 	MinFrom            string           `json:"minFrom"`
@@ -429,8 +434,9 @@ type generationJSON struct {
 }
 
 type foreignJSON struct {
-	Groups []string `json:"groups"`
-	SHA256 []string `json:"sha256"`
+	IdentityOnly bool     `json:"identityOnly,omitempty"`
+	Groups       []string `json:"groups"`
+	SHA256       []string `json:"sha256"`
 }
 
 var (
@@ -499,6 +505,11 @@ func LoadTarget(name string, raw []byte) (Target, error) {
 	if dec.More() {
 		return Target{}, fmt.Errorf("%s: trailing data", name)
 	}
+	if doc.Target.ConstructorProfile != "" || len(doc.Target.SourceGrants) != 0 {
+		if err := validateProfileJSON(raw); err != nil {
+			return Target{}, fmt.Errorf("%s: %w", name, err)
+		}
+	}
 	if doc.Schema != TargetSchema {
 		return Target{}, fmt.Errorf("%s: schema %q, want %q", name, doc.Schema, TargetSchema)
 	}
@@ -514,6 +525,7 @@ func LoadTarget(name string, raw []byte) (Target, error) {
 
 func (tj targetJSON) target() (Target, error) {
 	t := Target{Project: tj.Project, Catalog: CatalogCNCF, Name: tj.Name, Repo: tj.Repo, Component: tj.Component, FactProject: tj.FactProject, TagPrefixes: tj.TagPrefixes, ReleaseScheme: tj.ReleaseScheme, Attest: tj.Attest, ProfileAttestation: tj.ProfileAttestation}
+	t.ConstructorProfile, t.SourceGrants = tj.ConstructorProfile, tj.SourceGrants
 	switch tj.Catalog {
 	case "":
 	case CatalogCommunity:
@@ -522,6 +534,9 @@ func (tj targetJSON) target() (Target, error) {
 		// "cncf" is not spelled out: an entry without the field is a CNCF
 		// catalog project, so one target has exactly one spelling.
 		return t, fmt.Errorf("catalog %q: omit it for a CNCF catalog project or name %q", tj.Catalog, CatalogCommunity)
+	}
+	if err := validateConstructorProfile(t); err != nil {
+		return t, err
 	}
 	switch {
 	case !projectRE.MatchString(t.Project) || len(t.ExtractorID()) > 128:
@@ -632,6 +647,24 @@ func (tj targetJSON) target() (Target, error) {
 			}
 		}
 		t.Exclude = append(t.Exclude, Exclusion{Path: ej.Path, Repo: ej.Repo, Reason: ej.Reason, Evidence: ej.Evidence, Copies: ej.Copies, PrePatch: ej.PrePatch, DefinesNone: ej.Defines == definesNoneValue, Foreign: ej.Foreign.bundle(), Pinned: ej.Pinned.source()})
+	}
+	if t.ConstructorProfile != kubevirtProfile {
+		for _, e := range t.Exclude {
+			if e.Foreign != nil && e.Foreign.IdentityOnly {
+				return t, fmt.Errorf("identity-only foreign files require the pinned constructor profile")
+			}
+		}
+	}
+	for _, g := range t.SourceGrants {
+		for _, p := range g.AbsentForeign {
+			found := false
+			for _, e := range t.Exclude {
+				found = found || (e.Path == p && e.Foreign != nil && e.Foreign.IdentityOnly)
+			}
+			if !found {
+				return t, fmt.Errorf("absent foreign path %s has no exact identity-only entry", p)
+			}
+		}
 	}
 	if err := tj.generations(&t); err != nil {
 		return t, fmt.Errorf("generation: %w", err)

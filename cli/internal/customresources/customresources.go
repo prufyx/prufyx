@@ -30,7 +30,8 @@ import (
 )
 
 // Group is one API group a project's CustomResourceDefinitions define, and
-// the upstream manifest, pinned by full commit, that defines it.
+// its upstream manifest (or the closed KubeVirt constructor source), pinned
+// by full commit, that defines it.
 type Group struct {
 	Name   string
 	Source string
@@ -419,16 +420,24 @@ func containsString(values []string, value string) bool {
 }
 
 var (
-	slugRE        = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
-	factProjectRE = regexp.MustCompile(`^[a-z0-9]+(_[a-z0-9]+)*$`)
-	groupRE       = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$`)
-	sourceRE      = regexp.MustCompile(`^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/blob/[0-9a-f]{40}/[A-Za-z0-9_./-]+\.ya?ml$`)
+	slugRE                      = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
+	factProjectRE               = regexp.MustCompile(`^[a-z0-9]+(_[a-z0-9]+)*$`)
+	groupRE                     = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$`)
+	sourceRE                    = regexp.MustCompile(`^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/blob/[0-9a-f]{40}/[A-Za-z0-9_./-]+\.ya?ml$`)
+	kubevirtConstructorSourceRE = regexp.MustCompile(`^https://github\.com/kubevirt/kubevirt/blob/[0-9a-f]{40}/pkg/virt-operator/resource/generate/components/crds\.go$`)
 	// licenseRE is an SPDX licence expression of identifiers joined by OR
 	// or AND (LicenseRef-* for a licence SPDX does not list).
 	licenseRE     = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9.+-]{0,63}( (OR|AND) [A-Za-z0-9][A-Za-z0-9.+-]{0,63}){0,3}$`)
 	licenseFileRE = regexp.MustCompile(`^/blob/[0-9a-f]{40}/(LICENSE|COPYING)([.-][A-Za-z0-9]{1,16})?$`)
 	kindRE        = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]{0,62}$`)
 )
+
+func validGroupSource(p Project, source string) bool {
+	if sourceRE.MatchString(source) {
+		return true
+	}
+	return p.Slug == "kubevirt" && p.Catalog == CatalogCNCF && p.FactProject == "kubevirt" && p.Component == "pkg:github/kubevirt/kubevirt" && kubevirtConstructorSourceRE.MatchString(source)
+}
 
 // maxKindsPerGroup bounds the kinds one listing names (the size of a
 // version set fact).
@@ -490,7 +499,7 @@ func validate(projects []Project, records []ReservedGroup) bool {
 			return false
 		}
 		for j, g := range p.Groups {
-			if len(g.Name) > 253 || !groupRE.MatchString(g.Name) || !sourceRE.MatchString(g.Source) {
+			if len(g.Name) > 253 || !groupRE.MatchString(g.Name) || !validGroupSource(p, g.Source) {
 				return false
 			}
 			if j > 0 && p.Groups[j-1].Name >= g.Name {

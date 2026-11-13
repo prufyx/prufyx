@@ -2017,6 +2017,8 @@ func (x *Extractor) classifyFile(r extract.PinnedReader, repo extract.RepoRef, c
 		return placed(fd, f.at), true, nil
 	case kindGo:
 		switch g := info.gzip; {
+		case inv != nil && inv.ConstructorProfile == kubevirtProfile && x.target.ConstructorProfile == kubevirtProfile && f.path == kvConstructors:
+			fd.Class, fd.Reason, fd.Detail = ClassCopy, "constructor-same-serving", "reviewed pinned constructor source projected into the complete inventory"
 		case info.goConstruct:
 			fd.Class, fd.Reason, fd.Detail = ClassGoDefined, ReasonGoBuilt, "a CustomResourceDefinition built in Go code: its served versions are not read"
 		case g == nil:

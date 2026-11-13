@@ -43,7 +43,7 @@ func (f *foreignJSON) bundle() *ForeignBundle {
 	if f == nil {
 		return nil
 	}
-	return &ForeignBundle{Groups: slices.Clone(f.Groups), SHA256: slices.Clone(f.SHA256)}
+	return &ForeignBundle{Groups: slices.Clone(f.Groups), SHA256: slices.Clone(f.SHA256), IdentityOnly: f.IdentityOnly}
 }
 
 // Equal reports whether two declarations are the same (nil equals nil).
@@ -51,7 +51,7 @@ func (b *ForeignBundle) Equal(o *ForeignBundle) bool {
 	if b == nil || o == nil {
 		return b == o
 	}
-	return slices.Equal(b.Groups, o.Groups) && slices.Equal(b.SHA256, o.SHA256)
+	return b.IdentityOnly == o.IdentityOnly && slices.Equal(b.Groups, o.Groups) && slices.Equal(b.SHA256, o.SHA256)
 }
 
 // strictSortedUnique reports a list that is not sorted, duplicate-free and
@@ -169,6 +169,9 @@ func foreignBundleProblem(b *ForeignBundle, data []byte, groups []string) string
 		if bytes.Contains(lower, []byte(strings.ToLower(g))) {
 			return fmt.Sprintf("the file names the target's group %s", g)
 		}
+	}
+	if b.IdentityOnly {
+		return foreignIdentityProblem(b, data, groups)
 	}
 	_, values, err := decodeStrict(data)
 	if err != nil {

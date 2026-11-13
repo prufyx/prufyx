@@ -56,6 +56,7 @@ func asProblem(err error) (problem, bool) {
 // file: StartLine..EndLine is the whole entry, ServedLine and StorageLine the
 // lines of its served and storage keys.
 type CRDVersion struct {
+	SourcePath  string `json:"sourcePath,omitempty"`
 	Name        string `json:"name"`
 	Served      bool   `json:"served"`
 	Storage     bool   `json:"storage"`
@@ -67,6 +68,7 @@ type CRDVersion struct {
 
 // CRD is one parsed apiextensions.k8s.io/v1 CustomResourceDefinition.
 type CRD struct {
+	VersionsPath   string       `json:"versionsPath,omitempty"`
 	Name           string       `json:"name"`
 	Group          string       `json:"group"`
 	Kind           string       `json:"kind"`
