@@ -63,7 +63,7 @@ func runFinalizeRotatedPackage(args []string, stdout io.Writer) error {
 	flags.StringVar(&initialRoot, "initial-root", "", "independently pinned initial root")
 	flags.StringVar(&initialDigest, "initial-root-digest", "", "exact initial root SHA-256")
 	flags.Func("successor-root", "finalized successor root; repeat in N+1 order", func(v string) error { successors = append(successors, v); return nil })
-	flags.StringVar(&target, "target", "", "complete CNCF external target")
+	flags.StringVar(&target, "target", "", "retired single-target input; use --targets-dir")
 	flags.StringVar(&targetsDir, "targets-dir", "", "per-project targets directory (instead of --target)")
 	flags.StringVar(&targets, "targets", "", "finalized targets metadata")
 	flags.StringVar(&snapshot, "snapshot", "", "finalized snapshot metadata")
@@ -79,7 +79,7 @@ func runFinalizeRotatedPackage(args []string, stdout io.Writer) error {
 		}
 		return knowledgePublishError()
 	}
-	if flags.NArg() != 0 || initialRoot == "" || initialDigest == "" || (target == "") == (targetsDir == "") || targets == "" || snapshot == "" || timestamp == "" || output == "" || !filepath.IsAbs(output) || len(successors) == 0 || len(successors) > 8 {
+	if flags.NArg() != 0 || initialRoot == "" || initialDigest == "" || target != "" || targetsDir == "" || targets == "" || snapshot == "" || timestamp == "" || output == "" || !filepath.IsAbs(output) || len(successors) == 0 || len(successors) > 8 {
 		return knowledgePublishError()
 	}
 	initialRaw, e1 := readPublishInput(initialRoot, knowledgepublish.MaxRootBytes)
@@ -197,7 +197,7 @@ func bindPublishCommon(flags *flag.FlagSet, values *publishCommon, includeTarget
 	flags.StringVar(&values.root, "root", "", "independently supplied signed public TUF root")
 	flags.StringVar(&values.rootDigest, "root-digest", "", "independently verified public root SHA-256")
 	if includeTarget {
-		flags.StringVar(&values.target, "target", "", "canonical CNCF external replacement target")
+		flags.StringVar(&values.target, "target", "", "retired single-target input; use --targets-dir")
 		flags.StringVar(&values.targetsDir, "targets-dir", "", "per-project targets directory (instead of --target)")
 	}
 	flags.StringVar(&values.output, "output", "", "new private output path")
@@ -324,9 +324,10 @@ func runFinalizeKnowledgePackage(args []string, stdout io.Writer) error {
 	if flags.Parse(args) != nil {
 		return knowledgePublishError()
 	}
-	planRequested := packageURL != "" || releasePlanOutput != ""
-	if flags.NArg() != 0 || !completeCommon(common, true) || targets == "" || snapshot == "" || timestamp == "" ||
-		(packageURL == "") != (releasePlanOutput == "") || planRequested && (!filepath.IsAbs(releasePlanOutput) || filepath.Clean(releasePlanOutput) == filepath.Clean(common.output)) {
+	if packageURL != "" || releasePlanOutput != "" {
+		return knowledgePublishError()
+	}
+	if flags.NArg() != 0 || !completeCommon(common, true) || targets == "" || snapshot == "" || timestamp == "" {
 		return knowledgePublishError()
 	}
 	root, target, projects, err := readRootTarget(common)
@@ -340,14 +341,8 @@ func runFinalizeKnowledgePackage(args []string, stdout io.Writer) error {
 		return knowledgePublishError()
 	}
 	opts := knowledgepublish.FinalizePackageOptions{Root: root, Target: target, Projects: projects, Targets: targetsRaw, Snapshot: snapshotRaw, Timestamp: timestampRaw, RootDigest: common.rootDigest}
-	var packageRaw, planRaw []byte
-	var receipt knowledgepublish.FinalizationReceipt
-	if planRequested {
-		packageRaw, planRaw, receipt, err = knowledgepublish.FinalizePackageWithReleasePlan(opts, packageURL)
-	} else {
-		packageRaw, receipt, err = knowledgepublish.FinalizePackage(opts)
-	}
-	if err != nil || writePackageAndPlan(common.output, packageRaw, releasePlanOutput, planRaw) != nil {
+	packageRaw, receipt, err := knowledgepublish.FinalizePackage(opts)
+	if err != nil || knowledgepublish.WriteExclusive(common.output, packageRaw) != nil {
 		return knowledgePublishError()
 	}
 	receiptRaw, err := json.Marshal(receipt)
@@ -373,9 +368,8 @@ func writePackageAndPlan(packagePath string, packageRaw []byte, planPath string,
 }
 
 func completeCommon(values publishCommon, target bool) bool {
-	// Exactly one of --target (the single bundle) and --targets-dir (the
-	// per-project layout) names the targets.
-	return values.root != "" && values.rootDigest != "" && values.output != "" && (!target || (values.target == "") != (values.targetsDir == "")) && filepath.IsAbs(values.output)
+	// Only the project directory is a supported publication input.
+	return values.root != "" && values.rootDigest != "" && values.output != "" && (!target || values.target == "" && values.targetsDir != "") && filepath.IsAbs(values.output)
 }
 
 func readRootTarget(values publishCommon) ([]byte, []byte, []knowledgepublish.Target, error) {
@@ -387,12 +381,10 @@ func readRootTarget(values publishCommon) ([]byte, []byte, []knowledgepublish.Ta
 	return root, target, projects, err
 }
 
-// readTargetInput reads the single bundle (--target) or, for --targets-dir,
-// the index and the project targets of the per-project layout.
+// readTargetInput reads only the index and project targets from --targets-dir.
 func readTargetInput(target, targetsDir string) ([]byte, []knowledgepublish.Target, error) {
-	if targetsDir == "" {
-		raw, err := readPublishInput(target, knowledgepublish.MaxTargetBytes)
-		return raw, nil, err
+	if target != "" || targetsDir == "" {
+		return nil, nil, knowledgePublishError()
 	}
 	return readTargetsDir(targetsDir)
 }
@@ -461,7 +453,7 @@ func runKnowledgeRelease(args []string, stdout io.Writer) error {
 	flags.StringVar(&o.SnapshotKey, "snapshot-key", "", "encrypted snapshot role key file")
 	flags.StringVar(&o.TimestampKey, "timestamp-key", "", "encrypted timestamp role key file")
 	flags.StringVar(&o.PassphraseFile, "passphrase-file", "", "file holding the key passphrase (mode 0600)")
-	flags.StringVar(&o.PackageURL, "package-url", "", "exact HTTPS URL the package will be served from")
+	flags.StringVar(&o.PackageURL, "package-url", "", "retired: release plans are no longer produced")
 	flags.StringVar(&o.OutputDir, "output-dir", "", "new absolute output directory")
 	flags.StringVar(&o.Expires, "expires", "", "targets and snapshot expiry as exact UTC RFC3339 (max min(evidence expiry, now+21d); required in CI mode)")
 	flags.StringVar(&o.TimestampExpires, "timestamp-expires", "", "optional earlier timestamp expiry as exact UTC RFC3339 (default and max min(expires, now+14d))")
@@ -471,15 +463,15 @@ func runKnowledgeRelease(args []string, stdout io.Writer) error {
 	flags.StringVar(&o.PreviousPackage, "previous-package", "", "absolute path of the live package (verified against the pinned root)")
 	flags.BoolVar(&o.NoLivePackage, "no-live-package", false, "no package is live at all (the very first publication); excludes --previous-package and --expect-previous-package-digest; the only way --ci may sign without a previous package")
 	flags.BoolVar(&o.CI, "ci", false, "CI mode: enforce the unattended release guards (never implied by environment variables)")
-	flags.StringVar(&o.Profile, "profile", "", "cncf (default, single bundle) or cncf-projects (index plus one target per project)")
+	flags.StringVar(&o.Profile, "profile", "", "cncf-projects (default); single-target publication is retired")
 	flags.StringVar(&o.PreviousIndex, "previous-index", "", "cncf-projects: absolute path of the committed previously published index")
 	flags.BoolVar(&o.FirstRelease, "first-release", false, "cncf-projects: start a fresh index layout (no index published yet, or an engine capability change); instead of --previous-index; says nothing about a live package")
 	if err := flags.Parse(args); err != nil {
 		if err == flag.ErrHelp {
-			if _, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer knowledge-publish release --revision N --version N --root ABS --root-digest sha256:... --targets-key ABS --snapshot-key ABS --timestamp-key ABS --passphrase-file ABS --package-url https://... --output-dir ABS [--expires UTC] [--timestamp-expires UTC] [--expect-content-digest D] [--expect-index-digest D] [--previous-package ABS --expect-previous-package-digest D | --no-live-package] [--ci]"); e != nil {
+			if _, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer knowledge-publish release --revision N --version N --root ABS --root-digest sha256:... --targets-key ABS --snapshot-key ABS --timestamp-key ABS --passphrase-file ABS (--previous-index ABS | --first-release) --output-dir ABS [--expires UTC] [--timestamp-expires UTC] [--expect-content-digest D] [--expect-index-digest D] [--previous-package ABS --expect-previous-package-digest D | --no-live-package] [--ci]"); e != nil {
 				return e
 			}
-			_, e := fmt.Fprintln(stdout, "per-project layout: add --profile cncf-projects and exactly one of --previous-index ABS (the committed index of the last release) or --first-release; --package-url is then unused and no release plan is written.")
+			_, e := fmt.Fprintln(stdout, "cncf-projects is the default. Supply exactly one of --previous-index ABS (the committed index of the last release) or --first-release. Single-target publication and release-plan generation are retired; --package-url is rejected.")
 			return e
 		}
 		return knowledgePublishError()
@@ -514,7 +506,7 @@ func runRefreshTimestamp(args []string, stdout io.Writer) error {
 	flags := flag.NewFlagSet("knowledge-publish refresh-timestamp", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	var o knowledgerelease.RefreshOptions
-	flags.StringVar(&o.Profile, "profile", "", "cncf (default) or cncf-projects")
+	flags.StringVar(&o.Profile, "profile", "", "cncf-projects (default); single-target publication is retired")
 	flags.StringVar(&o.LivePackage, "live-package", "", "absolute path of the live package")
 	flags.StringVar(&o.ExpectLivePackageDigest, "expect-live-package-digest", "", "required: digest of the live package the refresh may sign over")
 	flags.StringVar(&o.Root, "root", "", "signed public TUF root")
@@ -607,7 +599,7 @@ func runContentDigest(args []string, stdout io.Writer) error {
 	flags.SetOutput(io.Discard)
 	var o knowledgerelease.Options
 	flags.StringVar(&o.Revision, "revision", "", "positive knowledge revision")
-	flags.StringVar(&o.Profile, "profile", "", "cncf (default) or cncf-projects")
+	flags.StringVar(&o.Profile, "profile", "", "cncf-projects (default); single-target publication is retired")
 	flags.StringVar(&o.PreviousIndex, "previous-index", "", "cncf-projects: absolute path of the previously published index")
 	flags.BoolVar(&o.FirstRelease, "first-release", false, "cncf-projects: start a fresh index layout")
 	if err := flags.Parse(args); err != nil || flags.NArg() != 0 {

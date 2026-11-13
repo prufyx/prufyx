@@ -73,9 +73,9 @@ func TestKnowledgeSign_InitProducesFourEncryptedRoleKeys(t *testing.T) {
 
 func TestKnowledgeSign_SignRoleBindsAuthorizedRoleAndExactPayload(t *testing.T) {
 	rootRaw, rootDigest, keyDir := initialized(t)
-	target := targetFixture(t, "71")
+	target, projects := targetFixture(t, "71")
 	expires := time.Now().UTC().Add(time.Hour).Truncate(time.Second).Format(time.RFC3339)
-	prepared, err := knowledgepublish.PrepareTargets(knowledgepublish.TargetsOptions{Root: rootRaw, Target: target, RootDigest: rootDigest, Version: 1, Expires: expires})
+	prepared, err := knowledgepublish.PrepareTargets(knowledgepublish.TargetsOptions{Root: rootRaw, Target: target, Projects: projects, RootDigest: rootDigest, Version: 1, Expires: expires})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,8 +109,8 @@ func TestKnowledgeSign_SignRoleBindsAuthorizedRoleAndExactPayload(t *testing.T) 
 
 func TestKnowledgeSign_RejectsPlaintextWrongPassphraseAndOverwrite(t *testing.T) {
 	rootRaw, rootDigest, keyDir := initialized(t)
-	target := targetFixture(t, "72")
-	prepared, err := knowledgepublish.PrepareTargets(knowledgepublish.TargetsOptions{Root: rootRaw, Target: target, RootDigest: rootDigest, Version: 1, Expires: time.Now().UTC().Add(time.Hour).Truncate(time.Second).Format(time.RFC3339)})
+	target, projects := targetFixture(t, "72")
+	prepared, err := knowledgepublish.PrepareTargets(knowledgepublish.TargetsOptions{Root: rootRaw, Target: target, Projects: projects, RootDigest: rootDigest, Version: 1, Expires: time.Now().UTC().Add(time.Hour).Truncate(time.Second).Format(time.RFC3339)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,8 +185,8 @@ func TestKnowledgeSign_RejectsUnsafeDirectoryExpiryAndNonCanonicalPEM(t *testing
 		t.Fatalf("Git checkout parent accepted: %v", err)
 	}
 	rootRaw, rootDigest, keyDir := initialized(t)
-	target := targetFixture(t, "73")
-	prepared, err := knowledgepublish.PrepareTargets(knowledgepublish.TargetsOptions{Root: rootRaw, Target: target, RootDigest: rootDigest, Version: 1, Expires: time.Now().UTC().Add(time.Hour).Truncate(time.Second).Format(time.RFC3339)})
+	target, projects := targetFixture(t, "73")
+	prepared, err := knowledgepublish.PrepareTargets(knowledgepublish.TargetsOptions{Root: rootRaw, Target: target, Projects: projects, RootDigest: rootDigest, Version: 1, Expires: time.Now().UTC().Add(time.Hour).Truncate(time.Second).Format(time.RFC3339)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -217,38 +217,45 @@ func initialized(t *testing.T) ([]byte, string, string) {
 	return result.Root, result.RootDigest, keyDir
 }
 
-func targetFixture(t *testing.T, revision string) []byte {
+func targetFixture(t *testing.T, revision string) ([]byte, []knowledgepublish.Target) {
 	t.Helper()
-	requirements, err := cncfcheck.ExternalProfileRequirements()
+	index, built, err := cncfcheck.BuildEmbeddedExternalTargets(revision, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pack, err := json.Marshal(struct {
-		Schema              string `json:"schema"`
-		Revision            string `json:"revision"`
-		PolicyID            string `json:"policyId"`
-		PolicyDigest        string `json:"policyDigest"`
-		LandscapeFileDigest string `json:"landscapeFileDigest"`
-		RegistryDigest      string `json:"registryDigest"`
-		Entries             []any  `json:"entries"`
-	}{requirements.PackSchema, revision, requirements.PolicyID, requirements.PolicyDigest, requirements.LandscapeFileDigest, requirements.RegistryDigest, []any{}})
-	if err != nil {
+	var document struct {
+		Schema     string                         `json:"schema"`
+		Revision   string                         `json:"revision"`
+		Purpose    string                         `json:"purpose"`
+		Capability string                         `json:"engineCapabilityDigest"`
+		Projects   []cncfcheck.ExternalIndexEntry `json:"projects"`
+	}
+	if err := json.Unmarshal(index.Bytes, &document); err != nil {
 		t.Fatal(err)
 	}
-	raw, err := json.Marshal(struct {
-		Schema                 string          `json:"schema"`
-		Revision               string          `json:"revision"`
-		Purpose                string          `json:"purpose"`
-		EngineCapabilityDigest string          `json:"engineCapabilityDigest"`
-		Pack                   json.RawMessage `json:"pack"`
-	}{requirements.Schema, revision, "operator_provided", requirements.EngineCapabilityDigest, pack})
-	if err != nil {
-		t.Fatal(err)
+	for _, entry := range document.Projects {
+		if entry.Project != "kyverno" {
+			continue
+		}
+		for _, target := range built {
+			if target.Path != entry.TargetPath {
+				continue
+			}
+			document.Projects = []cncfcheck.ExternalIndexEntry{entry}
+			schema := cncfcheck.ExternalIndexSchema
+			if entry.Records {
+				schema = cncfcheck.ExternalIndexSchemaRecords
+			}
+			document.Schema = schema
+			raw, err := json.Marshal(document)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return raw, []knowledgepublish.Target{{Path: target.Path, Raw: target.Bytes}}
+		}
 	}
-	if _, err := cncfcheck.ParseExternalBundle(raw); err != nil {
-		t.Fatal(err)
-	}
-	return raw
+	t.Fatal("missing kyverno signing fixture")
+	return nil, nil
 }
 
 func allZero(value []byte) bool {

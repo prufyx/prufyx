@@ -37,7 +37,7 @@ func fixture(t *testing.T) Options {
 		Revision: "91", Version: 1,
 		Root: filepath.Join(keys, "root.json"), RootDigest: init.RootDigest,
 		TargetsKey: filepath.Join(keys, "targets.key.pem"), SnapshotKey: filepath.Join(keys, "snapshot.key.pem"), TimestampKey: filepath.Join(keys, "timestamp.key.pem"),
-		PassphraseFile: pass, PackageURL: "https://metadata.example.test/cncf-91.tar",
+		PassphraseFile: pass, FirstRelease: true,
 		OutputDir: filepath.Join(parent, "out"), Now: time.Now().UTC(),
 	}
 }
@@ -48,7 +48,7 @@ func TestReleaseIsDeterministicAndExpiresWithKnowledgeValidity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ra.Expires == "" || len(ra.Files) != 7 || ra.Receipt.Status != "VERIFIED_FOR_PACKAGING" || ra.Receipt.KnowledgeRevision != "91" {
+	if ra.Expires == "" || len(ra.Files) < 7 || ra.Receipt.Status != "VERIFIED_FOR_PACKAGING" || ra.Receipt.KnowledgeRevision != "91" {
 		t.Fatalf("unexpected result %+v", ra)
 	}
 	// Same keys and inputs into a second directory give identical bytes.

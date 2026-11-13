@@ -19,7 +19,6 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
-	"github.com/prufyx/prufyx/cli/internal/knowledgereleaseplan"
 	"github.com/secure-systems-lab/go-securesystemslib/cjson"
 	"github.com/theupdateframework/go-tuf/v2/metadata"
 )
@@ -100,10 +99,9 @@ type Target struct {
 	Raw  []byte
 }
 
-// In every options struct below, Target is the single CNCF external bundle
-// when Projects is empty. With Projects it is the per-project index
-// (knowledge/cncf/index.v1.json) and Projects holds exactly the project
-// targets the index lists.
+// Target is the per-project index (knowledge/cncf/index.v1.json), and
+// Projects holds exactly the project targets it lists. Single publication is
+// retired; an empty Projects set is rejected.
 type TargetsOptions struct {
 	Root, Target []byte
 	Projects     []Target
@@ -134,48 +132,10 @@ type FinalizePackageOptions struct {
 	RootDigest                                 string
 }
 
-// FinalizePackageWithReleasePlan generates a release plan only from the exact
-// package and in-memory verification receipt returned by FinalizePackage. It
-// never accepts a saved receipt and the plan grants no bootstrap authority.
+// FinalizePackageWithReleasePlan rejects the retired single-target producer.
+// Existing release plans remain readable by the client.
 func FinalizePackageWithReleasePlan(opts FinalizePackageOptions, packageURL string) ([]byte, []byte, FinalizationReceipt, error) {
-	if len(opts.Projects) != 0 {
-		return nil, nil, FinalizationReceipt{}, fmt.Errorf("a release plan exists only for the cncf profile: %w", ErrRejected)
-	}
-	packageRaw, receipt, err := FinalizePackage(opts)
-	if err != nil {
-		return nil, nil, FinalizationReceipt{}, err
-	}
-	verification := receipt.Verification
-	if receipt.Status != "VERIFIED_FOR_PACKAGING" || receipt.Profile != "cncf" || receipt.NetworkUsed || receipt.KeysHandled ||
-		receipt.PackageDigest != digest(packageRaw) || verification.Status != "VERIFIED" || verification.Profile != "cncf" ||
-		verification.NetworkUsed || verification.StoreUsed || verification.StoreChanged ||
-		verification.PackageDigest != receipt.PackageDigest || verification.TargetDigest != receipt.TargetDigest ||
-		verification.KnowledgeRevision != receipt.KnowledgeRevision || verification.EngineCapabilityDigest != receipt.CapabilityDigest ||
-		verification.InitialRootDigest != receipt.RootDigest {
-		return nil, nil, FinalizationReceipt{}, ErrRejected
-	}
-	plan := knowledgereleaseplan.Plan{
-		Schema:    knowledgereleaseplan.Schema,
-		Authority: knowledgereleaseplan.Authority,
-		Profile:   "cncf",
-		Package:   knowledgereleaseplan.Package{URL: packageURL, Digest: receipt.PackageDigest},
-		Target: knowledgereleaseplan.Target{
-			Path: verification.TargetPath, Revision: receipt.KnowledgeRevision,
-			Digest: receipt.TargetDigest, Purpose: verification.Purpose,
-			EngineCapabilityDigest: receipt.CapabilityDigest,
-		},
-		PublisherVerification: knowledgereleaseplan.PublisherVerification{
-			Mode: knowledgereleaseplan.RootMode, PublisherInitialRootDigest: verification.InitialRootDigest,
-			RootHistory: append([]knowledge.RootHistoryEntry(nil), verification.RootHistory...),
-			Root:        verification.Root, Timestamp: verification.Timestamp,
-			Snapshot: verification.Snapshot, Targets: verification.Targets,
-		},
-	}
-	planRaw, err := knowledgereleaseplan.Marshal(plan)
-	if err != nil {
-		return nil, nil, FinalizationReceipt{}, ErrRejected
-	}
-	return packageRaw, planRaw, receipt, nil
+	return nil, nil, FinalizationReceipt{}, fmt.Errorf("single-target publication retired; use cncf-projects without a release plan: %w", ErrRejected)
 }
 
 // PrepareTargets creates an unsigned targets role and its exact signing payload.
@@ -394,29 +354,9 @@ func admitRoot(raw []byte, expected string) (*metadata.Metadata[metadata.RootTyp
 	return root, expected, nil
 }
 
-func admitTarget(raw []byte) (string, cncfcheck.ExternalAdmission, error) {
-	if len(raw) == 0 || len(raw) > MaxTargetBytes || !json.Valid(raw) {
-		return "", cncfcheck.ExternalAdmission{}, ErrRejected
-	}
-	var compact bytes.Buffer
-	if json.Compact(&compact, raw) != nil || !bytes.Equal(compact.Bytes(), raw) {
-		return "", cncfcheck.ExternalAdmission{}, fmt.Errorf("target is not compact canonical JSON: %w", ErrRejected)
-	}
-	bundle, err := cncfcheck.ParseExternalBundle(raw)
-	if err != nil {
-		return "", cncfcheck.ExternalAdmission{}, fmt.Errorf("target admission: %w", ErrRejected)
-	}
-	admission, err := bundle.Admission()
-	if err != nil || admission.Purpose != "operator_provided" {
-		return "", cncfcheck.ExternalAdmission{}, fmt.Errorf("target purpose: %w", ErrRejected)
-	}
-	return bundle.BundleDigest(), admission, nil
-}
-
 // targetSet is the admitted set of targets one targets role signs.
 type targetSet struct {
-	// digest is the identity bound into signing requests: the bundle digest of
-	// a single target, the index digest of a per-project set.
+	// digest is the index identity bound into signing requests.
 	digest    string
 	admission cncfcheck.ExternalAdmission
 	// profile is the consumer profile that verifies the package.
@@ -427,22 +367,15 @@ type targetSet struct {
 
 // profileFor names the consumer profile for a publication with projects.
 func profileFor(projects []Target) string {
-	if len(projects) == 0 {
-		return "cncf"
-	}
 	return "cncf-projects"
 }
 
-// admitTargetSet admits the single bundle (no projects) or the per-project
-// layout: the index plus exactly the project targets it lists, each admitted
+// admitTargetSet admits only the per-project layout: the index and exactly
+// the project targets it lists, each admitted
 // against its index entry. Anything missing, extra or mismatched is refused.
 func admitTargetSet(target []byte, projects []Target) (targetSet, error) {
 	if len(projects) == 0 {
-		targetDigest, admission, err := admitTarget(target)
-		if err != nil {
-			return targetSet{}, err
-		}
-		return targetSet{digest: targetDigest, admission: admission, profile: "cncf", files: []Target{{Path: knowledge.ConstraintsTargetPath, Raw: target}}}, nil
+		return targetSet{}, fmt.Errorf("single-target publication retired; use cncf-projects: %w", ErrRejected)
 	}
 	if len(projects) > cncfcheck.MaxExternalIndexProjects {
 		return targetSet{}, ErrRejected
@@ -514,7 +447,6 @@ func validateTargetsShape(role *metadata.Metadata[metadata.TargetsType]) error {
 	}
 	all := role.Signed.Targets
 	switch {
-	case len(all) == 1 && all[knowledge.ConstraintsTargetPath] != nil:
 	case len(all) >= 2 && len(all) <= cncfcheck.MaxExternalIndexProjects+1 && all[cncfcheck.ExternalIndexTargetPath] != nil:
 		for name := range all {
 			if _, ok := cncfcheck.ProjectFromTargetPath(name); !ok && name != cncfcheck.ExternalIndexTargetPath {

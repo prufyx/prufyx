@@ -55,6 +55,12 @@ const maxLivePackageBytes = knowledgepack.MaxSplitPackageBytes
 // The cap, enforced here because clients do not cap the timestamp, is
 // min(snapshot expiry, targets expiry, evidence expiry, Now+TimestampLifetime).
 func Refresh(o RefreshOptions) (RefreshResult, error) {
+	if o.Profile == "" {
+		o.Profile = ProfileCNCFProjects
+	}
+	if o.Profile != ProfileCNCFProjects {
+		return RefreshResult{}, fmt.Errorf("single-target publication retired; use cncf-projects: %w", ErrRejected)
+	}
 	for _, p := range []string{o.Root, o.LivePackage, o.TimestampKey, o.PassphraseFile, o.OutputDir} {
 		if !filepath.IsAbs(p) {
 			return RefreshResult{}, ErrRejected

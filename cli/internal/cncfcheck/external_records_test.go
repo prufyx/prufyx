@@ -507,10 +507,7 @@ func TestRecordsBindContentAndExpiry(t *testing.T) {
 		t.Fatal(err)
 	}
 	ac, _ := pc.Admission()
-	plain, err := ExportEmbeddedExternalBundle("7")
-	if err != nil {
-		t.Fatal(err)
-	}
+	plain := embeddedProjectEnvelope(t, "kubernetes", "7")
 	whole, err := ParseExternalBundle(plain)
 	if err != nil {
 		t.Fatal(err)

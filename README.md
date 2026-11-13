@@ -516,6 +516,10 @@ published; `prufyx db update` fetches it.
   do not fall back to embedded silently. Repair it with `db update`, or use
   `--knowledge=embedded`.
 
+Maintainer exports and releases use per-project targets; new single-target
+CNCF bundles and release plans are retired. Existing single-target stores and
+packages remain readable under their original trust, expiry and size rules.
+
 Details: [knowledge updates](cli/docs/knowledge-updates.md).
 
 ## Support Prufyx

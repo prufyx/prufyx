@@ -363,6 +363,9 @@ func isASCII(value string) bool {
 
 // PackageDirectory returns the deterministic archive bytes for an already-signed directory.
 func PackageDirectory(inputDir, profile string) ([]byte, error) {
+	if profile == "cncf" {
+		return nil, fmt.Errorf("single-target publication retired; use cncf-projects: %w", ErrRejected)
+	}
 	members, err := collectMembers(inputDir, profile)
 	if err != nil {
 		return nil, err
@@ -469,6 +472,9 @@ func WritePackage(inputDir, output, profile string) error {
 func Profiles() []string {
 	result := make([]string, 0, len(targetSuffix))
 	for name := range targetSuffix {
+		if name == "cncf" {
+			continue
+		}
 		result = append(result, name)
 	}
 	sort.Strings(result)

@@ -392,10 +392,7 @@ func TestPolicyAppliedEverywhere(t *testing.T) {
 	if scope.TrustPolicy == nil || scope.TrustPolicy.ExcludedRules == 0 || scope.Assessment != constraintengine.AssessmentUnknown || scope.Check.ScopeCompleteness != nil {
 		t.Fatalf("AssessScope: assessment=%s disclosure=%+v", scope.Assessment, scope.TrustPolicy)
 	}
-	exported, err := ExportEmbeddedExternalBundle("7")
-	if err != nil {
-		t.Fatal(err)
-	}
+	exported := embeddedProjectEnvelope(t, "containerd", "7")
 	external, err := ParseExternalBundle(exported)
 	if err != nil {
 		t.Fatal(err)

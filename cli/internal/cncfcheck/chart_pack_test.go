@@ -159,10 +159,7 @@ func TestPackChartNoticeLevel(t *testing.T) {
 
 func TestExternalRefusesSetNotices(t *testing.T) {
 	t.Parallel()
-	raw, err := ExportEmbeddedExternalBundle("7")
-	if err != nil {
-		t.Fatal(err)
-	}
+	raw := embeddedProjectEnvelope(t, "kyverno", "7")
 	var envelope map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &envelope); err != nil {
 		t.Fatal(err)

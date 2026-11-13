@@ -17,8 +17,6 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
-	"github.com/prufyx/prufyx/cli/internal/knowledge"
-	"github.com/prufyx/prufyx/cli/internal/knowledgereleaseplan"
 	"github.com/secure-systems-lab/go-securesystemslib/cjson"
 	"github.com/sigstore/sigstore/pkg/signature"
 	"github.com/theupdateframework/go-tuf/v2/metadata"
@@ -30,8 +28,8 @@ type testKey struct {
 	id      string
 }
 
-func TestExternallySignedCompleteEmptyReplacementFinalizesThroughConsumerVerifier(t *testing.T) {
-	target := emptyReplacementTarget(t, "41")
+func TestExternallySignedRecordsOnlyProjectFinalizesThroughConsumerVerifier(t *testing.T) {
+	target := recordsOnlyTarget(t, "41")
 	packageRaw, receipt := exerciseSignedPackage(t, target, "41")
 	if len(packageRaw) == 0 || receipt.KnowledgeRevision != "41" {
 		t.Fatalf("empty replacement finalization receipt=%+v bytes=%d", receipt, len(packageRaw))
@@ -39,63 +37,28 @@ func TestExternallySignedCompleteEmptyReplacementFinalizesThroughConsumerVerifie
 }
 
 func TestExternallySignedExportedFullCNCFPackFinalizesThroughConsumerVerifier(t *testing.T) {
-	target, err := cncfcheck.ExportEmbeddedExternalBundle("51")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var envelope struct {
-		Pack struct {
-			Entries []json.RawMessage `json:"entries"`
-		} `json:"pack"`
-	}
-	if err := json.Unmarshal(target, &envelope); err != nil || len(envelope.Pack.Entries) == 0 {
-		t.Fatalf("exported target entries=%d err=%v", len(envelope.Pack.Entries), err)
-	}
-	packageRaw, receipt := exerciseSignedPackage(t, target, "51")
-	if len(packageRaw) == 0 || receipt.KnowledgeRevision != "51" || !receipt.Verification.HasRule {
-		t.Fatalf("full export finalization receipt=%+v bytes=%d", receipt, len(packageRaw))
+	opts := signedProjectOptions(t, "51")
+	if raw, receipt, err := FinalizePackage(opts); err != nil || len(raw) == 0 || !receipt.Verification.HasRule {
+		t.Fatalf("full project export receipt=%+v err=%v", receipt, err)
 	}
 }
 
-func TestSuccessfulFinalizationGeneratesDeterministicReleasePlan(t *testing.T) {
-	target := emptyReplacementTarget(t, "52")
-	opts := signedPackageOptions(t, target)
-	const packageURL = "https://metadata.example.test/cncf-52.tar"
-	firstPackage, firstPlan, _, err := FinalizePackageWithReleasePlan(opts, packageURL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	secondPackage, secondPlan, _, err := FinalizePackageWithReleasePlan(opts, packageURL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(firstPackage, secondPackage) || !bytes.Equal(firstPlan, secondPlan) {
-		t.Fatal("identical verified publisher inputs did not produce identical package and plan")
-	}
-	plan, err := knowledgereleaseplan.Parse(firstPlan)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if plan.Package.URL != packageURL || plan.Package.Digest != digest(firstPackage) ||
-		plan.Target.Revision != "52" || plan.Target.Digest != digest(target) ||
-		plan.PublisherVerification.PublisherInitialRootDigest != opts.RootDigest ||
-		len(plan.PublisherVerification.RootHistory) != 1 || plan.PublisherVerification.RootHistory[0].Digest != opts.RootDigest {
-		t.Fatalf("release plan lost verified identities: %+v", plan)
-	}
-	badPackage, badPlan, _, err := FinalizePackageWithReleasePlan(opts, packageURL+"?credential=canary")
-	if !errors.Is(err, ErrRejected) || len(badPackage) != 0 || len(badPlan) != 0 {
-		t.Fatalf("invalid plan routing escaped finalization: package=%d plan=%d err=%v", len(badPackage), len(badPlan), err)
+func TestRetiredReleasePlanProducesNoOutput(t *testing.T) {
+	opts := signedPackageOptions(t, recordsOnlyTarget(t, "52"))
+	raw, plan, _, err := FinalizePackageWithReleasePlan(opts, "https://metadata.example.test/cncf-52.tar")
+	if !errors.Is(err, ErrRejected) || len(raw) != 0 || len(plan) != 0 {
+		t.Fatalf("retired plan emitted output: %v", err)
 	}
 }
 
-func exerciseSignedPackage(t *testing.T, target []byte, revision string) ([]byte, FinalizationReceipt) {
+func exerciseSignedPackage(t *testing.T, target publicationTarget, revision string) ([]byte, FinalizationReceipt) {
 	t.Helper()
 	opts := signedPackageOptions(t, target)
 	packageRaw, receipt, err := FinalizePackage(opts)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if receipt.Status != "VERIFIED_FOR_PACKAGING" || receipt.Profile != "cncf" || receipt.NetworkUsed || receipt.KeysHandled || receipt.KnowledgeRevision != revision || receipt.TargetDigest != digest(target) || receipt.PackageDigest != digest(packageRaw) || receipt.Verification.Status != "VERIFIED" || receipt.Verification.NetworkUsed || receipt.Verification.StoreUsed {
+	if receipt.Status != "VERIFIED_FOR_PACKAGING" || receipt.Profile != "cncf-projects" || receipt.NetworkUsed || receipt.KeysHandled || receipt.KnowledgeRevision != revision || receipt.TargetDigest != digest(target.raw) || receipt.PackageDigest != digest(packageRaw) || receipt.Verification.Status != "VERIFIED" || receipt.Verification.NetworkUsed || receipt.Verification.StoreUsed {
 		t.Fatalf("unexpected receipt: %+v", receipt)
 	}
 	second, _, err := FinalizePackage(opts)
@@ -105,40 +68,40 @@ func exerciseSignedPackage(t *testing.T, target []byte, revision string) ([]byte
 	return packageRaw, receipt
 }
 
-func signedPackageOptions(t *testing.T, target []byte) FinalizePackageOptions {
+func signedPackageOptions(t *testing.T, target publicationTarget) FinalizePackageOptions {
 	t.Helper()
 	now := time.Now().UTC().Truncate(time.Second)
 	rootRaw, rootDigest, keys := testRoot(t, now)
 
-	targetsPreparation, err := PrepareTargets(TargetsOptions{Root: rootRaw, Target: target, RootDigest: rootDigest, Version: 7, Expires: now.Add(72 * time.Hour).Format(time.RFC3339)})
+	targetsPreparation, err := PrepareTargets(TargetsOptions{Root: rootRaw, Target: target.raw, Projects: target.projects, RootDigest: rootDigest, Version: 7, Expires: now.Add(72 * time.Hour).Format(time.RFC3339)})
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertPreparation(t, targetsPreparation, metadata.TARGETS, rootDigest, digest(target), 7)
+	assertPreparation(t, targetsPreparation, metadata.TARGETS, rootDigest, digest(target.raw), 7)
 	targets := finalizeTestRole(t, rootRaw, rootDigest, targetsPreparation, keys[metadata.TARGETS])
 
-	snapshotPreparation, err := PrepareSnapshot(SnapshotOptions{Root: rootRaw, Target: target, Targets: targets, RootDigest: rootDigest, Version: 8, Expires: now.Add(48 * time.Hour).Format(time.RFC3339)})
+	snapshotPreparation, err := PrepareSnapshot(SnapshotOptions{Root: rootRaw, Target: target.raw, Projects: target.projects, Targets: targets, RootDigest: rootDigest, Version: 8, Expires: now.Add(48 * time.Hour).Format(time.RFC3339)})
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertPreparation(t, snapshotPreparation, metadata.SNAPSHOT, rootDigest, digest(target), 8)
+	assertPreparation(t, snapshotPreparation, metadata.SNAPSHOT, rootDigest, digest(target.raw), 8)
 	snapshot := finalizeTestRole(t, rootRaw, rootDigest, snapshotPreparation, keys[metadata.SNAPSHOT])
 
-	timestampPreparation, err := PrepareTimestamp(TimestampOptions{Root: rootRaw, Target: target, Targets: targets, Snapshot: snapshot, RootDigest: rootDigest, Version: 9, Expires: now.Add(24 * time.Hour).Format(time.RFC3339)})
+	timestampPreparation, err := PrepareTimestamp(TimestampOptions{Root: rootRaw, Target: target.raw, Projects: target.projects, Targets: targets, Snapshot: snapshot, RootDigest: rootDigest, Version: 9, Expires: now.Add(24 * time.Hour).Format(time.RFC3339)})
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertPreparation(t, timestampPreparation, metadata.TIMESTAMP, rootDigest, digest(target), 9)
+	assertPreparation(t, timestampPreparation, metadata.TIMESTAMP, rootDigest, digest(target.raw), 9)
 	timestamp := finalizeTestRole(t, rootRaw, rootDigest, timestampPreparation, keys[metadata.TIMESTAMP])
 
-	return FinalizePackageOptions{Root: rootRaw, Target: target, Targets: targets, Snapshot: snapshot, Timestamp: timestamp, RootDigest: rootDigest}
+	return FinalizePackageOptions{Root: rootRaw, Target: target.raw, Projects: target.projects, Targets: targets, Snapshot: snapshot, Timestamp: timestamp, RootDigest: rootDigest}
 }
 
 func TestFinalizationRejectsWrongPayloadSignatureAndExpiredMetadata(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 	rootRaw, rootDigest, keys := testRoot(t, now)
-	target := emptyReplacementTarget(t, "42")
-	prepared, err := PrepareTargets(TargetsOptions{Root: rootRaw, Target: target, RootDigest: rootDigest, Version: 1, Expires: now.Add(time.Hour).Format(time.RFC3339)})
+	target := recordsOnlyTarget(t, "42")
+	prepared, err := PrepareTargets(TargetsOptions{Root: rootRaw, Target: target.raw, Projects: target.projects, RootDigest: rootDigest, Version: 1, Expires: now.Add(time.Hour).Format(time.RFC3339)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,16 +119,16 @@ func TestFinalizationRejectsWrongPayloadSignatureAndExpiredMetadata(t *testing.T
 		t.Fatalf("wrong root digest accepted: %v", err)
 	}
 
-	expiredTargetsPreparation, err := PrepareTargets(TargetsOptions{Root: rootRaw, Target: target, RootDigest: rootDigest, Version: 2, Expires: now.Add(-time.Hour).Format(time.RFC3339)})
+	expiredTargetsPreparation, err := PrepareTargets(TargetsOptions{Root: rootRaw, Target: target.raw, Projects: target.projects, RootDigest: rootDigest, Version: 2, Expires: now.Add(-time.Hour).Format(time.RFC3339)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	expiredTargets := finalizeTestRole(t, rootRaw, rootDigest, expiredTargetsPreparation, keys[metadata.TARGETS])
-	snapshotPreparation, _ := PrepareSnapshot(SnapshotOptions{Root: rootRaw, Target: target, Targets: expiredTargets, RootDigest: rootDigest, Version: 2, Expires: now.Add(time.Hour).Format(time.RFC3339)})
+	snapshotPreparation, _ := PrepareSnapshot(SnapshotOptions{Root: rootRaw, Target: target.raw, Projects: target.projects, Targets: expiredTargets, RootDigest: rootDigest, Version: 2, Expires: now.Add(time.Hour).Format(time.RFC3339)})
 	snapshot := finalizeTestRole(t, rootRaw, rootDigest, snapshotPreparation, keys[metadata.SNAPSHOT])
-	timestampPreparation, _ := PrepareTimestamp(TimestampOptions{Root: rootRaw, Target: target, Targets: expiredTargets, Snapshot: snapshot, RootDigest: rootDigest, Version: 2, Expires: now.Add(time.Hour).Format(time.RFC3339)})
+	timestampPreparation, _ := PrepareTimestamp(TimestampOptions{Root: rootRaw, Target: target.raw, Projects: target.projects, Targets: expiredTargets, Snapshot: snapshot, RootDigest: rootDigest, Version: 2, Expires: now.Add(time.Hour).Format(time.RFC3339)})
 	timestamp := finalizeTestRole(t, rootRaw, rootDigest, timestampPreparation, keys[metadata.TIMESTAMP])
-	if _, _, err := FinalizePackage(FinalizePackageOptions{Root: rootRaw, Target: target, Targets: expiredTargets, Snapshot: snapshot, Timestamp: timestamp, RootDigest: rootDigest}); err == nil {
+	if _, _, err := FinalizePackage(FinalizePackageOptions{Root: rootRaw, Target: target.raw, Projects: target.projects, Targets: expiredTargets, Snapshot: snapshot, Timestamp: timestamp, RootDigest: rootDigest}); err == nil {
 		t.Fatal("expired targets metadata reached successful package output")
 	}
 }
@@ -173,8 +136,8 @@ func TestFinalizationRejectsWrongPayloadSignatureAndExpiredMetadata(t *testing.T
 func TestFinalizeRoleRejectsWrongOrOpenRoleShape(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 	rootRaw, rootDigest, keys := testRoot(t, now)
-	target := emptyReplacementTarget(t, "44")
-	prepared, err := PrepareTargets(TargetsOptions{Root: rootRaw, Target: target, RootDigest: rootDigest, Version: 1, Expires: now.Add(time.Hour).Format(time.RFC3339)})
+	target := recordsOnlyTarget(t, "44")
+	prepared, err := PrepareTargets(TargetsOptions{Root: rootRaw, Target: target.raw, Projects: target.projects, RootDigest: rootDigest, Version: 1, Expires: now.Add(time.Hour).Format(time.RFC3339)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -215,7 +178,8 @@ func TestCanonicalRoleProfileBounds(t *testing.T) {
 
 	targets := metadata.Targets(now.Add(time.Hour))
 	targets.Signed.Version = 1
-	targets.Signed.Targets[knowledge.ConstraintsTargetPath] = &metadata.TargetFiles{Length: 1, Hashes: metadata.Hashes{"sha256": hash}}
+	targets.Signed.Targets[cncfcheck.ProjectTargetPath("kubernetes")] = &metadata.TargetFiles{Length: 1, Hashes: metadata.Hashes{"sha256": hash}}
+	targets.Signed.Targets[cncfcheck.ExternalIndexTargetPath] = &metadata.TargetFiles{Length: 1, Hashes: metadata.Hashes{"sha256": hash}}
 	if err := validateTargetsShape(targets); err != nil {
 		t.Fatalf("valid targets shape: %v", err)
 	}
@@ -224,7 +188,7 @@ func TestCanonicalRoleProfileBounds(t *testing.T) {
 		t.Fatalf("oversized targets version=%v", err)
 	}
 	targets.Signed.Version = 1
-	targets.Signed.Targets[knowledge.ConstraintsTargetPath].Length = MaxTargetBytes + 1
+	targets.Signed.Targets[cncfcheck.ExternalIndexTargetPath].Length = MaxTargetBytes + 1
 	if err := validateTargetsShape(targets); !errors.Is(err, ErrRejected) {
 		t.Fatalf("oversized target length=%v", err)
 	}
@@ -274,7 +238,8 @@ func TestCanonicalRoleProfileBounds(t *testing.T) {
 func TestOutputArtifactsArePrivateExclusiveAndFailureDoesNotOverwrite(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 	root, rootDigest, _ := testRoot(t, now)
-	prepared, err := PrepareTargets(TargetsOptions{Root: root, Target: emptyReplacementTarget(t, "43"), RootDigest: rootDigest, Version: 1, Expires: now.Add(time.Hour).Format(time.RFC3339)})
+	target := recordsOnlyTarget(t, "43")
+	prepared, err := PrepareTargets(TargetsOptions{Root: root, Target: target.raw, Projects: target.projects, RootDigest: rootDigest, Version: 1, Expires: now.Add(time.Hour).Format(time.RFC3339)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -421,37 +386,69 @@ func testRoot(t *testing.T, now time.Time) ([]byte, string, map[string]testKey) 
 	return raw, digest(raw), keys
 }
 
-func emptyReplacementTarget(t *testing.T, revision string) []byte {
+type publicationTarget struct {
+	raw      []byte
+	projects []Target
+}
+
+// A small project fixture exercises the real publisher without a global
+// single envelope. A records-only project has no rules but retains evidence.
+func recordsOnlyTarget(t *testing.T, revision string) publicationTarget {
 	t.Helper()
-	requirements, err := cncfcheck.ExternalProfileRequirements()
+	index, projects := embeddedProjectTargets(t, revision)
+	var document struct {
+		Schema     string                         `json:"schema"`
+		Revision   string                         `json:"revision"`
+		Purpose    string                         `json:"purpose"`
+		Capability string                         `json:"engineCapabilityDigest"`
+		Projects   []cncfcheck.ExternalIndexEntry `json:"projects"`
+	}
+	if err := json.Unmarshal(index, &document); err != nil {
+		t.Fatal(err)
+	}
+	var selected Target
+	var entry cncfcheck.ExternalIndexEntry
+	for i, p := range projects {
+		if p.Path == cncfcheck.ProjectTargetPath("kubernetes") {
+			selected = p
+			entry = document.Projects[i]
+			break
+		}
+	}
+	if len(selected.Raw) == 0 {
+		t.Fatal("missing Kubernetes fixture")
+	}
+	var envelope map[string]json.RawMessage
+	if err := json.Unmarshal(selected.Raw, &envelope); err != nil {
+		t.Fatal(err)
+	}
+	var pack map[string]json.RawMessage
+	if err := json.Unmarshal(envelope["pack"], &pack); err != nil {
+		t.Fatal(err)
+	}
+	pack["entries"] = json.RawMessage("[]")
+	delete(pack, "lineAttestations")
+	delete(pack, "pathPolicies")
+	envelope["pack"], _ = json.Marshal(pack)
+	selected.Raw, _ = json.Marshal(envelope)
+	bundle, err := cncfcheck.ParseExternalBundle(selected.Raw)
 	if err != nil {
 		t.Fatal(err)
 	}
-	packRaw, err := json.Marshal(struct {
-		Schema              string `json:"schema"`
-		Revision            string `json:"revision"`
-		PolicyID            string `json:"policyId"`
-		PolicyDigest        string `json:"policyDigest"`
-		LandscapeFileDigest string `json:"landscapeFileDigest"`
-		RegistryDigest      string `json:"registryDigest"`
-		Entries             []any  `json:"entries"`
-	}{requirements.PackSchema, revision, requirements.PolicyID, requirements.PolicyDigest, requirements.LandscapeFileDigest, requirements.RegistryDigest, []any{}})
+	admission, err := bundle.Admission()
 	if err != nil {
 		t.Fatal(err)
 	}
-	document := struct {
-		Schema                 string          `json:"schema"`
-		Revision               string          `json:"revision"`
-		Purpose                string          `json:"purpose"`
-		EngineCapabilityDigest string          `json:"engineCapabilityDigest"`
-		Pack                   json.RawMessage `json:"pack"`
-	}{requirements.Schema, revision, "operator_provided", requirements.EngineCapabilityDigest, packRaw}
-	target, err := json.Marshal(document)
+	entry.Length, entry.Digest, entry.RuleDigest = int64(len(selected.Raw)), digest(selected.Raw), admission.RuleDigest
+	entry.EvidenceExpiresAt, entry.Records = admission.EvidenceExpiresAt, admission.HasRecords
+	document.Schema = cncfcheck.ExternalIndexSchemaRecords
+	document.Projects = []cncfcheck.ExternalIndexEntry{entry}
+	index, err = json.Marshal(document)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := cncfcheck.ParseExternalBundle(target); err != nil {
+	if _, err := cncfcheck.ParseExternalIndex(index); err != nil {
 		t.Fatal(err)
 	}
-	return target
+	return publicationTarget{index, []Target{selected}}
 }

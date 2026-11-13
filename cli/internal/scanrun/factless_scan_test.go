@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/knowledgefixture"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 )
 
@@ -44,7 +45,7 @@ func (k selectionKnowledge) Evaluate(policy cncfcheck.TrustPolicy, project strin
 
 func newSelectionKnowledge(t testing.TB, rules ...string) Knowledge {
 	t.Helper()
-	exported, err := cncfcheck.ExportEmbeddedExternalBundle("1")
+	exported, err := knowledgefixture.EmbeddedProjectBundle("kubernetes", "1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,8 +82,12 @@ func newSelectionKnowledge(t testing.TB, rules ...string) Knowledge {
 			keptAttestations = append(keptAttestations, attestation)
 		}
 	}
-	if pack["lineAttestations"], err = json.Marshal(keptAttestations); err != nil {
-		t.Fatal(err)
+	if len(keptAttestations) == 0 {
+		delete(pack, "lineAttestations")
+	} else {
+		if pack["lineAttestations"], err = json.Marshal(keptAttestations); err != nil {
+			t.Fatal(err)
+		}
 	}
 	for _, rule := range rules {
 		entries = append(entries, map[string]json.RawMessage{

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -61,16 +62,7 @@ func (f *storeFixture) importPack(pack []byte, revision string) {
 	targets := map[string][]byte{}
 	switch f.layout {
 	case cncfknowledge.LayoutSingleTarget:
-		var raw []byte
-		var err error
-		if pack == nil {
-			raw, err = cncfcheck.ExportEmbeddedExternalBundle(revision)
-		} else {
-			raw, err = cncfcheck.ExportExternalBundleFromPack(pack, revision)
-		}
-		if err != nil {
-			f.t.Fatal(err)
-		}
+		raw := boundedLegacyScanFixture(f.t, pack, revision)
 		targets[knowledge.ConstraintsTargetPath] = raw
 	default:
 		var index cncfcheck.ExternalTarget
@@ -908,4 +900,87 @@ func TestScanStoreCustomResourceProjectAbsent(t *testing.T) {
 			conformReport(t, "absent custom-resource project", report)
 		}
 	})
+}
+
+// Preserve legacy scan coverage with just the two components exercised here,
+// not an ever-growing aggregate of every published project.
+func boundedLegacyScanFixture(t *testing.T, pack []byte, revision string) []byte {
+	t.Helper()
+	var targets []cncfcheck.ExternalTarget
+	var err error
+	if pack == nil {
+		_, targets, err = cncfcheck.BuildEmbeddedExternalTargets(revision, nil)
+	} else {
+		_, targets, err = cncfcheck.BuildExternalTargetsFromPack(pack, revision)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	var envelope map[string]json.RawMessage
+	merged := map[string][]json.RawMessage{}
+	var schema string
+	var schemaLevel int
+	for _, target := range targets {
+		project, _ := cncfcheck.ProjectFromTargetPath(target.Path)
+		if project != "kubernetes" && project != "etcd" {
+			continue
+		}
+		var document map[string]json.RawMessage
+		if err := json.Unmarshal(target.Bytes, &document); err != nil {
+			t.Fatal(err)
+		}
+		envelope = document
+		var p map[string]json.RawMessage
+		if err := json.Unmarshal(document["pack"], &p); err != nil {
+			t.Fatal(err)
+		}
+		var candidate string
+		_ = json.Unmarshal(p["schema"], &candidate)
+		level, err := strconv.Atoi(strings.TrimPrefix(candidate, "prufyx.io/cncf-source-rule-pack/v1alpha"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if level > schemaLevel {
+			schema, schemaLevel = candidate, level
+		}
+		for _, field := range []string{"entries", "lineAttestations", "pathPolicies", "servedAPIs"} {
+			if len(p[field]) == 0 {
+				continue
+			}
+			var values []json.RawMessage
+			if err := json.Unmarshal(p[field], &values); err != nil {
+				t.Fatal(err)
+			}
+			merged[field] = append(merged[field], values...)
+		}
+	}
+	if envelope == nil {
+		t.Fatal("no bounded scan fixture project")
+	}
+	var p map[string]json.RawMessage
+	_ = json.Unmarshal(envelope["pack"], &p)
+	for _, field := range []string{"entries", "lineAttestations", "pathPolicies", "servedAPIs"} {
+		delete(p, field)
+		if len(merged[field]) > 0 || field == "entries" {
+			p[field], _ = json.Marshal(merged[field])
+		}
+	}
+	p["schema"], _ = json.Marshal(schema)
+	envelope["pack"], _ = json.Marshal(p)
+	outer := "prufyx.io/operator-cncf-knowledge/v1alpha1"
+	if len(merged["lineAttestations"])+len(merged["pathPolicies"])+len(merged["servedAPIs"]) > 0 {
+		outer = "prufyx.io/operator-cncf-knowledge/v1alpha2"
+	}
+	envelope["schema"], _ = json.Marshal(outer)
+	raw, err := json.Marshal(envelope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(raw) > 256<<10 {
+		t.Fatalf("legacy scan fixture grew beyond 256 KiB: %d", len(raw))
+	}
+	if _, err := cncfcheck.ParseExternalBundle(raw); err != nil {
+		t.Fatal(err)
+	}
+	return raw
 }

@@ -68,10 +68,7 @@ func TestStoreScanKnowledgeReadsOnlyOpenedProjects(t *testing.T) {
 		t.Fatal("unknown component has a bundle")
 	}
 	// A single-target envelope serves only the opened project's rules.
-	raw, err := ExportEmbeddedExternalBundle("3")
-	if err != nil {
-		t.Fatal(err)
-	}
+	raw := embeddedProjectEnvelope(t, "kubernetes", "3")
 	single, err := ParseExternalBundle(raw)
 	if err != nil {
 		t.Fatal(err)
@@ -113,14 +110,6 @@ func TestExternalTargetsFromPack(t *testing.T) {
 	raw, err := packagedRulePack()
 	if err != nil {
 		t.Fatal(err)
-	}
-	single, err := ExportExternalBundleFromPack(raw, "4")
-	if err != nil {
-		t.Fatal(err)
-	}
-	want, err := ExportEmbeddedExternalBundle("4")
-	if err != nil || !bytes.Equal(single, want) {
-		t.Fatalf("single target differs: %v", err)
 	}
 	index, targets, err := BuildExternalTargetsFromPack(raw, "4")
 	if err != nil {

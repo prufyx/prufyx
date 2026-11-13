@@ -66,7 +66,8 @@ prufyx db update --release-plan ./cncf-1.release-plan.json \
 `prufyx.io/knowledge-release-plan/v1` is an unsigned, closed canonical JSON
 routing and assertion file. It supports only profile `cncf`, the fixed
 `knowledge/constraints.v1.json` target, and one unrotated publisher root. The
-publisher writes no release plan for the per-project `cncf-projects` layout. Its
+publisher no longer writes release plans; existing plans remain readable. The
+per-project `cncf-projects` layout has no release-plan format. Its
 authority value is `UNSIGNED_ROUTING_AND_ASSERTIONS_NOT_TRUST`. The plan has no
 root bytes, credentials, local configuration, issuer, or signature and cannot
 authorize bootstrap. An empty store still requires the independently obtained
@@ -368,12 +369,12 @@ is a recovery consistency identity and does not authenticate the plan.
 ## Prepare a signed package
 
 The offline maintainer workflow is implemented; the official root is pinned and
-the official feed is published. From the `cli` directory, export the complete compatible
-CNCF replacement target:
+the official feed is published. From the `cli` directory, export the project
+index and compatible project targets:
 
 ```sh
 go run ./cmd/prufyx-maintainer export-knowledge \
-  --profile cncf --revision 1 --output /absolute/constraints.v1.json
+  --profile cncf-projects --revision 1 --output /absolute/targets
 ```
 
 Then follow the [publisher preparation and finalization
@@ -384,7 +385,10 @@ workflow](knowledge-signer.md) can initialize four encrypted role keys and sign
 those exact payloads for a single operator; key custody, root bootstrap,
 hosting, and publication remain separate operator gates. The [export
 contract](knowledge-export.md) and `db capabilities --profile cncf` describe
-the target shape accepted by the matching binary.
+the legacy single-target reader contract. New publication uses the project
+layout; single-target export/publication and new release plans are retired.
+Existing single-target packages, plans and stores retain their reader behavior;
+use a separate store for the project layout.
 
 The older `package-knowledge` helper can still assemble an
 operator-prepared tree of signed metadata and content-addressed target bytes

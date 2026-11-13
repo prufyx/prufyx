@@ -12,13 +12,21 @@ import (
 	"github.com/theupdateframework/go-tuf/v2/metadata"
 )
 
-func TestFinalizeRotatedPackage_OrderedChainAndEmptyWithdrawal(t *testing.T) {
-	opts := rotatedPackageOptions(t, emptyReplacementTarget(t, "81"))
+func TestFinalizeRotatedPackage_OrderedChainAndRecordsOnlyTarget(t *testing.T) {
+	opts := rotatedPackageOptions(t, recordsOnlyTarget(t, "81"))
 	packageRaw, receipt, err := FinalizeRotatedPackage(opts)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(packageRaw) == 0 || receipt.RootDigest != opts.InitialRootDigest || receipt.Verification.InitialRootDigest != opts.InitialRootDigest || len(receipt.Verification.RootHistory) != 2 || receipt.Verification.RootHistory[0].Digest != opts.InitialRootDigest || receipt.Verification.RootHistory[1].Digest != digest(opts.SuccessorRoots[0]) || receipt.Verification.HasRule {
+	project, err := cncfcheck.ParseExternalBundle(opts.Projects[0].Raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	admission, err := project.Admission()
+	if err != nil || admission.HasRule || !admission.HasRecords || admission.EvidenceExpiresAt == "" {
+		t.Fatalf("records-only target lost its semantics: %+v %v", admission, err)
+	}
+	if len(packageRaw) == 0 || receipt.RootDigest != opts.InitialRootDigest || receipt.Verification.InitialRootDigest != opts.InitialRootDigest || len(receipt.Verification.RootHistory) != 2 || receipt.Verification.RootHistory[0].Digest != opts.InitialRootDigest || receipt.Verification.RootHistory[1].Digest != digest(opts.SuccessorRoots[0]) || !receipt.Verification.HasRule {
 		t.Fatalf("unexpected rotated receipt: %+v", receipt)
 	}
 	second, secondReceipt, err := FinalizeRotatedPackage(opts)
@@ -28,10 +36,8 @@ func TestFinalizeRotatedPackage_OrderedChainAndEmptyWithdrawal(t *testing.T) {
 }
 
 func TestFinalizeRotatedPackage_ExportsNonemptyTarget(t *testing.T) {
-	target, err := cncfcheck.ExportEmbeddedExternalBundle("82")
-	if err != nil {
-		t.Fatal(err)
-	}
+	index, projects := embeddedProjectTargets(t, "82")
+	target := publicationTarget{index, projects}
 	opts := rotatedPackageOptions(t, target)
 	_, receipt, err := FinalizeRotatedPackage(opts)
 	if err != nil {
@@ -43,7 +49,7 @@ func TestFinalizeRotatedPackage_ExportsNonemptyTarget(t *testing.T) {
 }
 
 func TestFinalizeRotatedPackage_TwoSuccessorsRequireContiguousOrder(t *testing.T) {
-	opts := twoSuccessorRotatedPackageOptions(t, emptyReplacementTarget(t, "821"))
+	opts := twoSuccessorRotatedPackageOptions(t, recordsOnlyTarget(t, "821"))
 	packageRaw, receipt, err := FinalizeRotatedPackage(opts)
 	if err != nil || len(packageRaw) == 0 || len(receipt.Verification.RootHistory) != 3 || receipt.Verification.RootHistory[2].Digest != digest(opts.SuccessorRoots[1]) {
 		t.Fatalf("two-successor package=%d receipt=%+v err=%v", len(packageRaw), receipt, err)
@@ -67,7 +73,7 @@ func TestFinalizeRotatedPackage_TwoSuccessorsRequireContiguousOrder(t *testing.T
 }
 
 func TestFinalizeRotatedPackage_RejectsInvalidChainBeforePackaging(t *testing.T) {
-	opts := rotatedPackageOptions(t, emptyReplacementTarget(t, "83"))
+	opts := rotatedPackageOptions(t, recordsOnlyTarget(t, "83"))
 	cases := []struct {
 		name string
 		edit func(*RotatedFinalizePackageOptions)
@@ -97,7 +103,7 @@ func TestFinalizeRotatedPackage_RejectsInvalidChainBeforePackaging(t *testing.T)
 }
 
 func TestFinalizeRotatedPackage_RejectsFinalAuthorityFailureWithoutPackage(t *testing.T) {
-	opts := rotatedPackageOptions(t, emptyReplacementTarget(t, "84"))
+	opts := rotatedPackageOptions(t, recordsOnlyTarget(t, "84"))
 	opts.Timestamp = append([]byte(nil), opts.Timestamp...)
 	opts.Timestamp[len(opts.Timestamp)-2] ^= 1
 	packageRaw, receipt, err := FinalizeRotatedPackage(opts)
@@ -107,7 +113,7 @@ func TestFinalizeRotatedPackage_RejectsFinalAuthorityFailureWithoutPackage(t *te
 }
 
 func TestFinalizeRotatedPackage_RejectsValidOldAuthorityMetadata(t *testing.T) {
-	rotated, oldAuthority := rotatedPackageFixture(t, emptyReplacementTarget(t, "85"))
+	rotated, oldAuthority := rotatedPackageFixture(t, recordsOnlyTarget(t, "85"))
 	rotated.Targets, rotated.Snapshot, rotated.Timestamp = oldAuthority.Targets, oldAuthority.Snapshot, oldAuthority.Timestamp
 	packageRaw, receipt, err := FinalizeRotatedPackage(rotated)
 	if !errors.Is(err, ErrRejected) || len(packageRaw) != 0 || receipt.Schema != "" || receipt.Status != "" {
@@ -115,32 +121,32 @@ func TestFinalizeRotatedPackage_RejectsValidOldAuthorityMetadata(t *testing.T) {
 	}
 }
 
-func rotatedPackageOptions(t *testing.T, target []byte) RotatedFinalizePackageOptions {
+func rotatedPackageOptions(t *testing.T, target publicationTarget) RotatedFinalizePackageOptions {
 	t.Helper()
 	opts, _ := rotatedPackageFixture(t, target)
 	return opts
 }
 
-func rotatedPackageFixture(t *testing.T, target []byte) (RotatedFinalizePackageOptions, FinalizePackageOptions) {
+func rotatedPackageFixture(t *testing.T, target publicationTarget) (RotatedFinalizePackageOptions, FinalizePackageOptions) {
 	t.Helper()
 	now := time.Now().UTC().Truncate(time.Second)
 	initial, initialDigest, oldKeys := testRoot(t, now)
-	oldTargetsPrep, err := PrepareTargets(TargetsOptions{Root: initial, RootDigest: initialDigest, Target: target, Version: 5, Expires: now.Add(72 * time.Hour).Format(time.RFC3339)})
+	oldTargetsPrep, err := PrepareTargets(TargetsOptions{Root: initial, RootDigest: initialDigest, Target: target.raw, Projects: target.projects, Version: 5, Expires: now.Add(72 * time.Hour).Format(time.RFC3339)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	oldTargets := finalizeTestRole(t, initial, initialDigest, oldTargetsPrep, oldKeys[metadata.TARGETS])
-	oldSnapshotPrep, err := PrepareSnapshot(SnapshotOptions{Root: initial, RootDigest: initialDigest, Target: target, Targets: oldTargets, Version: 6, Expires: now.Add(48 * time.Hour).Format(time.RFC3339)})
+	oldSnapshotPrep, err := PrepareSnapshot(SnapshotOptions{Root: initial, RootDigest: initialDigest, Target: target.raw, Projects: target.projects, Targets: oldTargets, Version: 6, Expires: now.Add(48 * time.Hour).Format(time.RFC3339)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	oldSnapshot := finalizeTestRole(t, initial, initialDigest, oldSnapshotPrep, oldKeys[metadata.SNAPSHOT])
-	oldTimestampPrep, err := PrepareTimestamp(TimestampOptions{Root: initial, RootDigest: initialDigest, Target: target, Targets: oldTargets, Snapshot: oldSnapshot, Version: 7, Expires: now.Add(24 * time.Hour).Format(time.RFC3339)})
+	oldTimestampPrep, err := PrepareTimestamp(TimestampOptions{Root: initial, RootDigest: initialDigest, Target: target.raw, Projects: target.projects, Targets: oldTargets, Snapshot: oldSnapshot, Version: 7, Expires: now.Add(24 * time.Hour).Format(time.RFC3339)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	oldTimestamp := finalizeTestRole(t, initial, initialDigest, oldTimestampPrep, oldKeys[metadata.TIMESTAMP])
-	oldAuthority := FinalizePackageOptions{Root: initial, RootDigest: initialDigest, Target: target, Targets: oldTargets, Snapshot: oldSnapshot, Timestamp: oldTimestamp}
+	oldAuthority := FinalizePackageOptions{Root: initial, RootDigest: initialDigest, Target: target.raw, Projects: target.projects, Targets: oldTargets, Snapshot: oldSnapshot, Timestamp: oldTimestamp}
 	template, templateDigest, newKeys := testRoot(t, now)
 	transition, err := PrepareRootTransition(RootTransitionOptions{TrustedRoot: initial, TrustedRootDigest: initialDigest, SuccessorTemplate: template, SuccessorTemplateDigest: templateDigest})
 	if err != nil {
@@ -151,25 +157,25 @@ func rotatedPackageFixture(t *testing.T, target []byte) (RotatedFinalizePackageO
 		t.Fatal(err)
 	}
 	successorDigest := digest(successor)
-	targetsPrep, err := PrepareTargets(TargetsOptions{Root: successor, RootDigest: successorDigest, Target: target, Version: 7, Expires: now.Add(72 * time.Hour).Format(time.RFC3339)})
+	targetsPrep, err := PrepareTargets(TargetsOptions{Root: successor, RootDigest: successorDigest, Target: target.raw, Projects: target.projects, Version: 7, Expires: now.Add(72 * time.Hour).Format(time.RFC3339)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	targets := finalizeTestRole(t, successor, successorDigest, targetsPrep, newKeys[metadata.TARGETS])
-	snapshotPrep, err := PrepareSnapshot(SnapshotOptions{Root: successor, RootDigest: successorDigest, Target: target, Targets: targets, Version: 8, Expires: now.Add(48 * time.Hour).Format(time.RFC3339)})
+	snapshotPrep, err := PrepareSnapshot(SnapshotOptions{Root: successor, RootDigest: successorDigest, Target: target.raw, Projects: target.projects, Targets: targets, Version: 8, Expires: now.Add(48 * time.Hour).Format(time.RFC3339)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	snapshot := finalizeTestRole(t, successor, successorDigest, snapshotPrep, newKeys[metadata.SNAPSHOT])
-	timestampPrep, err := PrepareTimestamp(TimestampOptions{Root: successor, RootDigest: successorDigest, Target: target, Targets: targets, Snapshot: snapshot, Version: 9, Expires: now.Add(24 * time.Hour).Format(time.RFC3339)})
+	timestampPrep, err := PrepareTimestamp(TimestampOptions{Root: successor, RootDigest: successorDigest, Target: target.raw, Projects: target.projects, Targets: targets, Snapshot: snapshot, Version: 9, Expires: now.Add(24 * time.Hour).Format(time.RFC3339)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	timestamp := finalizeTestRole(t, successor, successorDigest, timestampPrep, newKeys[metadata.TIMESTAMP])
-	return RotatedFinalizePackageOptions{InitialRoot: initial, InitialRootDigest: initialDigest, SuccessorRoots: [][]byte{successor}, Target: target, Targets: targets, Snapshot: snapshot, Timestamp: timestamp}, oldAuthority
+	return RotatedFinalizePackageOptions{InitialRoot: initial, InitialRootDigest: initialDigest, SuccessorRoots: [][]byte{successor}, Target: target.raw, Projects: target.projects, Targets: targets, Snapshot: snapshot, Timestamp: timestamp}, oldAuthority
 }
 
-func twoSuccessorRotatedPackageOptions(t *testing.T, target []byte) RotatedFinalizePackageOptions {
+func twoSuccessorRotatedPackageOptions(t *testing.T, target publicationTarget) RotatedFinalizePackageOptions {
 	t.Helper()
 	now := time.Now().UTC().Truncate(time.Second)
 	initial, initialDigest, initialKeys := testRoot(t, now)
@@ -193,22 +199,22 @@ func twoSuccessorRotatedPackageOptions(t *testing.T, target []byte) RotatedFinal
 		t.Fatal(err)
 	}
 	secondDigest := digest(second)
-	targetsPreparation, err := PrepareTargets(TargetsOptions{Root: second, RootDigest: secondDigest, Target: target, Version: 7, Expires: now.Add(72 * time.Hour).Format(time.RFC3339)})
+	targetsPreparation, err := PrepareTargets(TargetsOptions{Root: second, RootDigest: secondDigest, Target: target.raw, Projects: target.projects, Version: 7, Expires: now.Add(72 * time.Hour).Format(time.RFC3339)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	targets := finalizeTestRole(t, second, secondDigest, targetsPreparation, secondKeys[metadata.TARGETS])
-	snapshotPreparation, err := PrepareSnapshot(SnapshotOptions{Root: second, RootDigest: secondDigest, Target: target, Targets: targets, Version: 8, Expires: now.Add(48 * time.Hour).Format(time.RFC3339)})
+	snapshotPreparation, err := PrepareSnapshot(SnapshotOptions{Root: second, RootDigest: secondDigest, Target: target.raw, Projects: target.projects, Targets: targets, Version: 8, Expires: now.Add(48 * time.Hour).Format(time.RFC3339)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	snapshot := finalizeTestRole(t, second, secondDigest, snapshotPreparation, secondKeys[metadata.SNAPSHOT])
-	timestampPreparation, err := PrepareTimestamp(TimestampOptions{Root: second, RootDigest: secondDigest, Target: target, Targets: targets, Snapshot: snapshot, Version: 9, Expires: now.Add(24 * time.Hour).Format(time.RFC3339)})
+	timestampPreparation, err := PrepareTimestamp(TimestampOptions{Root: second, RootDigest: secondDigest, Target: target.raw, Projects: target.projects, Targets: targets, Snapshot: snapshot, Version: 9, Expires: now.Add(24 * time.Hour).Format(time.RFC3339)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	timestamp := finalizeTestRole(t, second, secondDigest, timestampPreparation, secondKeys[metadata.TIMESTAMP])
-	return RotatedFinalizePackageOptions{InitialRoot: initial, InitialRootDigest: initialDigest, SuccessorRoots: [][]byte{first, second}, Target: target, Targets: targets, Snapshot: snapshot, Timestamp: timestamp}
+	return RotatedFinalizePackageOptions{InitialRoot: initial, InitialRootDigest: initialDigest, SuccessorRoots: [][]byte{first, second}, Target: target.raw, Projects: target.projects, Targets: targets, Snapshot: snapshot, Timestamp: timestamp}
 }
 
 func cloneRotatedOptions(opts RotatedFinalizePackageOptions) RotatedFinalizePackageOptions {

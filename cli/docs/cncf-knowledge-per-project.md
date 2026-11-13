@@ -4,8 +4,11 @@ The signed CNCF knowledge database can be published as one TUF target per
 project plus a small index target, instead of one target that holds every
 rule. Each target has its own 1 MiB cap, so the database can grow past the
 size of a single target. This layout uses the `cncf-projects` profile. The
-single-target `cncf` profile is unchanged and keeps working with existing
-stores; the two layouts never share a store.
+single-target `cncf` reader keeps working with existing packages and stores
+under its original trust, expiry and size rules; the two layouts never share a
+store. Maintainer export, release and timestamp refresh default to
+`cncf-projects` and reject explicit `cncf`; new single bundles and release plans
+are no longer produced. Client reader defaults and wire formats are unchanged.
 
 The official Prufyx root is pinned in the build and the feed is published. Packages in this layout are
 verified against an operator-provisioned root exactly like the single-target

@@ -181,7 +181,7 @@ func TestPerProjectPublication_FinalizeRotatedPackage(t *testing.T) {
 	}
 }
 
-func TestValidateTargetsShape_AcceptsSingleOrPerProjectOnly(t *testing.T) {
+func TestValidateTargetsShape_AcceptsPerProjectOnly(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 	hash := metadata.HexBytes(make([]byte, 32))
 	build := func(paths ...string) *metadata.Metadata[metadata.TargetsType] {
@@ -193,7 +193,6 @@ func TestValidateTargetsShape_AcceptsSingleOrPerProjectOnly(t *testing.T) {
 		return role
 	}
 	valid := [][]string{
-		{knowledge.ConstraintsTargetPath},
 		{cncfcheck.ExternalIndexTargetPath, cncfcheck.ProjectTargetPath("alpha")},
 	}
 	for _, paths := range valid {
@@ -202,6 +201,7 @@ func TestValidateTargetsShape_AcceptsSingleOrPerProjectOnly(t *testing.T) {
 		}
 	}
 	invalid := [][]string{
+		{knowledge.ConstraintsTargetPath},
 		{},
 		{cncfcheck.ExternalIndexTargetPath}, // an index without projects
 		{knowledge.ConstraintsTargetPath, cncfcheck.ExternalIndexTargetPath},

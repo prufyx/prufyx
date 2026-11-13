@@ -233,9 +233,14 @@ func TestMaintainerCLIFinalizesRotatedPackage(t *testing.T) {
 		t.Fatal(err)
 	}
 	successorDigest := fmt.Sprintf("sha256:%x", sha256.Sum256(successor))
-	target, err := cncfcheck.ExportEmbeddedExternalBundle("94")
+	index, built, err := cncfcheck.BuildEmbeddedExternalTargets("94", nil)
 	if err != nil {
 		t.Fatal(err)
+	}
+	target := index.Bytes
+	var projects []knowledgepublish.Target
+	for _, p := range built {
+		projects = append(projects, knowledgepublish.Target{Path: p.Path, Raw: p.Bytes})
 	}
 	signRole := func(role string, preparation knowledgepublish.Preparation) []byte {
 		t.Helper()
@@ -258,17 +263,17 @@ func TestMaintainerCLIFinalizesRotatedPackage(t *testing.T) {
 		}
 		return result
 	}
-	targetsPreparation, err := knowledgepublish.PrepareTargets(knowledgepublish.TargetsOptions{Root: successor, RootDigest: successorDigest, Target: target, Version: 1, Expires: time.Now().UTC().Add(72 * time.Hour).Truncate(time.Second).Format(time.RFC3339)})
+	targetsPreparation, err := knowledgepublish.PrepareTargets(knowledgepublish.TargetsOptions{Root: successor, RootDigest: successorDigest, Target: target, Projects: projects, Version: 1, Expires: time.Now().UTC().Add(72 * time.Hour).Truncate(time.Second).Format(time.RFC3339)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	targets := signRole("targets", targetsPreparation)
-	snapshotPreparation, err := knowledgepublish.PrepareSnapshot(knowledgepublish.SnapshotOptions{Root: successor, RootDigest: successorDigest, Target: target, Targets: targets, Version: 1, Expires: time.Now().UTC().Add(48 * time.Hour).Truncate(time.Second).Format(time.RFC3339)})
+	snapshotPreparation, err := knowledgepublish.PrepareSnapshot(knowledgepublish.SnapshotOptions{Root: successor, RootDigest: successorDigest, Target: target, Projects: projects, Targets: targets, Version: 1, Expires: time.Now().UTC().Add(48 * time.Hour).Truncate(time.Second).Format(time.RFC3339)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	snapshot := signRole("snapshot", snapshotPreparation)
-	timestampPreparation, err := knowledgepublish.PrepareTimestamp(knowledgepublish.TimestampOptions{Root: successor, RootDigest: successorDigest, Target: target, Targets: targets, Snapshot: snapshot, Version: 1, Expires: time.Now().UTC().Add(24 * time.Hour).Truncate(time.Second).Format(time.RFC3339)})
+	timestampPreparation, err := knowledgepublish.PrepareTimestamp(knowledgepublish.TimestampOptions{Root: successor, RootDigest: successorDigest, Target: target, Projects: projects, Targets: targets, Snapshot: snapshot, Version: 1, Expires: time.Now().UTC().Add(24 * time.Hour).Truncate(time.Second).Format(time.RFC3339)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -281,9 +286,22 @@ func TestMaintainerCLIFinalizesRotatedPackage(t *testing.T) {
 		}
 		return path
 	}
+	targetsDir := filepath.Join(parent, "exported")
+	if err := os.MkdirAll(filepath.Join(targetsDir, "knowledge/cncf"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range append([]knowledgepublish.Target{{Path: index.Path, Raw: index.Bytes}}, projects...) {
+		full := filepath.Join(targetsDir, filepath.FromSlash(p.Path))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, p.Raw, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
 	output := filepath.Join(parent, "rotated.tar")
 	var stdout, stderr bytes.Buffer
-	err = run([]string{"knowledge-publish", "finalize-rotated-package", "--initial-root", write("1.root.json", old.Root), "--initial-root-digest", old.RootDigest, "--successor-root", write("2.root.json", successor), "--target", write("constraints.json", target), "--targets", write("targets.json", targets), "--snapshot", write("snapshot.json", snapshot), "--timestamp", write("timestamp.json", timestamp), "--output", output}, &stdout, &stderr)
+	err = run([]string{"knowledge-publish", "finalize-rotated-package", "--initial-root", write("1.root.json", old.Root), "--initial-root-digest", old.RootDigest, "--successor-root", write("2.root.json", successor), "--targets-dir", targetsDir, "--targets", write("targets.json", targets), "--snapshot", write("snapshot.json", snapshot), "--timestamp", write("timestamp.json", timestamp), "--output", output}, &stdout, &stderr)
 	if err != nil || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"status":"VERIFIED_FOR_PACKAGING"`) || !strings.Contains(stdout.String(), `"rootDigest":"`+old.RootDigest+`"`) {
 		t.Fatalf("route stdout=%q stderr=%q err=%v", stdout.String(), stderr.String(), err)
 	}
@@ -291,7 +309,7 @@ func TestMaintainerCLIFinalizesRotatedPackage(t *testing.T) {
 		t.Fatalf("rotated output bytes=%d err=%v", len(raw), readErr)
 	}
 	stdout.Reset()
-	err = run([]string{"knowledge-publish", "finalize-rotated-package", "--initial-root", filepath.Join(parent, "1.root.json"), "--initial-root-digest", old.RootDigest, "--successor-root", filepath.Join(parent, "2.root.json"), "--target", filepath.Join(parent, "constraints.json"), "--targets", filepath.Join(parent, "targets.json"), "--snapshot", filepath.Join(parent, "snapshot.json"), "--timestamp", filepath.Join(parent, "timestamp.json"), "--output", output}, &stdout, &stderr)
+	err = run([]string{"knowledge-publish", "finalize-rotated-package", "--initial-root", filepath.Join(parent, "1.root.json"), "--initial-root-digest", old.RootDigest, "--successor-root", filepath.Join(parent, "2.root.json"), "--targets-dir", targetsDir, "--targets", filepath.Join(parent, "targets.json"), "--snapshot", filepath.Join(parent, "snapshot.json"), "--timestamp", filepath.Join(parent, "timestamp.json"), "--output", output}, &stdout, &stderr)
 	if err == nil || stdout.Len() != 0 || stderr.Len() != 0 {
 		t.Fatalf("existing output accepted: stdout=%q stderr=%q err=%v", stdout.String(), stderr.String(), err)
 	}
@@ -451,14 +469,14 @@ func TestMaintainerCLI_SupportInventory_CheckAcceptedFiles(t *testing.T) {
 func TestMaintainerCLIExportKnowledgeWritesNewTarget(t *testing.T) {
 	output := filepath.Join(t.TempDir(), "constraints.v1.json")
 	var stdout, stderr bytes.Buffer
-	if err := run([]string{"export-knowledge", "--profile", "cncf", "--revision", "73", "--output", output}, &stdout, &stderr); err != nil {
+	if err := run([]string{"export-knowledge", "--revision", "73", "--output", output}, &stdout, &stderr); err != nil {
 		t.Fatalf("export failed: %v stderr=%q", err, stderr.String())
 	}
 	if stdout.Len() != 0 || stderr.Len() != 0 {
 		t.Fatalf("unexpected output stdout=%q stderr=%q", stdout.String(), stderr.String())
 	}
 	info, err := os.Stat(output)
-	if err != nil || info.Mode().Perm() != 0o644 {
+	if err != nil || !info.IsDir() {
 		t.Fatalf("output info=%v err=%v", info, err)
 	}
 	if err := run([]string{"export-knowledge", "--profile", "cncf", "--revision", "73", "--output", output}, &stdout, &stderr); err == nil {

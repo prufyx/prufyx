@@ -6,17 +6,18 @@ does not generate or load private keys, call a signer, fetch metadata, publish
 bytes, choose a trust authority, or change the CLI's `OPERATOR_PROVISIONED` and
 `CANDIDATE_ONLY` report labels.
 
-The input target must be a canonical `operator_provided` replacement snapshot
-for `knowledge/constraints.v1.json` (or, with `--targets-dir`, the index and
-project targets of the per-project layout described below) and the exact
-capability compiled into this source tree. Replacement means the selected feed target stands on its own and
-is never merged with an installed snapshot. Its reviewed rules may differ from
-the embedded set, including data-only additions, removals, or an empty snapshot
-that intentionally supplies no coverage. The separately reviewed CNCF exporter
-can produce the current complete embedded snapshot; use its export receipt and
-the generated support inventory for the exact rule count and digests. Supply a
-signed public TUF root and its SHA-256 through an independent trusted process.
-The root stays separate from the target and package.
+The input is the canonical `operator_provided` index and project targets
+exported by `export-knowledge --profile cncf-projects`, with the exact
+capability compiled into this source tree. Pass their directory through
+`--targets-dir`. Single-target export, publication, packaging, release-plan
+generation and timestamp refresh are retired. Explicit `cncf` and legacy
+`--target` inputs reject; they are never reinterpreted as projects. Readers
+still accept existing single-target packages/stores under their original
+signature, capability, expiry and size rules. The layouts never share a store.
+
+The index and project targets form a complete replacement snapshot. Supply the
+signed public root and its independently verified SHA-256 separately; neither
+export nor packaging establishes review or publication authority.
 
 TUF signing is sequential. Snapshot metadata hashes the finalized targets
 metadata, including its signatures; timestamp metadata hashes the finalized
@@ -30,7 +31,7 @@ mkdir -m 700 /absolute/publisher
 
 prufyx-maintainer knowledge-publish prepare-targets \
   --root /absolute/root.json --root-digest sha256:<root> \
-  --target /absolute/constraints.v1.json \
+  --targets-dir /absolute/publisher/targets \
   --version 1 --expires 2026-12-01T00:00:00Z \
   --output /absolute/publisher/targets-step
 ```
@@ -72,7 +73,7 @@ Prepare and externally finalize snapshot next:
 ```sh
 prufyx-maintainer knowledge-publish prepare-snapshot \
   --root /absolute/root.json --root-digest sha256:<root> \
-  --target /absolute/constraints.v1.json \
+  --targets-dir /absolute/publisher/targets \
   --targets /absolute/publisher/1.targets.json \
   --version 1 --expires 2026-11-15T00:00:00Z \
   --output /absolute/publisher/snapshot-step
@@ -89,7 +90,7 @@ Then prepare and externally finalize timestamp:
 ```sh
 prufyx-maintainer knowledge-publish prepare-timestamp \
   --root /absolute/root.json --root-digest sha256:<root> \
-  --target /absolute/constraints.v1.json \
+  --targets-dir /absolute/publisher/targets \
   --targets /absolute/publisher/1.targets.json \
   --snapshot /absolute/publisher/1.snapshot.json \
   --version 1 --expires 2026-10-01T00:00:00Z \
@@ -107,39 +108,20 @@ Close the package only after every role is finalized:
 ```sh
 prufyx-maintainer knowledge-publish finalize-package \
   --root /absolute/root.json --root-digest sha256:<root> \
-  --target /absolute/constraints.v1.json \
+  --targets-dir /absolute/publisher/targets \
   --targets /absolute/publisher/1.targets.json \
   --snapshot /absolute/publisher/1.snapshot.json \
   --timestamp /absolute/publisher/timestamp.json \
-  --output /absolute/publisher/cncf-1.tar \
+  --output /absolute/publisher/cncf-projects-1.tar \
   > /absolute/publisher/finalization-receipt.json
 ```
 
-The same successful in-memory finalization can also create an unsigned client
-release plan. The command does not read a saved receipt:
-
-```sh
-prufyx-maintainer knowledge-publish finalize-package \
-  --root /absolute/root.json --root-digest sha256:<root> \
-  --target /absolute/constraints.v1.json \
-  --targets /absolute/publisher/1.targets.json \
-  --snapshot /absolute/publisher/1.snapshot.json \
-  --timestamp /absolute/publisher/timestamp.json \
-  --output /absolute/publisher/cncf-1.tar \
-  --package-url https://metadata.example.org/cncf-1.tar \
-  --release-plan-output /absolute/publisher/cncf-1.release-plan.json \
-  > /absolute/publisher/finalization-receipt.json
-```
-
-The plan binds the exact package URL and digest, target revision/digest/purpose
-and capability, publisher initial-root identity, one-entry root history, and all
-verified role versions, digests, and expiries. It is routing plus assertions,
-not a trust root, signature, maintainer identity, or client bootstrap authority.
-This v1 plan shape rejects rotated root history; use the existing manual path for
-a rotated store.
+New release plans are no longer produced. `--package-url` and
+`--release-plan-output` are rejected. Existing `cncf` release plans remain
+client-readable; their parser and trust requirements are unchanged.
 
 Finalization reconstructs the fixed content-addressed repository, packages it
-canonically, and invokes the same `knowledge.VerifyConstraints` path used by
+canonically, and invokes the same `knowledge.VerifyConstraintsProjects` path used by
 `prufyx db verify`. Verification uses the actual UTC clock and must authenticate
 the root, role thresholds, metadata chain, target digest, complete external
 envelope, revision, capability, and evidence admission before the new package
@@ -155,12 +137,6 @@ with a different new path. A successful finalization does not publish the
 package. Hosting, root bootstrap, key custody, expiry policy, source review,
 and release authority remain separate gates.
 
-Paired output is ordered and durable rather than crash-atomic. The package is
-created and synchronized first, then the plan. The command reports success only
-after both exist durably. If plan creation fails, the already durable package and
-any pre-existing plan file remain untouched and the command fails without a
-finalization receipt on stdout. Retry with new output paths.
-
 ## One-command release
 
 `knowledge-publish release` builds a complete signed release from the knowledge
@@ -172,22 +148,22 @@ new `0700` directory.
 
 ```sh
 prufyx-maintainer knowledge-publish release \
-  --revision 81 --version 1 \
+  --revision 81 --version 1 --first-release \
   --root /absolute/root.json --root-digest sha256:<root> \
   --targets-key /absolute/targets.key.pem \
   --snapshot-key /absolute/snapshot.key.pem \
   --timestamp-key /absolute/timestamp.key.pem \
   --passphrase-file /absolute/passphrase \
-  --package-url https://metadata.example.org/cncf-81.tar \
   --output-dir /absolute/release-81
 ```
 
-The output directory holds `root.json`, `constraints.v1.json`,
-`<version>.targets.json`, `<version>.snapshot.json`, `timestamp.json`,
-`cncf-<revision>.tar` and `cncf-<revision>.release-plan.json`; the JSON receipt
-goes to standard output. Host the package at `--package-url`; clients run
-`prufyx db update --release-plan cncf-<revision>.release-plan.json ...` as
-described in [knowledge-updates.md](knowledge-updates.md).
+The default profile is `cncf-projects`. Exactly one of `--first-release`
+or `--previous-index ABS` is required; omitting the profile never initializes
+an index implicitly. Existing live-package and CI guards still apply.
+The directory holds root and signed metadata, `cncf-projects-<revision>.tar`,
+and the index/project targets under `knowledge/`. No single bundle or release
+plan is written. Clients use `prufyx db update --profile cncf-projects` or
+the corresponding offline import path.
 
 - Key paths come from flags. The command never creates or stores keys. Role keys
   are the encrypted files made by `knowledge-sign init`; the passphrase is read
@@ -221,10 +197,9 @@ checks run before any key file is read; a refusal writes nothing.
   `--no-live-package` says that no package is live at all. `--first-release`
   does not waive the previous package: it only chooses the index layout.
 - The content digest is the sha256 of the sorted lines `<target path> <sha256 hex>\n`
-  over every exported target (index or bundle plus project targets); the index
-  digest is the index digest (per-project) or bundle digest. Both are keyless:
-  `knowledge-publish content-digest --revision N [--profile cncf-projects
-  (--previous-index ABS | --first-release)]` prints them. The JSON of `release`
+  over the index and every project target; the index digest identifies the
+  index. Both are keyless: `knowledge-publish content-digest --revision N
+  (--previous-index ABS | --first-release)` prints them. The JSON of `release`
   carries `contentDigest`, `indexDigest`, `evidenceExpiresAt`, `packageDigest`, `timestampVersion`,
   `previousPackageDigest`, `expires` and `timestampExpires`. After signing, the
   verified target digest must still equal the expected index digest.
@@ -247,7 +222,8 @@ checks run before any key file is read; a refusal writes nothing.
 sha256:... --timestamp-key ABS --passphrase-file ABS --output-dir ABS
 --expect-live-package-digest D [--profile cncf-projects] [--expires UTC]`
 signs a new timestamp over the live, unchanged snapshot and targets. Only the
-timestamp key is loaded; there is no option for another key.
+timestamp key is loaded; there is no option for another key. The default is
+`cncf-projects`; explicit `cncf` is rejected before key access.
 
 - The live package must verify against the pinned root, else nothing is signed.
   `--expect-live-package-digest` is mandatory; without it, or when it differs,
@@ -296,11 +272,10 @@ timestamp key is loaded; there is no option for another key.
 
 The CNCF knowledge is published as an index plus one target per project (see
 [cncf-knowledge-per-project.md](cncf-knowledge-per-project.md)), so no single
-target caps the coverage. The publisher builds, signs, packages and finalizes
-this layout with the same role keys and the same single targets role as the
-single-bundle layout: the targets role simply lists the index and every project
-target, and the snapshot and timestamp roles are unchanged. No new key or key
-ceremony is involved. The single-bundle path above is unchanged.
+target grows with the entire catalogue. Every target retains its 1 MiB cap,
+and all package and count limits remain. The publisher uses the existing role
+keys and one targets role listing the index and every project. No root,
+authorized signer, threshold or signature algorithm changes.
 
 ```sh
 # 1. The per-project targets of this source tree, or of the next revision.
@@ -377,7 +352,7 @@ Any other combination is refused before a key is read.
 
 The output directory holds `root.json`, `<version>.targets.json`,
 `<version>.snapshot.json`, `timestamp.json`, `cncf-projects-<revision>.tar` and
-the targets under `knowledge/`. `--package-url` is not used. No release plan is
+the targets under `knowledge/`. `--package-url` is rejected. No release plan is
 written: the release-plan format (`prufyx db update --release-plan`) describes
 the single-target layout only and stays `cncf`-only, so clients of the
 per-project layout update with `prufyx db update --profile cncf-projects` from
@@ -434,11 +409,11 @@ metadata member.
 prufyx-maintainer knowledge-publish finalize-rotated-package \
   --initial-root /absolute/1.root.json --initial-root-digest sha256:<root-1> \
   --successor-root /absolute/2.root.json \
-  --target /absolute/constraints.v1.json \
+  --targets-dir /absolute/publisher/targets \
   --targets /absolute/publisher/1.targets.json \
   --snapshot /absolute/publisher/1.snapshot.json \
   --timestamp /absolute/publisher/timestamp.json \
-  --output /absolute/publisher/cncf-rotated.tar \
+  --output /absolute/publisher/cncf-projects-rotated.tar \
   > /absolute/publisher/rotated-finalization-receipt.json
 ```
 

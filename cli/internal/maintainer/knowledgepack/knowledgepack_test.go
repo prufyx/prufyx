@@ -107,9 +107,9 @@ func TestKnowledgePack_RejectsInvalidInputs(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			root := fixture(t, "cncf")
+			root := fixture(t, "cert-manager")
 			tc.mutate(root)
-			if _, err := PackageDirectory(root, "cncf"); err == nil {
+			if _, err := PackageDirectory(root, "cert-manager"); err == nil {
 				t.Fatal("expected rejection")
 			}
 		})
@@ -117,7 +117,7 @@ func TestKnowledgePack_RejectsInvalidInputs(t *testing.T) {
 }
 
 func TestKnowledgePack_RejectsLinksAndBounds(t *testing.T) {
-	root := fixture(t, "cncf")
+	root := fixture(t, "cert-manager")
 	original := filepath.Join(root, "metadata", "1.root.json")
 	if err := os.Remove(original); err != nil {
 		t.Fatal(err)
@@ -125,26 +125,26 @@ func TestKnowledgePack_RejectsLinksAndBounds(t *testing.T) {
 	if err := os.Symlink("1.snapshot.json", original); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := PackageDirectory(root, "cncf"); err == nil {
+	if _, err := PackageDirectory(root, "cert-manager"); err == nil {
 		t.Fatal("expected symlink rejection")
 	}
-	root = fixture(t, "cncf")
+	root = fixture(t, "cert-manager")
 	if err := os.WriteFile(filepath.Join(root, "metadata", "1.root.json"), bytes.Repeat([]byte("x"), MaxPackageEntry+1), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := PackageDirectory(root, "cncf"); err == nil {
+	if _, err := PackageDirectory(root, "cert-manager"); err == nil {
 		t.Fatal("expected size rejection")
 	}
 }
 
 func TestKnowledgePack_WritePrivateAndRefuseOverwrite(t *testing.T) {
-	root := fixture(t, "cncf")
+	root := fixture(t, "cert-manager")
 	parent := filepath.Join(t.TempDir(), "private")
 	if err := os.Mkdir(parent, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	out := filepath.Join(parent, "out.tar")
-	if err := WritePackage(root, out, "cncf"); err != nil {
+	if err := WritePackage(root, out, "cert-manager"); err != nil {
 		t.Fatal(err)
 	}
 	info, err := os.Stat(out)
@@ -158,7 +158,7 @@ func TestKnowledgePack_WritePrivateAndRefuseOverwrite(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := WritePackage(root, out, "cncf"); err == nil {
+	if err := WritePackage(root, out, "cert-manager"); err == nil {
 		t.Fatal("expected overwrite rejection")
 	}
 	after, err := os.ReadFile(out)
@@ -176,7 +176,7 @@ func TestKnowledgePack_RejectsSymlinkedAncestorPaths(t *testing.T) {
 	if err := os.Mkdir(real, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	source := fixture(t, "cncf")
+	source := fixture(t, "cert-manager")
 	moved := filepath.Join(real, "source")
 	if err := os.Rename(source, moved); err != nil {
 		t.Fatal(err)
@@ -185,14 +185,14 @@ func TestKnowledgePack_RejectsSymlinkedAncestorPaths(t *testing.T) {
 	if err := os.Symlink(real, alias); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := PackageDirectory(filepath.Join(alias, "source"), "cncf"); err == nil {
+	if _, err := PackageDirectory(filepath.Join(alias, "source"), "cert-manager"); err == nil {
 		t.Fatal("expected input ancestor symlink rejection")
 	}
 	private := filepath.Join(real, "private")
 	if err := os.Mkdir(private, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := WritePackage(moved, filepath.Join(alias, "private", "out.tar"), "cncf"); err == nil {
+	if err := WritePackage(moved, filepath.Join(alias, "private", "out.tar"), "cert-manager"); err == nil {
 		t.Fatal("expected output ancestor symlink rejection")
 	}
 	if _, err := os.Stat(filepath.Join(private, "out.tar")); !os.IsNotExist(err) {
@@ -204,7 +204,6 @@ func TestKnowledgePack_MatchesGeneratedFixtureBytes(t *testing.T) {
 	now := time.Unix(1_700_000_000, 0).UTC()
 	generators := map[string]func(time.Time) (knowledgefixture.Artifacts, error){
 		"cert-manager":                knowledgefixture.Generate,
-		"cncf":                        knowledgefixture.GenerateConstraints,
 		"spiffe-x509-svid":            knowledgefixture.GenerateSPIFFEX509SVID,
 		"cloudevents-structured-json": knowledgefixture.GenerateCloudEventsStructuredJSON,
 		"tikv-gcp-v2-wif-backup":      knowledgefixture.GenerateTiKVGCPV2WIFBackup,
@@ -251,5 +250,16 @@ func TestKnowledgePack_MatchesGeneratedFixtureBytes(t *testing.T) {
 				t.Fatal("assembled archive differs from Go fixture archive")
 			}
 		})
+	}
+}
+
+func TestKnowledgePack_RetiredSingleProfileRejected(t *testing.T) {
+	if _, err := PackageDirectory(t.TempDir(), "cncf"); err == nil {
+		t.Fatal("retired profile accepted")
+	}
+	for _, profile := range Profiles() {
+		if profile == "cncf" {
+			t.Fatal("retired profile advertised")
+		}
 	}
 }

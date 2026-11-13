@@ -34,7 +34,7 @@ func TestReleaseCarriesRecords(t *testing.T) {
 	if err != nil {
 		t.Fatalf("release of a pack with records: %v", err)
 	}
-	target, err := os.ReadFile(filepath.Join(o.OutputDir, "constraints.v1.json"))
+	target, err := os.ReadFile(filepath.Join(o.OutputDir, "knowledge/cncf/projects/kubernetes.v1.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,8 +44,8 @@ func TestReleaseCarriesRecords(t *testing.T) {
 	if result.Expires > "2026-11-30T00:00:00Z" {
 		t.Fatalf("release expires %s, after the record", result.Expires)
 	}
-	if _, err := knowledge.VerifyConstraints(knowledge.VerifyRequest{
-		PackagePath: filepath.Join(o.OutputDir, "cncf-"+o.Revision+".tar"), BootstrapRootPath: o.Root, BootstrapRootDigest: o.RootDigest,
+	if _, err := knowledge.VerifyConstraintsProjects(knowledge.VerifyRequest{
+		PackagePath: filepath.Join(o.OutputDir, "cncf-projects-"+o.Revision+".tar"), BootstrapRootPath: o.Root, BootstrapRootDigest: o.RootDigest,
 	}); err != nil {
 		t.Fatalf("the signed package does not verify: %v", err)
 	}

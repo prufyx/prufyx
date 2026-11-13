@@ -1,39 +1,36 @@
 # CNCF knowledge target export
 
-A maintainer can prepare the embedded public CNCF rules as one unsigned source
-target for an independently managed distribution workflow:
+A maintainer can export the embedded public knowledge as an unsigned index and
+one bounded target per project:
 
 ```sh
 go run ./cmd/prufyx-maintainer export-knowledge \
-  --profile cncf --revision 1 --output ./constraints.v1.json
+  --profile cncf-projects --revision 1 --output ./targets
 ```
 
-With `--profile cncf-projects` the same command writes the per-project layout
-into a new directory instead (`knowledge/cncf/index.v1.json` and one target per
-project; `--previous-index FILE` keeps unchanged projects at their previous
-revision), the input of `knowledge-publish --targets-dir`; see
-[knowledge-publisher.md](knowledge-publisher.md).
+The profile defaults to `cncf-projects`. The output must be a new directory; it
+contains `knowledge/cncf/index.v1.json` and the project targets named by that
+index, including community targets when present. Supply `--previous-index FILE`
+to retain unchanged projects' revisions. No previous index means a fresh index
+layout for this unsigned export; signed releases separately require an explicit
+`--first-release` or `--previous-index` decision.
 
-For `--profile cncf` the output is only the canonical `knowledge/constraints.v1.json` target with
-purpose `operator_provided`. It contains the complete embedded reviewed rule
-pack with the supplied positive revision. It does not export a local database,
-selection, trust root, customer input, or signing key. The command does not
-fetch or publish anything.
+Pass this directory to `knowledge-publish --targets-dir`; see
+[the publisher workflow](knowledge-publisher.md). Export neither signs nor
+publishes anything and has no access to local stores, customer input, roots or
+signing keys.
 
-Inspect the exact compiled construction contract before building a package:
+Single-target export with `--profile cncf` is retired and rejects before
+creating output. Existing single-target packages and stores remain readable by
+the client under their original bounds, signatures, capabilities and expiry.
+The layouts require separate stores; an older single-only binary cannot read
+the project layout.
 
-```sh
-prufyx db capabilities --profile cncf --format json
-```
+Each project target and the index retain their existing 1 MiB cap. Package,
+member-count and rule-document bounds are unchanged. Export does not establish
+source review or distribution authority. Independently trusted roots,
+authorized signatures and verified packages remain necessary for client import.
 
-This reads neither a knowledge store nor the network. It reports the required
-target path, capability digest, schemas, and parser bounds. It does not make
-the target trusted, fetch knowledge from the official feed
-(`prufyx db update`) or your own package, or enable automatic refresh.
-An independently managed root, signatures, and verified package remain
-necessary before the existing explicit `db import` or `db update` paths can
-select it.
-
-The output path must not already exist. If creating or syncing the new file
-fails, the command leaves that path in place for explicit operator inspection
-or cleanup; it never deletes a path after a failed write.
+If creating or syncing the new directory fails, export leaves any partial
+output for explicit inspection or cleanup; it never overwrites an existing
+path.

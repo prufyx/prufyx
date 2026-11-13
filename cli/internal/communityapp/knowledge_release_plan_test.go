@@ -21,10 +21,9 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfknowledge"
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
+	"github.com/prufyx/prufyx/cli/internal/knowledgefixture"
 	"github.com/prufyx/prufyx/cli/internal/knowledgereleaseplan"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgepublish"
-	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgesign"
-	"github.com/theupdateframework/go-tuf/v2/metadata"
 )
 
 type publishedRelease struct {
@@ -512,7 +511,7 @@ func publishedNonemptyReleaseFixture(t *testing.T) ([]byte, string, []publishedR
 	t.Helper()
 	return publishedReleaseFixtureForTargets(t, []string{"71", "72", "73"}, func(t *testing.T, revision string) []byte {
 		t.Helper()
-		target, err := cncfcheck.ExportEmbeddedExternalBundle(revision)
+		target, err := knowledgefixture.EmbeddedProjectBundle("kyverno", revision)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -520,80 +519,43 @@ func publishedNonemptyReleaseFixture(t *testing.T) ([]byte, string, []publishedR
 	})
 }
 
+// Legacy plans are reader fixtures, not output of the retired publisher.
 func publishedReleaseFixtureForTargets(t *testing.T, revisions []string, targetForRevision func(*testing.T, string) []byte) ([]byte, string, []publishedRelease) {
 	t.Helper()
-	now := time.Now().UTC().Truncate(time.Second)
-	privateParent, err := filepath.EvalSymlinks(t.TempDir())
+	repo, err := knowledgefixture.NewProjectsRepository(time.Now().UTC().Truncate(time.Second))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Chmod(privateParent, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	keyDir := filepath.Join(privateParent, "test-keys")
-	passphrase := []byte("nonempty release test passphrase 123")
-	initialized, err := knowledgesign.Init(knowledgesign.InitOptions{
-		KeyDir: keyDir, RootExpires: now.Add(7 * 24 * time.Hour).Format(time.RFC3339),
-		RootPassphrase: []byte("root key passphrase 123456"), Passphrase: passphrase,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	for i := range passphrase {
-		passphrase[i] = 0
-	}
-	rootRaw, rootDigest := initialized.Root, initialized.RootDigest
-	releases := make([]publishedRelease, 0, len(revisions))
-	for index, revision := range revisions {
-		version := int64(index + 1)
+	t.Cleanup(repo.Close)
+	dir := t.TempDir()
+	rootPath := writeKnowledgeReleaseFile(t, dir, "root.json", repo.Root)
+	var releases []publishedRelease
+	for i, revision := range revisions {
 		target := targetForRevision(t, revision)
-		targetsPrep, err := knowledgepublish.PrepareTargets(knowledgepublish.TargetsOptions{Root: rootRaw, Target: target, RootDigest: rootDigest, Version: version, Expires: now.Add(72 * time.Hour).Format(time.RFC3339)})
+		raw, err := repo.Package(knowledgefixture.ProjectsPackage{Version: int64(i + 1), Targets: map[string][]byte{knowledge.ConstraintsTargetPath: target}})
 		if err != nil {
 			t.Fatal(err)
 		}
-		targets := finalizePublisherTestRole(t, initialized, keyDir, metadata.TARGETS, targetsPrep)
-		snapshotPrep, err := knowledgepublish.PrepareSnapshot(knowledgepublish.SnapshotOptions{Root: rootRaw, Target: target, Targets: targets, RootDigest: rootDigest, Version: version, Expires: now.Add(48 * time.Hour).Format(time.RFC3339)})
+		packagePath := writeKnowledgeReleaseFile(t, dir, "package-"+revision+".tar", raw)
+		v, err := knowledge.VerifyConstraints(knowledge.VerifyRequest{PackagePath: packagePath, BootstrapRootPath: rootPath, BootstrapRootDigest: repo.RootDigest})
 		if err != nil {
 			t.Fatal(err)
 		}
-		snapshot := finalizePublisherTestRole(t, initialized, keyDir, metadata.SNAPSHOT, snapshotPrep)
-		timestampPrep, err := knowledgepublish.PrepareTimestamp(knowledgepublish.TimestampOptions{Root: rootRaw, Target: target, Targets: targets, Snapshot: snapshot, RootDigest: rootDigest, Version: version, Expires: now.Add(24 * time.Hour).Format(time.RFC3339)})
-		if err != nil {
-			t.Fatal(err)
-		}
-		timestamp := finalizePublisherTestRole(t, initialized, keyDir, metadata.TIMESTAMP, timestampPrep)
 		url := "https://metadata.example.test/cncf-" + revision + ".tar"
-		packageRaw, planRaw, receipt, err := knowledgepublish.FinalizePackageWithReleasePlan(knowledgepublish.FinalizePackageOptions{Root: rootRaw, Target: target, Targets: targets, Snapshot: snapshot, Timestamp: timestamp, RootDigest: rootDigest}, url)
-		if err != nil || receipt.Status != "VERIFIED_FOR_PACKAGING" || receipt.KnowledgeRevision != revision {
-			t.Fatalf("publisher finalization revision=%s receipt=%+v err=%v", revision, receipt, err)
+		plan := knowledgereleaseplan.Plan{
+			Schema: knowledgereleaseplan.Schema, Authority: knowledgereleaseplan.Authority, Profile: "cncf",
+			Package:               knowledgereleaseplan.Package{URL: url, Digest: v.PackageDigest},
+			Target:                knowledgereleaseplan.Target{Path: v.TargetPath, Revision: v.KnowledgeRevision, Digest: v.TargetDigest, Purpose: v.Purpose, EngineCapabilityDigest: v.EngineCapabilityDigest},
+			PublisherVerification: knowledgereleaseplan.PublisherVerification{Mode: knowledgereleaseplan.RootMode, PublisherInitialRootDigest: v.InitialRootDigest, RootHistory: v.RootHistory, Root: v.Root, Timestamp: v.Timestamp, Snapshot: v.Snapshot, Targets: v.Targets},
 		}
-		releases = append(releases, publishedRelease{url: url, revision: revision, targetRaw: target, packageRaw: packageRaw, planRaw: planRaw, finalization: receipt})
+		planRaw, err := knowledgereleaseplan.Marshal(plan)
+		if err != nil {
+			t.Fatal(err)
+		}
+		receipt := knowledgepublish.FinalizationReceipt{Schema: knowledgepublish.FinalReceiptSchema, Status: "VERIFIED_FOR_PACKAGING", Profile: "cncf", RootDigest: repo.RootDigest, TargetDigest: v.TargetDigest, PackageDigest: v.PackageDigest, KnowledgeRevision: v.KnowledgeRevision, CapabilityDigest: v.EngineCapabilityDigest, Verification: v}
+		releases = append(releases, publishedRelease{url: url, revision: revision, targetRaw: target, packageRaw: raw, planRaw: planRaw, finalization: receipt})
 	}
-	return rootRaw, rootDigest, releases
-}
-
-func finalizePublisherTestRole(t *testing.T, initialized knowledgesign.InitResult, keyDir, role string, preparation knowledgepublish.Preparation) []byte {
-	t.Helper()
-	keyRaw, err := os.ReadFile(filepath.Join(keyDir, role+".key.pem"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	envelope, err := knowledgesign.SignRole(knowledgesign.SignOptions{
-		Root: initialized.Root, RootDigest: initialized.RootDigest, Role: role,
-		Unsigned: preparation.UnsignedMetadata, ExpectedPayloadDigest: releaseDigest(preparation.Payload),
-		EncryptedKey: keyRaw, Passphrase: []byte("nonempty release test passphrase 123"),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	for i := range keyRaw {
-		keyRaw[i] = 0
-	}
-	raw, err := knowledgepublish.FinalizeRole(initialized.Root, initialized.RootDigest, role, preparation.UnsignedMetadata, envelope)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return raw
+	return repo.Root, repo.RootDigest, releases
 }
 
 func emptyPublishedTarget(t *testing.T, revision string) []byte {
