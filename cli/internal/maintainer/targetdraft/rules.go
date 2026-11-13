@@ -43,6 +43,47 @@ type Rules struct {
 	// install surface; every other definition file is reported as a
 	// non-install copy. Absent, the generator behaves as it always did.
 	InstallPaths []InstallPathRule `json:"installPaths,omitempty"`
+	// PathFilter is the optional list of reviewed filters applied inside the
+	// chosen installPaths: a file under installPaths that matches an entry is
+	// not install surface, but it is reported (class filtered-copy). It needs
+	// installPaths.
+	PathFilter []PathFilterRule `json:"pathFilter,omitempty"`
+}
+
+// PathFilterRule names the files to filter out of the install surface by an
+// anchored glob over the whole repository path. The only wildcard is "*",
+// which matches within one path segment (never across "/"); "**", "?", "[",
+// "{" and "\\" are refused.
+type PathFilterRule struct {
+	Glob     string `json:"glob"`
+	Reason   string `json:"reason"`
+	Evidence string `json:"evidence"`
+}
+
+// validGlob checks the restricted glob syntax.
+func validGlob(g string) bool {
+	if g == "" || strings.HasPrefix(g, "/") || strings.HasSuffix(g, "/") || path.Clean(g) != g || g == "." || g == ".." || strings.HasPrefix(g, "../") {
+		return false
+	}
+	if strings.ContainsAny(g, "?[]{}\\") || strings.Contains(g, "**") {
+		return false
+	}
+	return true
+}
+
+// globMatch matches an anchored glob against a repository path: same number
+// of segments, each segment matched with "*" within the segment only.
+func globMatch(glob, p string) bool {
+	gs, ps := strings.Split(glob, "/"), strings.Split(p, "/")
+	if len(gs) != len(ps) {
+		return false
+	}
+	for i := range gs {
+		if ok, err := path.Match(gs[i], ps[i]); err != nil || !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // InstallPathRule declares one exact file or one directory prefix (path ends
@@ -127,6 +168,29 @@ func ParseRules(raw []byte) (*Rules, error) {
 		for j, o := range r.InstallPaths {
 			if i != j && (ip.Path == o.Path || (strings.HasSuffix(o.Path, "/") && strings.HasPrefix(ip.Path, o.Path))) {
 				return nil, fmt.Errorf("rules: install path %q duplicates or nests inside %q", ip.Path, o.Path)
+			}
+		}
+	}
+	if len(r.PathFilter) > 0 && len(r.InstallPaths) == 0 {
+		return nil, errors.New("rules: pathFilter needs installPaths")
+	}
+	for i, pf := range r.PathFilter {
+		if !validGlob(pf.Glob) {
+			return nil, fmt.Errorf("rules: path filter %q is not an anchored clean glob (only * within a segment is allowed)", pf.Glob)
+		}
+		if pf.Reason == "" || pf.Evidence == "" {
+			return nil, fmt.Errorf("rules: path filter %q needs a reason and pinned evidence", pf.Glob)
+		}
+		for _, ip := range r.InstallPaths {
+			// An optional entry must be read at the newest tag; a filter that
+			// removes it from the install surface would contradict that.
+			if ip.Optional && globMatch(pf.Glob, ip.Path) {
+				return nil, fmt.Errorf("rules: path filter %q matches the optional install path %q; a filter never removes an optional entry", pf.Glob, ip.Path)
+			}
+		}
+		for j, o := range r.PathFilter {
+			if i != j && pf.Glob == o.Glob {
+				return nil, fmt.Errorf("rules: duplicate path filter %q", pf.Glob)
 			}
 		}
 	}

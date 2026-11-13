@@ -36,6 +36,8 @@ const (
 	StopForeignCopyUnpinned   = "foreign-copy-unpinned"
 	StopWindowShortened       = "window-shortened"
 	StopInstallPathNothing    = "install-path-matches-nothing"
+	StopPathFilterNothing     = "path-filter-matches-nothing"
+	StopFilterHidesOwned      = "filter-hides-owned-group"
 )
 
 var nextAction = map[string]string{
@@ -61,6 +63,8 @@ var nextAction = map[string]string{
 	StopForeignCopyUnpinned:   "a definition file of another project's group sits outside the default-excluded directories (documentation or fixtures); add a reviewed pinned exclusion rule for the exact file or fixture directory",
 	StopWindowShortened:       "older tags were withheld and --strict-window forbids a shorter window; fix the withheld tags or drop the flag after review",
 	StopInstallPathNothing:    "an installPaths entry holds no definition file at this tag; correct the entry, or narrow the window past the tag",
+	StopPathFilterNothing:     "a pathFilter entry matches no file under installPaths at this tag; correct the glob, or narrow the window past the tag",
+	StopFilterHidesOwned:      "a pathFilter entry matches a file that defines a group the target reads; narrow the glob or review the file as install surface",
 	StopCommunityUpstream:     "a community-catalog row needs the upstream block (name, repository, license, licenseSource) in the rules file",
 }
 
@@ -112,6 +116,7 @@ const (
 	RuleIncludePinnedSurface   = "include-pinned-surface"
 	RuleIncludeInstallPath     = "include-install-path"
 	RuleNonInstallCopy         = "non-install-copy"
+	RuleFilteredCopy           = "filtered-copy"
 	RuleExcludePinnedFile      = "exclude-pinned-file"
 	RuleExcludePinnedFixtures  = "exclude-pinned-fixtures"
 	RuleFixtureDrop            = "fixture-drop"
@@ -172,6 +177,49 @@ type Report struct {
 	// whether the file was read or its absence verified. Present only when
 	// an optional entry is used; part of FactsDigest then.
 	OptionalPaths []OptionalFact `json:"optionalPaths,omitempty"`
+	// FilteredCopies are the files under installPaths removed from the install
+	// surface by a pathFilter entry, one per distinct (path, groups), with the
+	// window tags; sorted. Present only when pathFilter is used.
+	FilteredCopyCount int            `json:"filteredCopyCount,omitempty"`
+	FilteredCopies    []FilteredCopy `json:"filteredCopies,omitempty"`
+}
+
+// FilteredCopy is a definition file under installPaths that a pathFilter entry
+// removed from the install surface. It is reported, never dropped silently.
+type FilteredCopy struct {
+	Path   string   `json:"path"`
+	Glob   string   `json:"glob"`
+	Groups []string `json:"groups"`
+	Tags   []string `json:"tags,omitempty"`
+}
+
+// unionFiltered merges the per-tag filtered copies of the window.
+func unionFiltered(window []*tagResult) []FilteredCopy {
+	idx := map[string]int{}
+	var out []FilteredCopy
+	for _, r := range window {
+		for _, c := range r.filtered {
+			k := c.Path + "\x00" + c.Glob + "\x00" + strings.Join(c.Groups, ",")
+			i, ok := idx[k]
+			if !ok {
+				idx[k] = len(out)
+				i = len(out)
+				out = append(out, FilteredCopy{Path: c.Path, Glob: c.Glob, Groups: c.Groups})
+			}
+			out[i].Tags = append(out[i].Tags, r.tag)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		x, y := out[i], out[j]
+		if x.Path != y.Path {
+			return x.Path < y.Path
+		}
+		if x.Glob != y.Glob {
+			return x.Glob < y.Glob
+		}
+		return strings.Join(x.Groups, ",") < strings.Join(y.Groups, ",")
+	})
+	return out
 }
 
 // NonInstallCopy is a definition file the target does not read because it is
@@ -462,13 +510,18 @@ func build(in Input, catalog, component, fact, ownerRepo, prefix, minFrom string
 		rep.NonInstallCopies = copies
 		rep.NonInstallCopyCount = len(copies)
 	}
-	log := changelogText(in.Name, crdCount, gnames, prefix, minFrom, ordered, excls, window, len(copies))
+	filtered := unionFiltered(window)
+	if len(filtered) > 0 {
+		rep.FilteredCopies = filtered
+		rep.FilteredCopyCount = len(filtered)
+	}
+	log := changelogText(in.Name, crdCount, gnames, prefix, minFrom, ordered, excls, window, len(copies), len(filtered))
 	return &Result{A: a, B: b, TableRow: rowRaw, Changelog: []byte(log), Report: rep}, nil
 }
 
 func strconvQuote(s string) string { b, _ := json.Marshal(s); return string(b) }
 
-func changelogText(name string, crds int, groups []string, prefix, minFrom string, ordered []*inclusion, excls []exclOut, window []*tagResult, copies int) string {
+func changelogText(name string, crds int, groups []string, prefix, minFrom string, ordered []*inclusion, excls []exclOut, window []*tagResult, copies, filtered int) string {
 	regular, linked := 0, 0
 	for _, i := range ordered {
 		if i.LinkKind {
@@ -500,6 +553,9 @@ func changelogText(name string, crds int, groups []string, prefix, minFrom strin
 	}
 	if copies > 0 {
 		fmt.Fprintf(&b, "%d further definition file(s) outside the declared install paths are reported as non-install copies and are not read. ", copies)
+	}
+	if filtered > 0 {
+		fmt.Fprintf(&b, "%d definition file(s) inside the declared install paths are removed by a reviewed path filter, reported as filtered copies and not read. ", filtered)
 	}
 	fmt.Fprintf(&b, "The paths were derived from the source tree at the release tags %s. Attested pairs appear only after release derivation and a data change.\n", strings.Join(tags, ", "))
 	return b.String()
