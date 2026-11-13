@@ -8,7 +8,7 @@ The reviewed targets of the `crd.version-removal` extractor
 | Extractor id | Catalog | Repository | Release tags | First pair from | Attests lines | CRD manifests | Reviewed exclusions |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `crd.version-removal.akri` | CNCF | `github.com/project-akri/akri` | `vX.Y.Z` | 0.7 | no | `deployment/helm/crds/akri-instance-crd.yaml` | 0 |
-| `crd.version-removal.antrea` | CNCF | `github.com/antrea-io/antrea` | `vX.Y.Z` | 2.2 | no | files matching `^[^.][^/]*\.ya?ml$` in `build/charts/antrea/crds`, files matching `^[^.][^/]*\.ya?ml$` in `multicluster/config/crd/bases` (when present) | 0 |
+| `crd.version-removal.antrea` | CNCF | `github.com/antrea-io/antrea` | `vX.Y.Z` | 2.2 | yes | files matching `^[^.][^/]*\.ya?ml$` in `build/charts/antrea/crds`, files matching `^[^.][^/]*\.ya?ml$` in `multicluster/config/crd/bases` (when present), files matching `^[^.][^/]*\.ya?ml$` in `multicluster/config/crd/k8smcs`, `test/e2e-secondary-network/infra/network-attachment-definition-crd.yml` | 0 |
 | `crd.version-removal.argo-cd` | CNCF | `github.com/argoproj/argo-cd` | `vX.Y.Z` | 3.0 | yes | files matching `^[^.][^/]*\.ya?ml$` in `manifests/crds` | 0 |
 | `crd.version-removal.awx-operator` | community | `github.com/ansible/awx-operator` | `X.Y.Z` | 2.14 | yes | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.burrito` | community | `github.com/padok-team/burrito` | `vX.Y.Z` | 0.10 | yes | `manifests/crds/config.terraform.padok.cloud_terraformlayers.yaml`, `manifests/crds/config.terraform.padok.cloud_terraformpullrequests.yaml`, `manifests/crds/config.terraform.padok.cloud_terraformrepositories.yaml`, `manifests/crds/config.terraform.padok.cloud_terraformruns.yaml` | 0 |

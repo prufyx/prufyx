@@ -289,6 +289,7 @@ type removal struct {
 var alsoRequired = map[string][]Removal{
 	"identity target repo": {{Kind: KindIdentity, Project: "cilium", Detail: "component:pkg:github/evil/cilium"}},
 	"channel":              {{Kind: KindNarrowed, Project: "gateway-api", Detail: "declaredChannel:"}},
+	"remote added":         {{Kind: KindNarrowed, Project: "antrea", Detail: "attest"}},
 }
 
 var removals = []removal{
@@ -310,7 +311,10 @@ var removals = []removal{
 		editTarget(t, m, "kuma", func(tg map[string]any) { tg["tagPrefixes"] = []any{"v"} })
 	}, Removal{Kind: KindNarrowed, Project: "kuma", Detail: "tagPrefix:"}},
 	{"path", func(t *testing.T, m fstest.MapFS) {
-		editTarget(t, m, "antrea", func(tg map[string]any) { tg["paths"] = tg["paths"].([]any)[:1] })
+		editTarget(t, m, "antrea", func(tg map[string]any) {
+			paths := tg["paths"].([]any)
+			tg["paths"] = append(paths[:1], paths[2:]...)
+		})
 	}, Removal{Kind: KindNarrowed, Project: "antrea", Detail: "path:multicluster/config/crd/bases"}},
 	{"path made optional", func(t *testing.T, m fstest.MapFS) {
 		editTarget(t, m, "cilium", func(tg map[string]any) { tg["paths"].([]any)[0].(map[string]any)["optional"] = true })
@@ -343,6 +347,7 @@ var removals = []removal{
 	}, Removal{Kind: KindIdentity, Project: "cilium", Detail: "repo:github.com/evil/cilium"}},
 	{"remote added", func(t *testing.T, m fstest.MapFS) {
 		editTarget(t, m, "antrea", func(tg map[string]any) {
+			tg["attest"] = false
 			tg["remote"] = map[string]any{"fromLine": "3.0", "kustomization": "k.yaml", "repo": "github.com/other/x", "directory": "d", "pins": []any{map[string]any{"tag": "v1.0.0", "commit": strings.Repeat("c", 40)}}}
 		})
 	}, Removal{Kind: KindNarrowed, Project: "antrea", Detail: "remoteAdded:github.com/other/x"}},
