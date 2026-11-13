@@ -262,12 +262,14 @@ func checkRowKinds(inv *crdversions.Inventory, row customresources.Project) erro
 
 // checkGroupSources reads back, at the pair's later release, the file each
 // of the project's table groups cites: it must lie in the target's own
-// repository, under a listed path, and declare the group.
+// repository, under a listed path, and declare the group. The exact KubeVirt
+// constructor citation instead requires a fresh granted constructor projection.
 func checkGroupSources(src extract.PinnedReader, target crdversions.Target, row customresources.Project, commit string) error {
 	repo, err := extract.ParseRepo(target.Repo)
 	if err != nil {
 		return err
 	}
+	var constructorGroups []string
 	for _, g := range row.Groups {
 		m := groupSourceRE.FindStringSubmatch(g.Source)
 		if m == nil || "github.com/"+m[1] != target.Repo {
@@ -277,6 +279,12 @@ func checkGroupSources(src extract.PinnedReader, target crdversions.Target, row 
 			return fmt.Errorf("the group %s cites commit %s; it must cite the newest pair's later release %s", logSafe(g.Name), m[2], commit)
 		}
 		file := m[3]
+		// Never fall back to YAML-looking text for this constructor citation,
+		// including when the required profile was stripped from the target.
+		if file == "pkg/virt-operator/resource/generate/components/crds.go" && (target.Project == "kubevirt" || target.Repo == "github.com/kubevirt/kubevirt" || target.ConstructorProfile == "kubevirt-v1") {
+			constructorGroups = append(constructorGroups, g.Name)
+			continue
+		}
 		if !validOnboardingPath(file) || !underListedPath(target, file) {
 			return fmt.Errorf("the group %s cites %s, which is not under a listed path of the target", logSafe(g.Name), logSafe(file))
 		}
@@ -286,6 +294,11 @@ func checkGroupSources(src extract.PinnedReader, target crdversions.Target, row 
 		}
 		if !declaresGroup(raw, g.Name) {
 			return fmt.Errorf("the group %s: %s does not declare it", logSafe(g.Name), logSafe(file))
+		}
+	}
+	if len(constructorGroups) != 0 {
+		if err := crdversions.VerifyKubeVirtConstructorGroups(src, target, commit, "pkg/virt-operator/resource/generate/components/crds.go", constructorGroups); err != nil {
+			return fmt.Errorf("constructor group provenance: %w", err)
 		}
 	}
 	return nil
