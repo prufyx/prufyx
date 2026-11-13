@@ -52,7 +52,7 @@ func pfoRules(t *testing.T, filters string, optional bool, absent ...string) *Ru
 func TestPathFilterWithOptionalBothReportedSortedAndDeterministic(t *testing.T) {
 	repo := optRepo(t, pfoMutate)
 	run := func() *Result {
-		return mustGenerate(t, optInput(GitSource{Dir: repo}, pfoRules(t, pfFilter(pfoGlob), true, firstFive...)))
+		return mustGenerate(t, optInput(GitSource{Dir: repo}, pfoRules(t, pfFilterN(pfoGlob, 2), true, firstFive...)))
 	}
 	a, b := run(), run()
 	rep := a.Report
@@ -89,8 +89,8 @@ func TestPathFilterWithOptionalBothReportedSortedAndDeterministic(t *testing.T) 
 
 func TestPathFilterAndOptionalDigestLinesOnlyWhenUsed(t *testing.T) {
 	repo := optRepo(t, pfoMutate)
-	both := mustGenerate(t, optInput(GitSource{Dir: repo}, pfoRules(t, pfFilter(pfoGlob), true, firstFive...)))
-	filterOnly := mustGenerate(t, optInput(GitSource{Dir: repo}, pfoRules(t, pfFilter(pfoGlob), false)))
+	both := mustGenerate(t, optInput(GitSource{Dir: repo}, pfoRules(t, pfFilterN(pfoGlob, 2), true, firstFive...)))
+	filterOnly := mustGenerate(t, optInput(GitSource{Dir: repo}, pfoRules(t, pfFilterN(pfoGlob, 2), false)))
 	optOnlyRepo := optRepo(t, nil)
 	optOnly := mustGenerate(t, optInput(GitSource{Dir: optOnlyRepo}, optRules(t, firstFive...)))
 	if filterOnly.Report.OptionalPaths != nil || filterOnly.Report.FilteredCopyCount != 2 {
@@ -109,7 +109,7 @@ func TestPathFilterAndOptionalDigestLinesOnlyWhenUsed(t *testing.T) {
 			s.files["api/config/crd/policy.networking.k8s.io_c.yaml"] = ipCRD("policy.networking.k8s.io", "GammaPolicy")
 		}
 	})
-	moved := mustGenerate(t, optInput(GitSource{Dir: changed}, pfoRules(t, pfFilter(pfoGlob), true, firstFive...)))
+	moved := mustGenerate(t, optInput(GitSource{Dir: changed}, pfoRules(t, pfFilterN(pfoGlob, 2), true, firstFive...)))
 	if moved.Report.FactsDigest == both.Report.FactsDigest {
 		t.Fatal("filtered list change did not move the combined digest")
 	}
@@ -138,7 +138,7 @@ func TestPathFilterNoMatchAtOptionalAbsentTagDropsOnlyThatTag(t *testing.T) {
 			delete(s.files, pfoCopyB) // the filter matches nothing at the oldest tag
 		}
 	})
-	res := mustGenerate(t, optInput(GitSource{Dir: repo}, pfoRules(t, pfFilter(pfoGlob), true, firstFive...)))
+	res := mustGenerate(t, optInput(GitSource{Dir: repo}, pfoRules(t, pfFilterN(pfoGlob, 2), true, firstFive...)))
 	if len(res.Report.Dropped) != 1 || res.Report.Dropped[0].Tag != optTags[0] {
 		t.Fatalf("dropped %+v", res.Report.Dropped)
 	}
@@ -162,7 +162,7 @@ func TestPathFilterNoMatchAtNewestWithOptionalStops(t *testing.T) {
 			delete(s.files, pfoCopyB)
 		}
 	})
-	_, err := Generate(optInput(GitSource{Dir: repo}, pfoRules(t, pfFilter(pfoGlob), true, firstFive...)))
+	_, err := Generate(optInput(GitSource{Dir: repo}, pfoRules(t, pfFilterN(pfoGlob, 2), true, firstFive...)))
 	wantStop(t, err, StopPathFilterNothing)
 }
 

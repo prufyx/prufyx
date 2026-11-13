@@ -4,14 +4,18 @@ package targetdraft
 
 import (
 	"bytes"
+	"strconv"
 	"strings"
 	"testing"
 )
 
 const pfGlob = "api/config/crd/policy.networking.k8s.io_*.yaml"
 
-func pfFilter(glob string) string {
-	return `{"glob":"` + glob + `","reason":"r","evidence":"e"}`
+// pfFilter is an entry that pins one matched file per tag.
+func pfFilter(glob string) string { return pfFilterN(glob, 1) }
+
+func pfFilterN(glob string, n int) string {
+	return `{"glob":"` + glob + `","reason":"r","evidence":"e","expectFiles":` + strconv.Itoa(n) + `}`
 }
 
 func pfRules(t *testing.T, paths, filters string) *Rules {
@@ -118,7 +122,7 @@ func TestPathFilterDeterministic(t *testing.T) {
 		res := mustGenerate(t, ipInput(pfSource(func(_ string, m *memTree) {
 			m.files["api/config/crd/policy.networking.k8s.io_a.yaml"] = ipDocs(ipCRD("policy.networking.k8s.io", "A"))
 			m.files["api/config/crd/policy.networking.k8s.io_b.yaml"] = ipDocs(ipCRD("policy.networking.k8s.io", "B"))
-		}), pfRules(t, `[`+ipEntry+`]`, `[`+pfFilter(pfGlob)+`]`)))
+		}), pfRules(t, `[`+ipEntry+`]`, `[`+pfFilterN(pfGlob, 3)+`]`)))
 		rep, _ := marshal(res.Report)
 		return [][]byte{res.A, res.B, res.TableRow, res.Changelog, rep}
 	}
@@ -130,7 +134,7 @@ func TestPathFilterDeterministic(t *testing.T) {
 	}
 	res := mustGenerate(t, ipInput(pfSource(func(_ string, m *memTree) {
 		m.files["api/config/crd/policy.networking.k8s.io_a.yaml"] = ipDocs(ipCRD("policy.networking.k8s.io", "A"))
-	}), pfRules(t, `[`+ipEntry+`]`, `[`+pfFilter(pfGlob)+`]`)))
+	}), pfRules(t, `[`+ipEntry+`]`, `[`+pfFilterN(pfGlob, 2)+`]`)))
 	var paths []string
 	for _, c := range res.Report.FilteredCopies {
 		paths = append(paths, c.Path)
@@ -146,7 +150,8 @@ func TestPathFilterListIsInFactsDigest(t *testing.T) {
 	base := mustGenerate(t, ipInput(pfSource(nil), rules))
 	other := mustGenerate(t, ipInput(pfSource(func(tag string, m *memTree) {
 		if tag == "v1.3.0" {
-			m.files["api/config/crd/policy.networking.k8s.io_extra.yaml"] = ipDocs(ipCRD("policy.networking.k8s.io", "Extra"))
+			delete(m.files, "api/config/crd/policy.networking.k8s.io_clusternetworkpolicies.yaml")
+			m.files["api/config/crd/policy.networking.k8s.io_renamed.yaml"] = ipDocs(ipCRD("policy.networking.k8s.io", "ClusterNetworkPolicy"))
 		}
 	}), rules))
 	if base.Report.FactsDigest == other.Report.FactsDigest {
@@ -197,7 +202,17 @@ func TestPathFilterParseFailsClosed(t *testing.T) {
 		`[{"glob":"api/*.yaml","reason":"","evidence":"e"}]`,
 		`[{"glob":"api/*.yaml","reason":"r","evidence":""}]`,
 		`[{"glob":"api/*.yaml","reason":"r","evidence":"e"},{"glob":"api/*.yaml","reason":"r","evidence":"e"}]`,
-		`[{"glob":"api/*.yaml","reason":"r","evidence":"e","extra":1}]`,
+		`[{"glob":"api/*.yaml","reason":"r","evidence":"e","expectFiles":1,"extra":1}]`,
+		`[{"glob":"api/*.yaml","reason":"r","evidence":"e"}]`,
+		`[{"glob":"api/*.yaml","reason":"r","evidence":"e","expectFiles":0}]`,
+		`[{"glob":"api/*.yaml","reason":"r","evidence":"e","expectFiles":-1}]`,
+		`[{"glob":"api/*.yaml","reason":"r","evidence":"e","expectFiles":1.5}]`,
+		`[{"glob":"api/*.yaml","reason":"r","evidence":"e","expectFiles":"1"}]`,
+		`[{"glob":"api/\tx*.yaml","reason":"r","evidence":"e","expectFiles":1}]`,
+		`[{"glob":"api/\nx*.yaml","reason":"r","evidence":"e","expectFiles":1}]`,
+		`[{"glob":"api/\u0000x*.yaml","reason":"r","evidence":"e","expectFiles":1}]`,
+		`[{"glob":"api/\u007fx*.yaml","reason":"r","evidence":"e","expectFiles":1}]`,
+		`[{"glob":"api/\u0085x*.yaml","reason":"r","evidence":"e","expectFiles":1}]`,
 	}
 	for _, b := range bad {
 		if _, err := ParseRules([]byte(base + b + `}`)); err == nil {
@@ -232,4 +247,103 @@ func TestGlobMatch(t *testing.T) {
 			t.Errorf("globMatch(%q, %q) = %v", c.glob, c.p, got)
 		}
 	}
+}
+
+// Table: the owner check is fail closed and the pinned count catches an
+// over-broad glob. The index is the reviewed table: networking.istio.io has a
+// known other owner, example.invalid and widgets.example.test have none.
+func TestPathFilterFailClosedOwnership(t *testing.T) {
+	cases := []struct {
+		name    string
+		filters string
+		mutate  func(tag string, m *memTree)
+		code    string // empty = passes
+	}{
+		{"filter hides the sole file of a group no one owns",
+			`[` + pfFilter("api/config/crd/widgets.example.test_betas.yaml") + `]`, func(_ string, m *memTree) {
+				delete(m.files, "api/config/crd/widgets.example.test_alphas.yaml")
+			}, StopFilterHidesUnowned},
+		{"unknown-owner group is hidden",
+			`[` + pfFilter(pfGlob) + `,` + pfFilter("api/config/crd/unknown_*.yaml") + `]`, func(_ string, m *memTree) {
+				m.files["api/config/crd/unknown_x.yaml"] = ipDocs(ipCRD("unknown.example.invalid", "X"))
+			}, StopFilterHidesUnowned},
+		{"one known-other-owner and one unknown group in one file",
+			`[` + pfFilter(pfGlob) + `,` + pfFilter("api/config/crd/mixed.yaml") + `]`, func(_ string, m *memTree) {
+				m.files["api/config/crd/mixed.yaml"] = ipDocs(ipCRD("networking.istio.io", "Gateway"), ipCRD("unknown.example.invalid", "X"))
+			}, StopFilterHidesUnowned},
+		{"over-broad glob matches more files than pinned",
+			`[` + pfFilter("api/config/crd/policy.networking.k8s.io_*.yaml") + `]`, func(_ string, m *memTree) {
+				m.files["api/config/crd/policy.networking.k8s.io_more.yaml"] = ipDocs(ipCRD("policy.networking.k8s.io", "More"))
+			}, StopPathFilterCount},
+		{"fewer files than pinned",
+			`[` + pfFilterN(pfGlob, 2) + `]`, nil, StopPathFilterCount},
+		{"exact count with a known other owner",
+			`[` + pfFilter(pfGlob) + `,` + pfFilter("api/config/crd/istio_*.yaml") + `]`, func(_ string, m *memTree) {
+				m.files["api/config/crd/istio_gw.yaml"] = ipDocs(ipCRD("networking.istio.io", "Gateway"))
+			}, ""},
+		{"reserved and Kubernetes copy case",
+			`[` + pfFilter(pfGlob) + `,` + pfFilterN("api/config/crd/*_copy.yaml", 2) + `]`, func(_ string, m *memTree) {
+				m.files["api/config/crd/a_copy.yaml"] = ipDocs(ipCRD("policy.networking.k8s.io", "A"))
+				m.files["api/config/crd/b_copy.yaml"] = ipDocs(ipCRD("apiextensions.k8s.io", "B"))
+			}, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			rules := pfRules(t, `[`+ipEntry+`]`, c.filters)
+			_, err := Generate(ipInput(pfSource(c.mutate), rules))
+			if c.code == "" {
+				if err != nil {
+					t.Fatalf("want pass, got %v", err)
+				}
+				return
+			}
+			wantStop(t, err, c.code)
+		})
+	}
+}
+
+func TestPathFilterRejectsControlCharactersInPaths(t *testing.T) {
+	for _, p := range []string{"api/a\tb/", "api/a\nb/", "api/a\u0000b/", "api/\xffb/"} {
+		raw := `{"schema":"prufyx.io/target-draft-rules/v1","installSurface":[],"exclusions":[],"installPaths":[{"path":"` + p + `","reason":"r","evidence":"e"}]}`
+		if _, err := ParseRules([]byte(raw)); err == nil {
+			t.Errorf("accepted install path %q", p)
+		}
+	}
+}
+
+// No value can put a tab or newline into a digest line: a path with control
+// characters is quoted, and a clean one is unchanged.
+func TestSafeFieldNoControlCharacters(t *testing.T) {
+	for _, s := range []string{"a\tb", "a\nb", "a\x00b", "a\rb", "a\x7fb", "a\xffb", "a\u0085b"} {
+		got := safeField(s)
+		if !cleanText(got) || strings.ContainsAny(got, "\t\n") {
+			t.Errorf("safeField(%q) = %q", s, got)
+		}
+	}
+	if safeField("api/ok.yaml") != "api/ok.yaml" {
+		t.Error("a clean field changed")
+	}
+	res := mustGenerate(t, ipInput(pfSource(func(_ string, m *memTree) {
+		m.files["api/config/crd/policy.networking.k8s.io_a\tb\nc.yaml"] = ipDocs(ipCRD("policy.networking.k8s.io", "Tab"))
+	}), pfRules(t, `[`+ipEntry+`]`, `[`+pfFilterN("api/config/crd/policy.networking.k8s.io_*.yaml", 2)+`]`)))
+	if res.Report.FactsDigest == "" {
+		t.Fatal("no digest")
+	}
+}
+
+// An over-broad glob swallows the only file of a second group that the index
+// lists for the target's own slug: stop, never a silent filtered copy.
+func TestPathFilterHidesSoleFileOfSecondOwnedGroup(t *testing.T) {
+	src := ipSource(func(_ string, m *memTree) {
+		for p := range m.files {
+			delete(m.files, p)
+		}
+		m.files["api/config/crd/keep.yaml"] = ipDocs(ipCRD("extensions.istio.io", "Keep"))
+		m.files["api/config/crd/hidden.yaml"] = ipDocs(ipCRD("security.istio.io", "Hidden"))
+	})
+	rules := pfRules(t, `[`+ipEntry+`]`, `[`+pfFilter("api/config/crd/hid*.yaml")+`]`)
+	in := ipInput(src, rules)
+	in.Slug = "istio"
+	_, err := Generate(in)
+	wantStop(t, err, StopFilterHidesOwned)
 }

@@ -38,6 +38,8 @@ const (
 	StopInstallPathNothing    = "install-path-matches-nothing"
 	StopPathFilterNothing     = "path-filter-matches-nothing"
 	StopFilterHidesOwned      = "filter-hides-owned-group"
+	StopFilterHidesUnowned    = "filter-hides-unowned-group"
+	StopPathFilterCount       = "path-filter-count-mismatch"
 )
 
 var nextAction = map[string]string{
@@ -64,6 +66,8 @@ var nextAction = map[string]string{
 	StopWindowShortened:       "older tags were withheld and --strict-window forbids a shorter window; fix the withheld tags or drop the flag after review",
 	StopInstallPathNothing:    "an installPaths entry holds no definition file at this tag; correct the entry, or narrow the window past the tag",
 	StopPathFilterNothing:     "a pathFilter entry matches no file under installPaths at this tag; correct the glob, or narrow the window past the tag",
+	StopFilterHidesUnowned:    "a pathFilter entry matches a file whose group has no single known owner in the ownership index; add the group to the reviewed index or narrow the glob so the file stays install surface",
+	StopPathFilterCount:       "a pathFilter entry matches a different number of files than its pinned expectFiles at this tag; re-review the files the glob matches and pin the exact count, or narrow the glob",
 	StopFilterHidesOwned:      "a pathFilter entry matches a file that defines a group the target reads; narrow the glob or review the file as install surface",
 	StopCommunityUpstream:     "a community-catalog row needs the upstream block (name, repository, license, licenseSource) in the rules file",
 }

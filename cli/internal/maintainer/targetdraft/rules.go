@@ -10,6 +10,8 @@ import (
 	"io"
 	"path"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // RulesSchema identifies a pinned rules file.
@@ -58,10 +60,31 @@ type PathFilterRule struct {
 	Glob     string `json:"glob"`
 	Reason   string `json:"reason"`
 	Evidence string `json:"evidence"`
+	// ExpectFiles is the exact number of files the entry must match under
+	// installPaths at every tag. Required (a positive integer): the rules
+	// author pins it from reviewed evidence, so an over-broad glob is a stop.
+	ExpectFiles int `json:"expectFiles"`
+}
+
+// cleanText reports whether s is valid UTF-8 without control characters.
+func cleanText(s string) bool {
+	if !utf8.ValidString(s) {
+		return false
+	}
+	for _, c := range s {
+		// U+FFFD is what a JSON decoder substitutes for invalid UTF-8.
+		if unicode.IsControl(c) || c == utf8.RuneError {
+			return false
+		}
+	}
+	return true
 }
 
 // validGlob checks the restricted glob syntax.
 func validGlob(g string) bool {
+	if !cleanText(g) {
+		return false
+	}
 	if g == "" || strings.HasPrefix(g, "/") || strings.HasSuffix(g, "/") || path.Clean(g) != g || g == "." || g == ".." || strings.HasPrefix(g, "../") {
 		return false
 	}
@@ -137,6 +160,9 @@ func ParseRules(raw []byte) (*Rules, error) {
 	}
 	seen := map[string]bool{}
 	cleanPath := func(p string) error {
+		if !cleanText(p) {
+			return fmt.Errorf("rules: path %q has control characters or invalid UTF-8", p)
+		}
 		q := strings.TrimSuffix(p, "/")
 		if q == "" || strings.HasPrefix(q, "/") || path.Clean(q) != q || q == ".." || strings.HasPrefix(q, "../") || strings.Contains(q, "\\") {
 			return fmt.Errorf("rules: path %q is not a clean repository path", p)
@@ -180,6 +206,9 @@ func ParseRules(raw []byte) (*Rules, error) {
 		}
 		if pf.Reason == "" || pf.Evidence == "" {
 			return nil, fmt.Errorf("rules: path filter %q needs a reason and pinned evidence", pf.Glob)
+		}
+		if pf.ExpectFiles < 1 {
+			return nil, fmt.Errorf("rules: path filter %q needs expectFiles, the exact number of files it matches at every tag (a positive integer pinned from reviewed evidence)", pf.Glob)
 		}
 		for _, ip := range r.InstallPaths {
 			// An optional entry must be read at the newest tag; a filter that
