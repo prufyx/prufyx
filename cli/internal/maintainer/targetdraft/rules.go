@@ -51,6 +51,11 @@ type InstallPathRule struct {
 	Path     string `json:"path"`
 	Reason   string `json:"reason"`
 	Evidence string `json:"evidence"`
+	// Optional marks an exact file that the oldest tags of the window do not
+	// carry; AbsentTags names the tags where its absence is proven. See
+	// optional.go.
+	Optional   bool     `json:"optional,omitempty"`
+	AbsentTags []string `json:"absentTags,omitempty"`
 }
 
 // Upstream mirrors the provenance block of a community table row.
@@ -115,6 +120,9 @@ func ParseRules(raw []byte) (*Rules, error) {
 		}
 		if ip.Reason == "" || ip.Evidence == "" {
 			return nil, fmt.Errorf("rules: install path %q needs a reason and pinned evidence", ip.Path)
+		}
+		if err := validateOptionalEntry(ip); err != nil {
+			return nil, err
 		}
 		for j, o := range r.InstallPaths {
 			if i != j && (ip.Path == o.Path || (strings.HasSuffix(o.Path, "/") && strings.HasPrefix(ip.Path, o.Path))) {
