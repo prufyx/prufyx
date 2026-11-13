@@ -368,7 +368,8 @@ type Inventory struct {
 	CRDs               []CRD        `json:"crds"`
 	// Foreign names the definitions found under the listed paths that were
 	// left out because the reviewed custom-resource table assigns their
-	// group and kind to another project; absent when there are none.
+	// group and kind to another project, or the verified Antrea mode profile
+	// identifies an exact installed MCS dependency; absent when there are none.
 	Foreign []string `json:"foreign,omitempty"`
 	// Remote records where the definitions were read when the release
 	// installs from another repository; absent otherwise.
@@ -416,10 +417,17 @@ func (x *Extractor) inventory(r extract.PinnedReader, repo extract.RepoRef, tag,
 	}
 	var inv *Inventory
 	var err error
+	at := x.attribution()
+	if x.target.Component == antreaComponent {
+		// Preserve all parsed definitions until the source-bound MCS
+		// dependency identities have been verified. readTag attributes a
+		// copy; the cached source inventory remains raw.
+		at = attribution{}
+	}
 	if line := x.lineFor(tag, commit, version); x.target.Remote.appliesTo(line.Major, line.Minor) {
-		inv, err = readRemoteInventory(r, repo, x.target, x.attribution(), commit)
+		inv, err = readRemoteInventory(r, repo, x.target, at, commit)
 	} else {
-		inv, err = readInventory(r, repo, x.target, x.attribution(), commit)
+		inv, err = readInventory(r, repo, x.target, at, commit)
 	}
 	if inv != nil {
 		inv.Tag = tag
@@ -871,6 +879,14 @@ func (x *Extractor) readTag(ctx context.Context, r extract.PinnedReader, repo ex
 		return nil, err
 	}
 	st.scan = sc
+	if x.target.Component == antreaComponent {
+		attributed, err := x.attributedAntreaInventory(repo, st.inv, sc.AntreaModes)
+		if err != nil {
+			st.err = err
+			return st, nil
+		}
+		st.inv = attributed
+	}
 	inv := *st.inv
 	inv.Scan = sc
 	st.inv = &inv
@@ -1754,6 +1770,10 @@ func completeness(component string, fromLine, toLine *releaseLine, from, to []*t
 	}
 	for _, u := range unlisted {
 		c.Reasons = append(c.Reasons, fmt.Sprintf("%s is served outside the listed paths (%s at %s) and by no file of the later line", u.Member, u.Path, u.FromTag))
+	}
+	if problems := antreaModeProblems(component, append(append([]*tagState{}, from...), to...)); len(problems) > 0 {
+		c.Scan = false
+		c.Reasons = append(c.Reasons, problems...)
 	}
 	// An unlisted removal comes from an extra definition, which already
 	// keeps the scan from being clean.

@@ -154,11 +154,12 @@ func TestOnboardingAddedFindingClasses(t *testing.T) {
 // refused in a proof: the record does not validate, so it can be neither
 // signed nor verified.
 var obRefusedClasses = map[string]string{
-	crdversions.ClassVoided:         "a reviewed exclusion that does not hold: a batch's target has no exclusion",
-	crdversions.ClassExcludedUnread: "an unread file under a reviewed exclusion: a batch's target has no exclusion",
-	crdversions.ClassPrePatchCopy:   "a copy under a reviewed pre-patch exclusion: a batch's target has no exclusion",
-	crdversions.ClassPrePatch:       "a kustomization of a reviewed pre-patch exclusion: a batch's target has no exclusion",
-	crdversions.ClassNoDefinition:   "a file under a reviewed exclusion that defines nothing: a batch's target has no exclusion",
+	crdversions.ClassAntreaModePatch: "a project-specific reviewed mode profile is not first-time onboarding authority",
+	crdversions.ClassVoided:          "a reviewed exclusion that does not hold: a batch's target has no exclusion",
+	crdversions.ClassExcludedUnread:  "an unread file under a reviewed exclusion: a batch's target has no exclusion",
+	crdversions.ClassPrePatchCopy:    "a copy under a reviewed pre-patch exclusion: a batch's target has no exclusion",
+	crdversions.ClassPrePatch:        "a kustomization of a reviewed pre-patch exclusion: a batch's target has no exclusion",
+	crdversions.ClassNoDefinition:    "a file under a reviewed exclusion that defines nothing: a batch's target has no exclusion",
 }
 
 func TestOnboardingRefusedFindingClasses(t *testing.T) {

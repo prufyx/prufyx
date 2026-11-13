@@ -3,6 +3,7 @@
 package crdversions
 
 import (
+	"fmt"
 	"io"
 	"io/fs"
 	"path"
@@ -45,7 +46,16 @@ const AttributionFileName = "attribution.json"
 // CodeViewWithIndex is CodeView for an extractor that attributes by ix.
 func CodeViewWithIndex(fsys fs.FS, project string, ix customresources.Index) fs.FS {
 	v := codeView{fsys: fsys, own: TargetFileName(project)}
-	if lines := ix.ListingsSharing(project); len(lines) > 0 {
+	lines := ix.ListingsSharing(project)
+	if project == "antrea" {
+		// Dependency attribution can veto an Antrea line even when the
+		// shared group is not in Antrea's ownership listing.
+		for _, dependency := range antreaMCSDependencies {
+			owner, attribution := ix.OwnerOf("multicluster.x-k8s.io", dependency.kind)
+			lines = append(lines, fmt.Sprintf("installed-dependency\t%s\t%s\t%d", dependency.name, owner, attribution))
+		}
+	}
+	if len(lines) > 0 {
 		v.attr = []byte(strings.Join(lines, "\n") + "\n")
 	}
 	return v

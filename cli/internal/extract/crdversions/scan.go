@@ -225,6 +225,9 @@ type ScanRecord struct {
 	ForeignCopies []ForeignCopy `json:"foreignCopies,omitempty"`
 	// Findings are the files of every other class, sorted by path.
 	Findings []Finding `json:"findings"`
+	// AntreaModes is freshly verified against the complete pinned mode
+	// source inventory, independently of the CRD-word candidate filter.
+	AntreaModes *AntreaModeRecord `json:"antreaModes,omitempty"`
 }
 
 // CopyRecord is one file of class copy: why the scan took it for a copy.
@@ -345,7 +348,7 @@ type Finding struct {
 // blocks reports whether a finding keeps the scan from being clean.
 func (f Finding) blocks() bool {
 	switch f.Class {
-	case ClassSchemaPatch, ClassCRDPatch, ClassKustomizeConfig, ClassLegacyCopy, ClassTemplatedCopy, ClassPrePatchCopy, ClassPrePatch, ClassExcluded, ClassExcludedUnread, ClassNoDefinition:
+	case ClassSchemaPatch, ClassCRDPatch, ClassKustomizeConfig, ClassLegacyCopy, ClassTemplatedCopy, ClassPrePatchCopy, ClassPrePatch, ClassExcluded, ClassExcludedUnread, ClassNoDefinition, ClassAntreaModePatch:
 		return false
 	}
 	return true
@@ -656,6 +659,7 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 	declared := x.declaredFiles(inv)
 	hits := map[string]bool{}
 	var blobs []extract.TreeEntry
+	var modeEntries []extract.TreeEntry
 	var commits []string
 	dirs := []string{""}
 	listed := 0
@@ -674,6 +678,9 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 			return nil, fmt.Errorf("scan listing %q at %s: %w", dir, commit, err)
 		}
 		for _, e := range entries {
+			if x.target.Component == antreaComponent && antreaModeScope(e.Path) {
+				modeEntries = append(modeEntries, e)
+			}
 			switch e.Type {
 			case "tree":
 				dirs = append(dirs, e.Path)
@@ -795,6 +802,9 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 		return nil, err
 	}
 	rec.Findings = append(rec.Findings, cfg...)
+	if err := x.checkAntreaModes(r, repo, commit, modeEntries, rec); err != nil {
+		return nil, err
+	}
 	for h := range hits {
 		rec.Exclusions = append(rec.Exclusions, h)
 	}
