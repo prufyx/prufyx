@@ -11,9 +11,14 @@ import (
 	"testing"
 )
 
-// The floors are a ratchet with zero slack: each must equal the number the
-// README prints. A legitimate drop goes through a named withdrawal.
-const baselineUpdateHint = "update testdata/readme-baseline.json deliberately, in the pull request that changes the README numbers (set the floor to the published value; a legitimate drop needs a named withdrawal with a reason)"
+// The floors hold the published README numbers from below: a published number
+// may be above its floor (a data change raises it without touching the
+// baseline) but never below it, except by what a named withdrawal allows. The
+// ratchet itself lives elsewhere: CI (TestBaselineNotLowered) refuses a lowered
+// floor against the base branch, and the knowledge gate holds the recomputed
+// numbers of a change against the floor of the BASE tree. A stale floor
+// therefore cannot hide a drop.
+const baselineUpdateHint = "restore the coverage, or add a named withdrawal with a reason to testdata/readme-baseline.json (the floor itself is never lowered)"
 
 // parseCount reads the count of the README table row with the given label
 // (the labels are the generator's own constants). It fails closed when the row
@@ -28,9 +33,11 @@ func parseCount(block, label string) (int, error) {
 	return strconv.Atoi(m[0][1])
 }
 
-func checkFloorVsPublished(name string, floor, published int) error {
-	if floor != published {
-		return fmt.Errorf("baseline %s floor %d differs from the published README number %d; %s", name, floor, published, baselineUpdateHint)
+// checkFloorVsPublished fails when the published number is below the floor
+// minus the allowance of the named withdrawals. Above or equal passes.
+func checkFloorVsPublished(name string, floor, published, allowance int) error {
+	if published < floor-allowance {
+		return fmt.Errorf("published README %s %d is below the baseline floor %d (named withdrawals allow %d); %s", name, published, floor, allowance, baselineUpdateHint)
 	}
 	return nil
 }
@@ -56,15 +63,18 @@ func TestParseCount(t *testing.T) {
 
 func TestCheckFloorVsPublished(t *testing.T) {
 	for _, tc := range []struct {
-		name       string
-		floor, pub int
-		fail       bool
+		name            string
+		floor, pub, all int
+		fail            bool
 	}{
-		{"equal", 49, 49, false},
-		{"floor above published", 50, 49, true},
-		{"floor below published", 46, 49, true},
+		{"equal", 49, 49, 0, false},
+		{"published raised above floor", 49, 63, 0, false},
+		{"published dropped below floor", 49, 48, 0, true},
+		{"drop with stale high floor", 63, 53, 0, true},
+		{"drop covered by withdrawal", 49, 46, 3, false},
+		{"drop beyond withdrawal", 49, 45, 3, true},
 	} {
-		err := checkFloorVsPublished("decidedPairs", tc.floor, tc.pub)
+		err := checkFloorVsPublished("decidedPairs", tc.floor, tc.pub, tc.all)
 		if (err != nil) != tc.fail {
 			t.Errorf("%s: %v", tc.name, err)
 		}
@@ -93,18 +103,23 @@ func TestBaselineTiedToPublishedNumbers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	allowPairs, allowCRD := 0, 0
+	for _, w := range b.Withdrawals {
+		allowPairs += w.DecidedPairs
+		allowCRD += w.CRDProjects
+	}
 	for _, c := range []struct {
-		label, name string
-		floor       int
+		label, name      string
+		floor, allowance int
 	}{
-		{readmeDecidedLabel, "decidedPairs", b.DecidedPairs},
-		{readmeCRDLabel, "crdPublishedProjects", b.CRDProjects},
+		{readmeDecidedLabel, "decidedPairs", b.DecidedPairs, allowPairs},
+		{readmeCRDLabel, "crdPublishedProjects", b.CRDProjects, allowCRD},
 	} {
 		pub, err := parseCount(block, c.label)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := checkFloorVsPublished(c.name, c.floor, pub); err != nil {
+		if err := checkFloorVsPublished(c.name, c.floor, pub, c.allowance); err != nil {
 			t.Error(err)
 		}
 	}
