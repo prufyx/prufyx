@@ -207,8 +207,8 @@ func TestWithheldPairIsNotAttested(t *testing.T) {
 	}
 }
 
-// Registered Strimzi (0.51 -> 1.0: a new major with removed definitions)
-// and Antrea (a target that does not attest) derive rules and attest nothing.
+// Registered Strimzi's major hop with removed definitions does not attest.
+// Antrea enables only the CRD family with its required dependency sources.
 func TestRealTargetsAttestOnlyWhatTheyMay(t *testing.T) {
 	out := mustRun(t, "strimzi", extract.FixtureReader{Root: strimziRoot})
 	if len(out.Attestations) != 0 {
@@ -219,9 +219,21 @@ func TestRealTargetsAttestOnlyWhatTheyMay(t *testing.T) {
 			t.Fatalf("strimzi pair %s: %+v", p.From+"->"+p.To, p.Attestation)
 		}
 	}
-	tg, _ := TargetFor("antrea")
-	if tg.Attest || len(New(tg).AttestedFamilies()) != 0 {
-		t.Fatal("antrea attests")
+	tg, ok := TargetFor("antrea")
+	if !ok || !tg.Attest || !slices.Equal(New(tg).AttestedFamilies(), []string{lineattest.FamilyCustomResourceVersions}) || len(tg.Exclude) != 0 {
+		t.Fatal("antrea must attest only the CRD family without scan exclusions")
+	}
+	required := map[string]bool{
+		"multicluster/config/crd/k8smcs":                                         true,
+		"test/e2e-secondary-network/infra/network-attachment-definition-crd.yml": false,
+	}
+	for _, spec := range tg.Paths {
+		if directory, present := required[spec.Path]; present && spec.Dir == directory && !spec.Optional {
+			delete(required, spec.Path)
+		}
+	}
+	if len(required) != 0 {
+		t.Fatalf("antrea mandatory dependency sources missing: %v", required)
 	}
 }
 

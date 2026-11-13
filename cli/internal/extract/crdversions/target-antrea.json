@@ -8,9 +8,12 @@
     "factProject": "antrea",
     "tagPrefixes": ["v"],
     "minFrom": "2.2",
+    "attest": true,
     "paths": [
       {"path": "build/charts/antrea/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"},
-      {"path": "multicluster/config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd", "optional": true}
+      {"path": "multicluster/config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd", "optional": true},
+      {"path": "multicluster/config/crd/k8smcs", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"},
+      {"path": "test/e2e-secondary-network/infra/network-attachment-definition-crd.yml"}
     ],
     "exclude": []
   }
