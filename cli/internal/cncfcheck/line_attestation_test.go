@@ -187,8 +187,15 @@ func TestEmbeddedPackLineAttestations(t *testing.T) {
 			}
 		}
 		for i, a := range atts {
-			if a.Component != want[i].Component || a.Line != want[i].Line || a.FactFamily != crdbatchids.FactFamily || a.Completeness != lineattest.Completeness || a.RuleIDs == nil || len(a.RuleIDs) != 0 {
+			if a.Component != want[i].Component || a.Line != want[i].Line || a.FactFamily != crdbatchids.FactFamily || a.Completeness != lineattest.Completeness || a.RuleIDs == nil {
 				t.Fatalf("published attestation %d %+v, the batch states %+v", i, a.Key(), want[i])
+			}
+			// A line lists rules only when they are known mechanical rules of
+			// the pack (crdbatchids.Holds states which).
+			for _, id := range a.RuleIDs {
+				if !crdbatchids.IsForeign(id) || !known[id] {
+					t.Fatalf("published attestation %s lists %q, which is not a known mechanical rule of the pack", a.Key(), id)
+				}
 			}
 			// The extractor id, the quiet line and customResourceProjectOf are the
 			// real guard for lines of other projects: the count and order

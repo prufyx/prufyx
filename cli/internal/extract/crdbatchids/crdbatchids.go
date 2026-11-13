@@ -62,8 +62,8 @@ var rules = []Rule{
 	{"strimzi.crd-version-removal.strimzipodsets-core-strimzi-io.0-51-0-to-1-0-0", "strimzi", "pkg:github/strimzi/strimzi-kafka-operator", "0.51.0", "1.0.0", []string{"core.strimzi.io/v1beta2/StrimziPodSet"}},
 }
 
-// Line is one line attestation of the batch: a quiet line (no rule) of the
-// custom-resource version family.
+// Line is one line attestation of the family: the batch's are quiet (no
+// rule) lines of the custom-resource version family.
 type Line struct {
 	Component string
 	Line      string
@@ -112,9 +112,10 @@ func ProjectRules(project string) []Rule {
 // Lines returns the batch's line attestations.
 func Lines() []Line { return append([]Line(nil), lines...) }
 
-// ShippedLines returns every quiet custom-resource-family line attestation
-// the shipped pack carries once the batch is shipped (the batch's and the
-// other quiet lines the pack holds, whatever project they belong to),
+// ShippedLines returns every custom-resource-family line attestation the
+// shipped pack carries once the batch is shipped (the batch's, the other
+// quiet lines the pack holds and the foreign lines that list known
+// mechanical rules, whatever project they belong to),
 // ordered as the pack orders them; none before.
 func ShippedLines() []Line {
 	if !Shipped() {
@@ -264,21 +265,29 @@ type subject struct {
 }
 
 // Holds reports whether pack holds the batch (true) or none of it (false).
-// A pack holding part of the batch, a batch rule that differs from its
-// statement here (project, operator, subject, set condition), a line
-// attestation of the family that is repeated or lists rules without being
-// a line of the batch, or a custom-resource version-removal rule of another
-// project's mechanical extractor that is not shaped like one is an error;
-// well-shaped foreign rules are accepted and never count as the batch. Quiet lines of the family that are not the batch's are accepted
-// whatever project they belong to: other changes ship them (and the
-// factory's onboarding adds more), so no list of them is kept here.
+// It is an error when the pack:
+//   - holds part of the batch, or a batch rule that differs from its
+//     statement here (project, operator, subject, set condition);
+//   - repeats a rule id or a line attestation of the family;
+//   - holds a custom-resource version-removal rule outside the batch that is
+//     not shaped like its project's mechanical rule;
+//   - holds a line attestation of the family that lists rules without being
+//     a line of known mechanical rules, or a quiet line that leaves out such
+//     a rule (see foreignLineError; withdrawn rules count, as they do for
+//     the pack's own line check).
+//
+// Well-shaped foreign rules are accepted and never count as the batch. Lines
+// of the family that are not the batch's are accepted whatever project they
+// belong to when they are quiet or list their known rules exactly: other
+// changes ship them (and the factory's onboarding adds more), so no list of
+// them is kept here.
 func Holds(pack []byte) (bool, error) {
 	held, _, err := holds(pack)
 	return held, err
 }
 
-// holds is Holds that also returns the pack's quiet lines of the family
-// that are not the batch's.
+// holds is Holds that also returns the pack's lines of the family that are
+// not the batch's.
 func holds(pack []byte) (bool, []Line, error) {
 	var p struct {
 		Entries []struct {
@@ -288,6 +297,12 @@ func holds(pack []byte) (bool, []Line, error) {
 				Operator     string        `json:"operator"`
 				Subject      subject       `json:"subject"`
 				SetCondition *setCondition `json:"setCondition"`
+				Evidence     struct {
+					Basis     string `json:"basis"`
+					Extractor *struct {
+						ID string `json:"id"`
+					} `json:"extractor"`
+				} `json:"evidence"`
 			} `json:"rule"`
 		} `json:"entries"`
 		LineAttestations []struct {
@@ -305,14 +320,27 @@ func holds(pack []byte) (bool, []Line, error) {
 		byID[r.ID] = r
 	}
 	held := 0
+	// known are the shipped pack's well-shaped mechanical rules that are not
+	// the batch's, by id: the only rules a foreign line may list.
+	known := map[string]knownRule{}
+	seenIDs := map[string]bool{}
 	for _, entry := range p.Entries {
 		got := entry.Rule
+		if seenIDs[got.ID] {
+			return false, nil, fmt.Errorf("the pack repeats the rule id %s", got.ID)
+		}
+		seenIDs[got.ID] = true
 		want, ok := byID[got.ID]
 		if !ok {
 			if strings.Contains(got.ID, Marker) {
 				if err := foreignRuleError(entry.Project, got.ID, got.Operator, got.Subject, got.SetCondition); err != nil {
 					return false, nil, err
 				}
+				k := knownRule{project: entry.Project, subject: got.Subject, basis: got.Evidence.Basis}
+				if got.Evidence.Extractor != nil {
+					k.extractor = got.Evidence.Extractor.ID
+				}
+				known[got.ID] = k
 			}
 			continue
 		}
@@ -343,8 +371,15 @@ func holds(pack []byte) (bool, []Line, error) {
 				inBatch = true
 			}
 		}
-		if a.RuleIDs == nil || len(*a.RuleIDs) != 0 {
+		if a.RuleIDs == nil || (inBatch && len(*a.RuleIDs) != 0) {
 			return false, nil, fmt.Errorf("the pack's %s line attestation %s %s is not a quiet line", FactFamily, a.Component, a.Line)
+		}
+		if !inBatch {
+			// Quiet or not, a line that is not the batch's is consistent with
+			// the pack's known mechanical rules for its component and line.
+			if err := foreignLineError(a.Component, a.Line, *a.RuleIDs, known); err != nil {
+				return false, nil, err
+			}
 		}
 		if inBatch {
 			attested++
@@ -359,6 +394,59 @@ func holds(pack []byte) (bool, []Line, error) {
 		return true, others, nil
 	}
 	return false, nil, fmt.Errorf("the pack holds %d of the batch's %d rules and %d of its %d line attestations, want all or none", held, len(rules), attested, len(lines))
+}
+
+// knownRule is what holds keeps of a mechanical rule that is not the batch's.
+type knownRule struct {
+	project, extractor, basis string
+	subject                   subject
+}
+
+// lineOfRelease is the major.minor line of a release version ("1.6.0" is
+// "1.6"); empty when the version has no such form.
+func lineOfRelease(version string) string {
+	parts := strings.Split(version, ".")
+	if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
+		return ""
+	}
+	return parts[0] + "." + parts[1]
+}
+
+// foreignLineError checks a line attestation of the family that is not the
+// batch's and lists rules. Such a line is accepted only when every listed
+// rule is a known mechanical rule and the list is complete: a known
+// mechanical rule is a rule of the pack, not the batch's, whose id names its
+// own project, that is shaped as foreignRuleError requires, whose evidence
+// basis is "mechanical" with the extractor id "crd.version-removal.<project>",
+// whose subject component is the line's component and whose target release
+// is on the line. The line lists each such rule of its component and
+// line exactly once and no other rule. Anything else is an error.
+func foreignLineError(component, line string, ids []string, known map[string]knownRule) error {
+	bad := func(format string, args ...any) error {
+		return fmt.Errorf("the pack's %s line attestation %s %s lists rules but is not a line of known mechanical rules: %s", FactFamily, component, line, fmt.Sprintf(format, args...))
+	}
+	listed := map[string]bool{}
+	for _, id := range ids {
+		if listed[id] {
+			return bad("rule %s is listed twice", id)
+		}
+		listed[id] = true
+		k, ok := known[id]
+		switch {
+		case !ok:
+			return bad("rule %s is not a custom-resource version-removal rule of the pack outside the batch", id)
+		case k.basis != "mechanical" || k.extractor != "crd.version-removal."+k.project:
+			return bad("rule %s is not a mechanical rule of extractor crd.version-removal.%s", id, k.project)
+		case k.subject.Component != component || lineOfRelease(k.subject.To) != line || line == "":
+			return bad("rule %s is not a rule of this component and line", id)
+		}
+	}
+	for id, k := range known {
+		if k.subject.Component == component && line != "" && lineOfRelease(k.subject.To) == line && !listed[id] {
+			return bad("rule %s of this component and line is not listed", id)
+		}
+	}
+	return nil
 }
 
 // foreignRuleError checks a custom-resource version-removal rule that is not
