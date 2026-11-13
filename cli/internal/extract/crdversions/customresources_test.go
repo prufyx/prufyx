@@ -64,6 +64,16 @@ func targetPathCovers(tg Target, source string) bool {
 		return false
 	}
 	path := rest[41:]
+	if tg.Project == "kubevirt" && tg.FactProject == "kubevirt" && tg.Repo == "github.com/kubevirt/kubevirt" &&
+		tg.Component == "pkg:github/kubevirt/kubevirt" && tg.ConstructorProfile == "kubevirt-v1" &&
+		strings.HasPrefix(source, "https://github.com/kubevirt/kubevirt/blob/") && rest[40] == '/' && path == "pkg/virt-operator/resource/generate/components/crds.go" {
+		for _, c := range rest[:40] {
+			if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
+				return false
+			}
+		}
+		return true
+	}
 	for _, spec := range tg.Paths {
 		if !spec.Dir && path == spec.Path {
 			return true
@@ -73,6 +83,51 @@ func targetPathCovers(tg Target, source string) bool {
 		}
 	}
 	return false
+}
+
+func TestKubeVirtConstructorCitationCoverage(t *testing.T) {
+	tg := Target{Project: "kubevirt", FactProject: "kubevirt", Repo: "github.com/kubevirt/kubevirt",
+		Component: "pkg:github/kubevirt/kubevirt", ConstructorProfile: "kubevirt-v1"}
+	const commit = "79d34c1762169e5b0370ec491cef5ca12e6b504c"
+	const source = "https://github.com/kubevirt/kubevirt/blob/" + commit + "/pkg/virt-operator/resource/generate/components/crds.go"
+	if !targetPathCovers(tg, source) {
+		t.Fatal("reviewed constructor citation is not covered")
+	}
+	for _, tc := range []struct {
+		name, field, value string
+	}{
+		{"project", "project", "other"}, {"fact", "fact", "other"}, {"repository", "repo", "github.com/other/kubevirt"},
+		{"component", "component", "pkg:github/other/kubevirt"}, {"profile missing", "profile", ""}, {"profile unknown", "profile", "kubevirt-v2"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			other := tg
+			switch tc.field {
+			case "project":
+				other.Project = tc.value
+			case "fact":
+				other.FactProject = tc.value
+			case "repo":
+				other.Repo = tc.value
+			case "component":
+				other.Component = tc.value
+			case "profile":
+				other.ConstructorProfile = tc.value
+			}
+			if targetPathCovers(other, source) {
+				t.Fatal("unreviewed constructor identity is covered")
+			}
+		})
+	}
+	for _, bad := range []string{
+		strings.Replace(source, "github.com/kubevirt/kubevirt", "github.com/other/kubevirt", 1),
+		strings.Replace(source, commit, "v1.9.0", 1), strings.Replace(source, commit, "main", 1),
+		strings.Replace(source, commit, strings.Repeat("g", 40), 1), source + "?ref=main", source + ".other",
+		strings.Replace(source, "/"+commit+"/", "/"+commit+"x", 1),
+	} {
+		if targetPathCovers(tg, bad) {
+			t.Fatalf("unreviewed constructor citation is covered: %s", bad)
+		}
+	}
 }
 
 // Every CRD of the frozen Strimzi inventory (both tags) defines a group the
