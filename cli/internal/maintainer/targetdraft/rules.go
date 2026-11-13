@@ -10,6 +10,8 @@ import (
 	"io"
 	"path"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // RulesSchema identifies a pinned rules file.
@@ -43,6 +45,68 @@ type Rules struct {
 	// install surface; every other definition file is reported as a
 	// non-install copy. Absent, the generator behaves as it always did.
 	InstallPaths []InstallPathRule `json:"installPaths,omitempty"`
+	// PathFilter is the optional list of reviewed filters applied inside the
+	// chosen installPaths: a file under installPaths that matches an entry is
+	// not install surface, but it is reported (class filtered-copy). It needs
+	// installPaths.
+	PathFilter []PathFilterRule `json:"pathFilter,omitempty"`
+}
+
+// PathFilterRule names the files to filter out of the install surface by an
+// anchored glob over the whole repository path. The only wildcard is "*",
+// which matches within one path segment (never across "/"); "**", "?", "[",
+// "{" and "\\" are refused.
+type PathFilterRule struct {
+	Glob     string `json:"glob"`
+	Reason   string `json:"reason"`
+	Evidence string `json:"evidence"`
+	// ExpectFiles is the exact number of files the entry must match under
+	// installPaths at every tag. Required (a positive integer): the rules
+	// author pins it from reviewed evidence, so an over-broad glob is a stop.
+	ExpectFiles int `json:"expectFiles"`
+}
+
+// cleanText reports whether s is valid UTF-8 without control characters.
+func cleanText(s string) bool {
+	if !utf8.ValidString(s) {
+		return false
+	}
+	for _, c := range s {
+		// U+FFFD is what a JSON decoder substitutes for invalid UTF-8.
+		if unicode.IsControl(c) || c == utf8.RuneError {
+			return false
+		}
+	}
+	return true
+}
+
+// validGlob checks the restricted glob syntax.
+func validGlob(g string) bool {
+	if !cleanText(g) {
+		return false
+	}
+	if g == "" || strings.HasPrefix(g, "/") || strings.HasSuffix(g, "/") || path.Clean(g) != g || g == "." || g == ".." || strings.HasPrefix(g, "../") {
+		return false
+	}
+	if strings.ContainsAny(g, "?[]{}\\") || strings.Contains(g, "**") {
+		return false
+	}
+	return true
+}
+
+// globMatch matches an anchored glob against a repository path: same number
+// of segments, each segment matched with "*" within the segment only.
+func globMatch(glob, p string) bool {
+	gs, ps := strings.Split(glob, "/"), strings.Split(p, "/")
+	if len(gs) != len(ps) {
+		return false
+	}
+	for i := range gs {
+		if ok, err := path.Match(gs[i], ps[i]); err != nil || !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // InstallPathRule declares one exact file or one directory prefix (path ends
@@ -96,6 +160,9 @@ func ParseRules(raw []byte) (*Rules, error) {
 	}
 	seen := map[string]bool{}
 	cleanPath := func(p string) error {
+		if !cleanText(p) {
+			return fmt.Errorf("rules: path %q has control characters or invalid UTF-8", p)
+		}
 		q := strings.TrimSuffix(p, "/")
 		if q == "" || strings.HasPrefix(q, "/") || path.Clean(q) != q || q == ".." || strings.HasPrefix(q, "../") || strings.Contains(q, "\\") {
 			return fmt.Errorf("rules: path %q is not a clean repository path", p)
@@ -127,6 +194,32 @@ func ParseRules(raw []byte) (*Rules, error) {
 		for j, o := range r.InstallPaths {
 			if i != j && (ip.Path == o.Path || (strings.HasSuffix(o.Path, "/") && strings.HasPrefix(ip.Path, o.Path))) {
 				return nil, fmt.Errorf("rules: install path %q duplicates or nests inside %q", ip.Path, o.Path)
+			}
+		}
+	}
+	if len(r.PathFilter) > 0 && len(r.InstallPaths) == 0 {
+		return nil, errors.New("rules: pathFilter needs installPaths")
+	}
+	for i, pf := range r.PathFilter {
+		if !validGlob(pf.Glob) {
+			return nil, fmt.Errorf("rules: path filter %q is not an anchored clean glob (only * within a segment is allowed)", pf.Glob)
+		}
+		if pf.Reason == "" || pf.Evidence == "" {
+			return nil, fmt.Errorf("rules: path filter %q needs a reason and pinned evidence", pf.Glob)
+		}
+		if pf.ExpectFiles < 1 {
+			return nil, fmt.Errorf("rules: path filter %q needs expectFiles, the exact number of files it matches at every tag (a positive integer pinned from reviewed evidence)", pf.Glob)
+		}
+		for _, ip := range r.InstallPaths {
+			// An optional entry must be read at the newest tag; a filter that
+			// removes it from the install surface would contradict that.
+			if ip.Optional && globMatch(pf.Glob, ip.Path) {
+				return nil, fmt.Errorf("rules: path filter %q matches the optional install path %q; a filter never removes an optional entry", pf.Glob, ip.Path)
+			}
+		}
+		for j, o := range r.PathFilter {
+			if i != j && pf.Glob == o.Glob {
+				return nil, fmt.Errorf("rules: duplicate path filter %q", pf.Glob)
 			}
 		}
 	}

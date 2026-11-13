@@ -256,7 +256,20 @@ type tagResult struct {
 	usedIP      map[string]bool
 	optStatus   map[string]string // optional entry -> read | verified-absent
 	optAbsent   map[string]bool   // optional entries verified absent at this tag
+	usedPF      map[string]bool
+	countPF     map[string]int
 	copies      []NonInstallCopy
+	filtered    []FilteredCopy
+}
+
+// pathFilterFor returns the pathFilter entry that matches the file.
+func pathFilterFor(rules *Rules, p string) *PathFilterRule {
+	for k := range rules.PathFilter {
+		if globMatch(rules.PathFilter[k].Glob, p) {
+			return &rules.PathFilter[k]
+		}
+	}
+	return nil
 }
 
 // installPathFor returns the installPaths entry that names the file.
@@ -281,13 +294,15 @@ func exclusionFor(rules *Rules, p string) *ExclusionRule {
 }
 
 func classify(tag, commit string, fs []*finding, rules *Rules, slug string, index customresources.Index) *tagResult {
-	r := &tagResult{tag: tag, commit: commit, included: map[string]*inclusion{}, usedExcl: map[string]bool{}, usedSurf: map[string]bool{}, usedIP: map[string]bool{}}
+	r := &tagResult{tag: tag, commit: commit, included: map[string]*inclusion{}, usedExcl: map[string]bool{}, usedSurf: map[string]bool{}, usedIP: map[string]bool{}, usedPF: map[string]bool{}, countPF: map[string]int{}}
 	surface := map[string]bool{}
 	for _, s := range rules.InstallSurface {
 		surface[s.Path] = true
 	}
 	stopAt := func(code, subject, detail string) { r.stops = append(r.stops, stop(code, subject, detail)) }
 	var rest []*finding
+	var filteredFiles []*finding
+	var filteredBy []*PathFilterRule
 
 	// Phase 1: the files the target reads.
 	for _, f := range fs {
@@ -299,9 +314,21 @@ func classify(tag, commit string, fs []*finding, rules *Rules, slug string, inde
 		case len(rules.InstallPaths) > 0:
 			// Positive source list: only the declared paths are read.
 			if ip := installPathFor(rules, f.Path); ip != nil {
+				r.usedIP[ip.Path] = true
+				if pf := pathFilterFor(rules, f.Path); pf != nil {
+					// A filter never hides an unreadable file.
+					r.usedPF[pf.Glob] = true
+					r.countPF[pf.Glob]++
+					if f.Unreadable != "" {
+						stopAt(StopUnreadableShape, f.Path, f.Unreadable)
+					} else {
+						filteredFiles = append(filteredFiles, f)
+						filteredBy = append(filteredBy, pf)
+					}
+					continue
+				}
 				rule = RuleIncludeInstallPath
 				via = "declared by installPaths entry " + ip.Path
-				r.usedIP[ip.Path] = true
 			} else if exclusionFor(rules, f.Path) == nil {
 				c := NonInstallCopy{Path: f.Path, Groups: groupSet(f.CRDs), Unreadable: f.Unreadable}
 				r.copies = append(r.copies, c)
@@ -370,6 +397,49 @@ func classify(tag, commit string, fs []*finding, rules *Rules, slug string, inde
 			} else if o, a := index.Owner(c.Group); a != customresources.Unknown && o != slug {
 				stopAt(StopGroupOwnedElsewhere, c.Group, "listed by "+o+" ("+i.Path+")")
 			}
+		}
+	}
+	// Fail closed: a filtered file is allowed only when every group it
+	// defines is a reserved/Kubernetes group (the copy case) or has a known
+	// OTHER owner in the index. A group of the target (read, or listed for
+	// this slug) or of an unknown or ambiguous owner stops.
+	for k, f := range filteredFiles {
+		fc := FilteredCopy{Path: f.Path, Glob: filteredBy[k].Glob, Groups: groupSet(f.CRDs)}
+		bad := false
+		for _, c := range f.CRDs {
+			key := c.Group + "/" + c.Kind
+			if owned[c.Group] {
+				stopAt(StopFilterHidesOwned, f.Path, "defines "+key+" of a group the target reads; filter "+fc.Glob)
+				bad = true
+				continue
+			}
+			if customresources.ReservedNamespace(c.Group) || customresources.KubernetesGroup(c.Group) {
+				continue
+			}
+			o, a := index.OwnerOf(c.Group, c.Kind)
+			switch {
+			case a == customresources.Owned && o == slug:
+				stopAt(StopFilterHidesOwned, f.Path, "defines "+key+", which the ownership index lists for "+slug+"; filter "+fc.Glob)
+				bad = true
+			case a == customresources.Owned:
+				// A known other owner: a legitimate copy.
+			default:
+				stopAt(StopFilterHidesUnowned, f.Path, "defines "+key+", whose group has no single known owner in the index; filter "+fc.Glob)
+				bad = true
+			}
+		}
+		if bad {
+			continue
+		}
+		r.filtered = append(r.filtered, fc)
+		r.decisions = append(r.decisions, Decision{Rule: RuleFilteredCopy, Subject: f.Path, Detail: "groups " + strings.Join(fc.Groups, ",") + "; pathFilter " + fc.Glob})
+	}
+	for _, pf := range rules.PathFilter {
+		switch n := r.countPF[pf.Glob]; {
+		case n == 0:
+			stopAt(StopPathFilterNothing, pf.Glob, "no file under installPaths matches this filter")
+		case n != pf.ExpectFiles:
+			stopAt(StopPathFilterCount, pf.Glob, fmt.Sprintf("matches %d file(s) under installPaths, the entry pins expectFiles %d", n, pf.ExpectFiles))
 		}
 	}
 	for _, ip := range rules.InstallPaths {
@@ -577,20 +647,35 @@ func orderPaths(inc map[string]*inclusion) []*inclusion {
 	return out
 }
 
+// safeField returns s unchanged when it is valid UTF-8 without control
+// characters, otherwise its ASCII-quoted form, so no value can inject a tab or
+// newline into a tab/newline-separated digest line.
+func safeField(s string) string {
+	if cleanText(s) {
+		return s
+	}
+	return strconv.QuoteToASCII(s)
+}
+
 func digestFacts(window []*tagResult) string {
 	h := sha256.New()
 	for _, r := range window {
 		var lines []string
 		for _, i := range r.included {
 			for _, c := range i.CRDs {
-				lines = append(lines, fmt.Sprintf("%s\t%s\t%s\t%s\t%s", r.tag, i.Path, c.Group, c.Kind, strings.Join(c.Versions, ",")))
+				lines = append(lines, fmt.Sprintf("%s\t%s\t%s\t%s\t%s", safeField(r.tag), safeField(i.Path), safeField(c.Group), safeField(c.Kind), safeField(strings.Join(c.Versions, ","))))
 			}
 		}
 		// Non-install copies are facts of the run: a changed list must change
 		// the digest so --compare-report flags it. Such lines exist only when
 		// installPaths is used, so every other digest is unchanged.
 		for _, c := range r.copies {
-			lines = append(lines, fmt.Sprintf("%s\tnon-install-copy\t%s\t%s\t%s", r.tag, c.Path, strings.Join(c.Groups, ","), c.Unreadable))
+			lines = append(lines, fmt.Sprintf("%s\tnon-install-copy\t%s\t%s\t%s", safeField(r.tag), safeField(c.Path), safeField(strings.Join(c.Groups, ",")), safeField(c.Unreadable)))
+		}
+		// Filtered copies are facts of the run too; lines exist only with
+		// pathFilter, so digests without it are unchanged.
+		for _, c := range r.filtered {
+			lines = append(lines, fmt.Sprintf("%s\tfiltered-copy\t%s\t%s", safeField(r.tag), safeField(c.Path), safeField(strings.Join(c.Groups, ","))))
 		}
 		sort.Strings(lines)
 		for _, l := range lines {
