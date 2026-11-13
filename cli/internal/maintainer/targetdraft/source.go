@@ -44,13 +44,32 @@ var tagNameRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}$`)
 
 // GitSource reads tags of a local git checkout with the git command line.
 // Every command is local; nothing is fetched.
-type GitSource struct{ Dir string }
+type GitSource struct {
+	Dir string
+	// env overrides the command environment; tests only. Nil means
+	// localGitEnv.
+	env []string
+}
+
+// localGitEnv is the fixed environment of every git command: no network
+// protocol, no lazy fetch of missing objects (a partial clone must fail on a
+// missing object instead of fetching it), no prompts, no replace objects.
+func localGitEnv() []string {
+	return []string{"PATH=/usr/bin:/bin:/usr/local/bin", "HOME=/nonexistent", "GIT_TERMINAL_PROMPT=0", "GIT_CONFIG_NOSYSTEM=1", "GIT_NO_REPLACE_OBJECTS=1", "GIT_NO_LAZY_FETCH=1", "GIT_ALLOW_PROTOCOL=none"}
+}
+
+func (g GitSource) environ() []string {
+	if g.env != nil {
+		return g.env
+	}
+	return localGitEnv()
+}
 
 func (g GitSource) git(args ...string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", g.Dir}, args...)...)
-	cmd.Env = []string{"PATH=/usr/bin:/bin:/usr/local/bin", "HOME=/nonexistent", "GIT_TERMINAL_PROMPT=0", "GIT_CONFIG_NOSYSTEM=1", "GIT_NO_REPLACE_OBJECTS=1"}
+	cmd.Env = g.environ()
 	var out, errb bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &errb
@@ -82,7 +101,7 @@ func (g GitSource) Open(tag string) (Tree, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	t := &gitTree{g: g, sha: map[string]string{}, link: map[string]bool{}}
+	t := &gitTree{g: g, commit: commit, sha: map[string]string{}, link: map[string]bool{}}
 	for _, rec := range bytes.Split(listing, []byte{0}) {
 		if len(rec) == 0 {
 			continue
@@ -109,9 +128,10 @@ func (g GitSource) Open(tag string) (Tree, string, error) {
 }
 
 type gitTree struct {
-	g    GitSource
-	sha  map[string]string
-	link map[string]bool
+	g      GitSource
+	commit string
+	sha    map[string]string
+	link   map[string]bool
 }
 
 func (t *gitTree) Entries() ([]Entry, error) {

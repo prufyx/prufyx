@@ -99,7 +99,11 @@ func Generate(in Input) (*Result, error) {
 		return nil, &StopError{Stops: stops}
 	}
 
+	if stops := checkOptionalTags(rules, tags); len(stops) > 0 {
+		return nil, &StopError{Stops: sortStops(stops)}
+	}
 	index := customresources.DefaultIndex()
+	var optFatal []Stop
 	results := make([]*tagResult, len(tags))
 	for i, t := range tags {
 		tree, commit, err := in.Source.Open(t.Tag)
@@ -109,7 +113,11 @@ func Generate(in Input) (*Result, error) {
 		fs, scanStops := scanTree(tree)
 		r := classify(t.Tag, commit, fs, rules, in.Slug, index)
 		r.stops = append(scanStops, r.stops...)
+		optFatal = append(optFatal, applyOptional(r, tree, rules, t.Tag, i == len(tags)-1)...)
 		results[i] = r
+	}
+	if len(optFatal) > 0 {
+		return nil, &StopError{Stops: sortStops(optFatal)}
 	}
 
 	newest := results[len(results)-1]
@@ -169,7 +177,12 @@ func Generate(in Input) (*Result, error) {
 		return nil, &StopError{Stops: []Stop{stop(StopWindowShortened, dropped[len(dropped)-1].Tag, fmt.Sprintf("%d older tag(s) withheld; last: %s", len(dropped), dropped[len(dropped)-1].Reason))}}
 	}
 	minFrom := fmt.Sprintf("%d.%d", tags[first].Major, tags[first].Minor)
-	return build(in, catalog, component, fact, ownerRepo, prefix, minFrom, rules, window, dropped, newest)
+	res, err := build(in, catalog, component, fact, ownerRepo, prefix, minFrom, rules, window, dropped, newest)
+	if err != nil {
+		return nil, err
+	}
+	annotateOptional(res, rules, window)
+	return res, nil
 }
 
 func parseTags(in []string) ([]parsedTag, string, []Stop) {
@@ -241,6 +254,8 @@ type tagResult struct {
 	usedSurf    map[string]bool
 	usedExclCls map[string]string
 	usedIP      map[string]bool
+	optStatus   map[string]string // optional entry -> read | verified-absent
+	optAbsent   map[string]bool   // optional entries verified absent at this tag
 	copies      []NonInstallCopy
 }
 
@@ -481,11 +496,15 @@ func differs(r, newest *tagResult) string {
 	if len(r.stops) > 0 {
 		return "stop"
 	}
-	if len(r.included) != len(newest.included) {
-		return "set"
-	}
+	// A verified-absent optional entry is not a difference; every other
+	// missing or extra file is.
 	for p := range newest.included {
-		if r.included[p] == nil {
+		if r.included[p] == nil && !r.optAbsent[p] {
+			return "set"
+		}
+	}
+	for p := range r.included {
+		if newest.included[p] == nil {
 			return "set"
 		}
 	}
@@ -502,7 +521,7 @@ func reasonFor(r, newest *tagResult, boundary bool) string {
 	}
 	var miss, extra []string
 	for p := range newest.included {
-		if r.included[p] == nil {
+		if r.included[p] == nil && !r.optAbsent[p] {
 			miss = append(miss, p)
 		}
 	}

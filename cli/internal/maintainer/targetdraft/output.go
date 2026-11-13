@@ -168,6 +168,10 @@ type Report struct {
 	// when installPaths is used.
 	NonInstallCopyCount int              `json:"nonInstallCopyCount,omitempty"`
 	NonInstallCopies    []NonInstallCopy `json:"nonInstallCopies,omitempty"`
+	// OptionalPaths lists, per window tag and optional installPaths entry,
+	// whether the file was read or its absence verified. Present only when
+	// an optional entry is used; part of FactsDigest then.
+	OptionalPaths []OptionalFact `json:"optionalPaths,omitempty"`
 }
 
 // NonInstallCopy is a definition file the target does not read because it is
