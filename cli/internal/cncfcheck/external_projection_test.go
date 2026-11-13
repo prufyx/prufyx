@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
@@ -200,34 +201,32 @@ func TestProjectExportPreservesCompleteSourceProjection(t *testing.T) {
 					if bytes.Equal(target.Bytes, mutated[i].Bytes) {
 						t.Fatal("seed did not apply")
 					}
-					if seed == "recomputed content hashes" {
-						admitted, err := ParseExternalBundle(mutated[i].Bytes)
-						if err != nil {
-							t.Fatal(err)
+					admitted, err := ParseExternalBundle(mutated[i].Bytes)
+					if err != nil {
+						t.Fatal(err)
+					}
+					admission, err := admitted.Admission()
+					if err != nil {
+						t.Fatal(err)
+					}
+					var document externalIndexDocument
+					if err := json.Unmarshal(index.Bytes, &document); err != nil {
+						t.Fatal(err)
+					}
+					for j := range document.Projects {
+						if document.Projects[j].TargetPath == target.Path {
+							e := &document.Projects[j]
+							e.Digest, e.Length, e.RuleDigest = digest(mutated[i].Bytes), int64(len(mutated[i].Bytes)), admission.RuleDigest
 						}
-						admission, err := admitted.Admission()
-						if err != nil {
-							t.Fatal(err)
-						}
-						var document externalIndexDocument
-						if err := json.Unmarshal(index.Bytes, &document); err != nil {
-							t.Fatal(err)
-						}
-						for j := range document.Projects {
-							if document.Projects[j].TargetPath == target.Path {
-								e := &document.Projects[j]
-								e.Digest, e.Length, e.RuleDigest = digest(mutated[i].Bytes), int64(len(mutated[i].Bytes)), admission.RuleDigest
-							}
-						}
-						mutatedIndex.Bytes, _ = json.Marshal(document)
-						parsed, err := ParseExternalIndex(mutatedIndex.Bytes)
-						if err != nil {
-							t.Fatal(err)
-						}
-						project, _ := ProjectFromTargetPath(target.Path)
-						if _, err := AdmitExternalProjectTarget(parsed, project, mutated[i].Bytes); err != nil {
-							t.Fatalf("seed must pass ordinary hash admission: %v", err)
-						}
+					}
+					mutatedIndex.Bytes, _ = json.Marshal(document)
+					parsed, err := ParseExternalIndex(mutatedIndex.Bytes)
+					if err != nil {
+						t.Fatal(err)
+					}
+					project, _ := ProjectFromTargetPath(target.Path)
+					if _, err := AdmitExternalProjectTarget(parsed, project, mutated[i].Bytes); err != nil {
+						t.Fatalf("seed must pass ordinary hash admission: %v", err)
 					}
 					changed = true
 					break
@@ -238,6 +237,8 @@ func TestProjectExportPreservesCompleteSourceProjection(t *testing.T) {
 			}
 			if err := projectCensus(base, mutatedIndex, mutated); err == nil {
 				t.Fatal("wrong data passed independent census")
+			} else if seed != "missing project" && !strings.Contains(err.Error(), "content differs") {
+				t.Fatalf("seed did not reach independent content comparison: %v", err)
 			}
 		})
 	}
