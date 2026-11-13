@@ -3,6 +3,7 @@
 package crdversions
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/customresources"
 	"github.com/prufyx/prufyx/cli/internal/extract"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/factorymirror"
 )
 
 func antreaProjectionFixture() map[string][]byte {
@@ -122,14 +124,16 @@ func antreaDependencyFixture() (*Inventory, *AntreaModeRecord) {
 	inv := &Inventory{Commit: commit, Complete: true, CRDs: []CRD{{Name: "alphas.crd.antrea.io", Group: "crd.antrea.io", Kind: "Alpha"}}}
 	proof := &AntreaModeRecord{SourceSHA256: antreaModePins[commit], verified: true, dependencies: map[string]CRD{},
 		Modes: map[string][]string{"leader": {}, "leader-global": {}, "leader-ns": {}, "member": {}}}
-	for _, spec := range antreaMCSDependencies {
-		c := CRD{Name: spec.name, Group: "multicluster.x-k8s.io", Kind: spec.kind,
+	for _, spec := range append(slices.Clone(antreaMCSDependencies), antreaNADDependency) {
+		c := CRD{Name: spec.name, Group: spec.group, Kind: spec.kind,
 			Plural: strings.Split(spec.name, ".")[0], Scope: "Namespaced", Path: spec.file,
-			StorageVersion: "v1alpha1", Versions: []CRDVersion{{Name: "v1alpha1", Served: true, Storage: true}}}
+			StorageVersion: spec.version, Versions: []CRDVersion{{Name: spec.version, Served: true, Storage: true}}}
 		inv.CRDs = append(inv.CRDs, c)
 		inv.Files = append(inv.Files, FileRecord{Path: spec.file, SHA256: spec.sha256, CRDs: 1})
 		proof.dependencies[spec.name] = c
-		proof.Modes["member"] = append(proof.Modes["member"], member(c.Group, "v1alpha1", c.Kind))
+		if spec.group == "multicluster.x-k8s.io" {
+			proof.Modes["member"] = append(proof.Modes["member"], member(c.Group, spec.version, c.Kind))
+		}
 	}
 	return inv, proof
 }
@@ -141,7 +145,7 @@ func TestAntreaInstalledDependencies(t *testing.T) {
 	raw, proof := antreaDependencyFixture()
 	before, _ := json.Marshal(raw)
 	got, err := x.attributedAntreaInventory(repo, raw, proof)
-	if err != nil || len(got.CRDs) != 1 || len(got.Foreign) != 2 || len(got.Files) != 2 {
+	if err != nil || len(got.CRDs) != 1 || len(got.Foreign) != 3 || len(got.Files) != 3 {
 		t.Fatalf("installed dependency classification: %+v, %v", got, err)
 	}
 	after, _ := json.Marshal(raw)
@@ -157,11 +161,15 @@ func TestAntreaInstalledDependencies(t *testing.T) {
 			t.Fatal("unmapped customer MCS resources must remain unknown")
 		}
 	}
+	if _, attribution := customresources.DefaultIndex().OwnerOf(antreaNADDependency.group, antreaNADDependency.kind); attribution != customresources.Unknown {
+		t.Fatal("unmapped customer NAD resources must remain unknown")
+	}
 	otherOwner := New(target).WithIndex(customresources.NewIndex([]customresources.Project{
 		{Slug: "antrea", Groups: []customresources.Group{{Name: "crd.antrea.io"}}},
 		{Slug: "other", Groups: []customresources.Group{{Name: "multicluster.x-k8s.io"}}},
+		{Slug: "nad-owner", Groups: []customresources.Group{{Name: "k8s.cni.cncf.io"}}},
 	}))
-	if inv, err := otherOwner.attributedAntreaInventory(repo, raw, proof); err != nil || len(inv.Foreign) != 2 {
+	if inv, err := otherOwner.attributedAntreaInventory(repo, raw, proof); err != nil || len(inv.Foreign) != 3 {
 		t.Fatalf("a unique other owner was not preserved: %+v, %v", inv, err)
 	}
 	for _, tc := range []struct {
@@ -192,6 +200,25 @@ func TestAntreaInstalledDependencies(t *testing.T) {
 			}))
 		}},
 		{"foreign repository", func(_ *Inventory, _ *AntreaModeRecord, x *Extractor) { x.target.Repo = "github.com/example/other" }},
+		{"missing NAD source proof", func(_ *Inventory, p *AntreaModeRecord, _ *Extractor) {
+			delete(p.dependencies, antreaNADDependency.name)
+		}},
+		{"missing NAD object", func(i *Inventory, _ *AntreaModeRecord, _ *Extractor) { i.CRDs = i.CRDs[:3] }},
+		{"missing NAD receipt", func(i *Inventory, _ *AntreaModeRecord, _ *Extractor) { i.Files = i.Files[:2] }},
+		{"changed NAD receipt", func(i *Inventory, _ *AntreaModeRecord, _ *Extractor) {
+			i.Files[2].SHA256 = "sha256:" + strings.Repeat("0", 64)
+		}},
+		{"changed NAD API", func(i *Inventory, _ *AntreaModeRecord, _ *Extractor) { i.CRDs[3].Versions[0].Name = "v2" }},
+		{"repeated NAD object", func(i *Inventory, _ *AntreaModeRecord, _ *Extractor) { i.CRDs = append(i.CRDs, i.CRDs[3]) }},
+		{"Antrea NAD ownership", func(_ *Inventory, _ *AntreaModeRecord, x *Extractor) {
+			x.WithIndex(syntheticOwnership(target, "k8s.cni.cncf.io"))
+		}},
+		{"ambiguous NAD ownership", func(_ *Inventory, _ *AntreaModeRecord, x *Extractor) {
+			x.WithIndex(customresources.NewIndex([]customresources.Project{
+				{Slug: "other", Groups: []customresources.Group{{Name: "k8s.cni.cncf.io"}}},
+				{Slug: "second", Groups: []customresources.Group{{Name: "k8s.cni.cncf.io"}}},
+			}))
+		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			i, p := antreaDependencyFixture()
@@ -232,13 +259,15 @@ func TestAntreaDependencyAttributionBound(t *testing.T) {
 		return string(body)
 	}
 	baseline := view(customresources.DefaultIndex())
-	projects := customresources.Projects()
-	projects = append(projects, customresources.Project{Slug: "other", Groups: []customresources.Group{{Name: "multicluster.x-k8s.io"}}})
-	owned := view(customresources.NewIndex(projects))
-	projects = append(projects, customresources.Project{Slug: "second", Groups: []customresources.Group{{Name: "multicluster.x-k8s.io"}}})
-	ambiguous := view(customresources.NewIndex(projects))
-	if baseline == owned || owned == ambiguous || baseline == ambiguous {
-		t.Fatal("consulted MCS attribution changed without changing the code identity input")
+	for _, group := range []string{"multicluster.x-k8s.io", "k8s.cni.cncf.io"} {
+		projects := customresources.Projects()
+		projects = append(projects, customresources.Project{Slug: "other", Groups: []customresources.Group{{Name: group}}})
+		owned := view(customresources.NewIndex(projects))
+		projects = append(projects, customresources.Project{Slug: "second", Groups: []customresources.Group{{Name: group}}})
+		ambiguous := view(customresources.NewIndex(projects))
+		if baseline == owned || owned == ambiguous || baseline == ambiguous {
+			t.Fatalf("consulted attribution of %s changed without changing the code identity input", group)
+		}
 	}
 }
 
@@ -373,6 +402,7 @@ func TestAntreaCapturedModes(t *testing.T) {
 		"multicluster/build/yamls/antrea-multicluster-leader-namespaced.yml",
 		"multicluster/config/crd/k8smcs/multicluster.x-k8s.io_serviceexports.yaml",
 		"multicluster/config/crd/k8smcs/multicluster.x-k8s.io_serviceimports.yaml",
+		antreaNADDependency.file,
 	} {
 		t.Run("changed/"+p, func(t *testing.T) {
 			r := antreaCapturedReader{root: filepath.Join(root, "captured", first.Tag), override: map[string][]byte{p: []byte("unreviewed tool override or transform\n")}}
@@ -381,6 +411,92 @@ func TestAntreaCapturedModes(t *testing.T) {
 			}
 		})
 	}
+}
+
+// A missing mandatory dependency at one release must not borrow another
+// release's complete inventory or preserve that line's attestation.
+func TestAntreaMissingDependencyWithholdsPair(t *testing.T) {
+	root := os.Getenv("ANTREA_MODE_SOURCE_MIRROR")
+	if root == "" {
+		t.Skip("no offline source mirror supplied")
+	}
+	mirror, err := factorymirror.OpenReader(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := extract.MirrorReader{R: mirror}
+	tg := target(t, "antrea")
+	if !tg.Attest {
+		t.Fatal("the positive baseline requires the reviewed attesting target")
+	}
+	repo, err := extract.ParseRepo(tg.Repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	run := func(t *testing.T, r extract.PinnedReader) *extract.Output {
+		t.Helper()
+		x := New(tg)
+		out, err := extract.Run(context.Background(), x, ReleaseTags(x, base), r, extract.Options{Repo: repo, DerivedAt: derivedAt})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+	positive := run(t, base)
+	if positive.Manifest.Totals.Derived != 5 || positive.Manifest.Totals.Withheld != 0 || positive.Manifest.Totals.Attestations != 5 {
+		t.Fatalf("positive baseline is not fully attested: %+v", positive.Manifest.Totals)
+	}
+	var last extract.PairRecord
+	for _, pair := range positive.Manifest.Pairs {
+		if pair.From == "2.6.0" && pair.To == "2.7.0" {
+			last = pair
+		}
+	}
+	if last.ToCommit == "" || last.Attestation == nil || last.Attestation.Status != extract.PairAttested {
+		t.Fatalf("missing attested last-line baseline: %+v", last)
+	}
+	for _, file := range []string{antreaMCSDependencies[0].file, antreaNADDependency.file} {
+		t.Run(file, func(t *testing.T) {
+			out := run(t, antreaMissingDependencyReader{PinnedReader: base, commit: last.ToCommit, file: file})
+			for _, pair := range out.Manifest.Pairs {
+				if pair.From != last.From || pair.To != last.To {
+					continue
+				}
+				if pair.Status != extract.PairWithheld || pair.Attestation == nil || pair.Attestation.Status != extract.PairNotAttested {
+					t.Fatalf("missing mandatory dependency retained the pair: %+v", pair)
+				}
+				return
+			}
+			t.Fatal("the required last-line pair disappeared")
+		})
+	}
+}
+
+type antreaMissingDependencyReader struct {
+	extract.PinnedReader
+	commit, file string
+}
+
+func (r antreaMissingDependencyReader) Read(repo extract.RepoRef, commit, file string) ([]byte, error) {
+	if commit == r.commit && file == r.file {
+		return nil, extract.ErrNotFound
+	}
+	return r.PinnedReader.Read(repo, commit, file)
+}
+
+func (r antreaMissingDependencyReader) List(repo extract.RepoRef, commit, dir string) ([]extract.TreeEntry, error) {
+	entries, err := r.PinnedReader.List(repo, commit, dir)
+	if commit == r.commit {
+		entries = slices.DeleteFunc(slices.Clone(entries), func(e extract.TreeEntry) bool { return e.Path == r.file })
+		// Removing a blob changes every enclosing tree. Do not let the
+		// recorder reuse an earlier release's unchanged directory listing.
+		for i := range entries {
+			if entries[i].Type == "tree" && strings.HasPrefix(r.file, entries[i].Path+"/") {
+				entries[i].SHA = commitOf("missing:" + entries[i].Path + ":" + r.file)
+			}
+		}
+	}
+	return entries, err
 }
 
 type antreaCapturedReader struct {

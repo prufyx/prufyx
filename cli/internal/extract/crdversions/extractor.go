@@ -369,7 +369,7 @@ type Inventory struct {
 	// Foreign names the definitions found under the listed paths that were
 	// left out because the reviewed custom-resource table assigns their
 	// group and kind to another project, or the verified Antrea mode profile
-	// identifies an exact installed MCS dependency; absent when there are none.
+	// identifies an exact installed dependency; absent when there are none.
 	Foreign []string `json:"foreign,omitempty"`
 	// Remote records where the definitions were read when the release
 	// installs from another repository; absent otherwise.
@@ -419,7 +419,7 @@ func (x *Extractor) inventory(r extract.PinnedReader, repo extract.RepoRef, tag,
 	var err error
 	at := x.attribution()
 	if x.target.Component == antreaComponent {
-		// Preserve all parsed definitions until the source-bound MCS
+		// Preserve all parsed definitions until the source-bound dependency
 		// dependency identities have been verified. readTag attributes a
 		// copy; the cached source inventory remains raw.
 		at = attribution{}

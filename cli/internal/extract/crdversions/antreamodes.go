@@ -62,11 +62,18 @@ type AntreaModeRecord struct {
 	dependencies map[string]CRD
 }
 
-var antreaMCSDependencies = []struct {
-	name, kind, file, sha256 string
-}{
-	{"serviceexports.multicluster.x-k8s.io", "ServiceExport", "multicluster/config/crd/k8smcs/multicluster.x-k8s.io_serviceexports.yaml", "sha256:09373a675b24a9c926c1c3df19b43a9bf401807e87604f71fdf1311c0f190bb1"},
-	{"serviceimports.multicluster.x-k8s.io", "ServiceImport", "multicluster/config/crd/k8smcs/multicluster.x-k8s.io_serviceimports.yaml", "sha256:99df9b742043f4e69c8b9b4cfc2140d539f368cd94b96468469594923045074d"},
+type antreaDependency struct {
+	name, group, kind, version, file, sha256 string
+}
+
+var antreaMCSDependencies = []antreaDependency{
+	{"serviceexports.multicluster.x-k8s.io", "multicluster.x-k8s.io", "ServiceExport", "v1alpha1", "multicluster/config/crd/k8smcs/multicluster.x-k8s.io_serviceexports.yaml", "sha256:09373a675b24a9c926c1c3df19b43a9bf401807e87604f71fdf1311c0f190bb1"},
+	{"serviceimports.multicluster.x-k8s.io", "multicluster.x-k8s.io", "ServiceImport", "v1alpha1", "multicluster/config/crd/k8smcs/multicluster.x-k8s.io_serviceimports.yaml", "sha256:99df9b742043f4e69c8b9b4cfc2140d539f368cd94b96468469594923045074d"},
+}
+
+var antreaNADDependency = antreaDependency{
+	"network-attachment-definitions.k8s.cni.cncf.io", "k8s.cni.cncf.io", "NetworkAttachmentDefinition", "v1",
+	"test/e2e-secondary-network/infra/network-attachment-definition-crd.yml", "sha256:75ba5b4649517f01674f0809ce8840311959f3333648019166361c81f46d0960",
 }
 
 func antreaModeScope(p string) bool {
@@ -137,6 +144,20 @@ func readAntreaModes(r extract.PinnedReader, repo extract.RepoRef, commit string
 	if err != nil {
 		return nil, err
 	}
+	// NAD is outside the multicluster source scope. Read and authenticate its
+	// own body at this same commit before it can become a foreign dependency.
+	nadBody, err := r.Read(repo, commit, antreaNADDependency.file)
+	if err != nil {
+		if isNotFound(err) {
+			return nil, problemf("installed dependency %s is missing at this commit", antreaNADDependency.file)
+		}
+		return nil, err
+	}
+	nad, err := readAntreaDependency(antreaNADDependency, nadBody)
+	if err != nil {
+		return nil, err
+	}
+	dependencies[nad.Name] = nad
 	modes, err := projectAntreaModes(data)
 	if err != nil {
 		return nil, err
@@ -151,26 +172,37 @@ func readAntreaDependencies(data map[string][]byte) (map[string]CRD, error) {
 	dependencies := map[string]CRD{}
 	for _, spec := range antreaMCSDependencies {
 		body, ok := data[spec.file]
-		if !ok || fmt.Sprintf("sha256:%x", sha256.Sum256(body)) != spec.sha256 {
+		if !ok {
 			return nil, problemf("installed MCS dependency %s is missing or has changed bytes", spec.file)
 		}
-		crds, err := antreaDefinitions(spec.file, data)
+		crd, err := readAntreaDependency(spec, body)
 		if err != nil {
 			return nil, err
 		}
-		if len(crds) != 1 || !antreaDependencyIdentity(crds[0], spec.name, spec.kind) {
-			return nil, problemf("installed MCS dependency %s has a different identity or serving set", spec.file)
-		}
-		dependencies[spec.name] = crds[0]
+		dependencies[spec.name] = crd
 	}
 	return dependencies, nil
 }
 
-func antreaDependencyIdentity(c CRD, name, kind string) bool {
-	return c.Name == name && c.Group == "multicluster.x-k8s.io" && c.Kind == kind &&
-		c.Plural+"."+c.Group == name && c.Scope == "Namespaced" && c.SourceAPIVersion == "" &&
-		c.StorageVersion == "v1alpha1" && len(c.Versions) == 1 &&
-		c.Versions[0].Name == "v1alpha1" && c.Versions[0].Served && c.Versions[0].Storage
+func readAntreaDependency(spec antreaDependency, body []byte) (CRD, error) {
+	if len(body) > MaxFileBytes || fmt.Sprintf("sha256:%x", sha256.Sum256(body)) != spec.sha256 {
+		return CRD{}, problemf("installed dependency %s has changed bytes", spec.file)
+	}
+	crds, err := antreaDefinitions(spec.file, map[string][]byte{spec.file: body})
+	if err != nil {
+		return CRD{}, err
+	}
+	if len(crds) != 1 || !antreaDependencyIdentity(crds[0], spec) {
+		return CRD{}, problemf("installed dependency %s has a different identity or serving set", spec.file)
+	}
+	return crds[0], nil
+}
+
+func antreaDependencyIdentity(c CRD, spec antreaDependency) bool {
+	return c.Name == spec.name && c.Group == spec.group && c.Kind == spec.kind &&
+		c.Plural+"."+c.Group == spec.name && c.Scope == "Namespaced" && c.SourceAPIVersion == "" &&
+		c.StorageVersion == spec.version && len(c.Versions) == 1 &&
+		c.Versions[0].Name == spec.version && c.Versions[0].Served && c.Versions[0].Storage
 }
 
 // attributedAntreaInventory runs only after raw source parsing and the full
@@ -180,35 +212,35 @@ func (x *Extractor) attributedAntreaInventory(repo extract.RepoRef, raw *Invento
 		x.target.Repo != "github.com/antrea-io/antrea" || repo.Key != x.target.Repo ||
 		raw == nil || !raw.Complete || len(raw.Foreign) != 0 || proof == nil || !proof.verified ||
 		antreaModePins[raw.Commit] == "" || proof.SourceSHA256 != antreaModePins[raw.Commit] ||
-		len(proof.dependencies) != len(antreaMCSDependencies) ||
+		len(proof.dependencies) != len(antreaMCSDependencies)+1 ||
 		len(antreaModeProblems(antreaComponent, []*tagState{{scan: &ScanRecord{AntreaModes: proof}}})) != 0 {
-		return nil, problemf("installed MCS dependencies require the exact repository and a fresh complete four-mode source proof")
+		return nil, problemf("installed dependencies require the exact repository and fresh complete source proofs")
 	}
-	for _, spec := range antreaMCSDependencies {
+	for _, spec := range append(slices.Clone(antreaMCSDependencies), antreaNADDependency) {
 		fresh := proof.dependencies[spec.name]
-		if !antreaDependencyIdentity(fresh, spec.name, spec.kind) || fresh.Path != spec.file {
-			return nil, problemf("the fresh MCS dependency identity is missing or changed")
+		if !antreaDependencyIdentity(fresh, spec) || fresh.Path != spec.file {
+			return nil, problemf("the fresh installed dependency identity is missing or changed")
 		}
 		files, objects := 0, 0
 		for _, f := range raw.Files {
 			if f.Path == spec.file {
 				if f.Repo != "" || f.Commit != "" || f.SHA256 != spec.sha256 || f.CRDs != 1 {
-					return nil, problemf("the listed MCS dependency receipt differs from the pinned local source")
+					return nil, problemf("the listed dependency receipt differs from the pinned local source")
 				}
 				files++
 			}
 		}
 		for _, c := range raw.CRDs {
 			if c.Name == spec.name {
-				if c.Path != spec.file || c.Repo != "" || c.Commit != "" || !antreaDependencyIdentity(c, spec.name, spec.kind) || !sameServing(&fresh, &c) {
-					return nil, problemf("the listed MCS dependency object differs from the freshly verified source")
+				if c.Path != spec.file || c.Repo != "" || c.Commit != "" || !antreaDependencyIdentity(c, spec) || !sameServing(&fresh, &c) {
+					return nil, problemf("the listed dependency object differs from the freshly verified source")
 				}
 				objects++
 			}
 		}
 		owner, attribution := x.index.OwnerOf(fresh.Group, fresh.Kind)
 		if files != 1 || objects != 1 || owner == x.target.Project || attribution == customresources.Ambiguous {
-			return nil, problemf("installed MCS dependency %s is missing, repeated, owned by Antrea or ambiguously attributed", spec.name)
+			return nil, problemf("installed dependency %s is missing, repeated, owned by Antrea or ambiguously attributed", spec.name)
 		}
 	}
 	inv := *raw
@@ -364,7 +396,7 @@ func antreaModeProblems(component string, states []*tagState) []string {
 	seen := map[string]map[string]bool{}
 	previousMCS := map[string][]string{}
 	for _, st := range states {
-		if st.scan == nil || st.scan.AntreaModes == nil || !st.scan.AntreaModes.verified || len(st.scan.AntreaModes.Modes) != len(antreaModes) || len(st.scan.AntreaModes.dependencies) != len(antreaMCSDependencies) {
+		if st.scan == nil || st.scan.AntreaModes == nil || !st.scan.AntreaModes.verified || len(st.scan.AntreaModes.Modes) != len(antreaModes) || len(st.scan.AntreaModes.dependencies) != len(antreaMCSDependencies)+1 {
 			return []string{fmt.Sprintf("%s: the four-mode serving proof is missing or unverified", st.tag.Name)}
 		}
 		for _, mode := range antreaModes {
