@@ -91,11 +91,11 @@ func TestAdmittedBlocksRefusals(t *testing.T) {
 	for name, breaker := range readmeBreakers {
 		t.Run(name, func(t *testing.T) {
 			base, head := trees(t)
-			if got := layout.admittedBlocks(base, head); !got[readmePath] {
+			if got := layout.admittedBlocks(base, head, false); !got[readmePath] {
 				t.Fatalf("an unchanged README is not admitted: %v", got)
 			}
 			editREADME(t, head, breaker)
-			if got := layout.admittedBlocks(base, head); got[readmePath] {
+			if got := layout.admittedBlocks(base, head, false); got[readmePath] {
 				t.Fatal("a refused README was admitted")
 			}
 		})
@@ -111,7 +111,7 @@ func TestAdmittedBlocksRefusals(t *testing.T) {
 		if err := os.Symlink("README.real", path); err != nil {
 			t.Fatal(err)
 		}
-		if got := layout.admittedBlocks(base, head); got[readmePath] {
+		if got := layout.admittedBlocks(base, head, false); got[readmePath] {
 			t.Fatal("a README that is a link was admitted")
 		}
 	})
@@ -120,14 +120,14 @@ func TestAdmittedBlocksRefusals(t *testing.T) {
 		if err := os.Chmod(filepath.Join(head.Root, readmePath), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if got := layout.admittedBlocks(base, head); got[readmePath] {
+		if got := layout.admittedBlocks(base, head, false); got[readmePath] {
 			t.Fatal("an executable README was admitted")
 		}
 	})
 	t.Run("regenerated block", func(t *testing.T) {
 		base, head := trees(t)
 		editREADME(t, base, alterBlockDigit)
-		if got := layout.admittedBlocks(base, head); !got[readmePath] {
+		if got := layout.admittedBlocks(base, head, false); !got[readmePath] {
 			t.Fatal("the base's prose with the head's regenerated block is not admitted")
 		}
 	})
@@ -370,7 +370,7 @@ func TestCoverageNumbersKeepBaseline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	report, _, _, err := coverageReportOf(tree)
+	report, _, _, err := coverageReportOf(tree, defaultTablePath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -436,7 +436,7 @@ func TestBaselineProjectFloorsMatchFleet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	report, _, _, err := coverageReportOf(tree)
+	report, _, _, err := coverageReportOf(tree, defaultTablePath)
 	if err != nil {
 		t.Fatal(err)
 	}

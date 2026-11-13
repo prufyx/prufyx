@@ -299,10 +299,10 @@ func TestCoverageFloorShippedData(t *testing.T) {
 	if len(DefaultLayout().GeneratedBlocks) == 0 {
 		t.Fatal("the shipped layout has no generated blocks, so the floor would be skipped")
 	}
-	if err := coverageFloor(tree, tree); err != nil {
+	if err := coverageFloor(tree, tree, defaultTablePath); err != nil {
 		t.Fatal(err)
 	}
-	report, _, _, err := coverageReportOf(tree)
+	report, _, _, err := coverageReportOf(tree, defaultTablePath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -321,7 +321,7 @@ func shippedSlice(t *testing.T) Tree {
 	t.Helper()
 	tr := Tree{Root: t.TempDir()}
 	ol := DefaultLayout().Onboarding
-	rels := []string{cncfRulesPath, commRulesPath, coveragereport.PinnedLinesPath, inventoryJSON}
+	rels := []string{cncfRulesPath, commRulesPath, coveragereport.PinnedLinesPath, inventoryJSON, ol.TablePath}
 	names, err := filepath.Glob(filepath.Join(repoRoot, filepath.FromSlash(ol.TargetsDir), "target-*.json"))
 	if err != nil || len(names) == 0 {
 		t.Fatalf("targets: %v", err)
@@ -387,7 +387,7 @@ func shippedFloorCheck(base, head Tree) Check {
 // evaluated on.
 func rederiveLineAttestations(t *testing.T, tr Tree) time.Time {
 	t.Helper()
-	_, _, clock, err := coverageReportOf(tr)
+	_, _, clock, err := coverageReportOf(tr, defaultTablePath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -421,7 +421,7 @@ func rederiveLineAttestations(t *testing.T, tr Tree) time.Time {
 
 func decidedPairs(t *testing.T, tr Tree) int {
 	t.Helper()
-	report, _, _, err := coverageReportOf(tr)
+	report, _, _, err := coverageReportOf(tr, defaultTablePath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -452,7 +452,7 @@ func TestCoverageFloorAcceptsRederiveWithNewerDatesAtTheTreeClock(t *testing.T) 
 	if after < before {
 		t.Fatalf("a re-derive lowered the decided pairs by the clock alone (%d -> %d)", before, after)
 	}
-	_, _, headClock, err := coverageReportOf(head)
+	_, _, headClock, err := coverageReportOf(head, defaultTablePath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -603,7 +603,7 @@ func TestCoverageFloorRefusesClockRollback(t *testing.T) {
 	// for the rolled-back tree (which the gate refuses above).
 	for _, tr := range []Tree{base, back, later} {
 		want, err := treeEvalClock(tr)
-		_, _, got, err2 := coverageReportOf(tr)
+		_, _, got, err2 := coverageReportOf(tr, defaultTablePath)
 		if err != nil || err2 != nil || !got.Equal(want) {
 			t.Fatalf("render clock %v, gate clock %v (%v %v)", got, want, err2, err)
 		}
@@ -659,7 +659,7 @@ func TestTreeEvalClockIsTheReportClock(t *testing.T) {
 	t.Parallel()
 	for _, tr := range []Tree{shippedSlice(t), shippedSliceWithAdditions(t)} {
 		got, err := treeEvalClock(tr)
-		_, _, want, err2 := coverageReportOf(tr)
+		_, _, want, err2 := coverageReportOf(tr, defaultTablePath)
 		if err != nil || err2 != nil || !got.Equal(want) {
 			t.Fatalf("%v %v %v %v", got, want, err, err2)
 		}

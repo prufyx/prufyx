@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
-	"github.com/prufyx/prufyx/cli/internal/customresources"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 )
 
@@ -72,6 +71,10 @@ type Input struct {
 	// V2 adds the metric v2 members (cells, weights, the v2 section) from
 	// the embedded tier and applicability files.
 	V2 bool
+	// Catalog is the catalog split (community or CNCF) the report classifies
+	// projects by. Nil means the table embedded in the running program; a
+	// caller that judges another tree passes the set of that tree's table.
+	Catalog *CatalogSet
 }
 
 // Pair is one consecutive pair of lines and its status.
@@ -606,7 +609,7 @@ func Compute(in Input) (Report, error) {
 		}
 	}
 	for project := range covered {
-		if customresources.IsCommunity(project) && validAtt[project] == 0 {
+		if in.Catalog.Community(project) && validAtt[project] == 0 {
 			continue
 		}
 		report.PackProjects++
@@ -632,7 +635,7 @@ func Compute(in Input) (Report, error) {
 		if published {
 			report.CRDPublishedProjects++
 		}
-		if customresources.IsCommunity(project) {
+		if in.Catalog.Community(project) {
 			report.crd.community++
 			if published {
 				report.crd.communityPublished++
@@ -662,7 +665,7 @@ func Compute(in Input) (Report, error) {
 			lines = lines[len(lines)-window:]
 		}
 		row := Project{Project: slug, Priority: pl.Priority, Window: append([]string{}, lines...), Pairs: []Pair{}, Covered: covered[slug]}
-		community := customresources.IsCommunity(slug)
+		community := in.Catalog.Community(slug)
 		if community {
 			row.Catalog = CatalogCommunity
 		}
@@ -827,7 +830,7 @@ func Compute(in Input) (Report, error) {
 	}
 	report.WithoutLines = []string{}
 	for project := range covered {
-		if !withLines[project] && (!customresources.IsCommunity(project) || validAtt[project] > 0) {
+		if !withLines[project] && (!in.Catalog.Community(project) || validAtt[project] > 0) {
 			report.WithoutLines = append(report.WithoutLines, project)
 		}
 	}
@@ -854,7 +857,7 @@ func Compute(in Input) (Report, error) {
 		if err := checkExemptions(tiers, app); err != nil {
 			return Report{}, err
 		}
-		applyV2(&report, tiers, app)
+		applyV2(&report, tiers, app, in.Catalog)
 	}
 	return report, nil
 }

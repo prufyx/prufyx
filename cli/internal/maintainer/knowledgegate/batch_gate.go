@@ -80,7 +80,7 @@ func batchAllowedPaths(layout Layout, base, head Tree, batchPath string) map[str
 	}
 	// A generated block's file (the README, the CNCF source preview)
 	// only when it is the base file with just its blocks regenerated from the head's data.
-	for p := range layout.admittedBlocks(base, head) {
+	for p := range layout.admittedBlocks(base, head, false) {
 		allowed[p] = true
 	}
 	// The additions file and the <slug>.tags files it is derived from. Never
