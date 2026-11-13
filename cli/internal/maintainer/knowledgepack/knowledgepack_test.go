@@ -6,10 +6,12 @@ import (
 	"archive/tar"
 	"bytes"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -254,8 +256,50 @@ func TestKnowledgePack_MatchesGeneratedFixtureBytes(t *testing.T) {
 }
 
 func TestKnowledgePack_RetiredSingleProfileRejected(t *testing.T) {
-	if _, err := PackageDirectory(t.TempDir(), "cncf"); err == nil {
-		t.Fatal("retired profile accepted")
+	artifacts, err := knowledgefixture.GenerateConstraints(time.Now().UTC().Truncate(time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	reader := tar.NewReader(bytes.NewReader(artifacts.Revision2))
+	for {
+		header, err := reader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if header.Typeflag != tar.TypeReg || filepath.IsAbs(header.Name) || filepath.Clean(header.Name) != header.Name {
+			t.Fatalf("unsafe fixture member %q", header.Name)
+		}
+		name := filepath.Join(root, filepath.FromSlash(header.Name))
+		if err := os.MkdirAll(filepath.Dir(name), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		raw, err := io.ReadAll(reader)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(name, raw, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if members, err := collectMembers(root, "cncf"); err != nil || len(members) != 4 {
+		t.Fatalf("legacy fixture must pass input admission: members=%d err=%v", len(members), err)
+	}
+	assertRetired := func(err error) {
+		t.Helper()
+		if !errors.Is(err, ErrRejected) || !strings.Contains(err.Error(), "single-target publication retired") {
+			t.Fatalf("expected retired profile rejection, got %v", err)
+		}
+	}
+	_, err = PackageDirectory(root, "cncf")
+	assertRetired(err)
+	output := filepath.Join(t.TempDir(), "retired.tar")
+	assertRetired(WritePackage(root, output, "cncf"))
+	if _, err := os.Lstat(output); !os.IsNotExist(err) {
+		t.Fatalf("retired publication created output: %v", err)
 	}
 	for _, profile := range Profiles() {
 		if profile == "cncf" {

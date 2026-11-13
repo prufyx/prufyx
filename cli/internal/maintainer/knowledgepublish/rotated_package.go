@@ -20,8 +20,7 @@ import (
 // initial root and its complete ordered successor sequence.
 type RotatedFinalizePackageOptions struct {
 	InitialRoot, Target, Targets, Snapshot, Timestamp []byte
-	// Projects are the project targets of a per-project publication; Target
-	// is then the index. Empty means the single-target layout.
+	// Projects are the required project targets; Target is the index.
 	Projects          []Target
 	InitialRootDigest string
 	SuccessorRoots    [][]byte

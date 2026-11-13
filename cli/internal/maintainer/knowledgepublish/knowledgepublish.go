@@ -438,8 +438,7 @@ func validateTargets(role *metadata.Metadata[metadata.TargetsType], set targetSe
 	return nil
 }
 
-// validateTargetsShape accepts either the single-target role (exactly the
-// constraints bundle) or the per-project role (the index plus project
+// validateTargetsShape accepts the per-project role (the index plus project
 // targets). It checks the role only; the bytes are bound by validateTargets.
 func validateTargetsShape(role *metadata.Metadata[metadata.TargetsType]) error {
 	if role == nil || role.Signed.Type != metadata.TARGETS || !validVersion(role.Signed.Version) || role.Signed.Expires.IsZero() || !strings.HasPrefix(role.Signed.SpecVersion, "1.0.") || role.Signed.Delegations != nil || len(role.Signed.UnrecognizedFields) != 0 || len(role.UnrecognizedFields) != 0 {
