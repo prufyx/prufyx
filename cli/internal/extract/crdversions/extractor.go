@@ -540,15 +540,17 @@ func readInventory(r extract.PinnedReader, repo extract.RepoRef, t Target, at at
 func listPaths(r extract.PinnedReader, repo extract.RepoRef, commit string, paths []PathSpec, inv *Inventory) ([]string, error) {
 	var files []string
 	for _, p := range paths {
-		if !p.Dir {
-			if p.Optional {
-				if _, err := r.Read(repo, commit, p.Path); isNotFound(err) {
-					inv.Paths = append(inv.Paths, PathRecord{Path: p.Path, Kind: "missing"})
-					continue
-				} else if err != nil {
-					return nil, err
-				}
+		if p.Optional {
+			missing, err := optionalPathMissing(r, repo, commit, p)
+			if err != nil {
+				return nil, err
 			}
+			if missing {
+				inv.Paths = append(inv.Paths, PathRecord{Path: p.Path, Kind: "missing"})
+				continue
+			}
+		}
+		if !p.Dir {
 			inv.Paths = append(inv.Paths, PathRecord{Path: p.Path, Kind: "file", Files: 1})
 			files = append(files, p.Path)
 			continue
@@ -556,10 +558,6 @@ func listPaths(r extract.PinnedReader, repo extract.RepoRef, commit string, path
 		pr := PathRecord{Path: p.Path, Kind: "directory"}
 		found, err := listFiles(r, repo, commit, p, &pr)
 		if isNotFound(err) {
-			if p.Optional {
-				inv.Paths = append(inv.Paths, PathRecord{Path: p.Path, Kind: "missing"})
-				continue
-			}
 			return nil, problemf("listed directory %s does not exist", p.Path)
 		}
 		if err != nil {

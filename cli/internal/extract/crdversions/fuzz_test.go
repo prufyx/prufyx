@@ -52,11 +52,11 @@ func (m memReader) List(_ extract.RepoRef, commit, dir string) ([]extract.TreeEn
 		seen[full] = true
 		// Object ids: a blob's names its bytes (so the scan reuses it);
 		// a tree's names the commit and directory (never shared).
-		typ, id := "blob", sha1.Sum(m[k])
+		mode, typ, id := "100644", "blob", sha1.Sum(m[k])
 		if isDir {
-			typ, id = "tree", sha1.Sum([]byte("tree "+commit+" "+full))
+			mode, typ, id = "040000", "tree", sha1.Sum([]byte("tree "+commit+" "+full))
 		}
-		out = append(out, extract.TreeEntry{Mode: "100644", Type: typ, SHA: hex.EncodeToString(id[:]), Path: full})
+		out = append(out, extract.TreeEntry{Mode: mode, Type: typ, SHA: hex.EncodeToString(id[:]), Path: full})
 	}
 	if len(out) == 0 && dir != "" {
 		return nil, fmt.Errorf("%w: %s", extract.ErrNotFound, dir)

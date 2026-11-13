@@ -108,6 +108,12 @@ In a listed directory, a file whose name contains `crd` (in any case) but
 does not match the pattern makes the inventory incomplete: it may hold a
 definition the extractor would not read. A listed path must exist at every
 release unless it is marked optional (Strimzi's `install/access-operator`).
+Optional absence requires successful pinned directory listings from the
+repository root proving the path or one of its ancestors absent. A listed
+file that cannot be read is incomplete, never missing. Opaque ancestors,
+symbolic links, submodules, malformed listings and failed listings cannot
+authorize optional absence. The scan skips only files with successful source
+receipts, rather than every configured exact-file path.
 
 Only the custom-resource version sets of `argo-cd`, `istio` and `strimzi` are
 registered today (see [../custom-resources.md](../custom-resources.md)). The
