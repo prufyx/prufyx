@@ -391,12 +391,12 @@ func TestCoverageNumbersKeepBaseline(t *testing.T) {
 // its pairs are counted apart. Floor semantics: published >= floor, so a raise
 // needs no hand edit; a drop below the floor fails here and in the base-tree
 // gates (coverage_floor.go and the CI baseline step).
-func checkFloorSumVsFleet(sum, decidedPairs, published int) error {
+func checkFloorSumVsFleet(sum, decidedPairs, published, allowance int) error {
 	if sum != decidedPairs {
 		return fmt.Errorf("per-project floors of CNCF-catalog projects add up to %d but the baseline decidedPairs floor is %d; the baseline file must be internally consistent", sum, decidedPairs)
 	}
-	if sum > published {
-		return fmt.Errorf("per-project floors of CNCF-catalog projects add up to %d, above the published fleet decided pairs %d: coverage fell below the committed floor (community-catalog projects are counted apart)", sum, published)
+	if published < sum-allowance {
+		return fmt.Errorf("per-project floors of CNCF-catalog projects add up to %d, above the published fleet decided pairs %d (named withdrawals allow %d): coverage fell below the committed floor (community-catalog projects are counted apart)", sum, published, allowance)
 	}
 	return nil
 }
@@ -404,16 +404,18 @@ func checkFloorSumVsFleet(sum, decidedPairs, published int) error {
 func TestCheckFloorSumVsFleet(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct {
-		name              string
-		sum, decided, pub int
-		wantErr           bool
+		name                     string
+		sum, decided, pub, allow int
+		wantErr                  bool
 	}{
-		{"equal", 53, 53, 53, false},
-		{"published above floor", 53, 53, 63, false},
-		{"published below floor", 53, 53, 52, true},
-		{"baseline inconsistent", 53, 50, 63, true},
+		{"equal", 53, 53, 53, 0, false},
+		{"published above floor", 53, 53, 63, 0, false},
+		{"published below floor", 53, 53, 52, 0, true},
+		{"below floor within withdrawal allowance", 53, 53, 51, 2, false},
+		{"below floor beyond withdrawal allowance", 53, 53, 50, 2, true},
+		{"baseline inconsistent", 53, 50, 63, 0, true},
 	} {
-		if err := checkFloorSumVsFleet(c.sum, c.decided, c.pub); (err != nil) != c.wantErr {
+		if err := checkFloorSumVsFleet(c.sum, c.decided, c.pub, c.allow); (err != nil) != c.wantErr {
 			t.Errorf("%s: err=%v, wantErr %v", c.name, err, c.wantErr)
 		}
 	}
@@ -444,13 +446,17 @@ func TestBaselineProjectFloorsMatchFleet(t *testing.T) {
 			community[p.Project] = true
 		}
 	}
+	allow := 0
+	for _, w := range b.Withdrawals {
+		allow += w.DecidedPairs
+	}
 	sum := 0
 	for p, n := range b.ProjectPairs {
 		if !community[p] {
 			sum += n
 		}
 	}
-	if err := checkFloorSumVsFleet(sum, b.DecidedPairs, report.Fleet.A+report.Fleet.B); err != nil {
+	if err := checkFloorSumVsFleet(sum, b.DecidedPairs, report.Fleet.A+report.Fleet.B, allow); err != nil {
 		t.Fatal(err)
 	}
 }
