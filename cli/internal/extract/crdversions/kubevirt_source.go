@@ -941,3 +941,31 @@ func readKubeVirtConstructors(r extract.PinnedReader, repo extract.RepoRef, comm
 	inv.ConstructorProfile = kubevirtProfile
 	return nil
 }
+
+// VerifyKubeVirtConstructorGroups checks a constructor citation against freshly
+// read, granted source. Requested groups are queries, never proof inputs.
+func VerifyKubeVirtConstructorGroups(r extract.PinnedReader, t Target, commit, sourcePath string, groups []string) error {
+	if r == nil || t.ConstructorProfile != kubevirtProfile || sourcePath != kvConstructors || !extract.IsCommitSHA(commit) || len(groups) == 0 || len(groups) > MaxCRDsPerTag {
+		return problemf("unsupported KubeVirt constructor citation")
+	}
+	repo, err := extract.ParseRepo(t.Repo)
+	if err != nil {
+		return err
+	}
+	inv := &Inventory{Commit: commit}
+	if err := readKubeVirtConstructors(r, repo, commit, t, inv); err != nil {
+		return err
+	}
+	defined := map[string]bool{}
+	for _, crd := range inv.CRDs {
+		if crd.Path == sourcePath {
+			defined[crd.Group] = true
+		}
+	}
+	for _, group := range groups {
+		if !defined[group] {
+			return problemf("constructor source does not define group %s", group)
+		}
+	}
+	return nil
+}

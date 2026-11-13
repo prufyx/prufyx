@@ -1209,6 +1209,15 @@ one change": the gate never combines them, and neither path admits `revision`.
 A registry-member change that also edits the custom-resource table is refused
 with its own reason, "the custom-resource table changed in the same change".
 
+For the exact `kubevirt-v1` profile, a group may cite KubeVirt's immutable
+`pkg/virt-operator/resource/generate/components/crds.go` source instead of a
+listed YAML manifest. O6 rechecks every source grant input and parses the
+complete constructor inventory with the extractor's existing reader. The
+group must occur in the constructor output at that exact file; comments,
+YAML-looking text and supplied inventories are not proof. The same source
+budgets apply. This exception does not permit scan exclusions in an onboarding
+batch or turn on attestation.
+
 ### Scan findings a proof may list
 
 A proof lists the files the full-tree scan of the project's newest release pair
