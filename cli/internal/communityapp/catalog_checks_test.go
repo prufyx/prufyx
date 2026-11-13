@@ -5,10 +5,12 @@ package communityapp
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/checkroutemetadata"
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 )
 
 // TestRenderCatalogCheckRangeMatchShowsModeNotAnchorCommand proves fix 1's
@@ -383,8 +385,14 @@ func TestCatalogChecksWithdrawnRuleIsNotCoverage(t *testing.T) {
 		t.Fatalf("json code=%d result=%+v", code, result)
 	}
 	code, out, _ = runCommunity(t, "catalog", "cncf", "--project", "cri-o")
-	if code != ExitOK || !strings.Contains(out, "cri-o: CRI-O (graduated); 0 active generic source rules (1 withdrawn)") || !strings.Contains(out, "generic source-rule preview: 53 projects") {
+	if code != ExitOK || !strings.Contains(out, "cri-o: CRI-O (graduated); 0 active generic source rules (1 withdrawn)") {
 		t.Fatalf("catalog cncf code=%d:\n%s", code, out)
+	}
+	// The count of projects with an active rule is the catalogue's own, and
+	// never below the floor of what was published before.
+	all, err := cncfcheck.Catalog(false, "")
+	if err != nil || all.SourceRuleCovered < 53 || !strings.Contains(out, fmt.Sprintf("generic source-rule preview: %d projects", all.SourceRuleCovered)) {
+		t.Fatalf("catalog cncf project count (catalogue %d, err %v):\n%s", all.SourceRuleCovered, err, out)
 	}
 	code, out, _ = runCommunity(t, "catalog", "cncf", "--project", "dragonfly")
 	if code != ExitOK || !strings.Contains(out, "dragonfly: Dragonfly (graduated); 2 active generic source rules\n") || strings.Contains(out, "withdrawn") {

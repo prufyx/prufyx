@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -655,7 +656,41 @@ func TestFluentdInvalidRubyVersionIsInvalidInput(t *testing.T) {
 
 // A withdrawn rule decides nothing: it is not a rule and not coverage. The
 // only withdrawn rule of the pack (CRI-O) must be counted apart, so that the
-// catalogue says 53 projects with rules, not 54.
+// catalogue counts the projects with an active rule only: never fewer than
+// the floor, and exactly the projects whose own active rule count is above
+// zero (cri-o has none).
+const projectsWithActiveRulesFloor = 53
+
+// projectsWithActiveRules counts the projects of the catalogue whose own
+// active rule count is above zero, a count independent of the inventory's
+// SourceRuleCovered.
+func projectsWithActiveRules(c Catalogue) int {
+	n := 0
+	for _, p := range c.Projects {
+		if p.SourceRuleCount > 0 {
+			n++
+		}
+	}
+	return n
+}
+
+func projectsWithActiveRulesError(c Catalogue) error {
+	if c.SourceRuleCovered < projectsWithActiveRulesFloor {
+		return fmt.Errorf("projects with active rules = %d, below the floor %d", c.SourceRuleCovered, projectsWithActiveRulesFloor)
+	}
+	if got := projectsWithActiveRules(c); got != c.SourceRuleCovered {
+		return fmt.Errorf("projects with active rules = %d, the projects' own rule counts give %d", c.SourceRuleCovered, got)
+	}
+	return nil
+}
+
+func checkProjectsWithActiveRules(t *testing.T, c Catalogue) {
+	t.Helper()
+	if err := projectsWithActiveRulesError(c); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestCatalogueCountsActiveRulesOnly(t *testing.T) {
 	t.Parallel()
 	crio, err := Catalog(false, "cri-o")
@@ -666,9 +701,11 @@ func TestCatalogueCountsActiveRulesOnly(t *testing.T) {
 	if project.SourceRuleCount != 0 || project.WithdrawnRuleCount != 1 || project.GenericCoverage != "withdrawn_only" || len(project.Checks) != 1 || !EntryWithdrawn(project.Checks[0]) {
 		t.Fatalf("cri-o: %+v", project)
 	}
-	if crio.SourceRuleCovered != 53 {
-		t.Fatalf("projects with active rules = %d, want 53", crio.SourceRuleCovered)
+	all, err := Catalog(false, "")
+	if err != nil {
+		t.Fatal(err)
 	}
+	checkProjectsWithActiveRules(t, all)
 	ids, err := EmbeddedRuleIdentities()
 	if err != nil {
 		t.Fatal(err)
@@ -696,9 +733,10 @@ func TestCatalogueDoesNotInventCoverage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if all.Catalogued != 255 || all.PriorityProjects != 30 || len(all.Projects) != 255 || all.SourceRuleCovered != 53 || all.RuntimeReproduced != 0 {
+	if all.Catalogued != 255 || all.PriorityProjects != 30 || len(all.Projects) != 255 || all.RuntimeReproduced != 0 {
 		t.Fatalf("unexpected inventory: %+v", all)
 	}
+	checkProjectsWithActiveRules(t, all)
 	priority, err := Catalog(true, "")
 	if err != nil || len(priority.Projects) != 30 || priority.SourceRuleCovered != all.SourceRuleCovered {
 		t.Fatal("filtered inventory changed total counters")
@@ -959,4 +997,33 @@ func mechanicalReviewClock(t *testing.T, ruleID string) time.Time {
 	t.Helper()
 	reviewed, _ := ruleEvidenceBounds(t, ruleID)
 	return reviewed.Add(time.Hour)
+}
+
+// The count check fails on a drop below the floor and on a count that the
+// projects' own rule counts do not give; it does not fail on growth.
+func TestProjectsWithActiveRulesCheckFailsOnDrop(t *testing.T) {
+	withRules := func(n, covered int) Catalogue {
+		c := Catalogue{SourceRuleCovered: covered}
+		for i := 0; i < n; i++ {
+			c.Projects = append(c.Projects, Project{SourceRuleCount: 1})
+		}
+		c.Projects = append(c.Projects, Project{SourceRuleCount: 0, WithdrawnRuleCount: 1})
+		return c
+	}
+	f := projectsWithActiveRulesFloor
+	for _, tc := range []struct {
+		name string
+		c    Catalogue
+		fail bool
+	}{
+		{"at the floor", withRules(f, f), false},
+		{"growth", withRules(f+1, f+1), false},
+		{"drop below the floor", withRules(f-1, f-1), true},
+		{"inflated count", withRules(f, f+1), true},
+		{"count below own counts", withRules(f+1, f), true},
+	} {
+		if err := projectsWithActiveRulesError(tc.c); (err != nil) != tc.fail {
+			t.Errorf("%s: %v", tc.name, err)
+		}
+	}
 }

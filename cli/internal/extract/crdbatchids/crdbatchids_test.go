@@ -164,3 +164,97 @@ func TestHoldsAcceptsForeignMechanicalRules(t *testing.T) {
 		t.Fatal("a foreign rule made up for a missing batch rule")
 	}
 }
+
+// mechEntry is a mechanical rule of another project with its evidence, as the
+// factory ships it: from 1.5.0 to 1.6.0 of the project.
+func mechEntry(project, slug, basis, extractor string) string {
+	return mechEntryState(project, slug, basis, extractor, "active")
+}
+
+func mechEntryState(project, slug, basis, extractor, state string) string {
+	component := "pkg:github/" + project + "/" + project
+	id := project + Marker + slug + ".1-5-0-to-1-6-0"
+	return fmt.Sprintf(`{"project":%q,"rule":{"id":%q,"operator":"forbid_set_member","subject":{"component":%q,"from":"1.5.0","to":"1.6.0"},"evidence":{"basis":%q,"state":%q,"extractor":{"id":%q}},"setCondition":{"side":"proposed","component":%q,"factId":"component.%s.custom_resource_versions_set","members":["x.example/v1/X"]}}}`,
+		project, id, component, basis, state, extractor, component, project)
+}
+
+// A foreign line may list rules only when they are known mechanical rules of
+// the line, exactly; the batch's lines stay quiet; the batch stays all or none.
+func TestHoldsForeignLinesWithKnownMechanicalRules(t *testing.T) {
+	var all, quiet []string
+	for _, r := range Rules() {
+		all = append(all, entryOf(r, r.Members))
+	}
+	for _, l := range Lines() {
+		quiet = append(quiet, lineOf(l, "[]"))
+	}
+	const comp = "pkg:github/openyurt/openyurt"
+	idA := "openyurt" + Marker + "a.1-5-0-to-1-6-0"
+	idB := "openyurt" + Marker + "b.1-5-0-to-1-6-0"
+	mech := func(slug string) string {
+		return mechEntry("openyurt", slug, "mechanical", "crd.version-removal.openyurt")
+	}
+	line := func(l string, ids ...string) string {
+		if ids == nil {
+			ids = []string{}
+		}
+		quoted, _ := json.Marshal(ids)
+		return lineOf(Line{comp, l}, string(quoted))
+	}
+	type tc struct {
+		name    string
+		entries []string
+		lines   []string
+		ok      bool
+	}
+	cases := []tc{
+		{"quiet foreign line", []string{mech("a")}, []string{line("1.4")}, true},
+		{"known rule", []string{mech("a")}, []string{line("1.6", idA)}, true},
+		{"known rules, complete list", []string{mech("a"), mech("b")}, []string{line("1.6", idA, idB)}, true},
+		{"incomplete list", []string{mech("a"), mech("b")}, []string{line("1.6", idA)}, false},
+		{"rule listed twice", []string{mech("a")}, []string{line("1.6", idA, idA)}, false},
+		{"unknown rule id", []string{mech("a")}, []string{line("1.6", "openyurt"+Marker+"zzz.1-5-0-to-1-6-0")}, false},
+		{"id of a non-crd rule", []string{mech("a"), `{"project":"openyurt","rule":{"id":"openyurt.other","operator":"forbid_enum_value"}}`}, []string{line("1.6", "openyurt.other")}, false},
+		{"no rule in the pack", nil, []string{line("1.6", idA)}, false},
+		{"another line of the same project", []string{mech("a")}, []string{line("1.7", idA)}, false},
+		{"rule of another project", []string{mechEntry("keda", "a", "mechanical", "crd.version-removal.keda")}, []string{line("1.6", "keda"+Marker+"a.1-5-0-to-1-6-0")}, false},
+		{"rule of another component", []string{mech("a"), mechEntry("keda", "a", "mechanical", "crd.version-removal.keda")}, []string{line("1.6", idA, "keda"+Marker+"a.1-5-0-to-1-6-0")}, false},
+		{"rule not mechanical", []string{mechEntry("openyurt", "a", "reviewed", "crd.version-removal.openyurt")}, []string{line("1.6", idA)}, false},
+		{"rule of another extractor", []string{mechEntry("openyurt", "a", "mechanical", "crd.version-removal.keda")}, []string{line("1.6", idA)}, false},
+		{"rule without extractor", []string{`{"project":"openyurt","rule":{"id":"` + idA + `","operator":"forbid_set_member","subject":{"component":"` + comp + `","from":"1.5.0","to":"1.6.0"},"setCondition":{"side":"proposed","component":"` + comp + `","factId":"component.openyurt.custom_resource_versions_set","members":["x.example/v1/X"]}}}`}, []string{line("1.6", idA)}, false},
+		{"line without ids", []string{mech("a")}, []string{lineOf(Line{comp, "1.6"}, "null")}, false},
+		{"withdrawn rule listed", []string{mechEntryState("openyurt", "a", "mechanical", "crd.version-removal.openyurt", "withdrawn")}, []string{line("1.6", idA)}, true},
+		{"withdrawn rule left out", []string{mechEntryState("openyurt", "a", "mechanical", "crd.version-removal.openyurt", "withdrawn")}, []string{line("1.6")}, false},
+		{"rule id repeated in the pack", []string{mech("a"), mech("a")}, []string{line("1.6", idA)}, false},
+		{"quiet line but a rule of the line exists", []string{mech("a")}, []string{line("1.6")}, false},
+	}
+	for _, c := range cases {
+		// Without the batch, and with the whole batch beside it: the same
+		// verdict; a foreign line never changes which of the two the pack is.
+		held, err := Holds(packOf(c.entries, c.lines))
+		if (err == nil) != c.ok || held {
+			t.Errorf("%s (no batch): held=%v err=%v, want ok=%v", c.name, held, err, c.ok)
+		}
+		held, err = Holds(packOf(append(append([]string(nil), all...), c.entries...), append(append([]string(nil), quiet...), c.lines...)))
+		if (err == nil) != c.ok || (c.ok && !held) {
+			t.Errorf("%s (whole batch): held=%v err=%v, want ok=%v", c.name, held, err, c.ok)
+		}
+	}
+	// The batch's own lines never carry rules, known or not.
+	known := mech("a")
+	if _, err := Holds(packOf(append([]string{known}, all...), append(append([]string(nil), quiet[1:]...), lineOf(Lines()[0], `["`+idA+`"]`)))); err == nil {
+		t.Error("a batch line listing a known rule accepted")
+	}
+	// All or none still holds with a foreign line with rules in the pack.
+	if _, err := Holds(packOf(append([]string{known}, all[1:]...), append(append([]string(nil), quiet...), line("1.6", idA)))); err == nil {
+		t.Error("partial batch beside a foreign rule line accepted")
+	}
+	if _, err := Holds(packOf(append([]string{known}, all...), append(append([]string(nil), quiet[1:]...), line("1.6", idA)))); err == nil {
+		t.Error("batch with a line missing beside a foreign rule line accepted")
+	}
+	// The line is counted among the other lines, not the batch's.
+	held, others, err := holds(packOf([]string{known}, []string{line("1.6", idA)}))
+	if err != nil || held || len(others) != 1 {
+		t.Errorf("foreign line with a rule: %v %v %v", held, others, err)
+	}
+}
