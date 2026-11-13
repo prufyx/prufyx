@@ -1,0 +1,5 @@
+{
+  "pair": "0.3.13->0.3.14",
+  "refused": ["legacy.flag", "moved"],
+  "notRefused": ["annotations.tier", "legacy.size", "replicaCount"]
+}

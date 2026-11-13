@@ -46,7 +46,7 @@ import (
 const (
 	// IDPrefix is followed by the project slug and the chart name.
 	IDPrefix = "helm.values."
-	Version  = "1.3.0"
+	Version  = "1.4.0"
 	// SourceDir is this package's directory under the module's internal/.
 	SourceDir = "extract/helmvalues"
 )
@@ -87,6 +87,8 @@ type Extractor struct {
 	lines map[string]*releaseLine
 	// lineOf maps a tag name to its line key.
 	lineOf map[string]string
+	// mapping is the line statuses of the last Pairs call of a mapped target.
+	mapping []LineStatus
 }
 
 // New returns the extractor of a target.
@@ -217,6 +219,9 @@ var versionTailRE = regexp.MustCompile(`(?:^|[^0-9.])([0-9]+)\.([0-9]+)\.([0-9]+
 // whose earlier line is at or after MinFrom, each named by its first final
 // release. A tag with a pre-release or build suffix never counts.
 func (x *Extractor) Pairs(index extract.ReleaseIndex) []extract.VersionPair {
+	if x.target.AnchorMapping != nil {
+		return x.mappedPairs(index)
+	}
 	lines := x.releaseLines(index)
 	x.mu.Lock()
 	x.lines, x.lineOf = map[string]*releaseLine{}, map[string]string{}
@@ -571,6 +576,18 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, pair ex
 	if inventory {
 		return chartrun.Extraction{Proof: proof}, nil
 	}
+	mapped := x.target.AnchorMapping != nil
+	if mapped {
+		proof.Mapping = x.mappingRecord()
+		if x.appVersionGate(pair, from, to) != "" {
+			return chartrun.Extraction{}, &extract.Withheld{Reason: fmt.Sprintf("%s: %s at %s and %s", ReasonMappingAppVersion, x.target.Chart.Name, from.tag, to.tag), Proof: proof}
+		}
+		// Checked before any derivation: a missing or open schema is a
+		// named withhold, never an empty rule list read as "nothing refused".
+		if reason := schemaGate(from, to); reason != "" {
+			return chartrun.Extraction{}, &extract.Withheld{Reason: fmt.Sprintf("%s: %s at %s and %s", reason, x.target.Chart.Name, from.tag, to.tag), Proof: proof}
+		}
+	}
 	var candidates []chartrun.Candidate
 	kube, kubeC := x.kubeVersion(pair, from, to)
 	proof.KubeVersion = kube
@@ -599,6 +616,11 @@ func (x *Extractor) Extract(ctx context.Context, r extract.PinnedReader, pair ex
 		candidates = append(candidates, *c)
 	}
 	proof.Completeness = completeness(proof)
+	if mapped && !mappedTargetsEmitRules {
+		// Inert: the derivation above is the proof; no rule leaves it.
+		proof.Rules = []string{}
+		return chartrun.Extraction{}, &extract.Withheld{Reason: fmt.Sprintf("%s: %s at %s and %s", ReasonMappedInert, x.target.Chart.Name, from.tag, to.tag), Proof: proof}
+	}
 	for _, c := range candidates {
 		proof.Rules = append(proof.Rules, c.Rule.ID)
 	}

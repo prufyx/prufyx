@@ -1,0 +1,23 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "replicaCount": {"type": "integer"},
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {"repository": {"type": "string"}, "tag": {"type": "string"}}
+    },
+    "legacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {"flag": {"type": "boolean"}, "size": {"type": "integer"}}
+    },
+    "moved": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {"oldPlace": {"type": "integer"}}
+    },
+    "annotations": {"type": "object", "additionalProperties": {"type": "string"}}
+  }
+}

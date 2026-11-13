@@ -106,6 +106,11 @@ func buildRegistrations() map[string][]registration {
 		})
 	}
 	for _, t := range helmvalues.Targets {
+		if t.AnchorMapping != nil {
+			// A mapped target is inert: it decides no pair, so it is not a
+			// registered family and adds no line to any count.
+			continue
+		}
 		list := out[t.Project]
 		found := false
 		for i := range list {

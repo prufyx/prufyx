@@ -1,0 +1,2 @@
+### Added
+- Added an optional anchor mapping to the chart-values extractor: a pinned mapping from a product line to exactly one chart release, with named withhold reasons for lines with no or several candidate charts, for a side without a values schema and for an open schema. The OpenFGA chart is registered with three mapped lines and stays inert: it derives its pairs for the proof only and emits no rule, no attestation and no decided pair.

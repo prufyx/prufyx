@@ -1,6 +1,6 @@
 # Extractor `helm.values`
 
-Version 1.3.0. Compares a Helm chart's source at the first release of two
+Version 1.4.0. Compares a Helm chart's source at the first release of two
 consecutive release lines and derives rules only for the upgrades Helm itself
 refuses, plus two verdict-neutral notices (see [Notices](#notices)). It is deterministic, reads only upstream source pinned by full commit
 SHA, and involves no model.
@@ -27,12 +27,15 @@ from.
 | `helm.values.istio.gateway` | `github.com/istio/istio` | `manifests/charts/gateway` | `https://istio-release.storage.googleapis.com/charts` `gateway` | `X.Y.Z` | 1.26 |
 | `helm.values.keda.keda` | `github.com/kedacore/charts` | `keda` | `https://kedacore.github.io/charts` `keda` | `vX.Y.Z` | 2.15 |
 | `helm.values.metallb.metallb` | `github.com/metallb/metallb` | `charts/metallb` | `https://metallb.github.io/metallb` `metallb` | `vX.Y.Z` | 0.11 |
+| `helm.values.openfga.openfga` (mapped, inert) | `github.com/openfga/helm-charts` | `charts/openfga` | `https://openfga.github.io/helm-charts` `openfga` | `openfga-X.Y.Z` | mapped lines, see [Anchor mapping](#anchor-mapping) |
 | `helm.values.opentelemetry.opentelemetry-collector` | `github.com/open-telemetry/opentelemetry-helm-charts` | `charts/opentelemetry-collector` | `https://open-telemetry.github.io/opentelemetry-helm-charts` `opentelemetry-collector` | `opentelemetry-collector-X.Y.Z` | 0.169 |
 
-Every chart in the table also has a reviewed row in the chart-source table
-(`cli/internal/chartidentity/data/chart-sources.json`, see
+Every chart in the table, except a mapped one, also has a reviewed row in the
+chart-source table (`cli/internal/chartidentity/data/chart-sources.json`, see
 [../chart-identity.md](../chart-identity.md)); `rulecheck` refuses a chart
-rule without one, and a test keeps the two tables in step.
+rule without one, and a test keeps the two tables in step. A mapped chart has
+no such row yet and no fact definition, so a scan never resolves it and a rule
+it could emit would be refused.
 
 cert-manager and Istio keep a placeholder version in the chart's `Chart.yaml`
 at their release tags and set the real one when they publish the chart, so
@@ -66,6 +69,59 @@ non-string or empty keys, a key holding a NUL byte, more than one document, or
 a key YAML 1.1 reads as a boolean or null such as `on:`); or
 `values.schema.json` is not one plain JSON object (duplicate or case-folded
 member names are refused).
+
+## Anchor mapping
+
+A chart whose version does not follow the product's release lines (OpenFGA's
+chart `0.3.x` installs product lines `1.17` to `1.22`) cannot be paired by its
+own minor lines. A target may carry an optional `anchorMapping`: a window of
+product `lines` in ascending order and `rows`, each a candidate chart release
+`{line, chart, chartCommit, appVersion}`. The release tag is the target's tag
+prefix plus `chart`; `chartCommit` pins it by full commit, and a tag that is
+missing from the index or names another commit withholds the pair
+(`mapping-tag-missing`, `mapping-commit-mismatch`). A target without
+`anchorMapping` behaves exactly as described elsewhere in this page.
+
+A line resolves only when exactly one final chart release is mapped to it. The
+`appVersion` of a row decides; a leading `v` is ignored and a pre-release
+(`1.20.0-rc1`) is not a candidate. The chart's default image tag is never read
+for this. A line with no candidate (`mapping-missing`) or with more than one
+(`mapping-ambiguous`) is withheld, and so are both pairs it belongs to: the
+newest candidate never wins. A pair is made of two consecutive lines of the
+window that both resolved; anchors are anchor-only (no range is claimed).
+
+The `appVersion` of a row is typed by hand, so it is checked against the chart:
+the `appVersion` in `Chart.yaml` at each pinned commit, normalised the same way
+(leading `v` dropped, pre-release excluded), must be the line of the row that
+pins it, else the pair is withheld (`mapping-appversion-mismatch`) before
+anything is derived.
+
+Mapping rows are hand-listed and pinned by commit. Ambiguity can only be seen
+among the listed rows, so a chart release added later to a mapped line is not
+seen until the row set is reviewed again. That is safe: each line resolves to
+the one pinned commit, never to a newer tag.
+
+Before any derivation, a mapped pair is also withheld when the earlier side has
+no `values.schema.json` (`NO_SCHEMA_EARLIER_SIDE`), when the later side has
+none (`NO_SCHEMA_LATER_SIDE`), or when the root of either schema does not set
+`additionalProperties` to false (`schema-open`). An empty rule list is never
+read as "nothing refused" for a side without a schema.
+
+**Status: inert.** A mapped target derives each pair for its proof only and
+withholds it (`INERT_NO_ATTESTATION_FAMILY`): it emits no rule, no vector and
+no attestation, and decides no pair, until a chart-values attestation family
+exists. The only claim such a family may make is "refused by a closed schema":
+a key that the later chart's closed `values.schema.json` no longer admits. It
+does not cover open schemas; `$ref`, `allOf`, `enum`, `type` or `pattern`
+tightening; subchart and `global` keys; templates and conditional rendering;
+`--skip-schema-validation`; or renamed or moved keys (a move is a removal of
+the old path). It never says an upgrade is safe, and a rule over chart
+versions matches a bundle only when the exact chart versions are known.
+
+OpenFGA ships three rows, lines `1.19`, `1.20` and `1.21` (charts `0.3.13`,
+`0.3.14`, `0.3.15`); lines `1.17`, `1.18` and `1.22` each have several chart
+releases and are withheld as `mapping-missing`. Only the two pairs `1.19` to
+`1.20` and `1.20` to `1.21` could be decided later.
 
 ## What it derives
 

@@ -36,7 +36,7 @@
   "extractor": {
     "codeDigest": "sha256:CODE",
     "id": "helm.values.keda.keda",
-    "version": "1.3.0"
+    "version": "1.4.0"
   },
   "outputs": {
     "candidates.json": "sha256:OUTPUT",
