@@ -470,9 +470,9 @@ func runPackageKnowledge(args []string, stderr io.Writer) error {
 func runExportKnowledge(args []string) error {
 	flags := flag.NewFlagSet("export-knowledge", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
-	profile := flags.String("profile", "", "fixed public source profile (cncf, or cncf-projects for the per-project layout)")
+	profile := flags.String("profile", "cncf-projects", "cncf-projects (default); single-target export is retired")
 	revision := flags.String("revision", "", "positive external semantic revision")
-	output := flags.String("output", "", "new unsigned public target file (cncf) or new directory (cncf-projects)")
+	output := flags.String("output", "", "new per-project targets directory")
 	previous := flags.String("previous-index", "", "cncf-projects: previously published index; unchanged projects keep their revision")
 	if err := flags.Parse(args); err != nil || flags.NArg() != 0 || *profile == "" || *revision == "" || *output == "" {
 		return &commandError{code: 2, message: "export-knowledge: command rejected"}

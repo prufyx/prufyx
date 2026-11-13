@@ -12,13 +12,14 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/knowledgefixture"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
 )
 
 const karmadaRule = "karmada.application-purge-mode-legacy-values-removed.1-19"
 
 func TestKarmadaExistingRuleVectorsAreExecuted(t *testing.T) {
-	target, err := cncfcheck.ExportEmbeddedExternalBundle("73")
+	target, err := knowledgefixture.EmbeddedProjectBundle("karmada", "73")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +47,7 @@ func TestKarmadaExistingRuleVectorsAreExecuted(t *testing.T) {
 }
 
 func TestExactTargetRejectsUnrelatedRuleMutation(t *testing.T) {
-	target, err := cncfcheck.ExportEmbeddedExternalBundle("73")
+	target, err := knowledgefixture.EmbeddedProjectBundle("karmada", "73")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,7 +225,7 @@ func TestSourceOnlyProposalCannotBeReviewPacket(t *testing.T) {
 }
 
 func TestMalformedVectorInputIsRejectedWithoutClaim(t *testing.T) {
-	target, err := cncfcheck.ExportEmbeddedExternalBundle("73")
+	target, err := knowledgefixture.EmbeddedProjectBundle("karmada", "73")
 	if err != nil {
 		t.Fatal(err)
 	}

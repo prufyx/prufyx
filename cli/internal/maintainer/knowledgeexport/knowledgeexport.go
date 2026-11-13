@@ -6,6 +6,7 @@ package knowledgeexport
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path"
@@ -31,75 +32,16 @@ type Options struct {
 // project, the layout "knowledge-publish" signs with --targets-dir.
 const ProfileCNCFProjects = "cncf-projects"
 
-// Write exports the complete embedded public CNCF source-rule target to one
-// new regular file, or, for the cncf-projects profile, the per-project
-// targets to one new directory. It is deliberately not a store export or
-// package signer.
+// Write exports the per-project targets to a new directory. The retired
+// single-target profile is rejected rather than reinterpreted.
 func Write(options Options) error {
-	if options.Profile == ProfileCNCFProjects {
-		return writeProjects(options)
+	if options.Profile == "" {
+		options.Profile = ProfileCNCFProjects
 	}
-	if options.Profile != "cncf" || options.Output == "" || options.PreviousIndex != "" {
-		return ErrRejected
+	if options.Profile != ProfileCNCFProjects {
+		return fmt.Errorf("use cncf-projects: %w", ErrRejected)
 	}
-	raw, err := cncfcheck.ExportEmbeddedExternalBundle(options.Revision)
-	if err != nil {
-		return ErrRejected
-	}
-	abs, err := filepath.Abs(options.Output)
-	if err != nil || filepath.Base(abs) == "." || filepath.Base(abs) == string(filepath.Separator) {
-		return ErrRejected
-	}
-	parentPath, err := filepath.EvalSymlinks(filepath.Dir(abs))
-	if err != nil {
-		return ErrRejected
-	}
-	parent, err := os.OpenRoot(parentPath)
-	if err != nil {
-		return ErrRejected
-	}
-	defer parent.Close()
-	name := filepath.Base(abs)
-	f, err := parent.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
-	if err != nil {
-		return ErrRejected
-	}
-	info, err := f.Stat()
-	if err != nil || !info.Mode().IsRegular() {
-		_ = f.Close()
-		return ErrRejected
-	}
-	closed := false
-	defer func() {
-		if !closed {
-			_ = f.Close()
-		}
-	}()
-	if err := f.Chmod(0o644); err != nil {
-		return ErrRejected
-	}
-	if _, err := f.Write(raw); err != nil {
-		return ErrRejected
-	}
-	if err := f.Sync(); err != nil {
-		return ErrRejected
-	}
-	if err := f.Close(); err != nil {
-		return ErrRejected
-	}
-	closed = true
-	dir, err := parent.Open(".")
-	if err != nil {
-		return ErrRejected
-	}
-	if err := dir.Sync(); err != nil {
-		_ = dir.Close()
-		return ErrRejected
-	}
-	if err := dir.Close(); err != nil {
-		return ErrRejected
-	}
-	return nil
+	return writeProjects(options)
 }
 
 func writeProjects(options Options) error {

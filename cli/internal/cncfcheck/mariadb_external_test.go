@@ -37,10 +37,7 @@ func TestMariaDBExternalProfilesAndFrozenEntry(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	legacyBefore, err := ExportEmbeddedExternalBundle("6")
-	if err != nil {
-		t.Fatal(err)
-	}
+	legacyBefore := embeddedProjectEnvelope(t, "kyverno", "6")
 	legacyRequirements, _ := ExternalProfileRequirements()
 	canaryRequirements, err := MariaDBCanaryProfileRequirements()
 	if err != nil {
@@ -139,8 +136,8 @@ func TestMariaDBExternalProfilesAndFrozenEntry(t *testing.T) {
 		})
 	}
 	wg.Wait()
-	legacyAfter, err := ExportEmbeddedExternalBundle("6")
-	if err != nil || !bytes.Equal(legacyBefore, legacyAfter) {
+	legacyAfter := embeddedProjectEnvelope(t, "kyverno", "6")
+	if !bytes.Equal(legacyBefore, legacyAfter) {
 		t.Fatal("legacy export mutated")
 	}
 }

@@ -19,7 +19,7 @@ import (
 // incomplete or missing set never passes. The external
 // bundle and the per-project targets leave these rules out
 // (external_pack.go), which TestSplitTargetsCoverThePackExactlyAndAreDeterministic
-// and TestExportEmbeddedExternalBundlePreservesCompletePack hold.
+// and TestProjectExportPreservesCompleteSourceProjection hold.
 func TestEmbeddedRelnotesCrossingRules(t *testing.T) {
 	t.Parallel()
 	now := time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC)
@@ -104,10 +104,7 @@ func TestEmbeddedRelnotesCrossingRules(t *testing.T) {
 // hop they cover because they are missing.
 func TestStoreScanKeepsEmbeddedCrossingRuleIdentities(t *testing.T) {
 	t.Parallel()
-	raw, err := ExportEmbeddedExternalBundle("5")
-	if err != nil {
-		t.Fatal(err)
-	}
+	raw := embeddedProjectEnvelope(t, "cortex", "5")
 	bundle, err := ParseExternalBundle(raw)
 	if err != nil {
 		t.Fatal(err)

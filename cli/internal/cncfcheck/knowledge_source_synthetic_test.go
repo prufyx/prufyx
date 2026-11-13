@@ -18,10 +18,7 @@ func TestSyntheticKnowledgeCarriesSetRuleThroughExternalBundles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	raw, err := ExportEmbeddedExternalBundle("7")
-	if err != nil {
-		t.Fatal(err)
-	}
+	raw := embeddedProjectEnvelope(t, "kubernetes", "7")
 	if !strings.Contains(string(raw), `"schema":"`+packSchemaSet+`"`) || !strings.Contains(string(raw), syntheticRuleID) {
 		t.Fatal("exported bundle does not carry the set rule under the set schema")
 	}
@@ -35,10 +32,7 @@ func TestSyntheticKnowledgeCarriesSetRuleThroughExternalBundles(t *testing.T) {
 	// The registry declares the feature-gate set facts, so the exported
 	// bundle still parses; the restored packaged knowledge must not carry
 	// the synthetic rule.
-	embedded, err := ExportEmbeddedExternalBundle("7")
-	if err != nil {
-		t.Fatal(err)
-	}
+	embedded := embeddedProjectEnvelope(t, "kubernetes", "7")
 	if strings.Contains(string(embedded), syntheticRuleID) || strings.Contains(string(embedded), `"schema":"`+packSchemaSet+`"`) {
 		t.Fatal("restore left the synthetic set rule in the packaged knowledge")
 	}

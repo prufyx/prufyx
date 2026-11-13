@@ -45,7 +45,7 @@ func TestRotatedPackage_InitializedStoreImportsAndContinuesAtSuccessor(t *testin
 	store := filepath.Join(private, "store")
 	initialPath := writeKnowledgeReleaseFile(t, private, "initial.tar", initialPackage)
 	rootPath := writeKnowledgeReleaseFile(t, private, "1.root.json", old.Root)
-	initialImport, err := knowledge.ImportConstraints(knowledge.ImportRequest{PackagePath: initialPath, StoreRoot: store, BootstrapRootPath: rootPath, BootstrapRootDigest: old.RootDigest, ExpectedPackageDigest: releaseDigest(initialPackage), ExpectedRevision: initialReceipt.KnowledgeRevision, ExpectedBundleDigest: initialReceipt.TargetDigest})
+	initialImport, err := knowledge.ImportConstraintsProjects(knowledge.ImportRequest{PackagePath: initialPath, StoreRoot: store, BootstrapRootPath: rootPath, BootstrapRootDigest: old.RootDigest, ExpectedPackageDigest: releaseDigest(initialPackage), ExpectedRevision: initialReceipt.KnowledgeRevision, ExpectedBundleDigest: initialReceipt.TargetDigest})
 	if err != nil || initialImport.Status != "IMPORTED" || initialImport.TrustReceipt.Root.Version != 1 {
 		t.Fatalf("initial import=%+v err=%v", initialImport, err)
 	}
@@ -57,7 +57,7 @@ func TestRotatedPackage_InitializedStoreImportsAndContinuesAtSuccessor(t *testin
 	rotatedTarget := exportedRotatedTarget(t, "92")
 	rotatedPackage, rotatedReceipt := signedRotatedPackageWithChain(t, old.Root, old.RootDigest, [][]byte{transition}, successorAuthority, nextDir, passphrase, rotatedTarget, 2)
 	rotatedPath := writeKnowledgeReleaseFile(t, private, "rotated.tar", rotatedPackage)
-	rotatedImport, err := knowledge.ImportConstraints(knowledge.ImportRequest{PackagePath: rotatedPath, StoreRoot: store, ExpectedPackageDigest: releaseDigest(rotatedPackage), ExpectedRevision: rotatedReceipt.KnowledgeRevision, ExpectedBundleDigest: rotatedReceipt.TargetDigest})
+	rotatedImport, err := knowledge.ImportConstraintsProjects(knowledge.ImportRequest{PackagePath: rotatedPath, StoreRoot: store, ExpectedPackageDigest: releaseDigest(rotatedPackage), ExpectedRevision: rotatedReceipt.KnowledgeRevision, ExpectedBundleDigest: rotatedReceipt.TargetDigest})
 	if err != nil || rotatedImport.Status != "IMPORTED" || !rotatedImport.TrustStateAdvanced || rotatedImport.TrustReceipt.Root.Version != 2 || len(rotatedImport.TrustReceipt.RootHistory) != 2 || rotatedImport.TrustReceipt.RootHistory[0].Digest != old.RootDigest || rotatedImport.TrustReceipt.RootHistory[1].Digest != releaseDigest(transition) {
 		t.Fatalf("rotated import=%+v err=%v", rotatedImport, err)
 	}
@@ -65,10 +65,10 @@ func TestRotatedPackage_InitializedStoreImportsAndContinuesAtSuccessor(t *testin
 
 	// A package that redundantly includes the already consumed successor is not
 	// an update for this store; the rejected attempt must preserve its prefix.
-	if _, err := knowledge.ImportConstraints(knowledge.ImportRequest{PackagePath: rotatedPath, StoreRoot: store, ExpectedPackageDigest: releaseDigest(rotatedPackage), ExpectedRevision: rotatedReceipt.KnowledgeRevision, ExpectedBundleDigest: rotatedReceipt.TargetDigest}); err == nil {
+	if _, err := knowledge.ImportConstraintsProjects(knowledge.ImportRequest{PackagePath: rotatedPath, StoreRoot: store, ExpectedPackageDigest: releaseDigest(rotatedPackage), ExpectedRevision: rotatedReceipt.KnowledgeRevision, ExpectedBundleDigest: rotatedReceipt.TargetDigest}); err == nil {
 		t.Fatal("starting-root-specific package was accepted after its successor")
 	}
-	status, err := knowledge.InspectConstraints(store)
+	status, err := knowledge.InspectConstraintsProjects(store)
 	if err != nil || status.RootVersion != 2 || status.SelectedRevision != "92" || status.TrustReceiptDigest != rotatedImport.TrustReceiptDigest {
 		t.Fatalf("rejected repeated package lost trusted prefix or selection: status=%+v err=%v", status, err)
 	}
@@ -76,7 +76,7 @@ func TestRotatedPackage_InitializedStoreImportsAndContinuesAtSuccessor(t *testin
 	continuedTarget := exportedRotatedTarget(t, "93")
 	continuedPackage, continuedReceipt := signedRotatedPackage(t, successorAuthority, nextDir, passphrase, continuedTarget, 3)
 	continuedPath := writeKnowledgeReleaseFile(t, private, "continued.tar", continuedPackage)
-	continuedImport, err := knowledge.ImportConstraints(knowledge.ImportRequest{PackagePath: continuedPath, StoreRoot: store, ExpectedPackageDigest: releaseDigest(continuedPackage), ExpectedRevision: continuedReceipt.KnowledgeRevision, ExpectedBundleDigest: continuedReceipt.TargetDigest})
+	continuedImport, err := knowledge.ImportConstraintsProjects(knowledge.ImportRequest{PackagePath: continuedPath, StoreRoot: store, ExpectedPackageDigest: releaseDigest(continuedPackage), ExpectedRevision: continuedReceipt.KnowledgeRevision, ExpectedBundleDigest: continuedReceipt.TargetDigest})
 	if err != nil || continuedImport.Status != "IMPORTED" || continuedImport.TrustReceipt.Root.Version != 2 || continuedImport.TrustReceipt.KnowledgeRevision != "93" {
 		t.Fatalf("continued import=%+v err=%v", continuedImport, err)
 	}
@@ -96,7 +96,7 @@ func assertRotatedKyvernoOutcomes(t *testing.T, store string, receipt knowledge.
 		{kyvernoInputUnknown, "UNKNOWN"},
 	} {
 		result, err := cncfknowledge.EvaluateCurrent(cncfknowledge.Request{Selection: knowledge.SelectionRequest{StoreRoot: store, ExpectedRevision: "92", ExpectedBundleDigest: receipt.TrustReceipt.TargetDigest, ExpectedTrustReceiptDigest: receipt.TrustReceiptDigest}, Project: "kyverno", SelectedRuleID: kyvernoReportsChunkSizeRuleID, Input: []byte(test.input), InputDigest: releaseDigest([]byte(test.input))})
-		if err != nil || result.Knowledge.Origin != "external_signed_local" || result.Knowledge.Revision != "92" || result.Knowledge.BundleDigest != receipt.TrustReceipt.TargetDigest || result.Knowledge.TrustReceiptDigest != receipt.TrustReceiptDigest || result.Check.KnowledgeOrigin != "external_declared" || result.Check.KnowledgeRevision != "92" || result.Check.KnowledgePackDigest != receipt.TrustReceipt.TargetDigest || len(result.Check.Check.Claims) != 1 || result.Check.Check.Claims[0].RuleID != kyvernoReportsChunkSizeRuleID {
+		if err != nil || result.Knowledge.Origin != "external_signed_local" || result.Knowledge.Revision != "92" || result.Knowledge.BundleDigest != receipt.TrustReceipt.TargetDigest || result.Knowledge.TrustReceiptDigest != receipt.TrustReceiptDigest || result.Check.KnowledgeOrigin != "external_declared" || result.Check.KnowledgeRevision != "92" || result.Knowledge.ProjectTarget == nil || result.Check.KnowledgePackDigest != result.Knowledge.ProjectTarget.Digest || len(result.Check.Check.Claims) != 1 || result.Check.Check.Claims[0].RuleID != kyvernoReportsChunkSizeRuleID {
 			t.Fatalf("selected evaluation=%+v err=%v", result, err)
 		}
 		claim := result.Check.Check.Claims[0]
@@ -110,14 +110,25 @@ func assertRotatedKyvernoOutcomes(t *testing.T, store string, receipt knowledge.
 	}
 }
 
-func exportedRotatedTarget(t *testing.T, revision string) []byte {
+type rotatedTarget struct {
+	raw      []byte
+	projects []knowledgepublish.Target
+}
+
+func exportedRotatedTarget(t *testing.T, revision string) rotatedTarget {
 	t.Helper()
-	raw, err := cncfcheck.ExportEmbeddedExternalBundle(revision)
+	index, targets, err := cncfcheck.BuildEmbeddedExternalTargets(revision, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertExportedKyvernoReviewIdentity(t, raw)
-	return raw
+	var projects []knowledgepublish.Target
+	for _, target := range targets {
+		projects = append(projects, knowledgepublish.Target{Path: target.Path, Raw: target.Bytes})
+		if target.Path == cncfcheck.ProjectTargetPath("kyverno") {
+			assertExportedKyvernoReviewIdentity(t, target.Bytes)
+		}
+	}
+	return rotatedTarget{index.Bytes, projects}
 }
 
 func finalizeRotatedTestTransition(t *testing.T, old knowledgesign.InitResult, oldDir string, next knowledgesign.InitResult, nextDir string, passphrase []byte) []byte {
@@ -152,37 +163,37 @@ func finalizeRotatedTestTransition(t *testing.T, old knowledgesign.InitResult, o
 	return result
 }
 
-func signedRotatedPackage(t *testing.T, initialized knowledgesign.InitResult, keyDir string, passphrase, target []byte, version int64) ([]byte, knowledgepublish.FinalizationReceipt) {
+func signedRotatedPackage(t *testing.T, initialized knowledgesign.InitResult, keyDir string, passphrase []byte, target rotatedTarget, version int64) ([]byte, knowledgepublish.FinalizationReceipt) {
 	t.Helper()
 	return signedRotatedPackageWithChain(t, initialized.Root, initialized.RootDigest, nil, initialized, keyDir, passphrase, target, version)
 }
 
-func signedRotatedPackageWithChain(t *testing.T, initial []byte, initialDigest string, successors [][]byte, authority knowledgesign.InitResult, keyDir string, passphrase, target []byte, version int64) ([]byte, knowledgepublish.FinalizationReceipt) {
+func signedRotatedPackageWithChain(t *testing.T, initial []byte, initialDigest string, successors [][]byte, authority knowledgesign.InitResult, keyDir string, passphrase []byte, target rotatedTarget, version int64) ([]byte, knowledgepublish.FinalizationReceipt) {
 	t.Helper()
 	expires := time.Now().UTC().Truncate(time.Second)
-	targetsPrep, err := knowledgepublish.PrepareTargets(knowledgepublish.TargetsOptions{Root: authority.Root, RootDigest: authority.RootDigest, Target: target, Version: version, Expires: expires.Add(72 * time.Hour).Format(time.RFC3339)})
+	targetsPrep, err := knowledgepublish.PrepareTargets(knowledgepublish.TargetsOptions{Root: authority.Root, RootDigest: authority.RootDigest, Target: target.raw, Projects: target.projects, Version: version, Expires: expires.Add(72 * time.Hour).Format(time.RFC3339)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	targets := finalizeRotatedTestRole(t, authority, keyDir, passphrase, metadata.TARGETS, targetsPrep)
-	snapshotPrep, err := knowledgepublish.PrepareSnapshot(knowledgepublish.SnapshotOptions{Root: authority.Root, RootDigest: authority.RootDigest, Target: target, Targets: targets, Version: version, Expires: expires.Add(48 * time.Hour).Format(time.RFC3339)})
+	snapshotPrep, err := knowledgepublish.PrepareSnapshot(knowledgepublish.SnapshotOptions{Root: authority.Root, RootDigest: authority.RootDigest, Target: target.raw, Projects: target.projects, Targets: targets, Version: version, Expires: expires.Add(48 * time.Hour).Format(time.RFC3339)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	snapshot := finalizeRotatedTestRole(t, authority, keyDir, passphrase, metadata.SNAPSHOT, snapshotPrep)
-	timestampPrep, err := knowledgepublish.PrepareTimestamp(knowledgepublish.TimestampOptions{Root: authority.Root, RootDigest: authority.RootDigest, Target: target, Targets: targets, Snapshot: snapshot, Version: version, Expires: expires.Add(24 * time.Hour).Format(time.RFC3339)})
+	timestampPrep, err := knowledgepublish.PrepareTimestamp(knowledgepublish.TimestampOptions{Root: authority.Root, RootDigest: authority.RootDigest, Target: target.raw, Projects: target.projects, Targets: targets, Snapshot: snapshot, Version: version, Expires: expires.Add(24 * time.Hour).Format(time.RFC3339)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	timestamp := finalizeRotatedTestRole(t, authority, keyDir, passphrase, metadata.TIMESTAMP, timestampPrep)
 	if len(successors) == 0 {
-		packageRaw, receipt, err := knowledgepublish.FinalizePackage(knowledgepublish.FinalizePackageOptions{Root: initial, RootDigest: initialDigest, Target: target, Targets: targets, Snapshot: snapshot, Timestamp: timestamp})
+		packageRaw, receipt, err := knowledgepublish.FinalizePackage(knowledgepublish.FinalizePackageOptions{Root: initial, RootDigest: initialDigest, Target: target.raw, Projects: target.projects, Targets: targets, Snapshot: snapshot, Timestamp: timestamp})
 		if err != nil {
 			t.Fatal(err)
 		}
 		return packageRaw, receipt
 	}
-	packageRaw, receipt, err := knowledgepublish.FinalizeRotatedPackage(knowledgepublish.RotatedFinalizePackageOptions{InitialRoot: initial, InitialRootDigest: initialDigest, SuccessorRoots: successors, Target: target, Targets: targets, Snapshot: snapshot, Timestamp: timestamp})
+	packageRaw, receipt, err := knowledgepublish.FinalizeRotatedPackage(knowledgepublish.RotatedFinalizePackageOptions{InitialRoot: initial, InitialRootDigest: initialDigest, SuccessorRoots: successors, Target: target.raw, Projects: target.projects, Targets: targets, Snapshot: snapshot, Timestamp: timestamp})
 	if err != nil {
 		t.Fatal(err)
 	}

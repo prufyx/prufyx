@@ -13,6 +13,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/extract/extractpack"
+	"github.com/prufyx/prufyx/cli/internal/knowledgefixture"
 )
 
 // With the facts of the whole run registered (synthetic knowledge, as the
@@ -74,7 +75,7 @@ func TestSyntheticApplyAdmittedWithAttestations(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer restore()
-			bundle, err := cncfcheck.ExportEmbeddedExternalBundle("1")
+			bundle, err := knowledgefixture.EmbeddedProjectBundle("kubernetes", "1")
 			if err != nil {
 				t.Fatal(err)
 			}

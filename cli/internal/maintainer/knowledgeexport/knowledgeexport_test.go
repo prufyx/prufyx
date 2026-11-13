@@ -11,32 +11,13 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 )
 
-func TestWriteExportsNewCompleteCNCFTarget(t *testing.T) {
+func TestRetiredSingleExportDoesNotCreateOutput(t *testing.T) {
 	output := filepath.Join(t.TempDir(), "constraints.v1.json")
-	if err := Write(Options{Profile: "cncf", Revision: "73", Output: output}); err != nil {
-		t.Fatal(err)
+	if err := Write(Options{Profile: "cncf", Revision: "73", Output: output}); !errors.Is(err, ErrRejected) {
+		t.Fatalf("retired export: %v", err)
 	}
-	raw, err := os.ReadFile(output)
-	if err != nil {
-		t.Fatal(err)
-	}
-	bundle, err := cncfcheck.ParseExternalBundle(raw)
-	if err != nil {
-		t.Fatal(err)
-	}
-	admission, err := bundle.Admission()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if admission.Revision != "73" || admission.Purpose != "operator_provided" || !admission.HasRule {
-		t.Fatalf("admission=%+v", admission)
-	}
-	info, err := os.Stat(output)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if info.Mode().Perm() != 0o644 {
-		t.Fatalf("mode=%#o", info.Mode().Perm())
+	if _, err := os.Stat(output); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("retired export created output: %v", err)
 	}
 }
 
@@ -65,7 +46,7 @@ func TestWriteRejectsExistingOrInvalidOptions(t *testing.T) {
 
 func TestWriteProjectsExportsIndexAndProjectTargets(t *testing.T) {
 	output := filepath.Join(t.TempDir(), "targets")
-	if err := Write(Options{Profile: ProfileCNCFProjects, Revision: "73", Output: output}); err != nil {
+	if err := Write(Options{Revision: "73", Output: output}); err != nil {
 		t.Fatal(err)
 	}
 	index, err := os.ReadFile(filepath.Join(output, "knowledge", "cncf", "index.v1.json"))

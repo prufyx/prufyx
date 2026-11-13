@@ -1,5 +1,11 @@
 # Optional signed CNCF knowledge
 
+Existing single-target `cncf` packages and stores remain readable under their
+original trust, expiry, capability and size rules. Maintainer producers now use
+`cncf-projects` only; single-target publication and new release-plan generation
+are retired. Use a separate store for project packages. This does not add
+project-layout support to older binaries.
+
 This unreleased source capability selects generic CNCF constraints from a
 separate, explicitly named local knowledge store. For a newly reviewed exact
 version pair, the same binary can evaluate a new signed rule revision over

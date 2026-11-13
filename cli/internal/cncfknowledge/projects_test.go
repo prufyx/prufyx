@@ -16,7 +16,7 @@ import (
 )
 
 // TestPerProjectStoreEvaluatesLikeSingleTarget imports the embedded pack once
-// as a single target and once split per project, and requires identical
+// as bounded project-only single fixtures and once split per project, and requires identical
 // claims. A project absent from the index stays UNKNOWN.
 func TestPerProjectStoreEvaluatesLikeSingleTarget(t *testing.T) {
 	repo, err := knowledgefixture.NewProjectsRepository(time.Now().UTC().Truncate(time.Second))
@@ -27,17 +27,23 @@ func TestPerProjectStoreEvaluatesLikeSingleTarget(t *testing.T) {
 	dir := t.TempDir()
 	root := writePrivate(t, dir, "root.json", repo.Root)
 
-	single, err := cncfcheck.ExportEmbeddedExternalBundle("5")
-	if err != nil {
-		t.Fatal(err)
-	}
-	singleRaw, err := repo.Package(knowledgefixture.ProjectsPackage{Version: 1, Targets: map[string][]byte{knowledge.ConstraintsTargetPath: single}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	singleStore := filepath.Join(dir, "single")
-	if _, err := knowledge.ImportConstraints(knowledge.ImportRequest{PackagePath: writePrivate(t, dir, "single.tar", singleRaw), StoreRoot: singleStore, BootstrapRootPath: root, BootstrapRootDigest: repo.RootDigest}); err != nil {
-		t.Fatal(err)
+	// Each legacy store is bounded to the project it evaluates. Full source
+	// coverage is independently checked by the project export census.
+	singleStores := map[string]string{}
+	for _, project := range []string{"kyverno", "helm"} {
+		single, err := knowledgefixture.EmbeddedProjectBundle(project, "5")
+		if err != nil {
+			t.Fatal(err)
+		}
+		raw, err := repo.Package(knowledgefixture.ProjectsPackage{Version: 1, Targets: map[string][]byte{knowledge.ConstraintsTargetPath: single}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		store := filepath.Join(dir, "single-"+project)
+		if _, err := knowledge.ImportConstraints(knowledge.ImportRequest{PackagePath: writePrivate(t, dir, project+"-single.tar", raw), StoreRoot: store, BootstrapRootPath: root, BootstrapRootDigest: repo.RootDigest}); err != nil {
+			t.Fatal(err)
+		}
+		singleStores[project] = store
 	}
 
 	index, projects, err := cncfcheck.BuildEmbeddedExternalTargets("5", nil)
@@ -62,8 +68,8 @@ func TestPerProjectStoreEvaluatesLikeSingleTarget(t *testing.T) {
 	for _, tc := range []struct {
 		project string
 		input   []byte
-	}{{"kyverno", []byte(kyvernoInputTrue)}, {"kyverno", []byte(kyvernoInputFalse)}, {"helm", empty}} {
-		a, err := cncfknowledge.EvaluateCurrent(cncfknowledge.Request{Selection: knowledge.SelectionRequest{StoreRoot: singleStore}, Project: tc.project, Input: tc.input, InputDigest: digest(tc.input)})
+	}{{"kyverno", []byte(kyvernoInputTrue)}, {"kyverno", []byte(kyvernoInputFalse)}, {"kyverno", empty}, {"helm", empty}} {
+		a, err := cncfknowledge.EvaluateCurrent(cncfknowledge.Request{Selection: knowledge.SelectionRequest{StoreRoot: singleStores[tc.project]}, Project: tc.project, Input: tc.input, InputDigest: digest(tc.input)})
 		if err != nil {
 			t.Fatal(err)
 		}

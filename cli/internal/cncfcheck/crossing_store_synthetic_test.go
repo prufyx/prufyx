@@ -35,10 +35,7 @@ func crossingGateInput(t *testing.T) []byte {
 // removal-crossing rule.
 func storeBundleOf(t *testing.T) ExternalBundle {
 	t.Helper()
-	raw, err := ExportEmbeddedExternalBundle("7")
-	if err != nil {
-		t.Fatal(err)
-	}
+	raw := embeddedProjectEnvelope(t, "kubernetes", "7")
 	bundle, err := ParseExternalBundle(raw)
 	if err != nil {
 		t.Fatal(err)

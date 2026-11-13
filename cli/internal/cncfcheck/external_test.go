@@ -333,54 +333,8 @@ func TestExternalBundleEvidenceStatesRemainScoped(t *testing.T) {
 	}
 }
 
-func TestExportEmbeddedExternalBundlePreservesCompletePack(t *testing.T) {
-	t.Parallel()
-	base, err := load()
-	if err != nil {
-		t.Fatal(err)
-	}
-	raw, err := ExportEmbeddedExternalBundle("73")
-	if err != nil {
-		t.Fatal(err)
-	}
-	parsed, err := ParseExternalBundle(raw)
-	if err != nil {
-		t.Fatal(err)
-	}
-	admission, err := parsed.Admission()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if admission.Revision != "73" || admission.Purpose != "operator_provided" || !admission.HasRule {
-		t.Fatalf("admission=%+v", admission)
-	}
-	var document externalFixtureDocument
-	if err := json.Unmarshal(raw, &document); err != nil {
-		t.Fatal(err)
-	}
-	// The embedded pack's removal-crossing rules stay in the binary: the
-	// export is the pack without them.
-	want, err := externalPack(base.pack)
-	if err != nil {
-		t.Fatal(err)
-	}
-	want.Revision = "73"
-	wantRaw, err := json.Marshal(want)
-	if err != nil {
-		t.Fatal(err)
-	}
-	gotRaw, err := json.Marshal(document.Pack)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(gotRaw, wantRaw) {
-		t.Fatal("export changed embedded rule-pack content other than revision")
-	}
-	if len(document.Pack.Entries) == 0 || len(base.pack.Entries) == 0 {
-		t.Fatalf("exported entries=%d embedded=%d", len(document.Pack.Entries), len(base.pack.Entries))
-	}
-}
-
+// Complete production content is checked by the independent project census.
+// Single-envelope admission remains covered by bounded fixtures below.
 func TestExportEmbeddedExternalBundleRejectsInvalidRevision(t *testing.T) {
 	t.Parallel()
 	for _, revision := range []string{"", "0", "01", "main", "2147483648"} {

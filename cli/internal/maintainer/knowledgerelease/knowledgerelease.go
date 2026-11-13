@@ -23,7 +23,6 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/currentbundle"
-	"github.com/prufyx/prufyx/cli/internal/knowledge"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgepublish"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgesign"
 	"github.com/theupdateframework/go-tuf/v2/metadata"
@@ -50,7 +49,8 @@ const (
 
 const maxPassphraseBytes = 1024
 
-// Profiles a release can publish. The empty profile means ProfileCNCF.
+// CNCF layout names. Producers accept only ProfileCNCFProjects, also the
+// empty-profile default. ProfileCNCF remains available to legacy readers.
 const (
 	ProfileCNCF         = "cncf"
 	ProfileCNCFProjects = "cncf-projects"
@@ -58,9 +58,7 @@ const (
 
 // Options are all inputs of one release. Paths are absolute.
 type Options struct {
-	// Profile selects the layout: ProfileCNCF (the default) publishes the
-	// single external bundle; ProfileCNCFProjects publishes the index plus
-	// one target per project, all signed by the same targets role key.
+	// Profile defaults to ProfileCNCFProjects. ProfileCNCF is reader-only.
 	Profile string
 	// PreviousIndex is, for ProfileCNCFProjects, the last published index
 	// (a committed, generated file). Projects whose target bytes did not
@@ -85,8 +83,8 @@ type Options struct {
 	TargetsKey, SnapshotKey, TimestampKey string
 	// PassphraseFile holds the key passphrase (one line, mode 0600 or tighter).
 	PassphraseFile string
-	// PackageURL is the exact HTTPS URL the package will be served from. It is
-	// only written into the release plan, which ProfileCNCFProjects has none of.
+	// PackageURL is retained for explicit rejection of retired release-plan
+	// producer requests. It must be empty.
 	PackageURL string
 	// OutputDir is a new directory; the release is written inside it.
 	OutputDir string
@@ -144,9 +142,9 @@ type Result struct {
 // Digests are the keyless identities of the exported targets.
 type Digests struct {
 	// ContentDigest is the sha256 of the sorted lines "<target path> <sha256 hex>\n"
-	// of every exported target (index or bundle, plus project targets).
+	// of the index and every project target.
 	ContentDigest string `json:"contentDigest"`
-	// IndexDigest is the index digest (per-project) or bundle digest (single).
+	// IndexDigest is the per-project index digest.
 	IndexDigest string `json:"indexDigest"`
 	// EvidenceExpiresAt is the canonical UTC RFC3339 expiry of the evidence
 	// bundle behind the targets; a planned expiry is min(now+21d, this value).
@@ -169,10 +167,10 @@ func evidenceExpiry(value string) (string, error) {
 
 // built is the exported target set of one release.
 type built struct {
-	target    []byte // the bundle, or the index
+	target    []byte // the index
 	targetRel string // TUF path of target
 	projects  []knowledgepublish.Target
-	all       []knowledgepublish.Target // every target, index/bundle first
+	all       []knowledgepublish.Target // every target, index first
 	admission cncfcheck.ExternalAdmission
 	digests   Digests
 }
@@ -180,6 +178,7 @@ type built struct {
 // ComputeDigests exports the targets without any key and returns their
 // digests. It is what a pre-approval plan derives and what Run then enforces.
 func ComputeDigests(o Options) (Digests, error) {
+	o = o.producerDefaults()
 	if err := o.validateBuild(); err != nil {
 		return Digests{}, err
 	}
@@ -206,28 +205,10 @@ func ContentDigest(targets []knowledgepublish.Target) string {
 }
 
 func buildTargets(o Options) (built, error) {
-	if o.Profile == ProfileCNCFProjects {
-		return buildProjectTargets(o)
-	}
-	target, err := cncfcheck.ExportEmbeddedExternalBundle(o.Revision)
-	if err != nil {
-		return built{}, ErrRejected
-	}
-	bundle, err := cncfcheck.ParseExternalBundle(target)
-	if err != nil {
-		return built{}, ErrRejected
-	}
-	admission, err := bundle.Admission()
-	if err != nil {
-		return built{}, ErrRejected
-	}
-	evidence, err := evidenceExpiry(admission.EvidenceExpiresAt)
-	if err != nil {
+	if err := o.validateBuild(); err != nil {
 		return built{}, err
 	}
-	all := []knowledgepublish.Target{{Path: knowledge.ConstraintsTargetPath, Raw: target}}
-	return built{target: target, targetRel: knowledge.ConstraintsTargetPath, all: all, admission: admission,
-		digests: Digests{ContentDigest: ContentDigest(all), IndexDigest: bundle.BundleDigest(), EvidenceExpiresAt: evidence}}, nil
+	return buildProjectTargets(o)
 }
 
 func buildProjectTargets(o Options) (built, error) {
@@ -275,6 +256,7 @@ func buildProjectTargets(o Options) (built, error) {
 // Run builds, signs, verifies and writes one release. Every guard runs before
 // the first key file is read.
 func Run(o Options) (Result, error) {
+	o = o.producerDefaults()
 	if err := o.validate(); err != nil {
 		return Result{}, err
 	}
@@ -316,13 +298,7 @@ func Run(o Options) (Result, error) {
 	finalize := knowledgepublish.FinalizePackageOptions{
 		Root: rootRaw, Target: b.target, Projects: b.projects, Targets: targetsRaw, Snapshot: snapshotRaw, Timestamp: timestampRaw, RootDigest: o.RootDigest,
 	}
-	var packageRaw, planRaw []byte
-	var receipt knowledgepublish.FinalizationReceipt
-	if o.Profile == ProfileCNCFProjects {
-		packageRaw, receipt, err = knowledgepublish.FinalizePackage(finalize)
-	} else {
-		packageRaw, planRaw, receipt, err = knowledgepublish.FinalizePackageWithReleasePlan(finalize, o.PackageURL)
-	}
+	packageRaw, receipt, err := knowledgepublish.FinalizePackage(finalize)
 	if err != nil {
 		return Result{}, ErrRejected
 	}
@@ -333,32 +309,20 @@ func Run(o Options) (Result, error) {
 	}
 
 	version := strconv.FormatInt(o.Version, 10)
-	var files []outFile
-	if o.Profile == ProfileCNCFProjects {
-		files = []outFile{
-			{"root.json", rootRaw},
-			{version + ".targets.json", targetsRaw},
-			{version + ".snapshot.json", snapshotRaw},
-			{"timestamp.json", timestampRaw},
-			{ProfileCNCFProjects + "-" + o.Revision + ".tar", packageRaw},
-			// The targets keep their TUF paths, so the directory can be fed back
-			// to the publisher. The index is the next previous index to commit.
-			{b.targetRel, b.target},
-		}
-		for _, p := range b.projects {
-			files = append(files, outFile{p.Path, p.Raw})
-		}
-	} else {
-		files = []outFile{
-			{"root.json", rootRaw},
-			{"constraints.v1.json", b.target},
-			{version + ".targets.json", targetsRaw},
-			{version + ".snapshot.json", snapshotRaw},
-			{"timestamp.json", timestampRaw},
-			{"cncf-" + o.Revision + ".tar", packageRaw},
-			{"cncf-" + o.Revision + ".release-plan.json", planRaw},
-		}
+	files := []outFile{
+		{"root.json", rootRaw},
+		{version + ".targets.json", targetsRaw},
+		{version + ".snapshot.json", snapshotRaw},
+		{"timestamp.json", timestampRaw},
+		{ProfileCNCFProjects + "-" + o.Revision + ".tar", packageRaw},
+		// The targets keep their TUF paths, so the directory can be fed back
+		// to the publisher. The index is the next previous index to commit.
+		{b.targetRel, b.target},
 	}
+	for _, p := range b.projects {
+		files = append(files, outFile{p.Path, p.Raw})
+	}
+
 	result := Result{
 		Expires: targetsExp, TimestampExpires: timestampExp, Receipt: receipt, Revision: o.Revision,
 		ContentDigest: b.digests.ContentDigest, IndexDigest: b.digests.IndexDigest, EvidenceExpiresAt: b.digests.EvidenceExpiresAt, PackageDigest: receipt.PackageDigest,
@@ -502,6 +466,13 @@ func minTime(a, b time.Time) time.Time {
 	return a.UTC().Truncate(time.Second)
 }
 
+func (o Options) producerDefaults() Options {
+	if o.Profile == "" {
+		o.Profile = ProfileCNCFProjects
+	}
+	return o
+}
+
 func (o Options) validateBuild() error {
 	if o.Revision == "" {
 		return ErrRejected
@@ -510,10 +481,6 @@ func (o Options) validateBuild() error {
 		return ErrRejected
 	}
 	switch o.Profile {
-	case "", ProfileCNCF:
-		if o.PreviousIndex != "" || o.FirstRelease {
-			return fmt.Errorf("previous index and first release apply to the %s profile only: %w", ProfileCNCFProjects, ErrRejected)
-		}
 	case ProfileCNCFProjects:
 		// Fail closed: an omitted previous index would bump every project.
 		// The first comparison is an XOR: both set or both unset is refused.
@@ -521,7 +488,10 @@ func (o Options) validateBuild() error {
 			return fmt.Errorf("the %s profile needs exactly one of a previous index and a first release: %w", ProfileCNCFProjects, ErrRejected)
 		}
 	default:
-		return ErrRejected
+		return fmt.Errorf("single-target publication retired; use cncf-projects: %w", ErrRejected)
+	}
+	if o.PackageURL != "" {
+		return fmt.Errorf("release plans are retired: %w", ErrRejected)
 	}
 	return nil
 }
@@ -533,7 +503,7 @@ func (o Options) validate() error {
 		}
 	}
 	// A per-project release has no release plan, hence no package URL.
-	if o.Version <= 0 || o.RootDigest == "" || (o.PackageURL == "" && o.Profile != ProfileCNCFProjects) || o.Now.IsZero() {
+	if o.Version <= 0 || o.RootDigest == "" || o.PackageURL != "" || o.Now.IsZero() {
 		return ErrRejected
 	}
 	return o.validateBuild()

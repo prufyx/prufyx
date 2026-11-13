@@ -9,11 +9,11 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfknowledge"
-	"github.com/prufyx/prufyx/cli/internal/knowledgereleaseplan"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgerelease"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgesign"
 )
@@ -22,7 +22,6 @@ import (
 // the client imports it with throwaway keys and must reach the same verdicts
 // as the embedded knowledge for the same inputs.
 func TestPublisherReleaseRoundTripMatchesEmbeddedVerdicts(t *testing.T) {
-	t.Parallel()
 	dir, err := filepath.EvalSymlinks(privateDir(t))
 	if err != nil {
 		t.Fatal(err)
@@ -33,33 +32,35 @@ func TestPublisherReleaseRoundTripMatchesEmbeddedVerdicts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	pinProjects(t, initialized.RootDigest)
 	passFile := filepath.Join(dir, "pass")
 	if err := os.WriteFile(passFile, []byte(pass), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	const url = "https://metadata.example.test/cncf-81.tar"
+	const url = "https://metadata.example.test/cncf-projects-81.tar"
 	out := filepath.Join(dir, "release")
 	result, err := knowledgerelease.Run(knowledgerelease.Options{
 		Revision: "81", Version: 1, Root: filepath.Join(keys, "root.json"), RootDigest: initialized.RootDigest,
 		TargetsKey: filepath.Join(keys, "targets.key.pem"), SnapshotKey: filepath.Join(keys, "snapshot.key.pem"), TimestampKey: filepath.Join(keys, "timestamp.key.pem"),
-		PassphraseFile: passFile, PackageURL: url, OutputDir: out, Now: time.Now().UTC(),
+		PassphraseFile: passFile, FirstRelease: true, OutputDir: out, Now: time.Now().UTC(),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	packageRaw, err := os.ReadFile(filepath.Join(out, "cncf-81.tar"))
+	packageRaw, err := os.ReadFile(filepath.Join(out, "cncf-projects-81.tar"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	planPath := filepath.Join(out, "cncf-81.release-plan.json")
-	planRaw, _ := os.ReadFile(planPath)
-	if _, err := knowledgereleaseplan.Parse(planRaw); err != nil {
-		t.Fatal(err)
+	for _, retired := range []string{"constraints.v1.json", "cncf-81.tar", "cncf-81.release-plan.json"} {
+		if _, err := os.Stat(filepath.Join(out, retired)); !os.IsNotExist(err) {
+			t.Fatalf("retired producer artifact %s: %v", retired, err)
+		}
 	}
 
 	store := filepath.Join(dir, "store")
 	code, update, stderr := runReleasePlanUpdate(t, []string{
-		"--release-plan", planPath, "--package-out", filepath.Join(dir, "got.tar"), "--db-root", store,
+		"--profile", "cncf-projects", "--source", url, "--package-out", filepath.Join(dir, "got.tar"), "--db-root", store,
+		"--expected-revision", "81", "--expected-bundle-digest", result.IndexDigest,
 		"--bootstrap-root", filepath.Join(out, "root.json"), "--bootstrap-root-digest", initialized.RootDigest, "--format", "json",
 	}, func(_ context.Context, source string) ([]byte, error) {
 		if source != url {
@@ -71,6 +72,20 @@ func TestPublisherReleaseRoundTripMatchesEmbeddedVerdicts(t *testing.T) {
 		t.Fatalf("update code=%d out=%+v stderr=%q", code, update, stderr)
 	}
 	receipt := *update.ImportReceipt
+	verified := result.Receipt.Verification
+	trusted := receipt.TrustReceipt
+	if update.Profile != "cncf-projects" || update.PackageDigest != result.PackageDigest || trusted.TargetDigest != result.IndexDigest || trusted.EngineCapabilityDigest != verified.EngineCapabilityDigest || trusted.Root.Digest != verified.Root.Digest || trusted.Targets.Digest != verified.Targets.Digest || trusted.Snapshot.Digest != verified.Snapshot.Digest || trusted.Timestamp.Digest != verified.Timestamp.Digest || !reflect.DeepEqual(receipt.ProjectTargets, verified.ProjectTargets) {
+		t.Fatalf("client import lost publisher identities: %+v", receipt)
+	}
+	projectDigest := ""
+	for _, project := range verified.ProjectTargets {
+		if project.Project == "kyverno" {
+			projectDigest = project.Digest
+		}
+	}
+	if projectDigest == "" {
+		t.Fatal("publisher omitted the Kyverno project target")
+	}
 
 	for name, input := range map[string]string{"pass": kyvernoInputFalse, "blocked": kyvernoInputTrue, "unknown": kyvernoInputUnknown} {
 		raw := []byte(input)
@@ -97,8 +112,9 @@ func TestPublisherReleaseRoundTripMatchesEmbeddedVerdicts(t *testing.T) {
 				t.Fatalf("%s: verdict differs embedded=%+v db=%+v", name, e, c)
 			}
 		}
-		if db.Knowledge.Origin != "external_signed_local" {
-			t.Fatalf("%s: db origin=%q", name, db.Knowledge.Origin)
+		binding := db.Knowledge.ProjectTarget
+		if db.Knowledge.Origin != "external_signed_local" || binding == nil || binding.Status != "present" || binding.Project != "kyverno" || binding.Digest != projectDigest || db.Check.KnowledgePackDigest != binding.Digest {
+			t.Fatalf("%s: db origin=%q project=%+v", name, db.Knowledge.Origin, binding)
 		}
 	}
 }
