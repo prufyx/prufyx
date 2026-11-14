@@ -92,6 +92,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `trivy-operator` | community | `component.trivy_operator.custom_resource_versions_set` | `aquasecurity.github.io` |
 | `vault-secrets-operator` | community | `component.vault_secrets_operator.custom_resource_versions_set` | `ricoberger.de` |
 | `velero` | CNCF | `component.velero.custom_resource_versions_set` | `velero.io` |
+| `victoriametrics-operator` | community | `component.victoriametrics_operator.custom_resource_versions_set` | `operator.victoriametrics.com` (VLAgent, VLCluster, VLDistributed, VLSingle, VLogs, VMAgent, VMAlert, VMAlertmanager, VMAlertmanagerConfig, VMAnomaly, VMAnomalyConfig, VMAuth, VMCluster, VMDistributed, VMNodeScrape, VMPodScrape, VMProbe, VMRule, VMScrapeConfig, VMServiceScrape, VMSingle, VMStaticScrape, VMUser, VTAgent, VTCluster, VTSingle) |
 | `volcano` | CNCF | `component.volcano.custom_resource_versions_set` | `batch.volcano.sh`, `bus.volcano.sh`, `config.volcano.sh`, `flow.volcano.sh`, `nodeinfo.volcano.sh`, `scheduling.volcano.sh`, `shard.volcano.sh`, `topology.volcano.sh` |
 | `wasmcloud` | CNCF | `component.wasmcloud.custom_resource_versions_set` | `runtime.wasmcloud.dev` |
 
@@ -140,6 +141,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `temporal-operator` | temporal-operator | https://github.com/alexandrevilain/temporal-operator | [`Apache-2.0`](https://github.com/alexandrevilain/temporal-operator/blob/0b07bcd4d922265b2f1e5d5d3c55397707189c7e/LICENSE) |
 | `trivy-operator` | trivy-operator | https://github.com/aquasecurity/trivy-operator | [`Apache-2.0`](https://github.com/aquasecurity/trivy-operator/blob/3d073500cfb4956371435fa4085f2f59b9ff6d57/LICENSE) |
 | `vault-secrets-operator` | vault-secrets-operator | https://github.com/ricoberger/vault-secrets-operator | [`MIT`](https://github.com/ricoberger/vault-secrets-operator/blob/98bf4bef7ec2a4a5bd57ba6780d9a96d824bff49/LICENSE) |
+| `victoriametrics-operator` | VictoriaMetrics operator | https://github.com/victoriametrics/operator | [`Apache-2.0`](https://github.com/victoriametrics/operator/blob/61d1fd3209bfe1819ad4f6e48dcd7f74f51e228c/LICENSE) |
 
 ## Groups in reserved namespaces
 

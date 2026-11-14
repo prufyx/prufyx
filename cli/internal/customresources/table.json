@@ -1597,6 +1597,52 @@
       ]
     },
     {
+      "slug": "victoriametrics-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "VictoriaMetrics operator",
+        "repository": "https://github.com/victoriametrics/operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/victoriametrics/operator/blob/61d1fd3209bfe1819ad4f6e48dcd7f74f51e228c/LICENSE"
+      },
+      "factProject": "victoriametrics_operator",
+      "component": "pkg:github/victoriametrics/operator",
+      "groups": [
+        {
+          "name": "operator.victoriametrics.com",
+          "source": "https://github.com/victoriametrics/operator/blob/250dc3f51ea984c9945e9b357380d4cd0bdc545c/config/crd/overlay/crd.descriptionless.yaml",
+          "kinds": [
+            "VLAgent",
+            "VLCluster",
+            "VLDistributed",
+            "VLSingle",
+            "VLogs",
+            "VMAgent",
+            "VMAlert",
+            "VMAlertmanager",
+            "VMAlertmanagerConfig",
+            "VMAnomaly",
+            "VMAnomalyConfig",
+            "VMAuth",
+            "VMCluster",
+            "VMDistributed",
+            "VMNodeScrape",
+            "VMPodScrape",
+            "VMProbe",
+            "VMRule",
+            "VMScrapeConfig",
+            "VMServiceScrape",
+            "VMSingle",
+            "VMStaticScrape",
+            "VMUser",
+            "VTAgent",
+            "VTCluster",
+            "VTSingle"
+          ]
+        }
+      ]
+    },
+    {
       "slug": "volcano",
       "catalog": "cncf",
       "factProject": "volcano",

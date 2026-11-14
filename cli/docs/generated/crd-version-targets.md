@@ -92,5 +92,6 @@ The reviewed targets of the `crd.version-removal` extractor
 | `crd.version-removal.trivy-operator` | community | `github.com/aquasecurity/trivy-operator` | `vX.Y.Z` | 0.31 | yes | files matching `^[^.][^/]*\.ya?ml$` in `deploy/helm/crds` | 0 |
 | `crd.version-removal.vault-secrets-operator` | community | `github.com/ricoberger/vault-secrets-operator` | `vX.Y.Z`, then `X.Y.Z` | 1.23 | yes | files matching `^[^.][^/]*\.ya?ml$` in `charts/vault-secrets-operator/crds` | 0 |
 | `crd.version-removal.velero` | CNCF | `github.com/velero-io/velero` | `vX.Y.Z` | 1.13 | yes | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/v1/bases`, files matching `^[^.][^/]*\.ya?ml$` in `config/crd/v2alpha1/bases` | 4 |
+| `crd.version-removal.victoriametrics-operator` | community | `github.com/victoriametrics/operator` | `vX.Y.Z` | 0.70 | no | `config/crd/overlay/crd.descriptionless.yaml` | 0 |
 | `crd.version-removal.volcano` | CNCF | `github.com/volcano-sh/volcano` | `vX.Y.Z` | 1.10 | yes | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/volcano/bases`, files matching `^[^.][^/]*\.ya?ml$` in `config/crd/jobflow/bases` (when present) | 0 |
 | `crd.version-removal.wasmcloud` | CNCF | `github.com/wasmcloud/wasmcloud` | `vX.Y.Z` | 2.6 | no | files matching `^[^.][^/]*\.ya?ml$` in `runtime-operator/config/crd/bases` | 0 |
