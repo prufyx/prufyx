@@ -8,6 +8,7 @@
     "factProject": "kuberhealthy",
     "tagPrefixes": ["v", ""],
     "minFrom": "2.3",
+    "attest": true,
     "paths": [
       {"path": "deploy/helm/kuberhealthy/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
     ],
