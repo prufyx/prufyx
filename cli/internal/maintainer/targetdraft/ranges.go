@@ -104,8 +104,8 @@ func usesRanges(r *Rules) bool {
 
 // rangeEntry is one ranged entry with its resolved inclusive line indexes.
 type rangeEntry struct {
-	ip       *InstallPathRule
-	from, to int
+	ip          *InstallPathRule
+	first, last int
 }
 
 // rangeCtx says which ranged entries apply at the tag being classified.
@@ -122,7 +122,7 @@ func (c *rangeCtx) active(ip *InstallPathRule) bool {
 	if !ok {
 		return false
 	}
-	return e.from <= c.idx && c.idx <= e.to
+	return e.first <= c.idx && c.idx <= e.last
 }
 
 // planRanges resolves every ranged entry against the run's tags and checks
@@ -144,7 +144,7 @@ func planRanges(rules *Rules, tags []parsedTag) (map[string]rangeEntry, []Stop) 
 		if ip.Role == "" {
 			continue
 		}
-		e := rangeEntry{ip: ip, from: 0, to: n - 1}
+		e := rangeEntry{ip: ip, first: 0, last: n - 1}
 		ok := true
 		if ip.FromTag != "" {
 			i, found := at[ip.FromTag]
@@ -152,7 +152,7 @@ func planRanges(rules *Rules, tags []parsedTag) (map[string]rangeEntry, []Stop) 
 				stops = append(stops, stop(StopBadInput, ip.Path, "fromTag "+ip.FromTag+" is not a tag of the window"))
 				ok = false
 			}
-			e.from = i
+			e.first = i
 		}
 		if ip.ToTag != "" {
 			i, found := at[ip.ToTag]
@@ -160,9 +160,9 @@ func planRanges(rules *Rules, tags []parsedTag) (map[string]rangeEntry, []Stop) 
 				stops = append(stops, stop(StopBadInput, ip.Path, "toTag "+ip.ToTag+" is not a tag of the window"))
 				ok = false
 			}
-			e.to = i
+			e.last = i
 		}
-		if ok && e.from > e.to {
+		if ok && e.first > e.last {
 			stops = append(stops, stop(StopBadInput, ip.Path, "fromTag "+ip.FromTag+" is after toTag "+ip.ToTag))
 			ok = false
 		}
@@ -183,29 +183,29 @@ func planRanges(rules *Rules, tags []parsedTag) (map[string]rangeEntry, []Stop) 
 	}
 	for role, es := range byRole {
 		sort.Slice(es, func(i, j int) bool {
-			if es[i].from != es[j].from {
-				return es[i].from < es[j].from
+			if es[i].first != es[j].first {
+				return es[i].first < es[j].first
 			}
 			return es[i].ip.Path < es[j].ip.Path
 		})
-		if es[0].from != 0 {
-			stops = append(stops, stop(StopRangeNotCovering, role, "oldest tags "+span(0, es[0].from-1)+" are covered by no entry"))
+		if es[0].first != 0 {
+			stops = append(stops, stop(StopRangeNotCovering, role, "oldest tags "+span(0, es[0].first-1)+" are covered by no entry"))
 		}
-		maxTo := es[0].to
+		maxTo := es[0].last
 		for i := 1; i < len(es); i++ {
 			prev, cur := es[i-1], es[i]
 			switch {
-			case cur.from <= prev.to:
-				hi := prev.to
-				if cur.to < hi {
-					hi = cur.to
+			case cur.first <= prev.last:
+				hi := prev.last
+				if cur.last < hi {
+					hi = cur.last
 				}
-				stops = append(stops, stop(StopRangeOverlap, role, fmt.Sprintf("%s and %s both cover %s", prev.ip.Path, cur.ip.Path, span(cur.from, hi))))
-			case cur.from > prev.to+1:
-				stops = append(stops, stop(StopRangeGap, role, fmt.Sprintf("tags %s are covered by no entry (between %s and %s)", span(prev.to+1, cur.from-1), prev.ip.Path, cur.ip.Path)))
+				stops = append(stops, stop(StopRangeOverlap, role, fmt.Sprintf("%s and %s both cover %s", prev.ip.Path, cur.ip.Path, span(cur.first, hi))))
+			case cur.first > prev.last+1:
+				stops = append(stops, stop(StopRangeGap, role, fmt.Sprintf("tags %s are covered by no entry (between %s and %s)", span(prev.last+1, cur.first-1), prev.ip.Path, cur.ip.Path)))
 			}
-			if cur.to > maxTo {
-				maxTo = cur.to
+			if cur.last > maxTo {
+				maxTo = cur.last
 			}
 		}
 		if maxTo != n-1 {
@@ -282,7 +282,7 @@ func applyRanges(r *tagResult, tree Tree, plan map[string]rangeEntry, idx int, t
 	var fatal []Stop
 	for _, p := range sortedPlanPaths(plan) {
 		e := plan[p]
-		active := e.from <= idx && idx <= e.to
+		active := e.first <= idx && idx <= e.last
 		st := probeRanged(tree, e, active, tag)
 		if active {
 			if len(st) == 0 && !r.usedIP[p] {
@@ -362,7 +362,7 @@ func checkRangeTags(in Input, tags []parsedTag, plan map[string]rangeEntry) ([]s
 		checked = append(checked, t)
 		for _, p := range paths {
 			e := plan[p]
-			active := e.from <= idx && idx <= e.to
+			active := e.first <= idx && idx <= e.last
 			stops = append(stops, probeRanged(tree, e, active, t+" (range check, line of "+tags[idx].Tag+")")...)
 		}
 	}
