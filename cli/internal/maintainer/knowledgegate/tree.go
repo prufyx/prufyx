@@ -319,3 +319,12 @@ func (t Tree) executable(rel string) bool {
 	info, err := os.Lstat(filepath.Join(t.Root, filepath.FromSlash(rel)))
 	return err == nil && info.Mode().IsRegular() && info.Mode().Perm()&0o111 != 0
 }
+
+// regularDataOrAbsent refuses executable files and non-regular objects.
+func (t Tree) regularDataOrAbsent(rel string) bool {
+	info, err := os.Lstat(filepath.Join(t.Root, filepath.FromSlash(rel)))
+	if os.IsNotExist(err) {
+		return true
+	}
+	return err == nil && info.Mode().IsRegular() && info.Mode().Perm()&0o111 == 0
+}

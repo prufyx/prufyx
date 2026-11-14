@@ -148,7 +148,7 @@ func TestBatchGateAdmits(t *testing.T) {
 	for _, n := range []int{1, 5, MaxBatchEntries} {
 		f := newBatchFixture(t, n)
 		f.signAndWrite(t, f.record(t))
-		r := runGate(t, Options{Base: f.base, Head: f.head})
+		r := runGate(t, Options{Base: f.base, Head: f.head, Author: DefaultBotLogin})
 		requirePass(t, r)
 		requireBatchProof(t, r, f.ids)
 		if c, ok := check(r, CheckBatch); !ok || !c.OK {
@@ -161,7 +161,7 @@ func TestBatchGateAdmits(t *testing.T) {
 		if !alarmed {
 			t.Fatal("a batch raised no alarm")
 		}
-		if r.AutoMerge.Eligible || !strings.Contains(strings.Join(r.AutoMerge.Reasons, ";"), "batch approval") {
+		if !r.AutoMerge.Eligible {
 			t.Fatalf("auto-merge %+v", r.AutoMerge)
 		}
 		if c, _ := check(r, "knowledge-records"); !c.OK {

@@ -63,6 +63,6 @@
 // leases, corpus attestation and support inventory regeneration), enforces a
 // per-change cap on loosening changes and a kill switch file that blocks
 // all loosening, and reports whether the change would be eligible for
-// automatic merging (bot author, every check green, knowledge files only).
+// automatic merging policy candidacy; a consumer must independently verify CI and QA.
 // It never merges anything itself.
 package knowledgegate

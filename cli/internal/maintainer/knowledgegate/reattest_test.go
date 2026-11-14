@@ -233,8 +233,8 @@ func TestGateReattestationStatement(t *testing.T) {
 	if ch, ok := check(r, "reattestation/community"); !ok || !strings.Contains(ch.Detail, "role automation renews 1 rules") {
 		t.Fatalf("reattestation check %+v", ch)
 	}
-	if !r.AutoMerge.Eligible {
-		t.Fatalf("not eligible: %v", r.AutoMerge.Reasons)
+	if r.AutoMerge.Eligible {
+		t.Fatal("a change without a batch must not be eligible")
 	}
 }
 

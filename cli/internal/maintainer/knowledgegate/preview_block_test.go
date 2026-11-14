@@ -101,8 +101,8 @@ func TestGateAutoMergeAdmitsRegeneratedPreview(t *testing.T) {
 	if c, ok := check(r, "generated/"+PreviewPath); !ok || !c.OK {
 		t.Fatalf("block check %+v", c)
 	}
-	if !r.AutoMerge.Eligible {
-		t.Fatalf("not eligible: %v", r.AutoMerge.Reasons)
+	if r.AutoMerge.Eligible {
+		t.Fatal("a change without a batch must not be eligible")
 	}
 }
 

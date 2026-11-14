@@ -367,35 +367,26 @@ need either.
 
 ## Automatic merge eligibility
 
-The gate reports, and never acts on, whether a change would be eligible for
-automatic merging, and for which head commit (`headSha` in the report, the
-job output `head-sha`). It is eligible only when:
+The gate reports policy candidacy only; it does not authorize or perform a merge.
+A candidate must pass every gate check and carry one verified owner batch approval
+covering the exact changes. Onboarding batches remain ineligible. The production
+bot `prufyx-factory[bot]` must be the pull request author and event sender and
+every commit's author and committer; GitHub must verify every commit signature.
+The complete compare list must contain 1–100 unique full commit IDs, be strictly
+ahead of the base, and end at the reported head. The daily count must be known,
+and shadow mode must be off. Existing limits, proof and replay checks still apply.
 
-- every check passes and the change contains at least one knowledge change;
-- the change adds no batch approval (a batch is merged by the owner);
-- the pull request's author (`--author`) and the account whose action
-  triggered the run (`--sender`) are the automation account (`--bot-login`);
-- every commit between the base and the head is authored and committed by the
-  automation account and carries a signature GitHub verified (`--commits`,
-  GitHub's compare API for `base...head`), the list is complete and ends at
-  `--head-sha`;
-- the daily count was supplied (`--daily-loosening-count`) and shadow mode is
-  off;
-- it touches only these files:
-  - `cli/internal/cncfcheck/data/rules.json`, `cli/internal/cncfcheck/data/corpus-attestation.json`
-  - `cli/internal/projectcheck/data/rules.json`, `cli/internal/projectcheck/data/corpus-attestation.json`
-  - `cli/docs/generated/community-support-inventory.json`, `cli/docs/generated/community-support-inventory.md`
-  - anything under `cli/knowledge/approvals/`
-  - anything under `cli/knowledge/reattestation/<pack>/chain/`, `…/worklists/` and `…/review-records/`
-- it holds no change of a pack's schema level (proof `schema-level`, below): the
-  first attested update of a pack is merged by the owner, never automatically;
-- it adds no fact definition (an admitted `registryDigest` change, see [Adding
-  fact definitions](#adding-fact-definitions)).
+Only the approved batch file, exact pack and corpus files, generated inventory
+files, and regenerated README and preview blocks may change. Generated prose
+outside those blocks must be unchanged; changed files must be regular and
+non-executable. Trust material and arbitrary documentation are excluded.
 
-Trust material is never on that list. A consumer that merges automatically
-must merge exactly the commit in `head-sha` (for example with the expected
-head commit of the merge request), and only when the gate job succeeded, not
-on the eligibility output alone.
+A consumer must authenticate a report produced by the trusted base-built gate
+and bind it to the repository, pull request, current base and head. Immediately
+before a match-head merge it must independently confirm all latest required CI
+and QA checks succeeded on that unchanged head and the base is current. Missing,
+stale, failed or unverifiable evidence denies merging. These consumer checks are
+not performed by this policy report.
 
 ## Trust material
 
@@ -1093,8 +1084,8 @@ The gate admits the batch only when all of these hold:
 
 Each line attestation entry must also pass the extractor cross-check, as with
 a per-entry approval. Admitted entries have the proof `batch-approval`; every
-batch raises the alarm `batch-approval`, and a change with a batch is never
-eligible for automatic merging. Tightening changes and mechanical changes
+batch raises the alarm `batch-approval`. A change with a batch is a policy
+candidate only when all requirements above pass. Tightening changes and mechanical changes
 admitted by re-derivation may be part of the same change; they are listed in
 the summary and the classification digest, but never as entries.
 
@@ -1175,7 +1166,7 @@ key is the pinned owner-approval key. The gate reads it only when the change
 adds it, and decides it all or nothing. Every failure fails the
 `onboarding-batch` check and leaves the pack member changes refused. Every run
 that carries one raises the `onboarding-batch` alarm, and such a change is never
-eligible for automatic merging: the owner merges it.
+eligible for automatic merging.
 
 | Check | The gate refuses the change when |
 | --- | --- |
