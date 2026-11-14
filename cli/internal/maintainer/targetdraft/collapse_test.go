@@ -546,7 +546,7 @@ func TestDiffSeesDirectoryPatterns(t *testing.T) {
 }
 
 // A run, collapse included, leaves every file under crdversions as it was, and
-// no non-test source of this package other than cli.go and source.go (the
+// no non-test source of this package other than cli.go, backtest.go (its --out report) and source.go (the
 // local git reader) writes files or runs commands. This is a smoke check; the
 // real guarantee is the PR diff path allowlist (nothing under
 // extract/crdversions changes).
@@ -574,7 +574,7 @@ func TestCollapseDoesNotTouchExtractor(t *testing.T) {
 	ents, _ := os.ReadDir(".")
 	for _, e := range ents {
 		n := e.Name()
-		if e.IsDir() || !strings.HasSuffix(n, ".go") || strings.HasSuffix(n, "_test.go") || n == "cli.go" || n == "source.go" {
+		if e.IsDir() || !strings.HasSuffix(n, ".go") || strings.HasSuffix(n, "_test.go") || n == "cli.go" || n == "source.go" || n == "backtest.go" {
 			continue
 		}
 		if writers.Match(readFile(t, n)) {
