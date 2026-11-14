@@ -5,6 +5,8 @@ package crdversions
 import (
 	"strings"
 	"testing"
+
+	"github.com/prufyx/prufyx/cli/internal/extract"
 )
 
 func TestLiteralKustomizationAllowedPins(t *testing.T) {
@@ -89,6 +91,46 @@ func TestLiteralKustomizationCommentOnlyRefusesTemplateSyntaxOutsideComments(t *
 				t.Fatal("unsafe template syntax was accepted")
 			}
 		})
+	}
+}
+
+func TestLiteralKustomizationDeclaration(t *testing.T) {
+	raw := []byte(`{"schema":"prufyx.io/crd-version-target/v1","target":{"project":"redis-operator","catalog":"community","name":"redis-operator","repo":"github.com/ot-container-kit/redis-operator","component":"pkg:github/ot-container-kit/redis-operator","factProject":"redis_operator","tagPrefixes":["v"],"minFrom":"0.22","paths":[{"path":"config/crd/bases","directory":true,"match":"^[^.][^/]*\\.ya?ml$","guard":"(?i)crd"}],"exclude":[],"literalKustomization":{"path":"config/rbac/kustomization.yaml","makefile":"Makefile","default":"config/default/kustomization.yaml"}}}`)
+	tg, err := LoadTarget("target-redis-operator.json", raw)
+	if err != nil || tg.LiteralKustomization == nil {
+		t.Fatalf("literal declaration: target=%+v err=%v", tg.LiteralKustomization, err)
+	}
+	bad := strings.Replace(string(raw), "config/rbac/kustomization.yaml", "charts/x/kustomization.yaml", 1)
+	if _, err := LoadTarget("target-redis-operator.json", []byte(bad)); err == nil {
+		t.Fatal("unreviewed literal declaration was accepted")
+	}
+}
+
+func TestLiteralKustomizationReferrers(t *testing.T) {
+	const commit = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	repo, err := extract.ParseRepo(literalKustomizationRepo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	files := memReader{commit + ":config/default/kustomization.yaml": []byte("resources:\n- ../rbac\n")}
+	entries := []extract.TreeEntry{{Path: "config/default/kustomization.yaml", Type: "blob", Mode: "100644"}}
+	refs, err := literalKustomizationReferrers(files, repo, commit, entries, "config/rbac", "config/default/kustomization.yaml")
+	if err != nil || len(refs) != 1 || refs[0] != (literalKustomizationReferrer{Path: "config/default/kustomization.yaml", Kind: "kustomize"}) {
+		t.Fatalf("refs=%+v err=%v", refs, err)
+	}
+	files[commit+":charts/x/Chart.yaml"] = []byte("dependencies:\n- repository: file://../../config/rbac\n")
+	entries = append(entries, extract.TreeEntry{Path: "charts/x/Chart.yaml", Type: "blob", Mode: "100644"})
+	refs, err = literalKustomizationReferrers(files, repo, commit, entries, "config/rbac", "config/default/kustomization.yaml")
+	if err != nil || refs != nil {
+		t.Fatalf("renderer refs=%+v err=%v", refs, err)
+	}
+}
+
+func TestLiteralKustomizationSkipsOnlyProvenScanFile(t *testing.T) {
+	info := summarize(kindData, []byte(redisKustomizationV023))
+	fd, found, err := New(Target{}).classifyFile(nil, extract.RepoRef{}, "", scanFile{path: literalKustomizationPath, literal: true}, info, nil, nil)
+	if err != nil || found || fd.Path != literalKustomizationPath {
+		t.Fatalf("finding=%+v found=%t err=%v", fd, found, err)
 	}
 }
 

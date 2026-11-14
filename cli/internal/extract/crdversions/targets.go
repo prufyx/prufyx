@@ -78,6 +78,9 @@ type Target struct {
 	// Generation lists the reviewed declarations of kustomizations that
 	// generate the committed definitions (see Generation).
 	Generation []Generation
+	// LiteralKustomization is one source-bound, comment-only action the
+	// scanner may ignore after verifying its pinned consumption path.
+	LiteralKustomization *LiteralKustomization
 	// Attest makes the extractor attest the target's lines for the
 	// custom-resource version family. Only a project of the reviewed
 	// custom-resource table (its set fact is registered) may attest; a
@@ -126,6 +129,14 @@ type Generation struct {
 	// Evidence is what the reviewer read: the build recipe, the
 	// post-processing, the output directory and the tags read.
 	Evidence string
+}
+
+// LiteralKustomization declares the three source files that prove a pinned
+// Kustomization comment reaches Kustomize without template rendering.
+type LiteralKustomization struct {
+	Path     string
+	Makefile string
+	Default  string
 }
 
 // Remote is a per-line source switch: from release line FromLine on, the
@@ -370,17 +381,24 @@ type targetJSON struct {
 	FactProject        string        `json:"factProject"`
 	TagPrefixes        []string      `json:"tagPrefixes,omitempty"`
 	// ReleaseScheme replaces tagPrefixes; see Target.
-	ReleaseScheme      string           `json:"releaseScheme,omitempty"`
-	MinFrom            string           `json:"minFrom"`
-	Attest             bool             `json:"attest"`
-	ProfileAttestation bool             `json:"profileAttestation,omitempty"`
-	Paths              []pathJSON       `json:"paths"`
-	Exclude            []exclusionJSON  `json:"exclude"`
-	Generation         []generationJSON `json:"generation,omitempty"`
-	Remote             *remoteJSON      `json:"remote,omitempty"`
+	ReleaseScheme        string                    `json:"releaseScheme,omitempty"`
+	MinFrom              string                    `json:"minFrom"`
+	Attest               bool                      `json:"attest"`
+	ProfileAttestation   bool                      `json:"profileAttestation,omitempty"`
+	Paths                []pathJSON                `json:"paths"`
+	Exclude              []exclusionJSON           `json:"exclude"`
+	Generation           []generationJSON          `json:"generation,omitempty"`
+	LiteralKustomization *literalKustomizationJSON `json:"literalKustomization,omitempty"`
+	Remote               *remoteJSON               `json:"remote,omitempty"`
 	// DeclaredChannel and Channels: see Target.
 	DeclaredChannel string        `json:"declaredChannel,omitempty"`
 	Channels        []channelJSON `json:"channels,omitempty"`
+}
+
+type literalKustomizationJSON struct {
+	Path     string `json:"path"`
+	Makefile string `json:"makefile"`
+	Default  string `json:"default"`
 }
 
 type channelJSON struct {
@@ -669,6 +687,9 @@ func (tj targetJSON) target() (Target, error) {
 	if err := tj.generations(&t); err != nil {
 		return t, fmt.Errorf("generation: %w", err)
 	}
+	if err := tj.literalKustomization(&t); err != nil {
+		return t, fmt.Errorf("literalKustomization: %w", err)
+	}
 	if tj.Remote != nil {
 		remote, err := tj.Remote.remote(t)
 		if err != nil {
@@ -677,6 +698,18 @@ func (tj targetJSON) target() (Target, error) {
 		t.Remote = remote
 	}
 	return t, nil
+}
+
+func (tj targetJSON) literalKustomization(t *Target) error {
+	if tj.LiteralKustomization == nil {
+		return nil
+	}
+	v := tj.LiteralKustomization
+	if t.Project != literalKustomizationProject || t.Repo != literalKustomizationRepo || v.Path != literalKustomizationPath || v.Makefile != "Makefile" || v.Default != "config/default/kustomization.yaml" {
+		return fmt.Errorf("only the reviewed Redis literal Kustomization declaration is supported")
+	}
+	t.LiteralKustomization = &LiteralKustomization{Path: v.Path, Makefile: v.Makefile, Default: v.Default}
+	return nil
 }
 
 // maxGenerations bounds the declarations of one target.

@@ -623,6 +623,7 @@ type scanFile struct {
 	// resolves against the file's path and the commit.
 	inc     *specIncludeRead
 	incRead bool
+	literal bool
 }
 
 // fileKind decides what a tree entry is to the scan.
@@ -691,6 +692,10 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 			}
 		}
 	}
+	literal, err := x.literalKustomizationProof(r, repo, commit, inv.Tag, blobs)
+	if err != nil {
+		return nil, err
+	}
 	// The install-surface guard: a reviewed exclusion that something
 	// installing refers to does not hold at this tag.
 	voids, voided, err := x.guard(ctx, r, repo, commit, blobs, commits, inv)
@@ -723,7 +728,7 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 			rec.Findings = append(rec.Findings, placed(Finding{Path: e.Path, Class: ClassUnsupported, Reason: ReasonPackagedChart, Detail: "a packaged Helm chart: its files are not read"}, at))
 			continue
 		}
-		files = append(files, scanFile{path: e.Path, oid: e.SHA, kind: kind, at: at})
+		files = append(files, scanFile{path: e.Path, oid: e.SHA, kind: kind, at: at, literal: literal[e.Path]})
 	}
 	if len(files) > MaxScanFilesPerTag {
 		rec.Complete, rec.Problem = false, fmt.Sprintf("%d candidate files, over the bound of %d", len(files), MaxScanFilesPerTag)
@@ -2015,6 +2020,9 @@ func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commi
 // define nothing (see classify).
 func (x *Extractor) classifyFile(r extract.PinnedReader, repo extract.RepoRef, commit string, f scanFile, info *blobInfo, inv *Inventory, dirs map[string]bool) (Finding, bool, error) {
 	fd := Finding{Path: f.path, SHA256: info.sha256}
+	if f.literal {
+		return fd, false, nil
+	}
 	base := path.Base(f.path)
 	isKust := isKustomizationName(base)
 	isChart := base == "Chart.yaml"
