@@ -438,6 +438,11 @@ func Compute(in Input) (Report, error) {
 	// decoded copy, so adding to it touches no input. Each addition keeps its
 	// own capture date for the complete predicate.
 	addedOn := map[string]string{}
+	for slug, p := range linesFile.Projects {
+		if p.CapturedOn != "" {
+			addedOn[slug] = p.CapturedOn
+		}
+	}
 	for slug, e := range additions.Additions {
 		linesFile.Projects[slug] = e.ProjectLines
 		addedOn[slug] = e.CapturedOn
