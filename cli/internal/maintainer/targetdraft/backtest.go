@@ -127,6 +127,22 @@ func localPath(base, rel, what string) (string, error) {
 	return filepath.Join(base, rel), nil
 }
 
+// readRel reads a manifest-relative file; its errors name only the relative
+// path, so the report does not depend on where the checkout lives.
+func readRel(abs, rel string) ([]byte, error) {
+	b, err := readBounded(abs)
+	if err == nil {
+		return b, nil
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, fmt.Errorf("%s: not found", rel)
+	}
+	if strings.Contains(err.Error(), "over 4 MiB") {
+		return nil, fmt.Errorf("%s: over 4 MiB", rel)
+	}
+	return nil, fmt.Errorf("%s: unreadable", rel)
+}
+
 func parseBacktestManifest(raw []byte) (*btManifest, error) {
 	var m btManifest
 	if err := strictDecode(raw, &m); err != nil {
@@ -272,7 +288,7 @@ func runEntry(e btEntry, base, mirrors string, open func(string) Source) btRun {
 	if err != nil {
 		return fail("%v", err)
 	}
-	if r.expected, err = readBounded(expPath); err != nil {
+	if r.expected, err = readRel(expPath, e.Expected); err != nil {
 		return fail("expected: %v", err)
 	}
 	var rules *Rules
@@ -281,7 +297,7 @@ func runEntry(e btEntry, base, mirrors string, open func(string) Source) btRun {
 		if err != nil {
 			return fail("%v", err)
 		}
-		raw, err := readBounded(rp)
+		raw, err := readRel(rp, e.Rules)
 		if err == nil {
 			rules, err = ParseRules(raw)
 		}
@@ -408,7 +424,11 @@ func runSeed(s btSeed, runs map[string]btRun) SeedResult {
 		return out
 	}
 	diffs, err := compareReviewed(base.gen, wrong)
-	if err != nil || len(diffs) > 0 {
+	if err != nil {
+		out.Detail = "the comparison failed: seed not counted as rejected"
+		return out
+	}
+	if len(diffs) > 0 {
 		out.Outcome = "failed"
 		return out
 	}

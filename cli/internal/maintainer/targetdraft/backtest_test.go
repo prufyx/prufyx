@@ -298,3 +298,42 @@ func TestBacktestUsageAndOutput(t *testing.T) {
 		t.Fatalf("non-empty out: exit %d", code)
 	}
 }
+
+func TestBacktestSeedCompareErrorIsNotRun(t *testing.T) {
+	good := readFile(t, "testdata/knative/golden-a.json")
+	// The wrong target cannot be decoded, so the comparison errors: not a rejection.
+	runs := map[string]btRun{
+		"a": {res: BacktestResult{Class: ClassReproduced}, gen: good, expected: good},
+		"b": {res: BacktestResult{Class: ClassReproduced}, expected: []byte("not json")},
+	}
+	sr := runSeed(btSeed{Entry: "a", Kind: "swap", Other: "b"}, runs)
+	if sr.Outcome != "not-run" {
+		t.Fatalf("%+v", sr)
+	}
+	var se bytes.Buffer
+	if code := backtestExit(BacktestReport{SeedResults: []SeedResult{sr}}, &se); code != 2 {
+		t.Fatalf("exit %d", code)
+	}
+}
+
+func TestBacktestDigestIndependentOfCheckoutPath(t *testing.T) {
+	digest := func() string {
+		f := newBT(t)
+		// A missing reviewed file puts an error text into the report.
+		e := btEntryMap("missing", "alpha")
+		e["expected"] = "no-such-file.json"
+		f.addEntry(e, 3)
+		code, so, _ := f.run(t, btOpen)
+		if code != 2 || !strings.Contains(so, "no-such-file.json: not found") {
+			t.Fatalf("exit %d: %s", code, so)
+		}
+		if strings.Contains(so, f.dir) {
+			t.Fatalf("absolute path in output: %s", so)
+		}
+		i := strings.Index(so, "digest=")
+		return so[i:]
+	}
+	if a, b := digest(), digest(); a != b {
+		t.Fatalf("digest differs between checkouts: %s vs %s", a, b)
+	}
+}
