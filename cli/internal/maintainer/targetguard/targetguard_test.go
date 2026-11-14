@@ -358,7 +358,11 @@ var removals = []removal{
 		editTarget(t, m, "kuma", func(tg map[string]any) { tg["tagPrefixes"] = []any{"", "v"} })
 	}, Removal{Kind: KindNarrowed, Project: "kuma", Detail: "tagPrefixOrder"}},
 	{"channel", func(t *testing.T, m fstest.MapFS) {
-		editTarget(t, m, "gateway-api", func(tg map[string]any) { delete(tg, "channels"); delete(tg, "declaredChannel") })
+		editTarget(t, m, "gateway-api", func(tg map[string]any) {
+			delete(tg, "channels")
+			delete(tg, "declaredChannel")
+			delete(tg, "profileAttestation")
+		})
 	}, Removal{Kind: KindNarrowed, Project: "gateway-api", Detail: "channel:experimental"}},
 }
 

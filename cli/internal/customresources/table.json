@@ -463,6 +463,10 @@
         {
           "name": "gateway.networking.k8s.io",
           "source": "https://github.com/kubernetes-sigs/gateway-api/blob/89b3b0c3fa63f9342f43ba0fb2cf93d6aab53af7/config/crd/standard/gateway.networking.k8s.io_udproutes.yaml"
+        },
+        {
+          "name": "gateway.networking.x-k8s.io",
+          "source": "https://github.com/kubernetes-sigs/gateway-api/blob/e26d183dbbc1bb782b78addbd26faba03955c152/config/crd/experimental/gateway.networking.x-k8s.io_xtelemetrypolicies.yaml"
         }
       ]
     },
@@ -1667,6 +1671,12 @@
       "owner": "gateway-api",
       "repository": "https://github.com/kubernetes-sigs/gateway-api",
       "reason": "Gateway API is defined by the CRDs of kubernetes-sigs/gateway-api and is not served by kube-apiserver; implementations ship copies of those CRDs"
+    },
+    {
+      "name": "gateway.networking.x-k8s.io",
+      "owner": "gateway-api",
+      "repository": "https://github.com/kubernetes-sigs/gateway-api",
+      "reason": "Gateway API defines its experimental CRDs in this repository and kube-apiserver does not serve this custom resource group"
     },
     {
       "name": "kueue.x-k8s.io",

@@ -9,10 +9,14 @@
     "factProject": "gateway_api",
     "tagPrefixes": ["v"],
     "minFrom": "1.1",
+    "attest": true,
+    "profileAttestation": true,
     "paths": [
       {"path": "config/crd/standard", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
     ],
-    "exclude": [],
+    "exclude": [
+      {"path": "tools/openapi-generator/tests/invalid_crd.yaml", "repo": "github.com/kubernetes-sigs/gateway-api", "reason": "OpenAPI generator negative test input, not an installation manifest", "evidence": "https://github.com/kubernetes-sigs/gateway-api/blob/e26d183dbbc1bb782b78addbd26faba03955c152/tools/openapi-generator/main_test.go#L31 passes this file only to the OpenAPI generator negative test; the full-tree guard voids this exclusion if any installation referrer appears."}
+    ],
     "declaredChannel": "standard",
     "channels": [
       {"name": "experimental", "paths": [

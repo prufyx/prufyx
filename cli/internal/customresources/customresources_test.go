@@ -252,7 +252,7 @@ func TestReservedGroupsAreOwnedByTheirRepository(t *testing.T) {
 	}
 	// Reserved groups the table must never attribute: an API several
 	// projects implement and provider namespaces of Cluster API.
-	for _, group := range []string{"multicluster.x-k8s.io", "infrastructure.cluster.x-k8s.io", "bootstrap.cluster.x-k8s.io", "controlplane.cluster.x-k8s.io", "ipam.cluster.x-k8s.io", "addons.cluster.x-k8s.io", "gateway.networking.x-k8s.io", "snapshot.storage.k8s.io", "topology.node.k8s.io", "scheduling.sigs.k8s.io"} {
+	for _, group := range []string{"multicluster.x-k8s.io", "infrastructure.cluster.x-k8s.io", "bootstrap.cluster.x-k8s.io", "controlplane.cluster.x-k8s.io", "ipam.cluster.x-k8s.io", "addons.cluster.x-k8s.io", "snapshot.storage.k8s.io", "topology.node.k8s.io", "scheduling.sigs.k8s.io"} {
 		if owner, attribution := index.Owner(group); attribution != Unknown {
 			t.Errorf("%s attributed to %q (%v)", group, owner, attribution)
 		}

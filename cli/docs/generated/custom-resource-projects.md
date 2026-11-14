@@ -31,7 +31,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `fluent-operator` | community | `component.fluent_operator.custom_resource_versions_set` | `fluentbit.fluent.io`, `fluentd.fluent.io` |
 | `function-mesh` | community | `component.function_mesh.custom_resource_versions_set` | `compute.functionmesh.io` |
 | `furiko` | community | `component.furiko.custom_resource_versions_set` | `execution.furiko.io` |
-| `gateway-api` | community | `component.gateway_api.custom_resource_versions_set` | `gateway.networking.k8s.io` |
+| `gateway-api` | community | `component.gateway_api.custom_resource_versions_set` | `gateway.networking.k8s.io`, `gateway.networking.x-k8s.io` |
 | `github-actions-runner-operator` | community | `component.github_actions_runner_operator.custom_resource_versions_set` | `garo.tietoevry.com` |
 | `grafana-operator` | community | `component.grafana_operator.custom_resource_versions_set` | `grafana.integreatly.org` |
 | `istio` | CNCF | `component.istio.custom_resource_versions_set` | `extensions.istio.io`, `networking.istio.io`, `security.istio.io`, `telemetry.istio.io` |
@@ -148,5 +148,6 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `cluster.x-k8s.io` | `cluster-api` | https://github.com/kubernetes-sigs/cluster-api | the core Cluster API types (Cluster, Machine, MachineSet, ...) are CRDs of kubernetes-sigs/cluster-api; providers define theirs in their own *.cluster.x-k8s.io groups |
 | `clusterctl.cluster.x-k8s.io` | `cluster-api` | https://github.com/kubernetes-sigs/cluster-api | the clusterctl Provider and Metadata types are CRDs of kubernetes-sigs/cluster-api (cmd/clusterctl) only |
 | `gateway.networking.k8s.io` | `gateway-api` | https://github.com/kubernetes-sigs/gateway-api | Gateway API is defined by the CRDs of kubernetes-sigs/gateway-api and is not served by kube-apiserver; implementations ship copies of those CRDs |
+| `gateway.networking.x-k8s.io` | `gateway-api` | https://github.com/kubernetes-sigs/gateway-api | Gateway API defines its experimental CRDs in this repository and kube-apiserver does not serve this custom resource group |
 | `kueue.x-k8s.io` | `kueue` | https://github.com/kubernetes-sigs/kueue | the Kueue types (ClusterQueue, LocalQueue, Workload, ...) are CRDs of kubernetes-sigs/kueue only |
 | `runtime.cluster.x-k8s.io` | `cluster-api` | https://github.com/kubernetes-sigs/cluster-api | the runtime extension type ExtensionConfig is a CRD of kubernetes-sigs/cluster-api only |
