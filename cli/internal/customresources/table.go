@@ -7,6 +7,9 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"io"
+
+	"github.com/prufyx/prufyx/cli/internal/strictjson"
 )
 
 // TableSchema identifies table.json.
@@ -67,10 +70,11 @@ func mustLoadTable(raw []byte) ([]Project, []ReservedGroup) {
 	return projects, records
 }
 
-// LoadTable decodes and validates a table document: the schema, no unknown
-// fields and no trailing data, provenance present exactly for a community
-// project, and then everything Validate checks against the document's own
-// ownership list.
+// LoadTable decodes and validates a table document: one JSON value with no
+// repeated or case-folded member names (strictjson.Check), the schema, no
+// unknown fields and no trailing data (an explicit end-of-input check),
+// provenance present exactly for a community project, and then everything
+// Validate checks against the document's own ownership list.
 func LoadTable(raw []byte) ([]Project, []ReservedGroup, error) {
 	var doc tableFile
 	dec := json.NewDecoder(bytes.NewReader(raw))
@@ -78,8 +82,11 @@ func LoadTable(raw []byte) ([]Project, []ReservedGroup, error) {
 	if err := dec.Decode(&doc); err != nil {
 		return nil, nil, err
 	}
-	if dec.More() {
+	if _, err := dec.Token(); err != io.EOF {
 		return nil, nil, fmt.Errorf("trailing data")
+	}
+	if err := strictjson.Check(raw); err != nil {
+		return nil, nil, err
 	}
 	if doc.Schema != TableSchema {
 		return nil, nil, fmt.Errorf("schema %q, want %q", doc.Schema, TableSchema)

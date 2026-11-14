@@ -12,7 +12,6 @@ import (
 	"regexp"
 	"sort"
 
-	"github.com/prufyx/prufyx/cli/internal/customresources"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 )
 
@@ -58,10 +57,10 @@ var v2Source = map[string]string{
 // the facts: the custom-resource version set of a CNCF catalog row is read
 // from manifests by scan; the Kubernetes removed-GVK facts likewise. Any
 // other family has no producer here.
-func producerFor(family, project string) string {
+func producerFor(family, project string, cat *CatalogSet) string {
 	switch family {
 	case "crd.versions":
-		if p, ok := customresources.ProjectFor(project); ok && !p.Community() {
+		if cat.Has(project) && !cat.Community(project) {
 			return ProducerManifest
 		}
 	case "k8s.api":
@@ -228,7 +227,7 @@ func recencyWeight(fromEnd int) int64 { // 0 = newest pair
 
 // applyV2 fills Pair.Cells and Pair.Weight for the tiered projects' last
 // two pairs and sets report.V2. It changes nothing else.
-func applyV2(r *Report, tiers TiersFile, app ApplicabilityFile) {
+func applyV2(r *Report, tiers TiersFile, app ApplicabilityFile, cat *CatalogSet) {
 	exempt := map[[2]string]bool{}
 	for _, e := range app.Exemptions {
 		exempt[[2]string{e.Project, e.Family}] = true
@@ -269,7 +268,7 @@ func applyV2(r *Report, tiers TiersFile, app ApplicabilityFile) {
 				continue
 			}
 			fams = append(fams, f)
-			if producerFor(f, p.Project) != ProducerNone {
+			if producerFor(f, p.Project, cat) != ProducerNone {
 				rows[f].Producer = ProducerManifest // over the universe, not only attested cells
 			}
 		}
@@ -302,7 +301,7 @@ func applyV2(r *Report, tiers TiersFile, app ApplicabilityFile) {
 					row.Attested++
 					v.Attested++
 					att++
-					if producerFor(f, p.Project) != ProducerNone {
+					if producerFor(f, p.Project, cat) != ProducerNone {
 						row.Reachable++
 						v.Reachable++
 						reach++

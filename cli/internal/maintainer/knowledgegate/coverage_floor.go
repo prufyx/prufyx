@@ -52,14 +52,14 @@ func (r *Report) coverageFloorCheck(opts Options) {
 		r.add(CheckCoverageFloor, false, "%s", logSafe(err.Error()))
 		return
 	}
-	if err := coverageFloor(opts.Base, opts.Head); err != nil {
+	if err := coverageFloor(opts.Base, opts.Head, opts.Layout.Onboarding.TablePath); err != nil {
 		r.add(CheckCoverageFloor, false, "%s", logSafe(err.Error()))
 		return
 	}
 	r.add(CheckCoverageFloor, true, "the published coverage numbers of the change are not below the baseline of the base branch")
 }
 
-func coverageFloor(base, head Tree) error {
+func coverageFloor(base, head Tree, tablePath string) error {
 	// What the numbers are measured against is held first: the pinned
 	// snapshot byte-identical, the additions file append-only and
 	// regenerated from its tag files.
@@ -103,7 +103,7 @@ func coverageFloor(base, head Tree) error {
 	if err := coveragereport.CheckBaselineMove(floor, proposed); err != nil {
 		return err
 	}
-	report, _, _, err := coverageReportOf(head)
+	report, _, _, err := coverageReportOf(head, tablePath)
 	if err != nil {
 		return fmt.Errorf("cannot compute the published coverage numbers: %w", err)
 	}

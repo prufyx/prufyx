@@ -993,7 +993,7 @@ func (r *Report) generatedChecks(opts Options) {
 }
 
 func (r *Report) autoMerge(opts Options) {
-	blocks := opts.Layout.admittedBlocks(opts.Base, opts.Head)
+	blocks := opts.Layout.admittedBlocks(opts.Base, opts.Head, false)
 	var reasons []string
 	if !r.Passed() {
 		reasons = append(reasons, "the gate did not pass")

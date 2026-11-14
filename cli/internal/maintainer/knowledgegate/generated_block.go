@@ -29,7 +29,9 @@ const PreviewPath = "cli/docs/CNCF-SOURCE-PREVIEW.md"
 type GeneratedBlock struct {
 	Path, Begin, End string
 	// Render returns the text between the markers from the data of a tree.
-	Render func(t Tree) (string, error)
+	// ol names where the tree keeps the files the text is computed from
+	// (the custom-resource table).
+	Render func(t Tree, ol OnboardingLayout) (string, error)
 	// More are further regions of the same file.
 	More []BlockRegion
 	// Sources are the repository files of the renderer of this block. A
@@ -44,19 +46,19 @@ type GeneratedBlock struct {
 // BlockRegion is one more generated region of a GeneratedBlock's file.
 type BlockRegion struct {
 	Begin, End string
-	Render     func(t Tree) (string, error)
+	Render     func(t Tree, ol OnboardingLayout) (string, error)
 }
 
 // Want returns the file as it must read: the prose of the prose tree with
 // every block rendered from the data tree.
-func (g GeneratedBlock) Want(prose, data Tree) ([]byte, error) {
+func (g GeneratedBlock) Want(prose, data Tree, ol OnboardingLayout) ([]byte, error) {
 	doc, err := prose.Read(g.Path, MaxFileBytes)
 	if err != nil {
 		return nil, err
 	}
 	regions := append([]BlockRegion{{Begin: g.Begin, End: g.End, Render: g.Render}}, g.More...)
 	for _, r := range regions {
-		block, err := r.Render(data)
+		block, err := r.Render(data, ol)
 		if err != nil {
 			return nil, err
 		}
@@ -70,11 +72,11 @@ func (g GeneratedBlock) Want(prose, data Tree) ([]byte, error) {
 // matches reports whether the head file is a regular file, without an
 // executable bit in the base or the head, that equals the base's prose
 // spliced with the block rendered from the head's data.
-func (g GeneratedBlock) matches(base, head Tree) bool {
+func (g GeneratedBlock) matches(base, head Tree, ol OnboardingLayout) bool {
 	if head.executable(g.Path) || base.executable(g.Path) {
 		return false
 	}
-	want, err := g.Want(base, head)
+	want, err := g.Want(base, head, ol)
 	if err != nil {
 		return false
 	}
@@ -97,14 +99,36 @@ func (l Layout) blockPath(rel string) bool {
 // equals the base file with only its block regenerated from the head's data.
 // A prose edit, a damaged or duplicated marker, a link or an executable bit
 // makes the file not admitted.
-func (l Layout) admittedBlocks(base, head Tree) map[string]bool {
+//
+// The block is rendered from the head's custom-resource table. Only an
+// onboarding change may move that table (tableMayChange); for every other
+// caller a head table that is unreadable or differs from the base's bytes
+// admits nothing, so no other kind of change can carry a table edit and a
+// README that matches it. Whether an onboarding change may move the table is
+// not decided here: the onboarding checks (the signed batch, the row and
+// catalog checks) judge it independently of this function.
+func (l Layout) admittedBlocks(base, head Tree, tableMayChange bool) map[string]bool {
 	out := map[string]bool{}
+	if !tableMayChange && !l.tableUnchanged(base, head) {
+		return out
+	}
 	for _, g := range l.GeneratedBlocks {
-		if g.matches(base, head) {
+		if g.matches(base, head, l.Onboarding) {
 			out[g.Path] = true
 		}
 	}
 	return out
+}
+
+// tableUnchanged reports whether the custom-resource table is readable in
+// both trees and has the same bytes in both.
+func (l Layout) tableUnchanged(base, head Tree) bool {
+	b, err := base.Read(l.Onboarding.TablePath, MaxFileBytes)
+	if err != nil {
+		return false
+	}
+	h, err := head.Read(l.Onboarding.TablePath, MaxFileBytes)
+	return err == nil && bytes.Equal(b, h)
 }
 
 // sourceChanged returns the renderer source files of the block that the
@@ -131,7 +155,7 @@ func (r *Report) blockChecks(opts Options) {
 			r.add(name, true, "renderer changed in this change; verified by the head's %s", g.HeadTest)
 			continue
 		}
-		want, err := g.Want(opts.Head, opts.Head)
+		want, err := g.Want(opts.Head, opts.Head, opts.Layout.Onboarding)
 		if err != nil {
 			r.add(name, false, "cannot regenerate the block: %v", logSafe(err.Error()))
 			continue
@@ -148,8 +172,8 @@ func (r *Report) blockChecks(opts Options) {
 // through the tree (no links, bounded sizes). The evaluation time is the
 // snapshot's evaluation date (or the latest capture date of an addition) at
 // 12:00:00Z, so nothing depends on the clock.
-func coverageBlock(t Tree) (string, error) {
-	report, inventory, now, err := coverageReportOf(t)
+func coverageBlock(t Tree, ol OnboardingLayout) (string, error) {
+	report, inventory, now, err := coverageReportOf(t, ol.TablePath)
 	if err != nil {
 		return "", err
 	}
@@ -158,8 +182,8 @@ func coverageBlock(t Tree) (string, error) {
 
 // crdBlock renders the README sentence about the CRD version targets from
 // the same report.
-func crdBlock(t Tree) (string, error) {
-	report, _, _, err := coverageReportOf(t)
+func crdBlock(t Tree, ol OnboardingLayout) (string, error) {
+	report, _, _, err := coverageReportOf(t, ol.TablePath)
 	if err != nil {
 		return "", err
 	}
@@ -196,7 +220,13 @@ func treeEvalClock(t Tree) (time.Time, error) {
 // coverageReportOf computes the report the README regions are rendered from,
 // with the support inventory it is paired with and its evaluation time. The
 // time is treeEvalClock, the one function the merge gate uses too.
-func coverageReportOf(t Tree) (coveragereport.Report, []byte, time.Time, error) {
+//
+// The community or CNCF split of every project is read from the tree's own
+// custom-resource table at tablePath (readTableTree, the reader the
+// onboarding checks use), never from the table embedded in the gate's binary,
+// which is the base's and cannot know a row the change adds. A table that
+// cannot be read is an error; there is no fallback.
+func coverageReportOf(t Tree, tablePath string) (coveragereport.Report, []byte, time.Time, error) {
 	pack, err := t.Read(cncfRulesPath, MaxFileBytes)
 	if err != nil {
 		return coveragereport.Report{}, nil, time.Time{}, err
@@ -227,7 +257,11 @@ func coverageReportOf(t Tree) (coveragereport.Report, []byte, time.Time, error) 
 	if err != nil {
 		return coveragereport.Report{}, nil, time.Time{}, err
 	}
-	report, err := coveragereport.Compute(coveragereport.Input{Pack: pack, Lines: linesRaw, Additions: additionsRaw, Now: now, CRDVersionProjects: len(crd), CRDTargetComponents: crd, CommunityPack: community, V2: true})
+	table, err := readTableTree(t, tablePath)
+	if err != nil {
+		return coveragereport.Report{}, nil, time.Time{}, err
+	}
+	report, err := coveragereport.Compute(coveragereport.Input{Pack: pack, Lines: linesRaw, Additions: additionsRaw, Now: now, CRDVersionProjects: len(crd), CRDTargetComponents: crd, CommunityPack: community, V2: true, Catalog: coveragereport.NewCatalogSet(table.projects)})
 	if err != nil {
 		return coveragereport.Report{}, nil, time.Time{}, err
 	}
@@ -236,11 +270,11 @@ func coverageReportOf(t Tree) (coveragereport.Report, []byte, time.Time, error) 
 
 // basisBlock and validityBlock render the README sentences about how the
 // rules were established and when they stop being valid, from both packs.
-func basisBlock(t Tree) (string, error) {
+func basisBlock(t Tree, _ OnboardingLayout) (string, error) {
 	return claimsRegion(t, coveragereport.RenderBasisSentence)
 }
 
-func validityBlock(t Tree) (string, error) {
+func validityBlock(t Tree, _ OnboardingLayout) (string, error) {
 	return claimsRegion(t, coveragereport.RenderValiditySentence)
 }
 
@@ -258,11 +292,11 @@ func claimsRegion(t Tree, render func(packs ...[]byte) (string, error)) (string,
 
 // previewIntro and previewPack render the two rule-count regions of the
 // CNCF source preview from the tree's generated support inventory.
-func previewIntro(t Tree) (string, error) {
+func previewIntro(t Tree, _ OnboardingLayout) (string, error) {
 	return previewRegion(t, coveragereport.RenderPreviewIntro)
 }
 
-func previewPack(t Tree) (string, error) {
+func previewPack(t Tree, _ OnboardingLayout) (string, error) {
 	return previewRegion(t, coveragereport.RenderPreviewPack)
 }
 
@@ -302,12 +336,13 @@ func crdProjectComponents(t Tree) (map[string]string, error) {
 // the paths that were stale (check) or rewritten.
 func RegenerateBlocks(root string, check bool, only ...string) ([]string, error) {
 	tree := Tree{Root: root}
+	layout := DefaultLayout()
 	var changed []string
-	for _, g := range DefaultLayout().GeneratedBlocks {
+	for _, g := range layout.GeneratedBlocks {
 		if len(only) > 0 && !slices.Contains(only, g.Path) {
 			continue
 		}
-		want, err := g.Want(tree, tree)
+		want, err := g.Want(tree, tree, layout.Onboarding)
 		if err != nil {
 			return changed, fmt.Errorf("%s: %w", g.Path, err)
 		}

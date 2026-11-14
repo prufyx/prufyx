@@ -70,11 +70,11 @@ func TestAdmittedBlocksPreview(t *testing.T) {
 	for name, breaker := range previewBreakers {
 		t.Run(name, func(t *testing.T) {
 			base, head := trees(t)
-			if got := layout.admittedBlocks(base, head); !got[PreviewPath] {
+			if got := layout.admittedBlocks(base, head, false); !got[PreviewPath] {
 				t.Fatalf("an unchanged preview is not admitted: %v", got)
 			}
 			editPreview(t, head, breaker)
-			if got := layout.admittedBlocks(base, head); got[PreviewPath] {
+			if got := layout.admittedBlocks(base, head, false); got[PreviewPath] {
 				t.Fatal("a refused preview was admitted")
 			}
 		})
@@ -82,7 +82,7 @@ func TestAdmittedBlocksPreview(t *testing.T) {
 	t.Run("regenerated counts", func(t *testing.T) {
 		base, head := trees(t)
 		editPreview(t, base, alterPreviewDigit)
-		if got := layout.admittedBlocks(base, head); !got[PreviewPath] {
+		if got := layout.admittedBlocks(base, head, false); !got[PreviewPath] {
 			t.Fatal("the base's prose with the head's regenerated counts is not admitted")
 		}
 	})

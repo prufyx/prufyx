@@ -25,6 +25,13 @@ func gatewayScenario(lines ...string) scenario {
 // lines snapshot.
 func combined(t *testing.T, ss ...scenario) Report {
 	t.Helper()
+	return combinedWith(t, nil, ss...)
+}
+
+// combinedWith is combined with the catalog split the report classifies by
+// (nil: the embedded table).
+func combinedWith(t *testing.T, cat *CatalogSet, ss ...scenario) Report {
+	t.Helper()
 	var atts []lineattest.LineAttestation
 	file := LinesFile{Schema: LinesSchema, CapturedOn: allCaptured, Projects: map[string]ProjectLines{}}
 	for _, s := range ss {
@@ -46,7 +53,7 @@ func combined(t *testing.T, ss ...scenario) Report {
 		t.Fatal(err)
 	}
 	packBytes := []byte(`{"schema":"test","revision":"synthetic","entries":[],"lineAttestations":` + string(section) + `}`)
-	report, err := Compute(Input{Pack: packBytes, Lines: linesBytes, Now: allNow, All: true})
+	report, err := Compute(Input{Pack: packBytes, Lines: linesBytes, Now: allNow, All: true, Catalog: cat})
 	if err != nil {
 		t.Fatal(err)
 	}
