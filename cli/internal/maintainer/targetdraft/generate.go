@@ -67,6 +67,9 @@ func Generate(in Input) (*Result, error) {
 	if !slugRE.MatchString(in.Slug) || in.Name == "" || !repoRE.MatchString(in.Repo) || in.Source == nil {
 		return nil, &StopError{Stops: []Stop{stop(StopBadInput, "", "slug, name, repo and a source are required and must be well formed")}}
 	}
+	if !repoCanonical(in.Repo) {
+		return nil, &StopError{Stops: []Stop{stop(StopRepoNotCanonical, in.Repo, "the extractor's target loader accepts only the canonical lower-case form")}}
+	}
 	catalog := in.Catalog
 	if catalog == "" {
 		catalog = crdversions.CatalogCNCF
@@ -78,6 +81,9 @@ func Generate(in Input) (*Result, error) {
 	component := in.Component
 	if component == "" {
 		component = "pkg:github/" + ownerRepo
+	}
+	if component != "pkg:github/"+ownerRepo {
+		return nil, &StopError{Stops: []Stop{stop(StopComponentNotCanonical, component, "")}}
 	}
 	fact := in.FactProject
 	if fact == "" {
@@ -91,6 +97,17 @@ func Generate(in Input) (*Result, error) {
 		u := rules.Upstream
 		if u == nil || u.Name == "" || u.Repository == "" || u.License == "" || u.LicenseSource == "" {
 			return nil, &StopError{Stops: []Stop{stop(StopCommunityUpstream, in.Slug, "")}}
+		}
+	}
+	// The table loader refuses anything else at start-up, so refuse it here,
+	// by the same validator, before any file is produced.
+	if u := rules.Upstream; u != nil || catalog == crdversions.CatalogCommunity {
+		var cu customresources.Upstream
+		if u != nil {
+			cu = customresources.Upstream{Name: u.Name, Repository: u.Repository, License: u.License, LicenseSource: u.LicenseSource}
+		}
+		if !customresources.ValidUpstream(customresources.Catalog(catalog), component, cu) || (u != nil && catalog == crdversions.CatalogCNCF) {
+			return nil, &StopError{Stops: []Stop{stop(StopUpstreamNotCanonical, in.Slug, "")}}
 		}
 	}
 
