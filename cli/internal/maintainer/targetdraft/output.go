@@ -181,6 +181,12 @@ type Report struct {
 	// whether the file was read or its absence verified. Present only when
 	// an optional entry is used; part of FactsDigest then.
 	OptionalPaths []OptionalFact `json:"optionalPaths,omitempty"`
+	// RangedPaths lists, per window tag, the ranged installPaths entry
+	// selected for each role (role, then path); RangeCheckedTags are the
+	// extra tags the boundary check read, sorted. Present only when ranged
+	// entries are used; part of FactsDigest then.
+	RangedPaths      []RangedFact `json:"rangedPaths,omitempty"`
+	RangeCheckedTags []string     `json:"rangeCheckedTags,omitempty"`
 	// FilteredCopies are the files under installPaths removed from the install
 	// surface by a pathFilter entry, one per distinct (path, groups), with the
 	// window tags; sorted. Present only when pathFilter is used.
@@ -403,14 +409,21 @@ func objList(objs []string) string {
 	return "[\n      " + strings.Join(objs, ",\n      ") + "\n    ]"
 }
 
-func build(in Input, catalog, component, fact, ownerRepo, prefix, minFrom string, rules *Rules, window []*tagResult, dropped []DroppedTag, newest *tagResult) (*Result, error) {
+func build(in Input, catalog, component, fact, ownerRepo, prefix, minFrom string, rules *Rules, window []*tagResult, dropped []DroppedTag, newest *tagResult, union map[string]*inclusion) (*Result, error) {
 	ordered := orderPaths(newest.included)
+	// With ranged entries the target lists the union of the paths read at the
+	// window tags (the moved directory appears with both locations); groups
+	// and kinds still come from the newest tag.
+	pathsOrdered := ordered
+	if union != nil {
+		pathsOrdered = orderPaths(union)
+	}
 	body := targetBody{Project: in.Slug, Name: in.Name, Repo: in.Repo, Component: component, FactProject: fact,
 		TagPrefixes: []string{prefix}, MinFrom: minFrom, Paths: []pathOut{}, Exclude: []exclOut{}}
 	if catalog == "community" {
 		body.Catalog = "community"
 	}
-	for _, i := range ordered {
+	for _, i := range pathsOrdered {
 		body.Paths = append(body.Paths, pathOut{Path: i.Path})
 	}
 	a, err := marshalTarget(targetDoc{Schema: "prufyx.io/crd-version-target/v1", Target: body})
@@ -519,7 +532,7 @@ func build(in Input, catalog, component, fact, ownerRepo, prefix, minFrom string
 		rep.FilteredCopies = filtered
 		rep.FilteredCopyCount = len(filtered)
 	}
-	log := changelogText(in.Name, crdCount, gnames, prefix, minFrom, ordered, excls, window, len(copies), len(filtered))
+	log := changelogText(in.Name, crdCount, gnames, prefix, minFrom, pathsOrdered, excls, window, len(copies), len(filtered))
 	return &Result{A: a, B: b, TableRow: rowRaw, Changelog: []byte(log), Report: rep}, nil
 }
 
