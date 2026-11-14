@@ -17,7 +17,7 @@ import (
 // and that change updates this pin. The project rows are not pinned: rows
 // are added as data (the knowledge gate checks each added row with this
 // package's loader), so a pin over them would move with every addition.
-const reservedPin = "9bc2428bad6065e83b4bb4c6255aa8452283467a7f82ca11721890f96c08170c"
+const reservedPin = "8b9b53d192aee265bdd57f8513ea6dc18e2a0c9dc75f568e5eeb76378d2d4e96"
 
 func TestReservedGroupsMatchPin(t *testing.T) {
 	sum := sha256.Sum256([]byte(fmt.Sprintf("%#v", ReservedGroups())))

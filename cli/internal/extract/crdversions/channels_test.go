@@ -261,7 +261,7 @@ func TestGatewayAPITargetDeclaresItsChannels(t *testing.T) {
 	if !ok || tg.DeclaredChannel != "standard" || len(tg.Channels) != 1 || tg.Channels[0].Name != "experimental" || tg.Paths[0].Path != "config/crd/standard" || tg.Channels[0].Paths[0].Path != "config/crd/experimental" {
 		t.Fatalf("gateway-api target %+v", tg)
 	}
-	if tg.Attest || tg.Catalog != CatalogCommunity {
+	if !tg.Attest || !tg.ProfileAttestation || tg.Catalog != CatalogCommunity {
 		t.Fatalf("target %+v", tg)
 	}
 }

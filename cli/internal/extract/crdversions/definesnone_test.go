@@ -88,6 +88,13 @@ func TestDefinesNoneAccepted(t *testing.T) {
 	if v := voidFindings(proof); len(v) != 1 || v[0].Path != "cmd/data/data.go" || proof.Completeness.Attestable {
 		t.Fatalf("an unchecked entry the program embeds: voids %+v completeness %+v", v, proof.Completeness)
 	}
+	_, proof = dnPair(t, map[string]string{
+		dnFile:                      dnDiscovery,
+		"deploy/kustomization.yaml": "resources:\n- ../cmd/data/api.json\n",
+	}, plain)
+	if v := voidFindings(proof); len(v) != 1 || v[0].Path != "deploy/kustomization.yaml" || proof.Completeness.Attestable {
+		t.Fatalf("an unchecked entry referenced for installation: voids %+v completeness %+v", v, proof.Completeness)
+	}
 	// A pattern entry covers every file it matches.
 	p, proof := dnPair(t, map[string]string{dnFile: dnDiscovery, "cmd/data/more.json": `{"x":"CustomResourceDefinition"}`}, definesNone(dnPattern))
 	var n int

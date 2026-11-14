@@ -154,13 +154,13 @@ func FactID(factProject string) string {
 // namespaces of Cluster API (addons, bootstrap, controlplane, infrastructure
 // and ipam .cluster.x-k8s.io), whose CRDs other providers define too (the Helm
 // add-on provider, the RKE2 and Talos bootstrap and control-plane
-// providers, cloud providers, IPAM providers); the experimental Gateway API
-// group gateway.networking.x-k8s.io (its CRDs lie outside the standard
-// channel the extractor reads); the multicluster services API
+// providers, cloud providers, IPAM providers); the multicluster services API
 // multicluster.x-k8s.io (Karmada and Antrea both ship it);
 // snapshot.storage.k8s.io and topology.node.k8s.io (shipped by several
 // projects, none of which is in the table as its definer). An object of
 // such a group keeps every set incomplete, which never passes.
+// Gateway API's experimental group is separately recorded because its
+// profile-attested target reads both declared channels from that repository.
 var table, reserved = mustLoadTable(tableJSON)
 
 // Projects returns a copy of the reviewed table, ordered by slug.
