@@ -8,6 +8,7 @@
     "factProject": "kubean",
     "tagPrefixes": ["v"],
     "minFrom": "0.34",
+    "attest": true,
     "paths": [
       {"path": "api/charts/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
     ],

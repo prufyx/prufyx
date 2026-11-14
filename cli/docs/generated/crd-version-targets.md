@@ -48,7 +48,7 @@ The reviewed targets of the `crd.version-removal` extractor
 | `crd.version-removal.kong-ingress-controller` | community | `github.com/kong/kubernetes-ingress-controller` | `vX.Y.Z` | 3.0 | no | before 3.4: files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases`; from 3.4: the files listed by `config/crd/ingress-controller/kustomization.yaml` of `github.com/kong/kubernetes-configuration`, at the tag `config/crd/kustomization.yaml` names (pinned tags: 6) | 0 |
 | `crd.version-removal.koordinator` | CNCF | `github.com/koordinator-sh/koordinator` | `vX.Y.Z` | 1.3 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.kube-green` | community | `github.com/kube-green/kube-green` | `vX.Y.Z` | 0.2 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
-| `crd.version-removal.kubean` | CNCF | `github.com/kubean-io/kubean` | `vX.Y.Z` | 0.34 | no | files matching `^[^.][^/]*\.ya?ml$` in `api/charts/crds` | 0 |
+| `crd.version-removal.kubean` | CNCF | `github.com/kubean-io/kubean` | `vX.Y.Z` | 0.34 | yes | files matching `^[^.][^/]*\.ya?ml$` in `api/charts/crds` | 0 |
 | `crd.version-removal.kubemod` | community | `github.com/kubemod/kubemod` | `vX.Y.Z` | 0.16 | yes | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.kuberhealthy` | CNCF | `github.com/kuberhealthy/kuberhealthy` | `vX.Y.Z`, then `X.Y.Z` | 2.3 | no | files matching `^[^.][^/]*\.ya?ml$` in `deploy/helm/kuberhealthy/crds` | 0 |
 | `crd.version-removal.kubernetes-ingress` | community | `github.com/nginx/kubernetes-ingress` | `vX.Y.Z` | 5.2 | yes | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
