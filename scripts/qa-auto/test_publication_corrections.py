@@ -100,8 +100,8 @@ def publication_runner():
                       summary=dict(documentsRead=requested, documentsOmitted=0), omitted=[], provenance=provenance)
         if no_removals:
             report.update(verdict="SCOPE_COMPLETE_PASS", findings=[])
-        # Mutate only the companion scan: earlier range/single controls stay clean.
-        if Path(path).stem == "plan":
+        # Mutate only the plan companion scans (window and per-hop): earlier range/single controls stay clean.
+        if Path(path).stem.startswith("plan"):  # the window scan and the per-hop scan bound to each stage
             if mode == "plan-omitted":
                 report["summary"]["documentsOmitted"] = 1
             if mode == "plan-wrong-object":
