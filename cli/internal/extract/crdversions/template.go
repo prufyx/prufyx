@@ -4,6 +4,7 @@ package crdversions
 
 import (
 	"bytes"
+	"errors"
 	"strings"
 )
 
@@ -82,6 +83,26 @@ func templateOutsideDescriptions(data []byte, values []any) string {
 		return "a \"{{\" outside the description strings of a schema (in a comment or other text that is not such a string)"
 	}
 	return ""
+}
+
+// DescriptionMarkersOnly reports whether every template marker in data is
+// documentation in an OpenAPI schema description of a CRD. It proves marker
+// placement only; callers must perform their own CRD and source validation.
+func DescriptionMarkersOnly(data []byte) (bool, error) {
+	if len(data) > MaxFileBytes {
+		return false, errors.New("description markers: file exceeds the CRD source byte bound")
+	}
+	_, values, err := decodeStrict(data)
+	if err != nil {
+		return false, errors.New("description markers: file is not strictly decodable")
+	}
+	if !bytes.Contains(data, []byte(templateMarker)) {
+		return false, nil
+	}
+	if why := templateOutsideDescriptions(data, values); why != "" {
+		return false, errors.New("description markers: " + why)
+	}
+	return true, nil
 }
 
 type templateWalk struct {

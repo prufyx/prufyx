@@ -86,6 +86,33 @@ func TestDescriptionsMayQuoteTemplateSyntax(t *testing.T) {
 	}
 }
 
+func TestDescriptionMarkersOnly(t *testing.T) {
+	good := []byte(crdText("", "", "type: object\ndescription: ClusterClass uses {{ .builtin.cluster.name }}"))
+	if ok, err := DescriptionMarkersOnly(good); err != nil || !ok {
+		t.Fatalf("Cluster API description marker: ok=%t err=%v", ok, err)
+	}
+	for name, data := range map[string][]byte{
+		"comment":             append(append([]byte{}, good...), []byte("# {{ comment }}\n")...),
+		"key":                 []byte(strings.Replace(string(good), "description:", "{{ key }}:", 1)),
+		"default":             []byte(strings.Replace(string(good), "description: ClusterClass uses {{ .builtin.cluster.name }}", "default: '{{ value }}'", 1)),
+		"annotation":          []byte(strings.Replace(string(good), "spec:\n", "metadata:\n  annotations:\n    note: '{{ value }}'\nspec:\n", 1)),
+		"non CRD":             []byte("apiVersion: v1\nkind: ConfigMap\ndata:\n  description: '{{ value }}'\n"),
+		"malformed":           []byte("spec: [\n# {{ value }}\n"),
+		"oversized":           append(append([]byte{}, good...), []byte(strings.Repeat("x", MaxFileBytes))...),
+		"malformed no marker": []byte("spec: [\n"),
+		"oversized no marker": append([]byte("apiVersion: v1\nkind: ConfigMap\n"), []byte(strings.Repeat("x", MaxFileBytes))...),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if ok, err := DescriptionMarkersOnly(data); err == nil || ok {
+				t.Fatalf("ok=%t err=%v", ok, err)
+			}
+		})
+	}
+	if ok, err := DescriptionMarkersOnly([]byte("description: \\u007b\\u007b escaped")); err != nil || ok {
+		t.Fatalf("escaped raw marker: ok=%t err=%v", ok, err)
+	}
+}
+
 // Everything else that holds "{{" is template syntax: a name, a flag, an
 // annotation, a default, an enumeration, a validation rule, a key, a
 // comment, a directive line, a flow collection, a description outside the
