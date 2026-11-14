@@ -74,7 +74,7 @@ The reviewed targets of the `crd.version-removal` extractor
 | `crd.version-removal.openkruise` | CNCF | `github.com/openkruise/kruise` | `vX.Y.Z` | 1.4 | yes | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 1 |
 | `crd.version-removal.opentelemetry-operator` | community | `github.com/open-telemetry/opentelemetry-operator` | `vX.Y.Z` | 0.157 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.openyurt` | CNCF | `github.com/openyurtio/openyurt` | `vX.Y.Z` | 1.3 | yes | files matching `^[^.][^/]*\.ya?ml$` in `charts/yurt-manager/crds`, files matching `^[^.][^/]*\.ya?ml$` in `charts/yurt-iot-dock/crds` (when present) | 0 |
-| `crd.version-removal.operator-lifecycle-manager` | community | `github.com/operator-framework/operator-lifecycle-manager` | `vX.Y.Z`, then `X.Y.Z` | 0.41 | no | files matching `^[^.][^/]*\.ya?ml$` in `deploy/chart/crds` | 0 |
+| `crd.version-removal.operator-lifecycle-manager` | community | `github.com/operator-framework/operator-lifecycle-manager` | `vX.Y.Z`, then `X.Y.Z` | 0.41 | yes | files matching `^[^.][^/]*\.ya?ml$` in `deploy/chart/crds` | 7 |
 | `crd.version-removal.percona-postgresql-operator` | community | `github.com/percona/percona-postgresql-operator` | `vX.Y.Z` | 2.6 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.percona-server-mysql-operator` | community | `github.com/percona/percona-server-mysql-operator` | `vX.Y.Z` | 0.11 | yes | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 1 |
 | `crd.version-removal.prometheus-operator` | community | `github.com/prometheus-operator/prometheus-operator` | `vX.Y.Z` | 0.89 | no | files matching `^[^.][^/]*\.ya?ml$` in `example/prometheus-operator-crd` | 0 |
