@@ -17641,6 +17641,101 @@
       }
     },
     {
+      "description": "OpenYurt 1.6.0 no longer serves version v1alpha2 of PlatformAdmin (CustomResourceDefinition platformadmins.iot.openyurt.io), which 1.5.0 served. Derived from the complete CustomResourceDefinition manifests at every release of 1.5 and 1.6, with a scan of the whole repository at each; it holds for upgrades from any 1.5 release to any 1.6 release. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "project": "openyurt",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/openyurtio/openyurt",
+          "description": "Custom-resource versions (group/version/Kind) of the OpenYurt custom resources in the complete target apply set.",
+          "enumTokens": null,
+          "id": "component.openyurt.custom_resource_versions_set",
+          "side": "proposed",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "evidence": {
+          "basis": "mechanical",
+          "derivedAt": "2026-11-14T10:32:35Z",
+          "extractor": {
+            "codeDigest": "sha256:a3165959751a01286df494cc65a7334289518469212260ea3c5c5514f1d30996",
+            "id": "crd.version-removal.openyurt",
+            "version": "2.14.0"
+          },
+          "reviewedAt": "2026-11-14T10:32:35Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:6aec13cbb7b225a46b8391a64fb93c3021951ebd812b309f2fa4828d8ad59d4d",
+              "endLine": 9293,
+              "id": "crd-versions-1-5-0",
+              "revision": "07266e0e5d432fd9b418a4d838eb6755faf63a13",
+              "startLine": 9195,
+              "url": "https://github.com/openyurtio/openyurt/blob/07266e0e5d432fd9b418a4d838eb6755faf63a13/charts/yurt-manager/crds/iot.openyurt.io_platformadmins.yaml"
+            },
+            {
+              "contentDigest": "sha256:1f7376ae7770e5011b532f10a76475efc71f4c5b8791fbe0d6b5c079519cbbcf",
+              "endLine": 8850,
+              "id": "served-false-v1alpha2-1-6-0",
+              "revision": "beab71c8f5a668de8276e542108c994a791575bb",
+              "startLine": 8850,
+              "url": "https://github.com/openyurtio/openyurt/blob/beab71c8f5a668de8276e542108c994a791575bb/charts/yurt-manager/crds/iot.openyurt.io_platformadmins.yaml"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-02-12T10:32:35Z"
+        },
+        "id": "openyurt.crd-version-removal.platformadmins-iot-openyurt-io.1-5-0-to-1-6-0",
+        "nextAction": "verify completed storage migration before removing old status.storedVersions; migrate PlatformAdmin manifests/clients to iot.openyurt.io/v1beta1; for managed objects, follow supported controller migration or investigate before upgrade to 1.6.0",
+        "operator": "forbid_set_member",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "crd-versions-1-5-0"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "crd-versions-1-5-0"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "served-false-v1alpha2-1-6-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "served-false-v1alpha2-1-6-0"
+            }
+          ],
+          "from": {
+            "gte": "1.5.0",
+            "lt": "1.6.0"
+          },
+          "to": {
+            "gte": "1.6.0",
+            "lt": "1.7.0"
+          }
+        },
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "setCondition": {
+          "component": "pkg:github/openyurtio/openyurt",
+          "factId": "component.openyurt.custom_resource_versions_set",
+          "members": [
+            "iot.openyurt.io/v1alpha2/PlatformAdmin"
+          ],
+          "side": "proposed"
+        },
+        "subject": {
+          "component": "pkg:github/openyurtio/openyurt",
+          "from": "1.5.0",
+          "to": "1.6.0"
+        }
+      }
+    },
+    {
       "description": "Prometheus 3.14.0 no longer accepts Alertmanager api_version v1 for this exact 2.55.1 to 3.14.0 configuration transition. The selected mapping is caller supplied; this does not prove target reachability, delivery, or whole-upgrade safety.",
       "project": "prometheus",
       "requiredFacts": [
@@ -22986,6 +23081,388 @@
             "contentDigest": "sha256:6702ee56ed447a7ecf1f85b1f8c745f29e2840f3446cdf98e514805972588770",
             "startLine": 1,
             "endLine": 198
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/cloudnative-pg/cloudnative-pg",
+      "line": "1.26",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.25.0",
+            "commit": "bad5a251642655399eca392abf5d981668fbd8cc"
+          },
+          {
+            "version": "1.25.1",
+            "commit": "c56e00d462c3899ab305540953ec541dfe0f762a"
+          },
+          {
+            "version": "1.25.2",
+            "commit": "2aa4bd487e4bb39bc25ddcacb47e2ae190ff537d"
+          },
+          {
+            "version": "1.25.3",
+            "commit": "fee323ee1d2ece230bc67af0be3d6581d85c91d2"
+          },
+          {
+            "version": "1.25.4",
+            "commit": "f7b4ab966a3fdc265d6b1e0fade1f547968631c1"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.26.0",
+            "commit": "1535f3c1742525b93f4f8bbb7dd37e42e122f41f"
+          },
+          {
+            "version": "1.26.1",
+            "commit": "252497fc9092a8b48bac20356026899627d31c8f"
+          },
+          {
+            "version": "1.26.2",
+            "commit": "e88c344cc52924e8de646414a9026764441db812"
+          },
+          {
+            "version": "1.26.3",
+            "commit": "430706b9d969df6bdae5fec4cba9173de01fba65"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.cloudnativepg",
+          "version": "2.14.0",
+          "codeDigest": "sha256:34b6edc7a298d8f407a0d809a2b409a3e4ded94a6498ae1d0649661dc98675e5"
+        },
+        "derivedAt": "2026-11-14T11:19:15Z",
+        "reviewedAt": "2026-11-14T11:19:15Z",
+        "validUntil": "2027-02-12T11:19:15Z",
+        "sources": [
+          {
+            "id": "crds-1-25-0",
+            "url": "https://github.com/cloudnative-pg/cloudnative-pg/blob/bad5a251642655399eca392abf5d981668fbd8cc/config/crd/bases/postgresql.cnpg.io_backups.yaml",
+            "revision": "bad5a251642655399eca392abf5d981668fbd8cc",
+            "contentDigest": "sha256:f1a2e8ca80d4f871618d40600045562e32174fd7e6e7ec710910febc61c91d15",
+            "startLine": 1,
+            "endLine": 441
+          },
+          {
+            "id": "crds-1-26-0",
+            "url": "https://github.com/cloudnative-pg/cloudnative-pg/blob/1535f3c1742525b93f4f8bbb7dd37e42e122f41f/config/crd/bases/postgresql.cnpg.io_backups.yaml",
+            "revision": "1535f3c1742525b93f4f8bbb7dd37e42e122f41f",
+            "contentDigest": "sha256:ddcfa59fe91f2ace8db2799d7534fb910ab4fd4c823cd577fa8abeccd4a01ae0",
+            "startLine": 1,
+            "endLine": 442
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/cloudnative-pg/cloudnative-pg",
+      "line": "1.27",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.26.0",
+            "commit": "1535f3c1742525b93f4f8bbb7dd37e42e122f41f"
+          },
+          {
+            "version": "1.26.1",
+            "commit": "252497fc9092a8b48bac20356026899627d31c8f"
+          },
+          {
+            "version": "1.26.2",
+            "commit": "e88c344cc52924e8de646414a9026764441db812"
+          },
+          {
+            "version": "1.26.3",
+            "commit": "430706b9d969df6bdae5fec4cba9173de01fba65"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.27.0",
+            "commit": "8b442dcc3d2390e891ec4a53fe576fe9936dfa08"
+          },
+          {
+            "version": "1.27.1",
+            "commit": "9daa681325034a6b6548e347bbc4c0b54ea668db"
+          },
+          {
+            "version": "1.27.2",
+            "commit": "8f4702a296d7a6f1d0743f8f40f736fa5d5e6ba3"
+          },
+          {
+            "version": "1.27.3",
+            "commit": "fa83b1e18beec8f1c98436411527b6486d13bba4"
+          },
+          {
+            "version": "1.27.4",
+            "commit": "d36a9a5d50933771bc193d15d3009ce03ccace1c"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.cloudnativepg",
+          "version": "2.14.0",
+          "codeDigest": "sha256:34b6edc7a298d8f407a0d809a2b409a3e4ded94a6498ae1d0649661dc98675e5"
+        },
+        "derivedAt": "2026-11-14T11:19:15Z",
+        "reviewedAt": "2026-11-14T11:19:15Z",
+        "validUntil": "2027-02-12T11:19:15Z",
+        "sources": [
+          {
+            "id": "crds-1-26-0",
+            "url": "https://github.com/cloudnative-pg/cloudnative-pg/blob/1535f3c1742525b93f4f8bbb7dd37e42e122f41f/config/crd/bases/postgresql.cnpg.io_backups.yaml",
+            "revision": "1535f3c1742525b93f4f8bbb7dd37e42e122f41f",
+            "contentDigest": "sha256:ddcfa59fe91f2ace8db2799d7534fb910ab4fd4c823cd577fa8abeccd4a01ae0",
+            "startLine": 1,
+            "endLine": 442
+          },
+          {
+            "id": "crds-1-27-0",
+            "url": "https://github.com/cloudnative-pg/cloudnative-pg/blob/8b442dcc3d2390e891ec4a53fe576fe9936dfa08/config/crd/bases/postgresql.cnpg.io_backups.yaml",
+            "revision": "8b442dcc3d2390e891ec4a53fe576fe9936dfa08",
+            "contentDigest": "sha256:141f0dc028e5474071eb596b34f325efd6406879eb6d22d25d7e5ab68a98b7bd",
+            "startLine": 1,
+            "endLine": 445
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/cloudnative-pg/cloudnative-pg",
+      "line": "1.28",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.27.0",
+            "commit": "8b442dcc3d2390e891ec4a53fe576fe9936dfa08"
+          },
+          {
+            "version": "1.27.1",
+            "commit": "9daa681325034a6b6548e347bbc4c0b54ea668db"
+          },
+          {
+            "version": "1.27.2",
+            "commit": "8f4702a296d7a6f1d0743f8f40f736fa5d5e6ba3"
+          },
+          {
+            "version": "1.27.3",
+            "commit": "fa83b1e18beec8f1c98436411527b6486d13bba4"
+          },
+          {
+            "version": "1.27.4",
+            "commit": "d36a9a5d50933771bc193d15d3009ce03ccace1c"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.28.0",
+            "commit": "a9696201f760013182c6cdba7c4ed3c236a6423b"
+          },
+          {
+            "version": "1.28.1",
+            "commit": "1ecc48340a5fcc7243773bb8d84e59e24d6909a3"
+          },
+          {
+            "version": "1.28.2",
+            "commit": "8b59f39593c936d1936129fa2275cdfb1f42ab71"
+          },
+          {
+            "version": "1.28.3",
+            "commit": "d0ce8ac4a6e58154520e8614025bfb1f2aa216f1"
+          },
+          {
+            "version": "1.28.4",
+            "commit": "f74344b4d3a6d9fbe06748ba1747901f6077db2a"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.cloudnativepg",
+          "version": "2.14.0",
+          "codeDigest": "sha256:34b6edc7a298d8f407a0d809a2b409a3e4ded94a6498ae1d0649661dc98675e5"
+        },
+        "derivedAt": "2026-11-14T11:19:15Z",
+        "reviewedAt": "2026-11-14T11:19:15Z",
+        "validUntil": "2027-02-12T11:19:15Z",
+        "sources": [
+          {
+            "id": "crds-1-27-0",
+            "url": "https://github.com/cloudnative-pg/cloudnative-pg/blob/8b442dcc3d2390e891ec4a53fe576fe9936dfa08/config/crd/bases/postgresql.cnpg.io_backups.yaml",
+            "revision": "8b442dcc3d2390e891ec4a53fe576fe9936dfa08",
+            "contentDigest": "sha256:141f0dc028e5474071eb596b34f325efd6406879eb6d22d25d7e5ab68a98b7bd",
+            "startLine": 1,
+            "endLine": 445
+          },
+          {
+            "id": "crds-1-28-0",
+            "url": "https://github.com/cloudnative-pg/cloudnative-pg/blob/a9696201f760013182c6cdba7c4ed3c236a6423b/config/crd/bases/postgresql.cnpg.io_backups.yaml",
+            "revision": "a9696201f760013182c6cdba7c4ed3c236a6423b",
+            "contentDigest": "sha256:4a448983dc7a2ae0976c876c21c62a039e5d9e526ab5d3ea8ec8c3c4a40674eb",
+            "startLine": 1,
+            "endLine": 450
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/cloudnative-pg/cloudnative-pg",
+      "line": "1.29",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.28.0",
+            "commit": "a9696201f760013182c6cdba7c4ed3c236a6423b"
+          },
+          {
+            "version": "1.28.1",
+            "commit": "1ecc48340a5fcc7243773bb8d84e59e24d6909a3"
+          },
+          {
+            "version": "1.28.2",
+            "commit": "8b59f39593c936d1936129fa2275cdfb1f42ab71"
+          },
+          {
+            "version": "1.28.3",
+            "commit": "d0ce8ac4a6e58154520e8614025bfb1f2aa216f1"
+          },
+          {
+            "version": "1.28.4",
+            "commit": "f74344b4d3a6d9fbe06748ba1747901f6077db2a"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.29.0",
+            "commit": "23eae00cd7aad82978397798dd27b600eb25ae3d"
+          },
+          {
+            "version": "1.29.1",
+            "commit": "a4060c152630c9e8958e17d3d23f26b4eb30b69f"
+          },
+          {
+            "version": "1.29.2",
+            "commit": "94ee3117858765c77d0dbfde381a037944a48a64"
+          },
+          {
+            "version": "1.29.3",
+            "commit": "6887f9aeb7ec159ed4a7e5fce28441aafd26317c"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.cloudnativepg",
+          "version": "2.14.0",
+          "codeDigest": "sha256:34b6edc7a298d8f407a0d809a2b409a3e4ded94a6498ae1d0649661dc98675e5"
+        },
+        "derivedAt": "2026-11-14T11:19:15Z",
+        "reviewedAt": "2026-11-14T11:19:15Z",
+        "validUntil": "2027-02-12T11:19:15Z",
+        "sources": [
+          {
+            "id": "crds-1-28-0",
+            "url": "https://github.com/cloudnative-pg/cloudnative-pg/blob/a9696201f760013182c6cdba7c4ed3c236a6423b/config/crd/bases/postgresql.cnpg.io_backups.yaml",
+            "revision": "a9696201f760013182c6cdba7c4ed3c236a6423b",
+            "contentDigest": "sha256:4a448983dc7a2ae0976c876c21c62a039e5d9e526ab5d3ea8ec8c3c4a40674eb",
+            "startLine": 1,
+            "endLine": 450
+          },
+          {
+            "id": "crds-1-29-0",
+            "url": "https://github.com/cloudnative-pg/cloudnative-pg/blob/23eae00cd7aad82978397798dd27b600eb25ae3d/config/crd/bases/postgresql.cnpg.io_backups.yaml",
+            "revision": "23eae00cd7aad82978397798dd27b600eb25ae3d",
+            "contentDigest": "sha256:bc2a9e30e2489978257e48f4f304eba26022cd9fa06d1418cc9da94acd62b373",
+            "startLine": 1,
+            "endLine": 472
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/cloudnative-pg/cloudnative-pg",
+      "line": "1.30",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.29.0",
+            "commit": "23eae00cd7aad82978397798dd27b600eb25ae3d"
+          },
+          {
+            "version": "1.29.1",
+            "commit": "a4060c152630c9e8958e17d3d23f26b4eb30b69f"
+          },
+          {
+            "version": "1.29.2",
+            "commit": "94ee3117858765c77d0dbfde381a037944a48a64"
+          },
+          {
+            "version": "1.29.3",
+            "commit": "6887f9aeb7ec159ed4a7e5fce28441aafd26317c"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.30.0",
+            "commit": "4b5e244a7d031f67e025c83c1555e7726ecbbfa1"
+          },
+          {
+            "version": "1.30.1",
+            "commit": "2a35abb4628f209d149825ef3c38011e0701ff2f"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.cloudnativepg",
+          "version": "2.14.0",
+          "codeDigest": "sha256:34b6edc7a298d8f407a0d809a2b409a3e4ded94a6498ae1d0649661dc98675e5"
+        },
+        "derivedAt": "2026-11-14T11:19:15Z",
+        "reviewedAt": "2026-11-14T11:19:15Z",
+        "validUntil": "2027-02-12T11:19:15Z",
+        "sources": [
+          {
+            "id": "crds-1-29-0",
+            "url": "https://github.com/cloudnative-pg/cloudnative-pg/blob/23eae00cd7aad82978397798dd27b600eb25ae3d/config/crd/bases/postgresql.cnpg.io_backups.yaml",
+            "revision": "23eae00cd7aad82978397798dd27b600eb25ae3d",
+            "contentDigest": "sha256:bc2a9e30e2489978257e48f4f304eba26022cd9fa06d1418cc9da94acd62b373",
+            "startLine": 1,
+            "endLine": 472
+          },
+          {
+            "id": "crds-1-30-0",
+            "url": "https://github.com/cloudnative-pg/cloudnative-pg/blob/4b5e244a7d031f67e025c83c1555e7726ecbbfa1/config/crd/bases/postgresql.cnpg.io_backups.yaml",
+            "revision": "4b5e244a7d031f67e025c83c1555e7726ecbbfa1",
+            "contentDigest": "sha256:694bafce2eda4603629657c2141a89189c15250c74215002a6987538d3d78ff5",
+            "startLine": 1,
+            "endLine": 472
           }
         ]
       }
@@ -30795,6 +31272,218 @@
       }
     },
     {
+      "component": "pkg:github/openyurtio/openyurt",
+      "line": "1.4",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.3.0",
+            "commit": "ac6ce54665e5626bf5bf8bc613951045feab3802"
+          },
+          {
+            "version": "1.3.1",
+            "commit": "071d86d10f09a959970189409c5e08096db22d4d"
+          },
+          {
+            "version": "1.3.2",
+            "commit": "0c6489f20031641a33c3869f8d1aa781d5ba0502"
+          },
+          {
+            "version": "1.3.3",
+            "commit": "189646867abbd2d4a05e8ffd2d5e8af73bdad836"
+          },
+          {
+            "version": "1.3.4",
+            "commit": "609469f663bd44ff2967bde627e6af9a50481292"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.4.0",
+            "commit": "c1a47601312502adab12070b8ad42b48494239af"
+          },
+          {
+            "version": "1.4.1",
+            "commit": "cb2055bc5ba04b202900eaeeda3437eea1192626"
+          },
+          {
+            "version": "1.4.2",
+            "commit": "32a97586a7e836140e6f2da1c660f2d3c4f1656e"
+          },
+          {
+            "version": "1.4.3",
+            "commit": "ce0c42cf116fad7f713bd9b80e2458078a9cf7c0"
+          },
+          {
+            "version": "1.4.4",
+            "commit": "32febf47c8de6cbd6e6c03f22fc31bfb11ce15ac"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.openyurt",
+          "version": "2.14.0",
+          "codeDigest": "sha256:a3165959751a01286df494cc65a7334289518469212260ea3c5c5514f1d30996"
+        },
+        "derivedAt": "2026-11-14T10:32:35Z",
+        "reviewedAt": "2026-11-14T10:32:35Z",
+        "validUntil": "2027-02-12T10:32:35Z",
+        "sources": [
+          {
+            "id": "crds-1-3-0",
+            "url": "https://github.com/openyurtio/openyurt/blob/ac6ce54665e5626bf5bf8bc613951045feab3802/charts/yurt-manager/crds/apps.openyurt.io_nodepools.yaml",
+            "revision": "ac6ce54665e5626bf5bf8bc613951045feab3802",
+            "contentDigest": "sha256:633bf482872b1c9449fc4c184c57a1cf80543bd89c8db9458f99392b6c9be34c",
+            "startLine": 1,
+            "endLine": 319
+          },
+          {
+            "id": "crds-1-4-0",
+            "url": "https://github.com/openyurtio/openyurt/blob/c1a47601312502adab12070b8ad42b48494239af/charts/yurt-iot-dock/crds/iot.openyurt.io_deviceprofiles.yaml",
+            "revision": "c1a47601312502adab12070b8ad42b48494239af",
+            "contentDigest": "sha256:d184411c570d93f3c30691d61391fb93bda8720b4f64e611cd50ecafabdb2c16",
+            "startLine": 1,
+            "endLine": 172
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/openyurtio/openyurt",
+      "line": "1.5",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.4.0",
+            "commit": "c1a47601312502adab12070b8ad42b48494239af"
+          },
+          {
+            "version": "1.4.1",
+            "commit": "cb2055bc5ba04b202900eaeeda3437eea1192626"
+          },
+          {
+            "version": "1.4.2",
+            "commit": "32a97586a7e836140e6f2da1c660f2d3c4f1656e"
+          },
+          {
+            "version": "1.4.3",
+            "commit": "ce0c42cf116fad7f713bd9b80e2458078a9cf7c0"
+          },
+          {
+            "version": "1.4.4",
+            "commit": "32febf47c8de6cbd6e6c03f22fc31bfb11ce15ac"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.5.0",
+            "commit": "07266e0e5d432fd9b418a4d838eb6755faf63a13"
+          },
+          {
+            "version": "1.5.1",
+            "commit": "67618e02f0b83695e93e6cbe5240b6873ca63060"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.openyurt",
+          "version": "2.14.0",
+          "codeDigest": "sha256:a3165959751a01286df494cc65a7334289518469212260ea3c5c5514f1d30996"
+        },
+        "derivedAt": "2026-11-14T10:32:35Z",
+        "reviewedAt": "2026-11-14T10:32:35Z",
+        "validUntil": "2027-02-12T10:32:35Z",
+        "sources": [
+          {
+            "id": "crds-1-4-0",
+            "url": "https://github.com/openyurtio/openyurt/blob/c1a47601312502adab12070b8ad42b48494239af/charts/yurt-iot-dock/crds/iot.openyurt.io_deviceprofiles.yaml",
+            "revision": "c1a47601312502adab12070b8ad42b48494239af",
+            "contentDigest": "sha256:d184411c570d93f3c30691d61391fb93bda8720b4f64e611cd50ecafabdb2c16",
+            "startLine": 1,
+            "endLine": 172
+          },
+          {
+            "id": "crds-1-5-0",
+            "url": "https://github.com/openyurtio/openyurt/blob/07266e0e5d432fd9b418a4d838eb6755faf63a13/charts/yurt-iot-dock/crds/iot.openyurt.io_deviceprofiles.yaml",
+            "revision": "07266e0e5d432fd9b418a4d838eb6755faf63a13",
+            "contentDigest": "sha256:d184411c570d93f3c30691d61391fb93bda8720b4f64e611cd50ecafabdb2c16",
+            "startLine": 1,
+            "endLine": 172
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/openyurtio/openyurt",
+      "line": "1.6",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [
+        "openyurt.crd-version-removal.platformadmins-iot-openyurt-io.1-5-0-to-1-6-0"
+      ],
+      "releases": {
+        "from": [
+          {
+            "version": "1.5.0",
+            "commit": "07266e0e5d432fd9b418a4d838eb6755faf63a13"
+          },
+          {
+            "version": "1.5.1",
+            "commit": "67618e02f0b83695e93e6cbe5240b6873ca63060"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.6.0",
+            "commit": "beab71c8f5a668de8276e542108c994a791575bb"
+          },
+          {
+            "version": "1.6.1",
+            "commit": "873aa9edd4b7d4c0009e10426a6012b80079a349"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.openyurt",
+          "version": "2.14.0",
+          "codeDigest": "sha256:a3165959751a01286df494cc65a7334289518469212260ea3c5c5514f1d30996"
+        },
+        "derivedAt": "2026-11-14T10:32:35Z",
+        "reviewedAt": "2026-11-14T10:32:35Z",
+        "validUntil": "2027-02-12T10:32:35Z",
+        "sources": [
+          {
+            "id": "crds-1-5-0",
+            "url": "https://github.com/openyurtio/openyurt/blob/07266e0e5d432fd9b418a4d838eb6755faf63a13/charts/yurt-iot-dock/crds/iot.openyurt.io_deviceprofiles.yaml",
+            "revision": "07266e0e5d432fd9b418a4d838eb6755faf63a13",
+            "contentDigest": "sha256:d184411c570d93f3c30691d61391fb93bda8720b4f64e611cd50ecafabdb2c16",
+            "startLine": 1,
+            "endLine": 172
+          },
+          {
+            "id": "crds-1-6-0",
+            "url": "https://github.com/openyurtio/openyurt/blob/beab71c8f5a668de8276e542108c994a791575bb/charts/yurt-iot-dock/crds/iot.openyurt.io_deviceprofiles.yaml",
+            "revision": "beab71c8f5a668de8276e542108c994a791575bb",
+            "contentDigest": "sha256:d184411c570d93f3c30691d61391fb93bda8720b4f64e611cd50ecafabdb2c16",
+            "startLine": 1,
+            "endLine": 172
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/padok-team/burrito",
       "line": "0.11",
       "factFamily": "crd.custom_resource_versions",
@@ -31069,6 +31758,386 @@
       }
     },
     {
+      "component": "pkg:github/projectcontour/contour",
+      "line": "1.29",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.28.0",
+            "commit": "26a653244d7ee5841ccbbaf91f28eace9dc6d34c"
+          },
+          {
+            "version": "1.28.1",
+            "commit": "56c95b79429720b31bcc499a9eea8e9ff868cfb2"
+          },
+          {
+            "version": "1.28.2",
+            "commit": "71ce4981e0225bbf9d633feacce8dc092db5e043"
+          },
+          {
+            "version": "1.28.3",
+            "commit": "27d3bc6e5d5cd758f0237c0a510d4563eba521b0"
+          },
+          {
+            "version": "1.28.4",
+            "commit": "137b109a74f788a4b2003206b98adf7b338992a6"
+          },
+          {
+            "version": "1.28.5",
+            "commit": "1f4fe0502fe35c3726bee77f4f9ea06ac4c2f34d"
+          },
+          {
+            "version": "1.28.6",
+            "commit": "9773f70b86e59b615b078d2cad9e049a571d3852"
+          },
+          {
+            "version": "1.28.7",
+            "commit": "9968afa5a683df31cc2a97b7169c3169d20f83b0"
+          },
+          {
+            "version": "1.28.8",
+            "commit": "6a01c1bb6ff41662c09b22ffd46173aef5a370fd"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.29.0",
+            "commit": "90a1339fc5e4d11a5c3c33fdaa122e4893ecdddd"
+          },
+          {
+            "version": "1.29.1",
+            "commit": "be445838b789500b1ef4241b61d96afc3316989e"
+          },
+          {
+            "version": "1.29.2",
+            "commit": "d2978ff65035a6ebed70b05baa4f6bcd07aede1d"
+          },
+          {
+            "version": "1.29.3",
+            "commit": "bec73ac8019126e8d7ceaf3e30adaf074ce45853"
+          },
+          {
+            "version": "1.29.4",
+            "commit": "7ea2413b48003b800e4b2a72da43ab1c9207ec43"
+          },
+          {
+            "version": "1.29.5",
+            "commit": "c33bc14045b702612b53554d35a754d65ddba1e2"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.contour",
+          "version": "2.14.0",
+          "codeDigest": "sha256:5185a19979dedf680305a70fe473fcc3797a940e6024bd51eed72eb152b09d7f"
+        },
+        "derivedAt": "2026-11-14T11:17:09Z",
+        "reviewedAt": "2026-11-14T11:17:09Z",
+        "validUntil": "2027-02-12T11:17:09Z",
+        "sources": [
+          {
+            "id": "crds-1-28-0",
+            "url": "https://github.com/projectcontour/contour/blob/26a653244d7ee5841ccbbaf91f28eace9dc6d34c/examples/contour/01-crds.yaml",
+            "revision": "26a653244d7ee5841ccbbaf91f28eace9dc6d34c",
+            "contentDigest": "sha256:eb3ba7d3a3d45a04915467919c65eca02c2492cf361f4c6a61e99093155e8f63",
+            "startLine": 1,
+            "endLine": 8547
+          },
+          {
+            "id": "crds-1-29-0",
+            "url": "https://github.com/projectcontour/contour/blob/90a1339fc5e4d11a5c3c33fdaa122e4893ecdddd/examples/contour/01-crds.yaml",
+            "revision": "90a1339fc5e4d11a5c3c33fdaa122e4893ecdddd",
+            "contentDigest": "sha256:b030c242fc43c5667abf06371d62b0f008ccdb939be01e6646759f3564f06ce8",
+            "startLine": 1,
+            "endLine": 8562
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/projectcontour/contour",
+      "line": "1.30",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.29.0",
+            "commit": "90a1339fc5e4d11a5c3c33fdaa122e4893ecdddd"
+          },
+          {
+            "version": "1.29.1",
+            "commit": "be445838b789500b1ef4241b61d96afc3316989e"
+          },
+          {
+            "version": "1.29.2",
+            "commit": "d2978ff65035a6ebed70b05baa4f6bcd07aede1d"
+          },
+          {
+            "version": "1.29.3",
+            "commit": "bec73ac8019126e8d7ceaf3e30adaf074ce45853"
+          },
+          {
+            "version": "1.29.4",
+            "commit": "7ea2413b48003b800e4b2a72da43ab1c9207ec43"
+          },
+          {
+            "version": "1.29.5",
+            "commit": "c33bc14045b702612b53554d35a754d65ddba1e2"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.30.0",
+            "commit": "00de904d38f63ef0aa0575a7bdc3879e8ec59492"
+          },
+          {
+            "version": "1.30.1",
+            "commit": "a1a414282974f1061e2cb8d371bbab1218bbfa61"
+          },
+          {
+            "version": "1.30.2",
+            "commit": "6a5021dd96f7e1fe1b5859ee7632e8794328c396"
+          },
+          {
+            "version": "1.30.3",
+            "commit": "32741bb7c4cc0b0ca7f760c574b388164e86e9c5"
+          },
+          {
+            "version": "1.30.4",
+            "commit": "049e7ebcd8a175c3211fd2418de6e52330edd3d3"
+          },
+          {
+            "version": "1.30.5",
+            "commit": "180d8c2628269f5b4fecd806af999d2dcdad968c"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.contour",
+          "version": "2.14.0",
+          "codeDigest": "sha256:5185a19979dedf680305a70fe473fcc3797a940e6024bd51eed72eb152b09d7f"
+        },
+        "derivedAt": "2026-11-14T11:17:09Z",
+        "reviewedAt": "2026-11-14T11:17:09Z",
+        "validUntil": "2027-02-12T11:17:09Z",
+        "sources": [
+          {
+            "id": "crds-1-29-0",
+            "url": "https://github.com/projectcontour/contour/blob/90a1339fc5e4d11a5c3c33fdaa122e4893ecdddd/examples/contour/01-crds.yaml",
+            "revision": "90a1339fc5e4d11a5c3c33fdaa122e4893ecdddd",
+            "contentDigest": "sha256:b030c242fc43c5667abf06371d62b0f008ccdb939be01e6646759f3564f06ce8",
+            "startLine": 1,
+            "endLine": 8562
+          },
+          {
+            "id": "crds-1-30-0",
+            "url": "https://github.com/projectcontour/contour/blob/00de904d38f63ef0aa0575a7bdc3879e8ec59492/examples/contour/01-crds.yaml",
+            "revision": "00de904d38f63ef0aa0575a7bdc3879e8ec59492",
+            "contentDigest": "sha256:9db66ca2764158378e833c772eb92378f03594e9495d7b8b49db15ba36ece31b",
+            "startLine": 1,
+            "endLine": 8666
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/projectcontour/contour",
+      "line": "1.31",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.30.0",
+            "commit": "00de904d38f63ef0aa0575a7bdc3879e8ec59492"
+          },
+          {
+            "version": "1.30.1",
+            "commit": "a1a414282974f1061e2cb8d371bbab1218bbfa61"
+          },
+          {
+            "version": "1.30.2",
+            "commit": "6a5021dd96f7e1fe1b5859ee7632e8794328c396"
+          },
+          {
+            "version": "1.30.3",
+            "commit": "32741bb7c4cc0b0ca7f760c574b388164e86e9c5"
+          },
+          {
+            "version": "1.30.4",
+            "commit": "049e7ebcd8a175c3211fd2418de6e52330edd3d3"
+          },
+          {
+            "version": "1.30.5",
+            "commit": "180d8c2628269f5b4fecd806af999d2dcdad968c"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.31.0",
+            "commit": "86c31bcebdc5c99d2d5f0b0bcc13126425212949"
+          },
+          {
+            "version": "1.31.1",
+            "commit": "6ec8cc1c6f54f0ccd22d4d5813265892e0568529"
+          },
+          {
+            "version": "1.31.2",
+            "commit": "6bf7122758e95a0b4c8903f5ec7d7ae0e552a67d"
+          },
+          {
+            "version": "1.31.3",
+            "commit": "eb6f78dfb75ae347664ca008222d49029d738d7d"
+          },
+          {
+            "version": "1.31.4",
+            "commit": "83ca628dee82fc6740f2fdac30aa7df8452b3d00"
+          },
+          {
+            "version": "1.31.5",
+            "commit": "1813fb619aaeec864eb5275f7531bccb8bd9039b"
+          },
+          {
+            "version": "1.31.6",
+            "commit": "415bf10c9c99083f6428b738ce2dbdeceed2184a"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.contour",
+          "version": "2.14.0",
+          "codeDigest": "sha256:5185a19979dedf680305a70fe473fcc3797a940e6024bd51eed72eb152b09d7f"
+        },
+        "derivedAt": "2026-11-14T11:17:09Z",
+        "reviewedAt": "2026-11-14T11:17:09Z",
+        "validUntil": "2027-02-12T11:17:09Z",
+        "sources": [
+          {
+            "id": "crds-1-30-0",
+            "url": "https://github.com/projectcontour/contour/blob/00de904d38f63ef0aa0575a7bdc3879e8ec59492/examples/contour/01-crds.yaml",
+            "revision": "00de904d38f63ef0aa0575a7bdc3879e8ec59492",
+            "contentDigest": "sha256:9db66ca2764158378e833c772eb92378f03594e9495d7b8b49db15ba36ece31b",
+            "startLine": 1,
+            "endLine": 8666
+          },
+          {
+            "id": "crds-1-31-0",
+            "url": "https://github.com/projectcontour/contour/blob/86c31bcebdc5c99d2d5f0b0bcc13126425212949/examples/contour/01-crds.yaml",
+            "revision": "86c31bcebdc5c99d2d5f0b0bcc13126425212949",
+            "contentDigest": "sha256:66c7a6fcc1fa578804d8359765f9abf701bbdb8dabe71bb6a79af9523a3ef653",
+            "startLine": 1,
+            "endLine": 8799
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/projectcontour/contour",
+      "line": "1.32",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.31.0",
+            "commit": "86c31bcebdc5c99d2d5f0b0bcc13126425212949"
+          },
+          {
+            "version": "1.31.1",
+            "commit": "6ec8cc1c6f54f0ccd22d4d5813265892e0568529"
+          },
+          {
+            "version": "1.31.2",
+            "commit": "6bf7122758e95a0b4c8903f5ec7d7ae0e552a67d"
+          },
+          {
+            "version": "1.31.3",
+            "commit": "eb6f78dfb75ae347664ca008222d49029d738d7d"
+          },
+          {
+            "version": "1.31.4",
+            "commit": "83ca628dee82fc6740f2fdac30aa7df8452b3d00"
+          },
+          {
+            "version": "1.31.5",
+            "commit": "1813fb619aaeec864eb5275f7531bccb8bd9039b"
+          },
+          {
+            "version": "1.31.6",
+            "commit": "415bf10c9c99083f6428b738ce2dbdeceed2184a"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.32.0",
+            "commit": "0d1b6666b7c0b1abd75880142bb52d2d80108ae5"
+          },
+          {
+            "version": "1.32.1",
+            "commit": "e7758f85a9f8875f5f4e3e658ef0ca9896f4e906"
+          },
+          {
+            "version": "1.32.2",
+            "commit": "1df869e27f3e7bc5f42042c53b89f4ff0e0a16f1"
+          },
+          {
+            "version": "1.32.3",
+            "commit": "50de30b159def9f8bfddab18aa9af8567cc344e5"
+          },
+          {
+            "version": "1.32.4",
+            "commit": "63ede388c24b3cb62c22b5532c53f905ba001ef6"
+          },
+          {
+            "version": "1.32.5",
+            "commit": "d908675ac6b180f1897ed3681c02d0fd29fa0e27"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.contour",
+          "version": "2.14.0",
+          "codeDigest": "sha256:5185a19979dedf680305a70fe473fcc3797a940e6024bd51eed72eb152b09d7f"
+        },
+        "derivedAt": "2026-11-14T11:17:09Z",
+        "reviewedAt": "2026-11-14T11:17:09Z",
+        "validUntil": "2027-02-12T11:17:09Z",
+        "sources": [
+          {
+            "id": "crds-1-31-0",
+            "url": "https://github.com/projectcontour/contour/blob/86c31bcebdc5c99d2d5f0b0bcc13126425212949/examples/contour/01-crds.yaml",
+            "revision": "86c31bcebdc5c99d2d5f0b0bcc13126425212949",
+            "contentDigest": "sha256:66c7a6fcc1fa578804d8359765f9abf701bbdb8dabe71bb6a79af9523a3ef653",
+            "startLine": 1,
+            "endLine": 8799
+          },
+          {
+            "id": "crds-1-32-0",
+            "url": "https://github.com/projectcontour/contour/blob/0d1b6666b7c0b1abd75880142bb52d2d80108ae5/examples/contour/01-crds.yaml",
+            "revision": "0d1b6666b7c0b1abd75880142bb52d2d80108ae5",
+            "contentDigest": "sha256:a9df9730f14e0d2b96c2cb1d67c81f30f80f4921539670a06aa8ba68a9ab8cfe",
+            "startLine": 1,
+            "endLine": 8799
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/strimzi/strimzi-kafka-operator",
       "line": "0.50",
       "factFamily": "crd.custom_resource_versions",
@@ -31330,6 +32399,204 @@
             "contentDigest": "sha256:2f6e07fc68bf3927580b13909396f5a642f77a8c56dbc26a53ee150ae7f372da",
             "startLine": 1,
             "endLine": 121
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/submariner-io/submariner",
+      "line": "0.23",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.22.0",
+            "commit": "63e5e65424a4913388e3cf0eab3f36e907a70aab"
+          },
+          {
+            "version": "0.22.1",
+            "commit": "924ffad69f331c4a7164867c9a6805b72fd0dee2"
+          },
+          {
+            "version": "0.22.2",
+            "commit": "0c6e57dd7083556890016eeca477ccac7575587a"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.23.1",
+            "commit": "2ec8503c6e94ace8cd4a234413528b2d8681d988"
+          },
+          {
+            "version": "0.23.2",
+            "commit": "dbbeba70d04646eb2fb971d8af8d526eee0dfb89"
+          },
+          {
+            "version": "0.23.3",
+            "commit": "f2d2f6b7d0d5c2b42e85def2d62d92cb76c59398"
+          },
+          {
+            "version": "0.23.4",
+            "commit": "87e7688da92c8d2467dc42f4275b6c65f6ab2bc3"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.submariner",
+          "version": "2.14.0",
+          "codeDigest": "sha256:66d6d9cafc8ba1b3218461abb278645bf027405406e04b4246aef2216230cd35"
+        },
+        "derivedAt": "2026-11-14T11:21:41Z",
+        "reviewedAt": "2026-11-14T11:21:41Z",
+        "validUntil": "2027-02-12T11:21:41Z",
+        "sources": [
+          {
+            "id": "crds-0-22-0",
+            "url": "https://github.com/submariner-io/submariner/blob/63e5e65424a4913388e3cf0eab3f36e907a70aab/deploy/crds/submariner.io_clusterglobalegressips.yaml",
+            "revision": "63e5e65424a4913388e3cf0eab3f36e907a70aab",
+            "contentDigest": "sha256:2166fce0a9dcfea7380d453a0fe3cd10cce9c3275ed168078c2a32ce9e2af0d8",
+            "startLine": 1,
+            "endLine": 125
+          },
+          {
+            "id": "crds-0-23-1",
+            "url": "https://github.com/submariner-io/submariner/blob/2ec8503c6e94ace8cd4a234413528b2d8681d988/deploy/crds/submariner.io_clusterglobalegressips.yaml",
+            "revision": "2ec8503c6e94ace8cd4a234413528b2d8681d988",
+            "contentDigest": "sha256:04ece7297c7b8566ed40af48fa4469af93466087862f0b7442aa837b0606143c",
+            "startLine": 1,
+            "endLine": 124
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/submariner-io/submariner",
+      "line": "0.24",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.23.1",
+            "commit": "2ec8503c6e94ace8cd4a234413528b2d8681d988"
+          },
+          {
+            "version": "0.23.2",
+            "commit": "dbbeba70d04646eb2fb971d8af8d526eee0dfb89"
+          },
+          {
+            "version": "0.23.3",
+            "commit": "f2d2f6b7d0d5c2b42e85def2d62d92cb76c59398"
+          },
+          {
+            "version": "0.23.4",
+            "commit": "87e7688da92c8d2467dc42f4275b6c65f6ab2bc3"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.24.0",
+            "commit": "d7fd3ecb9bc86f0a2c74c7cb62e9eae8019940f3"
+          },
+          {
+            "version": "0.24.1",
+            "commit": "c805541cd5ad0803e4b042750df24eaaca2e64dc"
+          },
+          {
+            "version": "0.24.2",
+            "commit": "e5efcd588432e5e1d5144dc4d4847fbca06be9d6"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.submariner",
+          "version": "2.14.0",
+          "codeDigest": "sha256:66d6d9cafc8ba1b3218461abb278645bf027405406e04b4246aef2216230cd35"
+        },
+        "derivedAt": "2026-11-14T11:21:41Z",
+        "reviewedAt": "2026-11-14T11:21:41Z",
+        "validUntil": "2027-02-12T11:21:41Z",
+        "sources": [
+          {
+            "id": "crds-0-23-1",
+            "url": "https://github.com/submariner-io/submariner/blob/2ec8503c6e94ace8cd4a234413528b2d8681d988/deploy/crds/submariner.io_clusterglobalegressips.yaml",
+            "revision": "2ec8503c6e94ace8cd4a234413528b2d8681d988",
+            "contentDigest": "sha256:04ece7297c7b8566ed40af48fa4469af93466087862f0b7442aa837b0606143c",
+            "startLine": 1,
+            "endLine": 124
+          },
+          {
+            "id": "crds-0-24-0",
+            "url": "https://github.com/submariner-io/submariner/blob/d7fd3ecb9bc86f0a2c74c7cb62e9eae8019940f3/deploy/crds/submariner.io_clusterglobalegressips.yaml",
+            "revision": "d7fd3ecb9bc86f0a2c74c7cb62e9eae8019940f3",
+            "contentDigest": "sha256:afbf5e0cf26b8d019ef541025fcd55efbf591abc37de8d060c1b53b2e34fd853",
+            "startLine": 1,
+            "endLine": 124
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/submariner-io/submariner",
+      "line": "0.25",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.24.0",
+            "commit": "d7fd3ecb9bc86f0a2c74c7cb62e9eae8019940f3"
+          },
+          {
+            "version": "0.24.1",
+            "commit": "c805541cd5ad0803e4b042750df24eaaca2e64dc"
+          },
+          {
+            "version": "0.24.2",
+            "commit": "e5efcd588432e5e1d5144dc4d4847fbca06be9d6"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.25.0",
+            "commit": "2104fbf242220698dd4c3590100d15e986b1f648"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.submariner",
+          "version": "2.14.0",
+          "codeDigest": "sha256:66d6d9cafc8ba1b3218461abb278645bf027405406e04b4246aef2216230cd35"
+        },
+        "derivedAt": "2026-11-14T11:21:41Z",
+        "reviewedAt": "2026-11-14T11:21:41Z",
+        "validUntil": "2027-02-12T11:21:41Z",
+        "sources": [
+          {
+            "id": "crds-0-24-0",
+            "url": "https://github.com/submariner-io/submariner/blob/d7fd3ecb9bc86f0a2c74c7cb62e9eae8019940f3/deploy/crds/submariner.io_clusterglobalegressips.yaml",
+            "revision": "d7fd3ecb9bc86f0a2c74c7cb62e9eae8019940f3",
+            "contentDigest": "sha256:afbf5e0cf26b8d019ef541025fcd55efbf591abc37de8d060c1b53b2e34fd853",
+            "startLine": 1,
+            "endLine": 124
+          },
+          {
+            "id": "crds-0-25-0",
+            "url": "https://github.com/submariner-io/submariner/blob/2104fbf242220698dd4c3590100d15e986b1f648/deploy/crds/submariner.io_clusterglobalegressips.yaml",
+            "revision": "2104fbf242220698dd4c3590100d15e986b1f648",
+            "contentDigest": "sha256:afbf5e0cf26b8d019ef541025fcd55efbf591abc37de8d060c1b53b2e34fd853",
+            "startLine": 1,
+            "endLine": 124
           }
         ]
       }
