@@ -423,6 +423,14 @@ func TestOutputFormatEqualsShippedTargets(t *testing.T) {
 		if err != nil {
 			continue // carries fields the generator never writes
 		}
+		if bytes.Contains(raw, []byte(`"directory": true`)) && !bytes.Contains(raw, []byte(`"exclude": []`)) {
+			// A directory target with reviewed exclusions: the generator never
+			// emits a directory together with exclusions (stop
+			// dir-collapse-unsupported), and the shipped exclusion text is laid
+			// out over several lines. Covered by the collapse tests for the
+			// exclusion-free directory targets.
+			continue
+		}
 		if !bytes.Equal(c, raw) {
 			t.Errorf("%s: generator format differs from the shipped bytes", f)
 		}

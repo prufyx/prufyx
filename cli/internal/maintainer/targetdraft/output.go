@@ -43,6 +43,12 @@ const (
 	StopRepoNotCanonical      = "repo-not-canonical"
 	StopComponentNotCanonical = "component-not-canonical"
 	StopUpstreamNotCanonical  = "upstream-not-canonical"
+	StopDirMixed              = "dir-mixed"
+	StopDirIncomplete         = "dir-incomplete"
+	StopDirSubdir             = "dir-subdir"
+	StopDirMatchNondefault    = "dir-match-nondefault"
+	StopDirSetDiffers         = "dir-set-differs"
+	StopDirUnsupported        = "dir-collapse-unsupported"
 )
 
 var nextAction = map[string]string{
@@ -75,6 +81,12 @@ var nextAction = map[string]string{
 	StopRepoNotCanonical:      "use the canonical lower-case form github.com/<owner>/<name> (no scheme, no .git suffix, no spaces, no capital letters)",
 	StopComponentNotCanonical: "use pkg:github/<owner>/<name> in lower case, matching the repository",
 	StopUpstreamNotCanonical:  "a community row's upstream.repository must be https://github.com/<owner>/<name> of the repository, its licenseSource a /blob/<40-hex commit>/LICENSE or COPYING file under it with a valid license expression; a CNCF row takes no upstream block",
+	StopDirMixed:              "the directory holds a file the default match would read that is not an installed definition file; keep exact files or review the directory",
+	StopDirIncomplete:         "a file of the directory matches the guard but not the match, or is a symbolic link the read would refuse; the loader would report an incomplete inventory, so keep exact files",
+	StopDirSubdir:             "a definition file sits in a subdirectory of the directory; recursion is not emitted, keep exact files",
+	StopDirMatchNondefault:    "a definition file of the directory is outside the one default match; a custom pattern is never invented, keep exact files or review a hand-written entry",
+	StopDirSetDiffers:         "the directory would read another set of files than the exact install files at some window tag; keep exact files",
+	StopDirUnsupported:        "directory collapse does not apply to this input (exclusions, optional or ranged installPaths, pathFilter, range-check tags, links, root or test-like files); drop --collapse-directories",
 	StopCommunityUpstream:     "a community-catalog row needs the upstream block (name, repository, license, licenseSource) in the rules file",
 }
 
@@ -134,6 +146,7 @@ const (
 	RuleGroupKinds             = "group-kinds"
 	RuleTagPrefix              = "tag-prefix"
 	RuleMinFrom                = "min-from"
+	RuleCollapseDirectory      = "collapse-directory"
 )
 
 // Decision is one line of the rule report.
@@ -198,6 +211,19 @@ type Report struct {
 	// window tags; sorted. Present only when pathFilter is used.
 	FilteredCopyCount int            `json:"filteredCopyCount,omitempty"`
 	FilteredCopies    []FilteredCopy `json:"filteredCopies,omitempty"`
+	// Representation is "directory" when install files were written as
+	// directory entries; absent (exact files) otherwise. Directories lists
+	// each directory entry with the file names it reads, identical at every
+	// window tag. Neither is part of FactsDigest: a directory entry is a
+	// representation of the same file set.
+	Representation string          `json:"representation,omitempty"`
+	Directories    []DirectoryFact `json:"directories,omitempty"`
+}
+
+// DirectoryFact is one directory entry of the target.
+type DirectoryFact struct {
+	Dir   string   `json:"dir"`
+	Files []string `json:"files"`
 }
 
 // FilteredCopy is a definition file under installPaths that a pathFilter entry
@@ -278,8 +304,22 @@ func unionCopies(window []*tagResult) []NonInstallCopy {
 	return out
 }
 
+// pathOut is one paths entry: an exact file, or (Directory) a directory read
+// with the one default match and guard.
 type pathOut struct {
-	Path string `json:"path"`
+	Path      string `json:"path"`
+	Directory bool   `json:"directory,omitempty"`
+	Match     string `json:"match,omitempty"`
+	Guard     string `json:"guard,omitempty"`
+}
+
+// key names an entry for comparison: an exact file by its path (unchanged),
+// a directory entry by path, match and guard.
+func (p pathOut) key() string {
+	if !p.Directory {
+		return p.Path
+	}
+	return p.Path + " [directory match=" + p.Match + " guard=" + p.Guard + "]"
 }
 
 type exclOut struct {
@@ -397,7 +437,16 @@ func marshalTarget(d targetDoc) ([]byte, error) {
 	}
 	var objs []string
 	for _, p := range t.Paths {
-		objs = append(objs, "{\"path\": "+jstr(p.Path)+"}")
+		switch {
+		case p.Directory && (p.Match == "" || p.Guard == ""):
+			return nil, fmt.Errorf("directory entry %q needs match and guard", p.Path)
+		case !p.Directory && (p.Match != "" || p.Guard != ""):
+			return nil, fmt.Errorf("file entry %q takes no match or guard", p.Path)
+		case p.Directory:
+			objs = append(objs, "{\"path\": "+jstr(p.Path)+", \"directory\": true, \"match\": "+jstr(p.Match)+", \"guard\": "+jstr(p.Guard)+"}")
+		default:
+			objs = append(objs, "{\"path\": "+jstr(p.Path)+"}")
+		}
 	}
 	b.WriteString("    \"paths\": " + objList(objs) + ",\n")
 	objs = nil
@@ -415,7 +464,7 @@ func objList(objs []string) string {
 	return "[\n      " + strings.Join(objs, ",\n      ") + "\n    ]"
 }
 
-func build(in Input, catalog, component, fact, ownerRepo, prefix, minFrom string, rules *Rules, window []*tagResult, dropped []DroppedTag, newest *tagResult, union map[string]*inclusion) (*Result, error) {
+func build(in Input, catalog, component, fact, ownerRepo, prefix, minFrom string, rules *Rules, window []*tagResult, dropped []DroppedTag, newest *tagResult, union map[string]*inclusion, dirs []collapsedDir) (*Result, error) {
 	ordered := orderPaths(newest.included)
 	// With ranged entries the target lists the union of the paths read at the
 	// window tags (the moved directory appears with both locations); groups
@@ -429,8 +478,14 @@ func build(in Input, catalog, component, fact, ownerRepo, prefix, minFrom string
 	if catalog == "community" {
 		body.Catalog = "community"
 	}
-	for _, i := range pathsOrdered {
-		body.Paths = append(body.Paths, pathOut{Path: i.Path})
+	if dirs != nil {
+		for _, d := range dirs {
+			body.Paths = append(body.Paths, pathOut{Path: d.Dir, Directory: true, Match: DefaultDirMatch, Guard: DefaultDirGuard})
+		}
+	} else {
+		for _, i := range pathsOrdered {
+			body.Paths = append(body.Paths, pathOut{Path: i.Path})
+		}
 	}
 	a, err := marshalTarget(targetDoc{Schema: "prufyx.io/crd-version-target/v1", Target: body})
 	if err != nil {
@@ -527,6 +582,23 @@ func build(in Input, catalog, component, fact, ownerRepo, prefix, minFrom string
 		return x.Detail < y.Detail
 	})
 	rep.FactsDigest = digestFacts(window)
+	if dirs != nil {
+		rep.Representation = "directory"
+		for _, d := range dirs {
+			rep.Directories = append(rep.Directories, DirectoryFact{Dir: d.Dir, Files: d.Files})
+			add(Decision{Rule: RuleCollapseDirectory, Subject: d.Dir, Detail: fmt.Sprintf("%d file(s) read by the default match at every window tag: %s", len(d.Files), strings.Join(d.Files, ","))})
+		}
+		sort.Slice(rep.Decisions, func(i, j int) bool {
+			x, y := rep.Decisions[i], rep.Decisions[j]
+			if x.Rule != y.Rule {
+				return x.Rule < y.Rule
+			}
+			if x.Subject != y.Subject {
+				return x.Subject < y.Subject
+			}
+			return x.Detail < y.Detail
+		})
+	}
 
 	copies := unionCopies(window)
 	if len(copies) > 0 {

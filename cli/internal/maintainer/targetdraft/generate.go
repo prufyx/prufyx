@@ -43,6 +43,11 @@ type Input struct {
 	// installPaths entry present inside and absent outside its range; they
 	// are never classified. Needs ranged entries.
 	RangeCheckTags []string
+	// CollapseDirectories writes the install files as directory entries (the
+	// one default match and guard) when, and only when, every directory holds
+	// exactly the install files at every window tag; anything else is a typed
+	// stop, never a silent fallback. Off, the output is unchanged exact files.
+	CollapseDirectories bool
 }
 
 // Result is the successful output of a run.
@@ -120,6 +125,11 @@ func Generate(in Input) (*Result, error) {
 	if len(stops) > 0 {
 		return nil, &StopError{Stops: stops}
 	}
+	if in.CollapseDirectories {
+		if cs := collapseUnsupported(in, rules); len(cs) > 0 {
+			return nil, &StopError{Stops: sortStops(cs)}
+		}
+	}
 
 	if stops := checkOptionalTags(rules, tags); len(stops) > 0 {
 		return nil, &StopError{Stops: sortStops(stops)}
@@ -137,6 +147,14 @@ func Generate(in Input) (*Result, error) {
 			return nil, &StopError{Stops: []Stop{stop(StopTagUnreadable, t.Tag, err.Error())}}
 		}
 		fs, scanStops := scanTree(tree)
+		var entries []Entry
+		if in.CollapseDirectories {
+			var eerr error
+			entries, eerr = tree.Entries()
+			if eerr != nil {
+				return nil, &StopError{Stops: []Stop{stop(StopTreeUnreadable, t.Tag, eerr.Error())}}
+			}
+		}
 		var rg *rangeCtx
 		if plan != nil {
 			rg = &rangeCtx{entries: plan, idx: i}
@@ -148,6 +166,7 @@ func Generate(in Input) (*Result, error) {
 			optFatal = append(optFatal, applyRanges(r, tree, plan, i, t.Tag)...)
 			logicalKeys(rules, r)
 		}
+		r.entries, r.defs = entries, fs
 		results[i] = r
 	}
 	checked, cstops := checkRangeTags(in, tags, plan)
@@ -217,7 +236,15 @@ func Generate(in Input) (*Result, error) {
 	if plan != nil {
 		union = unionIncluded(window)
 	}
-	res, err := build(in, catalog, component, fact, ownerRepo, prefix, minFrom, rules, window, dropped, newest, union)
+	var dirs []collapsedDir
+	if in.CollapseDirectories {
+		var dstops []Stop
+		dirs, dstops = collapseDirs(collapseInput(window))
+		if len(dstops) > 0 {
+			return nil, &StopError{Stops: sortStops(dstops)}
+		}
+	}
+	res, err := build(in, catalog, component, fact, ownerRepo, prefix, minFrom, rules, window, dropped, newest, union, dirs)
 	if err != nil {
 		return nil, err
 	}
@@ -303,6 +330,48 @@ type tagResult struct {
 	logical     map[string]string // included path -> role key, ranged entries only
 	copies      []NonInstallCopy
 	filtered    []FilteredCopy
+	entries     []Entry    // every file and link of the tree; only with CollapseDirectories
+	defs        []*finding // every definition-bearing file of the tree; same
+}
+
+// collapseUnsupported lists the inputs a directory entry cannot represent
+// faithfully; each is a stop, never a fallback.
+func collapseUnsupported(in Input, rules *Rules) []Stop {
+	var s []Stop
+	add := func(subject, detail string) { s = append(s, stop(StopDirUnsupported, subject, detail)) }
+	if len(rules.Exclusions) > 0 {
+		add("exclusions", "exclusions are reviewed judgments; a directory entry would read around them")
+	}
+	if len(rules.PathFilter) > 0 {
+		add("pathFilter", "a filter removes files a directory entry would read")
+	}
+	if len(in.RangeCheckTags) > 0 {
+		add("range-check-tags", "ranged installPaths are not emitted as directories")
+	}
+	for _, ip := range rules.InstallPaths {
+		if ip.Optional || ip.Role != "" || ip.FromTag != "" || ip.ToTag != "" || len(ip.AbsentTags) > 0 {
+			add(ip.Path, "optional or ranged installPaths entries are not emitted as directories")
+		}
+	}
+	return s
+}
+
+// collapseInput turns the window's classification into the pure input of
+// collapseDirs.
+func collapseInput(window []*tagResult) []collapseTag {
+	out := make([]collapseTag, 0, len(window))
+	for _, r := range window {
+		ct := collapseTag{Tag: r.tag, Entries: r.entries}
+		for _, f := range r.defs {
+			ct.Defs = append(ct.Defs, defFile{Path: f.Path, Unreadable: f.Unreadable != ""})
+		}
+		for _, i := range r.included {
+			ct.Included = append(ct.Included, includedFile{Path: i.Path, Link: i.LinkKind})
+		}
+		sort.Slice(ct.Included, func(a, b int) bool { return ct.Included[a].Path < ct.Included[b].Path })
+		out = append(out, ct)
+	}
+	return out
 }
 
 // pathFilterFor returns the pathFilter entry that matches the file.
