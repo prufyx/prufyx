@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path"
 	"sort"
+	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
 )
@@ -39,7 +40,7 @@ func (x *Extractor) literalKustomizationProof(r extract.PinnedReader, repo extra
 	if err != nil {
 		return nil, fmt.Errorf("literal Kustomization reading %s at %s: %w", d.Default, commit, err)
 	}
-	refs, err := literalKustomizationReferrers(r, repo, commit, blobs, path.Dir(d.Path), d.Default)
+	refs, err := literalKustomizationReferrers(r, repo, commit, blobs, d.Path, d.Default)
 	if err != nil {
 		return nil, err
 	}
@@ -50,34 +51,76 @@ func (x *Extractor) literalKustomizationProof(r extract.PinnedReader, repo extra
 	return map[string]bool{d.Path: true}, nil
 }
 
-func literalKustomizationReferrers(r extract.PinnedReader, repo extract.RepoRef, commit string, blobs []extract.TreeEntry, directory, allowed string) ([]literalKustomizationReferrer, error) {
+func literalKustomizationReferrers(r extract.PinnedReader, repo extract.RepoRef, commit string, blobs []extract.TreeEntry, source, allowed string) ([]literalKustomizationReferrer, error) {
 	var refs []literalKustomizationReferrer
+	directory := path.Dir(source)
+	excluded := Exclusion{Path: directory + "/"}
 	for _, b := range blobs {
-		if b.Mode == "120000" || surfaceKindOf(b.Path) != surfRefs {
+		if b.Path == source {
 			continue
+		}
+		kind := surfaceKindOf(b.Path)
+		if kind == surfNone && strings.HasSuffix(b.Path, ".go") && !strings.HasSuffix(b.Path, "_test.go") {
+			kind = surfGo
+		}
+		if kind == surfNone {
+			continue
+		}
+		if b.Mode == "120000" || b.Type != "blob" {
+			return nil, nil
 		}
 		data, err := r.Read(repo, commit, b.Path)
 		if err != nil {
 			return nil, fmt.Errorf("literal Kustomization reading referrer %s at %s: %w", b.Path, commit, err)
 		}
-		tokens, why := refTokens(data)
-		if why != "" {
+		info := summarizeSurface(kind, data)
+		if info.unread != "" {
 			return nil, nil
 		}
 		base := path.Dir(b.Path)
 		if base == "." {
 			base = ""
 		}
-		for _, token := range tokens {
-			ref := path.Join(base, token)
-			if ref != directory {
-				continue
+		switch kind {
+		case surfRefs:
+			for _, token := range info.tokens {
+				ref := path.Join(base, token)
+				if !hitsPath(excluded, ref) {
+					continue
+				}
+				if b.Path != allowed || ref != directory {
+					return nil, nil
+				}
+				kind := "kustomize"
+				if path.Base(b.Path) == "Chart.yaml" || path.Base(b.Path) == "requirements.yaml" {
+					kind = "helm"
+				}
+				refs = append(refs, literalKustomizationReferrer{Path: b.Path, Kind: kind})
 			}
-			kind := "kustomize"
-			if path.Base(b.Path) == "Chart.yaml" || path.Base(b.Path) == "requirements.yaml" {
-				kind = "helm"
+		case surfMake:
+			if _, ok := makeHit(excluded, info.lines); ok {
+				return nil, nil
 			}
-			refs = append(refs, literalKustomizationReferrer{Path: b.Path, Kind: kind})
+		case surfDoc, surfShell:
+			if _, ok := docHit(excluded, info.lines); ok {
+				return nil, nil
+			}
+		case surfBuild:
+			if _, ok := linesHit(excluded, base, true, info.lines); ok {
+				return nil, nil
+			}
+		case surfNix:
+			if _, ok := linesHit(excluded, base, false, info.lines); ok {
+				return nil, nil
+			}
+		case surfGo:
+			for _, pattern := range info.embeds {
+				for _, candidate := range blobs {
+					if hitsPath(excluded, candidate.Path) && embedMatches(path.Join(base, pattern), base, candidate.Path) {
+						return nil, nil
+					}
+				}
+			}
 		}
 	}
 	sort.Slice(refs, func(i, j int) bool { return refs[i].Path < refs[j].Path })

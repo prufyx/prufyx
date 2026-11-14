@@ -116,13 +116,13 @@ func TestLiteralKustomizationReferrers(t *testing.T) {
 	}
 	files := memReader{commit + ":config/default/kustomization.yaml": []byte("resources:\n- ../rbac\n")}
 	entries := []extract.TreeEntry{{Path: "config/default/kustomization.yaml", Type: "blob", Mode: "100644"}}
-	refs, err := literalKustomizationReferrers(files, repo, commit, entries, "config/rbac", "config/default/kustomization.yaml")
+	refs, err := literalKustomizationReferrers(files, repo, commit, entries, "config/rbac/kustomization.yaml", "config/default/kustomization.yaml")
 	if err != nil || len(refs) != 1 || refs[0] != (literalKustomizationReferrer{Path: "config/default/kustomization.yaml", Kind: "kustomize"}) {
 		t.Fatalf("refs=%+v err=%v", refs, err)
 	}
 	files[commit+":charts/x/Chart.yaml"] = []byte("dependencies:\n- repository: file://../../config/rbac\n")
 	entries = append(entries, extract.TreeEntry{Path: "charts/x/Chart.yaml", Type: "blob", Mode: "100644"})
-	refs, err = literalKustomizationReferrers(files, repo, commit, entries, "config/rbac", "config/default/kustomization.yaml")
+	refs, err = literalKustomizationReferrers(files, repo, commit, entries, "config/rbac/kustomization.yaml", "config/default/kustomization.yaml")
 	if err != nil || refs != nil {
 		t.Fatalf("renderer refs=%+v err=%v", refs, err)
 	}
@@ -173,6 +173,46 @@ func TestLiteralKustomizationProofUsesPinnedSourceBytes(t *testing.T) {
 	delete(files, commit+":Makefile")
 	if _, err := New(tg).literalKustomizationProof(files, repo, commit, "v0.23.0", entries); err == nil {
 		t.Fatal("missing source read was accepted")
+	}
+}
+
+func TestLiteralKustomizationProofRefusesAdditionalInstallSurfaces(t *testing.T) {
+	const commit = "ce3ffdb7ed430dc86d2208385d9516d7c19d52ba"
+	repo, err := extract.ParseRepo(literalKustomizationRepo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := func(p string) []byte {
+		b, err := os.ReadFile(filepath.Join("testdata/literal-kustomization/v023", filepath.FromSlash(p)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return b
+	}
+	for name, extra := range map[string]struct {
+		path string
+		data string
+	}{
+		"Makefile": {"examples/Makefile", "install:\n\tkustomize build ../config/rbac\n"},
+		"shell":    {"hack/install.sh", "#!/bin/sh\nkustomize build ../config/rbac\n"},
+		"Helm":     {"charts/x/Chart.yaml", "dependencies:\n- repository: file://../../config/rbac\n"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			files := memReader{}
+			paths := []string{"Makefile", "config/default/kustomization.yaml", "config/rbac/kustomization.yaml"}
+			entries := make([]extract.TreeEntry, 0, len(paths)+1)
+			for _, p := range paths {
+				files[commit+":"+p] = read(p)
+				entries = append(entries, extract.TreeEntry{Path: p, Type: "blob", Mode: "100644"})
+			}
+			files[commit+":"+extra.path] = []byte(extra.data)
+			entries = append(entries, extract.TreeEntry{Path: extra.path, Type: "blob", Mode: "100644"})
+			tg := Target{Project: literalKustomizationProject, Repo: literalKustomizationRepo, LiteralKustomization: &LiteralKustomization{Path: literalKustomizationPath, Makefile: "Makefile", Default: "config/default/kustomization.yaml"}}
+			proof, err := New(tg).literalKustomizationProof(files, repo, commit, "v0.23.0", entries)
+			if err != nil || proof != nil {
+				t.Fatalf("proof=%v err=%v", proof, err)
+			}
+		})
 	}
 }
 
