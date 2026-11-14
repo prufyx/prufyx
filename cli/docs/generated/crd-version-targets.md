@@ -50,7 +50,7 @@ The reviewed targets of the `crd.version-removal` extractor
 | `crd.version-removal.kube-green` | community | `github.com/kube-green/kube-green` | `vX.Y.Z` | 0.2 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.kubean` | CNCF | `github.com/kubean-io/kubean` | `vX.Y.Z` | 0.34 | yes | files matching `^[^.][^/]*\.ya?ml$` in `api/charts/crds` | 0 |
 | `crd.version-removal.kubemod` | community | `github.com/kubemod/kubemod` | `vX.Y.Z` | 0.16 | yes | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
-| `crd.version-removal.kuberhealthy` | CNCF | `github.com/kuberhealthy/kuberhealthy` | `vX.Y.Z`, then `X.Y.Z` | 2.3 | no | files matching `^[^.][^/]*\.ya?ml$` in `deploy/helm/kuberhealthy/crds` | 0 |
+| `crd.version-removal.kuberhealthy` | CNCF | `github.com/kuberhealthy/kuberhealthy` | `vX.Y.Z`, then `X.Y.Z` | 2.3 | yes | files matching `^[^.][^/]*\.ya?ml$` in `deploy/helm/kuberhealthy/crds` | 0 |
 | `crd.version-removal.kubernetes-ingress` | community | `github.com/nginx/kubernetes-ingress` | `vX.Y.Z` | 5.2 | yes | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.kubestellar` | CNCF | `github.com/kubestellar/kubestellar` | `vX.Y.Z` | 0.25 | no | `config/crd/bases/control.kubestellar.io_bindingpolicies.yaml`, `config/crd/bases/control.kubestellar.io_bindings.yaml`, `config/crd/bases/control.kubestellar.io_combinedstatuses.yaml`, `config/crd/bases/control.kubestellar.io_customtransforms.yaml`, `config/crd/bases/control.kubestellar.io_statuscollectors.yaml` | 0 |
 | `crd.version-removal.kubeswift` | community | `github.com/kubeswift-io/kubeswift` | `vX.Y.Z` | 0.1 | yes | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
