@@ -54,7 +54,8 @@ func (x *Extractor) literalKustomizationProof(r extract.PinnedReader, repo extra
 func literalKustomizationReferrers(r extract.PinnedReader, repo extract.RepoRef, commit string, blobs []extract.TreeEntry, source, allowed string) ([]literalKustomizationReferrer, error) {
 	var refs []literalKustomizationReferrer
 	directory := path.Dir(source)
-	excluded := Exclusion{Path: directory + "/"}
+	sourceInput := Exclusion{Path: source}
+	directoryInput := Exclusion{Path: directory}
 	for _, b := range blobs {
 		if b.Path == source {
 			continue
@@ -85,7 +86,10 @@ func literalKustomizationReferrers(r extract.PinnedReader, repo extract.RepoRef,
 		case surfRefs:
 			for _, token := range info.tokens {
 				ref := path.Join(base, token)
-				if !hitsPath(excluded, ref) {
+				if literalKustomizationSubtreePattern(directory, ref) {
+					return nil, nil
+				}
+				if ref != source && ref != directory {
 					continue
 				}
 				if b.Path != allowed || ref != directory {
@@ -98,27 +102,25 @@ func literalKustomizationReferrers(r extract.PinnedReader, repo extract.RepoRef,
 				refs = append(refs, literalKustomizationReferrer{Path: b.Path, Kind: kind})
 			}
 		case surfMake:
-			if _, ok := makeHit(excluded, info.lines); ok {
+			if literalKustomizationMakeHit(sourceInput, directoryInput, info.lines) {
 				return nil, nil
 			}
 		case surfDoc, surfShell:
-			if _, ok := docHit(excluded, info.lines); ok {
+			if literalKustomizationDocHit(sourceInput, directoryInput, info.lines) {
 				return nil, nil
 			}
 		case surfBuild:
-			if _, ok := linesHit(excluded, base, true, info.lines); ok {
+			if literalKustomizationLinesHit(sourceInput, directoryInput, base, true, info.lines) {
 				return nil, nil
 			}
 		case surfNix:
-			if _, ok := linesHit(excluded, base, false, info.lines); ok {
+			if literalKustomizationLinesHit(sourceInput, directoryInput, base, false, info.lines) {
 				return nil, nil
 			}
 		case surfGo:
 			for _, pattern := range info.embeds {
-				for _, candidate := range blobs {
-					if hitsPath(excluded, candidate.Path) && embedMatches(path.Join(base, pattern), base, candidate.Path) {
-						return nil, nil
-					}
+				if embedMatches(path.Join(base, pattern), base, source) {
+					return nil, nil
 				}
 			}
 		}
@@ -128,4 +130,57 @@ func literalKustomizationReferrers(r extract.PinnedReader, repo extract.RepoRef,
 		return nil, nil
 	}
 	return refs, nil
+}
+
+// The literal exception is for one Kustomization. A sibling manifest is not
+// a reference to that source, although the ordinary exclusion guard correctly
+// treats it as a reference to its containing directory.
+func literalKustomizationMakeHit(source, directory Exclusion, lines []surfaceLine) bool {
+	if literalKustomizationLinesHaveSubtreePattern(directory.Path, lines) {
+		return true
+	}
+	_, sourceHit := makeHit(source, lines)
+	_, directoryHit := makeHit(directory, lines)
+	return sourceHit || directoryHit
+}
+
+func literalKustomizationDocHit(source, directory Exclusion, lines []surfaceLine) bool {
+	if literalKustomizationLinesHaveSubtreePattern(directory.Path, lines) {
+		return true
+	}
+	_, sourceHit := docHit(source, lines)
+	_, directoryHit := docHit(directory, lines)
+	return sourceHit || directoryHit
+}
+
+func literalKustomizationLinesHit(source, directory Exclusion, base string, bare bool, lines []surfaceLine) bool {
+	if literalKustomizationLinesHaveSubtreePattern(directory.Path, lines) {
+		return true
+	}
+	_, sourceHit := linesHit(source, base, bare, lines)
+	_, directoryHit := linesHit(directory, base, bare, lines)
+	return sourceHit || directoryHit
+}
+
+// A wildcard under the source directory can select the Kustomization. Keep
+// that ambiguous input unread; only the exact source or directory is known.
+func literalKustomizationSubtreePattern(directory, ref string) bool {
+	return strings.HasPrefix(ref, directory+"/") && strings.ContainsAny(ref[len(directory)+1:], globMeta+"{}")
+}
+
+func literalKustomizationLinesHaveSubtreePattern(directory string, lines []surfaceLine) bool {
+	for _, line := range lines {
+		for _, token := range tokenize(line.Text) {
+			for i := 0; i < len(token); i++ {
+				if i != 0 && token[i-1] != '/' {
+					continue
+				}
+				candidate := strings.TrimRight(token[i:], "./,")
+				if literalKustomizationSubtreePattern(directory, path.Clean(candidate)) {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }

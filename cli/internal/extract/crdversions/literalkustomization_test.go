@@ -156,6 +156,10 @@ func TestLiteralKustomizationProofUsesPinnedSourceBytes(t *testing.T) {
 		files[commit+":"+p] = read(p)
 		entries = append(entries, extract.TreeEntry{Path: p, Type: "blob", Mode: "100644"})
 	}
+	// This applies a sibling manifest only; it neither reads nor renders the
+	// literal Kustomization source.
+	files[commit+":scripts/install-operator.sh"] = []byte("#!/bin/sh\nkubectl apply -f CODES/golang/redis-operator-1/config/rbac/serviceaccount.yaml\n")
+	entries = append(entries, extract.TreeEntry{Path: "scripts/install-operator.sh", Type: "blob", Mode: "100644"})
 	tg := Target{Project: literalKustomizationProject, Repo: literalKustomizationRepo, LiteralKustomization: &LiteralKustomization{Path: literalKustomizationPath, Makefile: "Makefile", Default: "config/default/kustomization.yaml"}}
 	ok, err := New(tg).literalKustomizationProof(files, repo, commit, "v0.23.0", entries)
 	if err != nil || !ok[literalKustomizationPath] {
@@ -193,9 +197,13 @@ func TestLiteralKustomizationProofRefusesAdditionalInstallSurfaces(t *testing.T)
 		path string
 		data string
 	}{
-		"Makefile": {"examples/Makefile", "install:\n\tkustomize build ../config/rbac\n"},
-		"shell":    {"hack/install.sh", "#!/bin/sh\nkustomize build ../config/rbac\n"},
-		"Helm":     {"charts/x/Chart.yaml", "dependencies:\n- repository: file://../../config/rbac\n"},
+		"Makefile":           {"examples/Makefile", "install:\n\tkustomize build ../config/rbac\n"},
+		"shell":              {"hack/install.sh", "#!/bin/sh\nkustomize build ../config/rbac\n"},
+		"Helm":               {"charts/x/Chart.yaml", "dependencies:\n- repository: file://../../config/rbac\n"},
+		"exact file":         {"scripts/install.sh", "#!/bin/sh\nkustomize build ../config/rbac/kustomization.yaml\n"},
+		"relative directory": {"scripts/install.sh", "#!/bin/sh\nkustomize build ../config/rbac\n"},
+		"variable directory": {"Makefile", "RBAC = https://example.test/config/rbac\ninstall:\n\tkustomize build $(RBAC)\n"},
+		"wildcard subtree":   {"scripts/install.sh", "#!/bin/sh\nkubectl apply -f ../config/rbac/*.yaml\n"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			files := memReader{}
