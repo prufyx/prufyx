@@ -1,0 +1,23 @@
+{
+  "schema": "prufyx.io/target-draft-backtest/v1",
+  "count": 1,
+  "entries": [
+    {
+      "slug": "knative",
+      "name": "Knative",
+      "repo": "github.com/knative/serving",
+      "catalog": "cncf",
+      "tags": ["v0.46.9", "v0.47.3", "v0.48.3", "v0.49.1", "v0.50.0", "v0.51.0"],
+      "mirror": "knative",
+      "rules": "knative/rules.json",
+      "expected": "knative/golden-b.json",
+      "half": "B"
+    }
+  ],
+  "seeds": [
+    {"entry": "knative", "kind": "path"},
+    {"entry": "knative", "kind": "min-from"},
+    {"entry": "knative", "kind": "attest"},
+    {"entry": "knative", "kind": "drop-exclusion"}
+  ]
+}

@@ -123,6 +123,9 @@ func Run(args []string, stdout, stderr io.Writer) int {
 }
 
 func run(args []string, stdout, stderr io.Writer, open func(dir string) Source) int {
+	if len(args) > 0 && args[0] == "backtest" {
+		return runBacktest(args[1:], stdout, stderr, open)
+	}
 	if len(args) == 0 || args[0] != "generate" {
 		fmt.Fprintln(stderr, usage)
 		return 2
