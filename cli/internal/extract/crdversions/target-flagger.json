@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "flagger",
+    "catalog": "community",
+    "name": "Flagger",
+    "repo": "github.com/fluxcd/flagger",
+    "component": "pkg:github/fluxcd/flagger",
+    "factProject": "flagger",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.40",
+    "paths": [
+      {"path": "artifacts/flagger/crd.yaml"}
+    ],
+    "exclude": []
+  }
+}

@@ -391,6 +391,29 @@
       ]
     },
     {
+      "slug": "flagger",
+      "catalog": "community",
+      "upstream": {
+        "name": "Flagger",
+        "repository": "https://github.com/fluxcd/flagger",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/fluxcd/flagger/blob/c781cdc199d44cf84e21e90aedd8ff14c1df450e/LICENSE"
+      },
+      "factProject": "flagger",
+      "component": "pkg:github/fluxcd/flagger",
+      "groups": [
+        {
+          "name": "flagger.app",
+          "source": "https://github.com/fluxcd/flagger/blob/c781cdc199d44cf84e21e90aedd8ff14c1df450e/artifacts/flagger/crd.yaml",
+          "kinds": [
+            "AlertProvider",
+            "Canary",
+            "MetricTemplate"
+          ]
+        }
+      ]
+    },
+    {
       "slug": "fluent-operator",
       "catalog": "community",
       "upstream": {

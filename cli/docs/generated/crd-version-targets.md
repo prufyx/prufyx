@@ -28,6 +28,7 @@ The reviewed targets of the `crd.version-removal` extractor
 | `crd.version-removal.eck-operator` | community | `github.com/elastic/cloud-on-k8s` | `vX.Y.Z` | 3.0 | no | `config/crds/v1/all-crds.yaml` | 1 |
 | `crd.version-removal.eraser` | CNCF | `github.com/eraser-dev/eraser` | `vX.Y.Z` | 0.5 | no | `config/crd/bases/eraser.sh_imagejobs.yaml`, `config/crd/bases/eraser.sh_imagelists.yaml` | 0 |
 | `crd.version-removal.external-secrets` | CNCF | `github.com/external-secrets/external-secrets` | `vX.Y.Z` | 2.7 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crds/bases` | 0 |
+| `crd.version-removal.flagger` | community | `github.com/fluxcd/flagger` | `vX.Y.Z` | 1.40 | no | `artifacts/flagger/crd.yaml` | 0 |
 | `crd.version-removal.fluent-operator` | community | `github.com/fluent/fluent-operator` | `vX.Y.Z` | 3.5 | yes | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.function-mesh` | community | `github.com/streamnative/function-mesh` | `vX.Y.Z` | 0.25 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.furiko` | community | `github.com/furiko-io/furiko` | `vX.Y.Z` | 0.0 | yes | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |

@@ -28,6 +28,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `eck-operator` | community | `component.eck_operator.custom_resource_versions_set` | `agent.k8s.elastic.co`, `apm.k8s.elastic.co`, `autoops.k8s.elastic.co`, `autoscaling.k8s.elastic.co`, `beat.k8s.elastic.co`, `elasticsearch.k8s.elastic.co`, `enterprisesearch.k8s.elastic.co`, `kibana.k8s.elastic.co`, `logstash.k8s.elastic.co`, `maps.k8s.elastic.co`, `packageregistry.k8s.elastic.co`, `stackconfigpolicy.k8s.elastic.co` |
 | `eraser` | CNCF | `component.eraser.custom_resource_versions_set` | `eraser.sh` |
 | `external-secrets` | CNCF | `component.external_secrets.custom_resource_versions_set` | `external-secrets.io`, `generators.external-secrets.io` |
+| `flagger` | community | `component.flagger.custom_resource_versions_set` | `flagger.app` (AlertProvider, Canary, MetricTemplate) |
 | `fluent-operator` | community | `component.fluent_operator.custom_resource_versions_set` | `fluentbit.fluent.io`, `fluentd.fluent.io` |
 | `function-mesh` | community | `component.function_mesh.custom_resource_versions_set` | `compute.functionmesh.io` |
 | `furiko` | community | `component.furiko.custom_resource_versions_set` | `execution.furiko.io` |
@@ -107,6 +108,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `cyclops` | cyclops | https://github.com/cyclops-ui/cyclops | [`Apache-2.0`](https://github.com/cyclops-ui/cyclops/blob/e2965366f0e52472e32d37475fbbb5d3507199d0/LICENSE) |
 | `datadog-operator` | datadog-operator | https://github.com/datadog/datadog-operator | [`Apache-2.0`](https://github.com/datadog/datadog-operator/blob/db6a88ca8796d8fff93c96b0c3e41fef85e2bdd1/LICENSE) |
 | `eck-operator` | Elastic Cloud on Kubernetes | https://github.com/elastic/cloud-on-k8s | [`Elastic-2.0`](https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/LICENSE.txt) |
+| `flagger` | Flagger | https://github.com/fluxcd/flagger | [`Apache-2.0`](https://github.com/fluxcd/flagger/blob/c781cdc199d44cf84e21e90aedd8ff14c1df450e/LICENSE) |
 | `fluent-operator` | fluent-operator | https://github.com/fluent/fluent-operator | [`Apache-2.0`](https://github.com/fluent/fluent-operator/blob/cf5582c23d9e8d96ba1d77d3c7ac48a0456ff7c2/LICENSE) |
 | `function-mesh` | function-mesh | https://github.com/streamnative/function-mesh | [`NOASSERTION`](https://github.com/streamnative/function-mesh/blob/eced1f28126f7ea789522b1a7dd1a59331659f71/LICENSE) |
 | `furiko` | furiko | https://github.com/furiko-io/furiko | [`Apache-2.0`](https://github.com/furiko-io/furiko/blob/a477b3f342560e410d81577acb3ade6cd864ccbf/LICENSE) |
