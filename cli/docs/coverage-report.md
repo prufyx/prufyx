@@ -126,6 +126,7 @@ other value is rejected.
 `pinnedOn` is optional (`YYYY-MM-DD`, not before `capturedOn`): the date the
 README coverage block is evaluated on, noon of that day. It is not a capture
 date and is printed beside it. Absent, the block is evaluated on `capturedOn`.
+A binary that predates it rejects a file that holds it.
 
 A project entry may carry its own optional `capturedOn` (`YYYY-MM-DD`): the
 capture date of that project's tag listing when it differs from the file's.
@@ -133,7 +134,6 @@ It replaces the file-level date for that project's snapshot age only, never
 moves the evaluation clock, and is refused when it is after the file's
 evaluation date (`pinnedOn`, else `capturedOn`) or the file has no date.
 Files without it are read and written exactly as before.
-A binary that predates it rejects a file that holds it.
 
 `releases` maps a line to the final releases of that line, ascending
 (`"releases": {"1.28": ["1.28.0", "1.28.1"]}`). Every key must be a listed
