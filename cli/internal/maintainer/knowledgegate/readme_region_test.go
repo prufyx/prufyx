@@ -204,6 +204,11 @@ func TestCatalogSplitProblems(t *testing.T) {
 // split, the signed head state (O3) and the batch's catalog check (O4), each
 // observable on its own. A correctly signed but policy-invalid table does not
 // fail O3.
+//
+// The O2 row checks, the O3 head state and the O4 catalog check existed before
+// this change: this test pins them as RETAINED protections and is not a
+// mutation check of the new behaviour. Only the catalog-split assertions
+// (O2: catalog split) and the head-table rendering tests fail without the fix.
 func TestReadmeRegionUnauthorizedTableAndMatchingREADME(t *testing.T) {
 	t.Parallel()
 	// The table of the repository is the base of every case. The rows that
@@ -323,15 +328,36 @@ func TestReadmeRegionUnauthorizedTableAndMatchingREADME(t *testing.T) {
 			if !containsProblem(stale, "O3: the head state differs from the one the batch was signed for") {
 				t.Errorf("O3 does not refuse a record of another head:\n%s", strings.Join(stale, "\n"))
 			}
-			// The whole gate refuses the change.
+			// The whole gate refuses the stale record, signed and submitted
+			// with the head README that matches the edited table: O3.
+			f.sign(t, pre)
+			rs := f.gate(t)
+			if rs.Passed() {
+				t.Fatal("the gate passed a record signed for another head")
+			}
+			cs, ok := check(rs, CheckOnboarding)
+			if !ok || cs.OK || !strings.Contains(cs.Detail, "O3: the head state differs from the one the batch was signed for") {
+				t.Fatalf("the whole gate does not refuse the stale record with O3: %+v", cs)
+			}
+			// The whole gate refuses the record signed for the edited head,
+			// with the O2 and O4 details the table checks produce.
 			rec, _ := f.tryRecord(t)
 			f.sign(t, rec)
 			r := f.gate(t)
 			if r.Passed() {
 				t.Fatal("the gate passed an unauthorized table with its matching README")
 			}
-			if c, ok := check(r, CheckOnboarding); !ok || c.OK {
+			c, ok := check(r, CheckOnboarding)
+			if !ok || c.OK {
 				t.Fatalf("the onboarding check did not refuse: %+v", c)
+			}
+			for _, w := range tc.want {
+				if !strings.Contains(c.Detail, w) {
+					t.Errorf("the whole-gate detail does not mention %q:\n%s", w, c.Detail)
+				}
+			}
+			if strings.Contains(c.Detail, "O3: the head state differs") {
+				t.Errorf("the whole gate fails O3 for a record signed for the edited head:\n%s", c.Detail)
 			}
 		})
 	}
@@ -393,6 +419,25 @@ func TestReadmeRegionRefusesUnreadableTables(t *testing.T) {
 				t.Fatal(err)
 			}
 			doc.Projects = append([]map[string]any{doc.Projects[0]}, doc.Projects...)
+			out, err := json.MarshalIndent(doc, "", "  ")
+			if err != nil {
+				t.Fatal(err)
+			}
+			return append(out, '\n')
+		}), "does not load"},
+		{"unique slugs out of order", rewrite(func(raw []byte) []byte {
+			var doc struct {
+				Schema   string           `json:"schema"`
+				Projects []map[string]any `json:"projects"`
+				Reserved []any            `json:"reserved"`
+			}
+			if err := json.Unmarshal(raw, &doc); err != nil {
+				t.Fatal(err)
+			}
+			if len(doc.Projects) < 2 || doc.Projects[0]["slug"] == doc.Projects[1]["slug"] {
+				t.Fatal("the table has no two distinct first rows to swap")
+			}
+			doc.Projects[0], doc.Projects[1] = doc.Projects[1], doc.Projects[0]
 			out, err := json.MarshalIndent(doc, "", "  ")
 			if err != nil {
 				t.Fatal(err)
@@ -586,12 +631,39 @@ func TestReadmeRegionReadsTheConfiguredTablePath(t *testing.T) {
 	if err != nil || !bytes.Equal(tr.raw, headTable) {
 		t.Fatalf("readTableTree: %v", err)
 	}
-	// The coverage floor reads the configured path too.
-	if err := coverageFloor(f.head, f.head, custom); err != nil {
-		t.Logf("coverage floor at the configured path: %v", err)
+}
+
+// The coverage floor computes the published numbers from the table at the
+// configured path: a valid fixture succeeds only through the custom path (the
+// default path holds no table), and a missing table fails the computation and
+// names the table path.
+func TestCoverageFloorReadsTheConfiguredTablePath(t *testing.T) {
+	t.Parallel()
+	const custom = "data/other-table.json"
+	base, head, _ := floorTrees(t)
+	if err := coverageFloor(base, head, defaultTablePath); err != nil {
+		t.Fatalf("the control fixture does not satisfy the floor at the default path: %v", err)
 	}
-	if err := coverageFloor(f.head, f.head, "data/no-such-table.json"); err == nil {
-		t.Fatal("the coverage floor computed numbers without a table")
+	raw, err := head.Read(defaultTablePath, MaxFileBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(head.Root, filepath.FromSlash(custom)), raw)
+	if err := os.Remove(filepath.Join(head.Root, filepath.FromSlash(defaultTablePath))); err != nil {
+		t.Fatal(err)
+	}
+	// The only table the head holds is at the custom path.
+	if err := coverageFloor(base, head, custom); err != nil {
+		t.Fatalf("the floor did not compute through the configured table path: %v", err)
+	}
+	for _, missing := range []string{defaultTablePath, "data/no-such-table.json"} {
+		err := coverageFloor(base, head, missing)
+		if err == nil {
+			t.Fatalf("the coverage floor computed numbers without the table %s", missing)
+		}
+		if !strings.Contains(err.Error(), "cannot compute the published coverage numbers") || !strings.Contains(err.Error(), missing) {
+			t.Errorf("the failure for %s does not come from the table read at that path: %v", missing, err)
+		}
 	}
 }
 
@@ -623,32 +695,28 @@ func TestReadmeRegionRenderReadsTheBoundTable(t *testing.T) {
 }
 
 // withoutRulesDigest decodes the inventory and blanks the digest of the rule
-// pack, the one input of the inventory that an onboarding change moves (the
-// pack's registryDigest member moves with a new row).
+// pack, at its one documented path (inputDigests.rules): the one input of the
+// inventory that an onboarding change moves (the pack's registryDigest member
+// moves with a new row). It fails unless exactly one value was blanked there;
+// every other field, digest-looking or not, stays in the comparison.
 func withoutRulesDigest(t *testing.T, raw []byte) any {
 	t.Helper()
-	var doc any
+	var doc map[string]any
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		t.Fatal(err)
 	}
-	var blank func(v any)
-	blank = func(v any) {
-		switch x := v.(type) {
-		case map[string]any:
-			for k, e := range x {
-				if s, ok := e.(string); ok && k == "rules" && strings.HasPrefix(s, "sha256:") {
-					x[k] = ""
-					continue
-				}
-				blank(e)
-			}
-		case []any:
-			for _, e := range x {
-				blank(e)
-			}
-		}
+	inputs, ok := doc["inputDigests"].(map[string]any)
+	if !ok {
+		t.Fatal("the inventory has no inputDigests object")
 	}
-	blank(doc)
+	blanked := 0
+	if s, ok := inputs["rules"].(string); ok && strings.HasPrefix(s, "sha256:") {
+		inputs["rules"] = ""
+		blanked++
+	}
+	if blanked != 1 {
+		t.Fatalf("blanked %d rule-pack digests at inputDigests.rules, want exactly 1", blanked)
+	}
 	return doc
 }
 
