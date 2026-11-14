@@ -67,6 +67,9 @@ func Generate(in Input) (*Result, error) {
 	if !slugRE.MatchString(in.Slug) || in.Name == "" || !repoRE.MatchString(in.Repo) || in.Source == nil {
 		return nil, &StopError{Stops: []Stop{stop(StopBadInput, "", "slug, name, repo and a source are required and must be well formed")}}
 	}
+	if !repoCanonical(in.Repo) {
+		return nil, &StopError{Stops: []Stop{stop(StopRepoNotCanonical, in.Repo, "the extractor's target loader accepts only the canonical lower-case form")}}
+	}
 	catalog := in.Catalog
 	if catalog == "" {
 		catalog = crdversions.CatalogCNCF
