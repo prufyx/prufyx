@@ -518,6 +518,68 @@ unless that file, the compiled-in pin and the repository variable
 `KNOWLEDGE_ROOT_DIGEST` agree. Release tag builds make the same check when the
 variable is set (nothing is checked when it is not).
 
+### Timestamp refresh
+
+Status: inactive until the owner creates the environment `knowledge-refresh`
+with the timestamp key.
+
+`.github/workflows/knowledge-refresh.yml` keeps the feed alive when a content
+release is late. It runs every 6 hours and on dispatch (`dry_run`, default
+`true`: decide and report only). It never signs content and never touches the
+targets or snapshot key: it signs a new timestamp, version live + 1, over the
+live targets and snapshot, which stay byte-identical. The publisher enforces
+the expiry cap (the earliest of the live snapshot, targets and evidence expiry
+and 14 days from now), refuses when less than a day is left on targets,
+snapshot or evidence, and refuses when the new expiry would not extend the live
+one by at least a day.
+
+Four jobs:
+
+- `decide` (no environment, no secret) fetches the live feed, verifies it with
+  the pinned root, checks it against the artifact names of the last successful
+  content and refresh runs (an older answer is a stale CDN and stops the run),
+  and lists the pending runs of the content workflow.
+  `scripts/knowledge-refresh-decide.sh` then chooses. It refuses to run, exit 0
+  and nothing signed, while a content run is queued, running or waiting for
+  approval and the live timestamp still has more than 3 days left. It does
+  nothing while the live timestamp has the threshold or more left (default 7
+  of its 14 days, repository variable `KNOWLEDGE_REFRESH_THRESHOLD_DAYS`, 1 to
+  13). Otherwise it refreshes, even beside a waiting content run, because a
+  refresh never blocks an approved release.
+- `refresh` runs in the environment `knowledge-refresh` (branch `main` only, no
+  reviewer, only `KNOWLEDGE_TIMESTAMP_KEY` and `KNOWLEDGE_KEY_PASSPHRASE`).
+  Only the signing step sees them; it refuses a re-run (`run_attempt` must be
+  1). The result is checked with the oldest supported client, which must reach
+  the same outcome on the refreshed package as on the live one.
+- `deploy` runs in the environment `github-pages`. The deploy guard accepts the
+  package only if it was built over the package that is live now (predecessor
+  digest), has a higher timestamp version, and has the same revision with
+  byte-identical targets and snapshot. It then deploys exactly as the content
+  workflow does and polls the live feed until it serves the refreshed package
+  and verifies with the pinned client. Its concurrency group `knowledge-deploy`
+  is meant to be shared with the content workflow's deploy job.
+- `alarm` fails the run, so notifications fire, when a content release has
+  waited for approval for more than 48 hours, or when the live targets or
+  snapshot expire in under 5 days. At that point only a content release can
+  renew the feed; unrenewed, it cannot be recovered after the roles expire.
+
+Owner steps: create the environment `knowledge-refresh` (deployment branch
+`main`, no reviewer); store `KNOWLEDGE_TIMESTAMP_KEY` and
+`KNOWLEDGE_KEY_PASSPHRASE` in it with `gh secret set --env knowledge-refresh <
+file`; make sure no repository-level secret has those names; set the variable
+`KNOWLEDGE_REFRESH_ENABLED=true` (it also needs `KNOWLEDGE_RELEASE_ENABLED`).
+Run it first with `dry_run` left at `true`. The refreshed package is uploaded as
+the artifact `knowledge-refresh-<revision>-<timestamp version>-<sha256>`; the
+content workflow must read the live timestamp version at signing time, not
+from its own previous artifact, because refreshes move it.
+
+#### Refresh artifacts
+
+The name `knowledge-refresh-<revision>-<timestamp version>-<sha256>` is a
+published interface. A reader that needs the live state must consider both this
+family and the content workflow artifacts and take the live package digest from
+the verified `live-state` output, not from the newest artifact name alone.
+
 ### Publish self-check
 
 `.github/workflows/knowledge-publish-verify.yml` runs daily (and on dispatch)

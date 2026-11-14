@@ -1,0 +1,621 @@
+# Keeps the signed knowledge feed alive between content releases: signs a new
+# TIMESTAMP role over the live, unchanged targets and snapshot. It never signs
+# content and never holds the targets or snapshot key.
+#
+# Jobs (the keys and the Pages deploy token never share a job):
+#   decide   no environment, no secret: fetches the live package, verifies it
+#            with the pinned root and decides (scripts/knowledge-refresh-decide.sh).
+#   refresh  environment knowledge-refresh (branch main only, no reviewer; holds
+#            ONLY the timestamp key and its passphrase): signs timestamp
+#            version+1 with `knowledge-publish refresh-timestamp`, whose
+#            expiry cap and byte-identity assertion live in the publisher, and
+#            checks the result with the oldest supported client.
+#   deploy   environment github-pages: no keys. Deploy guard, then the same
+#            Pages deployment as knowledge-publish.yml.
+#   alarm    no environment, no secret: fails the run (so notifications fire)
+#            when a content release has waited for approval for more than 48
+#            hours or the live targets or snapshot expire in under 5 days.
+#
+# Inactive until the owner creates the environment knowledge-refresh with the
+# timestamp key and sets the repository variable KNOWLEDGE_REFRESH_ENABLED to
+# "true". It needs the subcommands `refresh-timestamp`, `live-state` and
+# `deploy-guard` of `prufyx-maintainer knowledge-publish`. See "Timestamp
+# refresh" in cli/docs/knowledge-publisher.md.
+#
+#   secrets.KNOWLEDGE_TIMESTAMP_KEY   timestamp role key file (encrypted PEM)
+#   secrets.KNOWLEDGE_KEY_PASSPHRASE  its passphrase
+#   vars.KNOWLEDGE_ROOT_DIGEST        "sha256:<hex>" of the pinned root
+
+name: Knowledge timestamp refresh
+
+on:
+  schedule:
+    - cron: "37 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Decide and report only: nothing is signed or deployed."
+        type: boolean
+        default: true
+
+permissions: {}
+
+concurrency:
+  group: knowledge-refresh
+  cancel-in-progress: false
+
+env:
+  MAX_PACKAGE_BYTES: "8388608"
+  FEED_URL: "https://prufyx.github.io/prufyx/knowledge/cncf-projects.tar"
+
+jobs:
+  decide:
+    name: Decide
+    if: ${{ github.ref == 'refs/heads/main' && vars.KNOWLEDGE_RELEASE_ENABLED == 'true' && vars.KNOWLEDGE_REFRESH_ENABLED == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      action: ${{ steps.decide.outputs.action }}
+      reason: ${{ steps.decide.outputs.reason }}
+      alarm: ${{ steps.decide.outputs.alarm }}
+      alarm_text: ${{ steps.decide.outputs.alarm_text }}
+      live_digest: ${{ steps.live.outputs.live_digest }}
+      live_artifact: ${{ steps.live.outputs.live_artifact }}
+      dry_run: ${{ steps.decide.outputs.dry_run }}
+    steps:
+      - name: Check out main
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache: false
+
+      - name: Check the pinned root
+        id: pin
+        env:
+          EXPECTED: ${{ vars.KNOWLEDGE_ROOT_DIGEST }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          [ "${RUN_ATTEMPT}" = 1 ] || { echo "::error::a re-run is refused (run_attempt ${RUN_ATTEMPT}); wait for the next scheduled run or dispatch a new one."; exit 1; }
+          root="${GITHUB_WORKSPACE}/cli/internal/knowledgepin/root.json"
+          if [ ! -s "${root}" ]; then
+            echo "::error::cli/internal/knowledgepin/root.json is missing or empty; nothing was signed."
+            exit 1
+          fi
+          if [ "$(stat -c %s "${root}")" -gt 1048576 ]; then
+            echo "::error::the pinned root file is larger than 1 MiB; nothing was signed."
+            exit 1
+          fi
+          digest="sha256:$(sha256sum "${root}" | cut -d' ' -f1)"
+          pin="$(grep -o '"cncf-projects":[[:space:]]*"[^"]*"' cli/internal/knowledgepin/pin.go | sed 's/.*"\([^"]*\)"$/\1/')"
+          if [ -z "${EXPECTED}" ]; then
+            echo "::error::repository variable KNOWLEDGE_ROOT_DIGEST is not set; nothing was signed."
+            exit 1
+          fi
+          if [ "${EXPECTED}" != "${digest}" ] || [ "${pin}" != "${digest}" ]; then
+            echo "::error::the root digest in KNOWLEDGE_ROOT_DIGEST, in cli/internal/knowledgepin/root.json and in the compiled-in pin are not all equal; nothing was signed."
+            exit 1
+          fi
+          echo "root_digest=${digest}" >> "${GITHUB_OUTPUT}"
+
+      - name: Build the tools
+        working-directory: cli
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/bin"
+          go build -trimpath -buildvcs=false -o "${RUNNER_TEMP}/bin/prufyx-maintainer" ./cmd/prufyx-maintainer
+
+      # The feed is untrusted until the publisher has verified it against the
+      # pinned root. A stale CDN answer is caught by the cross-check below.
+      - name: Fetch and verify the live package
+        id: live
+        env:
+          ROOT_DIGEST: ${{ steps.pin.outputs.root_digest }}
+        run: |
+          set -euo pipefail
+          umask 077
+          fail() { echo "::error::$*"; exit 1; }
+          state="$(mktemp -d "${RUNNER_TEMP}/knowledge-live.XXXXXX")"
+          root="${GITHUB_WORKSPACE}/cli/internal/knowledgepin/root.json"
+          curl --proto '=https' --max-redirs 0 --max-filesize "${MAX_PACKAGE_BYTES}" --max-time 60 -fsS \
+            -H 'Cache-Control: no-cache' -o "${state}/cncf-projects.tar" -- "${FEED_URL}" \
+            || fail "the live feed could not be downloaded; nothing was signed."
+          "${RUNNER_TEMP}/bin/prufyx-maintainer" knowledge-publish live-state --profile cncf-projects \
+            --package "${state}/cncf-projects.tar" --root "${root}" --root-digest "${ROOT_DIGEST}" > "${state}/live.json" \
+            || fail "the live package does not verify against the pinned root (invalid or expired); nothing was signed. See the recovery runbook."
+          digest="$(jq -er '.packageDigest | select(test("^sha256:[0-9a-f]{64}$"))' "${state}/live.json")" || fail "live state has no package digest."
+          [ "${digest}" = "sha256:$(sha256sum "${state}/cncf-projects.tar" | cut -d' ' -f1)" ] || fail "the live package digest differs from its bytes."
+          {
+            echo "state=${state}"
+            echo "live_digest=${digest}"
+            echo "live_artifact=knowledge-refresh-live-${GITHUB_RUN_ID}"
+            echo "live_revision=$(jq -er '.revision' "${state}/live.json")"
+            echo "live_ts_version=$(jq -er '.timestampVersion' "${state}/live.json")"
+          } >> "${GITHUB_OUTPUT}"
+
+      # The newest successful runs record what was published last (artifact
+      # names carry revision and digest). A feed older than that is a stale
+      # CDN answer: refuse rather than refresh over it.
+      - name: Cross-check the feed against the last runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          LIVE_REVISION: ${{ steps.live.outputs.live_revision }}
+          LIVE_TS_VERSION: ${{ steps.live.outputs.live_ts_version }}
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$*"; exit 1; }
+          newest_artifact() { # workflow file, name regex -> artifact name of the newest successful run that has one; reads at most 200 runs, none older than 90 days (the artifact retention), and refuses beyond that
+            local runs id created name n=0 cutoff
+            cutoff="$(date -u -d '90 days ago' +%Y-%m-%dT%H:%M:%SZ)"
+            runs="$(gh api --paginate -X GET "repos/${GH_REPO}/actions/workflows/$1/runs" -f branch=main -f status=success -f "created=>=${cutoff}" -f per_page=100 --jq '.workflow_runs[] | "\(.id) \(.created_at)"')"
+            while read -r id created; do
+              [ -n "${id}" ] || continue
+              [[ "${id}" =~ ^[0-9]+$ ]] && [[ "${created}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]] || { echo "::error::a run listing entry is not valid; nothing was done." >&2; return 1; }
+              [[ "${created}" > "${cutoff}" ]] || break
+              n=$((n + 1))
+              [ "${n}" -le 200 ] || { echo "::error::no matching artifact within the newest 200 runs; nothing was done." >&2; return 1; }
+              name="$(gh api --paginate -X GET "repos/${GH_REPO}/actions/runs/${id}/artifacts" -f per_page=100 \
+                --jq ".artifacts[] | select(.expired == false) | select(.name | test(\"$2\")) | .name" | sed -n 1p)"
+              if [ -n "${name}" ]; then echo "${name}"; return 0; fi
+            done <<< "${runs}"
+            return 0
+          }
+          content="$(newest_artifact knowledge-publish.yml '^knowledge-[0-9]+-[0-9a-f]{64}$')"
+          [ -n "${content}" ] || fail "no successful content run with a live artifact was found; nothing was signed. See the recovery runbook."
+          rev="${content#knowledge-}"; rev="${rev%%-*}"
+          [ "${LIVE_REVISION}" -ge "${rev}" ] || fail "the live feed (revision ${LIVE_REVISION}) is older than the last content run (revision ${rev}); a stale answer, nothing was signed."
+          refresh="$(newest_artifact knowledge-refresh.yml '^knowledge-refresh-[0-9]+-[0-9]+-[0-9a-f]{64}$')"
+          if [ -n "${refresh}" ]; then
+            rest="${refresh#knowledge-refresh-}"
+            rrev="${rest%%-*}"; rest="${rest#*-}"; rver="${rest%%-*}"
+            if [ "${LIVE_REVISION}" -lt "${rrev}" ] || { [ "${LIVE_REVISION}" -eq "${rrev}" ] && [ "${LIVE_TS_VERSION}" -lt "${rver}" ]; }; then
+              fail "the live feed is older than the last refresh run (revision ${rrev}, timestamp ${rver}); a stale answer, nothing was signed."
+            fi
+          fi
+
+      - name: Decide
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          STATE: ${{ steps.live.outputs.state }}
+          THRESHOLD_DAYS: ${{ vars.KNOWLEDGE_REFRESH_THRESHOLD_DAYS || '7' }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$*"; exit 1; }
+          pending="${STATE}/pending.json"
+          : > "${STATE}/pending.lines"
+          for status in queued in_progress waiting; do
+            res="$(gh api -X GET "repos/${GH_REPO}/actions/workflows/knowledge-publish.yml/runs" -f branch=main -f status="${status}" -f per_page=100)"
+            [ "$(jq -r '.total_count' <<< "${res}")" -le 100 ] || fail "more than 100 ${status} runs; refusing to decide."
+            jq -c '.workflow_runs[] | {id, status, created_at}' <<< "${res}" >> "${STATE}/pending.lines"
+          done
+          jq -s '.' "${STATE}/pending.lines" > "${pending}"
+          LIVE_STATE="${STATE}/live.json" PENDING_RUNS="${pending}" bash "${GITHUB_WORKSPACE}/scripts/knowledge-refresh-decide.sh"
+          [ "${DRY_RUN}" = true ] || DRY_RUN=false
+          echo "dry_run=${DRY_RUN}" >> "${GITHUB_OUTPUT}"
+          if [ "${DRY_RUN}" = true ]; then
+            echo "- dry run: nothing is signed or deployed" >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+      - name: Keep the live package for the refresh job
+        if: ${{ steps.decide.outputs.action == 'refresh' && steps.decide.outputs.dry_run != 'true' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ steps.live.outputs.live_artifact }}
+          path: ${{ steps.live.outputs.state }}/cncf-projects.tar
+          retention-days: 1
+          if-no-files-found: error
+
+  refresh:
+    name: Sign the timestamp
+    needs: decide
+    if: ${{ needs.decide.result == 'success' && needs.decide.outputs.action == 'refresh' && needs.decide.outputs.dry_run != 'true' && github.run_attempt == 1 && github.ref == 'refs/heads/main' }}
+    environment: knowledge-refresh
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      package_digest: ${{ steps.sign.outputs.package_digest }}
+      artifact_name: ${{ steps.sign.outputs.artifact_name }}
+      revision: ${{ steps.sign.outputs.revision }}
+    steps:
+      - name: Check out main
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache: false
+
+      - name: Check the pinned root
+        id: pin
+        env:
+          EXPECTED: ${{ vars.KNOWLEDGE_ROOT_DIGEST }}
+        run: |
+          set -euo pipefail
+          root="${GITHUB_WORKSPACE}/cli/internal/knowledgepin/root.json"
+          [ -s "${root}" ] && [ "$(stat -c %s "${root}")" -le 1048576 ] || { echo "::error::cli/internal/knowledgepin/root.json is missing, empty or too large; nothing was signed."; exit 1; }
+          digest="sha256:$(sha256sum "${root}" | cut -d' ' -f1)"
+          pin="$(grep -o '"cncf-projects":[[:space:]]*"[^"]*"' cli/internal/knowledgepin/pin.go | sed 's/.*"\([^"]*\)"$/\1/')"
+          if [ -z "${EXPECTED}" ] || [ "${EXPECTED}" != "${digest}" ] || [ "${pin}" != "${digest}" ]; then
+            echo "::error::the root digest in KNOWLEDGE_ROOT_DIGEST, in cli/internal/knowledgepin/root.json and in the compiled-in pin are not all equal; nothing was signed."
+            exit 1
+          fi
+          echo "root_digest=${digest}" >> "${GITHUB_OUTPUT}"
+
+      - name: Build the tools
+        working-directory: cli
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/bin"
+          go build -trimpath -buildvcs=false -o "${RUNNER_TEMP}/bin/prufyx" ./cmd/prufyx-community
+          go build -trimpath -buildvcs=false -o "${RUNNER_TEMP}/bin/prufyx-maintainer" ./cmd/prufyx-maintainer
+
+      - name: Download the live package
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ${{ needs.decide.outputs.live_artifact }}
+          path: ${{ runner.temp }}/live
+
+      # The only step with a secret in its environment. It loads the timestamp
+      # key and nothing else; the key files are removed by the EXIT trap and
+      # the later steps hold no secret.
+      - name: Sign the refresh
+        id: sign
+        env:
+          TIMESTAMP_KEY: ${{ secrets.KNOWLEDGE_TIMESTAMP_KEY }}
+          PASSPHRASE: ${{ secrets.KNOWLEDGE_KEY_PASSPHRASE }}
+          ROOT_DIGEST: ${{ steps.pin.outputs.root_digest }}
+          LIVE_DIGEST: ${{ needs.decide.outputs.live_digest }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          umask 077
+          export LC_ALL=C
+          fail() { echo "::error::$*"; exit 1; }
+          [ "${RUN_ATTEMPT}" = 1 ] || fail "a re-run is refused (run_attempt ${RUN_ATTEMPT}); nothing was signed."
+          [[ "${TIMESTAMP_KEY}" =~ [^[:space:]] ]] && [[ "${PASSPHRASE}" =~ [^[:space:]] ]] || fail "the environment knowledge-refresh does not provide the timestamp key and its passphrase; nothing was signed."
+          [[ "${LIVE_DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]] || fail "the live package digest from the decision is not valid; nothing was signed."
+          maint="${RUNNER_TEMP}/bin/prufyx-maintainer"
+          root="${GITHUB_WORKSPACE}/cli/internal/knowledgepin/root.json"
+          live="${RUNNER_TEMP}/live/cncf-projects.tar"
+          [ "$(ls -A "${RUNNER_TEMP}/live")" = "cncf-projects.tar" ] && [ -f "${live}" ] && [ ! -L "${live}" ] || fail "the live artifact does not hold exactly cncf-projects.tar."
+          [ "$(stat -c %s "${live}")" -le "${MAX_PACKAGE_BYTES}" ] || fail "the live package is larger than the package limit."
+          [ "sha256:$(sha256sum "${live}" | cut -d' ' -f1)" = "${LIVE_DIGEST}" ] || fail "the live artifact differs from the package the decision verified."
+          keys="$(mktemp -d "${RUNNER_TEMP}/knowledge-keys.XXXXXX")"
+          trap 'rm -rf "${keys}"' EXIT
+          printf '%s\n' "$(printf '%s' "${TIMESTAMP_KEY}")" > "${keys}/timestamp.key.pem"
+          printf '%s' "${PASSPHRASE}" > "${keys}/passphrase"
+          unset TIMESTAMP_KEY PASSPHRASE
+          out="${RUNNER_TEMP}/refreshed"
+          check_key_shape() { # role, key file: one PEM block and nothing else; read-only, names the role only and never prints key bytes
+            head -n 1 "$2" | grep -q '^-----BEGIN [A-Z0-9 ]*-----$' \
+              && tail -n 1 "$2" | grep -q '^-----END [A-Z0-9 ]*-----$' \
+              && ! grep -q '^[[:space:]]*$' "$2" \
+              || fail "key file or passphrase unusable: the $1 key secret is not a single PEM block; nothing was signed."
+          }
+          check_key_shape timestamp "${keys}/timestamp.key.pem"
+          "${maint}" knowledge-publish refresh-timestamp --profile cncf-projects \
+            --live-package "${live}" --expect-live-package-digest "${LIVE_DIGEST}" \
+            --root "${root}" --root-digest "${ROOT_DIGEST}" \
+            --timestamp-key "${keys}/timestamp.key.pem" --passphrase-file "${keys}/passphrase" \
+            --output-dir "${out}" > "${RUNNER_TEMP}/refresh-result.json" 2> "${RUNNER_TEMP}/refresh-stderr.txt" \
+            || { cat "${RUNNER_TEMP}/refresh-stderr.txt" >&2; fail "the publisher refused the refresh (digest, state, extension or cap, or the key file or passphrase); nothing was signed."; }
+          cat "${RUNNER_TEMP}/refresh-stderr.txt" >&2
+          rm -rf "${keys}"
+          result="${RUNNER_TEMP}/refresh-result.json"
+          revision="$(jq -er '.revision | select(test("^[1-9][0-9]{0,17}$"))' "${result}")" || fail "the result has no valid revision."
+          tsver="$(jq -er '.timestampVersion | select(type == "number" and . >= 1)' "${result}")" || fail "the result has no valid timestamp version."
+          [ "$(jq -r '.livePackageDigest' "${result}")" = "${LIVE_DIGEST}" ] || fail "the result was not built over the live package."
+          pkg="${out}/cncf-projects-${revision}.tar"
+          [ -f "${pkg}" ] && [ ! -L "${pkg}" ] && [ "$(stat -c %s "${pkg}")" -le "${MAX_PACKAGE_BYTES}" ] || fail "the refreshed package is missing or too large."
+          hex="$(sha256sum "${pkg}" | cut -d' ' -f1)"
+          [ "$(jq -r '.packageDigest' "${result}")" = "sha256:${hex}" ] || fail "the refreshed package digest differs from the publisher result."
+          mkdir -m 700 "${RUNNER_TEMP}/artifact"
+          cp "${pkg}" "${RUNNER_TEMP}/artifact/cncf-projects.tar"
+          {
+            echo "revision=${revision}"
+            echo "package_digest=sha256:${hex}"
+            echo "artifact_name=knowledge-refresh-${revision}-${tsver}-${hex}"
+          } >> "${GITHUB_OUTPUT}"
+          {
+            echo "### Knowledge timestamp refreshed"
+            echo ""
+            echo "- revision: ${revision} (unchanged)"
+            echo "- timestamp version: $(jq -r '.previousTimestampVersion' "${result}") -> ${tsver}"
+            echo "- timestamp expires: $(jq -r '.expires' "${result}") (cap $(jq -r '.cap' "${result}"))"
+            echo "- package digest: sha256:${hex}"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Read the oldest supported client pin
+        id: oldest
+        run: |
+          set -euo pipefail
+          pinfile="${GITHUB_WORKSPACE}/cli/knowledge/oldest-supported-client.txt"
+          fail() { echo "::error::$*"; exit 1; }
+          [ -f "${pinfile}" ] && [ "$(stat -c %s "${pinfile}")" -le 1024 ] || fail "cli/knowledge/oldest-supported-client.txt is missing or too large; nothing was uploaded."
+          [ "$(grep -c '' "${pinfile}")" = 2 ] || fail "cli/knowledge/oldest-supported-client.txt must hold exactly the lines ref= and version=; nothing was uploaded."
+          ref="$(sed -n '1p' "${pinfile}")"
+          ver="$(sed -n '2p' "${pinfile}")"
+          [[ "${ref}" =~ ^ref=[0-9a-f]{40}$ ]] || fail "the ref line of cli/knowledge/oldest-supported-client.txt is not a 40-hex commit; nothing was uploaded."
+          [[ "${ver}" =~ ^version=v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z]+\.[0-9]+)?$ ]] || fail "the version line of cli/knowledge/oldest-supported-client.txt is not vMAJOR.MINOR.PATCH[-pre.N]; nothing was uploaded."
+          {
+            echo "ref=${ref#ref=}"
+            echo "version=${ver#version=}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Check out the oldest supported client
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ steps.oldest.outputs.ref }}
+          path: oldest
+          persist-credentials: false
+          fetch-depth: 1
+
+      # The refresh changes only the timestamp, so the oldest supported client
+      # must reach the same outcome on the refreshed package as on the live
+      # one: accept both, or refuse both cleanly (exit 15, engine capability
+      # change). Any other difference or failure leaves the feed untouched.
+      - name: Verify with the oldest supported client
+        env:
+          OLDEST_REF: ${{ steps.oldest.outputs.ref }}
+          OLDEST_VERSION: ${{ steps.oldest.outputs.version }}
+          PACKAGE_DIGEST: ${{ steps.sign.outputs.package_digest }}
+          LIVE_DIGEST: ${{ needs.decide.outputs.live_digest }}
+          REVISION: ${{ steps.sign.outputs.revision }}
+        run: |
+          set -euo pipefail
+          refuse() { echo "::error::the oldest supported client (${OLDEST_VERSION}, ${OLDEST_REF}) cannot be built or treats the refreshed package differently from the live one; the feed keeps the last package. See cli/docs/knowledge-publisher.md." >&2; exit 1; }
+          out="${RUNNER_TEMP}/oldest"
+          mkdir -m 700 "${out}"
+          oroot="${GITHUB_WORKSPACE}/oldest/cli/internal/knowledgepin/root.json"
+          [ -s "${oroot}" ] || refuse
+          (cd "${GITHUB_WORKSPACE}/oldest/cli" && GOTOOLCHAIN=local GOPROXY=off go build -trimpath -buildvcs=false \
+            -ldflags "-X github.com/prufyx/prufyx/cli/internal/buildidentity.Version=${OLDEST_VERSION}" \
+            -o "${out}/prufyx" ./cmd/prufyx-community) || refuse
+          obootstrap=(--bootstrap-root "${oroot}" --bootstrap-root-digest "sha256:$(sha256sum "${oroot}" | cut -d' ' -f1)")
+          outcome() { # package expected-digest tag -> prints ok | too-new, anything else refuses
+            local rc=0
+            "${out}/prufyx" db verify "$1" --profile cncf-projects "${obootstrap[@]}" \
+              --expected-package-digest "$2" --expected-revision "${REVISION}" --format json > "${out}/$3.json" 2> "${out}/$3.err" || rc=$?
+            if [ "${rc}" = 0 ]; then
+              jq -e '.status == "VERIFIED"' "${out}/$3.json" > /dev/null || refuse
+              echo ok
+            elif [ "${rc}" = 15 ] && grep -q "too new for this prufyx\|KNOWLEDGE CAPABILITY MISMATCH" "${out}/$3.err"; then
+              echo too-new
+            else
+              refuse
+            fi
+          }
+          live_outcome="$(outcome "${RUNNER_TEMP}/live/cncf-projects.tar" "${LIVE_DIGEST}" live)"
+          new_outcome="$(outcome "${RUNNER_TEMP}/artifact/cncf-projects.tar" "${PACKAGE_DIGEST}" refreshed)"
+          [ "${live_outcome}" = "${new_outcome}" ] || refuse
+          echo "- oldest supported client ${OLDEST_VERSION} (${OLDEST_REF}): ${new_outcome} on both the live and the refreshed package" >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload the refreshed package
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ steps.sign.outputs.artifact_name }}
+          path: ${{ runner.temp }}/artifact/cncf-projects.tar
+          retention-days: 90
+          if-no-files-found: error
+
+  deploy:
+    name: Deploy to Pages
+    needs: [decide, refresh]
+    if: ${{ needs.refresh.result == 'success' && github.ref == 'refs/heads/main' && github.run_attempt == 1 }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    # One deploy at a time with the content workflow; the deploy guard below
+    # orders them (predecessor digest, timestamp version), not the run number.
+    concurrency:
+      group: knowledge-deploy
+      cancel-in-progress: false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      pages: write
+      id-token: write
+      contents: read
+      actions: read
+    steps:
+      - name: Check out main
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache: false
+
+      - name: Download the refreshed package
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ${{ needs.refresh.outputs.artifact_name }}
+          path: ${{ runner.temp }}/signed
+
+      # The candidate must be built over exactly the package that is live now
+      # and have a higher timestamp version with unchanged targets and
+      # snapshot; anything else (a content release landed meanwhile, a stale
+      # answer) refuses and the next run decides again.
+      - name: Deploy guard
+        env:
+          PACKAGE_DIGEST: ${{ needs.refresh.outputs.package_digest }}
+          PREDECESSOR: ${{ needs.decide.outputs.live_digest }}
+          EXPECTED: ${{ vars.KNOWLEDGE_ROOT_DIGEST }}
+          REVISION: ${{ needs.refresh.outputs.revision }}
+          ARTIFACT_NAME: ${{ needs.refresh.outputs.artifact_name }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        working-directory: cli
+        run: |
+          set -euo pipefail
+          umask 077
+          fail() { echo "::error::$*"; exit 1; }
+          newest_artifact() { # workflow file, name regex -> artifact name of the newest successful run that has one; reads at most 200 runs, none older than 90 days (the artifact retention), and refuses beyond that
+            local runs id created name n=0 cutoff
+            cutoff="$(date -u -d '90 days ago' +%Y-%m-%dT%H:%M:%SZ)"
+            runs="$(gh api --paginate -X GET "repos/${GH_REPO}/actions/workflows/$1/runs" -f branch=main -f status=success -f "created=>=${cutoff}" -f per_page=100 --jq '.workflow_runs[] | "\(.id) \(.created_at)"')"
+            while read -r id created; do
+              [ -n "${id}" ] || continue
+              [[ "${id}" =~ ^[0-9]+$ ]] && [[ "${created}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]] || { echo "::error::a run listing entry is not valid; nothing was done." >&2; return 1; }
+              [[ "${created}" > "${cutoff}" ]] || break
+              n=$((n + 1))
+              [ "${n}" -le 200 ] || { echo "::error::no matching artifact within the newest 200 runs; nothing was done." >&2; return 1; }
+              name="$(gh api --paginate -X GET "repos/${GH_REPO}/actions/runs/${id}/artifacts" -f per_page=100 \
+                --jq ".artifacts[] | select(.expired == false) | select(.name | test(\"$2\")) | .name" | sed -n 1p)"
+              if [ -n "${name}" ]; then echo "${name}"; return 0; fi
+            done <<< "${runs}"
+            return 0
+          }
+          parse_candidate() { # artifact name, revision -> CAND_REVISION and CAND_TS_VERSION; the revision is validated before it is used in a pattern
+            [[ "$2" =~ ^[1-9][0-9]{0,17}$ ]] || fail "the refresh revision is not valid; nothing was deployed."
+            [[ "$1" =~ ^knowledge-refresh-$2-([0-9]+)-[0-9a-f]{64}$ ]] || fail "the artifact name does not match the refresh revision; nothing was deployed."
+            CAND_REVISION="$2"; CAND_TS_VERSION="${BASH_REMATCH[1]}"
+          }
+          artifact_crosscheck() { # candidate revision, candidate timestamp version: refuse when a newer content or refresh run exists
+            local cand_rev="$1" cand_ver="$2" content rev refresh rest rrev rver
+            [[ "${cand_rev}" =~ ^[1-9][0-9]{0,17}$ ]] && [[ "${cand_ver}" =~ ^[1-9][0-9]{0,17}$ ]] || fail "the candidate revision or timestamp version is not valid; nothing was deployed."
+            content="$(newest_artifact knowledge-publish.yml '^knowledge-[0-9]+-[0-9a-f]{64}$')"
+            [ -n "${content}" ] || fail "no successful content run with a live artifact was found; nothing was deployed."
+            rev="${content#knowledge-}"; rev="${rev%%-*}"
+            [ "${rev}" -le "${cand_rev}" ] || fail "a newer content release (revision ${rev}) exists than the candidate (revision ${cand_rev}); nothing was deployed."
+            refresh="$(newest_artifact knowledge-refresh.yml '^knowledge-refresh-[0-9]+-[0-9]+-[0-9a-f]{64}$')"
+            if [ -n "${refresh}" ]; then
+              rest="${refresh#knowledge-refresh-}"
+              rrev="${rest%%-*}"; rest="${rest#*-}"; rver="${rest%%-*}"
+              if [ "${rrev}" -gt "${cand_rev}" ] || { [ "${rrev}" -eq "${cand_rev}" ] && [ "${rver}" -gt "${cand_ver}" ]; }; then
+                fail "a newer refresh (revision ${rrev}, timestamp ${rver}) exists than the candidate (revision ${cand_rev}, timestamp ${cand_ver}); nothing was deployed."
+              fi
+            fi
+          }
+          parse_candidate "${ARTIFACT_NAME}" "${REVISION}"
+          artifact_crosscheck "${CAND_REVISION}" "${CAND_TS_VERSION}"
+          root="${GITHUB_WORKSPACE}/cli/internal/knowledgepin/root.json"
+          [ -s "${root}" ] || fail "cli/internal/knowledgepin/root.json is missing; nothing was deployed."
+          root_digest="sha256:$(sha256sum "${root}" | cut -d' ' -f1)"
+          [ "${EXPECTED}" = "${root_digest}" ] || fail "KNOWLEDGE_ROOT_DIGEST differs from cli/internal/knowledgepin/root.json; nothing was deployed."
+          pkg="${RUNNER_TEMP}/signed/cncf-projects.tar"
+          [ "$(ls -A "${RUNNER_TEMP}/signed")" = "cncf-projects.tar" ] || fail "the artifact does not hold exactly cncf-projects.tar."
+          [ -f "${pkg}" ] && [ ! -L "${pkg}" ] || fail "the package is not a regular file."
+          [ "$(stat -c %s "${pkg}")" -le "${MAX_PACKAGE_BYTES}" ] || fail "the package is larger than the package limit."
+          [ "sha256:$(sha256sum "${pkg}" | cut -d' ' -f1)" = "${PACKAGE_DIGEST}" ] || fail "the artifact digest differs from the digest the refresh job reported."
+          go build -trimpath -buildvcs=false -o "${RUNNER_TEMP}/prufyx-maintainer" ./cmd/prufyx-maintainer
+          live="$(mktemp -d "${RUNNER_TEMP}/knowledge-live.XXXXXX")"
+          curl --proto '=https' --max-redirs 0 --max-filesize "${MAX_PACKAGE_BYTES}" --max-time 60 -fsS \
+            -H 'Cache-Control: no-cache' -o "${live}/cncf-projects.tar" -- "${FEED_URL}" \
+            || fail "the live feed could not be downloaded; nothing was deployed."
+          "${RUNNER_TEMP}/prufyx-maintainer" knowledge-publish deploy-guard --profile cncf-projects \
+            --live-package "${live}/cncf-projects.tar" --candidate-package "${pkg}" \
+            --root "${root}" --root-digest "${root_digest}" --predecessor-digest "${PREDECESSOR}" \
+            || fail "the deploy guard refused: the live package is not the one the refresh was built over, or the candidate is not a pure timestamp refresh; nothing was deployed."
+
+      - name: Build the client
+        working-directory: cli
+        run: |
+          set -euo pipefail
+          go build -trimpath -buildvcs=false -o "${RUNNER_TEMP}/prufyx" ./cmd/prufyx-community
+
+      - name: Verify and assemble the site
+        env:
+          PACKAGE_DIGEST: ${{ needs.refresh.outputs.package_digest }}
+          REVISION: ${{ needs.refresh.outputs.revision }}
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$*"; exit 1; }
+          root="${GITHUB_WORKSPACE}/cli/internal/knowledgepin/root.json"
+          root_digest="sha256:$(sha256sum "${root}" | cut -d' ' -f1)"
+          pkg="${RUNNER_TEMP}/signed/cncf-projects.tar"
+          receipt="$("${RUNNER_TEMP}/prufyx" db verify "${pkg}" --profile cncf-projects \
+            --bootstrap-root "${root}" --bootstrap-root-digest "${root_digest}" \
+            --expected-package-digest "${PACKAGE_DIGEST}" --expected-revision "${REVISION}" --format json)" \
+            || fail "the package does not verify against the pinned root; nothing was deployed."
+          site="${RUNNER_TEMP}/site"
+          mkdir -p "${site}/knowledge"
+          cp "${pkg}" "${site}/knowledge/cncf-projects.tar"
+          cp "${root}" "${site}/knowledge/root.json"
+          jq '{revision: .knowledgeRevision, packageDigest: .packageDigest, bundleDigest: .targetDigest, timestampVersion: .timestamp.version, expires: .timestamp.expires, evidenceExpiresAt: .evidenceExpiresAt}' \
+            <<< "${receipt}" > "${site}/knowledge/status.json"
+          {
+            echo "### Knowledge timestamp refresh deployed"
+            echo ""
+            echo "- revision: ${REVISION}"
+            echo "- package digest: ${PACKAGE_DIGEST}"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Configure Pages
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
+        with:
+          path: ${{ runner.temp }}/site
+
+      - name: Deploy to Pages
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
+
+      # The live feed must serve the refreshed package and verify with the
+      # pinned client; the CDN can lag, so poll for a few minutes.
+      - name: Verify the live feed
+        env:
+          PACKAGE_DIGEST: ${{ needs.refresh.outputs.package_digest }}
+          REVISION: ${{ needs.refresh.outputs.revision }}
+        run: |
+          set -euo pipefail
+          root="${GITHUB_WORKSPACE}/cli/internal/knowledgepin/root.json"
+          root_digest="sha256:$(sha256sum "${root}" | cut -d' ' -f1)"
+          feed="${RUNNER_TEMP}/feed.tar"
+          for _ in 1 2 3 4 5 6 7 8 9 10; do
+            if curl --proto '=https' --max-redirs 0 --max-filesize "${MAX_PACKAGE_BYTES}" --max-time 60 -fsS \
+                 -H 'Cache-Control: no-cache' -o "${feed}" -- "${FEED_URL}" \
+               && [ "sha256:$(sha256sum "${feed}" | cut -d' ' -f1)" = "${PACKAGE_DIGEST}" ]; then
+              "${RUNNER_TEMP}/prufyx" db verify "${feed}" --profile cncf-projects \
+                --bootstrap-root "${root}" --bootstrap-root-digest "${root_digest}" \
+                --expected-package-digest "${PACKAGE_DIGEST}" --expected-revision "${REVISION}" --format json > /dev/null
+              echo "- the live feed serves and verifies the refreshed package" >> "${GITHUB_STEP_SUMMARY}"
+              exit 0
+            fi
+            sleep 30
+          done
+          echo "::error::the live feed does not serve the refreshed package after 5 minutes."
+          exit 1
+
+  alarm:
+    name: Alarm
+    needs: [decide, refresh, deploy]
+    if: ${{ always() && needs.decide.result == 'success' && needs.decide.outputs.alarm == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Fail the run
+        env:
+          ALARM_TEXT: ${{ needs.decide.outputs.alarm_text }}
+        run: |
+          set -euo pipefail
+          {
+            echo "### ALARM: knowledge feed needs a content release"
+            echo ""
+            echo "${ALARM_TEXT}"
+          } >> "${GITHUB_STEP_SUMMARY}"
+          echo "::error::${ALARM_TEXT}"
+          exit 1
