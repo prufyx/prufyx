@@ -92,8 +92,8 @@ class Counts(unittest.TestCase):
 
 
 class StageCompleteness(unittest.TestCase):
-    kube = {"component": "kubernetes"}
-    uncovered = {"component": "kubernetes", "gaps": [{"reason": "COMPONENT_NOT_COVERED"}]}
+    kube = {"component": "kubernetes", "hopStatus": "COVERED"}
+    uncovered = {"component": "kubernetes", "hopStatus": "COVERED", "gaps": [{"reason": "COMPONENT_NOT_COVERED"}]}
 
     def call(self, stage, got, exp, ok=True, missing=(), wp=False, mm=False):
         return k8s.stage_is_complete(stage, got, exp, ok, list(missing), wp, mm)
@@ -102,11 +102,25 @@ class StageCompleteness(unittest.TestCase):
         self.assertTrue(self.call(self.uncovered, "BLOCKED", True))
 
     def test_api_version_not_reviewed_gap_is_scope_limit(self):
-        stage = {"component": "kubernetes", "gaps": [{"reason": "API_VERSION_NOT_REVIEWED"}]}
+        stage = {"component": "kubernetes", "hopStatus": "COVERED", "gaps": [{"reason": "API_VERSION_NOT_REVIEWED"}]}
         self.assertTrue(self.call(stage, "UNKNOWN", False))
 
     def test_unknown_without_removals_from_uncovered_areas_is_complete(self):
         self.assertTrue(self.call(self.uncovered, "UNKNOWN", False))
+
+    def test_unknown_requires_covered_hop(self):
+        base = {"component": "kubernetes", "gaps": []}
+        self.assertTrue(self.call(dict(base, hopStatus="COVERED", reasons=["HOP_ACTIONS_NOT_CHECKED"]), "UNKNOWN", False))
+        self.assertFalse(self.call(dict(base, hopStatus="NO_DATA"), "UNKNOWN", False))
+        self.assertFalse(self.call(dict(base, hopStatus="PARTIAL"), "UNKNOWN", False))
+        self.assertFalse(self.call(dict(base), "UNKNOWN", False))
+        self.assertFalse(self.call(dict(base, hopStatus="COVERED", reasons=["HOP_NOT_COVERED"]), "UNKNOWN", False))
+        self.assertFalse(self.call(dict(base, hopStatus="NO_DATA", reasons=["HOP_NOT_COVERED"]), "UNKNOWN", False))
+
+    def test_stage_pass_verdicts_are_not_accepted_without_removals(self):
+        # the plan never emits SCOPE_COMPLETE_PASS for a stage; both PASS-like verdicts fail closed
+        for verdict in ("PASS", "SCOPE_COMPLETE_PASS"):
+            self.assertFalse(self.call(self.kube, verdict, False))
 
     def test_unknown_when_removals_expected_is_not_complete(self):
         self.assertFalse(self.call(self.uncovered, "UNKNOWN", True))

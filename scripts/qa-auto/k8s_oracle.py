@@ -41,8 +41,12 @@ def stage_is_complete(stage, got, expect_removed, input_complete, missing, wrong
         return False
     if expect_removed:
         return got == "BLOCKED"
-    # nothing removed in this hop: a PASS claim or UNKNOWN caused only by uncovered areas is acceptable
-    return got in ("SCOPE_COMPLETE_PASS", "UNKNOWN")
+    # nothing removed in this hop: UNKNOWN caused only by uncovered areas is acceptable, but only when the scan
+    # covered the hop itself. A hop with no or partial data is a knowledge hole, not a scope limit. The plan emits
+    # stage verdicts PASS or UNKNOWN only (never SCOPE_COMPLETE_PASS), so only UNKNOWN is accepted here.
+    if stage.get("hopStatus") != "COVERED" or "HOP_NOT_COVERED" in (stage.get("reasons") or []):
+        return False
+    return got == "UNKNOWN"
 
 
 def verified_absent_ref(minor):
