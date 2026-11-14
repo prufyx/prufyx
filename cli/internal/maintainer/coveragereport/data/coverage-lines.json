@@ -1342,6 +1342,7 @@
       }
     },
     "burrito": {
+      "capturedOn": "2026-11-10",
       "lines": [
         "0.1",
         "0.2",
@@ -2060,6 +2061,7 @@
       }
     },
     "chaosblade-operator": {
+      "capturedOn": "2026-11-10",
       "lines": [
         "0.0",
         "0.4",
@@ -9763,6 +9765,7 @@
       }
     },
     "furiko": {
+      "capturedOn": "2026-11-10",
       "lines": [
         "0.0",
         "0.1",
@@ -9875,6 +9878,7 @@
       }
     },
     "github-actions-runner-operator": {
+      "capturedOn": "2026-11-10",
       "lines": [
         "0.0",
         "0.1",
@@ -12583,6 +12587,7 @@
       }
     },
     "k8s-cleaner": {
+      "capturedOn": "2026-11-10",
       "lines": [
         "0.1",
         "0.2",
@@ -14205,6 +14210,7 @@
       }
     },
     "kmesh": {
+      "capturedOn": "2026-11-10",
       "lines": [
         "0.1",
         "0.2",
@@ -15440,6 +15446,7 @@
       }
     },
     "kubemod": {
+      "capturedOn": "2026-11-10",
       "lines": [
         "0.4",
         "0.5",
@@ -18136,6 +18143,7 @@
       }
     },
     "movetokube-postgres-operator": {
+      "capturedOn": "2026-11-10",
       "lines": [
         "0.4",
         "0.5",
@@ -18582,6 +18590,7 @@
       }
     },
     "ollama-operator": {
+      "capturedOn": "2026-11-10",
       "lines": [
         "0.1",
         "0.2",

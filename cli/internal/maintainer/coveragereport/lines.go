@@ -37,6 +37,13 @@ type ProjectLines struct {
 	Component string `json:"component,omitempty"`
 	// Priority marks the project as part of the priority portfolio.
 	Priority bool `json:"priority,omitempty"`
+	// CapturedOn is the optional YYYY-MM-DD date this project's tag listing
+	// was captured, when it differs from the file's. Present, it replaces the
+	// file-level capturedOn for this project's snapshot age, exactly as an
+	// addition's own capture date does. It never moves the evaluation clock
+	// and may not be after the file's evaluation date. (In an addition entry
+	// the entry's own capturedOn member shadows it.)
+	CapturedOn string `json:"capturedOn,omitempty"`
 	// Scheme is the optional release scheme of the project's tags
 	// (crdversions.SchemeCalverEdge); absent means final semver tags. A
 	// scheme project's lines are calendar months YY.M.
@@ -102,6 +109,17 @@ func ParseLines(raw []byte) (LinesFile, error) {
 		if err := validateProject(slug, p); err != nil {
 			return LinesFile{}, err
 		}
+		if p.CapturedOn != "" {
+			// Fail closed: the project date must sit under a dated file and
+			// may not be after the date the file is evaluated on.
+			evalOn := f.PinnedOn
+			if evalOn == "" {
+				evalOn = f.CapturedOn
+			}
+			if evalOn == "" || p.CapturedOn > evalOn {
+				return LinesFile{}, fmt.Errorf("%w: lines: %s: capturedOn is after the file's evaluation date", ErrInvalid, slug)
+			}
+		}
 	}
 	return f, nil
 }
@@ -111,6 +129,9 @@ func ParseLines(raw []byte) (LinesFile, error) {
 func validateProject(slug string, p ProjectLines) error {
 	if !slugRE.MatchString(slug) {
 		return fmt.Errorf("%w: lines: bad project slug", ErrInvalid)
+	}
+	if p.CapturedOn != "" && !validDate(p.CapturedOn) {
+		return fmt.Errorf("%w: lines: %s: capturedOn is not a date", ErrInvalid, slug)
 	}
 	if p.Scheme != "" && !slices.Contains(crdversions.ReleaseSchemes, p.Scheme) {
 		return fmt.Errorf("%w: lines: %s: unknown scheme %q", ErrInvalid, slug, p.Scheme)
