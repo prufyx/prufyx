@@ -1,0 +1,18 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "kiali",
+    "catalog": "community",
+    "name": "Kiali",
+    "repo": "github.com/kiali/kiali-operator",
+    "component": "pkg:github/kiali/kiali-operator",
+    "factProject": "kiali",
+    "tagPrefixes": ["v"],
+    "minFrom": "2.29",
+    "paths": [
+      {"path": "crd-docs/crd/kiali.io_kialis.yaml"},
+      {"path": "crd-docs/crd/kiali.io_ossmconsoles.yaml"}
+    ],
+    "exclude": []
+  }
+}

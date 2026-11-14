@@ -44,6 +44,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `kbind` | CNCF | `component.kbind.custom_resource_versions_set` | `kube-bind.io` |
 | `kcp` | CNCF | `component.kcp.custom_resource_versions_set` | `apis.kcp.io`, `cache.kcp.io`, `core.kcp.io`, `migration.kcp.io`, `tenancy.kcp.io`, `topology.kcp.io` |
 | `keda` | CNCF | `component.keda.custom_resource_versions_set` | `eventing.keda.sh`, `keda.sh` |
+| `kiali` | community | `component.kiali.custom_resource_versions_set` | `kiali.io` (Kiali, OSSMConsole) |
 | `kmesh` | CNCF | `component.kmesh.custom_resource_versions_set` | `kmesh.net` |
 | `kong-ingress-controller` | community | `component.kong_ingress_controller.custom_resource_versions_set` | `configuration.konghq.com` |
 | `koordinator` | CNCF | `component.koordinator.custom_resource_versions_set` | `analysis.koordinator.sh`, `config.koordinator.sh`, `quota.koordinator.sh`, `scheduling.koordinator.sh`, `slo.koordinator.sh` |
@@ -115,6 +116,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `grafana-operator` | grafana-operator | https://github.com/grafana/grafana-operator | [`Apache-2.0`](https://github.com/grafana/grafana-operator/blob/3e68ec4c3c706d5d3ca45c7f2d141a5336f243e4/LICENSE) |
 | `k6-operator` | k6-operator | https://github.com/grafana/k6-operator | [`Apache-2.0`](https://github.com/grafana/k6-operator/blob/925e2a750ca572a4ff3f0414c4b11dd649d040cb/LICENSE) |
 | `k8s-cleaner` | k8s-cleaner | https://github.com/gianlucam76/k8s-cleaner | [`Apache-2.0`](https://github.com/gianlucam76/k8s-cleaner/blob/d733e5954391774658eea53dcb111f8272e8a23f/LICENSE) |
+| `kiali` | Kiali | https://github.com/kiali/kiali-operator | [`Apache-2.0`](https://github.com/kiali/kiali-operator/blob/44ee8f970668e9249ad03005cf88bfad5191c48b/LICENSE) |
 | `kong-ingress-controller` | Kong Ingress Controller | https://github.com/kong/kubernetes-ingress-controller | [`Apache-2.0`](https://github.com/kong/kubernetes-ingress-controller/blob/17f5dafd2a447a7e5ff7be84006a83787ac2882c/LICENSE) |
 | `kube-green` | kube-green | https://github.com/kube-green/kube-green | [`MIT`](https://github.com/kube-green/kube-green/blob/335696fad48024429afc421c104f5a76088a667d/LICENSE) |
 | `kubemod` | kubemod | https://github.com/kubemod/kubemod | [`BSD-3-Clause`](https://github.com/kubemod/kubemod/blob/f030b2756ec873d0290e0561f95b8ab64a78dd95/LICENSE) |

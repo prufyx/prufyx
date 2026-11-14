@@ -703,6 +703,28 @@
       ]
     },
     {
+      "slug": "kiali",
+      "catalog": "community",
+      "upstream": {
+        "name": "Kiali",
+        "repository": "https://github.com/kiali/kiali-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/kiali/kiali-operator/blob/44ee8f970668e9249ad03005cf88bfad5191c48b/LICENSE"
+      },
+      "factProject": "kiali",
+      "component": "pkg:github/kiali/kiali-operator",
+      "groups": [
+        {
+          "name": "kiali.io",
+          "source": "https://github.com/kiali/kiali-operator/blob/d30a3062fd966b83371d54cb381883ce6c93ebf4/crd-docs/crd/kiali.io_kialis.yaml",
+          "kinds": [
+            "Kiali",
+            "OSSMConsole"
+          ]
+        }
+      ]
+    },
+    {
       "slug": "kmesh",
       "catalog": "cncf",
       "factProject": "kmesh",
