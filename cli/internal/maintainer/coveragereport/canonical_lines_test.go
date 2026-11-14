@@ -66,7 +66,9 @@ func TestCanonicalLinesEqualPinnedUnion(t *testing.T) {
 		t.Fatal(err)
 	}
 	for slug, e := range add.Additions {
-		pinned.Projects[slug] = e.ProjectLines
+		pl := e.ProjectLines
+		pl.CapturedOn = e.CapturedOn
+		pinned.Projects[slug] = pl
 	}
 	if !reflect.DeepEqual(canon.Projects, pinned.Projects) {
 		t.Fatal("canonical projects differ from pinned snapshot plus additions")
@@ -74,11 +76,12 @@ func TestCanonicalLinesEqualPinnedUnion(t *testing.T) {
 	if canon.CapturedOn != pinnedCapturedOn(t, pinnedRaw) {
 		t.Errorf("capturedOn %q differs from the pinned snapshot's", canon.CapturedOn)
 	}
-	// Per-project capture dates are dropped on purpose: the single capturedOn
-	// must not be newer than any addition's own capture date.
+	// The file-level date is the pinned snapshot's; each addition keeps its
+	// own capture date as a per-project capturedOn, and no other project has
+	// one (the DeepEqual above covers both).
 	for slug, e := range add.Additions {
-		if canon.CapturedOn > e.CapturedOn {
-			t.Errorf("capturedOn %q is newer than the capture date %q of %s", canon.CapturedOn, e.CapturedOn, slug)
+		if canon.Projects[slug].CapturedOn != e.CapturedOn {
+			t.Errorf("%s: capturedOn %q, its capture date is %q", slug, canon.Projects[slug].CapturedOn, e.CapturedOn)
 		}
 	}
 	date, err := EvaluationClockDate(pinned, add)
@@ -111,6 +114,52 @@ func TestCanonicalLinesMutationsRejected(t *testing.T) {
 		}
 		if _, err := ParseLines([]byte(mutated)); err == nil {
 			t.Errorf("%s: accepted", name)
+		}
+	}
+}
+
+// A report computed from the canonical file alone equals the report of the
+// README block inputs (pinned snapshot plus additions): every project, every
+// count and every completion reason, so no addition loses its own capture date.
+func TestCanonicalLinesReportEqualsReadmeInputs(t *testing.T) {
+	canonRaw := readCanonicalLines(t)
+	pinnedRaw, err := os.ReadFile("../../../../" + PinnedLinesPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	addRaw, err := os.ReadFile("../../../../" + PinnedAdditionsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	packRaw, err := os.ReadFile("testdata/pack-cncf-2026-09-13.4-reduced.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	canon, _ := ParseLines(canonRaw)
+	pinned, _ := ParseLines(pinnedRaw)
+	add, err := ParseAdditions(addRaw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now, err := EvaluationClock(pinned, add)
+	if err != nil {
+		t.Fatal(err)
+	}
+	alone, err := EvaluationClock(canon, AdditionsFile{})
+	if err != nil || !alone.Equal(now) {
+		t.Fatalf("canonical clock %v, README clock %v (%v)", alone, now, err)
+	}
+	for _, all := range []bool{false, true} {
+		want, err := Compute(Input{Pack: packRaw, Lines: pinnedRaw, Additions: addRaw, Now: now, All: all})
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, err := Compute(Input{Pack: packRaw, Lines: canonRaw, Now: now, All: all})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(want.Fleet, got.Fleet) || !reflect.DeepEqual(want.Projects, got.Projects) {
+			t.Errorf("all=%v: report from the canonical file differs from the README inputs", all)
 		}
 	}
 }

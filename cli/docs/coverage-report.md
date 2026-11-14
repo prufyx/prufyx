@@ -126,6 +126,13 @@ other value is rejected.
 `pinnedOn` is optional (`YYYY-MM-DD`, not before `capturedOn`): the date the
 README coverage block is evaluated on, noon of that day. It is not a capture
 date and is printed beside it. Absent, the block is evaluated on `capturedOn`.
+
+A project entry may carry its own optional `capturedOn` (`YYYY-MM-DD`): the
+capture date of that project's tag listing when it differs from the file's.
+It replaces the file-level date for that project's snapshot age only, never
+moves the evaluation clock, and is refused when it is after the file's
+evaluation date (`pinnedOn`, else `capturedOn`) or the file has no date.
+Files without it are read and written exactly as before.
 A binary that predates it rejects a file that holds it.
 
 `releases` maps a line to the final releases of that line, ascending
@@ -146,12 +153,12 @@ the README block is still measured against the pinned paths in `readme.go`.
 
 `capturedOn` is the pinned snapshot's date (2026-10-31), the oldest date in the
 union, deliberately conservative; it must not be switched to the newest. The
-nine additions' own capture date (2026-11-10), `tagFileSha256` and
-`entryDigest` are not carried by the lines schema, so a report computed from
-this file alone can show different staleness than the README block. A consumer
-must keep reading the additions file, or a later additive schema change must
-add a per-project capture field (binaries built before that change reject
-unknown fields).
+nine additions carry their own capture date (2026-11-10) as a per-project
+`capturedOn`, which replaces the file-level date for that project's snapshot
+age exactly as an addition's date does, so a report computed from this file
+alone equals the README block's numbers. `tagFileSha256` and `entryDigest` are
+not carried by the lines schema; they stay in the additions file. Binaries
+built before the per-project field reject it as an unknown field.
 
 ### Building the snapshot from tags
 
