@@ -41,6 +41,8 @@ const (
 	StopFilterHidesUnowned    = "filter-hides-unowned-group"
 	StopPathFilterCount       = "path-filter-count-mismatch"
 	StopRepoNotCanonical      = "repo-not-canonical"
+	StopComponentNotCanonical = "component-not-canonical"
+	StopUpstreamNotCanonical  = "upstream-not-canonical"
 )
 
 var nextAction = map[string]string{
@@ -71,6 +73,8 @@ var nextAction = map[string]string{
 	StopPathFilterCount:       "a pathFilter entry matches a different number of files than its pinned expectFiles at this tag; re-review the files the glob matches and pin the exact count, or narrow the glob",
 	StopFilterHidesOwned:      "a pathFilter entry matches a file that defines a group the target reads; narrow the glob or review the file as install surface",
 	StopRepoNotCanonical:      "use the canonical lower-case form github.com/<owner>/<name> (no scheme, no .git suffix, no spaces, no capital letters)",
+	StopComponentNotCanonical: "use pkg:github/<owner>/<name> in lower case, matching the repository",
+	StopUpstreamNotCanonical:  "a community row's upstream.repository must be https://github.com/<owner>/<name> of the repository, its licenseSource a /blob/<40-hex commit>/LICENSE or COPYING file under it with a valid license expression; a CNCF row takes no upstream block",
 	StopCommunityUpstream:     "a community-catalog row needs the upstream block (name, repository, license, licenseSource) in the rules file",
 }
 

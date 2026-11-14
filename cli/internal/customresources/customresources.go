@@ -473,6 +473,22 @@ func validKinds(kinds []string) bool {
 // (a reserved group names no kinds).
 func Validate(projects []Project) bool { return validate(projects, reserved) }
 
+// ValidUpstream reports whether u is the provenance block table validation
+// requires for a row of the given catalog and component: none for a CNCF row;
+// for a community row the repository named by the component, a licence
+// expression and a licence file under that repository.
+func ValidUpstream(catalog Catalog, component string, u Upstream) bool {
+	repository := "https://github.com/" + strings.TrimPrefix(component, "pkg:github/")
+	switch catalog {
+	case CatalogCNCF:
+		return u == (Upstream{})
+	case CatalogCommunity:
+		license, found := strings.CutPrefix(u.LicenseSource, repository)
+		return strings.TrimSpace(u.Name) == u.Name && u.Name != "" && len(u.Name) <= 64 && u.Repository == repository && licenseRE.MatchString(u.License) && found && licenseFileRE.MatchString(license)
+	}
+	return false
+}
+
 func validate(projects []Project, records []ReservedGroup) bool {
 	listed := map[string][]string{}
 	listedKinds := map[string][][]string{}
@@ -484,18 +500,7 @@ func validate(projects []Project, records []ReservedGroup) bool {
 			return false
 		}
 		repository := "https://github.com/" + strings.TrimPrefix(p.Component, "pkg:github/")
-		switch p.Catalog {
-		case CatalogCNCF:
-			if p.Upstream != (Upstream{}) {
-				return false
-			}
-		case CatalogCommunity:
-			u := p.Upstream
-			license, found := strings.CutPrefix(u.LicenseSource, repository)
-			if strings.TrimSpace(u.Name) != u.Name || u.Name == "" || len(u.Name) > 64 || u.Repository != repository || !licenseRE.MatchString(u.License) || !found || !licenseFileRE.MatchString(license) {
-				return false
-			}
-		default:
+		if (p.Catalog != CatalogCNCF && p.Catalog != CatalogCommunity) || !ValidUpstream(p.Catalog, p.Component, p.Upstream) {
 			return false
 		}
 		for j, g := range p.Groups {

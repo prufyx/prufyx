@@ -82,6 +82,9 @@ func Generate(in Input) (*Result, error) {
 	if component == "" {
 		component = "pkg:github/" + ownerRepo
 	}
+	if component != "pkg:github/"+ownerRepo {
+		return nil, &StopError{Stops: []Stop{stop(StopComponentNotCanonical, component, "")}}
+	}
 	fact := in.FactProject
 	if fact == "" {
 		fact = strings.ReplaceAll(in.Slug, "-", "_")
@@ -94,6 +97,17 @@ func Generate(in Input) (*Result, error) {
 		u := rules.Upstream
 		if u == nil || u.Name == "" || u.Repository == "" || u.License == "" || u.LicenseSource == "" {
 			return nil, &StopError{Stops: []Stop{stop(StopCommunityUpstream, in.Slug, "")}}
+		}
+	}
+	// The table loader refuses anything else at start-up, so refuse it here,
+	// by the same validator, before any file is produced.
+	if u := rules.Upstream; u != nil || catalog == crdversions.CatalogCommunity {
+		var cu customresources.Upstream
+		if u != nil {
+			cu = customresources.Upstream{Name: u.Name, Repository: u.Repository, License: u.License, LicenseSource: u.LicenseSource}
+		}
+		if !customresources.ValidUpstream(customresources.Catalog(catalog), component, cu) || (u != nil && catalog == crdversions.CatalogCNCF) {
+			return nil, &StopError{Stops: []Stop{stop(StopUpstreamNotCanonical, in.Slug, "")}}
 		}
 	}
 
