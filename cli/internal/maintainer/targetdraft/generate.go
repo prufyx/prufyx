@@ -240,6 +240,9 @@ func Generate(in Input) (*Result, error) {
 	if in.CollapseDirectories {
 		var dstops []Stop
 		dirs, dstops = collapseDirs(collapseInput(window))
+		if len(dstops) == 0 && len(dirs) == 0 {
+			dstops = []Stop{stop(StopDirUnsupported, "", "no directory to collapse")}
+		}
 		if len(dstops) > 0 {
 			return nil, &StopError{Stops: sortStops(dstops)}
 		}

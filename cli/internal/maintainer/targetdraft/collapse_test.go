@@ -363,6 +363,23 @@ func TestCollapseDirsSetDiffersBetweenTags(t *testing.T) {
 	if dirs, stops = collapseDirs(nil); dirs != nil || len(stops) == 0 {
 		t.Fatal("no tags must stop")
 	}
+	// Zero install files: never (nil, nil), which would read as exact files.
+	empty := collapseTag{Tag: "t"}
+	if dirs, stops = collapseDirs([]collapseTag{empty, empty}); dirs != nil || len(stops) == 0 || stops[0].Code != StopDirUnsupported {
+		t.Fatalf("zero directories must be a typed stop: %v %v", dirs, stops)
+	}
+	// An extra install file only at an OLDER tag.
+	old := mk("t1", "a.yaml")
+	old.Included = append(old.Included, includedFile{Path: "e/x.yaml"})
+	newer := mk("t2", "a.yaml")
+	if dirs, stops = collapseDirs([]collapseTag{old, newer}); dirs != nil || len(stops) == 0 || stops[0].Code != StopDirSetDiffers {
+		t.Fatalf("an older tag's extra install file must be dir-set-differs: %v %v", dirs, stops)
+	}
+	// A vendored install file is never collapsed.
+	v := collapseTag{Tag: "t", Included: []includedFile{{Path: "d/vendor/x.yaml"}}}
+	if dirs, stops = collapseDirs([]collapseTag{v, v}); dirs != nil || len(stops) == 0 || stops[0].Code != StopDirUnsupported {
+		t.Fatalf("d/vendor/x.yaml must be unsupported: %v %v", dirs, stops)
+	}
 }
 
 // Map order never reaches the output: many files, many runs.
@@ -528,9 +545,11 @@ func TestDiffSeesDirectoryPatterns(t *testing.T) {
 	}
 }
 
-// The generator never touches extractor code, the guard or the digest inputs:
-// a run, collapse included, leaves every file under crdversions as it was, and
-// no non-test source of this package writes outside the atomic --out writer.
+// A run, collapse included, leaves every file under crdversions as it was, and
+// no non-test source of this package other than cli.go and source.go (the
+// local git reader) writes files or runs commands. This is a smoke check; the
+// real guarantee is the PR diff path allowlist (nothing under
+// extract/crdversions changes).
 func TestCollapseDoesNotTouchExtractor(t *testing.T) {
 	root := filepath.Join("..", "..", "extract", "crdversions")
 	before := treeDigest(t, root)
@@ -551,11 +570,11 @@ func TestCollapseDoesNotTouchExtractor(t *testing.T) {
 			t.Fatalf("%s under crdversions changed", p)
 		}
 	}
-	writers := regexp.MustCompile(`os\.(WriteFile|Create|OpenFile|Rename|Remove|RemoveAll|Mkdir|MkdirAll|MkdirTemp|Chmod|Symlink)\(`)
+	writers := regexp.MustCompile(`(os|ioutil)\.(WriteFile|Create|OpenFile|Rename|Remove|RemoveAll|Mkdir|MkdirAll|MkdirTemp|Chmod|Symlink|CreateTemp)\(|exec\.Command`)
 	ents, _ := os.ReadDir(".")
 	for _, e := range ents {
 		n := e.Name()
-		if e.IsDir() || !strings.HasSuffix(n, ".go") || strings.HasSuffix(n, "_test.go") || n == "cli.go" {
+		if e.IsDir() || !strings.HasSuffix(n, ".go") || strings.HasSuffix(n, "_test.go") || n == "cli.go" || n == "source.go" {
 			continue
 		}
 		if writers.Match(readFile(t, n)) {

@@ -94,8 +94,8 @@ func collapseDirs(tags []collapseTag) ([]collapsedDir, []Stop) {
 			stops = append(stops, stop(StopDirUnsupported, f.Path, "installed through a symbolic link; it stays an exact file"))
 		case d == "." || !cleanRepoDir(d):
 			stops = append(stops, stop(StopDirUnsupported, f.Path, "not inside a directory that can be a directory entry"))
-		case testLike(f.Path) || defaultExcludedPath(f.Path):
-			stops = append(stops, stop(StopDirUnsupported, f.Path, "inside a test-like or default-excluded directory"))
+		case testLike(f.Path):
+			stops = append(stops, stop(StopDirUnsupported, f.Path, "inside a test-like directory (includes the default-excluded segments such as vendor)"))
 		default:
 			dirSet[d] = true
 		}
@@ -161,6 +161,10 @@ func collapseDirs(tags []collapseTag) ([]collapsedDir, []Stop) {
 		if len(extra)+len(missing) > 0 {
 			stops = append(stops, stop(StopDirSetDiffers, t.Tag, fmt.Sprintf("the directories would read %v and miss %v of the install files", missing, extra)))
 		}
+	}
+	if len(stops) == 0 && len(out) == 0 {
+		// Never (nil, nil): the caller reads nil as exact files.
+		stops = append(stops, stop(StopDirUnsupported, "", "no directory to collapse"))
 	}
 	if len(stops) > 0 {
 		return nil, sortStops(dedupStops(stops))
