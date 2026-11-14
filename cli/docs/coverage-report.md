@@ -136,6 +136,23 @@ without an entry cannot be compared. The member is additive to schema
 `prufyx.io/coverage-lines/v1`: a binary that predates it rejects a file that
 holds it, so an old tool never reads such a snapshot silently.
 
+### Canonical snapshot
+
+`internal/maintainer/coveragereport/data/coverage-lines.json` is the canonical
+release-lines snapshot: the pinned snapshot plus the additions file, merged into
+one lines file in canonical form (`MarshalLines`). It is refreshed only by a
+reviewed pull request; automated capture is a later step. Nothing reads it yet:
+the README block is still measured against the pinned paths in `readme.go`.
+
+`capturedOn` is the pinned snapshot's date (2026-10-31), the oldest date in the
+union, deliberately conservative; it must not be switched to the newest. The
+nine additions' own capture date (2026-11-10), `tagFileSha256` and
+`entryDigest` are not carried by the lines schema, so a report computed from
+this file alone can show different staleness than the README block. A consumer
+must keep reading the additions file, or a later additive schema change must
+add a per-project capture field (binaries built before that change reject
+unknown fields).
+
 ### Building the snapshot from tags
 
 Capturing tags is a separate step so that the command itself stays offline. An
