@@ -53,7 +53,7 @@ func TestEmbeddedV2DataParses(t *testing.T) {
 func TestV2ProducerOverUniverse(t *testing.T) {
 	t.Parallel()
 	r := v2Report(Project{Project: "kubernetes", Pairs: []Pair{{Status: StatusG}}})
-	applyV2(&r, testTiers([]string{"kubernetes"}, nil), ApplicabilityFile{})
+	applyV2(&r, testTiers([]string{"kubernetes"}, nil), ApplicabilityFile{}, nil)
 	for _, f := range r.V2.Families {
 		want := ProducerNone
 		if f.Family == "k8s.api" {
@@ -128,7 +128,7 @@ func TestApplyV2Honesty(t *testing.T) {
 			{From: "1.1", To: "1.2", Status: StatusA, Families: []string{crd}},
 		}},
 	)
-	applyV2(&r, testTiers([]string{"cilium", "kubernetes", "missing-one", "zzz-declared-only"}, nil), ApplicabilityFile{})
+	applyV2(&r, testTiers([]string{"cilium", "kubernetes", "missing-one", "zzz-declared-only"}, nil), ApplicabilityFile{}, nil)
 	v := r.V2
 	if v.Tier1 != 3 || v.Pairs != 6 || v.Cells != 42 {
 		t.Fatalf("universe: %+v", v)
@@ -188,7 +188,7 @@ func TestApplyV2FullPairAndExemption(t *testing.T) {
 			ex = append(ex, Exemption{Project: "cilium", Family: f, Reason: "r", Basis: "b"})
 		}
 	}
-	applyV2(&r, testTiers([]string{"cilium"}, nil), ApplicabilityFile{Schema: ApplicabilitySchema, Exemptions: ex})
+	applyV2(&r, testTiers([]string{"cilium"}, nil), ApplicabilityFile{Schema: ApplicabilitySchema, Exemptions: ex}, nil)
 	v := r.V2
 	if v.Cells != 1 || v.Exempt != 6 || v.FullPairs != 1 || v.DPCDeclared != 1 || v.DPCReachable != 1 {
 		t.Fatalf("%+v", v)
@@ -213,7 +213,7 @@ func TestReadmeBlockDoesNotPublishV2(t *testing.T) {
 	t.Parallel()
 	crd := lineattest.FamilyCustomResourceVersions
 	r := v2Report(Project{Project: "zzz-declared-only", Pairs: []Pair{{From: "1.0", To: "1.1", Status: StatusA, Families: []string{crd}}}})
-	applyV2(&r, testTiers([]string{"zzz-declared-only"}, nil), ApplicabilityFile{})
+	applyV2(&r, testTiers([]string{"zzz-declared-only"}, nil), ApplicabilityFile{}, nil)
 	if r.V2 == nil || r.V2.DPCDeclared == 0 {
 		t.Fatal("metric v2 is no longer computed")
 	}

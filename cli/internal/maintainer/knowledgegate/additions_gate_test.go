@@ -229,7 +229,7 @@ func TestAdditionsAreRegeneratedFromTheirTagFiles(t *testing.T) {
 func TestAdditionsMoveTheClockAndAddProjects(t *testing.T) {
 	t.Parallel()
 	base, head := shippedSlice(t), shippedSlice(t)
-	_, _, before, err := coverageReportOf(head)
+	_, _, before, err := coverageReportOf(head, defaultTablePath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -240,7 +240,7 @@ func TestAdditionsMoveTheClockAndAddProjects(t *testing.T) {
 		t.Fatalf("shipped clock %v leaves no day before the gate date %v for an addition: move gateDate", before, gateDate)
 	}
 	putAdditions(t, head, addDate, "zz-new")
-	r, _, after, err := coverageReportOf(head)
+	r, _, after, err := coverageReportOf(head, defaultTablePath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -253,7 +253,7 @@ func TestAdditionsMoveTheClockAndAddProjects(t *testing.T) {
 	// The moved clock is gate-checked on the shipped data: a failure here
 	// would mean an old attestation expires under the moved clock.
 	mustPass(t, "clock moved by an addition", base, head)
-	rb, _, _, _ := coverageReportOf(base)
+	rb, _, _, _ := coverageReportOf(base, defaultTablePath)
 	if r.Fleet.Projects != rb.Fleet.Projects+1 {
 		t.Errorf("projects %d -> %d", rb.Fleet.Projects, r.Fleet.Projects)
 	}

@@ -46,7 +46,7 @@ func defaultOnboardingLayout() OnboardingLayout {
 		Dir:           "cli/knowledge/onboarding",
 		Pack:          "cncf",
 		TargetsDir:    "cli/internal/extract/crdversions",
-		TablePath:     "cli/internal/customresources/table.json",
+		TablePath:     defaultTablePath,
 		DocsDir:       "cli",
 		LandscapePath: "cli/internal/cncfcheck/data/landscape-projects.json",
 		PriorityPath:  "cli/internal/cncfcheck/data/priority-portfolio.json",
@@ -147,18 +147,11 @@ func readOnboardingSide(ol OnboardingLayout, t Tree, p *loadedPack) (onboardingS
 	if s.loaded, err = crdversions.LoadTargets(fsys); err != nil {
 		return s, fmt.Errorf("the CRD version targets do not load: %v", logSafe(err.Error()))
 	}
-	if s.table, err = t.Read(ol.TablePath, MaxFileBytes); err != nil {
+	tr, err := readTableTree(t, ol.TablePath)
+	if err != nil {
 		return s, err
 	}
-	if err := strictjson.Check(s.table); err != nil {
-		return s, fmt.Errorf("%s: %v", ol.TablePath, err)
-	}
-	if s.projects, s.reserved, err = customresources.LoadTable(s.table); err != nil {
-		return s, fmt.Errorf("the custom-resource table does not load: %v", logSafe(err.Error()))
-	}
-	if canonical, err := customresources.CanonicalTable(s.projects, s.reserved); err != nil || !bytes.Equal(canonical, s.table) {
-		return s, fmt.Errorf("%s is not in its canonical spelling", ol.TablePath)
-	}
+	s.table, s.projects, s.reserved = tr.raw, tr.projects, tr.reserved
 	if s.state.RegistryDigest, err = cncfcheck.TableRegistryDigest(s.table); err != nil {
 		return s, fmt.Errorf("the registry does not compile from the custom-resource table: %v", err)
 	}
@@ -271,7 +264,7 @@ func (st *onboardingState) allowedPaths(rec OnboardingRecord, batchPath string) 
 	for rel := range st.docs() {
 		allowed[rel] = true
 	}
-	for rel := range st.layout.admittedBlocks(st.baseTree, st.headTree) {
+	for rel := range st.layout.admittedBlocks(st.baseTree, st.headTree, true) {
 		allowed[rel] = true
 	}
 	// The additions file and its <slug>.tags files (see batchAllowedPaths).
@@ -472,6 +465,9 @@ func (st *onboardingState) check(rec OnboardingRecord, batchPath string) []strin
 				bad("O2: the table adds a row for %s, which the batch does not list as a new project", logSafe(slug))
 			}
 		}
+	}
+	for _, msg := range catalogSplitProblems(rec, st.base.projects, st.head.projects) {
+		bad("%s", msg)
 	}
 	for name := range st.base.targets {
 		if _, ok := st.head.targets[name]; !ok {
@@ -737,4 +733,87 @@ func isASCII(s string) bool {
 		}
 	}
 	return true
+}
+
+// catalogSplitProblems is the two-sided equality of the catalog split, held
+// independently of the batch's per-project checks and of the README: the
+// community rows of the head are exactly the base's community rows plus the
+// batch's new projects of the community catalog, and the CNCF rows of the
+// head are exactly the base's CNCF rows plus the batch's new projects of the
+// CNCF catalog. A removed row, a flip in either direction (with or without
+// adjusted provenance) and a row the batch does not list under its own
+// catalog all break one equality; a base row also keeps its groups. The
+// published community and CNCF counts are rendered from the head table, so
+// this is what holds them to the signed batch.
+func catalogSplitProblems(rec OnboardingRecord, base, head []customresources.Project) []string {
+	var problems []string
+	bad := func(format string, args ...any) {
+		problems = append(problems, fmt.Sprintf("O2: catalog split: "+format, args...))
+	}
+	split := func(rows []customresources.Project) (community, cncf map[string]bool) {
+		community, cncf = map[string]bool{}, map[string]bool{}
+		for _, p := range rows {
+			if p.Community() {
+				community[p.Slug] = true
+			} else {
+				cncf[p.Slug] = true
+			}
+		}
+		return community, cncf
+	}
+	baseCommunity, baseCNCF := split(base)
+	headCommunity, headCNCF := split(head)
+	wantCommunity, wantCNCF := map[string]bool{}, map[string]bool{}
+	for slug := range baseCommunity {
+		wantCommunity[slug] = true
+	}
+	for slug := range baseCNCF {
+		wantCNCF[slug] = true
+	}
+	for _, p := range rec.Projects {
+		if p.Kind != OnboardingKindNew {
+			continue
+		}
+		switch p.Catalog {
+		case string(customresources.CatalogCommunity):
+			wantCommunity[p.Slug] = true
+		case string(customresources.CatalogCNCF):
+			wantCNCF[p.Slug] = true
+		}
+	}
+	diff := func(name string, have, want map[string]bool) {
+		for slug := range have {
+			if !want[slug] {
+				bad("the head table has %s as a %s row, which the base table and the batch's new %s projects do not give it", logSafe(slug), name, name)
+			}
+		}
+		for slug := range want {
+			if !have[slug] {
+				bad("the head table lacks %s as a %s row, which the base table or the batch's new %s projects give it", logSafe(slug), name, name)
+			}
+		}
+	}
+	diff("community", headCommunity, wantCommunity)
+	diff("cncf", headCNCF, wantCNCF)
+	headRows := projectsBySlug(head)
+	for _, b := range base {
+		h, ok := headRows[b.Slug]
+		if !ok {
+			continue
+		}
+		if b.Catalog != h.Catalog {
+			bad("the row of %s moves from the %s catalog to the %s catalog", logSafe(b.Slug), logSafe(string(b.Catalog)), logSafe(string(h.Catalog)))
+		}
+		var bg, hg []string
+		for _, g := range b.Groups {
+			bg = append(bg, g.Name)
+		}
+		for _, g := range h.Groups {
+			hg = append(hg, g.Name)
+		}
+		if !reflect.DeepEqual(bg, hg) {
+			bad("the row of %s changes its groups", logSafe(b.Slug))
+		}
+	}
+	return problems
 }

@@ -32,6 +32,7 @@ var knowledgeFiles = []string{
 	"cli/internal/cncfcheck/data/rules.json",
 	"cli/internal/cncfcheck/data/corpus-attestation.json",
 	"cli/internal/projectcheck/data/projects.json",
+	defaultTablePath,
 	"cli/internal/projectcheck/data/rules.json",
 	"cli/internal/projectcheck/data/corpus-attestation.json",
 	"cli/internal/certmanagervalues/source-contract-v1.json",
@@ -237,7 +238,7 @@ func buildKnowledgeTemplate() (map[string][]byte, error) {
 		}
 	}
 	for _, g := range layout.GeneratedBlocks {
-		want, err := g.Want(tree, tree)
+		want, err := g.Want(tree, tree, defaultOnboardingLayout())
 		if err != nil {
 			return nil, err
 		}
@@ -358,7 +359,7 @@ func regenerate(t *testing.T, tr Tree) {
 func regenerateBlocks(t *testing.T, tr Tree) {
 	t.Helper()
 	for _, g := range DefaultLayout().GeneratedBlocks {
-		want, err := g.Want(tr, tr)
+		want, err := g.Want(tr, tr, defaultOnboardingLayout())
 		if err != nil {
 			t.Fatalf("regenerate %s: %v", g.Path, err)
 		}
@@ -370,7 +371,7 @@ func regenerateBlocks(t *testing.T, tr Tree) {
 // or targets that do not load: the block is then left as it is.
 func regenerateBlocksLoose(tr Tree) {
 	for _, g := range DefaultLayout().GeneratedBlocks {
-		want, err := g.Want(tr, tr)
+		want, err := g.Want(tr, tr, defaultOnboardingLayout())
 		if err != nil {
 			continue
 		}
@@ -571,7 +572,7 @@ func addTemplateBaseline(files map[string][]byte) error {
 }
 
 func floorOf(tr Tree) ([]byte, error) {
-	report, _, _, err := coverageReportOf(tr)
+	report, _, _, err := coverageReportOf(tr, defaultTablePath)
 	if err != nil {
 		return nil, err
 	}
