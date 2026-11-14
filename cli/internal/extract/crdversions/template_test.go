@@ -92,11 +92,22 @@ func TestDescriptionMarkersOnly(t *testing.T) {
 		t.Fatalf("Cluster API description marker: ok=%t err=%v", ok, err)
 	}
 	for name, data := range map[string][]byte{
-		"comment":             append(append([]byte{}, good...), []byte("# {{ comment }}\n")...),
-		"key":                 []byte(strings.Replace(string(good), "description:", "{{ key }}:", 1)),
-		"default":             []byte(strings.Replace(string(good), "description: ClusterClass uses {{ .builtin.cluster.name }}", "default: '{{ value }}'", 1)),
-		"annotation":          []byte(strings.Replace(string(good), "spec:\n", "metadata:\n  annotations:\n    note: '{{ value }}'\nspec:\n", 1)),
-		"non CRD":             []byte("apiVersion: v1\nkind: ConfigMap\ndata:\n  description: '{{ value }}'\n"),
+		"comment":    append(append([]byte{}, good...), []byte("# {{ comment }}\n")...),
+		"key":        []byte(strings.Replace(string(good), "description:", "\"{{ key }}\":", 1)),
+		"default":    []byte(strings.Replace(string(good), "description: ClusterClass uses {{ .builtin.cluster.name }}", "default: '{{ value }}'", 1)),
+		"annotation": []byte(crdText("  annotations:\n    note: '{{ value }}'\n", "", "type: object\ndescription: ClusterClass uses {{ .builtin.cluster.name }}")),
+		"non CRD":    []byte("apiVersion: v1\nkind: ConfigMap\ndata:\n  description: '{{ value }}'\n"),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, _, err := decodeStrict(data); err != nil {
+				t.Fatalf("strict decode: %v", err)
+			}
+			if ok, err := DescriptionMarkersOnly(data); err == nil || ok {
+				t.Fatalf("ok=%t err=%v", ok, err)
+			}
+		})
+	}
+	for name, data := range map[string][]byte{
 		"malformed":           []byte("spec: [\n# {{ value }}\n"),
 		"oversized":           append(append([]byte{}, good...), []byte(strings.Repeat("x", MaxFileBytes))...),
 		"malformed no marker": []byte("spec: [\n"),
