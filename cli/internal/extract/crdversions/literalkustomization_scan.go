@@ -136,7 +136,7 @@ func literalKustomizationReferrers(r extract.PinnedReader, repo extract.RepoRef,
 // a reference to that source, although the ordinary exclusion guard correctly
 // treats it as a reference to its containing directory.
 func literalKustomizationMakeHit(source, directory Exclusion, lines []surfaceLine) bool {
-	if literalKustomizationLinesHaveSubtreePattern(directory.Path, lines) {
+	if literalKustomizationLinesHaveSubtreePattern(directory.Path, "", false, lines) {
 		return true
 	}
 	_, sourceHit := makeHit(source, lines)
@@ -145,7 +145,7 @@ func literalKustomizationMakeHit(source, directory Exclusion, lines []surfaceLin
 }
 
 func literalKustomizationDocHit(source, directory Exclusion, lines []surfaceLine) bool {
-	if literalKustomizationLinesHaveSubtreePattern(directory.Path, lines) {
+	if literalKustomizationLinesHaveSubtreePattern(directory.Path, "", false, lines) {
 		return true
 	}
 	_, sourceHit := docHit(source, lines)
@@ -154,7 +154,7 @@ func literalKustomizationDocHit(source, directory Exclusion, lines []surfaceLine
 }
 
 func literalKustomizationLinesHit(source, directory Exclusion, base string, bare bool, lines []surfaceLine) bool {
-	if literalKustomizationLinesHaveSubtreePattern(directory.Path, lines) {
+	if literalKustomizationLinesHaveSubtreePattern(directory.Path, base, bare, lines) {
 		return true
 	}
 	_, sourceHit := linesHit(source, base, bare, lines)
@@ -168,15 +168,25 @@ func literalKustomizationSubtreePattern(directory, ref string) bool {
 	return strings.HasPrefix(ref, directory+"/") && strings.ContainsAny(ref[len(directory)+1:], globMeta+"{}")
 }
 
-func literalKustomizationLinesHaveSubtreePattern(directory string, lines []surfaceLine) bool {
+func literalKustomizationLinesHaveSubtreePattern(directory, base string, bare bool, lines []surfaceLine) bool {
 	for _, line := range lines {
 		for _, token := range tokenize(line.Text) {
-			for i := 0; i < len(token); i++ {
-				if i != 0 && token[i-1] != '/' {
+			word := token
+			if i := strings.IndexAny(word, "?#"); i >= 0 {
+				word = word[:i]
+			}
+			word = strings.TrimRight(word, ",")
+			for i := 0; i < len(word); i++ {
+				if i != 0 && word[i-1] != '/' {
 					continue
 				}
-				candidate := strings.TrimRight(token[i:], "./,")
-				if literalKustomizationSubtreePattern(directory, path.Clean(candidate)) {
+				candidate := strings.TrimRight(word[i:], "./,")
+				if clean := path.Clean(candidate); !strings.HasPrefix(clean, "/") && !strings.HasPrefix(clean, "../") && literalKustomizationSubtreePattern(directory, clean) {
+					return true
+				}
+			}
+			if !strings.Contains(word, "://") && !strings.HasPrefix(word, "/") && (bare || strings.Contains(word, "/")) {
+				if candidate := path.Join(base, word); !strings.HasPrefix(candidate, "../") && literalKustomizationSubtreePattern(directory, candidate) {
 					return true
 				}
 			}

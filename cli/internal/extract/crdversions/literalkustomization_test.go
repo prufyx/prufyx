@@ -204,6 +204,8 @@ func TestLiteralKustomizationProofRefusesAdditionalInstallSurfaces(t *testing.T)
 		"relative directory": {"scripts/install.sh", "#!/bin/sh\nkustomize build ../config/rbac\n"},
 		"variable directory": {"Makefile", "RBAC = https://example.test/config/rbac\ninstall:\n\tkustomize build $(RBAC)\n"},
 		"wildcard subtree":   {"scripts/install.sh", "#!/bin/sh\nkubectl apply -f ../config/rbac/*.yaml\n"},
+		"build wildcard":     {"config/build/Dockerfile", "COPY ../rbac/*.yaml /manifests/\n"},
+		"Nix wildcard":       {"config/build/default.nix", "source = ../rbac/*.yaml;\n"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			files := memReader{}
