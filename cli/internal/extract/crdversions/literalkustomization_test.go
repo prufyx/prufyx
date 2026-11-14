@@ -3,6 +3,8 @@
 package crdversions
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -131,6 +133,46 @@ func TestLiteralKustomizationSkipsOnlyProvenScanFile(t *testing.T) {
 	fd, found, err := New(Target{}).classifyFile(nil, extract.RepoRef{}, "", scanFile{path: literalKustomizationPath, literal: true}, info, nil, nil)
 	if err != nil || found || fd.Path != literalKustomizationPath {
 		t.Fatalf("finding=%+v found=%t err=%v", fd, found, err)
+	}
+}
+
+func TestLiteralKustomizationProofUsesPinnedSourceBytes(t *testing.T) {
+	const commit = "ce3ffdb7ed430dc86d2208385d9516d7c19d52ba"
+	repo, err := extract.ParseRepo(literalKustomizationRepo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := func(p string) []byte {
+		b, err := os.ReadFile(filepath.Join("testdata/literal-kustomization/v023", filepath.FromSlash(p)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return b
+	}
+	files := memReader{}
+	paths := []string{"Makefile", "config/default/kustomization.yaml", "config/rbac/kustomization.yaml"}
+	entries := make([]extract.TreeEntry, 0, len(paths))
+	for _, p := range paths {
+		files[commit+":"+p] = read(p)
+		entries = append(entries, extract.TreeEntry{Path: p, Type: "blob", Mode: "100644"})
+	}
+	tg := Target{Project: literalKustomizationProject, Repo: literalKustomizationRepo, LiteralKustomization: &LiteralKustomization{Path: literalKustomizationPath, Makefile: "Makefile", Default: "config/default/kustomization.yaml"}}
+	ok, err := New(tg).literalKustomizationProof(files, repo, commit, "v0.23.0", entries)
+	if err != nil || !ok[literalKustomizationPath] {
+		t.Fatalf("proof=%v err=%v", ok, err)
+	}
+	info := summarize(kindData, files[commit+":"+literalKustomizationPath])
+	_, found, err := New(Target{}).classifyFile(nil, repo, commit, scanFile{path: literalKustomizationPath}, info, nil, nil)
+	if err != nil || !found {
+		t.Fatalf("unproved file found=%t err=%v", found, err)
+	}
+	files[commit+":Makefile"] = append(files[commit+":Makefile"], 'x')
+	if got, err := New(tg).literalKustomizationProof(files, repo, commit, "v0.23.0", entries); err != nil || got != nil {
+		t.Fatalf("changed source proof=%v err=%v", got, err)
+	}
+	delete(files, commit+":Makefile")
+	if _, err := New(tg).literalKustomizationProof(files, repo, commit, "v0.23.0", entries); err == nil {
+		t.Fatal("missing source read was accepted")
 	}
 }
 
