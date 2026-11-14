@@ -13,6 +13,43 @@
       {"path": "config/components/crd/alpha/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd", "optional": true},
       {"path": "config/components/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
     ],
-    "exclude": []
+    "exclude": [
+      {
+        "path": "test/e2e/config/certmanager/cainjection-templates/cainjection_in_*.yaml",
+        "repo": "github.com/kubernetes-sigs/kueue",
+        "reason": "kustomize patch fragments of the cert-manager e2e overlay: each adds one CA-injection annotation to an existing Kueue definition and defines no CustomResourceDefinition",
+        "evidence": "Read at all 38 tags v0.17.0 to v0.20.4 (one blob per file): 7 lines, kind and metadata name and one cert-manager.io/inject-ca-from annotation only, no spec and no versions. Only test/e2e/config/certmanager/kustomization.yaml lists them under patches. That overlay is built by the kind e2e script (hack/testing/e2e-common.sh) only; no Makefile, workflow, chart, document or Go file names them at any of the 57 tags."
+      },
+      {
+        "path": "test/e2e/config/certmanager/kustomization.yaml",
+        "repo": "github.com/kubernetes-sigs/kueue",
+        "reason": "the cert-manager overlay of the e2e test deployment: it patches the rendered config/dev manifests for kind runs and defines no CustomResourceDefinition",
+        "evidence": "Read at all 57 tags v0.15.0 to v0.20.4 (four blobs): resources ./dev and ../../../../config/dev, patches, a configMapGenerator and, from v0.15.5, replacements that select kinds in the rendered output. It holds no definition. It is built only by the kind e2e script (hack/e2e-common.sh or hack/testing/e2e-common.sh) for runs with cert-manager; no Makefile target, workflow, chart, document or Go file names it, and no other kustomization lists it."
+      },
+      {
+        "path": "test/e2e/config/multikueue/kubeflow-manifest-patch/kustomization.yaml",
+        "repo": "github.com/kubernetes-sigs/kueue",
+        "reason": "e2e test overlay that deletes one Kubeflow definition from the training-operator manifests used by the MultiKueue worker clusters; it defines no Kueue definition",
+        "evidence": "Read at the 35 tags v0.16.9 to v0.20.4 (two blobs): resources are ../../../../../dep-crds/training-operator/manifests/overlays/standalone, a third-party bundle, and two patches. Used only through KUBEFLOW_MANIFEST_PATCHED in hack/testing/e2e-common.sh (kubectl apply -k on kind worker clusters); no Makefile, workflow, chart, document or Go file names it and no other kustomization lists it."
+      },
+      {
+        "path": "test/e2e/config/multikueue/kubeflow-manifest-patch/patch_crds.yaml",
+        "repo": "github.com/kubernetes-sigs/kueue",
+        "reason": "four-line delete patch for the Kubeflow definition mpijobs.kubeflow.org in the MultiKueue e2e overlay; it holds no definition of any Kueue group",
+        "evidence": "Read at the 35 tags v0.16.9 to v0.20.4 (one blob): $patch: delete, apiVersion apiextensions.k8s.io/v1, kind CustomResourceDefinition, metadata name mpijobs.kubeflow.org, no spec. Only the kustomization in the same directory lists it, and that directory is applied only by the kind e2e script through KUBEFLOW_MANIFEST_PATCHED; no other file names it."
+      },
+      {
+        "path": "test/e2e/config/multikueue/kustomization.yaml",
+        "repo": "github.com/kubernetes-sigs/kueue",
+        "reason": "e2e test overlay that deletes one Kubeflow definition from the training-operator manifests used by the MultiKueue worker clusters; it defines no Kueue definition",
+        "evidence": "Read at the 22 tags v0.15.0 to v0.17.3 (one blob; from v0.16.9 the same content lives in kubeflow-manifest-patch/): resources ../../../../dep-crds/training-operator/manifests/overlays/standalone, a third-party bundle, and two patches. Used only through KUBEFLOW_MANIFEST_PATCHED in the kind e2e script (hack/e2e-common.sh, hack/testing/e2e-common.sh); no Makefile, workflow, chart, document or Go file names it."
+      },
+      {
+        "path": "test/e2e/config/multikueue/patch_crds.yaml",
+        "repo": "github.com/kubernetes-sigs/kueue",
+        "reason": "four-line delete patch for the Kubeflow definition mpijobs.kubeflow.org in the MultiKueue e2e overlay; it holds no definition of any Kueue group",
+        "evidence": "Read at the 22 tags v0.15.0 to v0.17.3 (one blob, identical to the later kubeflow-manifest-patch/patch_crds.yaml): $patch: delete, kind CustomResourceDefinition, metadata name mpijobs.kubeflow.org, no spec. Only test/e2e/config/multikueue/kustomization.yaml lists it; that directory is applied only by the kind e2e script through KUBEFLOW_MANIFEST_PATCHED; no other file names it."
+      }
+    ]
   }
 }
