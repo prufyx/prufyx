@@ -8,10 +8,18 @@
     "factProject": "radius",
     "tagPrefixes": ["v"],
     "minFrom": "0.56",
+    "attest": true,
     "paths": [
       {"path": "deploy/Chart/crds/radius", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"},
       {"path": "deploy/Chart/crds/ucpd", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
     ],
-    "exclude": []
+    "exclude": [
+      {
+        "path": "test/crd/flux/source.toolkit.fluxcd.io_gitrepositories.yaml",
+        "repo": "github.com/radius-project/radius",
+        "reason": "a generated unit-test fixture for an external Flux CRD, not a Radius release manifest",
+        "evidence": "Frozen commits d8289818, 2bf2c25f, 694528df, 7caa7d9d, a3916f88, 69c94eec, b913c136 and 37a8cbd3 have generator fc3137251eacf1f317af9a4fce5bb2d3a4272bbb and README d11d9bf42c707a3efc22d95d5e4260a7fa892a6e. Public source: https://github.com/radius-project/radius/blob/d8289818dc121527659b781707500a1c9d46c2fe/test/crd/generator.go, https://github.com/radius-project/radius/blob/d8289818dc121527659b781707500a1c9d46c2fe/test/crd/README.md, https://github.com/radius-project/radius/blob/37a8cbd33e990886460f4fd1987d6a4fefd901c5/test/crd/generator.go and https://github.com/radius-project/radius/blob/37a8cbd33e990886460f4fd1987d6a4fefd901c5/test/crd/README.md. Generator is sole referrer, downloads Flux; README says unit testing."
+      }
+    ]
   }
 }
