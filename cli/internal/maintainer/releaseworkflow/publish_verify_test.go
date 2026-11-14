@@ -29,43 +29,113 @@ func repoRoot(t *testing.T) string {
 	return repo
 }
 
-// The weekly cron must re-sign every time, so the timestamp expiry moves
-// every week. The decision is executed from the workflow's own text.
+// The daily cron must reach the signing decision every day, so the timestamp
+// expiry keeps moving: with a clean gate, nothing pending, content and a first
+// attempt the decision is to sign, for the schedule exactly as for a real
+// dispatch. The decision lives in the plan job's Decide step and is executed
+// from the workflow's own text; every other input (dry run, re-run, pending
+// run, empty day, failed gate) fails closed, and the sign job has no skip
+// decision of its own.
 func TestKnowledgePublishCronNeverSkips(t *testing.T) {
 	if _, err := exec.LookPath("bash"); err != nil {
 		t.Skip("bash not available")
 	}
 	wf, _ := loadPublishWorkflow(t)
 	var run string
-	for _, st := range wf.Jobs["sign"].Steps {
-		if st.Name == "Build, sign and verify" {
-			run = st.Run
-			if st.Env["EVENT_NAME"] != "${{ github.event_name }}" {
-				t.Errorf("sign step env EVENT_NAME = %q", st.Env["EVENT_NAME"])
-			}
+	var env map[string]string
+	for _, st := range wf.Jobs["plan"].Steps {
+		if st.Name == "Decide" {
+			run, env = st.Run, st.Env
 		}
 	}
-	start := strings.Index(run, "\nskip=false\n")
-	if start < 0 {
-		t.Fatal("skip decision block not found in the sign step")
+	if run == "" {
+		t.Fatal("decision step not found in the plan job")
 	}
-	end := strings.Index(run[start:], "\nfi\n")
-	if end < 0 {
-		t.Fatal("skip decision block has no end")
+	// A schedule run is never a dry run; a dispatch is one only by its input.
+	if env["DRY_RUN"] != "${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}" {
+		t.Errorf("Decide env DRY_RUN = %q", env["DRY_RUN"])
 	}
-	block := run[start : start+end+len("\nfi\n")]
-	for _, c := range []struct {
-		event string
-		want  string
-	}{{"schedule", "false"}, {"push", "true"}, {"workflow_dispatch", "true"}} {
-		script := "now=1000000; PREV_CREATED=999900; MODE=state; rules=r; PREV_RULES=r; EVENT_NAME=" + c.event + "\n" + block + "\necho \"${skip}\"\n"
+	if env["RUN_ATTEMPT"] != "${{ github.run_attempt }}" || !strings.Contains(env["GATE_OK"], "steps.gate.outputs.gate_ok") ||
+		!strings.Contains(env["PENDING"], "steps.pending.outputs.pending") || !strings.Contains(env["HAS_CONTENT"], "steps.plan.outputs.has_content") {
+		t.Errorf("Decide env = %v", env)
+	}
+	if wf.Jobs["plan"].Steps[len(wf.Jobs["plan"].Steps)-1].Name != "Decide" || wf.Jobs["plan"].Steps[len(wf.Jobs["plan"].Steps)-1].If != "" {
+		t.Error("Decide must be the last plan step and must run unconditionally")
+	}
+	for _, st := range wf.Jobs["sign"].Steps {
+		if strings.Contains(st.If+st.Run, "outputs.skip") || strings.Contains(st.Run, "\nskip=") {
+			t.Errorf("sign step %q carries its own skip decision", st.Name)
+		}
+	}
+	decide := func(gate, pending, content, dry, attempt string) string {
+		script := "GITHUB_OUTPUT=$(mktemp); GITHUB_STEP_SUMMARY=$(mktemp); GATE_OK=" + gate + "; PENDING=" + pending + "; HAS_CONTENT=" + content +
+			"; DRY_RUN=" + dry + "; RUN_ATTEMPT=" + attempt + "\n" + run + "\ncat \"${GITHUB_OUTPUT}\"\n"
 		out, err := exec.Command("bash", "-c", script).CombinedOutput()
 		if err != nil {
-			t.Fatalf("%s: %v: %s", c.event, err, out)
+			t.Fatalf("decide(%s,%s,%s,%s,%s): %v: %s", gate, pending, content, dry, attempt, err, out)
 		}
-		if got := strings.TrimSpace(string(out)); got != c.want {
-			t.Errorf("event %s: skip = %s, want %s (unchanged bundle, previous publish 100s old)", c.event, got, c.want)
+		return strings.TrimSpace(string(out))
+	}
+	if got := decide("true", "''", "true", "false", "1"); got != "sign_ok=true" {
+		t.Errorf("schedule with a clean gate and content: %q, want sign_ok=true", got)
+	}
+	for name, c := range map[string][5]string{
+		"dry run":        {"true", "''", "true", "true", "1"},
+		"re-run":         {"true", "''", "true", "false", "2"},
+		"pending run":    {"true", "123", "true", "false", "1"},
+		"no content":     {"true", "''", "false", "false", "1"},
+		"gate failed":    {"false", "''", "true", "false", "1"},
+		"gate unset":     {"''", "''", "true", "false", "1"},
+		"content unset":  {"true", "''", "''", "false", "1"},
+		"dry run unset":  {"true", "''", "true", "''", "1"},
+		"attempt unset":  {"true", "''", "true", "false", "''"},
+		"attempt 10":     {"true", "''", "true", "false", "10"},
+		"gate truthy":    {"yes", "''", "true", "false", "1"},
+		"content truthy": {"true", "''", "1", "false", "1"},
+	} {
+		if got := decide(c[0], c[1], c[2], c[3], c[4]); got != "sign_ok=false" {
+			t.Errorf("%s: %q, want sign_ok=false (fail closed)", name, got)
 		}
+	}
+}
+
+// Every call that signs carries the explicit --ci flag: the publisher enables
+// its CI checks (required --expires and --expect-* flags, attempt 1 only) from
+// that flag alone, never by detecting the environment, so a signing call
+// without it would sign unchecked.
+func TestKnowledgePublishSigningCallsCarryCI(t *testing.T) {
+	_, raw := loadPublishWorkflow(t)
+	call := regexp.MustCompile(`knowledge-publish (release|refresh-timestamp)\b`)
+	var cmds []string
+	var cur string
+	for _, line := range strings.Split(raw, "\n") {
+		trim := strings.TrimSpace(line)
+		if strings.HasPrefix(trim, "#") {
+			continue
+		}
+		if cur == "" && !call.MatchString(trim) {
+			continue
+		}
+		cur += " " + trim
+		if !strings.HasSuffix(trim, "\\") {
+			cmds = append(cmds, cur)
+			cur = ""
+		}
+	}
+	if len(cmds) == 0 {
+		t.Fatal("no signing call found in the workflow")
+	}
+	ci := regexp.MustCompile(`\s--ci(\s|$)`)
+	for _, c := range cmds {
+		if !ci.MatchString(c) {
+			t.Errorf("signing call without --ci: %s", c)
+		}
+	}
+	if ci.MatchString(" knowledge-publish release --profile x") || !ci.MatchString(" knowledge-publish release --ci --profile x") || ci.MatchString(" release --cia") {
+		t.Error("the --ci matcher is wrong")
+	}
+	if strings.Contains(raw, "--ci=false") || strings.Contains(raw, "--no-ci") {
+		t.Error("the workflow must not weaken CI mode")
 	}
 }
 
@@ -159,19 +229,27 @@ func TestPublishVerifyScript(t *testing.T) {
 	day := 24 * time.Hour
 
 	type scenario struct {
-		name         string
-		signed       time.Time // feed signing time; expires = signed + 14d
-		evidence     time.Time // zero: signed + 60d
-		runStarted   time.Time
-		noRun        bool
-		merge        time.Time // committer time of the no-ff merge commit on main
-		branchCommit time.Time // zero: 30 days before the merge (the commit the GitHub commits API would return)
-		noMerge      bool
-		lastMod      time.Time
-		verifyFail   bool
-		feedFail     bool
-		wantExit     int
-		wantIn       string
+		name          string
+		signed        time.Time // timestamp signing time (a content release or a refresh); timestamp expires = min(signed + 14d, targets expiry)
+		contentSigned time.Time // targets and snapshot signing time; zero: signed; they expire at min(contentSigned + 21d, evidence)
+		tsExpires     time.Time // zero: derived as above (tests of a package that violates the caps)
+		tgtExpires    time.Time // zero: derived as above
+		noRoleExpiry  bool      // the receipt carries no targets/snapshot expiry
+		legacy        bool      // package of the former layout: every role expires at signed + 14d
+		evidence      time.Time // zero: signed + 60d
+		runStarted    time.Time // start of the newest successful run that holds a live knowledge artifact (a signed run)
+		planOnlyAt    time.Time // non-zero: a newer successful run without any artifact (plan only, signing skipped) started then
+		planOnlyCount int       // non-zero: this many newer plan-only successes (daily runs) in front of the signed run
+		noSignedRun   bool      // no successful run holds an artifact (the merge was never approved)
+		noRun         bool
+		merge         time.Time // committer time of the no-ff merge commit on main
+		branchCommit  time.Time // zero: 30 days before the merge (the commit the GitHub commits API would return)
+		noMerge       bool
+		lastMod       time.Time
+		verifyFail    bool
+		feedFail      bool
+		wantExit      int
+		wantIn        string
 	}
 	good := scenario{signed: now.Add(-1 * day), runStarted: now.Add(-1 * day), merge: now.Add(-3 * day), wantExit: 0, wantIn: "publish-verify: OK revision 7"}
 	with := func(name string, f func(*scenario), exit int, in string) scenario {
@@ -189,20 +267,73 @@ func TestPublishVerifyScript(t *testing.T) {
 		with("no successful run", func(s *scenario) { s.noRun = true }, 1, "no successful Knowledge publish run on main"),
 		with("feed not newer than merge", func(s *scenario) {
 			s.signed = now.Add(-3 * day)
-			s.merge = now.Add(-1 * day)
+			s.merge = now.Add(-2 * day) // older than the 30 hour window
 			s.runStarted = now.Add(-4 * day)
 		}, 1, "feed not newer than the newest knowledge merge"),
 		with("old branch commit, recent merge, stale feed", func(s *scenario) {
 			s.signed = now.Add(-3 * day)
-			s.merge = now.Add(-1 * day)
+			s.merge = now.Add(-2 * day) // older than the 30 hour window
 			s.branchCommit = now.Add(-10 * day)
 			s.runStarted = now.Add(-4 * day)
 		}, 1, "feed not newer than the newest knowledge merge"),
 		with("merge inside grace", func(s *scenario) { s.merge = now.Add(-30 * time.Minute); s.runStarted = now.Add(-1 * day) }, 0, "publish-verify: OK"),
-		with("later skipped run accounts for the merge", func(s *scenario) {
+		// A plan-only run is a success too (signing skipped or never approved), so it
+		// accounts for nothing: only a signed run, visible in the signing times, does.
+		with("a later plan-only success does not account for the merge", func(s *scenario) {
 			s.signed = now.Add(-3 * day)
 			s.merge = now.Add(-2 * day)
+			s.runStarted = now.Add(-4 * day)
+			s.planOnlyAt = now.Add(-1 * day)
+		}, 1, "feed not newer than the newest knowledge merge"),
+		with("unapproved merge: no run holds a signed package", func(s *scenario) {
+			s.signed = now.Add(-3 * day)
+			s.merge = now.Add(-2 * day)
+			s.noSignedRun = true
+			s.planOnlyAt = now.Add(-1 * day)
+		}, 1, "feed not newer than the newest knowledge merge"),
+		// A run cancelled after 26 hours is not a success: the list of successful
+		// runs (the stub refuses any other status) never holds it.
+		with("merge whose waiting run was cancelled after 26 hours", func(s *scenario) {
+			s.signed = now.Add(-3 * day)
+			s.merge = now.Add(-40 * time.Hour)
+			s.runStarted = now.Add(-3 * day)
+		}, 1, "feed not newer than the newest knowledge merge"),
+		with("a signed run after the merge accounts for it", func(s *scenario) {
+			s.contentSigned = now.Add(-1 * day)
+			s.signed = now.Add(-1 * day)
+			s.merge = now.Add(-2 * day)
 			s.runStarted = now.Add(-1 * day)
+		}, 0, "publish-verify: OK"),
+		// Evidence-bound expiry (equal role expiry, evidence expires first): the content
+		// signing time comes from the newest signed run, never from the Last-Modified of
+		// the feed, which every timestamp refresh resets.
+		with("evidence-bound, refresh resets Last-Modified, merge never signed", func(s *scenario) {
+			s.evidence = now.Add(6 * day)
+			s.contentSigned = now.Add(-6 * day)
+			s.signed = now.Add(-1 * day)
+			s.lastMod = now.Add(-1 * day)
+			s.runStarted = now.Add(-6 * day)
+			s.planOnlyAt = now.Add(-1 * day)
+			s.merge = now.Add(-3 * day)
+		}, 1, "feed not newer than the newest knowledge merge"),
+		with("evidence-bound, signed run after the merge", func(s *scenario) {
+			s.evidence = now.Add(6 * day)
+			s.contentSigned = now.Add(-2 * day)
+			s.signed = now.Add(-1 * day)
+			s.lastMod = now.Add(-1 * day)
+			s.runStarted = now.Add(-2 * day)
+			s.merge = now.Add(-3 * day)
+		}, 0, "publish-verify: OK"),
+		// Daily plan-only successes pile up behind a content release (one per day,
+		// a content run every ~60 days): the signed run must not fall off the page.
+		with("evidence-bound, the signed run sits behind 150 plan-only successes", func(s *scenario) {
+			s.evidence = now.Add(6 * day)
+			s.contentSigned = now.Add(-2 * day)
+			s.signed = now.Add(-1 * day)
+			s.lastMod = now.Add(-4 * day) // older than the merge: only the signed run proves the content was published after it
+			s.runStarted = now.Add(-2 * day)
+			s.merge = now.Add(-3 * day)
+			s.planOnlyCount = 150
 		}, 0, "publish-verify: OK"),
 		with("no knowledge merge at all", func(s *scenario) { s.noMerge = true }, 0, "publish-verify: OK"),
 		with("feed does not verify", func(s *scenario) { s.verifyFail = true }, 1, "feed does not verify against the pinned root"),
@@ -212,6 +343,54 @@ func TestPublishVerifyScript(t *testing.T) {
 			s.lastMod = now.Add(-10 * day)
 		}, 1, "feed age 10 days"),
 		with("two reasons on one line", func(s *scenario) { s.signed = now.Add(-12 * day); s.runStarted = now.Add(-9 * day) }, 1, "; "),
+		// Daily cadence: a merge is published by the next daily run plus its approval, so the
+		// grace window is 30 hours, not 2.
+		with("merge 10 hours old, still inside the daily window", func(s *scenario) {
+			s.signed = now.Add(-3 * day)
+			s.merge = now.Add(-10 * time.Hour)
+			s.runStarted = now.Add(-1 * day)
+		}, 0, "publish-verify: OK"),
+		with("merge 29 hours old, still inside the daily window", func(s *scenario) {
+			s.signed = now.Add(-3 * day)
+			s.merge = now.Add(-29 * time.Hour)
+			s.runStarted = now.Add(-2 * day)
+		}, 0, "publish-verify: OK"),
+		with("merge 31 hours old and not published", func(s *scenario) {
+			s.signed = now.Add(-3 * day)
+			s.merge = now.Add(-31 * time.Hour)
+			s.runStarted = now.Add(-2 * day)
+		}, 1, "feed not newer than the newest knowledge merge"),
+		// Signed-time derivation with a refresh: the timestamp is renewed, the content is not.
+		with("refresh over content signed 3 days ago, merge older than the content", func(s *scenario) {
+			s.contentSigned = now.Add(-3 * day)
+			s.signed = now.Add(-1 * day)
+			s.merge = now.Add(-5 * day)
+			s.runStarted = now.Add(-1 * day)
+		}, 0, "publish-verify: OK"),
+		with("refresh hides nothing: content older than the newest merge", func(s *scenario) {
+			s.contentSigned = now.Add(-5 * day)
+			s.signed = now.Add(-1 * day)
+			s.merge = now.Add(-3 * day)
+			s.runStarted = now.Add(-4 * day)
+		}, 1, "feed not newer than the newest knowledge merge"),
+		with("old content, fresh refresh: feed age is the timestamp age", func(s *scenario) {
+			s.contentSigned = now.Add(-6 * day)
+			s.signed = now.Add(-1 * day)
+			s.merge = now.Add(-7 * day)
+		}, 0, "publish-verify: OK"),
+		with("refresh older than 8 days", func(s *scenario) {
+			s.contentSigned = now.Add(-3 * day)
+			s.signed = now.Add(-9 * day)
+			s.merge = now.Add(-20 * day)
+		}, 1, "feed age 9 days"),
+		with("package of the former layout (equal role expiry) uses Last-Modified", func(s *scenario) {
+			s.legacy = true
+			s.signed = now.Add(-2 * day)
+		}, 0, "publish-verify: OK"),
+		// Caps: the publisher never signs beyond 14 days (timestamp) and 21 days (targets, snapshot).
+		with("timestamp beyond the 14 day cap", func(s *scenario) { s.tsExpires = now.Add(20 * day) }, 1, "timestamp expiry"),
+		with("targets beyond the 21 day cap", func(s *scenario) { s.tgtExpires = now.Add(25 * day) }, 1, "targets and snapshot expiry"),
+		with("no targets or snapshot expiry in the receipt", func(s *scenario) { s.noRoleExpiry = true }, 1, "no readable targets or snapshot expiry"),
 	}
 
 	for _, sc := range scenarios {
@@ -221,13 +400,32 @@ func TestPublishVerifyScript(t *testing.T) {
 			if err := os.Mkdir(bin, 0o755); err != nil {
 				t.Fatal(err)
 			}
-			expires := sc.signed.Add(14 * day)
+			contentSigned := sc.contentSigned
+			if contentSigned.IsZero() {
+				contentSigned = sc.signed
+			}
 			evidence := sc.evidence
 			if evidence.IsZero() {
-				evidence = sc.signed.Add(60 * day)
-			} else {
-				expires = evidence
+				evidence = contentSigned.Add(60 * day)
 			}
+			minTime := func(a, b time.Time) time.Time {
+				if a.Before(b) {
+					return a
+				}
+				return b
+			}
+			tgtExp := minTime(contentSigned.Add(21*day), evidence)
+			tsExp := minTime(sc.signed.Add(14*day), tgtExp)
+			if sc.legacy {
+				tgtExp, tsExp = sc.signed.Add(14*day), sc.signed.Add(14*day)
+			}
+			if !sc.tsExpires.IsZero() {
+				tsExp = sc.tsExpires
+			}
+			if !sc.tgtExpires.IsZero() {
+				tgtExp = sc.tgtExpires
+			}
+			expires := tsExp
 			lastMod := sc.lastMod
 			if lastMod.IsZero() {
 				lastMod = sc.signed
@@ -237,13 +435,31 @@ func TestPublishVerifyScript(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			write("receipt.json", fmt.Sprintf(`{"status":"VERIFIED","knowledgeRevision":7,"timestamp":{"version":7,"expires":%q},"evidenceExpiresAt":%q}`, ts(expires), ts(evidence)))
+			roles := fmt.Sprintf(`,"snapshot":{"version":7,"expires":%q},"targets":{"version":7,"expires":%q}`, ts(tgtExp), ts(tgtExp))
+			if sc.noRoleExpiry {
+				roles = ""
+			}
+			write("receipt.json", fmt.Sprintf(`{"status":"VERIFIED","knowledgeRevision":7,"timestamp":{"version":7,"expires":%q}%s,"evidenceExpiresAt":%q}`, ts(expires), roles, ts(evidence)))
 			write("headers", "HTTP/2 200\r\nlast-modified: "+lastMod.Format("Mon, 02 Jan 2006 15:04:05")+" GMT\r\n\r\n")
 			runs := `{"workflow_runs":[]}`
 			if !sc.noRun {
-				runs = fmt.Sprintf(`{"workflow_runs":[{"run_started_at":%q}]}`, ts(sc.runStarted))
+				var rows []string
+				if !sc.planOnlyAt.IsZero() {
+					rows = append(rows, fmt.Sprintf(`{"id":2,"run_started_at":%q}`, ts(sc.planOnlyAt)))
+				}
+				for i := 0; i < sc.planOnlyCount; i++ {
+					rows = append(rows, fmt.Sprintf(`{"id":%d,"run_started_at":%q}`, 1000+i, ts(now.Add(-time.Duration(i+1)*time.Hour))))
+				}
+				rows = append(rows, fmt.Sprintf(`{"id":1,"run_started_at":%q}`, ts(sc.runStarted)))
+				runs = `{"workflow_runs":[` + strings.Join(rows, ",") + `]}`
 			}
 			write("runs.json", runs)
+			write("artifacts-2.json", `{"artifacts":[{"name":"knowledge-plan-2","expired":false}]}`)
+			signedArtifacts := `{"artifacts":[{"name":"knowledge-7-` + strings.Repeat("a", 64) + `","expired":false}]}`
+			if sc.noSignedRun {
+				signedArtifacts = `{"artifacts":[{"name":"knowledge-7-` + strings.Repeat("a", 64) + `","expired":true}]}`
+			}
+			write("artifacts-1.json", signedArtifacts)
 			repoDir := makeMergeRepo(t, filepath.Join(dir, "repo"), sc.merge, sc.branchCommit, sc.noMerge)
 			write("root.json", "{}")
 			if sc.feedFail {
@@ -264,7 +480,18 @@ while [ $# -gt 0 ]; do
   esac
 done
 case "${url}" in
-  *knowledge-publish.yml/runs*) cat "$d/runs.json" ;;
+  *knowledge-publish.yml/runs*)
+    # Only successful runs of the branch main are ever asked for.
+    case "${url}" in *branch=main*status=success*) ;; *) exit 22 ;; esac
+    # Like the real API: per_page (default 30) and page (default 1) slice the
+    # newest-first list; a client that reads one page sees only that page.
+    pp=30; pg=1
+    [[ "${url}" =~ per_page=([0-9]+) ]] && pp="${BASH_REMATCH[1]}"
+    [[ "${url}" =~ [\?\&]page=([0-9]+) ]] && pg="${BASH_REMATCH[1]}"
+    jq -c --argjson pp "${pp}" --argjson pg "${pg}" '.workflow_runs |= .[(($pg-1)*$pp):($pg*$pp)]' "$d/runs.json" ;;
+  */actions/runs/*/artifacts*)
+    id="${url#*/actions/runs/}"; id="${id%%/*}"
+    if [ -e "$d/artifacts-${id}.json" ]; then cat "$d/artifacts-${id}.json"; else cat "$d/artifacts-2.json"; fi ;;
   *)
     [ ! -e "$d/feed_fail" ] || exit 22
     cp "$d/headers" "${hdr}"; echo tar > "${out}" ;;

@@ -476,6 +476,10 @@ without `packetDigest`). The same inputs give byte-identical outputs.
 
 ## Hosted knowledge publish workflow
 
+Note: the triggers, the single approval-free `sign` job and the run-number
+deploy rule described in this section are replaced by "Daily signing" below
+once the owner step there is done.
+
 `.github/workflows/knowledge-publish.yml` signs and publishes the knowledge
 database that `prufyx db update` fetches. The workflow runs on
 every push to `main` that touches `cli/knowledge/**`, weekly, and on manual
@@ -505,18 +509,161 @@ Two jobs keep the signing keys and the Pages deploy token apart:
   `knowledge/root.json` and `knowledge/status.json` with `actions/deploy-pages`.
   The last two files are informational and never trusted by clients.
 
-The previous revision, TUF version and index are read from the last successful
-run of this workflow on `main` (GitHub API, not the Pages CDN, which caches
-for about ten minutes). Its artifact is verified against the pinned root and
-the digest in its name, and one index member is extracted with a size cap.
-Revision and TUF version advance by one. With no previous run the workflow
-fails; the very first publish needs `first_release=true`, which itself fails
-when any successful run exists.
+The previous revision, TUF version and index are read from the live package.
+It is the newest live artifact across two families: content runs of this
+workflow (`knowledge-<revision>-<sha256>`) and refresh runs of the timestamp
+refresh workflow (`knowledge-refresh-<revision>-<TUF version>-<sha256>`), both
+on `main` (GitHub API, not the Pages CDN, which caches for about ten minutes;
+the run lists are read paginated, newest first, because the run that holds the
+live artifact can sit behind many successful runs without one). A refresh keeps
+the revision and the targets, so the source commit and the revision come from
+the content run and the TUF version from the live package. The artifact is
+verified against the pinned root and the digest in its name, and one index
+member is extracted with a size cap. Revision and TUF version advance by one.
+With no live artifact in either family the workflow fails; the very first
+publish needs `first_release=true`, which itself fails when any successful run
+exists or any package is live.
+
+Both families depend on the content artifact: a refresh run is only usable
+while a content run of its revision still has a live artifact (retention is 90
+days), and a live refresh artifact without a live content artifact stops both
+workflows. A content release is therefore needed at least every 60 days (30
+days of margin); beyond 90 days only the recovery inputs remain.
 
 The pinned root is `cli/internal/knowledgepin/root.json`. The workflow stops
 unless that file, the compiled-in pin and the repository variable
 `KNOWLEDGE_ROOT_DIGEST` agree. Release tag builds make the same check when the
 variable is set (nothing is checked when it is not).
+
+### Daily signing
+
+Status: not active until the owner adds the required reviewer to the
+environment `knowledge-release` (and creates `knowledge-refresh`). Until then
+the first job of the workflow fails closed, so nothing is signed.
+
+Merge order (the pull request stays a draft until the owner steps are done).
+Removing the push and weekly triggers means a merge before the owner steps
+leaves nothing signing, and more than 14 days without a signed package cannot
+be recovered. The weekly cron is deliberately not kept as a bridge. In this
+order:
+
+1. the packet generator (#460), then the publisher (#461);
+2. the owner steps 1 and 2 below (required reviewer on `knowledge-release`,
+   environment `knowledge-refresh` with only the timestamp key and the
+   passphrase);
+3. the timestamp refresh workflow (#462);
+4. this workflow (#463), which also updates `scripts/publish-verify.sh` for the
+   daily cadence (see "Publish self-check").
+
+This replaces the per-push signing described above: the push trigger and the
+weekly cron are gone. The workflow runs once a day (05:17 UTC) and on manual
+dispatch. A manual dispatch has the input `dry_run`, true by default: it plans
+and shows the packet and never signs. It needs the maintainer subcommands
+`knowledge-packet` (pull request #460) and `knowledge-publish release`,
+`content-digest`, `live-state` and `deploy-guard` (pull request #461); this
+workflow must not merge before both, nor before the refresh workflow (#462).
+
+Jobs:
+
+1. `plan` (no key, no environment). First it checks the gate: the environment
+   `knowledge-release` must have a required reviewer `airstand`, "prevent
+   self-review" off and the deployment branch policy exactly `main`;
+   `knowledge-refresh` must exist with no reviewer and branch `main`. The
+   check does not list repository secrets (the job token has no such scope):
+   key presence is owner-verified, and the `sign` job refuses an empty key
+   input (see below). A failed check fails the
+   run (in a dry run it is only a warning, and nothing can be signed). Then it
+   refuses to start while another run of this workflow waits for approval or is
+   still running and is younger than 26 hours (the summary says `SKIPPED`). It
+   finds the previous state, builds the packet of everything merged
+   since the source commit of the last published content run (summary page plus
+   the artifact `knowledge-plan-<run id>`), and writes a plan that binds the
+   approval: source commit, revision, minimum TUF version, expiry, the export
+   content digest and index digest from `knowledge-publish content-digest`, the
+   packet hash, the packet `entriesDigest` and the state it saw. Two digests are
+   shown with distinct labels: the export `contentDigest` is the one that binds
+   the signature (keyless, re-derivable); the packet `entriesDigest` is only the
+   digest of the packet entries. The numeric ids whose gate and review markers
+   count (the owner and the automation account) are pinned in
+   `scripts/knowledge-daily.sh`; the lookup of their logins only cross-checks
+   them and refuses on any difference, so a renamed or re-registered login is
+   never trusted. If nothing that can change the knowledge was
+   merged (no change under the old push paths, no trust-path file, no
+   unverified marker, no direct commit) the run ends without an approval
+   request.
+2. `cancel-stale` (own permissions: `actions: write` only, no secret). Cancels
+   runs of this workflow that have waited more than 26 hours, after reading
+   each run again. The workflow has no workflow-level concurrency group, because
+   a run waiting for approval would hold it and the cancel could never start;
+   `sign` and `deploy` each have a group that never cancels a running job.
+3. `sign` (environment `knowledge-release`; runs only when the dry run is off,
+   the gate check passed and there is something to publish). Before any key is
+   read it refuses a run attempt other than 1, a commit other than the planned
+   one, a packet that differs from the plan and a plan older than 48 hours. It
+   then checks liveness over both artifact families and refuses unless the
+   newest content run and the newest refresh run are exactly the ones the plan
+   recorded (an empty record equals an empty family, nothing else; a refresh
+   that was deployed after the plan therefore makes sign refuse, and the next
+   plan replans). It derives the state and the digests again and requires the
+   same digests as the approved plan, takes the signing version as the live
+   timestamp version plus one (from the live package, which is the refresh when
+   a refresh is newer than the content run), and signs with `--ci`, `--expires`,
+   `--expect-content-digest` and `--expect-index-digest`, plus one fixed flag set
+   per mode (the publisher refuses any other; a test runs the real `Sign` step
+   against the real publisher for every mode): first release (nothing live)
+   `--first-release --no-live-package`; regular
+   `--previous-index --previous-package --expect-previous-package-digest`;
+   engine capability change `--first-release --previous-package
+   --expect-previous-package-digest`; recovery `--previous-index` (taken from the
+   recovered package) `--previous-package --expect-previous-package-digest`. The
+   verified index digest must equal the plan. The publisher flags come from
+   pull request #461, which therefore merges first. The oldest-supported-client check is
+   unchanged. The packet is kept as the artifact `packet-final-<revision>-<sha256>`.
+   The `Sign` step refuses, before it creates any key file or directory, when
+   any of its four inputs (`KNOWLEDGE_TARGETS_KEY`, `KNOWLEDGE_SNAPSHOT_KEY`,
+   `KNOWLEDGE_TIMESTAMP_KEY`, `KNOWLEDGE_KEY_PASSPHRASE`) is empty. Key presence
+   is owner-verified.
+4. `deploy` as before, but the run-number rule is replaced by
+   `knowledge-publish deploy-guard` (candidate built over exactly the live
+   package, higher TUF version, higher revision or identical targets and
+   snapshot), which receives the real live package (the refresh when one is
+   newer), plus the same liveness check over both families: a content run or a
+   refresh that succeeded after the plan is never rolled back. `status.json`
+   gains a `packet` object (source commit, packet hash, export content digest,
+   entries digest, index digest, run id).
+
+The live package is the newest live artifact across both families: content runs
+of this workflow (`knowledge-<revision>-<sha256>`) and refresh runs of
+`knowledge-refresh.yml` (`knowledge-refresh-<revision>-<timestamp version>-<sha256>`,
+see "Refresh artifacts"). A refresh of revision R is newer than the content run
+of R; a content run of R+1 is newer than any refresh of R. The source commit and
+the revision come from the content run (a refresh keeps both), and the plan
+records both run ids.
+
+A dry run also runs the job `token-probe` (`actions: write` only), which tries to approve a deployment of its own run with the job token and prints the answer in the summary; a 403 "not accessible by integration" is the expected result. It never fails the run and proves the token scope only when the answer is that 403.
+
+What a dry run shows and cannot show: the gate checks (whether the job token can
+read environments, branch policies and repository secrets, and whether it is
+refused when it tries to approve a deployment) are only proven by a real run;
+the dry run is the first such run.
+
+Owner steps (nothing here changes a key, the root or the pin):
+
+1. On `knowledge-release`: add the required reviewer `airstand`, keep the
+   deployment branch policy `main`, and do not enable "prevent self-review".
+2. Create `knowledge-refresh` (branch `main`, no reviewer) with only the
+   timestamp key and the passphrase, uploaded with `gh secret set --env`.
+3. Make sure the token agents use cannot approve deployments or edit
+   environments, so the approval is the owner's alone.
+4. Run the workflow once with `dry_run=true`, read the summary, then merge
+   (or enable) and approve the first real run.
+
+Known limits: the expiry of the plan is `min(now + 21 days, evidence expiry)`
+when the publisher reports the evidence expiry in the `content-digest` output,
+otherwise `now + 21 days` and a release that needs less is refused at sign
+time. A day without a content change keeps the feed alive only through the
+timestamp refresh workflow, so this workflow must not be enabled alone (see
+the merge order above).
 
 ### Publish self-check
 
@@ -531,16 +678,27 @@ with `prufyx db verify` against the pinned root (the same trust as
 `prufyx db update`) and prints one line. It fails, listing every reason, when:
 
 - the feed is unreachable or does not verify (including an expired timestamp);
-- the feed is older than 8 days (signing time is the verified timestamp expiry
-  minus 14 days; when the evidence expiry capped the expiry instead, the
+- the feed is older than 8 days (the timestamp signing time is the verified
+  timestamp expiry minus 14 days when that cap bound, that is when the
+  timestamp expires before targets, snapshot and evidence; otherwise the
   `Last-Modified` of the deploy is used);
 - the timestamp expires in less than 5 days;
+- an expiry exceeds the publisher's caps: the timestamp more than 14 days, or
+  targets and snapshot more than 21 days, away (one hour of slack); a feed
+  without a readable targets or snapshot expiry also fails;
 - the last successful `Knowledge publish` run on `main` is older than 8 days;
 - the feed is older than the newest merge touching `cli/knowledge` on `main`
   (the first-parent merge commit in the full-history checkout, not the branch
-  commit the GitHub API lists),
-  unless that merge is under 2 hours old or a later successful run (for
-  example one that skipped an unchanged bundle) has accounted for it.
+  commit the GitHub API lists), compared with the content signing time (the
+  targets expiry minus 21 days when the 21 day cap bound; a refresh renews only
+  the timestamp and never hides an unpublished merge; when the evidence expiry
+  or the former layout (one expiry for every role) bound the expiry, the start
+  of the newest successful run that holds a live `knowledge-<revision>-<sha256>`
+  artifact is used, and only as the last resort the deploy time), unless that
+  merge is under 30 hours old (the next daily run plus its approval). A
+  successful run without such an artifact (plan only: signing skipped or never
+  approved) accounts for nothing, and a run cancelled after 26 hours is not a
+  success, so an unapproved merge raises the alarm.
 
 On failure the workflow opens the issue "Knowledge publish self-check failed"
 (or comments on the open one) and the job fails; when the check passes again it

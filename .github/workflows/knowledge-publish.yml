@@ -1,11 +1,36 @@
 # Publishes the signed knowledge database that `prufyx db update` fetches.
 #
-# Two jobs, so the signing keys and the Pages deploy token never share a job:
-#   sign    environment knowledge-release: builds the package from the checked-out
-#           main commit, signs it with the online role keys, verifies it with the
-#           pinned root and uploads it as an Actions artifact.
-#   deploy  environment github-pages: no keys. Re-verifies the artifact against
-#           the digest the sign job reported, then deploys it to GitHub Pages.
+# Daily, in four jobs. The signing keys exist only in the `sign` job, behind a
+# required reviewer, and never share a job with the Pages deploy token:
+#   plan    no key, no environment: self-checks the approval gate, refuses to
+#           start while an earlier run waits for approval, builds the packet of
+#           everything merged since the last published source commit (step
+#           summary plus artifact) and the plan that binds the approval to the
+#           signature (content digest, index digest, revision, expiry).
+#   cancel  only separate permissions (actions:write): cancels runs of THIS
+#           workflow that have waited longer than 26 hours.
+#   sign    environment knowledge-release (required reviewer): re-derives the
+#           digests, signs with the online role keys, verifies with the pinned
+#           root and the oldest supported client, uploads the package.
+#   deploy  environment github-pages: no keys. Re-verifies the artifact, checks
+#           that the live package is still the one the plan saw, deploys.
+#
+# Merge order. Removing the push and weekly triggers means that merging this
+# workflow before the owner steps leaves nothing signing, and more than 14 days
+# without a signed package cannot be recovered. So this change stays a draft
+# until the owner steps are done, and lands last:
+#   1. the packet generator (#460), then the publisher (#461)
+#   2. owner steps: the required reviewer on the environment knowledge-release
+#      (branch main only), and the environment knowledge-refresh (branch main
+#      only, no reviewer) holding ONLY the timestamp key and the passphrase
+#   3. the refresh workflow (#462), then this workflow (#463; it also carries
+#      the scripts/publish-verify.sh limits that match the daily cadence)
+# The gate self-check of `plan` fails closed until step 2 is done, and a manual
+# dispatch has dry_run=true by default: it runs `plan` and can never reach `sign`.
+#
+# The key secrets are checked by the owner, not by the workflow: the job token
+# has no scope to list secrets. The Sign step refuses, before it writes any key
+# file, when one of its four inputs is empty.
 #
 # The workflow runs only when the repository variable KNOWLEDGE_RELEASE_ENABLED
 # is exactly "true", and only from main. It never runs pull request code.
@@ -15,31 +40,38 @@
 #   secrets.KNOWLEDGE_SNAPSHOT_KEY     snapshot role key file (encrypted PEM)
 #   secrets.KNOWLEDGE_TIMESTAMP_KEY    timestamp role key file (encrypted PEM)
 #   secrets.KNOWLEDGE_KEY_PASSPHRASE   passphrase of the three role keys
+#   (environment secrets of knowledge-release only, never repository secrets;
+#   their presence is owner-verified)
 #   vars.KNOWLEDGE_ROOT_DIGEST         "sha256:<hex>" of the pinned root, checked
 #                                      against cli/internal/knowledgepin/root.json
 # The root signing key is never used here and stays offline.
 #
-# State (previous revision, TUF version, previous index) comes from the last
-# successful run of this workflow on main, never from the Pages CDN. See
-# cli/docs/knowledge-publisher.md for the runbook, including recovery.
+# Needs the maintainer subcommands knowledge-packet and knowledge-publish
+# release/content-digest/live-state/deploy-guard (CI mode). State comes from the
+# newest live artifact across BOTH families, never from the Pages CDN: content
+# runs of this workflow (knowledge-<rev>-<sha>) and refresh runs of
+# knowledge-refresh.yml (knowledge-refresh-<rev>-<ver>-<sha>). The content run
+# also gives the source commit and the revision; sign and deploy refuse unless
+# the newest run of each family is still the one the plan recorded. See
+# cli/docs/knowledge-publisher.md ("Daily signing") for the runbook.
 
 name: Knowledge publish
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "cli/knowledge/**"
-      # Inputs of the engine capability (fact registry, packaged rules, engine
-      # contract). A change publishes a new capability; see "Engine capability
-      # change" in cli/docs/knowledge-publisher.md.
-      - "cli/internal/customresources/table.json"
-      - "cli/internal/cncfcheck/data/**"
-      - "cli/internal/constraintengine/**"
   schedule:
-    - cron: "17 5 * * 1"
+    - cron: "17 5 * * *"
   workflow_dispatch:
     inputs:
+      dry_run:
+        description: "Plan only: build and show the packet, never sign. Keep true until the owner has added the required reviewer."
+        type: boolean
+        required: false
+        default: true
+      since_sha:
+        description: "First release or recovery only: 40-hex source commit the packet range starts at."
+        type: string
+        required: false
+        default: ""
       first_release:
         description: "Publish revision 1. Refused if any successful run of this workflow exists on main."
         type: boolean
@@ -63,34 +95,573 @@ on:
 
 permissions: {}
 
-concurrency:
-  group: knowledge-publish
-  cancel-in-progress: false
+# No workflow-level concurrency group: a run waiting for approval would hold it
+# and the next plan could never start, so the 26 hour cancel could never run.
+# The one-pending rule is the explicit check of the plan job; the sign and the
+# deploy job each have a group (cancel-in-progress false) as a second layer.
 
 env:
   MAX_PACKAGE_BYTES: "8388608"
   MAX_INDEX_BYTES: "1048576"
 
 jobs:
+  plan:
+    name: Plan and packet
+    if: ${{ github.ref == 'refs/heads/main' && vars.KNOWLEDGE_RELEASE_ENABLED == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+      checks: read
+      statuses: read
+    outputs:
+      sign_ok: ${{ steps.decide.outputs.sign_ok }}
+      stale: ${{ steps.pending.outputs.stale }}
+    steps:
+      - name: Check out main with its history
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # First, fail closed: the approval gate must exist before anything else
+      # runs. In a dry run a failing check is a warning and nothing can be signed.
+      - name: Self-check the approval gate
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: bash scripts/knowledge-daily.sh gate
+
+      - name: Refuse to start a second pending run
+        id: pending
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          bash scripts/knowledge-daily.sh pending
+          pending="$(grep '^pending=' "${GITHUB_OUTPUT}" | tail -n1 | cut -d= -f2)"
+          if [ -n "${pending}" ]; then
+            echo "SKIPPED: run ${pending} is awaiting approval or still running." >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+      - name: Set up Go
+        if: ${{ steps.pending.outputs.pending == '' }}
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache: false
+
+      - name: Check the pinned root
+        id: pin
+        if: ${{ steps.pending.outputs.pending == '' }}
+        env:
+          EXPECTED: ${{ vars.KNOWLEDGE_ROOT_DIGEST }}
+        run: |
+          set -euo pipefail
+          root="${GITHUB_WORKSPACE}/cli/internal/knowledgepin/root.json"
+          if [ ! -s "${root}" ]; then
+            echo "::error::cli/internal/knowledgepin/root.json is missing or empty: the trust root has not been pinned yet, nothing was signed."
+            exit 1
+          fi
+          if [ "$(stat -c %s "${root}")" -gt 1048576 ]; then
+            echo "::error::the pinned root file is larger than 1 MiB; nothing was signed."
+            exit 1
+          fi
+          digest="sha256:$(sha256sum "${root}" | cut -d' ' -f1)"
+          pin="$(grep -o '"cncf-projects":[[:space:]]*"[^"]*"' cli/internal/knowledgepin/pin.go | sed 's/.*"\([^"]*\)"$/\1/')"
+          if [ -z "${EXPECTED}" ]; then
+            echo "::error::repository variable KNOWLEDGE_ROOT_DIGEST is not set; nothing was signed."
+            exit 1
+          fi
+          if [ "${EXPECTED}" != "${digest}" ] || [ "${pin}" != "${digest}" ]; then
+            echo "::error::the root digest in KNOWLEDGE_ROOT_DIGEST, in cli/internal/knowledgepin/root.json and in the compiled-in pin are not all equal; nothing was signed."
+            exit 1
+          fi
+          echo "root_digest=${digest}" >> "${GITHUB_OUTPUT}"
+
+      - name: Build the tools
+        if: ${{ steps.pending.outputs.pending == '' }}
+        working-directory: cli
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/bin"
+          go build -trimpath -buildvcs=false -o "${RUNNER_TEMP}/bin/prufyx" ./cmd/prufyx-community
+          go build -trimpath -buildvcs=false -o "${RUNNER_TEMP}/bin/prufyx-maintainer" ./cmd/prufyx-maintainer
+
+      # The previous revision, TUF version and index come from the live package:
+      # the newest live artifact across the content family and the refresh
+      # family, found with the API (uncached), not from the Pages CDN. The
+      # artifact is untrusted until `db verify` has accepted it against the
+      # pinned root and the digest in the artifact NAME.
+      - name: Find and verify the previous state
+        id: prev
+        if: ${{ steps.pending.outputs.pending == '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ROOT_DIGEST: ${{ steps.pin.outputs.root_digest }}
+          FIRST_RELEASE: ${{ inputs.first_release }}
+          PREV_REVISION: ${{ inputs.previous_revision }}
+          PREV_TUF: ${{ inputs.previous_tuf_version }}
+          PREV_URL: ${{ inputs.previous_index }}
+        run: |
+          set -euo pipefail
+          umask 077
+          bin="${RUNNER_TEMP}/bin/prufyx"
+          root="${GITHUB_WORKSPACE}/cli/internal/knowledgepin/root.json"
+          state="$(mktemp -d "${RUNNER_TEMP}/knowledge-state.XXXXXX")"
+          fail() { echo "::error::$*"; exit 1; }
+
+          verify() { # package expected-digest expected-revision
+            local args=(db verify "$1" --profile cncf-projects --bootstrap-root "${root}" --bootstrap-root-digest "${ROOT_DIGEST}" --format json)
+            [ -z "$2" ] || args+=(--expected-package-digest "$2")
+            [ -z "$3" ] || args+=(--expected-revision "$3")
+            "${bin}" "${args[@]}"
+          }
+          prev_sha=""
+          content_run_id=""
+          refresh_run_id=""
+          content_revision=""
+
+          if [ "${FIRST_RELEASE}" = "true" ]; then
+            if [ -n "${PREV_REVISION}${PREV_TUF}${PREV_URL}" ]; then
+              fail "first_release cannot be combined with the recovery inputs."
+            fi
+            runs="$(gh api --paginate -X GET "repos/${GH_REPO}/actions/workflows/knowledge-publish.yml/runs" \
+              -f branch=main -f status=success -f per_page=100 --jq '.workflow_runs[].id')"
+            if [ -n "${runs}" ]; then
+              fail "first_release=true refused: a successful run of this workflow already exists on main."
+            fi
+            live="$(bash "${GITHUB_WORKSPACE}/scripts/knowledge-daily.sh" live-runs)" || fail "the published state cannot be read."
+            [ "$(jq -r '.live.family' <<< "${live}")" = none ] || fail "first_release=true refused: a live package exists."
+            echo "mode=first" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          pkg="${state}/previous.tar"
+          expected_digest=""
+          expected_revision=""
+          created=""
+          if [ -n "${PREV_REVISION}${PREV_TUF}${PREV_URL}" ]; then
+            [ -n "${PREV_REVISION}" ] && [ -n "${PREV_TUF}" ] && [ -n "${PREV_URL}" ] \
+              || fail "recovery needs previous_revision, previous_tuf_version and previous_index together."
+            [[ "${PREV_REVISION}" =~ ^[1-9][0-9]{0,17}$ ]] || fail "previous_revision is not a positive integer."
+            [[ "${PREV_TUF}" =~ ^[1-9][0-9]{0,17}$ ]] || fail "previous_tuf_version is not a positive integer."
+            [[ "${PREV_URL}" =~ ^https://[A-Za-z0-9._~/-]+$ ]] || fail "previous_index must be a plain https URL without query or credentials."
+            curl --proto '=https' --max-redirs 0 --max-filesize "${MAX_PACKAGE_BYTES}" --max-time 120 -fsS -o "${pkg}" -- "${PREV_URL}" \
+              || fail "could not download the previous package."
+            expected_revision="${PREV_REVISION}"
+            mode=recovery
+            # An orphan refresh artifact (its content run expired, the >90 day
+            # case) must not block recovery: record its run, sign and deploy
+            # re-check that exactly this state is still there. Any other live
+            # package is refused when sign re-checks liveness.
+            live="$(bash "${GITHUB_WORKSPACE}/scripts/knowledge-daily.sh" live-runs)" || fail "the published state cannot be read from the runs of both workflows."
+            if [ "$(jq -r '.live.family' <<< "${live}")" = refresh-orphan ]; then
+              refresh_run_id="$(jq -r '.refresh.runId' <<< "${live}")"
+              # The owner-supplied package must BE the orphan refresh package
+              # (a pre-refresh package has a lower timestamp: rollback).
+              printf '%s' "${live}" > "${state}/live.json"
+              expected_digest="$(bash "${GITHUB_WORKSPACE}/scripts/knowledge-daily.sh" orphan-bind "${state}/live.json" "${PREV_REVISION}" "${PREV_TUF}")" || fail "recovery over a live refresh artifact needs that refresh package itself as previous_index (revision and timestamp version of the refresh artifact); see the runbook."
+            fi
+          else
+            # The live package is the newest live artifact across the content
+            # family and the refresh family; the content run gives the source
+            # commit and the revision (a refresh keeps both).
+            live="$(bash "${GITHUB_WORKSPACE}/scripts/knowledge-daily.sh" live-runs)" || fail "the published state cannot be read from the runs of both workflows."
+            live_family="$(jq -r '.live.family' <<< "${live}")"
+            [ "${live_family}" != refresh-orphan ] || fail "a live refresh artifact exists but its content run has no live artifact (retention is 90 days): there is no package to build on; use the recovery inputs, see the runbook."
+            [ "${live_family}" != none ] || fail "no run of the content or the refresh workflow has a live knowledge artifact (retention is 90 days) and no first release is requested; use the recovery inputs, see the runbook."
+            live_name="$(jq -r '.live.artifact' <<< "${live}")"
+            [[ "${live_name}" =~ ^knowledge(-refresh)?-[0-9]+(-[0-9]+)?-[0-9a-f]{64}$ ]] || fail "the live artifact name is malformed."
+            prev_sha="$(jq -r '.content.sha' <<< "${live}")"
+            content_run_id="$(jq -r '.content.runId' <<< "${live}")"
+            refresh_run_id="$(jq -r '.refresh.runId' <<< "${live}")"
+            content_revision="$(jq -r '.content.revision' <<< "${live}")"
+            found="$(gh api -X GET "repos/${GH_REPO}/actions/runs/$(jq -r '.live.runId' <<< "${live}")/artifacts?per_page=100" \
+              --jq "[.artifacts[] | select(.expired == false) | select(.name == \"${live_name}\")] | (first // empty) | [.id, .name, .size_in_bytes, .created_at] | @tsv")"
+            [ -n "${found}" ] || fail "the live artifact ${live_name} is no longer available."
+            IFS=$'\t' read -r aid aname asize created <<< "${found}"
+            [ "${asize}" -le $((MAX_PACKAGE_BYTES * 2)) ] || fail "previous artifact is larger than expected."
+            gh api "repos/${GH_REPO}/actions/artifacts/${aid}/zip" > "${state}/previous.zip"
+            [ "$(unzip -Z1 "${state}/previous.zip")" = "cncf-projects.tar" ] || fail "previous artifact does not hold exactly cncf-projects.tar."
+            unzip -p "${state}/previous.zip" cncf-projects.tar | head -c $((MAX_PACKAGE_BYTES + 1)) > "${pkg}"
+            expected_digest="sha256:${aname##*-}"
+            mode=state
+          fi
+          [ "$(stat -c %s "${pkg}")" -le "${MAX_PACKAGE_BYTES}" ] || fail "previous package is larger than the package limit."
+
+          # Verify with this tree's client. After an engine capability change
+          # (a registry, policy or engine change) the previous package was
+          # built for the old capability and this client refuses it with exit
+          # 15 and "KNOWLEDGE CAPABILITY MISMATCH". The package is then verified
+          # by the client of the commit that produced it (next steps), and the
+          # release is a capability change. Any other failure is final.
+          err="${state}/verify.err"
+          if verify "${pkg}" "${expected_digest}" "${expected_revision}" > "${state}/receipt.json" 2> "${err}"; then
+            rc=0
+          else
+            rc=$?
+          fi
+          cat "${err}" >&2
+          if [ "${rc}" -ne 0 ]; then
+            if [ "${rc}" = 15 ] && [ "${mode}" = state ] && grep -q "KNOWLEDGE CAPABILITY MISMATCH" "${err}"; then
+              [[ "${prev_sha}" =~ ^[0-9a-f]{40}$ ]] || fail "the previous package needs the client that produced it, but its commit is unknown."
+              {
+                echo "mismatch=true"
+                echo "prev_sha=${prev_sha}"
+                echo "content_run_id=${content_run_id}"
+                echo "refresh_run_id=${refresh_run_id}"
+                echo "content_revision=${content_revision}"
+                echo "pkg=${pkg}"
+                echo "state_dir=${state}"
+                echo "expected_digest=${expected_digest}"
+                echo "created=${created}"
+              } >> "${GITHUB_OUTPUT}"
+              exit 0
+            fi
+            fail "the previous package does not verify against the pinned root (an expired package cannot be used as state; see the runbook)."
+          fi
+          PKG="${pkg}" RECEIPT="${state}/receipt.json" MODE="${mode}" CREATED="${created}" PREV_TUF="${PREV_TUF}" \
+            STATE_DIR="${state}" MAX_INDEX_BYTES="${MAX_INDEX_BYTES}" \
+            bash "${GITHUB_WORKSPACE}/scripts/knowledge-publish-state.sh"
+          {
+            echo "pkg=${pkg}"
+            echo "prev_sha=${prev_sha}"
+            echo "content_run_id=${content_run_id}"
+            echo "refresh_run_id=${refresh_run_id}"
+            echo "content_revision=${content_revision}"
+            echo "expected_digest=${expected_digest}"
+          } >> "${GITHUB_OUTPUT}"
+
+      # Only after an engine capability change: the previous package is
+      # verified with the client built from the commit that produced it (the
+      # code that accepted it when it was published), against the pinned root
+      # of this tree and the digest in the artifact name. No secret is in the
+      # environment of these two steps.
+      - name: Check out the commit that produced the previous package
+        if: ${{ steps.pending.outputs.pending == '' && steps.prev.outputs.mismatch == 'true' }}
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ steps.prev.outputs.prev_sha }}
+          path: producing
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Verify the previous package with the client that produced it
+        id: prevcap
+        if: ${{ steps.pending.outputs.pending == '' && steps.prev.outputs.mismatch == 'true' }}
+        env:
+          ROOT_DIGEST: ${{ steps.pin.outputs.root_digest }}
+          PKG: ${{ steps.prev.outputs.pkg }}
+          STATE_DIR: ${{ steps.prev.outputs.state_dir }}
+          EXPECTED_DIGEST: ${{ steps.prev.outputs.expected_digest }}
+          CREATED: ${{ steps.prev.outputs.created }}
+        run: |
+          set -euo pipefail
+          umask 077
+          fail() { echo "::error::$*"; exit 1; }
+          out="${RUNNER_TEMP}/producing"
+          mkdir -m 700 "${out}"
+          root="${GITHUB_WORKSPACE}/cli/internal/knowledgepin/root.json"
+          (cd "${GITHUB_WORKSPACE}/producing/cli" && GOTOOLCHAIN=local GOPROXY=off go build -trimpath -buildvcs=false \
+            -o "${out}/prufyx" ./cmd/prufyx-community) \
+            || fail "the client that produced the previous package cannot be built; the feed keeps the last package. See cli/docs/knowledge-publisher.md."
+          "${out}/prufyx" db verify "${PKG}" --profile cncf-projects --bootstrap-root "${root}" --bootstrap-root-digest "${ROOT_DIGEST}" \
+            --expected-package-digest "${EXPECTED_DIGEST}" --format json > "${STATE_DIR}/receipt-producing.json" \
+            || fail "the previous package does not verify against the pinned root, even with the client that produced it."
+          jq -e '.status == "VERIFIED"' "${STATE_DIR}/receipt-producing.json" > /dev/null \
+            || fail "the previous package is not VERIFIED."
+          PKG="${PKG}" RECEIPT="${STATE_DIR}/receipt-producing.json" MODE=capability CREATED="${CREATED}" \
+            STATE_DIR="${STATE_DIR}" MAX_INDEX_BYTES="${MAX_INDEX_BYTES}" \
+            bash "${GITHUB_WORKSPACE}/scripts/knowledge-publish-state.sh"
+          {
+            echo "pkg=${PKG}"
+            echo "digest=${EXPECTED_DIGEST}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Build the packet and the plan
+        id: plan
+        if: ${{ steps.pending.outputs.pending == '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ROOT_DIGEST: ${{ steps.pin.outputs.root_digest }}
+          MODE: ${{ steps.prevcap.outputs.mode || steps.prev.outputs.mode }}
+          PREV_REVISION: ${{ steps.prevcap.outputs.revision || steps.prev.outputs.revision }}
+          PREV_TUF: ${{ steps.prevcap.outputs.tuf || steps.prev.outputs.tuf }}
+          PREV_PKG: ${{ steps.prevcap.outputs.pkg || steps.prev.outputs.pkg }}
+          PREV_INDEX_FILE: ${{ steps.prevcap.outputs.index || steps.prev.outputs.index }}
+          EXPECTED_DIGEST: ${{ steps.prevcap.outputs.digest || steps.prev.outputs.expected_digest }}
+          PREV_SHA: ${{ steps.prev.outputs.prev_sha }}
+          PREV_CONTENT_RUN_ID: ${{ steps.prev.outputs.content_run_id }}
+          PREV_REFRESH_RUN_ID: ${{ steps.prev.outputs.refresh_run_id }}
+          CONTENT_REVISION: ${{ steps.prev.outputs.content_revision }}
+          SINCE_SHA: ${{ inputs.since_sha }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          umask 077
+          export LC_ALL=C
+          fail() { echo "::error::$*"; exit 1; }
+          maint="${RUNNER_TEMP}/bin/prufyx-maintainer"
+          root="${GITHUB_WORKSPACE}/cli/internal/knowledgepin/root.json"
+          daily="${GITHUB_WORKSPACE}/scripts/knowledge-daily.sh"
+          stage="${RUNNER_TEMP}/plan"
+          mkdir -m 700 "${stage}"
+          head="${GITHUB_SHA}"
+          [[ "${head}" =~ ^[0-9a-f]{40}$ ]] || fail "the run commit is not a 40-hex sha."
+
+          # Range start: the source commit of the last published revision.
+          base="${PREV_SHA}"
+          if [ -z "${base}" ]; then
+            base="${SINCE_SHA}"
+            [[ "${base}" =~ ^[0-9a-f]{40}$ ]] || fail "the source commit of the last published revision is unknown (first release or recovery): pass since_sha."
+          elif [ -n "${SINCE_SHA}" ] && [ "${SINCE_SHA}" != "${base}" ]; then
+            fail "since_sha differs from the source commit of the last published run."
+          fi
+          git cat-file -e "${base}^{commit}" || fail "the range start ${base} is not in the checked-out history."
+          git merge-base --is-ancestor "${base}" "${head}" || fail "the range start is not an ancestor of the run commit."
+
+          case "${MODE}" in
+            first) revision=1; prev_rev=0 ;;
+            state | capability | recovery)
+              [[ "${PREV_REVISION}" =~ ^[1-9][0-9]{0,17}$ ]] || fail "the previous revision is not a positive integer."
+              revision=$((PREV_REVISION + 1)); prev_rev="${PREV_REVISION}" ;;
+            *) fail "unknown mode '${MODE}'." ;;
+          esac
+
+          # The verified live package and the newest content run must agree on
+          # the revision (a refresh keeps it); any difference is a moved state.
+          case "${MODE}" in
+            state | capability) [ "${CONTENT_REVISION}" = "${PREV_REVISION}" ] || fail "the revision of the verified live package (${PREV_REVISION}) differs from the revision of the newest content run (${CONTENT_REVISION})." ;;
+          esac
+
+          # Layout of the next release and its keyless digests.
+          # The index layout follows the committed index of the last release for a
+          # regular release and for a recovery (taken from the recovered package);
+          # first and capability start a fresh layout.
+          case "${MODE}" in
+            state | recovery) layout=(--previous-index "${PREV_INDEX_FILE}") ;;
+            first | capability) layout=(--first-release) ;;
+            *) fail "unknown mode '${MODE}'." ;;
+          esac
+          digests="$("${maint}" knowledge-publish content-digest --profile cncf-projects "${layout[@]}" --revision "${revision}")" \
+            || fail "the content digest could not be computed."
+          content_digest="$(jq -er '.contentDigest' <<< "${digests}")"
+          index_digest="$(jq -er '.indexDigest' <<< "${digests}")"
+          [[ "${content_digest}" =~ ^sha256:[0-9a-f]{64}$ ]] && [[ "${index_digest}" =~ ^sha256:[0-9a-f]{64}$ ]] || fail "malformed digests."
+
+          # Previous (live) state: verified against the pinned root, never trusted from the artifact alone.
+          min_version=1
+          if [ "${MODE}" != first ]; then
+            args=(knowledge-publish live-state --package "${PREV_PKG}" --root "${root}" --root-digest "${ROOT_DIGEST}" --profile cncf-projects)
+            [ -z "${EXPECTED_DIGEST}" ] || args+=(--expect-package-digest "${EXPECTED_DIGEST}")
+            state="$("${maint}" "${args[@]}")" || fail "the previous package does not verify against the pinned root."
+            [ "$(jq -r '.revision' <<< "${state}")" = "${PREV_REVISION}" ] || fail "the verified previous revision differs from the state step."
+            min_version="$(jq -er '.minNextVersion' <<< "${state}")"
+            PREV_PACKAGE_DIGEST="$(jq -er '.packageDigest' <<< "${state}")"
+            PREV_TARGETS_DIGEST="$(jq -er '.targetsDigest' <<< "${state}")"
+            PREV_SNAPSHOT_DIGEST="$(jq -er '.snapshotDigest' <<< "${state}")"
+            PREV_INDEX_SHA="sha256:$(sha256sum "${PREV_INDEX_FILE}" | cut -d' ' -f1)"
+            export PREV_PACKAGE_DIGEST PREV_TARGETS_DIGEST PREV_SNAPSHOT_DIGEST PREV_INDEX_SHA
+            cp "${PREV_PKG}" "${stage}/previous.tar"
+            cp "${PREV_INDEX_FILE}" "${stage}/previous-index.json"
+          fi
+
+          # Expiry fixed by the plan: min(now + 21 days, evidence expiry when the
+          # publisher reports it). The publisher still enforces its own cap.
+          now="$(date -u +%s)"
+          exp_epoch=$((now + 21 * 86400))
+          ev="$(jq -r '.evidenceExpiresAt // empty' <<< "${digests}")"
+          if [ -n "${ev}" ]; then
+            ev_epoch="$(date -u -d "${ev}" +%s)" || fail "unreadable evidence expiry."
+            [ "${ev_epoch}" -ge "${exp_epoch}" ] || exp_epoch="${ev_epoch}"
+          fi
+          [ "${exp_epoch}" -gt $((now + 86400)) ] || fail "reviewed evidence expires within a day; refresh the evidence before publishing."
+          expires="$(date -u -d "@${exp_epoch}" +%Y-%m-%dT%H:%M:%SZ)"
+
+          # The packet: every pull request merged since the last published source commit.
+          # Numeric ids are pinned in the script; the login lookup only cross-checks them.
+          ids="$(bash "${daily}" trusted-ids)" || fail "the trusted user ids could not be confirmed; nothing can be signed."
+          bash "${daily}" collect "${GITHUB_WORKSPACE}" "${base}" "${head}" "${stage}/input.json"
+          "${maint}" knowledge-packet --repo "${GITHUB_WORKSPACE}" --base "${base}" --head "${head}" --previous-revision "${prev_rev}" \
+            --input "${stage}/input.json" --out-json "${stage}/packet.json" --out-md "${stage}/packet.md" --trusted-user-ids "${ids}" \
+            || fail "the packet could not be built; nothing can be signed."
+          rm -f "${stage}/input.json"
+          has_content="$(bash "${daily}" has-content "${stage}/packet.json" "${MODE}")"
+
+          export MODE SOURCE_COMMIT="${head}" REVISION="${revision}" MIN_VERSION="${min_version}" EXPIRES="${expires}" \
+            CONTENT_DIGEST="${content_digest}" INDEX_DIGEST="${index_digest}" PACKET="${stage}/packet.json" \
+            CREATED_EPOCH="${now}" HAS_CONTENT="${has_content}"
+          bash "${daily}" plan-json "${stage}/plan.json"
+
+          [ "$(stat -c %s "${stage}/packet.md")" -le 900000 ] || fail "the packet summary is larger than the step summary limit; nothing can be signed."
+          {
+            echo "## Knowledge publish plan (revision ${revision})"
+            echo ""
+            echo "- source commit: \`${head}\` (range from \`${base}\`)"
+            echo "- mode: ${MODE}; dry run: ${DRY_RUN}; content to publish: ${has_content}"
+            echo "- export content digest (binds the signature): \`${content_digest}\`"
+            echo "- packet entries digest: \`$(jq -er '.entriesDigest' "${stage}/packet.json")\`"
+            echo "- index digest: \`${index_digest}\`"
+            echo "- minimum TUF version: ${min_version} (the signed version is the live version plus one, computed at sign time)"
+            echo "- roles expire: ${expires}"
+            echo ""
+            cat "${stage}/packet.md"
+          } >> "${GITHUB_STEP_SUMMARY}"
+          {
+            echo "has_content=${has_content}"
+            echo "revision=${revision}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Upload the packet and the plan
+        if: ${{ steps.pending.outputs.pending == '' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: knowledge-plan-${{ github.run_id }}
+          path: ${{ runner.temp }}/plan
+          retention-days: 14
+          if-no-files-found: error
+
+      # Signing is possible only when every condition holds. A dry run, a failed
+      # or skipped gate self-check, a pending run, an empty day or a re-run
+      # (attempt other than 1) leave sign_ok empty.
+      - name: Decide
+        id: decide
+        env:
+          GATE_OK: ${{ steps.gate.outputs.gate_ok }}
+          PENDING: ${{ steps.pending.outputs.pending }}
+          HAS_CONTENT: ${{ steps.plan.outputs.has_content }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          ok=false
+          if [ "${GATE_OK}" = true ] && [ -z "${PENDING}" ] && [ "${HAS_CONTENT}" = true ] && [ "${DRY_RUN}" = false ] && [ "${RUN_ATTEMPT}" = 1 ]; then
+            ok=true
+          fi
+          echo "sign_ok=${ok}" >> "${GITHUB_OUTPUT}"
+          {
+            echo ""
+            if [ "${ok}" = true ]; then
+              echo "Approval requested: the sign job waits for the required reviewer."
+            else
+              echo "No signing in this run (gate=${GATE_OK:-unset}, pending=${PENDING:-none}, content=${HAS_CONTENT:-unset}, dry_run=${DRY_RUN}, attempt=${RUN_ATTEMPT})."
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  # A separate minimal job: its own permissions (actions:write, no secret, no
+  # packet logic). It acts only on runs of THIS workflow older than 26 hours and
+  # re-reads every run before it cancels it.
+  cancel-stale:
+    name: Cancel runs waiting more than 26 hours
+    needs: plan
+    if: ${{ needs.plan.result == 'success' && needs.plan.outputs.stale != '' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Check out the script only
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          sparse-checkout: scripts/knowledge-daily.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Cancel
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          STALE_IDS: ${{ needs.plan.outputs.stale }}
+        run: bash scripts/knowledge-daily.sh cancel
+
+  # Dry run only: records, without failing, what the job token with actions:write
+  # gets when it tries to approve a pending deployment (design: expected 4xx).
+  # The own run has nothing pending, so a 403 "not accessible by integration" is
+  # the informative answer; any other 4xx proves nothing about the token scope.
+  token-probe:
+    name: Probe the token scope (dry run only)
+    needs: plan
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Try to approve a deployment with the job token
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -uo pipefail
+          envid="$(gh api -X GET "repos/${GH_REPO}/environments/knowledge-release" --jq '.id' 2> /dev/null || echo 0)"
+          [[ "${envid}" =~ ^[0-9]+$ ]] || envid=0
+          resp="$(gh api -X POST "repos/${GH_REPO}/actions/runs/${RUN_ID}/pending_deployments" \
+            -F "environment_ids[]=${envid}" -f state=approved -f comment=probe 2>&1)" && rc=0 || rc=$?
+          {
+            echo "### Token probe (expected 4xx)"
+            echo ""
+            echo "- exit code ${rc}"
+            echo "- answer: $(printf '%s' "${resp}" | head -c 300 | tr '\n' ' ')"
+            if [ "${rc}" = 0 ]; then echo "- WARNING: the job token was allowed to call pending_deployments"; fi
+          } >> "${GITHUB_STEP_SUMMARY}"
+
   sign:
     name: Build and sign
-    if: ${{ github.ref == 'refs/heads/main' && vars.KNOWLEDGE_RELEASE_ENABLED == 'true' }}
+    needs: plan
+    if: ${{ !inputs.dry_run && needs.plan.result == 'success' && needs.plan.outputs.sign_ok == 'true' && github.ref == 'refs/heads/main' && vars.KNOWLEDGE_RELEASE_ENABLED == 'true' }}
     environment: knowledge-release
+    concurrency:
+      group: knowledge-sign
+      cancel-in-progress: false
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
       contents: read
       actions: read
     outputs:
-      skip: ${{ steps.sign.outputs.skip }}
-      package_digest: ${{ steps.sign.outputs.package_digest }}
-      artifact_name: ${{ steps.sign.outputs.artifact_name }}
-      revision: ${{ steps.sign.outputs.revision }}
+      package_digest: ${{ steps.verify.outputs.package_digest }}
+      artifact_name: ${{ steps.verify.outputs.artifact_name }}
+      revision: ${{ steps.verify.outputs.revision }}
     steps:
       - name: Check out main
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
+
+      - name: Download the plan
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: knowledge-plan-${{ github.run_id }}
+          path: ${{ runner.temp }}/plan
+
+      # Before any key is read: attempt 1, same commit, same packet, plan not older than 48 hours.
+      - name: Check the plan
+        id: load
+        run: |
+          set -euo pipefail
+          plan="${RUNNER_TEMP}/plan"
+          bash scripts/knowledge-daily.sh sign-check "${plan}/plan.json" "${plan}/packet.json"
+          mode="$(jq -r '.mode' "${plan}/plan.json")"
+          {
+            echo "mode=${mode}"
+            echo "capability_prev_pkg=$([ "${mode}" = capability ] && echo "${plan}/previous.tar" || true)"
+            echo "capability_prev_digest=$([ "${mode}" = capability ] && jq -r '.previous.packageDigest' "${plan}/plan.json" || true)"
+            echo "capability_prev_revision=$([ "${mode}" = capability ] && jq -r '.previous.revision' "${plan}/plan.json" || true)"
+          } >> "${GITHUB_OUTPUT}"
 
       - name: Set up Go
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
@@ -133,164 +704,72 @@ jobs:
           go build -trimpath -buildvcs=false -o "${RUNNER_TEMP}/bin/prufyx" ./cmd/prufyx-community
           go build -trimpath -buildvcs=false -o "${RUNNER_TEMP}/bin/prufyx-maintainer" ./cmd/prufyx-maintainer
 
-      # The previous revision, TUF version and index come from the last
-      # successful run on main, found with the API (uncached), not from the
-      # Pages CDN. The artifact is untrusted until `db verify` has accepted it
-      # against the pinned root and the digest in the artifact NAME.
-      - name: Find and verify the previous state
-        id: prev
+      # State and digests are derived again here, from verified inputs, and
+      # must equal the plan the owner approved. The signing version is the live
+      # timestamp version plus one, computed now (the plan holds a minimum).
+      - name: Re-derive state, digests and version
+        id: rederive
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           ROOT_DIGEST: ${{ steps.pin.outputs.root_digest }}
-          FIRST_RELEASE: ${{ inputs.first_release }}
-          PREV_REVISION: ${{ inputs.previous_revision }}
-          PREV_TUF: ${{ inputs.previous_tuf_version }}
-          PREV_URL: ${{ inputs.previous_index }}
         run: |
           set -euo pipefail
           umask 077
-          bin="${RUNNER_TEMP}/bin/prufyx"
-          root="${GITHUB_WORKSPACE}/cli/internal/knowledgepin/root.json"
-          state="$(mktemp -d "${RUNNER_TEMP}/knowledge-state.XXXXXX")"
+          export LC_ALL=C
           fail() { echo "::error::$*"; exit 1; }
-
-          runs="$(gh api --paginate -X GET "repos/${GH_REPO}/actions/workflows/knowledge-publish.yml/runs" \
-            -f branch=main -f status=success -f per_page=100 \
-            --jq '.workflow_runs[] | [.id, .head_sha] | @tsv')"
-
-          verify() { # package expected-digest expected-revision
-            local args=(db verify "$1" --profile cncf-projects --bootstrap-root "${root}" --bootstrap-root-digest "${ROOT_DIGEST}" --format json)
-            [ -z "$2" ] || args+=(--expected-package-digest "$2")
-            [ -z "$3" ] || args+=(--expected-revision "$3")
-            "${bin}" "${args[@]}"
-          }
-          prev_sha=""
-
-          if [ "${FIRST_RELEASE}" = "true" ]; then
-            if [ -n "${PREV_REVISION}${PREV_TUF}${PREV_URL}" ]; then
-              fail "first_release cannot be combined with the recovery inputs."
-            fi
-            if [ -n "${runs}" ]; then
-              fail "first_release=true refused: a successful run of this workflow already exists on main."
-            fi
-            echo "mode=first" >> "${GITHUB_OUTPUT}"
-            exit 0
-          fi
-
-          pkg="${state}/previous.tar"
-          expected_digest=""
-          expected_revision=""
-          created=""
-          if [ -n "${PREV_REVISION}${PREV_TUF}${PREV_URL}" ]; then
-            [ -n "${PREV_REVISION}" ] && [ -n "${PREV_TUF}" ] && [ -n "${PREV_URL}" ] \
-              || fail "recovery needs previous_revision, previous_tuf_version and previous_index together."
-            [[ "${PREV_REVISION}" =~ ^[1-9][0-9]{0,17}$ ]] || fail "previous_revision is not a positive integer."
-            [[ "${PREV_TUF}" =~ ^[1-9][0-9]{0,17}$ ]] || fail "previous_tuf_version is not a positive integer."
-            [[ "${PREV_URL}" =~ ^https://[A-Za-z0-9._~/-]+$ ]] || fail "previous_index must be a plain https URL without query or credentials."
-            curl --proto '=https' --max-redirs 0 --max-filesize "${MAX_PACKAGE_BYTES}" --max-time 120 -fsS -o "${pkg}" -- "${PREV_URL}" \
-              || fail "could not download the previous package."
-            expected_revision="${PREV_REVISION}"
-            mode=recovery
-          else
-            [ -n "${runs}" ] || fail "no successful run of this workflow exists on main; use first_release=true for the very first publish."
-            found=""
-            while IFS=$'\t' read -r id sha; do
-              [ -n "${id}" ] || continue
-              found="$(gh api -X GET "repos/${GH_REPO}/actions/runs/${id}/artifacts" \
-                --jq '[.artifacts[] | select(.expired == false) | select(.name | test("^knowledge-[0-9]+-[0-9a-f]{64}$"))] | (first // empty) | [.id, .name, .size_in_bytes, .created_at] | @tsv')"
-              if [ -n "${found}" ]; then prev_sha="${sha}"; break; fi
-            done <<< "${runs}"
-            [ -n "${found}" ] || fail "no run has a live knowledge artifact (retention is 90 days); use the recovery inputs, see the runbook."
-            IFS=$'\t' read -r aid aname asize created <<< "${found}"
-            [ "${asize}" -le $((MAX_PACKAGE_BYTES * 2)) ] || fail "previous artifact is larger than expected."
-            gh api "repos/${GH_REPO}/actions/artifacts/${aid}/zip" > "${state}/previous.zip"
-            [ "$(unzip -Z1 "${state}/previous.zip")" = "cncf-projects.tar" ] || fail "previous artifact does not hold exactly cncf-projects.tar."
-            unzip -p "${state}/previous.zip" cncf-projects.tar | head -c $((MAX_PACKAGE_BYTES + 1)) > "${pkg}"
-            expected_digest="sha256:${aname##*-}"
-            mode=state
-          fi
-          [ "$(stat -c %s "${pkg}")" -le "${MAX_PACKAGE_BYTES}" ] || fail "previous package is larger than the package limit."
-
-          # Verify with this tree's client. After an engine capability change
-          # (a registry, policy or engine change) the previous package was
-          # built for the old capability and this client refuses it with exit
-          # 15 and "KNOWLEDGE CAPABILITY MISMATCH". The package is then verified
-          # by the client of the commit that produced it (next steps), and the
-          # release is a capability change. Any other failure is final.
-          err="${state}/verify.err"
-          if verify "${pkg}" "${expected_digest}" "${expected_revision}" > "${state}/receipt.json" 2> "${err}"; then
-            rc=0
-          else
-            rc=$?
-          fi
-          cat "${err}" >&2
-          if [ "${rc}" -ne 0 ]; then
-            if [ "${rc}" = 15 ] && [ "${mode}" = state ] && grep -q "KNOWLEDGE CAPABILITY MISMATCH" "${err}"; then
-              [[ "${prev_sha}" =~ ^[0-9a-f]{40}$ ]] || fail "the previous package needs the client that produced it, but its commit is unknown."
-              {
-                echo "mismatch=true"
-                echo "prev_sha=${prev_sha}"
-                echo "pkg=${pkg}"
-                echo "state_dir=${state}"
-                echo "expected_digest=${expected_digest}"
-                echo "created=${created}"
-              } >> "${GITHUB_OUTPUT}"
-              exit 0
-            fi
-            fail "the previous package does not verify against the pinned root (an expired package cannot be used as state; see the runbook)."
-          fi
-          PKG="${pkg}" RECEIPT="${state}/receipt.json" MODE="${mode}" CREATED="${created}" PREV_TUF="${PREV_TUF}" \
-            STATE_DIR="${state}" MAX_INDEX_BYTES="${MAX_INDEX_BYTES}" \
-            bash "${GITHUB_WORKSPACE}/scripts/knowledge-publish-state.sh"
-
-      # Only after an engine capability change: the previous package is
-      # verified with the client built from the commit that produced it (the
-      # code that accepted it when it was published), against the pinned root
-      # of this tree and the digest in the artifact name. No secret is in the
-      # environment of these two steps.
-      - name: Check out the commit that produced the previous package
-        if: ${{ steps.prev.outputs.mismatch == 'true' }}
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          ref: ${{ steps.prev.outputs.prev_sha }}
-          path: producing
-          persist-credentials: false
-          fetch-depth: 1
-
-      - name: Verify the previous package with the client that produced it
-        id: prevcap
-        if: ${{ steps.prev.outputs.mismatch == 'true' }}
-        env:
-          ROOT_DIGEST: ${{ steps.pin.outputs.root_digest }}
-          PKG: ${{ steps.prev.outputs.pkg }}
-          STATE_DIR: ${{ steps.prev.outputs.state_dir }}
-          EXPECTED_DIGEST: ${{ steps.prev.outputs.expected_digest }}
-          CREATED: ${{ steps.prev.outputs.created }}
-        run: |
-          set -euo pipefail
-          umask 077
-          fail() { echo "::error::$*"; exit 1; }
-          out="${RUNNER_TEMP}/producing"
-          mkdir -m 700 "${out}"
+          maint="${RUNNER_TEMP}/bin/prufyx-maintainer"
           root="${GITHUB_WORKSPACE}/cli/internal/knowledgepin/root.json"
-          (cd "${GITHUB_WORKSPACE}/producing/cli" && GOTOOLCHAIN=local GOPROXY=off go build -trimpath -buildvcs=false \
-            -o "${out}/prufyx" ./cmd/prufyx-community) \
-            || fail "the client that produced the previous package cannot be built; the feed keeps the last package. See cli/docs/knowledge-publisher.md."
-          "${out}/prufyx" db verify "${PKG}" --profile cncf-projects --bootstrap-root "${root}" --bootstrap-root-digest "${ROOT_DIGEST}" \
-            --expected-package-digest "${EXPECTED_DIGEST}" --format json > "${STATE_DIR}/receipt-producing.json" \
-            || fail "the previous package does not verify against the pinned root, even with the client that produced it."
-          jq -e '.status == "VERIFIED"' "${STATE_DIR}/receipt-producing.json" > /dev/null \
-            || fail "the previous package is not VERIFIED."
-          PKG="${PKG}" RECEIPT="${STATE_DIR}/receipt-producing.json" MODE=capability CREATED="${CREATED}" \
-            STATE_DIR="${STATE_DIR}" MAX_INDEX_BYTES="${MAX_INDEX_BYTES}" \
-            bash "${GITHUB_WORKSPACE}/scripts/knowledge-publish-state.sh"
+          plan="${RUNNER_TEMP}/plan/plan.json"
+          pj() { jq -er "$1" "${plan}"; }
+          mode="$(pj '.mode')"
+          revision="$(pj '.revision')"
+          # Unconditional, over both families: the newest content run and the
+          # newest refresh run must be exactly the ones the plan recorded, and the
+          # live artifact must be the package the plan holds. A refresh that was
+          # deployed after the plan makes this refuse; the next plan replans.
+          bash scripts/knowledge-daily.sh check-live "${plan}"
+          version=1
+          layout=(--first-release)
+          if [ "${mode}" != first ]; then
+            pkg="${RUNNER_TEMP}/plan/previous.tar"
+            [ -f "${pkg}" ] && [ ! -L "${pkg}" ] || fail "the plan holds no previous package."
+            state="$("${maint}" knowledge-publish live-state --package "${pkg}" --root "${root}" --root-digest "${ROOT_DIGEST}" --profile cncf-projects \
+              --expect-package-digest "$(pj '.previous.packageDigest')" --expect-revision "$(pj '.previous.revision')" \
+              --expect-targets-digest "$(pj '.previous.targetsDigest')" --expect-snapshot-digest "$(pj '.previous.snapshotDigest')")" \
+              || fail "the live state moved since the plan or the previous package does not verify."
+            version="$(jq -er '.minNextVersion' <<< "${state}")"
+            if [ "${mode}" = state ] || [ "${mode}" = recovery ]; then
+              members="$(tar -tf "${pkg}" | head -n 1000 | grep -E '^targets/knowledge/cncf/[0-9a-f]{64}\.index\.v1\.json$' || true)"
+              [ "$(grep -c . <<< "${members}")" = 1 ] || fail "previous package does not hold exactly one index."
+              idx="${RUNNER_TEMP}/previous-index.json"
+              tar -xOf "${pkg}" --no-wildcards -- "${members}" | head -c $((MAX_INDEX_BYTES + 1)) > "${idx}"
+              [ "$(stat -c %s "${idx}")" -le "${MAX_INDEX_BYTES}" ] && [ -s "${idx}" ] || fail "previous index is empty or too large."
+              [ "sha256:$(sha256sum "${idx}" | cut -d' ' -f1)" = "$(pj '.previous.indexSha256')" ] || fail "the previous index differs from the one the plan used."
+              layout=(--previous-index "${idx}")
+            fi
+          fi
+          [ "${version}" -ge "$(pj '.minTufVersion')" ] || fail "the signing version ${version} is below the minimum of the plan."
+          now="$(date -u +%s)"
+          expires="$(pj '.expires')"
+          [ "$(date -u -d "${expires}" +%s)" -gt $((now + 86400)) ] || fail "the planned expiry (${expires}) is less than a day away; the next plan replans."
+          digests="$("${maint}" knowledge-publish content-digest --profile cncf-projects "${layout[@]}" --revision "${revision}")" \
+            || fail "the content digest could not be computed."
+          [ "$(jq -r '.contentDigest' <<< "${digests}")" = "$(pj '.contentDigest')" ] || fail "the content digest differs from the approved plan; nothing was signed."
+          [ "$(jq -r '.indexDigest' <<< "${digests}")" = "$(pj '.indexDigest')" ] || fail "the index digest differs from the approved plan; nothing was signed."
           {
-            echo "pkg=${PKG}"
-            echo "digest=${EXPECTED_DIGEST}"
+            echo "mode=${mode}"
+            echo "revision=${revision}"
+            echo "version=${version}"
+            echo "expires=${expires}"
+            echo "layout_index=$({ [ "${mode}" = state ] || [ "${mode}" = recovery ]; } && echo "${idx}" || true)"
           } >> "${GITHUB_OUTPUT}"
 
-      - name: Build, sign and verify
+      # The only step with secrets. It signs and nothing else; its keys directory
+      # is removed by the EXIT trap, and the steps after it hold no secret. The
+      # four inputs must be present: the owner verifies the key material, and an
+      # empty input stops the step before any key file or directory exists.
+      - name: Sign
         id: sign
         env:
           TARGETS_KEY: ${{ secrets.KNOWLEDGE_TARGETS_KEY }}
@@ -298,130 +777,134 @@ jobs:
           TIMESTAMP_KEY: ${{ secrets.KNOWLEDGE_TIMESTAMP_KEY }}
           PASSPHRASE: ${{ secrets.KNOWLEDGE_KEY_PASSPHRASE }}
           ROOT_DIGEST: ${{ steps.pin.outputs.root_digest }}
-          MODE: ${{ steps.prevcap.outputs.mode || steps.prev.outputs.mode }}
-          PREV_REVISION: ${{ steps.prevcap.outputs.revision || steps.prev.outputs.revision }}
-          PREV_TUF: ${{ steps.prevcap.outputs.tuf || steps.prev.outputs.tuf }}
-          PREV_RULES: ${{ steps.prevcap.outputs.rules || steps.prev.outputs.rules }}
-          PREV_CREATED: ${{ steps.prevcap.outputs.created_epoch || steps.prev.outputs.created_epoch }}
-          PREV_INDEX: ${{ steps.prevcap.outputs.index || steps.prev.outputs.index }}
-          EVENT_NAME: ${{ github.event_name }}
+          MODE: ${{ steps.rederive.outputs.mode }}
+          REVISION: ${{ steps.rederive.outputs.revision }}
+          VERSION: ${{ steps.rederive.outputs.version }}
+          EXPIRES: ${{ steps.rederive.outputs.expires }}
+          LAYOUT_INDEX: ${{ steps.rederive.outputs.layout_index }}
         run: |
           set -euo pipefail
           umask 077
           export LC_ALL=C
           fail() { echo "::error::$*"; exit 1; }
-          bin="${RUNNER_TEMP}/bin/prufyx"
+          for name in TARGETS_KEY SNAPSHOT_KEY TIMESTAMP_KEY PASSPHRASE; do
+            [ -n "${!name//[[:space:]]/}" ] || fail "the signing input ${name} is empty: the matching environment secret of knowledge-release is missing; nothing was signed."
+          done
           maint="${RUNNER_TEMP}/bin/prufyx-maintainer"
           root="${GITHUB_WORKSPACE}/cli/internal/knowledgepin/root.json"
+          plan="${RUNNER_TEMP}/plan/plan.json"
           keys="$(mktemp -d "${RUNNER_TEMP}/knowledge-keys.XXXXXX")"
           work="$(mktemp -d "${RUNNER_TEMP}/knowledge-build.XXXXXX")"
           trap 'rm -rf "${keys}"' EXIT
-          printf '%s\n' "${TARGETS_KEY}" > "${keys}/targets.key.pem"
-          printf '%s\n' "${SNAPSHOT_KEY}" > "${keys}/snapshot.key.pem"
-          printf '%s\n' "${TIMESTAMP_KEY}" > "${keys}/timestamp.key.pem"
+          # Each key file ends in exactly one newline, whatever the secret holds
+          # (a pasted secret often ends in one or more): the inner command
+          # substitution drops every trailing newline, the outer printf adds one.
+          printf '%s\n' "$(printf '%s' "${TARGETS_KEY}")" > "${keys}/targets.key.pem"
+          printf '%s\n' "$(printf '%s' "${SNAPSHOT_KEY}")" > "${keys}/snapshot.key.pem"
+          printf '%s\n' "$(printf '%s' "${TIMESTAMP_KEY}")" > "${keys}/timestamp.key.pem"
           printf '%s' "${PASSPHRASE}" > "${keys}/passphrase"
+          # A key file that is not one PEM block (no BEGIN first line, no END last
+          # line, a blank line inside) can never be used by the publisher: say so
+          # here, before the release call, instead of reporting a digest or state
+          # mismatch after the owner approved.
+          for role in targets snapshot timestamp; do
+            kf="${keys}/${role}.key.pem"
+            head -n 1 "${kf}" | grep -q '^-----BEGIN [A-Z0-9 ]*-----$' \
+              && tail -n 1 "${kf}" | grep -q '^-----END [A-Z0-9 ]*-----$' \
+              && ! grep -q '^[[:space:]]*$' "${kf}" \
+              || fail "key file or passphrase unusable: the ${role} key secret is not a single PEM block; nothing was signed."
+          done
 
-          if [ "${MODE}" = first ]; then
-            revision=1
-            version=1
-            layout=(--first-release)
-          elif [ "${MODE}" = capability ]; then
-            # The engine capability changed: the previous index no longer
-            # parses under this build, so every project is released again
-            # (--first-release layout) at the next revision and TUF version,
-            # which stay above everything published before.
-            revision=$((PREV_REVISION + 1))
-            version=$((PREV_TUF + 1))
-            layout=(--first-release)
-          else
-            revision=$((PREV_REVISION + 1))
-            version=$((PREV_TUF + 1))
-            layout=(--previous-index "${PREV_INDEX}")
+          # The exact flag set per mode (the publisher refuses any other):
+          #   first       fresh layout, nothing live          --first-release --no-live-package
+          #   state       last index, live package            --previous-index --previous-package --expect-previous-package-digest
+          #   capability  fresh layout, live package          --first-release --previous-package --expect-previous-package-digest
+          #   recovery    index of the recovered package, and
+          #               the recovered package is live       --previous-index --previous-package --expect-previous-package-digest
+          live=()
+          if [ "${MODE}" != first ]; then
+            live=(--previous-package "${RUNNER_TEMP}/plan/previous.tar" --expect-previous-package-digest "$(jq -er '.previous.packageDigest' "${plan}")")
           fi
+          case "${MODE}" in
+            first) flags=(--first-release --no-live-package) ;;
+            state | recovery)
+              [ -n "${LAYOUT_INDEX}" ] || fail "the previous index of mode ${MODE} is unknown."
+              flags=(--previous-index "${LAYOUT_INDEX}" "${live[@]}") ;;
+            capability) flags=(--first-release "${live[@]}") ;;
+            *) fail "unknown mode '${MODE}'." ;;
+          esac
+          # CI mode is enabled only by the explicit --ci flag (never detected from
+          # the environment): --expires and every --expect-* flag are required and
+          # checked before a key is read; attempt other than 1 is refused.
+          "${maint}" knowledge-publish release --ci --profile cncf-projects "${flags[@]}" \
+            --revision "${REVISION}" --version "${VERSION}" \
+            --root "${root}" --root-digest "${ROOT_DIGEST}" \
+            --targets-key "${keys}/targets.key.pem" \
+            --snapshot-key "${keys}/snapshot.key.pem" \
+            --timestamp-key "${keys}/timestamp.key.pem" \
+            --passphrase-file "${keys}/passphrase" \
+            --expires "${EXPIRES}" \
+            --expect-content-digest "$(jq -er '.contentDigest' "${plan}")" \
+            --expect-index-digest "$(jq -er '.indexDigest' "${plan}")" \
+            --output-dir "${work}/final" > "${work}/release.json" \
+            || fail "the release was refused (digest or state mismatch, evidence expired, version not advancing or invalid input)."
+          echo "work=${work}" >> "${GITHUB_OUTPUT}"
 
-          now="$(date -u +%s)"
-          cap="$(date -u -d "@$((now + 14 * 86400))" +%Y-%m-%dT%H:%M:%SZ)"
-
-          release() { # output-dir [extra flags]
-            local out="$1"; shift
-            "${maint}" knowledge-publish release --profile cncf-projects "${layout[@]}" \
-              --revision "${revision}" --version "${version}" \
-              --root "${root}" --root-digest "${ROOT_DIGEST}" \
-              --targets-key "${keys}/targets.key.pem" \
-              --snapshot-key "${keys}/snapshot.key.pem" \
-              --timestamp-key "${keys}/timestamp.key.pem" \
-              --passphrase-file "${keys}/passphrase" \
-              --output-dir "${out}" "$@"
-          }
-
-          # Expiry is min(now + 14 days, earliest evidence expiry). The
-          # publisher refuses an --expires later than the evidence expiry and
-          # does not print that expiry beforehand, so a first pass without
-          # --expires learns it; it is used as-is when it is the earlier one.
-          release "${work}/probe" > "${work}/probe.json" || fail "the release was refused (evidence expired, revision not advancing or invalid input)."
-          expires="$(jq -r '.expires' "${work}/probe.json")"
-          final="${work}/probe"
-          if [[ "${expires}" > "${cap}" ]]; then
-            release "${work}/final" --expires "${cap}" > "${work}/final.json" || fail "the capped release was refused."
-            expires="$(jq -r '.expires' "${work}/final.json")"
-            final="${work}/final"
-          fi
-          [[ "${expires}" > "$(date -u -d "@$((now + 86400))" +%Y-%m-%dT%H:%M:%SZ)" ]] \
-            || fail "reviewed evidence expires within a day (${expires}); refresh the evidence before publishing."
-
-          pkg="${final}/cncf-projects-${revision}.tar"
+      # No secret in the environment of this step or of any later one.
+      - name: Verify the signed package
+        id: verify
+        env:
+          ROOT_DIGEST: ${{ steps.pin.outputs.root_digest }}
+          WORK: ${{ steps.sign.outputs.work }}
+          REVISION: ${{ steps.rederive.outputs.revision }}
+          VERSION: ${{ steps.rederive.outputs.version }}
+        run: |
+          set -euo pipefail
+          umask 077
+          fail() { echo "::error::$*"; exit 1; }
+          bin="${RUNNER_TEMP}/bin/prufyx"
+          root="${GITHUB_WORKSPACE}/cli/internal/knowledgepin/root.json"
+          plan="${RUNNER_TEMP}/plan/plan.json"
+          [[ "${WORK}" == "${RUNNER_TEMP}"/knowledge-build.* ]] || fail "unexpected work directory."
+          release="${WORK}/release.json"
+          pkg="${WORK}/final/cncf-projects-${REVISION}.tar"
           hex="$(sha256sum "${pkg}" | cut -d' ' -f1)"
           size="$(stat -c %s "${pkg}")"
           [ "${size}" -le "${MAX_PACKAGE_BYTES}" ] || fail "the signed package is larger than the package limit."
-
-          # Self-verify with the client binary against the pinned root.
+          [ "$(jq -r '.packageDigest' "${release}")" = "sha256:${hex}" ] || fail "the release receipt and the package file disagree."
+          [ "$(jq -r '.contentDigest' "${release}")" = "$(jq -r '.contentDigest' "${plan}")" ] || fail "the signed content digest differs from the plan."
           verified="$("${bin}" db verify "${pkg}" --profile cncf-projects \
             --bootstrap-root "${root}" --bootstrap-root-digest "${ROOT_DIGEST}" \
-            --expected-package-digest "sha256:${hex}" --expected-revision "${revision}" --format json)" \
+            --expected-package-digest "sha256:${hex}" --expected-revision "${REVISION}" --format json)" \
             || fail "the signed package does not verify against the pinned root."
-          [ "$(jq -r '.timestamp.version' <<< "${verified}")" = "${version}" ] || fail "verified TUF version differs from the requested one."
-          rules="$(jq -r '.ruleDigest' <<< "${verified}")"
-
-          # The weekly cron never skips: it always re-signs, so the timestamp
-          # expiry moves every week (a skip at 6d23h would let the next run
-          # land on the 14-day expiry). Only push and dispatch can skip.
-          skip=false
-          if [ "${EVENT_NAME}" != schedule ] && [ "${MODE}" = state ] && [ "${rules}" = "${PREV_RULES}" ] && [ -n "${PREV_CREATED}" ] \
-             && [ $((now - PREV_CREATED)) -lt $((7 * 86400)) ]; then
-            skip=true
-          fi
-
+          [ "$(jq -r '.timestamp.version' <<< "${verified}")" = "${VERSION}" ] || fail "verified TUF version differs from the requested one."
+          [ "$(jq -r '.targetDigest // .bundleDigest' <<< "${verified}")" = "$(jq -r '.indexDigest' "${plan}")" ] || fail "the verified index digest differs from the packet; nothing is uploaded."
+          mkdir -m 700 "${RUNNER_TEMP}/artifact" "${RUNNER_TEMP}/packet-final"
+          cp "${pkg}" "${RUNNER_TEMP}/artifact/cncf-projects.tar"
+          cp "${RUNNER_TEMP}/plan/packet.json" "${RUNNER_TEMP}/plan/packet.md" "${plan}" "${release}" "${RUNNER_TEMP}/packet-final/"
           {
-            echo "skip=${skip}"
-            echo "revision=${revision}"
             echo "package_digest=sha256:${hex}"
-            echo "artifact_name=knowledge-${revision}-${hex}"
+            echo "artifact_name=knowledge-${REVISION}-${hex}"
+            echo "revision=${REVISION}"
+            echo "packet_final_name=packet-final-${REVISION}-${hex}"
           } >> "${GITHUB_OUTPUT}"
           {
-            if [ "${skip}" = true ]; then
-              echo "### Knowledge publish skipped"
-              echo "Bundle unchanged and the live metadata is under 7 days old (state of the previous run)."
-            else
-              echo "### Knowledge package signed"
-            fi
+            echo "### Knowledge package signed"
             echo ""
-            echo "- revision: ${revision}"
-            echo "- TUF version: ${version}"
+            echo "- revision: ${REVISION}"
+            echo "- TUF version: ${VERSION}"
             echo "- package digest: sha256:${hex}"
-            echo "- roles expire: ${expires}"
+            echo "- index digest (equals the packet): $(jq -r '.indexDigest' "${plan}")"
+            echo "- export content digest (binds the signature): $(jq -r '.contentDigest' "${plan}")"
+            echo "- packet entries digest: $(jq -r '.entriesDigest' "${plan}")"
+            echo "- roles expire: $(jq -r '.expires' "${release}")"
           } >> "${GITHUB_STEP_SUMMARY}"
 
-          if [ "${skip}" != true ]; then
-            mkdir -m 700 "${RUNNER_TEMP}/artifact"
-            cp "${pkg}" "${RUNNER_TEMP}/artifact/cncf-projects.tar"
-          fi
-
       # The signing keys are gone before these steps run: the keys directory of
-      # "Build, sign and verify" is removed by that step's EXIT trap, and none
+      # "Sign" is removed by that step's EXIT trap, and none
       # of the three steps below has a secret in its environment.
       - name: Read the oldest supported client pin
         id: oldest
-        if: ${{ steps.sign.outputs.skip == 'false' }}
         run: |
           set -euo pipefail
           pinfile="${GITHUB_WORKSPACE}/cli/knowledge/oldest-supported-client.txt"
@@ -438,7 +921,6 @@ jobs:
           } >> "${GITHUB_OUTPUT}"
 
       - name: Check out the oldest supported client
-        if: ${{ steps.sign.outputs.skip == 'false' }}
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ steps.oldest.outputs.ref }}
@@ -450,16 +932,15 @@ jobs:
       # built, or refuses the candidate package, the run fails here, nothing
       # is uploaded and the feed keeps the last package.
       - name: Verify with the oldest supported client
-        if: ${{ steps.sign.outputs.skip == 'false' }}
         env:
           OLDEST_REF: ${{ steps.oldest.outputs.ref }}
           OLDEST_VERSION: ${{ steps.oldest.outputs.version }}
-          PACKAGE_DIGEST: ${{ steps.sign.outputs.package_digest }}
-          REVISION: ${{ steps.sign.outputs.revision }}
-          MODE: ${{ steps.prevcap.outputs.mode || steps.prev.outputs.mode }}
-          PREV_PKG: ${{ steps.prevcap.outputs.pkg }}
-          PREV_DIGEST: ${{ steps.prevcap.outputs.digest }}
-          PREV_REVISION: ${{ steps.prevcap.outputs.revision }}
+          PACKAGE_DIGEST: ${{ steps.verify.outputs.package_digest }}
+          REVISION: ${{ steps.verify.outputs.revision }}
+          MODE: ${{ steps.load.outputs.mode }}
+          PREV_PKG: ${{ steps.load.outputs.capability_prev_pkg }}
+          PREV_DIGEST: ${{ steps.load.outputs.capability_prev_digest }}
+          PREV_REVISION: ${{ steps.load.outputs.capability_prev_revision }}
         run: |
           set -euo pipefail
           refuse() { echo "::error::the oldest supported client (${OLDEST_VERSION}, ${OLDEST_REF}) refuses this package or cannot be built; the feed keeps the last package. See cli/docs/knowledge-publisher.md."; exit 1; }
@@ -506,21 +987,31 @@ jobs:
           fi
 
       - name: Upload the signed package
-        if: ${{ steps.sign.outputs.skip == 'false' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: ${{ steps.sign.outputs.artifact_name }}
+          name: ${{ steps.verify.outputs.artifact_name }}
           path: ${{ runner.temp }}/artifact/cncf-projects.tar
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Upload the final packet
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ steps.verify.outputs.packet_final_name }}
+          path: ${{ runner.temp }}/packet-final
           retention-days: 90
           if-no-files-found: error
 
   deploy:
     name: Deploy to Pages
     needs: sign
-    if: ${{ needs.sign.result == 'success' && needs.sign.outputs.skip == 'false' }}
+    if: ${{ needs.sign.result == 'success' }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: knowledge-deploy
+      cancel-in-progress: false
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -540,28 +1031,58 @@ jobs:
           go-version-file: cli/go.mod
           cache: false
 
-      # A rerun of an older run must not put an older package live: refuse
-      # unless no later run of this workflow has succeeded on main.
-      - name: Refuse unless this is the latest run
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          RUN_NUMBER: ${{ github.run_number }}
-        run: |
-          set -euo pipefail
-          newer="$(gh api --paginate -X GET "repos/${GH_REPO}/actions/workflows/knowledge-publish.yml/runs" \
-            -f branch=main -f status=success -f per_page=100 \
-            | jq -r --argjson n "${RUN_NUMBER}" '.workflow_runs[] | select(.run_number > $n) | .id')"
-          if [ -n "${newer}" ]; then
-            echo "::error::a later run of this workflow has already succeeded on main; this run must not deploy. Start a new run with workflow_dispatch instead of re-running."
-            exit 1
-          fi
+      - name: Download the plan
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: knowledge-plan-${{ github.run_id }}
+          path: ${{ runner.temp }}/plan
 
       - name: Download the signed package
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: ${{ needs.sign.outputs.artifact_name }}
           path: ${{ runner.temp }}/signed
+
+      # Replaces the run-number rule: the candidate must be built over exactly
+      # the live package, with a higher TUF version, and either a higher
+      # revision or the same revision over byte-identical targets and snapshot.
+      - name: Refuse unless the candidate follows the live package
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          EXPECTED: ${{ vars.KNOWLEDGE_ROOT_DIGEST }}
+          FEED_URL: "https://prufyx.github.io/prufyx/knowledge/cncf-projects.tar"
+        working-directory: cli
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$*"; exit 1; }
+          root="${GITHUB_WORKSPACE}/cli/internal/knowledgepin/root.json"
+          [ -s "${root}" ] || fail "cli/internal/knowledgepin/root.json is missing; nothing was deployed."
+          root_digest="sha256:$(sha256sum "${root}" | cut -d' ' -f1)"
+          [ "${EXPECTED}" = "${root_digest}" ] || fail "KNOWLEDGE_ROOT_DIGEST differs from cli/internal/knowledgepin/root.json; nothing was deployed."
+          go build -trimpath -buildvcs=false -o "${RUNNER_TEMP}/prufyx-maintainer" ./cmd/prufyx-maintainer
+          plan="${RUNNER_TEMP}/plan/plan.json"
+          mode="$(jq -er '.mode' "${plan}")"
+          # Unconditional, over both families (see the sign job): a refresh or a
+          # content run that succeeded after the plan must not be rolled back.
+          bash "${GITHUB_WORKSPACE}/scripts/knowledge-daily.sh" check-live "${plan}"
+          if [ "${mode}" != first ]; then
+            prev="${RUNNER_TEMP}/plan/previous.tar"
+            [ "sha256:$(sha256sum "${prev}" | cut -d' ' -f1)" = "$(jq -er '.previous.packageDigest' "${plan}")" ] || fail "the previous package differs from the plan."
+            # The served feed must be the recorded predecessor (every mode): a
+            # newer package, or a CDN still serving an older one, replans.
+            served="$(mktemp -d "${RUNNER_TEMP}/knowledge-served.XXXXXX")"
+            curl --proto '=https' --max-redirs 0 --max-filesize "${MAX_PACKAGE_BYTES}" --max-time 60 -fsS \
+              -H 'Cache-Control: no-cache' -o "${served}/cncf-projects.tar" -- "${FEED_URL}" \
+              || fail "the served feed could not be downloaded; nothing was deployed."
+            bash "${GITHUB_WORKSPACE}/scripts/knowledge-daily.sh" served-check "${served}/cncf-projects.tar" "${plan}" \
+              || fail "the served feed is not the recorded predecessor; nothing was deployed, replan."
+            "${RUNNER_TEMP}/prufyx-maintainer" knowledge-publish deploy-guard --profile cncf-projects \
+              --live-package "${prev}" --candidate-package "${RUNNER_TEMP}/signed/cncf-projects.tar" \
+              --root "${root}" --root-digest "${root_digest}" \
+              --predecessor-digest "$(jq -er '.previous.packageDigest' "${plan}")" \
+              || fail "the deploy guard refused the candidate; nothing was deployed."
+          fi
 
       - name: Verify and assemble the site
         env:
@@ -586,11 +1107,16 @@ jobs:
             --bootstrap-root "${root}" --bootstrap-root-digest "${root_digest}" \
             --expected-package-digest "${PACKAGE_DIGEST}" --expected-revision "${REVISION}" --format json)" \
             || fail "the package does not verify against the pinned root; nothing was deployed."
+          plan="${RUNNER_TEMP}/plan/plan.json"
+          [ "$(jq -r '.targetDigest // .bundleDigest' <<< "${receipt}")" = "$(jq -er '.indexDigest' "${plan}")" ] \
+            || fail "the package index digest differs from the packet; nothing was deployed."
           site="${RUNNER_TEMP}/site"
           mkdir -p "${site}/knowledge"
           cp "${pkg}" "${site}/knowledge/cncf-projects.tar"
           cp "${root}" "${site}/knowledge/root.json"
-          jq '{revision: .knowledgeRevision, packageDigest: .packageDigest, bundleDigest: .targetDigest, timestampVersion: .timestamp.version, expires: .timestamp.expires, evidenceExpiresAt: .evidenceExpiresAt}' \
+          jq --slurpfile p "${plan}" --arg run "${GITHUB_RUN_ID}" \
+            '{revision: .knowledgeRevision, packageDigest: .packageDigest, bundleDigest: .targetDigest, timestampVersion: .timestamp.version, expires: .timestamp.expires, evidenceExpiresAt: .evidenceExpiresAt,
+              packet: {sourceCommit: $p[0].sourceCommit, packetSha256: $p[0].packetSha256, contentDigest: $p[0].contentDigest, entriesDigest: $p[0].entriesDigest, indexDigest: $p[0].indexDigest, runId: $run}}' \
             <<< "${receipt}" > "${site}/knowledge/status.json"
           {
             echo "### Knowledge package deployed"
