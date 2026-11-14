@@ -3,6 +3,7 @@
 package crdversions
 
 import (
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -74,7 +75,13 @@ func targetPathCovers(tg Target, source string) bool {
 		}
 		return true
 	}
-	for _, spec := range tg.Paths {
+	paths := tg.Paths
+	if tg.Attest && tg.ProfileAttestation && tg.DeclaredChannel != "" {
+		for _, channel := range tg.Channels {
+			paths = append(paths, channel.Paths...)
+		}
+	}
+	for _, spec := range paths {
 		if !spec.Dir && path == spec.Path {
 			return true
 		}
@@ -83,6 +90,26 @@ func targetPathCovers(tg Target, source string) bool {
 		}
 	}
 	return false
+}
+
+func TestProfileChannelCitationCoverage(t *testing.T) {
+	const source = "https://github.com/kubernetes-sigs/gateway-api/blob/e26d183dbbc1bb782b78addbd26faba03955c152/config/crd/experimental/gateway.networking.x-k8s.io_xtelemetrypolicies.yaml"
+	tg := Target{Project: "gateway-api", Repo: "github.com/kubernetes-sigs/gateway-api", Attest: true, ProfileAttestation: true, DeclaredChannel: "standard", Channels: []Channel{{Name: "experimental", Paths: []PathSpec{{Path: "config/crd/experimental", Dir: true, Match: regexp.MustCompile("^[^.][^/]*\\.ya?ml$")}}}}}
+	if !targetPathCovers(tg, source) {
+		t.Fatal("active profile channel citation is not covered")
+	}
+	for _, mutate := range []func(*Target){
+		func(tg *Target) { tg.Attest = false },
+		func(tg *Target) { tg.ProfileAttestation = false },
+		func(tg *Target) { tg.DeclaredChannel = "" },
+		func(tg *Target) { tg.Channels = nil },
+	} {
+		other := tg
+		mutate(&other)
+		if targetPathCovers(other, source) {
+			t.Fatal("unattested or unread channel citation is covered")
+		}
+	}
 }
 
 func TestKubeVirtConstructorCitationCoverage(t *testing.T) {
