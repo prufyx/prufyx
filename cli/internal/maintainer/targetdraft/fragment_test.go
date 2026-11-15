@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -23,10 +24,24 @@ const fragCA = "# The following patch adds a directive for certmanager to inject
 // fragFiles puts the given text files into every tag of an infControl source.
 func fragFiles(files map[string]string) func(tag string, m *memTree) {
 	return func(_ string, m *memTree) {
+		m.files[fragKustomization] = []byte(fragKustomizationText)
 		for p, c := range files {
 			m.files[p] = []byte(c)
 		}
 	}
+}
+
+// The kustomization every kubebuilder project keeps beside its patches.
+const (
+	fragKustomization     = "config/crd/kustomization.yaml"
+	fragKustomizationText = "apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\nresources:\n- bases/a.yaml\n"
+)
+
+// fragTree is the control tree plus the kustomization.
+func fragTree() *memTree {
+	m := infTree(infControl())
+	m.files[fragKustomization] = []byte(fragKustomizationText)
+	return m
 }
 
 func bothFragments() map[string]string {
@@ -58,7 +73,7 @@ func scanClass(t *testing.T, m *memTree, p string, skip bool) string {
 // with the option.
 func wantClass(t *testing.T, p, content string, off, on string) {
 	t.Helper()
-	m := infTree(infControl())
+	m := fragTree()
 	m.files[p] = []byte(content)
 	if got := scanClass(t, m, p, false); got != off {
 		t.Fatalf("%s: option off reads %s, want %s", p, got, off)
@@ -245,28 +260,104 @@ func TestSkipFragmentsFullDefinitionIsADefinition(t *testing.T) {
 	infStops(t, in, StopInstallPathCopyDiffers)
 }
 
-func TestSkipFragmentsJSONPatchList(t *testing.T) {
-	ok := "- op: add\n  path: /metadata/annotations/cert-manager.io~1inject-ca-from\n  value: ns/cert # CustomResourceDefinition\n- op: replace\n  path: /spec/conversion\n  value: {strategy: None}\n"
-	wantClass(t, "config/crd/patches/json_patch.yaml", ok, "unreadable", "fragment")
-	infStops(t, infInput(infSource(infControl(), fragFiles(map[string]string{"config/crd/patches/json_patch.yaml": ok}))), StopInstallPathAmbiguous)
-	res := mustGenerate(t, inferSkip(infSource(infControl(), fragFiles(map[string]string{"config/crd/patches/json_patch.yaml": ok}))))
-	if len(res.Report.PatchFragments) == 0 {
-		t.Fatal("not listed")
-	}
-	// A JSON file.
-	js := `[{"op":"add","path":"/metadata/labels/x","value":"CustomResourceDefinition"}]`
-	wantClass(t, "config/crd/patches/p.json", js, "unreadable", "fragment")
-	// A patch that touches the definition stays unreadable.
+func TestSkipFragmentsJSONPatchListStaysUnreadable(t *testing.T) {
+	// The extractor reads no JSON-patch list, so neither does the generator:
+	// each stays unreadable-shape with the option on.
 	for name, c := range map[string]string{
-		"versions": "- op: add\n  path: /spec/versions/-\n  value: {name: v2} # CustomResourceDefinition\n",
-		"spec":     "- op: replace\n  path: /spec\n  value: {} # CustomResourceDefinition\n",
-		"root":     "- op: replace\n  path: \"\"\n  value: {} # CustomResourceDefinition\n",
-		"move":     "- op: move\n  from: /spec/versions\n  path: /metadata/labels/x # CustomResourceDefinition\n",
-		"badop":    "- op: nope\n  path: /metadata/labels/x # CustomResourceDefinition\n",
-		"empty":    "[] # CustomResourceDefinition\n",
+		"metadata":   "- op: add\n  path: /metadata/annotations/cert-manager.io~1inject-ca-from\n  value: ns/cert # CustomResourceDefinition\n",
+		"conversion": "- op: replace\n  path: /spec/conversion\n  value: {strategy: None} # CustomResourceDefinition\n",
+		"versions":   "- op: add\n  path: /spec/versions/-\n  value: {name: v2} # CustomResourceDefinition\n",
+		"empty":      "[] # CustomResourceDefinition\n",
 	} {
 		wantClass(t, "config/crd/patches/json_patch.yaml", c, "unreadable", "unreadable")
+		mut := fragFiles(map[string]string{"config/crd/patches/json_patch.yaml": c})
+		infStops(t, inferSkip(infSource(infControl(), mut)), StopInstallPathAmbiguous)
 		_ = name
+	}
+	js := `[{"op":"add","path":"/metadata/labels/x","value":"CustomResourceDefinition"}]`
+	wantClass(t, "config/crd/patches/p.json", js, "unreadable", "unreadable")
+}
+
+func TestSkipFragmentsNeedsAKustomizationDirectory(t *testing.T) {
+	// Content alone is not enough: the fragment must lie below a directory
+	// (not the repository root) that holds a kustomization file.
+	cases := map[string]struct {
+		kust, frag string
+		want       string
+	}{
+		"beside":         {"config/crd/kustomization.yaml", patchHook, "fragment"},
+		"yml":            {"config/crd/kustomization.yml", patchHook, "fragment"},
+		"no-extension":   {"config/crd/Kustomization", patchHook, "fragment"},
+		"ancestor":       {"config/kustomization.yaml", patchHook, "fragment"},
+		"none":           {"", patchHook, "unreadable"},
+		"root-only":      {"kustomization.yaml", patchHook, "unreadable"},
+		"sibling-dir":    {"config/rbac/kustomization.yaml", patchHook, "unreadable"},
+		"below-fragment": {"config/crd/patches/sub/kustomization.yaml", patchHook, "unreadable"},
+		"other-name":     {"config/crd/kustomize.yaml", patchHook, "unreadable"},
+	}
+	for name, c := range cases {
+		m := infTree(infControl())
+		m.files[c.frag] = []byte(fragWebhook)
+		if c.kust != "" {
+			m.files[c.kust] = []byte(fragKustomizationText)
+		}
+		if got := scanClass(t, m, c.frag, true); got != c.want {
+			t.Errorf("%s: got %s, want %s", name, got, c.want)
+		}
+		if got := scanClass(t, m, c.frag, false); got != "unreadable" {
+			t.Errorf("%s: option off reads %s", name, got)
+		}
+	}
+	// A kustomization that is a link does not declare a directory.
+	m := infTree(infControl())
+	m.files[patchHook] = []byte(fragWebhook)
+	m.files["elsewhere.yaml"] = []byte(fragKustomizationText)
+	m.links[fragKustomization] = "../../elsewhere.yaml"
+	if got := scanClass(t, m, patchHook, true); got != "unreadable" {
+		t.Fatalf("a linked kustomization: %s", got)
+	}
+	// The stop is the existing one when no kustomization exists.
+	infStops(t, inferSkip(infSource(infControl(), func(_ string, m *memTree) { m.files[patchHook] = []byte(fragWebhook) })), StopInstallPathAmbiguous)
+}
+
+func TestSkipFragmentsRefusesNonUTF8AndDeepNesting(t *testing.T) {
+	// Bounded, typed result, no panic: the file stays unreadable-shape.
+	bad := "apiVersion: apiextensions.k8s.io/v1\nkind: CustomResourceDefinition\nmetadata:\n  name: \xff\xfe.x\n"
+	wantClass(t, patchHook, bad, "unreadable", "unreadable")
+	if isPatchFragment([]byte(bad)) {
+		t.Fatal("invalid UTF-8 must not be a fragment")
+	}
+	if isPatchFragment([]byte("\xff\xfe\x00 CustomResourceDefinition")) {
+		t.Fatal("binary must not be a fragment")
+	}
+	deep := func(n int) string {
+		return "apiVersion: apiextensions.k8s.io/v1\nkind: CustomResourceDefinition\nmetadata:\n  name: a.x\nspec:\n  conversion:\n    webhook:\n      clientConfig:\n        k: " + strings.Repeat("[", n) + strings.Repeat("]", n) + "\n"
+	}
+	// Past the bound, and a pathological depth: never a fragment, no panic.
+	for _, n := range []int{10, 200, 5000, 200000} {
+		if isPatchFragment([]byte(deep(n))) {
+			t.Errorf("nesting %d must not be a fragment", n)
+		}
+	}
+	m := fragTree()
+	m.files[patchHook] = []byte(deep(200000))
+	if got := scanClass(t, m, patchHook, true); got != "unreadable" {
+		t.Fatalf("deep nesting reads %s", got)
+	}
+	// A very wide mapping and many documents are refused too.
+	wide := "apiVersion: apiextensions.k8s.io/v1\nkind: CustomResourceDefinition\nmetadata:\n  name: a.x\n  labels:\n"
+	for i := 0; i < fragMaxMembers+1; i++ {
+		wide += "    k" + strconv.Itoa(i) + ": v\n"
+	}
+	if isPatchFragment([]byte(wide)) {
+		t.Fatal("too many members must not be a fragment")
+	}
+	many := strings.Repeat(fragCA+"---\n", fragMaxDocuments+1)
+	if isPatchFragment([]byte(many)) {
+		t.Fatal("too many documents must not be a fragment")
+	}
+	if isPatchFragment(append([]byte(fragCA+"# "), bytes.Repeat([]byte("x"), 8<<20)...)) {
+		t.Fatal("an oversized file must not be a fragment")
 	}
 }
 
@@ -290,7 +381,7 @@ func TestSkipFragmentsThroughSymlinkFollowsTheLinkRules(t *testing.T) {
 		m.files[patchHook] = []byte(fragWebhook)
 		m.links[link] = relTo(link, patchHook)
 	}
-	m := infTree(infControl())
+	m := fragTree()
 	mut("", m)
 	if got := scanClass(t, m, patchHook, true); got != "unreadable" {
 		t.Fatalf("a linked fragment must stay unreadable, got %s", got)
@@ -320,7 +411,7 @@ func TestSkipFragmentsThroughSymlinkFollowsTheLinkRules(t *testing.T) {
 		m.files[patchHook] = []byte(fragWebhook)
 		m.links[docLink] = relTo(docLink, patchHook)
 	}
-	m2 := infTree(infControl())
+	m2 := fragTree()
 	mut2("", m2)
 	if got := scanClass(t, m2, patchHook, true); got != "unreadable" {
 		t.Fatalf("got %s", got)
@@ -473,7 +564,13 @@ func TestPatchFragmentPredicateTable(t *testing.T) {
 		{"cainjection", fragCA, true},
 		{"minimal", head + meta, true},
 		{"v1beta1", "apiVersion: apiextensions.k8s.io/v1beta1\nkind: CustomResourceDefinition\n" + meta, true},
-		{"no apiVersion", "kind: CustomResourceDefinition\n" + meta, true},
+		{"no apiVersion", "kind: CustomResourceDefinition\n" + meta, false},
+		{"namespace", head + "metadata:\n  name: a.x\n  namespace: n\n", false},
+		{"preserve not bool", head + meta + "spec:\n  preserveUnknownFields: \"no\"\n", false},
+		{"labels non-string", head + "metadata:\n  name: a.x\n  labels:\n    k: 1\n", false},
+		{"apiVersion v2", "apiVersion: apiextensions.k8s.io/v2\nkind: CustomResourceDefinition\n" + meta, false},
+		{"conversion not strict", head + meta + "spec:\n  conversion:\n    strategy: Other\n", false},
+		{"name too long", head + "metadata:\n  name: " + strings.Repeat("a", 254) + "\n", false},
 		{"preserve", head + meta + "spec:\n  preserveUnknownFields: false\n", true},
 		{"labels", head + "metadata:\n  name: a.x\n  labels:\n    k: v\n", true},
 		{"two fragments", head + meta + "---\n" + head + "metadata:\n  name: b.x\n", true},
@@ -512,10 +609,10 @@ func TestPatchFragmentPredicateTable(t *testing.T) {
 		{"not yaml", "kind: CustomResourceDefinition\nmetadata: [\n", false},
 		{"scalar", "CustomResourceDefinition\n", false},
 		{"list of scalars", "- CustomResourceDefinition\n", false},
-		{"json patch", "- {op: add, path: /metadata/labels/x, value: CustomResourceDefinition}\n", true},
-		{"json patch conversion", "- {op: replace, path: /spec/conversion, value: {strategy: None}} # CustomResourceDefinition\n", true},
-		{"json patch preserve", "- {op: replace, path: /spec/preserveUnknownFields, value: false} # CustomResourceDefinition\n", true},
-		{"json patch copy", "- {op: copy, from: /metadata/labels, path: /metadata/annotations} # CustomResourceDefinition\n", true},
+		{"json patch", "- {op: add, path: /metadata/labels/x, value: CustomResourceDefinition}\n", false},
+		{"json patch conversion", "- {op: replace, path: /spec/conversion, value: {strategy: None}} # CustomResourceDefinition\n", false},
+		{"json patch preserve", "- {op: replace, path: /spec/preserveUnknownFields, value: false} # CustomResourceDefinition\n", false},
+		{"json patch copy", "- {op: copy, from: /metadata/labels, path: /metadata/annotations} # CustomResourceDefinition\n", false},
 		{"json patch empty list", "[] # CustomResourceDefinition\n", false},
 		{"json patch bare metadata", "- {op: remove, path: /metadata/} # CustomResourceDefinition\n", false},
 		{"json patch metadata prefix only", "- {op: remove, path: /metadataX/a} # CustomResourceDefinition\n", false},
@@ -530,7 +627,7 @@ func TestPatchFragmentPredicateTable(t *testing.T) {
 		{"json patch path not string", "- {op: add, path: 1} # CustomResourceDefinition\n", false},
 		{"json patch element not map", "- x # CustomResourceDefinition\n", false},
 		{"json patch one bad op", "- {op: add, path: /metadata/labels/x, value: a}\n- {op: add, path: /spec/scope, value: Cluster} # CustomResourceDefinition\n", false},
-		{"json file", `[{"op":"add","path":"/metadata/labels/x","value":"CustomResourceDefinition"}]`, true},
+		{"json file", `[{"op":"add","path":"/metadata/labels/x","value":"CustomResourceDefinition"}]`, false},
 	}
 	for _, c := range cases {
 		if got := isPatchFragment([]byte(c.in)); got != c.want {
@@ -543,7 +640,7 @@ func TestPatchFragmentPredicateTable(t *testing.T) {
 // scanner (so the option only ever changes an unreadable file), and every
 // whole definition is a definition (so it is never set aside).
 func TestPatchFragmentIsAlwaysUnreadableToTheScanner(t *testing.T) {
-	for _, c := range []string{fragWebhook, fragCA, "- {op: add, path: /metadata/labels/x, value: CustomResourceDefinition}\n"} {
+	for _, c := range []string{fragWebhook, fragCA} {
 		if _, err := parseCRDs([]byte(c)); err == nil {
 			t.Fatalf("fixture must be unreadable to the scanner:\n%s", c)
 		}

@@ -210,6 +210,10 @@ func scanTreeFragments(t Tree, skipFragments bool) ([]*finding, []Stop, []string
 	}
 	isLink := map[string]bool{}
 	isFile := map[string]bool{}
+	var kdirs map[string]bool
+	if skipFragments {
+		kdirs = kustomizationDirs(entries)
+	}
 	for _, e := range entries {
 		if e.IsLink {
 			isLink[e.Path] = true
@@ -239,7 +243,7 @@ func scanTreeFragments(t Tree, skipFragments bool) ([]*finding, []Stop, []string
 				f.Unreadable = err.Error()
 			} else if crds, err := parseCRDs(data); err != nil {
 				f.Unreadable = err.Error()
-				f.fragment = skipFragments && isPatchFragment(data)
+				f.fragment = skipFragments && underKustomization(res, kdirs) && isPatchFragment(data)
 			} else if len(crds) == 0 {
 				byPath[res] = &finding{Path: res} // remember: nothing to report
 				continue
