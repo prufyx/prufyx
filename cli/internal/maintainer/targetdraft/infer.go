@@ -57,6 +57,22 @@ func inferSkipSegment(seg string) bool {
 	return inferSkipExact[s] || strings.HasPrefix(s, "bundle")
 }
 
+// inferSkippedPath says that a file sits below a skipped directory (the same
+// segments that disqualify a ranking candidate, plus the default-excluded and
+// documentation segments).
+func inferSkippedPath(p string) bool {
+	if testLike(p) {
+		return true
+	}
+	segs := strings.Split(p, "/")
+	for _, s := range segs[:len(segs)-1] {
+		if inferSkipSegment(s) {
+			return true
+		}
+	}
+	return false
+}
+
 // inferRank returns the rank of a definition file (1 best, 3 worst) or 0 when
 // the file is never a candidate.
 func inferRank(p string) int {
@@ -290,14 +306,18 @@ func annotateInferred(res *Result, inf *InferredInstallPaths) {
 	}
 	res.Report.InferredInstallPaths = inf
 	res.Report.FactsDigest = sumHex([]byte(res.Report.FactsDigest + "\n" + strings.Join(lines, "\n") + "\n"))
-	res.Changelog = append(res.Changelog, []byte("\nInstall paths were inferred, not reviewed by hand: rule "+inf.Rule+" chose "+strings.Join(inf.Paths, ", ")+" (rank "+strconv.Itoa(inf.Rank)+") at every tag of the run. Every definition file outside it was compared with the installed definitions and none differs or hides a definition.\n")...)
+	txt := "\nInstall paths were inferred, not reviewed by hand: rule " + inf.Rule + " chose " + strings.Join(inf.Paths, ", ") + " (rank " + strconv.Itoa(inf.Rank) + ") at every tag of the run. Every readable definition file outside it was compared with the installed definitions and none differs or hides a definition; an unreadable file outside it is a stop unless it sits below a skipped directory (documentation, test, vendor, templates, bundle, olm), where it stays unread and is reported as a non-install copy."
+	if len(res.Report.DerivedSources) > 0 {
+		txt += " With the duplicate derivation the target reads only the derived exact files inside that directory; the reported paths still name the directory."
+	}
+	res.Changelog = append(res.Changelog, []byte(txt+"\n")...)
 }
 
 // outsideChecks proves, for one tag, that the files outside the install set
 // neither hide a definition nor repeat one with a different spec. Files with
 // a reviewed exclusion rule are not passed in; unreadable files define no
-// comparable definition and stay reported non-install copies. It is the single
-// place of both checks.
+// comparable definition: such a file is a stop unless it sits below a skipped
+// directory. It is the single place of both checks.
 func outsideChecks(inside []*inclusion, outside []*finding) []Stop {
 	held := map[string][]crd{}
 	for _, i := range inside {
@@ -308,6 +328,12 @@ func outsideChecks(inside []*inclusion, outside []*finding) []Stop {
 	var stops []Stop
 	for _, f := range outside {
 		if f.Unreadable != "" {
+			// An unreadable file may define anything; only a skipped
+			// directory (docs, test, vendor, templates, bundle, olm, ...) may
+			// stay unread. Everywhere else it is a stop.
+			if !inferSkippedPath(f.Path) {
+				stops = append(stops, stop(StopInstallPathHidesCRD, f.Path, "unreadable file outside the install paths may define a definition no install path defines: "+f.Unreadable))
+			}
 			continue
 		}
 		for _, c := range f.CRDs {

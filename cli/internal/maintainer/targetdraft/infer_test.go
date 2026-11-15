@@ -344,7 +344,7 @@ func TestInferUnreadableCandidateStops(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Skip("fixture is not unreadable in this scanner version")
+		t.Fatal("fixture is not an unreadable definition file")
 	}
 	infStops(t, infInput(src), StopInstallPathAmbiguous)
 }
@@ -365,6 +365,14 @@ func TestInferInputRefusals(t *testing.T) {
 
 	in = infInput(ipSource(nil))
 	in.RangeCheckTags = ipTags
+	infStops(t, in, StopBadInput)
+
+	ex, err := ParseRules([]byte(`{"schema":"prufyx.io/target-draft-rules/v1","installSurface":[],"exclusions":[{"class":"exact-file","path":"hack/x.yaml","reason":"r","evidence":"e"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	in = infInput(ipSource(nil))
+	in.Rules = ex
 	infStops(t, in, StopBadInput)
 
 	// The check on its own needs a hand list.
@@ -656,5 +664,84 @@ func TestInferRankTable(t *testing.T) {
 		if got := inferRank(p); got != want {
 			t.Errorf("inferRank(%q) = %d, want %d", p, got, want)
 		}
+	}
+}
+
+func unreadableAt(path string) func(tag string, m *memTree) {
+	return func(tag string, m *memTree) {
+		m.files[path] = []byte("apiVersion: apiextensions.k8s.io/v1\nkind: CustomResourceDefinition\nspec: {{ .Values.x }}\n")
+	}
+}
+
+// An unreadable file outside the chosen directory may define anything: a stop
+// everywhere except below a skipped directory.
+func TestUnreadableOutsideFileStopsUnlessSkippedDir(t *testing.T) {
+	for _, p := range []string{"deploy/x.yaml", "install/x.yaml", "charts/x/crds/y.yaml", "manifests/x.yaml", "pkg/foo/x.yaml"} {
+		p := p
+		t.Run("stop "+p, func(t *testing.T) {
+			mut := unreadableAt(p)
+			// the fixture must be an unreadable definition file
+			m := infTree(infControl())
+			mut("", m)
+			fs, _ := scanTree(m)
+			ok := false
+			for _, f := range fs {
+				if f.Path == p && f.Unreadable != "" {
+					ok = true
+				}
+			}
+			if !ok {
+				t.Fatalf("%s is not an unreadable definition file", p)
+			}
+			infStops(t, infInput(infSource(infControl(), mut)), StopInstallPathHidesCRD)
+			// the hand path with the flag is held to the same rule
+			infStops(t, handInput(t, infControl(), mut, true), StopInstallPathHidesCRD)
+			// flag off: the existing behaviour
+			mustGenerate(t, handInput(t, infControl(), mut, false))
+		})
+	}
+	for _, p := range []string{"docs/x.yaml", "test/x.yaml", "vendor/x.yaml", "charts/x/templates/x.yaml", "bundle/x.yaml", "olm/x.yaml"} {
+		p := p
+		t.Run("pass "+p, func(t *testing.T) {
+			res := mustGenerate(t, infInput(infSource(infControl(), unreadableAt(p))))
+			found := false
+			for _, c := range res.Report.NonInstallCopies {
+				if c.Path == p && c.Unreadable != "" {
+					found = true
+				}
+			}
+			if !found {
+				t.Fatalf("%s must stay a reported unreadable non-install copy", p)
+			}
+		})
+	}
+}
+
+func TestInferCandidateOrderPinned(t *testing.T) {
+	files := infControl()
+	files["tools/crds/a.yaml"] = []string{"Alpha"}
+	files["aaa/crds/a.yaml"] = []string{"Alpha"}
+	files["charts/w/crds/a.yaml"] = []string{"Alpha"}
+	res := mustGenerate(t, infInput(infSource(files, nil)))
+	var got []string
+	for _, c := range res.Report.InferredInstallPaths.Tags[0].Candidates {
+		got = append(got, c.Dir+"@"+string(rune('0'+c.Rank)))
+	}
+	want := "config/crd/bases/@1,aaa/crds/@2,tools/crds/@2,charts/w/crds/@3,charts/x/crds/@3"
+	if strings.Join(got, ",") != want {
+		t.Fatalf("candidates %v", got)
+	}
+}
+
+func TestInferChangelogStatesDerivePaths(t *testing.T) {
+	in := infInput(infSource(inferDupFiles(), nil))
+	in.DeriveDuplicates = true
+	res := mustGenerate(t, in)
+	if !strings.Contains(string(res.Changelog), "derived exact files") {
+		t.Fatal("changelog must say the derived files are read")
+	}
+	plain := mustGenerate(t, infInput(infSource(infControl(), nil)))
+	if strings.Contains(string(plain.Changelog), "derived exact files") {
+		t.Fatal("no derive sentence without derivation")
 	}
 }

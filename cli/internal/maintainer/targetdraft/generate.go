@@ -187,8 +187,8 @@ func Generate(in Input) (*Result, error) {
 	commits := make([]string, len(tags))
 	entriesOf := make([][]Entry, len(tags))
 	// Both opt-ins refuse input they could not honour, before any tag is read.
-	if in.InferInstallPaths && (len(rules.InstallPaths) > 0 || len(rules.InstallSurface) > 0 || len(rules.PathFilter) > 0 || len(in.RangeCheckTags) > 0) {
-		return nil, &StopError{Stops: []Stop{stop(StopBadInput, "infer-install-paths", "inference needs rules without installPaths, installSurface and pathFilter, and no range-check tags; a hand rule is never mixed with an inferred one")}}
+	if in.InferInstallPaths && (len(rules.InstallPaths) > 0 || len(rules.InstallSurface) > 0 || len(rules.PathFilter) > 0 || len(rules.Exclusions) > 0 || len(in.RangeCheckTags) > 0) {
+		return nil, &StopError{Stops: []Stop{stop(StopBadInput, "infer-install-paths", "inference needs rules without installPaths, installSurface, pathFilter and exclusions (exclusions are never inferred and never mixed in), and no range-check tags; a hand rule is never mixed with an inferred one")}}
 	}
 	if in.CheckInstallPathCopies && !in.InferInstallPaths && len(rules.InstallPaths) == 0 {
 		return nil, &StopError{Stops: []Stop{stop(StopBadInput, "check-install-path-copies", "the check needs installPaths in the rules file (or --infer-install-paths)")}}
