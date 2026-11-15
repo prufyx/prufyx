@@ -545,3 +545,104 @@ func TestBacktestSummaryLineCountsOracle(t *testing.T) {
 		}
 	}
 }
+
+func inferExpected(t *testing.T) []byte {
+	t.Helper()
+	in := collapseInputFor(collapseSource(nil), true)
+	in.InferInstallPaths = true
+	res, err := Generate(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return res.A
+}
+
+func TestBacktestInferOptionsMapAndDefaultOff(t *testing.T) {
+	var got Input
+	old := generate
+	defer func() { generate = old }()
+	generate = func(in Input) (*Result, error) {
+		got = in
+		return old(in)
+	}
+	dirBT(t, func(e *btEntry) {
+		e.CollapseDirectories, e.InferInstallPaths, e.CheckInstallPathCopies = true, true, true
+	}, inferExpected(t), "")
+	if !got.InferInstallPaths || !got.CheckInstallPathCopies {
+		t.Fatalf("%+v", got)
+	}
+	got = Input{}
+	dirBT(t, func(e *btEntry) {}, genCollapsed(t, false), "")
+	if got.InferInstallPaths || got.CheckInstallPathCopies {
+		t.Fatalf("defaults must stay off: %+v", got)
+	}
+	// The manifest keys are accepted.
+	raw := `{"schema":"` + BacktestSchema + `","count":1,"entries":[{"slug":"a","name":"a","repo":"r","tags":["v1"],"mirror":"m","expected":"e.json","half":"A","inferInstallPaths":true,"checkInstallPathCopies":true}],"seeds":[{"entry":"a","kind":"path"}]}`
+	m, err := parseBacktestManifest([]byte(raw))
+	if err != nil || !m.Entries[0].InferInstallPaths || !m.Entries[0].CheckInstallPathCopies {
+		t.Fatalf("%v %+v", err, m)
+	}
+}
+
+func TestBacktestInferRefusals(t *testing.T) {
+	want := inferExpected(t)
+	infer := func(e *btEntry) { e.CollapseDirectories, e.InferInstallPaths = true, true }
+	cases := map[string]struct {
+		mutate func(e *btEntry)
+		rules  string
+	}{
+		"installPaths":   {infer, `{"schema":"` + RulesSchema + `","installSurface":[],"exclusions":[],"installPaths":[{"path":"config/crd/","reason":"r","evidence":"e"}]}`},
+		"installSurface": {infer, `{"schema":"` + RulesSchema + `","installSurface":[{"path":"config/crd/a.yaml","reason":"r"}],"exclusions":[]}`},
+		"exclusions":     {infer, `{"schema":"` + RulesSchema + `","installSurface":[],"exclusions":[{"class":"exact-file","path":"third_party/x/other.yaml","reason":"third-party bundle","evidence":"pinned"}]}`},
+		"oracle":         {func(e *btEntry) { infer(e); e.OraclePaths = true }, ""},
+	}
+	for name, c := range cases {
+		rep, r := dirBT(t, c.mutate, want, c.rules)
+		if r.Class != ClassHarnessError || !strings.Contains(r.Error, "inferInstallPaths") || rep.Errors != 1 || rep.Reproduced != 0 {
+			t.Errorf("%s: %+v", name, r)
+		}
+	}
+}
+
+func TestBacktestInferReproducesDirectoryEntryAndSeedsFail(t *testing.T) {
+	rep, r := dirBT(t, func(e *btEntry) { e.CollapseDirectories, e.InferInstallPaths = true, true }, genCollapsed(t, true), "")
+	if r.Class != ClassReproduced || r.Oracle || rep.Reproduced != 1 || rep.OracleRepro != 0 || rep.SeedsFailed != 1 || rep.Errors != 0 {
+		t.Fatalf("%+v %+v", r, rep)
+	}
+	if code := backtestExit(rep, &bytes.Buffer{}); code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	// Without a collapse the inferred exact files are not the shipped directory entry.
+	if _, r := dirBT(t, func(e *btEntry) { e.InferInstallPaths = true }, genCollapsed(t, true), ""); r.Class != ClassDiffers {
+		t.Fatalf("%+v", r)
+	}
+}
+
+func TestBacktestInferStopIsInTheTypedStopTally(t *testing.T) {
+	for name, tc := range map[string]struct {
+		code   string
+		mutate func(tag string, m *memTree)
+	}{
+		"hides-crd": {StopInstallPathHidesCRD, func(_ string, m *memTree) { m.files["deploy/extra.yaml"] = crdText("other.example.invalid", "Gamma") }},
+		"ambiguous": {StopInstallPathAmbiguous, func(_ string, m *memTree) {
+			delete(m.files, "config/crd/a.yaml")
+			delete(m.files, "config/crd/b.yaml")
+		}},
+	} {
+		base, mirrors := t.TempDir(), t.TempDir()
+		if err := os.Mkdir(filepath.Join(mirrors, "demo"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(base, "exp.json"), genCollapsed(t, true), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		e := btEntry{Slug: "demo", Name: "Demo", Repo: "github.com/example/demo", Catalog: "cncf", Tags: collapseTags, Mirror: "demo",
+			Expected: "exp.json", Half: "A", CollapseDirectories: true, InferInstallPaths: true}
+		m := &btManifest{Schema: BacktestSchema, Count: 1, Entries: []btEntry{e}, Seeds: []btSeed{{Entry: "demo", Kind: "path"}}}
+		rep := Backtest(m, "d", base, mirrors, func(string) Source { return collapseSource(tc.mutate) })
+		r := rep.Results[0]
+		if r.Class != ClassTypedStop || len(r.Stops) != 1 || r.Stops[0] != tc.code || rep.TypedStops != 1 || rep.Reproduced != 0 || rep.Errors != 0 {
+			t.Errorf("%s: %+v %+v", name, r, rep)
+		}
+	}
+}
