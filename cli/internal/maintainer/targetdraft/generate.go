@@ -62,6 +62,9 @@ type Result struct {
 	TableRow  []byte
 	Changelog []byte
 	Report    Report
+	// DroppedCopies are the exact files the duplicate derivation dropped
+	// (sorted); nil unless it ran. For the directory-collapse check.
+	DroppedCopies []string
 }
 
 var (
@@ -295,6 +298,7 @@ func Generate(in Input) (*Result, error) {
 	}
 	if derived != nil {
 		annotateDerived(res, derived, window)
+		res.DroppedCopies = append([]string(nil), derived.Dropped...)
 	}
 	annotateOptional(res, rules, window)
 	annotateRanges(res, rules, window, checked)

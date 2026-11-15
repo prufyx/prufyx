@@ -363,6 +363,24 @@ func TestSeedS12HandRulesDisableDerivation(t *testing.T) {
 			t.Fatal("original stops changed")
 		}
 	}
+	// installSurface and pathFilter (L1): derivation must refuse.
+	surf := `{"schema":"` + RulesSchema + `","installSurface":[{"path":"docs/x.yaml","reason":"r"}]}`
+	pf := `{"schema":"` + RulesSchema + `","installPaths":[{"path":"config/","reason":"r","evidence":"e"},{"path":"charts/","reason":"r","evidence":"e"}],"pathFilter":[{"glob":"charts/*/crds/widgets.yaml","reason":"r","evidence":"e","expectFiles":1}]}`
+	for _, raw := range []string{surf, pf} {
+		a, err := ParseRules([]byte(raw))
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, _ := ParseRules([]byte(raw))
+		off, e1 := Generate(dupInput(dupSource(nil), a, false))
+		on, e2 := Generate(dupInput(dupSource(nil), b, true))
+		if (e1 == nil) != (e2 == nil) || (e1 != nil && stopList(e1) != stopList(e2)) {
+			t.Fatalf("hand rules must keep the plain result: %v / %v", e1, e2)
+		}
+		if e1 == nil && (!bytes.Equal(off.A, on.A) || len(on.Report.DerivedSources) != 0 || on.DroppedCopies != nil) {
+			t.Fatal("derivation ran under hand rules")
+		}
+	}
 	// installPaths that still leave a duplicate: same stops as plain, no derivation.
 	both := `{"schema":"` + RulesSchema + `","installPaths":[{"path":"config/crd/bases/","reason":"r","evidence":"e"},{"path":"charts/","reason":"r","evidence":"e"}]}`
 	r1, _ := ParseRules([]byte(both))
@@ -379,6 +397,9 @@ func TestSeedS12HandRulesDisableDerivation(t *testing.T) {
 func TestSeedS14DroppedCopyForbidsDirectoryCollapse(t *testing.T) {
 	res := mustGenerate(t, dupInput(dupSource(nil), nil, true))
 	ds := res.Report.DerivedSources[0].Dropped
+	if fmt.Sprint(res.DroppedCopies) != "["+dupB+"]" {
+		t.Fatalf("Result.DroppedCopies %v", res.DroppedCopies)
+	}
 	if !droppedInside("charts/dupfix/crds/", ds) || !droppedInside("charts/dupfix/crds", ds) || !droppedInside("charts/", ds) {
 		t.Fatal("a directory containing a dropped copy must forbid collapse")
 	}
