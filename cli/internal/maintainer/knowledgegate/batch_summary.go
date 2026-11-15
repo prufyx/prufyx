@@ -173,7 +173,7 @@ func (st *batchState) summary(rec BatchRecord) string {
 	w("## Entries (%d)\n\n", len(rec.Entries))
 	if len(kinds) > 0 {
 		var parts []string
-		for _, k := range []string{KindNew, KindRenew, KindRepin, KindReactivate, KindBasis, KindWiden, KindNarrow, KindRangeChange, KindModify} {
+		for _, k := range []string{KindNew, KindRenew, KindRepin, KindReactivate, KindBasis, KindWiden, KindNarrow, KindRangeChange, KindModify, KindRemediationText} {
 			if kinds[k] > 0 {
 				parts = append(parts, fmt.Sprintf("%s %d", k, kinds[k]))
 			}

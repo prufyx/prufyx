@@ -70,6 +70,9 @@ func cmdApply(args []string, existing []string, stdout, stderr io.Writer) (int, 
 			fmt.Fprintln(stdout, "renewed rule "+id)
 		}
 	}
+	for _, r := range rep.RemediationRenewed {
+		fmt.Fprintf(stdout, "%s %s: %q -> %q (%s -> %s)\n", r.Kind, r.RuleID, r.Before, r.After, r.ExtractorFrom, r.ExtractorTo)
+	}
 	for _, k := range rep.AttSkipped {
 		fmt.Fprintln(stdout, "skipped "+k)
 	}

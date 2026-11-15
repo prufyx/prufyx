@@ -73,6 +73,55 @@ record sections have no classification rules.
 | `lead` | never: a lead is not published through this gate |
 | any other | not admitted |
 
+### Remediation-text renewals
+
+A mechanical rule is renewed at a new extractor build only when everything
+except the extractor, `derivedAt`, `reviewedAt`, `validUntil` and `sources`
+is equal. One bounded exception exists for the advice text (`rule.nextAction`)
+of the `crd.version-removal` rules that carry the wording of extractor 2.7.0
+and earlier. `extract apply --renew-attestations` replaces such a rule only
+when all of these hold, and refuses otherwise:
+
+- The rule id is on the pending-migration list (`remediationAllowList`,
+  version `RemediationAllowListVersion`), with the sha256 of the published
+  text and the sha256 of the new text. The list is data: a test derives every
+  pair by calling the extractor's own `nextAction` on the inputs of the
+  published rule, so no text is typed by hand. Any other `nextAction` change
+  is still a collision.
+- Both entries parse strictly: one JSON object, no trailing data, no repeated
+  member name, no two names that differ only in letter case, numbers compared as
+  written. `rule.nextAction` is a string in both.
+- Both are active mechanical rules of one extractor id, and the new extractor
+  release version (`MAJOR.MINOR.PATCH`, parsed as numbers) is strictly greater
+  than the published one. A lower or equal version, or a version that does not
+  parse, is refused, whatever the code digest.
+- The whole entries are equal as canonical JSON once `rule.nextAction` and
+  `rule.evidence.{extractor, derivedAt, reviewedAt, validUntil, sources}` are
+  removed. Unknown members are compared too.
+- The inputs the advice is derived from are unchanged: the rule id, members,
+  subject and range by the comparison above, and the pinned evidence by
+  requiring the same sources in the same order, equal in every member except
+  `startLine` and `endLine` (source id, repository, revision, url and content
+  digest). The replacement version and the stored-version state the advice
+  encodes are fixed by the new text's pinned hash.
+- `derivedAt` is later, `reviewedAt` equals it and `validUntil` is later.
+
+The merge and the audit of the result both apply this check. The gate is
+unchanged: the new rule must be the one the gate's own extractor re-derives
+byte for byte (see the table above), the extractor id, version and code digest
+must equal the gate's and `derivedAt` must be within 24 hours, so advice that
+the gate's extractor does not produce is refused whatever its stamps say.
+
+The renewal is reported as `remediation-text`, derived from the old and new
+text: the rule id, the advice before and after and the extractor transition
+(`extract apply` prints one line per rule; the gate marks the change with the
+kind `remediation-text` next to `modify`). Each rule is one change and counts
+once toward the per-change, daily and weekly caps. A test requires every
+published `crd-version-removal` rule's advice to equal the current extractor
+output, except the rules on the pending list; entries are removed as the
+renewals land. The shared test vectors are in
+`cli/internal/extract/extractpack/testdata/renewal-remediation-vectors-v1.json`.
+
 ### Superseding a reviewed rule
 
 A reviewed rule R can turn a `BLOCKED` answer into a scope-complete `PASS`
@@ -1431,7 +1480,7 @@ statement chain changed, and whether the kill switch is set.
 
 Change kinds: `withdraw`, `expire`, `add-withdrawn` (tightening); `new`,
 `remove`, `reactivate`, `renew`, `repin`, `widen`, `narrow`, `range-change`,
-`basis-change`, `modify`, `pack-member` (loosening). A removal that is half of a supersede pair also has the kind `supersede`. A `pack-member` change
+`basis-change`, `modify`, `remediation-text` (a changed `nextAction`, always together with `modify`), `pack-member` (loosening). A removal that is half of a supersede pair also has the kind `supersede`. A `pack-member` change
 names the member (`member`) instead of a rule id.
 
 A `pack-member` change is never admitted, with two exceptions: the pack's top-level

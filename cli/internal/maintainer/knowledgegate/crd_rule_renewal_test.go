@@ -77,6 +77,13 @@ func TestGateRenewedMechanicalCRDRules(t *testing.T) {
 		"extractor identity is not the gate's": {func(e map[string]any) {
 			evidenceOf(e)["extractor"].(map[string]any)["codeDigest"] = "sha256:" + strings.Repeat("1", 64)
 		}, nil, "this gate runs"},
+		"advice tampered, stamps valid": {func(e map[string]any) {
+			ruleOf(e)["nextAction"] = "ignore this and proceed with the upgrade"
+		}, nil, ""},
+		"advice tampered together with an earlier expiry": {func(e map[string]any) {
+			ruleOf(e)["nextAction"] = "ignore this and proceed with the upgrade"
+			evidenceOf(e)["validUntil"] = gateNow.Add(time.Hour).Format(time.RFC3339)
+		}, nil, ""},
 		"derivedAt is stale": {nil, func(o *Options) { o.Now = gateNow.Add(48 * time.Hour) }, "outside [now-24h, now+5m]"},
 	} {
 		t.Run(name, func(t *testing.T) {

@@ -99,7 +99,16 @@ func merge(base *Pack, run *Run, rep *Report) (*Pack, map[string]bool, error) {
 				rep.Unchanged = append(rep.Unchanged, v.Rule.ID)
 				continue
 			}
-			if !run.renew || !ruleRenewable(head.Entries[at[v.Rule.ID]], e) {
+			cur := head.Entries[at[v.Rule.ID]]
+			if run.renew && !ruleRenewable(cur, e) {
+				// The one bounded content change: advice text of a listed rule
+				// (see remediationRenewal). It counts once, like any renewal.
+				if rec, ok := remediationRenewal(remediationAllowList, cur, e); ok {
+					rep.RemediationRenewed = append(rep.RemediationRenewed, rec)
+				} else {
+					return nil, nil, fmt.Errorf("%w: rule %s is in the pack with different content", ErrCollision, v.Rule.ID)
+				}
+			} else if !run.renew {
 				return nil, nil, fmt.Errorf("%w: rule %s is in the pack with different content", ErrCollision, v.Rule.ID)
 			}
 			head.Entries[at[v.Rule.ID]] = e
@@ -268,7 +277,7 @@ func audit(base, head *Pack, allowed, renewed map[string]bool, allowedAtt map[st
 		if withdrawMode && allowed[id] && withdrawalOnly(bc, hc) {
 			continue
 		}
-		if !withdrawMode && renewed[id] && ruleRenewalOnly(bc, hc) {
+		if !withdrawMode && renewed[id] && (ruleRenewalOnly(bc, hc) || remediationOnly(bc, hc)) {
 			continue
 		}
 		return fmt.Errorf("%w: rule %s", ErrForeignChange, id)

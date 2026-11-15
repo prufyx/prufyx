@@ -344,11 +344,15 @@ type Report struct {
 	AttAdded     []string // attestation keys added
 	AttRenewed   []string // attestation keys replaced by a re-derivation (--renew-attestations)
 	RenewedRules []string // rule ids replaced in place by a re-derivation (--renew-attestations)
-	AttUnchanged []string
-	AttSkipped   []string // "<key>: <reason>" for run attestations --quiet-lines-only left out
-	SchemaFrom   string
-	SchemaTo     string
-	Changed      bool
+	// RemediationRenewed lists, for each rule in RenewedRules whose only
+	// content change is its advice text, the rule, the advice before and
+	// after and the extractor transition. The rule is in RenewedRules too.
+	RemediationRenewed []RemediationRecord
+	AttUnchanged       []string
+	AttSkipped         []string // "<key>: <reason>" for run attestations --quiet-lines-only left out
+	SchemaFrom         string
+	SchemaTo           string
+	Changed            bool
 }
 
 // Options configures Apply.
@@ -478,6 +482,7 @@ func Apply(opts Options) (*Report, error) {
 	sort.Strings(rep.Unchanged)
 	sort.Strings(rep.Withdrawn)
 	sort.Strings(rep.RenewedRules)
+	sort.Slice(rep.RemediationRenewed, func(i, j int) bool { return rep.RemediationRenewed[i].RuleID < rep.RemediationRenewed[j].RuleID })
 	sort.Strings(rep.AttAdded)
 	sort.Strings(rep.AttRenewed)
 	sort.Strings(rep.AttUnchanged)
