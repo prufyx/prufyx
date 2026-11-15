@@ -730,6 +730,9 @@ func runBacktest(args []string, stdout, stderr io.Writer, open func(string) Sour
 		if r.Error != "" {
 			line += " error=" + r.Error
 		}
+		if r.Escalated != nil && *r.Escalated {
+			line += " escalated=true plainStop=" + r.PlainStop
+		}
 		fmt.Fprintln(stdout, line)
 	}
 	for _, s := range rep.SeedResults {
