@@ -522,3 +522,74 @@ func TestPathSetDigestCanonical(t *testing.T) {
 		t.Fatalf("decision binds %s / %s", d.PathSetSHA, d.VerifyPr.ChangedPathsSHA256)
 	}
 }
+
+// Golden: the full decision of the reference fixture, byte for byte, and its
+// digest. A change of any member, its order, its encoding or the digest
+// algorithm fails here. The golden was produced by an independent
+// implementation of the algorithm, not by this package.
+func TestOnboardingAdmissionGoldenDecision(t *testing.T) {
+	t.Parallel()
+	const wantDigest = "sha256:b55c30e6af6154d3e4771b639118134118cd7d395c39cef82ecc96043d06bde0"
+	d := AdmitOnboardingAuto(admOK())
+	if d.DecisionDigest != wantDigest {
+		t.Fatalf("decision digest %s", d.DecisionDigest)
+	}
+	got, err := json.Marshal(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := os.ReadFile("testdata/onboarding_admission_golden.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatalf("decision bytes differ from the golden:\n got %s\nwant %s", got, want)
+	}
+	// The digest is the sha256 of the same bytes with the digest member empty.
+	d.DecisionDigest = ""
+	pre, _ := json.Marshal(d)
+	sum := sha256.Sum256(pre)
+	if "sha256:"+hex.EncodeToString(sum[:]) != wantDigest {
+		t.Fatal("digest is not the sha256 of the empty-digest encoding")
+	}
+}
+
+// Exclusion set digest vectors: sorted, de-duplicated, compact JSON array.
+func TestAdmitSetDigestGolden(t *testing.T) {
+	t.Parallel()
+	for name, tc := range map[string]struct {
+		in   []string
+		want string
+	}{
+		"empty":            {nil, "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"},
+		"empty non-nil":    {[]string{}, "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"},
+		"sorted":           {[]string{"a", "b"}, "sha256:0473ef2dc0d324ab659d3580c1134e9d812035905c4781fdd6d529b0c6860e13"},
+		"unsorted":         {[]string{"b", "a"}, "sha256:0473ef2dc0d324ab659d3580c1134e9d812035905c4781fdd6d529b0c6860e13"},
+		"duplicate folded": {[]string{"b", "a", "a"}, "sha256:0473ef2dc0d324ab659d3580c1134e9d812035905c4781fdd6d529b0c6860e13"},
+		"nul separator":    {[]string{"p\x00x"}, "sha256:978496475acf91b2bc3e8ac5803d759b0c858f1a15480337a4d4417001ee64d8"},
+	} {
+		if got := admitSetDigest(tc.in); got != tc.want {
+			t.Errorf("%s: %s", name, got)
+		}
+	}
+}
+
+// A path set lists each changed path once: a rename is the old path and the
+// new path, a delete is the path itself. The digest covers exactly that list.
+func TestPathSetDigestRenameAndDelete(t *testing.T) {
+	t.Parallel()
+	rename := []string{"cli/old/a.json", "cli/new/a.json"}
+	if got := PathSetDigest(rename); got != "sha256:d2212e911b2cb1907429cd8aaa46108fac5a1a45833937a40a610d431d343c94" {
+		t.Fatalf("rename %s", got)
+	}
+	if got := PathSetDigest([]string{"cli/new/a.json", "cli/old/a.json", "cli/x.json"}); got != "sha256:8330e54fb1d88876b73e7ed121281cb339e4c9680a69a8507bd137fc4a8ee41d" {
+		t.Fatalf("rename with another path %s", got)
+	}
+	if got := PathSetDigest([]string{"cli/gone.json"}); got != "sha256:86f5689f8a50b4e97590e495881dc48c3c972f868affdf0802afb5559fb5c165" {
+		t.Fatalf("delete %s", got)
+	}
+	// Half a rename is a different change.
+	if PathSetDigest(rename) == PathSetDigest(rename[:1]) || PathSetDigest(rename) == PathSetDigest(rename[1:]) {
+		t.Fatal("a rename digests like one of its halves")
+	}
+}
