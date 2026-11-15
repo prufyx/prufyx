@@ -646,3 +646,161 @@ func TestBacktestInferStopIsInTheTypedStopTally(t *testing.T) {
 		}
 	}
 }
+
+// escStub makes the plain run (no inference) stop with the given codes and
+// lets the inference run through to the real generator.
+func escStub(t *testing.T, codes ...string) (calls *[]Input, restore func()) {
+	t.Helper()
+	old := generate
+	var seen []Input
+	generate = func(in Input) (*Result, error) {
+		seen = append(seen, in)
+		if !in.InferInstallPaths {
+			var st []Stop
+			for _, c := range codes {
+				st = append(st, Stop{Code: c, Next: "x"})
+			}
+			return nil, &StopError{Stops: st}
+		}
+		return old(in)
+	}
+	return &seen, func() { generate = old }
+}
+
+func escOn(e *btEntry) { e.CollapseDirectories, e.Escalate = true, true }
+
+func TestBacktestEscalatePlainReproducesIsNotEscalated(t *testing.T) {
+	var seen []Input
+	old := generate
+	defer func() { generate = old }()
+	generate = func(in Input) (*Result, error) { seen = append(seen, in); return old(in) }
+	rep, r := dirBT(t, escOn, genCollapsed(t, true), "")
+	if r.Class != ClassReproduced || r.Escalated == nil || *r.Escalated || r.PlainStop != "" || rep.Escalated != 0 || rep.Reproduced != 1 || rep.SeedsFailed != 1 {
+		t.Fatalf("%+v %+v", r, rep)
+	}
+	if len(seen) != 1 || seen[0].InferInstallPaths {
+		t.Fatalf("plain run only: %+v", seen)
+	}
+	// A plain difference is the result too.
+	seen = nil
+	if _, r := dirBT(t, func(e *btEntry) { e.Escalate = true }, genCollapsed(t, true), ""); r.Class != ClassDiffers || *r.Escalated || len(seen) != 1 {
+		t.Fatalf("%+v %d", r, len(seen))
+	}
+}
+
+func TestBacktestEscalateOnEachListedStop(t *testing.T) {
+	if len(escalateStops) != 4 {
+		t.Fatalf("%v", escalateStops)
+	}
+	for _, code := range escalateStops {
+		calls, restore := escStub(t, code)
+		rep, r := dirBT(t, func(e *btEntry) { escOn(e); e.CheckInstallPathCopies = true }, genCollapsed(t, true), "")
+		restore()
+		if r.Class != ClassReproduced || r.Escalated == nil || !*r.Escalated || r.PlainStop != code || rep.Escalated != 1 || rep.Reproduced != 1 || rep.SeedsFailed != 1 {
+			t.Fatalf("%s: %+v %+v", code, r, rep)
+		}
+		c := *calls
+		if len(c) != 2 || c[0].InferInstallPaths || !c[1].InferInstallPaths || !c[1].CheckInstallPathCopies || !c[1].CollapseDirectories {
+			t.Fatalf("%s: %+v", code, c)
+		}
+	}
+}
+
+func TestBacktestEscalateInferenceStopIsTheResult(t *testing.T) {
+	calls, restore := escStub(t, StopDuplicateCRD)
+	defer restore()
+	old := generate
+	generate = func(in Input) (*Result, error) {
+		if in.InferInstallPaths {
+			return nil, &StopError{Stops: []Stop{{Code: StopInstallPathAmbiguous, Next: "x"}}}
+		}
+		return old(in)
+	}
+	_, r := dirBT(t, escOn, genCollapsed(t, true), "")
+	if r.Class != ClassTypedStop || !*r.Escalated || r.PlainStop != StopDuplicateCRD || len(r.Stops) != 1 || r.Stops[0] != StopInstallPathAmbiguous {
+		t.Fatalf("%+v %d", r, len(*calls))
+	}
+}
+
+func TestBacktestEscalateUnlistedStopIsNotEscalated(t *testing.T) {
+	for _, codes := range [][]string{{StopMultiPrefixAmbiguous}, {StopReservedGroup}, {StopWindowTooShort}, {StopDuplicateCRD, StopReservedGroup}} {
+		calls, restore := escStub(t, codes...)
+		rep, r := dirBT(t, escOn, genCollapsed(t, true), "")
+		restore()
+		if r.Class != ClassTypedStop || r.Escalated == nil || *r.Escalated || r.PlainStop != "" || rep.Escalated != 0 || len(*calls) != 1 {
+			t.Fatalf("%v: %+v %d", codes, r, len(*calls))
+		}
+	}
+}
+
+func TestBacktestEscalateRefusals(t *testing.T) {
+	want := genCollapsed(t, true)
+	excl := `{"schema":"` + RulesSchema + `","installSurface":[],"exclusions":[{"class":"exact-file","path":"third_party/x/other.yaml","reason":"third-party bundle","evidence":"pinned"}]}`
+	paths := `{"schema":"` + RulesSchema + `","installSurface":[],"exclusions":[],"installPaths":[{"path":"config/crd/","reason":"r","evidence":"e"}]}`
+	cases := map[string]struct {
+		mutate func(e *btEntry)
+		rules  string
+	}{
+		"oracle":       {func(e *btEntry) { escOn(e); e.OraclePaths = true }, ""},
+		"exclusions":   {escOn, excl},
+		"installPaths": {escOn, paths},
+		"infer":        {func(e *btEntry) { escOn(e); e.InferInstallPaths = true }, ""},
+	}
+	for name, c := range cases {
+		rep, r := dirBT(t, c.mutate, want, c.rules)
+		if r.Class != ClassHarnessError || !strings.Contains(r.Error, "escalate") || rep.Errors != 1 || rep.Reproduced != 0 {
+			t.Errorf("%s: %+v", name, r)
+		}
+	}
+}
+
+func TestBacktestEscalateDefaultOffAndManifestKey(t *testing.T) {
+	var seen []Input
+	old := generate
+	defer func() { generate = old }()
+	generate = func(in Input) (*Result, error) {
+		seen = append(seen, in)
+		return nil, &StopError{Stops: []Stop{{Code: StopDuplicateCRD, Next: "x"}}}
+	}
+	_, r := dirBT(t, func(e *btEntry) {}, genCollapsed(t, true), "")
+	if r.Escalated != nil || len(seen) != 1 || r.Class != ClassTypedStop {
+		t.Fatalf("%+v %d", r, len(seen))
+	}
+	raw := `{"schema":"` + BacktestSchema + `","count":1,"entries":[{"slug":"a","name":"a","repo":"r","tags":["v1"],"mirror":"m","expected":"e.json","half":"A","escalate":true}],"seeds":[{"entry":"a","kind":"path"}]}`
+	if m, err := parseBacktestManifest([]byte(raw)); err != nil || !m.Entries[0].Escalate {
+		t.Fatalf("%v", err)
+	}
+}
+
+func TestBacktestEscalateDeterministicAndSummary(t *testing.T) {
+	old := generate
+	defer func() { generate = old }()
+	generate = func(in Input) (*Result, error) {
+		if in.Slug == "alpha" && !in.InferInstallPaths {
+			return nil, &StopError{Stops: []Stop{{Code: StopUnreadableShape, Next: "x"}}}
+		}
+		return old(in)
+	}
+	f := newBT(t)
+	f.m["entries"].([]any)[0].(map[string]any)["escalate"] = true
+	// alpha escalates (stubbed plain stop) and reproduces from the inference run.
+	res, err := Generate(Input{Slug: "alpha", Name: "alpha", Repo: "github.com/example/alpha", Tags: btTags, Source: btOpen("alpha"), InferInstallPaths: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(f.dir, "expected-alpha.json"), res.A, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	code, so, se := f.run(t, btOpen)
+	if code != 0 {
+		t.Fatalf("%d %s %s", code, so, se)
+	}
+	// existing fields keep their place; escalated=N is appended after the digest
+	if !strings.Contains(so, "alpha reproduced escalated=true plainStop=unreadable-shape\n") || !strings.Contains(so, "BACKTEST strict=") || !strings.Contains(so, " escalated=1\n") {
+		t.Fatal(so)
+	}
+	line := so[strings.Index(so, "BACKTEST"):]
+	if i := strings.Index(line, "digest="); i < 0 || strings.Count(line[i:], " ") != 1 {
+		t.Fatal(line)
+	}
+}
