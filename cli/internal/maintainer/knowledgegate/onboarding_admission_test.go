@@ -4,6 +4,8 @@ package knowledgegate
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"go/parser"
 	"go/token"
@@ -22,6 +24,10 @@ const (
 	admDigest = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	admOther  = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 )
+
+func admPaths() []string {
+	return []string{"cli/data/table.json", "cli/targets/target-alpha.json", "cli/recipes/alpha/recipe.json", "cli/onboarding/b1.json"}
+}
 
 func admDigests(c string) AdmissionDigests {
 	d := strings.Repeat(c, 64)
@@ -54,10 +60,10 @@ func admOK() OnboardingAdmissionInput {
 		Projects:   []AdmissionProject{{Slug: "alpha", Kind: OnboardingKindNew, TargetSHA256: admDigest}},
 		RegenKnown: true, RegenByteEqual: true, RegenOutputsSHA256: admDigest,
 		ExclusionsKnown: true, RecipeExclusionsKnown: true, BaseAbsenceKnown: true, FileModesOK: true,
-		ChangedPaths: []string{"cli/data/table.json", "cli/targets/target-alpha.json", "cli/recipes/alpha/recipe.json", "cli/onboarding/b1.json"},
+		ChangedPaths: admPaths(),
 		TrustPaths:   []string{"cli/knowledge/trust/", "cli/knowledge/reattestation/trust-root.json"},
 		BatchDir:     "cli/onboarding",
-		VerifyPr:     &VerifyPrResult{Outcome: "pass", BindingVerified: true, ChangedPathsSHA256: admDigest, RecipeChange: "new", BaseSHA: admBase, HeadSHA: admHead, BindingDigest: admDigest, Slugs: []string{"alpha"}},
+		VerifyPr:     &VerifyPrResult{Outcome: "pass", BindingVerified: true, ChangedPathsSHA256: PathSetDigest(admPaths()), RecipeChange: "new", BaseSHA: admBase, HeadSHA: admHead, BindingDigest: admDigest, Slugs: []string{"alpha"}},
 	}
 }
 
@@ -229,6 +235,10 @@ func TestAdmitOnboardingAutoNegatives(t *testing.T) {
 		{"verifyPr binding not verified", AdmitReasonVerifyNotPass, func(i *OnboardingAdmissionInput) { i.VerifyPr.BindingVerified = false }},
 		{"verifyPr recipe changed", AdmitReasonVerifyRecipe, func(i *OnboardingAdmissionInput) { i.VerifyPr.RecipeChange = "changed" }},
 		{"verifyPr recipe unchanged is not an onboarding", AdmitReasonVerifyRecipe, func(i *OnboardingAdmissionInput) { i.VerifyPr.RecipeChange = "unchanged" }},
+		{"verifyPr covered another path set", AdmitReasonVerifyPathsMismatch, func(i *OnboardingAdmissionInput) { i.VerifyPr.ChangedPathsSHA256 = admOther }},
+		{"verifyPr covered a subset of the paths", AdmitReasonVerifyPathsMismatch, func(i *OnboardingAdmissionInput) {
+			i.VerifyPr.ChangedPathsSHA256 = PathSetDigest(admPaths()[:3])
+		}},
 		{"verifyPr changed paths digest missing", AdmitReasonVerifyPaths, func(i *OnboardingAdmissionInput) { i.VerifyPr.ChangedPathsSHA256 = "" }},
 		{"slug present in base", AdmitReasonBaseAbsent, func(i *OnboardingAdmissionInput) { i.BasePresent = []string{"alpha"} }},
 		{"unrelated presence is not clean", AdmitReasonBaseAbsent, func(i *OnboardingAdmissionInput) { i.BasePresent = []string{"zeta"} }},
@@ -396,7 +406,7 @@ func TestAdmitOnboardingAutoDeterministicAndStable(t *testing.T) {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	want := "exclusions,authorLogin,baseSha,batch,botLogin,commits,decisionDigest,digests,headSha,keysetDigest,observedAt,pathSet,pathSetSha256,paused,policyDigest,projects,reasons,regen,schema,senderLogin,shadow,trustRootDigest,verifyPr,admitted"
+	want := "exclusions,authorLogin,baseSha,batch,botLogin,commits,decisionDigest,digests,headSha,keysetDigest,observedAt,pathSet,pathSetSha256,paused,projects,reasons,regen,schema,senderLogin,shadow,trustRootDigest,verifyPr,admitted"
 	wantKeys := strings.Split(want, ",")
 	sort.Strings(wantKeys)
 	if strings.Join(keys, ",") != strings.Join(wantKeys, ",") {
@@ -492,5 +502,23 @@ func TestOnboardingAdmissionAbsentWithoutBatch(t *testing.T) {
 	raw, err := json.Marshal(r)
 	if err != nil || bytes.Contains(raw, []byte("onboardingAdmission")) {
 		t.Fatalf("report json carries the member: %v", err)
+	}
+}
+
+// The canonical path-set digest: pinned against an independent computation
+// and a fixed vector, order independent, bound into the decision.
+func TestPathSetDigestCanonical(t *testing.T) {
+	t.Parallel()
+	sum := sha256.Sum256([]byte("a/x\nb/y"))
+	want := "sha256:" + hex.EncodeToString(sum[:])
+	if got := PathSetDigest([]string{"b/y", "a/x"}); got != want || PathSetDigest([]string{"a/x", "b/y"}) != want {
+		t.Fatalf("digest %s want %s", got, want)
+	}
+	if PathSetDigest(nil) != PathSetDigest([]string{}) || PathSetDigest([]string{"a"}) == PathSetDigest([]string{"a", "b"}) {
+		t.Fatal("digest does not follow the set")
+	}
+	in := admOK()
+	if d := AdmitOnboardingAuto(in); d.PathSetSHA != PathSetDigest(in.ChangedPaths) || d.VerifyPr.ChangedPathsSHA256 != d.PathSetSHA {
+		t.Fatalf("decision binds %s / %s", d.PathSetSHA, d.VerifyPr.ChangedPathsSHA256)
 	}
 }

@@ -6,7 +6,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"sort"
+	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
 )
@@ -168,13 +171,18 @@ func (r *Report) regenerationFacts(opts Options) (known, equal bool, digest stri
 	if len(opts.Layout.Generated) == 0 && len(opts.Layout.GeneratedBlocks) == 0 {
 		return false, false, ""
 	}
+	// Every check of that name must have passed, and there must be one.
 	checked := func(path string) bool {
+		found := false
 		for _, c := range r.Checks {
 			if c.Name == "generated/"+path {
-				return c.OK
+				if !c.OK {
+					return false
+				}
+				found = true
 			}
 		}
-		return false
+		return found
 	}
 	type item struct{ check, read []string }
 	var items []item
@@ -239,23 +247,53 @@ func recipeExclusionList(t Tree, slug string) ([]string, error) {
 	return rec.Exclude, nil
 }
 
-// baseAbsence records which batch slugs the BASE already has in its table,
-// its targets or its recipes.
+// baseAbsence records which batch slugs the BASE already has, under any
+// casing, in its table, in its targets (by file name or by the project a
+// target holds) or in its recipes (a directory or file of that name, with or
+// without a recipe.json).
 func (a *admissionFacts) baseAbsence(st *onboardingState, rec OnboardingRecord) {
 	a.baseAbsenceKnown = true
-	inTable := map[string]bool{}
-	for _, p := range st.base.projects {
-		inTable[p.Slug] = true
+	recipes, err := treeEntryNames(st.baseTree, strings.TrimSuffix(recipesRoot, "/"))
+	if err != nil {
+		a.baseAbsenceKnown = false
 	}
 	for _, p := range rec.Projects {
-		_, inTargets := st.base.targets[crdversions.TargetFileName(p.Slug)]
-		_, err := st.baseTree.Read(recipesRoot+p.Slug+"/recipe.json", MaxFileBytes)
-		inRecipes := err == nil
-		if err != nil && !errors.Is(err, ErrMissing) {
-			a.baseAbsenceKnown = false
+		present := false
+		for _, row := range st.base.projects {
+			present = present || strings.EqualFold(row.Slug, p.Slug)
 		}
-		if inTable[p.Slug] || inTargets || inRecipes {
+		for name := range st.base.targets {
+			present = present || strings.EqualFold(name, crdversions.TargetFileName(p.Slug))
+		}
+		for _, t := range st.base.loaded {
+			present = present || strings.EqualFold(t.Project, p.Slug)
+		}
+		for _, name := range recipes {
+			present = present || strings.EqualFold(name, p.Slug)
+		}
+		if present {
 			a.basePresent = append(a.basePresent, p.Slug)
 		}
 	}
+}
+
+// treeEntryNames lists the names directly inside dir; a missing directory
+// has none.
+func treeEntryNames(t Tree, dir string) ([]string, error) {
+	d, err := t.openDir(dir)
+	if errors.Is(err, ErrMissing) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer d.Close()
+	names, err := d.Readdirnames(maxTargetFiles + 1)
+	if err != nil && !errors.Is(err, io.EOF) {
+		return nil, err
+	}
+	if len(names) > maxTargetFiles {
+		return nil, fmt.Errorf("%s holds more than %d entries", dir, maxTargetFiles)
+	}
+	return names, nil
 }

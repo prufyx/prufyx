@@ -157,11 +157,21 @@ func TestAdmissionFactsBaseAbsence(t *testing.T) {
 		{"in the targets", nil, map[string][]byte{"target-alpha.json": {1}}, nil, true, []string{"alpha"}},
 		{"in the recipes", nil, nil, map[string]string{recipesRoot + "alpha/recipe.json": "{}"}, true, []string{"alpha"}},
 		{"another slug is not this one", []customresources.Project{{Slug: "beta"}}, map[string][]byte{"target-beta.json": {1}}, map[string]string{recipesRoot + "beta/recipe.json": "{}"}, true, nil},
-		{"recipe unreadable is unknown", nil, nil, map[string]string{recipesRoot + "alpha/recipe.json/x": "{}"}, false, nil},
+		{"another file name holding the project", nil, nil, nil, true, []string{"alpha"}},
+		{"recipe dir without recipe.json", nil, nil, map[string]string{recipesRoot + "alpha/notes.txt": "x"}, true, []string{"alpha"}},
+		{"table slug in another case", []customresources.Project{{Slug: "Alpha"}}, nil, nil, true, []string{"alpha"}},
+		{"target file in another case", nil, map[string][]byte{"target-ALPHA.json": {1}}, nil, true, []string{"alpha"}},
+		{"recipe dir in another case", nil, nil, map[string]string{recipesRoot + "ALPHA/recipe.json": "{}"}, true, []string{"alpha"}},
+		{"recipes root not a directory is unknown", nil, nil, map[string]string{"cli/knowledge/target-recipes": "x"}, false, nil},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			st := &onboardingState{base: onboardingSide{projects: tc.table, targets: tc.targets}, baseTree: writeTree(t, tc.files)}
+			var loaded []crdversions.Target
+			if tc.name == "another file name holding the project" {
+				loaded = []crdversions.Target{{Project: "alpha"}}
+				tc.targets = map[string][]byte{"target-renamed.json": {1}}
+			}
+			st := &onboardingState{base: onboardingSide{projects: tc.table, targets: tc.targets, loaded: loaded}, baseTree: writeTree(t, tc.files)}
 			var a admissionFacts
 			a.baseAbsence(st, rec)
 			if a.baseAbsenceKnown != tc.known || !reflect.DeepEqual(a.basePresent, tc.present) {
@@ -212,6 +222,28 @@ func TestRegenerationFacts(t *testing.T) {
 	pairFails.Checks[0].OK = false
 	if _, eq, _ := pairFails.regenerationFacts(opts(both)); eq {
 		t.Error("pair check fails but equal")
+	}
+	// Duplicate check names: every one must pass, in either order.
+	dupA := pass("out.json", "out.json", "README.md")
+	dupA.Checks[1].OK = false
+	dupB := pass("out.json", "out.json", "README.md")
+	dupB.Checks[0].OK = false
+	for name, r := range map[string]*Report{"second duplicate fails": dupA, "first duplicate fails": dupB} {
+		if _, eq, _ := r.regenerationFacts(opts(both)); eq {
+			t.Errorf("%s but equal", name)
+		}
+	}
+	if _, eq, _ := pass("out.json", "out.json", "README.md").regenerationFacts(opts(both)); !eq {
+		t.Error("passing duplicates are not equal")
+	}
+	// The digest does not depend on the order of the layout.
+	rev := Layout{Generated: []GeneratedPair{pair, {JSONPath: "a.json", MarkdownPath: "out.md"}}}
+	fwd := Layout{Generated: []GeneratedPair{{JSONPath: "a.json", MarkdownPath: "out.md"}, pair}}
+	head3 := writeTree(t, map[string]string{"out.json": "J", "out.md": "M", "a.json": "A"})
+	_, _, dr := pass("out.json", "a.json").regenerationFacts(Options{Layout: rev, Head: head3})
+	_, _, df := pass("out.json", "a.json").regenerationFacts(Options{Layout: fwd, Head: head3})
+	if dr == "" || dr != df {
+		t.Fatalf("digest follows the layout order: %q %q", dr, df)
 	}
 	// An unreadable output is unknown.
 	missing := Layout{Generated: []GeneratedPair{{JSONPath: "out.json", MarkdownPath: "absent.md"}}}

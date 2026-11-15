@@ -62,6 +62,7 @@ const (
 	AdmitReasonSHA                    = "sha-invalid"
 	AdmitReasonHeadMismatch           = "head-sha-mismatch"
 	AdmitReasonAllowlistUnset         = "path-allowlist-unset"
+	AdmitReasonVerifyPathsMismatch    = "verify-pr-changed-paths-digest-mismatch"
 	AdmitReasonVerifyPaths            = "verify-pr-changed-paths-digest-missing"
 	AdmitReasonBaseAbsent             = "slug-present-in-base"
 	AdmitReasonBaseAbsentUnknown      = "base-absence-unknown"
@@ -310,7 +311,7 @@ func AdmitOnboardingAuto(in OnboardingAdmissionInput) OnboardingAdmission {
 	sort.Slice(d.Projects, func(i, j int) bool { return d.Projects[i].Slug < d.Projects[j].Slug })
 	d.PathSet = append([]string{}, in.ChangedPaths...)
 	sort.Strings(d.PathSet)
-	d.PathSetSHA = admitSHA([]byte(strings.Join(d.PathSet, "\n")))
+	d.PathSetSHA = admitPathSetDigest(d.PathSet)
 	if in.VerifyPr != nil {
 		d.VerifyPr = VerifyPrBinding{ChangedPathsSHA256: in.VerifyPr.ChangedPathsSHA256, Outcome: in.VerifyPr.Outcome, Eligible: in.VerifyPr.Eligible, BindingVerified: in.VerifyPr.BindingVerified, RecipeChange: in.VerifyPr.RecipeChange, BaseSHA: in.VerifyPr.BaseSHA, BindingDigest: in.VerifyPr.BindingDigest, HeadSHA: in.VerifyPr.HeadSHA}
 	}
@@ -650,6 +651,10 @@ func admitVerifyPr(in OnboardingAdmissionInput, why *admitReasons) {
 	}
 	if !admitValidDigest(v.ChangedPathsSHA256) {
 		why.add(AdmitReasonVerifyPaths)
+	} else if v.ChangedPathsSHA256 != PathSetDigest(in.ChangedPaths) {
+		// The verify-pr pass must have covered exactly the path set this
+		// checker judges, not another one.
+		why.add(AdmitReasonVerifyPathsMismatch)
 	}
 	if !admitValidDigest(v.BindingDigest) {
 		why.add(AdmitReasonVerifyBinding)
@@ -728,3 +733,17 @@ func admitBaseAbsence(in OnboardingAdmissionInput, why *admitReasons) {
 		why.add(AdmitReasonBaseAbsent)
 	}
 }
+
+// PathSetDigest is the canonical digest of a path set: the sha256 of the
+// sorted paths joined by "\n", as "sha256:<hex>". The admission decision's
+// pathSetSha256 and the changed-paths digest a verify-pr result must carry
+// are both this function; a producer of that digest uses the same algorithm
+// (pinned by TestPathSetDigestCanonical). The order of the input never
+// matters.
+func PathSetDigest(paths []string) string {
+	sorted := append([]string{}, paths...)
+	sort.Strings(sorted)
+	return admitSHA([]byte(strings.Join(sorted, "\n")))
+}
+
+func admitPathSetDigest(sorted []string) string { return PathSetDigest(sorted) }
