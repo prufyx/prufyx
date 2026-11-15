@@ -337,3 +337,138 @@ func TestBacktestDigestIndependentOfCheckoutPath(t *testing.T) {
 		t.Fatalf("digest differs between checkouts: %s vs %s", a, b)
 	}
 }
+
+// dirBT runs one collapse-shaped entry: the tree is two CRDs in config/crd.
+// expected is written to the manifest directory.
+func dirBT(t *testing.T, mutate func(e *btEntry), expected []byte, rulesJSON string) (BacktestReport, BacktestResult) {
+	t.Helper()
+	base, mirrors := t.TempDir(), t.TempDir()
+	if err := os.Mkdir(filepath.Join(mirrors, "demo"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(base, "exp.json"), expected, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	e := btEntry{Slug: "demo", Name: "Demo", Repo: "github.com/example/demo", Catalog: "cncf", Tags: collapseTags, Mirror: "demo", Expected: "exp.json", Half: "A"}
+	if rulesJSON != "" {
+		if err := os.WriteFile(filepath.Join(base, "rules.json"), []byte(rulesJSON), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		e.Rules = "rules.json"
+	}
+	mutate(&e)
+	m := &btManifest{Schema: BacktestSchema, Count: 1, Entries: []btEntry{e}, Seeds: []btSeed{{Entry: "demo", Kind: "path"}}}
+	rep := Backtest(m, "d", base, mirrors, func(string) Source { return collapseSource(nil) })
+	return rep, rep.Results[0]
+}
+
+func genCollapsed(t *testing.T, collapse bool) []byte {
+	t.Helper()
+	res, err := Generate(collapseInputFor(collapseSource(nil), collapse))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return res.A
+}
+
+func TestBacktestDirectoryEntryIsComparedByBytes(t *testing.T) {
+	want := genCollapsed(t, true)
+	if !bytes.Contains(want, []byte(`"directory": true`)) && !bytes.Contains(want, []byte(`"directory":true`)) {
+		t.Fatalf("fixture has no directory entry: %s", want)
+	}
+	rep, r := dirBT(t, func(e *btEntry) { e.CollapseDirectories = true }, want, "")
+	if r.Class != ClassReproduced || rep.Reproduced != 1 || rep.SeedsFailed != 1 {
+		t.Fatalf("%+v %+v", r, rep)
+	}
+}
+
+func TestBacktestExactFilesAgainstShippedDirectoryIsDiffers(t *testing.T) {
+	// The generator runs without collapse: it emits exact files.
+	rep, r := dirBT(t, func(e *btEntry) {}, genCollapsed(t, true), "")
+	if r.Class != ClassDiffers || r.Cause == CauseFormatGap || rep.Reproduced != 0 {
+		t.Fatalf("%+v", r)
+	}
+}
+
+func TestBacktestDirectoryWithNonDefaultMatchOrGuardStaysFormatGap(t *testing.T) {
+	good := genCollapsed(t, true)
+	for name, from := range map[string]string{
+		"match": DefaultDirMatch, "guard": DefaultDirGuard,
+	} {
+		esc, _ := json.Marshal(from)
+		bad := bytes.Replace(good, esc, []byte(`"x"`), 1)
+		if bytes.Equal(bad, good) {
+			t.Fatalf("%s: fixture not changed", name)
+		}
+		_, r := dirBT(t, func(e *btEntry) { e.CollapseDirectories = true }, bad, "")
+		if r.Class != ClassDiffers || r.Cause != CauseFormatGap {
+			t.Errorf("%s: %+v", name, r)
+		}
+	}
+	// An extra key on a directory entry is also a gap.
+	extra := bytes.Replace(good, []byte(`"directory": true,`), []byte(`"directory": true, "recursive": true,`), 1)
+	if bytes.Equal(extra, good) {
+		t.Skip("directory entry is not pretty-printed as expected")
+	}
+	if _, r := dirBT(t, func(e *btEntry) { e.CollapseDirectories = true }, extra, ""); r.Cause != CauseFormatGap {
+		t.Errorf("%+v", r)
+	}
+}
+
+func TestBacktestOptionsReachTheGenerator(t *testing.T) {
+	var got Input
+	old := generate
+	defer func() { generate = old }()
+	generate = func(in Input) (*Result, error) {
+		got = in
+		return old(in)
+	}
+	dirBT(t, func(e *btEntry) { e.CollapseDirectories, e.DeriveDuplicateSources, e.MultiPrefix = true, true, true }, genCollapsed(t, true), "")
+	if !got.CollapseDirectories || !got.DeriveDuplicates || !got.MultiPrefix {
+		t.Fatalf("%+v", got)
+	}
+	got = Input{}
+	dirBT(t, func(e *btEntry) {}, genCollapsed(t, false), "")
+	if got.CollapseDirectories || got.DeriveDuplicates || got.MultiPrefix {
+		t.Fatalf("defaults must stay off: %+v", got)
+	}
+}
+
+func TestBacktestOracleIsLabelledAndNotStrict(t *testing.T) {
+	var got Input
+	old := generate
+	defer func() { generate = old }()
+	generate = func(in Input) (*Result, error) {
+		got = in
+		return old(in)
+	}
+	rep, r := dirBT(t, func(e *btEntry) { e.CollapseDirectories, e.OraclePaths = true, true }, genCollapsed(t, true), "")
+	if r.Class != ClassReproducedOracle || !r.Oracle || rep.Reproduced != 0 || rep.OracleRepro != 1 || rep.SeedsFailed != 1 {
+		t.Fatalf("%+v %+v", r, rep)
+	}
+	if got.Rules == nil || len(got.Rules.InstallPaths) != 1 || got.Rules.InstallPaths[0].Path != "config/crd/" {
+		t.Fatalf("%+v", got.Rules)
+	}
+	// Without the flag the entry is inferred, not oracle.
+	if _, r := dirBT(t, func(e *btEntry) { e.CollapseDirectories = true }, genCollapsed(t, true), ""); r.Oracle || r.Class != ClassReproduced {
+		t.Fatalf("%+v", r)
+	}
+}
+
+func TestBacktestOracleNegatives(t *testing.T) {
+	// A reviewed target that differs elsewhere is not an oracle reproduction.
+	bad := bytes.Replace(genCollapsed(t, true), []byte(`"minFrom": "1.0"`), []byte(`"minFrom": "1.1"`), 1)
+	if _, r := dirBT(t, func(e *btEntry) { e.CollapseDirectories, e.OraclePaths = true, true }, bad, ""); r.Class != ClassDiffers || !r.Oracle {
+		t.Errorf("%+v", r)
+	}
+	// Rules that already carry installPaths are refused, never merged.
+	rules := `{"schema":"` + RulesSchema + `","installSurface":[],"exclusions":[],"installPaths":[{"path":"config/crd/","reason":"r","evidence":"e"}]}`
+	if _, r := dirBT(t, func(e *btEntry) { e.CollapseDirectories, e.OraclePaths = true, true }, genCollapsed(t, true), rules); r.Class != ClassHarnessError {
+		t.Errorf("%+v", r)
+	}
+	// A reviewed target without paths cannot feed an oracle.
+	empty := []byte(`{"schema":"prufyx.io/crd-version-target/v1","target":{"project":"demo","paths":[]}}`)
+	if _, r := dirBT(t, func(e *btEntry) { e.OraclePaths = true }, empty, ""); r.Class != ClassHarnessError {
+		t.Errorf("%+v", r)
+	}
+}
