@@ -249,6 +249,10 @@ type Report struct {
 	// ranking evidence of every tag. Present only with --infer-install-paths;
 	// part of FactsDigest then.
 	InferredInstallPaths *InferredInstallPaths `json:"inferredInstallPaths,omitempty"`
+	// PatchFragments lists, per window tag, the kustomize patch fragments set
+	// aside as non-install, non-definition files. Present only with
+	// --skip-patch-fragments and a fragment; part of FactsDigest then.
+	PatchFragments []PatchFragmentFact `json:"patchFragments,omitempty"`
 	// Representation is "directory" when install files were written as
 	// directory entries; absent (exact files) otherwise. Directories lists
 	// each directory entry with the file names it reads, identical at every
@@ -256,6 +260,12 @@ type Report struct {
 	// representation of the same file set.
 	Representation string          `json:"representation,omitempty"`
 	Directories    []DirectoryFact `json:"directories,omitempty"`
+}
+
+// PatchFragmentFact is the patch fragments set aside at one window tag.
+type PatchFragmentFact struct {
+	Tag   string   `json:"tag"`
+	Paths []string `json:"paths"`
 }
 
 // DirectoryFact is one directory entry of the target.
@@ -681,6 +691,11 @@ func build(in Input, catalog, component, fact, ownerRepo, prefix string, prefixe
 		})
 	}
 
+	for _, r := range window {
+		if len(r.fragments) > 0 {
+			rep.PatchFragments = append(rep.PatchFragments, PatchFragmentFact{Tag: r.tag, Paths: append([]string(nil), r.fragments...)})
+		}
+	}
 	copies := unionCopies(window)
 	if len(copies) > 0 {
 		rep.NonInstallCopies = copies

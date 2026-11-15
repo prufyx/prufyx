@@ -56,6 +56,18 @@ result only. When at least one entry escalated, the per-entry line gains
 ` escalated=true plainStop=CODE` and the summary line gains ` escalated=N` after
 `digest=`; `backtest.json` gains `escalated` only when N is above 0.
 
+`skipPatchFragments` (`--skip-patch-fragments`, default off) sets aside
+kustomize patch fragments as non-install, non-definition files. A fragment is
+only a file whose own content has the extractor's patch-fragment shape (strictly
+decoded `CustomResourceDefinition` documents of `apiextensions.k8s.io/v1` or
+`v1beta1` that carry only `metadata.name`, labels, annotations,
+`spec.conversion` and `spec.preserveUnknownFields`; no template syntax, no
+JSON-patch list) and that lies below a directory holding a kustomization file.
+Fragments are listed per tag in `patchFragments` of the report (part of the
+facts digest), never rank and never count as install files. Everything else,
+and any fragment reached through a symbolic link, stays the typed stop
+`unreadable-shape`. With the option off the output is unchanged.
+
 A reviewed directory entry (keys `path`, `directory`, `match`, `guard` with the
 one default match and guard) is compared by bytes, but only reproduces when
 the generator also emits it as a directory entry (use `collapseDirectories`);
