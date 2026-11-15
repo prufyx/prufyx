@@ -23,7 +23,10 @@ func TestRemediationChangesConsumeOneCapUnitEach(t *testing.T) {
 		t.Fatalf("only %d active reviewed rules", len(ids))
 	}
 	ids = ids[:4]
-	editPack(t, head, cncfRulesPath, func(p *packDoc) {
+	// Written without regenerating the corpus attestation: only the
+	// classification and the limits are under test here.
+	p := readPack(t, head, cncfRulesPath)
+	func() {
 		const text = "Changed advice."
 		// 0: advice only. 1: advice and a later lease. 2: advice and a
 		// re-pin. 3: a later lease only.
@@ -36,7 +39,8 @@ func TestRemediationChangesConsumeOneCapUnitEach(t *testing.T) {
 		evidenceOf(e2)["sources"].([]any)[0].(map[string]any)["endLine"] = json.Number("9999")
 		e3 := p.find(t, ids[3])
 		evidenceOf(e3)["validUntil"] = shiftTime(t, evidenceOf(e3)["validUntil"], time.Hour)
-	})
+	}()
+	p.write(t, head, cncfRulesPath)
 	cls, err := Classify(DefaultLayout(), base, head)
 	if err != nil {
 		t.Fatal(err)
