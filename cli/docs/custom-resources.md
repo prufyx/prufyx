@@ -18,8 +18,9 @@ For a pair without a published rule the check answers `UNKNOWN` (exit 11).
 `crdsource.DescriptionMarkersOnly` is a bounded, strict source-shape check
 for a CRD whose raw bytes contain `{{`. It returns `true, nil` only when every
 marker is in an admitted OpenAPI schema description; it returns `false, nil`
-when there is no raw marker, and an error for malformed, oversized, or other
-marker placement. It does not establish CRD structural validity, rendering
+only for in-bound, strictly decodable input with no raw marker. Malformed or
+oversized marker-free input returns an error, as does other marker placement.
+It does not establish CRD structural validity, rendering
 success, installability, or a version-removal fact.
 
 ## Projects
