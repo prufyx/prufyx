@@ -295,6 +295,9 @@ func Generate(in Input) (*Result, error) {
 	if in.MultiPrefix {
 		var pstops []Stop
 		prefixWindows, pstops = checkPrefixWindows(prefixes, tags[first:], window)
+		if len(pstops) == 0 {
+			pstops = checkOtherSpelling(in.Source, prefixes, tags[first:])
+		}
 		if len(pstops) > 0 {
 			return nil, &StopError{Stops: sortStops(pstops)}
 		}

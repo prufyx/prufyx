@@ -16,6 +16,8 @@ type PrefixWindow struct {
 	Prefix string   `json:"prefix"`
 	Tags   []string `json:"tags"`
 	Groups []string `json:"groups"`
+	// Kinds are the group/kind pairs the window tags read, sorted.
+	Kinds []string `json:"kinds"`
 }
 
 // minPrefixWindow is the smallest window a prefix may hold: one pair needs two
@@ -107,9 +109,11 @@ func checkPrefixWindows(prefixes []string, tags []parsedTag, window []*tagResult
 	}
 	byPrefix := map[string]*PrefixWindow{}
 	sets := map[string]map[string]bool{}
+	kindSets := map[string]map[string]bool{}
 	for _, p := range prefixes {
-		byPrefix[p] = &PrefixWindow{Prefix: p, Tags: []string{}, Groups: []string{}}
+		byPrefix[p] = &PrefixWindow{Prefix: p, Tags: []string{}, Groups: []string{}, Kinds: []string{}}
 		sets[p] = map[string]bool{}
+		kindSets[p] = map[string]bool{}
 	}
 	for i, t := range tags {
 		pw, ok := byPrefix[t.Prefix]
@@ -120,6 +124,7 @@ func checkPrefixWindows(prefixes []string, tags []parsedTag, window []*tagResult
 		for _, inc := range window[i].included {
 			for _, c := range inc.CRDs {
 				sets[t.Prefix][c.Group] = true
+				kindSets[t.Prefix][c.Group+"/"+c.Kind] = true
 			}
 		}
 	}
@@ -131,6 +136,10 @@ func checkPrefixWindows(prefixes []string, tags []parsedTag, window []*tagResult
 			pw.Groups = append(pw.Groups, g)
 		}
 		sort.Strings(pw.Groups)
+		for k := range kindSets[p] {
+			pw.Kinds = append(pw.Kinds, k)
+		}
+		sort.Strings(pw.Kinds)
 		if len(pw.Tags) < minPrefixWindow {
 			stops = append(stops, stop(StopMultiPrefixShort, p, fmt.Sprintf("only %d tag(s) of this prefix are in the window; the other tags were withheld", len(pw.Tags))))
 		}
@@ -143,4 +152,57 @@ func checkPrefixWindows(prefixes []string, tags []parsedTag, window []*tagResult
 		return nil, []Stop{stop(StopMultiPrefixGroups, out[1].Prefix, fmt.Sprintf("prefix %q reads groups [%s], prefix %q reads [%s]", out[0].Prefix, g0, out[1].Prefix, g1))}
 	}
 	return out, nil
+}
+
+// kindDifferences lists, sorted, the group/kind pairs that only one of the two
+// prefix windows reads. It is a warning in the report, never a stop: the
+// groups are equal, so the lines are the same API surface growing or shrinking.
+func kindDifferences(pws []PrefixWindow) []string {
+	if len(pws) != 2 {
+		return nil
+	}
+	in := func(list []string) map[string]bool {
+		m := map[string]bool{}
+		for _, k := range list {
+			m[k] = true
+		}
+		return m
+	}
+	a, b := in(pws[0].Kinds), in(pws[1].Kinds)
+	var out []string
+	for k := range a {
+		if !b[k] {
+			out = append(out, fmt.Sprintf("%s: only in prefix %q", k, pws[0].Prefix))
+		}
+	}
+	for k := range b {
+		if !a[k] {
+			out = append(out, fmt.Sprintf("%s: only in prefix %q", k, pws[1].Prefix))
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// checkOtherSpelling stops when the mirror also holds the other prefix's
+// spelling of a window release (v1.2.3 and 1.2.3). The extractor ranks the
+// spellings by the order of tagPrefixes and may read a tag the generator never
+// checked, so the run is ambiguous. A tag that cannot be opened counts as
+// absent: the source reports no distinction between a missing and an
+// unreadable tag, and the window tags themselves were all read.
+func checkOtherSpelling(src Source, prefixes []string, tags []parsedTag) []Stop {
+	var stops []Stop
+	for _, t := range tags {
+		version := strings.TrimPrefix(t.Tag, t.Prefix)
+		for _, p := range prefixes {
+			if p == t.Prefix {
+				continue
+			}
+			other := p + version
+			if _, _, err := src.Open(other); err == nil {
+				stops = append(stops, stop(StopMultiPrefixAmbiguous, t.Tag, "the mirror also has "+other+", the other prefix's spelling of the same release; the extractor may read either"))
+			}
+		}
+	}
+	return stops
 }

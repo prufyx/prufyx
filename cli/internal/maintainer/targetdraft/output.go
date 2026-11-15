@@ -200,14 +200,17 @@ type Report struct {
 	// window of each. Neither is part of FactsDigest.
 	TagPrefixes   []string       `json:"tagPrefixes,omitempty"`
 	PrefixWindows []PrefixWindow `json:"prefixWindows,omitempty"`
-	MinFrom       string         `json:"minFrom"`
-	Tags          []TagFact      `json:"tags"`
-	Dropped       []DroppedTag   `json:"droppedTags"`
-	Warnings      []string       `json:"warnings"`
-	Decisions     []Decision     `json:"decisions"`
-	Groups        []GroupFact    `json:"groups"`
-	CRDCount      int            `json:"crdCount"`
-	FactsDigest   string         `json:"factsDigest"`
+	// PrefixKindDifferences is a warning, never a stop: group/kind pairs read
+	// by only one of the two prefix windows.
+	PrefixKindDifferences []string     `json:"prefixKindDifferences,omitempty"`
+	MinFrom               string       `json:"minFrom"`
+	Tags                  []TagFact    `json:"tags"`
+	Dropped               []DroppedTag `json:"droppedTags"`
+	Warnings              []string     `json:"warnings"`
+	Decisions             []Decision   `json:"decisions"`
+	Groups                []GroupFact  `json:"groups"`
+	CRDCount              int          `json:"crdCount"`
+	FactsDigest           string       `json:"factsDigest"`
 	// NonInstallCopies are the definition files outside the pinned
 	// installPaths at any window tag, one entry per distinct (path, groups,
 	// unreadable) with the window tags it appears in; sorted. Present only
@@ -608,6 +611,7 @@ func build(in Input, catalog, component, fact, ownerRepo, prefix string, prefixe
 	if prefixes != nil {
 		rep.TagPrefixes = append([]string(nil), prefixes...)
 		rep.PrefixWindows = prefixWindows
+		rep.PrefixKindDifferences = kindDifferences(prefixWindows)
 	}
 	rep.Warnings = []string{}
 	if len(dropped) > 0 {

@@ -383,3 +383,63 @@ func TestBacktestMultiPrefixSeeds(t *testing.T) {
 		t.Fatalf("unknown kind: exit %d", code)
 	}
 }
+
+// The mirror also holds the other spelling of a window release: stop.
+func TestMultiPrefixOtherSpellingStops(t *testing.T) {
+	for _, extra := range []string{"5.20.0", "v5.19.0"} {
+		src := mpSource(append(append([]string(nil), mpTags...), extra), nil)
+		mpStop(t, "other spelling "+extra, mpInput(mpTags, src, true, false), StopMultiPrefixAmbiguous)
+	}
+	// An unrelated extra tag is fine.
+	src := mpSource(append(append([]string(nil), mpTags...), "v9.9.9"), nil)
+	mustGenerate(t, mpInput(mpTags, src, true, false))
+	// Flag off, nothing is probed: a single-prefix run is unchanged.
+	mustGenerate(t, mpInput(collapseTags, mpSource(append(append([]string(nil), collapseTags...), "1.3.0"), nil), false, false))
+}
+
+// Kinds that differ across the lines are a report warning, not a stop.
+func TestMultiPrefixKindDifferenceWarns(t *testing.T) {
+	src := mpSource(mpTags, func(tag string, m *memTree) {
+		if strings.HasPrefix(tag, "v") {
+			m.files["config/crd/c.yaml"] = crdText("demo.example.invalid", "Gamma")
+		}
+	})
+	// The extra file changes the file set at the v tags, so it would shrink the
+	// window; put the kind in an existing file instead.
+	src = mpSource(mpTags, func(tag string, m *memTree) {
+		if strings.HasPrefix(tag, "v") {
+			m.files["config/crd/b.yaml"] = append(crdText("demo.example.invalid", "Beta"), append([]byte("---\n"), crdText("demo.example.invalid", "Gamma")...)...)
+		}
+	})
+	res := mustGenerate(t, mpInput(mpTags, src, true, false))
+	if len(res.Report.PrefixKindDifferences) != 1 || !strings.Contains(res.Report.PrefixKindDifferences[0], `demo.example.invalid/Gamma: only in prefix "v"`) {
+		t.Fatalf("differences: %v", res.Report.PrefixKindDifferences)
+	}
+	same := mustGenerate(t, mpInput(mpTags, mpSource(mpTags, nil), true, false))
+	if len(same.Report.PrefixKindDifferences) != 0 {
+		t.Fatal("equal kinds warned")
+	}
+}
+
+// Numeric (not text) order across the switch, a major rollover and a
+// pre-release tag.
+func TestMultiPrefixNumericOrderAndPreRelease(t *testing.T) {
+	tags := []string{"1.9.0", "1.10.0", "v1.11.0", "v1.12.0"}
+	res := mustGenerate(t, mpInput(tags, mpSource(tags, nil), true, false))
+	if !bytes.Contains(res.A, []byte(`"tagPrefixes": ["v", ""]`)) || !bytes.Contains(res.A, []byte(`"minFrom": "1.9"`)) {
+		t.Fatalf("1.9/1.10: %s", res.A)
+	}
+	tags = []string{"1.8.0", "1.9.0", "v2.0.0", "v2.1.0"}
+	res = mustGenerate(t, mpInput(tags, mpSource(tags, nil), true, false))
+	if !bytes.Contains(res.A, []byte(`"minFrom": "1.8"`)) || strings.Join(res.Report.PrefixWindows[0].Tags, ",") != "v2.0.0,v2.1.0" {
+		t.Fatalf("major rollover: %s", res.A)
+	}
+	// Text order would put v1.9.0 after v1.10.0 and read the lines interleaved.
+	tags = []string{"v1.9.0", "v1.10.0", "1.11.0", "1.12.0"}
+	res = mustGenerate(t, mpInput(tags, mpSource(tags, nil), true, false))
+	if !bytes.Contains(res.A, []byte(`"tagPrefixes": ["", "v"]`)) {
+		t.Fatalf("1.10 after 1.9: %s", res.A)
+	}
+	pre := []string{"1.1.0", "1.2.0", "v1.3.0", "v1.4.0-rc1"}
+	mpStop(t, "pre-release", mpInput(pre, mpSource(pre, nil), true, false), StopTagGrammar)
+}
