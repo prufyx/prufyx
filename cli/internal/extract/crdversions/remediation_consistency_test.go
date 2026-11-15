@@ -20,10 +20,10 @@ import (
 type publishedRule struct {
 	ID, Next, To string
 	Members      []string
-	Sources      []pinnedSource
+	Sources      []citedSource
 }
 
-type pinnedSource struct{ ID, Revision, ContentDigest string }
+type citedSource struct{ ID, Revision, ContentDigest string }
 
 // adviceRow holds the advice inputs the rule's own members and subject do
 // not carry, as read from the CRDs the rule cites (testdata/crd-advice-inputs.json).
@@ -71,7 +71,7 @@ func publishedCRDRules(t *testing.T) []publishedRule {
 		}
 		r := publishedRule{ID: e.Rule.ID, Next: e.Rule.NextAction, To: e.Rule.Subject.To, Members: e.Rule.SetCondition.Members}
 		for _, s := range e.Rule.Evidence.Sources {
-			r.Sources = append(r.Sources, pinnedSource{s.ID, s.Revision, s.ContentDigest})
+			r.Sources = append(r.Sources, citedSource{s.ID, s.Revision, s.ContentDigest})
 		}
 		out = append(out, r)
 	}
@@ -105,8 +105,8 @@ func adviceRows(t *testing.T) map[string]adviceRow {
 func sum(s string) string { h := sha256.Sum256([]byte(s)); return hex.EncodeToString(h[:]) }
 
 // sourcesDigest binds an advice row to the sources a rule cites.
-func sourcesDigest(srcs []pinnedSource) string {
-	s := append([]pinnedSource(nil), srcs...)
+func sourcesDigest(srcs []citedSource) string {
+	s := append([]citedSource(nil), srcs...)
 	sort.Slice(s, func(i, j int) bool { return s[i].ID < s[j].ID })
 	var b strings.Builder
 	for _, x := range s {
@@ -251,7 +251,7 @@ func TestRemediationConsistencyDetectsMutatedInputs(t *testing.T) {
 				return x
 			},
 			"cited source re-pinned": func(x publishedRule) publishedRule {
-				x.Sources = append([]pinnedSource(nil), x.Sources...)
+				x.Sources = append([]citedSource(nil), x.Sources...)
 				x.Sources[0].ContentDigest = "sha256:" + strings.Repeat("0", 64)
 				return x
 			},
