@@ -50,6 +50,11 @@ type Rules struct {
 	// not install surface, but it is reported (class filtered-copy). It needs
 	// installPaths.
 	PathFilter []PathFilterRule `json:"pathFilter,omitempty"`
+
+	// deriveStrict marks the in-memory rules of the duplicate derivation (never
+	// read from a file): an unlisted definition file that cannot be read is a
+	// stop, not a silent non-install copy.
+	deriveStrict bool
 }
 
 // PathFilterRule names the files to filter out of the install surface by an
