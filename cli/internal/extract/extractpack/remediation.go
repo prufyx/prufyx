@@ -43,7 +43,20 @@ type RemediationPair struct {
 // when this list and that derivation differ. Entries are removed as the
 // renewals land.
 var remediationAllowList = []RemediationPair{
-	// filled in by the generator test (see crdversions remediation test)
+	{RuleID: "cilium.crd-version-removal.ciliumnodeconfigs-cilium-io.1-19-0-to-1-20-0", OldSHA256: "d4ab64d8adbaab75da4c1fa8e2a990e6b20545a3e2ddc51767e257e80d2fa6d4", NewSHA256: "5d06752439f5980cd08a4be2f69916a4c993cb5fd621c1077a4fdfdf65933a52"},
+	{RuleID: "crossplane.crd-version-removal.compositionrevisions-apiextensions-crossplane-io.1-20-0-to-2-0-0", OldSHA256: "7e0c0c038bc75eeda7b3ce95eb953d3e4be7f4b9320f7eb62a8cfd17c4aef030", NewSHA256: "bbde6fbbfe1f31cb2b01f0e9fcfcf2ccd42feae1f368ff91a08d47a3c72adec3"},
+	{RuleID: "crossplane.crd-version-removal.environmentconfigs-apiextensions-crossplane-io.1-20-0-to-2-0-0", OldSHA256: "a6cf43af2a79f855afac89b1c36a11375ac06873619ae02753f2c46fa326e727", NewSHA256: "6a686ad85ccb227fa25663e08bf827c2542ce9a84ae851d1c705e84e7815c725"},
+	{RuleID: "kyverno.crd-version-removal.updaterequests-kyverno-io.1-15-0-to-1-16-0", OldSHA256: "b59cf5d254d9decf3069e5fc03a3dce47cd641db5fb85498baedf426b591c838", NewSHA256: "8df28800d2319caa4983d96e47bdd341f27fba29912058b75bb7b98cf1672805"},
+	{RuleID: "strimzi.crd-version-removal.kafkabridges-kafka-strimzi-io.0-51-0-to-1-0-0", OldSHA256: "ccf30234e21926b6dd2dbad3e70906c5c66b61556e1d8245da82313b28c91115", NewSHA256: "a68e38e08de0d13847fefdcbf30db196d681a97f75fefb82fa1778835a5a1075"},
+	{RuleID: "strimzi.crd-version-removal.kafkaconnectors-kafka-strimzi-io.0-51-0-to-1-0-0", OldSHA256: "a243f29b61215ecc91cd94519f5502cb2b51ac2f21430640b3048f667f7930d0", NewSHA256: "e042821e9f74027e93cc442e879840fb7b7ee1e57d3c6efc8330ee3ab30fb852"},
+	{RuleID: "strimzi.crd-version-removal.kafkaconnects-kafka-strimzi-io.0-51-0-to-1-0-0", OldSHA256: "a0e12c29a98a49af996141a07e0647b6608419dcab0663b69b11ed566321fda5", NewSHA256: "50a097caaaf52abc1e891734a496c33386bdce1369e0d870b7dab825968b8fa5"},
+	{RuleID: "strimzi.crd-version-removal.kafkamirrormaker2s-kafka-strimzi-io.0-51-0-to-1-0-0", OldSHA256: "ee254c6b500a19996b82ef47c587b97dfd949603af27f0ee3f693bb27109424f", NewSHA256: "2ce84f95e90215843583557a994c20503a62059d7c4bff71d768fd635ec61246"},
+	{RuleID: "strimzi.crd-version-removal.kafkanodepools-kafka-strimzi-io.0-51-0-to-1-0-0", OldSHA256: "65977bbbec4826e2a763148dc9ed1c65370790fcc7aa1560ee0b1bc08ceabdab", NewSHA256: "b89e8adca769212be1e734a95d8853dc09db63ed8730d57ba5f46b5e58e6c107"},
+	{RuleID: "strimzi.crd-version-removal.kafkarebalances-kafka-strimzi-io.0-51-0-to-1-0-0", OldSHA256: "7c76982daf2acc08593662e4db42bf169b487d5112a245daa63a1172ffa728ae", NewSHA256: "3a53bd363ed3f294a43379439b04cde7f4c515ec04d9ccf6ae6d4dcb06957f40"},
+	{RuleID: "strimzi.crd-version-removal.kafkas-kafka-strimzi-io.0-51-0-to-1-0-0", OldSHA256: "3bc25c1fcd950bd15eb314c3833474c62aad9aea3ccf8c8f56f212a350a65e77", NewSHA256: "57cd22cb7e897936e2e9841a38a9339e47a65ee27f4a898e3b2463051f2496a8"},
+	{RuleID: "strimzi.crd-version-removal.kafkatopics-kafka-strimzi-io.0-51-0-to-1-0-0", OldSHA256: "0f648754c1593e779888f66da9ce612e7e43845b879bf4418dd48246dba0d2f6", NewSHA256: "c9d07ddcbe9f8f6eb9d26eb6dba9e2cbdcd52e0c1a68e1e08eb910df4360dcbe"},
+	{RuleID: "strimzi.crd-version-removal.kafkausers-kafka-strimzi-io.0-51-0-to-1-0-0", OldSHA256: "1cfad5199d83da799a3527737d1af2844665d26f56981cc19d35f121d6a8b627", NewSHA256: "d01cba33dab9102254b155c2284c99e3a5f7f79205cdb8e88a46bd1586529939"},
+	{RuleID: "strimzi.crd-version-removal.strimzipodsets-core-strimzi-io.0-51-0-to-1-0-0", OldSHA256: "140a88125446ba54b30833e9e3432cd28c7609ee48cdd2c313704f6dc054cb25", NewSHA256: "4d35e811fbe1743c917c9fbc397310f328d729a3ab51d7d8d4e4d02dfd65b721"},
 }
 
 // RemediationAllowList returns a copy of the pending-migration list.
