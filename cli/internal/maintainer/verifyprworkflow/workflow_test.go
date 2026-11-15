@@ -33,12 +33,15 @@ type step struct {
 
 type job struct {
 	Name        string            `yaml:"name"`
+	If          string            `yaml:"if"`
+	RunsOn      string            `yaml:"runs-on"`
 	Permissions map[string]string `yaml:"permissions"`
 	Steps       []step            `yaml:"steps"`
 }
 
 type workflow struct {
 	On          map[string]any    `yaml:"on"`
+	If          string            `yaml:"if"`
 	Permissions map[string]string `yaml:"permissions"`
 	Concurrency map[string]any    `yaml:"concurrency"`
 	Jobs        map[string]job    `yaml:"jobs"`
@@ -47,6 +50,32 @@ type workflow struct {
 const (
 	baseRef     = "${{ github.event.pull_request.base.sha }}"
 	workflowRel = ".github/workflows/verify-pr.yml"
+)
+
+// The exact steps, in order, with the only action each may use and the only
+// condition and environment each may carry. A new, renamed, moved or removed
+// step is a change to this authority and must change this table too.
+var wantSteps = []struct{ name, uses, ifc, env string }{
+	{"Validate the event values and start a failing result", "", "", ""},
+	{"Check out the base (tool code only)", "actions/checkout@11d5960a326750d5838078e36cf38b85af677262", "", ""},
+	{"Set up Go", "actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff", "", ""},
+	{"Build the tool from the base", "", "", ""},
+	{"Fetch both commits as objects and require the head to contain the base", "", "", ""},
+	{"Export both trees and the changed paths from the same two commits", "", "", ""},
+	{"Classify the change", "", "", ""},
+	{"Run verify-pr (reads the upstream tags from github.com)", "", "steps.classify.outputs.class == 'applicable'", ""},
+	{"Re-resolve the head of the pull request and the tip of main", "", "", "GH_TOKEN=${{ github.token }}"},
+	{"Write the result", "", "", "CLASS=${{ steps.classify.outputs.class }}"},
+	{"Upload the result", "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02", "always()", ""},
+	{"Fail unless eligible or not applicable", "", "", ""},
+}
+
+// Byte-exact decision texts: the ELIGIBLE condition, the stale rule and the
+// final verdict filter.
+const (
+	eligibleJQ = `'.eligible == true and .autoMerge == false and .headSha == $head and .baseSha == $base'`
+	verdictJQ  = `'(.result == "ELIGIBLE" or .result == "NOT_APPLICABLE") and .stale == false and .headSha == $head and .baseSha == $base and .mainTip == $base'`
+	staleCond  = `if [ "${live_head}" != "${HEAD_SHA}" ] || [ "${live_state}" != "open" ] || [ "${main_tip}" != "${BASE_SHA}" ]; then`
 )
 
 var pinnedRE = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_./-]+@[0-9a-f]{40}$`)
@@ -173,6 +202,92 @@ func lint(text string) []string {
 		}
 	}
 
+	// Exact step list, actions, conditions and environments.
+	if len(j.Steps) != len(wantSteps) {
+		add("step-list")
+	} else {
+		for i, w := range wantSteps {
+			s := j.Steps[i]
+			if s.Name != w.name {
+				add("step-list")
+			}
+			if s.Uses != w.uses {
+				add("step-action")
+			}
+			if s.If != w.ifc {
+				add("step-condition")
+			}
+			var envs []string
+			for k, val := range s.Env {
+				envs = append(envs, k+"="+val)
+			}
+			if strings.Join(envs, ",") != w.env {
+				add("step-env")
+			}
+		}
+	}
+	if wf.If != "" || j.If != "" {
+		add("job-condition")
+	}
+	if j.RunsOn != "ubuntu-24.04" {
+		add("runner")
+	}
+	for _, bad := range []string{"GITHUB_PATH", "GITHUB_ENV", "GITHUB_STATE"} {
+		if strings.Contains(code, bad) {
+			add("runner-env-write")
+		}
+	}
+	if strings.Count(code, "github.token") != 1 || strings.Count(code, "GH_TOKEN") != 1 {
+		add("token-placement")
+	}
+	headRefs := 0
+	for _, s := range j.Steps {
+		n := strings.Count(s.Run, "work}/head")
+		headRefs += n
+		switch s.Name {
+		case "Export both trees and the changed paths from the same two commits":
+			if n != 1 || !strings.Contains(s.Run, `--out "${work}/head"`) || !strings.Contains(s.Run, "::stop-commands::") {
+				add("head-path")
+			}
+		case "Run verify-pr (reads the upstream tags from github.com)":
+			if n != 1 || !strings.Contains(s.Run, `--head "${work}/head"`) || !strings.Contains(s.Run, "::stop-commands::") {
+				add("head-path")
+			}
+		default:
+			if n != 0 {
+				add("head-path")
+			}
+		}
+		if s.Name != "Build the tool from the base" && s.WorkingDirectory != "" {
+			add("working-directory")
+		}
+		switch s.Name {
+		case "Write the result":
+			if !strings.Contains(s.Run, eligibleJQ) || !strings.Contains(s.Run, staleCond) || !strings.Contains(s.Run, "mainTip:$mainTip") {
+				add("result-logic")
+			}
+		case "Fail unless eligible or not applicable":
+			if !strings.Contains(s.Run, verdictJQ) {
+				add("verdict-logic")
+			}
+		case "Classify the change":
+			if !strings.Contains(s.Run, "grep -i -z -c -e 'target-recipes' -e 'crdversions'") {
+				add("classify-case")
+			}
+		case "Fetch both commits as objects and require the head to contain the base":
+			if strings.Count(s.Run, "fetch --no-tags") != 2 || !strings.Contains(s.Run, "config transfer.fsckObjects true") {
+				add("fetch-fsck")
+			}
+		case "Re-resolve the head of the pull request and the tip of main":
+			if !strings.Contains(s.Run, "/pulls/${PR_NUMBER}") || !strings.Contains(s.Run, "/branches/main") {
+				add("reresolve")
+			}
+		}
+	}
+	if headRefs != 2 {
+		add("head-path")
+	}
+
 	// The build step runs inside the base checkout.
 	built := false
 	for _, s := range j.Steps {
@@ -272,6 +387,34 @@ func TestVerifyPRWorkflowMutationsAreCaught(t *testing.T) {
 		{"verify swallowed", "            --json --require-eligible \\\n", "            --json --require-eligible \\\n            || true \\\n", "verify-swallowed"},
 		{"verdict not last", "      - name: Fail unless eligible or not applicable\n        run: |", "      - name: Fail unless eligible or not applicable\n        if: always()\n        run: |", "verdict-step"},
 		{"verdict renamed", "      - name: Fail unless eligible or not applicable\n", "      - name: Report\n", "verdict-step"},
+		{"job condition", "    timeout-minutes: 15\n", "    timeout-minutes: 15\n    if: github.actor != 'x'\n", "job-condition"},
+		{"self hosted", "    runs-on: ubuntu-24.04\n", "    runs-on: self-hosted\n", "runner"},
+		{"larger runner", "    runs-on: ubuntu-24.04\n", "    runs-on: ubuntu-latest-xl\n", "runner"},
+		{"path write", "          set -euo pipefail\n          objects=\"${RUNNER_TEMP}/objects.git\"\n          git init", "          set -euo pipefail\n          echo /x >> \"${GITHUB_PATH}\"\n          objects=\"${RUNNER_TEMP}/objects.git\"\n          git init", "runner-env-write"},
+		{"env write", "          sha_re='^[0-9a-f]{40}$'\n", "          echo X=1 >> \"${GITHUB_ENV}\"\n          sha_re='^[0-9a-f]{40}$'\n", "runner-env-write"},
+		{"extra action", "      - name: Set up Go\n", "      - name: Extra\n        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830\n      - name: Set up Go\n", "step-list"},
+		{"swapped action sha", "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02", "actions/upload-artifact@0000000000000000000000000000000000000000", "step-action"},
+		{"other action same pin", "actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff", "actions/cache@40f1582b2485089dde7abd97c1529aa768e1baff", "step-action"},
+		{"deleted re-resolve", "      - name: Re-resolve the head of the pull request and the tip of main\n        env:\n          GH_TOKEN: ${{ github.token }}\n", "      - name: Re-resolve (moved)\n        env:\n          GH_TOKEN: ${{ github.token }}\n", "step-list"},
+		{"step condition added", "      - name: Classify the change\n        id: classify\n", "      - name: Classify the change\n        id: classify\n        if: github.event.action == 'opened'\n", "step-condition"},
+		{"verify always", "        if: steps.classify.outputs.class == 'applicable'\n", "        if: always()\n", "step-condition"},
+		{"token moved to job", "      PR_NUMBER: ${{ github.event.pull_request.number }}\n", "      PR_NUMBER: ${{ github.event.pull_request.number }}\n      GH_TOKEN: ${{ github.token }}\n", "token-placement"},
+		{"token in other step", "          CLASS: ${{ steps.classify.outputs.class }}\n", "          CLASS: ${{ steps.classify.outputs.class }}\n          GH_TOKEN: ${{ github.token }}\n", "token-placement"},
+		{"extra env", "          CLASS: ${{ steps.classify.outputs.class }}\n", "          CLASS: ${{ steps.classify.outputs.class }}\n          EXTRA: x\n", "step-env"},
+		{"head executed", "          echo \"${code}\" > \"${RUNNER_TEMP}/out/tool.exit\"\n", "          echo \"${code}\" > \"${RUNNER_TEMP}/out/tool.exit\"\n          bash \"${work}/head/run.sh\"\n", "head-path"},
+		{"head in write step", "          out=\"${RUNNER_TEMP}/out\"\n", "          out=\"${RUNNER_TEMP}/out\"\n          . \"${RUNNER_TEMP}/work/head/x\" # work}/head\n", "head-path"},
+		{"widened eligible", ".eligible == true and .autoMerge == false", ".eligible != null and .autoMerge == false", "result-logic"},
+		{"dropped head match", " and .headSha == $head and .baseSha == $base'", " and .baseSha == $base'", "result-logic"},
+		{"stale ignores main", " || [ \"${main_tip}\" != \"${BASE_SHA}\" ]; then", "; then", "result-logic"},
+		{"mainTip not recorded", "mainTip:$mainTip, ", "", "result-logic"},
+		{"verdict weakened", " and .stale == false and .headSha == $head and .baseSha == $base and .mainTip == $base'", " and .headSha == $head and .baseSha == $base and .mainTip == $base'", "verdict-logic"},
+		{"verdict no main tip", " and .mainTip == $base'", "'", "verdict-logic"},
+		{"verdict allows eligible only", "(.result == \"ELIGIBLE\" or .result == \"NOT_APPLICABLE\")", "(.result != \"ERROR\")", "verdict-logic"},
+		{"case sensitive classify", "grep -i -z -c", "grep -z -c", "classify-case"},
+		{"no fsck", "          git -C \"${objects}\" config transfer.fsckObjects true\n", "", "fetch-fsck"},
+		{"export not stopped", "          echo \"::stop-commands::${token}\"\n          \"${RUNNER_TEMP}/prufyx-maintainer\" gate export", "          \"${RUNNER_TEMP}/prufyx-maintainer\" gate export", "head-path"},
+		{"re-resolve without main", "/branches/main", "/branches/dev", "reresolve"},
+		{"workdir elsewhere", "      - name: Classify the change\n        id: classify\n", "      - name: Classify the change\n        id: classify\n        working-directory: tool-src\n", "working-directory"},
 		{"verdict no check", "          jq -e --arg head \"${HEAD_SHA}\" --arg base \"${BASE_SHA}\" \\\n            '(.result", "          jq --arg head \"${HEAD_SHA}\" --arg base \"${BASE_SHA}\" \\\n            '(.result", "verdict-step"},
 	}
 	for _, c := range cases {

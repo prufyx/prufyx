@@ -168,17 +168,23 @@ What it does, in order:
 2. Builds the tool from the base commit. The pull request's commit is fetched
    as git objects only and exported as data with `gate export`; it is never
    checked out and nothing from it is executed. The head must contain the base.
-3. Classifies the change from the changed paths. If no changed path mentions
-   `target-recipes` or `crdversions` the result is `NOT_APPLICABLE` (green,
-   explicit, never eligible). Anything else is applicable and the tool judges it.
+3. Classifies the change from the changed paths (case-insensitive match). If no
+   changed path mentions `target-recipes` or `crdversions` the result is
+   `NOT_APPLICABLE` (green, explicit, never eligible). Anything else is
+   applicable and the tool judges it. This classification lives in the workflow
+   for this report-only change; it MUST move into the base-built tool before any
+   consumer reads the result or any status is made required.
 4. Runs `target-draft verify-pr --json --require-eligible` with the upstream
-   binding, the only step that reads the network besides fetching the git
-   objects. Exit 0 with `eligible: true` for exactly this head and base is
+   binding (one tag lookup on github.com; the run also uses the network for the
+   two object fetches, which verify object integrity, and for the read-only API
+   calls of step 5). Exit 0 with `eligible: true` for exactly this head and base is
    `ELIGIBLE`; exit 1 or 3 is `NOT_ELIGIBLE` (a new or changed recipe is a
    human decision, so such a change is red here by design); anything else is
    `ERROR`.
-5. Re-resolves the pull request head after the tool ran. If the head moved or
-   the pull request is no longer open the result is `ERROR` with `stale: true`.
+5. Re-resolves the pull request head and the live tip of `main` after the tool
+   ran. If the head moved, the pull request is no longer open, or the tip of
+   `main` differs from the base commit the run judged (a rerun keeps the old
+   event base), the result is `ERROR` with `stale: true`.
 6. Uploads the artifact `verify-pr-result` (30 days) and fails the job unless
    the result is `ELIGIBLE` or `NOT_APPLICABLE`, not stale, for the same head and
    base. The job conclusion is therefore the verdict. Runs are never cancelled
@@ -188,17 +194,20 @@ Artifact `verify-pr-result`: `result.json` and `changed.raw`. `result.json` is
 one JSON object, schema `prufyx.io/verify-pr-artifact/v1`: `result`
 (`ELIGIBLE`, `NOT_ELIGIBLE`, `NOT_APPLICABLE`, `ERROR`), `class`, `headSha`,
 `baseSha`, `toolSha` (the base commit the tool was built from), `repo`, `pr`,
-`runId`, `runAttempt`, `workflowSha`, `exitCode`, `stale` and `toolResult` (the
+`runId`, `runAttempt`, `workflowSha`, `mainTip` (the live tip of `main` at the end
+of the run), `exitCode`, `stale` and `toolResult` (the
 tool's own `result-json` object, or null). Consumers must parse it as data and
 require `schema`, a full 40-hex `headSha` equal to the head they mean, a
-matching `baseSha`, `stale == false` and `result == "ELIGIBLE"`; a bare green
+matching `baseSha`, `mainTip == baseSha`, `stale == false` and `result == "ELIGIBLE"`; a bare green
 run, `NOT_APPLICABLE` or a result for another head is never eligibility.
 
-Freshness: the upstream tag lookup happens at run time, so a tag moved later is
+Freshness: a run is only valid while `mainTip` equals `baseSha` and the head is
+unchanged; the job fails otherwise. The upstream tag lookup happens at run time, so a tag moved later is
 only caught by a later run. A consumer must use the newest attempt of the run
 for the head and require a run completed within a freshness bound it defines
 (or re-run at the moment it decides). No bound is set here.
 
 Not done here: no required status, no consumer wiring, no change to the
 knowledge gate. The hosted runner cannot restrict egress to a host list; the
-host is a constant in the tool and the workflow holds no secret.
+host is a constant in the tool and the workflow holds no secret. The
+object fetches run with `transfer.fsckObjects`.

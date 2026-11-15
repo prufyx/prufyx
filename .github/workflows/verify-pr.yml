@@ -13,8 +13,16 @@ name: Verify PR
 # There is no path filter on purpose (a filtered check never reports on other
 # changes); the job always starts and classifies the change itself.
 #
-# No secrets and no App token. The only network use besides fetching the git
-# objects is the tool's single upstream tag lookup (github.com, fixed host).
+# No secrets and no App token. The network is used by the two object fetches,
+# the read-only API calls that re-resolve the head and the base branch tip, and
+# the tool's single upstream tag lookup (github.com, fixed host).
+#
+# Freshness: the base commit is the one in the event, which a rerun keeps. The
+# end of the run re-reads the live tip of main and the live head; if either
+# differs from what the run judged, the result is a stale ERROR, never
+# ELIGIBLE. The classification below stays in this workflow for this report-only
+# change; it MUST move into the base-built tool before any consumer reads this
+# result or any status is made required (NOT_APPLICABLE green is never eligible).
 
 on:
   pull_request_target:
@@ -87,6 +95,7 @@ jobs:
           set -euo pipefail
           objects="${RUNNER_TEMP}/objects.git"
           git init -q --bare "${objects}"
+          git -C "${objects}" config transfer.fsckObjects true
           git -C "${objects}" fetch --no-tags --quiet "https://github.com/${GITHUB_REPOSITORY}.git" "+${BASE_SHA}:refs/verify/base"
           git -C "${objects}" fetch --no-tags --quiet "https://github.com/${HEAD_REPO}.git" "+${HEAD_SHA}:refs/verify/head"
           if ! git -C "${objects}" merge-base --is-ancestor "${BASE_SHA}" "${HEAD_SHA}"; then
@@ -99,8 +108,11 @@ jobs:
           set -euo pipefail
           objects="${RUNNER_TEMP}/objects.git"
           work="${RUNNER_TEMP}/work"
+          token="$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
+          echo "::stop-commands::${token}"
           "${RUNNER_TEMP}/prufyx-maintainer" gate export --git-dir "${objects}" --commit "${BASE_SHA}" --out "${work}/base"
           "${RUNNER_TEMP}/prufyx-maintainer" gate export --git-dir "${objects}" --commit "${HEAD_SHA}" --out "${work}/head"
+          echo "::${token}::"
           git -C "${objects}" diff --raw -z --no-abbrev --no-renames "${BASE_SHA}" "${HEAD_SHA}" > "${RUNNER_TEMP}/out/changed.raw"
 
       # A change is applicable when any changed path mentions the recipe
@@ -111,7 +123,7 @@ jobs:
         id: classify
         run: |
           set -euo pipefail
-          hits="$(grep -z -c -e 'target-recipes' -e 'crdversions' "${RUNNER_TEMP}/out/changed.raw" || true)"
+          hits="$(grep -i -z -c -e 'target-recipes' -e 'crdversions' "${RUNNER_TEMP}/out/changed.raw" || true)"
           if ! [[ "${hits}" =~ ^[0-9]+$ ]]; then
             echo "The classification did not produce a count."
             exit 1
@@ -125,7 +137,7 @@ jobs:
       # The exit code is captured, never raised here: the result file must be
       # written whatever the tool said. The tool's output is printed between
       # stop-commands markers so printed text cannot inject workflow commands.
-      - name: Run verify-pr (the only step that reads the network)
+      - name: Run verify-pr (reads the upstream tags from github.com)
         id: verify
         if: steps.classify.outputs.class == 'applicable'
         run: |
@@ -145,7 +157,7 @@ jobs:
           cat "${RUNNER_TEMP}/out/tool.txt" "${RUNNER_TEMP}/out/tool.err"
           echo "::${token}::"
 
-      - name: Re-resolve the head of the pull request
+      - name: Re-resolve the head of the pull request and the tip of main
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -153,14 +165,20 @@ jobs:
           # Any failure here stops the job; the result file stays a failing one.
           gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" \
             --jq '[.head.sha, .state] | @tsv' > "${RUNNER_TEMP}/out/live.tsv"
+          gh api "repos/${GITHUB_REPOSITORY}/branches/main" --jq '.commit.sha' > "${RUNNER_TEMP}/out/main-tip.txt"
 
       - name: Write the result
         run: |
           set -euo pipefail
           out="${RUNNER_TEMP}/out"
           IFS=$'\t' read -r live_head live_state < "${out}/live.tsv"
+          main_tip="$(cat "${out}/main-tip.txt")"
+          if ! [[ "${main_tip}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Cannot resolve the tip of main."
+            exit 1
+          fi
           stale=false
-          if [ "${live_head}" != "${HEAD_SHA}" ] || [ "${live_state}" != "open" ]; then
+          if [ "${live_head}" != "${HEAD_SHA}" ] || [ "${live_state}" != "open" ] || [ "${main_tip}" != "${BASE_SHA}" ]; then
             stale=true
           fi
           tool_json=null
@@ -196,11 +214,11 @@ jobs:
             --arg result "${result}" --arg head "${HEAD_SHA}" --arg base "${BASE_SHA}" \
             --arg repo "${GITHUB_REPOSITORY}" --arg pr "${PR_NUMBER}" \
             --arg runId "${GITHUB_RUN_ID}" --arg attempt "${GITHUB_RUN_ATTEMPT}" \
-            --arg workflowSha "${GITHUB_WORKFLOW_SHA}" --arg class "${CLASS}" \
+            --arg workflowSha "${GITHUB_WORKFLOW_SHA}" --arg class "${CLASS}" --arg mainTip "${main_tip}" \
             --argjson code "${code}" --argjson stale "${stale}" --argjson tool "${tool_json}" \
             '{schema:"prufyx.io/verify-pr-artifact/v1", result:$result, class:$class, headSha:$head, baseSha:$base,
               toolSha:$base, repo:$repo, pr:($pr|tonumber), runId:($runId|tonumber), runAttempt:($attempt|tonumber),
-              workflowSha:$workflowSha, exitCode:$code, stale:$stale, toolResult:$tool}' \
+              workflowSha:$workflowSha, mainTip:$mainTip, exitCode:$code, stale:$stale, toolResult:$tool}' \
             > "${out}/result.json.new"
           mv "${out}/result.json.new" "${out}/result.json"
           {
@@ -228,5 +246,5 @@ jobs:
         run: |
           set -euo pipefail
           jq -e --arg head "${HEAD_SHA}" --arg base "${BASE_SHA}" \
-            '(.result == "ELIGIBLE" or .result == "NOT_APPLICABLE") and .stale == false and .headSha == $head and .baseSha == $base' \
+            '(.result == "ELIGIBLE" or .result == "NOT_APPLICABLE") and .stale == false and .headSha == $head and .baseSha == $base and .mainTip == $base' \
             "${RUNNER_TEMP}/out/result.json" > /dev/null
