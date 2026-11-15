@@ -48,10 +48,11 @@ type btEntry struct {
 	Component   string   `json:"component,omitempty"`
 	FactProject string   `json:"factProject,omitempty"`
 	Tags        []string `json:"tags"`
-	Mirror      string   `json:"mirror"`          // directory name below --mirrors
-	Rules       string   `json:"rules,omitempty"` // rules file, relative to the manifest
-	Expected    string   `json:"expected"`        // reviewed target file, relative to the manifest
-	Half        string   `json:"half"`            // "A" or "B"
+	Mirror      string   `json:"mirror"`                // directory name below --mirrors
+	Rules       string   `json:"rules,omitempty"`       // rules file, relative to the manifest
+	Expected    string   `json:"expected"`              // reviewed target file, relative to the manifest
+	Half        string   `json:"half"`                  // "A" or "B"
+	MultiPrefix bool     `json:"multiPrefix,omitempty"` // tags of two prefixes; see Input.MultiPrefix
 }
 
 type btSeed struct {
@@ -176,7 +177,7 @@ func parseBacktestManifest(raw []byte) (*btManifest, error) {
 			if !seen[s.Other] || s.Other == s.Entry {
 				return nil, fmt.Errorf("manifest: seed %s/swap: other must be a different entry", s.Entry)
 			}
-		case "path", "min-from", "attest", "drop-exclusion":
+		case "path", "min-from", "attest", "drop-exclusion", "swap-prefixes", "drop-prefix", "extra-prefix":
 			if s.Other != "" {
 				return nil, fmt.Errorf("manifest: seed %s/%s: other is only for swap", s.Entry, s.Kind)
 			}
@@ -312,7 +313,7 @@ func runEntry(e btEntry, base, mirrors string, open func(string) Source) btRun {
 		return r
 	}
 	gen, err := generate(Input{Slug: e.Slug, Name: e.Name, Repo: e.Repo, Component: e.Component, FactProject: e.FactProject,
-		Catalog: e.Catalog, Tags: e.Tags, Source: open(mdir), Rules: rules})
+		Catalog: e.Catalog, Tags: e.Tags, Source: open(mdir), Rules: rules, MultiPrefix: e.MultiPrefix})
 	if err != nil {
 		var se *StopError
 		if !errors.As(err, &se) {
@@ -390,6 +391,21 @@ func seedExpected(s btSeed, own, other []byte) ([]byte, error) {
 		t.MinFrom += "0"
 	case "attest":
 		t.Attest = !t.Attest
+	case "swap-prefixes":
+		if len(t.TagPrefixes) != 2 {
+			return nil, errors.New("no two prefixes to swap")
+		}
+		t.TagPrefixes = []string{t.TagPrefixes[1], t.TagPrefixes[0]}
+	case "drop-prefix":
+		if len(t.TagPrefixes) != 2 {
+			return nil, errors.New("no second prefix to drop")
+		}
+		t.TagPrefixes = t.TagPrefixes[:1]
+	case "extra-prefix":
+		if len(t.TagPrefixes) == 0 || len(t.TagPrefixes) > 2 {
+			return nil, errors.New("no prefix list to extend")
+		}
+		t.TagPrefixes = append(append([]string(nil), t.TagPrefixes...), "seed-extra-")
 	case "drop-exclusion":
 		if len(t.Exclude) == 0 {
 			return nil, errors.New("no exclusion to drop")

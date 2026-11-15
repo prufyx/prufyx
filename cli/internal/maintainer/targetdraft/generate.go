@@ -53,6 +53,14 @@ type Input struct {
 	// every stop of every tag is duplicate-crd and every copy has the same
 	// full decoded spec at every tag read. See dupresolve.go.
 	DeriveDuplicates bool
+	// MultiPrefix is the explicit opt-in (default off) for tags of exactly two
+	// prefixes (the shipped tagPrefixes lists of two). Each prefix must hold
+	// its own proven window of at least two tags, the prefixes must be
+	// disjoint and unambiguous, and every prefix must read the same set of
+	// API groups; the lines are listed side by side and never merged into one
+	// pair set. Anything else is a typed stop. Off, two prefixes stay the
+	// stop tag-prefix-mixed.
+	MultiPrefix bool
 }
 
 // Result is the successful output of a run.
@@ -129,7 +137,18 @@ func Generate(in Input) (*Result, error) {
 		}
 	}
 
-	tags, prefix, stops := parseTags(in.Tags)
+	var tags []parsedTag
+	var prefix string
+	var prefixes []string // set only with MultiPrefix: newest tag's prefix first
+	var stops []Stop
+	if in.MultiPrefix {
+		tags, prefixes, stops = parseTagsMulti(in.Tags)
+		if len(stops) == 0 {
+			prefix = prefixes[0]
+		}
+	} else {
+		tags, prefix, stops = parseTags(in.Tags)
+	}
 	if len(stops) > 0 {
 		return nil, &StopError{Stops: stops}
 	}
@@ -272,6 +291,17 @@ func Generate(in Input) (*Result, error) {
 	if in.StrictWindow && len(dropped) > 0 {
 		return nil, &StopError{Stops: []Stop{stop(StopWindowShortened, dropped[len(dropped)-1].Tag, fmt.Sprintf("%d older tag(s) withheld; last: %s", len(dropped), dropped[len(dropped)-1].Reason))}}
 	}
+	var prefixWindows []PrefixWindow
+	if in.MultiPrefix {
+		var pstops []Stop
+		prefixWindows, pstops = checkPrefixWindows(prefixes, tags[first:], window)
+		if len(pstops) == 0 {
+			pstops = checkOtherSpelling(in.Source, prefixes, tags[first:])
+		}
+		if len(pstops) > 0 {
+			return nil, &StopError{Stops: sortStops(pstops)}
+		}
+	}
 	minFrom := fmt.Sprintf("%d.%d", tags[first].Major, tags[first].Minor)
 	var union map[string]*inclusion
 	if plan != nil {
@@ -292,7 +322,7 @@ func Generate(in Input) (*Result, error) {
 			return nil, &StopError{Stops: sortStops(dstops)}
 		}
 	}
-	res, err := build(in, catalog, component, fact, ownerRepo, prefix, minFrom, rules, window, dropped, newest, union, dirs)
+	res, err := build(in, catalog, component, fact, ownerRepo, prefix, prefixes, prefixWindows, minFrom, rules, window, dropped, newest, union, dirs)
 	if err != nil {
 		return nil, err
 	}
@@ -336,8 +366,38 @@ func plainFiles(results []*tagResult) []tagFiles {
 }
 
 func parseTags(in []string) ([]parsedTag, string, []Stop) {
+	out, stops := parseTagList(in)
+	if len(stops) > 0 {
+		return nil, "", stops
+	}
+	prefix := out[0].Prefix
+	for _, p := range out {
+		if p.Prefix != prefix {
+			return nil, "", []Stop{stop(StopTagPrefixMixed, p.Tag, "tags use prefixes "+strconv.Quote(prefix)+" and "+strconv.Quote(p.Prefix))}
+		}
+	}
+	if !crdversions.ValidTagPrefix(prefix) {
+		return nil, "", []Stop{stop(StopTagPrefixUnsupported, prefix, "")}
+	}
+	sortTags(out)
+	return out, prefix, nil
+}
+
+// sortTags orders tags by release line.
+func sortTags(out []parsedTag) {
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Major != out[j].Major {
+			return out[i].Major < out[j].Major
+		}
+		return out[i].Minor < out[j].Minor
+	})
+}
+
+// parseTagList reads the grammar, duplicate and line checks of a tag list and
+// returns the tags in the order given. It does not look at prefixes.
+func parseTagList(in []string) ([]parsedTag, []Stop) {
 	if len(in) == 0 {
-		return nil, "", []Stop{stop(StopBadInput, "", "no tags given")}
+		return nil, []Stop{stop(StopBadInput, "", "no tags given")}
 	}
 	var out []parsedTag
 	seen := map[string]bool{}
@@ -364,24 +424,9 @@ func parseTags(in []string) ([]parsedTag, string, []Stop) {
 		out = append(out, parsedTag{Tag: t, Prefix: m[1], Major: maj, Minor: min})
 	}
 	if len(stops) > 0 {
-		return nil, "", sortStops(stops)
+		return nil, sortStops(stops)
 	}
-	prefix := out[0].Prefix
-	for _, p := range out {
-		if p.Prefix != prefix {
-			return nil, "", []Stop{stop(StopTagPrefixMixed, p.Tag, "tags use prefixes "+strconv.Quote(prefix)+" and "+strconv.Quote(p.Prefix))}
-		}
-	}
-	if !crdversions.ValidTagPrefix(prefix) {
-		return nil, "", []Stop{stop(StopTagPrefixUnsupported, prefix, "")}
-	}
-	sort.Slice(out, func(i, j int) bool {
-		if out[i].Major != out[j].Major {
-			return out[i].Major < out[j].Major
-		}
-		return out[i].Minor < out[j].Minor
-	})
-	return out, prefix, nil
+	return out, nil
 }
 
 // inclusion is one file the target reads.

@@ -49,6 +49,9 @@ const (
 	StopDirMatchNondefault    = "dir-match-nondefault"
 	StopDirSetDiffers         = "dir-set-differs"
 	StopDirUnsupported        = "dir-collapse-unsupported"
+	StopMultiPrefixAmbiguous  = "multi-prefix-ambiguous"
+	StopMultiPrefixShort      = "multi-prefix-window-short"
+	StopMultiPrefixGroups     = "multi-prefix-groups-differ"
 
 	StopDuplicateCRDDiffers        = "duplicate-crd-differs"
 	StopDuplicateCRDNoCommonSource = "duplicate-crd-no-common-source"
@@ -91,6 +94,9 @@ var nextAction = map[string]string{
 	StopDirMatchNondefault:         "a definition file of the directory is outside the one default match; a custom pattern is never invented, keep exact files or review a hand-written entry",
 	StopDirSetDiffers:              "the directory would read another set of files than the exact install files at some window tag; keep exact files",
 	StopDirUnsupported:             "directory collapse does not apply to this input (exclusions, optional or ranged installPaths, pathFilter, range-check tags, links, root or test-like files); drop --collapse-directories",
+	StopMultiPrefixAmbiguous:       "the tags do not form exactly two disjoint prefix lines with one switch-over; pass one prefix per run, or fix the tag list",
+	StopMultiPrefixShort:           "a prefix has fewer than two tags in its window; widen that prefix's tags or run the other prefix alone",
+	StopMultiPrefixGroups:          "the two prefixes read different API groups, so they are different release lines; run each prefix as its own target after review",
 	StopCommunityUpstream:          "a community-catalog row needs the upstream block (name, repository, license, licenseSource) in the rules file",
 	StopDuplicateCRDDiffers:        "the copies differ in their decoded spec at a tag; pin one source by a reviewed installPaths rule, or fix the tag window",
 	StopDuplicateCRDNoCommonSource: "the chosen copy does not hold the definition at a tag where another copy does; pin the source by a reviewed installPaths rule or narrow the window",
@@ -186,17 +192,25 @@ const ReportSchema = "prufyx.io/target-draft-report/v1"
 
 // Report names the rule behind every decision.
 type Report struct {
-	Schema      string       `json:"schema"`
-	Slug        string       `json:"slug"`
-	TagPrefix   string       `json:"tagPrefix"`
-	MinFrom     string       `json:"minFrom"`
-	Tags        []TagFact    `json:"tags"`
-	Dropped     []DroppedTag `json:"droppedTags"`
-	Warnings    []string     `json:"warnings"`
-	Decisions   []Decision   `json:"decisions"`
-	Groups      []GroupFact  `json:"groups"`
-	CRDCount    int          `json:"crdCount"`
-	FactsDigest string       `json:"factsDigest"`
+	Schema    string `json:"schema"`
+	Slug      string `json:"slug"`
+	TagPrefix string `json:"tagPrefix"`
+	// TagPrefixes and PrefixWindows are present only for a multi-prefix run
+	// (--multi-prefix): the prefixes in tagPrefixes order and the proven
+	// window of each. Neither is part of FactsDigest.
+	TagPrefixes   []string       `json:"tagPrefixes,omitempty"`
+	PrefixWindows []PrefixWindow `json:"prefixWindows,omitempty"`
+	// PrefixKindDifferences is a warning, never a stop: group/kind pairs read
+	// by only one of the two prefix windows.
+	PrefixKindDifferences []string     `json:"prefixKindDifferences,omitempty"`
+	MinFrom               string       `json:"minFrom"`
+	Tags                  []TagFact    `json:"tags"`
+	Dropped               []DroppedTag `json:"droppedTags"`
+	Warnings              []string     `json:"warnings"`
+	Decisions             []Decision   `json:"decisions"`
+	Groups                []GroupFact  `json:"groups"`
+	CRDCount              int          `json:"crdCount"`
+	FactsDigest           string       `json:"factsDigest"`
 	// NonInstallCopies are the definition files outside the pinned
 	// installPaths at any window tag, one entry per distinct (path, groups,
 	// unreadable) with the window tags it appears in; sorted. Present only
@@ -509,7 +523,7 @@ func objList(objs []string) string {
 	return "[\n      " + strings.Join(objs, ",\n      ") + "\n    ]"
 }
 
-func build(in Input, catalog, component, fact, ownerRepo, prefix, minFrom string, rules *Rules, window []*tagResult, dropped []DroppedTag, newest *tagResult, union map[string]*inclusion, dirs []collapsedDir) (*Result, error) {
+func build(in Input, catalog, component, fact, ownerRepo, prefix string, prefixes []string, prefixWindows []PrefixWindow, minFrom string, rules *Rules, window []*tagResult, dropped []DroppedTag, newest *tagResult, union map[string]*inclusion, dirs []collapsedDir) (*Result, error) {
 	ordered := orderPaths(newest.included)
 	// With ranged entries the target lists the union of the paths read at the
 	// window tags (the moved directory appears with both locations); groups
@@ -519,7 +533,7 @@ func build(in Input, catalog, component, fact, ownerRepo, prefix, minFrom string
 		pathsOrdered = orderPaths(union)
 	}
 	body := targetBody{Project: in.Slug, Name: in.Name, Repo: in.Repo, Component: component, FactProject: fact,
-		TagPrefixes: []string{prefix}, MinFrom: minFrom, Paths: []pathOut{}, Exclude: []exclOut{}}
+		TagPrefixes: tagPrefixList(prefix, prefixes), MinFrom: minFrom, Paths: []pathOut{}, Exclude: []exclOut{}}
 	if catalog == "community" {
 		body.Catalog = "community"
 	}
@@ -594,6 +608,11 @@ func build(in Input, catalog, component, fact, ownerRepo, prefix, minFrom string
 	if rep.Dropped == nil {
 		rep.Dropped = []DroppedTag{}
 	}
+	if prefixes != nil {
+		rep.TagPrefixes = append([]string(nil), prefixes...)
+		rep.PrefixWindows = prefixWindows
+		rep.PrefixKindDifferences = kindDifferences(prefixWindows)
+	}
 	rep.Warnings = []string{}
 	if len(dropped) > 0 {
 		rep.Warnings = append(rep.Warnings, fmt.Sprintf("WARNING window-shrunk: %d older tag(s) withheld, so minFrom is %s; see droppedTags", len(dropped), minFrom))
@@ -611,7 +630,13 @@ func build(in Input, catalog, component, fact, ownerRepo, prefix, minFrom string
 			add(d)
 		}
 	}
-	add(Decision{Rule: RuleTagPrefix, Subject: strconvQuote(prefix), Detail: "every window tag is <prefix>X.Y.Z"})
+	if prefixes == nil {
+		add(Decision{Rule: RuleTagPrefix, Subject: strconvQuote(prefix), Detail: "every window tag is <prefix>X.Y.Z"})
+	} else {
+		for _, pw := range prefixWindows {
+			add(Decision{Rule: RuleTagPrefix, Subject: strconvQuote(pw.Prefix), Detail: "its own window tags are <prefix>X.Y.Z: " + strings.Join(pw.Tags, ",") + "; the prefix lines are listed side by side, never merged"})
+		}
+	}
 	add(Decision{Rule: RuleMinFrom, Subject: minFrom, Detail: fmt.Sprintf("oldest line whose tag reads the same %d files as the newest; %d older tag(s) withheld", len(ordered), len(dropped))})
 	for _, g := range gfacts {
 		add(Decision{Rule: RuleGroupKinds, Subject: g.Name, Detail: strings.Join(g.Kinds, ",")})
@@ -655,8 +680,21 @@ func build(in Input, catalog, component, fact, ownerRepo, prefix, minFrom string
 		rep.FilteredCopies = filtered
 		rep.FilteredCopyCount = len(filtered)
 	}
-	log := changelogText(in.Name, crdCount, gnames, prefix, minFrom, pathsOrdered, excls, window, len(copies), len(filtered))
+	family := prefix
+	if prefixes != nil {
+		family = strings.Join(prefixes, "` and `")
+	}
+	log := changelogText(in.Name, crdCount, gnames, family, minFrom, pathsOrdered, excls, window, len(copies), len(filtered))
 	return &Result{A: a, B: b, TableRow: rowRaw, Changelog: []byte(log), Report: rep}, nil
+}
+
+// tagPrefixList is the target's tagPrefixes list: the one prefix, or the
+// prefixes of a multi-prefix run.
+func tagPrefixList(prefix string, prefixes []string) []string {
+	if prefixes != nil {
+		return append([]string(nil), prefixes...)
+	}
+	return []string{prefix}
 }
 
 func strconvQuote(s string) string { b, _ := json.Marshal(s); return string(b) }
