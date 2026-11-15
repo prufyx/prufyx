@@ -68,7 +68,16 @@ type btEntry struct {
 	// --infer-install-paths and --check-install-path-copies. Default off.
 	InferInstallPaths      bool `json:"inferInstallPaths,omitempty"`
 	CheckInstallPathCopies bool `json:"checkInstallPathCopies,omitempty"`
+	// Escalate makes the run stop-driven: the entry runs first with its own flags
+	// and without inference; only a plain typed stop listed in escalateStops runs
+	// it again with inferInstallPaths and checkInstallPathCopies. Default off.
+	Escalate bool `json:"escalate,omitempty"`
 }
+
+// escalateStops lists the plain-run stop codes that make an escalate entry run
+// again with inference. Any other stop, or a mix with an unlisted code, is the
+// result as is.
+var escalateStops = []string{StopDuplicateCRD, StopDuplicateCRDDiffers, StopUnreadableShape, StopUnpinnedExclusion}
 
 type btSeed struct {
 	Entry string `json:"entry"`
@@ -92,6 +101,11 @@ type BacktestResult struct {
 	Fields []string `json:"fields,omitempty"`
 	Stops  []string `json:"stops,omitempty"`
 	Error  string   `json:"error,omitempty"`
+	// Escalated and PlainStop are set only for an escalate entry: Escalated is
+	// true when the result comes from the inference run, PlainStop is then the
+	// stop code of the plain run.
+	Escalated *bool  `json:"escalated,omitempty"`
+	PlainStop string `json:"plainStop,omitempty"`
 }
 
 // SeedResult is the record of one wrong-target seed. Outcome "failed" is the
@@ -117,6 +131,7 @@ type BacktestReport struct {
 	FormatGap      int              `json:"formatGap"`
 	TypedStops     int              `json:"typedStops"`
 	Errors         int              `json:"harnessErrors"`
+	Escalated      int              `json:"escalated,omitempty"`
 	Seeds          int              `json:"seeds"`
 	SeedsFailed    int              `json:"seedsFailed"`
 	Results        []BacktestResult `json:"results"`
@@ -383,7 +398,32 @@ type btRun struct {
 	circular bool
 }
 
+// runEntry runs one entry. An escalate entry runs plain first and runs again
+// with inference only after a plain stop listed in escalateStops.
 func runEntry(e btEntry, base, mirrors string, open func(string) Source) btRun {
+	r := runOnce(e, base, mirrors, open)
+	if !e.Escalate || r.res.Class == ClassHarnessError {
+		return r
+	}
+	f := false
+	r.res.Escalated = &f
+	if r.res.Class != ClassTypedStop || len(r.res.Stops) == 0 {
+		return r
+	}
+	for _, c := range r.res.Stops {
+		if !containsString(escalateStops, c) {
+			return r
+		}
+	}
+	e2 := e
+	e2.Escalate, e2.InferInstallPaths, e2.CheckInstallPathCopies = false, true, true
+	r2 := runOnce(e2, base, mirrors, open)
+	t := true
+	r2.res.Escalated, r2.res.PlainStop = &t, r.res.Stops[0]
+	return r2
+}
+
+func runOnce(e btEntry, base, mirrors string, open func(string) Source) btRun {
 	r := btRun{res: BacktestResult{Slug: e.Slug}}
 	fail := func(format string, a ...any) btRun {
 		r.res.Class, r.res.Error = ClassHarnessError, fmt.Sprintf(format, a...)
@@ -411,14 +451,20 @@ func runEntry(e btEntry, base, mirrors string, open func(string) Source) btRun {
 		}
 		r.circular = len(rules.Exclusions) > 0
 	}
-	if e.InferInstallPaths {
+	if e.InferInstallPaths || e.Escalate {
+		opt := "inferInstallPaths"
+		if e.Escalate {
+			opt = "escalate"
+		}
 		switch {
+		case e.Escalate && e.InferInstallPaths:
+			return fail("escalate cannot be combined with inferInstallPaths")
 		case e.OraclePaths:
-			return fail("inferInstallPaths cannot be combined with oraclePaths")
+			return fail("%s cannot be combined with oraclePaths", opt)
 		case rules != nil && (len(rules.InstallPaths) > 0 || len(rules.InstallSurface) > 0 || len(rules.PathFilter) > 0):
-			return fail("inferInstallPaths cannot be combined with rules that carry installPaths, installSurface or pathFilter")
+			return fail("%s cannot be combined with rules that carry installPaths, installSurface or pathFilter", opt)
 		case rules != nil && len(rules.Exclusions) > 0:
-			return fail("inferInstallPaths cannot be combined with rules that carry exclusions")
+			return fail("%s cannot be combined with rules that carry exclusions", opt)
 		}
 	}
 	if e.OraclePaths {
@@ -586,6 +632,9 @@ func Backtest(m *btManifest, manifestDigest, base, mirrors string, open func(str
 		r := runEntry(e, base, mirrors, open)
 		runs[e.Slug] = r
 		rep.Results = append(rep.Results, r.res)
+		if r.res.Escalated != nil && *r.res.Escalated {
+			rep.Escalated++
+		}
 		switch r.res.Class {
 		case ClassReproduced:
 			rep.Reproduced++
@@ -681,15 +730,23 @@ func runBacktest(args []string, stdout, stderr io.Writer, open func(string) Sour
 		if r.Error != "" {
 			line += " error=" + r.Error
 		}
+		if r.Escalated != nil && *r.Escalated {
+			line += " escalated=true plainStop=" + r.PlainStop
+		}
 		fmt.Fprintln(stdout, line)
 	}
 	for _, s := range rep.SeedResults {
 		fmt.Fprintf(stdout, "SEED %s/%s%s %s %s\n", s.Entry, s.Kind, map[bool]string{true: "->" + s.Other}[s.Other != ""], s.Outcome, s.Detail)
 	}
 	sd := sha256.Sum256(body)
-	fmt.Fprintf(stdout, "BACKTEST strict=%d/%d reachable=%d/%d circular=%d oracle=%d stops=%d differs=%d errors=%d seeds=%d/%d-failed digest=%s\n",
+	escTail := ""
+	if rep.Escalated > 0 {
+		escTail = fmt.Sprintf(" escalated=%d", rep.Escalated)
+	}
+	fmt.Fprintf(stdout, "BACKTEST strict=%d/%d reachable=%d/%d circular=%d oracle=%d stops=%d differs=%d errors=%d seeds=%d/%d-failed digest=%s%s\n",
 		rep.Reproduced, rep.N, rep.Reproduced, rep.N-rep.FormatGap, rep.Circular, rep.OracleRepro, rep.TypedStops, rep.Differs, rep.Errors,
-		rep.SeedsFailed, rep.Seeds, hex.EncodeToString(sd[:]))
+		rep.SeedsFailed, rep.Seeds, hex.EncodeToString(sd[:]), escTail)
+	_ = rep.Escalated
 	return backtestExit(rep, stderr)
 }
 

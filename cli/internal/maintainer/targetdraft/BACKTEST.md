@@ -36,6 +36,26 @@ normal result: inference is a recipe, not an oracle, so `reproduced` counts in
 `install-path-copy-differs` are `typed-stop` entries (listed in `stops`, counted
 in `stops=`). Seeds run on a reproduced inference entry like any other.
 
+`escalate` (default off) makes the entry stop-driven: it runs first without
+inference (the entry's own flags, for example `collapseDirectories`,
+`deriveDuplicateSources`, `multiPrefix`, `checkInstallPathCopies`). Any result
+of that plain run other than a listed stop (`reproduced`, `differs`, another
+typed stop, ...) is the entry result with `escalated: false`. Only when the plain
+run ends in typed stops that are all in the escalation list (`escalateStops` in
+`backtest.go`: `duplicate-crd`, `duplicate-crd-differs`, `unreadable-shape`,
+`unpinned-exclusion`) does the harness run the entry again with
+`inferInstallPaths` and `checkInstallPathCopies`; that second result is the entry
+result with `escalated: true` and the plain stop code in `plainStop`. Every other
+plain stop (for example `multi-prefix-ambiguous`, `reserved-group`,
+`window-too-short`, `mirror-missing`), or a mix with an unlisted code, is the
+result as is. `escalate` is a harness error together with `oraclePaths`,
+`inferInstallPaths`, or rules that carry `installPaths`, `installSurface`,
+`pathFilter` or exclusions. An escalated reproduction counts in `strict` like
+any inferred recipe (it is a recipe, not an oracle); seeds run on the final
+result only. When at least one entry escalated, the per-entry line gains
+` escalated=true plainStop=CODE` and the summary line gains ` escalated=N` after
+`digest=`; `backtest.json` gains `escalated` only when N is above 0.
+
 A reviewed directory entry (keys `path`, `directory`, `match`, `guard` with the
 one default match and guard) is compared by bytes, but only reproduces when
 the generator also emits it as a directory entry (use `collapseDirectories`);
