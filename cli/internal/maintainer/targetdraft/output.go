@@ -56,6 +56,10 @@ const (
 	StopDuplicateCRDDiffers        = "duplicate-crd-differs"
 	StopDuplicateCRDNoCommonSource = "duplicate-crd-no-common-source"
 	StopDuplicateCRDUnresolvable   = "duplicate-crd-unresolvable"
+
+	StopInstallPathAmbiguous   = "install-path-ambiguous"
+	StopInstallPathHidesCRD    = "install-path-hides-crd"
+	StopInstallPathCopyDiffers = "install-path-copy-differs"
 )
 
 var nextAction = map[string]string{
@@ -101,6 +105,9 @@ var nextAction = map[string]string{
 	StopDuplicateCRDDiffers:        "the copies differ in their decoded spec at a tag; pin one source by a reviewed installPaths rule, or fix the tag window",
 	StopDuplicateCRDNoCommonSource: "the chosen copy does not hold the definition at a tag where another copy does; pin the source by a reviewed installPaths rule or narrow the window",
 	StopDuplicateCRDUnresolvable:   "the copies cannot be reduced to one source without losing a definition; pin the source by a reviewed installPaths rule",
+	StopInstallPathAmbiguous:       "the install directory cannot be inferred unambiguously at every tag (no candidate, several directories, a different directory at some tag, or a file the directory would read that the rule does not rank); write a reviewed installPaths rule instead",
+	StopInstallPathHidesCRD:        "a definition file outside the install paths defines a group and kind that no install path defines; widen the installPaths after review, or add a reviewed exclusion, so no real definition stays hidden",
+	StopInstallPathCopyDiffers:     "a definition file outside the install paths repeats an installed definition with a different decoded spec; review which copy users install and pin it by a reviewed installPaths rule",
 }
 
 // Stop is a typed stop: the generator will not guess.
@@ -238,6 +245,10 @@ type Report struct {
 	// duplicate derivation ran (--derive-duplicate-sources); part of
 	// FactsDigest then.
 	DerivedSources []DerivedSource `json:"derivedSources,omitempty"`
+	// InferredInstallPaths is the install directory chosen by rule R2 and the
+	// ranking evidence of every tag. Present only with --infer-install-paths;
+	// part of FactsDigest then.
+	InferredInstallPaths *InferredInstallPaths `json:"inferredInstallPaths,omitempty"`
 	// Representation is "directory" when install files were written as
 	// directory entries; absent (exact files) otherwise. Directories lists
 	// each directory entry with the file names it reads, identical at every

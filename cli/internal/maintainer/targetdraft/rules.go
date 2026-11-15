@@ -55,6 +55,11 @@ type Rules struct {
 	// read from a file): an unlisted definition file that cannot be read is a
 	// stop, not a silent non-install copy.
 	deriveStrict bool
+	// checkCopies (never read from a file; set by Generate for the opt-in
+	// inference or --check-install-path-copies): every definition file outside
+	// installPaths must define nothing the install paths do not define and
+	// must equal the installed definition of a key it repeats.
+	checkCopies bool
 }
 
 // PathFilterRule names the files to filter out of the install surface by an

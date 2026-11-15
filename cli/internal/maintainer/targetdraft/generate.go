@@ -61,6 +61,19 @@ type Input struct {
 	// pair set. Anything else is a typed stop. Off, two prefixes stay the
 	// stop tag-prefix-mixed.
 	MultiPrefix bool
+	// InferInstallPaths is the explicit opt-in (default off): when the rules
+	// carry no installPaths, installSurface or pathFilter and no range-check
+	// tags are given, ONE install directory is derived by rule R2 (see
+	// infer.go) and used as installPaths, only when it is unambiguous at every
+	// tag; anything else is the typed stop install-path-ambiguous. It implies
+	// CheckInstallPathCopies.
+	InferInstallPaths bool
+	// CheckInstallPathCopies is the explicit opt-in (default off) for hand
+	// installPaths: every definition file outside them is checked, a
+	// definition no install path defines is the stop install-path-hides-crd
+	// and a repeated definition with a different decoded spec is
+	// install-path-copy-differs. It needs installPaths (or InferInstallPaths).
+	CheckInstallPathCopies bool
 }
 
 // Result is the successful output of a run.
@@ -171,6 +184,16 @@ func Generate(in Input) (*Result, error) {
 	scans := make([][]*finding, len(tags))
 	trees := make([]Tree, len(tags))
 	scanStopsOf := make([][]Stop, len(tags))
+	commits := make([]string, len(tags))
+	entriesOf := make([][]Entry, len(tags))
+	// Both opt-ins refuse input they could not honour, before any tag is read.
+	if in.InferInstallPaths && (len(rules.InstallPaths) > 0 || len(rules.InstallSurface) > 0 || len(rules.PathFilter) > 0 || len(rules.Exclusions) > 0 || len(in.RangeCheckTags) > 0) {
+		return nil, &StopError{Stops: []Stop{stop(StopBadInput, "infer-install-paths", "inference needs rules without installPaths, installSurface, pathFilter and exclusions (exclusions are never inferred and never mixed in), and no range-check tags; a hand rule is never mixed with an inferred one")}}
+	}
+	if in.CheckInstallPathCopies && !in.InferInstallPaths && len(rules.InstallPaths) == 0 {
+		return nil, &StopError{Stops: []Stop{stop(StopBadInput, "check-install-path-copies", "the check needs installPaths in the rules file (or --infer-install-paths)")}}
+	}
+	// Phase A: open and read every tag (same order and errors as one pass).
 	for i, t := range tags {
 		tree, commit, err := in.Source.Open(t.Tag)
 		if err != nil {
@@ -185,7 +208,33 @@ func Generate(in Input) (*Result, error) {
 				return nil, &StopError{Stops: []Stop{stop(StopTreeUnreadable, t.Tag, eerr.Error())}}
 			}
 		}
-		trees[i], scans[i], scanStopsOf[i] = tree, fs, scanStops
+		trees[i], scans[i], scanStopsOf[i], commits[i], entriesOf[i] = tree, fs, scanStops, commit, entries
+	}
+	var inferred *InferredInstallPaths
+	if in.InferInstallPaths {
+		// A tag whose tree could not be read completely is never inferred from.
+		for i := range tags {
+			if len(scanStopsOf[i]) > 0 {
+				return nil, &StopError{Stops: sortStops(scanStopsOf[i])}
+			}
+		}
+		entry, fact, istops := inferInstallPaths(tags, scans)
+		if len(istops) > 0 {
+			return nil, &StopError{Stops: sortStops(istops)}
+		}
+		inferred = fact
+		rc := *rules
+		rc.InstallPaths = []InstallPathRule{*entry}
+		rules = &rc
+	}
+	if in.InferInstallPaths || in.CheckInstallPathCopies {
+		rc := *rules
+		rc.checkCopies = true
+		rules = &rc
+	}
+	// Phase B: classify.
+	for i, t := range tags {
+		tree, commit, fs, scanStops, entries := trees[i], commits[i], scans[i], scanStopsOf[i], entriesOf[i]
 		var rg *rangeCtx
 		if plan != nil {
 			rg = &rangeCtx{entries: plan, idx: i}
@@ -207,12 +256,12 @@ func Generate(in Input) (*Result, error) {
 	}
 
 	var derived *derivation
-	if in.DeriveDuplicates && deriveEligible(in, rules, plan, results) {
+	if in.DeriveDuplicates && deriveEligible(in, rules, plan, results, inferred != nil) {
 		// Second pass over the same readings with the derived exact-file
 		// list; the plain results are kept only for the per-tag checks.
 		d, tagStops := resolveDuplicates(plainFiles(results))
 		if d != nil {
-			derivedRules := &Rules{Schema: RulesSchema, Upstream: rules.Upstream, InstallPaths: d.Rules, deriveStrict: true}
+			derivedRules := &Rules{Schema: RulesSchema, Upstream: rules.Upstream, InstallPaths: d.Rules, deriveStrict: true, checkCopies: rules.checkCopies}
 			second := make([]*tagResult, len(tags))
 			for i, t := range tags {
 				commit := results[i].commit
@@ -332,6 +381,9 @@ func Generate(in Input) (*Result, error) {
 	}
 	annotateOptional(res, rules, window)
 	annotateRanges(res, rules, window, checked)
+	if inferred != nil {
+		annotateInferred(res, inferred)
+	}
 	return res, nil
 }
 
@@ -339,8 +391,10 @@ func Generate(in Input) (*Result, error) {
 // pass: no hand rule of any kind, at least one stop at the newest tag, and
 // every stop of every tag is duplicate-crd. Anything else keeps the plain
 // result unchanged.
-func deriveEligible(in Input, rules *Rules, plan map[string]rangeEntry, results []*tagResult) bool {
-	if len(rules.InstallPaths) > 0 || len(rules.Exclusions) > 0 || len(rules.InstallSurface) > 0 || len(rules.PathFilter) > 0 || plan != nil || len(in.RangeCheckTags) > 0 {
+func deriveEligible(in Input, rules *Rules, plan map[string]rangeEntry, results []*tagResult, inferred bool) bool {
+	// An inferred install directory is the one case of installPaths the
+	// derivation may refine (duplicates inside it); a hand list never.
+	if (len(rules.InstallPaths) > 0 && !inferred) || len(rules.Exclusions) > 0 || len(rules.InstallSurface) > 0 || len(rules.PathFilter) > 0 || plan != nil || len(in.RangeCheckTags) > 0 {
 		return false
 	}
 	if len(results[len(results)-1].stops) == 0 {
@@ -545,6 +599,7 @@ func classify(tag, commit string, fs []*finding, rules *Rules, slug string, inde
 	var rest []*finding
 	var filteredFiles []*finding
 	var filteredBy []*PathFilterRule
+	var outside []*finding // definition files outside installPaths, for checkCopies
 
 	// Phase 1: the files the target reads.
 	for _, f := range fs {
@@ -580,6 +635,7 @@ func classify(tag, commit string, fs []*finding, rules *Rules, slug string, inde
 				}
 				c := NonInstallCopy{Path: f.Path, Groups: groupSet(f.CRDs), Unreadable: f.Unreadable}
 				r.copies = append(r.copies, c)
+				outside = append(outside, f)
 				d := "groups " + strings.Join(c.Groups, ",")
 				if c.Unreadable != "" {
 					d += "; unreadable: " + c.Unreadable
@@ -646,6 +702,9 @@ func classify(tag, commit string, fs []*finding, rules *Rules, slug string, inde
 				stopAt(StopGroupOwnedElsewhere, c.Group, "listed by "+o+" ("+i.Path+")")
 			}
 		}
+	}
+	if rules.checkCopies {
+		r.stops = append(r.stops, outsideChecks(inc, outside)...)
 	}
 	// Fail closed: a filtered file is allowed only when every group it
 	// defines is a reserved/Kubernetes group (the copy case) or has a known
