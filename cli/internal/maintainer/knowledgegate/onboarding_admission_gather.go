@@ -5,8 +5,8 @@ package knowledgegate
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"sort"
-	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
 )
@@ -27,6 +27,8 @@ type admissionFacts struct {
 	gateHead          AdmissionDigests
 	projects          []AdmissionProject
 	exclusionsKnown   bool
+	baseAbsenceKnown  bool
+	basePresent       []string
 	baseExclusions    []string
 	headExclusions    []string
 	recipeKnown       bool
@@ -71,6 +73,7 @@ func (a *admissionFacts) state(st *onboardingState, rec OnboardingRecord) {
 	if a.headExclusions, err = exclusionIdentities(st.head.loaded); err != nil {
 		a.exclusionsKnown = false
 	}
+	a.baseAbsence(st, rec)
 	a.recipeKnown = true
 	for _, p := range rec.Projects {
 		for _, t := range st.head.loaded {
@@ -104,7 +107,8 @@ func (a *admissionFacts) state(st *onboardingState, rec OnboardingRecord) {
 // admitOnboarding computes the admission decision of a change that adds an
 // onboarding batch. It runs after autoMerge and never changes it.
 func (r *Report) admitOnboarding(opts Options) {
-	if r.onboarding == nil {
+	// With the flag off the report carries no member at all.
+	if r.onboarding == nil || !opts.Layout.OnboardingAdmission.Enabled {
 		return
 	}
 	in := r.admissionInput(opts)
@@ -122,9 +126,9 @@ func (r *Report) admissionInput(opts Options) OnboardingAdmissionInput {
 		HeadSHA: opts.HeadSHA, Author: opts.Author, Sender: opts.Sender, BotLogin: opts.BotLogin, Owner: opts.Owner,
 		Batch: a.batch, SignatureVerified: a.signatureVerified, KeyInBaseKeyset: a.keyInBase,
 		KeysetDigest: opts.ApprovalKeysDigest, TrustRootDigest: opts.TrustRootDigest,
-		Policy: opts.OnboardingBotPolicy, ComputedChangeSet: a.changeSet,
-		BatchBaseDigests: a.batchBase, BatchHeadDigests: a.batchHead, GateBaseDigests: a.gateBase, GateHeadDigests: a.gateHead,
-		Projects: a.projects, ExclusionsKnown: a.exclusionsKnown, BaseExclusions: a.baseExclusions, HeadExclusions: a.headExclusions,
+		ComputedChangeSet: a.changeSet,
+		BatchBaseDigests:  a.batchBase, BatchHeadDigests: a.batchHead, GateBaseDigests: a.gateBase, GateHeadDigests: a.gateHead,
+		Projects: a.projects, ExclusionsKnown: a.exclusionsKnown, BaseAbsenceKnown: a.baseAbsenceKnown, BasePresent: a.basePresent, BaseExclusions: a.baseExclusions, HeadExclusions: a.headExclusions,
 		RecipeExclusionsKnown: a.recipeKnown, RecipeExclusions: a.recipeExclusions, TargetExclusionPaths: a.targetExclPaths,
 		ChangedPaths: r.ChangedPaths, TrustPaths: opts.Layout.TrustPaths, BatchDir: opts.Layout.Onboarding.Dir,
 		VerifyPr: opts.VerifyPr,
@@ -156,28 +160,42 @@ func (r *Report) admissionInput(opts Options) OnboardingAdmissionInput {
 	return in
 }
 
-// regenerationFacts reports whether every generated output pair of the layout
-// was checked and equals its regeneration, with a digest of the head bytes.
+// regenerationFacts reports whether every generated output (pairs and
+// blocks) of the layout was checked and equals its regeneration, with a
+// digest of the head bytes. An empty layout set, a missing check or an
+// unreadable output is not known/equal: it never passes vacuously.
 func (r *Report) regenerationFacts(opts Options) (known, equal bool, digest string) {
-	var buf bytes.Buffer
-	pairs := append([]GeneratedPair{}, opts.Layout.Generated...)
-	sort.Slice(pairs, func(i, j int) bool { return pairs[i].JSONPath < pairs[j].JSONPath })
-	for _, g := range pairs {
-		ok := false
+	if len(opts.Layout.Generated) == 0 && len(opts.Layout.GeneratedBlocks) == 0 {
+		return false, false, ""
+	}
+	checked := func(path string) bool {
 		for _, c := range r.Checks {
-			if c.Name == "generated/"+g.JSONPath {
-				ok = c.OK
+			if c.Name == "generated/"+path {
+				return c.OK
 			}
 		}
-		if !ok {
+		return false
+	}
+	type item struct{ check, read []string }
+	var items []item
+	for _, g := range opts.Layout.Generated {
+		items = append(items, item{[]string{g.JSONPath}, []string{g.JSONPath, g.MarkdownPath}})
+	}
+	for _, g := range opts.Layout.GeneratedBlocks {
+		items = append(items, item{[]string{g.Path}, []string{g.Path}})
+	}
+	sort.Slice(items, func(i, j int) bool { return items[i].read[0] < items[j].read[0] })
+	var buf bytes.Buffer
+	for _, it := range items {
+		if !checked(it.check[0]) {
 			return true, false, ""
 		}
-		for _, p := range []string{g.JSONPath, g.MarkdownPath} {
+		for _, p := range it.read {
 			raw, err := opts.Head.Read(p, MaxFileBytes)
 			if err != nil {
 				return false, false, ""
 			}
-			buf.WriteString(p + "\x00" + strings.TrimSpace(CandidateDigest(raw)) + "\n")
+			buf.WriteString(p + "\x00" + CandidateDigest(raw) + "\n")
 		}
 	}
 	return true, true, admitSHA(buf.Bytes())
@@ -219,4 +237,25 @@ func recipeExclusionList(t Tree, slug string) ([]string, error) {
 		return nil, err
 	}
 	return rec.Exclude, nil
+}
+
+// baseAbsence records which batch slugs the BASE already has in its table,
+// its targets or its recipes.
+func (a *admissionFacts) baseAbsence(st *onboardingState, rec OnboardingRecord) {
+	a.baseAbsenceKnown = true
+	inTable := map[string]bool{}
+	for _, p := range st.base.projects {
+		inTable[p.Slug] = true
+	}
+	for _, p := range rec.Projects {
+		_, inTargets := st.base.targets[crdversions.TargetFileName(p.Slug)]
+		_, err := st.baseTree.Read(recipesRoot+p.Slug+"/recipe.json", MaxFileBytes)
+		inRecipes := err == nil
+		if err != nil && !errors.Is(err, ErrMissing) {
+			a.baseAbsenceKnown = false
+		}
+		if inTable[p.Slug] || inTargets || inRecipes {
+			a.basePresent = append(a.basePresent, p.Slug)
+		}
+	}
 }

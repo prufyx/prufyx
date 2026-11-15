@@ -44,21 +44,20 @@ func admOK() OnboardingAdmissionInput {
 		CommitStatus: "ahead", CommitAheadBy: 1, CommitTotal: 1,
 		Commits: []AdmissionCommit{{SHA: admHead, Author: admBot, Committer: admBot, Verified: true}},
 		Batch: AdmissionBatch{
-			ID: "b1", Path: "cli/onboarding/b1.json", KeyID: "k-bot", Tier: ApprovalTierOnboardingBot, Identity: "bot", Nonce: "n1",
+			ID: "b1", Path: "cli/onboarding/b1.json", KeyID: "k-bot", Tier: ApprovalTierOwner, Identity: "owner", Nonce: "n1",
 			NotAfter: "2026-12-01T00:00:00Z", ChangeSetDigest: admDigest, SummaryDigest: admDigest,
 		},
 		SignatureVerified: true, KeyInBaseKeyset: true, KeysetDigest: admDigest, TrustRootDigest: admDigest,
-		Policy:            AdmissionBotPolicy{Present: true, OwnerSigned: true, Digest: admDigest, KeyIDs: []string{"k-bot"}},
 		ComputedChangeSet: admDigest,
 		BatchBaseDigests:  admDigests("1"), GateBaseDigests: admDigests("1"),
 		BatchHeadDigests: admDigests("2"), GateHeadDigests: admDigests("2"),
 		Projects:   []AdmissionProject{{Slug: "alpha", Kind: OnboardingKindNew, TargetSHA256: admDigest}},
 		RegenKnown: true, RegenByteEqual: true, RegenOutputsSHA256: admDigest,
-		ExclusionsKnown: true, RecipeExclusionsKnown: true, FileModesOK: true,
+		ExclusionsKnown: true, RecipeExclusionsKnown: true, BaseAbsenceKnown: true, FileModesOK: true,
 		ChangedPaths: []string{"cli/data/table.json", "cli/targets/target-alpha.json", "cli/recipes/alpha/recipe.json", "cli/onboarding/b1.json"},
 		TrustPaths:   []string{"cli/knowledge/trust/", "cli/knowledge/reattestation/trust-root.json"},
 		BatchDir:     "cli/onboarding",
-		VerifyPr:     &VerifyPrResult{Outcome: "pass", BindingVerified: true, RecipeChange: "new", BaseSHA: admBase, HeadSHA: admHead, BindingDigest: admDigest, Slugs: []string{"alpha"}},
+		VerifyPr:     &VerifyPrResult{Outcome: "pass", BindingVerified: true, ChangedPathsSHA256: admDigest, RecipeChange: "new", BaseSHA: admBase, HeadSHA: admHead, BindingDigest: admDigest, Slugs: []string{"alpha"}},
 	}
 }
 
@@ -72,9 +71,12 @@ func TestAdmitOnboardingAutoPositive(t *testing.T) {
 		t.Fatalf("binding %+v", d)
 	}
 	in := admOK()
-	// Owner tier needs no policy.
-	in.Batch.Tier = ApprovalTierOwner
-	in.Policy = AdmissionBotPolicy{}
+	// The bot tier is never admitted: no verified policy loader exists.
+	in.Batch.Tier = ApprovalTierOnboardingBot
+	if d := AdmitOnboardingAuto(in); d.Admitted {
+		t.Fatal("bot tier admitted")
+	}
+	in = admOK()
 	if d := AdmitOnboardingAuto(in); !d.Admitted {
 		t.Fatalf("owner tier: %v", d.Reasons)
 	}
@@ -113,10 +115,10 @@ func TestAdmitOnboardingAutoNegatives(t *testing.T) {
 		{"keyset digest missing", AdmitReasonKeyset, func(i *OnboardingAdmissionInput) { i.KeysetDigest = "" }},
 		{"trust root digest missing", AdmitReasonTrustRoot, func(i *OnboardingAdmissionInput) { i.TrustRootDigest = "x" }},
 		{"unknown tier", AdmitReasonTier, func(i *OnboardingAdmissionInput) { i.Batch.Tier = "" }},
-		{"bot tier without policy", AdmitReasonBotPolicy, func(i *OnboardingAdmissionInput) { i.Policy = AdmissionBotPolicy{} }},
-		{"bot policy not owner signed", AdmitReasonBotPolicy, func(i *OnboardingAdmissionInput) { i.Policy.OwnerSigned = false }},
-		{"bot policy does not list key", AdmitReasonBotPolicy, func(i *OnboardingAdmissionInput) { i.Policy.KeyIDs = []string{"other"} }},
-		{"bot policy digest invalid", AdmitReasonBotPolicy, func(i *OnboardingAdmissionInput) { i.Policy.Digest = "" }},
+		{"bot tier is refused whatever is supplied", AdmitReasonBotPolicy, func(i *OnboardingAdmissionInput) { i.Batch.Tier = ApprovalTierOnboardingBot }},
+		{"bot tier with every other input valid", AdmitReasonBotPolicy, func(i *OnboardingAdmissionInput) {
+			i.Batch.Tier, i.Batch.KeyID, i.KeyInBaseKeyset, i.SignatureVerified = ApprovalTierOnboardingBot, "k-bot", true, true
+		}},
 		{"batch expired", AdmitReasonBatchExpired, func(i *OnboardingAdmissionInput) { i.Now = time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC) }},
 		{"batch expired at the instant", AdmitReasonBatchExpired, func(i *OnboardingAdmissionInput) {
 			i.Now = time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)
@@ -222,11 +224,15 @@ func TestAdmitOnboardingAutoNegatives(t *testing.T) {
 		{"target template unset", AdmitReasonProjects, func(i *OnboardingAdmissionInput) { i.Config.TargetPath = "" }},
 		{"file modes", AdmitReasonFileModes, func(i *OnboardingAdmissionInput) { i.FileModesOK = false }},
 		{"verifyPr absent", AdmitReasonVerifyAbsent, func(i *OnboardingAdmissionInput) { i.VerifyPr = nil }},
-		{"verifyPr failed", AdmitReasonVerifyNotEligible, func(i *OnboardingAdmissionInput) { i.VerifyPr.Outcome = "fail" }},
-		{"verifyPr outcome empty", AdmitReasonVerifyNotEligible, func(i *OnboardingAdmissionInput) { i.VerifyPr.Outcome = "" }},
-		{"verifyPr binding not verified", AdmitReasonVerifyNotEligible, func(i *OnboardingAdmissionInput) { i.VerifyPr.BindingVerified = false }},
+		{"verifyPr failed", AdmitReasonVerifyNotPass, func(i *OnboardingAdmissionInput) { i.VerifyPr.Outcome = "fail" }},
+		{"verifyPr outcome empty", AdmitReasonVerifyNotPass, func(i *OnboardingAdmissionInput) { i.VerifyPr.Outcome = "" }},
+		{"verifyPr binding not verified", AdmitReasonVerifyNotPass, func(i *OnboardingAdmissionInput) { i.VerifyPr.BindingVerified = false }},
 		{"verifyPr recipe changed", AdmitReasonVerifyRecipe, func(i *OnboardingAdmissionInput) { i.VerifyPr.RecipeChange = "changed" }},
 		{"verifyPr recipe unchanged is not an onboarding", AdmitReasonVerifyRecipe, func(i *OnboardingAdmissionInput) { i.VerifyPr.RecipeChange = "unchanged" }},
+		{"verifyPr changed paths digest missing", AdmitReasonVerifyPaths, func(i *OnboardingAdmissionInput) { i.VerifyPr.ChangedPathsSHA256 = "" }},
+		{"slug present in base", AdmitReasonBaseAbsent, func(i *OnboardingAdmissionInput) { i.BasePresent = []string{"alpha"} }},
+		{"unrelated presence is not clean", AdmitReasonBaseAbsent, func(i *OnboardingAdmissionInput) { i.BasePresent = []string{"zeta"} }},
+		{"base absence unknown", AdmitReasonBaseAbsentUnknown, func(i *OnboardingAdmissionInput) { i.BaseAbsenceKnown = false }},
 		{"verifyPr for another base", AdmitReasonVerifyBase, func(i *OnboardingAdmissionInput) {
 			i.VerifyPr.BaseSHA = "4444444444444444444444444444444444444444"
 		}},
@@ -338,23 +344,23 @@ func TestAdmissionDecisionDigestBindsMembers(t *testing.T) {
 		"head": func(i *OnboardingAdmissionInput) {
 			i.HeadSHA, i.GitHeadSHA = "3333333333333333333333333333333333333333", "3333333333333333333333333333333333333333"
 		},
-		"base":     func(i *OnboardingAdmissionInput) { i.BaseSHA = "4444444444444444444444444444444444444444" },
-		"author":   func(i *OnboardingAdmissionInput) { i.Author = "x" },
-		"sender":   func(i *OnboardingAdmissionInput) { i.Sender = "x" },
-		"bot":      func(i *OnboardingAdmissionInput) { i.BotLogin = "y" },
-		"commit":   func(i *OnboardingAdmissionInput) { i.Commits[0].Verified = false },
-		"batch id": func(i *OnboardingAdmissionInput) { i.Batch.ID = "b2" },
-		"key id":   func(i *OnboardingAdmissionInput) { i.Batch.KeyID = "k2" },
-		"tier":     func(i *OnboardingAdmissionInput) { i.Batch.Tier = ApprovalTierOwner },
-		"nonce":    func(i *OnboardingAdmissionInput) { i.Batch.Nonce = "n2" },
-		"digests":  func(i *OnboardingAdmissionInput) { i.GateHeadDigests = admDigests("5") },
-		"paths":    func(i *OnboardingAdmissionInput) { i.ChangedPaths = append(i.ChangedPaths, "cli/docs/out.json") },
-		"recipe":   func(i *OnboardingAdmissionInput) { i.VerifyPr.RecipeChange = "changed" },
-		"verify":   func(i *OnboardingAdmissionInput) { i.VerifyPr.BindingDigest = admOther },
-		"keyset":   func(i *OnboardingAdmissionInput) { i.KeysetDigest = admOther },
-		"policy":   func(i *OnboardingAdmissionInput) { i.Policy.Digest = admOther },
-		"regen":    func(i *OnboardingAdmissionInput) { i.RegenOutputsSHA256 = admOther },
-		"project":  func(i *OnboardingAdmissionInput) { i.Projects[0].TargetSHA256 = admOther },
+		"base":         func(i *OnboardingAdmissionInput) { i.BaseSHA = "4444444444444444444444444444444444444444" },
+		"author":       func(i *OnboardingAdmissionInput) { i.Author = "x" },
+		"sender":       func(i *OnboardingAdmissionInput) { i.Sender = "x" },
+		"bot":          func(i *OnboardingAdmissionInput) { i.BotLogin = "y" },
+		"commit":       func(i *OnboardingAdmissionInput) { i.Commits[0].Verified = false },
+		"batch id":     func(i *OnboardingAdmissionInput) { i.Batch.ID = "b2" },
+		"key id":       func(i *OnboardingAdmissionInput) { i.Batch.KeyID = "k2" },
+		"tier":         func(i *OnboardingAdmissionInput) { i.Batch.Tier = ApprovalTierOwner },
+		"nonce":        func(i *OnboardingAdmissionInput) { i.Batch.Nonce = "n2" },
+		"digests":      func(i *OnboardingAdmissionInput) { i.GateHeadDigests = admDigests("5") },
+		"paths":        func(i *OnboardingAdmissionInput) { i.ChangedPaths = append(i.ChangedPaths, "cli/docs/out.json") },
+		"recipe":       func(i *OnboardingAdmissionInput) { i.VerifyPr.RecipeChange = "changed" },
+		"verify":       func(i *OnboardingAdmissionInput) { i.VerifyPr.BindingDigest = admOther },
+		"keyset":       func(i *OnboardingAdmissionInput) { i.KeysetDigest = admOther },
+		"paths digest": func(i *OnboardingAdmissionInput) { i.VerifyPr.ChangedPathsSHA256 = admOther },
+		"regen":        func(i *OnboardingAdmissionInput) { i.RegenOutputsSHA256 = admOther },
+		"project":      func(i *OnboardingAdmissionInput) { i.Projects[0].TargetSHA256 = admOther },
 	}
 	for name, edit := range edits {
 		in := admOK()
@@ -443,9 +449,12 @@ func TestOnboardingAdmissionInGateReport(t *testing.T) {
 	if r.AutoMerge.Eligible {
 		t.Fatalf("auto merge %+v", r.AutoMerge)
 	}
-	if r.OnboardingAdmission == nil || r.OnboardingAdmission.Admitted ||
-		len(r.OnboardingAdmission.Reasons) != 1 || r.OnboardingAdmission.Reasons[0] != AdmitReasonDisabled {
+	// Flag off: the report carries no member at all (byte-identical shape).
+	if r.OnboardingAdmission != nil {
 		t.Fatalf("admission %+v", r.OnboardingAdmission)
+	}
+	if raw, err := json.Marshal(r); err != nil || bytes.Contains(raw, []byte("onboardingAdmission")) {
+		t.Fatalf("flag-off report carries the member: %v", err)
 	}
 	// Enabled but without the inputs the gate cannot have: still refused,
 	// and the old flag stays false.

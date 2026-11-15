@@ -28,7 +28,7 @@ const (
 	AdmitReasonSignature              = "batch-signature-not-verified-against-base-keyset"
 	AdmitReasonKeyNotInBase           = "signing-key-not-in-base-keyset"
 	AdmitReasonTier                   = "signer-tier-unknown"
-	AdmitReasonBotPolicy              = "bot-tier-without-owner-signed-policy"
+	AdmitReasonBotPolicy              = "bot-tier-not-admitted-no-verified-policy"
 	AdmitReasonBatchExpired           = "batch-expired-or-time-unknown"
 	AdmitReasonKeyset                 = "keyset-digest-missing"
 	AdmitReasonTrustRoot              = "trust-root-digest-missing"
@@ -50,7 +50,7 @@ const (
 	AdmitReasonBatchPath              = "batch-path-missing"
 	AdmitReasonFileModes              = "file-modes"
 	AdmitReasonVerifyAbsent           = "verify-pr-absent"
-	AdmitReasonVerifyNotEligible      = "verify-pr-not-eligible"
+	AdmitReasonVerifyNotPass          = "verify-pr-not-pass"
 	AdmitReasonVerifyHead             = "verify-pr-head-mismatch"
 	AdmitReasonVerifyBinding          = "verify-pr-binding-invalid"
 	AdmitReasonVerifySlugs            = "verify-pr-slug-mismatch"
@@ -62,6 +62,9 @@ const (
 	AdmitReasonSHA                    = "sha-invalid"
 	AdmitReasonHeadMismatch           = "head-sha-mismatch"
 	AdmitReasonAllowlistUnset         = "path-allowlist-unset"
+	AdmitReasonVerifyPaths            = "verify-pr-changed-paths-digest-missing"
+	AdmitReasonBaseAbsent             = "slug-present-in-base"
+	AdmitReasonBaseAbsentUnknown      = "base-absence-unknown"
 	AdmitReasonVerifyBase             = "verify-pr-base-mismatch"
 	AdmitReasonVerifyRecipe           = "verify-pr-recipe-not-new"
 )
@@ -82,16 +85,6 @@ type OnboardingAdmissionConfig struct {
 	// TargetPath is the exact target file of a project, with "{slug}"; it
 	// must be among the changed paths of every project and is allowed.
 	TargetPath string
-}
-
-// AdmissionBotPolicy is the owner-signed bot-tier policy, modelled as data.
-// The policy itself is not implemented by this package: until a verified
-// policy is supplied no bot-tier batch is admitted.
-type AdmissionBotPolicy struct {
-	Present     bool
-	OwnerSigned bool
-	Digest      string
-	KeyIDs      []string
 }
 
 // AdmissionCommit is one commit of the change.
@@ -133,6 +126,11 @@ type AdmissionBatch struct {
 	SummaryDigest   string `json:"summaryDigest"`
 }
 
+// The checker trusts the caller-supplied VerifyPr only for the facts it
+// binds here (outcome, binding result, recipe change, base/head ids, binding
+// digest, changed-paths digest); the base-absence and path conjuncts are its
+// own.
+//
 // VerifyPrResult is what the upstream verify-pr check recorded (the
 // result-json of verify-pr, schema prufyx.io/verify-pr-result/v1). Its
 // interface belongs to another lane: this is the optional struct the
@@ -149,20 +147,25 @@ type VerifyPrResult struct {
 	BaseSHA         string
 	HeadSHA         string
 	BindingDigest   string
-	Slugs           []string
-	TagsCommitsSHA  map[string]string
+	// ChangedPathsSHA256 is the digest of the exact path set the verify-pr
+	// pass covered (verify-pr judges one slug, so a real onboarding diff
+	// needs a filtered path input; the result itself binds no path set).
+	ChangedPathsSHA256 string
+	Slugs              []string
+	TagsCommitsSHA     map[string]string
 }
 
 // VerifyPrBinding is the part of the verify-pr result bound into the
 // decision.
 type VerifyPrBinding struct {
-	Outcome         string `json:"outcome"`
-	Eligible        bool   `json:"eligible"`
-	BindingVerified bool   `json:"bindingVerified"`
-	RecipeChange    string `json:"recipeChange"`
-	BaseSHA         string `json:"baseSha"`
-	BindingDigest   string `json:"bindingDigest"`
-	HeadSHA         string `json:"headSha"`
+	ChangedPathsSHA256 string `json:"changedPathsSha256"`
+	Outcome            string `json:"outcome"`
+	Eligible           bool   `json:"eligible"`
+	BindingVerified    bool   `json:"bindingVerified"`
+	RecipeChange       string `json:"recipeChange"`
+	BaseSHA            string `json:"baseSha"`
+	BindingDigest      string `json:"bindingDigest"`
+	HeadSHA            string `json:"headSha"`
 }
 
 // ExclusionBinding binds the exclusion identity sets of both sides.
@@ -212,7 +215,6 @@ type OnboardingAdmissionInput struct {
 	KeyInBaseKeyset    bool
 	KeysetDigest       string
 	TrustRootDigest    string
-	Policy             AdmissionBotPolicy
 	ComputedChangeSet  string
 	BatchBaseDigests   AdmissionDigests
 	BatchHeadDigests   AdmissionDigests
@@ -224,9 +226,15 @@ type OnboardingAdmissionInput struct {
 	RegenOutputsSHA256 string
 	// Exclusion identity sets, BASE and HEAD, over every target: one opaque
 	// string per exclusion. Known is false when either could not be read.
-	ExclusionsKnown bool
-	BaseExclusions  []string
-	HeadExclusions  []string
+	// BaseAbsenceKnown is true when the base table, the base targets and the
+	// base recipes were all read; BasePresent lists the batch slugs found in
+	// any of them (an onboarding adds a project that the base lacks
+	// everywhere; verify-pr's "new" only means no recipe dir in the base).
+	BaseAbsenceKnown bool
+	BasePresent      []string
+	ExclusionsKnown  bool
+	BaseExclusions   []string
+	HeadExclusions   []string
 	// The recipe's exclusions and the head target's exclusion paths, as
 	// slug-qualified items; they must be the same set.
 	RecipeExclusionsKnown bool
@@ -262,7 +270,6 @@ type OnboardingAdmission struct {
 	Regen           RegenBinding       `json:"regen"`
 	KeysetDigest    string             `json:"keysetDigest"`
 	TrustRootDigest string             `json:"trustRootDigest"`
-	PolicyDigest    string             `json:"policyDigest"`
 	Paused          bool               `json:"paused"`
 	Shadow          bool               `json:"shadow"`
 	ObservedAt      string             `json:"observedAt"`
@@ -290,7 +297,7 @@ func AdmitOnboardingAuto(in OnboardingAdmissionInput) OnboardingAdmission {
 		Schema: OnboardingAdmissionSchema, HeadSHA: in.HeadSHA, BaseSHA: in.BaseSHA,
 		AuthorLogin: in.Author, SenderLogin: in.Sender, BotLogin: in.BotLogin,
 		Batch: in.Batch, Digests: in.GateHeadDigests,
-		KeysetDigest: in.KeysetDigest, TrustRootDigest: in.TrustRootDigest, PolicyDigest: in.Policy.Digest,
+		KeysetDigest: in.KeysetDigest, TrustRootDigest: in.TrustRootDigest,
 		Paused: in.Paused, Shadow: in.Shadow,
 		Regen: RegenBinding{ByteEqual: in.RegenKnown && in.RegenByteEqual, OutputsSHA256: in.RegenOutputsSHA256},
 	}
@@ -305,7 +312,7 @@ func AdmitOnboardingAuto(in OnboardingAdmissionInput) OnboardingAdmission {
 	sort.Strings(d.PathSet)
 	d.PathSetSHA = admitSHA([]byte(strings.Join(d.PathSet, "\n")))
 	if in.VerifyPr != nil {
-		d.VerifyPr = VerifyPrBinding{Outcome: in.VerifyPr.Outcome, Eligible: in.VerifyPr.Eligible, BindingVerified: in.VerifyPr.BindingVerified, RecipeChange: in.VerifyPr.RecipeChange, BaseSHA: in.VerifyPr.BaseSHA, BindingDigest: in.VerifyPr.BindingDigest, HeadSHA: in.VerifyPr.HeadSHA}
+		d.VerifyPr = VerifyPrBinding{ChangedPathsSHA256: in.VerifyPr.ChangedPathsSHA256, Outcome: in.VerifyPr.Outcome, Eligible: in.VerifyPr.Eligible, BindingVerified: in.VerifyPr.BindingVerified, RecipeChange: in.VerifyPr.RecipeChange, BaseSHA: in.VerifyPr.BaseSHA, BindingDigest: in.VerifyPr.BindingDigest, HeadSHA: in.VerifyPr.HeadSHA}
 	}
 
 	var why admitReasons
@@ -317,6 +324,7 @@ func AdmitOnboardingAuto(in OnboardingAdmissionInput) OnboardingAdmission {
 	admitSignature(in, &why)
 	admitRegeneration(in, &why)
 	admitExclusions(in, &why)
+	admitBaseAbsence(in, &why)
 	admitPaths(in, d.PathSet, &why)
 	admitVerifyPr(in, &why)
 	admitPrincipals(in, &why)
@@ -398,16 +406,11 @@ func admitSignature(in OnboardingAdmissionInput, why *admitReasons) {
 	switch b.Tier {
 	case ApprovalTierOwner:
 	case ApprovalTierOnboardingBot:
-		p := in.Policy
-		listed := false
-		for _, id := range p.KeyIDs {
-			if id != "" && id == b.KeyID {
-				listed = true
-			}
-		}
-		if !p.Present || !p.OwnerSigned || !admitValidDigest(p.Digest) || !listed {
-			why.add(AdmitReasonBotPolicy)
-		}
+		// Fail closed: the bot tier needs an owner-signed policy that a
+		// loader reads from the BASE tree, pinned by digest, like the
+		// keyset. No such loader exists yet and nothing the caller can
+		// supply stands in for it, so no bot-tier batch is admitted.
+		why.add(AdmitReasonBotPolicy)
 	default:
 		why.add(AdmitReasonTier)
 	}
@@ -634,7 +637,7 @@ func admitVerifyPr(in OnboardingAdmissionInput, why *admitReasons) {
 		return
 	}
 	if v.Outcome != "pass" || !v.BindingVerified {
-		why.add(AdmitReasonVerifyNotEligible)
+		why.add(AdmitReasonVerifyNotPass)
 	}
 	if v.RecipeChange != "new" {
 		why.add(AdmitReasonVerifyRecipe)
@@ -644,6 +647,9 @@ func admitVerifyPr(in OnboardingAdmissionInput, why *admitReasons) {
 	}
 	if !shaRE.MatchString(v.HeadSHA) || v.HeadSHA != in.HeadSHA {
 		why.add(AdmitReasonVerifyHead)
+	}
+	if !admitValidDigest(v.ChangedPathsSHA256) {
+		why.add(AdmitReasonVerifyPaths)
 	}
 	if !admitValidDigest(v.BindingDigest) {
 		why.add(AdmitReasonVerifyBinding)
@@ -699,5 +705,26 @@ func admitPrincipals(in OnboardingAdmissionInput, why *admitReasons) {
 	}
 	if n := len(in.Commits); n > 0 && in.Commits[n-1].SHA != in.HeadSHA {
 		why.add(AdmitReasonCommits)
+	}
+}
+
+// admitBaseAbsence: every project of the batch is absent from the base table,
+// the base targets and the base recipes; unknown is a refusal.
+func admitBaseAbsence(in OnboardingAdmissionInput, why *admitReasons) {
+	if !in.BaseAbsenceKnown {
+		why.add(AdmitReasonBaseAbsentUnknown)
+	}
+	present := map[string]bool{}
+	for _, x := range in.BasePresent {
+		present[x] = true
+	}
+	if len(present) > 0 {
+		for _, p := range in.Projects {
+			if present[p.Slug] {
+				why.add(AdmitReasonBaseAbsent)
+			}
+		}
+		// A reported presence that matches no project is still not clean.
+		why.add(AdmitReasonBaseAbsent)
 	}
 }

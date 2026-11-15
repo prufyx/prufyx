@@ -108,9 +108,6 @@ type Options struct {
 	// observations come from the trusted fetch boundary, never the candidate.
 	OnboardingGit       *OnboardingGitContext
 	AdmissionRESTBudget int64
-	// OnboardingBotPolicy is the owner-signed bot-tier policy as data, read
-	// by the onboarding admission only. The zero value admits no bot batch.
-	OnboardingBotPolicy AdmissionBotPolicy
 	// VerifyPr is the recorded verify-pr result for the change; nil means
 	// absent, which never admits an onboarding change.
 	VerifyPr *VerifyPrResult
