@@ -328,3 +328,38 @@ func TestBundleFromGitReplaysGitSource(t *testing.T) {
 		t.Fatal("an empty recording must not produce a bundle")
 	}
 }
+
+// A doubling DAG: every tree names the next one twice. It verifies (every
+// object is distinct and small) but expands to 2^64 paths; the replay must
+// refuse it, not walk it.
+func TestFactSourceRefusesDoublingTreeDAG(t *testing.T) {
+	st := memStore{objs: map[string]rawObj{}}
+	entry := func(name, id string) []byte {
+		return append(append([]byte("40000 "+name), 0), hexToRaw(id)...)
+	}
+	leaf := st.put("tree", nil)
+	cur := leaf
+	for i := 0; i < 64; i++ {
+		body := append(entry("a", cur), entry("b", cur)...)
+		cur = st.put("tree", body)
+	}
+	commit := st.put("commit", []byte("tree "+cur+"\n\nx\n"))
+	var d bundleDoc
+	d.Schema = BundleSchema
+	d.Tags = []bundleTag{{Tag: "v1.0.0", Commit: commit}}
+	for id, o := range st.objs {
+		d.Objects = append(d.Objects, bundleObj{ID: id, Kind: o.kind, Data: base64.StdEncoding.EncodeToString(o.body)})
+	}
+	sort.Slice(d.Objects, func(i, j int) bool { return d.Objects[i].ID < d.Objects[j].ID })
+	raw, err := marshalBundle(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := ParseBundle(raw)
+	if err != nil {
+		t.Fatalf("the bundle itself is small and consistent: %v", err)
+	}
+	if _, _, err := (FactSource{B: b}).Open("v1.0.0"); err == nil || !strings.Contains(err.Error(), "entry budget") {
+		t.Fatalf("want an entry-budget refusal, got %v", err)
+	}
+}

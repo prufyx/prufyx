@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -255,6 +256,140 @@ func readLimited(root, rel string, limit int64) ([]byte, error) {
 	return b, nil
 }
 
+type fileSig struct {
+	kind string // "file" or "link"
+	exec bool
+	sum  string
+}
+
+const maxExportEntries = 500000
+
+// exportSigs lists every regular file and symbolic link below root (never
+// following links) as a signature. Paths below skip are left out.
+func exportSigs(root, skip string) (map[string]fileSig, error) {
+	out := map[string]fileSig{}
+	err := filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, rerr := filepath.Rel(root, p)
+		if rerr != nil {
+			return rerr
+		}
+		rel = filepath.ToSlash(rel)
+		if rel == "." || d.IsDir() {
+			if d.IsDir() && skip != "" && rel == strings.TrimSuffix(skip, "/") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if len(out) >= maxExportEntries {
+			return errors.New("export has too many files")
+		}
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		switch {
+		case info.Mode()&os.ModeSymlink != 0:
+			l, err := os.Readlink(p)
+			if err != nil {
+				return err
+			}
+			out[rel] = fileSig{kind: "link", sum: l}
+		case info.Mode().IsRegular():
+			f, err := os.Open(p)
+			if err != nil {
+				return err
+			}
+			h := sha256.New()
+			_, err = io.Copy(h, f)
+			f.Close()
+			if err != nil {
+				return err
+			}
+			out[rel] = fileSig{kind: "file", exec: info.Mode()&0o111 != 0, sum: hex.EncodeToString(h.Sum(nil))}
+		default:
+			return fmt.Errorf("%s is neither a file nor a link", rel)
+		}
+		return nil
+	})
+	return out, err
+}
+
+// checkOutside makes the tool's inputs consistent with each other: base and
+// head are identical outside the recipe directory, every base file of the
+// recipe directory survives, and the changed list names exactly the recipe
+// files that differ. A mismatch is an assertion failure.
+func checkOutside(baseDir, headDir, dirRel string, changed []string) *VerifyFailure {
+	skip := dirRel + "/"
+	bs, err := exportSigs(baseDir, dirRel)
+	if err != nil {
+		return harness("base-unreadable", "%v", err)
+	}
+	hs, err := exportSigs(headDir, dirRel)
+	if err != nil {
+		return harness("head-unreadable", "%v", err)
+	}
+	for p, b := range bs {
+		if h, ok := hs[p]; !ok || h != b {
+			return fail("tree-differs-outside-recipe", "%s differs between base and head", p)
+		}
+	}
+	for p := range hs {
+		if _, ok := bs[p]; !ok {
+			return fail("tree-differs-outside-recipe", "%s exists only in head", p)
+		}
+	}
+	// The recipe directory itself.
+	list := map[string]bool{}
+	for _, p := range changed {
+		list[p] = true
+	}
+	read := func(root, name string) ([]byte, bool, error) {
+		b, err := readLimited(root, skip+name, maxOutputBytes+MaxBundleBytes)
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, false, nil
+		}
+		return b, err == nil, err
+	}
+	ents, err := os.ReadDir(filepath.Join(baseDir, filepath.FromSlash(dirRel)))
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return harness("base-unreadable", "%v", err)
+	}
+	for _, e := range ents {
+		if _, ok, err := read(headDir, e.Name()); err != nil {
+			return harness("head-unreadable", "%v", err)
+		} else if !ok {
+			return fail("base-file-deleted", "%s%s exists in base and not in head", skip, e.Name())
+		}
+	}
+	hents, err := os.ReadDir(filepath.Join(headDir, filepath.FromSlash(dirRel)))
+	if err != nil {
+		return fail("file-missing", "recipe directory: %v", err)
+	}
+	for _, e := range hents {
+		hb, _, err := read(headDir, e.Name())
+		if err != nil {
+			return fail("file-unreadable", "%s%s: %v", skip, e.Name(), err)
+		}
+		bb, inBase, err := read(baseDir, e.Name())
+		if err != nil {
+			return harness("base-unreadable", "%v", err)
+		}
+		differs := !inBase || !bytes.Equal(hb, bb)
+		if differs != list[skip+e.Name()] {
+			return fail("changed-list-inconsistent", "%s%s: the changed list and the exports disagree", skip, e.Name())
+		}
+	}
+	for p := range list {
+		if _, ok, _ := read(headDir, strings.TrimPrefix(p, skip)); !ok {
+			return fail("changed-list-inconsistent", "%s is listed but absent from head", p)
+		}
+	}
+	return nil
+}
+
 // ParseRecipe reads a recipe strictly.
 func ParseRecipe(raw []byte) (*Recipe, error) {
 	if len(raw) > MaxRecipeBytes {
@@ -263,6 +398,9 @@ func ParseRecipe(raw []byte) (*Recipe, error) {
 	var r Recipe
 	if err := strictDecode(raw, &r); err != nil {
 		return nil, fmt.Errorf("recipe: %w", err)
+	}
+	if canon, err := canonicalJSON(r); err != nil || !bytes.Equal(canon, raw) {
+		return nil, errors.New("recipe: not in canonical form (duplicate or differently cased keys, or other spelling)")
 	}
 	if r.Schema != RecipeSchema {
 		return nil, fmt.Errorf("recipe: schema %q is not %s", r.Schema, RecipeSchema)
@@ -319,6 +457,22 @@ func ParseRecipe(raw []byte) (*Recipe, error) {
 	return &r, nil
 }
 
+// canonicalJSON is the one accepted byte form of recipe.json and rules.json:
+// the strict struct re-marshalled with one-space indent and a final newline.
+// Strict decoding alone is case-insensitive and keeps the last of two
+// duplicate keys, so a file could hide a field from this check while another
+// reader sees it; requiring the canonical bytes closes that.
+func canonicalJSON(v any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", " ")
+	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
 func sha256Of(b []byte) string {
 	s := sha256.Sum256(b)
 	return hex.EncodeToString(s[:])
@@ -367,6 +521,11 @@ func verifyPR(in VerifyInput, env verifyEnv) (*VerifyResult, *VerifyFailure) {
 		}
 	}
 
+	if f := checkOutside(in.BaseDir, in.HeadDir, dirRel, paths); f != nil {
+		return nil, f
+	}
+	res.Checks = append(res.Checks, "base and head exports are identical outside the recipe directory, and the changed list matches the recipe directory difference")
+
 	recipeRaw, f := readHead(in.HeadDir, dirRel+"/recipe.json", MaxRecipeBytes)
 	if f != nil {
 		return nil, f
@@ -393,6 +552,9 @@ func verifyPR(in VerifyInput, env verifyEnv) (*VerifyResult, *VerifyFailure) {
 		}
 		if len(rules.Exclusions) != 0 {
 			return nil, fail("exclusion-present", "rules carry %d exclusion(s); exclusions need human review", len(rules.Exclusions))
+		}
+		if canon, err := canonicalJSON(rules); err != nil || !bytes.Equal(canon, rulesRaw) {
+			return nil, fail("rules-invalid", "rules.json is not in canonical form (duplicate or differently cased keys, or other spelling)")
 		}
 	}
 	res.Checks = append(res.Checks, "recipe and rules parse strictly; no exclusions")

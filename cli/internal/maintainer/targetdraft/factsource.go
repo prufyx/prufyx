@@ -326,7 +326,8 @@ func (s FactSource) Open(tag string) (Tree, string, error) {
 		return nil, "", err
 	}
 	t := &factTree{b: s.B, files: map[string]factFile{}}
-	if err := t.collect(root, "", 0); err != nil {
+	budget := maxBundleEntries
+	if err := t.collect(root, "", 0, &budget); err != nil {
 		return nil, "", err
 	}
 	return t, commit, nil
@@ -337,7 +338,10 @@ type factTree struct {
 	files map[string]factFile
 }
 
-func (t *factTree) collect(id, prefix string, depth int) error {
+// collect expands one tree. A tree may be named by several parents, so the
+// expansion is bounded by a total entry budget: a bundle whose trees fan out
+// into more than maxBundleEntries paths is refused, never walked to the end.
+func (t *factTree) collect(id, prefix string, depth int, budget *int) error {
 	if depth > maxTreeDepth {
 		return errors.New("tree nesting too deep")
 	}
@@ -349,6 +353,10 @@ func (t *factTree) collect(id, prefix string, depth int) error {
 	if err != nil {
 		return err
 	}
+	*budget -= len(ents)
+	if *budget < 0 {
+		return errors.New("tree expansion is over the entry budget")
+	}
 	for _, e := range ents {
 		p := prefix + e.name
 		if len(p) > maxPathBytes {
@@ -356,7 +364,7 @@ func (t *factTree) collect(id, prefix string, depth int) error {
 		}
 		switch e.mode {
 		case "40000":
-			if err := t.collect(e.id, p+"/", depth+1); err != nil {
+			if err := t.collect(e.id, p+"/", depth+1, budget); err != nil {
 				return err
 			}
 		case "100644", "100755":
@@ -512,6 +520,7 @@ func (r *RecordingSource) buildBundle(store objectStore) ([]byte, error) {
 			return nil, err
 		}
 		blobs := map[string]string{} // path -> blob id
+		budget := maxBundleEntries
 		var walk func(id, prefix string, depth int) error
 		walk = func(id, prefix string, depth int) error {
 			if depth > maxTreeDepth {
@@ -525,6 +534,9 @@ func (r *RecordingSource) buildBundle(store objectStore) ([]byte, error) {
 			ents, err := parseTreeObject(body)
 			if err != nil {
 				return err
+			}
+			if budget -= len(ents); budget < 0 {
+				return errors.New("tree expansion is over the entry budget")
 			}
 			for _, e := range ents {
 				switch {

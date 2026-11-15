@@ -176,9 +176,27 @@ func mustBundle(t *testing.T, raw []byte) *Bundle {
 	return b
 }
 
+const cleanRules = "{\n \"schema\": \"prufyx.io/target-draft-rules/v1\",\n \"installSurface\": [],\n \"exclusions\": []\n}\n"
+
+func (f *fixture) withoutPaths(names ...string) []string {
+	skip := map[string]bool{}
+	for _, n := range names {
+		skip[fxDir+n] = true
+	}
+	var out []string
+	for _, n := range f.names() {
+		if !skip[fxDir+n] {
+			out = append(out, fxDir+n)
+		}
+	}
+	return out
+}
+
 func TestVerifyPRRecipeChangeIsNeverAutoMergeable(t *testing.T) {
 	f := newFixture(t, nil)
+	f.files["recipe.json"] = f.recipeBytes()
 	f.base[fxDir+"recipe.json"] = f.recipeBytes()
+	f.paths = f.withoutPaths("recipe.json")
 	res, fl := f.verify()
 	if fl != nil || res.RecipeChange != "unchanged" || res.AutoMerge {
 		t.Fatalf("%v %+v", fl, res)
@@ -187,18 +205,36 @@ func TestVerifyPRRecipeChangeIsNeverAutoMergeable(t *testing.T) {
 		t.Fatalf("an unchanged recipe is still held back only by the missing binding: %v", res.Reasons)
 	}
 	// Base recipe differs from head: changed, never eligible, with the reason.
+	f = newFixture(t, nil)
+	f.files["recipe.json"] = f.recipeBytes()
 	f.base[fxDir+"recipe.json"] = append(f.recipeBytes(), ' ')
 	res, fl = f.verify()
 	if fl != nil || res.RecipeChange != "changed" || res.AutoMerge || len(res.Reasons) != 2 || !strings.Contains(res.Reasons[1], "changed") {
 		t.Fatalf("%v %+v", fl, res)
 	}
-	// A base with rules.json where the head has none is a changed recipe too.
+	// Same recipe, rules.json differs from base: changed too.
+	f = newFixture(t, nil)
+	f.recipe.Rules = "rules.json"
+	f.files["rules.json"] = []byte(cleanRules)
+	f.files["recipe.json"] = f.recipeBytes()
 	f.base[fxDir+"recipe.json"] = f.recipeBytes()
 	f.base[fxDir+"rules.json"] = []byte("{}")
+	f.paths = f.withoutPaths("recipe.json")
 	res, fl = f.verify()
 	if fl != nil || res.RecipeChange != "changed" || res.AutoMerge {
 		t.Fatalf("%v %+v", fl, res)
 	}
+	// Clean rules are accepted when the recipe names them (positive path).
+	f = newFixture(t, nil)
+	f.recipe.Rules = "rules.json"
+	f.files["rules.json"] = []byte(cleanRules)
+	if res, fl := f.verify(); fl != nil || res.AutoMerge {
+		t.Fatalf("%v %+v", fl, res)
+	}
+	// A base file of the recipe directory missing in head is refused.
+	f = newFixture(t, nil)
+	f.base[fxDir+"rules.json"] = []byte("{}")
+	wantFail(t, f, "base-file-deleted")
 }
 
 func TestVerifyPRTamperedOutputs(t *testing.T) {
@@ -533,5 +569,106 @@ func TestRunVerifyPRExitCodesAndDeterminism(t *testing.T) {
 		if code, out := run(args...); code != 2 {
 			t.Fatalf("%v: %d %s", args, code, out)
 		}
+	}
+}
+
+func TestVerifyPRDuplicateAndCasedKeysAreRefused(t *testing.T) {
+	// The exclusion hidden by a differently cased duplicate key.
+	f := newFixture(t, nil)
+	f.files["recipe.json"] = bytes.Replace(f.recipeBytes(), []byte(`"exclude": []`), []byte(`"exclude": ["x"], "Exclude": []`), 1)
+	wantFail(t, f, "recipe-invalid")
+	f = newFixture(t, nil)
+	f.files["recipe.json"] = bytes.Replace(f.recipeBytes(), []byte(`"half"`), []byte(`"Half"`), 1)
+	wantFail(t, f, "recipe-invalid")
+	// Same for rules.json: the exclusion hidden behind a later duplicate.
+	f = newFixture(t, nil)
+	f.recipe.Rules = "rules.json"
+	f.files["rules.json"] = []byte(`{"schema":"prufyx.io/target-draft-rules/v1","installSurface":[],"exclusions":[{"class":"exact-file","path":"a","reason":"b","evidence":"c"}],"Exclusions":[]}`)
+	wantFail(t, f, "rules-invalid")
+	// Rules that are valid but not in the canonical spelling.
+	f = newFixture(t, nil)
+	f.recipe.Rules = "rules.json"
+	f.files["rules.json"] = []byte(`{"schema":"prufyx.io/target-draft-rules/v1","installSurface":[],"exclusions":[]}`)
+	wantFail(t, f, "rules-invalid")
+}
+
+func TestVerifyPRExportsMustAgreeOutsideTheRecipeDir(t *testing.T) {
+	// A head-only file outside the recipe directory, not on the changed list.
+	f := newFixture(t, nil)
+	f.base["README.md"] = []byte("a")
+	in, head, _ := f.input()
+	writeTree(t, head, map[string][]byte{"cmd/x.go": []byte("package x")})
+	if _, fl := verifyPR(in, f.env); fl == nil || fl.Code != "tree-differs-outside-recipe" {
+		t.Fatalf("%v", fl)
+	}
+	// A changed file outside the recipe directory that the list hides.
+	f = newFixture(t, nil)
+	f.base["a/b.txt"] = []byte("one")
+	in, head, _ = f.input()
+	writeTree(t, head, map[string][]byte{"a/b.txt": []byte("two")})
+	if _, fl := verifyPR(in, f.env); fl == nil || fl.Code != "tree-differs-outside-recipe" {
+		t.Fatalf("%v", fl)
+	}
+	// A base-only file (deleted in head).
+	f = newFixture(t, nil)
+	f.base["a/b.txt"] = []byte("one")
+	wantFail(t, f, "tree-differs-outside-recipe")
+	// The changed list omits a recipe file that differs, or names one that does not.
+	f = newFixture(t, nil)
+	f.paths = f.withoutPaths("changelog.md")
+	wantFail(t, f, "changed-list-inconsistent")
+	f = newFixture(t, nil)
+	f.files["recipe.json"] = f.recipeBytes()
+	f.base[fxDir+"recipe.json"] = f.recipeBytes()
+	wantFail(t, f, "changed-list-inconsistent")
+	// Identical exports outside the recipe directory pass.
+	f = newFixture(t, nil)
+	f.base["a/b.txt"] = []byte("one")
+	in, head, _ = f.input()
+	writeTree(t, head, map[string][]byte{"a/b.txt": []byte("one")})
+	if _, fl := verifyPR(in, f.env); fl != nil {
+		t.Fatal(fl)
+	}
+}
+
+func TestVerifyPRCommitAndTagChecksAreNamed(t *testing.T) {
+	for i := range collapseTags {
+		f := newFixture(t, nil)
+		f.recipe.Commits[i].Commit = strings.Repeat("d", 40)
+		wantFail(t, f, "bundle-commit")
+	}
+	// The recipe names a tag the bundle does not carry.
+	f := newFixture(t, nil)
+	f.recipe.RangeCheckTags = []string{"v9.9.9"}
+	f.recipe.Commits = append(f.recipe.Commits, recipeCommit{Tag: "v9.9.9", Commit: strings.Repeat("e", 40)})
+	wantFail(t, f, "bundle-tags")
+}
+
+func TestVerifyPRModifiedExecutableIsRefused(t *testing.T) {
+	f := newFixture(t, nil)
+	f.rawOut = changedRaw([]string{fxDir + "recipe.json"}, "M", "100755", "100755")
+	wantFail(t, f, "path-status")
+}
+
+// Each seed kind alone must be rejected by the comparison: dropping one
+// kind from the check makes exactly one of these fail.
+func TestVerifyPREverySeedKindGatesTheResult(t *testing.T) {
+	for _, kind := range []string{"path", "min-from", "attest"} {
+		f := newFixture(t, nil)
+		real := f.env.compare
+		f.env.compare = func(g, r []byte) ([]string, error) {
+			d, err := decodeDoc(r)
+			if err != nil {
+				return nil, err
+			}
+			isKind := (kind == "path" && strings.HasSuffix(d.Target.Paths[0].Path, ".seed")) ||
+				(kind == "min-from" && strings.HasSuffix(d.Target.MinFrom, "0")) ||
+				(kind == "attest" && d.Target.Attest)
+			if isKind {
+				return nil, nil // this seed reproduces
+			}
+			return real(g, r)
+		}
+		wantFail(t, f, "seed-reproduced")
 	}
 }
