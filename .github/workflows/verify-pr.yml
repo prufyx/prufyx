@@ -251,3 +251,4 @@ jobs:
           jq -e --arg head "${HEAD_SHA}" --arg base "${BASE_SHA}" \
             '(.result == "ELIGIBLE" or .result == "NOT_APPLICABLE") and .stale == false and .headSha == $head and .baseSha == $base and .mainTip == $base' \
             "${RUNNER_TEMP}/out/result.json" > /dev/null
+# throwaway probe comment
