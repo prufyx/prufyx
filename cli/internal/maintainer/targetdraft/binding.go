@@ -100,6 +100,9 @@ type BindingResult struct {
 type Binder struct {
 	Runner LsRemoteRunner
 	Sleep  func(time.Duration)
+	// Ctx is the caller's context; cancelling it stops the binding at once
+	// (no further attempt, never a pass). nil means context.Background().
+	Ctx context.Context
 }
 
 func bindFail(code, format string, a ...any) *VerifyFailure { return fail(code, format, a...) }
@@ -187,11 +190,21 @@ func (b Binder) Bind(rc *Recipe, bundleCommit func(tag string) (string, bool), h
 	sort.Strings(tags)
 	spec := ExecSpec{Argv: bindingArgv(repoPath, tags), Env: bindingEnv()}
 
+	parent := b.Ctx
+	if parent == nil {
+		parent = context.Background()
+	}
 	var out []byte
 	for attempt := 1; ; attempt++ {
-		ctx, cancel := context.WithTimeout(context.Background(), bindingTimeout)
+		if parent.Err() != nil {
+			return nil, bindHarness("binding-unavailable", "cancelled by the caller")
+		}
+		ctx, cancel := context.WithTimeout(parent, bindingTimeout)
 		res := b.Runner.Run(ctx, spec)
 		cancel()
+		if parent.Err() != nil {
+			return nil, bindHarness("binding-unavailable", "cancelled by the caller")
+		}
 		stdout, retry, f := classifyRun(res)
 		if f == nil {
 			out = stdout
@@ -375,10 +388,28 @@ func (execRunner) Run(ctx context.Context, spec ExecSpec) ExecResult {
 	}
 	defer os.RemoveAll(home)
 	cmd := exec.CommandContext(ctx, gitBin, spec.Argv[1:]...)
-	cmd.Env = runnerEnv(spec, home)
-	cmd.Dir = home
-	so, se := &cappedBuffer{limit: bindingMaxOutput}, &cappedBuffer{limit: bindingMaxStderr}
+	so, se := prepareCmd(cmd, runnerEnv(spec, home), home)
+	return finishCmd(ctx, cmd, so, se)
+}
+
+// bindingWaitDelay bounds how long Wait lingers on the output pipes after the
+// process was killed, so a stuck child cannot hold the run past its deadline.
+const bindingWaitDelay = 2 * time.Second
+
+// prepareCmd sets the exact environment and directory, capped output buffers,
+// a kill of the whole process group on cancel, and a wait delay.
+func prepareCmd(cmd *exec.Cmd, env []string, dir string) (so, se *cappedBuffer) {
+	cmd.Env = env
+	cmd.Dir = dir
+	so, se = &cappedBuffer{limit: bindingMaxOutput}, &cappedBuffer{limit: bindingMaxStderr}
 	cmd.Stdout, cmd.Stderr = so, se
+	cmd.WaitDelay = bindingWaitDelay
+	killGroupOnCancel(cmd)
+	return so, se
+}
+
+// finishCmd runs the prepared command and maps the outcome.
+func finishCmd(ctx context.Context, cmd *exec.Cmd, so, se *cappedBuffer) ExecResult {
 	runErr := cmd.Run()
 	res := ExecResult{Stdout: so.buf.Bytes(), Stderr: se.buf.Bytes()}
 	// A capped buffer that overflowed holds limit+1 bytes and so stays over

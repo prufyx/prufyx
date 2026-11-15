@@ -112,6 +112,12 @@ Anything that cannot be verified is non-zero.
   `autoMerge: false`), also on failure. The tool writes no files. Consumers must
   compare `headSha` with the head they mean and must not read exit 0 as
   eligibility.
+- Consumers read the exit code plus the one `result-json:` line; the failure
+  detail is printed quoted, so caller-controlled text (file names) cannot start
+  a line of its own. Ignore any other line that merely looks like a result.
+- `--base-sha` and `--head-sha` are asserted by the caller; the tool cannot check
+  them. The workflow must export the head tree from exactly that sha and match
+  it to the PR head it is judging.
 - Not proved: that the upstream facts are right, that the chosen source is the
   right one for the project, or any reproduced test.
 
@@ -138,9 +144,9 @@ Anything that cannot be verified is non-zero.
   head's workflow or script copies.
 - Exit 0 means only "assertions held". It is never merge or auto-merge
   eligibility: use `--require-eligible` (exit 3 is a valid human-class result).
-- The verifier, its tests and the recipe directory are owner-only in
-  CODEOWNERS (`verify.go`, `factsource.go`, `binding.go`, their tests,
-  `cli/knowledge/target-recipes/`), pinned by a test; the path allowlist only
+- The whole `targetdraft` directory, the command wiring file
+  (`cli/cmd/prufyx-maintainer/main.go`) and `cli/knowledge/target-recipes/` are
+  owner-only in CODEOWNERS, pinned by a test; the path allowlist only
   protects data changes, not a change to the verifier itself.
 - Nothing may read the recipe directory as knowledge. A repository test checks
   that every recipe has a matching real target that is byte-equal to its

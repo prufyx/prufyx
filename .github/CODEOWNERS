@@ -65,16 +65,12 @@
 /cli/go.sum @airstand
 /cli/vendor/ @airstand
 
-# The data-PR verifier, the code it rests on, its tests and the recipe tree.
-# A data PR must never be able to change the check that judges it.
-/cli/internal/maintainer/targetdraft/verify.go @airstand
-/cli/internal/maintainer/targetdraft/factsource.go @airstand
-/cli/internal/maintainer/targetdraft/binding.go @airstand
-/cli/internal/maintainer/targetdraft/verify_test.go @airstand
-/cli/internal/maintainer/targetdraft/factsource_test.go @airstand
-/cli/internal/maintainer/targetdraft/binding_test.go @airstand
-/cli/internal/maintainer/targetdraft/realtarget_test.go @airstand
-/cli/internal/maintainer/targetdraft/codeowners_test.go @airstand
+# The data-PR verifier package (verifier, generator, binding, CLI, tests), the
+# command wiring that dispatches it, and the recipe tree. A data PR must never
+# be able to change the check that judges it. A new or changed recipe is a human
+# class by design; pure regeneration PRs do not touch recipes.
+/cli/internal/maintainer/targetdraft/ @airstand
+/cli/cmd/prufyx-maintainer/main.go @airstand
 /cli/knowledge/target-recipes/ @airstand
 
 # Workflows, repository settings and this file.

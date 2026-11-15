@@ -4,6 +4,7 @@ package targetdraft
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -14,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -123,6 +125,8 @@ type VerifyInput struct {
 	HeadSHA string
 	// Sleep replaces the backoff wait (tests).
 	Sleep func(time.Duration)
+	// Ctx cancels the binding (nil means no caller cancellation).
+	Ctx context.Context
 }
 
 // VerifyResult is the report of a passing run. AutoMerge is always false:
@@ -806,7 +810,7 @@ func verifyPR(in VerifyInput, env verifyEnv) (*VerifyResult, *VerifyFailure) {
 	res.Checks = append(res.Checks, "wrong-target seeds (path, min-from, attest) are rejected by the same comparison")
 
 	if in.Upstream != nil {
-		br, bf := (Binder{Runner: in.Upstream, Sleep: in.Sleep}).Bind(rc, bundle.Commit, in.HeadSHA)
+		br, bf := (Binder{Runner: in.Upstream, Sleep: in.Sleep, Ctx: in.Ctx}).Bind(rc, bundle.Commit, in.HeadSHA)
 		if bf != nil {
 			return nil, bf
 		}
@@ -921,7 +925,9 @@ func runVerifyPRWith(args []string, stdout, stderr io.Writer, runner LsRemoteRun
 	switch {
 	case f != nil:
 		fmt.Fprintln(stdout, upstreamBindingLine)
-		fmt.Fprintf(stdout, "FAIL %s: %s\n", f.Code, f.Detail)
+		// Detail can hold caller-controlled text (file names): quoted, so no
+		// byte of it can start a line of its own.
+		fmt.Fprintf(stdout, "FAIL %s: %s\n", f.Code, strconv.Quote(f.Detail))
 		fmt.Fprintln(stdout, "auto-merge: not eligible")
 		doc.FailCode = f.Code
 		code = 1

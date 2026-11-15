@@ -582,7 +582,14 @@ func TestCollapseDoesNotTouchExtractor(t *testing.T) {
 		if n == "binding.go" {
 			// The upstream binding runs git (the only exec in the package) from
 			// an empty temporary directory it creates and removes. Exactly
-			// those three calls are allowed there; any other writer is not.
+			// one of each of those three calls is allowed there; any other
+			// writer is not.
+			for _, pat := range []string{`os\.MkdirTemp\(`, `os\.RemoveAll\(`, `exec\.CommandContext\(`} {
+				re := regexp.MustCompile(pat)
+				if n := len(re.FindAll(src, -1)); n != 1 {
+					t.Errorf("binding.go must hold exactly one %s, has %d", pat, n)
+				}
+			}
 			src = bindingAllowed.ReplaceAll(src, nil)
 		}
 		if writers.Match(src) {

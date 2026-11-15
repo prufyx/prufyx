@@ -4,6 +4,8 @@ package targetdraft
 
 import (
 	"context"
+	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -475,5 +477,95 @@ func TestBindingDigestIsStableAndSensitive(t *testing.T) {
 	}
 	if bindingDigest(res.Repo, res.Tags[:2]) == res.Digest {
 		t.Fatal("the tag set must be bound")
+	}
+}
+
+// Cancelling the caller's context stops the binding: no further attempt and
+// never a pass, even when the runner then returns a good answer.
+func TestBindingHonoursCallerCancellation(t *testing.T) {
+	r := bRecipe()
+	// Cancelled before the first attempt: nothing runs.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	run := &fakeRunner{results: []ExecResult{okRun(goodOut())}}
+	if _, f := (Binder{Runner: run, Ctx: ctx}).Bind(r, bBundle(r), bHead); f == nil || !f.Harness || f.Code != "binding-unavailable" || len(run.calls) != 0 {
+		t.Fatalf("%v %d", f, len(run.calls))
+	}
+	// Cancelled during an attempt that then reports a good answer: refused.
+	ctx, cancel = context.WithCancel(context.Background())
+	cr := &cancelRunner{cancel: cancel, out: okRun(goodOut())}
+	if res, f := (Binder{Runner: cr, Ctx: ctx}).Bind(r, bBundle(r), bHead); f == nil || res != nil || cr.n != 1 {
+		t.Fatalf("%v %d", f, cr.n)
+	}
+	// Cancelled during a transient failure: no retry.
+	ctx, cancel = context.WithCancel(context.Background())
+	cr = &cancelRunner{cancel: cancel, out: errRun(128, "returned error: 503")}
+	slept := 0
+	if _, f := (Binder{Runner: cr, Ctx: ctx, Sleep: func(time.Duration) { slept++ }}).Bind(r, bBundle(r), bHead); f == nil || cr.n != 1 || slept != 0 {
+		t.Fatalf("%v %d %d", f, cr.n, slept)
+	}
+	// An uncancelled context behaves as before.
+	run = &fakeRunner{results: []ExecResult{okRun(goodOut())}}
+	if _, f := (Binder{Runner: run, Ctx: context.Background()}).Bind(r, bBundle(r), bHead); f != nil {
+		t.Fatal(f)
+	}
+}
+
+type cancelRunner struct {
+	cancel func()
+	out    ExecResult
+	n      int
+}
+
+func (c *cancelRunner) Run(context.Context, ExecSpec) ExecResult {
+	c.n++
+	c.cancel()
+	return c.out
+}
+
+// The command the real runner starts carries the exact environment, the empty
+// directory, the argument vector and the process-group kill. Nothing runs.
+func TestPrepareCmdPinsEnvDirArgsAndKill(t *testing.T) {
+	spec := ExecSpec{Argv: []string{"git", "ls-remote", "--tags", "--", "https://github.com/a/b.git"}, Env: bindingEnv()}
+	cmd := exec.CommandContext(context.Background(), "/usr/bin/git", spec.Argv[1:]...)
+	env := runnerEnv(spec, "/empty/home")
+	so, se := prepareCmd(cmd, env, "/empty/home")
+	if so == nil || se == nil || cmd.Stdout != so || cmd.Stderr != se {
+		t.Fatal("output must go to the capped buffers")
+	}
+	if cmd.Env == nil || len(cmd.Env) != len(bindingEnv())+1 || cmd.Env[len(cmd.Env)-1] != "HOME=/empty/home" {
+		t.Fatalf("env %q (a nil Env would inherit the process environment)", cmd.Env)
+	}
+	if cmd.Dir != "/empty/home" {
+		t.Fatalf("dir %q", cmd.Dir)
+	}
+	if strings.Join(cmd.Args[1:], " ") != strings.Join(spec.Argv[1:], " ") || cmd.Path != "/usr/bin/git" {
+		t.Fatalf("%q %q", cmd.Path, cmd.Args)
+	}
+	if cmd.WaitDelay != bindingWaitDelay || cmd.WaitDelay <= 0 || cmd.Cancel == nil {
+		t.Fatal("wait delay and cancel kill must be set")
+	}
+	if runtime.GOOS != "windows" && (cmd.SysProcAttr == nil || !cmd.SysProcAttr.Setpgid) {
+		t.Fatal("the command must run in its own process group")
+	}
+}
+
+// A command that spawns a child and ignores the deadline is killed with its
+// whole group and returns as timed out well inside the wait delay.
+func TestFinishCmdKillsTheGroupAtTheDeadline(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("process groups")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", "sleep 30 & sleep 30; wait")
+	so, se := prepareCmd(cmd, []string{"PATH=/usr/bin:/bin"}, t.TempDir())
+	start := time.Now()
+	res := finishCmd(ctx, cmd, so, se)
+	if !res.TimedOut {
+		t.Fatalf("%+v", res)
+	}
+	if d := time.Since(start); d > 10*time.Second {
+		t.Fatalf("the run overran its deadline: %v", d)
 	}
 }

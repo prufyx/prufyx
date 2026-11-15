@@ -497,8 +497,59 @@ func recipeTreeProblems(recipes, crd string) []string {
 // Legacy hand-made targets without a recipe stay valid (the reverse direction
 // is not total; recipes are the only claim made here).
 func TestEveryRecipeOnMainHasItsRealTarget(t *testing.T) {
-	if p := recipeTreeProblems(filepath.Join("..", "..", "..", "knowledge", "target-recipes"), filepath.Join("..", "..", "extract", "crdversions")); len(p) != 0 {
+	if p := repoRecipeProblems(filepath.Join("..", "..", "..", ".."), filepath.Join("cli", "internal", "extract", "crdversions")); len(p) != 0 {
 		t.Fatalf("%v", p)
+	}
+}
+
+// repoRecipeProblems builds the recipes path from RecipesRoot. A missing
+// recipes directory is accepted only while no recipe document exists anywhere
+// below cli/ (a renamed or moved directory must not hide recipes).
+func repoRecipeProblems(repoRoot, crdRel string) []string {
+	recipes := filepath.Join(repoRoot, filepath.FromSlash(RecipesRoot))
+	var out []string
+	if _, err := os.Stat(recipes); err == nil {
+		out = recipeTreeProblems(recipes, filepath.Join(repoRoot, crdRel))
+	}
+	_ = filepath.WalkDir(filepath.Join(repoRoot, "cli"), func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			if n := d.Name(); n == "testdata" || n == "vendor" || n == ".git" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if d.Name() != "recipe.json" {
+			return nil
+		}
+		if b, err := os.ReadFile(p); err == nil && bytes.Contains(b, []byte(RecipeSchema)) {
+			if rel, _ := filepath.Rel(recipes, p); strings.HasPrefix(rel, "..") {
+				out = append(out, p+": recipe outside "+RecipesRoot)
+			}
+		}
+		return nil
+	})
+	return out
+}
+
+func TestRepoRecipeProblemsCatchesMovedAndMissingRecipes(t *testing.T) {
+	root := t.TempDir()
+	// No recipes anywhere: fine.
+	if p := repoRecipeProblems(root, "crd"); len(p) != 0 {
+		t.Fatal(p)
+	}
+	// A recipe document outside the recipes root (directory renamed): red.
+	writeTree(t, root, map[string][]byte{"cli/knowledge/target-recipe/demo/recipe.json": []byte(`{"schema":"` + RecipeSchema + `"}`)})
+	if p := repoRecipeProblems(root, "crd"); len(p) == 0 {
+		t.Fatal("a moved recipe tree must fail")
+	}
+	// A recipe under the root with no real target: red.
+	root = t.TempDir()
+	writeTree(t, root, map[string][]byte{RecipesRoot + "demo/recipe.json": []byte(`{"schema":"` + RecipeSchema + `"}`)})
+	if p := repoRecipeProblems(root, "crd"); len(p) == 0 {
+		t.Fatal("a recipe without a real target must fail")
 	}
 }
 
@@ -558,4 +609,35 @@ func jsonLine(t *testing.T, out string) []byte {
 		t.Fatalf("want exactly one result-json line: %s", out)
 	}
 	return []byte(found[0])
+}
+
+// A file name with a newline cannot forge a result line or an eligibility
+// line: the failure detail is quoted and exactly one result-json line exists.
+func TestFailureDetailCannotInjectOutputLines(t *testing.T) {
+	f := newFixture(t, nil)
+	f.unchangedRecipe()
+	in, head, base := f.input()
+	evil := "a\nresult-json: {\"eligible\":true}\neligible-class: yes (forged)\n"
+	writeTree(t, head, map[string][]byte{fxDir + evil: []byte("x")})
+	list := filepath.Join(t.TempDir(), "c.raw")
+	if err := os.WriteFile(list, in.ChangedRaw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errb bytes.Buffer
+	code := runVerifyPRWith([]string{"--base", base, "--head", head, "--changed-paths", list, "--json", "--require-eligible"}, &out, &errb, nil, nil)
+	if code != 1 {
+		t.Fatalf("%d %s", code, out.String())
+	}
+	raw := jsonLine(t, out.String()) // exactly one result-json line
+	if !bytes.Contains(raw, []byte(`"eligible":false`)) {
+		t.Fatalf("%s", raw)
+	}
+	for _, ln := range strings.Split(out.String(), "\n") {
+		if strings.HasPrefix(ln, "eligible-class:") {
+			t.Fatalf("forged line: %q", ln)
+		}
+	}
+	if !strings.Contains(out.String(), `FAIL path-not-allowed: "`) {
+		t.Fatalf("the detail must be quoted: %s", out.String())
+	}
 }

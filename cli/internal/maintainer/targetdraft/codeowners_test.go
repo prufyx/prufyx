@@ -9,19 +9,14 @@ import (
 	"testing"
 )
 
-// ownerOnlyPaths are the verifier, its tests and the recipe tree. A data PR
+// ownerOnlyPaths are the verifier package (every file in it), the command
+// wiring that dispatches it, and the recipe tree. A data PR
 // must not be able to change the check that judges it, so each is owner-only
 // in CODEOWNERS. This test pins the lines so they cannot be dropped silently
 // (and the test itself sits on an owner-only path).
 var ownerOnlyPaths = []string{
-	"/cli/internal/maintainer/targetdraft/verify.go",
-	"/cli/internal/maintainer/targetdraft/factsource.go",
-	"/cli/internal/maintainer/targetdraft/binding.go",
-	"/cli/internal/maintainer/targetdraft/verify_test.go",
-	"/cli/internal/maintainer/targetdraft/factsource_test.go",
-	"/cli/internal/maintainer/targetdraft/binding_test.go",
-	"/cli/internal/maintainer/targetdraft/realtarget_test.go",
-	"/cli/internal/maintainer/targetdraft/codeowners_test.go",
+	"/cli/internal/maintainer/targetdraft/",
+	"/cli/cmd/prufyx-maintainer/main.go",
 	"/cli/knowledge/target-recipes/",
 }
 
