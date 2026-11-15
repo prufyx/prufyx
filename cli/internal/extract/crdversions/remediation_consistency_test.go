@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -21,6 +20,18 @@ import (
 type publishedRule struct {
 	ID, Next, To string
 	Members      []string
+	Sources      []pinnedSource
+}
+
+type pinnedSource struct{ ID, Revision, ContentDigest string }
+
+// adviceRow holds the advice inputs the rule's own members and subject do
+// not carry, as read from the CRDs the rule cites (testdata/crd-advice-inputs.json).
+type adviceRow struct {
+	RuleID                string `json:"ruleId"`
+	Replacement           string `json:"replacement"`
+	StoredVersionsPresent bool   `json:"storedVersionsPresent"`
+	SourcesDigest         string `json:"sourcesDigest"`
 }
 
 func publishedCRDRules(t *testing.T) []publishedRule {
@@ -40,6 +51,13 @@ func publishedCRDRules(t *testing.T) []publishedRule {
 				SetCondition struct {
 					Members []string `json:"members"`
 				} `json:"setCondition"`
+				Evidence struct {
+					Sources []struct {
+						ID            string `json:"id"`
+						Revision      string `json:"revision"`
+						ContentDigest string `json:"contentDigest"`
+					} `json:"sources"`
+				} `json:"evidence"`
 			} `json:"rule"`
 		} `json:"entries"`
 	}
@@ -48,57 +66,108 @@ func publishedCRDRules(t *testing.T) []publishedRule {
 	}
 	var out []publishedRule
 	for _, e := range pack.Entries {
-		if strings.Contains(e.Rule.ID, ".crd-version-removal.") {
-			out = append(out, publishedRule{e.Rule.ID, e.Rule.NextAction, e.Rule.Subject.To, e.Rule.SetCondition.Members})
+		if !strings.Contains(e.Rule.ID, ".crd-version-removal.") {
+			continue
 		}
+		r := publishedRule{ID: e.Rule.ID, Next: e.Rule.NextAction, To: e.Rule.Subject.To, Members: e.Rule.SetCondition.Members}
+		for _, s := range e.Rule.Evidence.Sources {
+			r.Sources = append(r.Sources, pinnedSource{s.ID, s.Revision, s.ContentDigest})
+		}
+		out = append(out, r)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	return out
 }
 
-// adviceInputs are the values nextAction reads.
-type adviceInputs struct {
-	Kind, Group, Repl, To string
-	Stored                []string
-}
-
-func (in adviceInputs) current() string {
-	return nextAction(&CRD{Kind: in.Kind, Group: in.Group}, in.Repl, in.Stored, in.To)
-}
-
-var (
-	reNewAdvice = regexp.MustCompile(`^(verify completed storage migration before removing old status\.storedVersions; )?(?:migrate (\S+) manifests/clients to (\S+)/(\S+)|identify a supported migration for (\S+) manifests/clients); for managed objects, follow supported controller migration or investigate before upgrade to (\S+)$`)
-	// The wording of extractor 2.7.0 and earlier (the two shapes the
-	// published rules carry).
-	reOldPlain  = regexp.MustCompile(`^change apiVersion of (\S+) to (\S+)/(\S+) before upgrading to (\S+)$`)
-	reOldStored = regexp.MustCompile(`^migrate stored (\S+) objects to (\S+) and remove (.+) from status\.storedVersions, then change apiVersion to (\S+)/(\S+) before upgrading to (\S+)$`)
-)
-
-// parseAdvice recovers the inputs of a published advice text, in the current
-// wording or in the earlier one.
-func parseAdvice(s string) (adviceInputs, bool) {
-	if m := reNewAdvice.FindStringSubmatch(s); m != nil {
-		in := adviceInputs{To: m[6]}
-		if m[1] != "" {
-			in.Stored = []string{"stored"}
+func adviceRows(t *testing.T) map[string]adviceRow {
+	t.Helper()
+	raw, err := os.ReadFile("testdata/crd-advice-inputs.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var f struct {
+		Version int         `json:"version"`
+		Rules   []adviceRow `json:"rules"`
+	}
+	if err := json.Unmarshal(raw, &f); err != nil || f.Version != 1 {
+		t.Fatalf("advice inputs: version %d, %v", f.Version, err)
+	}
+	out := map[string]adviceRow{}
+	for _, r := range f.Rules {
+		if _, dup := out[r.RuleID]; dup {
+			t.Fatalf("advice inputs hold %s twice", r.RuleID)
 		}
-		if m[5] != "" {
-			in.Kind = m[5]
-		} else {
-			in.Kind, in.Group, in.Repl = m[2], m[3], m[4]
-		}
-		return in, true
+		out[r.RuleID] = r
 	}
-	if m := reOldPlain.FindStringSubmatch(s); m != nil {
-		return adviceInputs{Kind: m[1], Group: m[2], Repl: m[3], To: m[4]}, true
-	}
-	if m := reOldStored.FindStringSubmatch(s); m != nil && m[2] == m[5] {
-		return adviceInputs{Kind: m[1], Repl: m[2], Stored: strings.Split(m[3], ", "), Group: m[4], To: m[6]}, true
-	}
-	return adviceInputs{}, false
+	return out
 }
 
 func sum(s string) string { h := sha256.Sum256([]byte(s)); return hex.EncodeToString(h[:]) }
+
+// sourcesDigest binds an advice row to the sources a rule cites.
+func sourcesDigest(srcs []pinnedSource) string {
+	s := append([]pinnedSource(nil), srcs...)
+	sort.Slice(s, func(i, j int) bool { return s[i].ID < s[j].ID })
+	var b strings.Builder
+	for _, x := range s {
+		fmt.Fprintf(&b, "%s|%s|%s\n", x.ID, x.Revision, x.ContentDigest)
+	}
+	return sum(b.String())
+}
+
+// currentAdvice derives what the current extractor says for the rule. The
+// kind, group and target come from the rule's structured members and subject;
+// the replacement version and the stored-version state come from the advice
+// row, never from the rule's own advice text. It fails when the row is not
+// bound to the rule's cited sources.
+func currentAdvice(r publishedRule, row adviceRow) (string, error) {
+	if row.SourcesDigest != sourcesDigest(r.Sources) {
+		return "", fmt.Errorf("the advice row of %s is not bound to the sources the rule cites now: re-read the cited CRDs and update testdata/crd-advice-inputs.json", r.ID)
+	}
+	var kind, group string
+	for _, m := range r.Members {
+		parts := strings.Split(m, "/")
+		if len(parts) != 3 {
+			return "", fmt.Errorf("%s: member %q is not group/version/Kind", r.ID, m)
+		}
+		if kind != "" && (kind != parts[2] || group != parts[0]) {
+			return "", fmt.Errorf("%s: members name more than one kind", r.ID)
+		}
+		group, kind = parts[0], parts[2]
+	}
+	if kind == "" {
+		return "", fmt.Errorf("%s: no members", r.ID)
+	}
+	var stored []string
+	if row.StoredVersionsPresent {
+		stored = []string{"stored"}
+	}
+	return nextAction(&CRD{Kind: kind, Group: group}, row.Replacement, stored, r.To), nil
+}
+
+// checkPublished is the consistency rule for one published rule: its advice
+// is the current extractor output for inputs read from structured fields and
+// the pinned CRD row, unless the rule is on the pending list (then the list
+// entry must describe exactly this published text and the current output).
+func checkPublished(r publishedRule, row adviceRow, hasRow bool, pending map[string]extractpack.RemediationPair) error {
+	if !hasRow {
+		return fmt.Errorf("%s: no row in testdata/crd-advice-inputs.json: add one by reading the CRDs the rule cites", r.ID)
+	}
+	cur, err := currentAdvice(r, row)
+	if err != nil {
+		return err
+	}
+	p, listed := pending[r.ID]
+	switch {
+	case cur == r.Next && listed:
+		return fmt.Errorf("%s: advice is current but the rule is still on the pending list: remove its entry from remediationAllowList and raise RemediationAllowListVersion", r.ID)
+	case cur != r.Next && !listed:
+		return fmt.Errorf("%s: published advice %q differs from the current extractor output %q. The extractor change that altered nextAction must be followed by renewing this rule; until then add it to the pending list (remediationAllowList in extractpack/remediation.go, regenerate with PRUFYX_PRINT_REMEDIATION_ALLOWLIST=1). If instead this rule's advice or sources were edited by hand, revert that", r.ID, r.Next, cur)
+	case cur != r.Next && (p.OldSHA256 != sum(r.Next) || p.NewSHA256 != sum(cur)):
+		return fmt.Errorf("%s: pending entry does not match the published advice and the current output (old %s new %s)", r.ID, sum(r.Next), sum(cur))
+	}
+	return nil
+}
 
 // Every published rule's advice is what the current extractor derives from the
 // rule's own inputs, except the rules on the explicit pending-migration list
@@ -113,36 +182,17 @@ func TestPublishedRemediationAdviceMatchesExtractor(t *testing.T) {
 		}
 		pending[p.RuleID] = p
 	}
+	rows := adviceRows(t)
 	seen := map[string]bool{}
 	var derived []string
 	for _, r := range publishedCRDRules(t) {
-		in, ok := parseAdvice(r.Next)
-		if !ok {
-			t.Errorf("%s: advice %q has a shape this test does not know: the extractor change that introduced it must update parseAdvice and renew or list the published rules", r.ID, r.Next)
-			continue
-		}
-		for _, m := range r.Members {
-			parts := strings.Split(m, "/")
-			if len(parts) != 3 || (in.Group != "" && parts[0] != in.Group) || parts[2] != in.Kind {
-				t.Errorf("%s: member %q does not match the advice inputs %+v", r.ID, m, in)
-			}
-		}
-		if in.To != r.To {
-			t.Errorf("%s: advice target %q differs from subject.to %q", r.ID, in.To, r.To)
-		}
-		cur := in.current()
-		p, listed := pending[r.ID]
 		seen[r.ID] = true
-		if cur != r.Next {
-			derived = append(derived, fmt.Sprintf("\t{RuleID: %q, OldSHA256: %q, NewSHA256: %q},", r.ID, sum(r.Next), sum(cur)))
+		row, ok := rows[r.ID]
+		if err := checkPublished(r, row, ok, pending); err != nil {
+			t.Error(err)
 		}
-		switch {
-		case cur == r.Next && listed:
-			t.Errorf("%s: advice is current but the rule is still on the pending list: remove its entry from remediationAllowList and raise RemediationAllowListVersion", r.ID)
-		case cur != r.Next && !listed:
-			t.Errorf("%s: published advice %q differs from the current extractor output %q. The extractor change that altered nextAction must be followed by renewing this rule; until then add it to the pending list (remediationAllowList in extractpack/remediation.go, regenerate with PRUFYX_PRINT_REMEDIATION_ALLOWLIST=1)", r.ID, r.Next, cur)
-		case cur != r.Next && (p.OldSHA256 != sum(r.Next) || p.NewSHA256 != sum(cur)):
-			t.Errorf("%s: pending entry does not match the published advice and the current output (old %s new %s)", r.ID, sum(r.Next), sum(cur))
+		if cur, err := currentAdvice(r, row); err == nil && cur != r.Next {
+			derived = append(derived, fmt.Sprintf("\t{RuleID: %q, OldSHA256: %q, NewSHA256: %q},", r.ID, sum(r.Next), sum(cur)))
 		}
 	}
 	for id := range pending {
@@ -150,7 +200,81 @@ func TestPublishedRemediationAdviceMatchesExtractor(t *testing.T) {
 			t.Errorf("pending entry %s names no published crd-version-removal rule: remove it", id)
 		}
 	}
+	for id := range rows {
+		if !seen[id] {
+			t.Errorf("advice row %s names no published crd-version-removal rule: remove it", id)
+		}
+	}
 	if os.Getenv("PRUFYX_PRINT_REMEDIATION_ALLOWLIST") != "" {
 		t.Logf("allow-list (%d):\n%s", len(derived), strings.Join(derived, "\n"))
+	}
+}
+
+// Mutating the advice inputs of a rule that is current (not pending) fails:
+// the replacement version and the storage prefix are not taken from the text
+// being checked.
+func TestRemediationConsistencyDetectsMutatedInputs(t *testing.T) {
+	pending := map[string]extractpack.RemediationPair{}
+	for _, p := range extractpack.RemediationAllowList() {
+		pending[p.RuleID] = p
+	}
+	rows := adviceRows(t)
+	var current []publishedRule
+	for _, r := range publishedCRDRules(t) {
+		if _, listed := pending[r.ID]; !listed {
+			current = append(current, r)
+		}
+	}
+	if len(current) == 0 {
+		t.Skip("every published rule is pending")
+	}
+	for _, r := range current {
+		row := rows[r.ID]
+		if err := checkPublished(r, row, true, pending); err != nil {
+			t.Fatalf("baseline: %v", err)
+		}
+		mut := map[string]func(publishedRule) publishedRule{
+			"replacement version in the advice text": func(x publishedRule) publishedRule {
+				x.Next = strings.Replace(x.Next, "/"+row.Replacement+";", "/"+row.Replacement+"x;", 1)
+				return x
+			},
+			"storage prefix removed from the advice text": func(x publishedRule) publishedRule {
+				x.Next = strings.TrimPrefix(x.Next, "verify completed storage migration before removing old status.storedVersions; ")
+				return x
+			},
+			"storage prefix added to the advice text": func(x publishedRule) publishedRule {
+				x.Next = "verify completed storage migration before removing old status.storedVersions; " + x.Next
+				return x
+			},
+			"target version in the advice text": func(x publishedRule) publishedRule {
+				x.Next = strings.Replace(x.Next, "upgrade to "+x.To, "upgrade to 9.9.9", 1)
+				return x
+			},
+			"cited source re-pinned": func(x publishedRule) publishedRule {
+				x.Sources = append([]pinnedSource(nil), x.Sources...)
+				x.Sources[0].ContentDigest = "sha256:" + strings.Repeat("0", 64)
+				return x
+			},
+		}
+		for name, f := range mut {
+			m := f(r)
+			if m.Next == r.Next && len(m.Sources) > 0 && m.Sources[0] == r.Sources[0] {
+				continue // the mutation does not apply to this rule's shape
+			}
+			if err := checkPublished(m, row, true, pending); err == nil {
+				t.Errorf("%s: %s passed", r.ID, name)
+			}
+		}
+		// Editing the row alone (without the text) also fails.
+		bad := row
+		bad.Replacement += "x"
+		if err := checkPublished(r, bad, true, pending); err == nil {
+			t.Errorf("%s: a changed replacement in the row passed", r.ID)
+		}
+		bad = row
+		bad.StoredVersionsPresent = !bad.StoredVersionsPresent
+		if err := checkPublished(r, bad, true, pending); err == nil {
+			t.Errorf("%s: a flipped storage flag in the row passed", r.ID)
+		}
 	}
 }

@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
 )
@@ -84,8 +85,7 @@ func shaHex(s string) string {
 const maxStrictDepth = 64
 
 // strictJSON parses raw as exactly one JSON object. It refuses trailing
-// data, a repeated member name, two member names that differ only in letter
-// case, and nesting deeper than maxStrictDepth. Numbers stay json.Number, so
+// data, a repeated member name, two member names equal under Unicode simple folding, and nesting deeper than maxStrictDepth. Numbers stay json.Number, so
 // a large number is compared as written and never through a float.
 func strictJSON(raw []byte) (map[string]any, bool) {
 	dec := json.NewDecoder(bytes.NewReader(raw))
@@ -126,7 +126,7 @@ func strictValue(dec *json.Decoder, depth int) (any, error) {
 			if !ok {
 				return nil, errors.New("bad key")
 			}
-			folded := strings.ToLower(k)
+			folded := foldKey(k)
 			if seen[folded] {
 				return nil, errors.New("repeated or case-colliding member")
 			}
@@ -155,6 +155,27 @@ func strictValue(dec *json.Decoder, depth int) (any, error) {
 	}
 	return nil, errors.New("unexpected delimiter")
 }
+
+// foldKey maps a member name to the representative of its Unicode simple
+// folding orbit, the equivalence strings.EqualFold (and encoding/json's field
+// matching) uses: "version" and "ver\u017Fion" share one key, so they collide.
+func foldKey(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		min := r
+		for f := unicode.SimpleFold(r); f != r; f = unicode.SimpleFold(f) {
+			if f < min {
+				min = f
+			}
+		}
+		b.WriteRune(min)
+	}
+	return b.String()
+}
+
+// extractorFamily is the only extractor id family a remediation-text renewal
+// is admitted for.
+const extractorFamily = "crd.version-removal."
 
 var releaseVersionRE = regexp.MustCompile(`^(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})$`)
 
@@ -190,7 +211,8 @@ func releaseLess(a, b [3]int) bool {
 //   - allow lists the rule id, the sha256 of old's nextAction equals the
 //     pair's old hash, the sha256 of nw's nextAction equals its new hash, and
 //     the two texts differ;
-//   - both are active mechanical rules of one extractor id, and nw's
+//   - both are active mechanical rules of one extractor id of the
+//     crd.version-removal family, and nw's
 //     extractor release version is strictly greater than old's (both parsed
 //     as MAJOR.MINOR.PATCH);
 //   - the entries are equal as canonical JSON once rule.nextAction and
@@ -231,7 +253,7 @@ func remediationRenewal(allow []RemediationPair, old, nw []byte) (RemediationRec
 	if ou.basis != "mechanical" || nu.basis != "mechanical" || ou.state != "active" || nu.state != "active" {
 		return rec, false
 	}
-	if ou.extID == "" || ou.extID != nu.extID {
+	if !strings.HasPrefix(ou.extID, extractorFamily) || ou.extID != nu.extID {
 		return rec, false
 	}
 	ov, okO := parseRelease(ou.extVersion)

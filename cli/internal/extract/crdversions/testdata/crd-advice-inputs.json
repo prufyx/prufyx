@@ -1,0 +1,96 @@
+{
+ "version": 1,
+ "note": "Inputs of the advice text (nextAction) of each published crd-version-removal rule that the rule's own members and subject do not carry: the highest served replacement version and whether a removed version was ever a storage version, as read from the CRDs the rule cites. sourcesDigest binds each row to the cited sources (sha256 of 'id|revision|contentDigest' lines sorted by id), so re-pinning a rule requires re-reading this row. Rows are changed only by reading the cited CRDs, never by copying the rule's advice text.",
+ "rules": [
+  {
+   "ruleId": "cilium.crd-version-removal.ciliumnodeconfigs-cilium-io.1-19-0-to-1-20-0",
+   "replacement": "v2",
+   "storedVersionsPresent": false,
+   "sourcesDigest": "2a9ab17b3f6475dc989a18f80e8f68ac7c78ff89ee01037fa2c68962f2190437"
+  },
+  {
+   "ruleId": "crossplane.crd-version-removal.compositionrevisions-apiextensions-crossplane-io.1-20-0-to-2-0-0",
+   "replacement": "v1",
+   "storedVersionsPresent": false,
+   "sourcesDigest": "803c095839c7499c72faa686054342305b4823453c67056cd152426100765126"
+  },
+  {
+   "ruleId": "crossplane.crd-version-removal.environmentconfigs-apiextensions-crossplane-io.1-20-0-to-2-0-0",
+   "replacement": "v1beta1",
+   "storedVersionsPresent": false,
+   "sourcesDigest": "0ae78d2eebd4c41396e625111e73d6256b7238ac20ff81259e0ae05274a65d17"
+  },
+  {
+   "ruleId": "kyverno.crd-version-removal.updaterequests-kyverno-io.1-15-0-to-1-16-0",
+   "replacement": "v2",
+   "storedVersionsPresent": false,
+   "sourcesDigest": "2e5c6b4b969a371ef7d13e54bef9ed88151354cb1c17142ef92a0065b3fdf4d4"
+  },
+  {
+   "ruleId": "openyurt.crd-version-removal.platformadmins-iot-openyurt-io.1-5-0-to-1-6-0",
+   "replacement": "v1beta1",
+   "storedVersionsPresent": true,
+   "sourcesDigest": "ebbafd10b6b000c7092005dd94f3b15f5b8bab9623c8129fdbb3f12ce5859329"
+  },
+  {
+   "ruleId": "strimzi.crd-version-removal.kafkabridges-kafka-strimzi-io.0-51-0-to-1-0-0",
+   "replacement": "v1",
+   "storedVersionsPresent": true,
+   "sourcesDigest": "e06bb7a55ad6276e0ce502c333d15debc6051a4375a0c037100a2fbea38c2ead"
+  },
+  {
+   "ruleId": "strimzi.crd-version-removal.kafkaconnectors-kafka-strimzi-io.0-51-0-to-1-0-0",
+   "replacement": "v1",
+   "storedVersionsPresent": true,
+   "sourcesDigest": "02d211d77fc8b5702a2513386540235ea26e6b730546fb5633db550fb9781edb"
+  },
+  {
+   "ruleId": "strimzi.crd-version-removal.kafkaconnects-kafka-strimzi-io.0-51-0-to-1-0-0",
+   "replacement": "v1",
+   "storedVersionsPresent": true,
+   "sourcesDigest": "439e142d17bbe67a1902a9f7f27e660e9c77c3cf741b3a5b890fa3d4d84b81c7"
+  },
+  {
+   "ruleId": "strimzi.crd-version-removal.kafkamirrormaker2s-kafka-strimzi-io.0-51-0-to-1-0-0",
+   "replacement": "v1",
+   "storedVersionsPresent": true,
+   "sourcesDigest": "9e90a40ed7e2e170e3e057d64ca0527707392aba71acc97dc9d99ddca28f5418"
+  },
+  {
+   "ruleId": "strimzi.crd-version-removal.kafkanodepools-kafka-strimzi-io.0-51-0-to-1-0-0",
+   "replacement": "v1",
+   "storedVersionsPresent": true,
+   "sourcesDigest": "4d7a1e9f5e57ed97dfebfd1d4193db6838b490cd72b99fddcbaf9a4a6c9021fe"
+  },
+  {
+   "ruleId": "strimzi.crd-version-removal.kafkarebalances-kafka-strimzi-io.0-51-0-to-1-0-0",
+   "replacement": "v1",
+   "storedVersionsPresent": true,
+   "sourcesDigest": "cc1db58b47bfd0d1603bf37493ab1cf0cb1f515e1de629cddbd1825ee3134c72"
+  },
+  {
+   "ruleId": "strimzi.crd-version-removal.kafkas-kafka-strimzi-io.0-51-0-to-1-0-0",
+   "replacement": "v1",
+   "storedVersionsPresent": true,
+   "sourcesDigest": "e162408b65bf96e39f23f8733b09f6056b2dd08bcfc121100dabbef281e4fbba"
+  },
+  {
+   "ruleId": "strimzi.crd-version-removal.kafkatopics-kafka-strimzi-io.0-51-0-to-1-0-0",
+   "replacement": "v1",
+   "storedVersionsPresent": true,
+   "sourcesDigest": "57d28992d3cfbb352d5d776fbc14a3abe61acfd4785f97095b7d86d5fe3311e5"
+  },
+  {
+   "ruleId": "strimzi.crd-version-removal.kafkausers-kafka-strimzi-io.0-51-0-to-1-0-0",
+   "replacement": "v1",
+   "storedVersionsPresent": true,
+   "sourcesDigest": "623abf410e52887c5b752fb29ae3e6728084e08c70da4742b33a3e42483a10cf"
+  },
+  {
+   "ruleId": "strimzi.crd-version-removal.strimzipodsets-core-strimzi-io.0-51-0-to-1-0-0",
+   "replacement": "v1",
+   "storedVersionsPresent": true,
+   "sourcesDigest": "b6c5a4be2efdebb7f371b35ff53b5a2d1739ca3cc66ddee087d305d930c37083"
+  }
+ ]
+}

@@ -15,7 +15,7 @@ import (
 
 // corpusSHA256 pins the shared vector corpus. The same file, byte for byte,
 // is checked by the mirror of this predicate; change both together.
-const corpusSHA256 = "f0812b1aff04f132ff9d2164aca996c0d4c82b7484e7a5f6fba95917649332ea"
+const corpusSHA256 = "94164e97af91fd853a84a1b1a7407c59a3c8e879e6d8069eb0635ac6e1cb370e"
 
 const corpusPath = "testdata/renewal-remediation-vectors-v1.json"
 
@@ -183,6 +183,8 @@ func TestMergeRemediationRefusals(t *testing.T) {
 		{"run does not ask to renew", a, false, n},
 		{"rule not on the list", nil, true, n},
 		{"advice tampered, valid stamps", a, true, []byte(strings.Replace(string(n), "migrate Widget", "ignore Widget", 1))},
+		{"fold-colliding extractor version member", a, true, []byte(strings.Replace(string(n), `"version":"2.14.0"`, `"version":"2.14.0","ver\u017Fion":"1.0.0"`, 1))},
+		{"other extractor family", a, true, []byte(strings.ReplaceAll(string(n), "crd.version-removal.demo", "other.family.demo"))},
 	} {
 		withList(t, c.list)
 		_, _, err := merge(mkPack(o), &Run{Entries: []json.RawMessage{c.cand}, renew: c.renew}, &Report{})
@@ -198,6 +200,7 @@ func TestAuditRemediationRenewal(t *testing.T) {
 	o, n, a := vectorPair(t, "")
 	id := a[0].RuleID
 	tampered := []byte(strings.Replace(string(n), "migrate Widget", "ignore Widget", 1))
+	folded := []byte(strings.Replace(string(n), `"version":"2.14.0"`, `"version":"2.14.0","ver\u017Fion":"1.0.0"`, 1))
 	earlier := []byte(strings.Replace(string(tampered), "2027-02-14T05:00:00Z", "2026-10-20T00:00:00Z", 1))
 	for _, c := range []struct {
 		name    string
@@ -211,6 +214,7 @@ func TestAuditRemediationRenewal(t *testing.T) {
 		{"pair not listed", nil, n, map[string]bool{id: true}, true},
 		{"tampered advice, valid stamps", a, tampered, map[string]bool{id: true}, true},
 		{"tampered advice with an earlier expiry", a, earlier, map[string]bool{id: true}, true},
+		{"fold-colliding extractor version member", a, folded, map[string]bool{id: true}, true},
 	} {
 		withList(t, c.list)
 		err := audit(mkPack(o), mkPack(c.head), nil, c.renewed, nil, false)

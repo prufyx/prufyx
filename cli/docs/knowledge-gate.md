@@ -89,9 +89,9 @@ when all of these hold, and refuses otherwise:
   published rule, so no text is typed by hand. Any other `nextAction` change
   is still a collision.
 - Both entries parse strictly: one JSON object, no trailing data, no repeated
-  member name, no two names that differ only in letter case, numbers compared as
+  member name, no two names equal under Unicode simple folding (so `version` and `ver\u017Fion` collide), numbers compared as
   written. `rule.nextAction` is a string in both.
-- Both are active mechanical rules of one extractor id, and the new extractor
+- Both are active mechanical rules of one extractor id of the `crd.version-removal` family, and the new extractor
   release version (`MAJOR.MINOR.PATCH`, parsed as numbers) is strictly greater
   than the published one. A lower or equal version, or a version that does not
   parse, is refused, whatever the code digest.
@@ -118,7 +118,10 @@ text: the rule id, the advice before and after and the extractor transition
 kind `remediation-text` next to `modify`). Each rule is one change and counts
 once toward the per-change, daily and weekly caps. A test requires every
 published `crd-version-removal` rule's advice to equal the current extractor
-output, except the rules on the pending list; entries are removed as the
+output for inputs read from the rule's members and subject and from a table
+of the replacement version and storage state read from the cited CRDs
+(`crdversions/testdata/crd-advice-inputs.json`, bound to the cited sources by
+digest), never from the advice text itself, except the rules on the pending list; entries are removed as the
 renewals land. The shared test vectors are in
 `cli/internal/extract/extractpack/testdata/renewal-remediation-vectors-v1.json`.
 
