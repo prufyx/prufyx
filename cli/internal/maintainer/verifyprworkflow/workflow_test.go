@@ -10,10 +10,14 @@
 package verifyprworkflow
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 
@@ -32,6 +36,7 @@ type step struct {
 }
 
 type job struct {
+	Env         map[string]string `yaml:"env"`
 	Name        string            `yaml:"name"`
 	If          string            `yaml:"if"`
 	RunsOn      string            `yaml:"runs-on"`
@@ -77,6 +82,59 @@ const (
 	verdictJQ  = `'(.result == "ELIGIBLE" or .result == "NOT_APPLICABLE") and .stale == false and .headSha == $head and .baseSha == $base and .mainTip == $base'`
 	staleCond  = `if [ "${live_head}" != "${HEAD_SHA}" ] || [ "${live_state}" != "open" ] || [ "${main_tip}" != "${BASE_SHA}" ]; then`
 )
+
+// Golden fingerprints. Every step's run text is pinned by sha256, so any edit
+// to a shell step fails; inputs of the actions, the job env and the
+// concurrency block are pinned as formatted text. Changing the workflow means
+// changing these on purpose.
+var wantRunSHA = map[string]string{
+	"Validate the event values and start a failing result":                   "bdbb33fb091a0d8d8a98ba3b9d26f4e46596f4ba7db7bb55c47f05d71f1d5934",
+	"Build the tool from the base":                                           "f2b050cc8280aadcc333f066e911a8c9c536f8b6ec28f8ac9d848e47292e539f",
+	"Fetch both commits as objects and require the head to contain the base": "4024c756130ff6d03642422603e2860484b1f6ca1f756dce4768b70226417351",
+	"Export both trees and the changed paths from the same two commits":      "a90a96c5fd19006c626524b3cc582c9a30538a3dd7544aa54c857ba16571db9f",
+	"Classify the change": "9d1a32060997245c4f6dfee7d87b54d18735e279c3b917e6baa39f26d6806f22",
+	"Run verify-pr (reads the upstream tags from github.com)":     "b69659f59dadccd11543a5644bfde9860f19808ebd1670ccbe9c797e13818cdd",
+	"Re-resolve the head of the pull request and the tip of main": "d436c76922a119aefd38f67127ec8016c7d9bc24df4202bcdabf6e44a9e42f80",
+	"Write the result":                       "8c647f6afb096a12186e4465dfecbc5bc09bb42a0e238c3f73b8574f6dd92efb",
+	"Fail unless eligible or not applicable": "6d3d4bb4cde6474c4c66ae78c3506347c292e81c7c7473514af23fef3bc5444a",
+}
+
+var wantWith = map[string]string{
+	"Check out the base (tool code only)": `path="tool-src";persist-credentials="false";ref="${{ github.event.pull_request.base.sha }}";`,
+	"Set up Go":                           `cache="false";go-version-file="tool-src/cli/go.mod";`,
+	"Upload the result":                   "if-no-files-found=\"error\";name=\"verify-pr-result\";path=\"${{ runner.temp }}/out/result.json\\n${{ runner.temp }}/out/changed.raw\\n\";retention-days=\"30\";",
+}
+
+const (
+	wantJobEnv      = `BASE_SHA="${{ github.event.pull_request.base.sha }}";HEAD_REPO="${{ github.event.pull_request.head.repo.full_name }}";HEAD_SHA="${{ github.event.pull_request.head.sha }}";PR_NUMBER="${{ github.event.pull_request.number }}";`
+	wantConcurrency = `cancel-in-progress="false";group="verify-pr-${{ github.event.pull_request.number }}";`
+)
+
+func envAny(m map[string]string) map[string]any {
+	o := map[string]any{}
+	for k, v := range m {
+		o[k] = v
+	}
+	return o
+}
+
+func fmtMap(m map[string]any) string {
+	var keys []string
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var b strings.Builder
+	for _, k := range keys {
+		fmt.Fprintf(&b, "%s=%q;", k, fmt.Sprint(m[k]))
+	}
+	return b.String()
+}
+
+func sum(s string) string {
+	h := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(h[:])
+}
 
 var pinnedRE = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_./-]+@[0-9a-f]{40}$`)
 
@@ -198,6 +256,47 @@ func lint(text string) []string {
 				if str, isStr := val.(string); isStr && strings.Contains(str, bad) {
 					add("head-in-with")
 				}
+			}
+		}
+	}
+
+	// Golden run texts, action inputs, job env and concurrency.
+	if fmtMap(envAny(j.Env)) != wantJobEnv {
+		add("job-env")
+	}
+	if fmtMap(wf.Concurrency) != wantConcurrency {
+		add("concurrency-golden")
+	}
+	for _, s := range j.Steps {
+		if s.Run != "" && wantRunSHA[s.Name] != sum(s.Run) {
+			add("run-golden")
+		}
+		if s.Uses != "" && fmtMap(s.With) != wantWith[s.Name] {
+			add("with-golden")
+		}
+	}
+	// Explicit decision properties (not only the golden hash).
+	for _, s := range j.Steps {
+		switch s.Name {
+		case "Write the result":
+			if !strings.Contains(s.Run, "jq -e --arg head") || !strings.Contains(s.Run, "1|3) result=NOT_ELIGIBLE ;;") {
+				add("result-logic")
+			}
+		case "Classify the change":
+			if !strings.Contains(s.Run, `if [ "${hits}" = "0" ]; then`+"\n"+`  echo "class=not_applicable"`) {
+				add("classify-branch")
+			}
+		case "Run verify-pr (reads the upstream tags from github.com)":
+			for _, f := range []string{"--upstream-binding ls-remote", `--base-sha "${BASE_SHA}" --head-sha "${HEAD_SHA}"`, "--json --require-eligible"} {
+				if !strings.Contains(s.Run, f) {
+					add("tool-flags")
+				}
+			}
+			a := strings.Index(s.Run, `echo "::stop-commands::${token}"`)
+			b := strings.Index(s.Run, "cat ")
+			c := strings.Index(s.Run, `echo "::${token}::"`)
+			if !(a >= 0 && a < b && b < c) || !strings.Contains(s.Run, "od -An -N16 -tx1 /dev/urandom") {
+				add("stop-commands-order")
 			}
 		}
 	}
@@ -415,6 +514,24 @@ func TestVerifyPRWorkflowMutationsAreCaught(t *testing.T) {
 		{"export not stopped", "          echo \"::stop-commands::${token}\"\n          \"${RUNNER_TEMP}/prufyx-maintainer\" gate export", "          \"${RUNNER_TEMP}/prufyx-maintainer\" gate export", "head-path"},
 		{"re-resolve without main", "/branches/main", "/branches/dev", "reresolve"},
 		{"workdir elsewhere", "      - name: Classify the change\n        id: classify\n", "      - name: Classify the change\n        id: classify\n        working-directory: tool-src\n", "working-directory"},
+		{"write step without -e", "if printf '%s' \"${tool_json}\" | jq -e --arg head", "if printf '%s' \"${tool_json}\" | jq --arg head", "run-golden"},
+		{"exit 3 eligible", "1|3) result=NOT_ELIGIBLE ;;", "1|3) result=ELIGIBLE ;;", "result-logic"},
+		{"classify inverted", "if [ \"${hits}\" = \"0\" ]; then", "if [ \"${hits}\" != \"0\" ]; then", "classify-branch"},
+		{"stale override removed", "          if [ \"${stale}\" = \"true\" ]; then\n            result=ERROR\n          fi\n", "", "run-golden"},
+		{"fixed stop token", "echo \"::stop-commands::${token}\"\n          cat ", "echo \"::stop-commands::fixed\"\n          cat ", "stop-commands-order"},
+		{"missing resume", "tool.err\"\n          echo \"::${token}::\"\n", "tool.err\"\n", "stop-commands-order"},
+		{"resume before cat", "          cat \"${RUNNER_TEMP}/out/tool.txt\" \"${RUNNER_TEMP}/out/tool.err\"\n          echo \"::${token}::\"\n", "          echo \"::${token}::\"\n          cat \"${RUNNER_TEMP}/out/tool.txt\" \"${RUNNER_TEMP}/out/tool.err\"\n", "stop-commands-order"},
+		{"head executed via temp path", "          echo \"${code}\" > \"${RUNNER_TEMP}/out/tool.exit\"\n", "          echo \"${code}\" > \"${RUNNER_TEMP}/out/tool.exit\"\n          bash \"${RUNNER_TEMP}/work/head/x.sh\"\n", "run-golden"},
+		{"job env added", "      PR_NUMBER: ${{ github.event.pull_request.number }}\n", "      PR_NUMBER: ${{ github.event.pull_request.number }}\n      EXTRA: x\n", "job-env"},
+		{"job env changed", "      BASE_SHA: ${{ github.event.pull_request.base.sha }}\n", "      BASE_SHA: ${{ github.sha }}\n", "job-env"},
+		{"tool flag off", "            --upstream-binding ls-remote \\\n", "            --upstream-binding off \\\n", "tool-flags"},
+		{"tool flag dropped", "            --json --require-eligible \\\n", "            --json \\\n", "tool-flags"},
+		{"setup-go cache", "          cache: false\n", "          cache: true\n", "with-golden"},
+		{"setup-go version file", "go-version-file: tool-src/cli/go.mod", "go-version-file: head/cli/go.mod", "with-golden"},
+		{"upload retention", "retention-days: 30", "retention-days: 90", "with-golden"},
+		{"upload name", "name: verify-pr-result", "name: other", "with-golden"},
+		{"summary after mv", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n          true\n", "run-golden"},
+		{"concurrency changed", "group: verify-pr-${{ github.event.pull_request.number }}", "group: verify-pr", "concurrency-golden"},
 		{"verdict no check", "          jq -e --arg head \"${HEAD_SHA}\" --arg base \"${BASE_SHA}\" \\\n            '(.result", "          jq --arg head \"${HEAD_SHA}\" --arg base \"${BASE_SHA}\" \\\n            '(.result", "verdict-step"},
 	}
 	for _, c := range cases {

@@ -207,6 +207,12 @@ only caught by a later run. A consumer must use the newest attempt of the run
 for the head and require a run completed within a freshness bound it defines
 (or re-run at the moment it decides). No bound is set here.
 
+The artifact is written last (after the step summary), so a failure while
+reporting leaves the failing placeholder. Consumers must still check the check
+conclusion of the run (success) together with the artifact: neither alone is
+enough. Artifact upload (v4) can answer 409 on a rerun attempt with the same
+artifact name; that fails the run, which is the safe direction (no result).
+
 Not done here: no required status, no consumer wiring, no change to the
 knowledge gate. The hosted runner cannot restrict egress to a host list; the
 host is a constant in the tool and the workflow holds no secret. The

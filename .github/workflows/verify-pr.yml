@@ -13,9 +13,10 @@ name: Verify PR
 # There is no path filter on purpose (a filtered check never reports on other
 # changes); the job always starts and classifies the change itself.
 #
-# No secrets and no App token. The network is used by the two object fetches,
-# the read-only API calls that re-resolve the head and the base branch tip, and
-# the tool's single upstream tag lookup (github.com, fixed host).
+# No secrets and no App token. The network is used by the checkout of the base,
+# the Go toolchain and module download, the two object fetches, the read-only
+# API calls that re-resolve the head and the base branch tip, the artifact
+# upload, and the tool's single upstream tag lookup (github.com, fixed host).
 #
 # Freshness: the base commit is the one in the event, which a rerun keeps. The
 # end of the run re-reads the live tip of main and the live head; if either
@@ -220,14 +221,16 @@ jobs:
               toolSha:$base, repo:$repo, pr:($pr|tonumber), runId:($runId|tonumber), runAttempt:($attempt|tonumber),
               workflowSha:$workflowSha, mainTip:$mainTip, exitCode:$code, stale:$stale, toolResult:$tool}' \
             > "${out}/result.json.new"
-          mv "${out}/result.json.new" "${out}/result.json"
           {
             echo "### Verify PR (report only)"
             echo
             echo "| field | value |"
             echo "|---|---|"
-            jq -r '"| result | \(.result) |", "| class | \(.class) |", "| head | \(.headSha) |", "| base | \(.baseSha) |", "| tool exit | \(.exitCode) |", "| stale | \(.stale) |"' "${out}/result.json"
+            jq -r '"| result | \(.result) |", "| class | \(.class) |", "| head | \(.headSha) |", "| base | \(.baseSha) |", "| tool exit | \(.exitCode) |", "| stale | \(.stale) |"' "${out}/result.json.new"
           } >> "${GITHUB_STEP_SUMMARY}"
+          # The result file is published last: a failure above leaves the
+          # failing placeholder, never an eligible result beside a red job.
+          mv "${out}/result.json.new" "${out}/result.json"
         env:
           CLASS: ${{ steps.classify.outputs.class }}
 
