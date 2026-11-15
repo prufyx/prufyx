@@ -64,6 +64,10 @@ type btEntry struct {
 	// OraclePaths feeds the reviewed target's own paths to the generator as
 	// installPaths. The result is labelled oracle and never counted as strict.
 	OraclePaths bool `json:"oraclePaths,omitempty"`
+	// InferInstallPaths, CheckInstallPathCopies: the generator flags
+	// --infer-install-paths and --check-install-path-copies. Default off.
+	InferInstallPaths      bool `json:"inferInstallPaths,omitempty"`
+	CheckInstallPathCopies bool `json:"checkInstallPathCopies,omitempty"`
 }
 
 type btSeed struct {
@@ -407,6 +411,16 @@ func runEntry(e btEntry, base, mirrors string, open func(string) Source) btRun {
 		}
 		r.circular = len(rules.Exclusions) > 0
 	}
+	if e.InferInstallPaths {
+		switch {
+		case e.OraclePaths:
+			return fail("inferInstallPaths cannot be combined with oraclePaths")
+		case rules != nil && (len(rules.InstallPaths) > 0 || len(rules.InstallSurface) > 0 || len(rules.PathFilter) > 0):
+			return fail("inferInstallPaths cannot be combined with rules that carry installPaths, installSurface or pathFilter")
+		case rules != nil && len(rules.Exclusions) > 0:
+			return fail("inferInstallPaths cannot be combined with rules that carry exclusions")
+		}
+	}
 	if e.OraclePaths {
 		var err error
 		if rules, err = oracleRules(rules, r.expected); err != nil {
@@ -421,7 +435,8 @@ func runEntry(e btEntry, base, mirrors string, open func(string) Source) btRun {
 	}
 	gen, err := generate(Input{Slug: e.Slug, Name: e.Name, Repo: e.Repo, Component: e.Component, FactProject: e.FactProject,
 		Catalog: e.Catalog, Tags: e.Tags, Source: open(mdir), Rules: rules, MultiPrefix: e.MultiPrefix,
-		CollapseDirectories: e.CollapseDirectories, DeriveDuplicates: e.DeriveDuplicateSources})
+		CollapseDirectories: e.CollapseDirectories, DeriveDuplicates: e.DeriveDuplicateSources,
+		InferInstallPaths: e.InferInstallPaths, CheckInstallPathCopies: e.CheckInstallPathCopies})
 	if err != nil {
 		var se *StopError
 		if !errors.As(err, &se) {

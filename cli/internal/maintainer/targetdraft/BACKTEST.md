@@ -23,6 +23,19 @@ to off: `multiPrefix` (`--multi-prefix`), `collapseDirectories`
 paths into `installPaths` (a directory entry as `dir/`); it is refused when the
 entry's rules file already carries `installPaths` or `installSurface`.
 
+`inferInstallPaths` (`--infer-install-paths`) lets the generator derive the
+install directory itself; `checkInstallPathCopies`
+(`--check-install-path-copies`) checks every definition file outside the
+install paths (it needs installPaths, an `oraclePaths` run, or
+`inferInstallPaths`; otherwise the generator stops). `inferInstallPaths` is a
+harness error when the entry's rules file carries `installPaths`,
+`installSurface`, `pathFilter` or exclusions, or when `oraclePaths` is also set
+(the generator refuses inference with exclusions). An inference run is a
+normal result: inference is a recipe, not an oracle, so `reproduced` counts in
+`strict`, and `install-path-ambiguous`, `install-path-hides-crd` and
+`install-path-copy-differs` are `typed-stop` entries (listed in `stops`, counted
+in `stops=`). Seeds run on a reproduced inference entry like any other.
+
 A reviewed directory entry (keys `path`, `directory`, `match`, `guard` with the
 one default match and guard) is compared by bytes, but only reproduces when
 the generator also emits it as a directory entry (use `collapseDirectories`);
