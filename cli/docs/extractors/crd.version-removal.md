@@ -615,6 +615,17 @@ Through the offline factory mirror (or a fixture tree), never the network.
     generated output equals the committed files: that part of the claim rests on
     the reviewer's evidence. An added or changed declaration is listed by the
     target guard.
+  - A target may carry one `"literalKustomization"` declaration with `path`,
+    `makefile` and `default` paths. The currently supported declaration is
+    limited to one reviewed Redis Operator source shape. It accepts a file only
+    when the release tag, commit, file bytes, Makefile bytes, default
+    kustomization bytes and the sole local Kustomize referrer all match the
+    reviewed pins. The original bytes must strictly decode, and exactly one
+    `{{ .ProjectName }}` action must be accounted for by a YAML comment node.
+    The extractor neither evaluates nor rewrites the action. A changed pin,
+    path, marker, referrer or source shape remains unread. No target declares
+    this mechanism in this change; any later declaration and resulting derived
+    data require their own review and validation.
 
   **Reviewed exclusions carry evidence and are guarded.** Every entry of the
   table names its repository, the path (a directory prefix ending in `/`, one
