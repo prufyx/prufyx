@@ -35,7 +35,8 @@ inference quality apart from the output-format gap.
 
 Seeds feed a deliberately wrong reviewed file (`swap` with another entry's
 file, `path` flipped, `min-from` off by one, `attest` toggled,
-`drop-exclusion`) to an entry that reproduced. Every seed must be rejected. A
+`drop-exclusion`; for an entry with `"multiPrefix": true`: `swap-prefixes`,
+`drop-prefix`, `extra-prefix`) to an entry that reproduced. Every seed must be rejected. A
 seed that reproduces exits 1; a seed that cannot run (entry did not
 reproduce, nothing to flip or drop) exits 2. A green percentage without
 `seeds=K/K-failed` means nothing.
