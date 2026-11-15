@@ -423,15 +423,6 @@ func runEntry(e btEntry, base, mirrors string, open func(string) Source) btRun {
 	return r2
 }
 
-func containsString(list []string, s string) bool {
-	for _, x := range list {
-		if x == s {
-			return true
-		}
-	}
-	return false
-}
-
 func runOnce(e btEntry, base, mirrors string, open func(string) Source) btRun {
 	r := btRun{res: BacktestResult{Slug: e.Slug}}
 	fail := func(format string, a ...any) btRun {
