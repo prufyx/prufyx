@@ -297,41 +297,6 @@ func formatGaps(raw []byte) ([]string, error) {
 	return out, nil
 }
 
-// dirShapeMismatch lists the directory entries of the reviewed target that the
-// generated target does not emit as directory entries (an exact-file list
-// against a shipped directory entry is a difference, never a reproduction).
-func dirShapeMismatch(generated, reviewed []byte) ([]string, error) {
-	want, err := rawPaths(reviewed)
-	if err != nil {
-		return nil, err
-	}
-	have, err := rawPaths(generated)
-	if err != nil {
-		return nil, err
-	}
-	emitted := map[string]bool{}
-	for _, p := range have {
-		if dirEntryDefault(p) {
-			var path string
-			_ = json.Unmarshal(p["path"], &path)
-			emitted[path] = true
-		}
-	}
-	var out []string
-	for _, p := range want {
-		if !dirEntryDefault(p) {
-			continue
-		}
-		var path string
-		_ = json.Unmarshal(p["path"], &path)
-		if !emitted[path] {
-			out = append(out, path)
-		}
-	}
-	sort.Strings(out)
-	return out, nil
-}
-
 // oracleRules builds the rules of an oracle run: the reviewed target's own
 // paths as installPaths (a directory entry as "dir/"), on top of the entry's
 // rules file. An entry whose rules already name installPaths or an install
@@ -482,12 +447,6 @@ func runEntry(e btEntry, base, mirrors string, open func(string) Source) btRun {
 	}
 	if len(gaps) > 0 {
 		r.res.Class, r.res.Cause, r.res.Fields = ClassDiffers, CauseFormatGap, gaps
-		return r
-	}
-	if miss, err := dirShapeMismatch(r.gen, r.expected); err != nil {
-		return fail("compare: %v", err)
-	} else if len(miss) > 0 {
-		r.res.Class, r.res.Cause, r.res.Fields = ClassDiffers, CauseInference, []string{"paths"}
 		return r
 	}
 	diffs, err := compareReviewed(r.gen, r.expected)

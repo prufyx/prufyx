@@ -406,11 +406,17 @@ func TestBacktestDirectoryWithNonDefaultMatchOrGuardStaysFormatGap(t *testing.T)
 		}
 	}
 	// An extra key on a directory entry is also a gap.
-	extra := bytes.Replace(good, []byte(`"directory": true,`), []byte(`"directory": true, "recursive": true,`), 1)
-	if bytes.Equal(extra, good) {
-		t.Skip("directory entry is not pretty-printed as expected")
+	var doc map[string]any
+	if err := json.Unmarshal(good, &doc); err != nil {
+		t.Fatal(err)
 	}
-	if _, r := dirBT(t, func(e *btEntry) { e.CollapseDirectories = true }, extra, ""); r.Cause != CauseFormatGap {
+	paths := doc["target"].(map[string]any)["paths"].([]any)
+	paths[0].(map[string]any)["recursive"] = true
+	extra, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, r := dirBT(t, func(e *btEntry) { e.CollapseDirectories = true }, extra, ""); r.Class != ClassDiffers || r.Cause != CauseFormatGap || !strings.Contains(strings.Join(r.Fields, ","), "paths.recursive") {
 		t.Errorf("%+v", r)
 	}
 }
@@ -470,5 +476,72 @@ func TestBacktestOracleNegatives(t *testing.T) {
 	empty := []byte(`{"schema":"prufyx.io/crd-version-target/v1","target":{"project":"demo","paths":[]}}`)
 	if _, r := dirBT(t, func(e *btEntry) { e.OraclePaths = true }, empty, ""); r.Class != ClassHarnessError {
 		t.Errorf("%+v", r)
+	}
+}
+
+func TestBacktestOracleRefusesInstallSurfaceRules(t *testing.T) {
+	rules := `{"schema":"` + RulesSchema + `","installSurface":[{"path":"config/crd/a.yaml","reason":"r"}],"exclusions":[]}`
+	if _, r := dirBT(t, func(e *btEntry) { e.CollapseDirectories, e.OraclePaths = true, true }, genCollapsed(t, true), rules); r.Class != ClassHarnessError || !strings.Contains(r.Error, "installSurface") {
+		t.Errorf("%+v", r)
+	}
+}
+
+func TestBacktestOracleWithExclusionsIsOracleNotCircular(t *testing.T) {
+	rules := `{"schema":"` + RulesSchema + `","installSurface":[],"exclusions":[{"class":"exact-file","path":"third_party/x/other.yaml","reason":"third-party bundle","evidence":"pinned"}]}`
+	src := func() memSource {
+		return collapseSource(func(_ string, m *memTree) {
+			m.files["third_party/x/other.yaml"] = crdText("other.example.invalid", "Other")
+		})
+	}
+	r0, err := ParseRules([]byte(rules))
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := collapseInputFor(src(), false)
+	in.Rules = r0
+	res, err := Generate(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base, mirrors := t.TempDir(), t.TempDir()
+	for _, d := range []string{"demo"} {
+		if err := os.Mkdir(filepath.Join(mirrors, d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for n, c := range map[string]string{"exp.json": string(res.A), "rules.json": rules} {
+		if err := os.WriteFile(filepath.Join(base, n), []byte(c), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	entry := func(oracle bool) btEntry {
+		return btEntry{Slug: "demo", Name: "Demo", Repo: "github.com/example/demo", Catalog: "cncf", Tags: collapseTags, Mirror: "demo",
+			Rules: "rules.json", Expected: "exp.json", Half: "A", OraclePaths: oracle}
+	}
+	run := func(oracle bool) BacktestReport {
+		m := &btManifest{Schema: BacktestSchema, Count: 1, Entries: []btEntry{entry(oracle)}, Seeds: []btSeed{{Entry: "demo", Kind: "path"}}}
+		return Backtest(m, "d", base, mirrors, func(string) Source { return src() })
+	}
+	// Control: without the oracle the exclusions make the entry circular.
+	if rep := run(false); rep.Results[0].Class != ClassReproducedCircular || rep.Circular != 1 {
+		t.Fatalf("control: %+v", rep.Results)
+	}
+	rep := run(true)
+	if rep.Results[0].Class != ClassReproducedOracle || rep.Reproduced != 0 || rep.Circular != 0 || rep.OracleRepro != 1 {
+		t.Fatalf("%+v", rep.Results)
+	}
+}
+
+func TestBacktestSummaryLineCountsOracle(t *testing.T) {
+	f := newBT(t)
+	f.m["entries"].([]any)[0].(map[string]any)["oraclePaths"] = true
+	code, so, se := f.run(t, btOpen)
+	if code != 0 {
+		t.Fatalf("exit %d: %s %s", code, so, se)
+	}
+	for _, want := range []string{"alpha reproduced-oracle\n", "beta reproduced\n", "strict=1/2 reachable=1/2 circular=0 oracle=1 "} {
+		if !strings.Contains(so, want) {
+			t.Errorf("missing %q in %s", want, so)
+		}
 	}
 }
