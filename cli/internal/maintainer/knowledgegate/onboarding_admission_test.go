@@ -361,7 +361,7 @@ func TestAdmissionDecisionDigestBindsMembers(t *testing.T) {
 		"commit":       func(i *OnboardingAdmissionInput) { i.Commits[0].Verified = false },
 		"batch id":     func(i *OnboardingAdmissionInput) { i.Batch.ID = "b2" },
 		"key id":       func(i *OnboardingAdmissionInput) { i.Batch.KeyID = "k2" },
-		"tier":         func(i *OnboardingAdmissionInput) { i.Batch.Tier = ApprovalTierOwner },
+		"tier":         func(i *OnboardingAdmissionInput) { i.Batch.Tier = ApprovalTierOnboardingBot },
 		"nonce":        func(i *OnboardingAdmissionInput) { i.Batch.Nonce = "n2" },
 		"digests":      func(i *OnboardingAdmissionInput) { i.GateHeadDigests = admDigests("5") },
 		"paths":        func(i *OnboardingAdmissionInput) { i.ChangedPaths = append(i.ChangedPaths, "cli/docs/out.json") },
