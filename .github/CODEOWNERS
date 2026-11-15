@@ -75,6 +75,7 @@
 
 # Workflows, repository settings and this file.
 /.github/ @airstand
+/.github/workflows/verify-pr.yml @airstand
 
 # Community onboarding bundles (hints only): every change gets a maintainer review.
 /contrib/onboard-bundles/ @airstand

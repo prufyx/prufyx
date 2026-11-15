@@ -1,0 +1,232 @@
+name: Verify PR
+
+# Report-only check for generated target-data pull requests: it runs
+# `prufyx-maintainer target-draft verify-pr` and publishes the result. It is
+# not a required check, it is not read by any other workflow, and it never
+# merges anything. A green run is either an ELIGIBLE result for the stated
+# head commit or an explicit NOT_APPLICABLE; neither is merge authority.
+#
+# Like the knowledge gate, it runs on pull_request_target so that the workflow
+# definition and the tool come from the base branch: the tool is built from the
+# base commit and nothing from the change is executed. The change's commit is
+# only fetched as git objects and exported as data; it is never checked out.
+# There is no path filter on purpose (a filtered check never reports on other
+# changes); the job always starts and classifies the change itself.
+#
+# No secrets and no App token. The only network use besides fetching the git
+# objects is the tool's single upstream tag lookup (github.com, fixed host).
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+# A run is never cancelled: a cancelled run must not be mistaken for a result,
+# and a newer head gets its own run bound to its own head commit.
+concurrency:
+  group: verify-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  verify-pr:
+    name: Verify PR
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: read
+    env:
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - name: Validate the event values and start a failing result
+        run: |
+          set -euo pipefail
+          sha_re='^[0-9a-f]{40}$'
+          repo_re='^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'
+          if ! [[ "${BASE_SHA}" =~ ${sha_re} ]] || ! [[ "${HEAD_SHA}" =~ ${sha_re} ]]; then
+            echo "A commit id is not a full commit id."
+            exit 1
+          fi
+          if ! [[ "${HEAD_REPO}" =~ ${repo_re} ]] || ! [[ "${PR_NUMBER}" =~ ^[0-9]+$ ]]; then
+            echo "The head repository or the pull request number is malformed."
+            exit 1
+          fi
+          mkdir -p "${RUNNER_TEMP}/out" "${RUNNER_TEMP}/work"
+          # Until the final step overwrites it this file is a failing result,
+          # so an early stop can never leave an eligible one behind.
+          jq -n -c --arg head "${HEAD_SHA}" --arg base "${BASE_SHA}" \
+            '{schema:"prufyx.io/verify-pr-artifact/v1", result:"ERROR", headSha:$head, baseSha:$base, stale:true}' \
+            > "${RUNNER_TEMP}/out/result.json"
+
+      - name: Check out the base (tool code only)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: tool-src
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: tool-src/cli/go.mod
+          cache: false
+
+      - name: Build the tool from the base
+        working-directory: tool-src/cli
+        run: go build -buildvcs=false -trimpath -o "${RUNNER_TEMP}/prufyx-maintainer" ./cmd/prufyx-maintainer
+
+      - name: Fetch both commits as objects and require the head to contain the base
+        run: |
+          set -euo pipefail
+          objects="${RUNNER_TEMP}/objects.git"
+          git init -q --bare "${objects}"
+          git -C "${objects}" fetch --no-tags --quiet "https://github.com/${GITHUB_REPOSITORY}.git" "+${BASE_SHA}:refs/verify/base"
+          git -C "${objects}" fetch --no-tags --quiet "https://github.com/${HEAD_REPO}.git" "+${HEAD_SHA}:refs/verify/head"
+          if ! git -C "${objects}" merge-base --is-ancestor "${BASE_SHA}" "${HEAD_SHA}"; then
+            echo "The change does not contain the base commit; update it so the check compares exactly what would merge."
+            exit 1
+          fi
+
+      - name: Export both trees and the changed paths from the same two commits
+        run: |
+          set -euo pipefail
+          objects="${RUNNER_TEMP}/objects.git"
+          work="${RUNNER_TEMP}/work"
+          "${RUNNER_TEMP}/prufyx-maintainer" gate export --git-dir "${objects}" --commit "${BASE_SHA}" --out "${work}/base"
+          "${RUNNER_TEMP}/prufyx-maintainer" gate export --git-dir "${objects}" --commit "${HEAD_SHA}" --out "${work}/head"
+          git -C "${objects}" diff --raw -z --no-abbrev --no-renames "${BASE_SHA}" "${HEAD_SHA}" > "${RUNNER_TEMP}/out/changed.raw"
+
+      # A change is applicable when any changed path mentions the recipe
+      # directory or the target directory; the tool then judges it and anything
+      # it does not accept is not eligible. The match is deliberately broad: an
+      # unusual path is applicable (and fails in the tool), never not-applicable.
+      - name: Classify the change
+        id: classify
+        run: |
+          set -euo pipefail
+          hits="$(grep -z -c -e 'target-recipes' -e 'crdversions' "${RUNNER_TEMP}/out/changed.raw" || true)"
+          if ! [[ "${hits}" =~ ^[0-9]+$ ]]; then
+            echo "The classification did not produce a count."
+            exit 1
+          fi
+          if [ "${hits}" = "0" ]; then
+            echo "class=not_applicable" >> "${GITHUB_OUTPUT}"
+          else
+            echo "class=applicable" >> "${GITHUB_OUTPUT}"
+          fi
+
+      # The exit code is captured, never raised here: the result file must be
+      # written whatever the tool said. The tool's output is printed between
+      # stop-commands markers so printed text cannot inject workflow commands.
+      - name: Run verify-pr (the only step that reads the network)
+        id: verify
+        if: steps.classify.outputs.class == 'applicable'
+        run: |
+          set -euo pipefail
+          work="${RUNNER_TEMP}/work"
+          code=0
+          "${RUNNER_TEMP}/prufyx-maintainer" target-draft verify-pr \
+            --base "${work}/base" --head "${work}/head" \
+            --changed-paths "${RUNNER_TEMP}/out/changed.raw" \
+            --upstream-binding ls-remote \
+            --base-sha "${BASE_SHA}" --head-sha "${HEAD_SHA}" \
+            --json --require-eligible \
+            > "${RUNNER_TEMP}/out/tool.txt" 2> "${RUNNER_TEMP}/out/tool.err" || code=$?
+          echo "${code}" > "${RUNNER_TEMP}/out/tool.exit"
+          token="$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
+          echo "::stop-commands::${token}"
+          cat "${RUNNER_TEMP}/out/tool.txt" "${RUNNER_TEMP}/out/tool.err"
+          echo "::${token}::"
+
+      - name: Re-resolve the head of the pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Any failure here stops the job; the result file stays a failing one.
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" \
+            --jq '[.head.sha, .state] | @tsv' > "${RUNNER_TEMP}/out/live.tsv"
+
+      - name: Write the result
+        run: |
+          set -euo pipefail
+          out="${RUNNER_TEMP}/out"
+          IFS=$'\t' read -r live_head live_state < "${out}/live.tsv"
+          stale=false
+          if [ "${live_head}" != "${HEAD_SHA}" ] || [ "${live_state}" != "open" ]; then
+            stale=true
+          fi
+          tool_json=null
+          code=-1
+          result=ERROR
+          if [ "${CLASS}" = "not_applicable" ]; then
+            result=NOT_APPLICABLE
+          else
+            code="$(cat "${out}/tool.exit")"
+            if ! [[ "${code}" =~ ^[0-9]+$ ]]; then
+              code=-1
+            fi
+            if [ "$(grep -c '^result-json: ' "${out}/tool.txt" || true)" = "1" ]; then
+              line="$(grep '^result-json: ' "${out}/tool.txt")"
+              if parsed="$(printf '%s' "${line#result-json: }" | jq -c .)"; then
+                tool_json="${parsed}"
+              fi
+            fi
+            case "${code}" in
+              0)
+                if printf '%s' "${tool_json}" | jq -e --arg head "${HEAD_SHA}" --arg base "${BASE_SHA}" \
+                  '.eligible == true and .autoMerge == false and .headSha == $head and .baseSha == $base' > /dev/null; then
+                  result=ELIGIBLE
+                fi
+                ;;
+              1|3) result=NOT_ELIGIBLE ;;
+            esac
+          fi
+          if [ "${stale}" = "true" ]; then
+            result=ERROR
+          fi
+          jq -n -c \
+            --arg result "${result}" --arg head "${HEAD_SHA}" --arg base "${BASE_SHA}" \
+            --arg repo "${GITHUB_REPOSITORY}" --arg pr "${PR_NUMBER}" \
+            --arg runId "${GITHUB_RUN_ID}" --arg attempt "${GITHUB_RUN_ATTEMPT}" \
+            --arg workflowSha "${GITHUB_WORKFLOW_SHA}" --arg class "${CLASS}" \
+            --argjson code "${code}" --argjson stale "${stale}" --argjson tool "${tool_json}" \
+            '{schema:"prufyx.io/verify-pr-artifact/v1", result:$result, class:$class, headSha:$head, baseSha:$base,
+              toolSha:$base, repo:$repo, pr:($pr|tonumber), runId:($runId|tonumber), runAttempt:($attempt|tonumber),
+              workflowSha:$workflowSha, exitCode:$code, stale:$stale, toolResult:$tool}' \
+            > "${out}/result.json.new"
+          mv "${out}/result.json.new" "${out}/result.json"
+          {
+            echo "### Verify PR (report only)"
+            echo
+            echo "| field | value |"
+            echo "|---|---|"
+            jq -r '"| result | \(.result) |", "| class | \(.class) |", "| head | \(.headSha) |", "| base | \(.baseSha) |", "| tool exit | \(.exitCode) |", "| stale | \(.stale) |"' "${out}/result.json"
+          } >> "${GITHUB_STEP_SUMMARY}"
+        env:
+          CLASS: ${{ steps.classify.outputs.class }}
+
+      - name: Upload the result
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: verify-pr-result
+          path: |
+            ${{ runner.temp }}/out/result.json
+            ${{ runner.temp }}/out/changed.raw
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Fail unless eligible or not applicable
+        run: |
+          set -euo pipefail
+          jq -e --arg head "${HEAD_SHA}" --arg base "${BASE_SHA}" \
+            '(.result == "ELIGIBLE" or .result == "NOT_APPLICABLE") and .stale == false and .headSha == $head and .baseSha == $base' \
+            "${RUNNER_TEMP}/out/result.json" > /dev/null

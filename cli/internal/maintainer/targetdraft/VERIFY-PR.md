@@ -1,7 +1,7 @@
 # verify-pr: regenerate check and upstream binding of a data PR (report only)
 
 Status: implemented, locally verified, report only. It is not a required
-check, it is not wired into any workflow, and it never merges anything. Exit 0
+check, no other workflow or tool reads its result, and it never merges anything. Exit 0
 is never merge authority.
 
 ## What it checks
@@ -152,3 +152,53 @@ Anything that cannot be verified is non-zero.
   that every recipe has a matching real target that is byte-equal to its
   regeneration (hand-made targets without a recipe stay valid and outside this
   class).
+
+## CI: report only (`.github/workflows/verify-pr.yml`)
+
+The workflow `Verify PR` (job `Verify PR`) runs the tool on every pull request
+to `main`. It is report only: it is not a required check, nothing consumes its
+result yet, and it never merges. A green run is never merge authority.
+
+What it does, in order:
+
+1. Runs on `pull_request_target`, so the workflow and the tool come from the
+   base branch. Permissions are `contents: read` and `pull-requests: read`; no
+   secrets, no App token. There is no `paths:` filter (a filtered check never
+   reports on other changes); the job always starts.
+2. Builds the tool from the base commit. The pull request's commit is fetched
+   as git objects only and exported as data with `gate export`; it is never
+   checked out and nothing from it is executed. The head must contain the base.
+3. Classifies the change from the changed paths. If no changed path mentions
+   `target-recipes` or `crdversions` the result is `NOT_APPLICABLE` (green,
+   explicit, never eligible). Anything else is applicable and the tool judges it.
+4. Runs `target-draft verify-pr --json --require-eligible` with the upstream
+   binding, the only step that reads the network besides fetching the git
+   objects. Exit 0 with `eligible: true` for exactly this head and base is
+   `ELIGIBLE`; exit 1 or 3 is `NOT_ELIGIBLE` (a new or changed recipe is a
+   human decision, so such a change is red here by design); anything else is
+   `ERROR`.
+5. Re-resolves the pull request head after the tool ran. If the head moved or
+   the pull request is no longer open the result is `ERROR` with `stale: true`.
+6. Uploads the artifact `verify-pr-result` (30 days) and fails the job unless
+   the result is `ELIGIBLE` or `NOT_APPLICABLE`, not stale, for the same head and
+   base. The job conclusion is therefore the verdict. Runs are never cancelled
+   (no `cancel-in-progress`), so a cancelled run cannot stand in for a result.
+
+Artifact `verify-pr-result`: `result.json` and `changed.raw`. `result.json` is
+one JSON object, schema `prufyx.io/verify-pr-artifact/v1`: `result`
+(`ELIGIBLE`, `NOT_ELIGIBLE`, `NOT_APPLICABLE`, `ERROR`), `class`, `headSha`,
+`baseSha`, `toolSha` (the base commit the tool was built from), `repo`, `pr`,
+`runId`, `runAttempt`, `workflowSha`, `exitCode`, `stale` and `toolResult` (the
+tool's own `result-json` object, or null). Consumers must parse it as data and
+require `schema`, a full 40-hex `headSha` equal to the head they mean, a
+matching `baseSha`, `stale == false` and `result == "ELIGIBLE"`; a bare green
+run, `NOT_APPLICABLE` or a result for another head is never eligibility.
+
+Freshness: the upstream tag lookup happens at run time, so a tag moved later is
+only caught by a later run. A consumer must use the newest attempt of the run
+for the head and require a run completed within a freshness bound it defines
+(or re-run at the moment it decides). No bound is set here.
+
+Not done here: no required status, no consumer wiring, no change to the
+knowledge gate. The hosted runner cannot restrict egress to a host list; the
+host is a constant in the tool and the workflow holds no secret.
