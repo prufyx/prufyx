@@ -15,16 +15,19 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
 // verify-pr: report-only regenerate check of a data PR. It reads the PR head
 // and base as exported directories, never executes anything from them, never
-// uses the network, and decides nothing: it reports whether the head files
-// are exactly what the generator in THIS build produces from the recipe and
-// the fact bundle the PR carries. It does not verify that the bundle comes
-// from the real upstream repository; its output says so and never names a PR
-// auto-merge eligible.
+// uses the network except for the optional upstream binding (binding.go, one
+// git ls-remote of tag refs through an injected runner), and decides nothing:
+// it reports whether the head files are exactly what the generator in THIS
+// build produces from the recipe and the fact bundle the PR carries. Without
+// the binding it does not verify that the bundle comes from the real upstream
+// repository and says so. It never merges and never sets AutoMerge: exit 0 is
+// never merge authority.
 
 const (
 	// RecipeSchema identifies the recipe document.
@@ -36,6 +39,11 @@ const (
 	maxOutputBytes = 4 << 20
 	maxChangedList = 4 << 20
 	maxChangedPath = 1000
+
+	// CrdVersionsDir holds the product targets. A data PR may add or change
+	// exactly one file there, target-<slug>.json, and only when it is
+	// byte-equal to the verified half.
+	CrdVersionsDir = "cli/internal/extract/crdversions"
 
 	upstreamBindingLine = "upstream binding: not verified (consistency check only; it does not show the facts come from the upstream repository)"
 )
@@ -105,26 +113,46 @@ type VerifyInput struct {
 	BaseDir    string
 	HeadDir    string
 	ChangedRaw []byte
+	// Upstream, when set, runs the B1 binding after every local check
+	// passed. nil means the binding is off and the result is never eligible.
+	Upstream LsRemoteRunner
+	// BaseSHA and HeadSHA are the two commits the caller says the trees and
+	// the list come from. HeadSHA is required with Upstream; the binding
+	// result is bound to it.
+	BaseSHA string
+	HeadSHA string
+	// Sleep replaces the backoff wait (tests).
+	Sleep func(time.Duration)
 }
 
 // VerifyResult is the report of a passing run. AutoMerge is always false:
-// this check never makes a PR eligible.
+// this tool never merges. Eligible says only that the assertions held, the
+// upstream binding verified for the head sha, and the recipe is unchanged
+// against base; it is input for a separate decision, never merge authority.
 type VerifyResult struct {
-	Slug         string
-	Half         string
-	RecipeChange string // new | unchanged | changed
-	Checks       []string
-	AutoMerge    bool
-	Reasons      []string
+	Slug            string
+	Half            string
+	RecipeChange    string // new | unchanged | changed
+	Checks          []string
+	AutoMerge       bool
+	Reasons         []string
+	BindingVerified bool
+	Binding         *BindingResult
+	Eligible        bool
+	BaseSHA         string
+	HeadSHA         string
 }
 
+var defaultSeedKinds = []string{"path", "min-from", "attest"}
+
 type verifyEnv struct {
-	generate func(Input) (*Result, error)
-	compare  func(generated, reviewed []byte) ([]string, error)
+	generate  func(Input) (*Result, error)
+	compare   func(generated, reviewed []byte) ([]string, error)
+	seedKinds []string
 }
 
 func defaultVerifyEnv() verifyEnv {
-	return verifyEnv{generate: Generate, compare: compareReviewed}
+	return verifyEnv{generate: Generate, compare: compareReviewed, seedKinds: defaultSeedKinds}
 }
 
 // parseChanged decodes the raw diff. Only added or modified regular files
@@ -180,8 +208,13 @@ func allowedFiles(slug string) map[string]bool {
 	return map[string]bool{
 		"recipe.json": true, "rules.json": true, "facts.bundle": true,
 		"report.json": true, "table-row.json": true, "changelog.md": true,
-		"target-" + slug + ".json": true,
 	}
+}
+
+// realTargetPath is the one path outside the recipe directory a data PR may
+// touch. It is built here, never taken from the diff.
+func realTargetPath(slug string) string {
+	return CrdVersionsDir + "/target-" + slug + ".json"
 }
 
 // checkAllowlist derives the one slug from the changed paths. Anything
@@ -189,21 +222,32 @@ func allowedFiles(slug string) map[string]bool {
 func checkAllowlist(paths []string) (string, *VerifyFailure) {
 	slug := ""
 	for _, p := range paths {
-		rest, ok := strings.CutPrefix(p, RecipesRoot)
-		if !ok {
-			return "", fail("path-not-allowed", "%q is outside %s", p, RecipesRoot)
+		var s string
+		if rest, ok := strings.CutPrefix(p, CrdVersionsDir+"/"); ok {
+			name, ok1 := strings.CutPrefix(rest, "target-")
+			name, ok2 := strings.CutSuffix(name, ".json")
+			if !ok1 || !ok2 || !slugRE.MatchString(name) || p != realTargetPath(name) {
+				return "", fail("path-not-allowed", "%q is not the real target of a slug (%s/target-<slug>.json)", p, CrdVersionsDir)
+			}
+			s = name
+		} else {
+			rest, ok := strings.CutPrefix(p, RecipesRoot)
+			if !ok {
+				return "", fail("path-not-allowed", "%q is outside %s", p, RecipesRoot)
+			}
+			parts := strings.Split(rest, "/")
+			if len(parts) != 2 || !slugRE.MatchString(parts[0]) {
+				return "", fail("path-not-allowed", "%q is not %s<slug>/<file>", p, RecipesRoot)
+			}
+			if !allowedFiles(parts[0])[parts[1]] {
+				return "", fail("path-not-allowed", "%q is not a known recipe file", p)
+			}
+			s = parts[0]
 		}
-		parts := strings.Split(rest, "/")
-		if len(parts) != 2 || !slugRE.MatchString(parts[0]) {
-			return "", fail("path-not-allowed", "%q is not %s<slug>/<file>", p, RecipesRoot)
+		if slug != "" && slug != s {
+			return "", fail("multiple-slugs", "more than one slug changed (%s, %s)", slug, s)
 		}
-		if !allowedFiles(parts[0])[parts[1]] {
-			return "", fail("path-not-allowed", "%q is not a known recipe file", p)
-		}
-		if slug != "" && slug != parts[0] {
-			return "", fail("multiple-slugs", "more than one slug changed (%s, %s)", slug, parts[0])
-		}
-		slug = parts[0]
+		slug = s
 	}
 	if slug == "" {
 		return "", fail("no-changes", "no changed path")
@@ -265,8 +309,9 @@ type fileSig struct {
 const maxExportEntries = 500000
 
 // exportSigs lists every regular file and symbolic link below root (never
-// following links) as a signature. Paths below skip are left out.
-func exportSigs(root, skip string) (map[string]fileSig, error) {
+// following links) as a signature. Paths below skip, and the files named in
+// skipFiles, are left out.
+func exportSigs(root, skip string, skipFiles ...string) (map[string]fileSig, error) {
 	out := map[string]fileSig{}
 	err := filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -282,6 +327,11 @@ func exportSigs(root, skip string) (map[string]fileSig, error) {
 				return filepath.SkipDir
 			}
 			return nil
+		}
+		for _, sf := range skipFiles {
+			if rel == sf {
+				return nil
+			}
 		}
 		if len(out) >= maxExportEntries {
 			return errors.New("export has too many files")
@@ -321,13 +371,13 @@ func exportSigs(root, skip string) (map[string]fileSig, error) {
 // head are identical outside the recipe directory, every base file of the
 // recipe directory survives, and the changed list names exactly the recipe
 // files that differ. A mismatch is an assertion failure.
-func checkOutside(baseDir, headDir, dirRel string, changed []string) *VerifyFailure {
+func checkOutside(baseDir, headDir, dirRel, realRel string, changed []string) *VerifyFailure {
 	skip := dirRel + "/"
-	bs, err := exportSigs(baseDir, dirRel)
+	bs, err := exportSigs(baseDir, dirRel, realRel)
 	if err != nil {
 		return harness("base-unreadable", "%v", err)
 	}
-	hs, err := exportSigs(headDir, dirRel)
+	hs, err := exportSigs(headDir, dirRel, realRel)
 	if err != nil {
 		return harness("head-unreadable", "%v", err)
 	}
@@ -377,17 +427,50 @@ func checkOutside(baseDir, headDir, dirRel string, changed []string) *VerifyFail
 		if err != nil {
 			return harness("base-unreadable", "%v", err)
 		}
-		differs := !inBase || !bytes.Equal(hb, bb)
+		differs := !inBase || !bytes.Equal(hb, bb) || (inBase && execBit(baseDir, skip+e.Name()))
 		if differs != list[skip+e.Name()] {
 			return fail("changed-list-inconsistent", "%s%s: the changed list and the exports disagree", skip, e.Name())
 		}
 	}
 	for p := range list {
+		if p == realRel {
+			continue
+		}
 		if _, ok, _ := read(headDir, strings.TrimPrefix(p, skip)); !ok {
 			return fail("changed-list-inconsistent", "%s is listed but absent from head", p)
 		}
 	}
+	// The one real target: present in head, a regular file that is not
+	// executable, and listed exactly when it differs from base.
+	if _, err := lstatPath(headDir, realRel, false); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return fail("file-missing", "%s is absent from head", realRel)
+		}
+		return fail("file-unreadable", "%s: %v", realRel, err)
+	}
+	if execBit(headDir, realRel) {
+		return fail("exec-bit", "%s is executable", realRel)
+	}
+	hb, err := readLimited(headDir, realRel, maxOutputBytes)
+	if err != nil {
+		return fail("file-unreadable", "%s: %v", realRel, err)
+	}
+	bb, err := readLimited(baseDir, realRel, maxOutputBytes)
+	inBase := err == nil
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return harness("base-unreadable", "%v", err)
+	}
+	if differs := !inBase || !bytes.Equal(hb, bb) || (inBase && execBit(baseDir, realRel)); differs != list[realRel] {
+		return fail("changed-list-inconsistent", "%s: the changed list and the exports disagree", realRel)
+	}
 	return nil
+}
+
+// execBit reports whether the file at rel has any execute bit (false when it
+// cannot be examined: callers read the file separately and fail on errors).
+func execBit(root, rel string) bool {
+	st, err := lstatPath(root, rel, false)
+	return err == nil && st.Mode()&0o111 != 0
 }
 
 // ParseRecipe reads a recipe strictly.
@@ -503,8 +586,17 @@ func verifyPR(in VerifyInput, env verifyEnv) (*VerifyResult, *VerifyFailure) {
 	if f != nil {
 		return nil, f
 	}
-	res := &VerifyResult{Slug: slug, Reasons: []string{"upstream binding: not verified"}}
-	res.Checks = append(res.Checks, "changed paths inside the recipe directory, one slug, added or modified regular files only")
+	res := &VerifyResult{Slug: slug, BaseSHA: in.BaseSHA, HeadSHA: in.HeadSHA, Reasons: []string{"upstream binding: not verified"}}
+	if env.seedKinds == nil {
+		env.seedKinds = defaultSeedKinds
+	}
+	if len(env.seedKinds) == 0 {
+		return nil, harness("seed-cannot-run", "no wrong-target seed kind is configured")
+	}
+	if in.Upstream != nil && (!sha1HexRE.MatchString(in.HeadSHA) || !sha1HexRE.MatchString(in.BaseSHA)) {
+		return nil, harness("binding-input", "the binding needs the base and head commit ids (40 lowercase hex)")
+	}
+	res.Checks = append(res.Checks, "changed paths inside the recipe directory plus the one real target, one slug, added or modified regular files only")
 
 	dirRel := strings.TrimSuffix(RecipesRoot, "/") + "/" + slug
 	if _, err := lstatPath(in.HeadDir, dirRel, true); err != nil {
@@ -519,9 +611,17 @@ func verifyPR(in VerifyInput, env verifyEnv) (*VerifyResult, *VerifyFailure) {
 		if !allowed[e.Name()] || !e.Type().IsRegular() {
 			return nil, fail("path-not-allowed", "head recipe directory holds %q, which is not an allowed regular file", e.Name())
 		}
+		info, err := e.Info()
+		if err != nil {
+			return nil, harness("file-unreadable", "%v", err)
+		}
+		if info.Mode()&0o111 != 0 {
+			return nil, fail("exec-bit", "head recipe file %q is executable", e.Name())
+		}
 	}
 
-	if f := checkOutside(in.BaseDir, in.HeadDir, dirRel, paths); f != nil {
+	realRel := realTargetPath(slug)
+	if f := checkOutside(in.BaseDir, in.HeadDir, dirRel, realRel, paths); f != nil {
 		return nil, f
 	}
 	res.Checks = append(res.Checks, "base and head exports are identical outside the recipe directory, and the changed list matches the recipe directory difference")
@@ -582,7 +682,7 @@ func verifyPR(in VerifyInput, env verifyEnv) (*VerifyResult, *VerifyFailure) {
 	}
 	res.Checks = append(res.Checks, "bundle digest, every object hash, commit and tree chains, and the recipe's per-tag commits")
 
-	claimed, f := readHead(in.HeadDir, dirRel+"/target-"+slug+".json", maxOutputBytes)
+	claimed, f := readHead(in.HeadDir, realRel, maxOutputBytes)
 	if f != nil {
 		return nil, f
 	}
@@ -674,7 +774,7 @@ func verifyPR(in VerifyInput, env verifyEnv) (*VerifyResult, *VerifyFailure) {
 		if len(diffs) > 3 {
 			diffs = diffs[:3]
 		}
-		return nil, fail("target-differs", "target-%s.json is not the regenerated half %s byte for byte (%s)", slug, rc.Half, strings.Join(diffs, "; "))
+		return nil, fail("target-differs", "%s is not the regenerated half %s byte for byte (%s)", realRel, rc.Half, strings.Join(diffs, "; "))
 	}
 	if !bytes.Equal(claimedReport, rep1) {
 		return nil, fail("report-differs", "report.json is not the regenerated report byte for byte")
@@ -687,7 +787,7 @@ func verifyPR(in VerifyInput, env verifyEnv) (*VerifyResult, *VerifyFailure) {
 	}
 	res.Checks = append(res.Checks, "target, report, table row and changelog are byte-identical to the regeneration")
 
-	for _, kind := range []string{"path", "min-from", "attest"} {
+	for _, kind := range env.seedKinds {
 		wrong, err := seedExpected(btSeed{Kind: kind}, claimed, nil)
 		if err != nil {
 			return nil, harness("seed-cannot-run", "seed %s: %v", kind, err)
@@ -704,6 +804,17 @@ func verifyPR(in VerifyInput, env verifyEnv) (*VerifyResult, *VerifyFailure) {
 		}
 	}
 	res.Checks = append(res.Checks, "wrong-target seeds (path, min-from, attest) are rejected by the same comparison")
+
+	if in.Upstream != nil {
+		br, bf := (Binder{Runner: in.Upstream, Sleep: in.Sleep}).Bind(rc, bundle.Commit, in.HeadSHA)
+		if bf != nil {
+			return nil, bf
+		}
+		res.Binding = br
+		res.BindingVerified = true
+		res.Reasons[0] = "upstream binding: verified for head " + in.HeadSHA
+		res.Checks = append(res.Checks, "upstream binding: every window tag resolves (peeled) to the recipe and bundle commit")
+	}
 
 	res.RecipeChange = "new"
 	if b, err := readLimited(in.BaseDir, dirRel+"/recipe.json", MaxRecipeBytes); err == nil {
@@ -725,21 +836,70 @@ func verifyPR(in VerifyInput, env verifyEnv) (*VerifyResult, *VerifyFailure) {
 		res.Reasons = append(res.Reasons, "recipe is "+res.RecipeChange+" against base (judgment; human review)")
 	}
 	res.Half = rc.Half
+	// Eligible is a class label, not a decision: assertions held, binding
+	// verified for the head, recipe unchanged against base. AutoMerge stays
+	// false; nothing here merges.
+	res.Eligible = res.BindingVerified && res.RecipeChange == "unchanged"
 	return res, nil
 }
 
-const verifyUsage = "usage: prufyx-maintainer target-draft verify-pr --base DIR --head DIR --changed-paths FILE\n" +
-	"report only: DIR are exported trees of the PR base and head; FILE is the output of: git diff --raw -z --no-abbrev --no-renames BASE HEAD. Exit 0 assertions held, 1 an assertion failed (typed reason), 2 usage or I/O error. Offline. It never names a PR auto-merge eligible and says: upstream binding not verified."
+const verifyUsage = "usage: prufyx-maintainer target-draft verify-pr --base DIR --head DIR --changed-paths FILE [--upstream-binding off|ls-remote --base-sha SHA --head-sha SHA] [--require-eligible] [--json]\n" +
+	"report only: DIR are exported trees of the PR base and head; FILE is the output of: git diff --raw -z --no-abbrev --no-renames BASE HEAD. Exit 0 assertions held (never merge authority), 1 an assertion failed (typed reason), 2 usage, I/O or no-verdict error, 3 (with --require-eligible) valid but not eligible: binding not verified or recipe new/changed, a human decides. With --upstream-binding ls-remote it runs one git ls-remote of the recipe's tag refs (github.com only). It never merges."
+
+// VerifyResultSchema names the machine-readable result line.
+const VerifyResultSchema = "prufyx.io/verify-pr-result/v1"
+
+// verifyResultDoc is the machine-readable result, printed as one compact JSON
+// line "result-json: {...}" with --json (the tool writes no files). It is bound to the base and
+// head commit ids the caller passed. AutoMerge is always false.
+type verifyResultDoc struct {
+	Schema          string         `json:"schema"`
+	BaseSHA         string         `json:"baseSha"`
+	HeadSHA         string         `json:"headSha"`
+	Outcome         string         `json:"outcome"` // pass | fail
+	FailCode        string         `json:"failCode"`
+	Slug            string         `json:"slug"`
+	Half            string         `json:"half"`
+	RecipeChange    string         `json:"recipeChange"`
+	BindingVerified bool           `json:"bindingVerified"`
+	Binding         *BindingResult `json:"binding"`
+	Eligible        bool           `json:"eligible"`
+	AutoMerge       bool           `json:"autoMerge"`
+}
 
 func runVerifyPR(args []string, stdout, stderr io.Writer) int {
+	return runVerifyPRWith(args, stdout, stderr, execRunner{}, time.Sleep)
+}
+
+func runVerifyPRWith(args []string, stdout, stderr io.Writer, runner LsRemoteRunner, sleep func(time.Duration)) int {
 	fl := flag.NewFlagSet("target-draft verify-pr", flag.ContinueOnError)
 	fl.SetOutput(io.Discard)
-	var base, head, changed string
+	var base, head, changed, binding, baseSHA, headSHA string
+	var requireEligible, jsonOut bool
 	fl.StringVar(&base, "base", "", "")
 	fl.StringVar(&head, "head", "", "")
 	fl.StringVar(&changed, "changed-paths", "", "")
+	fl.StringVar(&binding, "upstream-binding", "off", "")
+	fl.StringVar(&baseSHA, "base-sha", "", "")
+	fl.StringVar(&headSHA, "head-sha", "", "")
+	fl.BoolVar(&jsonOut, "json", false, "")
+	fl.BoolVar(&requireEligible, "require-eligible", false, "")
 	if err := fl.Parse(args); err != nil || fl.NArg() != 0 || base == "" || head == "" || changed == "" {
 		fmt.Fprintln(stderr, verifyUsage)
+		return 2
+	}
+	if binding != "off" && binding != "ls-remote" {
+		fmt.Fprintln(stderr, verifyUsage)
+		return 2
+	}
+	for _, sha := range []string{baseSHA, headSHA} {
+		if sha != "" && !sha1HexRE.MatchString(sha) {
+			fmt.Fprintln(stderr, "verify-pr: --base-sha and --head-sha must be 40 lowercase hex")
+			return 2
+		}
+	}
+	if binding == "ls-remote" && (baseSHA == "" || headSHA == "") {
+		fmt.Fprintln(stderr, "verify-pr: --upstream-binding ls-remote needs --base-sha and --head-sha")
 		return 2
 	}
 	raw, err := os.ReadFile(changed)
@@ -747,22 +907,60 @@ func runVerifyPR(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "verify-pr: %v\n", err)
 		return 2
 	}
-	res, f := VerifyPR(VerifyInput{BaseDir: base, HeadDir: head, ChangedRaw: raw})
-	fmt.Fprintln(stdout, upstreamBindingLine)
-	if f != nil {
-		fmt.Fprintf(stdout, "FAIL %s: %s\n", f.Code, f.Detail)
-		fmt.Fprintln(stdout, "auto-merge: not eligible")
-		if f.Harness {
+	in := VerifyInput{BaseDir: base, HeadDir: head, ChangedRaw: raw, BaseSHA: baseSHA, HeadSHA: headSHA, Sleep: sleep}
+	if binding == "ls-remote" {
+		if runner == nil {
+			fmt.Fprintln(stderr, "verify-pr: no runner")
 			return 2
 		}
-		return 1
+		in.Upstream = runner
 	}
-	sort.Strings(res.Reasons[1:])
-	for _, c := range res.Checks {
-		fmt.Fprintf(stdout, "ok: %s\n", c)
+	res, f := VerifyPR(in)
+	doc := verifyResultDoc{Schema: VerifyResultSchema, BaseSHA: baseSHA, HeadSHA: headSHA, Outcome: "fail"}
+	code := 0
+	switch {
+	case f != nil:
+		fmt.Fprintln(stdout, upstreamBindingLine)
+		fmt.Fprintf(stdout, "FAIL %s: %s\n", f.Code, f.Detail)
+		fmt.Fprintln(stdout, "auto-merge: not eligible")
+		doc.FailCode = f.Code
+		code = 1
+		if f.Harness {
+			code = 2
+		}
+	default:
+		if res.BindingVerified {
+			fmt.Fprintln(stdout, bindingLine(res.Binding))
+		} else {
+			fmt.Fprintln(stdout, upstreamBindingLine)
+		}
+		sort.Strings(res.Reasons[1:])
+		for _, c := range res.Checks {
+			fmt.Fprintf(stdout, "ok: %s\n", c)
+		}
+		fmt.Fprintf(stdout, "slug %s, half %s, recipe %s against base\n", res.Slug, res.Half, res.RecipeChange)
+		fmt.Fprintf(stdout, "auto-merge: not eligible: this tool never merges; %s\n", strings.Join(res.Reasons, "; "))
+		if res.Eligible {
+			fmt.Fprintln(stdout, "eligible-class: yes (binding verified, recipe unchanged; exit 0 is never merge authority)")
+		} else {
+			fmt.Fprintln(stdout, "eligible-class: no (human class)")
+		}
+		fmt.Fprintln(stdout, "verify-pr: report-only; assertions held")
+		doc.Outcome, doc.Slug, doc.Half, doc.RecipeChange = "pass", res.Slug, res.Half, res.RecipeChange
+		doc.BindingVerified, doc.Binding, doc.Eligible = res.BindingVerified, res.Binding, res.Eligible
+		if requireEligible && !res.Eligible {
+			code = 3
+		}
 	}
-	fmt.Fprintf(stdout, "slug %s, half %s, recipe %s against base\n", res.Slug, res.Half, res.RecipeChange)
-	fmt.Fprintf(stdout, "auto-merge: not eligible: %s\n", strings.Join(res.Reasons, "; "))
-	fmt.Fprintln(stdout, "verify-pr: report-only; assertions held")
-	return 0
+	if jsonOut {
+		var buf bytes.Buffer
+		enc := json.NewEncoder(&buf)
+		enc.SetEscapeHTML(false)
+		if err := enc.Encode(doc); err != nil {
+			fmt.Fprintf(stderr, "verify-pr: result: %v\n", err)
+			return 2
+		}
+		fmt.Fprintf(stdout, "result-json: %s", buf.String())
+	}
+	return code
 }

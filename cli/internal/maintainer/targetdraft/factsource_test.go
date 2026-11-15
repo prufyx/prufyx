@@ -363,3 +363,86 @@ func TestFactSourceRefusesDoublingTreeDAG(t *testing.T) {
 		t.Fatalf("want an entry-budget refusal, got %v", err)
 	}
 }
+
+// doublingStore builds a store whose trees name the next one twice, with
+// entry names of nameLen bytes. The objects stay small and distinct.
+func doublingStore(nameLen, depth int) (memStore, string) {
+	st := memStore{objs: map[string]rawObj{}}
+	entry := func(name, id string) []byte {
+		return append(append([]byte("40000 "+name), 0), hexToRaw(id)...)
+	}
+	a, b := strings.Repeat("a", nameLen), strings.Repeat("b", nameLen)
+	cur := st.put("tree", nil)
+	for i := 0; i < depth; i++ {
+		cur = st.put("tree", append(entry(a, cur), entry(b, cur)...))
+	}
+	return st, st.put("commit", []byte("tree "+cur+"\n\nx\n"))
+}
+
+func bundleOfStore(t *testing.T, st memStore, commit string) *Bundle {
+	var d bundleDoc
+	d.Schema = BundleSchema
+	d.Tags = []bundleTag{{Tag: "v1.0.0", Commit: commit}}
+	for id, o := range st.objs {
+		d.Objects = append(d.Objects, bundleObj{ID: id, Kind: o.kind, Data: base64.StdEncoding.EncodeToString(o.body)})
+	}
+	sort.Slice(d.Objects, func(i, j int) bool { return d.Objects[i].ID < d.Objects[j].ID })
+	raw, err := marshalBundle(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := ParseBundle(raw)
+	if err != nil {
+		t.Fatalf("the bundle itself is small and consistent: %v", err)
+	}
+	return b
+}
+
+// Long names make a small entry count cost gigabytes of path strings; the
+// path-byte budget refuses that before the entry budget would.
+func TestFactSourceRefusesLongNameDoublingDAGByPathBytes(t *testing.T) {
+	st, commit := doublingStore(60, 64)
+	b := bundleOfStore(t, st, commit)
+	_, _, err := (FactSource{B: b}).Open("v1.0.0")
+	if err == nil || !strings.Contains(err.Error(), "bundle-path-budget") {
+		t.Fatalf("want a path-byte refusal, got %v", err)
+	}
+	// Short names trip the entry budget instead, with its own message.
+	st, commit = doublingStore(1, 64)
+	b = bundleOfStore(t, st, commit)
+	if _, _, err := (FactSource{B: b}).Open("v1.0.0"); err == nil || !strings.Contains(err.Error(), "entry budget") {
+		t.Fatalf("want an entry-budget refusal, got %v", err)
+	}
+}
+
+func TestExpandBudgetSpendsEntriesAndPathBytes(t *testing.T) {
+	ents := []treeEnt{{name: "abcd"}, {name: "ef"}}
+	b := expandBudget{entries: 2, pathBytes: 4 + 2 + 2*3}
+	if err := b.spend("xyz", ents); err != nil || b.entries != 0 || b.pathBytes != 0 {
+		t.Fatalf("exact fit must pass: %v %+v", err, b)
+	}
+	b = expandBudget{entries: 2, pathBytes: 4 + 2 + 2*3 - 1}
+	if err := b.spend("xyz", ents); err == nil || !strings.Contains(err.Error(), "bundle-path-budget") {
+		t.Fatalf("one byte over: %v", err)
+	}
+	b = expandBudget{entries: 1, pathBytes: 1 << 20}
+	if err := b.spend("", ents); err == nil || !strings.Contains(err.Error(), "entry budget") {
+		t.Fatalf("one entry over: %v", err)
+	}
+}
+
+// The bundle builder applies the same two budgets.
+func TestBuildBundleRefusesDoublingTreesByEntriesAndPathBytes(t *testing.T) {
+	for name, tc := range map[string]struct {
+		nameLen int
+		want    string
+	}{"path bytes": {60, "bundle-path-budget"}, "entries": {1, "entry budget"}} {
+		t.Run(name, func(t *testing.T) {
+			st, commit := doublingStore(tc.nameLen, 64)
+			r := &RecordingSource{commits: map[string]string{"v1.0.0": commit}, reads: map[string]map[string]bool{"v1.0.0": {}}}
+			if _, err := r.buildBundle(st); err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("want %q, got %v", tc.want, err)
+			}
+		})
+	}
+}

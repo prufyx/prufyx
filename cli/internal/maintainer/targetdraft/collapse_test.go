@@ -571,13 +571,21 @@ func TestCollapseDoesNotTouchExtractor(t *testing.T) {
 		}
 	}
 	writers := regexp.MustCompile(`(os|ioutil)\.(WriteFile|Create|OpenFile|Rename|Remove|RemoveAll|Mkdir|MkdirAll|MkdirTemp|Chmod|Symlink|CreateTemp)\(|exec\.Command`)
+	bindingAllowed := regexp.MustCompile(`os\.MkdirTemp\(|os\.RemoveAll\(|exec\.CommandContext\(`)
 	ents, _ := os.ReadDir(".")
 	for _, e := range ents {
 		n := e.Name()
 		if e.IsDir() || !strings.HasSuffix(n, ".go") || strings.HasSuffix(n, "_test.go") || n == "cli.go" || n == "source.go" || n == "backtest.go" {
 			continue
 		}
-		if writers.Match(readFile(t, n)) {
+		src := readFile(t, n)
+		if n == "binding.go" {
+			// The upstream binding runs git (the only exec in the package) from
+			// an empty temporary directory it creates and removes. Exactly
+			// those three calls are allowed there; any other writer is not.
+			src = bindingAllowed.ReplaceAll(src, nil)
+		}
+		if writers.Match(src) {
 			t.Errorf("%s writes to the file system; only cli.go's atomic --out writer may", n)
 		}
 	}

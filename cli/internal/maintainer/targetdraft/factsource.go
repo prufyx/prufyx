@@ -31,8 +31,12 @@ const (
 	MaxBundleTags  = 12
 	// maxBundleEntries bounds the tree entries over all trees of a bundle.
 	maxBundleEntries = 400000
-	maxTreeDepth     = 64
-	maxPathBytes     = 4096
+	// maxBundlePathBytes bounds the sum of path lengths over a whole tree
+	// expansion (entries x path bytes), so long names cannot turn the entry
+	// budget into gigabytes of path strings.
+	maxBundlePathBytes = 64 << 20
+	maxTreeDepth       = 64
+	maxPathBytes       = 4096
 )
 
 var (
@@ -326,7 +330,7 @@ func (s FactSource) Open(tag string) (Tree, string, error) {
 		return nil, "", err
 	}
 	t := &factTree{b: s.B, files: map[string]factFile{}}
-	budget := maxBundleEntries
+	budget := expandBudget{entries: maxBundleEntries, pathBytes: maxBundlePathBytes}
 	if err := t.collect(root, "", 0, &budget); err != nil {
 		return nil, "", err
 	}
@@ -338,10 +342,32 @@ type factTree struct {
 	files map[string]factFile
 }
 
+// expandBudget bounds one tree expansion by entries and by path bytes.
+type expandBudget struct {
+	entries   int
+	pathBytes int
+}
+
+// spend charges the entries of one tree: one entry each, and the full path
+// length (prefix plus name) of each.
+func (b *expandBudget) spend(prefix string, ents []treeEnt) error {
+	b.entries -= len(ents)
+	if b.entries < 0 {
+		return errors.New("tree expansion is over the entry budget")
+	}
+	for _, e := range ents {
+		b.pathBytes -= len(prefix) + len(e.name)
+	}
+	if b.pathBytes < 0 {
+		return errors.New("bundle-path-budget: tree expansion is over the path-byte budget")
+	}
+	return nil
+}
+
 // collect expands one tree. A tree may be named by several parents, so the
 // expansion is bounded by a total entry budget: a bundle whose trees fan out
 // into more than maxBundleEntries paths is refused, never walked to the end.
-func (t *factTree) collect(id, prefix string, depth int, budget *int) error {
+func (t *factTree) collect(id, prefix string, depth int, budget *expandBudget) error {
 	if depth > maxTreeDepth {
 		return errors.New("tree nesting too deep")
 	}
@@ -353,9 +379,8 @@ func (t *factTree) collect(id, prefix string, depth int, budget *int) error {
 	if err != nil {
 		return err
 	}
-	*budget -= len(ents)
-	if *budget < 0 {
-		return errors.New("tree expansion is over the entry budget")
+	if err := budget.spend(prefix, ents); err != nil {
+		return err
 	}
 	for _, e := range ents {
 		p := prefix + e.name
@@ -520,7 +545,7 @@ func (r *RecordingSource) buildBundle(store objectStore) ([]byte, error) {
 			return nil, err
 		}
 		blobs := map[string]string{} // path -> blob id
-		budget := maxBundleEntries
+		budget := expandBudget{entries: maxBundleEntries, pathBytes: maxBundlePathBytes}
 		var walk func(id, prefix string, depth int) error
 		walk = func(id, prefix string, depth int) error {
 			if depth > maxTreeDepth {
@@ -535,8 +560,8 @@ func (r *RecordingSource) buildBundle(store objectStore) ([]byte, error) {
 			if err != nil {
 				return err
 			}
-			if budget -= len(ents); budget < 0 {
-				return errors.New("tree expansion is over the entry budget")
+			if err := budget.spend(prefix, ents); err != nil {
+				return err
 			}
 			for _, e := range ents {
 				switch {
