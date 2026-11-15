@@ -497,7 +497,9 @@ func TestSkipFragmentsInsideInferredDirectoryIsNotInstalled(t *testing.T) {
 	// A fragment below the chosen directory: set aside, not an install file,
 	// and not a ranking candidate (the evidence equals the run without it).
 	inside := fragFiles(map[string]string{"config/crd/bases/crd-patch.yaml": fragWebhook})
-	infStops(t, infInput(infSource(infControl(), inside)), StopInstallPathAmbiguous)
+	// Option off: the unreadable file inside the chosen directory is the
+	// typed stop unreadable-shape.
+	infStops(t, infInput(infSource(infControl(), inside)), StopUnreadableShape)
 	got := mustGenerate(t, inferSkip(infSource(infControl(), inside)))
 	plain := mustGenerate(t, infInput(infSource(infControl(), nil)))
 	if !bytes.Equal(got.A, plain.A) {

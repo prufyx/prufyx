@@ -9,7 +9,9 @@ import (
 
 // The fixtures and rows below are copied verbatim from the extractor's own
 // patch-fragment tests (extract/crdversions, TestFragmentReaders): the
-// generator's predicate must reach the same verdict on each.
+// generator's predicate must reach the same verdict on each. The extractor's
+// predicate is not exported, so this is a pinned copy run only through the
+// generator: it will NOT catch a later change of the extractor's shape.
 
 const (
 	cainjectionFragment = "# The following patch adds a directive for certmanager to inject CA into the CRD\napiVersion: apiextensions.k8s.io/v1\nkind: CustomResourceDefinition\nmetadata:\n  annotations:\n    cert-manager.io/inject-ca-from: $(CERTIFICATE_NAMESPACE)/$(CERTIFICATE_NAME)\n  name: alphas.synth.example.io\n"
