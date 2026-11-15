@@ -75,6 +75,17 @@ func changedRaw(paths []string, status, oldMode, newMode string) []byte {
 	return b.Bytes()
 }
 
+// full maps a fixture file name to its path in the tree: the target goes to
+// its real location, everything else to the recipe directory.
+func full(n string) string {
+	if n == "target-demo.json" {
+		return realDemo
+	}
+	return fxDir + n
+}
+
+const realDemo = "cli/internal/extract/crdversions/target-demo.json"
+
 func (f *fixture) names() []string {
 	var n []string
 	for k := range f.files {
@@ -104,19 +115,19 @@ func (f *fixture) input() (VerifyInput, string, string) {
 		f.files["recipe.json"] = f.recipeBytes()
 	}
 	for n, b := range f.files {
-		files[fxDir+n] = b
+		files[full(n)] = b
 	}
 	head, base := f.t.TempDir(), f.t.TempDir()
 	writeTree(f.t, head, files)
 	writeTree(f.t, base, f.base)
-	var full []string
+	var fl []string
 	for _, n := range f.names() {
-		full = append(full, fxDir+n)
+		fl = append(fl, full(n))
 	}
 	if f.paths != nil {
-		full = f.paths
+		fl = f.paths
 	}
-	raw := changedRaw(full, "A", "000000", "100644")
+	raw := changedRaw(fl, "A", "000000", "100644")
 	if f.rawOut != nil {
 		raw = f.rawOut
 	}
@@ -179,14 +190,17 @@ func mustBundle(t *testing.T, raw []byte) *Bundle {
 const cleanRules = "{\n \"schema\": \"prufyx.io/target-draft-rules/v1\",\n \"installSurface\": [],\n \"exclusions\": []\n}\n"
 
 func (f *fixture) withoutPaths(names ...string) []string {
+	if _, ok := f.files["recipe.json"]; !ok {
+		f.files["recipe.json"] = f.recipeBytes()
+	}
 	skip := map[string]bool{}
 	for _, n := range names {
-		skip[fxDir+n] = true
+		skip[full(n)] = true
 	}
 	var out []string
 	for _, n := range f.names() {
-		if !skip[fxDir+n] {
-			out = append(out, fxDir+n)
+		if !skip[full(n)] {
+			out = append(out, full(n))
 		}
 	}
 	return out
@@ -395,12 +409,19 @@ func TestVerifyPRExclusionsAndStopsAreNeverAccepted(t *testing.T) {
 }
 
 func TestVerifyPRChangedPathAllowlist(t *testing.T) {
-	ok := []string{fxDir + "recipe.json", fxDir + "facts.bundle", fxDir + "target-demo.json", fxDir + "report.json", fxDir + "table-row.json", fxDir + "changelog.md"}
+	ok := []string{fxDir + "recipe.json", fxDir + "facts.bundle", realDemo, fxDir + "report.json", fxDir + "table-row.json", fxDir + "changelog.md"}
 	with := func(extra ...string) []string { return append(append([]string(nil), ok...), extra...) }
 	for name, paths := range map[string][]string{
 		"workflow":        with(".github/workflows/x.yml"),
 		"codeowners":      with(".github/CODEOWNERS"),
-		"other target":    with("cli/internal/extract/crdversions/target-demo.json"),
+		"other target":    with("cli/internal/extract/crdversions/target-other.json"),
+		"recipe copy":     with(fxDir + "target-demo.json"),
+		"legacy file":     with("cli/internal/extract/crdversions/target-demo.json.bak"),
+		"crd case":        with("cli/internal/extract/crdversions/Target-demo.json"),
+		"crd sub dir":     with("cli/internal/extract/crdversions/sub/target-demo.json"),
+		"crd other file":  with("cli/internal/extract/crdversions/README.md"),
+		"crd dot dot":     with("cli/internal/extract/crdversions/../target-demo.json"),
+		"crd bad slug":    with("cli/internal/extract/crdversions/target-De_mo.json"),
 		"trust":           with("cli/knowledge/trust/root.json"),
 		"verifier itself": with("cli/internal/maintainer/targetdraft/verify.go"),
 		"dot dot":         with(RecipesRoot + "demo/../../x"),
@@ -412,6 +433,7 @@ func TestVerifyPRChangedPathAllowlist(t *testing.T) {
 		"bad slug":        with(RecipesRoot + "Demo/recipe.json"),
 		"root dir file":   with(RecipesRoot + "recipe.json"),
 		"duplicate path":  with(ok[0]),
+		"duplicate real":  with(realDemo),
 	} {
 		t.Run(name, func(t *testing.T) {
 			f := newFixture(t, nil)
@@ -422,14 +444,19 @@ func TestVerifyPRChangedPathAllowlist(t *testing.T) {
 		})
 	}
 	for name, tc := range map[string]struct{ status, oldMode, newMode string }{
-		"delete":      {"D", "100644", "000000"},
-		"rename":      {"R100", "100644", "100644"},
-		"copy":        {"C100", "100644", "100644"},
-		"mode change": {"M", "100644", "100755"},
-		"executable":  {"A", "000000", "100755"},
-		"symlink":     {"A", "000000", "120000"},
-		"submodule":   {"A", "000000", "160000"},
-		"type change": {"T", "100644", "120000"},
+		"delete":            {"D", "100644", "000000"},
+		"rename":            {"R100", "100644", "100644"},
+		"copy":              {"C100", "100644", "100644"},
+		"mode change":       {"M", "100644", "100755"},
+		"executable":        {"A", "000000", "100755"},
+		"symlink":           {"A", "000000", "120000"},
+		"submodule":         {"A", "000000", "160000"},
+		"type change":       {"T", "100644", "120000"},
+		"exec to plain":     {"M", "100755", "100644"},
+		"add with old mode": {"A", "100644", "100644"},
+		"plain to exec":     {"M", "100644", "100755"},
+		"exec stays":        {"M", "100755", "100755"},
+		"add old exec":      {"A", "100755", "100644"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			f := newFixture(t, nil)
@@ -545,8 +572,8 @@ func TestRunVerifyPRExitCodesAndDeterminism(t *testing.T) {
 	if code != 0 || !strings.Contains(out1, "upstream binding: not verified") || !strings.Contains(out1, "auto-merge: not eligible") {
 		t.Fatalf("%d %s", code, out1)
 	}
-	if strings.Contains(out1, "eligible: yes") || strings.Contains(strings.ReplaceAll(out1, "not eligible", ""), "eligible") {
-		t.Fatalf("an eligible verdict must never be printed: %s", out1)
+	if strings.Contains(out1, "eligible-class: yes") || !strings.Contains(out1, "eligible-class: no") {
+		t.Fatalf("without the binding the class is never eligible: %s", out1)
 	}
 	if code2, out2 := run("verify-pr", "--base", base, "--head", head, "--changed-paths", list); code2 != 0 || out2 != out1 {
 		t.Fatal("two runs must print the same bytes")
@@ -650,25 +677,44 @@ func TestVerifyPRModifiedExecutableIsRefused(t *testing.T) {
 	wantFail(t, f, "path-status")
 }
 
-// Each seed kind alone must be rejected by the comparison: dropping one
-// kind from the check makes exactly one of these fail.
+// Each seed kind alone must be rejected by the comparison. The seeded wrong
+// target of a kind is compared byte for byte with the value the comparison is
+// handed, so the test does not depend on how a seed looks. Dropping one kind
+// from the loop makes the verifier accept a reproducing seed: the second half
+// shows every kind is load-bearing.
 func TestVerifyPREverySeedKindGatesTheResult(t *testing.T) {
-	for _, kind := range []string{"path", "min-from", "attest"} {
+	for _, kind := range defaultSeedKinds {
 		f := newFixture(t, nil)
+		seeded, err := seedExpected(btSeed{Kind: kind}, f.files["target-demo.json"], nil)
+		if err != nil || bytes.Equal(seeded, f.files["target-demo.json"]) {
+			t.Fatalf("seed %s: %v", kind, err)
+		}
 		real := f.env.compare
 		f.env.compare = func(g, r []byte) ([]string, error) {
-			d, err := decodeDoc(r)
-			if err != nil {
-				return nil, err
-			}
-			isKind := (kind == "path" && strings.HasSuffix(d.Target.Paths[0].Path, ".seed")) ||
-				(kind == "min-from" && strings.HasSuffix(d.Target.MinFrom, "0")) ||
-				(kind == "attest" && d.Target.Attest)
-			if isKind {
+			if bytes.Equal(r, seeded) {
 				return nil, nil // this seed reproduces
 			}
 			return real(g, r)
 		}
+
 		wantFail(t, f, "seed-reproduced")
+		// The mutant: the kind is missing from the loop. The same reproducing
+		// seed is then not noticed.
+		var rest []string
+		for _, k := range defaultSeedKinds {
+			if k != kind {
+				rest = append(rest, k)
+			}
+		}
+		f.env.seedKinds = rest
+		if _, fl := f.verify(); fl != nil {
+			t.Fatalf("without kind %s the reproducing seed must go unnoticed (proves the kind is load-bearing): %v", kind, fl)
+		}
+	}
+	// No configured kind at all is a harness failure, never a pass.
+	f := newFixture(t, nil)
+	f.env.seedKinds = []string{}
+	if fl := wantFail(t, f, "seed-cannot-run"); !fl.Harness {
+		t.Fatal("harness class")
 	}
 }
