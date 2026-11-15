@@ -745,3 +745,74 @@ func TestInferChangelogStatesDerivePaths(t *testing.T) {
 		t.Fatal("no derive sentence without derivation")
 	}
 }
+
+func unreadableDef() []byte {
+	return []byte("apiVersion: apiextensions.k8s.io/v1\nkind: CustomResourceDefinition\nspec: {{ .Values.x }}\n")
+}
+
+// linkedUnreadable puts an unreadable definition at target and a link to it at
+// link, and asserts the scanner sees it as unreadable and reached by the link.
+func linkedUnreadable(t *testing.T, link, target string) func(tag string, m *memTree) {
+	t.Helper()
+	mut := func(tag string, m *memTree) {
+		m.files[target] = unreadableDef()
+		m.links[link] = relTo(link, target)
+	}
+	m := infTree(infControl())
+	mut("", m)
+	fs, _ := scanTree(m)
+	ok := false
+	for _, f := range fs {
+		if f.Path == target && f.Unreadable != "" && len(f.Reached) == 1 && f.Reached[0] == link {
+			ok = true
+		}
+	}
+	if !ok {
+		t.Fatalf("fixture %s -> %s is not an unreadable definition reached through the link", link, target)
+	}
+	return mut
+}
+
+// relTo is the relative link text from link to target (both repository paths).
+func relTo(link, target string) string {
+	up := strings.Count(link, "/")
+	return strings.Repeat("../", up) + target
+}
+
+func TestUnreadableSkippedFileReachedByInstallLinkStops(t *testing.T) {
+	mut := linkedUnreadable(t, "deploy/link.yaml", "docs/bad.yaml")
+	infStops(t, infInput(infSource(infControl(), mut)), StopInstallPathHidesCRD)
+	infStops(t, handInput(t, infControl(), mut, true), StopInstallPathHidesCRD)
+	// Flag off keeps the existing output.
+	mustGenerate(t, handInput(t, infControl(), mut, false))
+}
+
+func TestUnreadableSkippedFileReachedOnlyBySkippedLinkPasses(t *testing.T) {
+	mut := linkedUnreadable(t, "test/link.yaml", "docs/bad.yaml")
+	res := mustGenerate(t, infInput(infSource(infControl(), mut)))
+	found := false
+	for _, c := range res.Report.NonInstallCopies {
+		if c.Path == "docs/bad.yaml" && c.Unreadable != "" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("must stay a reported unreadable copy: %+v", res.Report.NonInstallCopies)
+	}
+	mustGenerate(t, handInput(t, infControl(), mut, true))
+}
+
+// Hand path with the flag: an unreadable file under docs/ without any
+// non-skipped link passes and is reported.
+func TestHandCheckUnreadableUnderDocsPasses(t *testing.T) {
+	res := mustGenerate(t, handInput(t, infControl(), unreadableAt("docs/bad.yaml"), true))
+	found := false
+	for _, c := range res.Report.NonInstallCopies {
+		if c.Path == "docs/bad.yaml" && c.Unreadable != "" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("not reported: %+v", res.Report.NonInstallCopies)
+	}
+}

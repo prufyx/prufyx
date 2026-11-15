@@ -73,6 +73,22 @@ func inferSkippedPath(p string) bool {
 	return false
 }
 
+// inferMayStayUnread says that an unreadable file may stay unread: its
+// resolved path is skipped AND every symbolic link that reaches it is below a
+// skipped directory too. A file reached through a link from an install-like
+// location is never skipped.
+func inferMayStayUnread(f *finding) bool {
+	if !inferSkippedPath(f.Path) {
+		return false
+	}
+	for _, l := range f.Reached {
+		if !inferSkippedPath(l) {
+			return false
+		}
+	}
+	return true
+}
+
 // inferRank returns the rank of a definition file (1 best, 3 worst) or 0 when
 // the file is never a candidate.
 func inferRank(p string) int {
@@ -331,7 +347,7 @@ func outsideChecks(inside []*inclusion, outside []*finding) []Stop {
 			// An unreadable file may define anything; only a skipped
 			// directory (docs, test, vendor, templates, bundle, olm, ...) may
 			// stay unread. Everywhere else it is a stop.
-			if !inferSkippedPath(f.Path) {
+			if !inferMayStayUnread(f) {
 				stops = append(stops, stop(StopInstallPathHidesCRD, f.Path, "unreadable file outside the install paths may define a definition no install path defines: "+f.Unreadable))
 			}
 			continue
