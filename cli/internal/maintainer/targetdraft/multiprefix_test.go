@@ -399,14 +399,9 @@ func TestMultiPrefixOtherSpellingStops(t *testing.T) {
 
 // Kinds that differ across the lines are a report warning, not a stop.
 func TestMultiPrefixKindDifferenceWarns(t *testing.T) {
+	// The kind sits in an existing file: a new file would change the file set
+	// at the v tags and shrink the window.
 	src := mpSource(mpTags, func(tag string, m *memTree) {
-		if strings.HasPrefix(tag, "v") {
-			m.files["config/crd/c.yaml"] = crdText("demo.example.invalid", "Gamma")
-		}
-	})
-	// The extra file changes the file set at the v tags, so it would shrink the
-	// window; put the kind in an existing file instead.
-	src = mpSource(mpTags, func(tag string, m *memTree) {
 		if strings.HasPrefix(tag, "v") {
 			m.files["config/crd/b.yaml"] = append(crdText("demo.example.invalid", "Beta"), append([]byte("---\n"), crdText("demo.example.invalid", "Gamma")...)...)
 		}
