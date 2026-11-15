@@ -4,6 +4,7 @@ package knowledgegate
 
 import (
 	"bytes"
+	"encoding/json"
 	"sort"
 	"strings"
 
@@ -26,7 +27,11 @@ type admissionFacts struct {
 	gateHead          AdmissionDigests
 	projects          []AdmissionProject
 	exclusionsKnown   bool
-	exclusionsAdded   int
+	baseExclusions    []string
+	headExclusions    []string
+	recipeKnown       bool
+	recipeExclusions  []string
+	targetExclPaths   []string
 }
 
 // signature records the batch and its signer. The keys are the BASE's: the
@@ -58,18 +63,31 @@ func (a *admissionFacts) state(st *onboardingState, rec OnboardingRecord) {
 	}
 	a.batchBase, a.batchHead = conv(rec.Base), conv(rec.Head)
 	a.gateBase, a.gateHead = conv(st.base.state), conv(st.head.state)
-	baseExcl := map[string]int{}
-	for _, t := range st.base.loaded {
-		baseExcl[t.Project] = len(t.Exclude)
-	}
-	headExcl := map[string]int{}
-	for _, t := range st.head.loaded {
-		headExcl[t.Project] = len(t.Exclude)
-	}
 	a.exclusionsKnown = true
-	for slug, n := range headExcl {
-		if n > baseExcl[slug] {
-			a.exclusionsAdded += n - baseExcl[slug]
+	var err error
+	if a.baseExclusions, err = exclusionIdentities(st.base.loaded); err != nil {
+		a.exclusionsKnown = false
+	}
+	if a.headExclusions, err = exclusionIdentities(st.head.loaded); err != nil {
+		a.exclusionsKnown = false
+	}
+	a.recipeKnown = true
+	for _, p := range rec.Projects {
+		for _, t := range st.head.loaded {
+			if t.Project != p.Slug {
+				continue
+			}
+			for _, e := range t.Exclude {
+				a.targetExclPaths = append(a.targetExclPaths, p.Slug+"\x00"+e.Path)
+			}
+		}
+		items, err := recipeExclusionList(st.headTree, p.Slug)
+		if err != nil {
+			a.recipeKnown = false
+			continue
+		}
+		for _, x := range items {
+			a.recipeExclusions = append(a.recipeExclusions, p.Slug+"\x00"+x)
 		}
 	}
 	for _, p := range rec.Projects {
@@ -106,7 +124,8 @@ func (r *Report) admissionInput(opts Options) OnboardingAdmissionInput {
 		KeysetDigest: opts.ApprovalKeysDigest, TrustRootDigest: opts.TrustRootDigest,
 		Policy: opts.OnboardingBotPolicy, ComputedChangeSet: a.changeSet,
 		BatchBaseDigests: a.batchBase, BatchHeadDigests: a.batchHead, GateBaseDigests: a.gateBase, GateHeadDigests: a.gateHead,
-		Projects: a.projects, ExclusionsKnown: a.exclusionsKnown, ExclusionsAdded: a.exclusionsAdded,
+		Projects: a.projects, ExclusionsKnown: a.exclusionsKnown, BaseExclusions: a.baseExclusions, HeadExclusions: a.headExclusions,
+		RecipeExclusionsKnown: a.recipeKnown, RecipeExclusions: a.recipeExclusions, TargetExclusionPaths: a.targetExclPaths,
 		ChangedPaths: r.ChangedPaths, TrustPaths: opts.Layout.TrustPaths, BatchDir: opts.Layout.Onboarding.Dir,
 		VerifyPr: opts.VerifyPr,
 	}
@@ -162,4 +181,42 @@ func (r *Report) regenerationFacts(opts Options) (known, equal bool, digest stri
 		}
 	}
 	return true, true, admitSHA(buf.Bytes())
+}
+
+// recipesRoot is where the recipe of a project lives (read from the head tree
+// as data only).
+const recipesRoot = "cli/knowledge/target-recipes/"
+
+// exclusionIdentities is one identity per scan exclusion of every target:
+// the project and the digest of the whole exclusion (path, repo, reason,
+// evidence and every pin), so a replacement at the same count is a different
+// identity. The order is the targets' own and never matters to the decision.
+func exclusionIdentities(targets []crdversions.Target) ([]string, error) {
+	var out []string
+	for _, t := range targets {
+		for _, e := range t.Exclude {
+			raw, err := json.Marshal(e)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, t.Project+"\x00"+CandidateDigest(raw))
+		}
+	}
+	return out, nil
+}
+
+// recipeExclusionList reads the exclude list of a project's recipe from the
+// head tree.
+func recipeExclusionList(t Tree, slug string) ([]string, error) {
+	raw, err := t.Read(recipesRoot+slug+"/recipe.json", MaxFileBytes)
+	if err != nil {
+		return nil, err
+	}
+	var rec struct {
+		Exclude []string `json:"exclude"`
+	}
+	if err := json.Unmarshal(raw, &rec); err != nil {
+		return nil, err
+	}
+	return rec.Exclude, nil
 }

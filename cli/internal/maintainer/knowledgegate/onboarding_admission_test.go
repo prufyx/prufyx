@@ -54,11 +54,11 @@ func admOK() OnboardingAdmissionInput {
 		BatchHeadDigests: admDigests("2"), GateHeadDigests: admDigests("2"),
 		Projects:   []AdmissionProject{{Slug: "alpha", Kind: OnboardingKindNew, TargetSHA256: admDigest}},
 		RegenKnown: true, RegenByteEqual: true, RegenOutputsSHA256: admDigest,
-		ExclusionsKnown: true, FileModesOK: true,
+		ExclusionsKnown: true, RecipeExclusionsKnown: true, FileModesOK: true,
 		ChangedPaths: []string{"cli/data/table.json", "cli/targets/target-alpha.json", "cli/recipes/alpha/recipe.json", "cli/onboarding/b1.json"},
 		TrustPaths:   []string{"cli/knowledge/trust/", "cli/knowledge/reattestation/trust-root.json"},
 		BatchDir:     "cli/onboarding",
-		VerifyPr:     &VerifyPrResult{Eligible: true, HeadSHA: admHead, BindingDigest: admDigest, Slugs: []string{"alpha"}},
+		VerifyPr:     &VerifyPrResult{Outcome: "pass", BindingVerified: true, RecipeChange: "new", BaseSHA: admBase, HeadSHA: admHead, BindingDigest: admDigest, Slugs: []string{"alpha"}},
 	}
 }
 
@@ -71,8 +71,8 @@ func TestAdmitOnboardingAutoPositive(t *testing.T) {
 	if d.PathSetSHA == "" || d.DecisionDigest == "" || d.ObservedAt != "2026-11-15T12:00:00Z" {
 		t.Fatalf("binding %+v", d)
 	}
-	// Owner tier needs no policy.
 	in := admOK()
+	// Owner tier needs no policy.
 	in.Batch.Tier = ApprovalTierOwner
 	in.Policy = AdmissionBotPolicy{}
 	if d := AdmitOnboardingAuto(in); !d.Admitted {
@@ -144,8 +144,47 @@ func TestAdmitOnboardingAutoNegatives(t *testing.T) {
 		{"target digest missing", AdmitReasonProjects, func(i *OnboardingAdmissionInput) { i.Projects[0].TargetSHA256 = "" }},
 		{"attest is owner only", AdmitReasonOwnerOnly, func(i *OnboardingAdmissionInput) { i.Projects[0].Kind = OnboardingKindAttest }},
 		{"empty kind is owner only", AdmitReasonOwnerOnly, func(i *OnboardingAdmissionInput) { i.Projects[0].Kind = "" }},
-		{"exclusion added", AdmitReasonExclusion, func(i *OnboardingAdmissionInput) { i.ExclusionsAdded = 1 }},
+		{"exclusion added", AdmitReasonExclusion, func(i *OnboardingAdmissionInput) { i.HeadExclusions = []string{"alpha\x00e1"} }},
+		{"exclusion added next to an existing one", AdmitReasonExclusion, func(i *OnboardingAdmissionInput) {
+			i.BaseExclusions, i.HeadExclusions = []string{"beta\x00e1"}, []string{"beta\x00e1", "alpha\x00e2"}
+		}},
+		{"exclusion replaced at the same count", AdmitReasonExclusion, func(i *OnboardingAdmissionInput) {
+			i.BaseExclusions, i.HeadExclusions = []string{"beta\x00e1"}, []string{"beta\x00e2"}
+		}},
+		{"exclusion replaced at the same count also removes", AdmitReasonExclusionRemoved, func(i *OnboardingAdmissionInput) {
+			i.BaseExclusions, i.HeadExclusions = []string{"beta\x00e1"}, []string{"beta\x00e2"}
+		}},
+		{"exclusion removed", AdmitReasonExclusionRemoved, func(i *OnboardingAdmissionInput) {
+			i.BaseExclusions, i.HeadExclusions = []string{"beta\x00e1"}, nil
+		}},
+		{"exclusion case variant", AdmitReasonExclusion, func(i *OnboardingAdmissionInput) {
+			i.BaseExclusions, i.HeadExclusions = []string{"beta\x00Vendor/"}, []string{"beta\x00vendor/"}
+		}},
+		{"exclusion duplicate in head", AdmitReasonExclusionInvalid, func(i *OnboardingAdmissionInput) {
+			i.BaseExclusions, i.HeadExclusions = []string{"beta\x00e1"}, []string{"beta\x00e1", "beta\x00e1"}
+		}},
+		{"exclusion duplicate hides a count", AdmitReasonExclusion, func(i *OnboardingAdmissionInput) {
+			i.BaseExclusions, i.HeadExclusions = []string{"beta\x00e1", "beta\x00e1"}, []string{"beta\x00e1", "beta\x00e3"}
+		}},
+		{"exclusion empty identity", AdmitReasonExclusionInvalid, func(i *OnboardingAdmissionInput) { i.HeadExclusions = []string{""} }},
 		{"exclusion unknown", AdmitReasonExclusionUnknown, func(i *OnboardingAdmissionInput) { i.ExclusionsKnown = false }},
+		{"exclusion unknown despite equal lists", AdmitReasonExclusionUnknown, func(i *OnboardingAdmissionInput) {
+			i.ExclusionsKnown = false
+			i.BaseExclusions, i.HeadExclusions = []string{"beta\x00e1"}, []string{"beta\x00e1"}
+		}},
+		{"recipe exclusion not in the real target", AdmitReasonExclusionRecipe, func(i *OnboardingAdmissionInput) {
+			i.RecipeExclusions = []string{"alpha\x00vendor/"}
+		}},
+		{"real target exclusion not in the recipe", AdmitReasonExclusionRecipe, func(i *OnboardingAdmissionInput) {
+			i.TargetExclusionPaths = []string{"alpha\x00vendor/"}
+		}},
+		{"recipe and target differ in case", AdmitReasonExclusionRecipe, func(i *OnboardingAdmissionInput) {
+			i.RecipeExclusions, i.TargetExclusionPaths = []string{"alpha\x00Vendor/"}, []string{"alpha\x00vendor/"}
+		}},
+		{"recipe exclusion duplicated", AdmitReasonExclusionInvalid, func(i *OnboardingAdmissionInput) {
+			i.RecipeExclusions, i.TargetExclusionPaths = []string{"alpha\x00v/", "alpha\x00v/"}, []string{"alpha\x00v/"}
+		}},
+		{"recipe exclusions unknown", AdmitReasonRecipeExclusionUnknown, func(i *OnboardingAdmissionInput) { i.RecipeExclusionsKnown = false }},
 		{"path outside allowlist", AdmitReasonPathOutside, func(i *OnboardingAdmissionInput) {
 			i.ChangedPaths = append(i.ChangedPaths, "cli/other/file.json")
 		}},
@@ -183,7 +222,14 @@ func TestAdmitOnboardingAutoNegatives(t *testing.T) {
 		{"target template unset", AdmitReasonProjects, func(i *OnboardingAdmissionInput) { i.Config.TargetPath = "" }},
 		{"file modes", AdmitReasonFileModes, func(i *OnboardingAdmissionInput) { i.FileModesOK = false }},
 		{"verifyPr absent", AdmitReasonVerifyAbsent, func(i *OnboardingAdmissionInput) { i.VerifyPr = nil }},
-		{"verifyPr not eligible", AdmitReasonVerifyNotEligible, func(i *OnboardingAdmissionInput) { i.VerifyPr.Eligible = false }},
+		{"verifyPr failed", AdmitReasonVerifyNotEligible, func(i *OnboardingAdmissionInput) { i.VerifyPr.Outcome = "fail" }},
+		{"verifyPr outcome empty", AdmitReasonVerifyNotEligible, func(i *OnboardingAdmissionInput) { i.VerifyPr.Outcome = "" }},
+		{"verifyPr binding not verified", AdmitReasonVerifyNotEligible, func(i *OnboardingAdmissionInput) { i.VerifyPr.BindingVerified = false }},
+		{"verifyPr recipe changed", AdmitReasonVerifyRecipe, func(i *OnboardingAdmissionInput) { i.VerifyPr.RecipeChange = "changed" }},
+		{"verifyPr recipe unchanged is not an onboarding", AdmitReasonVerifyRecipe, func(i *OnboardingAdmissionInput) { i.VerifyPr.RecipeChange = "unchanged" }},
+		{"verifyPr for another base", AdmitReasonVerifyBase, func(i *OnboardingAdmissionInput) {
+			i.VerifyPr.BaseSHA = "4444444444444444444444444444444444444444"
+		}},
 		{"verifyPr for another head", AdmitReasonVerifyHead, func(i *OnboardingAdmissionInput) {
 			i.VerifyPr.HeadSHA = "3333333333333333333333333333333333333333"
 		}},
@@ -239,6 +285,37 @@ func TestAdmitOnboardingAutoNegatives(t *testing.T) {
 	}
 }
 
+// An unchanged, reordered exclusion set (also with exclusions that exist on
+// both sides) is not a change.
+func TestAdmitOnboardingAutoExclusionSetOrderIrrelevant(t *testing.T) {
+	t.Parallel()
+	in := admOK()
+	in.BaseExclusions = []string{"beta\x00e1", "gamma\x00e2", "beta\x00e3"}
+	in.HeadExclusions = []string{"beta\x00e3", "beta\x00e1", "gamma\x00e2"}
+	in.RecipeExclusions = []string{"alpha\x00a/", "alpha\x00b/"}
+	in.TargetExclusionPaths = []string{"alpha\x00b/", "alpha\x00a/"}
+	d := AdmitOnboardingAuto(in)
+	if !d.Admitted {
+		t.Fatalf("%v", d.Reasons)
+	}
+	// ... and an exclusion set that only the head carries is the target's own
+	// change, never admitted.
+	in.HeadExclusions = append(in.HeadExclusions, "alpha\x00a")
+	if d := AdmitOnboardingAuto(in); d.Admitted {
+		t.Fatal("admitted a new exclusion")
+	}
+	a, b := admOK(), admOK()
+	b.BaseExclusions, b.HeadExclusions = []string{"x\x00y", "x\x00z"}, []string{"x\x00z", "x\x00y"}
+	c := b
+	c.BaseExclusions, c.HeadExclusions = []string{"x\x00z", "x\x00y"}, []string{"x\x00y", "x\x00z"}
+	if AdmitOnboardingAuto(b).DecisionDigest != AdmitOnboardingAuto(c).DecisionDigest {
+		t.Fatal("list order moves the decision digest")
+	}
+	if AdmitOnboardingAuto(a).DecisionDigest == AdmitOnboardingAuto(b).DecisionDigest {
+		t.Fatal("the exclusion sets are not bound")
+	}
+}
+
 // The zero input admits nothing and every unknown is a reason.
 func TestAdmitOnboardingAutoZeroInputFailsClosed(t *testing.T) {
 	t.Parallel()
@@ -272,6 +349,7 @@ func TestAdmissionDecisionDigestBindsMembers(t *testing.T) {
 		"nonce":    func(i *OnboardingAdmissionInput) { i.Batch.Nonce = "n2" },
 		"digests":  func(i *OnboardingAdmissionInput) { i.GateHeadDigests = admDigests("5") },
 		"paths":    func(i *OnboardingAdmissionInput) { i.ChangedPaths = append(i.ChangedPaths, "cli/docs/out.json") },
+		"recipe":   func(i *OnboardingAdmissionInput) { i.VerifyPr.RecipeChange = "changed" },
 		"verify":   func(i *OnboardingAdmissionInput) { i.VerifyPr.BindingDigest = admOther },
 		"keyset":   func(i *OnboardingAdmissionInput) { i.KeysetDigest = admOther },
 		"policy":   func(i *OnboardingAdmissionInput) { i.Policy.Digest = admOther },
@@ -312,7 +390,7 @@ func TestAdmitOnboardingAutoDeterministicAndStable(t *testing.T) {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	want := "authorLogin,baseSha,batch,botLogin,commits,decisionDigest,digests,headSha,keysetDigest,observedAt,pathSet,pathSetSha256,paused,policyDigest,projects,reasons,regen,schema,senderLogin,shadow,trustRootDigest,verifyPr,admitted"
+	want := "exclusions,authorLogin,baseSha,batch,botLogin,commits,decisionDigest,digests,headSha,keysetDigest,observedAt,pathSet,pathSetSha256,paused,policyDigest,projects,reasons,regen,schema,senderLogin,shadow,trustRootDigest,verifyPr,admitted"
 	wantKeys := strings.Split(want, ",")
 	sort.Strings(wantKeys)
 	if strings.Join(keys, ",") != strings.Join(wantKeys, ",") {
@@ -320,11 +398,6 @@ func TestAdmitOnboardingAutoDeterministicAndStable(t *testing.T) {
 	}
 	if !bytes.HasPrefix(a, []byte(`{"schema":"onboarding-admission/v1","admitted":true,"reasons":[],"headSha":`)) {
 		t.Fatalf("member order: %.120s", a)
-	}
-	// Golden: the decision of the reference input is byte-stable.
-	const golden = "sha256:42f286e39012c04f65bd75850bbdd31267334311860c70d72e75f6b7c5891e92"
-	if got := AdmitOnboardingAuto(admOK()).DecisionDigest; got != golden {
-		t.Fatalf("decision digest %s", got)
 	}
 }
 

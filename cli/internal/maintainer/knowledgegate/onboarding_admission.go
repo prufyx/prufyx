@@ -18,46 +18,52 @@ const OnboardingAdmissionSchema = "onboarding-admission/v1"
 
 // Admission reason codes. A decision is admitted exactly when it has none.
 const (
-	AdmitReasonDisabled          = "disabled"
-	AdmitReasonGateFailed        = "gate-not-passed"
-	AdmitReasonShadow            = "shadow"
-	AdmitReasonNoBatch           = "no-onboarding-batch"
-	AdmitReasonBatchNotOK        = "onboarding-checks-failed"
-	AdmitReasonPaused            = "paused"
-	AdmitReasonPauseUnknown      = "pause-unknown"
-	AdmitReasonSignature         = "batch-signature-not-verified-against-base-keyset"
-	AdmitReasonKeyNotInBase      = "signing-key-not-in-base-keyset"
-	AdmitReasonTier              = "signer-tier-unknown"
-	AdmitReasonBotPolicy         = "bot-tier-without-owner-signed-policy"
-	AdmitReasonBatchExpired      = "batch-expired-or-time-unknown"
-	AdmitReasonKeyset            = "keyset-digest-missing"
-	AdmitReasonTrustRoot         = "trust-root-digest-missing"
-	AdmitReasonDigests           = "digest-mismatch"
-	AdmitReasonChangeSet         = "change-set-mismatch"
-	AdmitReasonRegen             = "regeneration-not-byte-equal"
-	AdmitReasonProjects          = "project-set-invalid"
-	AdmitReasonOwnerOnly         = "owner-merge-only"
-	AdmitReasonExclusion         = "exclusion-added"
-	AdmitReasonExclusionUnknown  = "exclusion-delta-unknown"
-	AdmitReasonPathOutside       = "path-outside-allowlist"
-	AdmitReasonTrustPath         = "trust-path-touched"
-	AdmitReasonForbiddenPath     = "forbidden-path-touched"
-	AdmitReasonPathSet           = "path-set-invalid"
-	AdmitReasonBatchPath         = "batch-path-missing"
-	AdmitReasonFileModes         = "file-modes"
-	AdmitReasonVerifyAbsent      = "verify-pr-absent"
-	AdmitReasonVerifyNotEligible = "verify-pr-not-eligible"
-	AdmitReasonVerifyHead        = "verify-pr-head-mismatch"
-	AdmitReasonVerifyBinding     = "verify-pr-binding-invalid"
-	AdmitReasonVerifySlugs       = "verify-pr-slug-mismatch"
-	AdmitReasonAuthor            = "author-not-bot"
-	AdmitReasonSender            = "sender-not-bot"
-	AdmitReasonBotLogin          = "bot-login-invalid"
-	AdmitReasonOwnerPrincipal    = "owner-principal-is-never-machine-class"
-	AdmitReasonCommits           = "commit-provenance"
-	AdmitReasonSHA               = "sha-invalid"
-	AdmitReasonHeadMismatch      = "head-sha-mismatch"
-	AdmitReasonAllowlistUnset    = "path-allowlist-unset"
+	AdmitReasonDisabled               = "disabled"
+	AdmitReasonGateFailed             = "gate-not-passed"
+	AdmitReasonShadow                 = "shadow"
+	AdmitReasonNoBatch                = "no-onboarding-batch"
+	AdmitReasonBatchNotOK             = "onboarding-checks-failed"
+	AdmitReasonPaused                 = "paused"
+	AdmitReasonPauseUnknown           = "pause-unknown"
+	AdmitReasonSignature              = "batch-signature-not-verified-against-base-keyset"
+	AdmitReasonKeyNotInBase           = "signing-key-not-in-base-keyset"
+	AdmitReasonTier                   = "signer-tier-unknown"
+	AdmitReasonBotPolicy              = "bot-tier-without-owner-signed-policy"
+	AdmitReasonBatchExpired           = "batch-expired-or-time-unknown"
+	AdmitReasonKeyset                 = "keyset-digest-missing"
+	AdmitReasonTrustRoot              = "trust-root-digest-missing"
+	AdmitReasonDigests                = "digest-mismatch"
+	AdmitReasonChangeSet              = "change-set-mismatch"
+	AdmitReasonRegen                  = "regeneration-not-byte-equal"
+	AdmitReasonProjects               = "project-set-invalid"
+	AdmitReasonOwnerOnly              = "owner-merge-only"
+	AdmitReasonExclusion              = "exclusion-added"
+	AdmitReasonExclusionUnknown       = "exclusion-delta-unknown"
+	AdmitReasonExclusionRemoved       = "exclusion-removed"
+	AdmitReasonExclusionInvalid       = "exclusion-set-invalid"
+	AdmitReasonExclusionRecipe        = "exclusion-recipe-target-mismatch"
+	AdmitReasonRecipeExclusionUnknown = "exclusion-recipe-unknown"
+	AdmitReasonPathOutside            = "path-outside-allowlist"
+	AdmitReasonTrustPath              = "trust-path-touched"
+	AdmitReasonForbiddenPath          = "forbidden-path-touched"
+	AdmitReasonPathSet                = "path-set-invalid"
+	AdmitReasonBatchPath              = "batch-path-missing"
+	AdmitReasonFileModes              = "file-modes"
+	AdmitReasonVerifyAbsent           = "verify-pr-absent"
+	AdmitReasonVerifyNotEligible      = "verify-pr-not-eligible"
+	AdmitReasonVerifyHead             = "verify-pr-head-mismatch"
+	AdmitReasonVerifyBinding          = "verify-pr-binding-invalid"
+	AdmitReasonVerifySlugs            = "verify-pr-slug-mismatch"
+	AdmitReasonAuthor                 = "author-not-bot"
+	AdmitReasonSender                 = "sender-not-bot"
+	AdmitReasonBotLogin               = "bot-login-invalid"
+	AdmitReasonOwnerPrincipal         = "owner-principal-is-never-machine-class"
+	AdmitReasonCommits                = "commit-provenance"
+	AdmitReasonSHA                    = "sha-invalid"
+	AdmitReasonHeadMismatch           = "head-sha-mismatch"
+	AdmitReasonAllowlistUnset         = "path-allowlist-unset"
+	AdmitReasonVerifyBase             = "verify-pr-base-mismatch"
+	AdmitReasonVerifyRecipe           = "verify-pr-recipe-not-new"
 )
 
 // OnboardingAdmissionConfig is the layout part of the admission decision.
@@ -127,23 +133,42 @@ type AdmissionBatch struct {
 	SummaryDigest   string `json:"summaryDigest"`
 }
 
-// VerifyPrResult is what the upstream verify-pr check recorded. Its
-// interface belongs to another lane: this is the optional result struct the
-// admission reads, never a second network fetch.
+// VerifyPrResult is what the upstream verify-pr check recorded (the
+// result-json of verify-pr, schema prufyx.io/verify-pr-result/v1). Its
+// interface belongs to another lane: this is the optional struct the
+// admission reads, never a second network fetch. Eligible is carried and
+// bound but is not required: verify-pr labels only an unchanged recipe
+// eligible, and an onboarding change adds a new one, which that tool leaves
+// to a separate decision. Admission needs a passing result with the upstream
+// binding verified and a new recipe, for the same base and head.
 type VerifyPrResult struct {
-	Eligible       bool
-	HeadSHA        string
-	BindingDigest  string
-	Slugs          []string
-	TagsCommitsSHA map[string]string
+	Outcome         string
+	Eligible        bool
+	BindingVerified bool
+	RecipeChange    string
+	BaseSHA         string
+	HeadSHA         string
+	BindingDigest   string
+	Slugs           []string
+	TagsCommitsSHA  map[string]string
 }
 
 // VerifyPrBinding is the part of the verify-pr result bound into the
 // decision.
 type VerifyPrBinding struct {
-	Eligible      bool   `json:"eligible"`
-	BindingDigest string `json:"bindingDigest"`
-	HeadSHA       string `json:"headSha"`
+	Outcome         string `json:"outcome"`
+	Eligible        bool   `json:"eligible"`
+	BindingVerified bool   `json:"bindingVerified"`
+	RecipeChange    string `json:"recipeChange"`
+	BaseSHA         string `json:"baseSha"`
+	BindingDigest   string `json:"bindingDigest"`
+	HeadSHA         string `json:"headSha"`
+}
+
+// ExclusionBinding binds the exclusion identity sets of both sides.
+type ExclusionBinding struct {
+	BaseSHA256 string `json:"baseSha256"`
+	HeadSHA256 string `json:"headSha256"`
 }
 
 // RegenBinding is the regeneration evidence bound into the decision.
@@ -197,13 +222,21 @@ type OnboardingAdmissionInput struct {
 	RegenKnown         bool
 	RegenByteEqual     bool
 	RegenOutputsSHA256 string
-	ExclusionsKnown    bool
-	ExclusionsAdded    int
-	FileModesOK        bool
-	ChangedPaths       []string
-	TrustPaths         []string
-	BatchDir           string
-	VerifyPr           *VerifyPrResult
+	// Exclusion identity sets, BASE and HEAD, over every target: one opaque
+	// string per exclusion. Known is false when either could not be read.
+	ExclusionsKnown bool
+	BaseExclusions  []string
+	HeadExclusions  []string
+	// The recipe's exclusions and the head target's exclusion paths, as
+	// slug-qualified items; they must be the same set.
+	RecipeExclusionsKnown bool
+	RecipeExclusions      []string
+	TargetExclusionPaths  []string
+	FileModesOK           bool
+	ChangedPaths          []string
+	TrustPaths            []string
+	BatchDir              string
+	VerifyPr              *VerifyPrResult
 }
 
 // OnboardingAdmission is the decision. It is never a merge authorization of
@@ -223,6 +256,7 @@ type OnboardingAdmission struct {
 	Digests         AdmissionDigests   `json:"digests"`
 	Projects        []AdmissionProject `json:"projects"`
 	PathSet         []string           `json:"pathSet"`
+	Exclusions      ExclusionBinding   `json:"exclusions"`
 	PathSetSHA      string             `json:"pathSetSha256"`
 	VerifyPr        VerifyPrBinding    `json:"verifyPr"`
 	Regen           RegenBinding       `json:"regen"`
@@ -263,6 +297,7 @@ func AdmitOnboardingAuto(in OnboardingAdmissionInput) OnboardingAdmission {
 	if !in.Now.IsZero() {
 		d.ObservedAt = in.Now.UTC().Format(time.RFC3339)
 	}
+	d.Exclusions = ExclusionBinding{BaseSHA256: admitSetDigest(in.BaseExclusions), HeadSHA256: admitSetDigest(in.HeadExclusions)}
 	d.Commits = append([]AdmissionCommit{}, in.Commits...)
 	d.Projects = append([]AdmissionProject{}, in.Projects...)
 	sort.Slice(d.Projects, func(i, j int) bool { return d.Projects[i].Slug < d.Projects[j].Slug })
@@ -270,7 +305,7 @@ func AdmitOnboardingAuto(in OnboardingAdmissionInput) OnboardingAdmission {
 	sort.Strings(d.PathSet)
 	d.PathSetSHA = admitSHA([]byte(strings.Join(d.PathSet, "\n")))
 	if in.VerifyPr != nil {
-		d.VerifyPr = VerifyPrBinding{Eligible: in.VerifyPr.Eligible, BindingDigest: in.VerifyPr.BindingDigest, HeadSHA: in.VerifyPr.HeadSHA}
+		d.VerifyPr = VerifyPrBinding{Outcome: in.VerifyPr.Outcome, Eligible: in.VerifyPr.Eligible, BindingVerified: in.VerifyPr.BindingVerified, RecipeChange: in.VerifyPr.RecipeChange, BaseSHA: in.VerifyPr.BaseSHA, BindingDigest: in.VerifyPr.BindingDigest, HeadSHA: in.VerifyPr.HeadSHA}
 	}
 
 	var why admitReasons
@@ -413,13 +448,72 @@ func admitRegeneration(in OnboardingAdmissionInput, why *admitReasons) {
 	}
 }
 
-// A4: no exclusion is added; an unknown delta is a refusal.
+// admitSet returns the set of a list, and whether the list is a valid
+// identity list: no empty item and no repeated item.
+func admitSet(list []string) (map[string]bool, bool) {
+	set := make(map[string]bool, len(list))
+	ok := true
+	for _, x := range list {
+		if x == "" || set[x] {
+			ok = false
+		}
+		set[x] = true
+	}
+	return set, ok
+}
+
+func admitSetDigest(list []string) string {
+	set, _ := admitSet(list)
+	items := make([]string, 0, len(set))
+	for x := range set {
+		items = append(items, x)
+	}
+	sort.Strings(items)
+	raw, _ := json.Marshal(items)
+	return admitSHA(raw)
+}
+
+// A4: the exclusion identity set of the head is the base's: an item the head
+// has and the base lacks (added, or a replacement at the same count) and an
+// item the base has and the head lacks are both refused; the order of the
+// lists never matters; identities are compared exactly (no case folding); a
+// repeated or empty item is invalid; an unknown set is a refusal. The
+// recipe's exclusions are the head target's.
 func admitExclusions(in OnboardingAdmissionInput, why *admitReasons) {
 	if !in.ExclusionsKnown {
 		why.add(AdmitReasonExclusionUnknown)
+	} else {
+		base, baseOK := admitSet(in.BaseExclusions)
+		head, headOK := admitSet(in.HeadExclusions)
+		if !baseOK || !headOK {
+			why.add(AdmitReasonExclusionInvalid)
+		}
+		for x := range head {
+			if !base[x] {
+				why.add(AdmitReasonExclusion)
+			}
+		}
+		for x := range base {
+			if !head[x] {
+				why.add(AdmitReasonExclusionRemoved)
+			}
+		}
 	}
-	if in.ExclusionsAdded != 0 {
-		why.add(AdmitReasonExclusion)
+	if !in.RecipeExclusionsKnown {
+		why.add(AdmitReasonRecipeExclusionUnknown)
+		return
+	}
+	recipe, recipeOK := admitSet(in.RecipeExclusions)
+	target, targetOK := admitSet(in.TargetExclusionPaths)
+	if !recipeOK || !targetOK {
+		why.add(AdmitReasonExclusionInvalid)
+	}
+	same := len(recipe) == len(target)
+	for x := range recipe {
+		same = same && target[x]
+	}
+	if !same {
+		why.add(AdmitReasonExclusionRecipe)
 	}
 }
 
@@ -539,8 +633,14 @@ func admitVerifyPr(in OnboardingAdmissionInput, why *admitReasons) {
 		why.add(AdmitReasonVerifyAbsent)
 		return
 	}
-	if !v.Eligible {
+	if v.Outcome != "pass" || !v.BindingVerified {
 		why.add(AdmitReasonVerifyNotEligible)
+	}
+	if v.RecipeChange != "new" {
+		why.add(AdmitReasonVerifyRecipe)
+	}
+	if !shaRE.MatchString(v.BaseSHA) || v.BaseSHA != in.BaseSHA {
+		why.add(AdmitReasonVerifyBase)
 	}
 	if !shaRE.MatchString(v.HeadSHA) || v.HeadSHA != in.HeadSHA {
 		why.add(AdmitReasonVerifyHead)
