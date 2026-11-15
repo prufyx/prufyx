@@ -49,45 +49,53 @@ const (
 	StopDirMatchNondefault    = "dir-match-nondefault"
 	StopDirSetDiffers         = "dir-set-differs"
 	StopDirUnsupported        = "dir-collapse-unsupported"
+
+	StopDuplicateCRDDiffers        = "duplicate-crd-differs"
+	StopDuplicateCRDNoCommonSource = "duplicate-crd-no-common-source"
+	StopDuplicateCRDUnresolvable   = "duplicate-crd-unresolvable"
 )
 
 var nextAction = map[string]string{
-	StopBadInput:              "fix the command line; every required option is listed in the usage text",
-	StopTagGrammar:            "pass final release tags of the form <prefix>X.Y.Z, each once",
-	StopTagLineDuplicate:      "pass one final tag per release line",
-	StopTagPrefixMixed:        "pass tags of one prefix family",
-	StopTagPrefixUnsupported:  "the extractor accepts no prefix, v, knative-v or a chart prefix; a new prefix needs an extractor change",
-	StopTagUnreadable:         "make the tag available in the local checkout (fetch outside this command)",
-	StopTreeUnreadable:        "repair or re-clone the local checkout",
-	StopSymlinkEscapes:        "a link that leaves the tree cannot be read; review the link and either drop the tag window or pin a rule after review",
-	StopUnreadableShape:       "the file is not a plain definition (template, patch or no spec.versions); narrow the window past it or ask for an extractor change",
-	StopDocsOnlyCRDSource:     "the only definitions sit under a documentation directory; add a reviewed installSurface rule naming the file, or choose another source",
-	StopUnpinnedExclusion:     "a definition file outside the install paths needs a reviewed exclusion rule (exact-file or fixture-dir) with pinned evidence",
-	StopExclusionOwnedGroup:   "the excluded file defines a group the target reads; narrow the rule or review the file as install surface",
-	StopFixtureHiddenOwnedCRD: "a fixture defines an owned CRD the target does not read; review it as install surface or remove the rule",
-	StopRuleMatchesNothing:    "the rule names a path no tag of the window carries; drop or correct the rule",
-	StopDuplicateCRD:          "two files define the same group and kind; pin which one is the source",
-	StopReservedGroup:         "a Kubernetes-reserved group needs a reviewed ownership record before a target may list it",
-	StopGroupOwnedElsewhere:   "another table project lists the group; use a kinds-only row after review",
-	StopNoCRDSource:           "no install path holds a definition; give an installSurface rule or choose another source",
-	StopWindowTooShort:        "fewer than two tags read the same files; widen the tag set or fix the unreadable tag",
-	StopForeignCopyUnpinned:   "a definition file of another project's group sits outside the default-excluded directories (documentation or fixtures); add a reviewed pinned exclusion rule for the exact file or fixture directory",
-	StopWindowShortened:       "older tags were withheld and --strict-window forbids a shorter window; fix the withheld tags or drop the flag after review",
-	StopInstallPathNothing:    "an installPaths entry holds no definition file at this tag; correct the entry, or narrow the window past the tag",
-	StopPathFilterNothing:     "a pathFilter entry matches no file under installPaths at this tag; correct the glob, or narrow the window past the tag",
-	StopFilterHidesUnowned:    "a pathFilter entry matches a file whose group has no single known owner in the ownership index; add the group to the reviewed index or narrow the glob so the file stays install surface",
-	StopPathFilterCount:       "a pathFilter entry matches a different number of files than its pinned expectFiles at this tag; re-review the files the glob matches and pin the exact count, or narrow the glob",
-	StopFilterHidesOwned:      "a pathFilter entry matches a file that defines a group the target reads; narrow the glob or review the file as install surface",
-	StopRepoNotCanonical:      "use the canonical lower-case form github.com/<owner>/<name> (no scheme, no .git suffix, no spaces, no capital letters)",
-	StopComponentNotCanonical: "use pkg:github/<owner>/<name> in lower case, matching the repository",
-	StopUpstreamNotCanonical:  "a community row's upstream.repository must be https://github.com/<owner>/<name> of the repository, its licenseSource a /blob/<40-hex commit>/LICENSE or COPYING file under it with a valid license expression; a CNCF row takes no upstream block",
-	StopDirMixed:              "the directory holds a file the default match would read that is not an installed definition file; keep exact files or review the directory",
-	StopDirIncomplete:         "a file of the directory matches the guard but not the match, or is a symbolic link the read would refuse; the loader would report an incomplete inventory, so keep exact files",
-	StopDirSubdir:             "a definition file sits in a subdirectory of the directory; recursion is not emitted, keep exact files",
-	StopDirMatchNondefault:    "a definition file of the directory is outside the one default match; a custom pattern is never invented, keep exact files or review a hand-written entry",
-	StopDirSetDiffers:         "the directory would read another set of files than the exact install files at some window tag; keep exact files",
-	StopDirUnsupported:        "directory collapse does not apply to this input (exclusions, optional or ranged installPaths, pathFilter, range-check tags, links, root or test-like files); drop --collapse-directories",
-	StopCommunityUpstream:     "a community-catalog row needs the upstream block (name, repository, license, licenseSource) in the rules file",
+	StopBadInput:                   "fix the command line; every required option is listed in the usage text",
+	StopTagGrammar:                 "pass final release tags of the form <prefix>X.Y.Z, each once",
+	StopTagLineDuplicate:           "pass one final tag per release line",
+	StopTagPrefixMixed:             "pass tags of one prefix family",
+	StopTagPrefixUnsupported:       "the extractor accepts no prefix, v, knative-v or a chart prefix; a new prefix needs an extractor change",
+	StopTagUnreadable:              "make the tag available in the local checkout (fetch outside this command)",
+	StopTreeUnreadable:             "repair or re-clone the local checkout",
+	StopSymlinkEscapes:             "a link that leaves the tree cannot be read; review the link and either drop the tag window or pin a rule after review",
+	StopUnreadableShape:            "the file is not a plain definition (template, patch or no spec.versions); narrow the window past it or ask for an extractor change",
+	StopDocsOnlyCRDSource:          "the only definitions sit under a documentation directory; add a reviewed installSurface rule naming the file, or choose another source",
+	StopUnpinnedExclusion:          "a definition file outside the install paths needs a reviewed exclusion rule (exact-file or fixture-dir) with pinned evidence",
+	StopExclusionOwnedGroup:        "the excluded file defines a group the target reads; narrow the rule or review the file as install surface",
+	StopFixtureHiddenOwnedCRD:      "a fixture defines an owned CRD the target does not read; review it as install surface or remove the rule",
+	StopRuleMatchesNothing:         "the rule names a path no tag of the window carries; drop or correct the rule",
+	StopDuplicateCRD:               "two files define the same group and kind; pin which one is the source",
+	StopReservedGroup:              "a Kubernetes-reserved group needs a reviewed ownership record before a target may list it",
+	StopGroupOwnedElsewhere:        "another table project lists the group; use a kinds-only row after review",
+	StopNoCRDSource:                "no install path holds a definition; give an installSurface rule or choose another source",
+	StopWindowTooShort:             "fewer than two tags read the same files; widen the tag set or fix the unreadable tag",
+	StopForeignCopyUnpinned:        "a definition file of another project's group sits outside the default-excluded directories (documentation or fixtures); add a reviewed pinned exclusion rule for the exact file or fixture directory",
+	StopWindowShortened:            "older tags were withheld and --strict-window forbids a shorter window; fix the withheld tags or drop the flag after review",
+	StopInstallPathNothing:         "an installPaths entry holds no definition file at this tag; correct the entry, or narrow the window past the tag",
+	StopPathFilterNothing:          "a pathFilter entry matches no file under installPaths at this tag; correct the glob, or narrow the window past the tag",
+	StopFilterHidesUnowned:         "a pathFilter entry matches a file whose group has no single known owner in the ownership index; add the group to the reviewed index or narrow the glob so the file stays install surface",
+	StopPathFilterCount:            "a pathFilter entry matches a different number of files than its pinned expectFiles at this tag; re-review the files the glob matches and pin the exact count, or narrow the glob",
+	StopFilterHidesOwned:           "a pathFilter entry matches a file that defines a group the target reads; narrow the glob or review the file as install surface",
+	StopRepoNotCanonical:           "use the canonical lower-case form github.com/<owner>/<name> (no scheme, no .git suffix, no spaces, no capital letters)",
+	StopComponentNotCanonical:      "use pkg:github/<owner>/<name> in lower case, matching the repository",
+	StopUpstreamNotCanonical:       "a community row's upstream.repository must be https://github.com/<owner>/<name> of the repository, its licenseSource a /blob/<40-hex commit>/LICENSE or COPYING file under it with a valid license expression; a CNCF row takes no upstream block",
+	StopDirMixed:                   "the directory holds a file the default match would read that is not an installed definition file; keep exact files or review the directory",
+	StopDirIncomplete:              "a file of the directory matches the guard but not the match, or is a symbolic link the read would refuse; the loader would report an incomplete inventory, so keep exact files",
+	StopDirSubdir:                  "a definition file sits in a subdirectory of the directory; recursion is not emitted, keep exact files",
+	StopDirMatchNondefault:         "a definition file of the directory is outside the one default match; a custom pattern is never invented, keep exact files or review a hand-written entry",
+	StopDirSetDiffers:              "the directory would read another set of files than the exact install files at some window tag; keep exact files",
+	StopDirUnsupported:             "directory collapse does not apply to this input (exclusions, optional or ranged installPaths, pathFilter, range-check tags, links, root or test-like files); drop --collapse-directories",
+	StopCommunityUpstream:          "a community-catalog row needs the upstream block (name, repository, license, licenseSource) in the rules file",
+	StopDuplicateCRD:               "two files define the same group and kind; pin which one is the source",
+	StopDuplicateCRDDiffers:        "the copies differ in their decoded spec at a tag; pin one source by a reviewed installPaths rule, or fix the tag window",
+	StopDuplicateCRDNoCommonSource: "the chosen copy does not hold the definition at a tag where another copy does; pin the source by a reviewed installPaths rule or narrow the window",
+	StopDuplicateCRDUnresolvable:   "the copies cannot be reduced to one source without losing a definition; pin the source by a reviewed installPaths rule",
 }
 
 // Stop is a typed stop: the generator will not guess.
@@ -211,6 +219,12 @@ type Report struct {
 	// window tags; sorted. Present only when pathFilter is used.
 	FilteredCopyCount int            `json:"filteredCopyCount,omitempty"`
 	FilteredCopies    []FilteredCopy `json:"filteredCopies,omitempty"`
+	// DerivedSources lists, per definition that several files defined, the
+	// kept file, the dropped copies, the spec digest and the window tags at
+	// which every copy was compared and equal. Present only when the
+	// duplicate derivation ran (--derive-duplicate-sources); part of
+	// FactsDigest then.
+	DerivedSources []DerivedSource `json:"derivedSources,omitempty"`
 	// Representation is "directory" when install files were written as
 	// directory entries; absent (exact files) otherwise. Directories lists
 	// each directory entry with the file names it reads, identical at every
@@ -224,6 +238,38 @@ type Report struct {
 type DirectoryFact struct {
 	Dir   string   `json:"dir"`
 	Files []string `json:"files"`
+}
+
+// DerivedSource is one duplicated definition resolved to one kept file.
+type DerivedSource struct {
+	Key        string   `json:"key"`
+	Kept       string   `json:"kept"`
+	Dropped    []string `json:"dropped"`
+	SpecDigest string   `json:"specDigest"`
+	Tags       []string `json:"tags"`
+}
+
+// annotateDerived fills the derived-source block of the report, adds its
+// content to the facts digest and states the evidence in the changelog. Only
+// window tags are named.
+func annotateDerived(res *Result, d *derivation, window []*tagResult) {
+	inWindow := map[string]bool{}
+	for _, r := range window {
+		inWindow[r.tag] = true
+	}
+	var h []string
+	for _, s := range d.Sources {
+		ds := DerivedSource{Key: s.Key, Kept: s.Kept, Dropped: s.Dropped, SpecDigest: s.Digest, Tags: []string{}}
+		for _, t := range s.Tags {
+			if inWindow[t] {
+				ds.Tags = append(ds.Tags, t)
+			}
+		}
+		res.Report.DerivedSources = append(res.Report.DerivedSources, ds)
+		h = append(h, fmt.Sprintf("%s\t%s\t%s\t%s\t%s", safeField(ds.Key), safeField(ds.Kept), safeField(strings.Join(ds.Dropped, ",")), ds.SpecDigest, safeField(strings.Join(ds.Tags, ","))))
+	}
+	res.Report.FactsDigest = sumHex([]byte(res.Report.FactsDigest + "\n" + strings.Join(h, "\n") + "\n"))
+	res.Changelog = append(res.Changelog, []byte(fmt.Sprintf("\nDuplicate definitions: %d definition(s) were defined by more than one file; one kept file each is read, the copies are listed as non-install copies. The copies had the same full decoded spec at the window tags named in the report (derivedSources); no claim is made for other tags.\n", len(d.Sources)))...)
 }
 
 // FilteredCopy is a definition file under installPaths that a pathFilter entry

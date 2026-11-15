@@ -48,6 +48,11 @@ type Input struct {
 	// exactly the install files at every window tag; anything else is a typed
 	// stop, never a silent fallback. Off, the output is unchanged exact files.
 	CollapseDirectories bool
+	// DeriveDuplicates is the explicit opt-in (default off) to reduce files
+	// that define the same group and kind to one source when, and only when,
+	// every stop of every tag is duplicate-crd and every copy has the same
+	// full decoded spec at every tag read. See dupresolve.go.
+	DeriveDuplicates bool
 }
 
 // Result is the successful output of a run.
@@ -141,6 +146,9 @@ func Generate(in Input) (*Result, error) {
 	index := customresources.DefaultIndex()
 	var optFatal []Stop
 	results := make([]*tagResult, len(tags))
+	scans := make([][]*finding, len(tags))
+	trees := make([]Tree, len(tags))
+	scanStopsOf := make([][]Stop, len(tags))
 	for i, t := range tags {
 		tree, commit, err := in.Source.Open(t.Tag)
 		if err != nil {
@@ -155,6 +163,7 @@ func Generate(in Input) (*Result, error) {
 				return nil, &StopError{Stops: []Stop{stop(StopTreeUnreadable, t.Tag, eerr.Error())}}
 			}
 		}
+		trees[i], scans[i], scanStopsOf[i] = tree, fs, scanStops
 		var rg *rangeCtx
 		if plan != nil {
 			rg = &rangeCtx{entries: plan, idx: i}
@@ -173,6 +182,35 @@ func Generate(in Input) (*Result, error) {
 	optFatal = append(optFatal, cstops...)
 	if len(optFatal) > 0 {
 		return nil, &StopError{Stops: sortStops(optFatal)}
+	}
+
+	var derived *derivation
+	if in.DeriveDuplicates && deriveEligible(in, rules, plan, results) {
+		// Second pass over the same readings with the derived exact-file
+		// list; the plain results are kept only for the per-tag checks.
+		d, tagStops := resolveDuplicates(plainFiles(results))
+		if d != nil {
+			derivedRules := &Rules{Schema: RulesSchema, Upstream: rules.Upstream, InstallPaths: d.Rules, deriveStrict: true}
+			second := make([]*tagResult, len(tags))
+			for i, t := range tags {
+				commit := results[i].commit
+				r := classify(t.Tag, commit, scans[i], derivedRules, in.Slug, index, nil)
+				r.stops = append(append([]Stop(nil), scanStopsOf[i]...), r.stops...)
+				optFatal = append(optFatal, applyOptional(r, trees[i], derivedRules, t.Tag, i == len(tags)-1)...)
+				r.entries, r.defs = results[i].entries, results[i].defs
+				second[i] = r
+			}
+			results, rules, derived = second, derivedRules, d
+			for i := range results {
+				results[i].stops = append(results[i].stops, tagStops[i]...)
+			}
+		} else {
+			// No derivation: report the derivation's stops of the newest tag.
+			results[len(results)-1].stops = append(results[len(results)-1].stops, tagStops[len(results)-1]...)
+		}
+		if len(optFatal) > 0 {
+			return nil, &StopError{Stops: sortStops(optFatal)}
+		}
 	}
 
 	newest := results[len(results)-1]
@@ -239,7 +277,11 @@ func Generate(in Input) (*Result, error) {
 	var dirs []collapsedDir
 	if in.CollapseDirectories {
 		var dstops []Stop
-		dirs, dstops = collapseDirs(collapseInput(window))
+		var droppedCopies []string
+		if derived != nil {
+			droppedCopies = derived.Dropped
+		}
+		dirs, dstops = collapseDirsDropping(collapseInput(window), droppedCopies)
 		if len(dstops) == 0 && len(dirs) == 0 {
 			dstops = []Stop{stop(StopDirUnsupported, "", "no directory to collapse")}
 		}
@@ -251,9 +293,42 @@ func Generate(in Input) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
+	if derived != nil {
+		annotateDerived(res, derived, window)
+	}
 	annotateOptional(res, rules, window)
 	annotateRanges(res, rules, window, checked)
 	return res, nil
+}
+
+// deriveEligible is the pre-condition of the derivation, checked on the plain
+// pass: no hand rule of any kind, at least one stop at the newest tag, and
+// every stop of every tag is duplicate-crd. Anything else keeps the plain
+// result unchanged.
+func deriveEligible(in Input, rules *Rules, plan map[string]rangeEntry, results []*tagResult) bool {
+	if len(rules.InstallPaths) > 0 || len(rules.Exclusions) > 0 || len(rules.InstallSurface) > 0 || len(rules.PathFilter) > 0 || plan != nil || len(in.RangeCheckTags) > 0 {
+		return false
+	}
+	if len(results[len(results)-1].stops) == 0 {
+		return false
+	}
+	for _, r := range results {
+		for _, st := range r.stops {
+			if st.Code != StopDuplicateCRD {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// plainFiles lists the files each plain-pass tag read.
+func plainFiles(results []*tagResult) []tagFiles {
+	out := make([]tagFiles, len(results))
+	for i, r := range results {
+		out[i] = tagFiles{Tag: r.tag, Included: r.included}
+	}
+	return out
 }
 
 func parseTags(in []string) ([]parsedTag, string, []Stop) {
@@ -448,6 +523,12 @@ func classify(tag, commit string, fs []*finding, rules *Rules, slug string, inde
 				rule = RuleIncludeInstallPath
 				via = "declared by installPaths entry " + ip.Path
 			} else if exclusionFor(rules, f.Path) == nil {
+				if rules.deriveStrict && f.Unreadable != "" {
+					// A derived list never leaves an unreadable
+					// definition file out silently.
+					stopAt(StopUnreadableShape, f.Path, f.Unreadable)
+					continue
+				}
 				c := NonInstallCopy{Path: f.Path, Groups: groupSet(f.CRDs), Unreadable: f.Unreadable}
 				r.copies = append(r.copies, c)
 				d := "groups " + strings.Join(c.Groups, ",")

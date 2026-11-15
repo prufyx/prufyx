@@ -20,6 +20,12 @@ type crd struct {
 	Group    string
 	Kind     string
 	Versions []string // "name:served:storage"
+	// SpecDigest is the digest of the full decoded definition (apiVersion
+	// and every field of spec) in a canonical structural encoding; empty when
+	// it cannot be computed. SpecParts holds the digest per top-level field
+	// ("apiVersion" and spec.<field>) so a difference can be named.
+	SpecDigest string
+	SpecParts  map[string]string
 }
 
 // finding is one CRD-bearing file of a tree, keyed by the path of the file
@@ -99,19 +105,43 @@ func resolve(t Tree, isLink map[string]bool, p string) (string, error) {
 	return cur, nil
 }
 
+type specBody struct {
+	Group string `yaml:"group"`
+	Names struct {
+		Kind string `yaml:"kind"`
+	} `yaml:"names"`
+	Versions []struct {
+		Name    string `yaml:"name"`
+		Served  bool   `yaml:"served"`
+		Storage bool   `yaml:"storage"`
+	} `yaml:"versions"`
+}
+
+// specDoc decodes spec twice from the same node: into the typed fields the
+// generator reads and into a generic value for the canonical spec digest. A
+// failure of the generic decode only leaves the digest empty (not equal to
+// anything); the typed decode keeps its original error behaviour.
+type specDoc struct {
+	typed specBody
+	raw   any
+	rawOK bool
+}
+
+func (s *specDoc) UnmarshalYAML(n *yaml.Node) error {
+	if err := n.Decode(&s.typed); err != nil {
+		return err
+	}
+	var raw any
+	if err := n.Decode(&raw); err == nil {
+		s.raw, s.rawOK = raw, true
+	}
+	return nil
+}
+
 type crdDoc struct {
-	Kind string `yaml:"kind"`
-	Spec struct {
-		Group string `yaml:"group"`
-		Names struct {
-			Kind string `yaml:"kind"`
-		} `yaml:"names"`
-		Versions []struct {
-			Name    string `yaml:"name"`
-			Served  bool   `yaml:"served"`
-			Storage bool   `yaml:"storage"`
-		} `yaml:"versions"`
-	} `yaml:"spec"`
+	APIVersion any     `yaml:"apiVersion"`
+	Kind       string  `yaml:"kind"`
+	Spec       specDoc `yaml:"spec"`
 }
 
 // parseCRDs reads the definitions of a file. A file that mentions no
@@ -138,14 +168,18 @@ func parseCRDs(data []byte) ([]crd, error) {
 		if doc.Kind != "CustomResourceDefinition" {
 			continue
 		}
-		if doc.Spec.Group == "" || doc.Spec.Names.Kind == "" {
+		spec := doc.Spec.typed
+		if spec.Group == "" || spec.Names.Kind == "" {
 			return nil, errors.New("definition without spec.group or spec.names.kind (patch or partial shape)")
 		}
-		if len(doc.Spec.Versions) == 0 {
+		if len(spec.Versions) == 0 {
 			return nil, errors.New("definition without spec.versions")
 		}
-		c := crd{Group: doc.Spec.Group, Kind: doc.Spec.Names.Kind}
-		for _, v := range doc.Spec.Versions {
+		c := crd{Group: spec.Group, Kind: spec.Names.Kind}
+		if doc.Spec.rawOK {
+			c.SpecDigest, c.SpecParts = specDigest(doc.APIVersion, doc.Spec.raw)
+		}
+		for _, v := range spec.Versions {
 			if v.Name == "" {
 				return nil, errors.New("version without a name")
 			}
