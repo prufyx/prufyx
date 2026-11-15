@@ -35,6 +35,9 @@ type finding struct {
 	Reached    []string // symbolic links that resolve to Path
 	CRDs       []crd
 	Unreadable string // why the bytes could not be read as definitions
+	// fragment marks an unreadable file whose content proves a kustomize
+	// patch fragment (see fragment.go); set only with the opt-in.
+	fragment bool
 }
 
 var testLikeSegments = func() map[string]bool {
@@ -192,9 +195,18 @@ func parseCRDs(data []byte) ([]crd, error) {
 
 // scanTree lists every CRD-bearing file of a tree.
 func scanTree(t Tree) ([]*finding, []Stop) {
+	fs, stops, _ := scanTreeFragments(t, false)
+	return fs, stops
+}
+
+// scanTreeFragments is scanTree with the opt-in that sets aside kustomize
+// patch fragments: an unreadable file whose content proves a patch fragment
+// and that no symbolic link reaches is not returned as a finding but listed
+// (sorted) as a fragment. Every other unreadable file stays a finding.
+func scanTreeFragments(t Tree, skipFragments bool) ([]*finding, []Stop, []string) {
 	entries, err := t.Entries()
 	if err != nil {
-		return nil, []Stop{stop(StopTreeUnreadable, "", err.Error())}
+		return nil, []Stop{stop(StopTreeUnreadable, "", err.Error())}, nil
 	}
 	isLink := map[string]bool{}
 	isFile := map[string]bool{}
@@ -227,6 +239,7 @@ func scanTree(t Tree) ([]*finding, []Stop) {
 				f.Unreadable = err.Error()
 			} else if crds, err := parseCRDs(data); err != nil {
 				f.Unreadable = err.Error()
+				f.fragment = skipFragments && isPatchFragment(data)
 			} else if len(crds) == 0 {
 				byPath[res] = &finding{Path: res} // remember: nothing to report
 				continue
@@ -240,12 +253,20 @@ func scanTree(t Tree) ([]*finding, []Stop) {
 		}
 	}
 	var out []*finding
+	var fragments []string
 	for _, f := range byPath {
 		if len(f.CRDs) > 0 || f.Unreadable != "" {
 			sort.Strings(f.Reached)
+			if f.fragment && len(f.Reached) == 0 {
+				fragments = append(fragments, f.Path)
+				continue
+			}
+			// A fragment reached through a symbolic link stays an unreadable
+			// file: the link rules judge it exactly as before.
 			out = append(out, f)
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
-	return out, stops
+	sort.Strings(fragments)
+	return out, stops, fragments
 }

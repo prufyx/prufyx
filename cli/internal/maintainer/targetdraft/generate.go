@@ -74,6 +74,13 @@ type Input struct {
 	// and a repeated definition with a different decoded spec is
 	// install-path-copy-differs. It needs installPaths (or InferInstallPaths).
 	CheckInstallPathCopies bool
+	// SkipPatchFragments is the explicit opt-in (default off): an otherwise
+	// unreadable file whose own content proves it a kustomize patch fragment
+	// (see fragment.go) is set aside as a non-install, non-definition file
+	// and listed in the report instead of ending the run as unreadable-shape.
+	// It never changes the ranking and never hides a definition; anything
+	// ambiguous stays unreadable-shape.
+	SkipPatchFragments bool
 }
 
 // Result is the successful output of a run.
@@ -186,6 +193,7 @@ func Generate(in Input) (*Result, error) {
 	scanStopsOf := make([][]Stop, len(tags))
 	commits := make([]string, len(tags))
 	entriesOf := make([][]Entry, len(tags))
+	fragmentsOf := make([][]string, len(tags))
 	// Both opt-ins refuse input they could not honour, before any tag is read.
 	if in.InferInstallPaths && (len(rules.InstallPaths) > 0 || len(rules.InstallSurface) > 0 || len(rules.PathFilter) > 0 || len(rules.Exclusions) > 0 || len(in.RangeCheckTags) > 0) {
 		return nil, &StopError{Stops: []Stop{stop(StopBadInput, "infer-install-paths", "inference needs rules without installPaths, installSurface, pathFilter and exclusions (exclusions are never inferred and never mixed in), and no range-check tags; a hand rule is never mixed with an inferred one")}}
@@ -199,7 +207,8 @@ func Generate(in Input) (*Result, error) {
 		if err != nil {
 			return nil, &StopError{Stops: []Stop{stop(StopTagUnreadable, t.Tag, err.Error())}}
 		}
-		fs, scanStops := scanTree(tree)
+		fs, scanStops, frags := scanTreeFragments(tree, in.SkipPatchFragments)
+		fragmentsOf[i] = frags
 		var entries []Entry
 		if in.CollapseDirectories {
 			var eerr error
@@ -247,6 +256,7 @@ func Generate(in Input) (*Result, error) {
 			logicalKeys(rules, r)
 		}
 		r.entries, r.defs = entries, fs
+		r.fragments = fragmentsOf[i]
 		results[i] = r
 	}
 	checked, cstops := checkRangeTags(in, tags, plan)
@@ -269,6 +279,7 @@ func Generate(in Input) (*Result, error) {
 				r.stops = append(append([]Stop(nil), scanStopsOf[i]...), r.stops...)
 				optFatal = append(optFatal, applyOptional(r, trees[i], derivedRules, t.Tag, i == len(tags)-1)...)
 				r.entries, r.defs = results[i].entries, results[i].defs
+				r.fragments = results[i].fragments
 				second[i] = r
 			}
 			results, rules, derived = second, derivedRules, d
@@ -513,6 +524,7 @@ type tagResult struct {
 	filtered    []FilteredCopy
 	entries     []Entry    // every file and link of the tree; only with CollapseDirectories
 	defs        []*finding // every definition-bearing file of the tree; same
+	fragments   []string   // patch fragments set aside (sorted); only with SkipPatchFragments
 }
 
 // collapseUnsupported lists the inputs a directory entry cannot represent
@@ -992,6 +1004,12 @@ func digestFacts(window []*tagResult) string {
 		// pathFilter, so digests without it are unchanged.
 		for _, c := range r.filtered {
 			lines = append(lines, fmt.Sprintf("%s\tfiltered-copy\t%s\t%s", safeField(r.tag), safeField(c.Path), safeField(strings.Join(c.Groups, ","))))
+		}
+		// Set-aside patch fragments are facts of the run; lines exist only
+		// with SkipPatchFragments and a fragment, so every other digest is
+		// unchanged.
+		for _, p := range r.fragments {
+			lines = append(lines, fmt.Sprintf("%s\tpatch-fragment\t%s", safeField(r.tag), safeField(p)))
 		}
 		sort.Strings(lines)
 		for _, l := range lines {
