@@ -30,6 +30,8 @@ type onboardingResult struct {
 	headRevision, headRegistry string
 	// restRequests are the dry runs' GitHub REST requests, per project.
 	restRequests map[string]int64
+	// adm is what the admission decision reads about the batch.
+	adm admissionFacts
 }
 
 // admitsMember reports whether the batch admitted a change of a pack member.
@@ -113,6 +115,7 @@ func runOnboarding(ctx context.Context, opts Options, cls *Classification, chang
 	if err := verifyOnboardingSignature(env, *keys, opts.Now); err != nil {
 		return fail("O1: %s", logSafe(err.Error()))
 	}
+	res.adm.signature(env, *keys)
 	if why := botOnboardingLimits(env, *keys, baseFiles, opts.Now, opts.BotSignerPaused); why != "" {
 		return fail("%s", why)
 	}
@@ -141,6 +144,7 @@ func runOnboarding(ctx context.Context, opts Options, cls *Classification, chang
 		return fail("O4: %s", logSafe(err.Error()))
 	}
 	res.summary = st.envelopeSummary(env)
+	res.adm.state(st, rec)
 	if problems := st.check(rec, res.path); len(problems) > 0 {
 		return fail("%d problems%s", len(problems), listDetail(problems))
 	}

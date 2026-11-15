@@ -166,6 +166,10 @@ type Layout struct {
 	// Onboarding names the files of onboarding batches (onboarding.go);
 	// an empty Onboarding.Dir disables them.
 	Onboarding OnboardingLayout
+	// OnboardingAdmission configures the onboarding admission decision
+	// (onboarding_admission.go). Its zero value is off: the decision then
+	// only ever reports "disabled".
+	OnboardingAdmission OnboardingAdmissionConfig
 }
 
 // Repository paths of the default layout.
