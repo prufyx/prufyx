@@ -751,7 +751,7 @@ func TestNoWriteIntoExtractor(t *testing.T) {
 
 // --- directory collapse wiring (M1) --------------------------------------
 
-func collapseInputFor(dir string, files []string, tags ...string) []collapseTag {
+func dupCollapseInput(dir string, files []string, tags ...string) []collapseTag {
 	var out []collapseTag
 	for _, tg := range tags {
 		ct := collapseTag{Tag: tg}
@@ -767,7 +767,7 @@ func collapseInputFor(dir string, files []string, tags ...string) []collapseTag 
 }
 
 func TestCollapseRefusesDirectoryWithDroppedCopy(t *testing.T) {
-	in := collapseInputFor("config/crd/bases", []string{"a.yaml"}, "v1", "v2")
+	in := dupCollapseInput("config/crd/bases", []string{"a.yaml"}, "v1", "v2")
 	// The dropped copy is invisible to the tag data on purpose, so only the
 	// dropped-copy wiring can refuse the directory.
 	if dirs, stops := collapseDirsDropping(in, nil); len(stops) != 0 || len(dirs) != 1 {

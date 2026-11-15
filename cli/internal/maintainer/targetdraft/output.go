@@ -92,7 +92,6 @@ var nextAction = map[string]string{
 	StopDirSetDiffers:              "the directory would read another set of files than the exact install files at some window tag; keep exact files",
 	StopDirUnsupported:             "directory collapse does not apply to this input (exclusions, optional or ranged installPaths, pathFilter, range-check tags, links, root or test-like files); drop --collapse-directories",
 	StopCommunityUpstream:          "a community-catalog row needs the upstream block (name, repository, license, licenseSource) in the rules file",
-	StopDuplicateCRD:               "two files define the same group and kind; pin which one is the source",
 	StopDuplicateCRDDiffers:        "the copies differ in their decoded spec at a tag; pin one source by a reviewed installPaths rule, or fix the tag window",
 	StopDuplicateCRDNoCommonSource: "the chosen copy does not hold the definition at a tag where another copy does; pin the source by a reviewed installPaths rule or narrow the window",
 	StopDuplicateCRDUnresolvable:   "the copies cannot be reduced to one source without losing a definition; pin the source by a reviewed installPaths rule",
