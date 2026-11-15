@@ -24,9 +24,13 @@ const BacktestSchema = "prufyx.io/target-draft-backtest/v1"
 const (
 	ClassReproduced         = "reproduced"
 	ClassReproducedCircular = "reproduced-circular"
-	ClassDiffers            = "differs"
-	ClassTypedStop          = "typed-stop"
-	ClassHarnessError       = "harness-error"
+	// ClassReproducedOracle: equal, but the install paths were copied from the
+	// reviewed target itself. It proves only that the generator compiles a given
+	// path set deterministically; it is never counted as inferred.
+	ClassReproducedOracle = "reproduced-oracle"
+	ClassDiffers          = "differs"
+	ClassTypedStop        = "typed-stop"
+	ClassHarnessError     = "harness-error"
 )
 
 // Causes of a difference.
@@ -53,6 +57,13 @@ type btEntry struct {
 	Expected    string   `json:"expected"`              // reviewed target file, relative to the manifest
 	Half        string   `json:"half"`                  // "A" or "B"
 	MultiPrefix bool     `json:"multiPrefix,omitempty"` // tags of two prefixes; see Input.MultiPrefix
+	// CollapseDirectories, DeriveDuplicateSources: the generator flags of the same
+	// names (--collapse-directories, --derive-duplicate-sources). Default off.
+	CollapseDirectories    bool `json:"collapseDirectories,omitempty"`
+	DeriveDuplicateSources bool `json:"deriveDuplicateSources,omitempty"`
+	// OraclePaths feeds the reviewed target's own paths to the generator as
+	// installPaths. The result is labelled oracle and never counted as strict.
+	OraclePaths bool `json:"oraclePaths,omitempty"`
 }
 
 type btSeed struct {
@@ -72,6 +83,7 @@ type btManifest struct {
 type BacktestResult struct {
 	Slug   string   `json:"slug"`
 	Class  string   `json:"class"`
+	Oracle bool     `json:"oracle,omitempty"` // the install paths came from the reviewed target
 	Cause  string   `json:"cause,omitempty"`
 	Fields []string `json:"fields,omitempty"`
 	Stops  []string `json:"stops,omitempty"`
@@ -96,6 +108,7 @@ type BacktestReport struct {
 	N              int              `json:"n"`
 	Reproduced     int              `json:"reproduced"`
 	Circular       int              `json:"reproducedCircular"`
+	OracleRepro    int              `json:"reproducedOracle"`
 	Differs        int              `json:"differs"`
 	FormatGap      int              `json:"formatGap"`
 	TypedStops     int              `json:"typedStops"`
@@ -194,9 +207,57 @@ func parseBacktestManifest(raw []byte) (*btManifest, error) {
 var knownTargetKeys = map[string]bool{"project": true, "catalog": true, "name": true, "repo": true, "component": true,
 	"factProject": true, "tagPrefixes": true, "minFrom": true, "attest": true, "paths": true, "exclude": true}
 
+// dirEntryDefault reports whether one reviewed paths entry is a directory
+// entry with exactly the keys path, directory, match, guard and the one
+// default match and guard pair the generator emits.
+func dirEntryDefault(p map[string]json.RawMessage) bool {
+	if len(p) != 4 {
+		return false
+	}
+	var path, match, guard string
+	var dir bool
+	for k, v := range p {
+		var err error
+		switch k {
+		case "path":
+			err = json.Unmarshal(v, &path)
+		case "directory":
+			err = json.Unmarshal(v, &dir)
+		case "match":
+			err = json.Unmarshal(v, &match)
+		case "guard":
+			err = json.Unmarshal(v, &guard)
+		default:
+			return false
+		}
+		if err != nil {
+			return false
+		}
+	}
+	return path != "" && dir && match == DefaultDirMatch && guard == DefaultDirGuard
+}
+
+func rawPaths(raw []byte) ([]map[string]json.RawMessage, error) {
+	var doc struct {
+		Target map[string]json.RawMessage `json:"target"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return nil, err
+	}
+	var paths []map[string]json.RawMessage
+	if p, ok := doc.Target["paths"]; ok {
+		if err := json.Unmarshal(p, &paths); err != nil {
+			return nil, err
+		}
+	}
+	return paths, nil
+}
+
 // formatGaps lists the fields of a reviewed target that the generator cannot
-// emit (directory, match, guard, optional paths, extra target fields). The
-// list is sorted and empty for a generator-shaped file.
+// emit (optional paths, non-default directory entries, extra target fields).
+// A directory entry with the one default match and guard is not a gap: the
+// generator emits it under --collapse-directories and its bytes are compared.
+// The list is sorted and empty for a generator-shaped file.
 func formatGaps(raw []byte) ([]string, error) {
 	var doc struct {
 		Target map[string]json.RawMessage `json:"target"`
@@ -214,13 +275,14 @@ func formatGaps(raw []byte) ([]string, error) {
 			gaps["target."+k] = true
 		}
 	}
-	var paths []map[string]json.RawMessage
-	if p, ok := doc.Target["paths"]; ok {
-		if err := json.Unmarshal(p, &paths); err != nil {
-			return nil, err
-		}
+	paths, err := rawPaths(raw)
+	if err != nil {
+		return nil, err
 	}
 	for _, p := range paths {
+		if dirEntryDefault(p) {
+			continue
+		}
 		for k := range p {
 			if k != "path" {
 				gaps["paths."+k] = true
@@ -233,6 +295,44 @@ func formatGaps(raw []byte) ([]string, error) {
 	}
 	sort.Strings(out)
 	return out, nil
+}
+
+// oracleRules builds the rules of an oracle run: the reviewed target's own
+// paths as installPaths (a directory entry as "dir/"), on top of the entry's
+// rules file. An entry whose rules already name installPaths or an install
+// surface is refused, not merged.
+func oracleRules(rules *Rules, reviewed []byte) (*Rules, error) {
+	if rules != nil && (len(rules.InstallPaths) > 0 || len(rules.InstallSurface) > 0) {
+		return nil, errors.New("oraclePaths cannot be combined with rules that carry installPaths or installSurface")
+	}
+	paths, err := rawPaths(reviewed)
+	if err != nil {
+		return nil, err
+	}
+	if len(paths) == 0 {
+		return nil, errors.New("oraclePaths: the reviewed target has no paths")
+	}
+	out := Rules{Schema: RulesSchema, InstallSurface: []SurfaceRule{}, Exclusions: []ExclusionRule{}}
+	if rules != nil {
+		out.Upstream, out.Exclusions, out.PathFilter = rules.Upstream, rules.Exclusions, rules.PathFilter
+	}
+	for _, p := range paths {
+		var path string
+		if v, ok := p["path"]; !ok || json.Unmarshal(v, &path) != nil || path == "" {
+			return nil, errors.New("oraclePaths: a reviewed path entry has no path")
+		}
+		if dirEntryDefault(p) {
+			path = strings.TrimSuffix(path, "/") + "/"
+		}
+		out.InstallPaths = append(out.InstallPaths, InstallPathRule{Path: path,
+			Reason:   "oracle: path copied from the reviewed target (backtest only)",
+			Evidence: "oracle: reviewed target file"})
+	}
+	b, err := json.Marshal(out)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRules(b)
 }
 
 // compareReviewed lists the differences between a generated and a reviewed
@@ -307,13 +407,21 @@ func runEntry(e btEntry, base, mirrors string, open func(string) Source) btRun {
 		}
 		r.circular = len(rules.Exclusions) > 0
 	}
+	if e.OraclePaths {
+		var err error
+		if rules, err = oracleRules(rules, r.expected); err != nil {
+			return fail("%v", err)
+		}
+		r.res.Oracle = true
+	}
 	mdir := filepath.Join(mirrors, e.Mirror)
 	if st, err := os.Stat(mdir); err != nil || !st.IsDir() {
 		r.res.Class, r.res.Stops = ClassTypedStop, []string{StopMirrorMissing}
 		return r
 	}
 	gen, err := generate(Input{Slug: e.Slug, Name: e.Name, Repo: e.Repo, Component: e.Component, FactProject: e.FactProject,
-		Catalog: e.Catalog, Tags: e.Tags, Source: open(mdir), Rules: rules, MultiPrefix: e.MultiPrefix})
+		Catalog: e.Catalog, Tags: e.Tags, Source: open(mdir), Rules: rules, MultiPrefix: e.MultiPrefix,
+		CollapseDirectories: e.CollapseDirectories, DeriveDuplicates: e.DeriveDuplicateSources})
 	if err != nil {
 		var se *StopError
 		if !errors.As(err, &se) {
@@ -346,6 +454,8 @@ func runEntry(e btEntry, base, mirrors string, open func(string) Source) btRun {
 		return fail("compare: %v", err)
 	}
 	switch {
+	case len(diffs) == 0 && r.res.Oracle:
+		r.res.Class = ClassReproducedOracle
 	case len(diffs) == 0 && r.circular:
 		r.res.Class = ClassReproducedCircular
 	case len(diffs) == 0:
@@ -418,7 +528,7 @@ func seedExpected(s btSeed, own, other []byte) ([]byte, error) {
 func runSeed(s btSeed, runs map[string]btRun) SeedResult {
 	out := SeedResult{Entry: s.Entry, Kind: s.Kind, Other: s.Other, Outcome: "not-run"}
 	base := runs[s.Entry]
-	if base.res.Class != ClassReproduced && base.res.Class != ClassReproducedCircular {
+	if base.res.Class != ClassReproduced && base.res.Class != ClassReproducedCircular && base.res.Class != ClassReproducedOracle {
 		out.Detail = "entry did not reproduce, so a seed on it proves nothing"
 		return out
 	}
@@ -466,6 +576,8 @@ func Backtest(m *btManifest, manifestDigest, base, mirrors string, open func(str
 			rep.Reproduced++
 		case ClassReproducedCircular:
 			rep.Circular++
+		case ClassReproducedOracle:
+			rep.OracleRepro++
 		case ClassDiffers:
 			rep.Differs++
 			if r.res.Cause == CauseFormatGap {
@@ -560,8 +672,8 @@ func runBacktest(args []string, stdout, stderr io.Writer, open func(string) Sour
 		fmt.Fprintf(stdout, "SEED %s/%s%s %s %s\n", s.Entry, s.Kind, map[bool]string{true: "->" + s.Other}[s.Other != ""], s.Outcome, s.Detail)
 	}
 	sd := sha256.Sum256(body)
-	fmt.Fprintf(stdout, "BACKTEST strict=%d/%d reachable=%d/%d circular=%d stops=%d differs=%d errors=%d seeds=%d/%d-failed digest=%s\n",
-		rep.Reproduced, rep.N, rep.Reproduced, rep.N-rep.FormatGap, rep.Circular, rep.TypedStops, rep.Differs, rep.Errors,
+	fmt.Fprintf(stdout, "BACKTEST strict=%d/%d reachable=%d/%d circular=%d oracle=%d stops=%d differs=%d errors=%d seeds=%d/%d-failed digest=%s\n",
+		rep.Reproduced, rep.N, rep.Reproduced, rep.N-rep.FormatGap, rep.Circular, rep.OracleRepro, rep.TypedStops, rep.Differs, rep.Errors,
 		rep.SeedsFailed, rep.Seeds, hex.EncodeToString(sd[:]))
 	return backtestExit(rep, stderr)
 }
