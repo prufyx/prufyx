@@ -1,6 +1,6 @@
 {
  "version": 1,
- "note": "Inputs of the advice text (nextAction) of each published crd-version-removal rule that the rule's own members and subject do not carry: the highest served replacement version and whether a removed version was ever a storage version, as read from the CRDs the rule cites. sourcesDigest binds each row to the cited sources (sha256 of 'id|revision|contentDigest' lines sorted by id), so re-pinning a rule requires re-reading this row. Rows are changed only by reading the cited CRDs, never by copying the rule's advice text.",
+ "note": "Inputs of the advice text (nextAction) of each published crd-version-removal rule that the rule's own members and subject do not carry: the highest served replacement version and whether a removed version was ever a storage version. The rows were populated from the published advice and then verified against the cited CRD files: testdata/crd-advice-verification.json records, per cited file, its revision, path, sha256 and spec.versions flags, and TestAdviceRowsMatchCRDVerification requires every row to equal what that record derives. sourcesDigest binds each row to the cited sources (sha256 of 'id|revision|contentDigest' lines sorted by id), so re-pinning a rule requires re-verifying its row.",
  "rules": [
   {
    "ruleId": "cilium.crd-version-removal.ciliumnodeconfigs-cilium-io.1-19-0-to-1-20-0",

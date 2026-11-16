@@ -1,0 +1,689 @@
+{
+ "version": 1,
+ "rules": [
+  {
+   "ruleId": "cilium.crd-version-removal.ciliumnodeconfigs-cilium-io.1-19-0-to-1-20-0",
+   "sources": [
+    {
+     "id": "crd-1-20-0",
+     "repo": "https://github.com/cilium/cilium",
+     "revision": "450c53145dc0a872ae20dfb05598c94ef55a71e2",
+     "path": "pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodeconfigs.yaml",
+     "digest": "sha256:c7e3558ed06e8d87ce75a007bd3b0f0fb2c28080a6c52ee9184f6d3b887f1aff",
+     "versions": [
+      {
+       "name": "v2",
+       "served": true,
+       "storage": true
+      }
+     ]
+    },
+    {
+     "id": "crd-versions-1-19-0",
+     "repo": "https://github.com/cilium/cilium",
+     "revision": "7c6667e1e707d7f39a4af3409c2a9ebea2917d32",
+     "path": "pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodeconfigs.yaml",
+     "digest": "sha256:92a77d6f101e251708501a2b1322dfb1a4cd45f9a78f8bf733baa7dc91963263",
+     "versions": [
+      {
+       "name": "v2",
+       "served": true,
+       "storage": true
+      },
+      {
+       "name": "v2alpha1",
+       "served": true,
+       "storage": false
+      }
+     ]
+    }
+   ],
+   "removedVersions": [
+    "v2alpha1"
+   ],
+   "replacement": "v2",
+   "storedVersionsPresent": false
+  },
+  {
+   "ruleId": "crossplane.crd-version-removal.compositionrevisions-apiextensions-crossplane-io.1-20-0-to-2-0-0",
+   "sources": [
+    {
+     "id": "crd-2-0-0",
+     "repo": "https://github.com/crossplane/crossplane",
+     "revision": "b639502e2f93680ff83417a0f517ec459ce079cc",
+     "path": "cluster/crds/apiextensions.crossplane.io_compositionrevisions.yaml",
+     "digest": "sha256:0866ed25ba43e0606272bf9b8255e907d674c348a6297cf73dac99103b433569",
+     "versions": [
+      {
+       "name": "v1",
+       "served": true,
+       "storage": true
+      }
+     ]
+    },
+    {
+     "id": "crd-versions-1-20-0",
+     "repo": "https://github.com/crossplane/crossplane",
+     "revision": "2efdb03ae80fc27f4b6b9b0cebc96a462233cf17",
+     "path": "cluster/crds/apiextensions.crossplane.io_compositionrevisions.yaml",
+     "digest": "sha256:6127560eefbefe251287f7a45464eae0bbe0f56d5e883ce0c5ef124594fbfa03",
+     "versions": [
+      {
+       "name": "v1",
+       "served": true,
+       "storage": true
+      },
+      {
+       "name": "v1beta1",
+       "served": true,
+       "storage": false
+      }
+     ]
+    }
+   ],
+   "removedVersions": [
+    "v1beta1"
+   ],
+   "replacement": "v1",
+   "storedVersionsPresent": false
+  },
+  {
+   "ruleId": "crossplane.crd-version-removal.environmentconfigs-apiextensions-crossplane-io.1-20-0-to-2-0-0",
+   "sources": [
+    {
+     "id": "crd-2-0-0",
+     "repo": "https://github.com/crossplane/crossplane",
+     "revision": "b639502e2f93680ff83417a0f517ec459ce079cc",
+     "path": "cluster/crds/apiextensions.crossplane.io_environmentconfigs.yaml",
+     "digest": "sha256:04279e2d7254b06c456916cb02a3d3a1100e9b279deabcecd4f903e17e74bebd",
+     "versions": [
+      {
+       "name": "v1beta1",
+       "served": true,
+       "storage": true
+      }
+     ]
+    },
+    {
+     "id": "crd-versions-1-20-0",
+     "repo": "https://github.com/crossplane/crossplane",
+     "revision": "2efdb03ae80fc27f4b6b9b0cebc96a462233cf17",
+     "path": "cluster/crds/apiextensions.crossplane.io_environmentconfigs.yaml",
+     "digest": "sha256:2e20fda939f486a221488cabbc36925e42e8d13390345696a3373f04ebe682c5",
+     "versions": [
+      {
+       "name": "v1alpha1",
+       "served": true,
+       "storage": false
+      },
+      {
+       "name": "v1beta1",
+       "served": true,
+       "storage": true
+      }
+     ]
+    }
+   ],
+   "removedVersions": [
+    "v1alpha1"
+   ],
+   "replacement": "v1beta1",
+   "storedVersionsPresent": false
+  },
+  {
+   "ruleId": "kyverno.crd-version-removal.updaterequests-kyverno-io.1-15-0-to-1-16-0",
+   "sources": [
+    {
+     "id": "crd-versions-1-15-0",
+     "repo": "https://github.com/kyverno/kyverno",
+     "revision": "be04f6e69bf608dc3a9bc16f1443cb869628bcd2",
+     "path": "config/crds/kyverno/kyverno.io_updaterequests.yaml",
+     "digest": "sha256:4da606b34b772d8d846bdec3927c35e712571299f2e50f7996ca095e25447e87",
+     "versions": [
+      {
+       "name": "v1beta1",
+       "served": true,
+       "storage": false
+      },
+      {
+       "name": "v2",
+       "served": true,
+       "storage": true
+      }
+     ]
+    },
+    {
+     "id": "served-false-v1beta1-1-16-0",
+     "repo": "https://github.com/kyverno/kyverno",
+     "revision": "18f9549cb2af30ec0537cd97f3200228d9f42d4b",
+     "path": "config/crds/kyverno/kyverno.io_updaterequests.yaml",
+     "digest": "sha256:046e076cb1f32ecc0413cee3dc5c0913ba5509fd8edc1565fe064895d41fb6fb",
+     "versions": [
+      {
+       "name": "v1beta1",
+       "served": false,
+       "storage": false
+      },
+      {
+       "name": "v2",
+       "served": true,
+       "storage": true
+      }
+     ]
+    }
+   ],
+   "removedVersions": [
+    "v1beta1"
+   ],
+   "replacement": "v2",
+   "storedVersionsPresent": false
+  },
+  {
+   "ruleId": "openyurt.crd-version-removal.platformadmins-iot-openyurt-io.1-5-0-to-1-6-0",
+   "sources": [
+    {
+     "id": "crd-versions-1-5-0",
+     "repo": "https://github.com/openyurtio/openyurt",
+     "revision": "07266e0e5d432fd9b418a4d838eb6755faf63a13",
+     "path": "charts/yurt-manager/crds/iot.openyurt.io_platformadmins.yaml",
+     "digest": "sha256:6aec13cbb7b225a46b8391a64fb93c3021951ebd812b309f2fa4828d8ad59d4d",
+     "versions": [
+      {
+       "name": "v1alpha1",
+       "served": false,
+       "storage": false
+      },
+      {
+       "name": "v1alpha2",
+       "served": true,
+       "storage": true
+      }
+     ]
+    },
+    {
+     "id": "served-false-v1alpha2-1-6-0",
+     "repo": "https://github.com/openyurtio/openyurt",
+     "revision": "beab71c8f5a668de8276e542108c994a791575bb",
+     "path": "charts/yurt-manager/crds/iot.openyurt.io_platformadmins.yaml",
+     "digest": "sha256:1f7376ae7770e5011b532f10a76475efc71f4c5b8791fbe0d6b5c079519cbbcf",
+     "versions": [
+      {
+       "name": "v1alpha1",
+       "served": false,
+       "storage": false
+      },
+      {
+       "name": "v1alpha2",
+       "served": false,
+       "storage": false
+      },
+      {
+       "name": "v1beta1",
+       "served": true,
+       "storage": true
+      }
+     ]
+    }
+   ],
+   "removedVersions": [
+    "v1alpha2"
+   ],
+   "replacement": "v1beta1",
+   "storedVersionsPresent": true
+  },
+  {
+   "ruleId": "strimzi.crd-version-removal.kafkabridges-kafka-strimzi-io.0-51-0-to-1-0-0",
+   "sources": [
+    {
+     "id": "crd-1-0-0",
+     "repo": "https://github.com/strimzi/strimzi-kafka-operator",
+     "revision": "4836c7dd74ce973f06d97936916ed7f20c1a2ff0",
+     "path": "install/cluster-operator/046-Crd-kafkabridge.yaml",
+     "digest": "sha256:220f4d675304c7cf349459bb7532ae6910de98a1e12282a69cc21202cc6b7a83",
+     "versions": [
+      {
+       "name": "v1",
+       "served": true,
+       "storage": true
+      }
+     ]
+    },
+    {
+     "id": "crd-versions-0-51-0",
+     "repo": "https://github.com/strimzi/strimzi-kafka-operator",
+     "revision": "54081abf97d0e5e524de773b88343756934db1a8",
+     "path": "install/cluster-operator/046-Crd-kafkabridge.yaml",
+     "digest": "sha256:a994471d1b7fc2121e7d75bbf4cebb30b2da8eff75bcd20f39ed94336eef7147",
+     "versions": [
+      {
+       "name": "v1",
+       "served": true,
+       "storage": false
+      },
+      {
+       "name": "v1beta2",
+       "served": true,
+       "storage": true
+      }
+     ]
+    }
+   ],
+   "removedVersions": [
+    "v1beta2"
+   ],
+   "replacement": "v1",
+   "storedVersionsPresent": true
+  },
+  {
+   "ruleId": "strimzi.crd-version-removal.kafkaconnectors-kafka-strimzi-io.0-51-0-to-1-0-0",
+   "sources": [
+    {
+     "id": "crd-1-0-0",
+     "repo": "https://github.com/strimzi/strimzi-kafka-operator",
+     "revision": "4836c7dd74ce973f06d97936916ed7f20c1a2ff0",
+     "path": "install/cluster-operator/047-Crd-kafkaconnector.yaml",
+     "digest": "sha256:8050325edfec7ac90718f9e40f3f808b5489d7ae6c11b1634bc82426955b8fff",
+     "versions": [
+      {
+       "name": "v1",
+       "served": true,
+       "storage": true
+      }
+     ]
+    },
+    {
+     "id": "crd-versions-0-51-0",
+     "repo": "https://github.com/strimzi/strimzi-kafka-operator",
+     "revision": "54081abf97d0e5e524de773b88343756934db1a8",
+     "path": "install/cluster-operator/047-Crd-kafkaconnector.yaml",
+     "digest": "sha256:721fb1301440a86afd47026ff3af751fbeed94d9dc4a0c1403aefcdaac36fe9a",
+     "versions": [
+      {
+       "name": "v1",
+       "served": true,
+       "storage": false
+      },
+      {
+       "name": "v1beta2",
+       "served": true,
+       "storage": true
+      }
+     ]
+    }
+   ],
+   "removedVersions": [
+    "v1beta2"
+   ],
+   "replacement": "v1",
+   "storedVersionsPresent": true
+  },
+  {
+   "ruleId": "strimzi.crd-version-removal.kafkaconnects-kafka-strimzi-io.0-51-0-to-1-0-0",
+   "sources": [
+    {
+     "id": "crd-1-0-0",
+     "repo": "https://github.com/strimzi/strimzi-kafka-operator",
+     "revision": "4836c7dd74ce973f06d97936916ed7f20c1a2ff0",
+     "path": "install/cluster-operator/041-Crd-kafkaconnect.yaml",
+     "digest": "sha256:b9cee7b9e0b1eb77a32542d454f1e01353543f244e2b25603dc031bd8253ecb5",
+     "versions": [
+      {
+       "name": "v1",
+       "served": true,
+       "storage": true
+      }
+     ]
+    },
+    {
+     "id": "crd-versions-0-51-0",
+     "repo": "https://github.com/strimzi/strimzi-kafka-operator",
+     "revision": "54081abf97d0e5e524de773b88343756934db1a8",
+     "path": "install/cluster-operator/041-Crd-kafkaconnect.yaml",
+     "digest": "sha256:6a0f64d67f4ee60a2cff51cd29ac54f02413d3c972dd560d8b760d90b18a7282",
+     "versions": [
+      {
+       "name": "v1",
+       "served": true,
+       "storage": false
+      },
+      {
+       "name": "v1beta2",
+       "served": true,
+       "storage": true
+      }
+     ]
+    }
+   ],
+   "removedVersions": [
+    "v1beta2"
+   ],
+   "replacement": "v1",
+   "storedVersionsPresent": true
+  },
+  {
+   "ruleId": "strimzi.crd-version-removal.kafkamirrormaker2s-kafka-strimzi-io.0-51-0-to-1-0-0",
+   "sources": [
+    {
+     "id": "crd-1-0-0",
+     "repo": "https://github.com/strimzi/strimzi-kafka-operator",
+     "revision": "4836c7dd74ce973f06d97936916ed7f20c1a2ff0",
+     "path": "install/cluster-operator/048-Crd-kafkamirrormaker2.yaml",
+     "digest": "sha256:89a9f585983f690f7cfbe355c362032c0ca73973986fe34067efa88057b9d955",
+     "versions": [
+      {
+       "name": "v1",
+       "served": true,
+       "storage": true
+      }
+     ]
+    },
+    {
+     "id": "crd-versions-0-51-0",
+     "repo": "https://github.com/strimzi/strimzi-kafka-operator",
+     "revision": "54081abf97d0e5e524de773b88343756934db1a8",
+     "path": "install/cluster-operator/048-Crd-kafkamirrormaker2.yaml",
+     "digest": "sha256:4f3f64f1bc41e471fda94229ecbda7318543fa2b83773b1b976315373ebae720",
+     "versions": [
+      {
+       "name": "v1",
+       "served": true,
+       "storage": false
+      },
+      {
+       "name": "v1beta2",
+       "served": true,
+       "storage": true
+      }
+     ]
+    }
+   ],
+   "removedVersions": [
+    "v1beta2"
+   ],
+   "replacement": "v1",
+   "storedVersionsPresent": true
+  },
+  {
+   "ruleId": "strimzi.crd-version-removal.kafkanodepools-kafka-strimzi-io.0-51-0-to-1-0-0",
+   "sources": [
+    {
+     "id": "crd-1-0-0",
+     "repo": "https://github.com/strimzi/strimzi-kafka-operator",
+     "revision": "4836c7dd74ce973f06d97936916ed7f20c1a2ff0",
+     "path": "install/cluster-operator/045-Crd-kafkanodepool.yaml",
+     "digest": "sha256:8e5fb2ff83f71ae7aa9ad97b200828bed8fcca6ae56d28fdbea3fc09870f5c57",
+     "versions": [
+      {
+       "name": "v1",
+       "served": true,
+       "storage": true
+      }
+     ]
+    },
+    {
+     "id": "crd-versions-0-51-0",
+     "repo": "https://github.com/strimzi/strimzi-kafka-operator",
+     "revision": "54081abf97d0e5e524de773b88343756934db1a8",
+     "path": "install/cluster-operator/045-Crd-kafkanodepool.yaml",
+     "digest": "sha256:d7499207dd3767e4b1a4fcc33fe7966aeb2faf698c1940e450ad9b754e54915b",
+     "versions": [
+      {
+       "name": "v1",
+       "served": true,
+       "storage": false
+      },
+      {
+       "name": "v1beta2",
+       "served": true,
+       "storage": true
+      }
+     ]
+    }
+   ],
+   "removedVersions": [
+    "v1beta2"
+   ],
+   "replacement": "v1",
+   "storedVersionsPresent": true
+  },
+  {
+   "ruleId": "strimzi.crd-version-removal.kafkarebalances-kafka-strimzi-io.0-51-0-to-1-0-0",
+   "sources": [
+    {
+     "id": "crd-1-0-0",
+     "repo": "https://github.com/strimzi/strimzi-kafka-operator",
+     "revision": "4836c7dd74ce973f06d97936916ed7f20c1a2ff0",
+     "path": "install/cluster-operator/049-Crd-kafkarebalance.yaml",
+     "digest": "sha256:e84ffcd975c62025436ead73298c53b3e3409746986295d57dc156b6710201b2",
+     "versions": [
+      {
+       "name": "v1",
+       "served": true,
+       "storage": true
+      }
+     ]
+    },
+    {
+     "id": "crd-versions-0-51-0",
+     "repo": "https://github.com/strimzi/strimzi-kafka-operator",
+     "revision": "54081abf97d0e5e524de773b88343756934db1a8",
+     "path": "install/cluster-operator/049-Crd-kafkarebalance.yaml",
+     "digest": "sha256:8af499572121b1ccd459334d464f14ad104df9dc30dbd83466f25ad3455bd19f",
+     "versions": [
+      {
+       "name": "v1",
+       "served": true,
+       "storage": false
+      },
+      {
+       "name": "v1beta2",
+       "served": true,
+       "storage": true
+      }
+     ]
+    }
+   ],
+   "removedVersions": [
+    "v1beta2"
+   ],
+   "replacement": "v1",
+   "storedVersionsPresent": true
+  },
+  {
+   "ruleId": "strimzi.crd-version-removal.kafkas-kafka-strimzi-io.0-51-0-to-1-0-0",
+   "sources": [
+    {
+     "id": "crd-1-0-0",
+     "repo": "https://github.com/strimzi/strimzi-kafka-operator",
+     "revision": "4836c7dd74ce973f06d97936916ed7f20c1a2ff0",
+     "path": "install/cluster-operator/040-Crd-kafka.yaml",
+     "digest": "sha256:cf97d0e156ad5b8347d1416a70df6791ad1eab3b7ba53f54d16a21d6ff66b6e6",
+     "versions": [
+      {
+       "name": "v1",
+       "served": true,
+       "storage": true
+      }
+     ]
+    },
+    {
+     "id": "crd-versions-0-51-0",
+     "repo": "https://github.com/strimzi/strimzi-kafka-operator",
+     "revision": "54081abf97d0e5e524de773b88343756934db1a8",
+     "path": "install/cluster-operator/040-Crd-kafka.yaml",
+     "digest": "sha256:4966bceb2f85a238132fb3ba7e8b37fe86b28cf30344c15d4cf2b77bc7c2c951",
+     "versions": [
+      {
+       "name": "v1",
+       "served": true,
+       "storage": false
+      },
+      {
+       "name": "v1beta2",
+       "served": true,
+       "storage": true
+      }
+     ]
+    }
+   ],
+   "removedVersions": [
+    "v1beta2"
+   ],
+   "replacement": "v1",
+   "storedVersionsPresent": true
+  },
+  {
+   "ruleId": "strimzi.crd-version-removal.kafkatopics-kafka-strimzi-io.0-51-0-to-1-0-0",
+   "sources": [
+    {
+     "id": "crd-1-0-0",
+     "repo": "https://github.com/strimzi/strimzi-kafka-operator",
+     "revision": "4836c7dd74ce973f06d97936916ed7f20c1a2ff0",
+     "path": "install/cluster-operator/043-Crd-kafkatopic.yaml",
+     "digest": "sha256:36390f0731c699448076d4ee739e8b7f331d083e91a7fb71500aaa830ab1127e",
+     "versions": [
+      {
+       "name": "v1",
+       "served": true,
+       "storage": true
+      }
+     ]
+    },
+    {
+     "id": "crd-versions-0-51-0",
+     "repo": "https://github.com/strimzi/strimzi-kafka-operator",
+     "revision": "54081abf97d0e5e524de773b88343756934db1a8",
+     "path": "install/cluster-operator/043-Crd-kafkatopic.yaml",
+     "digest": "sha256:9c3a187244aa762db89117df14a7af0609aa3dd068ec6cd6c7195b56af580c74",
+     "versions": [
+      {
+       "name": "v1",
+       "served": true,
+       "storage": false
+      },
+      {
+       "name": "v1beta2",
+       "served": true,
+       "storage": true
+      },
+      {
+       "name": "v1beta1",
+       "served": true,
+       "storage": false
+      },
+      {
+       "name": "v1alpha1",
+       "served": true,
+       "storage": false
+      }
+     ]
+    }
+   ],
+   "removedVersions": [
+    "v1alpha1",
+    "v1beta1",
+    "v1beta2"
+   ],
+   "replacement": "v1",
+   "storedVersionsPresent": true
+  },
+  {
+   "ruleId": "strimzi.crd-version-removal.kafkausers-kafka-strimzi-io.0-51-0-to-1-0-0",
+   "sources": [
+    {
+     "id": "crd-1-0-0",
+     "repo": "https://github.com/strimzi/strimzi-kafka-operator",
+     "revision": "4836c7dd74ce973f06d97936916ed7f20c1a2ff0",
+     "path": "install/cluster-operator/044-Crd-kafkauser.yaml",
+     "digest": "sha256:6f278324169ae433ea7a01c535c7db130d5ec42e64389188c4a20504c5f37467",
+     "versions": [
+      {
+       "name": "v1",
+       "served": true,
+       "storage": true
+      }
+     ]
+    },
+    {
+     "id": "crd-versions-0-51-0",
+     "repo": "https://github.com/strimzi/strimzi-kafka-operator",
+     "revision": "54081abf97d0e5e524de773b88343756934db1a8",
+     "path": "install/cluster-operator/044-Crd-kafkauser.yaml",
+     "digest": "sha256:5c31f18f6c2beb37c2bb3dfd3e7773f61b05bb9b68126ba7671a50f4429ae404",
+     "versions": [
+      {
+       "name": "v1",
+       "served": true,
+       "storage": false
+      },
+      {
+       "name": "v1beta2",
+       "served": true,
+       "storage": true
+      },
+      {
+       "name": "v1beta1",
+       "served": true,
+       "storage": false
+      },
+      {
+       "name": "v1alpha1",
+       "served": true,
+       "storage": false
+      }
+     ]
+    }
+   ],
+   "removedVersions": [
+    "v1alpha1",
+    "v1beta1",
+    "v1beta2"
+   ],
+   "replacement": "v1",
+   "storedVersionsPresent": true
+  },
+  {
+   "ruleId": "strimzi.crd-version-removal.strimzipodsets-core-strimzi-io.0-51-0-to-1-0-0",
+   "sources": [
+    {
+     "id": "crd-1-0-0",
+     "repo": "https://github.com/strimzi/strimzi-kafka-operator",
+     "revision": "4836c7dd74ce973f06d97936916ed7f20c1a2ff0",
+     "path": "install/cluster-operator/042-Crd-strimzipodset.yaml",
+     "digest": "sha256:e669bc6b5bbebd4dd911e5ad0b9817cbbee9b920f1a8a1ab0fc8dda116bb2fc8",
+     "versions": [
+      {
+       "name": "v1",
+       "served": true,
+       "storage": true
+      }
+     ]
+    },
+    {
+     "id": "crd-versions-0-51-0",
+     "repo": "https://github.com/strimzi/strimzi-kafka-operator",
+     "revision": "54081abf97d0e5e524de773b88343756934db1a8",
+     "path": "install/cluster-operator/042-Crd-strimzipodset.yaml",
+     "digest": "sha256:9a9a3f94c2dd888b3457322c569951809d7dfc872fd831fad2793fd47ff7ee89",
+     "versions": [
+      {
+       "name": "v1",
+       "served": true,
+       "storage": false
+      },
+      {
+       "name": "v1beta2",
+       "served": true,
+       "storage": true
+      }
+     ]
+    }
+   ],
+   "removedVersions": [
+    "v1beta2"
+   ],
+   "replacement": "v1",
+   "storedVersionsPresent": true
+  }
+ ]
+}
