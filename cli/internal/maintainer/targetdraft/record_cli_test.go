@@ -4,9 +4,12 @@ package targetdraft
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -22,10 +25,37 @@ func TestRunRecordRoundTripAndRefusals(t *testing.T) {
 	}
 	args := []string{"--dir", source.Dir, "--slug", in.Slug, "--name", in.Name, "--repo", in.Repo, "--tags", strings.Join(in.Tags, ","), "--expected-target", target, "--expected-row", row, "--collapse-directories"}
 	var out, errOut bytes.Buffer
-	if err := runRecord(args, &out, &errOut); err != nil || !bytes.Contains(out.Bytes(), []byte(recordEnvelopeSchema)) {
+	if err := runRecord(args, &out, &errOut); err != nil {
 		t.Fatalf("record: %v %s", err, errOut.String())
 	}
-	for _, bad := range [][]string{{"--dir", source.Dir}, append(args, "extra")} {
+	recorded, err := RecordDraft(in, source, want.A, want.TableRow)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var env recordEnvelope
+	body := bytes.TrimSpace(out.Bytes())
+	if err := json.Unmarshal(body, &env); err != nil ||
+		env.Schema != recordEnvelopeSchema ||
+		!bytes.Equal(body, mustRecordJSON(t, env)) ||
+		env.Rules != "" ||
+		!bytes.Equal(mustRecordDecode(t, env.Recipe), recorded.Recipe) ||
+		!bytes.Equal(mustRecordDecode(t, env.FactsBundle), recorded.FactsBundle) ||
+		!bytes.Equal(mustRecordDecode(t, env.Target), recorded.Target) ||
+		!bytes.Equal(mustRecordDecode(t, env.Report), recorded.Report) ||
+		!bytes.Equal(mustRecordDecode(t, env.TableRow), recorded.TableRow) ||
+		!bytes.Equal(mustRecordDecode(t, env.Changelog), recorded.Changelog) {
+		t.Fatal("invalid canonical record envelope")
+	}
+	for _, bad := range [][]string{
+		{"--dir", source.Dir},
+		append(args, "extra"),
+		append(args, "--unknown"),
+		append(args, "--derive-duplicate-sources"),
+		append(args, "--multi-prefix"),
+		append(args, "--infer-install-paths"),
+		append(args, "--check-install-path-copies"),
+		append(args, "--skip-patch-fragments"),
+	} {
 		out.Reset()
 		if err := runRecord(bad, &out, &errOut); err == nil || out.Len() != 0 {
 			t.Fatal("accepted invalid args")
@@ -38,6 +68,26 @@ func TestRunRecordRoundTripAndRefusals(t *testing.T) {
 	if err := runRecord(replaceRecordArg(args, target, filepath.Join(dir, "link")), &out, &errOut); err == nil || out.Len() != 0 {
 		t.Fatal("accepted symlink")
 	}
+	fifo := filepath.Join(dir, "fifo")
+	if err := syscall.Mkfifo(fifo, 0600); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	if err := runRecord(replaceRecordArg(args, target, fifo), &out, &errOut); err == nil || out.Len() != 0 {
+		t.Fatal("accepted fifo")
+	}
+	out.Reset()
+	if err := runRecord(replaceRecordArg(args, target, dir), &out, &errOut); err == nil || out.Len() != 0 {
+		t.Fatal("accepted directory")
+	}
+	big := filepath.Join(dir, "big")
+	if err := os.WriteFile(big, bytes.Repeat([]byte("x"), maxOutputBytes+1), 0600); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	if err := runRecord(replaceRecordArg(args, target, big), &out, &errOut); err == nil || out.Len() != 0 {
+		t.Fatal("accepted oversized")
+	}
 	if err := os.WriteFile(target, []byte("wrong"), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -45,6 +95,22 @@ func TestRunRecordRoundTripAndRefusals(t *testing.T) {
 	if err := runRecord(args, &out, &errOut); err == nil || out.Len() != 0 {
 		t.Fatal("accepted mismatch")
 	}
+}
+func mustRecordDecode(t *testing.T, s string) []byte {
+	t.Helper()
+	b, e := base64.StdEncoding.Strict().DecodeString(s)
+	if e != nil {
+		t.Fatal(e)
+	}
+	return b
+}
+func mustRecordJSON(t *testing.T, e recordEnvelope) []byte {
+	t.Helper()
+	b, err := json.Marshal(e)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
 }
 func replaceRecordArg(args []string, old, next string) []string {
 	out := append([]string(nil), args...)
