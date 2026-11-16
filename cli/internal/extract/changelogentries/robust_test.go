@@ -165,7 +165,7 @@ func FuzzLocate(f *testing.F) {
 	f.Add([]byte(shapeBlankLabel))
 	f.Add([]byte(shapeFootnote))
 	f.Add([]byte(shapeDeepClose))
-	for _, s := range []string{shapeListFence, shapeListFenceNested, shapeQuoteFence, shapeNBSPClose, shapeBareAngle} {
+	for _, s := range []string{shapeItemFenceNoCloser, shapeOpenerLeftOfItem, shapeOpenerFourPast, shapeListFence, shapeListFenceNested, shapeQuoteFence, shapeNBSPClose, shapeBareAngle} {
 		f.Add([]byte(s))
 	}
 	f.Add([]byte("## 3.5.0 / 2025-07-14\n\n### Notes\n  ```\n  code\n"))
@@ -242,14 +242,17 @@ func TestOneCharUnderlineIsOverInclusive(t *testing.T) {
 }
 
 const (
-	shapeBlankLabel      = "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x. #1\n\n[ ]: https://x.test \"the flag --foo was removed\"\n"
-	shapeFootnote        = "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x. #1\n\n[^1]: #1234 \"the flag --foo was removed\"\n"
-	shapeListFence       = "## 3.5.0 / 2025-07-14\n\n* ~~~\n  ## 3.4.0 / 2025-05-17\n  * [CHANGE] flag --x removed\n  ~~~\n\n* [BUGFIX] tail. #9\n"
-	shapeListFenceNested = "## 3.5.0 / 2025-07-14\n\n1. [FEATURE] x\n  - ```\n  ## 3.4.0 / 2025-05-17\n  ```\n* [BUGFIX] tail. #9\n"
-	shapeQuoteFence      = "## 3.5.0 / 2025-07-14\n\n> ~~~\n  ## 3.4.0 / 2025-05-17\n> ~~~\n* [BUGFIX] tail. #9\n"
-	shapeNBSPClose       = "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x\n\n  ~~~\n  code\n  ~~~\u00a0\n## 3.4.0 / 2025-05-17\n  * [CHANGE] flag --x removed\n  ~~~\n\n* [BUGFIX] tail. #9\n"
-	shapeBareAngle       = "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x. #1\n\n[r]: https://x/<bad> \"removed --foo\"\n"
-	shapeDeepClose       = "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x. #1\n\n```\n    ```\n## 3.4.0 / 2025-05-17\n* [CHANGE] flag --x removed\n```\n\n* [BUGFIX] tail. #9\n"
+	shapeBlankLabel        = "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x. #1\n\n[ ]: https://x.test \"the flag --foo was removed\"\n"
+	shapeFootnote          = "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x. #1\n\n[^1]: #1234 \"the flag --foo was removed\"\n"
+	shapeListFence         = "## 3.5.0 / 2025-07-14\n\n* ~~~\n  ## 3.4.0 / 2025-05-17\n  * [CHANGE] flag --x removed\n  ~~~\n\n* [BUGFIX] tail. #9\n"
+	shapeListFenceNested   = "## 3.5.0 / 2025-07-14\n\n1. [FEATURE] x\n  - ```\n  ## 3.4.0 / 2025-05-17\n  ```\n* [BUGFIX] tail. #9\n"
+	shapeQuoteFence        = "## 3.5.0 / 2025-07-14\n\n> ~~~\n  ## 3.4.0 / 2025-05-17\n> ~~~\n* [BUGFIX] tail. #9\n"
+	shapeNBSPClose         = "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x\n\n  ~~~\n  code\n  ~~~\u00a0\n## 3.4.0 / 2025-05-17\n  * [CHANGE] flag --x removed\n  ~~~\n\n* [BUGFIX] tail. #9\n"
+	shapeBareAngle         = "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x. #1\n\n[r]: https://x/<bad> \"removed --foo\"\n"
+	shapeItemFenceNoCloser = "## 3.5.0 / 2025-07-14\n* [ENHANCEMENT] Example config:\n  ~~~\n  key: value\nThanks to all contributors.\n~~~\n## 3.4.0 / 2025-05-17\n~~~\n* [CHANGE] The flag --foo was removed.\n\n## 3.4.0 / 2025-05-17\n* [BUGFIX] x\n"
+	shapeOpenerLeftOfItem  = "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x\n\n * [BUGFIX] y\n ```\n  ```\n## 3.4.0 / 2025-05-17\n```\n* [CHANGE] z\n"
+	shapeOpenerFourPast    = "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x\n\n      ~~~\n~~~\n## 3.4.0 / 2025-05-17\n~~~\n* [CHANGE] z\n"
+	shapeDeepClose         = "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x. #1\n\n```\n    ```\n## 3.4.0 / 2025-05-17\n* [CHANGE] flag --x removed\n```\n\n* [BUGFIX] tail. #9\n"
 )
 
 // A label of spaces only, a footnote label and a destination with an
@@ -317,10 +320,10 @@ func TestDeeplyIndentedFenceLineDoesNotClose(t *testing.T) {
 	}
 	// A closing fence indented up to three columns past its opener still closes.
 	h := "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x\n\n  ```\n  code\n     ```\n\n* [BUGFIX] after. #9\n"
-	e = mustLocate(t, promTarget, "v3.5.0", h)
-	if len(e.Items) != 2 {
-		t.Fatalf("close at +3: %+v", e.Items)
-	}
+	// An indented opener is read without its container: a closer indented
+	// differently from the opener is a file-wide stop, not a close.
+	_, err0 := locateMem(promTarget, "v3.5.0", h)
+	wantCode(t, err0, EntryParseResidue)
 	// Four columns past the opener does not close it: the fence runs to the end, unterminated.
 	k := "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x\n\n  ```\n  code\n      ```\n\n* [BUGFIX] after. #9\n"
 	_, err := locateMem(promTarget, "v3.5.0", k)
@@ -328,7 +331,7 @@ func TestDeeplyIndentedFenceLineDoesNotClose(t *testing.T) {
 }
 
 func TestNewShapesNeverPanic(t *testing.T) {
-	for _, s := range []string{shapeBlankLabel, shapeFootnote, shapeDeepClose, shapeListFence, shapeListFenceNested, shapeQuoteFence, shapeNBSPClose, shapeBareAngle} {
+	for _, s := range []string{shapeItemFenceNoCloser, shapeOpenerLeftOfItem, shapeOpenerFourPast, shapeBlankLabel, shapeFootnote, shapeDeepClose, shapeListFence, shapeListFenceNested, shapeQuoteFence, shapeNBSPClose, shapeBareAngle} {
 		checkNoPanic(t, []byte(s))
 	}
 }
@@ -379,8 +382,9 @@ func TestUnicodeWhitespaceDoesNotCloseFence(t *testing.T) {
 			}
 		}
 	}
-	// A truncating control: with the real ASCII closing the entry ends at the next release heading.
-	if e := mustLocate(t, promTarget, "v3.5.0", strings.Replace(shapeNBSPClose, "~~~\u00a0", "~~~", 1)); e.Section.EndLine >= strings.Count(shapeNBSPClose, "\n") {
+	// A control: with a real ASCII closing the entry ends at the next release heading.
+	ctl := "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x\n\n  ~~~\n  code\n  ~~~\n## 3.4.0 / 2025-05-17\n* [BUGFIX] y\n"
+	if e := mustLocate(t, promTarget, "v3.5.0", ctl); e.Section.EndLine != 7 {
 		t.Fatalf("control did not end at the release heading: %+v", e.Section)
 	}
 	// ASCII space and tab still close.
@@ -407,5 +411,30 @@ func TestBareDestinationAngleBracketIsItem(t *testing.T) {
 	}
 	for _, s := range []string{shapeBareAngle} {
 		checkNoPanic(t, []byte(s))
+	}
+}
+
+// A fence opened on an indented line is read without its container, so an
+// inner line or closer indented differently from the opener stops the whole
+// file, for every tag, instead of inverting the fence state.
+func TestIndentedOpenerFenceStop(t *testing.T) {
+	g := strings.Replace(shapeItemFenceNoCloser, "~~~\n## 3.4.0 / 2025-05-17\n~~~", "~~~\n\n## 3.4.0 / 2025-05-17\n~~~", 1)
+	for name, s := range map[string]string{
+		"item fence no closer": shapeItemFenceNoCloser, "opener left of item": shapeOpenerLeftOfItem,
+		"opener four past": shapeOpenerFourPast, "with blank": g,
+	} {
+		for _, tg := range []string{"v3.5.0", "v3.4.0"} {
+			e, err := locateMem(promTarget, tg, s)
+			if err == nil {
+				t.Errorf("%s %s: located %+v", name, tg, e.Section)
+				continue
+			}
+			wantCode(t, err, EntryParseResidue)
+		}
+	}
+	// Control: an indented fence closed at exactly its opener's indentation is read.
+	ok := "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x\n  ~~~\n  code\n  ~~~\n* [BUGFIX] y\n"
+	if e := mustLocate(t, promTarget, "v3.5.0", ok); len(e.Items) != 2 {
+		t.Fatalf("%+v", e.Items)
 	}
 }
