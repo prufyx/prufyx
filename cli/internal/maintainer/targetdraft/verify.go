@@ -159,17 +159,39 @@ func defaultVerifyEnv() verifyEnv {
 	return verifyEnv{generate: Generate, compare: compareReviewed, seedKinds: defaultSeedKinds}
 }
 
+// changedRecord is one parsed raw-diff record.
+type changedRecord struct {
+	Path   string
+	Status string // A or M
+	OldSHA string // blob id in base (40 zeros for an added file)
+	NewSHA string // blob id in head
+}
+
 // parseChanged decodes the raw diff. Only added or modified regular files
 // (mode 100644) are accepted; deletes, renames, copies, type and mode
 // changes, links and submodules, and any malformed record fail.
 func parseChanged(raw []byte) ([]string, *VerifyFailure) {
+	recs, f := parseChangedRecords(raw)
+	if f != nil {
+		return nil, f
+	}
+	paths := make([]string, 0, len(recs))
+	for _, r := range recs {
+		paths = append(paths, r.Path)
+	}
+	return paths, nil
+}
+
+// parseChangedRecords is the one parser of the raw diff: the same bytes feed
+// every consumer, so two parsers cannot disagree about them.
+func parseChangedRecords(raw []byte) ([]changedRecord, *VerifyFailure) {
 	if len(raw) == 0 {
 		return nil, fail("no-changes", "the changed-path list is empty")
 	}
 	if len(raw) > maxChangedList {
 		return nil, fail("changed-list-too-large", "over %d bytes", maxChangedList)
 	}
-	var paths []string
+	var recs []changedRecord
 	seen := map[string]bool{}
 	rest := raw
 	for len(rest) > 0 {
@@ -200,12 +222,12 @@ func parseChanged(raw []byte) ([]string, *VerifyFailure) {
 			return nil, fail("changed-list-malformed", "duplicate path %q", sp)
 		}
 		seen[sp] = true
-		paths = append(paths, sp)
-		if len(paths) > maxChangedPath {
+		recs = append(recs, changedRecord{Path: sp, Status: status, OldSHA: f[2], NewSHA: f[3]})
+		if len(recs) > maxChangedPath {
 			return nil, fail("changed-list-too-large", "over %d paths", maxChangedPath)
 		}
 	}
-	return paths, nil
+	return recs, nil
 }
 
 func allowedFiles(slug string) map[string]bool {
@@ -581,56 +603,54 @@ func readHead(root, rel string, limit int64) ([]byte, *VerifyFailure) {
 	return nil, fail("file-unreadable", "%s: %v", rel, err)
 }
 
-func verifyPR(in VerifyInput, env verifyEnv) (*VerifyResult, *VerifyFailure) {
-	paths, f := parseChanged(in.ChangedRaw)
-	if f != nil {
-		return nil, f
-	}
-	slug, f := checkAllowlist(paths)
-	if f != nil {
-		return nil, f
-	}
-	res := &VerifyResult{Slug: slug, BaseSHA: in.BaseSHA, HeadSHA: in.HeadSHA, Reasons: []string{"upstream binding: not verified"}}
+// recipeFiles is the read-only view of the head files one recipe check needs.
+// has reports a regular file; read returns it within limit or a typed failure.
+type recipeFiles interface {
+	has(rel string) bool
+	read(rel string, limit int64) ([]byte, *VerifyFailure)
+}
+
+// dirFiles reads an exported directory.
+type dirFiles struct{ root string }
+
+func (d dirFiles) has(rel string) bool {
+	_, err := lstatPath(d.root, rel, false)
+	return err == nil
+}
+
+func (d dirFiles) read(rel string, limit int64) ([]byte, *VerifyFailure) {
+	return readHead(d.root, rel, limit)
+}
+
+// contentChecked is what a passing content check hands on.
+type contentChecked struct {
+	rc        *Recipe
+	bundle    *Bundle
+	recipeRaw []byte
+	rulesRaw  []byte
+	checks    []string
+}
+
+// normalizeEnv fills the seed kinds; no seed kind is a harness failure.
+func normalizeEnv(env verifyEnv) (verifyEnv, *VerifyFailure) {
 	if env.seedKinds == nil {
 		env.seedKinds = defaultSeedKinds
 	}
 	if len(env.seedKinds) == 0 {
-		return nil, harness("seed-cannot-run", "no wrong-target seed kind is configured")
+		return env, harness("seed-cannot-run", "no wrong-target seed kind is configured")
 	}
-	if in.Upstream != nil && (!sha1HexRE.MatchString(in.HeadSHA) || !sha1HexRE.MatchString(in.BaseSHA)) {
-		return nil, harness("binding-input", "the binding needs the base and head commit ids (40 lowercase hex)")
-	}
-	res.Checks = append(res.Checks, "changed paths inside the recipe directory plus the one real target, one slug, added or modified regular files only")
+	return env, nil
+}
 
-	dirRel := strings.TrimSuffix(RecipesRoot, "/") + "/" + slug
-	if _, err := lstatPath(in.HeadDir, dirRel, true); err != nil {
-		return nil, fail("file-missing", "recipe directory: %v", err)
-	}
-	ents, err := os.ReadDir(filepath.Join(in.HeadDir, filepath.FromSlash(dirRel)))
-	if err != nil {
-		return nil, harness("file-unreadable", "%v", err)
-	}
-	allowed := allowedFiles(slug)
-	for _, e := range ents {
-		if !allowed[e.Name()] || !e.Type().IsRegular() {
-			return nil, fail("path-not-allowed", "head recipe directory holds %q, which is not an allowed regular file", e.Name())
-		}
-		info, err := e.Info()
-		if err != nil {
-			return nil, harness("file-unreadable", "%v", err)
-		}
-		if info.Mode()&0o111 != 0 {
-			return nil, fail("exec-bit", "head recipe file %q is executable", e.Name())
-		}
-	}
-
-	realRel := realTargetPath(slug)
-	if f := checkOutside(in.BaseDir, in.HeadDir, dirRel, realRel, paths); f != nil {
-		return nil, f
-	}
-	res.Checks = append(res.Checks, "base and head exports are identical outside the recipe directory, and the changed list matches the recipe directory difference")
-
-	recipeRaw, f := readHead(in.HeadDir, dirRel+"/recipe.json", MaxRecipeBytes)
+// checkRecipeContent is the regenerate check of one recipe: recipe and rules
+// parse strictly with no exclusions, the bundle matches its digest and the
+// recipe's commits, the generator (twice) reproduces the target, report,
+// table row and changelog byte for byte, and every wrong-target seed is
+// rejected. Shared by verify-pr and the onboarding verifier so the two judge
+// a recipe identically. It reads only through h and never uses the network.
+func checkRecipeContent(h recipeFiles, slug, dirRel, realRel string, env verifyEnv) (*contentChecked, *VerifyFailure) {
+	var checks []string
+	recipeRaw, f := h.read(dirRel+"/recipe.json", MaxRecipeBytes)
 	if f != nil {
 		return nil, f
 	}
@@ -643,12 +663,11 @@ func verifyPR(in VerifyInput, env verifyEnv) (*VerifyResult, *VerifyFailure) {
 	}
 	var rules *Rules
 	var rulesRaw []byte
-	_, rulesPresent := lstatPath(in.HeadDir, dirRel+"/rules.json", false)
-	if (rc.Rules == "rules.json") != (rulesPresent == nil) {
+	if (rc.Rules == "rules.json") != h.has(dirRel+"/rules.json") {
 		return nil, fail("recipe-invalid", "rules.json and the recipe's rules field disagree")
 	}
 	if rc.Rules != "" {
-		if rulesRaw, f = readHead(in.HeadDir, dirRel+"/rules.json", MaxRecipeBytes); f != nil {
+		if rulesRaw, f = h.read(dirRel+"/rules.json", MaxRecipeBytes); f != nil {
 			return nil, f
 		}
 		if rules, err = ParseRules(rulesRaw); err != nil {
@@ -661,9 +680,9 @@ func verifyPR(in VerifyInput, env verifyEnv) (*VerifyResult, *VerifyFailure) {
 			return nil, fail("rules-invalid", "rules.json is not in canonical form (duplicate or differently cased keys, or other spelling)")
 		}
 	}
-	res.Checks = append(res.Checks, "recipe and rules parse strictly; no exclusions")
+	checks = append(checks, "recipe and rules parse strictly; no exclusions")
 
-	bundleRaw, f := readHead(in.HeadDir, dirRel+"/facts.bundle", MaxBundleBytes)
+	bundleRaw, f := h.read(dirRel+"/facts.bundle", MaxBundleBytes)
 	if f != nil {
 		return nil, f
 	}
@@ -684,21 +703,21 @@ func verifyPR(in VerifyInput, env verifyEnv) (*VerifyResult, *VerifyFailure) {
 			return nil, fail("bundle-commit", "tag %s: recipe commit is not the bundle's commit", c.Tag)
 		}
 	}
-	res.Checks = append(res.Checks, "bundle digest, every object hash, commit and tree chains, and the recipe's per-tag commits")
+	checks = append(checks, "bundle digest, every object hash, commit and tree chains, and the recipe's per-tag commits")
 
-	claimed, f := readHead(in.HeadDir, realRel, maxOutputBytes)
+	claimed, f := h.read(realRel, maxOutputBytes)
 	if f != nil {
 		return nil, f
 	}
-	claimedReport, f := readHead(in.HeadDir, dirRel+"/report.json", maxOutputBytes)
+	claimedReport, f := h.read(dirRel+"/report.json", maxOutputBytes)
 	if f != nil {
 		return nil, f
 	}
-	claimedRow, f := readHead(in.HeadDir, dirRel+"/table-row.json", maxOutputBytes)
+	claimedRow, f := h.read(dirRel+"/table-row.json", maxOutputBytes)
 	if f != nil {
 		return nil, f
 	}
-	claimedLog, f := readHead(in.HeadDir, dirRel+"/changelog.md", maxOutputBytes)
+	claimedLog, f := h.read(dirRel+"/changelog.md", maxOutputBytes)
 	if f != nil {
 		return nil, f
 	}
@@ -750,7 +769,7 @@ func verifyPR(in VerifyInput, env verifyEnv) (*VerifyResult, *VerifyFailure) {
 	if !bytes.Equal(r1.A, r2.A) || !bytes.Equal(r1.B, r2.B) || !bytes.Equal(r1.TableRow, r2.TableRow) || !bytes.Equal(r1.Changelog, r2.Changelog) || !bytes.Equal(rep1, rep2) {
 		return nil, fail("non-deterministic", "two regenerations differ")
 	}
-	res.Checks = append(res.Checks, "regeneration from the bundle has zero typed stops and is byte-identical on a second run")
+	checks = append(checks, "regeneration from the bundle has zero typed stops and is byte-identical on a second run")
 
 	for _, t := range r1.Report.Tags {
 		var want string
@@ -789,7 +808,7 @@ func verifyPR(in VerifyInput, env verifyEnv) (*VerifyResult, *VerifyFailure) {
 	if !bytes.Equal(claimedLog, r1.Changelog) {
 		return nil, fail("changelog-differs", "changelog.md is not the regenerated changelog byte for byte")
 	}
-	res.Checks = append(res.Checks, "target, report, table row and changelog are byte-identical to the regeneration")
+	checks = append(checks, "target, report, table row and changelog are byte-identical to the regeneration")
 
 	for _, kind := range env.seedKinds {
 		wrong, err := seedExpected(btSeed{Kind: kind}, claimed, nil)
@@ -807,7 +826,64 @@ func verifyPR(in VerifyInput, env verifyEnv) (*VerifyResult, *VerifyFailure) {
 			return nil, fail("seed-reproduced", "the wrong target of seed %s reproduced; the comparison is vacuous here", kind)
 		}
 	}
-	res.Checks = append(res.Checks, "wrong-target seeds (path, min-from, attest) are rejected by the same comparison")
+	checks = append(checks, "wrong-target seeds (path, min-from, attest) are rejected by the same comparison")
+
+	return &contentChecked{rc: rc, bundle: bundle, recipeRaw: recipeRaw, rulesRaw: rulesRaw, checks: checks}, nil
+}
+
+func verifyPR(in VerifyInput, env verifyEnv) (*VerifyResult, *VerifyFailure) {
+	paths, f := parseChanged(in.ChangedRaw)
+	if f != nil {
+		return nil, f
+	}
+	slug, f := checkAllowlist(paths)
+	if f != nil {
+		return nil, f
+	}
+	res := &VerifyResult{Slug: slug, BaseSHA: in.BaseSHA, HeadSHA: in.HeadSHA, Reasons: []string{"upstream binding: not verified"}}
+	env, f = normalizeEnv(env)
+	if f != nil {
+		return nil, f
+	}
+	if in.Upstream != nil && (!sha1HexRE.MatchString(in.HeadSHA) || !sha1HexRE.MatchString(in.BaseSHA)) {
+		return nil, harness("binding-input", "the binding needs the base and head commit ids (40 lowercase hex)")
+	}
+	res.Checks = append(res.Checks, "changed paths inside the recipe directory plus the one real target, one slug, added or modified regular files only")
+
+	dirRel := strings.TrimSuffix(RecipesRoot, "/") + "/" + slug
+	if _, err := lstatPath(in.HeadDir, dirRel, true); err != nil {
+		return nil, fail("file-missing", "recipe directory: %v", err)
+	}
+	ents, err := os.ReadDir(filepath.Join(in.HeadDir, filepath.FromSlash(dirRel)))
+	if err != nil {
+		return nil, harness("file-unreadable", "%v", err)
+	}
+	allowed := allowedFiles(slug)
+	for _, e := range ents {
+		if !allowed[e.Name()] || !e.Type().IsRegular() {
+			return nil, fail("path-not-allowed", "head recipe directory holds %q, which is not an allowed regular file", e.Name())
+		}
+		info, err := e.Info()
+		if err != nil {
+			return nil, harness("file-unreadable", "%v", err)
+		}
+		if info.Mode()&0o111 != 0 {
+			return nil, fail("exec-bit", "head recipe file %q is executable", e.Name())
+		}
+	}
+
+	realRel := realTargetPath(slug)
+	if f := checkOutside(in.BaseDir, in.HeadDir, dirRel, realRel, paths); f != nil {
+		return nil, f
+	}
+	res.Checks = append(res.Checks, "base and head exports are identical outside the recipe directory, and the changed list matches the recipe directory difference")
+
+	cc, f := checkRecipeContent(dirFiles{in.HeadDir}, slug, dirRel, realRel, env)
+	if f != nil {
+		return nil, f
+	}
+	res.Checks = append(res.Checks, cc.checks...)
+	rc, bundle, recipeRaw, rulesRaw := cc.rc, cc.bundle, cc.recipeRaw, cc.rulesRaw
 
 	if in.Upstream != nil {
 		br, bf := (Binder{Runner: in.Upstream, Sleep: in.Sleep, Ctx: in.Ctx}).Bind(rc, bundle.Commit, in.HeadSHA)
