@@ -192,7 +192,7 @@ func TestRealSeamPositiveEndToEnd(t *testing.T) {
 		d.VerifyPr.BaseSHA != s.base || d.VerifyPr.HeadSHA != s.head || d.VerifyPr.ChangedPathsSHA256 != d.PathSetSHA {
 		t.Fatalf("bound member %+v (path set %s)", d.VerifyPr, d.PathSetSHA)
 	}
-	if !admitValidDigest(d.VerifyPr.BindingDigest) || len(d.VerifyPr.Slugs) != 1 || d.VerifyPr.Slugs[0] != obSlug {
+	if !admitValidDigest(d.VerifyPr.BindingDigest) || len(s.seen.Slugs) != 1 || s.seen.Slugs[0] != obSlug {
 		t.Fatalf("binding %+v", d.VerifyPr)
 	}
 	// Nothing here is merge authority: an owner fixture with no allowlist is
