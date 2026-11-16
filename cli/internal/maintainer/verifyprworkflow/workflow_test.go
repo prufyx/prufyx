@@ -88,8 +88,8 @@ const (
 // copy or an alias) is shell classification and is refused.
 var changedLineOK = map[string]bool{
 	`git -C "${objects}" diff --raw -z --no-abbrev --no-renames "${BASE_SHA}" "${HEAD_SHA}" > "${RUNNER_TEMP}/out/changed.raw"`: true,
-	`--changed-paths "${out}/changed.raw" \\`:             true,
-	`--changed-paths "${RUNNER_TEMP}/out/changed.raw" \\`: true,
+	`--changed-paths "${out}/changed.raw" \`:             true,
+	`--changed-paths "${RUNNER_TEMP}/out/changed.raw" \`: true,
 }
 
 // Golden fingerprints. Every step's run text is pinned by sha256, so any edit
