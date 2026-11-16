@@ -110,6 +110,10 @@ type parsedTag struct {
 // Generate runs the generator. On a judgment it cannot make it returns a
 // *StopError and no files.
 func Generate(in Input) (*Result, error) {
+	return generate(in, nil)
+}
+
+func generate(in Input, full *FullWindowSelector) (*Result, error) {
 	if !slugRE.MatchString(in.Slug) || in.Name == "" || !repoRE.MatchString(in.Repo) || in.Source == nil {
 		return nil, &StopError{Stops: []Stop{stop(StopBadInput, "", "slug, name, repo and a source are required and must be well formed")}}
 	}
@@ -161,7 +165,9 @@ func Generate(in Input) (*Result, error) {
 	var prefix string
 	var prefixes []string // set only with MultiPrefix: newest tag's prefix first
 	var stops []Stop
-	if in.MultiPrefix {
+	if full != nil {
+		tags, prefix, stops = fullWindowTags(in.Tags, *full)
+	} else if in.MultiPrefix {
 		tags, prefixes, stops = parseTagsMulti(in.Tags)
 		if len(stops) == 0 {
 			prefix = prefixes[0]
@@ -351,6 +357,14 @@ func Generate(in Input) (*Result, error) {
 	if in.StrictWindow && len(dropped) > 0 {
 		return nil, &StopError{Stops: []Stop{stop(StopWindowShortened, dropped[len(dropped)-1].Tag, fmt.Sprintf("%d older tag(s) withheld; last: %s", len(dropped), dropped[len(dropped)-1].Reason))}}
 	}
+	var citation *tagResult
+	if full != nil {
+		var err error
+		citation, err = fullWindowCitation(window, *full)
+		if err != nil {
+			return nil, err
+		}
+	}
 	var prefixWindows []PrefixWindow
 	if in.MultiPrefix {
 		var pstops []Stop
@@ -382,7 +396,7 @@ func Generate(in Input) (*Result, error) {
 			return nil, &StopError{Stops: sortStops(dstops)}
 		}
 	}
-	res, err := build(in, catalog, component, fact, ownerRepo, prefix, prefixes, prefixWindows, minFrom, rules, window, dropped, newest, union, dirs)
+	res, err := build(in, catalog, component, fact, ownerRepo, prefix, prefixes, prefixWindows, minFrom, rules, window, dropped, newest, citation, union, dirs)
 	if err != nil {
 		return nil, err
 	}
