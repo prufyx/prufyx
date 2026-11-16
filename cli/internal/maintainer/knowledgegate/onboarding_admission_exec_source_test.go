@@ -237,8 +237,7 @@ func TestTargetdraftDoesNotImportTheGate(t *testing.T) {
 // only writers stay the ones listed in TestSeamMembersHaveNoOtherSetter.
 func TestSeamMembersHaveNoSetterInImporters(t *testing.T) {
 	t.Parallel()
-	fields := map[string]bool{"VerifyPr": true, "AdmissionRunner": true, "AdmissionVerifier": true, "SeamRefusals": true,
-		"OnboardingAdmissionInProcess": true, "AdmissionEvent": true}
+	fields := seamFields
 	cliDir := filepath.Join("..", "..", "..")
 	maintainerDir := filepath.Join(cliDir, "cmd", "prufyx-maintainer")
 	fset := token.NewFileSet()
@@ -277,6 +276,9 @@ func TestSeamMembersHaveNoSetterInImporters(t *testing.T) {
 		}
 		if f, err = parser.ParseFile(fset, p, nil, 0); err != nil {
 			return err
+		}
+		for _, w := range indirectWrites(f, "maintainer/knowledgegate", seamFields, seamHolders) {
+			t.Errorf("%s: %s", p, w)
 		}
 		ast.Inspect(f, func(n ast.Node) bool {
 			switch x := n.(type) {

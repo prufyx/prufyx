@@ -4,6 +4,7 @@ package knowledgegate
 
 import (
 	"context"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -22,6 +23,16 @@ func runnerGoodArgv() []string {
 		"-c", "protocol.version=2", "-c", "http.followRedirects=false", "-c", "credential.helper=",
 		"-c", "http.lowSpeedLimit=1000", "-c", "http.lowSpeedTime=20", "-c", "core.askPass=",
 		"ls-remote", "--tags", "--", "https://github.com/o/r.git", "refs/tags/v1", "refs/tags/v1^{}"}
+}
+
+// runnerArgvTags is the verifier's vector with n distinct tags.
+func runnerArgvTags(n int) []string {
+	argv := append([]string(nil), runnerGoodArgv()[:len(runnerPrefix)+1]...)
+	for i := 0; i < n; i++ {
+		tag := fmt.Sprintf("refs/tags/v1.%d", i)
+		argv = append(argv, tag, tag+"^{}")
+	}
+	return argv
 }
 
 func TestRunnerArgvShape(t *testing.T) {
@@ -44,11 +55,18 @@ func TestRunnerArgvShape(t *testing.T) {
 		"alias":         append([]string{"git", "-c", "alias.x=!id", "x"}, cp()[1:]...),
 		"config no key": append([]string{"git", "-c", "="}, cp()[1:]...),
 		"only config":   {"git", "-c", "protocol.version=2", "ls-remote", "--tags"},
+		"duplicate tag": append(cp(), "refs/tags/v1", "refs/tags/v1^{}"),
+		"dotdot tag":    append(cp()[:16:16], append([]string{"https://github.com/o/r.git"}, "refs/tags/v1..2", "refs/tags/v1..2^{}")...),
+		"over the cap":  runnerArgvTags(targetdraft.MaxBundleTags + 1),
 	}
 	for name, argv := range bad {
 		if runnerArgvOK(argv) {
 			t.Fatalf("%s: accepted %v", name, argv)
 		}
+	}
+	// The cap is inclusive: exactly MaxBundleTags distinct tags are accepted.
+	if !runnerArgvOK(runnerArgvTags(targetdraft.MaxBundleTags)) {
+		t.Fatal("the verifier's maximum tag count is refused")
 	}
 	res := admissionRunner{}.Run(context.Background(), targetdraft.ExecSpec{Argv: []string{"git", "config", "--list"}})
 	if res.Err == nil || res.Exit != 0 || len(res.Stdout) != 0 {
@@ -285,8 +303,11 @@ func TestRunnerOtherVariantRefuses(t *testing.T) {
 			t.Fatal("runnerKillGroup does not return an error at once")
 		}
 		call, ok := ret.Results[0].(*ast.CallExpr)
-		sel, ok2 := call.Fun.(*ast.SelectorExpr)
-		if !ok || !ok2 || sel.Sel.Name != "New" {
+		if !ok {
+			t.Fatal("runnerKillGroup does not return errors.New(...)")
+		}
+		sel, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok || sel.Sel.Name != "New" {
 			t.Fatal("runnerKillGroup does not return errors.New(...)")
 		}
 	}

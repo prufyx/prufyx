@@ -126,7 +126,36 @@ func (r *Report) admitOnboarding(ctx context.Context, opts Options) {
 		r.admissionSeam(ctx, opts, &in)
 	}
 	dec := AdmitOnboardingAuto(in)
+	// Recipe files passed O2 on their structure alone: the change stays
+	// passed only if the in-process verification ran and passed and the
+	// decision has no verify-pr reason.
+	if n := r.onboarding.recipeFiles; n > 0 && r.Passed() {
+		if why := recipeSeamRefusal(in, dec); why != "" {
+			r.add("onboarding-recipes", false, "%d recipe files are allowed only after the in-process verification passed: %s", n, why)
+			r.finish(true)
+			r.autoMerge(opts)
+			in.GatePassed = r.Passed()
+			dec = AdmitOnboardingAuto(in)
+		}
+	}
 	r.OnboardingAdmission = &dec
+}
+
+// recipeSeamRefusal says why the in-process verification did not pass, or "".
+func recipeSeamRefusal(in OnboardingAdmissionInput, dec OnboardingAdmission) string {
+	if !in.Config.Enabled || in.VerifyPr == nil {
+		return "no verifier result"
+	}
+	if len(in.SeamRefusals) > 0 {
+		return strings.Join(in.SeamRefusals, ",")
+	}
+	var codes []string
+	for _, c := range dec.Reasons {
+		if strings.HasPrefix(c, "verify-pr-") {
+			codes = append(codes, c)
+		}
+	}
+	return strings.Join(codes, ",")
 }
 
 func (r *Report) admissionInput(opts Options) OnboardingAdmissionInput {

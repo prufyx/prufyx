@@ -340,7 +340,8 @@ func DefaultLayout() Layout {
 			"cli/internal/cncfcheck/data/priority-portfolio.json",
 			"cli/internal/projectcheck/data/projects.json",
 		},
-		Onboarding: defaultOnboardingLayout(),
+		Onboarding:          defaultOnboardingLayout(),
+		OnboardingAdmission: defaultOnboardingAdmission(),
 	}
 }
 

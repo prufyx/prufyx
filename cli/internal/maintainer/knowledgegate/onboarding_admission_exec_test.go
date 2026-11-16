@@ -139,6 +139,12 @@ func newSeamFixture(t *testing.T) *seamFixture {
 func seamFixtureOf(t *testing.T, f *onboardingFixture) *seamFixture {
 	t.Helper()
 	f.sign(t, f.record(t))
+	return seamFixtureSigned(t, f)
+}
+
+// seamFixtureSigned commits a fixture whose batch is already signed.
+func seamFixtureSigned(t *testing.T, f *onboardingFixture) *seamFixture {
+	t.Helper()
 	s := &seamFixture{t: t, f: f, runner: &recordingRunner{}}
 	s.repo = t.TempDir()
 	gitIn(t, s.repo, "init", "--bare", "-q")
