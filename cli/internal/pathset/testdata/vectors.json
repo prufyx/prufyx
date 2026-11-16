@@ -1,0 +1,155 @@
+{
+ "version": 1,
+ "vectors": [
+  {
+   "name": "two paths, unsorted input (TestPathSetDigestCanonical)",
+   "paths": [
+    "b/y",
+    "a/x"
+   ],
+   "digest": "sha256:55e8970c6aeed1b49697effb349119d76e77abd53df01d6e424abb7b7701bbba"
+  },
+  {
+   "name": "two paths, sorted input",
+   "paths": [
+    "a/x",
+    "b/y"
+   ],
+   "digest": "sha256:55e8970c6aeed1b49697effb349119d76e77abd53df01d6e424abb7b7701bbba"
+  },
+  {
+   "name": "single path",
+   "paths": [
+    "cli/knowledge/x.json"
+   ],
+   "digest": "sha256:b9c7560cafcb3876ae1d9c272f7187cb5f540088b17571eb7873fa2766ed9aad"
+  },
+  {
+   "name": "unsorted three",
+   "paths": [
+    "z/1",
+    "a/2",
+    "m/3"
+   ],
+   "digest": "sha256:b5f62ff6161c5a84e1df1cf70c31843d1fe2fff9d8c5baaf2adb476282a30921"
+  },
+  {
+   "name": "sorted three",
+   "paths": [
+    "a/2",
+    "m/3",
+    "z/1"
+   ],
+   "digest": "sha256:b5f62ff6161c5a84e1df1cf70c31843d1fe2fff9d8c5baaf2adb476282a30921"
+  },
+  {
+   "name": "non-ASCII: bytewise UTF-8 order puts e-acute after z",
+   "paths": [
+    "\u00e9.json",
+    "z.json",
+    "a.json"
+   ],
+   "digest": "sha256:308ee6e7b567aa4e51759c042882fcb183771ba05bf7b36004b6dc5dc27b2e07"
+  },
+  {
+   "name": "non-ASCII: U+FF5E sorts before U+10000 in UTF-8 (UTF-16 order differs)",
+   "paths": [
+    "\ud800\udc00/f",
+    "\uff5e/f"
+   ],
+   "digest": "sha256:fb3d7129861c65b0f15ddea432059903b1f4fb8f47b33a1b3dc95e984e2bd1cf"
+  },
+  {
+   "name": "rename as old plus new path",
+   "paths": [
+    "cli/old/a.json",
+    "cli/new/a.json"
+   ],
+   "digest": "sha256:d2212e911b2cb1907429cd8aaa46108fac5a1a45833937a40a610d431d343c94"
+  },
+  {
+   "name": "rename plus another path",
+   "paths": [
+    "cli/x.json",
+    "cli/new/a.json",
+    "cli/old/a.json"
+   ],
+   "digest": "sha256:8330e54fb1d88876b73e7ed121281cb339e4c9680a69a8507bd137fc4a8ee41d"
+  },
+  {
+   "name": "delete is the path itself",
+   "paths": [
+    "cli/gone.json"
+   ],
+   "digest": "sha256:86f5689f8a50b4e97590e495881dc48c3c972f868affdf0802afb5559fb5c165"
+  },
+  {
+   "name": "case is not folded",
+   "paths": [
+    "B/x",
+    "a/x"
+   ],
+   "digest": "sha256:1d0aff79a2ff14ded3c605ed4c982f5274ba04fb5fff073be8f3db00928bd2df"
+  },
+  {
+   "name": "no cleaning: dot segments and trailing slash are kept",
+   "paths": [
+    "a/./b",
+    "a/b/"
+   ],
+   "digest": "sha256:baa775c0f6f1992f65db1e6dd896d8e1eb69b1e41d9098ad643dcc88e9d41eb8"
+  },
+  {
+   "name": "separator is exactly one newline: a/b is not a,b",
+   "paths": [
+    "a",
+    "b"
+   ],
+   "digest": "sha256:7e18f737311b2dc3b2f269dd78396b0351f14fb66efa879f768cb23181883c78"
+  },
+  {
+   "name": "empty set",
+   "paths": [],
+   "error": "empty-set"
+  },
+  {
+   "name": "empty path",
+   "paths": [
+    "a",
+    ""
+   ],
+   "error": "empty-path"
+  },
+  {
+   "name": "newline in path",
+   "paths": [
+    "a\nb"
+   ],
+   "error": "newline"
+  },
+  {
+   "name": "NUL in path",
+   "paths": [
+    "a\u0000b"
+   ],
+   "error": "nul"
+  },
+  {
+   "name": "duplicate",
+   "paths": [
+    "a/x",
+    "b/y",
+    "a/x"
+   ],
+   "error": "duplicate"
+  },
+  {
+   "name": "duplicate only",
+   "paths": [
+    "a",
+    "a"
+   ],
+   "error": "duplicate"
+  }
+ ]
+}
