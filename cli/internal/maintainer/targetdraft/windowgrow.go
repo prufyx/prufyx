@@ -85,19 +85,24 @@ func growStep(r, next *tagResult, rules *Rules) (why string, stopped bool, added
 		added = append(added, p)
 	}
 	sort.Strings(added)
-	for p, ri := range r.included {
-		ni, ok := next.included[p]
-		switch {
-		case !ok:
+	for p := range r.included {
+		if _, ok := next.included[p]; !ok {
 			return "grow-only: " + p + " is read at the older tag and not at the next newer tag (set shrinks)", false, nil
+		}
+	}
+	// Same file set: exactly the behaviour without the option (no facts are
+	// compared; only a real growth is judged by identity facts).
+	if len(added) == 0 {
+		return "", false, nil
+	}
+	for p, ri := range r.included {
+		ni := next.included[p]
+		switch {
 		case ri.LinkKind || ni.LinkKind:
 			return "grow-only: " + p + " is read through a symbolic link", false, nil
 		case !equalFacts(fileFacts(ri), fileFacts(ni)):
 			return "grow-only: " + p + " defines other CRD identity facts (group, kind, plural, scope or versions) than at the next newer tag", false, nil
 		}
-	}
-	if len(added) == 0 {
-		return "", false, nil
 	}
 	// A real growth needs complete, comparable facts on every file the older
 	// tag installs; anything incomplete is the withhold (fail closed).
@@ -119,16 +124,18 @@ func growStep(r, next *tagResult, rules *Rules) (why string, stopped bool, added
 		}
 	}
 	// A grown file may only add identities the older tag does not carry.
+	// "Carry" means defines anywhere in the tree, installed or not: a CRD the
+	// older tag defines in a non-installed file would be silently dropped.
 	have := map[string]bool{}
-	for _, ri := range r.included {
-		for _, c := range ri.CRDs {
+	for _, f := range r.defs {
+		for _, c := range f.CRDs {
 			have[c.Group+"/"+c.Kind] = true
 		}
 	}
 	for _, p := range added {
 		for _, c := range next.included[p].CRDs {
 			if have[c.Group+"/"+c.Kind] {
-				return "grow-only: " + p + " defines " + c.Group + "/" + c.Kind + ", which the older tag defines in another file (moved)", false, nil
+				return "grow-only: " + p + " defines " + c.Group + "/" + c.Kind + ", which the older tag already defines in another file (moved or not installed)", false, nil
 			}
 		}
 	}

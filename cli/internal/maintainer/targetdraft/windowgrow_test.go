@@ -271,3 +271,73 @@ func TestGrowOnlyExactInstallPathMissingIsGrowthOnlyForThatFile(t *testing.T) {
 		t.Fatalf("unreadable shape was relaxed: %+v", res2.Report)
 	}
 }
+
+func exactRules(names ...string) *Rules {
+	r := &Rules{Schema: RulesSchema}
+	for _, n := range names {
+		r.InstallPaths = append(r.InstallPaths, InstallPathRule{Path: n, Reason: "r", Evidence: "e"})
+	}
+	return r
+}
+
+// A CRD the older tag defines in a NON-installed file is not "new": growing
+// would silently drop it at that tag.
+func TestGrowOnlyIdentityDefinedInNonInstalledFileIsNotNew(t *testing.T) {
+	src := growSource(func(tag string, m *memTree) {
+		delete(m.files, "config/other/x.yaml")
+		if tag == "v1.0.0" {
+			delete(m.files, "config/crd/d.yaml")
+			m.files["deploy/d.yaml"] = fullCRD(gGroup, "D", "ds", "Namespaced", "v1")
+		}
+	})
+	in := growInput(src, true)
+	in.Rules = exactRules("config/crd/a.yaml", "config/crd/b.yaml", "config/crd/c.yaml", "config/crd/d.yaml")
+	res, err := Generate(in)
+	if err != nil {
+		t.Fatalf("unexpected stop: %v", err)
+	}
+	if res.Report.MinFrom != "1.1" || len(res.Report.WindowGrown) != 0 || res.FirstWithheld == nil || !strings.Contains(res.FirstWithheld.Reason, "already defines") {
+		t.Fatalf("a CRD defined in a non-installed file was accepted as growth: %+v %+v", res.Report, res.FirstWithheld)
+	}
+}
+
+// Same file set, other version list: exactly the behaviour without the option.
+func TestGrowOnlySameFileSetBehavesAsWithoutOption(t *testing.T) {
+	src := growSource(func(tag string, m *memTree) {
+		if tag == "v1.0.0" {
+			m.files["config/crd/c.yaml"] = fullCRD(gGroup, "C", "cs", "Namespaced", "v1", "v2")
+		}
+	})
+	off := mustGenerate(t, growInput(src, false))
+	on := mustGenerate(t, growInput(src, true))
+	if off.Report.MinFrom != "1.0" || on.Report.MinFrom != off.Report.MinFrom || !bytes.Equal(on.A, off.A) || len(on.Report.WindowGrown) != 0 {
+		t.Fatalf("flag changed a same-file-set window: off=%s on=%s", off.Report.MinFrom, on.Report.MinFrom)
+	}
+}
+
+// Exclusions are refused before any window judgment, with or without the
+// option: the option can never run next to an exclusion.
+func TestGrowOnlyExclusionStopIsIdenticalWithAndWithoutOption(t *testing.T) {
+	src := growSource(func(tag string, m *memTree) {
+		if tag == "v1.0.0" {
+			delete(m.files, "config/crd/d.yaml")
+		}
+	})
+	codes := func(grow bool) string {
+		in := growInput(src, grow)
+		in.Rules = &Rules{Schema: RulesSchema, Exclusions: []ExclusionRule{{Class: ClassExactFile, Path: "config/crd/d.yaml", Reason: "r", Evidence: "e"}}}
+		_, err := Generate(in)
+		se, ok := err.(*StopError)
+		if !ok {
+			t.Fatalf("want stop, got %v", err)
+		}
+		var c []string
+		for _, s := range se.Stops {
+			c = append(c, s.Code)
+		}
+		return strings.Join(c, ",")
+	}
+	if a, b := codes(false), codes(true); a != b || !strings.Contains(a, StopDirUnsupported) {
+		t.Fatalf("off=%q on=%q", a, b)
+	}
+}
