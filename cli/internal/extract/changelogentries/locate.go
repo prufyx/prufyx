@@ -97,6 +97,13 @@ func Locate(r extract.PinnedReader, t Target, tag extract.Tag) (*Entry, error) {
 		}
 		return nil, fail(EntryMissing, "no heading names "+version)
 	}
+	// A second heading that names the version in another wording (not a
+	// final heading, not a boundary pattern) makes the entry ambiguous.
+	for _, x := range rels {
+		if x.final == "" && !x.other && firstVersionToken(x.h.Text) == version {
+			return nil, fail(EntryDuplicate, fmt.Sprintf("line %d names %s in another wording", x.h.Line, version))
+		}
+	}
 	vi := named[0]
 	vh := sc.headings[vi]
 
@@ -207,9 +214,11 @@ func Locate(r extract.PinnedReader, t Target, tag extract.Tag) (*Entry, error) {
 		}
 		body := strings.Join(lines[it.Start-1:it.End], "\n")
 		d := sha256.New()
-		for _, part := range []string{t.Component, version, strings.Join(path, "\x1f"), it.Marker, body} {
+		for pi, part := range []string{t.Component, version, strings.Join(path, "\x1f"), it.Marker, body} {
+			if pi > 0 {
+				d.Write([]byte{0})
+			}
 			d.Write([]byte(part))
-			d.Write([]byte{0})
 		}
 		item := Item{
 			Digest: hex.EncodeToString(d.Sum(nil)), StartLine: it.Start, EndLine: it.End,

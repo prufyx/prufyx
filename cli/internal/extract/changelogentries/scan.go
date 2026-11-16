@@ -40,11 +40,15 @@ type scanned struct {
 }
 
 var (
-	atxRE       = regexp.MustCompile(`^ {0,3}(#{1,6})(?:[ \t]+(.*?))?[ \t]*$`)
-	atxCloseRE  = regexp.MustCompile(`(?:^|[ \t]+)#+[ \t]*$`)
-	hrRE        = regexp.MustCompile(`^ {0,3}([-*_])(?:[ \t]*[-*_]){2,}[ \t]*$`)
-	listRE      = regexp.MustCompile(`^([*+-]|[0-9]{1,9}[.)])(?:[ \t]|$)`)
-	linkDefRE   = regexp.MustCompile(`^ {0,3}\[[^\]\n]+\]:[ \t]*\S.*$`)
+	atxRE      = regexp.MustCompile(`^ {0,3}(#{1,6})(?:[ \t]+(.*?))?[ \t]*$`)
+	atxCloseRE = regexp.MustCompile(`(?:^|[ \t]+)#+[ \t]*$`)
+	hrRE       = regexp.MustCompile(`^ {0,3}([-*_])(?:[ \t]*[-*_]){2,}[ \t]*$`)
+	listRE     = regexp.MustCompile(`^([*+-]|[0-9]{1,9}[.)])(?:[ \t]|$)`)
+	// A link reference definition: a label, a colon, ONE destination and an
+	// optional quoted title, nothing else on the line. The destination must
+	// look like a link (absolute http(s) URL, or a path or fragment), so a
+	// prose line such as "[BREAKING]: removed" is never taken for one.
+	linkDefRE   = regexp.MustCompile(`^ {0,3}\[[^\[\]\\]+\]:[ \t]*(?:<(?:https?://|/|\./|\.\./|#)[^<>\s]*>|(?:https?://|/|\./|\.\./|#)\S*)(?:[ \t]+(?:"[^"]*"|'[^']*'|\([^()]*\)))?[ \t]*$`)
 	underlineRE = regexp.MustCompile(`^ {0,3}(={2,}|-{2,})[ \t]*$`)
 	fenceRE     = regexp.MustCompile("^[ \t]*(`{3,}|~{3,})(.*)$")
 	markerRE    = regexp.MustCompile(`^(?:[*+-]|[0-9]{1,9}[.)])[ \t]+\[([A-Z][A-Z0-9 _-]{0,30})\](?:[^(\[]|$)`)
@@ -69,6 +73,11 @@ func splitLines(raw []byte) ([]string, error) {
 			return nil, fail(EntryParseResidue, "file mixes CRLF with other line breaks or carries a bare carriage return")
 		}
 		s = strings.ReplaceAll(s, "\r\n", "\n")
+	}
+	for i := 0; i < len(s); i++ {
+		if c := s[i]; c < 0x20 && c != '\t' && c != '\n' {
+			return nil, fail(EntryParseResidue, "file contains a control byte")
+		}
 	}
 	if s == "" {
 		return nil, nil
@@ -124,6 +133,7 @@ func scan(lines []string) scanned {
 	inFence := false
 	var fch byte
 	fenceAt := 0
+	fenceResidue := false
 	var flen int
 	closeItem := func() { cur = nil; curIdx = -1 }
 	extend := func(n int) {
@@ -140,8 +150,12 @@ func scan(lines []string) scanned {
 		l := lines[i]
 		n := i + 1
 		if inFence {
-			sc.kind[i] = kItem
-			extend(n)
+			if fenceResidue {
+				sc.kind[i] = kResidue
+			} else {
+				sc.kind[i] = kItem
+				extend(n)
+			}
 			if fenceCloses(l, fch, flen) {
 				inFence = false
 			}
@@ -177,12 +191,15 @@ func scan(lines []string) scanned {
 				sc.kind[i] = kItem
 				extend(n)
 			case indented:
+				// A fence with no item to own it: every line of it is residue,
+				// so its contents are never read as headings or items.
 				sc.kind[i] = kResidue
 			default:
 				closeItem()
 				open(n, "", true)
 				sc.kind[i] = kItem
 			}
+			fenceResidue = sc.kind[i] == kResidue
 			inFence, fch, flen = true, ch, ln
 			fenceAt = n
 			continue

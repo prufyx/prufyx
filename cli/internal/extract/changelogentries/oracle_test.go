@@ -3,14 +3,70 @@
 package changelogentries
 
 import (
-	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
 )
 
-var oracleLinkDef = regexp.MustCompile(`^\s{0,3}\[[^\]]+\]:\s*\S`)
+// oracleIsLinkDef is an independent, regexp-free reading of a link reference
+// definition: label, colon, exactly one link-looking destination, then
+// nothing or one quoted title.
+func oracleIsLinkDef(l string) bool {
+	trim := strings.TrimLeft(l, " ")
+	if len(l)-len(trim) > 3 || !strings.HasPrefix(trim, "[") {
+		return false
+	}
+	end := strings.Index(trim, "]:")
+	if end < 2 || strings.ContainsAny(trim[1:end], "[]\\") {
+		return false
+	}
+	rest := strings.TrimLeft(trim[end+2:], " \t")
+	if rest == "" {
+		return false
+	}
+	var dest string
+	if strings.HasPrefix(rest, "<") {
+		c := strings.Index(rest, ">")
+		if c < 0 {
+			return false
+		}
+		dest, rest = rest[1:c], rest[c+1:]
+	} else {
+		f := strings.IndexAny(rest, " \t")
+		if f < 0 {
+			f = len(rest)
+		}
+		dest, rest = rest[:f], rest[f:]
+	}
+	ok := false
+	for _, p := range []string{"http://", "https://", "/", "./", "../", "#"} {
+		if strings.HasPrefix(dest, p) {
+			ok = true
+		}
+	}
+	if !ok || strings.ContainsAny(dest, " \t<>") {
+		return false
+	}
+	rest = strings.TrimSpace(rest)
+	if rest == "" {
+		return true
+	}
+	if len(rest) < 2 {
+		return false
+	}
+	open, closing := rest[0], rest[len(rest)-1]
+	body := rest[1 : len(rest)-1]
+	switch {
+	case open == '"' && closing == '"':
+		return !strings.Contains(body, `"`)
+	case open == '\'' && closing == '\'':
+		return !strings.Contains(body, "'")
+	case open == '(' && closing == ')':
+		return !strings.ContainsAny(body, "()")
+	}
+	return false
+}
 
 // oracleAccount is an independent line accounting of an entry. It does not
 // call the scanner: it takes the raw lines and the entry's own spans and
@@ -74,7 +130,7 @@ func oracleAccount(t *testing.T, raw []byte, e *Entry) {
 			itemLines++
 		case strings.TrimSpace(l) == "":
 			blanks++
-		case oracleLinkDef.MatchString(l) && !inItem:
+		case oracleIsLinkDef(l) && !inItem:
 			defs++
 		default:
 			t.Fatalf("line %d is not accounted for: %q", n, l)

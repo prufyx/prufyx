@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path"
 	"regexp"
+	"regexp/syntax"
 	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
@@ -62,9 +63,18 @@ type compiled struct {
 	max      int
 }
 
+// compileAnchored compiles a pattern that must be one anchored expression:
+// the parsed form is a concatenation that begins with the start-of-text
+// anchor and ends with the end-of-text anchor. A top-level alternation
+// (^a|b$), an escaped dollar, or a multi-line anchor is refused.
 func compileAnchored(p string) (*regexp.Regexp, error) {
-	if !strings.HasPrefix(p, "^") || !strings.HasSuffix(p, "$") || strings.HasSuffix(p, `\$`) {
-		return nil, fmt.Errorf("pattern %q must be anchored with ^ and $", p)
+	tree, err := syntax.Parse(p, syntax.Perl)
+	if err != nil {
+		return nil, err
+	}
+	if tree.Op != syntax.OpConcat || len(tree.Sub) < 2 ||
+		tree.Sub[0].Op != syntax.OpBeginText || tree.Sub[len(tree.Sub)-1].Op != syntax.OpEndText {
+		return nil, fmt.Errorf("pattern %q must be one expression anchored with ^ and $", p)
 	}
 	return regexp.Compile(p)
 }

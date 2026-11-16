@@ -21,7 +21,9 @@ entry, read in full:
   withholds the entry.
 
 The item digest is `sha256(component NUL version NUL headingPath NUL marker NUL
-item bytes)`. Moving an item under another heading changes its digest. An identical item
+item bytes)` (four NUL separators, no terminator; heading texts are joined with
+U+001F, and the file is refused if it holds any control byte other than TAB and
+LF). Moving an item under another heading changes its digest. An identical item
 repeated under the same heading (real changelogs have them) has the same digest
 and an `occurrence` number, so nothing is dropped and one reviewed disposition
 covers both copies.
@@ -53,6 +55,17 @@ is closed (`Codes`); codes for later stages are reserved.
 Release bodies (`SOURCE_NOT_PINNED_GIT`), entries that land after the tag
 (`ENTRY_NOT_AT_TAG`), upgrade guides (`SHAPE_NOT_PER_TAG`) and monorepo entries
 are not read at all in this version.
+
+## Notes for later stages
+
+- Mark identity is `(digest, occurrence)`: a disposition or rule citation must be
+  keyed by both, and a changed occurrence count is a changed entry.
+- A link reference definition is only `[label]: <destination> "optional title"`
+  with an http(s), absolute, relative or fragment destination. Any other
+  column-zero line, such as `[BREAKING]: removed flag --x`, is an item.
+- `SHAPE_NOT_PER_TAG` here also covers per-line and per-version changelog files
+  (`{toLine}` templates), which are an open follow-up; it does not always mean an
+  upgrade guide, so read the form with the reason.
 
 ## What it does not do
 
