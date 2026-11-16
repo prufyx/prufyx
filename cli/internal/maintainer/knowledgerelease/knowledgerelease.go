@@ -296,7 +296,7 @@ func Run(o Options) (Result, error) {
 		return Result{}, err
 	}
 	finalize := knowledgepublish.FinalizePackageOptions{
-		Root: rootRaw, Target: b.target, Projects: b.projects, Targets: targetsRaw, Snapshot: snapshotRaw, Timestamp: timestampRaw, RootDigest: o.RootDigest,
+		Root: rootRaw, Target: b.target, Projects: b.projects, Targets: targetsRaw, Snapshot: snapshotRaw, Timestamp: timestampRaw, RootDigest: o.RootDigest, Now: o.Now,
 	}
 	packageRaw, receipt, err := knowledgepublish.FinalizePackage(finalize)
 	if err != nil {
@@ -402,7 +402,7 @@ func (o Options) preflight(b built) (*LiveState, error) {
 	if !filepath.IsAbs(o.PreviousPackage) {
 		return nil, guard("previous package path is not absolute")
 	}
-	live, err := InspectLive(o.PreviousPackage, o.Root, o.RootDigest, o.Profile, o.ExpectPreviousPackageDigest)
+	live, err := InspectLiveAt(o.PreviousPackage, o.Root, o.RootDigest, o.Profile, o.ExpectPreviousPackageDigest, o.Now)
 	if err != nil {
 		return nil, guard("previous package does not verify against the pinned root: %v", err)
 	}

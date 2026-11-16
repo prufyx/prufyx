@@ -45,7 +45,7 @@ func TestReleaseCarriesRecords(t *testing.T) {
 		t.Fatalf("release expires %s, after the record", result.Expires)
 	}
 	if _, err := knowledge.VerifyConstraintsProjects(knowledge.VerifyRequest{
-		PackagePath: filepath.Join(o.OutputDir, "cncf-projects-"+o.Revision+".tar"), BootstrapRootPath: o.Root, BootstrapRootDigest: o.RootDigest,
+		PackagePath: filepath.Join(o.OutputDir, "cncf-projects-"+o.Revision+".tar"), BootstrapRootPath: o.Root, BootstrapRootDigest: o.RootDigest, Now: o.Now,
 	}); err != nil {
 		t.Fatalf("the signed package does not verify: %v", err)
 	}

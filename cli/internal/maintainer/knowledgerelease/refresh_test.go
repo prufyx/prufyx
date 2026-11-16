@@ -20,7 +20,7 @@ func refreshOpts(t *testing.T, base Options, live string, now time.Time) Refresh
 	t.Helper()
 	// The expected digest is mandatory: name the package that is about to be refreshed.
 	digest := "sha256:" + strings.Repeat("0", 64) // unverifiable live packages are refused whatever is named
-	if state, err := InspectLive(live, base.Root, base.RootDigest, ProfileCNCFProjects, ""); err == nil {
+	if state, err := InspectLiveAt(live, base.Root, base.RootDigest, ProfileCNCFProjects, "", now); err == nil {
 		digest = state.PackageDigest
 	}
 	return RefreshOptions{
@@ -73,7 +73,7 @@ func TestRefreshExtendsOnlyTheTimestamp(t *testing.T) {
 		t.Fatal("timestamp not replaced")
 	}
 	// The refreshed package verifies and a second refresh bumps the version again.
-	state, err := InspectLive(filepath.Join(o.OutputDir, "cncf-projects-91.tar"), first.Root, first.RootDigest, ProfileCNCFProjects, r.PackageDigest)
+	state, err := InspectLiveAt(filepath.Join(o.OutputDir, "cncf-projects-91.tar"), first.Root, first.RootDigest, ProfileCNCFProjects, r.PackageDigest, first.Now)
 	if err != nil || state.TimestampVersion != 2 || state.MinNextVersion != 3 {
 		t.Fatalf("state %+v err %v", state, err)
 	}
@@ -87,7 +87,7 @@ func TestRefreshExtendsOnlyTheTimestamp(t *testing.T) {
 		t.Fatalf("second refresh %+v", r2)
 	}
 	// State is unchanged across a refresh, and the deploy guard accepts it.
-	liveState, _ := InspectLive(live, first.Root, first.RootDigest, ProfileCNCFProjects, "")
+	liveState, _ := InspectLiveAt(live, first.Root, first.RootDigest, ProfileCNCFProjects, "", first.Now)
 	if !StateUnchanged(liveState, state) {
 		t.Fatal("a refresh must leave the state unchanged")
 	}
@@ -184,7 +184,7 @@ func TestSameVersionRefreshIsNotPrepared(t *testing.T) {
 	first, _ := firstPackage(t)
 	m := membersOf(t, filepath.Join(first.OutputDir, "cncf-projects-91.tar"))
 	rootRaw, _ := os.ReadFile(first.Root)
-	state, err := InspectLive(filepath.Join(first.OutputDir, "cncf-projects-91.tar"), first.Root, first.RootDigest, ProfileCNCFProjects, "")
+	state, err := InspectLiveAt(filepath.Join(first.OutputDir, "cncf-projects-91.tar"), first.Root, first.RootDigest, ProfileCNCFProjects, "", first.Now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -250,7 +250,7 @@ func TestByteIdentityAssertion(t *testing.T) {
 func TestStateAndDeployGuards(t *testing.T) {
 	first, fr := firstPackage(t)
 	liveTar := filepath.Join(first.OutputDir, "cncf-projects-91.tar")
-	live, err := InspectLive(liveTar, first.Root, first.RootDigest, ProfileCNCFProjects, fr.PackageDigest)
+	live, err := InspectLiveAt(liveTar, first.Root, first.RootDigest, ProfileCNCFProjects, fr.PackageDigest, first.Now)
 	if err != nil || live.PackageDigest != fr.PackageDigest || live.MinNextVersion != 2 {
 		t.Fatalf("live %+v err %v", live, err)
 	}
@@ -259,7 +259,7 @@ func TestStateAndDeployGuards(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cand, err := InspectLive(filepath.Join(next.OutputDir, "cncf-projects-92.tar"), first.Root, first.RootDigest, ProfileCNCFProjects, nr.PackageDigest)
+	cand, err := InspectLiveAt(filepath.Join(next.OutputDir, "cncf-projects-92.tar"), first.Root, first.RootDigest, ProfileCNCFProjects, nr.PackageDigest, first.Now)
 	if err != nil {
 		t.Fatal(err)
 	}
