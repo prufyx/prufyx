@@ -3,11 +3,13 @@
 package targetdraft
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha1" //nolint:gosec // git object ids are SHA-1; used only to bind tree bytes to the raw diff, never as a security hash
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path"
 	"regexp"
@@ -84,6 +86,8 @@ const (
 	OnbReasonNoRunner       = "binding-unavailable"
 	OnbReasonFactCollision  = "fact-project-collision"
 	OnbReasonRepoCovered    = "repo-already-covered-in-base"
+	OnbReasonRepoUnparsable = "repo-identity-unparsable"
+	OnbReasonHeadTarget     = "head-target-undecodable"
 )
 
 var onbSlugRE = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
@@ -324,46 +328,65 @@ func (v *treeView) under(prefix string) []string {
 	return out
 }
 
+// optStr is an optional JSON string: absent is fine, but a present value that
+// is not a string (null, number, array, object) is a decode error, never a
+// skipped field.
+type optStr string
+
+func (o *optStr) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil || string(bytes.TrimSpace(b)) == "null" {
+		return errors.New("field is not a string")
+	}
+	*o = optStr(s)
+	return nil
+}
+
 // onbRow is the part of a table row the verifier reads.
 type onbRow struct {
 	Slug        string `json:"slug"`
-	FactProject string `json:"factProject"`
-	Component   string `json:"component"`
+	FactProject optStr `json:"factProject"`
+	Component   optStr `json:"component"`
 	Upstream    *struct {
-		Repository string `json:"repository"`
+		Repository optStr `json:"repository"`
 	} `json:"upstream"`
 }
 
-// onbTableRows reads the rows of a table file; any decode problem is an error
-// (no guess).
-func onbTableRows(raw []byte) ([]onbRow, error) {
-	var doc struct {
-		Projects []onbRow `json:"projects"`
-	}
+type onbTable struct {
+	Projects []onbRow `json:"projects"`
+	Reserved []struct {
+		Repository optStr `json:"repository"`
+	} `json:"reserved"`
+}
+
+// onbTableDoc reads a table file; any decode problem is an error (no guess).
+func onbTableDoc(raw []byte) (*onbTable, error) {
+	var doc onbTable
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		return nil, err
 	}
-	return doc.Projects, nil
+	return &doc, nil
 }
 
 func onbTableSlugs(raw []byte) ([]string, error) {
-	rows, err := onbTableRows(raw)
+	doc, err := onbTableDoc(raw)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]string, 0, len(rows))
-	for _, r := range rows {
+	out := make([]string, 0, len(doc.Projects))
+	for _, r := range doc.Projects {
 		out = append(out, r.Slug)
 	}
 	return out, nil
 }
 
 // baseFacts are the identity values the base already uses: project ids (slug,
-// project, factProject) and upstream repositories (repo, component, upstream
-// repository, all reduced to owner/name), lower-cased.
+// project, factProject) lower-cased, and upstream repository KEYS (host/path)
+// of every repo, component, upstream repository and reserved repository.
 type baseFacts struct {
 	ids   map[string]bool
 	repos map[string]bool
+	bad   []string // values that could not be reduced to a key
 }
 
 func (b *baseFacts) addID(v string) {
@@ -372,45 +395,123 @@ func (b *baseFacts) addID(v string) {
 	}
 }
 
-func (b *baseFacts) addRepo(v string) {
-	if v = normRepo(v); v != "" {
-		b.repos[v] = true
+// addRepo records a repository spelling; bare allows owner/name (reserved
+// repositories). A value that cannot be reduced is remembered, never skipped.
+func (b *baseFacts) addRepo(v string, bare bool) {
+	k, ok := repoKey(v, bare)
+	switch {
+	case !ok:
+		b.bad = append(b.bad, v)
+	case k != "":
+		b.repos[k] = true
 	}
 }
 
-// normRepo reduces a repo, a package url or a repository url to owner/name.
-func normRepo(v string) string {
+var repoHosts = map[string]string{"github": "github.com", "gitlab": "gitlab.com", "bitbucket": "bitbucket.org"}
+
+// repoKey reduces every spelling of an upstream repository to the canonical
+// key host/owner/name (lower case): schemes git+https, https, http, ssh, git,
+// git+ssh, scp-like user@host:path, bare host/path, a www. prefix, a port,
+// trailing slash and .git, @ref, ?query and #fragment suffixes, and package
+// urls pkg:github|gitlab|bitbucket/owner/name[@version][?q][#subpath]. Empty
+// input is ("", true) (field absent). Anything else that is not exactly that
+// grammar is ("", false). bare allows a two-segment owner/name on github.com.
+func repoKey(v string, bare bool) (string, bool) {
 	v = strings.ToLower(strings.TrimSpace(v))
-	for _, p := range []string{"https://", "http://", "git+", "github.com/", "pkg:github/"} {
-		v = strings.TrimPrefix(v, p)
+	if v == "" {
+		return "", true
 	}
-	v = strings.TrimSuffix(strings.TrimSuffix(v, "/"), ".git")
-	return strings.TrimSuffix(v, "/")
+	if strings.ContainsAny(v, " \t\r\n\\%") || strings.Contains(v, "..") {
+		return "", false
+	}
+	var host, rest string
+	if after, ok := strings.CutPrefix(v, "pkg:"); ok {
+		typ, r, found := strings.Cut(after, "/")
+		h, known := repoHosts[typ]
+		if !found || !known {
+			return "", false
+		}
+		host, rest = h, r
+		rest, _, _ = strings.Cut(rest, "#")
+		rest, _, _ = strings.Cut(rest, "?")
+	} else {
+		for changed := true; changed; {
+			changed = false
+			for _, p := range []string{"git+", "https://", "http://", "ssh://", "git://"} {
+				if t, ok := strings.CutPrefix(v, p); ok {
+					v, changed = t, true
+				}
+			}
+		}
+		v, _, _ = strings.Cut(v, "#")
+		v, _, _ = strings.Cut(v, "?")
+		// userinfo (git@, user:pass@): only before the first slash.
+		if i := strings.IndexByte(v, '@'); i >= 0 && !strings.Contains(v[:i], "/") {
+			v = v[i+1:]
+		}
+		// scp-like host:path and host:port/path.
+		if i := strings.IndexByte(v, ':'); i >= 0 && !strings.Contains(v[:i], "/") {
+			tail := v[i+1:]
+			port, after, hasSlash := strings.Cut(tail, "/")
+			if hasSlash && port != "" && strings.Trim(port, "0123456789") == "" {
+				tail = after
+			}
+			v = v[:i] + "/" + strings.TrimPrefix(tail, "/")
+		}
+		segs := strings.Split(v, "/")
+		if bare && len(segs) == 2 {
+			host, rest = "github.com", v
+		} else {
+			host = strings.TrimPrefix(segs[0], "www.")
+			rest = strings.Join(segs[1:], "/")
+			if !strings.Contains(host, ".") {
+				return "", false
+			}
+		}
+	}
+	segs := strings.Split(strings.Trim(rest, "/"), "/")
+	if len(segs) < 2 {
+		return "", false
+	}
+	// @ref / @version on the last segment, then .git, repeatedly.
+	last := segs[len(segs)-1]
+	last, _, _ = strings.Cut(last, "@")
+	for strings.HasSuffix(last, ".git") {
+		last = strings.TrimSuffix(last, ".git")
+	}
+	segs[len(segs)-1] = last
+	for _, sg := range segs {
+		if sg == "" || sg == "." || strings.ContainsAny(sg, ":@") {
+			return "", false
+		}
+	}
+	return host + "/" + strings.Join(segs, "/"), true
 }
 
 type onbTargetDoc struct {
 	Target struct {
-		Project     string `json:"project"`
-		FactProject string `json:"factProject"`
-		Component   string `json:"component"`
-		Repo        string `json:"repo"`
+		Project     optStr `json:"project"`
+		FactProject optStr `json:"factProject"`
+		Component   optStr `json:"component"`
+		Repo        optStr `json:"repo"`
 	} `json:"target"`
 }
 
 // checkCollisions refuses a project whose identity is already used by the
 // base: its slug, fact project or the head target's project equal to any base
-// id, or its repo, component or the head target's repo or component equal to
-// any base upstream repository, under any casing. A head target that does not
-// decode is a refusal.
+// id, or its repo, component or the head target's repo or component reducing
+// to the same repository key as any base repository, under any spelling. A
+// head target that does not decode, or a repo that cannot be reduced, is a
+// refusal.
 func checkCollisions(run *onbRun, bf *baseFacts, head *treeView, slug string, rc *Recipe) {
 	raw, f := head.read(realTargetPath(slug), maxOutputBytes)
 	var doc onbTargetDoc
 	if f != nil || json.Unmarshal(raw, &doc) != nil {
-		run.addDetail("target-invalid", slug, "the head target does not decode")
+		run.addDetail(OnbReasonHeadTarget, slug, "the head target does not decode")
 		return
 	}
-	ids := []string{slug, rc.FactProject, doc.Target.Project, doc.Target.FactProject}
-	repos := []string{rc.Repo, rc.Component, doc.Target.Repo, doc.Target.Component}
+	ids := []string{slug, rc.FactProject, string(doc.Target.Project), string(doc.Target.FactProject)}
+	repos := []string{rc.Repo, rc.Component, string(doc.Target.Repo), string(doc.Target.Component)}
 	for _, v := range ids {
 		if v = strings.ToLower(strings.TrimSpace(v)); v != "" && bf.ids[v] {
 			run.addDetail(OnbReasonFactCollision, slug, "an id is already used in the base")
@@ -418,9 +519,12 @@ func checkCollisions(run *onbRun, bf *baseFacts, head *treeView, slug string, rc
 		}
 	}
 	for _, v := range repos {
-		if v = normRepo(v); v != "" && bf.repos[v] {
+		k, ok := repoKey(v, false)
+		switch {
+		case !ok:
+			run.addDetail(OnbReasonRepoUnparsable, slug, "a head repository value cannot be reduced to a key")
+		case k != "" && bf.repos[k]:
 			run.addDetail(OnbReasonRepoCovered, slug, "an upstream repository is already covered in the base")
-			break
 		}
 	}
 }
@@ -703,17 +807,20 @@ func checkBaseAbsence(run *onbRun, base, head *treeView, tablePath string, slugs
 	var baseRows []string
 	if tf != nil {
 		run.addHarness(OnbReasonBaseUnknown, "", "base table unreadable: "+tf.Code)
-	} else if rows, err := onbTableRows(baseTable); err != nil {
+	} else if doc, err := onbTableDoc(baseTable); err != nil {
 		run.addHarness(OnbReasonBaseUnknown, "", "base table does not decode")
 	} else {
-		for _, r := range rows {
+		for _, r := range doc.Projects {
 			baseRows = append(baseRows, r.Slug)
 			bf.addID(r.Slug)
-			bf.addID(r.FactProject)
-			bf.addRepo(r.Component)
+			bf.addID(string(r.FactProject))
+			bf.addRepo(string(r.Component), false)
 			if r.Upstream != nil {
-				bf.addRepo(r.Upstream.Repository)
+				bf.addRepo(string(r.Upstream.Repository), false)
 			}
+		}
+		for _, r := range doc.Reserved {
+			bf.addRepo(string(r.Repository), true)
 		}
 	}
 	var baseTargetProjects []string
@@ -729,13 +836,16 @@ func checkBaseAbsence(run *onbRun, base, head *treeView, tablePath string, slugs
 			run.addHarness(OnbReasonBaseUnknown, "", fmt.Sprintf("base target %q does not decode", name))
 			continue
 		}
-		baseTargetProjects = append(baseTargetProjects, doc.Target.Project)
-		bf.addID(doc.Target.Project)
-		bf.addID(doc.Target.FactProject)
-		bf.addRepo(doc.Target.Repo)
-		bf.addRepo(doc.Target.Component)
+		baseTargetProjects = append(baseTargetProjects, string(doc.Target.Project))
+		bf.addID(string(doc.Target.Project))
+		bf.addID(string(doc.Target.FactProject))
+		bf.addRepo(string(doc.Target.Repo), false)
+		bf.addRepo(string(doc.Target.Component), false)
 	}
 	headTable, hf := head.read(tablePath, MaxFileBytes)
+	if len(bf.bad) != 0 {
+		run.addHarness(OnbReasonRepoUnparsable, "", fmt.Sprintf("%d base repository value(s) cannot be reduced to a key", len(bf.bad)))
+	}
 	var headRows []string
 	headOK := false
 	if hf != nil {

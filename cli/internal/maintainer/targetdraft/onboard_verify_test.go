@@ -7,11 +7,13 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strconv"
@@ -516,6 +518,18 @@ func TestVerifyOnboardingRawDiffNegatives(t *testing.T) {
 		{"stream truncated right after the meta field", append(append([]byte(nil), good...), []byte(":000000 100644 "+zeros40+" "+strings.Repeat("1", 40)+" A\x00")...), "changed-list-malformed"},
 		{"trailing NUL", append(append([]byte(nil), good...), 0), "changed-list-malformed"},
 		{"leading NUL", append([]byte{0}, good...), "changed-list-malformed"},
+		{"listed path as a rename", swapRec(x0.recs, onbOut, func(r onbRec) string {
+			return fmt.Sprintf(":100644 100644 %s %s R100\x00%s\x00%s\x00", r.old, r.new, onbOut, onbOpt)
+		}), "path-status"},
+		{"listed path as a single-path rename", swapRec(x0.recs, onbOut, func(r onbRec) string {
+			return fmt.Sprintf(":100644 100644 %s %s R100\x00%s\x00", r.old, r.new, onbOut)
+		}), "path-status"},
+		{"listed path as a copy", swapRec(x0.recs, onbOut, func(r onbRec) string {
+			return fmt.Sprintf(":100644 100644 %s %s C100\x00%s\x00", r.old, r.new, onbOut)
+		}), "path-status"},
+		{"listed path deleted", swapRec(x0.recs, onbOut, func(r onbRec) string {
+			return fmt.Sprintf(":100644 000000 %s %s D\x00%s\x00", r.old, zeros40, onbOut)
+		}), "path-status"},
 		{"garbage", []byte("garbage\x00x\x00"), "changed-list-malformed"},
 		{"short object id", []byte(":000000 100644 abc " + strings.Repeat("1", 40) + " A\x00cli/a\x00"), "changed-list-malformed"},
 		{"truncated after the meta", good[:bytes.LastIndexByte(good[:len(good)-1], 0)+1], "changed-list-malformed"},
@@ -871,7 +885,7 @@ func TestOnboardingVerifyInputHasNoExternalResult(t *testing.T) {
 // packages, and may not read the environment, the clock, files or the network.
 func TestOnboardVerifyIsPure(t *testing.T) {
 	allowed := map[string]bool{
-		"context": true, "crypto/sha1": true, "crypto/sha256": true, "encoding/hex": true, "encoding/json": true,
+		"bytes": true, "errors": true, "context": true, "crypto/sha1": true, "crypto/sha256": true, "encoding/hex": true, "encoding/json": true,
 		"fmt": true, "path": true, "regexp": true, "sort": true, "strings": true, "time": true,
 		"github.com/prufyx/prufyx/cli/internal/pathset": true,
 	}
@@ -1083,4 +1097,270 @@ func (x *onbFx) runnerOut() string {
 		out = append(out, c.Commit+"\trefs/tags/"+c.Tag)
 	}
 	return lsOut(out...)
+}
+
+// swapRec builds the raw diff of recs with one record replaced by the text
+// the callback returns (a record of a LISTED path with another status).
+func swapRec(recs []onbRec, path string, repl func(onbRec) string) []byte {
+	var b bytes.Buffer
+	for _, r := range recs {
+		if r.path == path {
+			b.WriteString(repl(r))
+			continue
+		}
+		b.Write(onbRaw([]onbRec{r}))
+	}
+	return b.Bytes()
+}
+
+var demoSpellings = []string{
+	"github.com/example/demo", "https://github.com/example/demo", "http://github.com/Example/Demo/",
+	"https://github.com/example/demo.git", "git+https://github.com/example/demo", "git+https://github.com/example/demo.git#readme",
+	"git@github.com:example/demo.git", "ssh://git@github.com/example/demo.git", "ssh://git@github.com:22/example/demo",
+	"git+ssh://git@github.com/example/demo.git", "git://github.com/example/demo", "https://www.github.com/example/demo",
+	"https://github.com/example/demo@v1.2.3", "https://github.com/example/demo?tab=readme", "https://github.com/example/demo#readme",
+	"pkg:github/example/demo", "pkg:github/example/demo@1.0.0", "pkg:github/example/demo@1.0?a=b#sub/path",
+	"https://user:pw@github.com/example/demo", "github.com/example/demo.git.git", " HTTPS://GITHUB.COM/EXAMPLE/DEMO ",
+	"git+git+https://github.com/example/demo",
+}
+
+func TestRepoKeyCanonicalForms(t *testing.T) {
+	for _, v := range demoSpellings {
+		if k, ok := repoKey(v, false); !ok || k != "github.com/example/demo" {
+			t.Errorf("%q -> %q %v", v, k, ok)
+		}
+	}
+	for in, want := range map[string]string{
+		"pkg:gitlab/grp/proj":                  "gitlab.com/grp/proj",
+		"https://gitlab.com/grp/proj.git":      "gitlab.com/grp/proj",
+		"pkg:bitbucket/o/r":                    "bitbucket.org/o/r",
+		"git@bitbucket.org:o/r.git":            "bitbucket.org/o/r",
+		"https://gitlab.com/a/b/c":             "gitlab.com/a/b/c",
+		"git@gitlab.example.org:grp/sub/p.git": "gitlab.example.org/grp/sub/p",
+	} {
+		if k, ok := repoKey(in, false); !ok || k != want {
+			t.Errorf("%q -> %q %v, want %q", in, k, ok, want)
+		}
+	}
+	if k, ok := repoKey("Kubernetes-Sigs/Cluster-API", true); !ok || k != "github.com/kubernetes-sigs/cluster-api" {
+		t.Errorf("bare: %q %v", k, ok)
+	}
+	if k, ok := repoKey("", false); !ok || k != "" {
+		t.Errorf("empty: %q %v", k, ok)
+	}
+	// Different repositories never share a key.
+	seen := map[string]string{}
+	for _, v := range []string{"github.com/example/demo", "github.com/example/demox", "github.com/other/demo", "gitlab.com/example/demo",
+		"github.com/example/demo/sub", "pkg:gitlab/example/demo", "bitbucket.org/example/demo"} {
+		k, ok := repoKey(v, false)
+		if !ok {
+			t.Fatalf("%q", v)
+		}
+		if p, dup := seen[k]; dup && !(p == "gitlab.com/example/demo" && v == "pkg:gitlab/example/demo") {
+			t.Errorf("%q and %q share %q", p, v, k)
+		}
+		seen[k] = v
+	}
+	for _, v := range []string{"demo", "example/demo", "https://github.com/onlyowner", "pkg:npm/left-pad", "pkg:github/onlyowner",
+		"https://github.com//demo", "ftp://github.com/a/b", "https://github.com/a/../b", "https://github.com/a b/c", "https://github.com/a%2fb/c", "git@github.com:onlyowner", "https:/github.com/a/b"} {
+		if k, ok := repoKey(v, false); ok {
+			t.Errorf("%q must be unreducible, got %q", v, k)
+		}
+	}
+	if k, ok := repoKey("a/b/c", true); ok {
+		t.Errorf("bare three segments: %q", k)
+	}
+}
+
+// Every spelling collides when it is the BASE's value, in every base field
+// that names a repository; unrelated repositories do not.
+func TestVerifyOnboardingBaseRepoSpellingsCollide(t *testing.T) {
+	for _, sp := range demoSpellings {
+		for _, field := range []string{"repo", "component"} {
+			t.Run(field+" "+sp, func(t *testing.T) {
+				x := newOnbFx(t)
+				b := []byte(`{"target":{"project":"other","` + field + `":` + strconv.Quote(sp) + `}}`)
+				p := CrdVersionsDir + "/target-other.json"
+				x.base.files[p], x.head.files[p] = b, b
+				x.wantRefusal(x.run(), 0, OnbReasonRepoCovered)
+			})
+		}
+		t.Run("row upstream "+sp, func(t *testing.T) {
+			x := newOnbFx(t)
+			x.setBase(onbTable, []byte(`{"projects":[{"slug":"other","upstream":{"repository":`+strconv.Quote(sp)+`}}]}`))
+			x.wantRefusal(x.run(), 0, OnbReasonRepoCovered)
+		})
+		t.Run("row component "+sp, func(t *testing.T) {
+			x := newOnbFx(t)
+			x.setBase(onbTable, []byte(`{"projects":[{"slug":"other","component":`+strconv.Quote(sp)+`}]}`))
+			x.wantRefusal(x.run(), 0, OnbReasonRepoCovered)
+		})
+		t.Run("reserved "+sp, func(t *testing.T) {
+			x := newOnbFx(t)
+			x.setBase(onbTable, []byte(`{"projects":[{"slug":"other"}],"reserved":[{"repository":`+strconv.Quote(sp)+`}]}`))
+			x.wantRefusal(x.run(), 0, OnbReasonRepoCovered)
+		})
+	}
+	t.Run("reserved bare owner/name", func(t *testing.T) {
+		x := newOnbFx(t)
+		x.setBase(onbTable, []byte(`{"projects":[{"slug":"other"}],"reserved":[{"repository":"Example/Demo"}]}`))
+		x.wantRefusal(x.run(), 0, OnbReasonRepoCovered)
+	})
+	for _, other := range []string{"github.com/example/demox", "https://github.com/other/demo", "pkg:gitlab/example/demo", "git@github.com:example/other.git"} {
+		t.Run("no collision "+other, func(t *testing.T) {
+			x := newOnbFx(t)
+			b := []byte(`{"target":{"project":"other","repo":` + strconv.Quote(other) + `}}`)
+			p := CrdVersionsDir + "/target-other.json"
+			x.base.files[p], x.head.files[p] = b, b
+			x.setBase(onbTable, []byte(`{"projects":[{"slug":"other"}],"reserved":[{"repository":`+strconv.Quote(other)+`}]}`))
+			if res := x.run(); res.Outcome != "pass" {
+				t.Fatalf("%+v", res)
+			}
+		})
+	}
+}
+
+// A base value that is not a string, or a repo that cannot be reduced, is a
+// refusal and never skipped.
+func TestVerifyOnboardingBaseRepoValuesUnreadableRefuse(t *testing.T) {
+	p := CrdVersionsDir + "/target-other.json"
+	for name, fn := range map[string]func(x *onbFx){
+		"target repo number":     func(x *onbFx) { x.base.files[p] = []byte(`{"target":{"project":"other","repo":5}}`) },
+		"target repo null":       func(x *onbFx) { x.base.files[p] = []byte(`{"target":{"project":"other","repo":null}}`) },
+		"target component array": func(x *onbFx) { x.base.files[p] = []byte(`{"target":{"project":"other","component":["a"]}}`) },
+		"target factProject obj": func(x *onbFx) { x.base.files[p] = []byte(`{"target":{"project":"other","factProject":{}}}`) },
+		"row component number":   func(x *onbFx) { x.setBase(onbTable, []byte(`{"projects":[{"slug":"other","component":7}]}`)) },
+		"row upstream null repo": func(x *onbFx) {
+			x.setBase(onbTable, []byte(`{"projects":[{"slug":"other","upstream":{"repository":null}}]}`))
+		},
+		"row factProject null": func(x *onbFx) { x.setBase(onbTable, []byte(`{"projects":[{"slug":"other","factProject":null}]}`)) },
+		"reserved repo array": func(x *onbFx) {
+			x.setBase(onbTable, []byte(`{"projects":[{"slug":"other"}],"reserved":[{"repository":[1]}]}`))
+		},
+		"reserved repo null": func(x *onbFx) {
+			x.setBase(onbTable, []byte(`{"projects":[{"slug":"other"}],"reserved":[{"repository":null}]}`))
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			x := newOnbFx(t)
+			fn(x)
+			res := x.run()
+			if res.Outcome != "fail" || !contains(res.Reasons, OnbReasonBaseUnknown) || !res.Harness || len(x.runner.calls) != 0 {
+				t.Fatalf("%+v", res)
+			}
+		})
+	}
+	for name, v := range map[string]string{"bare name": "demo", "bare owner/name": "example/demo", "owner only": "https://github.com/onlyowner", "other purl": "pkg:npm/x"} {
+		t.Run("unreducible "+name, func(t *testing.T) {
+			x := newOnbFx(t)
+			b := []byte(`{"target":{"project":"other","repo":` + strconv.Quote(v) + `}}`)
+			x.base.files[p], x.head.files[p] = b, b
+			res := x.run()
+			if res.Outcome != "fail" || !contains(res.Reasons, OnbReasonRepoUnparsable) || !res.Harness || len(x.runner.calls) != 0 {
+				t.Fatalf("%+v", res)
+			}
+		})
+	}
+}
+
+// The head side: every spelling of a covered repository, in the recipe's repo
+// or component or the head target's repo or component, collides; an
+// undecodable head target and an unreducible head value refuse.
+func TestCheckCollisionsHeadSpellings(t *testing.T) {
+	mk := func(t *testing.T, target string) (*treeView, *onbRun, *baseFacts) {
+		m := newMemTree()
+		m.files[realTargetPath("demo")] = []byte(target)
+		v, f := newTreeView(m)
+		if f != nil {
+			t.Fatal(f)
+		}
+		bf := &baseFacts{ids: map[string]bool{}, repos: map[string]bool{}}
+		bf.addRepo("https://github.com/example/demo", false)
+		return v, &onbRun{reasons: map[string]bool{}}, bf
+	}
+	for _, sp := range demoSpellings {
+		for name, c := range map[string]struct {
+			rc     Recipe
+			target string
+		}{
+			"recipe repo":      {Recipe{Repo: sp}, `{"target":{"project":"demo"}}`},
+			"recipe component": {Recipe{Component: sp}, `{"target":{"project":"demo"}}`},
+			"target repo":      {Recipe{}, `{"target":{"project":"demo","repo":` + strconv.Quote(sp) + `}}`},
+			"target component": {Recipe{}, `{"target":{"project":"demo","component":` + strconv.Quote(sp) + `}}`},
+		} {
+			v, run, bf := mk(t, c.target)
+			rc := c.rc
+			checkCollisions(run, bf, v, "demo", &rc)
+			if !run.reasons[OnbReasonRepoCovered] || len(run.reasons) != 1 {
+				t.Errorf("%s %q: %v", name, sp, run.reasons)
+			}
+		}
+	}
+	v, run, bf := mk(t, `{"target":{"project":"demo","repo":"github.com/example/other"}}`)
+	checkCollisions(run, bf, v, "demo", &Recipe{Repo: "github.com/example/demox", Component: "pkg:github/other/demo"})
+	if len(run.reasons) != 0 {
+		t.Errorf("unrelated head values: %v", run.reasons)
+	}
+	for name, c := range map[string]struct {
+		rc             Recipe
+		target, reason string
+	}{
+		"undecodable target": {Recipe{}, "not json", OnbReasonHeadTarget},
+		"null target repo":   {Recipe{}, `{"target":{"repo":null}}`, OnbReasonHeadTarget},
+		"unreducible repo":   {Recipe{Repo: "demo"}, `{"target":{"project":"demo"}}`, OnbReasonRepoUnparsable},
+		"unreducible comp":   {Recipe{Component: "pkg:npm/x"}, `{"target":{"project":"demo"}}`, OnbReasonRepoUnparsable},
+	} {
+		v, run, bf := mk(t, c.target)
+		rc := c.rc
+		checkCollisions(run, bf, v, "demo", &rc)
+		if !run.reasons[c.reason] {
+			t.Errorf("%s: %v", name, run.reasons)
+		}
+	}
+	// A missing head target file is a refusal too.
+	v, run, bf = mk(t, "{}")
+	delete(v.files, realTargetPath("demo"))
+	checkCollisions(run, bf, v, "demo", &Recipe{})
+	if !run.reasons[OnbReasonHeadTarget] {
+		t.Errorf("%v", run.reasons)
+	}
+}
+
+// The real table and every real target reduce to repository keys: the check
+// must not refuse the repository's own data.
+func TestRepoKeyReadsTheRealBase(t *testing.T) {
+	tbl := readFile(t, "../../customresources/table.json")
+	doc, err := onbTableDoc(tbl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bf := &baseFacts{ids: map[string]bool{}, repos: map[string]bool{}}
+	for _, r := range doc.Projects {
+		bf.addID(r.Slug)
+		bf.addRepo(string(r.Component), false)
+		if r.Upstream != nil {
+			bf.addRepo(string(r.Upstream.Repository), false)
+		}
+	}
+	for _, r := range doc.Reserved {
+		bf.addRepo(string(r.Repository), true)
+	}
+	files, err := filepath.Glob("../../extract/crdversions/target-*.json")
+	if err != nil || len(files) < 50 {
+		t.Fatalf("%d targets: %v", len(files), err)
+	}
+	for _, f := range files {
+		var d onbTargetDoc
+		if err := json.Unmarshal(readFile(t, f), &d); err != nil {
+			t.Fatalf("%s: %v", f, err)
+		}
+		bf.addRepo(string(d.Target.Repo), false)
+		bf.addRepo(string(d.Target.Component), false)
+	}
+	if len(bf.bad) != 0 || len(bf.repos) < 50 {
+		t.Fatalf("unreducible %q, %d keys", bf.bad, len(bf.repos))
+	}
+	if !bf.repos["github.com/kubernetes-sigs/cluster-api"] {
+		t.Fatal("the reserved repository must be a key")
+	}
 }
