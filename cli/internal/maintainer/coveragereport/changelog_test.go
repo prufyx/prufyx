@@ -37,16 +37,18 @@ func TestChangelogGapReasons(t *testing.T) {
 		{"expired", []lineattest.LineAttestation{clAtt(comp, FamilyChangelogAttested, "2026-10-01T00:00:00Z", []string{"1.8.0", "1.8.1"}, []string{"1.9.0"})}, GapNotCurrent},
 		{"other component", []lineattest.LineAttestation{clAtt("pkg:github/example/other", FamilyChangelogAttested, valid, []string{"1.8.0", "1.8.1"}, []string{"1.9.0"})}, GapNoAttestation},
 		{"other family", []lineattest.LineAttestation{clAtt(comp, lineattest.FamilyCustomResourceVersions, valid, []string{"1.8.0", "1.8.1"}, []string{"1.9.0"})}, GapNoAttestation},
-		// Until the family is registered in the line-attestation package the
-		// report refuses to read it: fail closed. With it registered, the
-		// reasons below are STALE_RELEASES for a new patch release.
-		{"unregistered or stale", []lineattest.LineAttestation{clAtt(comp, FamilyChangelogAttested, valid, []string{"1.8.0"}, []string{"1.9.0"})}, ""},
+		{"stale release set", []lineattest.LineAttestation{clAtt(comp, FamilyChangelogAttested, valid, []string{"1.8.0"}, []string{"1.9.0"})}, GapStaleReleases},
+		{"completeness mismatch", []lineattest.LineAttestation{withCompleteness(clAtt(comp, FamilyChangelogAttested, valid, []string{"1.8.0", "1.8.1"}, []string{"1.9.0"}), "PARTIAL")}, GapCompletenessMismatch},
+		// Releases match: without the family registered the report refuses to
+		// read it (fail closed); registered, no rule is listed and no gap
+		// reason applies, so the best reason stays NO_ATTESTATION.
+		{"matching releases", []lineattest.LineAttestation{clAtt(comp, FamilyChangelogAttested, valid, []string{"1.8.0", "1.8.1"}, []string{"1.9.0"})}, ""},
 	}
 	for _, c := range cases {
 		got := changelogGapReason(comp, "1.8", "1.9", c.atts, now, nil, rels, nil)
 		if c.want == "" {
 			if _, reg := lineattest.LookupFamily(FamilyChangelogAttested); reg {
-				c.want = GapStaleReleases
+				c.want = GapNoAttestation
 			} else {
 				c.want = GapFamilyNotRegistered
 			}
@@ -133,5 +135,37 @@ func TestStrictCrossingLineWide(t *testing.T) {
 	// A crossing at 1.8.5 does not cover the whole from line 1.8.
 	if got := run(relnotesSetRule("p.r", "1.8.2", "1.9.0", mk("1.8.5")), "1.8", "1.9"); got == "B" {
 		t.Errorf("from region short counted: %s", got)
+	}
+}
+
+func withCompleteness(a lineattest.LineAttestation, c string) lineattest.LineAttestation {
+	a.Completeness = c
+	return a
+}
+
+func TestChangelogMixedMemberCompute(t *testing.T) {
+	const comp = "pkg:github/prometheus/prometheus"
+	in := Input{Pack: pack(nil, nil), Lines: lines("prometheus", "1.8", "1.9", "1.10"), Now: baselineNow,
+		CRDTargetComponents:       map[string]string{"prometheus": comp},
+		ChangelogTargetComponents: map[string]string{"prometheus": comp}}
+	r, err := Compute(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := r.changelog
+	if c.decided != 0 || c.reasons[GapMixedMember] != 2 || c.targets != 0 || c.gap != 2 {
+		t.Fatalf("stats %+v", c)
+	}
+	if statuses(r.Projects[0]) != "GG" {
+		t.Fatalf("statuses %s", statuses(r.Projects[0]))
+	}
+}
+
+func TestChangelogSpotBucket(t *testing.T) {
+	c := changelogStats{targets: 1}
+	c.addPair(Pair{Status: StatusS}, "")
+	c.addPair(Pair{Status: StatusG}, GapNoAttestation)
+	if c.pairs != 2 || c.spot != 1 || c.gap != 1 || c.decided+c.bounded+c.spot+c.gap != c.pairs {
+		t.Fatalf("%+v", c)
 	}
 }

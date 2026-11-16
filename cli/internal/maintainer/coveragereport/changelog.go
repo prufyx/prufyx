@@ -21,12 +21,13 @@ const FamilyChangelogAttested = "changelog.attested_entries"
 
 // Typed reasons a pair of a changelog-attested member project is a gap.
 const (
-	GapNoAttestation       = "NO_ATTESTATION"
-	GapNotCurrent          = "ATTESTATION_NOT_CURRENT"
-	GapStaleReleases       = "STALE_RELEASES"
-	GapRuleNotLineWide     = "RULE_NOT_LINE_WIDE"
-	GapFamilyNotRegistered = "FAMILY_NOT_REGISTERED"
-	GapMixedMember         = "MIXED_MEMBER"
+	GapNoAttestation        = "NO_ATTESTATION"
+	GapNotCurrent           = "ATTESTATION_NOT_CURRENT"
+	GapCompletenessMismatch = "COMPLETENESS_MISMATCH"
+	GapStaleReleases        = "STALE_RELEASES"
+	GapRuleNotLineWide      = "RULE_NOT_LINE_WIDE"
+	GapFamilyNotRegistered  = "FAMILY_NOT_REGISTERED"
+	GapMixedMember          = "MIXED_MEMBER"
 )
 
 // changelogStats counts, over the CNCF member projects of the changelog
@@ -35,6 +36,7 @@ type changelogStats struct {
 	targets int // projects with a reviewed changelog target
 	decided int // pairs decided (A) by the changelog family
 	bounded int // pairs of member projects decided by a rule (B)
+	spot    int // pairs of member projects with a rule for one exact version pair only (S)
 	gap     int
 	pairs   int
 	reasons map[string]int
@@ -49,6 +51,8 @@ func (c *changelogStats) addPair(p Pair, reason string) {
 		c.decided++
 	case p.Status == StatusB:
 		c.bounded++
+	case p.Status == StatusS:
+		c.spot++
 	case p.Status == StatusG:
 		c.gap++
 		if c.reasons == nil {
@@ -104,7 +108,7 @@ func changelogGapReason(component, from, to string, atts []lineattest.LineAttest
 	if mixed[component] {
 		return GapMixedMember
 	}
-	rank := map[string]int{GapNotCurrent: 1, GapStaleReleases: 2, GapFamilyNotRegistered: 3, GapRuleNotLineWide: 4}
+	rank := map[string]int{GapNotCurrent: 1, GapCompletenessMismatch: 2, GapStaleReleases: 3, GapFamilyNotRegistered: 4, GapRuleNotLineWide: 5}
 	best := GapNoAttestation
 	consider := func(r string) {
 		if rank[r] > rank[best] {
@@ -119,13 +123,17 @@ func changelogGapReason(component, from, to string, atts []lineattest.LineAttest
 			consider(GapNotCurrent)
 			continue
 		}
-		family, ok := lineattest.LookupFamily(a.FactFamily)
-		if !ok {
-			consider(GapFamilyNotRegistered)
+		if a.Completeness != lineattest.Completeness {
+			consider(GapCompletenessMismatch)
 			continue
 		}
 		if !releasesMatch(a.Releases, releases[from], releases[to]) {
 			consider(GapStaleReleases)
+			continue
+		}
+		family, ok := lineattest.LookupFamily(a.FactFamily)
+		if !ok {
+			consider(GapFamilyNotRegistered)
 			continue
 		}
 		for _, id := range a.RuleIDs {
@@ -171,5 +179,5 @@ func changelogSentence(c changelogStats) string {
 	if len(reasons) > 0 {
 		hist = strings.Join(reasons, ", ")
 	}
-	return fmt.Sprintf("Changelog-attested (`%s`): %d decided, %d gap over %d upgrades of its member projects (%d more decided by a rule). %d projects have a changelog target; that is catalogue coverage, not the number of upgrades decided. Gap reasons: %s.\n", FamilyChangelogAttested, c.decided, c.gap, c.pairs, c.bounded, c.targets, hist)
+	return fmt.Sprintf("Changelog-attested (`%s`): %d decided, %d gap over %d upgrades of its member projects (%d more decided by a rule, %d by a rule for one exact version pair only). %d projects have a changelog target; that is catalogue coverage, not the number of upgrades decided. Gap reasons: %s.\n", FamilyChangelogAttested, c.decided, c.gap, c.pairs, c.bounded, c.spot, c.targets, hist)
 }

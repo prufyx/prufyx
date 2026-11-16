@@ -666,8 +666,8 @@ func Compute(in Input) (Report, error) {
 		}
 	}
 
-	for project := range in.ChangelogTargetComponents {
-		if !in.Catalog.Community(project) {
+	for project, component := range in.ChangelogTargetComponents {
+		if !in.Catalog.Community(project) && !mixed[component] {
 			report.changelog.targets++
 		}
 	}
