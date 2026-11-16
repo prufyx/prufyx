@@ -110,10 +110,10 @@ type parsedTag struct {
 // Generate runs the generator. On a judgment it cannot make it returns a
 // *StopError and no files.
 func Generate(in Input) (*Result, error) {
-	return generate(in, nil)
+	return generateWithWindow(in, nil)
 }
 
-func generate(in Input, full *FullWindowSelector) (*Result, error) {
+func generateWithWindow(in Input, full *FullWindowSelector) (*Result, error) {
 	if !slugRE.MatchString(in.Slug) || in.Name == "" || !repoRE.MatchString(in.Repo) || in.Source == nil {
 		return nil, &StopError{Stops: []Stop{stop(StopBadInput, "", "slug, name, repo and a source are required and must be well formed")}}
 	}

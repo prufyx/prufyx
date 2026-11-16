@@ -40,7 +40,7 @@ func GenerateFullWindow(in Input, selector FullWindowSelector) (*Result, error) 
 	if (in.Catalog == "" || in.Catalog == "cncf") && in.Rules != nil {
 		return nil, fullWindowError("CNCF full-window rules are unsupported")
 	}
-	return generate(in, &selector)
+	return generateWithWindow(in, &selector)
 }
 
 func fullWindowError(detail string) error {
