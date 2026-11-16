@@ -1,6 +1,7 @@
 package targetdraft
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/customresources"
@@ -162,5 +163,33 @@ func TestClassifyReservedGroupFilteredSite(t *testing.T) {
 	}
 	if !roHas(roStops(roSlug, roRepo, roGroup, true), StopFilterHidesOwned) {
 		t.Fatal("recorded owner hiding its own group behind a filter must stop")
+	}
+}
+
+// End to end: Generate wires the upstream repository through to the decision.
+// The shipped kueue record accepts its exact slug and repository; the same
+// fixture under another repository string stays a reserved-group stop.
+func TestGenerateReservedGroupRecordEndToEnd(t *testing.T) {
+	src := ipSource(func(_ string, m *memTree) {
+		m.files["api/config/crd/kueue.x-k8s.io_workloads.yaml"] = ipDocs(ipCRD(roGroup, "Workload"))
+	})
+	in := func(slug, repo string) Input {
+		i := ipInput(src, ipRules(t, `[`+ipEntry+`]`))
+		i.Slug, i.Name, i.Repo = slug, "Kueue", repo
+		return i
+	}
+	if _, err := Generate(in(roSlug, "github.com/"+roRepo)); err != nil {
+		var se *StopError
+		if errors.As(err, &se) {
+			for _, s := range se.Stops {
+				if s.Code == StopReservedGroup {
+					t.Fatalf("recorded owner stopped as reserved: %+v", se.Stops)
+				}
+			}
+		}
+	}
+	for _, c := range [][2]string{{roSlug, "github.com/fork/kueue"}, {"carrier", "github.com/" + roRepo}} {
+		_, err := Generate(in(c[0], c[1]))
+		wantStop(t, err, StopReservedGroup)
 	}
 }

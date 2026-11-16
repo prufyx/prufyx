@@ -8,6 +8,14 @@ import "github.com/prufyx/prufyx/cli/internal/customresources"
 // naming exactly this project (slug) and this upstream repository. A carrier
 // of the group, a project without a record and any other repository keep the
 // stop.
+//
+// Trust boundary: slug and repository are the operator's claim (CLI flags);
+// the source is a local directory not bound to that repository, so a fork
+// checkout run with the recorded slug and repository is accepted here.
+// Generate trusts that claim. The binding to the real upstream is done
+// downstream by the onboarding verifier (per-slug recipe/bundle commit equals
+// the peeled upstream tag commit) and by review; the generator output is a
+// draft, never an admission.
 func reservedStop(group, slug, ownerRepo string) bool {
 	if !customresources.ReservedNamespace(group) && !customresources.KubernetesGroup(group) {
 		return false
