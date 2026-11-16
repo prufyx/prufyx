@@ -65,18 +65,16 @@ func ScopeOf(raw json.RawMessage) (RuleScope, error) {
 	if shape.SetCondition != nil {
 		conditions = append(conditions, *shape.SetCondition)
 	}
+	reads := make([]struct{ Component, FactID string }, len(conditions))
+	for i, c := range conditions {
+		reads[i].Component, reads[i].FactID = c.Component, c.FactID
+	}
 	scope := RuleScope{ID: shape.ID, Component: shape.Subject.Component,
 		Transition: constraintengine.RuleTransition{Component: shape.Subject.Component, From: shape.Subject.From, To: shape.Subject.To, Range: shape.Range, Crossing: shape.Crossing}}
 	for _, id := range FamilyIDs() {
 		f := families[id]
-		if !f.Admits(shape.Subject.Component) {
-			continue
-		}
-		for _, c := range conditions {
-			if f.Covers(c.Component, c.FactID) {
-				scope.Families = append(scope.Families, id)
-				break
-			}
+		if f.Belongs(shape.Subject.Component, reads) {
+			scope.Families = append(scope.Families, id)
 		}
 	}
 	if len(scope.Families) == 0 {
