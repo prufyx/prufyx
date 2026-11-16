@@ -68,7 +68,7 @@ var wantSteps = []struct{ name, uses, ifc, env string }{
 	{"Fetch both commits as objects and require the head to contain the base", "", "", ""},
 	{"Export both trees and the changed paths from the same two commits", "", "", ""},
 	{"Classify the change", "", "", ""},
-	{"Run verify-pr (reads the upstream tags from github.com)", "", "steps.classify.outputs.class == 'applicable'", ""},
+	{"Run verify-pr (reads the upstream tags from github.com)", "", "steps.classify.outputs.class == 'APPLICABLE'", ""},
 	{"Re-resolve the head of the pull request and the tip of main", "", "", "GH_TOKEN=${{ github.token }}"},
 	{"Write the result", "", "", "CLASS=${{ steps.classify.outputs.class }}"},
 	{"Upload the result", "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02", "always()", ""},
@@ -83,6 +83,15 @@ const (
 	staleCond  = `if [ "${live_head}" != "${HEAD_SHA}" ] || [ "${live_state}" != "open" ] || [ "${main_tip}" != "${BASE_SHA}" ]; then`
 )
 
+// The only run lines that may mention the changed-path list: its creation by
+// git, and handing it to the tool. Any other use (grep, cut, jq, a script, a
+// copy or an alias) is shell classification and is refused.
+var changedLineOK = map[string]bool{
+	`git -C "${objects}" diff --raw -z --no-abbrev --no-renames "${BASE_SHA}" "${HEAD_SHA}" > "${RUNNER_TEMP}/out/changed.raw"`: true,
+	`--changed-paths "${out}/changed.raw" \`:             true,
+	`--changed-paths "${RUNNER_TEMP}/out/changed.raw" \`: true,
+}
+
 // Golden fingerprints. Every step's run text is pinned by sha256, so any edit
 // to a shell step fails; inputs of the actions, the job env and the
 // concurrency block are pinned as formatted text. Changing the workflow means
@@ -92,10 +101,10 @@ var wantRunSHA = map[string]string{
 	"Build the tool from the base":                                           "f2b050cc8280aadcc333f066e911a8c9c536f8b6ec28f8ac9d848e47292e539f",
 	"Fetch both commits as objects and require the head to contain the base": "4024c756130ff6d03642422603e2860484b1f6ca1f756dce4768b70226417351",
 	"Export both trees and the changed paths from the same two commits":      "a90a96c5fd19006c626524b3cc582c9a30538a3dd7544aa54c857ba16571db9f",
-	"Classify the change": "9d1a32060997245c4f6dfee7d87b54d18735e279c3b917e6baa39f26d6806f22",
+	"Classify the change": "2d8ccb2e103c430e95999474fdc5eb46181f82eadba51713ce0cd894ae05f4f4",
 	"Run verify-pr (reads the upstream tags from github.com)":     "b69659f59dadccd11543a5644bfde9860f19808ebd1670ccbe9c797e13818cdd",
 	"Re-resolve the head of the pull request and the tip of main": "d436c76922a119aefd38f67127ec8016c7d9bc24df4202bcdabf6e44a9e42f80",
-	"Write the result":                       "8c647f6afb096a12186e4465dfecbc5bc09bb42a0e238c3f73b8574f6dd92efb",
+	"Write the result":                       "db5c7210381c416a54e3f1cb4288299b46a3123e9938ec4112d674c730a71168",
 	"Fail unless eligible or not applicable": "6d3d4bb4cde6474c4c66ae78c3506347c292e81c7c7473514af23fef3bc5444a",
 }
 
@@ -243,6 +252,13 @@ func lint(text string) []string {
 		if strings.Contains(s.Run, "${{") {
 			add("expression-in-run")
 		}
+		// The change is never classified by shell text: no step may search the
+		// changed-path list itself.
+		for _, l := range strings.Split(s.Run, "\n") {
+			if (strings.Contains(l, "changed") || strings.Contains(l, ".raw")) && !changedLineOK[strings.TrimSpace(l)] {
+				add("shell-classify")
+			}
+		}
 		if s.ID == "verify" && strings.Contains(s.Run, "|| true") {
 			add("verify-swallowed")
 		}
@@ -283,8 +299,19 @@ func lint(text string) []string {
 				add("result-logic")
 			}
 		case "Classify the change":
-			if !strings.Contains(s.Run, `if [ "${hits}" = "0" ]; then`+"\n"+`  echo "class=not_applicable"`) {
+			if !strings.Contains(s.Run, "case \"${word}\" in\n    TRUST_PATH_CHANGE|MIXED_CHANGE|APPLICABLE|NOT_APPLICABLE) class=\"${word}\" ;;\n  esac") {
 				add("classify-branch")
+			}
+			for _, f := range []string{
+				"target-draft classify-pr \\\n",
+				`--changed-paths "${out}/changed.raw"`,
+				"|| code=$?",
+				"class=ERROR\n",
+				`if [ "${code}" = "0" ] && [ "$(grep -c '^class: ' "${out}/classify.txt" || true)" = "1" ]; then`,
+			} {
+				if !strings.Contains(s.Run, f) {
+					add("classify-tool")
+				}
 			}
 		case "Run verify-pr (reads the upstream tags from github.com)":
 			for _, f := range []string{"--upstream-binding ls-remote", `--base-sha "${BASE_SHA}" --head-sha "${HEAD_SHA}"`, "--json --require-eligible"} {
@@ -362,16 +389,22 @@ func lint(text string) []string {
 		}
 		switch s.Name {
 		case "Write the result":
+			for _, f := range []string{
+				"if [ \"${CLASS}\" = \"NOT_APPLICABLE\" ]; then\n  result=NOT_APPLICABLE\n",
+				"elif [ \"${CLASS}\" = \"TRUST_PATH_CHANGE\" ]; then\n  result=TRUST_PATH_CHANGE\n",
+				"elif [ \"${CLASS}\" = \"MIXED_CHANGE\" ]; then\n  result=MIXED_CHANGE\n",
+				"elif [ \"${CLASS}\" = \"APPLICABLE\" ]; then\n  code=",
+			} {
+				if !strings.Contains(s.Run, f) {
+					add("class-mapping")
+				}
+			}
 			if !strings.Contains(s.Run, eligibleJQ) || !strings.Contains(s.Run, staleCond) || !strings.Contains(s.Run, "mainTip:$mainTip") {
 				add("result-logic")
 			}
 		case "Fail unless eligible or not applicable":
 			if !strings.Contains(s.Run, verdictJQ) {
 				add("verdict-logic")
-			}
-		case "Classify the change":
-			if !strings.Contains(s.Run, "grep -i -z -c -e 'target-recipes' -e 'crdversions'") {
-				add("classify-case")
 			}
 		case "Fetch both commits as objects and require the head to contain the base":
 			if strings.Count(s.Run, "fetch --no-tags") != 2 || !strings.Contains(s.Run, "config transfer.fsckObjects true") {
@@ -496,7 +529,9 @@ func TestVerifyPRWorkflowMutationsAreCaught(t *testing.T) {
 		{"other action same pin", "actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff", "actions/cache@40f1582b2485089dde7abd97c1529aa768e1baff", "step-action"},
 		{"deleted re-resolve", "      - name: Re-resolve the head of the pull request and the tip of main\n        env:\n          GH_TOKEN: ${{ github.token }}\n", "      - name: Re-resolve (moved)\n        env:\n          GH_TOKEN: ${{ github.token }}\n", "step-list"},
 		{"step condition added", "      - name: Classify the change\n        id: classify\n", "      - name: Classify the change\n        id: classify\n        if: github.event.action == 'opened'\n", "step-condition"},
-		{"verify always", "        if: steps.classify.outputs.class == 'applicable'\n", "        if: always()\n", "step-condition"},
+		{"verify always", "        if: steps.classify.outputs.class == 'APPLICABLE'\n", "        if: always()\n", "step-condition"},
+		{"verify unless trust", "        if: steps.classify.outputs.class == 'APPLICABLE'\n", "        if: steps.classify.outputs.class != 'TRUST_PATH_CHANGE'\n", "step-condition"},
+		{"verify lower case class", "        if: steps.classify.outputs.class == 'APPLICABLE'\n", "        if: steps.classify.outputs.class == 'applicable'\n", "step-condition"},
 		{"token moved to job", "      PR_NUMBER: ${{ github.event.pull_request.number }}\n", "      PR_NUMBER: ${{ github.event.pull_request.number }}\n      GH_TOKEN: ${{ github.token }}\n", "token-placement"},
 		{"token in other step", "          CLASS: ${{ steps.classify.outputs.class }}\n", "          CLASS: ${{ steps.classify.outputs.class }}\n          GH_TOKEN: ${{ github.token }}\n", "token-placement"},
 		{"extra env", "          CLASS: ${{ steps.classify.outputs.class }}\n", "          CLASS: ${{ steps.classify.outputs.class }}\n          EXTRA: x\n", "step-env"},
@@ -509,14 +544,37 @@ func TestVerifyPRWorkflowMutationsAreCaught(t *testing.T) {
 		{"verdict weakened", " and .stale == false and .headSha == $head and .baseSha == $base and .mainTip == $base'", " and .headSha == $head and .baseSha == $base and .mainTip == $base'", "verdict-logic"},
 		{"verdict no main tip", " and .mainTip == $base'", "'", "verdict-logic"},
 		{"verdict allows eligible only", "(.result == \"ELIGIBLE\" or .result == \"NOT_APPLICABLE\")", "(.result != \"ERROR\")", "verdict-logic"},
-		{"case sensitive classify", "grep -i -z -c", "grep -z -c", "classify-case"},
+		{"classify by the wrong command", "target-draft classify-pr \\\n", "target-draft verify-pr \\\n", "classify-tool"},
+		{"classify exit swallowed", "|| code=$?\n          class=ERROR", "|| true\n          class=ERROR", "classify-tool"},
+		{"classify default is not applicable", "          class=ERROR\n", "          class=NOT_APPLICABLE\n", "classify-tool"},
+		{"classify ignores exit code", "if [ \"${code}\" = \"0\" ] && [ \"$(grep -c '^class: '", "if [ \"$(grep -c '^class: '", "classify-tool"},
+		{"classify other path", "--changed-paths \"${out}/changed.raw\" \\\n            > \"${out}/classify.txt\"", "--changed-paths \"${out}/other.raw\" \\\n            > \"${out}/classify.txt\"", "classify-tool"},
+		{"classify accepts any word", "TRUST_PATH_CHANGE|MIXED_CHANGE|APPLICABLE|NOT_APPLICABLE) class", "TRUST_PATH_CHANGE|MIXED_CHANGE|APPLICABLE|NOT_APPLICABLE|*) class", "classify-branch"},
+		{"classify drops trust word", "TRUST_PATH_CHANGE|MIXED_CHANGE|APPLICABLE|NOT_APPLICABLE) class", "MIXED_CHANGE|APPLICABLE|NOT_APPLICABLE) class", "classify-branch"},
+		{"trust mapped to not applicable", "            result=TRUST_PATH_CHANGE\n", "            result=NOT_APPLICABLE\n", "class-mapping"},
+		{"trust mapped to eligible", "            result=TRUST_PATH_CHANGE\n", "            result=ELIGIBLE\n", "class-mapping"},
+		{"mixed mapped to not applicable", "            result=MIXED_CHANGE\n", "            result=NOT_APPLICABLE\n", "class-mapping"},
+		{"trust branch removed", "          elif [ \"${CLASS}\" = \"TRUST_PATH_CHANGE\" ]; then\n            result=TRUST_PATH_CHANGE\n", "", "class-mapping"},
+		{"unknown class runs verify", "          elif [ \"${CLASS}\" = \"APPLICABLE\" ]; then\n", "          else\n", "class-mapping"},
+		{"not applicable branch inverted", "if [ \"${CLASS}\" = \"NOT_APPLICABLE\" ]; then", "if [ \"${CLASS}\" != \"NOT_APPLICABLE\" ]; then", "class-mapping"},
+		{"verdict allows trust", ".result == \"NOT_APPLICABLE\")", ".result == \"NOT_APPLICABLE\" or .result == \"TRUST_PATH_CHANGE\")", "verdict-logic"},
+		{"verdict allows any class", "(.result == \"ELIGIBLE\" or .result == \"NOT_APPLICABLE\")", "(.class != null)", "verdict-logic"},
+		{"shell grep of changed list", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n          grep -c workflows \"${out}/changed.raw\" || true\n", "shell-classify"},
+		{"shell cut of changed list", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n          cut -z -d/ -f1 \"${out}/changed.raw\"\n", "shell-classify"},
+		{"shell jq of changed list", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n          jq -R . < \"${out}/changed.raw\"\n", "shell-classify"},
+		{"shell python of changed list", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n          python3 -c 'print(1)' \"${out}/changed.raw\"\n", "shell-classify"},
+		{"changed list copied", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n          cp \"${out}/changed.raw\" \"${out}/c2\"\n", "shell-classify"},
+		{"tool reads another list", "--changed-paths \"${RUNNER_TEMP}/out/changed.raw\" \\\n", "--changed-paths \"${RUNNER_TEMP}/out/other.raw\" \\\n", "shell-classify"},
+		{"quote split list name", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n          cat \"${out}/chang\"\"ed.raw\"\n", "shell-classify"},
+		{"glob list name", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n          cat \"${out}\"/*.raw\n", "shell-classify"},
+		{"question glob list name", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n          cat \"${out}/chang?d.raw\"\n", "shell-classify"},
+		{"shell grep in fetch step", "          objects=\"${RUNNER_TEMP}/objects.git\"\n          git init", "          grep -z -c target-recipes \"${RUNNER_TEMP}/out/changed.raw\" || true\n          objects=\"${RUNNER_TEMP}/objects.git\"\n          git init", "shell-classify"},
 		{"no fsck", "          git -C \"${objects}\" config transfer.fsckObjects true\n", "", "fetch-fsck"},
 		{"export not stopped", "          echo \"::stop-commands::${token}\"\n          \"${RUNNER_TEMP}/prufyx-maintainer\" gate export", "          \"${RUNNER_TEMP}/prufyx-maintainer\" gate export", "head-path"},
 		{"re-resolve without main", "/branches/main", "/branches/dev", "reresolve"},
 		{"workdir elsewhere", "      - name: Classify the change\n        id: classify\n", "      - name: Classify the change\n        id: classify\n        working-directory: tool-src\n", "working-directory"},
 		{"write step without -e", "if printf '%s' \"${tool_json}\" | jq -e --arg head", "if printf '%s' \"${tool_json}\" | jq --arg head", "run-golden"},
 		{"exit 3 eligible", "1|3) result=NOT_ELIGIBLE ;;", "1|3) result=ELIGIBLE ;;", "result-logic"},
-		{"classify inverted", "if [ \"${hits}\" = \"0\" ]; then", "if [ \"${hits}\" != \"0\" ]; then", "classify-branch"},
 		{"stale override removed", "          if [ \"${stale}\" = \"true\" ]; then\n            result=ERROR\n          fi\n", "", "run-golden"},
 		{"fixed stop token", "echo \"::stop-commands::${token}\"\n          cat ", "echo \"::stop-commands::fixed\"\n          cat ", "stop-commands-order"},
 		{"missing resume", "tool.err\"\n          echo \"::${token}::\"\n", "tool.err\"\n", "stop-commands-order"},

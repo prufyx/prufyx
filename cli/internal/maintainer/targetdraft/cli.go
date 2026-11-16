@@ -126,6 +126,9 @@ func run(args []string, stdout, stderr io.Writer, open func(dir string) Source) 
 	if len(args) > 0 && args[0] == "backtest" {
 		return runBacktest(args[1:], stdout, stderr, open)
 	}
+	if len(args) > 0 && args[0] == "classify-pr" {
+		return runClassifyPR(args[1:], stdout, stderr)
+	}
 	if len(args) > 0 && args[0] == "verify-pr" {
 		return runVerifyPR(args[1:], stdout, stderr)
 	}
