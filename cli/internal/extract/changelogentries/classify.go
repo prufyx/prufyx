@@ -3,14 +3,15 @@
 package changelogentries
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
+	"bytes"
 	"errors"
 	"fmt"
 	"regexp"
 	"sort"
 	"strings"
 	"unicode"
+
+	"github.com/prufyx/prufyx/cli/internal/extract"
 )
 
 // Class is the classifier's whole output. There are exactly two values. The
@@ -32,6 +33,7 @@ const (
 	ReasonNotListItem        = "not-a-list-item"
 	ReasonFencedCode         = "fenced-code"
 	ReasonOddCharacter       = "non-ascii-or-control-character"
+	ReasonSplitMarkup        = "inline-html-entity-or-intraword-markup"
 	ReasonOperatorMarker     = "operator-marker"
 	ReasonOperatorHeading    = "operator-heading"
 	ReasonNoMarker           = "no-marker"
@@ -69,201 +71,42 @@ func bind(format string, a ...any) error {
 	return fmt.Errorf("%w: %s", ErrEntryBinding, fmt.Sprintf(format, a...))
 }
 
-// Classify classifies every item of e. file must be the exact changelog blob
-// the entry was located in: the entry is re-derived from it (file digest,
-// section digest, headings, heading paths, item bounds, markers and item
-// digests) and any difference refuses the whole entry. The result has one
-// element per item, in item order.
-func Classify(e *Entry, file []byte) ([]Classified, error) {
-	return classifyWith(defaultVocab, e, file)
+// Classify classifies every item of e. The entry is never trusted: the file is
+// parsed again by the same reader Locate uses (LocateBytes) under the reviewed
+// target and the tag, and e must equal the entry derived from the bytes in
+// every field, else nothing is classified (ErrEntryBinding). A refusal of the
+// reader (a fence stop, a nested release heading, a duplicate heading and so
+// on) is returned unchanged as its typed Failure. That file is the blob at the
+// tag's commit is proven only by the pinned reader: the caller must obtain
+// both the entry and the bytes through Locate, never from stored JSON. The
+// result has one element per item, in item order.
+func Classify(t Target, tag extract.Tag, e *Entry, file []byte) ([]Classified, error) {
+	return classifyWith(defaultVocab, t, tag, e, file)
 }
 
-func classifyWith(v *vocabulary, e *Entry, file []byte) ([]Classified, error) {
+func classifyWith(v *vocabulary, t Target, tag extract.Tag, e *Entry, file []byte) ([]Classified, error) {
 	if e == nil {
 		return nil, bind("nil entry")
 	}
-	lines, err := verifyEntry(e, file)
+	want, err := LocateBytes(t, tag, file)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]Classified, 0, len(e.Items))
-	for _, it := range e.Items {
-		body := strings.Join(lines[it.StartLine-1:it.EndLine], "\n")
-		c := classifyItem(v, e.Component, it, body)
-		out = append(out, c)
-	}
-	return out, nil
-}
-
-// verifyEntry re-derives the entry from the bytes and returns the file lines.
-func verifyEntry(e *Entry, file []byte) ([]string, error) {
-	if hexSum(file) != e.Source.FileDigest {
-		return nil, bind("file digest differs")
+	got, err1 := e.Canonical()
+	exp, err2 := want.Canonical()
+	if err1 != nil || err2 != nil || !bytes.Equal(got, exp) {
+		return nil, bind("the entry differs from the entry derived from the file bytes")
 	}
 	lines, err := splitLines(file)
 	if err != nil {
 		return nil, err
 	}
-	s, t := e.Section.StartLine, e.Section.EndLine
-	if s < 1 || t < s || t > len(lines) || e.Section.HeadingLine != s {
-		return nil, bind("section span is outside the file")
+	out := make([]Classified, 0, len(want.Items))
+	for _, it := range want.Items {
+		body := strings.Join(lines[it.StartLine-1:it.EndLine], "\n")
+		out = append(out, classifyItem(v, want.Component, it, body))
 	}
-	if hexSum([]byte(strings.Join(lines[s-1:t], "\n")+"\n")) != e.Section.Digest {
-		return nil, bind("section digest differs")
-	}
-	sc := scan(lines)
-
-	// The section is re-derived from the bytes, never taken from the entry: it
-	// runs from the version heading to the line before the next heading of the
-	// same or a higher level (or to the end of the file), trailing blanks
-	// excluded. An entry cut short, or stretched, with a recomputed digest is
-	// refused here.
-	vi := -1
-	for i, h := range sc.headings {
-		if h.Line == s {
-			vi = i
-		}
-	}
-	if vi < 0 || len(e.Structure) == 0 || e.Structure[0].Kind != "version" {
-		return nil, bind("the section does not start at a heading")
-	}
-	vh := sc.headings[vi]
-	end := len(lines)
-	for _, h := range sc.headings[vi+1:] {
-		if h.Level <= vh.Level {
-			end = h.Line - 1
-			break
-		}
-	}
-	for end > vh.Line && isBlank(lines[end-1]) {
-		end--
-	}
-	if end != t {
-		return nil, bind("section ends at line %d, the file's own section ends at line %d", t, end)
-	}
-	if end-s+1 > MaxSectionLines {
-		return nil, bind("section is over the line bound")
-	}
-	var til Tiling
-	for n := s; n <= end; n++ {
-		til.Lines++
-		switch sc.kind[n-1] {
-		case kHeading:
-			til.Headings++
-		case kBlank:
-			til.Blanks++
-		case kLinkDef:
-			til.LinkDefs++
-		case kItem:
-			til.ItemLines++
-		default:
-			return nil, bind("line %d of the section is not a heading, blank, link definition or item", n)
-		}
-	}
-	if sc.openFence >= s && sc.openFence <= end {
-		return nil, bind("a fence in the section never closes")
-	}
-	for _, h := range sc.headings {
-		if h.Line <= end && h.EndLine > end {
-			return nil, bind("a heading straddles the section end")
-		}
-	}
-	if til != e.Tiling || e.ResidueLines != 0 {
-		return nil, bind("line accounting differs")
-	}
-
-	// Headings: the entry's structure must be exactly the scanned headings of
-	// the span, and the first one the version heading.
-	var hs []heading
-	for _, h := range sc.headings {
-		if h.Line >= s && h.Line <= t {
-			hs = append(hs, h)
-		}
-	}
-	if len(hs) != len(e.Structure) || len(hs) == 0 {
-		return nil, bind("heading count differs")
-	}
-	for i, h := range hs {
-		g := e.Structure[i]
-		kind := "sub"
-		if i == 0 {
-			kind = "version"
-		}
-		if g.Level != h.Level || g.Text != h.Text || g.Line != h.Line || g.EndLine != h.EndLine || g.Kind != kind {
-			return nil, bind("heading %d differs", i+1)
-		}
-	}
-
-	// Items: exactly the scanned items of the span, same bounds, marker, kind.
-	var raw []rawItem
-	for _, it := range sc.items {
-		if it.Start >= s && it.Start <= t {
-			if it.End > t {
-				return nil, bind("an item reaches past the section end")
-			}
-			raw = append(raw, it)
-		}
-	}
-	if len(raw) != len(e.Items) || len(raw) == 0 {
-		return nil, bind("item count differs: %d scanned, %d in the entry", len(raw), len(e.Items))
-	}
-	var stack []Heading
-	hi := 0
-	seen := map[string]int{}
-	for i, it := range e.Items {
-		r := raw[i]
-		kind := "list"
-		if r.Block {
-			kind = "block"
-		}
-		if it.StartLine != r.Start || it.EndLine != r.End || it.Marker != r.Marker || it.Kind != kind {
-			return nil, bind("item %d differs", i+1)
-		}
-		for hi < len(e.Structure) && e.Structure[hi].Line < r.Start {
-			h := e.Structure[hi]
-			hi++
-			if h.Kind == "version" {
-				continue
-			}
-			for len(stack) > 0 && stack[len(stack)-1].Level >= h.Level {
-				stack = stack[:len(stack)-1]
-			}
-			stack = append(stack, h)
-		}
-		if len(it.HeadingPath) != len(stack) {
-			return nil, bind("item %d heading path differs", i+1)
-		}
-		for j, h := range stack {
-			if it.HeadingPath[j] != h.Text {
-				return nil, bind("item %d heading path differs", i+1)
-			}
-		}
-		body := strings.Join(lines[r.Start-1:r.End], "\n")
-		want := itemDigest(e.Component, e.Version, it.HeadingPath, it.Marker, body)
-		if it.Digest != want {
-			return nil, bind("item %d digest differs", i+1)
-		}
-		seen[want]++
-		if it.Occurrence != seen[want] {
-			return nil, bind("item %d occurrence differs", i+1)
-		}
-	}
-	return lines, nil
-}
-
-// itemDigest mirrors the digest Locate gives an item: hex sha256(component NUL
-// version NUL headingPath NUL marker NUL item bytes), NUL between parts only, the heading path joined
-// with U+001F. verifyEntry compares it with the entry, so a drift between the
-// two is a refusal, never a silent pass.
-func itemDigest(component, version string, path []string, marker, body string) string {
-	d := sha256.New()
-	for i, part := range []string{component, version, strings.Join(path, "\x1f"), marker, body} {
-		if i > 0 {
-			d.Write([]byte{0})
-		}
-		d.Write([]byte(part))
-	}
-	return hex.EncodeToString(d.Sum(nil))
+	return out, nil
 }
 
 func sortedUnique(in []string) []string {
@@ -358,6 +201,9 @@ func classifyItem(v *vocabulary, component string, it Item, body string) Classif
 	}
 	if hasOddRune(body) {
 		add(ReasonOddCharacter)
+	}
+	if hasSplitMarkup(body) {
+		add(ReasonSplitMarkup)
 	}
 
 	// Triggers: the whole item text, marker included.

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/prufyx/prufyx/cli/internal/extract"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -16,7 +17,7 @@ import (
 func classifyFile(t *testing.T, tg Target, tagName, file string) (*Entry, []Classified) {
 	t.Helper()
 	e := mustLocate(t, tg, tagName, file)
-	cs, err := Classify(e, []byte(file))
+	cs, err := classifyT(e, []byte(file))
 	if err != nil {
 		t.Fatalf("classify: %v", err)
 	}
@@ -110,7 +111,7 @@ func TestMarkerShapeNegatives(t *testing.T) {
 		if err != nil {
 			continue // a shape P1 already withholds is not classified at all
 		}
-		cs, err := Classify(e, []byte(file))
+		cs, err := classifyT(e, []byte(file))
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
@@ -154,7 +155,7 @@ func TestMarkerTimesTriggerMatrix(t *testing.T) {
 				if err != nil {
 					t.Fatalf("probe %q: %v", p, err)
 				}
-				cs, err := Classify(e, []byte(file))
+				cs, err := classifyT(e, []byte(file))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -202,7 +203,7 @@ func TestHeadingStyleNegatives(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
-		cs, err := Classify(e, []byte(file))
+		cs, err := classifyT(e, []byte(file))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -257,7 +258,7 @@ func TestFixtureEntries(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		cs, err := Classify(e, raw)
+		cs, err := classifyT(e, raw)
 		if err != nil {
 			t.Fatalf("%s %s: %v", c.tg.Component, c.tag, err)
 		}
@@ -306,7 +307,7 @@ func backtest(t *testing.T, tg Target, tagName, file string, citedLines ...int) 
 	if err != nil {
 		t.Fatalf("locate %s: %v", file, err)
 	}
-	cs, err := Classify(e, raw)
+	cs, err := classifyT(e, raw)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -381,7 +382,7 @@ func TestBacktestNoNeutralItemHoldsAKnownRemoval(t *testing.T) {
 func TestBindingRefusals(t *testing.T) {
 	file := promOne("* [FEATURE] Plain words. #1", "* [BUGFIX] Other words. #2")
 	good := mustLocate(t, promTarget, "v3.5.0", file)
-	if _, err := Classify(good, []byte(file)); err != nil {
+	if _, err := classifyT(good, []byte(file)); err != nil {
 		t.Fatal(err)
 	}
 	clone := func() *Entry {
@@ -408,10 +409,7 @@ func TestBindingRefusals(t *testing.T) {
 		{"item marker", func(e *Entry, f *[]byte) { e.Items[0].Marker = "CHANGE" }},
 		{"item bounds", func(e *Entry, f *[]byte) { e.Items[0].EndLine++ }},
 		{"item kind", func(e *Entry, f *[]byte) { e.Items[0].Kind = "block" }},
-		{"heading path forged", func(e *Entry, f *[]byte) {
-			e.Items[0].HeadingPath = []string{"Added"}
-			e.Items[0].Digest = itemDigest(e.Component, e.Version, e.Items[0].HeadingPath, e.Items[0].Marker, "* [FEATURE] Plain words. #1")
-		}},
+		{"heading path forged", func(e *Entry, f *[]byte) { e.Items[0].HeadingPath = []string{"Added"} }},
 		{"structure dropped", func(e *Entry, f *[]byte) { e.Structure = e.Structure[:0] }},
 		{"structure text", func(e *Entry, f *[]byte) { e.Structure[0].Text = "9.9.9 / 2030-01-01" }},
 		{"occurrence", func(e *Entry, f *[]byte) { e.Items[1].Occurrence = 2 }},
@@ -421,18 +419,18 @@ func TestBindingRefusals(t *testing.T) {
 		e := clone()
 		f := []byte(file)
 		m.do(e, &f)
-		out, err := Classify(e, f)
+		out, err := classifyT(e, f)
 		if err == nil || out != nil {
 			t.Fatalf("%s: classified a mismatched entry (%v)", m.name, err)
 		}
 	}
-	if _, err := Classify(nil, []byte(file)); !errors.Is(err, ErrEntryBinding) {
+	if _, err := classifyT(nil, []byte(file)); !errors.Is(err, ErrEntryBinding) {
 		t.Fatalf("nil entry: %v", err)
 	}
 	// A refused entry is a binding error, not a typed G reason.
 	e := clone()
 	e.Source.FileDigest = "x"
-	_, err := Classify(e, []byte(file))
+	_, err := classifyT(e, []byte(file))
 	if !errors.Is(err, ErrEntryBinding) {
 		t.Fatalf("want binding error: %v", err)
 	}
@@ -462,11 +460,11 @@ func TestOutputIsExactlyTwoValuesAndDeterministic(t *testing.T) {
 		if err != nil {
 			continue // withheld by the reader; nothing to classify
 		}
-		a, err := Classify(e, []byte(file))
+		a, err := classifyT(e, []byte(file))
 		if err != nil {
 			t.Fatalf("%q: %v", file, err)
 		}
-		b, _ := Classify(e, []byte(file))
+		b, _ := classifyT(e, []byte(file))
 		ja, _ := json.Marshal(a)
 		jb, _ := json.Marshal(b)
 		if string(ja) != string(jb) {
@@ -574,7 +572,7 @@ func TestClassifierDoesNotChangeTheEntry(t *testing.T) {
 	file := promOne("* [FEATURE] Plain words. #1")
 	e := mustLocate(t, promTarget, "v3.5.0", file)
 	before, _ := e.Canonical()
-	if _, err := Classify(e, []byte(file)); err != nil {
+	if _, err := classifyT(e, []byte(file)); err != nil {
 		t.Fatal(err)
 	}
 	after, _ := e.Canonical()
@@ -603,7 +601,7 @@ func TestSelfConsistentTruncationIsRefused(t *testing.T) {
 	e.Section.EndLine = cut
 	e.Section.Digest = hexSum([]byte(strings.Join(lines[e.Section.StartLine-1:cut], "\n") + "\n"))
 	e.Tiling = Tiling{Lines: cut - e.Section.StartLine + 1, Headings: 1, Blanks: 1, ItemLines: 1}
-	out, err := Classify(&e, []byte(file))
+	out, err := classifyT(&e, []byte(file))
 	if err == nil || out != nil || !errors.Is(err, ErrEntryBinding) {
 		t.Fatalf("truncated entry classified: %v", err)
 	}
@@ -614,11 +612,11 @@ func TestSelfConsistentTruncationIsRefused(t *testing.T) {
 	_ = json.Unmarshal(b, &f)
 	f.Section.EndLine += 4
 	f.Section.Digest = hexSum([]byte(strings.Join(lines[f.Section.StartLine-1:f.Section.EndLine], "\n") + "\n"))
-	if _, err := Classify(&f, []byte(file)); !errors.Is(err, ErrEntryBinding) {
+	if _, err := classifyT(&f, []byte(file)); !errors.Is(err, ErrEntryBinding) {
 		t.Fatalf("stretched entry classified: %v", err)
 	}
 	// Control: the untouched entry still classifies.
-	if _, err := Classify(good, []byte(file)); err != nil {
+	if _, err := classifyT(good, []byte(file)); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -643,7 +641,7 @@ func TestAnnotationAndInvisibleCharacterNegatives(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s did not reach the classifier: %v", name, err)
 		}
-		cs, err := Classify(e, []byte(file))
+		cs, err := classifyT(e, []byte(file))
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
@@ -651,7 +649,106 @@ func TestAnnotationAndInvisibleCharacterNegatives(t *testing.T) {
 			wantClass(t, c, ClassNeedsReview, name)
 		}
 	}
-	// Control: the plain neutral shape still passes.
-	_, cs := classifyFile(t, promTarget, "v3.5.0", promOne("* [FEATURE] Plain words. #1"))
+	// Control: the plain neutral shape still passes, also with emphasis and code around whole words.
+	_, cs := classifyFile(t, promTarget, "v3.5.0", promOne("* [FEATURE] Plain words. #1", "* [FEATURE] Plain *words* and `code`. #2"))
 	wantClass(t, cs[0], ClassMechanicalNeutral, "control")
+	wantClass(t, cs[1], ClassMechanicalNeutral, "control emphasis")
+}
+
+// classifyT classifies e under the test target of its component whose reader
+// accepts the file (the first one that does), with the entry's own tag.
+func classifyT(e *Entry, file []byte) ([]Classified, error) {
+	alert := promTarget
+	alert.Component = "alertmanager"
+	tag := extract.Tag{Name: "v3.5.0", Commit: testCommit}
+	if e != nil {
+		tag = extract.Tag{Name: e.Tag, Commit: e.TagCommit}
+	}
+	var first []Classified
+	var firstErr error
+	for _, tg := range []Target{promTarget, cortexTarget, cortexOldTarget, thanosTarget, alert} {
+		if e != nil && tg.Component != e.Component {
+			continue
+		}
+		cs, err := Classify(tg, tag, e, file)
+		if err == nil {
+			return cs, nil
+		}
+		if firstErr == nil {
+			first, firstErr = cs, err
+		}
+	}
+	if firstErr == nil && e == nil {
+		_, firstErr = Classify(promTarget, tag, nil, file)
+	}
+	return first, firstErr
+}
+
+func cloneEntry(t *testing.T, e *Entry) *Entry {
+	t.Helper()
+	b, _ := json.Marshal(e)
+	var c Entry
+	if err := json.Unmarshal(b, &c); err != nil {
+		t.Fatal(err)
+	}
+	return &c
+}
+
+// The entry is re-derived by the reader itself: a self-consistent forged entry
+// (rooted at a sub-heading, at another release's heading, or under another
+// component or version) is refused and nothing is classified.
+func TestForgedEntryIdentityIsRefused(t *testing.T) {
+	file := "## 3.5.0 / 2025-07-14\n### Notes\n* [FEATURE] Plain words. #1\n### Other\n* [CHANGE] The flag --x was removed. #2\n\n## 3.4.0 / 2025-05-17\n\n* [FEATURE] D. #4\n"
+	tag := extract.Tag{Name: "v3.5.0", Commit: testCommit}
+	good := mustLocate(t, promTarget, "v3.5.0", file)
+	if _, err := Classify(promTarget, tag, good, []byte(file)); err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSuffix(file, "\n"), "\n")
+	// a. rooted at the "Notes" sub-heading, everything recomputed.
+	a := cloneEntry(t, good)
+	a.Section = Section{HeadingLine: 2, StartLine: 2, EndLine: 3, Digest: hexSum([]byte(strings.Join(lines[1:3], "\n") + "\n"))}
+	a.Structure = []Heading{{Level: 3, Text: "Notes", Kind: "version", Line: 2, EndLine: 2}}
+	a.Items = a.Items[:1]
+	a.Items[0].HeadingPath = []string{}
+	a.Tiling = Tiling{Lines: 2, Headings: 1, ItemLines: 1}
+	// b. another release's heading under this version, and another component.
+	b := cloneEntry(t, good)
+	b.Section.HeadingLine, b.Section.StartLine = 7, 7
+	c := cloneEntry(t, good)
+	c.Component = "cortex"
+	d := cloneEntry(t, good)
+	d.Version = "3.4.0"
+	for name, e := range map[string]*Entry{"sub-heading root": a, "other release root": b, "component": c, "version": d} {
+		out, err := Classify(promTarget, tag, e, []byte(file))
+		if err == nil || out != nil || !errors.Is(err, ErrEntryBinding) {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+	// The re-derived entry is used, so the same entry under the wrong target is refused too.
+	if _, err := Classify(cortexTarget, tag, good, []byte(file)); err == nil {
+		t.Error("entry accepted under another target")
+	}
+}
+
+// Every refusal of the reader reaches the classifier as its typed Failure.
+func TestReaderRefusalsAreInherited(t *testing.T) {
+	tag := extract.Tag{Name: "v3.5.0", Commit: testCommit}
+	ok := mustLocate(t, promTarget, "v3.5.0", promOne("* [FEATURE] Plain words. #1"))
+	for name, f := range map[string]struct {
+		file string
+		code Code
+	}{
+		"nested release heading": {"## 3.5.0 / 2025-07-14\n\n### 3.4.0 / 2025-05-17\n\n* [FEATURE] x\n", EntryBoundaryUnproven},
+		"duplicate":              {promOne("* [FEATURE] x") + "\n## 3.5.0 / 2025-07-14\n\n* [FEATURE] y\n", EntryDuplicate},
+		"container fence":        {shapeListFence, EntryParseResidue},
+		"indented fence stop":    {shapeItemFenceNoCloser, EntryParseResidue},
+		"missing":                {"## 3.4.0 / 2025-05-17\n\n* [FEATURE] x\n", EntryMissing},
+	} {
+		out, err := Classify(promTarget, tag, ok, []byte(f.file))
+		if out != nil {
+			t.Errorf("%s: classified", name)
+		}
+		wantCode(t, err, f.code)
+	}
 }
