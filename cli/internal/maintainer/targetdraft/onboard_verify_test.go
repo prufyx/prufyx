@@ -1120,11 +1120,13 @@ var demoSpellings = []string{
 	"https://user:pw@github.com/example/demo", "github.com/example/demo.git.git", " HTTPS://GITHUB.COM/EXAMPLE/DEMO ",
 	"git+git+https://github.com/example/demo",
 	"https://github.com./example/demo", "ssh://git@ssh.github.com:443/example/demo.git",
-	"git@ssh.github.com:example/demo.git", "https://WWW.GitHub.com./example/demo.git/",
+	"git@ssh.github.com:example/demo.git", "git@ssh.github.com:443/example/demo.git", "https://WWW.GitHub.com./example/demo.git/",
 }
 
 // refusedSpellings never pass: each is unreducible, not a distinct key.
 var refusedSpellings = []string{
+	"https://gitlab.com/g/r/-/tree/main", "https://gitlab.com/g/-/r", "https://gitlab.com/g/r/tree/main", "https://gitlab.com/g/s/r/blob/main/x",
+	"https://gitlab.com/a/b/c/d/e/f/g/h/i/j/k", "github.com:443/example/demo", "//github.com//example/demo", "https://gitlab.com/g/s/r/releases",
 	"https://github.com/example/demo/tree/main", "github.com/example/demo/sub", "https://api.github.com/repos/example/demo",
 	"https://codeload.github.com/example/demo", "https://raw.githubusercontent.com/example/demo/main/x", "https://gist.github.com/example/demo",
 	"https://objects.githubusercontent.com/example/demo", "https://uploads.github.com/example/demo",
@@ -1142,6 +1144,9 @@ func TestRepoKeyCanonicalForms(t *testing.T) {
 		}
 	}
 	for in, want := range map[string]string{
+		"git@gitlab.com:123/sub/r.git":         "gitlab.com/123/sub/r",
+		"git@gitlab.com:123/r.git":             "gitlab.com/123/r",
+		"ssh://git@gitlab.com:22/g/r":          "gitlab.com/g/r",
 		"pkg:gitlab/grp/proj":                  "gitlab.com/grp/proj",
 		"https://gitlab.com/grp/proj.git":      "gitlab.com/grp/proj",
 		"pkg:bitbucket/o/r":                    "bitbucket.org/o/r",

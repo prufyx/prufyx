@@ -407,6 +407,9 @@ func (b *baseFacts) addRepo(v string, bare bool) {
 	}
 }
 
+var repoPages = map[string]bool{"tree": true, "blob": true, "src": true, "raw": true, "commit": true, "commits": true, "blame": true,
+	"releases": true, "issues": true, "pull": true, "pulls": true, "wiki": true, "archive": true, "actions": true}
+
 var repoHosts = map[string]string{"github": "github.com", "gitlab": "gitlab.com", "bitbucket": "bitbucket.org"}
 
 // repoKey reduces every spelling of an upstream repository to the canonical
@@ -465,7 +468,10 @@ func repoKey(v string, bare bool) (string, bool) {
 			port, after, hasSlash := strings.Cut(tail, "/")
 			numeric := port != "" && strings.Trim(port, "0123456789") == ""
 			switch {
-			case hasSlash && numeric:
+			case hasSlash && numeric && (hadScheme || strings.TrimRight(v[:i], ".") == "ssh.github.com"):
+				// A port exists only in a scheme url or on ssh.github.com; in an
+				// scp-style spelling everything after the colon is the path
+				// (a numeric group name is a group, not a port).
 				tail = after
 			case hadScheme:
 				// A scheme url has a numeric port or none.
@@ -499,7 +505,12 @@ func repoKey(v string, bare bool) (string, bool) {
 		last = strings.TrimSuffix(last, ".git")
 	}
 	segs[len(segs)-1] = last
-	for _, sg := range segs {
+	for i, sg := range segs {
+		// "-" is a forge UI separator on any host; page names are refused
+		// after owner/name so a nested group is not mistaken for a page.
+		if sg == "-" || i >= 2 && repoPages[sg] {
+			return "", false
+		}
 		if sg == "" || sg == "." || strings.Trim(sg, "abcdefghijklmnopqrstuvwxyz0123456789._-") != "" {
 			return "", false
 		}
