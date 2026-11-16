@@ -6,10 +6,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/prufyx/prufyx/cli/internal/pathset"
 )
 
 // OnboardingAdmissionSchema is the schema of the onboarding admission
@@ -66,6 +69,15 @@ const (
 	AdmitReasonVerifyPaths            = "verify-pr-changed-paths-digest-missing"
 	AdmitReasonBaseAbsent             = "slug-present-in-base"
 	AdmitReasonBaseAbsentUnknown      = "base-absence-unknown"
+	AdmitReasonPathSetEmpty           = "path-set-empty"
+	AdmitReasonPathSetTooMany         = "path-set-too-many"
+	AdmitReasonPathSetEmptyPath       = "path-set-empty-path"
+	AdmitReasonPathSetNewline         = "path-set-newline"
+	AdmitReasonPathSetNUL             = "path-set-nul"
+	AdmitReasonPathSetUTF8            = "path-set-invalid-utf8"
+	AdmitReasonPathSetTooLong         = "path-set-path-too-long"
+	AdmitReasonPathSetDuplicate       = "path-set-duplicate"
+	AdmitReasonPathSetOther           = "path-set-invalid-for-digest"
 	AdmitReasonVerifyBase             = "verify-pr-base-mismatch"
 	AdmitReasonVerifyRecipe           = "verify-pr-recipe-not-new"
 )
@@ -311,7 +323,8 @@ func AdmitOnboardingAuto(in OnboardingAdmissionInput) OnboardingAdmission {
 	sort.Slice(d.Projects, func(i, j int) bool { return d.Projects[i].Slug < d.Projects[j].Slug })
 	d.PathSet = append([]string{}, in.ChangedPaths...)
 	sort.Strings(d.PathSet)
-	d.PathSetSHA = admitPathSetDigest(d.PathSet)
+	// A path set that the shared package refuses is never digested.
+	d.PathSetSHA, _ = pathset.Digest(d.PathSet)
 	if in.VerifyPr != nil {
 		d.VerifyPr = VerifyPrBinding{ChangedPathsSHA256: in.VerifyPr.ChangedPathsSHA256, Outcome: in.VerifyPr.Outcome, Eligible: in.VerifyPr.Eligible, BindingVerified: in.VerifyPr.BindingVerified, RecipeChange: in.VerifyPr.RecipeChange, BaseSHA: in.VerifyPr.BaseSHA, BindingDigest: in.VerifyPr.BindingDigest, HeadSHA: in.VerifyPr.HeadSHA}
 	}
@@ -326,6 +339,7 @@ func AdmitOnboardingAuto(in OnboardingAdmissionInput) OnboardingAdmission {
 	admitRegeneration(in, &why)
 	admitExclusions(in, &why)
 	admitBaseAbsence(in, &why)
+	admitPathSetValid(in.ChangedPaths, &why)
 	admitPaths(in, d.PathSet, &why)
 	admitVerifyPr(in, &why)
 	admitPrincipals(in, &why)
@@ -651,9 +665,10 @@ func admitVerifyPr(in OnboardingAdmissionInput, why *admitReasons) {
 	}
 	if !admitValidDigest(v.ChangedPathsSHA256) {
 		why.add(AdmitReasonVerifyPaths)
-	} else if v.ChangedPathsSHA256 != PathSetDigest(in.ChangedPaths) {
+	} else if want, err := pathset.Digest(in.ChangedPaths); err == nil && v.ChangedPathsSHA256 != want {
 		// The verify-pr pass must have covered exactly the path set this
-		// checker judges, not another one.
+		// checker judges, not another one. An invalid set is refused by
+		// admitPathSetValid and never digested here.
 		why.add(AdmitReasonVerifyPathsMismatch)
 	}
 	if !admitValidDigest(v.BindingDigest) {
@@ -734,16 +749,31 @@ func admitBaseAbsence(in OnboardingAdmissionInput, why *admitReasons) {
 	}
 }
 
-// PathSetDigest is the canonical digest of a path set: the sha256 of the
-// sorted paths joined by "\n", as "sha256:<hex>". The admission decision's
-// pathSetSha256 and the changed-paths digest a verify-pr result must carry
-// are both this function; a producer of that digest uses the same algorithm
-// (pinned by TestPathSetDigestCanonical). The order of the input never
-// matters.
-func PathSetDigest(paths []string) string {
-	sorted := append([]string{}, paths...)
-	sort.Strings(sorted)
-	return admitSHA([]byte(strings.Join(sorted, "\n")))
+// admitPathSetValid refuses a changed-path set that the shared path-set
+// package refuses, with the typed reason of its class.
+func admitPathSetValid(paths []string, why *admitReasons) {
+	err := pathset.Valid(paths)
+	if err == nil {
+		return
+	}
+	switch {
+	case errors.Is(err, pathset.ErrEmptySet):
+		why.add(AdmitReasonPathSetEmpty)
+	case errors.Is(err, pathset.ErrTooManyPaths):
+		why.add(AdmitReasonPathSetTooMany)
+	case errors.Is(err, pathset.ErrEmptyPath):
+		why.add(AdmitReasonPathSetEmptyPath)
+	case errors.Is(err, pathset.ErrNewline):
+		why.add(AdmitReasonPathSetNewline)
+	case errors.Is(err, pathset.ErrNUL):
+		why.add(AdmitReasonPathSetNUL)
+	case errors.Is(err, pathset.ErrInvalidUTF8):
+		why.add(AdmitReasonPathSetUTF8)
+	case errors.Is(err, pathset.ErrPathTooLong):
+		why.add(AdmitReasonPathSetTooLong)
+	case errors.Is(err, pathset.ErrDuplicate):
+		why.add(AdmitReasonPathSetDuplicate)
+	default:
+		why.add(AdmitReasonPathSetOther)
+	}
 }
-
-func admitPathSetDigest(sorted []string) string { return PathSetDigest(sorted) }

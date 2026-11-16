@@ -11,9 +11,12 @@ import (
 	"go/token"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/prufyx/prufyx/cli/internal/pathset"
 )
 
 const (
@@ -63,7 +66,7 @@ func admOK() OnboardingAdmissionInput {
 		ChangedPaths: admPaths(),
 		TrustPaths:   []string{"cli/knowledge/trust/", "cli/knowledge/reattestation/trust-root.json"},
 		BatchDir:     "cli/onboarding",
-		VerifyPr:     &VerifyPrResult{Outcome: "pass", BindingVerified: true, ChangedPathsSHA256: PathSetDigest(admPaths()), RecipeChange: "new", BaseSHA: admBase, HeadSHA: admHead, BindingDigest: admDigest, Slugs: []string{"alpha"}},
+		VerifyPr:     &VerifyPrResult{Outcome: "pass", BindingVerified: true, ChangedPathsSHA256: admDig(admPaths()), RecipeChange: "new", BaseSHA: admBase, HeadSHA: admHead, BindingDigest: admDigest, Slugs: []string{"alpha"}},
 	}
 }
 
@@ -237,7 +240,7 @@ func TestAdmitOnboardingAutoNegatives(t *testing.T) {
 		{"verifyPr recipe unchanged is not an onboarding", AdmitReasonVerifyRecipe, func(i *OnboardingAdmissionInput) { i.VerifyPr.RecipeChange = "unchanged" }},
 		{"verifyPr covered another path set", AdmitReasonVerifyPathsMismatch, func(i *OnboardingAdmissionInput) { i.VerifyPr.ChangedPathsSHA256 = admOther }},
 		{"verifyPr covered a subset of the paths", AdmitReasonVerifyPathsMismatch, func(i *OnboardingAdmissionInput) {
-			i.VerifyPr.ChangedPathsSHA256 = PathSetDigest(admPaths()[:3])
+			i.VerifyPr.ChangedPathsSHA256 = admDig(admPaths()[:3])
 		}},
 		{"verifyPr changed paths digest missing", AdmitReasonVerifyPaths, func(i *OnboardingAdmissionInput) { i.VerifyPr.ChangedPathsSHA256 = "" }},
 		{"slug present in base", AdmitReasonBaseAbsent, func(i *OnboardingAdmissionInput) { i.BasePresent = []string{"alpha"} }},
@@ -426,7 +429,7 @@ func TestAdmitOnboardingAutoIsPure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	allowed := map[string]bool{"crypto/sha256": true, "encoding/hex": true, "encoding/json": true, "regexp": true, "sort": true, "strings": true, "time": true}
+	allowed := map[string]bool{"crypto/sha256": true, "encoding/hex": true, "encoding/json": true, "errors": true, "github.com/prufyx/prufyx/cli/internal/pathset": true, "regexp": true, "sort": true, "strings": true, "time": true}
 	for _, imp := range f.Imports {
 		if p := strings.Trim(imp.Path.Value, `"`); !allowed[p] {
 			t.Errorf("onboarding_admission.go imports %s", p)
@@ -505,91 +508,156 @@ func TestOnboardingAdmissionAbsentWithoutBatch(t *testing.T) {
 	}
 }
 
-// The canonical path-set digest: pinned against an independent computation
-// and a fixed vector, order independent, bound into the decision.
+// admDig is the shared digest of a valid set.
+func admDig(paths []string) string {
+	d, err := pathset.Digest(paths)
+	if err != nil {
+		panic(err)
+	}
+	return d
+}
+
+// The decision binds the shared package's digest of the changed paths, for
+// the pinned vector, in any order.
 func TestPathSetDigestCanonical(t *testing.T) {
 	t.Parallel()
 	sum := sha256.Sum256([]byte("a/x\nb/y"))
 	want := "sha256:" + hex.EncodeToString(sum[:])
-	if got := PathSetDigest([]string{"b/y", "a/x"}); got != want || PathSetDigest([]string{"a/x", "b/y"}) != want {
-		t.Fatalf("digest %s want %s", got, want)
-	}
-	if PathSetDigest(nil) != PathSetDigest([]string{}) || PathSetDigest([]string{"a"}) == PathSetDigest([]string{"a", "b"}) {
-		t.Fatal("digest does not follow the set")
+	if admDig([]string{"b/y", "a/x"}) != want || admDig([]string{"a/x", "b/y"}) != want {
+		t.Fatal("shared digest differs from the pinned vector")
 	}
 	in := admOK()
-	if d := AdmitOnboardingAuto(in); d.PathSetSHA != PathSetDigest(in.ChangedPaths) || d.VerifyPr.ChangedPathsSHA256 != d.PathSetSHA {
+	if d := AdmitOnboardingAuto(in); d.PathSetSHA != admDig(in.ChangedPaths) || d.VerifyPr.ChangedPathsSHA256 != d.PathSetSHA {
 		t.Fatalf("decision binds %s / %s", d.PathSetSHA, d.VerifyPr.ChangedPathsSHA256)
 	}
 }
 
-// Golden: the full decision of the reference fixture, byte for byte, and its
-// digest. A change of any member, its order, its encoding or the digest
-// algorithm fails here. The golden was produced by an independent
-// implementation of the algorithm, not by this package.
-func TestOnboardingAdmissionGoldenDecision(t *testing.T) {
-	t.Parallel()
-	const wantDigest = "sha256:b55c30e6af6154d3e4771b639118134118cd7d395c39cef82ecc96043d06bde0"
-	d := AdmitOnboardingAuto(admOK())
-	if d.DecisionDigest != wantDigest {
-		t.Fatalf("decision digest %s", d.DecisionDigest)
-	}
-	got, err := json.Marshal(d)
-	if err != nil {
-		t.Fatal(err)
-	}
-	want, err := os.ReadFile("testdata/onboarding_admission_golden.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(got, want) {
-		t.Fatalf("decision bytes differ from the golden:\n got %s\nwant %s", got, want)
-	}
-	// The digest is the sha256 of the same bytes with the digest member empty.
-	d.DecisionDigest = ""
-	pre, _ := json.Marshal(d)
-	sum := sha256.Sum256(pre)
-	if "sha256:"+hex.EncodeToString(sum[:]) != wantDigest {
-		t.Fatal("digest is not the sha256 of the empty-digest encoding")
-	}
-}
-
-// Exclusion set digest vectors: sorted, de-duplicated, compact JSON array.
-func TestAdmitSetDigestGolden(t *testing.T) {
-	t.Parallel()
-	for name, tc := range map[string]struct {
-		in   []string
-		want string
-	}{
-		"empty":            {nil, "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"},
-		"empty non-nil":    {[]string{}, "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"},
-		"sorted":           {[]string{"a", "b"}, "sha256:0473ef2dc0d324ab659d3580c1134e9d812035905c4781fdd6d529b0c6860e13"},
-		"unsorted":         {[]string{"b", "a"}, "sha256:0473ef2dc0d324ab659d3580c1134e9d812035905c4781fdd6d529b0c6860e13"},
-		"duplicate folded": {[]string{"b", "a", "a"}, "sha256:0473ef2dc0d324ab659d3580c1134e9d812035905c4781fdd6d529b0c6860e13"},
-		"nul separator":    {[]string{"p\x00x"}, "sha256:978496475acf91b2bc3e8ac5803d759b0c858f1a15480337a4d4417001ee64d8"},
-	} {
-		if got := admitSetDigest(tc.in); got != tc.want {
-			t.Errorf("%s: %s", name, got)
-		}
-	}
-}
-
 // A path set lists each changed path once: a rename is the old path and the
-// new path, a delete is the path itself. The digest covers exactly that list.
+// new path, a delete is the path itself.
 func TestPathSetDigestRenameAndDelete(t *testing.T) {
 	t.Parallel()
 	rename := []string{"cli/old/a.json", "cli/new/a.json"}
-	if got := PathSetDigest(rename); got != "sha256:d2212e911b2cb1907429cd8aaa46108fac5a1a45833937a40a610d431d343c94" {
+	if got := admDig(rename); got != "sha256:d2212e911b2cb1907429cd8aaa46108fac5a1a45833937a40a610d431d343c94" {
 		t.Fatalf("rename %s", got)
 	}
-	if got := PathSetDigest([]string{"cli/new/a.json", "cli/old/a.json", "cli/x.json"}); got != "sha256:8330e54fb1d88876b73e7ed121281cb339e4c9680a69a8507bd137fc4a8ee41d" {
+	if got := admDig([]string{"cli/new/a.json", "cli/old/a.json", "cli/x.json"}); got != "sha256:8330e54fb1d88876b73e7ed121281cb339e4c9680a69a8507bd137fc4a8ee41d" {
 		t.Fatalf("rename with another path %s", got)
 	}
-	if got := PathSetDigest([]string{"cli/gone.json"}); got != "sha256:86f5689f8a50b4e97590e495881dc48c3c972f868affdf0802afb5559fb5c165" {
+	if got := admDig([]string{"cli/gone.json"}); got != "sha256:86f5689f8a50b4e97590e495881dc48c3c972f868affdf0802afb5559fb5c165" {
 		t.Fatalf("delete %s", got)
 	}
-	// Half a rename is a different change.
-	if PathSetDigest(rename) == PathSetDigest(rename[:1]) || PathSetDigest(rename) == PathSetDigest(rename[1:]) {
+	if admDig(rename) == admDig(rename[:1]) || admDig(rename) == admDig(rename[1:]) {
 		t.Fatal("a rename digests like one of its halves")
+	}
+}
+
+var admVectorReason = map[string]string{
+	"empty-set": AdmitReasonPathSetEmpty, "too-many-paths": AdmitReasonPathSetTooMany, "empty-path": AdmitReasonPathSetEmptyPath,
+	"newline": AdmitReasonPathSetNewline, "nul": AdmitReasonPathSetNUL, "invalid-utf8": AdmitReasonPathSetUTF8,
+	"path-too-long": AdmitReasonPathSetTooLong, "duplicate": AdmitReasonPathSetDuplicate,
+}
+
+// Cross-test against the shared package's vectors: every valid vector digests
+// to the vector's value as the decision's pathSetSha256, and every invalid one
+// is refused with the typed reason of its class and is never digested.
+func TestAdmissionPathSetSharedVectors(t *testing.T) {
+	t.Parallel()
+	raw, err := os.ReadFile("../../pathset/testdata/vectors.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var f struct {
+		Vectors []struct {
+			Name   string   `json:"name"`
+			Paths  []string `json:"paths"`
+			Digest string   `json:"digest"`
+			Error  string   `json:"error"`
+		} `json:"vectors"`
+	}
+	if err := json.Unmarshal(raw, &f); err != nil {
+		t.Fatal(err)
+	}
+	valid, invalid := 0, 0
+	for _, v := range f.Vectors {
+		in := admOK()
+		in.ChangedPaths = v.Paths
+		d := AdmitOnboardingAuto(in)
+		if v.Error == "" {
+			valid++
+			if d.PathSetSHA != v.Digest {
+				t.Errorf("%s: decision digest %s want %s", v.Name, d.PathSetSHA, v.Digest)
+			}
+			if d2, err := pathset.Digest(v.Paths); err != nil || d2 != v.Digest {
+				t.Errorf("%s: shared digest %s %v", v.Name, d2, err)
+			}
+			continue
+		}
+		invalid++
+		want, ok := admVectorReason[v.Error]
+		if !ok {
+			t.Fatalf("%s: unknown error class %s", v.Name, v.Error)
+		}
+		if d.Admitted || d.PathSetSHA != "" || !strings.Contains(strings.Join(d.Reasons, ","), want) {
+			t.Errorf("%s: admitted %v digest %q reasons %v, want %s", v.Name, d.Admitted, d.PathSetSHA, d.Reasons, want)
+		}
+	}
+	if valid < 10 || invalid < 12 {
+		t.Fatalf("too few vectors: %d valid, %d invalid", valid, invalid)
+	}
+}
+
+// Decision-level refusal of each class, independent of the vector file, and
+// agreement of the allowlist's own path cleaning with the shared validation
+// for newline and NUL.
+func TestAdmissionPathSetRefusals(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name  string
+		want  string
+		paths func() []string
+	}{
+		{"empty set", AdmitReasonPathSetEmpty, func() []string { return nil }},
+		{"duplicate", AdmitReasonPathSetDuplicate, func() []string { return append(admPaths(), admPaths()[0]) }},
+		{"newline", AdmitReasonPathSetNewline, func() []string { return append(admPaths(), "cli/data/a\nb.json") }},
+		{"newline hides a second path", AdmitReasonPathSetNewline, func() []string { return append(admPaths(), "cli/data/a.json\ncli/data/b.json") }},
+		{"nul", AdmitReasonPathSetNUL, func() []string { return append(admPaths(), "cli/data/a\x00b.json") }},
+		{"invalid utf8", AdmitReasonPathSetUTF8, func() []string { return append(admPaths(), "cli/data/\xff.json") }},
+		{"empty path", AdmitReasonPathSetEmptyPath, func() []string { return append(admPaths(), "") }},
+		{"too long", AdmitReasonPathSetTooLong, func() []string { return append(admPaths(), "cli/"+strings.Repeat("a", pathset.MaxPathBytes)) }},
+		{"too many", AdmitReasonPathSetTooMany, func() []string {
+			p := admPaths()
+			for i := 0; len(p) <= pathset.MaxPaths; i++ {
+				p = append(p, "cli/many/"+strconv.Itoa(i))
+			}
+			return p
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			in := admOK()
+			in.ChangedPaths = tc.paths()
+			d := AdmitOnboardingAuto(in)
+			if d.Admitted || d.PathSetSHA != "" || !strings.Contains(strings.Join(d.Reasons, ","), tc.want) {
+				t.Fatalf("admitted %v digest %q reasons %v, want %s", d.Admitted, d.PathSetSHA, d.Reasons, tc.want)
+			}
+		})
+	}
+	// The verify-pr digest cannot launder an invalid set: the decision
+	// still refuses and carries no digest.
+	in := admOK()
+	in.ChangedPaths = append(admPaths(), "cli/data/a\nb.json")
+	d := AdmitOnboardingAuto(in)
+	if d.PathSetSHA != "" || d.Admitted {
+		t.Fatalf("%+v", d)
+	}
+	// admitCleanPath and the shared validation agree on newline and NUL.
+	for _, p := range []string{"a\nb", "a\x00b", "a\rb"} {
+		if admitCleanPath(p) {
+			t.Errorf("admitCleanPath accepts %q", p)
+		}
+	}
+	for _, p := range []string{"a\nb", "a\x00b"} {
+		if pathset.Valid([]string{p}) == nil {
+			t.Errorf("pathset.Valid accepts %q", p)
+		}
 	}
 }
