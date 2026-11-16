@@ -204,6 +204,13 @@ func scanTree(t Tree) ([]*finding, []Stop) {
 // and that no symbolic link reaches is not returned as a finding but listed
 // (sorted) as a fragment. Every other unreadable file stays a finding.
 func scanTreeFragments(t Tree, skipFragments bool) ([]*finding, []Stop, []string) {
+	return scanTreeStubs(t, skipFragments, false)
+}
+
+// scanTreeStubs is scanTreeFragments with the further opt-in that sets aside
+// CRD patch stubs (see stubfragment.go). tolerateStubs without skipFragments
+// does nothing here; the generator refuses that input earlier.
+func scanTreeStubs(t Tree, skipFragments, tolerateStubs bool) ([]*finding, []Stop, []string) {
 	entries, err := t.Entries()
 	if err != nil {
 		return nil, []Stop{stop(StopTreeUnreadable, "", err.Error())}, nil
@@ -222,6 +229,7 @@ func scanTreeFragments(t Tree, skipFragments bool) ([]*finding, []Stop, []string
 		}
 	}
 	byPath := map[string]*finding{}
+	stubData := map[string][]byte{} // unreadable files that may prove a stub
 	var stops []Stop
 	for _, e := range entries {
 		if !candidateExt(e.Path) {
@@ -244,6 +252,9 @@ func scanTreeFragments(t Tree, skipFragments bool) ([]*finding, []Stop, []string
 			} else if crds, err := parseCRDs(data); err != nil {
 				f.Unreadable = err.Error()
 				f.fragment = skipFragments && underKustomization(res, kdirs) && isPatchFragment(data)
+				if skipFragments && tolerateStubs && !f.fragment && stubPathOK(res, kdirs) {
+					stubData[res] = data
+				}
 			} else if len(crds) == 0 {
 				byPath[res] = &finding{Path: res} // remember: nothing to report
 				continue
@@ -254,6 +265,19 @@ func scanTreeFragments(t Tree, skipFragments bool) ([]*finding, []Stop, []string
 		}
 		if e.IsLink && (len(f.CRDs) > 0 || f.Unreadable != "") {
 			f.Reached = append(f.Reached, e.Path)
+		}
+	}
+	if len(stubData) > 0 {
+		resolved := make([]string, 0, len(byPath))
+		for p := range byPath {
+			resolved = append(resolved, p)
+		}
+		sort.Strings(resolved)
+		ix := buildStubIndex(t, isFile, resolved)
+		for p, data := range stubData {
+			if isStubFile(data, ix) {
+				byPath[p].fragment = true
+			}
 		}
 	}
 	var out []*finding

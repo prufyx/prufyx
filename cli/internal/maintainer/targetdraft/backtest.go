@@ -74,6 +74,8 @@ type btEntry struct {
 	Escalate bool `json:"escalate,omitempty"`
 	// SkipPatchFragments: the generator flag --skip-patch-fragments. Default off.
 	SkipPatchFragments bool `json:"skipPatchFragments,omitempty"`
+	// TolerateStubs: the generator flag --tolerate-patch-stubs. Default off.
+	TolerateStubs bool `json:"tolerateStubs,omitempty"`
 }
 
 // escalateStops lists the plain-run stop codes that make an escalate entry run
@@ -484,7 +486,7 @@ func runOnce(e btEntry, base, mirrors string, open func(string) Source) btRun {
 	gen, err := generate(Input{Slug: e.Slug, Name: e.Name, Repo: e.Repo, Component: e.Component, FactProject: e.FactProject,
 		Catalog: e.Catalog, Tags: e.Tags, Source: open(mdir), Rules: rules, MultiPrefix: e.MultiPrefix,
 		CollapseDirectories: e.CollapseDirectories, DeriveDuplicates: e.DeriveDuplicateSources,
-		InferInstallPaths: e.InferInstallPaths, CheckInstallPathCopies: e.CheckInstallPathCopies, SkipPatchFragments: e.SkipPatchFragments})
+		InferInstallPaths: e.InferInstallPaths, CheckInstallPathCopies: e.CheckInstallPathCopies, SkipPatchFragments: e.SkipPatchFragments, TolerateStubs: e.TolerateStubs})
 	if err != nil {
 		var se *StopError
 		if !errors.As(err, &se) {

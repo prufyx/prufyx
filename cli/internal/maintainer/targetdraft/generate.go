@@ -81,6 +81,11 @@ type Input struct {
 	// It never changes the ranking and never hides a definition; anything
 	// ambiguous stays unreadable-shape.
 	SkipPatchFragments bool
+	// TolerateStubs is the explicit opt-in (default off, needs
+	// SkipPatchFragments): a kustomize patch that is a CRD stub the fragment
+	// proof rejects is also set aside, under the closed proof in
+	// stubfragment.go. Never changes a definition, the ranking or the target.
+	TolerateStubs bool
 }
 
 // Result is the successful output of a run.
@@ -207,13 +212,16 @@ func generateWithWindow(in Input, full *FullWindowSelector) (*Result, error) {
 	if in.CheckInstallPathCopies && !in.InferInstallPaths && len(rules.InstallPaths) == 0 {
 		return nil, &StopError{Stops: []Stop{stop(StopBadInput, "check-install-path-copies", "the check needs installPaths in the rules file (or --infer-install-paths)")}}
 	}
+	if in.TolerateStubs && !in.SkipPatchFragments {
+		return nil, &StopError{Stops: []Stop{stop(StopBadInput, "tolerate-patch-stubs", "the option needs --skip-patch-fragments")}}
+	}
 	// Phase A: open and read every tag (same order and errors as one pass).
 	for i, t := range tags {
 		tree, commit, err := in.Source.Open(t.Tag)
 		if err != nil {
 			return nil, &StopError{Stops: []Stop{stop(StopTagUnreadable, t.Tag, err.Error())}}
 		}
-		fs, scanStops, frags := scanTreeFragments(tree, in.SkipPatchFragments)
+		fs, scanStops, frags := scanTreeStubs(tree, in.SkipPatchFragments, in.TolerateStubs)
 		fragmentsOf[i] = frags
 		var entries []Entry
 		if in.CollapseDirectories {
