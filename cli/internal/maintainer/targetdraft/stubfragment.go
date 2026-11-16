@@ -32,7 +32,7 @@ import (
 //     v1beta1 or v1alpha1), kind CustomResourceDefinition, metadata, spec and
 //     status; metadata only name, labels, annotations (string maps) and
 //     creationTimestamp (null only); status absent or null-valued all the way
-//     down; spec absent, null or only conversion, whose only fields are a
+//     down; spec absent (never null) or only conversion, whose only fields are a
 //     strategy equal to the full definition's own explicit strategy (Webhook or
 //     None) and webhook.clientConfig.service namespace, name, path and port;
 //   - metadata.name is <plural>.<group> and names an identity that exactly one
@@ -48,7 +48,7 @@ import (
 
 const fragAPIVersionV1alpha1 = "apiextensions.k8s.io/v1alpha1"
 
-// stubIdentity is the identity a stub names: plural and group of the name.
+// stubDef is one definition found in the tree under an identity.
 type stubDef struct {
 	full        bool
 	strategy    string // spec.conversion.strategy of the definition, "" if absent
@@ -106,9 +106,8 @@ func nonEmptyString(v any) string {
 	return s
 }
 
-// addDefinitionDocs records the definition documents of one decoded value; a
-// list kind is read one level at a time (bounded). It reports false when a
-// value cannot be classified with certainty.
+// addDocs records the definition documents of one decoded value; items of a
+// list are read to a bounded depth and exhausting the bound blocks every stub.
 func (ix *stubIndex) addDocs(v any, depth int) {
 	if v == nil {
 		return
@@ -120,9 +119,13 @@ func (ix *stubIndex) addDocs(v any, depth int) {
 		}
 		return
 	}
-	if items, ok := m["items"].([]any); ok && depth < 3 {
-		for _, it := range items {
-			ix.addDocs(it, depth+1)
+	if items, ok := m["items"].([]any); ok && len(items) > 0 {
+		if depth >= 3 {
+			ix.blocked = true
+		} else {
+			for _, it := range items {
+				ix.addDocs(it, depth+1)
+			}
 		}
 	}
 	if m["kind"] != "CustomResourceDefinition" {
@@ -189,8 +192,7 @@ func hasSchemaVersions(spec map[string]any) bool {
 }
 
 // buildStubIndex reads every candidate file of the tree (each resolved file
-// once). Anything it cannot read or decode, and that mentions a definition,
-// blocks every stub.
+// once). Anything it cannot read or decode blocks every stub.
 func buildStubIndex(t Tree, isFile map[string]bool, paths []string) *stubIndex {
 	ix := &stubIndex{defs: map[string][]stubDef{}}
 	for _, p := range paths {
@@ -202,12 +204,11 @@ func buildStubIndex(t Tree, isFile map[string]bool, paths []string) *stubIndex {
 			ix.blocked = true
 			continue
 		}
-		if !bytes.Contains(data, []byte(fragKind)) {
-			continue
-		}
+		// No raw-byte filter: a kind can be written with escapes, quotes or a
+		// tag, so a file is judged by its decoded documents only. A file that
+		// cannot be decoded (template, oversize, garbled) may hide a
+		// definition and blocks every stub.
 		if len(data) > crdversions.MaxFileBytes || bytes.Contains(data, []byte("{{")) {
-			// A stub file itself is judged by its own proof; a template or
-			// oversize file that mentions a definition may hide one.
 			ix.blocked = true
 			continue
 		}
@@ -315,9 +316,12 @@ func stubDoc(v any, ix *stubIndex) bool {
 		return false
 	}
 	raw, present := obj["spec"]
-	if !present || raw == nil {
+	if !present {
 		return true
 	}
+	// An explicit null spec (or any null below it) would delete the full
+	// definition's field in a merge patch: only absence is harmless. The
+	// tolerated nulls are status and metadata.creationTimestamp.
 	spec, ok := raw.(map[string]any)
 	if !ok {
 		return false

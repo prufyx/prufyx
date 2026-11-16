@@ -68,6 +68,27 @@ facts digest), never rank and never count as install files. Everything else,
 and any fragment reached through a symbolic link, stays the typed stop
 `unreadable-shape`. With the option off the output is unchanged.
 
+`tolerateStubs` (`--tolerate-patch-stubs`, default off) needs
+`skipPatchFragments` (otherwise the typed stop `bad-input`) and also sets aside
+`CustomResourceDefinition` patch stubs that the fragment shape rejects: the
+keys are limited to `apiVersion` (`apiextensions.k8s.io/v1`, `v1beta1` or
+`v1alpha1`), `kind`, `metadata` (`name`, string labels and annotations,
+`creationTimestamp: null`), `status` (null-valued only) and `spec` limited to
+`conversion` (a `strategy` equal to the explicit strategy of the full
+definition, and `webhook.clientConfig.service` namespace, name, path, port);
+strings may hold `$(VAR)`. An explicit `spec: null` (or any other null below
+`spec`) is never tolerated: a merge patch would delete the field. A stub is set
+aside only when its `metadata.name` (`<plural>.<group>`) is defined by exactly
+one definition in the whole tree at that tag and that one is a full definition
+(scope, names, versions, schema). Limits: every decodable copy counts, also one
+under a test, docs or fixture directory, in a list, or in a file that holds a
+stub too, so a project that ships equal copies keeps its stop; a file that
+cannot be decoded (template, oversize, garbled), or a list nested deeper than
+three levels, blocks every stub; stubs under test, vendor, docs, fixture, CI
+metadata directories or outside a kustomization directory stay unreadable. The
+extractor does not mirror this proof yet (a separate step). Set-aside stubs are
+listed in `patchFragments`.
+
 A reviewed directory entry (keys `path`, `directory`, `match`, `guard` with the
 one default match and guard) is compared by bytes, but only reproduces when
 the generator also emits it as a directory entry (use `collapseDirectories`);

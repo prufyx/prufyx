@@ -323,3 +323,101 @@ func TestStubEndToEnd(t *testing.T) {
 	in.TolerateStubs = true
 	infStops(t, in, StopInstallPathAmbiguous)
 }
+
+func TestStubNullsThatDeleteAreRefused(t *testing.T) {
+	for name, content := range map[string]string{
+		"spec null":                stubHead + "spec: null\n",
+		"spec empty value":         stubHead + "spec:\n",
+		"spec versions null":       stubHead + "spec:\n  versions: null\n",
+		"spec conversion null":     stubHead + "spec:\n  conversion: null\n",
+		"conversion webhook null":  stubHead + "spec:\n  conversion:\n    webhook: null\n",
+		"conversion strategy null": stubHead + "spec:\n  conversion:\n    strategy: null\n",
+		"metadata labels null":     stubHead + "  labels: null\n",
+	} {
+		m := stubTree(map[string]string{stubPath: content})
+		if got := stubClass(m, stubPath, true, true); got == "fragment" {
+			t.Fatalf("%s: set aside", name)
+		}
+	}
+	// status: null stays tolerated, also next to a spec conversion.
+	m := stubTree(map[string]string{stubPath: stubHead + "status: null\n"})
+	wantStub(t, m, stubPath, "fragment")
+	// conversion: null against a full definition without any conversion.
+	m = stubTree(map[string]string{stubPath: stubHead + "spec:\n  conversion: null\n"})
+	m.files["config/crd/bases/a.yaml"] = []byte(stubFull(""))
+	if got := stubClass(m, stubPath, true, true); got == "fragment" {
+		t.Fatal("null conversion: set aside")
+	}
+}
+
+func TestStubSecondDefinitionCannotHideBehindSyntax(t *testing.T) {
+	stub := stubHead + "status: null\n"
+	full := stubFull("Webhook")
+	for name, dup := range map[string]string{
+		"escaped kind":  strings.Replace(full, "kind: CustomResourceDefinition", `kind: "CustomResourceDefinition"`, 1),
+		"double quoted": strings.Replace(full, "kind: CustomResourceDefinition", `kind: "CustomResourceDefinition"`, 1),
+		"single quoted": strings.Replace(full, "kind: CustomResourceDefinition", `kind: 'CustomResourceDefinition'`, 1),
+		"escaped key":   strings.Replace(full, "kind: CustomResourceDefinition", `"kind": CustomResourceDefinition`, 1),
+		"tagged":        strings.Replace(full, "kind: CustomResourceDefinition", `kind: !!str CustomResourceDefinition`, 1),
+		"flow style":    "{apiVersion: apiextensions.k8s.io/v1, \"kind\": \"CustomResource\\u0044efinition\", metadata: {name: " + stubID + "}, spec: {group: eraser.example.test, names: {kind: ImageList, plural: imagelists}, scope: Cluster, versions: [{name: v1, served: true, storage: true, schema: {openAPIV3Schema: {type: object}}}]}}\n",
+		"json":          `{"apiVersion":"apiextensions.k8s.io/v1","kind":"CustomResourceDefinition","metadata":{"name":"` + stubID + `"},"spec":{"group":"eraser.example.test","names":{"kind":"ImageList","plural":"imagelists"},"scope":"Cluster","versions":[{"name":"v1","served":true,"storage":true,"schema":{"openAPIV3Schema":{"type":"object"}}}]}}`,
+	} {
+		for _, p := range []string{"deploy/dup.yaml", "deploy/dup.json"} {
+			m := stubTree(map[string]string{stubPath: stub, p: dup})
+			if got := stubClass(m, stubPath, true, true); got == "fragment" {
+				t.Fatalf("%s in %s: second definition evaded the count", name, p)
+			}
+		}
+	}
+	// Control: an unrelated decodable file does not block.
+	m := stubTree(map[string]string{stubPath: stub, "deploy/cm.yaml": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: x\n"})
+	wantStub(t, m, stubPath, "fragment")
+}
+
+func TestStubListNestingLimitBlocks(t *testing.T) {
+	stub := stubHead + "status: null\n"
+	base := `{"kind":"CustomResourceDefinition","metadata":{"name":"` + stubID + `"},"spec":{"group":"eraser.example.test","names":{"kind":"ImageList","plural":"imagelists"},"scope":"Cluster","versions":[{"name":"v1","served":true,"storage":true,"schema":{"openAPIV3Schema":{"type":"object"}}}]}}`
+	nest := func(levels int) string {
+		doc := base
+		for i := 0; i < levels; i++ {
+			doc = `{"kind":"List","items":[` + doc + `]}`
+		}
+		return doc
+	}
+	// The only definition sits inside lists. Down to depth 3 it is counted
+	// (exactly one: the stub is set aside); deeper the bound is exhausted and
+	// every stub stays a stop (fail closed).
+	for lv, want := range map[int]string{1: "fragment", 2: "fragment", 3: "fragment", 4: "unreadable", 5: "unreadable"} {
+		m := stubTree(map[string]string{stubPath: stub, "deploy/l.json": nest(lv)})
+		delete(m.files, "config/crd/bases/a.yaml")
+		if got := stubClass(m, stubPath, true, true); got != want {
+			t.Fatalf("nesting %d: got %s want %s", lv, got, want)
+		}
+		// With a second definition at the bottom the stub never passes.
+		m.files["config/crd/bases/a.yaml"] = []byte(stubFull("Webhook"))
+		if got := stubClass(m, stubPath, true, true); got == "fragment" {
+			t.Fatalf("nesting %d plus a duplicate: set aside", lv)
+		}
+	}
+}
+
+func TestStubOtherRefusedCIDirs(t *testing.T) {
+	stub := stubHead + "status: null\n"
+	for _, p := range []string{".gitlab/k/patches/a.yaml", ".circleci/k/patches/a.yaml"} {
+		m := stubTree(map[string]string{p: stub})
+		m.files[path0(p)+"/kustomization.yaml"] = []byte(fragKustomizationText)
+		if got := stubClass(m, p, true, true); got == "fragment" {
+			t.Fatalf("%s: set aside", p)
+		}
+	}
+	// The sole full definition under a refused path still counts as the one
+	// definition (documented): the stub beside it is set aside.
+	m := stubTree(map[string]string{stubPath: stub})
+	delete(m.files, "config/crd/bases/a.yaml")
+	m.files["config/crd/testdata/a.yaml"] = []byte(stubFull("Webhook"))
+	if got := stubClass(m, stubPath, true, true); got != "fragment" {
+		t.Fatalf("sole definition under testdata counts: %s", got)
+	}
+}
+
+func path0(p string) string { return p[:strings.LastIndex(p, "/")] }
