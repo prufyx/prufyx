@@ -176,10 +176,31 @@ func lexiconHits(v *vocabulary, text string) []string {
 			}
 		}
 	}
+	// Fifth form: lower-cased with every character that is not a letter or
+	// digit deleted, so any split of a word by punctuation, link syntax or
+	// spaces still hits. It over-flags on purpose: any hit is needs-review.
+	squashed := squash(text)
+	for _, t := range v.Lexicon {
+		if strings.Contains(squashed, squash(t)) {
+			hits = append(hits, t)
+		}
+	}
 	return sortedUnique(hits)
 }
 
+// squash lower-cases s and deletes every rune that is not a letter or digit.
+func squash(s string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(s) {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
 var (
+	linkSplitRE   = regexp.MustCompile(`[0-9A-Za-z]\[|[\])][0-9A-Za-z]`)
 	markupCharsRE = regexp.MustCompile("[*_`~\\\\]")
 	htmlTagRE     = regexp.MustCompile(`<!--.*?-->|</?[A-Za-z][^<>]*>`)
 )
@@ -200,6 +221,11 @@ func textForms(text string) []string {
 // than the bytes spell.
 func hasSplitMarkup(text string) bool {
 	if strings.ContainsAny(text, "<&") {
+		return true
+	}
+	// Link syntax inside a word: a letter or digit directly before "[" or
+	// directly after "]" or ")", on the text and on the text without markup.
+	if linkSplitRE.MatchString(text) || linkSplitRE.MatchString(markupCharsRE.ReplaceAllString(text, "")) {
 		return true
 	}
 	rs := []rune(text)
