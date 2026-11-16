@@ -83,6 +83,15 @@ const (
 	staleCond  = `if [ "${live_head}" != "${HEAD_SHA}" ] || [ "${live_state}" != "open" ] || [ "${main_tip}" != "${BASE_SHA}" ]; then`
 )
 
+// The only run lines that may mention the changed-path list: its creation by
+// git, and handing it to the tool. Any other use (grep, cut, jq, a script, a
+// copy or an alias) is shell classification and is refused.
+var changedLineOK = map[string]bool{
+	`git -C "${objects}" diff --raw -z --no-abbrev --no-renames "${BASE_SHA}" "${HEAD_SHA}" > "${RUNNER_TEMP}/out/changed.raw"`: true,
+	`--changed-paths "${out}/changed.raw" \\`:             true,
+	`--changed-paths "${RUNNER_TEMP}/out/changed.raw" \\`: true,
+}
+
 // Golden fingerprints. Every step's run text is pinned by sha256, so any edit
 // to a shell step fails; inputs of the actions, the job env and the
 // concurrency block are pinned as formatted text. Changing the workflow means
@@ -245,8 +254,10 @@ func lint(text string) []string {
 		}
 		// The change is never classified by shell text: no step may search the
 		// changed-path list itself.
-		if strings.Contains(s.Run, "changed.raw") && (strings.Contains(s.Run, "grep") || strings.Contains(s.Run, "awk") || strings.Contains(s.Run, "sed ") || strings.Contains(s.Run, "tr ")) {
-			add("shell-classify")
+		for _, l := range strings.Split(s.Run, "\n") {
+			if strings.Contains(l, "changed") && !changedLineOK[strings.TrimSpace(l)] {
+				add("shell-classify")
+			}
 		}
 		if s.ID == "verify" && strings.Contains(s.Run, "|| true") {
 			add("verify-swallowed")
@@ -549,6 +560,11 @@ func TestVerifyPRWorkflowMutationsAreCaught(t *testing.T) {
 		{"verdict allows trust", ".result == \"NOT_APPLICABLE\")", ".result == \"NOT_APPLICABLE\" or .result == \"TRUST_PATH_CHANGE\")", "verdict-logic"},
 		{"verdict allows any class", "(.result == \"ELIGIBLE\" or .result == \"NOT_APPLICABLE\")", "(.class != null)", "verdict-logic"},
 		{"shell grep of changed list", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n          grep -c workflows \"${out}/changed.raw\" || true\n", "shell-classify"},
+		{"shell cut of changed list", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n          cut -z -d/ -f1 \"${out}/changed.raw\"\n", "shell-classify"},
+		{"shell jq of changed list", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n          jq -R . < \"${out}/changed.raw\"\n", "shell-classify"},
+		{"shell python of changed list", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n          python3 -c 'print(1)' \"${out}/changed.raw\"\n", "shell-classify"},
+		{"changed list copied", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n          cp \"${out}/changed.raw\" \"${out}/c2\"\n", "shell-classify"},
+		{"tool reads another list", "--changed-paths \"${RUNNER_TEMP}/out/changed.raw\" \\\n", "--changed-paths \"${RUNNER_TEMP}/out/other.raw\" \\\n", "shell-classify"},
 		{"shell grep in fetch step", "          objects=\"${RUNNER_TEMP}/objects.git\"\n          git init", "          grep -z -c target-recipes \"${RUNNER_TEMP}/out/changed.raw\" || true\n          objects=\"${RUNNER_TEMP}/objects.git\"\n          git init", "shell-classify"},
 		{"no fsck", "          git -C \"${objects}\" config transfer.fsckObjects true\n", "", "fetch-fsck"},
 		{"export not stopped", "          echo \"::stop-commands::${token}\"\n          \"${RUNNER_TEMP}/prufyx-maintainer\" gate export", "          \"${RUNNER_TEMP}/prufyx-maintainer\" gate export", "head-path"},

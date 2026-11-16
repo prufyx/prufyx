@@ -169,28 +169,29 @@ reason; no path is echoed). Exit 0 for the four classes, exit 2 for `ERROR`.
 | class | when | in the workflow |
 |---|---|---|
 | `ERROR` | the list is unreadable, empty, malformed, over 4 MiB or over 20000 records | red, result `ERROR` |
-| `TRUST_PATH_CHANGE` | any changed path is under `.github/workflows/`, is `.github/CODEOWNERS`, or is under `cli/internal/maintainer/targetdraft/`, `cli/internal/maintainer/knowledgegate/`, `cli/internal/maintainer/verifyprworkflow/`, `cli/internal/extract/`, `cli/knowledge/` (outside the recipe root below), `cli/cmd/prufyx-maintainer/`; or any path is refused (below) | red, result `TRUST_PATH_CHANGE`, never eligible |
-| `MIXED_CHANGE` | no trust path, but a recipe or real-target path together with a path that is neither | red, result `MIXED_CHANGE` |
+| `TRUST_PATH_CHANGE` | any changed path is neither a recipe or real-target path nor on the documentation allowlist (so all of `.github/`, `scripts/`, `cli/` code, `cli/go.mod`, `cli/go.sum`, `cli/vendor/`, `cli/knowledge/` outside the recipe root, `Makefile`, `tools/`, every root file but `README*.md`, and anything new); or any path is refused (below) | red, result `TRUST_PATH_CHANGE`, never eligible |
+| `MIXED_CHANGE` | only recipe, real-target and allowlisted paths, but both kinds | red, result `MIXED_CHANGE` |
 | `APPLICABLE` | every changed path is under `cli/knowledge/target-recipes/` or is `cli/internal/extract/crdversions/target-<slug>.json` | the verify step runs |
-| `NOT_APPLICABLE` | no changed path is in a trust path, the recipe root or a real target | green, result `NOT_APPLICABLE`, never eligible |
+| `NOT_APPLICABLE` | every changed path is on the documentation allowlist | green, result `NOT_APPLICABLE`, never eligible |
 
-The classes are checked in the order of the table, so a PR touching both a trust
-path and a recipe is `TRUST_PATH_CHANGE`. `MIXED_CHANGE` is a class beyond the
-four a data-only rule needs: a recipe edit with an unrelated file is not
-data-only, so it is neither `APPLICABLE` nor green.
+The rule is default deny: the classes are checked in the order of the table, so
+a PR touching both a trust path and a recipe is `TRUST_PATH_CHANGE`, and a path
+nobody listed is a trust path, never a green one. `MIXED_CHANGE` is a class
+beyond the four a data-only rule needs: a recipe edit with a documentation file
+is not data-only, so it is neither `APPLICABLE` nor green.
+
+The documentation allowlist is exactly: `README*.md` at the repository root,
+`docs/**/*.md` and `changelog.d/**/*.md`. It is matched exactly and
+case-sensitively (no folding): `Docs/x.md`, `readme.md`, `README.MD` and
+`docs/x.MD` are not allowlisted. Markdown only; a `CODEOWNERS` segment is never
+allowlisted. `cli/docs` is not on it (it holds JSON that code reads).
 
 Matching rules, all fail-closed:
 
 - Recipe and real-target paths match exactly and case-sensitively, as git does
-  (the slug is `[a-z0-9]+(-[a-z0-9]+)*`). Anything else under `cli/internal/extract/`
-  or `cli/knowledge/` is a trust path.
-- Trust paths match on whole path segments (`cli/internal/extractor/` is not
-  `cli/internal/extract/`) and ignoring case: git is case sensitive, so
-  `cli/Knowledge/x` is a different path on Linux, but on a case-insensitive
-  checkout it is the same file, so it is judged as the trust path. The fold is
-  simple Unicode folding, so a path using the Kelvin sign for `k` is a trust path
-  too. Other look-alike characters (Cyrillic letters, a fullwidth slash) are
-  different names: they are not trust paths and never `APPLICABLE`.
+  (the slug is `[a-z0-9]+(-[a-z0-9]+)*`). A case variant, a Unicode look-alike or a
+  Windows-style alias (`workflows.`, 8.3 short names) matches nothing on the
+  lists, so it is a trust path.
 - A refused path is a `TRUST_PATH_CHANGE`: absolute, empty, not UTF-8, a control
   character (NUL, newline, tab, DEL), a backslash, a `.` or `..` segment, a
   doubled or trailing slash (the path must equal its own cleaned form).

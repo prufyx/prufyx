@@ -20,15 +20,22 @@ import (
 // alter the rule that judges it. It reads one file, never the network and never
 // the change's content: only path names.
 //
+// The rule is default-deny. A path is only ever judged harmless when it is on
+// the small explicit documentation allowlist below; a path is only data when it
+// is a recipe or a real target; EVERY other path (all of .github/, scripts/,
+// cli/ code and go.mod, Makefile, tools, root files, anything new) is a trust
+// path. A new kind of file therefore fails closed instead of looking green.
+//
 // Classes, checked in this order:
 //
 //	ERROR             the list is unreadable, empty, malformed or over a bound
-//	TRUST_PATH_CHANGE any path (old or new side of a rename included) is in a
-//	                  trust path, or is a path the classifier refuses to judge
-//	MIXED_CHANGE      a recipe or real-target path together with a path that is
-//	                  neither (not a data-only change; never green)
+//	TRUST_PATH_CHANGE any path (old or new side of a rename included) is neither
+//	                  data nor on the documentation allowlist, or cannot be
+//	                  judged (refused path)
+//	MIXED_CHANGE      only data and allowlisted paths, but both kinds (not a
+//	                  data-only change; never green)
 //	APPLICABLE        every path is under the recipe root or is a real target
-//	NOT_APPLICABLE    no path is in a trust path, a recipe or a real target
+//	NOT_APPLICABLE    every path is on the documentation allowlist
 //
 // None of these is eligibility. Only the verify step's ELIGIBLE result is.
 const (
@@ -46,18 +53,28 @@ const (
 	maxClassifyPaths = 20000
 )
 
-// trustPathDirs are directories (or, for the CODEOWNERS file, one file) whose
-// change is a change of the checks themselves. Matching is on whole path
-// segments and ignores case (see classifyPath).
-var trustPathDirs = []string{
-	".github/workflows",
-	".github/CODEOWNERS",
-	"cli/internal/maintainer/targetdraft",
-	"cli/internal/maintainer/knowledgegate",
-	"cli/internal/maintainer/verifyprworkflow",
-	"cli/internal/extract",
-	"cli/knowledge",
-	"cli/cmd/prufyx-maintainer",
+// isDocsPath is the whole non-trust allowlist; it matches case-sensitively and
+// exactly (no folding, so a case variant is NOT allowlisted):
+//   - README*.md at the repository root: prose, read by no tool;
+//   - docs/**/*.md: maintainer documentation, markdown only;
+//   - changelog.d/**/*.md: release-note fragments, markdown only.
+//
+// Deliberately not listed: cli/docs (it holds JSON that code reads), site and
+// every other root file. A path with a CODEOWNERS segment is never allowlisted
+// (GitHub reads docs/CODEOWNERS), and a path with any other extension is not.
+func isDocsPath(p string) bool {
+	for _, seg := range strings.Split(p, "/") {
+		if strings.EqualFold(seg, "CODEOWNERS") {
+			return false
+		}
+	}
+	if !strings.HasSuffix(p, ".md") {
+		return false
+	}
+	if !strings.Contains(p, "/") {
+		return strings.HasPrefix(p, "README")
+	}
+	return strings.HasPrefix(p, "docs/") || strings.HasPrefix(p, "changelog.d/")
 }
 
 // ClassifyResult is the outcome of ClassifyChanged.
@@ -67,7 +84,7 @@ type ClassifyResult struct {
 	Trust      int // trust-path paths, refused paths included
 	Refused    int // paths refused as unjudgeable (counted in Trust)
 	Data       int // recipe or real-target paths
-	Other      int // everything else
+	Other      int // allowlisted documentation paths
 	Reason     string
 	ErrorCode  string
 	ErrorExtra string
@@ -76,7 +93,7 @@ type ClassifyResult struct {
 type pathKind int
 
 const (
-	kindOther pathKind = iota
+	kindDocs pathKind = iota
 	kindData
 	kindTrust
 	kindRefused
@@ -102,28 +119,6 @@ func refusePath(p string) bool {
 	return path.Clean(p) != p
 }
 
-// underFold reports whether p is dir or lies below it, comparing the leading
-// runes of p with the ASCII dir by simple Unicode case folding. Folding is
-// deliberate: git is case sensitive, but a checkout on a case-insensitive file
-// system (or a path that folds to a trust name, such as one with the Kelvin
-// sign) must never look like an unrelated path, so it is judged as the trust
-// path. The boundary is a whole segment.
-func underFold(p, dir string) bool {
-	n := utf8.RuneCountInString(dir)
-	if utf8.RuneCountInString(p) < n {
-		return false
-	}
-	end := 0
-	for i := 0; i < n; i++ {
-		_, w := utf8.DecodeRuneInString(p[end:])
-		end += w
-	}
-	if !strings.EqualFold(p[:end], dir) {
-		return false
-	}
-	return end == len(p) || p[end] == '/'
-}
-
 func isRealTarget(p string) bool {
 	rest, ok := strings.CutPrefix(p, CrdVersionsDir+"/")
 	if !ok {
@@ -134,9 +129,8 @@ func isRealTarget(p string) bool {
 	return ok1 && ok2 && slugRE.MatchString(name) && p == realTargetPath(name)
 }
 
-// classifyPath judges one path. Data paths are matched exactly (case
-// sensitive); trust paths are matched with folding, and trust is only left
-// when the exact data rule matches first.
+// classifyPath judges one path, default-deny: anything that is not a recipe
+// path, a real target or an allowlisted documentation path is a trust path.
 func classifyPath(p string) pathKind {
 	if refusePath(p) {
 		return kindRefused
@@ -147,12 +141,10 @@ func classifyPath(p string) pathKind {
 	if isRealTarget(p) {
 		return kindData
 	}
-	for _, d := range trustPathDirs {
-		if underFold(p, d) {
-			return kindTrust
-		}
+	if isDocsPath(p) {
+		return kindDocs
 	}
-	return kindOther
+	return kindTrust
 }
 
 // changedPathsFromRaw reads `git diff --raw -z --no-abbrev` output. Every path
@@ -242,13 +234,13 @@ func ClassifyChanged(raw []byte) ClassifyResult {
 	}
 	switch {
 	case res.Trust > 0:
-		res.Class, res.Reason = ClassTrustPathChange, "a changed path is in a trust path or cannot be judged"
+		res.Class, res.Reason = ClassTrustPathChange, "a changed path is not data or allowlisted documentation (default deny), or cannot be judged"
 	case res.Data > 0 && res.Other > 0:
-		res.Class, res.Reason = ClassMixedChange, "recipe or target paths together with other paths"
+		res.Class, res.Reason = ClassMixedChange, "recipe or target paths together with documentation paths"
 	case res.Data > 0:
 		res.Class, res.Reason = ClassApplicable, "every changed path is a recipe or real-target path"
 	default:
-		res.Class, res.Reason = ClassNotApplicable, "no changed path is a trust, recipe or target path"
+		res.Class, res.Reason = ClassNotApplicable, "every changed path is allowlisted documentation"
 	}
 	return res
 }
@@ -263,7 +255,7 @@ type classifyDoc struct {
 	Trust   int    `json:"trustPaths"`
 	Refused int    `json:"refusedPaths"`
 	Data    int    `json:"dataPaths"`
-	Other   int    `json:"otherPaths"`
+	Other   int    `json:"docsPaths"`
 	Reason  string `json:"reason"`
 }
 
@@ -290,7 +282,7 @@ func runClassifyPR(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "detail: %s\n", strconv.Quote(res.ErrorCode+": "+res.ErrorExtra))
 		return 2
 	}
-	fmt.Fprintf(stdout, "paths %d, trust %d (refused %d), data %d, other %d: %s\n", res.Paths, res.Trust, res.Refused, res.Data, res.Other, res.Reason)
+	fmt.Fprintf(stdout, "paths %d, trust %d (refused %d), data %d, docs %d: %s\n", res.Paths, res.Trust, res.Refused, res.Data, res.Other, res.Reason)
 	if jsonOut {
 		var buf bytes.Buffer
 		enc := json.NewEncoder(&buf)

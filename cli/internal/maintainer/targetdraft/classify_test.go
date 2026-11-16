@@ -53,12 +53,43 @@ func TestClassifyTable(t *testing.T) {
 		{"recipe plus target", mod(rd+"recipe.json", tgt), ClassApplicable},
 		{"two slugs", mod(rd+"recipe.json", "cli/knowledge/target-recipes/b/recipe.json", "cli/internal/extract/crdversions/target-b.json"), ClassApplicable},
 		{"docs only", mod("README.md"), ClassNotApplicable},
-		{"site only", mod("site/index.html", "docs/a/b.md"), ClassNotApplicable},
-		{"other cli", mod("cli/internal/other/x.go"), ClassNotApplicable},
+		{"docs only", mod("docs/a/b.md", "changelog.d/x.md", "README-extra.md"), ClassNotApplicable},
+		{"site is not allowlisted", mod("site/index.html"), ClassTrustPathChange},
+		{"other cli", mod("cli/internal/other/x.go"), ClassTrustPathChange},
 		{"workflow", mod(".github/workflows/verify-pr.yml"), ClassTrustPathChange},
 		{"other workflow", mod(".github/workflows/x.yml"), ClassTrustPathChange},
 		{"codeowners", mod(".github/CODEOWNERS"), ClassTrustPathChange},
-		{"other github file", mod(".github/dependabot.yml"), ClassNotApplicable},
+		{"dependabot", mod(".github/dependabot.yml"), ClassTrustPathChange},
+		{"github actions dir", mod(".github/actions/x/action.yml"), ClassTrustPathChange},
+		{"github any file", mod(".github/PULL_REQUEST_TEMPLATE.md"), ClassTrustPathChange},
+		{"scripts", mod("scripts/x.sh"), ClassTrustPathChange},
+		{"scripts merge policy", mod("scripts/merge-policy-check.sh"), ClassTrustPathChange},
+		{"go mod", mod("cli/go.mod"), ClassTrustPathChange},
+		{"go sum", mod("cli/go.sum"), ClassTrustPathChange},
+		{"vendor", mod("cli/vendor/x/y.go"), ClassTrustPathChange},
+		{"maintainer mergepolicy", mod("cli/internal/maintainer/mergepolicy/x.go"), ClassTrustPathChange},
+		{"maintainer releasesign", mod("cli/internal/maintainer/releasesign/x.go"), ClassTrustPathChange},
+		{"other cmd", mod("cli/cmd/other/x.go"), ClassTrustPathChange},
+		{"makefile", mod("Makefile"), ClassTrustPathChange},
+		{"cli makefile", mod("cli/Makefile"), ClassTrustPathChange},
+		{"tools", mod("tools/x"), ClassTrustPathChange},
+		{"root codeowners", mod("CODEOWNERS"), ClassTrustPathChange},
+		{"docs codeowners", mod("docs/CODEOWNERS"), ClassTrustPathChange},
+		{"docs codeowners md", mod("docs/codeowners/x.md"), ClassTrustPathChange},
+		{"action yml", mod("action.yml"), ClassTrustPathChange},
+		{"root license", mod("LICENSE"), ClassTrustPathChange},
+		{"root gitignore", mod(".gitignore"), ClassTrustPathChange},
+		{"cli docs json", mod("cli/docs/data/selected-source-records-v1.json"), ClassTrustPathChange},
+		{"cli docs md", mod("cli/docs/x.md"), ClassTrustPathChange},
+		{"docs non markdown", mod("docs/x.json"), ClassTrustPathChange},
+		{"docs script", mod("docs/run.sh"), ClassTrustPathChange},
+		{"changelog.d non markdown", mod("changelog.d/x.json"), ClassTrustPathChange},
+		{"readme in subdir", mod("cli/README.md"), ClassTrustPathChange},
+		{"readme not markdown", mod("README.txt"), ClassTrustPathChange},
+		{"root changelog", mod("CHANGELOG.md"), ClassTrustPathChange},
+		{"windows trailing dot", mod(".github/workflows./x.yml"), ClassTrustPathChange},
+		{"windows short name", mod("GITHUB~1/WORKFL~1/x.yml"), ClassTrustPathChange},
+		{"windows ads", mod(".github/workflows/x.yml::$DATA"), ClassTrustPathChange},
 		{"targetdraft", mod("cli/internal/maintainer/targetdraft/verify.go"), ClassTrustPathChange},
 		{"targetdraft nested", mod("cli/internal/maintainer/targetdraft/testdata/a/b"), ClassTrustPathChange},
 		{"knowledgegate", mod("cli/internal/maintainer/knowledgegate/x.go"), ClassTrustPathChange},
@@ -72,9 +103,9 @@ func TestClassifyTable(t *testing.T) {
 		{"knowledge root file", mod("cli/knowledge/x.json"), ClassTrustPathChange},
 		{"recipes dir as file", mod("cli/knowledge/target-recipes"), ClassTrustPathChange},
 		{"maintainer cmd", mod("cli/cmd/prufyx-maintainer/main.go"), ClassTrustPathChange},
-		{"sibling prefix not trust", mod("cli/cmd/prufyx-maintainer-x/main.go"), ClassNotApplicable},
-		{"sibling prefix extract", mod("cli/internal/extractor/x.go"), ClassNotApplicable},
-		{"sibling prefix knowledge", mod("cli/knowledgebase/x"), ClassNotApplicable},
+		{"sibling prefix is not allowlisted", mod("cli/cmd/prufyx-maintainer-x/main.go"), ClassTrustPathChange},
+		{"sibling prefix extract", mod("cli/internal/extractor/x.go"), ClassTrustPathChange},
+		{"sibling prefix knowledge", mod("cli/knowledgebase/x"), ClassTrustPathChange},
 		{"trust plus recipe", mod(rd+"recipe.json", ".github/workflows/verify-pr.yml"), ClassTrustPathChange},
 		{"recipe plus trust, trust first", mod(".github/CODEOWNERS", rd+"recipe.json", tgt), ClassTrustPathChange},
 		{"target plus extract go", mod(tgt, "cli/internal/extract/x.go"), ClassTrustPathChange},
@@ -107,15 +138,22 @@ func TestClassifyTable(t *testing.T) {
 		{"case recipe root cli", mod("Cli/knowledge/target-recipes/a/recipe.json"), ClassTrustPathChange},
 		{"case crdversions", mod("cli/internal/extract/CRDVersions/target-a.json"), ClassTrustPathChange},
 		{"case target prefix", mod("cli/internal/extract/crdversions/Target-a.json"), ClassTrustPathChange},
-		{"case only docs dir", mod("Docs/x.md"), ClassNotApplicable},
+		{"case docs dir", mod("Docs/x.md"), ClassTrustPathChange},
+		{"case readme", mod("readme.md"), ClassTrustPathChange},
+		{"case readme ext", mod("README.MD"), ClassTrustPathChange},
+		{"case docs ext", mod("docs/x.MD"), ClassTrustPathChange},
+		{"case changelog.d", mod("Changelog.d/x.md"), ClassTrustPathChange},
+		{"case recipe dir inside allowlist neighbour", mod("docs/x.md", "CLI/knowledge/target-recipes/a/recipe.json"), ClassTrustPathChange},
 		// Unicode: simple folds onto ASCII are trust; other look-alikes are
 		// different names, never a trust path and never applicable.
 		{"kelvin sign", mod("cli/\u212Anowledge/x.json"), ClassTrustPathChange},
 		{"long s folds", mod(".github/workflow\u017F/x.yml"), ClassTrustPathChange},
-		{"long s inside", mod(".github/work\u017Flows/x.yml"), ClassNotApplicable},
-		{"cyrillic a", mod(".github/workfl\u043Ews/x.yml"), ClassNotApplicable},
-		{"cyrillic i in trust dir", mod("cl\u0456/knowledge/x"), ClassNotApplicable},
-		{"fullwidth slash", mod(".github\uFF0Fworkflows/x.yml"), ClassNotApplicable},
+		{"long s inside", mod(".github/work\u017Flows/x.yml"), ClassTrustPathChange},
+		{"cyrillic a", mod(".github/workfl\u043Ews/x.yml"), ClassTrustPathChange},
+		{"cyrillic readme", mod("READM\u0415.md"), ClassTrustPathChange},
+		{"cyrillic docs", mod("d\u043Ecs/x.md"), ClassTrustPathChange},
+		{"cyrillic i in trust dir", mod("cl\u0456/knowledge/x"), ClassTrustPathChange},
+		{"fullwidth slash", mod(".github\uFF0Fworkflows/x.yml"), ClassTrustPathChange},
 		{"non ascii recipe slug", mod("cli/knowledge/target-recipes/\u00E9/recipe.json"), ClassApplicable},
 		// Refused paths are trust.
 		{"absolute", mod("/etc/passwd"), ClassTrustPathChange},
@@ -217,32 +255,23 @@ func TestClassifyRealTargetsAreData(t *testing.T) {
 	}
 }
 
-// Mutation killers for the individual rules, each against the single path
-// that only that rule decides.
-func TestClassifyEachTrustDirIsRequired(t *testing.T) {
-	for _, d := range trustPathDirs {
-		if got := ClassifyChanged(mod(d + "/zz-file")); got.Class != ClassTrustPathChange {
-			t.Errorf("%s: %s", d, got.Class)
-		}
-		if got := ClassifyChanged(mod(strings.ToUpper(d) + "/zz-file")); got.Class != ClassTrustPathChange {
-			t.Errorf("upper %s: %s", d, got.Class)
-		}
-		if got := ClassifyChanged(mod(d + "x/zz-file")); got.Class == ClassTrustPathChange {
-			t.Errorf("%sx: a sibling name is not the trust path", d)
+// Default deny: the allowlist is exactly these shapes, nothing wider.
+func TestClassifyAllowlistIsExact(t *testing.T) {
+	yes := []string{"README.md", "README-extra.md", "docs/a.md", "docs/a/b/c.md", "changelog.d/a.md", "changelog.d/a/b.md"}
+	no := []string{
+		"README", "README.txt", "readme.md", "Readme.md", "x/README.md", "docs.md", "docs", "docs/a.txt", "docs/a.md/b",
+		"docs/CODEOWNERS", "docs/codeowners", "docs/sub/CODEOWNERS", "docs/CODEOWNERS/x.md", "CODEOWNERS",
+		"changelog.d/a.yml", "Changelog.d/a.md", "changelog/a.md", "cli/docs/a.md", "site/a.md", "examples/a.md",
+		"contrib/a.md", "testdata/a.md", "LICENSE", "CHANGELOG.md", "SECURITY.md", "action.yml",
+	}
+	for _, p := range yes {
+		if !isDocsPath(p) || classifyPath(p) != kindDocs {
+			t.Errorf("%q must be allowlisted", p)
 		}
 	}
-	want := map[string]bool{
-		".github/workflows": true, ".github/CODEOWNERS": true,
-		"cli/internal/maintainer/targetdraft": true, "cli/internal/maintainer/knowledgegate": true,
-		"cli/internal/maintainer/verifyprworkflow": true, "cli/internal/extract": true,
-		"cli/knowledge": true, "cli/cmd/prufyx-maintainer": true,
-	}
-	if len(trustPathDirs) != len(want) {
-		t.Fatalf("trust path list changed: %v", trustPathDirs)
-	}
-	for _, d := range trustPathDirs {
-		if !want[d] {
-			t.Errorf("unexpected trust path %s", d)
+	for _, p := range no {
+		if isDocsPath(p) || classifyPath(p) != kindTrust {
+			t.Errorf("%q must not be allowlisted", p)
 		}
 	}
 }
@@ -259,7 +288,10 @@ func TestClassifyPathKinds(t *testing.T) {
 		{"cli/internal/extract/crdversions/target-a--b.json", kindTrust},
 		{"cli/internal/extract/crdversions/target-a.json.bak", kindTrust},
 		{"cli/internal/extract/crdversions/sub/target-a.json", kindTrust},
-		{"docs/x.md", kindOther},
+		{"docs/x.md", kindDocs},
+		{"scripts/x.sh", kindTrust},
+		{"cli/go.mod", kindTrust},
+		{"Docs/x.md", kindTrust},
 		{"a\\b", kindRefused},
 		{"/a", kindRefused},
 		{"a/../b", kindRefused},
