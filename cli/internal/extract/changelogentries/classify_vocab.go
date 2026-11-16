@@ -170,19 +170,14 @@ func lexiconHits(v *vocabulary, text string) []string {
 	var hits []string
 	for _, form := range textForms(text) {
 		n := normText(form)
+		sq := squash(form)
 		for _, t := range v.Lexicon {
-			if strings.Contains(n, t) {
+			// Fifth form: lower-cased with every character that is not a
+			// letter or digit deleted, term and text alike ("no longer" is
+			// "nolonger"). It over-flags on purpose.
+			if strings.Contains(n, t) || strings.Contains(sq, squash(t)) {
 				hits = append(hits, t)
 			}
-		}
-	}
-	// Fifth form: lower-cased with every character that is not a letter or
-	// digit deleted, so any split of a word by punctuation, link syntax or
-	// spaces still hits. It over-flags on purpose: any hit is needs-review.
-	squashed := squash(text)
-	for _, t := range v.Lexicon {
-		if strings.Contains(squashed, squash(t)) {
-			hits = append(hits, t)
 		}
 	}
 	return sortedUnique(hits)
@@ -200,6 +195,7 @@ func squash(s string) string {
 }
 
 var (
+	linkTailRE    = regexp.MustCompile(`\]\((?:[^()\s]|\([^()\s]*\))*\)|\]\[[^\]\s]*\]`)
 	linkSplitRE   = regexp.MustCompile(`[0-9A-Za-z]\[|[\])][0-9A-Za-z]`)
 	markupCharsRE = regexp.MustCompile("[*_`~\\\\]")
 	htmlTagRE     = regexp.MustCompile(`<!--.*?-->|</?[A-Za-z][^<>]*>`)
@@ -212,7 +208,13 @@ var (
 func textForms(text string) []string {
 	noMarkup := markupCharsRE.ReplaceAllString(text, "")
 	rendered := html.UnescapeString(htmlTagRE.ReplaceAllString(text, ""))
-	return []string{text, noMarkup, rendered, markupCharsRE.ReplaceAllString(rendered, "")}
+	forms := []string{text, noMarkup, rendered, markupCharsRE.ReplaceAllString(rendered, "")}
+	// The same again with link destinations and reference labels removed, so
+	// "[no](https://x) longer" reads "no longer".
+	for _, f := range forms[:4] {
+		forms = append(forms, linkTailRE.ReplaceAllString(f, "]"))
+	}
+	return forms
 }
 
 // hasSplitMarkup is true when the text holds an HTML angle bracket or a
