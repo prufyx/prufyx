@@ -113,7 +113,14 @@ func roStops(slug, repo, group string, filtered bool) []Stop {
 		rules.PathFilter = []PathFilterRule{{Glob: p, Reason: "r", Evidence: "e", ExpectFiles: 1}}
 	}
 	r := classify("v1.0.0", "c", []*finding{roFinding(p, group)}, rules, slug, repo, customresources.DefaultIndex(), nil)
-	return r.stops
+	// A fixture whose only file is filtered has no source: not the subject.
+	var out []Stop
+	for _, st := range r.stops {
+		if st.Code != StopNoCRDSource {
+			out = append(out, st)
+		}
+	}
+	return out
 }
 
 func roHas(stops []Stop, code string) bool {
