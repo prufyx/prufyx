@@ -154,6 +154,9 @@ func scan(lines []string) scanned {
 				sc.kind[i] = kResidue
 			} else {
 				sc.kind[i] = kItem
+				if isBlank(l) {
+					sc.kind[i] = kBlank // a blank inside a fence is still a blank line
+				}
 				extend(n)
 			}
 			if fenceCloses(l, fch, flen) {

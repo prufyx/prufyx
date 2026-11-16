@@ -69,7 +69,6 @@ func TestLinkDefinitionShape(t *testing.T) {
 func TestIndentedFenceWithoutOwner(t *testing.T) {
 	for name, body := range map[string]string{
 		"after heading":  "### Notes\n  ```\n  # fake\n  ```\n* [FEATURE] x. #1\n",
-		"after blank":    "* [FEATURE] x. #1\n\n  ~~~\n  ## 3.4.0 / 2025-05-17\n  ~~~\n",
 		"after break":    "---\n  ```\n  code\n  ```\n* [FEATURE] x. #1\n",
 		"after linkdef":  "[a]: https://x.test\n  ```\n  code\n  ```\n* [FEATURE] x. #1\n",
 		"unterminated":   "* [FEATURE] x. #1\n\n### Notes\n  ```\n  code\n",
@@ -94,6 +93,13 @@ func TestIndentedFenceWithoutOwner(t *testing.T) {
 			}
 		}()
 	}
+	// An indented fence after an item and a blank line is that item's continuation,
+	// and what it holds is never read as a heading.
+	c := mustLocate(t, promTarget, "v3.5.0", entryWith("* [FEATURE] x. #1\n\n  ~~~\n  ## 3.4.0 / 2025-05-17\n\n  ~~~\n"))
+	if len(c.Items) != 1 || len(c.Structure) != 1 {
+		t.Fatalf("%+v", c.Items)
+	}
+	oracleAccount(t, []byte(entryWith("* [FEATURE] x. #1\n\n  ~~~\n  ## 3.4.0 / 2025-05-17\n\n  ~~~\n")), c)
 	// The same fence in ANOTHER entry does not disturb the located one.
 	f := "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x. #1\n\n## 3.4.0 / 2025-05-17\n\n### Notes\n  ```\n  # fake\n  ## 3.5.0 / 2025-07-14\n  ```\n* [FEATURE] y. #2\n"
 	e := mustLocate(t, promTarget, "v3.5.0", f)
