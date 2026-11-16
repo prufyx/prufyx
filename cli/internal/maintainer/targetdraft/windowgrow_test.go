@@ -177,6 +177,12 @@ func TestGrowOnlyNegatives(t *testing.T) {
 		{"moved to another file of the directory", with(func(m *memTree) {
 			m.files["config/crd/c.yaml"] = append(append([]byte{}, m.files["config/crd/c.yaml"]...), append([]byte("---\n"), fullCRD(gGroup, "D", "ds", "Namespaced", "v1")...)...)
 		}), "identity facts"},
+		{"incomplete facts (no plural or scope)", func(tag string, m *memTree) {
+			m.files["config/crd/c.yaml"] = crdText(gGroup, "C")
+			if tag == "v1.0.0" {
+				delete(m.files, "config/crd/d.yaml")
+			}
+		}, "cannot be compared"},
 		{"second directory absent at the older tag", with(func(m *memTree) { delete(m.files, "config/other/x.yaml") }), "has no install file"},
 		{"second directory shrinks", with(func(m *memTree) { m.files["config/other/y.yaml"] = fullCRD(gGroup, "Y", "ys", "Namespaced", "v1") }), "set shrinks"},
 		{"oldest tag has no directory", func(tag string, m *memTree) {

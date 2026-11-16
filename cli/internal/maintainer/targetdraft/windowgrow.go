@@ -95,14 +95,18 @@ func growStep(r, next *tagResult, rules *Rules) (why string, stopped bool, added
 		case !equalFacts(fileFacts(ri), fileFacts(ni)):
 			return "grow-only: " + p + " defines other CRD identity facts (group, kind, plural, scope or versions) than at the next newer tag", false, nil
 		}
-		for _, c := range ri.CRDs {
-			if c.Group == "" || c.Kind == "" || c.Plural == "" || c.Scope == "" || len(c.Versions) == 0 {
-				return "grow-only: " + p + " has CRD facts that cannot be compared", false, nil
-			}
-		}
 	}
 	if len(added) == 0 {
 		return "", false, nil
+	}
+	// A real growth needs complete, comparable facts on every file the older
+	// tag installs; anything incomplete is the withhold (fail closed).
+	for p, ri := range r.included {
+		for _, c := range ri.CRDs {
+			if c.Group == "" || c.Kind == "" || c.Plural == "" || c.Scope == "" || len(c.Versions) == 0 {
+				return "grow-only: " + p + " has CRD facts that cannot be compared (plural, scope or versions missing)", false, nil
+			}
+		}
 	}
 	// Directories of the newer tag; the older tag must read in each of them.
 	rdirs := map[string]bool{}
