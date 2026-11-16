@@ -544,7 +544,7 @@ func objList(objs []string) string {
 	return "[\n      " + strings.Join(objs, ",\n      ") + "\n    ]"
 }
 
-func build(in Input, catalog, component, fact, ownerRepo, prefix string, prefixes []string, prefixWindows []PrefixWindow, minFrom string, rules *Rules, window []*tagResult, dropped []DroppedTag, newest *tagResult, union map[string]*inclusion, dirs []collapsedDir) (*Result, error) {
+func build(in Input, catalog, component, fact, ownerRepo, prefix string, prefixes []string, prefixWindows []PrefixWindow, minFrom string, rules *Rules, window []*tagResult, dropped []DroppedTag, newest, citation *tagResult, union map[string]*inclusion, dirs []collapsedDir) (*Result, error) {
 	ordered := orderPaths(newest.included)
 	// With ranged entries the target lists the union of the paths read at the
 	// window tags (the moved directory appears with both locations); groups
@@ -589,11 +589,20 @@ func build(in Input, catalog, component, fact, ownerRepo, prefix string, prefixe
 	// Group kind lists: the union of the kinds read at the newest tag.
 	kinds := map[string]map[string]bool{}
 	source := map[string]string{}
+	if citation == nil {
+		citation = newest
+	}
+	for _, i := range orderPaths(citation.included) {
+		for _, c := range i.CRDs {
+			if _, ok := source[c.Group]; !ok {
+				source[c.Group] = i.Path
+			}
+		}
+	}
 	for _, i := range ordered {
 		for _, c := range i.CRDs {
 			if kinds[c.Group] == nil {
 				kinds[c.Group] = map[string]bool{}
-				source[c.Group] = i.Path
 			}
 			kinds[c.Group][c.Kind] = true
 		}
@@ -616,7 +625,7 @@ func build(in Input, catalog, component, fact, ownerRepo, prefix string, prefixe
 		}
 		sort.Strings(ks)
 		crdCount += len(ks)
-		row.Groups = append(row.Groups, rowGroup{Name: g, Source: blobURL(ownerRepo, newest.commit, source[g]), Kinds: ks})
+		row.Groups = append(row.Groups, rowGroup{Name: g, Source: blobURL(ownerRepo, citation.commit, source[g]), Kinds: ks})
 		gfacts = append(gfacts, GroupFact{Name: g, Kinds: ks})
 	}
 	rowRaw, err := marshal(row)
