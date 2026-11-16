@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -101,12 +102,12 @@ func (r *localRunner) calls() int {
 	return len(r.specs)
 }
 
-// realSeam is a seam fixture. The gate runs on the fixture as it is (the gate's
-// own allow-list refuses recipe directories in an onboarding change, a gap
-// reported separately), then the seam is run on an extended head: the same
-// head plus the real recipe directory and the generated target of the fake
-// upstream, committed in its own repository. The seam options point at that
-// repository and tree.
+// realSeam is a seam fixture on the COMPILED layout (the layout lock forced on
+// in a copy). The gate runs on the fixture as it is, then the seam is run on an
+// extended head: the same head plus the real recipe directory and the generated
+// target of the fake upstream, committed in its own repository. The seam
+// options point at that repository and tree. (The gate's own recipe allowance
+// is exercised on a fixture of its own, in onboarding_recipes_test.go.)
 type realSeam struct {
 	*seamFixture
 	up     string
@@ -149,24 +150,13 @@ func newRealSeam(t *testing.T) *realSeam {
 		writeFile(t, filepath.Join(s.head2.Root, filepath.FromSlash(recipesRoot+obSlug+"/"+name)), raw)
 	}
 	writeFile(t, filepath.Join(s.head2.Root, filepath.FromSlash(targetPath(ol, obSlug))), rd.Target)
-	// The compiled default layout carries no admission paths (a part of the
-	// activation work). The test layout names the files the fixture's change
-	// regenerates: every changed path that is not the batch, the table, the
-	// recipe directory or the target.
-	changed, err := ChangedPaths(f.base, s.head2)
-	if err != nil {
-		t.Fatal(err)
+	// The layout is the COMPILED one with only the layout lock forced on: the
+	// admission path sets are the ones the gate ships, not test-built.
+	want := DefaultLayout().OnboardingAdmission
+	want.Enabled = true
+	if !reflect.DeepEqual(s.opts.Layout.OnboardingAdmission, want) {
+		t.Fatalf("the test layout is not the compiled one: %+v", s.opts.Layout.OnboardingAdmission)
 	}
-	var static []string
-	for _, p := range changed {
-		if p == ol.TablePath || strings.HasPrefix(p, ol.Dir+"/") || strings.HasPrefix(p, recipesRoot) || strings.HasPrefix(p, targetdraft.CrdVersionsDir+"/") {
-			continue
-		}
-		static = append(static, p)
-	}
-	s.opts.Layout.OnboardingAdmission.StaticPaths = static
-	s.opts.Layout.OnboardingAdmission.ProjectPaths = []string{recipesRoot + "{slug}/"}
-	s.opts.Layout.OnboardingAdmission.TargetPath = targetdraft.CrdVersionsDir + "/target-{slug}.json"
 	s.opts.AdmissionRunner = s.runner
 	s.opts.AdmissionVerifier = func(in targetdraft.OnboardingVerifyInput) targetdraft.OnboardingVerifyResult {
 		res := targetdraft.VerifyOnboarding(in)
@@ -249,6 +239,11 @@ func TestRealSeamPositiveEndToEnd(t *testing.T) {
 	if d.VerifyPr.ChangedPathsSHA256 != d.PathSetSHA || d.VerifyPr.Outcome != "pass" {
 		t.Fatalf("decision binding %+v path set %s", d.VerifyPr, d.PathSetSHA)
 	}
+	// The compiled path sets accept the whole real change: no path reason of
+	// the decision, and the verifier's judged subset and A1's path set agree.
+	if got := pathReasons(&d); len(got) != 0 {
+		t.Fatalf("path reasons on the compiled layout: %v (all %v)", got, d.Reasons)
+	}
 	// Nothing here is merge authority: an owner fixture is never admitted.
 	if d.Admitted {
 		t.Fatal("an owner fixture with no allowlist was admitted")
@@ -296,4 +291,101 @@ func containsStr(list []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// pathReasons are the reasons of the decision that concern the changed paths.
+func pathReasons(d *OnboardingAdmission) []string {
+	paths := map[string]bool{AdmitReasonPathSet: true, AdmitReasonAllowlistUnset: true, AdmitReasonTrustPath: true, AdmitReasonForbiddenPath: true,
+		AdmitReasonPathOutside: true, AdmitReasonBatchPath: true, AdmitReasonProjects: true, AdmitReasonFileModes: true}
+	var out []string
+	for _, r := range d.Reasons {
+		if paths[r] {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// One negative per path set of the compiled layout: a file outside the exact
+// set is refused by the real verifier before any network use, and by the
+// frozen checker with the outside-path reason.
+func TestRealSeamCompiledPathSetNegatives(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		name, path string
+	}{
+		{"static set", "cli/docs/generated/other.md"},
+		{"project set, another file name", recipesRoot + obSlug + "/extra.json"},
+		{"project set, a subdirectory", recipesRoot + obSlug + "/sub/recipe.json"},
+		{"project set, another project's directory", recipesRoot + "other-project/recipe.json"},
+		{"target set, another project's target", targetdraft.CrdVersionsDir + "/target-other-project.json"},
+		{"target set, a name that is not a target", targetdraft.CrdVersionsDir + "/extra.json"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			s := newRealSeam(t)
+			head3 := cloneTree(t, s.head2)
+			writeFile(t, filepath.Join(head3.Root, filepath.FromSlash(c.path)), []byte("{}\n"))
+			in := s.seamOn(head3)
+			seamOnly(t, in, AdmitReasonSeamFailed)
+			if s.seen.Outcome != "fail" {
+				t.Fatalf("verifier: %+v", s.seen)
+			}
+			if s.runner.calls() != 0 {
+				t.Fatal("the network was used for a change that failed the local checks")
+			}
+			paths, err := ChangedPaths(s.f.base, head3)
+			if err != nil {
+				t.Fatal(err)
+			}
+			in.ChangedPaths = paths
+			d := AdmitOnboardingAuto(in)
+			if !containsStr(d.Reasons, AdmitReasonPathOutside) {
+				t.Fatalf("the checker did not refuse %s: %v", c.path, d.Reasons)
+			}
+		})
+	}
+}
+
+// The compiled sets, with each entry removed in turn, no longer cover the real
+// change: the positive test is not satisfied by a looser list.
+func TestRealSeamCompiledSetsAreNeeded(t *testing.T) {
+	t.Parallel()
+	s := newRealSeam(t)
+	in := s.seamOn(s.head2)
+	if len(in.SeamRefusals) != 0 {
+		t.Fatalf("seam refused: %v", in.SeamRefusals)
+	}
+	paths, err := ChangedPaths(s.f.base, s.head2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in.ChangedPaths = paths
+	cfg := in.Config
+	trimmed := func(list []string, i int) []string {
+		return append(append([]string(nil), list[:i]...), list[i+1:]...)
+	}
+	for i := range cfg.StaticPaths {
+		c := in
+		c.Config.StaticPaths = trimmed(cfg.StaticPaths, i)
+		d := AdmitOnboardingAuto(c)
+		if containsStr(paths, cfg.StaticPaths[i]) && !containsStr(d.Reasons, AdmitReasonPathOutside) {
+			t.Errorf("dropping static %s from the list still admits the paths", cfg.StaticPaths[i])
+		}
+	}
+	for i := range cfg.ProjectPaths {
+		c := in
+		c.Config.ProjectPaths = trimmed(cfg.ProjectPaths, i)
+		if !containsStr(paths, strings.ReplaceAll(cfg.ProjectPaths[i], "{slug}", obSlug)) {
+			continue // a recipe file this fixture does not carry
+		}
+		if d := AdmitOnboardingAuto(c); !containsStr(d.Reasons, AdmitReasonPathOutside) {
+			t.Errorf("dropping project path %s still admits the paths", cfg.ProjectPaths[i])
+		}
+	}
+	c := in
+	c.Config.TargetPath = ""
+	if d := AdmitOnboardingAuto(c); !containsStr(d.Reasons, AdmitReasonProjects) {
+		t.Error("an unset target path still admits")
+	}
 }

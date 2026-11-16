@@ -112,6 +112,10 @@ type onboardingState struct {
 	changeSetDigest string
 	// landscape maps a CNCF slug to its repository URL.
 	landscape map[string]string
+	// recipeFiles are the recipe files of the batch's one project that the
+	// gate found added or modified as plain files, when both admission locks
+	// are on (onboarding_recipes.go). Nil is the allow-list without any.
+	recipeFiles map[string]bool
 }
 
 func targetsDigest(targets map[string][]byte) (string, error) {
@@ -269,6 +273,10 @@ func (st *onboardingState) allowedPaths(rec OnboardingRecord, batchPath string) 
 	}
 	// The additions file and its <slug>.tags files (see batchAllowedPaths).
 	for rel := range additionsAllowedPaths(st.headTree) {
+		allowed[rel] = true
+	}
+	// The batch's one project's recipe files (both admission locks on).
+	for rel := range st.recipeAllowedPaths(rec) {
 		allowed[rel] = true
 	}
 	return allowed

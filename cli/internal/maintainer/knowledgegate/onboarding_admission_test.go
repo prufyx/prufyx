@@ -493,10 +493,14 @@ func TestOnboardingAdmissionInGateReport(t *testing.T) {
 		t.Fatalf("admission %+v", r.OnboardingAdmission)
 	}
 	have := strings.Join(r.OnboardingAdmission.Reasons, ",")
-	for _, want := range []string{AdmitReasonVerifyAbsent, AdmitReasonAuthor, AdmitReasonAllowlistUnset, AdmitReasonSeamContext} {
+	for _, want := range []string{AdmitReasonVerifyAbsent, AdmitReasonAuthor, AdmitReasonSeamContext} {
 		if !strings.Contains(have, want) {
 			t.Fatalf("reasons %s lack %s", have, want)
 		}
+	}
+	// The compiled layout names the allow-list now: it is no longer unset.
+	if strings.Contains(have, AdmitReasonAllowlistUnset) {
+		t.Fatalf("reasons %s: the compiled layout still has no allow-list", have)
 	}
 	raw, err := json.Marshal(r)
 	if err != nil || !bytes.Contains(raw, []byte(`"onboardingAdmission":{"schema":"onboarding-admission/v1"`)) {

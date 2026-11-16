@@ -143,6 +143,7 @@ func runOnboarding(ctx context.Context, opts Options, cls *Classification, chang
 	if err != nil {
 		return fail("O4: %s", logSafe(err.Error()))
 	}
+	st.recipeFiles = onboardingRecipeAllowance(ctx, opts, rec)
 	res.summary = st.envelopeSummary(env)
 	res.adm.state(st, rec)
 	if problems := st.check(rec, res.path); len(problems) > 0 {

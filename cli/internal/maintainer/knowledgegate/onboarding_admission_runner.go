@@ -55,7 +55,8 @@ func newAdmissionRunner() targetdraft.LsRemoteRunner { return admissionRunner{} 
 
 // runnerArgvOK accepts exactly one shape: runnerPrefix, one repository URL of
 // the fixed host, then for every tag the pair "refs/tags/T" and
-// "refs/tags/T^{}" (at least one pair). Nothing else is accepted: no extra,
+// "refs/tags/T^{}" (at least one pair, at most targetdraft.MaxBundleTags, no
+// tag twice, no ".." in a tag). Nothing else is accepted: no extra,
 // missing, reordered or re-valued -c setting, no other subcommand or option,
 // no other URL form, no other pattern.
 func runnerArgvOK(argv []string) bool {
@@ -77,11 +78,18 @@ func runnerArgvOK(argv []string) bool {
 		return false
 	}
 	pats := argv[n+1:]
+	// The verifier takes at most MaxBundleTags tags, once each, and refuses
+	// ".." in a tag: this check is at least that tight.
+	if len(pats)/2 > targetdraft.MaxBundleTags {
+		return false
+	}
+	seen := make(map[string]bool, len(pats)/2)
 	for i := 0; i < len(pats); i += 2 {
 		tag, ok := strings.CutPrefix(pats[i], "refs/tags/")
-		if !ok || !runnerTagRE.MatchString(tag) || pats[i+1] != pats[i]+"^{}" {
+		if !ok || !runnerTagRE.MatchString(tag) || strings.Contains(tag, "..") || pats[i+1] != pats[i]+"^{}" || seen[tag] {
 			return false
 		}
+		seen[tag] = true
 	}
 	return true
 }
