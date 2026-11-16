@@ -653,6 +653,9 @@ func TestAnnotationAndInvisibleCharacterNegatives(t *testing.T) {
 	_, cs := classifyFile(t, promTarget, "v3.5.0", promOne("* [FEATURE] Plain words. #1", "* [FEATURE] Plain *words* and `code`. #2"))
 	wantClass(t, cs[0], ClassMechanicalNeutral, "control")
 	wantClass(t, cs[1], ClassMechanicalNeutral, "control emphasis")
+	_, cs = classifyFile(t, promTarget, "v3.5.0", promOne("* [FEATURE] Plain words. [#1](http://x)", "* [FEATURE] Plain words (see #1)."))
+	wantClass(t, cs[0], ClassMechanicalNeutral, "control link")
+	wantClass(t, cs[1], ClassMechanicalNeutral, "control parenthesis")
 }
 
 // classifyT classifies e under the test target of its component whose reader
