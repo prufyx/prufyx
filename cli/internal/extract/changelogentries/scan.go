@@ -47,8 +47,10 @@ var (
 	// A link reference definition: a label, a colon, ONE destination and an
 	// optional quoted title, nothing else on the line. The destination must
 	// look like a link (absolute http(s) URL, or a path or fragment), so a
-	// prose line such as "[BREAKING]: removed" is never taken for one.
-	linkDefRE   = regexp.MustCompile(`^ {0,3}\[[^\[\]\\]+\]:[ \t]*(?:<(?:https?://|/|\./|\.\./|#)[^<>\s]*>|(?:https?://|/|\./|\.\./|#)\S*)(?:[ \t]+(?:"[^"]*"|'[^']*'|\([^()]*\)))?[ \t]*$`)
+	// prose line such as "[BREAKING]: removed" is never taken for one. The
+	// label starts with a non-blank character other than ^ (a footnote is not
+	// a definition) and a bare destination holds no parenthesis.
+	linkDefRE   = regexp.MustCompile(`^ {0,3}\[[^\s^\[\]\\][^\[\]\\]*\]:[ \t]*(?:<(?:https?://|/|\./|\.\./|#)[^<>\s]*>|(?:https?://|/|\./|\.\./|#)[^\s()]*)(?:[ \t]+(?:"[^"]*"|'[^']*'|\([^()]*\)))?[ \t]*$`)
 	underlineRE = regexp.MustCompile(`^ {0,3}(={2,}|-{2,})[ \t]*$`)
 	fenceRE     = regexp.MustCompile("^[ \t]*(`{3,}|~{3,})(.*)$")
 	markerRE    = regexp.MustCompile(`^(?:[*+-]|[0-9]{1,9}[.)])[ \t]+\[([A-Z][A-Z0-9 _-]{0,30})\](?:[^(\[]|$)`)
@@ -109,7 +111,29 @@ func fenceOpen(l string) (ch byte, n int, ok bool) {
 	return m[1][0], len(m[1]), true
 }
 
-func fenceCloses(l string, ch byte, n int) bool {
+// indentWidth is the width of the leading white space, a tab counting as 4.
+func indentWidth(l string) int {
+	w := 0
+	for i := 0; i < len(l); i++ {
+		switch l[i] {
+		case ' ':
+			w++
+		case '\t':
+			w += 4
+		default:
+			return w
+		}
+	}
+	return w
+}
+
+// fenceCloses reports whether l closes a fence opened with n characters of ch
+// at indentation openIndent. A closing fence is indented at most 3 columns
+// more than its opener; a line indented further is code inside the fence.
+func fenceCloses(l string, ch byte, n, openIndent int) bool {
+	if indentWidth(l) > openIndent+3 {
+		return false
+	}
 	t := strings.TrimSpace(l)
 	if len(t) < n {
 		return false
@@ -133,6 +157,7 @@ func scan(lines []string) scanned {
 	inFence := false
 	var fch byte
 	fenceAt := 0
+	fenceIndent := 0
 	fenceResidue := false
 	var flen int
 	closeItem := func() { cur = nil; curIdx = -1 }
@@ -159,7 +184,7 @@ func scan(lines []string) scanned {
 				}
 				extend(n)
 			}
-			if fenceCloses(l, fch, flen) {
+			if fenceCloses(l, fch, flen, fenceIndent) {
 				inFence = false
 			}
 			prevAllowsLinkDef = false
@@ -204,6 +229,7 @@ func scan(lines []string) scanned {
 			}
 			fenceResidue = sc.kind[i] == kResidue
 			inFence, fch, flen = true, ch, ln
+			fenceIndent = indentWidth(l)
 			fenceAt = n
 			continue
 		}

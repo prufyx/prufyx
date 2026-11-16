@@ -21,6 +21,9 @@ func oracleIsLinkDef(l string) bool {
 	if end < 2 || strings.ContainsAny(trim[1:end], "[]\\") {
 		return false
 	}
+	if first := trim[1]; first == ' ' || first == '\t' || first == '^' {
+		return false // a blank label or a footnote is not a definition
+	}
 	rest := strings.TrimLeft(trim[end+2:], " \t")
 	if rest == "" {
 		return false
@@ -47,6 +50,9 @@ func oracleIsLinkDef(l string) bool {
 	}
 	if !ok || strings.ContainsAny(dest, " \t<>") {
 		return false
+	}
+	if !strings.HasPrefix(strings.TrimLeft(trim[end+2:], " \t"), "<") && strings.ContainsAny(dest, "()") {
+		return false // a bare destination holds no parenthesis
 	}
 	rest = strings.TrimSpace(rest)
 	if rest == "" {
