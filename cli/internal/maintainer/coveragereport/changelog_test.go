@@ -169,3 +169,23 @@ func TestChangelogSpotBucket(t *testing.T) {
 		t.Fatalf("%+v", c)
 	}
 }
+
+// A refused mixed member whose pair is decided by a rule (B) must still land
+// in the G bucket with MIXED_MEMBER only: decided and bounded stay 0.
+func TestChangelogMixedMemberNeverDecided(t *testing.T) {
+	const comp = "pkg:github/prometheus/prometheus"
+	const crossing = `"crossing":{"change":{"version":"1.9.0","basis":"REMOVED_IN_RELEASE","sourceId":"s"},"horizon":{"lt":"1.10.0","basis":"REVIEWED_THROUGH_MINOR_LINE","sourceId":"s"}}`
+	r, err := Compute(Input{Pack: pack([]string{relnotesSetRule("p.r", "1.8.2", "1.9.0", crossing)}, nil), Lines: lines("prometheus", "1.8", "1.9"), Now: baselineNow,
+		CRDTargetComponents:       map[string]string{"prometheus": comp},
+		ChangelogTargetComponents: map[string]string{"prometheus": comp}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if statuses(r.Projects[0]) != "B" {
+		t.Fatalf("setup: %s", statuses(r.Projects[0]))
+	}
+	c := r.changelog
+	if c.decided != 0 || c.bounded != 0 || c.gap != 1 || c.pairs != 1 || c.reasons[GapMixedMember] != 1 {
+		t.Fatalf("stats %+v", c)
+	}
+}

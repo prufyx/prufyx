@@ -719,7 +719,12 @@ func Compute(in Input) (Report, error) {
 			pair := classify(slug, lines[i], lines[i+1], byProject[slug], attsByProject[slug], byID, pl.Releases)
 			row.Pairs = append(row.Pairs, pair)
 			if _, member := in.ChangelogTargetComponents[slug]; member && !community {
-				report.changelog.addPair(pair, changelogGapReason(in.ChangelogTargetComponents[slug], lines[i], lines[i+1], atts, now, byID, pl.Releases, mixed))
+				if mixed[in.ChangelogTargetComponents[slug]] {
+					// Refused member: never an A or B of this family; a gap with one reason.
+					report.changelog.addPair(Pair{From: pair.From, To: pair.To, Status: StatusG}, GapMixedMember)
+				} else {
+					report.changelog.addPair(pair, changelogGapReason(in.ChangelogTargetComponents[slug], lines[i], lines[i+1], atts, now, byID, pl.Releases, mixed))
+				}
 			}
 			if !community && (pair.Status == StatusA || pair.Status == StatusB) {
 				if pair.canBlock {
