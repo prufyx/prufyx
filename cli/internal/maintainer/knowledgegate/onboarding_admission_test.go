@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"go/ast"
 	"go/parser"
 	"go/token"
 	"os"
@@ -532,6 +533,57 @@ func TestPathSetDigestCanonical(t *testing.T) {
 	}
 }
 
+// Golden: the full decision of the reference fixture, byte for byte, and its
+// digest. A change of any member, its order, its encoding or the digest
+// algorithm fails here. The golden was produced by an independent
+// implementation of the algorithm, not by this package.
+func TestOnboardingAdmissionGoldenDecision(t *testing.T) {
+	t.Parallel()
+	const wantDigest = "sha256:b55c30e6af6154d3e4771b639118134118cd7d395c39cef82ecc96043d06bde0"
+	d := AdmitOnboardingAuto(admOK())
+	if d.DecisionDigest != wantDigest {
+		t.Fatalf("decision digest %s", d.DecisionDigest)
+	}
+	got, err := json.Marshal(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := os.ReadFile("testdata/onboarding_admission_golden.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatalf("decision bytes differ from the golden:\n got %s\nwant %s", got, want)
+	}
+	// The digest is the sha256 of the same bytes with the digest member empty.
+	d.DecisionDigest = ""
+	pre, _ := json.Marshal(d)
+	sum := sha256.Sum256(pre)
+	if "sha256:"+hex.EncodeToString(sum[:]) != wantDigest {
+		t.Fatal("digest is not the sha256 of the empty-digest encoding")
+	}
+}
+
+// Exclusion set digest vectors: sorted, de-duplicated, compact JSON array.
+func TestAdmitSetDigestGolden(t *testing.T) {
+	t.Parallel()
+	for name, tc := range map[string]struct {
+		in   []string
+		want string
+	}{
+		"empty":            {nil, "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"},
+		"empty non-nil":    {[]string{}, "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"},
+		"sorted":           {[]string{"a", "b"}, "sha256:0473ef2dc0d324ab659d3580c1134e9d812035905c4781fdd6d529b0c6860e13"},
+		"unsorted":         {[]string{"b", "a"}, "sha256:0473ef2dc0d324ab659d3580c1134e9d812035905c4781fdd6d529b0c6860e13"},
+		"duplicate folded": {[]string{"b", "a", "a"}, "sha256:0473ef2dc0d324ab659d3580c1134e9d812035905c4781fdd6d529b0c6860e13"},
+		"nul separator":    {[]string{"p\x00x"}, "sha256:978496475acf91b2bc3e8ac5803d759b0c858f1a15480337a4d4417001ee64d8"},
+	} {
+		if got := admitSetDigest(tc.in); got != tc.want {
+			t.Errorf("%s: %s", name, got)
+		}
+	}
+}
+
 // A path set lists each changed path once: a rename is the old path and the
 // new path, a delete is the path itself.
 func TestPathSetDigestRenameAndDelete(t *testing.T) {
@@ -578,6 +630,7 @@ func TestAdmissionPathSetSharedVectors(t *testing.T) {
 		t.Fatal(err)
 	}
 	valid, invalid := 0, 0
+	seenClass := map[string]bool{}
 	for _, v := range f.Vectors {
 		in := admOK()
 		in.ChangedPaths = v.Paths
@@ -593,6 +646,7 @@ func TestAdmissionPathSetSharedVectors(t *testing.T) {
 			continue
 		}
 		invalid++
+		seenClass[v.Error] = true
 		want, ok := admVectorReason[v.Error]
 		if !ok {
 			t.Fatalf("%s: unknown error class %s", v.Name, v.Error)
@@ -601,8 +655,17 @@ func TestAdmissionPathSetSharedVectors(t *testing.T) {
 			t.Errorf("%s: admitted %v digest %q reasons %v, want %s", v.Name, d.Admitted, d.PathSetSHA, d.Reasons, want)
 		}
 	}
-	if valid < 10 || invalid < 12 {
-		t.Fatalf("too few vectors: %d valid, %d invalid", valid, invalid)
+	// Not brittle: every class must be present in the file, and the counts are
+	// those of the file itself.
+	if valid < 10 || invalid < len(admVectorReason)-1 || valid+invalid != len(f.Vectors) {
+		t.Fatalf("vectors: %d valid, %d invalid of %d", valid, invalid, len(f.Vectors))
+	}
+	// JSON cannot carry invalid UTF-8, so that class has no vector; it is
+	// covered byte-wise in TestAdmissionPathSetRefusals.
+	for class := range admVectorReason {
+		if class != "invalid-utf8" && !seenClass[class] {
+			t.Errorf("no vector of class %s", class)
+		}
 	}
 }
 
@@ -658,6 +721,59 @@ func TestAdmissionPathSetRefusals(t *testing.T) {
 	for _, p := range []string{"a\nb", "a\x00b"} {
 		if pathset.Valid([]string{p}) == nil {
 			t.Errorf("pathset.Valid accepts %q", p)
+		}
+	}
+}
+
+// Guard: the tests that read the golden files must stay, and the golden files
+// must exist, so the wire cannot be unpinned silently.
+func TestAdmissionGoldenTestsArePresent(t *testing.T) {
+	t.Parallel()
+	if _, err := os.Stat("testdata/onboarding_admission_golden.json"); err != nil {
+		t.Fatal(err)
+	}
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "onboarding_admission_test.go", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	have := map[string]bool{}
+	for _, d := range f.Decls {
+		if fn, ok := d.(*ast.FuncDecl); ok {
+			have[fn.Name.Name] = true
+		}
+	}
+	for _, name := range []string{"TestOnboardingAdmissionGoldenDecision", "TestAdmitSetDigestGolden", "TestPathSetDigestCanonical", "TestPathSetDigestRenameAndDelete", "TestAdmissionPathSetSharedVectors"} {
+		if !have[name] {
+			t.Errorf("required test %s is missing", name)
+		}
+	}
+	raw, err := os.ReadFile("onboarding_admission_test.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(raw, []byte(`os.ReadFile("testdata/onboarding_admission_golden.json")`)) {
+		t.Error("no test reads the decision golden file")
+	}
+}
+
+// An empty or duplicate changed-path set fires BOTH the older allowlist reason
+// and the shared-validation reason; that is intended and pinned here (the
+// older code is additive-compatible, the new code names the class).
+func TestAdmissionPathSetReasonsFireTogether(t *testing.T) {
+	t.Parallel()
+	for name, tc := range map[string]struct {
+		paths []string
+		want  string
+	}{
+		"empty":     {nil, AdmitReasonPathSetEmpty},
+		"duplicate": {append(admPaths(), admPaths()[0]), AdmitReasonPathSetDuplicate},
+	} {
+		in := admOK()
+		in.ChangedPaths = tc.paths
+		have := strings.Join(AdmitOnboardingAuto(in).Reasons, ",")
+		if !strings.Contains(have, AdmitReasonPathSet) || !strings.Contains(have, tc.want) {
+			t.Errorf("%s: reasons %s", name, have)
 		}
 	}
 }
