@@ -467,3 +467,25 @@ func TestDeterministic(t *testing.T) {
 	}
 	_ = extract.Tag{}
 }
+
+func TestLocateBytesEqualsLocate(t *testing.T) {
+	r := &memReader{files: map[string][]byte{promTarget.Repo.Key + "@" + testCommit + ":" + promTarget.Path: []byte(promFile)}}
+	tag := extract.Tag{Name: "v3.5.0", Commit: testCommit}
+	a, err := Locate(r, promTarget, tag)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := LocateBytes(promTarget, tag, []byte(promFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ja, _ := a.Canonical()
+	jb, _ := b.Canonical()
+	if string(ja) != string(jb) {
+		t.Fatal("LocateBytes differs from Locate")
+	}
+	_, err = LocateBytes(promTarget, tag, []byte(shapeItemFenceNoCloser))
+	wantCode(t, err, EntryParseResidue)
+	_, err = LocateBytes(promTarget, extract.Tag{Name: "v3.5.0", Commit: "x"}, []byte(promFile))
+	wantCode(t, err, SourceNotPinnedGit)
+}
