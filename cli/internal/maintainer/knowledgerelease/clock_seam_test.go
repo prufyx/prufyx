@@ -4,6 +4,7 @@ package knowledgerelease
 
 import (
 	"encoding/json"
+	"errors"
 	"go/ast"
 	"go/parser"
 	"go/printer"
@@ -100,14 +101,15 @@ func TestVerifyClockDecidesExpiry(t *testing.T) {
 	// The previous package of the next release is verified at the injected clock.
 	ok := ciNext(t, first, fr)
 	ok.Now = ts.Add(-time.Hour)
-	if _, err := ComputeDigests(ok); err != nil {
+	if _, err := Run(ok); err != nil {
 		t.Fatalf("previous package unexpired at the injected clock must be accepted: %v", err)
 	}
 	late := ok
 	late.Now = ts.Add(time.Second)
-	late.Expires = utc(ts.Add(48 * time.Hour))
-	if _, err := ComputeDigests(late); err == nil {
-		t.Fatal("previous package expired at the injected clock must refuse")
+	late.OutputDir = filepath.Join(filepath.Dir(first.OutputDir), "out-late")
+	_, err = Run(late)
+	if !errors.Is(err, ErrGuard) || !strings.Contains(err.Error(), "previous package") {
+		t.Fatalf("previous package expired at the injected clock must be refused by the previous-package guard, got %v", err)
 	}
 }
 
