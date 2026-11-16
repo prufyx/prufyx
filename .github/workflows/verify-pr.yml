@@ -21,9 +21,14 @@ name: Verify PR
 # Freshness: the base commit is the one in the event, which a rerun keeps. The
 # end of the run re-reads the live tip of main and the live head; if either
 # differs from what the run judged, the result is a stale ERROR, never
-# ELIGIBLE. The classification below stays in this workflow for this report-only
-# change; it MUST move into the base-built tool before any consumer reads this
-# result or any status is made required (NOT_APPLICABLE green is never eligible).
+# ELIGIBLE.
+#
+# Classification is done by the base-built tool (`target-draft classify-pr`),
+# never by shell text. TRUST_PATH_CHANGE (a change of the checks themselves, or
+# a path that cannot be judged), MIXED_CHANGE and ERROR are red and never
+# eligible; NOT_APPLICABLE is green and never eligible; only APPLICABLE goes on
+# to the verify step. A consumer must require the artifact result ELIGIBLE: a
+# green check alone is never eligibility.
 
 on:
   pull_request_target:
@@ -116,31 +121,35 @@ jobs:
           echo "::${token}::"
           git -C "${objects}" diff --raw -z --no-abbrev --no-renames "${BASE_SHA}" "${HEAD_SHA}" > "${RUNNER_TEMP}/out/changed.raw"
 
-      # A change is applicable when any changed path mentions the recipe
-      # directory or the target directory; the tool then judges it and anything
-      # it does not accept is not eligible. The match is deliberately broad: an
-      # unusual path is applicable (and fails in the tool), never not-applicable.
+      # The base-built tool classifies the change from the changed paths. The
+      # exit code is captured, never raised: the result must be written whatever
+      # the class. Anything that is not exactly one known class word with exit 0
+      # is ERROR; the tool prints no changed path on its class line.
       - name: Classify the change
         id: classify
         run: |
           set -euo pipefail
-          hits="$(grep -i -z -c -e 'target-recipes' -e 'crdversions' "${RUNNER_TEMP}/out/changed.raw" || true)"
-          if ! [[ "${hits}" =~ ^[0-9]+$ ]]; then
-            echo "The classification did not produce a count."
-            exit 1
+          out="${RUNNER_TEMP}/out"
+          code=0
+          "${RUNNER_TEMP}/prufyx-maintainer" target-draft classify-pr \
+            --changed-paths "${out}/changed.raw" \
+            > "${out}/classify.txt" 2> "${out}/classify.err" || code=$?
+          class=ERROR
+          if [ "${code}" = "0" ] && [ "$(grep -c '^class: ' "${out}/classify.txt" || true)" = "1" ]; then
+            word="$(grep '^class: ' "${out}/classify.txt")"
+            word="${word#class: }"
+            case "${word}" in
+              TRUST_PATH_CHANGE|MIXED_CHANGE|APPLICABLE|NOT_APPLICABLE) class="${word}" ;;
+            esac
           fi
-          if [ "${hits}" = "0" ]; then
-            echo "class=not_applicable" >> "${GITHUB_OUTPUT}"
-          else
-            echo "class=applicable" >> "${GITHUB_OUTPUT}"
-          fi
+          echo "class=${class}" >> "${GITHUB_OUTPUT}"
 
       # The exit code is captured, never raised here: the result file must be
       # written whatever the tool said. The tool's output is printed between
       # stop-commands markers so printed text cannot inject workflow commands.
       - name: Run verify-pr (reads the upstream tags from github.com)
         id: verify
-        if: steps.classify.outputs.class == 'applicable'
+        if: steps.classify.outputs.class == 'APPLICABLE'
         run: |
           set -euo pipefail
           work="${RUNNER_TEMP}/work"
@@ -185,9 +194,13 @@ jobs:
           tool_json=null
           code=-1
           result=ERROR
-          if [ "${CLASS}" = "not_applicable" ]; then
+          if [ "${CLASS}" = "NOT_APPLICABLE" ]; then
             result=NOT_APPLICABLE
-          else
+          elif [ "${CLASS}" = "TRUST_PATH_CHANGE" ]; then
+            result=TRUST_PATH_CHANGE
+          elif [ "${CLASS}" = "MIXED_CHANGE" ]; then
+            result=MIXED_CHANGE
+          elif [ "${CLASS}" = "APPLICABLE" ]; then
             code="$(cat "${out}/tool.exit")"
             if ! [[ "${code}" =~ ^[0-9]+$ ]]; then
               code=-1

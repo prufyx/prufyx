@@ -153,6 +153,57 @@ Anything that cannot be verified is non-zero.
   regeneration (hand-made targets without a recipe stay valid and outside this
   class).
 
+## Path classification: `target-draft classify-pr`
+
+`prufyx-maintainer target-draft classify-pr --changed-paths FILE [--json]`
+
+`FILE` is the same `git diff --raw -z --no-abbrev --no-renames BASE HEAD` output
+that verify-pr reads. Every path of every record counts, whatever its status
+(add, modify, delete, type or mode change); for a rename or copy record
+(status `R` or `C`, which `--no-renames` never produces) both the old and the
+new path count. The tool reads only that file: no network, no tree, no
+content. Exactly one line `class: X` is printed first; `--json` adds one
+`classify-json:` line (`prufyx.io/verify-pr-classify/v1`: class, counts, a fixed
+reason; no path is echoed). Exit 0 for the four classes, exit 2 for `ERROR`.
+
+| class | when | in the workflow |
+|---|---|---|
+| `ERROR` | the list is unreadable, empty, malformed, over 4 MiB or over 20000 records | red, result `ERROR` |
+| `TRUST_PATH_CHANGE` | any changed path is under `.github/workflows/`, is `.github/CODEOWNERS`, or is under `cli/internal/maintainer/targetdraft/`, `cli/internal/maintainer/knowledgegate/`, `cli/internal/maintainer/verifyprworkflow/`, `cli/internal/extract/`, `cli/knowledge/` (outside the recipe root below), `cli/cmd/prufyx-maintainer/`; or any path is refused (below) | red, result `TRUST_PATH_CHANGE`, never eligible |
+| `MIXED_CHANGE` | no trust path, but a recipe or real-target path together with a path that is neither | red, result `MIXED_CHANGE` |
+| `APPLICABLE` | every changed path is under `cli/knowledge/target-recipes/` or is `cli/internal/extract/crdversions/target-<slug>.json` | the verify step runs |
+| `NOT_APPLICABLE` | no changed path is in a trust path, the recipe root or a real target | green, result `NOT_APPLICABLE`, never eligible |
+
+The classes are checked in the order of the table, so a PR touching both a trust
+path and a recipe is `TRUST_PATH_CHANGE`. `MIXED_CHANGE` is a class beyond the
+four a data-only rule needs: a recipe edit with an unrelated file is not
+data-only, so it is neither `APPLICABLE` nor green.
+
+Matching rules, all fail-closed:
+
+- Recipe and real-target paths match exactly and case-sensitively, as git does
+  (the slug is `[a-z0-9]+(-[a-z0-9]+)*`). Anything else under `cli/internal/extract/`
+  or `cli/knowledge/` is a trust path.
+- Trust paths match on whole path segments (`cli/internal/extractor/` is not
+  `cli/internal/extract/`) and ignoring case: git is case sensitive, so
+  `cli/Knowledge/x` is a different path on Linux, but on a case-insensitive
+  checkout it is the same file, so it is judged as the trust path. The fold is
+  simple Unicode folding, so a path using the Kelvin sign for `k` is a trust path
+  too. Other look-alike characters (Cyrillic letters, a fullwidth slash) are
+  different names: they are not trust paths and never `APPLICABLE`.
+- A refused path is a `TRUST_PATH_CHANGE`: absolute, empty, not UTF-8, a control
+  character (NUL, newline, tab, DEL), a backslash, a `.` or `..` segment, a
+  doubled or trailing slash (the path must equal its own cleaned form).
+- Duplicate paths count once. A malformed record is `ERROR`, never skipped.
+
+A bare green check is NEVER eligibility. The job is green for `ELIGIBLE` and
+`NOT_APPLICABLE` alike, and `NOT_APPLICABLE` can be a change nobody has read. A
+consumer must read the artifact `verify-pr-result` and require
+`result == "ELIGIBLE"` (plus the head, base, freshness and staleness checks
+below); `NOT_APPLICABLE`, `TRUST_PATH_CHANGE`, `MIXED_CHANGE`, `NOT_ELIGIBLE` and
+`ERROR` are never eligible. A trust-path change is never green and never
+eligible.
+
 ## CI: report only (`.github/workflows/verify-pr.yml`)
 
 The workflow `Verify PR` (job `Verify PR`) runs the tool on every pull request
@@ -168,12 +219,11 @@ What it does, in order:
 2. Builds the tool from the base commit. The pull request's commit is fetched
    as git objects only and exported as data with `gate export`; it is never
    checked out and nothing from it is executed. The head must contain the base.
-3. Classifies the change from the changed paths (case-insensitive match). If no
-   changed path mentions `target-recipes` or `crdversions` the result is
-   `NOT_APPLICABLE` (green, explicit, never eligible). Anything else is
-   applicable and the tool judges it. This classification lives in the workflow
-   for this report-only change; it MUST move into the base-built tool before any
-   consumer reads the result or any status is made required.
+3. Classifies the change with the base-built tool, `target-draft classify-pr`
+   (below), never with shell text. Only `APPLICABLE` goes on to step 4.
+   `NOT_APPLICABLE` is green with result `NOT_APPLICABLE` (never eligible);
+   `TRUST_PATH_CHANGE`, `MIXED_CHANGE` and `ERROR` end the job red with that
+   result (`ERROR` also when the tool's answer is not exactly one known class).
 4. Runs `target-draft verify-pr --json --require-eligible` with the upstream
    binding (one tag lookup on github.com; the run also uses the network for the
    two object fetches, which verify object integrity, and for the read-only API
@@ -186,20 +236,20 @@ What it does, in order:
    `main` differs from the base commit the run judged (a rerun keeps the old
    event base), the result is `ERROR` with `stale: true`.
 6. Uploads the artifact `verify-pr-result` (30 days) and fails the job unless
-   the result is `ELIGIBLE` or `NOT_APPLICABLE`, not stale, for the same head and
+   the result is `ELIGIBLE` or `NOT_APPLICABLE` (so a trust-path change is red), not stale, for the same head and
    base. The job conclusion is therefore the verdict. Runs are never cancelled
    (no `cancel-in-progress`), so a cancelled run cannot stand in for a result.
 
 Artifact `verify-pr-result`: `result.json` and `changed.raw`. `result.json` is
 one JSON object, schema `prufyx.io/verify-pr-artifact/v1`: `result`
-(`ELIGIBLE`, `NOT_ELIGIBLE`, `NOT_APPLICABLE`, `ERROR`), `class`, `headSha`,
+(`ELIGIBLE`, `NOT_ELIGIBLE`, `NOT_APPLICABLE`, `TRUST_PATH_CHANGE`, `MIXED_CHANGE`, `ERROR`), `class`, `headSha`,
 `baseSha`, `toolSha` (the base commit the tool was built from), `repo`, `pr`,
 `runId`, `runAttempt`, `workflowSha`, `mainTip` (the live tip of `main` at the end
 of the run), `exitCode`, `stale` and `toolResult` (the
 tool's own `result-json` object, or null). Consumers must parse it as data and
 require `schema`, a full 40-hex `headSha` equal to the head they mean, a
 matching `baseSha`, `mainTip == baseSha`, `stale == false` and `result == "ELIGIBLE"`; a bare green
-run, `NOT_APPLICABLE` or a result for another head is never eligibility.
+run, `NOT_APPLICABLE`, `TRUST_PATH_CHANGE` or a result for another head is never eligibility.
 
 Freshness: a run is only valid while `mainTip` equals `baseSha` and the head is
 unchanged; the job fails otherwise. The upstream tag lookup happens at run time, so a tag moved later is
