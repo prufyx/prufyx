@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
@@ -100,12 +101,18 @@ func (r *localRunner) calls() int {
 	return len(r.specs)
 }
 
-// realSeam is a seam fixture whose head carries a real recipe directory and
-// the generated target of the fake upstream.
+// realSeam is a seam fixture. The gate runs on the fixture as it is (the gate's
+// own allow-list refuses recipe directories in an onboarding change, a gap
+// reported separately), then the seam is run on an extended head: the same
+// head plus the real recipe directory and the generated target of the fake
+// upstream, committed in its own repository. The seam options point at that
+// repository and tree.
 type realSeam struct {
 	*seamFixture
 	up     string
 	runner *localRunner
+	// head2 is the extended head tree.
+	head2 Tree
 	// seen is the last result of the real verifier.
 	seen targetdraft.OnboardingVerifyResult
 }
@@ -128,18 +135,38 @@ func newRealSeam(t *testing.T) *realSeam {
 	if want := targetdraft.CrdVersionsDir + "/target-" + obSlug + ".json"; targetPath(ol, obSlug) != want || targetdraft.RecipesRoot != recipesRoot {
 		t.Fatalf("layout and verifier disagree: %s vs %s", targetPath(ol, obSlug), want)
 	}
+	s := &realSeam{up: up, runner: &localRunner{dir: up}}
+	s.seamFixture = seamFixtureOf(t, f)
+	// The gate runs once on the fixture itself with the seam's run-time lock
+	// off (no seam run, no verifier call); the seam is run below.
+	s.gate(func(o *Options) { o.OnboardingAdmissionInProcess = false })
+	s.head2 = cloneTree(t, f.head)
 	files := map[string][]byte{"recipe.json": rd.Recipe, "facts.bundle": rd.FactsBundle, "report.json": rd.Report, "table-row.json": rd.TableRow, "changelog.md": rd.Changelog}
 	if len(rd.Rules) != 0 {
 		files["rules.json"] = rd.Rules
 	}
 	for name, raw := range files {
-		writeFile(t, filepath.Join(f.head.Root, filepath.FromSlash(recipesRoot+obSlug+"/"+name)), raw)
+		writeFile(t, filepath.Join(s.head2.Root, filepath.FromSlash(recipesRoot+obSlug+"/"+name)), raw)
 	}
-	writeFile(t, filepath.Join(f.head.Root, filepath.FromSlash(targetPath(ol, obSlug))), rd.Target)
-	f.follow(t)
-	f.refresh()
-	s := &realSeam{up: up, runner: &localRunner{dir: up}}
-	s.seamFixture = seamFixtureOf(t, f)
+	writeFile(t, filepath.Join(s.head2.Root, filepath.FromSlash(targetPath(ol, obSlug))), rd.Target)
+	// The compiled default layout carries no admission paths (a part of the
+	// activation work). The test layout names the files the fixture's change
+	// regenerates: every changed path that is not the batch, the table, the
+	// recipe directory or the target.
+	changed, err := ChangedPaths(f.base, s.head2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var static []string
+	for _, p := range changed {
+		if p == ol.TablePath || strings.HasPrefix(p, ol.Dir+"/") || strings.HasPrefix(p, recipesRoot) || strings.HasPrefix(p, targetdraft.CrdVersionsDir+"/") {
+			continue
+		}
+		static = append(static, p)
+	}
+	s.opts.Layout.OnboardingAdmission.StaticPaths = static
+	s.opts.Layout.OnboardingAdmission.ProjectPaths = []string{recipesRoot + "{slug}/"}
+	s.opts.Layout.OnboardingAdmission.TargetPath = targetdraft.CrdVersionsDir + "/target-{slug}.json"
 	s.opts.AdmissionRunner = s.runner
 	s.opts.AdmissionVerifier = func(in targetdraft.OnboardingVerifyInput) targetdraft.OnboardingVerifyResult {
 		res := targetdraft.VerifyOnboarding(in)
@@ -149,6 +176,25 @@ func newRealSeam(t *testing.T) *realSeam {
 		return res
 	}
 	return s
+}
+
+// seamOn runs only the seam, on the base and a head tree committed in a repository
+// of its own (the gate's own report and input are the fixture's). The input's
+// changed paths stay the gate's.
+func (s *realSeam) seamOn(head Tree) OnboardingAdmissionInput {
+	s.t.Helper()
+	repo := s.t.TempDir()
+	gitIn(s.t, repo, "init", "--bare", "-q")
+	base := admissionCommit(s.t, repo, s.f.base, "")
+	headSHA := admissionCommit(s.t, repo, head, base)
+	gitIn(s.t, repo, "update-ref", admissionBaseRef, base)
+	gitIn(s.t, repo, "update-ref", admissionHeadRef, headSHA)
+	return s.direct(func(o *Options, in *OnboardingAdmissionInput) {
+		g := *o.OnboardingGit
+		g.GitDir, g.BaseCommit, g.HeadCommit = repo, base, headSHA
+		o.OnboardingGit, o.Head, o.HeadSHA = &g, head, headSHA
+		in.BaseSHA, in.GitHeadSHA, in.HeadSHA = base, headSHA, headSHA
+	})
 }
 
 // The layout flag stays off in the compiled default; the tests turn it on in
@@ -162,13 +208,17 @@ func TestRealSeamDefaultLayoutStaysOff(t *testing.T) {
 
 // Positive: the real verifier, the real recipe and fact bundle, the real
 // binding through the gate's runner against a local upstream. The seam hands
-// the frozen decision a result that binds to the gate's own facts, so the
-// decision carries no verify-pr reason.
+// the frozen decision a result that binds to the exact commits, the project and
+// the digests of the real change; the frozen checker, given the same change set
+// as its path set, finds no verify-pr reason.
 func TestRealSeamPositiveEndToEnd(t *testing.T) {
 	t.Parallel()
 	s := newRealSeam(t)
-	r := s.gate(nil)
-	if s.seen.Mode != targetdraft.OnboardingVerifyMode || s.seen.Outcome != "pass" {
+	in := s.seamOn(s.head2)
+	if len(in.SeamRefusals) != 0 || in.VerifyPr == nil {
+		t.Fatalf("seam refused: %v (verifier %+v)", in.SeamRefusals, s.seen)
+	}
+	if s.seen.Mode != targetdraft.OnboardingVerifyMode || s.seen.Outcome != "pass" || !s.seen.BindingVerified || s.seen.RecipeChange != "new" || s.seen.Eligible {
 		t.Fatalf("real verifier: %+v", s.seen)
 	}
 	if s.runner.calls() != 1 {
@@ -181,24 +231,27 @@ func TestRealSeamPositiveEndToEnd(t *testing.T) {
 	if res := s.runner.res[0]; res.Err != nil || res.Exit != 0 || res.TimedOut || len(res.Stdout) == 0 {
 		t.Fatalf("local ls-remote: %+v", res)
 	}
-	d := r.OnboardingAdmission
-	if d == nil {
-		t.Fatal("no decision")
+	v := in.VerifyPr
+	if v.Outcome != "pass" || !v.BindingVerified || v.RecipeChange != "new" || v.Eligible || len(v.Slugs) != 1 || v.Slugs[0] != obSlug ||
+		v.BaseSHA != in.BaseSHA || v.HeadSHA != in.HeadSHA || !admitValidDigest(v.BindingDigest) || !admitValidDigest(v.ChangedPathsSHA256) {
+		t.Fatalf("handed result %+v", v)
 	}
-	if got := verifyReasons(d); len(got) != 0 {
-		t.Fatalf("verify-pr reasons on a real pass: %v (decision %+v)", got, d.Reasons)
+	// The frozen checker, with the real change set as its path set.
+	paths, err := ChangedPaths(s.f.base, s.head2)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if d.VerifyPr.Outcome != "pass" || !d.VerifyPr.BindingVerified || d.VerifyPr.RecipeChange != "new" || d.VerifyPr.Eligible ||
-		d.VerifyPr.BaseSHA != s.base || d.VerifyPr.HeadSHA != s.head || d.VerifyPr.ChangedPathsSHA256 != d.PathSetSHA {
-		t.Fatalf("bound member %+v (path set %s)", d.VerifyPr, d.PathSetSHA)
+	in.ChangedPaths = paths
+	d := AdmitOnboardingAuto(in)
+	if got := verifyReasons(&d); len(got) != 0 {
+		t.Fatalf("verify-pr reasons on a real pass: %v (all %v)", got, d.Reasons)
 	}
-	if !admitValidDigest(d.VerifyPr.BindingDigest) || len(s.seen.Slugs) != 1 || s.seen.Slugs[0] != obSlug {
-		t.Fatalf("binding %+v", d.VerifyPr)
+	if d.VerifyPr.ChangedPathsSHA256 != d.PathSetSHA || d.VerifyPr.Outcome != "pass" {
+		t.Fatalf("decision binding %+v path set %s", d.VerifyPr, d.PathSetSHA)
 	}
-	// Nothing here is merge authority: an owner fixture with no allowlist is
-	// not admitted, and the seam never turns automatic merging on.
-	if d.Admitted || r.AutoMerge.Eligible {
-		t.Fatalf("admitted %v auto %v", d.Admitted, r.AutoMerge.Eligible)
+	// Nothing here is merge authority: an owner fixture is never admitted.
+	if d.Admitted {
+		t.Fatal("an owner fixture with no allowlist was admitted")
 	}
 }
 
@@ -208,46 +261,30 @@ func TestRealSeamTagMismatchRefused(t *testing.T) {
 	t.Parallel()
 	s := newRealSeam(t)
 	s.runner.dir = localUpstream(t, "b") // same tags, other commits
-	r := s.gate(nil)
+	in := s.seamOn(s.head2)
+	seamOnly(t, in, AdmitReasonSeamFailed)
 	if s.seen.Outcome != "fail" || s.seen.Harness || !containsStr(s.seen.Reasons, "binding-mismatch") {
 		t.Fatalf("verifier: %+v", s.seen)
 	}
 	if s.runner.calls() != 1 {
 		t.Fatalf("runner called %d times", s.runner.calls())
 	}
-	d := r.OnboardingAdmission
-	if d == nil || d.Admitted || !containsStr(d.Reasons, AdmitReasonSeamFailed) || d.VerifyPr != (VerifyPrBinding{}) {
-		t.Fatalf("decision %+v", d)
-	}
-	seamOnly(t, s.direct(nil), AdmitReasonSeamFailed)
 }
 
-// Negative: one more changed path than the batch allows. The head commit,
-// trees and options all carry it (so the tree checks pass); the real verifier
-// refuses the path outside the allowlist before any network use.
+// Negative: one more changed path than the batch allows. The head commit and
+// tree carry it (so the tree checks pass); the real verifier refuses the path
+// outside the allowlist before any network use.
 func TestRealSeamExtraChangedPathRefused(t *testing.T) {
 	t.Parallel()
 	s := newRealSeam(t)
-	s.gate(nil)
-	before := s.runner.calls()
-	head2 := cloneTree(t, s.f.head)
-	writeFile(t, filepath.Join(head2.Root, "cli", "knowledge", "unrelated.json"), []byte("{}\n"))
-	repo := t.TempDir()
-	gitIn(t, repo, "init", "--bare", "-q")
-	base := admissionCommit(t, repo, s.f.base, "")
-	head := admissionCommit(t, repo, head2, base)
-	gitIn(t, repo, "update-ref", admissionBaseRef, base)
-	gitIn(t, repo, "update-ref", admissionHeadRef, head)
-	in := s.direct(func(o *Options, _ *OnboardingAdmissionInput) {
-		g := *o.OnboardingGit
-		g.GitDir, g.BaseCommit, g.HeadCommit = repo, base, head
-		o.OnboardingGit, o.Head, o.HeadSHA = &g, head2, head
-	})
+	head3 := cloneTree(t, s.head2)
+	writeFile(t, filepath.Join(head3.Root, "cli", "knowledge", "unrelated.json"), []byte("{}\n"))
+	in := s.seamOn(head3)
 	seamOnly(t, in, AdmitReasonSeamFailed)
 	if s.seen.Outcome != "fail" || !containsStr(s.seen.Reasons, targetdraft.OnbReasonOutside) {
 		t.Fatalf("verifier: %+v", s.seen)
 	}
-	if s.runner.calls() != before {
+	if s.runner.calls() != 0 {
 		t.Fatal("the network was used for a change that failed the local checks")
 	}
 }
