@@ -280,8 +280,12 @@ func TestAdmissionFactsFromGate(t *testing.T) {
 	if a.gateHead != a.batchHead || a.gateBase != a.batchBase {
 		t.Fatalf("gate %+v %+v batch %+v %+v", a.gateBase, a.gateHead, a.batchBase, a.batchHead)
 	}
-	if !a.exclusionsKnown || len(a.baseExclusions) != 0 || len(a.headExclusions) != 0 {
-		t.Fatalf("exclusions %+v", a)
+	// The repository's own targets carry exclusions: the onboarding adds none,
+	// so the identity sets of the two sides are equal.
+	baseSet, baseOK := admitSet(a.baseExclusions)
+	headSet, headOK := admitSet(a.headExclusions)
+	if !a.exclusionsKnown || !baseOK || !headOK || len(baseSet) == 0 || !reflect.DeepEqual(baseSet, headSet) {
+		t.Fatalf("exclusion sets: known %v base %d head %d", a.exclusionsKnown, len(baseSet), len(headSet))
 	}
 	if !a.baseAbsenceKnown || len(a.basePresent) != 0 {
 		t.Fatalf("base absence %+v", a)
