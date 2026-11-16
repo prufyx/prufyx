@@ -20,32 +20,12 @@ import (
 // only through r, and never falls back to another path, tag or version.
 func Locate(r extract.PinnedReader, t Target, tag extract.Tag) (*Entry, error) {
 	switch t.Form {
-	case "":
-		return nil, fail(NoChangelogTarget, "target has no form")
-	case FormGithubRelease:
-		return nil, fail(SourceNotPinnedGit, "a release body is mutable and has no commit")
-	case FormPostTag:
-		return nil, fail(EntryNotAtTag, "the entry lands after the tag")
-	case FormDocsPage:
-		return nil, fail(ShapeNotPerTag, "an upgrade guide or docs page is not a per-tag changelog")
-	case FormMonorepo:
-		return nil, fail(MonorepoEntryAmbiguous, "monorepo entries are not read in this version")
-	case FormFile:
 	case FormPerLineFile, FormPerVersionFile:
 		return locateShape(r, t, tag)
-	default:
-		return nil, fail(ShapeNotPerTag, fmt.Sprintf("form %q is not read", t.Form))
 	}
-	c, err := t.compile()
+	c, version, err := prepare(t, tag)
 	if err != nil {
-		return nil, fail(NoChangelogTarget, err.Error())
-	}
-	version, ok := tagVersion(tag.Name)
-	if !ok {
-		return nil, fail(EntryNotFinal, fmt.Sprintf("tag %q is not a final release", tag.Name))
-	}
-	if !extract.IsCommitSHA(tag.Commit) {
-		return nil, fail(SourceNotPinnedGit, "tag has no full commit")
+		return nil, err
 	}
 	raw, err := r.Read(t.Repo, tag.Commit, t.Path)
 	if err != nil {
@@ -54,6 +34,54 @@ func Locate(r extract.PinnedReader, t Target, tag extract.Tag) (*Entry, error) {
 		}
 		return nil, err
 	}
+	return entryFromBytes(t, c, tag, version, raw)
+}
+
+// LocateBytes is Locate over file bytes the caller already holds. It runs the
+// same checks and the same parser as Locate, so a caller that must verify an
+// entry re-derives it from the bytes instead of trusting a supplied Entry.
+func LocateBytes(t Target, tag extract.Tag, raw []byte) (*Entry, error) {
+	c, version, err := prepare(t, tag)
+	if err != nil {
+		return nil, err
+	}
+	return entryFromBytes(t, c, tag, version, raw)
+}
+
+// prepare checks the target and the tag before any byte is read.
+func prepare(t Target, tag extract.Tag) (compiled, string, error) {
+	var zero compiled
+	switch t.Form {
+	case "":
+		return zero, "", fail(NoChangelogTarget, "target has no form")
+	case FormGithubRelease:
+		return zero, "", fail(SourceNotPinnedGit, "a release body is mutable and has no commit")
+	case FormPostTag:
+		return zero, "", fail(EntryNotAtTag, "the entry lands after the tag")
+	case FormDocsPage:
+		return zero, "", fail(ShapeNotPerTag, "an upgrade guide or docs page is not a per-tag changelog")
+	case FormMonorepo:
+		return zero, "", fail(MonorepoEntryAmbiguous, "monorepo entries are not read in this version")
+	case FormFile:
+	default:
+		return zero, "", fail(ShapeNotPerTag, fmt.Sprintf("form %q is not read", t.Form))
+	}
+	c, err := t.compile()
+	if err != nil {
+		return zero, "", fail(NoChangelogTarget, err.Error())
+	}
+	version, ok := tagVersion(tag.Name)
+	if !ok {
+		return zero, "", fail(EntryNotFinal, fmt.Sprintf("tag %q is not a final release", tag.Name))
+	}
+	if !extract.IsCommitSHA(tag.Commit) {
+		return zero, "", fail(SourceNotPinnedGit, "tag has no full commit")
+	}
+	return c, version, nil
+}
+
+// entryFromBytes is the one parser: size bound, line split, scan, section.
+func entryFromBytes(t Target, c compiled, tag extract.Tag, version string, raw []byte) (*Entry, error) {
 	if len(raw) > c.max {
 		return nil, fail(EntryOverBound, fmt.Sprintf("file is %d bytes, bound %d", len(raw), c.max))
 	}
