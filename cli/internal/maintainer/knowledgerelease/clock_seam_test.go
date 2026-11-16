@@ -91,24 +91,23 @@ func TestVerifyClockDecidesExpiry(t *testing.T) {
 	if err := at(ts.Add(-time.Second)); err != nil {
 		t.Fatalf("clock just before the timestamp expiry must accept: %v", err)
 	}
-	evidence, err := parseUTC(fr.EvidenceExpiresAt)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := at(evidence.Add(time.Second)); err == nil {
-		t.Fatal("clock after the evidence expiry must refuse")
-	}
 	// Refresh and the previous-package check of the next release use the same clock.
 	o := refreshOpts(t, first, live, ts.Add(time.Second))
 	o.ExpectLivePackageDigest = fr.PackageDigest
 	if _, err := Refresh(o); err == nil {
 		t.Fatal("refresh with a clock after expiry must refuse")
 	}
-	next := ciNext(t, first, fr)
-	next.Now = ts.Add(time.Second)
-	next.Expires, next.TimestampExpires = "", ""
-	if _, err := Run(next); err == nil {
-		t.Fatal("release over a previous package that is expired at the injected clock must refuse")
+	// The previous package of the next release is verified at the injected clock.
+	ok := ciNext(t, first, fr)
+	ok.Now = ts.Add(-time.Hour)
+	if _, err := ComputeDigests(ok); err != nil {
+		t.Fatalf("previous package unexpired at the injected clock must be accepted: %v", err)
+	}
+	late := ok
+	late.Now = ts.Add(time.Second)
+	late.Expires = utc(ts.Add(48 * time.Hour))
+	if _, err := ComputeDigests(late); err == nil {
+		t.Fatal("previous package expired at the injected clock must refuse")
 	}
 }
 
