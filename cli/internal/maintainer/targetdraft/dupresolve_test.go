@@ -605,12 +605,12 @@ func TestDerivedModeUnlistedUnreadableFileStops(t *testing.T) {
 	}
 	idx := customresources.DefaultIndex()
 	rules := &Rules{Schema: RulesSchema, InstallPaths: []InstallPathRule{{Path: dupA, Reason: derivedReason, Evidence: "e"}}}
-	r := classify("v1.0.0", "c", fs, rules, "dupfix", idx, nil)
+	r := classify("v1.0.0", "c", fs, rules, "dupfix", "", idx, nil)
 	if len(r.stops) != 0 {
 		t.Fatalf("hand rules keep the old behaviour: %+v", r.stops)
 	}
 	rules.deriveStrict = true
-	r = classify("v1.0.0", "c", fs, rules, "dupfix", idx, nil)
+	r = classify("v1.0.0", "c", fs, rules, "dupfix", "", idx, nil)
 	if len(r.stops) != 1 || r.stops[0].Code != StopUnreadableShape || r.stops[0].Subject != "other/broken.yaml" {
 		t.Fatalf("derived mode must stop on an unlisted unreadable file: %+v", r.stops)
 	}

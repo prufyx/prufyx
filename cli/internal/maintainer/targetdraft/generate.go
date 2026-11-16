@@ -254,7 +254,7 @@ func generateWithWindow(in Input, full *FullWindowSelector) (*Result, error) {
 		if plan != nil {
 			rg = &rangeCtx{entries: plan, idx: i}
 		}
-		r := classify(t.Tag, commit, fs, rules, in.Slug, index, rg)
+		r := classify(t.Tag, commit, fs, rules, in.Slug, ownerRepo, index, rg)
 		r.stops = append(scanStops, r.stops...)
 		optFatal = append(optFatal, applyOptional(r, tree, rules, t.Tag, i == len(tags)-1)...)
 		if plan != nil {
@@ -281,7 +281,7 @@ func generateWithWindow(in Input, full *FullWindowSelector) (*Result, error) {
 			second := make([]*tagResult, len(tags))
 			for i, t := range tags {
 				commit := results[i].commit
-				r := classify(t.Tag, commit, scans[i], derivedRules, in.Slug, index, nil)
+				r := classify(t.Tag, commit, scans[i], derivedRules, in.Slug, ownerRepo, index, nil)
 				r.stops = append(append([]Stop(nil), scanStopsOf[i]...), r.stops...)
 				optFatal = append(optFatal, applyOptional(r, trees[i], derivedRules, t.Tag, i == len(tags)-1)...)
 				r.entries, r.defs = results[i].entries, results[i].defs
@@ -615,7 +615,7 @@ func exclusionFor(rules *Rules, p string) *ExclusionRule {
 	return nil
 }
 
-func classify(tag, commit string, fs []*finding, rules *Rules, slug string, index customresources.Index, rg *rangeCtx) *tagResult {
+func classify(tag, commit string, fs []*finding, rules *Rules, slug, ownerRepo string, index customresources.Index, rg *rangeCtx) *tagResult {
 	r := &tagResult{tag: tag, commit: commit, included: map[string]*inclusion{}, usedExcl: map[string]bool{}, usedSurf: map[string]bool{}, usedIP: map[string]bool{}, usedPF: map[string]bool{}, countPF: map[string]int{}}
 	surface := map[string]bool{}
 	for _, s := range rules.InstallSurface {
@@ -722,7 +722,7 @@ func classify(tag, commit string, fs []*finding, rules *Rules, slug string, inde
 				stopAt(StopDuplicateCRD, key, prev+" and "+i.Path+" define it; pin one source")
 			}
 			seenCRD[key] = i.Path
-			if customresources.ReservedNamespace(c.Group) || customresources.KubernetesGroup(c.Group) {
+			if reservedStop(c.Group, slug, ownerRepo) {
 				stopAt(StopReservedGroup, c.Group, i.Path)
 			} else if o, a := index.Owner(c.Group); a != customresources.Unknown && o != slug {
 				stopAt(StopGroupOwnedElsewhere, c.Group, "listed by "+o+" ("+i.Path+")")
@@ -746,7 +746,7 @@ func classify(tag, commit string, fs []*finding, rules *Rules, slug string, inde
 				bad = true
 				continue
 			}
-			if customresources.ReservedNamespace(c.Group) || customresources.KubernetesGroup(c.Group) {
+			if reservedStop(c.Group, slug, ownerRepo) {
 				continue
 			}
 			o, a := index.OwnerOf(c.Group, c.Kind)
