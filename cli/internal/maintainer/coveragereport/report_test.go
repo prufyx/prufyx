@@ -311,7 +311,8 @@ func TestCrossingMutations(t *testing.T) {
 	}
 	cases := []struct{ name, rule, want string }{
 		{"change inside target line", cross("1.35.0", "1.40.0"), "B"},
-		{"change late in target line", cross("1.35.7", "1.40.0"), "B"},
+		// Strict: a removal at x.y.7 does not match a hop into x.y.0, so it no longer decides the pair.
+		{"change late in target line", cross("1.35.7", "1.40.0"), "G"},
 		{"change in an earlier line", cross("1.34.0", "1.40.0"), "G"},
 		{"change in a later line", cross("1.36.0", "1.40.0"), "G"},
 		{"horizon at the change", cross("1.35.0", "1.35.0"), "G"},
