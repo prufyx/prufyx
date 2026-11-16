@@ -592,6 +592,14 @@ func TestCollapseDoesNotTouchExtractor(t *testing.T) {
 			}
 			src = bindingAllowed.ReplaceAll(src, nil)
 		}
+		if n == "record_cli.go" {
+			// This call reads a regular file without following symlinks.
+			readonly := regexp.MustCompile(regexp.QuoteMeta(`os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)`))
+			if count := len(readonly.FindAll(src, -1)); count != 1 {
+				t.Errorf("record_cli.go must hold exactly one read-only open, has %d", count)
+			}
+			src = readonly.ReplaceAll(src, nil)
+		}
 		if writers.Match(src) {
 			t.Errorf("%s writes to the file system; only cli.go's atomic --out writer may", n)
 		}
