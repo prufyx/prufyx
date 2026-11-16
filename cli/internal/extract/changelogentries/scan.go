@@ -45,11 +45,14 @@ type scanned struct {
 	// html lists the lines that start an HTML block (up to 3 spaces, then "<"
 	// and a tag name, "<!--", "<?", "<!X" or "<![CDATA["), outside fences.
 	html []int
+	// fenceBody marks (index = line-1) the lines read as the inside of a
+	// fence: after its opener, up to but not including its closer.
+	fenceBody []bool
 }
 
 var (
 	htmlStartRE = regexp.MustCompile(`^ {0,3}(<!--|<\?|<!\[CDATA\[|<![A-Za-z]|</?[A-Za-z])`)
-	htmlRawRE   = regexp.MustCompile(`(?i)^ {0,3}<(pre|script|style|textarea)(?:[ >]|$)`)
+	htmlRawRE   = regexp.MustCompile(`(?i)^ {0,3}<(pre|script|style|textarea)(?:[ \t>]|$)`)
 )
 
 // htmlBlock reports whether l starts an HTML block and whether that block
@@ -72,7 +75,7 @@ func htmlBlock(l string) (starts, multiLine bool) {
 		return true, !strings.Contains(t[2:], ">")
 	}
 	if r := htmlRawRE.FindStringSubmatch(l); r != nil {
-		return true, !strings.Contains(strings.ToLower(l), "</"+strings.ToLower(r[1]))
+		return true, !strings.Contains(strings.ToLower(l), "</"+strings.ToLower(r[1])+">")
 	}
 	return true, false
 }
@@ -232,7 +235,7 @@ func fenceCloses(l string, ch byte, n, openIndent int) bool {
 // Fences are tracked from the first line, so a "#" inside fenced code is never
 // a heading, wherever the fence opened.
 func scan(lines []string) scanned {
-	sc := scanned{lines: lines, kind: make([]lineKind, len(lines))}
+	sc := scanned{lines: lines, kind: make([]lineKind, len(lines)), fenceBody: make([]bool, len(lines))}
 	var cur *rawItem // open item, index into sc.items via pointer refreshed below
 	curIdx := -1
 	sawBlank := false
@@ -283,6 +286,8 @@ func scan(lines []string) scanned {
 			}
 			if fenceCloses(l, fch, flen, fenceIndent) {
 				inFence = false
+			} else {
+				sc.fenceBody[i] = true
 			}
 			prevAllowsLinkDef = false
 			continue

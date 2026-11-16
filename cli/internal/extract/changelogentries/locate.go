@@ -89,6 +89,13 @@ func entryFromBytes(t Target, c compiled, tag extract.Tag, version string, raw [
 	if sc.containerFence != 0 {
 		return nil, fail(EntryParseResidue, fmt.Sprintf("line %d cannot be read: a fence without its container, or a multi-line HTML block", sc.containerFence))
 	}
+	cm, cmErr := cmParse(lines)
+	if cmErr != nil {
+		return nil, fail(EntryParseResidue, "commonmark-disagreement: "+cmErr.Error())
+	}
+	if d := cmFileDisagreement(sc, cm); d != "" {
+		return nil, fail(EntryParseResidue, "commonmark-disagreement: "+d)
+	}
 
 	// Which headings name which release.
 	type rel struct {
@@ -158,6 +165,10 @@ func entryFromBytes(t Target, c compiled, tag extract.Tag, version string, raw [
 	start := vh.Line
 	if end-start+1 > MaxSectionLines {
 		return nil, fail(EntryOverBound, fmt.Sprintf("section is %d lines, bound %d", end-start+1, MaxSectionLines))
+	}
+
+	if d := cmSectionDisagreement(sc, cm, start, end); d != "" {
+		return nil, fail(EntryParseResidue, "commonmark-disagreement: "+d)
 	}
 
 	e := &Entry{
