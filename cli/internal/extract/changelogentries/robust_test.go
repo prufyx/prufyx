@@ -10,8 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/prufyx/prufyx/cli/internal/extract"
 )
 
 func entryWith(body string) string {
@@ -30,7 +28,10 @@ func TestLinkDefinitionShape(t *testing.T) {
 		"two words":     "* [FEATURE] x. #1\n\n[BREAKING]: removed flag\n",
 		"url then text": "* [FEATURE] x. #1\n\n[ref]: https://x.test/a and the flag --x is removed\n",
 	} {
-		e := mustLocate(t, promTarget, "v3.5.0", entryWith(body))
+		e := locateOrDisagree(t, promTarget, "v3.5.0", entryWith(body))
+		if e == nil {
+			continue
+		}
 		if e.Tiling.LinkDefs != 0 {
 			t.Errorf("%s: prose counted as a link definition: %+v", name, e.Tiling)
 		}
@@ -135,6 +136,11 @@ func checkNoPanic(t *testing.T, data []byte) {
 			continue
 		}
 		oracleAccount(t, data, e)
+		if lines, lerr := splitLines(data); lerr == nil {
+			if d := cmDisagreement(lines, scan(lines), e.Section.StartLine, e.Section.EndLine); d != "" {
+				t.Fatalf("entry returned although the CommonMark oracle disagrees (%s) on %q", d, data)
+			}
+		}
 		if b, err := e.Canonical(); err != nil || len(b) == 0 {
 			t.Fatal("canonical failed")
 		}
@@ -165,7 +171,7 @@ func FuzzLocate(f *testing.F) {
 	f.Add([]byte(shapeBlankLabel))
 	f.Add([]byte(shapeFootnote))
 	f.Add([]byte(shapeDeepClose))
-	for _, s := range []string{shapeTabStop, shapeTabOpener, shapeHTMLComment, shapeHTMLPre, shapeHTMLBeforeEntry, shapeHTMLInEntry, shapeHTMLOneLine, shapeItemFenceNoCloser, shapeOpenerLeftOfItem, shapeOpenerFourPast, shapeListFence, shapeListFenceNested, shapeQuoteFence, shapeNBSPClose, shapeBareAngle} {
+	for _, s := range []string{shapeHTMLInItem, shapeHTMLDivItem, shapeHTMLBlankEnd, shapeHTMLPreTab, shapeHTMLPreOpen, shapeTabStop, shapeTabOpener, shapeHTMLComment, shapeHTMLPre, shapeHTMLBeforeEntry, shapeHTMLInEntry, shapeHTMLOneLine, shapeItemFenceNoCloser, shapeOpenerLeftOfItem, shapeOpenerFourPast, shapeListFence, shapeListFenceNested, shapeQuoteFence, shapeNBSPClose, shapeBareAngle} {
 		f.Add([]byte(s))
 	}
 	f.Add([]byte("## 3.5.0 / 2025-07-14\n\n### Notes\n  ```\n  code\n"))
@@ -225,20 +231,14 @@ func TestAnchoringIsStructural(t *testing.T) {
 }
 
 // A lone "=" or "-" under a text line is a setext underline in Markdown. The
-// reader does not take it for one: the pair becomes a block item (and the
-// entry runs on into the next heading's section). That is over-inclusive
-// (never a dropped line) and is pinned here so a change is deliberate.
+// scanner does not take it for one, so the CommonMark oracle disagrees and the
+// file is withheld.
 func TestOneCharUnderlineIsOverInclusive(t *testing.T) {
 	f := "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x. #1\n\nTitle\n=\n\n## 3.4.0 / 2025-05-17\n\n* z\n"
-	e := mustLocate(t, promTarget, "v3.5.0", f)
-	if len(e.Items) != 2 || e.Items[1].Kind != "block" || e.Items[1].StartLine != 5 || e.Items[1].EndLine != 6 || e.Section.EndLine != 6 {
-		t.Fatalf("%+v %+v", e.Items, e.Section)
+	// CommonMark reads it as a heading and the scanner does not: withheld.
+	if e := locateOrDisagree(t, promTarget, "v3.5.0", f); e != nil {
+		t.Fatalf("located %+v", e.Section)
 	}
-	oracleAccount(t, []byte(f), e)
-	g := "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x. #1\n\nTitle\n-\n\n## 3.4.0 / 2025-05-17\n\n* z\n"
-	e = mustLocate(t, promTarget, "v3.5.0", g)
-	oracleAccount(t, []byte(g), e)
-	_ = extract.Tag{}
 }
 
 const (
@@ -259,6 +259,11 @@ const (
 	shapeHTMLBeforeEntry   = "# Changelog\n<!--\n## 3.5.0 / 2025-07-14\n-->\n\n## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n## 3.4.0 / 2025-05-17\n* [BUGFIX] y\n"
 	shapeHTMLInEntry       = "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n<details>\n\n* [CHANGE] The flag --foo was removed.\n\n## 3.4.0 / 2025-05-17\n* [BUGFIX] y\n"
 	shapeHTMLOneLine       = "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n## 3.4.0 / 2025-05-17\n<!-- a note -->\n* [BUGFIX] y\n"
+	shapeHTMLInItem        = "## 3.5.0 / 2025-07-14\n- [FEATURE] x\n- <!--\n  ## 3.4.0 / 2025-05-17\n  -->\n- [CHANGE] The flag --foo was removed.\n"
+	shapeHTMLDivItem       = "## 3.5.0 / 2025-07-14\n- [FEATURE] x\n- <div>\n  ## 3.4.0 / 2025-05-17\n  </div>\n- [CHANGE] The flag --foo was removed.\n"
+	shapeHTMLBlankEnd      = "# Changelog\n\n<div>\n~~~\n</div>\n\n## 3.5.0 / 2025-07-14\n- [CHANGE] The flag --foo was removed.\n\n~~~\n## 3.4.0 / 2025-05-17\n~~~\n"
+	shapeHTMLPreTab        = "# Changelog\n\n<pre\tx>\n~~~\n</pre>\n\n## 3.5.0 / 2025-07-14\n- [CHANGE] The flag --foo was removed.\n\n~~~\n## 3.4.0 / 2025-05-17\n~~~\n"
+	shapeHTMLPreOpen       = "# Changelog\n\n<pre>\n~~~\n</pre\n\n## 3.5.0 / 2025-07-14\n- [CHANGE] The flag --foo was removed.\n\n~~~\n## 3.4.0 / 2025-05-17\n~~~\n"
 	shapeDeepClose         = "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x. #1\n\n```\n    ```\n## 3.4.0 / 2025-05-17\n* [CHANGE] flag --x removed\n```\n\n* [BUGFIX] tail. #9\n"
 )
 
@@ -280,7 +285,10 @@ func TestLinkLikeLinesAreItems(t *testing.T) {
 			"after heading": "### Notes\n" + line + "\n* [FEATURE] x. #1\n",
 		} {
 			f := entryWith(body)
-			e := mustLocate(t, promTarget, "v3.5.0", f)
+			e := locateOrDisagree(t, promTarget, "v3.5.0", f)
+			if e == nil {
+				continue
+			}
 			if e.Tiling.LinkDefs != 0 {
 				t.Errorf("%s/%s: counted as a definition", name, ctx)
 			}
@@ -338,7 +346,7 @@ func TestDeeplyIndentedFenceLineDoesNotClose(t *testing.T) {
 }
 
 func TestNewShapesNeverPanic(t *testing.T) {
-	for _, s := range []string{shapeTabStop, shapeTabOpener, shapeHTMLComment, shapeHTMLPre, shapeHTMLBeforeEntry, shapeHTMLInEntry, shapeHTMLOneLine, shapeItemFenceNoCloser, shapeOpenerLeftOfItem, shapeOpenerFourPast, shapeBlankLabel, shapeFootnote, shapeDeepClose, shapeListFence, shapeListFenceNested, shapeQuoteFence, shapeNBSPClose, shapeBareAngle} {
+	for _, s := range []string{shapeHTMLInItem, shapeHTMLDivItem, shapeHTMLBlankEnd, shapeHTMLPreTab, shapeHTMLPreOpen, shapeTabStop, shapeTabOpener, shapeHTMLComment, shapeHTMLPre, shapeHTMLBeforeEntry, shapeHTMLInEntry, shapeHTMLOneLine, shapeItemFenceNoCloser, shapeOpenerLeftOfItem, shapeOpenerFourPast, shapeBlankLabel, shapeFootnote, shapeDeepClose, shapeListFence, shapeListFenceNested, shapeQuoteFence, shapeNBSPClose, shapeBareAngle} {
 		checkNoPanic(t, []byte(s))
 	}
 }
@@ -411,7 +419,10 @@ func TestUnicodeWhitespaceDoesNotCloseFence(t *testing.T) {
 // own digest, never a silently excluded link definition.
 func TestBareDestinationAngleBracketIsItem(t *testing.T) {
 	for _, def := range []string{`[r]: https://x/<bad> "removed --foo"`, `[r]: https://x/bad> "removed --foo"`, `[r]: https://x/<bad`} {
-		e := mustLocate(t, promTarget, "v3.5.0", entryWith("* [FEATURE] x. #1\n\n"+def+"\n"))
+		e := locateOrDisagree(t, promTarget, "v3.5.0", entryWith("* [FEATURE] x. #1\n\n"+def+"\n"))
+		if e == nil {
+			continue
+		}
 		if e.Tiling.LinkDefs != 0 || oracleIsLinkDef(def) || len(e.Items) != 2 {
 			t.Errorf("%q: %+v items %d", def, e.Tiling, len(e.Items))
 		}
@@ -477,4 +488,59 @@ func TestTabAndHTMLBlockStops(t *testing.T) {
 	}
 	// A one-line comment outside the entry is fine.
 	mustLocate(t, promTarget, "v3.5.0", shapeHTMLOneLine)
+}
+
+// locateOrDisagree locates the file, or returns nil when the CommonMark oracle
+// disagrees with the scanner and the file is withheld (the safe outcome for a
+// shape the scanner reads more strictly than CommonMark).
+func locateOrDisagree(t *testing.T, tg Target, tagName, file string) *Entry {
+	t.Helper()
+	e, err := locateMem(tg, tagName, file)
+	if err != nil {
+		wantCode(t, err, EntryParseResidue)
+		if !strings.Contains(err.Error(), "commonmark-disagreement") {
+			t.Fatalf("unexpected refusal: %v", err)
+		}
+		return nil
+	}
+	return e
+}
+
+// Container-started HTML, HTML ended by a blank line, a tab after a raw tag
+// name and an end tag without ">" are all stopped by a hand rule or by the
+// CommonMark oracle, for both tags: no entry is returned.
+func TestHTMLClassNegatives(t *testing.T) {
+	for name, s := range map[string]string{
+		"comment in item": shapeHTMLInItem, "div in item": shapeHTMLDivItem, "blank-terminated div": shapeHTMLBlankEnd,
+		"pre tab": shapeHTMLPreTab, "pre without end bracket": shapeHTMLPreOpen,
+		"details":    "# Changelog\n\n<details>\n~~~\n</details>\n\n## 3.5.0 / 2025-07-14\n- [CHANGE] x\n\n~~~\n## 3.4.0 / 2025-05-17\n~~~\n",
+		"table":      "# Changelog\n\n<table>\n~~~\n</table>\n\n## 3.5.0 / 2025-07-14\n- [CHANGE] x\n\n~~~\n## 3.4.0 / 2025-05-17\n~~~\n",
+		"quote html": "## 3.5.0 / 2025-07-14\n- [FEATURE] x\n\n> <!--\n> ## 3.4.0 / 2025-05-17\n> -->\n- [CHANGE] y\n",
+	} {
+		for _, tg := range []string{"v3.5.0", "v3.4.0"} {
+			if e, err := locateMem(promTarget, tg, s); err == nil {
+				t.Errorf("%s %s: located %+v", name, tg, e.Section)
+			} else {
+				wantCode(t, err, EntryParseResidue)
+			}
+		}
+	}
+}
+
+// Every returned entry is one the CommonMark oracle agrees with.
+func TestOracleAgreesWithEveryFixtureEntry(t *testing.T) {
+	files, _ := filepath.Glob(filepath.Join("testdata", "fixture", "github.com", "*", "*", "commits", "*", "CHANGELOG.md"))
+	if len(files) == 0 {
+		t.Fatal("no fixtures")
+	}
+	for _, p := range files {
+		b, _ := os.ReadFile(p)
+		lines, err := splitLines(b)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if d := cmDisagreement(lines, scan(lines), 0, 0); d != "" {
+			t.Errorf("%s: %s", p, d)
+		}
+	}
 }

@@ -40,6 +40,7 @@ resource. The binary resource is protobuf's reviewed
 | `github.com/sigstore/protobuf-specs` | `v0.5.0` | Apache-2.0; [license](LICENSES/Module-sigstore-protobuf-specs-Apache-2.0.txt) |
 | `github.com/sigstore/sigstore` | `v1.10.6` | Apache-2.0; [license](LICENSES/Module-sigstore-Apache-2.0.txt) |
 | `github.com/theupdateframework/go-tuf/v2` | `v2.4.2` | Apache-2.0; [license](LICENSES/Module-go-tuf-Apache-2.0.txt) and [notice](LICENSES/Module-go-tuf-NOTICE.txt) |
+| `github.com/yuin/goldmark` | `v1.8.7` | MIT; [license](LICENSES/Module-goldmark-MIT.txt) |
 | `golang.org/x/crypto` | `v0.56.0` | BSD-3-Clause; [license](LICENSES/Module-golang-x-crypto-BSD-3-Clause.txt) and [patent grant](LICENSES/Module-golang-x-crypto-PATENTS.txt) |
 | `golang.org/x/sys` | `v0.47.0` | BSD-3-Clause; [license](LICENSES/Module-golang-x-sys-BSD-3-Clause.txt) and [patent grant](LICENSES/Module-golang-x-sys-PATENTS.txt) |
 | `golang.org/x/term` | `v0.45.0` | BSD-3-Clause; [license](LICENSES/Module-golang-x-term-BSD-3-Clause.txt) and [patent grant](LICENSES/Module-golang-x-term-PATENTS.txt) |
