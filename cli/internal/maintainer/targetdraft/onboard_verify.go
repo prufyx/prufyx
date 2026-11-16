@@ -352,7 +352,7 @@ type onbRow struct {
 	} `json:"upstream"`
 }
 
-type onbTable struct {
+type onbTableFile struct {
 	Projects []onbRow `json:"projects"`
 	Reserved []struct {
 		Repository optStr `json:"repository"`
@@ -360,8 +360,8 @@ type onbTable struct {
 }
 
 // onbTableDoc reads a table file; any decode problem is an error (no guess).
-func onbTableDoc(raw []byte) (*onbTable, error) {
-	var doc onbTable
+func onbTableDoc(raw []byte) (*onbTableFile, error) {
+	var doc onbTableFile
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		return nil, err
 	}
@@ -708,7 +708,7 @@ func verifyOnboarding(in OnboardingVerifyInput, env verifyEnv) OnboardingVerifyR
 			}
 		}
 	}
-	bf := checkBaseAbsence(run, base, head, in.Policy.TablePath, slugs)
+	facts := checkBaseAbsence(run, base, head, in.Policy.TablePath, slugs)
 	if run.failed() {
 		return run.fail(in)
 	}
@@ -726,7 +726,7 @@ func verifyOnboarding(in OnboardingVerifyInput, env verifyEnv) OnboardingVerifyR
 			run.addFailure(s, f)
 			continue
 		}
-		checkCollisions(run, bf, head, s, cc.rc)
+		checkCollisions(run, facts, head, s, cc.rc)
 		done = append(done, verified{s, cc})
 	}
 	if run.failed() {
