@@ -255,7 +255,7 @@ func lint(text string) []string {
 		// The change is never classified by shell text: no step may search the
 		// changed-path list itself.
 		for _, l := range strings.Split(s.Run, "\n") {
-			if strings.Contains(l, "changed") && !changedLineOK[strings.TrimSpace(l)] {
+			if (strings.Contains(l, "changed") || strings.Contains(l, ".raw")) && !changedLineOK[strings.TrimSpace(l)] {
 				add("shell-classify")
 			}
 		}
@@ -565,6 +565,9 @@ func TestVerifyPRWorkflowMutationsAreCaught(t *testing.T) {
 		{"shell python of changed list", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n          python3 -c 'print(1)' \"${out}/changed.raw\"\n", "shell-classify"},
 		{"changed list copied", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n          cp \"${out}/changed.raw\" \"${out}/c2\"\n", "shell-classify"},
 		{"tool reads another list", "--changed-paths \"${RUNNER_TEMP}/out/changed.raw\" \\\n", "--changed-paths \"${RUNNER_TEMP}/out/other.raw\" \\\n", "shell-classify"},
+		{"quote split list name", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n          cat \"${out}/chang\"\"ed.raw\"\n", "shell-classify"},
+		{"glob list name", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n          cat \"${out}\"/*.raw\n", "shell-classify"},
+		{"question glob list name", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n", "          mv \"${out}/result.json.new\" \"${out}/result.json\"\n          cat \"${out}/chang?d.raw\"\n", "shell-classify"},
 		{"shell grep in fetch step", "          objects=\"${RUNNER_TEMP}/objects.git\"\n          git init", "          grep -z -c target-recipes \"${RUNNER_TEMP}/out/changed.raw\" || true\n          objects=\"${RUNNER_TEMP}/objects.git\"\n          git init", "shell-classify"},
 		{"no fsck", "          git -C \"${objects}\" config transfer.fsckObjects true\n", "", "fetch-fsck"},
 		{"export not stopped", "          echo \"::stop-commands::${token}\"\n          \"${RUNNER_TEMP}/prufyx-maintainer\" gate export", "          \"${RUNNER_TEMP}/prufyx-maintainer\" gate export", "head-path"},

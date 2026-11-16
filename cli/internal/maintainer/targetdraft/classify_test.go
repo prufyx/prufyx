@@ -31,6 +31,16 @@ func raw(recs ...rec) []byte {
 	return b.Bytes()
 }
 
+func withModes(oldMode, newMode, status string, paths ...string) []byte {
+	var b bytes.Buffer
+	fmt.Fprintf(&b, ":%s %s %s %s %s\x00", oldMode, newMode, someOID, someOID, status)
+	for _, p := range paths {
+		b.WriteString(p)
+		b.WriteByte(0)
+	}
+	return b.Bytes()
+}
+
 func mod(paths ...string) []byte {
 	var rs []rec
 	for _, p := range paths {
@@ -123,7 +133,27 @@ func TestClassifyTable(t *testing.T) {
 		{"rename inside recipes", raw(rec{"R100", []string{rd + "recipe.json", "cli/knowledge/target-recipes/b/recipe.json"}}), ClassApplicable},
 		{"copy into trust", raw(rec{"C75", []string{"docs/a.md", "cli/internal/extract/c.go"}}), ClassTrustPathChange},
 		{"rename docs only", raw(rec{"R100", []string{"docs/a.md", "docs/b.md"}}), ClassNotApplicable},
-		{"mode change on doc", []byte(":100644 100755 " + someOID + " " + someOID + " M\x00README.md\x00"), ClassNotApplicable},
+		{"executable doc", withModes("100644", "100755", "M", "README.md"), ClassTrustPathChange},
+		{"new executable doc", withModes("000000", "100755", "A", "docs/x.md"), ClassTrustPathChange},
+		{"symlink README", withModes("000000", "120000", "A", "README.md"), ClassTrustPathChange},
+		{"symlink docs", withModes("000000", "120000", "A", "docs/x.md"), ClassTrustPathChange},
+		{"symlink changelog.d", withModes("000000", "120000", "A", "changelog.d/x.md"), ClassTrustPathChange},
+		{"file replaced by symlink", withModes("100644", "120000", "T", "docs/x.md"), ClassTrustPathChange},
+		{"symlink replaced by file", withModes("120000", "100644", "T", "docs/x.md"), ClassTrustPathChange},
+		{"deleted symlink doc", withModes("120000", "000000", "D", "docs/x.md"), ClassTrustPathChange},
+		{"gitlink README", withModes("000000", "160000", "A", "README.md"), ClassTrustPathChange},
+		{"gitlink docs", withModes("160000", "160000", "M", "docs/x.md"), ClassTrustPathChange},
+		{"tree mode", withModes("000000", "040000", "A", "docs/x.md"), ClassTrustPathChange},
+		{"unknown mode", withModes("100644", "100664", "M", "docs/x.md"), ClassTrustPathChange},
+		{"both modes zero", withModes("000000", "000000", "M", "docs/x.md"), ClassTrustPathChange},
+		{"added plain doc", withModes("000000", "100644", "A", "README.md"), ClassNotApplicable},
+		{"deleted plain doc", withModes("100644", "000000", "D", "docs/x.md"), ClassNotApplicable},
+		{"rename of executable doc", withModes("100755", "100755", "R100", "docs/a.md", "docs/b.md"), ClassTrustPathChange},
+		{"rename of symlink doc", withModes("120000", "120000", "R100", "docs/a.md", "docs/b.md"), ClassTrustPathChange},
+		{"symlink doc beside plain doc", append(mod("README.md"), withModes("000000", "120000", "A", "docs/x.md")...), ClassTrustPathChange},
+		{"same doc plain then symlink", append(mod("docs/x.md"), withModes("000000", "120000", "A", "docs/x.md")...), ClassTrustPathChange},
+		{"same doc symlink then plain", append(withModes("000000", "120000", "A", "docs/x.md"), mod("docs/x.md")...), ClassTrustPathChange},
+		{"symlink recipe is judged by the verify step", withModes("000000", "120000", "A", "cli/knowledge/target-recipes/a/recipe.json"), ClassApplicable},
 		{"mode change on workflow", []byte(":100644 100755 " + someOID + " " + someOID + " M\x00.github/workflows/a.yml\x00"), ClassTrustPathChange},
 		{"duplicates", mod("README.md", "README.md", "README.md"), ClassNotApplicable},
 		{"duplicate trust", mod("README.md", "cli/internal/extract/x.go", "cli/internal/extract/x.go"), ClassTrustPathChange},

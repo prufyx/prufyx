@@ -184,7 +184,9 @@ The documentation allowlist is exactly: `README*.md` at the repository root,
 `docs/**/*.md` and `changelog.d/**/*.md`. It is matched exactly and
 case-sensitively (no folding): `Docs/x.md`, `readme.md`, `README.MD` and
 `docs/x.MD` are not allowlisted. Markdown only; a `CODEOWNERS` segment is never
-allowlisted. `cli/docs` is not on it (it holds JSON that code reads).
+allowlisted, and the record must be a plain regular-file change (modes 000000 or
+100644 only): a symlink, a gitlink, an executable or a type change named like a
+documentation file is a trust path. `cli/docs` is not on it (it holds JSON that code reads).
 
 Matching rules, all fail-closed:
 

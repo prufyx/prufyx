@@ -150,16 +150,29 @@ func classifyPath(p string) pathKind {
 // changedPathsFromRaw reads `git diff --raw -z --no-abbrev` output. Every path
 // of a record counts: for a rename or copy (status R or C, which the workflow's
 // --no-renames never produces but a caller may) both the old and the new path.
-// Any status, mode change or type change is accepted: only the names matter
-// here. A record that is not well formed is an error, never skipped.
-func changedPathsFromRaw(raw []byte) ([]string, string) {
+// Any status is accepted, but each path carries whether its record is a plain
+// regular-file change (modes only 000000 or 100644, not both 000000): a
+// documentation path that is a symlink, a gitlink, an executable or a type
+// change is not documentation. A record that is not well formed is an error,
+// never skipped.
+type changedPath struct {
+	path  string
+	plain bool
+}
+
+func plainModes(oldMode, newMode string) bool {
+	ok := func(m string) bool { return m == "000000" || m == "100644" }
+	return ok(oldMode) && ok(newMode) && (oldMode != "000000" || newMode != "000000")
+}
+
+func changedPathsFromRaw(raw []byte) ([]changedPath, string) {
 	if len(raw) == 0 {
 		return nil, "the changed-path list is empty"
 	}
 	if len(raw) > maxChangedList {
 		return nil, fmt.Sprintf("the changed-path list is over %d bytes", maxChangedList)
 	}
-	var paths []string
+	var paths []changedPath
 	rest := raw
 	records := 0
 	for len(rest) > 0 {
@@ -175,6 +188,7 @@ func changedPathsFromRaw(raw []byte) ([]string, string) {
 		if records > maxClassifyPaths {
 			return nil, fmt.Sprintf("more than %d records", maxClassifyPaths)
 		}
+		plain := plainModes(f[0][1:], f[1])
 		n := 1
 		if s := f[4][0]; s == 'R' || s == 'C' {
 			n = 2
@@ -186,7 +200,7 @@ func changedPathsFromRaw(raw []byte) ([]string, string) {
 			}
 			r = r2
 			// Kept as bytes-to-string so refusePath sees invalid UTF-8.
-			paths = append(paths, string(p))
+			paths = append(paths, changedPath{path: string(p), plain: plain})
 		}
 		rest = r
 	}
@@ -213,14 +227,20 @@ func ClassifyChanged(raw []byte) ClassifyResult {
 		return ClassifyResult{Class: ClassError, ErrorCode: "changed-list", ErrorExtra: msg}
 	}
 	res := ClassifyResult{}
-	seen := map[string]bool{}
-	for _, p := range paths {
-		if seen[p] {
-			continue
+	// One verdict per distinct path: if it appears twice, the stricter wins.
+	kinds := map[string]pathKind{}
+	for _, c := range paths {
+		k := classifyPath(c.path)
+		if k == kindDocs && !c.plain {
+			k = kindTrust
 		}
-		seen[p] = true
+		if old, ok := kinds[c.path]; !ok || k > old {
+			kinds[c.path] = k
+		}
+	}
+	for _, k := range kinds {
 		res.Paths++
-		switch classifyPath(p) {
+		switch k {
 		case kindRefused:
 			res.Trust++
 			res.Refused++
