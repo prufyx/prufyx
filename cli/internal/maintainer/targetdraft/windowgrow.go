@@ -64,7 +64,7 @@ func equalFacts(a, b []crdFacts) bool {
 // as next or a pure growth of them, with the files only next reads in added.
 // A non-empty why is the reason the tag is withheld; stopped is true when the
 // reason is the tag's own stops (reported by the existing reasonFor).
-func growStep(r, next *tagResult, rules *Rules) (why string, stopped bool, added []string) {
+func growStep(r, next, newest *tagResult, rules *Rules) (why string, stopped bool, added []string) {
 	// Stops: only the install-path-matches-nothing of an exact file entry
 	// that next reads and r does not may be set aside; all others stay.
 	for _, s := range r.stops {
@@ -89,6 +89,40 @@ func growStep(r, next *tagResult, rules *Rules) (why string, stopped bool, added
 		if _, ok := next.included[p]; !ok {
 			return "grow-only: " + p + " is read at the older tag and not at the next newer tag (set shrinks)", false, nil
 		}
+	}
+	// Carried identities, against the whole path from the newest tag down to
+	// r (not only the next tag): a CRD r defines ANYWHERE in its tree,
+	// installed or not, must not be "new" in a file the newest tag reads and r
+	// does not, or r would silently lose it. An unreadable definition file of
+	// r outside the install set may hide such an identity: no growth then.
+	have := map[string]bool{}
+	for _, f := range r.defs {
+		for _, c := range f.CRDs {
+			have[c.Group+"/"+c.Kind] = true
+		}
+	}
+	unreadableOutside := ""
+	for _, f := range r.defs {
+		if _, in := r.included[f.Path]; !in && f.Unreadable != "" && (unreadableOutside == "" || f.Path < unreadableOutside) {
+			unreadableOutside = f.Path
+		}
+	}
+	var newestOnly []string
+	for p := range newest.included {
+		if _, ok := r.included[p]; !ok && !r.optAbsent[p] {
+			newestOnly = append(newestOnly, p)
+		}
+	}
+	sort.Strings(newestOnly)
+	for _, p := range newestOnly {
+		for _, c := range newest.included[p].CRDs {
+			if have[c.Group+"/"+c.Kind] {
+				return "grow-only: " + p + " defines " + c.Group + "/" + c.Kind + ", which the older tag already defines in another file (moved or not installed)", false, nil
+			}
+		}
+	}
+	if len(newestOnly) > 0 && unreadableOutside != "" {
+		return "grow-only: " + unreadableOutside + " is an unreadable definition file outside the install set of the older tag; it may hide a CRD the newer tags install", false, nil
 	}
 	// Same file set: exactly the behaviour without the option (no facts are
 	// compared; only a real growth is judged by identity facts).
@@ -121,22 +155,6 @@ func growStep(r, next *tagResult, rules *Rules) (why string, stopped bool, added
 	for p := range next.included {
 		if !rdirs[path.Dir(p)] {
 			return "grow-only: directory " + path.Dir(p) + " has no install file at the older tag", false, nil
-		}
-	}
-	// A grown file may only add identities the older tag does not carry.
-	// "Carry" means defines anywhere in the tree, installed or not: a CRD the
-	// older tag defines in a non-installed file would be silently dropped.
-	have := map[string]bool{}
-	for _, f := range r.defs {
-		for _, c := range f.CRDs {
-			have[c.Group+"/"+c.Kind] = true
-		}
-	}
-	for _, p := range added {
-		for _, c := range next.included[p].CRDs {
-			if have[c.Group+"/"+c.Kind] {
-				return "grow-only: " + p + " defines " + c.Group + "/" + c.Kind + ", which the older tag already defines in another file (moved or not installed)", false, nil
-			}
 		}
 	}
 	return "", false, added

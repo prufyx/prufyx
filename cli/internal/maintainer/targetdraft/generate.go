@@ -330,7 +330,7 @@ func generateWithWindow(in Input, full *FullWindowSelector) (*Result, error) {
 			// the install set is monotone toward the newest tag. A tag that
 			// reads exactly the newest set passes this too, unchanged.
 			var stopped bool
-			growWhy, stopped, added = growStep(results[i], results[i+1], rules)
+			growWhy, stopped, added = growStep(results[i], results[i+1], newest, rules)
 			if growWhy == "" {
 				why = ""
 			} else {

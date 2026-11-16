@@ -341,3 +341,51 @@ func TestGrowOnlyExclusionStopIsIdenticalWithAndWithoutOption(t *testing.T) {
 		t.Fatalf("off=%q on=%q", a, b)
 	}
 }
+
+// Three-tag transitivity with a prefix installPaths entry: A defines D outside
+// the install set, B lacks D, the newest adds it inside. A must not join.
+func transitiveSource(unreadableInA bool) memSource {
+	return growSource(func(tag string, m *memTree) {
+		delete(m.files, "config/other/x.yaml")
+		switch tag {
+		case "v1.0.0":
+			delete(m.files, "config/crd/d.yaml")
+			if unreadableInA {
+				m.files["deploy/u.yaml"] = []byte("kind: CustomResourceDefinition\n{{ template }}\n")
+			} else {
+				m.files["deploy/d.yaml"] = fullCRD(gGroup, "D", "ds", "Namespaced", "v1")
+			}
+		case "v1.1.0":
+			delete(m.files, "config/crd/d.yaml")
+		}
+	})
+}
+
+func TestGrowOnlyTransitiveIdentityMovedIntoInstalledDir(t *testing.T) {
+	in := growInput(transitiveSource(false), true)
+	in.Rules = exactRules("config/crd/")
+	res, err := Generate(in)
+	if err != nil {
+		t.Fatalf("unexpected stop: %v", err)
+	}
+	if res.Report.MinFrom != "1.1" || res.FirstWithheld == nil || res.FirstWithheld.Tag != "v1.0.0" || !strings.Contains(res.FirstWithheld.Reason, "already defines") {
+		t.Fatalf("A joined the window or wrong reason: minFrom=%s withheld=%+v", res.Report.MinFrom, res.FirstWithheld)
+	}
+	if len(res.Report.WindowGrown) != 1 || res.Report.WindowGrown[0].Tag != "v1.1.0" {
+		t.Fatalf("B should be the only grown tag: %+v", res.Report.WindowGrown)
+	}
+}
+
+// An unreadable definition file outside the install set of an older tag may
+// hide the identity: no growth for that tag.
+func TestGrowOnlyUnreadableOutsideInstallSetBlocksGrowth(t *testing.T) {
+	in := growInput(transitiveSource(true), true)
+	in.Rules = exactRules("config/crd/")
+	res, err := Generate(in)
+	if err != nil {
+		t.Fatalf("unexpected stop: %v", err)
+	}
+	if res.Report.MinFrom != "1.1" || res.FirstWithheld == nil || res.FirstWithheld.Tag != "v1.0.0" {
+		t.Fatalf("A joined the window: minFrom=%s withheld=%+v", res.Report.MinFrom, res.FirstWithheld)
+	}
+}
