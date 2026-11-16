@@ -280,7 +280,7 @@ func TestCRDFamilyGolden(t *testing.T) {
 	}
 	var lines []string
 	for _, k := range []Key{{strimzi, "0.51", FamilyCustomResourceVersions}, {strimzi, "0.51", FamilyChangelogAttestedEntries}} {
-		lines = append(lines, fmt.Sprintf("%v=%v", k, byKey[k]))
+		lines = append(lines, fmt.Sprintf("%s=%v", k, byKey[k]))
 	}
 	for _, id := range []string{"crd.range", "crd.anchor", "crd.nofact", "crd.cross", "nocond"} {
 		s := byID[id]
@@ -288,8 +288,8 @@ func TestCRDFamilyGolden(t *testing.T) {
 	}
 	got := strings.Join(lines, "\n")
 	want := strings.Join([]string{
-		"{pkg:github/strimzi/strimzi-kafka-operator 0.51 crd.custom_resource_versions}=[crd.anchor crd.range]",
-		"{pkg:github/strimzi/strimzi-kafka-operator 0.51 changelog.attested_entries}=[]",
+		"pkg:github/strimzi/strimzi-kafka-operator 0.51 crd.custom_resource_versions=[crd.anchor crd.range]",
+		"pkg:github/strimzi/strimzi-kafka-operator 0.51 changelog.attested_entries=[]",
 		`crd.range fam=[crd.custom_resource_versions] line="0.51"`,
 		`crd.anchor fam=[crd.custom_resource_versions] line="0.51"`,
 		`crd.nofact fam=[] line=""`,
