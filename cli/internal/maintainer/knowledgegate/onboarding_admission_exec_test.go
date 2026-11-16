@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -124,6 +125,9 @@ func (s *seamFixture) calls() int {
 	defer s.mu.Unlock()
 	return len(s.inputs)
 }
+
+// restCounts matches the request tally of the rest-budget check.
+var restCounts = regexp.MustCompile(`\d+ REST requests`)
 
 func newSeamFixture(t *testing.T) *seamFixture {
 	t.Helper()
@@ -285,7 +289,9 @@ func TestSeamEitherLockOffIsDisabled(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		return b
+		// The fixture's upstream counts requests across runs (a counter, not
+		// part of the decision): normalise that one number.
+		return restCounts.ReplaceAll(b, []byte("N REST requests"))
 	}
 	offA := enc(func(o *Options) { o.Layout.OnboardingAdmission.Enabled = false; o.OnboardingAdmissionInProcess = false })
 	offB := enc(func(o *Options) { o.Layout.OnboardingAdmission.Enabled = false })
