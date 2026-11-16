@@ -81,6 +81,14 @@ type Input struct {
 	// It never changes the ranking and never hides a definition; anything
 	// ambiguous stays unreadable-shape.
 	SkipPatchFragments bool
+	// AcceptFactEqualCopies is the explicit opt-in (default off): an outside
+	// copy whose full-spec digest differs from the installed definition is
+	// accepted only when its fact projection (group, kind, versions with
+	// served and storage, scope, names, conversion) is equal at every tag of
+	// the run; the apiVersion text and schema-only differences are ignored.
+	// It needs CheckInstallPathCopies or InferInstallPaths. Any difference
+	// at any tag stays install-path-copy-differs.
+	AcceptFactEqualCopies bool
 }
 
 // Result is the successful output of a run.
@@ -207,6 +215,9 @@ func generateWithWindow(in Input, full *FullWindowSelector) (*Result, error) {
 	if in.CheckInstallPathCopies && !in.InferInstallPaths && len(rules.InstallPaths) == 0 {
 		return nil, &StopError{Stops: []Stop{stop(StopBadInput, "check-install-path-copies", "the check needs installPaths in the rules file (or --infer-install-paths)")}}
 	}
+	if in.AcceptFactEqualCopies && !in.InferInstallPaths && !in.CheckInstallPathCopies {
+		return nil, &StopError{Stops: []Stop{stop(StopBadInput, "accept-fact-equal-copies", "the option needs --infer-install-paths or --check-install-path-copies")}}
+	}
 	// Phase A: open and read every tag (same order and errors as one pass).
 	for i, t := range tags {
 		tree, commit, err := in.Source.Open(t.Tag)
@@ -245,6 +256,7 @@ func generateWithWindow(in Input, full *FullWindowSelector) (*Result, error) {
 	if in.InferInstallPaths || in.CheckInstallPathCopies {
 		rc := *rules
 		rc.checkCopies = true
+		rc.acceptFactEqual = in.AcceptFactEqualCopies
 		rules = &rc
 	}
 	// Phase B: classify.
@@ -277,7 +289,7 @@ func generateWithWindow(in Input, full *FullWindowSelector) (*Result, error) {
 		// list; the plain results are kept only for the per-tag checks.
 		d, tagStops := resolveDuplicates(plainFiles(results))
 		if d != nil {
-			derivedRules := &Rules{Schema: RulesSchema, Upstream: rules.Upstream, InstallPaths: d.Rules, deriveStrict: true, checkCopies: rules.checkCopies}
+			derivedRules := &Rules{Schema: RulesSchema, Upstream: rules.Upstream, InstallPaths: d.Rules, deriveStrict: true, checkCopies: rules.checkCopies, acceptFactEqual: rules.acceptFactEqual}
 			second := make([]*tagResult, len(tags))
 			for i, t := range tags {
 				commit := results[i].commit
@@ -409,6 +421,9 @@ func generateWithWindow(in Input, full *FullWindowSelector) (*Result, error) {
 	if inferred != nil {
 		annotateInferred(res, inferred)
 	}
+	if in.AcceptFactEqualCopies {
+		annotateFactEqual(res, window)
+	}
 	return res, nil
 }
 
@@ -539,6 +554,7 @@ type tagResult struct {
 	entries     []Entry    // every file and link of the tree; only with CollapseDirectories
 	defs        []*finding // every definition-bearing file of the tree; same
 	fragments   []string   // patch fragments set aside (sorted); only with SkipPatchFragments
+	factEqual   []string   // outside copies accepted by fact equality ("path\tkey", sorted); only with AcceptFactEqualCopies
 }
 
 // collapseUnsupported lists the inputs a directory entry cannot represent
@@ -730,7 +746,9 @@ func classify(tag, commit string, fs []*finding, rules *Rules, slug string, inde
 		}
 	}
 	if rules.checkCopies {
-		r.stops = append(r.stops, outsideChecks(inc, outside)...)
+		cs, fe := outsideChecksFE(inc, outside, rules.acceptFactEqual)
+		r.stops = append(r.stops, cs...)
+		r.factEqual = fe
 	}
 	// Fail closed: a filtered file is allowed only when every group it
 	// defines is a reserved/Kubernetes group (the copy case) or has a known
@@ -1024,6 +1042,11 @@ func digestFacts(window []*tagResult) string {
 		// unchanged.
 		for _, p := range r.fragments {
 			lines = append(lines, fmt.Sprintf("%s\tpatch-fragment\t%s", safeField(r.tag), safeField(p)))
+		}
+		// Fact-equal copies set aside are facts of the run; lines exist only
+		// with AcceptFactEqualCopies, so every other digest is unchanged.
+		for _, p := range r.factEqual {
+			lines = append(lines, fmt.Sprintf("%s\tfact-equal-copy\t%s", safeField(r.tag), safeField(p)))
 		}
 		sort.Strings(lines)
 		for _, l := range lines {

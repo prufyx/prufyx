@@ -56,6 +56,18 @@ result only. When at least one entry escalated, the per-entry line gains
 ` escalated=true plainStop=CODE` and the summary line gains ` escalated=N` after
 `digest=`; `backtest.json` gains `escalated` only when N is above 0.
 
+`acceptFactEqualCopies` (`--accept-fact-equal-copies`, default off) needs
+`inferInstallPaths` or `checkInstallPathCopies`; it never applies otherwise.
+An outside copy whose full-spec digest differs from the installed definition
+is accepted only when its fact projection equals the installed one at every
+tag of the run: group, kind, the version set (name, served, storage; not
+empty), `spec.scope`, `spec.names` and `spec.conversion` (absent on both sides
+counts equal; absent against an explicit strategy is a difference). The
+apiVersion text and schema-only differences are ignored. Any other difference,
+or a digest that cannot be computed, stays `install-path-copy-differs`. The
+accepted copies are listed in the facts digest and the changelog; nothing else
+changes.
+
 `skipPatchFragments` (`--skip-patch-fragments`, default off) sets aside
 kustomize patch fragments as non-install, non-definition files. A fragment is
 only a file whose own content has the extractor's patch-fragment shape (strictly

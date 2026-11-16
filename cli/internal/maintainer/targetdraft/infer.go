@@ -335,6 +335,17 @@ func annotateInferred(res *Result, inf *InferredInstallPaths) {
 // comparable definition: such a file is a stop unless it sits below a skipped
 // directory. It is the single place of both checks.
 func outsideChecks(inside []*inclusion, outside []*finding) []Stop {
+	stops, _ := outsideChecksFE(inside, outside, false)
+	return stops
+}
+
+// outsideChecksFE is outsideChecks with the opt-in fact-equal acceptance: with
+// acceptFE a copy whose full-spec digest differs from the installed
+// definition is accepted when factEqual holds for the definition it repeats;
+// the accepted copies are returned as "path\tkey" lines. With acceptFE false
+// it is exactly the strict check and returns no accepted copies.
+func outsideChecksFE(inside []*inclusion, outside []*finding, acceptFE bool) ([]Stop, []string) {
+	var accepted []string
 	held := map[string][]crd{}
 	for _, i := range inside {
 		for _, c := range i.CRDs {
@@ -359,13 +370,81 @@ func outsideChecks(inside []*inclusion, outside []*finding) []Stop {
 				stops = append(stops, stop(StopInstallPathHidesCRD, k, f.Path+" defines it and no install path does"))
 				continue
 			}
+			viaFacts := false
 			for _, h := range hs {
 				if !crdsEqual(h, c) {
+					if acceptFE && factEqual(h, c) {
+						viaFacts = true
+						continue
+					}
 					stops = append(stops, stop(StopInstallPathCopyDiffers, k, fmt.Sprintf("%s differs from the installed definition in %s", f.Path, firstDifference(h, c))))
+					viaFacts = false
 					break
 				}
 			}
+			if viaFacts {
+				accepted = append(accepted, f.Path+"\t"+k)
+			}
 		}
 	}
-	return stops
+	sort.Strings(accepted)
+	return stops, accepted
+}
+
+// factEqual is the opt-in comparison of two definitions of the same key by the
+// published facts only: group, kind, the version set (name, served, storage;
+// non-empty on both sides), spec.scope, spec.names (every name field) and
+// spec.conversion (absent on both sides counts equal; absent against present,
+// including an explicit strategy None, is unequal). The apiVersion text and
+// every other spec field (schema text) are ignored. It fails closed: a missing
+// digest, a missing scope or names part or an empty version list is unequal.
+func factEqual(a, b crd) bool {
+	if a.Group == "" || a.Group != b.Group || a.Kind == "" || a.Kind != b.Kind {
+		return false
+	}
+	if a.SpecDigest == "" || b.SpecDigest == "" || a.SpecParts == nil || b.SpecParts == nil {
+		return false
+	}
+	if len(a.Versions) == 0 || len(a.Versions) != len(b.Versions) {
+		return false
+	}
+	av := append([]string(nil), a.Versions...)
+	bv := append([]string(nil), b.Versions...)
+	sort.Strings(av)
+	sort.Strings(bv)
+	for i := range av {
+		if av[i] != bv[i] {
+			return false
+		}
+	}
+	for _, p := range []string{"spec.scope", "spec.names"} {
+		x, xok := a.SpecParts[p]
+		y, yok := b.SpecParts[p]
+		if !xok || !yok || x == "" || x != y {
+			return false
+		}
+	}
+	x, xok := a.SpecParts["spec.conversion"]
+	y, yok := b.SpecParts["spec.conversion"]
+	if xok != yok || x != y {
+		return false
+	}
+	return true
+}
+
+// annotateFactEqual adds the changelog sentence for the copies the opt-in
+// fact-equal acceptance set aside; it adds nothing when there were none, and
+// never changes a path or writes an exclusion.
+func annotateFactEqual(res *Result, window []*tagResult) {
+	seen := map[string]bool{}
+	for _, r := range window {
+		for _, p := range r.factEqual {
+			seen[strings.SplitN(p, "\t", 2)[0]] = true
+		}
+	}
+	if len(seen) == 0 {
+		return
+	}
+	txt := "\n" + strconv.Itoa(len(seen)) + " outside copies with the same published facts (versions, served, storage, scope, names, conversion) and different schema text were set aside at every tag of the run; the installed definitions are the ones in the install paths.\n"
+	res.Changelog = append(res.Changelog, []byte(txt)...)
 }

@@ -60,6 +60,9 @@ type Rules struct {
 	// installPaths must define nothing the install paths do not define and
 	// must equal the installed definition of a key it repeats.
 	checkCopies bool
+	// acceptFactEqual (never read from a file; set by Generate for the opt-in
+	// AcceptFactEqualCopies, only together with checkCopies): see factEqual.
+	acceptFactEqual bool
 }
 
 // PathFilterRule names the files to filter out of the install surface by an
