@@ -36,6 +36,17 @@ import (
 //     exclusions, and the upstream tags resolve to the recipe commits (B1);
 //   - the digests of the full changed set and of the subset it judged.
 //
+// S2 requirements (the gate seam that calls this):
+//   - the trees, the raw diff and both commit ids must come from the exact
+//     SHAs in ONE gate step: this verifier binds only the diffed paths to the
+//     diff (blob ids) and cannot prove the trees match the commit ids
+//     elsewhere;
+//   - the admission checker ignores JudgedPathsSHA256 and TagsCommitsSHA: the
+//     table content is covered only by the signed batch table digest, so the
+//     gate must compute that digest from the HEAD tree;
+//   - the policy must carry a non-empty TrustPaths list (refused here when
+//     empty).
+//
 // Left to the admission checker: the batch signature, keyset, principals, the
 // table and registry digests and exclusion deltas, repository-level generated
 // outputs, and the commit provenance.
@@ -71,6 +82,8 @@ const (
 	OnbReasonHeadTable      = "head-table-row-missing"
 	OnbReasonHeadExtra      = "head-recipe-file-not-in-diff"
 	OnbReasonNoRunner       = "binding-unavailable"
+	OnbReasonFactCollision  = "fact-project-collision"
+	OnbReasonRepoCovered    = "repo-already-covered-in-base"
 )
 
 var onbSlugRE = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
@@ -311,22 +324,105 @@ func (v *treeView) under(prefix string) []string {
 	return out
 }
 
-// onbTableSlugs reads the project slugs of a table file; any decode problem is
-// an error (no guess).
-func onbTableSlugs(raw []byte) ([]string, error) {
+// onbRow is the part of a table row the verifier reads.
+type onbRow struct {
+	Slug        string `json:"slug"`
+	FactProject string `json:"factProject"`
+	Component   string `json:"component"`
+	Upstream    *struct {
+		Repository string `json:"repository"`
+	} `json:"upstream"`
+}
+
+// onbTableRows reads the rows of a table file; any decode problem is an error
+// (no guess).
+func onbTableRows(raw []byte) ([]onbRow, error) {
 	var doc struct {
-		Projects []struct {
-			Slug string `json:"slug"`
-		} `json:"projects"`
+		Projects []onbRow `json:"projects"`
 	}
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		return nil, err
 	}
-	out := make([]string, 0, len(doc.Projects))
-	for _, p := range doc.Projects {
-		out = append(out, p.Slug)
+	return doc.Projects, nil
+}
+
+func onbTableSlugs(raw []byte) ([]string, error) {
+	rows, err := onbTableRows(raw)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, r.Slug)
 	}
 	return out, nil
+}
+
+// baseFacts are the identity values the base already uses: project ids (slug,
+// project, factProject) and upstream repositories (repo, component, upstream
+// repository, all reduced to owner/name), lower-cased.
+type baseFacts struct {
+	ids   map[string]bool
+	repos map[string]bool
+}
+
+func (b *baseFacts) addID(v string) {
+	if v = strings.ToLower(strings.TrimSpace(v)); v != "" {
+		b.ids[v] = true
+	}
+}
+
+func (b *baseFacts) addRepo(v string) {
+	if v = normRepo(v); v != "" {
+		b.repos[v] = true
+	}
+}
+
+// normRepo reduces a repo, a package url or a repository url to owner/name.
+func normRepo(v string) string {
+	v = strings.ToLower(strings.TrimSpace(v))
+	for _, p := range []string{"https://", "http://", "git+", "github.com/", "pkg:github/"} {
+		v = strings.TrimPrefix(v, p)
+	}
+	v = strings.TrimSuffix(strings.TrimSuffix(v, "/"), ".git")
+	return strings.TrimSuffix(v, "/")
+}
+
+type onbTargetDoc struct {
+	Target struct {
+		Project     string `json:"project"`
+		FactProject string `json:"factProject"`
+		Component   string `json:"component"`
+		Repo        string `json:"repo"`
+	} `json:"target"`
+}
+
+// checkCollisions refuses a project whose identity is already used by the
+// base: its slug, fact project or the head target's project equal to any base
+// id, or its repo, component or the head target's repo or component equal to
+// any base upstream repository, under any casing. A head target that does not
+// decode is a refusal.
+func checkCollisions(run *onbRun, bf *baseFacts, head *treeView, slug string, rc *Recipe) {
+	raw, f := head.read(realTargetPath(slug), maxOutputBytes)
+	var doc onbTargetDoc
+	if f != nil || json.Unmarshal(raw, &doc) != nil {
+		run.addDetail("target-invalid", slug, "the head target does not decode")
+		return
+	}
+	ids := []string{slug, rc.FactProject, doc.Target.Project, doc.Target.FactProject}
+	repos := []string{rc.Repo, rc.Component, doc.Target.Repo, doc.Target.Component}
+	for _, v := range ids {
+		if v = strings.ToLower(strings.TrimSpace(v)); v != "" && bf.ids[v] {
+			run.addDetail(OnbReasonFactCollision, slug, "an id is already used in the base")
+			break
+		}
+	}
+	for _, v := range repos {
+		if v = normRepo(v); v != "" && bf.repos[v] {
+			run.addDetail(OnbReasonRepoCovered, slug, "an upstream repository is already covered in the base")
+			break
+		}
+	}
 }
 
 func onbPolicyOK(p OnboardingPolicy) bool {
@@ -338,6 +434,11 @@ func onbPolicyOK(p OnboardingPolicy) bool {
 			return false
 		}
 		seen[e] = true
+	}
+	// A policy without trust paths is refused: the checker would still refuse
+	// them, but this verifier does not run with the list silently empty.
+	if len(p.TrustPaths) == 0 {
+		return false
 	}
 	for _, t := range p.TrustPaths {
 		if t == "" {
@@ -503,7 +604,7 @@ func verifyOnboarding(in OnboardingVerifyInput, env verifyEnv) OnboardingVerifyR
 			}
 		}
 	}
-	checkBaseAbsence(run, base, head, in.Policy.TablePath, slugs)
+	bf := checkBaseAbsence(run, base, head, in.Policy.TablePath, slugs)
 	if run.failed() {
 		return run.fail(in)
 	}
@@ -521,6 +622,7 @@ func verifyOnboarding(in OnboardingVerifyInput, env verifyEnv) OnboardingVerifyR
 			run.addFailure(s, f)
 			continue
 		}
+		checkCollisions(run, bf, head, s, cc.rc)
 		done = append(done, verified{s, cc})
 	}
 	if run.failed() {
@@ -595,15 +697,24 @@ func onbOtherSlugPath(p string) bool {
 // the project it names) or a table row; and that the head table has exactly
 // the project's own row. A table or target that cannot be read is "unknown",
 // never absent.
-func checkBaseAbsence(run *onbRun, base, head *treeView, tablePath string, slugs []string) {
+func checkBaseAbsence(run *onbRun, base, head *treeView, tablePath string, slugs []string) *baseFacts {
+	bf := &baseFacts{ids: map[string]bool{}, repos: map[string]bool{}}
 	baseTable, tf := base.read(tablePath, MaxFileBytes)
 	var baseRows []string
 	if tf != nil {
 		run.addHarness(OnbReasonBaseUnknown, "", "base table unreadable: "+tf.Code)
-	} else if rows, err := onbTableSlugs(baseTable); err != nil {
+	} else if rows, err := onbTableRows(baseTable); err != nil {
 		run.addHarness(OnbReasonBaseUnknown, "", "base table does not decode")
 	} else {
-		baseRows = rows
+		for _, r := range rows {
+			baseRows = append(baseRows, r.Slug)
+			bf.addID(r.Slug)
+			bf.addID(r.FactProject)
+			bf.addRepo(r.Component)
+			if r.Upstream != nil {
+				bf.addRepo(r.Upstream.Repository)
+			}
+		}
 	}
 	var baseTargetProjects []string
 	targetPrefix := CrdVersionsDir + "/"
@@ -613,16 +724,16 @@ func checkBaseAbsence(run *onbRun, base, head *treeView, tablePath string, slugs
 			continue
 		}
 		raw, f := base.read(p, maxOutputBytes)
-		var doc struct {
-			Target struct {
-				Project string `json:"project"`
-			} `json:"target"`
-		}
+		var doc onbTargetDoc
 		if f != nil || json.Unmarshal(raw, &doc) != nil {
 			run.addHarness(OnbReasonBaseUnknown, "", fmt.Sprintf("base target %q does not decode", name))
 			continue
 		}
 		baseTargetProjects = append(baseTargetProjects, doc.Target.Project)
+		bf.addID(doc.Target.Project)
+		bf.addID(doc.Target.FactProject)
+		bf.addRepo(doc.Target.Repo)
+		bf.addRepo(doc.Target.Component)
 	}
 	headTable, hf := head.read(tablePath, MaxFileBytes)
 	var headRows []string
@@ -667,4 +778,5 @@ func checkBaseAbsence(run *onbRun, base, head *treeView, tablePath string, slugs
 			run.addDetail(OnbReasonHeadTable, s, fmt.Sprintf("%d exact and %d case-folded rows in the head table", exact, fold))
 		}
 	}
+	return bf
 }

@@ -38,6 +38,7 @@ type onbRec struct{ path, status, old, new string }
 type onbFx struct {
 	t        *testing.T
 	f        *fixture
+	fxs      map[string]*fixture
 	head     *memTree
 	base     *memTree
 	recs     []onbRec
@@ -121,15 +122,59 @@ func tableDoc(slugs ...string) []byte {
 	return []byte(`{"projects":[` + strings.Join(parts, ",") + `]}`)
 }
 
-func newOnbFx(t *testing.T) *onbFx {
+// buildSlugFixture is newFixture for any slug (same recorded bundle, the
+// generator input renamed).
+func buildSlugFixture(t *testing.T, slug string) *fixture {
 	t.Helper()
-	f := newFixture(t, nil)
-	f.files["recipe.json"] = f.recipeBytes()
-	x := &onbFx{t: t, f: f, head: newMemTree(), base: newMemTree(), slugs: []string{"demo"}, env: defaultVerifyEnv(), baseSHA: onbBaseSHA, headSHA: onbHeadSHA}
-	for n, b := range f.files {
-		x.put(full(n), b, nil)
+	name := strings.ToUpper(slug[:1]) + slug[1:]
+	mk := func(s Source) Input {
+		in := collapseInputFor(s, true)
+		in.Slug, in.Name, in.Repo = slug, name, "github.com/example/"+slug
+		return in
 	}
-	x.put(onbTable, tableDoc("other", "demo"), tableDoc("other"))
+	raw, _ := recordBundle(t, collapseSource(nil), mk)
+	b, err := ParseBundle(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res := mustGenerate(t, mk(FactSource{B: b}))
+	rep, _ := marshal(res.Report)
+	f := &fixture{t: t, bundle: raw, env: defaultVerifyEnv(), base: map[string][]byte{}, files: map[string][]byte{
+		"facts.bundle": raw, "target-" + slug + ".json": res.A, "report.json": rep, "table-row.json": res.TableRow, "changelog.md": res.Changelog,
+	}}
+	f.recipe = Recipe{Schema: RecipeSchema, Slug: slug, Name: name, Repo: "github.com/example/" + slug, Catalog: "cncf",
+		Tags: collapseTags, RangeCheckTags: []string{}, CollapseDirectories: true, Half: "A", Exclude: []string{},
+		FactBundleDigest: sha256Of(raw)}
+	for _, tag := range b.Tags() {
+		c, _ := b.Commit(tag)
+		f.recipe.Commits = append(f.recipe.Commits, recipeCommit{Tag: tag, Commit: c})
+	}
+	f.files["recipe.json"] = f.recipeBytes()
+	return f
+}
+
+func newOnbFx(t *testing.T) *onbFx { return newOnbFxSlugs(t, "demo") }
+
+func newOnbFxSlugs(t *testing.T, slugs ...string) *onbFx {
+	t.Helper()
+	x := &onbFx{t: t, head: newMemTree(), base: newMemTree(), slugs: slugs, env: defaultVerifyEnv(), baseSHA: onbBaseSHA, headSHA: onbHeadSHA, fxs: map[string]*fixture{}}
+	headRows := []string{"other"}
+	for _, s := range slugs {
+		f := buildSlugFixture(t, s)
+		x.fxs[s] = f
+		if x.f == nil {
+			x.f = f
+		}
+		for n, b := range f.files {
+			p := RecipesRoot + s + "/" + n
+			if n == "target-"+s+".json" {
+				p = realTargetPath(s)
+			}
+			x.put(p, b, nil)
+		}
+		headRows = append(headRows, s)
+	}
+	x.put(onbTable, tableDoc(headRows...), tableDoc("other"))
 	x.put(onbBatch, []byte(`{"batch":"b1"}`), nil)
 	x.put(onbOut, []byte(`{"out":2}`), []byte(`{"out":1}`))
 	// Unchanged base content the absence check must read past.
@@ -140,11 +185,17 @@ func newOnbFx(t *testing.T) *onbFx {
 	}
 	x.policy = OnboardingPolicy{BatchPath: onbBatch, TablePath: onbTable, Required: []string{onbOut}, Optional: []string{onbOpt}, TrustPaths: []string{onbTrustD}}
 	var out []string
-	for _, c := range f.recipe.Commits {
+	for _, c := range x.f.recipe.Commits {
 		out = append(out, c.Commit+"\trefs/tags/"+c.Tag)
 	}
 	x.runner = &fakeRunner{results: []ExecResult{okRun(lsOut(out...))}}
 	return x
+}
+
+func (x *onbFx) setRecipeOf(slug string, mutate func(*Recipe)) {
+	f := x.fxs[slug]
+	mutate(&f.recipe)
+	x.setHead(RecipesRoot+slug+"/recipe.json", f.recipeBytes())
 }
 
 func (x *onbFx) run() OnboardingVerifyResult {
@@ -459,6 +510,12 @@ func TestVerifyOnboardingRawDiffNegatives(t *testing.T) {
 		{"symbolic link", append(append([]byte(nil), good...), rawRecord("000000", "120000", "A", "cli/docs/x.json")...), "path-status"},
 		{"type change", append(append([]byte(nil), good...), rawRecord("100644", "120000", "T", "cli/docs/x.json")...), "path-status"},
 		{"submodule", append(append([]byte(nil), good...), rawRecord("000000", "160000", "A", "cli/docs/x.json")...), "path-status"},
+		{"two-path rename record", append(append([]byte(nil), good...), []byte(":100644 100644 "+zeros40+" "+strings.Repeat("1", 40)+" R100\x00cli/docs/old.json\x00cli/docs/new.json\x00")...), "path-status"},
+		{"two-path copy record", append(append([]byte(nil), good...), []byte(":100644 100644 "+zeros40+" "+strings.Repeat("1", 40)+" C075\x00cli/docs/old.json\x00cli/docs/new.json\x00")...), "path-status"},
+		{"rename as the first record", append([]byte(":100644 100644 "+zeros40+" "+strings.Repeat("1", 40)+" R100\x00cli/docs/old.json\x00cli/docs/new.json\x00"), good...), "path-status"},
+		{"stream truncated right after the meta field", append(append([]byte(nil), good...), []byte(":000000 100644 "+zeros40+" "+strings.Repeat("1", 40)+" A\x00")...), "changed-list-malformed"},
+		{"trailing NUL", append(append([]byte(nil), good...), 0), "changed-list-malformed"},
+		{"leading NUL", append([]byte{0}, good...), "changed-list-malformed"},
 		{"garbage", []byte("garbage\x00x\x00"), "changed-list-malformed"},
 		{"short object id", []byte(":000000 100644 abc " + strings.Repeat("1", 40) + " A\x00cli/a\x00"), "changed-list-malformed"},
 		{"truncated after the meta", good[:bytes.LastIndexByte(good[:len(good)-1], 0)+1], "changed-list-malformed"},
@@ -512,6 +569,7 @@ func TestVerifyOnboardingInputNegatives(t *testing.T) {
 		{"policy workflow as static", func(x *onbFx) { x.policy.Optional = append(x.policy.Optional, ".github/workflows/x.yml") }, OnbReasonPolicy},
 		{"policy duplicate", func(x *onbFx) { x.policy.Optional = append(x.policy.Optional, onbOut) }, OnbReasonPolicy},
 		{"policy unclean", func(x *onbFx) { x.policy.Optional = append(x.policy.Optional, "a//b") }, OnbReasonPolicy},
+		{"policy without trust paths", func(x *onbFx) { x.policy.TrustPaths = nil }, OnbReasonPolicy},
 		{"policy empty trust entry", func(x *onbFx) { x.policy.TrustPaths = append(x.policy.TrustPaths, "") }, OnbReasonPolicy},
 	}
 	for _, c := range cases {
@@ -847,4 +905,182 @@ func TestOnboardVerifyIsPure(t *testing.T) {
 		}
 		return true
 	})
+}
+
+// A project must not reuse an identity the base already holds: an upstream
+// repository (repo, component, upstream repository of any base row or target)
+// or a project id (fact project, target project), under any casing.
+func TestVerifyOnboardingBaseIdentityCollisions(t *testing.T) {
+	row := func(extra string) []byte {
+		return []byte(`{"projects":[{"slug":"other"` + extra + `}]}`)
+	}
+	tgt := func(extra string) []byte { return []byte(`{"target":{"project":"other"` + extra + `}}`) }
+	both := func(x *onbFx, p string, b []byte) { x.base.files[p] = b; x.head.files[p] = b }
+	cases := []struct {
+		name   string
+		mut    func(x *onbFx)
+		reason string
+	}{
+		{"base row factProject", func(x *onbFx) { x.setBase(onbTable, row(`,"factProject":"DEMO"`)) }, OnbReasonFactCollision},
+		{"base row component", func(x *onbFx) { x.setBase(onbTable, row(`,"component":"pkg:github/Example/Demo"`)) }, OnbReasonRepoCovered},
+		{"base row upstream repository", func(x *onbFx) {
+			x.setBase(onbTable, row(`,"upstream":{"repository":"https://github.com/example/demo.git"}`))
+		}, OnbReasonRepoCovered},
+		{"base target factProject", func(x *onbFx) { both(x, CrdVersionsDir+"/target-other.json", tgt(`,"factProject":"Demo"`)) }, OnbReasonFactCollision},
+		{"base target repo", func(x *onbFx) { both(x, CrdVersionsDir+"/target-other.json", tgt(`,"repo":"github.com/EXAMPLE/demo"`)) }, OnbReasonRepoCovered},
+		{"base target component", func(x *onbFx) {
+			both(x, CrdVersionsDir+"/target-other.json", tgt(`,"component":"pkg:github/example/demo"`))
+		}, OnbReasonRepoCovered},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			x := newOnbFx(t)
+			c.mut(x)
+			x.wantRefusal(x.run(), 0, c.reason)
+		})
+	}
+	// Unrelated base identities do not refuse.
+	x := newOnbFx(t)
+	x.setBase(onbTable, row(`,"factProject":"other","component":"pkg:github/a/b","upstream":{"repository":"https://github.com/a/b"}`))
+	both(x, CrdVersionsDir+"/target-other.json", tgt(`,"factProject":"other","repo":"github.com/a/b","component":"pkg:github/a/b"`))
+	if res := x.run(); res.Outcome != "pass" {
+		t.Fatalf("%+v", res)
+	}
+}
+
+// With two slugs, every per-project conjunct must hold for the SECOND one too
+// (a mutant that judges only slugs[0] fails here).
+func TestVerifyOnboardingTwoSlugs(t *testing.T) {
+	two := func(t *testing.T) *onbFx { return newOnbFxSlugs(t, "demo", "demo2") }
+	t.Run("positive", func(t *testing.T) {
+		x := two(t)
+		res := x.run()
+		if res.Outcome != "pass" || !reflect.DeepEqual(res.Slugs, []string{"demo", "demo2"}) || len(res.TagsCommitsSHA) != 2 {
+			t.Fatalf("%+v", res)
+		}
+		if len(x.runner.calls) != 2 {
+			t.Fatalf("%d upstream runs, want one per slug", len(x.runner.calls))
+		}
+		var all, judged []string
+		for _, r := range x.recs {
+			all = append(all, r.path)
+			if strings.HasPrefix(r.path, RecipesRoot+"demo") || strings.HasPrefix(r.path, CrdVersionsDir+"/target-demo") {
+				judged = append(judged, r.path)
+			}
+		}
+		if len(judged) != 12 || res.ChangedPathsSHA256 != shaOf(all) || res.JudgedPathsSHA256 != shaOf(judged) {
+			t.Fatalf("digests: %d judged, %+v", len(judged), res)
+		}
+		var b strings.Builder
+		b.WriteString("prufyx.io/onboarding-binding/v1\n")
+		for _, s := range []string{"demo", "demo2"} {
+			var tags []BindingTag
+			for _, c := range x.fxs[s].recipe.Commits {
+				tags = append(tags, BindingTag{Tag: c.Tag, Commit: c.Commit})
+			}
+			b.WriteString(s + "\t" + bindingDigest("github.com/example/"+s, tags) + "\n")
+		}
+		sum := sha256.Sum256([]byte(b.String()))
+		if res.BindingDigest != "sha256:"+hex.EncodeToString(sum[:]) {
+			t.Fatalf("binding digest %s", res.BindingDigest)
+		}
+		if res.TagsCommitsSHA["demo"] == "" || res.TagsCommitsSHA["demo2"] == "" {
+			t.Fatalf("%v", res.TagsCommitsSHA)
+		}
+		// Any slug order gives the same result.
+		y := two(t)
+		y.slugs = []string{"demo2", "demo"}
+		if got := y.run(); !reflect.DeepEqual(res, got) {
+			t.Fatalf("slug order changed the result")
+		}
+	})
+	for name, c := range map[string]struct {
+		mut    func(x *onbFx)
+		reason string
+	}{
+		"second in base table": {func(x *onbFx) { x.setBase(onbTable, tableDoc("other", "demo2")) }, OnbReasonBasePresent},
+		"second in base target": {func(x *onbFx) {
+			x.base.files[CrdVersionsDir+"/target-DEMO2.json"] = []byte(`{"target":{"project":"z"}}`)
+		}, OnbReasonBasePresent},
+		"second in base recipe":      {func(x *onbFx) { x.base.files[RecipesRoot+"Demo2/recipe.json"] = []byte("{}") }, OnbReasonBasePresent},
+		"second report differs":      {func(x *onbFx) { x.setHead(RecipesRoot+"demo2/report.json", []byte("{}\n")) }, "report-differs"},
+		"second adds exclusion":      {func(x *onbFx) { x.setRecipeOf("demo2", func(r *Recipe) { r.Exclude = []string{"x"} }) }, "recipe-invalid"},
+		"second head row gone":       {func(x *onbFx) { x.setHead(onbTable, tableDoc("other", "demo")) }, OnbReasonHeadTable},
+		"second extra head file":     {func(x *onbFx) { x.head.files[RecipesRoot+"demo2/rules.json"] = []byte("{}") }, OnbReasonHeadExtra},
+		"second recipe file missing": {func(x *onbFx) { x.drop(RecipesRoot + "demo2/changelog.md") }, OnbReasonRequired},
+		"second collides with a base repo": {func(x *onbFx) {
+			p := CrdVersionsDir + "/target-other.json"
+			b := []byte(`{"target":{"project":"other","repo":"github.com/example/demo2"}}`)
+			x.base.files[p], x.head.files[p] = b, b
+		}, OnbReasonRepoCovered},
+	} {
+		t.Run(name, func(t *testing.T) {
+			x := two(t)
+			c.mut(x)
+			res := x.run()
+			if res.Outcome != "fail" || !contains(res.Reasons, c.reason) || len(x.runner.calls) != 0 {
+				t.Fatalf("%+v", res)
+			}
+			for _, d := range res.Details {
+				if strings.Contains(d, "demo: ") && !strings.Contains(d, "demo2") {
+					t.Fatalf("the first slug must not fail: %v", res.Details)
+				}
+			}
+		})
+	}
+	t.Run("second has a wrong tag upstream", func(t *testing.T) {
+		x := two(t)
+		var good, bad []string
+		for i, c := range x.f.recipe.Commits {
+			good = append(good, c.Commit+"\trefs/tags/"+c.Tag)
+			cm := c.Commit
+			if i == 0 {
+				cm = strings.Repeat("9", 40)
+			}
+			bad = append(bad, cm+"\trefs/tags/"+c.Tag)
+		}
+		x.runner = &fakeRunner{results: []ExecResult{okRun(lsOut(good...)), okRun(lsOut(bad...))}}
+		res := x.run()
+		x.wantRefusal(res, 2, "binding-mismatch")
+		if !strings.HasPrefix(res.Details[0], "demo2: ") {
+			t.Fatalf("%v", res.Details)
+		}
+	})
+	t.Run("second binding unavailable", func(t *testing.T) {
+		x := two(t)
+		x.runner = &fakeRunner{results: []ExecResult{okRun(x.runnerOut()), {Err: errors.New("no git")}}}
+		x.wantRefusal(x.run(), 2, "binding-unavailable")
+	})
+	t.Run("duplicate slug", func(t *testing.T) {
+		x := two(t)
+		x.slugs = []string{"demo", "demo2", "demo"}
+		res := x.run()
+		if res.Outcome != "fail" || !contains(res.Reasons, OnbReasonSlugList) || len(x.runner.calls) != 0 {
+			t.Fatalf("%+v", res)
+		}
+	})
+	t.Run("extra expected slug", func(t *testing.T) {
+		x := two(t)
+		x.slugs = []string{"demo", "demo2", "demo3"}
+		res := x.run()
+		if res.Outcome != "fail" || !contains(res.Reasons, OnbReasonRequired) || len(x.runner.calls) != 0 {
+			t.Fatalf("%+v", res)
+		}
+	})
+	t.Run("diff carries a slug not expected", func(t *testing.T) {
+		x := two(t)
+		x.slugs = []string{"demo"}
+		res := x.run()
+		if res.Outcome != "fail" || !contains(res.Reasons, OnbReasonSlugSet) || len(x.runner.calls) != 0 {
+			t.Fatalf("%+v", res)
+		}
+	})
+}
+
+func (x *onbFx) runnerOut() string {
+	var out []string
+	for _, c := range x.f.recipe.Commits {
+		out = append(out, c.Commit+"\trefs/tags/"+c.Tag)
+	}
+	return lsOut(out...)
 }
