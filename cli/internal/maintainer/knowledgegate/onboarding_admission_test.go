@@ -470,11 +470,20 @@ func TestOnboardingAdmissionInGateReport(t *testing.T) {
 	if raw, err := json.Marshal(r); err != nil || bytes.Contains(raw, []byte("onboardingAdmission")) {
 		t.Fatalf("flag-off report carries the member: %v", err)
 	}
-	// Enabled but without the inputs the gate cannot have: still refused,
-	// and the old flag stays false.
+	// Enabled by the compiled layout alone: the plain disabled decision.
 	r = f.gateWith(t, func(o *Options) {
 		o.Layout = DefaultLayout()
 		o.Layout.OnboardingAdmission.Enabled = true
+	})
+	if r.OnboardingAdmission == nil || r.OnboardingAdmission.Admitted || strings.Join(r.OnboardingAdmission.Reasons, ",") != AdmitReasonDisabled {
+		t.Fatalf("one lock: %+v", r.OnboardingAdmission)
+	}
+	// Both locks on but without the inputs the gate cannot have: still
+	// refused, and the old flag stays false.
+	r = f.gateWith(t, func(o *Options) {
+		o.Layout = DefaultLayout()
+		o.Layout.OnboardingAdmission.Enabled = true
+		o.OnboardingAdmissionInProcess = true
 	})
 	if r.AutoMerge.Eligible {
 		t.Fatalf("auto merge %+v", r.AutoMerge)
@@ -483,7 +492,7 @@ func TestOnboardingAdmissionInGateReport(t *testing.T) {
 		t.Fatalf("admission %+v", r.OnboardingAdmission)
 	}
 	have := strings.Join(r.OnboardingAdmission.Reasons, ",")
-	for _, want := range []string{AdmitReasonVerifyAbsent, AdmitReasonAuthor, AdmitReasonAllowlistUnset} {
+	for _, want := range []string{AdmitReasonVerifyAbsent, AdmitReasonAuthor, AdmitReasonAllowlistUnset, AdmitReasonSeamContext} {
 		if !strings.Contains(have, want) {
 			t.Fatalf("reasons %s lack %s", have, want)
 		}

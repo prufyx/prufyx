@@ -17,6 +17,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencereattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgetargets"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/rulecheck"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/targetdraft"
 )
 
 // Defaults.
@@ -108,9 +109,20 @@ type Options struct {
 	// observations come from the trusted fetch boundary, never the candidate.
 	OnboardingGit       *OnboardingGitContext
 	AdmissionRESTBudget int64
-	// VerifyPr is the recorded verify-pr result for the change; nil means
-	// absent, which never admits an onboarding change.
-	VerifyPr *VerifyPrResult
+	// OnboardingAdmissionInProcess is the run-time lock of the onboarding
+	// admission seam. Its only setter is the "gate verify
+	// --onboarding-admission=inprocess" flag; the compiled
+	// Layout.OnboardingAdmission.Enabled is the other lock, and either one
+	// off reports the decision "disabled". There is no verify-pr result
+	// input: the seam derives the result itself, in this process.
+	OnboardingAdmissionInProcess bool
+	// AdmissionRunner is the upstream (ls-remote) runner of the seam. Nil
+	// means the gate's own fixed-environment runner. The command line never
+	// sets it.
+	AdmissionRunner targetdraft.LsRemoteRunner
+	// AdmissionVerifier replaces the in-process verifier. Nil means
+	// targetdraft.VerifyOnboarding. The command line never sets it.
+	AdmissionVerifier func(targetdraft.OnboardingVerifyInput) targetdraft.OnboardingVerifyResult
 	// DailyLoosening is the number of loosening changes already merged by
 	// the automation in the last day, counted by the caller. Nil means it
 	// is unknown: the change is then never eligible for automatic merging.
@@ -631,7 +643,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	r.limitChecks(cls, opts)
 	r.finish(true)
 	r.autoMerge(opts)
-	r.admitOnboarding(opts)
+	r.admitOnboarding(ctx, opts)
 	return r, nil
 }
 

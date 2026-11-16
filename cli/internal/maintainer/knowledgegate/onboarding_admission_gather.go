@@ -4,6 +4,7 @@ package knowledgegate
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -109,12 +110,21 @@ func (a *admissionFacts) state(st *onboardingState, rec OnboardingRecord) {
 
 // admitOnboarding computes the admission decision of a change that adds an
 // onboarding batch. It runs after autoMerge and never changes it.
-func (r *Report) admitOnboarding(opts Options) {
-	// With the flag off the report carries no member at all.
+//
+// Two locks, both BASE-controlled: the compiled layout flag and the run-time
+// in-process flag. With the layout flag off the report carries no member at
+// all; with the layout flag on and the run-time flag off the member is the
+// plain "disabled" decision, never an evaluation.
+func (r *Report) admitOnboarding(ctx context.Context, opts Options) {
 	if r.onboarding == nil || !opts.Layout.OnboardingAdmission.Enabled {
 		return
 	}
 	in := r.admissionInput(opts)
+	if !opts.OnboardingAdmissionInProcess {
+		in.Config.Enabled = false
+	} else {
+		r.admissionSeam(ctx, opts, &in)
+	}
 	dec := AdmitOnboardingAuto(in)
 	r.OnboardingAdmission = &dec
 }
@@ -134,7 +144,6 @@ func (r *Report) admissionInput(opts Options) OnboardingAdmissionInput {
 		Projects: a.projects, ExclusionsKnown: a.exclusionsKnown, BaseAbsenceKnown: a.baseAbsenceKnown, BasePresent: a.basePresent, BaseExclusions: a.baseExclusions, HeadExclusions: a.headExclusions,
 		RecipeExclusionsKnown: a.recipeKnown, RecipeExclusions: a.recipeExclusions, TargetExclusionPaths: a.targetExclPaths,
 		ChangedPaths: r.ChangedPaths, TrustPaths: opts.Layout.TrustPaths, BatchDir: opts.Layout.Onboarding.Dir,
-		VerifyPr: opts.VerifyPr,
 	}
 	if in.Batch.ID != "" {
 		in.Batch.Path = opts.Layout.Onboarding.Dir + "/" + in.Batch.ID + ".json"

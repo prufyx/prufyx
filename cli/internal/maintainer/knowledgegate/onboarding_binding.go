@@ -272,11 +272,24 @@ func checkAdmissionRefs(ctx context.Context, g *OnboardingGitContext) error {
 	return err
 }
 
+// admissionRawDiff captures the raw change list between the authenticated
+// base and head ONCE. The same bytes feed every consumer in a step (the change
+// vector below and the in-process verifier), so two parsers can never read two
+// different captures.
+func admissionRawDiff(ctx context.Context, g *OnboardingGitContext, head string) ([]byte, error) {
+	return admissionGit(ctx, g, "diff", "--no-ext-diff", "--no-textconv", "--raw", "-z", "--no-abbrev", "--no-renames", g.BaseCommit, head, "--")
+}
+
 func admissionChanges(ctx context.Context, g *OnboardingGitContext, head string) ([]OnboardingGitChange, error) {
-	raw, err := admissionGit(ctx, g, "diff", "--no-ext-diff", "--no-textconv", "--raw", "-z", "--no-abbrev", "--no-renames", g.BaseCommit, head, "--")
+	raw, err := admissionRawDiff(ctx, g, head)
 	if err != nil {
 		return nil, err
 	}
+	return parseAdmissionRaw(ctx, g, raw)
+}
+
+// parseAdmissionRaw decodes captured raw diff bytes into the change vector.
+func parseAdmissionRaw(ctx context.Context, g *OnboardingGitContext, raw []byte) ([]OnboardingGitChange, error) {
 	parts := bytes.Split(raw, []byte{0})
 	if len(parts) == 0 || len(parts[len(parts)-1]) != 0 {
 		return nil, errors.New("invalid raw Git diff")
