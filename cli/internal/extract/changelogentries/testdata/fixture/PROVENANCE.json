@@ -1,0 +1,65 @@
+{
+ "note": "Real excerpts of each repository's CHANGELOG.md read at the tag's commit via the GitHub contents API: the preamble and the first four sections, verbatim, cut at a section boundary. upstreamBlobSha is the git blob id of the whole upstream file.",
+ "files": [
+  {
+   "repo": "github.com/prometheus/prometheus",
+   "tag": "v3.5.0",
+   "commit": "8be3a9560fbdd18a94dedec4b747c35178177202",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "c4a906d09b22e90f55f09c2484ef6e8f3253199b",
+   "upstreamLines": 3057,
+   "excerptLines": 53,
+   "excerptSha256": "ae82f87f2511259cf541134e0efc1187b65b209200a50107588e738d0159de24"
+  },
+  {
+   "repo": "github.com/prometheus/prometheus",
+   "tag": "v3.4.0",
+   "commit": "546b1d242e209ed4228aa01a248dbf3e41e573ea",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "f37d530e626f42edac7f96ab819b41004b983e44",
+   "upstreamLines": 3005,
+   "excerptLines": 79,
+   "excerptSha256": "b336410fb622490061097bbe5e23a1ecf259e617eb2a06cc4d11344744b69e24"
+  },
+  {
+   "repo": "github.com/cortexproject/cortex",
+   "tag": "v1.19.0",
+   "commit": "babe4210d83bcb9ba523037a0e7cc2331b5aab04",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "3f24da38962c5a9c8f50eb2bad59b8f5508a9a0f",
+   "upstreamLines": 2552,
+   "excerptLines": 189,
+   "excerptSha256": "8aefce75d63160deaad34bd8d43c329c89710084cbcfd825b1201f7b42a66f3b"
+  },
+  {
+   "repo": "github.com/cortexproject/cortex",
+   "tag": "v1.18.0",
+   "commit": "85511746c08640eb3e9e1ceb0fadaef860973958",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "d967195ad6081f8075ce30588ae10c4815eb3ea3",
+   "upstreamLines": 2423,
+   "excerptLines": 118,
+   "excerptSha256": "123110429f98b55de89421159c7e7f3e7c5b68cb40fc198b83bc87863dd5556f"
+  },
+  {
+   "repo": "github.com/thanos-io/thanos",
+   "tag": "v0.38.0",
+   "commit": "0439da0dd291735c36bb515c03e9dfa0012c76c9",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "ac108bfb2bd8bad2c32a101dd4c6ce3882e2d33d",
+   "upstreamLines": 2029,
+   "excerptLines": 80,
+   "excerptSha256": "8a9bd1e4085d610cb902ba3cb0093b359edf343eec3f9a3da2bc329a8f8bb172"
+  },
+  {
+   "repo": "github.com/thanos-io/thanos",
+   "tag": "v0.37.0",
+   "commit": "889d52763023d1bd6356c36268afc8bcdae93298",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "5510db550019dc8ae5cbf499db787e5f80798b01",
+   "upstreamLines": 1956,
+   "excerptLines": 120,
+   "excerptSha256": "68568ea77ce7a3b7d461bb5a40f32b5e0dbd12699ae286f979866833106acc0c"
+  }
+ ]
+}
