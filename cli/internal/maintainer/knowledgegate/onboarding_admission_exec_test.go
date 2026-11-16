@@ -70,7 +70,7 @@ type seamFixture struct {
 	// the seam), the differences between the handed trees and the judged ones.
 	treeDiffs []string
 	inputs    []targetdraft.OnboardingVerifyInput
-	r       *Report
+	r         *Report
 }
 
 func (s *seamFixture) verify(in targetdraft.OnboardingVerifyInput) targetdraft.OnboardingVerifyResult {
@@ -360,12 +360,24 @@ func TestSeamRefusals(t *testing.T) {
 		calls int
 	}{
 		{"event missing", AdmitReasonSeamEvent, func(t *testing.T, s *seamFixture, o *Options, in *OnboardingAdmissionInput) { o.AdmissionEvent = "" }, 0},
-		{"merge queue event", AdmitReasonSeamEvent, func(t *testing.T, s *seamFixture, o *Options, in *OnboardingAdmissionInput) { o.AdmissionEvent = "merge_group" }, 0},
-		{"push event", AdmitReasonSeamEvent, func(t *testing.T, s *seamFixture, o *Options, in *OnboardingAdmissionInput) { o.AdmissionEvent = "push" }, 0},
-		{"pull_request event (not the gate's event)", AdmitReasonSeamEvent, func(t *testing.T, s *seamFixture, o *Options, in *OnboardingAdmissionInput) { o.AdmissionEvent = "pull_request" }, 0},
-		{"schedule event", AdmitReasonSeamEvent, func(t *testing.T, s *seamFixture, o *Options, in *OnboardingAdmissionInput) { o.AdmissionEvent = "schedule" }, 0},
-		{"event with padding", AdmitReasonSeamEvent, func(t *testing.T, s *seamFixture, o *Options, in *OnboardingAdmissionInput) { o.AdmissionEvent = "pull_request_target " }, 0},
-		{"event in another case", AdmitReasonSeamEvent, func(t *testing.T, s *seamFixture, o *Options, in *OnboardingAdmissionInput) { o.AdmissionEvent = "Pull_Request_Target" }, 0},
+		{"merge queue event", AdmitReasonSeamEvent, func(t *testing.T, s *seamFixture, o *Options, in *OnboardingAdmissionInput) {
+			o.AdmissionEvent = "merge_group"
+		}, 0},
+		{"push event", AdmitReasonSeamEvent, func(t *testing.T, s *seamFixture, o *Options, in *OnboardingAdmissionInput) {
+			o.AdmissionEvent = "push"
+		}, 0},
+		{"pull_request event (not the gate's event)", AdmitReasonSeamEvent, func(t *testing.T, s *seamFixture, o *Options, in *OnboardingAdmissionInput) {
+			o.AdmissionEvent = "pull_request"
+		}, 0},
+		{"schedule event", AdmitReasonSeamEvent, func(t *testing.T, s *seamFixture, o *Options, in *OnboardingAdmissionInput) {
+			o.AdmissionEvent = "schedule"
+		}, 0},
+		{"event with padding", AdmitReasonSeamEvent, func(t *testing.T, s *seamFixture, o *Options, in *OnboardingAdmissionInput) {
+			o.AdmissionEvent = "pull_request_target "
+		}, 0},
+		{"event in another case", AdmitReasonSeamEvent, func(t *testing.T, s *seamFixture, o *Options, in *OnboardingAdmissionInput) {
+			o.AdmissionEvent = "Pull_Request_Target"
+		}, 0},
 		{"git context missing", AdmitReasonSeamContext, func(t *testing.T, s *seamFixture, o *Options, in *OnboardingAdmissionInput) { o.OnboardingGit = nil }, 0},
 		{"merge queue run: no author", AdmitReasonSeamNoPR, func(t *testing.T, s *seamFixture, o *Options, in *OnboardingAdmissionInput) { o.Author = "" }, 0},
 		{"merge queue run: no sender", AdmitReasonSeamNoPR, func(t *testing.T, s *seamFixture, o *Options, in *OnboardingAdmissionInput) { o.Sender = "" }, 0},

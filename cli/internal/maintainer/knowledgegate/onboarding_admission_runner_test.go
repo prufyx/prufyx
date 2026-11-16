@@ -6,7 +6,6 @@ import (
 	"context"
 	"os"
 	"os/exec"
-	"sort"
 	"strings"
 	"testing"
 	"time"
