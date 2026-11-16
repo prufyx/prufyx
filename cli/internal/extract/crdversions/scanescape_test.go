@@ -250,3 +250,20 @@ func FuzzEscapeRead(f *testing.F) {
 		}
 	})
 }
+
+// definesNothing refuses what the decoded or the resolved text names.
+func TestDefinesNothingEscaped(t *testing.T) {
+	for name, c := range map[string]string{
+		"escaped kind value":      "kind: \"\\u0043ustomResourceDefinition\"\nspec: {}\n",
+		"embedded, escaped once":  "data: \"kind: \\\\u0043ustomResourceDefinition\"\n",
+		"embedded, value in text": "data: \"{\\\"kind\\\": \\\"\\\\u0043ustomResourceDefinition\\\"}\"\n",
+		"utf16":                   utf16le("kind: CustomResourceDefinition\nspec: {}\n"),
+	} {
+		if definesNothing([]byte(c)) == "" {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	if definesNothing([]byte("pattern: \"^\\\\d+\"\n")) != "" {
+		t.Error("a regex string is refused")
+	}
+}
