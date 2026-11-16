@@ -46,7 +46,7 @@ func TestProjectsReleaseSignsEveryTargetAndProducesTheNextIndex(t *testing.T) {
 	}
 	if _, err := knowledge.VerifyConstraintsProjects(knowledge.VerifyRequest{
 		PackagePath: filepath.Join(o.OutputDir, "cncf-projects-"+o.Revision+".tar"), BootstrapRootPath: o.Root, BootstrapRootDigest: o.RootDigest,
-		ExpectedRevision: o.Revision, ExpectedBundleDigest: result.Receipt.TargetDigest,
+		ExpectedRevision: o.Revision, ExpectedBundleDigest: result.Receipt.TargetDigest, Now: o.Now,
 	}); err != nil {
 		t.Fatalf("the signed package does not verify: %v", err)
 	}

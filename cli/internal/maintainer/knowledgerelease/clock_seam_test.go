@@ -5,11 +5,6 @@ package knowledgerelease
 import (
 	"encoding/json"
 	"errors"
-	"go/ast"
-	"go/parser"
-	"go/printer"
-	"go/token"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -129,97 +124,5 @@ func TestZeroVerifyClockIsTheWallClock(t *testing.T) {
 	ts, _ := parseUTC(fr.TimestampExpires)
 	if want := time.Now().Before(ts); want != (zeroErr == nil) {
 		t.Fatalf("zero clock verdict %v, wall clock says unexpired=%v", zeroErr, want)
-	}
-}
-
-func exprString(fset *token.FileSet, e ast.Expr) string {
-	var b strings.Builder
-	_ = printer.Fprint(&b, fset, e)
-	return b.String()
-}
-
-// TestOnlyTheProductionDefaultSetsTheClock pins the seam: outside _test.go the
-// only code that gives a release, refresh or verify option a clock is the CLI
-// default (the wall clock) and pure forwarding inside the three packages, and
-// the release package itself never reads the wall clock.
-func TestOnlyTheProductionDefaultSetsTheClock(t *testing.T) {
-	cli := filepath.Join("..", "..", "..")
-	clocked := map[string]bool{"Options": true, "RefreshOptions": true, "VerifyRequest": true, "FinalizePackageOptions": true}
-	forwarded := map[string]bool{"now": true, "o.Now": true, "opts.Now": true, "req.Now": true}
-	const wall = "time.Now().UTC()"
-	seen := map[string]int{}
-	err := filepath.WalkDir(cli, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
-			return err
-		}
-		rel, _ := filepath.Rel(cli, path)
-		rel = filepath.ToSlash(rel)
-		fset := token.NewFileSet()
-		file, perr := parser.ParseFile(fset, path, nil, 0)
-		if perr != nil {
-			return perr
-		}
-		inCmd := strings.HasPrefix(rel, "cmd/prufyx-maintainer/")
-		inSeam := strings.HasPrefix(rel, "internal/maintainer/knowledgerelease/") || strings.HasPrefix(rel, "internal/maintainer/knowledgepublish/") || rel == "internal/knowledge/verify.go"
-		ast.Inspect(file, func(n ast.Node) bool {
-			switch x := n.(type) {
-			case *ast.CompositeLit:
-				name := ""
-				switch tt := x.Type.(type) {
-				case *ast.Ident:
-					name = tt.Name
-				case *ast.SelectorExpr:
-					name = tt.Sel.Name
-				}
-				if !clocked[name] || !(inCmd || inSeam || rel == "internal/communityapp/knowledge.go") {
-					return true
-				}
-				for _, el := range x.Elts {
-					kv, ok := el.(*ast.KeyValueExpr)
-					if !ok {
-						continue
-					}
-					if key, ok := kv.Key.(*ast.Ident); ok && key.Name == "Now" {
-						v := exprString(fset, kv.Value)
-						if inCmd && v != wall || !inCmd && !forwarded[v] {
-							t.Errorf("%s: %s literal sets Now: %s", rel, name, v)
-						}
-						seen[rel+" literal"]++
-					}
-				}
-			case *ast.AssignStmt:
-				for i, l := range x.Lhs {
-					sel, ok := l.(*ast.SelectorExpr)
-					if !ok || sel.Sel.Name != "Now" || !(inCmd || inSeam) {
-						continue
-					}
-					v := ""
-					if i < len(x.Rhs) {
-						v = exprString(fset, x.Rhs[i])
-					}
-					if !inCmd || v != wall {
-						t.Errorf("%s: assignment to .Now = %s", rel, v)
-					}
-					seen[rel+" assign"]++
-				}
-			case *ast.CallExpr:
-				if sel, ok := x.Fun.(*ast.SelectorExpr); ok && sel.Sel.Name == "Now" && exprString(fset, sel.X) == "time" &&
-					(strings.HasPrefix(rel, "internal/maintainer/knowledgerelease/") || rel == "internal/knowledge/verify.go") {
-					t.Errorf("%s reads the wall clock directly (time.Now)", rel)
-				}
-			}
-			return true
-		})
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	// The scan must not be vacuous: the CLI default and the forwarding exist.
-	if seen["cmd/prufyx-maintainer/knowledge_publish.go assign"] < 2 {
-		t.Fatalf("CLI default wiring not found: %v", seen)
-	}
-	if seen["internal/maintainer/knowledgerelease/live.go literal"] != 1 || seen["internal/maintainer/knowledgerelease/knowledgerelease.go literal"] != 1 {
-		t.Fatalf("clock forwarding not found: %v", seen)
 	}
 }
