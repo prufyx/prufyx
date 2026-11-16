@@ -76,7 +76,7 @@ func Refresh(o RefreshOptions) (RefreshResult, error) {
 		return RefreshResult{}, ErrRejected
 	}
 	// The live package must verify against the pinned root before anything else.
-	live, err := InspectLive(o.LivePackage, o.Root, o.RootDigest, o.Profile, o.ExpectLivePackageDigest)
+	live, err := InspectLiveAt(o.LivePackage, o.Root, o.RootDigest, o.Profile, o.ExpectLivePackageDigest, o.Now)
 	if err != nil {
 		return RefreshResult{}, guard("live package does not verify against the pinned root")
 	}
@@ -142,7 +142,7 @@ func Refresh(o RefreshOptions) (RefreshResult, error) {
 	if err := assertOnlyTimestampChanged(members, next); err != nil {
 		return RefreshResult{}, err
 	}
-	after, err := verifyBytes(packageRaw, o.Root, o.RootDigest, live.Profile)
+	after, err := verifyBytes(packageRaw, o.Root, o.RootDigest, live.Profile, o.Now)
 	if err != nil {
 		return RefreshResult{}, guard("refreshed package does not verify")
 	}
@@ -280,7 +280,7 @@ func assertOnlyTimestampChanged(live, next map[string][]byte) error {
 }
 
 // verifyBytes verifies package bytes by staging them in a private file.
-func verifyBytes(packageRaw []byte, rootPath, rootDigest, profile string) (LiveState, error) {
+func verifyBytes(packageRaw []byte, rootPath, rootDigest, profile string, now time.Time) (LiveState, error) {
 	dir, err := os.MkdirTemp("", "prufyx-knowledge-refresh-verify-")
 	if err != nil {
 		return LiveState{}, err
@@ -293,7 +293,7 @@ func verifyBytes(packageRaw []byte, rootPath, rootDigest, profile string) (LiveS
 	if err := os.WriteFile(p, packageRaw, 0o600); err != nil {
 		return LiveState{}, err
 	}
-	return InspectLive(p, rootPath, rootDigest, profile, digestOf(packageRaw))
+	return InspectLiveAt(p, rootPath, rootDigest, profile, digestOf(packageRaw), now)
 }
 
 func digestOf(raw []byte) string { return payloadDigest(raw) }

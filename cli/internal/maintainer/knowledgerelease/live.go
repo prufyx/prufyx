@@ -34,7 +34,13 @@ type LiveState struct {
 // InspectLive verifies a package against the pinned root at the real clock and
 // reports its state. expectDigest, when set, must equal the package digest.
 func InspectLive(packagePath, rootPath, rootDigest, profile, expectDigest string) (LiveState, error) {
-	req := knowledge.VerifyRequest{PackagePath: packagePath, BootstrapRootPath: rootPath, BootstrapRootDigest: rootDigest, ExpectedPackageDigest: expectDigest}
+	return InspectLiveAt(packagePath, rootPath, rootDigest, profile, expectDigest, time.Time{})
+}
+
+// InspectLiveAt is InspectLive with the verification instant injected. A zero
+// now is the real wall clock, which is what every production caller uses.
+func InspectLiveAt(packagePath, rootPath, rootDigest, profile, expectDigest string, now time.Time) (LiveState, error) {
+	req := knowledge.VerifyRequest{PackagePath: packagePath, BootstrapRootPath: rootPath, BootstrapRootDigest: rootDigest, ExpectedPackageDigest: expectDigest, Now: now}
 	var receipt knowledge.PackageVerificationReceipt
 	var err error
 	switch profile {

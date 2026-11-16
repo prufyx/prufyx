@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgepack"
@@ -43,7 +44,7 @@ func FinalizeRotatedPackage(opts RotatedFinalizePackageOptions) ([]byte, Finaliz
 	if err != nil {
 		return nil, FinalizationReceipt{}, ErrRejected
 	}
-	packageRaw, receipt, err := finalizeAdmittedPackage(opts.InitialRoot, initialDigest, final, members, opts.Target, opts.Projects, opts.Targets, opts.Snapshot, opts.Timestamp)
+	packageRaw, receipt, err := finalizeAdmittedPackage(opts.InitialRoot, initialDigest, final, members, opts.Target, opts.Projects, opts.Targets, opts.Snapshot, opts.Timestamp, time.Time{})
 	if err != nil || !validRotatedReceipt(receipt, profileFor(opts.Projects), initial, initialDigest, final, members) {
 		return nil, FinalizationReceipt{}, ErrRejected
 	}
@@ -76,7 +77,7 @@ func admitSuccessorRoots(initial []byte, successors [][]byte) (*metadata.Metadat
 	return trusted.Root, members, nil
 }
 
-func finalizeAdmittedPackage(initialRaw []byte, initialDigest string, authority *metadata.Metadata[metadata.RootType], successors []admittedRootMember, targetRaw []byte, projects []Target, targetsRaw, snapshotRaw, timestampRaw []byte) ([]byte, FinalizationReceipt, error) {
+func finalizeAdmittedPackage(initialRaw []byte, initialDigest string, authority *metadata.Metadata[metadata.RootType], successors []admittedRootMember, targetRaw []byte, projects []Target, targetsRaw, snapshotRaw, timestampRaw []byte, now time.Time) ([]byte, FinalizationReceipt, error) {
 	set, err := admitTargetSet(targetRaw, projects)
 	if err != nil {
 		return nil, FinalizationReceipt{}, err
@@ -137,7 +138,7 @@ func finalizeAdmittedPackage(initialRaw []byte, initialDigest string, authority 
 	if err := os.WriteFile(packagePath, packageRaw, 0o600); err != nil {
 		return nil, FinalizationReceipt{}, err
 	}
-	verifyRequest := knowledge.VerifyRequest{PackagePath: packagePath, BootstrapRootPath: rootPath, BootstrapRootDigest: initialDigest, ExpectedPackageDigest: digest(packageRaw), ExpectedRevision: admission.Revision, ExpectedBundleDigest: targetDigest}
+	verifyRequest := knowledge.VerifyRequest{PackagePath: packagePath, BootstrapRootPath: rootPath, BootstrapRootDigest: initialDigest, ExpectedPackageDigest: digest(packageRaw), ExpectedRevision: admission.Revision, ExpectedBundleDigest: targetDigest, Now: now}
 	var verification knowledge.PackageVerificationReceipt
 	if set.profile == "cncf-projects" {
 		verification, err = knowledge.VerifyConstraintsProjects(verifyRequest)

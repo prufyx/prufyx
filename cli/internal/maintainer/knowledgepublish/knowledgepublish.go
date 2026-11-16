@@ -130,6 +130,8 @@ type FinalizePackageOptions struct {
 	Root, Target, Targets, Snapshot, Timestamp []byte
 	Projects                                   []Target
 	RootDigest                                 string
+	// Now is the consumer-verification instant; zero is the real wall clock.
+	Now time.Time
 }
 
 // FinalizePackageWithReleasePlan rejects the retired single-target producer.
@@ -310,7 +312,7 @@ func FinalizePackage(opts FinalizePackageOptions) ([]byte, FinalizationReceipt, 
 	if err != nil {
 		return nil, FinalizationReceipt{}, err
 	}
-	return finalizeAdmittedPackage(opts.Root, rootDigest, root, nil, opts.Target, opts.Projects, opts.Targets, opts.Snapshot, opts.Timestamp)
+	return finalizeAdmittedPackage(opts.Root, rootDigest, root, nil, opts.Target, opts.Projects, opts.Targets, opts.Snapshot, opts.Timestamp, opts.Now)
 }
 
 func prepare[T metadata.Roles](roleName string, root *metadata.Metadata[metadata.RootType], rootDigest string, role *metadata.Metadata[T], targetDigest, priorDigest string) (Preparation, error) {

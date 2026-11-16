@@ -77,7 +77,12 @@ func verifyForProfile(req VerifyRequest, profile profileSpec, admit AdmitFunc) (
 		}
 		req.ExpectedBundleDigest = expected
 	}
-	verified, err := verifyPackageForProfile(pkg, profile, nil, bootstrap, initialDigest, nil, nil)
+	var refTime *time.Time
+	if !req.Now.IsZero() {
+		at := req.Now.UTC()
+		refTime = &at
+	}
+	verified, err := verifyPackageForProfile(pkg, profile, nil, bootstrap, initialDigest, refTime, nil)
 	if err != nil {
 		return PackageVerificationReceipt{}, err
 	}

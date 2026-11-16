@@ -12,6 +12,14 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgesign"
 )
 
+// pinnedNow is the one clock of every release test. It is inside the validity
+// of the embedded rule evidence with room: the earliest nested validUntil of
+// cncfcheck/data/rules.json (2026-12-07T12:07:56Z) is more than
+// ContentLifetime + clockMargin after it, so the 21 day targets default and the
+// 14 day timestamp default are not capped by the evidence. The horizon guard
+// in clock_seam_test.go fails loudly when a data refresh moves that date.
+var pinnedNow = time.Date(2026, 11, 10, 0, 0, 0, 0, time.UTC)
+
 const testPassphrase = "throwaway release test passphrase 1"
 
 // fixture creates throwaway keys in t.TempDir(); nothing here is a real key.
@@ -38,7 +46,7 @@ func fixture(t *testing.T) Options {
 		Root: filepath.Join(keys, "root.json"), RootDigest: init.RootDigest,
 		TargetsKey: filepath.Join(keys, "targets.key.pem"), SnapshotKey: filepath.Join(keys, "snapshot.key.pem"), TimestampKey: filepath.Join(keys, "timestamp.key.pem"),
 		PassphraseFile: pass, FirstRelease: true,
-		OutputDir: filepath.Join(parent, "out"), Now: time.Now().UTC(),
+		OutputDir: filepath.Join(parent, "out"), Now: pinnedNow,
 	}
 }
 

@@ -116,6 +116,9 @@ type VerifyRequest struct {
 	ExpectedPackageDigest string
 	ExpectedRevision      string
 	ExpectedBundleDigest  string
+	// Now is the instant at which signed-metadata expiry is judged. The zero
+	// value means the real wall clock (the only production setting).
+	Now time.Time
 }
 
 // PackageVerificationReceipt reports authenticated package and target

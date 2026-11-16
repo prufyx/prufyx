@@ -20,7 +20,7 @@ func refreshOpts(t *testing.T, base Options, live string, now time.Time) Refresh
 	t.Helper()
 	// The expected digest is mandatory: name the package that is about to be refreshed.
 	digest := "sha256:" + strings.Repeat("0", 64) // unverifiable live packages are refused whatever is named
-	if state, err := InspectLive(live, base.Root, base.RootDigest, ProfileCNCFProjects, ""); err == nil {
+	if state, err := InspectLiveAt(live, base.Root, base.RootDigest, ProfileCNCFProjects, "", now); err == nil {
 		digest = state.PackageDigest
 	}
 	return RefreshOptions{
