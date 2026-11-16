@@ -51,7 +51,11 @@ func runRecord(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	in := Input{Slug: *slug, Name: *name, Repo: *repo, Tags: splitRecordTags(*tags), Catalog: *catalog, Component: *component, FactProject: *factProject, StrictWindow: *strictWindow, CollapseDirectories: *collapse, RangeCheckTags: splitRecordTags(*rangeTags)}
+	catalogValue := *catalog
+	if catalogValue == "" {
+		catalogValue = "cncf"
+	}
+	in := Input{Slug: *slug, Name: *name, Repo: *repo, Tags: splitRecordTags(*tags), Catalog: catalogValue, Component: *component, FactProject: *factProject, StrictWindow: *strictWindow, CollapseDirectories: *collapse, RangeCheckTags: splitRecordTags(*rangeTags)}
 	if *rules != "" {
 		raw, err := readRecordFile(*rules, MaxRecipeBytes)
 		if err != nil {

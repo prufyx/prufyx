@@ -37,14 +37,28 @@ func TestRunRecordRoundTripAndRefusals(t *testing.T) {
 	if err := json.Unmarshal(body, &env); err != nil ||
 		env.Schema != recordEnvelopeSchema ||
 		!bytes.Equal(body, mustRecordJSON(t, env)) ||
-		env.Rules != "" ||
-		!bytes.Equal(mustRecordDecode(t, env.Recipe), recorded.Recipe) ||
-		!bytes.Equal(mustRecordDecode(t, env.FactsBundle), recorded.FactsBundle) ||
-		!bytes.Equal(mustRecordDecode(t, env.Target), recorded.Target) ||
-		!bytes.Equal(mustRecordDecode(t, env.Report), recorded.Report) ||
-		!bytes.Equal(mustRecordDecode(t, env.TableRow), recorded.TableRow) ||
-		!bytes.Equal(mustRecordDecode(t, env.Changelog), recorded.Changelog) {
+		env.Rules != "" {
 		t.Fatal("invalid canonical record envelope")
+	}
+	for _, field := range []struct {
+		name string
+		got  []byte
+		want []byte
+	}{
+		{"recipe", mustRecordDecode(t, env.Recipe), recorded.Recipe},
+		{"facts bundle", mustRecordDecode(t, env.FactsBundle), recorded.FactsBundle},
+		{"target", mustRecordDecode(t, env.Target), recorded.Target},
+		{"report", mustRecordDecode(t, env.Report), recorded.Report},
+		{"table row", mustRecordDecode(t, env.TableRow), recorded.TableRow},
+		{"changelog", mustRecordDecode(t, env.Changelog), recorded.Changelog},
+	} {
+		if !bytes.Equal(field.got, field.want) {
+			t.Fatalf("%s differs", field.name)
+		}
+	}
+	recipe, err := ParseRecipe(mustRecordDecode(t, env.Recipe))
+	if err != nil || recipe.Catalog != "cncf" {
+		t.Fatalf("default catalog: %+v %v", recipe, err)
 	}
 	for _, bad := range [][]string{
 		{"--dir", source.Dir},
