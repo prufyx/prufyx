@@ -37,8 +37,10 @@ type scanned struct {
 	items    []rawItem
 	// openFence is the line of a fence still open at end of file, 0 if none.
 	openFence int
-	// containerFence is the first line that opens a fence inside a list item or
-	// block quote, 0 if none.
+	// containerFence is the first line that proves a fence cannot be read
+	// without its container: one opened inside a list item or block quote, or
+	// an indented-opener fence whose inner lines or closer are indented
+	// differently from its opener. 0 if none.
 	containerFence int
 }
 
@@ -158,6 +160,25 @@ func indentWidth(l string) int {
 // fenceCloses reports whether l closes a fence opened with n characters of ch
 // at indentation openIndent. A closing fence is indented at most 3 columns
 // more than its opener; a line indented further is code inside the fence.
+func leadingWS(l string) string {
+	return l[:len(l)-len(strings.TrimLeft(l, " \t"))]
+}
+
+// fenceChars reports whether l, ignoring indentation, is a line of at least n
+// fence characters ch (and nothing else but ASCII white space).
+func fenceChars(l string, ch byte, n int) bool {
+	t := strings.Trim(l, " \t")
+	if len(t) < n {
+		return false
+	}
+	for i := 0; i < len(t); i++ {
+		if t[i] != ch {
+			return false
+		}
+	}
+	return true
+}
+
 func fenceCloses(l string, ch byte, n, openIndent int) bool {
 	if indentWidth(l) > openIndent+3 {
 		return false
@@ -187,6 +208,8 @@ func scan(lines []string) scanned {
 	fenceAt := 0
 	fenceIndent := 0
 	fenceResidue := false
+	fenceIndented := false
+	fenceIndentStr := ""
 	var flen int
 	closeItem := func() { cur = nil; curIdx = -1 }
 	extend := func(n int) {
@@ -203,6 +226,14 @@ func scan(lines []string) scanned {
 		l := lines[i]
 		n := i + 1
 		if inFence {
+			// A fence opened on an indented line is tracked without its
+			// container, so only a closer at exactly the opener's indentation
+			// is read; any other shape makes the file unreadable (file-wide stop).
+			if fenceIndented && sc.containerFence == 0 && !isBlank(l) {
+				if indentWidth(l) < indentWidth(fenceIndentStr) || (fenceChars(l, fch, flen) && leadingWS(l) != fenceIndentStr) {
+					sc.containerFence = n
+				}
+			}
 			if fenceResidue {
 				sc.kind[i] = kResidue
 			} else {
@@ -261,6 +292,8 @@ func scan(lines []string) scanned {
 			fenceResidue = sc.kind[i] == kResidue
 			inFence, fch, flen = true, ch, ln
 			fenceIndent = indentWidth(l)
+			fenceIndented = indented
+			fenceIndentStr = leadingWS(l)
 			fenceAt = n
 			continue
 		}
