@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -38,8 +39,61 @@ func fixture(t *testing.T) Options {
 		Root: filepath.Join(keys, "root.json"), RootDigest: init.RootDigest,
 		TargetsKey: filepath.Join(keys, "targets.key.pem"), SnapshotKey: filepath.Join(keys, "snapshot.key.pem"), TimestampKey: filepath.Join(keys, "timestamp.key.pem"),
 		PassphraseFile: pass, FirstRelease: true,
-		OutputDir: filepath.Join(parent, "out"), Now: time.Now().UTC(),
+		OutputDir: filepath.Join(parent, "out"), Now: fixtureClock(t),
 	}
+}
+
+// evidenceEnd is the earliest reviewed-evidence expiry of the embedded
+// knowledge, read exactly as Run reads it before it derives the expiries.
+func evidenceEnd(t *testing.T) time.Time {
+	t.Helper()
+	evidenceEndOnce.Do(func() { evidenceEndValue, evidenceEndErr = readEvidenceEnd() })
+	if evidenceEndErr != nil {
+		t.Fatal(evidenceEndErr)
+	}
+	return evidenceEndValue
+}
+
+var (
+	evidenceEndOnce  sync.Once
+	evidenceEndValue time.Time
+	evidenceEndErr   error
+)
+
+func readEvidenceEnd() (time.Time, error) {
+	d, err := ComputeDigests(Options{Profile: ProfileCNCFProjects, Revision: "91", FirstRelease: true, Now: time.Now().UTC()})
+	if err != nil {
+		return time.Time{}, err
+	}
+	return parseUTC(d.EvidenceExpiresAt)
+}
+
+// fixtureClock is the uncapped clock when one exists, otherwise the real clock.
+func fixtureClock(t *testing.T) time.Time {
+	t.Helper()
+	clock, _ := uncappedClock(t)
+	return clock
+}
+
+// uncappedClock returns a clock at which the evidence cap cannot bind:
+// Now+ContentLifetime stays a day before the earliest evidence expiry, so the
+// derived expiries are the uncapped Now+21d and Now+14d whatever the date.
+// Signed packages are verified against the real clock, so the clock may not be
+// earlier than the real clock minus the timestamp lifetime (the signed timestamp
+// would already be expired). When the evidence expires too soon for such a
+// clock (real clock within 8 days of it), ok is false and the returned clock
+// is the real one, where the evidence cap binds.
+func uncappedClock(t *testing.T) (clock time.Time, ok bool) {
+	t.Helper()
+	wall := time.Now().UTC().Truncate(time.Second)
+	limit := evidenceEnd(t).Add(-ContentLifetime - 24*time.Hour).Truncate(time.Second)
+	if !limit.After(wall.Add(-TimestampLifetime + time.Hour)) {
+		return wall, false
+	}
+	if limit.Before(wall) {
+		return limit, true
+	}
+	return wall, true
 }
 
 func TestReleaseIsDeterministicAndExpiresWithKnowledgeValidity(t *testing.T) {

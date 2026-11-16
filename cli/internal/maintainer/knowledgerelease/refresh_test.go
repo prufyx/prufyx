@@ -44,6 +44,9 @@ func membersOf(t *testing.T, path string) map[string][]byte {
 }
 
 func TestRefreshExtendsOnlyTheTimestamp(t *testing.T) {
+	if _, ok := uncappedClock(t); !ok {
+		t.Skip("the earliest evidence expiry is within 8 days: no clock exists at which the uncapped refresh can be signed and verified")
+	}
 	first, fr := firstPackage(t)
 	live := filepath.Join(first.OutputDir, "cncf-projects-91.tar")
 	now := first.Now.Add(5 * 24 * time.Hour)

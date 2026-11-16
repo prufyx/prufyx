@@ -68,6 +68,9 @@ func TestCIReleaseHappyPathBindsPacketAndSplitsExpiries(t *testing.T) {
 }
 
 func TestDefaultExpiriesAreTwentyOneAndFourteenDays(t *testing.T) {
+	if _, ok := uncappedClock(t); !ok {
+		t.Skip("the earliest evidence expiry is within 8 days: no clock exists at which the uncapped defaults can be signed and verified; TestEvidenceExpiryCapsTheTargetsExpiry covers the capped branch")
+	}
 	o := projectsFixture(t)
 	r, err := Run(o)
 	if err != nil {
@@ -315,4 +318,44 @@ func TestCIModeWrongFlagSetsAreRefused(t *testing.T) {
 			}
 		})
 	}
+}
+
+// The evidence cap is a min rule: with the clock inside Now+21d of the evidence
+// expiry, targets and snapshot end exactly at it and the timestamp follows
+// min(targets, Now+14d). The clock never precedes the real clock by more than
+// the signed timestamp can survive, so this runs at any date before the
+// evidence expires.
+func TestEvidenceExpiryCapsTheTargetsExpiry(t *testing.T) {
+	end := evidenceEnd(t)
+	wall := time.Now().UTC().Truncate(time.Second)
+	for name, now := range map[string]time.Time{
+		"twenty days before": laterOf(wall, end.Add(-20*24*time.Hour)),
+		"three days before":  laterOf(wall, end.Add(-3*24*time.Hour)),
+	} {
+		t.Run(name, func(t *testing.T) {
+			o := projectsFixture(t)
+			o.Now = now
+			r, err := Run(o)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if r.Expires != utc(end) || r.EvidenceExpiresAt != utc(end) {
+				t.Fatalf("targets %s evidence %s, want both %s", r.Expires, r.EvidenceExpiresAt, utc(end))
+			}
+			wantTimestamp := end
+			if cap := o.Now.Add(TimestampLifetime); cap.Before(end) {
+				wantTimestamp = cap
+			}
+			if r.TimestampExpires != utc(wantTimestamp) {
+				t.Fatalf("timestamp %s want %s", r.TimestampExpires, utc(wantTimestamp))
+			}
+		})
+	}
+}
+
+func laterOf(a, b time.Time) time.Time {
+	if b.After(a) {
+		return b
+	}
+	return a
 }
