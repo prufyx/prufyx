@@ -4,6 +4,8 @@ package knowledgegate
 
 import (
 	"context"
+	"go/ast"
+	"go/token"
 	"os"
 	"path"
 	"path/filepath"
@@ -11,6 +13,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/maintainer/docstables"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/targetdraft"
@@ -297,6 +300,90 @@ func withEntries(a, b map[string]string) map[string]string {
 		out[k] = v
 	}
 	return out
+}
+
+// The base probe folds case like the admission: a directory or file of the
+// slug under another casing (or with a trailing dot or space) removes the
+// allowance; an unrelated entry does not.
+func TestRecipeAllowanceBaseProbeFoldsCase(t *testing.T) {
+	t.Parallel()
+	for label, base := range map[string]map[string]string{
+		"case variant directory": {"cli/knowledge/target-recipes/Alpha/x.json": "old\n"},
+		"upper case directory":   {"cli/knowledge/target-recipes/ALPHA/x.json": "old\n"},
+		"case variant file":      {"cli/knowledge/target-recipes/Alpha": "old\n"},
+		"trailing dot directory": {"cli/knowledge/target-recipes/alpha./x.json": "old\n"},
+		"trailing space file":    {"cli/knowledge/target-recipes/alpha ": "old\n"},
+		"trailing dot case file": {"cli/knowledge/target-recipes/Alpha.": "old\n"},
+		"recipes root is a file": {"cli/knowledge/target-recipes": "old\n"},
+	} {
+		a := newAllowanceRepo(t, base, recipeFilesOf("alpha", "new\n"))
+		if got := onboardingRecipeAllowance(context.Background(), a.opts, recipeBatch("alpha")); got != nil {
+			t.Errorf("%s: allowed %v", label, keysOf(got))
+		}
+	}
+	for label, base := range map[string]map[string]string{
+		"unrelated directory": {"cli/knowledge/target-recipes/beta/x.json": "old\n"},
+		"longer name":         {"cli/knowledge/target-recipes/alpha-two/x.json": "old\n"},
+	} {
+		a := newAllowanceRepo(t, base, withEntries(base, recipeFilesOf("alpha", "new\n")))
+		if got := onboardingRecipeAllowance(context.Background(), a.opts, recipeBatch("alpha")); len(got) != 6 {
+			t.Errorf("%s: control %v", label, keysOf(got))
+		}
+	}
+}
+
+// A context that is already past its deadline (the seam's bound can only be
+// shorter, never longer) removes the allowance.
+func TestRecipeAllowanceTimeoutIsNoAllowance(t *testing.T) {
+	t.Parallel()
+	a := newAllowanceRepo(t, nil, recipeFilesOf("alpha", "new\n"))
+	if got := onboardingRecipeAllowance(context.Background(), a.opts, recipeBatch("alpha")); len(got) != 6 {
+		t.Fatalf("control: %v", keysOf(got))
+	}
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+	if got := onboardingRecipeAllowance(ctx, a.opts, recipeBatch("alpha")); got != nil {
+		t.Fatalf("allowed %v after the deadline", keysOf(got))
+	}
+	ctx2, cancel2 := context.WithCancel(context.Background())
+	cancel2()
+	if got := onboardingRecipeAllowance(ctx2, a.opts, recipeBatch("alpha")); got != nil {
+		t.Fatalf("allowed %v on a cancelled context", keysOf(got))
+	}
+}
+
+// The seam's bound is the one the allowance uses, and the diff hook is
+// assigned only in test files.
+func TestRecipeDiffHookAssignedOnlyInTests(t *testing.T) {
+	t.Parallel()
+	if seamTimeout <= 0 {
+		t.Fatal("no bound")
+	}
+	n := 0
+	for name, f := range seamSources(t) {
+		ast.Inspect(f, func(x ast.Node) bool {
+			switch v := x.(type) {
+			case *ast.AssignStmt:
+				for _, l := range v.Lhs {
+					if id, ok := l.(*ast.Ident); ok && id.Name == "recipeDiffHook" {
+						t.Errorf("%s assigns recipeDiffHook", name)
+					}
+				}
+			case *ast.UnaryExpr:
+				if id, ok := v.X.(*ast.Ident); ok && v.Op == token.AND && id.Name == "recipeDiffHook" {
+					t.Errorf("%s takes the address of recipeDiffHook", name)
+				}
+			case *ast.Ident:
+				if v.Name == "recipeDiffHook" {
+					n++
+				}
+			}
+			return true
+		})
+	}
+	if n == 0 {
+		t.Fatal("the hook is no longer read: the scan is vacuous")
+	}
 }
 
 // Nothing but the six fixed names of the batch's slug: another slug, another
