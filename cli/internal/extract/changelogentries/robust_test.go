@@ -162,6 +162,9 @@ func FuzzLocate(f *testing.F) {
 		}
 	}
 	f.Add([]byte(promFile))
+	f.Add([]byte(shapeBlankLabel))
+	f.Add([]byte(shapeFootnote))
+	f.Add([]byte(shapeDeepClose))
 	f.Add([]byte("## 3.5.0 / 2025-07-14\n\n### Notes\n  ```\n  code\n"))
 	f.Fuzz(func(t *testing.T, data []byte) { checkNoPanic(t, data) })
 }
@@ -233,4 +236,91 @@ func TestOneCharUnderlineIsOverInclusive(t *testing.T) {
 	e = mustLocate(t, promTarget, "v3.5.0", g)
 	oracleAccount(t, []byte(g), e)
 	_ = extract.Tag{}
+}
+
+const (
+	shapeBlankLabel = "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x. #1\n\n[ ]: https://x.test \"the flag --foo was removed\"\n"
+	shapeFootnote   = "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x. #1\n\n[^1]: #1234 \"the flag --foo was removed\"\n"
+	shapeDeepClose  = "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x. #1\n\n```\n    ```\n## 3.4.0 / 2025-05-17\n* [CHANGE] flag --x removed\n```\n\n* [BUGFIX] tail. #9\n"
+)
+
+// A label of spaces only, a footnote label and a destination with an
+// unbalanced parenthesis are not link definitions: each line is a block item
+// with its own digest, never a silently counted definition.
+func TestLinkLikeLinesAreItems(t *testing.T) {
+	for name, line := range map[string]string{
+		"blank label":      `[ ]: https://x.test "the flag --foo was removed"`,
+		"tab label":        "[\t]: https://x.test \"the flag --foo was removed\"",
+		"footnote":         `[^1]: #1234 "the flag --foo was removed"`,
+		"footnote no text": `[^note]: https://x.test/a`,
+		"open paren":       `[a]: https://x.test/a(b "the flag --foo was removed"`,
+		"paren in url":     `[a]: https://x.test/(b) "the flag --foo was removed"`,
+		"title only":       `[a]: "the flag --foo was removed"`,
+	} {
+		for ctx, body := range map[string]string{
+			"after blank":   "* [FEATURE] x. #1\n\n" + line + "\n",
+			"after heading": "### Notes\n" + line + "\n* [FEATURE] x. #1\n",
+		} {
+			f := entryWith(body)
+			e := mustLocate(t, promTarget, "v3.5.0", f)
+			if e.Tiling.LinkDefs != 0 {
+				t.Errorf("%s/%s: counted as a definition", name, ctx)
+			}
+			found := false
+			for _, it := range e.Items {
+				if it.Kind == "block" && strings.Contains(strings.Join(strings.Split(f, "\n")[it.StartLine-1:it.EndLine], "\n"), "the flag --foo") || it.Kind == "block" && name == "footnote no text" {
+					found = true
+				}
+			}
+			if !found {
+				t.Errorf("%s/%s: no block item: %+v", name, ctx, e.Items)
+			}
+			oracleAccount(t, []byte(f), e)
+		}
+		if oracleIsLinkDef(line) {
+			t.Errorf("oracle accepts %q", line)
+		}
+	}
+	// One link-like token plus a quoted title is still a definition.
+	for _, def := range []string{`[a]: https://x.test/a "t"`, `[a b]: https://x.test/a`} {
+		e := mustLocate(t, promTarget, "v3.5.0", entryWith("* [FEATURE] x. #1\n\n"+def+"\n"))
+		if e.Tiling.LinkDefs != 1 || !oracleIsLinkDef(def) {
+			t.Errorf("%q: %+v", def, e.Tiling)
+		}
+	}
+}
+
+// A line of fence characters indented four columns or more is code inside the
+// fence, not its closing line: what follows must not be read as structure.
+func TestDeeplyIndentedFenceLineDoesNotClose(t *testing.T) {
+	f := shapeDeepClose + "\n## 3.4.0 / 2025-05-17\n\n* [FEATURE] z. #3\n"
+	e := mustLocate(t, promTarget, "v3.5.0", f)
+	if len(e.Structure) != 1 || len(e.Items) != 3 || e.Section.EndLine != 11 {
+		t.Fatalf("entry truncated or split: %+v %+v", e.Section, e.Items)
+	}
+	if e.Items[2].Marker != "BUGFIX" {
+		t.Fatalf("tail item lost: %+v", e.Items)
+	}
+	oracleAccount(t, []byte(f), e)
+	// A tab-indented fence line is also code.
+	g := strings.Replace(f, "    ```\n", "\t```\n", 1)
+	if e2 := mustLocate(t, promTarget, "v3.5.0", g); len(e2.Items) != 3 {
+		t.Fatalf("tab: %+v", e2.Items)
+	}
+	// A closing fence indented up to three columns past its opener still closes.
+	h := "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x\n\n  ```\n  code\n     ```\n\n* [BUGFIX] after. #9\n"
+	e = mustLocate(t, promTarget, "v3.5.0", h)
+	if len(e.Items) != 2 {
+		t.Fatalf("close at +3: %+v", e.Items)
+	}
+	// Four columns past the opener does not close it: the fence runs to the end, unterminated.
+	k := "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x\n\n  ```\n  code\n      ```\n\n* [BUGFIX] after. #9\n"
+	_, err := locateMem(promTarget, "v3.5.0", k)
+	wantCode(t, err, EntryParseResidue)
+}
+
+func TestNewShapesNeverPanic(t *testing.T) {
+	for _, s := range []string{shapeBlankLabel, shapeFootnote, shapeDeepClose} {
+		checkNoPanic(t, []byte(s))
+	}
 }
