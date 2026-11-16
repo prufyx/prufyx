@@ -1,6 +1,6 @@
 # Extractor `crd.version-removal`
 
-Version 2.14.0. Derives `forbid_set_member` rules for custom-resource
+Version 2.17.0. Derives `forbid_set_member` rules for custom-resource
 versions that a project's release line no longer serves, from the
 CustomResourceDefinition manifests the project ships in its repository. It is
 deterministic, reads only upstream source pinned by full commit SHA, and
@@ -351,7 +351,26 @@ Through the offline factory mirror (or a fixture tree), never the network.
   `CustomResourceDefinition` anywhere, Helm `Chart.yaml` files and
   kustomizations are decoded in the strict subset; a definition is found
   whatever its YAML form (block or flow style, the value of `kind` on the next
-  line). A templated YAML file is read by the template rules below. Each
+  line). A templated YAML file is read by the template rules below. A file
+  that does not spell the word but may name the kind is a finding too, where
+  it would otherwise not be found: with UTF-16 or UTF-32 byte order marks
+  transcoded and the `\uXXXX`, `\UXXXXXXXX` and `\xXX` escapes and
+  backslash-newline continuations resolved (repeated, at most 8 rounds), a data
+  file that decodes strictly and whose decoded values name the kind (a mapping
+  of the kind at any depth, a manifest in a string) is `unread` with reason
+  `kind-escaped`; so is one that does not decode when it shows a `kind` value of
+  the kind, a `kind` value that is a tag, alias or anchor, a templated kind, or
+  is a chart or a kustomization; so is a file whose escapes are not resolved
+  within the bound; a source is `unsupported`. A file with template syntax,
+  without the word, whose `kind` key has a value that is not a literal and that
+  can name the `apiextensions.k8s.io/` group as an `apiVersion` (the literal
+  string, or an `apiVersion` value that is not a literal and has no `/` before
+  its first action) is `unread` with reason `kind-templated`. RBAC `apiGroups`
+  and webhook rules name the group without the slash and do not count. Not
+  closed (stated limits): a `kind` key or a whole document produced by an action
+  or an included file the scan does not read; jsonnet or cue string building
+  without template syntax; files outside the name and path prefilters above.
+  Each
   file is placed in one of three **locations**: the open tree; a
   **default-excluded directory** (a path segment named `test`, `tests`,
   `testdata`, `_testdata`, `e2e`, `example`, `examples`, `vendor` or

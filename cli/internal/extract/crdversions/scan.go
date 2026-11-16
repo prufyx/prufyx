@@ -17,6 +17,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"unicode/utf16"
+	"unicode/utf8"
 
 	"gopkg.in/yaml.v3"
 
@@ -279,6 +281,8 @@ const (
 	ReasonLegacy               = "v1beta1"
 	ReasonGzip                 = "gzip"
 	ReasonTemplated            = "templated"
+	ReasonKindEscaped          = "kind-escaped"
+	ReasonKindTemplated        = "kind-templated"
 
 	maxRecordedNames = 16
 )
@@ -526,6 +530,9 @@ type blobInfo struct {
 	// noDef is why bytes read as kindNoDef may define something ("" when
 	// definesNothing holds for them).
 	noDef string
+	// esc is set when the bytes may name the kind in a form the literal
+	// word does not show (see escapeRead); nil otherwise.
+	esc *escRead
 }
 
 // gzipRead is what the gzip-compressed string literals of one Go source
@@ -572,6 +579,10 @@ func readGzipLiterals(data []byte) *gzipRead {
 			return g
 		}
 		sub := summarize(kindData, out)
+		if sub.esc != nil && sub.esc.hits(false) {
+			g.unread = fmt.Sprintf("gzip-compressed string literal %d: %s", i+1, sub.esc.detail)
+			return g
+		}
 		if sub.unread != "" {
 			if sub.words > 0 {
 				g.unread = fmt.Sprintf("gzip-compressed string literal %d: %s", i+1, sub.unread)
@@ -942,6 +953,20 @@ func (x *Extractor) blob(r extract.PinnedReader, repo extract.RepoRef, commit st
 // summarize decides what a file's bytes hold. It is a function of the
 // bytes and the file kind only.
 func summarize(kind int, data []byte) *blobInfo {
+	n, determined := data, true
+	switch kind {
+	case kindData, kindSource, kindNoDef:
+		n, determined = normalizeEscapes(data)
+	}
+	info := summarizeBase(kind, data, n, determined)
+	switch kind {
+	case kindData, kindSource, kindNoDef:
+		info.esc = escapeRead(kind, data, n, determined, info)
+	}
+	return info
+}
+
+func summarizeBase(kind int, data, n []byte, determined bool) *blobInfo {
 	sum := sha256.Sum256(data)
 	info := &blobInfo{sha256: "sha256:" + hex.EncodeToString(sum[:])}
 	info.words = len(wordRE.FindAllIndex(data, -1))
@@ -961,7 +986,7 @@ func summarize(kind int, data []byte) *blobInfo {
 		return info
 	}
 	info.decoded = true
-	info.kindLike = kindValueRE.Match(data)
+	info.kindLike = kindValueRE.Match(data) || !determined || kindValueRE.Match(n)
 	_, crds, values, err := parseValues(fileWord, data)
 	if err != nil {
 		if pr, ok := asProblem(err); ok {
@@ -1037,7 +1062,7 @@ func countKinds(v any, info *blobInfo) {
 			countKinds(c, info)
 		}
 	case string:
-		if embeddedKindRE.MatchString(t) {
+		if embeddedKind(t) {
 			info.embedded = true
 		}
 	}
@@ -1999,7 +2024,7 @@ func definitionInside(v any) string {
 			}
 		}
 	case string:
-		if embeddedKindRE.MatchString(t) || kindValueRE.MatchString(t) {
+		if embeddedKind(t) || kindValueIn(t) {
 			return "a string holds a manifest that names " + crdKind
 		}
 	}
@@ -2040,7 +2065,29 @@ func (x *Extractor) classify(r extract.PinnedReader, repo extract.RepoRef, commi
 
 // classifyFile classifies a file outside an entry that declares its files
 // define nothing (see classify).
+//
+// Where the file is found nothing here changes it. Where it is not found
+// and its bytes may name the kind in a form the literal word does not show
+// (escapes, a templated kind; see escapeRead), it is a finding.
 func (x *Extractor) classifyFile(r extract.PinnedReader, repo extract.RepoRef, commit string, f scanFile, info *blobInfo, inv *Inventory, dirs map[string]bool) (Finding, bool, error) {
+	fd, found, err := x.classifyFound(r, repo, commit, f, info, inv, dirs)
+	if err != nil || found || f.literal || info.esc == nil {
+		return fd, found, err
+	}
+	base := path.Base(f.path)
+	if !info.esc.hits(base == "Chart.yaml" || isKustomizationName(base)) {
+		return fd, false, nil
+	}
+	fd = Finding{Path: f.path, SHA256: info.sha256, Class: ClassUnread, Reason: info.esc.reason, Detail: info.esc.detail}
+	if f.kind == kindSource && info.esc.reason == ReasonKindEscaped {
+		fd.Class, fd.Reason = ClassUnsupported, ReasonSourceTemplate
+	}
+	return placed(fd, f.at), true, nil
+}
+
+// classifyFound is classifyFile without the escape and templated-kind
+// findings: what the literal bytes decide.
+func (x *Extractor) classifyFound(r extract.PinnedReader, repo extract.RepoRef, commit string, f scanFile, info *blobInfo, inv *Inventory, dirs map[string]bool) (Finding, bool, error) {
 	fd := Finding{Path: f.path, SHA256: info.sha256}
 	if f.literal {
 		return fd, false, nil
@@ -2622,4 +2669,346 @@ func (x *Extractor) parallel(n int, fn func(int)) {
 	}
 	close(next)
 	wg.Wait()
+}
+
+// Escaped and templated kinds.
+//
+// The word prefilter decides "nothing CRD-like here" on raw bytes, so a
+// definition whose kind is not spelled out (a quoted escape, a line
+// continuation, UTF-16, a kind built by a template action) would be a clean
+// scan. escapeRead closes that for the files that are not found today; it
+// never changes a file that is found.
+//
+//   - N(bytes) is the bytes with UTF-16/32 transcoded (byte order mark) and
+//     the \uXXXX, \UXXXXXXXX and \xXX escapes and backslash-newline
+//     continuations resolved, repeated until unchanged, at most
+//     maxEscapeRounds times (undetermined when it still changes). N is the
+//     identity on bytes without a backslash or a byte order mark.
+//   - kind-escaped: the raw bytes do not hold the word and N does (or N is
+//     undetermined). A data file that strictly decodes is decided by its
+//     decoded values; one that does not is a finding when N shows the kind
+//     as a kind value, a kind value that is a tag, alias or anchor, a
+//     templated kind, or when it is a chart or a kustomization. A source is
+//     unsupported, like a literal mention.
+//   - kind-templated: the file holds template syntax, N does not hold the
+//     word, some kind key has a value that is not a literal, and the file
+//     can name the API group as an apiVersion (the exact string
+//     "apiextensions.k8s.io/", or an apiVersion value that is not a literal
+//     and whose literal text before its first action holds no slash).
+//
+// Not closed here (stated limits): a kind key or whole document produced by
+// an action or an included file the scan does not read; jsonnet or cue
+// string building without template syntax; files outside the name and path
+// prefilters.
+
+// maxEscapeRounds bounds the resolution of nested escapes.
+const maxEscapeRounds = 8
+
+var (
+	escapeRE        = regexp.MustCompile(`\\(?:u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}|x[0-9a-fA-F]{2})|\\\r?\n[ \t]*`)
+	kindKeyRE       = regexp.MustCompile(`["']?\bkind["']?[ \t]*:`)
+	apiVersionKeyRE = regexp.MustCompile(`["']?\bapiVersion["']?[ \t]*:`)
+	kindTagValueRE  = regexp.MustCompile(`["']?\bkind["']?[ \t]*:[ \t]*[!*&]`)
+	literalValueRE  = regexp.MustCompile(`^[ \t]*(?:"[A-Za-z0-9./-]+"|'[A-Za-z0-9./-]+'|[A-Za-z0-9./-]+)(?:[ \t]*[,}]|[ \t]+#|[ \t]*\r?$)`)
+	deeperKeyRE     = regexp.MustCompile(`^[ \t]*(?:- )?["']?[A-Za-z0-9_./-]+["']?[ \t]*:(?:[ \t]|\r?$)`)
+)
+
+// escRead is what the bytes of a file not found by the literal word may
+// still hold (see above); reason is "" when nothing.
+type escRead struct {
+	reason string
+	detail string
+	// undecodable: the bytes are not strictly decodable; the finding then
+	// needs kindLike or a chart or kustomization name.
+	undecodable bool
+	kindLike    bool
+}
+
+// hits reports whether the finding stands for a file of the given name
+// class (chart or kustomization).
+func (e *escRead) hits(chartOrKust bool) bool {
+	if e == nil || e.reason == "" {
+		return false
+	}
+	return !e.undecodable || e.kindLike || chartOrKust
+}
+
+// normalizeEscapes returns N(data) and false when it is undetermined.
+func normalizeEscapes(data []byte) ([]byte, bool) {
+	if bom := transcodeBOM(data); bom != nil {
+		data = bom
+	} else if hasUnicodeBOM(data) {
+		return data, false
+	}
+	if bytes.IndexByte(data, '\\') < 0 {
+		return data, true
+	}
+	for round := 0; round < maxEscapeRounds; round++ {
+		out := escapeRE.ReplaceAllFunc(data, resolveEscape)
+		if bytes.Equal(out, data) {
+			return data, true
+		}
+		data = out
+	}
+	out := escapeRE.ReplaceAllFunc(data, resolveEscape)
+	return out, bytes.Equal(out, data)
+}
+
+func resolveEscape(m []byte) []byte {
+	if len(m) < 2 {
+		return m
+	}
+	var hexs string
+	switch m[1] {
+	case 'u', 'U', 'x':
+		hexs = string(m[2:])
+	default:
+		return nil
+	}
+	n, err := strconv.ParseUint(hexs, 16, 32)
+	if err != nil || n > utf8.MaxRune || (n >= 0xD800 && n < 0xE000) {
+		return []byte(string(utf8.RuneError))
+	}
+	return []byte(string(rune(n)))
+}
+
+func hasUnicodeBOM(data []byte) bool {
+	return bytes.HasPrefix(data, []byte{0xFF, 0xFE}) || bytes.HasPrefix(data, []byte{0xFE, 0xFF}) || bytes.HasPrefix(data, []byte{0x00, 0x00, 0xFE, 0xFF})
+}
+
+// transcodeBOM returns data transcoded to UTF-8 when it starts with a
+// UTF-16 or UTF-32 byte order mark (nil otherwise, and when the length is
+// not a whole number of code units).
+func transcodeBOM(data []byte) []byte {
+	switch {
+	case bytes.HasPrefix(data, []byte{0xFF, 0xFE, 0x00, 0x00}) || bytes.HasPrefix(data, []byte{0x00, 0x00, 0xFE, 0xFF}):
+		if len(data)%4 != 0 {
+			return nil
+		}
+		le := data[0] == 0xFF
+		out := make([]rune, 0, len(data)/4)
+		for i := 4; i < len(data); i += 4 {
+			var v uint32
+			if le {
+				v = uint32(data[i]) | uint32(data[i+1])<<8 | uint32(data[i+2])<<16 | uint32(data[i+3])<<24
+			} else {
+				v = uint32(data[i+3]) | uint32(data[i+2])<<8 | uint32(data[i+1])<<16 | uint32(data[i])<<24
+			}
+			out = append(out, rune(v))
+		}
+		return []byte(string(out))
+	case bytes.HasPrefix(data, []byte{0xFF, 0xFE}) || bytes.HasPrefix(data, []byte{0xFE, 0xFF}):
+		if len(data)%2 != 0 {
+			return nil
+		}
+		le := data[0] == 0xFF
+		units := make([]uint16, 0, len(data)/2)
+		for i := 2; i < len(data); i += 2 {
+			if le {
+				units = append(units, uint16(data[i])|uint16(data[i+1])<<8)
+			} else {
+				units = append(units, uint16(data[i+1])|uint16(data[i])<<8)
+			}
+		}
+		return []byte(string(utf16.Decode(units)))
+	}
+	return nil
+}
+
+// embeddedKind reports a manifest line naming the kind in a string, as the
+// string is or with its escapes resolved. Escapes that cannot be resolved
+// within the bound count as one (fail closed).
+func embeddedKind(s string) bool {
+	if embeddedKindRE.MatchString(s) {
+		return true
+	}
+	if strings.IndexByte(s, '\\') < 0 {
+		return false
+	}
+	n, ok := normalizeEscapes([]byte(s))
+	return !ok || embeddedKindRE.Match(n)
+}
+
+// kindValueIn is kindValueRE on a string, as it is or with its escapes
+// resolved (undetermined counts as a match).
+func kindValueIn(s string) bool {
+	if kindValueRE.MatchString(s) {
+		return true
+	}
+	if strings.IndexByte(s, '\\') < 0 {
+		return false
+	}
+	n, ok := normalizeEscapes([]byte(s))
+	return !ok || kindValueRE.Match(n)
+}
+
+// escapeRead decides the escape and templated-kind findings of a file; it
+// is a function of the bytes, the file kind and the literal read.
+func escapeRead(kind int, data, n []byte, determined bool, info *blobInfo) *escRead {
+	if info.words > 0 {
+		return nil
+	}
+	wordsN := wordRE.Match(n)
+	switch {
+	case wordsN || !determined:
+		return escapedKind(kind, data, n, determined, info)
+	case info.decoded && info.unread == "" && (info.kinds > 0 || len(info.crds) > 0 || info.embedded):
+		return &escRead{reason: ReasonKindEscaped, detail: "its decoded values name the " + crdKind + " kind, which its bytes do not spell out"}
+	case !bytes.Contains(n, []byte(templateMarker)):
+		return nil
+	case kindKeyNonLiteral(n) && canNameCRDGroup(n):
+		return &escRead{reason: ReasonKindTemplated, detail: "with template directives, a kind value is not a literal and the file can name the apiextensions.k8s.io API group: it may render a " + crdKind}
+	}
+	return nil
+}
+
+// escapedKind decides kind-escaped for bytes whose literal form does not
+// hold the word and whose normal form does (or is undetermined).
+func escapedKind(kind int, data, n []byte, determined bool, info *blobInfo) *escRead {
+	why := "its bytes do not spell out the " + crdKind + " kind, but with escapes resolved they name it"
+	if !determined {
+		why = "its escapes cannot be resolved within the bound of " + strconv.Itoa(maxEscapeRounds) + " rounds, so it may name the " + crdKind + " kind"
+	}
+	hit := &escRead{reason: ReasonKindEscaped, detail: why}
+	if kind == kindSource || !determined {
+		return hit
+	}
+	_, values, err := decodeStrict(data)
+	if err == nil {
+		var sub blobInfo
+		for _, v := range values {
+			countKinds(v, &sub)
+		}
+		if sub.kinds == 0 && !sub.embedded && !decodedCRD(values) {
+			// The name only appears in text.
+			return nil
+		}
+		return hit
+	}
+	hit.undecodable = true
+	hit.kindLike = kindValueRE.Match(n) || kindTagValueRE.Match(n) || templatedKindRE.Match(n) || kindKeyNonLiteral(n)
+	return hit
+}
+
+// decodedCRD reports a document that is an apiextensions.k8s.io object.
+func decodedCRD(values []any) bool {
+	for _, v := range values {
+		if obj, ok := v.(map[string]any); ok {
+			if api, _ := obj["apiVersion"].(string); strings.HasPrefix(api, crdAPIGroupPrefix) {
+				if k, _ := obj["kind"].(string); k == crdKind {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// keyValue is one key's value as the scan reads it: whether it is a
+// literal, and the literal text before its first template action.
+type keyValue struct {
+	nonLiteral bool
+	prefix     string
+}
+
+// keyValues returns the values of the keys re matches in s.
+func keyValues(s []byte, re *regexp.Regexp) []keyValue {
+	text := string(s)
+	var out []keyValue
+	for _, m := range re.FindAllStringIndex(text, -1) {
+		ls := strings.LastIndexByte(text[:m[0]], '\n') + 1
+		indent := leadingBlanks(text[ls:])
+		le := strings.IndexByte(text[m[1]:], '\n')
+		if le < 0 {
+			le = len(text)
+		} else {
+			le += m[1]
+		}
+		rest := text[m[1]:le]
+		trim := strings.TrimSpace(rest)
+		span := rest
+		next := le
+		if trim == "" || strings.HasPrefix(trim, "#") {
+			// The value is on the next non-blank line, unless that is
+			// a deeper mapping (the key is not a value there).
+			span = ""
+			for next < len(text) {
+				next++
+				e := strings.IndexByte(text[next:], '\n')
+				if e < 0 {
+					e = len(text) - next
+				}
+				line := text[next : next+e]
+				if strings.TrimSpace(line) != "" {
+					if leadingBlanks(line) > indent && deeperKeyRE.MatchString(line) {
+						break
+					}
+					span = line
+					break
+				}
+				next += e
+			}
+		} else if literalValueRE.MatchString(rest) {
+			continue
+		} else {
+			// More-indented continuation lines belong to the value.
+			for next < len(text) {
+				p := next + 1
+				e := strings.IndexByte(text[p:], '\n')
+				if e < 0 {
+					e = len(text) - p
+				}
+				line := text[p : p+e]
+				if strings.TrimSpace(line) != "" && leadingBlanks(line) <= indent {
+					break
+				}
+				span += "\n" + line
+				next = p + e
+				if next >= len(text) {
+					break
+				}
+			}
+		}
+		head := strings.TrimSpace(span)
+		if head == "" {
+			continue
+		}
+		if strings.Contains(span, templateMarker) || strings.Contains(span, "\\") || strings.ContainsRune("!*&|>", rune(head[0])) {
+			kv := keyValue{nonLiteral: true, prefix: span}
+			if i := strings.Index(span, templateMarker); i >= 0 {
+				kv.prefix = span[:i]
+			}
+			out = append(out, kv)
+		}
+	}
+	return out
+}
+
+func leadingBlanks(s string) int {
+	i := 0
+	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
+		i++
+	}
+	return i
+}
+
+func kindKeyNonLiteral(n []byte) bool {
+	return len(keyValues(n, kindKeyRE)) > 0
+}
+
+// canNameCRDGroup reports whether the file can state apiextensions.k8s.io
+// as an apiVersion: the group with its slash, or an apiVersion value that
+// is not a literal and is not fixed to another group by a slash before its
+// first action. RBAC apiGroups and webhook rules name the group without the
+// slash and do not count.
+func canNameCRDGroup(n []byte) bool {
+	if bytes.Contains(n, []byte(crdAPIGroupPrefix)) {
+		return true
+	}
+	for _, kv := range keyValues(n, apiVersionKeyRE) {
+		if !strings.Contains(kv.prefix, "/") {
+			return true
+		}
+	}
+	return false
 }
