@@ -230,3 +230,93 @@ func TestTargetdraftDoesNotImportTheGate(t *testing.T) {
 		}
 	}
 }
+
+// The seam's options and result members have no setter in any importer of the
+// package either: the maintainer command (and any other non-test file that
+// imports the package) never assigns, keys or takes the address of them. The
+// only writers stay the ones listed in TestSeamMembersHaveNoOtherSetter.
+func TestSeamMembersHaveNoSetterInImporters(t *testing.T) {
+	t.Parallel()
+	fields := map[string]bool{"VerifyPr": true, "AdmissionRunner": true, "AdmissionVerifier": true, "SeamRefusals": true,
+		"OnboardingAdmissionInProcess": true, "AdmissionEvent": true}
+	cliDir := filepath.Join("..", "..", "..")
+	maintainerDir := filepath.Join(cliDir, "cmd", "prufyx-maintainer")
+	fset := token.NewFileSet()
+	scanned, importers := 0, 0
+	err := filepath.WalkDir(cliDir, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if d.Name() == "testdata" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
+			return nil
+		}
+		if abs, _ := filepath.Abs(filepath.Dir(p)); abs == mustAbs(t, ".") {
+			return nil
+		}
+		f, err := parser.ParseFile(fset, p, nil, parser.ImportsOnly)
+		if err != nil {
+			return err
+		}
+		imports := false
+		for _, imp := range f.Imports {
+			imports = imports || strings.HasSuffix(strings.Trim(imp.Path.Value, "\""), "maintainer/knowledgegate")
+		}
+		inMaintainer := filepath.Clean(filepath.Dir(p)) == filepath.Clean(maintainerDir)
+		if !imports && !inMaintainer {
+			return nil
+		}
+		scanned++
+		if imports {
+			importers++
+		}
+		if f, err = parser.ParseFile(fset, p, nil, 0); err != nil {
+			return err
+		}
+		ast.Inspect(f, func(n ast.Node) bool {
+			switch x := n.(type) {
+			case *ast.AssignStmt:
+				for _, l := range x.Lhs {
+					if sel, ok := l.(*ast.SelectorExpr); ok && fields[sel.Sel.Name] {
+						t.Errorf("%s assigns .%s", p, sel.Sel.Name)
+					}
+				}
+			case *ast.KeyValueExpr:
+				if id, ok := x.Key.(*ast.Ident); ok && fields[id.Name] {
+					t.Errorf("%s sets %s in a literal", p, id.Name)
+				}
+			case *ast.UnaryExpr:
+				if sel, ok := x.X.(*ast.SelectorExpr); ok && x.Op == token.AND && fields[sel.Sel.Name] {
+					t.Errorf("%s takes the address of .%s", p, sel.Sel.Name)
+				}
+			case *ast.IncDecStmt:
+				if sel, ok := x.X.(*ast.SelectorExpr); ok && fields[sel.Sel.Name] {
+					t.Errorf("%s changes .%s", p, sel.Sel.Name)
+				}
+			}
+			return true
+		})
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Not vacuous: the maintainer command is scanned and imports the gate.
+	if scanned == 0 || importers == 0 {
+		t.Fatalf("scanned %d files, %d importers", scanned, importers)
+	}
+}
+
+func mustAbs(t *testing.T, p string) string {
+	t.Helper()
+	a, err := filepath.Abs(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return a
+}

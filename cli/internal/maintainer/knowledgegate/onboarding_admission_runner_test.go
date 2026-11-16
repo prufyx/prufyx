@@ -4,6 +4,9 @@ package knowledgegate
 
 import (
 	"context"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"os/exec"
 	"strings"
@@ -158,4 +161,144 @@ func TestRunnerExecBounds(t *testing.T) {
 		t.Fatal("missing binary ran")
 	}
 	_ = exec.ErrNotFound
+}
+
+// replaceAt returns a copy of the good vector with element i replaced.
+func replaceAt(i int, v string) []string {
+	a := append([]string(nil), runnerGoodArgv()...)
+	a[i] = v
+	return a
+}
+
+// The runner accepts the one exact vector of the verifier (keys, values, order,
+// subcommand, URL shape and tag-pair patterns), and nothing near it.
+func TestRunnerArgvExactShape(t *testing.T) {
+	t.Parallel()
+	good := runnerGoodArgv()
+	// Indices of the good vector: 2,4,6,8,10,12 are the -c values, 13 ls-remote,
+	// 14 --tags, 15 --, 16 the URL, 17 and 18 the tag pair.
+	ins := func(i int, v ...string) []string {
+		return append(append(append([]string(nil), good[:i]...), v...), good[i:]...)
+	}
+	del := func(i, n int) []string { return append(append([]string(nil), good[:i]...), good[i+n:]...) }
+	swap := func(i, j int) []string {
+		a := append([]string(nil), good...)
+		a[i], a[j] = a[j], a[i]
+		return a
+	}
+	bad := map[string][]string{
+		"helper command":      replaceAt(6, "credential.helper=!x"),
+		"helper plain":        replaceAt(6, "credential.helper=store"),
+		"askpass program":     replaceAt(12, "core.askPass=x"),
+		"askpass path":        replaceAt(12, "core.askPass=/bin/true"),
+		"protocol value":      replaceAt(2, "protocol.version=0"),
+		"redirects value":     replaceAt(4, "http.followRedirects=true"),
+		"speed value":         replaceAt(8, "http.lowSpeedLimit=1"),
+		"time value":          replaceAt(10, "http.lowSpeedTime=0"),
+		"key case":            replaceAt(12, "core.askpass="),
+		"key without value":   replaceAt(12, "core.askPass"),
+		"extra config":        ins(13, "-c", "core.sshCommand=x"),
+		"extra config first":  ins(1, "-c", "core.sshCommand=x"),
+		"duplicate config":    ins(13, "-c", "core.askPass="),
+		"missing config":      del(11, 2),
+		"missing first":       del(1, 2),
+		"reordered configs":   swap(2, 4),
+		"reordered pairs":     swap(8, 10),
+		"flag and value swap": swap(1, 2),
+		"other subcommand":    replaceAt(13, "fetch"),
+		"remote subcommand":   replaceAt(13, "remote"),
+		"no tags option":      del(14, 1),
+		"other option":        replaceAt(14, "--heads"),
+		"extra option":        ins(15, "--exit-code"),
+		"no separator":        del(15, 1),
+		"url not dot git":     replaceAt(16, "https://github.com/o/r"),
+		"url extra segment":   replaceAt(16, "https://github.com/o/r/x.git"),
+		"url userinfo":        replaceAt(16, "https://u:p@github.com/o/r.git"),
+		"url port":            replaceAt(16, "https://github.com:444/o/r.git"),
+		"url query":           replaceAt(16, "https://github.com/o/r.git?x=1"),
+		"url dotdot":          replaceAt(16, "https://github.com/o/..r.git"),
+		"url parent":          replaceAt(16, "https://github.com/../r.git"),
+		"url name dot":        replaceAt(16, "https://github.com/o/r..git"),
+		"url double dot git":  replaceAt(16, "https://github.com/o/r.git.git"),
+		"url uppercase host":  replaceAt(16, "https://GitHub.com/o/r.git"),
+		"url local path":      replaceAt(16, "/tmp/upstream"),
+		"url space":           replaceAt(16, "https://github.com/o/r .git"),
+		"url newline":         replaceAt(16, "https://github.com/o/r\n.git"),
+		"no tag pair":         good[:17],
+		"one pattern only":    good[:18],
+		"peeled only":         del(17, 1),
+		"pair mismatch":       replaceAt(18, "refs/tags/v2^{}"),
+		"unpeeled twice":      replaceAt(18, "refs/tags/v1"),
+		"pattern glob":        append(append([]string(nil), good[:17]...), "refs/tags/*", "refs/tags/*^{}"),
+		"pattern branch":      append(append([]string(nil), good[:17]...), "refs/heads/v1", "refs/heads/v1^{}"),
+		"pattern dash":        append(append([]string(nil), good[:17]...), "refs/tags/-x", "refs/tags/-x^{}"),
+		"extra argument":      append(append([]string(nil), good...), "x"),
+		"extra pair half":     append(append([]string(nil), good...), "refs/tags/v2"),
+		"empty tag":           append(append([]string(nil), good[:17]...), "refs/tags/", "refs/tags/^{}"),
+		"git path":            replaceAt(0, "/usr/bin/git"),
+		"empty":               nil,
+	}
+	for name, argv := range bad {
+		if runnerArgvOK(argv) {
+			t.Errorf("%s: accepted %v", name, argv)
+		}
+	}
+	// Positives of the same shape: more tags, other owner and name spellings.
+	two := append(append([]string(nil), good...), "refs/tags/v1.1.0-rc.1+b2", "refs/tags/v1.1.0-rc.1+b2^{}")
+	two = append(append([]string(nil), two[:16]...), append([]string{"https://github.com/Some-Org/repo_name.v2.git"}, two[17:]...)...)
+	if !runnerArgvOK(two) || !runnerArgvOK(good) {
+		t.Fatal("a vector of the exact shape is refused")
+	}
+	// And the real entry refuses every one of them without running git.
+	for name, argv := range bad {
+		if res := (admissionRunner{}).Run(context.Background(), targetdraft.ExecSpec{Argv: argv}); res.Err == nil || len(res.Stdout) != 0 {
+			t.Errorf("%s: Run did not refuse: %+v", name, res)
+		}
+	}
+}
+
+// The non-unix variant refuses to run a command (fail closed); checked on the
+// source here because this build is unix, and by compiling and running the
+// variant's own test on a platform it applies to.
+func TestRunnerOtherVariantRefuses(t *testing.T) {
+	t.Parallel()
+	raw, err := os.ReadFile("onboarding_admission_runner_other.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, err := parser.ParseFile(token.NewFileSet(), "onboarding_admission_runner_other.go", raw, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, d := range f.Decls {
+		fd, ok := d.(*ast.FuncDecl)
+		if !ok || fd.Name.Name != "runnerKillGroup" {
+			continue
+		}
+		found = true
+		if fd.Type.Results == nil || len(fd.Type.Results.List) != 1 || len(fd.Body.List) != 1 {
+			t.Fatalf("runnerKillGroup shape")
+		}
+		ret, ok := fd.Body.List[0].(*ast.ReturnStmt)
+		if !ok || len(ret.Results) != 1 {
+			t.Fatal("runnerKillGroup does not return an error at once")
+		}
+		call, ok := ret.Results[0].(*ast.CallExpr)
+		sel, ok2 := call.Fun.(*ast.SelectorExpr)
+		if !ok || !ok2 || sel.Sel.Name != "New" {
+			t.Fatal("runnerKillGroup does not return errors.New(...)")
+		}
+	}
+	if !found {
+		t.Fatal("no runnerKillGroup in the non-unix variant")
+	}
+	if !strings.Contains(string(raw), "//go:build !darwin && !linux") {
+		t.Fatal("variant build tag changed")
+	}
+	// The unix variant is the one that returns nil, and it sets a group.
+	unix, err := os.ReadFile("onboarding_admission_runner_unix.go")
+	if err != nil || !strings.Contains(string(unix), "Setpgid: true") || !strings.Contains(string(unix), "return nil") {
+		t.Fatalf("unix variant: %v", err)
+	}
 }

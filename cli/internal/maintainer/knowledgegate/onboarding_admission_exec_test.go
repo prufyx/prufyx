@@ -131,7 +131,13 @@ var restCounts = regexp.MustCompile(`(\d+ REST requests|"restRequests":\d+)`)
 
 func newSeamFixture(t *testing.T) *seamFixture {
 	t.Helper()
-	f := newOnboardingFixture(t)
+	return seamFixtureOf(t, newOnboardingFixture(t))
+}
+
+// seamFixtureOf commits an onboarding fixture (after the caller changed it) and
+// signs its record.
+func seamFixtureOf(t *testing.T, f *onboardingFixture) *seamFixture {
+	t.Helper()
 	f.sign(t, f.record(t))
 	s := &seamFixture{t: t, f: f, runner: &recordingRunner{}}
 	s.repo = t.TempDir()

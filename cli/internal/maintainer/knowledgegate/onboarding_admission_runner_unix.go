@@ -12,7 +12,7 @@ import (
 // runnerKillGroup puts the command in its own process group and kills the
 // whole group when the context ends, so a child of git cannot outlive the
 // deadline.
-func runnerKillGroup(cmd *exec.Cmd) {
+func runnerKillGroup(cmd *exec.Cmd) error {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Cancel = func() error {
 		if cmd.Process == nil {
@@ -20,4 +20,5 @@ func runnerKillGroup(cmd *exec.Cmd) {
 		}
 		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 	}
+	return nil
 }
