@@ -19,8 +19,8 @@ const (
 	pbDir    = "examples/stack/"
 	pbPath   = pbDir + "bundle.yaml"
 	pbKust   = pbDir + "kustomization.yaml"
-	pbGroupA = "source.vendor.example.net"
-	pbGroupB = "notification.vendor.example.net"
+	pbGroupA = "source.vendor.example.io"
+	pbGroupB = "notification.vendor.example.io"
 )
 
 // pbDigest is the pinned form of some bytes.

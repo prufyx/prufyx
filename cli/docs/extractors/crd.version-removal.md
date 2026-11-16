@@ -359,6 +359,19 @@ Through the offline factory mirror (or a fixture tree), never the network.
   **reviewed exclusion** of the table. Each file with CRD-like content, and each
   file that names another repository's definitions, is classified:
 
+  A plain `apiextensions.k8s.io/v1` definition in a file of a default-excluded
+  directory (not void, not a template, legacy, embedded or undecodable file) is
+  left out of the comparison like one the table assigns to another project,
+  and recorded under `reservedCopies` with its file digest, when its group is a
+  documentation name (`example.com`, `example.org`, `example.net` or a
+  subdomain, or a name whose last label is `example`, `test`, `invalid` or
+  `localhost`) or lies in a Kubernetes-reserved namespace (`k8s.io`,
+  `x-k8s.io`, `kubernetes.io`), the table does not give it to the target, and
+  no definition of the release's own inventory has that group. Any other
+  definition of the file is compared as before, and the open tree and the
+  reviewed exclusions are unchanged. `example.io` and other registrable names
+  are not reserved.
+
   | Class | Meaning |
   | --- | --- |
   | `copy` | every definition in it is in the inventory with the same versions and `served` flags |

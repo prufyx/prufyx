@@ -1,0 +1,3 @@
+### Changed
+
+- Extraction now leaves out of the comparison a CustomResourceDefinition under a default-excluded directory (test, e2e, examples, vendor, ...) whose group is a documentation name (example.com, example.org, example.net, or a name ending in .example, .test, .invalid or .localhost) or lies in a Kubernetes-reserved namespace the reviewed table does not give to the target. The definition is recorded with its file digest. Open-tree files, void or reviewed exclusions, templated, legacy, embedded or undecodable files, and any group the target's own inventory defines keep blocking attestation as before. Table validation now refuses a row that lists a documentation name.

@@ -49,6 +49,13 @@ func TestValidateRefusesBadTables(t *testing.T) {
 		"other component":              func(p []Project) { p[0].Component = "a" },
 		"x-k8s.io group":               func(p []Project) { p[0].Groups[0].Name = "a.x-k8s.io" },
 		"kubernetes.io group":          func(p []Project) { p[0].Groups[0].Name = "a.kubernetes.io" },
+		"example.com group":            func(p []Project) { p[0].Groups[0].Name = "example.com" },
+		"example.org subdomain":        func(p []Project) { p[0].Groups[0].Name = "a.example.org" },
+		"example.net subdomain":        func(p []Project) { p[0].Groups[0].Name = "stable.example.net" },
+		"test label group":             func(p []Project) { p[0].Groups[0].Name = "a.test" },
+		"invalid label group":          func(p []Project) { p[0].Groups[0].Name = "a.b.invalid" },
+		"localhost label group":        func(p []Project) { p[0].Groups[0].Name = "a.localhost" },
+		"example label group":          func(p []Project) { p[0].Groups[0].Name = "a.example" },
 		"no catalog":                   func(p []Project) { p[0].Catalog = "" },
 		"unknown catalog":              func(p []Project) { p[0].Catalog = "landscape" },
 		"cncf provenance":              func(p []Project) { p[0].Upstream = Upstream{Name: "A"} },
@@ -279,5 +286,18 @@ func TestCommunityProjectsAreLabelled(t *testing.T) {
 	}
 	if !strings.Contains(CommunityLabel, "no CNCF status asserted") || strings.Contains(CommunityLabel, "not a CNCF project") {
 		t.Fatalf("label %q", CommunityLabel)
+	}
+}
+
+func TestDocumentationGroup(t *testing.T) {
+	for g, want := range map[string]bool{
+		"example.com": true, "example.org": true, "example.net": true, "hello.example.com": true, "stable.example.net": true,
+		"a.example": true, "a.test": true, "a.b.invalid": true, "a.localhost": true,
+		"example.io": false, "my.domain": false, "exampleXcom": false, "example.com.evil.io": false, "xexample.com": false,
+		"EXAMPLE.COM": false, "": false, "test": false, "example": false, ".test": false, "a.test.": false, "argoproj.io": false, "k8s.io": false,
+	} {
+		if got := DocumentationGroup(g); got != want {
+			t.Errorf("DocumentationGroup(%q) = %v, want %v", g, got, want)
+		}
 	}
 }

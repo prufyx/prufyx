@@ -149,7 +149,7 @@ func TestOnboardingAttestRefusals(t *testing.T) {
 		// it, so only the attestation refuses.
 		tg, _ := atPick(t)
 		for _, c := range []string{atTo, atFrom} {
-			writeFile(t, filepath.Join(f.upstream, filepath.FromSlash(tg.Repo), "commits", c, "hack/stray-crd.yaml"), []byte(obCRDDoc("stray.synthetic.example", "v1")))
+			writeFile(t, filepath.Join(f.upstream, filepath.FromSlash(tg.Repo), "commits", c, "hack/stray-crd.yaml"), []byte(obCRDDoc("stray.synthetic.example.io", "v1")))
 		}
 		src := &obSource{FixtureReader: extract.FixtureReader{Root: f.upstream}, perList: 1}
 		f.draft.Projects[0].Proof.Scan = scanOf(t, f, src)
