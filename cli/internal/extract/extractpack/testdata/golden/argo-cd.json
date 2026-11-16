@@ -18,9 +18,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:a13594f73c0593812b94c2dcdbb516850578ec009285c4c828843676f5e11d0f",
+            "codeDigest": "sha256:51ac3ebaae91956bae66da09791ac18c1a3a8f784689cd8346477daaa58f8b3b",
             "id": "crd.version-removal.argo-cd",
-            "version": "2.15.0"
+            "version": "2.17.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -113,9 +113,9 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:a13594f73c0593812b94c2dcdbb516850578ec009285c4c828843676f5e11d0f",
+            "codeDigest": "sha256:51ac3ebaae91956bae66da09791ac18c1a3a8f784689cd8346477daaa58f8b3b",
             "id": "crd.version-removal.argo-cd",
-            "version": "2.15.0"
+            "version": "2.17.0"
           },
           "reviewedAt": "2026-10-04T00:00:00Z",
           "sources": [
@@ -199,9 +199,9 @@
         "basis": "mechanical",
         "derivedAt": "2026-10-04T00:00:00Z",
         "extractor": {
-          "codeDigest": "sha256:a13594f73c0593812b94c2dcdbb516850578ec009285c4c828843676f5e11d0f",
+          "codeDigest": "sha256:51ac3ebaae91956bae66da09791ac18c1a3a8f784689cd8346477daaa58f8b3b",
           "id": "crd.version-removal.argo-cd",
-          "version": "2.15.0"
+          "version": "2.17.0"
         },
         "reviewedAt": "2026-10-04T00:00:00Z",
         "sources": [
@@ -256,9 +256,9 @@
         "basis": "mechanical",
         "derivedAt": "2026-10-04T00:00:00Z",
         "extractor": {
-          "codeDigest": "sha256:a13594f73c0593812b94c2dcdbb516850578ec009285c4c828843676f5e11d0f",
+          "codeDigest": "sha256:51ac3ebaae91956bae66da09791ac18c1a3a8f784689cd8346477daaa58f8b3b",
           "id": "crd.version-removal.argo-cd",
-          "version": "2.15.0"
+          "version": "2.17.0"
         },
         "reviewedAt": "2026-10-04T00:00:00Z",
         "sources": [
