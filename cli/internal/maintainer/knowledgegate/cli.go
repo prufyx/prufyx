@@ -20,6 +20,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/rulecheck"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/targetdraft"
 )
 
 const usage = `usage:
@@ -241,10 +242,27 @@ func exitFor(r *Report) int {
 	return 1
 }
 
+// parseOnboardingAdmissionFlag is the run-time lock: empty is off, the single
+// value "inprocess" is on and needs the authenticated git context; anything
+// else is a usage error. The flag carries no data.
+func parseOnboardingAdmissionFlag(value, gitDir string) (bool, error) {
+	switch value {
+	case "":
+		return false, nil
+	case targetdraft.OnboardingVerifyMode:
+		if gitDir == "" {
+			return false, errors.New("--onboarding-admission needs the authenticated admission context (--admission-git-dir ...)")
+		}
+		return true, nil
+	}
+	return false, fmt.Errorf("--onboarding-admission accepts only %q", targetdraft.OnboardingVerifyMode)
+}
+
 func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout io.Writer) (int, error) {
 	var t treeFlags
 	var admission admissionFlags
 	var source, author, sender, owner, bot, headSHA, commits, digest, keysDigest, rerun, now, report, summary string
+	var onboardingAdmission, admissionEvent string
 	var max, concurrency int
 	var citeTimeout time.Duration
 	var all, shadow, botPaused bool
@@ -255,6 +273,8 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	f := newFlags("gate verify", &t)
 	admission.register(f)
 	m.register(f)
+	f.StringVar(&onboardingAdmission, "onboarding-admission", "", "run-time lock of the onboarding admission: only the value inprocess turns it on (the compiled layout flag is the other lock); it carries no data and needs the complete authenticated admission context")
+	f.StringVar(&admissionEvent, "admission-event", "", "the workflow event name, passed by the base-controlled workflow (never from the change): the in-process onboarding admission accepts only pull_request_target and refuses every other value, including none")
 	f.BoolVar(&shadow, "shadow", false, "shadow mode: compute everything, never be eligible for automatic merging")
 	f.BoolVar(&botPaused, "bot-signer-paused", false, "refuse every onboarding batch signed with an onboarding-bot key")
 	f.StringVar(&metricsFile, "metrics", "", "write the metrics JSON to this file")
@@ -305,6 +325,10 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	}
 	opts := Options{Layout: layout, Base: base, Head: head, Author: author, Sender: sender, Owner: owner, BotLogin: bot, HeadSHA: headSHA, MaxLoosening: max, TrustRootDigest: digest, ApprovalKeysDigest: keysDigest, RederiveAll: all, Concurrency: concurrency, Shadow: shadow, BotSignerPaused: botPaused}
 	opts.AdmissionRESTBudget = restBudget
+	opts.AdmissionEvent = admissionEvent
+	if opts.OnboardingAdmissionInProcess, err = parseOnboardingAdmissionFlag(onboardingAdmission, admission.gitDir); err != nil {
+		return 2, err
+	}
 	if admission.gitDir != "" {
 		if opts.OnboardingGit, err = admission.context(); err != nil {
 			return 2, err

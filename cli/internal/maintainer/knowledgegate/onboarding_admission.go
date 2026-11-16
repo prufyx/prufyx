@@ -258,6 +258,10 @@ type OnboardingAdmissionInput struct {
 	TrustPaths            []string
 	BatchDir              string
 	VerifyPr              *VerifyPrResult
+	// SeamRefusals are the typed refusals of the in-process execution seam
+	// (onboarding_admission_exec.go); each one is a reason of its own and
+	// none can be cleared by another member. Only the seam sets them.
+	SeamRefusals []string
 }
 
 // OnboardingAdmission is the decision. It is never a merge authorization of
@@ -342,6 +346,12 @@ func AdmitOnboardingAuto(in OnboardingAdmissionInput) OnboardingAdmission {
 	admitPathSetValid(in.ChangedPaths, &why)
 	admitPaths(in, d.PathSet, &why)
 	admitVerifyPr(in, &why)
+	for _, code := range in.SeamRefusals {
+		if code == "" {
+			code = AdmitReasonSeamRefusalEmpty
+		}
+		why.add(code)
+	}
 	admitPrincipals(in, &why)
 	return d.finish(why)
 }
