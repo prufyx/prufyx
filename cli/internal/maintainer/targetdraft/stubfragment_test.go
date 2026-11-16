@@ -326,13 +326,15 @@ func TestStubEndToEnd(t *testing.T) {
 
 func TestStubNullsThatDeleteAreRefused(t *testing.T) {
 	for name, content := range map[string]string{
-		"spec null":                stubHead + "spec: null\n",
-		"spec empty value":         stubHead + "spec:\n",
-		"spec versions null":       stubHead + "spec:\n  versions: null\n",
-		"spec conversion null":     stubHead + "spec:\n  conversion: null\n",
-		"conversion webhook null":  stubHead + "spec:\n  conversion:\n    webhook: null\n",
-		"conversion strategy null": stubHead + "spec:\n  conversion:\n    strategy: null\n",
-		"metadata labels null":     stubHead + "  labels: null\n",
+		"spec null":                  stubHead + "spec: null\n",
+		"spec empty value":           stubHead + "spec:\n",
+		"spec versions null":         stubHead + "spec:\n  versions: null\n",
+		"spec conversion null":       stubHead + "spec:\n  conversion: null\n",
+		"conversion webhook null":    stubHead + "spec:\n  conversion:\n    webhook: null\n",
+		"conversion strategy null":   stubHead + "spec:\n  conversion:\n    strategy: null\n",
+		"label patch directive":      stubHead + "  labels:\n    $patch: delete\n",
+		"annotation patch directive": stubHead + "  annotations:\n    $patch: replace\n",
+		"metadata labels null":       stubHead + "  labels: null\n",
 	} {
 		m := stubTree(map[string]string{stubPath: content})
 		if got := stubClass(m, stubPath, true, true); got == "fragment" {
@@ -354,7 +356,7 @@ func TestStubSecondDefinitionCannotHideBehindSyntax(t *testing.T) {
 	stub := stubHead + "status: null\n"
 	full := stubFull("Webhook")
 	for name, dup := range map[string]string{
-		"escaped kind":  strings.Replace(full, "kind: CustomResourceDefinition", `kind: "CustomResourceDefinition"`, 1),
+		"escaped kind":  strings.Replace(full, "kind: CustomResourceDefinition", `kind: "CustomResource\u0044efinition"`, 1),
 		"double quoted": strings.Replace(full, "kind: CustomResourceDefinition", `kind: "CustomResourceDefinition"`, 1),
 		"single quoted": strings.Replace(full, "kind: CustomResourceDefinition", `kind: 'CustomResourceDefinition'`, 1),
 		"escaped key":   strings.Replace(full, "kind: CustomResourceDefinition", `"kind": CustomResourceDefinition`, 1),

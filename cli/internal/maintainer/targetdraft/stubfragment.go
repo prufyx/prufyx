@@ -292,6 +292,13 @@ func stubDoc(v any, ix *stubIndex) bool {
 			if fragStringMap(val) != "" {
 				return false
 			}
+			// A key starting with $ ($patch) is a merge directive that
+			// deletes or replaces the definition's own map.
+			for lk := range val.(map[string]any) {
+				if strings.HasPrefix(lk, "$") {
+					return false
+				}
+			}
 		case "creationTimestamp":
 			if val != nil {
 				return false
