@@ -127,7 +127,7 @@ func (s *seamFixture) calls() int {
 }
 
 // restCounts matches the request tally of the rest-budget check.
-var restCounts = regexp.MustCompile(`\d+ REST requests`)
+var restCounts = regexp.MustCompile(`(\d+ REST requests|"restRequests":\d+)`)
 
 func newSeamFixture(t *testing.T) *seamFixture {
 	t.Helper()
@@ -291,7 +291,7 @@ func TestSeamEitherLockOffIsDisabled(t *testing.T) {
 		}
 		// The fixture's upstream counts requests across runs (a counter, not
 		// part of the decision): normalise that one number.
-		return restCounts.ReplaceAll(b, []byte("N REST requests"))
+		return restCounts.ReplaceAll(b, []byte("REST"))
 	}
 	offA := enc(func(o *Options) { o.Layout.OnboardingAdmission.Enabled = false; o.OnboardingAdmissionInProcess = false })
 	offB := enc(func(o *Options) { o.Layout.OnboardingAdmission.Enabled = false })
