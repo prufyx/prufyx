@@ -582,3 +582,76 @@ func TestClassifierDoesNotChangeTheEntry(t *testing.T) {
 		t.Fatal("Classify changed the entry")
 	}
 }
+
+// An entry cut after its first item, with every field recomputed to be
+// self-consistent (section digest, item list, line accounting), is refused:
+// the section is re-derived from the file bytes, never taken from the entry.
+func TestSelfConsistentTruncationIsRefused(t *testing.T) {
+	file := promOne("* [FEATURE] Plain words. #1", "* [BUGFIX] Other words. #2", "* [ENHANCEMENT] Gone: the flag --old was removed. #3")
+	good := mustLocate(t, promTarget, "v3.5.0", file)
+	if len(good.Items) != 3 {
+		t.Fatalf("setup: %d items", len(good.Items))
+	}
+	b, _ := json.Marshal(good)
+	var e Entry
+	if err := json.Unmarshal(b, &e); err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSuffix(file, "\n"), "\n")
+	cut := e.Items[0].EndLine
+	e.Items = e.Items[:1]
+	e.Section.EndLine = cut
+	e.Section.Digest = hexSum([]byte(strings.Join(lines[e.Section.StartLine-1:cut], "\n") + "\n"))
+	e.Tiling = Tiling{Lines: cut - e.Section.StartLine + 1, Headings: 1, Blanks: 1, ItemLines: 1}
+	out, err := Classify(&e, []byte(file))
+	if err == nil || out != nil || !errors.Is(err, ErrEntryBinding) {
+		t.Fatalf("truncated entry classified: %v", err)
+	}
+	// A stretched section (past the next release heading) is refused too.
+	g := mustLocate(t, promTarget, "v3.5.0", file)
+	b, _ = json.Marshal(g)
+	var f Entry
+	_ = json.Unmarshal(b, &f)
+	f.Section.EndLine += 4
+	f.Section.Digest = hexSum([]byte(strings.Join(lines[f.Section.StartLine-1:f.Section.EndLine], "\n") + "\n"))
+	if _, err := Classify(&f, []byte(file)); !errors.Is(err, ErrEntryBinding) {
+		t.Fatalf("stretched entry classified: %v", err)
+	}
+	// Control: the untouched entry still classifies.
+	if _, err := Classify(good, []byte(file)); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAnnotationAndInvisibleCharacterNegatives(t *testing.T) {
+	cases := map[string]string{
+		"lowercase after marker":    "* [FEATURE] [security] Plain words.",
+		"slash after marker":        "* [FEATURE] [SECURITY/BUGFIX] Plain words.",
+		"unknown after marker":      "* [FEATURE] [Docs] Plain words.",
+		"lowercase operator nested": "* [FEATURE] Plain words:\n  * [removed] Other words.",
+		"mixed case operator":       "* [BUGFIX] [Breaking] Plain words.",
+		"combining grapheme joiner": "* [FEATURE] re͏moved --old.",
+		"combining acute":           "* [FEATURE] Plain wórds.",
+		"variation selector":        "* [FEATURE] Plain️ words.",
+		"no-break space":            "* [FEATURE] no longer works.",
+		"en dash":                   "* [FEATURE] Plain – words.",
+		"soft hyphen":               "* [FEATURE] rem­oved --old.",
+	}
+	for name, item := range cases {
+		file := promOne(item)
+		e, err := locateMem(promTarget, "v3.5.0", file)
+		if err != nil {
+			t.Fatalf("%s did not reach the classifier: %v", name, err)
+		}
+		cs, err := Classify(e, []byte(file))
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		for _, c := range cs {
+			wantClass(t, c, ClassNeedsReview, name)
+		}
+	}
+	// Control: the plain neutral shape still passes.
+	_, cs := classifyFile(t, promTarget, "v3.5.0", promOne("* [FEATURE] Plain words. #1"))
+	wantClass(t, cs[0], ClassMechanicalNeutral, "control")
+}

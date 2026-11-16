@@ -31,7 +31,7 @@ const (
 	ReasonNoVocabulary       = "no-vocabulary-for-component"
 	ReasonNotListItem        = "not-a-list-item"
 	ReasonFencedCode         = "fenced-code"
-	ReasonOddCharacter       = "non-ascii-letter-or-format-character"
+	ReasonOddCharacter       = "non-ascii-or-control-character"
 	ReasonOperatorMarker     = "operator-marker"
 	ReasonOperatorHeading    = "operator-heading"
 	ReasonNoMarker           = "no-marker"
@@ -61,7 +61,7 @@ var ErrEntryBinding = errors.New("changelogentries: entry does not match the fil
 
 var (
 	bulletPrefixRE = regexp.MustCompile(`^(?:[*+-]|[0-9]{1,9}[.)])[ \t]+`)
-	classTokenRE   = regexp.MustCompile(`\[([A-Z][A-Z0-9 _-]{0,30})\]`)
+	classTokenRE   = regexp.MustCompile(`\[([^\[\]\n]*)\]`)
 	fenceLineRE    = regexp.MustCompile("(?m)^[ \t]*(?:```|~~~)")
 )
 
@@ -112,6 +112,65 @@ func verifyEntry(e *Entry, file []byte) ([]string, error) {
 		return nil, bind("section digest differs")
 	}
 	sc := scan(lines)
+
+	// The section is re-derived from the bytes, never taken from the entry: it
+	// runs from the version heading to the line before the next heading of the
+	// same or a higher level (or to the end of the file), trailing blanks
+	// excluded. An entry cut short, or stretched, with a recomputed digest is
+	// refused here.
+	vi := -1
+	for i, h := range sc.headings {
+		if h.Line == s {
+			vi = i
+		}
+	}
+	if vi < 0 || len(e.Structure) == 0 || e.Structure[0].Kind != "version" {
+		return nil, bind("the section does not start at a heading")
+	}
+	vh := sc.headings[vi]
+	end := len(lines)
+	for _, h := range sc.headings[vi+1:] {
+		if h.Level <= vh.Level {
+			end = h.Line - 1
+			break
+		}
+	}
+	for end > vh.Line && isBlank(lines[end-1]) {
+		end--
+	}
+	if end != t {
+		return nil, bind("section ends at line %d, the file's own section ends at line %d", t, end)
+	}
+	if end-s+1 > MaxSectionLines {
+		return nil, bind("section is over the line bound")
+	}
+	var til Tiling
+	for n := s; n <= end; n++ {
+		til.Lines++
+		switch sc.kind[n-1] {
+		case kHeading:
+			til.Headings++
+		case kBlank:
+			til.Blanks++
+		case kLinkDef:
+			til.LinkDefs++
+		case kItem:
+			til.ItemLines++
+		default:
+			return nil, bind("line %d of the section is not a heading, blank, link definition or item", n)
+		}
+	}
+	if sc.openFence >= s && sc.openFence <= end {
+		return nil, bind("a fence in the section never closes")
+	}
+	for _, h := range sc.headings {
+		if h.Line <= end && h.EndLine > end {
+			return nil, bind("a heading straddles the section end")
+		}
+	}
+	if til != e.Tiling || e.ResidueLines != 0 {
+		return nil, bind("line accounting differs")
+	}
 
 	// Headings: the entry's structure must be exactly the scanned headings of
 	// the span, and the first one the version heading.
@@ -221,8 +280,9 @@ func sortedUnique(in []string) []string {
 	return out
 }
 
-// classTokens lists the bracketed upper-case tokens of text that are not a
-// link text or reference (followed by "(" or "[").
+// classTokens lists every bracketed token of text, of any case or content,
+// that is not a link text or reference (followed by "(" or "["). A token the
+// vocabulary does not know is therefore still counted, never ignored.
 func classTokens(text string) []string {
 	var toks []string
 	for _, m := range classTokenRE.FindAllStringSubmatchIndex(text, -1) {
@@ -251,13 +311,17 @@ func leadingTokens(first string) int {
 	}
 }
 
+// hasOddRune is true for any rune outside printable ASCII (tab and newline
+// aside): a letter look-alike, a format character, a combining mark or other
+// invisible character can split or hide a trigger word, so an item holding
+// one is never classified neutral.
 func hasOddRune(s string) bool {
 	for _, r := range s {
 		switch {
 		case r == '\n' || r == '\t':
-		case unicode.IsControl(r), unicode.Is(unicode.Cf, r):
+		case r < 0x20 || r == 0x7f:
 			return true
-		case r > unicode.MaxASCII && unicode.IsLetter(r):
+		case r > unicode.MaxASCII:
 			return true
 		}
 	}
@@ -307,7 +371,7 @@ func classifyItem(v *vocabulary, component string, it Item, body string) Classif
 	toks := classTokens(body)
 	lead := leadingTokens(first)
 	for _, t := range toks {
-		if hasStr(v.OperatorMarkers, t) {
+		if hasStr(v.OperatorMarkers, strings.ToUpper(strings.TrimSpace(t))) {
 			add(ReasonOperatorMarker)
 		}
 	}
