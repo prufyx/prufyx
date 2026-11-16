@@ -299,7 +299,7 @@ func lint(text string) []string {
 				add("result-logic")
 			}
 		case "Classify the change":
-			if !strings.Contains(s.Run, "case \"${word}\" in\n              TRUST_PATH_CHANGE|MIXED_CHANGE|APPLICABLE|NOT_APPLICABLE) class=\"${word}\" ;;\n            esac") {
+			if !strings.Contains(s.Run, "case \"${word}\" in\n    TRUST_PATH_CHANGE|MIXED_CHANGE|APPLICABLE|NOT_APPLICABLE) class=\"${word}\" ;;\n  esac") {
 				add("classify-branch")
 			}
 			for _, f := range []string{
@@ -390,10 +390,10 @@ func lint(text string) []string {
 		switch s.Name {
 		case "Write the result":
 			for _, f := range []string{
-				"if [ \"${CLASS}\" = \"NOT_APPLICABLE\" ]; then\n            result=NOT_APPLICABLE\n",
-				"elif [ \"${CLASS}\" = \"TRUST_PATH_CHANGE\" ]; then\n            result=TRUST_PATH_CHANGE\n",
-				"elif [ \"${CLASS}\" = \"MIXED_CHANGE\" ]; then\n            result=MIXED_CHANGE\n",
-				"elif [ \"${CLASS}\" = \"APPLICABLE\" ]; then\n            code=",
+				"if [ \"${CLASS}\" = \"NOT_APPLICABLE\" ]; then\n  result=NOT_APPLICABLE\n",
+				"elif [ \"${CLASS}\" = \"TRUST_PATH_CHANGE\" ]; then\n  result=TRUST_PATH_CHANGE\n",
+				"elif [ \"${CLASS}\" = \"MIXED_CHANGE\" ]; then\n  result=MIXED_CHANGE\n",
+				"elif [ \"${CLASS}\" = \"APPLICABLE\" ]; then\n  code=",
 			} {
 				if !strings.Contains(s.Run, f) {
 					add("class-mapping")
