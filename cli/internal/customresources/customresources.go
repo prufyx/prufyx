@@ -256,6 +256,41 @@ func ReservedNamespace(group string) bool {
 	return false
 }
 
+// documentationNames are the domains RFC 2606 reserves for documentation,
+// and documentationTLDs the labels RFC 2606 and RFC 6761 reserve as top-level
+// names. Nothing registered or served by a project can lie under them.
+var (
+	documentationNames = []string{"example.com", "example.org", "example.net"}
+	documentationTLDs  = []string{"example", "test", "invalid", "localhost"}
+)
+
+// DocumentationGroup reports whether an API group is a documentation name
+// reserved by RFC 2606 or RFC 6761: example.com, example.org, example.net or
+// a subdomain of one, or a dotted name whose last label is example, test,
+// invalid or localhost. The table never lists one (Validate refuses it), so no project owns one. The match is exact and lower case: any other spelling
+// (example.io, exampleXcom, example.com.evil.io, EXAMPLE.COM) is not one.
+func DocumentationGroup(group string) bool {
+	if group == "" || group != strings.ToLower(group) {
+		return false
+	}
+	for _, n := range documentationNames {
+		if group == n || strings.HasSuffix(group, "."+n) {
+			return true
+		}
+	}
+	i := strings.LastIndexByte(group, '.')
+	if i <= 0 || i == len(group)-1 {
+		return false
+	}
+	last := group[i+1:]
+	for _, t := range documentationTLDs {
+		if last == t {
+			return true
+		}
+	}
+	return false
+}
+
 // ReservedGroup is a reviewed ownership record: an API group in a
 // Kubernetes-reserved namespace that the CustomResourceDefinitions of one
 // upstream repository define, and that kube-apiserver does not serve. The
@@ -511,6 +546,9 @@ func validate(projects []Project, records []ReservedGroup) bool {
 				return false
 			}
 			if !validKinds(g.Kinds) {
+				return false
+			}
+			if DocumentationGroup(g.Name) {
 				return false
 			}
 			if ReservedNamespace(g.Name) {

@@ -223,6 +223,11 @@ type ScanRecord struct {
 	// definitions the reviewed table assigns to another project (left out
 	// of the comparison), those definitions; absent when there are none.
 	ForeignCopies []ForeignCopy `json:"foreignCopies,omitempty"`
+	// ReservedCopies name, for the files of Copies and Findings under a
+	// default-excluded directory that hold definitions of a reserved
+	// namespace (ReservedLeftOut) left out of the comparison, those
+	// definitions with the file's digest; absent when there are none.
+	ReservedCopies []ReservedCopy `json:"reservedCopies,omitempty"`
 	// Findings are the files of every other class, sorted by path.
 	Findings []Finding `json:"findings"`
 	// AntreaModes is freshly verified against the complete pinned mode
@@ -285,13 +290,15 @@ const (
 func reasoned(fd Finding, form string, crds []CRD, at attribution) Finding {
 	var own []CRD
 	for _, c := range crds {
-		if !at.foreign(c.Group, c.Kind) {
+		if !at.foreign(c.Group, c.Kind) && !slices.Contains(fd.Reserved, c.Name) {
 			own = append(own, c)
 		}
 	}
 	switch fd.Class {
 	case ClassCopy:
-		if len(own) == 0 {
+		if len(own) == 0 && len(fd.Reserved) > 0 && len(fd.Foreign) == 0 {
+			fd.Reason = form + "-reserved-only"
+		} else if len(own) == 0 {
 			fd.Reason = form + "-foreign-only"
 		} else {
 			fd.Reason = form + "-same-serving"
@@ -317,6 +324,15 @@ type ForeignCopy struct {
 	Definitions []string `json:"definitions"`
 }
 
+// ReservedCopy is the definitions of one file left out because their group
+// is a documentation name or lies in a Kubernetes-reserved namespace the
+// target does not own (ReservedLeftOut).
+type ReservedCopy struct {
+	Path        string   `json:"path"`
+	SHA256      string   `json:"sha256"`
+	Definitions []string `json:"definitions"`
+}
+
 // Finding is one file outside the listed paths with CRD-like content, or
 // one that names another repository's definitions.
 type Finding struct {
@@ -336,7 +352,10 @@ type Finding struct {
 	// reviewed table assigns their group and kind to another project: it
 	// shows why a file is a copy. Absent when there are none.
 	Foreign []string `json:"foreign,omitempty"`
-	Detail  string   `json:"detail,omitempty"`
+	// Reserved are the definitions left out because their group is a
+	// documentation name or lies in a reserved namespace (ReservedLeftOut).
+	Reserved []string `json:"reserved,omitempty"`
+	Detail   string   `json:"detail,omitempty"`
 	// Reason is a short code for why the scan gave the file this class (the
 	// Reason constants); Detail is the text.
 	Reason string `json:"reason,omitempty"`
@@ -786,6 +805,9 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 		}
 		if len(fd.Foreign) > 0 {
 			rec.ForeignCopies = append(rec.ForeignCopies, ForeignCopy{Path: f.path, Definitions: fd.Foreign})
+		}
+		if len(fd.Reserved) > 0 {
+			rec.ReservedCopies = append(rec.ReservedCopies, ReservedCopy{Path: f.path, SHA256: fd.SHA256, Definitions: fd.Reserved})
 		}
 		if fd.Class == ClassCopy {
 			rec.Copies = append(rec.Copies, f.path)
@@ -2046,7 +2068,7 @@ func (x *Extractor) classifyFile(r extract.PinnedReader, repo extract.RepoRef, c
 		case len(g.crds) > 0:
 			// Definitions compressed into the source (velero install):
 			// compared definition by definition like a YAML file.
-			fd = compareDefinitions(fd, g.crds, inv, x.attribution())
+			fd = compareDefinitions(fd, g.crds, inv, x.attribution(), false)
 			fd = reasoned(fd, ReasonGzip, g.crds, x.attribution())
 		case g.kinds > 0:
 			fd.Class, fd.Reason, fd.Detail = ClassReference, ReasonNoTopLevel, "gzip-compressed string literals hold the CustomResourceDefinition kind but define none at the top level"
@@ -2175,7 +2197,11 @@ func (x *Extractor) classifyFile(r extract.PinnedReader, repo extract.RepoRef, c
 		}
 		return placed(fd, f.at), true, nil
 	}
-	fd = compareDefinitions(fd, crds, inv, x.attribution())
+	// Reserved namespaces apply only to plain v1 definitions read from a
+	// decoded file under a default-excluded directory that is not void: not
+	// a template, a legacy form, an include or a file that embeds a manifest.
+	reservedOK := f.at.kind == locDefault && !f.at.void && !fromTemplate && !viaInclude && info.legacy == nil && !info.embedded && !f.at.copies
+	fd = compareDefinitions(fd, crds, inv, x.attribution(), reservedOK)
 	form := ReasonV1
 	switch {
 	case fromTemplate:
@@ -2218,16 +2244,23 @@ func (x *Extractor) classifyFile(r extract.PinnedReader, repo extract.RepoRef, c
 // inventory: copy, extra or conflict. A definition of a group and kind the reviewed
 // table assigns to another project is not the project's: it is left out (a
 // file of such definitions only is a copy), as the inventory leaves it out.
-func compareDefinitions(fd Finding, crds []CRD, inv *Inventory, at attribution) Finding {
+//
+// With reserved set (the file lies under a default-excluded directory that is
+// not void), a definition of a documentation name or Kubernetes-reserved
+// namespace the target does not own is left out too (ReservedLeftOut).
+func compareDefinitions(fd Finding, crds []CRD, inv *Inventory, at attribution, reserved bool) Finding {
 	own := make([]CRD, 0, len(crds))
 	for _, c := range crds {
 		if at.foreign(c.Group, c.Kind) {
 			fd.Foreign = append(fd.Foreign, c.Name)
+		} else if reserved && ReservedLeftOut(at.index, at.project, inv, c.Group, c.Kind) {
+			fd.Reserved = append(fd.Reserved, c.Name)
 		} else {
 			own = append(own, c)
 		}
 	}
 	sort.Strings(fd.Foreign)
+	sort.Strings(fd.Reserved)
 	crds = own
 	byName := map[string]*CRD{}
 	if inv != nil {
