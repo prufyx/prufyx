@@ -165,7 +165,7 @@ func FuzzLocate(f *testing.F) {
 	f.Add([]byte(shapeBlankLabel))
 	f.Add([]byte(shapeFootnote))
 	f.Add([]byte(shapeDeepClose))
-	for _, s := range []string{shapeItemFenceNoCloser, shapeOpenerLeftOfItem, shapeOpenerFourPast, shapeListFence, shapeListFenceNested, shapeQuoteFence, shapeNBSPClose, shapeBareAngle} {
+	for _, s := range []string{shapeTabStop, shapeTabOpener, shapeHTMLComment, shapeHTMLPre, shapeHTMLBeforeEntry, shapeHTMLInEntry, shapeHTMLOneLine, shapeItemFenceNoCloser, shapeOpenerLeftOfItem, shapeOpenerFourPast, shapeListFence, shapeListFenceNested, shapeQuoteFence, shapeNBSPClose, shapeBareAngle} {
 		f.Add([]byte(s))
 	}
 	f.Add([]byte("## 3.5.0 / 2025-07-14\n\n### Notes\n  ```\n  code\n"))
@@ -252,6 +252,13 @@ const (
 	shapeItemFenceNoCloser = "## 3.5.0 / 2025-07-14\n* [ENHANCEMENT] Example config:\n  ~~~\n  key: value\nThanks to all contributors.\n~~~\n## 3.4.0 / 2025-05-17\n~~~\n* [CHANGE] The flag --foo was removed.\n\n## 3.4.0 / 2025-05-17\n* [BUGFIX] x\n"
 	shapeOpenerLeftOfItem  = "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x\n\n * [BUGFIX] y\n ```\n  ```\n## 3.4.0 / 2025-05-17\n```\n* [CHANGE] z\n"
 	shapeOpenerFourPast    = "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x\n\n      ~~~\n~~~\n## 3.4.0 / 2025-05-17\n~~~\n* [CHANGE] z\n"
+	shapeTabStop           = "## 3.5.0 / 2025-07-14\n- outer\n  1. inner\n     ~~~\n     code\n   \t- sibling\n     ~~~\n## 3.4.0 / 2025-05-17\n  ~~~\n- [CHANGE] The flag --foo was removed.\n"
+	shapeTabOpener         = "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\t~~~\n\tcode\n\t~~~\n* [BUGFIX] y\n"
+	shapeHTMLComment       = "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n<!--\n## 3.4.0 / 2025-05-17\n-->\n* [CHANGE] The flag --foo was removed.\n\n## 3.4.0 / 2025-05-17\n* [BUGFIX] y\n"
+	shapeHTMLPre           = "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n<pre>\n~~~\n</pre>\n\n~~~\n## 3.4.0 / 2025-05-17\n~~~\n* [CHANGE] The flag --foo was removed.\n"
+	shapeHTMLBeforeEntry   = "# Changelog\n<!--\n## 3.5.0 / 2025-07-14\n-->\n\n## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n## 3.4.0 / 2025-05-17\n* [BUGFIX] y\n"
+	shapeHTMLInEntry       = "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n<details>\n\n* [CHANGE] The flag --foo was removed.\n\n## 3.4.0 / 2025-05-17\n* [BUGFIX] y\n"
+	shapeHTMLOneLine       = "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n## 3.4.0 / 2025-05-17\n<!-- a note -->\n* [BUGFIX] y\n"
 	shapeDeepClose         = "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x. #1\n\n```\n    ```\n## 3.4.0 / 2025-05-17\n* [CHANGE] flag --x removed\n```\n\n* [BUGFIX] tail. #9\n"
 )
 
@@ -331,7 +338,7 @@ func TestDeeplyIndentedFenceLineDoesNotClose(t *testing.T) {
 }
 
 func TestNewShapesNeverPanic(t *testing.T) {
-	for _, s := range []string{shapeItemFenceNoCloser, shapeOpenerLeftOfItem, shapeOpenerFourPast, shapeBlankLabel, shapeFootnote, shapeDeepClose, shapeListFence, shapeListFenceNested, shapeQuoteFence, shapeNBSPClose, shapeBareAngle} {
+	for _, s := range []string{shapeTabStop, shapeTabOpener, shapeHTMLComment, shapeHTMLPre, shapeHTMLBeforeEntry, shapeHTMLInEntry, shapeHTMLOneLine, shapeItemFenceNoCloser, shapeOpenerLeftOfItem, shapeOpenerFourPast, shapeBlankLabel, shapeFootnote, shapeDeepClose, shapeListFence, shapeListFenceNested, shapeQuoteFence, shapeNBSPClose, shapeBareAngle} {
 		checkNoPanic(t, []byte(s))
 	}
 }
@@ -437,4 +444,37 @@ func TestIndentedOpenerFenceStop(t *testing.T) {
 	if e := mustLocate(t, promTarget, "v3.5.0", ok); len(e.Items) != 2 {
 		t.Fatalf("%+v", e.Items)
 	}
+}
+
+// A tab in the white space of a fence opened on an indented line, and a line
+// that does not carry the opener's own white space as a prefix, stop the file;
+// so does any HTML block that can hide a heading or a fence, and any HTML
+// block inside the entry itself.
+func TestTabAndHTMLBlockStops(t *testing.T) {
+	for name, s := range map[string]string{
+		"tab stop sibling": shapeTabStop, "tab opener": shapeTabOpener, "comment hides heading": shapeHTMLComment,
+		"pre hides fence": shapeHTMLPre, "comment before entry": shapeHTMLBeforeEntry, "html in entry": shapeHTMLInEntry,
+		"script":                  "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n<script>\n## 3.4.0 / 2025-05-17\n</script>\n",
+		"style":                   "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n<STYLE>\n# a\n</style>\n",
+		"textarea":                "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n<textarea>\n~~~\n</textarea>\n",
+		"pi":                      "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n<?x\n## 3.4.0 / 2025-05-17\n?>\n",
+		"cdata":                   "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n<![CDATA[\n## 3.4.0 / 2025-05-17\n]]>\n",
+		"declaration":             "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n<!DOCTYPE\n## 3.4.0 / 2025-05-17\n>\n",
+		"inside comment in entry": "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n<!-- one line -->\n",
+		"closing tag in entry":    "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n</div>\n",
+	} {
+		e, err := locateMem(promTarget, "v3.5.0", s)
+		if err == nil {
+			t.Errorf("%s: located %+v", name, e.Section)
+			continue
+		}
+		wantCode(t, err, EntryParseResidue)
+	}
+	// The tab-stop and the multi-line shapes stop the file for the other tag too.
+	for _, s := range []string{shapeTabStop, shapeHTMLComment, shapeHTMLPre} {
+		_, err := locateMem(promTarget, "v3.4.0", s)
+		wantCode(t, err, EntryParseResidue)
+	}
+	// A one-line comment outside the entry is fine.
+	mustLocate(t, promTarget, "v3.5.0", shapeHTMLOneLine)
 }
