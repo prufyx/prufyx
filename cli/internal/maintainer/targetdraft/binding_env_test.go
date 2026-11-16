@@ -137,7 +137,7 @@ func TestExecRunnerChildSeesOnlyTheFixedEnvironment(t *testing.T) {
 			pwd = v
 		case "PATH":
 			// git itself puts its exec dir in front of the PATH it was given.
-			if v != bindingPath && !strings.HasSuffix(v, ":"+bindingPath) {
+			if v != bindingPath && !(strings.HasSuffix(v, "git-core:"+bindingPath)) {
 				t.Fatalf("PATH %q", v)
 			}
 		}
