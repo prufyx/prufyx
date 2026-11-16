@@ -347,16 +347,22 @@ func TestReservedOnlyRelaxesExtra(t *testing.T) {
 	}
 }
 
-// (7) a gzip-compressed definition of a reserved group in a Go source under a
-// default directory is compared as before: it stays an extra finding.
+// (7) a gzip-compressed definition of a reserved group in a Go source is
+// compared as before: Go sources are read only in the open tree or under a
+// void entry, and there it stays an extra finding (never left out).
 func TestReservedGzipStaysBlocking(t *testing.T) {
-	const path = "test/crds/crds.go"
+	const path = fixtureDir + "crds.go"
 	file := goCRDs(gzipLiteral(t, crdIn("hello.example.com", "Dummy", "v1")))
-	scan := reservedScan(t, quietListed(), []string{synthGroup}, map[string]string{path: file})
+	_, proof := guardPair(t, map[string]string{
+		"deploy/kustomization.yaml": "resources:\n- ../test/fixtures/crds.go\n",
+		path:                        file,
+		fixtureDir + "crd.yaml":     crd("Gamma", "v1"),
+	}, fixtureExclusion())
+	scan := proof.To.Scan
 	if len(scan.ReservedCopies) != 0 {
 		t.Fatalf("reserved record: %+v", scan.ReservedCopies)
 	}
-	if f := findingOf(scan, path); f == nil || !f.blocks() || scan.Clean() {
+	if f := findingOf(scan, path); f == nil || !f.blocks() || f.Location != "void: "+fixtureDir {
 		t.Fatalf("does not block: finding %+v, copies %v", f, scan.Copies)
 	}
 }
