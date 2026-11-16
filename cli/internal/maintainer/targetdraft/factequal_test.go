@@ -203,10 +203,12 @@ func TestFactEqualNeedsChecks(t *testing.T) {
 // versions at all, is never accepted (hides-crd or unreadable stop).
 func TestFactEqualUnreadableOrExtraStays(t *testing.T) {
 	for name, copy := range map[string][]byte{
-		"extra identity":  []byte(feDef(feOpts{schema: "other", extraKind: "Gamma"})),
-		"no versions":     []byte("apiVersion: apiextensions.k8s.io/v1\nkind: CustomResourceDefinition\nspec:\n  group: " + infGroup + "\n  scope: Namespaced\n  names:\n    kind: Alpha\n    plural: alphas\n"),
-		"broken yaml":     []byte("kind: CustomResourceDefinition\nspec: [\n"),
-		"template syntax": []byte("kind: CustomResourceDefinition\nspec:\n  group: {{ .Values.g }}\n"),
+		"extra identity":                     []byte(feDef(feOpts{schema: "other", extraKind: "Gamma"})),
+		"no versions":                        []byte("apiVersion: apiextensions.k8s.io/v1\nkind: CustomResourceDefinition\nspec:\n  group: " + infGroup + "\n  scope: Namespaced\n  names:\n    kind: Alpha\n    plural: alphas\n"),
+		"broken yaml":                        []byte("kind: CustomResourceDefinition\nspec: [\n"),
+		"v1beta1 spec.version only":          []byte("apiVersion: apiextensions.k8s.io/v1beta1\nkind: CustomResourceDefinition\nspec:\n  group: " + infGroup + "\n  version: v1\n  scope: Namespaced\n  names:\n    kind: Alpha\n    plural: alphas\n"),
+		"fact-equal doc plus extra identity": []byte(feDef(feOpts{schema: "other"}) + "---\n" + feDef(feOpts{schema: "other", extraKind: "Gamma"})[strings.Index(feDef(feOpts{extraKind: "Gamma"}), "---\n")+4:]),
+		"template syntax":                    []byte("kind: CustomResourceDefinition\nspec:\n  group: {{ .Values.g }}\n"),
 	} {
 		t.Run(name, func(t *testing.T) {
 			src := feSource(func(string) []byte { return copy })
@@ -325,5 +327,64 @@ func TestFactEqualFunctionFacets(t *testing.T) {
 	noConv := mod(func(c *crd) { delete(c.SpecParts, "spec.conversion") })
 	if !factEqual(noConv, noConv) {
 		t.Fatal("conversion absent on both sides is equal")
+	}
+}
+
+func feInclusion(cs ...crd) []*inclusion { return []*inclusion{{Path: "i.yaml", CRDs: cs}} }
+
+func feCRD(scope string) crd {
+	return crd{Group: "g", Kind: "K", Versions: []string{"v1:true:true"}, SpecDigest: "d-" + scope,
+		SpecParts: map[string]string{"spec.scope": scope, "spec.names": "n"}}
+}
+
+// Several installed definitions of one key: any differing holder stops, in
+// either order; the accepted list stays empty (no stale acceptance).
+func TestFactEqualMultipleHoldersAnyDifferentStops(t *testing.T) {
+	eq := feCRD("s")
+	eq.SpecDigest = "d-other" // digest differs, facts equal
+	diff := feCRD("t")
+	copyDef := feCRD("s")
+	for name, held := range map[string][]crd{"equal then different": {eq, diff}, "different then equal": {diff, eq}} {
+		t.Run(name, func(t *testing.T) {
+			var in []*inclusion
+			for _, h := range held {
+				in = append(in, &inclusion{Path: "i.yaml", CRDs: []crd{h}})
+			}
+			stops, acc := outsideChecksFE(in, []*finding{{Path: "o.yaml", CRDs: []crd{copyDef}}}, true)
+			if len(stops) != 1 || stops[0].Code != StopInstallPathCopyDiffers || len(acc) != 0 {
+				t.Fatalf("stops=%+v accepted=%v", stops, acc)
+			}
+		})
+	}
+	// all holders fact-equal: accepted, no stop
+	stops, acc := outsideChecksFE([]*inclusion{{Path: "i.yaml", CRDs: []crd{eq}}, {Path: "j.yaml", CRDs: []crd{eq}}}, []*finding{{Path: "o.yaml", CRDs: []crd{copyDef}}}, true)
+	if len(stops) != 0 || len(acc) != 1 {
+		t.Fatalf("stops=%+v accepted=%v", stops, acc)
+	}
+}
+
+// A duplicate identity inside one copy file: one differing document stops.
+func TestFactEqualDuplicateIdentityInCopyFile(t *testing.T) {
+	inst := feCRD("s")
+	inst.SpecDigest = "d-inst"
+	same := feCRD("s")
+	diff := feCRD("t")
+	for name, docs := range map[string][]crd{"equal first": {same, diff}, "different first": {diff, same}} {
+		stops, acc := outsideChecksFE(feInclusion(inst), []*finding{{Path: "o.yaml", CRDs: docs}}, true)
+		if len(stops) != 1 || stops[0].Code != StopInstallPathCopyDiffers || len(acc) != 0 {
+			t.Fatalf("%s: stops=%+v accepted=%v", name, stops, acc)
+		}
+	}
+}
+
+// An empty scope or names digest is never a fact, even when equal on both
+// sides.
+func TestFactEqualEmptyPartIsUnequal(t *testing.T) {
+	for _, p := range []string{"spec.scope", "spec.names"} {
+		a, b := feCRD("s"), feCRD("s")
+		a.SpecParts[p], b.SpecParts[p] = "", ""
+		if factEqual(a, b) {
+			t.Fatalf("empty %s must be unequal", p)
+		}
 	}
 }
