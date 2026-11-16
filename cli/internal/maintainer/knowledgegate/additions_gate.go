@@ -181,3 +181,4 @@ func attestationsNotFuture(head Tree, now time.Time) error {
 	}
 	return nil
 }
+// throwaway probe comment
