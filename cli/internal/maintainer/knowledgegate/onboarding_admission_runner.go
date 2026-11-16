@@ -8,6 +8,7 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 
@@ -29,38 +30,56 @@ const (
 
 var runnerGitPaths = []string{"/usr/bin/git", "/usr/local/bin/git", "/bin/git"}
 
-// runnerConfigKeys are the only `-c` settings the verifier's argument vector
-// may carry.
-var runnerConfigKeys = map[string]bool{
-	"protocol.version": true, "http.followRedirects": true, "credential.helper": true,
-	"http.lowSpeedLimit": true, "http.lowSpeedTime": true, "core.askPass": true,
-}
+// runnerPrefix is the one fixed head of the verifier's argument vector: git,
+// the six `-c key=value` pairs with their exact values and order, and the
+// ls-remote subcommand with its options. It mirrors the verifier's builder
+// (targetdraft bindingArgv); a change there needs the same change here, and
+// until then the runner refuses (fail closed).
+var runnerPrefix = []string{"git",
+	"-c", "protocol.version=2",
+	"-c", "http.followRedirects=false",
+	"-c", "credential.helper=",
+	"-c", "http.lowSpeedLimit=1000",
+	"-c", "http.lowSpeedTime=20",
+	"-c", "core.askPass=",
+	"ls-remote", "--tags", "--"}
+
+var (
+	runnerURLRE = regexp.MustCompile(`^https://github\.com/[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*\.git$`)
+	runnerTagRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._+-]{0,99}$`)
+)
 
 type admissionRunner struct{}
 
 func newAdmissionRunner() targetdraft.LsRemoteRunner { return admissionRunner{} }
 
-// runnerArgvOK accepts exactly the verifier's shape: git, "-c key=value"
-// pairs of the fixed keys, then "ls-remote --tags -- <https://github.com/...>"
-// and exact refs/tags patterns.
+// runnerArgvOK accepts exactly one shape: runnerPrefix, one repository URL of
+// the fixed host, then for every tag the pair "refs/tags/T" and
+// "refs/tags/T^{}" (at least one pair). Nothing else is accepted: no extra,
+// missing, reordered or re-valued -c setting, no other subcommand or option,
+// no other URL form, no other pattern.
 func runnerArgvOK(argv []string) bool {
-	if len(argv) < 6 || argv[0] != "git" {
+	n := len(runnerPrefix)
+	if len(argv) < n+3 || (len(argv)-n-1)%2 != 0 {
 		return false
 	}
-	i := 1
-	for i+1 < len(argv) && argv[i] == "-c" {
-		key, _, ok := strings.Cut(argv[i+1], "=")
-		if !ok || !runnerConfigKeys[key] {
+	for i, want := range runnerPrefix {
+		if argv[i] != want {
 			return false
 		}
-		i += 2
 	}
-	rest := argv[i:]
-	if len(rest) < 4 || rest[0] != "ls-remote" || rest[1] != "--tags" || rest[2] != "--" || !strings.HasPrefix(rest[3], runnerHost) {
+	url := argv[n]
+	if !runnerURLRE.MatchString(url) || strings.Contains(url, "..") {
 		return false
 	}
-	for _, p := range rest[4:] {
-		if !strings.HasPrefix(p, "refs/tags/") || strings.HasPrefix(p, "-") {
+	name := strings.TrimSuffix(strings.TrimPrefix(url, runnerHost), ".git")
+	if strings.HasSuffix(name, ".") || strings.HasSuffix(name, ".git") {
+		return false
+	}
+	pats := argv[n+1:]
+	for i := 0; i < len(pats); i += 2 {
+		tag, ok := strings.CutPrefix(pats[i], "refs/tags/")
+		if !ok || !runnerTagRE.MatchString(tag) || pats[i+1] != pats[i]+"^{}" {
 			return false
 		}
 	}
@@ -126,7 +145,10 @@ func runnerExec(ctx context.Context, bin string, args, env []string, dir string)
 	so, se := &runnerBuffer{limit: runnerMaxOutput}, &runnerBuffer{limit: runnerMaxStderr}
 	cmd.Stdout, cmd.Stderr = so, se
 	cmd.WaitDelay = runnerWaitDelay
-	runnerKillGroup(cmd)
+	// No group kill, no command: the child never starts.
+	if err := runnerKillGroup(cmd); err != nil {
+		return targetdraft.ExecResult{Err: err}
+	}
 	runErr := cmd.Run()
 	res := targetdraft.ExecResult{Stdout: so.buf.Bytes(), Stderr: se.buf.Bytes()}
 	if ctx.Err() != nil {
