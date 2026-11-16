@@ -461,6 +461,9 @@ type blobInfo struct {
 	sha256 string
 	// words counts the bare kind name.
 	words int
+	// failOnly: a template partial that names the kind only inside
+	// `fail "<literal>"` actions (failOnlyPartial; bytes only).
+	failOnly bool
 	// unread is why the bytes could not be decoded ("" when they could or
 	// were not decoded).
 	unread string
@@ -624,6 +627,9 @@ type scanFile struct {
 	inc     *specIncludeRead
 	incRead bool
 	literal bool
+	// failPartial: the path and place allow the fail-message rule and a
+	// Chart.yaml lies beside the templates directory (failpartial.go).
+	failPartial bool
 }
 
 // fileKind decides what a tree entry is to the scan.
@@ -692,6 +698,12 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 			}
 		}
 	}
+	regular := map[string]bool{}
+	for _, e := range blobs {
+		if e.Mode != "120000" {
+			regular[e.Path] = true
+		}
+	}
 	literal, err := x.literalKustomizationProof(r, repo, commit, inv.Tag, blobs)
 	if err != nil {
 		return nil, err
@@ -728,7 +740,8 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 			rec.Findings = append(rec.Findings, placed(Finding{Path: e.Path, Class: ClassUnsupported, Reason: ReasonPackagedChart, Detail: "a packaged Helm chart: its files are not read"}, at))
 			continue
 		}
-		files = append(files, scanFile{path: e.Path, oid: e.SHA, kind: kind, at: at, literal: literal[e.Path]})
+		files = append(files, scanFile{path: e.Path, oid: e.SHA, kind: kind, at: at, literal: literal[e.Path],
+			failPartial: kind == kindSource && failPartialPlace(e.Path, at) && regular[path.Join(path.Dir(path.Dir(e.Path)), "Chart.yaml")]})
 	}
 	if len(files) > MaxScanFilesPerTag {
 		rec.Complete, rec.Problem = false, fmt.Sprintf("%d candidate files, over the bound of %d", len(files), MaxScanFilesPerTag)
@@ -925,6 +938,7 @@ func summarize(kind int, data []byte) *blobInfo {
 	info.words = len(wordRE.FindAllIndex(data, -1))
 	switch kind {
 	case kindSource:
+		info.failOnly = info.words > 0 && failOnlyPartial(data)
 		return info
 	case kindGo:
 		info.goConstruct = info.words > 0 && goConstructRE.Match(data)
@@ -2030,6 +2044,10 @@ func (x *Extractor) classifyFile(r extract.PinnedReader, repo extract.RepoRef, c
 	case kindSource:
 		if info.words == 0 {
 			return fd, false, nil
+		}
+		if f.failPartial && info.failOnly {
+			fd.Class, fd.Reason, fd.Detail = ClassNoDefinition, ReasonFailMessage, "a Helm template partial (_*.tpl under a chart's templates directory) that names the CustomResourceDefinition kind only in fail messages: every action that holds the name is exactly fail and one string literal, and the text outside actions does not hold it"
+			return placed(fd, f.at), true, nil
 		}
 		fd.Class, fd.Reason, fd.Detail = ClassUnsupported, ReasonSourceTemplate, "a template, jsonnet or cue source that names the CustomResourceDefinition kind: it is not read"
 		return placed(fd, f.at), true, nil

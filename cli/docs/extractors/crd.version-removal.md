@@ -397,6 +397,17 @@ Through the offline factory mirror (or a fixture tree), never the network.
   - every other class in the open tree or among declared copies, and every
     class but those six under a default-excluded directory:
     the pair is not attestable.
+  - `no-definition` with the reason `source-fail-message`: a Helm template
+    partial (a file named `_*.tpl` directly under a chart's `templates/`
+    directory, with a `Chart.yaml` beside it) that holds the kind name, in any
+    case, only inside actions that are exactly `fail` and one string literal.
+    Every action is well formed (it closes, holds no `{{`, and a literal in it
+    holds no `}}`), and the text outside the actions holds neither the kind
+    name nor `apiextensions.k8s.io`. Recorded with its sha256 where the class
+    `unsupported` would have blocked (the open tree, a default-excluded
+    directory, a void entry); under a reviewed exclusion the file keeps its
+    class. A template that builds the kind name from parts is not seen by the
+    scan, and this rule does not widen that.
   - `no-definition`: recorded; the pair stays attestable, and the file does
     not keep a definition from being established as gone.
   - any class under a reviewed exclusion with `"defines": "none"` (location
