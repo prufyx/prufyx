@@ -316,7 +316,16 @@ func TestReservedOnlyRelaxesExtra(t *testing.T) {
 		}
 		rest := 0
 		for _, c := range crds {
-			if !left[c.Name] && !at.foreign(c.Group, c.Kind) {
+			if left[c.Name] || at.foreign(c.Group, c.Kind) {
+				continue
+			}
+			// A definition the inventory holds with the same serving is a
+			// copy and does not block by itself.
+			same := false
+			for i := range inv.CRDs {
+				same = same || (inv.CRDs[i].Name == c.Name && sameServing(&inv.CRDs[i], &c))
+			}
+			if !same {
 				rest++
 			}
 		}
