@@ -12,7 +12,8 @@ import (
 
 // FullWindowSelector carries externally supplied selector evidence. The caller
 // must independently authenticate the complete upstream tag enumeration; this
-// generator proves consistency only for the supplied bounded window.
+// generator proves consistency only for the supplied bounded window. Tags
+// must already be in ascending numeric order; they are never silently sorted.
 type FullWindowSelector struct {
 	Policy       string
 	Prefix       string
@@ -80,6 +81,9 @@ func fullWindowTags(names []string, selector FullWindowSelector) ([]parsedTag, s
 		}
 		out = append(out, parsedTag{Tag: name, Prefix: m[1], Major: major, Minor: minor})
 		prevMajor, prevMinor, prevPatch = major, minor, patch
+	}
+	if lines > selector.LinesBack+1 {
+		return fail("full window has too many release lines")
 	}
 	if lines < 2 || selector.MinFrom != fmt.Sprintf("%d.%d", out[0].Major, out[0].Minor) || selector.Newest != names[len(names)-1] || selector.LaterTag != later {
 		return fail("selector does not match full window")

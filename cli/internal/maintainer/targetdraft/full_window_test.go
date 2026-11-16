@@ -5,6 +5,8 @@ package targetdraft
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -57,6 +59,33 @@ func fullWindowFixture(t *testing.T, changed, ambiguous bool) (Input, FullWindow
 	in := Input{Slug: "demo", Name: "Demo", Repo: "github.com/example/demo", Catalog: "cncf", Tags: tags, Source: GitSource{Dir: dir}, StrictWindow: true}
 	selector := FullWindowSelector{Policy: "singleton-final/v1", Prefix: "v", LinesBack: 5, MinFrom: "1.0", Newest: "v1.1.1", LaterTag: "v1.1.0", TagSetSHA256: "sha256:" + strings.Repeat("a", 64), Commits: commits}
 	return in, selector
+}
+
+func TestGenerateFullWindowRejectsSevenReleaseLines(t *testing.T) {
+	in, selector := fullWindowFixture(t, false, false)
+	source := in.Source.(GitSource)
+	commit := selector.Commits[selector.Newest]
+	for minor := 2; minor <= 6; minor++ {
+		tag := fmt.Sprintf("v1.%d.0", minor)
+		cmd := exec.Command("git", "-C", source.Dir, "tag", tag, commit)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git tag: %v %s", err, out)
+		}
+		in.Tags = append(in.Tags, tag)
+		selector.Commits[tag] = commit
+	}
+	selector.Newest, selector.LaterTag = "v1.6.0", "v1.6.0"
+	result, err := GenerateFullWindow(in, selector)
+	var stop *StopError
+	if result != nil || !errors.As(err, &stop) || len(stop.Stops) != 1 || stop.Stops[0].Detail != "full window has too many release lines" {
+		t.Fatalf("seven-line window with minFrom 1.0: result=%v error=%v", result, err)
+	}
+	in.Tags = in.Tags[1:]
+	delete(selector.Commits, "v1.0.0")
+	selector.MinFrom = "1.1"
+	if _, err := GenerateFullWindow(in, selector); err != nil {
+		t.Fatalf("six-line window: %v", err)
+	}
 }
 
 func TestGenerateFullWindowReadsAllPatchesAndCitesLater(t *testing.T) {
