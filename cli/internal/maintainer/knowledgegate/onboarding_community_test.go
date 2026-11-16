@@ -31,7 +31,7 @@ func (s ocSpec) component() string { return "pkg:github/" + s.ownerRepo }
 func (s ocSpec) fact() string      { return strings.ReplaceAll(s.slug, "-", "_") }
 
 const (
-	ocGroup   = "widgets.synthetic.example"
+	ocGroup   = "widgets.synthetic.example.io"
 	ocCRD     = "deploy/crds/widgets.yaml"
 	ocLicense = "0123456789abcdef0123456789abcdef01234567"
 )

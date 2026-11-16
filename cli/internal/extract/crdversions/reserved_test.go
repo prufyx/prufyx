@@ -4,6 +4,7 @@ package crdversions
 
 import (
 	"context"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -172,10 +173,11 @@ func TestReservedUnreadStaysBlocking(t *testing.T) {
 	const path = "test/e2e/fixture.yaml"
 	good := crdIn("hello.example.com", "Dummy", "v1")
 	cases := map[string]string{
-		"templated":    metallbTemplate(good),
-		"undecodable":  "kind: CustomResourceDefinition\nspec: [\n",
-		"embedded":     "data: |\n  apiVersion: apiextensions.k8s.io/v1\n  kind: CustomResourceDefinition\n",
-		"template tag": "{{ if .Values.x }}\n" + good + "{{ end }}\n",
+		"templated":      metallbTemplate(good),
+		"undecodable":    "kind: CustomResourceDefinition\nspec: [\n",
+		"embedded":       "data: |\n  apiVersion: apiextensions.k8s.io/v1\n  kind: CustomResourceDefinition\n",
+		"template tag":   "{{ if .Values.x }}\n" + good + "{{ end }}\n",
+		"legacy v1beta1": strings.ReplaceAll(legacyCRD("Dummy", "v1beta1"), synthGroup, "hello.example.com"),
 	}
 	for name, file := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -260,43 +262,69 @@ func TestReservedFactsShape(t *testing.T) {
 	}
 }
 
-// (25) The rule only turns an extra finding into a copy: for every
-// combination of files, groups and inventories, a result that is not extra
-// without the rule is identical with it, so a pair that attests today
-// derives the same candidates and attestation.
+// (25) The rule only relaxes extra findings. For every combination of
+// definitions, groups and inventories: an old copy stays identical, an old
+// conflict stays a conflict (it names an inventory definition, whose group
+// the rule never leaves out), and an old extra stays blocking unless every
+// remaining definition is left out by the predicate. So a pair that attests
+// today derives the same candidates and attestation.
 func TestReservedOnlyRelaxesExtra(t *testing.T) {
 	tg := synthTarget()
 	ix := syntheticOwnership(tg, synthGroup, "mine.x-k8s.io")
+	v1 := []CRDVersion{{Name: "v1", Served: true}}
+	v2 := []CRDVersion{{Name: "v2", Served: true}}
 	inv := &Inventory{Complete: true, CRDs: []CRD{
-		{Name: "alphas." + synthGroup, Group: synthGroup, Kind: "Alpha", Versions: []CRDVersion{{Name: "v1", Served: true}}},
-		{Name: "owns.example.com", Group: "example.com", Kind: "Own", Versions: []CRDVersion{{Name: "v1", Served: true}}},
+		{Name: "alphas." + synthGroup, Group: synthGroup, Kind: "Alpha", Versions: v1},
+		{Name: "owns.example.com", Group: "example.com", Kind: "Own", Versions: v1},
 	}}
 	groups := []string{synthGroup, "example.com", "hello.example.com", "example.io", "example.k8s.io", "mine.x-k8s.io", "a.x-k8s.io", "argoproj.io", "foo.test"}
 	var defs []CRD
 	for _, g := range groups {
 		for _, k := range []string{"Alpha", "Own", "Dummy"} {
-			defs = append(defs, CRD{Name: strings.ToLower(k) + "s." + g, Group: g, Kind: k, Versions: []CRDVersion{{Name: "v1", Served: true}}})
+			for _, v := range [][]CRDVersion{v1, v2} {
+				defs = append(defs, CRD{Name: strings.ToLower(k) + "s." + g, Group: g, Kind: k, Versions: v})
+			}
 		}
 	}
 	at := attribution{project: tg.Project, index: ix}
+	var sawConflict, sawRelaxed bool
 	check := func(crds []CRD) {
 		old := compareDefinitions(Finding{}, crds, inv, at, false)
 		now := compareDefinitions(Finding{}, crds, inv, at, true)
-		if old.Class != ClassExtra {
-			if len(now.Reserved) != 0 || now.Class != old.Class || now.Detail != old.Detail || !slices.Equal(now.CRDs, old.CRDs) || !slices.Equal(now.Served, old.Served) || !slices.Equal(now.Foreign, old.Foreign) {
-				t.Errorf("%v: old %+v, new %+v", crds, old, now)
+		switch old.Class {
+		case ClassCopy:
+			if !reflect.DeepEqual(old, now) {
+				t.Errorf("%v: copy changed: old %+v, new %+v", crds, old, now)
 			}
 			return
+		case ClassConflict:
+			sawConflict = true
+			if now.Class != ClassConflict {
+				t.Errorf("%v: conflict became %s", crds, now.Class)
+			}
 		}
-		if now.Class == ClassConflict {
-			t.Errorf("%v: extra became conflict: %+v", crds, now)
-		}
+		left := map[string]bool{}
 		for _, name := range now.Reserved {
 			for _, c := range crds {
-				if c.Name == name && (!ReservedLeftOut(ix, tg.Project, inv, c.Group, c.Kind) || slices.Contains(targetGroups(inv), c.Group)) {
-					t.Errorf("%s left out against the predicate", name)
+				if c.Name == name {
+					left[name] = true
+					if !ReservedLeftOut(ix, tg.Project, inv, c.Group, c.Kind) || slices.Contains(targetGroups(inv), c.Group) {
+						t.Errorf("%s left out against the predicate", name)
+					}
 				}
 			}
+		}
+		rest := 0
+		for _, c := range crds {
+			if !left[c.Name] && !at.foreign(c.Group, c.Kind) {
+				rest++
+			}
+		}
+		if rest > 0 && now.Class != ClassExtra && now.Class != ClassConflict {
+			t.Errorf("%v: blocking became %s", crds, now.Class)
+		}
+		if rest == 0 && now.Class == ClassCopy {
+			sawRelaxed = true
 		}
 	}
 	for _, a := range defs {
@@ -304,6 +332,9 @@ func TestReservedOnlyRelaxesExtra(t *testing.T) {
 		for _, b := range defs {
 			check([]CRD{a, b})
 		}
+	}
+	if !sawConflict || !sawRelaxed {
+		t.Fatalf("corpus lacks a case: conflict %v, relaxed extra %v", sawConflict, sawRelaxed)
 	}
 	if old := compareDefinitions(Finding{}, nil, nil, at, true); old.Class != ClassCopy {
 		t.Fatalf("no definitions: %+v", old)
@@ -313,5 +344,19 @@ func TestReservedOnlyRelaxesExtra(t *testing.T) {
 		if f := compareDefinitions(Finding{}, defs[:1:1], bad, at, true); len(f.Reserved) != 0 {
 			t.Fatalf("left out without an inventory: %+v", f)
 		}
+	}
+}
+
+// (7) a gzip-compressed definition of a reserved group in a Go source under a
+// default directory is compared as before: it stays an extra finding.
+func TestReservedGzipStaysBlocking(t *testing.T) {
+	const path = "test/crds/crds.go"
+	file := goCRDs(gzipLiteral(t, crdIn("hello.example.com", "Dummy", "v1")))
+	scan := reservedScan(t, quietListed(), []string{synthGroup}, map[string]string{path: file})
+	if len(scan.ReservedCopies) != 0 {
+		t.Fatalf("reserved record: %+v", scan.ReservedCopies)
+	}
+	if f := findingOf(scan, path); f == nil || !f.blocks() || scan.Clean() {
+		t.Fatalf("does not block: finding %+v, copies %v", f, scan.Copies)
 	}
 }

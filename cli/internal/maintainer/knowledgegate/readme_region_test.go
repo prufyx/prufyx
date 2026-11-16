@@ -149,7 +149,7 @@ func TestCatalogSplitProblems(t *testing.T) {
 		return p
 	}
 	cncf, community := customresources.CatalogCNCF, customresources.CatalogCommunity
-	base := []customresources.Project{row("a", cncf, "a.example"), row("b", community, "b.example")}
+	base := []customresources.Project{row("a", cncf, "a.example.io"), row("b", community, "b.example.io")}
 	newProject := func(slug, catalog string) OnboardingProject {
 		return OnboardingProject{Slug: slug, Catalog: catalog, Kind: OnboardingKindNew}
 	}
@@ -172,15 +172,15 @@ func TestCatalogSplitProblems(t *testing.T) {
 		{name: "an attest listing is not an addition", batch: []OnboardingProject{{Slug: "c", Catalog: "community", Kind: OnboardingKindAttest}}, head: append(slices.Clone(base), row("c", community)),
 			want: []string{"the head table has c as a community row"}},
 		{name: "the batch lists a new project the table lacks", batch: []OnboardingProject{newProject("c", "community")}, head: base, want: []string{"the head table lacks c as a community row"}},
-		{name: "a CNCF row flipped to community", head: []customresources.Project{row("a", community, "a.example"), base[1]},
+		{name: "a CNCF row flipped to community", head: []customresources.Project{row("a", community, "a.example.io"), base[1]},
 			want: []string{"the head table has a as a community row", "the head table lacks a as a cncf row", "the row of a moves from the cncf catalog to the community catalog"}},
-		{name: "a community row flipped to CNCF", head: []customresources.Project{base[0], row("b", cncf, "b.example")},
+		{name: "a community row flipped to CNCF", head: []customresources.Project{base[0], row("b", cncf, "b.example.io")},
 			want: []string{"the head table has b as a cncf row", "the head table lacks b as a community row", "the row of b moves from the community catalog to the cncf catalog"}},
-		{name: "a flip and a new row of the same slug batch", batch: []OnboardingProject{newProject("a", "community")}, head: []customresources.Project{row("a", community, "a.example"), base[1]},
+		{name: "a flip and a new row of the same slug batch", batch: []OnboardingProject{newProject("a", "community")}, head: []customresources.Project{row("a", community, "a.example.io"), base[1]},
 			want: []string{"the head table lacks a as a cncf row", "the row of a moves from the cncf catalog to the community catalog"}},
 		{name: "a community row removed", head: base[:1], want: []string{"the head table lacks b as a community row"}},
 		{name: "a CNCF row removed", head: base[1:], want: []string{"the head table lacks a as a cncf row"}},
-		{name: "a row of the base changes its groups", head: []customresources.Project{row("a", cncf, "a.example", "z.example"), base[1]}, want: []string{"the row of a changes its groups"}},
+		{name: "a row of the base changes its groups", head: []customresources.Project{row("a", cncf, "a.example.io", "z.example.io"), base[1]}, want: []string{"the row of a changes its groups"}},
 	} {
 		got := catalogSplitProblems(OnboardingRecord{Projects: tc.batch}, base, tc.head)
 		if len(tc.want) == 0 && len(got) != 0 {

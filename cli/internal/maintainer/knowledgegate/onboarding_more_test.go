@@ -149,7 +149,7 @@ func TestOnboardingAttestRefusals(t *testing.T) {
 		// it, so only the attestation refuses.
 		tg, _ := atPick(t)
 		for _, c := range []string{atTo, atFrom} {
-			writeFile(t, filepath.Join(f.upstream, filepath.FromSlash(tg.Repo), "commits", c, "hack/stray-crd.yaml"), []byte(obCRDDoc("stray.synthetic.example", "v1")))
+			writeFile(t, filepath.Join(f.upstream, filepath.FromSlash(tg.Repo), "commits", c, "hack/stray-crd.yaml"), []byte(obCRDDoc("stray.synthetic.example.io", "v1")))
 		}
 		src := &obSource{FixtureReader: extract.FixtureReader{Root: f.upstream}, perList: 1}
 		f.draft.Projects[0].Proof.Scan = scanOf(t, f, src)
@@ -300,7 +300,7 @@ func TestOnboardingVectors(t *testing.T) {
 	t.Parallel()
 	p := OnboardingProject{
 		Artifacts: []OnboardingArtifact{{Digest: obLedger, Path: "cli/internal/extract/crdversions/target-sample.json"}},
-		Catalog:   "cncf", Facts: []string{"component.sample.custom_resource_versions_set"}, Groups: []string{"sample.synthetic.example"}, Kind: OnboardingKindNew, Slug: "sample",
+		Catalog:   "cncf", Facts: []string{"component.sample.custom_resource_versions_set"}, Groups: []string{"sample.synthetic.example.io"}, Kind: OnboardingKindNew, Slug: "sample",
 		Proof: OnboardingProof{Claims: OnboardingClaims{Confirmed: 1, Ledger: obLedger}, Pair: OnboardingPair{FromCommit: obFrom, FromTag: "v1.0.0", ToCommit: obTo, ToTag: "v1.1.0"}, Scan: []OnboardingFinding{}},
 	}
 	var projects []OnboardingProject

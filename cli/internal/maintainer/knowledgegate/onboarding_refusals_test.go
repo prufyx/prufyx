@@ -277,7 +277,7 @@ func TestOnboardingRefusals(t *testing.T) {
 		}), nil, "O5: the facts must be exactly"},
 		{"O5 a row for a project the batch does not list", blind(func(t *testing.T, f *onboardingFixture) {
 			f.editTable(t, func(ps []customresources.Project) []customresources.Project {
-				return append(ps, customresources.Project{Slug: "opa", Catalog: customresources.CatalogCNCF, FactProject: "opa", Component: "pkg:github/open-policy-agent/opa", Groups: []customresources.Group{{Name: "policy.synthetic.example", Source: "https://github.com/open-policy-agent/opa/blob/" + obTo + "/x.yaml"}}})
+				return append(ps, customresources.Project{Slug: "opa", Catalog: customresources.CatalogCNCF, FactProject: "opa", Component: "pkg:github/open-policy-agent/opa", Groups: []customresources.Group{{Name: "policy.synthetic.example.io", Source: "https://github.com/open-policy-agent/opa/blob/" + obTo + "/x.yaml"}}})
 			})
 		}), nil, "O5: the head registers the fact component.opa"},
 
@@ -285,14 +285,14 @@ func TestOnboardingRefusals(t *testing.T) {
 		{"O6 offline fixture source", signed(nil), func(o *Options) { o.Source = o.Source.(*obSource).FixtureReader }, "no upstream source that counts its requests"},
 		{"O6 over the REST budget", signed(func(t *testing.T, f *onboardingFixture, _ OnboardingRecord) { f.src.perList = OnboardingRESTBudget }), nil, "budget"},
 		{"O6 a scan finding the proposal did not see", signed(func(t *testing.T, f *onboardingFixture, _ OnboardingRecord) {
-			writeUpstream(t, f.upstream, obTo, "hack/stray-crd.yaml", obCRDDoc("stray.synthetic.example", "v1"))
+			writeUpstream(t, f.upstream, obTo, "hack/stray-crd.yaml", obCRDDoc("stray.synthetic.example.io", "v1"))
 		}), nil, "the scan finds"},
 		{"O6 a newer release than the proposal's pair", signed(func(t *testing.T, f *onboardingFixture, _ OnboardingRecord) {
 			newer := "00000000000000000000000000000000000a1200"
 			writeFile(t, filepath.Join(f.upstream, filepath.FromSlash(obRepo), "tags.json"), []byte(`{"v1.0.0": "`+obFrom+`", "v1.1.0": "`+obTo+`", "v1.2.0": "`+newer+`"}`))
 			writeUpstream(t, f.upstream, newer, obCRD, obCRDDoc(obGroup, "v1"))
 		}), nil, "not the pair the proposal was made on"},
-		{"O6 a group its cited file does not declare", blind(setGroups("other.synthetic.example")), nil, "does not declare it"},
+		{"O6 a group its cited file does not declare", blind(setGroups("other.synthetic.example.io")), nil, "does not declare it"},
 		{"O6 a group cited at another commit", blind(func(t *testing.T, f *onboardingFixture) {
 			f.editTable(t, func(ps []customresources.Project) []customresources.Project {
 				for i := range ps {

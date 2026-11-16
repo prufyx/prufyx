@@ -9,8 +9,9 @@ import (
 // ReservedLeftOut is the one predicate that decides whether a definition of
 // the group and kind found in a file under a default-excluded directory is
 // left out of the comparison like a definition the table assigns to another
-// project. The scan and the target generator both call it, so they cannot
-// diverge. The caller must apply it only to a definition read from a file
+// project. The scan calls it. The target generator does not call it yet:
+// wiring it in (a reserved-namespace-copy decision) is a follow-up for the
+// generator owner, so that both use one predicate. The caller must apply it only to a definition read from a file
 // whose place is a default-excluded directory and not void.
 //
 // It holds only when all of these hold; any doubt is false (the definition

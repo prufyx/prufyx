@@ -32,7 +32,7 @@ import (
 // so onboarding that project later does not move this test). Nothing here is
 // a real upstream.
 const (
-	obGroup  = "storage.synthetic.example"
+	obGroup  = "storage.synthetic.example.io"
 	obFrom   = "00000000000000000000000000000000000a1000"
 	obTo     = "00000000000000000000000000000000000a1100"
 	obOwner  = "airstand"

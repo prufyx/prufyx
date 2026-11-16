@@ -14,7 +14,7 @@ import (
 // of a shared group that the existing owner ships must not be claimable.
 func TestCheckRowKindsRefusesKindTheReleaseDoesNotDefine(t *testing.T) {
 	inv := &crdversions.Inventory{CRDs: []crdversions.CRD{
-		{Name: "alphas.shared.example.org", Group: "shared.example.org", Kind: "Alpha"},
+		{Name: "alphas.shared.example.io", Group: "shared.example.io", Kind: "Alpha"},
 	}}
 	row := func(g customresources.Group) customresources.Project {
 		return customresources.Project{Slug: "pa", Groups: []customresources.Group{g}}
@@ -25,11 +25,11 @@ func TestCheckRowKindsRefusesKindTheReleaseDoesNotDefine(t *testing.T) {
 		row  customresources.Project
 		want string // error substring; empty is accepted
 	}{
-		{"defined kind", inv, row(customresources.Group{Name: "shared.example.org", Kinds: []string{"Alpha"}}), ""},
-		{"whole group", inv, row(customresources.Group{Name: "shared.example.org"}), ""},
-		{"kind not defined", inv, row(customresources.Group{Name: "shared.example.org", Kinds: []string{"Alpha", "Beta"}}), "the row lists kind Beta of shared.example.org, which the newest release does not define"},
-		{"group not defined", inv, row(customresources.Group{Name: "other.example.org", Kinds: []string{"Alpha"}}), "kind Alpha of other.example.org"},
-		{"no inventory", nil, row(customresources.Group{Name: "shared.example.org", Kinds: []string{"Alpha"}}), "no inventory"},
+		{"defined kind", inv, row(customresources.Group{Name: "shared.example.io", Kinds: []string{"Alpha"}}), ""},
+		{"whole group", inv, row(customresources.Group{Name: "shared.example.io"}), ""},
+		{"kind not defined", inv, row(customresources.Group{Name: "shared.example.io", Kinds: []string{"Alpha", "Beta"}}), "the row lists kind Beta of shared.example.io, which the newest release does not define"},
+		{"group not defined", inv, row(customresources.Group{Name: "other.example.io", Kinds: []string{"Alpha"}}), "kind Alpha of other.example.io"},
+		{"no inventory", nil, row(customresources.Group{Name: "shared.example.io", Kinds: []string{"Alpha"}}), "no inventory"},
 	} {
 		err := checkRowKinds(tc.inv, tc.row)
 		switch {
