@@ -47,7 +47,7 @@ func loadVectors(t *testing.T) []vector {
 	if err := dec.Decode(&f); err != nil {
 		t.Fatal(err)
 	}
-	if f.Version != 1 || len(f.Vectors) < 15 {
+	if f.Version != 1 || len(f.Vectors) < 25 {
 		t.Fatalf("vectors file version %d, %d vectors", f.Version, len(f.Vectors))
 	}
 	return f.Vectors
@@ -79,7 +79,7 @@ func TestVectors(t *testing.T) {
 		}
 		valid++
 	}
-	if valid < 10 || invalid < 6 {
+	if valid < 10 || invalid < 12 {
 		t.Fatalf("too few vectors: %d valid, %d invalid", valid, invalid)
 	}
 }

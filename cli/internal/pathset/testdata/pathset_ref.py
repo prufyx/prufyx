@@ -19,20 +19,24 @@ def valid(paths):
         return "empty-set"
     if len(paths) > MAX_PATHS:
         return "too-many-paths"
+    # Precedence per path, same as the Go implementation: empty, length,
+    # newline, NUL, UTF-8, duplicate. A Python str cannot hold arbitrary
+    # invalid UTF-8 bytes, so "invalid-utf8" is only reachable for lone
+    # surrogates here; the Go tests cover raw invalid bytes (JSON cannot).
     seen = set()
     for p in paths:
         if p == "":
             return "empty-path"
+        if len(p.encode("utf-8", "surrogatepass")) > MAX_PATH_BYTES:
+            return "path-too-long"
         if "\n" in p:
             return "newline"
         if "\x00" in p:
             return "nul"
         try:
-            b = p.encode("utf-8")
+            p.encode("utf-8")
         except UnicodeEncodeError:
             return "invalid-utf8"
-        if len(b) > MAX_PATH_BYTES:
-            return "path-too-long"
         if p in seen:
             return "duplicate"
         seen.add(p)

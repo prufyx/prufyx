@@ -32,6 +32,11 @@
 // need a path policy apply it before calling this package. A rename is
 // expressed as the old path and the new path.
 //
+// Precedence when several refusals apply: empty set, too many paths, then per
+// path in list order: empty path, too long, newline, NUL, invalid UTF-8,
+// duplicate. Length is in bytes, not runes. Raw invalid UTF-8 cannot be
+// carried by JSON, so that case is covered by the Go tests only.
+//
 // Other implementations (for example Python) must reproduce
 // testdata/vectors.json exactly; testdata/pathset_ref.py is a stdlib-only
 // reference that does, and is not run by the Go tests. Run it by hand with
