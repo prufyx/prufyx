@@ -108,6 +108,9 @@ type Options struct {
 	// observations come from the trusted fetch boundary, never the candidate.
 	OnboardingGit       *OnboardingGitContext
 	AdmissionRESTBudget int64
+	// VerifyPr is the recorded verify-pr result for the change; nil means
+	// absent, which never admits an onboarding change.
+	VerifyPr *VerifyPrResult
 	// DailyLoosening is the number of loosening changes already merged by
 	// the automation in the last day, counted by the caller. Nil means it
 	// is unknown: the change is then never eligible for automatic merging.
@@ -208,6 +211,9 @@ type Report struct {
 	// onboarding is the decision on the onboarding batch the change adds
 	// (nil: none).
 	onboarding *onboardingResult
+	// OnboardingAdmission is the admission decision, set only for a change
+	// that adds an onboarding batch. It never touches AutoMerge.
+	OnboardingAdmission *OnboardingAdmission `json:"onboardingAdmission,omitempty"`
 	// citationFindings are the findings of the citations check, by item.
 	citationFindings []rulecheck.CitationFinding
 
@@ -625,6 +631,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	r.limitChecks(cls, opts)
 	r.finish(true)
 	r.autoMerge(opts)
+	r.admitOnboarding(opts)
 	return r, nil
 }
 
