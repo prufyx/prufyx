@@ -90,6 +90,9 @@ func entryFromBytes(t Target, c compiled, tag extract.Tag, version string, raw [
 		return nil, err
 	}
 	sc := scan(lines)
+	if sc.containerFence != 0 {
+		return nil, fail(EntryParseResidue, fmt.Sprintf("line %d cannot be read: a fence without its container, or a multi-line HTML block", sc.containerFence))
+	}
 
 	// Which headings name which release.
 	type rel struct {
@@ -189,8 +192,10 @@ func entryFromBytes(t Target, c compiled, tag extract.Tag, version string, raw [
 			residue++
 		}
 	}
-	if sc.containerFence != 0 {
-		return nil, fail(EntryParseResidue, fmt.Sprintf("line %d opens a fence inside a list item or block quote, which is not read", sc.containerFence))
+	for _, n := range sc.html {
+		if n >= start && n <= end {
+			return nil, fail(EntryParseResidue, fmt.Sprintf("line %d starts an HTML block inside the entry, which is not read", n))
+		}
 	}
 	if sc.openFence >= start && sc.openFence <= end {
 		residue++ // a fence that never closes swallows the rest of the file

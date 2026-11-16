@@ -42,6 +42,39 @@ type scanned struct {
 	// an indented-opener fence whose inner lines or closer are indented
 	// differently from its opener. 0 if none.
 	containerFence int
+	// html lists the lines that start an HTML block (up to 3 spaces, then "<"
+	// and a tag name, "<!--", "<?", "<!X" or "<![CDATA["), outside fences.
+	html []int
+}
+
+var (
+	htmlStartRE = regexp.MustCompile(`^ {0,3}(<!--|<\?|<!\[CDATA\[|<![A-Za-z]|</?[A-Za-z])`)
+	htmlRawRE   = regexp.MustCompile(`(?i)^ {0,3}<(pre|script|style|textarea)(?:[ >]|$)`)
+)
+
+// htmlBlock reports whether l starts an HTML block and whether that block
+// reaches past this line (a multi-line comment, or a pre, script, style or
+// textarea block): hidden headings or fences can then follow.
+func htmlBlock(l string) (starts, multiLine bool) {
+	m := htmlStartRE.FindStringSubmatch(l)
+	if m == nil {
+		return false, false
+	}
+	t := strings.TrimLeft(l, " ")
+	switch {
+	case m[1] == "<!--":
+		return true, !strings.Contains(t[4:], "-->")
+	case m[1] == "<?":
+		return true, !strings.Contains(t[2:], "?>")
+	case m[1] == "<![CDATA[":
+		return true, !strings.Contains(t[9:], "]]>")
+	case strings.HasPrefix(m[1], "<!"):
+		return true, !strings.Contains(t[2:], ">")
+	}
+	if r := htmlRawRE.FindStringSubmatch(l); r != nil {
+		return true, !strings.Contains(strings.ToLower(l), "</"+strings.ToLower(r[1]))
+	}
+	return true, false
 }
 
 var (
@@ -230,7 +263,12 @@ func scan(lines []string) scanned {
 			// container, so only a closer at exactly the opener's indentation
 			// is read; any other shape makes the file unreadable (file-wide stop).
 			if fenceIndented && sc.containerFence == 0 && !isBlank(l) {
-				if indentWidth(l) < indentWidth(fenceIndentStr) || (fenceChars(l, fch, flen) && leadingWS(l) != fenceIndentStr) {
+				// Exact leading white space, never a width: a line must carry the
+				// opener's own white space as a prefix, and a tab anywhere in it
+				// (tab stops differ from widths) is not read.
+				ws := leadingWS(l)
+				if !strings.HasPrefix(ws, fenceIndentStr) || strings.Contains(ws, "\t") ||
+					(fenceChars(l, fch, flen) && ws != fenceIndentStr) {
 					sc.containerFence = n
 				}
 			}
@@ -268,6 +306,12 @@ func scan(lines []string) scanned {
 		if sc.containerFence == 0 && containerFence(l) {
 			sc.containerFence = n
 		}
+		if st, multi := htmlBlock(l); st {
+			sc.html = append(sc.html, n)
+			if multi && sc.containerFence == 0 {
+				sc.containerFence = n
+			}
+		}
 		if hrRE.MatchString(l) {
 			sc.kind[i] = kResidue
 			closeItem()
@@ -294,6 +338,9 @@ func scan(lines []string) scanned {
 			fenceIndent = indentWidth(l)
 			fenceIndented = indented
 			fenceIndentStr = leadingWS(l)
+			if indented && strings.Contains(fenceIndentStr, "\t") && sc.containerFence == 0 {
+				sc.containerFence = n
+			}
 			fenceAt = n
 			continue
 		}
