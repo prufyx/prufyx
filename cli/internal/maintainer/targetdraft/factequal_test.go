@@ -87,7 +87,7 @@ func TestFactEqualAcceptsSchemaAndAPIVersionOnlyDifferences(t *testing.T) {
 		"schema text only":                 {schema: "other text"},
 		"legacy apiVersion":                {apiVersion: "apiextensions.k8s.io/v1beta1"},
 		"legacy apiVersion and schema":     {apiVersion: "apiextensions.k8s.io/v1beta1", schema: "old"},
-		"version order is not a fact":      {versions: "  - name: v1\n    served: true\n    storage: true\n    schema:\n      openAPIV3Schema:\n        description: z\n  - name: v2\n    served: true\n    storage: false\n"},
+		"version order is not a fact":      {versions: "  - name: v1\n    served: true\n    storage: true\n  - name: v2\n    served: true\n    storage: false\n"},
 		"chart copy with long schema text": {schema: strings.Repeat("x", 300)},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -95,7 +95,7 @@ func TestFactEqualAcceptsSchemaAndAPIVersionOnlyDifferences(t *testing.T) {
 			if name == "version order is not a fact" {
 				// the installed definition carries the same two versions in the other order
 				for _, tag := range ipTags {
-					src.trees[tag].files["config/crd/bases/a.yaml"] = []byte(feDef(feOpts{versions: "  - name: v2\n    served: true\n    storage: false\n  - name: v1\n    served: true\n    storage: true\n    schema:\n      openAPIV3Schema:\n        description: q\n"}))
+					src.trees[tag].files["config/crd/bases/a.yaml"] = []byte(feDef(feOpts{versions: "  - name: v2\n    served: true\n    storage: false\n  - name: v1\n    served: true\n    storage: true\n", schema: "q"}))
 				}
 			}
 			if _, err := Generate(feInput(src, false)); !hasStopCode(err, StopInstallPathCopyDiffers) {
@@ -173,14 +173,16 @@ func TestFactEqualChecksEveryTag(t *testing.T) {
 				infStops(t, feInput(src, true), StopInstallPathCopyDiffers)
 				return
 			}
-			on := mustGenerate(t, feInput(src, true))
-			if len(on.Report.Dropped) == 0 {
-				t.Fatalf("a differing tag must be withheld from the window, not accepted: %+v", on.Report)
-			}
-			for _, d := range on.Report.Dropped {
-				if d.Tag != tag && d.Tag != ipTags[0] {
-					t.Fatalf("unexpected dropped tag %s", d.Tag)
+			if i == 1 {
+				// a middle tag leaves a window of one tag: never accepted
+				if res, err := Generate(feInput(src, true)); err == nil {
+					t.Fatalf("a differing middle tag must stop, got a draft %+v", res.Report.CRDCount)
 				}
+				return
+			}
+			on := mustGenerate(t, feInput(src, true))
+			if len(on.Report.Dropped) != 1 || on.Report.Dropped[0].Tag != tag {
+				t.Fatalf("a differing tag must be withheld from the window, not accepted: %+v", on.Report.Dropped)
 			}
 			in := feInput(src, true)
 			in.StrictWindow = true
