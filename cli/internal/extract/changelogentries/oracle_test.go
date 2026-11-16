@@ -12,6 +12,9 @@ import (
 // oracleIsLinkDef is an independent, regexp-free reading of a link reference
 // definition: label, colon, exactly one link-looking destination, then
 // nothing or one quoted title.
+// oracleBlank is CommonMark blank: ASCII spaces and tabs only.
+func oracleBlank(l string) bool { return strings.Trim(l, " \t") == "" }
+
 func oracleIsLinkDef(l string) bool {
 	trim := strings.TrimLeft(l, " ")
 	if len(l)-len(trim) > 3 || !strings.HasPrefix(trim, "[") {
@@ -86,7 +89,7 @@ func oracleAccount(t *testing.T, raw []byte, e *Entry) {
 	if start < 1 || end > len(lines) || start > end {
 		t.Fatalf("span %d..%d outside the file (%d lines)", start, end, len(lines))
 	}
-	if strings.TrimSpace(lines[end-1]) == "" {
+	if oracleBlank(lines[end-1]) {
 		t.Fatal("section ends on a blank line")
 	}
 	owner := make([]string, len(lines)+2)
@@ -110,11 +113,11 @@ func oracleAccount(t *testing.T, raw []byte, e *Entry) {
 			t.Fatalf("items overlap or are out of order at line %d", it.StartLine)
 		}
 		prevEnd = it.EndLine
-		if strings.TrimSpace(lines[it.StartLine-1]) == "" || strings.TrimSpace(lines[it.EndLine-1]) == "" {
+		if oracleBlank(lines[it.StartLine-1]) || oracleBlank(lines[it.EndLine-1]) {
 			t.Fatalf("item %d..%d starts or ends on a blank line", it.StartLine, it.EndLine)
 		}
 		for n := it.StartLine; n <= it.EndLine; n++ {
-			if strings.TrimSpace(lines[n-1]) == "" {
+			if oracleBlank(lines[n-1]) {
 				continue // interior blank of an item
 			}
 			claim(n, n, "item")
@@ -134,7 +137,7 @@ func oracleAccount(t *testing.T, raw []byte, e *Entry) {
 			heads++
 		case owner[n] == "item":
 			itemLines++
-		case strings.TrimSpace(l) == "":
+		case oracleBlank(l):
 			blanks++
 		case oracleIsLinkDef(l) && !inItem:
 			defs++
@@ -254,7 +257,7 @@ func TestInjectedResidueIsAlwaysCaught(t *testing.T) {
 	lines := strings.Split(strings.TrimSuffix(string(raw), "\n"), "\n")
 	n := 0
 	for i := e.Section.StartLine; i <= e.Section.EndLine; i++ { // 1-based line i+1 follows line i
-		if strings.TrimSpace(lines[i-1]) != "" {
+		if !oracleBlank(lines[i-1]) {
 			continue
 		}
 		mut := append(append(append([]string{}, lines[:i]...), "---"), lines[i:]...)

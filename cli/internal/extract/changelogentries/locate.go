@@ -159,6 +159,9 @@ func Locate(r extract.PinnedReader, t Target, tag extract.Tag) (*Entry, error) {
 			residue++
 		}
 	}
+	if sc.containerFence != 0 {
+		return nil, fail(EntryParseResidue, fmt.Sprintf("line %d opens a fence inside a list item or block quote, which is not read", sc.containerFence))
+	}
 	if sc.openFence >= start && sc.openFence <= end {
 		residue++ // a fence that never closes swallows the rest of the file
 	}
