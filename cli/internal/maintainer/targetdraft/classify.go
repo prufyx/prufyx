@@ -35,7 +35,8 @@ import (
 //	MIXED_CHANGE      only data and allowlisted paths, but both kinds (not a
 //	                  data-only change; never green)
 //	APPLICABLE        every path is under the recipe root or is a real target
-//	NOT_APPLICABLE    every path is on the documentation allowlist
+//	NOT_APPLICABLE    every path is on the documentation allowlist or is one
+//	                  of the exact export-output paths
 //
 // None of these is eligibility. Only the verify step's ELIGIBLE result is.
 const (
@@ -59,8 +60,9 @@ const (
 //   - docs/**/*.md: maintainer documentation, markdown only;
 //   - changelog.d/**/*.md: release-note fragments, markdown only.
 //
-// Deliberately not listed: cli/docs (it holds JSON that code reads), site and
-// every other root file. A path with a CODEOWNERS segment is never allowlisted
+// Deliberately not listed: cli/docs (it holds JSON that code reads; only the
+// exact files in exportOutputPaths are allowed there), site and every other
+// root file. A path with a CODEOWNERS segment is never allowlisted
 // (GitHub reads docs/CODEOWNERS), and a path with any other extension is not.
 func isDocsPath(p string) bool {
 	for _, seg := range strings.Split(p, "/") {
@@ -77,6 +79,24 @@ func isDocsPath(p string) bool {
 	return strings.HasPrefix(p, "docs/") || strings.HasPrefix(p, "changelog.d/")
 }
 
+// exportOutputPaths is the exact-path allowlist of the files a recurring
+// automated export batch rewrites. It must equal the set of non-documentation
+// paths the separate data check of those batches judges (its bot-export file
+// set): a path nobody checks must stay a trust path, and a future export path
+// has to be added to BOTH places. Such a batch is judged by a separate data
+// check, so this tool only says it is not a change it can make eligible. The
+// match is a whole-path, case-sensitive string equality: no glob, no directory
+// prefix, no suffix. Deliberately not listed: any other file in these
+// directories. Like documentation, an export path that is not a plain regular
+// file change (symlink, gitlink, executable, type change) is a trust path.
+var exportOutputPaths = map[string]bool{
+	"cli/internal/cncfcheck/data/rules.json":              true,
+	"cli/internal/cncfcheck/data/corpus-attestation.json": true,
+	"cli/docs/generated/community-support-inventory.json": true,
+	"cli/docs/generated/community-support-inventory.md":   true,
+	"cli/docs/CNCF-SOURCE-PREVIEW.md":                     true,
+}
+
 // ClassifyResult is the outcome of ClassifyChanged.
 type ClassifyResult struct {
 	Class      string
@@ -84,7 +104,7 @@ type ClassifyResult struct {
 	Trust      int // trust-path paths, refused paths included
 	Refused    int // paths refused as unjudgeable (counted in Trust)
 	Data       int // recipe or real-target paths
-	Other      int // allowlisted documentation paths
+	Other      int // allowlisted documentation and export-output paths
 	Reason     string
 	ErrorCode  string
 	ErrorExtra string
@@ -94,6 +114,7 @@ type pathKind int
 
 const (
 	kindDocs pathKind = iota
+	kindExport
 	kindData
 	kindTrust
 	kindRefused
@@ -143,6 +164,9 @@ func classifyPath(p string) pathKind {
 	}
 	if isDocsPath(p) {
 		return kindDocs
+	}
+	if exportOutputPaths[p] {
+		return kindExport
 	}
 	return kindTrust
 }
@@ -231,7 +255,7 @@ func ClassifyChanged(raw []byte) ClassifyResult {
 	kinds := map[string]pathKind{}
 	for _, c := range paths {
 		k := classifyPath(c.path)
-		if k == kindDocs && !c.plain {
+		if (k == kindDocs || k == kindExport) && !c.plain {
 			k = kindTrust
 		}
 		if old, ok := kinds[c.path]; !ok || k > old {
@@ -256,11 +280,11 @@ func ClassifyChanged(raw []byte) ClassifyResult {
 	case res.Trust > 0:
 		res.Class, res.Reason = ClassTrustPathChange, "a changed path is not data or allowlisted documentation (default deny), or cannot be judged"
 	case res.Data > 0 && res.Other > 0:
-		res.Class, res.Reason = ClassMixedChange, "recipe or target paths together with documentation paths"
+		res.Class, res.Reason = ClassMixedChange, "recipe or target paths together with documentation or export-output paths"
 	case res.Data > 0:
 		res.Class, res.Reason = ClassApplicable, "every changed path is a recipe or real-target path"
 	default:
-		res.Class, res.Reason = ClassNotApplicable, "every changed path is allowlisted documentation"
+		res.Class, res.Reason = ClassNotApplicable, "every changed path is allowlisted documentation or an exact export-output path"
 	}
 	return res
 }
