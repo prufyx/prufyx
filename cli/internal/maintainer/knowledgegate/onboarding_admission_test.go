@@ -603,6 +603,12 @@ func TestPathSetDigestRenameAndDelete(t *testing.T) {
 	}
 }
 
+// The vector file at version 1 holds exactly this many vectors.
+const (
+	admVectorsValid   = 15
+	admVectorsInvalid = 12
+)
+
 var admVectorReason = map[string]string{
 	"empty-set": AdmitReasonPathSetEmpty, "too-many-paths": AdmitReasonPathSetTooMany, "empty-path": AdmitReasonPathSetEmptyPath,
 	"newline": AdmitReasonPathSetNewline, "nul": AdmitReasonPathSetNUL, "invalid-utf8": AdmitReasonPathSetUTF8,
@@ -657,8 +663,8 @@ func TestAdmissionPathSetSharedVectors(t *testing.T) {
 	}
 	// Not brittle: every class must be present in the file, and the counts are
 	// those of the file itself.
-	if valid < 10 || invalid < len(admVectorReason)-1 || valid+invalid != len(f.Vectors) {
-		t.Fatalf("vectors: %d valid, %d invalid of %d", valid, invalid, len(f.Vectors))
+	if valid != admVectorsValid || invalid != admVectorsInvalid || valid+invalid != len(f.Vectors) {
+		t.Fatalf("vectors: %d valid (want %d), %d invalid (want %d) of %d; a change of the vector file needs a deliberate edit of the constants", valid, admVectorsValid, invalid, admVectorsInvalid, len(f.Vectors))
 	}
 	// JSON cannot carry invalid UTF-8, so that class has no vector; it is
 	// covered byte-wise in TestAdmissionPathSetRefusals.
@@ -725,35 +731,111 @@ func TestAdmissionPathSetRefusals(t *testing.T) {
 	}
 }
 
-// Guard: the tests that read the golden files must stay, and the golden files
-// must exist, so the wire cannot be unpinned silently.
+// The tests that pin the wire. The golden decision test must read the golden
+// file and none of them may skip.
+var admRequiredTests = []string{"TestOnboardingAdmissionGoldenDecision", "TestAdmitSetDigestGolden", "TestPathSetDigestCanonical", "TestPathSetDigestRenameAndDelete", "TestAdmissionPathSetSharedVectors"}
+
+const admGoldenFile = "testdata/onboarding_admission_golden.json"
+
+// checkGoldenGuard inspects the source of the test file (AST, not text) and
+// returns what is wrong: a required test missing, a skip call inside one, or a
+// golden test that never calls os.ReadFile on the golden file.
+func checkGoldenGuard(src []byte) []string {
+	f, err := parser.ParseFile(token.NewFileSet(), "onboarding_admission_test.go", src, 0)
+	if err != nil {
+		return []string{"parse: " + err.Error()}
+	}
+	funcs := map[string]*ast.FuncDecl{}
+	for _, d := range f.Decls {
+		if fn, ok := d.(*ast.FuncDecl); ok && fn.Recv == nil {
+			funcs[fn.Name.Name] = fn
+		}
+	}
+	var problems []string
+	for _, name := range admRequiredTests {
+		fn := funcs[name]
+		if fn == nil || fn.Body == nil {
+			problems = append(problems, "missing "+name)
+			continue
+		}
+		reads := false
+		ast.Inspect(fn.Body, func(n ast.Node) bool {
+			call, ok := n.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			sel, ok := call.Fun.(*ast.SelectorExpr)
+			if !ok {
+				return true
+			}
+			switch sel.Sel.Name {
+			case "Skip", "SkipNow", "Skipf":
+				problems = append(problems, "skip in "+name)
+			case "ReadFile":
+				if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == "os" && len(call.Args) > 0 {
+					if lit, ok := call.Args[0].(*ast.BasicLit); ok && lit.Kind == token.STRING && (lit.Value == strconv.Quote(admGoldenFile) || lit.Value == "`"+admGoldenFile+"`") {
+						reads = true
+					}
+				}
+			}
+			return true
+		})
+		if name == "TestOnboardingAdmissionGoldenDecision" && !reads {
+			problems = append(problems, "no os.ReadFile of the golden file in "+name)
+		}
+	}
+	return problems
+}
+
 func TestAdmissionGoldenTestsArePresent(t *testing.T) {
 	t.Parallel()
-	if _, err := os.Stat("testdata/onboarding_admission_golden.json"); err != nil {
+	if _, err := os.Stat(admGoldenFile); err != nil {
 		t.Fatal(err)
-	}
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "onboarding_admission_test.go", nil, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	have := map[string]bool{}
-	for _, d := range f.Decls {
-		if fn, ok := d.(*ast.FuncDecl); ok {
-			have[fn.Name.Name] = true
-		}
-	}
-	for _, name := range []string{"TestOnboardingAdmissionGoldenDecision", "TestAdmitSetDigestGolden", "TestPathSetDigestCanonical", "TestPathSetDigestRenameAndDelete", "TestAdmissionPathSetSharedVectors"} {
-		if !have[name] {
-			t.Errorf("required test %s is missing", name)
-		}
 	}
 	raw, err := os.ReadFile("onboarding_admission_test.go")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Contains(raw, []byte(`os.ReadFile("testdata/onboarding_admission_golden.json")`)) {
-		t.Error("no test reads the decision golden file")
+	if problems := checkGoldenGuard(raw); len(problems) > 0 {
+		t.Fatalf("golden guard: %v", problems)
+	}
+}
+
+// The guard rejects each way of unpinning the wire, on fabricated sources.
+func TestGoldenGuardRejectsBadSources(t *testing.T) {
+	t.Parallel()
+	body := func(golden, extra string) string {
+		src := "package x\nimport (\"os\"\n\"testing\")\nvar _ = os.ReadFile\n"
+		for _, n := range admRequiredTests {
+			stmt := extra
+			if n == "TestOnboardingAdmissionGoldenDecision" {
+				stmt += golden
+			}
+			src += "func " + n + "(t *testing.T) {\n" + stmt + "\n}\n"
+		}
+		return src
+	}
+	read := `os.ReadFile("` + admGoldenFile + `")`
+	good := body("_, _ = "+read, "")
+	if p := checkGoldenGuard([]byte(good)); len(p) != 0 {
+		t.Fatalf("good source rejected: %v", p)
+	}
+	cases := map[string]string{
+		"renamed test":         strings.Replace(good, "TestAdmitSetDigestGolden", "TestAdmitSetDigestGoldenX", 1),
+		"skip":                 body("_, _ = "+read, "t.Skip(\"x\")"),
+		"skipnow":              body("_, _ = "+read, "t.SkipNow()"),
+		"skipf":                body("_, _ = "+read, "t.Skipf(\"x\")"),
+		"no ReadFile":          body("", ""),
+		"ReadFile in comment":  body("// "+read, ""),
+		"ReadFile in string":   body("_ = `"+read+"`", ""),
+		"another file":         body(`_, _ = os.ReadFile("testdata/other.json")`, ""),
+		"non-literal argument": body(`name := "x"; _, _ = os.ReadFile(name)`, ""),
+		"not valid Go":         "package x\nfunc (",
+	}
+	for name, src := range cases {
+		if p := checkGoldenGuard([]byte(src)); len(p) == 0 {
+			t.Errorf("%s: accepted", name)
+		}
 	}
 }
 
