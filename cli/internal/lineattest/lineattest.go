@@ -51,6 +51,13 @@ const FamilyKubernetesRemovedServedGVK = "kubernetes.removed_served_gvk"
 // custom-resource version set fact.
 const FamilyCustomResourceVersions = "crd.custom_resource_versions"
 
+// FamilyChangelogAttestedEntries covers, for one component of the reviewed
+// changelog table, every pack rule whose subject is that component: the
+// family is subject-wide (a rule belongs to it by its subject, not by the
+// fact it reads), because a changelog attestation is a statement about what
+// the project's own changelog entries say, not about one fact.
+const FamilyChangelogAttestedEntries = "changelog.attested_entries"
+
 // Limits.
 const (
 	// MaxWindow is the longest validity window an attestation may carry,
@@ -84,6 +91,15 @@ type Family struct {
 	// a hop only between two of those releases: a release published after
 	// the derivation is not covered until the attestation is renewed.
 	releaseScoped bool
+	// subjectWide means a rule belongs to the family when its subject
+	// component is a member, whatever fact it reads. A family without it
+	// takes only rules that read one of its facts.
+	subjectWide bool
+	// crossingLineWide means a crossing rule that covers the whole previous
+	// line on its from side and starts exactly at the first release of the
+	// line on its to side counts as line-wide (CoversLine). It is set for
+	// the changelog family only: release-note rules are crossings by shape.
+	crossingLineWide bool
 	// scope is the compiled statement of what the family covers and what it
 	// does not, shown wherever a result relies on an attestation.
 	scope string
@@ -105,11 +121,30 @@ func (f Family) Components() []string {
 	return out
 }
 
+// Belongs reports whether a rule with this subject component and these
+// condition components and facts belongs to the family: a subject-wide family
+// takes every rule of a member subject; any other takes a rule that reads one
+// of the family's facts of a member.
+func (f Family) Belongs(subject string, conditions []struct{ Component, FactID string }) bool {
+	if !f.Admits(subject) {
+		return false
+	}
+	if f.subjectWide {
+		return true
+	}
+	for _, c := range conditions {
+		if f.Covers(c.Component, c.FactID) {
+			return true
+		}
+	}
+	return false
+}
+
 // Covers reports whether a rule condition on (component, factID) belongs to
 // the family: the component is a member and the fact is one of its facts.
 func (f Family) Covers(component, factID string) bool {
 	facts, ok := f.members[component]
-	return ok && facts.MatchString(factID)
+	return ok && facts != nil && facts.MatchString(factID)
 }
 
 // ReleaseScoped reports whether the family's attestations carry the
@@ -157,10 +192,36 @@ func (f Family) LineTransitions(component, line string) (from, to constraintengi
 // cannot parse makes the comparison fail, and the rule is not line-wide.
 func (f Family) CoversLine(component string, t constraintengine.RuleTransition, line string) bool {
 	from, to, ok := f.LineTransitions(component, line)
-	if !ok || t.Range == nil {
+	if !ok {
+		return false
+	}
+	if t.Range == nil {
+		return f.crossingCoversLine(t, from, to)
+	}
+	if f.crossingLineWide && t.Crossing != nil {
 		return false
 	}
 	return contains(t.Range.From, from) && contains(t.Range.To, to)
+}
+
+// crossingCoversLine is the crossing case of CoversLine, for a family with
+// crossingLineWide only. A crossing matches [0.0.0, C) to [C, cap); it covers
+// every transition into the line exactly when the from region holds the whole
+// previous line, the to region the whole line, and the rule is not narrowed
+// to other distributions than upstream. With C inside the line but not at its
+// first release (x.y.1), a hop into x.y.0 is not matched.
+func (f Family) crossingCoversLine(t constraintengine.RuleTransition, from, to constraintengine.VersionBound) bool {
+	if !f.crossingLineWide || t.Crossing == nil {
+		return false
+	}
+	cf, ct, ok := t.CrossingBounds()
+	if !ok || !constraintengine.VersionLess(ct.Gte, ct.Lt) {
+		return false
+	}
+	if !t.CrossingAdmits(constraintengine.DistributionUpstream, constraintengine.DistributionUpstream) {
+		return false
+	}
+	return contains(cf, from) && contains(ct, to)
 }
 
 // contains reports outer.gte <= inner.gte and inner.lt <= outer.lt.
@@ -176,26 +237,76 @@ func contains(outer, inner constraintengine.VersionBound) bool {
 // rejected. The members of the custom-resource family are the projects of
 // the reviewed custom-resource table, whose set facts the fact registry
 // registers: adding a project there is the reviewed change that admits it.
-var families = map[string]Family{
-	FamilyKubernetesRemovedServedGVK: {
-		ID: FamilyKubernetesRemovedServedGVK,
-		members: map[string]*regexp.Regexp{
-			"pkg:github/kubernetes/kubernetes": regexp.MustCompile(`^component\.kubernetes\.[a-z0-9_]+_removed_gvk_present$`),
+var families = mustFamilies(customresources.Projects(), changelogComponents)
+
+// changelogComponents is the reviewed table of components whose changelog
+// entries the changelog family attests. It is empty until the first reviewed
+// pilot admits a project: an empty table admits no component, so no rule is
+// in the family and no output changes.
+var changelogComponents = []string{}
+
+// mustFamilies builds the family table and panics on a changelog table that
+// is not valid or not disjoint from the custom-resource table: a component
+// can never be in both families.
+func mustFamilies(projects []customresources.Project, changelog []string) map[string]Family {
+	crd := customResourceMembers(projects)
+	cl, err := changelogMembers(crd, changelog)
+	if err != nil {
+		panic("lineattest: " + err.Error())
+	}
+	return buildFamilies(crd, cl)
+}
+
+// changelogMembers validates the changelog table: valid component names, no
+// duplicate, and none in the custom-resource family.
+func changelogMembers(crd map[string]*regexp.Regexp, changelog []string) (map[string]*regexp.Regexp, error) {
+	out := map[string]*regexp.Regexp{}
+	for _, c := range changelog {
+		if !constraintengine.ValidComponent(c) {
+			return nil, fmt.Errorf("changelog table component %q is not a valid component", c)
+		}
+		if _, ok := crd[c]; ok {
+			return nil, fmt.Errorf("component %s is in both the changelog table and the custom-resource table", c)
+		}
+		if _, dup := out[c]; dup {
+			return nil, fmt.Errorf("changelog table lists %s twice", c)
+		}
+		out[c] = nil
+	}
+	return out, nil
+}
+
+func buildFamilies(crd, changelog map[string]*regexp.Regexp) map[string]Family {
+	return map[string]Family{
+		FamilyKubernetesRemovedServedGVK: {
+			ID: FamilyKubernetesRemovedServedGVK,
+			members: map[string]*regexp.Regexp{
+				"pkg:github/kubernetes/kubernetes": regexp.MustCompile(`^component\.kubernetes\.[a-z0-9_]+_removed_gvk_present$`),
+			},
+			// Kubernetes upgrades a control plane one minor line at a time.
+			fromPreviousLine: true,
+			scope:            "beta and stable API versions that kube-apiserver serves by default; not alpha versions, aggregated or custom API servers, or CustomResourceDefinitions",
 		},
-		// Kubernetes upgrades a control plane one minor line at a time.
-		fromPreviousLine: true,
-		scope:            "beta and stable API versions that kube-apiserver serves by default; not alpha versions, aggregated or custom API servers, or CustomResourceDefinitions",
-	},
-	FamilyCustomResourceVersions: {
-		ID:      FamilyCustomResourceVersions,
-		members: customResourceMembers(customresources.Projects()),
-		// Only an upgrade from the previous minor line of the same major
-		// is attested: a skipped minor line or a new major has no line
-		// boundary a range can be reviewed against.
-		fromPreviousLine: true,
-		releaseScoped:    true,
-		scope:            "the custom-resource versions (group/version/Kind) that the project's own CustomResourceDefinitions serve; not schemas, conversion, stored versions, other projects' CustomResourceDefinitions or anything else about the project",
-	},
+		FamilyCustomResourceVersions: {
+			ID:      FamilyCustomResourceVersions,
+			members: crd,
+			// Only an upgrade from the previous minor line of the same major
+			// is attested: a skipped minor line or a new major has no line
+			// boundary a range can be reviewed against.
+			fromPreviousLine: true,
+			releaseScoped:    true,
+			scope:            "the custom-resource versions (group/version/Kind) that the project's own CustomResourceDefinitions serve; not schemas, conversion, stored versions, other projects' CustomResourceDefinitions or anything else about the project",
+		},
+		FamilyChangelogAttestedEntries: {
+			ID:               FamilyChangelogAttestedEntries,
+			members:          changelog,
+			subjectWide:      true,
+			crossingLineWide: true,
+			fromPreviousLine: true,
+			releaseScoped:    true,
+			scope:            "according to the upstream changelog entries of tags X..Y, each read in full at its own tag: every item is either covered by a listed rule or is not a breaking change, removal, rename, deprecation, storage/API format change or minimum-version change as the changelog words and files it; not anything the changelog omits, not behaviour, defaults or performance, not charts or dependencies unless the entry names them",
+		},
+	}
 }
 
 // customResourceMembers maps each table project's component to exactly its
