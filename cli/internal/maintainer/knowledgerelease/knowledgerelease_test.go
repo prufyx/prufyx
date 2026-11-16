@@ -14,6 +14,43 @@ import (
 
 const testPassphrase = "throwaway release test passphrase 1"
 
+// clockMargin is how far before the earliest embedded evidence expiry the
+// fixed test clock sits. It must exceed ContentLifetime so the evidence cap
+// can never bind the default 21 day expiry, whatever the wall clock says.
+const clockMargin = ContentLifetime + 9*24*time.Hour
+
+// testNow is a fixed clock derived from the embedded knowledge's earliest
+// evidence expiry. It does not read the wall clock, so the tests cannot rot
+// as the evidence validity approaches.
+func testNow(t *testing.T) time.Time {
+	t.Helper()
+	d, err := ComputeDigests(Options{Revision: "91", Profile: ProfileCNCFProjects})
+	if err != nil {
+		t.Fatal(err)
+	}
+	end, err := parseUTC(d.EvidenceExpiresAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return end.Add(-clockMargin)
+}
+
+// TestFixedClockLeavesTheEvidenceCapUnbound fails when a fixture edit would
+// make the evidence expiry bind the 21 day default unnoticed.
+func TestFixedClockLeavesTheEvidenceCapUnbound(t *testing.T) {
+	d, err := ComputeDigests(Options{Revision: "91", Profile: ProfileCNCFProjects})
+	if err != nil {
+		t.Fatal(err)
+	}
+	end, err := parseUTC(d.EvidenceExpiresAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := end.Sub(testNow(t)); got <= ContentLifetime {
+		t.Fatalf("evidence expires %s after the test clock; must exceed %s so the cap cannot bind", got, ContentLifetime)
+	}
+}
+
 // fixture creates throwaway keys in t.TempDir(); nothing here is a real key.
 func fixture(t *testing.T) Options {
 	t.Helper()
@@ -38,7 +75,7 @@ func fixture(t *testing.T) Options {
 		Root: filepath.Join(keys, "root.json"), RootDigest: init.RootDigest,
 		TargetsKey: filepath.Join(keys, "targets.key.pem"), SnapshotKey: filepath.Join(keys, "snapshot.key.pem"), TimestampKey: filepath.Join(keys, "timestamp.key.pem"),
 		PassphraseFile: pass, FirstRelease: true,
-		OutputDir: filepath.Join(parent, "out"), Now: time.Now().UTC(),
+		OutputDir: filepath.Join(parent, "out"), Now: testNow(t),
 	}
 }
 
