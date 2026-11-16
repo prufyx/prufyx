@@ -81,14 +81,15 @@ const (
 	AdmitReasonSeamRefusalEmpty = "verify-pr-refusal-unnamed"
 )
 
-// AdmissionEventPullRequest is the only event name the seam accepts: the
-// event the gate workflow really runs on for onboarding pull requests
+// AdmissionEventPullRequestTarget is the only event name the seam accepts: the
+// event the knowledge gate workflow really runs on for onboarding pull requests
 // (pull_request_target: the BASE workflow and the BASE-built binary judge the
 // proposed head). The name is passed by the BASE-controlled workflow step
-// (--admission-event, from the workflow's own event name, never from the head
+// (--admission-event: the later workflow step passes the BASE workflow's own
+// event name, never from the head
 // or any proposed file). merge_group, schedule, push, workflow_dispatch and an
 // empty or unknown value are all refused.
-const AdmissionEventPullRequest = "pull_request_target"
+const AdmissionEventPullRequestTarget = "pull_request_target"
 
 // seamTimeout bounds the whole seam: tree export, diff and the upstream
 // binding (three attempts of one minute and the backoff, with margin).
@@ -106,7 +107,7 @@ func (r *Report) admissionSeam(ctx context.Context, opts Options, in *Onboarding
 		return
 	}
 	refuse := func(code string) { in.SeamRefusals = append(in.SeamRefusals, code) }
-	if opts.AdmissionEvent != AdmissionEventPullRequest {
+	if opts.AdmissionEvent != AdmissionEventPullRequestTarget {
 		refuse(AdmitReasonSeamEvent)
 		return
 	}

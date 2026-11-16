@@ -139,7 +139,7 @@ func newSeamFixture(t *testing.T) *seamFixture {
 	paused := false
 	s.g = &OnboardingGitContext{GitDir: s.repo, BaseCommit: s.base, HeadCommit: s.head, DailyCommits: []DailyCommit{}, Paused: &paused, ObservedAt: gateNow}
 	s.opts = Options{Base: f.base, Head: f.head, Source: f.src, Author: obOwner, Sender: obOwner, Layout: DefaultLayout(),
-		OnboardingGit: s.g, HeadSHA: s.head, OnboardingAdmissionInProcess: true, AdmissionEvent: AdmissionEventPullRequest, AdmissionRunner: s.runner, AdmissionVerifier: s.verify}
+		OnboardingGit: s.g, HeadSHA: s.head, OnboardingAdmissionInProcess: true, AdmissionEvent: AdmissionEventPullRequestTarget, AdmissionRunner: s.runner, AdmissionVerifier: s.verify}
 	s.opts.Layout.OnboardingAdmission.Enabled = true
 	return s
 }

@@ -484,7 +484,7 @@ func TestOnboardingAdmissionInGateReport(t *testing.T) {
 		o.Layout = DefaultLayout()
 		o.Layout.OnboardingAdmission.Enabled = true
 		o.OnboardingAdmissionInProcess = true
-		o.AdmissionEvent = AdmissionEventPullRequest
+		o.AdmissionEvent = AdmissionEventPullRequestTarget
 	})
 	if r.AutoMerge.Eligible {
 		t.Fatalf("auto merge %+v", r.AutoMerge)

@@ -118,7 +118,7 @@ type Options struct {
 	OnboardingAdmissionInProcess bool
 	// AdmissionEvent is the authenticated event name of the run, set only by
 	// "gate verify --admission-event" from the BASE-controlled workflow. The
-	// seam accepts only AdmissionEventPullRequest.
+	// seam accepts only AdmissionEventPullRequestTarget.
 	AdmissionEvent string
 	// AdmissionRunner is the upstream (ls-remote) runner of the seam. Nil
 	// means the gate's own fixed-environment runner. The command line never

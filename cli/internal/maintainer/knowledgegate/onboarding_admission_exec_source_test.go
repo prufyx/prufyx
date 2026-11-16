@@ -136,34 +136,74 @@ func TestSeamMembersHaveNoOtherSetter(t *testing.T) {
 	}
 }
 
-// The seam and its runner read no environment variable and no file by name:
-// nothing outside the authenticated objects can steer them.
+// The files of the seam read no environment variable, home, working
+// directory, argument list or file by name, and start no child without an
+// explicit environment: nothing outside the authenticated objects can steer
+// them. The few filesystem uses are listed with the reason.
 func TestSeamFilesReadNoEnvironment(t *testing.T) {
 	t.Parallel()
-	forbidden := map[string]bool{"Getenv": true, "LookupEnv": true, "Environ": true, "ReadFile": true, "Open": true, "OpenFile": true, "Setenv": true, "ExpandEnv": true}
+	forbidden := map[string]bool{"Getenv": true, "LookupEnv": true, "Environ": true, "ReadFile": true, "Open": true, "OpenFile": true,
+		"Setenv": true, "ExpandEnv": true, "UserHomeDir": true, "UserCacheDir": true, "UserConfigDir": true, "Args": true, "Getwd": true,
+		"MkdirTemp": true, "CreateTemp": true, "TempDir": true, "Stat": true, "Lstat": true, "ReadDir": true, "Executable": true, "Hostname": true}
+	// file -> os function -> why it is fine.
+	allowed := map[string]map[string]string{
+		"onboarding_admission_runner.go": {
+			"MkdirTemp": "empty scratch HOME of the child (TMPDIR only picks where the empty directory lives; the child's environment is set explicitly in runnerExec)",
+			"Stat":      "existence of the fixed absolute git paths, nothing read",
+		},
+		"onboarding_binding.go":        {"MkdirTemp": "scratch directory for the exported authenticated trees; gitCommand sets the child environment explicitly"},
+		"onboarding_admission_exec.go": {"Lstat": "reads only the gate's own exported scratch tree (symbolic link check)"},
+	}
 	srcs := seamSources(t)
-	for _, name := range []string{"onboarding_admission_exec.go", "onboarding_admission_runner.go"} {
+	for _, name := range []string{"onboarding_admission_exec.go", "onboarding_admission_runner.go", "onboarding_binding.go", "onboarding_admission_runner_unix.go", "onboarding_admission_runner_other.go"} {
 		f := srcs[name]
 		if f == nil {
 			t.Fatalf("%s missing", name)
 		}
+		for _, imp := range f.Imports {
+			path := strings.Trim(imp.Path.Value, "\"")
+			if path == "os/user" {
+				t.Errorf("%s imports os/user", name)
+			}
+			if path == "os" && imp.Name != nil {
+				t.Errorf("%s imports os under another name or dot", name)
+			}
+		}
+		hasCmd, setsEnv := false, false
 		ast.Inspect(f, func(n ast.Node) bool {
-			if sel, ok := n.(*ast.SelectorExpr); ok {
-				if id, ok := sel.X.(*ast.Ident); ok && id.Name == "os" && forbidden[sel.Sel.Name] {
-					t.Errorf("%s uses os.%s", name, sel.Sel.Name)
+			switch x := n.(type) {
+			case *ast.SelectorExpr:
+				if id, ok := x.X.(*ast.Ident); ok && id.Name == "os" && forbidden[x.Sel.Name] {
+					if _, ok := allowed[name][x.Sel.Name]; !ok {
+						t.Errorf("%s uses os.%s", name, x.Sel.Name)
+					}
+				}
+				if id, ok := x.X.(*ast.Ident); ok && id.Name == "exec" && strings.HasPrefix(x.Sel.Name, "Command") {
+					hasCmd = true
+				}
+			case *ast.AssignStmt:
+				for _, l := range x.Lhs {
+					if sel, ok := l.(*ast.SelectorExpr); ok && sel.Sel.Name == "Env" {
+						setsEnv = true
+					}
 				}
 			}
 			return true
 		})
-		// No verify-pr artifact or result file is named anywhere.
+		if hasCmd && !setsEnv {
+			t.Errorf("%s starts a command without setting its environment", name)
+		}
 		raw, err := os.ReadFile(name)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if strings.Contains(string(raw), "verify-pr-result") || strings.Contains(string(raw), "VERIFY_PR") {
+		// No verify-pr artifact or result file is named anywhere.
+		if strings.Contains(string(raw), "verify-pr-result.json") || strings.Contains(string(raw), "verify-pr-result\"") || strings.Contains(string(raw), "VERIFY_PR") {
 			t.Errorf("%s names a verify-pr result file or variable", name)
 		}
 	}
+	// onboarding_binding.go starts its commands through gitCommand, which sets
+	// the environment; the exec file and the runner start none or set it.
 }
 
 // The package may import the verifier only because the verifier never imports

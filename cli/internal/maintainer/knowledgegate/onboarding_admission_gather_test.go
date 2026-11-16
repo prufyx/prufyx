@@ -269,7 +269,7 @@ func TestAdmissionFactsFromGate(t *testing.T) {
 		o.Layout = DefaultLayout()
 		o.Layout.OnboardingAdmission.Enabled = true
 		o.OnboardingAdmissionInProcess = true
-		o.AdmissionEvent = AdmissionEventPullRequest
+		o.AdmissionEvent = AdmissionEventPullRequestTarget
 	})
 	requirePass(t, r)
 	a := r.onboarding.adm
