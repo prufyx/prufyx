@@ -32,9 +32,11 @@ import (
 //     v1beta1 or v1alpha1), kind CustomResourceDefinition, metadata, spec and
 //     status; metadata only name, labels, annotations (string maps) and
 //     creationTimestamp (null only); status absent or null-valued all the way
-//     down; spec absent (never null) or only conversion, whose only fields are a
-//     strategy equal to the full definition's own explicit strategy (Webhook or
-//     None) and webhook.clientConfig.service namespace, name, path and port;
+//     down; spec absent (never null) or only conversion, which must carry an
+//     explicit strategy Webhook while the full definition declares strategy
+//     Webhook explicitly (an omitted, None or mismatching strategy on either
+//     side is refused), and whose other field is
+//     webhook.clientConfig.service namespace, name, path and port;
 //   - metadata.name is <plural>.<group> and names an identity that exactly one
 //     definition in the whole tree at this tag defines, and that one is a full
 //     definition (scope, names, a versions list and a schema). A second
@@ -346,13 +348,14 @@ func stubConversion(v any, def stubDef) bool {
 	if !ok {
 		return false
 	}
+	// Any conversion field is a patch of an already-declared Webhook
+	// conversion: both sides must say Webhook explicitly.
+	if c["strategy"] != "Webhook" || !def.hasStrategy || def.strategy != "Webhook" {
+		return false
+	}
 	for k, val := range c {
 		switch k {
 		case "strategy":
-			s, _ := val.(string)
-			if (s != "Webhook" && s != "None") || !def.hasStrategy || s != def.strategy {
-				return false
-			}
 		case "webhook":
 			w, ok := val.(map[string]any)
 			if !ok {

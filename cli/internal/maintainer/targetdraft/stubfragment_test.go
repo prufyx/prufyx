@@ -423,3 +423,34 @@ func TestStubOtherRefusedCIDirs(t *testing.T) {
 }
 
 func path0(p string) string { return p[:strings.LastIndex(p, "/")] }
+
+func TestStubConversionNeedsExplicitWebhookOnBothSides(t *testing.T) {
+	svc := "    webhook:\n      clientConfig:\n        service:\n          name: svc\n"
+	withStrategy := func(s string) string { return stubHead + "spec:\n  conversion:\n    strategy: " + s + "\n" + svc }
+	noStrategy := stubHead + "spec:\n  conversion:\n" + svc
+	for name, c := range map[string]struct{ stub, full string }{
+		"omitted stub strategy, full absent":   {noStrategy, stubFull("")},
+		"omitted stub strategy, full None":     {noStrategy, stubFull("None")},
+		"omitted stub strategy, full Webhook":  {noStrategy, stubFull("Webhook")},
+		"Webhook stub, full absent":            {withStrategy("Webhook"), stubFull("")},
+		"Webhook stub, full None":              {withStrategy("Webhook"), stubFull("None")},
+		"None stub with webhook, full None":    {withStrategy("None"), stubFull("None")},
+		"None stub with webhook, full Webhook": {withStrategy("None"), stubFull("Webhook")},
+		"empty conversion, full Webhook":       {stubHead + "spec:\n  conversion: {}\n", stubFull("Webhook")},
+	} {
+		m := stubTree(map[string]string{stubPath: c.stub})
+		m.files["config/crd/bases/a.yaml"] = []byte(c.full)
+		if got := stubClass(m, stubPath, true, true); got == "fragment" {
+			t.Fatalf("%s: set aside", name)
+		}
+	}
+	// Positive: explicit Webhook on both sides, service-only fields; and a stub
+	// with no conversion at all is unaffected by the full definition's strategy.
+	m := stubTree(map[string]string{stubPath: withStrategy("Webhook")})
+	wantStub(t, m, stubPath, "fragment")
+	for _, full := range []string{stubFull(""), stubFull("None")} {
+		m = stubTree(map[string]string{stubPath: stubHead + "status: null\n"})
+		m.files["config/crd/bases/a.yaml"] = []byte(full)
+		wantStub(t, m, stubPath, "fragment")
+	}
+}

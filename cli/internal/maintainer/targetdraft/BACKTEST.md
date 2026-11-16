@@ -74,8 +74,10 @@ and any fragment reached through a symbolic link, stays the typed stop
 keys are limited to `apiVersion` (`apiextensions.k8s.io/v1`, `v1beta1` or
 `v1alpha1`), `kind`, `metadata` (`name`, string labels and annotations,
 `creationTimestamp: null`), `status` (null-valued only) and `spec` limited to
-`conversion` (a `strategy` equal to the explicit strategy of the full
-definition, and `webhook.clientConfig.service` namespace, name, path, port);
+`conversion` (only with an explicit `strategy: Webhook` that the full
+definition also declares explicitly; omitted, `None` or mismatching strategy on
+either side is refused; fields: `webhook.clientConfig.service` namespace, name,
+path, port);
 strings may hold `$(VAR)`. An explicit `spec: null` (or any other null below
 `spec`) is never tolerated: a merge patch would delete the field. A stub is set
 aside only when its `metadata.name` (`<plural>.<group>`) is defined by exactly
