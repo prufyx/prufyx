@@ -4,8 +4,8 @@ package knowledgegate
 
 import (
 	"context"
-	"errors"
 	"regexp"
+	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/maintainer/docstables"
 )
@@ -86,6 +86,10 @@ func onboardingRecipeAllowance(ctx context.Context, opts Options, rec Onboarding
 	if !ok {
 		return nil
 	}
+	// The same bound as the seam: a stalled export or diff removes the
+	// allowance.
+	ctx, cancel := context.WithTimeout(ctx, seamTimeout)
+	defer cancel()
 	if checkAdmissionRefs(ctx, g) != nil {
 		return nil
 	}
@@ -99,11 +103,18 @@ func onboardingRecipeAllowance(ctx context.Context, opts Options, rec Onboarding
 	if equalAdmissionTrees(base, head, opts.Base, opts.Head) != nil {
 		return nil
 	}
-	if d, err := base.openDir(recipesRoot + slug); err == nil {
-		d.Close()
+	// The admission refuses a slug the base has under any casing, so the
+	// listing is folded the same way (and a trailing dot or space, which some
+	// file systems drop, is ignored too): any entry of that name, of any kind, or
+	// a listing that fails, removes the allowance.
+	names, err := treeEntryNames(base, strings.TrimSuffix(recipesRoot, "/"))
+	if err != nil {
 		return nil
-	} else if !errors.Is(err, ErrMissing) {
-		return nil
+	}
+	for _, n := range names {
+		if strings.EqualFold(strings.TrimRight(n, ". "), slug) {
+			return nil
+		}
 	}
 	raw, err := admissionRawDiff(ctx, g, g.HeadCommit)
 	if err != nil || len(raw) == 0 {
