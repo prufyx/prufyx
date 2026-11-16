@@ -7,6 +7,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"html"
 	"regexp"
 	"strings"
 	"unicode"
@@ -166,14 +167,63 @@ func operatorHeading(v *vocabulary, text string) bool {
 
 // lexiconHits returns the sorted distinct lexicon terms found in text.
 func lexiconHits(v *vocabulary, text string) []string {
-	n := normText(text)
 	var hits []string
-	for _, t := range v.Lexicon {
-		if strings.Contains(n, t) {
-			hits = append(hits, t)
+	for _, form := range textForms(text) {
+		n := normText(form)
+		for _, t := range v.Lexicon {
+			if strings.Contains(n, t) {
+				hits = append(hits, t)
+			}
 		}
 	}
 	return sortedUnique(hits)
+}
+
+var (
+	markupCharsRE = regexp.MustCompile("[*_`~\\\\]")
+	htmlTagRE     = regexp.MustCompile(`<!--.*?-->|</?[A-Za-z][^<>]*>`)
+)
+
+// textForms is the text as written and the text a page would show: with
+// emphasis and code markers deleted (not turned into a space), and with HTML
+// comments and tags removed and character references decoded. A trigger word
+// is looked for in every form.
+func textForms(text string) []string {
+	noMarkup := markupCharsRE.ReplaceAllString(text, "")
+	rendered := html.UnescapeString(htmlTagRE.ReplaceAllString(text, ""))
+	return []string{text, noMarkup, rendered, markupCharsRE.ReplaceAllString(rendered, "")}
+}
+
+// hasSplitMarkup is true when the text holds an HTML angle bracket or a
+// character reference, or a markup character directly between two letters or
+// digits ("re**mov**ed", "snake_case"): the page then shows a different word
+// than the bytes spell.
+func hasSplitMarkup(text string) bool {
+	if strings.ContainsAny(text, "<&") {
+		return true
+	}
+	rs := []rune(text)
+	for i, r := range rs {
+		if !strings.ContainsRune("*_`~\\", r) {
+			continue
+		}
+		j := i
+		for j > 0 && strings.ContainsRune("*_`~\\", rs[j-1]) {
+			j--
+		}
+		k := i
+		for k+1 < len(rs) && strings.ContainsRune("*_`~\\", rs[k+1]) {
+			k++
+		}
+		if j > 0 && k+1 < len(rs) && isWordRune(rs[j-1]) && isWordRune(rs[k+1]) {
+			return true
+		}
+	}
+	return false
+}
+
+func isWordRune(r rune) bool {
+	return r < 0x80 && (r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9')
 }
 
 var defaultVocab = func() *vocabulary {
