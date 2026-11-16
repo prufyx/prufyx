@@ -114,7 +114,7 @@ func TestExecRunnerChildSeesOnlyTheFixedEnvironment(t *testing.T) {
 		}
 	}
 	allowed := map[string]bool{"HOME": true, "PWD": true, "OLDPWD": true, "SHLVL": true, "_": true, "PWD_IS": true,
-		"GIT_EXEC_PATH": true, "GIT_PREFIX": true, "TEXTDOMAINDIR": true}
+		"GIT_EXEC_PATH": true, "GIT_CONFIG_PARAMETERS": true, "GIT_PREFIX": true, "TEXTDOMAINDIR": true}
 	for _, e := range bindingEnv() {
 		allowed[strings.SplitN(e, "=", 2)[0]] = true
 	}

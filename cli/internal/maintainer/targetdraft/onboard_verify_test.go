@@ -1200,7 +1200,7 @@ func TestVerifyOnboardingBaseRepoSpellingsCollide(t *testing.T) {
 		for _, field := range []string{"repo", "component"} {
 			t.Run(field+" "+sp, func(t *testing.T) {
 				x := newOnbFx(t)
-				b := []byte(`{"target":{"project":"other","` + field + `":` + strconv.Quote(sp) + `}}`)
+				b := []byte(`{"target":{"project":"other","` + field + `":` + jq(sp) + `}}`)
 				p := CrdVersionsDir + "/target-other.json"
 				x.base.files[p], x.head.files[p] = b, b
 				x.wantRefusal(x.run(), 0, OnbReasonRepoCovered)
@@ -1208,17 +1208,17 @@ func TestVerifyOnboardingBaseRepoSpellingsCollide(t *testing.T) {
 		}
 		t.Run("row upstream "+sp, func(t *testing.T) {
 			x := newOnbFx(t)
-			x.setBase(onbTable, []byte(`{"projects":[{"slug":"other","upstream":{"repository":`+strconv.Quote(sp)+`}}]}`))
+			x.setBase(onbTable, []byte(`{"projects":[{"slug":"other","upstream":{"repository":`+jq(sp)+`}}]}`))
 			x.wantRefusal(x.run(), 0, OnbReasonRepoCovered)
 		})
 		t.Run("row component "+sp, func(t *testing.T) {
 			x := newOnbFx(t)
-			x.setBase(onbTable, []byte(`{"projects":[{"slug":"other","component":`+strconv.Quote(sp)+`}]}`))
+			x.setBase(onbTable, []byte(`{"projects":[{"slug":"other","component":`+jq(sp)+`}]}`))
 			x.wantRefusal(x.run(), 0, OnbReasonRepoCovered)
 		})
 		t.Run("reserved "+sp, func(t *testing.T) {
 			x := newOnbFx(t)
-			x.setBase(onbTable, []byte(`{"projects":[{"slug":"other"}],"reserved":[{"repository":`+strconv.Quote(sp)+`}]}`))
+			x.setBase(onbTable, []byte(`{"projects":[{"slug":"other"}],"reserved":[{"repository":`+jq(sp)+`}]}`))
 			x.wantRefusal(x.run(), 0, OnbReasonRepoCovered)
 		})
 	}
@@ -1230,10 +1230,10 @@ func TestVerifyOnboardingBaseRepoSpellingsCollide(t *testing.T) {
 	for _, other := range []string{"github.com/example/demox", "https://github.com/other/demo", "pkg:gitlab/example/demo", "git@github.com:example/other.git"} {
 		t.Run("no collision "+other, func(t *testing.T) {
 			x := newOnbFx(t)
-			b := []byte(`{"target":{"project":"other","repo":` + strconv.Quote(other) + `}}`)
+			b := []byte(`{"target":{"project":"other","repo":` + jq(other) + `}}`)
 			p := CrdVersionsDir + "/target-other.json"
 			x.base.files[p], x.head.files[p] = b, b
-			x.setBase(onbTable, []byte(`{"projects":[{"slug":"other"}],"reserved":[{"repository":`+strconv.Quote(other)+`}]}`))
+			x.setBase(onbTable, []byte(`{"projects":[{"slug":"other"}],"reserved":[{"repository":`+jq(other)+`}]}`))
 			if res := x.run(); res.Outcome != "pass" {
 				t.Fatalf("%+v", res)
 			}
@@ -1271,7 +1271,7 @@ func TestVerifyOnboardingBaseRepoValuesUnreadableRefuse(t *testing.T) {
 	for name, v := range map[string]string{"bare name": "demo", "bare owner/name": "example/demo", "owner only": "https://github.com/onlyowner", "other purl": "pkg:npm/x"} {
 		t.Run("unreducible "+name, func(t *testing.T) {
 			x := newOnbFx(t)
-			b := []byte(`{"target":{"project":"other","repo":` + strconv.Quote(v) + `}}`)
+			b := []byte(`{"target":{"project":"other","repo":` + jq(v) + `}}`)
 			x.base.files[p], x.head.files[p] = b, b
 			res := x.run()
 			if res.Outcome != "fail" || !contains(res.Reasons, OnbReasonRepoUnparsable) || !res.Harness || len(x.runner.calls) != 0 {
@@ -1303,8 +1303,8 @@ func TestCheckCollisionsHeadSpellings(t *testing.T) {
 		}{
 			"recipe repo":      {Recipe{Repo: sp}, `{"target":{"project":"demo"}}`},
 			"recipe component": {Recipe{Component: sp}, `{"target":{"project":"demo"}}`},
-			"target repo":      {Recipe{}, `{"target":{"project":"demo","repo":` + strconv.Quote(sp) + `}}`},
-			"target component": {Recipe{}, `{"target":{"project":"demo","component":` + strconv.Quote(sp) + `}}`},
+			"target repo":      {Recipe{}, `{"target":{"project":"demo","repo":` + jq(sp) + `}}`},
+			"target component": {Recipe{}, `{"target":{"project":"demo","component":` + jq(sp) + `}}`},
 		} {
 			v, run, bf := mk(t, c.target)
 			rc := c.rc
@@ -1408,7 +1408,7 @@ func TestVerifyOnboardingReservedAndRefusedSpellings(t *testing.T) {
 		for _, field := range []string{"repo", "component"} {
 			t.Run("base "+field+" "+sp, func(t *testing.T) {
 				x := newOnbFx(t)
-				b := []byte(`{"target":{"project":"other","` + field + `":` + strconv.Quote(sp) + `}}`)
+				b := []byte(`{"target":{"project":"other","` + field + `":` + jq(sp) + `}}`)
 				p := CrdVersionsDir + "/target-other.json"
 				x.base.files[p], x.head.files[p] = b, b
 				res := x.run()
@@ -1419,7 +1419,7 @@ func TestVerifyOnboardingReservedAndRefusedSpellings(t *testing.T) {
 		}
 		t.Run("base reserved "+sp, func(t *testing.T) {
 			x := newOnbFx(t)
-			x.setBase(onbTable, []byte(`{"projects":[{"slug":"other"}],"reserved":[{"repository":`+strconv.Quote(sp)+`}]}`))
+			x.setBase(onbTable, []byte(`{"projects":[{"slug":"other"}],"reserved":[{"repository":`+jq(sp)+`}]}`))
 			res := x.run()
 			if res.Outcome != "fail" || !contains(res.Reasons, OnbReasonRepoUnparsable) {
 				t.Fatalf("%+v", res)
@@ -1443,4 +1443,10 @@ func TestVerifyOnboardingReservedAndRefusedSpellings(t *testing.T) {
 			}
 		})
 	}
+}
+
+// jq is a JSON string literal.
+func jq(s string) string {
+	b, _ := json.Marshal(s)
+	return string(b)
 }
