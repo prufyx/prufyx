@@ -30,6 +30,10 @@ type onboardingResult struct {
 	headRevision, headRegistry string
 	// restRequests are the dry runs' GitHub REST requests, per project.
 	restRequests map[string]int64
+	// recipeFiles is how many recipe files the allow-list admitted (O2). When
+	// it is not zero the gate passes only if the in-process verification did
+	// (admitOnboarding).
+	recipeFiles int
 	// adm is what the admission decision reads about the batch.
 	adm admissionFacts
 }
@@ -144,6 +148,7 @@ func runOnboarding(ctx context.Context, opts Options, cls *Classification, chang
 		return fail("O4: %s", logSafe(err.Error()))
 	}
 	st.recipeFiles = onboardingRecipeAllowance(ctx, opts, rec)
+	res.recipeFiles = len(st.recipeFiles)
 	res.summary = st.envelopeSummary(env)
 	res.adm.state(st, rec)
 	if problems := st.check(rec, res.path); len(problems) > 0 {

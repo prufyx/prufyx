@@ -76,6 +76,9 @@ func indirectWrites(f *ast.File, gatePath string, fields, holders map[string]boo
 				}
 			}
 		case *ast.CallExpr:
+			if sel, ok := x.Fun.(*ast.SelectorExpr); ok && hasReflect && (sel.Sel.Name == "Field" || sel.Sel.Name == "FieldByIndex") {
+				out = append(out, "reflection by index")
+			}
 			sel, ok := x.Fun.(*ast.SelectorExpr)
 			if !ok || (sel.Sel.Name != "FieldByName" && sel.Sel.Name != "FieldByNameFunc") || len(x.Args) != 1 {
 				return true
@@ -118,6 +121,8 @@ func TestIndirectWriteDetector(t *testing.T) {
 		{"reflect literal", "package p\nimport \"reflect\"\nfunc f() { reflect.ValueOf(&o).Elem().FieldByName(\"AdmissionRunner\").Set(v) }\n", "reflection on \"AdmissionRunner\""},
 		{"reflect raw string", "package p\nfunc f() { v.FieldByName(`VerifyPr`) }\n", "reflection on `VerifyPr`"},
 		{"reflect computed", "package p\nimport \"reflect\"\nfunc f() { reflect.ValueOf(&o).Elem().FieldByName(name) }\n", "reflection by a computed name"},
+		{"reflect field by index", "package p\nimport \"reflect\"\nfunc f() { reflect.ValueOf(&o).Elem().Field(3).Set(v) }\n", "reflection by index"},
+		{"reflect field by index path", "package p\nimport \"reflect\"\nfunc f() { v.FieldByIndex([]int{1}) }\n", "reflection by index"},
 		{"alias of holder", "package p\ntype O = kg.Options\n", "type O built on Options"},
 		{"defined type of holder", "package p\ntype O kg.OnboardingAdmissionInput\n", "type O built on OnboardingAdmissionInput"},
 	}
@@ -132,11 +137,12 @@ func TestIndirectWriteDetector(t *testing.T) {
 		}
 	}
 	for name, src := range map[string]string{
-		"keyed literal":       "package p\nvar _ = kg.Options{Base: b}\n",
-		"empty literal":       "package p\nvar _ = kg.Options{}\n",
-		"plain read":          "package p\nfunc f() { _ = o.VerifyPr }\n",
-		"other field reflect": "package p\nfunc f() { v.FieldByName(\"Base\") }\n",
-		"named import":        "package p\nimport kg \"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgegate\"\n",
+		"keyed literal":              "package p\nvar _ = kg.Options{Base: b}\n",
+		"empty literal":              "package p\nvar _ = kg.Options{}\n",
+		"plain read":                 "package p\nfunc f() { _ = o.VerifyPr }\n",
+		"other field reflect":        "package p\nfunc f() { v.FieldByName(\"Base\") }\n",
+		"field call without reflect": "package p\nfunc f() { s.Field(1) }\n",
+		"named import":               "package p\nimport kg \"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgegate\"\n",
 	} {
 		if got := indirectWrites(parseSrc(t, src), gate, seamFields, seamHolders); len(got) != 0 {
 			t.Errorf("%s: flagged %v", name, got)

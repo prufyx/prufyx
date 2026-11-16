@@ -208,13 +208,14 @@ func newAllowanceRepo(t *testing.T, baseFiles, headFiles map[string]string) *all
 	}
 	a := &allowanceRepo{t: t, repo: t.TempDir()}
 	gitIn(t, a.repo, "init", "--bare", "-q")
-	a.base = admissionCommit(t, a.repo, build(baseFiles), "")
-	a.head = admissionCommit(t, a.repo, build(headFiles), a.base)
+	baseTree, headTree := build(baseFiles), build(headFiles)
+	a.base = admissionCommit(t, a.repo, baseTree, "")
+	a.head = admissionCommit(t, a.repo, headTree, a.base)
 	gitIn(t, a.repo, "update-ref", admissionBaseRef, a.base)
 	gitIn(t, a.repo, "update-ref", admissionHeadRef, a.head)
 	paused := false
 	g := &OnboardingGitContext{GitDir: a.repo, BaseCommit: a.base, HeadCommit: a.head, DailyCommits: []DailyCommit{}, Paused: &paused, ObservedAt: gateNow}
-	a.opts = Options{Layout: DefaultLayout(), OnboardingGit: g, HeadSHA: a.head, OnboardingAdmissionInProcess: true, AdmissionEvent: AdmissionEventPullRequestTarget}
+	a.opts = Options{Base: baseTree, Head: headTree, Layout: DefaultLayout(), OnboardingGit: g, HeadSHA: a.head, OnboardingAdmissionInProcess: true, AdmissionEvent: AdmissionEventPullRequestTarget}
 	a.opts.Layout.OnboardingAdmission.Enabled = true
 	return a
 }
@@ -264,15 +265,38 @@ func TestRecipeAllowancePlainFiles(t *testing.T) {
 	}
 }
 
-func TestRecipeAllowanceModifiedIsAllowed(t *testing.T) {
+// Only a new project: a recipe directory the base already has, in whole or in
+// part, and any modification, get no allowance at all.
+func TestRecipeAllowanceOnlyForANewProject(t *testing.T) {
 	t.Parallel()
-	base := map[string]string{recipePaths("alpha")[0]: "old\n"}
-	head := recipeFilesOf("alpha", "new\n")
-	a := newAllowanceRepo(t, base, head)
-	got := onboardingRecipeAllowance(context.Background(), a.opts, recipeBatch("alpha"))
-	if len(got) != 6 {
-		t.Fatalf("allowance %v", keysOf(got))
+	name := recipePaths("alpha")[0]
+	for label, base := range map[string]map[string]string{
+		"a modified recipe file":      {name: "old\n"},
+		"another file of the slug":    {"cli/knowledge/target-recipes/alpha/extra.json": "old\n"},
+		"a subdirectory of the slug":  {"cli/knowledge/target-recipes/alpha/sub/x.json": "old\n"},
+		"all six already in the base": recipeFilesOf("alpha", "old\n"),
+	} {
+		a := newAllowanceRepo(t, base, recipeFilesOf("alpha", "new\n"))
+		if got := onboardingRecipeAllowance(context.Background(), a.opts, recipeBatch("alpha")); got != nil {
+			t.Errorf("%s: allowed %v", label, keysOf(got))
+		}
 	}
+	// Another project's directory in the base does not matter.
+	a := newAllowanceRepo(t, recipeFilesOf("beta", "old\n"), withEntries(recipeFilesOf("beta", "old\n"), recipeFilesOf("alpha", "new\n")))
+	if got := onboardingRecipeAllowance(context.Background(), a.opts, recipeBatch("alpha")); len(got) != 6 {
+		t.Fatalf("control: %v", keysOf(got))
+	}
+}
+
+func withEntries(a, b map[string]string) map[string]string {
+	out := map[string]string{}
+	for k, v := range a {
+		out[k] = v
+	}
+	for k, v := range b {
+		out[k] = v
+	}
+	return out
 }
 
 // Nothing but the six fixed names of the batch's slug: another slug, another
@@ -408,6 +432,17 @@ func TestRecipeAllowanceNeedsEveryCondition(t *testing.T) {
 			t.Errorf("%s: allowed %v", label, keysOf(got))
 		}
 	}
+	// The checked trees are not the git objects.
+	for label, mutate := range map[string]func(*Options){
+		"head tree differs": func(o *Options) { o.Head = Tree{Root: t.TempDir()} },
+		"base tree differs": func(o *Options) { o.Base = Tree{Root: t.TempDir()} },
+	} {
+		o := a.opts
+		mutate(&o)
+		if got := onboardingRecipeAllowance(context.Background(), o, rec); got != nil {
+			t.Errorf("%s: allowed %v", label, keysOf(got))
+		}
+	}
 	// A reference that moved after the commits were authenticated.
 	other := admissionCommit(t, a.repo, Tree{Root: t.TempDir()}, "")
 	gitIn(t, a.repo, "update-ref", admissionHeadRef, other)
@@ -425,6 +460,28 @@ func TestRecipeAllowanceNeedsEveryCondition(t *testing.T) {
 		if got := onboardingRecipeAllowance(context.Background(), b.opts, r); got != nil {
 			t.Errorf("%s: allowed %v", label, keysOf(got))
 		}
+	}
+}
+
+// A reference that moves between the diff and the end of the step removes the
+// allowance (the second reference check). Not parallel: it sets the hook.
+func TestRecipeAllowanceRefMovedAfterTheDiff(t *testing.T) {
+	a := newAllowanceRepo(t, nil, recipeFilesOf("alpha", "n\n"))
+	rec := recipeBatch("alpha")
+	if got := onboardingRecipeAllowance(context.Background(), a.opts, rec); len(got) != 6 {
+		t.Fatalf("control: %v", keysOf(got))
+	}
+	other := admissionCommit(t, a.repo, Tree{Root: t.TempDir()}, "")
+	moved := false
+	recipeDiffHook = func(g *OnboardingGitContext) {
+		if g.GitDir == a.repo {
+			moved = true
+			gitIn(t, a.repo, "update-ref", admissionHeadRef, other)
+		}
+	}
+	defer func() { recipeDiffHook = nil }()
+	if got := onboardingRecipeAllowance(context.Background(), a.opts, rec); got != nil || !moved {
+		t.Fatalf("allowed %v after the head reference moved (hook ran: %v)", keysOf(got), moved)
 	}
 }
 
@@ -618,4 +675,56 @@ func TestGateRecipeAllowanceRefusesExecutable(t *testing.T) {
 	if s.calls() != 0 {
 		t.Fatal("the verifier ran for a refused change")
 	}
+}
+
+// The allowance is not the verdict: with it in use the gate passes only when
+// the in-process verification ran and passed.
+func TestGateRecipeAllowanceNeedsTheVerifier(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		name    string
+		verdict func(s *seamFixture, in targetdraft.OnboardingVerifyInput) targetdraft.OnboardingVerifyResult
+	}{
+		{"the verifier fails", func(s *seamFixture, in targetdraft.OnboardingVerifyInput) targetdraft.OnboardingVerifyResult {
+			return targetdraft.OnboardingVerifyResult{Mode: "inprocess", Outcome: "fail", Reasons: []string{"binding-mismatch"}, BaseSHA: in.BaseSHA, HeadSHA: in.HeadSHA}
+		}},
+		{"the verifier has no verdict (runner error)", func(s *seamFixture, in targetdraft.OnboardingVerifyInput) targetdraft.OnboardingVerifyResult {
+			return targetdraft.OnboardingVerifyResult{Mode: "inprocess", Outcome: "fail", Harness: true, Reasons: []string{"ls-remote-failed"}, BaseSHA: in.BaseSHA, HeadSHA: in.HeadSHA}
+		}},
+		{"the verifier is not the in-process one", func(s *seamFixture, in targetdraft.OnboardingVerifyInput) targetdraft.OnboardingVerifyResult {
+			res := s.passFor(in)
+			res.Mode = "other"
+			return res
+		}},
+		{"the verdict contradicts the gate", func(s *seamFixture, in targetdraft.OnboardingVerifyInput) targetdraft.OnboardingVerifyResult {
+			res := s.passFor(in)
+			res.BindingVerified = false
+			return res
+		}},
+		{"the reference moves during the verification", func(s *seamFixture, in targetdraft.OnboardingVerifyInput) targetdraft.OnboardingVerifyResult {
+			other := admissionCommit(s.t, s.repo, Tree{Root: s.t.TempDir()}, "")
+			gitIn(s.t, s.repo, "update-ref", admissionHeadRef, other)
+			return s.passFor(in)
+		}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			s := recipeSeamFixture(t, nil)
+			s.verdict = func(in targetdraft.OnboardingVerifyInput) targetdraft.OnboardingVerifyResult { return c.verdict(s, in) }
+			r := gateOnly(t, s, nil)
+			requireFail(t, r, "onboarding-recipes")
+			if r.AutoMerge.Eligible {
+				t.Fatal("auto merge")
+			}
+			if d := r.OnboardingAdmission; d == nil || d.Admitted || !containsStr(d.Reasons, AdmitReasonGateFailed) {
+				t.Fatalf("decision %+v", d)
+			}
+			if s.calls() != 1 {
+				t.Fatalf("verifier called %d times", s.calls())
+			}
+		})
+	}
+	// The same change passes with the verifier's pass (control).
+	s := recipeSeamFixture(t, nil)
+	requirePass(t, gateOnly(t, s, nil))
 }

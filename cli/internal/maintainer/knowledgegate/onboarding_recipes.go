@@ -4,6 +4,7 @@ package knowledgegate
 
 import (
 	"context"
+	"errors"
 	"regexp"
 
 	"github.com/prufyx/prufyx/cli/internal/maintainer/docstables"
@@ -19,13 +20,21 @@ import (
 //     lock is set (either one off: nothing here runs, the allow-list is the
 //     one it always was);
 //   - the change is the pull-request-target admission context with the
-//     authenticated git objects;
+//     authenticated git objects, whose exported trees equal the trees the
+//     gate checks;
 //   - the batch lists exactly one project and the slug is that project's,
 //     never one read from the head tree or the change;
-//   - the file is an added or modified, plain regular file (mode 100644) in
-//     the captured raw diff, read by the same parser the admission uses: any
-//     other entry anywhere in that diff (a link, an executable, a delete, a
-//     rename, an unreadable object) removes the allowance altogether.
+//   - the base tree has no recipe directory of that slug at all (a new
+//     project), and the file is an ADDED plain regular file (mode 100644) in
+//     the raw diff, read by the same parser the admission uses: any other
+//     entry anywhere in that diff (a link, an executable, a delete, a
+//     rename, a modification, an unreadable object) removes the allowance
+//     altogether.
+//
+// This step takes its own git diff, between the two immutable commits, with
+// the references checked before it and after it; the admission seam takes a
+// separate diff of the same commits later, under the same checks. The gate
+// then fails the change unless that seam ran and passed (admitOnboarding).
 //
 // Every failure returns nil, which is the allow-list without recipe files.
 
@@ -56,8 +65,12 @@ func recipePaths(slug string) []string {
 	return out
 }
 
-// onboardingRecipeAllowance returns the recipe files of the batch's one
-// project that the change adds or modifies as plain files, or nil.
+// recipeDiffHook runs between the diff and the second reference check. It is
+// nil outside tests.
+var recipeDiffHook func(g *OnboardingGitContext)
+
+// onboardingRecipeAllowance returns the recipe files of the batch's one new
+// project that the change adds as plain files, or nil.
 func onboardingRecipeAllowance(ctx context.Context, opts Options, rec OnboardingRecord) map[string]bool {
 	if !opts.Layout.OnboardingAdmission.Enabled || !opts.OnboardingAdmissionInProcess {
 		return nil
@@ -76,6 +89,22 @@ func onboardingRecipeAllowance(ctx context.Context, opts Options, rec Onboarding
 	if checkAdmissionRefs(ctx, g) != nil {
 		return nil
 	}
+	// The git objects must be the trees the gate checks, and the base must
+	// not know the project's recipe directory: a new project only.
+	base, head, cleanup, err := exportAdmissionTrees(ctx, g)
+	if err != nil {
+		return nil
+	}
+	defer cleanup()
+	if equalAdmissionTrees(base, head, opts.Base, opts.Head) != nil {
+		return nil
+	}
+	if d, err := base.openDir(recipesRoot + slug); err == nil {
+		d.Close()
+		return nil
+	} else if !errors.Is(err, ErrMissing) {
+		return nil
+	}
 	raw, err := admissionRawDiff(ctx, g, g.HeadCommit)
 	if err != nil || len(raw) == 0 {
 		return nil
@@ -83,6 +112,9 @@ func onboardingRecipeAllowance(ctx context.Context, opts Options, rec Onboarding
 	changes, err := parseAdmissionRaw(ctx, g, raw)
 	if err != nil || len(changes) == 0 {
 		return nil
+	}
+	if recipeDiffHook != nil {
+		recipeDiffHook(g)
 	}
 	// The objects must still be the authenticated ones after the reads.
 	if checkAdmissionRefs(ctx, g) != nil {
@@ -94,7 +126,7 @@ func onboardingRecipeAllowance(ctx context.Context, opts Options, rec Onboarding
 	}
 	out := map[string]bool{}
 	for _, c := range changes {
-		if !want[c.Path] || (c.Status != "A" && c.Status != "M") || c.Head.Mode != "100644" {
+		if !want[c.Path] || c.Status != "A" || c.Head.Mode != "100644" {
 			continue
 		}
 		out[c.Path] = true
