@@ -4,7 +4,10 @@ package targetdraft
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -387,5 +390,105 @@ func TestGrowOnlyUnreadableOutsideInstallSetBlocksGrowth(t *testing.T) {
 	}
 	if res.Report.MinFrom != "1.1" || res.FirstWithheld == nil || res.FirstWithheld.Tag != "v1.0.0" {
 		t.Fatalf("A joined the window: minFrom=%s withheld=%+v", res.Report.MinFrom, res.FirstWithheld)
+	}
+}
+
+// manyFilesSource: 24 CRD files per tag; the oldest tag lacks two of them and
+// carries 9 files the newer tags do not (many candidates for a "first" reason).
+func manyFilesSource() memSource {
+	return growSource(func(tag string, m *memTree) {
+		for p := range m.files {
+			delete(m.files, p)
+		}
+		m.files["README.md"] = []byte("readme\n")
+		for i := 0; i < 24; i++ {
+			k := fmt.Sprintf("k%02d", i)
+			m.files["config/crd/"+k+".yaml"] = fullCRD(gGroup, strings.ToUpper(k), k+"s", "Namespaced", "v1")
+		}
+		if tag == "v1.0.0" {
+			delete(m.files, "config/crd/k03.yaml")
+			delete(m.files, "config/crd/k17.yaml")
+			for i := 0; i < 9; i++ {
+				k := fmt.Sprintf("x%02d", i)
+				m.files["config/crd/"+k+".yaml"] = fullCRD(gGroup, strings.ToUpper(k), k+"s", "Namespaced", "v1")
+			}
+		}
+		if tag == "v1.1.0" {
+			delete(m.files, "config/crd/k05.yaml")
+		}
+	})
+}
+
+func TestGrowOnlyDeterministicOver50Runs(t *testing.T) {
+	var firstA, firstRep []byte
+	var firstReason string
+	for n := 0; n < 50; n++ {
+		res := mustGenerate(t, growInput(manyFilesSource(), true))
+		rep, err := marshal(res.Report)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.FirstWithheld == nil || res.FirstWithheld.Tag != "v1.0.0" || len(res.Report.WindowGrown) != 1 {
+			t.Fatalf("fixture lost its shape: %+v %+v", res.Report, res.FirstWithheld)
+		}
+		if n == 0 {
+			firstA, firstRep, firstReason = res.A, rep, res.FirstWithheld.Reason
+			if !strings.Contains(firstReason, "x00.yaml") {
+				t.Fatalf("reason must name the first path in sorted order: %q", firstReason)
+			}
+			continue
+		}
+		if !bytes.Equal(res.A, firstA) || !bytes.Equal(rep, firstRep) || res.FirstWithheld.Reason != firstReason {
+			t.Fatalf("run %d differs from run 0", n)
+		}
+	}
+}
+
+// The harness runs everything twice and refuses different results: a
+// windowGrowOnly entry with a withheld tag and a differs result passes it.
+func TestBacktestWindowGrowOnlyIsDeterministic(t *testing.T) {
+	dir, mirrors := t.TempDir(), t.TempDir()
+	if err := os.Mkdir(filepath.Join(mirrors, "g"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	off := mustGenerate(t, growInput(manyFilesSource(), false))
+	if err := os.WriteFile(filepath.Join(dir, "expected-g.json"), off.A, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	e := map[string]any{"slug": "demo", "name": "Demo", "repo": "github.com/example/demo", "catalog": "cncf", "tags": collapseTags,
+		"mirror": "g", "expected": "expected-g.json", "half": "A", "collapseDirectories": true, "windowGrowOnly": true}
+	raw, _ := json.Marshal(map[string]any{"schema": BacktestSchema, "count": 1, "entries": []any{e}, "seeds": []any{}})
+	mf := filepath.Join(dir, "manifest.json")
+	if err := os.WriteFile(mf, raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var so, se bytes.Buffer
+	code := runBacktest([]string{"--manifest", mf, "--mirrors", mirrors, "--out", filepath.Join(t.TempDir(), "o")}, &so, &se, func(string) Source { return manyFilesSource() })
+	if code != 0 || !strings.Contains(so.String(), "demo differs cause=window fields=minFrom generatedMinFrom=") {
+		t.Fatalf("code %d\n%s\n%s", code, so.String(), se.String())
+	}
+}
+
+// The carried-identity key also covers group/plural (lower-cased group).
+func TestGrowOnlyCarriedIdentityByGroupPlural(t *testing.T) {
+	src := growSource(func(tag string, m *memTree) {
+		delete(m.files, "config/other/x.yaml")
+		switch tag {
+		case "v1.0.0":
+			delete(m.files, "config/crd/d.yaml")
+			// same resource (group, plural) as the newest d.yaml, other kind
+			m.files["deploy/d.yaml"] = fullCRD(strings.ToUpper(gGroup), "OtherKind", "ds", "Namespaced", "v1")
+		case "v1.1.0":
+			delete(m.files, "config/crd/d.yaml")
+		}
+	})
+	in := growInput(src, true)
+	in.Rules = exactRules("config/crd/")
+	res, err := Generate(in)
+	if err != nil {
+		t.Fatalf("unexpected stop: %v", err)
+	}
+	if res.Report.MinFrom != "1.1" || res.FirstWithheld == nil || res.FirstWithheld.Tag != "v1.0.0" || !strings.Contains(res.FirstWithheld.Reason, "plural:") {
+		t.Fatalf("group/plural carried identity not caught: %s %+v", res.Report.MinFrom, res.FirstWithheld)
 	}
 }

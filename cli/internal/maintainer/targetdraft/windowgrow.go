@@ -72,7 +72,8 @@ func growStep(r, next, newest *tagResult, rules *Rules) (why string, stopped boo
 			return "stop", true, nil
 		}
 	}
-	for p, ni := range next.included {
+	for _, p := range sortedPaths(next.included) {
+		ni := next.included[p]
 		if _, ok := r.included[p]; ok {
 			continue
 		}
@@ -85,7 +86,7 @@ func growStep(r, next, newest *tagResult, rules *Rules) (why string, stopped boo
 		added = append(added, p)
 	}
 	sort.Strings(added)
-	for p := range r.included {
+	for _, p := range sortedPaths(r.included) {
 		if _, ok := next.included[p]; !ok {
 			return "grow-only: " + p + " is read at the older tag and not at the next newer tag (set shrinks)", false, nil
 		}
@@ -98,7 +99,9 @@ func growStep(r, next, newest *tagResult, rules *Rules) (why string, stopped boo
 	have := map[string]bool{}
 	for _, f := range r.defs {
 		for _, c := range f.CRDs {
-			have[c.Group+"/"+c.Kind] = true
+			for _, k := range identityKeys(c) {
+				have[k] = true
+			}
 		}
 	}
 	unreadableOutside := ""
@@ -108,7 +111,7 @@ func growStep(r, next, newest *tagResult, rules *Rules) (why string, stopped boo
 		}
 	}
 	var newestOnly []string
-	for p := range newest.included {
+	for _, p := range sortedPaths(newest.included) {
 		if _, ok := r.included[p]; !ok && !r.optAbsent[p] {
 			newestOnly = append(newestOnly, p)
 		}
@@ -116,8 +119,8 @@ func growStep(r, next, newest *tagResult, rules *Rules) (why string, stopped boo
 	sort.Strings(newestOnly)
 	for _, p := range newestOnly {
 		for _, c := range newest.included[p].CRDs {
-			if have[c.Group+"/"+c.Kind] {
-				return "grow-only: " + p + " defines " + c.Group + "/" + c.Kind + ", which the older tag already defines in another file (moved or not installed)", false, nil
+			if k := firstCarried(have, c); k != "" {
+				return "grow-only: " + p + " defines " + k + ", which the older tag already defines in another file (moved or not installed)", false, nil
 			}
 		}
 	}
@@ -129,8 +132,8 @@ func growStep(r, next, newest *tagResult, rules *Rules) (why string, stopped boo
 	if len(added) == 0 {
 		return "", false, nil
 	}
-	for p, ri := range r.included {
-		ni := next.included[p]
+	for _, p := range sortedPaths(r.included) {
+		ri, ni := r.included[p], next.included[p]
 		switch {
 		case ri.LinkKind || ni.LinkKind:
 			return "grow-only: " + p + " is read through a symbolic link", false, nil
@@ -140,8 +143,8 @@ func growStep(r, next, newest *tagResult, rules *Rules) (why string, stopped boo
 	}
 	// A real growth needs complete, comparable facts on every file the older
 	// tag installs; anything incomplete is the withhold (fail closed).
-	for p, ri := range r.included {
-		for _, c := range ri.CRDs {
+	for _, p := range sortedPaths(r.included) {
+		for _, c := range r.included[p].CRDs {
 			if c.Group == "" || c.Kind == "" || c.Plural == "" || c.Scope == "" || len(c.Versions) == 0 {
 				return "grow-only: " + p + " has CRD facts that cannot be compared (plural, scope or versions missing)", false, nil
 			}
@@ -152,7 +155,7 @@ func growStep(r, next, newest *tagResult, rules *Rules) (why string, stopped boo
 	for p := range r.included {
 		rdirs[path.Dir(p)] = true
 	}
-	for p := range next.included {
+	for _, p := range sortedPaths(next.included) {
 		if !rdirs[path.Dir(p)] {
 			return "grow-only: directory " + path.Dir(p) + " has no install file at the older tag", false, nil
 		}
@@ -207,4 +210,34 @@ func subsetStrings(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+// sortedPaths lists the keys of an inclusion map in order, so every judgement
+// and every reason text is independent of map iteration order.
+func sortedPaths(m map[string]*inclusion) []string {
+	out := make([]string, 0, len(m))
+	for p := range m {
+		out = append(out, p)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// identityKeys are the keys under which a CRD counts as carried: group/kind
+// and the lower-cased group/plural (the API resource name).
+func identityKeys(c crd) []string {
+	k := []string{c.Group + "/" + c.Kind}
+	if c.Plural != "" {
+		k = append(k, "plural:"+strings.ToLower(c.Group)+"/"+strings.ToLower(c.Plural))
+	}
+	return k
+}
+
+func firstCarried(have map[string]bool, c crd) string {
+	for _, k := range identityKeys(c) {
+		if have[k] {
+			return k
+		}
+	}
+	return ""
 }
