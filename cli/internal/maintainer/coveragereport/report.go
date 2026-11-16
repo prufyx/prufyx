@@ -63,6 +63,10 @@ type Input struct {
 	// report counts those that also have a published rule or line
 	// attestation of the CRD version family.
 	CRDTargetComponents map[string]string
+	// ChangelogTargetComponents maps the projects with a reviewed changelog
+	// target to the component of that target. Empty or nil: no project is a
+	// changelog-attested member and the report is unchanged.
+	ChangelogTargetComponents map[string]string
 	// CommunityPack is the community rule pack, or nil. Only the count of
 	// published CRD projects reads it: a valid crd.custom_resource_versions
 	// rule or a current line attestation in it counts a target project
@@ -227,6 +231,7 @@ type Report struct {
 	split     decidedSplit
 	withPairs int
 	crd       crdTargets
+	changelog changelogStats
 }
 
 // crdTargets counts the projects with a reviewed CRD version target by
@@ -517,7 +522,19 @@ func Compute(in Input) (Report, error) {
 	for _, c := range in.CRDTargetComponents {
 		targetClaims[c]++
 	}
+	for _, c := range in.ChangelogTargetComponents {
+		targetClaims[c]++
+	}
+	attributable := map[string]string{}
 	for project, c := range in.CRDTargetComponents {
+		attributable[project] = c
+	}
+	for project, c := range in.ChangelogTargetComponents {
+		if _, both := attributable[project]; !both {
+			attributable[project] = c
+		}
+	}
+	for project, c := range attributable {
 		if c == "" || targetClaims[c] != 1 || len(components[project]) > 0 || linesFile.Projects[project].Component != "" {
 			continue
 		}
@@ -534,10 +551,14 @@ func Compute(in Input) (Report, error) {
 	validAtt := map[string]int{}
 	crdAttComponent := map[string]bool{}
 	afterClock := map[string]bool{}
+	mixed := mixedComponents(in, atts)
 	for _, a := range atts {
 		project, ok := componentProject[a.Component]
 		if !ok {
 			continue
+		}
+		if a.FactFamily == FamilyChangelogAttested && mixed[a.Component] {
+			continue // refused: the component is also a CRD-family member
 		}
 		if f := a.Freshness(now); f != lineattest.FreshnessCurrent {
 			if f == lineattest.FreshnessClockBeforeReview {
@@ -645,6 +666,12 @@ func Compute(in Input) (Report, error) {
 		}
 	}
 
+	for project := range in.ChangelogTargetComponents {
+		if !in.Catalog.Community(project) {
+			report.changelog.targets++
+		}
+	}
+
 	slugs := make([]string, 0, len(linesFile.Projects))
 	for slug := range linesFile.Projects {
 		slugs = append(slugs, slug)
@@ -691,6 +718,9 @@ func Compute(in Input) (Report, error) {
 		for i := 0; i+1 < len(lines); i++ {
 			pair := classify(slug, lines[i], lines[i+1], byProject[slug], attsByProject[slug], byID, pl.Releases)
 			row.Pairs = append(row.Pairs, pair)
+			if _, member := in.ChangelogTargetComponents[slug]; member && !community {
+				report.changelog.addPair(pair, changelogGapReason(in.ChangelogTargetComponents[slug], lines[i], lines[i+1], atts, now, byID, pl.Releases, mixed))
+			}
 			if !community && (pair.Status == StatusA || pair.Status == StatusB) {
 				if pair.canBlock {
 					report.split.canBlock++
@@ -914,7 +944,7 @@ func attestedFamilies(fromLine, toLine string, atts []lineattest.LineAttestation
 		if !ok {
 			continue
 		}
-		if family.ReleaseScoped() && !releasesMatch(a.Releases, releases[fromLine], releases[toLine]) {
+		if (family.ReleaseScoped() || a.FactFamily == FamilyChangelogAttested) && !releasesMatch(a.Releases, releases[fromLine], releases[toLine]) {
 			continue
 		}
 		wide := true
@@ -937,8 +967,8 @@ func attestedFamilies(fromLine, toLine string, atts []lineattest.LineAttestation
 
 // boundedFamilies reports whether a valid rule decides the whole pair: its
 // range covers the whole from line and the whole to line, or its crossing
-// removal release lies inside the to line and its crossing region covers the
-// whole from line. The returned families name the rules' fact families, or
+// starts exactly at the first release of the to line and covers the whole
+// from line (see crossingLineWide). The returned families name the rules' fact families, or
 // "other" for a rule outside every attestable family.
 func boundedFamilies(fromLine, toLine string, rules []*ruleRec) ([]string, bool) {
 	toNext, ok := nextLineStart(toLine)
@@ -955,7 +985,7 @@ func boundedFamilies(fromLine, toLine string, rules []*ruleRec) ([]string, bool)
 		if r.tr.Range != nil && r.tr.Range.From.CoversLine(fromLine) && r.tr.Range.To.CoversLine(toLine) {
 			hit = true
 		}
-		if cf, ct, ok := r.tr.CrossingBounds(); ok && cf.CoversLine(fromLine) && toBound.Contains(ct.Gte) && constraintengine.VersionLess(ct.Gte, ct.Lt) {
+		if crossingLineWide(r.tr, fromLine, toLine, toBound) {
 			hit = true
 		}
 		if !hit {
