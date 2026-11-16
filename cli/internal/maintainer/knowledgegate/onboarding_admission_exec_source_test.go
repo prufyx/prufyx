@@ -116,6 +116,7 @@ func TestSeamMembersHaveNoOtherSetter(t *testing.T) {
 	for field, allowed := range map[string][]string{
 		"SeamRefusals":                 {"onboarding_admission_exec.go"},
 		"OnboardingAdmissionInProcess": {"cli.go"},
+		"AdmissionEvent":               {"cli.go"},
 		"AdmissionRunner":              nil,
 		"AdmissionVerifier":            nil,
 	} {

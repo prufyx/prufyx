@@ -262,7 +262,7 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	var t treeFlags
 	var admission admissionFlags
 	var source, author, sender, owner, bot, headSHA, commits, digest, keysDigest, rerun, now, report, summary string
-	var onboardingAdmission string
+	var onboardingAdmission, admissionEvent string
 	var max, concurrency int
 	var citeTimeout time.Duration
 	var all, shadow, botPaused bool
@@ -274,6 +274,7 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	admission.register(f)
 	m.register(f)
 	f.StringVar(&onboardingAdmission, "onboarding-admission", "", "run-time lock of the onboarding admission: only the value inprocess turns it on (the compiled layout flag is the other lock); it carries no data and needs the complete authenticated admission context")
+	f.StringVar(&admissionEvent, "admission-event", "", "the workflow event name, passed by the base-controlled workflow (never from the change): the in-process onboarding admission accepts only pull_request_target and refuses every other value, including none")
 	f.BoolVar(&shadow, "shadow", false, "shadow mode: compute everything, never be eligible for automatic merging")
 	f.BoolVar(&botPaused, "bot-signer-paused", false, "refuse every onboarding batch signed with an onboarding-bot key")
 	f.StringVar(&metricsFile, "metrics", "", "write the metrics JSON to this file")
@@ -324,6 +325,7 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	}
 	opts := Options{Layout: layout, Base: base, Head: head, Author: author, Sender: sender, Owner: owner, BotLogin: bot, HeadSHA: headSHA, MaxLoosening: max, TrustRootDigest: digest, ApprovalKeysDigest: keysDigest, RederiveAll: all, Concurrency: concurrency, Shadow: shadow, BotSignerPaused: botPaused}
 	opts.AdmissionRESTBudget = restBudget
+	opts.AdmissionEvent = admissionEvent
 	if opts.OnboardingAdmissionInProcess, err = parseOnboardingAdmissionFlag(onboardingAdmission, admission.gitDir); err != nil {
 		return 2, err
 	}

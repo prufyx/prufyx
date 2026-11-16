@@ -66,13 +66,31 @@ type seamFixture struct {
 	// verdict answers the fake verifier; nil means a consistent pass.
 	verdict func(targetdraft.OnboardingVerifyInput) targetdraft.OnboardingVerifyResult
 	mu      sync.Mutex
-	inputs  []targetdraft.OnboardingVerifyInput
+	// treeDiffs records, at call time (the exported trees are removed after
+	// the seam), the differences between the handed trees and the judged ones.
+	treeDiffs []string
+	inputs    []targetdraft.OnboardingVerifyInput
 	r       *Report
 }
 
 func (s *seamFixture) verify(in targetdraft.OnboardingVerifyInput) targetdraft.OnboardingVerifyResult {
+	var diffs []string
+	for _, c := range []struct {
+		got  targetdraft.Tree
+		have Tree
+	}{{in.Base, s.f.base}, {in.Head, s.f.head}} {
+		st, ok := c.got.(seamTree)
+		if !ok || st.t.Root == c.have.Root {
+			diffs = append(diffs, "not an exported copy")
+			continue
+		}
+		if d, err := ChangedPaths(st.t, c.have); err != nil || len(d) != 0 {
+			diffs = append(diffs, "differs from the judged tree")
+		}
+	}
 	s.mu.Lock()
 	s.inputs = append(s.inputs, in)
+	s.treeDiffs = append(s.treeDiffs, diffs...)
 	s.mu.Unlock()
 	if s.verdict != nil {
 		return s.verdict(in)
@@ -121,7 +139,7 @@ func newSeamFixture(t *testing.T) *seamFixture {
 	paused := false
 	s.g = &OnboardingGitContext{GitDir: s.repo, BaseCommit: s.base, HeadCommit: s.head, DailyCommits: []DailyCommit{}, Paused: &paused, ObservedAt: gateNow}
 	s.opts = Options{Base: f.base, Head: f.head, Source: f.src, Author: obOwner, Sender: obOwner, Layout: DefaultLayout(),
-		OnboardingGit: s.g, HeadSHA: s.head, OnboardingAdmissionInProcess: true, AdmissionRunner: s.runner, AdmissionVerifier: s.verify}
+		OnboardingGit: s.g, HeadSHA: s.head, OnboardingAdmissionInProcess: true, AdmissionEvent: AdmissionEventPullRequest, AdmissionRunner: s.runner, AdmissionVerifier: s.verify}
 	s.opts.Layout.OnboardingAdmission.Enabled = true
 	return s
 }
@@ -204,18 +222,9 @@ func TestSeamBothLocksOnRunsVerifier(t *testing.T) {
 		t.Fatal("the verifier did not get the raw diff of the exact commits")
 	}
 	// The trees are the exported authenticated ones, equal to the judged ones,
-	// but not the caller's directories.
-	for _, c := range []struct {
-		got  targetdraft.Tree
-		have Tree
-	}{{in.Base, s.f.base}, {in.Head, s.f.head}} {
-		st, ok := c.got.(seamTree)
-		if !ok || st.t.Root == c.have.Root {
-			t.Fatalf("tree %T is not an exported copy", c.got)
-		}
-		if diff, err := ChangedPaths(st.t, c.have); err != nil || len(diff) != 0 {
-			t.Fatalf("exported tree differs from the judged tree: %v %v", diff, err)
-		}
+	// but not the caller's directories (checked while the seam ran).
+	if len(s.treeDiffs) != 0 {
+		t.Fatalf("trees handed to the verifier: %v", s.treeDiffs)
 	}
 	if in.Policy.BatchPath != s.opts.Layout.Onboarding.Dir+"/"+r.onboarding.id+".json" || in.Policy.TablePath != s.opts.Layout.Onboarding.TablePath {
 		t.Fatalf("policy %+v", in.Policy)
@@ -267,13 +276,25 @@ func TestSeamEitherLockOffIsDisabled(t *testing.T) {
 	if s.calls() != 0 || s.runner.calls() != 0 {
 		t.Fatalf("verifier %d runner %d with a lock off", s.calls(), s.runner.calls())
 	}
-	// Both off: no member, same as the layout-off report.
-	r2 := s.gate(func(o *Options) { o.Layout.OnboardingAdmission.Enabled = false; o.OnboardingAdmissionInProcess = false })
-	rOff := s.gate(func(o *Options) { o.Layout.OnboardingAdmission.Enabled = false })
-	a, _ := json.Marshal(r2)
-	b, _ := json.Marshal(rOff)
-	if !bytes.Equal(a, b) || bytes.Contains(a, []byte("onboardingAdmission")) {
-		t.Fatal("a report with the compiled lock off depends on the run-time flag")
+	// Both off: no member, byte-identical to the layout-off report. A warm-up
+	// run first (the fixture seeds a baseline on its first gate run), then the
+	// same inputs three times: flag off, flag on, flag off.
+	s.gate(func(o *Options) { o.Layout.OnboardingAdmission.Enabled = false })
+	enc := func(mut func(*Options)) []byte {
+		b, err := json.Marshal(s.gate(mut))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return b
+	}
+	offA := enc(func(o *Options) { o.Layout.OnboardingAdmission.Enabled = false; o.OnboardingAdmissionInProcess = false })
+	offB := enc(func(o *Options) { o.Layout.OnboardingAdmission.Enabled = false })
+	offC := enc(func(o *Options) { o.Layout.OnboardingAdmission.Enabled = false; o.OnboardingAdmissionInProcess = false })
+	if !bytes.Equal(offA, offC) {
+		t.Fatalf("the fixture's own reports are not deterministic:\n%s\n%s", offA, offC)
+	}
+	if !bytes.Equal(offA, offB) || bytes.Contains(offA, []byte("onboardingAdmission")) {
+		t.Fatalf("a report with the compiled lock off depends on the run-time flag:\n%s\n%s", offA, offB)
 	}
 	if s.calls() != 0 {
 		t.Fatal("verifier ran with a lock off")
@@ -338,6 +359,13 @@ func TestSeamRefusals(t *testing.T) {
 		// calls is the expected verifier call count.
 		calls int
 	}{
+		{"event missing", AdmitReasonSeamEvent, func(t *testing.T, s *seamFixture, o *Options, in *OnboardingAdmissionInput) { o.AdmissionEvent = "" }, 0},
+		{"merge queue event", AdmitReasonSeamEvent, func(t *testing.T, s *seamFixture, o *Options, in *OnboardingAdmissionInput) { o.AdmissionEvent = "merge_group" }, 0},
+		{"push event", AdmitReasonSeamEvent, func(t *testing.T, s *seamFixture, o *Options, in *OnboardingAdmissionInput) { o.AdmissionEvent = "push" }, 0},
+		{"pull_request event (not the gate's event)", AdmitReasonSeamEvent, func(t *testing.T, s *seamFixture, o *Options, in *OnboardingAdmissionInput) { o.AdmissionEvent = "pull_request" }, 0},
+		{"schedule event", AdmitReasonSeamEvent, func(t *testing.T, s *seamFixture, o *Options, in *OnboardingAdmissionInput) { o.AdmissionEvent = "schedule" }, 0},
+		{"event with padding", AdmitReasonSeamEvent, func(t *testing.T, s *seamFixture, o *Options, in *OnboardingAdmissionInput) { o.AdmissionEvent = "pull_request_target " }, 0},
+		{"event in another case", AdmitReasonSeamEvent, func(t *testing.T, s *seamFixture, o *Options, in *OnboardingAdmissionInput) { o.AdmissionEvent = "Pull_Request_Target" }, 0},
 		{"git context missing", AdmitReasonSeamContext, func(t *testing.T, s *seamFixture, o *Options, in *OnboardingAdmissionInput) { o.OnboardingGit = nil }, 0},
 		{"merge queue run: no author", AdmitReasonSeamNoPR, func(t *testing.T, s *seamFixture, o *Options, in *OnboardingAdmissionInput) { o.Author = "" }, 0},
 		{"merge queue run: no sender", AdmitReasonSeamNoPR, func(t *testing.T, s *seamFixture, o *Options, in *OnboardingAdmissionInput) { o.Sender = "" }, 0},

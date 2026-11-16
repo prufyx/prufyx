@@ -46,6 +46,10 @@ const (
 	// AdmitReasonSeamContext: no authenticated git context (this includes a
 	// merge queue run, which has no pull request context at all).
 	AdmitReasonSeamContext = "verify-pr-git-context-missing"
+	// AdmitReasonSeamEvent: the run was not told it is a pull request run
+	// (the authenticated event name is missing, a merge queue run, or any
+	// other event).
+	AdmitReasonSeamEvent = "verify-pr-event-not-pull-request"
 	// AdmitReasonSeamNoPR: the run has no pull request author or sender.
 	AdmitReasonSeamNoPR = "verify-pr-no-pr-context"
 	// AdmitReasonSeamSlugCount: the batch does not hold exactly one project.
@@ -70,12 +74,21 @@ const (
 	AdmitReasonSeamFailed = "verify-pr-verifier-failed"
 	// AdmitReasonSeamResult: the verifier result contradicts the gate's own
 	// facts.
-	AdmitReasonSeamResult = "verify-pr-result-inconsistent"
+	AdmitReasonSeamResult = "verify-pr-verdict-inconsistent"
 	// AdmitReasonSeamSource: the result is not from the in-process source.
 	AdmitReasonSeamSource = "verify-pr-source-not-inprocess"
 	// AdmitReasonSeamRefusalEmpty: an empty refusal code was supplied.
 	AdmitReasonSeamRefusalEmpty = "verify-pr-refusal-unnamed"
 )
+
+// AdmissionEventPullRequest is the only event name the seam accepts: the
+// event the gate workflow really runs on for onboarding pull requests
+// (pull_request_target: the BASE workflow and the BASE-built binary judge the
+// proposed head). The name is passed by the BASE-controlled workflow step
+// (--admission-event, from the workflow's own event name, never from the head
+// or any proposed file). merge_group, schedule, push, workflow_dispatch and an
+// empty or unknown value are all refused.
+const AdmissionEventPullRequest = "pull_request_target"
 
 // seamTimeout bounds the whole seam: tree export, diff and the upstream
 // binding (three attempts of one minute and the backoff, with margin).
@@ -93,6 +106,10 @@ func (r *Report) admissionSeam(ctx context.Context, opts Options, in *Onboarding
 		return
 	}
 	refuse := func(code string) { in.SeamRefusals = append(in.SeamRefusals, code) }
+	if opts.AdmissionEvent != AdmissionEventPullRequest {
+		refuse(AdmitReasonSeamEvent)
+		return
+	}
 	g := opts.OnboardingGit
 	if g == nil {
 		refuse(AdmitReasonSeamContext)
@@ -196,6 +213,11 @@ func (r *Report) admissionSeam(ctx context.Context, opts Options, in *Onboarding
 	}
 }
 
+// There is deliberately no recover anywhere in the seam: a panic in the
+// verifier or the runner fails the gate step closed (no report, no admission).
+// Commit ids are 40 hex only (shaRE): the admission wire and the verifier
+// accept no other length, so a 64-hex object format is refused as stale.
+//
 // seamConsistent cross-checks a passing result against the gate's own facts.
 // The admission checker repeats the checks it owns; these keep a result that
 // contradicts the gate from ever being handed on.
@@ -224,7 +246,9 @@ func seamConsistent(res targetdraft.OnboardingVerifyResult, g *OnboardingGitCont
 	}
 	// The judged subset, derived by the gate itself from the layout and the
 	// batch's slug, never from the verifier: it must lie inside the full set
-	// and its digest must equal the verifier's.
+	// and its digest must equal the verifier's. The subset test is true by
+	// construction (the judged paths are picked from the full set); the real
+	// binding is the equality of the two judged-subset digests.
 	judged := seamJudgedPaths(ol, slugs[0], paths)
 	if len(judged) == 0 || judged[0] != targetPath(ol, slugs[0]) || !seamSubset(judged, paths) {
 		return false

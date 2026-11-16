@@ -90,21 +90,42 @@ func TestRunnerChildEnvIsFixed(t *testing.T) {
 	if res.Err != nil || res.Exit != 0 || res.TimedOut {
 		t.Fatalf("child: %+v", res)
 	}
-	var got []string
+	got := map[string]string{}
 	for _, l := range strings.Split(strings.TrimSpace(string(res.Stdout)), "\n") {
-		k, _, _ := strings.Cut(l, "=")
-		switch k {
-		case "PWD", "OLDPWD", "SHLVL", "_":
-			continue
+		k, v, ok := strings.Cut(l, "=")
+		if !ok {
+			t.Fatalf("unexpected line %q", l)
 		}
-		got = append(got, l)
+		got[k] = v
 	}
-	sort.Strings(got)
-	exp := append([]string(nil), want...)
-	exp[len(exp)-1] = "HOME=" + home
-	sort.Strings(exp)
-	if strings.Join(got, "\n") != strings.Join(exp, "\n") {
-		t.Fatalf("child env\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(exp, "\n"))
+	// Variables the shell or git itself adds, nothing else (as in the
+	// verifier's own environment test).
+	extra := map[string]bool{"PWD": true, "OLDPWD": true, "SHLVL": true, "_": true, "GIT_EXEC_PATH": true, "GIT_CONFIG_PARAMETERS": true, "GIT_PREFIX": true, "TEXTDOMAINDIR": true}
+	exp := map[string]string{}
+	for _, e := range want {
+		k, v, _ := strings.Cut(e, "=")
+		exp[k] = v
+	}
+	exp["HOME"] = home
+	for k, v := range got {
+		ev, ok := exp[k]
+		switch {
+		case !ok && extra[k]:
+		case !ok:
+			t.Fatalf("variable %q is not in the fixed environment", k)
+		case k == "PATH":
+			// git puts its exec dir in front of the PATH it was given.
+			if v != ev && !strings.HasSuffix(v, "git-core:"+ev) {
+				t.Fatalf("PATH %q", v)
+			}
+		case v != ev:
+			t.Fatalf("%s=%q want %q", k, v, ev)
+		}
+	}
+	for k := range exp {
+		if _, ok := got[k]; !ok {
+			t.Fatalf("fixed variable %s missing in the child", k)
+		}
 	}
 }
 
