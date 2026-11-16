@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "operatorMarkers": ["CHANGE", "BREAKING", "REMOVED", "DEPRECATED", "SECURITY"],
+  "operatorHeadings": ["break", "deprecat", "remov", "upgrad", "migrat", "incompatib", "action required", "notable", "important", "chang"],
+  "lexicon": [
+    "remov", "renam", "deprecat", "drop", "no longer", "break", "incompatib",
+    "must", "requir", "minimum", "at least", "unsupported", "migrat", "upgrad",
+    "downgrad", "default", "replac", "instead", "disabl", "reject", "format",
+    "schema",
+    "backward", "obsolete", "sunset", "no more", "not supported", "end of life"
+  ],
+  "components": {
+    "prometheus": {"markers": ["FEATURE", "ENHANCEMENT", "BUGFIX", "PERF"]},
+    "cortex": {"markers": ["FEATURE", "ENHANCEMENT", "BUGFIX"]},
+    "thanos": {"headings": ["Added", "Fixed"]}
+  }
+}
