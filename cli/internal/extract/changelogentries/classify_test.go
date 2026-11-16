@@ -102,7 +102,7 @@ func TestMarkerShapeNegatives(t *testing.T) {
 		"paragraph":              "Plain words in a paragraph.",
 		"fenced block":           "```\n[FEATURE] words\n```",
 		"homoglyph":              "* [FEATURE] Plain wоrds. #1",
-		"zero width":             "* [FEATURE] Plain​ words. #1",
+		"zero width":             "* [FEATURE] Plain\u200b words. #1",
 		"control char":           "* [FEATURE] Plain\x01 words. #1",
 	}
 	for name, item := range cases {
@@ -134,7 +134,7 @@ func lexiconProbes(term string) []string {
 	return []string{
 		"Plain words " + term + " more words.",
 		"Plain words " + up + " more words.",
-		"Plain words " + strings.Title(term) + " more words.", //nolint:staticcheck
+		"Plain words " + strings.ToUpper(term[:1]) + term[1:] + " more words.",
 		"Plain words " + hy + " more words.",
 		"Plain words " + strings.ReplaceAll(term, " ", "\n  ") + " more words.",
 		"Plain words `--flag." + term + "` more words.",
@@ -633,7 +633,7 @@ func TestAnnotationAndInvisibleCharacterNegatives(t *testing.T) {
 		"variation selector":        "* [FEATURE] Plain️ words.",
 		"no-break space":            "* [FEATURE] no longer works.",
 		"en dash":                   "* [FEATURE] Plain – words.",
-		"soft hyphen":               "* [FEATURE] rem­oved --old.",
+		"soft hyphen":               "* [FEATURE] rem\u00adoved --old.",
 	}
 	for name, item := range cases {
 		file := promOne(item)
