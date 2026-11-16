@@ -354,8 +354,8 @@ type onbRow struct {
 
 type onbTableFile struct {
 	Projects []onbRow `json:"projects"`
-	Reserved []struct {
-		Repository optStr `json:"repository"`
+	Reserved []*struct {
+		Repository *optStr `json:"repository"`
 	} `json:"reserved"`
 }
 
@@ -411,20 +411,30 @@ var repoHosts = map[string]string{"github": "github.com", "gitlab": "gitlab.com"
 
 // repoKey reduces every spelling of an upstream repository to the canonical
 // key host/owner/name (lower case): schemes git+https, https, http, ssh, git,
-// git+ssh, scp-like user@host:path, bare host/path, a www. prefix, a port,
-// trailing slash and .git, @ref, ?query and #fragment suffixes, and package
-// urls pkg:github|gitlab|bitbucket/owner/name[@version][?q][#subpath]. Empty
-// input is ("", true) (field absent). Anything else that is not exactly that
-// grammar is ("", false). bare allows a two-segment owner/name on github.com.
+// git+ssh, scp-like user@host:path, bare host/path, a www. prefix, a trailing
+// dot in the host, ssh.github.com, a numeric port, trailing slash and .git,
+// @ref, ?query and #fragment suffixes, and package urls
+// pkg:github|gitlab|bitbucket/owner/name[@version][?q][#subpath]. Empty input
+// is ("", true) (field absent). Everything else is ("", false): non-ASCII or
+// control bytes, percent-encoding, API/raw/gist/download alias hosts, a
+// non-numeric port after a scheme, an extra path segment on github.com or
+// bitbucket.org (tree/main, sub), more than 10 segments, unknown purl types.
+// bare allows a two-segment owner/name on github.com.
 func repoKey(v string, bare bool) (string, bool) {
 	v = strings.ToLower(strings.TrimSpace(v))
 	if v == "" {
 		return "", true
 	}
-	if strings.ContainsAny(v, " \t\r\n\\%") || strings.Contains(v, "..") {
+	for i := 0; i < len(v); i++ {
+		if c := v[i]; c <= 0x20 || c >= 0x7f || c == '\\' || c == '%' {
+			return "", false
+		}
+	}
+	if strings.Contains(v, "..") {
 		return "", false
 	}
 	var host, rest string
+	hadScheme := false
 	if after, ok := strings.CutPrefix(v, "pkg:"); ok {
 		typ, r, found := strings.Cut(after, "/")
 		h, known := repoHosts[typ]
@@ -439,7 +449,7 @@ func repoKey(v string, bare bool) (string, bool) {
 			changed = false
 			for _, p := range []string{"git+", "https://", "http://", "ssh://", "git://"} {
 				if t, ok := strings.CutPrefix(v, p); ok {
-					v, changed = t, true
+					v, changed, hadScheme = t, true, true
 				}
 			}
 		}
@@ -453,8 +463,13 @@ func repoKey(v string, bare bool) (string, bool) {
 		if i := strings.IndexByte(v, ':'); i >= 0 && !strings.Contains(v[:i], "/") {
 			tail := v[i+1:]
 			port, after, hasSlash := strings.Cut(tail, "/")
-			if hasSlash && port != "" && strings.Trim(port, "0123456789") == "" {
+			numeric := port != "" && strings.Trim(port, "0123456789") == ""
+			switch {
+			case hasSlash && numeric:
 				tail = after
+			case hadScheme:
+				// A scheme url has a numeric port or none.
+				return "", false
 			}
 			v = v[:i] + "/" + strings.TrimPrefix(tail, "/")
 		}
@@ -462,15 +477,19 @@ func repoKey(v string, bare bool) (string, bool) {
 		if bare && len(segs) == 2 {
 			host, rest = "github.com", v
 		} else {
-			host = strings.TrimPrefix(segs[0], "www.")
+			host = segs[0]
 			rest = strings.Join(segs[1:], "/")
-			if !strings.Contains(host, ".") {
-				return "", false
-			}
 		}
 	}
+	host = strings.TrimPrefix(strings.TrimRight(host, "."), "www.")
+	if host == "ssh.github.com" {
+		host = "github.com"
+	}
+	if !repoHostOK(host) {
+		return "", false
+	}
 	segs := strings.Split(strings.Trim(rest, "/"), "/")
-	if len(segs) < 2 {
+	if len(segs) < 2 || len(segs) > 10 || (len(segs) != 2 && (host == "github.com" || host == "bitbucket.org")) {
 		return "", false
 	}
 	// @ref / @version on the last segment, then .git, repeatedly.
@@ -481,11 +500,31 @@ func repoKey(v string, bare bool) (string, bool) {
 	}
 	segs[len(segs)-1] = last
 	for _, sg := range segs {
-		if sg == "" || sg == "." || strings.ContainsAny(sg, ":@") {
+		if sg == "" || sg == "." || strings.Trim(sg, "abcdefghijklmnopqrstuvwxyz0123456789._-") != "" {
 			return "", false
 		}
 	}
 	return host + "/" + strings.Join(segs, "/"), true
+}
+
+// repoHostOK accepts a plain dotted host name, and for the three known forges
+// only the forge's own host (no api., raw., gist., codeload., objects. or
+// *.githubusercontent.com alias, no punycode label).
+func repoHostOK(host string) bool {
+	if host == "" || !strings.Contains(host, ".") || strings.Trim(host, "abcdefghijklmnopqrstuvwxyz0123456789.-") != "" {
+		return false
+	}
+	for _, label := range strings.Split(host, ".") {
+		if label == "" || strings.HasPrefix(label, "xn--") || strings.HasPrefix(label, "-") || strings.HasSuffix(label, "-") {
+			return false
+		}
+	}
+	for _, forge := range []string{"github.com", "gitlab.com", "bitbucket.org", "githubusercontent.com"} {
+		if host != forge && strings.HasSuffix(host, "."+forge) {
+			return false
+		}
+	}
+	return host != "githubusercontent.com"
 }
 
 type onbTargetDoc struct {
@@ -820,7 +859,12 @@ func checkBaseAbsence(run *onbRun, base, head *treeView, tablePath string, slugs
 			}
 		}
 		for _, r := range doc.Reserved {
-			bf.addRepo(string(r.Repository), true)
+			// A reserved entry without a repository (or null) is never skipped.
+			if r == nil || r.Repository == nil || strings.TrimSpace(string(*r.Repository)) == "" {
+				bf.bad = append(bf.bad, "reserved entry without a repository")
+				continue
+			}
+			bf.addRepo(string(*r.Repository), true)
 		}
 	}
 	var baseTargetProjects []string

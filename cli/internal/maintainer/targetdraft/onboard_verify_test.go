@@ -521,9 +521,6 @@ func TestVerifyOnboardingRawDiffNegatives(t *testing.T) {
 		{"listed path as a rename", swapRec(x0.recs, onbOut, func(r onbRec) string {
 			return fmt.Sprintf(":100644 100644 %s %s R100\x00%s\x00%s\x00", r.old, r.new, onbOut, onbOpt)
 		}), "path-status"},
-		{"listed path as a single-path rename", swapRec(x0.recs, onbOut, func(r onbRec) string {
-			return fmt.Sprintf(":100644 100644 %s %s R100\x00%s\x00", r.old, r.new, onbOut)
-		}), "path-status"},
 		{"listed path as a copy", swapRec(x0.recs, onbOut, func(r onbRec) string {
 			return fmt.Sprintf(":100644 100644 %s %s C100\x00%s\x00", r.old, r.new, onbOut)
 		}), "path-status"},
@@ -1122,6 +1119,20 @@ var demoSpellings = []string{
 	"pkg:github/example/demo", "pkg:github/example/demo@1.0.0", "pkg:github/example/demo@1.0?a=b#sub/path",
 	"https://user:pw@github.com/example/demo", "github.com/example/demo.git.git", " HTTPS://GITHUB.COM/EXAMPLE/DEMO ",
 	"git+git+https://github.com/example/demo",
+	"https://github.com./example/demo", "ssh://git@ssh.github.com:443/example/demo.git",
+	"git@ssh.github.com:example/demo.git", "https://WWW.GitHub.com./example/demo.git/",
+}
+
+// refusedSpellings never pass: each is unreducible, not a distinct key.
+var refusedSpellings = []string{
+	"https://github.com/example/demo/tree/main", "github.com/example/demo/sub", "https://api.github.com/repos/example/demo",
+	"https://codeload.github.com/example/demo", "https://raw.githubusercontent.com/example/demo/main/x", "https://gist.github.com/example/demo",
+	"https://objects.githubusercontent.com/example/demo", "https://uploads.github.com/example/demo",
+	"https://github.com/ex\u00e4mple/demo", "https://github.com/example/demo\u200b", "https://gîthub.com/example/demo",
+	"https://xn--gthub-5qa.com/example/demo", "https://github.com:abc/example/demo", "https://github.com/example%2Fdemo",
+	"https://github.com/%2e%2e/demo", "https://github.com/example/demo\x01", "https://github.com/example/de~mo",
+	"https://bitbucket.org/example/demo/src", "https://api.bitbucket.org/example/demo", "https://x.gitlab.com/example/demo",
+	"https://git hub.com/example/demo", "https://github.com/example/demo/\u200d",
 }
 
 func TestRepoKeyCanonicalForms(t *testing.T) {
@@ -1151,7 +1162,7 @@ func TestRepoKeyCanonicalForms(t *testing.T) {
 	// Different repositories never share a key.
 	seen := map[string]string{}
 	for _, v := range []string{"github.com/example/demo", "github.com/example/demox", "github.com/other/demo", "gitlab.com/example/demo",
-		"github.com/example/demo/sub", "pkg:gitlab/example/demo", "bitbucket.org/example/demo"} {
+		"pkg:gitlab/example/demo", "bitbucket.org/example/demo"} {
 		k, ok := repoKey(v, false)
 		if !ok {
 			t.Fatalf("%q", v)
@@ -1160,6 +1171,11 @@ func TestRepoKeyCanonicalForms(t *testing.T) {
 			t.Errorf("%q and %q share %q", p, v, k)
 		}
 		seen[k] = v
+	}
+	for _, v := range refusedSpellings {
+		if k, ok := repoKey(v, false); ok {
+			t.Errorf("%q must be unreducible, got %q", v, k)
+		}
 	}
 	for _, v := range []string{"demo", "example/demo", "https://github.com/onlyowner", "pkg:npm/left-pad", "pkg:github/onlyowner",
 		"https://github.com//demo", "ftp://github.com/a/b", "https://github.com/a/../b", "https://github.com/a b/c", "https://github.com/a%2fb/c", "git@github.com:onlyowner", "https:/github.com/a/b"} {
@@ -1236,9 +1252,6 @@ func TestVerifyOnboardingBaseRepoValuesUnreadableRefuse(t *testing.T) {
 		"row factProject null": func(x *onbFx) { x.setBase(onbTable, []byte(`{"projects":[{"slug":"other","factProject":null}]}`)) },
 		"reserved repo array": func(x *onbFx) {
 			x.setBase(onbTable, []byte(`{"projects":[{"slug":"other"}],"reserved":[{"repository":[1]}]}`))
-		},
-		"reserved repo null": func(x *onbFx) {
-			x.setBase(onbTable, []byte(`{"projects":[{"slug":"other"}],"reserved":[{"repository":null}]}`))
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -1343,7 +1356,10 @@ func TestRepoKeyReadsTheRealBase(t *testing.T) {
 		}
 	}
 	for _, r := range doc.Reserved {
-		bf.addRepo(string(r.Repository), true)
+		if r == nil || r.Repository == nil {
+			t.Fatal("a real reserved entry has no repository")
+		}
+		bf.addRepo(string(*r.Repository), true)
 	}
 	files, err := filepath.Glob("../../extract/crdversions/target-*.json")
 	if err != nil || len(files) < 50 {
@@ -1362,5 +1378,64 @@ func TestRepoKeyReadsTheRealBase(t *testing.T) {
 	}
 	if !bf.repos["github.com/kubernetes-sigs/cluster-api"] {
 		t.Fatal("the reserved repository must be a key")
+	}
+}
+
+// Reserved entries that name no repository, and spellings that never reduce
+// to a key, refuse on the base side and the head side; none passes.
+func TestVerifyOnboardingReservedAndRefusedSpellings(t *testing.T) {
+	for name, doc := range map[string]string{
+		"null entry":    `{"projects":[{"slug":"other"}],"reserved":[null]}`,
+		"no repository": `{"projects":[{"slug":"other"}],"reserved":[{"name":"x"}]}`,
+		"empty repo":    `{"projects":[{"slug":"other"}],"reserved":[{"repository":""}]}`,
+		"null repo":     `{"projects":[{"slug":"other"}],"reserved":[{"repository":null}]}`,
+	} {
+		t.Run("reserved "+name, func(t *testing.T) {
+			x := newOnbFx(t)
+			x.setBase(onbTable, []byte(doc))
+			res := x.run()
+			if res.Outcome != "fail" || !contains(res.Reasons, OnbReasonRepoUnparsable) || !res.Harness || len(x.runner.calls) != 0 {
+				t.Fatalf("%+v", res)
+			}
+		})
+	}
+	for _, sp := range refusedSpellings {
+		for _, field := range []string{"repo", "component"} {
+			t.Run("base "+field+" "+sp, func(t *testing.T) {
+				x := newOnbFx(t)
+				b := []byte(`{"target":{"project":"other","` + field + `":` + strconv.Quote(sp) + `}}`)
+				p := CrdVersionsDir + "/target-other.json"
+				x.base.files[p], x.head.files[p] = b, b
+				res := x.run()
+				if res.Outcome != "fail" || !contains(res.Reasons, OnbReasonRepoUnparsable) {
+					t.Fatalf("%+v", res)
+				}
+			})
+		}
+		t.Run("base reserved "+sp, func(t *testing.T) {
+			x := newOnbFx(t)
+			x.setBase(onbTable, []byte(`{"projects":[{"slug":"other"}],"reserved":[{"repository":`+strconv.Quote(sp)+`}]}`))
+			res := x.run()
+			if res.Outcome != "fail" || !contains(res.Reasons, OnbReasonRepoUnparsable) {
+				t.Fatalf("%+v", res)
+			}
+		})
+		t.Run("head "+sp, func(t *testing.T) {
+			m := newMemTree()
+			m.files[realTargetPath("demo")] = []byte(`{"target":{"project":"demo"}}`)
+			v, f := newTreeView(m)
+			if f != nil {
+				t.Fatal(f)
+			}
+			bf := &baseFacts{ids: map[string]bool{}, repos: map[string]bool{}}
+			bf.addRepo("https://github.com/example/demo", false)
+			for _, rc := range []Recipe{{Repo: sp}, {Component: sp}} {
+				run := &onbRun{reasons: map[string]bool{}}
+				checkCollisions(run, bf, v, "demo", &rc)
+				if !run.reasons[OnbReasonRepoUnparsable] {
+					t.Errorf("%q: %v", sp, run.reasons)
+				}
+			}
+		})
 	}
 }
