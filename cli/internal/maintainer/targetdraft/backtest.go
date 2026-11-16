@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -74,6 +75,9 @@ type btEntry struct {
 	Escalate bool `json:"escalate,omitempty"`
 	// SkipPatchFragments: the generator flag --skip-patch-fragments. Default off.
 	SkipPatchFragments bool `json:"skipPatchFragments,omitempty"`
+	// WindowGrowOnly: the generator flag --window-grow-only (needs
+	// collapseDirectories). Default off.
+	WindowGrowOnly bool `json:"windowGrowOnly,omitempty"`
 }
 
 // escalateStops lists the plain-run stop codes that make an escalate entry run
@@ -108,6 +112,12 @@ type BacktestResult struct {
 	// stop code of the plain run.
 	Escalated *bool  `json:"escalated,omitempty"`
 	PlainStop string `json:"plainStop,omitempty"`
+	// GeneratedMinFrom, FirstWithheld and WithheldReason are set only for a
+	// differs result of a generated draft: the minFrom the generator wrote and
+	// the newest withheld tag with its reason (empty when none was withheld).
+	GeneratedMinFrom string `json:"generatedMinFrom,omitempty"`
+	FirstWithheld    string `json:"firstWithheld,omitempty"`
+	WithheldReason   string `json:"withheldReason,omitempty"`
 }
 
 // SeedResult is the record of one wrong-target seed. Outcome "failed" is the
@@ -484,7 +494,7 @@ func runOnce(e btEntry, base, mirrors string, open func(string) Source) btRun {
 	gen, err := generate(Input{Slug: e.Slug, Name: e.Name, Repo: e.Repo, Component: e.Component, FactProject: e.FactProject,
 		Catalog: e.Catalog, Tags: e.Tags, Source: open(mdir), Rules: rules, MultiPrefix: e.MultiPrefix,
 		CollapseDirectories: e.CollapseDirectories, DeriveDuplicates: e.DeriveDuplicateSources,
-		InferInstallPaths: e.InferInstallPaths, CheckInstallPathCopies: e.CheckInstallPathCopies, SkipPatchFragments: e.SkipPatchFragments})
+		InferInstallPaths: e.InferInstallPaths, CheckInstallPathCopies: e.CheckInstallPathCopies, SkipPatchFragments: e.SkipPatchFragments, WindowGrowOnly: e.WindowGrowOnly})
 	if err != nil {
 		var se *StopError
 		if !errors.As(err, &se) {
@@ -525,6 +535,10 @@ func runOnce(e btEntry, base, mirrors string, open func(string) Source) btRun {
 		r.res.Class = ClassReproduced
 	default:
 		r.res.Class, r.res.Fields = ClassDiffers, diffFields(diffs)
+		r.res.GeneratedMinFrom = gen.Report.MinFrom
+		if gen.FirstWithheld != nil {
+			r.res.FirstWithheld, r.res.WithheldReason = gen.FirstWithheld.Tag, gen.FirstWithheld.Reason
+		}
 		r.res.Cause = CauseInference
 		if onlyWindow(r.res.Fields) {
 			r.res.Cause = CauseWindow
@@ -734,6 +748,12 @@ func runBacktest(args []string, stdout, stderr io.Writer, open func(string) Sour
 		}
 		if r.Escalated != nil && *r.Escalated {
 			line += " escalated=true plainStop=" + r.PlainStop
+		}
+		if r.GeneratedMinFrom != "" {
+			line += " generatedMinFrom=" + r.GeneratedMinFrom
+			if r.FirstWithheld != "" {
+				line += " firstWithheld=" + r.FirstWithheld + " withheldReason=" + strconv.Quote(r.WithheldReason)
+			}
 		}
 		fmt.Fprintln(stdout, line)
 	}

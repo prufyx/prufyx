@@ -260,6 +260,18 @@ type Report struct {
 	// representation of the same file set.
 	Representation string          `json:"representation,omitempty"`
 	Directories    []DirectoryFact `json:"directories,omitempty"`
+	// WindowGrown lists the older window tags that read fewer install files
+	// than the newest tag (--window-grow-only), with the files added by a
+	// later release. Present only with that option and a grown tag.
+	WindowGrown []GrownTag `json:"windowGrown,omitempty"`
+}
+
+// GrownTag is an older window tag that only lacks install files a later
+// release added.
+type GrownTag struct {
+	Tag    string   `json:"tag"`
+	Reason string   `json:"reason"`
+	Added  []string `json:"added"`
 }
 
 // PatchFragmentFact is the patch fragments set aside at one window tag.

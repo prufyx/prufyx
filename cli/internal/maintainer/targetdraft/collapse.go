@@ -87,6 +87,13 @@ func collapseDirs(tags []collapseTag) ([]collapsedDir, []Stop) {
 // collapseDirsDropping is collapseDirs with the exact files the duplicate
 // derivation dropped: a candidate directory that contains one is refused.
 func collapseDirsDropping(tags []collapseTag, dropped []string) ([]collapsedDir, []Stop) {
+	return collapseDirsWith(tags, dropped, false)
+}
+
+// collapseDirsWith is the shared body. With grow, the file set of a directory
+// at an older tag may be a subset of the newest tag's (see windowgrow.go);
+// otherwise it must be equal.
+func collapseDirsWith(tags []collapseTag, dropped []string, grow bool) ([]collapsedDir, []Stop) {
 	if len(tags) == 0 {
 		return nil, []Stop{stop(StopDirUnsupported, "", "no window tags")}
 	}
@@ -116,6 +123,7 @@ func collapseDirsDropping(tags []collapseTag, dropped []string) ([]collapsedDir,
 	sort.Strings(dirs)
 
 	var out []collapsedDir
+	perDir := make([][]collapsedDir, len(tags))
 	for _, d := range dirs {
 		// A dropped duplicate copy inside a candidate directory forbids the
 		// collapse: the directory entry would read it again. Checked against
@@ -148,17 +156,27 @@ func collapseDirsDropping(tags []collapseTag, dropped []string) ([]collapsedDir,
 		}
 		ref := perTag[len(tags)-1]
 		for k, t := range tags {
+			if grow && subsetStrings(perTag[k], ref) {
+				continue
+			}
 			if !equalStrings(perTag[k], ref) {
 				stops = append(stops, stop(StopDirSetDiffers, d, fmt.Sprintf("%s reads [%s], %s reads [%s]", t.Tag, strings.Join(perTag[k], ","), newest.Tag, strings.Join(ref, ","))))
 			}
 		}
 		out = append(out, collapsedDir{Dir: d, Files: ref})
+		for k := range tags {
+			perDir[k] = append(perDir[k], collapsedDir{Dir: d, Files: perTag[k]})
+		}
 	}
 	// Every tag must include exactly the files of the directories, nothing
 	// elsewhere.
-	for _, t := range tags {
+	for k, t := range tags {
 		want := map[string]bool{}
-		for _, d := range out {
+		read := out
+		if grow {
+			read = perDir[k]
+		}
+		for _, d := range read {
 			for _, n := range d.Files {
 				want[path.Join(d.Dir, n)] = true
 			}

@@ -136,7 +136,7 @@ func TestBacktestClasses(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d: %s %s", code, so, se)
 	}
-	for _, want := range []string{"beta differs cause=window fields=minFrom\n", "gap differs cause=format-gap fields=paths.directory,paths.guard,paths.match\n",
+	for _, want := range []string{"beta differs cause=window fields=minFrom generatedMinFrom=", "gap differs cause=format-gap fields=paths.directory,paths.guard,paths.match\n",
 		"nothing typed-stop stops=no-crd-source\n", "lost typed-stop stops=mirror-missing\n", "strict=1/5 reachable=1/4", "stops=2 differs=2 errors=0"} {
 		if !strings.Contains(so, want) {
 			t.Errorf("missing %q in\n%s", want, so)

@@ -19,6 +19,8 @@ import (
 type crd struct {
 	Group    string
 	Kind     string
+	Plural   string   // spec.names.plural
+	Scope    string   // spec.scope
 	Versions []string // "name:served:storage"
 	// SpecDigest is the digest of the full decoded definition (apiVersion
 	// and every field of spec) in a canonical structural encoding; empty when
@@ -111,8 +113,10 @@ func resolve(t Tree, isLink map[string]bool, p string) (string, error) {
 type specBody struct {
 	Group string `yaml:"group"`
 	Names struct {
-		Kind string `yaml:"kind"`
+		Kind   string `yaml:"kind"`
+		Plural string `yaml:"plural"`
 	} `yaml:"names"`
+	Scope    string `yaml:"scope"`
 	Versions []struct {
 		Name    string `yaml:"name"`
 		Served  bool   `yaml:"served"`
@@ -178,7 +182,7 @@ func parseCRDs(data []byte) ([]crd, error) {
 		if len(spec.Versions) == 0 {
 			return nil, errors.New("definition without spec.versions")
 		}
-		c := crd{Group: spec.Group, Kind: spec.Names.Kind}
+		c := crd{Group: spec.Group, Kind: spec.Names.Kind, Plural: spec.Names.Plural, Scope: spec.Scope}
 		if doc.Spec.rawOK {
 			c.SpecDigest, c.SpecParts = specDigest(doc.APIVersion, doc.Spec.raw)
 		}

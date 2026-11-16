@@ -56,6 +56,17 @@ result only. When at least one entry escalated, the per-entry line gains
 ` escalated=true plainStop=CODE` and the summary line gains ` escalated=N` after
 `digest=`; `backtest.json` gains `escalated` only when N is above 0.
 
+`windowGrowOnly` (`--window-grow-only`, default off, needs `collapseDirectories`;
+otherwise the typed stop `bad-input`) keeps an older tag in the window when it
+only lacks install files a later release added: every file it installs must be
+installed by the next newer tag with the same CRD identities (group, kind,
+plural, scope, version list), the added files are no links, lie in a directory
+the older tag also installs files in and define identities the older tag does
+not carry. Anything else is the existing withhold. Grown tags are listed in
+`windowGrown` of `report.json`. A `differs` result of a generated draft also
+prints `generatedMinFrom=`, and, when an older tag was withheld,
+`firstWithheld=` and `withheldReason=` (also in `backtest.json`).
+
 `skipPatchFragments` (`--skip-patch-fragments`, default off) sets aside
 kustomize patch fragments as non-install, non-definition files. A fragment is
 only a file whose own content has the extractor's patch-fragment shape (strictly

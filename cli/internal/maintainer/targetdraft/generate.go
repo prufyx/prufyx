@@ -81,6 +81,11 @@ type Input struct {
 	// It never changes the ranking and never hides a definition; anything
 	// ambiguous stays unreadable-shape.
 	SkipPatchFragments bool
+	// WindowGrowOnly is the explicit opt-in (default off, needs
+	// CollapseDirectories) that lets an older tag stay in the window when it
+	// only lacks install files a later release added, under the grow-only
+	// rule of windowgrow.go. Anything else stays the existing withhold.
+	WindowGrowOnly bool
 }
 
 // Result is the successful output of a run.
@@ -93,6 +98,9 @@ type Result struct {
 	// DroppedCopies are the exact files the duplicate derivation dropped
 	// (sorted); nil unless it ran. For the directory-collapse check.
 	DroppedCopies []string
+	// FirstWithheld is the newest withheld tag with its reason; nil when no
+	// older tag was withheld. Not part of any written file.
+	FirstWithheld *DroppedTag
 }
 
 var (
@@ -161,6 +169,9 @@ func generateWithWindow(in Input, full *FullWindowSelector) (*Result, error) {
 		}
 	}
 
+	if in.WindowGrowOnly && (!in.CollapseDirectories || full != nil) {
+		return nil, &StopError{Stops: []Stop{stop(StopBadInput, "window-grow-only", "the option needs collapse-directories and applies to no other mode; it is never applied alone")}}
+	}
 	var tags []parsedTag
 	var prefix string
 	var prefixes []string // set only with MultiPrefix: newest tag's prefix first
@@ -309,16 +320,44 @@ func generateWithWindow(in Input, full *FullWindowSelector) (*Result, error) {
 	// included files with no stop; older tags are withheld and reported.
 	first := len(results) - 1
 	var dropped []DroppedTag
+	var grown []GrownTag
 	for i := len(results) - 2; i >= 0; i-- {
 		why := differs(results[i], newest)
+		var added []string
+		growWhy := ""
+		if in.WindowGrowOnly {
+			// Grow-only: judged against the next newer tag of the window, so
+			// the install set is monotone toward the newest tag. A tag that
+			// reads exactly the newest set passes this too, unchanged.
+			var stopped bool
+			growWhy, stopped, added = growStep(results[i], results[i+1], rules)
+			if growWhy == "" {
+				why = ""
+			} else {
+				why = growWhy
+				if stopped {
+					growWhy = ""
+				}
+			}
+		}
 		if why != "" {
 			for j := i; j >= 0; j-- {
-				dropped = append(dropped, DroppedTag{Tag: results[j].tag, Reason: reasonFor(results[j], newest, j == i)})
+				reason := reasonFor(results[j], newest, j == i)
+				if j == i && growWhy != "" {
+					reason = growWhy
+				} else if j != i && in.WindowGrowOnly {
+					reason = "older than the first withheld tag"
+				}
+				dropped = append(dropped, DroppedTag{Tag: results[j].tag, Reason: reason})
 			}
 			break
 		}
+		if len(added) > 0 {
+			grown = append(grown, GrownTag{Tag: results[i].tag, Reason: growReason(added), Added: added})
+		}
 		first = i
 	}
+	sort.Slice(grown, func(i, j int) bool { return grown[i].Tag < grown[j].Tag })
 	sort.Slice(dropped, func(i, j int) bool { return dropped[i].Tag < dropped[j].Tag })
 	window := results[first:]
 	if len(window) < 2 {
@@ -388,7 +427,11 @@ func generateWithWindow(in Input, full *FullWindowSelector) (*Result, error) {
 		if derived != nil {
 			droppedCopies = derived.Dropped
 		}
-		dirs, dstops = collapseDirsDropping(collapseInput(window), droppedCopies)
+		if len(grown) > 0 {
+			dirs, dstops = collapseDirsGrow(collapseInput(window), droppedCopies)
+		} else {
+			dirs, dstops = collapseDirsDropping(collapseInput(window), droppedCopies)
+		}
 		if len(dstops) == 0 && len(dirs) == 0 {
 			dstops = []Stop{stop(StopDirUnsupported, "", "no directory to collapse")}
 		}
@@ -403,6 +446,23 @@ func generateWithWindow(in Input, full *FullWindowSelector) (*Result, error) {
 	if derived != nil {
 		annotateDerived(res, derived, window)
 		res.DroppedCopies = append([]string(nil), derived.Dropped...)
+	}
+	if len(grown) > 0 {
+		res.Report.WindowGrown = grown
+		for k := range res.Report.Decisions {
+			if res.Report.Decisions[k].Rule == RuleCollapseDirectory {
+				res.Report.Decisions[k].Detail += " (newest tag; older tags read a subset, see windowGrown)"
+			}
+		}
+	}
+	if len(dropped) > 0 {
+		for k := range dropped {
+			if dropped[k].Reason != "older than the first withheld tag" {
+				d := dropped[k]
+				res.FirstWithheld = &d
+				break
+			}
+		}
 	}
 	annotateOptional(res, rules, window)
 	annotateRanges(res, rules, window, checked)
