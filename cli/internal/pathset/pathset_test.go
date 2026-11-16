@@ -9,6 +9,7 @@ import (
 	"go/token"
 	"os"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -57,10 +58,10 @@ func TestVectors(t *testing.T) {
 	t.Parallel()
 	valid, invalid := 0, 0
 	for _, v := range loadVectors(t) {
-		in := append([]string(nil), v.Paths...)
+		in := append([]string{}, v.Paths...)
 		got, err := Digest(v.Paths)
 		verr := Valid(v.Paths)
-		if !reflect.DeepEqual(in, v.Paths) {
+		if !slices.Equal(in, v.Paths) {
 			t.Fatalf("%s: input modified", v.Name)
 		}
 		if v.Error != "" {
