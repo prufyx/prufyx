@@ -433,8 +433,8 @@ func TestGrowOnlyDeterministicOver50Runs(t *testing.T) {
 		}
 		if n == 0 {
 			firstA, firstRep, firstReason = res.A, rep, res.FirstWithheld.Reason
-			if !strings.Contains(firstReason, "x00.yaml") {
-				t.Fatalf("reason must name the first path in sorted order: %q", firstReason)
+			if !strings.Contains(firstReason, "k05.yaml") {
+				t.Fatalf("reason must name the first path in sorted order (k05 before x00): %q", firstReason)
 			}
 			continue
 		}
@@ -455,9 +455,18 @@ func TestBacktestWindowGrowOnlyIsDeterministic(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "expected-g.json"), off.A, 0o644); err != nil {
 		t.Fatal(err)
 	}
+	// A second, reproduced entry carries the required wrong-target seed.
+	in2 := growInput(manyFilesSource(), false)
+	in2.Slug, in2.Name, in2.Repo = "demo2", "Demo2", "github.com/example/demo2"
+	rep2 := mustGenerate(t, in2)
+	if err := os.WriteFile(filepath.Join(dir, "expected-g2.json"), rep2.A, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	e2 := map[string]any{"slug": "demo2", "name": "Demo2", "repo": "github.com/example/demo2", "catalog": "cncf", "tags": collapseTags,
+		"mirror": "g", "expected": "expected-g2.json", "half": "A", "collapseDirectories": true}
 	e := map[string]any{"slug": "demo", "name": "Demo", "repo": "github.com/example/demo", "catalog": "cncf", "tags": collapseTags,
 		"mirror": "g", "expected": "expected-g.json", "half": "A", "collapseDirectories": true, "windowGrowOnly": true}
-	raw, _ := json.Marshal(map[string]any{"schema": BacktestSchema, "count": 1, "entries": []any{e}, "seeds": []any{}})
+	raw, _ := json.Marshal(map[string]any{"schema": BacktestSchema, "count": 2, "entries": []any{e, e2}, "seeds": []any{map[string]any{"entry": "demo2", "kind": "min-from"}}})
 	mf := filepath.Join(dir, "manifest.json")
 	if err := os.WriteFile(mf, raw, 0o644); err != nil {
 		t.Fatal(err)
