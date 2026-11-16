@@ -24,7 +24,7 @@ const clockMargin = ContentLifetime + 9*24*time.Hour
 // as the evidence validity approaches.
 func testNow(t *testing.T) time.Time {
 	t.Helper()
-	d, err := ComputeDigests(Options{Revision: "91", Profile: ProfileCNCFProjects})
+	d, err := ComputeDigests(Options{Revision: "91", Profile: ProfileCNCFProjects, FirstRelease: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +38,7 @@ func testNow(t *testing.T) time.Time {
 // TestFixedClockLeavesTheEvidenceCapUnbound fails when a fixture edit would
 // make the evidence expiry bind the 21 day default unnoticed.
 func TestFixedClockLeavesTheEvidenceCapUnbound(t *testing.T) {
-	d, err := ComputeDigests(Options{Revision: "91", Profile: ProfileCNCFProjects})
+	d, err := ComputeDigests(Options{Revision: "91", Profile: ProfileCNCFProjects, FirstRelease: true})
 	if err != nil {
 		t.Fatal(err)
 	}
