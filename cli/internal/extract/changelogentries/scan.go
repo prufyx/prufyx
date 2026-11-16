@@ -37,6 +37,9 @@ type scanned struct {
 	items    []rawItem
 	// openFence is the line of a fence still open at end of file, 0 if none.
 	openFence int
+	// containerFence is the first line that opens a fence inside a list item or
+	// block quote, 0 if none.
+	containerFence int
 }
 
 var (
@@ -49,8 +52,8 @@ var (
 	// look like a link (absolute http(s) URL, or a path or fragment), so a
 	// prose line such as "[BREAKING]: removed" is never taken for one. The
 	// label starts with a non-blank character other than ^ (a footnote is not
-	// a definition) and a bare destination holds no parenthesis.
-	linkDefRE   = regexp.MustCompile(`^ {0,3}\[[^\s^\[\]\\][^\[\]\\]*\]:[ \t]*(?:<(?:https?://|/|\./|\.\./|#)[^<>\s]*>|(?:https?://|/|\./|\.\./|#)[^\s()]*)(?:[ \t]+(?:"[^"]*"|'[^']*'|\([^()]*\)))?[ \t]*$`)
+	// a definition) and a bare destination holds no parenthesis or angle bracket.
+	linkDefRE   = regexp.MustCompile(`^ {0,3}\[[^\s^\[\]\\][^\[\]\\]*\]:[ \t]*(?:<(?:https?://|/|\./|\.\./|#)[^<>\s]*>|(?:https?://|/|\./|\.\./|#)[^\s()<>]*)(?:[ \t]+(?:"[^"]*"|'[^']*'|\([^()]*\)))?[ \t]*$`)
 	underlineRE = regexp.MustCompile(`^ {0,3}(={2,}|-{2,})[ \t]*$`)
 	fenceRE     = regexp.MustCompile("^[ \t]*(`{3,}|~{3,})(.*)$")
 	markerRE    = regexp.MustCompile(`^(?:[*+-]|[0-9]{1,9}[.)])[ \t]+\[([A-Z][A-Z0-9 _-]{0,30})\](?:[^(\[]|$)`)
@@ -88,7 +91,32 @@ func splitLines(raw []byte) ([]string, error) {
 	return strings.Split(s, "\n"), nil
 }
 
-func isBlank(l string) bool { return strings.TrimSpace(l) == "" }
+// isBlank is CommonMark blank: only ASCII spaces and tabs. A line of other
+// Unicode white space (a no-break space, say) is text.
+func isBlank(l string) bool { return strings.Trim(l, " \t") == "" }
+
+var containerPrefixRE = regexp.MustCompile(`^(?:(?:[*+-]|[0-9]{1,9}[.)])(?:[ \t]+|$)|>[ \t]*)`)
+
+// containerFence reports whether l opens a fence inside a list item or a
+// block quote ("* ~~~", "1. ```", "> ~~~", "- * ~~~"). Such a fence is not
+// tracked, so the shape is refused instead of read.
+func containerFence(l string) bool {
+	t := strings.TrimLeft(l, " \t")
+	stripped := false
+	for {
+		m := containerPrefixRE.FindString(t)
+		if m == "" {
+			break
+		}
+		stripped = true
+		t = t[len(m):]
+	}
+	if !stripped {
+		return false
+	}
+	_, _, ok := fenceOpen(t)
+	return ok
+}
 
 func atxHeading(l string) (level int, text string, ok bool) {
 	m := atxRE.FindStringSubmatch(l)
@@ -134,7 +162,7 @@ func fenceCloses(l string, ch byte, n, openIndent int) bool {
 	if indentWidth(l) > openIndent+3 {
 		return false
 	}
-	t := strings.TrimSpace(l)
+	t := strings.Trim(l, " \t") // only ASCII space and tab, never other Unicode white space
 	if len(t) < n {
 		return false
 	}
@@ -206,6 +234,9 @@ func scan(lines []string) scanned {
 			continue
 		}
 		indented := l[0] == ' ' || l[0] == '\t'
+		if sc.containerFence == 0 && containerFence(l) {
+			sc.containerFence = n
+		}
 		if hrRE.MatchString(l) {
 			sc.kind[i] = kResidue
 			closeItem()

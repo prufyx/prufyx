@@ -165,6 +165,9 @@ func FuzzLocate(f *testing.F) {
 	f.Add([]byte(shapeBlankLabel))
 	f.Add([]byte(shapeFootnote))
 	f.Add([]byte(shapeDeepClose))
+	for _, s := range []string{shapeListFence, shapeListFenceNested, shapeQuoteFence, shapeNBSPClose, shapeBareAngle} {
+		f.Add([]byte(s))
+	}
 	f.Add([]byte("## 3.5.0 / 2025-07-14\n\n### Notes\n  ```\n  code\n"))
 	f.Fuzz(func(t *testing.T, data []byte) { checkNoPanic(t, data) })
 }
@@ -239,9 +242,14 @@ func TestOneCharUnderlineIsOverInclusive(t *testing.T) {
 }
 
 const (
-	shapeBlankLabel = "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x. #1\n\n[ ]: https://x.test \"the flag --foo was removed\"\n"
-	shapeFootnote   = "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x. #1\n\n[^1]: #1234 \"the flag --foo was removed\"\n"
-	shapeDeepClose  = "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x. #1\n\n```\n    ```\n## 3.4.0 / 2025-05-17\n* [CHANGE] flag --x removed\n```\n\n* [BUGFIX] tail. #9\n"
+	shapeBlankLabel      = "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x. #1\n\n[ ]: https://x.test \"the flag --foo was removed\"\n"
+	shapeFootnote        = "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x. #1\n\n[^1]: #1234 \"the flag --foo was removed\"\n"
+	shapeListFence       = "## 3.5.0 / 2025-07-14\n\n* ~~~\n  ## 3.4.0 / 2025-05-17\n  * [CHANGE] flag --x removed\n  ~~~\n\n* [BUGFIX] tail. #9\n"
+	shapeListFenceNested = "## 3.5.0 / 2025-07-14\n\n1. [FEATURE] x\n  - ```\n  ## 3.4.0 / 2025-05-17\n  ```\n* [BUGFIX] tail. #9\n"
+	shapeQuoteFence      = "## 3.5.0 / 2025-07-14\n\n> ~~~\n  ## 3.4.0 / 2025-05-17\n> ~~~\n* [BUGFIX] tail. #9\n"
+	shapeNBSPClose       = "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x\n\n  ~~~\n  code\n  ~~~\u00a0\n## 3.4.0 / 2025-05-17\n  * [CHANGE] flag --x removed\n  ~~~\n\n* [BUGFIX] tail. #9\n"
+	shapeBareAngle       = "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x. #1\n\n[r]: https://x/<bad> \"removed --foo\"\n"
+	shapeDeepClose       = "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x. #1\n\n```\n    ```\n## 3.4.0 / 2025-05-17\n* [CHANGE] flag --x removed\n```\n\n* [BUGFIX] tail. #9\n"
 )
 
 // A label of spaces only, a footnote label and a destination with an
@@ -320,7 +328,84 @@ func TestDeeplyIndentedFenceLineDoesNotClose(t *testing.T) {
 }
 
 func TestNewShapesNeverPanic(t *testing.T) {
-	for _, s := range []string{shapeBlankLabel, shapeFootnote, shapeDeepClose} {
+	for _, s := range []string{shapeBlankLabel, shapeFootnote, shapeDeepClose, shapeListFence, shapeListFenceNested, shapeQuoteFence, shapeNBSPClose, shapeBareAngle} {
+		checkNoPanic(t, []byte(s))
+	}
+}
+
+// A fence opened inside a list item or block quote is not tracked, so a
+// release-looking line inside it must never truncate an entry: the file is
+// refused with a typed stop, never located.
+func TestContainerFenceIsRefused(t *testing.T) {
+	for name, s := range map[string]string{
+		"list": shapeListFence, "nested list": shapeListFenceNested, "quote": shapeQuoteFence,
+		"ordered":   "## 3.5.0 / 2025-07-14\n\n1) ~~~\n  ## 3.4.0 / 2025-05-17\n  ~~~\n* [BUGFIX] t\n",
+		"backticks": "## 3.5.0 / 2025-07-14\n\n- ```go\n  ## 3.4.0 / 2025-05-17\n  ```\n* [BUGFIX] t\n",
+		"indented":  "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x\n  * ~~~\n  ## 3.4.0 / 2025-05-17\n  ~~~\n* [BUGFIX] t\n",
+	} {
+		for _, tg := range []string{"v3.5.0", "v3.4.0"} {
+			e, err := locateMem(promTarget, tg, s)
+			if err == nil {
+				t.Errorf("%s %s: located %+v", name, tg, e.Section)
+				continue
+			}
+			wantCode(t, err, EntryParseResidue)
+		}
+	}
+	// Inline code that merely contains backticks is not a fence.
+	mustLocate(t, promTarget, "v3.5.0", "## 3.5.0 / 2025-07-14\n\n* [FEATURE] ```x``` y\n* [BUGFIX] t\n")
+}
+
+// Only an ASCII space or tab may follow or precede a closing fence: a
+// no-break space makes the line code inside the fence, and the fence then
+// runs unterminated, so the heading inside it can never truncate the entry.
+func TestUnicodeWhitespaceDoesNotCloseFence(t *testing.T) {
+	for _, ws := range []string{"\u00a0", "\u2003", "\u3000", "\u200b"} {
+		for _, f := range []string{
+			strings.Replace(shapeNBSPClose, "\u00a0", ws, 1),
+			strings.Replace(shapeNBSPClose, "  ~~~\u00a0", "  "+ws+"~~~", 1),
+		} {
+			// The fence stays open to its real closing line, so the entry is
+			// either refused or complete: it must reach the last line and the
+			// heading inside the fence must not be one.
+			total := strings.Count(f, "\n")
+			e, err := locateMem(promTarget, "v3.5.0", f)
+			if err != nil {
+				wantCode(t, err, EntryParseResidue)
+				continue
+			}
+			if e.Section.EndLine != total || len(e.Structure) != 1 || len(e.Items) != 2 {
+				t.Errorf("%q: truncated or split entry %+v %+v", ws, e.Section, e.Items)
+			}
+		}
+	}
+	// A truncating control: with the real ASCII closing the entry ends at the next release heading.
+	if e := mustLocate(t, promTarget, "v3.5.0", strings.Replace(shapeNBSPClose, "~~~\u00a0", "~~~", 1)); e.Section.EndLine >= strings.Count(shapeNBSPClose, "\n") {
+		t.Fatalf("control did not end at the release heading: %+v", e.Section)
+	}
+	// ASCII space and tab still close.
+	f := "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x\n\n  ~~~\n  code\n  ~~~ \t\n\n* [BUGFIX] tail. #9\n"
+	if e := mustLocate(t, promTarget, "v3.5.0", f); len(e.Items) != 2 {
+		t.Fatalf("%+v", e.Items)
+	}
+	// A line of only no-break spaces is text, not a blank.
+	g := "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x\n\u00a0\n* [BUGFIX] tail. #9\n"
+	e := mustLocate(t, promTarget, "v3.5.0", g)
+	if e.Tiling.Blanks != 1 {
+		t.Fatalf("no-break space line counted as blank: %+v", e.Tiling)
+	}
+}
+
+// A bare destination holds no angle bracket: such a line is an item with its
+// own digest, never a silently excluded link definition.
+func TestBareDestinationAngleBracketIsItem(t *testing.T) {
+	for _, def := range []string{`[r]: https://x/<bad> "removed --foo"`, `[r]: https://x/bad> "removed --foo"`, `[r]: https://x/<bad`} {
+		e := mustLocate(t, promTarget, "v3.5.0", entryWith("* [FEATURE] x. #1\n\n"+def+"\n"))
+		if e.Tiling.LinkDefs != 0 || oracleIsLinkDef(def) || len(e.Items) != 2 {
+			t.Errorf("%q: %+v items %d", def, e.Tiling, len(e.Items))
+		}
+	}
+	for _, s := range []string{shapeBareAngle} {
 		checkNoPanic(t, []byte(s))
 	}
 }
