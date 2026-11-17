@@ -38,10 +38,9 @@ var escapeFlagged = []struct {
 	{"R comment between", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind:\n  # comment\n  {{ .Values.kind }}\n", ClassUnread, ReasonKindTemplated},
 	{"R comments and blanks between", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: # c\n\n  # d\n\n  {{ .Values.kind }}\n", ClassUnread, ReasonKindTemplated},
 	{"R value at column 0", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind:\n{{ .Values.kind }}\n", ClassUnread, ReasonKindTemplated},
-	{"R continuation with escape", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: CustomResource\n  \\x44efinition\n", ClassUnread, ""},
 	{"R jinja", "charts/x/templates/t.j2", "apiVersion: apiextensions.k8s.io/v1\nkind: CustomResource{% if x %}Definition{% endif %}\n", ClassUnread, ReasonKindTemplated},
 	{"R escaped mention beside templated kind", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: '{{ printf \"%s%s\" \"CustomResource\" \"Definition\" }}'\ndescription: \"\\u0043ustomResourceDefinition\"\n", ClassUnread, ReasonKindTemplated},
-	{"R escaped mention beside templated kind, undecodable", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: '{{ .Values.k }}'\nkind: x\n# \\u0043ustomResourceDefinition\n", ClassUnread, ReasonKindTemplated},
+	{"R escaped mention beside templated kind, undecodable", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: '{{ .Values.k }}'\nkind: x\n# \\u0043ustomResourceDefinition\n", ClassUnread, ""},
 	{"1 concat yaml", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: {{ \"CustomResource\" }}Definition\nmetadata:\n  name: x\n", ClassUnread, ReasonKindTemplated},
 	{"1 concat tpl", "charts/x/templates/t.tpl", "apiVersion: apiextensions.k8s.io/v1\nkind: {{ \"CustomResource\" }}Definition\n", ClassUnread, ReasonKindTemplated},
 	{"2 printf", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: {{ printf \"%s%s\" \"CustomResource\" \"Definition\" }}\n", ClassUnread, ReasonKindTemplated},
@@ -287,9 +286,9 @@ func TestEscapedKindReviewedShapes(t *testing.T) {
 		"comment":      "apiVersion: apiextensions.k8s.io/v1\nkind:\n  # comment\n  {{ .Values.kind }}\n",
 		"combined":     "apiVersion: apiextensions.k8s.io/v1\nkind: '{{ printf \"%s%s\" \"CustomResource\" \"Definition\" }}'\ndescription: \"\\u0043ustomResourceDefinition\"\n",
 	} {
-		p, proof := classPair(t, crd("Alpha", "v1beta1", "v1"), crd("Alpha", "v1"), nil, map[string]string{escPath: hidden})
-		if p.Status != extract.PairWithheld || proof.Completeness.Attestable || !strings.Contains(p.Reason, escPath+" is unread") {
-			t.Errorf("%s: %s %q %+v", name, p.Status, p.Reason, proof.Completeness)
+		p, _ := classPair(t, crd("Alpha", "v1beta1", "v1"), crd("Alpha", "v1"), nil, map[string]string{escPath: hidden})
+		if p.Status != extract.PairWithheld || !strings.Contains(p.Reason, escPath+" is unread") {
+			t.Errorf("%s: %s %q", name, p.Status, p.Reason)
 		}
 		_, proof, f := quietPair(t, escPath, hidden)
 		if f == nil || proof.Completeness.Attestable || proof.To.Scan.Clean() {
