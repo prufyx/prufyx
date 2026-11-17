@@ -74,6 +74,9 @@ type btEntry struct {
 	Escalate bool `json:"escalate,omitempty"`
 	// SkipPatchFragments: the generator flag --skip-patch-fragments. Default off.
 	SkipPatchFragments bool `json:"skipPatchFragments,omitempty"`
+	// EscalateAny (with escalate): rerun with inference after ANY typed stop of
+	// the plain run, not only the escalateStops list. Default off.
+	EscalateAny bool `json:"escalateAny,omitempty"`
 }
 
 // escalateStops lists the plain-run stop codes that make an escalate entry run
@@ -108,6 +111,12 @@ type BacktestResult struct {
 	// stop code of the plain run.
 	Escalated *bool  `json:"escalated,omitempty"`
 	PlainStop string `json:"plainStop,omitempty"`
+	// Measurement fields (report only, omitted when empty).
+	Half              string   `json:"half,omitempty"`
+	GeneratedMinFrom  string   `json:"generatedMinFrom,omitempty"`
+	StopSubjects      []string `json:"stopSubjects,omitempty"`
+	PlainStops        []string `json:"plainStops,omitempty"`
+	PlainStopSubjects []string `json:"plainStopSubjects,omitempty"`
 }
 
 // SeedResult is the record of one wrong-target seed. Outcome "failed" is the
@@ -138,6 +147,7 @@ type BacktestReport struct {
 	SeedsFailed    int              `json:"seedsFailed"`
 	Results        []BacktestResult `json:"results"`
 	SeedResults    []SeedResult     `json:"seedResults"`
+	Histogram      map[string]int   `json:"histogram,omitempty"`
 }
 
 const backtestUsage = "usage: prufyx-maintainer target-draft backtest --manifest FILE --mirrors DIR --out DIR\n" +
@@ -412,16 +422,15 @@ func runEntry(e btEntry, base, mirrors string, open func(string) Source) btRun {
 	if r.res.Class != ClassTypedStop || len(r.res.Stops) == 0 {
 		return r
 	}
-	for _, c := range r.res.Stops {
-		if !containsString(escalateStops, c) {
-			return r
-		}
+	if !m7Escalates(e, r.res.Stops) {
+		return r
 	}
 	e2 := e
 	e2.Escalate, e2.InferInstallPaths, e2.CheckInstallPathCopies = false, true, true
 	r2 := runOnce(e2, base, mirrors, open)
 	t := true
 	r2.res.Escalated, r2.res.PlainStop = &t, r.res.Stops[0]
+	m7Plain(&r2.res, r.res, e)
 	return r2
 }
 
@@ -496,6 +505,7 @@ func runOnce(e btEntry, base, mirrors string, open func(string) Source) btRun {
 			}
 			r.res.Stops = append(r.res.Stops, s.Code)
 		}
+		r.res.StopSubjects = m7Subjects(se.Stops)
 		sort.Strings(r.res.Stops)
 		r.res.Class = ClassTypedStop
 		return r
@@ -529,6 +539,7 @@ func runOnce(e btEntry, base, mirrors string, open func(string) Source) btRun {
 		if onlyWindow(r.res.Fields) {
 			r.res.Cause = CauseWindow
 		}
+		r.res.Cause = m7Cause(e, gen, r.expected, r.res.Cause)
 	}
 	return r
 }
@@ -631,7 +642,7 @@ func Backtest(m *btManifest, manifestDigest, base, mirrors string, open func(str
 	rep := BacktestReport{Schema: BacktestSchema, ManifestDigest: manifestDigest, N: len(m.Entries)}
 	runs := map[string]btRun{}
 	for _, e := range m.Entries {
-		r := runEntry(e, base, mirrors, open)
+		r := m7Run(e, base, mirrors, open)
 		runs[e.Slug] = r
 		rep.Results = append(rep.Results, r.res)
 		if r.res.Escalated != nil && *r.res.Escalated {
@@ -664,6 +675,7 @@ func Backtest(m *btManifest, manifestDigest, base, mirrors string, open func(str
 			rep.SeedsFailed++
 		}
 	}
+	m7Histogram(&rep)
 	return rep
 }
 
@@ -735,11 +747,13 @@ func runBacktest(args []string, stdout, stderr io.Writer, open func(string) Sour
 		if r.Escalated != nil && *r.Escalated {
 			line += " escalated=true plainStop=" + r.PlainStop
 		}
+		line += m7LineTail(r)
 		fmt.Fprintln(stdout, line)
 	}
 	for _, s := range rep.SeedResults {
 		fmt.Fprintf(stdout, "SEED %s/%s%s %s %s\n", s.Entry, s.Kind, map[bool]string{true: "->" + s.Other}[s.Other != ""], s.Outcome, s.Detail)
 	}
+	m7PrintSummary(stdout, rep)
 	sd := sha256.Sum256(body)
 	escTail := ""
 	if rep.Escalated > 0 {
