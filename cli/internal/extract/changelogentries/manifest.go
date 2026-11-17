@@ -68,7 +68,9 @@ type Manifest struct {
 
 // Reviewed is the reviewed table of changelog targets. It is empty until a
 // component's row has been reviewed; a component without a row is refused.
-var Reviewed = []Target{}
+var Reviewed = []Target{
+	{Component: "flannel", Repo: extract.RepoRef{Key: "github.com/flannel-io/flannel"}, Form: FormGithubRelease},
+}
 
 // Lookup returns the row of a component in table. Exactly one row must match.
 func Lookup(table []Target, component string) (Target, error) {
