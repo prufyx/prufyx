@@ -579,8 +579,8 @@ func readGzipLiterals(data []byte) *gzipRead {
 			return g
 		}
 		sub := summarize(kindData, out)
-		if sub.esc != nil && sub.esc.hits(false) {
-			g.unread = fmt.Sprintf("gzip-compressed string literal %d: %s", i+1, sub.esc.detail)
+		if r := sub.esc.resolve(false); r != nil {
+			g.unread = fmt.Sprintf("gzip-compressed string literal %d: %s", i+1, r.detail)
 			return g
 		}
 		if sub.unread != "" {
@@ -2075,11 +2075,12 @@ func (x *Extractor) classifyFile(r extract.PinnedReader, repo extract.RepoRef, c
 		return fd, found, err
 	}
 	base := path.Base(f.path)
-	if !info.esc.hits(base == "Chart.yaml" || isKustomizationName(base)) {
+	esc := info.esc.resolve(base == "Chart.yaml" || isKustomizationName(base))
+	if esc == nil {
 		return fd, false, nil
 	}
-	fd = Finding{Path: f.path, SHA256: info.sha256, Class: ClassUnread, Reason: info.esc.reason, Detail: info.esc.detail}
-	if f.kind == kindSource && info.esc.reason == ReasonKindEscaped {
+	fd = Finding{Path: f.path, SHA256: info.sha256, Class: ClassUnread, Reason: esc.reason, Detail: esc.detail}
+	if f.kind == kindSource && esc.reason == ReasonKindEscaped {
 		fd.Class, fd.Reason = ClassUnsupported, ReasonSourceTemplate
 	}
 	return placed(fd, f.at), true, nil
@@ -2722,6 +2723,20 @@ type escRead struct {
 	// needs kindLike or a chart or kustomization name.
 	undecodable bool
 	kindLike    bool
+	// alt is the templated-kind finding that stands when this one does not.
+	alt *escRead
+}
+
+// resolve returns the finding that stands for a file of the given name
+// class (nil when none).
+func (e *escRead) resolve(chartOrKust bool) *escRead {
+	if e == nil {
+		return nil
+	}
+	if e.hits(chartOrKust) {
+		return e
+	}
+	return e.alt
 }
 
 // hits reports whether the finding stands for a file of the given name
@@ -2848,18 +2863,32 @@ func escapeRead(kind int, data, n []byte, determined bool, info *blobInfo) *escR
 	if info.words > 0 {
 		return nil
 	}
-	wordsN := wordRE.Match(n)
+	var first *escRead
 	switch {
-	case wordsN || !determined:
-		return escapedKind(kind, data, n, determined, info)
+	case wordRE.Match(n) || !determined:
+		first = escapedKind(kind, data, n, determined, info)
 	case info.decoded && info.unread == "" && (info.kinds > 0 || len(info.crds) > 0 || info.embedded):
-		return &escRead{reason: ReasonKindEscaped, detail: "its decoded values name the " + crdKind + " kind, which its bytes do not spell out"}
-	case !bytes.Contains(n, []byte(templateMarker)):
-		return nil
-	case kindKeyNonLiteral(n) && canNameCRDGroup(n):
-		return &escRead{reason: ReasonKindTemplated, detail: "with template directives, a kind value is not a literal and the file can name the apiextensions.k8s.io API group: it may render a " + crdKind}
+		first = &escRead{reason: ReasonKindEscaped, detail: "its decoded values name the " + crdKind + " kind, which its bytes do not spell out"}
 	}
-	return nil
+	if first.hits(true) && !first.undecodable {
+		return first
+	}
+	// A mention that does not decide the file (text only, or an undecodable
+	// file the kind-value test does not hold for) never hides a templated
+	// kind: that guard is evaluated whatever the escapes show.
+	if hasTemplateSyntax(n) && kindKeyNonLiteral(n) && canNameCRDGroup(n) {
+		alt := &escRead{reason: ReasonKindTemplated, detail: "with template directives, a kind value is not a literal and the file can name the apiextensions.k8s.io API group: it may render a " + crdKind}
+		if first == nil {
+			return alt
+		}
+		first.alt = alt
+	}
+	return first
+}
+
+// hasTemplateSyntax reports Go template or Jinja statement delimiters.
+func hasTemplateSyntax(n []byte) bool {
+	return bytes.Contains(n, []byte(templateMarker)) || bytes.Contains(n, []byte("{%"))
 }
 
 // escapedKind decides kind-escaped for bytes whose literal form does not
@@ -2911,13 +2940,20 @@ type keyValue struct {
 	prefix     string
 }
 
-// keyValues returns the values of the keys re matches in s.
+// keyValues returns the values of the keys re matches in s. A value is a
+// literal only when its whole logical value (the rest of the line, and for
+// one not closed by a flow "," or "}", the more-indented continuation
+// lines after skipping comment-only and blank lines) holds no template
+// action, no escape and does not start with a tag, alias, anchor or block
+// scalar indicator.
 func keyValues(s []byte, re *regexp.Regexp) []keyValue {
 	text := string(s)
+	lines := strings.Split(text, "\n")
 	var out []keyValue
 	for _, m := range re.FindAllStringIndex(text, -1) {
+		li := strings.Count(text[:m[0]], "\n")
 		ls := strings.LastIndexByte(text[:m[0]], '\n') + 1
-		indent := leadingBlanks(text[ls:])
+		indent := m[0] - ls // the column of the key: siblings after "- " sit there
 		le := strings.IndexByte(text[m[1]:], '\n')
 		if le < 0 {
 			le = len(text)
@@ -2926,62 +2962,60 @@ func keyValues(s []byte, re *regexp.Regexp) []keyValue {
 		}
 		rest := text[m[1]:le]
 		trim := strings.TrimSpace(rest)
-		span := rest
-		next := le
-		if trim == "" || strings.HasPrefix(trim, "#") {
-			// The value is on the next non-blank line, unless that is
-			// a deeper mapping (the key is not a value there).
-			span = ""
-			for next < len(text) {
-				next++
-				e := strings.IndexByte(text[next:], '\n')
-				if e < 0 {
-					e = len(text) - next
-				}
-				line := text[next : next+e]
-				if strings.TrimSpace(line) != "" {
-					if leadingBlanks(line) > indent && deeperKeyRE.MatchString(line) {
-						break
-					}
-					span = line
-					break
-				}
-				next += e
-			}
-		} else if literalValueRE.MatchString(rest) {
+		empty := trim == "" || strings.HasPrefix(trim, "#")
+		closed := !empty && literalValueRE.MatchString(rest) && flowClosed(rest)
+		if closed {
 			continue
-		} else {
-			// More-indented continuation lines belong to the value.
-			for next < len(text) {
-				p := next + 1
-				e := strings.IndexByte(text[p:], '\n')
-				if e < 0 {
-					e = len(text) - p
-				}
-				line := text[p : p+e]
-				if strings.TrimSpace(line) != "" && leadingBlanks(line) <= indent {
-					break
-				}
-				span += "\n" + line
-				next = p + e
-				if next >= len(text) {
-					break
-				}
+		}
+		span := ""
+		if !empty {
+			span = rest
+		}
+		for j := li + 1; j < len(lines); j++ {
+			line := lines[j]
+			t := strings.TrimSpace(line)
+			if t == "" || strings.HasPrefix(t, "#") {
+				continue
 			}
+			if leadingBlanks(line) <= indent {
+				if empty && span == "" && hasTemplateSyntax([]byte(line)) && !deeperKeyRE.MatchString(line) {
+					span = "\n" + line
+				}
+				break
+			}
+			if empty && span == "" && deeperKeyRE.MatchString(line) {
+				// A deeper mapping: the key is not a value here.
+				break
+			}
+			span += "\n" + line
 		}
 		head := strings.TrimSpace(span)
 		if head == "" {
 			continue
 		}
-		if strings.Contains(span, templateMarker) || strings.Contains(span, "\\") || strings.ContainsRune("!*&|>", rune(head[0])) {
-			kv := keyValue{nonLiteral: true, prefix: span}
-			if i := strings.Index(span, templateMarker); i >= 0 {
-				kv.prefix = span[:i]
+		if empty || !literalValueRE.MatchString(rest) {
+			// Not a plain literal on its own line (or the value is on
+			// the next line): literal only if the whole value is.
+			if !hasTemplateSyntax([]byte(span)) && !strings.Contains(span, "\\") && !strings.ContainsRune("!*&|>", rune(head[0])) {
+				continue
 			}
-			out = append(out, kv)
+		} else if !hasTemplateSyntax([]byte(span)) && !strings.Contains(span, "\\") {
+			continue
 		}
+		kv := keyValue{nonLiteral: true, prefix: span}
+		if i := strings.Index(span, templateMarker); i >= 0 {
+			kv.prefix = span[:i]
+		}
+		out = append(out, kv)
 	}
 	return out
+}
+
+// flowClosed reports a literal value followed by a flow "," or "}" (the
+// item ends there), as opposed to the end of the line or a comment.
+func flowClosed(rest string) bool {
+	m := literalValueRE.FindString(rest)
+	return strings.HasSuffix(m, ",") || strings.HasSuffix(m, "}")
 }
 
 func leadingBlanks(s string) int {

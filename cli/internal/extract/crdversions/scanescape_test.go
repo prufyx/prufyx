@@ -33,6 +33,15 @@ const cr = "CustomResourceDefinition"
 var escapeFlagged = []struct {
 	name, path, content, class, reason string
 }{
+	{"R continuation after literal", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: CustomResource\n  {{- \"Definition\" }}\n", ClassUnread, ReasonKindTemplated},
+	{"R continuation after literal, templated api", escPath, "apiVersion: {{ .Values.api }}\nkind: Custom\n  {{ .Values.rest }}\n", ClassUnread, ReasonKindTemplated},
+	{"R comment between", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind:\n  # comment\n  {{ .Values.kind }}\n", ClassUnread, ReasonKindTemplated},
+	{"R comments and blanks between", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: # c\n\n  # d\n\n  {{ .Values.kind }}\n", ClassUnread, ReasonKindTemplated},
+	{"R value at column 0", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind:\n{{ .Values.kind }}\n", ClassUnread, ReasonKindTemplated},
+	{"R continuation with escape", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: CustomResource\n  \\x44efinition\n", ClassUnread, ""},
+	{"R jinja", "charts/x/templates/t.j2", "apiVersion: apiextensions.k8s.io/v1\nkind: CustomResource{% if x %}Definition{% endif %}\n", ClassUnread, ReasonKindTemplated},
+	{"R escaped mention beside templated kind", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: '{{ printf \"%s%s\" \"CustomResource\" \"Definition\" }}'\ndescription: \"\\u0043ustomResourceDefinition\"\n", ClassUnread, ReasonKindTemplated},
+	{"R escaped mention beside templated kind, undecodable", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: '{{ .Values.k }}'\nkind: x\n# \\u0043ustomResourceDefinition\n", ClassUnread, ReasonKindTemplated},
 	{"1 concat yaml", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: {{ \"CustomResource\" }}Definition\nmetadata:\n  name: x\n", ClassUnread, ReasonKindTemplated},
 	{"1 concat tpl", "charts/x/templates/t.tpl", "apiVersion: apiextensions.k8s.io/v1\nkind: {{ \"CustomResource\" }}Definition\n", ClassUnread, ReasonKindTemplated},
 	{"2 printf", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: {{ printf \"%s%s\" \"CustomResource\" \"Definition\" }}\n", ClassUnread, ReasonKindTemplated},
@@ -80,6 +89,9 @@ func TestEscapedKindFlagged(t *testing.T) {
 // escapeClean: files that name no kind, or only name the API group, and
 // must stay not found.
 var escapeClean = []struct{ name, path, content string }{
+	{"R sibling after dash", escPath, "- kind: Deployment\n  name: {{ .x }}\n- apiVersion: apiextensions.k8s.io/v1\n"},
+	{"R literal then sibling", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: Foo\nmetadata:\n  name: {{ .x }}\n"},
+	{"R flow literal", escPath, "{ \"kind\": \"Foo\", \"apiVersion\": \"apiextensions.k8s.io/v1\", \"n\": \"{{ .x }}\" }\n"},
 	{"14 rbac", escPath, "apiVersion: rbac.authorization.k8s.io/v1\nkind: {{ include \"x.rbacKind\" . }}\nrules:\n- apiGroups: [\"apiextensions.k8s.io\"]\n  resources: [\"customresourcedefinitions\"]\n  verbs: [\"get\"]\n"},
 	{"15 apps", escPath, "apiVersion: apps/v1\nkind: {{ .Values.controller.kind }}\n"},
 	{"15 apps templated version", escPath, "apiVersion: apps/{{ .Values.v }}\nkind: {{ .Values.controller.kind }}\n"},
@@ -265,5 +277,23 @@ func TestDefinesNothingEscaped(t *testing.T) {
 	}
 	if definesNothing([]byte("pattern: \"^\\\\d+\"\n")) != "" {
 		t.Error("a regex string is refused")
+	}
+}
+
+// The three reviewer shapes lose the attestation and withhold the rules.
+func TestEscapedKindReviewedShapes(t *testing.T) {
+	for name, hidden := range map[string]string{
+		"continuation": "apiVersion: apiextensions.k8s.io/v1\nkind: CustomResource\n  {{- \"Definition\" }}\n",
+		"comment":      "apiVersion: apiextensions.k8s.io/v1\nkind:\n  # comment\n  {{ .Values.kind }}\n",
+		"combined":     "apiVersion: apiextensions.k8s.io/v1\nkind: '{{ printf \"%s%s\" \"CustomResource\" \"Definition\" }}'\ndescription: \"\\u0043ustomResourceDefinition\"\n",
+	} {
+		p, proof := classPair(t, crd("Alpha", "v1beta1", "v1"), crd("Alpha", "v1"), nil, map[string]string{escPath: hidden})
+		if p.Status != extract.PairWithheld || proof.Completeness.Attestable || !strings.Contains(p.Reason, escPath+" is unread") {
+			t.Errorf("%s: %s %q %+v", name, p.Status, p.Reason, proof.Completeness)
+		}
+		_, proof, f := quietPair(t, escPath, hidden)
+		if f == nil || proof.Completeness.Attestable || proof.To.Scan.Clean() {
+			t.Errorf("%s quiet: %+v %+v", name, f, proof.Completeness)
+		}
 	}
 }
