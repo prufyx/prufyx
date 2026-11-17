@@ -19,21 +19,14 @@ import (
 const CauseHalfBVsAttestless = "half-b-vs-attestless"
 
 // m7Escalates reports whether a plain run that ended in these typed stops runs
-// again with inference. Without escalateAny: only the listed codes, and a mix
-// with an unlisted code does not. With escalateAny: any typed stop of the
-// generator, except the harness's own mirror-missing (a rerun cannot help).
+// again with inference: any typed stop of the generator does, except the
+// harness's own mirror-missing (a rerun cannot help).
 func m7Escalates(e btEntry, stops []string) bool {
 	if len(stops) == 0 {
 		return false
 	}
 	for _, c := range stops {
-		if e.EscalateAny {
-			if c == StopMirrorMissing {
-				return false
-			}
-			continue
-		}
-		if !containsString(escalateStops, c) {
+		if c == StopMirrorMissing {
 			return false
 		}
 	}
@@ -42,9 +35,6 @@ func m7Escalates(e btEntry, stops []string) bool {
 
 // m7Run runs one entry and adds the report-only fields.
 func m7Run(e btEntry, base, mirrors string, open func(string) Source) btRun {
-	if e.EscalateAny && !e.Escalate {
-		return btRun{res: BacktestResult{Slug: e.Slug, Class: ClassHarnessError, Error: "escalateAny requires escalate"}}
-	}
 	r := runEntry(e, base, mirrors, open)
 	r.res.Half = e.Half
 	switch r.res.Class {
@@ -71,12 +61,9 @@ func m7Subjects(stops []Stop) []string {
 	return out
 }
 
-// m7Plain records the plain run's stops on an escalated result; only for
-// escalateAny, so the default report is unchanged.
+// m7Plain records the plain run's stops on an escalated result.
 func m7Plain(res *BacktestResult, plain BacktestResult, e btEntry) {
-	if e.EscalateAny {
-		res.PlainStops, res.PlainStopSubjects = plain.Stops, plain.StopSubjects
-	}
+	res.PlainStops, res.PlainStopSubjects = plain.Stops, plain.StopSubjects
 }
 
 // m7Cause returns CauseHalfBVsAttestless when half B was compared, differs, and

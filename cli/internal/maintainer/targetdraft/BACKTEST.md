@@ -16,16 +16,16 @@ name below `--mirrors`, an optional rules file, the reviewed target file
 manifest directory and must stay inside it. A missing mirror is the typed stop
 `mirror-missing`, never a skip.
 
-Optional entry fields map to the generator flags of the same names and default
-to off: `multiPrefix` (`--multi-prefix`), `collapseDirectories`
-(`--collapse-directories`), `deriveDuplicateSources`
-(`--derive-duplicate-sources`). `oraclePaths` copies the reviewed target's
+Optional entry fields default to off: `multiPrefix` (internal; there is no
+CLI flag, two prefixes in one run are the stop `tag-prefix-mixed`) and
+`collapseDirectories` (`--collapse-directories`). The former
+`deriveDuplicateSources`, `skipPatchFragments` and `escalateAny` keys no longer
+exist and a manifest that carries them is refused. `oraclePaths` copies the reviewed target's
 paths into `installPaths` (a directory entry as `dir/`); it is refused when the
 entry's rules file already carries `installPaths` or `installSurface`.
 
-`inferInstallPaths` (`--infer-install-paths`) lets the generator derive the
-install directory itself; `checkInstallPathCopies`
-(`--check-install-path-copies`) checks every definition file outside the
+`inferInstallPaths` lets the generator derive the
+install directory itself; `checkInstallPathCopies` checks every definition file outside the
 install paths (it needs installPaths, an `oraclePaths` run, or
 `inferInstallPaths`; otherwise the generator stops). `inferInstallPaths` is a
 harness error when the entry's rules file carries `installPaths`,
@@ -41,14 +41,12 @@ inference (the entry's own flags, for example `collapseDirectories`,
 `deriveDuplicateSources`, `multiPrefix`, `checkInstallPathCopies`). Any result
 of that plain run other than a listed stop (`reproduced`, `differs`, another
 typed stop, ...) is the entry result with `escalated: false`. Only when the plain
-run ends in typed stops that are all in the escalation list (`escalateStops` in
-`backtest.go`: `duplicate-crd`, `duplicate-crd-differs`, `unreadable-shape`,
-`unpinned-exclusion`) does the harness run the entry again with
+run ends in any typed stop of the generator (not the harness's own
+`mirror-missing`) does the harness run the entry again with
 `inferInstallPaths` and `checkInstallPathCopies`; that second result is the entry
-result with `escalated: true` and the plain stop code in `plainStop`. Every other
-plain stop (for example `multi-prefix-ambiguous`, `reserved-group`,
-`window-too-short`, `mirror-missing`), or a mix with an unlisted code, is the
-result as is. `escalate` is a harness error together with `oraclePaths`,
+result with `escalated: true` and the plain stop code in `plainStop`. The
+plain stops stay in `plainStops` and `plainStopSubjects`; `mirror-missing` is
+the result as is. `escalate` is a harness error together with `oraclePaths`,
 `inferInstallPaths`, or rules that carry `installPaths`, `installSurface`,
 `pathFilter` or exclusions. An escalated reproduction counts in `strict` like
 any inferred recipe (it is a recipe, not an oracle); seeds run on the final
@@ -56,7 +54,7 @@ result only. When at least one entry escalated, the per-entry line gains
 ` escalated=true plainStop=CODE` and the summary line gains ` escalated=N` after
 `digest=`; `backtest.json` gains `escalated` only when N is above 0.
 
-`skipPatchFragments` (`--skip-patch-fragments`, default off) sets aside
+Patch fragment handling (always on, no flag) sets aside
 kustomize patch fragments as non-install, non-definition files. A fragment is
 only a file whose own content has the extractor's patch-fragment shape (strictly
 decoded `CustomResourceDefinition` documents of `apiextensions.k8s.io/v1` or
@@ -112,12 +110,11 @@ byte-identical, otherwise exit 2.
 
 None of this changes what the generator emits; it changes what the report says.
 
-- `escalateAny` (entry key, needs `escalate`, default off): the plain run that
-  ends in any typed stop of the generator (not the harness's own
-  `mirror-missing`) runs again with inference, not only the codes in
-  `escalateStops`. The second result is judged by the same byte comparison.
-  The report keeps the plain stops (`plainStops`, `plainStopSubjects`); the
-  final `stops` of an escalated entry are the second-level stops.
+- Escalation (entry key `escalate`) reruns after any typed stop; the report
+  keeps the plain stops (`plainStops`, `plainStopSubjects`); the final `stops`
+  of an escalated entry are the second-level stops. The rerun ends in the typed
+  stops `install-path-ambiguous` or `install-path-copy-differs` where the
+  install directory is not unambiguous or a copy differs.
 - `half`: every line and record names the compared half (`half=A` or `half=B`).
   The chosen half is unchanged.
 - `half-b-vs-attestless` (cause of `differs`, informational): half B was

@@ -28,30 +28,8 @@ func m7Stub(plain []Stop, next func(Input) (*Result, error)) (calls *[]Input, re
 	return &seen, func() { generate = old }
 }
 
-func m7Esc(e *btEntry) { e.CollapseDirectories, e.Escalate = true, true }
-func m7EscAny(e *btEntry) {
-	m7Esc(e)
-	e.EscalateAny = true
-}
-
-func TestM7EscalateAnyOffIsTheOldBehaviour(t *testing.T) {
-	for _, code := range []string{StopReservedGroup, StopNoCRDSource, StopGroupOwnedElsewhere} {
-		calls, restore := m7Stub([]Stop{{Code: code, Subject: "g.example", Next: "x"}}, nil)
-		rep, r := dirBT(t, m7Esc, genCollapsed(t, true), "")
-		restore()
-		if r.Class != ClassTypedStop || r.Escalated == nil || *r.Escalated || r.PlainStop != "" || len(r.PlainStops) != 0 || len(r.PlainStopSubjects) != 0 ||
-			rep.Escalated != 0 || len(*calls) != 1 || len(r.Stops) != 1 || r.Stops[0] != code {
-			t.Fatalf("%s: %+v %d", code, r, len(*calls))
-		}
-	}
-	// The listed stops still escalate exactly as before, and record no plain list.
-	calls, restore := m7Stub([]Stop{{Code: StopDuplicateCRD, Next: "x"}}, nil)
-	_, r := dirBT(t, m7Esc, genCollapsed(t, true), "")
-	restore()
-	if r.Class != ClassReproduced || !*r.Escalated || r.PlainStop != StopDuplicateCRD || len(r.PlainStops) != 0 || len(*calls) != 2 {
-		t.Fatalf("%+v", r)
-	}
-}
+func m7Esc(e *btEntry)    { e.CollapseDirectories, e.Escalate = true, true }
+func m7EscAny(e *btEntry) { m7Esc(e) }
 
 func TestM7EscalateAnyEscalatesAReservedGroupCoStop(t *testing.T) {
 	plain := []Stop{{Code: StopReservedGroup, Subject: "apps", Next: "x"}, {Code: StopNoCRDSource, Subject: "config/a.yaml", Next: "x"}}
@@ -96,23 +74,21 @@ func TestM7EscalatedOutcomeIsJudgedStrictly(t *testing.T) {
 }
 
 func TestM7EscalateAnyNegatives(t *testing.T) {
-	// escalateAny without escalate is refused.
-	_, r := dirBT(t, func(e *btEntry) { e.EscalateAny = true }, genCollapsed(t, true), "")
-	if r.Class != ClassHarnessError || !strings.Contains(r.Error, "requires escalate") {
+	// Without escalate there is no rerun, whatever the stop.
+	if _, r := dirBT(t, func(e *btEntry) {}, genCollapsed(t, true), ""); r.Escalated != nil && *r.Escalated {
 		t.Fatalf("%+v", r)
 	}
-	// escalateAny keeps the other refusals (oracle).
-	_, r = dirBT(t, func(e *btEntry) { m7EscAny(e); e.OraclePaths = true }, genCollapsed(t, true), "")
+	// Escalation keeps the other refusals (oracle).
+	_, r := dirBT(t, func(e *btEntry) { m7EscAny(e); e.OraclePaths = true }, genCollapsed(t, true), "")
 	if r.Class != ClassHarnessError {
 		t.Fatalf("%+v", r)
 	}
 	// The harness's own stop and an empty stop list never escalate.
-	if m7Escalates(btEntry{EscalateAny: true}, []string{StopMirrorMissing}) || m7Escalates(btEntry{EscalateAny: true}, nil) ||
-		m7Escalates(btEntry{EscalateAny: true}, []string{StopReservedGroup, StopMirrorMissing}) {
+	if m7Escalates(btEntry{}, []string{StopMirrorMissing}) || m7Escalates(btEntry{}, nil) ||
+		m7Escalates(btEntry{}, []string{StopReservedGroup, StopMirrorMissing}) {
 		t.Fatal("must not escalate")
 	}
-	if !m7Escalates(btEntry{EscalateAny: true}, []string{StopReservedGroup}) || m7Escalates(btEntry{}, []string{StopReservedGroup}) ||
-		m7Escalates(btEntry{}, []string{StopDuplicateCRD, StopReservedGroup}) || !m7Escalates(btEntry{}, []string{StopDuplicateCRD}) {
+	if !m7Escalates(btEntry{}, []string{StopReservedGroup}) || !m7Escalates(btEntry{}, []string{StopDuplicateCRD, StopReservedGroup}) || !m7Escalates(btEntry{}, []string{StopDuplicateCRD}) {
 		t.Fatal("escalation table")
 	}
 }
@@ -215,25 +191,6 @@ func TestM7StopSubjectsAndGeneratedMinFromArePrinted(t *testing.T) {
 	}
 	if !strings.Contains(so, "HISTOGRAM ") || !strings.Contains(so, "stop:reserved-group=1") {
 		t.Errorf("histogram: %s", so)
-	}
-}
-
-// With the new fields stripped, escalateAny off gives the same record as the
-// plain escalate run: the generator is not asked for anything else.
-func TestM7GeneratorInputUnchangedByEscalateAnyOff(t *testing.T) {
-	var a, b []Input
-	old := generate
-	defer func() { generate = old }()
-	generate = func(in Input) (*Result, error) { a = append(a, in); return old(in) }
-	dirBT(t, m7Esc, genCollapsed(t, true), "")
-	generate = func(in Input) (*Result, error) { b = append(b, in); return old(in) }
-	dirBT(t, func(e *btEntry) { m7Esc(e); e.EscalateAny = false }, genCollapsed(t, true), "")
-	if len(a) != 1 || len(b) != 1 {
-		t.Fatalf("%d %d", len(a), len(b))
-	}
-	a[0].Source, b[0].Source = nil, nil
-	if ja, jb := mustJSON(t, a[0]), mustJSON(t, b[0]); ja != jb {
-		t.Fatalf("%s != %s", ja, jb)
 	}
 }
 

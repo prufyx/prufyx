@@ -48,11 +48,6 @@ type Input struct {
 	// exactly the install files at every window tag; anything else is a typed
 	// stop, never a silent fallback. Off, the output is unchanged exact files.
 	CollapseDirectories bool
-	// DeriveDuplicates is the explicit opt-in (default off) to reduce files
-	// that define the same group and kind to one source when, and only when,
-	// every stop of every tag is duplicate-crd and every copy has the same
-	// full decoded spec at every tag read. See dupresolve.go.
-	DeriveDuplicates bool
 	// MultiPrefix is the explicit opt-in (default off) for tags of exactly two
 	// prefixes (the shipped tagPrefixes lists of two). Each prefix must hold
 	// its own proven window of at least two tags, the prefixes must be
@@ -74,13 +69,6 @@ type Input struct {
 	// and a repeated definition with a different decoded spec is
 	// install-path-copy-differs. It needs installPaths (or InferInstallPaths).
 	CheckInstallPathCopies bool
-	// SkipPatchFragments is the explicit opt-in (default off): an otherwise
-	// unreadable file whose own content proves it a kustomize patch fragment
-	// (see fragment.go) is set aside as a non-install, non-definition file
-	// and listed in the report instead of ending the run as unreadable-shape.
-	// It never changes the ranking and never hides a definition; anything
-	// ambiguous stays unreadable-shape.
-	SkipPatchFragments bool
 }
 
 // Result is the successful output of a run.
@@ -90,9 +78,6 @@ type Result struct {
 	TableRow  []byte
 	Changelog []byte
 	Report    Report
-	// DroppedCopies are the exact files the duplicate derivation dropped
-	// (sorted); nil unless it ran. For the directory-collapse check.
-	DroppedCopies []string
 }
 
 var (
@@ -205,7 +190,7 @@ func generateWithWindow(in Input, full *FullWindowSelector) (*Result, error) {
 		return nil, &StopError{Stops: []Stop{stop(StopBadInput, "infer-install-paths", "inference needs rules without installPaths, installSurface, pathFilter and exclusions (exclusions are never inferred and never mixed in), and no range-check tags; a hand rule is never mixed with an inferred one")}}
 	}
 	if in.CheckInstallPathCopies && !in.InferInstallPaths && len(rules.InstallPaths) == 0 {
-		return nil, &StopError{Stops: []Stop{stop(StopBadInput, "check-install-path-copies", "the check needs installPaths in the rules file (or --infer-install-paths)")}}
+		return nil, &StopError{Stops: []Stop{stop(StopBadInput, "check-install-path-copies", "the check needs installPaths in the rules file (or inference)")}}
 	}
 	// Phase A: open and read every tag (same order and errors as one pass).
 	for i, t := range tags {
@@ -213,7 +198,7 @@ func generateWithWindow(in Input, full *FullWindowSelector) (*Result, error) {
 		if err != nil {
 			return nil, &StopError{Stops: []Stop{stop(StopTagUnreadable, t.Tag, err.Error())}}
 		}
-		fs, scanStops, frags := scanTreeFragments(tree, in.SkipPatchFragments)
+		fs, scanStops, frags := scanTreeFragments(tree, true)
 		fragmentsOf[i] = frags
 		var entries []Entry
 		if in.CollapseDirectories {
@@ -269,36 +254,6 @@ func generateWithWindow(in Input, full *FullWindowSelector) (*Result, error) {
 	optFatal = append(optFatal, cstops...)
 	if len(optFatal) > 0 {
 		return nil, &StopError{Stops: sortStops(optFatal)}
-	}
-
-	var derived *derivation
-	if in.DeriveDuplicates && deriveEligible(in, rules, plan, results, inferred != nil) {
-		// Second pass over the same readings with the derived exact-file
-		// list; the plain results are kept only for the per-tag checks.
-		d, tagStops := resolveDuplicates(plainFiles(results))
-		if d != nil {
-			derivedRules := &Rules{Schema: RulesSchema, Upstream: rules.Upstream, InstallPaths: d.Rules, deriveStrict: true, checkCopies: rules.checkCopies}
-			second := make([]*tagResult, len(tags))
-			for i, t := range tags {
-				commit := results[i].commit
-				r := classify(t.Tag, commit, scans[i], derivedRules, in.Slug, ownerRepo, index, nil)
-				r.stops = append(append([]Stop(nil), scanStopsOf[i]...), r.stops...)
-				optFatal = append(optFatal, applyOptional(r, trees[i], derivedRules, t.Tag, i == len(tags)-1)...)
-				r.entries, r.defs = results[i].entries, results[i].defs
-				r.fragments = results[i].fragments
-				second[i] = r
-			}
-			results, rules, derived = second, derivedRules, d
-			for i := range results {
-				results[i].stops = append(results[i].stops, tagStops[i]...)
-			}
-		} else {
-			// No derivation: report the derivation's stops of the newest tag.
-			results[len(results)-1].stops = append(results[len(results)-1].stops, tagStops[len(results)-1]...)
-		}
-		if len(optFatal) > 0 {
-			return nil, &StopError{Stops: sortStops(optFatal)}
-		}
 	}
 
 	newest := results[len(results)-1]
@@ -384,11 +339,7 @@ func generateWithWindow(in Input, full *FullWindowSelector) (*Result, error) {
 	var dirs []collapsedDir
 	if in.CollapseDirectories {
 		var dstops []Stop
-		var droppedCopies []string
-		if derived != nil {
-			droppedCopies = derived.Dropped
-		}
-		dirs, dstops = collapseDirsDropping(collapseInput(window), droppedCopies)
+		dirs, dstops = collapseDirs(collapseInput(window))
 		if len(dstops) == 0 && len(dirs) == 0 {
 			dstops = []Stop{stop(StopDirUnsupported, "", "no directory to collapse")}
 		}
@@ -400,48 +351,12 @@ func generateWithWindow(in Input, full *FullWindowSelector) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	if derived != nil {
-		annotateDerived(res, derived, window)
-		res.DroppedCopies = append([]string(nil), derived.Dropped...)
-	}
 	annotateOptional(res, rules, window)
 	annotateRanges(res, rules, window, checked)
 	if inferred != nil {
 		annotateInferred(res, inferred)
 	}
 	return res, nil
-}
-
-// deriveEligible is the pre-condition of the derivation, checked on the plain
-// pass: no hand rule of any kind, at least one stop at the newest tag, and
-// every stop of every tag is duplicate-crd. Anything else keeps the plain
-// result unchanged.
-func deriveEligible(in Input, rules *Rules, plan map[string]rangeEntry, results []*tagResult, inferred bool) bool {
-	// An inferred install directory is the one case of installPaths the
-	// derivation may refine (duplicates inside it); a hand list never.
-	if (len(rules.InstallPaths) > 0 && !inferred) || len(rules.Exclusions) > 0 || len(rules.InstallSurface) > 0 || len(rules.PathFilter) > 0 || plan != nil || len(in.RangeCheckTags) > 0 {
-		return false
-	}
-	if len(results[len(results)-1].stops) == 0 {
-		return false
-	}
-	for _, r := range results {
-		for _, st := range r.stops {
-			if st.Code != StopDuplicateCRD {
-				return false
-			}
-		}
-	}
-	return true
-}
-
-// plainFiles lists the files each plain-pass tag read.
-func plainFiles(results []*tagResult) []tagFiles {
-	out := make([]tagFiles, len(results))
-	for i, r := range results {
-		out[i] = tagFiles{Tag: r.tag, Included: r.included}
-	}
-	return out
 }
 
 func parseTags(in []string) ([]parsedTag, string, []Stop) {
@@ -538,7 +453,7 @@ type tagResult struct {
 	filtered    []FilteredCopy
 	entries     []Entry    // every file and link of the tree; only with CollapseDirectories
 	defs        []*finding // every definition-bearing file of the tree; same
-	fragments   []string   // patch fragments set aside (sorted); only with SkipPatchFragments
+	fragments   []string   // patch fragments set aside (sorted)
 }
 
 // collapseUnsupported lists the inputs a directory entry cannot represent
@@ -653,12 +568,6 @@ func classify(tag, commit string, fs []*finding, rules *Rules, slug, ownerRepo s
 				rule = RuleIncludeInstallPath
 				via = "declared by installPaths entry " + ip.Path
 			} else if exclusionFor(rules, f.Path) == nil {
-				if rules.deriveStrict && f.Unreadable != "" {
-					// A derived list never leaves an unreadable
-					// definition file out silently.
-					stopAt(StopUnreadableShape, f.Path, f.Unreadable)
-					continue
-				}
 				c := NonInstallCopy{Path: f.Path, Groups: groupSet(f.CRDs), Unreadable: f.Unreadable}
 				r.copies = append(r.copies, c)
 				outside = append(outside, f)
@@ -1020,7 +929,7 @@ func digestFacts(window []*tagResult) string {
 			lines = append(lines, fmt.Sprintf("%s\tfiltered-copy\t%s\t%s", safeField(r.tag), safeField(c.Path), safeField(strings.Join(c.Groups, ","))))
 		}
 		// Set-aside patch fragments are facts of the run; lines exist only
-		// with SkipPatchFragments and a fragment, so every other digest is
+		// with a fragment, so every other digest is
 		// unchanged.
 		for _, p := range r.fragments {
 			lines = append(lines, fmt.Sprintf("%s\tpatch-fragment\t%s", safeField(r.tag), safeField(p)))

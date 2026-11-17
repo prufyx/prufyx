@@ -81,12 +81,6 @@ type collapsedDir struct {
 // matched set of each directory is proved equal to the included files at
 // every tag. On any stop the directory list is nil.
 func collapseDirs(tags []collapseTag) ([]collapsedDir, []Stop) {
-	return collapseDirsDropping(tags, nil)
-}
-
-// collapseDirsDropping is collapseDirs with the exact files the duplicate
-// derivation dropped: a candidate directory that contains one is refused.
-func collapseDirsDropping(tags []collapseTag, dropped []string) ([]collapsedDir, []Stop) {
 	if len(tags) == 0 {
 		return nil, []Stop{stop(StopDirUnsupported, "", "no window tags")}
 	}
@@ -117,22 +111,6 @@ func collapseDirsDropping(tags []collapseTag, dropped []string) ([]collapsedDir,
 
 	var out []collapsedDir
 	for _, d := range dirs {
-		// A dropped duplicate copy inside a candidate directory forbids the
-		// collapse: the directory entry would read it again. Checked against
-		// the derivation's dropped list and, for every window tag, against
-		// the definition files and entries that tag carries. Fail closed.
-		if droppedInside(d, dropped) {
-			for _, t := range tags {
-				n := 0
-				for _, e := range t.Entries {
-					if droppedInside(d, []string{e.Path}) && containsString(dropped, e.Path) {
-						n++
-					}
-				}
-				stops = append(stops, stop(StopDirUnsupported, d, fmt.Sprintf("a dropped duplicate copy lies inside the directory (%d at %s); a directory entry would read it again, keep exact files", n, t.Tag)))
-			}
-			continue
-		}
 		perTag := make([][]string, len(tags))
 		bad := false
 		for k, t := range tags {

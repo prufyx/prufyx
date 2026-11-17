@@ -5,6 +5,7 @@ package targetdraft
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -532,35 +533,9 @@ func inferDupFiles() map[string][]string {
 	}
 }
 
-func TestInferThenDeriveDuplicates(t *testing.T) {
-	// Without the derivation the duplicate stays a stop.
+// Duplicate definitions stay the plain typed stop; there is no derivation.
+func TestDuplicateSourceStaysDuplicateCRDStop(t *testing.T) {
 	infStops(t, infInput(infSource(inferDupFiles(), nil)), StopDuplicateCRD)
-	in := infInput(infSource(inferDupFiles(), nil))
-	in.DeriveDuplicates = true
-	res := mustGenerate(t, in)
-	if res.Report.InferredInstallPaths == nil || len(res.Report.DerivedSources) != 1 {
-		t.Fatalf("both blocks expected: %+v", res.Report)
-	}
-	if strings.Count(string(res.A), "config/crd/bases/") != 2 {
-		t.Fatalf("one copy kept, so two files in the target:\n%s", res.A)
-	}
-	// Copies that differ stay a stop (the derivation's own proof).
-	src := infSource(inferDupFiles(), func(tag string, m *memTree) {
-		m.files["config/crd/bases/a-copy.yaml"] = ipDocs(infCRD("Alpha", "other"))
-	})
-	in = infInput(src)
-	in.DeriveDuplicates = true
-	if _, err := Generate(in); err == nil {
-		t.Fatal("differing copies must stop")
-	}
-	// A hidden definition outside the directory is not rescued by the
-	// derivation: its stop is not duplicate-crd, so the derivation is not even
-	// eligible.
-	files := inferDupFiles()
-	files["deploy/extra.yaml"] = []string{"Gamma"}
-	in = infInput(infSource(files, nil))
-	in.DeriveDuplicates = true
-	infStops(t, in, StopInstallPathHidesCRD)
 }
 
 func TestInferThenMultiPrefix(t *testing.T) {
@@ -586,47 +561,27 @@ func TestInferThenMultiPrefix(t *testing.T) {
 
 // --- CLI -------------------------------------------------------------------
 
-func TestCLIInferFlags(t *testing.T) {
+// Inference is internal: the CLI refuses its former flags.
+func TestCLIInferFlagsRemoved(t *testing.T) {
 	src := infSource(infControl(), nil)
 	open := func(string) Source { return src }
-	args := func(out string, extra ...string) []string {
-		return append([]string{"generate", "--dir", "x", "--slug", "widgets", "--name", "Widgets", "--repo", "github.com/example/widgets", "--tags", strings.Join(ipTags, ","), "--out", out}, extra...)
-	}
-	out := filepath.Join(t.TempDir(), "o")
-	var so, se bytes.Buffer
-	if code := run(args(out, "--infer-install-paths"), &so, &se, open); code != 0 {
-		t.Fatalf("exit %d: %s %s", code, so.String(), se.String())
-	}
-	rep, err := os.ReadFile(filepath.Join(out, "report.json"))
-	if err != nil || !strings.Contains(string(rep), `"inferredInstallPaths"`) || !strings.Contains(string(rep), "config/crd/bases/") {
-		t.Fatalf("report: %v %s", err, rep)
-	}
-	// Default off: the same input without the flag writes no inference block
-	// (and stops on the duplicates of this fixture: nothing written).
-	out2 := filepath.Join(t.TempDir(), "o")
-	so.Reset()
-	if code := run(args(out2), &so, &se, open); code != 1 {
-		t.Fatalf("flag off must keep its own result, exit %d: %s", code, so.String())
-	}
-	if _, err := os.Stat(out2); err == nil {
-		if ents, _ := os.ReadDir(out2); len(ents) > 0 {
-			t.Fatal("a stop must write nothing")
+	for _, fl := range []string{"--infer-install-paths", "--check-install-path-copies"} {
+		out := filepath.Join(t.TempDir(), "o")
+		var so, se bytes.Buffer
+		args := []string{"generate", "--dir", "x", "--slug", "widgets", "--name", "Widgets", "--repo", "github.com/example/widgets", "--tags", strings.Join(ipTags, ","), "--out", out, fl}
+		if code := run(args, &so, &se, open); code != 2 {
+			t.Fatalf("%s: exit %d", fl, code)
 		}
 	}
-	// A typed stop exits 1 and writes nothing.
-	bad := infSource(map[string][]string{"docs/crds/a.yaml": {"Alpha"}}, nil)
-	out3 := filepath.Join(t.TempDir(), "o")
-	so.Reset()
-	if code := run(args(out3, "--infer-install-paths"), &so, &se, func(string) Source { return bad }); code != 1 || !strings.Contains(so.String(), StopInstallPathAmbiguous) {
+	// Without a flag a duplicate-carrying tree is a typed stop, nothing written.
+	out := filepath.Join(t.TempDir(), "o")
+	var so, se bytes.Buffer
+	args := []string{"generate", "--dir", "x", "--slug", "widgets", "--name", "Widgets", "--repo", "github.com/example/widgets", "--tags", strings.Join(ipTags, ","), "--out", out}
+	if code := run(args, &so, &se, open); code != 1 {
 		t.Fatalf("exit %d: %s", code, so.String())
 	}
-	if ents, _ := os.ReadDir(out3); len(ents) > 0 {
+	if ents, _ := os.ReadDir(out); len(ents) > 0 {
 		t.Fatal("a stop must write nothing")
-	}
-	// The check flag alone needs a rules file with installPaths.
-	so.Reset()
-	if code := run(args(filepath.Join(t.TempDir(), "o"), "--check-install-path-copies"), &so, &se, open); code != 1 || !strings.Contains(so.String(), StopBadInput) {
-		t.Fatalf("exit %d: %s", code, so.String())
 	}
 }
 
@@ -733,19 +688,6 @@ func TestInferCandidateOrderPinned(t *testing.T) {
 	}
 }
 
-func TestInferChangelogStatesDerivePaths(t *testing.T) {
-	in := infInput(infSource(inferDupFiles(), nil))
-	in.DeriveDuplicates = true
-	res := mustGenerate(t, in)
-	if !strings.Contains(string(res.Changelog), "derived exact files") {
-		t.Fatal("changelog must say the derived files are read")
-	}
-	plain := mustGenerate(t, infInput(infSource(infControl(), nil)))
-	if strings.Contains(string(plain.Changelog), "derived exact files") {
-		t.Fatal("no derive sentence without derivation")
-	}
-}
-
 func unreadableDef() []byte {
 	return []byte("apiVersion: apiextensions.k8s.io/v1\nkind: CustomResourceDefinition\nspec: {{ .Values.x }}\n")
 }
@@ -815,4 +757,17 @@ func TestHandCheckUnreadableUnderDocsPasses(t *testing.T) {
 	if !found {
 		t.Fatalf("not reported: %+v", res.Report.NonInstallCopies)
 	}
+}
+
+func hasStopCode(err error, code string) bool {
+	var se *StopError
+	if !errors.As(err, &se) {
+		return false
+	}
+	for _, s := range se.Stops {
+		if s.Code == code {
+			return true
+		}
+	}
+	return false
 }

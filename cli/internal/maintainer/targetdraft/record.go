@@ -28,12 +28,12 @@ func RecordDraft(in Input, source GitSource, expectedTarget, expectedRow []byte)
 	if len(expectedTarget) == 0 || len(expectedRow) == 0 {
 		return nil, errors.New("expected target and table row are required")
 	}
-	if in.DeriveDuplicates || in.MultiPrefix || in.InferInstallPaths || in.CheckInstallPathCopies || in.SkipPatchFragments {
+	if in.MultiPrefix || in.InferInstallPaths || in.CheckInstallPathCopies {
 		return nil, errors.New("input uses options unsupported by recipe v1")
 	}
 	var rulesRaw []byte
 	if in.Rules != nil {
-		if len(in.Rules.Exclusions) != 0 || in.Rules.deriveStrict || in.Rules.checkCopies {
+		if len(in.Rules.Exclusions) != 0 || in.Rules.checkCopies {
 			return nil, errors.New("rules contain unsupported exclusions or options")
 		}
 		var err error

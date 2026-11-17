@@ -85,7 +85,6 @@ func wantClass(t *testing.T, p, content string, off, on string) {
 
 func inferSkip(src Source) Input {
 	in := infInput(src)
-	in.SkipPatchFragments = true
 	return in
 }
 
@@ -96,13 +95,7 @@ func TestSkipFragmentsFixturesAreWhatTheyClaim(t *testing.T) {
 
 func TestSkipFragmentsInferenceStopsWithoutAndPassesWith(t *testing.T) {
 	mut := fragFiles(bothFragments())
-	// Without the option: the rank-1 unreadable fragment directory stops the
-	// inference (the measured case).
-	se := infStops(t, infInput(infSource(infControl(), mut)), StopInstallPathAmbiguous)
-	if !strings.Contains(se.Error(), "config/crd/patches/") {
-		t.Fatalf("the stop must name the patches directory: %v", se)
-	}
-	// With the option: the same draft as without any fragment.
+	// Fragments are set aside by default: the same draft as without any fragment.
 	with := mustGenerate(t, inferSkip(infSource(infControl(), mut)))
 	plain := mustGenerate(t, infInput(infSource(infControl(), nil)))
 	if !bytes.Equal(with.A, plain.A) || !bytes.Equal(with.B, plain.B) || !bytes.Equal(with.TableRow, plain.TableRow) {
@@ -157,17 +150,12 @@ func TestSkipFragmentsOffIsByteIdentical(t *testing.T) {
 	if strings.Contains(string(oj), "patchFragments") {
 		t.Fatal("no field without the option")
 	}
-	// The option off with fragments present: the existing stop, no field.
-	infStops(t, infInput(infSource(infControl(), fragFiles(bothFragments()))), StopInstallPathAmbiguous)
 }
 
 func TestSkipFragmentsHandPathAndCopyCheck(t *testing.T) {
 	mut := fragFiles(bothFragments())
-	// Check on, option off: the unreadable fragments outside stop.
-	infStops(t, handInput(t, infControl(), mut, true), StopInstallPathHidesCRD)
-	// Check on, option on: passes, fragments listed, no copy entry.
+	// Check on: passes, fragments listed, no copy entry.
 	in := handInput(t, infControl(), mut, true)
-	in.SkipPatchFragments = true
 	res := mustGenerate(t, in)
 	if len(res.Report.PatchFragments) != len(ipTags) {
 		t.Fatalf("%+v", res.Report.PatchFragments)
@@ -177,20 +165,8 @@ func TestSkipFragmentsHandPathAndCopyCheck(t *testing.T) {
 			t.Fatalf("a fragment is not a copy: %+v", c)
 		}
 	}
-	// Check off: before the option the unreadable fragment outside was a
-	// reported unreadable copy; with it, a fragment.
+	// Check off: the fragment is not a reported copy.
 	in = handInput(t, infControl(), mut, false)
-	res = mustGenerate(t, in)
-	seen := false
-	for _, c := range res.Report.NonInstallCopies {
-		if c.Path == patchHook && c.Unreadable != "" {
-			seen = true
-		}
-	}
-	if !seen {
-		t.Fatalf("option off keeps the unreadable copy: %+v", res.Report.NonInstallCopies)
-	}
-	in.SkipPatchFragments = true
 	res = mustGenerate(t, in)
 	for _, c := range res.Report.NonInstallCopies {
 		if c.Path == patchHook {
@@ -216,7 +192,6 @@ func TestSkipFragmentsStillStopOnEverythingElse(t *testing.T) {
 			mut := fragFiles(map[string]string{patchHook: c})
 			infStops(t, inferSkip(infSource(infControl(), mut)), StopInstallPathAmbiguous)
 			in := handInput(t, infControl(), mut, true)
-			in.SkipPatchFragments = true
 			infStops(t, in, StopInstallPathHidesCRD)
 		})
 	}
@@ -235,13 +210,11 @@ func TestSkipFragmentsFullDefinitionIsADefinition(t *testing.T) {
 	wantClass(t, "config/crd/patches/full.yaml", full, "definition", "definition")
 	// A definition no install path defines is the typed stop, option on.
 	in := handInput(t, infControl(), fragFiles(map[string]string{"config/crd/patches/full.yaml": full}), true)
-	in.SkipPatchFragments = true
 	infStops(t, in, StopInstallPathHidesCRD)
 	// A full definition (Alpha, equal to the installed one) next to a
 	// fragment is a copy, and the fragment is still set aside.
 	mut := fragFiles(map[string]string{"config/crd/patches/full.yaml": infCRD("Alpha", "d"), patchHook: fragWebhook})
 	in = handInput(t, infControl(), mut, true)
-	in.SkipPatchFragments = true
 	res := mustGenerate(t, in)
 	var copyPath, fragPath bool
 	for _, c := range res.Report.NonInstallCopies {
@@ -256,7 +229,6 @@ func TestSkipFragmentsFullDefinitionIsADefinition(t *testing.T) {
 	// A different decoded spec is still caught.
 	mut = fragFiles(map[string]string{"config/crd/patches/full.yaml": infCRD("Alpha", "other"), patchHook: fragWebhook})
 	in = handInput(t, infControl(), mut, true)
-	in.SkipPatchFragments = true
 	infStops(t, in, StopInstallPathCopyDiffers)
 }
 
@@ -396,7 +368,6 @@ func TestSkipFragmentsThroughSymlinkFollowsTheLinkRules(t *testing.T) {
 	}
 	infStops(t, inferSkip(infSource(infControl(), mut)), StopInstallPathAmbiguous)
 	in := handInput(t, infControl(), mut, true)
-	in.SkipPatchFragments = true
 	infStops(t, in, StopInstallPathHidesCRD)
 	// The unlinked sibling is still set aside in the same tree.
 	m.files[patchCA] = []byte(fragCA)
@@ -434,9 +405,8 @@ func TestSkipFragmentsDeterministic(t *testing.T) {
 
 func TestSkipFragmentsRankOneUnreadablePatchDirOutsideBases(t *testing.T) {
 	// The measured case: a rank-1 patches directory beside config/crd/bases.
-	// Option off: stop. Option on: the chosen directory is config/crd/bases/.
+	// The chosen directory is config/crd/bases/.
 	mut := fragFiles(bothFragments())
-	infStops(t, infInput(infSource(infControl(), mut)), StopInstallPathAmbiguous)
 	res := mustGenerate(t, inferSkip(infSource(infControl(), mut)))
 	if res.Report.InferredInstallPaths.Paths[0] != "config/crd/bases/" {
 		t.Fatalf("%+v", res.Report.InferredInstallPaths)
@@ -448,107 +418,39 @@ func TestSkipFragmentsRankOneUnreadablePatchDirOutsideBases(t *testing.T) {
 	infStops(t, inferSkip(infSource(infControl(), fragFiles(files))), StopInstallPathAmbiguous)
 }
 
-func TestSkipFragmentsWithDeriveDuplicates(t *testing.T) {
-	// #566: duplicates inside the inferred directory are still derived and a
-	// fragment elsewhere no longer blocks the derivation.
-	mut := fragFiles(bothFragments())
-	in := infInput(infSource(inferDupFiles(), mut))
-	in.DeriveDuplicates = true
-	infStops(t, in, StopInstallPathAmbiguous)
-	in = inferSkip(infSource(inferDupFiles(), mut))
-	in.DeriveDuplicates = true
-	res := mustGenerate(t, in)
-	base := infInput(infSource(inferDupFiles(), nil))
-	base.DeriveDuplicates = true
-	want := mustGenerate(t, base)
-	if !bytes.Equal(res.A, want.A) || len(res.Report.DerivedSources) != len(want.Report.DerivedSources) || len(res.Report.DerivedSources) == 0 {
-		t.Fatalf("derived: %+v vs %+v", res.Report.DerivedSources, want.Report.DerivedSources)
+// The four zero-gain flags and the former opt-in are gone from the CLI: each
+// is an unknown flag (usage, exit 2) and writes nothing.
+func TestCLIRemovedFlagsAreRejected(t *testing.T) {
+	src := infSource(infControl(), fragFiles(bothFragments()))
+	open := func(string) Source { return src }
+	for _, fl := range []string{"--skip-patch-fragments", "--derive-duplicate-sources", "--multi-prefix", "--infer-install-paths", "--check-install-path-copies"} {
+		out := filepath.Join(t.TempDir(), "o")
+		var so, se bytes.Buffer
+		args := []string{"generate", "--dir", "x", "--slug", "widgets", "--name", "Widgets", "--repo", "github.com/example/widgets", "--tags", strings.Join(ipTags, ","), "--out", out, fl}
+		if code := run(args, &so, &se, open); code != 2 {
+			t.Fatalf("%s: exit %d, want 2: %s %s", fl, code, so.String(), se.String())
+		}
+		if _, err := os.Stat(out); err == nil {
+			t.Fatalf("%s: output written", fl)
+		}
 	}
+}
+
+// Patch fragments are set aside by default: inference over a tree with
+// fragments succeeds and reports them.
+func TestPatchFragmentsSetAsideByDefault(t *testing.T) {
+	res := mustGenerate(t, infInput(infSource(infControl(), fragFiles(bothFragments()))))
 	if len(res.Report.PatchFragments) != len(ipTags) {
 		t.Fatalf("%+v", res.Report.PatchFragments)
 	}
 }
 
-func TestSkipFragmentsWithCollapse(t *testing.T) {
-	// #565: a fragment in another directory leaves the collapse of the install
-	// directory alone.
-	in := inferSkip(infSource(infControl(), fragFiles(bothFragments())))
-	in.CollapseDirectories = true
-	res := mustGenerate(t, in)
-	if res.Report.Representation != "directory" || len(res.Report.Directories) != 1 || res.Report.Directories[0].Dir != "config/crd/bases" {
-		t.Fatalf("%+v", res.Report.Directories)
-	}
-	// A fragment INSIDE the collapsed directory is matched by the directory
-	// entry but is no definition: the collapse stops dir-mixed (never silently
-	// reads it); without the collapse the exact files are written.
-	inside := fragFiles(map[string]string{"config/crd/bases/crd-patch.yaml": fragWebhook})
-	wantClass(t, "config/crd/bases/crd-patch.yaml", fragWebhook, "unreadable", "fragment")
-	in = inferSkip(infSource(infControl(), inside))
-	in.CollapseDirectories = true
-	infStops(t, in, StopDirMixed)
-	in = inferSkip(infSource(infControl(), inside))
-	res = mustGenerate(t, in)
-	if strings.Contains(string(res.A), "crd-patch.yaml") {
-		t.Fatal("a fragment is never an install file")
-	}
-}
-
-func TestSkipFragmentsInsideInferredDirectoryIsNotInstalled(t *testing.T) {
-	// A fragment below the chosen directory: set aside, not an install file,
-	// and not a ranking candidate (the evidence equals the run without it).
-	inside := fragFiles(map[string]string{"config/crd/bases/crd-patch.yaml": fragWebhook})
-	// Option off: the unreadable file inside the chosen directory is the
-	// typed stop unreadable-shape.
-	infStops(t, infInput(infSource(infControl(), inside)), StopUnreadableShape)
-	got := mustGenerate(t, inferSkip(infSource(infControl(), inside)))
-	plain := mustGenerate(t, infInput(infSource(infControl(), nil)))
-	if !bytes.Equal(got.A, plain.A) {
-		t.Fatal("the target must not change")
-	}
-}
-
-func TestCLISkipPatchFragmentsFlag(t *testing.T) {
-	src := infSource(infControl(), fragFiles(bothFragments()))
-	open := func(string) Source { return src }
-	args := func(out string, extra ...string) []string {
-		return append([]string{"generate", "--dir", "x", "--slug", "widgets", "--name", "Widgets", "--repo", "github.com/example/widgets", "--tags", strings.Join(ipTags, ","), "--out", out, "--infer-install-paths"}, extra...)
-	}
-	var so, se bytes.Buffer
-	if code := run(args(filepath.Join(t.TempDir(), "o")), &so, &se, open); code != 1 || !strings.Contains(so.String(), StopInstallPathAmbiguous) {
-		t.Fatalf("default off must stop: exit %d %s", code, so.String())
-	}
-	out := filepath.Join(t.TempDir(), "o")
-	so.Reset()
-	if code := run(args(out, "--skip-patch-fragments"), &so, &se, open); code != 0 {
-		t.Fatalf("exit %d: %s %s", code, so.String(), se.String())
-	}
-	rep, err := os.ReadFile(filepath.Join(out, "report.json"))
-	if err != nil || !strings.Contains(string(rep), `"patchFragments"`) || !strings.Contains(string(rep), patchHook) {
-		t.Fatalf("report: %v %s", err, rep)
-	}
-}
-
-func TestBacktestSkipPatchFragmentsOptionMapsAndDefaultsOff(t *testing.T) {
-	var got Input
-	old := generate
-	defer func() { generate = old }()
-	generate = func(in Input) (*Result, error) {
-		got = in
-		return old(in)
-	}
-	dirBT(t, func(e *btEntry) { e.SkipPatchFragments = true }, genCollapsed(t, false), "")
-	if !got.SkipPatchFragments {
-		t.Fatalf("%+v", got)
-	}
-	got = Input{}
-	dirBT(t, func(e *btEntry) {}, genCollapsed(t, false), "")
-	if got.SkipPatchFragments {
-		t.Fatalf("default must stay off: %+v", got)
-	}
-	raw := `{"schema":"` + BacktestSchema + `","count":1,"entries":[{"slug":"a","name":"a","repo":"r","tags":["v1"],"mirror":"m","expected":"e.json","half":"A","skipPatchFragments":true}],"seeds":[{"entry":"a","kind":"path"}]}`
-	m, err := parseBacktestManifest([]byte(raw))
-	if err != nil || !m.Entries[0].SkipPatchFragments {
-		t.Fatalf("%v %+v", err, m)
+func TestBacktestManifestRejectsRemovedOptions(t *testing.T) {
+	for _, k := range []string{"skipPatchFragments", "deriveDuplicateSources", "escalateAny"} {
+		raw := `{"schema":"` + BacktestSchema + `","count":1,"entries":[{"slug":"a","name":"a","repo":"r","tags":["v1"],"mirror":"m","expected":"e.json","half":"A","` + k + `":true}],"seeds":[{"entry":"a","kind":"path"}]}`
+		if _, err := parseBacktestManifest([]byte(raw)); err == nil {
+			t.Fatalf("%s accepted", k)
+		}
 	}
 }
 

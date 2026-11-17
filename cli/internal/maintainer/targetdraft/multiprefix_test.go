@@ -196,16 +196,6 @@ func TestMultiPrefixWindowShrinkStops(t *testing.T) {
 		}
 	})
 	mpStop(t, "whole older prefix withheld", mpInput(mpTags, src, true, false), StopMultiPrefixShort)
-	// A stop writes nothing: through the CLI the exit is 1 and --out stays absent.
-	out := filepath.Join(t.TempDir(), "o")
-	var so, se bytes.Buffer
-	args := []string{"generate", "--dir", "x", "--slug", "demo", "--name", "Demo", "--repo", "github.com/example/demo", "--tags", strings.Join(mpTags, ","), "--out", out, "--multi-prefix"}
-	if code := run(args, &so, &se, func(string) Source { return src }); code != 1 || !strings.Contains(so.String(), "STOP multi-prefix-window-short") {
-		t.Fatalf("exit %d: %s %s", code, so.String(), se.String())
-	}
-	if _, err := os.Stat(out); err == nil {
-		t.Fatal("a stop left a draft")
-	}
 }
 
 // Exclusions are never inferred: a multi-prefix run over a tree needing one
@@ -232,59 +222,21 @@ func TestMultiPrefixKeepsExclusionStops(t *testing.T) {
 
 // Seeded wrong targets through the CLI compare: swap, drop, extra, merge into
 // one prefix, order-changed list.
-func TestMultiPrefixSeededWrongTargetsExitNonZero(t *testing.T) {
+func TestCLIMultiPrefixRemovedAndTwoPrefixesStayMixed(t *testing.T) {
 	src := mpSource(mpTags, nil)
 	open := func(string) Source { return src }
-	dir := t.TempDir()
-	args := func(out string, extra ...string) []string {
-		return append([]string{"generate", "--dir", "x", "--slug", "demo", "--name", "Demo", "--repo", "github.com/example/demo", "--tags", strings.Join(mpTags, ","), "--out", out, "--multi-prefix", "--collapse-directories"}, extra...)
-	}
-	good := filepath.Join(dir, "good.json")
-	if err := os.WriteFile(good, []byte(wantMultiA), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	base := []string{"generate", "--dir", "x", "--slug", "demo", "--name", "Demo", "--repo", "github.com/example/demo", "--tags", strings.Join(mpTags, ",")}
+	out := filepath.Join(t.TempDir(), "o")
 	var so, se bytes.Buffer
-	if code := run(args(filepath.Join(t.TempDir(), "ok"), "--compare-a", good), &so, &se, open); code != 0 {
-		t.Fatalf("the true target must pass: %d %s %s", code, so.String(), se.String())
+	if code := run(append(append([]string{}, base...), "--out", out, "--multi-prefix"), &so, &se, open); code != 2 {
+		t.Fatalf("--multi-prefix must be an unknown flag: exit %d", code)
 	}
-	seeds := map[string]string{
-		"swap prefixes":       strings.Replace(wantMultiA, `["v", ""]`, `["", "v"]`, 1),
-		"merge into v":        strings.Replace(wantMultiA, `["v", ""]`, `["v"]`, 1),
-		"merge into none":     strings.Replace(wantMultiA, `["v", ""]`, `[""]`, 1),
-		"drop a prefix":       strings.Replace(wantMultiA, `["v", ""]`, `["v"]`, 1),
-		"extra prefix":        strings.Replace(wantMultiA, `["v", ""]`, `["v", "", "knative-v"]`, 1),
-		"other second prefix": strings.Replace(wantMultiA, `["v", ""]`, `["v", "knative-v"]`, 1),
-		"minFrom of one line": strings.Replace(wantMultiA, `"minFrom": "5.18"`, `"minFrom": "5.20"`, 1),
-	}
-	names := make([]string, 0, len(seeds))
-	for n := range seeds {
-		names = append(names, n)
-	}
-	sort.Strings(names)
-	for _, n := range names {
-		if seeds[n] == wantMultiA {
-			t.Fatalf("seed %q did not change the file", n)
-		}
-		f := filepath.Join(dir, strings.ReplaceAll(n, " ", "-")+".json")
-		if err := os.WriteFile(f, []byte(seeds[n]), 0o644); err != nil {
-			t.Fatal(err)
-		}
-		so.Reset()
-		se.Reset()
-		out := filepath.Join(t.TempDir(), "seed")
-		if code := run(args(out, "--compare-a", f), &so, &se, open); code == 0 {
-			t.Fatalf("seed %q reproduced the target", n)
-		}
-		if _, err := os.Stat(out); err == nil {
-			t.Fatalf("seed %q left a draft behind", n)
-		}
-	}
-	// The multi-prefix target on a tree of one prefix only: not a match.
-	one := mpSource(collapseTags, nil)
 	so.Reset()
-	args1 := []string{"generate", "--dir", "x", "--slug", "demo", "--name", "Demo", "--repo", "github.com/example/demo", "--tags", strings.Join(collapseTags, ","), "--out", filepath.Join(t.TempDir(), "p"), "--multi-prefix", "--compare-a", good}
-	if code := run(args1, &so, &se, func(string) Source { return one }); code == 0 {
-		t.Fatal("a multi-prefix target passed on a single-prefix tree")
+	if code := run(append(append([]string{}, base...), "--out", out), &so, &se, open); code != 1 || !strings.Contains(so.String(), "STOP tag-prefix-mixed") {
+		t.Fatalf("exit %d: %s", code, so.String())
+	}
+	if _, err := os.Stat(out); err == nil {
+		t.Fatal("a stop left a draft")
 	}
 }
 
