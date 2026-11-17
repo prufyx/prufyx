@@ -76,7 +76,9 @@ func runCoverageReadme(args []string, stdout, stderr io.Writer) error {
 		if err != nil {
 			return &commandError{code: 2, message: "coverage readme: cannot compute the counts", err: err}
 		}
-		if err := os.WriteFile(filepath.Clean(*jsonOut), raw, 0o644); err != nil {
+		// A new file only: an existing file or symlink at the path is never
+		// replaced or followed (as every other output of this tool).
+		if err := writeNewFile(filepath.Clean(*jsonOut), raw); err != nil {
 			return &commandError{code: 2, message: "coverage readme: cannot write JSON", err: err}
 		}
 	}

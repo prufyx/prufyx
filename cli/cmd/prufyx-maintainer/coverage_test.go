@@ -339,6 +339,35 @@ func TestMaintainerCLI_CoverageReadmeJSONOut(t *testing.T) {
 	} else if _, serr := os.Stat(filepath.Dir(bad)); serr == nil {
 		t.Fatal("bad path created something")
 	}
+	// An existing file is never replaced: the run fails and the file keeps its bytes.
+	existing := filepath.Join(dir, "existing.json")
+	if err := os.WriteFile(existing, []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := run1(existing, "--check"); err == nil {
+		t.Fatal("existing file replaced")
+	}
+	if got, _ := os.ReadFile(existing); string(got) != "keep" {
+		t.Fatalf("existing file changed: %q", got)
+	}
+	// A symlink at the path is neither followed nor replaced.
+	target := filepath.Join(dir, "target.json")
+	if err := os.WriteFile(target, []byte("target"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "link.json")
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatal(err)
+	}
+	if err := run1(link, "--check"); err == nil {
+		t.Fatal("symlink path accepted")
+	}
+	if got, _ := os.ReadFile(target); string(got) != "target" {
+		t.Fatalf("symlink target changed: %q", got)
+	}
+	if fi, err := os.Lstat(link); err != nil || fi.Mode()&os.ModeSymlink == 0 {
+		t.Fatal("symlink replaced")
+	}
 	// A stale README still fails with --check, and the file is written.
 	stale := t.TempDir()
 	if err := copyTree(root, stale); err != nil {
