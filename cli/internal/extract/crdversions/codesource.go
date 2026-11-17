@@ -56,6 +56,11 @@ func CodeViewWithIndex(fsys fs.FS, project string, ix customresources.Index) fs.
 			lines = append(lines, fmt.Sprintf("installed-dependency\t%s\t%s\t%d", dependency.name, owner, attribution))
 		}
 	}
+	// An unowned record leaves definitions out of any project's scan, so every
+	// project's digest folds the records in.
+	for _, l := range ix.UnownedListing() {
+		lines = append(lines, "unowned "+l)
+	}
 	if len(lines) > 0 {
 		v.attr = []byte(strings.Join(lines, "\n") + "\n")
 	}

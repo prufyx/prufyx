@@ -161,7 +161,7 @@ func FactID(factProject string) string {
 // such a group keeps every set incomplete, which never passes.
 // Gateway API's experimental group is separately recorded because its
 // profile-attested target reads both declared channels from that repository.
-var table, reserved = mustLoadTable(tableJSON)
+var table, reserved, unowned = mustLoadTable(tableJSON)
 
 // Projects returns a copy of the reviewed table, ordered by slug.
 func Projects() []Project { return copyProjects(table) }
@@ -324,6 +324,36 @@ func reviewedReserved(records []ReservedGroup, group string) bool {
 	return false
 }
 
+// UnownedGroup is a reviewed record that a group, or the listed kinds of a
+// group, belongs to no project of the table: a fixture group that only test
+// data uses, or the kinds another upstream product defines in a group the
+// table shares (the Argo Workflows kinds of argoproj.io). It is attribution
+// data read like a project listing by the extractor's scan, which leaves
+// the definitions out as not the target's; every other reader sees the same
+// unattributed group and kind as before (OwnerOf stays Unknown). Validate
+// refuses a record that overlaps a project listing, a reserved record or a
+// Kubernetes-reserved group, so no (group, kind) has an owner and a record.
+type UnownedGroup struct {
+	Name string
+	// Kinds are the kinds the record covers, sorted and unique. Nil covers
+	// the whole group.
+	Kinds []string `json:",omitempty"`
+	// Reason says why nobody in the table owns it.
+	Reason string
+	// Source is a manifest, pinned by full commit, that shows it.
+	Source string
+}
+
+// UnownedGroups returns a copy of the reviewed list of unowned records.
+func UnownedGroups() []UnownedGroup {
+	out := make([]UnownedGroup, len(unowned))
+	for i, u := range unowned {
+		out[i] = u
+		out[i].Kinds = cloneKinds(u.Kinds)
+	}
+	return out
+}
+
 // GroupOf returns the API group of an apiVersion ("" for "v1").
 func GroupOf(apiVersion string) string {
 	group, _, found := strings.Cut(apiVersion, "/")
@@ -349,6 +379,7 @@ const (
 type Index struct {
 	owners   map[string][]string
 	listings map[string][]listing
+	unowned  []UnownedGroup
 }
 
 // listing is one project's listing of a group.
@@ -377,8 +408,36 @@ func NewIndex(projects []Project) Index {
 	return Index{owners: owners, listings: listings}
 }
 
-// DefaultIndex indexes the reviewed table.
-func DefaultIndex() Index { return NewIndex(table) }
+// DefaultIndex indexes the reviewed table and its unowned records.
+func DefaultIndex() Index { return NewIndex(table).WithUnowned(UnownedGroups()) }
+
+// WithUnowned returns the index with the given unowned records. The records
+// are only consulted by Unowned, never by Owner or OwnerOf.
+func (x Index) WithUnowned(records []UnownedGroup) Index {
+	x.unowned = make([]UnownedGroup, len(records))
+	for i, r := range records {
+		x.unowned[i] = r
+		x.unowned[i].Kinds = cloneKinds(r.Kinds)
+	}
+	return x
+}
+
+// Unowned reports whether a reviewed record says an object of the group and
+// kind belongs to no project of the table. It is false for anything a project
+// lists (or lists ambiguously): the index fails closed against a table that
+// Validate would refuse. A record without kinds covers the whole group; one
+// with kinds covers exactly those kinds (exact, case-sensitive).
+func (x Index) Unowned(group, kind string) bool {
+	if _, attr := x.OwnerOf(group, kind); attr != Unknown {
+		return false
+	}
+	for _, r := range x.unowned {
+		if r.Name == group && (r.Kinds == nil || containsString(r.Kinds, kind)) {
+			return true
+		}
+	}
+	return false
+}
 
 // Owner returns the project a group belongs to. Only an exact, listed,
 // unambiguous group is Owned; the slug is empty otherwise.
@@ -445,6 +504,22 @@ func (x Index) ListingsSharing(slug string) []string {
 	return out
 }
 
+// UnownedListing returns, in a canonical sorted form, every unowned record
+// of the index ("group *" for a whole group, "group [k1,k2]" for kinds). It
+// moves exactly when a record is added, removed or changed.
+func (x Index) UnownedListing() []string {
+	out := make([]string, 0, len(x.unowned))
+	for _, r := range x.unowned {
+		kinds := "*"
+		if r.Kinds != nil {
+			kinds = "[" + strings.Join(r.Kinds, ",") + "]"
+		}
+		out = append(out, r.Name+" "+kinds)
+	}
+	sort.Strings(out)
+	return out
+}
+
 func containsString(values []string, value string) bool {
 	for _, v := range values {
 		if v == value {
@@ -506,7 +581,7 @@ func validKinds(kinds []string) bool {
 // reviewed ownership record naming that project and its repository, and
 // every record must be listed by its owner and by no other project, whole
 // (a reserved group names no kinds).
-func Validate(projects []Project) bool { return validate(projects, reserved) }
+func Validate(projects []Project) bool { return validateAll(projects, reserved, unowned) }
 
 // ValidUpstream reports whether u is the provenance block table validation
 // requires for a row of the given catalog and component: none for a CNCF row;
@@ -525,6 +600,10 @@ func ValidUpstream(catalog Catalog, component string, u Upstream) bool {
 }
 
 func validate(projects []Project, records []ReservedGroup) bool {
+	return validateAll(projects, records, nil)
+}
+
+func validateAll(projects []Project, records []ReservedGroup, unownedRecords []UnownedGroup) bool {
 	listed := map[string][]string{}
 	listedKinds := map[string][][]string{}
 	for i, p := range projects {
@@ -595,7 +674,37 @@ func validate(projects []Project, records []ReservedGroup) bool {
 			return false
 		}
 	}
+	for i, u := range unownedRecords {
+		if !validUnowned(u) || (i > 0 && unownedRecords[i-1].Name >= u.Name) {
+			return false
+		}
+		// A record never covers what a project lists: a group listed whole
+		// is refused, and a group listed by kinds only with disjoint kinds
+		// (a whole-group record needs the group unlisted). A group of a
+		// reserved ownership record is refused above (reserved namespaces).
+		if u.Kinds == nil && len(listed[u.Name]) != 0 {
+			return false
+		}
+		for _, kinds := range listedKinds[u.Name] {
+			if kinds == nil {
+				return false
+			}
+			for _, k := range u.Kinds {
+				if containsString(kinds, k) {
+					return false
+				}
+			}
+		}
+	}
 	return true
+}
+
+// validUnowned checks one record on its own: a custom resource group of no
+// Kubernetes-reserved namespace, well-formed kinds, a bounded reason and a
+// source pinned by full commit.
+func validUnowned(u UnownedGroup) bool {
+	return len(u.Name) <= 253 && groupRE.MatchString(u.Name) && !ReservedNamespace(u.Name) &&
+		validKinds(u.Kinds) && strings.TrimSpace(u.Reason) == u.Reason && len(u.Reason) >= 12 && len(u.Reason) <= 300 && sourceRE.MatchString(u.Source)
 }
 
 // ownsReserved reports whether exactly one record names the group, for

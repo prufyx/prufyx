@@ -22,14 +22,14 @@ func syntheticOwnership(tg Target, groups ...string) customresources.Index {
 			for _, g := range groups {
 				ps[i].Groups = append(ps[i].Groups, customresources.Group{Name: g})
 			}
-			return customresources.NewIndex(ps)
+			return customresources.NewIndex(ps).WithUnowned(customresources.UnownedGroups())
 		}
 	}
 	p := customresources.Project{Slug: tg.Project}
 	for _, g := range groups {
 		p.Groups = append(p.Groups, customresources.Group{Name: g})
 	}
-	return customresources.NewIndex(append(ps, p))
+	return customresources.NewIndex(append(ps, p)).WithUnowned(customresources.UnownedGroups())
 }
 
 func fixtureExtractor(tg Target) *Extractor {

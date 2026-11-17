@@ -44,6 +44,9 @@ const (
 	KindGroup = "group"
 	// KindReserved: a reviewed ownership record left the table.
 	KindReserved = "reserved"
+	// KindUnowned: a reviewed unowned record left the table, or covers fewer
+	// kinds or another source.
+	KindUnowned = "unowned"
 	// KindTarget: a target file was deleted.
 	KindTarget = "target"
 	// KindNarrowed: a target that stays now covers less; Detail says what.
@@ -86,6 +89,7 @@ type NoTarget struct {
 type Inputs struct {
 	Projects []customresources.Project
 	Reserved []customresources.ReservedGroup
+	Unowned  []customresources.UnownedGroup
 	Targets  []crdversions.Target
 	Guard    Guard
 	// GuardPresent is false when guard.json does not exist at this revision.
@@ -102,7 +106,7 @@ func Load(fsys fs.FS, allowMissingGuard bool) (Inputs, error) {
 	if err != nil {
 		return in, err
 	}
-	if in.Projects, in.Reserved, err = customresources.LoadTable(rawTable); err != nil {
+	if in.Projects, in.Reserved, in.Unowned, err = customresources.LoadTable(rawTable); err != nil {
 		return in, fmt.Errorf("%s: %w", TablePath, err)
 	}
 	sub, err := fs.Sub(fsys, TargetDir)
@@ -152,7 +156,7 @@ func DecodeGuard(raw []byte) (Guard, error) {
 			if r.Detail != "" {
 				return Guard{}, fmt.Errorf("removal %s %q: detail is empty for this kind", r.Kind, r.Project)
 			}
-		case KindGroup, KindReserved, KindNarrowed, KindIdentity:
+		case KindGroup, KindReserved, KindUnowned, KindNarrowed, KindIdentity:
 			if r.Detail == "" {
 				return Guard{}, fmt.Errorf("removal %s %q: detail is required", r.Kind, r.Project)
 			}

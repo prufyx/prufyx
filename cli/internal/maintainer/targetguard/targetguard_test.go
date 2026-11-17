@@ -302,6 +302,15 @@ var removals = []removal{
 			p["groups"] = p["groups"].([]any)[:1]
 		})
 	}, Removal{Kind: KindGroup, Project: "antrea", Detail: "multicluster.crd.antrea.io"}},
+	{"unowned record", func(t *testing.T, m fstest.MapFS) {
+		editTable(t, m, func(_ []any, doc map[string]any) { doc["unowned"] = doc["unowned"].([]any)[:1] })
+	}, Removal{Kind: KindUnowned, Project: "example.io", Detail: "example.io"}},
+	{"unowned record narrowed", func(t *testing.T, m fstest.MapFS) {
+		editTable(t, m, func(_ []any, doc map[string]any) {
+			r := doc["unowned"].([]any)[0].(map[string]any)
+			r["kinds"] = r["kinds"].([]any)[:len(r["kinds"].([]any))-1]
+		})
+	}, Removal{Kind: KindUnowned, Project: "argoproj.io", Detail: "argoproj.io:narrowed"}},
 	{"target", func(t *testing.T, m fstest.MapFS) { delete(m, TargetDir+"/target-cilium.json") },
 		Removal{Kind: KindTarget, Project: "cilium"}},
 	{"minFrom", func(t *testing.T, m fstest.MapFS) {

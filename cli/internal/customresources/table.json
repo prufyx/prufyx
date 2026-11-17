@@ -1690,5 +1690,27 @@
       "repository": "https://github.com/kubernetes-sigs/cluster-api",
       "reason": "the runtime extension type ExtensionConfig is a CRD of kubernetes-sigs/cluster-api only"
     }
+  ],
+  "unowned": [
+    {
+      "name": "argoproj.io",
+      "kinds": [
+        "ClusterWorkflowTemplate",
+        "CronWorkflow",
+        "Workflow",
+        "WorkflowArtifactGCTask",
+        "WorkflowEventBinding",
+        "WorkflowTaskResult",
+        "WorkflowTaskSet",
+        "WorkflowTemplate"
+      ],
+      "reason": "Argo Workflows kinds: the eight CRDs of manifests/base/crds/full at tag v4.1.6 (same file list at v3.6.0); Argo Workflows is not a project of this table, Argo CD does not define them",
+      "source": "https://github.com/argoproj/argo-workflows/blob/43021573c5a35cbafae009043c132dfcef43a112/manifests/base/crds/full/argoproj.io_workflows.yaml"
+    },
+    {
+      "name": "example.io",
+      "reason": "fixture group: CustomResourceDefinitions of it appear only as status test data (Argo CD health-check testdata); no project of the table defines or installs it",
+      "source": "https://github.com/argoproj/argo-cd/blob/6d732962f61a99c2a0f221fd26b9aac7c83bcf18/resource_customizations/apiextensions.k8s.io/CustomResourceDefinition/testdata/crd-v1-healthy.yaml"
+    }
   ]
 }

@@ -290,7 +290,7 @@ const (
 func reasoned(fd Finding, form string, crds []CRD, at attribution) Finding {
 	var own []CRD
 	for _, c := range crds {
-		if !at.foreign(c.Group, c.Kind) && !slices.Contains(fd.Reserved, c.Name) {
+		if !at.foreign(c.Group, c.Kind) && !slices.Contains(fd.Reserved, c.Name) && !slices.Contains(fd.Foreign, c.Name) {
 			own = append(own, c)
 		}
 	}
@@ -2251,7 +2251,7 @@ func (x *Extractor) classifyFile(r extract.PinnedReader, repo extract.RepoRef, c
 func compareDefinitions(fd Finding, crds []CRD, inv *Inventory, at attribution, reserved bool) Finding {
 	own := make([]CRD, 0, len(crds))
 	for _, c := range crds {
-		if at.foreign(c.Group, c.Kind) {
+		if at.foreign(c.Group, c.Kind) || at.unowned(c, inv) {
 			fd.Foreign = append(fd.Foreign, c.Name)
 		} else if reserved && ReservedLeftOut(at.index, at.project, inv, c.Group, c.Kind) {
 			fd.Reserved = append(fd.Reserved, c.Name)

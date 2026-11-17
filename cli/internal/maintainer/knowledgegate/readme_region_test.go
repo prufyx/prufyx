@@ -219,17 +219,17 @@ func TestReadmeRegionUnauthorizedTableAndMatchingREADME(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	baseRows, reserved, err := customresources.LoadTable(baseRaw)
+	baseRows, reserved, unowned, err := customresources.LoadTable(baseRaw)
 	if err != nil {
 		t.Fatal(err)
 	}
 	loads := func(edit func([]customresources.Project) []customresources.Project) bool {
 		rows := edit(append([]customresources.Project(nil), baseRows...))
-		raw, err := customresources.CanonicalTable(rows, reserved)
+		raw, err := customresources.CanonicalTable(rows, reserved, unowned)
 		if err != nil {
 			return false
 		}
-		_, _, err = customresources.LoadTable(raw)
+		_, _, _, err = customresources.LoadTable(raw)
 		return err == nil
 	}
 	// communityOf gives a row the upstream record of a community row whose

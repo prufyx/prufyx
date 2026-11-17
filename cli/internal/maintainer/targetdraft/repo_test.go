@@ -63,7 +63,7 @@ func loadsRow(t *testing.T, row []byte) bool {
 	t.Helper()
 	var r json.RawMessage = row
 	doc := `{"schema":"` + customresources.TableSchema + `","projects":[` + string(r) + `],"reserved":[]}`
-	_, _, err := customresources.LoadTable([]byte(doc))
+	_, _, _, err := customresources.LoadTable([]byte(doc))
 	return err == nil
 }
 

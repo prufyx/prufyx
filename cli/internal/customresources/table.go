@@ -27,6 +27,7 @@ type tableFile struct {
 	Schema   string         `json:"schema"`
 	Projects []projectJSON  `json:"projects"`
 	Reserved []reservedJSON `json:"reserved"`
+	Unowned  []unownedJSON  `json:"unowned"`
 }
 
 type projectJSON struct {
@@ -62,12 +63,19 @@ type reservedJSON struct {
 	Reason     string `json:"reason"`
 }
 
-func mustLoadTable(raw []byte) ([]Project, []ReservedGroup) {
-	projects, records, err := LoadTable(raw)
+type unownedJSON struct {
+	Name   string   `json:"name"`
+	Kinds  []string `json:"kinds,omitempty"`
+	Reason string   `json:"reason"`
+	Source string   `json:"source"`
+}
+
+func mustLoadTable(raw []byte) ([]Project, []ReservedGroup, []UnownedGroup) {
+	projects, records, unowned, err := LoadTable(raw)
 	if err != nil {
 		panic("customresources: table.json: " + err.Error())
 	}
-	return projects, records
+	return projects, records, unowned
 }
 
 // LoadTable decodes and validates a table document: one JSON value with no
@@ -75,30 +83,30 @@ func mustLoadTable(raw []byte) ([]Project, []ReservedGroup) {
 // unknown fields and no trailing data (an explicit end-of-input check),
 // provenance present exactly for a community project, and then everything
 // Validate checks against the document's own ownership list.
-func LoadTable(raw []byte) ([]Project, []ReservedGroup, error) {
+func LoadTable(raw []byte) ([]Project, []ReservedGroup, []UnownedGroup, error) {
 	var doc tableFile
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&doc); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	if _, err := dec.Token(); err != io.EOF {
-		return nil, nil, fmt.Errorf("trailing data")
+		return nil, nil, nil, fmt.Errorf("trailing data")
 	}
 	if err := strictjson.Check(raw); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	if doc.Schema != TableSchema {
-		return nil, nil, fmt.Errorf("schema %q, want %q", doc.Schema, TableSchema)
+		return nil, nil, nil, fmt.Errorf("schema %q, want %q", doc.Schema, TableSchema)
 	}
 	if len(doc.Projects) == 0 {
-		return nil, nil, fmt.Errorf("no projects")
+		return nil, nil, nil, fmt.Errorf("no projects")
 	}
 	projects := make([]Project, 0, len(doc.Projects))
 	for _, pj := range doc.Projects {
 		p := Project{Slug: pj.Slug, Catalog: Catalog(pj.Catalog), FactProject: pj.FactProject, Component: pj.Component}
 		if (pj.Upstream != nil) != (p.Catalog == CatalogCommunity) {
-			return nil, nil, fmt.Errorf("project %s: upstream is required for a community project and refused otherwise", pj.Slug)
+			return nil, nil, nil, fmt.Errorf("project %s: upstream is required for a community project and refused otherwise", pj.Slug)
 		}
 		if u := pj.Upstream; u != nil {
 			p.Upstream = Upstream{Name: u.Name, Repository: u.Repository, License: u.License, LicenseSource: u.LicenseSource}
@@ -112,16 +120,20 @@ func LoadTable(raw []byte) ([]Project, []ReservedGroup, error) {
 	for _, r := range doc.Reserved {
 		records = append(records, ReservedGroup{Name: r.Name, Owner: r.Owner, Repository: r.Repository, Reason: r.Reason})
 	}
-	if !validate(projects, records) {
-		return nil, nil, fmt.Errorf("the table does not validate")
+	unowned := make([]UnownedGroup, 0, len(doc.Unowned))
+	for _, u := range doc.Unowned {
+		unowned = append(unowned, UnownedGroup{Name: u.Name, Kinds: cloneKinds(u.Kinds), Reason: u.Reason, Source: u.Source})
 	}
-	return projects, records, nil
+	if !validateAll(projects, records, unowned) {
+		return nil, nil, nil, fmt.Errorf("the table does not validate")
+	}
+	return projects, records, unowned, nil
 }
 
 // encodeTable renders a table in the one spelling table.json has: two-space
 // indent, fields in declaration order, no HTML escaping, a final newline.
-func encodeTable(projects []Project, records []ReservedGroup) ([]byte, error) {
-	doc := tableFile{Schema: TableSchema, Projects: []projectJSON{}, Reserved: []reservedJSON{}}
+func encodeTable(projects []Project, records []ReservedGroup, unowned []UnownedGroup) ([]byte, error) {
+	doc := tableFile{Schema: TableSchema, Projects: []projectJSON{}, Reserved: []reservedJSON{}, Unowned: []unownedJSON{}}
 	for _, p := range projects {
 		pj := projectJSON{Slug: p.Slug, Catalog: string(p.Catalog), FactProject: p.FactProject, Component: p.Component, Groups: []groupJSON{}}
 		if p.Community() {
@@ -135,6 +147,9 @@ func encodeTable(projects []Project, records []ReservedGroup) ([]byte, error) {
 	}
 	for _, r := range records {
 		doc.Reserved = append(doc.Reserved, reservedJSON{Name: r.Name, Owner: r.Owner, Repository: r.Repository, Reason: r.Reason})
+	}
+	for _, u := range unowned {
+		doc.Unowned = append(doc.Unowned, unownedJSON{Name: u.Name, Kinds: cloneKinds(u.Kinds), Reason: u.Reason, Source: u.Source})
 	}
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)

@@ -17,7 +17,12 @@ import (
 // Until then, adding a project means editing this list and moving the code
 // digest, so every addition is reviewed. A target the mapper refuses is never
 // registered.
-var CatalogProjects = []string{"argo-cd"}
+//
+// The list is empty: argo-cd, its only pilot, carries reviewed exclusion
+// entries (fixture and example directories) since its scan blockers were
+// cleared, and the mapper refuses every exclude entry (MAP_EXCLUDE). A pilot
+// returns to the list when its target maps again.
+var CatalogProjects = []string{}
 
 // FromCRDVersions returns the catalog extractor of one reviewed crdversions
 // target: the mapped target, with the release index reduced to the target's

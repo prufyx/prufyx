@@ -19,6 +19,7 @@ type tableRead struct {
 	raw      []byte
 	projects []customresources.Project
 	reserved []customresources.ReservedGroup
+	unowned  []customresources.UnownedGroup
 }
 
 // readTableTree reads the table at path of t the one way the gate reads it,
@@ -37,10 +38,10 @@ func readTableTree(t Tree, path string) (tableRead, error) {
 	if err := strictjson.Check(tr.raw); err != nil {
 		return tableRead{}, fmt.Errorf("%s: %v", path, err)
 	}
-	if tr.projects, tr.reserved, err = customresources.LoadTable(tr.raw); err != nil {
+	if tr.projects, tr.reserved, tr.unowned, err = customresources.LoadTable(tr.raw); err != nil {
 		return tableRead{}, fmt.Errorf("the custom-resource table does not load: %v", logSafe(err.Error()))
 	}
-	if canonical, err := customresources.CanonicalTable(tr.projects, tr.reserved); err != nil || !bytes.Equal(canonical, tr.raw) {
+	if canonical, err := customresources.CanonicalTable(tr.projects, tr.reserved, tr.unowned); err != nil || !bytes.Equal(canonical, tr.raw) {
 		return tableRead{}, fmt.Errorf("%s is not in its canonical spelling", path)
 	}
 	return tr, nil

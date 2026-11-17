@@ -183,7 +183,7 @@ func realTargets(t *testing.T) []crdversions.Target {
 // intended?); a new unrelated target never fails here.
 func TestTargetFromCRDVersionsPilots(t *testing.T) {
 	want := map[string][]string{
-		"argo-cd":          nil,
+		"argo-cd":          {ReasonMapExclude},
 		"cert-manager":     {ReasonMapExclude},
 		"kuma":             {ReasonMapExclude},
 		"mariadb-operator": {ReasonMapExclude},
@@ -200,10 +200,8 @@ func TestTargetFromCRDVersionsPilots(t *testing.T) {
 		if !reflect.DeepEqual(codes(rs), append([]string{}, w...)) && !(w == nil && len(rs) == 0) {
 			t.Errorf("%s: reasons %v want %v; pilots must be re-evaluated deliberately", tg.Project, codes(rs), w)
 		}
-		if w == nil {
-			if !reflect.DeepEqual(got.Dirs, []string{"manifests/crds"}) || len(got.Files) != 0 || got.Repo.Key != "github.com/argoproj/argo-cd" || !reflect.DeepEqual(m.TagPrefixes, []string{"v"}) {
-				t.Errorf("argo-cd mapped %+v", got)
-			}
+		if len(rs) > 0 && got.Repo.Key != "" {
+			t.Errorf("%s: a refused target kept a mapping %+v", tg.Project, got)
 		}
 	}
 	for p := range want {

@@ -4,6 +4,7 @@ package targetguard
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -73,6 +74,19 @@ func Diff(base, head Inputs) []Removal {
 			out = append(out, Removal{Kind: KindIdentity, Project: r.Owner, Detail: "reserved:" + r.Name + ":" + hr.Owner + ":" + hr.Repository})
 		}
 	}
+	unowned := map[string]customresources.UnownedGroup{}
+	for _, u := range head.Unowned {
+		unowned[u.Name] = u
+	}
+	for _, u := range base.Unowned {
+		hu, ok := unowned[u.Name]
+		switch {
+		case !ok:
+			out = append(out, Removal{Kind: KindUnowned, Project: u.Name, Detail: u.Name})
+		case !unownedCovers(hu, u):
+			out = append(out, Removal{Kind: KindUnowned, Project: u.Name, Detail: u.Name + ":narrowed"})
+		}
+	}
 	headTargets := map[string]crdversions.Target{}
 	for _, t := range head.Targets {
 		headTargets[t.Project] = t
@@ -92,6 +106,23 @@ func Diff(base, head Inputs) []Removal {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].key() < out[j].key() })
 	return out
+}
+
+// unownedCovers reports whether the head record covers every kind the base
+// record covers.
+func unownedCovers(head, base customresources.UnownedGroup) bool {
+	if head.Kinds == nil {
+		return true
+	}
+	if base.Kinds == nil {
+		return false
+	}
+	for _, k := range base.Kinds {
+		if !slices.Contains(head.Kinds, k) {
+			return false
+		}
+	}
+	return true
 }
 
 func line(l [2]int) string { return fmt.Sprintf("%d.%d", l[0], l[1]) }

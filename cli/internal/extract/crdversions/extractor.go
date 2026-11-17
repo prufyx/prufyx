@@ -38,7 +38,7 @@ const (
 	// IDPrefix is followed by the project slug: one extractor id per
 	// project, since a run reads one repository.
 	IDPrefix = "crd.version-removal."
-	Version  = "2.15.0"
+	Version  = "2.16.0"
 	// SourceDir is this package's directory under the module's internal/.
 	SourceDir = "extract/crdversions"
 )
@@ -497,6 +497,31 @@ func (x *Extractor) attribution() attribution {
 func (a attribution) foreign(group, kind string) bool {
 	owner, attr := a.index.OwnerOf(group, kind)
 	return attr == customresources.Owned && owner != a.project
+}
+
+// unowned reports whether a reviewed record says a definition of the table
+// belongs to no project, and the complete inventory does not hold a
+// definition of the same name, group and kind: the target's own definitions
+// are never left out by a record. Only the scan of files outside the listed
+// paths asks; the inventory is read without records. Without a complete
+// inventory nothing is left out.
+func (a attribution) unowned(c CRD, inv *Inventory) bool {
+	if inv == nil || !inv.Complete || !a.index.Unowned(c.Group, c.Kind) {
+		return false
+	}
+	for i := range inv.CRDs {
+		if inv.CRDs[i].Name == c.Name || (inv.CRDs[i].Group == c.Group && inv.CRDs[i].Kind == c.Kind) {
+			return false
+		}
+	}
+	for _, ch := range inv.Channels {
+		for i := range ch.CRDs {
+			if ch.CRDs[i].Name == c.Name || (ch.CRDs[i].Group == c.Group && ch.CRDs[i].Kind == c.Kind) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // readInventory reads every listed path at commit. On a problem it returns

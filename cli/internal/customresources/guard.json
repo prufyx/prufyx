@@ -3,6 +3,111 @@
   "removals": [
     {
       "kind": "target-narrowed",
+      "project": "argo-cd",
+      "detail": "exclude:applicationset/examples/git-generator-directory/@github.com/argoproj/argo-cd",
+      "seq": 0,
+      "reason": "Example ApplicationSet inputs naming remote bases; read at v3.0.0 and v3.5.7: no Makefile, Dockerfile, script, manifest, CI, kustomization or chart file names it, and the definitions are in manifests/crds."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "argo-cd",
+      "detail": "exclude:examples/known-hosts/@github.com/argoproj/argo-cd",
+      "seq": 0,
+      "reason": "Example overlay of the known hosts config map; read at v3.0.0 and v3.5.7: no Makefile, Dockerfile, script, manifest, CI, kustomization or chart file names it, and the definitions are in manifests/crds."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "argo-cd",
+      "detail": "exclude:reposerver/repository/testdata/@github.com/argoproj/argo-cd",
+      "seq": 0,
+      "reason": "Fixtures of the repo-server unit tests; read at v3.0.0 and v3.5.7: no Makefile, Dockerfile, script, manifest, CI, kustomization or chart file names it, and the definitions are in manifests/crds."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "argo-cd",
+      "detail": "exclude:util/cmp/testdata/@github.com/argoproj/argo-cd",
+      "seq": 0,
+      "reason": "Fixtures of the config management plugin unit tests; read at v3.0.0 and v3.5.7: no Makefile, Dockerfile, script, manifest, CI, kustomization or chart file names it, and the definitions are in manifests/crds."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "argo-cd",
+      "detail": "exclude:util/helm/testdata/@github.com/argoproj/argo-cd",
+      "seq": 0,
+      "reason": "Fixtures of the chart helper unit tests; read at v3.0.0 and v3.5.7: no Makefile, Dockerfile, script, manifest, CI, kustomization or chart file names it, and the definitions are in manifests/crds."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "argo-cd",
+      "detail": "exclude:util/io/files/testdata/@github.com/argoproj/argo-cd",
+      "seq": 0,
+      "reason": "Fixtures of the file helper unit tests; read at v3.0.0 and v3.5.7: no Makefile, Dockerfile, script, manifest, CI, kustomization or chart file names it, and the definitions are in manifests/crds."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "argo-cd",
+      "detail": "exclude:reposerver/repository/testdata2/@github.com/argoproj/argo-cd",
+      "seq": 0,
+      "reason": "Fixtures of the unit and end-to-end tests with symbolic links; read at v3.0.0 and v3.5.7: no Makefile, Dockerfile, script, manifest, CI, kustomization or chart file names it, and the definitions are in manifests/crds."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "argo-cd",
+      "detail": "exclude:test/e2e/testdata2/@github.com/argoproj/argo-cd",
+      "seq": 0,
+      "reason": "Fixtures of the unit and end-to-end tests with symbolic links; read at v3.0.0 and v3.5.7: no Makefile, Dockerfile, script, manifest, CI, kustomization or chart file names it, and the definitions are in manifests/crds."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "argo-cd",
+      "detail": "exclude:test/e2e/testdata/crd-creation/@github.com/argoproj/argo-cd",
+      "seq": 0,
+      "reason": "End-to-end test fixture directory; read at v3.0.0 and v3.5.7: no Makefile, Dockerfile, script, manifest, CI, kustomization or chart file names it, no go:embed reaches it, the definitions are in manifests/crds."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "argo-cd",
+      "detail": "exclude:test/e2e/testdata/crd-subresource/@github.com/argoproj/argo-cd",
+      "seq": 0,
+      "reason": "End-to-end test fixture directory; read at v3.0.0 and v3.5.7: no Makefile, Dockerfile, script, manifest, CI, kustomization or chart file names it, no go:embed reaches it, the definitions are in manifests/crds."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "argo-cd",
+      "detail": "exclude:test/e2e/testdata/crd-version-differences/@github.com/argoproj/argo-cd",
+      "seq": 0,
+      "reason": "End-to-end test fixture directory; read at v3.0.0 and v3.5.7: no Makefile, Dockerfile, script, manifest, CI, kustomization or chart file names it, no go:embed reaches it, the definitions are in manifests/crds."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "argo-cd",
+      "detail": "exclude:test/e2e/testdata/duplicated-resources/@github.com/argoproj/argo-cd",
+      "seq": 0,
+      "reason": "End-to-end test fixture directory; read at v3.0.0 and v3.5.7: no Makefile, Dockerfile, script, manifest, CI, kustomization or chart file names it, no go:embed reaches it, the definitions are in manifests/crds."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "argo-cd",
+      "detail": "exclude:test/e2e/testdata/multi-sync/@github.com/argoproj/argo-cd",
+      "seq": 0,
+      "reason": "End-to-end test fixture directory; read at v3.0.0 and v3.5.7: no Makefile, Dockerfile, script, manifest, CI, kustomization or chart file names it, no go:embed reaches it, the definitions are in manifests/crds."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "argo-cd",
+      "detail": "exclude:test/e2e/testdata/https-kustomize-base/@github.com/argoproj/argo-cd",
+      "seq": 0,
+      "reason": "End-to-end test fixture directory; read at v3.0.0 and v3.5.7: no Makefile, Dockerfile, script, manifest, CI, kustomization or chart file names it, no go:embed reaches it, the definitions are in manifests/crds."
+    },
+    {
+      "kind": "target-narrowed",
+      "project": "argo-cd",
+      "detail": "exclude:test/e2e/testdata/ssh-kustomize-base/@github.com/argoproj/argo-cd",
+      "seq": 0,
+      "reason": "End-to-end test fixture directory; read at v3.0.0 and v3.5.7: no Makefile, Dockerfile, script, manifest, CI, kustomization or chart file names it, no go:embed reaches it, the definitions are in manifests/crds."
+    },
+    {
+      "kind": "target-narrowed",
       "project": "istio",
       "detail": "exclude:samples/security/spire/spire-quickstart.yaml@github.com/istio/istio",
       "seq": 0,

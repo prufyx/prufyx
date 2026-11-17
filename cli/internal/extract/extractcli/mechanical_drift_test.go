@@ -9,6 +9,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
 	"github.com/prufyx/prufyx/cli/internal/extract/chartrun"
+	"github.com/prufyx/prufyx/cli/internal/extract/crdschema"
 )
 
 // Test 21 (A4): the mechanical allowlist and the catalog agree both ways. The
@@ -73,7 +74,9 @@ func TestMechanicalAllowlistMatchesCatalog(t *testing.T) {
 		}
 	}
 	for _, k := range keys {
-		if keyUsed[k] == 0 {
+		// The schema-removal key is dormant while no pilot maps; any other
+		// key that matches no catalogued extractor is a stale authority.
+		if keyUsed[k] == 0 && !(k == crdschema.IDPrefix && len(crdschema.CatalogProjects) == 0) {
 			t.Errorf("allowlist key %q matches no catalogued extractor", k)
 		}
 		for _, other := range keys {

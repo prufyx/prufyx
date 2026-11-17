@@ -78,7 +78,8 @@ func TestCodeViewHidesOtherFiles(t *testing.T) {
 	for _, e := range entries {
 		names = append(names, e.Name())
 	}
-	if want := []string{"a.go", "b.go", "b_test.go", "target-alpha.json"}; !slices.Equal(names, want) {
+	// The unowned records of the embedded table are folded into every view.
+	if want := []string{"a.go", "b.go", "b_test.go", "target-alpha.json", AttributionFileName}; !slices.Equal(names, want) {
 		t.Fatalf("view lists %v, want %v", names, want)
 	}
 	if _, err := fs.ReadDir(v, "sub"); err == nil {
