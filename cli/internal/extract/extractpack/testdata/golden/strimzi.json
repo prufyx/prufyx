@@ -18,7 +18,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:cc8b3dbb99e963abfd25f2c54c509de03e197f25d4ae685c09a0037590af7b48",
+            "codeDigest": "sha256:1a85b9b1e5640b3ae87f7aae12636959e56c052c0678650615b527c11ae65940",
             "id": "crd.version-removal.strimzi",
             "version": "2.17.0"
           },
@@ -113,7 +113,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:cc8b3dbb99e963abfd25f2c54c509de03e197f25d4ae685c09a0037590af7b48",
+            "codeDigest": "sha256:1a85b9b1e5640b3ae87f7aae12636959e56c052c0678650615b527c11ae65940",
             "id": "crd.version-removal.strimzi",
             "version": "2.17.0"
           },
@@ -208,7 +208,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:cc8b3dbb99e963abfd25f2c54c509de03e197f25d4ae685c09a0037590af7b48",
+            "codeDigest": "sha256:1a85b9b1e5640b3ae87f7aae12636959e56c052c0678650615b527c11ae65940",
             "id": "crd.version-removal.strimzi",
             "version": "2.17.0"
           },
@@ -303,7 +303,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:cc8b3dbb99e963abfd25f2c54c509de03e197f25d4ae685c09a0037590af7b48",
+            "codeDigest": "sha256:1a85b9b1e5640b3ae87f7aae12636959e56c052c0678650615b527c11ae65940",
             "id": "crd.version-removal.strimzi",
             "version": "2.17.0"
           },
@@ -398,7 +398,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:cc8b3dbb99e963abfd25f2c54c509de03e197f25d4ae685c09a0037590af7b48",
+            "codeDigest": "sha256:1a85b9b1e5640b3ae87f7aae12636959e56c052c0678650615b527c11ae65940",
             "id": "crd.version-removal.strimzi",
             "version": "2.17.0"
           },
@@ -493,7 +493,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:cc8b3dbb99e963abfd25f2c54c509de03e197f25d4ae685c09a0037590af7b48",
+            "codeDigest": "sha256:1a85b9b1e5640b3ae87f7aae12636959e56c052c0678650615b527c11ae65940",
             "id": "crd.version-removal.strimzi",
             "version": "2.17.0"
           },
@@ -588,7 +588,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:cc8b3dbb99e963abfd25f2c54c509de03e197f25d4ae685c09a0037590af7b48",
+            "codeDigest": "sha256:1a85b9b1e5640b3ae87f7aae12636959e56c052c0678650615b527c11ae65940",
             "id": "crd.version-removal.strimzi",
             "version": "2.17.0"
           },
@@ -683,7 +683,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:cc8b3dbb99e963abfd25f2c54c509de03e197f25d4ae685c09a0037590af7b48",
+            "codeDigest": "sha256:1a85b9b1e5640b3ae87f7aae12636959e56c052c0678650615b527c11ae65940",
             "id": "crd.version-removal.strimzi",
             "version": "2.17.0"
           },
@@ -780,7 +780,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:cc8b3dbb99e963abfd25f2c54c509de03e197f25d4ae685c09a0037590af7b48",
+            "codeDigest": "sha256:1a85b9b1e5640b3ae87f7aae12636959e56c052c0678650615b527c11ae65940",
             "id": "crd.version-removal.strimzi",
             "version": "2.17.0"
           },
@@ -877,7 +877,7 @@
           "basis": "mechanical",
           "derivedAt": "2026-10-04T00:00:00Z",
           "extractor": {
-            "codeDigest": "sha256:cc8b3dbb99e963abfd25f2c54c509de03e197f25d4ae685c09a0037590af7b48",
+            "codeDigest": "sha256:1a85b9b1e5640b3ae87f7aae12636959e56c052c0678650615b527c11ae65940",
             "id": "crd.version-removal.strimzi",
             "version": "2.17.0"
           },

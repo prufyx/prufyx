@@ -986,7 +986,7 @@ func summarizeBase(kind int, data, n []byte, determined bool) *blobInfo {
 		return info
 	}
 	info.decoded = true
-	info.kindLike = kindValueRE.Match(data) || !determined || kindValueRE.Match(n)
+	info.kindLike = kindValueRE.Match(data) || !determined || kindValueRE.Match(n) || kindEmptyThenAction(n)
 	_, crds, values, err := parseValues(fileWord, data)
 	if err != nil {
 		if pr, ok := asProblem(err); ok {
@@ -3033,6 +3033,9 @@ func kindKeyNonLiteral(n []byte) bool {
 // kindLiteralRE captures a literal kind value (quoted or plain).
 var kindLiteralRE = regexp.MustCompile(`^[ \t]*(?:"([A-Za-z0-9./-]+)"|'([A-Za-z0-9./-]+)'|([A-Za-z0-9./-]+))(?:[ \t]*[,}]|[ \t]+#|[ \t]*\r?$)`)
 
+// kindEmptyQuotedRE matches an empty quoted kind value.
+var kindEmptyQuotedRE = regexp.MustCompile(`^[ \t]*(?:""|'')(?:[ \t]*[,}]|[ \t]+#|[ \t]*\r?$)`)
+
 // kindPrefixLiteral reports a template-bearing file with a kind whose
 // literal value is a non-empty proper prefix of the CRD kind (compared
 // case-sensitively on the escape-normalised bytes): an action that follows,
@@ -3063,6 +3066,10 @@ func kindPrefixLiteral(n []byte) bool {
 				break
 			}
 		}
+		if kindEmptyQuotedRE.MatchString(val) {
+			// The empty string is a prefix of every kind.
+			return true
+		}
 		g := kindLiteralRE.FindStringSubmatch(val)
 		if g == nil {
 			continue
@@ -3087,6 +3094,36 @@ func canNameCRDGroup(n []byte) bool {
 	for _, kv := range keyValues(n, apiVersionKeyRE) {
 		if !strings.Contains(kv.prefix, "/") {
 			return true
+		}
+	}
+	return false
+}
+
+// kindEmptyThenAction reports a kind key with no value (or an empty quoted
+// one, with or without a comment) whose next non-blank, non-comment line
+// starts with a template action at any indent: a trim marker joins the
+// action onto the key, so it may supply the kind.
+func kindEmptyThenAction(n []byte) bool {
+	text := string(n)
+	lines := strings.Split(text, "\n")
+	for _, m := range kindKeyRE.FindAllStringIndex(text, -1) {
+		li := strings.Count(text[:m[0]], "\n")
+		val := text[m[1]:]
+		if i := strings.IndexByte(val, '\n'); i >= 0 {
+			val = val[:i]
+		}
+		if t := strings.TrimSpace(val); t != "" && !strings.HasPrefix(t, "#") && !kindEmptyQuotedRE.MatchString(val) {
+			continue
+		}
+		for j := li + 1; j < len(lines); j++ {
+			t := strings.TrimSpace(lines[j])
+			if t == "" || strings.HasPrefix(t, "#") {
+				continue
+			}
+			if strings.HasPrefix(t, "{{") || strings.HasPrefix(t, "{%") {
+				return true
+			}
+			break
 		}
 	}
 	return false

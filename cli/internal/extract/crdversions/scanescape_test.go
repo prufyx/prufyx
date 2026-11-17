@@ -44,6 +44,11 @@ var escapeFlagged = []struct {
 	{"R prefix CustomResourceDef quoted", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: \"CustomResourceDef\"\nmetadata:\n  name: {{ .x }}\n", ClassUnread, ReasonKindTemplated},
 	{"R prefix value on next line", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind:\n  # c\n  CustomResourceDef\nmetadata:\n  name: {{ .x }}\n", ClassUnread, ReasonKindTemplated},
 	{"R prefix flow", escPath, "{ \"apiVersion\": \"apiextensions.k8s.io/v1\", \"kind\": \"Custom\", \"n\": \"{{ .x }}\" }\n", ClassUnread, ReasonKindTemplated},
+	{"R empty no value column 0", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind:\n{{- \"CustomResourceDefinition\" }}\n", ClassUnread, ReasonTemplateUnread},
+	{"R empty trailing comment", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: # c\n{{- \"CustomResourceDefinition\" }}\n", ClassUnread, ReasonTemplateUnread},
+	{"R empty double quotes", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: \"\"\n{{- \"CustomResourceDefinition\" }}\n", ClassUnread, ReasonTemplateUnread},
+	{"R empty single quotes", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: ''\n  {{- \"CustomResourceDefinition\" }}\n", ClassUnread, ReasonTemplateUnread},
+	{"R empty quotes elsewhere", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: \"\"\nmetadata:\n  name: {{ .x }}\n", ClassUnread, ReasonKindTemplated},
 	{"R comment between", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind:\n  # comment\n  {{ .Values.kind }}\n", ClassUnread, ReasonKindTemplated},
 	{"R comments and blanks between", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: # c\n\n  # d\n\n  {{ .Values.kind }}\n", ClassUnread, ReasonKindTemplated},
 	{"R value at column 0", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind:\n{{ .Values.kind }}\n", ClassUnread, ReasonKindTemplated},
@@ -112,6 +117,7 @@ var escapeClean = []struct{ name, path, content string }{
 	{"R prefix without template syntax", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: CustomResource\nmetadata:\n  name: x\n"},
 	{"R prefix case differs", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: customresource\nmetadata:\n  name: {{ .x }}\n"},
 	{"R not a prefix then template line", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: Deployment\n{{- if .x }}\nmetadata:\n  name: x\n{{- end }}\n"},
+	{"R empty quotes without template syntax", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: \"\"\nmetadata:\n  name: x\n"},
 	{"plain no escapes", escPath, "kind: Deployment\napiVersion: apps/v1\n"},
 }
 
@@ -296,6 +302,7 @@ func TestEscapedKindReviewedShapes(t *testing.T) {
 	for name, hidden := range map[string]string{
 		"continuation": "apiVersion: apiextensions.k8s.io/v1\nkind: CustomResource\n  {{- \"Definition\" }}\n",
 		"column 0":     "apiVersion: apiextensions.k8s.io/v1\nkind: CustomResource\n{{- \"Definition\" }}\n",
+		"empty quotes": "apiVersion: apiextensions.k8s.io/v1\nkind: \"\"\n{{- \"CustomResourceDefinition\" }}\n",
 		"prefix":       "apiVersion: apiextensions.k8s.io/v1\nkind: C\nmetadata:\n  name: {{ .x }}\n",
 		"comment":      "apiVersion: apiextensions.k8s.io/v1\nkind:\n  # comment\n  {{ .Values.kind }}\n",
 		"combined":     "apiVersion: apiextensions.k8s.io/v1\nkind: '{{ printf \"%s%s\" \"CustomResource\" \"Definition\" }}'\ndescription: \"\\u0043ustomResourceDefinition\"\n",
