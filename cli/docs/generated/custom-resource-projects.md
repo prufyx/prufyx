@@ -28,6 +28,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `eck-operator` | community | `component.eck_operator.custom_resource_versions_set` | `agent.k8s.elastic.co`, `apm.k8s.elastic.co`, `autoops.k8s.elastic.co`, `autoscaling.k8s.elastic.co`, `beat.k8s.elastic.co`, `elasticsearch.k8s.elastic.co`, `enterprisesearch.k8s.elastic.co`, `kibana.k8s.elastic.co`, `logstash.k8s.elastic.co`, `maps.k8s.elastic.co`, `packageregistry.k8s.elastic.co`, `stackconfigpolicy.k8s.elastic.co` |
 | `eraser` | CNCF | `component.eraser.custom_resource_versions_set` | `eraser.sh` |
 | `external-secrets` | CNCF | `component.external_secrets.custom_resource_versions_set` | `external-secrets.io`, `generators.external-secrets.io` |
+| `external-snapshotter` | community | `component.external_snapshotter.custom_resource_versions_set` | `groupsnapshot.storage.k8s.io`, `snapshot.storage.k8s.io` |
 | `fluent-operator` | community | `component.fluent_operator.custom_resource_versions_set` | `fluentbit.fluent.io`, `fluentd.fluent.io` |
 | `function-mesh` | community | `component.function_mesh.custom_resource_versions_set` | `compute.functionmesh.io` |
 | `furiko` | community | `component.furiko.custom_resource_versions_set` | `execution.furiko.io` |
@@ -85,6 +86,9 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `rook` | CNCF | `component.rook.custom_resource_versions_set` | `ceph.rook.io`, `objectbucket.io` |
 | `schemahero` | CNCF | `component.schemahero.custom_resource_versions_set` | `databases.schemahero.io`, `schemas.schemahero.io` |
 | `sealed-secrets` | community | `component.sealed_secrets.custom_resource_versions_set` | `bitnami.com` |
+| `secrets-store-csi-driver` | community | `component.secrets_store_csi_driver.custom_resource_versions_set` | `secrets-store.csi.x-k8s.io` |
+| `security-profiles-operator` | community | `component.security_profiles_operator.custom_resource_versions_set` | `security-profiles-operator.x-k8s.io` |
+| `spark-operator` | community | `component.spark_operator.custom_resource_versions_set` | `sparkoperator.k8s.io` |
 | `strimzi` | CNCF | `component.strimzi.custom_resource_versions_set` | `core.strimzi.io`, `kafka.strimzi.io` |
 | `submariner` | CNCF | `component.submariner.custom_resource_versions_set` | `submariner.io` |
 | `tekton` | CNCF | `component.tekton.custom_resource_versions_set` | `resolution.tekton.dev`, `tekton.dev` |
@@ -107,6 +111,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `cyclops` | cyclops | https://github.com/cyclops-ui/cyclops | [`Apache-2.0`](https://github.com/cyclops-ui/cyclops/blob/e2965366f0e52472e32d37475fbbb5d3507199d0/LICENSE) |
 | `datadog-operator` | datadog-operator | https://github.com/datadog/datadog-operator | [`Apache-2.0`](https://github.com/datadog/datadog-operator/blob/db6a88ca8796d8fff93c96b0c3e41fef85e2bdd1/LICENSE) |
 | `eck-operator` | Elastic Cloud on Kubernetes | https://github.com/elastic/cloud-on-k8s | [`Elastic-2.0`](https://github.com/elastic/cloud-on-k8s/blob/386c7b14f2d1bbb7f2af1e7da997e64875f16e47/LICENSE.txt) |
+| `external-snapshotter` | external-snapshotter | https://github.com/kubernetes-csi/external-snapshotter | [`Apache-2.0`](https://github.com/kubernetes-csi/external-snapshotter/blob/9cc6050ab00a0c56d84ba0279e518a00367363e7/LICENSE) |
 | `fluent-operator` | fluent-operator | https://github.com/fluent/fluent-operator | [`Apache-2.0`](https://github.com/fluent/fluent-operator/blob/cf5582c23d9e8d96ba1d77d3c7ac48a0456ff7c2/LICENSE) |
 | `function-mesh` | function-mesh | https://github.com/streamnative/function-mesh | [`NOASSERTION`](https://github.com/streamnative/function-mesh/blob/eced1f28126f7ea789522b1a7dd1a59331659f71/LICENSE) |
 | `furiko` | furiko | https://github.com/furiko-io/furiko | [`Apache-2.0`](https://github.com/furiko-io/furiko/blob/a477b3f342560e410d81577acb3ade6cd864ccbf/LICENSE) |
@@ -137,6 +142,9 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `redis-operator` | redis-operator | https://github.com/ot-container-kit/redis-operator | [`Apache-2.0`](https://github.com/ot-container-kit/redis-operator/blob/e23140a8522f8e6f1aac2cdf51dfe560c0e90004/LICENSE) |
 | `renovate-operator` | renovate-operator | https://github.com/mogenius/renovate-operator | [`MIT`](https://github.com/mogenius/renovate-operator/blob/01b4299e9bd2af6f8a6dfcbed8cff65610cc64bf/LICENSE) |
 | `sealed-secrets` | sealed-secrets | https://github.com/bitnami/sealed-secrets | [`Apache-2.0`](https://github.com/bitnami/sealed-secrets/blob/6dc880366d1cafa16683173cc3c8e3b58e930937/LICENSE) |
+| `secrets-store-csi-driver` | Secrets Store CSI Driver | https://github.com/kubernetes-sigs/secrets-store-csi-driver | [`Apache-2.0`](https://github.com/kubernetes-sigs/secrets-store-csi-driver/blob/10cd116be04e012b283c0811618b182b20741e89/LICENSE) |
+| `security-profiles-operator` | Security Profiles Operator | https://github.com/kubernetes-sigs/security-profiles-operator | [`Apache-2.0`](https://github.com/kubernetes-sigs/security-profiles-operator/blob/62d0e5b818e461e1c9772f4938501699be5d3cb6/LICENSE) |
+| `spark-operator` | Spark Operator | https://github.com/kubeflow/spark-operator | [`Apache-2.0`](https://github.com/kubeflow/spark-operator/blob/192fff45e233dcb7f4649e1bc7ef2b8485c134de/LICENSE) |
 | `temporal-operator` | temporal-operator | https://github.com/alexandrevilain/temporal-operator | [`Apache-2.0`](https://github.com/alexandrevilain/temporal-operator/blob/0b07bcd4d922265b2f1e5d5d3c55397707189c7e/LICENSE) |
 | `trivy-operator` | trivy-operator | https://github.com/aquasecurity/trivy-operator | [`Apache-2.0`](https://github.com/aquasecurity/trivy-operator/blob/3d073500cfb4956371435fa4085f2f59b9ff6d57/LICENSE) |
 | `vault-secrets-operator` | vault-secrets-operator | https://github.com/ricoberger/vault-secrets-operator | [`MIT`](https://github.com/ricoberger/vault-secrets-operator/blob/98bf4bef7ec2a4a5bd57ba6780d9a96d824bff49/LICENSE) |
@@ -149,5 +157,10 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `clusterctl.cluster.x-k8s.io` | `cluster-api` | https://github.com/kubernetes-sigs/cluster-api | the clusterctl Provider and Metadata types are CRDs of kubernetes-sigs/cluster-api (cmd/clusterctl) only |
 | `gateway.networking.k8s.io` | `gateway-api` | https://github.com/kubernetes-sigs/gateway-api | Gateway API is defined by the CRDs of kubernetes-sigs/gateway-api and is not served by kube-apiserver; implementations ship copies of those CRDs |
 | `gateway.networking.x-k8s.io` | `gateway-api` | https://github.com/kubernetes-sigs/gateway-api | Gateway API defines its experimental CRDs in this repository and kube-apiserver does not serve this custom resource group |
+| `groupsnapshot.storage.k8s.io` | `external-snapshotter` | https://github.com/kubernetes-csi/external-snapshotter | the VolumeGroupSnapshot types (VolumeGroupSnapshot, VolumeGroupSnapshotClass, VolumeGroupSnapshotContent) are CRDs of kubernetes-csi/external-snapshotter only; owner decision 2026-11-17 (reserved API groups) |
 | `kueue.x-k8s.io` | `kueue` | https://github.com/kubernetes-sigs/kueue | the Kueue types (ClusterQueue, LocalQueue, Workload, ...) are CRDs of kubernetes-sigs/kueue only |
 | `runtime.cluster.x-k8s.io` | `cluster-api` | https://github.com/kubernetes-sigs/cluster-api | the runtime extension type ExtensionConfig is a CRD of kubernetes-sigs/cluster-api only |
+| `secrets-store.csi.x-k8s.io` | `secrets-store-csi-driver` | https://github.com/kubernetes-sigs/secrets-store-csi-driver | the SecretProviderClass and SecretProviderClassPodStatus types are CRDs of kubernetes-sigs/secrets-store-csi-driver only; owner decision 2026-11-17 (reserved API groups) |
+| `security-profiles-operator.x-k8s.io` | `security-profiles-operator` | https://github.com/kubernetes-sigs/security-profiles-operator | the Security Profiles Operator types (SeccompProfile, SelinuxPolicy, AppArmorProfile, ProfileBinding, ProfileRecording, ...) are CRDs of kubernetes-sigs/security-profiles-operator only; owner decision 2026-11-17 (reserved API groups) |
+| `snapshot.storage.k8s.io` | `external-snapshotter` | https://github.com/kubernetes-csi/external-snapshotter | the VolumeSnapshot types (VolumeSnapshot, VolumeSnapshotClass, VolumeSnapshotContent) are CRDs of kubernetes-csi/external-snapshotter, which defines them; CSI drivers and distributions ship copies; owner decision 2026-11-17 (reserved API groups) |
+| `sparkoperator.k8s.io` | `spark-operator` | https://github.com/kubeflow/spark-operator | the Spark Operator types (SparkApplication, ScheduledSparkApplication, SparkConnect) are CRDs of kubeflow/spark-operator only; owner decision 2026-11-17 (reserved API groups) |

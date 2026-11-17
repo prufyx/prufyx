@@ -1,0 +1,22 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "external-snapshotter",
+    "catalog": "community",
+    "name": "external-snapshotter",
+    "repo": "github.com/kubernetes-csi/external-snapshotter",
+    "component": "pkg:github/kubernetes-csi/external-snapshotter",
+    "factProject": "external_snapshotter",
+    "tagPrefixes": ["v"],
+    "minFrom": "8.3",
+    "paths": [
+      {"path": "client/config/crd/groupsnapshot.storage.k8s.io_volumegroupsnapshotclasses.yaml"},
+      {"path": "client/config/crd/groupsnapshot.storage.k8s.io_volumegroupsnapshotcontents.yaml"},
+      {"path": "client/config/crd/groupsnapshot.storage.k8s.io_volumegroupsnapshots.yaml"},
+      {"path": "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml"},
+      {"path": "client/config/crd/snapshot.storage.k8s.io_volumesnapshotcontents.yaml"},
+      {"path": "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml"}
+    ],
+    "exclude": []
+  }
+}

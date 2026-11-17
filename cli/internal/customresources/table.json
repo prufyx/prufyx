@@ -391,6 +391,28 @@
       ]
     },
     {
+      "slug": "external-snapshotter",
+      "catalog": "community",
+      "upstream": {
+        "name": "external-snapshotter",
+        "repository": "https://github.com/kubernetes-csi/external-snapshotter",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/kubernetes-csi/external-snapshotter/blob/9cc6050ab00a0c56d84ba0279e518a00367363e7/LICENSE"
+      },
+      "factProject": "external_snapshotter",
+      "component": "pkg:github/kubernetes-csi/external-snapshotter",
+      "groups": [
+        {
+          "name": "groupsnapshot.storage.k8s.io",
+          "source": "https://github.com/kubernetes-csi/external-snapshotter/blob/9cc6050ab00a0c56d84ba0279e518a00367363e7/client/config/crd/groupsnapshot.storage.k8s.io_volumegroupsnapshotclasses.yaml"
+        },
+        {
+          "name": "snapshot.storage.k8s.io",
+          "source": "https://github.com/kubernetes-csi/external-snapshotter/blob/9cc6050ab00a0c56d84ba0279e518a00367363e7/client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml"
+        }
+      ]
+    },
+    {
       "slug": "fluent-operator",
       "catalog": "community",
       "upstream": {
@@ -1491,6 +1513,60 @@
       ]
     },
     {
+      "slug": "secrets-store-csi-driver",
+      "catalog": "community",
+      "upstream": {
+        "name": "Secrets Store CSI Driver",
+        "repository": "https://github.com/kubernetes-sigs/secrets-store-csi-driver",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/kubernetes-sigs/secrets-store-csi-driver/blob/10cd116be04e012b283c0811618b182b20741e89/LICENSE"
+      },
+      "factProject": "secrets_store_csi_driver",
+      "component": "pkg:github/kubernetes-sigs/secrets-store-csi-driver",
+      "groups": [
+        {
+          "name": "secrets-store.csi.x-k8s.io",
+          "source": "https://github.com/kubernetes-sigs/secrets-store-csi-driver/blob/10cd116be04e012b283c0811618b182b20741e89/charts/secrets-store-csi-driver/crds/secrets-store.csi.x-k8s.io_secretproviderclasses.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "security-profiles-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "Security Profiles Operator",
+        "repository": "https://github.com/kubernetes-sigs/security-profiles-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/kubernetes-sigs/security-profiles-operator/blob/62d0e5b818e461e1c9772f4938501699be5d3cb6/LICENSE"
+      },
+      "factProject": "security_profiles_operator",
+      "component": "pkg:github/kubernetes-sigs/security-profiles-operator",
+      "groups": [
+        {
+          "name": "security-profiles-operator.x-k8s.io",
+          "source": "https://github.com/kubernetes-sigs/security-profiles-operator/blob/62d0e5b818e461e1c9772f4938501699be5d3cb6/deploy/base-crds/crds/apparmorprofile.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "spark-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "Spark Operator",
+        "repository": "https://github.com/kubeflow/spark-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/kubeflow/spark-operator/blob/192fff45e233dcb7f4649e1bc7ef2b8485c134de/LICENSE"
+      },
+      "factProject": "spark_operator",
+      "component": "pkg:github/kubeflow/spark-operator",
+      "groups": [
+        {
+          "name": "sparkoperator.k8s.io",
+          "source": "https://github.com/kubeflow/spark-operator/blob/192fff45e233dcb7f4649e1bc7ef2b8485c134de/config/crd/bases/sparkoperator.k8s.io_scheduledsparkapplications.yaml"
+        }
+      ]
+    },
+    {
       "slug": "strimzi",
       "catalog": "cncf",
       "factProject": "strimzi",
@@ -1679,6 +1755,12 @@
       "reason": "Gateway API defines its experimental CRDs in this repository and kube-apiserver does not serve this custom resource group"
     },
     {
+      "name": "groupsnapshot.storage.k8s.io",
+      "owner": "external-snapshotter",
+      "repository": "https://github.com/kubernetes-csi/external-snapshotter",
+      "reason": "the VolumeGroupSnapshot types (VolumeGroupSnapshot, VolumeGroupSnapshotClass, VolumeGroupSnapshotContent) are CRDs of kubernetes-csi/external-snapshotter only; owner decision 2026-11-17 (reserved API groups)"
+    },
+    {
       "name": "kueue.x-k8s.io",
       "owner": "kueue",
       "repository": "https://github.com/kubernetes-sigs/kueue",
@@ -1689,6 +1771,30 @@
       "owner": "cluster-api",
       "repository": "https://github.com/kubernetes-sigs/cluster-api",
       "reason": "the runtime extension type ExtensionConfig is a CRD of kubernetes-sigs/cluster-api only"
+    },
+    {
+      "name": "secrets-store.csi.x-k8s.io",
+      "owner": "secrets-store-csi-driver",
+      "repository": "https://github.com/kubernetes-sigs/secrets-store-csi-driver",
+      "reason": "the SecretProviderClass and SecretProviderClassPodStatus types are CRDs of kubernetes-sigs/secrets-store-csi-driver only; owner decision 2026-11-17 (reserved API groups)"
+    },
+    {
+      "name": "security-profiles-operator.x-k8s.io",
+      "owner": "security-profiles-operator",
+      "repository": "https://github.com/kubernetes-sigs/security-profiles-operator",
+      "reason": "the Security Profiles Operator types (SeccompProfile, SelinuxPolicy, AppArmorProfile, ProfileBinding, ProfileRecording, ...) are CRDs of kubernetes-sigs/security-profiles-operator only; owner decision 2026-11-17 (reserved API groups)"
+    },
+    {
+      "name": "snapshot.storage.k8s.io",
+      "owner": "external-snapshotter",
+      "repository": "https://github.com/kubernetes-csi/external-snapshotter",
+      "reason": "the VolumeSnapshot types (VolumeSnapshot, VolumeSnapshotClass, VolumeSnapshotContent) are CRDs of kubernetes-csi/external-snapshotter, which defines them; CSI drivers and distributions ship copies; owner decision 2026-11-17 (reserved API groups)"
+    },
+    {
+      "name": "sparkoperator.k8s.io",
+      "owner": "spark-operator",
+      "repository": "https://github.com/kubeflow/spark-operator",
+      "reason": "the Spark Operator types (SparkApplication, ScheduledSparkApplication, SparkConnect) are CRDs of kubeflow/spark-operator only; owner decision 2026-11-17 (reserved API groups)"
     }
   ]
 }
