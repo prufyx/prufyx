@@ -34,6 +34,7 @@ const (
 	ReasonFencedCode         = "fenced-code"
 	ReasonOddCharacter       = "non-ascii-or-control-character"
 	ReasonSplitMarkup        = "inline-html-entity-or-intraword-markup"
+	ReasonStrikethrough      = "tilde-strikethrough-or-unproven-literal"
 	ReasonOperatorMarker     = "operator-marker"
 	ReasonOperatorHeading    = "operator-heading"
 	ReasonNoMarker           = "no-marker"
@@ -204,6 +205,12 @@ func classifyItem(v *vocabulary, component string, it Item, body string) Classif
 	}
 	if hasSplitMarkup(body) {
 		add(ReasonSplitMarkup)
+	}
+
+	// A tilde in any form may strike text through; a lone one is not proven a
+	// literal, so it is never neutral.
+	if strings.Contains(body, "~") {
+		add(ReasonStrikethrough)
 	}
 
 	// Triggers: the whole item text, marker included.

@@ -806,3 +806,78 @@ func TestReaderRefusalsAreInherited(t *testing.T) {
 		wantCode(t, err, f.code)
 	}
 }
+
+func TestStrikethroughNeedsReview(t *testing.T) {
+	for name, item := range map[string]string{
+		"double tilde":         "* [FEATURE] Scraping: ~~removed flag --x~~ kept. #1",
+		"double tilde neutral": "* [FEATURE] Scraping: ~~add support~~ for X. #1",
+		"single tilde pair":    "* [FEATURE] Scraping: ~add support~ for X. #1",
+		"tilde before word":    "* [FEATURE] Scraping: ~add support for X. #1",
+		"tilde after word":     "* [FEATURE] Scraping: add~ support for X. #1",
+		"intraword tilde":      "* [FEATURE] Scraping: add~support for X. #1",
+		"version tilde":        "* [FEATURE] Scraping: needs ~1.2 or later. #1",
+		"path tilde":           "* [FEATURE] Scraping: reads ~/x now. #1",
+		"trailing tilde":       "* [FEATURE] Scraping: add support for X ~",
+		"triple tilde":         "* [FEATURE] Scraping: ~~~add support~~~ for X. #1",
+		"tilde in code span":   "* [FEATURE] Scraping: add `~` support for X. #1",
+	} {
+		file := promOne(item)
+		e, err := locateMem(promTarget, "v3.5.0", file)
+		if err != nil {
+			t.Fatalf("%s did not reach the classifier: %v", name, err)
+		}
+		cs, err := classifyT(e, []byte(file))
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if len(cs) == 0 {
+			t.Fatalf("%s: no result", name)
+		}
+		for _, c := range cs {
+			wantClass(t, c, ClassNeedsReview, name)
+		}
+	}
+	// Control: the same neutral item without a tilde stays neutral.
+	_, cs := classifyFile(t, promTarget, "v3.5.0", promOne("* [FEATURE] Scraping: add support for X. #1"))
+	wantClass(t, cs[0], ClassMechanicalNeutral, "control")
+	// Other targets: the tilde is also needs-review.
+	_, th := classifyFile(t, thanosTarget, "v0.38.0", thanosOne("### Added\n\n- Store: ~~old~~ new metric."))
+	wantClass(t, th[0], ClassNeedsReview, "thanos tilde")
+}
+
+func TestStrikethroughOutputStaysTwoValues(t *testing.T) {
+	rng := rand.New(rand.NewSource(11))
+	words := []string{"plain", "words", "~", "~~", "~x~", "~~y~~", "~1.2", "~/x", "add", "support", "`~`", "a~b"}
+	for i := 0; i < 300; i++ {
+		l := "* [FEATURE] Scraping:"
+		for k := 0; k < 1+rng.Intn(6); k++ {
+			l += " " + words[rng.Intn(len(words))]
+		}
+		file := promOne(l)
+		e, err := locateMem(promTarget, "v3.5.0", file)
+		if err != nil {
+			continue
+		}
+		cs, err := classifyT(e, []byte(file))
+		if err != nil {
+			t.Fatalf("%q: %v", l, err)
+		}
+		for _, c := range cs {
+			switch c.Class {
+			case ClassMechanicalNeutral:
+				if strings.Contains(l, "~") {
+					t.Fatalf("neutral item holds a tilde: %q", l)
+				}
+			case ClassNeedsReview:
+				if len(c.Reasons) == 0 {
+					t.Fatalf("needs-review without a reason: %q", l)
+				}
+				if strings.Contains(l, "~") && !hasStr(c.Reasons, ReasonStrikethrough) {
+					t.Fatalf("tilde without its reason: %q %v", l, c.Reasons)
+				}
+			default:
+				t.Fatalf("a third class: %q", c.Class)
+			}
+		}
+	}
+}
