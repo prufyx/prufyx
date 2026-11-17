@@ -360,7 +360,7 @@ func TestBacktestMultiPrefixSeeds(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d: %s %s", code, so, se)
 	}
-	for _, want := range []string{"multi reproduced\n", "multi/swap-prefixes failed", "multi/drop-prefix failed", "multi/extra-prefix failed", "seeds=5/5-failed"} {
+	for _, want := range []string{"multi reproduced ", "multi/swap-prefixes failed", "multi/drop-prefix failed", "multi/extra-prefix failed", "seeds=5/5-failed"} {
 		if !strings.Contains(so, want) {
 			t.Errorf("missing %q in %s", want, so)
 		}
