@@ -73,6 +73,18 @@ var Reviewed = []Target{
 	{Component: "aws-ebs-csi-driver", Repo: extract.RepoRef{Key: "github.com/kubernetes-sigs/aws-ebs-csi-driver"}, Form: FormPostTag},
 	{Component: "flannel", Repo: extract.RepoRef{Key: "github.com/flannel-io/flannel"}, Form: FormGithubRelease},
 	{Component: "csi-driver-smb", Repo: extract.RepoRef{Key: "github.com/kubernetes-csi/csi-driver-smb"}, Form: FormGithubRelease},
+	{
+		Component: "prometheus", Repo: extract.RepoRef{Key: "github.com/prometheus/prometheus"},
+		Form: FormFile, Path: "CHANGELOG.md",
+		HeadingPattern:   `^(?P<version>[0-9]+\.[0-9]+\.[0-9]+) / [0-9]{4}-[0-9]{2}-[0-9]{2}$`,
+		BoundaryPatterns: []string{`^main / unreleased$`},
+	},
+	{
+		Component: "alertmanager", Repo: extract.RepoRef{Key: "github.com/prometheus/alertmanager"},
+		Form: FormFile, Path: "CHANGELOG.md",
+		HeadingPattern:   `^(?P<version>[0-9]+\.[0-9]+\.[0-9]+) / [0-9]{4}-[0-9]{2}-[0-9]{2}$`,
+		BoundaryPatterns: []string{`^main / \(unreleased\)$`},
+	},
 }
 
 // Lookup returns the row of a component in table. Exactly one row must match.
