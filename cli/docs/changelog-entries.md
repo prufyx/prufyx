@@ -1,0 +1,65 @@
+# Reading one changelog entry
+
+`prufyx-maintainer changelog entries` reads the changelog entry of one release
+tag and prints a manifest of what it read. It is a maintainer tool: it runs
+offline, reads only the factory mirror or a fixture tree, calls no model and no
+network service, writes no file and publishes nothing.
+
+## Syntax
+
+```
+prufyx-maintainer changelog entries --component NAME --repo github.com/OWNER/NAME \
+  --path FILE --form FORM --tag TAG (--mirror-state DIR | --fixture DIR)
+```
+
+- `--component`, `--repo`, `--path`, `--form` and `--tag` are all required. The
+  reviewed target row of the component decides where the file is and how its
+  version headings read; `--repo`, `--path` and `--form` must agree with that
+  row and are refused when they do not.
+- Give exactly one of `--mirror-state` (the factory mirror state directory) or
+  `--fixture` (a fixture tree).
+- Unknown flags, a flag given twice, a missing flag and extra arguments are
+  refused.
+- The tag must be recorded for the repository; the file is read at the tag's
+  own commit, never at another tag or path.
+
+## Output
+
+One line of JSON on standard output, in a fixed field order, so equal inputs
+give equal bytes:
+
+- `schema`: `prufyx.io/changelog-entries-manifest/v1`.
+- `extractor`: `name` `changelog.entries`, `version` `changelog.entries/1`,
+  and `codeDigest`, the digest of this reader's source and of the extract
+  framework it is built on.
+- Exactly one of:
+  - `entry`: the proof that the tag's own entry was read in full. It holds the
+    source (repository, commit, path, file digest, form), the section (heading
+    line, start and end line, digest), the headings inside it, one item per
+    list item or paragraph (digest, occurrence, line span, heading path,
+    marker, kind), and the line tiling. Every section line is a heading, a
+    blank line, a link definition or inside exactly one item.
+  - `withheld`: the typed reason the tag has no entry (`component`, `tag`,
+    `tagCommit`, `code`, `detail`). `code` is the contract, from the closed list
+    of the reader; `detail` is for people.
+
+The manifest classifies nothing and gives no item a disposition.
+
+## Exit codes
+
+- `0`: a manifest was printed, either an `entry` or a `withheld` reason.
+- `2`: the input was rejected or a read failed. Nothing is printed to standard
+  output. A read failure is never turned into a reason.
+
+## Reviewed target table
+
+The table of reviewed targets (file path, heading pattern, boundary patterns)
+is part of the reader's code. It is empty today, so every component is refused
+with exit 2 until a row has been reviewed and added.
+
+## A printed manifest is never evidence
+
+The manifest is a derivation to be re-derived and checked, not a claim. A
+printed manifest, with or without an `entry`, is not a compatibility fact, an
+attestation or evidence of anything; only a gate that re-derives it from the
+pinned bytes and accepts it can use it.
