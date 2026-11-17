@@ -34,7 +34,10 @@ const (
 	// BootstrapCountsSha256 pins that file. The pin is fixed in code: the file was
 	// generated once; any other bytes fail closed.
 	BootstrapCountsSha256 = "db6de7abaa93a36e8222da29b908b688add5d17bfa1a1f3ad9f5bc9b4d8a98c3"
-	maxCounts             = 64 << 20
+	// BootstrapApproximationNote is printed in the notes whenever the
+	// previous release is the bootstrap baseline.
+	BootstrapApproximationNote = "The figures for `" + BootstrapTag + "` in this section are approximate: that release has no counts file, so they were recomputed from its rules with the current pinned release lines."
+	maxCounts                  = 64 << 20
 )
 
 // Counts is the counts file: the coverage report plus the facts that tie it to

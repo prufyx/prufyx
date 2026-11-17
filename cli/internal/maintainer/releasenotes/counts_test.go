@@ -212,3 +212,23 @@ func TestCountsDiffGolden(t *testing.T) {
 		t.Error("forbidden text in the block")
 	}
 }
+
+func TestRenderBootstrapApproximationNote(t *testing.T) {
+	s := &Snapshot{}
+	prev, cur := fixtureCounts(t, "counts-prev.json"), fixtureCounts(t, "counts-cur.json")
+	want := "The figures for `v0.1.0-beta.0` in this section are approximate: that release has no counts file, so they were recomputed from its rules with the current pinned release lines."
+	got, err := Render(s, s, Options{FromLabel: "v0.1.0-beta.0", ToLabel: "v1", Prev: prev, Cur: cur, Previous: PreviousPin{Tag: BootstrapTag, Commit: "abc", CountsSha256: prev.Sha256}, OmitMergedPRs: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Count(got, want+"\n\n") != 1 {
+		t.Errorf("bootstrap note missing or repeated:\n%s", got)
+	}
+	got, err = Render(s, s, Options{FromLabel: "v1", ToLabel: "v2", Prev: prev, Cur: cur, Previous: PreviousPin{Tag: "v1", Commit: "abc", CountsSha256: prev.Sha256}, OmitMergedPRs: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(got, "approximate") {
+		t.Error("note printed for a release with real counts")
+	}
+}
