@@ -429,13 +429,13 @@ func TestBacktestOptionsReachTheGenerator(t *testing.T) {
 		got = in
 		return old(in)
 	}
-	dirBT(t, func(e *btEntry) { e.CollapseDirectories, e.DeriveDuplicateSources, e.MultiPrefix = true, true, true }, genCollapsed(t, true), "")
-	if !got.CollapseDirectories || !got.DeriveDuplicates || !got.MultiPrefix {
+	dirBT(t, func(e *btEntry) { e.CollapseDirectories, e.MultiPrefix = true, true }, genCollapsed(t, true), "")
+	if !got.CollapseDirectories || !got.MultiPrefix {
 		t.Fatalf("%+v", got)
 	}
 	got = Input{}
 	dirBT(t, func(e *btEntry) {}, genCollapsed(t, false), "")
-	if got.CollapseDirectories || got.DeriveDuplicates || got.MultiPrefix {
+	if got.CollapseDirectories || got.MultiPrefix {
 		t.Fatalf("defaults must stay off: %+v", got)
 	}
 }
@@ -689,10 +689,7 @@ func TestBacktestEscalatePlainReproducesIsNotEscalated(t *testing.T) {
 }
 
 func TestBacktestEscalateOnEachListedStop(t *testing.T) {
-	if len(escalateStops) != 4 {
-		t.Fatalf("%v", escalateStops)
-	}
-	for _, code := range escalateStops {
+	for _, code := range []string{StopDuplicateCRD, StopDuplicateCRDDiffers, StopUnreadableShape, StopUnpinnedExclusion} {
 		calls, restore := escStub(t, code)
 		rep, r := dirBT(t, func(e *btEntry) { escOn(e); e.CheckInstallPathCopies = true }, genCollapsed(t, true), "")
 		restore()
@@ -722,12 +719,14 @@ func TestBacktestEscalateInferenceStopIsTheResult(t *testing.T) {
 	}
 }
 
-func TestBacktestEscalateUnlistedStopIsNotEscalated(t *testing.T) {
+// Any typed stop of the generator escalates (a mix too); only the harness's own
+// mirror-missing does not.
+func TestBacktestEscalateAnyGeneratorStop(t *testing.T) {
 	for _, codes := range [][]string{{StopMultiPrefixAmbiguous}, {StopReservedGroup}, {StopWindowTooShort}, {StopDuplicateCRD, StopReservedGroup}} {
 		calls, restore := escStub(t, codes...)
 		rep, r := dirBT(t, escOn, genCollapsed(t, true), "")
 		restore()
-		if r.Class != ClassTypedStop || r.Escalated == nil || *r.Escalated || r.PlainStop != "" || rep.Escalated != 0 || len(*calls) != 1 {
+		if r.Escalated == nil || !*r.Escalated || r.PlainStop == "" || rep.Escalated != 1 || len(*calls) != 2 {
 			t.Fatalf("%v: %+v %d", codes, r, len(*calls))
 		}
 	}

@@ -28,10 +28,10 @@ type FullWindowSelector struct {
 // GenerateFullWindow is a dormant local draft generator. It does not establish
 // upstream completeness, tag authenticity, eligibility, or merge authority.
 func GenerateFullWindow(in Input, selector FullWindowSelector) (*Result, error) {
-	if !in.StrictWindow || in.MultiPrefix || in.DeriveDuplicates || in.InferInstallPaths || in.CheckInstallPathCopies || in.SkipPatchFragments || len(in.RangeCheckTags) != 0 {
+	if !in.StrictWindow || in.MultiPrefix || in.InferInstallPaths || in.CheckInstallPathCopies || len(in.RangeCheckTags) != 0 {
 		return nil, fullWindowError("unsupported full-window options")
 	}
-	if in.Rules != nil && (len(in.Rules.Exclusions) != 0 || len(in.Rules.InstallSurface) != 0 || len(in.Rules.InstallPaths) != 0 || len(in.Rules.PathFilter) != 0 || in.Rules.deriveStrict || in.Rules.checkCopies) {
+	if in.Rules != nil && (len(in.Rules.Exclusions) != 0 || len(in.Rules.InstallSurface) != 0 || len(in.Rules.InstallPaths) != 0 || len(in.Rules.PathFilter) != 0 || in.Rules.checkCopies) {
 		return nil, fullWindowError("full-window rules require provenance only")
 	}
 	if in.Catalog == "community" && (in.Rules == nil || in.Rules.Upstream == nil) {

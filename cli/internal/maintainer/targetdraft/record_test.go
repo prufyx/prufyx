@@ -103,11 +103,9 @@ func TestRecordDraftRefusesUnsupportedOrMismatch(t *testing.T) {
 		edit        func(*Input)
 		target, row []byte
 	}{
-		{"duplicates", func(i *Input) { i.DeriveDuplicates = true }, want.A, want.TableRow},
 		{"multi-prefix", func(i *Input) { i.MultiPrefix = true }, want.A, want.TableRow},
 		{"infer-paths", func(i *Input) { i.InferInstallPaths = true }, want.A, want.TableRow},
 		{"check-copies", func(i *Input) { i.CheckInstallPathCopies = true }, want.A, want.TableRow},
-		{"skip-fragments", func(i *Input) { i.SkipPatchFragments = true }, want.A, want.TableRow},
 		{"exclusion", func(i *Input) { i.Rules = &Rules{Schema: RulesSchema, Exclusions: []ExclusionRule{{Path: "vendor/"}}} }, want.A, want.TableRow},
 		{"target mismatch", func(*Input) {}, []byte("other"), want.TableRow},
 		{"row mismatch", func(*Input) {}, want.A, []byte("other")},

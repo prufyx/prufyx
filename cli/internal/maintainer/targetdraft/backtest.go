@@ -57,32 +57,22 @@ type btEntry struct {
 	Expected    string   `json:"expected"`              // reviewed target file, relative to the manifest
 	Half        string   `json:"half"`                  // "A" or "B"
 	MultiPrefix bool     `json:"multiPrefix,omitempty"` // tags of two prefixes; see Input.MultiPrefix
-	// CollapseDirectories, DeriveDuplicateSources: the generator flags of the same
-	// names (--collapse-directories, --derive-duplicate-sources). Default off.
-	CollapseDirectories    bool `json:"collapseDirectories,omitempty"`
-	DeriveDuplicateSources bool `json:"deriveDuplicateSources,omitempty"`
+	// CollapseDirectories is the generator flag of the same name
+	// (--collapse-directories). Default off.
+	CollapseDirectories bool `json:"collapseDirectories,omitempty"`
 	// OraclePaths feeds the reviewed target's own paths to the generator as
 	// installPaths. The result is labelled oracle and never counted as strict.
 	OraclePaths bool `json:"oraclePaths,omitempty"`
-	// InferInstallPaths, CheckInstallPathCopies: the generator flags
-	// --infer-install-paths and --check-install-path-copies. Default off.
+	// InferInstallPaths, CheckInstallPathCopies: internal generator options
+	// (no CLI flag). Used by the escalation rerun, or set on a manifest entry.
 	InferInstallPaths      bool `json:"inferInstallPaths,omitempty"`
 	CheckInstallPathCopies bool `json:"checkInstallPathCopies,omitempty"`
 	// Escalate makes the run stop-driven: the entry runs first with its own flags
-	// and without inference; only a plain typed stop listed in escalateStops runs
-	// it again with inferInstallPaths and checkInstallPathCopies. Default off.
+	// and without inference; after any plain typed stop of the generator (not the
+	// harness's own mirror-missing) it runs again with inferInstallPaths and
+	// checkInstallPathCopies. Default off per entry.
 	Escalate bool `json:"escalate,omitempty"`
-	// SkipPatchFragments: the generator flag --skip-patch-fragments. Default off.
-	SkipPatchFragments bool `json:"skipPatchFragments,omitempty"`
-	// EscalateAny (with escalate): rerun with inference after ANY typed stop of
-	// the plain run, not only the escalateStops list. Default off.
-	EscalateAny bool `json:"escalateAny,omitempty"`
 }
-
-// escalateStops lists the plain-run stop codes that make an escalate entry run
-// again with inference. Any other stop, or a mix with an unlisted code, is the
-// result as is.
-var escalateStops = []string{StopDuplicateCRD, StopDuplicateCRDDiffers, StopUnreadableShape, StopUnpinnedExclusion}
 
 type btSeed struct {
 	Entry string `json:"entry"`
@@ -492,8 +482,8 @@ func runOnce(e btEntry, base, mirrors string, open func(string) Source) btRun {
 	}
 	gen, err := generate(Input{Slug: e.Slug, Name: e.Name, Repo: e.Repo, Component: e.Component, FactProject: e.FactProject,
 		Catalog: e.Catalog, Tags: e.Tags, Source: open(mdir), Rules: rules, MultiPrefix: e.MultiPrefix,
-		CollapseDirectories: e.CollapseDirectories, DeriveDuplicates: e.DeriveDuplicateSources,
-		InferInstallPaths: e.InferInstallPaths, CheckInstallPathCopies: e.CheckInstallPathCopies, SkipPatchFragments: e.SkipPatchFragments})
+		CollapseDirectories: e.CollapseDirectories,
+		InferInstallPaths:   e.InferInstallPaths, CheckInstallPathCopies: e.CheckInstallPathCopies})
 	if err != nil {
 		var se *StopError
 		if !errors.As(err, &se) {

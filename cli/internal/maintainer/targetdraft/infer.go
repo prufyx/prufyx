@@ -323,9 +323,6 @@ func annotateInferred(res *Result, inf *InferredInstallPaths) {
 	res.Report.InferredInstallPaths = inf
 	res.Report.FactsDigest = sumHex([]byte(res.Report.FactsDigest + "\n" + strings.Join(lines, "\n") + "\n"))
 	txt := "\nInstall paths were inferred, not reviewed by hand: rule " + inf.Rule + " chose " + strings.Join(inf.Paths, ", ") + " (rank " + strconv.Itoa(inf.Rank) + ") at every tag of the run. Every readable definition file outside it was compared with the installed definitions and none differs or hides a definition; an unreadable file outside it is a stop unless it sits below a skipped directory (documentation, test, vendor, templates, bundle, olm), where it stays unread and is reported as a non-install copy."
-	if len(res.Report.DerivedSources) > 0 {
-		txt += " With the duplicate derivation the target reads only the derived exact files inside that directory; the reported paths still name the directory."
-	}
 	res.Changelog = append(res.Changelog, []byte(txt+"\n")...)
 }
 

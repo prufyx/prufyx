@@ -239,12 +239,6 @@ type Report struct {
 	// window tags; sorted. Present only when pathFilter is used.
 	FilteredCopyCount int            `json:"filteredCopyCount,omitempty"`
 	FilteredCopies    []FilteredCopy `json:"filteredCopies,omitempty"`
-	// DerivedSources lists, per definition that several files defined, the
-	// kept file, the dropped copies, the spec digest and the window tags at
-	// which every copy was compared and equal. Present only when the
-	// duplicate derivation ran (--derive-duplicate-sources); part of
-	// FactsDigest then.
-	DerivedSources []DerivedSource `json:"derivedSources,omitempty"`
 	// InferredInstallPaths is the install directory chosen by rule R2 and the
 	// ranking evidence of every tag. Present only with --infer-install-paths;
 	// part of FactsDigest then.
@@ -272,38 +266,6 @@ type PatchFragmentFact struct {
 type DirectoryFact struct {
 	Dir   string   `json:"dir"`
 	Files []string `json:"files"`
-}
-
-// DerivedSource is one duplicated definition resolved to one kept file.
-type DerivedSource struct {
-	Key        string   `json:"key"`
-	Kept       string   `json:"kept"`
-	Dropped    []string `json:"dropped"`
-	SpecDigest string   `json:"specDigest"`
-	Tags       []string `json:"tags"`
-}
-
-// annotateDerived fills the derived-source block of the report, adds its
-// content to the facts digest and states the evidence in the changelog. Only
-// window tags are named.
-func annotateDerived(res *Result, d *derivation, window []*tagResult) {
-	inWindow := map[string]bool{}
-	for _, r := range window {
-		inWindow[r.tag] = true
-	}
-	var h []string
-	for _, s := range d.Sources {
-		ds := DerivedSource{Key: s.Key, Kept: s.Kept, Dropped: s.Dropped, SpecDigest: s.Digest, Tags: []string{}}
-		for _, t := range s.Tags {
-			if inWindow[t] {
-				ds.Tags = append(ds.Tags, t)
-			}
-		}
-		res.Report.DerivedSources = append(res.Report.DerivedSources, ds)
-		h = append(h, fmt.Sprintf("%s\t%s\t%s\t%s\t%s", safeField(ds.Key), safeField(ds.Kept), safeField(strings.Join(ds.Dropped, ",")), ds.SpecDigest, safeField(strings.Join(ds.Tags, ","))))
-	}
-	res.Report.FactsDigest = sumHex([]byte(res.Report.FactsDigest + "\n" + strings.Join(h, "\n") + "\n"))
-	res.Changelog = append(res.Changelog, []byte(fmt.Sprintf("\nDuplicate definitions: %d definition(s) were defined by more than one file; one kept file each is read, the copies are listed as non-install copies. The copies had the same full decoded spec at the window tags named in the report (derivedSources); no claim is made for other tags.\n", len(d.Sources)))...)
 }
 
 // FilteredCopy is a definition file under installPaths that a pathFilter entry

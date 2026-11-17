@@ -15,7 +15,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Kustomize patch fragments (opt-in, Input.SkipPatchFragments).
+// Kustomize patch fragments (always on).
 //
 // A kustomize patch under config/crd/patches names the kind
 // CustomResourceDefinition but is not a definition: it only edits the metadata
