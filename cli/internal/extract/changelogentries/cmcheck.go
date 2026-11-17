@@ -28,6 +28,7 @@ type cmUnit struct {
 
 type cmView struct {
 	headings  map[int]int // start line -> level
+	nested    int         // line of the first heading that is not a child of the document, 0 if none
 	fenceBody map[int]bool
 	htmlStart map[int]bool
 	htmlMulti bool
@@ -121,6 +122,9 @@ func cmParse(lines []string) (v *cmView, err error) {
 				return ast.WalkContinue, nil
 			}
 			v.headings[ls[0]] = b.Level
+			if _, top := b.Parent().(*ast.Document); !top && v.nested == 0 {
+				v.nested = ls[0]
+			}
 		case *ast.FencedCodeBlock:
 			for _, l := range leafLines(b) {
 				v.fenceBody[l] = true
@@ -169,6 +173,9 @@ func cmFileDisagreement(sc scanned, v *cmView) string {
 	if v.unknown {
 		return "a block of the oracle could not be placed"
 	}
+	if v.nested != 0 {
+		return fmt.Sprintf("heading at line %d is inside a list item, quote or other container", v.nested)
+	}
 	if len(v.headings) != len(sc.headings) {
 		return fmt.Sprintf("%d headings against %d", len(sc.headings), len(v.headings))
 	}
@@ -201,28 +208,17 @@ func cmFileDisagreement(sc scanned, v *cmView) string {
 	if v.htmlMulti && sc.containerFence == 0 {
 		return "a multi-line HTML block"
 	}
-	return ""
+	return cmItemDisagreement(sc, v)
 }
 
-// cmSectionDisagreement compares the items of the section [start,end].
-func cmSectionDisagreement(sc scanned, v *cmView, start, end int) string {
-	var us []cmUnit
-	for _, u := range v.units {
-		if u.lo >= start && u.lo <= end {
-			us = append(us, u)
-		}
+// cmItemDisagreement compares the item structure of the whole file: every
+// oracle unit against every scanner item, in order.
+func cmItemDisagreement(sc scanned, v *cmView) string {
+	if len(v.units) != len(sc.items) {
+		return fmt.Sprintf("%d items against %d", len(sc.items), len(v.units))
 	}
-	var hs []rawItem
-	for _, it := range sc.items {
-		if it.Start >= start && it.Start <= end {
-			hs = append(hs, it)
-		}
-	}
-	if len(us) != len(hs) {
-		return fmt.Sprintf("%d items against %d", len(hs), len(us))
-	}
-	for i, u := range us {
-		h := hs[i]
+	for i, u := range v.units {
+		h := sc.items[i]
 		if h.Start != u.lo || !(h.End == u.hi || u.hasFence && h.End == u.hi+1) {
 			return fmt.Sprintf("item at line %d", h.Start)
 		}
@@ -230,8 +226,23 @@ func cmSectionDisagreement(sc scanned, v *cmView, start, end int) string {
 	return ""
 }
 
+// cmSectionDisagreement refuses an oracle unit that crosses a boundary of the
+// section [start,end]: one that begins before it and reaches into it, or begins
+// inside it and ends after it.
+func cmSectionDisagreement(v *cmView, start, end int) string {
+	for _, u := range v.units {
+		if u.lo < start && u.hi >= start {
+			return fmt.Sprintf("a block from line %d crosses the section start", u.lo)
+		}
+		if u.lo <= end && u.hi > end {
+			return fmt.Sprintf("a block from line %d crosses the section end", u.lo)
+		}
+	}
+	return ""
+}
+
 // cmDisagreement reports the first disagreement between the scanner and the
-// CommonMark oracle for the whole file and for the items of [start,end]; ""
+// CommonMark oracle for the whole file and for the block spans around [start,end]; ""
 // means they agree. A parser failure is a disagreement.
 func cmDisagreement(lines []string, sc scanned, start, end int) string {
 	v, err := cmParse(lines)
@@ -242,7 +253,7 @@ func cmDisagreement(lines []string, sc scanned, start, end int) string {
 		return d
 	}
 	if start > 0 {
-		return cmSectionDisagreement(sc, v, start, end)
+		return cmSectionDisagreement(v, start, end)
 	}
 	return ""
 }
