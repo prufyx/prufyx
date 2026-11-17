@@ -258,10 +258,14 @@ func relabel(t *testing.T, b bundle, revision string, targets map[string][]byte)
 			t.Fatalf("%s: %v", project, err)
 		}
 		admission, _ := parsed.Admission()
-		if admission.HasRecords {
+		if admission.HasRecords && document.Schema == ExternalIndexSchema {
 			document.Schema = ExternalIndexSchemaRecords
 		}
-		document.Projects = append(document.Projects, ExternalIndexEntry{Project: project, TargetPath: ProjectTargetPath(project), Revision: revision, Length: int64(len(raw)), Digest: digest(raw), RuleDigest: admission.RuleDigest, EvidenceExpiresAt: admission.EvidenceExpiresAt, Records: admission.HasRecords})
+		catalog := b.catalogOf(project)
+		if catalog != "" {
+			document.Schema = ExternalIndexSchemaCommunity
+		}
+		document.Projects = append(document.Projects, ExternalIndexEntry{Project: project, TargetPath: ProjectTargetPath(project), Revision: revision, Length: int64(len(raw)), Digest: digest(raw), RuleDigest: admission.RuleDigest, EvidenceExpiresAt: admission.EvidenceExpiresAt, Records: admission.HasRecords, Catalog: catalog})
 	}
 	raw, err := json.Marshal(document)
 	if err != nil {

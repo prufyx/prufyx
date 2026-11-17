@@ -43,7 +43,7 @@ type Rule struct {
 
 // FactID is the set fact the rule reads.
 func (r Rule) FactID() string {
-	return "component." + r.Project + ".custom_resource_versions_set"
+	return FactID(r.Project)
 }
 
 var rules = []Rule{
@@ -449,6 +449,13 @@ func foreignLineError(component, line string, ids []string, known map[string]kno
 	return nil
 }
 
+// FactID is the set fact a project's mechanical rules read: the project slug
+// with dashes as underscores, as the extractors emit it (a test in
+// extract/crdversions holds this equal to every target's own fact id).
+func FactID(project string) string {
+	return "component." + strings.ReplaceAll(project, "-", "_") + ".custom_resource_versions_set"
+}
+
 // foreignRuleError checks a custom-resource version-removal rule that is not
 // of the batch (also one of a batch project that the batch does not state). The factory's mechanical extractors add such rules for other
 // projects (one per removed custom-resource version), so the pack may carry
@@ -458,7 +465,7 @@ func foreignLineError(component, line string, ids []string, known map[string]kno
 // proposed side, and at least one member. Anything else is a data error.
 func foreignRuleError(project, id, operator string, sub subject, set *setCondition) error {
 	if project == "" || !strings.HasPrefix(id, project+Marker) || operator != "forbid_set_member" || set == nil ||
-		set.Side != "proposed" || set.Component != sub.Component || set.FactID != "component."+project+".custom_resource_versions_set" || len(set.Members) == 0 {
+		set.Side != "proposed" || set.Component != sub.Component || set.FactID != FactID(project) || len(set.Members) == 0 {
 		return fmt.Errorf("the pack's custom-resource version-removal rule %s is not of the batch and not shaped like a mechanical rule", id)
 	}
 	return nil

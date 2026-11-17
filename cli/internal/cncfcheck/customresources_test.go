@@ -177,7 +177,7 @@ func TestCustomResourceRuleAdmissionNeedsTheRegisteredFact(t *testing.T) {
 						if f.ID != r.FactID() {
 							t.Fatalf("embedded pack rule %s reads %s", ruleID(t, e), f.ID)
 						}
-					} else if !crdbatchids.IsForeign(ruleID(t, e)) || f.ID != "component."+e.Project+".custom_resource_versions_set" {
+					} else if !crdbatchids.IsForeign(ruleID(t, e)) || f.ID != crdbatchids.FactID(e.Project) {
 						t.Fatalf("embedded pack rule %s reads %s", ruleID(t, e), f.ID)
 					}
 					reading++
