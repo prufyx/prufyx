@@ -66,9 +66,19 @@ type Manifest struct {
 	Withheld  *Withheld         `json:"withheld,omitempty"`
 }
 
-// Reviewed is the reviewed table of changelog targets. It is empty until a
-// component's row has been reviewed; a component without a row is refused.
-var Reviewed = []Target{}
+// Reviewed is the reviewed table of changelog targets. A component without a
+// row is refused. Rows are appended one reviewed component at a time.
+var Reviewed = []Target{
+	{
+		Component: "node_exporter", Repo: extract.RepoRef{Key: "github.com/prometheus/node_exporter"},
+		Form: FormFile, Path: "CHANGELOG.md",
+		HeadingPattern: `^(?P<version>[0-9]+\.[0-9]+\.[0-9]+) / [0-9]{4}-[0-9]{2}-[0-9]{2}$`,
+		BoundaryPatterns: []string{
+			`^(main|master) / unreleased$`,
+			`^[0-9]+\.[0-9]+\.[0-9]+-(rc|beta|alpha)\.[0-9]+ / .*$`,
+		},
+	},
+}
 
 // Lookup returns the row of a component in table. Exactly one row must match.
 func Lookup(table []Target, component string) (Target, error) {
