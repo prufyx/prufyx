@@ -3,7 +3,15 @@ MAINTAINER ?= go run ./cmd/prufyx-maintainer
 RELEASE_POLICY := release/community-shipping-policy-v2.json
 STATICCHECK ?= staticcheck
 
-.PHONY: targets-check targets-check-citations mutants toolchain-check staticcheck staticcheck-full dco-check release-gate-test release-manifest regenerate-pack-goldens
+.PHONY: check release-docs-check targets-check targets-check-citations mutants toolchain-check staticcheck staticcheck-full dco-check release-gate-test release-manifest regenerate-pack-goldens
+
+# The release-docs gate in CI mode (the same command as the CI step; the
+# vendor and model name list is skipped unless DENY_FILE=<file> is given).
+# See docs/releasing.md.
+release-docs-check:
+	$(MAINTAINER) release-docs check --root .. --mode unreleased $(if $(DENY_FILE),--deny-file $(DENY_FILE),)
+
+check: release-docs-check
 
 toolchain-check:
 	@version="$$(GOTOOLCHAIN=local $(GO) env GOVERSION)"; test "$$version" = go1.26.10 || { echo "Go 1.26.10 is required; found $$version" >&2; exit 1; }

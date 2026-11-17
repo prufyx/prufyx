@@ -7,7 +7,7 @@
 # and reaches no secret, tag, release or attestation. Only the pinned nfpm
 # download of the packages step uses the network.
 #
-# It checks: the tag grammar step, the knowledge root pin step, the freshness
+# It checks: the release docs gate (release mode with RELEASE_TAG, else CI mode), the tag grammar step, the knowledge root pin step, the freshness
 # gate step, archives for the whole build matrix, a byte-identical rebuild of
 # the same inputs, .deb/.rpm byte-identical when built under two host names,
 # /usr/bin/prufyx equal to the archive binary, and the SHA256SUMS lines.
@@ -100,6 +100,35 @@ if EXPECTED="${KNOWLEDGE_ROOT_DIGEST:-}" GITHUB_WORKSPACE="${root}" run_step "${
   record "knowledge root pin step" PASS "$(head -n1 "${logs}/pin.log" | cut -c1-70)"
 else
   record "knowledge root pin step" FAIL "see log"; tail_log "${logs}/pin.log"
+fi
+
+# 1b. Release docs gate. With RELEASE_TAG set (the tag that is or will be
+# pushed, already created in this checkout) the release workflow's job step runs
+# verbatim: the identical command line, release mode. Without it the CI mode
+# (--mode unreleased) runs, a real check of every unpublished notes file. The
+# vendor and model name list comes from DENY_NAMES (as the repository variable
+# RELEASE_DENY_NAMES); release mode fails without it.
+gate_cmd='go run ./cmd/prufyx-maintainer release-docs check --root .. --mode release --tag "${TAG}" --previous "${previous}" --deny-file "${deny}"'
+gatescript=$(step_script release-docs-gate "Check release docs")
+if ! sed 's/^[[:space:]]*//' "${gatescript}" | grep -Fxq -- "${gate_cmd}"; then
+  record "release docs gate step carries the release command line" FAIL "the workflow step differs from the line this script pins"
+elif [ -n "${RELEASE_TAG:-}" ]; then
+  if TAG="${RELEASE_TAG}" DENY_NAMES="${DENY_NAMES:-}" GITHUB_WORKSPACE="${root}" run_step "${gatescript}" "${logs}/docs-gate.log"; then
+    record "release docs gate (release mode, ${RELEASE_TAG})" PASS "$(tail -n1 "${logs}/docs-gate.log" | cut -c1-70)"
+  else
+    record "release docs gate (release mode, ${RELEASE_TAG})" FAIL "see log"; tail_log "${logs}/docs-gate.log"
+  fi
+else
+  deny_args=()
+  if [ -n "${DENY_NAMES:-}" ]; then
+    printf '%s\n' "${DENY_NAMES}" > "${work}/deny-names.txt"
+    deny_args=(--deny-file "${work}/deny-names.txt")
+  fi
+  if (cd "${root}/cli" && go run ./cmd/prufyx-maintainer release-docs check --root .. --mode unreleased "${deny_args[@]}") > "${logs}/docs-gate.log" 2>&1; then
+    record "release docs gate (unreleased mode; set RELEASE_TAG for release mode)" PASS "$(tail -n1 "${logs}/docs-gate.log" | cut -c1-70)"
+  else
+    record "release docs gate (unreleased mode; set RELEASE_TAG for release mode)" FAIL "see log"; tail_log "${logs}/docs-gate.log"
+  fi
 fi
 
 # 2. Freshness gate: the earliest embedded evidence expiry must be at least

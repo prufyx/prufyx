@@ -86,19 +86,28 @@ jobs:
           scripts/readme-coverage.sh --check
           scripts/preview-coverage.sh --check
 
-      - name: Check generated release-notes block
-        # The generated block of the beta.1 release notes must equal its
-        # regeneration from the committed counts file and the pinned previous
-        # counts. This catches a hand edit of the block. It runs before the
-        # baseline step below, whose shallow fetch of the base branch cuts the
-        # history this command needs.
+      - name: Check release docs
+        # The README coverage block, the counts file and, for every release
+        # notes file whose tag is not published yet, the notes block, the
+        # CHANGELOG entry and the prose around them must be what the
+        # generator writes (cli/docs/releasing.md). It runs before the
+        # baseline step below, whose shallow fetch of the base branch cuts
+        # the history this command needs. The vendor and model name list is
+        # read from the repository variable RELEASE_DENY_NAMES when it is
+        # set; without it that one list is skipped and the output says so
+        # (the release cut and the release workflow always apply it).
         working-directory: cli
+        env:
+          DENY_NAMES: ${{ vars.RELEASE_DENY_NAMES }}
         run: |
-          go run ./cmd/prufyx-maintainer release-notes --repo .. \
-            --from v0.1.0-beta.0 \
-            --previous-counts-sha256 db6de7abaa93a36e8222da29b908b688add5d17bfa1a1f3ad9f5bc9b4d8a98c3 \
-            --to 4bf4942da51e --to-label v0.1.0-beta.1 --omit-merged-prs \
-            --into docs/release-notes-v0.1.0-beta.1.md --check
+          set -euo pipefail
+          deny_args=()
+          if [ -n "${DENY_NAMES}" ]; then
+            deny="${RUNNER_TEMP}/deny-names.txt"
+            printf '%s\n' "${DENY_NAMES}" > "${deny}"
+            deny_args=(--deny-file "${deny}")
+          fi
+          go run ./cmd/prufyx-maintainer release-docs check --root .. --mode unreleased "${deny_args[@]}"
 
       - name: Check the coverage baseline is not lowered
         # The decided-pair and covered-project floors in

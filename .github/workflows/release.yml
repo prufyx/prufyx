@@ -9,8 +9,52 @@ permissions:
   contents: read
 
 jobs:
+  # The release-docs gate is one job of its own, not a step of the build
+  # matrix: every other job needs it, so no archive, package, attestation or
+  # draft release exists for a tag whose notes, CHANGELOG entry and coverage
+  # text are not what the generator writes. The checker is built from the
+  # tagged tree, so its code and this job are owned in .github/CODEOWNERS.
+  # Repository variable RELEASE_DENY_NAMES holds the vendor and model names
+  # the check refuses (one per line); without it the job fails.
+  release-docs-gate:
+    name: Release docs gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: "1.26.10"
+          cache: false
+
+      - name: Check release docs
+        working-directory: cli
+        env:
+          TAG: ${{ github.ref_name }}
+          DENY_NAMES: ${{ vars.RELEASE_DENY_NAMES }}
+        run: |
+          set -euo pipefail
+          # The previous release: the highest release tag below this one that
+          # is in its history. The check itself requires it to be strictly
+          # lower and an ancestor and takes its counts from that tag.
+          previous="$(git tag --merged HEAD --list 'v*' | { grep -vxF -- "${TAG}" || true; } | sed 's/-/~/' | LC_ALL=C sort -V | tail -n 1 | sed 's/~/-/')"
+          if [ -z "${previous}" ]; then
+            echo "No previous release tag; nothing was built."
+            exit 1
+          fi
+          deny="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/deny-names.txt"
+          printf '%s\n' "${DENY_NAMES}" > "${deny}"
+          go run ./cmd/prufyx-maintainer release-docs check --root .. --mode release --tag "${TAG}" --previous "${previous}" --deny-file "${deny}"
+
   build:
     name: Build (${{ matrix.goos }}/${{ matrix.goarch }})
+    needs: release-docs-gate
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
@@ -376,7 +420,7 @@ jobs:
 
   provenance:
     name: Checksums and provenance
-    needs: [build, packages]
+    needs: [release-docs-gate, build, packages]
     # Protected environment: the owner creates `release` with themselves as
     # required reviewer and tags `v*` as the only deployment refs. Provenance is
     # attested, and the draft release (which needs this job) is created,
@@ -431,7 +475,7 @@ jobs:
 
   draft-release:
     name: Create draft release
-    needs: provenance
+    needs: [release-docs-gate, provenance]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
