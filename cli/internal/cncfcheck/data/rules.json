@@ -26922,6 +26922,366 @@
       }
     },
     {
+      "component": "pkg:github/kubean-io/kubean",
+      "line": "0.35",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.34.0",
+            "commit": "7ec2346f74ffc54eee7d97bed59ec29dfae36655"
+          },
+          {
+            "version": "0.34.1",
+            "commit": "848254a9ddfcad22ecb27cc6ec1a44f95871545c"
+          },
+          {
+            "version": "0.34.2",
+            "commit": "e8d2550311742587a0dbb73b70aaea3360dfe365"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.35.0",
+            "commit": "eaa9eee045d95c2f41acc7d2a1b4d6d1922b0536"
+          },
+          {
+            "version": "0.35.1",
+            "commit": "f3cd17ee780ca95c6b12073290dc74e4af1f64e0"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.kubean",
+          "version": "2.15.0",
+          "codeDigest": "sha256:27f421a165b4fc2baa998071570e0c8705d1b43e606dc42b9550796657636db9"
+        },
+        "derivedAt": "2026-11-17T01:04:29Z",
+        "reviewedAt": "2026-11-17T01:04:29Z",
+        "validUntil": "2027-01-18T01:04:29Z",
+        "sources": [
+          {
+            "id": "crds-0-34-0",
+            "url": "https://github.com/kubean-io/kubean/blob/7ec2346f74ffc54eee7d97bed59ec29dfae36655/api/charts/crds/kubean.io_clusteroperations.yaml",
+            "revision": "7ec2346f74ffc54eee7d97bed59ec29dfae36655",
+            "contentDigest": "sha256:86be6521f45afbfdf8d2079bc931678874eddf8a5cc597e8f49065be2c5a9edf",
+            "startLine": 1,
+            "endLine": 270
+          },
+          {
+            "id": "crds-0-35-0",
+            "url": "https://github.com/kubean-io/kubean/blob/eaa9eee045d95c2f41acc7d2a1b4d6d1922b0536/api/charts/crds/kubean.io_clusteroperations.yaml",
+            "revision": "eaa9eee045d95c2f41acc7d2a1b4d6d1922b0536",
+            "contentDigest": "sha256:86be6521f45afbfdf8d2079bc931678874eddf8a5cc597e8f49065be2c5a9edf",
+            "startLine": 1,
+            "endLine": 270
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kubean-io/kubean",
+      "line": "0.36",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.35.0",
+            "commit": "eaa9eee045d95c2f41acc7d2a1b4d6d1922b0536"
+          },
+          {
+            "version": "0.35.1",
+            "commit": "f3cd17ee780ca95c6b12073290dc74e4af1f64e0"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.36.0",
+            "commit": "b1b0f613df9fbf46c61f35060c1204879c0a6a7e"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.kubean",
+          "version": "2.15.0",
+          "codeDigest": "sha256:27f421a165b4fc2baa998071570e0c8705d1b43e606dc42b9550796657636db9"
+        },
+        "derivedAt": "2026-11-17T01:04:29Z",
+        "reviewedAt": "2026-11-17T01:04:29Z",
+        "validUntil": "2027-01-18T01:04:29Z",
+        "sources": [
+          {
+            "id": "crds-0-35-0",
+            "url": "https://github.com/kubean-io/kubean/blob/eaa9eee045d95c2f41acc7d2a1b4d6d1922b0536/api/charts/crds/kubean.io_clusteroperations.yaml",
+            "revision": "eaa9eee045d95c2f41acc7d2a1b4d6d1922b0536",
+            "contentDigest": "sha256:86be6521f45afbfdf8d2079bc931678874eddf8a5cc597e8f49065be2c5a9edf",
+            "startLine": 1,
+            "endLine": 270
+          },
+          {
+            "id": "crds-0-36-0",
+            "url": "https://github.com/kubean-io/kubean/blob/b1b0f613df9fbf46c61f35060c1204879c0a6a7e/api/charts/crds/kubean.io_clusteroperations.yaml",
+            "revision": "b1b0f613df9fbf46c61f35060c1204879c0a6a7e",
+            "contentDigest": "sha256:86be6521f45afbfdf8d2079bc931678874eddf8a5cc597e8f49065be2c5a9edf",
+            "startLine": 1,
+            "endLine": 270
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kubean-io/kubean",
+      "line": "0.37",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.36.0",
+            "commit": "b1b0f613df9fbf46c61f35060c1204879c0a6a7e"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.37.0",
+            "commit": "20266d465f20c1c570471d166b46723be6383b80"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.kubean",
+          "version": "2.15.0",
+          "codeDigest": "sha256:27f421a165b4fc2baa998071570e0c8705d1b43e606dc42b9550796657636db9"
+        },
+        "derivedAt": "2026-11-17T01:04:29Z",
+        "reviewedAt": "2026-11-17T01:04:29Z",
+        "validUntil": "2027-01-18T01:04:29Z",
+        "sources": [
+          {
+            "id": "crds-0-36-0",
+            "url": "https://github.com/kubean-io/kubean/blob/b1b0f613df9fbf46c61f35060c1204879c0a6a7e/api/charts/crds/kubean.io_clusteroperations.yaml",
+            "revision": "b1b0f613df9fbf46c61f35060c1204879c0a6a7e",
+            "contentDigest": "sha256:86be6521f45afbfdf8d2079bc931678874eddf8a5cc597e8f49065be2c5a9edf",
+            "startLine": 1,
+            "endLine": 270
+          },
+          {
+            "id": "crds-0-37-0",
+            "url": "https://github.com/kubean-io/kubean/blob/20266d465f20c1c570471d166b46723be6383b80/api/charts/crds/kubean.io_clusteroperations.yaml",
+            "revision": "20266d465f20c1c570471d166b46723be6383b80",
+            "contentDigest": "sha256:86be6521f45afbfdf8d2079bc931678874eddf8a5cc597e8f49065be2c5a9edf",
+            "startLine": 1,
+            "endLine": 270
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kubean-io/kubean",
+      "line": "0.38",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.37.0",
+            "commit": "20266d465f20c1c570471d166b46723be6383b80"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.38.0",
+            "commit": "791cd588e3b606077290cf61e1e991bd1e3635c3"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.kubean",
+          "version": "2.15.0",
+          "codeDigest": "sha256:27f421a165b4fc2baa998071570e0c8705d1b43e606dc42b9550796657636db9"
+        },
+        "derivedAt": "2026-11-17T01:04:29Z",
+        "reviewedAt": "2026-11-17T01:04:29Z",
+        "validUntil": "2027-01-18T01:04:29Z",
+        "sources": [
+          {
+            "id": "crds-0-37-0",
+            "url": "https://github.com/kubean-io/kubean/blob/20266d465f20c1c570471d166b46723be6383b80/api/charts/crds/kubean.io_clusteroperations.yaml",
+            "revision": "20266d465f20c1c570471d166b46723be6383b80",
+            "contentDigest": "sha256:86be6521f45afbfdf8d2079bc931678874eddf8a5cc597e8f49065be2c5a9edf",
+            "startLine": 1,
+            "endLine": 270
+          },
+          {
+            "id": "crds-0-38-0",
+            "url": "https://github.com/kubean-io/kubean/blob/791cd588e3b606077290cf61e1e991bd1e3635c3/api/charts/crds/kubean.io_clusteroperations.yaml",
+            "revision": "791cd588e3b606077290cf61e1e991bd1e3635c3",
+            "contentDigest": "sha256:86be6521f45afbfdf8d2079bc931678874eddf8a5cc597e8f49065be2c5a9edf",
+            "startLine": 1,
+            "endLine": 270
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kubean-io/kubean",
+      "line": "0.39",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.38.0",
+            "commit": "791cd588e3b606077290cf61e1e991bd1e3635c3"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.39.0",
+            "commit": "a2687606b5c49daf0868a41165b84bebc20e0db4"
+          },
+          {
+            "version": "0.39.1",
+            "commit": "24f8cd7c4783810f07609ed3170b756e760111a0"
+          },
+          {
+            "version": "0.39.2",
+            "commit": "1c59c1abeb04aacf52111ce17794c22ce11fc37d"
+          },
+          {
+            "version": "0.39.3",
+            "commit": "ad9de8d56ac9029637d05eedb3c2c323db4b03dd"
+          },
+          {
+            "version": "0.39.4",
+            "commit": "29b08fb2d4b4f900a1a2be12e44e3df9a1e2615d"
+          },
+          {
+            "version": "0.39.5",
+            "commit": "f100b0980b37702e2e3355f14ceab319439c59f7"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.kubean",
+          "version": "2.15.0",
+          "codeDigest": "sha256:27f421a165b4fc2baa998071570e0c8705d1b43e606dc42b9550796657636db9"
+        },
+        "derivedAt": "2026-11-17T01:04:29Z",
+        "reviewedAt": "2026-11-17T01:04:29Z",
+        "validUntil": "2027-01-18T01:04:29Z",
+        "sources": [
+          {
+            "id": "crds-0-38-0",
+            "url": "https://github.com/kubean-io/kubean/blob/791cd588e3b606077290cf61e1e991bd1e3635c3/api/charts/crds/kubean.io_clusteroperations.yaml",
+            "revision": "791cd588e3b606077290cf61e1e991bd1e3635c3",
+            "contentDigest": "sha256:86be6521f45afbfdf8d2079bc931678874eddf8a5cc597e8f49065be2c5a9edf",
+            "startLine": 1,
+            "endLine": 270
+          },
+          {
+            "id": "crds-0-39-0",
+            "url": "https://github.com/kubean-io/kubean/blob/a2687606b5c49daf0868a41165b84bebc20e0db4/api/charts/crds/kubean.io_clusteroperations.yaml",
+            "revision": "a2687606b5c49daf0868a41165b84bebc20e0db4",
+            "contentDigest": "sha256:86be6521f45afbfdf8d2079bc931678874eddf8a5cc597e8f49065be2c5a9edf",
+            "startLine": 1,
+            "endLine": 270
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kubean-io/kubean",
+      "line": "0.40",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.39.0",
+            "commit": "a2687606b5c49daf0868a41165b84bebc20e0db4"
+          },
+          {
+            "version": "0.39.1",
+            "commit": "24f8cd7c4783810f07609ed3170b756e760111a0"
+          },
+          {
+            "version": "0.39.2",
+            "commit": "1c59c1abeb04aacf52111ce17794c22ce11fc37d"
+          },
+          {
+            "version": "0.39.3",
+            "commit": "ad9de8d56ac9029637d05eedb3c2c323db4b03dd"
+          },
+          {
+            "version": "0.39.4",
+            "commit": "29b08fb2d4b4f900a1a2be12e44e3df9a1e2615d"
+          },
+          {
+            "version": "0.39.5",
+            "commit": "f100b0980b37702e2e3355f14ceab319439c59f7"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.40.0",
+            "commit": "8b169069ae79c47caa5795e88e72b3438ee1931e"
+          },
+          {
+            "version": "0.40.1",
+            "commit": "c08fa433136550a4db224df44626f588581068dc"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.kubean",
+          "version": "2.15.0",
+          "codeDigest": "sha256:27f421a165b4fc2baa998071570e0c8705d1b43e606dc42b9550796657636db9"
+        },
+        "derivedAt": "2026-11-17T01:04:29Z",
+        "reviewedAt": "2026-11-17T01:04:29Z",
+        "validUntil": "2027-01-18T01:04:29Z",
+        "sources": [
+          {
+            "id": "crds-0-39-0",
+            "url": "https://github.com/kubean-io/kubean/blob/a2687606b5c49daf0868a41165b84bebc20e0db4/api/charts/crds/kubean.io_clusteroperations.yaml",
+            "revision": "a2687606b5c49daf0868a41165b84bebc20e0db4",
+            "contentDigest": "sha256:86be6521f45afbfdf8d2079bc931678874eddf8a5cc597e8f49065be2c5a9edf",
+            "startLine": 1,
+            "endLine": 270
+          },
+          {
+            "id": "crds-0-40-0",
+            "url": "https://github.com/kubean-io/kubean/blob/8b169069ae79c47caa5795e88e72b3438ee1931e/api/charts/crds/kubean.io_clusteroperations.yaml",
+            "revision": "8b169069ae79c47caa5795e88e72b3438ee1931e",
+            "contentDigest": "sha256:86be6521f45afbfdf8d2079bc931678874eddf8a5cc597e8f49065be2c5a9edf",
+            "startLine": 1,
+            "endLine": 270
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/kubemod/kubemod",
       "line": "0.17",
       "factFamily": "crd.custom_resource_versions",
@@ -32133,6 +32493,360 @@
             "contentDigest": "sha256:a9df9730f14e0d2b96c2cb1d67c81f30f80f4921539670a06aa8ba68a9ab8cfe",
             "startLine": 1,
             "endLine": 8799
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/ricoberger/vault-secrets-operator",
+      "line": "1.24",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.23.0",
+            "commit": "627e1f4f499be47561d87ec9e8ba92d19172f0a6"
+          },
+          {
+            "version": "1.23.1",
+            "commit": "11f6c554667fadad4373b5fc7374f72180172cfd"
+          },
+          {
+            "version": "1.23.2",
+            "commit": "98bf4bef7ec2a4a5bd57ba6780d9a96d824bff49"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.24.0",
+            "commit": "ccbce21292ca26f7d2fafe1eba657dca6a6e8c38"
+          },
+          {
+            "version": "1.24.1",
+            "commit": "fe7a3a92d657bd3651a9dae6a45a0e6ab51127e6"
+          },
+          {
+            "version": "1.24.2",
+            "commit": "72adfcc4119656900a9e3157997240cda4cb843f"
+          },
+          {
+            "version": "1.24.3",
+            "commit": "7ecd8812331d9ce1c5fd196e7b9128a0a6a43618"
+          },
+          {
+            "version": "1.24.4",
+            "commit": "3efc8f70abdce459164f08c30a97c045aabca679"
+          },
+          {
+            "version": "1.24.5",
+            "commit": "8d9e74ffeb24b8ff378879ab1f7c63e2081c6fd1"
+          },
+          {
+            "version": "1.24.6",
+            "commit": "01ac9db042b7d9712708bf21991a5f1e6c039bcf"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.vault-secrets-operator",
+          "version": "2.15.0",
+          "codeDigest": "sha256:d00cc5fd9f24e12bbcdc9f27b0c45a8c752bab074d1d31839ff25906e48226f9"
+        },
+        "derivedAt": "2026-11-17T01:02:10Z",
+        "reviewedAt": "2026-11-17T01:02:10Z",
+        "validUntil": "2027-01-25T01:02:10Z",
+        "sources": [
+          {
+            "id": "crds-1-23-0",
+            "url": "https://github.com/ricoberger/vault-secrets-operator/blob/627e1f4f499be47561d87ec9e8ba92d19172f0a6/charts/vault-secrets-operator/crds/crd-vaultsecret.yaml",
+            "revision": "627e1f4f499be47561d87ec9e8ba92d19172f0a6",
+            "contentDigest": "sha256:6ddeb3891a54bd186627f049215a96795c935ee7d6bfa50129c8970a977b033d",
+            "startLine": 1,
+            "endLine": 215
+          },
+          {
+            "id": "crds-1-24-0",
+            "url": "https://github.com/ricoberger/vault-secrets-operator/blob/ccbce21292ca26f7d2fafe1eba657dca6a6e8c38/charts/vault-secrets-operator/crds/crd-vaultsecret.yaml",
+            "revision": "ccbce21292ca26f7d2fafe1eba657dca6a6e8c38",
+            "contentDigest": "sha256:6ddeb3891a54bd186627f049215a96795c935ee7d6bfa50129c8970a977b033d",
+            "startLine": 1,
+            "endLine": 215
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/ricoberger/vault-secrets-operator",
+      "line": "1.25",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.24.0",
+            "commit": "ccbce21292ca26f7d2fafe1eba657dca6a6e8c38"
+          },
+          {
+            "version": "1.24.1",
+            "commit": "fe7a3a92d657bd3651a9dae6a45a0e6ab51127e6"
+          },
+          {
+            "version": "1.24.2",
+            "commit": "72adfcc4119656900a9e3157997240cda4cb843f"
+          },
+          {
+            "version": "1.24.3",
+            "commit": "7ecd8812331d9ce1c5fd196e7b9128a0a6a43618"
+          },
+          {
+            "version": "1.24.4",
+            "commit": "3efc8f70abdce459164f08c30a97c045aabca679"
+          },
+          {
+            "version": "1.24.5",
+            "commit": "8d9e74ffeb24b8ff378879ab1f7c63e2081c6fd1"
+          },
+          {
+            "version": "1.24.6",
+            "commit": "01ac9db042b7d9712708bf21991a5f1e6c039bcf"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.25.0",
+            "commit": "ad3c265612cd9d45caa7a5767055e4afc6e70625"
+          },
+          {
+            "version": "1.25.1",
+            "commit": "2e0d1aeae7e477ab9f671e68b46bc2bf8990d821"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.vault-secrets-operator",
+          "version": "2.15.0",
+          "codeDigest": "sha256:d00cc5fd9f24e12bbcdc9f27b0c45a8c752bab074d1d31839ff25906e48226f9"
+        },
+        "derivedAt": "2026-11-17T01:02:10Z",
+        "reviewedAt": "2026-11-17T01:02:10Z",
+        "validUntil": "2027-01-25T01:02:10Z",
+        "sources": [
+          {
+            "id": "crds-1-24-0",
+            "url": "https://github.com/ricoberger/vault-secrets-operator/blob/ccbce21292ca26f7d2fafe1eba657dca6a6e8c38/charts/vault-secrets-operator/crds/crd-vaultsecret.yaml",
+            "revision": "ccbce21292ca26f7d2fafe1eba657dca6a6e8c38",
+            "contentDigest": "sha256:6ddeb3891a54bd186627f049215a96795c935ee7d6bfa50129c8970a977b033d",
+            "startLine": 1,
+            "endLine": 215
+          },
+          {
+            "id": "crds-1-25-0",
+            "url": "https://github.com/ricoberger/vault-secrets-operator/blob/ad3c265612cd9d45caa7a5767055e4afc6e70625/charts/vault-secrets-operator/crds/ricoberger.de_vaultsecrets.yaml",
+            "revision": "ad3c265612cd9d45caa7a5767055e4afc6e70625",
+            "contentDigest": "sha256:69f859bc3816cc5df1bd66e4cc331f3798dfcd4fe074498516d70f2cf4889801",
+            "startLine": 1,
+            "endLine": 220
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/ricoberger/vault-secrets-operator",
+      "line": "1.26",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.25.0",
+            "commit": "ad3c265612cd9d45caa7a5767055e4afc6e70625"
+          },
+          {
+            "version": "1.25.1",
+            "commit": "2e0d1aeae7e477ab9f671e68b46bc2bf8990d821"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.26.0",
+            "commit": "0522e930be76ea763c6611a130d44b7ef59182b0"
+          },
+          {
+            "version": "1.26.1",
+            "commit": "9891eb642a667302e90e6cac6f4e5cc89f25d5a8"
+          },
+          {
+            "version": "1.26.2",
+            "commit": "be247c4045f033f276d6d82d36257bc485d6b4be"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.vault-secrets-operator",
+          "version": "2.15.0",
+          "codeDigest": "sha256:d00cc5fd9f24e12bbcdc9f27b0c45a8c752bab074d1d31839ff25906e48226f9"
+        },
+        "derivedAt": "2026-11-17T01:02:10Z",
+        "reviewedAt": "2026-11-17T01:02:10Z",
+        "validUntil": "2027-01-25T01:02:10Z",
+        "sources": [
+          {
+            "id": "crds-1-25-0",
+            "url": "https://github.com/ricoberger/vault-secrets-operator/blob/ad3c265612cd9d45caa7a5767055e4afc6e70625/charts/vault-secrets-operator/crds/ricoberger.de_vaultsecrets.yaml",
+            "revision": "ad3c265612cd9d45caa7a5767055e4afc6e70625",
+            "contentDigest": "sha256:69f859bc3816cc5df1bd66e4cc331f3798dfcd4fe074498516d70f2cf4889801",
+            "startLine": 1,
+            "endLine": 220
+          },
+          {
+            "id": "crds-1-26-0",
+            "url": "https://github.com/ricoberger/vault-secrets-operator/blob/0522e930be76ea763c6611a130d44b7ef59182b0/charts/vault-secrets-operator/crds/ricoberger.de_vaultsecrets.yaml",
+            "revision": "0522e930be76ea763c6611a130d44b7ef59182b0",
+            "contentDigest": "sha256:979cba404d9c54826736ba0ed7f7c92a1bc4560b5ff73c052e8292396b6bcbed",
+            "startLine": 1,
+            "endLine": 207
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/ricoberger/vault-secrets-operator",
+      "line": "1.27",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.26.0",
+            "commit": "0522e930be76ea763c6611a130d44b7ef59182b0"
+          },
+          {
+            "version": "1.26.1",
+            "commit": "9891eb642a667302e90e6cac6f4e5cc89f25d5a8"
+          },
+          {
+            "version": "1.26.2",
+            "commit": "be247c4045f033f276d6d82d36257bc485d6b4be"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.27.0",
+            "commit": "f2b0d52718a5a5fac0c0aa803187ffb4ce023f1e"
+          },
+          {
+            "version": "1.27.1",
+            "commit": "5ca19f9058a3880bce56e9f891d3bc0171677be5"
+          },
+          {
+            "version": "1.27.2",
+            "commit": "0b1b7a8076efa842d187a0f4e765d7a9c98f2e22"
+          },
+          {
+            "version": "1.27.3",
+            "commit": "64391df925bc25f02bb7e5964bdab6848b4b11fe"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.vault-secrets-operator",
+          "version": "2.15.0",
+          "codeDigest": "sha256:d00cc5fd9f24e12bbcdc9f27b0c45a8c752bab074d1d31839ff25906e48226f9"
+        },
+        "derivedAt": "2026-11-17T01:02:10Z",
+        "reviewedAt": "2026-11-17T01:02:10Z",
+        "validUntil": "2027-01-25T01:02:10Z",
+        "sources": [
+          {
+            "id": "crds-1-26-0",
+            "url": "https://github.com/ricoberger/vault-secrets-operator/blob/0522e930be76ea763c6611a130d44b7ef59182b0/charts/vault-secrets-operator/crds/ricoberger.de_vaultsecrets.yaml",
+            "revision": "0522e930be76ea763c6611a130d44b7ef59182b0",
+            "contentDigest": "sha256:979cba404d9c54826736ba0ed7f7c92a1bc4560b5ff73c052e8292396b6bcbed",
+            "startLine": 1,
+            "endLine": 207
+          },
+          {
+            "id": "crds-1-27-0",
+            "url": "https://github.com/ricoberger/vault-secrets-operator/blob/f2b0d52718a5a5fac0c0aa803187ffb4ce023f1e/charts/vault-secrets-operator/crds/ricoberger.de_vaultsecrets.yaml",
+            "revision": "f2b0d52718a5a5fac0c0aa803187ffb4ce023f1e",
+            "contentDigest": "sha256:bec34a1fca36ac51b0c2b095892b6a8ed228c151f5c6882650faecac034ae5e6",
+            "startLine": 1,
+            "endLine": 207
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/ricoberger/vault-secrets-operator",
+      "line": "1.28",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.27.0",
+            "commit": "f2b0d52718a5a5fac0c0aa803187ffb4ce023f1e"
+          },
+          {
+            "version": "1.27.1",
+            "commit": "5ca19f9058a3880bce56e9f891d3bc0171677be5"
+          },
+          {
+            "version": "1.27.2",
+            "commit": "0b1b7a8076efa842d187a0f4e765d7a9c98f2e22"
+          },
+          {
+            "version": "1.27.3",
+            "commit": "64391df925bc25f02bb7e5964bdab6848b4b11fe"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.28.0",
+            "commit": "da9e7e083870bd4c304485c5168377a2c89e0fae"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.vault-secrets-operator",
+          "version": "2.15.0",
+          "codeDigest": "sha256:d00cc5fd9f24e12bbcdc9f27b0c45a8c752bab074d1d31839ff25906e48226f9"
+        },
+        "derivedAt": "2026-11-17T01:02:10Z",
+        "reviewedAt": "2026-11-17T01:02:10Z",
+        "validUntil": "2027-01-25T01:02:10Z",
+        "sources": [
+          {
+            "id": "crds-1-27-0",
+            "url": "https://github.com/ricoberger/vault-secrets-operator/blob/f2b0d52718a5a5fac0c0aa803187ffb4ce023f1e/charts/vault-secrets-operator/crds/ricoberger.de_vaultsecrets.yaml",
+            "revision": "f2b0d52718a5a5fac0c0aa803187ffb4ce023f1e",
+            "contentDigest": "sha256:bec34a1fca36ac51b0c2b095892b6a8ed228c151f5c6882650faecac034ae5e6",
+            "startLine": 1,
+            "endLine": 207
+          },
+          {
+            "id": "crds-1-28-0",
+            "url": "https://github.com/ricoberger/vault-secrets-operator/blob/da9e7e083870bd4c304485c5168377a2c89e0fae/charts/vault-secrets-operator/crds/ricoberger.de_vaultsecrets.yaml",
+            "revision": "da9e7e083870bd4c304485c5168377a2c89e0fae",
+            "contentDigest": "sha256:9eec58a465b192d076e64ac15b8d7b0b1d80a9af0f42899de57fa4c57cd32d89",
+            "startLine": 1,
+            "endLine": 227
           }
         ]
       }
