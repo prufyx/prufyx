@@ -544,3 +544,48 @@ func TestOracleAgreesWithEveryFixtureEntry(t *testing.T) {
 		}
 	}
 }
+
+// A release heading nested in a list item or a quote, and a block that crosses
+// a section boundary, withhold the whole file for every tag.
+func TestContainerHeadingsAndCrossingBlocksWithholdFile(t *testing.T) {
+	for name, s := range map[string]string{
+		"heading in list item": "## 3.6.0 / 2025-09-01\n\n* outer\n  ## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n## 3.4.0 / 2025-05-17\n\n* [FEATURE] z. #3\n",
+		"heading in quote":     "## 3.6.0 / 2025-09-01\n\n> outer\n> ## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n## 3.4.0 / 2025-05-17\n\n* [FEATURE] z. #3\n",
+		"heading in nested":    "## 3.6.0 / 2025-09-01\n\n* outer\n  > ## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n## 3.4.0 / 2025-05-17\n\n* [FEATURE] z. #3\n",
+	} {
+		for _, tg := range []string{"v3.6.0", "v3.5.0", "v3.4.0"} {
+			e, err := locateMem(promTarget, tg, s)
+			if err == nil {
+				t.Errorf("%s %s: located %+v", name, tg, e.Section)
+				continue
+			}
+			wantCode(t, err, EntryParseResidue)
+		}
+	}
+	// The section-boundary check itself: a unit that starts before the section
+	// and reaches into it, or starts inside it and ends after it.
+	v := &cmView{units: []cmUnit{{lo: 3, hi: 6}}}
+	if cmSectionDisagreement(v, 5, 9) == "" || cmSectionDisagreement(v, 1, 4) == "" {
+		t.Error("a crossing unit passed")
+	}
+	if cmSectionDisagreement(v, 7, 9) != "" || cmSectionDisagreement(v, 1, 6) != "" {
+		t.Error("a contained or disjoint unit refused")
+	}
+}
+
+// An item disagreement anywhere in the file withholds every tag, including a
+// tag whose own section is clean.
+func TestItemDisagreementElsewhereWithholdsEveryTag(t *testing.T) {
+	f := "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x. #1\n\n## 3.4.0 / 2025-05-17\n\n[^1]: #1234 \"the flag --foo was removed\"\n* [FEATURE] z. #3\n"
+	lines, err := splitLines([]byte(f))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lines2 := scan(lines); cmDisagreement(lines, lines2, 0, 0) == "" {
+		t.Skip("the oracle and the scanner agree on this shape")
+	}
+	for _, tg := range []string{"v3.5.0", "v3.4.0"} {
+		_, err := locateMem(promTarget, tg, f)
+		wantCode(t, err, EntryParseResidue)
+	}
+}

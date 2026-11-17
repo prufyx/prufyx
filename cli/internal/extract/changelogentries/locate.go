@@ -171,7 +171,7 @@ func entryFromBytes(t Target, c compiled, tag extract.Tag, version string, raw [
 		return nil, fail(EntryOverBound, fmt.Sprintf("section is %d lines, bound %d", end-start+1, MaxSectionLines))
 	}
 
-	if d := cmSectionDisagreement(sc, cm, start, end); d != "" {
+	if d := cmSectionDisagreement(cm, start, end); d != "" {
 		return nil, fail(EntryParseResidue, "commonmark-disagreement: "+d)
 	}
 
