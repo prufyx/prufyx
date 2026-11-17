@@ -1,5 +1,5 @@
 {
-  "schema": "prufyx.io/cncf-source-rule-pack/v1alpha11",
+  "schema": "prufyx.io/cncf-source-rule-pack/v1alpha12",
   "revision": "cncf-2026-09-13.8",
   "policyId": "cncf-source-preview-v1",
   "policyDigest": "sha256:59fb35dd1cf0241cb704b10de6d8040cd584da29fb17443a353bab4542aeb83d",
@@ -13717,6 +13717,386 @@
       }
     },
     {
+      "description": "KubeVela 1.9.0 no longer serves version v1alpha2 of ApplicationRevision (CustomResourceDefinition applicationrevisions.core.oam.dev), which 1.8.0 served. Derived from the complete CustomResourceDefinition manifests at every release of 1.8 and 1.9, with a scan of the whole repository at each; it holds for upgrades from any 1.8 release to any 1.9 release. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "project": "kubevela",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/kubevela/kubevela",
+          "description": "Custom-resource versions (group/version/Kind) of the KubeVela custom resources in the complete target apply set.",
+          "enumTokens": null,
+          "id": "component.kubevela.custom_resource_versions_set",
+          "side": "proposed",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "evidence": {
+          "basis": "mechanical",
+          "derivedAt": "2026-11-17T09:51:49Z",
+          "extractor": {
+            "codeDigest": "sha256:64f6d26ede772c864448960fb595afe94a138bc76ad82b13d3467e98b81f9a0a",
+            "id": "crd.version-removal.kubevela",
+            "version": "2.15.0"
+          },
+          "reviewedAt": "2026-11-17T09:51:49Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:3917648c7612ad69ef80d7bb9ecac42a215896c7e1c6a2d685bdcef7cb6b7bd1",
+              "endLine": 2566,
+              "id": "crd-1-9-0",
+              "revision": "da3618ad2743713f38508fe28fef1b2d34810034",
+              "startLine": 1,
+              "url": "https://github.com/kubevela/kubevela/blob/da3618ad2743713f38508fe28fef1b2d34810034/charts/vela-core/crds/core.oam.dev_applicationrevisions.yaml"
+            },
+            {
+              "contentDigest": "sha256:23bb40045d74afa3b87aff4d45d6d6061808280b180e2fbfd7c40d0c5d312ae1",
+              "endLine": 2080,
+              "id": "crd-versions-1-8-0",
+              "revision": "fcd721ffed6013777962befb68fff96424b67b06",
+              "startLine": 21,
+              "url": "https://github.com/kubevela/kubevela/blob/fcd721ffed6013777962befb68fff96424b67b06/charts/vela-core/crds/core.oam.dev_applicationrevisions.yaml"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-25T09:51:49Z"
+        },
+        "id": "kubevela.crd-version-removal.applicationrevisions-core-oam-dev.1-8-0-to-1-9-0",
+        "nextAction": "migrate ApplicationRevision manifests/clients to core.oam.dev/v1beta1; for managed objects, follow supported controller migration or investigate before upgrade to 1.9.0",
+        "operator": "forbid_set_member",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "crd-versions-1-8-0"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "crd-versions-1-8-0"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "crd-1-9-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "crd-1-9-0"
+            }
+          ],
+          "from": {
+            "gte": "1.8.0",
+            "lt": "1.9.0"
+          },
+          "to": {
+            "gte": "1.9.0",
+            "lt": "1.10.0"
+          }
+        },
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "setCondition": {
+          "component": "pkg:github/kubevela/kubevela",
+          "factId": "component.kubevela.custom_resource_versions_set",
+          "members": [
+            "core.oam.dev/v1alpha2/ApplicationRevision"
+          ],
+          "side": "proposed"
+        },
+        "subject": {
+          "component": "pkg:github/kubevela/kubevela",
+          "from": "1.8.0",
+          "to": "1.9.0"
+        }
+      }
+    },
+    {
+      "description": "KubeVela 1.9.0 no longer serves version v1alpha2 of Application (CustomResourceDefinition applications.core.oam.dev), which 1.8.0 served. Derived from the complete CustomResourceDefinition manifests at every release of 1.8 and 1.9, with a scan of the whole repository at each; it holds for upgrades from any 1.8 release to any 1.9 release. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "project": "kubevela",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/kubevela/kubevela",
+          "description": "Custom-resource versions (group/version/Kind) of the KubeVela custom resources in the complete target apply set.",
+          "enumTokens": null,
+          "id": "component.kubevela.custom_resource_versions_set",
+          "side": "proposed",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "evidence": {
+          "basis": "mechanical",
+          "derivedAt": "2026-11-17T09:51:49Z",
+          "extractor": {
+            "codeDigest": "sha256:64f6d26ede772c864448960fb595afe94a138bc76ad82b13d3467e98b81f9a0a",
+            "id": "crd.version-removal.kubevela",
+            "version": "2.15.0"
+          },
+          "reviewedAt": "2026-11-17T09:51:49Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:e09af0ca32e40cea9c7c1015e475d0e8c66b2ec037dc5207e1e9c9ccd947932a",
+              "endLine": 797,
+              "id": "crd-1-9-0",
+              "revision": "da3618ad2743713f38508fe28fef1b2d34810034",
+              "startLine": 1,
+              "url": "https://github.com/kubevela/kubevela/blob/da3618ad2743713f38508fe28fef1b2d34810034/charts/vela-core/crds/core.oam.dev_applications.yaml"
+            },
+            {
+              "contentDigest": "sha256:3d21ad13e43d7aa459e627458e0650476832740b536c508c8e43f9383a9fee90",
+              "endLine": 883,
+              "id": "crd-versions-1-8-0",
+              "revision": "fcd721ffed6013777962befb68fff96424b67b06",
+              "startLine": 22,
+              "url": "https://github.com/kubevela/kubevela/blob/fcd721ffed6013777962befb68fff96424b67b06/charts/vela-core/crds/core.oam.dev_applications.yaml"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-25T09:51:49Z"
+        },
+        "id": "kubevela.crd-version-removal.applications-core-oam-dev.1-8-0-to-1-9-0",
+        "nextAction": "migrate Application manifests/clients to core.oam.dev/v1beta1; for managed objects, follow supported controller migration or investigate before upgrade to 1.9.0",
+        "operator": "forbid_set_member",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "crd-versions-1-8-0"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "crd-versions-1-8-0"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "crd-1-9-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "crd-1-9-0"
+            }
+          ],
+          "from": {
+            "gte": "1.8.0",
+            "lt": "1.9.0"
+          },
+          "to": {
+            "gte": "1.9.0",
+            "lt": "1.10.0"
+          }
+        },
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "setCondition": {
+          "component": "pkg:github/kubevela/kubevela",
+          "factId": "component.kubevela.custom_resource_versions_set",
+          "members": [
+            "core.oam.dev/v1alpha2/Application"
+          ],
+          "side": "proposed"
+        },
+        "subject": {
+          "component": "pkg:github/kubevela/kubevela",
+          "from": "1.8.0",
+          "to": "1.9.0"
+        }
+      }
+    },
+    {
+      "description": "KubeVela 1.9.0 no longer serves version v1alpha2 of ComponentDefinition (CustomResourceDefinition componentdefinitions.core.oam.dev), which 1.8.0 served. Derived from the complete CustomResourceDefinition manifests at every release of 1.8 and 1.9, with a scan of the whole repository at each; it holds for upgrades from any 1.8 release to any 1.9 release. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "project": "kubevela",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/kubevela/kubevela",
+          "description": "Custom-resource versions (group/version/Kind) of the KubeVela custom resources in the complete target apply set.",
+          "enumTokens": null,
+          "id": "component.kubevela.custom_resource_versions_set",
+          "side": "proposed",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "evidence": {
+          "basis": "mechanical",
+          "derivedAt": "2026-11-17T09:51:49Z",
+          "extractor": {
+            "codeDigest": "sha256:64f6d26ede772c864448960fb595afe94a138bc76ad82b13d3467e98b81f9a0a",
+            "id": "crd.version-removal.kubevela",
+            "version": "2.15.0"
+          },
+          "reviewedAt": "2026-11-17T09:51:49Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:af69e13fa295ce06381c0e189ae680f8a4194fa39d76a798cafb963b336cd350",
+              "endLine": 277,
+              "id": "crd-1-9-0",
+              "revision": "da3618ad2743713f38508fe28fef1b2d34810034",
+              "startLine": 1,
+              "url": "https://github.com/kubevela/kubevela/blob/da3618ad2743713f38508fe28fef1b2d34810034/charts/vela-core/crds/core.oam.dev_componentdefinitions.yaml"
+            },
+            {
+              "contentDigest": "sha256:aac4346388aec6a86580e2ac86271f8559165f0ac9493b79136410372ce16c5c",
+              "endLine": 347,
+              "id": "crd-versions-1-8-0",
+              "revision": "fcd721ffed6013777962befb68fff96424b67b06",
+              "startLine": 21,
+              "url": "https://github.com/kubevela/kubevela/blob/fcd721ffed6013777962befb68fff96424b67b06/charts/vela-core/crds/core.oam.dev_componentdefinitions.yaml"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-25T09:51:49Z"
+        },
+        "id": "kubevela.crd-version-removal.componentdefinitions-core-oam-dev.1-8-0-to-1-9-0",
+        "nextAction": "migrate ComponentDefinition manifests/clients to core.oam.dev/v1beta1; for managed objects, follow supported controller migration or investigate before upgrade to 1.9.0",
+        "operator": "forbid_set_member",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "crd-versions-1-8-0"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "crd-versions-1-8-0"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "crd-1-9-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "crd-1-9-0"
+            }
+          ],
+          "from": {
+            "gte": "1.8.0",
+            "lt": "1.9.0"
+          },
+          "to": {
+            "gte": "1.9.0",
+            "lt": "1.10.0"
+          }
+        },
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "setCondition": {
+          "component": "pkg:github/kubevela/kubevela",
+          "factId": "component.kubevela.custom_resource_versions_set",
+          "members": [
+            "core.oam.dev/v1alpha2/ComponentDefinition"
+          ],
+          "side": "proposed"
+        },
+        "subject": {
+          "component": "pkg:github/kubevela/kubevela",
+          "from": "1.8.0",
+          "to": "1.9.0"
+        }
+      }
+    },
+    {
+      "description": "KubeVela 1.9.0 no longer serves version v1alpha2 of TraitDefinition (CustomResourceDefinition traitdefinitions.core.oam.dev), which 1.8.0 served. Derived from the complete CustomResourceDefinition manifests at every release of 1.8 and 1.9, with a scan of the whole repository at each; it holds for upgrades from any 1.8 release to any 1.9 release. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "project": "kubevela",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/kubevela/kubevela",
+          "description": "Custom-resource versions (group/version/Kind) of the KubeVela custom resources in the complete target apply set.",
+          "enumTokens": null,
+          "id": "component.kubevela.custom_resource_versions_set",
+          "side": "proposed",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "evidence": {
+          "basis": "mechanical",
+          "derivedAt": "2026-11-17T09:51:49Z",
+          "extractor": {
+            "codeDigest": "sha256:64f6d26ede772c864448960fb595afe94a138bc76ad82b13d3467e98b81f9a0a",
+            "id": "crd.version-removal.kubevela",
+            "version": "2.15.0"
+          },
+          "reviewedAt": "2026-11-17T09:51:49Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:407d566d33a268d1644b6cf4507422bb4d115bab0bcac872c39401aa5cf8d25a",
+              "endLine": 284,
+              "id": "crd-1-9-0",
+              "revision": "da3618ad2743713f38508fe28fef1b2d34810034",
+              "startLine": 1,
+              "url": "https://github.com/kubevela/kubevela/blob/da3618ad2743713f38508fe28fef1b2d34810034/charts/vela-core/crds/core.oam.dev_traitdefinitions.yaml"
+            },
+            {
+              "contentDigest": "sha256:7594ad9c959e0b34af66a2faa68edc3cec1f22335852de6ada5bf9c80a6c8439",
+              "endLine": 339,
+              "id": "crd-versions-1-8-0",
+              "revision": "fcd721ffed6013777962befb68fff96424b67b06",
+              "startLine": 21,
+              "url": "https://github.com/kubevela/kubevela/blob/fcd721ffed6013777962befb68fff96424b67b06/charts/vela-core/crds/core.oam.dev_traitdefinitions.yaml"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-25T09:51:49Z"
+        },
+        "id": "kubevela.crd-version-removal.traitdefinitions-core-oam-dev.1-8-0-to-1-9-0",
+        "nextAction": "migrate TraitDefinition manifests/clients to core.oam.dev/v1beta1; for managed objects, follow supported controller migration or investigate before upgrade to 1.9.0",
+        "operator": "forbid_set_member",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "crd-versions-1-8-0"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "crd-versions-1-8-0"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "crd-1-9-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "crd-1-9-0"
+            }
+          ],
+          "from": {
+            "gte": "1.8.0",
+            "lt": "1.9.0"
+          },
+          "to": {
+            "gte": "1.9.0",
+            "lt": "1.10.0"
+          }
+        },
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "setCondition": {
+          "component": "pkg:github/kubevela/kubevela",
+          "factId": "component.kubevela.custom_resource_versions_set",
+          "members": [
+            "core.oam.dev/v1alpha2/TraitDefinition"
+          ],
+          "side": "proposed"
+        },
+        "subject": {
+          "component": "pkg:github/kubevela/kubevela",
+          "from": "1.8.0",
+          "to": "1.9.0"
+        }
+      }
+    },
+    {
       "project": "kubevirt",
       "description": "KubeVirt 1.9.0 requires each supplied VM or VMI interface to have exactly one binding method or binding plugin; this resource-local check does not inspect admission, feature gates, plugins, or runtime behavior.",
       "requiredFacts": [
@@ -17736,6 +18116,291 @@
       }
     },
     {
+      "description": "percona-server-mysql-operator 0.12.0 no longer serves version v1alpha1 of PerconaServerMySQLBackup (CustomResourceDefinition perconaservermysqlbackups.ps.percona.com), which 0.11.0 served. Derived from the complete CustomResourceDefinition manifests at every release of 0.11 and 0.12, with a scan of the whole repository at each; it holds for upgrades from any 0.11 release to any 0.12 release. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "project": "percona-server-mysql-operator",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/percona/percona-server-mysql-operator",
+          "description": "Custom-resource versions (group/version/Kind) of the percona-server-mysql-operator custom resources in the complete target apply set.",
+          "enumTokens": null,
+          "id": "component.percona_server_mysql_operator.custom_resource_versions_set",
+          "side": "proposed",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "evidence": {
+          "basis": "mechanical",
+          "derivedAt": "2026-11-17T09:50:44Z",
+          "extractor": {
+            "codeDigest": "sha256:0738b8bf2756c7d9ff1d5546b38edce722bf87929e33b972afec4732ff513c3e",
+            "id": "crd.version-removal.percona-server-mysql-operator",
+            "version": "2.15.0"
+          },
+          "reviewedAt": "2026-11-17T09:50:44Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:68d8e274a7858b3b511d15705708bda185075b3c5ddafbf9e039e8402bd2544f",
+              "endLine": 1161,
+              "id": "crd-0-12-0",
+              "revision": "1aae002935a62950c895db909e461facb7203aff",
+              "startLine": 1,
+              "url": "https://github.com/percona/percona-server-mysql-operator/blob/1aae002935a62950c895db909e461facb7203aff/config/crd/bases/ps.percona.com_perconaservermysqlbackups.yaml"
+            },
+            {
+              "contentDigest": "sha256:b56877b2d01cfa3558eb6a63518b52baeacc2d3df207738ba55cd64be1575831",
+              "endLine": 955,
+              "id": "crd-versions-0-11-0",
+              "revision": "aa5cd312e8de54c14d06cf70d112f1506a86649f",
+              "startLine": 20,
+              "url": "https://github.com/percona/percona-server-mysql-operator/blob/aa5cd312e8de54c14d06cf70d112f1506a86649f/config/crd/bases/ps.percona.com_perconaservermysqlbackups.yaml"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-18T09:50:44Z"
+        },
+        "id": "percona-server-mysql-operator.crd-version-removal.perconaservermysqlbackups-ps-percona-com.0-11-0-to-0-12-0",
+        "nextAction": "verify completed storage migration before removing old status.storedVersions; migrate PerconaServerMySQLBackup manifests/clients to ps.percona.com/v1; for managed objects, follow supported controller migration or investigate before upgrade to 0.12.0",
+        "operator": "forbid_set_member",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "crd-versions-0-11-0"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "crd-versions-0-11-0"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "crd-0-12-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "crd-0-12-0"
+            }
+          ],
+          "from": {
+            "gte": "0.11.0",
+            "lt": "0.12.0"
+          },
+          "to": {
+            "gte": "0.12.0",
+            "lt": "0.13.0"
+          }
+        },
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "setCondition": {
+          "component": "pkg:github/percona/percona-server-mysql-operator",
+          "factId": "component.percona_server_mysql_operator.custom_resource_versions_set",
+          "members": [
+            "ps.percona.com/v1alpha1/PerconaServerMySQLBackup"
+          ],
+          "side": "proposed"
+        },
+        "subject": {
+          "component": "pkg:github/percona/percona-server-mysql-operator",
+          "from": "0.11.0",
+          "to": "0.12.0"
+        }
+      }
+    },
+    {
+      "description": "percona-server-mysql-operator 0.12.0 no longer serves version v1alpha1 of PerconaServerMySQLRestore (CustomResourceDefinition perconaservermysqlrestores.ps.percona.com), which 0.11.0 served. Derived from the complete CustomResourceDefinition manifests at every release of 0.11 and 0.12, with a scan of the whole repository at each; it holds for upgrades from any 0.11 release to any 0.12 release. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "project": "percona-server-mysql-operator",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/percona/percona-server-mysql-operator",
+          "description": "Custom-resource versions (group/version/Kind) of the percona-server-mysql-operator custom resources in the complete target apply set.",
+          "enumTokens": null,
+          "id": "component.percona_server_mysql_operator.custom_resource_versions_set",
+          "side": "proposed",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "evidence": {
+          "basis": "mechanical",
+          "derivedAt": "2026-11-17T09:50:44Z",
+          "extractor": {
+            "codeDigest": "sha256:0738b8bf2756c7d9ff1d5546b38edce722bf87929e33b972afec4732ff513c3e",
+            "id": "crd.version-removal.percona-server-mysql-operator",
+            "version": "2.15.0"
+          },
+          "reviewedAt": "2026-11-17T09:50:44Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:cd36a807fe7d7e359d2462ff375effc07d77b4eb906cd0ba47281365b009a889",
+              "endLine": 1158,
+              "id": "crd-0-12-0",
+              "revision": "1aae002935a62950c895db909e461facb7203aff",
+              "startLine": 1,
+              "url": "https://github.com/percona/percona-server-mysql-operator/blob/1aae002935a62950c895db909e461facb7203aff/config/crd/bases/ps.percona.com_perconaservermysqlrestores.yaml"
+            },
+            {
+              "contentDigest": "sha256:880c685fae07e8c69e7b1fb0943b0d61e2d3e816023c5047a7bbcf93512273bd",
+              "endLine": 954,
+              "id": "crd-versions-0-11-0",
+              "revision": "aa5cd312e8de54c14d06cf70d112f1506a86649f",
+              "startLine": 19,
+              "url": "https://github.com/percona/percona-server-mysql-operator/blob/aa5cd312e8de54c14d06cf70d112f1506a86649f/config/crd/bases/ps.percona.com_perconaservermysqlrestores.yaml"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-18T09:50:44Z"
+        },
+        "id": "percona-server-mysql-operator.crd-version-removal.perconaservermysqlrestores-ps-percona-com.0-11-0-to-0-12-0",
+        "nextAction": "verify completed storage migration before removing old status.storedVersions; migrate PerconaServerMySQLRestore manifests/clients to ps.percona.com/v1; for managed objects, follow supported controller migration or investigate before upgrade to 0.12.0",
+        "operator": "forbid_set_member",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "crd-versions-0-11-0"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "crd-versions-0-11-0"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "crd-0-12-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "crd-0-12-0"
+            }
+          ],
+          "from": {
+            "gte": "0.11.0",
+            "lt": "0.12.0"
+          },
+          "to": {
+            "gte": "0.12.0",
+            "lt": "0.13.0"
+          }
+        },
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "setCondition": {
+          "component": "pkg:github/percona/percona-server-mysql-operator",
+          "factId": "component.percona_server_mysql_operator.custom_resource_versions_set",
+          "members": [
+            "ps.percona.com/v1alpha1/PerconaServerMySQLRestore"
+          ],
+          "side": "proposed"
+        },
+        "subject": {
+          "component": "pkg:github/percona/percona-server-mysql-operator",
+          "from": "0.11.0",
+          "to": "0.12.0"
+        }
+      }
+    },
+    {
+      "description": "percona-server-mysql-operator 0.12.0 no longer serves version v1alpha1 of PerconaServerMySQL (CustomResourceDefinition perconaservermysqls.ps.percona.com), which 0.11.0 served. Derived from the complete CustomResourceDefinition manifests at every release of 0.11 and 0.12, with a scan of the whole repository at each; it holds for upgrades from any 0.11 release to any 0.12 release. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "project": "percona-server-mysql-operator",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/percona/percona-server-mysql-operator",
+          "description": "Custom-resource versions (group/version/Kind) of the percona-server-mysql-operator custom resources in the complete target apply set.",
+          "enumTokens": null,
+          "id": "component.percona_server_mysql_operator.custom_resource_versions_set",
+          "side": "proposed",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "evidence": {
+          "basis": "mechanical",
+          "derivedAt": "2026-11-17T09:50:44Z",
+          "extractor": {
+            "codeDigest": "sha256:0738b8bf2756c7d9ff1d5546b38edce722bf87929e33b972afec4732ff513c3e",
+            "id": "crd.version-removal.percona-server-mysql-operator",
+            "version": "2.15.0"
+          },
+          "reviewedAt": "2026-11-17T09:50:44Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:a01b97abee7cb91ec51291c171e1754c2d8aee4820a98660f4575a81e58bace1",
+              "endLine": 10876,
+              "id": "crd-0-12-0",
+              "revision": "1aae002935a62950c895db909e461facb7203aff",
+              "startLine": 1,
+              "url": "https://github.com/percona/percona-server-mysql-operator/blob/1aae002935a62950c895db909e461facb7203aff/config/crd/bases/ps.percona.com_perconaservermysqls.yaml"
+            },
+            {
+              "contentDigest": "sha256:94a225475783acbb1c8e3c53b8207573df6c3dd14cf55351a67f4612cbdf8e43",
+              "endLine": 9582,
+              "id": "crd-versions-0-11-0",
+              "revision": "aa5cd312e8de54c14d06cf70d112f1506a86649f",
+              "startLine": 19,
+              "url": "https://github.com/percona/percona-server-mysql-operator/blob/aa5cd312e8de54c14d06cf70d112f1506a86649f/config/crd/bases/ps.percona.com_perconaservermysqls.yaml"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-18T09:50:44Z"
+        },
+        "id": "percona-server-mysql-operator.crd-version-removal.perconaservermysqls-ps-percona-com.0-11-0-to-0-12-0",
+        "nextAction": "verify completed storage migration before removing old status.storedVersions; migrate PerconaServerMySQL manifests/clients to ps.percona.com/v1; for managed objects, follow supported controller migration or investigate before upgrade to 0.12.0",
+        "operator": "forbid_set_member",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "crd-versions-0-11-0"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "crd-versions-0-11-0"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "crd-0-12-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "crd-0-12-0"
+            }
+          ],
+          "from": {
+            "gte": "0.11.0",
+            "lt": "0.12.0"
+          },
+          "to": {
+            "gte": "0.12.0",
+            "lt": "0.13.0"
+          }
+        },
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "setCondition": {
+          "component": "pkg:github/percona/percona-server-mysql-operator",
+          "factId": "component.percona_server_mysql_operator.custom_resource_versions_set",
+          "members": [
+            "ps.percona.com/v1alpha1/PerconaServerMySQL"
+          ],
+          "side": "proposed"
+        },
+        "subject": {
+          "component": "pkg:github/percona/percona-server-mysql-operator",
+          "from": "0.11.0",
+          "to": "0.12.0"
+        }
+      }
+    },
+    {
       "description": "Prometheus 3.14.0 no longer accepts Alertmanager api_version v1 for this exact 2.55.1 to 3.14.0 configuration transition. The selected mapping is caller supplied; this does not prove target reachability, delivery, or whole-upgrade safety.",
       "project": "prometheus",
       "requiredFacts": [
@@ -21700,6 +22365,122 @@
   ],
   "lineAttestations": [
     {
+      "component": "pkg:github/1password/onepassword-operator",
+      "line": "1.8",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.7.0",
+            "commit": "4c9801322b26e5b83a2572dc2e259f57afe807b1"
+          },
+          {
+            "version": "1.7.1",
+            "commit": "a42a96bd263eb919715197e09e58c9855fd840df"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.8.0",
+            "commit": "8fc852a4dd6650a458c3f688acf310bcabfd58ee"
+          },
+          {
+            "version": "1.8.1",
+            "commit": "5f232b121aca9f3e84e9cbbb0834de99f1065fcc"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.onepassword-operator",
+          "version": "2.15.0",
+          "codeDigest": "sha256:762f0aae322c9b5aee30d8500d9000c1b3770a3742d5248741eb0c2d53636c20"
+        },
+        "derivedAt": "2026-11-17T09:50:09Z",
+        "reviewedAt": "2026-11-17T09:50:09Z",
+        "validUntil": "2027-02-01T09:50:09Z",
+        "sources": [
+          {
+            "id": "crds-1-7-0",
+            "url": "https://github.com/1password/onepassword-operator/blob/4c9801322b26e5b83a2572dc2e259f57afe807b1/config/crd/bases/onepassword.com_onepassworditems.yaml",
+            "revision": "4c9801322b26e5b83a2572dc2e259f57afe807b1",
+            "contentDigest": "sha256:eea2bf81dcaf54557e3e468ed2f5fc09e553e12804d49ee323de1352445a8e77",
+            "startLine": 1,
+            "endLine": 77
+          },
+          {
+            "id": "crds-1-8-0",
+            "url": "https://github.com/1password/onepassword-operator/blob/8fc852a4dd6650a458c3f688acf310bcabfd58ee/config/crd/bases/onepassword.com_onepassworditems.yaml",
+            "revision": "8fc852a4dd6650a458c3f688acf310bcabfd58ee",
+            "contentDigest": "sha256:b657dc6a8f5cba47f42b59d22b5d56e67bd9189eafae043569a74c58c4bb2937",
+            "startLine": 1,
+            "endLine": 77
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/1password/onepassword-operator",
+      "line": "1.9",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.8.0",
+            "commit": "8fc852a4dd6650a458c3f688acf310bcabfd58ee"
+          },
+          {
+            "version": "1.8.1",
+            "commit": "5f232b121aca9f3e84e9cbbb0834de99f1065fcc"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.9.0",
+            "commit": "0f1dcdd38ad366749e76070256f922520953951f"
+          },
+          {
+            "version": "1.9.1",
+            "commit": "54eed0c81cf73ff8fed53d7b5464ba48a32564bb"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.onepassword-operator",
+          "version": "2.15.0",
+          "codeDigest": "sha256:762f0aae322c9b5aee30d8500d9000c1b3770a3742d5248741eb0c2d53636c20"
+        },
+        "derivedAt": "2026-11-17T09:50:09Z",
+        "reviewedAt": "2026-11-17T09:50:09Z",
+        "validUntil": "2027-02-01T09:50:09Z",
+        "sources": [
+          {
+            "id": "crds-1-8-0",
+            "url": "https://github.com/1password/onepassword-operator/blob/8fc852a4dd6650a458c3f688acf310bcabfd58ee/config/crd/bases/onepassword.com_onepassworditems.yaml",
+            "revision": "8fc852a4dd6650a458c3f688acf310bcabfd58ee",
+            "contentDigest": "sha256:b657dc6a8f5cba47f42b59d22b5d56e67bd9189eafae043569a74c58c4bb2937",
+            "startLine": 1,
+            "endLine": 77
+          },
+          {
+            "id": "crds-1-9-0",
+            "url": "https://github.com/1password/onepassword-operator/blob/0f1dcdd38ad366749e76070256f922520953951f/config/crd/bases/onepassword.com_onepassworditems.yaml",
+            "revision": "0f1dcdd38ad366749e76070256f922520953951f",
+            "contentDigest": "sha256:b54b6d0a6974fc1ed8ad0062fdada0049d4856f7b52540bb8e12e5d345ef9e48",
+            "startLine": 1,
+            "endLine": 81
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/ansible/awx-operator",
       "line": "2.15",
       "factFamily": "crd.custom_resource_versions",
@@ -21962,6 +22743,368 @@
       }
     },
     {
+      "component": "pkg:github/antrea-io/antrea",
+      "line": "2.3",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.2.0",
+            "commit": "a13d931239e8ac2c94e002dc82ce923d0a28b71d"
+          },
+          {
+            "version": "2.2.1",
+            "commit": "98a0bf1af4125dc9579df7185bdb68f74c048141"
+          },
+          {
+            "version": "2.2.2",
+            "commit": "f44704f47b27ec03711324465867f81f5f7a14ce"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.3.0",
+            "commit": "f3f4dffd0782baef62a71c41cfdfe9748cc9c27d"
+          },
+          {
+            "version": "2.3.1",
+            "commit": "b3b1788d42f40ab2aaf68db964a6e41e7271d83c"
+          },
+          {
+            "version": "2.3.2",
+            "commit": "0f476c3058375f2c9a6d9570b1c228ec7e565234"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.antrea",
+          "version": "2.15.0",
+          "codeDigest": "sha256:e96e1137a846770f74546663ae3ac7994d88cf5d26893c2909dcf4fa1cfed374"
+        },
+        "derivedAt": "2026-11-17T09:44:55Z",
+        "reviewedAt": "2026-11-17T09:44:55Z",
+        "validUntil": "2027-01-25T09:44:55Z",
+        "sources": [
+          {
+            "id": "crds-2-2-0",
+            "url": "https://github.com/antrea-io/antrea/blob/a13d931239e8ac2c94e002dc82ce923d0a28b71d/build/charts/antrea/crds/antreaagentinfo.yaml",
+            "revision": "a13d931239e8ac2c94e002dc82ce923d0a28b71d",
+            "contentDigest": "sha256:b3d8552c683b7e3c4f44e25cb0a8a3f26b44bf51b7b4cdb97a812c2b95cffe32",
+            "startLine": 1,
+            "endLine": 150
+          },
+          {
+            "id": "crds-2-3-0",
+            "url": "https://github.com/antrea-io/antrea/blob/f3f4dffd0782baef62a71c41cfdfe9748cc9c27d/build/charts/antrea/crds/antreaagentinfo.yaml",
+            "revision": "f3f4dffd0782baef62a71c41cfdfe9748cc9c27d",
+            "contentDigest": "sha256:b3d8552c683b7e3c4f44e25cb0a8a3f26b44bf51b7b4cdb97a812c2b95cffe32",
+            "startLine": 1,
+            "endLine": 150
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/antrea-io/antrea",
+      "line": "2.4",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.3.0",
+            "commit": "f3f4dffd0782baef62a71c41cfdfe9748cc9c27d"
+          },
+          {
+            "version": "2.3.1",
+            "commit": "b3b1788d42f40ab2aaf68db964a6e41e7271d83c"
+          },
+          {
+            "version": "2.3.2",
+            "commit": "0f476c3058375f2c9a6d9570b1c228ec7e565234"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.4.0",
+            "commit": "89d1bfe8acded45230041a144a3a14ea08322f80"
+          },
+          {
+            "version": "2.4.1",
+            "commit": "de0b42dcb79f5c3d814f96b726510903c154ac56"
+          },
+          {
+            "version": "2.4.2",
+            "commit": "be9a8a2518ab7f2cf28aa435a845a1e4f0c74f9d"
+          },
+          {
+            "version": "2.4.3",
+            "commit": "1476be6930f5dd47940938b5713fa461ef1fd086"
+          },
+          {
+            "version": "2.4.4",
+            "commit": "55628032a87d448f137fb458b6bff26a990e903b"
+          },
+          {
+            "version": "2.4.5",
+            "commit": "efdd370826f89400b3d5639a5482d76bc9f3331b"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.antrea",
+          "version": "2.15.0",
+          "codeDigest": "sha256:e96e1137a846770f74546663ae3ac7994d88cf5d26893c2909dcf4fa1cfed374"
+        },
+        "derivedAt": "2026-11-17T09:44:55Z",
+        "reviewedAt": "2026-11-17T09:44:55Z",
+        "validUntil": "2027-01-25T09:44:55Z",
+        "sources": [
+          {
+            "id": "crds-2-3-0",
+            "url": "https://github.com/antrea-io/antrea/blob/f3f4dffd0782baef62a71c41cfdfe9748cc9c27d/build/charts/antrea/crds/antreaagentinfo.yaml",
+            "revision": "f3f4dffd0782baef62a71c41cfdfe9748cc9c27d",
+            "contentDigest": "sha256:b3d8552c683b7e3c4f44e25cb0a8a3f26b44bf51b7b4cdb97a812c2b95cffe32",
+            "startLine": 1,
+            "endLine": 150
+          },
+          {
+            "id": "crds-2-4-0",
+            "url": "https://github.com/antrea-io/antrea/blob/89d1bfe8acded45230041a144a3a14ea08322f80/build/charts/antrea/crds/antreaagentinfo.yaml",
+            "revision": "89d1bfe8acded45230041a144a3a14ea08322f80",
+            "contentDigest": "sha256:b3d8552c683b7e3c4f44e25cb0a8a3f26b44bf51b7b4cdb97a812c2b95cffe32",
+            "startLine": 1,
+            "endLine": 150
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/antrea-io/antrea",
+      "line": "2.5",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.4.0",
+            "commit": "89d1bfe8acded45230041a144a3a14ea08322f80"
+          },
+          {
+            "version": "2.4.1",
+            "commit": "de0b42dcb79f5c3d814f96b726510903c154ac56"
+          },
+          {
+            "version": "2.4.2",
+            "commit": "be9a8a2518ab7f2cf28aa435a845a1e4f0c74f9d"
+          },
+          {
+            "version": "2.4.3",
+            "commit": "1476be6930f5dd47940938b5713fa461ef1fd086"
+          },
+          {
+            "version": "2.4.4",
+            "commit": "55628032a87d448f137fb458b6bff26a990e903b"
+          },
+          {
+            "version": "2.4.5",
+            "commit": "efdd370826f89400b3d5639a5482d76bc9f3331b"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.5.0",
+            "commit": "b249a64afc5f0a50bdcf3d00c6ff21a979c8ed3c"
+          },
+          {
+            "version": "2.5.1",
+            "commit": "a41e955dffc530bdcdd1641b2cac8c0b14a47152"
+          },
+          {
+            "version": "2.5.2",
+            "commit": "a7bea5d6661be93427a5b7541b0b8a4711050423"
+          },
+          {
+            "version": "2.5.3",
+            "commit": "c57fe033ba3c8fbd0015913d91e11c9c3f13a4a3"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.antrea",
+          "version": "2.15.0",
+          "codeDigest": "sha256:e96e1137a846770f74546663ae3ac7994d88cf5d26893c2909dcf4fa1cfed374"
+        },
+        "derivedAt": "2026-11-17T09:44:55Z",
+        "reviewedAt": "2026-11-17T09:44:55Z",
+        "validUntil": "2027-01-25T09:44:55Z",
+        "sources": [
+          {
+            "id": "crds-2-4-0",
+            "url": "https://github.com/antrea-io/antrea/blob/89d1bfe8acded45230041a144a3a14ea08322f80/build/charts/antrea/crds/antreaagentinfo.yaml",
+            "revision": "89d1bfe8acded45230041a144a3a14ea08322f80",
+            "contentDigest": "sha256:b3d8552c683b7e3c4f44e25cb0a8a3f26b44bf51b7b4cdb97a812c2b95cffe32",
+            "startLine": 1,
+            "endLine": 150
+          },
+          {
+            "id": "crds-2-5-0",
+            "url": "https://github.com/antrea-io/antrea/blob/b249a64afc5f0a50bdcf3d00c6ff21a979c8ed3c/build/charts/antrea/crds/antreaagentinfo.yaml",
+            "revision": "b249a64afc5f0a50bdcf3d00c6ff21a979c8ed3c",
+            "contentDigest": "sha256:b3d8552c683b7e3c4f44e25cb0a8a3f26b44bf51b7b4cdb97a812c2b95cffe32",
+            "startLine": 1,
+            "endLine": 150
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/antrea-io/antrea",
+      "line": "2.6",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.5.0",
+            "commit": "b249a64afc5f0a50bdcf3d00c6ff21a979c8ed3c"
+          },
+          {
+            "version": "2.5.1",
+            "commit": "a41e955dffc530bdcdd1641b2cac8c0b14a47152"
+          },
+          {
+            "version": "2.5.2",
+            "commit": "a7bea5d6661be93427a5b7541b0b8a4711050423"
+          },
+          {
+            "version": "2.5.3",
+            "commit": "c57fe033ba3c8fbd0015913d91e11c9c3f13a4a3"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.6.0",
+            "commit": "a1045cc3b504bc30cf2a5fdb6918a9708bd7349b"
+          },
+          {
+            "version": "2.6.1",
+            "commit": "a73fcb92084c897fa149e37642989ed01f7f17d1"
+          },
+          {
+            "version": "2.6.2",
+            "commit": "384f784fb34420bd11b59ca3e2660d5d70dd8af3"
+          },
+          {
+            "version": "2.6.3",
+            "commit": "08603530d80943f0b2f816a807c5242f633f0372"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.antrea",
+          "version": "2.15.0",
+          "codeDigest": "sha256:e96e1137a846770f74546663ae3ac7994d88cf5d26893c2909dcf4fa1cfed374"
+        },
+        "derivedAt": "2026-11-17T09:44:55Z",
+        "reviewedAt": "2026-11-17T09:44:55Z",
+        "validUntil": "2027-01-25T09:44:55Z",
+        "sources": [
+          {
+            "id": "crds-2-5-0",
+            "url": "https://github.com/antrea-io/antrea/blob/b249a64afc5f0a50bdcf3d00c6ff21a979c8ed3c/build/charts/antrea/crds/antreaagentinfo.yaml",
+            "revision": "b249a64afc5f0a50bdcf3d00c6ff21a979c8ed3c",
+            "contentDigest": "sha256:b3d8552c683b7e3c4f44e25cb0a8a3f26b44bf51b7b4cdb97a812c2b95cffe32",
+            "startLine": 1,
+            "endLine": 150
+          },
+          {
+            "id": "crds-2-6-0",
+            "url": "https://github.com/antrea-io/antrea/blob/a1045cc3b504bc30cf2a5fdb6918a9708bd7349b/build/charts/antrea/crds/antreaagentinfo.yaml",
+            "revision": "a1045cc3b504bc30cf2a5fdb6918a9708bd7349b",
+            "contentDigest": "sha256:b8271f95c2f7b555313522cebc51ce639a5b0ffb1a0fec68ac9976cdd3894f33",
+            "startLine": 1,
+            "endLine": 169
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/antrea-io/antrea",
+      "line": "2.7",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.6.0",
+            "commit": "a1045cc3b504bc30cf2a5fdb6918a9708bd7349b"
+          },
+          {
+            "version": "2.6.1",
+            "commit": "a73fcb92084c897fa149e37642989ed01f7f17d1"
+          },
+          {
+            "version": "2.6.2",
+            "commit": "384f784fb34420bd11b59ca3e2660d5d70dd8af3"
+          },
+          {
+            "version": "2.6.3",
+            "commit": "08603530d80943f0b2f816a807c5242f633f0372"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.7.0",
+            "commit": "e59003c2c1b13a961ff58a6d7b8f1133049d0bf0"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.antrea",
+          "version": "2.15.0",
+          "codeDigest": "sha256:e96e1137a846770f74546663ae3ac7994d88cf5d26893c2909dcf4fa1cfed374"
+        },
+        "derivedAt": "2026-11-17T09:44:55Z",
+        "reviewedAt": "2026-11-17T09:44:55Z",
+        "validUntil": "2027-01-25T09:44:55Z",
+        "sources": [
+          {
+            "id": "crds-2-6-0",
+            "url": "https://github.com/antrea-io/antrea/blob/a1045cc3b504bc30cf2a5fdb6918a9708bd7349b/build/charts/antrea/crds/antreaagentinfo.yaml",
+            "revision": "a1045cc3b504bc30cf2a5fdb6918a9708bd7349b",
+            "contentDigest": "sha256:b8271f95c2f7b555313522cebc51ce639a5b0ffb1a0fec68ac9976cdd3894f33",
+            "startLine": 1,
+            "endLine": 169
+          },
+          {
+            "id": "crds-2-7-0",
+            "url": "https://github.com/antrea-io/antrea/blob/e59003c2c1b13a961ff58a6d7b8f1133049d0bf0/build/charts/antrea/crds/antreaagentinfo.yaml",
+            "revision": "e59003c2c1b13a961ff58a6d7b8f1133049d0bf0",
+            "contentDigest": "sha256:b8271f95c2f7b555313522cebc51ce639a5b0ffb1a0fec68ac9976cdd3894f33",
+            "startLine": 1,
+            "endLine": 169
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/aquasecurity/trivy-operator",
       "line": "0.32",
       "factFamily": "crd.custom_resource_versions",
@@ -21993,12 +23136,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.trivy-operator",
-          "version": "2.7.0",
-          "codeDigest": "sha256:2cfcc4ac0c8434c83ed55fa752a6d7b9e135b8a13ea0d39084f6c10b318e5c8d"
+          "version": "2.15.0",
+          "codeDigest": "sha256:8a864a9ee4edfd57d5c6e033846393d1dfdbe45b2a9d18dc3c3a9720ffe4090b"
         },
-        "derivedAt": "2026-10-26T18:09:56Z",
-        "reviewedAt": "2026-10-26T18:09:56Z",
-        "validUntil": "2027-01-24T18:09:56Z",
+        "derivedAt": "2026-11-17T09:43:08Z",
+        "reviewedAt": "2026-11-17T09:43:08Z",
+        "validUntil": "2027-01-11T09:43:08Z",
         "sources": [
           {
             "id": "crds-0-31-0",
@@ -22043,12 +23186,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.trivy-operator",
-          "version": "2.7.0",
-          "codeDigest": "sha256:2cfcc4ac0c8434c83ed55fa752a6d7b9e135b8a13ea0d39084f6c10b318e5c8d"
+          "version": "2.15.0",
+          "codeDigest": "sha256:8a864a9ee4edfd57d5c6e033846393d1dfdbe45b2a9d18dc3c3a9720ffe4090b"
         },
-        "derivedAt": "2026-10-26T18:09:56Z",
-        "reviewedAt": "2026-10-26T18:09:56Z",
-        "validUntil": "2027-01-24T18:09:56Z",
+        "derivedAt": "2026-11-17T09:43:08Z",
+        "reviewedAt": "2026-11-17T09:43:08Z",
+        "validUntil": "2027-01-11T09:43:08Z",
         "sources": [
           {
             "id": "crds-0-32-0",
@@ -22093,12 +23236,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.trivy-operator",
-          "version": "2.7.0",
-          "codeDigest": "sha256:2cfcc4ac0c8434c83ed55fa752a6d7b9e135b8a13ea0d39084f6c10b318e5c8d"
+          "version": "2.15.0",
+          "codeDigest": "sha256:8a864a9ee4edfd57d5c6e033846393d1dfdbe45b2a9d18dc3c3a9720ffe4090b"
         },
-        "derivedAt": "2026-10-26T18:09:56Z",
-        "reviewedAt": "2026-10-26T18:09:56Z",
-        "validUntil": "2027-01-24T18:09:56Z",
+        "derivedAt": "2026-11-17T09:43:08Z",
+        "reviewedAt": "2026-11-17T09:43:08Z",
+        "validUntil": "2027-01-11T09:43:08Z",
         "sources": [
           {
             "id": "crds-0-33-0",
@@ -22143,12 +23286,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.trivy-operator",
-          "version": "2.7.0",
-          "codeDigest": "sha256:2cfcc4ac0c8434c83ed55fa752a6d7b9e135b8a13ea0d39084f6c10b318e5c8d"
+          "version": "2.15.0",
+          "codeDigest": "sha256:8a864a9ee4edfd57d5c6e033846393d1dfdbe45b2a9d18dc3c3a9720ffe4090b"
         },
-        "derivedAt": "2026-10-26T18:09:56Z",
-        "reviewedAt": "2026-10-26T18:09:56Z",
-        "validUntil": "2027-01-24T18:09:56Z",
+        "derivedAt": "2026-11-17T09:43:08Z",
+        "reviewedAt": "2026-11-17T09:43:08Z",
+        "validUntil": "2027-01-11T09:43:08Z",
         "sources": [
           {
             "id": "crds-0-34-0",
@@ -22186,6 +23329,10 @@
           {
             "version": "0.36.0",
             "commit": "047f1d95f4f8355569aadbdad0f1c74550c6cbec"
+          },
+          {
+            "version": "0.36.1",
+            "commit": "b40091af2bfba4c90b109fc0817d6c3f49bfc9a4"
           }
         ]
       },
@@ -22193,12 +23340,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.trivy-operator",
-          "version": "2.7.0",
-          "codeDigest": "sha256:2cfcc4ac0c8434c83ed55fa752a6d7b9e135b8a13ea0d39084f6c10b318e5c8d"
+          "version": "2.15.0",
+          "codeDigest": "sha256:8a864a9ee4edfd57d5c6e033846393d1dfdbe45b2a9d18dc3c3a9720ffe4090b"
         },
-        "derivedAt": "2026-10-26T18:09:56Z",
-        "reviewedAt": "2026-10-26T18:09:56Z",
-        "validUntil": "2027-01-24T18:09:56Z",
+        "derivedAt": "2026-11-17T09:43:08Z",
+        "reviewedAt": "2026-11-17T09:43:08Z",
+        "validUntil": "2027-01-11T09:43:08Z",
         "sources": [
           {
             "id": "crds-0-35-0",
@@ -22287,12 +23434,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.cert-manager",
-          "version": "2.7.0",
-          "codeDigest": "sha256:22ba78d4b02fe86f03f3b36115c4a4522376d1bb77835d8e1c5b09ca2d501ba8"
+          "version": "2.15.0",
+          "codeDigest": "sha256:9b71624d48ea4b0c06fa7d743d49582efc2be0c37b9aefec8023e2d3f920962b"
         },
-        "derivedAt": "2026-10-29T11:43:08Z",
-        "reviewedAt": "2026-10-29T11:43:08Z",
-        "validUntil": "2027-01-27T11:43:08Z",
+        "derivedAt": "2026-11-17T09:48:54Z",
+        "reviewedAt": "2026-11-17T09:48:54Z",
+        "validUntil": "2027-02-15T09:48:54Z",
         "sources": [
           {
             "id": "crds-1-19-0",
@@ -22369,12 +23516,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.cert-manager",
-          "version": "2.7.0",
-          "codeDigest": "sha256:22ba78d4b02fe86f03f3b36115c4a4522376d1bb77835d8e1c5b09ca2d501ba8"
+          "version": "2.15.0",
+          "codeDigest": "sha256:9b71624d48ea4b0c06fa7d743d49582efc2be0c37b9aefec8023e2d3f920962b"
         },
-        "derivedAt": "2026-10-29T11:43:08Z",
-        "reviewedAt": "2026-10-29T11:43:08Z",
-        "validUntil": "2027-01-27T11:43:08Z",
+        "derivedAt": "2026-11-17T09:48:54Z",
+        "reviewedAt": "2026-11-17T09:48:54Z",
+        "validUntil": "2027-02-15T09:48:54Z",
         "sources": [
           {
             "id": "crds-1-20-0",
@@ -30264,6 +31411,204 @@
       }
     },
     {
+      "component": "pkg:github/longhorn/longhorn",
+      "line": "1.11",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.10.0",
+            "commit": "92b8338c08f62342bfc1fff1452f3f6806b87283"
+          },
+          {
+            "version": "1.10.1",
+            "commit": "452bc55d68632da752f3bb262127b4019a6584d4"
+          },
+          {
+            "version": "1.10.2",
+            "commit": "c8648f5e335b01c3ea27a7f654600ec8aece84ca"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.11.0",
+            "commit": "b8a3ced5a56da93e8d9d5ea6b2cede8dbddad50f"
+          },
+          {
+            "version": "1.11.1",
+            "commit": "eb3790253449e3577b4acb88b5620258cde6d747"
+          },
+          {
+            "version": "1.11.2",
+            "commit": "666fcb2f9b7d50b60936ba517f71c44df4e4d482"
+          },
+          {
+            "version": "1.11.3",
+            "commit": "79c39728c70dee0326cf2f647c874d01b798286b"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.longhorn",
+          "version": "2.15.0",
+          "codeDigest": "sha256:132087ae28fb16e77427e22c3a7a6bb9eeb07c15bf29926ca73f57ca2466c6c4"
+        },
+        "derivedAt": "2026-11-17T09:42:09Z",
+        "reviewedAt": "2026-11-17T09:42:09Z",
+        "validUntil": "2027-01-25T09:42:09Z",
+        "sources": [
+          {
+            "id": "crds-1-10-0",
+            "url": "https://github.com/longhorn/longhorn/blob/92b8338c08f62342bfc1fff1452f3f6806b87283/deploy/longhorn.yaml",
+            "revision": "92b8338c08f62342bfc1fff1452f3f6806b87283",
+            "contentDigest": "sha256:07cdd083137acd61c340fc54f1eb4afc8a1af5f193e1c24c388152004ccf475b",
+            "startLine": 1,
+            "endLine": 4473
+          },
+          {
+            "id": "crds-1-11-0",
+            "url": "https://github.com/longhorn/longhorn/blob/b8a3ced5a56da93e8d9d5ea6b2cede8dbddad50f/deploy/longhorn.yaml",
+            "revision": "b8a3ced5a56da93e8d9d5ea6b2cede8dbddad50f",
+            "contentDigest": "sha256:40b24cf0b9bc118f16f40941e080baefac233365b551dfac4f09b2984cf4c6c1",
+            "startLine": 1,
+            "endLine": 4561
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/longhorn/longhorn",
+      "line": "1.12",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.11.0",
+            "commit": "b8a3ced5a56da93e8d9d5ea6b2cede8dbddad50f"
+          },
+          {
+            "version": "1.11.1",
+            "commit": "eb3790253449e3577b4acb88b5620258cde6d747"
+          },
+          {
+            "version": "1.11.2",
+            "commit": "666fcb2f9b7d50b60936ba517f71c44df4e4d482"
+          },
+          {
+            "version": "1.11.3",
+            "commit": "79c39728c70dee0326cf2f647c874d01b798286b"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.12.0",
+            "commit": "9990b6db0c5971d5b3bc58dd14095fcdc3c761b3"
+          },
+          {
+            "version": "1.12.1",
+            "commit": "f349c091c50700cb6cb8a4df8aaa29ea214bdd48"
+          },
+          {
+            "version": "1.12.2",
+            "commit": "6099725ee4067daec2f88ca8043b53308720c7b2"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.longhorn",
+          "version": "2.15.0",
+          "codeDigest": "sha256:132087ae28fb16e77427e22c3a7a6bb9eeb07c15bf29926ca73f57ca2466c6c4"
+        },
+        "derivedAt": "2026-11-17T09:42:09Z",
+        "reviewedAt": "2026-11-17T09:42:09Z",
+        "validUntil": "2027-01-25T09:42:09Z",
+        "sources": [
+          {
+            "id": "crds-1-11-0",
+            "url": "https://github.com/longhorn/longhorn/blob/b8a3ced5a56da93e8d9d5ea6b2cede8dbddad50f/deploy/longhorn.yaml",
+            "revision": "b8a3ced5a56da93e8d9d5ea6b2cede8dbddad50f",
+            "contentDigest": "sha256:40b24cf0b9bc118f16f40941e080baefac233365b551dfac4f09b2984cf4c6c1",
+            "startLine": 1,
+            "endLine": 4561
+          },
+          {
+            "id": "crds-1-12-0",
+            "url": "https://github.com/longhorn/longhorn/blob/9990b6db0c5971d5b3bc58dd14095fcdc3c761b3/deploy/longhorn.yaml",
+            "revision": "9990b6db0c5971d5b3bc58dd14095fcdc3c761b3",
+            "contentDigest": "sha256:7923a570a6b59f8f4e3933ddac2352969d4ddb32fe180192cd2a49b02c81fa86",
+            "startLine": 1,
+            "endLine": 4977
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/longhorn/longhorn",
+      "line": "1.13",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.12.0",
+            "commit": "9990b6db0c5971d5b3bc58dd14095fcdc3c761b3"
+          },
+          {
+            "version": "1.12.1",
+            "commit": "f349c091c50700cb6cb8a4df8aaa29ea214bdd48"
+          },
+          {
+            "version": "1.12.2",
+            "commit": "6099725ee4067daec2f88ca8043b53308720c7b2"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.13.0",
+            "commit": "c3d88832bd8cec4f38dec65e79436984871dc313"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.longhorn",
+          "version": "2.15.0",
+          "codeDigest": "sha256:132087ae28fb16e77427e22c3a7a6bb9eeb07c15bf29926ca73f57ca2466c6c4"
+        },
+        "derivedAt": "2026-11-17T09:42:09Z",
+        "reviewedAt": "2026-11-17T09:42:09Z",
+        "validUntil": "2027-01-25T09:42:09Z",
+        "sources": [
+          {
+            "id": "crds-1-12-0",
+            "url": "https://github.com/longhorn/longhorn/blob/9990b6db0c5971d5b3bc58dd14095fcdc3c761b3/deploy/longhorn.yaml",
+            "revision": "9990b6db0c5971d5b3bc58dd14095fcdc3c761b3",
+            "contentDigest": "sha256:7923a570a6b59f8f4e3933ddac2352969d4ddb32fe180192cd2a49b02c81fa86",
+            "startLine": 1,
+            "endLine": 4977
+          },
+          {
+            "id": "crds-1-13-0",
+            "url": "https://github.com/longhorn/longhorn/blob/c3d88832bd8cec4f38dec65e79436984871dc313/deploy/longhorn.yaml",
+            "revision": "c3d88832bd8cec4f38dec65e79436984871dc313",
+            "contentDigest": "sha256:d0f99488e7b2789312d45b0127ce7388df71a971e6fca2085e88635303cc0a1f",
+            "startLine": 1,
+            "endLine": 6705
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/mongodb/mongodb-kubernetes",
       "line": "1.9",
       "factFamily": "crd.custom_resource_versions",
@@ -31141,12 +32486,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.kubernetes-ingress",
-          "version": "2.7.0",
-          "codeDigest": "sha256:4766874ee5718981e5f2ce5cce052e04b5a60a902e06ded7670d1ac05e1ca6a5"
+          "version": "2.15.0",
+          "codeDigest": "sha256:450470a3ef1e49c68be4fb54dcee754f7167f2ca0f5737046156956c2d5c92af"
         },
-        "derivedAt": "2026-10-28T04:05:47Z",
-        "reviewedAt": "2026-10-28T04:05:47Z",
-        "validUntil": "2027-01-26T04:05:47Z",
+        "derivedAt": "2026-11-17T09:53:36Z",
+        "reviewedAt": "2026-11-17T09:53:36Z",
+        "validUntil": "2027-02-01T09:53:36Z",
         "sources": [
           {
             "id": "crds-5-2-0",
@@ -31219,12 +32564,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.kubernetes-ingress",
-          "version": "2.7.0",
-          "codeDigest": "sha256:4766874ee5718981e5f2ce5cce052e04b5a60a902e06ded7670d1ac05e1ca6a5"
+          "version": "2.15.0",
+          "codeDigest": "sha256:450470a3ef1e49c68be4fb54dcee754f7167f2ca0f5737046156956c2d5c92af"
         },
-        "derivedAt": "2026-10-28T04:05:47Z",
-        "reviewedAt": "2026-10-28T04:05:47Z",
-        "validUntil": "2027-01-26T04:05:47Z",
+        "derivedAt": "2026-11-17T09:53:36Z",
+        "reviewedAt": "2026-11-17T09:53:36Z",
+        "validUntil": "2027-02-01T09:53:36Z",
         "sources": [
           {
             "id": "crds-5-3-0",
@@ -31297,12 +32642,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.kubernetes-ingress",
-          "version": "2.7.0",
-          "codeDigest": "sha256:4766874ee5718981e5f2ce5cce052e04b5a60a902e06ded7670d1ac05e1ca6a5"
+          "version": "2.15.0",
+          "codeDigest": "sha256:450470a3ef1e49c68be4fb54dcee754f7167f2ca0f5737046156956c2d5c92af"
         },
-        "derivedAt": "2026-10-28T04:05:47Z",
-        "reviewedAt": "2026-10-28T04:05:47Z",
-        "validUntil": "2027-01-26T04:05:47Z",
+        "derivedAt": "2026-11-17T09:53:36Z",
+        "reviewedAt": "2026-11-17T09:53:36Z",
+        "validUntil": "2027-02-01T09:53:36Z",
         "sources": [
           {
             "id": "crds-5-4-0",
@@ -31375,12 +32720,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.kubernetes-ingress",
-          "version": "2.7.0",
-          "codeDigest": "sha256:4766874ee5718981e5f2ce5cce052e04b5a60a902e06ded7670d1ac05e1ca6a5"
+          "version": "2.15.0",
+          "codeDigest": "sha256:450470a3ef1e49c68be4fb54dcee754f7167f2ca0f5737046156956c2d5c92af"
         },
-        "derivedAt": "2026-10-28T04:05:47Z",
-        "reviewedAt": "2026-10-28T04:05:47Z",
-        "validUntil": "2027-01-26T04:05:47Z",
+        "derivedAt": "2026-11-17T09:53:36Z",
+        "reviewedAt": "2026-11-17T09:53:36Z",
+        "validUntil": "2027-02-01T09:53:36Z",
         "sources": [
           {
             "id": "crds-5-5-0",
@@ -31430,6 +32775,10 @@
           {
             "version": "5.7.0",
             "commit": "205828534dd07f1a73440dce23a25a7feefcc395"
+          },
+          {
+            "version": "5.7.1",
+            "commit": "eccb6b82f0d2b0537fa449e5f2c583cd99f1f2d8"
           }
         ]
       },
@@ -31437,12 +32786,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.kubernetes-ingress",
-          "version": "2.7.0",
-          "codeDigest": "sha256:4766874ee5718981e5f2ce5cce052e04b5a60a902e06ded7670d1ac05e1ca6a5"
+          "version": "2.15.0",
+          "codeDigest": "sha256:450470a3ef1e49c68be4fb54dcee754f7167f2ca0f5737046156956c2d5c92af"
         },
-        "derivedAt": "2026-10-28T04:05:47Z",
-        "reviewedAt": "2026-10-28T04:05:47Z",
-        "validUntil": "2027-01-26T04:05:47Z",
+        "derivedAt": "2026-11-17T09:53:36Z",
+        "reviewedAt": "2026-11-17T09:53:36Z",
+        "validUntil": "2027-02-01T09:53:36Z",
         "sources": [
           {
             "id": "crds-5-6-0",
@@ -31459,6 +32808,252 @@
             "contentDigest": "sha256:efeea5fc2a6ad88f5b5b8575df5f73ac75ae18ebd5d9426718e16976cbafd891",
             "startLine": 1,
             "endLine": 82
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/openkruise/kruise",
+      "line": "1.5",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.4.0",
+            "commit": "914146d9a4a1a71e60789f7f9cee738b925b1996"
+          },
+          {
+            "version": "1.4.2",
+            "commit": "4aee7f6b58811ae3d80cfa33ec91e148099dcf16"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.5.0",
+            "commit": "a477df8066a49734bc71b9f3a1716897685a3d6f"
+          },
+          {
+            "version": "1.5.1",
+            "commit": "e82e40cd019ea8928da9a34f3f3374e2abbb8caf"
+          },
+          {
+            "version": "1.5.2",
+            "commit": "5421ee7c8e9e54ec38c1c1e20f4deb4a722f47a7"
+          },
+          {
+            "version": "1.5.3",
+            "commit": "86f2f3fa1cffd592ae5fd8bc38c2a56e42e8c1fc"
+          },
+          {
+            "version": "1.5.4",
+            "commit": "4693f8160528f2c17f9016be7746e409d3d7a9eb"
+          },
+          {
+            "version": "1.5.5",
+            "commit": "1dd887136422e7d9b6e8eaa04e0163351813d95f"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.openkruise",
+          "version": "2.15.0",
+          "codeDigest": "sha256:79b58845b2a8ff71c2113571ab473ec17ca7f1577cb9bbdd6a898420864feb83"
+        },
+        "derivedAt": "2026-11-17T09:56:27Z",
+        "reviewedAt": "2026-11-17T09:56:27Z",
+        "validUntil": "2027-02-15T09:56:27Z",
+        "sources": [
+          {
+            "id": "crds-1-4-0",
+            "url": "https://github.com/openkruise/kruise/blob/914146d9a4a1a71e60789f7f9cee738b925b1996/config/crd/bases/apps.kruise.io_advancedcronjobs.yaml",
+            "revision": "914146d9a4a1a71e60789f7f9cee738b925b1996",
+            "contentDigest": "sha256:fcbcaa0eecb3861fa0d1c8c4b02dad9ec707c4791866906b42aa64d4bb221401",
+            "startLine": 1,
+            "endLine": 277
+          },
+          {
+            "id": "crds-1-5-0",
+            "url": "https://github.com/openkruise/kruise/blob/a477df8066a49734bc71b9f3a1716897685a3d6f/config/crd/bases/apps.kruise.io_advancedcronjobs.yaml",
+            "revision": "a477df8066a49734bc71b9f3a1716897685a3d6f",
+            "contentDigest": "sha256:8683228fdb4744976a1b7a0d5585067a142aa3c4dde36e877b8442f81425239c",
+            "startLine": 1,
+            "endLine": 270
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/openkruise/kruise",
+      "line": "1.6",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.5.0",
+            "commit": "a477df8066a49734bc71b9f3a1716897685a3d6f"
+          },
+          {
+            "version": "1.5.1",
+            "commit": "e82e40cd019ea8928da9a34f3f3374e2abbb8caf"
+          },
+          {
+            "version": "1.5.2",
+            "commit": "5421ee7c8e9e54ec38c1c1e20f4deb4a722f47a7"
+          },
+          {
+            "version": "1.5.3",
+            "commit": "86f2f3fa1cffd592ae5fd8bc38c2a56e42e8c1fc"
+          },
+          {
+            "version": "1.5.4",
+            "commit": "4693f8160528f2c17f9016be7746e409d3d7a9eb"
+          },
+          {
+            "version": "1.5.5",
+            "commit": "1dd887136422e7d9b6e8eaa04e0163351813d95f"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.6.0",
+            "commit": "f0047b0833290e7f018bb4104bfe4cdfe8c0ffb1"
+          },
+          {
+            "version": "1.6.1",
+            "commit": "9410fbeb44ba9c3a5926f2209488b2d0b2b9931c"
+          },
+          {
+            "version": "1.6.2",
+            "commit": "99ca57c1809a138c3c5cbe39c8c470b0cd57c5ae"
+          },
+          {
+            "version": "1.6.3",
+            "commit": "1c07d4d22f64fae3520b27712c50f81b8bd85b33"
+          },
+          {
+            "version": "1.6.4",
+            "commit": "34dcd5536815a13fbde1cb96c4a30750a2827af6"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.openkruise",
+          "version": "2.15.0",
+          "codeDigest": "sha256:79b58845b2a8ff71c2113571ab473ec17ca7f1577cb9bbdd6a898420864feb83"
+        },
+        "derivedAt": "2026-11-17T09:56:27Z",
+        "reviewedAt": "2026-11-17T09:56:27Z",
+        "validUntil": "2027-02-15T09:56:27Z",
+        "sources": [
+          {
+            "id": "crds-1-5-0",
+            "url": "https://github.com/openkruise/kruise/blob/a477df8066a49734bc71b9f3a1716897685a3d6f/config/crd/bases/apps.kruise.io_advancedcronjobs.yaml",
+            "revision": "a477df8066a49734bc71b9f3a1716897685a3d6f",
+            "contentDigest": "sha256:8683228fdb4744976a1b7a0d5585067a142aa3c4dde36e877b8442f81425239c",
+            "startLine": 1,
+            "endLine": 270
+          },
+          {
+            "id": "crds-1-6-0",
+            "url": "https://github.com/openkruise/kruise/blob/f0047b0833290e7f018bb4104bfe4cdfe8c0ffb1/config/crd/bases/apps.kruise.io_advancedcronjobs.yaml",
+            "revision": "f0047b0833290e7f018bb4104bfe4cdfe8c0ffb1",
+            "contentDigest": "sha256:8683228fdb4744976a1b7a0d5585067a142aa3c4dde36e877b8442f81425239c",
+            "startLine": 1,
+            "endLine": 270
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/openkruise/kruise",
+      "line": "1.7",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.6.0",
+            "commit": "f0047b0833290e7f018bb4104bfe4cdfe8c0ffb1"
+          },
+          {
+            "version": "1.6.1",
+            "commit": "9410fbeb44ba9c3a5926f2209488b2d0b2b9931c"
+          },
+          {
+            "version": "1.6.2",
+            "commit": "99ca57c1809a138c3c5cbe39c8c470b0cd57c5ae"
+          },
+          {
+            "version": "1.6.3",
+            "commit": "1c07d4d22f64fae3520b27712c50f81b8bd85b33"
+          },
+          {
+            "version": "1.6.4",
+            "commit": "34dcd5536815a13fbde1cb96c4a30750a2827af6"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.7.0",
+            "commit": "2fe731cd691da91b8a8854432ecfd1544f520fee"
+          },
+          {
+            "version": "1.7.1",
+            "commit": "5762908feea14389a8c7c6a415e7053dfdadcf08"
+          },
+          {
+            "version": "1.7.2",
+            "commit": "535ba1bcec43a5fef1140176341a798edcfcf5c1"
+          },
+          {
+            "version": "1.7.3",
+            "commit": "34efc8d200c8b3d4021b355a73c49ad77eafc1c1"
+          },
+          {
+            "version": "1.7.4",
+            "commit": "5461ece592069f4adb932e90b6df4568605107a6"
+          },
+          {
+            "version": "1.7.5",
+            "commit": "34748d207595430c85dd3fa27607163e2a5b2ecd"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.openkruise",
+          "version": "2.15.0",
+          "codeDigest": "sha256:79b58845b2a8ff71c2113571ab473ec17ca7f1577cb9bbdd6a898420864feb83"
+        },
+        "derivedAt": "2026-11-17T09:56:27Z",
+        "reviewedAt": "2026-11-17T09:56:27Z",
+        "validUntil": "2027-02-15T09:56:27Z",
+        "sources": [
+          {
+            "id": "crds-1-6-0",
+            "url": "https://github.com/openkruise/kruise/blob/f0047b0833290e7f018bb4104bfe4cdfe8c0ffb1/config/crd/bases/apps.kruise.io_advancedcronjobs.yaml",
+            "revision": "f0047b0833290e7f018bb4104bfe4cdfe8c0ffb1",
+            "contentDigest": "sha256:8683228fdb4744976a1b7a0d5585067a142aa3c4dde36e877b8442f81425239c",
+            "startLine": 1,
+            "endLine": 270
+          },
+          {
+            "id": "crds-1-7-0",
+            "url": "https://github.com/openkruise/kruise/blob/2fe731cd691da91b8a8854432ecfd1544f520fee/config/crd/bases/apps.kruise.io_advancedcronjobs.yaml",
+            "revision": "2fe731cd691da91b8a8854432ecfd1544f520fee",
+            "contentDigest": "sha256:3f7fb15a00cd7a746771bb79279b85955fe208b9868cc7629bb87be15170bcd1",
+            "startLine": 1,
+            "endLine": 278
           }
         ]
       }
@@ -31527,12 +33122,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.openkruise",
-          "version": "2.7.0",
-          "codeDigest": "sha256:652dd107c5285ae6ab7671f264ac16ecc79567ad177c3601cde163f7a9fa61b5"
+          "version": "2.15.0",
+          "codeDigest": "sha256:79b58845b2a8ff71c2113571ab473ec17ca7f1577cb9bbdd6a898420864feb83"
         },
-        "derivedAt": "2026-10-31T00:05:48Z",
-        "reviewedAt": "2026-10-31T00:05:48Z",
-        "validUntil": "2027-01-29T00:05:48Z",
+        "derivedAt": "2026-11-17T09:56:27Z",
+        "reviewedAt": "2026-11-17T09:56:27Z",
+        "validUntil": "2027-02-15T09:56:27Z",
         "sources": [
           {
             "id": "crds-1-7-0",
@@ -31598,6 +33193,10 @@
           {
             "version": "1.9.2",
             "commit": "03e157708c995c10ff9678e7a2c49ed63cd379d8"
+          },
+          {
+            "version": "1.9.3",
+            "commit": "9b4ab4d153fbb22375adb58c084014a3180d56b3"
           }
         ]
       },
@@ -31605,12 +33204,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.openkruise",
-          "version": "2.7.0",
-          "codeDigest": "sha256:652dd107c5285ae6ab7671f264ac16ecc79567ad177c3601cde163f7a9fa61b5"
+          "version": "2.15.0",
+          "codeDigest": "sha256:79b58845b2a8ff71c2113571ab473ec17ca7f1577cb9bbdd6a898420864feb83"
         },
-        "derivedAt": "2026-10-31T00:05:48Z",
-        "reviewedAt": "2026-10-31T00:05:48Z",
-        "validUntil": "2027-01-29T00:05:48Z",
+        "derivedAt": "2026-11-17T09:56:27Z",
+        "reviewedAt": "2026-11-17T09:56:27Z",
+        "validUntil": "2027-02-15T09:56:27Z",
         "sources": [
           {
             "id": "crds-1-8-0",
@@ -32113,6 +33712,210 @@
             "contentDigest": "sha256:ed19c169f1639151454c46eac9c0d3581e2e205ab7903bf364258001529c1f95",
             "startLine": 1,
             "endLine": 5615
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/percona/percona-server-mysql-operator",
+      "line": "0.12",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [
+        "percona-server-mysql-operator.crd-version-removal.perconaservermysqlbackups-ps-percona-com.0-11-0-to-0-12-0",
+        "percona-server-mysql-operator.crd-version-removal.perconaservermysqlrestores-ps-percona-com.0-11-0-to-0-12-0",
+        "percona-server-mysql-operator.crd-version-removal.perconaservermysqls-ps-percona-com.0-11-0-to-0-12-0"
+      ],
+      "releases": {
+        "from": [
+          {
+            "version": "0.11.0",
+            "commit": "aa5cd312e8de54c14d06cf70d112f1506a86649f"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.12.0",
+            "commit": "1aae002935a62950c895db909e461facb7203aff"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.percona-server-mysql-operator",
+          "version": "2.15.0",
+          "codeDigest": "sha256:0738b8bf2756c7d9ff1d5546b38edce722bf87929e33b972afec4732ff513c3e"
+        },
+        "derivedAt": "2026-11-17T09:50:44Z",
+        "reviewedAt": "2026-11-17T09:50:44Z",
+        "validUntil": "2027-01-18T09:50:44Z",
+        "sources": [
+          {
+            "id": "crds-0-11-0",
+            "url": "https://github.com/percona/percona-server-mysql-operator/blob/aa5cd312e8de54c14d06cf70d112f1506a86649f/config/crd/bases/ps.percona.com_perconaservermysqlbackups.yaml",
+            "revision": "aa5cd312e8de54c14d06cf70d112f1506a86649f",
+            "contentDigest": "sha256:b56877b2d01cfa3558eb6a63518b52baeacc2d3df207738ba55cd64be1575831",
+            "startLine": 1,
+            "endLine": 955
+          },
+          {
+            "id": "crds-0-12-0",
+            "url": "https://github.com/percona/percona-server-mysql-operator/blob/1aae002935a62950c895db909e461facb7203aff/config/crd/bases/ps.percona.com_perconaservermysqlbackups.yaml",
+            "revision": "1aae002935a62950c895db909e461facb7203aff",
+            "contentDigest": "sha256:68d8e274a7858b3b511d15705708bda185075b3c5ddafbf9e039e8402bd2544f",
+            "startLine": 1,
+            "endLine": 1161
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/percona/percona-server-mysql-operator",
+      "line": "1.1",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.0.0",
+            "commit": "22cf9ae54d7df6812c83232d8c64679c4e37758d"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.1.0",
+            "commit": "5dd6c7f537b5cfa4437ca7c092c9e2994022722f"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.percona-server-mysql-operator",
+          "version": "2.15.0",
+          "codeDigest": "sha256:0738b8bf2756c7d9ff1d5546b38edce722bf87929e33b972afec4732ff513c3e"
+        },
+        "derivedAt": "2026-11-17T09:50:44Z",
+        "reviewedAt": "2026-11-17T09:50:44Z",
+        "validUntil": "2027-01-18T09:50:44Z",
+        "sources": [
+          {
+            "id": "crds-1-0-0",
+            "url": "https://github.com/percona/percona-server-mysql-operator/blob/22cf9ae54d7df6812c83232d8c64679c4e37758d/config/crd/bases/ps.percona.com_perconaservermysqlbackups.yaml",
+            "revision": "22cf9ae54d7df6812c83232d8c64679c4e37758d",
+            "contentDigest": "sha256:68d8e274a7858b3b511d15705708bda185075b3c5ddafbf9e039e8402bd2544f",
+            "startLine": 1,
+            "endLine": 1161
+          },
+          {
+            "id": "crds-1-1-0",
+            "url": "https://github.com/percona/percona-server-mysql-operator/blob/5dd6c7f537b5cfa4437ca7c092c9e2994022722f/config/crd/bases/ps.percona.com_perconaservermysqlbackups.yaml",
+            "revision": "5dd6c7f537b5cfa4437ca7c092c9e2994022722f",
+            "contentDigest": "sha256:822a7a3a5af3eeaba950f092faa0b9162a9775dc79b4b5ca05229a952b585a15",
+            "startLine": 1,
+            "endLine": 1215
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/percona/percona-server-mysql-operator",
+      "line": "1.2",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.1.0",
+            "commit": "5dd6c7f537b5cfa4437ca7c092c9e2994022722f"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.2.0",
+            "commit": "71fec83da870c47c3d75165ca36b848ce86fdb73"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.percona-server-mysql-operator",
+          "version": "2.15.0",
+          "codeDigest": "sha256:0738b8bf2756c7d9ff1d5546b38edce722bf87929e33b972afec4732ff513c3e"
+        },
+        "derivedAt": "2026-11-17T09:50:44Z",
+        "reviewedAt": "2026-11-17T09:50:44Z",
+        "validUntil": "2027-01-18T09:50:44Z",
+        "sources": [
+          {
+            "id": "crds-1-1-0",
+            "url": "https://github.com/percona/percona-server-mysql-operator/blob/5dd6c7f537b5cfa4437ca7c092c9e2994022722f/config/crd/bases/ps.percona.com_perconaservermysqlbackups.yaml",
+            "revision": "5dd6c7f537b5cfa4437ca7c092c9e2994022722f",
+            "contentDigest": "sha256:822a7a3a5af3eeaba950f092faa0b9162a9775dc79b4b5ca05229a952b585a15",
+            "startLine": 1,
+            "endLine": 1215
+          },
+          {
+            "id": "crds-1-2-0",
+            "url": "https://github.com/percona/percona-server-mysql-operator/blob/71fec83da870c47c3d75165ca36b848ce86fdb73/config/crd/bases/ps.percona.com_perconaservermysqlbackups.yaml",
+            "revision": "71fec83da870c47c3d75165ca36b848ce86fdb73",
+            "contentDigest": "sha256:9f2aef49d829c2958ae1e36ae8b1fc8d751022563b0bfc7dccb4dd2396fb49e4",
+            "startLine": 1,
+            "endLine": 1225
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/percona/percona-server-mysql-operator",
+      "line": "1.3",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.2.0",
+            "commit": "71fec83da870c47c3d75165ca36b848ce86fdb73"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.3.0",
+            "commit": "e399eb71e9f5fcb53314ed1bfb4b021142ffd5b9"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.percona-server-mysql-operator",
+          "version": "2.15.0",
+          "codeDigest": "sha256:0738b8bf2756c7d9ff1d5546b38edce722bf87929e33b972afec4732ff513c3e"
+        },
+        "derivedAt": "2026-11-17T09:50:44Z",
+        "reviewedAt": "2026-11-17T09:50:44Z",
+        "validUntil": "2027-01-18T09:50:44Z",
+        "sources": [
+          {
+            "id": "crds-1-2-0",
+            "url": "https://github.com/percona/percona-server-mysql-operator/blob/71fec83da870c47c3d75165ca36b848ce86fdb73/config/crd/bases/ps.percona.com_perconaservermysqlbackups.yaml",
+            "revision": "71fec83da870c47c3d75165ca36b848ce86fdb73",
+            "contentDigest": "sha256:9f2aef49d829c2958ae1e36ae8b1fc8d751022563b0bfc7dccb4dd2396fb49e4",
+            "startLine": 1,
+            "endLine": 1225
+          },
+          {
+            "id": "crds-1-3-0",
+            "url": "https://github.com/percona/percona-server-mysql-operator/blob/e399eb71e9f5fcb53314ed1bfb4b021142ffd5b9/config/crd/bases/ps.percona.com_perconaservermysqlbackups.yaml",
+            "revision": "e399eb71e9f5fcb53314ed1bfb4b021142ffd5b9",
+            "contentDigest": "sha256:01671748751aed8b4b40f36a2de2039bc6c2dbab9db8a53fe8b07c60f9068a18",
+            "startLine": 1,
+            "endLine": 1274
           }
         ]
       }
@@ -32847,6 +34650,128 @@
             "contentDigest": "sha256:9eec58a465b192d076e64ac15b8d7b0b1d80a9af0f42899de57fa4c57cd32d89",
             "startLine": 1,
             "endLine": 227
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/rook/rook",
+      "line": "1.17",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.16.0",
+            "commit": "1c9c9f36ecf4a2292b596ddf89f29a7dc1688236"
+          },
+          {
+            "version": "1.16.1",
+            "commit": "4bc7d0f41b93c0336354936fe1922486336b5a9d"
+          },
+          {
+            "version": "1.16.2",
+            "commit": "3efc5dbead486ca2f9ef1d7b88e8dea1de4d03a0"
+          },
+          {
+            "version": "1.16.3",
+            "commit": "fd9e649070e2ed0500eb2e5d8690664eae7cf90b"
+          },
+          {
+            "version": "1.16.4",
+            "commit": "5b5b4d91ef0e81e5db45c3fc416af07342c7462b"
+          },
+          {
+            "version": "1.16.5",
+            "commit": "d284f02f1b03bcf63c6269af4b704285a50cd331"
+          },
+          {
+            "version": "1.16.6",
+            "commit": "2355e067014bcaf5090d0f7d1b1c665e5b371129"
+          },
+          {
+            "version": "1.16.7",
+            "commit": "b9e56e1caf31b483c8ad8c73fb67176dd29707aa"
+          },
+          {
+            "version": "1.16.8",
+            "commit": "337050c56301f37101f6bb8a9c4e9f7a281fe0b3"
+          },
+          {
+            "version": "1.16.9",
+            "commit": "8c81f20f15b501d603acc2bcfc211e948c879a11"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.17.0",
+            "commit": "45977257a85740470f63aafb39947448d13de33e"
+          },
+          {
+            "version": "1.17.1",
+            "commit": "09266ace465588f09f68ec6a1c88bc8180a1b8a7"
+          },
+          {
+            "version": "1.17.2",
+            "commit": "f6266772d2095c8af312745d9cbe045c98a380df"
+          },
+          {
+            "version": "1.17.3",
+            "commit": "baf0612588f7a7c6436e4d34b8e227dcbb56d83e"
+          },
+          {
+            "version": "1.17.4",
+            "commit": "e1d39b8262c20f9f02db9be11fbf72963b1ef3ad"
+          },
+          {
+            "version": "1.17.5",
+            "commit": "f8e45134385413b66732e4f27e92c2eb48e6ed66"
+          },
+          {
+            "version": "1.17.6",
+            "commit": "314498a977d493aee4928cc6a2fa72535760f2c4"
+          },
+          {
+            "version": "1.17.7",
+            "commit": "ee2fc3ff201812ae120ce8d8198e1e643514a081"
+          },
+          {
+            "version": "1.17.8",
+            "commit": "8c7a83a2cf8949dd1b6725739e0ec1f73f1a8baf"
+          },
+          {
+            "version": "1.17.9",
+            "commit": "d1d0811a7686bf06a130e4a99ccc1cdeff55cd2f"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.rook",
+          "version": "2.15.0",
+          "codeDigest": "sha256:575bc8ca6bff7382819b6f83d893a3c1ae6caee2a2db9da941353280f0b392ef"
+        },
+        "derivedAt": "2026-11-17T09:46:48Z",
+        "reviewedAt": "2026-11-17T09:46:48Z",
+        "validUntil": "2027-02-15T09:46:48Z",
+        "sources": [
+          {
+            "id": "crds-1-16-0",
+            "url": "https://github.com/rook/rook/blob/1c9c9f36ecf4a2292b596ddf89f29a7dc1688236/deploy/examples/crds.yaml",
+            "revision": "1c9c9f36ecf4a2292b596ddf89f29a7dc1688236",
+            "contentDigest": "sha256:98dcce8383d6c2c02a15b0d8cd5c9f8c229a1770fec4ac413d93f8a4cb40db10",
+            "startLine": 1,
+            "endLine": 14471
+          },
+          {
+            "id": "crds-1-17-0",
+            "url": "https://github.com/rook/rook/blob/45977257a85740470f63aafb39947448d13de33e/deploy/examples/crds.yaml",
+            "revision": "45977257a85740470f63aafb39947448d13de33e",
+            "contentDigest": "sha256:ad990541e45670a06c015adc20e7f7d1a9fc84c30c628ff4503c8d1d6dfcf4d2",
+            "startLine": 1,
+            "endLine": 14704
           }
         ]
       }

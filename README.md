@@ -7,7 +7,7 @@ Prufyx checks a planned upgrade against upstream evidence and returns
 file, and line range it relies on, and says how it was established.
 
 <!-- basis-counts:begin -->
-Of the 304 active rules shipped today, 260 with basis `reviewed`, 44 with basis `mechanical`. A `reviewed` rule was established by a person who read the cited upstream evidence. A `mechanical` rule was derived from upstream source by an extractor program that is re-run and checked before the rule is accepted; no person reviewed it rule by rule. The 203 release-line attestations and served-API lists are separate records: 203 with basis `mechanical`.
+Of the 311 active rules shipped today, 260 with basis `reviewed`, 51 with basis `mechanical`. A `reviewed` rule was established by a person who read the cited upstream evidence. A `mechanical` rule was derived from upstream source by an extractor program that is re-run and checked before the rule is accepted; no person reviewed it rule by rule. The 221 release-line attestations and served-API lists are separate records: 221 with basis `mechanical`.
 <!-- basis-counts:end -->
 
 Each rule states which way it was established, and
@@ -300,7 +300,7 @@ upgrade surface they decide.
 Catalogued is not the same as decided.
 
 <!-- crd-catalogue:begin -->
-A project is catalogued when it has a reviewed custom-resource target (87 projects: 46 of the CNCF landscape catalog, 41 of the community catalog). It is decided only for the upgrades that a rule or line attestation covers for the whole release-line pair (A or B in the table below). Of the 41 community-catalog projects, 16 hold a published rule or current line attestation for the CRD version family and 25 hold none.
+A project is catalogued when it has a reviewed custom-resource target (87 projects: 46 of the CNCF landscape catalog, 41 of the community catalog). It is decided only for the upgrades that a rule or line attestation covers for the whole release-line pair (A or B in the table below). Of the 41 community-catalog projects, 18 hold a published rule or current line attestation for the CRD version family and 23 hold none.
 <!-- crd-catalogue:end -->
 
 In beta.0, a community-catalog project without data in the embedded knowledge
@@ -311,31 +311,33 @@ community projects that hold CRD knowledge.
 ## Coverage
 
 <!-- coverage:begin -->
-Generated on 2026-11-17 by `scripts/readme-coverage.sh` (do not edit this block by hand). Release lines captured 2026-10-31, evaluated on 2026-11-07. 9 projects were appended to the snapshot with their own capture dates; the date clock of the block is 2026-11-10 (the later of the snapshot's evaluation date and every capture date). The block is evaluated at 2026-11-17T01:04:29Z, the time of the newest line attestation, which is later than the date clock above.
+Generated on 2026-11-17 by `scripts/readme-coverage.sh` (do not edit this block by hand). Release lines captured 2026-10-31, evaluated on 2026-11-07. 9 projects were appended to the snapshot with their own capture dates; the date clock of the block is 2026-11-10 (the later of the snapshot's evaluation date and every capture date). The block is evaluated at 2026-11-17T09:56:27Z, the time of the newest line attestation, which is later than the date clock above.
 
 | Executable rules | Count |
 | --- | --- |
-| CNCF source rules, active | 253 across 54 projects (1 withdrawn, not used) |
+| CNCF source rules, active | 257 across 55 projects (1 withdrawn, not used) |
 | Rules for further, non-CNCF projects | 51 across 10 projects |
-| Projects with at least one executable check (a rule, a named check or a profile; says nothing about which upgrades it decides) | 68 |
-| Projects with a rule or attestation that decides at least one of their last five minor upgrades (A, B or S below) | 50 of 79 |
-| Projects catalogued with retained public sources | 58 (11 of them source-only, no check) |
+| Projects with at least one executable check (a rule, a named check or a profile; says nothing about which upgrades it decides) | 70 |
+| Projects with a rule or attestation that decides at least one of their last five minor upgrades (A, B or S below) | 52 of 79 |
+| Projects catalogued with retained public sources | 58 (10 of them source-only, no check) |
 | Projects with reviewed CRD targets (a reviewed `crd.custom_resource_versions` target) | 87 |
-| Projects with a published CRD rule or line attestation | 37 |
+| Projects with a published CRD rule or line attestation | 43 |
 
 Version-coverage depth, measured over the last five minor upgrades of each of the 79 CNCF-catalog projects of the snapshot (97 projects have one; 395 upgrades between consecutive release lines):
 
 | Status | Upgrades | Share |
 | --- | --- | --- |
-| Decided for the whole release-line pair (A attested, B bounded) | 77 | 19.4% |
+| Decided for the whole release-line pair (A attested, B bounded) | 86 | 21.7% |
 | Rule for one exact version pair only (S) | 39 | 9.8% |
-| Gap, no valid rule (G) | 279 | 70.6% |
+| Gap, no valid rule (G) | 270 | 68.3% |
 
 Community catalogue, measured separately and not part of the table above: 42 of 88 upgrades decided (A or B) over 18 projects.
 
 Kubernetes: 63 valid rules, but 19 fall in its window 1.32 to 1.37; 0 of 5 upgrades in that window are gaps.
 
-Decided means a valid rule or attestation covers every version of both release lines. It never means a whole-upgrade PASS. Only 9 of the 77 decided upgrades are decided by a rule, or by an attestation that lists rules, so the answer for them can be BLOCKED or UNKNOWN. The other 68 are decided only by line attestations that list no rule (68 by `crd.custom_resource_versions`): for them an attestation can only give a family-scoped PASS (`scan` prints "PASS within <family> only"), never BLOCKED. An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.
+Decided means a valid rule or attestation covers every version of both release lines. It never means a whole-upgrade PASS. Only 9 of the 86 decided upgrades are decided by a rule, or by an attestation that lists rules, so the answer for them can be BLOCKED or UNKNOWN. The other 77 are decided only by line attestations that list no rule (77 by `crd.custom_resource_versions`): for them an attestation can only give a family-scoped PASS (`scan` prints "PASS within <family> only"), never BLOCKED. An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.
+
+Projects with a valid rule or attestation but no release lines in the snapshot (their upgrades are unknown, not counted): kubevela, percona-server-mysql-operator.
 <!-- coverage:end -->
 
 Update the block with `scripts/readme-coverage.sh` (`--check` fails when it is
@@ -366,7 +368,7 @@ Velero and others.
 Every rule in the CNCF and community-project packs is time-limited.
 
 <!-- validity-window:begin -->
-The 304 active rules shipped today stop being valid, rule by rule, between 2026-12-07 and 2027-02-12 unless their review is renewed; after its date a build without newer knowledge answers `UNKNOWN` for that rule. 199 of the 304 stop being valid on or before 2026-12-12, in the 6 days starting on the earliest.
+The 311 active rules shipped today stop being valid, rule by rule, between 2026-12-07 and 2027-02-12 unless their review is renewed; after its date a build without newer knowledge answers `UNKNOWN` for that rule. 199 of the 311 stop being valid on or before 2026-12-12, in the 6 days starting on the earliest.
 <!-- validity-window:end -->
 
 The named cert-manager and Prometheus checks are pinned to
