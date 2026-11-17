@@ -79,6 +79,17 @@ is then refused and no code digest is produced. `targets.json` is part of the
 extractor's code digest, so any change of a row changes the identity a gate
 pins.
 
+The loader also refuses an empty table, two rows with the same component, two
+rows with the same repo, a path that is `.` or a directory, and a file row
+without a boundary style.
+
+Before a new row merges as data it must show, in its review record:
+
+- the repo is the canonical upstream repository of the component;
+- the heading style matches the version heading at its exact line in the
+  changelog file at a pinned tag, and an adjacent version is withheld;
+- each listed boundary style is present in that file.
+
 A component without a reviewed row is refused with exit 2. A component whose
 row has a non-file form (post-tag, github-release) prints a withheld manifest
 with its typed code, and nothing is read. Rows of form `changelog-file` exist

@@ -8,14 +8,15 @@ package changelogentries
 //
 //   - the top level is {"schema", "rows"}; unknown fields and duplicate keys
 //     are refused, and so is anything after the document;
-//   - rows are sorted by component, strictly ascending (so no component twice);
+//   - rows are not empty and sorted by component, strictly ascending (so no
+//     component twice); no two rows name the same repo;
 //   - a row is {component, repo, form, path, headingStyle, boundaryStyles};
 //   - component is a lower-case slug, repo a canonical github.com/<org>/<repo>
 //     key, form one of changelog-file, github-release, post-tag, docs-page,
 //     monorepo;
 //   - path (a clean repository-relative path, no "..", not absolute),
 //     headingStyle and boundaryStyles are present only for the form
-//     "changelog-file" (path and headingStyle required) and absent for every
+//     "changelog-file" (path, headingStyle and at least one boundary style required) and absent for every
 //     other form;
 //   - headingStyle and each boundary style are names from the closed tables
 //     headingStyles and boundaryStyles below. A name maps to a fixed regular
@@ -100,13 +101,21 @@ func parseTargets(data []byte) ([]Target, error) {
 	if doc.Schema != TargetsSchema {
 		return nil, fmt.Errorf("changelog targets: schema %q, want %q", doc.Schema, TargetsSchema)
 	}
+	if len(doc.Rows) == 0 {
+		return nil, errors.New("changelog targets: no rows")
+	}
 	out := make([]Target, 0, len(doc.Rows))
 	prev := ""
+	repos := map[string]string{}
 	for i, r := range doc.Rows {
 		if i > 0 && r.Component <= prev {
 			return nil, fmt.Errorf("changelog targets: row %q is not sorted strictly after %q", r.Component, prev)
 		}
 		prev = r.Component
+		if other, dup := repos[r.Repo]; dup {
+			return nil, fmt.Errorf("changelog targets: row %q names repo %q already used by %q", r.Component, r.Repo, other)
+		}
+		repos[r.Repo] = r.Component
 		t, err := r.target()
 		if err != nil {
 			return nil, fmt.Errorf("changelog targets: row %q: %w", r.Component, err)
@@ -135,7 +144,7 @@ func (r rowData) target() (Target, error) {
 		return Target{}, fmt.Errorf("form %q is not allowed in the table", r.Form)
 	}
 	if r.Path == "" || strings.ContainsAny(r.Path, "\x00\\") || path.IsAbs(r.Path) || path.Clean(r.Path) != r.Path ||
-		r.Path == ".." || strings.HasPrefix(r.Path, "../") {
+		r.Path == "." || r.Path == ".." || strings.HasPrefix(r.Path, "../") {
 		return Target{}, fmt.Errorf("path %q must be a clean repository-relative path", r.Path)
 	}
 	t.Path = r.Path
@@ -144,6 +153,9 @@ func (r rowData) target() (Target, error) {
 		return Target{}, fmt.Errorf("heading style %q is not known", r.HeadingStyle)
 	}
 	t.HeadingPattern = h
+	if len(r.BoundaryStyles) == 0 {
+		return Target{}, errors.New("a file row needs at least one boundary style")
+	}
 	seen := map[string]bool{}
 	for _, b := range r.BoundaryStyles {
 		p, ok := boundaryStyles[b]

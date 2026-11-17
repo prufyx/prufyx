@@ -82,6 +82,9 @@ func TestReviewedRows(t *testing.T) {
 					strings.ReplaceAll("## 1.2.3 / 2026-01-02\n\n* [BUGFIX] fix\n\n", "", "") +
 					"## 1.2.2 / 2025-12-01\n\n* [BUGFIX] older\n"
 				unrel := "main / unreleased"
+				if len(row.BoundaryPatterns) == 0 {
+					t.Fatal("a file row has no boundary pattern")
+				}
 				if strings.Contains(row.BoundaryPatterns[0], `\(`) {
 					unrel = "main / (unreleased)"
 				}
@@ -143,13 +146,14 @@ func TestParseTargetsRefusesEverythingOutsideTheSchema(t *testing.T) {
 		return row(`{"component":"a","repo":"github.com/o/a","form":"changelog-file",` + kv + `}`)
 	}
 	okFile := `"path":"CHANGELOG.md","headingStyle":"version-slash-date"`
+	okB := okFile + `,"boundaryStyles":["main-unreleased"]`
 	cases := map[string]string{
 		"empty":                   ``,
 		"not json":                `{`,
 		"wrong schema":            `{"schema":"x","rows":[]}`,
 		"no schema":               `{"rows":[]}`,
 		"unknown top field":       `{"schema":"prufyx.io/changelog-targets/v1","rows":[],"x":1}`,
-		"unknown row field":       file(okFile + `,"headingPattern":"^(?P<version>x)$"`),
+		"unknown row field":       file(okB + `,"headingPattern":"^(?P<version>x)$"`),
 		"regex as heading style":  file(`"path":"CHANGELOG.md","headingStyle":"^(?P<version>[0-9.]+)$"`),
 		"regex as boundary style": file(okFile + `,"boundaryStyles":["^main$"]`),
 		"unknown heading style":   file(`"path":"CHANGELOG.md","headingStyle":"nope"`),
@@ -161,7 +165,7 @@ func TestParseTargetsRefusesEverythingOutsideTheSchema(t *testing.T) {
 		"dotdot path":             file(`"path":"../CHANGELOG.md","headingStyle":"version-slash-date"`),
 		"unclean path":            file(`"path":"a/../CHANGELOG.md","headingStyle":"version-slash-date"`),
 		"backslash path":          file(`"path":"a\\b.md","headingStyle":"version-slash-date"`),
-		"duplicate key":           file(okFile + `,"path":"OTHER.md"`),
+		"duplicate key":           file(okB + `,"path":"OTHER.md"`),
 		"templated form":          row(`{"component":"a","repo":"github.com/o/a","form":"changelog-per-line-file","path":"x/{line}.md","headingStyle":"version-slash-date"}`),
 		"unknown form":            row(`{"component":"a","repo":"github.com/o/a","form":"file"}`),
 		"post-tag with path":      row(`{"component":"a","repo":"github.com/o/a","form":"post-tag","path":"CHANGELOG.md"}`),
@@ -171,6 +175,13 @@ func TestParseTargetsRefusesEverythingOutsideTheSchema(t *testing.T) {
 		"empty component":         row(`{"component":"","repo":"github.com/o/a","form":"post-tag"}`),
 		"non-canonical repo":      row(`{"component":"a","repo":"github.com/O/a","form":"post-tag"}`),
 		"repo with scheme":        row(`{"component":"a","repo":"https://github.com/o/a","form":"post-tag"}`),
+		"repo twice":              row(`{"component":"a","repo":"github.com/o/a","form":"post-tag"},{"component":"b","repo":"github.com/o/a","form":"post-tag"}`),
+		"no rows":                 row(``),
+		"dot path":                file(`"path":".","headingStyle":"version-slash-date","boundaryStyles":["main-unreleased"]`),
+		"dot slash path":          file(`"path":"./","headingStyle":"version-slash-date","boundaryStyles":["main-unreleased"]`),
+		"directory path":          file(`"path":"docs/","headingStyle":"version-slash-date","boundaryStyles":["main-unreleased"]`),
+		"empty boundary list":     file(okFile + `,"boundaryStyles":[]`),
+		"no boundary styles":      file(okFile),
 		"unsorted":                row(`{"component":"b","repo":"github.com/o/b","form":"post-tag"},{"component":"a","repo":"github.com/o/a","form":"post-tag"}`),
 		"component twice":         row(`{"component":"a","repo":"github.com/o/a","form":"post-tag"},{"component":"a","repo":"github.com/o/b","form":"post-tag"}`),
 		"data after the document": goodFile + ` {}`,
