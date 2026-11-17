@@ -109,7 +109,7 @@ def candidate(c):
 
 bp = a.state + "/known-mismatch.json"
 seeded = False
-if not os.path.exists(bp) and a.mode == "full" and not a.adhoc:
+if not os.path.exists(bp) and a.mode == "full" and not a.adhoc and not seed_failed:
     json.dump(sorted({f"{c['suite']}|{c['key']}" for c in cases if c["mismatch"] and not c["wrongpass"] and not candidate(c)}), open(bp, "w"))
     seeded = True
 base = set(json.load(open(bp))) if os.path.exists(bp) else set()
@@ -198,10 +198,10 @@ oracle_rise = a.mode == "full" and oracle_changed and kept_design is not None an
 # growth beyond +20% (at least +5) of the last accepted full-run count, or past the hard cap, is a scanner regression until proven otherwise
 cap_breach = design > DESIGN_HARD_CAP or (a.mode == "full" and prev_design is not None and design > prev_design + max(5, -(-prev_design // 5)))
 unowned_cap_breach = unowned_n > UNOWNED_HARD_CAP or (a.mode == "full" and prev_unowned is not None and unowned_n > prev_unowned + max(5, -(-prev_unowned // 5)))
-unowned_drop = a.mode == "full" and prev_unowned is not None and prev_unowned > 0 and (unowned_n == 0 or (prev_unowned >= 10 and unowned_n * 2 < prev_unowned))
+unowned_drop = a.mode == "full" and not seed_failed and prev_unowned is not None and prev_unowned > 0 and (unowned_n == 0 or (prev_unowned >= 10 and unowned_n * 2 < prev_unowned))
 unowned_rise = a.mode == "full" and prev_unowned is not None and unowned_n > prev_unowned
 design_rise = a.mode == "full" and prev_design is not None and design > prev_design
-design_drop = a.mode == "full" and prev_design is not None and prev_design >= 10 and design * 2 < prev_design
+design_drop = a.mode == "full" and not seed_failed and prev_design is not None and prev_design >= 10 and design * 2 < prev_design
 # an errored run (any error case: a source that could not be read produced no design cases, so its count is too low) or any other
 # INCONCLUSIVE state never stores or lowers the baseline: only a clean complete full run may move it
 baseline_stored = not (cap_breach or unowned_cap_breach or oracle_rise or er or gaps_breach or a.mode != "full" or a.adhoc or seed_failed)

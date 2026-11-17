@@ -260,6 +260,7 @@ PY
   ) || exit 3
   export QA_BATCH_SCOPE_DIGEST
 fi
+# an oracle-file change must never select mode none: the seeded wrong-PASS cases would be skipped
 if [ "$mode" = incremental ] && [ "$selmode" = none ] && [ "$GATE" = 0 ]; then
   log "$s8: nothing relevant changed since ${lg:0:8}; recording green"
   python3 -I -c 'import json,sys;json.dump([],open(sys.argv[1],"w"))' "$OUT/none.cases.json"

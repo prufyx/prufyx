@@ -292,6 +292,20 @@ class SummaryPlumbing(unittest.TestCase):
         r, s = summarize(self.dir, self.state, "--require-seeded")
         self.assertEqual(r.returncode, 3)
 
+    def test_failed_or_missing_seed_never_seeds_the_known_mismatch_baseline(self):
+        suite_cases(self.dir)
+        for label, prepare in (("missing", lambda: None),
+                               ("uncaught", lambda: write_seeded(self.dir, total=14, uncaught=["crd-whole-exit0-pass"]))):
+            with self.subTest(label):
+                (self.dir / "seeded.json").unlink(missing_ok=True)
+                prepare()
+                r = subprocess.run([sys.executable, str(HERE / "summarize.py"), "--dir", str(self.dir), "--state", str(self.state),
+                                    "--sha", "a" * 40, "--mode", "full", "--require-seeded"], capture_output=True, text=True,
+                                   env={k: v for k, v in os.environ.items() if not k.startswith("QA_")})
+                self.assertNotEqual(r.returncode, 0, r.stdout)
+                self.assertFalse((self.state / "known-mismatch.json").exists())
+                self.assertIs(json.loads((self.dir / "summary.json").read_text())["baseline_seeded"], False)
+
     def test_failed_seed_run_does_not_reset_baselines_in_status(self):
         (self.state / "status.json").write_text(json.dumps({"design_unknown_whole_crd_baseline": 30, "unsupported_community": 4,
                                                            "oracle_digest": qalib.oracle_digest(), "mode": "full"}))
