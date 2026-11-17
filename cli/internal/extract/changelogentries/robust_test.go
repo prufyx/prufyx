@@ -28,7 +28,7 @@ func TestLinkDefinitionShape(t *testing.T) {
 		"two words":     "* [FEATURE] x. #1\n\n[BREAKING]: removed flag\n",
 		"url then text": "* [FEATURE] x. #1\n\n[ref]: https://x.test/a and the flag --x is removed\n",
 	} {
-		e := locateOrDisagree(t, promTarget, "v3.5.0", entryWith(body))
+		e := locateExact(t, name == "one word", promTarget, "v3.5.0", entryWith(body))
 		if e == nil {
 			continue
 		}
@@ -171,6 +171,7 @@ func FuzzLocate(f *testing.F) {
 	f.Add([]byte(shapeBlankLabel))
 	f.Add([]byte(shapeFootnote))
 	f.Add([]byte(shapeDeepClose))
+	f.Add([]byte("## 3.4.0 / 2025-05-17\n- [CHANGE] x\n  ## 3.5.0 / 2025-07-14\n- [FEATURE] y\n"))
 	for _, s := range []string{shapeHTMLInItem, shapeHTMLDivItem, shapeHTMLBlankEnd, shapeHTMLPreTab, shapeHTMLPreOpen, shapeTabStop, shapeTabOpener, shapeHTMLComment, shapeHTMLPre, shapeHTMLBeforeEntry, shapeHTMLInEntry, shapeHTMLOneLine, shapeItemFenceNoCloser, shapeOpenerLeftOfItem, shapeOpenerFourPast, shapeListFence, shapeListFenceNested, shapeQuoteFence, shapeNBSPClose, shapeBareAngle} {
 		f.Add([]byte(s))
 	}
@@ -236,9 +237,7 @@ func TestAnchoringIsStructural(t *testing.T) {
 func TestOneCharUnderlineIsOverInclusive(t *testing.T) {
 	f := "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x. #1\n\nTitle\n=\n\n## 3.4.0 / 2025-05-17\n\n* z\n"
 	// CommonMark reads it as a heading and the scanner does not: withheld.
-	if e := locateOrDisagree(t, promTarget, "v3.5.0", f); e != nil {
-		t.Fatalf("located %+v", e.Section)
-	}
+	locateExact(t, true, promTarget, "v3.5.0", f)
 }
 
 const (
@@ -270,6 +269,13 @@ const (
 // A label of spaces only, a footnote label and a destination with an
 // unbalanced parenthesis are not link definitions: each line is a block item
 // with its own digest, never a silently counted definition.
+// linkLikeWithheld pins which rows the CommonMark oracle withholds (it reads
+// them as definitions or footnotes) and which are read as block items.
+var linkLikeWithheld = map[string]bool{
+	"blank label": false, "tab label": false, "title only": false,
+	"footnote": true, "footnote no text": true, "open paren": true, "paren in url": true,
+}
+
 func TestLinkLikeLinesAreItems(t *testing.T) {
 	for name, line := range map[string]string{
 		"blank label":      `[ ]: https://x.test "the flag --foo was removed"`,
@@ -285,7 +291,7 @@ func TestLinkLikeLinesAreItems(t *testing.T) {
 			"after heading": "### Notes\n" + line + "\n* [FEATURE] x. #1\n",
 		} {
 			f := entryWith(body)
-			e := locateOrDisagree(t, promTarget, "v3.5.0", f)
+			e := locateExact(t, linkLikeWithheld[name], promTarget, "v3.5.0", f)
 			if e == nil {
 				continue
 			}
@@ -419,12 +425,9 @@ func TestUnicodeWhitespaceDoesNotCloseFence(t *testing.T) {
 // own digest, never a silently excluded link definition.
 func TestBareDestinationAngleBracketIsItem(t *testing.T) {
 	for _, def := range []string{`[r]: https://x/<bad> "removed --foo"`, `[r]: https://x/bad> "removed --foo"`, `[r]: https://x/<bad`} {
-		e := locateOrDisagree(t, promTarget, "v3.5.0", entryWith("* [FEATURE] x. #1\n\n"+def+"\n"))
-		if e == nil {
-			continue
-		}
-		if e.Tiling.LinkDefs != 0 || oracleIsLinkDef(def) || len(e.Items) != 2 {
-			t.Errorf("%q: %+v items %d", def, e.Tiling, len(e.Items))
+		locateExact(t, true, promTarget, "v3.5.0", entryWith("* [FEATURE] x. #1\n\n"+def+"\n"))
+		if oracleIsLinkDef(def) {
+			t.Errorf("oracle accepts %q", def)
 		}
 	}
 	for _, s := range []string{shapeBareAngle} {
@@ -490,18 +493,24 @@ func TestTabAndHTMLBlockStops(t *testing.T) {
 	mustLocate(t, promTarget, "v3.5.0", shapeHTMLOneLine)
 }
 
-// locateOrDisagree locates the file, or returns nil when the CommonMark oracle
-// disagrees with the scanner and the file is withheld (the safe outcome for a
-// shape the scanner reads more strictly than CommonMark).
-func locateOrDisagree(t *testing.T, tg Target, tagName, file string) *Entry {
+// locateExact pins one outcome: withheld=true means the file is refused with
+// the CommonMark disagreement and nil is returned; withheld=false means it is
+// read and the entry is returned. Any other outcome fails the test.
+func locateExact(t *testing.T, withheld bool, tg Target, tagName, file string) *Entry {
 	t.Helper()
 	e, err := locateMem(tg, tagName, file)
-	if err != nil {
+	if withheld {
+		if err == nil {
+			t.Fatalf("expected a commonmark-disagreement refusal, located %+v on %q", e.Section, file)
+		}
 		wantCode(t, err, EntryParseResidue)
 		if !strings.Contains(err.Error(), "commonmark-disagreement") {
 			t.Fatalf("unexpected refusal: %v", err)
 		}
 		return nil
+	}
+	if err != nil {
+		t.Fatalf("expected the file to be read, got %v on %q", err, file)
 	}
 	return e
 }
@@ -588,4 +597,19 @@ func TestItemDisagreementElsewhereWithholdsEveryTag(t *testing.T) {
 		_, err := locateMem(promTarget, tg, f)
 		wantCode(t, err, EntryParseResidue)
 	}
+}
+
+// A unit that starts before the section and reaches into it (the version
+// heading written inside the last item of the previous section) is withheld.
+func TestUnitStraddlingTheSectionStartIsRefused(t *testing.T) {
+	f := "## 3.4.0 / 2025-05-17\n- [CHANGE] x\n  ## 3.5.0 / 2025-07-14\n- [FEATURE] y\n"
+	for _, tg := range []string{"v3.5.0", "v3.4.0"} {
+		e, err := locateMem(promTarget, tg, f)
+		if err == nil {
+			t.Fatalf("%s located %+v", tg, e.Section)
+		}
+		wantCode(t, err, EntryParseResidue)
+	}
+	locateExact(t, true, promTarget, "v3.5.0", f)
+	checkNoPanic(t, []byte(f))
 }
