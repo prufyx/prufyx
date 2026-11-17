@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"testing"
 
@@ -231,7 +232,7 @@ func TestExactOuterExtensionClassification(t *testing.T) {
 	for _, canary := range []bool{false, true} {
 		t.Run(fmt.Sprintf("canary-%t", canary), func(t *testing.T) {
 			all := projectsTargets(t, "5", nil)
-			first, _ := firstProjects(all)
+			first := firstProjectWithEntries(t, all)
 			var target map[string]json.RawMessage
 			if json.Unmarshal(all[first], &target) != nil {
 				t.Fatal("fixture")
@@ -374,4 +375,33 @@ func TestCompatOuterExtensionsRemainIntegrity(t *testing.T) {
 			}
 		})
 	}
+}
+
+// firstProjectWithEntries returns the first project target (in path order)
+// whose pack carries at least one entry with a required fact: the mutation
+// cases below edit entries[0].requiredFacts[0]. A project published with line
+// attestations only has no entries and is skipped.
+func firstProjectWithEntries(t *testing.T, all map[string][]byte) string {
+	t.Helper()
+	var paths []string
+	for name := range all {
+		if name != ConstraintsProjectsIndexTargetPath {
+			paths = append(paths, name)
+		}
+	}
+	sort.Strings(paths)
+	for _, p := range paths {
+		var target struct {
+			Pack struct {
+				Entries []struct {
+					RequiredFacts []json.RawMessage `json:"requiredFacts"`
+				} `json:"entries"`
+			} `json:"pack"`
+		}
+		if json.Unmarshal(all[p], &target) == nil && len(target.Pack.Entries) > 0 && len(target.Pack.Entries[0].RequiredFacts) > 0 {
+			return p
+		}
+	}
+	t.Fatal("no project target with a rule entry")
+	return ""
 }
