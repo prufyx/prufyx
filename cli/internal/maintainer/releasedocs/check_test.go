@@ -563,9 +563,8 @@ func TestReadmeAndChangelogKeywordLinesAreScanned(t *testing.T) {
 		e := build(t, rig{readme: replaceIn("Tail text.", l)})
 		wantFail(t, check(t, e.opts(ModeUnreleased)), CodeProse, "README.md")
 	}
-	e := build(t, rig{readme: replaceIn("Tail text.", "Prufyx holds 79 projects.")})
 	// Outside the markers but without a coverage keyword: not a coverage sentence.
-	e = build(t, rig{readme: replaceIn("Tail text.", "Needs Go 126 or newer.")})
+	e := build(t, rig{readme: replaceIn("Tail text.", "Needs Go 126 or newer.")})
 	wantPass(t, check(t, e.opts(ModeUnreleased)))
 	// The generated README block may carry numbers.
 	e = build(t, rig{readme: replaceIn("generated text 5", "projects decided 5")})
