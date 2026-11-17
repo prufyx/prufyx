@@ -30,13 +30,13 @@ func metadataTrees(t *testing.T) (Tree, Tree) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rows, reserved, err := customresources.LoadTable(raw)
+	rows, reserved, unowned, err := customresources.LoadTable(raw)
 	if err != nil {
 		t.Fatal(err)
 	}
 	rows = append(rows, customresources.Project{Slug: obSlug, Catalog: customresources.CatalogCNCF, FactProject: obFact, Component: obComp, Groups: []customresources.Group{{Name: obGroup, Source: "https://github.com/" + obOwnerRepo + "/blob/" + obTo + "/" + obCRD}}})
 	sort.Slice(rows, func(i, j int) bool { return rows[i].Slug < rows[j].Slug })
-	raw, err = customresources.CanonicalTable(rows, reserved)
+	raw, err = customresources.CanonicalTable(rows, reserved, unowned)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,11 +113,28 @@ func TestOnboardingMetadataRefusals(t *testing.T) {
 		{"reserved groups edited", func(t *testing.T, b, h Tree) {
 			rel := DefaultLayout().Onboarding.TablePath
 			raw, _ := h.Read(rel, MaxFileBytes)
-			rows, reserved, err := customresources.LoadTable(raw)
+			rows, reserved, unowned, err := customresources.LoadTable(raw)
 			if err != nil || len(reserved) == 0 {
 				t.Fatalf("reserved fixture: %v", err)
 			}
-			raw, err = customresources.CanonicalTable(rows, reserved[1:])
+			raw, err = customresources.CanonicalTable(rows, reserved[1:], unowned)
+			if err != nil {
+				t.Fatal(err)
+			}
+			writeFile(t, filepath.Join(h.Root, rel), raw)
+		}},
+		{"unowned record added", func(t *testing.T, b, h Tree) {
+			rel := DefaultLayout().Onboarding.TablePath
+			raw, _ := h.Read(rel, MaxFileBytes)
+			rows, reserved, unowned, err := customresources.LoadTable(raw)
+			if err != nil || len(unowned) != 0 {
+				t.Fatalf("unowned fixture: %v", err)
+			}
+			raw, err = customresources.CanonicalTable(rows, reserved, []customresources.UnownedGroup{{
+				Name:   "fixture.example.io",
+				Reason: "fixture group, no project defines or installs it",
+				Source: "https://github.com/example-org/example-repo/blob/0123456789abcdef0123456789abcdef01234567/crds/a.yaml",
+			}})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -192,7 +209,7 @@ func TestOnboardingMetadataRefusals(t *testing.T) {
 		{"old row removed", func(t *testing.T, b, h Tree) {
 			p := DefaultLayout().Onboarding.TablePath
 			raw, _ := h.Read(p, MaxFileBytes)
-			rows, reserved, err := customresources.LoadTable(raw)
+			rows, reserved, unowned, err := customresources.LoadTable(raw)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -202,7 +219,7 @@ func TestOnboardingMetadataRefusals(t *testing.T) {
 					break
 				}
 			}
-			raw, err = customresources.CanonicalTable(rows, reserved)
+			raw, err = customresources.CanonicalTable(rows, reserved, unowned)
 			if err != nil {
 				t.Fatal(err)
 			}

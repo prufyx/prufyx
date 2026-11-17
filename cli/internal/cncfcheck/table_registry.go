@@ -39,7 +39,7 @@ func TableDefinitions(projects []customresources.Project) []constraintengine.Fac
 // TableRegistryDigest is the digest of the registry TableDefinitions
 // compiles for a table file.
 func TableRegistryDigest(tableRaw []byte) (string, error) {
-	projects, _, err := customresources.LoadTable(tableRaw)
+	projects, _, _, err := customresources.LoadTable(tableRaw)
 	if err != nil {
 		return "", err
 	}
@@ -60,7 +60,7 @@ func assembleFull(landscapeRaw, priorityRaw, packRaw []byte, definitions []const
 	projects := customresources.Projects()
 	if tableRaw != nil {
 		var err error
-		if projects, _, err = customresources.LoadTable(tableRaw); err != nil {
+		if projects, _, _, err = customresources.LoadTable(tableRaw); err != nil {
 			return bundle{}, 0, ErrIntegrity
 		}
 	}

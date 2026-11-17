@@ -28,7 +28,7 @@ func TestReservedGroupsMatchPin(t *testing.T) {
 
 // table.json has one spelling: the canonical encoding of what it decodes to.
 func TestTableFileIsCanonical(t *testing.T) {
-	want, err := encodeTable(table, reserved)
+	want, err := encodeTable(table, reserved, unowned)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +62,7 @@ func TestLoadTableRefusesBadDocuments(t *testing.T) {
 	group := func(d map[string]any, slug string) map[string]any {
 		return project(d, slug)["groups"].([]any)[0].(map[string]any)
 	}
-	if _, _, err := LoadTable(mutate(func(map[string]any) {})); err != nil {
+	if _, _, _, err := LoadTable(mutate(func(map[string]any) {})); err != nil {
 		t.Fatalf("round trip refused: %v", err)
 	}
 	for _, tc := range []struct {
@@ -91,7 +91,7 @@ func TestLoadTableRefusesBadDocuments(t *testing.T) {
 			d["reserved"] = append(r, map[string]any{"name": "zz.x-k8s.io", "owner": "kueue", "repository": "https://github.com/kubernetes-sigs/kueue", "reason": "a record its owner does not list"})
 		}), "does not validate"},
 	} {
-		if _, _, err := LoadTable(tc.raw); err == nil || !strings.Contains(err.Error(), tc.want) {
+		if _, _, _, err := LoadTable(tc.raw); err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("%s: %v, want %q", tc.name, err, tc.want)
 		}
 	}
@@ -108,18 +108,18 @@ func TestTableKindsRoundTrip(t *testing.T) {
 		{Slug: "a", Catalog: CatalogCNCF, FactProject: "a", Component: "pkg:github/x/a", Groups: []Group{{Name: "shared.example.io", Source: src("a"), Kinds: []string{"Alpha", "Beta"}}, {Name: "whole.example.io", Source: src("a")}}},
 		{Slug: "b", Catalog: CatalogCNCF, FactProject: "b", Component: "pkg:github/x/b", Groups: []Group{{Name: "shared.example.io", Source: src("b"), Kinds: []string{"Gamma"}}}},
 	}
-	raw, err := CanonicalTable(projects, nil)
+	raw, err := CanonicalTable(projects, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if n := strings.Count(string(raw), `"kinds"`); n != 2 {
 		t.Fatalf("%d kinds members in\n%s", n, raw)
 	}
-	loaded, _, err := LoadTable(raw)
+	loaded, _, _, err := LoadTable(raw)
 	if err != nil {
 		t.Fatal(err)
 	}
-	again, err := CanonicalTable(loaded, nil)
+	again, err := CanonicalTable(loaded, nil, nil)
 	if err != nil || !bytes.Equal(raw, again) {
 		t.Fatalf("round trip differs: %v", err)
 	}

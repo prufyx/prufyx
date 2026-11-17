@@ -94,6 +94,7 @@ type onboardingSide struct {
 	table    []byte
 	projects []customresources.Project
 	reserved []customresources.ReservedGroup
+	unowned  []customresources.UnownedGroup
 	state    OnboardingState
 	// members are the pack's revision and registryDigest members (the
 	// revision is read to require that it does not change).
@@ -155,7 +156,7 @@ func readOnboardingSide(ol OnboardingLayout, t Tree, p *loadedPack) (onboardingS
 	if err != nil {
 		return s, err
 	}
-	s.table, s.projects, s.reserved = tr.raw, tr.projects, tr.reserved
+	s.table, s.projects, s.reserved, s.unowned = tr.raw, tr.projects, tr.reserved, tr.unowned
 	if s.state.RegistryDigest, err = cncfcheck.TableRegistryDigest(s.table); err != nil {
 		return s, fmt.Errorf("the registry does not compile from the custom-resource table: %v", err)
 	}
@@ -454,6 +455,9 @@ func (st *onboardingState) check(rec OnboardingRecord, batchPath string) []strin
 	}
 	if !reflect.DeepEqual(st.base.reserved, st.head.reserved) {
 		bad("O4: the reserved groups of the custom-resource table changed; a reserved group is recorded on its own, never in an onboarding batch")
+	}
+	if !reflect.DeepEqual(st.base.unowned, st.head.unowned) {
+		bad("O4: the unowned records of the custom-resource table changed; an unowned record is recorded on its own, never in an onboarding batch")
 	}
 	sharing := newRowGroups(rec, headRows)
 	for slug, b := range baseRows {

@@ -110,6 +110,9 @@ func prepareOnboardingMetadata(layout Layout, base, head Tree) (metadataDraft, e
 	if !reflect.DeepEqual(st.base.reserved, st.head.reserved) {
 		return out, errors.New("reserved groups must remain unchanged")
 	}
+	if !reflect.DeepEqual(st.base.unowned, st.head.unowned) {
+		return out, errors.New("unowned records must remain unchanged")
+	}
 	baseRows, headRows := projectsBySlug(st.base.projects), projectsBySlug(st.head.projects)
 	for slug, row := range baseRows {
 		if !reflect.DeepEqual(row, headRows[slug]) {

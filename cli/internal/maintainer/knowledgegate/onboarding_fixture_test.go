@@ -207,13 +207,13 @@ func (f *onboardingFixture) editTable(t *testing.T, edit func([]customresources.
 	if err != nil {
 		t.Fatal(err)
 	}
-	projects, reserved, err := customresources.LoadTable(raw)
+	projects, reserved, unowned, err := customresources.LoadTable(raw)
 	if err != nil {
 		t.Fatal(err)
 	}
 	projects = edit(projects)
 	sort.Slice(projects, func(i, j int) bool { return projects[i].Slug < projects[j].Slug })
-	table, err := customresources.CanonicalTable(projects, reserved)
+	table, err := customresources.CanonicalTable(projects, reserved, unowned)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -294,7 +294,7 @@ func (f *onboardingFixture) writeDocs(t *testing.T) {
 	}
 	sort.Slice(loaded, func(i, j int) bool { return loaded[i].Project < loaded[j].Project })
 	table, _ := f.head.Read(ol.TablePath, MaxFileBytes)
-	projects, reserved, err := customresources.LoadTable(table)
+	projects, reserved, _, err := customresources.LoadTable(table)
 	if err != nil {
 		return
 	}

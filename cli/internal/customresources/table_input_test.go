@@ -31,7 +31,7 @@ func TestLoadTableInputShape(t *testing.T) {
 		{"a repeated member name", dupKey, "ambiguous"},
 		{"a member name repeated in another case", foldKey, "ambiguous"},
 	} {
-		_, _, err := LoadTable(tc.raw)
+		_, _, _, err := LoadTable(tc.raw)
 		switch {
 		case tc.want == "" && err != nil:
 			t.Errorf("%s: refused: %v", tc.name, err)

@@ -42,11 +42,11 @@ func (f *onboardingFixture) editBaseTable(t *testing.T, edit func([]customresour
 	if err != nil {
 		t.Fatal(err)
 	}
-	projects, reserved, err := customresources.LoadTable(raw)
+	projects, reserved, unowned, err := customresources.LoadTable(raw)
 	if err != nil {
 		t.Fatal(err)
 	}
-	table, err := customresources.CanonicalTable(edit(projects), reserved)
+	table, err := customresources.CanonicalTable(edit(projects), reserved, unowned)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -223,14 +223,14 @@ func TestOnboardingRefusals(t *testing.T) {
 		{"O4 reserved group with a record", blind(func(t *testing.T, f *onboardingFixture) {
 			ol := DefaultLayout().Onboarding
 			raw, _ := f.head.Read(ol.TablePath, MaxFileBytes)
-			projects, reserved, _ := customresources.LoadTable(raw)
+			projects, reserved, unowned, _ := customresources.LoadTable(raw)
 			reserved = append(reserved, customresources.ReservedGroup{Name: "a.storage.synthetic.k8s.io", Owner: obSlug, Repository: "https://" + obRepo, Reason: "a synthetic reserved group record"})
 			for i := range projects {
 				if projects[i].Slug == obSlug {
 					projects[i].Groups = append([]customresources.Group{{Name: "a.storage.synthetic.k8s.io", Source: projects[i].Groups[0].Source}}, projects[i].Groups...)
 				}
 			}
-			table, _ := customresources.CanonicalTable(projects, sortReserved(reserved))
+			table, _ := customresources.CanonicalTable(projects, sortReserved(reserved), unowned)
 			writeFile(t, headFile(f, ol.TablePath), table)
 			f.follow(t)
 			f.draft.Projects[0].Groups = []string{"a.storage.synthetic.k8s.io", obGroup}
