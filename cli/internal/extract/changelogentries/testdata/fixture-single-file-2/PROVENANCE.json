@@ -1,0 +1,205 @@
+{
+ "note": "Real excerpts of each repository's CHANGELOG.md read at the tag's commit from a public git clone: the preamble, the sections above the tag's own entry, the tag's own entry and the one release section after it, verbatim (a byte-exact prefix of the upstream file, lines 1..excerptLines), cut at a section boundary. upstreamBlobSha is the git blob id of the whole upstream file.",
+ "files": [
+  {
+   "repo": "github.com/prometheus/blackbox_exporter",
+   "tag": "v0.24.0",
+   "commit": "0b0467473916fd9e8526e2635c2a0b1c56011dff",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "2e57ee485cedf61c7527e3ab9ebe023faf762f96",
+   "upstreamLines": 64,
+   "excerptLines": 12,
+   "excerptSha256": "cfe14085051e7554dad9d38d9449c4c0c317df4594789cf44767d899a35e834c"
+  },
+  {
+   "repo": "github.com/prometheus/blackbox_exporter",
+   "tag": "v0.26.0",
+   "commit": "444e3d089ae1aeeed385712ef84a5fa4f0c083ec",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "7e5c16f595bd0c0f841272312c318658fea74054",
+   "upstreamLines": 96,
+   "excerptLines": 31,
+   "excerptSha256": "b91dab54cb458caf7aac1e189e309f15aaa996401c3d8c6d2216104c5fd5ee09"
+  },
+  {
+   "repo": "github.com/prometheus/blackbox_exporter",
+   "tag": "v0.28.0",
+   "commit": "5a059bee8d8ffa4e75947c5055fb0abeefc582e6",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "71bbc0d9da8dc9f4a659ec852729576cc4db3cb3",
+   "upstreamLines": 120,
+   "excerptLines": 34,
+   "excerptSha256": "51fc4ad7d8c30f968063c04c05f36e4fa9b46890168558801ed965fc394b4eb1"
+  },
+  {
+   "repo": "github.com/prometheus/blackbox_exporter",
+   "tag": "v0.29.0",
+   "commit": "0e64fec9b041487cc3b62245a8ed5afb0d22819c",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "d053d26245cc96b6cb17d21bd37553475b9ab96f",
+   "upstreamLines": 135,
+   "excerptLines": 43,
+   "excerptSha256": "058a1bb035dc66e187f5c92bd835953b696adc2467c0c30cbd7eb1cc8d4c6496"
+  },
+  {
+   "repo": "github.com/prometheus/blackbox_exporter",
+   "tag": "v0.29.1",
+   "commit": "ad91668339ca265f460c23fc422a27ba6d788db9",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "7aedfe216774d67744e73bdb7e31117187bfa00f",
+   "upstreamLines": 142,
+   "excerptLines": 30,
+   "excerptSha256": "347834c9412f6255e787021efff292c279db68b87475e8c095aa689bc0b5a333"
+  },
+  {
+   "repo": "github.com/openfga/openfga",
+   "tag": "v1.17.0",
+   "commit": "14404b693084a816450afd952495416afe3e470d",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "81c9ab4f4719e56f182008a399c0d5056b4de598",
+   "upstreamLines": 1773,
+   "excerptLines": 27,
+   "excerptSha256": "974ea23891eaee9367afec1135af693f0ef10273608dbc6860fd8dda193adc70"
+  },
+  {
+   "repo": "github.com/openfga/openfga",
+   "tag": "v1.18.3",
+   "commit": "81c6202153a853d90589565884a56942c3fd07be",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "801c32e91dd1b59f24986e474deb55efa1faf01c",
+   "upstreamLines": 1829,
+   "excerptLines": 29,
+   "excerptSha256": "2d937a8baa3cecb3a62fca30a7b50b4e6101192f8819e8232ca085005cf3691a"
+  },
+  {
+   "repo": "github.com/openfga/openfga",
+   "tag": "v1.20.0",
+   "commit": "73591ef16ce508623920d5b706286ffcdfb6841b",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "4f8c59b8ee83f40be72a92634f1344d07f273897",
+   "upstreamLines": 1857,
+   "excerptLines": 32,
+   "excerptSha256": "c9cdf55cc418caf418d0b678bee2fed6fadbc3a907bae3d0ccdcdddcbc0bba7f"
+  },
+  {
+   "repo": "github.com/openfga/openfga",
+   "tag": "v1.22.0",
+   "commit": "a38d5d0f65a964b6030e0b1afd2a831f62309159",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "1b6040eb98e4e66673ad6b8e3d01a298cd5f0f36",
+   "upstreamLines": 1877,
+   "excerptLines": 26,
+   "excerptSha256": "4b2a17b0c22fb67261525676b222e72e57a9a72db2a089c1d7d18474bb3f7c14"
+  },
+  {
+   "repo": "github.com/openfga/openfga",
+   "tag": "v1.22.1",
+   "commit": "44054f542f64e9b9589dd26a595081b3d2cfd942",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "39fa306b24cbe3588610a0800248b58eb5e90bb5",
+   "upstreamLines": 1887,
+   "excerptLines": 31,
+   "excerptSha256": "3044d755f1711c09c2531a164cded2cebda01127eedd0d38ae05dd3c734c1d7b"
+  },
+  {
+   "repo": "github.com/in-toto/in-toto",
+   "tag": "v2.0.0",
+   "commit": "3467cd97426af937daa807bd870413782cee6235",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "d763d83b48e6d722e7002fa2a54345620e31094e",
+   "upstreamLines": 314,
+   "excerptLines": 44,
+   "excerptSha256": "608365509ec5937b4edde48adebb21bdf95d65537f9e1751bfbad81560b667dc"
+  },
+  {
+   "repo": "github.com/in-toto/in-toto",
+   "tag": "v2.1.1",
+   "commit": "3bb4dd8070710eac7e8157581c725f23cc4adad4",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "8d13b42a9a2b2d28571b5da040c05efff826f6d9",
+   "upstreamLines": 336,
+   "excerptLines": 23,
+   "excerptSha256": "ec38f4f6325731588ef1ff86c1f0fdbbc66b5843e653fcfc347e27ba5b7a8772"
+  },
+  {
+   "repo": "github.com/in-toto/in-toto",
+   "tag": "v2.2.0",
+   "commit": "0c1a97f0632659dc27a930d2dc31b69b58dd1437",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "3aab3abf983cefaa6fbd5e5a3b90bddf0b78dda9",
+   "upstreamLines": 373,
+   "excerptLines": 44,
+   "excerptSha256": "e73d8ff68b7f9c35021fd4a9bc97b5b461197b94158c65c5346f48b29ac8e633"
+  },
+  {
+   "repo": "github.com/in-toto/in-toto",
+   "tag": "v3.0.0",
+   "commit": "659942bde1cd732b0b9449445f9769b2def6aeb1",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "612f0a208c38f0778c4a73337d1baf244514d2e3",
+   "upstreamLines": 397,
+   "excerptLines": 25,
+   "excerptSha256": "cbb3358a7ddfd583d7822fc89fb60ac82e2a8039797ac41910a94f26fa49a104"
+  },
+  {
+   "repo": "github.com/in-toto/in-toto",
+   "tag": "v3.1.0",
+   "commit": "c82fe5d21aaa61c7f1a213db20a46f10bb3f411a",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "8efcb8616591f29d09b0c7b2f5ec20be901a2e07",
+   "upstreamLines": 410,
+   "excerptLines": 25,
+   "excerptSha256": "2294d2c6098e8c83de15bdb5116f1a8f78ce8f648ce08bd04a81d5f545c67994"
+  },
+  {
+   "repo": "github.com/fluent/fluentd",
+   "tag": "v1.15.0",
+   "commit": "79ead40de9dec33afc2a9bf6cc25f5ec2d65a482",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "6a9b1179a9363498f077a4e7fd4b0e82c648d219",
+   "upstreamLines": 2505,
+   "excerptLines": 89,
+   "excerptSha256": "cdd3ee272da831fd3c944af826f676722ea347f32f4ea3b786c5bce37426b948"
+  },
+  {
+   "repo": "github.com/fluent/fluentd",
+   "tag": "v1.16.0",
+   "commit": "206b46b91560177366371c1f05bbcf09ac006d86",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "f6ddc604df34cf12c21ef0a4e593f900fd349871",
+   "upstreamLines": 2633,
+   "excerptLines": 97,
+   "excerptSha256": "abdda4f822be00bb7276449ecb0f1a8a2183e103dec10b6944cf447bc9258758"
+  },
+  {
+   "repo": "github.com/fluent/fluentd",
+   "tag": "v1.16.9",
+   "commit": "daccbc6f0551611c65d3ce7efd81dfc7b693f3e3",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "189f765bb996d4680ece9408141c4b38bffd5a80",
+   "upstreamLines": 2838,
+   "excerptLines": 45,
+   "excerptSha256": "e71d901b2c34d488cef5a406bdd01dbed5767d73ad36c0fee800046fcabfd307"
+  },
+  {
+   "repo": "github.com/fluent/fluentd",
+   "tag": "v1.19.0",
+   "commit": "ed15edc4b7c86c1fcea3fbf326b7c42325e6fc71",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "200ed49eae082ff7015ace3f4c30017a974d1f74",
+   "upstreamLines": 3109,
+   "excerptLines": 182,
+   "excerptSha256": "83b016da46ac7528cf8e559f241eb29039e8b0c50709fb0512257f9a1e5bd57c"
+  },
+  {
+   "repo": "github.com/fluent/fluentd",
+   "tag": "v1.20.1",
+   "commit": "086fa170eb55f494289b10759cfca2a68f3ae87c",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "a96292348de50a7cbafb9259e7cf3f976caa3b7f",
+   "upstreamLines": 3332,
+   "excerptLines": 82,
+   "excerptSha256": "8f3188d42bc92512e7c50688f8b578e16544c8adff79be904ae9f44df7d48435"
+  }
+ ]
+}
