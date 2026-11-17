@@ -258,3 +258,29 @@ func TestHoldsForeignLinesWithKnownMechanicalRules(t *testing.T) {
 		t.Errorf("foreign line with a rule: %v %v %v", held, others, err)
 	}
 }
+
+// A foreign rule of a hyphenated project reads the fact id its extractor
+// emits (the target's fact project, dashes as underscores); the shape check
+// stays strict about everything else.
+func TestHoldsForeignMechanicalRuleOfHyphenatedProject(t *testing.T) {
+	const id = "percona-server-mysql-operator.crd-version-removal.perconaservermysqlbackups-ps-percona-com.0-11-0-to-0-12-0"
+	const comp = "pkg:github/percona/percona-server-mysql-operator"
+	cases := []struct {
+		name, project, id, fact, side string
+		ok                            bool
+	}{
+		{"extractor fact id", "percona-server-mysql-operator", id, "component.percona_server_mysql_operator.custom_resource_versions_set", "proposed", true},
+		{"slug as is", "percona-server-mysql-operator", id, "component.percona-server-mysql-operator.custom_resource_versions_set", "proposed", false},
+		{"another project's fact", "percona-server-mysql-operator", id, "component.cilium.custom_resource_versions_set", "proposed", false},
+		{"current side", "percona-server-mysql-operator", id, "component.percona_server_mysql_operator.custom_resource_versions_set", "current", false},
+	}
+	for _, c := range cases {
+		held, err := Holds(packOf([]string{foreignEntry(c.project, c.id, comp, c.fact, c.side)}, nil))
+		if c.ok && (err != nil || held) {
+			t.Errorf("%s: want accepted and no batch, got %v %v", c.name, held, err)
+		}
+		if !c.ok && err == nil {
+			t.Errorf("%s: accepted", c.name)
+		}
+	}
+}
