@@ -66,9 +66,14 @@ type Manifest struct {
 	Withheld  *Withheld         `json:"withheld,omitempty"`
 }
 
-// Reviewed is the reviewed table of changelog targets. It is empty until a
-// component's row has been reviewed; a component without a row is refused.
-var Reviewed = []Target{}
+// Reviewed is the reviewed table of changelog targets. Rows are added only
+// after review; a component without a row is refused.
+var Reviewed = []Target{
+	{Component: "vault", Repo: extract.RepoRef{Key: "github.com/hashicorp/vault"}, Form: FormPostTag},
+	{Component: "aws-ebs-csi-driver", Repo: extract.RepoRef{Key: "github.com/kubernetes-sigs/aws-ebs-csi-driver"}, Form: FormPostTag},
+	{Component: "flannel", Repo: extract.RepoRef{Key: "github.com/flannel-io/flannel"}, Form: FormGithubRelease},
+	{Component: "csi-driver-smb", Repo: extract.RepoRef{Key: "github.com/kubernetes-csi/csi-driver-smb"}, Form: FormGithubRelease},
+}
 
 // Lookup returns the row of a component in table. Exactly one row must match.
 func Lookup(table []Target, component string) (Target, error) {
