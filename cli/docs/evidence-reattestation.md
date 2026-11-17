@@ -513,6 +513,45 @@ one of: `WORKLIST_SCOPE_INCOMPLETE` and `CITATION_PENDING` (E2), `TAG_FALLBACK_B
 `STAGGER_DEFERRED` (V7 cap), `MECHANICAL_RULE_EXCLUDED`, and, in automated
 mode only, `LATEST_BASELINE_NOT_AUTOMATABLE`, `TAG_LINE_BASELINE_NOT_AUTOMATABLE` and `REVIEWED_OUTSIDE_STATEMENT_CHAIN`.
 
+## Automated renewal in CI
+
+`.github/workflows/evidence-renewal.yml` runs `prepare --mode automated`,
+`sign --role automation` and `verify` unattended and opens one pull request
+with the signed statement. It triggers weekly (Monday 05:00 UTC) and on
+`workflow_dispatch`; it has no `pull_request` or `pull_request_target`
+trigger, so a change cannot run it or reach its secrets. It never merges:
+the knowledge gate re-derives every citation independently and decides.
+
+| Job | Holds | Does |
+|---|---|---|
+| `prepare` | read-only token, no secrets | builds the CLI from the triggering commit of `main`, re-pins the release lines over HTTP, computes how many rules this run may renew, prepares the statement for the first pack (`cncf`, then `community`) that has an eligible rule, runs the structural checks, uploads the worklist and the unsigned statement and reports their sha256 |
+| `sign` | environment `renewal`: the secrets `REATTEST_AUTOMATION_KEY` and `REATTEST_AUTOMATION_KEY_PASSPHRASE` | checks the downloaded files against that sha256, builds the CLI from the same commit, writes the key under the runner temp directory (mode 0600), signs, removes the key even on failure, runs `verify` |
+| `pr` | the bot App token, no repository code | exits if a pull request on `factory/renewal/automated-*` is open or if `main` moved since `prepare`; otherwise creates the branch and one commit through the API (GitHub-signed, bot-authored) holding the pack, one chain entry and its worklist, and opens the pull request |
+
+The run renews at most N rules, N = min(45, the gate's daily loosening limit
+minus the loosenings `gate daily-count` counts for the last 24 hours). A
+statement that would renew nothing is never written: the run ends cleanly.
+
+Dry run: `workflow_dispatch` takes `dry_run`, default `true`. A dry run
+re-pins, prepares and runs the structural checks, then stops: `sign` and `pr`
+are skipped and no secret is read. (No signing test root exists in the
+repository, so the dry run cannot verify a signature; `verify --structural-only`
+never exits zero by design and the workflow treats its explicit success
+message as the pass.) A scheduled run is a real run; it signs only when the
+`renewal` environment holds the key, and otherwise skips `sign` without error.
+A dispatch with `dry_run: false` and no key fails.
+
+Setup (owner): the `renewal` environment restricted to `main`, the two
+secrets in it, the repository variable `REATTEST_TRUST_ROOT_DIGEST` set to a
+root that lists the automation key, and a bot App (`KNOWLEDGE_BOT_APP_ID`,
+`KNOWLEDGE_BOT_APP_PRIVATE_KEY`) whose login equals `KNOWLEDGE_BOT_LOGIN`.
+Revocation: restore the previous root digest variable and delete the secrets.
+
+Limits: the re-pin uses the workflow token (about 1000 requests an hour); a
+run that hits the limit fails and the next run retries. `sign` verifies against
+the worklist `prepare` produced; the gate's own re-pin remains the independent
+check.
+
 ## Line attestations and path policies
 
 A pack that carries [line attestations](line-attestations.md) or
