@@ -1,3 +1,3 @@
 ### Changed
 
-- The coverage report counts a crossing rule as decided for a pair of release lines only when it starts exactly at the first release of the newer line and covers the whole older line, and reports a changelog-attested row with typed gap reasons for projects with a changelog target.
+- The coverage report adds a changelog-attested row with typed gap reasons for projects with a changelog target. A pair decided only by the changelog family is counted in that row alone, not in the decided figures above it, and the report JSON carries `decidedChangelog` per project and for the fleet.

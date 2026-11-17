@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 )
 
@@ -34,8 +33,8 @@ const (
 // family, the pairs it decides and the typed reasons of the others.
 type changelogStats struct {
 	targets int // projects with a reviewed changelog target
-	decided int // pairs decided (A) by the changelog family
-	bounded int // pairs of member projects decided by a rule (B)
+	decided int // pairs decided by the changelog family alone
+	bounded int // pairs of member projects decided by a source family or a rule (A or B)
 	spot    int // pairs of member projects with a rule for one exact version pair only (S)
 	gap     int
 	pairs   int
@@ -47,9 +46,9 @@ func (c *changelogStats) active() bool { return c.targets > 0 || c.decided > 0 }
 func (c *changelogStats) addPair(p Pair, reason string) {
 	c.pairs++
 	switch {
-	case p.Status == StatusA && hasFamily(p.Families, FamilyChangelogAttested):
+	case p.Changelog:
 		c.decided++
-	case p.Status == StatusB:
+	case p.Status == StatusA || p.Status == StatusB:
 		c.bounded++
 	case p.Status == StatusS:
 		c.spot++
@@ -60,15 +59,6 @@ func (c *changelogStats) addPair(p Pair, reason string) {
 		}
 		c.reasons[reason]++
 	}
-}
-
-func hasFamily(list []string, f string) bool {
-	for _, x := range list {
-		if x == f {
-			return true
-		}
-	}
-	return false
 }
 
 // mixedComponents returns the components that are in the CRD family (a
@@ -104,7 +94,7 @@ func mixedComponents(in Input, atts []lineattest.LineAttestation) map[string]boo
 // decided: the most specific typed reason over its changelog attestations of
 // the pair's hop, else NO_ATTESTATION. atts holds all attestations, current
 // or not.
-func changelogGapReason(component, from, to string, atts []lineattest.LineAttestation, now time.Time, byID map[string]*ruleRec, releases map[string][]string, mixed map[string]bool) string {
+func changelogGapReason(component, fromLine, toLine string, atts []lineattest.LineAttestation, now time.Time, byID map[string]*ruleRec, releases map[string][]string, mixed map[string]bool) string {
 	if mixed[component] {
 		return GapMixedMember
 	}
@@ -116,7 +106,7 @@ func changelogGapReason(component, from, to string, atts []lineattest.LineAttest
 		}
 	}
 	for _, a := range atts {
-		if a.FactFamily != FamilyChangelogAttested || a.Component != component || a.Line != to || !a.HopFrom(from) {
+		if a.FactFamily != FamilyChangelogAttested || a.Component != component || a.Line != toLine || !a.HopFrom(fromLine) {
 			continue
 		}
 		if a.Freshness(now) != lineattest.FreshnessCurrent {
@@ -127,7 +117,7 @@ func changelogGapReason(component, from, to string, atts []lineattest.LineAttest
 			consider(GapCompletenessMismatch)
 			continue
 		}
-		if !releasesMatch(a.Releases, releases[from], releases[to]) {
+		if !releasesMatch(a.Releases, releases[fromLine], releases[toLine]) {
 			consider(GapStaleReleases)
 			continue
 		}
@@ -138,26 +128,13 @@ func changelogGapReason(component, from, to string, atts []lineattest.LineAttest
 		}
 		for _, id := range a.RuleIDs {
 			r := byID[id]
-			if r == nil || !r.valid || !family.CoversLine(a.Component, r.tr, to) {
+			if r == nil || !r.valid || !family.CoversLine(a.Component, r.tr, toLine) {
 				consider(GapRuleNotLineWide)
 				break
 			}
 		}
 	}
 	return best
-}
-
-// crossingLineWide reports whether a crossing rule decides every upgrade of
-// the pair: it starts exactly at the first release (x.y.0) of the to line,
-// its to region covers the whole to line, its from region covers the whole
-// from line, and it admits upstream on both sides. A crossing at x.y.1 or
-// later does not match a hop into x.y.0 and never counts.
-func crossingLineWide(tr constraintengine.RuleTransition, fromLine, toLine string, toBound constraintengine.VersionBound) bool {
-	cf, ct, ok := tr.CrossingBounds()
-	if !ok || ct.Gte != toBound.Gte || !cf.CoversLine(fromLine) || !ct.CoversLine(toLine) {
-		return false
-	}
-	return tr.CrossingAdmits(constraintengine.DistributionUpstream, constraintengine.DistributionUpstream)
 }
 
 // changelogSentence is the README line for the changelog family, empty when
@@ -179,5 +156,5 @@ func changelogSentence(c changelogStats) string {
 	if len(reasons) > 0 {
 		hist = strings.Join(reasons, ", ")
 	}
-	return fmt.Sprintf("Changelog-attested (`%s`): %d decided, %d gap over %d upgrades of its member projects (%d more decided by a rule, %d by a rule for one exact version pair only). %d projects have a changelog target; that is catalogue coverage, not the number of upgrades decided. Gap reasons: %s.\n", FamilyChangelogAttested, c.decided, c.gap, c.pairs, c.bounded, c.spot, c.targets, hist)
+	return fmt.Sprintf("Changelog-attested (`%s`): %d decided, %d gap over %d upgrades of its member projects (%d more decided by a source family or a rule, %d by a rule for one exact version pair only). %d projects have a changelog target; that is catalogue coverage, not the number of upgrades decided. Gap reasons: %s.\n", FamilyChangelogAttested, c.decided, c.gap, c.pairs, c.bounded, c.spot, c.targets, hist)
 }

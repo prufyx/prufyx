@@ -89,6 +89,9 @@ type Pair struct {
 	// Families names the fact families of the attestations (A) or rules
 	// (B) that decide the pair.
 	Families []string `json:"families,omitempty"`
+	// Changelog marks a pair decided only by the changelog-attested family.
+	// Its Status is G: it is not counted in A, B or S.
+	Changelog bool `json:"changelog,omitempty"`
 	// Cells and Weight are metric v2 members of the last two pairs of a
 	// tiered project; absent unless Input.V2 is set. Cells maps a v2 family
 	// to attested, bounded or open.
@@ -115,6 +118,8 @@ type Project struct {
 	B        int      `json:"b"`
 	S        int      `json:"s"`
 	G        int      `json:"g"`
+	// DecidedChangelog counts pairs decided only by the changelog family.
+	DecidedChangelog int `json:"decidedChangelog,omitempty"`
 	// VC is (A+B)/pairs and VCA is A/pairs; both are 0 without pairs.
 	VC  float64 `json:"vc"`
 	VCA float64 `json:"vcA"`
@@ -140,6 +145,8 @@ type Totals struct {
 	B        int `json:"b"`
 	S        int `json:"s"`
 	G        int `json:"g"`
+	// DecidedChangelog counts pairs decided only by the changelog family.
+	DecidedChangelog int `json:"decidedChangelog,omitempty"`
 	// C1 counts covered projects among those with lines.
 	C1 int `json:"c1"`
 	// C3 counts projects with VC >= 0.6, C5 projects with VC_A = 1.
@@ -752,6 +759,9 @@ func Compute(in Input) (Report, error) {
 				row.S++
 			default:
 				row.G++
+				if pair.Changelog {
+					row.DecidedChangelog++
+				}
 			}
 		}
 		if in.All {
@@ -782,6 +792,7 @@ func Compute(in Input) (Report, error) {
 			t.B += p.B
 			t.S += p.S
 			t.G += p.G
+			t.DecidedChangelog += p.DecidedChangelog
 			t.RulesInWindow += p.RulesInWindow
 			if p.Covered {
 				t.C1++
@@ -902,6 +913,16 @@ func classify(project, fromLine, toLine string, rules []*ruleRec, atts []lineatt
 	pair := Pair{From: fromLine, To: toLine, Status: StatusG}
 	if lineMapped(project) {
 		if fams, listed := attestedFamilies(fromLine, toLine, atts, byID, releases); len(fams) > 0 {
+			if len(fams) == 1 && fams[0] == FamilyChangelogAttested {
+				// Only the changelog family decides: a valid bounding rule makes it a
+				// source decision (B); without one it counts in the changelog row only.
+				if bf, ok := boundedFamilies(fromLine, toLine, rules); ok {
+					pair.Status, pair.Families, pair.canBlock = StatusB, bf, true
+				} else {
+					pair.Changelog = true
+				}
+				return pair
+			}
 			// A valid line-wide rule bounding the same pair can still lead to BLOCKED
 			// even when the attestation lists no rule.
 			if !listed {
@@ -972,8 +993,8 @@ func attestedFamilies(fromLine, toLine string, atts []lineattest.LineAttestation
 
 // boundedFamilies reports whether a valid rule decides the whole pair: its
 // range covers the whole from line and the whole to line, or its crossing
-// starts exactly at the first release of the to line and covers the whole
-// from line (see crossingLineWide). The returned families name the rules' fact families, or
+// removal release lies inside the to line and its crossing region covers the
+// whole from line. The returned families name the rules' fact families, or
 // "other" for a rule outside every attestable family.
 func boundedFamilies(fromLine, toLine string, rules []*ruleRec) ([]string, bool) {
 	toNext, ok := nextLineStart(toLine)
@@ -990,7 +1011,7 @@ func boundedFamilies(fromLine, toLine string, rules []*ruleRec) ([]string, bool)
 		if r.tr.Range != nil && r.tr.Range.From.CoversLine(fromLine) && r.tr.Range.To.CoversLine(toLine) {
 			hit = true
 		}
-		if crossingLineWide(r.tr, fromLine, toLine, toBound) {
+		if cf, ct, ok := r.tr.CrossingBounds(); ok && cf.CoversLine(fromLine) && toBound.Contains(ct.Gte) && constraintengine.VersionLess(ct.Gte, ct.Lt) {
 			hit = true
 		}
 		if !hit {

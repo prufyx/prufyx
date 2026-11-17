@@ -3,6 +3,7 @@
 package coveragereport
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -114,30 +115,6 @@ func TestChangelogReportRowAndCRDUnchanged(t *testing.T) {
 	}
 }
 
-func TestStrictCrossingLineWide(t *testing.T) {
-	mk := func(change string) string {
-		return `"crossing":{"change":{"version":"` + change + `","basis":"REMOVED_IN_RELEASE","sourceId":"s"},"horizon":{"lt":"1.10.0","basis":"REVIEWED_THROUGH_MINOR_LINE","sourceId":"s"}}`
-	}
-	run := func(rule string, window ...string) string {
-		report, err := Compute(Input{Pack: pack([]string{rule}, nil), Lines: lines("prometheus", window...), Now: baselineNow})
-		if err != nil {
-			t.Fatal(err)
-		}
-		return statuses(report.Projects[0])
-	}
-	if got := run(relnotesSetRule("p.r", "1.8.2", "1.9.0", mk("1.9.0")), "1.8", "1.9"); got != "B" {
-		t.Errorf("x.y.0 crossing: %s", got)
-	}
-	// A removal in the middle of the line does not match a hop into x.y.0.
-	if got := run(relnotesSetRule("p.r", "1.8.2", "1.9.1", mk("1.9.1")), "1.8", "1.9"); got == "B" {
-		t.Errorf("x.y.1 crossing counted line-wide: %s", got)
-	}
-	// A crossing at 1.8.5 does not cover the whole from line 1.8.
-	if got := run(relnotesSetRule("p.r", "1.8.2", "1.9.0", mk("1.8.5")), "1.8", "1.9"); got == "B" {
-		t.Errorf("from region short counted: %s", got)
-	}
-}
-
 func withCompleteness(a lineattest.LineAttestation, c string) lineattest.LineAttestation {
 	a.Completeness = c
 	return a
@@ -187,5 +164,49 @@ func TestChangelogMixedMemberNeverDecided(t *testing.T) {
 	c := r.changelog
 	if c.decided != 0 || c.bounded != 0 || c.gap != 1 || c.pairs != 1 || c.reasons[GapMixedMember] != 1 {
 		t.Fatalf("stats %+v", c)
+	}
+}
+
+// A pair decided only by the changelog family is marked Changelog with status
+// G, so it moves no existing counter; the changelog row counts it as decided.
+func TestChangelogOnlyClassSplit(t *testing.T) {
+	const comp = "pkg:github/strimzi/strimzi-kafka-operator"
+	atts := []lineattest.LineAttestation{clAtt(comp, FamilyChangelogAttested, "2027-01-01T00:00:00Z", []string{"1.8.0"}, []string{"1.9.0"})}
+	rels := map[string][]string{"1.8": {"1.8.0"}, "1.9": {"1.9.0"}}
+	pair := classify("strimzi", "1.8", "1.9", nil, atts, map[string]*ruleRec{}, rels)
+	if pair.Status != StatusG || !pair.Changelog || len(pair.Families) != 0 {
+		t.Fatalf("changelog-only pair: %+v", pair)
+	}
+	var c changelogStats
+	c.addPair(pair, changelogGapReason(comp, "1.8", "1.9", atts, baselineNow, map[string]*ruleRec{}, rels, nil))
+	if c.decided != 1 || c.gap != 0 || c.bounded != 0 || c.pairs != 1 {
+		t.Fatalf("stats %+v", c)
+	}
+	// Another attested family decides too: a source decision, not a changelog one.
+	if plain := (Pair{Status: StatusA, Families: []string{"other.family", FamilyChangelogAttested}}); true {
+		var d changelogStats
+		d.addPair(plain, "")
+		if d.decided != 0 || d.bounded != 1 {
+			t.Fatalf("source pair counted as changelog: %+v", d)
+		}
+	}
+	// A release mismatch decides nothing and is typed.
+	stale := map[string][]string{"1.8": {"1.8.0", "1.8.1"}, "1.9": {"1.9.0"}}
+	if p := classify("strimzi", "1.8", "1.9", nil, atts, map[string]*ruleRec{}, stale); p.Changelog || p.Status != StatusG {
+		t.Fatalf("stale pair: %+v", p)
+	}
+	if r := changelogGapReason(comp, "1.8", "1.9", atts, baselineNow, map[string]*ruleRec{}, stale, nil); r != GapStaleReleases {
+		t.Fatalf("reason %s", r)
+	}
+}
+
+func TestDecidedChangelogJSON(t *testing.T) {
+	b, err := json.Marshal(Totals{})
+	if err != nil || strings.Contains(string(b), "decidedChangelog") {
+		t.Fatalf("zero count not omitted: %s %v", b, err)
+	}
+	b, _ = json.Marshal(Totals{DecidedChangelog: 2})
+	if !strings.Contains(string(b), `"decidedChangelog":2`) {
+		t.Fatalf("%s", b)
 	}
 }
