@@ -7,7 +7,7 @@ Prufyx checks a planned upgrade against upstream evidence and returns
 file, and line range it relies on, and says how it was established.
 
 <!-- basis-counts:begin -->
-Of the 304 active rules shipped today, 260 with basis `reviewed`, 44 with basis `mechanical`. A `reviewed` rule was established by a person who read the cited upstream evidence. A `mechanical` rule was derived from upstream source by an extractor program that is re-run and checked before the rule is accepted; no person reviewed it rule by rule. The 192 release-line attestations and served-API lists are separate records: 192 with basis `mechanical`.
+Of the 304 active rules shipped today, 260 with basis `reviewed`, 44 with basis `mechanical`. A `reviewed` rule was established by a person who read the cited upstream evidence. A `mechanical` rule was derived from upstream source by an extractor program that is re-run and checked before the rule is accepted; no person reviewed it rule by rule. The 203 release-line attestations and served-API lists are separate records: 203 with basis `mechanical`.
 <!-- basis-counts:end -->
 
 Each rule states which way it was established, and
@@ -300,7 +300,7 @@ upgrade surface they decide.
 Catalogued is not the same as decided.
 
 <!-- crd-catalogue:begin -->
-A project is catalogued when it has a reviewed custom-resource target (87 projects: 46 of the CNCF landscape catalog, 41 of the community catalog). It is decided only for the upgrades that a rule or line attestation covers for the whole release-line pair (A or B in the table below). Of the 41 community-catalog projects, 15 hold a published rule or current line attestation for the CRD version family and 26 hold none.
+A project is catalogued when it has a reviewed custom-resource target (87 projects: 46 of the CNCF landscape catalog, 41 of the community catalog). It is decided only for the upgrades that a rule or line attestation covers for the whole release-line pair (A or B in the table below). Of the 41 community-catalog projects, 16 hold a published rule or current line attestation for the CRD version family and 25 hold none.
 <!-- crd-catalogue:end -->
 
 In beta.0, a community-catalog project without data in the embedded knowledge
@@ -311,7 +311,7 @@ community projects that hold CRD knowledge.
 ## Coverage
 
 <!-- coverage:begin -->
-Generated on 2026-11-14 by `scripts/readme-coverage.sh` (do not edit this block by hand). Release lines captured 2026-10-31, evaluated on 2026-11-07. 9 projects were appended to the snapshot with their own capture dates; the date clock of the block is 2026-11-10 (the later of the snapshot's evaluation date and every capture date). The block is evaluated at 2026-11-14T11:21:41Z, the time of the newest line attestation, which is later than the date clock above.
+Generated on 2026-11-17 by `scripts/readme-coverage.sh` (do not edit this block by hand). Release lines captured 2026-10-31, evaluated on 2026-11-07. 9 projects were appended to the snapshot with their own capture dates; the date clock of the block is 2026-11-10 (the later of the snapshot's evaluation date and every capture date). The block is evaluated at 2026-11-17T01:04:29Z, the time of the newest line attestation, which is later than the date clock above.
 
 | Executable rules | Count |
 | --- | --- |
@@ -321,7 +321,7 @@ Generated on 2026-11-14 by `scripts/readme-coverage.sh` (do not edit this block 
 | Projects with a rule or attestation that decides at least one of their last five minor upgrades (A, B or S below) | 50 of 79 |
 | Projects catalogued with retained public sources | 58 (11 of them source-only, no check) |
 | Projects with reviewed CRD targets (a reviewed `crd.custom_resource_versions` target) | 87 |
-| Projects with a published CRD rule or line attestation | 35 |
+| Projects with a published CRD rule or line attestation | 37 |
 
 Version-coverage depth, measured over the last five minor upgrades of each of the 79 CNCF-catalog projects of the snapshot (97 projects have one; 395 upgrades between consecutive release lines):
 
