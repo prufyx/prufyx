@@ -395,3 +395,85 @@ func TestOnboardingMetadataUmask(t *testing.T) {
 		})
 	}
 }
+
+// reservedMetadataTrees is metadataTrees whose new row lists a reserved-namespace
+// group and whose head table carries the record born with it; mutate may then
+// edit the head's records.
+func reservedMetadataTrees(t *testing.T, mutate func([]customresources.ReservedGroup) []customresources.ReservedGroup) (Tree, Tree) {
+	t.Helper()
+	base, head := metadataTrees(t)
+	path := DefaultLayout().Onboarding.TablePath
+	raw, _ := head.Read(path, MaxFileBytes)
+	rows, recs, err := customresources.LoadTable(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range rows {
+		if rows[i].Slug == obSlug {
+			rows[i].Groups = []customresources.Group{{Name: obReservedGroup, Source: rows[i].Groups[0].Source}}
+			recs = append(recs, customresources.ReservedGroup{Name: obReservedGroup, Owner: obSlug, Repository: "https://" + obRepo, Reason: "synthetic group defined by this repository alone"})
+		}
+	}
+	if mutate != nil {
+		recs = mutate(recs)
+	}
+	raw, err = customresources.CanonicalTable(rows, sortReserved(recs))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(head.Root, path), raw)
+	return base, head
+}
+
+func TestOnboardingMetadataAdmitsWhatTheGateAdmits(t *testing.T) {
+	base, head := reservedMetadataTrees(t, nil)
+	draft, err := prepareOnboardingMetadata(DefaultLayout(), base, head)
+	if err != nil || draft.oldDigest == draft.newDigest {
+		t.Fatalf("born-together batch not prepared: %v", err)
+	}
+}
+
+func TestOnboardingMetadataReservedRefusals(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		mutate func([]customresources.ReservedGroup) []customresources.ReservedGroup
+		want   string
+	}{
+		{"existing record changed", func(r []customresources.ReservedGroup) []customresources.ReservedGroup {
+			for i := range r {
+				if r[i].Name != obReservedGroup {
+					r[i].Reason += " (edited)"
+					return r
+				}
+			}
+			t.Fatal("no existing record")
+			return r
+		}, "changes"},
+		{"existing record removed", func(r []customresources.ReservedGroup) []customresources.ReservedGroup {
+			for i := range r {
+				if r[i].Name != obReservedGroup {
+					return append(r[:i:i], r[i+1:]...)
+				}
+			}
+			t.Fatal("no existing record")
+			return r
+		}, "does not load"},
+		{"record without its row's group", func(r []customresources.ReservedGroup) []customresources.ReservedGroup {
+			var out []customresources.ReservedGroup
+			for _, x := range r {
+				if x.Name != obReservedGroup {
+					out = append(out, x)
+				}
+			}
+			return out
+		}, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			b, h := reservedMetadataTrees(t, tc.mutate)
+			_, err := prepareOnboardingMetadata(DefaultLayout(), b, h)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("want %q, got %v", tc.want, err)
+			}
+		})
+	}
+}

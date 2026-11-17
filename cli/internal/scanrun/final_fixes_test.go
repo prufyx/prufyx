@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/customresources"
 	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 )
@@ -129,7 +130,19 @@ func TestScanReservedCustomResourceGroups(t *testing.T) {
 			t.Fatalf("%s: exit %d gaps %v", name, result.Exit, gapReasons(result.Report))
 		}
 	}
+	// snapshot.storage.k8s.io is a property case: it follows the shipped
+	// list. With a record it is a custom resource group like Gateway API;
+	// without one it stays a Kubernetes group and is a gap.
+	recorded := false
+	for _, r := range customresources.ReservedGroups() {
+		recorded = recorded || r.Name == "snapshot.storage.k8s.io"
+	}
 	_, paths := files(t, map[string]string{"applyset.yaml": snapshot})
+	if result := mustScan(t, newKnowledge(t, full), command(paths)...); recorded != (result.Exit == scanreport.ExitPass) || (!recorded && !hasGap(result.Report, "API_VERSION_NOT_REVIEWED", "does not list as served")) {
+		t.Fatalf("snapshot group (recorded %v): exit %d gaps %v", recorded, result.Exit, gapReasons(result.Report))
+	}
+	unrecorded := "apiVersion: unrecorded.storage.k8s.io/v1\nkind: VolumeSnapshot\nmetadata: {name: a}\n"
+	_, paths = files(t, map[string]string{"applyset.yaml": unrecorded})
 	if result := mustScan(t, newKnowledge(t, full), command(paths)...); result.Exit == scanreport.ExitPass || !hasGap(result.Report, "API_VERSION_NOT_REVIEWED", "does not list as served") {
 		t.Fatalf("unreviewed k8s.io group: exit %d gaps %v", result.Exit, gapReasons(result.Report))
 	}
