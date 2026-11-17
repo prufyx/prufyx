@@ -452,8 +452,8 @@ func (st *onboardingState) check(rec OnboardingRecord, batchPath string) []strin
 	for _, p := range rec.Projects {
 		listed[p.Slug] = p
 	}
-	if !reflect.DeepEqual(st.base.reserved, st.head.reserved) {
-		bad("O4: the reserved groups of the custom-resource table changed; a reserved group is recorded on its own, never in an onboarding batch")
+	for _, msg := range reservedChanges(rec, st.base.reserved, st.head.reserved, baseRows, headRows) {
+		bad("%s", msg)
 	}
 	sharing := newRowGroups(rec, headRows)
 	for slug, b := range baseRows {
@@ -643,8 +643,17 @@ func (st *onboardingState) checkProject(p OnboardingProject, baseRows, headRows 
 		for _, g := range row.Groups {
 			// Defence in depth: the table does not load with such a group
 			// unless a reviewed ownership record lists it.
-			if customresources.ReservedNamespace(g.Name) || customresources.KubernetesGroup(g.Name) {
-				bad("O4: the group %s is reserved; a reserved group is recorded on its own, never in an onboarding batch", logSafe(g.Name))
+			// A reserved-namespace group is listed whole only when the head's
+			// reserved list carries the record for exactly this slug and
+			// repository (the record itself is checked by reservedChanges).
+			// The compiled-in list is not consulted: a record the batch adds
+			// is not in it. Every other Kubernetes group is refused.
+			if customresources.ReservedNamespace(g.Name) {
+				if g.Kinds != nil || !headOwnsReserved(st.head.reserved, g.Name, p.Slug, rowRepository(row)) {
+					bad("O4: the group %s is reserved, and the head's reserved list has no record of it for this project and its repository", logSafe(g.Name))
+				}
+			} else if customresources.KubernetesGroup(g.Name) {
+				bad("O4: the group %s is a Kubernetes group; a Kubernetes group is never listed", logSafe(g.Name))
 			}
 			// A shared group is allowed when every listing of it, the new
 			// row's own included, names kinds. The head table has loaded, so
@@ -824,4 +833,79 @@ func catalogSplitProblems(rec OnboardingRecord, base, head []customresources.Pro
 		}
 	}
 	return problems
+}
+
+// rowRepository is the upstream repository a row's component names.
+func rowRepository(row customresources.Project) string {
+	return "https://github.com/" + strings.TrimPrefix(row.Component, "pkg:github/")
+}
+
+// headOwnsReserved reports whether the list carries exactly one record of
+// the group, for that owner and repository.
+func headOwnsReserved(records []customresources.ReservedGroup, group, owner, repository string) bool {
+	n := 0
+	for _, r := range records {
+		if r.Name != group {
+			continue
+		}
+		n++
+		if r.Owner != owner || r.Repository != repository {
+			return false
+		}
+	}
+	return n == 1
+}
+
+// reservedChanges refuses every change of the reserved-group ownership list
+// except the addition of records born together with their owner: each added
+// record is owned by a project row the batch adds as new, names that row's
+// repository, and the row lists the group whole. No record of the base
+// changes or goes. The records are part of the table bytes, whose digest the
+// owner's signature covers (the head state's tableDigest).
+func reservedChanges(rec OnboardingRecord, base, head []customresources.ReservedGroup, baseRows, headRows map[string]customresources.Project) []string {
+	var out []string
+	headBy := map[string]customresources.ReservedGroup{}
+	for _, r := range head {
+		headBy[r.Name] = r
+	}
+	baseBy := map[string]bool{}
+	for _, r := range base {
+		baseBy[r.Name] = true
+		h, ok := headBy[r.Name]
+		switch {
+		case !ok:
+			out = append(out, "O4: the reserved group record of "+logSafe(r.Name)+" is removed")
+		case h != r:
+			out = append(out, "O4: the reserved group record of "+logSafe(r.Name)+" changes")
+		}
+	}
+	newSlugs := map[string]bool{}
+	for _, p := range rec.Projects {
+		if p.Kind == OnboardingKindNew {
+			newSlugs[p.Slug] = true
+		}
+	}
+	for _, r := range head {
+		if baseBy[r.Name] {
+			continue
+		}
+		row, ok := headRows[r.Owner]
+		if _, inBase := baseRows[r.Owner]; !ok || inBase || !newSlugs[r.Owner] {
+			out = append(out, "O4: the reserved group record of "+logSafe(r.Name)+" is owned by "+logSafe(r.Owner)+", which is not a new project row of the batch; a record is added only together with its owner's new row")
+			continue
+		}
+		if r.Repository != rowRepository(row) {
+			out = append(out, "O4: the reserved group record of "+logSafe(r.Name)+" names a repository other than its owner row's")
+		}
+		whole := false
+		for _, g := range row.Groups {
+			if g.Name == r.Name && g.Kinds == nil {
+				whole = true
+			}
+		}
+		if !whole {
+			out = append(out, "O4: the owner row of the reserved group record of "+logSafe(r.Name)+" does not list the group whole")
+		}
+	}
+	return out
 }
