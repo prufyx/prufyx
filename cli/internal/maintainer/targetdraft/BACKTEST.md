@@ -107,3 +107,28 @@ reproduce, nothing to flip or drop) exits 2. A green percentage without
 does not change the exit code); 1 a seed reproduced; 2 usage, I/O, manifest or
 harness error. The run is done twice and `backtest.json` must be
 byte-identical, otherwise exit 2.
+
+## Measurement layer (report only)
+
+None of this changes what the generator emits; it changes what the report says.
+
+- `escalateAny` (entry key, needs `escalate`, default off): the plain run that
+  ends in any typed stop of the generator (not the harness's own
+  `mirror-missing`) runs again with inference, not only the codes in
+  `escalateStops`. The second result is judged by the same byte comparison.
+  The report keeps the plain stops (`plainStops`, `plainStopSubjects`); the
+  final `stops` of an escalated entry are the second-level stops.
+- `half`: every line and record names the compared half (`half=A` or `half=B`).
+  The chosen half is unchanged.
+- `half-b-vs-attestless` (cause of `differs`, informational): half B was
+  compared and the shipped file is byte-equal to half A (no attest, no
+  exclusions). Never strict; the fix is the choice of half in the manifest.
+- Every non-reproduced entry also prints `generatedMinFrom` (when a file was
+  generated) and `stopSubjects` (`code:subject`, sorted) for typed stops.
+- Totals: `strict (no oracle)=a/N` counts only `reproduced`; `oracle-assisted=b/N`
+  counts only `reproduced-oracle`. A reviewed input is never added to the strict
+  number. `HISTOGRAM` lists `class:`, `cause:`, `stop:`, `second-level-stop:` and
+  `escalated-from:` counts (also `histogram` in `backtest.json`).
+
+Lines that assert the whole per-entry line must use a prefix match: the new
+fields are appended at the end.
