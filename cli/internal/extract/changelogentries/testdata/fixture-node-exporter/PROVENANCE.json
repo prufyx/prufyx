@@ -1,0 +1,55 @@
+{
+ "note": "Real excerpts of the repository's CHANGELOG.md read at the tag's commit via the GitHub contents API: the preamble and the first four sections, verbatim (a byte-exact prefix of the upstream file, lines 1..excerptLines), cut at a section boundary. upstreamBlobSha is the git blob id of the whole upstream file.",
+ "files": [
+  {
+   "repo": "github.com/prometheus/node_exporter",
+   "tag": "v1.0.0",
+   "commit": "b9c96706a7425383902b6143d097cf6d7cfd1960",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "7f32b944c07bdc0e59add9c1ee6d891fa193d782",
+   "upstreamLines": 427,
+   "excerptLines": 118,
+   "excerptSha256": "e177ce6d93bf5f2bf94dd445f5984e2a465ae7c74b05f5ff2d3e1de65028f0b9"
+  },
+  {
+   "repo": "github.com/prometheus/node_exporter",
+   "tag": "v1.0.0-rc.0",
+   "commit": "ef7c05816adcb0e8923defe34e97f6afcce0a939",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "cb38cc12225250e239b0f1af10da07efe1b00139",
+   "upstreamLines": 417,
+   "excerptLines": 108,
+   "excerptSha256": "7ba7fdcb09291a1f151e5bc6ce8a5fc7cbb183888f78a4ea6a1911604adeb644"
+  },
+  {
+   "repo": "github.com/prometheus/node_exporter",
+   "tag": "v1.5.0",
+   "commit": "1b48970ffcf5630534fb00bb0687d73c66d1c959",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "366721b85062e73236e88e05406538f7a9a48d95",
+   "upstreamLines": 612,
+   "excerptLines": 72,
+   "excerptSha256": "26d24ae987ced898583c090998812b4326f7cdad782034e6f5d0df756bd24035"
+  },
+  {
+   "repo": "github.com/prometheus/node_exporter",
+   "tag": "v1.8.2",
+   "commit": "f1e0e8360aa60b6cb5e5cc1560bed348fc2c1895",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "ee248324cce82d55b0bc663867ce72ade7b76686",
+   "upstreamLines": 698,
+   "excerptLines": 39,
+   "excerptSha256": "42059c3ad01cab9e918c243b666dd4a7279fff495596a6f7c728723677c3351f"
+  },
+  {
+   "repo": "github.com/prometheus/node_exporter",
+   "tag": "v1.12.1",
+   "commit": "6044da783597cc3b57aef7580ddcdcff58a4ee99",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "9f6040344b0d10a8149807b46913010484519d31",
+   "upstreamLines": 799,
+   "excerptLines": 27,
+   "excerptSha256": "a40e776ee2f74f2179c2096852b96f3ea7d0cb8e1185bf55a6677c3abae0a1bc"
+  }
+ ]
+}
