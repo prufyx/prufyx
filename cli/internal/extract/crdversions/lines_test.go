@@ -590,6 +590,18 @@ func TestUpstreamOracles(t *testing.T) {
 				must(t, err)
 				out, err = extract.Run(context.Background(), New(tg), src, src, extract.Options{Repo: repo, DerivedAt: derivedAt})
 				must(t, err)
+			} else if project == "longhorn" {
+				// The fixture holds only the listed deploy/longhorn.yaml, so the
+				// 1.8 -> 1.9 removals are measurable on it. The target floor is
+				// 1.9 because at the real v1.8.x/v1.9.0 tags the CRDs sit in a
+				// chart template the extractor does not read; the oracle keeps
+				// its anchor pair by reading the fixture from 1.8.
+				tg := target(t, project)
+				tg.MinFrom = [2]int{1, 8}
+				repo, err := extract.ParseRepo(tg.Repo)
+				must(t, err)
+				out, err = extract.Run(context.Background(), New(tg), src, src, extract.Options{Repo: repo, DerivedAt: derivedAt})
+				must(t, err)
 			} else {
 				out = mustRun(t, project, src)
 			}
