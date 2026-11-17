@@ -1,0 +1,31 @@
+{
+  "cncfStatusClaim": "none",
+  "kind": "project",
+  "licence": {
+    "commit": "0025c8257ba3cb8ec7169ee21f68f0c8e5eca6d9",
+    "path": "LICENSE",
+    "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1",
+    "spdxGuess": "Apache-2.0"
+  },
+  "releaseLines": [
+    {
+      "commit": "0025c8257ba3cb8ec7169ee21f68f0c8e5eca6d9",
+      "line": "0.13",
+      "tag": "v0.13.0"
+    },
+    {
+      "commit": "f22e565ac3cc3265c7c45ef67ecffdc689af5d77",
+      "line": "0.12",
+      "tag": "v0.12.0"
+    },
+    {
+      "commit": "ecaf56ab2dffb6edce074beda10ea092e71f62e5",
+      "line": "0.11",
+      "tag": "v0.11.1"
+    }
+  ],
+  "repo": "github.com/kubernetes-sigs/jobset",
+  "schema": "prufyx.io/onboard-bundle/v1",
+  "slug": "jobset",
+  "tagPrefix": "v"
+}

@@ -1,0 +1,22 @@
+{
+  "kind": "relnotes-sources",
+  "rows": [
+    {
+      "form": "changelog",
+      "pairs": [
+        {
+          "commit": "0025c8257ba3cb8ec7169ee21f68f0c8e5eca6d9",
+          "endLine": 86,
+          "fileSha256": "846faae36c1874444a84dc8e245d79cdc8611f46d793162f9d54e07273c99632",
+          "fromTag": "v0.12.0",
+          "present": true,
+          "startLine": 1,
+          "toTag": "v0.13.0"
+        }
+      ],
+      "path": "CHANGELOG/CHANGELOG-0.13.md",
+      "postTag": true
+    }
+  ],
+  "schema": "prufyx.io/onboard-bundle/v1"
+}

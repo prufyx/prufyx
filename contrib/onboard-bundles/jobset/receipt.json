@@ -1,0 +1,38 @@
+{
+  "agentLabel": "maintainer submission",
+  "bundleSha256": "eade4a904ca8dfef51582c5715a8e29cbd4097f8317459b0620851a72b6c9e6f",
+  "checks": {
+    "dropped": [],
+    "extractRun": "not-run",
+    "targetCheckOffline": "pass"
+  },
+  "files": [
+    {
+      "name": "project.json",
+      "sha256": "85441e8300e516e03a156b8c221d0107b2730416035d1a88331e67b758f76645"
+    },
+    {
+      "name": "relnotes-sources.json",
+      "sha256": "111286a317931e020c4c2f77da4d1e770381905f4abc67d3f07110de37efde37"
+    },
+    {
+      "name": "scan-notes.json",
+      "sha256": "6464ef320d968aca6a94b84775df1668d29dcf51da5bbbd13c89357d8310c8e7"
+    },
+    {
+      "name": "target-draft.json",
+      "sha256": "493b67bb14f1a6f99f81f9d2557130d39dd3ccf8f765754d2ae2e292b165c846"
+    }
+  ],
+  "generatedAt": "2026-11-17T15:45:00Z",
+  "kind": "receipt",
+  "kit": "k0-v0",
+  "review": {
+    "admissionState": "NOT_ADMITTED",
+    "state": "NOT_REVIEWED"
+  },
+  "schema": "prufyx.io/onboard-bundle/v1",
+  "tool": {
+    "prufyxCommit": "8936f4e800000000000000000000000000000000"
+  }
+}
