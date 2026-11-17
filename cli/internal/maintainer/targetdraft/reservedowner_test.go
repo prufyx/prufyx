@@ -1,7 +1,7 @@
 package targetdraft
 
 import (
-	"errors"
+	"bytes"
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/customresources"
@@ -185,18 +185,26 @@ func TestGenerateReservedGroupRecordEndToEnd(t *testing.T) {
 		i.Slug, i.Name, i.Repo = slug, "Kueue", repo
 		return i
 	}
-	if _, err := Generate(in(roSlug, "github.com/"+roRepo)); err != nil {
-		var se *StopError
-		if errors.As(err, &se) {
-			for _, s := range se.Stops {
-				if s.Code == StopReservedGroup {
-					t.Fatalf("recorded owner stopped as reserved: %+v", se.Stops)
-				}
-			}
-		}
+	res, err := Generate(in(roSlug, "github.com/"+roRepo))
+	if err != nil {
+		t.Fatalf("recorded owner: generate: %v", err)
+	}
+	if res == nil {
+		t.Fatal("recorded owner: nil result")
+	}
+	if !bytes.Contains(res.A, []byte(roGroup)) {
+		t.Errorf("emitted target does not name %s", roGroup)
 	}
 	for _, c := range [][2]string{{roSlug, "github.com/fork/kueue"}, {"carrier", "github.com/" + roRepo}} {
-		_, err := Generate(in(c[0], c[1]))
-		wantStop(t, err, StopReservedGroup)
+		res, err := Generate(in(c[0], c[1]))
+		if res != nil {
+			t.Errorf("%v: result returned with a stop", c)
+		}
+		se := wantStop(t, err, StopReservedGroup)
+		for _, st := range se.Stops {
+			if st.Code != StopReservedGroup {
+				t.Errorf("%v: unrelated stop %+v", c, st)
+			}
+		}
 	}
 }
