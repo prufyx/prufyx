@@ -26,6 +26,7 @@ const (
 	crdAPIVersion      = "apiextensions.k8s.io/v1"
 	crdKind            = "CustomResourceDefinition"
 	templateMarker     = "{{"
+	templateClose      = "}}"
 	maxNameBytes       = 253
 	maxVersionNameByte = 63
 )
@@ -111,6 +112,10 @@ type FileRecord struct {
 	Documents      int    `json:"documents"`
 	CRDs           int    `json:"crds"`
 	OtherDocuments int    `json:"otherDocuments"`
+	// TemplateRead is set when the file carries template markers and was
+	// read under the metadata-only rule (template_metadata.go): the markers
+	// lie in full-line comments and in label and annotation strings only.
+	TemplateRead string `json:"templateRead,omitempty"`
 	// Repo and Commit are set for a file read from another repository (a
 	// Remote source) and absent for a file of the release's own.
 	Repo   string `json:"repo,omitempty"`
@@ -206,6 +211,10 @@ func parseValuesAs(path string, data []byte, narrowV1beta1 bool) (FileRecord, []
 		why := "template syntax"
 		if err == nil {
 			why = templateOutsideDescriptions(data, values)
+			if why != "" && templateInMetadata(data, nodes, values) == "" {
+				why = ""
+				rec.TemplateRead = templateReadMetadata
+			}
 		}
 		if err != nil || why != "" {
 			return rec, nil, nil, problemf("%s contains template syntax (%q): it is not a rendered manifest", path, templateMarker)

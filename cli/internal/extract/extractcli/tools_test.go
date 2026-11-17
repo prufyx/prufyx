@@ -394,7 +394,7 @@ func TestWantsOutIsSilentWhenAPairIsWithheldForAReason(t *testing.T) {
 		if strings.HasSuffix(commit, "902000") {
 			p := filepath.Join(tree, "manifests/crds/widget-crd.yaml")
 			b, _ := os.ReadFile(p)
-			if err := os.WriteFile(p, append(b, []byte("# {{ .Values.x }}\n")...), 0o644); err != nil {
+			if err := os.WriteFile(p, append(b, []byte("x: \"{{ .Values.x }}\"\n")...), 0o644); err != nil {
 				t.Fatal(err)
 			}
 		}
