@@ -37,6 +37,14 @@ const templateReadMetadata = "markers-in-comments-and-metadata-strings"
 //     comment, produced by an escape or a continuation line, or in a block
 //     scalar is one more than they account for).
 //
+//  5. no comment that holds a marker also holds "-}}", "~}}" or "{{~" (a
+//     trim marker would swallow the next line in a chart render); "{{-" is
+//     not refused.
+//
+// Trust assumption: the extractor attests the SHIPPED FILE TEXT of the CRD
+// file, the bytes at the pinned tag, not a Helm chart render of it. The
+// markers admitted here are inert in that text.
+//
 // Anything else is template syntax with the same refusal as before. The
 // decision is recorded on the file's record (FileRecord.TemplateRead).
 
@@ -95,6 +103,11 @@ func templateInMetadata(data []byte, nodes []*yaml.Node, values []any) string {
 	for i, line := range bytes.Split(data, []byte("\n")) {
 		if t := bytes.TrimLeft(line, " \t"); len(t) > 0 && t[0] == '#' {
 			o, c := bytes.Count(t, []byte(templateMarker)), bytes.Count(t, []byte(templateClose))
+			if (o > 0 || c > 0) && (bytes.Contains(t, []byte("-}}")) || bytes.Contains(t, []byte("~}}")) || bytes.Contains(t, []byte("{{~"))) {
+				// A right-trim or tilde marker would swallow the next
+				// line in a chart render: the comment is not inert.
+				return no + ": a trim marker in a comment"
+			}
 			if (o > 0 || c > 0) && i+1 >= specFrom && i+1 <= specTo {
 				return no + ": a comment marker lies within spec"
 			}

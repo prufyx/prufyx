@@ -265,6 +265,17 @@ Through the offline factory mirror (or a fixture tree), never the network.
   validation rule, a flow collection or another kind of document is one
   more). Text that only decodes to `{{` (an escape, a line continuation) holds
   none in its bytes and is not template syntax.
+- **Markers outside the schema.** A second exception, closed and without
+  configuration: a file with `{{` or `}}` is read when it is exactly one
+  CustomResourceDefinition, every marker lies in a full-line comment outside
+  the lines of `spec` or inside a quoted `metadata.labels` or
+  `metadata.annotations` value, `apiVersion`, `kind`, `metadata.name` and the
+  whole `spec` hold none, and the markers are all accounted in the bytes. A
+  comment that holds `-}}`, `~}}` or `{{~` is refused (a trim marker would
+  swallow the next line in a chart render); `{{-` is not. Any other file keeps
+  the refusal above. The reading is recorded as `templateRead` on the file's
+  record. Trust assumption: the extractor attests the shipped file text of the
+  CRD files, not a Helm chart render of them.
 - **A header template with an included spec.** Some Helm charts keep a
   definition's header in `<chart>/templates/<file>.yaml` and its body (the
   `spec`) in a plain file of the chart. The template is not YAML, so it is

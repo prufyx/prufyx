@@ -130,6 +130,11 @@ func TestMetadataTemplateRefusals(t *testing.T) {
 		"marker in apiVersion":           mutate("apiVersion: apiextensions.k8s.io/v1\n", "apiVersion: apiextensions.k8s.io/v1 # x\n#{{\napiVersion2: '{{'\n"),
 		"label value is a block scalar":  mutate("    app: '{{ template \"cert-manager.name\" . }}'\n", "    app: |\n      {{ .x }}\n"),
 	}
+	// Trim and tilde markers in a comment, at top level and in metadata.
+	for _, m := range []string{"# x {{ .a -}}", "# x {{ .a ~}}", "# x {{~ .a }}"} {
+		cases["top-level comment "+m] = mutate("apiVersion: apiextensions.k8s.io/v1\n", m+"\napiVersion: apiextensions.k8s.io/v1\n")
+		cases["metadata comment "+m] = mutate("  # START annotations", "  "+m+"\n  # START annotations")
+	}
 	for name, text := range cases {
 		_, crds, err := parseFile("deploy/crds/a.yaml", []byte(text))
 		pr, isProblem := asProblem(err)
