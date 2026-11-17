@@ -31,9 +31,9 @@ const (
 	// BootstrapCountsPath holds, in the tree being described, the counts
 	// recomputed once from the BootstrapTag tree.
 	BootstrapCountsPath = "cli/docs/generated/coverage-counts-v0.1.0-beta.0.json"
-	// BootstrapCountsSha256 pins that file. It is empty until the file is
-	// generated; an empty pin never matches, so the bootstrap fails closed.
-	BootstrapCountsSha256 = ""
+	// BootstrapCountsSha256 pins that file. The pin is fixed in code: the file was
+	// generated once; any other bytes fail closed.
+	BootstrapCountsSha256 = "db6de7abaa93a36e8222da29b908b688add5d17bfa1a1f3ad9f5bc9b4d8a98c3"
 	maxCounts             = 64 << 20
 )
 
