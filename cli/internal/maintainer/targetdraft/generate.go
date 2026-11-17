@@ -190,7 +190,7 @@ func generateWithWindow(in Input, full *FullWindowSelector) (*Result, error) {
 		return nil, &StopError{Stops: []Stop{stop(StopBadInput, "infer-install-paths", "inference needs rules without installPaths, installSurface, pathFilter and exclusions (exclusions are never inferred and never mixed in), and no range-check tags; a hand rule is never mixed with an inferred one")}}
 	}
 	if in.CheckInstallPathCopies && !in.InferInstallPaths && len(rules.InstallPaths) == 0 {
-		return nil, &StopError{Stops: []Stop{stop(StopBadInput, "check-install-path-copies", "the check needs installPaths in the rules file (or --infer-install-paths)")}}
+		return nil, &StopError{Stops: []Stop{stop(StopBadInput, "check-install-path-copies", "the check needs installPaths in the rules file (or inference)")}}
 	}
 	// Phase A: open and read every tag (same order and errors as one pass).
 	for i, t := range tags {

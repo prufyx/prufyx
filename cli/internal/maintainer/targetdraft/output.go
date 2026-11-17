@@ -203,7 +203,7 @@ type Report struct {
 	Slug      string `json:"slug"`
 	TagPrefix string `json:"tagPrefix"`
 	// TagPrefixes and PrefixWindows are present only for a multi-prefix run
-	// (--multi-prefix): the prefixes in tagPrefixes order and the proven
+	// (internal multi-prefix option): the prefixes in tagPrefixes order and the proven
 	// window of each. Neither is part of FactsDigest.
 	TagPrefixes   []string       `json:"tagPrefixes,omitempty"`
 	PrefixWindows []PrefixWindow `json:"prefixWindows,omitempty"`
@@ -240,12 +240,12 @@ type Report struct {
 	FilteredCopyCount int            `json:"filteredCopyCount,omitempty"`
 	FilteredCopies    []FilteredCopy `json:"filteredCopies,omitempty"`
 	// InferredInstallPaths is the install directory chosen by rule R2 and the
-	// ranking evidence of every tag. Present only with --infer-install-paths;
+	// ranking evidence of every tag. Present only when inference ran (internal);
 	// part of FactsDigest then.
 	InferredInstallPaths *InferredInstallPaths `json:"inferredInstallPaths,omitempty"`
 	// PatchFragments lists, per window tag, the kustomize patch fragments set
 	// aside as non-install, non-definition files. Present only with
-	// --skip-patch-fragments and a fragment; part of FactsDigest then.
+	// a fragment; part of FactsDigest then.
 	PatchFragments []PatchFragmentFact `json:"patchFragments,omitempty"`
 	// Representation is "directory" when install files were written as
 	// directory entries; absent (exact files) otherwise. Directories lists

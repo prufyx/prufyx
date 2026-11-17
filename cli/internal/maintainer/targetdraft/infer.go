@@ -141,7 +141,7 @@ type InferTagFact struct {
 }
 
 // InferredInstallPaths is the report block of an inferred run. It exists only
-// with --infer-install-paths and is part of the facts digest then.
+// when inference ran and is part of the facts digest then.
 type InferredInstallPaths struct {
 	Rule  string         `json:"rule"`
 	Paths []string       `json:"paths"`

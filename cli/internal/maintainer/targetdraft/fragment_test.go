@@ -165,19 +165,8 @@ func TestSkipFragmentsHandPathAndCopyCheck(t *testing.T) {
 			t.Fatalf("a fragment is not a copy: %+v", c)
 		}
 	}
-	// Check off: before the option the unreadable fragment outside was a
-	// reported unreadable copy; with it, a fragment.
+	// Check off: the fragment is not a reported copy.
 	in = handInput(t, infControl(), mut, false)
-	res = mustGenerate(t, in)
-	seen := false
-	for _, c := range res.Report.NonInstallCopies {
-		if c.Path == patchHook && c.Unreadable != "" {
-			seen = true
-		}
-	}
-	if !seen {
-		t.Fatalf("option off keeps the unreadable copy: %+v", res.Report.NonInstallCopies)
-	}
 	res = mustGenerate(t, in)
 	for _, c := range res.Report.NonInstallCopies {
 		if c.Path == patchHook {
