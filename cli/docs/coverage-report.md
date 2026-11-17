@@ -95,6 +95,16 @@ prufyx-maintainer coverage report --lines lines.json --now 2026-10-08T12:00:00Z 
 give the same bytes; the report records the SHA-256 digests of the pack and of
 the lines file.
 
+### README counts
+
+`prufyx-maintainer coverage readme [--check] [--root DIR] [--json-out FILE]`
+regenerates the README coverage block. With `--json-out` it also writes the
+exact report the block is rendered from, the support-inventory counts the block
+prints and the SHA-256 of the block (`prufyx.io/coverage-readme-counts/v1`).
+Release notes and the site can render from that file; the same tree gives the
+same bytes. It works with and without `--check`; the file is written before
+the README, so an unwritable path changes nothing.
+
 ### Lines snapshot
 
 ```json

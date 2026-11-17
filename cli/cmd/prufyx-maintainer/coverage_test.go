@@ -4,10 +4,13 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -275,4 +278,112 @@ func TestMaintainerCLI_CoverageAdditions(t *testing.T) {
 			t.Errorf("--additions %s accepted", p)
 		}
 	}
+}
+
+func TestMaintainerCLI_CoverageReadmeJSONOut(t *testing.T) {
+	root := filepath.Join("..", "..", "..")
+	readme, err := os.ReadFile(filepath.Join(root, "README.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	begin := bytes.Index(readme, []byte(coveragereport.READMEBegin))
+	end := bytes.Index(readme, []byte(coveragereport.READMEEnd))
+	if begin < 0 || end < begin {
+		t.Fatal("README markers missing")
+	}
+	block := string(readme[begin+len(coveragereport.READMEBegin)+1 : end])
+	dir := t.TempDir()
+	run1 := func(path string, extra ...string) error {
+		var out, errOut bytes.Buffer
+		return run(append([]string{"coverage", "readme", "--root", root, "--json-out", path}, extra...), &out, &errOut)
+	}
+	a, b := filepath.Join(dir, "a.json"), filepath.Join(dir, "b.json")
+	cases := []struct {
+		name  string
+		extra []string
+		path  string
+	}{
+		{"check", []string{"--check"}, a},
+		{"check again", []string{"--check"}, b},
+	}
+	for _, c := range cases {
+		if err := run1(c.path, c.extra...); err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+	}
+	rawA, _ := os.ReadFile(a)
+	rawB, _ := os.ReadFile(b)
+	if !bytes.Equal(rawA, rawB) || !bytes.HasSuffix(rawA, []byte("\n")) {
+		t.Fatal("two runs differ or no trailing newline")
+	}
+	var doc struct {
+		Schema            string
+		Report            struct{ Fleet struct{ Pairs int } }
+		InventoryCounts   map[string]int
+		ReadmeBlockSha256 string
+	}
+	if err := json.Unmarshal(rawA, &doc); err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256([]byte(block))
+	if doc.Schema != coveragereport.READMECountsSchema || doc.ReadmeBlockSha256 != hex.EncodeToString(sum[:]) || len(doc.InventoryCounts) != 8 {
+		t.Fatalf("doc = %+v", doc)
+	}
+	if !strings.Contains(block, "; "+strconv.Itoa(doc.Report.Fleet.Pairs)+" upgrades between consecutive release lines") {
+		t.Fatalf("fleet.pairs %d is not what the block prints", doc.Report.Fleet.Pairs)
+	}
+	// A bad path is an error and nothing is written.
+	bad := filepath.Join(dir, "missing", "x.json")
+	if err := run1(bad, "--check"); err == nil {
+		t.Fatal("bad path accepted")
+	} else if _, serr := os.Stat(filepath.Dir(bad)); serr == nil {
+		t.Fatal("bad path created something")
+	}
+	// A stale README still fails with --check, and the file is written.
+	stale := t.TempDir()
+	if err := copyTree(root, stale); err != nil {
+		t.Fatal(err)
+	}
+	p := filepath.Join(stale, "README.md")
+	sr, _ := os.ReadFile(p)
+	if err := os.WriteFile(p, bytes.Replace(sr, []byte("Generated on"), []byte("Generated at"), 1), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	sj := filepath.Join(dir, "s.json")
+	err = run([]string{"coverage", "readme", "--check", "--root", stale, "--json-out", sj}, &out, &errOut)
+	var ce *commandError
+	if !errors.As(err, &ce) || ce.code != 1 {
+		t.Fatalf("stale check err = %v", err)
+	}
+	if got, _ := os.ReadFile(sj); !bytes.Equal(got, rawA) {
+		t.Fatal("stale run wrote different counts")
+	}
+}
+
+// copyTree copies the regular files of src to dst, without .git and vendor.
+func copyTree(src, dst string) error {
+	return filepath.WalkDir(src, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, p)
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if d.Name() == ".git" || d.Name() == "vendor" {
+				return filepath.SkipDir
+			}
+			return os.MkdirAll(filepath.Join(dst, rel), 0o755)
+		}
+		if !d.Type().IsRegular() {
+			return nil
+		}
+		raw, err := os.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(filepath.Join(dst, rel), raw, 0o644)
+	})
 }

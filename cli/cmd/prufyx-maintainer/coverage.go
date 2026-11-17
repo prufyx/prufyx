@@ -63,12 +63,22 @@ func runCoverageReadme(args []string, stdout, stderr io.Writer) error {
 	flags.SetOutput(io.Discard)
 	check := flags.Bool("check", false, "do not write; fail if the README coverage block differs from its regeneration")
 	root := flags.String("root", ".", "repository root")
+	jsonOut := flags.String("json-out", "", "write the report and counts the block is rendered from to this file")
 	if err := flags.Parse(args); err != nil || flags.NArg() != 0 {
-		return &commandError{code: 2, message: "coverage readme: usage: [--check] [--root DIR]"}
+		return &commandError{code: 2, message: "coverage readme: usage: [--check] [--root DIR] [--json-out FILE]"}
 	}
 	abs, err := filepath.Abs(*root)
 	if err != nil {
 		return &commandError{code: 2, message: "coverage readme: root is unusable", err: err}
+	}
+	if *jsonOut != "" {
+		raw, err := knowledgegate.ReadmeCounts(abs)
+		if err != nil {
+			return &commandError{code: 2, message: "coverage readme: cannot compute the counts", err: err}
+		}
+		if err := os.WriteFile(filepath.Clean(*jsonOut), raw, 0o644); err != nil {
+			return &commandError{code: 2, message: "coverage readme: cannot write JSON", err: err}
+		}
 	}
 	changed, err := knowledgegate.RegenerateBlocks(abs, *check, "README.md")
 	if err != nil {

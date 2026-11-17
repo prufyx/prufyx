@@ -4,6 +4,8 @@ package coveragereport
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -32,6 +34,42 @@ var readmeInventoryCounts = []string{
 	"cncfSourceRules", "cncfRuleProjects", "cncfSourceRulesWithdrawn",
 	"communityProjectSourceRules", "communityProjectRuleProjects",
 	"executableProjects", "selectedSourceProjects", "selectedSourceOnlyProjects",
+}
+
+// READMECountsSchema is the schema of the document ReadmeCountsJSON writes.
+const READMECountsSchema = "prufyx.io/coverage-readme-counts/v1"
+
+// ReadmeCountsJSON is the document the README block is rendered from: the
+// report, the support-inventory counts the block prints and the SHA-256 of the
+// rendered block. block must be the RenderREADMEBlock result for the same
+// report and inventory. The output is indented, has a stable key order and
+// ends with one newline; it reads no clock.
+func ReadmeCountsJSON(r Report, inventoryJSON []byte, block string) ([]byte, error) {
+	var inv struct {
+		Counts map[string]int `json:"counts"`
+	}
+	if err := json.Unmarshal(inventoryJSON, &inv); err != nil {
+		return nil, fmt.Errorf("support inventory: %w", err)
+	}
+	counts := map[string]int{}
+	for _, k := range readmeInventoryCounts {
+		v, ok := inv.Counts[k]
+		if !ok {
+			return nil, fmt.Errorf("support inventory: counts.%s is missing", k)
+		}
+		counts[k] = v
+	}
+	sum := sha256.Sum256([]byte(block))
+	out, err := json.MarshalIndent(struct {
+		Schema          string         `json:"schema"`
+		Report          Report         `json:"report"`
+		InventoryCounts map[string]int `json:"inventoryCounts"`
+		BlockSHA256     string         `json:"readmeBlockSha256"`
+	}{READMECountsSchema, r, counts, hex.EncodeToString(sum[:])}, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return append(out, '\n'), nil
 }
 
 // readmePct is the share a/b as the block prints it: floored to one decimal.
