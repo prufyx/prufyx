@@ -1,5 +1,5 @@
 {
- "note": "Real excerpts of each repository's CHANGELOG.md read at the tag's commit from a public git clone: the preamble, the sections above the tag's own entry, the tag's own entry and the one release section after it, verbatim (a byte-exact prefix of the upstream file, lines 1..excerptLines), cut at a section boundary. upstreamBlobSha is the git blob id of the whole upstream file.",
+ "note": "Real excerpts of each repository's CHANGELOG.md read at the tag's commit from a public git clone: the preamble, the sections above the tag's own entry, the tag's own entry and the one release section after it, verbatim (a byte-exact prefix of the upstream file, lines 1..excerptLines), cut at a section boundary. upstreamBlobSha is the git blob id of the whole upstream file. Exception: the github.com/jaegertracing/jaeger files (fidelity structure-preserving) are NOT byte-verbatim. Their text carries names the repository's public-text guard refuses, so they keep every heading, underline, blank line, list marker, line count and nesting of the same excerpt of the upstream file at the commit named per tag, and replace the text of every list item and paragraph with neutral placeholder text. excerptSha256 and excerptLines describe the structural copy; upstreamBlobSha and upstreamLines describe the upstream file. The evidence for the jaeger row is the reader run on the real upstream tags, not these bytes.",
  "files": [
   {
    "repo": "github.com/prometheus/blackbox_exporter",
@@ -200,6 +200,50 @@
    "upstreamLines": 3332,
    "excerptLines": 82,
    "excerptSha256": "8f3188d42bc92512e7c50688f8b578e16544c8adff79be904ae9f44df7d48435"
+  },
+  {
+   "repo": "github.com/jaegertracing/jaeger",
+   "tag": "v2.18.0",
+   "commit": "2199381846c652939a361f1ecc3fe667635922d6",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "44f48a66cb02e351476b008af5be229443385567",
+   "upstreamLines": 4275,
+   "excerptLines": 283,
+   "excerptSha256": "af420e80a4c39137344ce5c4bfea6ddda5726f32c61df45960ed4df467639fbb",
+   "fidelity": "structure-preserving"
+  },
+  {
+   "repo": "github.com/jaegertracing/jaeger",
+   "tag": "v2.20.0",
+   "commit": "798e4b0fcf22609e381df764a01461affd813e1e",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "27e201a6274660dd654a27e5b8d5180492dc45bb",
+   "upstreamLines": 4537,
+   "excerptLines": 285,
+   "excerptSha256": "3ef06795f9731452cd0e8a1df540610eed61807f670cb203c23456e1aff5cc98",
+   "fidelity": "structure-preserving"
+  },
+  {
+   "repo": "github.com/jaegertracing/jaeger",
+   "tag": "v2.22.0",
+   "commit": "462bb49fcff9af4be9556bf0206d07f5171bd8d7",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "355227c6c7177768d24d6fee69aea6696d117cd9",
+   "upstreamLines": 4909,
+   "excerptLines": 395,
+   "excerptSha256": "2935d352e075f78afb092ed75ffb2fa315bb2d00b5d2b9fb00d49ca8bd1b38c6",
+   "fidelity": "structure-preserving"
+  },
+  {
+   "repo": "github.com/jaegertracing/jaeger",
+   "tag": "v2.23.0",
+   "commit": "d723f91447f29a345c288f37eb8d1ce7807bc0be",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "4e98cc3acb4ca5e81af74c520c0dbc3aad6a2c3b",
+   "upstreamLines": 5081,
+   "excerptLines": 337,
+   "excerptSha256": "18f33cf871d8704fd93f0e0a3b09a173afc4c0bcd7d059b4671886c261c158b3",
+   "fidelity": "structure-preserving"
   }
  ]
 }

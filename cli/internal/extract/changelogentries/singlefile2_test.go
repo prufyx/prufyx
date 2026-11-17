@@ -3,7 +3,13 @@
 package changelogentries
 
 import (
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
+	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
@@ -35,6 +41,12 @@ var singleFile2Rows = []struct {
 	}},
 	{"fluentd", "github.com/fluent/fluentd", map[string]int{
 		"v1.15.0": 15, "v1.16.0": 20, "v1.16.9": 2, "v1.19.0": 42, "v1.20.1": 1,
+	}},
+	// jaeger: the fixture is structure-preserving, not byte-verbatim (see
+	// PROVENANCE.json and TestJaegerFixtureIsStructural); the item counts are
+	// those of the real upstream files, read through the reader at each tag.
+	{"jaeger", "github.com/jaegertracing/jaeger", map[string]int{
+		"v2.18.0": 96, "v2.20.0": 123, "v2.22.0": 105, "v2.23.0": 132,
 	}},
 }
 
@@ -71,7 +83,7 @@ func TestBatch2RowsArePinned(t *testing.T) {
 	// Projects whose window has a tag that does not locate, or whose file
 	// does not hold the tag's own entry, carry no row.
 	for _, c := range []string{
-		"jaeger", "spire", "loki", "cubefs", "dragonfly", "postgres_exporter", "kube-state-metrics",
+		"spire", "loki", "cubefs", "dragonfly", "postgres_exporter", "kube-state-metrics",
 		"oauth2-proxy", "aws-ebs-csi-driver", "harbor", "hami", "nfs-subdir-external-provisioner",
 	} {
 		if _, err := Lookup(Reviewed, c); err == nil {
@@ -119,7 +131,7 @@ func TestBatch2RowsRefuse(t *testing.T) {
 		}
 		return row
 	}
-	bb, of, it, fl := look("blackbox_exporter"), look("openfga"), look("in-toto"), look("fluentd")
+	bb, of, it, fl, jg := look("blackbox_exporter"), look("openfga"), look("in-toto"), look("fluentd"), look("jaeger")
 	pre := "# Changelog\n\n"
 
 	// blackbox_exporter: the unreleased heading is a boundary, never an entry;
@@ -157,4 +169,71 @@ func TestBatch2RowsRefuse(t *testing.T) {
 	wantCode(t, err, EntryNotFinal)
 	_, err = locateMem(fl, "v1.20.1", pre+"# v1.20\n\n"+flRel+"# Notes\n\n## Release v1.20.0 - 2026/10/23\n\n* b\n")
 	wantCode(t, err, EntryBoundaryUnproven)
+
+	// jaeger: a version heading without a date is no final heading, the
+	// unreleased template is no entry, and an rc of the same version is
+	// another wording, never a pass.
+	jgFinal := "v2.23.0 (2026-11-04)\n-------------------------------\n\n### Backend Changes\n\n* a\n\n"
+	_, err = locateMem(jg, "v2.23.0", pre+"v2.23.0\n-------------------------------\n\n* a\n\nv2.22.0 (2026-10-05)\n-------------------------------\n\n* c\n")
+	wantCode(t, err, EntryNotFinal)
+	_, err = locateMem(jg, "v2.24.0", pre+jgFinal)
+	wantCode(t, err, EntryMissing)
+	_, err = locateMem(jg, "v2.23.0", pre+jgFinal+"v2.23.0-rc1 (2026-10-30)\n-------------------------------\n\n* b\n\nv2.22.0 (2026-10-05)\n-------------------------------\n\n* c\n")
+	wantCode(t, err, EntryDuplicate)
 }
+
+// The jaeger fixture files must say they are structure-preserving, carry an
+// upstream commit per tag that matches tags.json, and hold no upstream item
+// text: every item line is the placeholder.
+func TestJaegerFixtureIsStructural(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("testdata", "fixture-single-file-2", "PROVENANCE.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var prov struct {
+		Files []struct {
+			Repo, Tag, Commit, Fidelity, ExcerptSha256 string
+		}
+	}
+	if err := json.Unmarshal(raw, &prov); err != nil {
+		t.Fatal(err)
+	}
+	r := sf2Root()
+	row, err := Lookup(Reviewed, "jaeger")
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	for _, f := range prov.Files {
+		if f.Repo != row.Repo.Key {
+			if f.Fidelity != "" {
+				t.Fatalf("%s %s: unexpected fidelity %q", f.Repo, f.Tag, f.Fidelity)
+			}
+			continue
+		}
+		n++
+		if f.Fidelity != "structure-preserving" {
+			t.Fatalf("%s: fidelity %q", f.Tag, f.Fidelity)
+		}
+		if tag := fixtureTag(t, r, row, f.Tag); tag.Commit != f.Commit {
+			t.Fatalf("%s: commit %s, tags.json %s", f.Tag, f.Commit, tag.Commit)
+		}
+		b, err := os.ReadFile(filepath.Join("testdata", "fixture-single-file-2", filepath.FromSlash(row.Repo.Key), "commits", f.Commit, "CHANGELOG.md"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := fmt.Sprintf("%x", sha256.Sum256(b)); got != f.ExcerptSha256 {
+			t.Fatalf("%s: sha256 %s, provenance %s", f.Tag, got, f.ExcerptSha256)
+		}
+		for i, l := range strings.Split(string(b), "\n") {
+			if m := itemLineRE.FindStringSubmatch(l); m != nil && !strings.HasPrefix(m[3], "placeholder item ") {
+				t.Fatalf("%s line %d: item text is not a placeholder: %q", f.Tag, i+1, l)
+			}
+		}
+	}
+	if n != 4 {
+		t.Fatalf("%d jaeger provenance entries, want 4", n)
+	}
+}
+
+var itemLineRE = regexp.MustCompile(`^(\s*)([*+-]|[0-9]{1,9}[.)])[ \t]+(.*)$`)

@@ -36,6 +36,11 @@ var reviewedBatch2 = []Target{
 		HeadingPattern:   `^Release v(?P<version>[0-9]+\.[0-9]+\.[0-9]+) - [0-9]{4}/[0-9]{2}/[0-9]{2}$`,
 		BoundaryPatterns: []string{`^v[0-9]+\.[0-9]+$`},
 	},
+	{
+		Component: "jaeger", Repo: extract.RepoRef{Key: "github.com/jaegertracing/jaeger"},
+		Form: FormFile, Path: "CHANGELOG.md",
+		HeadingPattern: `^v(?P<version>[0-9]+\.[0-9]+\.[0-9]+) \([0-9]{4}-[0-9]{2}-[0-9]{2}\)$`,
+	},
 }
 
 func init() { Reviewed = append(Reviewed, reviewedBatch2...) }
