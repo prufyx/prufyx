@@ -1,0 +1,111 @@
+{
+ "inventoryCounts": {
+  "cncfSourceRules": 3
+ },
+ "report": {
+  "expiringProjects": [],
+  "families": [],
+  "fleet": {
+   "a": 1,
+   "b": 1,
+   "c1": 0,
+   "c3": 0,
+   "c5": 0,
+   "g": 1,
+   "pairs": 4,
+   "projects": 3,
+   "rulesInWindow": 0,
+   "s": 1,
+   "sPairs": 0,
+   "vcMean": 0,
+   "vcPairs": 0
+  },
+  "lines": {
+   "digest": "d"
+  },
+  "now": "2026-11-01T00:00:00Z",
+  "pack": {
+   "digest": "d",
+   "revision": "r",
+   "schema": "s"
+  },
+  "packProjectsCovered": 3,
+  "priorityProjects": {},
+  "projects": [
+   {
+    "a": 0,
+    "b": 0,
+    "covered": true,
+    "expiring14d": 0,
+    "g": 0,
+    "pairs": [
+     {
+      "from": "1.0",
+      "status": "G",
+      "to": "1.1"
+     },
+     {
+      "from": "1.1",
+      "status": "S",
+      "to": "1.2"
+     }
+    ],
+    "priority": false,
+    "project": "alpha",
+    "rulesInWindow": 0,
+    "s": 0,
+    "validRules": 1,
+    "vc": 0,
+    "vcA": 0,
+    "window": []
+   },
+   {
+    "a": 0,
+    "b": 0,
+    "covered": true,
+    "expiring14d": 0,
+    "g": 0,
+    "pairs": [
+     {
+      "from": "1.0",
+      "status": "B",
+      "to": "1.1"
+     }
+    ],
+    "priority": false,
+    "project": "beta",
+    "rulesInWindow": 0,
+    "s": 0,
+    "validRules": 1,
+    "vc": 0,
+    "vcA": 0,
+    "window": []
+   },
+   {
+    "a": 0,
+    "b": 0,
+    "covered": true,
+    "expiring14d": 0,
+    "g": 0,
+    "pairs": [
+     {
+      "from": "0.1",
+      "status": "A",
+      "to": "0.2"
+     }
+    ],
+    "priority": false,
+    "project": "gone",
+    "rulesInWindow": 0,
+    "s": 0,
+    "validRules": 2,
+    "vc": 0,
+    "vcA": 0,
+    "window": []
+   }
+  ],
+  "projectsWithoutLines": [],
+  "schema": "prufyx.io/coverage-report/v1"
+ },
+ "schema": "prufyx.io/coverage-readme-counts/v1"
+}

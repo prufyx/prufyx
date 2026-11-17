@@ -5,10 +5,111 @@ package main
 import (
 	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/prufyx/prufyx/cli/internal/maintainer/releasenotes"
 )
+
+const countsFixtures = "../../internal/maintainer/releasenotes/testdata/"
+
+// writeCounts commits the two fixture counts files into the trees.
+func writeCounts(t *testing.T, from, to string) {
+	t.Helper()
+	for dir, name := range map[string]string{from: "counts-prev.json", to: "counts-cur.json"} {
+		b, err := os.ReadFile(countsFixtures + name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		p := filepath.Join(dir, "cli", "docs", "generated", "coverage-counts.json")
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, b, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestReleaseNotesRefuseWithoutCounts(t *testing.T) {
+	from, to := t.TempDir(), t.TempDir()
+	var out, errOut bytes.Buffer
+	if err := run([]string{"release-notes", "--from-dir", from, "--to-dir", to}, &out, &errOut); err == nil {
+		t.Fatal("rendered without counts files")
+	}
+	writeCounts(t, from, to)
+	if err := os.Remove(filepath.Join(from, "cli", "docs", "generated", "coverage-counts.json")); err != nil {
+		t.Fatal(err)
+	}
+	if err := run([]string{"release-notes", "--from-dir", from, "--to-dir", to}, &out, &errOut); err == nil {
+		t.Fatal("rendered without the previous counts")
+	}
+	if strings.Contains(out.String(), "n/a") {
+		t.Error("printed n/a")
+	}
+}
+
+func TestReleaseNotesFromRevPin(t *testing.T) {
+	git := func(dir string, args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", dir, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false", "-c", "tag.gpgsign=false"}, args...)...)
+		if b, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v %s", args, err, b)
+		}
+	}
+	repo := t.TempDir()
+	scratch := t.TempDir()
+	writeCounts(t, repo, scratch)
+	prev, err := os.ReadFile(countsFixtures + "counts-prev.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cur, err := os.ReadFile(countsFixtures + "counts-cur.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(repo, "cli", "docs", "generated", "coverage-counts.json")
+	git(repo, "init", "-q")
+	git(repo, "add", "-A")
+	git(repo, "commit", "-q", "-m", "one")
+	git(repo, "tag", "v1")
+	if err := os.WriteFile(path, cur, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(repo, "commit", "-q", "-am", "two")
+	git(repo, "checkout", "-q", "-b", "side", "v1")
+	git(repo, "commit", "-q", "--allow-empty", "-m", "side")
+	git(repo, "tag", "v1side")
+	git(repo, "checkout", "-q", "-")
+	sum := releasenotesSha(prev)
+	run1 := func(args ...string) error {
+		var out, errOut bytes.Buffer
+		return run(append([]string{"release-notes", "--repo", repo, "--omit-merged-prs"}, args...), &out, &errOut)
+	}
+	for name, args := range map[string][]string{
+		"no pin":          {"--from", "v1"},
+		"wrong pin":       {"--from", "v1", "--previous-counts-sha256", strings.Repeat("0", 64)},
+		"missing tag":     {"--from", "v9", "--previous-counts-sha256", sum},
+		"not an ancestor": {"--from", "v1side", "--previous-counts-sha256", sum},
+	} {
+		if err := run1(args...); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	var out, errOut bytes.Buffer
+	if err := run([]string{"release-notes", "--repo", repo, "--omit-merged-prs", "--from", "v1", "--previous-counts-sha256", sum}, &out, &errOut); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"previous = tag `v1`, commit ", "counts sha256 `" + sum + "`", "### Coverage since the previous release"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("output lacks %q\n%s", want, out.String())
+		}
+	}
+}
+
+func releasenotesSha(b []byte) string { return releasenotes.Sum256Hex(b) }
 
 func TestReleaseNotesDirectories(t *testing.T) {
 	from, to := t.TempDir(), t.TempDir()
@@ -25,6 +126,7 @@ func TestReleaseNotesDirectories(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	writeCounts(t, from, to)
 	var out, errOut bytes.Buffer
 	if err := run([]string{"release-notes", "--from-dir", from, "--to-dir", to}, &out, &errOut); err != nil {
 		t.Fatal(err)
@@ -130,6 +232,7 @@ func TestReleaseNotesAttestationDetail(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	writeCounts(t, from, to)
 	var out, errOut bytes.Buffer
 	if err := run([]string{"release-notes", "--from-dir", from, "--to-dir", to}, &out, &errOut); err != nil {
 		t.Fatal(err)

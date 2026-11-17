@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io/fs"
 	"regexp"
-	"strconv"
 	"strings"
 )
 
@@ -35,18 +34,6 @@ const (
 type projectKey struct {
 	Catalogue Catalogue
 	Project   string
-}
-
-// Depth holds the version-coverage figures of the README coverage block,
-// which scripts/readme-coverage.sh generates from `coverage report` and CI
-// keeps current.
-type Depth struct {
-	GeneratedOn string
-	Projects    int
-	Pairs       int
-	Decided     int // A + B
-	Exact       int // S
-	Gap         int // G
 }
 
 // OnboardedProject is one project entry of an owner-approved onboarding batch.
@@ -85,8 +72,7 @@ type Snapshot struct {
 	Lines      map[string]map[string]bool // component -> attested lines
 	Attested   map[string]map[string]Attestation
 	Onboarding map[string][]OnboardedProject
-	Decisions  map[string]string // batchId -> decision
-	Depth      *Depth
+	Decisions  map[string]string     // batchId -> decision
 	CRD        map[string]CRDProject // custom-resource table, slug -> entry
 	HasCRD     bool                  // the tree has the table file
 	Missing    []string              // data files this tree does not have
@@ -319,36 +305,5 @@ func ReadSnapshot(t Tree) (*Snapshot, error) {
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		return nil, fmt.Errorf("%s: %w", crdTablePath, err)
 	}
-	readme, err := readOptional(t, readmePath, s)
-	if err != nil {
-		return nil, err
-	}
-	s.Depth = parseDepth(string(readme))
 	return s, nil
-}
-
-var (
-	depthDate     = regexp.MustCompile(`(?m)^Generated on (\d{4}-\d{2}-\d{2}) by `)
-	depthProjects = regexp.MustCompile(`of the (\d+) projects with a release-line snapshot \((\d+) upgrades`)
-	depthDecided  = regexp.MustCompile(`(?m)^\| Decided for the whole release-line pair[^|]*\| (\d+) \|`)
-	depthExact    = regexp.MustCompile(`(?m)^\| Rule for one exact version pair only[^|]*\| (\d+) \|`)
-	depthGap      = regexp.MustCompile(`(?m)^\| Gap, no valid rule[^|]*\| (\d+) \|`)
-)
-
-// parseDepth reads the README coverage block. It returns nil unless every
-// figure is present, so a reworded block shows as unavailable, never as zero.
-func parseDepth(readme string) *Depth {
-	const begin, end = "<!-- coverage:begin -->", "<!-- coverage:end -->"
-	i, j := strings.Index(readme, begin), strings.Index(readme, end)
-	if i < 0 || j < i {
-		return nil
-	}
-	block := readme[i:j]
-	date, pr := depthDate.FindStringSubmatch(block), depthProjects.FindStringSubmatch(block)
-	dec, ex, gap := depthDecided.FindStringSubmatch(block), depthExact.FindStringSubmatch(block), depthGap.FindStringSubmatch(block)
-	if date == nil || pr == nil || dec == nil || ex == nil || gap == nil {
-		return nil
-	}
-	n := func(s string) int { v, _ := strconv.Atoi(s); return v }
-	return &Depth{GeneratedOn: date[1], Projects: n(pr[1]), Pairs: n(pr[2]), Decided: n(dec[1]), Exact: n(ex[1]), Gap: n(gap[1])}
 }

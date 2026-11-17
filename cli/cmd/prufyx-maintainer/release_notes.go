@@ -11,7 +11,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/maintainer/releasenotes"
 )
 
-const releaseNotesUsage = "release-notes: usage: prufyx-maintainer release-notes (--from REV [--to REV] [--repo DIR] | --from-dir DIR --to-dir DIR) [--to-label NAME] [--omit-merged-prs] [--level 3|4] [--out FILE | --into FILE [--check]]"
+const releaseNotesUsage = "release-notes: usage: prufyx-maintainer release-notes (--from REV --previous-counts-sha256 HEX [--to REV] [--repo DIR] | --from-dir DIR --to-dir DIR) [--to-label NAME] [--omit-merged-prs] [--level 3|4] [--out FILE | --into FILE [--check]]"
 
 // runReleaseNotes prints, as Markdown, what the data files of one tree add to
 // another: projects, rules, line attestations, onboarding batches and the
@@ -29,12 +29,14 @@ func runReleaseNotes(args []string, stdout io.Writer) error {
 	out := flags.String("out", "", "write the Markdown to this file (default: stdout)")
 	into := flags.String("into", "", "replace the block between the "+releasenotes.MarkerBegin+" and "+releasenotes.MarkerEnd+" lines of this Markdown file")
 	check := flags.Bool("check", false, "with --into: do not write; exit 1 when the block of the file differs from the regeneration")
+	prevSha := flags.String("previous-counts-sha256", "", "sha256 of the previous release's counts file (required with --from)")
 	omitPRs := flags.Bool("omit-merged-prs", false, "omit the merged pull request list")
 	level := flags.Int("level", 3, "heading level of the sections: 3, or 4 under the level-3 categories of a CHANGELOG entry")
 	if err := flags.Parse(args); err != nil || flags.NArg() != 0 || (*out != "" && *into != "") || (*check && *into == "") || (*level != 3 && *level != 4) {
 		return &commandError{code: 2, message: releaseNotesUsage, err: err}
 	}
 	var from, to releasenotes.Tree
+	var pin releasenotes.PreviousPin
 	opts := releasenotes.Options{}
 	switch {
 	case *fromRev != "" && *fromDir == "" && *toDir == "":
@@ -51,6 +53,10 @@ func runReleaseNotes(args []string, stdout io.Writer) error {
 		if opts.ToCommit, err = releasenotes.Commit(*repo, *toRev); err != nil {
 			return &commandError{code: 2, message: "release-notes: cannot resolve --to", err: err}
 		}
+		pin = releasenotes.PreviousPin{Tag: *fromRev, Commit: opts.FromCommit}
+		if ok, err := releasenotes.IsAncestor(*repo, *fromRev, *toRev); err != nil || !ok {
+			return &commandError{code: 2, message: "release-notes: --from is not an ancestor of --to", err: err}
+		}
 		if !*omitPRs {
 			prs, err := releasenotes.MergedPRs(*repo, *fromRev, *toRev)
 			if err != nil {
@@ -58,10 +64,11 @@ func runReleaseNotes(args []string, stdout io.Writer) error {
 			}
 			opts.PRs = prs
 		}
-	case *fromDir != "" && *toDir != "" && *fromRev == "":
+	case *fromDir != "" && *toDir != "" && *fromRev == "" && *prevSha == "":
 		from = releasenotes.DirTree{Root: *fromDir}
 		to = releasenotes.DirTree{Root: *toDir}
 		opts.FromLabel, opts.ToLabel = *fromDir, *toDir
+		pin = releasenotes.PreviousPin{Tag: *fromDir, Commit: "tree directory"}
 		opts.PRNote = "Merged pull requests are listed only when the trees are git revisions."
 	default:
 		return &commandError{code: 2, message: releaseNotesUsage}
@@ -74,9 +81,25 @@ func runReleaseNotes(args []string, stdout io.Writer) error {
 	if err != nil {
 		return &commandError{code: 2, message: "release-notes: cannot read the tree to describe", err: err}
 	}
+	if opts.Cur, err = releasenotes.ReadCounts(to, releasenotes.CountsPath); err != nil {
+		return &commandError{code: 2, message: "release-notes: cannot read the counts of the tree to describe", err: err}
+	}
+	if *fromRev != "" {
+		opts.Prev, err = releasenotes.ReadPreviousCounts(from, to, *fromRev, *prevSha)
+	} else {
+		opts.Prev, err = releasenotes.ReadCounts(from, releasenotes.CountsPath)
+	}
+	if err != nil {
+		return &commandError{code: 2, message: "release-notes: cannot read the counts of the previous release", err: err}
+	}
+	pin.CountsSha256 = opts.Prev.Sha256
+	opts.Previous = pin
 	opts.OmitMergedPRs = *omitPRs
 	opts.Level = *level
-	text := releasenotes.Render(a, b, opts)
+	text, err := releasenotes.Render(a, b, opts)
+	if err != nil {
+		return &commandError{code: 2, message: "release-notes: " + err.Error(), err: err}
+	}
 	if *into != "" {
 		doc, err := os.ReadFile(*into)
 		if err != nil {
