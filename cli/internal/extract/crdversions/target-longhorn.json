@@ -7,7 +7,7 @@
     "component": "pkg:github/longhorn/longhorn",
     "factProject": "longhorn",
     "tagPrefixes": ["v"],
-    "minFrom": "1.8",
+    "minFrom": "1.9",
     "attest": true,
     "paths": [
       {"path": "deploy/longhorn.yaml"}
