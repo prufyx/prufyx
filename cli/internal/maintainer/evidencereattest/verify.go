@@ -298,8 +298,16 @@ func checkV1AndV3(statement Statement, statementRaw []byte, options VerifyOption
 	if role == RoleAutomation {
 		mode = ModeAutomated
 	}
+	// A capped automated statement (Prepare's MaxRules) is recomputed with
+	// the cap it demonstrably used: the number of rules it renews. The
+	// recomputation must still reproduce the statement and next pack byte for
+	// byte, so a cap can only ever renew fewer rules, never different ones.
+	maxRules := 0
+	if mode == ModeAutomated && len(statement.Rules) > 0 && len(statement.Rules) <= MaxRulesLimit {
+		maxRules = len(statement.Rules)
+	}
 	result, err := prepareWithChain(PrepareOptions{
-		Mode:        mode,
+		Mode: mode, MaxRules: maxRules,
 		WorklistRaw: options.WorklistRaw, PackName: options.PackName, PackPath: options.PackPath,
 		PackRaw: options.PriorPackRaw,
 		Wave:    statement.Wave, AttestedAt: mustParse(statement.AttestedAt), NextRevision: statement.Pack.Next.Revision,
