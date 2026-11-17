@@ -54,8 +54,10 @@ The manifest classifies nothing and gives no item a disposition.
 ## Reviewed target table
 
 The table of reviewed targets (file path, heading pattern, boundary patterns)
-is part of the reader's code. It is empty today, so every component is refused
-with exit 2 until a row has been reviewed and added.
+is part of the reader's code. A component without a reviewed row is refused
+with exit 2. A component whose row has a non-file form (post-tag,
+github-release) prints a withheld manifest with its typed code, and nothing is
+read.
 
 ## A printed manifest is never evidence
 
