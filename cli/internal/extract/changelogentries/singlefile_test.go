@@ -4,6 +4,7 @@ package changelogentries
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
@@ -24,7 +25,7 @@ var singleFileRows = []struct {
 	tags            map[string]int // tag -> items
 }{
 	{"prometheus", "github.com/prometheus/prometheus", map[string]int{
-		"v3.11.0": 46, "v3.11.1": 1, "v3.13.5": 5, "v3.15.0": 80, "v3.16.0": 85,
+		"v3.13.5": 5, "v3.15.0": 80, "v3.16.0": 85,
 	}},
 	{"alertmanager", "github.com/prometheus/alertmanager", map[string]int{
 		"v0.30.0": 42, "v0.32.0": 35, "v0.34.0": 17, "v0.34.2": 2, "v0.35.0": 56,
@@ -74,7 +75,8 @@ func TestSingleFileRowsRederive(t *testing.T) {
 			tag := fixtureTag(t, r, row, name)
 			e, err := Locate(r, row, tag)
 			if err != nil {
-				t.Fatalf("%s %s: %v", w.component, name, err)
+				t.Errorf("%s %s: %v", w.component, name, err)
+				continue
 			}
 			if e.Version != name[1:] || len(e.Items) != items {
 				t.Fatalf("%s %s: version %q, %d items, want %d", w.component, name, e.Version, len(e.Items), items)
@@ -86,6 +88,28 @@ func TestSingleFileRowsRederive(t *testing.T) {
 			if err != nil || m.Entry == nil || m.Withheld != nil || m.Entry.Tag != name {
 				t.Fatalf("%s %s: manifest %+v, %v", w.component, name, m, err)
 			}
+		}
+	}
+}
+
+// A reviewed tag whose entry the independent CommonMark parser reads
+// differently from the scanner is withheld whole, not read on trust.
+func TestSingleFileRowWithheldOnCommonMarkDisagreement(t *testing.T) {
+	r := sfRoot()
+	row, err := Lookup(Reviewed, "prometheus")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"v3.11.0", "v3.11.1"} {
+		tag := fixtureTag(t, r, row, name)
+		_, err = Locate(r, row, tag)
+		wantCode(t, err, EntryParseResidue)
+		if !strings.Contains(err.Error(), "commonmark-disagreement") {
+			t.Fatalf("%s: unexpected refusal: %v", name, err)
+		}
+		m, err := BuildManifest(r, row, tag, "sha256:test")
+		if err != nil || m.Entry != nil || m.Withheld == nil {
+			t.Fatalf("%s: manifest must carry a reason, not an entry: %+v, %v", name, m, err)
 		}
 	}
 }

@@ -138,6 +138,20 @@
       "version": "v2.4.2"
     },
     {
+      "goModSum": "h1:ip/1k0VRfGynBgxOz0yCqHrbZXhcjxyuS66Brc7iBKg=",
+      "licenseDeclared": "MIT",
+      "moduleSum": "h1:XT/tNqCIbabh0ln675w4x3dv04kQBKi8NwYqi9IJaxI=",
+      "notices": [
+        {
+          "distributionPath": "LICENSES/Module-goldmark-MIT.txt",
+          "sha256": "c1d6f653c38c80294dc7994647ba0dcc508ce64a86996303c804efa2f7982bff",
+          "sourcePath": "cli/vendor/github.com/yuin/goldmark/LICENSE"
+        }
+      ],
+      "path": "github.com/yuin/goldmark",
+      "version": "v1.8.7"
+    },
+    {
       "goModSum": "h1:OMW5y6CY9l38uPLmxU6l6pwcXp1obtLo3e6gT7gQR2I=",
       "licenseDeclared": "BSD-3-Clause",
       "moduleSum": "h1:GUh5Ii4J5jtcseSMiRqr1jXCNHoxjeV9Fmekc2oLy6Y=",
@@ -648,5 +662,5 @@
     "linux/arm64": "3f4227ce7b206a513e794f1393adb473a07b46e94d18bd15d1c684bbb7319797"
   },
   "vendorRoot": "cli/vendor",
-  "vendorTreeDigest": "sha256:a79e35a51ea0a9f749d6f69323b218ebb712ffa68a8f488321ccf6c981ecec4f"
+  "vendorTreeDigest": "sha256:922d659b4214449da9e5ef7085a3f56ac04bde891262edded88a15ef122280e8"
 }

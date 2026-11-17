@@ -37,6 +37,47 @@ type scanned struct {
 	items    []rawItem
 	// openFence is the line of a fence still open at end of file, 0 if none.
 	openFence int
+	// containerFence is the first line that proves a fence cannot be read
+	// without its container: one opened inside a list item or block quote, or
+	// an indented-opener fence whose inner lines or closer are indented
+	// differently from its opener. 0 if none.
+	containerFence int
+	// html lists the lines that start an HTML block (up to 3 spaces, then "<"
+	// and a tag name, "<!--", "<?", "<!X" or "<![CDATA["), outside fences.
+	html []int
+	// fenceBody marks (index = line-1) the lines read as the inside of a
+	// fence: after its opener, up to but not including its closer.
+	fenceBody []bool
+}
+
+var (
+	htmlStartRE = regexp.MustCompile(`^ {0,3}(<!--|<\?|<!\[CDATA\[|<![A-Za-z]|</?[A-Za-z])`)
+	htmlRawRE   = regexp.MustCompile(`(?i)^ {0,3}<(pre|script|style|textarea)(?:[ \t>]|$)`)
+)
+
+// htmlBlock reports whether l starts an HTML block and whether that block
+// reaches past this line (a multi-line comment, or a pre, script, style or
+// textarea block): hidden headings or fences can then follow.
+func htmlBlock(l string) (starts, multiLine bool) {
+	m := htmlStartRE.FindStringSubmatch(l)
+	if m == nil {
+		return false, false
+	}
+	t := strings.TrimLeft(l, " ")
+	switch {
+	case m[1] == "<!--":
+		return true, !strings.Contains(t[4:], "-->")
+	case m[1] == "<?":
+		return true, !strings.Contains(t[2:], "?>")
+	case m[1] == "<![CDATA[":
+		return true, !strings.Contains(t[9:], "]]>")
+	case strings.HasPrefix(m[1], "<!"):
+		return true, !strings.Contains(t[2:], ">")
+	}
+	if r := htmlRawRE.FindStringSubmatch(l); r != nil {
+		return true, !strings.Contains(strings.ToLower(l), "</"+strings.ToLower(r[1])+">")
+	}
+	return true, false
 }
 
 var (
@@ -47,8 +88,10 @@ var (
 	// A link reference definition: a label, a colon, ONE destination and an
 	// optional quoted title, nothing else on the line. The destination must
 	// look like a link (absolute http(s) URL, or a path or fragment), so a
-	// prose line such as "[BREAKING]: removed" is never taken for one.
-	linkDefRE   = regexp.MustCompile(`^ {0,3}\[[^\[\]\\]+\]:[ \t]*(?:<(?:https?://|/|\./|\.\./|#)[^<>\s]*>|(?:https?://|/|\./|\.\./|#)\S*)(?:[ \t]+(?:"[^"]*"|'[^']*'|\([^()]*\)))?[ \t]*$`)
+	// prose line such as "[BREAKING]: removed" is never taken for one. The
+	// label starts with a non-blank character other than ^ (a footnote is not
+	// a definition) and a bare destination holds no parenthesis or angle bracket.
+	linkDefRE   = regexp.MustCompile(`^ {0,3}\[[^\s^\[\]\\][^\[\]\\]*\]:[ \t]*(?:<(?:https?://|/|\./|\.\./|#)[^<>\s]*>|(?:https?://|/|\./|\.\./|#)[^\s()<>]*)(?:[ \t]+(?:"[^"]*"|'[^']*'|\([^()]*\)))?[ \t]*$`)
 	underlineRE = regexp.MustCompile(`^ {0,3}(={2,}|-{2,})[ \t]*$`)
 	fenceRE     = regexp.MustCompile("^[ \t]*(`{3,}|~{3,})(.*)$")
 	markerRE    = regexp.MustCompile(`^(?:[*+-]|[0-9]{1,9}[.)])[ \t]+\[([A-Z][A-Z0-9 _-]{0,30})\](?:[^(\[]|$)`)
@@ -86,7 +129,32 @@ func splitLines(raw []byte) ([]string, error) {
 	return strings.Split(s, "\n"), nil
 }
 
-func isBlank(l string) bool { return strings.TrimSpace(l) == "" }
+// isBlank is CommonMark blank: only ASCII spaces and tabs. A line of other
+// Unicode white space (a no-break space, say) is text.
+func isBlank(l string) bool { return strings.Trim(l, " \t") == "" }
+
+var containerPrefixRE = regexp.MustCompile(`^(?:(?:[*+-]|[0-9]{1,9}[.)])(?:[ \t]+|$)|>[ \t]*)`)
+
+// containerFence reports whether l opens a fence inside a list item or a
+// block quote ("* ~~~", "1. ```", "> ~~~", "- * ~~~"). Such a fence is not
+// tracked, so the shape is refused instead of read.
+func containerFence(l string) bool {
+	t := strings.TrimLeft(l, " \t")
+	stripped := false
+	for {
+		m := containerPrefixRE.FindString(t)
+		if m == "" {
+			break
+		}
+		stripped = true
+		t = t[len(m):]
+	}
+	if !stripped {
+		return false
+	}
+	_, _, ok := fenceOpen(t)
+	return ok
+}
 
 func atxHeading(l string) (level int, text string, ok bool) {
 	m := atxRE.FindStringSubmatch(l)
@@ -109,8 +177,49 @@ func fenceOpen(l string) (ch byte, n int, ok bool) {
 	return m[1][0], len(m[1]), true
 }
 
-func fenceCloses(l string, ch byte, n int) bool {
-	t := strings.TrimSpace(l)
+// indentWidth is the width of the leading white space, a tab counting as 4.
+func indentWidth(l string) int {
+	w := 0
+	for i := 0; i < len(l); i++ {
+		switch l[i] {
+		case ' ':
+			w++
+		case '\t':
+			w += 4
+		default:
+			return w
+		}
+	}
+	return w
+}
+
+// fenceCloses reports whether l closes a fence opened with n characters of ch
+// at indentation openIndent. A closing fence is indented at most 3 columns
+// more than its opener; a line indented further is code inside the fence.
+func leadingWS(l string) string {
+	return l[:len(l)-len(strings.TrimLeft(l, " \t"))]
+}
+
+// fenceChars reports whether l, ignoring indentation, is a line of at least n
+// fence characters ch (and nothing else but ASCII white space).
+func fenceChars(l string, ch byte, n int) bool {
+	t := strings.Trim(l, " \t")
+	if len(t) < n {
+		return false
+	}
+	for i := 0; i < len(t); i++ {
+		if t[i] != ch {
+			return false
+		}
+	}
+	return true
+}
+
+func fenceCloses(l string, ch byte, n, openIndent int) bool {
+	if indentWidth(l) > openIndent+3 {
+		return false
+	}
+	t := strings.Trim(l, " \t") // only ASCII space and tab, never other Unicode white space
 	if len(t) < n {
 		return false
 	}
@@ -126,14 +235,17 @@ func fenceCloses(l string, ch byte, n int) bool {
 // Fences are tracked from the first line, so a "#" inside fenced code is never
 // a heading, wherever the fence opened.
 func scan(lines []string) scanned {
-	sc := scanned{lines: lines, kind: make([]lineKind, len(lines))}
+	sc := scanned{lines: lines, kind: make([]lineKind, len(lines)), fenceBody: make([]bool, len(lines))}
 	var cur *rawItem // open item, index into sc.items via pointer refreshed below
 	curIdx := -1
 	sawBlank := false
 	inFence := false
 	var fch byte
 	fenceAt := 0
+	fenceIndent := 0
 	fenceResidue := false
+	fenceIndented := false
+	fenceIndentStr := ""
 	var flen int
 	closeItem := func() { cur = nil; curIdx = -1 }
 	extend := func(n int) {
@@ -150,6 +262,19 @@ func scan(lines []string) scanned {
 		l := lines[i]
 		n := i + 1
 		if inFence {
+			// A fence opened on an indented line is tracked without its
+			// container, so only a closer at exactly the opener's indentation
+			// is read; any other shape makes the file unreadable (file-wide stop).
+			if fenceIndented && sc.containerFence == 0 && !isBlank(l) {
+				// Exact leading white space, never a width: a line must carry the
+				// opener's own white space as a prefix, and a tab anywhere in it
+				// (tab stops differ from widths) is not read.
+				ws := leadingWS(l)
+				if !strings.HasPrefix(ws, fenceIndentStr) || strings.Contains(ws, "\t") ||
+					(fenceChars(l, fch, flen) && ws != fenceIndentStr) {
+					sc.containerFence = n
+				}
+			}
 			if fenceResidue {
 				sc.kind[i] = kResidue
 			} else {
@@ -159,8 +284,10 @@ func scan(lines []string) scanned {
 				}
 				extend(n)
 			}
-			if fenceCloses(l, fch, flen) {
+			if fenceCloses(l, fch, flen, fenceIndent) {
 				inFence = false
+			} else {
+				sc.fenceBody[i] = true
 			}
 			prevAllowsLinkDef = false
 			continue
@@ -181,6 +308,15 @@ func scan(lines []string) scanned {
 			continue
 		}
 		indented := l[0] == ' ' || l[0] == '\t'
+		if sc.containerFence == 0 && containerFence(l) {
+			sc.containerFence = n
+		}
+		if st, multi := htmlBlock(l); st {
+			sc.html = append(sc.html, n)
+			if multi && sc.containerFence == 0 {
+				sc.containerFence = n
+			}
+		}
 		if hrRE.MatchString(l) {
 			sc.kind[i] = kResidue
 			closeItem()
@@ -204,6 +340,12 @@ func scan(lines []string) scanned {
 			}
 			fenceResidue = sc.kind[i] == kResidue
 			inFence, fch, flen = true, ch, ln
+			fenceIndent = indentWidth(l)
+			fenceIndented = indented
+			fenceIndentStr = leadingWS(l)
+			if indented && strings.Contains(fenceIndentStr, "\t") && sc.containerFence == 0 {
+				sc.containerFence = n
+			}
 			fenceAt = n
 			continue
 		}
