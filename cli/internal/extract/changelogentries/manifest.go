@@ -70,6 +70,7 @@ type Manifest struct {
 // component's row has been reviewed; a component without a row is refused.
 var Reviewed = []Target{
 	{Component: "vault", Repo: extract.RepoRef{Key: "github.com/hashicorp/vault"}, Form: FormPostTag},
+	{Component: "aws-ebs-csi-driver", Repo: extract.RepoRef{Key: "github.com/kubernetes-sigs/aws-ebs-csi-driver"}, Form: FormPostTag},
 }
 
 // Lookup returns the row of a component in table. Exactly one row must match.
