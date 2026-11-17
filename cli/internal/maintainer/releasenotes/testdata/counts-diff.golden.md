@@ -8,7 +8,7 @@ Projects added (2): `newone`, `zcomm (community)`
 
 Projects removed (1): `gone`
 
-Upgrade pairs added 1, removed 0; decided pairs gained 1, lost 1; valid rules 4 -> 4 (0).
+In projects present in both releases: upgrade pairs added 1, removed 0, decided pairs gained 1, lost 1. Valid rules in all projects: 4 -> 4 (0).
 
 | Project | Pairs added | Pairs removed | Decided gained | Decided lost | Valid rules |
 | --- | --- | --- | --- | --- | --- |

@@ -147,7 +147,7 @@ func renderCountsDiff(b *strings.Builder, prev, cur *Counts, pin PreviousPin) {
 		gained += len(p.Gained)
 		lost += len(p.Lost)
 	}
-	fmt.Fprintf(b, "Upgrade pairs added %d, removed %d; decided pairs gained %d, lost %d; valid rules %d -> %d (%s).\n\n",
+	fmt.Fprintf(b, "In projects present in both releases: upgrade pairs added %d, removed %d, decided pairs gained %d, lost %d. Valid rules in all projects: %d -> %d (%s).\n\n",
 		pairsAdded, pairsRemoved, gained, lost, totalRules(prev), totalRules(cur), signed(totalRules(prev), totalRules(cur)))
 	if len(d.Projects) == 0 {
 		b.WriteString("No project present in both releases changed.\n\n")
