@@ -1,0 +1,6 @@
+Three CustomResourceDefinition files copied byte for byte from
+github.com/cert-manager/cert-manager at tag v1.18.0 (commit
+603a8d7121314d6204430c06786a385383cad89e), path deploy/crds/, licensed under
+the Apache License 2.0. They carry chart template markers only in full-line
+comments and in quoted metadata.labels values; spec holds none.
+Digests are pinned in template_metadata_test.go.

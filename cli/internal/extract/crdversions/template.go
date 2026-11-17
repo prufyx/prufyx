@@ -109,6 +109,13 @@ type templateWalk struct {
 	replacement string
 	crd         bool
 	accounted   int
+	// admit, when set, replaces the description rule: it names the only
+	// string paths that may hold a marker, and a closing marker is then
+	// refused everywhere else, in keys too (metadata-only rule,
+	// template_metadata.go). closes counts the closing markers of the
+	// admitted strings.
+	admit  func(path []any) bool
+	closes int
 }
 
 // compare walks the file's tree a and the replaced file's tree b together.
@@ -122,7 +129,7 @@ func (w *templateWalk) compare(a, b any, path []any) string {
 			return reason + " changes the file's structure"
 		}
 		for key, v := range x {
-			if strings.Contains(key, templateMarker) {
+			if strings.Contains(key, templateMarker) || (w.admit != nil && strings.Contains(key, templateClose)) {
 				return reason + " (in a key)"
 			}
 			other, ok := y[key]
@@ -150,13 +157,24 @@ func (w *templateWalk) compare(a, b any, path []any) string {
 		if !ok {
 			return reason + " changes the file's structure"
 		}
+		if w.admit != nil && !w.admit(path) && strings.Contains(x, templateClose) {
+			return reason
+		}
 		if !strings.Contains(x, templateMarker) {
 			if x != y {
 				return reason + " changes the file's content"
 			}
+			if w.admit != nil && w.admit(path) {
+				w.closes += strings.Count(x, templateClose)
+			}
 			return ""
 		}
-		if !w.crd || !schemaPathAdmitsDescription(path) {
+		if w.admit != nil {
+			if !w.admit(path) {
+				return reason
+			}
+			w.closes += strings.Count(x, templateClose)
+		} else if !w.crd || !schemaPathAdmitsDescription(path) {
 			return reason
 		}
 		if y != strings.ReplaceAll(x, templateMarker, w.replacement) {
