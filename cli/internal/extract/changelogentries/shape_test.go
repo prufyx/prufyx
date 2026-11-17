@@ -332,3 +332,18 @@ func TestExistingFormsStillRefuseNewFormsByDefault(t *testing.T) {
 	_, err := locateBytes(Target{Component: "x", Repo: extract.RepoRef{Key: "github.com/a/b"}, Form: "changelog-per-whatever", Path: "x"}, "v1.0.0", []byte("- a\n"))
 	wantCode(t, err, ShapeNotPerTag)
 }
+
+func TestPerVersionFileWholeFileRefusals(t *testing.T) {
+	const f25 = "docs/release-notes/2.5.0.md"
+	for name, s := range map[string]string{
+		"fence in a list item": "- ~~~\n  ## hidden\n  ~~~\n\n- a\n",
+		"fence in a quote":     "> ~~~\n  ## hidden\n> ~~~\n- a\n",
+		"html block":           "- a\n\n<div>\n## hidden\n</div>\n",
+		"tab fence indent":     "- a\n\n\t```\n\tx\n\t```\n",
+	} {
+		_, err := locateAt(perVersionTarget, "v2.5.0", f25, []byte(s))
+		if code, ok := CodeOf(err); !ok || code != EntryParseResidue {
+			t.Fatalf("%s: want %s, got %v", name, EntryParseResidue, err)
+		}
+	}
+}
