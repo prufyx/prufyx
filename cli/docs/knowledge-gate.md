@@ -125,6 +125,36 @@ digest), never from the advice text itself, except the rules on the pending list
 renewals land. The shared test vectors are in
 `cli/internal/extract/extractpack/testdata/renewal-remediation-vectors-v1.json`.
 
+#### Publication paths
+
+A pack change reaches `main` only through a pull request: the ruleset on
+`main` requires a pull request and the `Knowledge gate` status check, with no
+bypass actor. The gate re-derives a remediation-text renewal in every pull
+request, whoever opened it. The release and publish workflows do not decide
+pack content; they read what `main` holds.
+
+| Path | Gate in the workflow | Where the renewal is classified, re-derived and limited |
+|---|---|---|
+| Pull request into `main` (maintainer) | `.github/workflows/knowledge-gate.yml:21` (`pull_request_target`, no path filter), `gate classify` at `:218`, `gate verify` at `:264` | `classify.go:236` marks the change `remediation-text` (a loosening `modify`); `gate.go:582-587` (`freshDerivation`, `derivedAt` within 24 hours); `rederive.go:131,153` (extractor id, version and code digest equal the gate's); `rederive.go:115` (byte-identical to the gate's own extractor output, otherwise `rule differs from what extractor ... derives`); `gate.go:359` (loosening cap) |
+| Automation export pull request | the same workflow and steps; author and sender matter only for automatic merge (`BOT_LOGIN`, `knowledge-gate.yml:51`), never for the proof | the same functions; there is no separate admission path for rules |
+| Scheduled and manual runs of the gate | `knowledge-gate.yml:24,26` | re-derivation of a slice of `main` (`RederiveAll`, `gate.go:628`): a check of what is already merged, not a way in |
+| Release (tag `v*`) | `.github/workflows/release.yml:4` | none: it builds from a tag on `main` and changes no pack; it checks the pinned root and the age of the embedded knowledge only |
+| Knowledge publish (push to `main`, schedule, manual) | `.github/workflows/knowledge-publish.yml:28-41` | none: it signs and publishes what `main` holds and does not re-run the gate; it relies on the required check above, so a change that bypassed the ruleset would not be re-derived here |
+| Onboarding bundles | `.github/workflows/onboard-bundles.yml:10` | not a pack path: it validates `contrib/onboard-bundles/**` only |
+
+Release blockers for the renewal wave, not enforced by code:
+
+- Mirror corpus identity: the gate fetches the cited CRD files from upstream
+  itself and never reads the mirror. Before the renewal pull request is
+  opened, the corpus the extractor ran on must have the same file digests as
+  what the gate fetches (the cited `contentDigest` values); otherwise the gate
+  refuses the pull request, which is the safe outcome.
+- Deploy order: the gate is built from the base branch, so the extractor
+  build that produces the new advice text (and its `RemediationAllowListVersion`
+  list) must be merged to `main` before the renewal pull request is opened.
+  A renewal opened earlier is refused by the extractor digest check at
+  `rederive.go:153`.
+
 ### Superseding a reviewed rule
 
 A reviewed rule R can turn a `BLOCKED` answer into a scope-complete `PASS`
