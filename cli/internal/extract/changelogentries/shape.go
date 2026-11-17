@@ -66,8 +66,68 @@ func hasControl(s string) bool {
 
 func isDigit(c byte) bool { return c >= '0' && c <= '9' }
 
-// notFinalRE reads wording that marks a heading as not a final release.
-var notFinalRE = regexp.MustCompile(`(?i)\b(?:unreleased|release candidate|rc[ .-]?[0-9]*|dev|tbd|wip|in progress|snapshot|nightly)\b|[0-9]+\.[0-9]+\.[0-9]+[-+][0-9A-Za-z]`)
+// notFinalRE is the word list of non-final wording, matched case-insensitively
+// as whole words.
+var notFinalRE = regexp.MustCompile(`(?i)\b(?:rc|alpha|beta|preview|pre[ -]?release|release candidate|candidate|draft|canary|next|nightly|snapshot|dev|unreleased|tbd|in progress|wip)\b`)
+
+// tokenBoundary reports whether the byte c may sit next to a version token:
+// whitespace or ASCII punctuation other than . - _ + (never a letter, digit
+// or non-ASCII byte). Start and end of text are checked by the caller.
+func tokenBoundary(c byte) bool {
+	switch {
+	case c == ' ' || c == '\t':
+		return true
+	case c == '.' || c == '-' || c == '_' || c == '+':
+		return false
+	case c >= 0x80, c >= '0' && c <= '9', c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z':
+		return false
+	}
+	return c > 0x20 && c < 0x7f
+}
+
+// headingProblem applies the strict rule to one heading of a per-version
+// file. A heading may hold a digit only inside exactly one occurrence of the
+// file's own version token ("x.y.z" or "vx.y.z"), bounded on both sides by the
+// start or end of the text, whitespace or punctuation other than . - _ +.
+// Any other digit, or a second occurrence, is EntryDuplicate; non-final
+// wording is EntryNotFinal. The rule over-withholds on purpose: a heading
+// such as "Upgrading from 2.4" or "2.5.1 / 2024-01-02" is refused, because a
+// wrong pass is worse than a withheld entry. It is a known conservative limit.
+func headingProblem(text, version string) (Code, string, bool) {
+	if notFinalRE.MatchString(text) {
+		return EntryNotFinal, "non-final wording", true
+	}
+	valid := 0
+	masked := []byte(text)
+	for from := 0; ; {
+		i := strings.Index(text[from:], version)
+		if i < 0 {
+			break
+		}
+		i += from
+		from = i + 1
+		s, e := i, i+len(version)
+		if s > 0 && text[s-1] == 'v' {
+			s--
+		}
+		if (s > 0 && !tokenBoundary(text[s-1])) || (e < len(text) && !tokenBoundary(text[e])) {
+			continue
+		}
+		valid++
+		for k := s; k < e; k++ {
+			masked[k] = ' '
+		}
+	}
+	if valid > 1 {
+		return EntryDuplicate, "the version token occurs more than once", true
+	}
+	for _, c := range masked {
+		if c >= '0' && c <= '9' {
+			return EntryDuplicate, "a digit outside the file's own version token", true
+		}
+	}
+	return "", "", false
+}
 
 // resolveTemplate substitutes the placeholder and re-checks the result.
 func resolveTemplate(tpl, placeholder, value string) (string, error) {
@@ -216,13 +276,9 @@ func locatePerVersion(r extract.PinnedReader, t Target, tag extract.Tag) (*Entry
 	}
 	for _, h := range sc.headings {
 		if h.Line >= start && h.Line <= end {
-			// The file name carries the version; no heading may name another
-			// release or a non-final one (same wording rule as a section).
-			if notFinalRE.MatchString(h.Text) {
-				return nil, fail(EntryNotFinal, fmt.Sprintf("line %d: heading %q is not a final release heading", h.Line, h.Text))
-			}
-			if tok := firstVersionToken(h.Text); tok != "" && tok != version {
-				return nil, fail(EntryDuplicate, fmt.Sprintf("line %d names %s, not %s", h.Line, tok, version))
+			// The file name carries the version; the heading may name only it.
+			if code, why, bad := headingProblem(h.Text, version); bad {
+				return nil, fail(code, fmt.Sprintf("line %d: heading %q: %s", h.Line, h.Text, why))
 			}
 			// A heading cannot straddle the end: trailing blanks are trimmed,
 			// so the last line is content; checked for parity with a section.

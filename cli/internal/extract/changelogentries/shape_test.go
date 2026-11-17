@@ -255,31 +255,44 @@ func TestShapeTemplatesRefused(t *testing.T) {
 	}
 }
 
-func TestPerVersionFileContentNamesOtherRelease(t *testing.T) {
+func TestPerVersionHeadingRule(t *testing.T) {
 	const f = "docs/release-notes/2.5.1.md"
+	dup, nf := EntryDuplicate, EntryNotFinal
 	for _, c := range []struct {
-		file string
-		want Code
+		heading string
+		want    Code // "" = accepted
 	}{
-		{"# 2.5.0\n\n- a\n", EntryDuplicate},
-		{"# v2.6.0 notes\n\n- a\n", EntryDuplicate},
-		{"# 2.5.1\n\n## From 2.4.0\n\n- a\n", EntryDuplicate},
-		{"# 2.5.1-rc.1\n\n- a\n", EntryNotFinal},
-		{"# 2.5.1 (unreleased)\n\n- a\n", EntryNotFinal},
-		{"# Unreleased\n\n- a\n", EntryNotFinal},
-		{"# 2.5.1 dev\n\n- a\n", EntryNotFinal},
-		{"# 2.5.1 TBD\n\n- a\n", EntryNotFinal},
-		{"# 2.5.1-beta.2\n\n- a\n", EntryNotFinal},
+		{"# 2.5.1", ""}, {"## v2.5.1", ""}, {"### Bug fixes", ""}, {"### Breaking changes", ""},
+		{"# Release v2.5.1", ""}, {"# [2.5.1]", ""}, {"# 2.5.1:", ""}, {"# What's new in 2.5.1!", ""},
+		// digits outside the own token, or a second token
+		{"# 2.5.0", dup}, {"# v2.6.0 notes", dup}, {"## From 2.4.0", dup},
+		{"# 2.5.1.1", dup}, {"# 2.5.1rc1", dup}, {"# 2.5.1_rc1", dup}, {"# 2.5.1a1", dup}, {"# 2.5.1b2", dup},
+		{"# Release 2.5", dup}, {"# Release 2.4", dup}, {"# v2", dup}, {"# 2.5.1 and 2.5.0", dup},
+		{"# 2.5.1 (was 2.5.0)", dup}, {"# 2024-01-02", dup}, {"# 2.5.1 / 2024-01-02", dup},
+		{"# 2.5.1 2.5.1", dup}, {"# 12.5.1", dup}, {"# 2.5.10", dup}, {"# 2.5.1-1", dup}, {"# 2.5.1+build", dup},
+		{"# dev2.5.1", dup}, {"# Step 1", dup}, {"# 2.5.1\u00e9", dup},
+		// non-final wording, whole words, any case
+		{"# 2.5.1-rc.1", nf}, {"# 2.5.1 rc", nf}, {"# 2.5.1 (unreleased)", nf}, {"# Unreleased", nf},
+		{"# 2.5.1 dev", nf}, {"# 2.5.1 TBD", nf}, {"# 2.5.1-beta.2", nf}, {"# 2.5.1 beta", nf},
+		{"# 2.5.1 Alpha", nf}, {"# 2.5.1 preview", nf}, {"# 2.5.1 pre-release", nf}, {"# 2.5.1 prerelease", nf},
+		{"# 2.5.1 draft", nf}, {"# 2.5.1 canary", nf}, {"# 2.5.1 next", nf}, {"# 2.5.1 nightly", nf},
+		{"# 2.5.1 snapshot", nf}, {"# 2.5.1 in progress", nf}, {"# 2.5.1 WIP", nf}, {"# 2.5.1 release candidate", nf},
+		{"### Dev tools", nf},
 	} {
-		_, err := locateAt(perVersionTarget, "v2.5.1", f, []byte(c.file))
+		_, err := locateAt(perVersionTarget, "v2.5.1", f, []byte(c.heading+"\n\n- a\n"))
+		if c.want == "" {
+			if err != nil {
+				t.Errorf("%q: want accepted, got %v", c.heading, err)
+			}
+			continue
+		}
 		if got, ok := CodeOf(err); !ok || got != c.want {
-			t.Errorf("%q: want %s, got %v", c.file, c.want, err)
+			t.Errorf("%q: want %s, got %v", c.heading, c.want, err)
 		}
 	}
-	// its own version in a heading is fine
-	if _, err := locateAt(perVersionTarget, "v2.5.1", f, []byte("# 2.5.1\n\n- a\n")); err != nil {
-		t.Fatal(err)
-	}
+	// setext headings go through the same rule
+	_, err := locateAt(perVersionTarget, "v2.5.1", f, []byte("Release 2.5\n-----------\n\n- a\n"))
+	wantCode(t, err, dup)
 }
 
 func TestPerVersionTagSpellingsShareOneFile(t *testing.T) {
