@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from seeded_support import write_seeded
 from unittest.mock import patch
 
 import crd_oracle as crd
@@ -89,6 +90,7 @@ def envelope_runner():
     (output / "synthetic.cases.json").write_text(json.dumps(cases))
     if mode == "skipped-suite":
         (output / "skipped.json").write_text('["review"]')
+    write_seeded(output)
     result = subprocess.run([sys.executable, str(HERE / "summarize.py"), "--dir", str(output),
         "--state", os.environ["QA_STATE"], "--sha", contract["head"], "--mode", "full", "--adhoc"])
     if mode == "changed-contract":

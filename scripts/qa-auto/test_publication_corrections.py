@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from seeded_support import write_seeded
 from test_batch_envelope_scope import gate_source
 from unittest.mock import patch
 
@@ -148,6 +149,7 @@ def publication_runner():
             str(out / "rules.cases.json"), "--allow", str(rules_allow)]):
         runpy.run_path(str(HERE / "rules_oracle.py"), run_name="__main__")
     (out / "other.cases.json").write_text(json.dumps([q.case("bp325", "synthetic-control")]))
+    write_seeded(out)
     return subprocess.run([sys.executable, str(HERE / "summarize.py"), "--dir", str(out), "--state",
         os.environ["QA_STATE"], "--sha", os.environ["QA_SHA"], "--mode", "incremental", "--adhoc"]).returncode
 

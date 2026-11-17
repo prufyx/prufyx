@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # qa-auto batch wrong-PASS gate: runs run.sh in PR mode (QA_SHA=head, QA_BASE=base; ad-hoc, never touches
 # last_green/last_checked/status.json) on a bot/onboarding batch head and prints ONE line:
-#   GATE <sha8> WRONGPASS=n MISMATCH=m ERR=e cases=c
+#   GATE <sha8> WRONGPASS=n MISMATCH=m ERR=e cases=c [rules=absent] [SKIPPED=..] base=<sha8> SEEDED=k/n
+#   SEEDED=k/n is the trailing seeded-case field (seeds.py): n injected wrong PASSes were run BEFORE the real corpus and k were
+#   caught. k<n is a wrong PASS (exit 2, WRONGPASS>=n-k, the corpus verdict is not trusted); SEEDED=none = no usable seeded result
+#   (inconclusive, exit 3). The seeds come from the installed scripts (base), never from the head; QA_SEEDS_DIGEST (optional) pins
+#   the seeds.py sha256. A line without SEEDED is the pre-seeding format.
 #
 #   batch_gate.sh [--trust-operator] <head-sha> [base-sha]   gate one head (base default: merge-base with main, else main tip)
 #   batch_gate.sh --poll [--dry]          gate every open PR of QA_GATE_REPO whose head sha has no STATE/gate/<sha>.json
@@ -121,24 +125,25 @@ PY
     return 3
   fi
   if [ -z "$out" ] || [ ! -s "$out/summary.json" ] || [ "$(date -r "$out/summary.json" +%s)" -lt "$t0" ]; then
-    echo "GATE $s8 WRONGPASS=0 MISMATCH=0 ERR=1 cases=0 base=${base:0:8}"
+    echo "GATE $s8 WRONGPASS=0 MISMATCH=0 ERR=1 cases=0 base=${base:0:8} SEEDED=none"
     { echo "gate: no summary (run.sh exit $rc, cap ${QA_GATE_CAP}s); tail:"; tail -5 "$log"; } >&2
     rm -f "$log"
     n=$(( $(cat "$G/$head.try" 2>/dev/null || echo 0) + 1 )); echo "$n" >"$G/$head.try"
     if [ "$n" -ge "$QA_GATE_TRIES" ]; then
-      printf '{"sha":"%s","base":"%s","line":"GATE %s WRONGPASS=0 MISMATCH=0 ERR=1 cases=0 base=%s","exit":3,"state":"INCONCLUSIVE"}\n' "$head" "$base" "$s8" "${base:0:8}" >"$G/$head.json"
+      printf '{"sha":"%s","base":"%s","line":"GATE %s WRONGPASS=0 MISMATCH=0 ERR=1 cases=0 base=%s SEEDED=none","exit":3,"state":"INCONCLUSIVE"}\n' "$head" "$base" "$s8" "${base:0:8}" >"$G/$head.json"
       rm -f "$G/$head.try"
     fi
     return 3
   fi
   rm -f "$log"
   python3 -I - "$out/summary.json" "$head" "$base" "$G" "$rc" "$(main_tip)" "$run_id" "$HERE" "$scope_root" "$scope_file" "$scope_digest" <<'PY'
-import json, sys, time
+import json, os, sys, time
 from pathlib import Path
 summ, head, base, gdir, rc, tip, run_id, script_dir, scope_root, scope_file, expected_digest = sys.argv[1:]
 sys.path.insert(0, script_dir)
 import qa_scope
 import qa_batch_scope
+import qalib
 s = json.load(open(summ))
 run_error = (int(rc) != 0 or
              s.get("run_id") != run_id or s.get("base") != base or
@@ -166,6 +171,32 @@ try:
             s[name] = actual
 except (OSError, ValueError, KeyError, TypeError) as error:
     scope_errors.append("SCOPE_INVALID: " + str(error))
+# Seeded wrong-PASS result (seeds.py, run before the real corpus): fail closed on anything that is not a complete, installed-digest
+# bound result; an uncaught seed is a wrong PASS whatever else the summary says.
+seed = s.get("seeded")
+seed_text = "none"
+try:
+    if not (isinstance(seed, dict) and type(seed.get("caught")) is int and type(seed.get("total")) is int
+            and 0 < seed["total"] and 0 <= seed["caught"] <= seed["total"] and isinstance(seed.get("digest"), str)
+            and isinstance(seed.get("uncaught"), list)):
+        raise ValueError("SEEDED result missing or malformed")
+    seed_text = f"{seed['caught']}/{seed['total']}"
+    if seed["digest"] != qalib.seeds_digest():
+        raise ValueError("SEEDED digest differs from the installed seeds.py")
+    pinned = os.environ.get("QA_SEEDS_DIGEST", "")
+    if pinned and seed["digest"] != pinned:
+        raise ValueError("SEEDED digest differs from the pinned QA_SEEDS_DIGEST")
+    if seed.get("error"):
+        raise ValueError("SEEDED run error: " + str(seed["error"])[:200])
+    if seed["caught"] != seed["total"] - len(seed["uncaught"]):
+        raise ValueError("SEEDED caught/uncaught disagree")
+    if seed["caught"] < seed["total"]:
+        s["wrongpass"] = max(s.get("wrongpass", 0), seed["total"] - seed["caught"])
+        scope_errors.append("SEEDED_UNCAUGHT: " + ",".join(seed["uncaught"][:10]))
+except ValueError as error:
+    scope_errors.append(str(error))
+    if isinstance(seed, dict) and isinstance(seed.get("uncaught"), list) and seed["uncaught"]:
+        s["wrongpass"] = max(s.get("wrongpass", 0), len(seed["uncaught"]))
 s["errors"] = s.get("errors", 0) + int(run_error) + int(bool(scope_errors))
 if scope_errors:
     print("gate: " + "; ".join(scope_errors), file=sys.stderr)
@@ -186,14 +217,14 @@ if "rules(absent)" in info:
     line += " rules=absent"
 if bad:
     line += " SKIPPED=" + ",".join(bad)
-line += f" base={base[:8]}"
+line += f" base={base[:8]} SEEDED={seed_text}"
 # Any mismatch is inconclusive, including one recorded in a historical baseline.
 code = 2 if s["wrongpass"] else (3 if s["errors"] or bad or m else 0)
 json.dump({"sha": head, "base": base, "line": line, "exit": code, "state": {0: "GREEN", 2: "WRONGPASS", 3: "INCONCLUSIVE"}[code],
            "time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "mode": s["mode"], "skipped": skipped,
            "main": tip, "wrongpass": s["wrongpass"], "mismatch": m, "errors": s["errors"], "cases": s["cases"],
            "wrongpass_cases": s["wrongpass_cases"], "error_cases": s["error_cases"], "summary": summ, "scopes": s.get("scopes"),
-           "batch_scope_digest": expected_digest, "batch_scope": contract,
+           "seeded": seed, "batch_scope_digest": expected_digest, "batch_scope": contract,
            "kind": "not_executed", "db": "not_executed"},
           open(f"{gdir}/{head}.json.tmp", "w"), indent=1)
 print(line)
