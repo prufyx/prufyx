@@ -20,6 +20,10 @@
 
 # The gate and the code its checks rest on.
 /cli/internal/maintainer/knowledgegate/ @airstand
+/cli/internal/maintainer/releasedocs/ @airstand
+/cli/cmd/prufyx-maintainer/release_docs.go @airstand
+/cli/internal/maintainer/releaseworkflow/release_docs_gate_test.go @airstand
+/scripts/release-dry-run.sh @airstand
 /cli/internal/maintainer/coveragereport/ @airstand
 /cli/cmd/prufyx-maintainer/gate.go @airstand
 /cli/internal/strictjson/ @airstand

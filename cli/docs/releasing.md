@@ -123,9 +123,74 @@ attestation and the `SHA256SUMS` of a version must stay one-to-one.
 A tag cannot be edited after it has been published: if something is wrong,
 delete the draft, leave the tag as burned, and cut the next prerelease number.
 
+## The release docs gate
+
+`prufyx-maintainer release-docs check` proves that the generated coverage text
+of a tree is what the generator writes and that no hand-typed number or
+coverage claim sits around it. It reads files and git objects only. It fails
+closed: any unreadable file, missing marker, unknown schema or unresolvable tag
+is a finding, every finding fails, and there is no warning mode. The exit code
+is the lowest failed class: 2 usage, 10 README block, 11 counts file, 12 notes,
+13 CHANGELOG, 14 site copy, 15 previous release, 16 prose numbers, 17 deny
+list, 18 labels, 19 tag binding.
+
+```sh
+cd cli
+go run ./cmd/prufyx-maintainer release-docs check --root .. --mode unreleased
+go run ./cmd/prufyx-maintainer release-docs check --root .. --mode release --tag <tag> --previous <prev> --deny-file <names>
+go run ./cmd/prufyx-maintainer release-docs check --root .. --mode cut --tag <tag> --previous <prev> --deny-file <names> --site-counts <site copy>
+```
+
+Modes:
+
+- `unreleased` (CI, and `make check` in `cli/`): the README generated regions
+  and the counts file equal their regeneration, and every
+  `cli/docs/release-notes-<tag>.md` whose tag has no git tag yet is checked
+  against the current tree: its block, the matching CHANGELOG entry, the
+  labels, the prose and the deny list. A notes file without its markers fails.
+  The previous release is the one the notes name; its counts come from its own
+  tag. The vendor and model name list is read when `--deny-file` is given (CI
+  passes the repository variable `RELEASE_DENY_NAMES` when it is set); when it
+  is not given only that list is skipped and the output says so.
+- `release` (the `release-docs-gate` job of `release.yml`): everything above
+  for `--tag`, plus: the checkout is the tagged commit with no modified tracked
+  file, the previous release is strictly lower and an ancestor, the first
+  heading of the notes and the README status line name the tag, and
+  `CHANGELOG.md` has exactly one `## [<version>]` heading. `--deny-file` is
+  mandatory. Every other job of the release workflow needs this job.
+- `cut` is `release` plus a mandatory `--site-counts FILE`: the site's copy of
+  `coverage-counts.json` must equal the committed file byte for byte. The site
+  is a private tree, so the release manager runs `cut` before the tag is pushed
+  and supplies that copy; the public release job cannot see it. The site copy
+  is therefore checked at cut time by the release manager, not in CI.
+
+What is checked. The previous counts are never read from the notes under test:
+they come from the previous tag's own committed counts file (sha256 computed by
+the check) or, for `v0.1.0-beta.0`, from the pinned bootstrap file and the
+sha256 constant in the code. The notes are regenerated with
+`--omit-merged-prs`, so generate them that way. Integers outside the generated
+blocks are refused: every integer in a notes file, and every integer on a line
+of `README.md` or of the `CHANGELOG.md` sections under check (Unreleased and the
+entries being released) that contains one of `project`, `pair`, `version`,
+`coverage`, `covered`, `decided`, `catalog` (case-insensitive). Allowed:
+semantic versions, ISO dates, list indexes, `v`-prefixed versions, the digits of
+a label such as `beta.0`, and, on README and CHANGELOG lines, dotted versions
+such as `1.30`, exit codes, sizes with a unit and the content of an inline code
+span. Fenced code in README and CHANGELOG is not prose. The phrases
+`production-supported`, `all CNCF`, `full coverage`, `fully covered`,
+`complete coverage`, `SAFE`, and a project count that says it is covered or
+supported without one of the labels `catalogued`, `rule-decided`,
+`attestation-only` or `gap` in the same sentence are refused everywhere in these
+texts, inside the generated blocks too. The names of vendors and models are
+refused from the `--deny-file` list (one name per line, whole words,
+case-insensitive).
+
+The check proves that the tree is consistent with its generator; it does not
+prove the generator right.
+
 ## What CI does
 
-The workflow has four jobs. Third-party actions are pinned by commit SHA.
+The workflow has the `release-docs-gate` job above, which every other job needs, and four more jobs. Third-party actions are pinned by commit SHA.
 
 1. **Build** (one job per `linux`/`darwin` x `amd64`/`arm64`, on
    `ubuntu-24.04`, `CGO_ENABLED=0`). For each platform it builds two binaries
