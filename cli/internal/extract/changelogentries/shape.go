@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"regexp"
 	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
@@ -31,6 +32,12 @@ func checkTemplate(tpl, placeholder string) error {
 	if strings.Count(tpl, placeholder) != 1 {
 		return fmt.Errorf("path template %q must hold %s exactly once", tpl, placeholder)
 	}
+	// A digit next to the placeholder would let two versions or lines name
+	// the same file ("1{line}": 1 + 3.5 and 13.5 read as 13.5 and 1 + 3.5).
+	if i := strings.Index(tpl, placeholder); i > 0 && isDigit(tpl[i-1]) ||
+		i+len(placeholder) < len(tpl) && isDigit(tpl[i+len(placeholder)]) {
+		return fmt.Errorf("path template %q has a digit next to %s", tpl, placeholder)
+	}
 	rest := strings.Replace(tpl, placeholder, "", 1)
 	if strings.ContainsAny(rest, "{}") {
 		return fmt.Errorf("path template %q holds a placeholder other than %s", tpl, placeholder)
@@ -46,14 +53,21 @@ func checkTemplate(tpl, placeholder string) error {
 	return nil
 }
 
+// hasControl reports any byte that is not printable ASCII (control, DEL,
+// and every byte of a multi-byte character, so no Unicode or bidi text).
 func hasControl(s string) bool {
 	for i := 0; i < len(s); i++ {
-		if s[i] < 0x20 || s[i] == 0x7f {
+		if s[i] < 0x20 || s[i] > 0x7e { // printable ASCII only
 			return true
 		}
 	}
 	return false
 }
+
+func isDigit(c byte) bool { return c >= '0' && c <= '9' }
+
+// notFinalRE reads wording that marks a heading as not a final release.
+var notFinalRE = regexp.MustCompile(`(?i)\b(?:unreleased|release candidate|rc[ .-]?[0-9]*|dev|tbd|wip|in progress|snapshot|nightly)\b|[0-9]+\.[0-9]+\.[0-9]+[-+][0-9A-Za-z]`)
 
 // resolveTemplate substitutes the placeholder and re-checks the result.
 func resolveTemplate(tpl, placeholder, value string) (string, error) {
@@ -202,6 +216,19 @@ func locatePerVersion(r extract.PinnedReader, t Target, tag extract.Tag) (*Entry
 	}
 	for _, h := range sc.headings {
 		if h.Line >= start && h.Line <= end {
+			// The file name carries the version; no heading may name another
+			// release or a non-final one (same wording rule as a section).
+			if notFinalRE.MatchString(h.Text) {
+				return nil, fail(EntryNotFinal, fmt.Sprintf("line %d: heading %q is not a final release heading", h.Line, h.Text))
+			}
+			if tok := firstVersionToken(h.Text); tok != "" && tok != version {
+				return nil, fail(EntryDuplicate, fmt.Sprintf("line %d names %s, not %s", h.Line, tok, version))
+			}
+			// A heading cannot straddle the end: trailing blanks are trimmed,
+			// so the last line is content; checked for parity with a section.
+			if h.EndLine > end {
+				return nil, fail(EntryParseResidue, "a heading straddles the end of the file")
+			}
 			e.Structure = append(e.Structure, Heading{Level: h.Level, Text: h.Text, Kind: "sub", Line: h.Line, EndLine: h.EndLine})
 		}
 	}

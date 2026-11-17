@@ -229,6 +229,13 @@ func TestShapeTemplatesRefused(t *testing.T) {
 		{FormPerVersionFile, "notes/version}.md"},
 		{FormPerVersionFile, "notes/\x00{version}.md"},
 		{FormPerVersionFile, "notes/${version}.md"},
+		{FormPerLineFile, "CHANGELOG/1{line}.md"}, // digit next to the placeholder
+		{FormPerLineFile, "CHANGELOG/{line}1.md"},
+		{FormPerVersionFile, "notes/9{version}.md"},
+		{FormPerVersionFile, "notes/\u202e{version}.md"}, // bidi override
+		{FormPerVersionFile, "notes/caf\u00e9-{version}.md"},
+		{FormPerVersionFile, "notes/\u200b{version}.md"},
+		{FormPerVersionFile, "notes/ {version}.md\x7f"},
 	}
 	for _, c := range cases {
 		tg := perVersionTarget
@@ -246,6 +253,54 @@ func TestShapeTemplatesRefused(t *testing.T) {
 			t.Errorf("%s %q: read before refusing", c.form, c.path)
 		}
 	}
+}
+
+func TestPerVersionFileContentNamesOtherRelease(t *testing.T) {
+	const f = "docs/release-notes/2.5.1.md"
+	for _, c := range []struct {
+		file string
+		want Code
+	}{
+		{"# 2.5.0\n\n- a\n", EntryDuplicate},
+		{"# v2.6.0 notes\n\n- a\n", EntryDuplicate},
+		{"# 2.5.1\n\n## From 2.4.0\n\n- a\n", EntryDuplicate},
+		{"# 2.5.1-rc.1\n\n- a\n", EntryNotFinal},
+		{"# 2.5.1 (unreleased)\n\n- a\n", EntryNotFinal},
+		{"# Unreleased\n\n- a\n", EntryNotFinal},
+		{"# 2.5.1 dev\n\n- a\n", EntryNotFinal},
+		{"# 2.5.1 TBD\n\n- a\n", EntryNotFinal},
+		{"# 2.5.1-beta.2\n\n- a\n", EntryNotFinal},
+	} {
+		_, err := locateAt(perVersionTarget, "v2.5.1", f, []byte(c.file))
+		if got, ok := CodeOf(err); !ok || got != c.want {
+			t.Errorf("%q: want %s, got %v", c.file, c.want, err)
+		}
+	}
+	// its own version in a heading is fine
+	if _, err := locateAt(perVersionTarget, "v2.5.1", f, []byte("# 2.5.1\n\n- a\n")); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPerVersionTagSpellingsShareOneFile(t *testing.T) {
+	file := []byte("- a\n")
+	a, err := locateAt(perVersionTarget, "v2.5.0", "docs/release-notes/2.5.0.md", file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := locateAt(perVersionTarget, "2.5.0", "docs/release-notes/2.5.0.md", file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.Tag == b.Tag || a.Version != b.Version || a.Source != b.Source || a.Section != b.Section || a.Items[0].Digest != b.Items[0].Digest {
+		t.Fatal("both spellings must read the same file and proof, differing only in Tag")
+	}
+}
+
+func TestPerLineFileOnlyOtherLineHeadings(t *testing.T) {
+	file := []byte("# v2.50.1\n\n- a\n\n# v2.50.0\n\n- b\n")
+	_, err := locateAt(snapshotterTarget, "v2.5.1", "CHANGELOG/CHANGELOG-2.5.md", file)
+	wantCode(t, err, EntryMissing)
 }
 
 func TestShapeTemplatesAccepted(t *testing.T) {
