@@ -31,6 +31,8 @@ func Locate(r extract.PinnedReader, t Target, tag extract.Tag) (*Entry, error) {
 	case FormMonorepo:
 		return nil, fail(MonorepoEntryAmbiguous, "monorepo entries are not read in this version")
 	case FormFile:
+	case FormPerLineFile, FormPerVersionFile:
+		return locateShape(r, t, tag)
 	default:
 		return nil, fail(ShapeNotPerTag, fmt.Sprintf("form %q is not read", t.Form))
 	}
