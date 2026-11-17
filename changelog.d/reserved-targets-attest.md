@@ -1,2 +1,2 @@
 ### Changed
-- Enable External Snapshotter and Secrets Store CSI Driver CRD line attestation extraction for eligible release transitions.
+- Enable External Snapshotter and Secrets Store CSI Driver CRD line attestation extraction for eligible release transitions, from 8.2 and from 1.2. Earlier transitions stay unattested: External Snapshotter 8.1 to 8.2 is withheld by the extractor (the rule's next action exceeds 256 bytes), and the Secrets Store CSI Driver 1.1 release trees carry packaged Helm chart archives that the extractor does not read.
