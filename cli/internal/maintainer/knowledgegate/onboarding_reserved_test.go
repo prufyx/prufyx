@@ -3,6 +3,10 @@
 package knowledgegate
 
 import (
+	"crypto/ed25519"
+	"encoding/base64"
+	"encoding/json"
+	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -88,6 +92,10 @@ func TestOnboardingBatchAdmitsReservedRecordBornWithItsRow(t *testing.T) {
 	}
 }
 
+// Four of these cases (owner absent, repository mismatch, removed record, row
+// without a record) are refused by the table loader before the gate's own
+// reservedChanges runs; TestReservedChangesUnit covers reservedChanges for the
+// same shapes directly.
 func TestOnboardingBatchReservedRecordRefusals(t *testing.T) {
 	t.Parallel()
 	type rows = []customresources.Project
@@ -170,6 +178,15 @@ func TestOnboardingBatchReservedRecordRefusals(t *testing.T) {
 			}
 			return rs, out
 		}, "does not load"},
+		{"competing record: a second owner for the same group", true, func(rs rows, rc recs) (rows, recs) {
+			other := otherSlug()
+			for _, p := range rs {
+				if p.Slug == other {
+					rc = append(rc, customresources.ReservedGroup{Name: obReservedGroup, Owner: other, Repository: "https://github.com/" + strings.TrimPrefix(p.Component, "pkg:github/"), Reason: "a competing claim on the same group"})
+				}
+			}
+			return rs, rc
+		}, "does not load"},
 		{"record bytes changed after signing", false, func(rs rows, rc recs) (rows, recs) {
 			for i := range rc {
 				if rc[i].Name == obReservedGroup {
@@ -246,4 +263,68 @@ func TestReservedChangesUnit(t *testing.T) {
 			}
 		})
 	}
+}
+
+// A batch that carries a reserved record is admitted only through a verified
+// owner signature: with no batch file, or with a signature that does not
+// verify, the same table edit is refused.
+func TestOnboardingBatchReservedRecordNeedsSignature(t *testing.T) {
+	t.Parallel()
+	ol := DefaultLayout().Onboarding
+	batchFile := func(f *onboardingFixture) string {
+		return obHeadPath(f, ol.Dir+"/"+f.record(t).BatchID+".json")
+	}
+	t.Run("no batch file", func(t *testing.T) {
+		t.Parallel()
+		f := reservedFixture(t, true, nil)
+		if err := os.Remove(batchFile(f)); err != nil {
+			t.Fatal(err)
+		}
+		r := f.gate(t)
+		if r.Passed() {
+			t.Fatal("reserved record admitted without a batch")
+		}
+		for _, ch := range r.Changes {
+			if ch.Member != "" && ch.OK {
+				t.Fatalf("member change admitted: %+v", ch)
+			}
+		}
+	})
+	t.Run("signature does not verify", func(t *testing.T) {
+		t.Parallel()
+		f := reservedFixture(t, true, nil)
+		path := batchFile(f)
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var env OnboardingEnvelope
+		if err := json.Unmarshal(raw, &env); err != nil {
+			t.Fatal(err)
+		}
+		env.Signature = base64.StdEncoding.EncodeToString(make([]byte, ed25519.SignatureSize))
+		out, err := json.MarshalIndent(env, "", "  ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, append(out, '\n'), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		r := f.gate(t)
+		requireFail(t, r, "O1")
+	})
+}
+
+// The gate keeps no list of apiserver-served groups. A recorded group that the
+// upstream repository does not declare in CustomResourceDefinitions (as an
+// apiserver-served *.k8s.io group would not be) is refused by the O6 dry run,
+// even with a valid owner signature.
+func TestOnboardingBatchReservedRecordNeedsUpstreamDeclaration(t *testing.T) {
+	t.Parallel()
+	f := reservedFixture(t, true, nil)
+	// The upstream files now declare another group than the recorded one.
+	writeUpstream(t, f.upstream, obFrom, obCRD, obCRDDoc("rbac.authorization.k8s.io", "v1alpha1", "v1"))
+	writeUpstream(t, f.upstream, obTo, obCRD, obCRDDoc("rbac.authorization.k8s.io", "v1"))
+	r := f.gate(t)
+	requireFail(t, r, "O6")
 }

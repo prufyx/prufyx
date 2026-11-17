@@ -1270,6 +1270,8 @@ eligible for automatic merging: the owner merges it.
 | O7 digests | the change-set digest (the classification and the changed paths), the sample of projects read in full or the digest of the review summary differs from the gate's own |
 | O8 kill switch | `factory/PAUSE` is set |
 
+The gate keeps no list of the groups kube-apiserver serves, so a signed batch could in principle record an apiserver-served `*.k8s.io` group for a new project. Two controls stand against it: the owner's signature over the table bytes (the record is part of what is signed), and O6, which refuses a batch whose new project's group is not declared by CustomResourceDefinitions in the file its row cites, at the upstream repository's own release (an apiserver-served group has no such file in a third-party repository). A group listed by two projects fails to load, so a record cannot compete with another project's claim.
+
 A change that adds no batch is checked as before: the gate admits the CNCF pack
 against the table it was built with, so a moved `registryDigest` member
 without a batch fails `admit/cncf` and the member check (a `table.json` edit

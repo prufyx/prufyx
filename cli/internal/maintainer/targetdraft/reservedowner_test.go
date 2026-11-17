@@ -91,6 +91,15 @@ func TestReservedStopAgainstShippedRecords(t *testing.T) {
 	if !reservedStop("unrecorded.storage.k8s.io", "some-project", "some-org/some-project") {
 		t.Error("group without a record not stopped")
 	}
+	// snapshot.storage.k8s.io: stopped for its candidate owner exactly when
+	// the shipped list holds no record naming that owner and repository.
+	snapOwned := ownsReserved(customresources.ReservedGroups(), "snapshot.storage.k8s.io", "external-snapshotter", "kubernetes-csi/external-snapshotter")
+	if reservedStop("snapshot.storage.k8s.io", "external-snapshotter", "kubernetes-csi/external-snapshotter") == snapOwned {
+		t.Error("snapshot group: stop does not follow the shipped record")
+	}
+	if !reservedStop("snapshot.storage.k8s.io", "some-project", "some-org/some-project") {
+		t.Error("snapshot group stopped for a non-owner: not stopped")
+	}
 	if !reservedStop("policy.networking.k8s.io", roSlug, roRepo) {
 		t.Error("unrelated reserved group not stopped")
 	}
