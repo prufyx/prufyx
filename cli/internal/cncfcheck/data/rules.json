@@ -21962,6 +21962,368 @@
       }
     },
     {
+      "component": "pkg:github/antrea-io/antrea",
+      "line": "2.3",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.2.0",
+            "commit": "a13d931239e8ac2c94e002dc82ce923d0a28b71d"
+          },
+          {
+            "version": "2.2.1",
+            "commit": "98a0bf1af4125dc9579df7185bdb68f74c048141"
+          },
+          {
+            "version": "2.2.2",
+            "commit": "f44704f47b27ec03711324465867f81f5f7a14ce"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.3.0",
+            "commit": "f3f4dffd0782baef62a71c41cfdfe9748cc9c27d"
+          },
+          {
+            "version": "2.3.1",
+            "commit": "b3b1788d42f40ab2aaf68db964a6e41e7271d83c"
+          },
+          {
+            "version": "2.3.2",
+            "commit": "0f476c3058375f2c9a6d9570b1c228ec7e565234"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.antrea",
+          "version": "2.15.0",
+          "codeDigest": "sha256:e96e1137a846770f74546663ae3ac7994d88cf5d26893c2909dcf4fa1cfed374"
+        },
+        "derivedAt": "2026-11-17T16:16:55Z",
+        "reviewedAt": "2026-11-17T16:16:55Z",
+        "validUntil": "2027-01-25T16:16:55Z",
+        "sources": [
+          {
+            "id": "crds-2-2-0",
+            "url": "https://github.com/antrea-io/antrea/blob/a13d931239e8ac2c94e002dc82ce923d0a28b71d/build/charts/antrea/crds/antreaagentinfo.yaml",
+            "revision": "a13d931239e8ac2c94e002dc82ce923d0a28b71d",
+            "contentDigest": "sha256:b3d8552c683b7e3c4f44e25cb0a8a3f26b44bf51b7b4cdb97a812c2b95cffe32",
+            "startLine": 1,
+            "endLine": 150
+          },
+          {
+            "id": "crds-2-3-0",
+            "url": "https://github.com/antrea-io/antrea/blob/f3f4dffd0782baef62a71c41cfdfe9748cc9c27d/build/charts/antrea/crds/antreaagentinfo.yaml",
+            "revision": "f3f4dffd0782baef62a71c41cfdfe9748cc9c27d",
+            "contentDigest": "sha256:b3d8552c683b7e3c4f44e25cb0a8a3f26b44bf51b7b4cdb97a812c2b95cffe32",
+            "startLine": 1,
+            "endLine": 150
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/antrea-io/antrea",
+      "line": "2.4",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.3.0",
+            "commit": "f3f4dffd0782baef62a71c41cfdfe9748cc9c27d"
+          },
+          {
+            "version": "2.3.1",
+            "commit": "b3b1788d42f40ab2aaf68db964a6e41e7271d83c"
+          },
+          {
+            "version": "2.3.2",
+            "commit": "0f476c3058375f2c9a6d9570b1c228ec7e565234"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.4.0",
+            "commit": "89d1bfe8acded45230041a144a3a14ea08322f80"
+          },
+          {
+            "version": "2.4.1",
+            "commit": "de0b42dcb79f5c3d814f96b726510903c154ac56"
+          },
+          {
+            "version": "2.4.2",
+            "commit": "be9a8a2518ab7f2cf28aa435a845a1e4f0c74f9d"
+          },
+          {
+            "version": "2.4.3",
+            "commit": "1476be6930f5dd47940938b5713fa461ef1fd086"
+          },
+          {
+            "version": "2.4.4",
+            "commit": "55628032a87d448f137fb458b6bff26a990e903b"
+          },
+          {
+            "version": "2.4.5",
+            "commit": "efdd370826f89400b3d5639a5482d76bc9f3331b"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.antrea",
+          "version": "2.15.0",
+          "codeDigest": "sha256:e96e1137a846770f74546663ae3ac7994d88cf5d26893c2909dcf4fa1cfed374"
+        },
+        "derivedAt": "2026-11-17T16:16:55Z",
+        "reviewedAt": "2026-11-17T16:16:55Z",
+        "validUntil": "2027-01-25T16:16:55Z",
+        "sources": [
+          {
+            "id": "crds-2-3-0",
+            "url": "https://github.com/antrea-io/antrea/blob/f3f4dffd0782baef62a71c41cfdfe9748cc9c27d/build/charts/antrea/crds/antreaagentinfo.yaml",
+            "revision": "f3f4dffd0782baef62a71c41cfdfe9748cc9c27d",
+            "contentDigest": "sha256:b3d8552c683b7e3c4f44e25cb0a8a3f26b44bf51b7b4cdb97a812c2b95cffe32",
+            "startLine": 1,
+            "endLine": 150
+          },
+          {
+            "id": "crds-2-4-0",
+            "url": "https://github.com/antrea-io/antrea/blob/89d1bfe8acded45230041a144a3a14ea08322f80/build/charts/antrea/crds/antreaagentinfo.yaml",
+            "revision": "89d1bfe8acded45230041a144a3a14ea08322f80",
+            "contentDigest": "sha256:b3d8552c683b7e3c4f44e25cb0a8a3f26b44bf51b7b4cdb97a812c2b95cffe32",
+            "startLine": 1,
+            "endLine": 150
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/antrea-io/antrea",
+      "line": "2.5",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.4.0",
+            "commit": "89d1bfe8acded45230041a144a3a14ea08322f80"
+          },
+          {
+            "version": "2.4.1",
+            "commit": "de0b42dcb79f5c3d814f96b726510903c154ac56"
+          },
+          {
+            "version": "2.4.2",
+            "commit": "be9a8a2518ab7f2cf28aa435a845a1e4f0c74f9d"
+          },
+          {
+            "version": "2.4.3",
+            "commit": "1476be6930f5dd47940938b5713fa461ef1fd086"
+          },
+          {
+            "version": "2.4.4",
+            "commit": "55628032a87d448f137fb458b6bff26a990e903b"
+          },
+          {
+            "version": "2.4.5",
+            "commit": "efdd370826f89400b3d5639a5482d76bc9f3331b"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.5.0",
+            "commit": "b249a64afc5f0a50bdcf3d00c6ff21a979c8ed3c"
+          },
+          {
+            "version": "2.5.1",
+            "commit": "a41e955dffc530bdcdd1641b2cac8c0b14a47152"
+          },
+          {
+            "version": "2.5.2",
+            "commit": "a7bea5d6661be93427a5b7541b0b8a4711050423"
+          },
+          {
+            "version": "2.5.3",
+            "commit": "c57fe033ba3c8fbd0015913d91e11c9c3f13a4a3"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.antrea",
+          "version": "2.15.0",
+          "codeDigest": "sha256:e96e1137a846770f74546663ae3ac7994d88cf5d26893c2909dcf4fa1cfed374"
+        },
+        "derivedAt": "2026-11-17T16:16:55Z",
+        "reviewedAt": "2026-11-17T16:16:55Z",
+        "validUntil": "2027-01-25T16:16:55Z",
+        "sources": [
+          {
+            "id": "crds-2-4-0",
+            "url": "https://github.com/antrea-io/antrea/blob/89d1bfe8acded45230041a144a3a14ea08322f80/build/charts/antrea/crds/antreaagentinfo.yaml",
+            "revision": "89d1bfe8acded45230041a144a3a14ea08322f80",
+            "contentDigest": "sha256:b3d8552c683b7e3c4f44e25cb0a8a3f26b44bf51b7b4cdb97a812c2b95cffe32",
+            "startLine": 1,
+            "endLine": 150
+          },
+          {
+            "id": "crds-2-5-0",
+            "url": "https://github.com/antrea-io/antrea/blob/b249a64afc5f0a50bdcf3d00c6ff21a979c8ed3c/build/charts/antrea/crds/antreaagentinfo.yaml",
+            "revision": "b249a64afc5f0a50bdcf3d00c6ff21a979c8ed3c",
+            "contentDigest": "sha256:b3d8552c683b7e3c4f44e25cb0a8a3f26b44bf51b7b4cdb97a812c2b95cffe32",
+            "startLine": 1,
+            "endLine": 150
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/antrea-io/antrea",
+      "line": "2.6",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.5.0",
+            "commit": "b249a64afc5f0a50bdcf3d00c6ff21a979c8ed3c"
+          },
+          {
+            "version": "2.5.1",
+            "commit": "a41e955dffc530bdcdd1641b2cac8c0b14a47152"
+          },
+          {
+            "version": "2.5.2",
+            "commit": "a7bea5d6661be93427a5b7541b0b8a4711050423"
+          },
+          {
+            "version": "2.5.3",
+            "commit": "c57fe033ba3c8fbd0015913d91e11c9c3f13a4a3"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.6.0",
+            "commit": "a1045cc3b504bc30cf2a5fdb6918a9708bd7349b"
+          },
+          {
+            "version": "2.6.1",
+            "commit": "a73fcb92084c897fa149e37642989ed01f7f17d1"
+          },
+          {
+            "version": "2.6.2",
+            "commit": "384f784fb34420bd11b59ca3e2660d5d70dd8af3"
+          },
+          {
+            "version": "2.6.3",
+            "commit": "08603530d80943f0b2f816a807c5242f633f0372"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.antrea",
+          "version": "2.15.0",
+          "codeDigest": "sha256:e96e1137a846770f74546663ae3ac7994d88cf5d26893c2909dcf4fa1cfed374"
+        },
+        "derivedAt": "2026-11-17T16:16:55Z",
+        "reviewedAt": "2026-11-17T16:16:55Z",
+        "validUntil": "2027-01-25T16:16:55Z",
+        "sources": [
+          {
+            "id": "crds-2-5-0",
+            "url": "https://github.com/antrea-io/antrea/blob/b249a64afc5f0a50bdcf3d00c6ff21a979c8ed3c/build/charts/antrea/crds/antreaagentinfo.yaml",
+            "revision": "b249a64afc5f0a50bdcf3d00c6ff21a979c8ed3c",
+            "contentDigest": "sha256:b3d8552c683b7e3c4f44e25cb0a8a3f26b44bf51b7b4cdb97a812c2b95cffe32",
+            "startLine": 1,
+            "endLine": 150
+          },
+          {
+            "id": "crds-2-6-0",
+            "url": "https://github.com/antrea-io/antrea/blob/a1045cc3b504bc30cf2a5fdb6918a9708bd7349b/build/charts/antrea/crds/antreaagentinfo.yaml",
+            "revision": "a1045cc3b504bc30cf2a5fdb6918a9708bd7349b",
+            "contentDigest": "sha256:b8271f95c2f7b555313522cebc51ce639a5b0ffb1a0fec68ac9976cdd3894f33",
+            "startLine": 1,
+            "endLine": 169
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/antrea-io/antrea",
+      "line": "2.7",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.6.0",
+            "commit": "a1045cc3b504bc30cf2a5fdb6918a9708bd7349b"
+          },
+          {
+            "version": "2.6.1",
+            "commit": "a73fcb92084c897fa149e37642989ed01f7f17d1"
+          },
+          {
+            "version": "2.6.2",
+            "commit": "384f784fb34420bd11b59ca3e2660d5d70dd8af3"
+          },
+          {
+            "version": "2.6.3",
+            "commit": "08603530d80943f0b2f816a807c5242f633f0372"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.7.0",
+            "commit": "e59003c2c1b13a961ff58a6d7b8f1133049d0bf0"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.antrea",
+          "version": "2.15.0",
+          "codeDigest": "sha256:e96e1137a846770f74546663ae3ac7994d88cf5d26893c2909dcf4fa1cfed374"
+        },
+        "derivedAt": "2026-11-17T16:16:55Z",
+        "reviewedAt": "2026-11-17T16:16:55Z",
+        "validUntil": "2027-01-25T16:16:55Z",
+        "sources": [
+          {
+            "id": "crds-2-6-0",
+            "url": "https://github.com/antrea-io/antrea/blob/a1045cc3b504bc30cf2a5fdb6918a9708bd7349b/build/charts/antrea/crds/antreaagentinfo.yaml",
+            "revision": "a1045cc3b504bc30cf2a5fdb6918a9708bd7349b",
+            "contentDigest": "sha256:b8271f95c2f7b555313522cebc51ce639a5b0ffb1a0fec68ac9976cdd3894f33",
+            "startLine": 1,
+            "endLine": 169
+          },
+          {
+            "id": "crds-2-7-0",
+            "url": "https://github.com/antrea-io/antrea/blob/e59003c2c1b13a961ff58a6d7b8f1133049d0bf0/build/charts/antrea/crds/antreaagentinfo.yaml",
+            "revision": "e59003c2c1b13a961ff58a6d7b8f1133049d0bf0",
+            "contentDigest": "sha256:b8271f95c2f7b555313522cebc51ce639a5b0ffb1a0fec68ac9976cdd3894f33",
+            "startLine": 1,
+            "endLine": 169
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/aquasecurity/trivy-operator",
       "line": "0.32",
       "factFamily": "crd.custom_resource_versions",
@@ -26922,6 +27284,272 @@
       }
     },
     {
+      "component": "pkg:github/koordinator-sh/koordinator",
+      "line": "1.4",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.3.0",
+            "commit": "b7913300db413d8f0adcf62521162555bc3724ea"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.4.0",
+            "commit": "c70f4103c3b76e6c0a656c3e51c7a2a2794b3080"
+          },
+          {
+            "version": "1.4.1",
+            "commit": "658bc5a01a41ab1c100027393671ca61013cc291"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.koordinator",
+          "version": "2.15.0",
+          "codeDigest": "sha256:9322ac68112e155743cff197b21953fbd4063c345995f7384468542c0bbab462"
+        },
+        "derivedAt": "2026-11-17T15:57:05Z",
+        "reviewedAt": "2026-11-17T15:57:05Z",
+        "validUntil": "2027-02-01T15:57:05Z",
+        "sources": [
+          {
+            "id": "crds-1-3-0",
+            "url": "https://github.com/koordinator-sh/koordinator/blob/b7913300db413d8f0adcf62521162555bc3724ea/config/crd/bases/config.koordinator.sh_clustercolocationprofiles.yaml",
+            "revision": "b7913300db413d8f0adcf62521162555bc3724ea",
+            "contentDigest": "sha256:d348cfedf74b06c2099ddccce54b1cca1ab9bbbdd4e4c7ec9b90c765f0b104da",
+            "startLine": 1,
+            "endLine": 194
+          },
+          {
+            "id": "crds-1-4-0",
+            "url": "https://github.com/koordinator-sh/koordinator/blob/c70f4103c3b76e6c0a656c3e51c7a2a2794b3080/config/crd/bases/config.koordinator.sh_clustercolocationprofiles.yaml",
+            "revision": "c70f4103c3b76e6c0a656c3e51c7a2a2794b3080",
+            "contentDigest": "sha256:5d5aae08b04449e14eab61741ecc551cff62480a933b82a7fa609f26ba5300d4",
+            "startLine": 1,
+            "endLine": 209
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/koordinator-sh/koordinator",
+      "line": "1.5",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.4.0",
+            "commit": "c70f4103c3b76e6c0a656c3e51c7a2a2794b3080"
+          },
+          {
+            "version": "1.4.1",
+            "commit": "658bc5a01a41ab1c100027393671ca61013cc291"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.5.0",
+            "commit": "1bac4d3cd5adcbb9f3653261dacf21636c11eca1"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.koordinator",
+          "version": "2.15.0",
+          "codeDigest": "sha256:9322ac68112e155743cff197b21953fbd4063c345995f7384468542c0bbab462"
+        },
+        "derivedAt": "2026-11-17T15:57:05Z",
+        "reviewedAt": "2026-11-17T15:57:05Z",
+        "validUntil": "2027-02-01T15:57:05Z",
+        "sources": [
+          {
+            "id": "crds-1-4-0",
+            "url": "https://github.com/koordinator-sh/koordinator/blob/c70f4103c3b76e6c0a656c3e51c7a2a2794b3080/config/crd/bases/config.koordinator.sh_clustercolocationprofiles.yaml",
+            "revision": "c70f4103c3b76e6c0a656c3e51c7a2a2794b3080",
+            "contentDigest": "sha256:5d5aae08b04449e14eab61741ecc551cff62480a933b82a7fa609f26ba5300d4",
+            "startLine": 1,
+            "endLine": 209
+          },
+          {
+            "id": "crds-1-5-0",
+            "url": "https://github.com/koordinator-sh/koordinator/blob/1bac4d3cd5adcbb9f3653261dacf21636c11eca1/config/crd/bases/analysis.koordinator.sh_recommendations.yaml",
+            "revision": "1bac4d3cd5adcbb9f3653261dacf21636c11eca1",
+            "contentDigest": "sha256:75ecdf402359fc59863940b08179aba8649b3f300ea5c456443496c6e9f1a913",
+            "startLine": 1,
+            "endLine": 244
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/koordinator-sh/koordinator",
+      "line": "1.6",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.5.0",
+            "commit": "1bac4d3cd5adcbb9f3653261dacf21636c11eca1"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.6.0",
+            "commit": "7a9e18c8a57ac3b5afc2a1b1730d66a81da2ccd3"
+          },
+          {
+            "version": "1.6.1",
+            "commit": "0f9d5bbd2c1184a3cd542d6848b218773c2a523a"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.koordinator",
+          "version": "2.15.0",
+          "codeDigest": "sha256:9322ac68112e155743cff197b21953fbd4063c345995f7384468542c0bbab462"
+        },
+        "derivedAt": "2026-11-17T15:57:05Z",
+        "reviewedAt": "2026-11-17T15:57:05Z",
+        "validUntil": "2027-02-01T15:57:05Z",
+        "sources": [
+          {
+            "id": "crds-1-5-0",
+            "url": "https://github.com/koordinator-sh/koordinator/blob/1bac4d3cd5adcbb9f3653261dacf21636c11eca1/config/crd/bases/analysis.koordinator.sh_recommendations.yaml",
+            "revision": "1bac4d3cd5adcbb9f3653261dacf21636c11eca1",
+            "contentDigest": "sha256:75ecdf402359fc59863940b08179aba8649b3f300ea5c456443496c6e9f1a913",
+            "startLine": 1,
+            "endLine": 244
+          },
+          {
+            "id": "crds-1-6-0",
+            "url": "https://github.com/koordinator-sh/koordinator/blob/7a9e18c8a57ac3b5afc2a1b1730d66a81da2ccd3/config/crd/bases/analysis.koordinator.sh_recommendations.yaml",
+            "revision": "7a9e18c8a57ac3b5afc2a1b1730d66a81da2ccd3",
+            "contentDigest": "sha256:75ecdf402359fc59863940b08179aba8649b3f300ea5c456443496c6e9f1a913",
+            "startLine": 1,
+            "endLine": 244
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/koordinator-sh/koordinator",
+      "line": "1.7",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.6.0",
+            "commit": "7a9e18c8a57ac3b5afc2a1b1730d66a81da2ccd3"
+          },
+          {
+            "version": "1.6.1",
+            "commit": "0f9d5bbd2c1184a3cd542d6848b218773c2a523a"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.7.0",
+            "commit": "a47133acb375db0219f602292c753e48ed417a4a"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.koordinator",
+          "version": "2.15.0",
+          "codeDigest": "sha256:9322ac68112e155743cff197b21953fbd4063c345995f7384468542c0bbab462"
+        },
+        "derivedAt": "2026-11-17T15:57:05Z",
+        "reviewedAt": "2026-11-17T15:57:05Z",
+        "validUntil": "2027-02-01T15:57:05Z",
+        "sources": [
+          {
+            "id": "crds-1-6-0",
+            "url": "https://github.com/koordinator-sh/koordinator/blob/7a9e18c8a57ac3b5afc2a1b1730d66a81da2ccd3/config/crd/bases/analysis.koordinator.sh_recommendations.yaml",
+            "revision": "7a9e18c8a57ac3b5afc2a1b1730d66a81da2ccd3",
+            "contentDigest": "sha256:75ecdf402359fc59863940b08179aba8649b3f300ea5c456443496c6e9f1a913",
+            "startLine": 1,
+            "endLine": 244
+          },
+          {
+            "id": "crds-1-7-0",
+            "url": "https://github.com/koordinator-sh/koordinator/blob/a47133acb375db0219f602292c753e48ed417a4a/config/crd/bases/analysis.koordinator.sh_recommendations.yaml",
+            "revision": "a47133acb375db0219f602292c753e48ed417a4a",
+            "contentDigest": "sha256:75ecdf402359fc59863940b08179aba8649b3f300ea5c456443496c6e9f1a913",
+            "startLine": 1,
+            "endLine": 244
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/koordinator-sh/koordinator",
+      "line": "1.8",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.7.0",
+            "commit": "a47133acb375db0219f602292c753e48ed417a4a"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.8.0",
+            "commit": "989ca85c62abcca92b303aa12fd2ccff2ed30fed"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.koordinator",
+          "version": "2.15.0",
+          "codeDigest": "sha256:9322ac68112e155743cff197b21953fbd4063c345995f7384468542c0bbab462"
+        },
+        "derivedAt": "2026-11-17T15:57:05Z",
+        "reviewedAt": "2026-11-17T15:57:05Z",
+        "validUntil": "2027-02-01T15:57:05Z",
+        "sources": [
+          {
+            "id": "crds-1-7-0",
+            "url": "https://github.com/koordinator-sh/koordinator/blob/a47133acb375db0219f602292c753e48ed417a4a/config/crd/bases/analysis.koordinator.sh_recommendations.yaml",
+            "revision": "a47133acb375db0219f602292c753e48ed417a4a",
+            "contentDigest": "sha256:75ecdf402359fc59863940b08179aba8649b3f300ea5c456443496c6e9f1a913",
+            "startLine": 1,
+            "endLine": 244
+          },
+          {
+            "id": "crds-1-8-0",
+            "url": "https://github.com/koordinator-sh/koordinator/blob/989ca85c62abcca92b303aa12fd2ccff2ed30fed/config/crd/bases/analysis.koordinator.sh_recommendations.yaml",
+            "revision": "989ca85c62abcca92b303aa12fd2ccff2ed30fed",
+            "contentDigest": "sha256:db99527784dced6611ddc1ee6b5cddb65bbf20c940dcc85026d71dcdefcce669",
+            "startLine": 1,
+            "endLine": 233
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/kubean-io/kubean",
       "line": "0.35",
       "factFamily": "crd.custom_resource_versions",
@@ -30264,6 +30892,204 @@
       }
     },
     {
+      "component": "pkg:github/longhorn/longhorn",
+      "line": "1.11",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.10.0",
+            "commit": "92b8338c08f62342bfc1fff1452f3f6806b87283"
+          },
+          {
+            "version": "1.10.1",
+            "commit": "452bc55d68632da752f3bb262127b4019a6584d4"
+          },
+          {
+            "version": "1.10.2",
+            "commit": "c8648f5e335b01c3ea27a7f654600ec8aece84ca"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.11.0",
+            "commit": "b8a3ced5a56da93e8d9d5ea6b2cede8dbddad50f"
+          },
+          {
+            "version": "1.11.1",
+            "commit": "eb3790253449e3577b4acb88b5620258cde6d747"
+          },
+          {
+            "version": "1.11.2",
+            "commit": "666fcb2f9b7d50b60936ba517f71c44df4e4d482"
+          },
+          {
+            "version": "1.11.3",
+            "commit": "79c39728c70dee0326cf2f647c874d01b798286b"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.longhorn",
+          "version": "2.15.0",
+          "codeDigest": "sha256:132087ae28fb16e77427e22c3a7a6bb9eeb07c15bf29926ca73f57ca2466c6c4"
+        },
+        "derivedAt": "2026-11-17T16:07:01Z",
+        "reviewedAt": "2026-11-17T16:07:01Z",
+        "validUntil": "2027-01-25T16:07:01Z",
+        "sources": [
+          {
+            "id": "crds-1-10-0",
+            "url": "https://github.com/longhorn/longhorn/blob/92b8338c08f62342bfc1fff1452f3f6806b87283/deploy/longhorn.yaml",
+            "revision": "92b8338c08f62342bfc1fff1452f3f6806b87283",
+            "contentDigest": "sha256:07cdd083137acd61c340fc54f1eb4afc8a1af5f193e1c24c388152004ccf475b",
+            "startLine": 1,
+            "endLine": 4473
+          },
+          {
+            "id": "crds-1-11-0",
+            "url": "https://github.com/longhorn/longhorn/blob/b8a3ced5a56da93e8d9d5ea6b2cede8dbddad50f/deploy/longhorn.yaml",
+            "revision": "b8a3ced5a56da93e8d9d5ea6b2cede8dbddad50f",
+            "contentDigest": "sha256:40b24cf0b9bc118f16f40941e080baefac233365b551dfac4f09b2984cf4c6c1",
+            "startLine": 1,
+            "endLine": 4561
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/longhorn/longhorn",
+      "line": "1.12",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.11.0",
+            "commit": "b8a3ced5a56da93e8d9d5ea6b2cede8dbddad50f"
+          },
+          {
+            "version": "1.11.1",
+            "commit": "eb3790253449e3577b4acb88b5620258cde6d747"
+          },
+          {
+            "version": "1.11.2",
+            "commit": "666fcb2f9b7d50b60936ba517f71c44df4e4d482"
+          },
+          {
+            "version": "1.11.3",
+            "commit": "79c39728c70dee0326cf2f647c874d01b798286b"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.12.0",
+            "commit": "9990b6db0c5971d5b3bc58dd14095fcdc3c761b3"
+          },
+          {
+            "version": "1.12.1",
+            "commit": "f349c091c50700cb6cb8a4df8aaa29ea214bdd48"
+          },
+          {
+            "version": "1.12.2",
+            "commit": "6099725ee4067daec2f88ca8043b53308720c7b2"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.longhorn",
+          "version": "2.15.0",
+          "codeDigest": "sha256:132087ae28fb16e77427e22c3a7a6bb9eeb07c15bf29926ca73f57ca2466c6c4"
+        },
+        "derivedAt": "2026-11-17T16:07:01Z",
+        "reviewedAt": "2026-11-17T16:07:01Z",
+        "validUntil": "2027-01-25T16:07:01Z",
+        "sources": [
+          {
+            "id": "crds-1-11-0",
+            "url": "https://github.com/longhorn/longhorn/blob/b8a3ced5a56da93e8d9d5ea6b2cede8dbddad50f/deploy/longhorn.yaml",
+            "revision": "b8a3ced5a56da93e8d9d5ea6b2cede8dbddad50f",
+            "contentDigest": "sha256:40b24cf0b9bc118f16f40941e080baefac233365b551dfac4f09b2984cf4c6c1",
+            "startLine": 1,
+            "endLine": 4561
+          },
+          {
+            "id": "crds-1-12-0",
+            "url": "https://github.com/longhorn/longhorn/blob/9990b6db0c5971d5b3bc58dd14095fcdc3c761b3/deploy/longhorn.yaml",
+            "revision": "9990b6db0c5971d5b3bc58dd14095fcdc3c761b3",
+            "contentDigest": "sha256:7923a570a6b59f8f4e3933ddac2352969d4ddb32fe180192cd2a49b02c81fa86",
+            "startLine": 1,
+            "endLine": 4977
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/longhorn/longhorn",
+      "line": "1.13",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.12.0",
+            "commit": "9990b6db0c5971d5b3bc58dd14095fcdc3c761b3"
+          },
+          {
+            "version": "1.12.1",
+            "commit": "f349c091c50700cb6cb8a4df8aaa29ea214bdd48"
+          },
+          {
+            "version": "1.12.2",
+            "commit": "6099725ee4067daec2f88ca8043b53308720c7b2"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.13.0",
+            "commit": "c3d88832bd8cec4f38dec65e79436984871dc313"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.longhorn",
+          "version": "2.15.0",
+          "codeDigest": "sha256:132087ae28fb16e77427e22c3a7a6bb9eeb07c15bf29926ca73f57ca2466c6c4"
+        },
+        "derivedAt": "2026-11-17T16:07:01Z",
+        "reviewedAt": "2026-11-17T16:07:01Z",
+        "validUntil": "2027-01-25T16:07:01Z",
+        "sources": [
+          {
+            "id": "crds-1-12-0",
+            "url": "https://github.com/longhorn/longhorn/blob/9990b6db0c5971d5b3bc58dd14095fcdc3c761b3/deploy/longhorn.yaml",
+            "revision": "9990b6db0c5971d5b3bc58dd14095fcdc3c761b3",
+            "contentDigest": "sha256:7923a570a6b59f8f4e3933ddac2352969d4ddb32fe180192cd2a49b02c81fa86",
+            "startLine": 1,
+            "endLine": 4977
+          },
+          {
+            "id": "crds-1-13-0",
+            "url": "https://github.com/longhorn/longhorn/blob/c3d88832bd8cec4f38dec65e79436984871dc313/deploy/longhorn.yaml",
+            "revision": "c3d88832bd8cec4f38dec65e79436984871dc313",
+            "contentDigest": "sha256:d0f99488e7b2789312d45b0127ce7388df71a971e6fca2085e88635303cc0a1f",
+            "startLine": 1,
+            "endLine": 6705
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/mongodb/mongodb-kubernetes",
       "line": "1.9",
       "factFamily": "crd.custom_resource_versions",
@@ -31465,6 +32291,252 @@
     },
     {
       "component": "pkg:github/openkruise/kruise",
+      "line": "1.5",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.4.0",
+            "commit": "914146d9a4a1a71e60789f7f9cee738b925b1996"
+          },
+          {
+            "version": "1.4.2",
+            "commit": "4aee7f6b58811ae3d80cfa33ec91e148099dcf16"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.5.0",
+            "commit": "a477df8066a49734bc71b9f3a1716897685a3d6f"
+          },
+          {
+            "version": "1.5.1",
+            "commit": "e82e40cd019ea8928da9a34f3f3374e2abbb8caf"
+          },
+          {
+            "version": "1.5.2",
+            "commit": "5421ee7c8e9e54ec38c1c1e20f4deb4a722f47a7"
+          },
+          {
+            "version": "1.5.3",
+            "commit": "86f2f3fa1cffd592ae5fd8bc38c2a56e42e8c1fc"
+          },
+          {
+            "version": "1.5.4",
+            "commit": "4693f8160528f2c17f9016be7746e409d3d7a9eb"
+          },
+          {
+            "version": "1.5.5",
+            "commit": "1dd887136422e7d9b6e8eaa04e0163351813d95f"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.openkruise",
+          "version": "2.15.0",
+          "codeDigest": "sha256:79b58845b2a8ff71c2113571ab473ec17ca7f1577cb9bbdd6a898420864feb83"
+        },
+        "derivedAt": "2026-11-17T16:18:37Z",
+        "reviewedAt": "2026-11-17T16:18:37Z",
+        "validUntil": "2027-02-15T16:18:37Z",
+        "sources": [
+          {
+            "id": "crds-1-4-0",
+            "url": "https://github.com/openkruise/kruise/blob/914146d9a4a1a71e60789f7f9cee738b925b1996/config/crd/bases/apps.kruise.io_advancedcronjobs.yaml",
+            "revision": "914146d9a4a1a71e60789f7f9cee738b925b1996",
+            "contentDigest": "sha256:fcbcaa0eecb3861fa0d1c8c4b02dad9ec707c4791866906b42aa64d4bb221401",
+            "startLine": 1,
+            "endLine": 277
+          },
+          {
+            "id": "crds-1-5-0",
+            "url": "https://github.com/openkruise/kruise/blob/a477df8066a49734bc71b9f3a1716897685a3d6f/config/crd/bases/apps.kruise.io_advancedcronjobs.yaml",
+            "revision": "a477df8066a49734bc71b9f3a1716897685a3d6f",
+            "contentDigest": "sha256:8683228fdb4744976a1b7a0d5585067a142aa3c4dde36e877b8442f81425239c",
+            "startLine": 1,
+            "endLine": 270
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/openkruise/kruise",
+      "line": "1.6",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.5.0",
+            "commit": "a477df8066a49734bc71b9f3a1716897685a3d6f"
+          },
+          {
+            "version": "1.5.1",
+            "commit": "e82e40cd019ea8928da9a34f3f3374e2abbb8caf"
+          },
+          {
+            "version": "1.5.2",
+            "commit": "5421ee7c8e9e54ec38c1c1e20f4deb4a722f47a7"
+          },
+          {
+            "version": "1.5.3",
+            "commit": "86f2f3fa1cffd592ae5fd8bc38c2a56e42e8c1fc"
+          },
+          {
+            "version": "1.5.4",
+            "commit": "4693f8160528f2c17f9016be7746e409d3d7a9eb"
+          },
+          {
+            "version": "1.5.5",
+            "commit": "1dd887136422e7d9b6e8eaa04e0163351813d95f"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.6.0",
+            "commit": "f0047b0833290e7f018bb4104bfe4cdfe8c0ffb1"
+          },
+          {
+            "version": "1.6.1",
+            "commit": "9410fbeb44ba9c3a5926f2209488b2d0b2b9931c"
+          },
+          {
+            "version": "1.6.2",
+            "commit": "99ca57c1809a138c3c5cbe39c8c470b0cd57c5ae"
+          },
+          {
+            "version": "1.6.3",
+            "commit": "1c07d4d22f64fae3520b27712c50f81b8bd85b33"
+          },
+          {
+            "version": "1.6.4",
+            "commit": "34dcd5536815a13fbde1cb96c4a30750a2827af6"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.openkruise",
+          "version": "2.15.0",
+          "codeDigest": "sha256:79b58845b2a8ff71c2113571ab473ec17ca7f1577cb9bbdd6a898420864feb83"
+        },
+        "derivedAt": "2026-11-17T16:18:37Z",
+        "reviewedAt": "2026-11-17T16:18:37Z",
+        "validUntil": "2027-02-15T16:18:37Z",
+        "sources": [
+          {
+            "id": "crds-1-5-0",
+            "url": "https://github.com/openkruise/kruise/blob/a477df8066a49734bc71b9f3a1716897685a3d6f/config/crd/bases/apps.kruise.io_advancedcronjobs.yaml",
+            "revision": "a477df8066a49734bc71b9f3a1716897685a3d6f",
+            "contentDigest": "sha256:8683228fdb4744976a1b7a0d5585067a142aa3c4dde36e877b8442f81425239c",
+            "startLine": 1,
+            "endLine": 270
+          },
+          {
+            "id": "crds-1-6-0",
+            "url": "https://github.com/openkruise/kruise/blob/f0047b0833290e7f018bb4104bfe4cdfe8c0ffb1/config/crd/bases/apps.kruise.io_advancedcronjobs.yaml",
+            "revision": "f0047b0833290e7f018bb4104bfe4cdfe8c0ffb1",
+            "contentDigest": "sha256:8683228fdb4744976a1b7a0d5585067a142aa3c4dde36e877b8442f81425239c",
+            "startLine": 1,
+            "endLine": 270
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/openkruise/kruise",
+      "line": "1.7",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.6.0",
+            "commit": "f0047b0833290e7f018bb4104bfe4cdfe8c0ffb1"
+          },
+          {
+            "version": "1.6.1",
+            "commit": "9410fbeb44ba9c3a5926f2209488b2d0b2b9931c"
+          },
+          {
+            "version": "1.6.2",
+            "commit": "99ca57c1809a138c3c5cbe39c8c470b0cd57c5ae"
+          },
+          {
+            "version": "1.6.3",
+            "commit": "1c07d4d22f64fae3520b27712c50f81b8bd85b33"
+          },
+          {
+            "version": "1.6.4",
+            "commit": "34dcd5536815a13fbde1cb96c4a30750a2827af6"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.7.0",
+            "commit": "2fe731cd691da91b8a8854432ecfd1544f520fee"
+          },
+          {
+            "version": "1.7.1",
+            "commit": "5762908feea14389a8c7c6a415e7053dfdadcf08"
+          },
+          {
+            "version": "1.7.2",
+            "commit": "535ba1bcec43a5fef1140176341a798edcfcf5c1"
+          },
+          {
+            "version": "1.7.3",
+            "commit": "34efc8d200c8b3d4021b355a73c49ad77eafc1c1"
+          },
+          {
+            "version": "1.7.4",
+            "commit": "5461ece592069f4adb932e90b6df4568605107a6"
+          },
+          {
+            "version": "1.7.5",
+            "commit": "34748d207595430c85dd3fa27607163e2a5b2ecd"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.openkruise",
+          "version": "2.15.0",
+          "codeDigest": "sha256:79b58845b2a8ff71c2113571ab473ec17ca7f1577cb9bbdd6a898420864feb83"
+        },
+        "derivedAt": "2026-11-17T16:18:37Z",
+        "reviewedAt": "2026-11-17T16:18:37Z",
+        "validUntil": "2027-02-15T16:18:37Z",
+        "sources": [
+          {
+            "id": "crds-1-6-0",
+            "url": "https://github.com/openkruise/kruise/blob/f0047b0833290e7f018bb4104bfe4cdfe8c0ffb1/config/crd/bases/apps.kruise.io_advancedcronjobs.yaml",
+            "revision": "f0047b0833290e7f018bb4104bfe4cdfe8c0ffb1",
+            "contentDigest": "sha256:8683228fdb4744976a1b7a0d5585067a142aa3c4dde36e877b8442f81425239c",
+            "startLine": 1,
+            "endLine": 270
+          },
+          {
+            "id": "crds-1-7-0",
+            "url": "https://github.com/openkruise/kruise/blob/2fe731cd691da91b8a8854432ecfd1544f520fee/config/crd/bases/apps.kruise.io_advancedcronjobs.yaml",
+            "revision": "2fe731cd691da91b8a8854432ecfd1544f520fee",
+            "contentDigest": "sha256:3f7fb15a00cd7a746771bb79279b85955fe208b9868cc7629bb87be15170bcd1",
+            "startLine": 1,
+            "endLine": 278
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/openkruise/kruise",
       "line": "1.8",
       "factFamily": "crd.custom_resource_versions",
       "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
@@ -31527,12 +32599,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.openkruise",
-          "version": "2.7.0",
-          "codeDigest": "sha256:652dd107c5285ae6ab7671f264ac16ecc79567ad177c3601cde163f7a9fa61b5"
+          "version": "2.15.0",
+          "codeDigest": "sha256:79b58845b2a8ff71c2113571ab473ec17ca7f1577cb9bbdd6a898420864feb83"
         },
-        "derivedAt": "2026-10-31T00:05:48Z",
-        "reviewedAt": "2026-10-31T00:05:48Z",
-        "validUntil": "2027-01-29T00:05:48Z",
+        "derivedAt": "2026-11-17T16:18:37Z",
+        "reviewedAt": "2026-11-17T16:18:37Z",
+        "validUntil": "2027-02-15T16:18:37Z",
         "sources": [
           {
             "id": "crds-1-7-0",
@@ -31598,6 +32670,10 @@
           {
             "version": "1.9.2",
             "commit": "03e157708c995c10ff9678e7a2c49ed63cd379d8"
+          },
+          {
+            "version": "1.9.3",
+            "commit": "9b4ab4d153fbb22375adb58c084014a3180d56b3"
           }
         ]
       },
@@ -31605,12 +32681,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.openkruise",
-          "version": "2.7.0",
-          "codeDigest": "sha256:652dd107c5285ae6ab7671f264ac16ecc79567ad177c3601cde163f7a9fa61b5"
+          "version": "2.15.0",
+          "codeDigest": "sha256:79b58845b2a8ff71c2113571ab473ec17ca7f1577cb9bbdd6a898420864feb83"
         },
-        "derivedAt": "2026-10-31T00:05:48Z",
-        "reviewedAt": "2026-10-31T00:05:48Z",
-        "validUntil": "2027-01-29T00:05:48Z",
+        "derivedAt": "2026-11-17T16:18:37Z",
+        "reviewedAt": "2026-11-17T16:18:37Z",
+        "validUntil": "2027-02-15T16:18:37Z",
         "sources": [
           {
             "id": "crds-1-8-0",
@@ -32847,6 +33923,128 @@
             "contentDigest": "sha256:9eec58a465b192d076e64ac15b8d7b0b1d80a9af0f42899de57fa4c57cd32d89",
             "startLine": 1,
             "endLine": 227
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/rook/rook",
+      "line": "1.17",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.16.0",
+            "commit": "1c9c9f36ecf4a2292b596ddf89f29a7dc1688236"
+          },
+          {
+            "version": "1.16.1",
+            "commit": "4bc7d0f41b93c0336354936fe1922486336b5a9d"
+          },
+          {
+            "version": "1.16.2",
+            "commit": "3efc5dbead486ca2f9ef1d7b88e8dea1de4d03a0"
+          },
+          {
+            "version": "1.16.3",
+            "commit": "fd9e649070e2ed0500eb2e5d8690664eae7cf90b"
+          },
+          {
+            "version": "1.16.4",
+            "commit": "5b5b4d91ef0e81e5db45c3fc416af07342c7462b"
+          },
+          {
+            "version": "1.16.5",
+            "commit": "d284f02f1b03bcf63c6269af4b704285a50cd331"
+          },
+          {
+            "version": "1.16.6",
+            "commit": "2355e067014bcaf5090d0f7d1b1c665e5b371129"
+          },
+          {
+            "version": "1.16.7",
+            "commit": "b9e56e1caf31b483c8ad8c73fb67176dd29707aa"
+          },
+          {
+            "version": "1.16.8",
+            "commit": "337050c56301f37101f6bb8a9c4e9f7a281fe0b3"
+          },
+          {
+            "version": "1.16.9",
+            "commit": "8c81f20f15b501d603acc2bcfc211e948c879a11"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.17.0",
+            "commit": "45977257a85740470f63aafb39947448d13de33e"
+          },
+          {
+            "version": "1.17.1",
+            "commit": "09266ace465588f09f68ec6a1c88bc8180a1b8a7"
+          },
+          {
+            "version": "1.17.2",
+            "commit": "f6266772d2095c8af312745d9cbe045c98a380df"
+          },
+          {
+            "version": "1.17.3",
+            "commit": "baf0612588f7a7c6436e4d34b8e227dcbb56d83e"
+          },
+          {
+            "version": "1.17.4",
+            "commit": "e1d39b8262c20f9f02db9be11fbf72963b1ef3ad"
+          },
+          {
+            "version": "1.17.5",
+            "commit": "f8e45134385413b66732e4f27e92c2eb48e6ed66"
+          },
+          {
+            "version": "1.17.6",
+            "commit": "314498a977d493aee4928cc6a2fa72535760f2c4"
+          },
+          {
+            "version": "1.17.7",
+            "commit": "ee2fc3ff201812ae120ce8d8198e1e643514a081"
+          },
+          {
+            "version": "1.17.8",
+            "commit": "8c7a83a2cf8949dd1b6725739e0ec1f73f1a8baf"
+          },
+          {
+            "version": "1.17.9",
+            "commit": "d1d0811a7686bf06a130e4a99ccc1cdeff55cd2f"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.rook",
+          "version": "2.15.0",
+          "codeDigest": "sha256:575bc8ca6bff7382819b6f83d893a3c1ae6caee2a2db9da941353280f0b392ef"
+        },
+        "derivedAt": "2026-11-17T16:14:34Z",
+        "reviewedAt": "2026-11-17T16:14:34Z",
+        "validUntil": "2027-02-15T16:14:34Z",
+        "sources": [
+          {
+            "id": "crds-1-16-0",
+            "url": "https://github.com/rook/rook/blob/1c9c9f36ecf4a2292b596ddf89f29a7dc1688236/deploy/examples/crds.yaml",
+            "revision": "1c9c9f36ecf4a2292b596ddf89f29a7dc1688236",
+            "contentDigest": "sha256:98dcce8383d6c2c02a15b0d8cd5c9f8c229a1770fec4ac413d93f8a4cb40db10",
+            "startLine": 1,
+            "endLine": 14471
+          },
+          {
+            "id": "crds-1-17-0",
+            "url": "https://github.com/rook/rook/blob/45977257a85740470f63aafb39947448d13de33e/deploy/examples/crds.yaml",
+            "revision": "45977257a85740470f63aafb39947448d13de33e",
+            "contentDigest": "sha256:ad990541e45670a06c015adc20e7f7d1a9fc84c30c628ff4503c8d1d6dfcf4d2",
+            "startLine": 1,
+            "endLine": 14704
           }
         ]
       }
