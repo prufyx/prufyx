@@ -26,18 +26,6 @@ func writeTree(t *testing.T, files map[string]string) string {
 	return root
 }
 
-const readmeTmpl = "# Prufyx\n\n<!-- coverage:begin -->\nGenerated on %DATE% by `scripts/readme-coverage.sh` (do not edit this block by hand).\n\n" +
-	"Version-coverage depth, measured over the last five minor upgrades of each of the %PROJ% projects with a release-line snapshot (%PAIRS% upgrades between consecutive release lines):\n\n" +
-	"| Status | Upgrades | Share |\n| --- | --- | --- |\n" +
-	"| Decided for the whole release-line pair (A attested, B bounded) | %AB% | 3% |\n" +
-	"| Rule for one exact version pair only (S) | %S% | 10.7% |\n" +
-	"| Gap, no valid rule (G) | %G% | 86.1% |\n\n<!-- coverage:end -->\n"
-
-func readme(date, proj, pairs, ab, s, g string) string {
-	r := strings.NewReplacer("%DATE%", date, "%PROJ%", proj, "%PAIRS%", pairs, "%AB%", ab, "%S%", s, "%G%", g)
-	return r.Replace(readmeTmpl)
-}
-
 func fixtureRules(entries string, lines string) string {
 	return `{"entries":[` + entries + `],"lineAttestations":[` + lines + `]}`
 }
@@ -59,7 +47,6 @@ func fromFiles() map[string]string {
 		projectRulesPath: fixtureRules("", ""),
 		inventoryPath: `{"counts":{"selectedSourceProjects":2,"selectedSourceOnlyProjects":0,"executableProjects":2,"cncfSourceRules":3,"cncfRuleProjects":2,"communityProjectSourceRules":0,"communityProjectRuleProjects":0},
 "projects":[{"projectID":"a","displayName":"A","supportState":"executable"},{"projectID":"b","displayName":"B","supportState":"selected_source_only"}],"withdrawnRules":[]}`,
-		readmePath: readme("2026-10-08", "70", "350", "10", "40", "300"),
 	}
 }
 
@@ -72,7 +59,6 @@ func toFiles() map[string]string {
 "projects":[{"projectID":"a","displayName":"A","supportState":"executable"},{"projectID":"b","displayName":"B","supportState":"executable_with_selected_source_records"},
 {"projectID":"c","displayName":"C","supportState":"executable"},{"projectID":"d","displayName":"D","supportState":"executable"},{"projectID":"e","displayName":"E","supportState":"selected_source_only"}],
 "withdrawnRules":[{"ruleID":"a.3"}]}`,
-		readmePath: readme("2026-10-20", "78", "390", "12", "42", "336"),
 		onboardingDir + "/ob-1.json": `{"schema":"s","record":{"batchId":"ob-1","decision":"approve","projects":[
 {"slug":"dex","catalog":"cncf","kind":"new","proof":{"pair":{"fromTag":"v2.45.0","toTag":"v2.46.0"}}},
 {"slug":"k8up","catalog":"cncf","kind":"new","proof":{"pair":{"fromTag":"v2.15.0","toTag":"v2.16.0"}}}]}}`,
@@ -92,7 +78,7 @@ func render(t *testing.T, from, to map[string]string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return Render(a, b, Options{FromLabel: "v1", ToLabel: "main", PRs: []PR{{Number: 7, Title: "Add thing"}, {Title: "Merge branch 'x'"}}})
+	return mustRender(t, a, b, Options{FromLabel: "v1", ToLabel: "main", PRs: []PR{{Number: 7, Title: "Add thing"}, {Title: "Merge branch 'x'"}}})
 }
 
 func TestRenderFixtureTrees(t *testing.T) {
@@ -103,10 +89,10 @@ func TestRenderFixtureTrees(t *testing.T) {
 		"| CNCF source rules, active | 3 | 4 | +1 |",
 		"| Line attestations | 2 | 4 | +2 |",
 		"| Kubernetes minors with a line attestation | 1 | 2 | +1 |",
-		"| Decided for the whole release-line pair (A+B) | 10 | 12 | +2 |",
-		"| Gap, no valid rule (G) | 300 | 336 | +36 |",
-		"| Upgrades between consecutive release lines | 350 | 390 | +40 |",
-		"generated on 2026-10-08 (v1) and 2026-10-20 (main)",
+		"| Decided for the whole release-line pair (A+B) | 2 | 2 | 0 |",
+		"| Gap, no valid rule (G) | 1 | 2 | +1 |",
+		"| Upgrades between consecutive release lines | 4 | 6 | +2 |",
+		"### Coverage since the previous release",
 		"### Projects added to the support inventory (3)",
 		"- `c` (C): executable check",
 		"- `e` (E): source-only, no check",
@@ -143,10 +129,7 @@ func TestRenderEmptyFromTree(t *testing.T) {
 	out := render(t, map[string]string{"unrelated": "x"}, toFiles())
 	for _, want := range []string{
 		"`" + cncfRulesPath + "` does not exist in `v1`; it counts as empty there.",
-		"`" + readmePath + "` does not exist in `v1`",
 		"| Projects with at least one executable check | n/a | n/a | n/a |",
-		"| Decided for the whole release-line pair (A+B) | n/a | n/a | n/a |",
-		"The release-line figures (A+B, S, G) are n/a",
 		"### Projects added to the support inventory (5)",
 		"### Rules by project (6 added, 0 removed)",
 	} {
@@ -180,22 +163,6 @@ func TestReadSnapshotRejectsBadData(t *testing.T) {
 	} {
 		if _, err := ReadSnapshot(DirTree{writeTree(t, files)}); err == nil {
 			t.Errorf("%s: no error", name)
-		}
-	}
-}
-
-func TestParseDepthRefusesRewordedBlock(t *testing.T) {
-	if parseDepth(readme("2026-10-08", "1", "2", "3", "4", "5")) == nil {
-		t.Fatal("well-formed block not parsed")
-	}
-	for _, bad := range []string{
-		"",
-		strings.Replace(readme("2026-10-08", "1", "2", "3", "4", "5"), "Gap, no valid rule", "Gap", 1),
-		strings.Replace(readme("2026-10-08", "1", "2", "3", "4", "5"), "<!-- coverage:end -->", "", 1),
-		strings.Replace(readme("2026-10-08", "1", "2", "3", "4", "5"), "Generated on", "Made on", 1),
-	} {
-		if parseDepth(bad) != nil {
-			t.Errorf("parsed a reworded block: %q", bad)
 		}
 	}
 }
@@ -273,7 +240,7 @@ func TestGitTreesAndMergedPRs(t *testing.T) {
 	if len(prs) != 1 || prs[0] != (PR{5, "Onboard project c"}) {
 		t.Fatalf("prs = %v", prs)
 	}
-	got := Render(a, b, Options{FromLabel: "v1", ToLabel: "main", PRs: []PR{{Number: 7, Title: "Add thing"}, {Title: "Merge branch 'x'"}}})
+	got := mustRender(t, a, b, Options{FromLabel: "v1", ToLabel: "main", PRs: []PR{{Number: 7, Title: "Add thing"}, {Title: "Merge branch 'x'"}}})
 	if got != want {
 		t.Errorf("git trees and directory trees disagree:\n%s", got)
 	}
@@ -331,7 +298,7 @@ func TestReplaceBlock(t *testing.T) {
 func TestRenderLevelAndCommits(t *testing.T) {
 	a, _ := ReadSnapshot(DirTree{writeTree(t, fromFiles())})
 	b, _ := ReadSnapshot(DirTree{writeTree(t, toFiles())})
-	out := Render(a, b, Options{FromLabel: "v1", ToLabel: "main", FromCommit: "aaa", ToCommit: "bbb", Level: 4, PRNote: "No git."})
+	out := mustRender(t, a, b, Options{FromLabel: "v1", ToLabel: "main", FromCommit: "aaa", ToCommit: "bbb", Level: 4, PRNote: "No git."})
 	for _, want := range []string{"Changes from `v1` (aaa) to `main` (bbb)", "\n#### Summary\n", "\n#### Merged pull requests\n\nNo git."} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output lacks %q\n%s", want, out)
@@ -435,12 +402,12 @@ func TestRenderOmitMergedPRs(t *testing.T) {
 	a, _ := ReadSnapshot(DirTree{writeTree(t, fromFiles())})
 	b, _ := ReadSnapshot(DirTree{writeTree(t, toFiles())})
 	opts := Options{FromLabel: "v1", ToLabel: "v2", FromCommit: "aaa", ToCommit: "bbb", PRs: []PR{{Number: 12, Title: "milestone planning"}}}
-	full := Render(a, b, opts)
+	full := mustRender(t, a, b, opts)
 	if !strings.Contains(full, "#12 milestone planning") {
 		t.Fatal("default list missing")
 	}
 	opts.OmitMergedPRs = true
-	omitted := Render(a, b, opts)
+	omitted := mustRender(t, a, b, opts)
 	if strings.Contains(omitted, "Merged pull requests") || strings.Contains(omitted, "milestone planning") {
 		t.Fatal("PR list not omitted")
 	}
@@ -448,7 +415,7 @@ func TestRenderOmitMergedPRs(t *testing.T) {
 	if strings.Replace(full, section, "", 1) != omitted {
 		t.Fatal("omission changed other generated content")
 	}
-	if Render(a, b, opts) != omitted {
+	if mustRender(t, a, b, opts) != omitted {
 		t.Fatal("output is not deterministic")
 	}
 }

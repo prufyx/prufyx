@@ -32,15 +32,28 @@ attestation and the `SHA256SUMS` of a version must stay one-to-one.
    batches, the README coverage figures (A+B, S, G) and the merged pull
    requests. Nobody types these figures; the maintainer subcommand computes
    them from the data files of the two revisions (`rules.json` of the CNCF and
-   community packs, the generated support inventory, `cli/knowledge/onboarding`
-   and the README coverage block that `scripts/readme-coverage.sh` writes) and
-   evaluates no rule. Freeze data merges first, then, with `<prev>` the
-   previous tag and `<head>` the `main` commit that holds the last data merge:
+   community packs, the generated support inventory and `cli/knowledge/onboarding`)
+   and evaluates no rule. The coverage figures and the per-project comparison
+   come from two counts files, not from the README text:
+   `cli/docs/generated/coverage-counts.json` of the described tree and the one
+   committed at the previous tag. Regenerate the counts file of the described
+   tree first (`prufyx-maintainer coverage readme --json-out FILE`, to a new
+   file, then replace the committed copy) and commit it together with the README block it
+   was generated with. The notes name the previous release as tag, commit and
+   counts sha256; `--previous-counts-sha256` is the sha256 of
+   `git show <prev>:cli/docs/generated/coverage-counts.json`, and the command
+   fails when the bytes differ, when the file is missing, or when its schema is
+   not `prufyx.io/coverage-readme-counts/v1`. The one exception is
+   `v0.1.0-beta.0`, which predates the counts file: its counts are the committed
+   `cli/docs/generated/coverage-counts-v0.1.0-beta.0.json`, pinned by a sha256
+   constant in the code (computed once from the beta.0 rules and packs with the
+   pinned release-line data of the current tree). Freeze data merges first, then, with `<prev>` the
+   previous tag, `<prev-sha>` that sha256 and `<head>` the `main` commit that holds the last data merge:
 
    ```sh
    cd cli
-   go run ./cmd/prufyx-maintainer release-notes --repo .. --from <prev> --to <head> --to-label <tag> --level 4 --into ../CHANGELOG.md
-   go run ./cmd/prufyx-maintainer release-notes --repo .. --from <prev> --to <head> --to-label <tag> --into docs/release-notes-<tag>.md
+   go run ./cmd/prufyx-maintainer release-notes --repo .. --from <prev> --previous-counts-sha256 <prev-sha> --to <head> --to-label <tag> --level 4 --into ../CHANGELOG.md
+   go run ./cmd/prufyx-maintainer release-notes --repo .. --from <prev> --previous-counts-sha256 <prev-sha> --to <head> --to-label <tag> --into docs/release-notes-<tag>.md
    ```
 
    For the second command, first create `docs/release-notes-<tag>.md` with the
@@ -62,8 +75,8 @@ attestation and the `SHA256SUMS` of a version must stay one-to-one.
    does not say a project is safe, a catalogued project is not tested
    coverage, and decided is not safe. Do not add claims to the generated block;
    add them above the markers, from the same commands, or not at all. Read the
-   result before merging: a figure shown as `n/a` means a data file or the
-   README block was missing in one revision.
+   result before merging. The generator never prints `n/a`: a missing counts
+   file, a wrong sha256 or an unknown schema stops it.
 
    After the pull request merges, tag the merge commit. Before the tag push,
    run both commands again with `--to <tagged commit>` and the same `--to-label`; `git diff` must show

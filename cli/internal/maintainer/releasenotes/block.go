@@ -5,6 +5,7 @@ package releasenotes
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -56,4 +57,25 @@ func Commit(repo, rev string) (string, error) {
 		return "", fmt.Errorf("git rev-parse %s: %w: %s", rev, err, strings.TrimSpace(errb.String()))
 	}
 	return strings.TrimSpace(out.String()), nil
+}
+
+// IsAncestor reports whether rev is an ancestor of (or equal to) to.
+func IsAncestor(repo, rev, to string) (bool, error) {
+	for _, r := range []string{rev, to} {
+		if r == "" || strings.HasPrefix(r, "-") {
+			return false, fmt.Errorf("invalid revision %q", r)
+		}
+	}
+	cmd := exec.CommandContext(context.Background(), "git", "-C", repo, "merge-base", "--is-ancestor", rev+"^{commit}", to+"^{commit}")
+	var errb bytes.Buffer
+	cmd.Stderr = &errb
+	err := cmd.Run()
+	var ee *exec.ExitError
+	if err == nil {
+		return true, nil
+	}
+	if errors.As(err, &ee) && ee.ExitCode() == 1 {
+		return false, nil
+	}
+	return false, fmt.Errorf("git merge-base %s %s: %w: %s", rev, to, err, strings.TrimSpace(errb.String()))
 }
