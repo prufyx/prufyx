@@ -130,6 +130,37 @@ func LoadTable(raw []byte) ([]Project, []ReservedGroup, []UnownedGroup, error) {
 	return projects, records, unowned, nil
 }
 
+// legacyTableFile is the table document before unowned records existed: the
+// same spelling without the unowned member.
+type legacyTableFile struct {
+	Schema   string         `json:"schema"`
+	Projects []projectJSON  `json:"projects"`
+	Reserved []reservedJSON `json:"reserved"`
+}
+
+// encodeLegacyTable renders a table with no unowned records in the spelling
+// the table had before the unowned member existed. It is only a comparison
+// spelling for reading an older base; the reviewed table is written with
+// encodeTable.
+func encodeLegacyTable(projects []Project, records []ReservedGroup) ([]byte, error) {
+	full, err := encodeTable(projects, records, nil)
+	if err != nil {
+		return nil, err
+	}
+	var doc tableFile
+	if err := json.Unmarshal(full, &doc); err != nil {
+		return nil, err
+	}
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(legacyTableFile{Schema: doc.Schema, Projects: doc.Projects, Reserved: doc.Reserved}); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
 // encodeTable renders a table in the one spelling table.json has: two-space
 // indent, fields in declaration order, no HTML escaping, a final newline.
 func encodeTable(projects []Project, records []ReservedGroup, unowned []UnownedGroup) ([]byte, error) {

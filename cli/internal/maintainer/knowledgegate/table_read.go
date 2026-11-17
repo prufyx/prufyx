@@ -29,7 +29,12 @@ type tableRead struct {
 // code (unknown fields, trailing data, schema, validation) and the canonical
 // spelling of the loaded table. Any failure is an error; there is no
 // fallback to the table embedded in the running program.
-func readTableTree(t Tree, path string) (tableRead, error) {
+//
+// The head table must be in the current canonical spelling. A base table
+// (base true) may in addition be in the older spelling without the unowned
+// member, read as an empty unowned list, so a change can be compared with a
+// base that predates the member; no other deviation is accepted.
+func readTableTree(t Tree, path string, base bool) (tableRead, error) {
 	var tr tableRead
 	var err error
 	if tr.raw, err = t.Read(path, MaxFileBytes); err != nil {
@@ -42,7 +47,15 @@ func readTableTree(t Tree, path string) (tableRead, error) {
 		return tableRead{}, fmt.Errorf("the custom-resource table does not load: %v", logSafe(err.Error()))
 	}
 	if canonical, err := customresources.CanonicalTable(tr.projects, tr.reserved, tr.unowned); err != nil || !bytes.Equal(canonical, tr.raw) {
-		return tableRead{}, fmt.Errorf("%s is not in its canonical spelling", path)
+		legacy := false
+		if base && err == nil && len(tr.unowned) == 0 {
+			if old, lerr := customresources.CanonicalLegacyTable(tr.projects, tr.reserved); lerr == nil && bytes.Equal(old, tr.raw) {
+				legacy = true
+			}
+		}
+		if !legacy {
+			return tableRead{}, fmt.Errorf("%s is not in its canonical spelling", path)
+		}
 	}
 	return tr, nil
 }

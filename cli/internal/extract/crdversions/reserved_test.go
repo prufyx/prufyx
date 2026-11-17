@@ -131,7 +131,7 @@ func TestReservedOffWhenInventoryDefinesGroup(t *testing.T) {
 // (5) names that only look reserved stay extra.
 func TestReservedLookAlikesStayExtra(t *testing.T) {
 	const path = "test/e2e/fixture.yaml"
-	for _, group := range []string{"example.io", "my.domain", "exampleXcom", "example.com.evil.io", "xexample.com", "k8s.io.evil.io", "notk8s.io", "argoproj.io"} {
+	for _, group := range []string{"my.domain", "exampleXcom", "example.com.evil.io", "xexample.com", "k8s.io.evil.io", "notk8s.io", "argoproj.io", "myexample.io"} {
 		scan := reservedScan(t, quietListed(), []string{synthGroup}, map[string]string{path: crdIn(group, "Dummy", "v1")})
 		// exampleXcom is not even a valid API group: the file is unread.
 		if f := findingOf(scan, path); f == nil || !f.blocks() || (f.Class != ClassExtra && group != "exampleXcom") || len(scan.ReservedCopies) != 0 || scan.Clean() {
@@ -238,7 +238,7 @@ func TestReservedOwnGroupFixtureAndExternalStayBlocking(t *testing.T) {
 }
 
 // The facts' shape: openkruise vendor e2e CRDs and argo-cd example fixtures
-// no longer block, argoproj.io fixtures and example.io still do.
+// no longer block, argoproj.io fixtures of an unlisted kind and a lookalike of example.io still do.
 func TestReservedFactsShape(t *testing.T) {
 	files := map[string]string{
 		"vendor/k8s.io/kubernetes/test/e2e/testing-manifests/hello.yaml":     crdIn("hello.example.com", "Hello", "v1"),
@@ -251,8 +251,8 @@ func TestReservedFactsShape(t *testing.T) {
 		t.Fatalf("blocks: %+v / %+v", scan.Findings, scan.ReservedCopies)
 	}
 	blockers := map[string]string{
-		"test/e2e/testdata/workflow.yaml": crdIn("argoproj.io", "Workflow", "v1"),
-		"test/e2e/testdata/example.yaml":  crdIn("example.io", "Thing", "v1"),
+		"test/e2e/testdata/workflow.yaml": crdIn("argoproj.io", "Dummy", "v1"),
+		"test/e2e/testdata/example.yaml":  crdIn("myexample.io", "Thing", "v1"),
 	}
 	scan = reservedScan(t, quietListed(), []string{synthGroup}, blockers)
 	for p := range blockers {
@@ -316,7 +316,7 @@ func TestReservedOnlyRelaxesExtra(t *testing.T) {
 		}
 		rest := 0
 		for _, c := range crds {
-			if left[c.Name] || at.foreign(c.Group, c.Kind) {
+			if left[c.Name] || at.foreign(c.Group, c.Kind) || at.unowned(c, inv) {
 				continue
 			}
 			// A definition the inventory holds with the same serving is a

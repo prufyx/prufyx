@@ -257,7 +257,7 @@ func coverageReportOf(t Tree, tablePath string) (coveragereport.Report, []byte, 
 	if err != nil {
 		return coveragereport.Report{}, nil, time.Time{}, err
 	}
-	table, err := readTableTree(t, tablePath)
+	table, err := readTableTree(t, tablePath, false)
 	if err != nil {
 		return coveragereport.Report{}, nil, time.Time{}, err
 	}

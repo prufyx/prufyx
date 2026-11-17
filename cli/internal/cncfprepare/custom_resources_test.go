@@ -198,7 +198,7 @@ func TestCustomResourceVersionsSharedArgoGroup(t *testing.T) {
 	}
 	shared = append(shared, customresources.Project{Slug: "zz-argo-workflows", Catalog: customresources.CatalogCNCF, FactProject: "zz_argo_workflows", Component: "pkg:github/argoproj/argo-workflows", Groups: []customresources.Group{{Name: "argoproj.io", Source: "https://github.com/argoproj/argo-workflows/blob/0123456789abcdef0123456789abcdef01234567/manifests/base/crds/full/argoproj.io_workflows.yaml"}}})
 	disjoint := append([]customresources.Project(nil), shared...)
-	disjoint[len(disjoint)-1].Groups = []customresources.Group{{Name: "argoproj.io", Source: shared[len(shared)-1].Groups[0].Source, Kinds: []string{"Workflow"}}}
+	disjoint[len(disjoint)-1].Groups = []customresources.Group{{Name: "argoproj.io", Source: shared[len(shared)-1].Groups[0].Source, Kinds: []string{"Rollout"}}}
 	if !customresources.Validate(disjoint) {
 		t.Fatal("a disjoint by-kind listing beside argo-cd was refused")
 	}

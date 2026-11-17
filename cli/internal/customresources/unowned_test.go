@@ -162,3 +162,30 @@ func TestEmbeddedUnownedRecords(t *testing.T) {
 		t.Fatalf("round trip: %v", err)
 	}
 }
+
+// The listing moves when any field of a record changes: name, kinds, reason
+// or source.
+func TestUnownedListingMovesOnEveryField(t *testing.T) {
+	base := UnownedGroup{Name: "a.io", Kinds: []string{"A"}, Reason: unownedWhy, Source: unownedSrc}
+	listing := func(u UnownedGroup) string {
+		return strings.Join(NewIndex(unownedProjects()).WithUnowned([]UnownedGroup{u}).UnownedListing(), "\n")
+	}
+	want := listing(base)
+	if got := listing(base); got != want {
+		t.Fatal("the listing is not stable")
+	}
+	for name, mut := range map[string]func(*UnownedGroup){
+		"name":   func(u *UnownedGroup) { u.Name = "b.io" },
+		"kinds":  func(u *UnownedGroup) { u.Kinds = []string{"B"} },
+		"whole":  func(u *UnownedGroup) { u.Kinds = nil },
+		"reason": func(u *UnownedGroup) { u.Reason = unownedWhy + " (edited)" },
+		"source": func(u *UnownedGroup) { u.Source = strings.Replace(unownedSrc, "a.yaml", "b.yaml", 1) },
+	} {
+		u := base
+		u.Kinds = append([]string(nil), base.Kinds...)
+		mut(&u)
+		if listing(u) == want {
+			t.Errorf("%s: the listing did not move", name)
+		}
+	}
+}

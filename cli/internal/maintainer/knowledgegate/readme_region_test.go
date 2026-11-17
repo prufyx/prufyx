@@ -627,7 +627,7 @@ func TestReadmeRegionReadsTheConfiguredTablePath(t *testing.T) {
 	if _, _, _, err := coverageReportOf(f.head, "data/no-such-table.json"); err == nil {
 		t.Fatal("a missing table path produced a report")
 	}
-	tr, err := readTableTree(f.head, custom)
+	tr, err := readTableTree(f.head, custom, false)
 	if err != nil || !bytes.Equal(tr.raw, headTable) {
 		t.Fatalf("readTableTree: %v", err)
 	}
@@ -685,7 +685,7 @@ func TestReadmeRegionRenderReadsTheBoundTable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tr, err := readTableTree(f.head, layout.Onboarding.TablePath)
+	tr, err := readTableTree(f.head, layout.Onboarding.TablePath, false)
 	if err != nil {
 		t.Fatal(err)
 	}

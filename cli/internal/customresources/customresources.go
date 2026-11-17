@@ -24,6 +24,7 @@
 package customresources
 
 import (
+	"fmt"
 	"regexp"
 	"sort"
 	"strings"
@@ -505,8 +506,9 @@ func (x Index) ListingsSharing(slug string) []string {
 }
 
 // UnownedListing returns, in a canonical sorted form, every unowned record
-// of the index ("group *" for a whole group, "group [k1,k2]" for kinds). It
-// moves exactly when a record is added, removed or changed.
+// of the index ("group *" for a whole group, "group [k1,k2]" for kinds, then
+// the quoted reason and source). It moves exactly when a record is added,
+// removed or changed in any field.
 func (x Index) UnownedListing() []string {
 	out := make([]string, 0, len(x.unowned))
 	for _, r := range x.unowned {
@@ -514,7 +516,7 @@ func (x Index) UnownedListing() []string {
 		if r.Kinds != nil {
 			kinds = "[" + strings.Join(r.Kinds, ",") + "]"
 		}
-		out = append(out, r.Name+" "+kinds)
+		out = append(out, fmt.Sprintf("%s %s %q %q", r.Name, kinds, r.Reason, r.Source))
 	}
 	sort.Strings(out)
 	return out

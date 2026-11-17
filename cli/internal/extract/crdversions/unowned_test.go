@@ -41,9 +41,8 @@ func TestScanKeepsDefinitionsNearUnownedRecords(t *testing.T) {
 		{"argoproj.io kind in another case (upper)", "argoproj.io", "WORKFLOW", "workflows"},
 		{"argoproj.io kind with a suffix", "argoproj.io", "WorkflowTemplates", "workflowtemplatess"},
 		{"subdomain of the fixture group", "stable.example.io", "Example", "examples"},
-		{"suffixed fixture group", "example.io.evil.example", "Example", "examples"},
+		{"suffixed fixture group", "example.io.evil.dev", "Example", "examples"},
 		{"prefixed fixture group", "myexample.io", "Example", "examples"},
-		{"documentation domain", "example.com", "Example", "examples"},
 	} {
 		_, proof, f := quietPair(t, "test/fixtures/x.yaml", foreignCRD(tc.group, tc.kind, tc.plural))
 		if f == nil || f.Class != ClassExtra || !f.blocks() || proof.To.Scan.Clean() || len(f.Foreign) != 0 {

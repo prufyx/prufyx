@@ -136,7 +136,7 @@ func targetsDigest(targets map[string][]byte) (string, error) {
 // file (strict JSON, then crdversions.LoadTargets), the table (strict JSON,
 // then customresources.LoadTable), the registry the base's code compiles
 // from the table, and the pack members.
-func readOnboardingSide(ol OnboardingLayout, t Tree, p *loadedPack) (onboardingSide, error) {
+func readOnboardingSide(ol OnboardingLayout, t Tree, p *loadedPack, base bool) (onboardingSide, error) {
 	var s onboardingSide
 	var err error
 	if s.targets, err = treeTargets(t, ol.TargetsDir); err != nil {
@@ -152,7 +152,7 @@ func readOnboardingSide(ol OnboardingLayout, t Tree, p *loadedPack) (onboardingS
 	if s.loaded, err = crdversions.LoadTargets(fsys); err != nil {
 		return s, fmt.Errorf("the CRD version targets do not load: %v", logSafe(err.Error()))
 	}
-	tr, err := readTableTree(t, ol.TablePath)
+	tr, err := readTableTree(t, ol.TablePath, base)
 	if err != nil {
 		return s, err
 	}
@@ -195,10 +195,10 @@ func newOnboardingState(layout Layout, base, head Tree, cls *Classification, cha
 	ol := layout.Onboarding
 	st := &onboardingState{layout: layout, cls: cls, changedPaths: changedPaths, baseTree: base, headTree: head, landscape: map[string]string{}}
 	var err error
-	if st.base, err = readOnboardingSide(ol, base, cls.base[ol.Pack]); err != nil {
+	if st.base, err = readOnboardingSide(ol, base, cls.base[ol.Pack], true); err != nil {
 		return nil, fmt.Errorf("base: %w", err)
 	}
-	if st.head, err = readOnboardingSide(ol, head, cls.head[ol.Pack]); err != nil {
+	if st.head, err = readOnboardingSide(ol, head, cls.head[ol.Pack], false); err != nil {
 		return nil, fmt.Errorf("head: %w", err)
 	}
 	raw, err := base.Read(ol.LandscapePath, MaxFileBytes)
