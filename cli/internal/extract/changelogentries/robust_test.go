@@ -582,7 +582,7 @@ func TestItemDisagreementElsewhereWithholdsEveryTag(t *testing.T) {
 		t.Fatal(err)
 	}
 	if lines2 := scan(lines); cmDisagreement(lines, lines2, 0, 0) == "" {
-		t.Skip("the oracle and the scanner agree on this shape")
+		t.Fatal("the oracle and the scanner agree on the footnote-shaped definition: the test shape is void")
 	}
 	for _, tg := range []string{"v3.5.0", "v3.4.0"} {
 		_, err := locateMem(promTarget, tg, f)
