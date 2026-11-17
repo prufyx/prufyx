@@ -71,6 +71,7 @@ type Manifest struct {
 var Reviewed = []Target{
 	{Component: "vault", Repo: extract.RepoRef{Key: "github.com/hashicorp/vault"}, Form: FormPostTag},
 	{Component: "aws-ebs-csi-driver", Repo: extract.RepoRef{Key: "github.com/kubernetes-sigs/aws-ebs-csi-driver"}, Form: FormPostTag},
+	{Component: "flannel", Repo: extract.RepoRef{Key: "github.com/flannel-io/flannel"}, Form: FormGithubRelease},
 }
 
 // Lookup returns the row of a component in table. Exactly one row must match.
