@@ -222,7 +222,7 @@ func textForms(text string) []string {
 // digits ("re**mov**ed", "snake_case"): the page then shows a different word
 // than the bytes spell.
 func hasSplitMarkup(text string) bool {
-	if strings.ContainsAny(text, "<&") {
+	if strings.ContainsAny(text, "<&") || hasLinkSyntax(text) {
 		return true
 	}
 	// Link syntax inside a word: a letter or digit directly before "[" or
@@ -261,3 +261,16 @@ var defaultVocab = func() *vocabulary {
 	}
 	return v
 }()
+
+// hasLinkSyntax is true when the text holds any link, image, reference or
+// autolink syntax. Such an item is never neutral: the rendered text differs
+// from the bytes in ways no pattern can enumerate (titles, spaced or nested
+// destinations, escapes, reference labels).
+func hasLinkSyntax(text string) bool {
+	for _, m := range []string{"](", "][", "]:", "![", "<http", "<https", "://"} {
+		if strings.Contains(text, m) {
+			return true
+		}
+	}
+	return false
+}

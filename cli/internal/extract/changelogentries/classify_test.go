@@ -67,10 +67,13 @@ func TestNeutralPositive(t *testing.T) {
 	for _, c := range ct {
 		wantClass(t, c, ClassMechanicalNeutral, "cortex")
 	}
-	_, th := classifyFile(t, thanosTarget, "v0.38.0", thanosOne("### Added\n\n- [#1](u) Store: new metric.\n\n### Fixed\n\n- [#2](u) Query: fix a typo."))
+	_, th := classifyFile(t, thanosTarget, "v0.38.0", thanosOne("### Added\n\n- Store: new metric.\n\n### Fixed\n\n- Query: fix a typo."))
 	for _, c := range th {
 		wantClass(t, c, ClassMechanicalNeutral, "thanos")
 	}
+	// The same items with a link reference are needs-review (any link syntax).
+	_, tl := classifyFile(t, thanosTarget, "v0.38.0", thanosOne("### Added\n\n- [#1](u) Store: new metric."))
+	wantClass(t, tl[0], ClassNeedsReview, "thanos link")
 }
 
 func TestOperatorMarkersNeedReview(t *testing.T) {
@@ -621,6 +624,50 @@ func TestSelfConsistentTruncationIsRefused(t *testing.T) {
 	}
 }
 
+// Every shape below holds link syntax or a split word and must be needs-review.
+func TestLinkAndSplitWordNegatives(t *testing.T) {
+	for name, item := range map[string]string{
+		"link title":             `* [FEATURE] TSDB: the old index is [no](https://example.com/x "t") longer read. #123`,
+		"spaced destination":     `* [FEATURE] TSDB: the old index is [no]( https://example.com/x ) longer read. #123`,
+		"paren title":            `* [FEATURE] TSDB: the old index is [no](https://example.com/x (t)) longer read. #123`,
+		"two deep parens":        `* [FEATURE] TSDB: the old index is [no](https://example.com/(a(b))) longer read. #123`,
+		"escaped paren":          `* [FEATURE] TSDB: the old index is [no](https://example.com/a\)/b) longer read. #123`,
+		"single quote title":     `* [FEATURE] TSDB: the format is [not](https://example.com/x 'y') supported any more. #123`,
+		"link splits phrase":     "* [FEATURE] The flag --old is [no](https://x) longer there.",
+		"reference label":        "* [FEATURE] The flag --old is [no][1] longer there.",
+		"spaced reference label": "* [FEATURE] The flag --old is [no][release notes] longer there.",
+		"reference definition":   "* [FEATURE] The flag --old is [no]: longer there.",
+		"image":                  "* [FEATURE] The flag --old was re![](http://x)moved.",
+		"autolink":               "* [FEATURE] The flag --old is <https://x> gone.",
+		"bare url":               "* [FEATURE] The flag --old is gone, see https://x/y.",
+		"link inside word":       "* [FEATURE] The flag --old was re[mov](http://x)ed.",
+		"link then word":         "* [FEATURE] The flag --old was [re](http://x)moved.",
+		"empty link text":        "* [FEATURE] The flag --old was re[](http://x)moved.",
+		"link then emphasis":     "* [FEATURE] The flag --old was [re](http://x)**moved**.",
+		"squashed phrase":        "* [FEATURE] The flag --old is n.o l-o.n.g.e.r there.",
+		"squashed word":          "* [FEATURE] The flag --old was r-e-m-o-v-e-d.",
+		"hyphen split":           "* [FEATURE] Re-named the flag --old.",
+		"spaced letters":         "* [FEATURE] The flag --old was r e m o v e d.",
+		"dotted split":           "* [FEATURE] The flag --old was re.moved.",
+		"intraword emphasis":     "* [FEATURE] The flag --old was re**mov**ed.",
+		"inline html":            "* [FEATURE] The flag --old was re<span></span>moved.",
+		"numeric reference":      "* [FEATURE] The flag --old was &#114;emoved.",
+	} {
+		file := promOne(item)
+		e, err := locateMem(promTarget, "v3.5.0", file)
+		if err != nil {
+			t.Fatalf("%s did not reach the classifier: %v", name, err)
+		}
+		cs, err := classifyT(e, []byte(file))
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		for _, c := range cs {
+			wantClass(t, c, ClassNeedsReview, name)
+		}
+	}
+}
+
 func TestAnnotationAndInvisibleCharacterNegatives(t *testing.T) {
 	cases := map[string]string{
 		"lowercase after marker":    "* [FEATURE] [security] Plain words.",
@@ -654,7 +701,11 @@ func TestAnnotationAndInvisibleCharacterNegatives(t *testing.T) {
 	wantClass(t, cs[0], ClassMechanicalNeutral, "control")
 	wantClass(t, cs[1], ClassMechanicalNeutral, "control emphasis")
 	_, cs = classifyFile(t, promTarget, "v3.5.0", promOne("* [FEATURE] Plain words. [#1](http://x)", "* [FEATURE] Plain words (see #1)."))
-	wantClass(t, cs[0], ClassMechanicalNeutral, "control link")
+	// Any link syntax is needs-review; a plain parenthesis stays neutral.
+	wantClass(t, cs[0], ClassNeedsReview, "link item")
+	if !hasStr(cs[0].Reasons, ReasonSplitMarkup) {
+		t.Fatalf("reasons %v", cs[0].Reasons)
+	}
 	wantClass(t, cs[1], ClassMechanicalNeutral, "control parenthesis")
 }
 
