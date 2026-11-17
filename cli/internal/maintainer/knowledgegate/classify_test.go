@@ -73,9 +73,9 @@ func TestClassifyTable(t *testing.T) {
 			src := evidenceOf(e)["sources"].([]any)[0].(map[string]any)
 			src["endLine"] = json.Number("9999")
 		}}, ClassLoosening, []string{KindRepin}},
-		{"text", plain, []edit{func(e map[string]any) { ruleOf(e)["nextAction"] = "Do something else." }}, ClassLoosening, []string{KindModify}},
+		{"text", plain, []edit{func(e map[string]any) { ruleOf(e)["nextAction"] = "Do something else." }}, ClassLoosening, []string{KindModify, KindRemediationText}},
 		{"description", plain, []edit{func(e map[string]any) { e["description"] = "Other." }}, ClassLoosening, []string{KindModify}},
-		{"withdraw plus text", plain, []edit{setEv("state", "withdrawn"), func(e map[string]any) { ruleOf(e)["nextAction"] = "Other." }}, ClassLoosening, []string{KindWithdraw, KindModify}},
+		{"withdraw plus text", plain, []edit{setEv("state", "withdrawn"), func(e map[string]any) { ruleOf(e)["nextAction"] = "Other." }}, ClassLoosening, []string{KindWithdraw, KindModify, KindRemediationText}},
 		{"basis", plain, []edit{setEv("basis", "reviewed")}, ClassLoosening, []string{KindBasis}},
 		{"narrow by removing the range", ranged, []edit{func(e map[string]any) { delete(ruleOf(e), "range") }}, ClassLoosening, []string{KindNarrow}},
 		{"narrow a bound", ranged, []edit{func(e map[string]any) {

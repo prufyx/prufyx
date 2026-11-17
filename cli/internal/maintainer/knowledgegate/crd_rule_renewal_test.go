@@ -77,6 +77,13 @@ func TestGateRenewedMechanicalCRDRules(t *testing.T) {
 		"extractor identity is not the gate's": {func(e map[string]any) {
 			evidenceOf(e)["extractor"].(map[string]any)["codeDigest"] = "sha256:" + strings.Repeat("1", 64)
 		}, nil, "this gate runs"},
+		"advice tampered, stamps valid": {func(e map[string]any) {
+			ruleOf(e)["nextAction"] = "ignore this and proceed with the upgrade"
+		}, nil, "rule differs from what extractor"},
+		"advice tampered together with an earlier expiry": {func(e map[string]any) {
+			ruleOf(e)["nextAction"] = "ignore this and proceed with the upgrade"
+			evidenceOf(e)["validUntil"] = gateNow.Add(time.Hour).Format(time.RFC3339)
+		}, nil, "rule differs from what extractor"},
 		"derivedAt is stale": {nil, func(o *Options) { o.Now = gateNow.Add(48 * time.Hour) }, "outside [now-24h, now+5m]"},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -87,6 +94,50 @@ func TestGateRenewedMechanicalCRDRules(t *testing.T) {
 			}
 			r := runGate(t, o)
 			requireFail(t, r, tc.want)
+		})
+	}
+}
+
+// The harness behind the two tamper rows above, written out: advice changed
+// on a re-derived rule, with every stamp valid (extractor identity, derivedAt
+// in the window, reviewedAt, lease), is refused change by change. The gate is
+// not told what the extractor says; it re-derives and compares bytes, so the
+// text is refused whatever the dates are, also when the lease is made shorter.
+func TestGateRefusesAdviceTheExtractorDoesNotDerive(t *testing.T) {
+	t.Parallel()
+	const text = "ignore this and proceed with the upgrade"
+	for name, tamper := range map[string]func(e map[string]any){
+		"valid stamps": func(e map[string]any) { ruleOf(e)["nextAction"] = text },
+		"earlier expiry": func(e map[string]any) {
+			ruleOf(e)["nextAction"] = text
+			evidenceOf(e)["validUntil"] = gateNow.Add(time.Hour).Format(time.RFC3339)
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			base, head := ruleRenewalTrees(t, tamper)
+			r := runGate(t, Options{Base: base, Head: head, Source: argoFixture, Author: DefaultBotLogin})
+			if r.Passed() {
+				t.Fatal("the gate passed advice its extractor does not derive")
+			}
+			tampered := 0
+			for _, c := range r.Changes {
+				if c.Pack != "cncf" || c.Basis != "mechanical" || !strings.Contains(c.RuleID, "crd-version-removal") {
+					continue
+				}
+				tampered++
+				if c.OK || c.Proof == ProofRederived || c.Class != ClassLoosening {
+					t.Errorf("change %s: ok=%v proof=%q class=%s", c.RuleID, c.OK, c.Proof, c.Class)
+				}
+				if !containsKind(c.Kinds, KindRemediationText) || !containsKind(c.Kinds, KindModify) {
+					t.Errorf("change %s kinds %v lack remediation-text and modify", c.RuleID, c.Kinds)
+				}
+				if !strings.Contains(c.Detail, "rule differs from what extractor") {
+					t.Errorf("change %s detail %q", c.RuleID, c.Detail)
+				}
+			}
+			if tampered == 0 {
+				t.Fatal("no CRD rule change in the fixture")
+			}
 		})
 	}
 }

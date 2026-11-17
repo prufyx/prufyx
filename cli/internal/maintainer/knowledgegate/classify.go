@@ -33,6 +33,10 @@ const (
 	KindRangeChange = "range-change" // range changed otherwise
 	KindBasis       = "basis-change" // evidence basis or extractor changed
 	KindModify      = "modify"       // anything else in the entry changed
+	// KindRemediationText marks an entry whose rule.nextAction differs. It
+	// is derived from the two texts and always comes with KindModify: it
+	// only makes the change visible, it admits nothing.
+	KindRemediationText = "remediation-text"
 	// KindPackMember is a change to a top-level pack member other than
 	// entries (schema, revision, policy, any new member). No such change
 	// is admitted by this version of the gate.
@@ -228,6 +232,9 @@ func classifyEdit(b, h *entry) (string, []string) {
 		}
 		if other || !bytes.Equal(canonicalOf(probe), canonicalOf(b.generic)) {
 			kinds = append(kinds, KindModify)
+		}
+		if !sameAt(b.generic, h.generic, "rule", "nextAction") {
+			kinds = append(kinds, KindRemediationText)
 		}
 	}
 	if loosening {
