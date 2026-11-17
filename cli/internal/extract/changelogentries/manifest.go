@@ -68,7 +68,9 @@ type Manifest struct {
 
 // Reviewed is the reviewed table of changelog targets. It is empty until a
 // component's row has been reviewed; a component without a row is refused.
-var Reviewed = []Target{}
+var Reviewed = []Target{
+	{Component: "aws-ebs-csi-driver", Repo: extract.RepoRef{Key: "github.com/kubernetes-sigs/aws-ebs-csi-driver"}, Form: FormPostTag},
+}
 
 // Lookup returns the row of a component in table. Exactly one row must match.
 func Lookup(table []Target, component string) (Target, error) {
