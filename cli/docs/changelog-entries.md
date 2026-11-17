@@ -58,6 +58,9 @@ is part of the reader's code. A component without a reviewed row is refused
 with exit 2. A component whose row has a non-file form (post-tag,
 github-release) prints a withheld manifest with its typed code, and nothing is
 read.
+Rows of form `file` exist for `prometheus` and `alertmanager`: the review
+window's tags were read in full and located with no residue and no withheld
+code. A row is reviewed input only; it attests nothing by itself.
 
 ## A printed manifest is never evidence
 

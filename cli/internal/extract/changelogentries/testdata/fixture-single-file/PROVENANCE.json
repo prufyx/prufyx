@@ -1,0 +1,105 @@
+{
+ "note": "Real excerpts of each repository's CHANGELOG.md read at the tag's commit from a public git clone: the preamble and the first four sections, verbatim (a byte-exact prefix of the upstream file, lines 1..excerptLines), cut at a section boundary. upstreamBlobSha is the git blob id of the whole upstream file.",
+ "files": [
+  {
+   "repo": "github.com/prometheus/prometheus",
+   "tag": "v3.11.0",
+   "commit": "d7cd96cb98943d845fbfa42cb28d33961c8ce819",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "3a754c6b922788242a923ee7b00934c0bafb72d8",
+   "upstreamLines": 3332,
+   "excerptLines": 145,
+   "excerptSha256": "7eaca76be552c42bb5f5f0f8fddd5d447fbc6b5d0a41006ff4fc2bfb96ca3b07"
+  },
+  {
+   "repo": "github.com/prometheus/prometheus",
+   "tag": "v3.11.1",
+   "commit": "1bd2f3a9fdedf52e6f613449cc4c50e86ca24676",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "14baf6f01d9f8fe8d68107afa7eacd9e48dbce65",
+   "upstreamLines": 3336,
+   "excerptLines": 111,
+   "excerptSha256": "c06ee1cd0f33225864a6c06d04d362f615f5d01ae6b708a0b0b21f47d9e49801"
+  },
+  {
+   "repo": "github.com/prometheus/prometheus",
+   "tag": "v3.13.5",
+   "commit": "f497435984d1ca1d84cda5ed309387ac2eb1f8f6",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "85aeaf4d2571402539172663f1e6eabc9180b6d1",
+   "upstreamLines": 3492,
+   "excerptLines": 34,
+   "excerptSha256": "4b89643ea1b57c585fe26258f3c5c25b17b8313c1b225b1f9a5d148750d6f511"
+  },
+  {
+   "repo": "github.com/prometheus/prometheus",
+   "tag": "v3.15.0",
+   "commit": "5241a27fe3c6983549fccc32f6e65917408c63cd",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "261fe6c8a2ab4d77517216350cfb2b2ed48ddeef",
+   "upstreamLines": 3594,
+   "excerptLines": 136,
+   "excerptSha256": "ede2931c3062cb120c74fb7e2c2607938111247dd42893a7f483eab63ee3eda5"
+  },
+  {
+   "repo": "github.com/prometheus/prometheus",
+   "tag": "v3.16.0",
+   "commit": "e2e28adeee2c5883d000fc82aca6008cfbf7e96d",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "84ade9a86f4db216e9f52e9bf11c9dfb01f7f1da",
+   "upstreamLines": 3687,
+   "excerptLines": 179,
+   "excerptSha256": "e6f65bcc2130d7a34d96f8e94e74a907201333b0e1aba94903eadab85f48a31b"
+  },
+  {
+   "repo": "github.com/prometheus/alertmanager",
+   "tag": "v0.30.0",
+   "commit": "ecda6777f8b67ba00ff40571c6a754c965fc1aaa",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "acd66abd6aac469c697a83387a27eda07969a71f",
+   "upstreamLines": 870,
+   "excerptLines": 83,
+   "excerptSha256": "ab867788f2f60827cfc7a751fb42c62ce1a09f799243634c5922fe93bdb8d57a"
+  },
+  {
+   "repo": "github.com/prometheus/alertmanager",
+   "tag": "v0.32.0",
+   "commit": "685a2a1c6bb01b2c17bc1bfae995cb3416c1115e",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "3af6e90b5be596d65b7e20cd4387488e2771289d",
+   "upstreamLines": 941,
+   "excerptLines": 74,
+   "excerptSha256": "cb6c62353b1091c1629960ba28a18855ed295535289520b9bb5c1d785aa1ddbc"
+  },
+  {
+   "repo": "github.com/prometheus/alertmanager",
+   "tag": "v0.34.0",
+   "commit": "085f0ef7eb41da24cab8cd000f1345b6250f2edb",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "a5182671a2d9c1b88d9db1d8228c35e52beb6be3",
+   "upstreamLines": 997,
+   "excerptLines": 34,
+   "excerptSha256": "274f67167e80a99a1b45bb5080241d4eb316c9d6586fc4f5128dbd8cb0964c2d"
+  },
+  {
+   "repo": "github.com/prometheus/alertmanager",
+   "tag": "v0.34.2",
+   "commit": "e8349048265ccc0871c3d0d668b05eacc68baf50",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "1465c423ac8be06f7b3cbd478f596b7adb73a514",
+   "upstreamLines": 1006,
+   "excerptLines": 31,
+   "excerptSha256": "35c733d51cb759af1fe155125b8c3dab3c47cdd3932b0f69c3c5af54d89b44ef"
+  },
+  {
+   "repo": "github.com/prometheus/alertmanager",
+   "tag": "v0.35.0",
+   "commit": "8cf67a8e75004bad6c3c6bacc829945cf8a3ee65",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "979d9fc9e0ffc87ba129772bc9412d566c68f2fe",
+   "upstreamLines": 1069,
+   "excerptLines": 74,
+   "excerptSha256": "51ed6ae91065bd8bc4c4628005ee9816839519477599174102b43cb34329d042"
+  }
+ ]
+}
