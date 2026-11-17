@@ -24,7 +24,7 @@ const (
 // placeholder takes (digits and dots) can then never form an element of their
 // own, so a resolved path cannot leave the template's directory tree.
 func checkTemplate(tpl, placeholder string) error {
-	if tpl == "" || strings.ContainsAny(tpl, "\x00\\") || strings.HasPrefix(tpl, "/") ||
+	if tpl == "" || strings.ContainsAny(tpl, "\\$") || hasControl(tpl) || strings.HasPrefix(tpl, "/") ||
 		strings.HasSuffix(tpl, "/") || path.Clean(tpl) != tpl {
 		return fmt.Errorf("path template %q must be a clean repository-relative path", tpl)
 	}
@@ -44,6 +44,15 @@ func checkTemplate(tpl, placeholder string) error {
 		}
 	}
 	return nil
+}
+
+func hasControl(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] < 0x20 || s[i] == 0x7f {
+			return true
+		}
+	}
+	return false
 }
 
 // resolveTemplate substitutes the placeholder and re-checks the result.
