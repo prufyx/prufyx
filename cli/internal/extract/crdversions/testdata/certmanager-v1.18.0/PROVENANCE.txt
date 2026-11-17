@@ -1,6 +1,9 @@
 Three CustomResourceDefinition files copied byte for byte from
-github.com/cert-manager/cert-manager at tag v1.18.0 (commit
-603a8d7121314d6204430c06786a385383cad89e), path deploy/crds/, licensed under
-the Apache License 2.0. They carry chart template markers only in full-line
-comments and in quoted metadata.labels values; spec holds none.
+github.com/cert-manager/cert-manager at tag v1.18.0 (commit 83dae3ef37f50973c0f3b3a818fc7d1b35fff341),
+path deploy/crds/, licensed under the Apache License 2.0. They carry chart
+template markers only in full-line comments and in quoted metadata.labels
+values; spec holds none. Upstream blob ids:
+  deploy/crds/crd-certificaterequests.yaml 5d6b598995e209b34ffb6ade8e0a5f4f28e6f791
+  deploy/crds/crd-certificates.yaml f42983318ea34e6cc36bc54135b39ce774db8fcb
+  deploy/crds/crd-orders.yaml 6c915806492147342684d285d1d7bb4f09dbbf2e
 Digests are pinned in template_metadata_test.go.

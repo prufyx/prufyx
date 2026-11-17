@@ -9,43 +9,87 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
-// The pinned files, copied from upstream at v1.18.0 (see PROVENANCE.txt).
-var metadataFixtures = map[string]string{
-	"crd-certificaterequests.yaml": "bae51a8380d6944a665f0394f953bf94290d093edd9d21cc86f2f488524545e6",
-	"crd-certificates.yaml":        "25f58d784b3e7f9520dcb101db8d86f93294d2c91fc37616b378516f9a94cf28",
-	"crd-orders.yaml":              "f10e292dd9efe0ffa2549edf4e368857308ffeda1a8c2e196c405b11ba405bcc",
+// The pinned files, copied from upstream per tag (see each PROVENANCE.txt).
+var metadataFixturesByTag = map[string]map[string]string{
+	"v1.16.0": {
+		"crd-certificaterequests.yaml": "bae51a8380d6944a665f0394f953bf94290d093edd9d21cc86f2f488524545e6",
+		"crd-certificates.yaml":        "b419c7a07f7ea95044beede49fcc0c33dc8c1f81b97f888c890d34c293012112",
+		"crd-orders.yaml":              "b48f8389d98acca81f28a0b46d89ade07e9742b4e967f45057dc6b2aa2a64c32",
+	},
+	"v1.17.0": {
+		"crd-certificaterequests.yaml": "bae51a8380d6944a665f0394f953bf94290d093edd9d21cc86f2f488524545e6",
+		"crd-certificates.yaml":        "d4791e087fa951de9bf0a0eb573dba32314a3a6c4021d74388024332abf7e73e",
+		"crd-orders.yaml":              "b48f8389d98acca81f28a0b46d89ade07e9742b4e967f45057dc6b2aa2a64c32",
+	},
+	"v1.18.0": {
+		"crd-certificaterequests.yaml": "bae51a8380d6944a665f0394f953bf94290d093edd9d21cc86f2f488524545e6",
+		"crd-certificates.yaml":        "25f58d784b3e7f9520dcb101db8d86f93294d2c91fc37616b378516f9a94cf28",
+		"crd-orders.yaml":              "f10e292dd9efe0ffa2549edf4e368857308ffeda1a8c2e196c405b11ba405bcc",
+	},
 }
 
-func readMetadataFixture(t *testing.T, name string) string {
+var metadataFixtures = metadataFixturesByTag["v1.18.0"]
+
+func readTagFixture(t *testing.T, tag, name string) string {
 	t.Helper()
-	b, err := os.ReadFile(filepath.Join("testdata", "certmanager-v1.18.0", name))
+	b, err := os.ReadFile(filepath.Join("testdata", "certmanager-"+tag, name))
 	if err != nil {
 		t.Fatal(err)
 	}
 	sum := sha256.Sum256(b)
-	if got := hex.EncodeToString(sum[:]); got != metadataFixtures[name] {
-		t.Fatalf("%s digest %s differs from the pinned %s", name, got, metadataFixtures[name])
+	if got := hex.EncodeToString(sum[:]); got != metadataFixturesByTag[tag][name] {
+		t.Fatalf("%s %s digest %s differs from the pinned %s", tag, name, got, metadataFixturesByTag[tag][name])
 	}
 	return string(b)
 }
 
+func readMetadataFixture(t *testing.T, name string) string {
+	t.Helper()
+	return readTagFixture(t, "v1.18.0", name)
+}
+
+// Every pinned tag: the rule reads each file, records it, and the served
+// and storage flags it derives are the ones the file declares (decoded here
+// by a plain YAML parse, which ignores comments).
 func TestMetadataTemplateFilesAreReadAndRecorded(t *testing.T) {
-	for name := range metadataFixtures {
-		text := readMetadataFixture(t, name)
-		if !strings.Contains(text, "{{") {
-			t.Fatalf("%s: fixture has no marker", name)
-		}
-		rec, crds, err := parseFile("deploy/crds/"+name, []byte(text))
-		if err != nil {
-			t.Fatalf("%s: refused: %v", name, err)
-		}
-		if rec.TemplateRead != templateReadMetadata {
-			t.Fatalf("%s: read under the rule but not recorded: %q", name, rec.TemplateRead)
-		}
-		if len(crds) != 1 || len(crds[0].Versions) != 1 || !crds[0].Versions[0].Served || !crds[0].Versions[0].Storage {
-			t.Fatalf("%s: read %+v", name, crds)
+	for tag, files := range metadataFixturesByTag {
+		for name := range files {
+			text := readTagFixture(t, tag, name)
+			if !strings.Contains(text, "{{") {
+				t.Fatalf("%s %s: fixture has no marker", tag, name)
+			}
+			rec, crds, err := parseFile("deploy/crds/"+name, []byte(text))
+			if err != nil {
+				t.Fatalf("%s %s: refused: %v", tag, name, err)
+			}
+			if rec.TemplateRead != templateReadMetadata {
+				t.Fatalf("%s %s: read under the rule but not recorded: %q", tag, name, rec.TemplateRead)
+			}
+			var decl struct {
+				Spec struct {
+					Versions []struct {
+						Name    string `yaml:"name"`
+						Served  bool   `yaml:"served"`
+						Storage bool   `yaml:"storage"`
+					} `yaml:"versions"`
+				} `yaml:"spec"`
+			}
+			if err := yaml.Unmarshal([]byte(text), &decl); err != nil {
+				t.Fatalf("%s %s: %v", tag, name, err)
+			}
+			if len(decl.Spec.Versions) == 0 || len(crds) != 1 || len(crds[0].Versions) != len(decl.Spec.Versions) {
+				t.Fatalf("%s %s: read %+v, declared %+v", tag, name, crds, decl.Spec.Versions)
+			}
+			for i, d := range decl.Spec.Versions {
+				got := crds[0].Versions[i]
+				if got.Name != d.Name || got.Served != d.Served || got.Storage != d.Storage {
+					t.Fatalf("%s %s: version %d derived %+v, declared %+v", tag, name, i, got, d)
+				}
+			}
 		}
 	}
 	// A file without markers is never recorded.
