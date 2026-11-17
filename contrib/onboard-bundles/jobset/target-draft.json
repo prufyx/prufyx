@@ -1,0 +1,42 @@
+{
+  "copiesEvidence": [
+    {
+      "comparedWith": "config/components/crd/bases/jobset.x-k8s.io_jobsets.yaml",
+      "note": "the two files were byte-equal at each of the three tags as compared by sha256",
+      "path": "charts/jobset/crds/jobset.x-k8s.io_jobsets.yaml",
+      "tags": [
+        "v0.13.0",
+        "v0.12.0",
+        "v0.11.1"
+      ]
+    }
+  ],
+  "kind": "target-draft",
+  "schema": "prufyx.io/onboard-bundle/v1",
+  "status": "filled",
+  "target": {
+    "exclude": [
+      {
+        "evidence": "Read at v0.13.0, v0.12.0 and v0.11.1: webhook_in_jobsets.yaml and cainjection_in_jobsets.yaml only patch the conversion webhook and the CA injection annotation of the CRD.",
+        "path": "config/components/crd/patches/",
+        "reason": "Kustomize patch fragments that carry a CRD kind header, not full definitions",
+        "repo": "github.com/kubernetes-sigs/jobset"
+      }
+    ],
+    "minFrom": "0.11",
+    "name": "JobSet",
+    "paths": [
+      {
+        "directory": true,
+        "guard": "(?i)crd",
+        "match": "^[^.][^/]*\\.ya?ml$",
+        "path": "config/components/crd/bases"
+      }
+    ],
+    "project": "jobset",
+    "repo": "github.com/kubernetes-sigs/jobset",
+    "tagPrefixes": [
+      "v"
+    ]
+  }
+}

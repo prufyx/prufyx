@@ -1,0 +1,50 @@
+{
+  "entries": [
+    {
+      "class": "copy",
+      "evidence": [
+        {
+          "commit": "0025c8257ba3cb8ec7169ee21f68f0c8e5eca6d9",
+          "sha256": "bb57e38d9aa66842fb317a2a8bb48c2adee2d0a84d6c6c69b36f797b4e21bd17",
+          "tag": "v0.13.0"
+        },
+        {
+          "commit": "f22e565ac3cc3265c7c45ef67ecffdc689af5d77",
+          "sha256": "d022b87624512cf0b6741b31b24a2bea9945b5a838b50713af29332c878bb6fe",
+          "tag": "v0.12.0"
+        },
+        {
+          "commit": "ecaf56ab2dffb6edce074beda10ea092e71f62e5",
+          "sha256": "2217e8cdd9fc17d358ab3aaa41ce1ac67a03b13ddcbd0a4e9dfaecb64638b6ed",
+          "tag": "v0.11.1"
+        }
+      ],
+      "note": "Helm chart copy of config/components/crd/bases/jobset.x-k8s.io_jobsets.yaml",
+      "path": "charts/jobset/crds/jobset.x-k8s.io_jobsets.yaml"
+    },
+    {
+      "class": "reference",
+      "evidence": [
+        {
+          "commit": "0025c8257ba3cb8ec7169ee21f68f0c8e5eca6d9",
+          "sha256": "e6041c5ce3e18f5123f0a8705d2ce79a550161ba294cc1a483f035ddd435ae23",
+          "tag": "v0.13.0"
+        },
+        {
+          "commit": "f22e565ac3cc3265c7c45ef67ecffdc689af5d77",
+          "sha256": "e6041c5ce3e18f5123f0a8705d2ce79a550161ba294cc1a483f035ddd435ae23",
+          "tag": "v0.12.0"
+        },
+        {
+          "commit": "ecaf56ab2dffb6edce074beda10ea092e71f62e5",
+          "sha256": "e6041c5ce3e18f5123f0a8705d2ce79a550161ba294cc1a483f035ddd435ae23",
+          "tag": "v0.11.1"
+        }
+      ],
+      "note": "Kustomize patch for the conversion webhook, not a full CRD",
+      "path": "config/components/crd/patches/webhook_in_jobsets.yaml"
+    }
+  ],
+  "kind": "scan-notes",
+  "schema": "prufyx.io/onboard-bundle/v1"
+}
