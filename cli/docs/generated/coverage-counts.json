@@ -2,54 +2,54 @@
   "schema": "prufyx.io/coverage-readme-counts/v1",
   "report": {
     "schema": "prufyx.io/coverage-report/v1",
-    "now": "2026-11-17T01:04:29Z",
+    "now": "2026-11-17T16:18:37Z",
     "window": 6,
     "pack": {
       "revision": "cncf-2026-09-13.8",
       "schema": "prufyx.io/cncf-source-rule-pack/v1alpha11",
-      "digest": "sha256:5773fd7189a49f953d16528518a93ce3cc12069368a3c936e681f2e6278ca8ff"
+      "digest": "sha256:394fccb4780ca9037ac65068d203100e91a7bca2f441c604a84f135dde1322ab"
     },
     "lines": {
       "capturedOn": "2026-10-31",
       "pinnedOn": "2026-11-07",
-      "digest": "sha256:2208004e5404e6c4c15e1b537932270a5ef6cf23230d4abf8b216c0d93bdf056"
+      "digest": "sha256:9d16ecf0db79b50d0f234e15c73a2ba0566a0ca2475b2ed8a2d2d91a212e5410"
     },
     "additions": {
       "digest": "sha256:67d50ddab79abd641d43f21479f6f23055dafcbfae1bda38da6aa21a355e3899",
       "entries": 9,
       "clockOn": "2026-11-10"
     },
-    "clockAttestedAt": "2026-11-17T01:04:29Z",
-    "packProjectsCovered": 70,
+    "clockAttestedAt": "2026-11-17T16:18:37Z",
+    "packProjectsCovered": 72,
     "crdVersionProjects": 87,
-    "crdPublishedProjects": 37,
+    "crdPublishedProjects": 40,
     "fleet": {
       "projects": 79,
       "pairs": 395,
-      "a": 74,
+      "a": 88,
       "b": 3,
       "s": 39,
-      "g": 279,
-      "c1": 61,
-      "c3": 14,
-      "c5": 9,
-      "vcPairs": 0.1949,
-      "vcMean": 0.1949,
+      "g": 265,
+      "c1": 63,
+      "c3": 17,
+      "c5": 12,
+      "vcPairs": 0.2304,
+      "vcMean": 0.2304,
       "sPairs": 0.0987,
       "rulesInWindow": 155
     },
     "priorityProjects": {
       "projects": 30,
       "pairs": 150,
-      "a": 28,
+      "a": 29,
       "b": 2,
       "s": 22,
-      "g": 98,
+      "g": 97,
       "c1": 29,
       "c3": 5,
       "c5": 4,
-      "vcPairs": 0.2,
-      "vcMean": 0.2,
+      "vcPairs": 0.2067,
+      "vcMean": 0.2067,
       "sPairs": 0.1467,
       "rulesInWindow": 112
     },
@@ -71,7 +71,7 @@
     "families": [
       {
         "family": "crd.custom_resource_versions",
-        "a": 69,
+        "a": 83,
         "b": 3
       },
       {
@@ -96,36 +96,51 @@
           {
             "from": "2.2",
             "to": "2.3",
-            "status": "G"
+            "status": "A",
+            "families": [
+              "crd.custom_resource_versions"
+            ]
           },
           {
             "from": "2.3",
             "to": "2.4",
-            "status": "G"
+            "status": "A",
+            "families": [
+              "crd.custom_resource_versions"
+            ]
           },
           {
             "from": "2.4",
             "to": "2.5",
-            "status": "G"
+            "status": "A",
+            "families": [
+              "crd.custom_resource_versions"
+            ]
           },
           {
             "from": "2.5",
             "to": "2.6",
-            "status": "G"
+            "status": "A",
+            "families": [
+              "crd.custom_resource_versions"
+            ]
           },
           {
             "from": "2.6",
             "to": "2.7",
-            "status": "G"
+            "status": "A",
+            "families": [
+              "crd.custom_resource_versions"
+            ]
           }
         ],
-        "a": 0,
+        "a": 5,
         "b": 0,
         "s": 0,
-        "g": 5,
-        "vc": 0,
-        "vcA": 0,
-        "covered": false,
+        "g": 0,
+        "vc": 1,
+        "vcA": 1,
+        "covered": true,
         "validRules": 0,
         "rulesInWindow": 0,
         "expiring14d": 0
@@ -3389,36 +3404,51 @@
           {
             "from": "1.3",
             "to": "1.4",
-            "status": "G"
+            "status": "A",
+            "families": [
+              "crd.custom_resource_versions"
+            ]
           },
           {
             "from": "1.4",
             "to": "1.5",
-            "status": "G"
+            "status": "A",
+            "families": [
+              "crd.custom_resource_versions"
+            ]
           },
           {
             "from": "1.5",
             "to": "1.6",
-            "status": "G"
+            "status": "A",
+            "families": [
+              "crd.custom_resource_versions"
+            ]
           },
           {
             "from": "1.6",
             "to": "1.7",
-            "status": "G"
+            "status": "A",
+            "families": [
+              "crd.custom_resource_versions"
+            ]
           },
           {
             "from": "1.7",
             "to": "1.8",
-            "status": "G"
+            "status": "A",
+            "families": [
+              "crd.custom_resource_versions"
+            ]
           }
         ],
-        "a": 0,
+        "a": 5,
         "b": 0,
         "s": 0,
-        "g": 5,
-        "vc": 0,
-        "vcA": 0,
-        "covered": false,
+        "g": 0,
+        "vc": 1,
+        "vcA": 1,
+        "covered": true,
         "validRules": 0,
         "rulesInWindow": 0,
         "expiring14d": 0
@@ -4729,17 +4759,26 @@
           {
             "from": "1.4",
             "to": "1.5",
-            "status": "G"
+            "status": "A",
+            "families": [
+              "crd.custom_resource_versions"
+            ]
           },
           {
             "from": "1.5",
             "to": "1.6",
-            "status": "G"
+            "status": "A",
+            "families": [
+              "crd.custom_resource_versions"
+            ]
           },
           {
             "from": "1.6",
             "to": "1.7",
-            "status": "G"
+            "status": "A",
+            "families": [
+              "crd.custom_resource_versions"
+            ]
           },
           {
             "from": "1.7",
@@ -4758,12 +4797,12 @@
             ]
           }
         ],
-        "a": 2,
+        "a": 5,
         "b": 0,
         "s": 0,
-        "g": 3,
-        "vc": 0.4,
-        "vcA": 0.4,
+        "g": 0,
+        "vc": 1,
+        "vcA": 1,
         "covered": true,
         "validRules": 0,
         "rulesInWindow": 0,
@@ -5130,7 +5169,10 @@
           {
             "from": "1.16",
             "to": "1.17",
-            "status": "G"
+            "status": "A",
+            "families": [
+              "crd.custom_resource_versions"
+            ]
           },
           {
             "from": "1.17",
@@ -5173,12 +5215,12 @@
             "weight": 3
           }
         ],
-        "a": 0,
+        "a": 1,
         "b": 0,
         "s": 1,
-        "g": 4,
-        "vc": 0,
-        "vcA": 0,
+        "g": 3,
+        "vc": 0.2,
+        "vcA": 0.2,
         "covered": true,
         "validRules": 11,
         "rulesInWindow": 9,
@@ -5887,5 +5929,5 @@
     "selectedSourceOnlyProjects": 11,
     "selectedSourceProjects": 58
   },
-  "readmeBlockSha256": "2473ba86589fc6c2215c6f373ae6b09ffb8e47b350e69b02264ff05b7b06e903"
+  "readmeBlockSha256": "fea8a0e09931db89b485052d16df21ccb8d8c0985ad591376ab7c01331450cb9"
 }
