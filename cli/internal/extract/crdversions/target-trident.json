@@ -1,0 +1,23 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "trident",
+    "catalog": "community",
+    "name": "trident",
+    "repo": "github.com/netapp/trident",
+    "component": "pkg:github/netapp/trident",
+    "factProject": "trident",
+    "tagPrefixes": ["v"],
+    "minFrom": "25.2",
+    "paths": [
+      {"path": "cosi/crd/objectstorage.k8s.io_bucketaccessclasses.yaml", "optional": true},
+      {"path": "cosi/crd/objectstorage.k8s.io_bucketaccesses.yaml", "optional": true},
+      {"path": "cosi/crd/objectstorage.k8s.io_bucketclaims.yaml", "optional": true},
+      {"path": "cosi/crd/objectstorage.k8s.io_bucketclasses.yaml", "optional": true},
+      {"path": "cosi/crd/objectstorage.k8s.io_buckets.yaml", "optional": true},
+      {"path": "deploy/crds/trident.netapp.io_tridentconfigurators_crd.yaml"},
+      {"path": "deploy/crds/trident.netapp.io_tridentorchestrators_crd.yaml"}
+    ],
+    "exclude": []
+  }
+}

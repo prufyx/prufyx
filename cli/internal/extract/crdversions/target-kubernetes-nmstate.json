@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "kubernetes-nmstate",
+    "catalog": "community",
+    "name": "kubernetes-nmstate",
+    "repo": "github.com/nmstate/kubernetes-nmstate",
+    "component": "pkg:github/nmstate/kubernetes-nmstate",
+    "factProject": "kubernetes_nmstate",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.82",
+    "paths": [
+      {"path": "deploy/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}
