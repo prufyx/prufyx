@@ -78,9 +78,9 @@ func TestAttestsAWindow(t *testing.T) {
 	if !ok || text != want {
 		t.Fatalf("scope text %q", text)
 	}
-	// The member table stays empty.
+	// The member table holds exactly the reviewed pilot component.
 	f, _ := lineattest.LookupFamily(lineattest.FamilyChangelogAttestedEntries)
-	if len(f.Components()) != 0 {
+	if !reflect.DeepEqual(f.Components(), []string{"pkg:github/prometheus/prometheus"}) {
 		t.Fatalf("members %v", f.Components())
 	}
 	// Deterministic.

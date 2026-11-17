@@ -1,0 +1,3 @@
+### Added
+
+- `prufyx-maintainer changelog attest`: for one reviewed component and one hop to the next minor line it derives the changelog-attested line attestation from the pinned entries of the hop's window and a reviewed dispositions file, or prints the typed reason it cannot (for example `ITEM_UNRESOLVED` when an item has no reviewed mark). It is offline and deterministic, takes no classifier and no rule, and writes no file. Prometheus is admitted to the changelog-attested family with reviewed marks for the 3.13.1 to 3.15.1 releases; every operator-facing item is left unmarked, so the 3.13 to 3.14 and 3.14 to 3.15 hops are withheld, not attested.

@@ -240,10 +240,11 @@ func contains(outer, inner constraintengine.VersionBound) bool {
 var families = mustFamilies(customresources.Projects(), changelogComponents)
 
 // changelogComponents is the reviewed table of components whose changelog
-// entries the changelog family attests. It is empty until the first reviewed
-// pilot admits a project: an empty table admits no component, so no rule is
-// in the family and no output changes.
-var changelogComponents = []string{}
+// entries the changelog family attests. A component is admitted here only by a
+// reviewed change that also ships its reviewed dispositions; an admitted
+// component is attested for a pair only when every item of every entry of the
+// pair's window is resolved, and is withheld otherwise.
+var changelogComponents = []string{"pkg:github/prometheus/prometheus"}
 
 // mustFamilies builds the family table and panics on a changelog table that
 // is not valid or not disjoint from the custom-resource table: a component

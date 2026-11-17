@@ -1,0 +1,95 @@
+{
+ "note": "Real excerpts of the prometheus CHANGELOG.md read at each tag's commit: the preamble and every section down to and including 3.13.0, verbatim, cut at a section boundary. upstreamBlobSha is the git blob id of the whole upstream file.",
+ "files": [
+  {
+   "repo": "github.com/prometheus/prometheus",
+   "tag": "v3.13.0",
+   "commit": "40af9c2cdc0eda00f3622e867a27f6359f7295f3",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "03592f04a57cc1d50a6649b4ecbbf9d0b5241de1",
+   "upstreamLines": 3456,
+   "excerptLines": 44,
+   "excerptSha256": "6146a36f1520e926413954256fa5cb5cdb79f3a087833ed6ee5d316f0e78e901"
+  },
+  {
+   "repo": "github.com/prometheus/prometheus",
+   "tag": "v3.13.1",
+   "commit": "73ff57ce2b8161059ac7fe5188f03f1c3d22b29a",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "98e0e9894f6f56cdb3b8fbabd84422bcaf341d66",
+   "upstreamLines": 3460,
+   "excerptLines": 48,
+   "excerptSha256": "690386d7f48bd9d9b04abb625fc32db252b4b8605f133a7033615a3759936c6b"
+  },
+  {
+   "repo": "github.com/prometheus/prometheus",
+   "tag": "v3.13.2",
+   "commit": "bb5dff00cf8fdfbf5c65e0531aa835fa238a43a2",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "e635e78356ec4bff586bbec5745d46d671bebfb6",
+   "upstreamLines": 3465,
+   "excerptLines": 53,
+   "excerptSha256": "3ae22b637fbdaeda8e2f42c68590e477624658bef5ca7b749a2b6e7964f75d40"
+  },
+  {
+   "repo": "github.com/prometheus/prometheus",
+   "tag": "v3.13.3",
+   "commit": "b273ae3adeb64ad630d65ef7f16440df95658410",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "ce13dc73b2b10528a6e870c433239b5335994f8d",
+   "upstreamLines": 3476,
+   "excerptLines": 64,
+   "excerptSha256": "e6ddf77d8e3725d0634cfd042136177687a1d08a8f1c705e8c2a066b91e7f0c6"
+  },
+  {
+   "repo": "github.com/prometheus/prometheus",
+   "tag": "v3.13.4",
+   "commit": "007a9e9ba628f815ce83e1ba9f29b97981996c3c",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "7169fcdf7bc1482a2f1bb0676bb08636f7e97990",
+   "upstreamLines": 3484,
+   "excerptLines": 72,
+   "excerptSha256": "2fc9ac3781bbbec825e0b282d6b207077257c0e2dc43db22d3bdb183936cc723"
+  },
+  {
+   "repo": "github.com/prometheus/prometheus",
+   "tag": "v3.13.5",
+   "commit": "f497435984d1ca1d84cda5ed309387ac2eb1f8f6",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "85aeaf4d2571402539172663f1e6eabc9180b6d1",
+   "upstreamLines": 3492,
+   "excerptLines": 80,
+   "excerptSha256": "1b1c97f79cef8c1b0f74e1670c5de6442d3cbaa7312ce8b1f0aecf1b7f043ea0"
+  },
+  {
+   "repo": "github.com/prometheus/prometheus",
+   "tag": "v3.14.0",
+   "commit": "d7598b7141418fa35be2b5ec5d0fefb634199610",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "e3fd72b85d8cff7743ee1c8662ce5f4ced4b604d",
+   "upstreamLines": 3510,
+   "excerptLines": 98,
+   "excerptSha256": "d69d37134872002ab286d63fe934adea1713158cd5c2595d1e5f2473b1bc82ab"
+  },
+  {
+   "repo": "github.com/prometheus/prometheus",
+   "tag": "v3.15.0",
+   "commit": "5241a27fe3c6983549fccc32f6e65917408c63cd",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "261fe6c8a2ab4d77517216350cfb2b2ed48ddeef",
+   "upstreamLines": 3594,
+   "excerptLines": 182,
+   "excerptSha256": "03b7fdbf2a5eda51e6a30af1154074a122288e9fff85a26b746c9e56862d414c"
+  },
+  {
+   "repo": "github.com/prometheus/prometheus",
+   "tag": "v3.15.1",
+   "commit": "bae3eced0a5369e050e83ea73bc381d7c4b1a719",
+   "upstreamPath": "CHANGELOG.md",
+   "upstreamBlobSha": "c510f3b31b2663d09d0e269f787b191a623130fb",
+   "upstreamLines": 3598,
+   "excerptLines": 186,
+   "excerptSha256": "9b8dda4460342b660dd62ec3e87bc4917d38d10e8483784005cdb4310d036c4f"
+  }
+ ]
+}

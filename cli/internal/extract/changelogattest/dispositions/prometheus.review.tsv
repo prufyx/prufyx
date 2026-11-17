@@ -1,0 +1,147 @@
+tag	line	itemDigest	occurrence	disposition	reason
+v3.13.1	5	c13bdb941200e4e0dca78c68ef5756d0cf1748b6cea1d3b8825736b3f759d98d	1	not-operator-facing:bugfix-no-contract-change	Head-chunk cache fix for range queries.
+v3.13.2	5	94ffd3be852eaac807207cc16b86843393eeb32206656700b8182f984bbe0f72	1	not-operator-facing:dependency-bump-no-minimum	Dependency patch bumps for security fixes; no minimum change stated.
+v3.13.2	6	97866f65afc088656efce8f7fea809d7d04f3cd1091bd8171890726e4a09e7ad	1	not-operator-facing:bugfix-no-contract-change	Active query tracker file preallocation to avoid SIGBUS.
+v3.13.3	5	7497f84c2966d99b6b2c93ac5354bea72a4fba4064744527d126841968a44752	1	not-operator-facing:dependency-bump-no-minimum	Dependency patch bumps for security fixes; no minimum change stated.
+v3.13.3	6	db6e8cbfadddba0e0632d5147e277616637c2d29e26f0c49c3176f9c4b804dfb	1	not-operator-facing:bugfix-no-contract-change	Docker Swarm SD panic fix.
+v3.13.3	7	565e079d7637a45a74892003e8157f58b3d24b210c7fc0bb8cd3ac712c5f738d	1	not-operator-facing:bugfix-no-contract-change	Regex matcher correctness fix.
+v3.13.3	8	1f48996c0a4d777d8e63b891f305a000d1dcefd349fc94a2001c33220d7c87af	1	not-operator-facing:bugfix-no-contract-change	Scrape manager shutdown CPU fix.
+v3.13.3	9	ef82f7f6088b810a5d65c6968f6cbacd7646ade5d9324208dae99de06a82b61c	1	not-operator-facing:bugfix-no-contract-change	Alerting shutdown CPU fix.
+v3.13.3	10	c47ee3fda6252035b2b2a8259ad4973771bf44828ff49351616dfdd83e8ad39e	1	not-operator-facing:bugfix-no-contract-change	TSDB OOO query / compaction fix.
+v3.13.3	11	e23c75eb6fce88225ba9e38aa9d4a6c344a30cbaa09a5480ba003ae398a8dab2	1	not-operator-facing:bugfix-no-contract-change	TSDB deleted series fix.
+v3.13.3	12	ebc42b3ad2de467cd8aafc5917e39fdfa9edd9bf9cb3f71513a784969105a720	1	not-operator-facing:bugfix-no-contract-change	TSDB leak fix.
+v3.13.4	5	2a48a5ff154693e407a23baee2d18ccd1a5f16b6242553887b3a3390341a9c91	1	not-operator-facing:dependency-bump-no-minimum	Dependency bump for an HTTP/2 vulnerability; no minimum change stated.
+v3.13.4	6	9db8b93550f01dbef2b7398e8009fbf159f79ff7d8416728ed9b03a45ea4e9fd	1	not-operator-facing:dependency-bump-no-minimum	UI npm dependency bumps for vulnerabilities.
+v3.13.4	7	8755b9de98f4a130aba9620903122f354864188600fcf688886f7083384599cb	1	not-operator-facing:bugfix-no-contract-change	Agent WAL record tolerance to ease rollback.
+v3.13.4	8	768b7355d709915a9cdbc452126d0da2f22283011dd9dbdfe7036944ae783de6	1	not-operator-facing:bugfix-no-contract-change	Federation native histogram corruption fix.
+v3.13.4	9	60a4774b7cb11362b76dd862489f7fad5ca0191beb05994605b79507fd6e6d22	1	not-operator-facing:bugfix-no-contract-change	Scrape fix for protobuf float histograms.
+v3.13.5	5	b41a39af2f0e8fe3ae4ff37c2fbea261fa840b04af8b67d036a733c13dbab916	1	operator-facing	Container image trust store changes: connections to endpoints chained to the distrusted roots stop validating.
+v3.13.5	6	80b78056d19fd3a1b757d5d8c77ffb56e6fc3cdad060c5e0bc31b9a1051f5bba	1	not-operator-facing:build-packaging	Patch-level Go toolchain used for the build; no stated change to a flag, config key, API or minimum version.
+v3.13.5	7	45fe6dd9a6f35f69fb861b9be611fc7c65c30bee809b7f94634f9769252ef66b	1	not-operator-facing:dependency-bump-no-minimum	Dependency patch bump for HTTP/2 vulnerabilities; no minimum-version change stated.
+v3.13.5	8	8671d97efa4e1c6b31bb3152bfaa5b3ac91c334a2fa033ffe801b1c0330fcc0d	1	not-operator-facing:dependency-bump-no-minimum	Dependency bump so exporter endpoint URLs stop leaking into info logs; no minimum change stated.
+v3.13.5	9	e5c427a88ebaf19636054a20bbdd0d0c2946b795bb713d06e814a4ecf58c11c8	1	operator-facing	Building now requires Go 1.26 or later: a minimum-version change.
+v3.14.0	5	00851e65f3c0bbfacec4de92bd8e81f9ed36b8a06b7c1d029e5f6390979724bb	1	operator-facing	Deprecates the stats query parameter values on the query API.
+v3.14.0	6	1d91af79809ceb16f67e81f998f3570e07033e8cf3b9c0215e14a64d73c8798b	1	operator-facing	/api/v1/status/config output changes for empty separator/replacement.
+v3.14.0	7	e2da59aa13af24e8271c246a69cbbab4b8347fb57eac58e94a1b3f3f82dae2db	1	operator-facing	Drops the __meta_hetzner_datacenter label: a removal.
+v3.14.0	8	a7d57e9a2bf04fe79d4ce64012bb2a6879a55bb65550a2b60cec9ade5c6caeb6	1	operator-facing	Duration expressions enabled by default; the promql-duration-expr flag becomes a no-op.
+v3.14.0	9	a967b3da378cf3ccb4a5c18211aeed8b80b15a720545734c5a448c840ec4d3bd	1	operator-facing	first_over_time promoted to stable; feature flag requirement removed.
+v3.14.0	10	48be7e8556a6723b1fafda3604042629a3e2619cb01ba11bfa84d5206597eaed	1	not-operator-facing:new-optional-feature	New OCI service discovery; opt-in config.
+v3.14.0	11	e6aae8f9ed72b6b33b9843edce5b9b4185096010413f84352673b6bd3ee8bd5d	1	not-operator-facing:new-optional-feature	Experimental function behind the use-start-timestamps flag.
+v3.14.0	12	443a66fbb3f93d57c6ca4e15eb57c6cf5e9a5001b6c22422ffa00e1ee4283352	1	not-operator-facing:new-optional-feature	Behind the use-start-timestamps flag.
+v3.14.0	13	9abae53cd7290ce525bf66be32f4ab5e096a927ed47b5c04344c7a8cee7a8ebf	1	not-operator-facing:new-optional-feature	Experimental encoding behind the histograms-st-encoding flag.
+v3.14.0	14	776074e307baeb356d2857d69a62b525e93b9e66e4206d46b9707c0ec57c6cc0	1	operator-facing	OTLP translation now emits warnings and a new counter; API responses and logs change.
+v3.14.0	15	8b4a47bb81bcf6afae0e3dc0b4842008f6ab9e313f5d0df474c5ad2db5dcd716	1	not-operator-facing:new-optional-feature	Adds an optional promtool flag.
+v3.14.0	16	c1b6f9cdf3e7adb9fe3ca46cd1f6ba2b653b751c578504c7981f27991270a6a1	1	operator-facing	Remote write V2 now forwards histogram start timestamps: wire content change.
+v3.14.0	17	84e395d8317c8654465d1f713513851cbe135d720d29cacbe0e32818bffe9baa	1	not-operator-facing:new-optional-feature	Adds two gauges; no existing metric changes.
+v3.14.0	18	e182a949bba965f33064319e977dc360e0b8ef03b81e04332987eb3828f60ab2	1	not-operator-facing:new-optional-feature	UI editor feature; presentation only.
+v3.14.0	19	03c9b270908989aa637079e6616fd6d9d7c58c512371e0f46478f849eda58a7f	1	not-operator-facing:new-optional-feature	UI copy button; presentation only.
+v3.14.0	20	1b1476d4d20933b099b5ccb8fd47c2ae39bf430723d38876b89b69015f791184	1	not-operator-facing:new-optional-feature	UI contrast; presentation only.
+v3.14.0	21	2da80f3d72e4ff18745d8a64e9223e67a8bc398b5fb19bdbfcd709c2225ee18d	1	not-operator-facing:performance	Regex matcher performance.
+v3.14.0	22	c3dbd035d02d6957d081c7cef457de82d3da0e2f315ae7365c79886430922c1e	1	not-operator-facing:performance	Remote read throughput.
+v3.14.0	23	729983fe1d5ab7646365b1a45a38301ac58f9ff825bf2f0f83fd404ead4b65b4	1	not-operator-facing:performance	Scrape parser performance and robustness.
+v3.14.0	24	f19ce43c51ff0c7ffb53da258e89bec2285bb8518d8ccac2104758d1ec272681	1	not-operator-facing:performance	Scrape parsing allocations.
+v3.14.0	25	b60487389173fb56434a351fe3c72a2bd0b38e7351c6619fba4c4dc2c5344dd0	1	not-operator-facing:performance	TSDB query performance.
+v3.14.0	26	4864d5a09a86a0cf09845b613e66797f5c919f265a40c7bc76bcfabf52b157e7	1	not-operator-facing:bugfix-no-contract-change	Alerting shutdown CPU fix.
+v3.14.0	27	37a1a89f666485b4ce318c3aca98e55f879d508cc9e07dbeb97ccb96b8a3b48a	1	not-operator-facing:bugfix-no-contract-change	promtool no longer calls IMDS when region is omitted.
+v3.14.0	28	d26f4a76a5e6a08c4916a7e02ee72d89234b922511ba9780bb50494f12b4d47d	1	operator-facing	Introduces a request timeout for Docker SD where none applied: a default changes.
+v3.14.0	29	59eae12e864d0698d713540b75e86237e2ec051016a3e0aecd69fed118243938	1	not-operator-facing:bugfix-no-contract-change	Docker Swarm SD panic fix.
+v3.14.0	30	f732ec117b45074e45e33bdddf6023e291a4eb8574428eebf0f245167d58b7a2	1	not-operator-facing:bugfix-no-contract-change	Docker SD IPv6-only container fix.
+v3.14.0	31	9ab0409dde6b5f45e8c73c494e29f9dd118d742bd0f858b50233112914cd352b	1	not-operator-facing:bugfix-no-contract-change	Regex matcher correctness fix.
+v3.14.0	32	be03fa01e042f7d8d944393e5a99ca3cb9928fd554eca7e783e18eba7e662c31	1	not-operator-facing:bugfix-no-contract-change	mad_over_time NaN fix.
+v3.14.0	33	61dcd21f05178cc6d359cc6300e05f404f80d004277855f885c4f7cb6b20dda8	1	not-operator-facing:bugfix-no-contract-change	promtool check rules accepts a valid feature flag.
+v3.14.0	34	3c9a56e7eff131e3586aae19af9fd1c8e5aa4777d1813c96d77b6f595eef994f	1	not-operator-facing:bugfix-no-contract-change	Azure workload identity token path fix.
+v3.14.0	35	b009436b5f180f8c695ae7e1bd674bd14679bd14f4f3abe10599f511fcc45f7d	1	not-operator-facing:bugfix-no-contract-change	Stale rule-group series cleanup on reload.
+v3.14.0	36	c8e11635b1e99225cb2f9e5690a4b6a9345f346b7b34f2d3704f3cdd0220d0fa	1	not-operator-facing:bugfix-no-contract-change	Scrape manager shutdown CPU fix.
+v3.14.0	37	24cc45c83355156adc857ff6e90854b509bbb3af89566772eb970b802367f3fb	1	not-operator-facing:bugfix-no-contract-change	TSDB stale-series compaction data-loss fix.
+v3.14.0	38	de115b593fdcff8f2d3a1325a4732d0344387476c9a03ced2f5ebbb6d7f5fe07	1	not-operator-facing:bugfix-no-contract-change	TSDB OOO compaction data-loss fix.
+v3.14.0	39	10ffa317e6d486fc5c5066893ab019b4d6c5c085843049270c195e908c2cb09a	1	not-operator-facing:bugfix-no-contract-change	TSDB stale series counting fix.
+v3.14.0	40	224f0ed93e0ae2616d2452c5770637da0faea039bbab6f59cb2c50307415b64a	1	not-operator-facing:bugfix-no-contract-change	TSDB leak fix.
+v3.14.0	41	6827a99956cc151bd54e138e717b69ccea926d44243137e77942364ecc2fa330	1	not-operator-facing:bugfix-no-contract-change	TSDB OOO query / compaction fix.
+v3.14.0	42	ba279ccffeb585ddac683fe40c420ee97ab65fbf0bc058317e5109763b45f1eb	1	not-operator-facing:bugfix-no-contract-change	TSDB deleted series fix.
+v3.14.0	43	c1c689f0468c86ca3825eb80989cda9af66d77a5d01f3c6d7583b5523acd92d4	1	not-operator-facing:bugfix-no-contract-change	TSDB native histogram restart fix.
+v3.14.0	44	459a2995405420e213c18532481efde95e7147adb62f3eb4a44d9b20214165e7	1	operator-facing	Query errors previously discarded are now surfaced: queries that returned results can now return errors.
+v3.14.0	45	797578fa47301f44e3b2a6d566a5c7a28e1fa7a59e720bac2a5dcddd2a8f941f	1	operator-facing	Compaction now honours the configured float chunk encoding: stored chunk format changes.
+v3.14.0	46	23daccd4ee69e414f53b91d88c13e9902ab344df62a1467a374d60c28c927792	1	not-operator-facing:bugfix-no-contract-change	UI admin API form fix.
+v3.15.0	6	e294a392dacefecc2bab7db3757c52feba36375cbe715263e044a1ad8962fc5d	1	operator-facing	CHANGE: query stats and query.max-samples accounting for subqueries changes; an existing limit can trip differently.
+v3.15.0	7	3859e44318ecd9bacf122d275073c19fbd6f7980ee32b96e0e038d6e96c37d00	1	operator-facing	CHANGE: PromQL start-timestamp reset handling changes behaviour of query results.
+v3.15.0	8	74ad917f5049973adbe6517f0fa1c237121f20579c331c571edbef6c48538b86	1	operator-facing	Deprecates the --log.level flag.
+v3.15.0	9	e6e9a16d2dfb39fc1b01088c29a2cce234e2d250a4962b37cd3ae2de65996b57	1	not-operator-facing:new-optional-feature	Adds an optional runtime.log_level config key; existing configurations are unaffected.
+v3.15.0	10	3661f9e0b1fb87383215a9e85f55b62eaaa827c05a87741792287bb5bd1ccc27	1	operator-facing	New flag whose default behaviour (periodic GOMEMLIMIT re-detection) is not stated as opt-in; runtime memory behaviour may change.
+v3.15.0	11	19642b76552bb5efe816229049f715234b709e3738df9b685fee67768cf2c906	1	not-operator-facing:new-optional-feature	Adds scraping over Unix Domain Sockets; opt-in per scrape config.
+v3.15.0	12	3e7351d8da182d56dbc1a8afa80b8405d0d8df75594b58eac8b0af8e8068304f	1	operator-facing	Adds the OM2.0 scrape format; negotiation and default scrape behaviour not stated as opt-in.
+v3.15.0	13	a321c3dff9a68ea33ebeb3b10e441d9ba4eec21d98c78e4f5788d14afdd3fa5c	1	not-operator-facing:performance	Reduces TSDB head initialisation CPU use; no contract change stated.
+v3.15.0	14	a11aa0fd34f6f38e928502313129f2c855df2db356c66fbaf012d867c488b0ba	1	operator-facing	Adds Docker SD meta labels; labelmap relabel rules can now copy them into target labels.
+v3.15.0	15	6c19cc4d9ba8fb53e6f9f69504ed12dde5b42849185c2d8260f32ef5711f0cd9	1	not-operator-facing:component-not-shipped	Monitoring-mixin dashboard panel; not part of the shipped binary or image.
+v3.15.0	16	17f477d14fed8e7af842c6f76bebaeace5ecd695e122cfba99c88f40ebfb2751	1	not-operator-facing:component-not-shipped	Monitoring-mixin dashboard panel; not part of the shipped binary or image.
+v3.15.0	17	2b442fd52add6808a8691c64c6d57fbb0fb9538cfaabbcc1b91fcd88b1a565ed	1	operator-facing	Enabling st-storage now implicitly enables XOR2 and ST histogram chunk encodings: storage format change.
+v3.15.0	18	ac4b5b580ec5c146adeb01b7658196c84f2606243cc87ec5a7bc1b9664664114	1	not-operator-facing:dependency-bump-no-minimum	Dependency upgrade (sigv4) that adds optional STS session fields; no existing field changes stated.
+v3.15.0	19	57e3f6a6d841276bef73604d0fa9dbfad7f9a8908d56fa67f789d1e09064c197	1	not-operator-facing:new-optional-feature	Zstd scrape responses are enabled only by the zstd-scrape feature flag.
+v3.15.0	20	38f0265787140740ed8acb68f63f56fa905332ccd9ea5f4c42b7d30c5abca26d	1	operator-facing	Stabilises XOR2 chunk encoding and deprecates a feature flag; storage format and compatibility with other TSDB readers.
+v3.15.0	21	7a9d81b11133c881e521c43d8b448e2dae84a40054545ccfca0a83e6405be937	1	not-operator-facing:new-optional-feature	Adds a new metric; no existing metric changes.
+v3.15.0	22	39afb3268fca062a0f59344ca019ba18b09abea87f26eb4b0076e80c272915a2	1	not-operator-facing:new-optional-feature	Adds tracing spans; no existing contract changes.
+v3.15.0	23	b229231a04e577c56e01ac6ac21ed759a751446462703f9ae39d359adce89fc0	1	not-operator-facing:new-optional-feature	UI shows effective scrape-pool configuration; read-only addition.
+v3.15.0	24	52736774fb48509a98842a219403b2ecdc9b9efaa78ff48287322173846fe6a0	1	operator-facing	Start-time synthesis for summary _count/_sum series changes ingested data.
+v3.15.0	25	7ce603d67396d328bb9eab498f52013add7619fce6ae6d46ec8f01d9aa9174ae	1	not-operator-facing:performance	Parallel scrape pool shutdown; no contract change stated.
+v3.15.0	26	1652aa3422d47ecf849b8739543a2e2838f058c57c022045b0df2c76a57c27dd	1	not-operator-facing:new-optional-feature	Adds an undocumented optional debug config field for remote write V2 send errors.
+v3.15.0	27	d14512b7159e4f3e85da3ac7dc953f73d77855d04cd0dcda7d3073d8aeb48731	1	not-operator-facing:performance	Fast path for XOR chunk decompression; no contract change stated.
+v3.15.0	28	f60e7ee82c089064ee60c7007ac1702c356d35ff19f650cb3d10a025a2c8b53b	1	not-operator-facing:new-optional-feature	UI table formatting for native histograms; presentation only.
+v3.15.0	29	8573ba490e931bf4d3e15475b3ce2ceac2921d9a930b759605b0969eca1f7d7f	1	not-operator-facing:new-optional-feature	Adds a new metric; no existing metric changes.
+v3.15.0	30	f4ffa829450455b0637afb378688b567c72d7247c2ead88bb868121dadfd9ac5	1	not-operator-facing:performance	AWS SD label construction performance.
+v3.15.0	31	71ccea4c390a55d6f96b5c5326d2e6428f556342be48b4c9f8f7af01e74046d5	1	not-operator-facing:performance	AWS SD request concurrency performance.
+v3.15.0	32	a7a13edc6be6e39297e3fbd411b254c9216cea1a31aa910ceb017e80848ef94a	1	not-operator-facing:performance	AWS SD ElastiCache describe-call reduction.
+v3.15.0	33	ff7bcad34a880398b2a92a4c4e9bbc62584c78a6369c36efc05e019df4414d1a	1	not-operator-facing:performance	Remote read label cloning avoided; performance.
+v3.15.0	34	d9cf89a00541ab28b8a0614b835bf8a7f178fc0f04a91187b2c6c453e11afd65	1	not-operator-facing:performance	Remote write OTLP converter reuse; performance.
+v3.15.0	35	5e09955d9abdee8d6a6cb11a8029f45564168f4a317346b87316f4e665af9fbc	1	not-operator-facing:performance	Start-time parsing only when enabled; performance.
+v3.15.0	36	6ed788317fa793856ce024cbdcb6225cf9cf18ab1763cbf8597b73dff19c3fe9	1	not-operator-facing:bugfix-no-contract-change	PromQL info() fix; no flag, config, API or format change stated.
+v3.15.0	37	7b4a793e3c70629a1bb1167df323ec4da6fca7069b2f6805b2083934cb33a33c	1	not-operator-facing:bugfix-no-contract-change	PromQL info() fix; no flag, config, API or format change stated.
+v3.15.0	38	cabb9f7159f7e2b131e74918f460e498f55848cf961d7abdc254c7536d483bd0	1	not-operator-facing:bugfix-no-contract-change	PromQL info() fix; no flag, config, API or format change stated.
+v3.15.0	39	a54c3115ca83ab4a4967e24f64ff8c9cbd9e12165509c1adccb1baf868c09548	1	not-operator-facing:bugfix-no-contract-change	TSDB fix for dropped samples during head GC.
+v3.15.0	40	b8fce1211ef0afd69c923315a127f94d0c78873e8a04553e9d2fb98e1eec04ee	1	not-operator-facing:bugfix-no-contract-change	TSDB compaction fix for series with uncommitted samples.
+v3.15.0	41	d950eca84736d5517e1d4c474da814bd9633f62e1dfb5542fb461bd78bb20b7d	1	not-operator-facing:bugfix-no-contract-change	TSDB fix for series retained after a rejected synthetic sample.
+v3.15.0	42	fb04684c3c4a952979085b3604455eaa342a027f92afe367b8c9821d5688c38d	1	not-operator-facing:bugfix-no-contract-change	TSDB query panic fix.
+v3.15.0	43	106be677b9478bdc7de355cfea82412e062be6251a79fb81e528eb08946a9bcd	1	not-operator-facing:bugfix-no-contract-change	TSDB deadlock fix.
+v3.15.0	44	3904bda67b1f6d94227e331fa7acdb4b7c07fa3bd9a49318f94bdd9872d0e3da	1	operator-facing	Changes the default block reload interval for custom options: a default changes.
+v3.15.0	45	522fea14dbe4ce2d364eb251d3798cd529d10696bbd7076c47867a056e7db8df	1	not-operator-facing:bugfix-no-contract-change	AWS SD crash fix.
+v3.15.0	46	3f502bbcbbfad7317f5ee49ac14efce936e3dc8635fe17f5345bc47a36267ff1	1	not-operator-facing:bugfix-no-contract-change	AWS SD panic fix.
+v3.15.0	47	da12c68c5dfb2e38491a956bfaf2e403f91d1041ad80d3c2e0e7968a66ee4dd2	1	operator-facing	Configurations with a non-positive request_concurrency are now rejected instead of accepted: existing configs can fail to load.
+v3.15.0	48	93cc454d5fd72bfd78d30cd3a92b87f58e63d6e46398559218a649d0e478b1e8	1	not-operator-facing:bugfix-no-contract-change	AWS SD panic fix.
+v3.15.0	49	f379d169475fad78bc5b92024886b71710909bf6d79779885fdf21934f6a6a89	1	not-operator-facing:bugfix-no-contract-change	AWS SD panic fix.
+v3.15.0	50	8db4adfe9673894e2fe01dde5c4b4082d19b785cc53120c83406d010eef668d0	1	not-operator-facing:bugfix-no-contract-change	Removes a stale metric series on config removal; no name or label change.
+v3.15.0	51	d3ea0fe691f63dd44664b050afad14a139792d8ff63b56310a222d6f14e4d006	1	not-operator-facing:bugfix-no-contract-change	HTTP response truncation fix.
+v3.15.0	52	74f8f5fd36a82e3428809d30974db3ffbdbe8780812f010c4f887ce36512e44b	1	not-operator-facing:bugfix-no-contract-change	IONOS SD panic fix.
+v3.15.0	53	683fad5fbf9e304f0eda0e2590d62a79cdd1d8f0dffca7a7c7ac0ff95fcc3b88	1	not-operator-facing:bugfix-no-contract-change	Remote write V2 shard-count fix; no flag, config or format change stated.
+v3.15.0	54	9c5a8d1b2a3d1c733401462a4a6fa60c8bf87e8892ff107f744ab0dbb04fdca6	1	not-operator-facing:component-not-shipped	Monitoring-mixin alert fix; not part of the shipped binary or image.
+v3.15.0	55	0dad9ad5bb884c0bc875a0432353253d563d54b73a1873ddae248e6ff021e18d	1	not-operator-facing:bugfix-no-contract-change	Native histogram reset detection fix.
+v3.15.0	56	b627d0e59dff32b48057ebbf5cf9d1d5530923611081770c728432dda8b00129	1	not-operator-facing:bugfix-no-contract-change	histogram_stddev/histogram_stdvar bucket handling fix.
+v3.15.0	57	d2555d615b636a5a080d06e5fa07ad508d3b90f99a16765f6fead6d3a0596fae	1	not-operator-facing:bugfix-no-contract-change	OTLP ingestion fix for metrics without datapoints.
+v3.15.0	58	6cd159ba395c23dd2b2827cb4032503e7e4d82bfbb5d8ad9483f12d5d56f3694	1	not-operator-facing:bugfix-no-contract-change	Regex matcher correctness fix.
+v3.15.0	59	83216031c7b56cec7bca53bbdcceb63b9d0504ab13e21b5afc888ffaab0e2090	1	not-operator-facing:bugfix-no-contract-change	PromQL panic fix for experimental modifiers.
+v3.15.0	60	4c42688011aed4af3f6016a5811f46548d0fcbe92a62b336a33f499062b2420b	1	not-operator-facing:bugfix-no-contract-change	PromQL empty-result fix for subqueries.
+v3.15.0	61	d45ccb2f489a973c9a7497f97002a25f78f925a76ca1e413ea355444976bc2c6	1	not-operator-facing:bugfix-no-contract-change	PromQL error message determinism.
+v3.15.0	62	44ee3a24247978638a62f3f80a824412ab6f86e8f61600ad6b0f4c660f2a21e4	1	not-operator-facing:bugfix-no-contract-change	PromQL string round-trip fix.
+v3.15.0	63	f126e595905bf2c55321e2dc26317f33f2a7b54fd30807185e548a39b57fd700	1	operator-facing	PromQL now rejects duration-expression offsets and @ start()/@ end() before range selectors: queries accepted before can fail.
+v3.15.0	64	0dc3303e3a04b00a705dae09ccf553b3b45501016c5fdb66e63f338294f46d48	1	not-operator-facing:bugfix-no-contract-change	PromQL annotation position fix.
+v3.15.0	65	83f3b925e186fe0fcf87285eba018eb2baacbd8282bc5505f19df582b688279c	1	not-operator-facing:bugfix-no-contract-change	PromQL info() @ modifier fix.
+v3.15.0	66	610496f989453f980ab2e04c2905114ccaafc85a27c3040aaf9065d728fc0d49	1	not-operator-facing:bugfix-no-contract-change	Rule manager panic fix.
+v3.15.0	67	9cec2ad454c602d6c2447f1fc88a00e037b7a3ab39237a0d8c0eb6047b794f30	1	not-operator-facing:bugfix-no-contract-change	Scrape stale-marker fix.
+v3.15.0	68	6b6a814d766539f4077f390eefbe6e821459b41ef21870f407d82f9ad38e6d56	1	not-operator-facing:bugfix-no-contract-change	JSON log formatting fix.
+v3.15.0	69	f7cf847fd74af51492a3ea5d86bedddd0ead44c0ca458353589cec7bf6637e27	1	not-operator-facing:bugfix-no-contract-change	TSDB chunk ID overflow fix.
+v3.15.0	70	4a0d3163469b0bb382601af02106fed0821536027a9f8f0787b617b62458a07c	1	not-operator-facing:bugfix-no-contract-change	TSDB chunk ID overflow fix.
+v3.15.0	71	1d36200154329b7c091dd4e18b0d04895a99bb23a217c47d87b5532f9200bf20	1	not-operator-facing:bugfix-no-contract-change	UI chart tick fix.
+v3.15.0	72	c19a0da24589403ccd7ed13185c7a9bed7a23a6fc6e7957d1709c236ba19d2bb	1	not-operator-facing:bugfix-no-contract-change	AWS SD panic fix.
+v3.15.0	73	f88552674353c920357336850ef3a881ce2a0aeee359ddc27673c114051ff566	1	not-operator-facing:bugfix-no-contract-change	AWS SD panic fix.
+v3.15.0	74	26a43f373083eb20692c113fd73c259f46f9ea3455eff654192086625287ec8e	1	not-operator-facing:bugfix-no-contract-change	AWS SD panic fix.
+v3.15.0	75	d7f023bc0661fde1a589f2f8ed6407495ed21cffc1134017b1d030ab76ec9150	1	not-operator-facing:bugfix-no-contract-change	AWS SD panic fix.
+v3.15.0	76	5c5d88d9a0256681e55f33431d1008be22b280279025a65ae5f3a13be76dab1b	1	operator-facing	Title does not state what changes; may add or alter AWS MSK config fields.
+v3.15.0	77	a339ef3966d8d88a7bdc902d06c0ef9ada65a0e71bcee1b2a7e4c626872aaecb	1	not-operator-facing:bugfix-no-contract-change	IONOS SD panic fix.
+v3.15.0	78	e8342fac27f745f8a8c539e1042608d4ce96ef1919219749d61d48590b366206	1	operator-facing	Changes the value of __meta_kubernetes_service_loadbalancer_ip, which relabeling rules may consume.
+v3.15.0	79	3133827424c67fa1ee416e17e6304ebf66666caecfbe648caac038847b4698e6	1	not-operator-facing:bugfix-no-contract-change	Native histogram Compact fix.
+v3.15.0	80	68105470dce053d0b054194e4def0d4160a8f3c30642da02a326fdc710baed26	1	not-operator-facing:bugfix-no-contract-change	promtool tsdb dump fix.
+v3.15.0	81	9cbe7e591ac9b9d0282b3a4357408d2b311603cf2962c7db7e7259a1f91afdbf	1	not-operator-facing:bugfix-no-contract-change	Scrape data race fix.
+v3.15.0	82	fdd6d290beefa77299c08f725d79f8ae5686ba7f0efdfbb32147219e34df1bbf	1	not-operator-facing:bugfix-no-contract-change	Scrape nil histogram fix.
+v3.15.0	83	e9422561e23202d6f7f7dc85db8d000c576af190249cee7fbb538c64e6394d4e	1	not-operator-facing:bugfix-no-contract-change	Log message duration formatting fix.
+v3.15.0	84	e6f564e8bc11cfe94b250621d3cb3decf0a336dd164a5233f863a0a2a34ca3c0	1	not-operator-facing:bugfix-no-contract-change	Agent WAL corruption fix.
+v3.15.0	85	3bf4b81472229e559c25605d527d6722efaf4e3b5e558c5f3e2603abc6fd96f2	1	not-operator-facing:bugfix-no-contract-change	Agent ignores unknown WAL record types to ease rollback.
+v3.15.1	5	93394d7871429f4bab0d557b769909816052c19db57ff74d29f9255c8bee7590	1	operator-facing	Container image trust store changes: connections to endpoints chained to the distrusted roots stop validating.
+v3.15.1	6	9545b6c53b8a04d704ad76f56dd503a5766424fe7fe79c1988db8d483780a9ef	1	not-operator-facing:build-packaging	Patch-level Go toolchain used for the build; no stated change to a flag, config key, API or minimum version.
+v3.15.1	7	606eb1da6a17bfad7cb8537494b3b0af7989c4e3a74c199fdff07152749eb803	1	not-operator-facing:dependency-bump-no-minimum	Dependency patch bump for HTTP/2 vulnerabilities; no minimum-version change stated.

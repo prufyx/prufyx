@@ -2,9 +2,11 @@
 
 // Package changelogcli wires the "changelog" maintainer subcommands. "entries"
 // reads one release tag's changelog entry from the offline mirror (or a
-// fixture tree) and prints the manifest on standard output. It reads only
-// through the pinned reader, never the network, writes no file and decides
-// nothing about any item.
+// fixture tree) and prints the manifest on standard output. "attest" derives
+// the line attestation of one hop from the pinned entries and a reviewed
+// dispositions file, or prints the typed reason it cannot. Both read only
+// through the pinned reader, never the network, write no file and decide
+// nothing about any item beyond the reviewed marks they are given.
 package changelogcli
 
 import (
@@ -20,7 +22,8 @@ import (
 
 const usage = `usage:
   prufyx-maintainer changelog entries --component NAME --repo github.com/OWNER/NAME --path FILE --form FORM --tag TAG (--mirror-state DIR | --fixture DIR)
-exit: 0 manifest printed (entry or typed reason), 2 input rejected or read failed`
+  prufyx-maintainer changelog attest  --component NAME --repo github.com/OWNER/NAME --path FILE --form FORM --from-tag TAG --to-tag TAG --dispositions FILE (--mirror-state DIR | --fixture DIR)
+exit: 0 manifest printed (entry, attestation or typed reason), 2 input rejected or read failed`
 
 // Main runs a "changelog" subcommand (args exclude the word "changelog") with
 // the reviewed target table. It returns 0 when a manifest was printed and 2
@@ -30,17 +33,23 @@ func Main(args []string, stdout, stderr io.Writer) int {
 }
 
 func run(args []string, table []changelogentries.Target, stdout, stderr io.Writer) int {
-	if len(args) == 0 || args[0] != "entries" {
+	if len(args) == 0 || (args[0] != "entries" && args[0] != "attest") {
 		fmt.Fprintln(stderr, usage)
 		return 2
 	}
-	out, err := entries(args[1:], table)
+	var out []byte
+	var err error
+	if args[0] == "entries" {
+		out, err = entries(args[1:], table)
+	} else {
+		out, err = attest(args[1:], table)
+	}
 	if err != nil {
-		fmt.Fprintf(stderr, "changelog entries: %v\n", err)
+		fmt.Fprintf(stderr, "changelog %s: %v\n", args[0], err)
 		return 2
 	}
 	if _, err := stdout.Write(out); err != nil {
-		fmt.Fprintf(stderr, "changelog entries: %v\n", err)
+		fmt.Fprintf(stderr, "changelog %s: %v\n", args[0], err)
 		return 2
 	}
 	return 0

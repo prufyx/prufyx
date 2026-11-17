@@ -71,8 +71,8 @@ func TestChangelogFamilyRegistration(t *testing.T) {
 	if !strings.HasPrefix(f.Scope(), "according to the upstream changelog entries of tags X..Y") {
 		t.Fatalf("scope %q", f.Scope())
 	}
-	if len(f.Components()) != 0 {
-		t.Fatalf("the member table must be empty, got %v", f.Components())
+	if !slices.Equal(f.Components(), []string{"pkg:github/prometheus/prometheus"}) {
+		t.Fatalf("the member table must hold only the reviewed pilot component, got %v", f.Components())
 	}
 	if !slices.Contains(FamilyIDs(), FamilyChangelogAttestedEntries) {
 		t.Fatal("family not listed")
@@ -308,5 +308,25 @@ func TestCRDFamilyGolden(t *testing.T) {
 	ps, err := CheckRuleSets(atts, rules)
 	if err != nil || len(ps) != 1 || ps[0].Kind != ProblemRuleNotLineWide || ps[0].RuleID != "crd.anchor" {
 		t.Fatalf("%+v %v", ps, err)
+	}
+}
+
+// The shipped table admits exactly the reviewed pilot component, by its
+// package URL; every other component, and the bare project name, stays out.
+func TestShippedChangelogTableAdmitsOnlyThePilot(t *testing.T) {
+	if len(changelogComponents) != 1 || changelogComponents[0] != "pkg:github/prometheus/prometheus" {
+		t.Fatalf("shipped table: %v", changelogComponents)
+	}
+	f, ok := LookupFamily(FamilyChangelogAttestedEntries)
+	if !ok {
+		t.Fatal("family not registered")
+	}
+	if !f.Admits("pkg:github/prometheus/prometheus") {
+		t.Fatal("pilot component not admitted")
+	}
+	for _, c := range []string{"prometheus", "pkg:github/prometheus/alertmanager", "pkg:github/prometheus/prometheus-operator", "pkg:github/kubernetes/kubernetes", ""} {
+		if f.Admits(c) {
+			t.Fatalf("%q admitted", c)
+		}
 	}
 }
