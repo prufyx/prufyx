@@ -3027,7 +3027,39 @@ func leadingBlanks(s string) int {
 }
 
 func kindKeyNonLiteral(n []byte) bool {
-	return len(keyValues(n, kindKeyRE)) > 0 || kindPrefixLiteral(n)
+	return len(keyValues(n, kindKeyRE)) > 0 || kindPrefixLiteral(n) || kindIllFormedLiteral(n)
+}
+
+// wellFormedKindRE is the whole text after a kind key that counts as a
+// literal: a bare ASCII token, or a quoted string closed on the same line
+// with nothing before or after it, with an optional trailing comment.
+var wellFormedKindRE = regexp.MustCompile(`^(?:[A-Za-z][A-Za-z0-9]*|'[^'\\]*'|"[^"\\]*")(?:[ \t]+#.*)?$`)
+
+// kindIllFormedLiteral reports, in a file with template syntax, a kind key
+// with a value on its own line that is not a well-formed literal (an
+// unclosed quote, trailing characters, flow syntax, several tokens,
+// non-ASCII): an action on a later line, joined by a trim marker, may
+// complete or reshape it. Empty values are decided by keyValues and
+// kindEmptyThenAction.
+func kindIllFormedLiteral(n []byte) bool {
+	if !hasTemplateSyntax(n) {
+		return false
+	}
+	text := string(n)
+	for _, m := range kindKeyRE.FindAllStringIndex(text, -1) {
+		rest := text[m[1]:]
+		if i := strings.IndexByte(rest, '\n'); i >= 0 {
+			rest = rest[:i]
+		}
+		rest = strings.TrimSpace(rest)
+		if rest == "" || strings.HasPrefix(rest, "#") {
+			continue
+		}
+		if !wellFormedKindRE.MatchString(rest) {
+			return true
+		}
+	}
+	return false
 }
 
 // kindLiteralRE captures a literal kind value (quoted or plain).
