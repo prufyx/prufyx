@@ -86,6 +86,20 @@ jobs:
           scripts/readme-coverage.sh --check
           scripts/preview-coverage.sh --check
 
+      - name: Check generated release-notes block
+        # The generated block of the beta.1 release notes must equal its
+        # regeneration from the committed counts file and the pinned previous
+        # counts. This catches a hand edit of the block. It runs before the
+        # baseline step below, whose shallow fetch of the base branch cuts the
+        # history this command needs.
+        working-directory: cli
+        run: |
+          go run ./cmd/prufyx-maintainer release-notes --repo .. \
+            --from v0.1.0-beta.0 \
+            --previous-counts-sha256 db6de7abaa93a36e8222da29b908b688add5d17bfa1a1f3ad9f5bc9b4d8a98c3 \
+            --to 4bf4942da51e --to-label v0.1.0-beta.1 --omit-merged-prs \
+            --into docs/release-notes-v0.1.0-beta.1.md --check
+
       - name: Check the coverage baseline is not lowered
         # The decided-pair and covered-project floors in
         # readme-baseline.json may not be lowered, and a project floor may not
@@ -128,18 +142,6 @@ jobs:
           fi
           PRUFYX_BASELINE_REQUIRED=1 PRUFYX_BASELINE_MAIN="${RUNNER_TEMP}/readme-baseline-main.json" \
             go test ./internal/maintainer/coveragereport/ -run 'TestBaselineNotLowered' -count=1
-
-      - name: Check generated release-notes block
-        # The generated block of the beta.1 release notes must equal its
-        # regeneration from the committed counts file and the pinned previous
-        # counts. This catches a hand edit of the block.
-        working-directory: cli
-        run: |
-          go run ./cmd/prufyx-maintainer release-notes --repo .. \
-            --from v0.1.0-beta.0 \
-            --previous-counts-sha256 db6de7abaa93a36e8222da29b908b688add5d17bfa1a1f3ad9f5bc9b4d8a98c3 \
-            --to 0e4c7e456eac --to-label v0.1.0-beta.1 --omit-merged-prs \
-            --into docs/release-notes-v0.1.0-beta.1.md --check
 
   test-core:
     # Sharded by package group so the slowest packages run side by side. The
