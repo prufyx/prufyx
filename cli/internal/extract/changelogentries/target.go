@@ -12,7 +12,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/extract"
 )
 
-// Forms of a changelog source. Only FormFile is read; the others return their
+// Forms of a changelog source. FormFile, FormPerLineFile and FormPerVersionFile are read; the others return their
 // typed reason without reading anything.
 const (
 	// FormFile: one changelog file with one section per version, present at
@@ -26,6 +26,13 @@ const (
 	FormDocsPage = "docs-page"
 	// FormMonorepo: a shared changelog of several components.
 	FormMonorepo = "monorepo"
+	// FormPerLineFile: one changelog file per release line; Path is a
+	// template holding "{line}" (major.minor of the tag version) once. The
+	// file at the tag is then read as FormFile.
+	FormPerLineFile = "changelog-per-line-file"
+	// FormPerVersionFile: one file per version; Path is a template holding
+	// "{version}" once. The whole file is the entry.
+	FormPerVersionFile = "changelog-per-version-file"
 )
 
 // MaxFileBytes is the hard bound on a changelog file; a larger one is
