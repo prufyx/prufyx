@@ -35,6 +35,15 @@ var escapeFlagged = []struct {
 }{
 	{"R continuation after literal", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: CustomResource\n  {{- \"Definition\" }}\n", ClassUnread, ReasonKindTemplated},
 	{"R continuation after literal, templated api", escPath, "apiVersion: {{ .Values.api }}\nkind: Custom\n  {{ .Values.rest }}\n", ClassUnread, ReasonKindTemplated},
+	{"R column 0 continuation", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: CustomResource\n{{- \"Definition\" }}\n", ClassUnread, ReasonKindTemplated},
+	{"R same indent continuation", escPath, "apiVersion: apiextensions.k8s.io/v1\n- kind: CustomResource\n  {{- \"Definition\" }}\n", ClassUnread, ReasonKindTemplated},
+	{"R trim pulls next line", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: CustomResource   \n\n# c\n{{- \"Definition\" -}}\n", ClassUnread, ReasonKindTemplated},
+	{"R trim inside kind line", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: CustomResource {{-\n\"Definition\" }}\n", ClassUnread, ReasonKindTemplated},
+	{"R prefix C", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: C\nmetadata:\n  name: {{ .x }}\n", ClassUnread, ReasonKindTemplated},
+	{"R prefix CustomResource", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: CustomResource\nmetadata:\n  name: {{ .x }}\n", ClassUnread, ReasonKindTemplated},
+	{"R prefix CustomResourceDef quoted", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: \"CustomResourceDef\"\nmetadata:\n  name: {{ .x }}\n", ClassUnread, ReasonKindTemplated},
+	{"R prefix value on next line", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind:\n  # c\n  CustomResourceDef\nmetadata:\n  name: {{ .x }}\n", ClassUnread, ReasonKindTemplated},
+	{"R prefix flow", escPath, "{ \"apiVersion\": \"apiextensions.k8s.io/v1\", \"kind\": \"Custom\", \"n\": \"{{ .x }}\" }\n", ClassUnread, ReasonKindTemplated},
 	{"R comment between", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind:\n  # comment\n  {{ .Values.kind }}\n", ClassUnread, ReasonKindTemplated},
 	{"R comments and blanks between", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: # c\n\n  # d\n\n  {{ .Values.kind }}\n", ClassUnread, ReasonKindTemplated},
 	{"R value at column 0", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind:\n{{ .Values.kind }}\n", ClassUnread, ReasonKindTemplated},
@@ -100,6 +109,9 @@ var escapeClean = []struct{ name, path, content string }{
 	{"18 regex strings undecodable", escPath, "pattern: \"^\\\\d+\"\npattern: \"\\n\"\npath: C:\\Windows\n"},
 	{"19 description only", escPath, "description: \"the \\u0043ustomResourceDefinition kind is not defined here\"\n"},
 	{"20 schema", escPath, "properties:\n  kind:\n    type: string\n  name: {{ .Values.n }}\n"},
+	{"R prefix without template syntax", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: CustomResource\nmetadata:\n  name: x\n"},
+	{"R prefix case differs", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: customresource\nmetadata:\n  name: {{ .x }}\n"},
+	{"R not a prefix then template line", escPath, "apiVersion: apiextensions.k8s.io/v1\nkind: Deployment\n{{- if .x }}\nmetadata:\n  name: x\n{{- end }}\n"},
 	{"plain no escapes", escPath, "kind: Deployment\napiVersion: apps/v1\n"},
 }
 
@@ -283,6 +295,8 @@ func TestDefinesNothingEscaped(t *testing.T) {
 func TestEscapedKindReviewedShapes(t *testing.T) {
 	for name, hidden := range map[string]string{
 		"continuation": "apiVersion: apiextensions.k8s.io/v1\nkind: CustomResource\n  {{- \"Definition\" }}\n",
+		"column 0":     "apiVersion: apiextensions.k8s.io/v1\nkind: CustomResource\n{{- \"Definition\" }}\n",
+		"prefix":       "apiVersion: apiextensions.k8s.io/v1\nkind: C\nmetadata:\n  name: {{ .x }}\n",
 		"comment":      "apiVersion: apiextensions.k8s.io/v1\nkind:\n  # comment\n  {{ .Values.kind }}\n",
 		"combined":     "apiVersion: apiextensions.k8s.io/v1\nkind: '{{ printf \"%s%s\" \"CustomResource\" \"Definition\" }}'\ndescription: \"\\u0043ustomResourceDefinition\"\n",
 	} {

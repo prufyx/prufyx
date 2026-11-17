@@ -3027,7 +3027,52 @@ func leadingBlanks(s string) int {
 }
 
 func kindKeyNonLiteral(n []byte) bool {
-	return len(keyValues(n, kindKeyRE)) > 0
+	return len(keyValues(n, kindKeyRE)) > 0 || kindPrefixLiteral(n)
+}
+
+// kindLiteralRE captures a literal kind value (quoted or plain).
+var kindLiteralRE = regexp.MustCompile(`^[ \t]*(?:"([A-Za-z0-9./-]+)"|'([A-Za-z0-9./-]+)'|([A-Za-z0-9./-]+))(?:[ \t]*[,}]|[ \t]+#|[ \t]*\r?$)`)
+
+// kindPrefixLiteral reports a template-bearing file with a kind whose
+// literal value is a non-empty proper prefix of the CRD kind (compared
+// case-sensitively on the escape-normalised bytes): an action that follows,
+// trimmed onto the line or not, may complete it, so the file never reads as
+// a literal kind whatever the lines after it are. The value is read on the
+// key's line or, when that holds none, on the next non-blank,
+// non-comment line.
+func kindPrefixLiteral(n []byte) bool {
+	if !hasTemplateSyntax(n) {
+		return false
+	}
+	text := string(n)
+	lines := strings.Split(text, "\n")
+	for _, m := range kindKeyRE.FindAllStringIndex(text, -1) {
+		li := strings.Count(text[:m[0]], "\n")
+		val := text[m[1]:]
+		if i := strings.IndexByte(val, '\n'); i >= 0 {
+			val = val[:i]
+		}
+		if t := strings.TrimSpace(val); t == "" || strings.HasPrefix(t, "#") {
+			val = ""
+			for j := li + 1; j < len(lines); j++ {
+				t := strings.TrimSpace(lines[j])
+				if t == "" || strings.HasPrefix(t, "#") {
+					continue
+				}
+				val = lines[j]
+				break
+			}
+		}
+		g := kindLiteralRE.FindStringSubmatch(val)
+		if g == nil {
+			continue
+		}
+		v := g[1] + g[2] + g[3]
+		if v != "" && len(v) < len(crdKind) && strings.HasPrefix(crdKind, v) {
+			return true
+		}
+	}
+	return false
 }
 
 // canNameCRDGroup reports whether the file can state apiextensions.k8s.io

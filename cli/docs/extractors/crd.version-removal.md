@@ -366,7 +366,11 @@ Through the offline factory mirror (or a fixture tree), never the network.
   can name the `apiextensions.k8s.io/` group as an `apiVersion` (the literal
   string, or an `apiVersion` value that is not a literal and has no `/` before
   its first action) is `unread` with reason `kind-templated`. RBAC `apiGroups`
-  and webhook rules name the group without the slash and do not count. Not
+  and webhook rules name the group without the slash and do not count. In a
+  file with template syntax a `kind` whose literal value is a non-empty proper
+  prefix of the kind (case-sensitive, after escapes are resolved) is also
+  `kind-templated`, whatever lines follow it: an action after it, joined by a
+  trim marker or not, may complete it. Not
   closed (stated limits): a `kind` key or a whole document produced by an action
   or an included file the scan does not read; jsonnet or cue string building
   without template syntax; files outside the name and path prefilters above.
