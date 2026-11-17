@@ -241,6 +241,18 @@ func locatePerVersion(r extract.PinnedReader, t Target, tag extract.Tag) (*Entry
 		return nil, fail(EntryOverBound, fmt.Sprintf("file is %d lines, bound %d", end-start+1, MaxSectionLines))
 	}
 	sc := scan(lines)
+	// The same whole-file refusals as a section in a single file.
+	if sc.containerFence != 0 {
+		return nil, fail(EntryParseResidue, fmt.Sprintf("line %d cannot be read: a fence without its container, or a multi-line HTML block", sc.containerFence))
+	}
+	if d := cmDisagreement(lines, sc, start, end); d != "" {
+		return nil, fail(EntryParseResidue, "commonmark-disagreement: "+d)
+	}
+	for _, n := range sc.html {
+		if n >= start && n <= end {
+			return nil, fail(EntryParseResidue, fmt.Sprintf("line %d starts an HTML block inside the entry, which is not read", n))
+		}
+	}
 	e := &Entry{
 		Component: t.Component, Tag: tag.Name, Version: version, TagCommit: tag.Commit,
 		Source: Source{
