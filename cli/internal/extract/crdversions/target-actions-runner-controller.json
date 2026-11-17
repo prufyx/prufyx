@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "actions-runner-controller",
+    "catalog": "community",
+    "name": "actions-runner-controller",
+    "repo": "github.com/actions/actions-runner-controller",
+    "component": "pkg:github/actions/actions-runner-controller",
+    "factProject": "actions_runner_controller",
+    "tagPrefixes": ["v", ""],
+    "minFrom": "0.22",
+    "paths": [
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

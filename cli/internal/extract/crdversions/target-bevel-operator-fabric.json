@@ -1,0 +1,18 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "bevel-operator-fabric",
+    "catalog": "community",
+    "name": "bevel-operator-fabric",
+    "repo": "github.com/hyperledger-bevel/bevel-operator-fabric",
+    "component": "pkg:github/hyperledger-bevel/bevel-operator-fabric",
+    "factProject": "bevel_operator_fabric",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.9",
+    "paths": [
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"},
+      {"path": "hack/istio-operator/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "clusterpedia",
+    "name": "Clusterpedia",
+    "repo": "github.com/clusterpedia-io/clusterpedia",
+    "component": "pkg:github/clusterpedia-io/clusterpedia",
+    "factProject": "clusterpedia",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.8",
+    "paths": [
+      {"path": "kustomize/crds/cluster.clusterpedia.io_clustersyncresources.yaml"},
+      {"path": "kustomize/crds/cluster.clusterpedia.io_pediaclusters.yaml"},
+      {"path": "kustomize/crds/policy.clusterpedia.io_clusterimportpolicies.yaml"},
+      {"path": "kustomize/crds/policy.clusterpedia.io_pediaclusterlifecycles.yaml"}
+    ],
+    "exclude": []
+  }
+}

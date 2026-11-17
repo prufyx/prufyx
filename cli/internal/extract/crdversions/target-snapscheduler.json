@@ -1,0 +1,18 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "snapscheduler",
+    "catalog": "community",
+    "name": "snapscheduler",
+    "repo": "github.com/backube/snapscheduler",
+    "component": "pkg:github/backube/snapscheduler",
+    "factProject": "snapscheduler",
+    "tagPrefixes": ["v"],
+    "minFrom": "3.0",
+    "paths": [
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"},
+      {"path": "hack/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

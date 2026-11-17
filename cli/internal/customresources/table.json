@@ -2,6 +2,24 @@
   "schema": "prufyx.io/custom-resource-table/v1",
   "projects": [
     {
+      "slug": "actions-runner-controller",
+      "catalog": "community",
+      "upstream": {
+        "name": "actions-runner-controller",
+        "repository": "https://github.com/actions/actions-runner-controller",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/actions/actions-runner-controller/blob/e1fcd63f923689a834bb9d530b4c1034ddc7f2a9/LICENSE"
+      },
+      "factProject": "actions_runner_controller",
+      "component": "pkg:github/actions/actions-runner-controller",
+      "groups": [
+        {
+          "name": "actions.summerwind.dev",
+          "source": "https://github.com/actions/actions-runner-controller/blob/e1fcd63f923689a834bb9d530b4c1034ddc7f2a9/config/crd/bases/actions.summerwind.dev_runnersets.yaml"
+        }
+      ]
+    },
+    {
       "slug": "akri",
       "catalog": "cncf",
       "factProject": "akri",
@@ -61,6 +79,24 @@
         {
           "name": "awx.ansible.com",
           "source": "https://github.com/ansible/awx-operator/blob/e3c27206815f68b2c5ba75b019bc2bc1a940b311/config/crd/bases/awx.ansible.com_awxs.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "bevel-operator-fabric",
+      "catalog": "community",
+      "upstream": {
+        "name": "bevel-operator-fabric",
+        "repository": "https://github.com/hyperledger-bevel/bevel-operator-fabric",
+        "license": "NOASSERTION",
+        "licenseSource": "https://github.com/hyperledger-bevel/bevel-operator-fabric/blob/cd236ccc61d1d159b3dadb4625d08bb5682a8451/LICENSE"
+      },
+      "factProject": "bevel_operator_fabric",
+      "component": "pkg:github/hyperledger-bevel/bevel-operator-fabric",
+      "groups": [
+        {
+          "name": "hlf.kungfusoftware.es",
+          "source": "https://github.com/hyperledger-bevel/bevel-operator-fabric/blob/cd236ccc61d1d159b3dadb4625d08bb5682a8451/config/crd/bases/hlf.kungfusoftware.es_fabricpeers.yaml"
         }
       ]
     },
@@ -197,6 +233,43 @@
         {
           "name": "runtime.cluster.x-k8s.io",
           "source": "https://github.com/kubernetes-sigs/cluster-api/blob/560d4acf507bc7cac34b2da449fa5cd53eaeb149/core/config/crd/bases/runtime.cluster.x-k8s.io_extensionconfigs.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "cluster-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "cluster-operator",
+        "repository": "https://github.com/rabbitmq/cluster-operator",
+        "license": "MPL-2.0",
+        "licenseSource": "https://github.com/rabbitmq/cluster-operator/blob/3ad2b0ec0b43dbeb4b57c1142fc5c813a5716033/LICENSE.txt"
+      },
+      "factProject": "cluster_operator",
+      "component": "pkg:github/rabbitmq/cluster-operator",
+      "groups": [
+        {
+          "name": "rabbitmq.com",
+          "source": "https://github.com/rabbitmq/cluster-operator/blob/3ad2b0ec0b43dbeb4b57c1142fc5c813a5716033/config/crd/bases/rabbitmq.com_rabbitmqclusters.yaml",
+          "kinds": [
+            "RabbitmqCluster"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "clusterpedia",
+      "catalog": "cncf",
+      "factProject": "clusterpedia",
+      "component": "pkg:github/clusterpedia-io/clusterpedia",
+      "groups": [
+        {
+          "name": "cluster.clusterpedia.io",
+          "source": "https://github.com/clusterpedia-io/clusterpedia/blob/264a1b3bc900fe54d84b9cb02cc6ec5e6152ecc8/kustomize/crds/cluster.clusterpedia.io_pediaclusters.yaml"
+        },
+        {
+          "name": "policy.clusterpedia.io",
+          "source": "https://github.com/clusterpedia-io/clusterpedia/blob/264a1b3bc900fe54d84b9cb02cc6ec5e6152ecc8/kustomize/crds/policy.clusterpedia.io_pediaclusterlifecycles.yaml"
         }
       ]
     },
@@ -489,6 +562,24 @@
       ]
     },
     {
+      "slug": "glasskube-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "operator",
+        "repository": "https://github.com/glasskube/operator",
+        "license": "LGPL-3.0-only",
+        "licenseSource": "https://github.com/glasskube/operator/blob/a322664abd34a2001f0defe7bfce71c179b72ec8/LICENSE"
+      },
+      "factProject": "glasskube_operator",
+      "component": "pkg:github/glasskube/operator",
+      "groups": [
+        {
+          "name": "glasskube.eu",
+          "source": "https://github.com/glasskube/operator/blob/a322664abd34a2001f0defe7bfce71c179b72ec8/deploy/crd/vaults.glasskube.eu-v1.yml"
+        }
+      ]
+    },
+    {
       "slug": "grafana-operator",
       "catalog": "community",
       "upstream": {
@@ -527,6 +618,24 @@
         {
           "name": "telemetry.istio.io",
           "source": "https://github.com/istio/istio/blob/8825a6b7f8c9a2d66005a5f8b64e98aaee0dda99/manifests/charts/base/files/crd-all.gen.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "istio-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "istio-operator",
+        "repository": "https://github.com/banzaicloud/istio-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/banzaicloud/istio-operator/blob/ee2ee9a5cf6ce14866b2ad67aefb0072feb48a22/LICENSE"
+      },
+      "factProject": "istio_operator",
+      "component": "pkg:github/banzaicloud/istio-operator",
+      "groups": [
+        {
+          "name": "servicemesh.cisco.com",
+          "source": "https://github.com/banzaicloud/istio-operator/blob/ee2ee9a5cf6ce14866b2ad67aefb0072feb48a22/config/crd/bases/istio-operator-crds.gen.yaml"
         }
       ]
     },
@@ -591,6 +700,24 @@
         {
           "name": "k8up.io",
           "source": "https://github.com/k8up-io/k8up/blob/343b99d1519385d75738dbb07d6ff45785c3f186/config/crd/apiextensions.k8s.io/v1/k8up.io_backups.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "kamaji",
+      "catalog": "community",
+      "upstream": {
+        "name": "kamaji",
+        "repository": "https://github.com/clastix/kamaji",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/clastix/kamaji/blob/31fed7a654b361ff8332a79184e6b0d2a05eb343/LICENSE"
+      },
+      "factProject": "kamaji",
+      "component": "pkg:github/clastix/kamaji",
+      "groups": [
+        {
+          "name": "kamaji.clastix.io",
+          "source": "https://github.com/clastix/kamaji/blob/31fed7a654b361ff8332a79184e6b0d2a05eb343/charts/kamaji/crds/kamaji.clastix.io_tenantcontrolplanes.yaml"
         }
       ]
     },
@@ -1141,6 +1268,24 @@
       ]
     },
     {
+      "slug": "notaryproject-ratify",
+      "catalog": "community",
+      "upstream": {
+        "name": "ratify",
+        "repository": "https://github.com/notaryproject/ratify",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/notaryproject/ratify/blob/f3f6229dee1051e4beb580ec17ad68b7a45f23af/LICENSE"
+      },
+      "factProject": "notaryproject_ratify",
+      "component": "pkg:github/notaryproject/ratify",
+      "groups": [
+        {
+          "name": "config.ratify.deislabs.io",
+          "source": "https://github.com/notaryproject/ratify/blob/f3f6229dee1051e4beb580ec17ad68b7a45f23af/config/crd/bases/config.ratify.deislabs.io_verifiers.yaml"
+        }
+      ]
+    },
+    {
       "slug": "ollama-operator",
       "catalog": "community",
       "upstream": {
@@ -1173,6 +1318,24 @@
         {
           "name": "onepassword.com",
           "source": "https://github.com/1password/onepassword-operator/blob/ac8c7fe59f850c3d1fa9c4d25aa33e5af07b42de/config/crd/bases/onepassword.com_onepassworditems.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "open-feature-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "open-feature-operator",
+        "repository": "https://github.com/open-feature/open-feature-operator",
+        "license": "NOASSERTION",
+        "licenseSource": "https://github.com/open-feature/open-feature-operator/blob/43bcc65c22964e59e3f60b90402ab5fb95626808/LICENSE"
+      },
+      "factProject": "open_feature_operator",
+      "component": "pkg:github/open-feature/open-feature-operator",
+      "groups": [
+        {
+          "name": "core.openfeature.dev",
+          "source": "https://github.com/open-feature/open-feature-operator/blob/43bcc65c22964e59e3f60b90402ab5fb95626808/config/crd/bases/core.openfeature.dev_inprocessconfigurations.yaml"
         }
       ]
     },
@@ -1217,6 +1380,28 @@
         {
           "name": "policy.kruise.io",
           "source": "https://github.com/openkruise/kruise/blob/b1e001a957ce62bf87894d0212f5e704a8e9c2b4/config/crd/bases/policy.kruise.io_podunavailablebudgets.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "opensearch-k8s-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "opensearch-k8s-operator",
+        "repository": "https://github.com/opensearch-project/opensearch-k8s-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/opensearch-project/opensearch-k8s-operator/blob/9266e6c1b0bcb2cf0df7aac90142b3305b41b617/LICENSE"
+      },
+      "factProject": "opensearch_k8s_operator",
+      "component": "pkg:github/opensearch-project/opensearch-k8s-operator",
+      "groups": [
+        {
+          "name": "opensearch.opster.io",
+          "source": "https://github.com/opensearch-project/opensearch-k8s-operator/blob/9266e6c1b0bcb2cf0df7aac90142b3305b41b617/opensearch-operator/config/crd/bases/opensearch.opster.io_opensearchusers.yaml"
+        },
+        {
+          "name": "opensearch.org",
+          "source": "https://github.com/opensearch-project/opensearch-k8s-operator/blob/9266e6c1b0bcb2cf0df7aac90142b3305b41b617/opensearch-operator/config/crd/bases/opensearch.org_opensearchusers.yaml"
         }
       ]
     },
@@ -1491,6 +1676,42 @@
       ]
     },
     {
+      "slug": "slurm-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "slurm-operator",
+        "repository": "https://github.com/slinkyproject/slurm-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/slinkyproject/slurm-operator/blob/05650d869a2db1f7bc7e6c83e1c67828974af7b5/LICENSE"
+      },
+      "factProject": "slurm_operator",
+      "component": "pkg:github/slinkyproject/slurm-operator",
+      "groups": [
+        {
+          "name": "slinky.slurm.net",
+          "source": "https://github.com/slinkyproject/slurm-operator/blob/05650d869a2db1f7bc7e6c83e1c67828974af7b5/config/crd/bases/slinky.slurm.net_tokens.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "snapscheduler",
+      "catalog": "community",
+      "upstream": {
+        "name": "snapscheduler",
+        "repository": "https://github.com/backube/snapscheduler",
+        "license": "AGPL-3.0-only",
+        "licenseSource": "https://github.com/backube/snapscheduler/blob/46883ceb23a2e3dbf59fcc4e0ef59c96a6195ba6/LICENSE"
+      },
+      "factProject": "snapscheduler",
+      "component": "pkg:github/backube/snapscheduler",
+      "groups": [
+        {
+          "name": "snapscheduler.backube",
+          "source": "https://github.com/backube/snapscheduler/blob/46883ceb23a2e3dbf59fcc4e0ef59c96a6195ba6/config/crd/bases/snapscheduler.backube_snapshotschedules.yaml"
+        }
+      ]
+    },
+    {
       "slug": "strimzi",
       "catalog": "cncf",
       "factProject": "strimzi",
@@ -1549,6 +1770,36 @@
         {
           "name": "temporal.io",
           "source": "https://github.com/alexandrevilain/temporal-operator/blob/0b07bcd4d922265b2f1e5d5d3c55397707189c7e/config/crd/bases/temporal.io_temporalschedules.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "trickster",
+      "catalog": "cncf",
+      "factProject": "trickster",
+      "component": "pkg:github/trickstercache/trickster",
+      "groups": [
+        {
+          "name": "trickstercache.org",
+          "source": "https://github.com/trickstercache/trickster/blob/7788e6dbacb461b8da009ed3d403286024c9a4cc/deploy/kube/crds/trickstercachepolicies.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "trident",
+      "catalog": "community",
+      "upstream": {
+        "name": "trident",
+        "repository": "https://github.com/netapp/trident",
+        "license": "NOASSERTION",
+        "licenseSource": "https://github.com/netapp/trident/blob/55dd1d776aadca0e07caf00991dc84a8c79bac9c/LICENSE"
+      },
+      "factProject": "trident",
+      "component": "pkg:github/netapp/trident",
+      "groups": [
+        {
+          "name": "trident.netapp.io",
+          "source": "https://github.com/netapp/trident/blob/55dd1d776aadca0e07caf00991dc84a8c79bac9c/deploy/crds/trident.netapp.io_tridentorchestrators_crd.yaml"
         }
       ]
     },
@@ -1637,6 +1888,24 @@
         {
           "name": "topology.volcano.sh",
           "source": "https://github.com/volcano-sh/volcano/blob/8fc394c11e8db0d0ada5c17816b58bced9d7213d/config/crd/volcano/bases/topology.volcano.sh_hypernodes.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "volsync",
+      "catalog": "community",
+      "upstream": {
+        "name": "volsync",
+        "repository": "https://github.com/backube/volsync",
+        "license": "AGPL-3.0-only",
+        "licenseSource": "https://github.com/backube/volsync/blob/d0d27f4ac04653b1dbfe0cb79b3810c85e1b9b83/LICENSE"
+      },
+      "factProject": "volsync",
+      "component": "pkg:github/backube/volsync",
+      "groups": [
+        {
+          "name": "volsync.backube",
+          "source": "https://github.com/backube/volsync/blob/d0d27f4ac04653b1dbfe0cb79b3810c85e1b9b83/config/crd/bases/volsync.backube_replicationsources.yaml"
         }
       ]
     },

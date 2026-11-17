@@ -1,0 +1,18 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "volsync",
+    "catalog": "community",
+    "name": "volsync",
+    "repo": "github.com/backube/volsync",
+    "component": "pkg:github/backube/volsync",
+    "factProject": "volsync",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.12",
+    "paths": [
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"},
+      {"path": "hack/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

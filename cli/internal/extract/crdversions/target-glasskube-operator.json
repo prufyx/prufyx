@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "glasskube-operator",
+    "catalog": "community",
+    "name": "operator",
+    "repo": "github.com/glasskube/operator",
+    "component": "pkg:github/glasskube/operator",
+    "factProject": "glasskube_operator",
+    "tagPrefixes": [""],
+    "minFrom": "0.9",
+    "paths": [
+      {"path": "deploy/crd", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}
