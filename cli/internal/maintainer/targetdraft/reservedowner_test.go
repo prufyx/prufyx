@@ -88,7 +88,7 @@ func TestReservedStopAgainstShippedRecords(t *testing.T) {
 			t.Errorf("%s: subgroup of a record not stopped", r.Name)
 		}
 	}
-	if !reservedStop("snapshot.storage.k8s.io", "external-snapshotter", "kubernetes-csi/external-snapshotter") {
+	if !reservedStop("unrecorded.storage.k8s.io", "some-project", "some-org/some-project") {
 		t.Error("group without a record not stopped")
 	}
 	if !reservedStop("policy.networking.k8s.io", roSlug, roRepo) {
@@ -145,7 +145,7 @@ func TestClassifyReservedGroupReadSite(t *testing.T) {
 		"case variant":     {roSlug, "Kubernetes-sigs/kueue", roGroup},
 		"dot git":          {roSlug, roRepo + ".git", roGroup},
 		"other group":      {roSlug, roRepo, "other.x-k8s.io"},
-		"snapshot group":   {"external-snapshotter", "kubernetes-csi/external-snapshotter", "snapshot.storage.k8s.io"},
+		"unrecorded group": {"some-project", "some-org/some-project", "unrecorded.storage.k8s.io"},
 		"kubernetes.io":    {roSlug, roRepo, "x.kubernetes.io"},
 		"k8s.io":           {roSlug, roRepo, "policy.networking.k8s.io"},
 	} {

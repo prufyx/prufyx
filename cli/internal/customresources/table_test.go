@@ -12,17 +12,75 @@ import (
 	"testing"
 )
 
-// reservedPin is the sha256 of the Go rendering (%#v) of ReservedGroups().
-// A reserved group is recorded by a person, one reviewed change per group,
-// and that change updates this pin. The project rows are not pinned: rows
-// are added as data (the knowledge gate checks each added row with this
-// package's loader), so a pin over them would move with every addition.
-const reservedPin = "8b9b53d192aee265bdd57f8513ea6dc18e2a0c9dc75f568e5eeb76378d2d4e96"
+// reservedRecordPins holds, per record, the sha256 of the Go rendering (%#v)
+// of a record of the list as it was reviewed. It protects what is there: an
+// edit or a removal of a pinned record fails the test. It does not bound the
+// list: a record added by an owner-signed onboarding batch is not in the map
+// and needs no code change, because the batch's signature covers the table
+// bytes (the knowledge gate refuses a record that is not born with its new
+// owner row). The properties of every record, pinned or not, are checked by
+// TestReservedGroupsAreOwnedByTheirRepository.
+var reservedRecordPins = map[string]string{
+	"cluster.x-k8s.io":            "b4cbef92c90e67b245babd328d7b954f009564a88ea6cc0c45d932e66eb38035",
+	"clusterctl.cluster.x-k8s.io": "f51c3bd659e3d6196246137e3b461592f082d5c89f8b73d70c7e9a6b779055e8",
+	"gateway.networking.k8s.io":   "c61ad38bbc72700bb679af4b564c539d7313e99bf2c81d1dce13231831d034fc",
+	"gateway.networking.x-k8s.io": "5bd00372ea374f3c7f887064800baa7a106cf5e2580dd27deac299e6a2c88ad5",
+	"kueue.x-k8s.io":              "24c69edeed01c0e704a368caf499a34f8fb6b89c93627ea11aa935c9b3f2841d",
+	"runtime.cluster.x-k8s.io":    "9ed91e90660a9229946ad5b21a8046884886eef80d695bf0ad5c17e23823637a",
+}
 
-func TestReservedGroupsMatchPin(t *testing.T) {
-	sum := sha256.Sum256([]byte(fmt.Sprintf("%#v", ReservedGroups())))
-	if got := hex.EncodeToString(sum[:]); got != reservedPin {
-		t.Fatalf("reserved groups rendering sha256 %s, pinned %s: update the pin only together with a reviewed reserved-group record", got, reservedPin)
+// checkReservedPins returns one message per pinned record that is missing
+// from records or differs from its reviewed rendering.
+func checkReservedPins(records []ReservedGroup, pins map[string]string) []string {
+	have := map[string]string{}
+	for _, r := range records {
+		sum := sha256.Sum256([]byte(fmt.Sprintf("%#v", r)))
+		have[r.Name] = hex.EncodeToString(sum[:])
+	}
+	var out []string
+	for name, want := range pins {
+		got, ok := have[name]
+		switch {
+		case !ok:
+			out = append(out, name+": pinned record is removed")
+		case got != want:
+			out = append(out, name+": pinned record changed")
+		}
+	}
+	return out
+}
+
+func TestReservedGroupsKeepTheirReviewedRecords(t *testing.T) {
+	records := ReservedGroups()
+	if msgs := checkReservedPins(records, reservedRecordPins); len(msgs) != 0 {
+		t.Fatalf("%v: a record is changed only by a reviewed change that updates its pin", msgs)
+	}
+	// Negative: an edit of an existing record, and its removal, are caught.
+	for i := range records {
+		edited := ReservedGroups()
+		edited[i].Reason += " (edited)"
+		if msgs := checkReservedPins(edited, reservedRecordPins); len(msgs) == 0 && reservedRecordPins[edited[i].Name] != "" {
+			t.Errorf("edit of %s not caught", edited[i].Name)
+		}
+		removed := append(ReservedGroups()[:i:i], ReservedGroups()[i+1:]...)
+		if msgs := checkReservedPins(removed, reservedRecordPins); len(msgs) == 0 && reservedRecordPins[records[i].Name] != "" {
+			t.Errorf("removal of %s not caught", records[i].Name)
+		}
+	}
+	// A record added later (not pinned) is accepted by the pin check.
+	added := append(ReservedGroups(), ReservedGroup{Name: "new.synthetic.x-k8s.io", Owner: "x", Repository: "https://github.com/o/x", Reason: "r"})
+	if msgs := checkReservedPins(added, reservedRecordPins); len(msgs) != 0 {
+		t.Errorf("added record refused: %v", msgs)
+	}
+	// Every pinned record is still in the table.
+	for name := range reservedRecordPins {
+		found := false
+		for _, r := range records {
+			found = found || r.Name == name
+		}
+		if !found {
+			t.Errorf("pin %s has no record", name)
+		}
 	}
 }
 

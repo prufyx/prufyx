@@ -107,14 +107,22 @@ func prepareOnboardingMetadata(layout Layout, base, head Tree) (metadataDraft, e
 	if st.base.state.RegistryDigest != compiled.Digest() || st.base.registryDigest != st.base.state.RegistryDigest {
 		return out, errors.New("BASE table, pack and trusted binary registry must agree")
 	}
-	if !reflect.DeepEqual(st.base.reserved, st.head.reserved) {
-		return out, errors.New("reserved groups must remain unchanged")
-	}
 	baseRows, headRows := projectsBySlug(st.base.projects), projectsBySlug(st.head.projects)
 	for slug, row := range baseRows {
 		if !reflect.DeepEqual(row, headRows[slug]) {
 			return out, errors.New("existing table rows must remain unchanged")
 		}
+	}
+	// The gate's own rule (O4): reserved-group records are admitted only when
+	// born together with their new owner row.
+	newRec := OnboardingRecord{}
+	for slug := range headRows {
+		if _, exists := baseRows[slug]; !exists {
+			newRec.Projects = append(newRec.Projects, OnboardingProject{Slug: slug, Kind: OnboardingKindNew})
+		}
+	}
+	if msgs := reservedChanges(newRec, st.base.reserved, st.head.reserved, baseRows, headRows); len(msgs) != 0 {
+		return out, errors.New(msgs[0])
 	}
 	allowed := map[string]bool{layout.Onboarding.TablePath: true, cncfRulesPath: true}
 	groupOwners := map[string][]groupListing{}

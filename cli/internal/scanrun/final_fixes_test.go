@@ -119,7 +119,7 @@ func TestScanReservedCustomResourceGroups(t *testing.T) {
 	full := knowledgeOptions{lines: allLines, policy: "current"}
 	route := "apiVersion: gateway.networking.k8s.io/v1\nkind: HTTPRoute\nmetadata: {name: a}\n"
 	alphaRoute := "apiVersion: gateway.networking.k8s.io/v1alpha2\nkind: TCPRoute\nmetadata: {name: a}\n"
-	snapshot := "apiVersion: snapshot.storage.k8s.io/v1\nkind: VolumeSnapshot\nmetadata: {name: a}\n"
+	snapshot := "apiVersion: unrecorded.storage.k8s.io/v1\nkind: VolumeSnapshot\nmetadata: {name: a}\n"
 	command := func(paths []string) []string {
 		return args(paths, "--from", "kubernetes=1.29.6", "--to", "kubernetes=1.30.4")
 	}

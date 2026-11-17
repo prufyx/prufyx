@@ -145,7 +145,7 @@ func TestOnboardingBatchReservedRecordRefusals(t *testing.T) {
 			}
 			t.Fatal("no existing record")
 			return rs, rc
-		}, "record of"},
+		}, "changes"},
 		{"existing record removed", true, func(rs rows, rc recs) (rows, recs) {
 			var out recs
 			dropped := false
@@ -189,6 +189,60 @@ func TestOnboardingBatchReservedRecordRefusals(t *testing.T) {
 				if ch.Member != "" && ch.OK {
 					t.Fatalf("member change admitted: %+v", ch)
 				}
+			}
+		})
+	}
+}
+
+func TestReservedChangesUnit(t *testing.T) {
+	t.Parallel()
+	const (
+		repo  = "https://github.com/synthetic/owner"
+		group = "a.storage.synthetic.k8s.io"
+		other = "b.storage.synthetic.k8s.io"
+	)
+	row := func(slug string, groups ...customresources.Group) customresources.Project {
+		return customresources.Project{Slug: slug, Catalog: customresources.CatalogCNCF, Component: "pkg:github/synthetic/owner", Groups: groups}
+	}
+	whole := customresources.Group{Name: group}
+	rec := customresources.ReservedGroup{Name: group, Owner: "fresh", Repository: repo, Reason: "synthetic"}
+	old := customresources.ReservedGroup{Name: other, Owner: "old", Repository: repo, Reason: "synthetic"}
+	batch := func(kind string) OnboardingRecord {
+		return OnboardingRecord{Projects: []OnboardingProject{{Slug: "fresh", Kind: kind}}}
+	}
+	baseRows := map[string]customresources.Project{"old": row("old")}
+	headRows := func(r customresources.Project) map[string]customresources.Project {
+		return map[string]customresources.Project{"old": row("old"), "fresh": r}
+	}
+	cases := []struct {
+		name string
+		rec  OnboardingRecord
+		base []customresources.ReservedGroup
+		head []customresources.ReservedGroup
+		rows map[string]customresources.Project
+		want string // empty: admitted
+	}{
+		{"born together", batch(OnboardingKindNew), []customresources.ReservedGroup{old}, []customresources.ReservedGroup{rec, old}, headRows(row("fresh", whole)), ""},
+		{"removal", batch(OnboardingKindNew), []customresources.ReservedGroup{old}, nil, headRows(row("fresh")), "is removed"},
+		{"change", batch(OnboardingKindNew), []customresources.ReservedGroup{old}, []customresources.ReservedGroup{{Name: other, Owner: "old", Repository: repo, Reason: "edited"}}, headRows(row("fresh")), "changes"},
+		{"repository mismatch", batch(OnboardingKindNew), nil, []customresources.ReservedGroup{{Name: group, Owner: "fresh", Repository: "https://github.com/someone/else", Reason: "synthetic"}}, headRows(row("fresh", whole)), "repository other than"},
+		{"kinds listed", batch(OnboardingKindNew), nil, []customresources.ReservedGroup{rec}, headRows(row("fresh", customresources.Group{Name: group, Kinds: []string{"Thing"}})), "does not list the group whole"},
+		{"attest-kind project", batch(OnboardingKindAttest), nil, []customresources.ReservedGroup{rec}, headRows(row("fresh", whole)), "not a new project row"},
+		{"owner is an existing row", batch(OnboardingKindNew), nil, []customresources.ReservedGroup{{Name: group, Owner: "old", Repository: repo, Reason: "synthetic"}}, headRows(row("fresh", whole)), "not a new project row"},
+		{"owner row absent", batch(OnboardingKindNew), nil, []customresources.ReservedGroup{{Name: group, Owner: "gone", Repository: repo, Reason: "synthetic"}}, headRows(row("fresh", whole)), "not a new project row"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := reservedChanges(tc.rec, tc.base, tc.head, baseRows, tc.rows)
+			if tc.want == "" {
+				if len(got) != 0 {
+					t.Fatalf("refused: %v", got)
+				}
+				return
+			}
+			if len(got) == 0 || !strings.Contains(strings.Join(got, "\n"), tc.want) {
+				t.Fatalf("want %q, got %v", tc.want, got)
 			}
 		})
 	}

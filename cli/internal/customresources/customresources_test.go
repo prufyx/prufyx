@@ -78,7 +78,7 @@ func TestKubernetesGroup(t *testing.T) {
 		"networking.k8s.io":         true,
 		"gateway.networking.k8s.io": false, // reviewed: Gateway API CRDs
 		"storage.k8s.io":            true,
-		"snapshot.storage.k8s.io":   true, // no record: stays a Kubernetes group
+		"unrecorded.storage.k8s.io": true, // no record: stays a Kubernetes group
 		"apiextensions.k8s.io":      true,
 		"k8s.io":                    false,
 		"cluster.x-k8s.io":          false,
@@ -247,6 +247,15 @@ func TestReservedGroupsAreOwnedByTheirRepository(t *testing.T) {
 	index := DefaultIndex()
 	for _, r := range records {
 		p, ok := ProjectFor(r.Owner)
+		whole := false
+		if ok {
+			for _, g := range p.Groups {
+				whole = whole || (g.Name == r.Name && g.Kinds == nil)
+			}
+		}
+		if !whole {
+			t.Fatalf("%s: owner %s does not list the group whole", r.Name, r.Owner)
+		}
 		if !ok || r.Repository != "https://github.com/"+strings.TrimPrefix(p.Component, "pkg:github/") {
 			t.Fatalf("%s: owner %s / repository %s", r.Name, r.Owner, r.Repository)
 		}
@@ -259,7 +268,7 @@ func TestReservedGroupsAreOwnedByTheirRepository(t *testing.T) {
 	}
 	// Reserved groups the table must never attribute: an API several
 	// projects implement and provider namespaces of Cluster API.
-	for _, group := range []string{"multicluster.x-k8s.io", "infrastructure.cluster.x-k8s.io", "bootstrap.cluster.x-k8s.io", "controlplane.cluster.x-k8s.io", "ipam.cluster.x-k8s.io", "addons.cluster.x-k8s.io", "snapshot.storage.k8s.io", "topology.node.k8s.io", "scheduling.sigs.k8s.io"} {
+	for _, group := range []string{"multicluster.x-k8s.io", "infrastructure.cluster.x-k8s.io", "bootstrap.cluster.x-k8s.io", "controlplane.cluster.x-k8s.io", "ipam.cluster.x-k8s.io", "addons.cluster.x-k8s.io", "unrecorded.storage.k8s.io", "topology.node.k8s.io", "scheduling.sigs.k8s.io"} {
 		if owner, attribution := index.Owner(group); attribution != Unknown {
 			t.Errorf("%s attributed to %q (%v)", group, owner, attribution)
 		}
