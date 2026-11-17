@@ -63,7 +63,8 @@ func emptyListErr(code, format string, args ...any) error {
 // isEmptyListChange reports whether c is in the scope of this file: a new or
 // loosened mechanical line attestation that lists no rule.
 func isEmptyListChange(c *Change) bool {
-	return c.Class == ClassLoosening && c.rhead != nil && c.rhead.attestation != nil && c.rhead.mechanical() && len(c.rhead.attestation.RuleIDs) == 0
+	return c.Class == ClassLoosening && c.rhead != nil && c.rhead.attestation != nil && c.rhead.mechanical() && len(c.rhead.attestation.RuleIDs) == 0 &&
+		!isChangelogRecord(c)
 }
 
 // attestsScope reports whether ex is an extractor that attests family for

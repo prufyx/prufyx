@@ -207,6 +207,7 @@ func checkOnboardingContent(ctx context.Context, opts Options, keys ApprovalKeys
 	r.onboardingRecordsCheck(opts, nil)
 	r.citationCheck(ctx, st.cls, opts)
 	r.emptyListCitations(st.cls)
+	r.changelogCitations(st.cls)
 	r.budgetCheck(opts)
 	r.shardStaleCheck(opts)
 	r.limitChecks(st.cls, opts)

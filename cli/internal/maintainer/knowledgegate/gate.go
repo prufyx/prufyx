@@ -57,6 +57,12 @@ type Options struct {
 	// Catalog is the extractor catalog; nil means extractcli.Catalog().
 	Catalog     map[string]extractcli.Spec
 	Concurrency int
+	// Changelog is the reviewed data the changelog-attested family is
+	// admitted against (changelog.go). The zero value admits nothing.
+	Changelog ChangelogConfig
+	// changelogAdmits replaces the family's member table in tests; nil in
+	// production.
+	changelogAdmits func(component string) bool
 	// Now is the gate's clock; Verify refuses a zero Now (Limits and the
 	// onboarding pre-key admission still read zero as time.Now()).
 	Now time.Time
@@ -496,7 +502,8 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	onboarding := runOnboarding(ctx, opts, cls, r.ChangedPaths, loadKeys)
 	r.onboarding = onboarding
 
-	var mechanical, removals, schemaChanges, registryChanges, distChanges []*Change
+	var mechanical, removals, schemaChanges, registryChanges, distChanges, changelogChanges []*Change
+	changelogPreps := map[*Change]*changelogPrep{}
 	consensusChecks := &consensusRun{}
 	defer consensusChecks.close()
 	for _, c := range cls.Changes {
@@ -609,6 +616,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 		r.alarm(AlarmOnboarding, "the change carries an onboarding batch (%s): %s", map[bool]string{true: "admitted", false: "refused"}[onboarding.ok], onboarding.detail)
 	}
 	rederive(ctx, opts.Source, opts.Catalog, opts.Concurrency, opts.Layout, mechanical)
+	rederiveChangelog(ctx, changelogChanges, changelogPreps, opts)
 	for _, c := range cls.Changes {
 		if hp := cls.head[c.Pack]; hp != nil {
 			c.headRecords = hp.Records
@@ -640,6 +648,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	r.onboardingRecordsCheck(opts, onboarding)
 	r.citationCheck(ctx, cls, opts)
 	r.emptyListCitations(cls)
+	r.changelogCitations(cls)
 	// After the citation check: its GitHub calls draw on the same budget, so
 	// a run starved during citations is reported as could not run too.
 	r.budgetCheck(opts)
@@ -735,7 +744,7 @@ func (r *Report) rederiveAll(ctx context.Context, cls *Classification, rederived
 	for _, c := range rederived {
 		done[c.Pack+"\x00"+c.RuleID] = true
 	}
-	var all []*Change
+	var all, changelogAll []*Change
 	skipped := 0
 	for _, spec := range opts.Layout.Packs {
 		h := cls.head[spec.Name]
@@ -761,10 +770,24 @@ func (r *Report) rederiveAll(ctx context.Context, cls *Classification, rederived
 				skipped++
 				continue
 			}
-			all = append(all, &Change{Pack: spec.Name, RuleID: id, Section: rec.Section, rhead: rec})
+			c := &Change{Pack: spec.Name, RuleID: id, Section: rec.Section, rhead: rec}
+			if isChangelogRecord(c) {
+				// Re-derived by the changelog admission, not the catalog.
+				changelogAll = append(changelogAll, c)
+				continue
+			}
+			all = append(all, c)
 		}
 	}
 	rederive(ctx, opts.Source, opts.Catalog, opts.Concurrency, opts.Layout, all)
+	for _, c := range changelogAll {
+		if prep, err := changelogPre(c, cls.head[c.Pack], opts, false); err != nil {
+			c.fail(err.Error())
+		} else {
+			changelogRederive(ctx, c, prep, opts)
+		}
+	}
+	all = append(all, changelogAll...)
 	var failed []string
 	attestations, served := 0, 0
 	for _, c := range all {
