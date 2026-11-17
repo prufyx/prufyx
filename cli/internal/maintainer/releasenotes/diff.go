@@ -68,10 +68,7 @@ func sortedProjectKeys(m map[string]coveragereport.Project) []string {
 
 func sortChanges(c []pairChange) {
 	sort.Slice(c, func(i, j int) bool {
-		if c[i].From != c[j].From {
-			return c[i].From < c[j].From
-		}
-		return c[i].To < c[j].To
+		return c[i].From+"\x00"+c[i].To < c[j].From+"\x00"+c[j].To
 	})
 }
 
