@@ -24,6 +24,11 @@ import (
 type cmUnit struct {
 	lo, hi   int
 	hasFence bool
+	// code marks a top-level code block (indented or fenced). The scanner
+	// does not make one an item (inside a section it is residue and withholds
+	// the entry), so it takes part in the boundary check but not in the item
+	// comparison.
+	code bool
 }
 
 type cmView struct {
@@ -160,6 +165,10 @@ func cmParse(lines []string) (v *cmView, err error) {
 			if !ok {
 				continue
 			}
+			switch c.(type) {
+			case *ast.CodeBlock, *ast.FencedCodeBlock:
+				u.code = true
+			}
 			v.units = append(v.units, u)
 		}
 	}
@@ -211,17 +220,31 @@ func cmFileDisagreement(sc scanned, v *cmView) string {
 	return cmItemDisagreement(sc, v)
 }
 
-// cmItemDisagreement compares the item structure of the whole file: every
-// oracle unit against every scanner item, in order.
+// cmItemDisagreement compares the item structure of the whole file: the
+// oracle units and the scanner items must pair off in order with the same
+// span. A top-level code block the scanner did not make an item is skipped (it
+// is residue to the scanner); every other unit and every scanner item must
+// pair.
 func cmItemDisagreement(sc scanned, v *cmView) string {
-	if len(v.units) != len(sc.items) {
-		return fmt.Sprintf("%d items against %d", len(sc.items), len(v.units))
+	same := func(h rawItem, u cmUnit) bool {
+		return h.Start == u.lo && (h.End == u.hi || u.hasFence && h.End == u.hi+1)
 	}
-	for i, u := range v.units {
-		h := sc.items[i]
-		if h.Start != u.lo || !(h.End == u.hi || u.hasFence && h.End == u.hi+1) {
-			return fmt.Sprintf("item at line %d", h.Start)
+	j := 0
+	for _, u := range v.units {
+		if j < len(sc.items) && same(sc.items[j], u) {
+			j++
+			continue
 		}
+		if u.code {
+			continue
+		}
+		if j < len(sc.items) {
+			return fmt.Sprintf("item at line %d", sc.items[j].Start)
+		}
+		return fmt.Sprintf("a block at line %d the scanner did not read", u.lo)
+	}
+	if j < len(sc.items) {
+		return fmt.Sprintf("item at line %d", sc.items[j].Start)
 	}
 	return ""
 }
