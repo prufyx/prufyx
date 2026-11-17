@@ -23,15 +23,18 @@ const (
 // SourceDir is this package's directory under the module's internal/ tree.
 const SourceDir = "extract/changelogentries"
 
-//go:embed *.go
+//go:embed *.go targets.json
 var own embed.FS
 
 // SourceFiles implements extract.CodeSource: the package's own source.
 func SourceFiles() (string, fs.FS) { return SourceDir, own }
 
-// CodeDigest is the digest of every non-test source file of this package and
+// CodeDigest is the digest of every non-test source file and the targets data of this package and
 // of the extract framework it is built on, in the form other extractors use.
 func CodeDigest() (string, error) {
+	if loadErr != nil {
+		return "", loadErr
+	}
 	files, err := extract.CodeFiles(extract.SourceSet{Dir: SourceDir, Files: own}, extract.FrameworkSource())
 	if err != nil {
 		return "", err
@@ -64,27 +67,6 @@ type Manifest struct {
 	Extractor ExtractorIdentity `json:"extractor"`
 	Entry     *Entry            `json:"entry,omitempty"`
 	Withheld  *Withheld         `json:"withheld,omitempty"`
-}
-
-// Reviewed is the reviewed table of changelog targets. Rows are added only
-// after review; a component without a row is refused.
-var Reviewed = []Target{
-	{Component: "vault", Repo: extract.RepoRef{Key: "github.com/hashicorp/vault"}, Form: FormPostTag},
-	{Component: "aws-ebs-csi-driver", Repo: extract.RepoRef{Key: "github.com/kubernetes-sigs/aws-ebs-csi-driver"}, Form: FormPostTag},
-	{Component: "flannel", Repo: extract.RepoRef{Key: "github.com/flannel-io/flannel"}, Form: FormGithubRelease},
-	{Component: "csi-driver-smb", Repo: extract.RepoRef{Key: "github.com/kubernetes-csi/csi-driver-smb"}, Form: FormGithubRelease},
-	{
-		Component: "prometheus", Repo: extract.RepoRef{Key: "github.com/prometheus/prometheus"},
-		Form: FormFile, Path: "CHANGELOG.md",
-		HeadingPattern:   `^(?P<version>[0-9]+\.[0-9]+\.[0-9]+) / [0-9]{4}-[0-9]{2}-[0-9]{2}$`,
-		BoundaryPatterns: []string{`^main / unreleased$`},
-	},
-	{
-		Component: "alertmanager", Repo: extract.RepoRef{Key: "github.com/prometheus/alertmanager"},
-		Form: FormFile, Path: "CHANGELOG.md",
-		HeadingPattern:   `^(?P<version>[0-9]+\.[0-9]+\.[0-9]+) / [0-9]{4}-[0-9]{2}-[0-9]{2}$`,
-		BoundaryPatterns: []string{`^main / \(unreleased\)$`},
-	},
 }
 
 // Lookup returns the row of a component in table. Exactly one row must match.

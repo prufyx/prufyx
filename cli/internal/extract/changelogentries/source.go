@@ -7,9 +7,9 @@ import (
 	"io/fs"
 )
 
-//go:embed *.go
+//go:embed *.go targets.json
 var source embed.FS
 
-// SourceFS is this package's own Go source, so that an extractor that calls
+// SourceFS is this package's own Go source and targets data, so that an extractor that calls
 // Locate can fold the reader into its code digest.
 func SourceFS() fs.FS { return source }

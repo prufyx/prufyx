@@ -1,0 +1,41 @@
+{
+  "schema": "prufyx.io/changelog-targets/v1",
+  "rows": [
+    {
+      "component": "alertmanager",
+      "repo": "github.com/prometheus/alertmanager",
+      "form": "changelog-file",
+      "path": "CHANGELOG.md",
+      "headingStyle": "version-slash-date",
+      "boundaryStyles": ["main-unreleased-parenthesised"]
+    },
+    {
+      "component": "aws-ebs-csi-driver",
+      "repo": "github.com/kubernetes-sigs/aws-ebs-csi-driver",
+      "form": "post-tag"
+    },
+    {
+      "component": "csi-driver-smb",
+      "repo": "github.com/kubernetes-csi/csi-driver-smb",
+      "form": "github-release"
+    },
+    {
+      "component": "flannel",
+      "repo": "github.com/flannel-io/flannel",
+      "form": "github-release"
+    },
+    {
+      "component": "prometheus",
+      "repo": "github.com/prometheus/prometheus",
+      "form": "changelog-file",
+      "path": "CHANGELOG.md",
+      "headingStyle": "version-slash-date",
+      "boundaryStyles": ["main-unreleased"]
+    },
+    {
+      "component": "vault",
+      "repo": "github.com/hashicorp/vault",
+      "form": "post-tag"
+    }
+  ]
+}
