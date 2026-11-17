@@ -39,6 +39,17 @@ covers both copies.
   listed boundary patterns such as unreleased or release candidate). Any other
   heading there, or a release heading nested inside the entry, leaves the end
   unproven.
+- The whole file is also read by an independent CommonMark parser, and the two
+  readings must agree. Any disagreement anywhere in the file withholds every
+  tag of that file with `ENTRY_PARSE_RESIDUE` ("commonmark-disagreement"), not
+  only the tag whose entry is affected. It is raised when: a heading differs in
+  position or level; a release or other heading sits inside a list item, a
+  quote or any other container (a release boundary must be a top-level
+  heading); the lines inside fenced code or an HTML block differ; the list
+  items and paragraphs differ in count or span anywhere in the file; or a block
+  starts before the section and reaches into it, or starts inside it and ends
+  after it. Fix the changelog layout (or review the target by hand) rather than
+  expecting a partial entry.
 - A file or section over its bound is withheld, never truncated.
 - CRLF is read as LF only when every line break is CRLF.
 - No neighbouring tag, path or entry is ever read instead of a missing one.
