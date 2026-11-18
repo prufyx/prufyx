@@ -3,6 +3,7 @@
 package communityapp
 
 import (
+	"bytes"
 	"regexp"
 	"testing"
 
@@ -20,6 +21,14 @@ var (
 	registryDigestField = regexp.MustCompile(`"registryDigest":"sha256:[0-9a-f]{64}"`)
 )
 
+// evaluatedAtField is the evaluation time a report records: the test's own
+// pinned clock, which a rule renewal can move up (see floorNowArgs).
+var evaluatedAtField = regexp.MustCompile(`"evaluatedAt":"[^"]*"`)
+
+// ruleProvenanceField is the evidence window and digest a claim restates from
+// the rule it was decided by: rule data that a renewal moves, never a verdict.
+var ruleProvenanceField = regexp.MustCompile(`"(evidenceReviewedAt|evidenceValidUntil)":"[^"]*"|"(ruleDigest|knowledgePackDigest)":"sha256:[0-9a-f]+"`)
+
 const (
 	maskedRuleSetDigestField  = `"ruleSetDigest":"` + goldenfile.PackDigestPlaceholder + `"`
 	maskedRegistryDigestField = `"registryDigest":"` + goldenfile.PackDigestPlaceholder + `"`
@@ -36,5 +45,13 @@ func maskPack(t testing.TB, got []byte) []byte {
 	}
 	got = ruleSetDigestField.ReplaceAll(got, []byte(maskedRuleSetDigestField))
 	got = registryDigestField.ReplaceAll(got, []byte(maskedRegistryDigestField))
+	got = ruleProvenanceField.ReplaceAllFunc(got, func(field []byte) []byte {
+		name := field[1 : bytes.IndexByte(field[1:], '"')+1]
+		if bytes.HasSuffix(name, []byte("Digest")) {
+			return []byte(`"` + string(name) + `":"` + goldenfile.PackDigestPlaceholder + `"`)
+		}
+		return []byte(`"` + string(name) + `":"2001-08-01T00:00:00Z"`)
+	})
+	got = evaluatedAtField.ReplaceAll(got, []byte(`"evaluatedAt":"2001-07-01T00:00:00Z"`))
 	return testclock.MaskClocks(goldenfile.MaskPack(got, knowledge.Revision(), knowledge.PackDigest()))
 }
