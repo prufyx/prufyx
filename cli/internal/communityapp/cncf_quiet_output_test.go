@@ -81,9 +81,10 @@ func TestQuietHumanReviewedPairCollapsesPassesAndSharesSources(t *testing.T) {
 	code, human, stderr := runCNCFCLI(t, quietArgs(path, "1.24.0", "1.25.0", "--format", "human")...)
 	lines := nonEmptyLines(human)
 	// The mechanical rules cite one more pinned source than the reviewed ones.
-	maxLines, sources := 11, 2
+	// The decisive claim lists up to three source lines under its title.
+	maxLines, sources := 14, 2
 	if supersedeids.Superseded() {
-		maxLines, sources = 12, 3
+		maxLines, sources = 15, 3
 	}
 	if code != ExitBlocked || stderr != "" || len(lines) > maxLines {
 		t.Fatalf("code=%d lines=%d\n%s", code, len(lines), human)
