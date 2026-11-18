@@ -50,7 +50,7 @@ func TestMariaDBOperatorCRDPairRouteOutcomes(t *testing.T) {
 				args = append(args, "--resource-complete")
 			}
 			var out, stderr bytes.Buffer
-			exit := Run(t.Context(), args, &out, &stderr, "test")
+			exit := Run(t.Context(), floorNowArgs(args), &out, &stderr, "test")
 			if exit != tc.wantExit || strings.Contains(out.String(), "PRIVATE_OPERATOR_CRD") || strings.Contains(stderr.String(), "PRIVATE_OPERATOR_CRD") {
 				t.Fatalf("exit=%d want=%d stdout=%s stderr=%s", exit, tc.wantExit, out.String(), stderr.String())
 			}
@@ -85,7 +85,7 @@ func TestMariaDBOperatorCRDPairRouteOutcomes(t *testing.T) {
 			out.Reset()
 			stderr.Reset()
 			bad := append(append([]string{}, args...), "--mariadb-resource-digest", "sha256:"+strings.Repeat("0", 64))
-			if code := Run(t.Context(), bad, &out, &stderr, "test"); code != ExitIntegrity {
+			if code := Run(t.Context(), floorNowArgs(bad), &out, &stderr, "test"); code != ExitIntegrity {
 				t.Fatalf("digest mismatch exit %d", code)
 			}
 		})
@@ -110,7 +110,7 @@ func TestMariaDBOperatorCRDPairRouteRefusesWrongFlagsAndPairs(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var out, stderr bytes.Buffer
-			exit := Run(t.Context(), tc.args, &out, &stderr, "test")
+			exit := Run(t.Context(), floorNowArgs(tc.args), &out, &stderr, "test")
 			if tc.want == -1 {
 				if exit == ExitOK || exit == ExitBlocked {
 					t.Fatalf("exit=%d stdout=%s", exit, out.String())
@@ -141,7 +141,7 @@ func TestMariaDBOperatorCRDPairRoutesDoNotChangeTheGaleraRoute(t *testing.T) {
 	path := writeMariaDBCRDResource(t, `{"galera":{"enabled":true},"updateStrategy":{"autoUpdateDataPlane":true}}`)
 	args := []string{"check", "project", "--project", "mariadb-operator", "--mariadb-resource", path, "--from", "26.3.0", "--to", "26.6.0", "--resource-complete", "--pre-operator-update", "--now", "2026-09-13T09:00:00Z", "--format", "json"}
 	var out, stderr bytes.Buffer
-	if exit := Run(t.Context(), args, &out, &stderr, "test"); exit != ExitOK || stderr.Len() != 0 {
+	if exit := Run(t.Context(), floorNowArgs(args), &out, &stderr, "test"); exit != ExitOK || stderr.Len() != 0 {
 		t.Fatalf("exit=%d stdout=%s stderr=%s", exit, out.String(), stderr.String())
 	}
 	var report projectcheck.Report

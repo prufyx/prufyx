@@ -187,7 +187,7 @@ func TestKyvernoPreparationDoesNotSucceedWhenOutputFails(t *testing.T) {
 	path := writeCNCFFile(t, "proposal.json", kyvernoProposal(t, []string{"reports-controller"}, nil, "private"), 0o600)
 	for _, format := range []string{"human", "json", "input"} {
 		var stderr bytes.Buffer
-		code := Run(context.Background(), append(append(prepareArgs(path), "--distribution", "official_upstream"), "--format", format), failedPreparationWriter{}, &stderr, "test")
+		code := Run(context.Background(), floorNowArgs(append(append(prepareArgs(path), "--distribution", "official_upstream"), "--format", format)), failedPreparationWriter{}, &stderr, "test")
 		if code != ExitIntegrity {
 			t.Fatalf("%s output failure exit=%d", format, code)
 		}

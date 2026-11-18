@@ -26,7 +26,7 @@ func TestArgoWorkflowsProjectCLIEndToEndAndPrivacy(t *testing.T) {
 			body := `{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"private-workflow"},"spec":{"template":{"spec":{"containers":[{"name":"argo-server","image":"quay.io/argoproj/argocli:v3.6.0","command":["argo"],"args":[` + tc.args + `],"env":[]}]}}}}`
 			path := writePrivateProjectFixture(t, body)
 			var stdout, stderr bytes.Buffer
-			exit := Run(t.Context(), []string{"check", "project", "--project", "argo-workflows", "--workload", path, "--from", "3.5.0", "--to", "3.6.0", "--workload-complete", "--now", "2026-09-11T21:00:00Z", "-v"}, &stdout, &stderr, "test")
+			exit := Run(t.Context(), floorNowArgs([]string{"check", "project", "--project", "argo-workflows", "--workload", path, "--from", "3.5.0", "--to", "3.6.0", "--workload-complete", "--now", "2026-09-11T21:00:00Z", "-v"}), &stdout, &stderr, "test")
 			if exit != tc.want || stderr.Len() != 0 {
 				t.Fatalf("exit=%d want=%d stdout=%q stderr=%q", exit, tc.want, stdout.String(), stderr.String())
 			}
@@ -61,19 +61,19 @@ func TestArgoWorkflowsProjectCLIModeAndPinAdmission(t *testing.T) {
 		{"--knowledge-pack-digest", "sha256:" + strings.Repeat("2", 64)},
 	} {
 		var stdout, stderr bytes.Buffer
-		if exit := Run(t.Context(), append(append([]string{}, base...), extra...), &stdout, &stderr, "test"); exit != ExitUsage || strings.Contains(stdout.String()+stderr.String(), path) || strings.Contains(stdout.String()+stderr.String(), "private-") {
+		if exit := Run(t.Context(), floorNowArgs(append(append([]string{}, base...), extra...)), &stdout, &stderr, "test"); exit != ExitUsage || strings.Contains(stdout.String()+stderr.String(), path) || strings.Contains(stdout.String()+stderr.String(), "private-") {
 			t.Fatalf("extra=%v exit/output=%d %q", extra, exit, stdout.String()+stderr.String())
 		}
 	}
 	var stdout, stderr bytes.Buffer
 	withPin := append(append([]string{}, base...), "--workload-digest", digestCommunityBytes(body), "--format", "json")
-	if exit := Run(t.Context(), withPin, &stdout, &stderr, "test"); exit != ExitOK || !strings.Contains(stdout.String(), `"project":"argo-workflows"`) || strings.Contains(stdout.String()+stderr.String(), path) {
+	if exit := Run(t.Context(), floorNowArgs(withPin), &stdout, &stderr, "test"); exit != ExitOK || !strings.Contains(stdout.String(), `"project":"argo-workflows"`) || strings.Contains(stdout.String()+stderr.String(), path) {
 		t.Fatalf("pinned exit/output=%d %q %q", exit, stdout.String(), stderr.String())
 	}
 	stdout.Reset()
 	stderr.Reset()
 	badPin := append(append([]string{}, base...), "--workload-digest", "sha256:"+strings.Repeat("0", 64))
-	if exit := Run(t.Context(), badPin, &stdout, &stderr, "test"); exit != ExitIntegrity || strings.Contains(stdout.String()+stderr.String(), path) {
+	if exit := Run(t.Context(), floorNowArgs(badPin), &stdout, &stderr, "test"); exit != ExitIntegrity || strings.Contains(stdout.String()+stderr.String(), path) {
 		t.Fatalf("bad pin exit/output=%d %q", exit, stdout.String()+stderr.String())
 	}
 	for _, command := range [][]string{
@@ -84,7 +84,7 @@ func TestArgoWorkflowsProjectCLIModeAndPinAdmission(t *testing.T) {
 			stdout.Reset()
 			stderr.Reset()
 			args := append(append([]string{}, command...), "--workload-digest="+value)
-			if exit := Run(t.Context(), args, &stdout, &stderr, "test"); exit != ExitUsage || strings.Contains(stdout.String()+stderr.String(), path) {
+			if exit := Run(t.Context(), floorNowArgs(args), &stdout, &stderr, "test"); exit != ExitUsage || strings.Contains(stdout.String()+stderr.String(), path) {
 				t.Fatalf("empty workload pin args=%v exit=%d output=%q", args, exit, stdout.String()+stderr.String())
 			}
 		}
@@ -104,7 +104,7 @@ func TestArgoWorkflowsLatestProjectCLIFiveOrigins(t *testing.T) {
 			body := `{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"private-workflow"},"spec":{"template":{"spec":{"containers":[{"name":"argo-server","image":"quay.io/argoproj/argocli:v4.1.3","command":["argo"],"args":["server","` + tc.arg + `"],"env":[]}]}}}}`
 			path := writePrivateProjectFixture(t, body)
 			var stdout, stderr bytes.Buffer
-			exit := Run(t.Context(), []string{"check", "project", "--project", "argo-workflows", "--workload", path, "--from", from, "--to", "4.1.3", "--workload-complete", "--now", "2026-09-12T11:30:00Z"}, &stdout, &stderr, "test")
+			exit := Run(t.Context(), floorNowArgs([]string{"check", "project", "--project", "argo-workflows", "--workload", path, "--from", from, "--to", "4.1.3", "--workload-complete", "--now", "2026-09-12T11:30:00Z"}), &stdout, &stderr, "test")
 			if exit != tc.want || stderr.Len() != 0 || strings.Contains(stdout.String(), "private") {
 				t.Fatalf("from=%s arg=%s exit=%d stdout=%q stderr=%q", from, tc.arg, exit, stdout.String(), stderr.String())
 			}
@@ -116,7 +116,7 @@ func TestArgoWorkflowsPrepareInput(t *testing.T) {
 	t.Parallel()
 	path := writePrivateProjectFixture(t, `{"apiVersion":"apps/v1","kind":"Deployment","spec":{"template":{"spec":{"containers":[{"name":"argo-server","image":"quay.io/argoproj/argocli:v3.6.0","command":["argo"],"args":["server"],"env":[]}]}}}}`)
 	var stdout, stderr bytes.Buffer
-	exit := Run(t.Context(), []string{"prepare", "project", "--project", "argo-workflows", "--workload", path, "--from", "3.5.0", "--to", "3.6.0", "--workload-complete", "--format", "input"}, &stdout, &stderr, "test")
+	exit := Run(t.Context(), floorNowArgs([]string{"prepare", "project", "--project", "argo-workflows", "--workload", path, "--from", "3.5.0", "--to", "3.6.0", "--workload-complete", "--format", "input"}), &stdout, &stderr, "test")
 	if exit != ExitOK || stderr.Len() != 0 || !strings.Contains(stdout.String(), projectArgoWorkflowsComponentForTest) || strings.Contains(stdout.String(), path) {
 		t.Fatalf("exit=%d stdout=%q stderr=%q", exit, stdout.String(), stderr.String())
 	}
@@ -139,7 +139,7 @@ func TestArgoWorkflowsPublicExamples(t *testing.T) {
 			}
 			path := writePrivateProjectFixture(t, string(raw))
 			var stdout, stderr bytes.Buffer
-			exit := Run(t.Context(), []string{"check", "project", "--project", "argo-workflows", "--workload", path, "--from", "3.5.0", "--to", "3.6.0", "--workload-complete", "--now", "2026-09-11T21:00:00Z"}, &stdout, &stderr, "test")
+			exit := Run(t.Context(), floorNowArgs([]string{"check", "project", "--project", "argo-workflows", "--workload", path, "--from", "3.5.0", "--to", "3.6.0", "--workload-complete", "--now", "2026-09-11T21:00:00Z"}), &stdout, &stderr, "test")
 			if exit != tc.want || stderr.Len() != 0 {
 				t.Fatalf("exit=%d want=%d stdout=%q stderr=%q", exit, tc.want, stdout.String(), stderr.String())
 			}
@@ -165,7 +165,7 @@ func TestArgoWorkflowsLatestPublicExamples(t *testing.T) {
 		}
 		path := writePrivateProjectFixture(t, string(raw))
 		var stdout, stderr bytes.Buffer
-		exit := Run(t.Context(), []string{"check", "project", "--project", "argo-workflows", "--workload", path, "--from", "4.0.11", "--to", "4.1.3", "--workload-complete", "--now", "2026-09-12T11:30:00Z"}, &stdout, &stderr, "test")
+		exit := Run(t.Context(), floorNowArgs([]string{"check", "project", "--project", "argo-workflows", "--workload", path, "--from", "4.0.11", "--to", "4.1.3", "--workload-complete", "--now", "2026-09-12T11:30:00Z"}), &stdout, &stderr, "test")
 		if exit != tc.want || stderr.Len() != 0 || strings.Contains(stdout.String(), path) {
 			t.Fatalf("name=%s exit=%d stdout=%q stderr=%q", tc.name, exit, stdout.String(), stderr.String())
 		}

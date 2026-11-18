@@ -35,7 +35,7 @@ func TestPrometheusModeObservationUnsupportedPlatform(t *testing.T) {
 	for _, prefix := range [][]string{{"check", "prometheus-mode"}, {"community-preview", "validate-prometheus-mode"}} {
 		args := append(append([]string{}, prefix...), "--observation-root", dir, "--captured-at", "2026-09-07T10:00:00Z", "--now", "2026-09-07T10:01:00Z", "--max-age", "1h", "--proposed-workload", proposed, "--proposed-digest", pin)
 		var stdout, stderr bytes.Buffer
-		code := Run(context.Background(), args, &stdout, &stderr, "test")
+		code := Run(context.Background(), floorNowArgs(args), &stdout, &stderr, "test")
 		if code != ExitUsage || stdout.Len() != 0 || stderr.String() != "prufyx: real observation is not supported on this platform\n" {
 			t.Fatalf("%v: code=%d stdout=%q stderr=%q", prefix, code, stdout.String(), stderr.String())
 		}

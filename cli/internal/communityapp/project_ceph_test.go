@@ -27,7 +27,7 @@ func TestCephSelectedOSDProjectCLI(t *testing.T) {
 				args = append(args, "--selected-osd-metadata-complete")
 			}
 			var stdout, stderr bytes.Buffer
-			exit := Run(t.Context(), args, &stdout, &stderr, "test")
+			exit := Run(t.Context(), floorNowArgs(args), &stdout, &stderr, "test")
 			if exit != tc.want {
 				t.Fatalf("exit=%d want=%d stdout=%q stderr=%q", exit, tc.want, stdout.String(), stderr.String())
 			}
@@ -61,7 +61,7 @@ func TestCephLatestSelectedOSDAllExactOrigins(t *testing.T) {
 					args = append(args, "--selected-osd-metadata-complete")
 				}
 				var stdout, stderr bytes.Buffer
-				exit := Run(t.Context(), args, &stdout, &stderr, "test")
+				exit := Run(t.Context(), floorNowArgs(args), &stdout, &stderr, "test")
 				if exit != tc.want || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"assessment":"UNKNOWN"`) {
 					t.Fatalf("exit=%d stdout=%q stderr=%q", exit, stdout.String(), stderr.String())
 				}
@@ -80,7 +80,7 @@ func TestCephLatestSelectedOSDAllExactOrigins(t *testing.T) {
 		path := writePrivateProjectFixture(t, `{"id":7,"osd_objectstore":"filestore"}`)
 		args := []string{"check", "project", "--project", "ceph", "--selected-osd-metadata", path, "--selected-osd-id", "7", "--from", tc.from, "--to", tc.to, "--selected-osd-metadata-complete", "--now", "2026-09-12T09:20:00Z", "--format", "json"}
 		var stdout, stderr bytes.Buffer
-		if exit := Run(t.Context(), args, &stdout, &stderr, "test"); exit != ExitUnknown || stderr.Len() != 0 || !strings.Contains(stdout.String(), "no reviewed rule matches") || strings.Contains(stdout.String()+stderr.String(), path) {
+		if exit := Run(t.Context(), floorNowArgs(args), &stdout, &stderr, "test"); exit != ExitUnknown || stderr.Len() != 0 || !strings.Contains(stdout.String(), "no reviewed rule matches") || strings.Contains(stdout.String()+stderr.String(), path) {
 			t.Fatalf("pair=%s/%s exit=%d stdout=%q stderr=%q", tc.from, tc.to, exit, stdout.String(), stderr.String())
 		}
 	}
@@ -91,7 +91,7 @@ func TestCephSelectedOSDProjectAdmissionAndHumanScope(t *testing.T) {
 	path := writePrivateProjectFixture(t, `{"id":7,"osd_objectstore":"filestore"}`)
 	base := []string{"check", "project", "--project", "ceph", "--selected-osd-metadata", path, "--selected-osd-id", "7", "--from", "17.2.7", "--to", "18.2.0", "--selected-osd-metadata-complete", "--now", "2026-09-11T21:00:00Z", "-v"}
 	var stdout, stderr bytes.Buffer
-	if exit := Run(t.Context(), base, &stdout, &stderr, "test"); exit != ExitBlocked || !strings.Contains(stdout.String(), "caller-selected current OSD metadata") || !strings.Contains(stdout.String(), "src/os/ObjectStore.cc") || strings.Contains(stdout.String()+stderr.String(), path) {
+	if exit := Run(t.Context(), floorNowArgs(base), &stdout, &stderr, "test"); exit != ExitBlocked || !strings.Contains(stdout.String(), "caller-selected current OSD metadata") || !strings.Contains(stdout.String(), "src/os/ObjectStore.cc") || strings.Contains(stdout.String()+stderr.String(), path) {
 		t.Fatalf("exit/output=%d %q %q", exit, stdout.String(), stderr.String())
 	}
 	for _, extra := range [][]string{
@@ -103,7 +103,7 @@ func TestCephSelectedOSDProjectAdmissionAndHumanScope(t *testing.T) {
 	} {
 		stdout.Reset()
 		stderr.Reset()
-		if exit := Run(t.Context(), append(append([]string{}, base...), extra...), &stdout, &stderr, "test"); exit != ExitUsage || strings.Contains(stdout.String()+stderr.String(), path) {
+		if exit := Run(t.Context(), floorNowArgs(append(append([]string{}, base...), extra...)), &stdout, &stderr, "test"); exit != ExitUsage || strings.Contains(stdout.String()+stderr.String(), path) {
 			t.Fatalf("extra=%v exit=%d output=%q", extra, exit, stdout.String()+stderr.String())
 		}
 	}
@@ -115,7 +115,7 @@ func TestCephSelectedOSDProjectAdmissionAndHumanScope(t *testing.T) {
 			badPair[index] = "17.2.8"
 		}
 	}
-	if exit := Run(t.Context(), badPair, &stdout, &stderr, "test"); exit != ExitUnknown || !strings.Contains(stdout.String(), "no reviewed rule matches") {
+	if exit := Run(t.Context(), floorNowArgs(badPair), &stdout, &stderr, "test"); exit != ExitUnknown || !strings.Contains(stdout.String(), "no reviewed rule matches") {
 		t.Fatalf("wrong pair exit/output=%d %q", exit, stdout.String())
 	}
 }
@@ -138,7 +138,7 @@ func TestProjectExplicitEmptyDigestPinsAreRejected(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var stdout, stderr bytes.Buffer
-			if exit := Run(t.Context(), tc.args, &stdout, &stderr, "test"); exit != ExitUsage {
+			if exit := Run(t.Context(), floorNowArgs(tc.args), &stdout, &stderr, "test"); exit != ExitUsage {
 				t.Fatalf("exit=%d stdout=%q stderr=%q", exit, stdout.String(), stderr.String())
 			}
 			for _, path := range []string{config, workload, osd} {

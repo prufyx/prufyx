@@ -29,7 +29,7 @@ func TestProjectCLIEndToEndAndPrivacy(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			path := writePrivateProjectFixture(t, tc.body)
 			var stdout, stderr bytes.Buffer
-			exit := Run(t.Context(), []string{"check", "project", "--project", tc.project, "--effective-config", path, "--from", tc.from, "--to", tc.to, "--effective-config-complete", "--precedence-resolved", "--now", now, "--format", "json"}, &stdout, &stderr, "test")
+			exit := Run(t.Context(), floorNowArgs([]string{"check", "project", "--project", tc.project, "--effective-config", path, "--from", tc.from, "--to", tc.to, "--effective-config-complete", "--precedence-resolved", "--now", now, "--format", "json"}), &stdout, &stderr, "test")
 			if exit != tc.want {
 				t.Fatalf("exit=%d want=%d stderr=%q stdout=%q", exit, tc.want, stderr.String(), stdout.String())
 			}
@@ -46,7 +46,7 @@ func TestProjectCLILokiPinnedSourcesAndScopedOutput(t *testing.T) {
 	t.Parallel()
 	path := writePrivateProjectFixture(t, "compactor:\n  shared_store_key_prefix: private-index/\n")
 	var stdout, stderr bytes.Buffer
-	exit := Run(t.Context(), []string{"check", "project", "--project", "loki", "--effective-config", path, "--from", "2.9.8", "--to", "3.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-12T00:00:00Z", "-v"}, &stdout, &stderr, "test")
+	exit := Run(t.Context(), floorNowArgs([]string{"check", "project", "--project", "loki", "--effective-config", path, "--from", "2.9.8", "--to", "3.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-12T00:00:00Z", "-v"}), &stdout, &stderr, "test")
 	if exit != ExitBlocked || stderr.Len() != 0 {
 		t.Fatalf("exit=%d stderr=%q stdout=%q", exit, stderr.String(), stdout.String())
 	}
@@ -74,7 +74,7 @@ func TestProjectCLILokiExamples(t *testing.T) {
 		}
 		path := writePrivateProjectFixture(t, string(raw))
 		var stdout, stderr bytes.Buffer
-		exit := Run(t.Context(), []string{"check", "project", "--project", "loki", "--effective-config", path, "--from", "2.9.8", "--to", "3.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-12T00:00:00Z", "--format", "json"}, &stdout, &stderr, "test")
+		exit := Run(t.Context(), floorNowArgs([]string{"check", "project", "--project", "loki", "--effective-config", path, "--from", "2.9.8", "--to", "3.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-12T00:00:00Z", "--format", "json"}), &stdout, &stderr, "test")
 		if exit != want || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"assessment":"UNKNOWN"`) || strings.Contains(stdout.String(), path) || strings.Contains(stdout.String(), "/var/loki") {
 			t.Fatalf("%s exit=%d stdout=%q stderr=%q", name, exit, stdout.String(), stderr.String())
 		}
@@ -100,7 +100,7 @@ func TestProjectCLILokiStructuredMetadataRoute(t *testing.T) {
 				args = append(args, "--use-reviewed-target-default")
 			}
 			var stdout, stderr bytes.Buffer
-			if exit := Run(t.Context(), args, &stdout, &stderr, "test"); exit != tc.want || stderr.Len() != 0 {
+			if exit := Run(t.Context(), floorNowArgs(args), &stdout, &stderr, "test"); exit != tc.want || stderr.Len() != 0 {
 				t.Fatalf("exit=%d want=%d stderr=%q stdout=%q", exit, tc.want, stderr.String(), stdout.String())
 			}
 			for _, private := range []string{path, "2024-01-01", "boltdb-shipper"} {
@@ -115,23 +115,23 @@ func TestProjectCLILokiStructuredMetadataRoute(t *testing.T) {
 	}
 	path := writePrivateProjectFixture(t, "limits_config: {}\nschema_config:\n  configs:\n    - from: 2024-01-01\n      store: tsdb\n      schema: v13\n")
 	var stdout, stderr bytes.Buffer
-	if exit := Run(t.Context(), []string{"check", "project", "--project", "loki", "--loki-schema-config", path, "--effective-config", path, "--from", "2.9.8", "--to", "3.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-12T02:00:00Z"}, &stdout, &stderr, "test"); exit != ExitUsage {
+	if exit := Run(t.Context(), floorNowArgs([]string{"check", "project", "--project", "loki", "--loki-schema-config", path, "--effective-config", path, "--from", "2.9.8", "--to", "3.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-12T02:00:00Z"}), &stdout, &stderr, "test"); exit != ExitUsage {
 		t.Fatalf("mixed Loki modes exit=%d output=%q", exit, stdout.String()+stderr.String())
 	}
 	digest := digestCommunityBytes([]byte("limits_config: {}\nschema_config:\n  configs:\n    - from: 2024-01-01\n      store: tsdb\n      schema: v13\n"))
 	stdout.Reset()
 	stderr.Reset()
-	if exit := Run(t.Context(), []string{"check", "project", "--project", "loki", "--loki-schema-config", path, "--loki-schema-config-digest", digest, "--from", "2.9.8", "--to", "3.0.0", "--effective-config-complete", "--precedence-resolved", "--use-reviewed-target-default", "--now", "2026-09-12T02:00:00Z", "--format", "json"}, &stdout, &stderr, "test"); exit != ExitOK || stderr.Len() != 0 {
+	if exit := Run(t.Context(), floorNowArgs([]string{"check", "project", "--project", "loki", "--loki-schema-config", path, "--loki-schema-config-digest", digest, "--from", "2.9.8", "--to", "3.0.0", "--effective-config-complete", "--precedence-resolved", "--use-reviewed-target-default", "--now", "2026-09-12T02:00:00Z", "--format", "json"}), &stdout, &stderr, "test"); exit != ExitOK || stderr.Len() != 0 {
 		t.Fatalf("matching schema digest rejected exit=%d stderr=%q", exit, stderr.String())
 	}
 	stdout.Reset()
 	stderr.Reset()
-	if exit := Run(t.Context(), []string{"check", "project", "--project", "loki", "--loki-schema-config", path, "--loki-schema-config-digest", "sha256:0000000000000000000000000000000000000000000000000000000000000000", "--from", "2.9.8", "--to", "3.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-12T02:00:00Z"}, &stdout, &stderr, "test"); exit != ExitIntegrity {
+	if exit := Run(t.Context(), floorNowArgs([]string{"check", "project", "--project", "loki", "--loki-schema-config", path, "--loki-schema-config-digest", "sha256:0000000000000000000000000000000000000000000000000000000000000000", "--from", "2.9.8", "--to", "3.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-12T02:00:00Z"}), &stdout, &stderr, "test"); exit != ExitIntegrity {
 		t.Fatalf("mismatched schema digest exit=%d stderr=%q", exit, stderr.String())
 	}
 	stdout.Reset()
 	stderr.Reset()
-	if exit := Run(t.Context(), []string{"prepare", "project", "--project", "loki", "--loki-schema-config", path, "--loki-schema-config-digest", digest, "--from", "2.9.8", "--to", "3.0.0", "--effective-config-complete", "--precedence-resolved", "--use-reviewed-target-default", "--format", "json"}, &stdout, &stderr, "test"); exit != ExitOK || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"authority":"CALLER_SUPPLIED_NATIVE_LOKI_SCHEMA_CONFIG"`) {
+	if exit := Run(t.Context(), floorNowArgs([]string{"prepare", "project", "--project", "loki", "--loki-schema-config", path, "--loki-schema-config-digest", digest, "--from", "2.9.8", "--to", "3.0.0", "--effective-config-complete", "--precedence-resolved", "--use-reviewed-target-default", "--format", "json"}), &stdout, &stderr, "test"); exit != ExitOK || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"authority":"CALLER_SUPPLIED_NATIVE_LOKI_SCHEMA_CONFIG"`) {
 		t.Fatalf("matching prepare schema digest rejected exit=%d stderr=%q stdout=%q", exit, stderr.String(), stdout.String())
 	}
 }
@@ -145,7 +145,7 @@ func TestProjectCLILokiStructuredMetadataExamples(t *testing.T) {
 		}
 		path := writePrivateProjectFixture(t, string(raw))
 		var stdout, stderr bytes.Buffer
-		exit := Run(t.Context(), []string{"check", "project", "--project", "loki", "--loki-schema-config", path, "--from", "2.9.8", "--to", "3.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-12T02:00:00Z", "--format", "json"}, &stdout, &stderr, "test")
+		exit := Run(t.Context(), floorNowArgs([]string{"check", "project", "--project", "loki", "--loki-schema-config", path, "--from", "2.9.8", "--to", "3.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-12T02:00:00Z", "--format", "json"}), &stdout, &stderr, "test")
 		if exit != want || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"requestedRuleId":"loki.structured-metadata-tsdb-v13.2-9-8-to-3-0-0"`) || strings.Contains(stdout.String(), path) {
 			t.Fatalf("%s exit=%d want=%d stdout=%q stderr=%q", name, exit, want, stdout.String(), stderr.String())
 		}
@@ -159,13 +159,13 @@ func TestProjectCLILokiRejectsConflictingModeAndDigest(t *testing.T) {
 		args := []string{"check", "project", "--project", "loki", "--effective-config", path, "--from", "2.9.8", "--to", "3.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-12T00:00:00Z"}
 		args = append(args, extra...)
 		var stdout, stderr bytes.Buffer
-		if exit := Run(t.Context(), args, &stdout, &stderr, "test"); exit != ExitUsage || strings.Contains(stdout.String()+stderr.String(), path) {
+		if exit := Run(t.Context(), floorNowArgs(args), &stdout, &stderr, "test"); exit != ExitUsage || strings.Contains(stdout.String()+stderr.String(), path) {
 			t.Fatalf("extra=%v exit=%d output=%q", extra, exit, stdout.String()+stderr.String())
 		}
 	}
 	digest := digestCommunityBytes([]byte("compactor:\n  working_directory: /var/loki\n"))
 	var stdout, stderr bytes.Buffer
-	if exit := Run(t.Context(), []string{"check", "project", "--project", "loki", "--effective-config", path, "--effective-config-digest", digest, "--from", "2.9.8", "--to", "3.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-12T00:00:00Z", "--format", "json"}, &stdout, &stderr, "test"); exit != ExitOK {
+	if exit := Run(t.Context(), floorNowArgs([]string{"check", "project", "--project", "loki", "--effective-config", path, "--effective-config-digest", digest, "--from", "2.9.8", "--to", "3.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-12T00:00:00Z", "--format", "json"}), &stdout, &stderr, "test"); exit != ExitOK {
 		t.Fatalf("pinned exit=%d stderr=%q", exit, stderr.String())
 	}
 }
@@ -177,7 +177,7 @@ func TestProjectCLIRejectsExternalSelectorsAndUnsafeFiles(t *testing.T) {
 		args := []string{"check", "project", "--project", "grafana", "--effective-config", path, "--from", "10.4.0", "--to", "11.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-11T20:00:00Z"}
 		args = append(args, extra...)
 		var stdout, stderr bytes.Buffer
-		if exit := Run(t.Context(), args, &stdout, &stderr, "test"); exit != ExitUsage {
+		if exit := Run(t.Context(), floorNowArgs(args), &stdout, &stderr, "test"); exit != ExitUsage {
 			t.Fatalf("extra=%v exit=%d", extra, exit)
 		}
 		if strings.Contains(stderr.String(), path) {
@@ -192,12 +192,12 @@ func TestProjectCLIRejectsExternalSelectorsAndUnsafeFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 	var stdout, stderr bytes.Buffer
-	if exit := Run(t.Context(), []string{"prepare", "project", "--project", "grafana", "--effective-config", unsafe, "--from", "10.4.0", "--to", "11.0.0", "--effective-config-complete", "--precedence-resolved"}, &stdout, &stderr, "test"); exit != ExitUsage {
+	if exit := Run(t.Context(), floorNowArgs([]string{"prepare", "project", "--project", "grafana", "--effective-config", unsafe, "--from", "10.4.0", "--to", "11.0.0", "--effective-config-complete", "--precedence-resolved"}), &stdout, &stderr, "test"); exit != ExitUsage {
 		t.Fatalf("unsafe exit=%d", exit)
 	}
 	stdout.Reset()
 	stderr.Reset()
-	if exit := Run(t.Context(), []string{"check", "project", "--project", "grafana", "--effective-config", path, "--effective-config-digest", "sha256:0", "--from", "10.4.0", "--to", "11.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-11T20:00:00Z"}, &stdout, &stderr, "test"); exit != ExitUsage {
+	if exit := Run(t.Context(), floorNowArgs([]string{"check", "project", "--project", "grafana", "--effective-config", path, "--effective-config-digest", "sha256:0", "--from", "10.4.0", "--to", "11.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-11T20:00:00Z"}), &stdout, &stderr, "test"); exit != ExitUsage {
 		t.Fatalf("malformed digest exit=%d", exit)
 	}
 	for _, command := range [][]string{
@@ -208,7 +208,7 @@ func TestProjectCLIRejectsExternalSelectorsAndUnsafeFiles(t *testing.T) {
 			stdout.Reset()
 			stderr.Reset()
 			args := append(append([]string{}, command...), "--effective-config-digest="+value)
-			if exit := Run(t.Context(), args, &stdout, &stderr, "test"); exit != ExitUsage || strings.Contains(stdout.String()+stderr.String(), path) {
+			if exit := Run(t.Context(), floorNowArgs(args), &stdout, &stderr, "test"); exit != ExitUsage || strings.Contains(stdout.String()+stderr.String(), path) {
 				t.Fatalf("empty effective-config pin args=%v exit=%d output=%q", args, exit, stdout.String()+stderr.String())
 			}
 		}
@@ -216,13 +216,13 @@ func TestProjectCLIRejectsExternalSelectorsAndUnsafeFiles(t *testing.T) {
 	wantDigest := digestCommunityBytes([]byte("[alerting]\nenabled=false\n"))
 	stdout.Reset()
 	stderr.Reset()
-	if exit := Run(t.Context(), []string{"check", "project", "--project", "grafana", "--effective-config", path, "--effective-config-digest", wantDigest, "--from", "10.4.0", "--to", "11.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-11T20:00:00Z"}, &stdout, &stderr, "test"); exit != ExitOK {
+	if exit := Run(t.Context(), floorNowArgs([]string{"check", "project", "--project", "grafana", "--effective-config", path, "--effective-config-digest", wantDigest, "--from", "10.4.0", "--to", "11.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-11T20:00:00Z"}), &stdout, &stderr, "test"); exit != ExitOK {
 		t.Fatalf("pinned input exit=%d stderr=%q", exit, stderr.String())
 	}
 	badDigest := "sha256:" + strings.Repeat("0", 64)
 	stdout.Reset()
 	stderr.Reset()
-	if exit := Run(t.Context(), []string{"check", "project", "--project", "grafana", "--effective-config", path, "--effective-config-digest", badDigest, "--from", "10.4.0", "--to", "11.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-11T20:00:00Z"}, &stdout, &stderr, "test"); exit != ExitIntegrity || strings.Contains(stdout.String()+stderr.String(), path) {
+	if exit := Run(t.Context(), floorNowArgs([]string{"check", "project", "--project", "grafana", "--effective-config", path, "--effective-config-digest", badDigest, "--from", "10.4.0", "--to", "11.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-11T20:00:00Z"}), &stdout, &stderr, "test"); exit != ExitIntegrity || strings.Contains(stdout.String()+stderr.String(), path) {
 		t.Fatalf("mismatched digest exit=%d output=%q", exit, stdout.String()+stderr.String())
 	}
 }
@@ -231,7 +231,7 @@ func TestProjectCLIHelpAndPreparation(t *testing.T) {
 	t.Parallel()
 	path := writePrivateProjectFixture(t, "xpack.reporting.roles.allow: [reporting_user]\n")
 	var stdout, stderr bytes.Buffer
-	if exit := Run(t.Context(), []string{"prepare", "project", "--project", "kibana", "--effective-config", path, "--from", "8.18.0", "--to", "9.0.0", "--effective-config-complete", "--precedence-resolved", "--format", "input"}, &stdout, &stderr, "test"); exit != ExitOK {
+	if exit := Run(t.Context(), floorNowArgs([]string{"prepare", "project", "--project", "kibana", "--effective-config", path, "--from", "8.18.0", "--to", "9.0.0", "--effective-config-complete", "--precedence-resolved", "--format", "input"}), &stdout, &stderr, "test"); exit != ExitOK {
 		t.Fatalf("exit=%d stderr=%q", exit, stderr.String())
 	}
 	if !strings.Contains(stdout.String(), `"component":"pkg:github/elastic/kibana"`) || strings.Contains(stdout.String(), "reporting_user") {
@@ -239,7 +239,7 @@ func TestProjectCLIHelpAndPreparation(t *testing.T) {
 	}
 	stdout.Reset()
 	stderr.Reset()
-	if exit := Run(t.Context(), []string{"check", "project", "--help"}, &stdout, &stderr, "test"); exit != ExitOK || !strings.Contains(stdout.String(), "embedded-only") {
+	if exit := Run(t.Context(), floorNowArgs([]string{"check", "project", "--help"}), &stdout, &stderr, "test"); exit != ExitOK || !strings.Contains(stdout.String(), "embedded-only") {
 		t.Fatalf("help exit/output %d %q", exit, stdout.String())
 	}
 }
@@ -248,7 +248,7 @@ func TestProjectCLIHumanShowsPinnedSourcesWithoutPrivateInput(t *testing.T) {
 	t.Parallel()
 	path := writePrivateProjectFixture(t, "xpack.reporting.roles.allow: [private-role]\n")
 	var stdout, stderr bytes.Buffer
-	exit := Run(t.Context(), []string{"check", "project", "--project", "kibana", "--effective-config", path, "--from", "8.18.0", "--to", "9.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-11T20:00:00Z", "-v"}, &stdout, &stderr, "test")
+	exit := Run(t.Context(), floorNowArgs([]string{"check", "project", "--project", "kibana", "--effective-config", path, "--from", "8.18.0", "--to", "9.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-11T20:00:00Z", "-v"}), &stdout, &stderr, "test")
 	if exit != ExitBlocked || stderr.Len() != 0 {
 		t.Fatalf("exit=%d stderr=%q", exit, stderr.String())
 	}
@@ -268,7 +268,7 @@ func TestProjectCLIUnreviewedTransitionIsExplicitUnknown(t *testing.T) {
 	t.Parallel()
 	path := writePrivateProjectFixture(t, "server.host: private-host\n")
 	var stdout, stderr bytes.Buffer
-	exit := Run(t.Context(), []string{"check", "project", "--project", "kibana", "--effective-config", path, "--from", "8.17.0", "--to", "9.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-11T20:00:00Z"}, &stdout, &stderr, "test")
+	exit := Run(t.Context(), floorNowArgs([]string{"check", "project", "--project", "kibana", "--effective-config", path, "--from", "8.17.0", "--to", "9.0.0", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-11T20:00:00Z"}), &stdout, &stderr, "test")
 	if exit != ExitUnknown || stderr.Len() != 0 || !strings.Contains(stdout.String(), "no reviewed rule matches this exact project transition") || strings.Contains(stdout.String(), path) || strings.Contains(stdout.String(), "private-host") {
 		t.Fatalf("exit=%d stdout=%q stderr=%q", exit, stdout.String(), stderr.String())
 	}
@@ -293,7 +293,7 @@ func TestProjectCLILatestGrafanaAndKibanaScopes(t *testing.T) {
 			want int
 		}{{grafanaBlocked, ExitBlocked}, {grafanaFixed, ExitOK}} {
 			var stdout, stderr bytes.Buffer
-			exit := Run(t.Context(), []string{"check", "project", "--project", "grafana", "--effective-config", tc.path, "--from", from, "--to", "13.2.1", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-12T09:24:22Z", "--format", "json"}, &stdout, &stderr, "test")
+			exit := Run(t.Context(), floorNowArgs([]string{"check", "project", "--project", "grafana", "--effective-config", tc.path, "--from", from, "--to", "13.2.1", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-12T09:24:22Z", "--format", "json"}), &stdout, &stderr, "test")
 			if exit != tc.want || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"assessment":"UNKNOWN"`) || strings.Contains(stdout.String(), tc.path) {
 				t.Fatalf("grafana from=%s exit=%d stdout=%q stderr=%q", from, exit, stdout.String(), stderr.String())
 			}
@@ -314,7 +314,7 @@ func TestProjectCLILatestGrafanaAndKibanaScopes(t *testing.T) {
 				args = append(args, "--full-status-without-monitor-required")
 			}
 			var stdout, stderr bytes.Buffer
-			exit := Run(t.Context(), args, &stdout, &stderr, "test")
+			exit := Run(t.Context(), floorNowArgs(args), &stdout, &stderr, "test")
 			if exit != tc.want || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"assessment":"UNKNOWN"`) || strings.Contains(stdout.String(), tc.path) || strings.Contains(stdout.String(), "localhost") {
 				t.Fatalf("kibana from=%s exit=%d stdout=%q stderr=%q", from, exit, stdout.String(), stderr.String())
 			}
@@ -322,19 +322,19 @@ func TestProjectCLILatestGrafanaAndKibanaScopes(t *testing.T) {
 	}
 	for _, from := range []string{"9.0.8", "9.1.10", "9.2.8", "9.3.8", "9.4.6"} {
 		var stdout, stderr bytes.Buffer
-		exit := Run(t.Context(), []string{"check", "project", "--project", "kibana", "--effective-config", kibanaPass, "--from", from, "--to", "9.5.3", "--effective-config-complete", "--precedence-resolved", "--full-status-without-monitor-required=false", "--now", "2026-09-12T09:24:22Z", "--format", "json"}, &stdout, &stderr, "test")
+		exit := Run(t.Context(), floorNowArgs([]string{"check", "project", "--project", "kibana", "--effective-config", kibanaPass, "--from", from, "--to", "9.5.3", "--effective-config-complete", "--precedence-resolved", "--full-status-without-monitor-required=false", "--now", "2026-09-12T09:24:22Z", "--format", "json"}), &stdout, &stderr, "test")
 		if exit != ExitUnknown || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"assessment":"UNKNOWN"`) {
 			t.Fatalf("kibana from=%s false intent exit=%d stdout=%q stderr=%q", from, exit, stdout.String(), stderr.String())
 		}
 	}
 	wrong := writePrivateProjectFixture(t, "status.statusPageBypassMonitorPrivilege: true\n")
 	var stdout, stderr bytes.Buffer
-	if exit := Run(t.Context(), []string{"check", "project", "--project", "kibana", "--effective-config", wrong, "--from", "9.4.5", "--to", "9.5.3", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-12T09:24:22Z", "--format", "json"}, &stdout, &stderr, "test"); exit != ExitUnknown || stderr.Len() != 0 {
+	if exit := Run(t.Context(), floorNowArgs([]string{"check", "project", "--project", "kibana", "--effective-config", wrong, "--from", "9.4.5", "--to", "9.5.3", "--effective-config-complete", "--precedence-resolved", "--now", "2026-09-12T09:24:22Z", "--format", "json"}), &stdout, &stderr, "test"); exit != ExitUnknown || stderr.Len() != 0 {
 		t.Fatalf("wrong pair exit=%d stdout=%q stderr=%q", exit, stdout.String(), stderr.String())
 	}
 	stdout.Reset()
 	stderr.Reset()
-	if exit := Run(t.Context(), []string{"check", "project", "--project", "kibana", "--effective-config", kibanaPass, "--from", "8.18.0", "--to", "9.0.0", "--effective-config-complete", "--precedence-resolved", "--full-status-without-monitor-required", "--now", "2026-09-12T09:24:22Z"}, &stdout, &stderr, "test"); exit != ExitUsage || stdout.Len() != 0 {
+	if exit := Run(t.Context(), floorNowArgs([]string{"check", "project", "--project", "kibana", "--effective-config", kibanaPass, "--from", "8.18.0", "--to", "9.0.0", "--effective-config-complete", "--precedence-resolved", "--full-status-without-monitor-required", "--now", "2026-09-12T09:24:22Z"}), &stdout, &stderr, "test"); exit != ExitUsage || stdout.Len() != 0 {
 		t.Fatalf("legacy intent flag exit=%d stdout=%q stderr=%q", exit, stdout.String(), stderr.String())
 	}
 }

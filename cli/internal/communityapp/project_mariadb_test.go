@@ -26,7 +26,7 @@ func TestProjectCLIMariaDB_SyntheticExamples(t *testing.T) {
 			if name == "broken.cnf" {
 				requirement = "true"
 			}
-			exit := Run(t.Context(), []string{"check", "project", "--project", "mariadb", "--effective-config", path, "--from", "10.11.8", "--to", "11.4.2", "--effective-config-complete", "--precedence-resolved", "--upstream-distribution", "--require-innodb-defragmentation", requirement, "--now", "2026-09-12T12:00:00Z", "--format", "json"}, &stdout, &stderr, "test")
+			exit := Run(t.Context(), floorNowArgs([]string{"check", "project", "--project", "mariadb", "--effective-config", path, "--from", "10.11.8", "--to", "11.4.2", "--effective-config-complete", "--precedence-resolved", "--upstream-distribution", "--require-innodb-defragmentation", requirement, "--now", "2026-09-12T12:00:00Z", "--format", "json"}), &stdout, &stderr, "test")
 			if exit != want || stderr.Len() != 0 || strings.Contains(stdout.String(), path) || strings.Contains(stdout.String(), "synthetic-reader") {
 				t.Fatalf("exit=%d want=%d stdout=%q stderr=%q", exit, want, stdout.String(), stderr.String())
 			}
@@ -66,7 +66,7 @@ func TestProjectCLIMariaDB_BLOCKED_PASS_UNKNOWNAndPrivacy(t *testing.T) {
 				args = removeArgument(args, "--upstream-distribution")
 			}
 			var stdout, stderr bytes.Buffer
-			exit := Run(t.Context(), args, &stdout, &stderr, "test")
+			exit := Run(t.Context(), floorNowArgs(args), &stdout, &stderr, "test")
 			if exit != tc.want || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"status":"`+tc.status+`"`) {
 				t.Fatalf("exit=%d want=%d stdout=%q stderr=%q", exit, tc.want, stdout.String(), stderr.String())
 			}
@@ -93,7 +93,7 @@ func TestProjectCLIMariaDB_FreshnessAndExactSourceScope(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var stdout, stderr bytes.Buffer
-			exit := Run(t.Context(), []string{"check", "project", "--project", "mariadb", "--effective-config", path, "--from", "10.11.8", "--to", "11.4.2", "--effective-config-complete", "--precedence-resolved", "--upstream-distribution", "--require-innodb-defragmentation", "true", "--now", tc.now, "--format", "json"}, &stdout, &stderr, "test")
+			exit := Run(t.Context(), floorNowArgs([]string{"check", "project", "--project", "mariadb", "--effective-config", path, "--from", "10.11.8", "--to", "11.4.2", "--effective-config-complete", "--precedence-resolved", "--upstream-distribution", "--require-innodb-defragmentation", "true", "--now", tc.now, "--format", "json"}), &stdout, &stderr, "test")
 			if exit != tc.want || stderr.Len() != 0 || !strings.Contains(stdout.String(), tc.contains) || strings.Contains(stdout.String(), path) {
 				t.Fatalf("exit=%d want=%d stdout=%q stderr=%q", exit, tc.want, stdout.String(), stderr.String())
 			}
@@ -105,7 +105,7 @@ func TestProjectCLIMariaDB_RejectsDistributionFlagForOtherProjects(t *testing.T)
 	t.Parallel()
 	path := writePrivateProjectFixture(t, "[unified_alerting]\nenabled=true\n")
 	var stdout, stderr bytes.Buffer
-	exit := Run(t.Context(), []string{"check", "project", "--project", "grafana", "--effective-config", path, "--from", "10.4.0", "--to", "11.0.0", "--effective-config-complete", "--precedence-resolved", "--upstream-distribution", "--require-innodb-defragmentation", "false", "--now", "2026-09-12T12:00:00Z"}, &stdout, &stderr, "test")
+	exit := Run(t.Context(), floorNowArgs([]string{"check", "project", "--project", "grafana", "--effective-config", path, "--from", "10.4.0", "--to", "11.0.0", "--effective-config-complete", "--precedence-resolved", "--upstream-distribution", "--require-innodb-defragmentation", "false", "--now", "2026-09-12T12:00:00Z"}), &stdout, &stderr, "test")
 	if exit != ExitUsage || strings.Contains(stdout.String()+stderr.String(), path) {
 		t.Fatalf("exit=%d stdout=%q stderr=%q", exit, stdout.String(), stderr.String())
 	}

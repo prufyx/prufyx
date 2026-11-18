@@ -107,14 +107,16 @@ func Floor(at time.Time) time.Time {
 	return at
 }
 
-// FloorText is Floor for an RFC 3339 text; an unparsable text is returned as
-// it is, so the command under test still rejects it.
+// FloorText is Floor for a canonical RFC 3339 UTC text; any other text is
+// returned as it is, so the command under test still judges it.
 func FloorText(text string) string {
 	at, err := time.Parse(time.RFC3339, text)
-	if err != nil {
+	if err != nil || at.UTC().Format(time.RFC3339) != text {
+		// Not a canonical whole-second UTC text: kept as it is, so a test of
+		// the command's own time validation still sees its input.
 		return text
 	}
-	return Floor(at).UTC().Format(time.RFC3339)
+	return Floor(at).Format(time.RFC3339)
 }
 
 func walkEnd(node any, latest *time.Time) error {
