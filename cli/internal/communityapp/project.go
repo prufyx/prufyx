@@ -5,6 +5,7 @@ package communityapp
 import (
 	"encoding/json"
 	"flag"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -387,6 +388,9 @@ func (r runtime) prepareProjectInput(request projectArguments) (projectprepare.P
 		}
 	}
 	if err != nil {
+		if request.workload != "" && errors.Is(err, projectprepare.ErrWorkloadNotJSON) {
+			return projectprepare.Prepared{}, r.fail("workload input is not valid JSON: this route reads one Deployment as a single JSON document (convert with: kubectl get deployment NAME -o json, or yq -o=json FILE)", ExitUsage)
+		}
 		return projectprepare.Prepared{}, r.fail("community project native input unsupported or invalid", ExitUsage)
 	}
 	if pin != "" && pin != prepared.SourceDigest {
@@ -396,6 +400,9 @@ func (r runtime) prepareProjectInput(request projectArguments) (projectprepare.P
 		return projectprepare.Prepared{}, r.fail("community project preparation integrity failure", ExitIntegrity)
 	}
 	if prepared.State == "UNKNOWN" {
+		if request.workload != "" && request.project == projectprepare.ArgoWorkflowsProject && !projectprepare.ArgoWorkflowsPairSupported(request.from, request.to) {
+			fmt.Fprintf(r.stderr, "prufyx: version pair %s -> %s is not supported by this route; supported pairs: %s\n", request.from, request.to, projectprepare.ArgoWorkflowsSupportedPairs())
+		}
 		return prepared, ExitUnknown
 	}
 	return prepared, ExitOK

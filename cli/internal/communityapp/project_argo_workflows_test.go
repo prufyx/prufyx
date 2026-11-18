@@ -173,3 +173,27 @@ func TestArgoWorkflowsLatestPublicExamples(t *testing.T) {
 }
 
 const projectArgoWorkflowsComponentForTest = "pkg:github/argoproj/argo-workflows"
+
+func TestArgoWorkflowsWorkloadInputMessages(t *testing.T) {
+	t.Parallel()
+	run := func(body, from, to string) (int, string) {
+		path := writePrivateProjectFixture(t, body)
+		var stdout, stderr bytes.Buffer
+		exit := Run(t.Context(), []string{"check", "project", "--project", "argo-workflows", "--workload", path, "--from", from, "--to", to, "--workload-complete", "--now", "2026-09-11T21:00:00Z"}, &stdout, &stderr, "test")
+		return exit, stderr.String()
+	}
+	for name, body := range map[string]string{
+		"yaml":      "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: private-workflow\n",
+		"malformed": `{"apiVersion":"apps/v1","kind":"Deployment",`,
+	} {
+		exit, msg := run(body, "3.5.0", "3.6.0")
+		if exit != ExitUsage || !strings.Contains(msg, "not valid JSON") || !strings.Contains(msg, "-o json") || strings.Contains(msg, "private-workflow") || strings.Contains(msg, "apiVersion") {
+			t.Fatalf("%s: exit=%d msg=%q", name, exit, msg)
+		}
+	}
+	valid := `{"apiVersion":"apps/v1","kind":"Deployment","spec":{"template":{"spec":{"containers":[{"name":"argo-server","image":"quay.io/argoproj/argocli:v3.6.0","command":["argo"],"args":["server"],"env":[]}]}}}}`
+	exit, msg := run(valid, "3.1.0", "3.2.0")
+	if exit != ExitUnknown || !strings.Contains(msg, "3.5.0 -> 3.6.0") || !strings.Contains(msg, "-> 4.1.3") {
+		t.Fatalf("pair: exit=%d msg=%q", exit, msg)
+	}
+}

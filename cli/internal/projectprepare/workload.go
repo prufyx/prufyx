@@ -5,6 +5,8 @@ package projectprepare
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"strings"
 )
@@ -19,6 +21,25 @@ const (
 	argoWorkflowsImage     = "quay.io/argoproj/argocli:v3.6.0"
 )
 
+// ErrWorkloadNotJSON marks a workload input that is not a single JSON document.
+// It wraps ErrInvalid so callers that only test for invalid input keep working.
+var ErrWorkloadNotJSON = fmt.Errorf("%w: workload input is not a single JSON document", ErrInvalid)
+
+// ArgoWorkflowsSupportedPairs names the version pairs this route can evaluate.
+func ArgoWorkflowsSupportedPairs() string {
+	pairs := []string{ArgoWorkflowsFrom + " -> " + ArgoWorkflowsTo}
+	for _, origin := range argoWorkflowsLatestOrigins {
+		pairs = append(pairs, origin+" -> "+ArgoWorkflowsLatestTo)
+	}
+	return strings.Join(pairs, ", ")
+}
+
+// ArgoWorkflowsPairSupported reports whether from/to is a supported pair.
+func ArgoWorkflowsPairSupported(from, to string) bool {
+	_, ok := argoWorkflowsTargetImage(from, to)
+	return ok
+}
+
 var argoWorkflowsLatestOrigins = [...]string{"3.4.18", "3.5.15", "3.6.19", "3.7.18", "4.0.11"}
 
 // PrepareWorkload inspects one caller-supplied Kubernetes workload JSON file.
@@ -31,6 +52,9 @@ func PrepareWorkload(project string, raw []byte, from, to string, complete bool)
 	targetImage, pairSupported := argoWorkflowsTargetImage(from, to)
 	found, supported, sourceDerivedCommand, err := argoWorkflowsServerBaseHref(raw, targetImage)
 	if err != nil {
+		if errors.Is(err, ErrWorkloadNotJSON) {
+			return Prepared{}, ErrWorkloadNotJSON
+		}
 		return Prepared{}, ErrInvalid
 	}
 	fact := inputFact{ID: ArgoWorkflowsFact, State: "unsupported"}
@@ -81,10 +105,10 @@ func argoWorkflowsServerBaseHref(raw []byte, targetImage string) (bool, bool, bo
 	decoder.UseNumber()
 	value, err := decodeJSONValue(decoder)
 	if err != nil {
-		return false, false, false, ErrInvalid
+		return false, false, false, ErrWorkloadNotJSON
 	}
 	if token, extra := decoder.Token(); extra != io.EOF || token != nil {
-		return false, false, false, ErrInvalid
+		return false, false, false, ErrWorkloadNotJSON
 	}
 	root, ok := value.(map[string]any)
 	if !ok {
