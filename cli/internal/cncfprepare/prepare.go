@@ -80,6 +80,10 @@ type Prepared struct {
 	State              State
 	Reason             Reason
 	Omissions          []string
+	// ModeDefaultedItems holds, for the Crossplane Composition preparer only,
+	// the 1-based positions of selected Compositions whose mode came from the
+	// pinned from-version CRD default. Positions only; no names.
+	ModeDefaultedItems []int
 }
 
 // PrepareKyverno remains for callers using the original signature. It validates

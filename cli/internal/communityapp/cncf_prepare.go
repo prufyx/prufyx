@@ -662,6 +662,11 @@ func (r runtime) prepareCNCF(args []string) int {
 		if _, err := fmt.Fprintf(r.stdout, "omissions: %s\n", strings.Join(prepared.Omissions, ", ")); err != nil {
 			return r.concretePreparationIntegrityFailure(*project)
 		}
+		if lines := crossplaneDefaultedModeLines(*project, prepared); len(lines) > 0 {
+			if _, err := fmt.Fprintf(r.stdout, "%s\n", strings.Join(lines, "\n")); err != nil {
+				return r.concretePreparationIntegrityFailure(*project)
+			}
+		}
 	}
 	if exit == ExitUnknown {
 		if *project == "kyverno" {

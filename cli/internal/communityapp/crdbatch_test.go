@@ -46,6 +46,16 @@ func passExit(batchIDs []string) int {
 // evaluates at such a time).
 const batchBeforeReview = "RULE_EVIDENCE_CLOCK_BEFORE_REVIEW"
 
+// batchUndecidedReasons are the reasons a batch claim may carry while it stays
+// UNKNOWN: before the batch's review, or at a later clock where the version
+// set it needs is not supplied or the hop is outside its reviewed range. A
+// batch claim is never a verdict on these routes.
+var batchUndecidedReasons = map[string]bool{
+	batchBeforeReview:              true,
+	"RULE_FACT_UNAVAILABLE":        true,
+	"RULE_TRANSITION_NOT_REVIEWED": true,
+}
+
 // checkBatchClaims fails unless the claims of the JSON CNCF check report
 // stdout that name a rule of the batch are exactly want, each UNKNOWN with
 // reason batchBeforeReview.
@@ -72,7 +82,7 @@ func checkBatchClaims(t *testing.T, stdout string, want []string) {
 		if !batch[claim.RuleID] {
 			continue
 		}
-		if claim.Status != "UNKNOWN" || claim.ReasonCode != batchBeforeReview {
+		if claim.Status != "UNKNOWN" || !batchUndecidedReasons[claim.ReasonCode] {
 			t.Fatalf("batch claim %s is %s %s", claim.RuleID, claim.Status, claim.ReasonCode)
 		}
 		got = append(got, claim.RuleID)

@@ -6200,6 +6200,660 @@
   },
   {
     "project": "crossplane",
+    "ruleId": "crossplane.composition-resources-mode-removed.1-18-2-0",
+    "cases": [
+      {
+        "name": "pipeline-satisfies-schema",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "1.18.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "2.0.0",
+                "facts": [
+                  {
+                    "id": "component.crossplane.composition_mode",
+                    "state": "declared",
+                    "enumValue": "pipeline"
+                  },
+                  {
+                    "id": "component.crossplane.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.crossplane.schema_validation_required",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "resources-mode-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "1.18.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "2.0.0",
+                "facts": [
+                  {
+                    "id": "component.crossplane.composition_mode",
+                    "state": "declared",
+                    "enumValue": "resources"
+                  },
+                  {
+                    "id": "component.crossplane.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.crossplane.schema_validation_required",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "composition-mode-missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "1.18.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "2.0.0",
+                "facts": [
+                  {
+                    "id": "component.crossplane.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.crossplane.schema_validation_required",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "distribution-guard-missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "1.18.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "2.0.0",
+                "facts": [
+                  {
+                    "id": "component.crossplane.composition_mode",
+                    "state": "declared",
+                    "enumValue": "pipeline"
+                  },
+                  {
+                    "id": "component.crossplane.schema_validation_required",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "schema-validation-guard-missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "1.18.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "2.0.0",
+                "facts": [
+                  {
+                    "id": "component.crossplane.composition_mode",
+                    "state": "declared",
+                    "enumValue": "pipeline"
+                  },
+                  {
+                    "id": "component.crossplane.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside-transition",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "1.18.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "2.1.0",
+                "facts": [
+                  {
+                    "id": "component.crossplane.composition_mode",
+                    "state": "declared",
+                    "enumValue": "pipeline"
+                  },
+                  {
+                    "id": "component.crossplane.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.crossplane.schema_validation_required",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "range-edge-resources-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "1.18.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "2.0.8",
+                "facts": [
+                  {
+                    "id": "component.crossplane.composition_mode",
+                    "state": "declared",
+                    "enumValue": "resources"
+                  },
+                  {
+                    "id": "component.crossplane.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.crossplane.schema_validation_required",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-edge-pipeline-satisfies",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "1.18.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "2.0.8",
+                "facts": [
+                  {
+                    "id": "component.crossplane.composition_mode",
+                    "state": "declared",
+                    "enumValue": "pipeline"
+                  },
+                  {
+                    "id": "component.crossplane.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.crossplane.schema_validation_required",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      }
+    ]
+  },
+  {
+    "project": "crossplane",
+    "ruleId": "crossplane.composition-resources-mode-removed.1-19-2-0",
+    "cases": [
+      {
+        "name": "pipeline-satisfies-schema",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "1.19.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "2.0.0",
+                "facts": [
+                  {
+                    "id": "component.crossplane.composition_mode",
+                    "state": "declared",
+                    "enumValue": "pipeline"
+                  },
+                  {
+                    "id": "component.crossplane.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.crossplane.schema_validation_required",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "resources-mode-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "1.19.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "2.0.0",
+                "facts": [
+                  {
+                    "id": "component.crossplane.composition_mode",
+                    "state": "declared",
+                    "enumValue": "resources"
+                  },
+                  {
+                    "id": "component.crossplane.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.crossplane.schema_validation_required",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "composition-mode-missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "1.19.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "2.0.0",
+                "facts": [
+                  {
+                    "id": "component.crossplane.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.crossplane.schema_validation_required",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "distribution-guard-missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "1.19.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "2.0.0",
+                "facts": [
+                  {
+                    "id": "component.crossplane.composition_mode",
+                    "state": "declared",
+                    "enumValue": "pipeline"
+                  },
+                  {
+                    "id": "component.crossplane.schema_validation_required",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "schema-validation-guard-missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "1.19.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "2.0.0",
+                "facts": [
+                  {
+                    "id": "component.crossplane.composition_mode",
+                    "state": "declared",
+                    "enumValue": "pipeline"
+                  },
+                  {
+                    "id": "component.crossplane.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside-transition",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "1.19.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "2.1.0",
+                "facts": [
+                  {
+                    "id": "component.crossplane.composition_mode",
+                    "state": "declared",
+                    "enumValue": "pipeline"
+                  },
+                  {
+                    "id": "component.crossplane.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.crossplane.schema_validation_required",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "range-edge-resources-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "1.19.3",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "2.0.8",
+                "facts": [
+                  {
+                    "id": "component.crossplane.composition_mode",
+                    "state": "declared",
+                    "enumValue": "resources"
+                  },
+                  {
+                    "id": "component.crossplane.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.crossplane.schema_validation_required",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-edge-pipeline-satisfies",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "1.19.3",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "2.0.8",
+                "facts": [
+                  {
+                    "id": "component.crossplane.composition_mode",
+                    "state": "declared",
+                    "enumValue": "pipeline"
+                  },
+                  {
+                    "id": "component.crossplane.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.crossplane.schema_validation_required",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      }
+    ]
+  },
+  {
+    "project": "crossplane",
     "ruleId": "crossplane.composition-resources-mode-removed.1-20-2-0",
     "cases": [
       {
@@ -6406,7 +7060,7 @@
             "components": [
               {
                 "component": "pkg:github/crossplane/crossplane",
-                "version": "1.20.1",
+                "version": "1.20.0",
                 "facts": []
               }
             ]
@@ -6415,7 +7069,7 @@
             "components": [
               {
                 "component": "pkg:github/crossplane/crossplane",
-                "version": "2.0.0",
+                "version": "2.1.0",
                 "facts": [
                   {
                     "id": "component.crossplane.composition_mode",
@@ -6438,6 +7092,90 @@
           }
         },
         "status": "UNKNOWN"
+      },
+      {
+        "name": "range-edge-resources-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "1.20.14",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "2.0.8",
+                "facts": [
+                  {
+                    "id": "component.crossplane.composition_mode",
+                    "state": "declared",
+                    "enumValue": "resources"
+                  },
+                  {
+                    "id": "component.crossplane.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.crossplane.schema_validation_required",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-edge-pipeline-satisfies",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "1.20.14",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/crossplane/crossplane",
+                "version": "2.0.8",
+                "facts": [
+                  {
+                    "id": "component.crossplane.composition_mode",
+                    "state": "declared",
+                    "enumValue": "pipeline"
+                  },
+                  {
+                    "id": "component.crossplane.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.crossplane.schema_validation_required",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
       }
     ]
   },

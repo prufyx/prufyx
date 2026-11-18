@@ -22,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/checkroutemetadata"
@@ -462,6 +463,17 @@ func hasAdapter(adapters []currentbundle.AdapterBinding, name, version string) b
 }
 
 func classify(route checkroutemetadata.Check, bundle currentbundle.CurrentBundle, contextPartial bool, to string, now time.Time) CheckAssessment {
+	out := classifyRoute(route, bundle, contextPartial, to, now)
+	if route.Project == "crossplane" && out.Applicability == IndeterminateNotObservable && len(out.Command) > 0 {
+		// The Composition mode, the distribution and the schema-validation
+		// intent are not observable from collected state. Say exactly what to
+		// run; assess never derives these declarations.
+		out.Reason += " Next action: declare the distribution and the schema-validation intent yourself, select the Composition manifests, and run: " + strings.Join(out.Command, " ")
+	}
+	return out
+}
+
+func classifyRoute(route checkroutemetadata.Check, bundle currentbundle.CurrentBundle, contextPartial bool, to string, now time.Time) CheckAssessment {
 	base := CheckAssessment{
 		Project:   route.Project,
 		Component: route.Component,

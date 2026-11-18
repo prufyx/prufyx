@@ -56,7 +56,7 @@ func TestPrepareCrossplaneComposition_GuardsPrecedeModeClassification(t *testing
 	tests := []struct {
 		name, from, to, distribution, reason string
 	}{
-		{"unreviewed pair", "1.19.0", "2.0.0", CrossplaneDistributionOfficial, string(ReasonCrossplanePairUnsupported)},
+		{"unreviewed pair", "1.17.4", "2.0.0", CrossplaneDistributionOfficial, string(ReasonCrossplanePairUnsupported)},
 		{"unreviewed target", CrossplaneFrom, "2.1.0", CrossplaneDistributionOfficial, string(ReasonCrossplanePairUnsupported)},
 		{"missing distribution", CrossplaneFrom, CrossplaneTo, "", string(ReasonCrossplaneGuardUnresolved)},
 		{"unknown distribution token", CrossplaneFrom, CrossplaneTo, "vendor_build", string(ReasonCrossplaneGuardUnresolved)},
@@ -140,7 +140,7 @@ func TestPrepareCrossplaneComposition_DigestsAndOmissionsAreStable(t *testing.T)
 	if first.SourceDigest != digestBytes([]byte(crossplaneResourcesComposition)) || first.InputDigest != digestBytes(first.CanonicalInputJSON) {
 		t.Fatalf("digest bindings %+v", first)
 	}
-	if len(first.Omissions) != 3 || first.Omissions[2] != OmissionNoWholeUpgrade {
+	if len(first.Omissions) != 4 || first.Omissions[2] != OmissionCrossplaneRangeAdmitsUnlistedPatches || first.Omissions[3] != OmissionNoWholeUpgrade {
 		t.Fatalf("omissions = %v", first.Omissions)
 	}
 }

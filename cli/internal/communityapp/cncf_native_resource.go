@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
@@ -344,6 +346,11 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 				return r.fail("CNCF report integrity failure", ExitIntegrity)
 			}
 		}
+		if lines := crossplaneDefaultedModeLines(project, prepared); len(lines) > 0 {
+			if encoded, err = spliceStringListMember(encoded, "compositionModeNotes", lines); err != nil {
+				return r.fail("CNCF report integrity failure", ExitIntegrity)
+			}
+		}
 		if _, err := fmt.Fprintln(r.stdout, string(encoded)); err != nil {
 			return ExitIntegrity
 		}
@@ -369,11 +376,55 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 			}
 			route.scope = []string{"selected API-version input: " + selection, "input authority: caller-selected mapping; not observed running configuration", "scope: Alertmanager API-version selection only; v2 support, reachability and alert delivery remain unverified"}
 		}
+		if lines := crossplaneDefaultedModeLines(project, prepared); len(lines) > 0 {
+			route.scope = append(route.scope, lines...)
+		}
 		if err := writeHumanReport(r.stdout, route); err != nil {
 			return ExitIntegrity
 		}
 	}
 	return exit
+}
+
+// crossplaneDefaultedModeLines states, beside a verdict that rests on a
+// defaulted Composition mode, where the mode came from and what the manifest
+// is. Positions only, never names.
+func crossplaneDefaultedModeLines(project string, prepared cncfprepare.Prepared) []string {
+	if project != "crossplane" || len(prepared.ModeDefaultedItems) == 0 {
+		return nil
+	}
+	positions := make([]string, 0, len(prepared.ModeDefaultedItems))
+	for _, position := range prepared.ModeDefaultedItems {
+		positions = append(positions, strconv.Itoa(position))
+	}
+	return []string{
+		"target Composition CRD enum rejects Resources; mode taken from the from-version CRD default",
+		"selected Compositions without spec.mode (position among selected Compositions): " + strings.Join(positions, ", "),
+		"input authority: caller-supplied manifests, not a live observation; webhook, conversion and runtime behaviour are not evaluated",
+	}
+}
+
+// spliceStringListMember adds a string-list member to the report object.
+func spliceStringListMember(raw []byte, name string, values []string) ([]byte, error) {
+	trimmed := bytes.TrimRight(raw, " \t\r\n")
+	if len(trimmed) < 2 || trimmed[len(trimmed)-1] != '}' {
+		return nil, errLocationSplice
+	}
+	key, err := json.Marshal(name)
+	if err != nil {
+		return nil, errLocationSplice
+	}
+	member, err := json.Marshal(values)
+	if err != nil {
+		return nil, errLocationSplice
+	}
+	out := append(append([]byte(nil), trimmed[:len(trimmed)-1]...), ',')
+	out = append(append(append(out, key...), ':'), member...)
+	out = append(out, '}')
+	if !json.Valid(out) {
+		return nil, errLocationSplice
+	}
+	return out, nil
 }
 
 // kubernetesNativeAPIGaps runs the scan apiVersion backstop over the supplied

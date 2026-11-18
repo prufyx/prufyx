@@ -244,7 +244,8 @@ func TestSyntheticGraduatedCNCFJourneys(t *testing.T) {
 				removeProposedFact(t, document, "component.crossplane.schema_validation_required")
 			},
 			wrongPair: func(document map[string]any) {
-				setProposedVersion(t, document, "2.0.1")
+				// Outside every reviewed range of the project (2.0.0 to 2.0.8).
+				setProposedVersion(t, document, "2.1.0")
 			},
 		},
 		{
@@ -426,6 +427,10 @@ func TestSyntheticGraduatedCNCFJourneys(t *testing.T) {
 					if journey.project == "containerd" {
 						now = "2026-09-12T12:30:00Z"
 					}
+					if journey.project == "crossplane" {
+						// After the review of the Composition range rules.
+						now = "2026-11-19T10:00:00Z"
+					}
 					args := []string{"check", "cncf", "--project", journey.project, "--input", path, "--input-digest", cncfDigest(input), "--now", now, "--format", "json"}
 					code, stdout, stderr := runCNCFCLI(t, args...)
 					wantCode := tc.wantCode
@@ -464,7 +469,14 @@ func TestSyntheticGraduatedCNCFJourneys(t *testing.T) {
 						t.Fatalf("missing reason %s: %q", wantReason, stdout)
 					}
 					checkBatchClaims(t, stdout, batchIDs)
-					if offPair && strings.Count(stdout, `"ruleId":`) != len(batchIDs) {
+					offPairClaims := len(batchIDs)
+					if journey.project == "crossplane" {
+						// No rule matches a hop outside every range, so the
+						// report holds each rule of the project, the three
+						// Composition range rules included, all UNKNOWN.
+						offPairClaims += 3
+					}
+					if offPair && strings.Count(stdout, `"ruleId":`) != offPairClaims {
 						t.Fatalf("wrong transition reports a rule outside the batch: %q", stdout)
 					}
 				})

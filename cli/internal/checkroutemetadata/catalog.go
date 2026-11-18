@@ -391,7 +391,7 @@ func descriptorSet() []descriptor {
 // descriptorsWith is the descriptor set of every project but Kubernetes plus
 // the given Kubernetes descriptors.
 func descriptorsWith(kubernetes []descriptor) []descriptor {
-	result := make([]descriptor, 0, 215)
+	result := make([]descriptor, 0, 217)
 	alertPairs := []struct{ from, id string }{
 		{"2.55.1", "prometheus.alertmanager-api-v1-removed.3-1"},
 		{"3.9.1", "prometheus.alertmanager-api-v1.target-config.3-9-1-to-3-14-0"},
@@ -431,7 +431,9 @@ func descriptorsWith(kubernetes []descriptor) []descriptor {
 		result = append(result, descriptor{family: FamilyCNCF, project: "falco", component: "pkg:github/falcosecurity/falco", ruleID: "falco.deprecated-cli-flags-removed.0-40-to-" + strings.ReplaceAll(strings.TrimSuffix(to, ".0"), ".", "-"), from: "0.40.0", to: to, command: exactPair(extend(cncfBase("falco"), file("--falco-argv"), name("--falco-distribution")), "0.40.0", to), limit: "One caller-declared explicit effective Falco argv only; wrappers, entrypoints, images, environment, defaults, and runtime behavior are unassessed."})
 	}
 	result = append(result, descriptor{family: FamilyCNCF, project: "kuma", component: "pkg:github/kumahq/kuma", ruleID: "kuma.deprecated-exclude-uid-flags-removed.2-8-to-2-9", from: "2.8.0", to: "2.9.0", command: exactPair(extend(cncfBase("kuma"), file("--kumactl-argv"), name("--kuma-distribution")), "2.8.0", "2.9.0"), limit: "One caller-declared explicit effective kumactl install transparent-proxy argv only; wrappers, images, defaults, consolidated-flag equivalence, Dataplane migration, and runtime behavior are unassessed."})
-	result = append(result, descriptor{family: FamilyCNCF, project: "crossplane", component: "pkg:github/crossplane/crossplane", ruleID: "crossplane.composition-resources-mode-removed.1-20-2-0", from: "1.20.0", to: "2.0.0", command: exactPair(extend(cncfBase("crossplane"), file("--composition"), name("--crossplane-distribution"), literal("--crossplane-schema-validation-required")), "1.20.0", "2.0.0"), limit: "One caller-selected rendered Composition, or one flat v1 List of rendered resources, only; an omitted spec.mode, target CRD installation, admission, conversion, and runtime behavior are unassessed."})
+	for _, minor := range []string{"18", "19", "20"} {
+		result = append(result, descriptor{family: FamilyCNCF, project: "crossplane", component: "pkg:github/crossplane/crossplane", ruleID: "crossplane.composition-resources-mode-removed.1-" + minor + "-2-0", from: "1." + minor + ".0", to: "2.0.0", command: exactPair(extend(cncfBase("crossplane"), file("--composition"), name("--crossplane-distribution"), literal("--crossplane-schema-validation-required")), "1."+minor+".0", "2.0.0"), limit: "One caller-selected rendered Composition, or one flat v1 List of rendered resources (CompositeResourceDefinition documents are skipped unread), only; an omitted spec.mode is read as the from-version CRD default (Resources) only for a v1 Composition with a non-empty spec.resources array and no spec.pipeline; target CRD installation, admission, conversion, and runtime behavior are unassessed."})
+	}
 	result = append(result, descriptor{family: FamilyCNCF, project: "velero", component: "pkg:github/velero-io/velero", ruleID: "velero.crd-update-order.1-18", from: "1.17.0", to: "1.18.0", command: exactPair(extend(cncfBase("velero"), file("--upgrade-plan"), name("--velero-server-deployment"), literal("--velero-plan-order-declared")), "1.17.0", "1.18.0"), limit: "One caller-declared ordered upgrade plan only; the plan is a declaration, not an apply or execution receipt, and applied CRDs, plugins, node agents, backups and restores are unassessed."})
 	result = append(result, descriptor{family: FamilyCNCF, project: "velero", component: "pkg:github/velero-io/velero", ruleID: "velero.intermediate-1-17.1-18", from: "1.16.2", to: "1.18.0", command: exactPair(extend(cncfBase("velero"), file("--upgrade-plan"), name("--velero-server-deployment"), literal("--velero-plan-order-declared")), "1.16.2", "1.18.0"), limit: "The reviewed mandatory 1.17.x intermediate blocks this direct transition on the declared pair alone; no supplied plan can establish a PASS here.", nativePass: "NOT_AVAILABLE_BLOCKER_ONLY"})
 	result = append(result, descriptor{family: FamilyCNCF, project: "keda", component: "pkg:github/kedacore/keda", ruleID: "keda.external-scaler-legacy-tls-transport.2-17", from: "2.16.0", to: "2.17.0", command: exactPair(extend(cncfBase("keda"), file("--keda-scaled-object"), literal("--keda-scaled-object-complete"), boolean("--keda-legacy-tls-transport-required")), "2.16.0", "2.17.0"), limit: "One caller-selected rendered ScaledObject set only; a raw tlsCertFile metadata field never establishes reliance on the removed direct transport, and TriggerAuthentication material, scaler reachability, and runtime behavior are unassessed."})
@@ -915,7 +917,7 @@ func discover(cncf []cncfcheck.RuleIdentity, community []projectcheck.RuleIdenti
 		knownProjects[item.Project] = true
 		known[identityKey(FamilyCommunity, item.Project, item.Component, item.RuleID, item.From, item.To)] = true
 	}
-	if want := 186 + len(kubernetes); len(descriptors) != want {
+	if want := 188 + len(kubernetes); len(descriptors) != want {
 		return Result{}, fmt.Errorf("%w: descriptor count=%d", ErrIntegrity, len(descriptors))
 	}
 	for key := range descriptors {

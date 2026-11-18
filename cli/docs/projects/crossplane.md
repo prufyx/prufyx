@@ -10,11 +10,11 @@ the reference text of each route: [routes.md](routes.md).
 ## check cncf
 
 ```text
-prufyx check cncf --project crossplane --composition FILE --crossplane-distribution official_upstream|custom_build --crossplane-schema-validation-required --from 1.20.0 --to 2.0.0 (--now RFC3339 | --knowledge-db DIR) [--composition-digest SHA256] [--replay-report FILE] [--format human|json]
+prufyx check cncf --project crossplane --composition FILE --crossplane-distribution official_upstream|custom_build --crossplane-schema-validation-required --from 1.18.0-1.18.5|1.19.0-1.19.3|1.20.0-1.20.14 --to 2.0.0-2.0.8 (--now RFC3339 | --knowledge-db DIR) [--composition-digest SHA256] [--replay-report FILE] [--format human|json]
 ```
 
 ## prepare cncf
 
 ```text
-prufyx prepare cncf --project crossplane --composition FILE --from 1.20.0 --to 2.0.0 --crossplane-distribution official_upstream|custom_build --crossplane-schema-validation-required [--composition-digest SHA256] [--format human|json|input]
+prufyx prepare cncf --project crossplane --composition FILE --from 1.18.0-1.18.5|1.19.0-1.19.3|1.20.0-1.20.14 --to 2.0.0-2.0.8 --crossplane-distribution official_upstream|custom_build --crossplane-schema-validation-required [--composition-digest SHA256] [--format human|json|input]
 ```

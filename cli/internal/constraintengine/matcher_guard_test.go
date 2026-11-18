@@ -49,7 +49,7 @@ var fromToEqualityAllowlist = map[string]int{
 	"internal/cncfprepare/coredns.go":                          4,
 	"internal/cncfprepare/cortex.go":                           2,
 	"internal/cncfprepare/crio.go":                             1,
-	"internal/cncfprepare/crossplane.go":                       3,
+	"internal/cncfprepare/crossplane.go":                       1,
 	"internal/cncfprepare/cubefs.go":                           1,
 	"internal/cncfprepare/emissary.go":                         3,
 	"internal/cncfprepare/envoy.go":                            2,

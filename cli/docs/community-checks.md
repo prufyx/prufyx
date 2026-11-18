@@ -484,10 +484,16 @@ at commits `1110a0305eec` and `948e6a439163` and `UPGRADE.md` at commit
 
 The native Composition route evaluates which mode one caller-selected rendered
 `kind: Composition` resource, or one flat `v1` `List` of rendered resources,
-literally declares in `spec.mode`. It covers only the reviewed `1.20.0` to
-`2.0.0` transition. It is a local usability route for the existing Crossplane
-`crossplane.composition-resources-mode-removed.1-20-2-0` rule; it does not add a
-project, rule, or upgrade-pair claim.
+declares in `spec.mode`. It covers the reviewed `1.18.0`-`1.18.5`,
+`1.19.0`-`1.19.3` and `1.20.0`-`1.20.14` origins and the `2.0.0`-`2.0.8`
+targets, and nothing else: any version outside that table is `UNKNOWN` even
+though the rule ranges themselves cover whole minor series, so a newer patch
+release is refused by the route (stated as the omission
+`RULE_RANGE_ADMITS_UNLISTED_PATCH_VERSIONS_PREPARER_TABLE_IS_THE_GATE`). It is a
+local usability route for the Crossplane
+`crossplane.composition-resources-mode-removed.1-18-2-0`, `.1-19-2-0` and
+`.1-20-2-0` rules (one per origin series); it adds no project or upgrade-pair
+claim.
 
 ```sh
 umask 077
@@ -497,17 +503,44 @@ JSON
 chmod 600 composition.json
 ./prufyx check cncf --project crossplane \
   --composition composition.json --crossplane-distribution official_upstream \
-  --crossplane-schema-validation-required --from 1.20.0 --to 2.0.0 \
-  --now 2026-09-18T00:00:00Z
+  --crossplane-schema-validation-required --from 1.20.14 --to 2.0.0 \
+  --now 2026-11-19T00:00:00Z
 ```
 
 The caller declares the proposed distribution and that the selected resources
 must validate against the official target CRD schema. Any selected
 `Composition` whose `spec.mode` is the literal `Resources` is `BLOCKED`; a
 selection whose `Composition` documents all declare the literal `Pipeline` is a
-scoped `PASS` for this one enum constraint. A `custom_build` declaration, an
-undeclared schema-validation intent, an **omitted or unreviewed `spec.mode`**,
-other `apiextensions.crossplane.io` kinds, another served Composition version,
+scoped `PASS` for this An omitted `spec.mode` is resolved in exactly one case: the origin version is in
+the table above (the pinned Composition CRD of every one of those tags defaults
+`spec.mode` to `Resources`), the Composition is `apiextensions.crossplane.io/v1`,
+`spec.resources` is an array with at least one element (only the array length is
+read) and `spec.pipeline` is absent. The result can only be `Resources`, so it
+can only produce `BLOCKED` (or `UNKNOWN` when a guard is missing), never a
+`PASS`; a `PASS` still needs an explicit `Pipeline` on every selected
+Composition. A `null`, empty, differently cased or non-string `spec.mode`, an
+empty or non-array `spec.resources`, or a `spec.pipeline` key next to an omitted
+mode stays `UNKNOWN`. A verdict that rests on the default says so: the target
+Composition CRD enum rejects `Resources`; mode taken from the from-version CRD
+default, and names the position of each such Composition without its name. The
+manifest is caller-supplied, not a live object, and the claim concerns the
+object as admitted on the origin version.
+
+`CompositeResourceDefinition` documents (exact group `apiextensions.crossplane.io`,
+any version) are skipped without reading their content, so they no longer make
+the whole selection `UNKNOWN`; the omission `XRD_CONTENT_NOT_EVALUATED` says that
+no XRD content was evaluated, and an XRD next to a `Pipeline` Composition is not a
+statement about the XRD. A selection with no `Composition` after skipping, any
+other kind, a same-kind object in another group, and an XRD without a name stay
+`UNKNOWN`.
+
+The two guard flags stay required and are never derived from collected state.
+`UNKNOWN` names the missing one: `CROSSPLANE_DISTRIBUTION_DECLARATION_MISSING`
+(`--crossplane-distribution`) or `CROSSPLANE_SCHEMA_VALIDATION_NOT_DECLARED`
+(`--crossplane-schema-validation-required`). `assess` lists this check as not
+observable and prints the full `check cncf` command to run.
+
+s.crossplane.io` kinds, another served Composition version,
 unresolved templating, a paginated or typed list, and a structurally unresolved
 object all remain `UNKNOWN` rather than a negative-presence PASS.
 
@@ -517,10 +550,15 @@ doing so would author a compatibility claim this route does not hold.
 The route does not install or read a CRD, run API admission or conversion,
 inspect stored objects, or establish composition, reconciliation, or provider
 behavior. Pinned source evidence for the existing rule is the Crossplane
-`apiextensions.crossplane.io_compositions.yaml` mode enum block at commits
-`2efdb03ae80fc27f4b6b9b0cebc96a462233cf17` and
-`b639502e2f93680ff83417a0f517ec459ce079cc`. Whole-upgrade safety remains
-`UNKNOWN`.
+`apiextensions.crossplane.io_compositions.yaml` mode default and enum block
+(lines 79-99) at commits `e663a43ece850e93fe5cdebb2e478e2fb9762ad1` (1.18.0),
+`719b2a0f95ccbae56ccdd45a22cf8a69dafba547` (1.19.0),
+`2efdb03ae80fc27f4b6b9b0cebc96a462233cf17` (1.20.0), `b639502e2f93680ff83417a0f517ec459ce079cc`
+(2.0.0) and `69eaca39c64f268f9feb23dfcff12d7553ecaf04` (2.0.8); the file is
+byte-identical (digest `bf05e4ba6b67`) across the 25 origin tags and
+(`708142bfb215`) across `2.0.0`-`2.0.7`, with the same default and enum read
+directly at `2.0.8` (`7ae240aae92c`). The 2.0 validation webhook and conversion
+were not read. Whole-upgrade safety remains `UNKNOWN`.
 
 ## Velero CRD-before-server upgrade ordering
 

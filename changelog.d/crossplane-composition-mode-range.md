@@ -1,0 +1,3 @@
+### Changed
+
+- The Crossplane Composition check now covers upgrades from 1.18.0-1.18.5, 1.19.0-1.19.3 and 1.20.0-1.20.14 to 2.0.0-2.0.8. A Composition that omits `spec.mode` is read as Resources (the default of the pinned 1.x Composition CRD) when it is `apiextensions.crossplane.io/v1`, has a non-empty `spec.resources` array and no `spec.pipeline`, and is reported as blocked because the 2.0 Composition CRD enum rejects Resources; an omitted mode never produces a pass. CompositeResourceDefinition documents in the selection are skipped without reading their content. A missing guard flag now names itself in the unknown reason, and `assess` prints the exact `check cncf` command for this check.

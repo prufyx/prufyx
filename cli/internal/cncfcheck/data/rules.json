@@ -3528,7 +3528,265 @@
     },
     {
       "project": "crossplane",
-      "description": "Crossplane 2.0 Composition CRD removes the Resources mode; this rule covers declared validation against the official target CRD schema only.",
+      "description": "Crossplane 2.0 Composition CRD enum rejects the Resources mode that the 1.x Composition CRD (default Resources) accepts; this rule covers declared validation against the official target CRD schema only. Read: the CRD schema at the cited revisions, whose bytes are identical across every 1.18, 1.19 and 1.20 release and across 2.0.0 through 2.0.7, with the same mode default and enum lines read directly at 2.0.8; the validation webhook and conversion are not read.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.crossplane.composition_mode",
+          "component": "pkg:github/crossplane/crossplane",
+          "type": "enum",
+          "enumTokens": [
+            "pipeline",
+            "resources"
+          ],
+          "description": "Proposed Composition mode declared against the selected Crossplane target CRD schema. Only Pipeline and Resources are recognized here."
+        },
+        {
+          "side": "proposed",
+          "id": "component.crossplane.distribution",
+          "component": "pkg:github/crossplane/crossplane",
+          "type": "enum",
+          "enumTokens": [
+            "custom_build",
+            "official_upstream"
+          ],
+          "description": "Distribution identity for the proposed Crossplane artifact; this schema rule applies only to the official upstream distribution."
+        },
+        {
+          "side": "proposed",
+          "id": "component.crossplane.schema_validation_required",
+          "component": "pkg:github/crossplane/crossplane",
+          "type": "bool",
+          "description": "Whether the operator requires the proposed Composition to validate against the official target CRD schema. This is an intent guard, not an observation of an installed cluster schema."
+        }
+      ],
+      "rule": {
+        "id": "crossplane.composition-resources-mode-removed.1-18-2-0",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/crossplane/crossplane",
+          "from": "1.18.0",
+          "to": "2.0.0"
+        },
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "source-e663a43ece85-79"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "source-e663a43ece85-79"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "source-b639502e2f93-79"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "source-b639502e2f93-79"
+            }
+          ],
+          "from": {
+            "gte": "1.18.0",
+            "lt": "1.19.0"
+          },
+          "to": {
+            "gte": "2.0.0",
+            "lt": "2.1.0"
+          }
+        },
+        "appliesWhen": [
+          {
+            "side": "proposed",
+            "component": "pkg:github/crossplane/crossplane",
+            "factId": "component.crossplane.distribution",
+            "enumValue": "official_upstream"
+          },
+          {
+            "side": "proposed",
+            "component": "pkg:github/crossplane/crossplane",
+            "factId": "component.crossplane.schema_validation_required",
+            "boolValue": true
+          }
+        ],
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/crossplane/crossplane",
+          "factId": "component.crossplane.composition_mode",
+          "enumValue": "resources"
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-11-18T21:21:22Z",
+          "validUntil": "2026-12-07T19:38:03Z",
+          "sources": [
+            {
+              "id": "source-69eaca39c64f-79",
+              "url": "https://github.com/crossplane/crossplane/blob/69eaca39c64f268f9feb23dfcff12d7553ecaf04/cluster/crds/apiextensions.crossplane.io_compositions.yaml",
+              "revision": "69eaca39c64f268f9feb23dfcff12d7553ecaf04",
+              "contentDigest": "sha256:7ae240aae92c9518f6f8f5ced671ed055382c2ff5bce9b5b3ff109e36b826093",
+              "startLine": 79,
+              "endLine": 89
+            },
+            {
+              "id": "source-b639502e2f93-79",
+              "url": "https://github.com/crossplane/crossplane/blob/b639502e2f93680ff83417a0f517ec459ce079cc/cluster/crds/apiextensions.crossplane.io_compositions.yaml",
+              "revision": "b639502e2f93680ff83417a0f517ec459ce079cc",
+              "contentDigest": "sha256:708142bfb2151acb1aaa28555d4b759d5003262e9065bd0ac15587efb58c6829",
+              "startLine": 79,
+              "endLine": 89
+            },
+            {
+              "id": "source-e663a43ece85-79",
+              "url": "https://github.com/crossplane/crossplane/blob/e663a43ece850e93fe5cdebb2e478e2fb9762ad1/cluster/crds/apiextensions.crossplane.io_compositions.yaml",
+              "revision": "e663a43ece850e93fe5cdebb2e478e2fb9762ad1",
+              "contentDigest": "sha256:bf05e4ba6b676d95ade3b122ed9d2004f3d681b62b306874ad743cdc0fac0d6f",
+              "startLine": 79,
+              "endLine": 99
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Use Composition Pipeline mode for the official Crossplane 2.0 target schema, or review a separate migration for Resources-mode Compositions."
+      }
+    },
+    {
+      "project": "crossplane",
+      "description": "Crossplane 2.0 Composition CRD enum rejects the Resources mode that the 1.x Composition CRD (default Resources) accepts; this rule covers declared validation against the official target CRD schema only. Read: the CRD schema at the cited revisions, whose bytes are identical across every 1.18, 1.19 and 1.20 release and across 2.0.0 through 2.0.7, with the same mode default and enum lines read directly at 2.0.8; the validation webhook and conversion are not read.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.crossplane.composition_mode",
+          "component": "pkg:github/crossplane/crossplane",
+          "type": "enum",
+          "enumTokens": [
+            "pipeline",
+            "resources"
+          ],
+          "description": "Proposed Composition mode declared against the selected Crossplane target CRD schema. Only Pipeline and Resources are recognized here."
+        },
+        {
+          "side": "proposed",
+          "id": "component.crossplane.distribution",
+          "component": "pkg:github/crossplane/crossplane",
+          "type": "enum",
+          "enumTokens": [
+            "custom_build",
+            "official_upstream"
+          ],
+          "description": "Distribution identity for the proposed Crossplane artifact; this schema rule applies only to the official upstream distribution."
+        },
+        {
+          "side": "proposed",
+          "id": "component.crossplane.schema_validation_required",
+          "component": "pkg:github/crossplane/crossplane",
+          "type": "bool",
+          "description": "Whether the operator requires the proposed Composition to validate against the official target CRD schema. This is an intent guard, not an observation of an installed cluster schema."
+        }
+      ],
+      "rule": {
+        "id": "crossplane.composition-resources-mode-removed.1-19-2-0",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/crossplane/crossplane",
+          "from": "1.19.0",
+          "to": "2.0.0"
+        },
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "source-719b2a0f95cc-79"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "source-719b2a0f95cc-79"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "source-b639502e2f93-79"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "source-b639502e2f93-79"
+            }
+          ],
+          "from": {
+            "gte": "1.19.0",
+            "lt": "1.20.0"
+          },
+          "to": {
+            "gte": "2.0.0",
+            "lt": "2.1.0"
+          }
+        },
+        "appliesWhen": [
+          {
+            "side": "proposed",
+            "component": "pkg:github/crossplane/crossplane",
+            "factId": "component.crossplane.distribution",
+            "enumValue": "official_upstream"
+          },
+          {
+            "side": "proposed",
+            "component": "pkg:github/crossplane/crossplane",
+            "factId": "component.crossplane.schema_validation_required",
+            "boolValue": true
+          }
+        ],
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/crossplane/crossplane",
+          "factId": "component.crossplane.composition_mode",
+          "enumValue": "resources"
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-11-18T21:21:22Z",
+          "validUntil": "2026-12-07T19:38:03Z",
+          "sources": [
+            {
+              "id": "source-69eaca39c64f-79",
+              "url": "https://github.com/crossplane/crossplane/blob/69eaca39c64f268f9feb23dfcff12d7553ecaf04/cluster/crds/apiextensions.crossplane.io_compositions.yaml",
+              "revision": "69eaca39c64f268f9feb23dfcff12d7553ecaf04",
+              "contentDigest": "sha256:7ae240aae92c9518f6f8f5ced671ed055382c2ff5bce9b5b3ff109e36b826093",
+              "startLine": 79,
+              "endLine": 89
+            },
+            {
+              "id": "source-719b2a0f95cc-79",
+              "url": "https://github.com/crossplane/crossplane/blob/719b2a0f95ccbae56ccdd45a22cf8a69dafba547/cluster/crds/apiextensions.crossplane.io_compositions.yaml",
+              "revision": "719b2a0f95ccbae56ccdd45a22cf8a69dafba547",
+              "contentDigest": "sha256:bf05e4ba6b676d95ade3b122ed9d2004f3d681b62b306874ad743cdc0fac0d6f",
+              "startLine": 79,
+              "endLine": 99
+            },
+            {
+              "id": "source-b639502e2f93-79",
+              "url": "https://github.com/crossplane/crossplane/blob/b639502e2f93680ff83417a0f517ec459ce079cc/cluster/crds/apiextensions.crossplane.io_compositions.yaml",
+              "revision": "b639502e2f93680ff83417a0f517ec459ce079cc",
+              "contentDigest": "sha256:708142bfb2151acb1aaa28555d4b759d5003262e9065bd0ac15587efb58c6829",
+              "startLine": 79,
+              "endLine": 89
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Use Composition Pipeline mode for the official Crossplane 2.0 target schema, or review a separate migration for Resources-mode Compositions."
+      }
+    },
+    {
+      "project": "crossplane",
+      "description": "Crossplane 2.0 Composition CRD enum rejects the Resources mode that the 1.x Composition CRD (default Resources) accepts; this rule covers declared validation against the official target CRD schema only. Read: the CRD schema at the cited revisions, whose bytes are identical across every 1.18, 1.19 and 1.20 release and across 2.0.0 through 2.0.7, with the same mode default and enum lines read directly at 2.0.8; the validation webhook and conversion are not read.",
       "requiredFacts": [
         {
           "side": "proposed",
@@ -3568,6 +3826,38 @@
           "from": "1.20.0",
           "to": "2.0.0"
         },
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "source-2efdb03ae80f-79"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "source-2efdb03ae80f-79"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "source-b639502e2f93-79"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "source-b639502e2f93-79"
+            }
+          ],
+          "from": {
+            "gte": "1.20.0",
+            "lt": "1.21.0"
+          },
+          "to": {
+            "gte": "2.0.0",
+            "lt": "2.1.0"
+          }
+        },
         "appliesWhen": [
           {
             "side": "proposed",
@@ -3590,7 +3880,7 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T19:38:03Z",
+          "reviewedAt": "2026-11-18T21:21:22Z",
           "validUntil": "2026-12-07T19:38:03Z",
           "sources": [
             {
@@ -3600,6 +3890,14 @@
               "contentDigest": "sha256:bf05e4ba6b676d95ade3b122ed9d2004f3d681b62b306874ad743cdc0fac0d6f",
               "startLine": 79,
               "endLine": 99
+            },
+            {
+              "id": "source-69eaca39c64f-79",
+              "url": "https://github.com/crossplane/crossplane/blob/69eaca39c64f268f9feb23dfcff12d7553ecaf04/cluster/crds/apiextensions.crossplane.io_compositions.yaml",
+              "revision": "69eaca39c64f268f9feb23dfcff12d7553ecaf04",
+              "contentDigest": "sha256:7ae240aae92c9518f6f8f5ced671ed055382c2ff5bce9b5b3ff109e36b826093",
+              "startLine": 79,
+              "endLine": 89
             },
             {
               "id": "source-b639502e2f93-79",

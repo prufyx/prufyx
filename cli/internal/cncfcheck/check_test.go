@@ -68,8 +68,8 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 	// other rules.
 	all := reviewedVectors(t)
 	batch := len(crdbatchids.IDs())
-	if len(all) != 257+batch {
-		t.Fatalf("the vector file holds %d vectors, want %d (228 + the 29 mechanical + the %d of the custom-resource batch)", len(all), 257+batch, batch)
+	if len(all) != 259+batch {
+		t.Fatalf("the vector file holds %d vectors, want %d (230 + the 29 mechanical + the %d of the custom-resource batch)", len(all), 259+batch, batch)
 	}
 	extra := 0
 	otherGeneration := map[string]bool{}
@@ -173,10 +173,10 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 			}
 		}
 	}
-	if len(b.pack.Entries) != 228+extra+shippedBatch+len(crdbatchids.Foreign())+crossingRules || len(vectors) != 228+extra+shippedBatch {
+	if len(b.pack.Entries) != 230+extra+shippedBatch+len(crdbatchids.Foreign())+crossingRules || len(vectors) != 230+extra+shippedBatch {
 		t.Fatal("unexpected reviewed rule or vector count")
 	}
-	if caseCount != 1113+4*extra+4*shippedBatch {
+	if caseCount != 1131+4*extra+4*shippedBatch {
 		t.Fatal("unexpected reviewed case count")
 	}
 	for _, vector := range vectors {
@@ -921,8 +921,7 @@ func TestKarmadaClosedInputFailures(t *testing.T) {
 // their rule's reviewed pair whose hop a custom-resource rule of the batch
 // covers.
 var batchCoveredOutside = map[string]bool{
-	"crossplane.composition-resources-mode-removed.1-20-2-0/outside-transition": true,
-	"strimzi.kafka-v1beta2-api-removed.1-0/outside-to":                          true,
+	"strimzi.kafka-v1beta2-api-removed.1-0/outside-to": true,
 }
 
 func mechanicalReviewClock(t *testing.T, ruleID string) time.Time {
