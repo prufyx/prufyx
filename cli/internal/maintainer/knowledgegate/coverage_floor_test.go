@@ -721,6 +721,17 @@ func TestRuleReviewBoundRefusesFutureReviewEvenWhenTheBaseHoldsOne(t *testing.T)
 	if err := ruleReviewsNotFuture(later, gateDate); err == nil {
 		t.Fatal("a new future review was accepted")
 	}
+	// The one tolerance is the derivation clock skew of mechanical rules.
+	atSkew := shippedSlice(t)
+	setReview(atSkew, gateDate.Add(derivationClockSkew).UTC().Format(time.RFC3339))
+	if err := ruleReviewsNotFuture(atSkew, gateDate); err != nil {
+		t.Fatalf("a review at the derivation skew was refused: %v", err)
+	}
+	pastSkew := shippedSlice(t)
+	setReview(pastSkew, gateDate.Add(derivationClockSkew+time.Second).UTC().Format(time.RFC3339))
+	if err := ruleReviewsNotFuture(pastSkew, gateDate); err == nil {
+		t.Fatal("a review past the derivation skew was accepted")
+	}
 	after, err := treeEvalClock(head)
 	if err != nil || !after.After(before) || after.UTC().Format(time.RFC3339) != future {
 		t.Fatalf("a rule review did not move the clock: %v -> %v %v", before, after, err)

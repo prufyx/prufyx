@@ -598,11 +598,30 @@ func floorOf(tr Tree) ([]byte, error) {
 // or before limit are untouched. The walk order is sorted: no map order, no
 // clock.
 func clampReviewStamps(raw []byte, limit time.Time) []byte {
-	var doc any
+	// The top-level members keep their order (a test edits the first
+	// "revision" it finds); everything below is sorted.
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.UseNumber()
-	if err := dec.Decode(&doc); err != nil {
-		panic(err)
+	if token, err := dec.Token(); err != nil || token != json.Delim('{') {
+		panic("rule pack is not an object")
+	}
+	var order []string
+	doc := map[string]any{}
+	for dec.More() {
+		token, err := dec.Token()
+		if err != nil {
+			panic(err)
+		}
+		key, ok := token.(string)
+		if !ok {
+			panic("rule pack member name")
+		}
+		var value any
+		if err := dec.Decode(&value); err != nil {
+			panic(err)
+		}
+		order = append(order, key)
+		doc[key] = value
 	}
 	moved := false
 	rotation := 0
@@ -648,11 +667,25 @@ func clampReviewStamps(raw []byte, limit time.Time) []byte {
 		return raw
 	}
 	var out bytes.Buffer
-	enc := json.NewEncoder(&out)
-	enc.SetEscapeHTML(false)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(doc); err != nil {
-		panic(err)
+	out.WriteString("{\n")
+	for i, key := range order {
+		name, err := json.Marshal(key)
+		if err != nil {
+			panic(err)
+		}
+		var value bytes.Buffer
+		enc := json.NewEncoder(&value)
+		enc.SetEscapeHTML(false)
+		enc.SetIndent("  ", "  ")
+		if err := enc.Encode(doc[key]); err != nil {
+			panic(err)
+		}
+		out.WriteString("  " + string(name) + ": " + strings.TrimRight(value.String(), "\n"))
+		if i < len(order)-1 {
+			out.WriteString(",")
+		}
+		out.WriteString("\n")
 	}
+	out.WriteString("}\n")
 	return out.Bytes()
 }

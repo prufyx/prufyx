@@ -189,7 +189,10 @@ func attestationsNotFuture(head Tree, now time.Time) error {
 // attestationsNotFuture it bounds every review of the head, not only new ones:
 // a review already in the base does not excuse the head. A zero gate clock
 // refuses: this bound never falls back to the host's wall clock. An unreadable
-// pack or review time fails.
+// pack or review time fails. The one tolerance is the derivation clock skew
+// (derivationClockSkew, five minutes) the mechanical derivation bound already
+// admits: a mechanical rule is reviewed at its derivation time, which may be
+// that far ahead of the gate's clock.
 func ruleReviewsNotFuture(head Tree, now time.Time) error {
 	if now.IsZero() {
 		return errors.New("the gate has no clock to bound the rule review times with")
@@ -206,7 +209,7 @@ func ruleReviewsNotFuture(head Tree, now time.Time) error {
 	if err != nil {
 		return fmt.Errorf("the change's rule review times are unreadable or invalid: %w", err)
 	}
-	if ok && newest.After(now) {
+	if ok && newest.After(now.Add(derivationClockSkew)) {
 		return fmt.Errorf("a rule review is dated %s, after the gate's clock %s", newest.UTC().Format(time.RFC3339), now.UTC().Format(time.RFC3339))
 	}
 	return nil
