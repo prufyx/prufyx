@@ -41,8 +41,8 @@ func TestShippedTableLoads(t *testing.T) {
 	if err := LoadError(); err != nil {
 		t.Fatal(err)
 	}
-	if len(Reviewed) != len(rowsBeforeData) {
-		t.Fatalf("%d rows, want %d", len(Reviewed), len(rowsBeforeData))
+	if len(Reviewed) < len(rowsBeforeData) {
+		t.Fatalf("%d rows, want at least %d", len(Reviewed), len(rowsBeforeData))
 	}
 	for _, want := range rowsBeforeData {
 		got, err := Lookup(Reviewed, want.Component)
@@ -81,9 +81,21 @@ func TestReviewedRows(t *testing.T) {
 				if _, err := row.compile(); err != nil {
 					t.Fatal(err)
 				}
+				heading := func(v, date string) string {
+					switch row.HeadingPattern {
+					case headingStyles["version-v-prefixed"]:
+						return "v" + v
+					case headingStyles["version-bracketed-date"]:
+						return "[" + v + "] - " + date
+					case headingStyles["version-slash-date"]:
+						return v + " / " + date
+					}
+					t.Fatalf("no sample heading for %q", row.HeadingPattern)
+					return ""
+				}
 				file := "# Changelog\n\n## main / unreleased\n\n* [FEATURE] new\n\n" +
-					strings.ReplaceAll("## 1.2.3 / 2026-01-02\n\n* [BUGFIX] fix\n\n", "", "") +
-					"## 1.2.2 / 2025-12-01\n\n* [BUGFIX] older\n"
+					"## " + heading("1.2.3", "2026-01-02") + "\n\n* [BUGFIX] fix\n\n" +
+					"## " + heading("1.2.2", "2025-12-01") + "\n\n* [BUGFIX] older\n"
 				unrel := "main / unreleased"
 				if len(row.BoundaryPatterns) == 0 {
 					t.Fatal("a file row has no boundary pattern")

@@ -25,12 +25,44 @@
       "form": "github-release"
     },
     {
+      "component": "in-toto",
+      "repo": "github.com/in-toto/in-toto",
+      "form": "changelog-file",
+      "path": "CHANGELOG.md",
+      "headingStyle": "version-v-prefixed",
+      "boundaryStyles": ["main-unreleased-parenthesised"]
+    },
+    {
+      "component": "node-exporter",
+      "repo": "github.com/prometheus/node_exporter",
+      "form": "changelog-file",
+      "path": "CHANGELOG.md",
+      "headingStyle": "version-slash-date",
+      "boundaryStyles": ["main-unreleased-parenthesised"]
+    },
+    {
       "component": "prometheus",
       "repo": "github.com/prometheus/prometheus",
       "form": "changelog-file",
       "path": "CHANGELOG.md",
       "headingStyle": "version-slash-date",
       "boundaryStyles": ["main-unreleased"]
+    },
+    {
+      "component": "spire",
+      "repo": "github.com/spiffe/spire",
+      "form": "changelog-file",
+      "path": "CHANGELOG.md",
+      "headingStyle": "version-bracketed-date",
+      "boundaryStyles": ["main-unreleased-parenthesised"]
+    },
+    {
+      "component": "tuf",
+      "repo": "github.com/theupdateframework/python-tuf",
+      "form": "changelog-file",
+      "path": "docs/CHANGELOG.md",
+      "headingStyle": "version-v-prefixed",
+      "boundaryStyles": ["main-unreleased-parenthesised"]
     },
     {
       "component": "vault",
