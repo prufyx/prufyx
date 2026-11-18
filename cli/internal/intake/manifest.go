@@ -179,7 +179,6 @@ func (w *Workspace) add(source Source, value any, listMetadata any, listAPI, ite
 	}
 	// Scan for template syntax before the Secret payload is removed, then
 	// keep only the boolean: the payload is not retained anywhere.
-	templated := valueHasTemplateSyntax(object)
 	api, apiOK := object["apiVersion"].(string)
 	kind, kindOK := object["kind"].(string)
 	if itemKind != "" && !apiOK && !kindOK {
@@ -188,6 +187,7 @@ func (w *Workspace) add(source Source, value any, listMetadata any, listAPI, ite
 		api, kind, apiOK, kindOK = listAPI, itemKind, true, true
 		object["apiVersion"], object["kind"] = api, kind
 	}
+	templated := objectHasTemplateSyntax(object, api, kind)
 	if kind == "Secret" {
 		stripSecret(object)
 	}
@@ -299,6 +299,133 @@ func valueHasOpenAction(value any) bool {
 			if valueHasOpenAction(child) {
 				return true
 			}
+		}
+	}
+	return false
+}
+
+// promTemplateRE matches one whole Prometheus alert template action that
+// reads only the rule variables, for example {{ $labels.instance }} or
+// {{ $value | humanize }}. Control actions, Helm objects and anything else
+// do not match.
+var promTemplateRE = regexp.MustCompile(`\{\{-?\s*\$(?:labels|value|externalLabels|externalURL)\b[\w$.|"%:,() \t-]*-?\}\}`)
+
+// helmWordRE marks Helm-only names; a Prometheus action holding one is not
+// accepted as rendered.
+var helmWordRE = regexp.MustCompile(`\.(Values|Release|Chart|Files|Capabilities|Template)\b|\b(include|tpl|lookup|required)\b`)
+
+// promAnnotationValue reports whether text holds template syntax only as
+// Prometheus alert template actions on the rule variables.
+func promAnnotationValue(text string) bool {
+	rest := text
+	for _, loc := range promTemplateRE.FindAllStringIndex(text, -1) {
+		if helmWordRE.MatchString(text[loc[0]:loc[1]]) {
+			return false
+		}
+	}
+	rest = promTemplateRE.ReplaceAllString(rest, "")
+	return !hasTemplateSyntax(rest)
+}
+
+// objectHasTemplateSyntax is valueHasTemplateSyntax with one exception: the
+// string values of a PrometheusRule rule's annotations and labels may hold
+// Prometheus alert templates, which are evaluated by Prometheus, not Helm.
+// Keys, every other field and any other kind are checked in full.
+func objectHasTemplateSyntax(object map[string]any, api, kind string) bool {
+	if kind != "PrometheusRule" || !strings.HasPrefix(api, "monitoring.coreos.com/") {
+		return valueHasTemplateSyntax(object)
+	}
+	for key, child := range object {
+		if hasTemplateSyntax(key) {
+			return true
+		}
+		if key != "spec" {
+			if valueHasTemplateSyntax(child) {
+				return true
+			}
+			continue
+		}
+		spec, ok := child.(map[string]any)
+		if !ok {
+			if valueHasTemplateSyntax(child) {
+				return true
+			}
+			continue
+		}
+		if specHasTemplateSyntax(spec) {
+			return true
+		}
+	}
+	return false
+}
+
+func specHasTemplateSyntax(spec map[string]any) bool {
+	for key, child := range spec {
+		if hasTemplateSyntax(key) {
+			return true
+		}
+		groups, ok := child.([]any)
+		if key != "groups" || !ok {
+			if valueHasTemplateSyntax(child) {
+				return true
+			}
+			continue
+		}
+		for _, group := range groups {
+			g, ok := group.(map[string]any)
+			if !ok {
+				if valueHasTemplateSyntax(group) {
+					return true
+				}
+				continue
+			}
+			for gk, gv := range g {
+				rules, ok := gv.([]any)
+				if hasTemplateSyntax(gk) || gk != "rules" || !ok {
+					if hasTemplateSyntax(gk) || valueHasTemplateSyntax(gv) {
+						return true
+					}
+					continue
+				}
+				for _, rule := range rules {
+					if ruleHasTemplateSyntax(rule) {
+						return true
+					}
+				}
+			}
+		}
+	}
+	return false
+}
+
+func ruleHasTemplateSyntax(rule any) bool {
+	r, ok := rule.(map[string]any)
+	if !ok {
+		return valueHasTemplateSyntax(rule)
+	}
+	for key, child := range r {
+		if hasTemplateSyntax(key) {
+			return true
+		}
+		if key == "annotations" || key == "labels" {
+			if m, ok := child.(map[string]any); ok {
+				for mk, mv := range m {
+					if hasTemplateSyntax(mk) {
+						return true
+					}
+					if s, ok := mv.(string); ok {
+						if !promAnnotationValue(s) {
+							return true
+						}
+					} else if valueHasTemplateSyntax(mv) {
+						return true
+					}
+				}
+				continue
+			}
+		}
+		if valueHasTemplateSyntax(child) {
+			return true
 		}
 	}
 	return false
