@@ -52,6 +52,10 @@ func (r *Report) coverageFloorCheck(opts Options) {
 		r.add(CheckCoverageFloor, false, "%s", logSafe(err.Error()))
 		return
 	}
+	if err := ruleReviewsNotFuture(opts.Head, opts.Now); err != nil {
+		r.add(CheckCoverageFloor, false, "%s", logSafe(err.Error()))
+		return
+	}
 	if err := coverageFloor(opts.Base, opts.Head, opts.Layout.Onboarding.TablePath); err != nil {
 		r.add(CheckCoverageFloor, false, "%s", logSafe(err.Error()))
 		return

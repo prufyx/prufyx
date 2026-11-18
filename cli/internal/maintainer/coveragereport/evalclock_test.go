@@ -217,3 +217,38 @@ func TestReadmeClockSentences(t *testing.T) {
 		t.Fatalf("with an attestation clock: %q", got)
 	}
 }
+
+// The clock also follows the newest rule review: a renewed rule must never be
+// "before its review" in the published numbers. A review older than the date
+// clock never moves it back, and an unreadable review time gives no clock.
+func TestEvaluationClockFollowsRuleReviews(t *testing.T) {
+	t.Parallel()
+	pin := pinnedFile("2026-10-31", "2026-11-07")
+	rules := func(reviewed ...string) []byte {
+		entries := make([]string, len(reviewed))
+		for i, r := range reviewed {
+			entries[i] = fmt.Sprintf(`{"rule":{"evidence":{"reviewedAt":%q}}}`, r)
+		}
+		return []byte(`{"schema":"t","revision":"r","entries":[` + strings.Join(entries, ",") + `]}`)
+	}
+	for _, c := range []struct {
+		name string
+		pack []byte
+		want string
+	}{
+		{"a rule reviewed after the pin", rules("2026-11-18T08:30:00Z"), "2026-11-18T08:30:00Z"},
+		{"the newest of several reviews", rules("2026-11-12T01:00:00Z", "2026-11-18T08:30:00Z", "2026-11-15T01:00:00Z"), "2026-11-18T08:30:00Z"},
+		{"a review before the pin never moves it back", rules("2026-09-01T00:00:00Z"), "2026-11-07T12:00:00Z"},
+	} {
+		got, err := EvaluationClockFromPack(pin, additionsOn(), c.pack)
+		if err != nil || !got.Equal(tm(c.want)) {
+			t.Errorf("%s: %v %v, want %s", c.name, got, err, c.want)
+		}
+	}
+	if _, err := EvaluationClockFromPack(pin, additionsOn(), rules("not a time")); err == nil {
+		t.Error("an unreadable rule review time gave a clock")
+	}
+	if _, err := EvaluationClockFromPack(pin, additionsOn(), []byte(`{"entries":`)); err == nil {
+		t.Error("an unparseable pack gave a clock")
+	}
+}

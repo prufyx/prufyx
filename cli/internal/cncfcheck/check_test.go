@@ -29,11 +29,7 @@ type reviewedVector struct {
 
 func reviewClock(t *testing.T) time.Time {
 	t.Helper()
-	v, err := time.Parse(time.RFC3339, "2026-09-11T23:30:00Z")
-	if err != nil {
-		t.Fatal(err)
-	}
-	return v
+	return packClock(t)
 }
 
 func reviewedVectors(t *testing.T) []reviewedVector {
@@ -187,88 +183,6 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 		for _, scenario := range vector.Cases {
 			t.Run(vector.RuleID+"/"+scenario.Name, func(t *testing.T) {
 				clock := reviewClock(t)
-				switch vector.RuleID {
-				case "kubernetes.admissionwebhook-v1beta1-removed.1-21-0-to-1-22-0", "kubernetes.apiservice-v1beta1-removed.1-21-0-to-1-22-0", "kubernetes.crd-v1beta1-removed.1-21-0-to-1-22-0", "kubernetes.csr-v1beta1-removed.1-21-0-to-1-22-0", "kubernetes.ingress-extensions-v1beta1-removed.1-21-0-to-1-22-0", "kubernetes.ingress-networking-v1beta1-removed.1-21-0-to-1-22-0", "kubernetes.ingressclass-v1beta1-removed.1-21-0-to-1-22-0", "kubernetes.lease-v1beta1-removed.1-21-0-to-1-22-0", "kubernetes.priorityclass-v1beta1-removed.1-21-0-to-1-22-0", "kubernetes.rbac-v1beta1-removed.1-21-0-to-1-22-0", "kubernetes.storage-v1beta1-removed.1-21-0-to-1-22-0", "kubernetes.subjectaccessreview-v1beta1-removed.1-21-0-to-1-22-0", "kubernetes.tokenreview-v1beta1-removed.1-21-0-to-1-22-0":
-					clock = time.Date(2026, 9, 23, 13, 56, 0, 0, time.UTC)
-				}
-				switch vector.RuleID {
-				case "kubernetes.cronjob-v1beta1-removed.1-24-0-to-1-25-0", "kubernetes.csistoragecapacity-v1beta1-removed.1-26-0-to-1-27-0", "kubernetes.endpointslice-v1beta1-removed.1-24-0-to-1-25-0", "kubernetes.event-v1beta1-removed.1-24-0-to-1-25-0", "kubernetes.flowcontrol-v1beta1-removed.1-25-0-to-1-26-0", "kubernetes.flowcontrol-v1beta2-removed.1-28-0-to-1-29-0", "kubernetes.hpa-v2beta1-removed.1-24-0-to-1-25-0", "kubernetes.hpa-v2beta2-removed.1-25-0-to-1-26-0", "kubernetes.pdb-v1beta1-removed.1-24-0-to-1-25-0", "kubernetes.psp-v1beta1-removed.1-24-0-to-1-25-0", "kubernetes.runtimeclass-v1beta1-removed.1-24-0-to-1-25-0":
-					clock = time.Date(2026, 9, 23, 12, 36, 0, 0, time.UTC)
-				}
-				// This source review completed after the historical corpus clock;
-				// preserve its real reviewedAt timestamp in the rule data.
-				// The version-skew rules were reviewed on 2026-10-06 and 2026-10-22.
-				if strings.HasPrefix(vector.RuleID, "kubernetes.kubelet-version-skew.") || strings.HasPrefix(vector.RuleID, "kubernetes.control-plane-no-minor-skip.") {
-					clock = time.Date(2026, 10, 23, 0, 0, 0, 0, time.UTC)
-				}
-				if vector.Project == "cloud-custodian" || vector.Project == "opencost" {
-					clock = time.Date(2026, 9, 12, 10, 0, 0, 0, time.UTC)
-				}
-				if strings.HasPrefix(vector.RuleID, "argo-cd.plain-http-oci-repository-helm4.") {
-					clock = time.Date(2026, 9, 12, 11, 30, 0, 0, time.UTC)
-				}
-				if vector.Project == "opentelemetry" {
-					clock = time.Date(2026, 9, 12, 2, 35, 0, 0, time.UTC)
-				}
-				if vector.RuleID == "opentelemetry.internal-telemetry-default-bind.0-110-to-0-111" {
-					clock = time.Date(2026, 9, 13, 10, 0, 0, 0, time.UTC)
-				}
-				// Reviewed on 2026-10-22, after the historical corpus clock.
-				if vector.RuleID == "openfga.playground-preshared-authn.1-13-1-to-1-14-0" || vector.RuleID == "spire.agent-retry-bootstrap-removed.1-13-6-to-1-14-0" || strings.HasPrefix(vector.RuleID, "vitess.grpc-server-crl-without-tls-material.") {
-					clock = time.Date(2026, 10, 22, 7, 0, 0, 0, time.UTC)
-				}
-				if vector.RuleID == "containerd.selected-official-runtime-shim-removed.1-7-28-to-2-0-0" {
-					clock = time.Date(2026, 9, 12, 12, 30, 0, 0, time.UTC)
-				}
-				if vector.RuleID == "fluentd.z-literal-treatment.1-17-1-to-1-18-0" || vector.RuleID == "prometheus.alertmanager-api-v1-removed.3-1" {
-					clock = time.Date(2026, 9, 12, 1, 0, 0, 0, time.UTC)
-				}
-				if vector.RuleID == "argo-cd.resource-exclusions-v2-visibility-preservation.3-0" {
-					clock = time.Date(2026, 9, 12, 1, 23, 59, 0, time.UTC)
-				}
-				if (strings.HasPrefix(vector.RuleID, "cortex.querier-at-modifier-flag-target-argv.") && strings.HasSuffix(vector.RuleID, "-to-1-21-1")) ||
-					(strings.HasPrefix(vector.RuleID, "thanos.receive-store-flags-target-argv.") && strings.HasSuffix(vector.RuleID, "-to-0-42-4")) {
-					clock = time.Date(2026, 9, 12, 7, 38, 0, 0, time.UTC)
-				}
-				if strings.Contains(vector.RuleID, ".target-config.") || strings.HasPrefix(vector.RuleID, "fluentd.ruby-minimum-target.") {
-					clock = time.Date(2026, 9, 12, 8, 6, 0, 0, time.UTC)
-				}
-				if strings.HasPrefix(vector.RuleID, "prometheus.alertmanager-api-v1.target-config.") {
-					clock = time.Date(2026, 9, 12, 9, 3, 0, 0, time.UTC)
-				}
-				if strings.HasPrefix(vector.RuleID, "etcd.direct-minor-skip.") || strings.HasPrefix(vector.RuleID, "etcd.experimental-flags-unsupported.") || strings.HasPrefix(vector.RuleID, "rook.direct-minor-skip.") || vector.RuleID == "rook.minimum-kubernetes.1-20-7" {
-					clock = time.Date(2026, 9, 12, 7, 38, 0, 0, time.UTC)
-				}
-				if strings.HasPrefix(vector.RuleID, "rook.minimum-kubernetes.1-20-7-from-") {
-					clock = time.Date(2026, 9, 12, 8, 32, 0, 0, time.UTC)
-				}
-				if strings.HasPrefix(vector.RuleID, "nats.names-with-ascii-spaces-rejected.") && strings.HasSuffix(vector.RuleID, "-to-2-14-6") {
-					clock = time.Date(2026, 9, 12, 8, 47, 0, 0, time.UTC)
-				}
-				if strings.HasPrefix(vector.RuleID, "coredns.official-federation-absent-at-1-14-7-from-") || strings.HasPrefix(vector.RuleID, "envoy.xds-v2-unsupported-at-1-39-1-from-") {
-					clock = time.Date(2026, 9, 12, 9, 1, 0, 0, time.UTC)
-				}
-				if strings.HasPrefix(vector.RuleID, "opa.v0-consumer-producer-option-at-1-20-2-") || strings.HasPrefix(vector.RuleID, "kyverno.reports-chunk-size-unsupported-at-1-19-1-") {
-					clock = time.Date(2026, 9, 12, 9, 34, 0, 0, time.UTC)
-				}
-				if strings.HasPrefix(vector.RuleID, "flux.latest-beta-api-removal.") {
-					clock = time.Date(2026, 9, 12, 10, 0, 0, 0, time.UTC)
-				}
-				if vector.RuleID == "kubernetes.flowcontrol-v1beta3-removed.1-31-0-to-1-32-0" || vector.RuleID == "cilium.cluster-name-invalid.1-16-19-to-1-17-18" {
-					clock = time.Date(2026, 9, 12, 10, 0, 0, 0, time.UTC)
-				}
-				if strings.HasPrefix(vector.RuleID, "jaeger.explicit-config-required-for-non-memory.target.") {
-					clock = time.Date(2026, 9, 12, 8, 39, 0, 0, time.UTC)
-				}
-				if strings.HasPrefix(vector.RuleID, "harbor.installer-with-chartmuseum-flag-removed.2-") && strings.HasSuffix(vector.RuleID, "-to-2-15") {
-					clock = time.Date(2026, 9, 12, 12, 0, 0, 0, time.UTC)
-				}
-				if strings.HasSuffix(vector.RuleID, ".2-55-1-to-3-14-0") {
-					clock = time.Date(2026, 9, 12, 17, 29, 0, 0, time.UTC)
-				}
-				if vector.RuleID == "prometheus.remote-write-http2-default.2-55-1-to-3-14-0" {
-					clock = time.Date(2026, 9, 13, 9, 0, 0, 0, time.UTC)
-				}
 				// A mechanical rule is reviewed at its derivation time: the
 				// vectors run one hour after it, inside the lease.
 				if strings.HasPrefix(vector.RuleID, supersedeids.MechanicalPrefix) || strings.Contains(vector.RuleID, crdbatchids.Marker) {
@@ -395,7 +309,7 @@ func TestFluentdLatestRubyExamplesStayScoped(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		report, err := Check("fluentd", raw, time.Date(2026, 9, 12, 8, 6, 0, 0, time.UTC))
+		report, err := Check("fluentd", raw, packClock(t))
 		status := ""
 		for _, claim := range report.Check.Claims {
 			if strings.HasPrefix(claim.RuleID, "fluentd.ruby-minimum-target.1-18-0-") {
@@ -428,15 +342,15 @@ func TestSelectedRuleKeepsIndependentPrometheusCapabilitiesSeparate(t *testing.T
 	if len(alertmanagerInput) == 0 {
 		t.Fatal("Alertmanager pass vector missing")
 	}
-	report, err := CheckRule("prometheus", alertmanagerRule, alertmanagerInput, time.Date(2026, 9, 12, 0, 30, 0, 0, time.UTC))
+	report, err := CheckRule("prometheus", alertmanagerRule, alertmanagerInput, packClock(t))
 	if err != nil || report.RequestedRuleID != alertmanagerRule || report.SelectedRuleID != alertmanagerRule || len(report.Check.Claims) != 1 || report.Check.Claims[0].RuleID != alertmanagerRule || report.Check.Claims[0].Status != "PASS" || ClaimExit(report) != 0 {
 		t.Fatalf("selected report=%+v err=%v", report, err)
 	}
-	generic, err := Check("prometheus", alertmanagerInput, time.Date(2026, 9, 12, 0, 30, 0, 0, time.UTC))
+	generic, err := Check("prometheus", alertmanagerInput, packClock(t))
 	if err != nil || generic.RequestedRuleID != "" || generic.SelectedRuleID != "" || len(generic.Check.Claims) != 2 || ClaimExit(generic) != 11 {
 		t.Fatalf("generic report=%+v err=%v", generic, err)
 	}
-	if _, err := CheckRule("prometheus", "tekton.metrics-protocol-prometheus.1-10", alertmanagerInput, time.Date(2026, 9, 12, 0, 30, 0, 0, time.UTC)); !errors.Is(err, ErrInvalid) {
+	if _, err := CheckRule("prometheus", "tekton.metrics-protocol-prometheus.1-10", alertmanagerInput, packClock(t)); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("cross-project selection error=%v", err)
 	}
 	mutated := report
@@ -834,8 +748,26 @@ func TestSourceFreshnessWithdrawalsAndReplayRemainBounded(t *testing.T) {
 	if _, err := Replay(vector.Project, append(raw, ' '), reviewClock(t), prior); err == nil {
 		t.Fatal("raw input digest not bound")
 	}
-	for _, at := range []string{"2026-09-08T12:07:55Z", "2026-12-07T12:07:56Z"} {
-		now, _ := time.Parse(time.RFC3339, at)
+	// Outside every review window of the project, derived from the rule data:
+	// one second before the earliest review, and at the latest lease end.
+	var earliest, latest time.Time
+	windowBundle, err := load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range windowBundle.pack.Entries {
+		if entry.Project != vector.Project {
+			continue
+		}
+		reviewed, until := entryEvidenceBounds(t, entry)
+		if earliest.IsZero() || reviewed.Before(earliest) {
+			earliest = reviewed
+		}
+		if until.After(latest) {
+			latest = until
+		}
+	}
+	for _, now := range []time.Time{earliest.Add(-time.Second), latest} {
 		result, err := Check(vector.Project, raw, now)
 		if err != nil || ClaimExit(result) != 11 || result.Check.Claims[0].Status != "UNKNOWN" {
 			t.Fatal("outside review window did not fail closed", err)
