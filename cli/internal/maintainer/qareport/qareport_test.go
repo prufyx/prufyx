@@ -231,7 +231,7 @@ func TestSupersededExcluded(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(md), "Superseded runs excluded: 2 (harness faults, replaced by a rerun)") {
+	if !strings.Contains(string(md), "2 superseded runs excluded, replaced by the reruns: m3-x (excluded: aborted, m3-x-try1)") {
 		t.Error("superseded line missing")
 	}
 	for _, leak := range leaks {
@@ -239,8 +239,8 @@ func TestSupersededExcluded(t *testing.T) {
 			t.Errorf("%q reached the output", leak)
 		}
 	}
-	if bytes.Contains(md, []byte("m3-x-try1")) {
-		t.Error("superseded run listed")
+	if !strings.Contains(string(md), "Gap rows: 1 of 3.") {
+		t.Error("gap line missing")
 	}
 }
 
@@ -266,5 +266,61 @@ func TestSupersededByMissingRefused(t *testing.T) {
 	}
 	if _, err := Build(root); err == nil {
 		t.Error("unknown marker field accepted")
+	}
+}
+
+// TestCommittedReportFieldsMatchPatterns holds every field of the committed
+// report to the strict patterns of the allowlist.
+func TestCommittedReportFieldsMatchPatterns(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "..", "docs", "generated", "qa-e2e.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rep Report
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&rep); err != nil {
+		t.Fatal(err)
+	}
+	if rep.Schema != Schema || rep.Header != Header {
+		t.Error("schema or header differ")
+	}
+	for _, id := range append(append([]string{}, rep.SupersededBy...), rep.SupersededRuns...) {
+		if !reRunID.MatchString(id) {
+			t.Errorf("run id %q", id)
+		}
+	}
+	for _, r := range rep.Runs {
+		if !reRunID.MatchString(r.ID) || !reK8s.MatchString(r.K8sFrom) || !reK8s.MatchString(r.K8sTo) ||
+			!reImage.MatchString(r.NodeImageFrom) || !reImage.MatchString(r.NodeImageTo) || !reCommit.MatchString(r.PrufyxCommit) || len(r.PrufyxCommit) != 40 {
+			t.Errorf("run %q header fields", r.ID)
+		}
+		for _, c := range r.Checks {
+			if !reApp.MatchString(c.App) || !okVersion(c.From) || !okVersion(c.To) || !reCode.MatchString(c.Reason) ||
+				(c.LogDigest != "" && !reSha.MatchString(c.LogDigest)) {
+				t.Errorf("run %q check fields: %+v", r.ID, c)
+			}
+			switch c.Result {
+			case FormCorrect, FormWrongPass, FormFalseAlarm, FormGap:
+			default:
+				t.Errorf("result %q", c.Result)
+			}
+			for _, id := range c.IDs {
+				if !reRuleID.MatchString(id) && !reCode.MatchString(id) {
+					t.Errorf("id %q", id)
+				}
+			}
+			for _, a := range c.Artifacts {
+				if !reArtName.MatchString(a.Name) || !reSha.MatchString(a.Sha256) {
+					t.Errorf("artifact %+v", a)
+				}
+			}
+		}
+	}
+	low := strings.ToLower(string(raw))
+	for _, d := range deniedOutput {
+		if strings.Contains(low, strings.ToLower(d)) {
+			t.Errorf("denied string %q in the committed report", d)
+		}
 	}
 }

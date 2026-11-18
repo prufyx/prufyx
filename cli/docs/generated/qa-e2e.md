@@ -4,9 +4,11 @@
 
 Results of Prufyx runs against real upgrades on kind clusters. kind is not production fidelity. Display only: these runs do not change any Prufyx verdict.
 
-Counts: 10 runs, 151 rows: 32 correct, 0 wrong PASS, 0 false alarm, 119 gap.
+Counts: 10 runs, 151 rows: 31 correct, 0 wrong PASS, 0 false alarm, 120 gap.
 
-Superseded runs excluded: 3 (harness faults, replaced by a rerun): m3-r01, m3-r02, r002.
+Gap rows: 120 of 151.
+
+3 superseded runs excluded, replaced by the reruns: m3-r01, m3-r02, r002 (excluded: m3-r01-try1, m3-r02-try1, r001-aborted).
 
 Forms of result: `correct` means Prufyx and the oracle agree; `wrong PASS` means Prufyx passed what the oracle rejected; `false alarm` means Prufyx blocked what the oracle accepted; `gap` means Prufyx made no claim the oracle could be compared with. A gap is not a pass.
 
@@ -198,7 +200,7 @@ Forms of result: `correct` means Prufyx and the oracle agree; `wrong PASS` means
 - kind node image from: `kindest/node@sha256:c79602a44b4056d7e48dc20f7504350f1e87530fe953428b792def00bc1076dd`
 - kind node image to: `kindest/node@sha256:397209b3d947d154f6641f2d0ce8d473732bd91c87d9575ade99049aa33cd648`
 - Prufyx commit: `564a6da03d1c7e96095c4a1f4c5fcd217aa2ea31`
-- Rows: 47 (5 correct, 0 wrong PASS, 0 false alarm, 42 gap)
+- Rows: 47 (4 correct, 0 wrong PASS, 0 false alarm, 43 gap)
 
 | App | From | To | Command | Result | Oracle | Reason | Log digest |
 |---|---|---|---|---|---|---|---|
@@ -217,7 +219,7 @@ Forms of result: `correct` means Prufyx and the oracle agree; `wrong PASS` means
 | `contour` | `1.26.3` | `1.30.5` | `assess` | gap | in-place upgrade | `NOT_IN_OBSERVED_COMPONENTS` | `add7ebf67bd2` |
 | `contour` | `1.26.3` | `1.30.5` | `catalog-checks` | gap | in-place upgrade | `KNOWN_PROJECT_NO_MATCHING_RULE` | `91d2bf06ca8c` |
 | `contour` | `1.26.3` | `1.30.5` | `check-cncf` | gap | in-place upgrade | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
-| `contour` | `1.26.3` | `1.30.5` | `scan` | correct | replay-on-target | `CUSTOM_RESOURCES_EVALUATED` | `17913fa28330` |
+| `contour` | `1.26.3` | `1.30.5` | `scan` | gap | replay-on-target | `CUSTOM_RESOURCES_NOT_EVALUATED` | `17913fa28330` |
 | `contour` | `1.26.3` | `1.30.5` | `scan` | gap | replay-on-target | `NO_FINDING` | `08b10edc382b` |
 | `contour` | `1.26.3` | `1.30.5` | `scan` | gap | replay-on-target | `NO_FINDING_SCAN_UNKNOWN` | `2c98f72e8d62` |
 | `contour` | `1.26.3` | `1.30.5` | `scan+plan` | gap | in-place upgrade | `NO_DATA_COMPONENT_NOT_COVERED` | `afbdb579d536` |
