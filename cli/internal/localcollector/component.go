@@ -83,6 +83,14 @@ func projectWorkload(root any, adapter adapterAssets, profile string, now time.T
 			}
 			matched = nil
 		}
+		if matched != nil && !contains(matched.WorkloadKinds, record.workloadKind) && !derivedWorkloadKinds[record.workloadKind] {
+			// The reviewed identity runs under a controller kind the adapter
+			// does not read, so no row exists and the component must not be
+			// concluded absent. Kinds that are derived from another read kind
+			// (a Deployment's ReplicaSet) are exempt so healthy installs do not
+			// trip this.
+			omissions = append(omissions, newProjectionOmission(OmissionComponentVersionUnbound, "A workload image matched a reviewed component identity under a workload kind with no reviewed binding; the component is present but unverified, so its absence cannot be concluded."))
+		}
 		if matched != nil && contains(matched.WorkloadKinds, record.workloadKind) {
 			publicImages = append(publicImages, map[string]any{
 				"componentId": matched.ComponentID, "observedVersion": version, "versionScheme": scheme,
@@ -584,10 +592,13 @@ func publicIdentityOnly(image string) string {
 	identity, _, _, _ := publicImage(image)
 	return identity
 }
+
 // OmissionComponentVersionUnbound marks an image whose identity matched a
 // reviewed component but which yielded no component row. It carries no data
 // beyond the code; the consumer must treat the component as unverified, never
 // as absent.
+var derivedWorkloadKinds = map[string]bool{"ReplicaSet": true, "Pod": true, "Job": true}
+
 const OmissionComponentVersionUnbound = "COMPONENT_VERSION_UNBOUND"
 
 func newProjectionOmission(code, reason string) map[string]any {

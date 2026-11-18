@@ -19,14 +19,16 @@ import (
 // image (nil image means no Deployment at all) and otherwise behaves like
 // fakeRunner.
 type imageRunner struct {
-	t     *testing.T
-	image string
-	args  []any
+	t *testing.T
+	// resource is the resource name served (default deployments.apps).
+	resource string
+	image    string
+	args     []any
 }
 
 func (r *imageRunner) Run(_ context.Context, argv, _ []string, _ time.Duration) (localcollector.CommandResult, error) {
 	joined := strings.Join(argv, " ")
-	if strings.Contains(joined, " deployments.apps ") {
+	if strings.Contains(joined, " "+r.servedResource()+" ") {
 		items := []any{}
 		if r.image != "" {
 			container := map[string]any{"image": r.image}
@@ -42,6 +44,37 @@ func (r *imageRunner) Run(_ context.Context, argv, _ []string, _ time.Duration) 
 		return localcollector.CommandResult{Stdout: raw}, nil
 	}
 	return localcollector.CommandResult{Stdout: fakeKubectlResponse(joined)}, nil
+}
+
+func (r *imageRunner) servedResource() string {
+	if r.resource != "" {
+		return r.resource
+	}
+	return "deployments.apps"
+}
+
+func TestWorkloadKindOutsideAdapterIsNeverAbsent(t *testing.T) {
+	opts := baseTestOptions(t, &imageRunner{t: t, resource: "daemonsets.apps", image: "quay.io/argoproj/workflow-controller:v4.1.2"})
+	opts.AllowPartial = true
+	opts.ComponentConfigurationProfile = "v3"
+	var stdout, stderr bytes.Buffer
+	report, code := Run(context.Background(), opts, &stdout, &stderr)
+	if code != ExitOK {
+		t.Fatalf("code=%d", code)
+	}
+	n := 0
+	for _, c := range report.Contexts[0].Checks {
+		if c.Project != "argo-workflows" {
+			continue
+		}
+		n++
+		if c.Applicability == NotApplicableComponentAbsent || strings.HasPrefix(c.Applicability, "APPLICABLE") {
+			t.Fatalf("%s applicability=%q", c.RuleID, c.Applicability)
+		}
+	}
+	if n == 0 {
+		t.Fatal("no argo-workflows checks")
+	}
 }
 
 func argoChecks(t *testing.T, image string) []CheckAssessment {

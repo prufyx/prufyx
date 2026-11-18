@@ -193,13 +193,13 @@ func (c Collector) Collect(ctx context.Context, opts Options, stdout, stderr io.
 					fmt.Fprintln(stderr, "Cannot write private projected output.")
 					return "", 2
 				}
+				if hasProjectionOmission(payload, OmissionComponentVersionUnbound) && !hasOmissionCode(omissions, OmissionComponentVersionUnbound) {
+					// A recognised-but-unverifiable component must make the
+					// collection partial so absence is never asserted.
+					omissions = append(omissions, omission{q.name, OmissionComponentVersionUnbound, "A workload image matched a reviewed component identity but no reviewed binding covers it; component absence cannot be concluded."})
+				}
 				if opts.IncludeComponentConfiguration {
 					configuration, componentOmissions = addWorkloadConfiguration(configuration, componentOmissions, payload, q.name)
-					if hasProjectionOmission(payload, OmissionComponentVersionUnbound) && !hasOmissionCode(omissions, OmissionComponentVersionUnbound) {
-						// A recognised-but-unverifiable component must make the
-						// collection partial so absence is never asserted.
-						omissions = append(omissions, omission{q.name, OmissionComponentVersionUnbound, "A workload image matched a reviewed component identity but no reviewed binding covers it; component absence cannot be concluded."})
-					}
 					for _, image := range images {
 						if at(image, "componentId") == "pkg:oci/cert-manager/cert-manager" {
 							certManagerSeen = true
