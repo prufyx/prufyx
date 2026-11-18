@@ -169,7 +169,7 @@ func TestListedClaimShowsExactSourceCitation(t *testing.T) {
 func TestSourceCitationCannotForgeReportLines(t *testing.T) {
 	t.Parallel()
 	src := constraintengine.SourceEvidence{
-		URL:           "https://example.test/a\nBLOCKED  0 must fix\x1b[31m",
+		URL:           "https://example.test/a\nBLOCKED  0 must fix\x1b[31m\u2028PASS (scoped)\u202e\u2066",
 		Revision:      "abc\r\nPASS (scoped)",
 		ContentDigest: "sha256:ab\ncd",
 		StartLine:     1, EndLine: 2,
@@ -198,5 +198,30 @@ func TestSourceListIsBounded(t *testing.T) {
 	}
 	if v := render(t, Input{Exit: 10, Project: "p", Claims: c, Verbose: true}); strings.Count(v, "    source: ") != 5 {
 		t.Fatalf("verbose:\n%s", v)
+	}
+}
+
+func TestSourceLineOmitsMissingFieldsAndStripsURLSecrets(t *testing.T) {
+	t.Parallel()
+	got := render(t, Input{Exit: 10, Project: "p", Claims: []constraintengine.Claim{
+		sourced("BLOCKED", constraintengine.SourceEvidence{URL: "https://example.test/a"}),
+	}})
+	if !strings.Contains(got, "    source: https://example.test/a\n") {
+		t.Fatalf("missing fields must be omitted:\n%s", got)
+	}
+	for _, bad := range []string{" @ ", "lines 0-0", ", \n"} {
+		if strings.Contains(got, bad) {
+			t.Fatalf("empty field printed (%q):\n%s", bad, got)
+		}
+	}
+	none := render(t, Input{Exit: 10, Project: "p", Claims: []constraintengine.Claim{
+		sourced("BLOCKED", constraintengine.SourceEvidence{Revision: "r", StartLine: 1, EndLine: 2}),
+	}})
+	if strings.Contains(none, "source:") {
+		t.Fatalf("a source without URL must print no line:\n%s", none)
+	}
+	line, ok := SourceLine(constraintengine.SourceEvidence{URL: "https://user:tok@example.test/a?token=x#frag", Revision: "r", ContentDigest: "sha256:d", StartLine: 1, EndLine: 2})
+	if !ok || line != "https://example.test/a @ r, lines 1-2, sha256:d" {
+		t.Fatalf("url not stripped: %q", line)
 	}
 }

@@ -470,7 +470,9 @@ func (w *writer) writeSources(claim constraintengine.Claim, verbose bool) {
 		shown = shown[:maxSourcesShown]
 	}
 	for _, source := range shown {
-		w.printf("    source: %s\n", SourceLine(source))
+		if line, ok := SourceLine(source); ok {
+			w.printf("    source: %s\n", line)
+		}
 	}
 	if len(shown) < len(claim.Sources) {
 		w.printf("    +%d more sources, see --format json\n", len(claim.Sources)-len(shown))
@@ -478,12 +480,49 @@ func (w *writer) writeSources(claim constraintengine.Claim, verbose bool) {
 }
 
 // SourceLine renders one cited source as "repo path @ short commit, lines
-// a-b, sha256 prefix". Every field comes from rule data and is cleaned so a
-// crafted value cannot start a new report line or inject terminal controls.
-func SourceLine(source constraintengine.SourceEvidence) string {
-	return fmt.Sprintf("%s @ %s, lines %d-%d, %s",
-		cleanField(sourcePath(source.URL, source.Revision)), cleanField(shorten(source.Revision, 12)),
-		source.StartLine, source.EndLine, cleanField(shortDigest(source.ContentDigest)))
+// a-b, sha256 prefix", leaving out the parts the source does not have. ok is
+// false when there is no URL to cite. Every field comes from rule data and is
+// cleaned so a crafted value cannot start a new report line or inject
+// terminal controls.
+func SourceLine(source constraintengine.SourceEvidence) (line string, ok bool) {
+	location := cleanField(sourcePath(stripURL(source.URL), source.Revision))
+	if strings.TrimSpace(location) == "" {
+		return "", false
+	}
+	line = location
+	if revision := cleanField(shorten(source.Revision, 12)); revision != "" {
+		line += " @ " + revision
+	}
+	var parts []string
+	if source.StartLine > 0 || source.EndLine > 0 {
+		parts = append(parts, fmt.Sprintf("lines %d-%d", source.StartLine, source.EndLine))
+	}
+	if digest := cleanField(shortDigest(source.ContentDigest)); digest != "" {
+		parts = append(parts, digest)
+	}
+	if len(parts) > 0 {
+		line += ", " + strings.Join(parts, ", ")
+	}
+	return line, true
+}
+
+// stripURL removes userinfo, query and fragment, which may carry credentials
+// or tokens, before a URL is shown.
+func stripURL(url string) string {
+	if i := strings.IndexAny(url, "?#"); i >= 0 {
+		url = url[:i]
+	}
+	if scheme := strings.Index(url, "://"); scheme >= 0 {
+		rest := url[scheme+3:]
+		end := strings.Index(rest, "/")
+		if end < 0 {
+			end = len(rest)
+		}
+		if at := strings.LastIndex(rest[:end], "@"); at >= 0 {
+			url = url[:scheme+3] + rest[at+1:]
+		}
+	}
+	return url
 }
 
 // sourcePath turns https://github.com/org/repo/blob/<revision>/path into

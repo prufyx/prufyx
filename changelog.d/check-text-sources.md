@@ -1,0 +1,2 @@
+### Changed
+- Default text output of `prufyx check` now shows, under each listed finding, its cited sources as repo path, short commit, line span and sha256 prefix (at most three per finding, then a pointer to `--format json`). Findings in a group of identical undecided actions and PASS rules are not listed by default, so their sources show only with `-v` and `--show-passes`. Output is cleaned and URLs lose credentials, query and fragment, so a source value cannot add report lines; JSON output and rule data are unchanged.
