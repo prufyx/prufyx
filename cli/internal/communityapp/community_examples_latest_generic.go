@@ -86,7 +86,7 @@ func (r runtime) checkLatestGenericExample(work, project string, raw []byte) (in
 	var stdout bytes.Buffer
 	child := r
 	child.stdout = &stdout
-	code := child.cncf([]string{"--project", project, "--input", path, "--input-digest", communityDigest(raw), "--now", "2026-09-12T09:01:00Z", "--format", "json"})
+	code := child.cncf([]string{"--project", project, "--input", path, "--input-digest", communityDigest(raw), "--now", exampleClock(project, "2026-09-12T09:01:00Z"), "--format", "json"})
 	var report map[string]any
 	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
 		return code, nil, fmt.Errorf("decode %s report: %w", project, err)
