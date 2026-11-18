@@ -23,3 +23,24 @@ func TestFloorOnlyMovesEarlierClocksForward(t *testing.T) {
 		t.Fatalf("text floor = %q", got)
 	}
 }
+
+func TestProjectNewestIsPerProjectAndNeverAfterThePackNewest(t *testing.T) {
+	cilium := ProjectNewest("cilium")
+	if cilium.IsZero() || cilium.After(Newest()) {
+		t.Fatalf("cilium newest %s, pack newest %s", cilium, Newest())
+	}
+	if !ProjectNewest("no-such-project").IsZero() {
+		t.Fatal("unknown project has a clock")
+	}
+	early := "2001-01-01T00:00:00Z"
+	if got := FloorTextFor("cilium", early); got != cilium.Format(time.RFC3339) {
+		t.Fatalf("floor = %q", got)
+	}
+	if got := FloorTextFor("no-such-project", early); got != early {
+		t.Fatalf("unknown project floor = %q", got)
+	}
+	later := cilium.Add(48 * time.Hour).Format(time.RFC3339)
+	if got := FloorTextFor("cilium", later); got != later {
+		t.Fatalf("later clock moved: %q", got)
+	}
+}
