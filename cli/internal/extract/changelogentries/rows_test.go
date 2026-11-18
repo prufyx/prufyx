@@ -54,6 +54,18 @@ var rowsAddedLater = []Target{
 		BoundaryPatterns: []string{boundaryStyles["line-heading-v"]},
 	},
 	{
+		Component: "in-toto", Repo: extract.RepoRef{Key: "github.com/in-toto/in-toto"},
+		Form: FormFile, Path: "CHANGELOG.md",
+		HeadingPattern:   headingStyles["version-v-prefixed"],
+		BoundaryPatterns: []string{boundaryStyles["main-unreleased-parenthesised"]},
+	},
+	{
+		Component: "node-exporter", Repo: extract.RepoRef{Key: "github.com/prometheus/node_exporter"},
+		Form: FormFile, Path: "CHANGELOG.md",
+		HeadingPattern:   headingStyles["version-slash-date"],
+		BoundaryPatterns: []string{boundaryStyles["main-unreleased-parenthesised"]},
+	},
+	{
 		Component: "openfga", Repo: extract.RepoRef{Key: "github.com/openfga/openfga"},
 		Form: FormFile, Path: "CHANGELOG.md",
 		HeadingPattern:   headingStyles["version-bracketed-date"],
@@ -64,6 +76,12 @@ var rowsAddedLater = []Target{
 		Form: FormFile, Path: "CHANGELOG.md",
 		HeadingPattern:   headingStyles["version-linked-paren-date"],
 		BoundaryPatterns: []string{boundaryStyles["prerelease-linked-paren-date"]},
+	},
+	{
+		Component: "tuf", Repo: extract.RepoRef{Key: "github.com/theupdateframework/python-tuf"},
+		Form: FormFile, Path: "docs/CHANGELOG.md",
+		HeadingPattern:   headingStyles["version-v-prefixed"],
+		BoundaryPatterns: []string{boundaryStyles["main-unreleased-parenthesised"]},
 	},
 }
 
