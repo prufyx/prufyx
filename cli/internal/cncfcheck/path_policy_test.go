@@ -69,11 +69,11 @@ func TestEmbeddedPackCarriesTheKubernetesPathPolicy(t *testing.T) {
 	if err := json.Unmarshal(shipped.PathPolicies, &records); err != nil || len(records) != 1 || records[0].Component != k8sComponent || records[0].Policy != upgradepath.PolicySequentialMinor {
 		t.Fatalf("embedded path policy records: %+v %v", records, err)
 	}
-	status, err := PathPolicyFor(k8sComponent, time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC))
+	status, err := PathPolicyFor(k8sComponent, packClock(t))
 	if err != nil || !status.Found || status.Policy() == nil || status.Record.Policy != upgradepath.PolicySequentialMinor {
 		t.Fatalf("embedded path policy: %+v %v", status, err)
 	}
-	if status, err := PathPolicyFor(ciliumComponent, time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)); err != nil || status.Found || status.Policy() != nil {
+	if status, err := PathPolicyFor(ciliumComponent, packClock(t)); err != nil || status.Found || status.Policy() != nil {
 		t.Fatalf("embedded path policy of another component: %+v %v", status, err)
 	}
 	components, err := CatalogSubjectComponents()
