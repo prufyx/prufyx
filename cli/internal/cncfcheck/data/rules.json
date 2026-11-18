@@ -895,7 +895,7 @@
           }
         ],
         "evidence": {
-          "reviewedAt": "2026-09-12T01:23:59Z",
+          "reviewedAt": "2026-11-18T08:57:00Z",
           "sources": [
             {
               "contentDigest": "sha256:02a5b8c2157c4b3d7e433803235b0cacd0b67d4693dd726c3349f82b2fc6275f",
@@ -922,12 +922,12 @@
               "url": "https://github.com/argoproj/argo-cd/blob/e98f483bfd5781df2592fef1aeed1148f150d9c9/manifests/base/config/argocd-cm.yaml"
             },
             {
-              "contentDigest": "sha256:dd7d03fd482596a3b110535bed1d0d1c975e1f013cd7cac90ad99d9fe8684b2f",
-              "endLine": 75,
+              "contentDigest": "sha256:e819ebae67c05a047c0828c0b7626939f8faaa90f0c82ca2ba8583ea772952b2",
+              "endLine": 82,
               "id": "argo-cd-v3-resource-exclusions-guide",
-              "revision": "e98f483bfd5781df2592fef1aeed1148f150d9c9",
-              "startLine": 60,
-              "url": "https://github.com/argoproj/argo-cd/blob/e98f483bfd5781df2592fef1aeed1148f150d9c9/docs/operator-manual/upgrading/2.14-3.0.md"
+              "revision": "7cedae735ca5c68fc24520b42da339aa388b9d25",
+              "startLine": 67,
+              "url": "https://github.com/argoproj/argo-cd/blob/7cedae735ca5c68fc24520b42da339aa388b9d25/docs/operator-manual/upgrading/2.14-3.0.md"
             },
             {
               "contentDigest": "sha256:7a6e66c2010be9c70114aed7f899bcd065d5f95399db5588070c3df1c43ffbcf",
@@ -939,7 +939,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T01:23:59Z"
+          "validUntil": "2027-02-11T08:57:00Z"
         },
         "id": "argo-cd.resource-exclusions-v2-visibility-preservation.3-0",
         "nextAction": "For declared v2 visibility preservation, remove resource.exclusions or set its exact empty sequence in the complete effective target argocd-cm; otherwise retain UNKNOWN and inspect complete precedence.",
@@ -1778,8 +1778,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-11T22:38:05Z",
-          "validUntil": "2026-12-10T22:38:05Z",
+          "reviewedAt": "2026-11-18T08:57:00Z",
+          "validUntil": "2027-02-15T08:57:00Z",
           "sources": [
             {
               "id": "cloud-custodian-v0.9.50-iam-access-key",
@@ -2019,8 +2019,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-11T15:18:55Z",
-          "validUntil": "2026-12-10T15:18:55Z",
+          "reviewedAt": "2026-11-18T08:57:00Z",
+          "validUntil": "2027-02-16T08:57:00Z",
           "sources": [
             {
               "id": "cni-spec-v0-4-0-network-configuration-forms",
@@ -2815,7 +2815,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-11T22:20:07Z",
+          "reviewedAt": "2026-11-18T08:57:00Z",
           "sources": [
             {
               "contentDigest": "sha256:aa74494447da45b76109ec4685fd82017d812bb84f29bda06aa13a983d0db1e4",
@@ -2858,12 +2858,12 @@
               "url": "https://github.com/cortexproject/cortex/blob/312b610d4a03e9837bdf6c4e66b4fccc5e3a24d6/pkg/querier/querier.go"
             },
             {
-              "contentDigest": "sha256:4f5c600cbbff9e5a291f83a888e46b4bb50942ebd9379000563b6ac4d139e37c",
-              "endLine": 18,
-              "id": "source-85511746c086-6",
-              "revision": "85511746c08640eb3e9e1ceb0fadaef860973958",
-              "startLine": 6,
-              "url": "https://github.com/cortexproject/cortex/blob/85511746c08640eb3e9e1ceb0fadaef860973958/CHANGELOG.md"
+              "contentDigest": "sha256:ec068d3c18c2d3841fd388b8f1eacab6c76952afe685b9c5892db19affce9ade",
+              "endLine": 21,
+              "id": "source-3f03510cc732-9",
+              "revision": "3f03510cc7322aa7261e544ce25d6ab4c481d5ec",
+              "startLine": 9,
+              "url": "https://github.com/cortexproject/cortex/blob/3f03510cc7322aa7261e544ce25d6ab4c481d5ec/CHANGELOG.md"
             },
             {
               "contentDigest": "sha256:e176716a23e7c70bd15243f5239ec53c6735e14e4b86a200e148aed21b1272b8",
@@ -2883,7 +2883,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-10T22:20:07Z"
+          "validUntil": "2027-02-15T08:57:00Z"
         },
         "id": "cortex.querier-at-modifier-flag-removed.1-21",
         "nextAction": "Remove querier.at-modifier-enabled from proposed effective upstream Cortex arguments; for the exact reviewed target image only, an omitted command is source-derived as /bin/cortex, not runtime evidence. Validate query behavior separately.",
@@ -4505,8 +4505,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:00:00Z",
-          "validUntil": "2026-12-11T09:00:00Z",
+          "reviewedAt": "2026-11-18T08:57:00Z",
+          "validUntil": "2027-01-27T08:57:00Z",
           "sources": [
             {
               "id": "envoy-origin-1-34-14-version",
@@ -4578,8 +4578,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:00:00Z",
-          "validUntil": "2026-12-11T09:00:00Z",
+          "reviewedAt": "2026-11-18T08:57:00Z",
+          "validUntil": "2027-01-27T08:57:00Z",
           "sources": [
             {
               "id": "envoy-origin-1-35-13-version",
@@ -4983,7 +4983,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T08:57:00Z",
           "sources": [
             {
               "contentDigest": "sha256:b747a9add5433e31b06e4cdadedfd3268e567dc72d6d72c59cb75974a340cf99",
@@ -5011,7 +5011,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-04T08:57:00Z"
         },
         "id": "etcd.experimental-flags-unsupported.3-2-32-to-3-7-1",
         "nextAction": "Remove only the detected documented experimental flag from the complete proposed direct argv; unknown experimental names or indirect configuration stay UNKNOWN and require target parser inspection.",
@@ -5045,7 +5045,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T08:57:00Z",
           "sources": [
             {
               "contentDigest": "sha256:b747a9add5433e31b06e4cdadedfd3268e567dc72d6d72c59cb75974a340cf99",
@@ -5073,7 +5073,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-04T08:57:00Z"
         },
         "id": "etcd.experimental-flags-unsupported.3-3-27-to-3-7-1",
         "nextAction": "Remove only the detected documented experimental flag from the complete proposed direct argv; unknown experimental names or indirect configuration stay UNKNOWN and require target parser inspection.",
@@ -5107,7 +5107,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T08:57:00Z",
           "sources": [
             {
               "contentDigest": "sha256:b747a9add5433e31b06e4cdadedfd3268e567dc72d6d72c59cb75974a340cf99",
@@ -5135,7 +5135,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-04T08:57:00Z"
         },
         "id": "etcd.experimental-flags-unsupported.3-4-45-to-3-7-1",
         "nextAction": "Remove only the detected documented experimental flag from the complete proposed direct argv; unknown experimental names or indirect configuration stay UNKNOWN and require target parser inspection.",
@@ -5169,7 +5169,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T08:57:00Z",
           "sources": [
             {
               "contentDigest": "sha256:b747a9add5433e31b06e4cdadedfd3268e567dc72d6d72c59cb75974a340cf99",
@@ -5197,7 +5197,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-03T08:57:00Z"
         },
         "id": "etcd.experimental-flags-unsupported.3-5-33-to-3-7-1",
         "nextAction": "Remove only the detected documented experimental flag from the complete proposed direct argv; unknown experimental names or indirect configuration stay UNKNOWN and require target parser inspection.",
@@ -5231,7 +5231,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T08:57:00Z",
           "sources": [
             {
               "contentDigest": "sha256:b747a9add5433e31b06e4cdadedfd3268e567dc72d6d72c59cb75974a340cf99",
@@ -5259,7 +5259,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-03T08:57:00Z"
         },
         "id": "etcd.experimental-flags-unsupported.3-6-14-to-3-7-1",
         "nextAction": "Remove only the detected documented experimental flag from the complete proposed direct argv; unknown experimental names or indirect configuration stay UNKNOWN and require target parser inspection.",
@@ -15054,56 +15054,56 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-11T20:22:53Z",
-          "validUntil": "2026-12-10T20:22:53Z",
+          "reviewedAt": "2026-11-18T08:57:00Z",
+          "validUntil": "2027-02-16T08:57:00Z",
           "sources": [
             {
               "id": "nats-00-v2-10-server-name-accepted",
-              "url": "https://github.com/nats-io/nats-server/blob/77e198333fb2b25029b620fae3574b328de37f89/server/opts.go",
-              "revision": "77e198333fb2b25029b620fae3574b328de37f89",
-              "contentDigest": "sha256:2d2b9d9fc2aa732382d11f4d1b1d938381b0f41fd7f9fda102af31568d1189f3",
-              "startLine": 840,
-              "endLine": 846
+              "url": "https://github.com/nats-io/nats-server/blob/f91ddd892565760834f27404a92b80a57b8ec149/server/opts.go",
+              "revision": "f91ddd892565760834f27404a92b80a57b8ec149",
+              "contentDigest": "sha256:62049455eb3b87796f27bad4edf49f85f6eb424a1f0cb332c07c00c700bef64a",
+              "startLine": 887,
+              "endLine": 893
             },
             {
               "id": "nats-01-v2-10-cluster-name-accepted",
-              "url": "https://github.com/nats-io/nats-server/blob/77e198333fb2b25029b620fae3574b328de37f89/server/opts.go",
-              "revision": "77e198333fb2b25029b620fae3574b328de37f89",
-              "contentDigest": "sha256:2d2b9d9fc2aa732382d11f4d1b1d938381b0f41fd7f9fda102af31568d1189f3",
-              "startLine": 1599,
-              "endLine": 1620
+              "url": "https://github.com/nats-io/nats-server/blob/f91ddd892565760834f27404a92b80a57b8ec149/server/opts.go",
+              "revision": "f91ddd892565760834f27404a92b80a57b8ec149",
+              "contentDigest": "sha256:62049455eb3b87796f27bad4edf49f85f6eb424a1f0cb332c07c00c700bef64a",
+              "startLine": 1670,
+              "endLine": 1691
             },
             {
               "id": "nats-02-v2-10-gateway-name-accepted",
-              "url": "https://github.com/nats-io/nats-server/blob/77e198333fb2b25029b620fae3574b328de37f89/server/opts.go",
-              "revision": "77e198333fb2b25029b620fae3574b328de37f89",
-              "contentDigest": "sha256:2d2b9d9fc2aa732382d11f4d1b1d938381b0f41fd7f9fda102af31568d1189f3",
-              "startLine": 1823,
-              "endLine": 1842
+              "url": "https://github.com/nats-io/nats-server/blob/f91ddd892565760834f27404a92b80a57b8ec149/server/opts.go",
+              "revision": "f91ddd892565760834f27404a92b80a57b8ec149",
+              "contentDigest": "sha256:62049455eb3b87796f27bad4edf49f85f6eb424a1f0cb332c07c00c700bef64a",
+              "startLine": 1901,
+              "endLine": 1920
             },
             {
               "id": "nats-03-v2-11-server-name-rejected",
-              "url": "https://github.com/nats-io/nats-server/blob/99e836e9afca6fce007094c44af434dd7afde02d/server/opts.go",
-              "revision": "99e836e9afca6fce007094c44af434dd7afde02d",
-              "contentDigest": "sha256:23c448091f6adc24c646523feefb0cb60aae2da8ba735cc9a61ace37a368f1e9",
-              "startLine": 980,
-              "endLine": 993
+              "url": "https://github.com/nats-io/nats-server/blob/0f192db71455eaca7f1fef14548a239845f24b96/server/opts.go",
+              "revision": "0f192db71455eaca7f1fef14548a239845f24b96",
+              "contentDigest": "sha256:3676d0d9660724eede782c46c2346d42fd73310e536b944864bbabef1f7fa82e",
+              "startLine": 1002,
+              "endLine": 1015
             },
             {
               "id": "nats-04-v2-11-cluster-name-rejected",
-              "url": "https://github.com/nats-io/nats-server/blob/99e836e9afca6fce007094c44af434dd7afde02d/server/opts.go",
-              "revision": "99e836e9afca6fce007094c44af434dd7afde02d",
-              "contentDigest": "sha256:23c448091f6adc24c646523feefb0cb60aae2da8ba735cc9a61ace37a368f1e9",
-              "startLine": 1768,
-              "endLine": 1792
+              "url": "https://github.com/nats-io/nats-server/blob/0f192db71455eaca7f1fef14548a239845f24b96/server/opts.go",
+              "revision": "0f192db71455eaca7f1fef14548a239845f24b96",
+              "contentDigest": "sha256:3676d0d9660724eede782c46c2346d42fd73310e536b944864bbabef1f7fa82e",
+              "startLine": 1814,
+              "endLine": 1838
             },
             {
               "id": "nats-05-v2-11-gateway-name-rejected",
-              "url": "https://github.com/nats-io/nats-server/blob/99e836e9afca6fce007094c44af434dd7afde02d/server/opts.go",
-              "revision": "99e836e9afca6fce007094c44af434dd7afde02d",
-              "contentDigest": "sha256:23c448091f6adc24c646523feefb0cb60aae2da8ba735cc9a61ace37a368f1e9",
-              "startLine": 2006,
-              "endLine": 2027
+              "url": "https://github.com/nats-io/nats-server/blob/0f192db71455eaca7f1fef14548a239845f24b96/server/opts.go",
+              "revision": "0f192db71455eaca7f1fef14548a239845f24b96",
+              "contentDigest": "sha256:3676d0d9660724eede782c46c2346d42fd73310e536b944864bbabef1f7fa82e",
+              "startLine": 2056,
+              "endLine": 2077
             }
           ]
         },
@@ -15141,8 +15141,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T08:46:00Z",
-          "validUntil": "2026-12-11T08:46:00Z",
+          "reviewedAt": "2026-11-18T08:57:00Z",
+          "validUntil": "2027-02-03T08:57:00Z",
           "sources": [
             {
               "id": "nats-origin-2-10-29-version",
@@ -15154,11 +15154,11 @@
             },
             {
               "id": "nats-target-2-14-6-cluster-name-space-rejection",
-              "url": "https://github.com/nats-io/nats-server/blob/1aa10f9fe4e7a27b7d877af004a9c0022fdc4910/server/opts.go",
-              "revision": "1aa10f9fe4e7a27b7d877af004a9c0022fdc4910",
-              "contentDigest": "sha256:7c78812eebe6652e77ed1c9cbcf66ddae9946d37b7fd7acc9a1eee4e195bc96f",
-              "startLine": 2028,
-              "endLine": 2039
+              "url": "https://github.com/nats-io/nats-server/blob/d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc/server/opts.go",
+              "revision": "d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc",
+              "contentDigest": "sha256:bf3efb2d05b8266e3e2e1affe8a8f85d5721cb751d1c90abf980e3718bf3fd04",
+              "startLine": 2044,
+              "endLine": 2055
             },
             {
               "id": "nats-target-2-14-6-conf-json-like-format",
@@ -15178,19 +15178,19 @@
             },
             {
               "id": "nats-target-2-14-6-gateway-name-space-rejection",
-              "url": "https://github.com/nats-io/nats-server/blob/1aa10f9fe4e7a27b7d877af004a9c0022fdc4910/server/opts.go",
-              "revision": "1aa10f9fe4e7a27b7d877af004a9c0022fdc4910",
-              "contentDigest": "sha256:7c78812eebe6652e77ed1c9cbcf66ddae9946d37b7fd7acc9a1eee4e195bc96f",
-              "startLine": 2278,
-              "endLine": 2289
+              "url": "https://github.com/nats-io/nats-server/blob/d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc/server/opts.go",
+              "revision": "d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc",
+              "contentDigest": "sha256:bf3efb2d05b8266e3e2e1affe8a8f85d5721cb751d1c90abf980e3718bf3fd04",
+              "startLine": 2294,
+              "endLine": 2305
             },
             {
               "id": "nats-target-2-14-6-server-name-space-rejection",
-              "url": "https://github.com/nats-io/nats-server/blob/1aa10f9fe4e7a27b7d877af004a9c0022fdc4910/server/opts.go",
-              "revision": "1aa10f9fe4e7a27b7d877af004a9c0022fdc4910",
-              "contentDigest": "sha256:7c78812eebe6652e77ed1c9cbcf66ddae9946d37b7fd7acc9a1eee4e195bc96f",
-              "startLine": 1152,
-              "endLine": 1163
+              "url": "https://github.com/nats-io/nats-server/blob/d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc/server/opts.go",
+              "revision": "d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc",
+              "contentDigest": "sha256:bf3efb2d05b8266e3e2e1affe8a8f85d5721cb751d1c90abf980e3718bf3fd04",
+              "startLine": 1168,
+              "endLine": 1179
             },
             {
               "id": "nats-target-2-14-6-version",
@@ -15236,8 +15236,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T08:46:00Z",
-          "validUntil": "2026-12-11T08:46:00Z",
+          "reviewedAt": "2026-11-18T08:57:00Z",
+          "validUntil": "2027-01-28T08:57:00Z",
           "sources": [
             {
               "id": "nats-origin-2-11-17-version",
@@ -15249,11 +15249,11 @@
             },
             {
               "id": "nats-target-2-14-6-cluster-name-space-rejection",
-              "url": "https://github.com/nats-io/nats-server/blob/1aa10f9fe4e7a27b7d877af004a9c0022fdc4910/server/opts.go",
-              "revision": "1aa10f9fe4e7a27b7d877af004a9c0022fdc4910",
-              "contentDigest": "sha256:7c78812eebe6652e77ed1c9cbcf66ddae9946d37b7fd7acc9a1eee4e195bc96f",
-              "startLine": 2028,
-              "endLine": 2039
+              "url": "https://github.com/nats-io/nats-server/blob/d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc/server/opts.go",
+              "revision": "d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc",
+              "contentDigest": "sha256:bf3efb2d05b8266e3e2e1affe8a8f85d5721cb751d1c90abf980e3718bf3fd04",
+              "startLine": 2044,
+              "endLine": 2055
             },
             {
               "id": "nats-target-2-14-6-conf-json-like-format",
@@ -15273,19 +15273,19 @@
             },
             {
               "id": "nats-target-2-14-6-gateway-name-space-rejection",
-              "url": "https://github.com/nats-io/nats-server/blob/1aa10f9fe4e7a27b7d877af004a9c0022fdc4910/server/opts.go",
-              "revision": "1aa10f9fe4e7a27b7d877af004a9c0022fdc4910",
-              "contentDigest": "sha256:7c78812eebe6652e77ed1c9cbcf66ddae9946d37b7fd7acc9a1eee4e195bc96f",
-              "startLine": 2278,
-              "endLine": 2289
+              "url": "https://github.com/nats-io/nats-server/blob/d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc/server/opts.go",
+              "revision": "d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc",
+              "contentDigest": "sha256:bf3efb2d05b8266e3e2e1affe8a8f85d5721cb751d1c90abf980e3718bf3fd04",
+              "startLine": 2294,
+              "endLine": 2305
             },
             {
               "id": "nats-target-2-14-6-server-name-space-rejection",
-              "url": "https://github.com/nats-io/nats-server/blob/1aa10f9fe4e7a27b7d877af004a9c0022fdc4910/server/opts.go",
-              "revision": "1aa10f9fe4e7a27b7d877af004a9c0022fdc4910",
-              "contentDigest": "sha256:7c78812eebe6652e77ed1c9cbcf66ddae9946d37b7fd7acc9a1eee4e195bc96f",
-              "startLine": 1152,
-              "endLine": 1163
+              "url": "https://github.com/nats-io/nats-server/blob/d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc/server/opts.go",
+              "revision": "d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc",
+              "contentDigest": "sha256:bf3efb2d05b8266e3e2e1affe8a8f85d5721cb751d1c90abf980e3718bf3fd04",
+              "startLine": 1168,
+              "endLine": 1179
             },
             {
               "id": "nats-target-2-14-6-version",
@@ -15331,8 +15331,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T08:46:00Z",
-          "validUntil": "2026-12-11T08:46:00Z",
+          "reviewedAt": "2026-11-18T08:57:00Z",
+          "validUntil": "2027-01-28T08:57:00Z",
           "sources": [
             {
               "id": "nats-origin-2-12-15-version",
@@ -15344,11 +15344,11 @@
             },
             {
               "id": "nats-target-2-14-6-cluster-name-space-rejection",
-              "url": "https://github.com/nats-io/nats-server/blob/1aa10f9fe4e7a27b7d877af004a9c0022fdc4910/server/opts.go",
-              "revision": "1aa10f9fe4e7a27b7d877af004a9c0022fdc4910",
-              "contentDigest": "sha256:7c78812eebe6652e77ed1c9cbcf66ddae9946d37b7fd7acc9a1eee4e195bc96f",
-              "startLine": 2028,
-              "endLine": 2039
+              "url": "https://github.com/nats-io/nats-server/blob/d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc/server/opts.go",
+              "revision": "d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc",
+              "contentDigest": "sha256:bf3efb2d05b8266e3e2e1affe8a8f85d5721cb751d1c90abf980e3718bf3fd04",
+              "startLine": 2044,
+              "endLine": 2055
             },
             {
               "id": "nats-target-2-14-6-conf-json-like-format",
@@ -15368,19 +15368,19 @@
             },
             {
               "id": "nats-target-2-14-6-gateway-name-space-rejection",
-              "url": "https://github.com/nats-io/nats-server/blob/1aa10f9fe4e7a27b7d877af004a9c0022fdc4910/server/opts.go",
-              "revision": "1aa10f9fe4e7a27b7d877af004a9c0022fdc4910",
-              "contentDigest": "sha256:7c78812eebe6652e77ed1c9cbcf66ddae9946d37b7fd7acc9a1eee4e195bc96f",
-              "startLine": 2278,
-              "endLine": 2289
+              "url": "https://github.com/nats-io/nats-server/blob/d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc/server/opts.go",
+              "revision": "d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc",
+              "contentDigest": "sha256:bf3efb2d05b8266e3e2e1affe8a8f85d5721cb751d1c90abf980e3718bf3fd04",
+              "startLine": 2294,
+              "endLine": 2305
             },
             {
               "id": "nats-target-2-14-6-server-name-space-rejection",
-              "url": "https://github.com/nats-io/nats-server/blob/1aa10f9fe4e7a27b7d877af004a9c0022fdc4910/server/opts.go",
-              "revision": "1aa10f9fe4e7a27b7d877af004a9c0022fdc4910",
-              "contentDigest": "sha256:7c78812eebe6652e77ed1c9cbcf66ddae9946d37b7fd7acc9a1eee4e195bc96f",
-              "startLine": 1152,
-              "endLine": 1163
+              "url": "https://github.com/nats-io/nats-server/blob/d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc/server/opts.go",
+              "revision": "d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc",
+              "contentDigest": "sha256:bf3efb2d05b8266e3e2e1affe8a8f85d5721cb751d1c90abf980e3718bf3fd04",
+              "startLine": 1168,
+              "endLine": 1179
             },
             {
               "id": "nats-target-2-14-6-version",
@@ -15426,8 +15426,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T08:46:00Z",
-          "validUntil": "2026-12-11T08:46:00Z",
+          "reviewedAt": "2026-11-18T08:57:00Z",
+          "validUntil": "2027-01-28T08:57:00Z",
           "sources": [
             {
               "id": "nats-origin-2-8-4-version",
@@ -15439,11 +15439,11 @@
             },
             {
               "id": "nats-target-2-14-6-cluster-name-space-rejection",
-              "url": "https://github.com/nats-io/nats-server/blob/1aa10f9fe4e7a27b7d877af004a9c0022fdc4910/server/opts.go",
-              "revision": "1aa10f9fe4e7a27b7d877af004a9c0022fdc4910",
-              "contentDigest": "sha256:7c78812eebe6652e77ed1c9cbcf66ddae9946d37b7fd7acc9a1eee4e195bc96f",
-              "startLine": 2028,
-              "endLine": 2039
+              "url": "https://github.com/nats-io/nats-server/blob/d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc/server/opts.go",
+              "revision": "d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc",
+              "contentDigest": "sha256:bf3efb2d05b8266e3e2e1affe8a8f85d5721cb751d1c90abf980e3718bf3fd04",
+              "startLine": 2044,
+              "endLine": 2055
             },
             {
               "id": "nats-target-2-14-6-conf-json-like-format",
@@ -15463,19 +15463,19 @@
             },
             {
               "id": "nats-target-2-14-6-gateway-name-space-rejection",
-              "url": "https://github.com/nats-io/nats-server/blob/1aa10f9fe4e7a27b7d877af004a9c0022fdc4910/server/opts.go",
-              "revision": "1aa10f9fe4e7a27b7d877af004a9c0022fdc4910",
-              "contentDigest": "sha256:7c78812eebe6652e77ed1c9cbcf66ddae9946d37b7fd7acc9a1eee4e195bc96f",
-              "startLine": 2278,
-              "endLine": 2289
+              "url": "https://github.com/nats-io/nats-server/blob/d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc/server/opts.go",
+              "revision": "d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc",
+              "contentDigest": "sha256:bf3efb2d05b8266e3e2e1affe8a8f85d5721cb751d1c90abf980e3718bf3fd04",
+              "startLine": 2294,
+              "endLine": 2305
             },
             {
               "id": "nats-target-2-14-6-server-name-space-rejection",
-              "url": "https://github.com/nats-io/nats-server/blob/1aa10f9fe4e7a27b7d877af004a9c0022fdc4910/server/opts.go",
-              "revision": "1aa10f9fe4e7a27b7d877af004a9c0022fdc4910",
-              "contentDigest": "sha256:7c78812eebe6652e77ed1c9cbcf66ddae9946d37b7fd7acc9a1eee4e195bc96f",
-              "startLine": 1152,
-              "endLine": 1163
+              "url": "https://github.com/nats-io/nats-server/blob/d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc/server/opts.go",
+              "revision": "d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc",
+              "contentDigest": "sha256:bf3efb2d05b8266e3e2e1affe8a8f85d5721cb751d1c90abf980e3718bf3fd04",
+              "startLine": 1168,
+              "endLine": 1179
             },
             {
               "id": "nats-target-2-14-6-version",
@@ -15521,8 +15521,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T08:46:00Z",
-          "validUntil": "2026-12-11T08:46:00Z",
+          "reviewedAt": "2026-11-18T08:57:00Z",
+          "validUntil": "2027-01-27T08:57:00Z",
           "sources": [
             {
               "id": "nats-origin-2-9-25-version",
@@ -15534,11 +15534,11 @@
             },
             {
               "id": "nats-target-2-14-6-cluster-name-space-rejection",
-              "url": "https://github.com/nats-io/nats-server/blob/1aa10f9fe4e7a27b7d877af004a9c0022fdc4910/server/opts.go",
-              "revision": "1aa10f9fe4e7a27b7d877af004a9c0022fdc4910",
-              "contentDigest": "sha256:7c78812eebe6652e77ed1c9cbcf66ddae9946d37b7fd7acc9a1eee4e195bc96f",
-              "startLine": 2028,
-              "endLine": 2039
+              "url": "https://github.com/nats-io/nats-server/blob/d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc/server/opts.go",
+              "revision": "d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc",
+              "contentDigest": "sha256:bf3efb2d05b8266e3e2e1affe8a8f85d5721cb751d1c90abf980e3718bf3fd04",
+              "startLine": 2044,
+              "endLine": 2055
             },
             {
               "id": "nats-target-2-14-6-conf-json-like-format",
@@ -15558,19 +15558,19 @@
             },
             {
               "id": "nats-target-2-14-6-gateway-name-space-rejection",
-              "url": "https://github.com/nats-io/nats-server/blob/1aa10f9fe4e7a27b7d877af004a9c0022fdc4910/server/opts.go",
-              "revision": "1aa10f9fe4e7a27b7d877af004a9c0022fdc4910",
-              "contentDigest": "sha256:7c78812eebe6652e77ed1c9cbcf66ddae9946d37b7fd7acc9a1eee4e195bc96f",
-              "startLine": 2278,
-              "endLine": 2289
+              "url": "https://github.com/nats-io/nats-server/blob/d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc/server/opts.go",
+              "revision": "d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc",
+              "contentDigest": "sha256:bf3efb2d05b8266e3e2e1affe8a8f85d5721cb751d1c90abf980e3718bf3fd04",
+              "startLine": 2294,
+              "endLine": 2305
             },
             {
               "id": "nats-target-2-14-6-server-name-space-rejection",
-              "url": "https://github.com/nats-io/nats-server/blob/1aa10f9fe4e7a27b7d877af004a9c0022fdc4910/server/opts.go",
-              "revision": "1aa10f9fe4e7a27b7d877af004a9c0022fdc4910",
-              "contentDigest": "sha256:7c78812eebe6652e77ed1c9cbcf66ddae9946d37b7fd7acc9a1eee4e195bc96f",
-              "startLine": 1152,
-              "endLine": 1163
+              "url": "https://github.com/nats-io/nats-server/blob/d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc/server/opts.go",
+              "revision": "d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc",
+              "contentDigest": "sha256:bf3efb2d05b8266e3e2e1affe8a8f85d5721cb751d1c90abf980e3718bf3fd04",
+              "startLine": 1168,
+              "endLine": 1179
             },
             {
               "id": "nats-target-2-14-6-version",
@@ -17023,8 +17023,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-11T21:22:55Z",
-          "validUntil": "2026-12-10T21:22:55Z",
+          "reviewedAt": "2026-11-18T08:57:00Z",
+          "validUntil": "2027-02-16T08:57:00Z",
           "sources": [
             {
               "id": "opencost-v1-119-memory-controller-provider-config",
@@ -17044,19 +17044,19 @@
             },
             {
               "id": "opencost-v1-120-cloud-cost-initialization",
-              "url": "https://github.com/opencost/opencost/blob/22da667c047765788a5cb8b01c1e8ad4cb87fc0a/pkg/cmd/costmodel/costmodel.go",
-              "revision": "22da667c047765788a5cb8b01c1e8ad4cb87fc0a",
-              "contentDigest": "sha256:0ff58686dd61f0beecc846e249575793b69f53bd969eb17afb6cb9af4341e511",
-              "startLine": 63,
-              "endLine": 67
+              "url": "https://github.com/opencost/opencost/blob/1741baaf3682445acba7dfd28c5c5a2a01d4006b/pkg/cmd/costmodel/costmodel.go",
+              "revision": "1741baaf3682445acba7dfd28c5c5a2a01d4006b",
+              "contentDigest": "sha256:1b9bca9621b99a85aa873e3895176f287a06f45619fe2a6044abf42ce2f2322b",
+              "startLine": 64,
+              "endLine": 68
             },
             {
               "id": "opencost-v1-120-memory-controller-nil-config",
-              "url": "https://github.com/opencost/opencost/blob/22da667c047765788a5cb8b01c1e8ad4cb87fc0a/pkg/costmodel/router.go",
-              "revision": "22da667c047765788a5cb8b01c1e8ad4cb87fc0a",
-              "contentDigest": "sha256:f8e885fc5bf134ff97911fa3a7ea8025952405fb54b5587aabaca9e2bd3b3f99",
-              "startLine": 609,
-              "endLine": 613
+              "url": "https://github.com/opencost/opencost/blob/1741baaf3682445acba7dfd28c5c5a2a01d4006b/pkg/costmodel/router.go",
+              "revision": "1741baaf3682445acba7dfd28c5c5a2a01d4006b",
+              "contentDigest": "sha256:9696c85692fab940c5f06a36ad5178f6f583309a7e9d728e40ca678d2157c116",
+              "startLine": 611,
+              "endLine": 615
             },
             {
               "id": "opencost-v1-120-multicloud-source-paths",
@@ -17858,8 +17858,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T00:26:18Z",
-          "validUntil": "2026-12-11T00:26:18Z",
+          "reviewedAt": "2026-11-18T08:57:00Z",
+          "validUntil": "2027-02-11T08:57:00Z",
           "sources": [
             {
               "id": "prometheus-alertmanager-source-1-old-default-v2",
@@ -18540,8 +18540,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-11T22:49:25Z",
-          "validUntil": "2026-12-10T22:49:25Z",
+          "reviewedAt": "2026-11-18T08:57:00Z",
+          "validUntil": "2027-02-15T08:57:00Z",
           "sources": [
             {
               "id": "prometheus-source-1-old-scrape-key",
@@ -18593,11 +18593,11 @@
             },
             {
               "id": "prometheus-source-7-changelog-key-rename",
-              "url": "https://github.com/prometheus/prometheus/blob/c5d009d57fcccb7247e1191a0b10d74b06295388/CHANGELOG.md",
-              "revision": "c5d009d57fcccb7247e1191a0b10d74b06295388",
-              "contentDigest": "sha256:7be975908171a2e05d1399902db8e37e233e4d82513901fa19e54fa67169664b",
-              "startLine": 5,
-              "endLine": 14
+              "url": "https://github.com/prometheus/prometheus/blob/1f56e8492c31a558ccea833027db4bd7f8b6d0e9/CHANGELOG.md",
+              "revision": "1f56e8492c31a558ccea833027db4bd7f8b6d0e9",
+              "contentDigest": "sha256:6a79d80893c42285ad078b688ea0987a296f5922e2e1baa6161a3f803d2cab3f",
+              "startLine": 13,
+              "endLine": 22
             }
           ]
         },

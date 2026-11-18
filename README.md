@@ -318,7 +318,7 @@ Generated on 2026-11-17 by `scripts/readme-coverage.sh` (do not edit this block 
 | CNCF source rules, active | 253 across 54 projects (1 withdrawn, not used) |
 | Rules for further, non-CNCF projects | 51 across 10 projects |
 | Projects with at least one executable check (a rule, a named check or a profile; says nothing about which upgrades it decides) | 68 |
-| Projects with a rule or attestation that decides at least one of their last five minor upgrades (A, B or S below) | 52 of 79 |
+| Projects with a rule or attestation that decides at least one of their last five minor upgrades (A, B or S below) | 51 of 79 |
 | Projects catalogued with retained public sources | 58 (11 of them source-only, no check) |
 | Projects with reviewed CRD targets (a reviewed `crd.custom_resource_versions` target) | 87 |
 | Projects with a published CRD rule or line attestation | 40 |
@@ -328,8 +328,8 @@ Version-coverage depth, measured over the last five minor upgrades of each of th
 | Status | Upgrades | Share |
 | --- | --- | --- |
 | Decided for the whole release-line pair (A attested, B bounded) | 91 | 23% |
-| Rule for one exact version pair only (S) | 39 | 9.8% |
-| Gap, no valid rule (G) | 265 | 67% |
+| Rule for one exact version pair only (S) | 35 | 8.8% |
+| Gap, no valid rule (G) | 269 | 68.1% |
 
 Community catalogue, measured separately and not part of the table above: 42 of 88 upgrades decided (A or B) over 18 projects.
 
@@ -366,7 +366,7 @@ Velero and others.
 Every rule in the CNCF and community-project packs is time-limited.
 
 <!-- validity-window:begin -->
-The 304 active rules shipped today stop being valid, rule by rule, between 2026-12-07 and 2027-02-12 unless their review is renewed; after its date a build without newer knowledge answers `UNKNOWN` for that rule. 199 of the 304 stop being valid on or before 2026-12-12, in the 6 days starting on the earliest.
+The 304 active rules shipped today stop being valid, rule by rule, between 2026-12-07 and 2027-02-16 unless their review is renewed; after its date a build without newer knowledge answers `UNKNOWN` for that rule. 179 of the 304 stop being valid on or before 2026-12-12, in the 6 days starting on the earliest.
 <!-- validity-window:end -->
 
 The named cert-manager and Prometheus checks are pinned to
