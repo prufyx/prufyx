@@ -220,6 +220,9 @@ func rowsCheck(args []string, table []changelogentries.Target, stdout, stderr io
 			fmt.Fprintf(&out, " %s=%d", c, r.Withheld[c])
 		}
 		out.WriteByte('\n')
+		if r.Status == changelogentries.RowPass && len(r.Unlocated) > 0 {
+			fmt.Fprintf(&out, "  - bar %d of the newest %d versions: not located: %s\n", r.Bar, r.Window, strings.Join(r.Unlocated, ", "))
+		}
 		for _, why := range r.Reasons {
 			fmt.Fprintf(&out, "  - %s\n", why)
 		}

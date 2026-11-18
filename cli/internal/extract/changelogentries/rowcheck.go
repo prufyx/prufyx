@@ -40,6 +40,9 @@ type RowResult struct {
 	Window        int
 	WindowLocated int
 	Bar           int
+	// Unlocated lists the tags of the window versions that were not located,
+	// newest first; the receipt names them even when the row passes.
+	Unlocated []string
 	// MinLocatedNewest is the row's coverage bar as configured (the default
 	// when the row has none) or the explicit override; it is what the
 	// receipt prints.
@@ -192,6 +195,7 @@ func checkRow(src interface {
 				res.WindowLocated++
 			}
 		}
+		res.Unlocated = missing
 		if res.WindowLocated < res.Bar {
 			fail("only %d of the newest %d final versions have an entry, %d are required (no entry at %s)", res.WindowLocated, res.Window, res.Bar, strings.Join(missing, ", "))
 		}

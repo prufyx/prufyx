@@ -475,3 +475,44 @@ func TestLoaderV3Fields(t *testing.T) {
 		t.Error("compile accepted a bar of 4")
 	}
 }
+
+// A loose heading for another version whose link ref is the entry's own tag
+// is not a second heading for the entry's version.
+func TestLooseHeadingRefIsNotAVersionName(t *testing.T) {
+	tg := thanosRow(t, []string{"unreleased", "version-linked-loose-date"})
+	good := "## [v0.42.5](https://github.com/thanos-io/thanos/tree/release-0.42) - 2026 07 30"
+	other := "## [v0.42.4](https://github.com/thanos-io/thanos/tree/v0.42.5) - 2026 07 29"
+	e := mustLocate(t, tg, "v0.42.5", "# Changelog\n\n"+good+"\n\n- a\n\n"+other+"\n\n- b\n")
+	if e.Section.EndLine != 5 {
+		t.Fatalf("%+v", e.Section)
+	}
+	mustLocate(t, tg, "v0.42.5", "# Changelog\n\n"+other+"\n\n- b\n\n"+good+"\n\n- a\n")
+	// the version as the heading's own text still makes a duplicate
+	own := "## [v0.42.5] https://github.com/thanos-io/thanos/tree/release-0.42) - 03.04.2025"
+	_, err := locateMem(tg, "v0.42.5", "# Changelog\n\n"+good+"\n\n- a\n\n"+own+"\n\n- b\n")
+	wantCode(t, err, EntryDuplicate)
+}
+
+// A section heading at the end of the file, with no release or boundary
+// heading after it, is never pulled into the last entry.
+func TestChangeSectionsNotAbsorbedAtEndOfFile(t *testing.T) {
+	tg := thanosRow(t, []string{"unreleased", "version-linked-loose-date"}, "change-sections")
+	head := "### [v0.39.1](https://github.com/thanos-io/thanos/tree/release-0.39) - 2025 07 01\n\n"
+	cases := map[string]string{
+		"sections to the end":  head + "### Fixed\n\n- a\n\n### Security\n\n- b\n",
+		"trailing section":     head + "- a\n\n### Added\n\n- b\n",
+		"only a section":       head + "### Changed\n",
+		"trailer after a note": head + "### Fixed\n\n- a\n\n### Removed\n",
+	}
+	for name, f := range cases {
+		if e, err := locateMem(tg, "v0.39.1", "# Changelog\n\n"+f); err == nil {
+			t.Errorf("%s: located %+v", name, e.Section)
+		} else {
+			wantCode(t, err, EntryBoundaryUnproven)
+		}
+	}
+	// followed by a release heading the same sections are read
+	mustLocate(t, tg, "v0.39.1", "# Changelog\n\n"+head+"### Fixed\n\n- a\n\n### Security\n\n- b\n\n### [v0.39.0](https://github.com/thanos-io/thanos/tree/release-0.39) - 2025 06 25\n\n- z\n")
+	// and by a boundary heading
+	mustLocate(t, tg, "v0.39.1", "# Changelog\n\n"+head+"### Fixed\n\n- a\n\n### Unreleased\n")
+}

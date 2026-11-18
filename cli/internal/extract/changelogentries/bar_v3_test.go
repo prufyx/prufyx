@@ -297,3 +297,33 @@ func TestProposeKeepsStyleNeededInThePairWindow(t *testing.T) {
 		}
 	}
 }
+
+// propose-rows twice over one fixture gives byte-identical output.
+func TestProposeIsByteDeterministic(t *testing.T) {
+	tags, files := ksmEight()
+	src := rcFixture(t, tags, files)
+	var first []byte
+	for i := 0; i < 2; i++ {
+		p, err := propose(t, src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		raw, err := json.Marshal(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if i == 0 {
+			first = raw
+		} else if string(raw) != string(first) {
+			t.Fatalf("outputs differ:\n%s\n%s", first, raw)
+		}
+	}
+	src7 := rcFixture(t, eightTags(), eightFiles(0, 1, 2, 3, 4, 5, 6))
+	a, _ := propose(t, src7)
+	b, _ := propose(t, src7)
+	ra, _ := json.Marshal(a)
+	rb, _ := json.Marshal(b)
+	if string(ra) != string(rb) {
+		t.Fatal("outputs differ")
+	}
+}

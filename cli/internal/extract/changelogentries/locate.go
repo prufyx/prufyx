@@ -154,7 +154,7 @@ func entryFromBytes(t Target, c compiled, tag extract.Tag, version string, raw [
 		if x.final != "" {
 			continue
 		}
-		if !x.other && firstVersionToken(x.h.Text) == version || x.other && holdsVersionToken(x.h.Text, version) {
+		if !x.other && firstVersionToken(x.h.Text) == version || x.other && holdsVersionToken(stripLinkTargets(x.h.Text), version) {
 			return refuse(fail(EntryDuplicate, fmt.Sprintf("line %d names %s in another wording", x.h.Line, version)))
 		}
 	}
@@ -179,7 +179,14 @@ func entryFromBytes(t Target, c compiled, tag extract.Tag, version string, raw [
 			// A same-level heading of a closed inner style (never a release
 			// heading, never a second one for a first-only style) is read as
 			// part of the entry; any other one ends it unproven.
-			if x.h.Level == vh.Level && innerHeading(c, x.h.Text, j == vi+1 && onlyBlanksBetween(sc, vh.EndLine, x.h.Line)) {
+			followed := false
+			for k := j + 1; k < len(rels); k++ {
+				if rels[k].final != "" || rels[k].other {
+					followed = true
+					break
+				}
+			}
+			if x.h.Level == vh.Level && innerHeading(c, x.h.Text, j == vi+1 && onlyBlanksBetween(sc, vh.EndLine, x.h.Line), followed) {
 				continue
 			}
 			return refuse(fail(EntryBoundaryUnproven, fmt.Sprintf("line %d: heading %q ends the entry but names no release", x.h.Line, x.h.Text)))
@@ -351,6 +358,13 @@ func entryFromBytes(t Target, c compiled, tag extract.Tag, version string, raw [
 
 // onlyBlanksBetween reports whether every line strictly between line a and
 // line b is blank.
+var linkTargetRE = regexp.MustCompile(`\]\([^)]*\)|https?://[^\s)]*`)
+
+// stripLinkTargets removes link destinations and bare URLs from a heading, so
+// that a version that only occurs inside a link target (a ref such as
+// ".../tree/v1.2.3") is not read as the heading naming that version.
+func stripLinkTargets(text string) string { return linkTargetRE.ReplaceAllString(text, "]") }
+
 func onlyBlanksBetween(sc scanned, a, b int) bool {
 	for n := a + 1; n < b; n++ {
 		if sc.kind[n-1] != kBlank {
@@ -364,9 +378,15 @@ func onlyBlanksBetween(sc scanned, a, b int) bool {
 // inside the entry by one of the row's inner heading styles. first says the
 // heading is the first heading after the release heading with nothing but
 // blank lines between them.
-func innerHeading(c compiled, text string, first bool) bool {
+func innerHeading(c compiled, text string, first, followed bool) bool {
 	for _, in := range c.inner {
 		if in.firstOnly && !first {
+			continue
+		}
+		// A section style is read only while a release or boundary heading
+		// still follows: a trailing section at the end of the file may
+		// belong to nothing, so it is never pulled into the last entry.
+		if !in.firstOnly && !followed {
 			continue
 		}
 		if in.re.MatchString(text) {
