@@ -2,12 +2,12 @@
   "schema": "prufyx.io/coverage-readme-counts/v1",
   "report": {
     "schema": "prufyx.io/coverage-report/v1",
-    "now": "2026-11-17T16:18:37Z",
+    "now": "2026-11-18T12:00:00Z",
     "window": 6,
     "pack": {
       "revision": "cncf-2026-09-13.8",
       "schema": "prufyx.io/cncf-source-rule-pack/v1alpha11",
-      "digest": "sha256:394fccb4780ca9037ac65068d203100e91a7bca2f441c604a84f135dde1322ab"
+      "digest": "sha256:5958be9e5c647cb341fdf651e54ff85f6a6fa0bb955ede12ca772175efeafabc"
     },
     "lines": {
       "capturedOn": "2026-10-31",
@@ -19,7 +19,7 @@
       "entries": 9,
       "clockOn": "2026-11-10"
     },
-    "clockAttestedAt": "2026-11-17T16:18:37Z",
+    "clockAttestedAt": "2026-11-18T12:00:00Z",
     "packProjectsCovered": 72,
     "crdVersionProjects": 87,
     "crdPublishedProjects": 40,
@@ -5335,7 +5335,7 @@
         "vc": 1,
         "vcA": 0.8,
         "covered": true,
-        "validRules": 11,
+        "validRules": 12,
         "rulesInWindow": 11,
         "expiring14d": 0
       },
@@ -5921,7 +5921,7 @@
   },
   "inventoryCounts": {
     "cncfRuleProjects": 54,
-    "cncfSourceRules": 253,
+    "cncfSourceRules": 254,
     "cncfSourceRulesWithdrawn": 1,
     "communityProjectRuleProjects": 10,
     "communityProjectSourceRules": 51,
@@ -5929,5 +5929,5 @@
     "selectedSourceOnlyProjects": 11,
     "selectedSourceProjects": 58
   },
-  "readmeBlockSha256": "ebd3c7d1722a5518b8f133a8213dc147ed3190f79834c28d6af6fca6fd75138e"
+  "readmeBlockSha256": "b20ce02e4b37a1534d2731c3196dda9b58f7dcc24e47e1b4144dbdc4beab44b7"
 }
