@@ -40347,6 +40347,259 @@
   },
   {
     "project": "strimzi",
+    "ruleId": "strimzi.feature-gate-usekraft-removed.0-44",
+    "cases": [
+      {
+        "name": "blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.41.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.44.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.cluster_operator_feature_gates_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "UseKRaft"
+                      ],
+                      "complete": true
+                    }
+                  },
+                  {
+                    "id": "component.strimzi.distribution",
+                    "enumValue": "official_upstream",
+                    "state": "declared"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "blocked-with-incomplete-set",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.41.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.44.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.cluster_operator_feature_gates_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "SomeOtherGate",
+                        "UseKRaft"
+                      ],
+                      "complete": false
+                    }
+                  },
+                  {
+                    "id": "component.strimzi.distribution",
+                    "enumValue": "official_upstream",
+                    "state": "declared"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "pass",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.41.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.44.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.cluster_operator_feature_gates_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "ContinueReconciliationOnManualRollingUpdateFailure"
+                      ],
+                      "complete": true
+                    }
+                  },
+                  {
+                    "id": "component.strimzi.distribution",
+                    "enumValue": "official_upstream",
+                    "state": "declared"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "unknown-unreviewed-gate",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.41.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.44.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.cluster_operator_feature_gates_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "SomeOtherGate"
+                      ],
+                      "complete": false
+                    }
+                  },
+                  {
+                    "id": "component.strimzi.distribution",
+                    "enumValue": "official_upstream",
+                    "state": "declared"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "unknown-set-unreadable",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.41.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.44.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.cluster_operator_feature_gates_set",
+                    "state": "missing"
+                  },
+                  {
+                    "id": "component.strimzi.distribution",
+                    "enumValue": "official_upstream",
+                    "state": "declared"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "unknown-custom-build",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.41.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/strimzi/strimzi-kafka-operator",
+                "version": "0.44.0",
+                "facts": [
+                  {
+                    "id": "component.strimzi.cluster_operator_feature_gates_set",
+                    "state": "declared",
+                    "setValue": {
+                      "members": [
+                        "UseKRaft"
+                      ],
+                      "complete": true
+                    }
+                  },
+                  {
+                    "id": "component.strimzi.distribution",
+                    "enumValue": "custom_build",
+                    "state": "declared"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "strimzi",
     "ruleId": "strimzi.kafka-v1beta2-api-removed.1-0",
     "cases": [
       {

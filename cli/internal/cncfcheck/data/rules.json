@@ -4,7 +4,7 @@
   "policyId": "cncf-source-preview-v1",
   "policyDigest": "sha256:59fb35dd1cf0241cb704b10de6d8040cd584da29fb17443a353bab4542aeb83d",
   "landscapeFileDigest": "sha256:8ee4c10af7d58ddda752ff91c20bf6a5f328bfa5aa288f93801d0ca9d2b0c0ef",
-  "registryDigest": "sha256:130004d0825886dbd9774deb017fa3ebfc38da0581a361731095c22c0a160b96",
+  "registryDigest": "sha256:0876fe00dc8b9325335df1d076ea7ee5aa2da053d2f885c6b36acf4f9523dcdb",
   "entries": [
     {
       "description": "Argo CD v3.5.2 uses Helm 4; this checks one effective official Helm repository with OCI enabled and caller-declared plain-HTTP transport for the documented force-HTTP flag requirement and direct-repository conflicting TLS flags.",
@@ -20539,6 +20539,97 @@
           "component": "pkg:github/strimzi/strimzi-kafka-operator",
           "from": "0.51.0",
           "to": "1.0.0"
+        }
+      }
+    },
+    {
+      "description": "Strimzi 0.44.0 no longer accepts the UseKRaft feature gate: its FeatureGates class holds only ContinueReconciliationOnManualRollingUpdateFailure and rejects any other name, whether written +UseKRaft or -UseKRaft, so the Cluster Operator does not start; 0.41.0 accepted it. The rule reads the feature-gate names set in the STRIMZI_FEATURE_GATES environment variable of one caller-supplied Cluster Operator Deployment, assumed to be the proposed 0.44.0 operator (its image is not checked). An absent variable is the empty set only when the caller declares nothing else supplies it. A PASS covers this one gate and this one source only; other gates, other operator settings and runtime behaviour are not checked.",
+      "project": "strimzi",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "description": "Declared proposed Strimzi distribution. Only official upstream source behavior is covered; custom builds remain UNKNOWN.",
+          "enumTokens": [
+            "custom_build",
+            "official_upstream"
+          ],
+          "id": "component.strimzi.distribution",
+          "side": "proposed",
+          "type": "enum"
+        },
+        {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "description": "Feature gate names set in the STRIMZI_FEATURE_GATES variable of the proposed Cluster Operator Deployment (names only, +/- prefix removed, values discarded). Complete only when the variable was read as a literal and every name is one the operator knows; absent or unreadable means unknown.",
+          "enumTokens": null,
+          "id": "component.strimzi.cluster_operator_feature_gates_set",
+          "side": "proposed",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "appliesWhen": [
+          {
+            "component": "pkg:github/strimzi/strimzi-kafka-operator",
+            "enumValue": "official_upstream",
+            "factId": "component.strimzi.distribution",
+            "side": "proposed"
+          }
+        ],
+        "evidence": {
+          "reviewedAt": "2026-11-18T12:00:00Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:d5402e8f5bf627b86b80533e5d29fc1e484128a197c01cb1ef2d9c4d214c3cc6",
+              "endLine": 52,
+              "id": "changelog-0-44-0",
+              "revision": "7e49e5fb5c01cb001476b82710dcb954c038fc08",
+              "startLine": 52,
+              "url": "https://github.com/strimzi/strimzi-kafka-operator/blob/7e49e5fb5c01cb001476b82710dcb954c038fc08/CHANGELOG.md"
+            },
+            {
+              "contentDigest": "sha256:03c2384a8a6ee24b0f3d316248604cadaee09668be0938b367cb0d74859cab81",
+              "endLine": 191,
+              "id": "config-0-44-0",
+              "revision": "7e49e5fb5c01cb001476b82710dcb954c038fc08",
+              "startLine": 191,
+              "url": "https://github.com/strimzi/strimzi-kafka-operator/blob/7e49e5fb5c01cb001476b82710dcb954c038fc08/cluster-operator/src/main/java/io/strimzi/operator/cluster/ClusterOperatorConfig.java"
+            },
+            {
+              "contentDigest": "sha256:c8061978a1f60d97bba44ee0a0ad3b50c26ad2675132e24e684b51d2940aad31",
+              "endLine": 55,
+              "id": "gates-0-41-0",
+              "revision": "12cff8da6eb52031120ae78911ee968bd116c8ef",
+              "startLine": 19,
+              "url": "https://github.com/strimzi/strimzi-kafka-operator/blob/12cff8da6eb52031120ae78911ee968bd116c8ef/cluster-operator/src/main/java/io/strimzi/operator/cluster/FeatureGates.java"
+            },
+            {
+              "contentDigest": "sha256:1e40dce48e6957d3ee7c2a7ced3e6337162d09ffd3fe8335326ecb6eb30d4107",
+              "endLine": 52,
+              "id": "gates-0-44-0",
+              "revision": "7e49e5fb5c01cb001476b82710dcb954c038fc08",
+              "startLine": 21,
+              "url": "https://github.com/strimzi/strimzi-kafka-operator/blob/7e49e5fb5c01cb001476b82710dcb954c038fc08/operator-common/src/main/java/io/strimzi/operator/common/featuregates/FeatureGates.java"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-15T12:00:00Z"
+        },
+        "id": "strimzi.feature-gate-usekraft-removed.0-44",
+        "nextAction": "Remove +UseKRaft or -UseKRaft from STRIMZI_FEATURE_GATES in the Cluster Operator Deployment before upgrading to 0.44.0; KRaft is always on there.",
+        "operator": "forbid_set_member",
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "setCondition": {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "factId": "component.strimzi.cluster_operator_feature_gates_set",
+          "members": [
+            "UseKRaft"
+          ],
+          "side": "proposed"
+        },
+        "subject": {
+          "component": "pkg:github/strimzi/strimzi-kafka-operator",
+          "from": "0.41.0",
+          "to": "0.44.0"
         }
       }
     },

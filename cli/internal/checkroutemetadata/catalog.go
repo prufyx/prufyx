@@ -427,6 +427,7 @@ func descriptorsWith(kubernetes []descriptor) []descriptor {
 		result = append(result, descriptor{family: FamilyCNCF, project: "envoy", component: "pkg:github/envoyproxy/envoy", ruleID: "envoy.xds-v2-unsupported-at-1-39-1-from-" + strings.ReplaceAll(from, ".", "-"), from: from, to: "1.39.1", command: exactPair(extend(cncfBase("envoy"), file("--envoy-bootstrap"), literal("--envoy-bootstrap-selected")), from, "1.39.1"), limit: "Direct V2 transport blocker only; dynamic xDS and runtime behavior are unassessed.", nativePass: "NOT_AVAILABLE_BLOCKER_ONLY"})
 	}
 	result = append(result, descriptor{family: FamilyCNCF, project: "strimzi", component: "pkg:github/strimzi/strimzi-kafka-operator", ruleID: "strimzi.kafka-v1beta2-api-removed.1-0", from: "0.51.0", to: "1.0.0", command: exactPair(extend(cncfBase("strimzi"), file("--kafka-resource"), name("--strimzi-distribution"), literal("--target-kafka-crd-admission-required")), "0.51.0", "1.0.0"), limit: "One caller-selected rendered kind Kafka resource, or one flat v1 List of rendered resources, only; CRD installation, admission, conversion, and runtime behavior are unassessed."})
+	result = append(result, descriptor{family: FamilyCNCF, project: "strimzi", component: "pkg:github/strimzi/strimzi-kafka-operator", ruleID: "strimzi.feature-gate-usekraft-removed.0-44", from: "0.41.0", to: "0.44.0", command: exactPair(extend(cncfBase("strimzi"), file("--strimzi-operator-deployment"), name("--strimzi-distribution")), "0.41.0", "0.44.0"), limit: "One caller-selected rendered Cluster Operator Deployment, assumed to be the proposed operator; only the STRIMZI_FEATURE_GATES literal is read, and only the UseKRaft gate is assessed; an absent variable passes only with an explicit declaration that nothing else supplies it and no envFrom is present."})
 	for _, to := range []string{"0.41.0", "0.42.0"} {
 		result = append(result, descriptor{family: FamilyCNCF, project: "falco", component: "pkg:github/falcosecurity/falco", ruleID: "falco.deprecated-cli-flags-removed.0-40-to-" + strings.ReplaceAll(strings.TrimSuffix(to, ".0"), ".", "-"), from: "0.40.0", to: to, command: exactPair(extend(cncfBase("falco"), file("--falco-argv"), name("--falco-distribution")), "0.40.0", to), limit: "One caller-declared explicit effective Falco argv only; wrappers, entrypoints, images, environment, defaults, and runtime behavior are unassessed."})
 	}
@@ -915,7 +916,7 @@ func discover(cncf []cncfcheck.RuleIdentity, community []projectcheck.RuleIdenti
 		knownProjects[item.Project] = true
 		known[identityKey(FamilyCommunity, item.Project, item.Component, item.RuleID, item.From, item.To)] = true
 	}
-	if want := 186 + len(kubernetes); len(descriptors) != want {
+	if want := 187 + len(kubernetes); len(descriptors) != want {
 		return Result{}, fmt.Errorf("%w: descriptor count=%d", ErrIntegrity, len(descriptors))
 	}
 	for key := range descriptors {

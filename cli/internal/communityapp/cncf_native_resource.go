@@ -84,6 +84,8 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 		allowed = []string{"current-resource", "current-resource-digest", "resource", "resource-digest"}
 	} else if project == "nats" {
 		allowed = []string{"nats-config", "nats-config-digest"}
+	} else if project == "strimzi" && anyFlagProvided(args, "strimzi-operator-deployment", "strimzi-operator-deployment-digest", "strimzi-operator-env-complete") {
+		allowed = []string{"strimzi-operator-deployment", "strimzi-operator-deployment-digest", "strimzi-operator-env-complete", "strimzi-distribution"}
 	} else if project == "strimzi" {
 		allowed = []string{"kafka-resource", "kafka-resource-digest", "strimzi-distribution", "target-kafka-crd-admission-required"}
 	} else if project == "falco" {
@@ -124,6 +126,7 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 	if from == "" || to == "" || cncfUnexpectedModeFlag(args, allowed...) {
 		return r.usage("invalid native CNCF resource check arguments; use --help")
 	}
+	strimziOperatorMode := project == "strimzi" && anyFlagProvided(args, "strimzi-operator-deployment", "strimzi-operator-deployment-digest", "strimzi-operator-env-complete")
 	redact := flagProvided(args, "redact")
 	if redact && (project != "kubernetes" || storeRoot != "" || replayPath != "") {
 		return r.usage("--redact applies to object locations, which only check cncf --project kubernetes --native-resource prints; use --help")
@@ -155,6 +158,9 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 			return r.fail("NATIVE_CNCF_RESOURCE_INTEGRITY_FAILURE", ExitIntegrity)
 		}
 		if flag, jsonOnly := cncfJSONOnlyInputFlag[project]; jsonOnly && !looksLikeJSON(raw) {
+			if project == "strimzi" && strimziOperatorMode {
+				flag = "strimzi-operator-deployment"
+			}
 			return r.usage("--" + flag + " must be JSON; convert YAML first, for example with: yq -o=json FILE")
 		}
 		if project == "kubevirt" {
@@ -169,7 +175,11 @@ func (r runtime) cncfNativeResourceCheck(project, nativePath, nativePin, current
 			if selectedJob != "" && selectedJob != cncfprepare.StrimziDistributionOfficial && selectedJob != cncfprepare.StrimziDistributionCustom {
 				return r.usage("invalid Strimzi distribution; use --help")
 			}
-			prepared, err = cncfprepare.PrepareStrimziKafkaResource(raw, from, to, selectedJob, complete)
+			if strimziOperatorMode {
+				prepared, err = cncfprepare.PrepareStrimziOperatorDeployment(raw, from, to, selectedJob, complete)
+			} else {
+				prepared, err = cncfprepare.PrepareStrimziKafkaResource(raw, from, to, selectedJob, complete)
+			}
 		} else if project == "falco" {
 			if selectedJob != "" && selectedJob != cncfprepare.FalcoDistributionOfficial && selectedJob != cncfprepare.FalcoDistributionCustom {
 				return r.usage("invalid Falco distribution; use --help")

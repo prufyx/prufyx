@@ -68,8 +68,8 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 	// other rules.
 	all := reviewedVectors(t)
 	batch := len(crdbatchids.IDs())
-	if len(all) != 257+batch {
-		t.Fatalf("the vector file holds %d vectors, want %d (228 + the 29 mechanical + the %d of the custom-resource batch)", len(all), 257+batch, batch)
+	if len(all) != 258+batch {
+		t.Fatalf("the vector file holds %d vectors, want %d (229 + the 29 mechanical + the %d of the custom-resource batch)", len(all), 258+batch, batch)
 	}
 	extra := 0
 	otherGeneration := map[string]bool{}
@@ -173,10 +173,10 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 			}
 		}
 	}
-	if len(b.pack.Entries) != 228+extra+shippedBatch+len(crdbatchids.Foreign())+crossingRules || len(vectors) != 228+extra+shippedBatch {
+	if len(b.pack.Entries) != 229+extra+shippedBatch+len(crdbatchids.Foreign())+crossingRules || len(vectors) != 229+extra+shippedBatch {
 		t.Fatal("unexpected reviewed rule or vector count")
 	}
-	if caseCount != 1113+4*extra+4*shippedBatch {
+	if caseCount != 1119+4*extra+4*shippedBatch {
 		t.Fatal("unexpected reviewed case count")
 	}
 	for _, vector := range vectors {
@@ -670,7 +670,7 @@ func TestCatalogueDoesNotInventCoverage(t *testing.T) {
 	for _, want := range []struct {
 		slug  string
 		rules int
-	}{{"cortex", 7}, {"falco", 6}, {"karmada", 1}, {"kubeedge", 1}, {"kuma", 1}, {"spire", 2}, {"strimzi", 1 + crdbatchids.Count("strimzi")}} {
+	}{{"cortex", 7}, {"falco", 6}, {"karmada", 1}, {"kubeedge", 1}, {"kuma", 1}, {"spire", 2}, {"strimzi", 2 + crdbatchids.Count("strimzi")}} {
 		preview, err := Catalog(false, want.slug)
 		if err != nil || len(preview.Projects) != 1 || preview.Projects[0].SourceRuleCount != want.rules || preview.Projects[0].GenericCoverage != "source_rule_preview" || preview.Projects[0].RuntimeReproduced != 0 {
 			t.Fatalf("%s source preview coverage missing or overstated", want.slug)

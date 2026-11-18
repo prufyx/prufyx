@@ -377,6 +377,41 @@ behavior. Pinned source evidence for the existing rule is the Strimzi
 `con-api-conversion-v1.adoc` upgrade module. Whole-upgrade safety remains
 `UNKNOWN`.
 
+## Strimzi UseKRaft feature gate removal
+
+The operator route evaluates one caller-selected rendered Strimzi Cluster
+Operator `Deployment` (`apps/v1`) for the reviewed `0.41.0` to `0.44.0`
+transition. The `0.41.0` operator accepts the `UseKRaft` feature gate; the
+`0.44.0` operator accepts only `ContinueReconciliationOnManualRollingUpdateFailure`
+and refuses to start on any other name, whether written `+UseKRaft` or
+`-UseKRaft`. The Deployment is assumed to be the proposed `0.44.0` operator;
+its image is not checked.
+
+```sh
+./prufyx check cncf --project strimzi \
+  --strimzi-operator-deployment operator.json --strimzi-distribution official_upstream \
+  --from 0.41.0 --to 0.44.0 --now 2026-11-18T00:00:00Z
+```
+
+The route reads one private Deployment JSON and derives only the names of the
+feature gates set in `STRIMZI_FEATURE_GATES` on the container named
+`strimzi-cluster-operator`; no other environment value, Secret, ConfigMap or
+object content is read or retained. The value must match the operator's own
+syntax exactly (every gate carries a `+` or `-` prefix). A `UseKRaft` gate is
+`BLOCKED`. A gate list that holds only the one gate the `0.44.0` operator
+accepts is a scoped `PASS` for this one removal constraint. A variable that is
+absent is the empty set only with `--strimzi-operator-env-complete` (the caller
+declares nothing else supplies it) and only when the container has no `envFrom`;
+with `envFrom` present the result stays `UNKNOWN`. A `valueFrom`, a duplicate
+variable, a missing or repeated operator container, a value that does not match
+the syntax, an unknown gate name, a templated or non-`Deployment` document, a
+`custom_build` declaration and any other version pair all remain `UNKNOWN`. A
+bare name without `+` or `-` is not read as a gate. Pinned source evidence is
+the Strimzi `FeatureGates.java` at `0.41.0` and `0.44.0`,
+`ClusterOperatorConfig.java` (the variable defaults to an empty value) and
+`CHANGELOG.md`. Other gates, other operator settings and the live operator are
+not checked.
+
 ## Custom-resource versions (23 CNCF catalog projects of the reviewed table)
 
 `--custom-resources FILE` reads one private file of rendered manifests and

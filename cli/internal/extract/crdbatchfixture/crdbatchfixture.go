@@ -25,6 +25,8 @@ const (
 	membersServed = "servedAPIs"
 	// membersPolicies is the pack member of the upgrade-path policies.
 	membersPolicies = "pathPolicies"
+	// operatorGateRuleID is the id of the Strimzi operator feature-gate rule.
+	operatorGateRuleID = "strimzi.feature-gate-usekraft-removed.0-44"
 )
 
 // Without returns pack without the batch and, when the pack holds the batch,
@@ -96,6 +98,12 @@ func Without(pack []byte) ([]byte, error) {
 		// flag or config-key set) is another generation's, like the batch:
 		// the pack the tests model does not hold it.
 		if e.Rule.Operator == "forbid_set_member" && len(e.Rule.Crossing) > 0 {
+			continue
+		}
+		// The Strimzi operator feature-gate rule (exact pair, over the
+		// proposed-side gate set of a supplied operator Deployment) is also a
+		// later generation's: the pack the tests model does not hold it.
+		if e.Rule.ID == operatorGateRuleID {
 			continue
 		}
 		if e.Rule.Operator == "forbid_set_member" {

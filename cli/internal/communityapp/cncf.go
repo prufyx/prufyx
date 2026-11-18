@@ -191,6 +191,9 @@ func (r runtime) cncf(args []string) int {
 	kafkaResourcePin := fs.String("kafka-resource-digest", "", "optional exact Kafka resource SHA-256")
 	strimziDistribution := fs.String("strimzi-distribution", "", "Strimzi distribution: official_upstream or custom_build")
 	targetKafkaCRDAdmissionRequired := fs.Bool("target-kafka-crd-admission-required", false, "caller declaration that the selected Kafka resources must be admitted by the target Kafka CRD")
+	strimziOperatorDeployment := fs.String("strimzi-operator-deployment", "", "private rendered Strimzi Cluster Operator Deployment JSON; only the STRIMZI_FEATURE_GATES literal is read")
+	strimziOperatorDeploymentPin := fs.String("strimzi-operator-deployment-digest", "", "optional exact Cluster Operator Deployment SHA-256")
+	strimziOperatorEnvComplete := fs.Bool("strimzi-operator-env-complete", false, "caller declaration that, when STRIMZI_FEATURE_GATES is absent, nothing else supplies it")
 	falcoArgv := fs.String("falco-argv", "", "private explicit effective Falco JSON argv array")
 	falcoArgvPin := fs.String("falco-argv-digest", "", "optional exact Falco argv SHA-256")
 	falcoDistribution := fs.String("falco-distribution", "", "Falco distribution: official_upstream or custom_build")
@@ -316,6 +319,7 @@ func (r runtime) cncf(args []string) int {
 	corednsNativeRequested := *project == "coredns" && anyFlagProvided(args, "coredns-corefile", "coredns-corefile-digest", "coredns-corefile-complete", "coredns-distribution")
 	envoyNativeRequested := *project == "envoy" && anyFlagProvided(args, "envoy-bootstrap", "envoy-bootstrap-digest", "envoy-bootstrap-selected")
 	natsFlags := anyFlagProvided(args, "nats-config", "nats-config-digest")
+	strimziOperatorFlags := anyFlagProvided(args, "strimzi-operator-deployment", "strimzi-operator-deployment-digest", "strimzi-operator-env-complete")
 	strimziFlags := anyFlagProvided(args, "kafka-resource", "kafka-resource-digest", "strimzi-distribution", "target-kafka-crd-admission-required")
 	falcoFlags := anyFlagProvided(args, "falco-argv", "falco-argv-digest", "falco-distribution")
 	kumaFlags := anyFlagProvided(args, "kumactl-argv", "kumactl-argv-digest", "kuma-distribution")
@@ -381,6 +385,15 @@ func (r runtime) cncf(args []string) int {
 	}
 	if envoyNativeRequested {
 		return r.cncfNativeResourceCheck(*project, *envoyBootstrap, *envoyBootstrapPin, *currentResource, *currentResourcePin, *resource, *resourcePin, "", *envoyBootstrapSelected, false, *from, *to, *nowText, *knowledgeDB, *knowledgeRevision, *knowledgeBundleDigest, *knowledgeTrustReceiptDigest, *replay, *format, false, "", false, "", "", "", "", args, nil, "")
+	}
+	if strimziOperatorFlags && *project != "strimzi" {
+		return r.usage("Strimzi operator Deployment flags require project strimzi; use --help")
+	}
+	if strimziOperatorFlags {
+		if *strimziOperatorDeployment == "" || (*strimziDistribution != "" && *strimziDistribution != cncfprepare.StrimziDistributionOfficial && *strimziDistribution != cncfprepare.StrimziDistributionCustom) || cncfUnexpectedModeFlag(args, "strimzi-operator-deployment", "strimzi-operator-deployment-digest", "strimzi-operator-env-complete", "strimzi-distribution") {
+			return r.usage("invalid Strimzi operator Deployment arguments; use --help")
+		}
+		return r.cncfNativeResourceCheck(*project, *strimziOperatorDeployment, *strimziOperatorDeploymentPin, *currentResource, *currentResourcePin, *resource, *resourcePin, *strimziDistribution, *strimziOperatorEnvComplete, false, *from, *to, *nowText, *knowledgeDB, *knowledgeRevision, *knowledgeBundleDigest, *knowledgeTrustReceiptDigest, *replay, *format, false, "", false, "", cncfprepare.StrimziOperatorGatesRuleID, "", "", args, nil, "")
 	}
 	if strimziFlags && *project != "strimzi" {
 		return r.usage("Strimzi Kafka resource flags require project strimzi; use --help")
@@ -840,6 +853,7 @@ var cncfModeInputFlags = []string{
 	"cilium-config-map", "cilium-config-map-digest", "cilium-config-complete", "cilium-config-precedence-resolved", "cilium-distribution",
 	"nats-config", "nats-config-digest",
 	"kafka-resource", "kafka-resource-digest", "strimzi-distribution", "target-kafka-crd-admission-required",
+	"strimzi-operator-deployment", "strimzi-operator-deployment-digest", "strimzi-operator-env-complete",
 	"falco-argv", "falco-argv-digest", "falco-distribution",
 	"kumactl-argv", "kumactl-argv-digest", "kuma-distribution",
 	"composition", "composition-digest", "crossplane-distribution", "crossplane-schema-validation-required",

@@ -182,6 +182,7 @@ func packagedDefinitions() []constraintengine.FactDefinition {
 		{ID: "component.strimzi.execution_surface", Component: "pkg:github/strimzi/strimzi-kafka-operator", Type: constraintengine.FactEnum, EnumTokens: []string{"kafka_custom_resource", "other"}},
 		{ID: "component.strimzi.kafka_v1beta2_api_present", Component: "pkg:github/strimzi/strimzi-kafka-operator", Type: constraintengine.FactBool, EnumTokens: nil},
 		{ID: "component.strimzi.target_kafka_crd_admission_required", Component: "pkg:github/strimzi/strimzi-kafka-operator", Type: constraintengine.FactBool, EnumTokens: nil},
+		{ID: "component.strimzi.cluster_operator_feature_gates_set", Component: "pkg:github/strimzi/strimzi-kafka-operator", Type: constraintengine.FactSet, EnumTokens: nil},
 		{ID: "component.thanos.removed_subcommand_flags_present", Component: "pkg:github/thanos-io/thanos", Type: constraintengine.FactBool, EnumTokens: nil},
 		{ID: "component.tekton.config_observability_identity_bound", Component: "pkg:github/tektoncd/pipeline", Type: constraintengine.FactBool, EnumTokens: nil},
 		{ID: "component.tekton.distribution", Component: "pkg:github/tektoncd/pipeline", Type: constraintengine.FactEnum, EnumTokens: []string{"custom_build", "official_upstream"}},

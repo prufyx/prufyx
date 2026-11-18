@@ -136,7 +136,7 @@ func TestEmbeddedKnowledgeSetRulesReadCustomResourceSets(t *testing.T) {
 	for _, f := range relnotesSetFacts() {
 		relnotesFact[f.id()] = f
 	}
-	published, relnotesRules := 0, 0
+	published, relnotesRules, operatorGateRules := 0, 0, 0
 	for _, entry := range shippedPack(t).Entries {
 		if !isSetRule(t, entry) {
 			if strings.Contains(string(entry.Rule), `"setCondition"`) {
@@ -171,6 +171,24 @@ func TestEmbeddedKnowledgeSetRulesReadCustomResourceSets(t *testing.T) {
 			relnotesRules++
 			continue
 		}
+		if id == cncfprepare.StrimziOperatorGatesRuleID {
+			// The one reviewed operator-configuration rule: exactly the
+			// gates the 0.44.0 operator removed, over the proposed-side
+			// set the operator Deployment preparer declares, with the
+			// distribution as its only applicability guard.
+			if entry.Project != "strimzi" || rule.SetCondition.Side != "proposed" || rule.SetCondition.FactID != cncfprepare.StrimziOperatorGatesFact || rule.SetCondition.Component != cncfprepare.StrimziComponent || !slices.Equal(rule.SetCondition.Members, []string{"UseKRaft"}) {
+				t.Fatalf("operator-gate rule %s reads %s %s %v", id, rule.SetCondition.Side, rule.SetCondition.FactID, rule.SetCondition.Members)
+			}
+			ids := []string{}
+			for _, f := range entry.RequiredFacts {
+				ids = append(ids, f.Side+"/"+f.ID+"/"+string(f.Type))
+			}
+			if !slices.Equal(ids, []string{"proposed/" + cncfprepare.StrimziDistributionFact + "/enum", "proposed/" + cncfprepare.StrimziOperatorGatesFact + "/set"}) {
+				t.Fatalf("%s declares %v", id, ids)
+			}
+			operatorGateRules++
+			continue
+		}
 		stated, ok := want[id]
 		if !ok && crdbatchids.IsForeign(id) {
 			// A mechanical rule of another project states itself: its
@@ -194,7 +212,7 @@ func TestEmbeddedKnowledgeSetRulesReadCustomResourceSets(t *testing.T) {
 			t.Fatalf("%s declares its set fact %d times", id, declared)
 		}
 	}
-	if published != len(want)+len(crdbatchids.Foreign())+relnotesRules {
+	if published != len(want)+len(crdbatchids.Foreign())+relnotesRules+operatorGateRules {
 		t.Fatalf("%d published set rules, the batch states %d, %d are mechanical rules of other projects and %d are release-note rules", published, len(want), len(crdbatchids.Foreign()), relnotesRules)
 	}
 	gates := map[string]bool{}
@@ -228,7 +246,7 @@ func TestEmbeddedKnowledgeSetRulesReadCustomResourceSets(t *testing.T) {
 	for _, f := range relnotesSetFacts() {
 		relnotes[f.id()] = true
 	}
-	sets := 0
+	sets, operatorFacts := 0, 0
 	for _, definition := range compiledDefinitions() {
 		if definition.Type != constraintengine.FactSet {
 			continue
@@ -237,6 +255,11 @@ func TestEmbeddedKnowledgeSetRulesReadCustomResourceSets(t *testing.T) {
 			// checked by TestRelnotesSetFactsRegistered
 		} else if charts[definition.ID] {
 			// a chart values-path fact; the extractor test checks its component
+		} else if definition.ID == cncfprepare.StrimziOperatorGatesFact {
+			if definition.Component != cncfprepare.StrimziComponent {
+				t.Fatalf("%s is declared for %s", definition.ID, definition.Component)
+			}
+			operatorFacts++
 		} else if gates[definition.ID] {
 			if definition.Component != "pkg:github/kubernetes/kubernetes" {
 				t.Fatalf("%s is declared for %s", definition.ID, definition.Component)
@@ -246,8 +269,8 @@ func TestEmbeddedKnowledgeSetRulesReadCustomResourceSets(t *testing.T) {
 		}
 		sets++
 	}
-	if sets != len(crd)+len(gates)+len(charts)+len(relnotes) {
-		t.Fatalf("%d set facts registered, %d custom-resource projects, %d feature-gate facts, %d chart values-path facts and %d relnotes facts", sets, len(crd), len(gates), len(charts), len(relnotes))
+	if sets != len(crd)+len(gates)+len(charts)+len(relnotes)+operatorFacts || operatorFacts != 1 {
+		t.Fatalf("%d set facts registered, %d custom-resource projects, %d feature-gate facts, %d chart values-path facts, %d relnotes facts and %d operator-gate facts", sets, len(crd), len(gates), len(charts), len(relnotes), operatorFacts)
 	}
 	// Every registered feature-gate fact is one the adapter can supply; the
 	// flag sets stay unregistered until a published rule consumes them.

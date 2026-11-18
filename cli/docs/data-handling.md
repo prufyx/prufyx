@@ -141,6 +141,14 @@ ordinary content hashes. Missing, ambiguous, unsupported, or unknown invocations
 remain unresolved, and preparation does not run a compatibility check, invoke a
 model, or persist a file.
 
+Strimzi operator preparation (`--strimzi-operator-deployment`) reads one private
+Cluster Operator Deployment JSON and derives only the names of the feature
+gates set in the `STRIMZI_FEATURE_GATES` variable of the container named
+`strimzi-cluster-operator`; no other environment value, Secret, ConfigMap or
+object content is read or retained. Whether `envFrom` is present is read, never
+its content. The raw value, an invalid token and every other field are never
+printed, stored or echoed in an error.
+
 The unreleased external knowledge paths read only an explicitly named local
 package, bootstrap root on first use, private database directory, and private
 values file or minimized CNCF input. Evaluation and import have no upload path.

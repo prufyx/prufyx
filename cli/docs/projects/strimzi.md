@@ -11,10 +11,12 @@ the reference text of each route: [routes.md](routes.md).
 
 ```text
 prufyx check cncf --project strimzi --kafka-resource FILE --strimzi-distribution official_upstream|custom_build --target-kafka-crd-admission-required --from 0.51.0 --to 1.0.0 (--now RFC3339 | --knowledge-db DIR) [--kafka-resource-digest SHA256] [--replay-report FILE] [--format human|json]
+prufyx check cncf --project strimzi --strimzi-operator-deployment FILE --strimzi-distribution official_upstream|custom_build [--strimzi-operator-env-complete] --from 0.41.0 --to 0.44.0 (--now RFC3339 | --knowledge-db DIR) [--strimzi-operator-deployment-digest SHA256] [--replay-report FILE] [--format human|json]
 ```
 
 ## prepare cncf
 
 ```text
 prufyx prepare cncf --project strimzi --kafka-resource FILE --from 0.51.0 --to 1.0.0 --strimzi-distribution official_upstream|custom_build --target-kafka-crd-admission-required [--kafka-resource-digest SHA256] [--format human|json|input]
+prufyx prepare cncf --project strimzi --strimzi-operator-deployment FILE --from 0.41.0 --to 0.44.0 --strimzi-distribution official_upstream|custom_build [--strimzi-operator-env-complete] [--strimzi-operator-deployment-digest SHA256] [--format human|json|input]
 ```

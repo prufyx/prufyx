@@ -103,8 +103,9 @@ func TestWithout(t *testing.T) {
 	}
 	before, after := entryIDs(t, shipped), entryIDs(t, without)
 	relnotes := relnotesCrossing(t, shipped)
-	if want := len(crdbatchids.IDs()) + len(crdbatchids.Foreign()) + relnotes; len(before)-len(after) != want {
-		t.Fatalf("%d rules removed, the batch has %d, %d are mechanical rules of other projects and %d are release-note removal rules", len(before)-len(after), len(crdbatchids.IDs()), len(crdbatchids.Foreign()), relnotes)
+	// One more is the Strimzi operator feature-gate rule (exact pair).
+	if want := len(crdbatchids.IDs()) + len(crdbatchids.Foreign()) + relnotes + 1; len(before)-len(after) != want {
+		t.Fatalf("%d rules removed, the batch has %d, %d are mechanical rules of other projects, %d are release-note removal rules and 1 is the operator feature-gate rule", len(before)-len(after), len(crdbatchids.IDs()), len(crdbatchids.Foreign()), relnotes)
 	}
 	for id, entry := range after {
 		if before[id] != entry {

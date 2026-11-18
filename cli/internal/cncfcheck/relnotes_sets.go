@@ -34,7 +34,19 @@ const (
 	factFalcoFlags     = "component.falco.cli_flags_set"
 	factFalcoConfigKey = "component.falco.config_keys_set"
 	factThanosFlags    = "component.thanos.cli_flags_set"
+
+	// factStrimziOperatorGates is guarded apart from the lower-case sets: its
+	// members are the operator's own case-exact gate names.
+	factStrimziOperatorGates = "component.strimzi.cluster_operator_feature_gates_set"
 )
+
+// strimziKnownGates are the feature gate names the Strimzi Cluster Operator
+// accepts at 0.41.0 (both) and 0.44.0 (the first only); see the FeatureGates
+// sources cited by the reviewed rule. A complete declared set that holds any
+// other name is handed to the engine as not complete: the operator refuses an
+// unknown gate, a rule that forbids one gate cannot pass a set holding
+// another, and a forbidden member still BLOCKS.
+var strimziKnownGates = []string{"ContinueReconciliationOnManualRollingUpdateFailure", "UseKRaft"}
 
 // relnotesGuardedFacts are the set facts of the release-note rules.
 var relnotesGuardedFacts = map[string]bool{factCortexFlags: true, factFalcoFlags: true, factFalcoConfigKey: true, factThanosFlags: true}
@@ -116,6 +128,21 @@ func guardRelnotesSets(raw []byte) ([]byte, bool, error) {
 			for _, rawFact := range facts {
 				fact, _ := rawFact.(map[string]any)
 				id, _ := fact["id"].(string)
+				if id == factStrimziOperatorGates {
+					value, _ := fact["setValue"].(map[string]any)
+					members, _ := value["members"].([]any)
+					for _, member := range members {
+						name, ok := member.(string)
+						if !ok {
+							return raw, false, nil // the engine's own parser reports it
+						}
+						if complete, _ := value["complete"].(bool); complete && !slices.Contains(strimziKnownGates, name) {
+							value["complete"] = false
+							changed, downgraded = true, true
+						}
+					}
+					continue
+				}
 				if !relnotesGuardedFacts[id] {
 					continue
 				}

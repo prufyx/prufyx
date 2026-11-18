@@ -51,6 +51,9 @@ func (r runtime) prepareCNCF(args []string) int {
 	kafkaResourcePin := fs.String("kafka-resource-digest", "", "optional exact Kafka resource SHA-256")
 	strimziDistribution := fs.String("strimzi-distribution", "", "Strimzi distribution: official_upstream or custom_build")
 	targetKafkaCRDAdmissionRequired := fs.Bool("target-kafka-crd-admission-required", false, "caller declaration that the selected Kafka resources must be admitted by the target Kafka CRD")
+	strimziOperatorDeployment := fs.String("strimzi-operator-deployment", "", "private rendered Strimzi Cluster Operator Deployment JSON; only the STRIMZI_FEATURE_GATES literal is read")
+	strimziOperatorDeploymentPin := fs.String("strimzi-operator-deployment-digest", "", "optional exact Cluster Operator Deployment SHA-256")
+	strimziOperatorEnvComplete := fs.Bool("strimzi-operator-env-complete", false, "caller declaration that, when STRIMZI_FEATURE_GATES is absent, nothing else supplies it")
 	falcoArgv := fs.String("falco-argv", "", "private explicit effective Falco JSON argv array")
 	falcoArgvPin := fs.String("falco-argv-digest", "", "optional exact Falco argv SHA-256")
 	falcoDistribution := fs.String("falco-distribution", "", "Falco distribution: official_upstream or custom_build")
@@ -104,7 +107,7 @@ func (r runtime) prepareCNCF(args []string) int {
 	if *project != "envoy" && anyFlagProvided(args, "envoy-bootstrap", "envoy-bootstrap-digest", "envoy-bootstrap-selected") {
 		return r.usage("Envoy bootstrap flags require Envoy preparation")
 	}
-	if *project != "strimzi" && anyFlagProvided(args, "kafka-resource", "kafka-resource-digest", "strimzi-distribution", "target-kafka-crd-admission-required") {
+	if *project != "strimzi" && anyFlagProvided(args, "kafka-resource", "kafka-resource-digest", "strimzi-distribution", "target-kafka-crd-admission-required", "strimzi-operator-deployment", "strimzi-operator-deployment-digest", "strimzi-operator-env-complete") {
 		return r.usage("Strimzi Kafka resource flags require Strimzi preparation")
 	}
 	if *project != "falco" && anyFlagProvided(args, "falco-argv", "falco-argv-digest", "falco-distribution") {
@@ -151,6 +154,13 @@ func (r runtime) prepareCNCF(args []string) int {
 			return r.fail("ENVOY_PREPARATION_INPUT_INVALID", ExitUsage)
 		}
 		*input, *pin = *envoyBootstrap, *envoyBootstrapPin
+	}
+	strimziOperatorMode := *project == "strimzi" && anyFlagProvided(args, "strimzi-operator-deployment", "strimzi-operator-deployment-digest", "strimzi-operator-env-complete")
+	if strimziOperatorMode {
+		if *input != "" || flagProvided(args, "input-digest") || *kafkaResource != "" || anyFlagProvided(args, "kafka-resource", "kafka-resource-digest", "target-kafka-crd-admission-required") || *strimziOperatorDeployment == "" || (flagProvided(args, "strimzi-operator-deployment-digest") && !regexp.MustCompile(`^sha256:[0-9a-f]{64}$`).MatchString(*strimziOperatorDeploymentPin)) {
+			return r.fail("STRIMZI_PREPARATION_INPUT_INVALID", ExitUsage)
+		}
+		*input, *pin = *strimziOperatorDeployment, *strimziOperatorDeploymentPin
 	}
 	if *project == "strimzi" && *kafkaResource != "" {
 		if *input != "" || flagProvided(args, "input-digest") || (flagProvided(args, "kafka-resource-digest") && !regexp.MustCompile(`^sha256:[0-9a-f]{64}$`).MatchString(*kafkaResourcePin)) {
@@ -331,6 +341,12 @@ func (r runtime) prepareCNCF(args []string) int {
 			return r.fail("KUBERNETES_PREPARATION_INPUT_INVALID", ExitUsage)
 		}
 	case "strimzi":
+		if strimziOperatorMode {
+			if *strimziOperatorDeployment == "" || (*strimziDistribution != cncfprepare.StrimziDistributionOfficial && *strimziDistribution != cncfprepare.StrimziDistributionCustom) || (*container != "" || flagProvided(args, "container")) || flagProvided(args, "schema-validation") || flagProvided(args, "distribution") || flagProvided(args, "target-policy-crd-admission") || flagProvided(args, "requires-inherited-application-permissions") || flagProvided(args, "complete-cnp-ccnp-set") || flagProvided(args, "resource-scope-complete") || flagProvided(args, "target-api-apply-required") || flagProvided(args, "non-memory-storage-required") || flagProvided(args, "official-jaeger-distribution") || flagProvided(args, "operation") {
+				return r.fail("STRIMZI_PREPARATION_INPUT_INVALID", ExitUsage)
+			}
+			break
+		}
 		if *kafkaResource == "" || (*strimziDistribution != cncfprepare.StrimziDistributionOfficial && *strimziDistribution != cncfprepare.StrimziDistributionCustom) || (*container != "" || flagProvided(args, "container")) || flagProvided(args, "schema-validation") || flagProvided(args, "distribution") || flagProvided(args, "target-policy-crd-admission") || flagProvided(args, "requires-inherited-application-permissions") || flagProvided(args, "complete-cnp-ccnp-set") || flagProvided(args, "resource-scope-complete") || flagProvided(args, "target-api-apply-required") || flagProvided(args, "non-memory-storage-required") || flagProvided(args, "official-jaeger-distribution") || flagProvided(args, "operation") {
 			return r.fail("STRIMZI_PREPARATION_INPUT_INVALID", ExitUsage)
 		}
@@ -468,7 +484,11 @@ func (r runtime) prepareCNCF(args []string) int {
 	case "kubernetes":
 		prepared, err = cncfprepare.PrepareKubernetesRemovedAPIs(raw, *from, *to, *distribution, *targetAPIApplyRequired, *resourceScopeComplete)
 	case "strimzi":
-		prepared, err = cncfprepare.PrepareStrimziKafkaResource(raw, *from, *to, *strimziDistribution, *targetKafkaCRDAdmissionRequired)
+		if strimziOperatorMode {
+			prepared, err = cncfprepare.PrepareStrimziOperatorDeployment(raw, *from, *to, *strimziDistribution, *strimziOperatorEnvComplete)
+		} else {
+			prepared, err = cncfprepare.PrepareStrimziKafkaResource(raw, *from, *to, *strimziDistribution, *targetKafkaCRDAdmissionRequired)
+		}
 	case "falco":
 		prepared, err = cncfprepare.PrepareFalcoArgv(raw, *from, *to, *falcoDistribution)
 	case "kuma":
