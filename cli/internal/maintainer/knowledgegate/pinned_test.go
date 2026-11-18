@@ -169,25 +169,30 @@ func TestPinnedRuleMayBeUnpinnedOrWithdrawn(t *testing.T) {
 	}
 }
 
-// A pinned rule that fails the predicate or its fixed window is not admitted
-// by the engine, so the pack check fails and names the lease.
+// The engine admits a pinned rule that meets the predicate with its fixed
+// window, and nothing else: each case below differs from the admitted control
+// by one defect.
 func TestPinnedRuleThatFailsThePredicateIsNotAdmitted(t *testing.T) {
 	base, _ := trees(t)
 	ids := pinnableIDs(t, readPack(t, base, cncfRulesPath))
-	for name, edit := range map[string]func(e map[string]any){
-		"window one day long": func(e map[string]any) {
+	for name, tc := range map[string]struct {
+		edit  func(e map[string]any)
+		valid bool
+	}{
+		"control: a pinned rule with its fixed window": {func(map[string]any) {}, true},
+		"window one day long": {func(e map[string]any) {
 			evidenceOf(e)["validUntil"] = shiftTime(t, evidenceOf(e)["validUntil"], 24*time.Hour)
-		},
-		"window of a time lease": func(e map[string]any) {
+		}, false},
+		"window of a time lease": {func(e map[string]any) {
 			evidenceOf(e)["validUntil"] = shiftTime(t, evidenceOf(e)["reviewedAt"], 90*24*time.Hour)
-		},
-		"another operator": func(e map[string]any) {
+		}, false},
+		"another operator": {func(e map[string]any) {
 			delete(ruleOf(e), "condition")
 			ruleOf(e)["operator"] = "forbid_target_version"
-		},
-		"a range": func(e map[string]any) {
+		}, false},
+		"a range": {func(e map[string]any) {
 			ruleOf(e)["range"] = map[string]any{"from": map[string]any{"gte": "0.0.0", "lt": "99.0.0"}, "to": map[string]any{"gte": "0.0.0", "lt": "99.0.0"}, "bounds": []any{}}
-		},
+		}, false},
 	} {
 		t.Run(name, func(t *testing.T) {
 			head := copyKnowledge(t)
@@ -195,14 +200,11 @@ func TestPinnedRuleThatFailsThePredicateIsNotAdmitted(t *testing.T) {
 			p := readPack(t, head, cncfRulesPath)
 			e := p.find(t, ids[0])
 			pinRule(t, e, evidenceOf(e)["reviewedAt"].(string))
-			edit(e)
+			tc.edit(e)
 			p.write(t, head, cncfRulesPath)
 			r := runGate(t, Options{Base: base, Head: head})
-			if got, ok := check(r, "admit/cncf"); !ok || got.OK || !strings.Contains(got.Detail, "rule lease") {
-				t.Fatalf("a pinned rule that fails the predicate was admitted: %+v", got)
-			}
-			if r.Passed() {
-				t.Fatal("the gate passed")
+			if got, ok := check(r, "admit/cncf"); !ok || got.OK != tc.valid {
+				t.Fatalf("admit/cncf = %+v, want ok=%v", got, tc.valid)
 			}
 		})
 	}

@@ -64,13 +64,31 @@ func TestPinnedOnlyDetectsADriftedSpanOnTheLine(t *testing.T) {
 	}
 }
 
-// A revision that cannot be fetched is not a pass.
+// A revision that cannot be fetched is not a pass. When the file changed
+// elsewhere on the line, the span is proven from the file at the pinned commit,
+// so a missing pinned file fails the check (the same file present proves the
+// span unchanged); a missing file at the line's newest release fails it too.
 func TestPinnedOnlyFailsOnAnUnreachableRevision(t *testing.T) {
+	newer := pinnedBody + "\nappended on the line"
 	f := newLineFixture(standardTags, nil, "v1.26.0")
-	f.blob("v1.25.3", "doc.md", pinnedBody) // the pinned commit's file is missing
-	code, _, stderr := f.repinPinned(t, f.pinnedRules(t, "pinned"))
+	f.blob("v1.25.3", "doc.md", newer)
+	f.blob("v1.25.0", "doc.md", pinnedBody)
+	if code, stdout, stderr := f.repinPinned(t, f.pinnedRules(t, "pinned")); code != 0 {
+		t.Fatalf("control: the span is unchanged on the line: code=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+
+	missingPinned := newLineFixture(standardTags, nil, "v1.26.0")
+	missingPinned.blob("v1.25.3", "doc.md", newer) // the pinned commit's file is missing
+	code, _, stderr := missingPinned.repinPinned(t, missingPinned.pinnedRules(t, "pinned"))
 	if code != ExitPinnedDrift || !strings.Contains(stderr, "pinned drift:") {
-		t.Fatalf("code=%d stderr=%q", code, stderr)
+		t.Fatalf("missing pinned file: code=%d stderr=%q", code, stderr)
+	}
+
+	missingNewest := newLineFixture(standardTags, nil, "v1.26.0")
+	missingNewest.blob("v1.25.0", "doc.md", pinnedBody) // the line's newest release has no such file
+	code, _, stderr = missingNewest.repinPinned(t, missingNewest.pinnedRules(t, "pinned"))
+	if code != ExitPinnedDrift || !strings.Contains(stderr, "pinned drift:") {
+		t.Fatalf("missing newest file: code=%d stderr=%q", code, stderr)
 	}
 }
 

@@ -546,6 +546,7 @@ func validateCNCFReviewWindows(rules []json.RawMessage) error {
 	for _, raw := range rules {
 		var shape struct {
 			Evidence struct {
+				Lease      string `json:"lease"`
 				ReviewedAt string `json:"reviewedAt"`
 				ValidUntil string `json:"validUntil"`
 			} `json:"evidence"`
@@ -556,6 +557,16 @@ func validateCNCFReviewWindows(rules []json.RawMessage) error {
 		reviewed, err := parseCNCFUTC(shape.Evidence.ReviewedAt)
 		if err != nil {
 			return ErrInvalid
+		}
+		// The 90-day interval is the time lease's. A pinned lease has the one
+		// fixed window the engine already checked (reviewedAt plus ten years),
+		// asked again here so no other window passes this seam.
+		if shape.Evidence.Lease == constraintengine.LeasePinned {
+			want, err := constraintengine.PinnedValidUntil(shape.Evidence.ReviewedAt)
+			if err != nil || shape.Evidence.ValidUntil != want {
+				return ErrInvalid
+			}
+			continue
 		}
 		validUntil, err := parseCNCFUTC(shape.Evidence.ValidUntil)
 		if err != nil || !validUntil.After(reviewed) || validUntil.Sub(reviewed) > maxCNCFReviewWindow {

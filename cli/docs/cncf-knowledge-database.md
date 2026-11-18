@@ -122,8 +122,10 @@ one was blocked; `11` means unresolved or missing coverage. Invalid local input
 returns `2`; integrity and trust failures return `3`. A source rule with expired,
 withdrawn or unreviewed evidence remains `UNKNOWN` even when its containing TUF
 metadata is valid. Fresh transport signatures do not renew source review.
-CNCF rules must declare a positive review interval of at most 90 days. This
-policy bound does not verify that the declared review actually occurred.
+CNCF rules must declare a positive review interval of at most 90 days, except a
+rule on a [pinned lease](evidence-reattestation.md#pinned-leases), whose window is
+exactly ten years. This policy bound does not verify that the declared review
+actually occurred.
 
 ## Replay an earlier selection
 
