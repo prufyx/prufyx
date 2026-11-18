@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 func ciliumBool(value bool) *bool { return &value }
@@ -58,7 +59,7 @@ func TestPrepareCiliumScansBothPolicyKindsAndRuleContainers(t *testing.T) {
 			if fact["state"] != "declared" || fact["boolValue"] != true {
 				t.Fatalf("fact=%v", fact)
 			}
-			report, err := cncfcheck.Check("cilium", prepared.CanonicalInputJSON, time.Date(2026, 9, 9, 0, 0, 0, 0, time.UTC))
+			report, err := cncfcheck.Check("cilium", prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 9, 0, 0, 0, 0, time.UTC)))
 			if err != nil || report.Check.Claims[0].Status != "BLOCKED" || report.Assessment != "UNKNOWN" {
 				t.Fatalf("report=%+v err=%v", report, err)
 			}
@@ -94,7 +95,7 @@ func TestPrepareCiliumSupportsOnlyReviewedExactPairs(t *testing.T) {
 			} else if fact["state"] == "declared" {
 				t.Fatalf("unsupported pair declared a fact: %v", fact)
 			}
-			report, err := cncfcheck.Check("cilium", prepared.CanonicalInputJSON, time.Date(2026, 9, 10, 0, 0, 0, 0, time.UTC))
+			report, err := cncfcheck.Check("cilium", prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 10, 0, 0, 0, 0, time.UTC)))
 			if err != nil || report.Check.Claims[0].Status != tc.checkStatus || report.Assessment != "UNKNOWN" {
 				t.Fatalf("report=%+v err=%v", report, err)
 			}
@@ -169,7 +170,7 @@ func TestPrepareCiliumRequiresExplicitCompleteSetForScopedFalse(t *testing.T) {
 			} else if fact["state"] == "declared" {
 				t.Fatalf("fact unexpectedly declared: %v", fact)
 			}
-			report, err := cncfcheck.Check("cilium", prepared.CanonicalInputJSON, time.Date(2026, 9, 9, 0, 0, 0, 0, time.UTC))
+			report, err := cncfcheck.Check("cilium", prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 9, 0, 0, 0, 0, time.UTC)))
 			if err != nil || report.Check.Claims[0].Status != tc.status || report.Assessment != "UNKNOWN" {
 				t.Fatalf("report=%+v err=%v", report, err)
 			}

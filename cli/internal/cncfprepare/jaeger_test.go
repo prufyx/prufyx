@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 func jaegerBool(value bool) *bool { return &value }
@@ -43,7 +44,7 @@ func TestPrepareJaegerSingletonLiteralFeedsOnlyExistingScopedRule(t *testing.T) 
 			t.Fatalf("manual fact %s=%v", id, fact)
 		}
 	}
-	report, err := cncfcheck.Check("jaeger", prepared.CanonicalInputJSON, time.Date(2026, 9, 10, 0, 0, 0, 0, time.UTC))
+	report, err := cncfcheck.Check("jaeger", prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 10, 0, 0, 0, 0, time.UTC)))
 	if err != nil || report.Check.Claims[0].Status != "PASS" || report.Assessment != "UNKNOWN" {
 		t.Fatalf("report=%+v err=%v", report, err)
 	}
@@ -81,7 +82,7 @@ func TestPrepareJaegerSingletonBoundariesStayUnknown(t *testing.T) {
 			if fact := jaegerFact(t, prepared, JaegerExplicitConfigFact); fact["state"] == "declared" {
 				t.Fatalf("unexpected decisive config fact=%v", fact)
 			}
-			report, err := cncfcheck.Check("jaeger", prepared.CanonicalInputJSON, time.Date(2026, 9, 10, 0, 0, 0, 0, time.UTC))
+			report, err := cncfcheck.Check("jaeger", prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 10, 0, 0, 0, 0, time.UTC)))
 			if err != nil || report.Check.Claims[0].Status != "UNKNOWN" || report.Assessment != "UNKNOWN" {
 				t.Fatalf("report=%+v err=%v", report, err)
 			}
@@ -107,7 +108,7 @@ func TestPrepareJaegerLeavesManualGuardsOperatorBound(t *testing.T) {
 			if err != nil || prepared.State != StatePrepared || prepared.Reason != ReasonJaegerConfigWitness {
 				t.Fatalf("prepared=%+v err=%v", prepared, err)
 			}
-			report, err := cncfcheck.Check("jaeger", prepared.CanonicalInputJSON, time.Date(2026, 9, 10, 0, 0, 0, 0, time.UTC))
+			report, err := cncfcheck.Check("jaeger", prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 10, 0, 0, 0, 0, time.UTC)))
 			if err != nil || report.Check.Claims[0].Status != tc.status || report.Assessment != "UNKNOWN" {
 				t.Fatalf("report=%+v err=%v", report, err)
 			}
@@ -122,7 +123,7 @@ func TestPrepareJaegerLatestPairsRemainTargetScoped(t *testing.T) {
 			if err != nil || prepared.State != StatePrepared || prepared.Reason != ReasonJaegerConfigWitness {
 				t.Fatalf("prepared=%+v err=%v", prepared, err)
 			}
-			report, err := cncfcheck.Check("jaeger", prepared.CanonicalInputJSON, time.Date(2026, 9, 12, 8, 39, 0, 0, time.UTC))
+			report, err := cncfcheck.Check("jaeger", prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 12, 8, 39, 0, 0, time.UTC)))
 			if err != nil || len(report.Check.Claims) != 1 || report.Check.Claims[0].Status != "PASS" || report.Assessment != "UNKNOWN" {
 				t.Fatalf("report=%+v err=%v", report, err)
 			}

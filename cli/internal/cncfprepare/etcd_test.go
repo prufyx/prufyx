@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 func etcdArguments(t *testing.T, declared bool, argv ...string) []byte {
@@ -111,7 +112,7 @@ func TestPrepareEtcdExactPairAndInputSchema(t *testing.T) {
 
 func mustTime(value string) (result time.Time) {
 	result, _ = time.Parse(time.RFC3339, value)
-	return
+	return testclock.Floor(result) // never before the newest review of the shipped rules
 }
 
 func TestPrepareEtcdLatestExperimentalFlagPair(t *testing.T) {

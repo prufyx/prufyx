@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 func argoCDLatestSecret(url, forceHTTP, insecure string) []byte {
@@ -42,7 +43,7 @@ func mutateArgoCDLatestSecret(t *testing.T, raw []byte, mutate func(map[string]a
 }
 
 func TestPrepareArgoCDLatestFiveOriginMatrix(t *testing.T) {
-	now := time.Date(2026, 9, 12, 11, 30, 0, 0, time.UTC)
+	now := testclock.Floor(time.Date(2026, 9, 12, 11, 30, 0, 0, time.UTC))
 	resolved, plainHTTP := true, true
 	for _, from := range argoCDLatestOrigins {
 		for _, tc := range []struct {
@@ -98,7 +99,7 @@ func TestPrepareArgoCDLatestUnknownAndInvalidInputs(t *testing.T) {
 			if err != nil || prepared.State != StateUnknown || bytes.Contains(prepared.CanonicalInputJSON, []byte("private")) {
 				t.Fatalf("prepared=%+v err=%v", prepared, err)
 			}
-			report, err := cncfcheck.Check("argo-cd", prepared.CanonicalInputJSON, time.Date(2026, 9, 12, 11, 30, 0, 0, time.UTC))
+			report, err := cncfcheck.Check("argo-cd", prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 12, 11, 30, 0, 0, time.UTC)))
 			if err != nil {
 				t.Fatalf("report=%+v err=%v", report.Check, err)
 			}
@@ -135,7 +136,7 @@ func TestPrepareArgoCDLatestUnknownAndInvalidInputs(t *testing.T) {
 		if err != nil || prepared.State != StateUnknown {
 			t.Fatalf("%s guard admitted: prepared=%+v err=%v", guards.name, prepared, err)
 		}
-		report, err := cncfcheck.Check("argo-cd", prepared.CanonicalInputJSON, time.Date(2026, 9, 12, 11, 30, 0, 0, time.UTC))
+		report, err := cncfcheck.Check("argo-cd", prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 12, 11, 30, 0, 0, time.UTC)))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -150,7 +151,7 @@ func TestPrepareArgoCDLatestUnknownAndInvalidInputs(t *testing.T) {
 	if err != nil || prepared.State != StateUnknown {
 		t.Fatalf("non-plain-HTTP declaration admitted: prepared=%+v err=%v", prepared, err)
 	}
-	report, err := cncfcheck.Check("argo-cd", prepared.CanonicalInputJSON, time.Date(2026, 9, 12, 11, 30, 0, 0, time.UTC))
+	report, err := cncfcheck.Check("argo-cd", prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 12, 11, 30, 0, 0, time.UTC)))
 	if err != nil {
 		t.Fatal(err)
 	}

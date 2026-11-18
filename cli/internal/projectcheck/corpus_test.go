@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 const (
@@ -127,7 +128,7 @@ func mustTime(t *testing.T, value string) time.Time {
 	if err != nil {
 		t.Fatalf("parse time %q: %v", value, err)
 	}
-	return parsed.UTC()
+	return testclock.Floor(parsed.UTC())
 }
 
 // TestAttestationOverAComponentWithNoRuleIsRejected is the single most

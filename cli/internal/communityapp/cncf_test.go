@@ -12,6 +12,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 const syntheticHelmInput = `{"schema":"prufyx.io/operator-declared-constraint-input/v1alpha1","authority":"OPERATOR_DECLARED_MINIMIZED","current":{"components":[{"component":"pkg:github/helm/helm","version":"3.14.4","facts":[]}]},"proposed":{"components":[{"component":"pkg:github/helm/helm","version":"4.0.0","facts":[{"id":"component.helm.post_renderer_mode","state":"declared","enumValue":"plugin_name"}]}]}}`
@@ -33,8 +35,27 @@ func runCNCFCLI(t *testing.T, args ...string) (int, string, string) {
 func runCNCFCLIRaw(t *testing.T, args ...string) (int, string, string) {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
-	code := Run(context.Background(), args, &stdout, &stderr, "test")
+	code := Run(context.Background(), floorNowArgs(args), &stdout, &stderr, "test")
 	return code, stdout.String(), stderr.String()
+}
+
+// floorNowArgs moves a --now earlier than the newest review of the shipped
+// rules up to that review (see testclock): the pinned dates in the tests only
+// need to be a time at which the rules are in force, and renewing the rules
+// must not make them stale. A --now after it (an expiry premise) is kept.
+func floorNowArgs(args []string) []string {
+	out := append([]string(nil), args...)
+	for i, arg := range out {
+		switch {
+		case (arg == "--now" || arg == "-now") && i+1 < len(out):
+			out[i+1] = testclock.FloorText(out[i+1])
+		case strings.HasPrefix(arg, "--now="):
+			out[i] = "--now=" + testclock.FloorText(strings.TrimPrefix(arg, "--now="))
+		case strings.HasPrefix(arg, "-now="):
+			out[i] = "-now=" + testclock.FloorText(strings.TrimPrefix(arg, "-now="))
+		}
+	}
+	return out
 }
 
 // ageNoteLine matches the knowledge age note line on standard error.
