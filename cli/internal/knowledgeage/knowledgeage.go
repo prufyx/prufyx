@@ -23,6 +23,10 @@ const Window = 30 * 24 * time.Hour
 type Source struct {
 	ID       string
 	Expiries []time.Time
+	// Pinned are the reviewedAt instants of the source's active rules that
+	// hold a pinned lease. Such a rule has no end date: it is reported in its
+	// own bucket (Summary.Pinned) and never as an expiry.
+	Pinned []time.Time
 }
 
 // Summary counts the active rules that end within the window or have ended.
@@ -34,6 +38,11 @@ type Summary struct {
 	Expiring int
 	// First is the earliest end date among the counted rules.
 	First time.Time
+	// Pinned counts the active rules with a pinned lease, and PinnedFirst is
+	// the earliest reviewedAt among them. They are never in Expired or
+	// Expiring, and never set First.
+	Pinned      int
+	PinnedFirst time.Time
 }
 
 // Summarize counts the rules of the distinct sources. A source ID that
@@ -47,6 +56,12 @@ func Summarize(sources []Source, now time.Time) Summary {
 			continue
 		}
 		seen[source.ID] = true
+		for _, reviewed := range source.Pinned {
+			summary.Pinned++
+			if summary.PinnedFirst.IsZero() || reviewed.Before(summary.PinnedFirst) {
+				summary.PinnedFirst = reviewed
+			}
+		}
 		for _, end := range source.Expiries {
 			switch {
 			case !end.After(now):
@@ -99,6 +114,17 @@ func Line(summary Summary, now time.Time, embedded bool) string {
 		return text + ". Expired rules answer UNKNOWN."
 	}
 	return text + " before they expire."
+}
+
+// PinnedLine is the note for the pinned bucket of the summary, or "" when no
+// rule holds a pinned lease. It states what the lease is, so a pinned rule is
+// never read as one that expires in ten years.
+func PinnedLine(summary Summary) string {
+	if summary.Pinned == 0 {
+		return ""
+	}
+	return fmt.Sprintf("note: %d knowledge %s a pinned lease and %s no end date; they are checked against their release line by the maintainers, the earliest reviewed on %s",
+		summary.Pinned, rules(summary.Pinned, "rule holds", "rules hold"), rules(summary.Pinned, "has", "have"), summary.PinnedFirst.UTC().Format("2006-01-02"))
 }
 
 func rules(count int, one, many string) string {

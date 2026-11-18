@@ -83,6 +83,7 @@ type ruleFields struct {
 	Evidence struct {
 		State      string                      `json:"state"`
 		Basis      string                      `json:"basis"`
+		Lease      string                      `json:"lease"`
 		Extractor  *constraintengine.Extractor `json:"extractor"`
 		DerivedAt  string                      `json:"derivedAt"`
 		ReviewedAt string                      `json:"reviewedAt"`
@@ -103,10 +104,14 @@ func parseRuleFields(raw json.RawMessage) (ruleFields, error) {
 		Evidence map[string]json.RawMessage `json:"evidence"`
 	}
 	_ = json.Unmarshal(raw, &presence)
-	for _, key := range []string{"basis", "derivedAt"} {
+	for _, key := range []string{"basis", "derivedAt", "lease"} {
 		if value, present := presence.Evidence[key]; present && (string(value) == `""` || string(value) == "null") {
 			return ruleFields{}, fmt.Errorf("%w: rule %s evidence %s", ErrRejected, fields.ID, key)
 		}
+	}
+	// The lease vocabulary is closed: absent, "time" or "pinned".
+	if fields.Evidence.Lease != "" && fields.Evidence.Lease != constraintengine.LeaseTime && fields.Evidence.Lease != constraintengine.LeasePinned {
+		return ruleFields{}, fmt.Errorf("%w: rule %s evidence lease", ErrRejected, fields.ID)
 	}
 	if value, present := presence.Evidence["extractor"]; present && string(value) == "null" {
 		return ruleFields{}, fmt.Errorf("%w: rule %s evidence extractor", ErrRejected, fields.ID)
@@ -469,6 +474,12 @@ func ruleDigestAndEvidence(raw json.RawMessage) (ruleDigest, evidenceDigest, sou
 // order, survives unchanged (rules.json's nested objects are already
 // written in sorted-key order; see pack.go's doc comment on packDocument).
 func mutateRuleEvidenceDates(raw json.RawMessage, reviewedAt, validUntil string) (json.RawMessage, error) {
+	return mutateRuleEvidence(raw, reviewedAt, validUntil, "")
+}
+
+// mutateRuleEvidence is mutateRuleEvidenceDates that also sets evidence.lease
+// when lease is not empty (a pinning row); nothing else changes.
+func mutateRuleEvidence(raw json.RawMessage, reviewedAt, validUntil, lease string) (json.RawMessage, error) {
 	value, err := sourcecorpus.DecodeBounded(raw, int64(len(raw)))
 	if err != nil {
 		return nil, fmt.Errorf("%w: mutate rule", ErrRejected)
@@ -483,6 +494,9 @@ func mutateRuleEvidenceDates(raw json.RawMessage, reviewedAt, validUntil string)
 	}
 	evidence["reviewedAt"] = reviewedAt
 	evidence["validUntil"] = validUntil
+	if lease != "" {
+		evidence["lease"] = lease
+	}
 	canon, err := sourcecorpus.Canonical(obj)
 	if err != nil {
 		return nil, fmt.Errorf("%w: mutate rule", ErrRejected)

@@ -149,9 +149,11 @@ type evidenceBody struct {
 	// Basis, Extractor and DerivedAt are the optional provenance of a rule
 	// the engine parses strictly: reviewed by a maintainer (absent) or
 	// derived from pinned source by a versioned extractor (mechanical).
-	Basis      string                            `json:"basis,omitempty"`
-	Extractor  *constraintengine.Extractor       `json:"extractor,omitempty"`
-	DerivedAt  string                            `json:"derivedAt,omitempty"`
+	Basis     string                      `json:"basis,omitempty"`
+	Extractor *constraintengine.Extractor `json:"extractor,omitempty"`
+	DerivedAt string                      `json:"derivedAt,omitempty"`
+	// Lease is the optional evidence lease (constraintengine.EffectiveLease).
+	Lease      string                            `json:"lease,omitempty"`
 	ReviewedAt string                            `json:"reviewedAt"`
 	ValidUntil string                            `json:"validUntil"`
 	Sources    []constraintengine.SourceEvidence `json:"sources"`
@@ -486,6 +488,9 @@ func checkEntry(index int, entry Entry, opts Options) ([]Finding, string, bool) 
 	}
 	if body.Evidence.Basis == constraintengine.BasisMechanical && !opts.AllowRange {
 		addRule(ruleID, "evidence-basis", "rule.evidence.basis \"mechanical\" is not accepted from a community contribution; only the maintainers' derivation tooling produces mechanical rules")
+	}
+	if body.Evidence.Lease == constraintengine.LeasePinned && !opts.AllowRange {
+		addRule(ruleID, "evidence-lease", "rule.evidence.lease \"pinned\" is not accepted from a community contribution; a lease is pinned only by a signed maintainer statement")
 	}
 	if len(body.Evidence.Sources) == 0 {
 		addRule(ruleID, "evidence-sources", "rule.evidence.sources must cite at least one source")

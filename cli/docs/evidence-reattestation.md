@@ -556,6 +556,82 @@ run that hits the limit fails and the next run retries. `sign` verifies against
 the worklist `prepare` produced; the gate's own re-pin remains the independent
 check.
 
+## Pinned leases
+
+A rule whose claim is a fixed from-to transition cited at immutable commits does
+not need a lease that ends on time. Its evidence is a span at a pinned commit
+with a content digest, so what a calendar date would force a reviewer to look
+at again is the cited release line, not the span. Such a rule can carry
+`evidence.lease: "pinned"`. An absent lease, or `"time"`, is the lease described
+everywhere else in this page.
+
+A pinned rule is never reported `RULE_EVIDENCE_STALE` for time, and its evaluated
+freshness is `pinned` instead of `current`. Its `validUntil` stays present and
+is fixed: exactly its `reviewedAt` plus ten years, so a reader that only knows
+validity windows sees a long lease and never a missing one. Nothing reads that
+date as an expiry: `knowledge_age` reports pinned rules in their own bucket (a
+count and the earliest `reviewedAt`), never as an end date ten years out.
+
+**Eligibility is computed, never declared.** A rule can be pinned only if all of
+these hold, recomputed by `prepare`, `verify` and the gate:
+
+- the evidence is active and its basis is reviewed (not mechanical);
+- the subject has an exact `from` and `to`, with no range and no tag alias;
+- the operator is `forbid_predicate_value` or `require_intermediate_version`
+  (`require_component_version` and `forbid_target_version` assert the absence of
+  something in a release, which a later re-tag can change, so they keep the time
+  lease);
+- every source is pinned to a 40-hex commit with a `sha256:` content digest and a
+  line span, at an allowed source host;
+- every citation was compared on its release line (`release_line`, or `tag_line`
+  derived from git tags) with a pinned tag and a line, the comparison
+  `evidence repin` records. A citation compared with the latest release has no
+  derivable line, so the rule is not eligible.
+
+**Pinning is a human statement row.** `evidence reattest prepare --pin` is a
+human-mode option: it selects only the rules that meet the predicate, caps the
+batch with `--max-rules` (soonest-expiring first, then by rule ID; the rest stay
+listed as `STAGGER_DEFERRED`) and refuses an empty batch. Every row of the signed
+statement says `lease: "pinned"`, sets `reviewedAt` to `attestedAt`, `validUntil`
+to exactly ten years later and adds the lease; no other byte of the rule
+changes. The statement carries its own fixed text, which names the pin and the
+drift check below. The usual human-mode rules apply unchanged: the seeded ten
+percent sample must be reviewed before signing, and a rule that is not yet due
+(its current lease ends more than three weeks after `attestedAt`) is left out.
+Automated mode refuses `--pin`, a statement signed by an automation key never
+parses with a pinned row, and a statement pins all of its rows or none.
+
+`verify` recomputes the whole statement and next pack from scratch, so the row's
+`lease`, the window and the lease in the pack are checked byte for byte, and the
+signature covers the row. A pack whose lease changes without a row that pins it is
+refused (V6), and a rule that already holds a pinned lease is never renewed by
+any statement.
+
+**Caps.** Pinning counts as one batch cycle and never resets the consecutive-cycle
+count: a rule that has used its two cycles cannot be pinned and goes to
+individual review first. Pinned rules are exempt from the ISO-week stagger cap
+(V7) and from nothing else: the stagger spreads end dates and a pinned rule has
+none. They still count against the per-change and daily loosening limits of the
+[knowledge gate](knowledge-gate.md#pinned-leases), so a large migration is cut
+into statements of at most 50 rules on separate days.
+
+### `evidence repin --pinned-only`
+
+A pinned lease replaces the calendar with a mechanical check. `evidence repin
+--pinned-only` runs the existing release-line comparison over the citations of
+pinned rules only, and exits `4` when any of them drifted or could not be
+checked: a class other than `NO_NEW_RELEASE`, `FILE_IDENTICAL` or
+`SPAN_IDENTICAL`, a citation still pending, a baseline that is not a release
+line, a stale resolution, or a resolution from the tags list only. It prints one
+`pinned drift:` line per finding and writes the worklist as usual. It takes no
+`--limit` and no `--project`, and it needs `--baseline release-line`, so a
+partial run can never read as a pass. With no pinned rule it checks nothing and
+exits `0`.
+
+The check never changes a rule. A pinned rule that drifted is fixed by
+withdrawing it or by an individual re-review, through the normal reviewed path.
+Evaluation never fetches anything: a client only reads the `lease` field.
+
 ## Line attestations and path policies
 
 A pack that carries [line attestations](line-attestations.md) or

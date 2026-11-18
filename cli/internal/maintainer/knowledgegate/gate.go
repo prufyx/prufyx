@@ -578,6 +578,11 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 			c.fail("a rule may not be removed (it can turn BLOCKED into a scope-complete PASS); withdraw it instead, or replace a reviewed rule through a supersede: an owner change that adds a re-derived mechanical rule with an equal constraint key covering its region")
 			continue
 		}
+		// A change that touches a pinned lease is decided here and nowhere
+		// else: no approval, batch or re-derivation admits it (pinned.go).
+		if pinnedPre(c, statements[c.Pack], opts) {
+			continue
+		}
 		switch c.Basis {
 		case constraintengine.BasisMechanical:
 			if err := freshDerivation(c.head, opts.Now); err != nil {
@@ -815,7 +820,7 @@ func (r *Report) packChecks(cls *Classification, opts Options) {
 func (r *Report) packChecksWith(cls *Classification, opts Options, selectOpts func(PackSpec) (AdmitOpts, bool)) {
 	loosenedWeeks := map[string]map[string]bool{}
 	for _, c := range cls.Changes {
-		if c.Class != ClassLoosening || c.head == nil || c.head.Evidence.State != "active" {
+		if c.Class != ClassLoosening || c.head == nil || c.head.Evidence.State != "active" || staggerExempt(c.head) {
 			continue
 		}
 		if c.base != nil && c.base.Evidence.ValidUntil == c.head.Evidence.ValidUntil {
@@ -862,6 +867,7 @@ func (r *Report) packChecksWith(cls *Classification, opts Options, selectOpts fu
 		}
 		r.rulecheck(spec, h)
 		r.attestationRulecheck(spec, h)
+		r.pinnedCheck(spec, h)
 		r.staggerCheck(spec, h, loosenedWeeks[spec.Name])
 		r.recordStaggerCheck(cls, spec, b, h, loosenedWeeks[spec.Name])
 		var want []byte
@@ -949,6 +955,9 @@ func (r *Report) staggerCheck(spec PackSpec, h *loadedPack, weeks map[string]boo
 	}
 	counts := map[string]int{}
 	for _, e := range h.Entries {
+		if staggerExempt(e) {
+			continue
+		}
 		until, err := time.Parse(time.RFC3339, e.Evidence.ValidUntil)
 		if err != nil {
 			continue

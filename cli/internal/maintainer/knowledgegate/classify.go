@@ -33,6 +33,8 @@ const (
 	KindRangeChange = "range-change" // range changed otherwise
 	KindBasis       = "basis-change" // evidence basis or extractor changed
 	KindModify      = "modify"       // anything else in the entry changed
+	KindPin         = "pin"          // evidence.lease time -> pinned (loosening)
+	KindUnpin       = "unpin"        // evidence.lease pinned -> time (tightening)
 	// KindRemediationText marks an entry whose rule.nextAction differs. It
 	// is derived from the two texts and always comes with KindModify: it
 	// only makes the change visible, it admits nothing.
@@ -186,6 +188,19 @@ func classifyEdit(b, h *entry) (string, []string) {
 	default:
 		kinds, loosening = append(kinds, KindModify), true
 	}
+	// The lease moves in one direction freely and in the other only through a
+	// signed human statement: pinned -> time only shortens what the rule
+	// asserts (tightening), time -> pinned lifts its end (loosening, admitted
+	// by pinnedPre only). A pinned rule's edit of anything else is refused by
+	// pinnedPre; here it is classified as the loosening it is.
+	pinning := b.Evidence.Lease != constraintengine.LeasePinned && h.Evidence.Lease == constraintengine.LeasePinned
+	unpinning := b.Evidence.Lease == constraintengine.LeasePinned && h.Evidence.Lease != constraintengine.LeasePinned
+	switch {
+	case pinning:
+		kinds, loosening = append(kinds, KindPin), true
+	case unpinning:
+		kinds = append(kinds, KindUnpin)
+	}
 	if b.Evidence.ValidUntil != h.Evidence.ValidUntil {
 		bu, errB := time.Parse(time.RFC3339, b.Evidence.ValidUntil)
 		hu, errH := time.Parse(time.RFC3339, h.Evidence.ValidUntil)
@@ -199,7 +214,12 @@ func classifyEdit(b, h *entry) (string, []string) {
 	// Everything except state and validUntil must be byte-identical for
 	// the edit to stay tightening.
 	rest := deepCopy(h.generic)
-	for _, field := range []string{"state", "validUntil"} {
+	ignored := []string{"state", "validUntil"}
+	if unpinning {
+		// Dropping the lease is part of the tightening edit.
+		ignored = append(ignored, "lease")
+	}
+	for _, field := range ignored {
 		v, ok := lookup(b.generic, "rule", "evidence", field)
 		if !setOrDelete(rest, v, ok, "rule", "evidence", field) {
 			return ClassLoosening, append(kinds, KindModify)
@@ -224,7 +244,7 @@ func classifyEdit(b, h *entry) (string, []string) {
 		}
 		// Anything outside the fields named above.
 		probe := deepCopy(rest)
-		for _, keys := range [][]string{{"rule", "evidence", "reviewedAt"}, {"rule", "evidence", "derivedAt"}, {"rule", "evidence", "sources"}, {"rule", "evidence", "basis"}, {"rule", "evidence", "extractor"}, {"rule", "range"}} {
+		for _, keys := range [][]string{{"rule", "evidence", "reviewedAt"}, {"rule", "evidence", "derivedAt"}, {"rule", "evidence", "sources"}, {"rule", "evidence", "basis"}, {"rule", "evidence", "extractor"}, {"rule", "evidence", "lease"}, {"rule", "range"}} {
 			v, ok := lookup(b.generic, keys...)
 			if !setOrDelete(probe, v, ok, keys...) {
 				other = true

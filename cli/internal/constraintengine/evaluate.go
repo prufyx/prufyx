@@ -79,12 +79,17 @@ func evaluateRuleVerdict(input inputDocument, rule rule, now time.Time) Claim {
 		claim.NextAction = "correct the explicit UTC evaluation time and reassess"
 		return claim
 	}
-	if !now.Before(validUntil) {
+	if rule.Evidence.Lease == LeasePinned {
+		// A pinned lease does not end on time (it was validated against the
+		// fixed-version predicate when the rule set was parsed).
+		claim.EvidenceFreshness = FreshnessPinned
+	} else if !now.Before(validUntil) {
 		claim.Status, claim.ReasonCode, claim.EvidenceFreshness = "UNKNOWN", "RULE_EVIDENCE_STALE", "stale"
 		claim.NextAction = staleAction(rule.Evidence.ValidUntil)
 		return claim
+	} else {
+		claim.EvidenceFreshness = "current"
 	}
-	claim.EvidenceFreshness = "current"
 	mode, reason := subjectAvailability(input, rule.transition())
 	if reason != "" {
 		claim.Status, claim.ReasonCode = "UNKNOWN", reason
@@ -419,8 +424,16 @@ func validClaims(claims []Claim) bool {
 		if ValidateBasis(claim.EvidenceBasis, claim.EvidenceExtractor, claim.EvidenceDerivedAt) != nil {
 			return false
 		}
-		if (i > 0 && claims[i-1].RuleID >= claim.RuleID) || !idRE.MatchString(claim.RuleID) || !digestRE.MatchString(claim.RuleDigest) || (claim.Status != "PASS" && claim.Status != "BLOCKED" && claim.Status != "UNKNOWN" && claim.Status != StatusNotice && claim.Status != StatusNoKnownIssue && claim.Status != StatusUnsupported) || !reasonRE.MatchString(claim.ReasonCode) || !publicText(claim.NextAction) || !validRequiredFacts(claim.RequiredFacts) || reviewedErr != nil || validUntilErr != nil || !validUntil.After(reviewed) || (claim.EvidenceFreshness != "current" && claim.EvidenceFreshness != "stale" && claim.EvidenceFreshness != "withdrawn" && claim.EvidenceFreshness != "clock_before_review") {
+		if (i > 0 && claims[i-1].RuleID >= claim.RuleID) || !idRE.MatchString(claim.RuleID) || !digestRE.MatchString(claim.RuleDigest) || (claim.Status != "PASS" && claim.Status != "BLOCKED" && claim.Status != "UNKNOWN" && claim.Status != StatusNotice && claim.Status != StatusNoKnownIssue && claim.Status != StatusUnsupported) || !reasonRE.MatchString(claim.ReasonCode) || !publicText(claim.NextAction) || !validRequiredFacts(claim.RequiredFacts) || reviewedErr != nil || validUntilErr != nil || !validUntil.After(reviewed) || (claim.EvidenceFreshness != "current" && claim.EvidenceFreshness != "stale" && claim.EvidenceFreshness != "withdrawn" && claim.EvidenceFreshness != "clock_before_review" && claim.EvidenceFreshness != FreshnessPinned) {
 			return false
+		}
+		// A pinned claim's validUntil is exactly its reviewedAt plus the
+		// pinned lease length, so no signed report can carry a pinned claim
+		// with any other window.
+		if claim.EvidenceFreshness == FreshnessPinned {
+			if want, err := PinnedValidUntil(claim.EvidenceReviewedAt); err != nil || claim.EvidenceValidUntil != want {
+				return false
+			}
 		}
 	}
 	return true

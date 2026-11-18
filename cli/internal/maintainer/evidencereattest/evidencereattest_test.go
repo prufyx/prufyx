@@ -74,6 +74,9 @@ type ruleSpec struct {
 	state                     string
 	ranged                    bool
 	mechanical                bool
+	// operator and lease override the fixture rule's operator and evidence
+	// lease when set.
+	operator, lease string
 }
 
 func buildWorklistAndPack(t *testing.T, packPath string, generatedAt time.Time, specs []ruleSpec) (worklist evidencerepin.Worklist, pack []byte) {
@@ -87,6 +90,12 @@ func buildWorklistAndPack(t *testing.T, packPath string, generatedAt time.Time, 
 		rule := testRule(spec.id, spec.state, spec.reviewedAt, spec.validUntil, spec.ranged, source)
 		if spec.mechanical {
 			markMechanical(rule, spec.reviewedAt)
+		}
+		if spec.operator != "" {
+			rule["operator"] = spec.operator
+		}
+		if spec.lease != "" {
+			rule["evidence"].(map[string]any)["lease"] = spec.lease
 		}
 		entries = append(entries, testEntry(spec.project, rule))
 

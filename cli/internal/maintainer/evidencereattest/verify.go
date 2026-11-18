@@ -303,11 +303,12 @@ func checkV1AndV3(statement Statement, statementRaw []byte, options VerifyOption
 	// recomputation must still reproduce the statement and next pack byte for
 	// byte, so a cap can only ever renew fewer rules, never different ones.
 	maxRules := 0
-	if mode == ModeAutomated && len(statement.Rules) > 0 && len(statement.Rules) <= MaxRulesLimit {
+	pin := statementPins(statement)
+	if (mode == ModeAutomated || pin) && len(statement.Rules) > 0 && len(statement.Rules) <= MaxRulesLimit {
 		maxRules = len(statement.Rules)
 	}
 	result, err := prepareWithChain(PrepareOptions{
-		Mode: mode, MaxRules: maxRules,
+		Mode: mode, MaxRules: maxRules, Pin: pin,
 		WorklistRaw: options.WorklistRaw, PackName: options.PackName, PackPath: options.PackPath,
 		PackRaw: options.PriorPackRaw,
 		Wave:    statement.Wave, AttestedAt: mustParse(statement.AttestedAt), NextRevision: statement.Pack.Next.Revision,
@@ -512,7 +513,18 @@ func checkV6(priorByID, nextByID map[string]json.RawMessage, statement Statement
 		if constraintengine.EffectiveBasis(priorFields.Evidence.Basis) != constraintengine.EffectiveBasis(nextFields.Evidence.Basis) {
 			return fmt.Errorf("%w: V6: rule %s evidence basis changed; reattestation does not alter provenance", ErrRejected, ruleID)
 		}
+		// The lease is part of what a statement row signs: it may change
+		// only from the time lease to the pinned lease, by a row that says so.
+		if constraintengine.EffectiveLease(priorFields.Evidence.Lease) != constraintengine.EffectiveLease(nextFields.Evidence.Lease) {
+			ra, ok := covered[ruleID]
+			if !ok || ra.Lease != constraintengine.LeasePinned || nextFields.Evidence.Lease != constraintengine.LeasePinned || constraintengine.EffectiveLease(priorFields.Evidence.Lease) != constraintengine.LeaseTime {
+				return fmt.Errorf("%w: V6: rule %s lease changed with no row that pins it", ErrRejected, ruleID)
+			}
+		}
 		if nextFields.Evidence.ReviewedAt == priorFields.Evidence.ReviewedAt && nextFields.Evidence.ValidUntil == priorFields.Evidence.ValidUntil {
+			if nextFields.Evidence.Lease != priorFields.Evidence.Lease {
+				return fmt.Errorf("%w: V6: rule %s lease changed without a renewal of its dates", ErrRejected, ruleID)
+			}
 			continue
 		}
 		// Neither a batch attestation nor an individual review record may
@@ -550,6 +562,11 @@ func checkV7(statement Statement, nextByID map[string]json.RawMessage) error {
 	}
 	weeks := map[string]bool{}
 	for _, ra := range statement.Rules {
+		// A pinned row has no end date to spread: pinned rules are exempt
+		// from the stagger cap and from nothing else (see pinned.go).
+		if ra.Lease == constraintengine.LeasePinned {
+			continue
+		}
 		raw, ok := nextByID[ra.RuleID]
 		if !ok {
 			return fmt.Errorf("%w: V7: renewed rule %s is missing from the next pack", ErrRejected, ra.RuleID)
@@ -569,6 +586,9 @@ func checkV7(statement Statement, nextByID map[string]json.RawMessage) error {
 		fields, err := parseRuleFields(raw)
 		if err != nil {
 			return fmt.Errorf("%w: V7: rule %s", ErrRejected, id)
+		}
+		if fields.Evidence.Lease == constraintengine.LeasePinned {
+			continue
 		}
 		validUntil, err := parseUTC(fields.Evidence.ValidUntil)
 		if err != nil {
@@ -637,6 +657,25 @@ func checkRolePolicy(statement Statement, prior map[string]ruleCandidate) error 
 		}
 		if candidate.Fields.record && role != RoleAutomation {
 			return fmt.Errorf("%w: V8: record %s is renewed only by an automated statement", ErrRejected, ra.RuleID)
+		}
+		// A rule on the pinned lease has no end to renew, by any statement.
+		if candidate.Fields.Evidence.Lease == constraintengine.LeasePinned {
+			return fmt.Errorf("%w: V8: rule %s already holds a pinned lease; it is not renewed", ErrRejected, ra.RuleID)
+		}
+		// A pinning row is a human row for a rule that meets the fixed-version
+		// predicate, recomputed here from the prior pack and the row's own
+		// citations (the same clauses Prepare applies).
+		if ra.Lease == constraintengine.LeasePinned {
+			if role != RoleHuman {
+				return fmt.Errorf("%w: V8: rule %s pins its lease in a statement that is not a human statement", ErrRejected, ra.RuleID)
+			}
+			citations := make([][3]string, 0, len(ra.Citations))
+			for _, citation := range ra.Citations {
+				citations = append(citations, [3]string{citation.Baseline, citation.BaselineLine, citation.PinnedTag})
+			}
+			if reasons := pinnedReasons(candidate, citations); len(reasons) > 0 {
+				return fmt.Errorf("%w: V8: %s", ErrRejected, pinnedNotExtendedClass(reasons))
+			}
 		}
 		if ra.ConsecutiveBatchCycles < 1 || ra.ConsecutiveBatchCycles > maxConsecutiveBatchCycles {
 			return fmt.Errorf("%w: V8: rule %s consecutiveBatchCycles is outside 1..%d", ErrRejected, ra.RuleID, maxConsecutiveBatchCycles)

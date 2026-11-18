@@ -327,6 +327,34 @@ such a file yet (that needs a cache or the previous run's artifact, a decision
 for the owner), so today the nightly run uses `day/7` and neither feature acts;
 until then watch the `could-not-run` alarms.
 
+## Pinned leases
+
+A rule may carry `evidence.lease: "pinned"` (see [Pinned
+leases](evidence-reattestation.md#pinned-leases)): it is never stale on time. The
+gate holds that lease to a narrow contract.
+
+| Change | Class | Admitted when |
+| --- | --- | --- |
+| `time` → `pinned` (kind `pin`) | loosening | the change appends one verified **human** reattestation statement with a row for this rule that says `lease: "pinned"`, the head rule meets the fixed-version predicate with `validUntil` exactly `reviewedAt` plus ten years, and the oldest supported client (`cli/knowledge/oldest-supported-client.txt`, in the base and in the head) is at least `cncfcheck.PinnedLeaseMinClientVersion`. An owner approval, a batch approval or any other proof never admits it. |
+| a new rule that is pinned | loosening | never: a rule is not created pinned |
+| `pinned` → `time` (kind `unpin`) | tightening | always, with an earlier `validUntil`; no proof |
+| `pinned` → withdrawn | tightening | always, no proof |
+| any other edit of a pinned rule | loosening | never: every field counts (remediation text, `appliesWhen`, sources, description, dates) |
+
+A refusal carries the reason code `LEASE_PINNED_NOT_ELIGIBLE` and the precise
+reasons after it. A pack with a pinned rule also gets the check `pinned/<pack>`,
+which recomputes the predicate and the fixed window for every pinned rule of the
+head, changed or not. The engine refuses a pinned rule that fails either, so such
+a pack is not admitted (`admit/<pack>`).
+
+Pinned rules are exempt from the ISO-week stagger cap and only from it: they have
+no end date to spread. They count as loosening changes toward the per-change cap
+and the daily limit like any other.
+
+The client floor exists because a client that predates the field rejects a pack
+that carries it as an integrity failure, not as "too new"; no pinned lease is
+admitted while such a client is still supported.
+
 ## Pack checks
 
 Run on every pack of the head, whatever the change:

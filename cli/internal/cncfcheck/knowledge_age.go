@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/knowledgeage"
 )
 
@@ -19,10 +20,11 @@ func activeRuleEnds(entries []Entry) []time.Time {
 		var shape struct {
 			Evidence struct {
 				State      string `json:"state"`
+				Lease      string `json:"lease"`
 				ValidUntil string `json:"validUntil"`
 			} `json:"evidence"`
 		}
-		if json.Unmarshal(entry.Rule, &shape) != nil || shape.Evidence.State != "active" {
+		if json.Unmarshal(entry.Rule, &shape) != nil || shape.Evidence.State != "active" || shape.Evidence.Lease == constraintengine.LeasePinned {
 			continue
 		}
 		if end, err := time.Parse(time.RFC3339, shape.Evidence.ValidUntil); err == nil {
@@ -30,6 +32,30 @@ func activeRuleEnds(entries []Entry) []time.Time {
 		}
 	}
 	return ends
+}
+
+// pinnedRuleReviews lists the reviewedAt of the entries' active rules that
+// hold a pinned lease: the evidence that does not end on time and is kept
+// current by the pinned citation check instead. They are reported apart from
+// the end dates and never count as an expiry.
+func pinnedRuleReviews(entries []Entry) []time.Time {
+	var reviews []time.Time
+	for _, entry := range entries {
+		var shape struct {
+			Evidence struct {
+				State      string `json:"state"`
+				Lease      string `json:"lease"`
+				ReviewedAt string `json:"reviewedAt"`
+			} `json:"evidence"`
+		}
+		if json.Unmarshal(entry.Rule, &shape) != nil || shape.Evidence.State != "active" || shape.Evidence.Lease != constraintengine.LeasePinned {
+			continue
+		}
+		if at, err := time.Parse(time.RFC3339, shape.Evidence.ReviewedAt); err == nil {
+			reviews = append(reviews, at.UTC())
+		}
+	}
+	return reviews
 }
 
 // sectionEnds lists the end dates of the evidence in one optional pack
@@ -73,6 +99,7 @@ func strictRuleEnds(entries []Entry) ([]time.Time, error) {
 		var shape struct {
 			Evidence struct {
 				State      string `json:"state"`
+				Lease      string `json:"lease"`
 				ValidUntil string `json:"validUntil"`
 			} `json:"evidence"`
 		}
@@ -86,6 +113,11 @@ func strictRuleEnds(entries []Entry) ([]time.Time, error) {
 		if err != nil {
 			return nil, ErrIntegrity
 		}
+		// A pinned rule has no end to report: it is counted in its own
+		// bucket (pinnedRuleReviews), never as an expiry ten years out.
+		if shape.Evidence.Lease == constraintengine.LeasePinned {
+			continue
+		}
 		ends = append(ends, end.UTC())
 	}
 	return ends, nil
@@ -97,7 +129,7 @@ func EmbeddedKnowledgeAge() ([]knowledgeage.Source, error) {
 	if err != nil {
 		return nil, err
 	}
-	return []knowledgeage.Source{{ID: "embedded", Expiries: activeRuleEnds(b.pack.Entries)}}, nil
+	return []knowledgeage.Source{{ID: "embedded", Expiries: activeRuleEnds(b.pack.Entries), Pinned: pinnedRuleReviews(b.pack.Entries)}}, nil
 }
 
 // EmbeddedEvidenceAge is the end dates of all evidence the embedded pack
@@ -121,7 +153,7 @@ func EmbeddedEvidenceAge() ([]knowledgeage.Source, error) {
 		}
 		ends = append(ends, more...)
 	}
-	return []knowledgeage.Source{{ID: "embedded", Expiries: ends}}, nil
+	return []knowledgeage.Source{{ID: "embedded", Expiries: ends, Pinned: pinnedRuleReviews(b.pack.Entries)}}, nil
 }
 
 // KnowledgeAge is the end dates of the active rules of the knowledge this
@@ -129,7 +161,7 @@ func EmbeddedEvidenceAge() ([]knowledgeage.Source, error) {
 // (an envelope shared by several projects is listed once).
 func (k *ScanKnowledge) KnowledgeAge() []knowledgeage.Source {
 	if k.selected == nil {
-		return []knowledgeage.Source{{ID: "embedded", Expiries: activeRuleEnds(k.b.pack.Entries)}}
+		return []knowledgeage.Source{{ID: "embedded", Expiries: activeRuleEnds(k.b.pack.Entries), Pinned: pinnedRuleReviews(k.b.pack.Entries)}}
 	}
 	seen := map[string]bool{}
 	var out []knowledgeage.Source
@@ -138,12 +170,12 @@ func (k *ScanKnowledge) KnowledgeAge() []knowledgeage.Source {
 			continue
 		}
 		seen[b.packDigest] = true
-		out = append(out, knowledgeage.Source{ID: b.packDigest, Expiries: activeRuleEnds(b.pack.Entries)})
+		out = append(out, knowledgeage.Source{ID: b.packDigest, Expiries: activeRuleEnds(b.pack.Entries), Pinned: pinnedRuleReviews(b.pack.Entries)})
 	}
 	return knowledgeage.Merge(out)
 }
 
 // KnowledgeAge is the end dates of the active rules of the envelope.
 func (b ExternalBundle) KnowledgeAge() knowledgeage.Source {
-	return knowledgeage.Source{ID: b.bundleDigest, Expiries: activeRuleEnds(b.pack.Entries)}
+	return knowledgeage.Source{ID: b.bundleDigest, Expiries: activeRuleEnds(b.pack.Entries), Pinned: pinnedRuleReviews(b.pack.Entries)}
 }
