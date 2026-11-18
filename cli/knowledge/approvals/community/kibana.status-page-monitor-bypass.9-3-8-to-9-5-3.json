@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:522efa7de6ff0cd95bbcd2c16c48aeb308d26e81e82521ea7576148d6be7697c",
+    "candidateDigest": "sha256:090e87ace2035edd06834bb9f16e6706f97fa2fe0c0779ce752455e36406eb7f",
+    "candidateId": "pr-691",
+    "decidedAt": "2026-11-18T17:41:45Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "community",
+    "ruleId": "kibana.status-page-monitor-bypass.9-3-8-to-9-5-3"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "4zI5eAPkpVUqfipBlQ8n7XJuNbm67bOqManJD/Ttb+LtaLfUNAyVl5nsI4/jdcPPYE2QWcMOj7SZDIV6ZlcTCw=="
+}
