@@ -3,6 +3,7 @@
 package knowledgegate
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -30,6 +31,7 @@ type renewalJob struct {
 	Permissions map[string]string `yaml:"permissions"`
 	If          string            `yaml:"if"`
 	Environment string            `yaml:"environment"`
+	Env         map[string]string `yaml:"env"`
 	Steps       []renewalStep     `yaml:"steps"`
 }
 
@@ -89,7 +91,7 @@ func renewalProblems(raw string) []string {
 		bad("prepare must not name an environment")
 	}
 	if pr.Environment != "renewal-pr" {
-		bad("pr must run in the renewal-pr environment (the bot App key)")
+		bad("pr must run in the renewal-pr environment (the bot token)")
 	}
 	if sign.Environment != "renewal" {
 		bad("sign must run in the renewal environment")
@@ -101,7 +103,7 @@ func renewalProblems(raw string) []string {
 		bad("sign must hold contents: read only")
 	}
 	if pr.Permissions == nil || len(pr.Permissions) != 0 {
-		bad("pr must hold no token permissions (it uses the App token)")
+		bad("pr must hold no token permissions (it uses the bot token)")
 	}
 	if !strings.Contains(sign.If, "dry_run") || !strings.Contains(sign.If, "has-rules") {
 		bad("sign must be skipped on a dry run and on an empty statement")
@@ -111,11 +113,11 @@ func renewalProblems(raw string) []string {
 	}
 
 	code := yamlComment.ReplaceAllString(raw, "")
-	if n := len(secretRef.FindAllString(code, -1)); n != 3 ||
+	if n := len(secretRef.FindAllString(code, -1)); n != 4 ||
 		strings.Count(code, "secrets.REATTEST_AUTOMATION_KEY }}") != 1 ||
 		strings.Count(code, "secrets.REATTEST_AUTOMATION_KEY_PASSPHRASE") != 1 ||
-		strings.Count(code, "secrets.KNOWLEDGE_BOT_APP_PRIVATE_KEY") != 1 {
-		bad("the only secrets are the automation key, its passphrase and the bot App key, once each")
+		strings.Count(code, "secrets.KNOWLEDGE_BOT_TOKEN") != 2 {
+		bad("the only secrets are the automation key, its passphrase and the bot token (twice, in the pr job)")
 	}
 	for _, s := range prepare.Steps {
 		if secretRef.MatchString(s.Run) || secretRef.MatchString(strings.Join(mapValues(s.Env), " ")) {
@@ -137,13 +139,53 @@ func renewalProblems(raw string) []string {
 	if keySteps != 1 {
 		bad("exactly one sign step may hold the key")
 	}
+	botTokenSteps := 0
 	for _, s := range pr.Steps {
-		if secretRef.MatchString(s.Run) || secretRef.MatchString(strings.Join(mapValues(s.Env), " ")) {
+		if secretRef.MatchString(s.Run) {
 			bad("a pr run step names a secret", s.Name)
+		}
+		if env := strings.Join(mapValues(s.Env), " "); secretRef.MatchString(env) {
+			botTokenSteps++
+			if s.Env["GH_TOKEN"] != "${{ secrets.KNOWLEDGE_BOT_TOKEN }}" || strings.Count(env, "secrets") != 1 {
+				bad("a pr step may name only the bot token, as GH_TOKEN", s.Name)
+			}
+		}
+		if s.Uses != "" && secretRef.MatchString(fmt.Sprint(s.With)) {
+			bad("a pr action step names a secret", s.Name)
 		}
 		if s.Uses != "" && strings.HasPrefix(s.Uses, "actions/checkout@") {
 			bad("pr must not check out the repository")
 		}
+	}
+
+	if botTokenSteps != 2 {
+		bad("exactly the login guard and the open step may hold the bot token")
+	}
+	guard := -1
+	for i, s := range pr.Steps {
+		if s.Name == "Require the pinned bot account" {
+			guard = i
+		}
+	}
+	if guard < 0 {
+		bad("pr: login guard step missing")
+	} else {
+		g := pr.Steps[guard]
+		if g.Env["GH_TOKEN"] != "${{ secrets.KNOWLEDGE_BOT_TOKEN }}" || g.Env["PINNED_LOGIN"] != "${{ vars.KNOWLEDGE_BOT_LOGIN }}" ||
+			!strings.Contains(g.Run, `gh api user --jq .login`) ||
+			!strings.Contains(g.Run, `[ "${login}" != "${PINNED_LOGIN}" ]`) ||
+			!strings.Contains(g.Run, `[ -z "${PINNED_LOGIN}" ]`) {
+			bad("pr: the login guard must compare the token's login with the pinned login and refuse an empty pin")
+		}
+		if guard != 0 {
+			bad("pr: the login guard must be the first step")
+		}
+		if pr.Steps[len(pr.Steps)-1].Name != "Open the pull request" || guard > len(pr.Steps)-2 {
+			bad("pr: the open step must come after the login guard")
+		}
+	}
+	if pr.Env["BOT_LOGIN"] != "${{ vars.KNOWLEDGE_BOT_LOGIN }}" {
+		bad("pr: the author check must use the pinned login without a fallback")
 	}
 
 	// Order in sign: build, then key written, then sign, then removal.
@@ -271,7 +313,7 @@ func TestRenewalWorkflowRefusesWeakening(t *testing.T) {
 			return strings.Replace(s, " && needs.sign.outputs.signed == 'true'", "", 1)
 		},
 		"pr checks out the repository": func(s string) string {
-			return strings.Replace(s, "      - name: Require the bot App\n", "      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262\n      - name: Require the bot App\n", 1)
+			return strings.Replace(s, "      - name: Require the pinned bot account\n", "      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262\n      - name: Require the bot App\n", 1)
 		},
 		"main-ref refusal removed": func(s string) string {
 			return strings.Replace(s, `"${GITHUB_REF}" != "refs/heads/main"`, `false`, 1)
@@ -318,8 +360,39 @@ func TestRenewalWorkflowRefusesWeakening(t *testing.T) {
 		"pr pack check removed": func(s string) string {
 			return strings.Replace(s, `[ "${pack}" = "${PACK}" ]`, `true`, 1)
 		},
-		"pr not in the App environment": func(s string) string {
+		"pr not in its environment": func(s string) string {
 			return strings.Replace(s, "    environment: renewal-pr\n", "", 1)
+		},
+		"login guard compares nothing": func(s string) string {
+			return strings.Replace(s, `[ "${login}" != "${PINNED_LOGIN}" ]`, `false`, 1)
+		},
+		"login guard allows an empty pin": func(s string) string {
+			return strings.Replace(s, `[ -z "${PINNED_LOGIN}" ]`, `false`, 1)
+		},
+		"login guard reads another login": func(s string) string {
+			return strings.Replace(s, "gh api user --jq .login", "echo prufyx-bot", 1)
+		},
+		"login guard pinned to a fallback": func(s string) string {
+			return strings.Replace(s, "PINNED_LOGIN: ${{ vars.KNOWLEDGE_BOT_LOGIN }}", "PINNED_LOGIN: ${{ vars.KNOWLEDGE_BOT_LOGIN || 'x' }}", 1)
+		},
+		"pr author fallback restored": func(s string) string {
+			i := strings.Index(s, "  pr:\n")
+			return s[:i] + strings.Replace(s[i:], "BOT_LOGIN: ${{ vars.KNOWLEDGE_BOT_LOGIN }}", "BOT_LOGIN: ${{ vars.KNOWLEDGE_BOT_LOGIN || 'x[bot]' }}", 1)
+		},
+		"bot token in prepare": func(s string) string {
+			return strings.Replace(s, "      REATTEST_TRUST_ROOT_DIGEST: ${{ vars.REATTEST_TRUST_ROOT_DIGEST }}\n    outputs:\n      has-rules", "      REATTEST_TRUST_ROOT_DIGEST: ${{ vars.REATTEST_TRUST_ROOT_DIGEST }}\n      GH_TOKEN: ${{ secrets.KNOWLEDGE_BOT_TOKEN }}\n    outputs:\n      has-rules", 1)
+		},
+		"bot token in a sign step": func(s string) string {
+			return strings.Replace(s, "  sign:\n", "  sign:\n    env:\n      GH_TOKEN: ${{ secrets.KNOWLEDGE_BOT_TOKEN }}\n", 1)
+		},
+		"bot token on a pr download step": func(s string) string {
+			return strings.Replace(s, "          pattern: renewal-*\n", "          pattern: renewal-*\n          github-token: ${{ secrets.KNOWLEDGE_BOT_TOKEN }}\n", 1)
+		},
+		"bot token under another name": func(s string) string {
+			return strings.Replace(s, "          PINNED_LOGIN: ${{ vars.KNOWLEDGE_BOT_LOGIN }}\n", "          PINNED_LOGIN: ${{ vars.KNOWLEDGE_BOT_LOGIN }}\n          OTHER: ${{ secrets.KNOWLEDGE_BOT_TOKEN }}\n", 1)
+		},
+		"step before the guard": func(s string) string {
+			return strings.Replace(s, "      - name: Require the pinned bot account\n", "      - name: Early write\n        run: gh api -X POST repos/x/y/git/refs\n      - name: Require the pinned bot account\n", 1)
 		},
 		"prepare token widened": func(s string) string {
 			return strings.Replace(s, "      pull-requests: read\n", "      pull-requests: write\n", 1)
