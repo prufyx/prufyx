@@ -1375,7 +1375,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:42:47Z",
+          "reviewedAt": "2026-11-18T09:16:00Z",
           "sources": [
             {
               "id": "c-origin-0-9-47-package-version",
@@ -1419,7 +1419,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:42:47Z"
+          "validUntil": "2027-02-03T09:16:00Z"
         },
         "id": "cloud-custodian.iam-access-key-json-diff-rejected.0-9-47-to-0-9-52",
         "nextAction": "For the selected complete IAM access-key policy, remove or redesign the direct json-diff filter before package 0.9.52; this check does not evaluate other filters, resources, variables, includes, or policy execution.",
@@ -1454,7 +1454,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:42:47Z",
+          "reviewedAt": "2026-11-18T09:16:00Z",
           "sources": [
             {
               "id": "c-origin-0-9-48-package-version",
@@ -1498,7 +1498,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:42:47Z"
+          "validUntil": "2027-02-10T09:16:00Z"
         },
         "id": "cloud-custodian.iam-access-key-json-diff-rejected.0-9-48-to-0-9-52",
         "nextAction": "For the selected complete IAM access-key policy, remove or redesign the direct json-diff filter before package 0.9.52; this check does not evaluate other filters, resources, variables, includes, or policy execution.",
@@ -1533,7 +1533,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:42:47Z",
+          "reviewedAt": "2026-11-18T09:16:00Z",
           "sources": [
             {
               "id": "c-origin-0-9-49-package-version",
@@ -1577,7 +1577,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:42:47Z"
+          "validUntil": "2027-02-15T09:16:00Z"
         },
         "id": "cloud-custodian.iam-access-key-json-diff-rejected.0-9-49-to-0-9-52",
         "nextAction": "For the selected complete IAM access-key policy, remove or redesign the direct json-diff filter before package 0.9.52; this check does not evaluate other filters, resources, variables, includes, or policy execution.",
@@ -4651,8 +4651,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:00:00Z",
-          "validUntil": "2026-12-11T09:00:00Z",
+          "reviewedAt": "2026-11-18T09:16:00Z",
+          "validUntil": "2027-01-27T09:16:00Z",
           "sources": [
             {
               "id": "envoy-origin-1-36-10-version",
@@ -4724,8 +4724,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:00:00Z",
-          "validUntil": "2026-12-11T09:00:00Z",
+          "reviewedAt": "2026-11-18T09:16:00Z",
+          "validUntil": "2027-02-03T09:16:00Z",
           "sources": [
             {
               "id": "envoy-origin-1-37-6-version",
@@ -4797,8 +4797,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:00:00Z",
-          "validUntil": "2026-12-11T09:00:00Z",
+          "reviewedAt": "2026-11-18T09:16:00Z",
+          "validUntil": "2027-02-10T09:16:00Z",
           "sources": [
             {
               "id": "envoy-origin-1-38-4-version",
@@ -6398,8 +6398,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:26:49Z",
-          "validUntil": "2026-12-11T09:26:49Z",
+          "reviewedAt": "2026-11-18T09:16:00Z",
+          "validUntil": "2027-02-16T09:16:00Z",
           "sources": [
             {
               "id": "flux-target-crd-bundle",
@@ -6468,8 +6468,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:26:49Z",
-          "validUntil": "2026-12-11T09:26:49Z",
+          "reviewedAt": "2026-11-18T09:16:00Z",
+          "validUntil": "2027-01-27T09:16:00Z",
           "sources": [
             {
               "id": "flux-target-crd-bundle",
@@ -6538,8 +6538,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:26:49Z",
-          "validUntil": "2026-12-11T09:26:49Z",
+          "reviewedAt": "2026-11-18T09:16:00Z",
+          "validUntil": "2027-02-03T09:16:00Z",
           "sources": [
             {
               "id": "flux-target-crd-bundle",
@@ -6608,8 +6608,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:26:49Z",
-          "validUntil": "2026-12-11T09:26:49Z",
+          "reviewedAt": "2026-11-18T09:16:00Z",
+          "validUntil": "2027-02-10T09:16:00Z",
           "sources": [
             {
               "id": "flux-target-crd-bundle",
@@ -6678,8 +6678,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:26:49Z",
-          "validUntil": "2026-12-11T09:26:49Z",
+          "reviewedAt": "2026-11-18T09:16:00Z",
+          "validUntil": "2027-02-15T09:16:00Z",
           "sources": [
             {
               "id": "flux-target-crd-bundle",
@@ -14175,7 +14175,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:33:00Z",
+          "reviewedAt": "2026-11-18T09:16:00Z",
           "sources": [
             {
               "contentDigest": "sha256:eb3238110346601e8e014dac5e5fa873bde7c94bb2f33053f92fd175c1b2a1f1",
@@ -14210,12 +14210,12 @@
               "url": "https://github.com/kyverno/kyverno/blob/40ec788d48bb28d83dbf85538e962a59db9d45c6/charts/kyverno/Chart.yaml"
             },
             {
-              "contentDigest": "sha256:928c52cd99eb09fccdcf0b03f3af2c04209f4ac3ebeae37af60eb837bf1bd57b",
-              "endLine": 305,
+              "contentDigest": "sha256:43c8d9b6cb7fdd2f0798dbe062b6d57e030d55ea7ef8f53066a0076f97abf276",
+              "endLine": 308,
               "id": "kyverno-target-1-19-1-flag-bridge",
-              "revision": "40ec788d48bb28d83dbf85538e962a59db9d45c6",
-              "startLine": 284,
-              "url": "https://github.com/kyverno/kyverno/blob/40ec788d48bb28d83dbf85538e962a59db9d45c6/cmd/internal/flag.go"
+              "revision": "e63308f1e16c05cd009ac4864be6ec25c66b49be",
+              "startLine": 287,
+              "url": "https://github.com/kyverno/kyverno/blob/e63308f1e16c05cd009ac4864be6ec25c66b49be/cmd/internal/flag.go"
             },
             {
               "contentDigest": "sha256:fe7bebaa613aea1b150cd2a8fb20d2db1cac47e9564d17145735db3792135aac",
@@ -14243,7 +14243,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:33:00Z"
+          "validUntil": "2027-01-28T09:16:00Z"
         },
         "id": "kyverno.reports-chunk-size-unsupported-at-1-19-1-from-1-14-5",
         "nextAction": "Remove reportsChunkSize from the effective official upstream bare reports-controller arguments. Otherwise provide an explicit supported surface declaration or keep the result UNKNOWN; review reporting behavior separately.",
@@ -14313,7 +14313,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:33:00Z",
+          "reviewedAt": "2026-11-18T09:16:00Z",
           "sources": [
             {
               "contentDigest": "sha256:eb3238110346601e8e014dac5e5fa873bde7c94bb2f33053f92fd175c1b2a1f1",
@@ -14348,12 +14348,12 @@
               "url": "https://github.com/kyverno/kyverno/blob/40ec788d48bb28d83dbf85538e962a59db9d45c6/charts/kyverno/Chart.yaml"
             },
             {
-              "contentDigest": "sha256:928c52cd99eb09fccdcf0b03f3af2c04209f4ac3ebeae37af60eb837bf1bd57b",
-              "endLine": 305,
+              "contentDigest": "sha256:43c8d9b6cb7fdd2f0798dbe062b6d57e030d55ea7ef8f53066a0076f97abf276",
+              "endLine": 308,
               "id": "kyverno-target-1-19-1-flag-bridge",
-              "revision": "40ec788d48bb28d83dbf85538e962a59db9d45c6",
-              "startLine": 284,
-              "url": "https://github.com/kyverno/kyverno/blob/40ec788d48bb28d83dbf85538e962a59db9d45c6/cmd/internal/flag.go"
+              "revision": "e63308f1e16c05cd009ac4864be6ec25c66b49be",
+              "startLine": 287,
+              "url": "https://github.com/kyverno/kyverno/blob/e63308f1e16c05cd009ac4864be6ec25c66b49be/cmd/internal/flag.go"
             },
             {
               "contentDigest": "sha256:fe7bebaa613aea1b150cd2a8fb20d2db1cac47e9564d17145735db3792135aac",
@@ -14381,7 +14381,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:33:00Z"
+          "validUntil": "2027-02-04T09:16:00Z"
         },
         "id": "kyverno.reports-chunk-size-unsupported-at-1-19-1-from-1-15-3",
         "nextAction": "Remove reportsChunkSize from the effective official upstream bare reports-controller arguments. Otherwise provide an explicit supported surface declaration or keep the result UNKNOWN; review reporting behavior separately.",
@@ -14451,7 +14451,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:33:00Z",
+          "reviewedAt": "2026-11-18T09:16:00Z",
           "sources": [
             {
               "contentDigest": "sha256:eb3238110346601e8e014dac5e5fa873bde7c94bb2f33053f92fd175c1b2a1f1",
@@ -14486,12 +14486,12 @@
               "url": "https://github.com/kyverno/kyverno/blob/40ec788d48bb28d83dbf85538e962a59db9d45c6/charts/kyverno/Chart.yaml"
             },
             {
-              "contentDigest": "sha256:928c52cd99eb09fccdcf0b03f3af2c04209f4ac3ebeae37af60eb837bf1bd57b",
-              "endLine": 305,
+              "contentDigest": "sha256:43c8d9b6cb7fdd2f0798dbe062b6d57e030d55ea7ef8f53066a0076f97abf276",
+              "endLine": 308,
               "id": "kyverno-target-1-19-1-flag-bridge",
-              "revision": "40ec788d48bb28d83dbf85538e962a59db9d45c6",
-              "startLine": 284,
-              "url": "https://github.com/kyverno/kyverno/blob/40ec788d48bb28d83dbf85538e962a59db9d45c6/cmd/internal/flag.go"
+              "revision": "e63308f1e16c05cd009ac4864be6ec25c66b49be",
+              "startLine": 287,
+              "url": "https://github.com/kyverno/kyverno/blob/e63308f1e16c05cd009ac4864be6ec25c66b49be/cmd/internal/flag.go"
             },
             {
               "contentDigest": "sha256:fe7bebaa613aea1b150cd2a8fb20d2db1cac47e9564d17145735db3792135aac",
@@ -14519,7 +14519,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:33:00Z"
+          "validUntil": "2027-02-11T09:16:00Z"
         },
         "id": "kyverno.reports-chunk-size-unsupported-at-1-19-1-from-1-16-4",
         "nextAction": "Remove reportsChunkSize from the effective official upstream bare reports-controller arguments. Otherwise provide an explicit supported surface declaration or keep the result UNKNOWN; review reporting behavior separately.",
@@ -14589,7 +14589,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:33:00Z",
+          "reviewedAt": "2026-11-18T09:16:00Z",
           "sources": [
             {
               "contentDigest": "sha256:eb3238110346601e8e014dac5e5fa873bde7c94bb2f33053f92fd175c1b2a1f1",
@@ -14624,12 +14624,12 @@
               "url": "https://github.com/kyverno/kyverno/blob/40ec788d48bb28d83dbf85538e962a59db9d45c6/charts/kyverno/Chart.yaml"
             },
             {
-              "contentDigest": "sha256:928c52cd99eb09fccdcf0b03f3af2c04209f4ac3ebeae37af60eb837bf1bd57b",
-              "endLine": 305,
+              "contentDigest": "sha256:43c8d9b6cb7fdd2f0798dbe062b6d57e030d55ea7ef8f53066a0076f97abf276",
+              "endLine": 308,
               "id": "kyverno-target-1-19-1-flag-bridge",
-              "revision": "40ec788d48bb28d83dbf85538e962a59db9d45c6",
-              "startLine": 284,
-              "url": "https://github.com/kyverno/kyverno/blob/40ec788d48bb28d83dbf85538e962a59db9d45c6/cmd/internal/flag.go"
+              "revision": "e63308f1e16c05cd009ac4864be6ec25c66b49be",
+              "startLine": 287,
+              "url": "https://github.com/kyverno/kyverno/blob/e63308f1e16c05cd009ac4864be6ec25c66b49be/cmd/internal/flag.go"
             },
             {
               "contentDigest": "sha256:fe7bebaa613aea1b150cd2a8fb20d2db1cac47e9564d17145735db3792135aac",
@@ -14657,7 +14657,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:33:00Z"
+          "validUntil": "2027-02-16T09:16:00Z"
         },
         "id": "kyverno.reports-chunk-size-unsupported-at-1-19-1-from-1-17-2",
         "nextAction": "Remove reportsChunkSize from the effective official upstream bare reports-controller arguments. Otherwise provide an explicit supported surface declaration or keep the result UNKNOWN; review reporting behavior separately.",
@@ -14727,7 +14727,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:33:00Z",
+          "reviewedAt": "2026-11-18T09:16:00Z",
           "sources": [
             {
               "contentDigest": "sha256:eb3238110346601e8e014dac5e5fa873bde7c94bb2f33053f92fd175c1b2a1f1",
@@ -14762,12 +14762,12 @@
               "url": "https://github.com/kyverno/kyverno/blob/40ec788d48bb28d83dbf85538e962a59db9d45c6/charts/kyverno/Chart.yaml"
             },
             {
-              "contentDigest": "sha256:928c52cd99eb09fccdcf0b03f3af2c04209f4ac3ebeae37af60eb837bf1bd57b",
-              "endLine": 305,
+              "contentDigest": "sha256:43c8d9b6cb7fdd2f0798dbe062b6d57e030d55ea7ef8f53066a0076f97abf276",
+              "endLine": 308,
               "id": "kyverno-target-1-19-1-flag-bridge",
-              "revision": "40ec788d48bb28d83dbf85538e962a59db9d45c6",
-              "startLine": 284,
-              "url": "https://github.com/kyverno/kyverno/blob/40ec788d48bb28d83dbf85538e962a59db9d45c6/cmd/internal/flag.go"
+              "revision": "e63308f1e16c05cd009ac4864be6ec25c66b49be",
+              "startLine": 287,
+              "url": "https://github.com/kyverno/kyverno/blob/e63308f1e16c05cd009ac4864be6ec25c66b49be/cmd/internal/flag.go"
             },
             {
               "contentDigest": "sha256:fe7bebaa613aea1b150cd2a8fb20d2db1cac47e9564d17145735db3792135aac",
@@ -14795,7 +14795,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:33:00Z"
+          "validUntil": "2027-01-27T09:16:00Z"
         },
         "id": "kyverno.reports-chunk-size-unsupported-at-1-19-1-from-1-18-2",
         "nextAction": "Remove reportsChunkSize from the effective official upstream bare reports-controller arguments. Otherwise provide an explicit supported surface declaration or keep the result UNKNOWN; review reporting behavior separately.",
@@ -16415,7 +16415,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:15:52Z",
+          "reviewedAt": "2026-11-18T09:16:00Z",
           "sources": [
             {
               "id": "o-origin-1-116-0-cloud-cost-gate",
@@ -16435,11 +16435,11 @@
             },
             {
               "id": "o-target-cloud-cost-gate",
-              "url": "https://github.com/opencost/opencost/blob/e22df84a4fb1113534514c44616f979f6455c0a7/pkg/cmd/costmodel/costmodel.go",
-              "revision": "e22df84a4fb1113534514c44616f979f6455c0a7",
-              "contentDigest": "sha256:8e51b656656f1fe707f83589b42940a5078e3e0db1cd129e81829e2a85c9830c",
-              "startLine": 78,
-              "endLine": 101
+              "url": "https://github.com/opencost/opencost/blob/17daaa72c27cb12c490ce6e15d096554b274f322/pkg/cmd/costmodel/costmodel.go",
+              "revision": "17daaa72c27cb12c490ce6e15d096554b274f322",
+              "contentDigest": "sha256:158ac6b8e0967b569fceb62c5f5e782365aaa52133899beded94316f1b862676",
+              "startLine": 79,
+              "endLine": 102
             },
             {
               "id": "o-target-cloud-cost-initialization",
@@ -16459,7 +16459,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:15:52Z"
+          "validUntil": "2027-02-15T09:16:00Z"
         },
         "id": "opencost.cloud-cost-source-migration.1-116-0-to-1-121-2",
         "nextAction": "For an enabled cloud-cost deployment that relied on provider-derived configuration, select and separately validate a target-supported cloud-integration JSON source before v1.121.2; do not put credentials or provider values in this declaration.",
@@ -16565,7 +16565,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:15:52Z",
+          "reviewedAt": "2026-11-18T09:16:00Z",
           "sources": [
             {
               "id": "o-origin-1-117-6-cloud-cost-gate",
@@ -16585,11 +16585,11 @@
             },
             {
               "id": "o-target-cloud-cost-gate",
-              "url": "https://github.com/opencost/opencost/blob/e22df84a4fb1113534514c44616f979f6455c0a7/pkg/cmd/costmodel/costmodel.go",
-              "revision": "e22df84a4fb1113534514c44616f979f6455c0a7",
-              "contentDigest": "sha256:8e51b656656f1fe707f83589b42940a5078e3e0db1cd129e81829e2a85c9830c",
-              "startLine": 78,
-              "endLine": 101
+              "url": "https://github.com/opencost/opencost/blob/17daaa72c27cb12c490ce6e15d096554b274f322/pkg/cmd/costmodel/costmodel.go",
+              "revision": "17daaa72c27cb12c490ce6e15d096554b274f322",
+              "contentDigest": "sha256:158ac6b8e0967b569fceb62c5f5e782365aaa52133899beded94316f1b862676",
+              "startLine": 79,
+              "endLine": 102
             },
             {
               "id": "o-target-cloud-cost-initialization",
@@ -16609,7 +16609,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:15:52Z"
+          "validUntil": "2027-01-28T09:16:00Z"
         },
         "id": "opencost.cloud-cost-source-migration.1-117-6-to-1-121-2",
         "nextAction": "For an enabled cloud-cost deployment that relied on provider-derived configuration, select and separately validate a target-supported cloud-integration JSON source before v1.121.2; do not put credentials or provider values in this declaration.",
@@ -16715,7 +16715,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:15:52Z",
+          "reviewedAt": "2026-11-18T09:16:00Z",
           "sources": [
             {
               "id": "o-origin-1-118-0-cloud-cost-gate",
@@ -16727,19 +16727,19 @@
             },
             {
               "id": "o-origin-1-118-0-cloud-cost-initialization",
-              "url": "https://github.com/opencost/opencost/blob/37e08c6365d0f086562d049633e7a19bd025369a/pkg/costmodel/router.go",
-              "revision": "37e08c6365d0f086562d049633e7a19bd025369a",
-              "contentDigest": "sha256:f20450b02819e27bbfa4ba3b1e415f6a54f52635abf4e50a3aaf29c3c4b70ca0",
-              "startLine": 638,
-              "endLine": 642
+              "url": "https://github.com/opencost/opencost/blob/55c7f42a8b8d15700224c6986f53c20892d80c87/pkg/costmodel/router.go",
+              "revision": "55c7f42a8b8d15700224c6986f53c20892d80c87",
+              "contentDigest": "sha256:e8a4e292be49721ffbb25eb7bc296845dabb88b40579a6848c9ba70e6eb9880c",
+              "startLine": 576,
+              "endLine": 580
             },
             {
               "id": "o-target-cloud-cost-gate",
-              "url": "https://github.com/opencost/opencost/blob/e22df84a4fb1113534514c44616f979f6455c0a7/pkg/cmd/costmodel/costmodel.go",
-              "revision": "e22df84a4fb1113534514c44616f979f6455c0a7",
-              "contentDigest": "sha256:8e51b656656f1fe707f83589b42940a5078e3e0db1cd129e81829e2a85c9830c",
-              "startLine": 78,
-              "endLine": 101
+              "url": "https://github.com/opencost/opencost/blob/17daaa72c27cb12c490ce6e15d096554b274f322/pkg/cmd/costmodel/costmodel.go",
+              "revision": "17daaa72c27cb12c490ce6e15d096554b274f322",
+              "contentDigest": "sha256:158ac6b8e0967b569fceb62c5f5e782365aaa52133899beded94316f1b862676",
+              "startLine": 79,
+              "endLine": 102
             },
             {
               "id": "o-target-cloud-cost-initialization",
@@ -16759,7 +16759,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:15:52Z"
+          "validUntil": "2027-02-04T09:16:00Z"
         },
         "id": "opencost.cloud-cost-source-migration.1-118-0-to-1-121-2",
         "nextAction": "For an enabled cloud-cost deployment that relied on provider-derived configuration, select and separately validate a target-supported cloud-integration JSON source before v1.121.2; do not put credentials or provider values in this declaration.",
@@ -16865,7 +16865,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:15:52Z",
+          "reviewedAt": "2026-11-18T09:16:00Z",
           "sources": [
             {
               "id": "o-origin-1-119-2-cloud-cost-gate",
@@ -16885,11 +16885,11 @@
             },
             {
               "id": "o-target-cloud-cost-gate",
-              "url": "https://github.com/opencost/opencost/blob/e22df84a4fb1113534514c44616f979f6455c0a7/pkg/cmd/costmodel/costmodel.go",
-              "revision": "e22df84a4fb1113534514c44616f979f6455c0a7",
-              "contentDigest": "sha256:8e51b656656f1fe707f83589b42940a5078e3e0db1cd129e81829e2a85c9830c",
-              "startLine": 78,
-              "endLine": 101
+              "url": "https://github.com/opencost/opencost/blob/17daaa72c27cb12c490ce6e15d096554b274f322/pkg/cmd/costmodel/costmodel.go",
+              "revision": "17daaa72c27cb12c490ce6e15d096554b274f322",
+              "contentDigest": "sha256:158ac6b8e0967b569fceb62c5f5e782365aaa52133899beded94316f1b862676",
+              "startLine": 79,
+              "endLine": 102
             },
             {
               "id": "o-target-cloud-cost-initialization",
@@ -16909,7 +16909,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:15:52Z"
+          "validUntil": "2027-02-11T09:16:00Z"
         },
         "id": "opencost.cloud-cost-source-migration.1-119-2-to-1-121-2",
         "nextAction": "For an enabled cloud-cost deployment that relied on provider-derived configuration, select and separately validate a target-supported cloud-integration JSON source before v1.121.2; do not put credentials or provider values in this declaration.",
