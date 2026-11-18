@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:366683e748aebce6ef8499efff0a586809ffdeb4402849f66f84745845c517d7",
+    "candidateDigest": "sha256:debbfe77789f3c3c8fde40b5bf7e073379600f36785424269b20338ee78f6e46",
+    "candidateId": "pr-693",
+    "decidedAt": "2026-11-18T17:37:49Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "harbor.installer-config-format.1-8"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "bhOdFXE6w3tz0BDjIl7yAOfgFUCIE7rrWdz5GzAUx9Nr9KlibJGgaMOwi3KpVD6VrcqhGdARIhmqO/EqEViaDQ=="
+}

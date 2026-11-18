@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:c9ae817a549d4829b599a6e16610120e5c6e469cd95a5d48de0da0c4b8e78de2",
+    "candidateDigest": "sha256:dcfb50b895ce19ffa6fad2a9fda987dd95cb57e7a1778ab1a80b3d9047841da6",
+    "candidateId": "pr-693",
+    "decidedAt": "2026-11-18T17:36:34Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "argo-cd.required-rbac-inheritance.3-0"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "klX34VIfRuDzBWYi7MVnEvIsehSO+MMtLpI7H4URbG44V+74VV7UW7UrRS3WHNyqXoQms/AEdH3fXd2dAwwbBA=="
+}

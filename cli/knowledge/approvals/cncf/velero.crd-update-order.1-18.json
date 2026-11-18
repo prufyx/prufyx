@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:1e37322f6875c5684cbd0e737c8638b91a82b2d6cb927c66d8d67318d2f19e86",
+    "candidateDigest": "sha256:1536234fcc26bfad803c8ae2f1849f6e767771fd1b8dc176767b25f177f71a30",
+    "candidateId": "pr-693",
+    "decidedAt": "2026-11-18T17:39:33Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "velero.crd-update-order.1-18"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "VPI3ZDP1IAFhgcEbuS8guk9hLet3FATX6FiuM4GZPYH/ZhnOdklQnQ4xfIuqyko98E9O2bcemDbbbOeAZY0OCA=="
+}

@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:7c8a8c1e182469d6a0f5e6597ca5b4a925f3f42f450f20149b371f4971127b73",
+    "candidateDigest": "sha256:c87dddad878baf2c5b9924d3190bf8525681f793ac04db93ffb6615aab8d6cce",
+    "candidateId": "pr-693",
+    "decidedAt": "2026-11-18T17:38:07Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "karmada.application-purge-mode-legacy-values-removed.1-19"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "cevICsLUTNPiXOueIsxmigqJpU9QRqcZcbtcylKaV+T5wozDx/sq6uYwuEiNb0pEl8BgKfJATqQH/pHKoyf3Bg=="
+}

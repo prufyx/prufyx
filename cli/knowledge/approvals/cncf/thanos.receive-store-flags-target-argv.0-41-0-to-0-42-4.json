@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:c6aaee7afbf7495ac81d9696197385776009b3127e3401671c6324729d32f633",
+    "candidateDigest": "sha256:a5ca2d7718df681b3a69c06a917106abb0f8175204178156f5496809f9106f2e",
+    "candidateId": "pr-693",
+    "decidedAt": "2026-11-18T17:39:31Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "thanos.receive-store-flags-target-argv.0-41-0-to-0-42-4"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "de+c4aYbcSzU4I4J1/OLZRp3fT6G4HMFcyvPTCtbraM0ymQ6Z+44qPRFFjGqd7loK18ixc+37qUPKW7H0Ii1Bw=="
+}

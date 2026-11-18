@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:614877f2c6520ed339d68fa09c6dcddb5089d4d8850cf270965a536d0beec1f7",
+    "candidateDigest": "sha256:ef42550786ce81ac3affe7678e30c107652d04e70d7322044b1c36387513739a",
+    "candidateId": "pr-693",
+    "decidedAt": "2026-11-18T17:38:01Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "jaeger.explicit-config-required-for-non-memory.target.2-15-to-2-20"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "JH+7GoFclq8ZHSvjNsmDinuVtQoQr4bL5dBhf2+HaZQjbKcq5frSAD0bmqkRteGA5TNfx3/XO1Z2q0RpoEPRBQ=="
+}

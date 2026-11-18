@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:ef55fe770d4dbed89d435d9d155238a08a7016aed49c19f3e2d7b23d8ef5500c",
+    "candidateDigest": "sha256:d49cc6cfbc337abe845ab0d0201f94b69ac08ee75507f32cd406fd04a310beff",
+    "candidateId": "pr-693",
+    "decidedAt": "2026-11-18T17:38:23Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "linkerd.mtls-identity-selector-minitems.2-13-2-14"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "8x5u7VBrqaDxlEeAeoHwyvS69yKs30yzAM8xf/Up6rieNo/uxvaEUjAJwMeqoO8bMfsX6BBuicPBkc+HcWXTDw=="
+}

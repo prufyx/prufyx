@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:7d975c49354c3547305c23b98fa9e4183c9cabf3745b2c3f3077415784e3ace8",
+    "candidateDigest": "sha256:69c921cf07bc471c5f68e54f81ac5b66fe3b94711b471fcdf3841dc0b39adc21",
+    "candidateId": "pr-693",
+    "decidedAt": "2026-11-18T17:37:50Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "harbor.installer-with-chartmuseum-flag-removed.2-10-to-2-15"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "D73bxN5AMIEMpS343sCTqHsaAA/R0C1968Uhnypik4Y5o2W82WGmNkkbsJutOtqyR6wmu30UkJIJnwKCptOCCg=="
+}
