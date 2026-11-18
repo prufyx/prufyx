@@ -195,3 +195,76 @@ func TestWordingAndCounts(t *testing.T) {
 		t.Error("denied wording rendered")
 	}
 }
+
+func supersede(t *testing.T, root, name, by string) {
+	t.Helper()
+	body := `{"superseded": true, "superseded_by": "` + by + `", "reason": "harness fault on leakhost-7 /srv/private/path"}`
+	if err := os.WriteFile(filepath.Join(root, name, "SUPERSEDED.json"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSupersededExcluded(t *testing.T) {
+	root := t.TempDir()
+	writeRun(t, root, "m3-x", m3(nil))
+	// The superseded run has a wrong PASS row and the RESULT-side keys.
+	writeRun(t, root, "m3-x-try1", m3(func(m map[string]any) {
+		m["superseded"], m["superseded_by"], m["supersede_reason"] = true, "m3-x", "leakhost-7 note"
+	}))
+	supersede(t, root, "m3-x-try1", "m3-x")
+	// A directory with only SUPERSEDED.json (aborted run, no RESULT) is counted too.
+	if err := os.MkdirAll(filepath.Join(root, "aborted"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	supersede(t, root, "aborted", "m3-x")
+	rep, err := Build(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Runs) != 1 || rep.SupersededExcluded != 2 || len(rep.SupersededBy) != 1 || rep.SupersededBy[0] != "m3-x" {
+		t.Fatalf("runs=%d excluded=%d by=%v", len(rep.Runs), rep.SupersededExcluded, rep.SupersededBy)
+	}
+	if rep.Counts.WrongPass != 1 || rep.Counts.Rows != 3 {
+		t.Errorf("excluded run leaked into the counts: %+v", rep.Counts)
+	}
+	j, md, err := Render(rep)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(md), "Superseded runs excluded: 2 (harness faults, replaced by a rerun)") {
+		t.Error("superseded line missing")
+	}
+	for _, leak := range leaks {
+		if bytes.Contains(j, []byte(leak)) || bytes.Contains(md, []byte(leak)) {
+			t.Errorf("%q reached the output", leak)
+		}
+	}
+	if bytes.Contains(md, []byte("m3-x-try1")) {
+		t.Error("superseded run listed")
+	}
+}
+
+func TestSupersededByMissingRefused(t *testing.T) {
+	root := t.TempDir()
+	writeRun(t, root, "m3-x", m3(nil))
+	writeRun(t, root, "m3-y", m3(nil))
+	supersede(t, root, "m3-y", "no-such-run")
+	if _, err := Build(root); err == nil {
+		t.Error("superseded_by naming a missing run accepted")
+	}
+	// Replaced by another superseded run is not a kept run either.
+	supersede(t, root, "m3-y", "m3-z")
+	writeRun(t, root, "m3-z", m3(nil))
+	supersede(t, root, "m3-z", "m3-y")
+	if _, err := Build(root); err == nil {
+		t.Error("superseded_by naming a superseded run accepted")
+	}
+	// Unknown field in the marker file is refused.
+	writeRun(t, root, "m3-w", m3(nil))
+	if err := os.WriteFile(filepath.Join(root, "m3-w", "SUPERSEDED.json"), []byte(`{"superseded":true,"superseded_by":"m3-x","reason":"r","extra":1}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Build(root); err == nil {
+		t.Error("unknown marker field accepted")
+	}
+}

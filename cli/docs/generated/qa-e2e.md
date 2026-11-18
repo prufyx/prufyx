@@ -4,7 +4,9 @@
 
 Results of Prufyx runs against real upgrades on kind clusters. kind is not production fidelity. Display only: these runs do not change any Prufyx verdict.
 
-Counts: 10 runs, 105 rows: 34 correct, 1 wrong PASS, 0 false alarm, 70 gap.
+Counts: 10 runs, 151 rows: 32 correct, 0 wrong PASS, 0 false alarm, 119 gap.
+
+Superseded runs excluded: 3 (harness faults, replaced by a rerun): m3-r01, m3-r02, r002.
 
 Forms of result: `correct` means Prufyx and the oracle agree; `wrong PASS` means Prufyx passed what the oracle rejected; `false alarm` means Prufyx blocked what the oracle accepted; `gap` means Prufyx made no claim the oracle could be compared with. A gap is not a pass.
 
@@ -65,30 +67,6 @@ Forms of result: `correct` means Prufyx and the oracle agree; `wrong PASS` means
 | `podinfo` | `6.0.0` | `6.0.0` | `assess` | gap | in-place upgrade | `NOT_IN_OBSERVED_COMPONENTS` | `22a861c6912b` |
 | `podinfo` | `6.0.0` | `6.0.0` | `scan` | correct | replay-on-target | `BLOCKED kubernetes.served-api-removal.autoscaling-v2beta2.1-25-0-to-1-26-0` | `57ba9461c014` |
 
-## Run `m3-r01-try1`
-
-- Kubernetes: 1.25.16 to 1.26.15
-- kind node image from: `kindest/node@sha256:6110314339b3b44d10da7d27881849a87e092124afab5956f2e10ecdb463b025`
-- kind node image to: `kindest/node@sha256:c79602a44b4056d7e48dc20f7504350f1e87530fe953428b792def00bc1076dd`
-- Prufyx commit: `28fc30c183e8c2c9af1d3a483bbec42a27378ba7`
-- Rows: 13 (5 correct, 1 wrong PASS, 0 false alarm, 7 gap)
-
-| App | From | To | Command | Result | Oracle | Reason | Log digest |
-|---|---|---|---|---|---|---|---|
-| `*` | `1.25.16` | `1.26.15` | `scan` | gap | replay-on-target | `NOT_CHECKED API_VERSION_NOT_REVIEWED` | `2843a027fdad` |
-| `*` | `1.25.16` | `1.26.15` | `scan` | gap | replay-on-target | `NOT_CHECKED DOCUMENTS_TEMPLATED` | `2843a027fdad` |
-| `?` | - | - | `scan` | correct | replay-on-target | `BLOCKED kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta1.1-25-0-to-1-26-0` | `2843a027fdad` |
-| `?` | - | - | `scan` | correct | replay-on-target | `BLOCKED kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta1.1-25-0-to-1-26-0` | `2843a027fdad` |
-| `keda` | `2.10.2` | `2.12.1` | `assess` | gap | in-place upgrade | `COMPONENT_NOT_IDENTIFIED` | `88c7b8a71d5a` |
-| `keda` | `2.10.2` | `2.12.1` | `scan` | correct | replay-on-target | `NO_FINDING` | `3a2d040f5009` |
-| `keda` | `2.10.2` | `2.12.1` | `scan+plan` | gap | in-place upgrade | `NO_DATA_COMPONENT_NOT_COVERED` | `2843a027fdad` |
-| `metrics-server` | `3.11.0` | `3.12.2` | `assess` | gap | in-place upgrade | `COMPONENT_NOT_IDENTIFIED` | `88c7b8a71d5a` |
-| `metrics-server` | `3.11.0` | `3.12.2` | `scan` | wrong PASS | replay-on-target | `CUSTOM_RESOURCES_EVALUATED` | `bb2fef738c35` |
-| `metrics-server` | `3.11.0` | `3.12.2` | `scan` | correct | replay-on-target | `NO_FINDING` | `3a2d040f5009` |
-| `metrics-server` | `3.11.0` | `3.12.2` | `scan+plan` | gap | in-place upgrade | `NO_PATH` | `2843a027fdad` |
-| `podinfo` | `6.0.0` | `6.0.0` | `assess` | gap | in-place upgrade | `COMPONENT_NOT_IDENTIFIED` | `88c7b8a71d5a` |
-| `podinfo` | `6.0.0` | `6.0.0` | `scan` | correct | replay-on-target | `BLOCKED kubernetes.served-api-removal.autoscaling-v2beta2.1-25-0-to-1-26-0` | `2843a027fdad` |
-
 ## Run `m3-r02`
 
 - Kubernetes: 1.26.15 to 1.27.16
@@ -107,25 +85,6 @@ Forms of result: `correct` means Prufyx and the oracle agree; `wrong PASS` means
 | `metrics-server` | `3.11.0` | `3.12.2` | `scan` | correct | replay-on-target | `CUSTOM_RESOURCES_EVALUATED` | `a09ea52e9be1` |
 | `metrics-server` | `3.11.0` | `3.12.2` | `scan` | correct | replay-on-target | `NO_FINDING` | `59e96c36c4c7` |
 | `metrics-server` | `3.11.0` | `3.12.2` | `scan+plan` | gap | in-place upgrade | `NO_PATH` | `557312da6bfe` |
-
-## Run `m3-r02-try1`
-
-- Kubernetes: 1.26.15 to 1.27.16
-- kind node image from: `kindest/node@sha256:c79602a44b4056d7e48dc20f7504350f1e87530fe953428b792def00bc1076dd`
-- kind node image to: `kindest/node@sha256:2d21a61643eafc439905e18705b8186f3296384750a835ad7a005dceb9546d20`
-- Prufyx commit: `28fc30c183e8c2c9af1d3a483bbec42a27378ba7`
-- Rows: 8 (4 correct, 0 wrong PASS, 0 false alarm, 4 gap)
-
-| App | From | To | Command | Result | Oracle | Reason | Log digest |
-|---|---|---|---|---|---|---|---|
-| `*` | `1.26.15` | `1.27.16` | `scan` | gap | replay-on-target | `NOT_CHECKED API_VERSION_NOT_REVIEWED` | `194181879d38` |
-| `?` | - | - | `scan` | correct | replay-on-target | `BLOCKED kubernetes.served-api-removal.storage-k8s-io-v1beta1.1-26-0-to-1-27-0` | `194181879d38` |
-| `keda` | `2.12.1` | `2.12.1` | `assess` | gap | in-place upgrade | `ASSESS_OUTPUT_MISSING` | - |
-| `keda` | `2.12.1` | `2.12.1` | `scan` | correct | replay-on-target | `NO_FINDING` | `59e96c36c4c7` |
-| `metrics-server` | `3.11.0` | `3.12.2` | `assess` | gap | in-place upgrade | `ASSESS_OUTPUT_MISSING` | - |
-| `metrics-server` | `3.11.0` | `3.12.2` | `scan` | correct | replay-on-target | `CUSTOM_RESOURCES_EVALUATED` | `a64a387aee16` |
-| `metrics-server` | `3.11.0` | `3.12.2` | `scan` | correct | replay-on-target | `NO_FINDING` | `59e96c36c4c7` |
-| `metrics-server` | `3.11.0` | `3.12.2` | `scan+plan` | gap | in-place upgrade | `NO_PATH` | `194181879d38` |
 
 ## Run `m3-r03`
 
@@ -164,6 +123,37 @@ Forms of result: `correct` means Prufyx and the oracle agree; `wrong PASS` means
 | `metrics-server` | `3.12.2` | `3.12.2` | `scan` | correct | replay-on-target | `CUSTOM_RESOURCES_EVALUATED` | `855671a5c550` |
 | `metrics-server` | `3.12.2` | `3.12.2` | `scan` | correct | replay-on-target | `NO_FINDING` | `ceb593cca40a` |
 
+## Run `m4-r01`
+
+- Kubernetes: 1.27.16 to 1.31.14
+- kind node image from: `kindest/node@sha256:2d21a61643eafc439905e18705b8186f3296384750a835ad7a005dceb9546d20`
+- kind node image to: `kindest/node@sha256:6f86cf509dbb42767b6e79debc3f2c32e4ee01386f0489b3b2be24b0a55aac2b`
+- Prufyx commit: `28fc30c183e8c2c9af1d3a483bbec42a27378ba7`
+- Rows: 20 (2 correct, 0 wrong PASS, 0 false alarm, 18 gap)
+
+| App | From | To | Command | Result | Oracle | Reason | Log digest |
+|---|---|---|---|---|---|---|---|
+| `*` | `1.27.16` | `1.31.14` | `scan` | gap | replay-on-target | `NOT_CHECKED DECLARATION_MISSING` | `ae3a64712d1f` |
+| `gatekeeper` | `3.13.4` | `3.17.1` | `assess` | gap | in-place upgrade | `PROJECT_ABSENT_FROM_ASSESS` | `eee01e0a03a3` |
+| `gatekeeper` | `3.13.4` | `3.17.1` | `scan` | gap | replay-on-target | `CUSTOM_RESOURCES_NOT_EVALUATED` | `da2ee48aef10` |
+| `gatekeeper` | `3.13.4` | `3.17.1` | `scan` | gap | replay-on-target | `NO_FINDING` | `c7ec709023f6` |
+| `gatekeeper` | `3.13.4` | `3.17.1` | `scan+plan` | gap | in-place upgrade | `NO_PATH` | `ae3a64712d1f` |
+| `keda` | `2.13.1` | `2.16.1` | `assess` | correct | in-place upgrade | `ASSESS_CHECKS_IN_JSON` | `eee01e0a03a3` |
+| `keda` | `2.13.1` | `2.16.1` | `scan` | gap | replay-on-target | `CUSTOM_RESOURCES_NOT_EVALUATED` | `da2ee48aef10` |
+| `keda` | `2.13.1` | `2.16.1` | `scan` | gap | replay-on-target | `NO_FINDING` | `c7ec709023f6` |
+| `keda` | `2.13.1` | `2.16.1` | `scan+plan` | gap | in-place upgrade | `NO_DATA_COMPONENT_NOT_COVERED` | `ae3a64712d1f` |
+| `kyverno` | `1.10.7` | `1.13.4` | `assess` | gap | in-place upgrade | `ASSESS_CHECKS_IN_JSON` | `eee01e0a03a3` |
+| `kyverno` | `1.10.7` | `1.13.4` | `scan` | gap | replay-on-target | `CUSTOM_RESOURCES_NOT_EVALUATED` | `da2ee48aef10` |
+| `kyverno` | `1.10.7` | `1.13.4` | `scan` | gap | replay-on-target | `NO_FINDING` | `c7ec709023f6` |
+| `kyverno` | `1.10.7` | `1.13.4` | `scan+plan` | gap | in-place upgrade | `NO_DATA_COMPONENT_NOT_COVERED` | `ae3a64712d1f` |
+| `metrics-server` | `0.6.4` | `0.8.0` | `assess` | gap | in-place upgrade | `PROJECT_ABSENT_FROM_ASSESS` | `eee01e0a03a3` |
+| `metrics-server` | `0.6.4` | `0.8.0` | `scan` | gap | replay-on-target | `NO_FINDING` | `c7ec709023f6` |
+| `metrics-server` | `0.6.4` | `0.8.0` | `scan+plan` | gap | in-place upgrade | `NO_PATH` | `ae3a64712d1f` |
+| `velero` | `1.12.3` | `1.15.2` | `assess` | correct | in-place upgrade | `ASSESS_CHECKS_IN_JSON` | `eee01e0a03a3` |
+| `velero` | `1.12.3` | `1.15.2` | `scan` | gap | replay-on-target | `CUSTOM_RESOURCES_NOT_EVALUATED` | `da2ee48aef10` |
+| `velero` | `1.12.3` | `1.15.2` | `scan` | gap | replay-on-target | `NO_FINDING` | `c7ec709023f6` |
+| `velero` | `1.12.3` | `1.15.2` | `scan+plan` | gap | in-place upgrade | `NO_DATA_COMPONENT_NOT_COVERED` | `ae3a64712d1f` |
+
 ## Run `m5-r01`
 
 - Kubernetes: 1.30.13 to 1.34.11
@@ -201,6 +191,64 @@ Forms of result: `correct` means Prufyx and the oracle agree; `wrong PASS` means
 | `istiod` | `1.22.8` | `1.30.8` | `scan` | gap | replay-on-target | `SCAN_NO_USABLE_OUTPUT` | `b86d9b9046f6` |
 | `istiod` | `1.22.8` | `1.30.8` | `scan` | gap | replay-on-target | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
 | `istiod` | `1.22.8` | `1.30.8` | `scan+plan` | gap | in-place upgrade | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
+
+## Run `m7-r01`
+
+- Kubernetes: 1.26.15 to 1.30.13
+- kind node image from: `kindest/node@sha256:c79602a44b4056d7e48dc20f7504350f1e87530fe953428b792def00bc1076dd`
+- kind node image to: `kindest/node@sha256:397209b3d947d154f6641f2d0ce8d473732bd91c87d9575ade99049aa33cd648`
+- Prufyx commit: `564a6da03d1c7e96095c4a1f4c5fcd217aa2ea31`
+- Rows: 47 (5 correct, 0 wrong PASS, 0 false alarm, 42 gap)
+
+| App | From | To | Command | Result | Oracle | Reason | Log digest |
+|---|---|---|---|---|---|---|---|
+| `*` | `1.26.15` | `1.30.13` | `scan` | gap | replay-on-target | `NOT_CHECKED DECLARATION_MISSING` | `afbdb579d536` |
+| `*` | `1.26.15` | `1.30.13` | `scan` | gap | replay-on-target | `NOT_CHECKED DOCUMENTS_TEMPLATED` | `afbdb579d536` |
+| `cert-manager` | `1.14.7` | `1.14.7` | `assess` | correct | in-place upgrade | `COMPONENT_OBSERVED` | `add7ebf67bd2` |
+| `cert-manager` | `1.14.7` | `1.14.7` | `scan` | gap | replay-on-target | `NO_FINDING` | `08b10edc382b` |
+| `cert-manager` | `1.14.7` | `1.14.7` | `scan` | gap | replay-on-target | `NO_FINDING_SCAN_UNKNOWN` | `2c98f72e8d62` |
+| `cloudnative-pg` | `1.21.1` | `1.24.1` | `assess` | gap | in-place upgrade | `NOT_IN_OBSERVED_COMPONENTS` | `add7ebf67bd2` |
+| `cloudnative-pg` | `1.21.1` | `1.24.1` | `catalog-checks` | gap | in-place upgrade | `KNOWN_PROJECT_NO_MATCHING_RULE` | `91d2bf06ca8c` |
+| `cloudnative-pg` | `1.21.1` | `1.24.1` | `check-cncf` | gap | in-place upgrade | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
+| `cloudnative-pg` | `1.21.1` | `1.24.1` | `scan` | correct | replay-on-target | `CUSTOM_RESOURCES_EVALUATED` | `17913fa28330` |
+| `cloudnative-pg` | `1.21.1` | `1.24.1` | `scan` | gap | replay-on-target | `NO_FINDING` | `08b10edc382b` |
+| `cloudnative-pg` | `1.21.1` | `1.24.1` | `scan` | gap | replay-on-target | `NO_FINDING_SCAN_UNKNOWN` | `2c98f72e8d62` |
+| `cloudnative-pg` | `1.21.1` | `1.24.1` | `scan+plan` | gap | in-place upgrade | `NO_DATA_COMPONENT_NOT_COVERED` | `afbdb579d536` |
+| `contour` | `1.26.3` | `1.30.5` | `assess` | gap | in-place upgrade | `NOT_IN_OBSERVED_COMPONENTS` | `add7ebf67bd2` |
+| `contour` | `1.26.3` | `1.30.5` | `catalog-checks` | gap | in-place upgrade | `KNOWN_PROJECT_NO_MATCHING_RULE` | `91d2bf06ca8c` |
+| `contour` | `1.26.3` | `1.30.5` | `check-cncf` | gap | in-place upgrade | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
+| `contour` | `1.26.3` | `1.30.5` | `scan` | correct | replay-on-target | `CUSTOM_RESOURCES_EVALUATED` | `17913fa28330` |
+| `contour` | `1.26.3` | `1.30.5` | `scan` | gap | replay-on-target | `NO_FINDING` | `08b10edc382b` |
+| `contour` | `1.26.3` | `1.30.5` | `scan` | gap | replay-on-target | `NO_FINDING_SCAN_UNKNOWN` | `2c98f72e8d62` |
+| `contour` | `1.26.3` | `1.30.5` | `scan+plan` | gap | in-place upgrade | `NO_DATA_COMPONENT_NOT_COVERED` | `afbdb579d536` |
+| `dapr` | `1.12.5` | `1.15.4` | `assess` | gap | in-place upgrade | `NOT_IN_OBSERVED_COMPONENTS` | `add7ebf67bd2` |
+| `dapr` | `1.12.5` | `1.15.4` | `catalog-checks` | gap | in-place upgrade | `KNOWN_PROJECT_NO_MATCHING_RULE` | `91d2bf06ca8c` |
+| `dapr` | `1.12.5` | `1.15.4` | `check-cncf` | gap | in-place upgrade | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
+| `dapr` | `1.12.5` | `1.15.4` | `scan` | gap | replay-on-target | `CUSTOM_RESOURCES_NOT_EVALUATED` | `17913fa28330` |
+| `dapr` | `1.12.5` | `1.15.4` | `scan` | gap | replay-on-target | `NO_FINDING` | `08b10edc382b` |
+| `dapr` | `1.12.5` | `1.15.4` | `scan` | gap | replay-on-target | `NO_FINDING_SCAN_UNKNOWN` | `2c98f72e8d62` |
+| `dapr` | `1.12.5` | `1.15.4` | `scan+plan` | gap | in-place upgrade | `NO_DATA_COMPONENT_NOT_COVERED` | `afbdb579d536` |
+| `fluent-bit` | `2.2.0` | `4.0.3` | `assess` | gap | in-place upgrade | `NOT_IN_OBSERVED_COMPONENTS` | `add7ebf67bd2` |
+| `fluent-bit` | `2.2.0` | `4.0.3` | `catalog-checks` | gap | in-place upgrade | `KNOWN_PROJECT_NO_MATCHING_RULE` | `91d2bf06ca8c` |
+| `fluent-bit` | `2.2.0` | `4.0.3` | `check-cncf` | gap | in-place upgrade | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
+| `fluent-bit` | `2.2.0` | `4.0.3` | `check-project-effective-config` | gap | in-place upgrade | `UNKNOWN` | `dc1f1dad3233` |
+| `fluent-bit` | `2.2.0` | `4.0.3` | `scan` | gap | replay-on-target | `NO_FINDING` | `08b10edc382b` |
+| `fluent-bit` | `2.2.0` | `4.0.3` | `scan` | gap | replay-on-target | `NO_FINDING_SCAN_UNKNOWN` | `2c98f72e8d62` |
+| `fluent-bit` | `2.2.0` | `4.0.3` | `scan+plan` | gap | in-place upgrade | `COMPONENT_REFUSED_BY_CLI` | `afbdb579d536` |
+| `jaeger-operator` | `1.46.0` | `1.61.0` | `assess` | gap | in-place upgrade | `NOT_IN_OBSERVED_COMPONENTS` | `add7ebf67bd2` |
+| `jaeger-operator` | `1.46.0` | `1.61.0` | `catalog-checks` | gap | in-place upgrade | `KNOWN_PROJECT_NO_MATCHING_RULE` | `91d2bf06ca8c` |
+| `jaeger-operator` | `1.46.0` | `1.61.0` | `check-cncf` | gap | in-place upgrade | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
+| `jaeger-operator` | `1.46.0` | `1.61.0` | `scan` | correct | replay-on-target | `CUSTOM_RESOURCES_EVALUATED` | `17913fa28330` |
+| `jaeger-operator` | `1.46.0` | `1.61.0` | `scan` | gap | replay-on-target | `NO_FINDING` | `08b10edc382b` |
+| `jaeger-operator` | `1.46.0` | `1.61.0` | `scan` | gap | replay-on-target | `NO_FINDING_SCAN_UNKNOWN` | `2c98f72e8d62` |
+| `jaeger-operator` | `1.46.0` | `1.61.0` | `scan+plan` | gap | in-place upgrade | `NO_PATH` | `afbdb579d536` |
+| `strimzi` | `0.41.0` | `0.44.0` | `assess` | gap | in-place upgrade | `NOT_IN_OBSERVED_COMPONENTS` | `add7ebf67bd2` |
+| `strimzi` | `0.41.0` | `0.44.0` | `catalog-checks` | gap | in-place upgrade | `KNOWN_PROJECT_NO_MATCHING_RULE` | `91d2bf06ca8c` |
+| `strimzi` | `0.41.0` | `0.44.0` | `check-cncf` | gap | in-place upgrade | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
+| `strimzi` | `0.41.0` | `0.44.0` | `scan` | correct | replay-on-target | `CUSTOM_RESOURCES_EVALUATED` | `17913fa28330` |
+| `strimzi` | `0.41.0` | `0.44.0` | `scan` | gap | replay-on-target | `NO_FINDING` | `08b10edc382b` |
+| `strimzi` | `0.41.0` | `0.44.0` | `scan` | gap | replay-on-target | `NO_FINDING_SCAN_UNKNOWN` | `2c98f72e8d62` |
+| `strimzi` | `0.41.0` | `0.44.0` | `scan+plan` | gap | in-place upgrade | `NO_DATA_COMPONENT_NOT_COVERED` | `afbdb579d536` |
 
 ## Run `r002`
 
