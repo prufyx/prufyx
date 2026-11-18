@@ -97,6 +97,9 @@ func (t Target) compile() (compiled, error) {
 	if t.Path == "" || path.IsAbs(t.Path) || path.Clean(t.Path) != t.Path || t.Path == ".." || strings.HasPrefix(t.Path, "../") {
 		return c, fmt.Errorf("path %q must be a clean repository-relative path", t.Path)
 	}
+	if !markdownPath(t.Path) {
+		return c, fmt.Errorf("path %q is not a markdown file", t.Path)
+	}
 	re, err := compileAnchored(t.HeadingPattern)
 	if err != nil {
 		return c, err

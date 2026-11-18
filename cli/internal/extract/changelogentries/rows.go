@@ -162,8 +162,16 @@ func (r rowData) target() (Target, error) {
 		r.Path == "." || r.Path == ".." || strings.HasPrefix(r.Path, "../") {
 		return Target{}, fmt.Errorf("path %q must be a clean repository-relative path", r.Path)
 	}
+	if !markdownPath(r.Path) {
+		return Target{}, fmt.Errorf("path %q is not a markdown file (.md); toml, yaml and other formats are not read", r.Path)
+	}
 	t.Path = r.Path
 	return r.styled(t)
+}
+
+// markdownPath reports a path of a markdown file. Only ".md" is read.
+func markdownPath(p string) bool {
+	return strings.HasSuffix(p, ".md") && len(path.Base(p)) > len(".md")
 }
 
 // templated reads a row of the two path-template forms. The path holds the
@@ -173,6 +181,9 @@ func (r rowData) target() (Target, error) {
 // row has none, the file being the entry.
 func (r rowData) templated(t Target) (Target, error) {
 	ph := templatePlaceholders[r.Form]
+	if !markdownPath(r.Path) {
+		return Target{}, fmt.Errorf("path template %q is not a markdown file (.md); toml, yaml and other formats are not read", r.Path)
+	}
 	if !templateCharsetRE.MatchString(strings.Replace(r.Path, ph, "", 1)) {
 		return Target{}, fmt.Errorf("path template %q uses characters outside [A-Za-z0-9._/-] and the %s placeholder", r.Path, ph)
 	}

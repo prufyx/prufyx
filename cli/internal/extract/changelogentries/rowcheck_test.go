@@ -95,7 +95,7 @@ func TestCheckRowFailsClosed(t *testing.T) {
 		"wrong template for the tree": {rcFixture(t, map[string]byte{"v1.0.0": 'a'}, ok),
 			Target{Component: "notes", Repo: pvRow.Repo, Form: FormPerVersionFile, Path: "docs/notes/v{version}.md"}},
 		"only non-final tags":                               {rcFixture(t, map[string]byte{"v1.0.0-rc.1": 'a', "main": 'a'}, ok), pvRow},
-		"commit not in source (read error is not a reason)": {rcFixture(t, map[string]byte{"v1.0.0": 'a', "v1.0.1": 'z'}, ok), pvRow},
+		"commit not in source (read error is not a reason)": {rcFixture(t, map[string]byte{"v1.0.0": 'a', "v1.0.1": 'b'}, ok), pvRow},
 		"row defect: two placeholders": {rcFixture(t, map[string]byte{"v1.0.0": 'a'}, ok),
 			Target{Component: "notes", Repo: pvRow.Repo, Form: FormPerVersionFile, Path: "docs/{version}/{version}.md"}},
 		"row defect: wrong placeholder": {rcFixture(t, map[string]byte{"v1.0.0": 'a'}, ok),
@@ -115,7 +115,7 @@ func TestCheckRowFailsClosed(t *testing.T) {
 }
 
 func TestCheckRowAnyUntypedErrorFailsDespiteEntries(t *testing.T) {
-	src := rcFixture(t, map[string]byte{"v1.0.0": 'a', "v1.0.1": 'z'}, map[string]string{"a|docs/releases/v1.0.0.md": pvBody})
+	src := rcFixture(t, map[string]byte{"v1.0.0": 'a', "v1.0.1": 'b'}, map[string]string{"a|docs/releases/v1.0.0.md": pvBody})
 	r := CheckRow(src, pvRow, "d")
 	if r.Located != 1 || r.Status != RowFail {
 		t.Fatalf("%+v", r)

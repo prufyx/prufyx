@@ -142,6 +142,27 @@ locates entries. A row of a form that is not read is `SKIP` (it claims nothing);
 asked for by `--component` it FAILS. This is the check a data change of rows is
 judged by, together with its gate receipt.
 
+## Proposing rows
+
+```
+prufyx-maintainer changelog propose-rows (--mirror-state DIR | --fixture DIR) --component NAME --repo github.com/OWNER/NAME [--tags TAG,TAG]
+```
+
+Rows are not written by hand. The command tries a closed, ordered list of
+candidate rows (single files, per-line and per-version path templates, each
+with the closed heading styles; the boundary styles a result does not need are
+dropped) over the newest 8 final tags (or `--tags`) with the same reader, and
+prints the candidate with the most located entries as a `targets.json` row,
+with its per-tag hit table. Equal scores go to the first candidate in the fixed
+order. Read-only and deterministic; exit 0 row printed, 1 `NO-ROW <reason>`, 2
+input rejected. The row it prints is run through the strict loader before it is
+printed; `rows-check` is then the judge of a data change.
+
+NO-ROW reasons: `NO_FINAL_TAGS`, `NO_CANDIDATE_LOCATES`, and `NON_MARKDOWN_SOURCE`
+(the changelog is a known toml or yaml path; such files are never read as
+markdown, and the schema and the reader refuse any path that does not end in
+`.md`).
+
 ## A printed manifest is never evidence
 
 The manifest is a derivation to be re-derived and checked, not a claim. A

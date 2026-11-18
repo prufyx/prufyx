@@ -9,10 +9,12 @@ package changelogcli
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
 	"github.com/prufyx/prufyx/cli/internal/extract/changelogentries"
@@ -22,7 +24,8 @@ import (
 const usage = `usage:
   prufyx-maintainer changelog entries --component NAME --repo github.com/OWNER/NAME --path FILE --form FORM --tag TAG (--mirror-state DIR | --fixture DIR)
   prufyx-maintainer changelog rows-check (--mirror-state DIR | --fixture DIR) [--component NAME]
-exit: 0 manifest printed (entry or typed reason) or every row PASS, 1 a row FAIL, 2 input rejected or read failed`
+  prufyx-maintainer changelog propose-rows (--mirror-state DIR | --fixture DIR) --component NAME --repo github.com/OWNER/NAME [--tags TAG,TAG]
+exit: 0 manifest printed (entry or typed reason), every row PASS or a row proposed, 1 a row FAIL or NO-ROW, 1 a row FAIL, 2 input rejected or read failed`
 
 // Main runs a "changelog" subcommand (args exclude the word "changelog") with
 // the reviewed target table. It returns 0 when a manifest was printed and 2
@@ -32,6 +35,9 @@ func Main(args []string, stdout, stderr io.Writer) int {
 }
 
 func run(args []string, table []changelogentries.Target, stdout, stderr io.Writer) int {
+	if len(args) > 0 && args[0] == "propose-rows" {
+		return proposeRows(args[1:], stdout, stderr)
+	}
 	if len(args) > 0 && args[0] == "rows-check" {
 		return rowsCheck(args[1:], table, stdout, stderr)
 	}
@@ -83,6 +89,54 @@ func openSource(mirror, fixture string) (source, error) {
 		return extract.MirrorReader{R: r}, nil
 	}
 	return extract.FixtureReader{Root: fixture}, nil
+}
+
+// proposeRows prints the best closed candidate row for a component as
+// targets.json JSON with its per-tag hit table, or NO-ROW with a typed reason.
+// Read-only. 0 row printed, 1 NO-ROW, 2 input rejected.
+func proposeRows(args []string, stdout, stderr io.Writer) int {
+	var component, repo, tags, mirror, fixture string
+	f := flag.NewFlagSet("changelog propose-rows", flag.ContinueOnError)
+	f.SetOutput(io.Discard)
+	for name, v := range map[string]*string{"component": &component, "repo": &repo, "tags": &tags, "mirror-state": &mirror, "fixture": &fixture} {
+		f.Var(&once{v: v}, name, "")
+	}
+	refuse := func(err error) int {
+		fmt.Fprintf(stderr, "changelog propose-rows: %v\n", err)
+		return 2
+	}
+	if err := f.Parse(args); err != nil {
+		return refuse(fmt.Errorf("%v\n%s", err, usage))
+	}
+	if f.NArg() != 0 {
+		return refuse(fmt.Errorf("unexpected argument %q\n%s", f.Arg(0), usage))
+	}
+	if component == "" || repo == "" {
+		return refuse(fmt.Errorf("--component and --repo are required\n%s", usage))
+	}
+	var only []string
+	if tags != "" {
+		only = strings.Split(tags, ",")
+	}
+	src, err := openSource(mirror, fixture)
+	if err != nil {
+		return refuse(err)
+	}
+	p, err := changelogentries.ProposeRow(src, component, repo, only)
+	var nr *changelogentries.NoRow
+	if errors.As(err, &nr) {
+		fmt.Fprintln(stdout, nr.Error())
+		return 1
+	}
+	if err != nil {
+		return refuse(err)
+	}
+	out, err := json.MarshalIndent(p, "", "  ")
+	if err != nil {
+		return refuse(err)
+	}
+	fmt.Fprintf(stdout, "%s\n", out)
+	return 0
 }
 
 // rowsCheck runs every reviewed row (or one) over all final tags of its
