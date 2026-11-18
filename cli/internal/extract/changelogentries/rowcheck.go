@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
 )
@@ -33,9 +34,17 @@ type RowResult struct {
 	Located int
 	// Withheld counts the typed reasons of the tags without an entry.
 	Withheld map[Code]int
+	// Window is the number of newest final tags that had to be located
+	// (min(MinLocatedNewest, Tags)); WindowLocated how many of them were.
+	Window        int
+	WindowLocated int
 	// Reasons says why the row failed; empty for PASS and SKIP.
 	Reasons []string
 }
+
+// DefaultMinLocatedNewest is the number of newest final tags that must each
+// have a located entry for a row to PASS (fewer when fewer tags exist).
+const DefaultMinLocatedNewest = 8
 
 // WithheldTotal is the number of tags withheld with a typed reason.
 func (r RowResult) WithheldTotal() int {
@@ -57,13 +66,24 @@ func (r RowResult) WithheldTotal() int {
 //     SOURCE_NOT_PINNED_GIT);
 //   - the source records no final tag;
 //   - no tag at all has an entry (the path or template never resolves, or
-//     the headings never read).
+//     the headings never read);
+//   - one of the newest min final tags (all of them when fewer) has no
+//     located entry; a typed withheld reason does not count as located.
 //
 // A row of a form that is not read is SKIP.
 func CheckRow(src interface {
 	extract.PinnedReader
 	extract.TagSource
 }, t Target, codeDigest string) RowResult {
+	return CheckRowMin(src, t, codeDigest, DefaultMinLocatedNewest)
+}
+
+// CheckRowMin is CheckRow with an explicit newest-tag coverage bar; min < 1
+// fails the row.
+func CheckRowMin(src interface {
+	extract.PinnedReader
+	extract.TagSource
+}, t Target, codeDigest string, min int) RowResult {
 	res := RowResult{Component: t.Component, Form: t.Form, Withheld: map[Code]int{}}
 	switch t.Form {
 	case FormFile, FormPerLineFile, FormPerVersionFile:
@@ -78,7 +98,12 @@ func CheckRow(src interface {
 		res.Status = RowFail
 		return res
 	}
+	if min < 1 {
+		fail("min located newest %d: must be at least 1", min)
+	}
 	seen := map[string]bool{}
+	located := map[string]bool{}
+	var finals []string
 	for _, tag := range tags {
 		if seen[tag.Name] {
 			fail("tag %q is recorded twice", tag.Name)
@@ -90,6 +115,7 @@ func CheckRow(src interface {
 			continue
 		}
 		res.Tags++
+		finals = append(finals, tag.Name)
 		m, err := BuildManifest(src, t, tag, codeDigest)
 		if err != nil {
 			fail("tag %s: %v", tag.Name, err)
@@ -97,6 +123,7 @@ func CheckRow(src interface {
 		}
 		if m.Entry != nil {
 			res.Located++
+			located[tag.Name] = true
 			continue
 		}
 		switch m.Withheld.Code {
@@ -109,6 +136,24 @@ func CheckRow(src interface {
 		fail("no final release tag is recorded for %s", t.Repo.Key)
 	} else if res.Located == 0 {
 		fail("no tag of %d has an entry: the path or the headings never resolve", res.Tags)
+	}
+	if res.Tags > 0 && min >= 1 {
+		sortNewestFirst(finals)
+		res.Window = min
+		if res.Window > len(finals) {
+			res.Window = len(finals)
+		}
+		var missing []string
+		for _, n := range finals[:res.Window] {
+			if located[n] {
+				res.WindowLocated++
+			} else {
+				missing = append(missing, n)
+			}
+		}
+		if len(missing) > 0 {
+			fail("only %d of the newest %d final tags have an entry (no entry at %s)", res.WindowLocated, res.Window, strings.Join(missing, ", "))
+		}
 	}
 	res.Status = RowPass
 	if len(res.Reasons) > 0 {
@@ -135,6 +180,14 @@ func CheckRows(src interface {
 	extract.PinnedReader
 	extract.TagSource
 }, table []Target, component, codeDigest string) ([]RowResult, error) {
+	return CheckRowsMin(src, table, component, codeDigest, DefaultMinLocatedNewest)
+}
+
+// CheckRowsMin is CheckRows with an explicit newest-tag coverage bar.
+func CheckRowsMin(src interface {
+	extract.PinnedReader
+	extract.TagSource
+}, table []Target, component, codeDigest string, min int) ([]RowResult, error) {
 	rows := table
 	if component != "" {
 		t, err := Lookup(table, component)
@@ -148,7 +201,7 @@ func CheckRows(src interface {
 	}
 	out := make([]RowResult, 0, len(rows))
 	for _, t := range rows {
-		r := CheckRow(src, t, codeDigest)
+		r := CheckRowMin(src, t, codeDigest, min)
 		if component != "" && r.Status == RowSkip {
 			r.Status = RowFail
 			r.Reasons = append(r.Reasons, fmt.Sprintf("form %q is not read, nothing to check", t.Form))

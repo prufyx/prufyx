@@ -162,12 +162,18 @@ func (r rowData) target() (Target, error) {
 		r.Path == "." || r.Path == ".." || strings.HasPrefix(r.Path, "../") {
 		return Target{}, fmt.Errorf("path %q must be a clean repository-relative path", r.Path)
 	}
+	if !templateCharsetRE.MatchString(r.Path) || hasDotDotElement(r.Path) {
+		return Target{}, fmt.Errorf("path %q uses characters outside [A-Za-z0-9._/-] or a \"..\" element", r.Path)
+	}
 	if !markdownPath(r.Path) {
 		return Target{}, fmt.Errorf("path %q is not a markdown file (.md); toml, yaml and other formats are not read", r.Path)
 	}
 	t.Path = r.Path
 	return r.styled(t)
 }
+
+// hasDotDotElement reports a ".." substring (the closed check refuses any).
+func hasDotDotElement(p string) bool { return strings.Contains(p, "..") }
 
 // markdownPath reports a path of a markdown file. Only ".md" is read.
 func markdownPath(p string) bool {

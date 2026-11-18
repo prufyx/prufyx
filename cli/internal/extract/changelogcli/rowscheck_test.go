@@ -103,3 +103,42 @@ func TestProposeRowsCLI(t *testing.T) {
 		}
 	}
 }
+
+func TestUsageExitLine(t *testing.T) {
+	if strings.Contains(usage, "1 a row FAIL or NO-ROW, 1 a row FAIL") || !strings.Contains(usage, "1 a row FAIL or NO-ROW, 2 input rejected") || !strings.Contains(usage, "--min-located-newest N") {
+		t.Fatal(usage)
+	}
+}
+
+func TestRowsCheckReceiptBindsTagSetAndMin(t *testing.T) {
+	tbl := []changelogentries.Target{{Component: "notes", Repo: extract.RepoRef{Key: "github.com/example/notes"},
+		Form: changelogentries.FormPerVersionFile, Path: "docs/v{version}.md"}}
+	line := func(fx string, extra ...string) (int, string) {
+		var out, errb bytes.Buffer
+		code := run(append([]string{"rows-check", "--fixture", fx}, extra...), tbl, &out, &errb)
+		return code, out.String()
+	}
+	one := rowsFixture(t, map[string]string{"docs/v1.0.0.md": "## Changes\n\n- a\n"})
+	c1, o1 := line(one)
+	if c1 != 0 || !strings.Contains(o1, "tagsDigest=") || !strings.Contains(o1, "minLocatedNewest=8") {
+		t.Fatalf("%d %s", c1, o1)
+	}
+	// Same table, a second tag: the digest differs.
+	two := rowsFixture(t, map[string]string{"docs/v1.0.0.md": "## Changes\n\n- a\n"})
+	c := strings.Repeat("a", 40)
+	os.WriteFile(filepath.Join(two, "github.com", "example", "notes", "tags.json"), []byte(`{"v1.0.0":"`+c+`","v1.0.1":"`+c+`"}`), 0o644)
+	_, o2 := line(two, "--min-located-newest", "1")
+	d := func(o string) string { return o[strings.Index(o, "tagsDigest="):] }
+	if d(o1) == d(o2) {
+		t.Fatalf("digest equal:\n%s%s", o1, o2)
+	}
+	// Two tags, one located: default bar fails.
+	if code, _ := line(two); code != 1 {
+		t.Fatalf("partial passed: %d", code)
+	}
+	for _, bad := range []string{"0", "x", "-1"} {
+		if code, _ := line(one, "--min-located-newest", bad); code != 2 {
+			t.Fatalf("%q: %d", bad, code)
+		}
+	}
+}

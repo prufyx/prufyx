@@ -22,6 +22,9 @@ const (
 	// NoRowNonMarkdown: the changelog is at a known non-markdown path (toml or
 	// yaml). Such a file is never read as markdown and no row is proposed.
 	NoRowNonMarkdown = "NON_MARKDOWN_SOURCE"
+	// NoRowPartialCoverage: the best candidate locates some but not all of the
+	// scored tags; the same bar rows-check applies, so no row is emitted.
+	NoRowPartialCoverage = "PARTIAL_COVERAGE"
 )
 
 // DefaultProposeTags is the number of newest final tags a proposal is scored on.
@@ -113,6 +116,19 @@ func versionLess(a, b string) bool {
 	return false
 }
 
+// sortNewestFirst orders final tag names by numeric version, newest first,
+// ties by name.
+func sortNewestFirst(names []string) {
+	sort.Slice(names, func(i, j int) bool {
+		vi, _ := tagVersion(names[i])
+		vj, _ := tagVersion(names[j])
+		if vi != vj {
+			return versionLess(vj, vi)
+		}
+		return names[i] < names[j]
+	})
+}
+
 // ProposeRow tries the closed candidate rows over the newest final tags (or
 // the given tag names) of repo and returns the one with the most located
 // entries; ties go to the first candidate in the fixed order. It is read-only
@@ -155,14 +171,7 @@ func ProposeRow(src interface {
 			window = append(window, t)
 		}
 	} else {
-		sort.Slice(finals, func(i, j int) bool {
-			vi, _ := tagVersion(finals[i])
-			vj, _ := tagVersion(finals[j])
-			if vi != vj {
-				return versionLess(vj, vi) // newest first
-			}
-			return finals[i] < finals[j]
-		})
+		sortNewestFirst(finals)
 		if len(finals) > DefaultProposeTags {
 			finals = finals[:DefaultProposeTags]
 		}
@@ -227,6 +236,10 @@ func ProposeRow(src interface {
 			return nil, &NoRow{NoRowNonMarkdown, fmt.Sprintf("the changelog is at %s, which is not markdown and is not read", p)}
 		}
 		return nil, &NoRow{NoRowNoCandidate, fmt.Sprintf("none of the closed candidates located an entry at any of %d tags", len(window))}
+	}
+	if best.Located < len(window) {
+		tab, _ := json.Marshal(best.Hits)
+		return nil, &NoRow{NoRowPartialCoverage, fmt.Sprintf("the best candidate (%s) locates %d of the %d scored tags; hits %s", best.Row.Path, best.Located, len(window), tab)}
 	}
 	// Drop every boundary style the result does not need, in fixed order.
 	for _, b := range boundaryOrder {

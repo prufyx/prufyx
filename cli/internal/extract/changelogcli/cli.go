@@ -9,11 +9,15 @@ package changelogcli
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
@@ -23,9 +27,9 @@ import (
 
 const usage = `usage:
   prufyx-maintainer changelog entries --component NAME --repo github.com/OWNER/NAME --path FILE --form FORM --tag TAG (--mirror-state DIR | --fixture DIR)
-  prufyx-maintainer changelog rows-check (--mirror-state DIR | --fixture DIR) [--component NAME]
+  prufyx-maintainer changelog rows-check (--mirror-state DIR | --fixture DIR) [--component NAME] [--min-located-newest N]
   prufyx-maintainer changelog propose-rows (--mirror-state DIR | --fixture DIR) --component NAME --repo github.com/OWNER/NAME [--tags TAG,TAG]
-exit: 0 manifest printed (entry or typed reason), every row PASS or a row proposed, 1 a row FAIL or NO-ROW, 1 a row FAIL, 2 input rejected or read failed`
+exit: 0 manifest printed (entry or typed reason), every row PASS or a row proposed, 1 a row FAIL or NO-ROW, 2 input rejected or read failed`
 
 // Main runs a "changelog" subcommand (args exclude the word "changelog") with
 // the reviewed target table. It returns 0 when a manifest was printed and 2
@@ -142,10 +146,10 @@ func proposeRows(args []string, stdout, stderr io.Writer) int {
 // rowsCheck runs every reviewed row (or one) over all final tags of its
 // repository and prints one line per row. Read-only; 0 only when no row failed.
 func rowsCheck(args []string, table []changelogentries.Target, stdout, stderr io.Writer) int {
-	var component, mirror, fixture string
+	var component, mirror, fixture, minArg string
 	f := flag.NewFlagSet("changelog rows-check", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
-	for name, v := range map[string]*string{"component": &component, "mirror-state": &mirror, "fixture": &fixture} {
+	for name, v := range map[string]*string{"component": &component, "mirror-state": &mirror, "fixture": &fixture, "min-located-newest": &minArg} {
 		f.Var(&once{v: v}, name, "")
 	}
 	if err := f.Parse(args); err != nil {
@@ -155,6 +159,15 @@ func rowsCheck(args []string, table []changelogentries.Target, stdout, stderr io
 	if f.NArg() != 0 {
 		fmt.Fprintf(stderr, "changelog rows-check: unexpected argument %q\n%s\n", f.Arg(0), usage)
 		return 2
+	}
+	minLocated := changelogentries.DefaultMinLocatedNewest
+	if minArg != "" {
+		n, err := strconv.Atoi(minArg)
+		if err != nil || n < 1 {
+			fmt.Fprintf(stderr, "changelog rows-check: --min-located-newest %q must be an integer of at least 1\n", minArg)
+			return 2
+		}
+		minLocated = n
 	}
 	src, err := openSource(mirror, fixture)
 	if err != nil {
@@ -166,7 +179,7 @@ func rowsCheck(args []string, table []changelogentries.Target, stdout, stderr io
 		fmt.Fprintf(stderr, "changelog rows-check: %v\n", err)
 		return 2
 	}
-	results, err := changelogentries.CheckRows(src, table, component, digest)
+	results, err := changelogentries.CheckRowsMin(src, table, component, digest, minLocated)
 	if err != nil {
 		fmt.Fprintf(stderr, "changelog rows-check: %v\n", err)
 		return 2
@@ -174,7 +187,7 @@ func rowsCheck(args []string, table []changelogentries.Target, stdout, stderr io
 	var out bytes.Buffer
 	failed := 0
 	for _, r := range results {
-		fmt.Fprintf(&out, "%s %s form=%s tags=%d located=%d withheld=%d notFinal=%d", r.Status, r.Component, r.Form, r.Tags, r.Located, r.WithheldTotal(), r.NotFinal)
+		fmt.Fprintf(&out, "%s %s form=%s tags=%d located=%d withheld=%d notFinal=%d newest=%d/%d", r.Status, r.Component, r.Form, r.Tags, r.Located, r.WithheldTotal(), r.NotFinal, r.WindowLocated, r.Window)
 		for _, c := range r.SortedCodes() {
 			fmt.Fprintf(&out, " %s=%d", c, r.Withheld[c])
 		}
@@ -186,7 +199,11 @@ func rowsCheck(args []string, table []changelogentries.Target, stdout, stderr io
 			failed++
 		}
 	}
-	fmt.Fprintf(&out, "rows=%d failed=%d\n", len(results), failed)
+	fmt.Fprintf(&out, "rows=%d failed=%d minLocatedNewest=%d tagsDigest=%s", len(results), failed, minLocated, tagSetDigest(src, table, component))
+	if md := mirrorDigest(src); md != "" {
+		fmt.Fprintf(&out, " mirrorDigest=%s", md)
+	}
+	out.WriteByte('\n')
 	if _, err := stdout.Write(out.Bytes()); err != nil {
 		fmt.Fprintf(stderr, "changelog rows-check: %v\n", err)
 		return 2
@@ -195,6 +212,42 @@ func rowsCheck(args []string, table []changelogentries.Target, stdout, stderr io
 		return 1
 	}
 	return 0
+}
+
+// tagSetDigest is the sha256 of the sorted, newline-joined tag names of the
+// repositories the checked rows read (deduplicated), so the receipt is bound
+// to the tag set it ran on. An unreadable tag list gives "unreadable".
+func tagSetDigest(src source, table []changelogentries.Target, component string) string {
+	var names []string
+	for _, t := range table {
+		if component != "" && t.Component != component {
+			continue
+		}
+		switch t.Form {
+		case changelogentries.FormFile, changelogentries.FormPerLineFile, changelogentries.FormPerVersionFile:
+		default:
+			continue
+		}
+		tags, err := src.Tags(t.Repo)
+		if err != nil {
+			return "unreadable"
+		}
+		for _, tg := range tags {
+			names = append(names, t.Repo.Key+"@"+tg.Name)
+		}
+	}
+	sort.Strings(names)
+	sum := sha256.Sum256([]byte(strings.Join(names, "\n")))
+	return hex.EncodeToString(sum[:])
+}
+
+// mirrorDigest is the mirror state index digest, "" for a fixture.
+func mirrorDigest(src source) string {
+	if m, ok := src.(extract.MirrorReader); ok {
+		_, d := m.R.IndexInfo()
+		return d
+	}
+	return ""
 }
 
 func entries(args []string, table []changelogentries.Target) ([]byte, error) {

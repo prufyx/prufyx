@@ -236,3 +236,14 @@ func TestEmbeddedDataIsTheFileInTheSchema(t *testing.T) {
 		t.Fatalf("%v %v", err, v["schema"])
 	}
 }
+
+func TestFileRowPathClosedAlphabet(t *testing.T) {
+	for _, p := range []string{"docs/é.md", "a b/CHANGELOG.md", "x‮.md", "../CHANGELOG.md", "/CHANGELOG.md", "a..b.md", "a:b.md", "a{b}.md", "docs/a\tb.md"} {
+		doc := `{"schema":"` + TargetsSchema + `","rows":[{"component":"x","repo":"github.com/o/x","form":"` + FormFile + `","path":` + jsonStr(p) + `,"headingStyle":"version-v-prefixed","boundaryStyles":["unreleased"]}]}`
+		if _, err := parseTargets([]byte(doc)); err == nil {
+			t.Errorf("path %q loaded", p)
+		}
+	}
+}
+
+func jsonStr(s string) string { b, _ := json.Marshal(s); return string(b) }

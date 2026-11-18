@@ -5,6 +5,7 @@ package changelogentries
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
@@ -76,7 +77,7 @@ func TestProposeHighestRateWinsTieGoesToFirst(t *testing.T) {
 }
 
 func TestProposeIsDeterministicAndLoads(t *testing.T) {
-	src := rcFixture(t, threeTags, map[string]string{"a|docs/releases/v1.0.0.md": pvBody, "a|docs/releases/v1.0.1.md": pvBody})
+	src := rcFixture(t, threeTags, map[string]string{"a|docs/releases/v1.0.0.md": pvBody, "a|docs/releases/v1.0.1.md": pvBody, "a|docs/releases/v1.1.0.md": pvBody})
 	var prev []byte
 	for i := 0; i < 5; i++ {
 		p, err := propose(t, src)
@@ -163,5 +164,19 @@ func TestProposeNoRow(t *testing.T) {
 		if _, err := ProposeRow(rcFixture(t, threeTags, nil), c[0], c[1], nil); err == nil {
 			t.Fatalf("%v accepted", c)
 		}
+	}
+}
+
+func TestProposePartialCoverageIsNoRow(t *testing.T) {
+	tags := map[string]byte{}
+	for i := 0; i < 8; i++ {
+		tags["v1.0."+string(rune('0'+i))] = 'a'
+	}
+	src := rcFixture(t, tags, map[string]string{"a|docs/releases/v1.0.7.md": pvBody})
+	_, err := propose(t, src)
+	wantNoRow(t, err, NoRowPartialCoverage)
+	var nr *NoRow
+	if errors.As(err, &nr) && !strings.Contains(nr.Detail, "v1.0.7") {
+		t.Fatalf("no hit table: %s", nr.Detail)
 	}
 }

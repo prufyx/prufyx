@@ -65,9 +65,9 @@ var plRow = Target{
 func TestCheckRowPerVersionPass(t *testing.T) {
 	src := rcFixture(t,
 		map[string]byte{"v1.0.0": 'a', "v1.0.1": 'b', "v1.1.0-rc.1": 'c', "nightly": 'c'},
-		map[string]string{"a|docs/releases/v1.0.0.md": pvBody},
-		'b', 'c')
-	r := CheckRow(src, pvRow, "d")
+		map[string]string{"b|docs/releases/v1.0.1.md": pvBody},
+		'a', 'c')
+	r := CheckRowMin(src, pvRow, "d", 1)
 	if r.Status != RowPass || r.Tags != 2 || r.Located != 1 || r.NotFinal != 2 || r.Withheld[PathMissingAtTag] != 1 {
 		t.Fatalf("%+v", r)
 	}
@@ -222,5 +222,40 @@ func TestNewStylesCompileAndReadOneVersion(t *testing.T) {
 		if _, err := compileAnchored(p); err != nil {
 			t.Fatalf("boundary %s: %v", n, err)
 		}
+	}
+}
+
+// eightTags is a repository with eight final tags, newest first v1.0.7.
+func eightTags() map[string]byte {
+	m := map[string]byte{}
+	for i := 0; i < 8; i++ {
+		m["v1.0."+string(rune('0'+i))] = 'a'
+	}
+	return m
+}
+
+func TestCheckRowPartialNewestCoverageFails(t *testing.T) {
+	// An entry at only 1 of 8 final tags: a typed withheld reason is not located.
+	src := rcFixture(t, eightTags(), map[string]string{"a|docs/releases/v1.0.7.md": pvBody})
+	r := CheckRow(src, pvRow, "d")
+	if r.Status != RowFail || r.Located != 1 || r.Window != 8 || r.WindowLocated != 1 {
+		t.Fatalf("%+v", r)
+	}
+	// An entry only at an old tag fails even with a small bar.
+	old := rcFixture(t, eightTags(), map[string]string{"a|docs/releases/v1.0.0.md": pvBody})
+	if r := CheckRowMin(old, pvRow, "d", 3); r.Status != RowFail || r.WindowLocated != 0 {
+		t.Fatalf("%+v", r)
+	}
+	if r := CheckRowMin(src, pvRow, "d", 1); r.Status != RowPass {
+		t.Fatalf("%+v", r)
+	}
+	if r := CheckRowMin(src, pvRow, "d", 0); r.Status != RowFail {
+		t.Fatalf("min 0 passed: %+v", r)
+	}
+	// Fewer tags than the bar: capped at the number of final tags.
+	few := rcFixture(t, map[string]byte{"v1.0.0": 'a', "v1.0.1": 'a'},
+		map[string]string{"a|docs/releases/v1.0.0.md": pvBody, "a|docs/releases/v1.0.1.md": pvBody})
+	if r := CheckRow(few, pvRow, "d"); r.Status != RowPass || r.Window != 2 {
+		t.Fatalf("%+v", r)
 	}
 }
