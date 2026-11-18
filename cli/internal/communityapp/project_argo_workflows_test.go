@@ -197,3 +197,14 @@ func TestArgoWorkflowsWorkloadInputMessages(t *testing.T) {
 		t.Fatalf("pair: exit=%d msg=%q", exit, msg)
 	}
 }
+
+func TestArgoWorkflowsWorkloadControlCharsNeverEchoed(t *testing.T) {
+	t.Parallel()
+	valid := `{"apiVersion":"apps/v1","kind":"Deployment","spec":{"template":{"spec":{"containers":[{"name":"argo-server","image":"quay.io/argoproj/argocli:v3.6.0","command":["argo"],"args":["server"],"env":[]}]}}}}`
+	path := writePrivateProjectFixture(t, valid)
+	var stdout, stderr bytes.Buffer
+	Run(t.Context(), []string{"check", "project", "--project", "argo-workflows", "--workload", path, "--from", "3.1.0\x1b[31m", "--to", "3.2.0", "--workload-complete", "--now", "2026-09-11T21:00:00Z"}, &stdout, &stderr, "test")
+	if strings.ContainsRune(stdout.String(), 0x1b) || strings.ContainsRune(stderr.String(), 0x1b) {
+		t.Fatalf("control character echoed: %q %q", stdout.String(), stderr.String())
+	}
+}
