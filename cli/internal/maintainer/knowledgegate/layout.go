@@ -156,6 +156,13 @@ type Layout struct {
 	// TrustPaths lists trust material (same form as AutoMergePaths). Any
 	// file named trust-root* or *approval-keys* is trust material too.
 	TrustPaths []string
+	// GatePaths lists the files that define the required checks: the
+	// workflows, the merge-policy scripts, the code owners file and the gate
+	// code (same form as AutoMergePaths). A change to any of them needs an
+	// owner approval of subject gatePaths bound to the pull request (see
+	// gate_paths.go), because a queued run executes the workflow file of the
+	// proposed commit, so a change could otherwise rewrite its own checks.
+	GatePaths []string
 	// RegistryPaths lists the registry JSON files named here (the
 	// landscape, the portfolio, the community project registry). The
 	// Go-coded fact registry is not a file in this list; a change of it moves
@@ -335,6 +342,7 @@ func DefaultLayout() Layout {
 			reattestDir + "/" + evidencereattest.PackCommunity + "/review-records/",
 		},
 		TrustPaths: []string{trustDir, trustRootPath, approvalKeys},
+		GatePaths:  defaultGatePaths(),
 		RegistryPaths: []string{
 			"cli/internal/cncfcheck/data/landscape-projects.json",
 			"cli/internal/cncfcheck/data/priority-portfolio.json",

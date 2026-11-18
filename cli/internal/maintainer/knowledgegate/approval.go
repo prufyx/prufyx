@@ -227,6 +227,11 @@ func (r ApprovalRecord) validate() error {
 		if r.Scope != DistributionsApprovalScope || r.RuleID != DistributionsApprovalID || r.BaseDigest != ApprovalBaseAbsent {
 			return errors.New("approval record field out of range")
 		}
+	case ApprovalSubjectGatePaths:
+		// One approval per pull request: the rule id is the candidate id.
+		if r.Scope != GatePathsScope || r.Pack != GatePathsPack || !gateCandidateRE.MatchString(r.RuleID) || r.CandidateID != r.RuleID || r.BaseDigest != ApprovalBaseAbsent {
+			return errors.New("approval record field out of range")
+		}
 	default:
 		return errors.New("approval record field out of range")
 	}

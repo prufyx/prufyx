@@ -252,6 +252,9 @@ func (r *Report) recordCheck(cls *Classification, statements map[string]statemen
 		case opts.Layout.BatchDir != "" && strings.HasPrefix(p, opts.Layout.BatchDir+"/"):
 			n++
 			why = batchPathReason(opts, p, r.batch)
+		case strings.HasPrefix(p, opts.Layout.ApprovalDir+"/"+GatePathsPack+"/"):
+			n++
+			why = gatePathsApprovalReason(strings.TrimPrefix(p, opts.Layout.ApprovalDir+"/"+GatePathsPack+"/"), opts, r.ChangedPaths)
 		case strings.HasPrefix(p, opts.Layout.ApprovalDir+"/"+repinbaselines.ApprovalPack+"/"):
 			n++
 			inHead := opts.Head.Exists(p)

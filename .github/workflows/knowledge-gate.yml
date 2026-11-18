@@ -346,6 +346,7 @@ jobs:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
           # The request cap stays below the hourly limit of the token in use.
           REST_BUDGET: ${{ vars.KNOWLEDGE_GATE_REST_BUDGET || (steps.app-token.outputs.token && '4000' || '900') }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
           # Only the new bot profile fixes this request budget. Preserve the
@@ -399,6 +400,12 @@ jobs:
           fi
           if [ -n "${author}" ]; then
             args+=(--author "${author}")
+          fi
+          # The pull request reference an owner approval of a change to a
+          # gate file (workflows, gate code) is bound to. A run without a
+          # numeric pull request has none, so such a change fails closed.
+          if [[ "${PR_NUMBER}" =~ ^[1-9][0-9]{0,8}$ ]]; then
+            args+=(--candidate-id "pr-${PR_NUMBER}")
           fi
           if [ -n "${EVENT_SENDER}" ]; then
             args+=(--sender "${EVENT_SENDER}")
