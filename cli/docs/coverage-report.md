@@ -42,6 +42,20 @@ custom-resource table. An attestation of the custom-resource family also names
 the releases it read; the report counts the pair, while `scan` decides only a
 hop between two of those releases.
 
+### Listed pairs (L)
+
+A project with a reviewed changelog row (`changelog.listed_entries`, see
+[changelog-entries.md](changelog-entries.md)) can have a pair marked `changelog:
+true`: the complete upstream change list of the pair's target line is in the
+pack, every final release of that line with its own entry read at the tag's own
+commit, and the releases the record names are exactly the snapshot's. Such a
+pair keeps status `G`. It is not decided: it is never counted in A or B, never
+in the decided figures, and the answer it can support is ATTENTION, never a
+pass. A pair a valid line-wide rule bounds stays B. A listed record of a
+component that has no reviewed row, or that is also a custom-resource member,
+counts nothing. The changelog row of the README block counts these pairs and
+gives a typed reason for every other pair of a member project.
+
 Projects whose release lines are not the `major.minor` of the engine version
 (today `cloud-custodian`, whose releases `0.9.N` form line `9.N`) are measured
 on exact pairs only: their ranges, crossings and attestations are never read as
