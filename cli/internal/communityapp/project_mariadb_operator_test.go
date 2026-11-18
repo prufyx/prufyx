@@ -14,6 +14,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/projectcheck"
 	"github.com/prufyx/prufyx/cli/internal/projectprepare"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 const mariadbOperatorTestResource = `{"apiVersion":"k8s.mariadb.com/v1alpha1","kind":"MariaDB","metadata":{"name":"PRIVATE_OPERATOR_NATIVE"},"spec":{"galera":{"enabled":true},"updateStrategy":{"autoUpdateDataPlane":true}}}`
@@ -220,7 +221,7 @@ func TestMariaDBOperatorPreparedGuardsPropagateThroughBatch(t *testing.T) {
 				t.Fatal(err)
 			}
 			var batchOut, batchErr bytes.Buffer
-			batchExit := Run(t.Context(), floorNowArgs([]string{"check", "batch", "--plan", planPath, "--root", root, "--now", "2026-09-13T09:00:00Z", "--format", "json"}), &batchOut, &batchErr, "test")
+			batchExit := Run(t.Context(), []string{"check", "batch", "--plan", planPath, "--root", root, "--now", testclock.FloorTextFor("mariadb-operator", "2026-09-13T09:00:00Z"), "--format", "json"}, &batchOut, &batchErr, "test")
 			if batchExit != tc.wantBatch || batchErr.Len() != 0 || !strings.Contains(batchOut.String(), `"outcome":"`+tc.wantOutcome+`"`) || strings.Contains(batchOut.String(), "PRIVATE_OPERATOR_NATIVE") {
 				t.Fatalf("batch exit=%d want=%d stdout=%s stderr=%s", batchExit, tc.wantBatch, batchOut.String(), batchErr.String())
 			}
