@@ -89,7 +89,12 @@ func TestPlanCommand(t *testing.T) {
 			t.Fatalf("PASS stage %+v", s)
 		}
 	}
-	// An application without a line attestation keeps the usage error.
+	// A known catalog project with no line attestation reaches the not-found
+	// branch and keeps the usage error and its text.
+	if code, _, stderr := runPlan(t, path, "--to", "etcd=newest-covered"); code != ExitUsage || !strings.Contains(stderr, "no current reviewed release line of etcd") {
+		t.Fatalf("known app without attestation %d %s", code, stderr)
+	}
+	// An unknown application keeps the usage error.
 	if code, _, stderr := runPlan(t, path, "--to", "no-such-app=newest-covered"); code != ExitUsage || !strings.Contains(stderr, "no current reviewed release line") {
 		t.Fatalf("no attestation %d %s", code, stderr)
 	}

@@ -368,3 +368,42 @@ func TestIndexNewestReleased(t *testing.T) {
 		t.Fatal("stale attestations")
 	}
 }
+
+// A newer line that is stale, incomplete, not yet reviewed, or whose releases
+// are v-prefixed or pre-releases never wins: the newest complete and current
+// line with a plain X.Y.Z release is chosen, or nothing.
+func TestIndexNewestReleasedFallsBack(t *testing.T) {
+	const comp = "pkg:github/x/app"
+	mk := func(line string, to []string, mutate func(*LineAttestation)) LineAttestation {
+		a := reviewed(line)
+		a.Component, a.FactFamily = comp, FamilyCustomResourceVersions
+		a.Releases = &Releases{}
+		for _, v := range to {
+			a.Releases.To = append(a.Releases.To, Release{Version: v, Commit: strings.Repeat("c", 40)})
+		}
+		if mutate != nil {
+			mutate(&a)
+		}
+		return a
+	}
+	now := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
+	older := mk("1.5", []string{"1.5.0", "1.5.3"}, nil)
+	for name, newer := range map[string]LineAttestation{
+		"stale": mk("1.6", []string{"1.6.0"}, func(a *LineAttestation) { a.Evidence.ValidUntil = "2026-10-15T00:00:00Z" }),
+		"not reviewed": mk("1.6", []string{"1.6.0"}, func(a *LineAttestation) {
+			a.Evidence.ReviewedAt = "2026-11-15T00:00:00Z"
+			a.Evidence.ValidUntil = "2027-01-01T00:00:00Z"
+		}),
+		"partial":     mk("1.6", []string{"1.6.0"}, func(a *LineAttestation) { a.Completeness = "PARTIAL" }),
+		"v-prefixed":  mk("1.6", []string{"v1.6.0"}, nil),
+		"pre-release": mk("1.6", []string{"1.6.0-rc.1"}, nil),
+	} {
+		line, version, ok := NewIndex([]LineAttestation{older, newer}).NewestReleased(comp, FamilyCustomResourceVersions, now)
+		if !ok || line != "1.5" || version != "1.5.3" {
+			t.Fatalf("%s: %q %q %v", name, line, version, ok)
+		}
+		if _, _, ok := NewIndex([]LineAttestation{newer}).NewestReleased(comp, FamilyCustomResourceVersions, now); ok {
+			t.Fatalf("%s alone resolved", name)
+		}
+	}
+}
