@@ -132,3 +132,25 @@ func TestLineAdviceWorksToday(t *testing.T) {
 		t.Errorf("an expired line must say what the expired rules answer: %q", line)
 	}
 }
+
+// TestPinnedBucket: a pinned rule is counted in its own bucket with the
+// earliest reviewedAt; it is never an expiry and never sets First, and the
+// expiry line stays silent for a source that holds only pinned rules.
+func TestPinnedBucket(t *testing.T) {
+	early := base.Add(-48 * time.Hour)
+	sources := []Source{{ID: "a", Pinned: []time.Time{base, early}}, {ID: "a", Pinned: []time.Time{early}}, {ID: "b", Pinned: []time.Time{base}}}
+	got := Summarize(sources, base)
+	if got.Pinned != 3 || !got.PinnedFirst.Equal(early) || got.Expired != 0 || got.Expiring != 0 || !got.First.IsZero() {
+		t.Fatalf("%+v", got)
+	}
+	if Line(got, base, true) != "" {
+		t.Fatalf("a pinned rule produced an expiry line: %q", Line(got, base, true))
+	}
+	want := "note: 3 knowledge rules hold a pinned lease and have no end date; they are checked against their release line by the maintainers, the earliest reviewed on 2026-11-18"
+	if line := PinnedLine(got); line != want {
+		t.Fatalf("%q", line)
+	}
+	if PinnedLine(Summarize(one(base.Add(time.Hour)), base)) != "" {
+		t.Fatal("a pinned note without a pinned rule")
+	}
+}

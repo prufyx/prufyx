@@ -118,6 +118,11 @@ type PrepareOptions struct {
 	// decides the statement's signerRole and which renewal policy applies:
 	// see evaluateEligibility, scheduleAutomated and checkRolePolicy.
 	Mode string
+	// Pin makes this a pinning batch: only rules that meet the fixed-version
+	// predicate are selected (pinnedReasons), every selected rule moves to the
+	// pinned lease, and the batch is capped by MaxRules. It is human mode
+	// only; automated mode refuses it.
+	Pin bool
 	// Wave is the 1..7 stagger slot a human-mode batch renews into (see
 	// SlotDate). It must be 0 in automated mode, which schedules each rule
 	// into its own week instead (see scheduleAutomated).
@@ -232,8 +237,11 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 	if automated && opts.Wave != 0 {
 		return PrepareResult{}, fmt.Errorf("%w: automated mode takes no wave", ErrRejected)
 	}
-	if opts.MaxRules != 0 && (!automated || opts.MaxRules < 1 || opts.MaxRules > MaxRulesLimit) {
-		return PrepareResult{}, fmt.Errorf("%w: max rules applies to automated mode only and must be 1..%d", ErrRejected, MaxRulesLimit)
+	if opts.Pin && automated {
+		return PrepareResult{}, fmt.Errorf("%w: automated mode refuses pinning a lease", ErrRejected)
+	}
+	if opts.MaxRules != 0 && (!(automated || opts.Pin) || opts.MaxRules < 1 || opts.MaxRules > MaxRulesLimit) {
+		return PrepareResult{}, fmt.Errorf("%w: max rules applies to automated and pinning statements only and must be 1..%d", ErrRejected, MaxRulesLimit)
 	}
 	if !automated && (opts.Wave < minWave || opts.Wave > maxWave) {
 		return PrepareResult{}, fmt.Errorf("%w: wave out of range", ErrRejected)
@@ -366,11 +374,24 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 			notExtended = append(notExtended, NotExtendedEntry{RuleID: candidate.RuleID, WorstClass: reasonReviewedOutsideChain, PendingRepositories: pendingRepos})
 			continue
 		}
+		// A pinned rule has no lease end to renew: no batch touches it, and a
+		// pinning batch never pins it twice.
+		if candidate.Fields.Evidence.Lease == constraintengine.LeasePinned {
+			notExtended = append(notExtended, NotExtendedEntry{RuleID: candidate.RuleID, WorstClass: reasonAlreadyPinned, PendingRepositories: pendingRepos})
+			continue
+		}
 		_, reviewedNow := fresh[candidate.RuleID]
 		cycles := state.expectedCycles(candidate.RuleID, reviewedNow)
 		reason, ok := evaluateEligibility(candidate, e2ok, e4worklist, attestedAt, repoByKey, lines, mismatchProjects, cycles, automated, baselines)
 		if ok && candidate.Fields.record && citesAny(candidate, mismatchRepos) {
 			reason, ok = reasonCorpusMismatchRepository, false
+		}
+		// A pinning batch takes only rules that meet the fixed-version
+		// predicate, recomputed from the rule and its citations.
+		if ok && opts.Pin {
+			if reasons := pinnedReasons(candidate, citationBaselines(candidate.Citations)); len(reasons) > 0 {
+				reason, ok = pinnedNotExtendedClass(reasons), false
+			}
 		}
 		// E1 skips a pending citation, so a drifted or otherwise failing
 		// citation of the same rule is reported as itself; the rule is
@@ -402,6 +423,11 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 		for id := range ruleValidUntil {
 			chosen = append(chosen, id)
 		}
+	} else if opts.Pin {
+		chosen, notLater, notDue, deferred, err = pinBatch(candidates, eligibleIDs, attestedAt, opts.MaxRules)
+		for _, id := range chosen {
+			ruleValidUntil[id] = attestedAt.AddDate(constraintengine.PinnedLeaseYears, 0, 0)
+		}
 	} else {
 		chosen, notLater, notDue, deferred, err = staggerBatch(candidates, eligibleIDs, attestedAt, validUntilAt)
 		for _, id := range chosen {
@@ -410,6 +436,9 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 	}
 	if err != nil {
 		return PrepareResult{}, err
+	}
+	if opts.Pin && len(chosen) == 0 {
+		return PrepareResult{}, fmt.Errorf("%w: %s", ErrRejected, reasonPinNothing)
 	}
 	for _, id := range notLater {
 		notExtended = append(notExtended, NotExtendedEntry{RuleID: id, WorstClass: reasonNotLaterThanCurrent})
@@ -448,7 +477,11 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 		if !eligible[fields.ID] {
 			continue
 		}
-		mutated, err := mutateRuleEvidenceDates(nextDoc.Entries[i].Rule, attestedAtString, ruleValidUntil[fields.ID].Format(time.RFC3339))
+		lease := ""
+		if opts.Pin {
+			lease = constraintengine.LeasePinned
+		}
+		mutated, err := mutateRuleEvidence(nextDoc.Entries[i].Rule, attestedAtString, ruleValidUntil[fields.ID].Format(time.RFC3339), lease)
 		if err != nil {
 			return PrepareResult{}, err
 		}
@@ -514,6 +547,9 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 		}
 		if automated {
 			ra.ValidUntil = renewedUntil
+		}
+		if opts.Pin {
+			ra.Lease = constraintengine.LeasePinned
 		}
 		ruleAttestations[fields.ID] = ra
 	}
@@ -582,6 +618,9 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 	}
 
 	authority, text, wave := Authority, FixedStatementText(wl.GeneratedAt, validUntil), opts.Wave
+	if opts.Pin {
+		text = PinnedStatementText(wl.GeneratedAt)
+	}
 	if automated {
 		authority, text, wave = AuthorityAutomated, AutomatedStatementText(wl.GeneratedAt, validUntil), 0
 	}
@@ -644,6 +683,21 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 		Statement: statement, StatementCanonical: canonical, NextPack: nextPackRaw, Summary: summary,
 		EligibleRuleCount: len(rules), SampledRuleCount: len(sampledEntries), NotExtendedRuleCount: len(notExtended),
 	}, nil
+}
+
+// citationBaselines is the baseline, release line and pinned tag of each
+// classified citation, the facts of the clause "the citation's line is
+// derivable by repin". A pending citation has none yet and is left to the
+// CITATION_PENDING exclusion.
+func citationBaselines(citations []evidencerepin.ClassResult) [][3]string {
+	var out [][3]string
+	for _, citation := range citations {
+		if citation.Class == evidencerepin.ClassPending {
+			continue
+		}
+		out = append(out, [3]string{citation.Baseline, citation.BaselineLine, citation.PinnedTag})
+	}
+	return out
 }
 
 // pendingFromWorklist returns this pack's pending citations, sorted, and for

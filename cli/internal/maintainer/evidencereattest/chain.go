@@ -8,6 +8,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencerepin"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
 )
@@ -198,6 +199,12 @@ func (s chainState) reviewsFromRecords(rules map[string]ruleCandidate, records m
 // renewedValidUntil is the validUntil statement gives a rule it renews: the
 // rule's own in an automated statement, the statement's in a human one.
 func renewedValidUntil(statement Statement, ra RuleAttestation) string {
+	if ra.Lease == constraintengine.LeasePinned {
+		// A pinned row's validUntil is a function of the statement's
+		// attestedAt alone; a malformed one yields "" and never matches.
+		until, _ := constraintengine.PinnedValidUntil(statement.AttestedAt)
+		return until
+	}
 	if ra.ValidUntil != "" {
 		return ra.ValidUntil
 	}

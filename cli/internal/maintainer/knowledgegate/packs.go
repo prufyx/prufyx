@@ -27,6 +27,7 @@ type entry struct {
 type evidenceView struct {
 	State      string                      `json:"state"`
 	Basis      string                      `json:"basis"`
+	Lease      string                      `json:"lease"`
 	Extractor  *constraintengine.Extractor `json:"extractor"`
 	DerivedAt  string                      `json:"derivedAt"`
 	ReviewedAt string                      `json:"reviewedAt"`

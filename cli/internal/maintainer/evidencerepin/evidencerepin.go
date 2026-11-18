@@ -170,6 +170,9 @@ type Citation struct {
 	OldDigest string
 	StartLine int
 	EndLine   int
+	// Lease is the rule's evidence lease (constraintengine.EffectiveLease
+	// values); only "--pinned-only" reads it.
+	Lease string
 	// SubjectFrom and SubjectTo are the rule subject's version strings.
 	// They are only hints for naming candidate release tags (see
 	// releaseline.go); nothing is concluded from them without a commit match.
@@ -196,6 +199,7 @@ func LoadCitations(rulePackPath string, raw []byte) ([]Citation, error) {
 				} `json:"subject"`
 				Evidence struct {
 					Basis     string                      `json:"basis"`
+					Lease     string                      `json:"lease"`
 					Extractor *constraintengine.Extractor `json:"extractor"`
 					DerivedAt string                      `json:"derivedAt"`
 					Sources   []struct {
@@ -245,6 +249,7 @@ func LoadCitations(rulePackPath string, raw []byte) ([]Citation, error) {
 				OldDigest: source.ContentDigest,
 				StartLine: source.StartLine,
 				EndLine:   source.EndLine,
+				Lease:     evidence.Lease,
 
 				SubjectFrom: entry.Rule.Subject.From,
 				SubjectTo:   entry.Rule.Subject.To,
@@ -1722,6 +1727,7 @@ func RunWith(ctx context.Context, args []string, stdout, stderr io.Writer, deps 
 	wantsOut := flags.String("wants-out", "", "with --source mirror: write the pinned files the mirror is missing as a wants file for \"factory mirror --wants\"")
 	failOnMissing := flags.Bool("fail-on-missing", false, "with --source mirror: exit 3 (after writing the worklist and wants) when files are missing from the mirror, so a script can tell an incomplete run from a complete one; default exit 0 keeps the wants file as the signal")
 	baselinesPath := flags.String("baselines", "", "owner baseline file (cli/knowledge/repin-baselines.json): a repository whose latest release is ambiguous uses the tag the owner chose, only while that tag resolves to the recorded commit")
+	pinnedOnly := flags.Bool("pinned-only", false, "check only the citations of rules that hold a pinned lease, on their release line (the release-line baseline, needs no --limit or --project); exit 4 when any of them drifted or could not be checked, 0 when none did")
 	flags.Var(&rulePacks, "rules", "rule pack path (repeatable; default: the shipped CNCF and community packs)")
 	flags.Var(&projects, "project", "restrict to this project slug (repeatable; default: all)")
 	if err := flags.Parse(args[1:]); err != nil || flags.NArg() != 0 || *outputPath == "" {
@@ -1730,6 +1736,10 @@ func RunWith(ctx context.Context, args []string, stdout, stderr io.Writer, deps 
 	}
 	if *baseline != BaselineModeReleaseLine && *baseline != BaselineModeLatest {
 		fmt.Fprintln(stderr, "evidence repin: --baseline must be release-line or latest")
+		return 2
+	}
+	if *pinnedOnly && (*baseline != BaselineModeReleaseLine || *limit != 0 || len(projects) != 0) {
+		fmt.Fprintln(stderr, "evidence repin: --pinned-only checks every pinned citation on its release line: it takes no --limit and no --project and needs --baseline release-line")
 		return 2
 	}
 	if msg := checkSourceFlags(*source, *mirrorState, *statePath, *wantsOut, *failOnMissing, deps.OpenMirror != nil); msg != "" {
@@ -1757,6 +1767,14 @@ func RunWith(ctx context.Context, args []string, stdout, stderr io.Writer, deps 
 			return 2
 		}
 		citations = append(citations, parsed...)
+	}
+
+	if *pinnedOnly {
+		citations = PinnedOnly(citations)
+		if len(citations) == 0 {
+			fmt.Fprintln(stdout, "evidence repin: pinned-only: 0 pinned citations checked, 0 findings")
+			return 0
+		}
 	}
 
 	var buildOpts BuildOptions
@@ -1839,6 +1857,16 @@ func RunWith(ctx context.Context, args []string, stdout, stderr io.Writer, deps 
 		fmt.Fprintf(stdout, "evidence repin: %d file(s) are not in the mirror; add them with \"factory mirror --wants\" (see --wants-out) and run again\n", missing)
 		if *failOnMissing {
 			return 3
+		}
+	}
+	if *pinnedOnly {
+		findings := PinnedDrift(worklist, len(citations))
+		fmt.Fprintf(stdout, "evidence repin: pinned-only: %d pinned citations checked, %d findings\n", len(citations), len(findings))
+		for _, finding := range findings {
+			fmt.Fprintf(stderr, "evidence repin: pinned drift: %s\n", finding)
+		}
+		if len(findings) > 0 {
+			return ExitPinnedDrift
 		}
 	}
 	return 0

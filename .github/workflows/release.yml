@@ -174,6 +174,22 @@ jobs:
           commit_date="$(git log -1 --format=%cI "${TAGGED_SHA}")"
           go run ./cmd/prufyx-maintainer release-freshness --commit-date "${commit_date}" --min-days 30
 
+      # A pinned rule never expires on time; its citations are re-checked on
+      # their release line here, so a release never ships a pinned rule whose
+      # cited source drifted or cannot be reached. With no pinned rule this
+      # passes.
+      - name: Check the pinned citations on their release line
+        working-directory: cli
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          go run ./cmd/prufyx-maintainer evidence repin --pinned-only \
+            --rules internal/cncfcheck/data/rules.json \
+            --rules internal/projectcheck/data/rules.json \
+            --baseline release-line \
+            --output "${RUNNER_TEMP}/pinned-worklist.json"
+
       - name: Build binaries
         working-directory: cli
         env:

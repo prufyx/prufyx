@@ -233,6 +233,9 @@ func validateRule(rule rule, registry Registry) error {
 	if err := validateEvidence(rule.Evidence); err != nil {
 		return fmt.Errorf("rule evidence: %w", err)
 	}
+	if err := validateLease(rule); err != nil {
+		return fmt.Errorf("rule lease: %w", err)
+	}
 	if err := validateBasisRule(rule); err != nil {
 		return err
 	}
@@ -613,13 +616,14 @@ func validateRuleShape(raw []byte) error {
 				return err
 			}
 		}
-		evidence, err := exactObject(rule["evidence"], []string{"state", "reviewedAt", "validUntil", "sources"}, []string{"basis", "extractor", "derivedAt"})
+		evidence, err := exactObject(rule["evidence"], []string{"state", "reviewedAt", "validUntil", "sources"}, []string{"basis", "extractor", "derivedAt", "lease"})
 		if err != nil {
 			return err
 		}
-		// A present basis or derivedAt must be a real value: an empty string
-		// would otherwise decode to the same zero value as an absent field.
-		for _, key := range []string{"basis", "derivedAt"} {
+		// A present basis, derivedAt or lease must be a real value: an empty
+		// string would otherwise decode to the same zero value as an absent
+		// field.
+		for _, key := range []string{"basis", "derivedAt", "lease"} {
 			if raw, ok := evidence[key]; ok {
 				var value string
 				if json.Unmarshal(raw, &value) != nil || value == "" {

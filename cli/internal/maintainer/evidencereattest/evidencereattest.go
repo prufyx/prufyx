@@ -353,6 +353,13 @@ type RuleAttestation struct {
 	// week (see scheduleAutomated); in a human statement every renewed rule
 	// gets the statement's validUntil and this field is absent.
 	ValidUntil string `json:"validUntil,omitempty"`
+	// Lease is "pinned" on a row of a human pinning statement and absent
+	// otherwise. A pinned row moves the rule from the time lease to the
+	// pinned lease: reviewedAt becomes attestedAt, validUntil exactly
+	// attestedAt plus the pinned lease length, and evidence.lease is set (see
+	// pinned.go). It is part of the signed row and of Verify's byte-exact
+	// recomputation.
+	Lease string `json:"lease,omitempty"`
 }
 
 // SampledEntry is one rule the seeded 10% audit selected for full individual
@@ -591,7 +598,11 @@ func ParseStatement(raw []byte) (Statement, error) {
 	case RoleHuman:
 		// A human statement carries everything the reviewer's path
 		// requires: its authority and text, a wave, and no per-rule dates.
-		if statement.Authority != Authority || statement.Statement != FixedStatementText(statement.Worklist.GeneratedAt, statement.ValidUntil) {
+		wantText := FixedStatementText(statement.Worklist.GeneratedAt, statement.ValidUntil)
+		if statementPins(statement) {
+			wantText = PinnedStatementText(statement.Worklist.GeneratedAt)
+		}
+		if statement.Authority != Authority || statement.Statement != wantText {
 			return Statement{}, ErrRejected
 		}
 		if statement.Wave < minWave || statement.Wave > maxWave {
@@ -618,6 +629,9 @@ func ParseStatement(raw []byte) (Statement, error) {
 				return Statement{}, ErrRejected
 			}
 		}
+	}
+	if err := checkRowLeases(statement, role); err != nil {
+		return Statement{}, err
 	}
 	return statement, nil
 }

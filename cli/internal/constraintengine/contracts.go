@@ -368,7 +368,11 @@ type evidence struct {
 	// rule may decide (basis.go), and only under the basis contract. A rule
 	// that omits them marshals, digests and evaluates exactly as before they
 	// existed; an absent basis means the rule was reviewed by a maintainer.
-	Basis      string           `json:"basis,omitempty"`
+	Basis string `json:"basis,omitempty"`
+	// Lease is optional: absent or "time" is the time lease, "pinned" the
+	// fixed-version lease (lease.go). A rule without it marshals, digests and
+	// evaluates exactly as before the field existed.
+	Lease      string           `json:"lease,omitempty"`
 	Extractor  *Extractor       `json:"extractor,omitempty"`
 	DerivedAt  string           `json:"derivedAt,omitempty"`
 	ReviewedAt string           `json:"reviewedAt"`

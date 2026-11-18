@@ -418,6 +418,10 @@ func timeOrder(a, b string) (later, earlier bool) {
 func renewedValidUntil(stmt evidencereattest.Statement, id string) (string, bool) {
 	for _, ra := range stmt.Rules {
 		if ra.RuleID == id {
+			if ra.Lease == constraintengine.LeasePinned {
+				until, err := constraintengine.PinnedValidUntil(stmt.AttestedAt)
+				return until, err == nil
+			}
 			if ra.ValidUntil != "" {
 				return ra.ValidUntil, true
 			}
@@ -987,7 +991,9 @@ func (r *Report) recordStaggerCheck(cls *Classification, spec PackSpec, b, h *lo
 		}
 	}
 	for _, e := range h.Entries {
-		count(e.Evidence.ValidUntil)
+		if !staggerExempt(e) {
+			count(e.Evidence.ValidUntil)
+		}
 	}
 	for _, rec := range h.Records {
 		count(rec.ValidUntil)

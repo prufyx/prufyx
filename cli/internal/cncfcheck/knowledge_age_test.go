@@ -87,3 +87,33 @@ func TestActiveRuleEndsSkipsInactive(t *testing.T) {
 		t.Fatalf("%v", got)
 	}
 }
+
+// TestPinnedRulesAreTheirOwnAgeBucket: an active rule on a pinned lease is not
+// an end date (it never counts as expiring ten years out); it is reported in
+// its own bucket with its reviewedAt. A pinned rule that is withdrawn is in
+// neither, and the strict listing still refuses an unreadable pinned date.
+func TestPinnedRulesAreTheirOwnAgeBucket(t *testing.T) {
+	t.Parallel()
+	entries := []Entry{
+		{Rule: json.RawMessage(`{"evidence":{"state":"active","validUntil":"2026-12-07T00:00:00Z"}}`)},
+		{Rule: json.RawMessage(`{"evidence":{"state":"active","lease":"pinned","reviewedAt":"2027-03-02T00:00:00Z","validUntil":"2037-03-02T00:00:00Z"}}`)},
+		{Rule: json.RawMessage(`{"evidence":{"state":"active","lease":"pinned","reviewedAt":"2027-03-01T00:00:00Z","validUntil":"2037-03-01T00:00:00Z"}}`)},
+		{Rule: json.RawMessage(`{"evidence":{"state":"withdrawn","lease":"pinned","reviewedAt":"2026-01-01T00:00:00Z","validUntil":"2036-01-01T00:00:00Z"}}`)},
+		{Rule: json.RawMessage(`{"evidence":{"state":"active","lease":"time","validUntil":"2027-01-01T00:00:00Z"}}`)},
+	}
+	if got := activeRuleEnds(entries); len(got) != 2 || got[0].Year() != 2026 || got[1].Year() != 2027 {
+		t.Fatalf("a pinned rule is in the end dates: %v", got)
+	}
+	reviews := pinnedRuleReviews(entries)
+	if len(reviews) != 2 || !reviews[1].Equal(time.Date(2027, 3, 1, 0, 0, 0, 0, time.UTC)) {
+		t.Fatalf("pinned bucket: %v", reviews)
+	}
+	strict, err := strictRuleEnds(entries)
+	if err != nil || len(strict) != 2 {
+		t.Fatalf("strict ends %v %v", strict, err)
+	}
+	bad := []Entry{{Rule: json.RawMessage(`{"evidence":{"state":"active","lease":"pinned","validUntil":"soon"}}`)}}
+	if _, err := strictRuleEnds(bad); err == nil {
+		t.Fatal("an unreadable pinned date was accepted")
+	}
+}
