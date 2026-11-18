@@ -85,14 +85,17 @@ func renewalProblems(raw string) []string {
 	if len(wf.Jobs) != 3 || prepare.Steps == nil || sign.Steps == nil || pr.Steps == nil {
 		return append(out, "jobs must be exactly prepare, sign and pr")
 	}
-	if prepare.Environment != "" || pr.Environment != "" {
-		bad("only sign may name an environment")
+	if prepare.Environment != "" {
+		bad("prepare must not name an environment")
+	}
+	if pr.Environment != "renewal-pr" {
+		bad("pr must run in the renewal-pr environment (the bot App key)")
 	}
 	if sign.Environment != "renewal" {
 		bad("sign must run in the renewal environment")
 	}
-	if len(prepare.Permissions) != 1 || prepare.Permissions["contents"] != "read" {
-		bad("prepare must hold contents: read only")
+	if len(prepare.Permissions) != 2 || prepare.Permissions["contents"] != "read" || prepare.Permissions["pull-requests"] != "read" {
+		bad("prepare must hold contents: read and pull-requests: read only")
 	}
 	if len(sign.Permissions) != 1 || sign.Permissions["contents"] != "read" {
 		bad("sign must hold contents: read only")
@@ -167,6 +170,32 @@ func renewalProblems(raw string) []string {
 	if !checksDigest {
 		bad("sign must check the prepared files against the prepare digest")
 	}
+
+	// Refusals and checks that fail closed, by the text of the step that
+	// carries them.
+	runs := func(steps []renewalStep) string {
+		var b strings.Builder
+		for _, s := range steps {
+			b.WriteString(s.Run)
+			b.WriteString("\n")
+		}
+		return b.String()
+	}
+	need := func(job string, steps []renewalStep, why string, subs ...string) {
+		text := runs(steps)
+		for _, sub := range subs {
+			if !strings.Contains(text, sub) {
+				bad(job+": missing check ("+why+")", sub)
+			}
+		}
+	}
+	need("prepare", prepare.Steps, "main-ref refusal", `"${GITHUB_REF}" != "refs/heads/main"`)
+	need("prepare", prepare.Steps, "open renewal pull request refusal", `startswith("factory/renewal/automated-")`, `open=true`)
+	need("prepare", prepare.Steps, "cap arithmetic", `n=$(( MAX_DAILY_LOOSENING - counted ))`, `if [ "${n}" -gt 45 ]; then n=45; fi`, `if [ "${n}" -lt 1 ]; then n=0; fi`, `[ "${count}" -gt "${N}" ]`)
+	need("sign", sign.Steps, "artifact digest", `"${digest}" != "${PREPARED_SHA256}"`, `.base == $base`)
+	need("pr", pr.Steps, "artifact digest", `"${digest}" != "${PREPARED_SHA256}"`)
+	need("pr", pr.Steps, "base check", `[ "${base}" = "${GITHUB_SHA}" ]`, `"${tip}" != "${base}"`)
+	need("pr", pr.Steps, "refusals", `startswith("factory/renewal/automated-")`, `[ "${pack}" = "${PACK}" ]`, `grep -Eq '^(cncf|community)$'`)
 
 	for _, job := range []string{"prepare", "sign", "pr"} {
 		for _, s := range wf.Jobs[job].Steps {
@@ -243,6 +272,57 @@ func TestRenewalWorkflowRefusesWeakening(t *testing.T) {
 		},
 		"pr checks out the repository": func(s string) string {
 			return strings.Replace(s, "      - name: Require the bot App\n", "      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262\n      - name: Require the bot App\n", 1)
+		},
+		"main-ref refusal removed": func(s string) string {
+			return strings.Replace(s, `"${GITHUB_REF}" != "refs/heads/main"`, `false`, 1)
+		},
+		"prepare open-PR refusal removed": func(s string) string {
+			return strings.Replace(s, "echo \"open=true\" >> \"${GITHUB_OUTPUT}\"", "echo \"open=false\" >> \"${GITHUB_OUTPUT}\"", 1)
+		},
+		"cap arithmetic: no subtraction": func(s string) string {
+			return strings.Replace(s, "n=$(( MAX_DAILY_LOOSENING - counted ))", "n=${MAX_DAILY_LOOSENING}", 1)
+		},
+		"cap arithmetic: no ceiling": func(s string) string {
+			return strings.Replace(s, `if [ "${n}" -gt 45 ]; then n=45; fi`, "", 1)
+		},
+		"cap arithmetic: no floor": func(s string) string {
+			return strings.Replace(s, `if [ "${n}" -lt 1 ]; then n=0; fi`, "", 1)
+		},
+		"statement over the cap accepted": func(s string) string {
+			return strings.Replace(s, `if [ "${count}" -gt "${N}" ]; then`, `if false; then`, 1)
+		},
+		"sign digest check removed": func(s string) string {
+			return strings.Replace(s, `if [ "${digest}" != "${PREPARED_SHA256}" ]; then
+            echo "The downloaded files do not match the digest prepare reported."
+            exit 1
+          fi
+          jq -e`, `jq -e`, 1)
+		},
+		"sign base check removed": func(s string) string {
+			return strings.Replace(s, `.pack == $pack and .base == $base and`, `.pack == $pack and`, 1)
+		},
+		"pr digest check removed": func(s string) string {
+			i := strings.Index(s, "  pr:\n")
+			return s[:i] + strings.Replace(s[i:], `"${digest}" != "${PREPARED_SHA256}"`, `false`, 1)
+		},
+		"pr base check removed": func(s string) string {
+			return strings.Replace(s, `[ "${base}" = "${GITHUB_SHA}" ]`, `true`, 1)
+		},
+		"pr main-moved check removed": func(s string) string {
+			return strings.Replace(s, `"${tip}" != "${base}"`, `false`, 1)
+		},
+		"pr open-PR refusal removed": func(s string) string {
+			i := strings.Index(s, "  pr:\n")
+			return s[:i] + strings.Replace(s[i:], `startswith("factory/renewal/automated-")`, `startswith("zzz")`, 1)
+		},
+		"pr pack check removed": func(s string) string {
+			return strings.Replace(s, `[ "${pack}" = "${PACK}" ]`, `true`, 1)
+		},
+		"pr not in the App environment": func(s string) string {
+			return strings.Replace(s, "    environment: renewal-pr\n", "", 1)
+		},
+		"prepare token widened": func(s string) string {
+			return strings.Replace(s, "      pull-requests: read\n", "      pull-requests: write\n", 1)
 		},
 		"auto merge": func(s string) string {
 			return s + "# gh pr merge\n"

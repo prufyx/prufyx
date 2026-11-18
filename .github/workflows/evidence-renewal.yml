@@ -44,6 +44,7 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: read
+      pull-requests: read
     env:
       BOT_LOGIN: ${{ vars.KNOWLEDGE_BOT_LOGIN || 'prufyx-factory[bot]' }}
       MAX_DAILY_LOOSENING: ${{ vars.KNOWLEDGE_MAX_DAILY_LOOSENING || '50' }}
@@ -62,7 +63,26 @@ jobs:
             exit 1
           fi
 
+      # Refused here, before anything is signed, so a refused run spends no
+      # signature. The pr job checks again.
+      - name: Refuse while a renewal pull request is open
+        id: open
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          open="$(gh pr list --repo "${GITHUB_REPOSITORY}" --state open --limit 200 --json headRefName \
+            --jq '[.[] | select(.headRefName | startswith("factory/renewal/automated-"))] | length')"
+          case "${open}" in ''|*[!0-9]*) echo "The open pull request count is not a number."; exit 1 ;; esac
+          if [ "${open}" != "0" ]; then
+            echo "A renewal pull request is already open; nothing to prepare."
+            echo "open=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "open=false" >> "${GITHUB_OUTPUT}"
+          fi
+
       - name: Check out main at the triggering commit
+        if: steps.open.outputs.open == 'false'
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ github.sha }}
@@ -70,12 +90,14 @@ jobs:
           persist-credentials: false
 
       - name: Set up Go
+        if: steps.open.outputs.open == 'false'
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: cli/go.mod
           cache: false
 
       - name: Build the CLI
+        if: steps.open.outputs.open == 'false'
         working-directory: cli
         run: go build -buildvcs=false -trimpath -o "${RUNNER_TEMP}/prufyx-maintainer" ./cmd/prufyx-maintainer
 
@@ -83,6 +105,7 @@ jobs:
       # token allows about 1000 requests an hour; a run that hits the limit
       # fails and the next run retries.
       - name: Re-pin the release lines over HTTP
+        if: steps.open.outputs.open == 'false'
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
@@ -104,6 +127,7 @@ jobs:
       # is guessed.
       - name: Compute how many rules this run may renew
         id: cap
+        if: steps.open.outputs.open == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -123,6 +147,7 @@ jobs:
 
       - name: Prepare the automated statement
         id: bundle
+        if: steps.open.outputs.open == 'false'
         env:
           N: ${{ steps.cap.outputs.n }}
         run: |
@@ -397,6 +422,9 @@ jobs:
     if: needs.sign.result == 'success' && needs.sign.outputs.signed == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    # The bot App key lives in this environment, restricted to main, so only
+    # a run of main can mint the token.
+    environment: renewal-pr
     permissions: {}
     env:
       PREPARED_SHA256: ${{ needs.prepare.outputs.sha256 }}
