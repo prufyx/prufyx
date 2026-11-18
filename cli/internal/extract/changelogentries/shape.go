@@ -88,6 +88,28 @@ func tokenBoundary(c byte) bool {
 	return c > 0x20 && c < 0x7f
 }
 
+// holdsVersionToken reports whether text holds the version as a token of its
+// own: optional "v", bounded on both sides by the start or end of the text,
+// whitespace or punctuation other than . - _ + (so "1.2.3-rc1" is not 1.2.3).
+func holdsVersionToken(text, version string) bool {
+	for from := 0; ; {
+		i := strings.Index(text[from:], version)
+		if i < 0 {
+			return false
+		}
+		i += from
+		from = i + 1
+		s, e := i, i+len(version)
+		if s > 0 && text[s-1] == 'v' {
+			s--
+		}
+		if (s > 0 && !tokenBoundary(text[s-1])) || (e < len(text) && !tokenBoundary(text[e])) {
+			continue
+		}
+		return true
+	}
+}
+
 // headingProblem applies the strict rule to one heading of a per-version
 // file. A heading may hold a digit only inside exactly one occurrence of the
 // file's own version token ("x.y.z" or "vx.y.z"), bounded on both sides by the

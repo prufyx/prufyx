@@ -180,14 +180,14 @@ func rowsCheck(args []string, table []changelogentries.Target, stdout, stderr io
 		fmt.Fprintf(stderr, "changelog rows-check: unexpected argument %q\n%s\n", f.Arg(0), usage)
 		return 2
 	}
-	minLocated := changelogentries.DefaultMinLocatedNewest
+	var override *int
 	if minArg != "" {
 		n, err := strconv.Atoi(minArg)
 		if err != nil || n < 1 {
 			fmt.Fprintf(stderr, "changelog rows-check: --min-located-newest %q must be an integer of at least 1\n", minArg)
 			return 2
 		}
-		minLocated = n
+		override = &n
 	}
 	src, err := openSource(mirror, fixture)
 	if err != nil {
@@ -199,7 +199,12 @@ func rowsCheck(args []string, table []changelogentries.Target, stdout, stderr io
 		fmt.Fprintf(stderr, "changelog rows-check: %v\n", err)
 		return 2
 	}
-	results, err := changelogentries.CheckRowsMin(src, table, component, digest, minLocated)
+	var results []changelogentries.RowResult
+	if override != nil {
+		results, err = changelogentries.CheckRowsMin(src, table, component, digest, *override)
+	} else {
+		results, err = changelogentries.CheckRows(src, table, component, digest)
+	}
 	if err != nil {
 		fmt.Fprintf(stderr, "changelog rows-check: %v\n", err)
 		return 2
@@ -208,6 +213,9 @@ func rowsCheck(args []string, table []changelogentries.Target, stdout, stderr io
 	failed := 0
 	for _, r := range results {
 		fmt.Fprintf(&out, "%s %s form=%s tags=%d located=%d withheld=%d notFinal=%d newest=%d/%d", r.Status, r.Component, r.Form, r.Tags, r.Located, r.WithheldTotal(), r.NotFinal, r.WindowLocated, r.Window)
+		if r.MinLocatedNewest > 0 {
+			fmt.Fprintf(&out, " minLocatedNewest=%d", r.MinLocatedNewest)
+		}
 		for _, c := range r.SortedCodes() {
 			fmt.Fprintf(&out, " %s=%d", c, r.Withheld[c])
 		}
@@ -219,7 +227,13 @@ func rowsCheck(args []string, table []changelogentries.Target, stdout, stderr io
 			failed++
 		}
 	}
-	fmt.Fprintf(&out, "rows=%d failed=%d minLocatedNewest=%d tagsDigest=%s", len(results), failed, minLocated, tagSetDigest(src, table, component))
+	// The bar of each row is on its own line above; the summary says whether
+	// the rows' own bars were used or one explicit override replaced them.
+	barNote := "rows"
+	if override != nil {
+		barNote = strconv.Itoa(*override)
+	}
+	fmt.Fprintf(&out, "rows=%d failed=%d minLocatedNewest=%s tagsDigest=%s", len(results), failed, barNote, tagSetDigest(src, table, component))
 	md, err := mirrorDigestFull(src, mirror)
 	if err != nil {
 		fmt.Fprintf(stderr, "changelog rows-check: %v\n", err)

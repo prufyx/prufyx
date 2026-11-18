@@ -60,14 +60,36 @@ type Target struct {
 	// may end a section; they never name an entry. Anchored, no captures
 	// needed.
 	BoundaryPatterns []string
+	// InnerPatterns match headings at the same level as a release heading
+	// that nevertheless belong to the entry above them (see InnerPattern).
+	InnerPatterns []InnerPattern
 	// MaxBytes bounds the file; zero means MaxFileBytes.
 	MaxBytes int
+	// MinLocatedNewest is the row's coverage bar for rows-check: how many of
+	// the newest DefaultMinLocatedNewest final versions must be located. Zero
+	// means DefaultMinLocatedNewest; otherwise 5 to 8 (the loader refuses
+	// anything else). It never affects what is located, only whether a row
+	// passes the check.
+	MinLocatedNewest int
+}
+
+// InnerPattern is an anchored pattern for a same-level inner heading.
+// FirstOnly keeps it to the first heading after the release heading.
+type InnerPattern struct {
+	Pattern   string
+	FirstOnly bool
 }
 
 type compiled struct {
 	heading  *regexp.Regexp
 	boundary []*regexp.Regexp
+	inner    []compiledInner
 	max      int
+}
+
+type compiledInner struct {
+	re        *regexp.Regexp
+	firstOnly bool
 }
 
 // compileAnchored compiles a pattern that must be one anchored expression:
@@ -107,7 +129,7 @@ func (t Target) compile() (compiled, error) {
 	names := re.SubexpNames()
 	// One group named version; a style that carries a link target may add the
 	// groups slug and ref after it, checked by linkTargetMatches.
-	linked := len(names) == 4 && names[2] == "slug" && names[3] == "ref"
+	linked := len(names) == 4 && names[2] == "slug" && (names[3] == "ref" || names[3] == "line")
 	if len(names) < 2 || names[1] != "version" || (len(names) != 2 && !linked) {
 		return c, fmt.Errorf("heading pattern needs one capture group named version (and, for a link target, slug and ref)")
 	}
@@ -118,6 +140,16 @@ func (t Target) compile() (compiled, error) {
 			return c, err
 		}
 		c.boundary = append(c.boundary, b)
+	}
+	for _, in := range t.InnerPatterns {
+		b, err := compileAnchored(in.Pattern)
+		if err != nil {
+			return c, err
+		}
+		c.inner = append(c.inner, compiledInner{re: b, firstOnly: in.FirstOnly})
+	}
+	if t.MinLocatedNewest != 0 && !minLocatedNewestValues[t.MinLocatedNewest] {
+		return c, fmt.Errorf("MinLocatedNewest %d is not one of 5, 6, 7, 8", t.MinLocatedNewest)
 	}
 	c.max = MaxFileBytes
 	if t.MaxBytes < 0 || t.MaxBytes > MaxFileBytes {

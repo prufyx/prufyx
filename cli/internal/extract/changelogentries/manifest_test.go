@@ -27,7 +27,7 @@ func TestBuildManifestEntryWithheldAndReadFailure(t *testing.T) {
 	file := "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x. #1\n"
 	r := &memReader{files: map[string][]byte{promTarget.Repo.Key + "@" + testCommit + ":" + promTarget.Path: []byte(file)}}
 	m, err := BuildManifest(r, promTarget, tag, d)
-	if err != nil || m.Entry == nil || m.Withheld != nil || m.Extractor.CodeDigest != d || m.Extractor.Version != "changelog.entries/3" {
+	if err != nil || m.Entry == nil || m.Withheld != nil || m.Extractor.CodeDigest != d || m.Extractor.Version != "changelog.entries/4" {
 		t.Fatalf("entry: %v %+v", err, m)
 	}
 	a, _ := m.Bytes()

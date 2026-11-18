@@ -34,10 +34,16 @@ type RowResult struct {
 	Located int
 	// Withheld counts the typed reasons of the tags without an entry.
 	Withheld map[Code]int
-	// Window is the number of newest final tags that had to be located
-	// (min(MinLocatedNewest, Tags)); WindowLocated how many of them were.
+	// Window is the number of newest final versions looked at; WindowLocated
+	// how many of them were located. Bar is how many had to be (the row's
+	// minLocatedNewest, or the explicit override), at most Window.
 	Window        int
 	WindowLocated int
+	Bar           int
+	// MinLocatedNewest is the row's coverage bar as configured (the default
+	// when the row has none) or the explicit override; it is what the
+	// receipt prints.
+	MinLocatedNewest int
 	// Reasons says why the row failed; empty for PASS and SKIP.
 	Reasons []string
 }
@@ -67,28 +73,53 @@ func (r RowResult) WithheldTotal() int {
 //   - the source records no final tag;
 //   - no tag at all has an entry (the path or template never resolves, or
 //     the headings never read);
-//   - one of the newest min final tags (all of them when fewer) has no
-//     located entry; a typed withheld reason does not count as located.
+//   - fewer than the row's bar (minLocatedNewest, 5 to 8, default 8) of the
+//     newest 8 final versions (all of them when fewer exist) are located; a
+//     version counts only when every one of its tags has an entry, and a
+//     typed withheld reason does not count as located.
 //
 // A row of a form that is not read is SKIP.
 func CheckRow(src interface {
 	extract.PinnedReader
 	extract.TagSource
 }, t Target, codeDigest string) RowResult {
-	return CheckRowMin(src, t, codeDigest, DefaultMinLocatedNewest)
+	return checkRow(src, t, codeDigest, t.bar(), false)
 }
 
-// CheckRowMin is CheckRow with an explicit newest-tag coverage bar; min < 1
-// fails the row.
+// bar is the row's coverage bar: its minLocatedNewest, or the default.
+func (t Target) bar() int {
+	if t.MinLocatedNewest == 0 {
+		return DefaultMinLocatedNewest
+	}
+	return t.MinLocatedNewest
+}
+
+// CheckRowMin is CheckRow with an explicit newest-tag coverage bar that
+// replaces the row's own: the newest min final versions (all of them when
+// fewer) must each be located, so the override is never looser in shape than
+// the row bar; min < 1 fails the row.
 func CheckRowMin(src interface {
 	extract.PinnedReader
 	extract.TagSource
 }, t Target, codeDigest string, min int) RowResult {
-	res := RowResult{Component: t.Component, Form: t.Form, Withheld: map[Code]int{}}
+	return checkRow(src, t, codeDigest, min, true)
+}
+
+// checkRow is the one row check. With prefix false the window is the newest
+// DefaultMinLocatedNewest versions and at least bar of them (all when fewer
+// exist) must be located; the row bar is 5 to 8, set in reviewed data. With
+// prefix true the window is the newest bar versions and all must be located.
+// Either way a version is located only when every one of its tags is.
+func checkRow(src interface {
+	extract.PinnedReader
+	extract.TagSource
+}, t Target, codeDigest string, min int, prefix bool) RowResult {
+	res := RowResult{Component: t.Component, Form: t.Form, Withheld: map[Code]int{}, MinLocatedNewest: min}
 	switch t.Form {
 	case FormFile, FormPerLineFile, FormPerVersionFile:
 	default:
 		res.Status = RowSkip
+		res.MinLocatedNewest = 0
 		return res
 	}
 	fail := func(format string, a ...any) { res.Reasons = append(res.Reasons, fmt.Sprintf(format, a...)) }
@@ -138,8 +169,16 @@ func CheckRowMin(src interface {
 		fail("no tag of %d has an entry: the path or the headings never resolve", res.Tags)
 	}
 	if res.Tags > 0 && min >= 1 {
-		groups := newestVersions(finals, min)
+		size := min
+		if !prefix {
+			size = DefaultMinLocatedNewest
+		}
+		groups := newestVersions(finals, size)
 		res.Window = len(groups)
+		res.Bar = min
+		if res.Bar > res.Window {
+			res.Bar = res.Window
+		}
 		var missing []string
 		for _, g := range groups {
 			all := true
@@ -153,8 +192,8 @@ func CheckRowMin(src interface {
 				res.WindowLocated++
 			}
 		}
-		if len(missing) > 0 {
-			fail("only %d of the newest %d final tags have an entry (no entry at %s)", res.WindowLocated, res.Window, strings.Join(missing, ", "))
+		if res.WindowLocated < res.Bar {
+			fail("only %d of the newest %d final versions have an entry, %d are required (no entry at %s)", res.WindowLocated, res.Window, res.Bar, strings.Join(missing, ", "))
 		}
 	}
 	res.Status = RowPass
@@ -182,14 +221,22 @@ func CheckRows(src interface {
 	extract.PinnedReader
 	extract.TagSource
 }, table []Target, component, codeDigest string) ([]RowResult, error) {
-	return CheckRowsMin(src, table, component, codeDigest, DefaultMinLocatedNewest)
+	return checkRows(src, table, component, codeDigest, nil)
 }
 
-// CheckRowsMin is CheckRows with an explicit newest-tag coverage bar.
+// CheckRowsMin is CheckRows with an explicit newest-tag coverage bar for every
+// row (see CheckRowMin); it replaces the rows' own bars.
 func CheckRowsMin(src interface {
 	extract.PinnedReader
 	extract.TagSource
 }, table []Target, component, codeDigest string, min int) ([]RowResult, error) {
+	return checkRows(src, table, component, codeDigest, &min)
+}
+
+func checkRows(src interface {
+	extract.PinnedReader
+	extract.TagSource
+}, table []Target, component, codeDigest string, override *int) ([]RowResult, error) {
 	rows := table
 	if component != "" {
 		t, err := Lookup(table, component)
@@ -203,7 +250,12 @@ func CheckRowsMin(src interface {
 	}
 	out := make([]RowResult, 0, len(rows))
 	for _, t := range rows {
-		r := CheckRowMin(src, t, codeDigest, min)
+		var r RowResult
+		if override != nil {
+			r = CheckRowMin(src, t, codeDigest, *override)
+		} else {
+			r = CheckRow(src, t, codeDigest)
+		}
 		if component != "" && r.Status == RowSkip {
 			r.Status = RowFail
 			r.Reasons = append(r.Reasons, fmt.Sprintf("form %q is not read, nothing to check", t.Form))

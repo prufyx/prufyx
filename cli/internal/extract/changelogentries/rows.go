@@ -76,6 +76,13 @@ var headingStyles = map[string]string{
 	"version-dual-first":   `^v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)/v[0-9]+\.[0-9]+\.[0-9]+$`,
 	"version-dual-second":  `^v[0-9]+\.[0-9]+\.[0-9]+/v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$`,
 	"release-v-slash-date": `^Release v(?P<version>[0-9]+\.[0-9]+\.[0-9]+) - [0-9]{4}/[0-9]{2}/[0-9]{2}$`,
+	"version-paren-date":   `^(?P<version>[0-9]+\.[0-9]+\.[0-9]+) \([0-9]{4}-[0-9]{2}-[0-9]{2}\)$`,
+	// A bracketed version with a written-out date, day first ("1 May 2026")
+	// or month first ("November 13, 2023"); the month is an English name.
+	"version-bracketed-long-date": `^\[(?P<version>[0-9]+\.[0-9]+\.[0-9]+)\] (?:[0-9]{1,2} (?:January|February|March|April|May|June|July|August|September|October|November|December) [0-9]{4}|(?:January|February|March|April|May|June|July|August|September|October|November|December) [0-9]{1,2}, [0-9]{4})$`,
+	// The link target names the release line of the version ("release-0.42"
+	// for v0.42.5); linkTargetMatches ties it to the version and the repo.
+	"version-linked-spaced-date": `^\[v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)\]\(https://github\.com/(?P<slug>[A-Za-z0-9._-]+/[A-Za-z0-9._-]+)/tree/release-(?P<line>[0-9]+\.[0-9]+)\) - [0-9]{4} [0-9]{2} [0-9]{2}$`,
 }
 
 // boundaryStyles maps a boundary style name to its fixed pattern.
@@ -88,9 +95,40 @@ var boundaryStyles = map[string]string{
 	"prerelease-v-prefixed":         `^v[0-9]+\.[0-9]+\.[0-9]+-(rc|alpha|beta)\.[0-9]+$`,
 	"master-unreleased":             `^master / unreleased$`,
 	// A two-part line heading can never name an entry (no patch part).
-	"line-heading-v":               `^v[0-9]+\.[0-9]+$`,
+	"line-heading-v": `^v[0-9]+\.[0-9]+$`,
+	// A release heading of the project's own list whose link or date carries a
+	// known typo (a missing "(", a ref that is not the release line, a
+	// dd.mm.yyyy date): it ends the section above it and never names an entry,
+	// and a second heading for the entry's own version is refused.
+	"version-linked-loose-date": `^\[v[0-9]+\.[0-9]+\.[0-9]+\](?:\(| )https://github\.com/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/tree/[A-Za-z0-9._-]+\) - (?:[0-9]{4} [0-9]{2} [0-9]{2}|[0-9]{2}\.[0-9]{2}\.[0-9]{4})$`,
+	// A heading that says the release is still being written; it names no entry.
+	"version-in-progress":          `^[0-9]+\.[0-9]+\.[0-9]+ in progress$`,
 	"prerelease-linked-paren-date": `^\[v[0-9]+\.[0-9]+\.[0-9]+-(?:rc|alpha|beta|ea)\.?[0-9]+\]\(https://github\.com/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/tree/[A-Za-z0-9._-]+\) \([0-9]{4}-[0-9]{2}-[0-9]{2}\)$`,
 }
+
+// innerHeadingStyle is a heading that sits at the SAME level as the release
+// heading yet belongs to the entry above it (a "Note" or a "Fixed" section
+// written one level too high). Pattern is anchored with no capture needed;
+// FirstOnly says it is absorbed only as the first heading after the release
+// heading, with nothing but blank lines between them, so a trailing note of
+// the file is never pulled into an entry.
+type innerHeadingStyle struct {
+	Pattern   string
+	FirstOnly bool
+}
+
+// innerHeadingStyles is the closed table of such headings. A style never
+// matches a release heading: a heading that is final or a boundary for the
+// row is read as that, first.
+var innerHeadingStyles = map[string]innerHeadingStyle{
+	"note-first":      {`^Note$`, true},
+	"change-sections": {`^(?:Added|Changed|Deprecated|Removed|Fixed|Security)$`, false},
+}
+
+// MinLocatedNewestValues is the closed set of per-row coverage bars: how many
+// of the newest DefaultMinLocatedNewest final versions of the repository must
+// each have an entry read in full. A row without the field uses the default.
+var minLocatedNewestValues = map[int]bool{5: true, 6: true, 7: true, 8: true}
 
 var componentSlugRE = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 
@@ -106,6 +144,11 @@ type rowData struct {
 	Path           string   `json:"path,omitempty"`
 	HeadingStyle   string   `json:"headingStyle,omitempty"`
 	BoundaryStyles []string `json:"boundaryStyles,omitempty"`
+	// InnerHeadingStyles name same-level headings kept inside the entry.
+	InnerHeadingStyles []string `json:"innerHeadingStyles,omitempty"`
+	// MinLocatedNewest is the per-row coverage bar, 5 to 8; absent means 8.
+	// A pointer, so an explicit 0 is refused and never read as absent.
+	MinLocatedNewest *int `json:"minLocatedNewest,omitempty"`
 }
 
 // Reviewed is the reviewed table of changelog targets, loaded from
@@ -166,10 +209,16 @@ func (r rowData) target() (Target, error) {
 		return Target{}, fmt.Errorf("repo %q is not a canonical repository key", r.Repo)
 	}
 	t := Target{Component: r.Component, Repo: extract.RepoRef{Key: r.Repo}, Form: r.Form}
+	if r.MinLocatedNewest != nil {
+		if !minLocatedNewestValues[*r.MinLocatedNewest] {
+			return Target{}, fmt.Errorf("minLocatedNewest %d is not one of 5, 6, 7, 8", *r.MinLocatedNewest)
+		}
+		t.MinLocatedNewest = *r.MinLocatedNewest
+	}
 	switch r.Form {
 	case FormGithubRelease, FormPostTag, FormDocsPage, FormMonorepo:
-		if r.Path != "" || r.HeadingStyle != "" || r.BoundaryStyles != nil {
-			return Target{}, fmt.Errorf("form %q is not read: path, headingStyle and boundaryStyles must be absent", r.Form)
+		if r.Path != "" || r.HeadingStyle != "" || r.BoundaryStyles != nil || r.InnerHeadingStyles != nil || r.MinLocatedNewest != nil {
+			return Target{}, fmt.Errorf("form %q is not read: path, headingStyle, boundaryStyles, innerHeadingStyles and minLocatedNewest must be absent", r.Form)
 		}
 		return t, nil
 	case FormFile:
@@ -218,8 +267,8 @@ func (r rowData) templated(t Target) (Target, error) {
 	}
 	t.Path = r.Path
 	if r.Form == FormPerVersionFile {
-		if r.HeadingStyle != "" || r.BoundaryStyles != nil {
-			return Target{}, errors.New("a per-version row has no headingStyle or boundaryStyles")
+		if r.HeadingStyle != "" || r.BoundaryStyles != nil || r.InnerHeadingStyles != nil {
+			return Target{}, errors.New("a per-version row has no headingStyle, boundaryStyles or innerHeadingStyles")
 		}
 		return t, nil
 	}
@@ -257,6 +306,21 @@ func (r rowData) styled(t Target) (Target, error) {
 		}
 		seen[b] = true
 		t.BoundaryPatterns = append(t.BoundaryPatterns, p)
+	}
+	seenInner := map[string]bool{}
+	for _, in := range r.InnerHeadingStyles {
+		st, ok := innerHeadingStyles[in]
+		if !ok {
+			return Target{}, fmt.Errorf("inner heading style %q is not known", in)
+		}
+		if seenInner[in] {
+			return Target{}, fmt.Errorf("inner heading style %q listed twice", in)
+		}
+		seenInner[in] = true
+		t.InnerPatterns = append(t.InnerPatterns, InnerPattern{Pattern: st.Pattern, FirstOnly: st.FirstOnly})
+	}
+	if r.InnerHeadingStyles != nil && len(r.InnerHeadingStyles) == 0 {
+		return Target{}, errors.New("innerHeadingStyles is present but empty")
 	}
 	if _, err := t.compile(); err != nil {
 		return Target{}, err

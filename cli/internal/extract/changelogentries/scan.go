@@ -29,6 +29,11 @@ type rawItem struct {
 	Start, End int
 	Marker     string
 	Block      bool // a paragraph or fenced block outside a list
+	// para marks a plain-text paragraph block (not a fenced block); indent is
+	// the marker column of a list item that started on an indented line (1 to
+	// 3), 0 for any other item.
+	para   bool
+	indent int
 }
 
 type scanned struct {
@@ -260,6 +265,58 @@ func fenceCloses(l string, ch byte, n, openIndent int) bool {
 	return true
 }
 
+// commentRunEndsClean reports whether the run of one-line comments that holds
+// line i (index) ends at a blank line or the end of the file. Each comment of
+// the run is an HTML block of its own for a CommonMark parser (the type 2
+// block ends on the line that holds the closer), which the oracle checks.
+func commentRunEndsClean(lines []string, i int) bool {
+	j := i
+	for j+1 < len(lines) && isCommentLine(lines[j+1]) {
+		j++
+	}
+	return j+1 == len(lines) || isBlank(lines[j+1])
+}
+
+// indentedListStart reports whether the indented line l (1 to 3 spaces, no
+// tab) starts a list item in CommonMark terms while item cur (nil: none) is open, and the
+// item's marker text. Four shapes, all closed:
+//   - no item is open: any list marker with content starts a list;
+//   - cur is a paragraph and a blank line came before: any list marker with
+//     content starts a list;
+//   - cur is a paragraph and no blank came before: a bullet marker with
+//     content, or "1." / "1)" with content, interrupts the paragraph;
+//   - cur is a list item that began on an indented line at exactly the same
+//     column: the line is its next sibling.
+//
+// Anything else stays a continuation, as before; the CommonMark oracle still
+// compares the result and refuses any disagreement.
+func indentedListStart(l string, cur *rawItem, wasBlank bool) (string, bool) {
+	ws := leadingWS(l)
+	w := indentWidth(l)
+	if w < 1 || w > 3 || strings.Contains(ws, "\t") {
+		return "", false
+	}
+	t := l[len(ws):]
+	if !listRE.MatchString(t) || isBlank(strings.TrimLeft(t, "*+-0123456789.) \t")) {
+		return "", false // not a marker with content
+	}
+	bullet := t[0] == '*' || t[0] == '+' || t[0] == '-'
+	switch {
+	case cur == nil:
+		// Nothing open (after a heading, a blank, a comment): a list starts.
+	case cur.para && wasBlank:
+	case cur.para && !wasBlank && (bullet || strings.HasPrefix(t, "1. ") || strings.HasPrefix(t, "1) ")):
+	case !cur.para && !cur.Block && cur.indent == w:
+	default:
+		return "", false
+	}
+	marker := ""
+	if m := markerRE.FindStringSubmatch(t); m != nil {
+		marker = m[1]
+	}
+	return marker, true
+}
+
 // scan classifies every line of a file with one pass of a closed grammar.
 // Fences are tracked from the first line, so a "#" inside fenced code is never
 // a heading, wherever the fence opened.
@@ -346,7 +403,7 @@ func scan(lines []string) scanned {
 				sc.containerFence = n
 			}
 		}
-		if isCommentLine(l) && (n == 1 || wasBlank) && (i+1 == len(lines) || isBlank(lines[i+1])) {
+		if isCommentLine(l) && (n == 1 || wasBlank || sc.kind[i-1] == kComment) && commentRunEndsClean(lines, i) {
 			sc.kind[i] = kComment
 			sc.comment[n] = true
 			closeItem()
@@ -397,7 +454,26 @@ func scan(lines []string) scanned {
 			continue
 		}
 		if indented {
+			if marker, ok := indentedListStart(l, cur, wasBlank); ok {
+				w := indentWidth(l)
+				closeItem()
+				open(n, marker, false)
+				sc.items[curIdx].indent = w
+				sc.kind[i] = kItem
+				prevAllowsLinkDef = false
+				continue
+			}
 			if cur != nil {
+				if cur.para && wasBlank && indentWidth(l) <= 3 && !strings.Contains(leadingWS(l), "\t") {
+					// A blank line ended the paragraph: text indented by up to
+					// three spaces opens the next one.
+					closeItem()
+					open(n, "", true)
+					sc.items[curIdx].para = true
+					sc.kind[i] = kItem
+					prevAllowsLinkDef = false
+					continue
+				}
 				sc.kind[i] = kItem
 				extend(n)
 			} else {
@@ -432,6 +508,7 @@ func scan(lines []string) scanned {
 		}
 		closeItem()
 		open(n, "", true)
+		sc.items[curIdx].para = true
 		sc.kind[i] = kItem
 		prevAllowsLinkDef = false
 	}

@@ -148,8 +148,13 @@ func entryFromBytes(t Target, c compiled, tag extract.Tag, version string, raw [
 	}
 	// A second heading that names the version in another wording (not a
 	// final heading, not a boundary pattern) makes the entry ambiguous.
+	// A boundary-pattern heading that names the version exactly is the same
+	// kind of second heading (a pre-release suffix, "-rc1", is not exact).
 	for _, x := range rels {
-		if x.final == "" && !x.other && firstVersionToken(x.h.Text) == version {
+		if x.final != "" {
+			continue
+		}
+		if !x.other && firstVersionToken(x.h.Text) == version || x.other && holdsVersionToken(x.h.Text, version) {
 			return refuse(fail(EntryDuplicate, fmt.Sprintf("line %d names %s in another wording", x.h.Line, version)))
 		}
 	}
@@ -171,6 +176,12 @@ func entryFromBytes(t Target, c compiled, tag extract.Tag, version string, raw [
 			continue
 		}
 		if x.final == "" && !x.other {
+			// A same-level heading of a closed inner style (never a release
+			// heading, never a second one for a first-only style) is read as
+			// part of the entry; any other one ends it unproven.
+			if x.h.Level == vh.Level && innerHeading(c, x.h.Text, j == vi+1 && onlyBlanksBetween(sc, vh.EndLine, x.h.Line)) {
+				continue
+			}
 			return refuse(fail(EntryBoundaryUnproven, fmt.Sprintf("line %d: heading %q ends the entry but names no release", x.h.Line, x.h.Text)))
 		}
 		end = x.h.Line - 1
@@ -338,11 +349,40 @@ func entryFromBytes(t Target, c compiled, tag extract.Tag, version string, raw [
 	return e, nil
 }
 
+// onlyBlanksBetween reports whether every line strictly between line a and
+// line b is blank.
+func onlyBlanksBetween(sc scanned, a, b int) bool {
+	for n := a + 1; n < b; n++ {
+		if sc.kind[n-1] != kBlank {
+			return false
+		}
+	}
+	return true
+}
+
+// innerHeading reports whether a same-level heading of the given text is kept
+// inside the entry by one of the row's inner heading styles. first says the
+// heading is the first heading after the release heading with nothing but
+// blank lines between them.
+func innerHeading(c compiled, text string, first bool) bool {
+	for _, in := range c.inner {
+		if in.firstOnly && !first {
+			continue
+		}
+		if in.re.MatchString(text) {
+			return true
+		}
+	}
+	return false
+}
+
 // linkTargetMatches is the post-match check of a heading style that carries a
 // link target: the target must name the row's repository and the heading's own
-// version ("v"+version). A style without the groups is not affected.
+// version ("v"+version), or, for a target that names a release line
+// ("release-x.y"), the line of the version. A style without the groups is not
+// affected.
 func linkTargetMatches(re *regexp.Regexp, m []string, repoKey string) bool {
-	slug, ref := "", ""
+	slug, ref, line := "", "", ""
 	has := false
 	for i, n := range re.SubexpNames() {
 		switch n {
@@ -350,12 +390,21 @@ func linkTargetMatches(re *regexp.Regexp, m []string, repoKey string) bool {
 			slug, has = m[i], true
 		case "ref":
 			ref = m[i]
+		case "line":
+			line = m[i]
 		}
 	}
 	if !has {
 		return true
 	}
-	return "github.com/"+slug == repoKey && ref == "v"+m[1]
+	if "github.com/"+slug != repoKey {
+		return false
+	}
+	if line != "" {
+		// "release-<line>": the target is the release line of the version.
+		return finalVersion(m[1]) && line == lineOf(m[1])
+	}
+	return ref == "v"+m[1]
 }
 
 // fileAgreement is the scanner-only part of the file-wide checks: a fence that

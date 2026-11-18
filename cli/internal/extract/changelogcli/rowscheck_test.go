@@ -142,3 +142,36 @@ func TestRowsCheckReceiptBindsTagSetAndMin(t *testing.T) {
 		}
 	}
 }
+
+func TestRowsCheckReceiptPrintsEachRowBar(t *testing.T) {
+	mk := func(min int) []changelogentries.Target {
+		return []changelogentries.Target{{
+			Component: "notes", Repo: extract.RepoRef{Key: "github.com/example/notes"},
+			Form: changelogentries.FormPerVersionFile, Path: "docs/v{version}.md", MinLocatedNewest: min,
+		}, {
+			Component: "other", Repo: extract.RepoRef{Key: "github.com/example/other"},
+			Form: changelogentries.FormPostTag,
+		}}
+	}
+	fx := rowsFixture(t, map[string]string{"docs/v1.0.0.md": "## Changes\n\n- a\n"})
+	run1 := func(tbl []changelogentries.Target, extra ...string) (int, string) {
+		var out, errb bytes.Buffer
+		code := run(append([]string{"rows-check", "--fixture", fx}, extra...), tbl, &out, &errb)
+		return code, out.String()
+	}
+	code, o := run1(mk(7))
+	if code != 0 || !strings.Contains(o, "PASS notes form=changelog-per-version-file tags=1 located=1 withheld=0 notFinal=0 newest=1/1 minLocatedNewest=7\n") ||
+		!strings.Contains(o, "minLocatedNewest=rows ") {
+		t.Fatalf("%d %s", code, o)
+	}
+	// the default is printed as 8, and a row that is not read prints no bar
+	_, o = run1(mk(0))
+	if !strings.Contains(o, "newest=1/1 minLocatedNewest=8\n") || strings.Contains(o, "SKIP other form=post-tag tags=0 located=0 withheld=0 notFinal=0 newest=0/0 minLocatedNewest") {
+		t.Fatalf("%s", o)
+	}
+	// an explicit override is printed on the row and in the summary
+	_, o = run1(mk(7), "--min-located-newest", "1")
+	if !strings.Contains(o, "newest=1/1 minLocatedNewest=1\n") || !strings.Contains(o, "minLocatedNewest=1 tagsDigest=") {
+		t.Fatalf("%s", o)
+	}
+}
