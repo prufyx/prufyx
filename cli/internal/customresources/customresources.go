@@ -445,6 +445,23 @@ func (x Index) ListingsSharing(slug string) []string {
 	return out
 }
 
+// Listed reports that some project lists the group.
+func (x Index) Listed(group string) bool { return len(x.listings[group]) > 0 }
+
+// KindScoped reports that the group is listed and every listing names its
+// kinds, so a kind no listing names is not claimed by any project.
+func (x Index) KindScoped(group string) bool {
+	if len(x.listings[group]) == 0 {
+		return false
+	}
+	for _, l := range x.listings[group] {
+		if l.kinds == nil {
+			return false
+		}
+	}
+	return true
+}
+
 func containsString(values []string, value string) bool {
 	for _, v := range values {
 		if v == value {
