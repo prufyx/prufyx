@@ -338,6 +338,8 @@ func TestCICoreGroupsAreComplete(t *testing.T) {
 		"package dropped from an include": strings.Replace(text, "packages: ./internal/maintainer/evidencereattest/\n", "packages: \"\"\n", 1),
 		"package not excluded":            strings.Replace(text, "        ./internal/maintainer/evidencereattest/\n        ./cmd/prufyx-maintainer/", "        ./cmd/prufyx-maintainer/", 1),
 		"no catch-all":                    strings.Replace(text, `packages: ""`, "packages: ./internal/x/", 1),
+		"a catch-all part dropped":        strings.Replace(text, "          - group: core-rest-2\n            packages: \"\"\n            rest_index: \"2\"\n            rest_total: \"2\"\n", "", 1),
+		"a part repeats an index":         strings.Replace(text, `rest_index: "2"`, `rest_index: "1"`, 1),
 	}
 	for name, mutated := range broken {
 		if mutated == text {
@@ -372,20 +374,43 @@ func ciCoreGroupProblems(raw []byte) []string {
 	}
 	union := map[string]bool{}
 	catchAll := 0
+	parts := map[string]bool{}
+	partTotal := ""
 	includes, _ := job.Strategy.Matrix["include"].([]any)
 	for _, item := range includes {
 		inc, _ := item.(map[string]any)
 		packages, _ := inc["packages"].(string)
 		if strings.TrimSpace(packages) == "" {
 			catchAll++
+			// The catch-all may be split into parts by package number: the
+			// parts must be 1..N of one N, each once.
+			idx, _ := inc["rest_index"].(string)
+			tot, _ := inc["rest_total"].(string)
+			if partTotal != "" && tot != partTotal {
+				problems = append(problems, "test-core: the catch-all parts name different totals")
+			}
+			partTotal = tot
+			if idx == "" || tot == "" || parts[idx] {
+				problems = append(problems, "test-core: a catch-all part has no index or total, or repeats an index")
+			}
+			parts[idx] = true
 			continue
 		}
 		for _, f := range strings.Fields(packages) {
 			union[f] = true
 		}
 	}
-	if catchAll != 1 {
-		problems = append(problems, "test-core needs exactly one catch-all include (empty packages), has "+strconv.Itoa(catchAll))
+	if catchAll < 1 {
+		problems = append(problems, "test-core needs a catch-all include (empty packages), has none")
+	}
+	if n, err := strconv.Atoi(partTotal); err != nil || n != catchAll {
+		problems = append(problems, "test-core: the catch-all parts must number exactly rest_total ("+partTotal+"), has "+strconv.Itoa(catchAll))
+	} else {
+		for i := 1; i <= n; i++ {
+			if !parts[strconv.Itoa(i)] {
+				problems = append(problems, "test-core: the catch-all lacks part "+strconv.Itoa(i))
+			}
+		}
 	}
 	for pkg := range union {
 		if !grouped[pkg] {
