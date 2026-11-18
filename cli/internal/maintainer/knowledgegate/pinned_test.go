@@ -127,7 +127,13 @@ func TestPinnedRuleEditsAreRefused(t *testing.T) {
 			base, head := trees(t)
 			ids := pinnableIDs(t, readPack(t, base, cncfRulesPath))
 			pinInTree(t, base, ids[:1], nil)
-			pinInTree(t, head, ids[:1], edit)
+			// The head is written without regenerating the derived files: the
+			// edit need not be one the engine admits for the change to be refused.
+			p := readPack(t, head, cncfRulesPath)
+			e := p.find(t, ids[0])
+			pinRule(t, e, evidenceOf(e)["reviewedAt"].(string))
+			edit(e)
+			p.write(t, head, cncfRulesPath)
 			r := runGate(t, Options{Base: base, Head: head})
 			requireRefusedAsPinned(t, change(t, r, ids[0]), "may change only by dropping its lease or being withdrawn")
 			if r.Passed() {
