@@ -41,8 +41,8 @@ func TestShippedTableLoads(t *testing.T) {
 	if err := LoadError(); err != nil {
 		t.Fatal(err)
 	}
-	if len(Reviewed) != len(rowsBeforeData) {
-		t.Fatalf("%d rows, want %d", len(Reviewed), len(rowsBeforeData))
+	if len(Reviewed) < len(rowsBeforeData) {
+		t.Fatalf("%d rows, want at least %d", len(Reviewed), len(rowsBeforeData))
 	}
 	for _, want := range rowsBeforeData {
 		got, err := Lookup(Reviewed, want.Component)
@@ -81,17 +81,41 @@ func TestReviewedRows(t *testing.T) {
 				if _, err := row.compile(); err != nil {
 					t.Fatal(err)
 				}
-				file := "# Changelog\n\n## main / unreleased\n\n* [FEATURE] new\n\n" +
-					strings.ReplaceAll("## 1.2.3 / 2026-01-02\n\n* [BUGFIX] fix\n\n", "", "") +
-					"## 1.2.2 / 2025-12-01\n\n* [BUGFIX] older\n"
-				unrel := "main / unreleased"
+				heading := func(v, date string) string {
+					switch row.HeadingPattern {
+					case headingStyles["version-v-prefixed"]:
+						return "v" + v
+					case headingStyles["version-bracketed-date"]:
+						return "[" + v + "] - " + date
+					case headingStyles["version-slash-date"]:
+						return v + " / " + date
+					case headingStyles["release-v-slash-date"]:
+						return "Release v" + v + " - " + strings.ReplaceAll(date, "-", "/")
+					case headingStyles["version-linked-paren-date"]:
+						return "[v" + v + "](https://" + row.Repo.Key + "/tree/v" + v + ") (" + date + ")"
+					}
+					t.Fatalf("no sample heading for %q", row.HeadingPattern)
+					return ""
+				}
 				if len(row.BoundaryPatterns) == 0 {
 					t.Fatal("a file row has no boundary pattern")
 				}
-				if strings.Contains(row.BoundaryPatterns[0], `\(`) {
-					unrel = "main / (unreleased)"
+				var boundary string
+				switch row.BoundaryPatterns[0] {
+				case boundaryStyles["main-unreleased"]:
+					boundary = "main / unreleased"
+				case boundaryStyles["main-unreleased-parenthesised"]:
+					boundary = "main / (unreleased)"
+				case boundaryStyles["line-heading-v"]:
+					boundary = "v1.3"
+				case boundaryStyles["prerelease-linked-paren-date"]:
+					boundary = "[v1.3.0-rc1](https://" + row.Repo.Key + "/tree/v1.3.0-rc1) (2026-02-01)"
+				default:
+					t.Fatalf("no sample boundary for %q", row.BoundaryPatterns[0])
 				}
-				file = strings.Replace(file, "main / unreleased", unrel, 1)
+				file := "# Changelog\n\n## " + boundary + "\n\n* [FEATURE] new\n\n" +
+					"## " + heading("1.2.3", "2026-01-02") + "\n\n* [BUGFIX] fix\n\n" +
+					"## " + heading("1.2.2", "2025-12-01") + "\n\n* [BUGFIX] older\n"
 				r := &memReader{files: map[string][]byte{row.Repo.Key + "@" + testCommit + ":" + row.Path: []byte(file)}}
 				m, err := BuildManifest(r, row, extract.Tag{Name: "v1.2.3", Commit: testCommit}, zeroDigest)
 				if err != nil || m.Entry == nil || m.Withheld != nil {
@@ -102,6 +126,18 @@ func TestReviewedRows(t *testing.T) {
 				}
 				// A version the file does not hold is withheld, never read from a
 				// neighbour.
+				m, err = BuildManifest(r, row, extract.Tag{Name: "v1.2.4", Commit: testCommit}, zeroDigest)
+				if err != nil || m.Withheld == nil || m.Entry != nil {
+					t.Fatalf("a missing version must be withheld: %v %+v", err, m)
+				}
+			case FormPerVersionFile:
+				path := strings.Replace(row.Path, "{version}", "1.2.3", 1)
+				r := &memReader{files: map[string][]byte{row.Repo.Key + "@" + testCommit + ":" + path: []byte("# 1.2.3\n\n* fix\n")}}
+				m, err := BuildManifest(r, row, extract.Tag{Name: "v1.2.3", Commit: testCommit}, zeroDigest)
+				if err != nil || m.Entry == nil || m.Withheld != nil {
+					t.Fatalf("want an entry: %v %+v", err, m)
+				}
+				// A version with no file is withheld, never read from a neighbour.
 				m, err = BuildManifest(r, row, extract.Tag{Name: "v1.2.4", Commit: testCommit}, zeroDigest)
 				if err != nil || m.Withheld == nil || m.Entry != nil {
 					t.Fatalf("a missing version must be withheld: %v %+v", err, m)

@@ -15,6 +15,12 @@
       "form": "post-tag"
     },
     {
+      "component": "coredns",
+      "repo": "github.com/coredns/coredns",
+      "form": "changelog-per-version-file",
+      "path": "notes/coredns-{version}.md"
+    },
+    {
       "component": "csi-driver-smb",
       "repo": "github.com/kubernetes-csi/csi-driver-smb",
       "form": "github-release"
@@ -25,12 +31,36 @@
       "form": "github-release"
     },
     {
+      "component": "fluentd",
+      "repo": "github.com/fluent/fluentd",
+      "form": "changelog-file",
+      "path": "CHANGELOG.md",
+      "headingStyle": "release-v-slash-date",
+      "boundaryStyles": ["line-heading-v"]
+    },
+    {
+      "component": "openfga",
+      "repo": "github.com/openfga/openfga",
+      "form": "changelog-file",
+      "path": "CHANGELOG.md",
+      "headingStyle": "version-bracketed-date",
+      "boundaryStyles": ["prerelease-linked-paren-date"]
+    },
+    {
       "component": "prometheus",
       "repo": "github.com/prometheus/prometheus",
       "form": "changelog-file",
       "path": "CHANGELOG.md",
       "headingStyle": "version-slash-date",
       "boundaryStyles": ["main-unreleased"]
+    },
+    {
+      "component": "traefik",
+      "repo": "github.com/traefik/traefik",
+      "form": "changelog-file",
+      "path": "CHANGELOG.md",
+      "headingStyle": "version-linked-paren-date",
+      "boundaryStyles": ["prerelease-linked-paren-date"]
     },
     {
       "component": "vault",
