@@ -777,7 +777,8 @@
             "RULE_NOT_DECIDED",
             "UNSUPPORTED_COMBINATION",
             "VERSION_CONFLICT",
-            "VERSION_NOT_DETECTED"
+            "VERSION_NOT_DETECTED",
+            "VERSION_SCHEME_UNSUPPORTED"
           ]
         },
         "detail": {

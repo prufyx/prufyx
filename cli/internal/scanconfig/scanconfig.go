@@ -312,12 +312,33 @@ func parseVersions(value any, path string) (map[string]string, error) {
 		version, ok := m[slug].(string)
 		// Only Kubernetes takes a pre-release X.Y.0-(alpha|beta|rc).N; every
 		// other project stays strict X.Y.Z.
-		if !ok || !(validVersion(version) || slug == "kubernetes" && preRelease(version)) {
+		if !ok || !(validVersion(version) || slug == "kubernetes" && preRelease(version) || slug != "kubernetes" && SchemeToken(version)) {
 			return nil, fail("%s must be a version X.Y.Z", echo(join(path, slug)))
 		}
 		out[slug] = version
 	}
 	return out, nil
+}
+
+// SchemeToken reports a well-formed version of a scheme other than X.Y.Z (for
+// example linkerd edge-24.11.8): 1 to 64 characters of [A-Za-z0-9._-],
+// starting with a letter and not a "v" before a digit. It is carried to the
+// scan, which reports it as VERSION_SCHEME_UNSUPPORTED and never compares it.
+func SchemeToken(version string) bool {
+	if len(version) == 0 || len(version) > 64 {
+		return false
+	}
+	for i := 0; i < len(version); i++ {
+		c := version[i]
+		letter := c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
+		if !(letter || c >= '0' && c <= '9' || c == '.' || c == '_' || c == '-') {
+			return false
+		}
+		if i == 0 && !letter {
+			return false
+		}
+	}
+	return !(len(version) > 1 && (version[0] == 'v' || version[0] == 'V') && version[1] >= '0' && version[1] <= '9')
 }
 
 // validVersion accepts X.Y.Z with decimal parts, no leading zeros, no prefix

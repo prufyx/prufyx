@@ -43,6 +43,7 @@ const (
 	ReasonAlphaAPINotCovered         = "ALPHA_API_NOT_COVERED"
 	ReasonRuleNotDecided             = "RULE_NOT_DECIDED"
 	ReasonProjectNotInKnowledge      = "PROJECT_NOT_IN_KNOWLEDGE"
+	ReasonVersionSchemeUnsupported   = "VERSION_SCHEME_UNSUPPORTED"
 )
 
 // GapKey selects one gap message: a reason, or a reason and a variant.
@@ -64,6 +65,7 @@ const (
 	GapPathNotPlannable        GapKey = ReasonPathNotPlannable
 	GapComponentNotCovered     GapKey = ReasonComponentNotCovered
 	GapVersionNotDetected      GapKey = ReasonVersionNotDetected
+	GapVersionScheme           GapKey = ReasonVersionSchemeUnsupported
 	GapProjectRulesDeferred    GapKey = ReasonProjectNotInKnowledge + "/rules-deferred"
 	GapVersionConflict         GapKey = ReasonVersionConflict
 	GapDeclarationScope        GapKey = ReasonDeclarationMissing + "/scope"
@@ -212,6 +214,8 @@ var gapMessages = map[GapKey]gapMessage{
 		"upgrade prufyx, then scan again; the other projects are checked normally", 1},
 	GapVersionNotDetected: {"the current %[1]s version is not declared and was not detected in the manifests",
 		"declare it with --from %[1]s=VERSION or under current: in prufyx.yaml", 1},
+	GapVersionScheme: {"%[1]s version %[2]s is not X.Y.Z and is not compared yet (for example linkerd edge-YY.M.N)",
+		"name the stable X.Y.Z of %[1]s if you run one, or check it by hand", 2},
 	GapVersionConflict: {"the manifests give conflicting or unusable version signals for %[1]s, so no version was detected",
 		"declare the version with --from %[1]s=VERSION or under current: in prufyx.yaml", 1},
 	GapDeclarationScope: {"the %[1]s manifests are not declared to be the complete set you apply",
@@ -336,7 +340,7 @@ func GapReasons() []string {
 		ReasonAlphaAPINotCovered, ReasonAPIVersionNotReviewed, ReasonAPIVersionNotServed, ReasonUnsupportedCombination, ReasonComponentNotCovered, ReasonDeclarationMismatch, ReasonDeclarationMissing,
 		ReasonDistributionNotCovered, ReasonDocumentsNotEvaluated, ReasonDocumentsTemplated, ReasonDowngradeNotReviewed,
 		ReasonEvidenceExpired, ReasonIntermediateLineNotCovered, ReasonLinesNotListed, ReasonLineNotAttested, ReasonMajorHopNotCovered, ReasonNoReviewedPathPolicy,
-		ReasonPathNotPlannable, ReasonPathPolicyNotCurrent, ReasonProjectNotInKnowledge, ReasonRuleNotDecided, ReasonVersionConflict, ReasonVersionNotDetected,
+		ReasonPathNotPlannable, ReasonPathPolicyNotCurrent, ReasonProjectNotInKnowledge, ReasonRuleNotDecided, ReasonVersionConflict, ReasonVersionNotDetected, ReasonVersionSchemeUnsupported,
 	}
 }
 

@@ -93,15 +93,18 @@ type Result struct {
 
 // Reasons a component is set aside.
 const (
-	UnknownNotInCatalog = "COMPONENT_NOT_IN_CATALOG"
-	UnknownNotCovered   = scanreport.ReasonComponentNotCovered
+	UnknownNotInCatalog  = "COMPONENT_NOT_IN_CATALOG"
+	UnknownNotCovered    = scanreport.ReasonComponentNotCovered
+	UnknownVersionScheme = scanreport.ReasonVersionSchemeUnsupported
 )
 
 // UnknownComponent is a component the scan did not evaluate.
 type UnknownComponent struct {
+	version   string
 	Component string
 	Reason    string
 	Detail    string
+	Action    string
 }
 
 // Run performs the scan. A *UsageError is input the scan does not accept
@@ -189,6 +192,13 @@ func Run(request Request, options Options) (Result, error) {
 	}
 	if err := checkCharts(effective); err != nil {
 		return Result{}, err
+	}
+	// A version of another scheme (linkerd edge-YY.M.N) is never compared: the
+	// component is set aside with a typed gap and the rest is evaluated.
+	scheme := splitVersionScheme(&effective)
+	if options.SkipUnknown {
+		unknown = append(unknown, scheme...)
+		scheme = nil
 	}
 	kubelet, err := kubeletDeclarationOf(effective)
 	if err != nil {
@@ -550,6 +560,9 @@ func Run(request Request, options Options) (Result, error) {
 	dropShadowedNotDetected(&report)
 	if pinnedNowGap != nil {
 		report.Gaps = append(report.Gaps, *pinnedNowGap)
+	}
+	for _, u := range scheme {
+		report.Gaps = append(report.Gaps, scanreport.NewGap(u.Component, nil, scanreport.GapVersionScheme, u.Component, u.version))
 	}
 	scanreport.Finalize(&report)
 	if request.Redact {
@@ -991,4 +1004,30 @@ func inputLimits(request Request) intake.Limits {
 		return intake.SmallLimits()
 	}
 	return intake.Limits{}
+}
+
+// splitVersionScheme removes from effective every component whose declared
+// version is a well-formed token of a scheme other than X.Y.Z, and returns
+// them with a typed reason. Kubernetes stays strict.
+func splitVersionScheme(effective *scanconfig.Effective) []UnknownComponent {
+	var out []UnknownComponent
+	for _, slug := range namedComponents(*effective) {
+		if slug == kubernetesSlug {
+			continue
+		}
+		token := ""
+		for _, value := range []string{effective.Current[slug].Value, effective.Target[slug].Value} {
+			if value != "" && !validVersion(value) {
+				token = value
+				break
+			}
+		}
+		if token == "" {
+			continue
+		}
+		gap := scanreport.NewGap(slug, nil, scanreport.GapVersionScheme, slug, token)
+		out = append(out, UnknownComponent{version: token, Component: slug, Reason: UnknownVersionScheme, Detail: gap.Detail, Action: gap.Action})
+		dropComponent(effective, slug)
+	}
+	return out
 }

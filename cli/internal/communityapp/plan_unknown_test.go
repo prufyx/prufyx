@@ -81,7 +81,7 @@ func TestPlanOnlyUnknownComponentIsUnknown(t *testing.T) {
 
 func TestPlanUnknownComponentStillRefusesMalformedInput(t *testing.T) {
 	for _, args := range [][]string{
-		{"--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3", "--to", "external-dns=not-a-version"},
+		{"--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3", "--to", "external-dns=not a version"},
 		{"--from", "kubernetes=1.2", "--to", "kubernetes=1.25.3", "--to", "external-dns=0.15.0"},
 		{"--from", "external-dns=0.14.0"},
 	} {
