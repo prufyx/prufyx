@@ -2,12 +2,18 @@
   "schema": "prufyx.io/qa-e2e-report/v1",
   "header": "Results of Prufyx runs against real upgrades on kind clusters. kind is not production fidelity. Display only: these runs do not change any Prufyx verdict.",
   "counts": {
-    "correct": 34,
-    "wrongPass": 1,
+    "correct": 32,
+    "wrongPass": 0,
     "falseAlarm": 0,
-    "gap": 70,
-    "rows": 105
+    "gap": 119,
+    "rows": 151
   },
+  "supersededExcluded": 3,
+  "supersededBy": [
+    "m3-r01",
+    "m3-r02",
+    "r002"
+  ],
   "runs": [
     {
       "id": "m2a-r2",
@@ -558,318 +564,6 @@
       ]
     },
     {
-      "id": "m3-r01-try1",
-      "k8sFrom": "1.25.16",
-      "k8sTo": "1.26.15",
-      "kindNodeImageFrom": "kindest/node@sha256:6110314339b3b44d10da7d27881849a87e092124afab5956f2e10ecdb463b025",
-      "kindNodeImageTo": "kindest/node@sha256:c79602a44b4056d7e48dc20f7504350f1e87530fe953428b792def00bc1076dd",
-      "prufyxCommit": "28fc30c183e8c2c9af1d3a483bbec42a27378ba7",
-      "counts": {
-        "correct": 5,
-        "wrongPass": 1,
-        "falseAlarm": 0,
-        "gap": 7,
-        "rows": 13
-      },
-      "checks": [
-        {
-          "app": "*",
-          "from": "1.25.16",
-          "to": "1.26.15",
-          "command": "scan",
-          "result": "gap",
-          "oracle": "replay-on-target",
-          "reason": "NOT_CHECKED",
-          "ids": [
-            "API_VERSION_NOT_REVIEWED"
-          ],
-          "logDigest": "2843a027fdada799966245a62683fef4fd3b9104b48a5effc1ccfb1de82a8b18",
-          "artifacts": [
-            {
-              "name": "rendered.yaml",
-              "sha256": "8e1ef47ae119f9e56a7c5b2299d713f3f2efd76a20897a32d5fc8e8b0c4374fc"
-            }
-          ]
-        },
-        {
-          "app": "*",
-          "from": "1.25.16",
-          "to": "1.26.15",
-          "command": "scan",
-          "result": "gap",
-          "oracle": "replay-on-target",
-          "reason": "NOT_CHECKED",
-          "ids": [
-            "DOCUMENTS_TEMPLATED"
-          ],
-          "logDigest": "2843a027fdada799966245a62683fef4fd3b9104b48a5effc1ccfb1de82a8b18",
-          "artifacts": [
-            {
-              "name": "rendered.yaml",
-              "sha256": "8e1ef47ae119f9e56a7c5b2299d713f3f2efd76a20897a32d5fc8e8b0c4374fc"
-            }
-          ]
-        },
-        {
-          "app": "?",
-          "from": "",
-          "to": "",
-          "command": "scan",
-          "result": "correct",
-          "oracle": "replay-on-target",
-          "reason": "BLOCKED",
-          "ids": [
-            "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta1.1-25-0-to-1-26-0"
-          ],
-          "logDigest": "2843a027fdada799966245a62683fef4fd3b9104b48a5effc1ccfb1de82a8b18",
-          "artifacts": [
-            {
-              "name": "rendered.yaml",
-              "sha256": "8e1ef47ae119f9e56a7c5b2299d713f3f2efd76a20897a32d5fc8e8b0c4374fc"
-            }
-          ]
-        },
-        {
-          "app": "?",
-          "from": "",
-          "to": "",
-          "command": "scan",
-          "result": "correct",
-          "oracle": "replay-on-target",
-          "reason": "BLOCKED",
-          "ids": [
-            "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta1.1-25-0-to-1-26-0"
-          ],
-          "logDigest": "2843a027fdada799966245a62683fef4fd3b9104b48a5effc1ccfb1de82a8b18",
-          "artifacts": [
-            {
-              "name": "rendered.yaml",
-              "sha256": "8e1ef47ae119f9e56a7c5b2299d713f3f2efd76a20897a32d5fc8e8b0c4374fc"
-            }
-          ]
-        },
-        {
-          "app": "keda",
-          "from": "2.10.2",
-          "to": "2.12.1",
-          "command": "assess",
-          "result": "gap",
-          "oracle": "in-place upgrade",
-          "reason": "COMPONENT_NOT_IDENTIFIED",
-          "ids": [],
-          "logDigest": "88c7b8a71d5a775a2c5b513b7d463526f0c98861a24408b1812c18e3c9d123c5",
-          "artifacts": [
-            {
-              "name": "chart keda 2.10.2",
-              "sha256": "2e75903cda0780a4a8115dc199541315eaccdbfc3ec3da5ab492c8825080cc99"
-            },
-            {
-              "name": "chart keda 2.12.1",
-              "sha256": "ee87da063be94f3f65661656602775c38ab723374c9892ecc73c1cea269e64c0"
-            },
-            {
-              "name": "rendered.yaml",
-              "sha256": "8e1ef47ae119f9e56a7c5b2299d713f3f2efd76a20897a32d5fc8e8b0c4374fc"
-            }
-          ]
-        },
-        {
-          "app": "keda",
-          "from": "2.10.2",
-          "to": "2.12.1",
-          "command": "scan",
-          "result": "correct",
-          "oracle": "replay-on-target",
-          "reason": "NO_FINDING",
-          "ids": [],
-          "logDigest": "3a2d040f50090b9b109b08e7e5cf3d70f47577a6a50288839baa6ee7205b0c5d",
-          "artifacts": [
-            {
-              "name": "chart keda 2.10.2",
-              "sha256": "2e75903cda0780a4a8115dc199541315eaccdbfc3ec3da5ab492c8825080cc99"
-            },
-            {
-              "name": "chart keda 2.12.1",
-              "sha256": "ee87da063be94f3f65661656602775c38ab723374c9892ecc73c1cea269e64c0"
-            },
-            {
-              "name": "rendered.yaml",
-              "sha256": "8e1ef47ae119f9e56a7c5b2299d713f3f2efd76a20897a32d5fc8e8b0c4374fc"
-            }
-          ]
-        },
-        {
-          "app": "keda",
-          "from": "2.10.2",
-          "to": "2.12.1",
-          "command": "scan+plan",
-          "result": "gap",
-          "oracle": "in-place upgrade",
-          "reason": "NO_DATA_COMPONENT_NOT_COVERED",
-          "ids": [],
-          "logDigest": "2843a027fdada799966245a62683fef4fd3b9104b48a5effc1ccfb1de82a8b18",
-          "artifacts": [
-            {
-              "name": "chart keda 2.10.2",
-              "sha256": "2e75903cda0780a4a8115dc199541315eaccdbfc3ec3da5ab492c8825080cc99"
-            },
-            {
-              "name": "chart keda 2.12.1",
-              "sha256": "ee87da063be94f3f65661656602775c38ab723374c9892ecc73c1cea269e64c0"
-            },
-            {
-              "name": "rendered.yaml",
-              "sha256": "8e1ef47ae119f9e56a7c5b2299d713f3f2efd76a20897a32d5fc8e8b0c4374fc"
-            }
-          ]
-        },
-        {
-          "app": "metrics-server",
-          "from": "3.11.0",
-          "to": "3.12.2",
-          "command": "assess",
-          "result": "gap",
-          "oracle": "in-place upgrade",
-          "reason": "COMPONENT_NOT_IDENTIFIED",
-          "ids": [],
-          "logDigest": "88c7b8a71d5a775a2c5b513b7d463526f0c98861a24408b1812c18e3c9d123c5",
-          "artifacts": [
-            {
-              "name": "chart metrics-server 3.11.0",
-              "sha256": "e7cba5a2d7e2b0949b3ea1aa48fc3780b71eba17e1edccc8273f5da67048164b"
-            },
-            {
-              "name": "chart metrics-server 3.12.2",
-              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
-            },
-            {
-              "name": "rendered.yaml",
-              "sha256": "8e1ef47ae119f9e56a7c5b2299d713f3f2efd76a20897a32d5fc8e8b0c4374fc"
-            }
-          ]
-        },
-        {
-          "app": "metrics-server",
-          "from": "3.11.0",
-          "to": "3.12.2",
-          "command": "scan",
-          "result": "wrong PASS",
-          "oracle": "replay-on-target",
-          "reason": "CUSTOM_RESOURCES_EVALUATED",
-          "ids": [],
-          "logDigest": "bb2fef738c3511251b5bbbf253fef5e3ce5f87f6f88959fb9bdb7d17747c63c4",
-          "artifacts": [
-            {
-              "name": "chart metrics-server 3.11.0",
-              "sha256": "e7cba5a2d7e2b0949b3ea1aa48fc3780b71eba17e1edccc8273f5da67048164b"
-            },
-            {
-              "name": "chart metrics-server 3.12.2",
-              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
-            },
-            {
-              "name": "rendered.yaml",
-              "sha256": "8e1ef47ae119f9e56a7c5b2299d713f3f2efd76a20897a32d5fc8e8b0c4374fc"
-            }
-          ]
-        },
-        {
-          "app": "metrics-server",
-          "from": "3.11.0",
-          "to": "3.12.2",
-          "command": "scan",
-          "result": "correct",
-          "oracle": "replay-on-target",
-          "reason": "NO_FINDING",
-          "ids": [],
-          "logDigest": "3a2d040f50090b9b109b08e7e5cf3d70f47577a6a50288839baa6ee7205b0c5d",
-          "artifacts": [
-            {
-              "name": "chart metrics-server 3.11.0",
-              "sha256": "e7cba5a2d7e2b0949b3ea1aa48fc3780b71eba17e1edccc8273f5da67048164b"
-            },
-            {
-              "name": "chart metrics-server 3.12.2",
-              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
-            },
-            {
-              "name": "rendered.yaml",
-              "sha256": "8e1ef47ae119f9e56a7c5b2299d713f3f2efd76a20897a32d5fc8e8b0c4374fc"
-            }
-          ]
-        },
-        {
-          "app": "metrics-server",
-          "from": "3.11.0",
-          "to": "3.12.2",
-          "command": "scan+plan",
-          "result": "gap",
-          "oracle": "in-place upgrade",
-          "reason": "NO_PATH",
-          "ids": [],
-          "logDigest": "2843a027fdada799966245a62683fef4fd3b9104b48a5effc1ccfb1de82a8b18",
-          "artifacts": [
-            {
-              "name": "chart metrics-server 3.11.0",
-              "sha256": "e7cba5a2d7e2b0949b3ea1aa48fc3780b71eba17e1edccc8273f5da67048164b"
-            },
-            {
-              "name": "chart metrics-server 3.12.2",
-              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
-            },
-            {
-              "name": "rendered.yaml",
-              "sha256": "8e1ef47ae119f9e56a7c5b2299d713f3f2efd76a20897a32d5fc8e8b0c4374fc"
-            }
-          ]
-        },
-        {
-          "app": "podinfo",
-          "from": "6.0.0",
-          "to": "6.0.0",
-          "command": "assess",
-          "result": "gap",
-          "oracle": "in-place upgrade",
-          "reason": "COMPONENT_NOT_IDENTIFIED",
-          "ids": [],
-          "logDigest": "88c7b8a71d5a775a2c5b513b7d463526f0c98861a24408b1812c18e3c9d123c5",
-          "artifacts": [
-            {
-              "name": "chart podinfo 6.0.0",
-              "sha256": "aed86105891a9b1db588128878b79425cf6447e69b1012119e82c1d37c68ae67"
-            },
-            {
-              "name": "rendered.yaml",
-              "sha256": "8e1ef47ae119f9e56a7c5b2299d713f3f2efd76a20897a32d5fc8e8b0c4374fc"
-            }
-          ]
-        },
-        {
-          "app": "podinfo",
-          "from": "6.0.0",
-          "to": "6.0.0",
-          "command": "scan",
-          "result": "correct",
-          "oracle": "replay-on-target",
-          "reason": "BLOCKED",
-          "ids": [
-            "kubernetes.served-api-removal.autoscaling-v2beta2.1-25-0-to-1-26-0"
-          ],
-          "logDigest": "2843a027fdada799966245a62683fef4fd3b9104b48a5effc1ccfb1de82a8b18",
-          "artifacts": [
-            {
-              "name": "chart podinfo 6.0.0",
-              "sha256": "aed86105891a9b1db588128878b79425cf6447e69b1012119e82c1d37c68ae67"
-            },
-            {
-              "name": "rendered.yaml",
-              "sha256": "8e1ef47ae119f9e56a7c5b2299d713f3f2efd76a20897a32d5fc8e8b0c4374fc"
-            }
-          ]
-        }
-      ]
-    },
-    {
       "id": "m3-r02",
       "k8sFrom": "1.26.15",
       "k8sTo": "1.27.16",
@@ -1049,203 +743,6 @@
           "reason": "NO_PATH",
           "ids": [],
           "logDigest": "557312da6bfe77251fefe8dd9220667dde1f57852067019a4c11fda88d41fd5e",
-          "artifacts": [
-            {
-              "name": "chart metrics-server 3.11.0",
-              "sha256": "e7cba5a2d7e2b0949b3ea1aa48fc3780b71eba17e1edccc8273f5da67048164b"
-            },
-            {
-              "name": "chart metrics-server 3.12.2",
-              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
-            },
-            {
-              "name": "rendered.yaml",
-              "sha256": "19a47cb9a9fdd708e351008efb1d2c5d9dfc758e3bc4ab2910d3efce4bb8087c"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "m3-r02-try1",
-      "k8sFrom": "1.26.15",
-      "k8sTo": "1.27.16",
-      "kindNodeImageFrom": "kindest/node@sha256:c79602a44b4056d7e48dc20f7504350f1e87530fe953428b792def00bc1076dd",
-      "kindNodeImageTo": "kindest/node@sha256:2d21a61643eafc439905e18705b8186f3296384750a835ad7a005dceb9546d20",
-      "prufyxCommit": "28fc30c183e8c2c9af1d3a483bbec42a27378ba7",
-      "counts": {
-        "correct": 4,
-        "wrongPass": 0,
-        "falseAlarm": 0,
-        "gap": 4,
-        "rows": 8
-      },
-      "checks": [
-        {
-          "app": "*",
-          "from": "1.26.15",
-          "to": "1.27.16",
-          "command": "scan",
-          "result": "gap",
-          "oracle": "replay-on-target",
-          "reason": "NOT_CHECKED",
-          "ids": [
-            "API_VERSION_NOT_REVIEWED"
-          ],
-          "logDigest": "194181879d38de6a6047f5ad1e506d15bf66ed4c962c5396db730325d731653b",
-          "artifacts": [
-            {
-              "name": "rendered.yaml",
-              "sha256": "19a47cb9a9fdd708e351008efb1d2c5d9dfc758e3bc4ab2910d3efce4bb8087c"
-            }
-          ]
-        },
-        {
-          "app": "?",
-          "from": "",
-          "to": "",
-          "command": "scan",
-          "result": "correct",
-          "oracle": "replay-on-target",
-          "reason": "BLOCKED",
-          "ids": [
-            "kubernetes.served-api-removal.storage-k8s-io-v1beta1.1-26-0-to-1-27-0"
-          ],
-          "logDigest": "194181879d38de6a6047f5ad1e506d15bf66ed4c962c5396db730325d731653b",
-          "artifacts": [
-            {
-              "name": "rendered.yaml",
-              "sha256": "19a47cb9a9fdd708e351008efb1d2c5d9dfc758e3bc4ab2910d3efce4bb8087c"
-            }
-          ]
-        },
-        {
-          "app": "keda",
-          "from": "2.12.1",
-          "to": "2.12.1",
-          "command": "assess",
-          "result": "gap",
-          "oracle": "in-place upgrade",
-          "reason": "ASSESS_OUTPUT_MISSING",
-          "ids": [],
-          "logDigest": "",
-          "artifacts": [
-            {
-              "name": "chart keda 2.12.1",
-              "sha256": "ee87da063be94f3f65661656602775c38ab723374c9892ecc73c1cea269e64c0"
-            },
-            {
-              "name": "rendered.yaml",
-              "sha256": "19a47cb9a9fdd708e351008efb1d2c5d9dfc758e3bc4ab2910d3efce4bb8087c"
-            }
-          ]
-        },
-        {
-          "app": "keda",
-          "from": "2.12.1",
-          "to": "2.12.1",
-          "command": "scan",
-          "result": "correct",
-          "oracle": "replay-on-target",
-          "reason": "NO_FINDING",
-          "ids": [],
-          "logDigest": "59e96c36c4c74365189f38addf9fd06a69963f94e0c9fcb93cc17231b2639e07",
-          "artifacts": [
-            {
-              "name": "chart keda 2.12.1",
-              "sha256": "ee87da063be94f3f65661656602775c38ab723374c9892ecc73c1cea269e64c0"
-            },
-            {
-              "name": "rendered.yaml",
-              "sha256": "19a47cb9a9fdd708e351008efb1d2c5d9dfc758e3bc4ab2910d3efce4bb8087c"
-            }
-          ]
-        },
-        {
-          "app": "metrics-server",
-          "from": "3.11.0",
-          "to": "3.12.2",
-          "command": "assess",
-          "result": "gap",
-          "oracle": "in-place upgrade",
-          "reason": "ASSESS_OUTPUT_MISSING",
-          "ids": [],
-          "logDigest": "",
-          "artifacts": [
-            {
-              "name": "chart metrics-server 3.11.0",
-              "sha256": "e7cba5a2d7e2b0949b3ea1aa48fc3780b71eba17e1edccc8273f5da67048164b"
-            },
-            {
-              "name": "chart metrics-server 3.12.2",
-              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
-            },
-            {
-              "name": "rendered.yaml",
-              "sha256": "19a47cb9a9fdd708e351008efb1d2c5d9dfc758e3bc4ab2910d3efce4bb8087c"
-            }
-          ]
-        },
-        {
-          "app": "metrics-server",
-          "from": "3.11.0",
-          "to": "3.12.2",
-          "command": "scan",
-          "result": "correct",
-          "oracle": "replay-on-target",
-          "reason": "CUSTOM_RESOURCES_EVALUATED",
-          "ids": [],
-          "logDigest": "a64a387aee1637791aea5b2a3cd5114297c0a62f518ea56204b57934d6e8867f",
-          "artifacts": [
-            {
-              "name": "chart metrics-server 3.11.0",
-              "sha256": "e7cba5a2d7e2b0949b3ea1aa48fc3780b71eba17e1edccc8273f5da67048164b"
-            },
-            {
-              "name": "chart metrics-server 3.12.2",
-              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
-            },
-            {
-              "name": "rendered.yaml",
-              "sha256": "19a47cb9a9fdd708e351008efb1d2c5d9dfc758e3bc4ab2910d3efce4bb8087c"
-            }
-          ]
-        },
-        {
-          "app": "metrics-server",
-          "from": "3.11.0",
-          "to": "3.12.2",
-          "command": "scan",
-          "result": "correct",
-          "oracle": "replay-on-target",
-          "reason": "NO_FINDING",
-          "ids": [],
-          "logDigest": "59e96c36c4c74365189f38addf9fd06a69963f94e0c9fcb93cc17231b2639e07",
-          "artifacts": [
-            {
-              "name": "chart metrics-server 3.11.0",
-              "sha256": "e7cba5a2d7e2b0949b3ea1aa48fc3780b71eba17e1edccc8273f5da67048164b"
-            },
-            {
-              "name": "chart metrics-server 3.12.2",
-              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
-            },
-            {
-              "name": "rendered.yaml",
-              "sha256": "19a47cb9a9fdd708e351008efb1d2c5d9dfc758e3bc4ab2910d3efce4bb8087c"
-            }
-          ]
-        },
-        {
-          "app": "metrics-server",
-          "from": "3.11.0",
-          "to": "3.12.2",
-          "command": "scan+plan",
-          "result": "gap",
-          "oracle": "in-place upgrade",
-          "reason": "NO_PATH",
-          "ids": [],
-          "logDigest": "194181879d38de6a6047f5ad1e506d15bf66ed4c962c5396db730325d731653b",
           "artifacts": [
             {
               "name": "chart metrics-server 3.11.0",
@@ -1607,6 +1104,517 @@
             {
               "name": "rendered.yaml",
               "sha256": "7d28d7b0883d349131ec5702945c9c937ba376a7288c9c082b4ad4b0b6457d62"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m4-r01",
+      "k8sFrom": "1.27.16",
+      "k8sTo": "1.31.14",
+      "kindNodeImageFrom": "kindest/node@sha256:2d21a61643eafc439905e18705b8186f3296384750a835ad7a005dceb9546d20",
+      "kindNodeImageTo": "kindest/node@sha256:6f86cf509dbb42767b6e79debc3f2c32e4ee01386f0489b3b2be24b0a55aac2b",
+      "prufyxCommit": "28fc30c183e8c2c9af1d3a483bbec42a27378ba7",
+      "counts": {
+        "correct": 2,
+        "wrongPass": 0,
+        "falseAlarm": 0,
+        "gap": 18,
+        "rows": 20
+      },
+      "checks": [
+        {
+          "app": "*",
+          "from": "1.27.16",
+          "to": "1.31.14",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NOT_CHECKED",
+          "ids": [
+            "DECLARATION_MISSING"
+          ],
+          "logDigest": "ae3a64712d1f05f9fb765b33366d65370ca305759e3a5b7b14ce805191a43fe8",
+          "artifacts": [
+            {
+              "name": "rendered.yaml",
+              "sha256": "533fe6431c5e967f42c773f54ff0a940c6ce9615e657e7bdce6f5358be87abcf"
+            }
+          ]
+        },
+        {
+          "app": "gatekeeper",
+          "from": "3.13.4",
+          "to": "3.17.1",
+          "command": "assess",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "PROJECT_ABSENT_FROM_ASSESS",
+          "ids": [],
+          "logDigest": "eee01e0a03a3295f742cb9eb2d36b4b6f7bb3305ec93279d91345749db78014c",
+          "artifacts": [
+            {
+              "name": "chart gatekeeper 3.13.4",
+              "sha256": "b51f2ad9e294a3e975f76969fa276afd2b19a0500534ff53284e03b19a2ed2bf"
+            },
+            {
+              "name": "chart gatekeeper 3.17.1",
+              "sha256": "9710446e95410794534667a9f994966e8bf3ed42c6d2d75872c28e07a1d5cc5d"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "533fe6431c5e967f42c773f54ff0a940c6ce9615e657e7bdce6f5358be87abcf"
+            }
+          ]
+        },
+        {
+          "app": "gatekeeper",
+          "from": "3.13.4",
+          "to": "3.17.1",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "CUSTOM_RESOURCES_NOT_EVALUATED",
+          "ids": [],
+          "logDigest": "da2ee48aef104df1782c03069bc33907812be9a3ccd67a826b6f119095762f6e",
+          "artifacts": [
+            {
+              "name": "chart gatekeeper 3.13.4",
+              "sha256": "b51f2ad9e294a3e975f76969fa276afd2b19a0500534ff53284e03b19a2ed2bf"
+            },
+            {
+              "name": "chart gatekeeper 3.17.1",
+              "sha256": "9710446e95410794534667a9f994966e8bf3ed42c6d2d75872c28e07a1d5cc5d"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "533fe6431c5e967f42c773f54ff0a940c6ce9615e657e7bdce6f5358be87abcf"
+            }
+          ]
+        },
+        {
+          "app": "gatekeeper",
+          "from": "3.13.4",
+          "to": "3.17.1",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING",
+          "ids": [],
+          "logDigest": "c7ec709023f6eda570de2a007b0d39105935a6f5b1c62aba7980b5139997788f",
+          "artifacts": [
+            {
+              "name": "chart gatekeeper 3.13.4",
+              "sha256": "b51f2ad9e294a3e975f76969fa276afd2b19a0500534ff53284e03b19a2ed2bf"
+            },
+            {
+              "name": "chart gatekeeper 3.17.1",
+              "sha256": "9710446e95410794534667a9f994966e8bf3ed42c6d2d75872c28e07a1d5cc5d"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "533fe6431c5e967f42c773f54ff0a940c6ce9615e657e7bdce6f5358be87abcf"
+            }
+          ]
+        },
+        {
+          "app": "gatekeeper",
+          "from": "3.13.4",
+          "to": "3.17.1",
+          "command": "scan+plan",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NO_PATH",
+          "ids": [],
+          "logDigest": "ae3a64712d1f05f9fb765b33366d65370ca305759e3a5b7b14ce805191a43fe8",
+          "artifacts": [
+            {
+              "name": "chart gatekeeper 3.13.4",
+              "sha256": "b51f2ad9e294a3e975f76969fa276afd2b19a0500534ff53284e03b19a2ed2bf"
+            },
+            {
+              "name": "chart gatekeeper 3.17.1",
+              "sha256": "9710446e95410794534667a9f994966e8bf3ed42c6d2d75872c28e07a1d5cc5d"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "533fe6431c5e967f42c773f54ff0a940c6ce9615e657e7bdce6f5358be87abcf"
+            }
+          ]
+        },
+        {
+          "app": "keda",
+          "from": "2.13.1",
+          "to": "2.16.1",
+          "command": "assess",
+          "result": "correct",
+          "oracle": "in-place upgrade",
+          "reason": "ASSESS_CHECKS_IN_JSON",
+          "ids": [],
+          "logDigest": "eee01e0a03a3295f742cb9eb2d36b4b6f7bb3305ec93279d91345749db78014c",
+          "artifacts": [
+            {
+              "name": "chart keda 2.13.2",
+              "sha256": "3d1bb0537755ebeafacf1da9f91fbcbbac7b673b0e4141cc827e32635e68c228"
+            },
+            {
+              "name": "chart keda 2.16.1",
+              "sha256": "37712eaf5970cf280c3e18aafff3bb0a54ca2d21840667907fb472ca969cc334"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "533fe6431c5e967f42c773f54ff0a940c6ce9615e657e7bdce6f5358be87abcf"
+            }
+          ]
+        },
+        {
+          "app": "keda",
+          "from": "2.13.1",
+          "to": "2.16.1",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "CUSTOM_RESOURCES_NOT_EVALUATED",
+          "ids": [],
+          "logDigest": "da2ee48aef104df1782c03069bc33907812be9a3ccd67a826b6f119095762f6e",
+          "artifacts": [
+            {
+              "name": "chart keda 2.13.2",
+              "sha256": "3d1bb0537755ebeafacf1da9f91fbcbbac7b673b0e4141cc827e32635e68c228"
+            },
+            {
+              "name": "chart keda 2.16.1",
+              "sha256": "37712eaf5970cf280c3e18aafff3bb0a54ca2d21840667907fb472ca969cc334"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "533fe6431c5e967f42c773f54ff0a940c6ce9615e657e7bdce6f5358be87abcf"
+            }
+          ]
+        },
+        {
+          "app": "keda",
+          "from": "2.13.1",
+          "to": "2.16.1",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING",
+          "ids": [],
+          "logDigest": "c7ec709023f6eda570de2a007b0d39105935a6f5b1c62aba7980b5139997788f",
+          "artifacts": [
+            {
+              "name": "chart keda 2.13.2",
+              "sha256": "3d1bb0537755ebeafacf1da9f91fbcbbac7b673b0e4141cc827e32635e68c228"
+            },
+            {
+              "name": "chart keda 2.16.1",
+              "sha256": "37712eaf5970cf280c3e18aafff3bb0a54ca2d21840667907fb472ca969cc334"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "533fe6431c5e967f42c773f54ff0a940c6ce9615e657e7bdce6f5358be87abcf"
+            }
+          ]
+        },
+        {
+          "app": "keda",
+          "from": "2.13.1",
+          "to": "2.16.1",
+          "command": "scan+plan",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NO_DATA_COMPONENT_NOT_COVERED",
+          "ids": [],
+          "logDigest": "ae3a64712d1f05f9fb765b33366d65370ca305759e3a5b7b14ce805191a43fe8",
+          "artifacts": [
+            {
+              "name": "chart keda 2.13.2",
+              "sha256": "3d1bb0537755ebeafacf1da9f91fbcbbac7b673b0e4141cc827e32635e68c228"
+            },
+            {
+              "name": "chart keda 2.16.1",
+              "sha256": "37712eaf5970cf280c3e18aafff3bb0a54ca2d21840667907fb472ca969cc334"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "533fe6431c5e967f42c773f54ff0a940c6ce9615e657e7bdce6f5358be87abcf"
+            }
+          ]
+        },
+        {
+          "app": "kyverno",
+          "from": "1.10.7",
+          "to": "1.13.4",
+          "command": "assess",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "ASSESS_CHECKS_IN_JSON",
+          "ids": [],
+          "logDigest": "eee01e0a03a3295f742cb9eb2d36b4b6f7bb3305ec93279d91345749db78014c",
+          "artifacts": [
+            {
+              "name": "chart kyverno 3.0.9",
+              "sha256": "b6a16a1b6c98a77ef8b9057c480f7858335b925aad684e51b3a7d1c2f1737610"
+            },
+            {
+              "name": "chart kyverno 3.3.7",
+              "sha256": "b0e3c767e89e585d628074bf3ee0dbb31f6720536f69d6c62e2627426d7301e7"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "533fe6431c5e967f42c773f54ff0a940c6ce9615e657e7bdce6f5358be87abcf"
+            }
+          ]
+        },
+        {
+          "app": "kyverno",
+          "from": "1.10.7",
+          "to": "1.13.4",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "CUSTOM_RESOURCES_NOT_EVALUATED",
+          "ids": [],
+          "logDigest": "da2ee48aef104df1782c03069bc33907812be9a3ccd67a826b6f119095762f6e",
+          "artifacts": [
+            {
+              "name": "chart kyverno 3.0.9",
+              "sha256": "b6a16a1b6c98a77ef8b9057c480f7858335b925aad684e51b3a7d1c2f1737610"
+            },
+            {
+              "name": "chart kyverno 3.3.7",
+              "sha256": "b0e3c767e89e585d628074bf3ee0dbb31f6720536f69d6c62e2627426d7301e7"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "533fe6431c5e967f42c773f54ff0a940c6ce9615e657e7bdce6f5358be87abcf"
+            }
+          ]
+        },
+        {
+          "app": "kyverno",
+          "from": "1.10.7",
+          "to": "1.13.4",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING",
+          "ids": [],
+          "logDigest": "c7ec709023f6eda570de2a007b0d39105935a6f5b1c62aba7980b5139997788f",
+          "artifacts": [
+            {
+              "name": "chart kyverno 3.0.9",
+              "sha256": "b6a16a1b6c98a77ef8b9057c480f7858335b925aad684e51b3a7d1c2f1737610"
+            },
+            {
+              "name": "chart kyverno 3.3.7",
+              "sha256": "b0e3c767e89e585d628074bf3ee0dbb31f6720536f69d6c62e2627426d7301e7"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "533fe6431c5e967f42c773f54ff0a940c6ce9615e657e7bdce6f5358be87abcf"
+            }
+          ]
+        },
+        {
+          "app": "kyverno",
+          "from": "1.10.7",
+          "to": "1.13.4",
+          "command": "scan+plan",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NO_DATA_COMPONENT_NOT_COVERED",
+          "ids": [],
+          "logDigest": "ae3a64712d1f05f9fb765b33366d65370ca305759e3a5b7b14ce805191a43fe8",
+          "artifacts": [
+            {
+              "name": "chart kyverno 3.0.9",
+              "sha256": "b6a16a1b6c98a77ef8b9057c480f7858335b925aad684e51b3a7d1c2f1737610"
+            },
+            {
+              "name": "chart kyverno 3.3.7",
+              "sha256": "b0e3c767e89e585d628074bf3ee0dbb31f6720536f69d6c62e2627426d7301e7"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "533fe6431c5e967f42c773f54ff0a940c6ce9615e657e7bdce6f5358be87abcf"
+            }
+          ]
+        },
+        {
+          "app": "metrics-server",
+          "from": "0.6.4",
+          "to": "0.8.0",
+          "command": "assess",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "PROJECT_ABSENT_FROM_ASSESS",
+          "ids": [],
+          "logDigest": "eee01e0a03a3295f742cb9eb2d36b4b6f7bb3305ec93279d91345749db78014c",
+          "artifacts": [
+            {
+              "name": "chart metrics-server 3.11.0",
+              "sha256": "e7cba5a2d7e2b0949b3ea1aa48fc3780b71eba17e1edccc8273f5da67048164b"
+            },
+            {
+              "name": "chart metrics-server 3.13.0",
+              "sha256": "fb929902e3b7565663cdd1734f31d63735c932be1541a7228b5aeef6d2348a1f"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "533fe6431c5e967f42c773f54ff0a940c6ce9615e657e7bdce6f5358be87abcf"
+            }
+          ]
+        },
+        {
+          "app": "metrics-server",
+          "from": "0.6.4",
+          "to": "0.8.0",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING",
+          "ids": [],
+          "logDigest": "c7ec709023f6eda570de2a007b0d39105935a6f5b1c62aba7980b5139997788f",
+          "artifacts": [
+            {
+              "name": "chart metrics-server 3.11.0",
+              "sha256": "e7cba5a2d7e2b0949b3ea1aa48fc3780b71eba17e1edccc8273f5da67048164b"
+            },
+            {
+              "name": "chart metrics-server 3.13.0",
+              "sha256": "fb929902e3b7565663cdd1734f31d63735c932be1541a7228b5aeef6d2348a1f"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "533fe6431c5e967f42c773f54ff0a940c6ce9615e657e7bdce6f5358be87abcf"
+            }
+          ]
+        },
+        {
+          "app": "metrics-server",
+          "from": "0.6.4",
+          "to": "0.8.0",
+          "command": "scan+plan",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NO_PATH",
+          "ids": [],
+          "logDigest": "ae3a64712d1f05f9fb765b33366d65370ca305759e3a5b7b14ce805191a43fe8",
+          "artifacts": [
+            {
+              "name": "chart metrics-server 3.11.0",
+              "sha256": "e7cba5a2d7e2b0949b3ea1aa48fc3780b71eba17e1edccc8273f5da67048164b"
+            },
+            {
+              "name": "chart metrics-server 3.13.0",
+              "sha256": "fb929902e3b7565663cdd1734f31d63735c932be1541a7228b5aeef6d2348a1f"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "533fe6431c5e967f42c773f54ff0a940c6ce9615e657e7bdce6f5358be87abcf"
+            }
+          ]
+        },
+        {
+          "app": "velero",
+          "from": "1.12.3",
+          "to": "1.15.2",
+          "command": "assess",
+          "result": "correct",
+          "oracle": "in-place upgrade",
+          "reason": "ASSESS_CHECKS_IN_JSON",
+          "ids": [],
+          "logDigest": "eee01e0a03a3295f742cb9eb2d36b4b6f7bb3305ec93279d91345749db78014c",
+          "artifacts": [
+            {
+              "name": "chart velero 5.2.2",
+              "sha256": "25a9487441d65901acace20bf43176db42ae1831d898e55b340a3061acc89688"
+            },
+            {
+              "name": "chart velero 8.7.2",
+              "sha256": "df9fdbe9a1cc2055b6e13881079b6ed475b557366a10ee8e5d36ab5580bd15ec"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "533fe6431c5e967f42c773f54ff0a940c6ce9615e657e7bdce6f5358be87abcf"
+            }
+          ]
+        },
+        {
+          "app": "velero",
+          "from": "1.12.3",
+          "to": "1.15.2",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "CUSTOM_RESOURCES_NOT_EVALUATED",
+          "ids": [],
+          "logDigest": "da2ee48aef104df1782c03069bc33907812be9a3ccd67a826b6f119095762f6e",
+          "artifacts": [
+            {
+              "name": "chart velero 5.2.2",
+              "sha256": "25a9487441d65901acace20bf43176db42ae1831d898e55b340a3061acc89688"
+            },
+            {
+              "name": "chart velero 8.7.2",
+              "sha256": "df9fdbe9a1cc2055b6e13881079b6ed475b557366a10ee8e5d36ab5580bd15ec"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "533fe6431c5e967f42c773f54ff0a940c6ce9615e657e7bdce6f5358be87abcf"
+            }
+          ]
+        },
+        {
+          "app": "velero",
+          "from": "1.12.3",
+          "to": "1.15.2",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING",
+          "ids": [],
+          "logDigest": "c7ec709023f6eda570de2a007b0d39105935a6f5b1c62aba7980b5139997788f",
+          "artifacts": [
+            {
+              "name": "chart velero 5.2.2",
+              "sha256": "25a9487441d65901acace20bf43176db42ae1831d898e55b340a3061acc89688"
+            },
+            {
+              "name": "chart velero 8.7.2",
+              "sha256": "df9fdbe9a1cc2055b6e13881079b6ed475b557366a10ee8e5d36ab5580bd15ec"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "533fe6431c5e967f42c773f54ff0a940c6ce9615e657e7bdce6f5358be87abcf"
+            }
+          ]
+        },
+        {
+          "app": "velero",
+          "from": "1.12.3",
+          "to": "1.15.2",
+          "command": "scan+plan",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NO_DATA_COMPONENT_NOT_COVERED",
+          "ids": [],
+          "logDigest": "ae3a64712d1f05f9fb765b33366d65370ca305759e3a5b7b14ce805191a43fe8",
+          "artifacts": [
+            {
+              "name": "chart velero 5.2.2",
+              "sha256": "25a9487441d65901acace20bf43176db42ae1831d898e55b340a3061acc89688"
+            },
+            {
+              "name": "chart velero 8.7.2",
+              "sha256": "df9fdbe9a1cc2055b6e13881079b6ed475b557366a10ee8e5d36ab5580bd15ec"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "533fe6431c5e967f42c773f54ff0a940c6ce9615e657e7bdce6f5358be87abcf"
             }
           ]
         }
@@ -2301,6 +2309,1174 @@
             {
               "name": "rendered.yaml",
               "sha256": "5e751514aac8741ca407e003aff0dd753fdf584f4e07a34c0bf5c0ccdb003fa9"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m7-r01",
+      "k8sFrom": "1.26.15",
+      "k8sTo": "1.30.13",
+      "kindNodeImageFrom": "kindest/node@sha256:c79602a44b4056d7e48dc20f7504350f1e87530fe953428b792def00bc1076dd",
+      "kindNodeImageTo": "kindest/node@sha256:397209b3d947d154f6641f2d0ce8d473732bd91c87d9575ade99049aa33cd648",
+      "prufyxCommit": "564a6da03d1c7e96095c4a1f4c5fcd217aa2ea31",
+      "counts": {
+        "correct": 5,
+        "wrongPass": 0,
+        "falseAlarm": 0,
+        "gap": 42,
+        "rows": 47
+      },
+      "checks": [
+        {
+          "app": "*",
+          "from": "1.26.15",
+          "to": "1.30.13",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NOT_CHECKED",
+          "ids": [
+            "DECLARATION_MISSING"
+          ],
+          "logDigest": "afbdb579d53609e358c5bea3b782f1c2bfaa9816b5c7815595e03d241c3fe752",
+          "artifacts": [
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "*",
+          "from": "1.26.15",
+          "to": "1.30.13",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NOT_CHECKED",
+          "ids": [
+            "DOCUMENTS_TEMPLATED"
+          ],
+          "logDigest": "afbdb579d53609e358c5bea3b782f1c2bfaa9816b5c7815595e03d241c3fe752",
+          "artifacts": [
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "cert-manager",
+          "from": "1.14.7",
+          "to": "1.14.7",
+          "command": "assess",
+          "result": "correct",
+          "oracle": "in-place upgrade",
+          "reason": "COMPONENT_OBSERVED",
+          "ids": [],
+          "logDigest": "add7ebf67bd20837b71d0d160a6593eca7d97c6204ed82b244c82dcd0d57ccd3",
+          "artifacts": [
+            {
+              "name": "chart cert-manager v1.14.7",
+              "sha256": "cc542b089abf8505d77efd3d77ed09e3ea2f7cdf26f3def7e0e897942dfd6943"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "cert-manager",
+          "from": "1.14.7",
+          "to": "1.14.7",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING",
+          "ids": [],
+          "logDigest": "08b10edc382b5527ec8d0fe42e6407c49f2d1d5d7dca6ae2dc7531af15e75219",
+          "artifacts": [
+            {
+              "name": "chart cert-manager v1.14.7",
+              "sha256": "cc542b089abf8505d77efd3d77ed09e3ea2f7cdf26f3def7e0e897942dfd6943"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "cert-manager",
+          "from": "1.14.7",
+          "to": "1.14.7",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING_SCAN_UNKNOWN",
+          "ids": [],
+          "logDigest": "2c98f72e8d62e816f43ecc868f41311e1c7744b6fd6819c1b000659169b11070",
+          "artifacts": [
+            {
+              "name": "chart cert-manager v1.14.7",
+              "sha256": "cc542b089abf8505d77efd3d77ed09e3ea2f7cdf26f3def7e0e897942dfd6943"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "cloudnative-pg",
+          "from": "1.21.1",
+          "to": "1.24.1",
+          "command": "assess",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NOT_IN_OBSERVED_COMPONENTS",
+          "ids": [],
+          "logDigest": "add7ebf67bd20837b71d0d160a6593eca7d97c6204ed82b244c82dcd0d57ccd3",
+          "artifacts": [
+            {
+              "name": "chart cloudnative-pg 0.19.1",
+              "sha256": "9ed9734d81f40157270826ed8f5e3d3586fc51bbc6c17f8dc25d2694a8d8a630"
+            },
+            {
+              "name": "chart cloudnative-pg 0.22.1",
+              "sha256": "97273937fec707fdf2b84bc57205fa2e9d21d170fcc22e9ee36c1a8bc7542f30"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "cloudnative-pg",
+          "from": "1.21.1",
+          "to": "1.24.1",
+          "command": "catalog-checks",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "KNOWN_PROJECT_NO_MATCHING_RULE",
+          "ids": [],
+          "logDigest": "91d2bf06ca8cfed0d12f69f8be2de7f9dd6645d3b10217f6f3a852c588f05785",
+          "artifacts": [
+            {
+              "name": "chart cloudnative-pg 0.19.1",
+              "sha256": "9ed9734d81f40157270826ed8f5e3d3586fc51bbc6c17f8dc25d2694a8d8a630"
+            },
+            {
+              "name": "chart cloudnative-pg 0.22.1",
+              "sha256": "97273937fec707fdf2b84bc57205fa2e9d21d170fcc22e9ee36c1a8bc7542f30"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "cloudnative-pg",
+          "from": "1.21.1",
+          "to": "1.24.1",
+          "command": "check-cncf",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "CHECK_INVALID_ARGUMENTS",
+          "ids": [],
+          "logDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "artifacts": [
+            {
+              "name": "chart cloudnative-pg 0.19.1",
+              "sha256": "9ed9734d81f40157270826ed8f5e3d3586fc51bbc6c17f8dc25d2694a8d8a630"
+            },
+            {
+              "name": "chart cloudnative-pg 0.22.1",
+              "sha256": "97273937fec707fdf2b84bc57205fa2e9d21d170fcc22e9ee36c1a8bc7542f30"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "cloudnative-pg",
+          "from": "1.21.1",
+          "to": "1.24.1",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "CUSTOM_RESOURCES_EVALUATED",
+          "ids": [],
+          "logDigest": "17913fa28330e393216e455d545902b3b6973b2964090aa9546ddee9299af656",
+          "artifacts": [
+            {
+              "name": "chart cloudnative-pg 0.19.1",
+              "sha256": "9ed9734d81f40157270826ed8f5e3d3586fc51bbc6c17f8dc25d2694a8d8a630"
+            },
+            {
+              "name": "chart cloudnative-pg 0.22.1",
+              "sha256": "97273937fec707fdf2b84bc57205fa2e9d21d170fcc22e9ee36c1a8bc7542f30"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "cloudnative-pg",
+          "from": "1.21.1",
+          "to": "1.24.1",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING",
+          "ids": [],
+          "logDigest": "08b10edc382b5527ec8d0fe42e6407c49f2d1d5d7dca6ae2dc7531af15e75219",
+          "artifacts": [
+            {
+              "name": "chart cloudnative-pg 0.19.1",
+              "sha256": "9ed9734d81f40157270826ed8f5e3d3586fc51bbc6c17f8dc25d2694a8d8a630"
+            },
+            {
+              "name": "chart cloudnative-pg 0.22.1",
+              "sha256": "97273937fec707fdf2b84bc57205fa2e9d21d170fcc22e9ee36c1a8bc7542f30"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "cloudnative-pg",
+          "from": "1.21.1",
+          "to": "1.24.1",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING_SCAN_UNKNOWN",
+          "ids": [],
+          "logDigest": "2c98f72e8d62e816f43ecc868f41311e1c7744b6fd6819c1b000659169b11070",
+          "artifacts": [
+            {
+              "name": "chart cloudnative-pg 0.19.1",
+              "sha256": "9ed9734d81f40157270826ed8f5e3d3586fc51bbc6c17f8dc25d2694a8d8a630"
+            },
+            {
+              "name": "chart cloudnative-pg 0.22.1",
+              "sha256": "97273937fec707fdf2b84bc57205fa2e9d21d170fcc22e9ee36c1a8bc7542f30"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "cloudnative-pg",
+          "from": "1.21.1",
+          "to": "1.24.1",
+          "command": "scan+plan",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NO_DATA_COMPONENT_NOT_COVERED",
+          "ids": [],
+          "logDigest": "afbdb579d53609e358c5bea3b782f1c2bfaa9816b5c7815595e03d241c3fe752",
+          "artifacts": [
+            {
+              "name": "chart cloudnative-pg 0.19.1",
+              "sha256": "9ed9734d81f40157270826ed8f5e3d3586fc51bbc6c17f8dc25d2694a8d8a630"
+            },
+            {
+              "name": "chart cloudnative-pg 0.22.1",
+              "sha256": "97273937fec707fdf2b84bc57205fa2e9d21d170fcc22e9ee36c1a8bc7542f30"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "contour",
+          "from": "1.26.3",
+          "to": "1.30.5",
+          "command": "assess",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NOT_IN_OBSERVED_COMPONENTS",
+          "ids": [],
+          "logDigest": "add7ebf67bd20837b71d0d160a6593eca7d97c6204ed82b244c82dcd0d57ccd3",
+          "artifacts": [
+            {
+              "name": "chart contour v1.26.3",
+              "sha256": "fb9649bf570c77e3649b23e352a19edde204cf0f4bc06d7364ad42e787cf44f0"
+            },
+            {
+              "name": "chart contour v1.30.5",
+              "sha256": "d46974a85d1a5ffa9e15401ae88ae4e1d02f6466bf0caaf471549917e5ef27f0"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "contour",
+          "from": "1.26.3",
+          "to": "1.30.5",
+          "command": "catalog-checks",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "KNOWN_PROJECT_NO_MATCHING_RULE",
+          "ids": [],
+          "logDigest": "91d2bf06ca8cfed0d12f69f8be2de7f9dd6645d3b10217f6f3a852c588f05785",
+          "artifacts": [
+            {
+              "name": "chart contour v1.26.3",
+              "sha256": "fb9649bf570c77e3649b23e352a19edde204cf0f4bc06d7364ad42e787cf44f0"
+            },
+            {
+              "name": "chart contour v1.30.5",
+              "sha256": "d46974a85d1a5ffa9e15401ae88ae4e1d02f6466bf0caaf471549917e5ef27f0"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "contour",
+          "from": "1.26.3",
+          "to": "1.30.5",
+          "command": "check-cncf",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "CHECK_INVALID_ARGUMENTS",
+          "ids": [],
+          "logDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "artifacts": [
+            {
+              "name": "chart contour v1.26.3",
+              "sha256": "fb9649bf570c77e3649b23e352a19edde204cf0f4bc06d7364ad42e787cf44f0"
+            },
+            {
+              "name": "chart contour v1.30.5",
+              "sha256": "d46974a85d1a5ffa9e15401ae88ae4e1d02f6466bf0caaf471549917e5ef27f0"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "contour",
+          "from": "1.26.3",
+          "to": "1.30.5",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "CUSTOM_RESOURCES_EVALUATED",
+          "ids": [],
+          "logDigest": "17913fa28330e393216e455d545902b3b6973b2964090aa9546ddee9299af656",
+          "artifacts": [
+            {
+              "name": "chart contour v1.26.3",
+              "sha256": "fb9649bf570c77e3649b23e352a19edde204cf0f4bc06d7364ad42e787cf44f0"
+            },
+            {
+              "name": "chart contour v1.30.5",
+              "sha256": "d46974a85d1a5ffa9e15401ae88ae4e1d02f6466bf0caaf471549917e5ef27f0"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "contour",
+          "from": "1.26.3",
+          "to": "1.30.5",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING",
+          "ids": [],
+          "logDigest": "08b10edc382b5527ec8d0fe42e6407c49f2d1d5d7dca6ae2dc7531af15e75219",
+          "artifacts": [
+            {
+              "name": "chart contour v1.26.3",
+              "sha256": "fb9649bf570c77e3649b23e352a19edde204cf0f4bc06d7364ad42e787cf44f0"
+            },
+            {
+              "name": "chart contour v1.30.5",
+              "sha256": "d46974a85d1a5ffa9e15401ae88ae4e1d02f6466bf0caaf471549917e5ef27f0"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "contour",
+          "from": "1.26.3",
+          "to": "1.30.5",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING_SCAN_UNKNOWN",
+          "ids": [],
+          "logDigest": "2c98f72e8d62e816f43ecc868f41311e1c7744b6fd6819c1b000659169b11070",
+          "artifacts": [
+            {
+              "name": "chart contour v1.26.3",
+              "sha256": "fb9649bf570c77e3649b23e352a19edde204cf0f4bc06d7364ad42e787cf44f0"
+            },
+            {
+              "name": "chart contour v1.30.5",
+              "sha256": "d46974a85d1a5ffa9e15401ae88ae4e1d02f6466bf0caaf471549917e5ef27f0"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "contour",
+          "from": "1.26.3",
+          "to": "1.30.5",
+          "command": "scan+plan",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NO_DATA_COMPONENT_NOT_COVERED",
+          "ids": [],
+          "logDigest": "afbdb579d53609e358c5bea3b782f1c2bfaa9816b5c7815595e03d241c3fe752",
+          "artifacts": [
+            {
+              "name": "chart contour v1.26.3",
+              "sha256": "fb9649bf570c77e3649b23e352a19edde204cf0f4bc06d7364ad42e787cf44f0"
+            },
+            {
+              "name": "chart contour v1.30.5",
+              "sha256": "d46974a85d1a5ffa9e15401ae88ae4e1d02f6466bf0caaf471549917e5ef27f0"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "dapr",
+          "from": "1.12.5",
+          "to": "1.15.4",
+          "command": "assess",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NOT_IN_OBSERVED_COMPONENTS",
+          "ids": [],
+          "logDigest": "add7ebf67bd20837b71d0d160a6593eca7d97c6204ed82b244c82dcd0d57ccd3",
+          "artifacts": [
+            {
+              "name": "chart dapr 1.12.5",
+              "sha256": "06a919028e7128fae9cb57baff6958d098988852f9508aefdacbac3824d106a8"
+            },
+            {
+              "name": "chart dapr 1.15.4",
+              "sha256": "138cd61c5eb36b83fac5c49c3f43ad18ca49abb6ab4477cf1c4d564aac3b6c0c"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "dapr",
+          "from": "1.12.5",
+          "to": "1.15.4",
+          "command": "catalog-checks",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "KNOWN_PROJECT_NO_MATCHING_RULE",
+          "ids": [],
+          "logDigest": "91d2bf06ca8cfed0d12f69f8be2de7f9dd6645d3b10217f6f3a852c588f05785",
+          "artifacts": [
+            {
+              "name": "chart dapr 1.12.5",
+              "sha256": "06a919028e7128fae9cb57baff6958d098988852f9508aefdacbac3824d106a8"
+            },
+            {
+              "name": "chart dapr 1.15.4",
+              "sha256": "138cd61c5eb36b83fac5c49c3f43ad18ca49abb6ab4477cf1c4d564aac3b6c0c"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "dapr",
+          "from": "1.12.5",
+          "to": "1.15.4",
+          "command": "check-cncf",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "CHECK_INVALID_ARGUMENTS",
+          "ids": [],
+          "logDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "artifacts": [
+            {
+              "name": "chart dapr 1.12.5",
+              "sha256": "06a919028e7128fae9cb57baff6958d098988852f9508aefdacbac3824d106a8"
+            },
+            {
+              "name": "chart dapr 1.15.4",
+              "sha256": "138cd61c5eb36b83fac5c49c3f43ad18ca49abb6ab4477cf1c4d564aac3b6c0c"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "dapr",
+          "from": "1.12.5",
+          "to": "1.15.4",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "CUSTOM_RESOURCES_NOT_EVALUATED",
+          "ids": [],
+          "logDigest": "17913fa28330e393216e455d545902b3b6973b2964090aa9546ddee9299af656",
+          "artifacts": [
+            {
+              "name": "chart dapr 1.12.5",
+              "sha256": "06a919028e7128fae9cb57baff6958d098988852f9508aefdacbac3824d106a8"
+            },
+            {
+              "name": "chart dapr 1.15.4",
+              "sha256": "138cd61c5eb36b83fac5c49c3f43ad18ca49abb6ab4477cf1c4d564aac3b6c0c"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "dapr",
+          "from": "1.12.5",
+          "to": "1.15.4",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING",
+          "ids": [],
+          "logDigest": "08b10edc382b5527ec8d0fe42e6407c49f2d1d5d7dca6ae2dc7531af15e75219",
+          "artifacts": [
+            {
+              "name": "chart dapr 1.12.5",
+              "sha256": "06a919028e7128fae9cb57baff6958d098988852f9508aefdacbac3824d106a8"
+            },
+            {
+              "name": "chart dapr 1.15.4",
+              "sha256": "138cd61c5eb36b83fac5c49c3f43ad18ca49abb6ab4477cf1c4d564aac3b6c0c"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "dapr",
+          "from": "1.12.5",
+          "to": "1.15.4",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING_SCAN_UNKNOWN",
+          "ids": [],
+          "logDigest": "2c98f72e8d62e816f43ecc868f41311e1c7744b6fd6819c1b000659169b11070",
+          "artifacts": [
+            {
+              "name": "chart dapr 1.12.5",
+              "sha256": "06a919028e7128fae9cb57baff6958d098988852f9508aefdacbac3824d106a8"
+            },
+            {
+              "name": "chart dapr 1.15.4",
+              "sha256": "138cd61c5eb36b83fac5c49c3f43ad18ca49abb6ab4477cf1c4d564aac3b6c0c"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "dapr",
+          "from": "1.12.5",
+          "to": "1.15.4",
+          "command": "scan+plan",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NO_DATA_COMPONENT_NOT_COVERED",
+          "ids": [],
+          "logDigest": "afbdb579d53609e358c5bea3b782f1c2bfaa9816b5c7815595e03d241c3fe752",
+          "artifacts": [
+            {
+              "name": "chart dapr 1.12.5",
+              "sha256": "06a919028e7128fae9cb57baff6958d098988852f9508aefdacbac3824d106a8"
+            },
+            {
+              "name": "chart dapr 1.15.4",
+              "sha256": "138cd61c5eb36b83fac5c49c3f43ad18ca49abb6ab4477cf1c4d564aac3b6c0c"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "fluent-bit",
+          "from": "2.2.0",
+          "to": "4.0.3",
+          "command": "assess",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NOT_IN_OBSERVED_COMPONENTS",
+          "ids": [],
+          "logDigest": "add7ebf67bd20837b71d0d160a6593eca7d97c6204ed82b244c82dcd0d57ccd3",
+          "artifacts": [
+            {
+              "name": "chart fluent-bit 0.40.0",
+              "sha256": "1cf6690908fe12b2ec35e1908d4331b991ce1cf20d235efa26fd83a0f279ecd0"
+            },
+            {
+              "name": "chart fluent-bit 0.49.1",
+              "sha256": "f6ee9f7df728ee720c2b30ff34036aec1f45b8a231a9a86ea83b4841b2bcdfeb"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "fluent-bit",
+          "from": "2.2.0",
+          "to": "4.0.3",
+          "command": "catalog-checks",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "KNOWN_PROJECT_NO_MATCHING_RULE",
+          "ids": [],
+          "logDigest": "91d2bf06ca8cfed0d12f69f8be2de7f9dd6645d3b10217f6f3a852c588f05785",
+          "artifacts": [
+            {
+              "name": "chart fluent-bit 0.40.0",
+              "sha256": "1cf6690908fe12b2ec35e1908d4331b991ce1cf20d235efa26fd83a0f279ecd0"
+            },
+            {
+              "name": "chart fluent-bit 0.49.1",
+              "sha256": "f6ee9f7df728ee720c2b30ff34036aec1f45b8a231a9a86ea83b4841b2bcdfeb"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "fluent-bit",
+          "from": "2.2.0",
+          "to": "4.0.3",
+          "command": "check-cncf",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "CHECK_INVALID_ARGUMENTS",
+          "ids": [],
+          "logDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "artifacts": [
+            {
+              "name": "chart fluent-bit 0.40.0",
+              "sha256": "1cf6690908fe12b2ec35e1908d4331b991ce1cf20d235efa26fd83a0f279ecd0"
+            },
+            {
+              "name": "chart fluent-bit 0.49.1",
+              "sha256": "f6ee9f7df728ee720c2b30ff34036aec1f45b8a231a9a86ea83b4841b2bcdfeb"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "fluent-bit",
+          "from": "2.2.0",
+          "to": "4.0.3",
+          "command": "check-project-effective-config",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "UNKNOWN",
+          "ids": [],
+          "logDigest": "dc1f1dad3233fee0abe43d395f79463f8b4c8ac43dff2e2ffa32364fdb5c8b49",
+          "artifacts": [
+            {
+              "name": "chart fluent-bit 0.40.0",
+              "sha256": "1cf6690908fe12b2ec35e1908d4331b991ce1cf20d235efa26fd83a0f279ecd0"
+            },
+            {
+              "name": "chart fluent-bit 0.49.1",
+              "sha256": "f6ee9f7df728ee720c2b30ff34036aec1f45b8a231a9a86ea83b4841b2bcdfeb"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "fluent-bit",
+          "from": "2.2.0",
+          "to": "4.0.3",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING",
+          "ids": [],
+          "logDigest": "08b10edc382b5527ec8d0fe42e6407c49f2d1d5d7dca6ae2dc7531af15e75219",
+          "artifacts": [
+            {
+              "name": "chart fluent-bit 0.40.0",
+              "sha256": "1cf6690908fe12b2ec35e1908d4331b991ce1cf20d235efa26fd83a0f279ecd0"
+            },
+            {
+              "name": "chart fluent-bit 0.49.1",
+              "sha256": "f6ee9f7df728ee720c2b30ff34036aec1f45b8a231a9a86ea83b4841b2bcdfeb"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "fluent-bit",
+          "from": "2.2.0",
+          "to": "4.0.3",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING_SCAN_UNKNOWN",
+          "ids": [],
+          "logDigest": "2c98f72e8d62e816f43ecc868f41311e1c7744b6fd6819c1b000659169b11070",
+          "artifacts": [
+            {
+              "name": "chart fluent-bit 0.40.0",
+              "sha256": "1cf6690908fe12b2ec35e1908d4331b991ce1cf20d235efa26fd83a0f279ecd0"
+            },
+            {
+              "name": "chart fluent-bit 0.49.1",
+              "sha256": "f6ee9f7df728ee720c2b30ff34036aec1f45b8a231a9a86ea83b4841b2bcdfeb"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "fluent-bit",
+          "from": "2.2.0",
+          "to": "4.0.3",
+          "command": "scan+plan",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "COMPONENT_REFUSED_BY_CLI",
+          "ids": [],
+          "logDigest": "afbdb579d53609e358c5bea3b782f1c2bfaa9816b5c7815595e03d241c3fe752",
+          "artifacts": [
+            {
+              "name": "chart fluent-bit 0.40.0",
+              "sha256": "1cf6690908fe12b2ec35e1908d4331b991ce1cf20d235efa26fd83a0f279ecd0"
+            },
+            {
+              "name": "chart fluent-bit 0.49.1",
+              "sha256": "f6ee9f7df728ee720c2b30ff34036aec1f45b8a231a9a86ea83b4841b2bcdfeb"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "jaeger-operator",
+          "from": "1.46.0",
+          "to": "1.61.0",
+          "command": "assess",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NOT_IN_OBSERVED_COMPONENTS",
+          "ids": [],
+          "logDigest": "add7ebf67bd20837b71d0d160a6593eca7d97c6204ed82b244c82dcd0d57ccd3",
+          "artifacts": [
+            {
+              "name": "chart jaeger-operator 2.46.2",
+              "sha256": "998bbe2afae8fa094b35f38566d2bc0ddfa2554c0d377c154d322c96e908b0b3"
+            },
+            {
+              "name": "chart jaeger-operator 2.57.0",
+              "sha256": "623409b5b32ba53a26e02b36974e2c7fe38614440ecb6623c42b484629344fc3"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "jaeger-operator",
+          "from": "1.46.0",
+          "to": "1.61.0",
+          "command": "catalog-checks",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "KNOWN_PROJECT_NO_MATCHING_RULE",
+          "ids": [],
+          "logDigest": "91d2bf06ca8cfed0d12f69f8be2de7f9dd6645d3b10217f6f3a852c588f05785",
+          "artifacts": [
+            {
+              "name": "chart jaeger-operator 2.46.2",
+              "sha256": "998bbe2afae8fa094b35f38566d2bc0ddfa2554c0d377c154d322c96e908b0b3"
+            },
+            {
+              "name": "chart jaeger-operator 2.57.0",
+              "sha256": "623409b5b32ba53a26e02b36974e2c7fe38614440ecb6623c42b484629344fc3"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "jaeger-operator",
+          "from": "1.46.0",
+          "to": "1.61.0",
+          "command": "check-cncf",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "CHECK_INVALID_ARGUMENTS",
+          "ids": [],
+          "logDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "artifacts": [
+            {
+              "name": "chart jaeger-operator 2.46.2",
+              "sha256": "998bbe2afae8fa094b35f38566d2bc0ddfa2554c0d377c154d322c96e908b0b3"
+            },
+            {
+              "name": "chart jaeger-operator 2.57.0",
+              "sha256": "623409b5b32ba53a26e02b36974e2c7fe38614440ecb6623c42b484629344fc3"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "jaeger-operator",
+          "from": "1.46.0",
+          "to": "1.61.0",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "CUSTOM_RESOURCES_EVALUATED",
+          "ids": [],
+          "logDigest": "17913fa28330e393216e455d545902b3b6973b2964090aa9546ddee9299af656",
+          "artifacts": [
+            {
+              "name": "chart jaeger-operator 2.46.2",
+              "sha256": "998bbe2afae8fa094b35f38566d2bc0ddfa2554c0d377c154d322c96e908b0b3"
+            },
+            {
+              "name": "chart jaeger-operator 2.57.0",
+              "sha256": "623409b5b32ba53a26e02b36974e2c7fe38614440ecb6623c42b484629344fc3"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "jaeger-operator",
+          "from": "1.46.0",
+          "to": "1.61.0",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING",
+          "ids": [],
+          "logDigest": "08b10edc382b5527ec8d0fe42e6407c49f2d1d5d7dca6ae2dc7531af15e75219",
+          "artifacts": [
+            {
+              "name": "chart jaeger-operator 2.46.2",
+              "sha256": "998bbe2afae8fa094b35f38566d2bc0ddfa2554c0d377c154d322c96e908b0b3"
+            },
+            {
+              "name": "chart jaeger-operator 2.57.0",
+              "sha256": "623409b5b32ba53a26e02b36974e2c7fe38614440ecb6623c42b484629344fc3"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "jaeger-operator",
+          "from": "1.46.0",
+          "to": "1.61.0",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING_SCAN_UNKNOWN",
+          "ids": [],
+          "logDigest": "2c98f72e8d62e816f43ecc868f41311e1c7744b6fd6819c1b000659169b11070",
+          "artifacts": [
+            {
+              "name": "chart jaeger-operator 2.46.2",
+              "sha256": "998bbe2afae8fa094b35f38566d2bc0ddfa2554c0d377c154d322c96e908b0b3"
+            },
+            {
+              "name": "chart jaeger-operator 2.57.0",
+              "sha256": "623409b5b32ba53a26e02b36974e2c7fe38614440ecb6623c42b484629344fc3"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "jaeger-operator",
+          "from": "1.46.0",
+          "to": "1.61.0",
+          "command": "scan+plan",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NO_PATH",
+          "ids": [],
+          "logDigest": "afbdb579d53609e358c5bea3b782f1c2bfaa9816b5c7815595e03d241c3fe752",
+          "artifacts": [
+            {
+              "name": "chart jaeger-operator 2.46.2",
+              "sha256": "998bbe2afae8fa094b35f38566d2bc0ddfa2554c0d377c154d322c96e908b0b3"
+            },
+            {
+              "name": "chart jaeger-operator 2.57.0",
+              "sha256": "623409b5b32ba53a26e02b36974e2c7fe38614440ecb6623c42b484629344fc3"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "strimzi",
+          "from": "0.41.0",
+          "to": "0.44.0",
+          "command": "assess",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NOT_IN_OBSERVED_COMPONENTS",
+          "ids": [],
+          "logDigest": "add7ebf67bd20837b71d0d160a6593eca7d97c6204ed82b244c82dcd0d57ccd3",
+          "artifacts": [
+            {
+              "name": "chart strimzi 0.41.0",
+              "sha256": "dbc2112011224a46701a253613f50602b4bf6fddd83d95510c4014fe7d28989a"
+            },
+            {
+              "name": "chart strimzi 0.44.0",
+              "sha256": "ea827095480b585cf00b7ce94ef3146e6a83e79459dd3bd65da4464e3b13e14e"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "strimzi",
+          "from": "0.41.0",
+          "to": "0.44.0",
+          "command": "catalog-checks",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "KNOWN_PROJECT_NO_MATCHING_RULE",
+          "ids": [],
+          "logDigest": "91d2bf06ca8cfed0d12f69f8be2de7f9dd6645d3b10217f6f3a852c588f05785",
+          "artifacts": [
+            {
+              "name": "chart strimzi 0.41.0",
+              "sha256": "dbc2112011224a46701a253613f50602b4bf6fddd83d95510c4014fe7d28989a"
+            },
+            {
+              "name": "chart strimzi 0.44.0",
+              "sha256": "ea827095480b585cf00b7ce94ef3146e6a83e79459dd3bd65da4464e3b13e14e"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "strimzi",
+          "from": "0.41.0",
+          "to": "0.44.0",
+          "command": "check-cncf",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "CHECK_INVALID_ARGUMENTS",
+          "ids": [],
+          "logDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "artifacts": [
+            {
+              "name": "chart strimzi 0.41.0",
+              "sha256": "dbc2112011224a46701a253613f50602b4bf6fddd83d95510c4014fe7d28989a"
+            },
+            {
+              "name": "chart strimzi 0.44.0",
+              "sha256": "ea827095480b585cf00b7ce94ef3146e6a83e79459dd3bd65da4464e3b13e14e"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "strimzi",
+          "from": "0.41.0",
+          "to": "0.44.0",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "CUSTOM_RESOURCES_EVALUATED",
+          "ids": [],
+          "logDigest": "17913fa28330e393216e455d545902b3b6973b2964090aa9546ddee9299af656",
+          "artifacts": [
+            {
+              "name": "chart strimzi 0.41.0",
+              "sha256": "dbc2112011224a46701a253613f50602b4bf6fddd83d95510c4014fe7d28989a"
+            },
+            {
+              "name": "chart strimzi 0.44.0",
+              "sha256": "ea827095480b585cf00b7ce94ef3146e6a83e79459dd3bd65da4464e3b13e14e"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "strimzi",
+          "from": "0.41.0",
+          "to": "0.44.0",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING",
+          "ids": [],
+          "logDigest": "08b10edc382b5527ec8d0fe42e6407c49f2d1d5d7dca6ae2dc7531af15e75219",
+          "artifacts": [
+            {
+              "name": "chart strimzi 0.41.0",
+              "sha256": "dbc2112011224a46701a253613f50602b4bf6fddd83d95510c4014fe7d28989a"
+            },
+            {
+              "name": "chart strimzi 0.44.0",
+              "sha256": "ea827095480b585cf00b7ce94ef3146e6a83e79459dd3bd65da4464e3b13e14e"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "strimzi",
+          "from": "0.41.0",
+          "to": "0.44.0",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING_SCAN_UNKNOWN",
+          "ids": [],
+          "logDigest": "2c98f72e8d62e816f43ecc868f41311e1c7744b6fd6819c1b000659169b11070",
+          "artifacts": [
+            {
+              "name": "chart strimzi 0.41.0",
+              "sha256": "dbc2112011224a46701a253613f50602b4bf6fddd83d95510c4014fe7d28989a"
+            },
+            {
+              "name": "chart strimzi 0.44.0",
+              "sha256": "ea827095480b585cf00b7ce94ef3146e6a83e79459dd3bd65da4464e3b13e14e"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
+            }
+          ]
+        },
+        {
+          "app": "strimzi",
+          "from": "0.41.0",
+          "to": "0.44.0",
+          "command": "scan+plan",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NO_DATA_COMPONENT_NOT_COVERED",
+          "ids": [],
+          "logDigest": "afbdb579d53609e358c5bea3b782f1c2bfaa9816b5c7815595e03d241c3fe752",
+          "artifacts": [
+            {
+              "name": "chart strimzi 0.41.0",
+              "sha256": "dbc2112011224a46701a253613f50602b4bf6fddd83d95510c4014fe7d28989a"
+            },
+            {
+              "name": "chart strimzi 0.44.0",
+              "sha256": "ea827095480b585cf00b7ce94ef3146e6a83e79459dd3bd65da4464e3b13e14e"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6d16c6026de511864305a6346fecfcba4d9004e95ba1c0198c2409f92b5cb494"
             }
           ]
         }

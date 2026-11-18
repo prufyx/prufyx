@@ -104,7 +104,11 @@ type Report struct {
 	Schema string `json:"schema"`
 	Header string `json:"header"`
 	Counts Counts `json:"counts"`
-	Runs   []Run  `json:"runs"`
+	// SupersededExcluded counts runs left out because a rerun replaced them;
+	// SupersededBy lists the replacing run ids. The recorded reason is never copied.
+	SupersededExcluded int      `json:"supersededExcluded"`
+	SupersededBy       []string `json:"supersededBy"`
+	Runs               []Run    `json:"runs"`
 }
 
 var (
@@ -152,7 +156,11 @@ var reasonPrefixes = []struct{ prefix, code string }{
 	{"not flagged (scan verdict no usable scan output", "NOT_FLAGGED_NO_SCAN_OUTPUT"},
 	{"scan failed or produced no usable output", "SCAN_NO_USABLE_OUTPUT"},
 	{"scan text output missing or failed", "SCAN_NO_USABLE_OUTPUT"},
+	{"no finding for this app (scan verdict UNKNOWN)", "NO_FINDING_SCAN_UNKNOWN"},
 	{"no finding for this app's ", "NO_FINDING"},
+	{"rc=0: known embedded project", "KNOWN_PROJECT_NO_MATCHING_RULE"},
+	{"rc=2: prufyx: invalid CNCF check arguments", "CHECK_INVALID_ARGUMENTS"},
+	{"rc=11: UNKNOWN", "UNKNOWN"},
 	{"component observed", "COMPONENT_OBSERVED"},
 	{"custom resources NOT evaluated", "CUSTOM_RESOURCES_NOT_EVALUATED"},
 	{"custom resources evaluated", "CUSTOM_RESOURCES_EVALUATED"},
@@ -169,7 +177,46 @@ var reasonPrefixes = []struct{ prefix, code string }{
 	{"plan: ", "PLAN_RECORDED"},
 }
 
+// reasonPatterns cover verdicts that carry a project name or a count.
+var reasonPatterns = []struct {
+	re   *regexp.Regexp
+	code string
+}{
+	{regexp.MustCompile(`^[0-9]+ checks? in JSON: `), "ASSESS_CHECKS_IN_JSON"},
+	{regexp.MustCompile(`^project [a-z0-9.-]+ absent from the assess JSON`), "PROJECT_ABSENT_FROM_ASSESS"},
+	{regexp.MustCompile(`^component [a-z0-9.-]+ refused by the CLI`), "COMPONENT_REFUSED_BY_CLI"},
+}
+
+// commandPatterns map a recorded command, which may name a project, to a
+// closed command label.
+var commandPatterns = []struct {
+	re    *regexp.Regexp
+	label string
+}{
+	{regexp.MustCompile(`^catalog checks --project [a-z0-9.-]+ --from --to$`), "catalog-checks"},
+	{regexp.MustCompile(`^check cncf --project [a-z0-9.-]+ --from --to$`), "check-cncf"},
+	{regexp.MustCompile(`^check project [a-z0-9.-]+ --effective-config$`), "check-project-effective-config"},
+	{regexp.MustCompile(`^scan \(oracle A: old apply set on target\)$`), "scan"},
+}
+
+func commandLabel(c string) (string, bool) {
+	if l, ok := commands[c]; ok {
+		return l, true
+	}
+	for _, p := range commandPatterns {
+		if p.re.MatchString(c) {
+			return p.label, true
+		}
+	}
+	return "", false
+}
+
 func reasonCode(verdict string) (string, error) {
+	for _, p := range reasonPatterns {
+		if p.re.MatchString(verdict) {
+			return p.code, nil
+		}
+	}
 	for _, p := range reasonPrefixes {
 		if strings.HasPrefix(verdict, p.prefix) {
 			return p.code, nil
@@ -343,7 +390,7 @@ func buildCheck(app, from, to, command, class, oracle, verdict string, ids []str
 	if !okVersion(from) || !okVersion(to) {
 		return c, errors.New("version outside the allowlist pattern")
 	}
-	cmd, ok := commands[command]
+	cmd, ok := commandLabel(command)
 	if !ok {
 		return c, errors.New("unknown command")
 	}
@@ -511,15 +558,88 @@ func parseM2b(id string, raw []byte) (Run, error) {
 	return r, nil
 }
 
+type supersededFile struct {
+	Superseded   bool   `json:"superseded"`
+	SupersededBy string `json:"superseded_by"`
+	Reason       string `json:"reason"`
+}
+
+// supersededMark reads the supersede markers of one run directory: the
+// SUPERSEDED.json file and the superseded/superseded_by/supersede_reason keys
+// of RESULT.json. It returns the (validated) replacing run id, or "" when the
+// run is not superseded, and the RESULT body without those keys.
+func supersededMark(runDir string, result []byte) (by string, rest []byte, err error) {
+	rest = result
+	marked := false
+	if result != nil {
+		var probe map[string]json.RawMessage
+		if json.Unmarshal(result, &probe) != nil {
+			return "", nil, errors.New("input is not a JSON object")
+		}
+		sup, hasSup := probe["superseded"]
+		_, hasBy := probe["superseded_by"]
+		_, hasReason := probe["supersede_reason"]
+		if hasSup || hasBy || hasReason {
+			var flag bool
+			if !hasSup || json.Unmarshal(sup, &flag) != nil {
+				return "", nil, errors.New("invalid supersede marker")
+			}
+			if flag {
+				marked = true
+				if json.Unmarshal(probe["superseded_by"], &by) != nil {
+					return "", nil, errors.New("invalid supersede marker")
+				}
+			}
+			delete(probe, "superseded")
+			delete(probe, "superseded_by")
+			delete(probe, "supersede_reason")
+			if rest, err = json.Marshal(probe); err != nil {
+				return "", nil, err
+			}
+		}
+	}
+	p := filepath.Join(runDir, "SUPERSEDED.json")
+	info, lerr := os.Lstat(p)
+	if lerr == nil {
+		if !info.Mode().IsRegular() || info.Size() > maxInputSize {
+			return "", nil, errors.New("SUPERSEDED.json is not a regular file of bounded size")
+		}
+		raw, rerr := os.ReadFile(p)
+		if rerr != nil {
+			return "", nil, errors.New("cannot read SUPERSEDED.json")
+		}
+		var f supersededFile
+		if err := strict(raw, &f); err != nil || !f.Superseded {
+			return "", nil, errors.New("invalid SUPERSEDED.json")
+		}
+		if marked && by != f.SupersededBy {
+			return "", nil, errors.New("supersede markers disagree")
+		}
+		marked, by = true, f.SupersededBy
+	} else if !errors.Is(lerr, os.ErrNotExist) {
+		return "", nil, errors.New("cannot read SUPERSEDED.json")
+	}
+	if !marked {
+		return "", rest, nil
+	}
+	if !reRunID.MatchString(by) {
+		return "", nil, errors.New("superseded_by is not a run id")
+	}
+	return by, rest, nil
+}
+
 // Build reads every <dir>/<run>/RESULT.json and returns the report. A
-// subdirectory without RESULT.json is skipped; anything else unexpected
-// (a symlink, a file that is too large, an unknown format) is refused.
+// subdirectory without RESULT.json or SUPERSEDED.json is skipped. A superseded
+// run is excluded and counted; its replacing run must be a kept run, else the
+// input is refused. Anything else unexpected (a symlink, a file that is too
+// large, an unknown format) is refused.
 func Build(dir string) (*Report, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, errors.New("cannot read the results directory")
 	}
-	rep := &Report{Schema: Schema, Header: Header, Runs: []Run{}}
+	rep := &Report{Schema: Schema, Header: Header, Runs: []Run{}, SupersededBy: []string{}}
+	var replaced []string
 	for _, e := range entries {
 		if e.Type()&os.ModeSymlink != 0 {
 			return nil, errors.New("symlink in the results directory")
@@ -527,19 +647,35 @@ func Build(dir string) (*Report, error) {
 		if !e.IsDir() {
 			continue
 		}
-		path := filepath.Join(dir, e.Name(), "RESULT.json")
+		runDir := filepath.Join(dir, e.Name())
+		path := filepath.Join(runDir, "RESULT.json")
+		var raw []byte
 		info, err := os.Lstat(path)
-		if errors.Is(err, os.ErrNotExist) {
+		switch {
+		case errors.Is(err, os.ErrNotExist):
+		case err != nil || !info.Mode().IsRegular() || info.Size() > maxInputSize:
+			return nil, fmt.Errorf("run %q: RESULT.json is not a regular file of bounded size", e.Name())
+		default:
+			if raw, err = os.ReadFile(path); err != nil {
+				return nil, fmt.Errorf("run %q: cannot read RESULT.json", e.Name())
+			}
+		}
+		by, body, err := supersededMark(runDir, raw)
+		if err != nil {
+			return nil, fmt.Errorf("run %q: %v", e.Name(), err)
+		}
+		if by != "" {
+			if by == e.Name() {
+				return nil, fmt.Errorf("run %q: superseded by itself", e.Name())
+			}
+			rep.SupersededExcluded++
+			replaced = append(replaced, by)
 			continue
 		}
-		if err != nil || !info.Mode().IsRegular() || info.Size() > maxInputSize {
-			return nil, fmt.Errorf("run %q: RESULT.json is not a regular file of bounded size", e.Name())
+		if raw == nil {
+			continue
 		}
-		raw, err := os.ReadFile(path)
-		if err != nil {
-			return nil, fmt.Errorf("run %q: cannot read RESULT.json", e.Name())
-		}
-		run, err := ParseRun(e.Name(), raw)
+		run, err := ParseRun(e.Name(), body)
 		if err != nil {
 			return nil, fmt.Errorf("run %q: %v", e.Name(), err)
 		}
@@ -559,6 +695,21 @@ func Build(dir string) (*Report, error) {
 		}
 	}
 	sort.Slice(rep.Runs, func(i, j int) bool { return rep.Runs[i].ID < rep.Runs[j].ID })
+	kept := map[string]bool{}
+	for _, r := range rep.Runs {
+		kept[r.ID] = true
+	}
+	seen := map[string]bool{}
+	for _, by := range replaced {
+		if !kept[by] {
+			return nil, errors.New("a superseded run names a replacing run that is not a kept run")
+		}
+		if !seen[by] {
+			seen[by] = true
+			rep.SupersededBy = append(rep.SupersededBy, by)
+		}
+	}
+	sort.Strings(rep.SupersededBy)
 	if len(rep.Runs) == 0 {
 		return nil, errors.New("no RESULT.json found")
 	}
@@ -609,6 +760,9 @@ func markdown(rep *Report) string {
 	b.WriteString(rep.Header + "\n\n")
 	c := rep.Counts
 	fmt.Fprintf(&b, "Counts: %d runs, %d rows: %d correct, %d wrong PASS, %d false alarm, %d gap.\n\n", len(rep.Runs), c.Rows, c.Correct, c.WrongPass, c.FalseAlarm, c.Gap)
+	if rep.SupersededExcluded > 0 {
+		fmt.Fprintf(&b, "Superseded runs excluded: %d (harness faults, replaced by a rerun): %s.\n\n", rep.SupersededExcluded, strings.Join(rep.SupersededBy, ", "))
+	}
 	b.WriteString("Forms of result: `correct` means Prufyx and the oracle agree; `wrong PASS` means Prufyx passed what the oracle rejected; `false alarm` means Prufyx blocked what the oracle accepted; `gap` means Prufyx made no claim the oracle could be compared with. A gap is not a pass.\n")
 	for _, r := range rep.Runs {
 		fmt.Fprintf(&b, "\n## Run `%s`\n\n", r.ID)
