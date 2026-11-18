@@ -72,7 +72,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `openchoreo` | CNCF | `component.openchoreo.custom_resource_versions_set` | `openchoreo.dev` |
 | `openfunction` | CNCF | `component.openfunction.custom_resource_versions_set` | `core.openfunction.io`, `events.openfunction.io` |
 | `openkruise` | CNCF | `component.openkruise.custom_resource_versions_set` | `apps.kruise.io`, `policy.kruise.io` |
-| `opentelemetry-operator` | community | `component.opentelemetry_operator.custom_resource_versions_set` | `opentelemetry.io` |
+| `opentelemetry-operator` | community | `component.opentelemetry_operator.custom_resource_versions_set` | `opentelemetry.io` (ClusterObservability, Instrumentation, OpAMPBridge, OpenTelemetryCollector, TargetAllocator) |
 | `openyurt` | CNCF | `component.openyurt.custom_resource_versions_set` | `apps.openyurt.io`, `iot.openyurt.io`, `network.openyurt.io`, `raven.openyurt.io` |
 | `operator-lifecycle-manager` | community | `component.operator_lifecycle_manager.custom_resource_versions_set` | `operators.coreos.com` |
 | `percona-postgresql-operator` | community | `component.percona_postgresql_operator.custom_resource_versions_set` | `pgv2.percona.com`, `upstream.pgv2.percona.com` |
