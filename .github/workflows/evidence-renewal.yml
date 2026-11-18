@@ -539,8 +539,8 @@ jobs:
           base_tree="$(gh api "repos/${GITHUB_REPOSITORY}/git/commits/${base}" --jq '.tree.sha')"
           tree="$(jq -s --arg b "${base_tree}" '{base_tree: $b, tree: .}' "${entries}" \
             | gh api -X POST "repos/${GITHUB_REPOSITORY}/git/trees" --input - --jq '.sha')"
-          # No author or committer is given: the commit is the token owner's,
-          # and GitHub signs it.
+          # No author or committer is given: the commit is attributed to the token owner. It is
+          # not claimed to be signed.
           commit="$(jq -n --arg m "evidence: renew ${count} rules (automated, ${pack})" --arg t "${tree}" --arg p "${base}" \
             '{message: $m, tree: $t, parents: [$p]}' \
             | gh api -X POST "repos/${GITHUB_REPOSITORY}/git/commits" --input - --jq '.sha')"
