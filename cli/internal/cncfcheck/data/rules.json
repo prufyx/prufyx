@@ -8258,8 +8258,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-10T16:29:25Z",
-          "validUntil": "2026-12-09T16:29:25Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
+          "validUntil": "2027-02-01T09:50:12Z",
           "sources": [
             {
               "id": "knative-serving-v1-22-user-container-probes",
@@ -13746,8 +13746,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-11T00:00:00Z",
-          "validUntil": "2026-12-10T00:00:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
+          "validUntil": "2027-02-02T09:50:12Z",
           "sources": [
             {
               "id": "kubevirt-api-v1-9-inline-interface-binding-method",
@@ -14887,8 +14887,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T22:06:25Z",
-          "validUntil": "2026-12-07T22:06:25Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
+          "validUntil": "2027-02-03T09:50:12Z",
           "sources": [
             {
               "id": "source-526633fdeea3-36",
@@ -15637,7 +15637,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:33:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:505564a786688a109bbb01af9d07f1c9ae3cfac45c7ac261bd70e25292455398",
@@ -15705,7 +15705,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:33:00Z"
+          "validUntil": "2027-02-04T09:50:12Z"
         },
         "id": "opa.v0-consumer-producer-option-at-1-20-2-from-1-15-2",
         "nextAction": "Enable the effective OPA build producer --v0-compatible mode for the declared v0-consumer scenario, or review and declare the rego.v1 import alternative; independently verify policy and bundle compatibility.",
@@ -15769,7 +15769,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:33:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:06965b85aafb6b5444b92684261caea8d4d73ad5ed233ccfb9787b9bac8cf742",
@@ -15837,7 +15837,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:33:00Z"
+          "validUntil": "2027-02-05T09:50:12Z"
         },
         "id": "opa.v0-consumer-producer-option-at-1-20-2-from-1-16-2",
         "nextAction": "Enable the effective OPA build producer --v0-compatible mode for the declared v0-consumer scenario, or review and declare the rego.v1 import alternative; independently verify policy and bundle compatibility.",
@@ -15901,7 +15901,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:33:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:c390b0c45db3d9827f3b45c3655d654bc10a2bc391943e1ec8817510f6229499",
@@ -15969,7 +15969,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:33:00Z"
+          "validUntil": "2027-02-01T09:50:12Z"
         },
         "id": "opa.v0-consumer-producer-option-at-1-20-2-from-1-17-1",
         "nextAction": "Enable the effective OPA build producer --v0-compatible mode for the declared v0-consumer scenario, or review and declare the rego.v1 import alternative; independently verify policy and bundle compatibility.",
@@ -16033,7 +16033,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:33:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:4aa0b920226edd09d71cdc4c08cd756d7eb22715d2b379a95fc39779ca28be57",
@@ -16101,7 +16101,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:33:00Z"
+          "validUntil": "2027-02-02T09:50:12Z"
         },
         "id": "opa.v0-consumer-producer-option-at-1-20-2-from-1-18-2",
         "nextAction": "Enable the effective OPA build producer --v0-compatible mode for the declared v0-consumer scenario, or review and declare the rego.v1 import alternative; independently verify policy and bundle compatibility.",
@@ -16165,7 +16165,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:33:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:ca72df67064227b90a9a069ca734e2c9cbcaa67034409fd6649e1598cc029403",
@@ -16233,7 +16233,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:33:00Z"
+          "validUntil": "2027-02-03T09:50:12Z"
         },
         "id": "opa.v0-consumer-producer-option-at-1-20-2-from-1-19-1",
         "nextAction": "Enable the effective OPA build producer --v0-compatible mode for the declared v0-consumer scenario, or review and declare the rego.v1 import alternative; independently verify policy and bundle compatibility.",
@@ -16305,8 +16305,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
+          "validUntil": "2027-02-04T09:50:12Z",
           "sources": [
             {
               "id": "source-7b004efe4a7c-134",
@@ -17478,8 +17478,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-13T09:29:22Z",
-          "validUntil": "2026-12-12T09:29:22Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
+          "validUntil": "2027-02-05T09:50:12Z",
           "sources": [
             {
               "id": "otel-0.110.0-telemetry-factory",
@@ -17567,8 +17567,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T02:34:43Z",
-          "validUntil": "2026-12-11T02:34:43Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
+          "validUntil": "2027-02-01T09:50:12Z",
           "sources": [
             {
               "id": "source-080b76506c5b-10",
@@ -17760,7 +17760,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T17:28:04Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:0c939b2fe3867ef5e24e4bdb6ae7d9d327350f1294ff79bd29bf8c3b73c2fd15",
@@ -17812,7 +17812,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T17:28:04Z"
+          "validUntil": "2027-02-02T09:50:12Z"
         },
         "id": "prometheus.alertmanager-api-v1-removed.2-55-1-to-3-14-0",
         "nextAction": "Replace api_version: v1 with v2 in the selected Alertmanager mapping, then separately verify target support, reachability, alert delivery, and the complete target configuration.",
@@ -17956,7 +17956,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:02:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:629498030714922f585aa2414bce578377b3fa9dc587f001fca658ae83c42a9a",
@@ -18000,7 +18000,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:02:00Z"
+          "validUntil": "2027-02-03T09:50:12Z"
         },
         "id": "prometheus.alertmanager-api-v1.target-config.3-10-0-to-3-14-0",
         "nextAction": "Replace api_version: v1 with v2 in the selected Alertmanager mapping, then separately verify target Alertmanager support, reachability, and alert delivery.",
@@ -18038,7 +18038,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:02:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:629498030714922f585aa2414bce578377b3fa9dc587f001fca658ae83c42a9a",
@@ -18082,7 +18082,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:02:00Z"
+          "validUntil": "2027-02-04T09:50:12Z"
         },
         "id": "prometheus.alertmanager-api-v1.target-config.3-11-3-to-3-14-0",
         "nextAction": "Replace api_version: v1 with v2 in the selected Alertmanager mapping, then separately verify target Alertmanager support, reachability, and alert delivery.",
@@ -18120,7 +18120,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:02:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:629498030714922f585aa2414bce578377b3fa9dc587f001fca658ae83c42a9a",
@@ -18164,7 +18164,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:02:00Z"
+          "validUntil": "2027-02-08T09:50:12Z"
         },
         "id": "prometheus.alertmanager-api-v1.target-config.3-12-0-to-3-14-0",
         "nextAction": "Replace api_version: v1 with v2 in the selected Alertmanager mapping, then separately verify target Alertmanager support, reachability, and alert delivery.",
@@ -18202,7 +18202,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:02:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:629498030714922f585aa2414bce578377b3fa9dc587f001fca658ae83c42a9a",
@@ -18246,7 +18246,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:02:00Z"
+          "validUntil": "2027-02-09T09:50:12Z"
         },
         "id": "prometheus.alertmanager-api-v1.target-config.3-13-3-to-3-14-0",
         "nextAction": "Replace api_version: v1 with v2 in the selected Alertmanager mapping, then separately verify target Alertmanager support, reachability, and alert delivery.",
@@ -18284,7 +18284,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:02:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:629498030714922f585aa2414bce578377b3fa9dc587f001fca658ae83c42a9a",
@@ -18328,7 +18328,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:02:00Z"
+          "validUntil": "2027-02-10T09:50:12Z"
         },
         "id": "prometheus.alertmanager-api-v1.target-config.3-9-1-to-3-14-0",
         "nextAction": "Replace api_version: v1 with v2 in the selected Alertmanager mapping, then separately verify target Alertmanager support, reachability, and alert delivery.",
@@ -18362,7 +18362,7 @@
           "boolValue": true
         },
         "evidence": {
-          "reviewedAt": "2026-09-13T08:57:28Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:65a2d40744ed955abccecea69ab8a200c13d969e3301e96853e6bd69b9a80dcc",
@@ -18422,7 +18422,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-12T08:57:28Z"
+          "validUntil": "2027-02-11T09:50:12Z"
         },
         "id": "prometheus.remote-write-http2-default.2-55-1-to-3-14-0",
         "nextAction": "Set direct enable_http2: true on the selected remote_write entry or revise the declared endpoint requirement, then separately verify endpoint protocol support, negotiation, delivery, and the complete target configuration.",
@@ -18459,7 +18459,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T17:28:04Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:0c939b2fe3867ef5e24e4bdb6ae7d9d327350f1294ff79bd29bf8c3b73c2fd15",
@@ -18495,7 +18495,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T17:28:04Z"
+          "validUntil": "2027-02-12T09:50:12Z"
         },
         "id": "prometheus.scrape-classic-histograms-key-renamed.2-55-1-to-3-14-0",
         "nextAction": "Rename scrape_classic_histograms to always_scrape_classic_histograms in the selected scrape configuration, then separately validate the complete target configuration.",
@@ -18629,7 +18629,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T08:05:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:629498030714922f585aa2414bce578377b3fa9dc587f001fca658ae83c42a9a",
@@ -18649,7 +18649,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T08:05:00Z"
+          "validUntil": "2027-02-15T09:50:12Z"
         },
         "id": "prometheus.scrape-classic-histograms.target-config.3-10-0-to-3-14-0",
         "nextAction": "Replace scrape_classic_histograms with always_scrape_classic_histograms in the selected scrape_config, then validate complete configuration, startup, and scraping separately.",
@@ -18686,7 +18686,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T08:05:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:629498030714922f585aa2414bce578377b3fa9dc587f001fca658ae83c42a9a",
@@ -18706,7 +18706,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T08:05:00Z"
+          "validUntil": "2027-02-16T09:50:12Z"
         },
         "id": "prometheus.scrape-classic-histograms.target-config.3-11-3-to-3-14-0",
         "nextAction": "Replace scrape_classic_histograms with always_scrape_classic_histograms in the selected scrape_config, then validate complete configuration, startup, and scraping separately.",
@@ -18743,7 +18743,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T08:05:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:629498030714922f585aa2414bce578377b3fa9dc587f001fca658ae83c42a9a",
@@ -18763,7 +18763,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T08:05:00Z"
+          "validUntil": "2027-02-15T09:50:12Z"
         },
         "id": "prometheus.scrape-classic-histograms.target-config.3-12-0-to-3-14-0",
         "nextAction": "Replace scrape_classic_histograms with always_scrape_classic_histograms in the selected scrape_config, then validate complete configuration, startup, and scraping separately.",
@@ -18800,7 +18800,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T08:05:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:629498030714922f585aa2414bce578377b3fa9dc587f001fca658ae83c42a9a",
@@ -18820,7 +18820,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T08:05:00Z"
+          "validUntil": "2027-02-16T09:50:12Z"
         },
         "id": "prometheus.scrape-classic-histograms.target-config.3-13-3-to-3-14-0",
         "nextAction": "Replace scrape_classic_histograms with always_scrape_classic_histograms in the selected scrape_config, then validate complete configuration, startup, and scraping separately.",
@@ -18857,7 +18857,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T08:05:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:629498030714922f585aa2414bce578377b3fa9dc587f001fca658ae83c42a9a",
@@ -18877,7 +18877,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T08:05:00Z"
+          "validUntil": "2027-02-15T09:50:12Z"
         },
         "id": "prometheus.scrape-classic-histograms.target-config.3-9-1-to-3-14-0",
         "nextAction": "Replace scrape_classic_histograms with always_scrape_classic_histograms in the selected scrape_config, then validate complete configuration, startup, and scraping separately.",
@@ -18896,7 +18896,7 @@
       "requiredFacts": [],
       "rule": {
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:5079398ac1d6f8d4705f1e2c3950a1b0c56a694060b380afd40c067501b96707",
@@ -18916,7 +18916,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-16T09:50:12Z"
         },
         "id": "rook.direct-minor-skip.1-15-9-to-1-20-7",
         "nextAction": "Plan a separate supported Rook 1.15.x to 1.16.x transition first; the cited latest patch is an evidence endpoint, not a mandatory exact intermediate.",
@@ -18935,7 +18935,7 @@
       "requiredFacts": [],
       "rule": {
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:62f961857d5da44355a555e060ae21a64f47a067b479e6baa297676641a68eb1",
@@ -18955,7 +18955,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-15T09:50:12Z"
         },
         "id": "rook.direct-minor-skip.1-16-9-to-1-20-7",
         "nextAction": "Plan a separate supported Rook 1.16.x to 1.17.x transition first; the cited latest patch is an evidence endpoint, not a mandatory exact intermediate.",
@@ -18974,7 +18974,7 @@
       "requiredFacts": [],
       "rule": {
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:a7fe324e80043627b9ed99de7e1c1659e523e40bff13c2a5e6c08c5a02d90a8f",
@@ -18994,7 +18994,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-16T09:50:12Z"
         },
         "id": "rook.direct-minor-skip.1-17-9-to-1-20-7",
         "nextAction": "Plan a separate supported Rook 1.17x to 1.18.x transition first; the cited latest patch is an evidence endpoint, not a mandatory exact intermediate.",
@@ -19013,7 +19013,7 @@
       "requiredFacts": [],
       "rule": {
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:3824dfb02bb1802d11268e827a79b3840e470201b1541518eb1f7cc95eff6f25",
@@ -19033,7 +19033,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-15T09:50:12Z"
         },
         "id": "rook.direct-minor-skip.1-18-11-to-1-20-7",
         "nextAction": "Plan a separate supported Rook 1.18x to 1.19.x transition first; the cited latest patch is an evidence endpoint, not a mandatory exact intermediate.",
@@ -19148,7 +19148,7 @@
           "version": "1.31.0"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "id": "rook-1-20-7-kubernetes-minimum",
@@ -19160,7 +19160,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-16T09:50:12Z"
         },
         "id": "rook.minimum-kubernetes.1-20-7",
         "nextAction": "Supply proposed Kubernetes 1.31 or newer; CSI migration, Ceph state, chart order and runtime behavior remain UNKNOWN.",
@@ -19185,7 +19185,7 @@
           "version": "1.31.0"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T08:31:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "id": "rook-origin-1-15-9-identity",
@@ -19205,7 +19205,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T08:31:00Z"
+          "validUntil": "2027-02-15T09:50:12Z"
         },
         "id": "rook.minimum-kubernetes.1-20-7-from-1-15-9",
         "nextAction": "Supply proposed Kubernetes 1.31 or newer for this exact target constraint; supported upgrade routing, CSI migration, Ceph state, chart order, and runtime behavior remain UNKNOWN.",
@@ -19230,7 +19230,7 @@
           "version": "1.31.0"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T08:31:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "id": "rook-origin-1-16-9-identity",
@@ -19250,7 +19250,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T08:31:00Z"
+          "validUntil": "2027-02-16T09:50:12Z"
         },
         "id": "rook.minimum-kubernetes.1-20-7-from-1-16-9",
         "nextAction": "Supply proposed Kubernetes 1.31 or newer for this exact target constraint; supported upgrade routing, CSI migration, Ceph state, chart order, and runtime behavior remain UNKNOWN.",
@@ -19275,7 +19275,7 @@
           "version": "1.31.0"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T08:31:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "id": "rook-origin-1-17-9-identity",
@@ -19295,7 +19295,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T08:31:00Z"
+          "validUntil": "2027-02-15T09:50:12Z"
         },
         "id": "rook.minimum-kubernetes.1-20-7-from-1-17-9",
         "nextAction": "Supply proposed Kubernetes 1.31 or newer for this exact target constraint; supported upgrade routing, CSI migration, Ceph state, chart order, and runtime behavior remain UNKNOWN.",
@@ -19320,7 +19320,7 @@
           "version": "1.31.0"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T08:31:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "id": "rook-origin-1-18-11-identity",
@@ -19340,7 +19340,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T08:31:00Z"
+          "validUntil": "2027-02-16T09:50:12Z"
         },
         "id": "rook.minimum-kubernetes.1-20-7-from-1-18-11",
         "nextAction": "Supply proposed Kubernetes 1.31 or newer for this exact target constraint; supported upgrade routing, CSI migration, Ceph state, chart order, and runtime behavior remain UNKNOWN.",
@@ -20760,8 +20760,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-09T03:59:00Z",
-          "validUntil": "2026-12-08T03:59:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
+          "validUntil": "2027-01-18T09:50:12Z",
           "sources": [
             {
               "id": "source-tekton-v1-10-config-active",
@@ -20900,7 +20900,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "id": "thanos-v0-42-target-01-removed-flags",
@@ -20936,7 +20936,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-01-19T09:50:12Z"
         },
         "id": "thanos.receive-store-flags-target-argv.0-37-2-to-0-42-4",
         "nextAction": "Remove the named Receive or Store argv flag, then separately review compaction, storage, and Thanos Query compatibility.",
@@ -20970,7 +20970,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "id": "thanos-v0-42-target-01-removed-flags",
@@ -21006,7 +21006,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-01-20T09:50:12Z"
         },
         "id": "thanos.receive-store-flags-target-argv.0-38-0-to-0-42-4",
         "nextAction": "Remove the named Receive or Store argv flag, then separately review compaction, storage, and Thanos Query compatibility.",
@@ -21040,7 +21040,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "id": "thanos-v0-42-target-01-removed-flags",
@@ -21076,7 +21076,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-01-21T09:50:12Z"
         },
         "id": "thanos.receive-store-flags-target-argv.0-39-2-to-0-42-4",
         "nextAction": "Remove the named Receive or Store argv flag, then separately review compaction, storage, and Thanos Query compatibility.",
@@ -21110,7 +21110,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "id": "thanos-v0-42-target-01-removed-flags",
@@ -21146,7 +21146,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-01-22T09:50:12Z"
         },
         "id": "thanos.receive-store-flags-target-argv.0-40-1-to-0-42-4",
         "nextAction": "Remove the named Receive or Store argv flag, then separately review compaction, storage, and Thanos Query compatibility.",
@@ -21180,7 +21180,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "id": "thanos-v0-42-target-01-removed-flags",
@@ -21216,7 +21216,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-01-18T09:50:12Z"
         },
         "id": "thanos.receive-store-flags-target-argv.0-41-0-to-0-42-4",
         "nextAction": "Remove the named Receive or Store argv flag, then separately review compaction, storage, and Thanos Query compatibility.",
@@ -21680,8 +21680,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
+          "validUntil": "2027-01-19T09:50:12Z",
           "sources": [
             {
               "id": "source-bee41a670a0e-78",
