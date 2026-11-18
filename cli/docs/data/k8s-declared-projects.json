@@ -1,0 +1,128 @@
+{
+  "schema": "prufyx.k8s-declared-projects/v1",
+  "projects": [
+    {
+      "project": "cert-manager",
+      "repo": "cert-manager/cert-manager",
+      "source": {
+        "kind": "chart_kubeversion",
+        "path": "deploy/charts/cert-manager/Chart.yaml"
+      },
+      "tags": [
+        "v1.21.3",
+        "v1.20.5",
+        "v1.19.6"
+      ]
+    },
+    {
+      "project": "cilium",
+      "repo": "cilium/cilium",
+      "source": {
+        "kind": "chart_kubeversion",
+        "path": "install/kubernetes/cilium/Chart.yaml"
+      },
+      "tags": [
+        "v1.20.5",
+        "v1.19.11",
+        "v1.18.17"
+      ]
+    },
+    {
+      "project": "istio",
+      "repo": "istio/istio",
+      "source": {
+        "kind": "chart_kubeversion",
+        "path": "manifests/charts/base/Chart.yaml"
+      },
+      "tags": [
+        "1.32.0",
+        "1.31.4",
+        "1.30.8"
+      ]
+    },
+    {
+      "project": "longhorn",
+      "repo": "longhorn/longhorn",
+      "source": {
+        "kind": "chart_kubeversion",
+        "path": "chart/Chart.yaml"
+      },
+      "tags": [
+        "v1.13.0",
+        "v1.12.2",
+        "v1.11.3"
+      ]
+    },
+    {
+      "project": "kyverno",
+      "repo": "kyverno/kyverno",
+      "source": {
+        "kind": "chart_kubeversion",
+        "path": "charts/kyverno/Chart.yaml"
+      },
+      "tags": [
+        "v1.20.0",
+        "v1.19.2",
+        "v1.18.2"
+      ]
+    },
+    {
+      "project": "linkerd",
+      "repo": "linkerd/linkerd2",
+      "source": {
+        "kind": "chart_kubeversion",
+        "path": "charts/linkerd-control-plane/Chart.yaml"
+      },
+      "tags": [
+        "edge-26.11.2",
+        "edge-26.10.2",
+        "edge-26.9.3"
+      ]
+    },
+    {
+      "project": "kube-prometheus",
+      "repo": "prometheus-operator/kube-prometheus",
+      "source": {
+        "kind": "docs_matrix",
+        "path": "README.md",
+        "matrix": {
+          "header_first_cell": "kube-prometheus stack",
+          "row_key_prefix": "release-",
+          "row_key_suffix": ""
+        }
+      },
+      "tags": [
+        "v0.19.0",
+        "v0.18.0",
+        "v0.17.0"
+      ]
+    },
+    {
+      "project": "keda",
+      "repo": "kedacore/keda",
+      "tags": [
+        "v2.21.1",
+        "v2.20.2",
+        "v2.19.0"
+      ]
+    },
+    {
+      "project": "flux2",
+      "repo": "fluxcd/flux2",
+      "tags": [
+        "v2.10.0",
+        "v2.9.6",
+        "v2.8.8"
+      ]
+    },
+    {
+      "project": "argo-cd",
+      "repo": "argoproj/argo-cd",
+      "tags": [
+        "v3.6.1",
+        "v3.5.7",
+        "v3.4.13"
+      ]
+    }
+  ]
+}
