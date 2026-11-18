@@ -35,6 +35,8 @@ type Input struct {
 	Tags        []string
 	Source      Source
 	Rules       *Rules
+	// Index overrides the reviewed ownership index (tests); nil uses it.
+	Index *customresources.Index
 	// StrictWindow turns a shrunk window (older tags withheld) into the
 	// typed stop window-shortened.
 	StrictWindow bool
@@ -177,6 +179,9 @@ func generateWithWindow(in Input, full *FullWindowSelector) (*Result, error) {
 		return nil, &StopError{Stops: sortStops(rstops)}
 	}
 	index := customresources.DefaultIndex()
+	if in.Index != nil {
+		index = *in.Index
+	}
 	var optFatal []Stop
 	results := make([]*tagResult, len(tags))
 	scans := make([][]*finding, len(tags))
@@ -633,8 +638,16 @@ func classify(tag, commit string, fs []*finding, rules *Rules, slug, ownerRepo s
 			seenCRD[key] = i.Path
 			if reservedStop(c.Group, slug, ownerRepo) {
 				stopAt(StopReservedGroup, c.Group, i.Path)
-			} else if o, a := index.Owner(c.Group); a != customresources.Unknown && o != slug {
-				stopAt(StopGroupOwnedElsewhere, c.Group, "listed by "+o+" ("+i.Path+")")
+			} else if o, a := index.OwnerOf(c.Group, c.Kind); a == customresources.Ambiguous {
+				stopAt(StopGroupOwnedElsewhere, key, "listed by more than one project ("+i.Path+")")
+			} else if a == customresources.Owned && o != slug {
+				stopAt(StopGroupOwnedElsewhere, key, "listed by "+o+" ("+i.Path+")")
+			} else if a == customresources.Unknown && index.Listed(c.Group) && !index.KindScoped(c.Group) {
+				// A kind no project lists is allowed in a group other
+				// projects list kind by kind, together with the kinds-only
+				// row build emits for this project. A group another
+				// project lists whole is not shared.
+				stopAt(StopGroupOwnedElsewhere, key, "group "+c.Group+" is listed by another project without a kind list ("+i.Path+")")
 			}
 		}
 	}

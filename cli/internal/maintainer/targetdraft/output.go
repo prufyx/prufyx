@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/prufyx/prufyx/cli/internal/customresources"
 )
 
 // Typed stop codes. Each has a next action; none is ever downgraded to a
@@ -79,7 +81,7 @@ var nextAction = map[string]string{
 	StopRuleMatchesNothing:         "the rule names a path no tag of the window carries; drop or correct the rule",
 	StopDuplicateCRD:               "two files define the same group and kind; pin which one is the source",
 	StopReservedGroup:              "a Kubernetes-reserved group needs a reviewed ownership record before a target may list it",
-	StopGroupOwnedElsewhere:        "another table project lists the group; use a kinds-only row after review",
+	StopGroupOwnedElsewhere:        "another table project lists this kind, or lists the whole group (or the group is listed ambiguously); only a kind no project lists, in a group every listing scopes by kind, is allowed, with the kinds-only row the generator emits",
 	StopNoCRDSource:                "no install path holds a definition; give an installSurface rule or choose another source",
 	StopWindowTooShort:             "fewer than two tags read the same files; widen the tag set or fix the unreadable tag",
 	StopForeignCopyUnpinned:        "a definition file of another project's group sits outside the default-excluded directories (documentation or fixtures); add a reviewed pinned exclusion rule for the exact file or fixture directory",
@@ -164,6 +166,7 @@ const (
 	RuleFixtureDrop            = "fixture-drop"
 	RuleForeignCopy            = "foreign-copy"
 	RuleGroupKinds             = "group-kinds"
+	RuleKindsOnlyRow           = "kinds-only-row"
 	RuleTagPrefix              = "tag-prefix"
 	RuleMinFrom                = "min-from"
 	RuleCollapseDirectory      = "collapse-directory"
@@ -630,8 +633,15 @@ func build(in Input, catalog, component, fact, ownerRepo, prefix string, prefixe
 		}
 	}
 	add(Decision{Rule: RuleMinFrom, Subject: minFrom, Detail: fmt.Sprintf("oldest line whose tag reads the same %d files as the newest; %d older tag(s) withheld", len(ordered), len(dropped))})
+	idx := customresources.DefaultIndex()
+	if in.Index != nil {
+		idx = *in.Index
+	}
 	for _, g := range gfacts {
 		add(Decision{Rule: RuleGroupKinds, Subject: g.Name, Detail: strings.Join(g.Kinds, ",")})
+		if o, a := idx.Owner(g.Name); a == customresources.Ambiguous || (a == customresources.Owned && o != in.Slug) {
+			add(Decision{Rule: RuleKindsOnlyRow, Subject: g.Name, Detail: "the group is listed by other projects kind by kind; the row lists only the kinds read here and is a proposal, never merged by the generator"})
+		}
 	}
 	sort.Slice(rep.Decisions, func(i, j int) bool {
 		x, y := rep.Decisions[i], rep.Decisions[j]
