@@ -8,6 +8,7 @@
 package changelogcli
 
 import (
+	"bytes"
 	"errors"
 	"flag"
 	"fmt"
@@ -20,7 +21,8 @@ import (
 
 const usage = `usage:
   prufyx-maintainer changelog entries --component NAME --repo github.com/OWNER/NAME --path FILE --form FORM --tag TAG (--mirror-state DIR | --fixture DIR)
-exit: 0 manifest printed (entry or typed reason), 2 input rejected or read failed`
+  prufyx-maintainer changelog rows-check (--mirror-state DIR | --fixture DIR) [--component NAME]
+exit: 0 manifest printed (entry or typed reason) or every row PASS, 1 a row FAIL, 2 input rejected or read failed`
 
 // Main runs a "changelog" subcommand (args exclude the word "changelog") with
 // the reviewed target table. It returns 0 when a manifest was printed and 2
@@ -30,6 +32,9 @@ func Main(args []string, stdout, stderr io.Writer) int {
 }
 
 func run(args []string, table []changelogentries.Target, stdout, stderr io.Writer) int {
+	if len(args) > 0 && args[0] == "rows-check" {
+		return rowsCheck(args[1:], table, stdout, stderr)
+	}
 	if len(args) == 0 || args[0] != "entries" {
 		fmt.Fprintln(stderr, usage)
 		return 2
@@ -66,6 +71,78 @@ type source interface {
 	extract.TagSource
 }
 
+func openSource(mirror, fixture string) (source, error) {
+	if (mirror == "") == (fixture == "") {
+		return nil, errors.New("give exactly one of --mirror-state and --fixture")
+	}
+	if mirror != "" {
+		r, err := factorymirror.OpenReader(mirror)
+		if err != nil {
+			return nil, fmt.Errorf("open mirror: %w", err)
+		}
+		return extract.MirrorReader{R: r}, nil
+	}
+	return extract.FixtureReader{Root: fixture}, nil
+}
+
+// rowsCheck runs every reviewed row (or one) over all final tags of its
+// repository and prints one line per row. Read-only; 0 only when no row failed.
+func rowsCheck(args []string, table []changelogentries.Target, stdout, stderr io.Writer) int {
+	var component, mirror, fixture string
+	f := flag.NewFlagSet("changelog rows-check", flag.ContinueOnError)
+	f.SetOutput(io.Discard)
+	for name, v := range map[string]*string{"component": &component, "mirror-state": &mirror, "fixture": &fixture} {
+		f.Var(&once{v: v}, name, "")
+	}
+	if err := f.Parse(args); err != nil {
+		fmt.Fprintf(stderr, "changelog rows-check: %v\n%s\n", err, usage)
+		return 2
+	}
+	if f.NArg() != 0 {
+		fmt.Fprintf(stderr, "changelog rows-check: unexpected argument %q\n%s\n", f.Arg(0), usage)
+		return 2
+	}
+	src, err := openSource(mirror, fixture)
+	if err != nil {
+		fmt.Fprintf(stderr, "changelog rows-check: %v\n", err)
+		return 2
+	}
+	digest, err := changelogentries.CodeDigest()
+	if err != nil {
+		fmt.Fprintf(stderr, "changelog rows-check: %v\n", err)
+		return 2
+	}
+	results, err := changelogentries.CheckRows(src, table, component, digest)
+	if err != nil {
+		fmt.Fprintf(stderr, "changelog rows-check: %v\n", err)
+		return 2
+	}
+	var out bytes.Buffer
+	failed := 0
+	for _, r := range results {
+		fmt.Fprintf(&out, "%s %s form=%s tags=%d located=%d withheld=%d notFinal=%d", r.Status, r.Component, r.Form, r.Tags, r.Located, r.WithheldTotal(), r.NotFinal)
+		for _, c := range r.SortedCodes() {
+			fmt.Fprintf(&out, " %s=%d", c, r.Withheld[c])
+		}
+		out.WriteByte('\n')
+		for _, why := range r.Reasons {
+			fmt.Fprintf(&out, "  - %s\n", why)
+		}
+		if r.Status == changelogentries.RowFail {
+			failed++
+		}
+	}
+	fmt.Fprintf(&out, "rows=%d failed=%d\n", len(results), failed)
+	if _, err := stdout.Write(out.Bytes()); err != nil {
+		fmt.Fprintf(stderr, "changelog rows-check: %v\n", err)
+		return 2
+	}
+	if failed > 0 {
+		return 1
+	}
+	return 0
+}
+
 func entries(args []string, table []changelogentries.Target) ([]byte, error) {
 	var component, repo, path, form, tag, mirror, fixture string
 	f := flag.NewFlagSet("changelog entries", flag.ContinueOnError)
@@ -98,15 +175,9 @@ func entries(args []string, table []changelogentries.Target) ([]byte, error) {
 	if repo != t.Repo.Key || path != t.Path || form != t.Form {
 		return nil, fmt.Errorf("--repo, --path and --form do not match the reviewed target of %q", component)
 	}
-	var src source
-	if mirror != "" {
-		r, err := factorymirror.OpenReader(mirror)
-		if err != nil {
-			return nil, fmt.Errorf("open mirror: %w", err)
-		}
-		src = extract.MirrorReader{R: r}
-	} else {
-		src = extract.FixtureReader{Root: fixture}
+	src, err := openSource(mirror, fixture)
+	if err != nil {
+		return nil, err
 	}
 	tags, err := src.Tags(t.Repo)
 	if err != nil {

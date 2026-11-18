@@ -60,16 +60,37 @@ closed, so a row can never carry logic:
 - the document is `{"schema", "rows"}`; unknown fields, duplicate keys and
   trailing data are refused; `rows` are sorted by component, strictly ascending;
 - a row is `component` (slug), `repo` (canonical `github.com/<org>/<repo>`),
-  `form`, and for form `changelog-file` only: `path` (clean, relative, no `..`),
+  `form`, and for the file forms: `path` (clean, relative, no `..`),
   `headingStyle` and `boundaryStyles`;
-- `form` is one of `changelog-file`, `github-release`, `post-tag`, `docs-page`,
+- `form` is one of `changelog-file`, `changelog-per-line-file`,
+  `changelog-per-version-file`, `github-release`, `post-tag`, `docs-page`,
   `monorepo`; the other forms are not in the table;
+- the two template forms take a `path` template with exactly one placeholder
+  from a closed vocabulary, made of `[A-Za-z0-9._/-]` and the placeholder only
+  (no glob, regular expression, shell text, space or non-ASCII). The
+  placeholder shares its path element with literal text and has no digit
+  beside it:
+
+| form | placeholder | meaning | example | styles |
+|---|---|---|---|---|
+| `changelog-per-line-file` | `{line}` | `major.minor` of the tag | `CHANGELOG/CHANGELOG-{line}.md` | heading style and at least one boundary style, as `changelog-file` |
+| `changelog-per-version-file` | `{version}` | full final version of the tag, no `v` | `docs/releases/v{version}.md` | none (the file is the entry); `headingStyle` and `boundaryStyles` are refused |
+
 - styles are names, never regular expressions. Each name maps to a fixed
   expression compiled in code:
 
 | kind | name | expression |
 |---|---|---|
 | heading | `version-slash-date` | `^(?P<version>[0-9]+\.[0-9]+\.[0-9]+) / [0-9]{4}-[0-9]{2}-[0-9]{2}$` |
+| heading | `version-plain` | `^(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$` |
+| heading | `version-v-prefixed` | `^v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$` |
+| heading | `version-bracketed` | `^\[(?P<version>[0-9]+\.[0-9]+\.[0-9]+)\]$` |
+| heading | `version-bracketed-date` | `^\[(?P<version>...)\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$` |
+| heading | `version-dash-date` | `^(?P<version>...) - [0-9]{4}-[0-9]{2}-[0-9]{2}$` |
+| boundary | `unreleased` | `^Unreleased$` |
+| boundary | `unreleased-bracketed` | `^\[Unreleased\]$` |
+| boundary | `prerelease-plain` | `^[0-9]+\.[0-9]+\.[0-9]+-(rc\|alpha\|beta)\.[0-9]+$` |
+| boundary | `prerelease-v-prefixed` | `^v[0-9]+\.[0-9]+\.[0-9]+-(rc\|alpha\|beta)\.[0-9]+$` |
 | boundary | `main-unreleased` | `^main / unreleased$` |
 | boundary | `main-unreleased-parenthesised` | `^main / \(unreleased\)$` |
 
@@ -95,6 +116,31 @@ row has a non-file form (post-tag, github-release) prints a withheld manifest
 with its typed code, and nothing is read. Rows of form `changelog-file` exist
 for `prometheus` and `alertmanager`: the review window's tags were read in full
 and located with no residue and no withheld code. A row is reviewed input only; it attests nothing by itself.
+
+## Checking rows
+
+```
+prufyx-maintainer changelog rows-check (--mirror-state DIR | --fixture DIR) [--component NAME]
+```
+
+Read-only and deterministic. For every row (or the one named) and every final
+release tag the source records for its repository (release candidates and other
+non-final tags are counted as `notFinal` and skipped), it runs the same
+locate/reader as `entries` and requires an entry or a typed withheld reason.
+One line per row: `PASS|FAIL|SKIP component form=... tags=N located=N
+withheld=N notFinal=N CODE=n ...`, failure reasons indented below, and a final
+`rows=N failed=N` line. Exit 0 when no row failed, 1 when a row failed, 2 when
+the input is rejected.
+
+A row FAILS when a tag gives an error that is not a typed reason (read failure,
+tag the source cannot serve), a tag is recorded twice, a tag is withheld for a
+defect of the row itself (`NO_CHANGELOG_TARGET`, `SHAPE_NOT_PER_TAG`,
+`SOURCE_NOT_PINNED_GIT`), no final tag is recorded, or no tag has an entry (the
+path or the headings never resolve). Tags before a changelog existed may be
+withheld with `PATH_MISSING_AT_TAG` and do not fail a row that otherwise
+locates entries. A row of a form that is not read is `SKIP` (it claims nothing);
+asked for by `--component` it FAILS. This is the check a data change of rows is
+judged by, together with its gate receipt.
 
 ## A printed manifest is never evidence
 
