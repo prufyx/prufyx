@@ -17,6 +17,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/knowledgeage"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 	"github.com/prufyx/prufyx/cli/internal/scanrun"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 // embeddedEnd is the earliest end date of the embedded pack's active rules.
@@ -168,7 +169,7 @@ func TestKnowledgeAgeCheckCNCFStore(t *testing.T) {
 func TestKnowledgeAgeScan(t *testing.T) {
 	t.Parallel()
 	path, base := scanFormatsFixture(t)
-	for _, clock := range []string{"2026-10-04T00:00:00Z", ageInside(), ageAfter()} {
+	for _, clock := range []string{testclock.Newest().Format(time.RFC3339), ageInside(), ageAfter()} {
 		for _, redact := range []bool{false, true} {
 			for _, format := range scanreport.Formats() {
 				args := []string{path, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3", "--distribution", "official_upstream", "--resource-scope-complete", "--target-api-apply-required", "--now", clock, "--format", format}

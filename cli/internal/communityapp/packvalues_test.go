@@ -8,6 +8,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/goldenfile"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 // ruleSetDigestField is a rule set digest in a check report. The digest
@@ -35,5 +36,5 @@ func maskPack(t testing.TB, got []byte) []byte {
 	}
 	got = ruleSetDigestField.ReplaceAll(got, []byte(maskedRuleSetDigestField))
 	got = registryDigestField.ReplaceAll(got, []byte(maskedRegistryDigestField))
-	return goldenfile.MaskPack(got, knowledge.Revision(), knowledge.PackDigest())
+	return testclock.MaskClocks(goldenfile.MaskPack(got, knowledge.Revision(), knowledge.PackDigest()))
 }

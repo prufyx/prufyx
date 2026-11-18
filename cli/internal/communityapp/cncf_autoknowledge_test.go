@@ -16,9 +16,12 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
 	"github.com/prufyx/prufyx/cli/internal/knowledgeauto"
 	"github.com/prufyx/prufyx/cli/internal/knowledgefixture"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
-const autoFixedNow = "2026-10-04T12:00:00Z"
+// autoFixedNow is the fixed clock of the automatic evaluations: one hour after
+// the newest review of the shipped rules, so it moves with a rule renewal.
+var autoFixedNow = testclock.Newest().Format(time.RFC3339)
 
 type autoStoreFixture struct {
 	root       string // default store root
@@ -32,7 +35,7 @@ func useDefaultStoreHome(t *testing.T) {
 	t.Helper()
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	old := autoClock
-	autoClock = func() time.Time { return time.Date(2026, 10, 4, 12, 0, 0, 0, time.UTC) }
+	autoClock = testclock.Newest
 	t.Cleanup(func() { autoClock = old })
 }
 

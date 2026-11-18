@@ -9,13 +9,17 @@
 package testclock
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sync"
 	"time"
+
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 )
 
 var (
@@ -155,4 +159,36 @@ func AfterAllExpiry() time.Time {
 		panic("testclock: the packs hold no validUntil")
 	}
 	return latestEnd.UTC().Add(24 * time.Hour)
+}
+
+// MaskClocks replaces the shared test clock and the three knowledge-age
+// instants (supersedeids.Clock, supersedeids.AgeClocks), which follow the
+// shipped rules' review and end dates, with fixed placeholder instants (valid RFC 3339, so a JSON golden stays
+// valid) in a golden file's text, so a golden does not move when rules are renewed. Only the
+// instants' RFC 3339 text is replaced; every verdict, status and exit code
+// stays in the golden. The reviewedAt, validUntil and derivedAt fields of a
+// JSON report, which restate the rules' own dates, are masked the same way.
+func MaskClocks(got []byte) []byte {
+	before, inside, after := supersedeids.AgeClocks()
+	for _, r := range []struct {
+		at   time.Time
+		name string
+	}{
+		{supersedeids.Clock(), "2001-01-01T00:00:00Z"},
+		{Newest(), "2001-06-01T00:00:00Z"},
+		{before, "2001-02-01T00:00:00Z"},
+		{inside, "2001-03-01T00:00:00Z"},
+		{after, "2001-04-01T00:00:00Z"},
+	} {
+		got = bytes.ReplaceAll(got, []byte(r.at.UTC().Format(time.RFC3339)), []byte(r.name))
+	}
+	return maskEvidenceTimes(got)
+}
+
+// evidenceTimeField is a report field that restates a rule's or line
+// attestation's own review or end time (data that a renewal moves).
+var evidenceTimeField = regexp.MustCompile(`"(reviewedAt|validUntil|derivedAt)":"[0-9T:.Z+-]+"`)
+
+func maskEvidenceTimes(got []byte) []byte {
+	return evidenceTimeField.ReplaceAll(got, []byte(`"$1":"2001-05-01T00:00:00Z"`))
 }
