@@ -1,0 +1,3 @@
+### Added
+
+- A CRD extractor target for Knative (12 CRDs in 4 groups: autoscaling.internal.knative.dev, caching.internal.knative.dev, networking.internal.knative.dev, serving.knative.dev) from the 0.46 line onward, tag family `v`, with line attestation enabled. 7 definition files are read from their install paths; 5 more are listed as explicit paths because the tree reaches them through symbolic links into a vendored or test-like directory. No exclusion is needed. The paths were derived from the source tree at the release tags v0.46.9, v0.47.3, v0.48.3, v0.49.1, v0.50.0, v0.51.0. Attested pairs appear only after release derivation and a data change.
