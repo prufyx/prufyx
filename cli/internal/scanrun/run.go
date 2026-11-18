@@ -179,7 +179,7 @@ func Run(request Request, options Options) (Result, error) {
 	var unknown []UnknownComponent
 	hadTarget := len(effective.Target) > 0 || len(request.NewestCovered) > 0
 	if options.SkipUnknown {
-		unknown = splitUnknown(catalog, &effective)
+		unknown = splitUnknown(catalog, &effective, request.NewestCovered)
 		request.NewestCovered = slices.DeleteFunc(slices.Clone(request.NewestCovered), func(slug string) bool {
 			return slices.ContainsFunc(unknown, func(u UnknownComponent) bool { return u.Component == slug })
 		})
@@ -301,6 +301,8 @@ func Run(request Request, options Options) (Result, error) {
 	if err := checkCommunityKnown(knowledge, effective); err != nil {
 		return Result{}, err
 	}
+	// Only unknown components were asked for: nothing is evaluated, so the
+	// early return skips the knowledge notes (source, age) a scan would print.
 	if len(effective.Target) == 0 && len(request.NewestCovered) == 0 && len(unknown) > 0 && hadTarget {
 		return Result{Unknown: unknown}, nil
 	}
@@ -750,9 +752,16 @@ func namedComponents(effective scanconfig.Effective) []string {
 
 // splitUnknown removes from effective every component the catalog does not
 // name (or that is a community project) and returns them with a typed reason.
-func splitUnknown(knowledge componentCatalog, effective *scanconfig.Effective) []UnknownComponent {
+func splitUnknown(knowledge componentCatalog, effective *scanconfig.Effective, newest []string) []UnknownComponent {
 	var out []UnknownComponent
-	for _, slug := range namedComponents(*effective) {
+	names := namedComponents(*effective)
+	for _, slug := range newest {
+		if !slices.Contains(names, slug) {
+			names = append(names, slug)
+		}
+	}
+	sort.Strings(names)
+	for _, slug := range names {
 		if _, ok := knowledge.Component(slug); ok {
 			continue
 		}
