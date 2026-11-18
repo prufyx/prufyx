@@ -56,7 +56,7 @@ func TestCheckCNCFMemberSpellingNamesTheReason(t *testing.T) {
 		t.Fatal(err)
 	}
 	var stdout, stderr strings.Builder
-	code := Run(context.Background(), []string{"check", "cncf", "--project", "cortex", "--input", path, "--now", "2026-11-20T00:00:00Z"}, &stdout, &stderr, "test")
+	code := Run(context.Background(), floorNowArgs([]string{"check", "cncf", "--project", "cortex", "--input", path, "--now", "2026-11-20T00:00:00Z"}), &stdout, &stderr, "test")
 	if code != ExitUsage || !strings.Contains(stderr.String(), "not spelled as the project spells it") {
 		t.Fatalf("code=%d stderr=%s", code, stderr.String())
 	}

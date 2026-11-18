@@ -117,7 +117,7 @@ func shortHelp(t *testing.T, args ...string) string {
 	t.Helper()
 	t.Setenv("PRUFYX_COLOR", "never")
 	var stdout, stderr bytes.Buffer
-	if code := Run(context.Background(), args, &stdout, &stderr, "test"); code != ExitOK || stderr.Len() != 0 {
+	if code := Run(context.Background(), floorNowArgs(args), &stdout, &stderr, "test"); code != ExitOK || stderr.Len() != 0 {
 		t.Fatalf("%v: code=%d stderr=%q", args, code, stderr.String())
 	}
 	return stdout.String()

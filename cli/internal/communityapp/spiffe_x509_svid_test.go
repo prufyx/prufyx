@@ -167,7 +167,7 @@ func mustRead(t *testing.T, path string) []byte {
 func runCommunity(t *testing.T, args ...string) (int, string, string) {
 	t.Helper()
 	var out, errout bytes.Buffer
-	code := Run(context.Background(), args, &out, &errout, "dev")
+	code := Run(context.Background(), floorNowArgs(args), &out, &errout, "dev")
 	return code, out.String(), errout.String()
 }
 func privateDir(t *testing.T) string {

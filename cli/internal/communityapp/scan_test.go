@@ -19,7 +19,7 @@ const scanCronJob = "apiVersion: batch/v1beta1\nkind: CronJob\nmetadata:\n  name
 func runScan(t *testing.T, args ...string) (int, string, string) {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
-	code := Run(context.Background(), append([]string{"scan"}, args...), &stdout, &stderr, "test")
+	code := Run(context.Background(), floorNowArgs(append([]string{"scan"}, args...)), &stdout, &stderr, "test")
 	return code, stdout.String(), stderr.String()
 }
 

@@ -12,7 +12,7 @@ import (
 func helpOut(t *testing.T, args ...string) (int, string) {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
-	code := Run(context.Background(), args, &stdout, &stderr, "test")
+	code := Run(context.Background(), floorNowArgs(args), &stdout, &stderr, "test")
 	return code, stdout.String()
 }
 

@@ -41,7 +41,7 @@ func TestQuickstartTranscriptsMatchTheCommands(t *testing.T) {
 			pending = writeDocFiles(t, dir, body)
 		} else if fence == "" && pending != nil {
 			var stdout, stderr bytes.Buffer
-			Run(context.Background(), pending, &stdout, &stderr, "test")
+			Run(context.Background(), floorNowArgs(pending), &stdout, &stderr, "test")
 			// The document types relative file names; the report prints them as given.
 			shown := strings.ReplaceAll(stdout.String(), dir+string(filepath.Separator), "")
 			got := strings.Split(strings.TrimRight(shown, "\n"), "\n")
