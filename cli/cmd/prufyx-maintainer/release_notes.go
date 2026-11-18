@@ -11,7 +11,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/maintainer/releasenotes"
 )
 
-const releaseNotesUsage = "release-notes: usage: prufyx-maintainer release-notes (--from REV --previous-counts-sha256 HEX [--to REV] [--repo DIR] | --from-dir DIR --to-dir DIR) [--to-label NAME] [--omit-merged-prs] [--level 3|4] [--out FILE | --into FILE [--check]]"
+const releaseNotesUsage = "release-notes: usage: prufyx-maintainer release-notes (--from REV --previous-counts-sha256 HEX [--to REV] [--repo DIR] | --from-dir DIR --to-dir DIR) [--to-label NAME] [--omit-merged-prs] [--bind-counts] [--level 3|4] [--out FILE | --into FILE [--check]]"
 
 // runReleaseNotes prints, as Markdown, what the data files of one tree add to
 // another: projects, rules, line attestations, onboarding batches and the
@@ -31,6 +31,7 @@ func runReleaseNotes(args []string, stdout io.Writer) error {
 	check := flags.Bool("check", false, "with --into: do not write; exit 1 when the block of the file differs from the regeneration")
 	prevSha := flags.String("previous-counts-sha256", "", "sha256 of the previous release's counts file (required with --from)")
 	omitPRs := flags.Bool("omit-merged-prs", false, "omit the merged pull request list")
+	bindCounts := flags.Bool("bind-counts", false, "name the described tree by the sha256 of its counts file instead of a commit (rebase-stable; for notes of an unreleased tree)")
 	level := flags.Int("level", 3, "heading level of the sections: 3, or 4 under the level-3 categories of a CHANGELOG entry")
 	if err := flags.Parse(args); err != nil || flags.NArg() != 0 || (*out != "" && *into != "") || (*check && *into == "") || (*level != 3 && *level != 4) {
 		return &commandError{code: 2, message: releaseNotesUsage, err: err}
@@ -52,6 +53,9 @@ func runReleaseNotes(args []string, stdout io.Writer) error {
 		}
 		if opts.ToCommit, err = releasenotes.Commit(*repo, *toRev); err != nil {
 			return &commandError{code: 2, message: "release-notes: cannot resolve --to", err: err}
+		}
+		if *bindCounts {
+			opts.ToCommit = ""
 		}
 		pin = releasenotes.PreviousPin{Tag: *fromRev, Commit: opts.FromCommit}
 		if ok, err := releasenotes.IsAncestor(*repo, *fromRev, *toRev); err != nil || !ok {
@@ -94,6 +98,7 @@ func runReleaseNotes(args []string, stdout io.Writer) error {
 	}
 	pin.CountsSha256 = opts.Prev.Sha256
 	opts.Previous = pin
+	opts.BindToCounts = *bindCounts
 	opts.OmitMergedPRs = *omitPRs
 	opts.Level = *level
 	text, err := releasenotes.Render(a, b, opts)

@@ -77,7 +77,7 @@ var (
 	denyUnlabeled = regexp.MustCompile(`(?i)\b(?:cover(?:s|ed|ing)?|support(?:s|ed|ing)?)\s+[0-9][0-9,]*\s+(?:cncf\s+)?projects\b|\b[0-9][0-9,]*\s+(?:cncf\s+)?projects\s+(?:are\s+)?(?:covered|supported)\b`)
 
 	tagGrammar = regexp.MustCompile(`^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z][0-9A-Za-z-]*(\.[0-9A-Za-z-]+)*)?$`)
-	headerLine = regexp.MustCompile("(?m)^Changes from `([^`]+)`(?: \\(([0-9a-f]{12})\\))? to `([^`]+)`(?: \\(([0-9a-f]{12})\\))?, computed by ")
+	headerLine = regexp.MustCompile("(?m)^Changes from `([^`]+)`(?: \\(([0-9a-f]{12})\\))? to `([^`]+)`(?: \\((?:counts )?([0-9a-f]{12})\\))?, computed by ")
 	headingRe  = regexp.MustCompile(`(?m)^## \[([^\]]*)\]`)
 	h1Re       = regexp.MustCompile(`(?m)^# (.*)$`)
 
@@ -527,7 +527,7 @@ func (c *checker) render(name, tag, prev, toCommit string) (r3, r4 string, ok bo
 		c.fail(CodePrevious, "%s: the previous tag %s is not an ancestor of the tree under check", name, prev)
 		return
 	}
-	if toCommit != "" {
+	if c.o.Mode != ModeUnreleased && toCommit != "" {
 		if _, err := releasenotes.Commit(c.root, toCommit); err != nil {
 			c.fail(CodeLabels, "%s: the commit %s named in the block does not exist", name, toCommit)
 			return
@@ -575,9 +575,17 @@ func (c *checker) render(name, tag, prev, toCommit string) (r3, r4 string, ok bo
 		c.fail(CodePrevious, "%s: %v", name, err)
 		return
 	}
+	// Unreleased notes are bound to the content of the counts file, never to
+	// a commit: a rebase rewrites commit ids but not the counts. Whatever the
+	// header names, the regeneration is compared with it, so a commit label,
+	// a stale digest or a hand edit all differ and are refused.
+	if c.o.Mode == ModeUnreleased {
+		toCommit = ""
+	}
 	opts := releasenotes.Options{
 		FromLabel: prev, ToLabel: tag,
 		FromCommit: fromShort, ToCommit: toCommit,
+		BindToCounts:  c.o.Mode == ModeUnreleased,
 		OmitMergedPRs: true,
 		Prev:          prevCounts, Cur: curCounts,
 		Previous: releasenotes.PreviousPin{Tag: prev, Commit: fromShort, CountsSha256: prevCounts.Sha256},

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -77,7 +78,7 @@ type rig struct {
 	changelog  func(string) string
 	readme     func(string) string
 	counts     func(string) string
-	toCommit   string // label in the header; "first" = the commit of the previous tag
+	toCommit   string // commit label offered to the generator; unreleased notes ignore it ("data" = the data commit)
 	prevLabel  string
 }
 
@@ -94,6 +95,8 @@ func (e env) opts(mode string) Options {
 }
 
 const readmeText = "# Title\n\n> **Status: public beta.** The `" + curTag + "` release is out.\n\nIntro line.\n\n" + coveragereport.READMEBegin + "\n\ngenerated text 5\n\n" + coveragereport.READMEEnd + "\n\nTail text.\n"
+
+var countsLabel = regexp.MustCompile(`\(counts [0-9a-f]{12}\)`)
 
 func identity(s string) string { return s }
 
@@ -133,6 +136,9 @@ func build(t *testing.T, r rig) env {
 	g := &checker{o: Options{Mode: ModeUnreleased}, root: root}
 	git(t, root, "add", "-A")
 	git(t, root, "commit", "-q", "-m", "data")
+	if toCommit == "data" {
+		toCommit = git(t, root, "rev-parse", "--short=12", "HEAD")
+	}
 	r3, r4, ok := g.render("gen", curTag, prev, toCommit)
 	if !ok {
 		t.Fatalf("cannot generate the fixture block: %v", g.res.Findings)
@@ -146,8 +152,15 @@ func build(t *testing.T, r rig) env {
 	entry, err := releasenotes.ReplaceBlock(changelog[i:], r4)
 	must(t, err)
 	changelog = changelog[:i] + entry
-	write(t, root, "cli/docs/release-notes-"+curTag+".md", r.notes(notes))
-	write(t, root, "CHANGELOG.md", r.changelog(changelog))
+	notes, changelog = r.notes(notes), r.changelog(changelog)
+	if r.tagCurrent {
+		// At the cut the tag commit is stable, so the release modes name a
+		// commit; the unreleased generator names the counts digest.
+		label := countsLabel.ReplaceAllString
+		notes, changelog = label(notes, "("+first+")"), label(changelog, "("+first+")")
+	}
+	write(t, root, "cli/docs/release-notes-"+curTag+".md", notes)
+	write(t, root, "CHANGELOG.md", changelog)
 	git(t, root, "add", "-A")
 	git(t, root, "commit", "-q", "-m", "docs")
 	if r.tagCurrent {
@@ -359,13 +372,63 @@ func TestNotesDescribingAnotherTagFails(t *testing.T) {
 	wantFail(t, check(t, e.opts(ModeUnreleased)), CodeLabels, "block describes")
 }
 
-func TestNotesCommitLabelMustExistAndBeHistory(t *testing.T) {
-	e := build(t, rig{toCommit: "first"})
-	wantPass(t, check(t, e.opts(ModeUnreleased)))
-	e = build(t, rig{notes: func(s string) string {
-		return strings.Replace(s, "to `"+curTag+"`", "to `"+curTag+"` (aaaaaaaaaaaa)", 1)
+// An unreleased notes block is bound to the counts content, never to a commit.
+func TestNotesCommitLabelRefusedWhenUnreleased(t *testing.T) {
+	e := build(t, rig{notes: func(s string) string {
+		return strings.Replace(s, "to `"+curTag+"` (counts ", "to `"+curTag+"` (", 1)
 	}})
-	wantFail(t, check(t, e.opts(ModeUnreleased)), CodeLabels, "does not exist")
+	wantFail(t, check(t, e.opts(ModeUnreleased)), CodeNotes, "differs from its regeneration")
+	e = build(t, rig{notes: func(s string) string {
+		return strings.Replace(s, "to `"+curTag+"` (counts ", "to `"+curTag+"` (aaaaaaaaaaaa) (", 1)
+	}})
+	wantFail(t, check(t, e.opts(ModeUnreleased)), CodeNotes, "")
+}
+
+func TestNotesCountsLabelIsPresentAndBound(t *testing.T) {
+	e := build(t, rig{})
+	b, err := os.ReadFile(filepath.Join(e.root, "cli/docs/release-notes-"+curTag+".md"))
+	must(t, err)
+	if !strings.Contains(string(b), "to `"+curTag+"` (counts ") {
+		t.Fatal("the header does not carry the counts digest label")
+	}
+	// A hand-edited digest in the header is refused.
+	e = build(t, rig{notes: func(s string) string {
+		i := strings.Index(s, "(counts ") + len("(counts ")
+		return s[:i] + strings.Repeat("0", 12) + s[i+12:]
+	}})
+	wantFail(t, check(t, e.opts(ModeUnreleased)), CodeNotes, "differs from its regeneration")
+}
+
+// A rebase rewrites commit ids and leaves the counts content alone: the
+// check must still pass.
+func TestNotesSurviveRebase(t *testing.T) {
+	e := build(t, rig{toCommit: "data"})
+	wantPass(t, check(t, e.opts(ModeUnreleased)))
+	before := git(t, e.root, "rev-parse", "HEAD")
+	git(t, e.root, "reset", "-q", "--soft", "HEAD~2")
+	git(t, e.root, "commit", "-q", "-m", "squashed after a rebase")
+	if git(t, e.root, "rev-parse", "HEAD") == before {
+		t.Fatal("the rebase did not change the commit id")
+	}
+	wantPass(t, check(t, e.opts(ModeUnreleased)))
+}
+
+// Counts content changed without regenerating the notes is refused.
+func TestNotesCountsChangedWithoutRegenerationFails(t *testing.T) {
+	e := build(t, rig{})
+	p := filepath.Join(e.root, releasenotes.CountsPath)
+	raw, err := os.ReadFile(p)
+	must(t, err)
+	edited := strings.Replace(string(raw), `"validRules": 1,`, `"validRules": 7,`, 1)
+	if edited == string(raw) {
+		t.Fatal("fixture edit did not apply")
+	}
+	must(t, os.WriteFile(p, []byte(edited), 0o644))
+	git(t, e.root, "commit", "-q", "-a", "-m", "counts edit")
+	res := check(t, e.opts(ModeUnreleased))
+	if res.ExitCode() == 0 {
+		t.Fatal("changed counts with stale notes passed")
+	}
 }
 
 // ---- CHANGELOG ----
@@ -682,7 +745,7 @@ func TestNameListSkippedOnlyInUnreleasedAndSaid(t *testing.T) {
 // ---- positives, codes, determinism ----
 
 func TestPositivePaths(t *testing.T) {
-	e := build(t, rig{tagCurrent: true, toCommit: "first"})
+	e := build(t, rig{tagCurrent: true})
 	wantPass(t, check(t, e.opts(ModeUnreleased))) // the tag exists: nothing is unpublished
 	wantPass(t, check(t, withDeny(t, e.opts(ModeRelease))))
 

@@ -56,6 +56,11 @@ attestation and the `SHA256SUMS` of a version must stay one-to-one.
    go run ./cmd/prufyx-maintainer release-notes --repo .. --from <prev> --previous-counts-sha256 <prev-sha> --to <head> --to-label <tag> --into docs/release-notes-<tag>.md
    ```
 
+   Notes of an untagged release are checked with the described tree named by the
+   sha256 of its counts file, not by a commit (a rebase rewrites commits but not
+   the counts): generate them with `--bind-counts` added to both commands. At the
+   cut, regenerate without it so the notes name the commit.
+
    For the second command, first create `docs/release-notes-<tag>.md` with the
    hand-written text and an empty marker pair. `--into` rewrites only the text between the
    `<!-- release-notes:begin -->` and `<!-- release-notes:end -->` lines of the

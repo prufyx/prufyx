@@ -22,6 +22,10 @@ type Options struct {
 	// FromCommit and ToCommit, when set, name the commits the labels resolve to.
 	FromCommit string
 	ToCommit   string
+	// BindToCounts names the described tree by the digest of its counts file
+	// instead of by a commit: the label then survives a rebase, because only
+	// the content decides it. ToCommit must be empty.
+	BindToCounts bool
 	// Level is the heading level of the sections: 3 (default) or 4, for a
 	// CHANGELOG entry whose own categories are level 3.
 	Level int
@@ -36,9 +40,12 @@ func Render(from, to *Snapshot, o Options) (string, error) {
 	if o.Prev == nil || o.Cur == nil {
 		return "", errors.New("release notes need the coverage counts of both releases")
 	}
+	if o.BindToCounts && o.ToCommit != "" {
+		return "", errors.New("a label bound to the counts digest cannot also name a commit")
+	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "Changes from `%s`%s to `%s`%s, computed by `prufyx-maintainer release-notes` from the data files of the two trees. No figure or list below is typed by hand.\n\n",
-		o.FromLabel, commitNote(o.FromCommit), o.ToLabel, commitNote(o.ToCommit))
+		o.FromLabel, commitNote(o.FromCommit), o.ToLabel, toNote(o))
 	for _, m := range from.Missing {
 		fmt.Fprintf(&b, "- `%s` does not exist in `%s`; it counts as empty there.\n", m, o.FromLabel)
 	}
@@ -66,6 +73,16 @@ func Render(from, to *Snapshot, o Options) (string, error) {
 		out = strings.ReplaceAll(out, "\n### ", "\n#### ")
 	}
 	return out, nil
+}
+
+// CountsLabelLen is the number of hex digits of the counts digest in the header.
+const CountsLabelLen = 12
+
+func toNote(o Options) string {
+	if o.BindToCounts {
+		return " (counts " + o.Cur.Sha256[:CountsLabelLen] + ")"
+	}
+	return commitNote(o.ToCommit)
 }
 
 func commitNote(c string) string {
