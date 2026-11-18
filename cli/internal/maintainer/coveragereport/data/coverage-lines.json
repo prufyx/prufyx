@@ -19733,6 +19733,7 @@
       }
     },
     "opentelemetry": {
+      "component": "pkg:github/open-telemetry/opentelemetry-operator",
       "priority": true,
       "lines": [
         "0.0",
@@ -20425,8 +20426,7 @@
         "0.99": [
           "0.99.0"
         ]
-      },
-      "component": "pkg:github/open-telemetry/opentelemetry-operator"
+      }
     },
     "openyurt": {
       "lines": [
