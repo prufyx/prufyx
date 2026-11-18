@@ -1,15 +1,15 @@
 {
   "schema": "prufyx.io/knowledge-approval/v2",
   "record": {
-    "baseDigest": "sha256:13f62927ddee49b9bc27b830dbe626a48d93bde77a9b14ba6965ab445d3de6dd",
-    "candidateDigest": "sha256:dda925eb945e17b0287cf6ec3b10ffce3559a4e221e401ddb14e5455b896d1d8",
-    "candidateId": "pr-64",
-    "decidedAt": "2026-10-22T06:23:46Z",
+    "baseDigest": "sha256:dda925eb945e17b0287cf6ec3b10ffce3559a4e221e401ddb14e5455b896d1d8",
+    "candidateDigest": "sha256:8dcfb30c42cbc75005da88a1489d3ef385fee866fb2835fae0a384235f25019d",
+    "candidateId": "pr-693",
+    "decidedAt": "2026-11-18T17:36:38Z",
     "decision": "approve",
     "identity": "airstand",
     "pack": "cncf",
     "ruleId": "cilium.cluster-name-invalid.1-16-19-to-1-17-18"
   },
   "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
-  "signature": "qrugYcd2lT50zUz9rI/fv4TowN0+wUlfoPNJ/zSu9e/jyBy3qCktUM5hWpB460OikYXVjnR3UMjekQa2E+OwCg=="
+  "signature": "lvsxVszuCsbsVf4nAaWWIifGYeUzIn6vrhcCKo31tWohOOb3DyibcEx+h81b8csn/MQY+rWG5o5hhL4Le1HxCA=="
 }

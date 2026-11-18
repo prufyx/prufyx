@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:59cb0f827ccde60c6e60a3100310296820e4037585b909598082d90ec86b3fbd",
+    "candidateDigest": "sha256:0f592640930a4039a175678aaacdb0fd1595a22dc38a476e7c7c631d27cedc99",
+    "candidateId": "pr-693",
+    "decidedAt": "2026-11-18T17:38:34Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "opa.v0-consumer-producer-option-at-1-20-2-from-1-15-2"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "q0OMiBNzaxUUaWlN1CXBNnYd3FWDLfbcAoju/wanN99V5DID+s786Igu1bb9kL60zXivabq/H+9PyswYPLCrAw=="
+}

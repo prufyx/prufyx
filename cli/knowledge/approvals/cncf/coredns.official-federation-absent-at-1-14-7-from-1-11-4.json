@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:02d8bc560b9d1f9ca21db2c868ea1b46375d7592fe87b3e6b4ceec465d02fa91",
+    "candidateDigest": "sha256:9eaf2de4573534bd4bafffcbdf03b1b48e013a9f4da0e43f06eb447acd27dacd",
+    "candidateId": "pr-693",
+    "decidedAt": "2026-11-18T17:36:56Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "coredns.official-federation-absent-at-1-14-7-from-1-11-4"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "eV6wo616Vxn4XO5YF3vaC9Rj2Jk4/bKiyJOsto3/PY/syv5PjmKnh0Q6RKVy6jOcDtKzrSLlIja2BdFKXqxjDQ=="
+}

@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:3fecd9ca5fd19d6fa4c7535fbefab52dc780ea84c6f0ad8169b4a85f4cdd4d67",
+    "candidateDigest": "sha256:b617b953f08546ab16e9d550d25263740e64fac147c89b8a5b8116b492da1267",
+    "candidateId": "pr-693",
+    "decidedAt": "2026-11-18T17:37:35Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "fluentd.ruby-minimum-target.1-15-3-to-1-19-3"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "nJTSomIrQOXiB5ptFKAGYHQcYxoYQhMtvOi5VCaEXrIbfRPevDu8C/8JDNZuMagcxiiM5eeyAA095bG9eGyTCA=="
+}

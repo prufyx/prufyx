@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:8bfc350ed0496c9b979c3a677a4e2f5e2f662f3488afa60594a80289e4699b04",
+    "candidateDigest": "sha256:8100f7bd19a76111c3564615db3b4234878333f014a37ebf5fc0655906bb5be1",
+    "candidateId": "pr-693",
+    "decidedAt": "2026-11-18T17:38:52Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "prometheus.alertmanager-api-v1-removed.3-1"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "ei6KPIFJcWeAQAhuzME3Is7hbNUx7asr59wVjvbWt2Bj+rA6T6gS4AAPnrMDa9rNV/KORiPt+qSXIXks9iejCQ=="
+}

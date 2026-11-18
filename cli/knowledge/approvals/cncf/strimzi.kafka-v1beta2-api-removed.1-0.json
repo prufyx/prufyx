@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:46bda5a31cf22533e6f8594cd1e78c0d1859241e430d961ae5b5929ee4fe84c3",
+    "candidateDigest": "sha256:f26aeb5e8377bd25b6ac83bc5e234fd97e41a7038b4254d6b92b397326015ea0",
+    "candidateId": "pr-693",
+    "decidedAt": "2026-11-18T17:39:23Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "strimzi.kafka-v1beta2-api-removed.1-0"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "RAScmA4snBg9sKbREPDK1ruqWv0xfJy4CaLpmWNO4xjybxOUaqyu4g9Mm587i8Y8ixaClQ6mOt4SjHh7S51yDw=="
+}
