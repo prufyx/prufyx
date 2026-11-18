@@ -442,6 +442,9 @@ const (
 	// CRKindNotInKnowledge: no reviewed table attributes this group/Kind to
 	// exactly one component.
 	CRKindNotInKnowledge = "CR_KIND_NOT_IN_KNOWLEDGE"
+	// CRKindNotCoveredByRules: rules decided the pair, but none covers this
+	// group and Kind.
+	CRKindNotCoveredByRules = "CR_KIND_NOT_COVERED_BY_RULES"
 )
 
 // CustomResource is one custom resource of the input and what scan did with

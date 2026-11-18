@@ -36,7 +36,15 @@ func customResourceReport(workspace intake.Workspace, inventory map[string]*scan
 		component, known := inventory[owner]
 		run := runs[owner]
 		switch {
-		case run != nil && run.ran && run.decided:
+		case run != nil && run.ran && !run.unknownVersion && run.decided && coverageReason(run, group, document.Kind) != "":
+			reason, hop := run.coverage(group + "/" + document.Kind)
+			cr.Reason = reason
+			if reason == scanreport.CRKindNotCoveredByRules {
+				cr.Next = "no reviewed rule for " + owner + " " + component.Current + " -> " + component.Target + " covers " + group + "/" + document.Kind + " (" + hop + "); verify its upgrade notes by hand"
+			} else {
+				cr.Next = "no reviewed rule or line review decides " + hop + " of " + owner + " " + component.Current + " -> " + component.Target + "; scan each minor upgrade separately or verify by hand"
+			}
+		case run != nil && run.ran && !run.unknownVersion && run.decided:
 			cr.Status = scanreport.CRStatusEvaluated
 			cr.Verdict = scanreport.CRVerdictNoFinding
 			if run.blocked[document.Source] {
@@ -71,4 +79,9 @@ func versionNext(owner string, component *scanreport.Component, known bool) stri
 	default:
 		return "pass --to " + owner + "=<target version>"
 	}
+}
+
+func coverageReason(run *customResourceRun, group, kind string) string {
+	reason, _ := run.coverage(group + "/" + kind)
+	return reason
 }

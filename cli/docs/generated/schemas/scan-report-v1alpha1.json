@@ -1656,7 +1656,8 @@
           "enum": [
             "CR_COMPONENT_VERSION_UNKNOWN",
             "CR_PAIR_NOT_COVERED",
-            "CR_KIND_NOT_IN_KNOWLEDGE"
+            "CR_KIND_NOT_IN_KNOWLEDGE",
+            "CR_KIND_NOT_COVERED_BY_RULES"
           ]
         },
         "next": {

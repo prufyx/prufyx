@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/prufyx/prufyx/cli/internal/intake"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 )
 
@@ -111,5 +112,58 @@ func TestScanCustomResourceListRedactedAndEmpty(t *testing.T) {
 	}
 	if len(result.Report.CustomResources) != 1 {
 		t.Fatalf("%+v", result.Report.CustomResources)
+	}
+}
+
+// An owned kind that no decided rule names is NOT_EVALUATED even though other
+// rules decided the same pair: nearby evidence is not coverage.
+func TestScanCustomResourceKindWithoutRuleIsNotEvaluated(t *testing.T) {
+	t.Parallel()
+	const topicDoc = "apiVersion: kafka.strimzi.io/v1\nkind: KafkaTopic\nmetadata:\n  name: orders\n  namespace: kafka\n"
+	result := crdScan(t, newCRDKnowledge(t), []string{kafkaV1beta2Doc, topicDoc}, "--from", "strimzi=0.51.0", "--to", "strimzi=1.0.0")
+	if cr := crByName(t, result.Report, "events"); cr.Status != scanreport.CRStatusEvaluated {
+		t.Fatalf("covered kind %+v", cr)
+	}
+	cr := crByName(t, result.Report, "orders")
+	if cr.Status != scanreport.CRStatusNotEvaluated || cr.Reason != scanreport.CRKindNotCoveredByRules || cr.Verdict != "" || !strings.Contains(cr.Next, "KafkaTopic") {
+		t.Fatalf("uncovered kind %+v", cr)
+	}
+}
+
+// Every hop must decide the object: a hop that decided nothing for it makes
+// the object NOT_EVALUATED and is named.
+func TestCustomResourceReportNeedsEveryHop(t *testing.T) {
+	t.Parallel()
+	workspace, err := intake.Decode("k.yaml", []byte(kafkaV1Doc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	inventory := map[string]*scanreport.Component{"strimzi": {Name: "strimzi", Current: "0.50.0", Target: "1.0.0"}}
+	kind := "kafka.strimzi.io/Kafka"
+	run := func(hops ...*hopCover) map[string]*customResourceRun {
+		return map[string]*customResourceRun{"strimzi": {ran: true, decided: true, hops: hops, blocked: map[intake.Source]bool{}}}
+	}
+	decided := &hopCover{label: "hop 1 A -> B", decided: true, kinds: map[string]bool{kind: true}}
+	empty := &hopCover{label: "hop 2 B -> C", kinds: map[string]bool{}}
+	never := func(string) bool { return false }
+	got := customResourceReport(workspace, inventory, never, run(decided, empty))
+	if len(got) != 1 || got[0].Status != scanreport.CRStatusNotEvaluated || got[0].Reason != scanreport.CRPairNotCovered || !strings.Contains(got[0].Next, "hop 2 B -> C") {
+		t.Fatalf("one hop undecided: %+v", got)
+	}
+	got = customResourceReport(workspace, inventory, never, run(decided, &hopCover{label: "hop 2 B -> C", decided: true, kinds: map[string]bool{kind: true}}))
+	if len(got) != 1 || got[0].Status != scanreport.CRStatusEvaluated {
+		t.Fatalf("all hops decided: %+v", got)
+	}
+}
+
+// The same object in two input files is two documents: one entry each, with
+// its file shown.
+func TestScanListsOneCustomResourceEntryPerDocument(t *testing.T) {
+	t.Parallel()
+	_, paths := files(t, map[string]string{"a.yaml": kafkaV1Doc, "b.yaml": kafkaV1Doc})
+	result := mustScan(t, newCRDKnowledge(t), append(append([]string{}, paths...), "--now", testNow, "--from", "strimzi=0.51.0", "--to", "strimzi=1.0.0")...)
+	list := result.Report.CustomResources
+	if len(list) != 2 || list[0].File == list[1].File || list[0].Name != "events" || list[1].Name != "events" {
+		t.Fatalf("entries %+v", list)
 	}
 }
