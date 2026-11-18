@@ -14,6 +14,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
 	"github.com/prufyx/prufyx/cli/internal/extract/k8sservedapis"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencereattest"
 )
 
 var servedFixture = filepath.Join("..", "..", "extract", "k8sservedapis", "testdata", "fixture")
@@ -55,6 +56,52 @@ func derivedEntries(t *testing.T) []map[string]any {
 // the 1.33 removal no published rule reads yet.
 func mechanicalTrees(t *testing.T, tamper func(entries []map[string]any)) (Tree, Tree, []map[string]any) {
 	t.Helper()
+	return mechanicalTreesBase(t, func(_ Tree, entries []map[string]any) {
+		if tamper != nil {
+			tamper(entries)
+		}
+	})
+}
+
+// quietLeaseShift is the earlier end the derived entries are given in the
+// lease test: of the shifts of 1 to 10 days, the one that lands their end in
+// the ISO week where the pack of tr has the fewest other ends (the earliest
+// shift on a tie). Which weeks are busy follows the shipped rules, so it is
+// computed from them and never pinned: renewals move the busy weeks.
+func quietLeaseShift(t *testing.T, tr Tree, entries []map[string]any) time.Duration {
+	t.Helper()
+	weeks := map[string]int{}
+	for _, e := range readPack(t, tr, cncfRulesPath).entries {
+		if until, err := time.Parse(time.RFC3339, evidenceOf(e)["validUntil"].(string)); err == nil {
+			weeks[evidencereattest.ISOWeek(until)]++
+		}
+	}
+	best, bestCount := time.Duration(0), -1
+	for days := 1; days <= 10; days++ {
+		shift := -time.Duration(days) * 24 * time.Hour
+		own := map[string]int{}
+		for _, e := range entries {
+			until, err := time.Parse(time.RFC3339, shiftTime(t, evidenceOf(e)["validUntil"], shift))
+			if err != nil {
+				t.Fatal(err)
+			}
+			own[evidencereattest.ISOWeek(until)]++
+		}
+		worst := 0
+		for w, n := range own {
+			if total := weeks[w] + n; total > worst {
+				worst = total
+			}
+		}
+		if bestCount < 0 || worst < bestCount {
+			best, bestCount = shift, worst
+		}
+	}
+	return best
+}
+
+func mechanicalTreesBase(t *testing.T, tamper func(base Tree, entries []map[string]any)) (Tree, Tree, []map[string]any) {
+	t.Helper()
 	base, head := trees(t)
 	var entries []map[string]any
 	facts := map[string]bool{}
@@ -76,7 +123,7 @@ func mechanicalTrees(t *testing.T, tamper func(entries []map[string]any)) (Tree,
 		})
 	}
 	if tamper != nil {
-		tamper(entries)
+		tamper(base, entries)
 	}
 	editPack(t, head, cncfRulesPath, func(p *packDoc) {
 		p.entries = append(p.entries, entries...)
@@ -115,9 +162,10 @@ func TestGateMechanicalRederived(t *testing.T) {
 // renewal is a re-derivation at a later time.
 func TestGateMechanicalLeaseAndRenewal(t *testing.T) {
 	t.Parallel()
-	base, head, _ := mechanicalTrees(t, func(entries []map[string]any) {
+	base, head, _ := mechanicalTreesBase(t, func(base Tree, entries []map[string]any) {
+		shift := quietLeaseShift(t, base, entries)
 		for _, e := range entries {
-			evidenceOf(e)["validUntil"] = shiftTime(t, evidenceOf(e)["validUntil"], -10*24*time.Hour)
+			evidenceOf(e)["validUntil"] = shiftTime(t, evidenceOf(e)["validUntil"], shift)
 		}
 	})
 	r := runGate(t, Options{Base: base, Head: head, Source: extract.FixtureReader{Root: servedFixture}})

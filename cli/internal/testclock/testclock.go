@@ -292,3 +292,45 @@ func ProjectAfterExpiry(project string) time.Time {
 	}
 	return end.UTC().Add(24 * time.Hour)
 }
+
+// RuleEvidence is the reviewedAt and validUntil text of the embedded rule with
+// the given id, read from the shipped packs. It panics when no pack holds
+// the rule exactly once with both times, so a test never pins a stale copy.
+func RuleEvidence(ruleID string) (reviewedAt, validUntil string) {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		panic("testclock: source location unknown")
+	}
+	internal := filepath.Dir(filepath.Dir(file))
+	found := 0
+	for _, pack := range []string{"cncfcheck", "projectcheck"} {
+		raw, err := os.ReadFile(filepath.Join(internal, pack, "data", "rules.json"))
+		if err != nil {
+			panic(err)
+		}
+		var doc struct {
+			Entries []struct {
+				Rule struct {
+					ID       string `json:"id"`
+					Evidence struct {
+						ReviewedAt string `json:"reviewedAt"`
+						ValidUntil string `json:"validUntil"`
+					} `json:"evidence"`
+				} `json:"rule"`
+			} `json:"entries"`
+		}
+		if err := json.Unmarshal(raw, &doc); err != nil {
+			panic(fmt.Errorf("testclock: %s: %w", pack, err))
+		}
+		for _, entry := range doc.Entries {
+			if entry.Rule.ID == ruleID {
+				found++
+				reviewedAt, validUntil = entry.Rule.Evidence.ReviewedAt, entry.Rule.Evidence.ValidUntil
+			}
+		}
+	}
+	if found != 1 || reviewedAt == "" || validUntil == "" {
+		panic(fmt.Sprintf("testclock: rule %q found %d times without both evidence times", ruleID, found))
+	}
+	return reviewedAt, validUntil
+}
