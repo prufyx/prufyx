@@ -377,11 +377,39 @@ func TestNotesCommitLabelRefusedWhenUnreleased(t *testing.T) {
 	e := build(t, rig{notes: func(s string) string {
 		return strings.Replace(s, "to `"+curTag+"` (counts ", "to `"+curTag+"` (", 1)
 	}})
-	wantFail(t, check(t, e.opts(ModeUnreleased)), CodeNotes, "differs from its regeneration")
+	wantFail(t, check(t, e.opts(ModeUnreleased)), CodeNotes, "only in the header label; regenerate with release-notes --bind-counts")
+	// A commit label in place of the digest (what the old generator wrote).
 	e = build(t, rig{notes: func(s string) string {
-		return strings.Replace(s, "to `"+curTag+"` (counts ", "to `"+curTag+"` (aaaaaaaaaaaa) (", 1)
+		return countsLabel.ReplaceAllString(s, "(aaaaaaaaaaaa)")
 	}})
-	wantFail(t, check(t, e.opts(ModeUnreleased)), CodeNotes, "")
+	wantFail(t, check(t, e.opts(ModeUnreleased)), CodeNotes, "only in the header label; regenerate with release-notes --bind-counts")
+}
+
+// Release and cut notes must name a commit: a label-less header is refused.
+func TestNotesReleaseModeRequiresCommitLabel(t *testing.T) {
+	e := build(t, rig{tagCurrent: true})
+	wantPass(t, check(t, withDeny(t, e.opts(ModeRelease))))
+	bare := regexp.MustCompile("(to `" + curTag + "`) \\([0-9a-f]{12}\\)(, computed)")
+	for _, f := range []string{"cli/docs/release-notes-" + curTag + ".md", "CHANGELOG.md"} {
+		p := filepath.Join(e.root, f)
+		raw, err := os.ReadFile(p)
+		must(t, err)
+		out := bare.ReplaceAllString(string(raw), "$1$2")
+		if out == string(raw) {
+			t.Fatal("fixture edit did not apply")
+		}
+		must(t, os.WriteFile(p, []byte(out), 0o644))
+	}
+	git(t, e.root, "commit", "-q", "-a", "-m", "drop label")
+	git(t, e.root, "tag", "-f", curTag)
+	wantFail(t, check(t, withDeny(t, e.opts(ModeRelease))), CodeLabels, "must name the commit")
+	site := filepath.Join(t.TempDir(), "site.json")
+	raw, err := os.ReadFile(filepath.Join(e.root, releasenotes.CountsPath))
+	must(t, err)
+	must(t, os.WriteFile(site, raw, 0o600))
+	o := withDeny(t, e.opts(ModeCut))
+	o.SiteCounts = site
+	wantFail(t, check(t, o), CodeLabels, "must name the commit")
 }
 
 func TestNotesCountsLabelIsPresentAndBound(t *testing.T) {
@@ -425,10 +453,8 @@ func TestNotesCountsChangedWithoutRegenerationFails(t *testing.T) {
 	}
 	must(t, os.WriteFile(p, []byte(edited), 0o644))
 	git(t, e.root, "commit", "-q", "-a", "-m", "counts edit")
-	res := check(t, e.opts(ModeUnreleased))
-	if res.ExitCode() == 0 {
-		t.Fatal("changed counts with stale notes passed")
-	}
+	// The notes still carry the digest of the old counts content.
+	wantFail(t, check(t, e.opts(ModeUnreleased)), CodeNotes, "differs from its regeneration")
 }
 
 // ---- CHANGELOG ----

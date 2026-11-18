@@ -109,6 +109,53 @@ func TestReleaseNotesFromRevPin(t *testing.T) {
 	}
 }
 
+func TestReleaseNotesBindCounts(t *testing.T) {
+	repo := t.TempDir()
+	scratch := t.TempDir()
+	writeCounts(t, repo, scratch)
+	git := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", repo, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false", "-c", "tag.gpgsign=false"}, args...)...)
+		if b, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v %s", args, err, b)
+		}
+	}
+	prev, _ := os.ReadFile(countsFixtures + "counts-prev.json")
+	cur, _ := os.ReadFile(countsFixtures + "counts-cur.json")
+	git("init", "-q")
+	git("add", "-A")
+	git("commit", "-q", "-m", "one")
+	git("tag", "v1")
+	path := filepath.Join(repo, "cli", "docs", "generated", "coverage-counts.json")
+	if err := os.WriteFile(path, cur, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git("commit", "-q", "-am", "two")
+	args := []string{"release-notes", "--repo", repo, "--omit-merged-prs", "--from", "v1", "--previous-counts-sha256", releasenotesSha(prev), "--to-label", "v2"}
+	gen := func(extra ...string) string {
+		t.Helper()
+		var out, errOut bytes.Buffer
+		if err := run(append(append([]string{}, args...), extra...), &out, &errOut); err != nil {
+			t.Fatal(err)
+		}
+		return out.String()
+	}
+	first := gen("--bind-counts")
+	want := "to `v2` (counts " + releasenotesSha(cur)[:12] + ")"
+	if !strings.Contains(first, want) {
+		t.Fatalf("header lacks %q\n%s", want, first)
+	}
+	// A rewritten commit id does not change the notes.
+	git("commit", "-q", "--amend", "-m", "two, rewritten")
+	if again := gen("--bind-counts"); again != first {
+		t.Error("the bound notes changed with the commit id")
+	}
+	// Without the flag the header names the commit, not the digest.
+	if plain := gen(); strings.Contains(plain, "(counts ") {
+		t.Error("the default header carries the counts label")
+	}
+}
+
 func releasenotesSha(b []byte) string { return releasenotes.Sum256Hex(b) }
 
 func TestReleaseNotesDirectories(t *testing.T) {

@@ -482,7 +482,11 @@ func (c *checker) checkRelease(tag, changelog string, scanned *[]scanText) {
 	if updated, err := releasenotes.ReplaceBlock(doc, r3); err != nil {
 		c.fail(CodeNotes, "%s: %v", name, err)
 	} else if updated != doc {
-		c.fail(CodeNotes, "%s: the generated block differs from its regeneration", name)
+		if c.o.Mode == ModeUnreleased && headerLine.ReplaceAllString(updated, "H") == headerLine.ReplaceAllString(doc, "H") {
+			c.fail(CodeNotes, "%s: the generated block differs from its regeneration only in the header label; regenerate with release-notes --bind-counts", name)
+		} else {
+			c.fail(CodeNotes, "%s: the generated block differs from its regeneration", name)
+		}
 	}
 	if sectionOK {
 		if updated, err := releasenotes.ReplaceBlock(section, r4); err != nil {
@@ -525,6 +529,10 @@ func (c *checker) render(name, tag, prev, toCommit string) (r3, r4 string, ok bo
 	}
 	if isAnc, err := releasenotes.IsAncestor(c.root, prevSha, toCommitFull); err != nil || !isAnc {
 		c.fail(CodePrevious, "%s: the previous tag %s is not an ancestor of the tree under check", name, prev)
+		return
+	}
+	if c.o.Mode != ModeUnreleased && toCommit == "" {
+		c.fail(CodeLabels, "%s: the block must name the commit of the described tree (release and cut notes are not bound to the counts digest alone)", name)
 		return
 	}
 	if c.o.Mode != ModeUnreleased && toCommit != "" {
