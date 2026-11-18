@@ -122,12 +122,14 @@ type Release struct {
 	// Reason is set exactly when Status is not_declared.
 	Reason string `json:"reason,omitempty"`
 	// The fields below are set exactly when Status is declared.
-	SourceKind      string `json:"source_kind,omitempty"`
-	Shape           string `json:"shape,omitempty"`
-	ConstraintRaw   string `json:"constraint_raw,omitempty"`
-	Minimum         string `json:"minimum,omitempty"`
-	Maximum         string `json:"maximum,omitempty"`
-	MaxAtMatrixEdge bool   `json:"max_at_matrix_edge,omitempty"`
+	SourceKind    string `json:"source_kind,omitempty"`
+	Shape         string `json:"shape,omitempty"`
+	ConstraintRaw string `json:"constraint_raw,omitempty"`
+	Minimum       string `json:"minimum,omitempty"`
+	Maximum       string `json:"maximum,omitempty"`
+	// TableLastColumn is the last column of a table row whose ticks run to
+	// the table edge. It is what the table lists, not an upstream maximum.
+	TableLastColumn string `json:"table_last_column,omitempty"`
 	// Citation is required when declared; optional for not_declared, where
 	// it records the file that was read and held no usable declaration.
 	Citation *Citation `json:"citation,omitempty"`

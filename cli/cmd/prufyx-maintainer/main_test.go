@@ -466,6 +466,18 @@ func TestMaintainerCLI_SupportInventory_CheckAcceptedFiles(t *testing.T) {
 	}
 }
 
+func TestMaintainerCLI_K8sDeclared_CheckAcceptedFiles(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	args := []string{"k8s-declared", "--projects", filepath.Join(root, "docs/data/k8s-declared-projects.json"), "--out", filepath.Join(root, "docs/generated/k8s-declared.json"), "--md", filepath.Join(root, "docs/generated/k8s-declared.md"), "--check"}
+	var out, errOut bytes.Buffer
+	if err = run(args, &out, &errOut); err != nil {
+		t.Fatalf("the generated k8s-declared table is stale or invalid (run prufyx-maintainer k8s-declared): %v", err)
+	}
+}
+
 func TestMaintainerCLIExportKnowledgeWritesNewTarget(t *testing.T) {
 	output := filepath.Join(t.TempDir(), "constraints.v1.json")
 	var stdout, stderr bytes.Buffer

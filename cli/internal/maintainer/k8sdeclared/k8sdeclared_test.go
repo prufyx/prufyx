@@ -61,7 +61,7 @@ var matrixSrc = &InputSource{Kind: KindMatrix, Path: "README.md", Matrix: &Input
 
 func TestChartMinimumOnlyIsNeverARange(t *testing.T) {
 	r := build(t, chartSrc, map[string]string{"o/r@t@c/Chart.yaml": chartMin}, "v1.2.3").Projects[0].Releases[0]
-	if r.Status != StatusDeclared || r.Shape != ShapeMinOnly || r.Minimum != "1.25.0" || r.Maximum != "" || r.MaxAtMatrixEdge {
+	if r.Status != StatusDeclared || r.Shape != ShapeMinOnly || r.Minimum != "1.25.0" || r.Maximum != "" || r.TableLastColumn != "" {
 		t.Fatalf("%+v", r)
 	}
 	md := Markdown(Output{Schema: SchemaID, Label: Label, Projects: []OutputProject{{Project: "p", Repo: "o/r", Releases: []Release{r}}}})
@@ -133,12 +133,33 @@ func TestMatrixBounded(t *testing.T) {
 			}
 			continue
 		}
-		if r.Status != StatusDeclared || r.Shape != ShapeBounded || r.Minimum != want.min || r.Maximum != want.max || r.MaxAtMatrixEdge != want.edge {
+		if r.Status != StatusDeclared || (!want.edge && r.Shape != ShapeBounded) || r.Minimum != want.min || r.Maximum+r.TableLastColumn != want.max || (r.TableLastColumn != "") != want.edge || (want.edge && r.Shape != ShapeMinOnly) {
 			t.Errorf("%s: %+v", tag, r)
 		}
 		if got := len(r.Citation.CitedLines); got != 2 || r.Citation.LineStart != 2 {
 			t.Errorf("%s: cited %+v", tag, r.Citation)
 		}
+	}
+}
+
+func TestEdgeRowIsNeverARangeInOutput(t *testing.T) {
+	o := build(t, matrixSrc, map[string]string{"o/r@t@README.md": matrix}, "v0.18.0", "v0.19.0")
+	r := o.Projects[0].Releases[0]
+	if r.Maximum != "" || r.TableLastColumn != "1.36" || r.Shape != ShapeMinOnly {
+		t.Fatalf("%+v", r)
+	}
+	md := Markdown(o)
+	if !strings.Contains(md, "minimum 1.34; the table lists up to 1.36 (its last column, not an upstream maximum)") || strings.Contains(md, "range 1.34 to 1.36") {
+		t.Fatalf("edge wording:\n%s", md)
+	}
+	if !strings.Contains(md, "range 1.34 to 1.35") {
+		t.Fatal("bounded row lost its range")
+	}
+	bad := clone(t, o)
+	bad.Projects[0].Releases[0].Maximum = "1.36"
+	in, raw := inputFor(matrixSrc, "v0.18.0", "v0.19.0")
+	if Verify(bad, &in, raw) == nil {
+		t.Fatal("edge row with a maximum accepted")
 	}
 }
 

@@ -97,7 +97,13 @@ func Build(in Input, inputsRaw []byte, f Fetcher, only map[string]bool) (Output,
 			cit.CitedLines = d.cited
 			cit.LineStart, cit.LineEnd = d.cited[0].Line, d.cited[len(d.cited)-1].Line
 			rel.Status, rel.SourceKind, rel.Shape = StatusDeclared, p.Source.Kind, d.shape
-			rel.ConstraintRaw, rel.Minimum, rel.Maximum, rel.MaxAtMatrixEdge = d.raw, d.minimum, d.maximum, d.maxAtEdge
+			rel.ConstraintRaw, rel.Minimum = d.raw, d.minimum
+			if d.maxAtEdge {
+				// ticks run to the table edge: no upstream maximum is stated
+				rel.Shape, rel.TableLastColumn = ShapeMinOnly, d.maximum
+			} else {
+				rel.Maximum = d.maximum
+			}
 			rel.Citation = cit
 			op.Releases = append(op.Releases, rel)
 		}
@@ -172,7 +178,7 @@ func verifyRelease(p OutputProject, r Release) error {
 	}
 	switch r.Status {
 	case StatusNotDeclared:
-		if !reasons[r.Reason] || r.SourceKind != "" || r.Shape != "" || r.Minimum != "" || r.Maximum != "" || r.MaxAtMatrixEdge || (r.ConstraintRaw != "" && r.Reason != ReasonNotLowerBound) {
+		if !reasons[r.Reason] || r.SourceKind != "" || r.Shape != "" || r.Minimum != "" || r.Maximum != "" || r.TableLastColumn != "" || (r.ConstraintRaw != "" && r.Reason != ReasonNotLowerBound) {
 			return fmt.Errorf("not-declared row carries a declaration or an unknown reason")
 		}
 		if (r.Reason == ReasonNoSource) != (p.Source == nil) {
@@ -211,10 +217,13 @@ func verifyRelease(p OutputProject, r Release) error {
 		default:
 			return fmt.Errorf("unknown source kind")
 		}
-		if d.reason != "" || d.shape != r.Shape || d.raw != r.ConstraintRaw || d.minimum != r.Minimum || d.maximum != r.Maximum || d.maxAtEdge != r.MaxAtMatrixEdge {
+		if d.maxAtEdge {
+			d.shape = ShapeMinOnly
+		}
+		if d.reason != "" || d.shape != r.Shape || d.raw != r.ConstraintRaw || d.minimum != r.Minimum || d.maximum != r.Maximum+r.TableLastColumn || d.maxAtEdge != (r.TableLastColumn != "") {
 			return fmt.Errorf("declared values do not re-derive from the cited lines")
 		}
-		if r.Minimum == "" || (r.Shape == ShapeMinOnly && (r.Maximum != "" || r.MaxAtMatrixEdge)) || (r.Shape == ShapeBounded && r.Maximum == "") {
+		if r.Minimum == "" || (r.Shape == ShapeMinOnly && r.Maximum != "") || (r.Shape == ShapeBounded && (r.Maximum == "" || r.TableLastColumn != "")) || (r.SourceKind == KindChart && r.TableLastColumn != "") {
 			return fmt.Errorf("shape and values disagree")
 		}
 		return nil

@@ -21,6 +21,8 @@ import (
 // lines, matches the reviewed projects list, and requires both files to be
 // exactly what the recorded data renders to. It cannot re-read upstream, so
 // it does not prove the recorded file digests against upstream bytes.
+// --cache-dir is trusted input: a cached response is used as if it had just
+// been fetched, so point it only at a directory this command filled.
 func runK8sDeclared(args []string) error {
 	flags := flag.NewFlagSet("k8s-declared", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
@@ -29,7 +31,7 @@ func runK8sDeclared(args []string) error {
 	md := flags.String("md", "", "generated Markdown")
 	check := flags.Bool("check", false, "verify the committed files offline")
 	only := flags.String("only", "", "refresh only these comma-separated projects (scratch outputs)")
-	cacheDir := flags.String("cache-dir", "", "refresh: keep or reuse raw API responses here")
+	cacheDir := flags.String("cache-dir", "", "refresh: keep or reuse raw API responses here (trusted input: cached bodies are digested as if fetched and not re-fetched; use only a directory this tool wrote)")
 	if err := flags.Parse(args); err != nil || flags.NArg() != 0 || *projects == "" || *out == "" || *md == "" {
 		return &commandError{code: 2, message: "k8s declared: usage: prufyx-maintainer k8s-declared --projects FILE --out FILE --md FILE [--check]", err: err}
 	}

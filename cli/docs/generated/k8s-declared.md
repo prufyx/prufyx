@@ -6,7 +6,7 @@ Kubernetes versions declared by upstream per project release. These are upstream
 
 How to read it:
 
-- A minimum is shown as a minimum, never as a range. A maximum appears only where upstream publishes a compatibility table row with a stated lower and upper column; a maximum in the last table column is marked as the table edge.
+- A minimum is shown as a minimum, never as a range. A maximum appears only where a compatibility table row states a lower and an upper column with a cross after it. A row whose ticks run to the last column is shown as a minimum, with that column named as the last one the table lists, not as a maximum.
 - A chart row is what that chart declares in its `kubeVersion`. It is not mapped to the application version.
 - "Not declared upstream" means nothing citable was found at that tag in the reviewed source. It is not a statement that the release works or fails on any Kubernetes version.
 - Each cited row names the repository, the tag, the commit the tag resolved to through the upstream API, the file path, the cited lines and the file digest. The JSON file next to this one holds the full commit, blob, file and API response digests.
@@ -77,9 +77,9 @@ Repository: `prometheus-operator/kube-prometheus`.
 
 | Release line | Tag | Declared by upstream | Source | Citation |
 |---|---|---|---|---|
-| 0.19 | `v0.19.0` | range 1.35 to 1.37 (maximum is the last table column) | upstream compatibility table | `prometheus-operator/kube-prometheus@799f3d73b5adf5758c3119c9201d9f417accb6d0` `README.md` L51, L55, file sha256 `d6702e20f8d5a84e` |
-| 0.18 | `v0.18.0` | range 1.33 to 1.36 (maximum is the last table column) | upstream compatibility table | `prometheus-operator/kube-prometheus@4775d44d1aacfab7effa08293357521a3c603b87` `README.md` L47, L51, file sha256 `8a8d56ade260f786` |
-| 0.17 | `v0.17.0` | range 1.33 to 1.35 (maximum is the last table column) | upstream compatibility table | `prometheus-operator/kube-prometheus@d6d094d115093d81d3355bc970a93e4357d6ef05` `README.md` L47, L51, file sha256 `a5b1da7304e58ab3` |
+| 0.19 | `v0.19.0` | minimum 1.35; the table lists up to 1.37 (its last column, not an upstream maximum) | upstream compatibility table | `prometheus-operator/kube-prometheus@799f3d73b5adf5758c3119c9201d9f417accb6d0` `README.md` L51, L55, file sha256 `d6702e20f8d5a84e` |
+| 0.18 | `v0.18.0` | minimum 1.33; the table lists up to 1.36 (its last column, not an upstream maximum) | upstream compatibility table | `prometheus-operator/kube-prometheus@4775d44d1aacfab7effa08293357521a3c603b87` `README.md` L47, L51, file sha256 `8a8d56ade260f786` |
+| 0.17 | `v0.17.0` | minimum 1.33; the table lists up to 1.35 (its last column, not an upstream maximum) | upstream compatibility table | `prometheus-operator/kube-prometheus@d6d094d115093d81d3355bc970a93e4357d6ef05` `README.md` L47, L51, file sha256 `a5b1da7304e58ab3` |
 
 ## keda
 
