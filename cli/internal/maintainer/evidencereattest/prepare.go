@@ -88,6 +88,9 @@ const (
 	reasonReviewedOutsideChain = "REVIEWED_OUTSIDE_STATEMENT_CHAIN"
 )
 
+// MaxRulesLimit is the largest --max-rules an automated statement accepts.
+const MaxRulesLimit = 500
+
 // PrepareOptions names every input Prepare needs. It performs no I/O and
 // makes no network access: every byte it reasons over is supplied by the
 // caller.
@@ -119,6 +122,12 @@ type PrepareOptions struct {
 	// SlotDate). It must be 0 in automated mode, which schedules each rule
 	// into its own week instead (see scheduleAutomated).
 	Wave int
+	// MaxRules, when > 0, caps how many rules an automated statement
+	// renews (1..MaxRulesLimit). The rules are taken in scheduleAutomated's
+	// placement order (soonest-expiring validUntil first, then rule ID);
+	// every due rule beyond the cap is left out as STAGGER_DEFERRED for a
+	// later statement. 0 means no cap. It is rejected in human mode.
+	MaxRules int
 	// AttestedAt is the instant this batch is being prepared, normally
 	// "now" from the caller's clock. It must not be after Now.
 	AttestedAt time.Time
@@ -222,6 +231,9 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 	automated := role == RoleAutomation
 	if automated && opts.Wave != 0 {
 		return PrepareResult{}, fmt.Errorf("%w: automated mode takes no wave", ErrRejected)
+	}
+	if opts.MaxRules != 0 && (!automated || opts.MaxRules < 1 || opts.MaxRules > MaxRulesLimit) {
+		return PrepareResult{}, fmt.Errorf("%w: max rules applies to automated mode only and must be 1..%d", ErrRejected, MaxRulesLimit)
 	}
 	if !automated && (opts.Wave < minWave || opts.Wave > maxWave) {
 		return PrepareResult{}, fmt.Errorf("%w: wave out of range", ErrRejected)
@@ -386,7 +398,7 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 	var chosen, notLater, notDue, deferred []string
 	ruleValidUntil := map[string]time.Time{}
 	if automated {
-		ruleValidUntil, notLater, notDue, deferred, err = scheduleAutomated(candidates, eligibleIDs, attestedAt)
+		ruleValidUntil, notLater, notDue, deferred, err = scheduleAutomated(candidates, eligibleIDs, attestedAt, opts.MaxRules)
 		for id := range ruleValidUntil {
 			chosen = append(chosen, id)
 		}
@@ -1045,7 +1057,7 @@ func slotPreference(ruleID string, n int) int {
 // validUntil, so a renewal always moves validUntil later. The result is a pure
 // function of the pack's rules, the eligible IDs and attestedAt, so Verify
 // recomputes it identically.
-func scheduleAutomated(candidates []ruleCandidate, eligibleIDs []string, attestedAt time.Time) (chosen map[string]time.Time, notLater, notDue, deferred []string, err error) {
+func scheduleAutomated(candidates []ruleCandidate, eligibleIDs []string, attestedAt time.Time, maxRules int) (chosen map[string]time.Time, notLater, notDue, deferred []string, err error) {
 	slots := AutomatedSlots(attestedAt)
 	if len(slots) == 0 {
 		return nil, nil, nil, nil, fmt.Errorf("%w: no automated slot", ErrRejected)
@@ -1081,6 +1093,12 @@ func scheduleAutomated(candidates []ruleCandidate, eligibleIDs []string, atteste
 	})
 	chosen = map[string]time.Time{}
 	for _, id := range ordered {
+		// maxRules > 0: the first maxRules rules of this deterministic
+		// order are placed; the rest are deferred, listed, not dropped.
+		if maxRules > 0 && len(chosen) >= maxRules {
+			deferred = append(deferred, id)
+			continue
+		}
 		start := slotPreference(id, len(slots))
 		placed := false
 		for k := 0; k < len(slots); k++ {

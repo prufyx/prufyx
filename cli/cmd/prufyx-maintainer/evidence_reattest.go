@@ -254,6 +254,7 @@ func runEvidenceReattestPrepare(args []string, stdout, stderr io.Writer) error {
 	var nowFlag string
 	var worklistPath, packName, rulesPath, rulesWorklistPath, nextRevision, reviewRecordDir, outputDir, attestedAtFlag, statementChainDir, trustRootPath, trustRootDigest, baselinesPath string
 	wave := flags.Int("wave", 0, "1..7 stagger slot this batch renews into (human mode only)")
+	maxRules := flags.Int("max-rules", 0, "automated mode only: renew at most N rules (1..500) in this statement, soonest-expiring first then by rule ID; the rest stay listed as STAGGER_DEFERRED for a later statement. Refuses an empty statement")
 	mode := flags.String("mode", evidencereattest.ModeHuman, "human (a reviewer's batch: wave, sample, terminal signing) or automated (no sample, per-rule schedule, automation-key signing)")
 	flags.StringVar(&worklistPath, "worklist", "", "retained evidence-repin worklist (absolute path)")
 	flags.StringVar(&packName, "pack", "", "cncf or community")
@@ -270,7 +271,7 @@ func runEvidenceReattestPrepare(args []string, stdout, stderr io.Writer) error {
 	flags.StringVar(&attestedAtFlag, "attested-at", "", "exact UTC RFC3339 attestation instant, not in the future (default: now)")
 	if err := flags.Parse(args); err != nil {
 		if err == flag.ErrHelp {
-			_, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer evidence reattest prepare --worklist ABS --pack cncf|community --rules ABS --next-revision STR (--wave N | --mode automated) --output-dir ABS --statement-chain-dir ABS [--trust-root ABS --trust-root-digest sha256:...] [--rules-worklist-path STR] [--review-record-dir ABS] [--baselines ABS] [--attested-at RFC3339] [--now RFC3339, rehearsal only]")
+			_, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer evidence reattest prepare --worklist ABS --pack cncf|community --rules ABS --next-revision STR (--wave N | --mode automated) --output-dir ABS --statement-chain-dir ABS [--trust-root ABS --trust-root-digest sha256:...] [--max-rules N, automated only] [--rules-worklist-path STR] [--review-record-dir ABS] [--baselines ABS] [--attested-at RFC3339] [--now RFC3339, rehearsal only]")
 			return e
 		}
 		return evidenceReattestError()
@@ -285,6 +286,15 @@ func runEvidenceReattestPrepare(args []string, stdout, stderr io.Writer) error {
 		return evidenceReattestError()
 	}
 	if *mode != evidencereattest.ModeHuman && *mode != evidencereattest.ModeAutomated {
+		return evidenceReattestError()
+	}
+	maxRulesSet := false
+	flags.Visit(func(f *flag.Flag) {
+		if f.Name == "max-rules" {
+			maxRulesSet = true
+		}
+	})
+	if maxRulesSet && (*mode != evidencereattest.ModeAutomated || *maxRules < 1 || *maxRules > evidencereattest.MaxRulesLimit) {
 		return evidenceReattestError()
 	}
 	if rulesWorklistPath == "" {
@@ -336,12 +346,18 @@ func runEvidenceReattestPrepare(args []string, stdout, stderr io.Writer) error {
 
 	result, err := evidencereattest.Prepare(evidencereattest.PrepareOptions{
 		WorklistRaw: worklistRaw, PackName: packName, PackPath: rulesWorklistPath, PackRaw: packRaw,
-		Chain: chain, Mode: *mode, Wave: *wave, AttestedAt: attestedAt, Now: now, NextRevision: nextRevision,
+		Chain: chain, Mode: *mode, Wave: *wave, MaxRules: *maxRules, AttestedAt: attestedAt, Now: now, NextRevision: nextRevision,
 		EngineCapabilityDigest: capabilityDigest, ReviewRecords: reviewRecords,
 		Rehearsal: nowFlag != "", BaselinesRaw: baselinesRaw,
 	})
 	if err != nil {
 		fmt.Fprintf(stderr, "evidence reattest prepare: %v\n", err)
+		return &commandError{code: 2, message: "evidence reattest prepare: rejected", printed: true}
+	}
+
+	// A capped statement is the unattended path: never emit an empty one.
+	if maxRulesSet && len(result.Statement.Rules) == 0 {
+		fmt.Fprintln(stderr, "evidence reattest prepare: no eligible rules; refusing to write an empty statement")
 		return &commandError{code: 2, message: "evidence reattest prepare: rejected", printed: true}
 	}
 

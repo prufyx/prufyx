@@ -493,6 +493,15 @@ including the mechanical-rule exclusion, `NOT_YET_DUE` and
 Automated runs are meant to be frequent (for example daily): each run renews
 whatever has become due since the last one, spread over the coming weeks.
 
+`--max-rules N` (1 to 500, automated mode only; anything else is a usage
+error) caps one statement at N renewed rules. The rules are taken in the
+placement order above (soonest-expiring first, then by rule ID); every due
+rule beyond N is listed in `notExtended` as `STAGGER_DEFERRED` and is picked
+up by a later statement, so none is dropped silently. The output is
+byte-identical for the same inputs, and `verify` recomputes a capped
+statement and still requires an exact match. With the cap set, `prepare`
+refuses to write an empty statement (exit 2).
+
 `notExtended` reasons are either the worst citation class found (E1), or
 one of: `WORKLIST_SCOPE_INCOMPLETE` and `CITATION_PENDING` (E2), `TAG_FALLBACK_BASELINE` (E3),
 `STALE_BASELINE` (E4, or a stale citation), `RELEASE_LINE_BASELINE_UNVERIFIED` (E1, a release-line or tag-line citation whose pinned tag, line, compared tag or line record of the matching basis is missing or inconsistent), `RANGED_RULE_EXCLUDED` (E5),

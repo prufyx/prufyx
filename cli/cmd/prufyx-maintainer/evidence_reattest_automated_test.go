@@ -368,3 +368,92 @@ func TestEvidenceReattestTrustRootMigrate(t *testing.T) {
 		}
 	}
 }
+
+func TestEvidenceReattestPrepareMaxRules(t *testing.T) {
+	f := newAutomatedFixture(t)
+	fresh := func(name string) string { return filepath.Join(f.dir, name) }
+	run1 := func(out string, extra ...string) (string, error) {
+		args := f.prepareArgs(extra...)
+		for i, a := range args {
+			if a == f.autoOut {
+				args[i] = out
+			}
+		}
+		var stdout, stderr bytes.Buffer
+		err := run(args, &stdout, &stderr)
+		return stdout.String(), err
+	}
+	for _, n := range []string{"1", "2", "500"} {
+		out := fresh("cap-" + n)
+		stdout, err := run1(out, "--max-rules", n)
+		if err != nil || !strings.Contains(stdout, "eligible=1 ") {
+			t.Fatalf("--max-rules %s: %v %q", n, err, stdout)
+		}
+		again := fresh("cap-again-" + n)
+		if _, err := run1(again, "--max-rules", n); err != nil {
+			t.Fatal(err)
+		}
+		a, _ := os.ReadFile(filepath.Join(out, "statement.json"))
+		b, _ := os.ReadFile(filepath.Join(again, "statement.json"))
+		if len(a) == 0 || !bytes.Equal(a, b) {
+			t.Fatalf("--max-rules %s: statements differ between runs", n)
+		}
+	}
+	for _, n := range []string{"0", "-1", "501", "abc", "1.5", ""} {
+		out := fresh("bad-" + n)
+		if _, err := run1(out, "--max-rules", n); exitCode(err) != 2 {
+			t.Fatalf("--max-rules %q: exit code %d, want 2", n, exitCode(err))
+		}
+		if _, err := os.Stat(out); err == nil {
+			t.Fatalf("--max-rules %q wrote output", n)
+		}
+	}
+	// Human mode refuses the flag.
+	out := fresh("human-cap")
+	human := f.prepareArgs("--max-rules", "5")
+	for i, a := range human {
+		if a == "automated" {
+			human[i] = "human"
+		}
+		if a == f.autoOut {
+			human[i] = out
+		}
+	}
+	human = append(human, "--wave", "1")
+	var stdout, stderr bytes.Buffer
+	if got := exitCode(run(human, &stdout, &stderr)); got != 2 {
+		t.Fatalf("human mode with --max-rules: exit code %d, want 2", got)
+	}
+	if _, err := os.Stat(out); err == nil {
+		t.Fatal("human mode with --max-rules wrote output")
+	}
+}
+
+// With nothing eligible, --max-rules (the unattended path) refuses to write an
+// empty statement; without it prepare behaves as before.
+func TestEvidenceReattestPrepareMaxRulesRefusesEmptyStatement(t *testing.T) {
+	f := newAutomatedFixture(t)
+	stale := time.Now().UTC().Truncate(time.Second).Add(-90 * 24 * time.Hour).Format(time.RFC3339)
+	capped, plain := filepath.Join(f.dir, "empty-cap"), filepath.Join(f.dir, "empty-plain")
+	swap := func(out string, extra ...string) []string {
+		args := f.prepareArgs(extra...)
+		for i, a := range args {
+			if a == f.autoOut {
+				args[i] = out
+			}
+		}
+		return args
+	}
+	var stdout, stderr bytes.Buffer
+	if got := exitCode(run(swap(plain, "--attested-at", stale), &stdout, &stderr)); got != 0 || !strings.Contains(stdout.String(), "eligible=0 ") {
+		t.Fatalf("baseline without --max-rules: exit %d %q %q", got, stdout.String(), stderr.String())
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if got := exitCode(run(swap(capped, "--attested-at", stale, "--max-rules", "5"), &stdout, &stderr)); got != 2 {
+		t.Fatalf("empty capped statement: exit %d, want 2", got)
+	}
+	if _, err := os.Stat(capped); err == nil {
+		t.Fatal("an empty capped statement was written")
+	}
+}
