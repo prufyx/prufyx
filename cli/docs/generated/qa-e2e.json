@@ -2,10 +2,10 @@
   "schema": "prufyx.io/qa-e2e-report/v1",
   "header": "Results of Prufyx runs against real upgrades on kind clusters. kind is not production fidelity. Display only: these runs do not change any Prufyx verdict.",
   "counts": {
-    "correct": 32,
+    "correct": 31,
     "wrongPass": 0,
     "falseAlarm": 0,
-    "gap": 119,
+    "gap": 120,
     "rows": 151
   },
   "supersededExcluded": 3,
@@ -13,6 +13,11 @@
     "m3-r01",
     "m3-r02",
     "r002"
+  ],
+  "supersededRuns": [
+    "m3-r01-try1",
+    "m3-r02-try1",
+    "r001-aborted"
   ],
   "runs": [
     {
@@ -2322,10 +2327,10 @@
       "kindNodeImageTo": "kindest/node@sha256:397209b3d947d154f6641f2d0ce8d473732bd91c87d9575ade99049aa33cd648",
       "prufyxCommit": "564a6da03d1c7e96095c4a1f4c5fcd217aa2ea31",
       "counts": {
-        "correct": 5,
+        "correct": 4,
         "wrongPass": 0,
         "falseAlarm": 0,
-        "gap": 42,
+        "gap": 43,
         "rows": 47
       },
       "checks": [
@@ -2685,9 +2690,9 @@
           "from": "1.26.3",
           "to": "1.30.5",
           "command": "scan",
-          "result": "correct",
+          "result": "gap",
           "oracle": "replay-on-target",
-          "reason": "CUSTOM_RESOURCES_EVALUATED",
+          "reason": "CUSTOM_RESOURCES_NOT_EVALUATED",
           "ids": [],
           "logDigest": "17913fa28330e393216e455d545902b3b6973b2964090aa9546ddee9299af656",
           "artifacts": [
