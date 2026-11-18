@@ -733,7 +733,7 @@ func Compute(in Input) (Report, error) {
 					report.changelog.addPair(pair, changelogGapReason(in.ChangelogTargetComponents[slug], lines[i], lines[i+1], atts, now, byID, pl.Releases, mixed))
 				}
 			}
-			if !community && (pair.Status == StatusA || pair.Status == StatusB) {
+			if form, ferr := FormOf(pair); !community && ferr == nil && form == "ab" {
 				if pair.canBlock {
 					report.split.canBlock++
 				} else {

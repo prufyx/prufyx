@@ -281,3 +281,43 @@ func TestLoadCountsV1AndV2(t *testing.T) {
 		t.Errorf("v2 forms: %+v", c.Forms)
 	}
 }
+
+// A pair decided by the served-API family alone is in its own row, never in
+// the A/B row; a v2 file without forms is refused.
+func TestSummarySplitsServedAPIOnlyPairs(t *testing.T) {
+	cur := fixtureCounts(t, "counts-cur.json")
+	var fleet *coveragereport.Project
+	for i := range cur.Report.Projects {
+		if cur.Report.Projects[i].Catalog == "" && len(cur.Report.Projects[i].Pairs) > 0 {
+			fleet = &cur.Report.Projects[i]
+			break
+		}
+	}
+	if fleet == nil {
+		t.Fatal("no fleet project in the fixture")
+	}
+	fleet.Pairs = append(fleet.Pairs, coveragereport.Pair{From: "9.0", To: "9.1", Status: coveragereport.StatusA, Families: []string{coveragereport.FamilyServedAPI}})
+	cur.Report.Fleet.Pairs++
+	cur.Report.Fleet.A++
+	cur.Schema = CountsSchemaV2
+	forms, err := coveragereport.FormsOf(cur.Report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cur.Forms = &forms
+	prev := fixtureCounts(t, "counts-prev.json")
+	out, err := Render(&Snapshot{}, &Snapshot{}, Options{Prev: prev, Cur: cur, Previous: PreviousPin{Tag: "v1", Commit: "aaa", CountsSha256: prev.Sha256}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if forms.Fleet.K8s != 1 || !strings.Contains(out, "| Kubernetes served-API (decided) | 0 | 1 | +1 |") || !strings.Contains(out, "excluded) | 2 | 2 | 0 |") {
+		t.Fatalf("forms %+v\n%s", forms.Fleet, out)
+	}
+	if strings.Contains(out, "(A+B)") {
+		t.Error("a summed A+B row is still printed")
+	}
+	cur.Forms = nil
+	if _, err := Render(&Snapshot{}, &Snapshot{}, Options{Prev: prev, Cur: cur, Previous: PreviousPin{Tag: "v1", Commit: "aaa", CountsSha256: prev.Sha256}}); err == nil {
+		t.Error("a v2 counts file without forms was rendered")
+	}
+}

@@ -279,6 +279,30 @@ func TestClassification(t *testing.T) {
 	}
 }
 
+// The decided split counts only A/B-form pairs: a pair decided by the
+// Kubernetes served-API family alone is its own form and is not in it.
+func TestDecidedSplitExcludesServedAPIOnlyPairs(t *testing.T) {
+	rules := []string{
+		ruleJSON("range.132", "1.31.0", "1.32.0", rangeJSON("1.31.0", "1.32.0", "1.32.0", "1.33.0"), valid),
+		ruleJSON("anchor.133", "1.32.4", "1.33.1", "", valid),
+	}
+	atts := []string{attJSON("1.31", valid), attJSON("1.33", valid, "anchor.133")}
+	report, err := Compute(Input{Pack: pack(rules, atts), Lines: lines("kubernetes", "1.30", "1.31", "1.32", "1.33"), Now: baselineNow})
+	if err != nil {
+		t.Fatal(err)
+	}
+	forms, err := FormsOf(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if forms.Fleet.K8s == 0 {
+		t.Fatalf("fixture has no served-API-only pair: %+v", forms.Fleet)
+	}
+	if report.split.total() != forms.Fleet.AB {
+		t.Fatalf("split total %d, A/B pairs %d (fleet A+B %d)", report.split.total(), forms.Fleet.AB, report.Fleet.A+report.Fleet.B)
+	}
+}
+
 // Range boundaries: a range that does not cover the whole line on both sides
 // is a spot at best, never a bounded pair.
 func TestRangeBoundaryMutations(t *testing.T) {
