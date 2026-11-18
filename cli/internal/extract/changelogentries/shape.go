@@ -38,6 +38,9 @@ func checkTemplate(tpl, placeholder string) error {
 		i+len(placeholder) < len(tpl) && isDigit(tpl[i+len(placeholder)]) {
 		return fmt.Errorf("path template %q has a digit next to %s", tpl, placeholder)
 	}
+	if !markdownPath(tpl) {
+		return fmt.Errorf("path template %q is not a markdown file", tpl)
+	}
 	rest := strings.Replace(tpl, placeholder, "", 1)
 	if strings.ContainsAny(rest, "{}") {
 		return fmt.Errorf("path template %q holds a placeholder other than %s", tpl, placeholder)

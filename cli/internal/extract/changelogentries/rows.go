@@ -12,8 +12,12 @@ package changelogentries
 //     component twice); no two rows name the same repo;
 //   - a row is {component, repo, form, path, headingStyle, boundaryStyles};
 //   - component is a lower-case slug, repo a canonical github.com/<org>/<repo>
-//     key, form one of changelog-file, github-release, post-tag, docs-page,
-//     monorepo;
+//     key, form one of changelog-file, changelog-per-line-file,
+//     changelog-per-version-file, github-release, post-tag, docs-page, monorepo;
+//   - for the two template forms, path is a template holding the form's one
+//     placeholder ({line} or {version}) once, made of [A-Za-z0-9._/-] only;
+//     a per-line row also has headingStyle and boundary styles, a per-version
+//     row has neither;
 //   - path (a clean repository-relative path, no "..", not absolute),
 //     headingStyle and boundaryStyles are present only for the form
 //     "changelog-file" (path, headingStyle and at least one boundary style required) and absent for every
@@ -50,13 +54,22 @@ var targetsJSON []byte
 
 // headingStyles maps a heading style name to its fixed pattern.
 var headingStyles = map[string]string{
-	"version-slash-date": `^(?P<version>[0-9]+\.[0-9]+\.[0-9]+) / [0-9]{4}-[0-9]{2}-[0-9]{2}$`,
+	"version-slash-date":     `^(?P<version>[0-9]+\.[0-9]+\.[0-9]+) / [0-9]{4}-[0-9]{2}-[0-9]{2}$`,
+	"version-plain":          `^(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$`,
+	"version-v-prefixed":     `^v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$`,
+	"version-bracketed":      `^\[(?P<version>[0-9]+\.[0-9]+\.[0-9]+)\]$`,
+	"version-bracketed-date": `^\[(?P<version>[0-9]+\.[0-9]+\.[0-9]+)\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$`,
+	"version-dash-date":      `^(?P<version>[0-9]+\.[0-9]+\.[0-9]+) - [0-9]{4}-[0-9]{2}-[0-9]{2}$`,
 }
 
 // boundaryStyles maps a boundary style name to its fixed pattern.
 var boundaryStyles = map[string]string{
 	"main-unreleased":               `^main / unreleased$`,
 	"main-unreleased-parenthesised": `^main / \(unreleased\)$`,
+	"unreleased":                    `^Unreleased$`,
+	"unreleased-bracketed":          `^\[Unreleased\]$`,
+	"prerelease-plain":              `^[0-9]+\.[0-9]+\.[0-9]+-(rc|alpha|beta)\.[0-9]+$`,
+	"prerelease-v-prefixed":         `^v[0-9]+\.[0-9]+\.[0-9]+-(rc|alpha|beta)\.[0-9]+$`,
 }
 
 var componentSlugRE = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
@@ -140,6 +153,8 @@ func (r rowData) target() (Target, error) {
 		}
 		return t, nil
 	case FormFile:
+	case FormPerLineFile, FormPerVersionFile:
+		return r.templated(t)
 	default:
 		return Target{}, fmt.Errorf("form %q is not allowed in the table", r.Form)
 	}
@@ -147,7 +162,62 @@ func (r rowData) target() (Target, error) {
 		r.Path == "." || r.Path == ".." || strings.HasPrefix(r.Path, "../") {
 		return Target{}, fmt.Errorf("path %q must be a clean repository-relative path", r.Path)
 	}
+	if !templateCharsetRE.MatchString(r.Path) || hasDotDotElement(r.Path) {
+		return Target{}, fmt.Errorf("path %q uses characters outside [A-Za-z0-9._/-] or a \"..\" element", r.Path)
+	}
+	if !markdownPath(r.Path) {
+		return Target{}, fmt.Errorf("path %q is not a markdown file (.md); toml, yaml and other formats are not read", r.Path)
+	}
 	t.Path = r.Path
+	return r.styled(t)
+}
+
+// hasDotDotElement reports a ".." substring (the closed check refuses any).
+func hasDotDotElement(p string) bool { return strings.Contains(p, "..") }
+
+// markdownPath reports a path of a markdown file. Only ".md" is read.
+func markdownPath(p string) bool {
+	return strings.HasSuffix(p, ".md") && len(path.Base(p)) > len(".md")
+}
+
+// templated reads a row of the two path-template forms. The path holds the
+// form's one placeholder from the closed vocabulary (templatePlaceholders)
+// once, and otherwise only the characters of templateCharsetRE; nothing else
+// is a template. A per-line row reads headings like a file row; a per-version
+// row has none, the file being the entry.
+func (r rowData) templated(t Target) (Target, error) {
+	ph := templatePlaceholders[r.Form]
+	if !markdownPath(r.Path) {
+		return Target{}, fmt.Errorf("path template %q is not a markdown file (.md); toml, yaml and other formats are not read", r.Path)
+	}
+	if !templateCharsetRE.MatchString(strings.Replace(r.Path, ph, "", 1)) {
+		return Target{}, fmt.Errorf("path template %q uses characters outside [A-Za-z0-9._/-] and the %s placeholder", r.Path, ph)
+	}
+	if err := checkTemplate(r.Path, ph); err != nil {
+		return Target{}, err
+	}
+	t.Path = r.Path
+	if r.Form == FormPerVersionFile {
+		if r.HeadingStyle != "" || r.BoundaryStyles != nil {
+			return Target{}, errors.New("a per-version row has no headingStyle or boundaryStyles")
+		}
+		return t, nil
+	}
+	return r.styled(t)
+}
+
+// templatePlaceholders is the closed placeholder vocabulary: per form, the one
+// token a path template holds. {line} is major.minor of the tag, {version}
+// the full final version, both without the "v" of a tag.
+var templatePlaceholders = map[string]string{
+	FormPerLineFile:    placeholderLine,
+	FormPerVersionFile: placeholderVersion,
+}
+
+var templateCharsetRE = regexp.MustCompile(`^[A-Za-z0-9._/-]+$`)
+
+// styled adds the heading and boundary styles of a row that reads headings.
+func (r rowData) styled(t Target) (Target, error) {
 	h, ok := headingStyles[r.HeadingStyle]
 	if !ok {
 		return Target{}, fmt.Errorf("heading style %q is not known", r.HeadingStyle)
