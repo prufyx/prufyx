@@ -1,0 +1,565 @@
+name: Evidence renewal
+
+# Weekly automated renewal of reviewed rules whose evidence still re-derives
+# cleanly on its own release line (see cli/docs/evidence-reattestation.md,
+# "Automated renewal in CI"). It never merges anything: it opens one pull
+# request per run, and the knowledge gate decides.
+#
+# Three jobs, each with the least it needs:
+#   prepare  no secrets, read-only token. Builds the CLI from the triggering
+#            commit of main, re-pins the release lines over HTTP, computes
+#            the daily headroom, prepares the unsigned statement.
+#   sign     environment "renewal" (the only place the automation key and its
+#            passphrase exist). Verifies the prepared files against the digest
+#            prepare reported, builds the CLI from the same commit, signs with
+#            the automation role, verifies locally. Skipped for a dry run.
+#   pr       no repository code runs. Creates the branch and the commit
+#            through the API with the bot's App token, opens the pull request.
+#
+# No pull_request or pull_request_target trigger exists here on purpose: a
+# change can neither run this workflow nor reach the signing environment.
+# Dispatch defaults to a dry run, which never reaches a secret.
+
+on:
+  schedule:
+    - cron: "0 5 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Prepare and check only; sign nothing and open no pull request"
+        type: boolean
+        required: false
+        default: true
+
+permissions: {}
+
+concurrency:
+  group: evidence-renewal
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Prepare the statement
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      pull-requests: read
+    env:
+      BOT_LOGIN: ${{ vars.KNOWLEDGE_BOT_LOGIN || 'prufyx-factory[bot]' }}
+      MAX_DAILY_LOOSENING: ${{ vars.KNOWLEDGE_MAX_DAILY_LOOSENING || '50' }}
+      REATTEST_TRUST_ROOT_DIGEST: ${{ vars.REATTEST_TRUST_ROOT_DIGEST }}
+    outputs:
+      has-rules: ${{ steps.bundle.outputs.has_rules }}
+      sha256: ${{ steps.bundle.outputs.sha256 }}
+      pack: ${{ steps.bundle.outputs.pack }}
+      rules: ${{ steps.bundle.outputs.rules }}
+    steps:
+      - name: Require main
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "This workflow renews from main only (ref: ${GITHUB_REF})."
+            exit 1
+          fi
+
+      # Refused here, before anything is signed, so a refused run spends no
+      # signature. The pr job checks again.
+      - name: Refuse while a renewal pull request is open
+        id: open
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          open="$(gh pr list --repo "${GITHUB_REPOSITORY}" --state open --limit 200 --json headRefName \
+            --jq '[.[] | select(.headRefName | startswith("factory/renewal/automated-"))] | length')"
+          case "${open}" in ''|*[!0-9]*) echo "The open pull request count is not a number."; exit 1 ;; esac
+          if [ "${open}" != "0" ]; then
+            echo "A renewal pull request is already open; nothing to prepare."
+            echo "open=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "open=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Check out main at the triggering commit
+        if: steps.open.outputs.open == 'false'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Go
+        if: steps.open.outputs.open == 'false'
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache: false
+
+      - name: Build the CLI
+        if: steps.open.outputs.open == 'false'
+        working-directory: cli
+        run: go build -buildvcs=false -trimpath -o "${RUNNER_TEMP}/prufyx-maintainer" ./cmd/prufyx-maintainer
+
+      # The same walk the gate uses to re-derive its inputs. The workflow
+      # token allows about 1000 requests an hour; a run that hits the limit
+      # fails and the next run retries.
+      - name: Re-pin the release lines over HTTP
+        if: steps.open.outputs.open == 'false'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          baselines=()
+          if [ -f cli/knowledge/repin-baselines.json ]; then
+            baselines=(--baselines cli/knowledge/repin-baselines.json)
+          fi
+          "${RUNNER_TEMP}/prufyx-maintainer" evidence repin \
+            --rules cli/internal/cncfcheck/data/rules.json \
+            --rules cli/internal/projectcheck/data/rules.json \
+            --baseline release-line \
+            "${baselines[@]}" \
+            --output "${RUNNER_TEMP}/worklist.json"
+
+      # N = the gate's daily loosening limit minus what the gate counts for
+      # the last 24 hours on main (the same `gate daily-count`), capped at 45
+      # to leave headroom. A count that cannot be read stops the run: nothing
+      # is guessed.
+      - name: Compute how many rules this run may renew
+        id: cap
+        if: steps.open.outputs.open == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          list="${RUNNER_TEMP}/daily-commits.json"
+          since="$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)"
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/commits?sha=${GITHUB_SHA}&since=${since}&per_page=100" \
+            --jq '.[] | {sha, parent: (.parents[0].sha // null), author: (.author.login // null)}' | jq -s '.' > "${list}"
+          counted="$("${RUNNER_TEMP}/prufyx-maintainer" gate daily-count --git-dir .git --commits "${list}" --bot-login "${BOT_LOGIN}")"
+          case "${counted}" in ''|*[!0-9]*) echo "The daily count is not a number."; exit 1 ;; esac
+          case "${MAX_DAILY_LOOSENING}" in ''|*[!0-9]*) echo "The daily limit is not a number."; exit 1 ;; esac
+          n=$(( MAX_DAILY_LOOSENING - counted ))
+          if [ "${n}" -gt 45 ]; then n=45; fi
+          if [ "${n}" -lt 1 ]; then n=0; fi
+          echo "daily limit ${MAX_DAILY_LOOSENING}, counted ${counted}, this run may renew at most ${n}"
+          echo "n=${n}" >> "${GITHUB_OUTPUT}"
+
+      - name: Prepare the automated statement
+        id: bundle
+        if: steps.open.outputs.open == 'false'
+        env:
+          N: ${{ steps.cap.outputs.n }}
+        run: |
+          set -euo pipefail
+          pm="${RUNNER_TEMP}/prufyx-maintainer"
+          root="${PWD}"
+          bundle="${RUNNER_TEMP}/bundle"
+          echo "has_rules=false" >> "${GITHUB_OUTPUT}"
+          if [ "${N}" -lt 1 ]; then
+            echo "The daily limit leaves no room; nothing to prepare."
+            exit 0
+          fi
+          rm -rf "${bundle}"
+          found=""
+          for pack in cncf community; do
+            case "${pack}" in
+              cncf) rules_rel="cli/internal/cncfcheck/data/rules.json" ;;
+              community) rules_rel="cli/internal/projectcheck/data/rules.json" ;;
+            esac
+            chain_src="cli/knowledge/reattestation/${pack}/chain"
+            chain="${RUNNER_TEMP}/chain/${pack}"
+            mkdir -p "${chain}"
+            if [ -d "${chain_src}" ]; then cp -p "${chain_src}"/* "${chain}/" 2>/dev/null || true; fi
+            # The next stem is one past the highest, and every stem must be
+            # a four-digit sequence number.
+            max=0
+            for f in "${chain}"/*.statement.json; do
+              [ -e "${f}" ] || continue
+              stem="$(basename "${f}" .statement.json)"
+              case "${stem}" in [0-9][0-9][0-9][0-9]) ;; *) echo "Unexpected chain entry name ${stem}"; exit 1 ;; esac
+              if [ $(( 10#${stem} )) -gt "${max}" ]; then max=$(( 10#${stem} )); fi
+            done
+            stem="$(printf '%04d' $(( max + 1 )))"
+            # Revision: <prefix>-<UTC date>.<n>, n counting up within a day.
+            old="$(jq -r '.revision' "${rules_rel}")"
+            today="$(date -u +%F)"
+            prefix="$(printf '%s' "${old}" | sed -E 's/-[0-9]{4}-[0-9]{2}-[0-9]{2}\.[0-9]+$//')"
+            if [ "${prefix}" = "${old}" ] || [ -z "${prefix}" ]; then echo "Unexpected pack revision ${old}"; exit 1; fi
+            seq=1
+            case "${old}" in "${prefix}-${today}."*) seq=$(( ${old##*.} + 1 )) ;; esac
+            revision="${prefix}-${today}.${seq}"
+            args=(evidence reattest prepare --mode automated --max-rules "${N}"
+                  --worklist "${RUNNER_TEMP}/worklist.json" --pack "${pack}"
+                  --rules "${root}/${rules_rel}" --rules-worklist-path "${rules_rel}"
+                  --statement-chain-dir "${chain}"
+                  --next-revision "${revision}" --output-dir "${bundle}/out")
+            if [ -n "${REATTEST_TRUST_ROOT_DIGEST}" ]; then
+              args+=(--trust-root "${root}/cli/knowledge/reattestation/trust-root.json" --trust-root-digest "${REATTEST_TRUST_ROOT_DIGEST}")
+            fi
+            if [ -f cli/knowledge/repin-baselines.json ]; then args+=(--baselines "${root}/cli/knowledge/repin-baselines.json"); fi
+            if [ -d "cli/knowledge/reattestation/${pack}/review-records" ]; then args+=(--review-record-dir "${root}/cli/knowledge/reattestation/${pack}/review-records"); fi
+            rc=0
+            "${pm}" "${args[@]}" 2> "${RUNNER_TEMP}/prepare.err" || rc=$?
+            if [ "${rc}" -ne 0 ]; then
+              # Only the explicit "nothing eligible" refusal is a clean stop;
+              # any other refusal fails the run.
+              if grep -q "no eligible rules" "${RUNNER_TEMP}/prepare.err"; then
+                echo "${pack}: no eligible rules"
+                continue
+              fi
+              cat "${RUNNER_TEMP}/prepare.err"
+              exit 1
+            fi
+            found="${pack}"
+            break
+          done
+          if [ -z "${found}" ]; then
+            echo "No rule is due and clean: nothing to renew."
+            exit 0
+          fi
+          out="${bundle}/out"
+          mkdir -p "${bundle}/files"
+          cp "${out}/statement.json" "${out}/rules.next.json" "${out}/summary.txt" "${bundle}/files/"
+          cp "${RUNNER_TEMP}/worklist.json" "${bundle}/files/worklist.json"
+          count="$(jq -r '.rules | length' "${bundle}/files/statement.json")"
+          case "${count}" in ''|*[!0-9]*|0) echo "The statement renews no rules."; exit 1 ;; esac
+          if [ "${count}" -gt "${N}" ]; then echo "The statement renews ${count} rules, over the limit ${N}."; exit 1; fi
+          jq -n --arg pack "${found}" --arg stem "${stem}" --arg revision "${revision}" \
+            --arg base "${GITHUB_SHA}" --arg rules "${rules_rel}" --argjson count "${count}" \
+            '{pack: $pack, stem: $stem, revision: $revision, base: $base, rulesPath: $rules, count: $count}' > "${bundle}/files/meta.json"
+          # Structural checks before anything is signed. --structural-only
+          # never exits zero by design, so success is its own message with
+          # exit 1; anything else fails the run.
+          vargs=(evidence reattest verify --structural-only
+                 --statement "${bundle}/files/statement.json"
+                 --prior-pack "${root}/${rules_rel}" --next-pack "${bundle}/files/rules.next.json"
+                 --worklist "${bundle}/files/worklist.json" --pack "${found}" --rules-worklist-path "${rules_rel}"
+                 --statement-chain-dir "${RUNNER_TEMP}/chain/${found}" --base-statement-chain-dir "${RUNNER_TEMP}/chain/${found}")
+          if [ -n "${REATTEST_TRUST_ROOT_DIGEST}" ]; then
+            vargs+=(--trust-root "${root}/cli/knowledge/reattestation/trust-root.json" --trust-root-digest "${REATTEST_TRUST_ROOT_DIGEST}")
+          fi
+          if [ -f cli/knowledge/repin-baselines.json ]; then vargs+=(--baselines "${root}/cli/knowledge/repin-baselines.json"); fi
+          if [ -d "cli/knowledge/reattestation/${found}/review-records" ]; then vargs+=(--review-record-dir "${root}/cli/knowledge/reattestation/${found}/review-records"); fi
+          rc=0
+          "${pm}" "${vargs[@]}" 2> "${RUNNER_TEMP}/verify.err" || rc=$?
+          cat "${RUNNER_TEMP}/verify.err"
+          if [ "${rc}" -ne 1 ] || ! grep -q "structural checks passed" "${RUNNER_TEMP}/verify.err"; then
+            echo "The structural check did not pass."
+            exit 1
+          fi
+          digest="$(cd "${bundle}/files" && sha256sum -- * | sha256sum | cut -d' ' -f1)"
+          { echo "### Evidence renewal"; echo; echo "Pack ${found}, ${count} rules (limit ${N})."; echo; echo '```'; cat "${bundle}/files/summary.txt"; echo '```'; } >> "${GITHUB_STEP_SUMMARY}"
+          echo "has_rules=true" >> "${GITHUB_OUTPUT}"
+          echo "sha256=${digest}" >> "${GITHUB_OUTPUT}"
+          echo "pack=${found}" >> "${GITHUB_OUTPUT}"
+          echo "rules=${count}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload the worklist and the unsigned statement
+        if: steps.bundle.outputs.has_rules == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: renewal-prepared
+          path: ${{ runner.temp }}/bundle/files
+          if-no-files-found: error
+          retention-days: 7
+
+  sign:
+    name: Sign the statement
+    needs: prepare
+    # A dry run never gets here. A scheduled run reaches the environment and
+    # skips cleanly when the environment holds no key (see the key step).
+    if: needs.prepare.outputs.has-rules == 'true' && !(github.event_name == 'workflow_dispatch' && inputs.dry_run)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: renewal
+    permissions:
+      contents: read
+    env:
+      REATTEST_TRUST_ROOT_DIGEST: ${{ vars.REATTEST_TRUST_ROOT_DIGEST }}
+      PREPARED_SHA256: ${{ needs.prepare.outputs.sha256 }}
+      PACK: ${{ needs.prepare.outputs.pack }}
+    outputs:
+      signed: ${{ steps.verify.outputs.signed }}
+    steps:
+      - name: Check out the same commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache: false
+
+      - name: Build the CLI from this commit
+        working-directory: cli
+        run: go build -buildvcs=false -trimpath -o "${RUNNER_TEMP}/prufyx-maintainer" ./cmd/prufyx-maintainer
+
+      - name: Download the prepared files
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: renewal-prepared
+          path: ${{ runner.temp }}/prepared
+
+      - name: Verify the prepared files against the prepare digest
+        run: |
+          set -euo pipefail
+          case "${PREPARED_SHA256}" in
+            *[!0-9a-f]*|'') echo "The prepare digest is not a sha256."; exit 1 ;;
+          esac
+          if [ "${#PREPARED_SHA256}" -ne 64 ]; then echo "The prepare digest is not a sha256."; exit 1; fi
+          digest="$(cd "${RUNNER_TEMP}/prepared" && sha256sum -- * | sha256sum | cut -d' ' -f1)"
+          if [ "${digest}" != "${PREPARED_SHA256}" ]; then
+            echo "The downloaded files do not match the digest prepare reported."
+            exit 1
+          fi
+          jq -e --arg pack "${PACK}" --arg base "${GITHUB_SHA}" \
+            '.pack == $pack and .base == $base and (.stem | test("^[0-9]{4}$"))' "${RUNNER_TEMP}/prepared/meta.json" >/dev/null
+
+      # The key and its passphrase are written only here, only under
+      # RUNNER_TEMP, mode 0600, after the build, and removed below even when
+      # a step fails. Without them a scheduled run skips cleanly; an explicit
+      # dispatch fails.
+      - name: Write the key material
+        id: key
+        env:
+          REATTEST_AUTOMATION_KEY: ${{ secrets.REATTEST_AUTOMATION_KEY }}
+          REATTEST_AUTOMATION_KEY_PASSPHRASE: ${{ secrets.REATTEST_AUTOMATION_KEY_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          if [ -z "${REATTEST_AUTOMATION_KEY}" ] || [ -z "${REATTEST_AUTOMATION_KEY_PASSPHRASE}" ]; then
+            if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+              echo "The renewal environment holds no automation key."
+              exit 1
+            fi
+            echo "The renewal environment holds no automation key yet; skipping."
+            echo "have_key=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          umask 077
+          mkdir -m 0700 "${RUNNER_TEMP}/renewal-key"
+          printf '%s\n' "${REATTEST_AUTOMATION_KEY}" > "${RUNNER_TEMP}/renewal-key/automation.key.pem"
+          printf '%s' "${REATTEST_AUTOMATION_KEY_PASSPHRASE}" > "${RUNNER_TEMP}/renewal-key/passphrase"
+          chmod 0600 "${RUNNER_TEMP}/renewal-key/automation.key.pem" "${RUNNER_TEMP}/renewal-key/passphrase"
+          echo "have_key=true" >> "${GITHUB_OUTPUT}"
+
+      - name: Sign as the automation role
+        if: steps.key.outputs.have_key == 'true'
+        run: |
+          set -euo pipefail
+          if [ -z "${REATTEST_TRUST_ROOT_DIGEST}" ]; then
+            echo "No trust root digest is configured."
+            exit 1
+          fi
+          mkdir -p "${RUNNER_TEMP}/signed"
+          "${RUNNER_TEMP}/prufyx-maintainer" evidence reattest sign --role automation \
+            --statement "${RUNNER_TEMP}/prepared/statement.json" \
+            --trust-root "${PWD}/cli/knowledge/reattestation/trust-root.json" \
+            --trust-root-digest "${REATTEST_TRUST_ROOT_DIGEST}" \
+            --key "${RUNNER_TEMP}/renewal-key/automation.key.pem" \
+            --passphrase-file "${RUNNER_TEMP}/renewal-key/passphrase" \
+            --output "${RUNNER_TEMP}/signed/statement.sig.json"
+
+      - name: Remove the key material
+        if: always()
+        run: |
+          set -u
+          rm -rf "${RUNNER_TEMP}/renewal-key"
+
+      # The gate repeats this with its own re-pin; here the prepared
+      # worklist stands in for the independent one, so a mismatch between
+      # what was prepared and what was signed still fails before a pull
+      # request exists.
+      - name: Verify the signed statement locally
+        id: verify
+        if: steps.key.outputs.have_key == 'true'
+        run: |
+          set -euo pipefail
+          pm="${RUNNER_TEMP}/prufyx-maintainer"
+          root="${PWD}"
+          stem="$(jq -r '.stem' "${RUNNER_TEMP}/prepared/meta.json")"
+          rules_rel="$(jq -r '.rulesPath' "${RUNNER_TEMP}/prepared/meta.json")"
+          base="${RUNNER_TEMP}/verify-base"
+          head="${RUNNER_TEMP}/verify-head"
+          mkdir -p "${base}" "${head}"
+          if [ -d "cli/knowledge/reattestation/${PACK}/chain" ]; then
+            cp -p "cli/knowledge/reattestation/${PACK}/chain"/* "${base}/" 2>/dev/null || true
+            cp -p "cli/knowledge/reattestation/${PACK}/chain"/* "${head}/" 2>/dev/null || true
+          fi
+          cp "${RUNNER_TEMP}/prepared/statement.json" "${head}/${stem}.statement.json"
+          cp "${RUNNER_TEMP}/signed/statement.sig.json" "${head}/${stem}.statement.sig.json"
+          vargs=(evidence reattest verify
+                 --statement "${RUNNER_TEMP}/prepared/statement.json"
+                 --prior-pack "${root}/${rules_rel}" --next-pack "${RUNNER_TEMP}/prepared/rules.next.json"
+                 --worklist "${RUNNER_TEMP}/prepared/worklist.json" --rerun-worklist "${RUNNER_TEMP}/prepared/worklist.json"
+                 --pack "${PACK}" --rules-worklist-path "${rules_rel}"
+                 --statement-chain-dir "${head}" --base-statement-chain-dir "${base}"
+                 --envelope "${RUNNER_TEMP}/signed/statement.sig.json"
+                 --trust-root "${root}/cli/knowledge/reattestation/trust-root.json"
+                 --trust-root-digest "${REATTEST_TRUST_ROOT_DIGEST}")
+          if [ -f cli/knowledge/repin-baselines.json ]; then vargs+=(--baselines "${root}/cli/knowledge/repin-baselines.json"); fi
+          if [ -d "cli/knowledge/reattestation/${PACK}/review-records" ]; then vargs+=(--review-record-dir "${root}/cli/knowledge/reattestation/${PACK}/review-records"); fi
+          "${pm}" "${vargs[@]}"
+          echo "signed=true" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload the signed statement
+        if: steps.key.outputs.have_key == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: renewal-signed
+          path: ${{ runner.temp }}/signed/statement.sig.json
+          if-no-files-found: error
+          retention-days: 7
+
+  pr:
+    name: Open the pull request
+    needs: [prepare, sign]
+    # Only a statement that was signed and verified; a skipped sign job
+    # (dry run, no key) skips this one.
+    if: needs.sign.result == 'success' && needs.sign.outputs.signed == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    # The bot App key lives in this environment, restricted to main, so only
+    # a run of main can mint the token.
+    environment: renewal-pr
+    permissions: {}
+    env:
+      PREPARED_SHA256: ${{ needs.prepare.outputs.sha256 }}
+      PACK: ${{ needs.prepare.outputs.pack }}
+      BOT_LOGIN: ${{ vars.KNOWLEDGE_BOT_LOGIN || 'prufyx-factory[bot]' }}
+    steps:
+      - name: Require the bot App
+        env:
+          BOT_APP_ID: ${{ vars.KNOWLEDGE_BOT_APP_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BOT_APP_ID}" ]; then
+            echo "No bot App is configured (KNOWLEDGE_BOT_APP_ID); no pull request is opened."
+            exit 1
+          fi
+
+      # The pull request must come from the account the gate pins, not from
+      # the workflow token: a pull request opened with the workflow token
+      # would neither start the gate nor count as the bot's.
+      - name: Create the bot token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.KNOWLEDGE_BOT_APP_ID }}
+          private-key: ${{ secrets.KNOWLEDGE_BOT_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-metadata: read
+
+      - name: Download the prepared and signed files
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: renewal-*
+          path: ${{ runner.temp }}/in
+
+      - name: Verify the prepared files against the prepare digest
+        run: |
+          set -euo pipefail
+          if ! printf '%s' "${PREPARED_SHA256}" | grep -Eq '^[0-9a-f]{64}$'; then
+            echo "The prepare digest is not a sha256."
+            exit 1
+          fi
+          digest="$(cd "${RUNNER_TEMP}/in/renewal-prepared" && sha256sum -- * | sha256sum | cut -d' ' -f1)"
+          if [ "${digest}" != "${PREPARED_SHA256}" ]; then
+            echo "The downloaded files do not match the digest prepare reported."
+            exit 1
+          fi
+          test -s "${RUNNER_TEMP}/in/renewal-signed/statement.sig.json"
+
+      - name: Open the pull request
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          prepared="${RUNNER_TEMP}/in/renewal-prepared"
+          signed="${RUNNER_TEMP}/in/renewal-signed/statement.sig.json"
+          pack="$(jq -r '.pack' "${prepared}/meta.json")"
+          stem="$(jq -r '.stem' "${prepared}/meta.json")"
+          base="$(jq -r '.base' "${prepared}/meta.json")"
+          rules_rel="$(jq -r '.rulesPath' "${prepared}/meta.json")"
+          count="$(jq -r '.count' "${prepared}/meta.json")"
+          [ "${pack}" = "${PACK}" ] || { echo "The pack differs from what prepare reported."; exit 1; }
+          [ "${base}" = "${GITHUB_SHA}" ] || { echo "The base differs from this run's commit."; exit 1; }
+          printf '%s' "${pack}" | grep -Eq '^(cncf|community)$' || { echo "Unexpected pack."; exit 1; }
+          printf '%s' "${stem}" | grep -Eq '^[0-9]{4}$' || { echo "Unexpected stem."; exit 1; }
+          printf '%s' "${count}" | grep -Eq '^[1-9][0-9]{0,2}$' || { echo "Unexpected rule count."; exit 1; }
+          case "${rules_rel}" in
+            cli/internal/cncfcheck/data/rules.json|cli/internal/projectcheck/data/rules.json) ;;
+            *) echo "Unexpected pack path."; exit 1 ;;
+          esac
+
+          # At most one open renewal pull request.
+          open="$(gh pr list --repo "${GITHUB_REPOSITORY}" --state open --limit 200 --json headRefName \
+            --jq '[.[] | select(.headRefName | startswith("factory/renewal/automated-"))] | length')"
+          if [ "${open}" != "0" ]; then
+            echo "A renewal pull request is already open; nothing to do."
+            exit 0
+          fi
+
+          # The base must still be the tip of main.
+          tip="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          if [ "${tip}" != "${base}" ]; then
+            echo "main moved since the statement was prepared; the next run retries."
+            exit 0
+          fi
+
+          branch="factory/renewal/automated-$(date -u +%Y%m%d)"
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${branch}" >/dev/null 2>&1; then
+            echo "The branch ${branch} exists already; nothing to do."
+            exit 0
+          fi
+
+          dir="cli/knowledge/reattestation/${pack}"
+          entries="${RUNNER_TEMP}/tree-entries.jsonl"
+          : > "${entries}"
+          add() {
+            local path="$1" file="$2" b64 blob
+            b64="${RUNNER_TEMP}/blob.b64"
+            base64 -w0 "${file}" > "${b64}"
+            blob="$(jq -n --rawfile c "${b64}" '{content: $c, encoding: "base64"}' \
+              | gh api -X POST "repos/${GITHUB_REPOSITORY}/git/blobs" --input - --jq '.sha')"
+            jq -nc --arg p "${path}" --arg s "${blob}" '{path: $p, mode: "100644", type: "blob", sha: $s}' >> "${entries}"
+          }
+          add "${rules_rel}" "${prepared}/rules.next.json"
+          add "${dir}/chain/${stem}.statement.json" "${prepared}/statement.json"
+          add "${dir}/chain/${stem}.statement.sig.json" "${signed}"
+          add "${dir}/worklists/${stem}.worklist.json" "${prepared}/worklist.json"
+
+          base_tree="$(gh api "repos/${GITHUB_REPOSITORY}/git/commits/${base}" --jq '.tree.sha')"
+          tree="$(jq -s --arg b "${base_tree}" '{base_tree: $b, tree: .}' "${entries}" \
+            | gh api -X POST "repos/${GITHUB_REPOSITORY}/git/trees" --input - --jq '.sha')"
+          # No author or committer is given: the commit is the App's, and
+          # GitHub signs it.
+          commit="$(jq -n --arg m "evidence: renew ${count} rules (automated, ${pack})" --arg t "${tree}" --arg p "${base}" \
+            '{message: $m, tree: $t, parents: [$p]}' \
+            | gh api -X POST "repos/${GITHUB_REPOSITORY}/git/commits" --input - --jq '.sha')"
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/git/refs" -f "ref=refs/heads/${branch}" -f "sha=${commit}" >/dev/null
+
+          body="${RUNNER_TEMP}/body.md"
+          {
+            echo "MOVES decided +0: renews ${count} rules (keeps decided pairs past expiry)"
+            echo
+            echo "Automated renewal of ${count} reviewed rules of the ${pack} pack, statement ${stem}. Each rule's evidence re-derives cleanly on its own release line; no drifted, ranged or latest-only rule is included."
+            echo
+            echo "The statement is signed by the automation role. The knowledge gate re-derives every citation independently and decides; this pull request changes only the pack, its statement chain and the retained worklist."
+          } > "${body}"
+          if ! url="$(gh api -X POST "repos/${GITHUB_REPOSITORY}/pulls" \
+            -f "title=evidence: automated renewal of ${count} rules (${pack})" \
+            -f "head=${branch}" -f "base=main" -F "body=@${body}" --jq '.html_url + " " + .user.login')"; then
+            gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/${branch}" >/dev/null || true
+            echo "The pull request could not be opened."
+            exit 1
+          fi
+          echo "opened ${url%% *}"
+          if [ "${url##* }" != "${BOT_LOGIN}" ]; then
+            echo "The pull request author is not ${BOT_LOGIN}; the gate will not treat it as the automation's."
+            exit 1
+          fi
