@@ -329,7 +329,7 @@ func TestMaintainerCLI_CoverageReadmeJSONOut(t *testing.T) {
 	if doc.Schema != coveragereport.READMECountsSchema || doc.ReadmeBlockSha256 != hex.EncodeToString(sum[:]) || len(doc.InventoryCounts) != 8 {
 		t.Fatalf("doc = %+v", doc)
 	}
-	if !strings.Contains(block, "; "+strconv.Itoa(doc.Report.Fleet.Pairs)+" upgrades between consecutive release lines") {
+	if !strings.Contains(block, "("+strconv.Itoa(doc.Report.Fleet.Pairs)+" upgrades between consecutive release lines)") {
 		t.Fatalf("fleet.pairs %d is not what the block prints", doc.Report.Fleet.Pairs)
 	}
 	// A bad path is an error and nothing is written.
