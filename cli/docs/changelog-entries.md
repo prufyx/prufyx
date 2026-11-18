@@ -29,12 +29,12 @@ One line of JSON on standard output, in a fixed field order, so equal inputs
 give equal bytes:
 
 - `schema`: `prufyx.io/changelog-entries-manifest/v1`.
-- `extractor`: `name` `changelog.entries`, `version` `changelog.entries/1`,
+- `extractor`: `name` `changelog.entries`, `version` `changelog.entries/2`,
   and `codeDigest`, the digest of this reader's source and of the extract
   framework it is built on.
 - Exactly one of:
   - `entry`: the proof that the tag's own entry was read in full. It holds the
-    source (repository, commit, path, file digest, form), the section (heading
+    source (repository, commit, path, file digest, form, and `checkedBytes` / `checkedDigest`: the length and sha256 of the leading part of the blob the file-wide CommonMark, fence and HTML checks covered, up to and including the heading that follows the entry, or the whole blob when nothing follows), the section (heading
     line, start and end line, digest), the headings inside it, one item per
     list item or paragraph (digest, occurrence, line span, heading path,
     marker, kind), and the line tiling. Every section line is a heading, a
@@ -87,6 +87,13 @@ closed, so a row can never carry logic:
 | heading | `version-bracketed` | `^\[(?P<version>[0-9]+\.[0-9]+\.[0-9]+)\]$` |
 | heading | `version-bracketed-date` | `^\[(?P<version>...)\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$` |
 | heading | `version-dash-date` | `^(?P<version>...) - [0-9]{4}-[0-9]{2}-[0-9]{2}$` |
+| heading | `version-space-date` | `^(?P<version>...) [0-9]{4}-[0-9]{2}-[0-9]{2}$` |
+| heading | `version-v-slash-date` | `^v(?P<version>...) / [0-9]{4}-[0-9]{2}-[0-9]{2}$` |
+| heading | `version-linked-paren-date` | `^\[v(?P<version>...)\](GitHub tree link) \(date\)$` (the version is the link text only; a duplicate version heading is refused) |
+| heading | `release-v-slash-date` | `^Release v(?P<version>...) - [0-9]{4}/[0-9]{2}/[0-9]{2}$` |
+| boundary | `master-unreleased` | `^master / unreleased$` |
+| boundary | `line-heading-v` | `^v[0-9]+\.[0-9]+$` (never names an entry) |
+| boundary | `prerelease-linked-paren-date` | linked `-rc`/`-alpha`/`-beta`/`-ea` heading with a date |
 | boundary | `unreleased` | `^Unreleased$` |
 | boundary | `unreleased-bracketed` | `^\[Unreleased\]$` |
 | boundary | `prerelease-plain` | `^[0-9]+\.[0-9]+\.[0-9]+-(rc\|alpha\|beta)\.[0-9]+$` |

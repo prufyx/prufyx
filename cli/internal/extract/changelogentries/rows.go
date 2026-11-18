@@ -60,6 +60,13 @@ var headingStyles = map[string]string{
 	"version-bracketed":      `^\[(?P<version>[0-9]+\.[0-9]+\.[0-9]+)\]$`,
 	"version-bracketed-date": `^\[(?P<version>[0-9]+\.[0-9]+\.[0-9]+)\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$`,
 	"version-dash-date":      `^(?P<version>[0-9]+\.[0-9]+\.[0-9]+) - [0-9]{4}-[0-9]{2}-[0-9]{2}$`,
+	"version-space-date":     `^(?P<version>[0-9]+\.[0-9]+\.[0-9]+) [0-9]{4}-[0-9]{2}-[0-9]{2}$`,
+	"version-v-slash-date":   `^v(?P<version>[0-9]+\.[0-9]+\.[0-9]+) / [0-9]{4}-[0-9]{2}-[0-9]{2}$`,
+	// The link target is not tied to the version (no backreference in RE2):
+	// the version is the link text only. The entry is located by the tag's
+	// own version and a second heading for it is refused (EntryDuplicate).
+	"version-linked-paren-date": `^\[v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)\]\(https://github\.com/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/tree/[A-Za-z0-9._-]+\) \([0-9]{4}-[0-9]{2}-[0-9]{2}\)$`,
+	"release-v-slash-date":      `^Release v(?P<version>[0-9]+\.[0-9]+\.[0-9]+) - [0-9]{4}/[0-9]{2}/[0-9]{2}$`,
 }
 
 // boundaryStyles maps a boundary style name to its fixed pattern.
@@ -70,6 +77,10 @@ var boundaryStyles = map[string]string{
 	"unreleased-bracketed":          `^\[Unreleased\]$`,
 	"prerelease-plain":              `^[0-9]+\.[0-9]+\.[0-9]+-(rc|alpha|beta)\.[0-9]+$`,
 	"prerelease-v-prefixed":         `^v[0-9]+\.[0-9]+\.[0-9]+-(rc|alpha|beta)\.[0-9]+$`,
+	"master-unreleased":             `^master / unreleased$`,
+	// A two-part line heading can never name an entry (no patch part).
+	"line-heading-v":               `^v[0-9]+\.[0-9]+$`,
+	"prerelease-linked-paren-date": `^\[v[0-9]+\.[0-9]+\.[0-9]+-(?:rc|alpha|beta|ea)\.?[0-9]+\]\(https://github\.com/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/tree/[A-Za-z0-9._-]+\) \([0-9]{4}-[0-9]{2}-[0-9]{2}\)$`,
 }
 
 var componentSlugRE = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)

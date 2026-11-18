@@ -29,6 +29,12 @@ type Source struct {
 	Path       string `json:"path"`
 	FileDigest string `json:"fileDigest"` // sha256 of the whole blob as stored
 	Form       string `json:"form"`
+	// CheckedBytes is the length of the leading part of the blob the
+	// file-wide agreement checks covered (the entry and everything above it,
+	// up to and including the heading that follows it; the whole blob when
+	// nothing follows). CheckedDigest is the sha256 of exactly those bytes.
+	CheckedBytes  int    `json:"checkedBytes"`
+	CheckedDigest string `json:"checkedDigest"`
 }
 
 // Section is the entry's line span (1-based, inclusive, trailing blank lines

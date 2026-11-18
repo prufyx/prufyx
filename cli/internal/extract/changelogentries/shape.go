@@ -261,6 +261,7 @@ func locatePerVersion(r extract.PinnedReader, t Target, tag extract.Tag) (*Entry
 		Source: Source{
 			Repo: t.Repo.Key, Commit: tag.Commit, Path: p,
 			FileDigest: hexSum(raw), Form: t.Form,
+			CheckedBytes: len(raw), CheckedDigest: hexSum(raw),
 		},
 		// The file has no version heading of its own: HeadingLine is 0.
 		Section:   Section{HeadingLine: 0, StartLine: start, EndLine: end},

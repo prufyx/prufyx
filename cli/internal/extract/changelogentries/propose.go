@@ -51,6 +51,7 @@ var candidatePaths = []struct{ Form, Path string }{
 	{FormPerVersionFile, "changelogs/v{version}.md"},
 	{FormPerVersionFile, "changelogs/{version}.md"},
 	{FormPerVersionFile, "docs/release-notes/{version}.md"},
+	{FormPerVersionFile, "notes/coredns-{version}.md"},
 }
 
 // nonMarkdownProbes are known non-markdown changelog places. They are only
@@ -67,11 +68,13 @@ var nonMarkdownProbes = []string{
 var headingOrder = []string{
 	"version-v-prefixed", "version-plain", "version-bracketed", "version-bracketed-date",
 	"version-dash-date", "version-slash-date",
+	"version-space-date", "version-v-slash-date", "version-linked-paren-date", "release-v-slash-date",
 }
 
 var boundaryOrder = []string{
 	"unreleased", "unreleased-bracketed", "prerelease-plain", "prerelease-v-prefixed",
 	"main-unreleased", "main-unreleased-parenthesised",
+	"master-unreleased", "line-heading-v", "prerelease-linked-paren-date",
 }
 
 // Hit is one tag of a proposal's hit table.
