@@ -14,7 +14,7 @@ name: Evidence renewal
 #            prepare reported, builds the CLI from the same commit, signs with
 #            the automation role, verifies locally. Skipped for a dry run.
 #   pr       no repository code runs. Creates the branch and the commit
-#            through the API with the bot's App token, opens the pull request.
+#            through the API with the bot account's token, opens the pull request.
 #
 # No pull_request or pull_request_target trigger exists here on purpose: a
 # change can neither run this workflow nor reach the signing environment.
@@ -422,37 +422,40 @@ jobs:
     if: needs.sign.result == 'success' && needs.sign.outputs.signed == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    # The bot App key lives in this environment, restricted to main, so only
-    # a run of main can mint the token.
+    # The bot token lives in this environment, restricted to main, so only
+    # a run of main can read it.
     environment: renewal-pr
     permissions: {}
     env:
       PREPARED_SHA256: ${{ needs.prepare.outputs.sha256 }}
       PACK: ${{ needs.prepare.outputs.pack }}
-      BOT_LOGIN: ${{ vars.KNOWLEDGE_BOT_LOGIN || 'prufyx-factory[bot]' }}
+      BOT_LOGIN: ${{ vars.KNOWLEDGE_BOT_LOGIN }}
     steps:
-      - name: Require the bot App
-        env:
-          BOT_APP_ID: ${{ vars.KNOWLEDGE_BOT_APP_ID }}
-        run: |
-          set -euo pipefail
-          if [ -z "${BOT_APP_ID}" ]; then
-            echo "No bot App is configured (KNOWLEDGE_BOT_APP_ID); no pull request is opened."
-            exit 1
-          fi
-
       # The pull request must come from the account the gate pins, not from
       # the workflow token: a pull request opened with the workflow token
-      # would neither start the gate nor count as the bot's.
-      - name: Create the bot token
-        id: app-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
-        with:
-          app-id: ${{ vars.KNOWLEDGE_BOT_APP_ID }}
-          private-key: ${{ secrets.KNOWLEDGE_BOT_APP_PRIVATE_KEY }}
-          permission-contents: write
-          permission-pull-requests: write
-          permission-metadata: read
+      # would neither start the gate nor count as the bot's. The token is a
+      # fine-grained personal access token of that account, limited to this
+      # repository (contents and pull requests, read and write). Nothing is
+      # written before the token is shown to belong to the pinned login.
+      - name: Require the pinned bot account
+        env:
+          GH_TOKEN: ${{ secrets.KNOWLEDGE_BOT_TOKEN }}
+          PINNED_LOGIN: ${{ vars.KNOWLEDGE_BOT_LOGIN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PINNED_LOGIN}" ]; then
+            echo "No bot login is pinned (KNOWLEDGE_BOT_LOGIN); no pull request is opened."
+            exit 1
+          fi
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "No bot token is configured (KNOWLEDGE_BOT_TOKEN); no pull request is opened."
+            exit 1
+          fi
+          login="$(gh api user --jq .login)"
+          if [ "${login}" != "${PINNED_LOGIN}" ]; then
+            echo "The bot token does not belong to ${PINNED_LOGIN}; no pull request is opened."
+            exit 1
+          fi
 
       - name: Download the prepared and signed files
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -476,7 +479,7 @@ jobs:
 
       - name: Open the pull request
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ secrets.KNOWLEDGE_BOT_TOKEN }}
         run: |
           set -euo pipefail
           prepared="${RUNNER_TEMP}/in/renewal-prepared"
@@ -536,8 +539,8 @@ jobs:
           base_tree="$(gh api "repos/${GITHUB_REPOSITORY}/git/commits/${base}" --jq '.tree.sha')"
           tree="$(jq -s --arg b "${base_tree}" '{base_tree: $b, tree: .}' "${entries}" \
             | gh api -X POST "repos/${GITHUB_REPOSITORY}/git/trees" --input - --jq '.sha')"
-          # No author or committer is given: the commit is the App's, and
-          # GitHub signs it.
+          # No author or committer is given: the commit is attributed to the token owner. It is
+          # not claimed to be signed.
           commit="$(jq -n --arg m "evidence: renew ${count} rules (automated, ${pack})" --arg t "${tree}" --arg p "${base}" \
             '{message: $m, tree: $t, parents: [$p]}' \
             | gh api -X POST "repos/${GITHUB_REPOSITORY}/git/commits" --input - --jq '.sha')"
