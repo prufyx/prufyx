@@ -101,7 +101,7 @@ func entryFromBytes(t Target, c compiled, tag extract.Tag, version string, raw [
 	var named []int
 	for i, h := range sc.headings {
 		x := rel{h: h}
-		if m := c.heading.FindStringSubmatch(h.Text); m != nil && finalVersion(m[1]) {
+		if m := c.heading.FindStringSubmatch(h.Text); m != nil && finalVersion(m[1]) && linkTargetMatches(c.heading, m, t.Repo.Key) {
 			x.final = m[1]
 		} else {
 			for _, b := range c.boundary {
@@ -330,6 +330,26 @@ func entryFromBytes(t Target, c compiled, tag extract.Tag, version string, raw [
 	sec := strings.Join(lines[start-1:end], "\n") + "\n"
 	e.Section.Digest = hexSum([]byte(sec))
 	return e, nil
+}
+
+// linkTargetMatches is the post-match check of a heading style that carries a
+// link target: the target must name the row's repository and the heading's own
+// version ("v"+version). A style without the groups is not affected.
+func linkTargetMatches(re *regexp.Regexp, m []string, repoKey string) bool {
+	slug, ref := "", ""
+	has := false
+	for i, n := range re.SubexpNames() {
+		switch n {
+		case "slug":
+			slug, has = m[i], true
+		case "ref":
+			ref = m[i]
+		}
+	}
+	if !has {
+		return true
+	}
+	return "github.com/"+slug == repoKey && ref == "v"+m[1]
 }
 
 // fileAgreement is the scanner-only part of the file-wide checks: a fence that

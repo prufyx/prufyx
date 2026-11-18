@@ -105,8 +105,11 @@ func (t Target) compile() (compiled, error) {
 		return c, err
 	}
 	names := re.SubexpNames()
-	if len(names) != 2 || names[1] != "version" {
-		return c, fmt.Errorf("heading pattern needs exactly one capture group, named version")
+	// One group named version; a style that carries a link target may add the
+	// groups slug and ref after it, checked by linkTargetMatches.
+	linked := len(names) == 4 && names[2] == "slug" && names[3] == "ref"
+	if len(names) < 2 || names[1] != "version" || (len(names) != 2 && !linked) {
+		return c, fmt.Errorf("heading pattern needs one capture group named version (and, for a link target, slug and ref)")
 	}
 	c.heading = re
 	for _, p := range t.BoundaryPatterns {

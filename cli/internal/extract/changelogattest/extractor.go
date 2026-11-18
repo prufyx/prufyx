@@ -20,7 +20,7 @@ const (
 	// IDPrefix is followed by the project slug: one extractor per component.
 	IDPrefix = "changelog.entries."
 	// Version is bumped on any output change.
-	Version = "1.0.0"
+	Version = "1.1.0"
 )
 
 var slugRE = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)

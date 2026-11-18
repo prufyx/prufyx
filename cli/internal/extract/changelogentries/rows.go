@@ -62,10 +62,11 @@ var headingStyles = map[string]string{
 	"version-dash-date":      `^(?P<version>[0-9]+\.[0-9]+\.[0-9]+) - [0-9]{4}-[0-9]{2}-[0-9]{2}$`,
 	"version-space-date":     `^(?P<version>[0-9]+\.[0-9]+\.[0-9]+) [0-9]{4}-[0-9]{2}-[0-9]{2}$`,
 	"version-v-slash-date":   `^v(?P<version>[0-9]+\.[0-9]+\.[0-9]+) / [0-9]{4}-[0-9]{2}-[0-9]{2}$`,
-	// The link target is not tied to the version (no backreference in RE2):
-	// the version is the link text only. The entry is located by the tag's
-	// own version and a second heading for it is refused (EntryDuplicate).
-	"version-linked-paren-date": `^\[v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)\]\(https://github\.com/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/tree/[A-Za-z0-9._-]+\) \([0-9]{4}-[0-9]{2}-[0-9]{2}\)$`,
+	// RE2 has no backreference: the link target is tied to the row repo and to
+	// the version by a post-match check in the reader (linkTargetMatches); a
+	// heading whose target differs is not a final heading. A second heading
+	// for the same version is refused (EntryDuplicate).
+	"version-linked-paren-date": `^\[v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)\]\(https://github\.com/(?P<slug>[A-Za-z0-9._-]+/[A-Za-z0-9._-]+)/tree/(?P<ref>[A-Za-z0-9._-]+)\) \([0-9]{4}-[0-9]{2}-[0-9]{2}\)$`,
 	"release-v-slash-date":      `^Release v(?P<version>[0-9]+\.[0-9]+\.[0-9]+) - [0-9]{4}/[0-9]{2}/[0-9]{2}$`,
 }
 

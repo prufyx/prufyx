@@ -3,6 +3,7 @@
 package changelogentries
 
 import (
+	"github.com/prufyx/prufyx/cli/internal/extract"
 	"strings"
 	"testing"
 )
@@ -62,7 +63,7 @@ func TestVocabV2Styles(t *testing.T) {
 			tg: func(t *testing.T) Target {
 				return styleRow(t, "version-linked-paren-date", "prerelease-linked-paren-date")
 			},
-			file:    "## [v3.2.0](https://github.com/traefik/traefik/tree/v3.2.0) (2024-10-20)\n\n* a\n\n## [v3.2.0-rc2](https://github.com/traefik/traefik/tree/v3.2.0-rc2) (2024-10-09)\n\n* rc\n\n## [v3.1.0](https://github.com/traefik/traefik/tree/v3.1.0) (2024-08-01)\n\n* b\n\n## [v3.0.0-ea.1](https://github.com/traefik/traefik/tree/v3.0.0-ea.1) (2024-01-01)\n\n* ea\n",
+			file:    "## [v3.2.0](https://github.com/example/notes/tree/v3.2.0) (2024-10-20)\n\n* a\n\n## [v3.2.0-rc2](https://github.com/example/notes/tree/v3.2.0-rc2) (2024-10-09)\n\n* rc\n\n## [v3.1.0](https://github.com/example/notes/tree/v3.1.0) (2024-08-01)\n\n* b\n\n## [v3.0.0-ea.1](https://github.com/example/notes/tree/v3.0.0-ea.1) (2024-01-01)\n\n* ea\n",
 			located: []string{"v3.2.0", "v3.1.0"},
 			refused: map[string]Code{"v3.2.1": EntryMissing, "v3.0.0": EntryNotFinal},
 		},
@@ -112,11 +113,11 @@ func TestVocabV2StyleNearMisses(t *testing.T) {
 	}
 	s3 := styleRow(t, "version-linked-paren-date", "prerelease-linked-paren-date")
 	for _, h := range []string{
-		"## [v1.2.3-rc1](https://github.com/o/r/tree/v1.2.3-rc1) (2026-10-26)",
+		"## [v1.2.3-rc1](https://github.com/example/notes/tree/v1.2.3-rc1) (2026-10-26)",
 		"## [v1.2.3](https://example.com/o/r/tree/v1.2.3) (2026-10-26)",
-		"## [v1.2.3](https://github.com/o/r/tree/v1.2.3) (2026/10/26)",
-		"## [1.2.3](https://github.com/o/r/tree/v1.2.3) (2026-10-26)",
-		"## [v1.2.3](https://github.com/o/r/tree/v1.2.3) - 2026-10-26",
+		"## [v1.2.3](https://github.com/example/notes/tree/v1.2.3) (2026/10/26)",
+		"## [1.2.3](https://github.com/example/notes/tree/v1.2.3) (2026-10-26)",
+		"## [v1.2.3](https://github.com/example/notes/tree/v1.2.3) - 2026-10-26",
 	} {
 		if _, err := locateMem(s3, "v1.2.3", h+"\n\n* a\n"); err == nil {
 			t.Fatalf("%q located", h)
@@ -125,8 +126,8 @@ func TestVocabV2StyleNearMisses(t *testing.T) {
 	// A linked pre-release heading naming the tag's version (no boundary
 	// style) is not read as the release; with the boundary style it is a
 	// boundary only.
-	pre := "## [v1.2.3-rc1](https://github.com/o/r/tree/v1.2.3-rc1) (2026-10-26)\n\n* rc\n"
-	rel := "## [v1.2.3](https://github.com/o/r/tree/v1.2.3) (2026-10-27)\n\n* a\n\n"
+	pre := "## [v1.2.3-rc1](https://github.com/example/notes/tree/v1.2.3-rc1) (2026-10-26)\n\n* rc\n"
+	rel := "## [v1.2.3](https://github.com/example/notes/tree/v1.2.3) (2026-10-27)\n\n* a\n\n"
 	if _, err := locateMem(s3, "v1.2.3", rel+pre); err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +135,7 @@ func TestVocabV2StyleNearMisses(t *testing.T) {
 	_, err := locateMem(s3NoB, "v1.2.3", rel+pre)
 	wantCode(t, err, EntryDuplicate)
 	// S3 duplicates are refused, also across a differing link target.
-	dup := rel + "## [v1.2.3](https://github.com/o/r/tree/other) (2026-10-28)\n\n* b\n"
+	dup := rel + "## [v1.2.3](https://github.com/example/notes/tree/other) (2026-10-28)\n\n* b\n"
 	_, err = locateMem(s3, "v1.2.3", dup)
 	wantCode(t, err, EntryDuplicate)
 	// S5 / S1 / S2 duplicates as well.
@@ -294,4 +295,111 @@ func TestProposePicksNotesPerVersionPath(t *testing.T) {
 	src = rcFixture(t, tags, map[string]string{"a|notes/other-1.15.0.md": body, "a|notes/other-1.14.1.md": body})
 	_, err = propose(t, src)
 	wantNoRow(t, err, NoRowNoCandidate)
+}
+
+// LOW: the S3 link target must name the row repo and the heading's own version.
+func TestLinkedStyleTargetMustNameRepoAndVersion(t *testing.T) {
+	tg := styleRow(t, "version-linked-paren-date", "prerelease-linked-paren-date")
+	for name, h := range map[string]string{
+		"wrong ref":   "## [v1.2.3](https://github.com/example/notes/tree/v9.9.9) (2026-10-26)",
+		"no v in ref": "## [v1.2.3](https://github.com/example/notes/tree/1.2.3) (2026-10-26)",
+		"other repo":  "## [v1.2.3](https://github.com/example/other/tree/v1.2.3) (2026-10-26)",
+		"other owner": "## [v1.2.3](https://github.com/elsewhere/notes/tree/v1.2.3) (2026-10-26)",
+	} {
+		if _, err := locateMem(tg, "v1.2.3", h+"\n\n* a\n"); err == nil {
+			t.Errorf("%s located", name)
+		} else {
+			wantCode(t, err, EntryNotFinal)
+		}
+	}
+	if _, err := locateMem(tg, "v1.2.3", "## [v1.2.3](https://github.com/example/notes/tree/v1.2.3) (2026-10-26)\n\n* a\n"); err != nil {
+		t.Fatal(err)
+	}
+	// A mismatched link beside a right one is ambiguity, not a second entry.
+	both := "## [v1.2.3](https://github.com/example/notes/tree/v1.2.3) (2026-10-26)\n\n* a\n\n## [v1.2.3](https://github.com/example/notes/tree/v9.9.9) (2026-10-27)\n\n* b\n"
+	_, err := locateMem(tg, "v1.2.3", both)
+	wantCode(t, err, EntryDuplicate)
+}
+
+func TestSameHeadingsUpTo(t *testing.T) {
+	h := func(line int, text string) heading { return heading{Line: line, EndLine: line, Level: 2, Text: text} }
+	whole := []heading{h(1, "a"), h(5, "b"), h(9, "c")}
+	if !sameHeadingsUpTo(whole, []heading{h(1, "a"), h(5, "b")}, 5) {
+		t.Fatal("equal prefix refused")
+	}
+	if sameHeadingsUpTo(whole, []heading{h(1, "a"), h(5, "x")}, 5) {
+		t.Fatal("a differing heading passed")
+	}
+	if sameHeadingsUpTo(whole, []heading{h(1, "a"), h(5, "b"), h(7, "extra")}, 5) {
+		t.Fatal("an extra prefix heading passed")
+	}
+	if sameHeadingsUpTo(whole, []heading{h(1, "a")}, 5) {
+		t.Fatal("a missing prefix heading passed")
+	}
+	if sameHeadingsUpTo(whole, []heading{h(1, "a"), h(5, "b"), h(9, "c")}, 5) {
+		t.Fatal("a heading beyond the cut passed")
+	}
+}
+
+// A fence opened inside the entry swallows the headings after it, so no cut
+// lies inside it: it is read whole (section runs to the real next heading,
+// the swallowed "heading" is no entry), and one that never closes refuses.
+func TestScopedChecksFenceOpenedInEntryClosedBelow(t *testing.T) {
+	f := c1Head + "## [1.1.0] - 2026-01-02\n\n- n\n\n```\ncode\n\n## [1.0.0] - 2026-01-01\n\n- a\n\n```\n\n## [0.9.0] - 2025-12-01\n\n- z\n"
+	e := mustLocate(t, c1Row(t), "v1.1.0", f)
+	if e.Section.EndLine != 14 || e.Source.CheckedBytes != strings.Index(f, "\n\n- z\n")+1 {
+		t.Fatalf("section %+v checked %d", e.Section, e.Source.CheckedBytes)
+	}
+	_, err := locateMem(c1Row(t), "v1.0.0", f)
+	wantCode(t, err, EntryMissing)
+	unclosed := c1Head + "## [1.1.0] - 2026-01-02\n\n- n\n\n```\ncode\n\n## [1.0.0] - 2026-01-01\n\n- a\n"
+	_, err = locateMem(c1Row(t), "v1.1.0", unclosed)
+	wantCode(t, err, EntryParseResidue)
+	// an indented fence in the entry closed at another indentation below the
+	// next heading is stopped by the container-fence rule in the prefix
+	cont := c1Head + "## [1.1.0] - 2026-01-02\n\n- n\n  ```\n  code\n\n## [1.0.0] - 2026-01-01\n\n- a\n\n```\n"
+	if _, err := locateMem(c1Row(t), "v1.1.0", cont); err == nil {
+		t.Fatal("located")
+	}
+}
+
+// A version recorded under two tag names counts once in the newest window.
+func TestWindowCountsOneVersionOnce(t *testing.T) {
+	row := Target{Component: "notes", Repo: extract.RepoRef{Key: rcRepo}, Form: FormPerVersionFile, Path: "docs/releases/v{version}.md"}
+	src := rcFixture(t,
+		map[string]byte{"v1.0.1": 'a', "1.0.1": 'b', "v1.0.0": 'c'},
+		map[string]string{"a|docs/releases/v1.0.1.md": pvBody, "b|docs/releases/v1.0.1.md": pvBody},
+		'c')
+	r := CheckRowMin(src, row, "d", 2)
+	if r.Window != 2 || r.WindowLocated != 1 || r.Status != RowFail {
+		t.Fatalf("one version must be one window slot, 1.0.0 unlocated: %+v", r)
+	}
+	// every tag of a version must locate for the slot to count
+	src = rcFixture(t,
+		map[string]byte{"v1.0.1": 'a', "1.0.1": 'c', "v1.0.0": 'a'},
+		map[string]string{"a|docs/releases/v1.0.1.md": pvBody, "a|docs/releases/v1.0.0.md": pvBody},
+		'c')
+	if r := CheckRowMin(src, row, "d", 2); r.Status != RowFail || r.WindowLocated != 1 {
+		t.Fatalf("%+v", r)
+	}
+
+	tags := map[string]byte{"1.0.8": 'a'}
+	files := map[string]string{}
+	for i := 0; i <= 8; i++ {
+		v := "1.0." + string(rune('0'+i))
+		tags["v"+v] = 'a'
+		files["a|docs/releases/v"+v+".md"] = pvBody
+	}
+	p, err := propose(t, rcFixture(t, tags, files))
+	if err != nil {
+		t.Fatal(err)
+	}
+	versions := map[string]bool{}
+	for _, h := range p.Hits {
+		v, _ := tagVersion(h.Tag)
+		versions[v] = true
+	}
+	if len(versions) != DefaultProposeTags || len(p.Hits) != DefaultProposeTags+1 {
+		t.Fatalf("%d versions in %d hits", len(versions), len(p.Hits))
+	}
 }

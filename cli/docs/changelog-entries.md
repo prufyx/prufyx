@@ -148,6 +148,10 @@ withheld with `PATH_MISSING_AT_TAG` and do not fail a row that otherwise
 locates entries. A row of a form that is not read is `SKIP` (it claims nothing);
 asked for by `--component` it FAILS. This is the check a data change of rows is
 judged by, together with its gate receipt.
+A `PASS` is a check of the row data (the path and headings resolve, newest tags
+locate) and never a compatibility verdict about any release or upgrade. A
+version recorded under two tag names (`v1.2.3` and `1.2.3`) is one slot of the
+newest window, and the slot counts as located only when every tag of it is.
 
 ## Proposing rows
 

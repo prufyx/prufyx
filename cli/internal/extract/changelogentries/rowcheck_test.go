@@ -214,7 +214,7 @@ func TestNewStylesCompileAndReadOneVersion(t *testing.T) {
 		if err != nil {
 			t.Fatalf("heading %s: %v", n, err)
 		}
-		if names := re.SubexpNames(); len(names) != 2 || names[1] != "version" {
+		if names := re.SubexpNames(); len(names) < 2 || names[1] != "version" || (len(names) != 2 && !(len(names) == 4 && names[2] == "slug" && names[3] == "ref")) {
 			t.Fatalf("heading %s: capture groups %v", n, names)
 		}
 	}

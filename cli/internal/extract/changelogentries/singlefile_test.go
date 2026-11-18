@@ -118,8 +118,17 @@ func TestSingleFileRowScopedPastCommonMarkDisagreement(t *testing.T) {
 		if err != nil || m.Entry == nil || m.Withheld != nil {
 			t.Fatalf("%s: %+v, %v", name, m, err)
 		}
-		if cb := m.Entry.Source.CheckedBytes; cb <= 0 || cb >= len(raw) {
+		cb := m.Entry.Source.CheckedBytes
+		if cb <= 0 || cb >= len(raw) {
 			t.Fatalf("%s: checkedBytes %d of %d", name, cb, len(raw))
+		}
+		// The disagreeing construct lies after the cut: the checked prefix is clean.
+		plines, err := splitLines(raw[:cb])
+		if err != nil {
+			t.Fatal(err)
+		}
+		if d := cmDisagreement(plines, scan(plines), m.Entry.Section.StartLine, m.Entry.Section.EndLine); d != "" {
+			t.Fatalf("%s: the checked prefix still disagrees: %s", name, d)
 		}
 	}
 }
