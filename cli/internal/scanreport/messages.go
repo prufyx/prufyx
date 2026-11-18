@@ -214,7 +214,7 @@ var gapMessages = map[GapKey]gapMessage{
 		"upgrade prufyx, then scan again; the other projects are checked normally", 1},
 	GapVersionNotDetected: {"the current %[1]s version is not declared and was not detected in the manifests",
 		"declare it with --from %[1]s=VERSION or under current: in prufyx.yaml", 1},
-	GapVersionScheme: {"%[1]s version %[2]s is not X.Y.Z and is not compared yet (for example linkerd edge-YY.M.N)",
+	GapVersionScheme: {"%[1]s version %[2]s is not in X.Y.Z form (for example an edge or date-based release); it is not compared yet",
 		"name the stable X.Y.Z of %[1]s if you run one, or check it by hand", 2},
 	GapVersionConflict: {"the manifests give conflicting or unusable version signals for %[1]s, so no version was detected",
 		"declare the version with --from %[1]s=VERSION or under current: in prufyx.yaml", 1},

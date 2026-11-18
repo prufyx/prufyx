@@ -316,7 +316,7 @@ func Run(request Request, options Options) (Result, error) {
 	if len(effective.Target) == 0 && len(request.NewestCovered) == 0 && len(unknown) > 0 && hadTarget {
 		return Result{Unknown: unknown}, nil
 	}
-	if len(effective.Target) == 0 && len(request.NewestCovered) == 0 {
+	if len(effective.Target) == 0 && len(request.NewestCovered) == 0 && len(scheme) == 0 {
 		return Result{}, usage(scanreport.UsageNoTarget)
 	}
 	paths, err := inputPaths(effective, configDir)

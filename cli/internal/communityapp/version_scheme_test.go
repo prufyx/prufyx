@@ -87,3 +87,22 @@ func TestVersionSchemeMalformedStillUsageError(t *testing.T) {
 		t.Fatalf("kubernetes edge: exit %d", code)
 	}
 }
+
+func TestScanOnlyVersionSchemeIsUnknown(t *testing.T) {
+	path := schemeInput(t)
+	code, stdout, stderr := runScan(t, path, "--to", "linkerd=edge-24.11.8", "--format", "json")
+	if code != ExitUnknown {
+		t.Fatalf("exit %d\n%s\n%s", code, stdout, stderr)
+	}
+	var report scanreport.Report
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("%v\n%s", err, stdout)
+	}
+	found := false
+	for _, g := range report.Gaps {
+		found = found || g.Component == "linkerd" && g.Reason == scanreport.ReasonVersionSchemeUnsupported
+	}
+	if !found {
+		t.Fatalf("no gap\n%s", stdout)
+	}
+}
