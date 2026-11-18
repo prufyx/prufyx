@@ -77,6 +77,11 @@ type Report struct {
 	// Omitted lists every document or file that was seen but not
 	// evaluated, with the reason.
 	Omitted []Omitted `json:"omitted"`
+	// CustomResources lists every custom resource of the input (an object
+	// outside the Kubernetes API groups): evaluated, or not evaluated with a
+	// typed reason and the next bounded action. It never carries a pass and
+	// is never part of the verdict, the headline or the exit code.
+	CustomResources []CustomResource `json:"customResources,omitempty"`
 	// Omissions are standing statements of what a scan never checks.
 	Omissions []string `json:"omissions"`
 	// Notes are informational lines about the input (permission notice).
@@ -420,6 +425,47 @@ type Omitted struct {
 	Reason   string `json:"reason"`
 }
 
+// Custom resource states and typed reasons.
+const (
+	CRStatusEvaluated    = "EVALUATED"
+	CRStatusNotEvaluated = "NOT_EVALUATED"
+	// CRVerdictBlocked: a rule blocked on this object's group/version/Kind.
+	CRVerdictBlocked = "BLOCKED"
+	// CRVerdictNoFinding: the checks that ran found nothing for this object.
+	// It is not a pass: only the served-version check ran.
+	CRVerdictNoFinding = "NO_FINDING"
+
+	// CRComponentVersionUnknown: the owning component has no from/to version.
+	CRComponentVersionUnknown = "CR_COMPONENT_VERSION_UNKNOWN"
+	// CRPairNotCovered: no reviewed rule decides this component pair.
+	CRPairNotCovered = "CR_PAIR_NOT_COVERED"
+	// CRKindNotInKnowledge: no reviewed table attributes this group/Kind to
+	// exactly one component.
+	CRKindNotInKnowledge = "CR_KIND_NOT_IN_KNOWLEDGE"
+)
+
+// CustomResource is one custom resource of the input and what scan did with
+// it.
+type CustomResource struct {
+	APIVersion string `json:"apiVersion"`
+	Kind       string `json:"kind"`
+	Namespace  string `json:"namespace,omitempty"`
+	Name       string `json:"name,omitempty"`
+	File       string `json:"file"`
+	Document   int    `json:"document"`
+	Item       int    `json:"item"`
+	Line       int    `json:"line,omitempty"`
+	// Component is the project that owns the group, when exactly one does.
+	Component string `json:"component,omitempty"`
+	Status    string `json:"status"`
+	// Verdict is set only when Status is EVALUATED.
+	Verdict string `json:"verdict,omitempty"`
+	// Reason is set only when Status is NOT_EVALUATED.
+	Reason string `json:"reason,omitempty"`
+	// Next is the next bounded action, or the scope of the check that ran.
+	Next string `json:"next"`
+}
+
 // Provenance identifies everything the answer depends on.
 type Provenance struct {
 	EvaluatedAt          string                 `json:"evaluatedAt"`
@@ -630,6 +676,7 @@ func sortReport(report *Report) {
 		return a.RuleID < b.RuleID
 	})
 	sortOmitted(report.Omitted)
+	sortCustomResources(report.CustomResources)
 	if report.Inventory == nil {
 		report.Inventory = []Component{}
 	}
@@ -822,4 +869,18 @@ func uniqueSorted(values []string) []string {
 		}
 	}
 	return out
+}
+
+// sortCustomResources orders custom resources by file, document and item.
+func sortCustomResources(list []CustomResource) {
+	sort.SliceStable(list, func(i, j int) bool {
+		a, b := list[i], list[j]
+		if a.File != b.File {
+			return a.File < b.File
+		}
+		if a.Document != b.Document {
+			return a.Document < b.Document
+		}
+		return a.Item < b.Item
+	})
 }

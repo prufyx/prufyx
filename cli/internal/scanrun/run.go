@@ -404,6 +404,7 @@ func Run(request Request, options Options) (Result, error) {
 			report.Gaps = append(report.Gaps, scanreport.NewGap(kubernetesSlug, nil, scanreport.GapVersionPreRelease, version))
 		}
 	}
+	crRuns := map[string]*customResourceRun{}
 	for _, slug := range slugs {
 		component := inventory[slug]
 		if component.Target == "" {
@@ -448,6 +449,7 @@ func Run(request Request, options Options) (Result, error) {
 					continue
 				}
 			}
+			crRuns[slug] = run
 			if err := run.evaluate(component.Current, component.Target); err != nil {
 				return Result{}, err
 			}
@@ -507,6 +509,7 @@ func Run(request Request, options Options) (Result, error) {
 	if section, ok := providerSection(effective, knowledge, now); ok {
 		report.Provider = &section
 	}
+	report.CustomResources = customResourceReport(manifests, inventory, func(slug string) bool { _, ok := declaredCharts[slug]; return ok }, crRuns)
 	dropShadowedNotDetected(&report)
 	if pinnedNowGap != nil {
 		report.Gaps = append(report.Gaps, *pinnedNowGap)

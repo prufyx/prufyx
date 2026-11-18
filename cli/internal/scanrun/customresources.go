@@ -49,6 +49,13 @@ type customResourceRun struct {
 	excluded map[string]bool
 	// rootGaps are the component-level gaps, by key.
 	rootGaps map[scanreport.GapKey]scanreport.Gap
+	// decided is true when some hop had a reviewed rule or line review that
+	// applied to it; blocked holds the sources a blocking rule matched;
+	// unknownVersion is true when the component has no from version.
+	ran            bool
+	decided        bool
+	blocked        map[intake.Source]bool
+	unknownVersion bool
 }
 
 // newCustomResourceRun returns the run of a targeted slug that has a
@@ -83,6 +90,8 @@ func (r *customResourceRun) evaluate(from, to string) error {
 	}
 	r.findings, r.passes, r.excluded = map[string]int{}, map[string]bool{}, map[string]bool{}
 	r.rootGaps = map[scanreport.GapKey]scanreport.Gap{}
+	r.blocked = map[intake.Source]bool{}
+	r.ran = true
 	r.componentGaps()
 	r.unresolvedSetGap(cncfprepare.KubernetesApplySetReason(r.workspace))
 
@@ -97,6 +106,7 @@ func (r *customResourceRun) evaluate(from, to string) error {
 		}
 	}()
 	if from == "" {
+		r.unknownVersion = true
 		path.Gap = scanreport.ReasonVersionNotDetected
 		r.gap(nil, scanreport.GapVersionNotDetected, r.slug)
 		return nil
@@ -337,6 +347,9 @@ func (r *customResourceRun) hop(hop upgradepath.Hop, only func(cncfcheck.ScanRul
 			}
 			result.Families = []scanreport.FamilyResult{*family}
 		}
+	}
+	if applicable > 0 || len(result.Families) > 0 {
+		r.decided = true
 	}
 	// Nothing covers this hop: the component is only partly evaluated.
 	result.Reasons = append(result.Reasons, r.rootGaps[scanreport.GapCustomResourcesOnly].Reason)
@@ -615,6 +628,11 @@ func (r *customResourceRun) unknown(rule cncfcheck.ScanRule, claim constrainteng
 // finding records a BLOCKED claim once, located at the documents that
 // carry the forbidden versions.
 func (r *customResourceRun) finding(rule cncfcheck.ScanRule, claim constraintengine.Claim, prepared cncfprepare.CustomResourceScan, ref scanreport.HopRef) {
+	for _, member := range claim.MatchedMembers {
+		for _, source := range prepared.Members[member] {
+			r.blocked[source] = true
+		}
+	}
 	if _, found := r.findings[rule.Scope.ID]; found {
 		return
 	}
