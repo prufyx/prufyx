@@ -334,3 +334,88 @@ func RuleEvidence(ruleID string) (reviewedAt, validUntil string) {
 	}
 	return reviewedAt, validUntil
 }
+
+// projectTimes are every reviewedAt (key "reviewedAt") or validUntil (key
+// "validUntil") of the named project's rules in the CNCF and community packs.
+func projectTimes(project, key string) []time.Time {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		panic("testclock: source location unknown")
+	}
+	internal := filepath.Dir(filepath.Dir(file))
+	var out []time.Time
+	for _, pack := range []string{"cncfcheck", "projectcheck"} {
+		raw, err := os.ReadFile(filepath.Join(internal, pack, "data", "rules.json"))
+		if err != nil {
+			panic(err)
+		}
+		var doc struct {
+			Entries []json.RawMessage `json:"entries"`
+		}
+		if err := json.Unmarshal(raw, &doc); err != nil {
+			panic(fmt.Errorf("testclock: %s: %w", pack, err))
+		}
+		for _, entry := range doc.Entries {
+			var head struct {
+				Project string `json:"project"`
+			}
+			if err := json.Unmarshal(entry, &head); err != nil || head.Project != project {
+				continue
+			}
+			var tree any
+			if err := json.Unmarshal(entry, &tree); err != nil {
+				panic(err)
+			}
+			collect(tree, key, &out)
+		}
+	}
+	if len(out) == 0 {
+		panic(fmt.Sprintf("testclock: project %q has no %s", project, key))
+	}
+	return out
+}
+
+func collect(node any, key string, out *[]time.Time) {
+	switch v := node.(type) {
+	case map[string]any:
+		for k, child := range v {
+			if text, ok := child.(string); ok && k == key {
+				at, err := time.Parse(time.RFC3339, text)
+				if err != nil {
+					panic(fmt.Errorf("testclock: %s %q: %w", key, text, err))
+				}
+				*out = append(*out, at.UTC())
+				continue
+			}
+			collect(child, key, out)
+		}
+	case []any:
+		for _, child := range v {
+			collect(child, key, out)
+		}
+	}
+}
+
+// BeforeProjectReview is one hour before the oldest reviewedAt of the named
+// project's rules: an instant at which none of them is yet in force.
+func BeforeProjectReview(project string) time.Time {
+	oldest := projectTimes(project, "reviewedAt")[0]
+	for _, at := range projectTimes(project, "reviewedAt") {
+		if at.Before(oldest) {
+			oldest = at
+		}
+	}
+	return oldest.Add(-time.Hour)
+}
+
+// AfterProjectFirstExpiry is one hour after the earliest validUntil of the
+// named project's rules: an instant at which at least one of them has expired.
+func AfterProjectFirstExpiry(project string) time.Time {
+	earliest := projectTimes(project, "validUntil")[0]
+	for _, at := range projectTimes(project, "validUntil") {
+		if at.Before(earliest) {
+			earliest = at
+		}
+	}
+	return earliest.Add(time.Hour)
+}

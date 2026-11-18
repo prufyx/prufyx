@@ -173,7 +173,7 @@ func TestMariaDBOperatorCRDRulesExpireFailClosed(t *testing.T) {
 		}
 	}
 	// Before review the rule is not yet valid.
-	for id, status := range mariaDBCRDStatuses(t, `{"maxScale":{}}`, mdbPairB, true, testclock.Floor(time.Date(2026, 11, 6, 0, 0, 0, 0, time.UTC))) {
+	for id, status := range mariaDBCRDStatuses(t, `{"maxScale":{}}`, mdbPairB, true, testclock.BeforeProjectReview(projectprepare.MariaDBOperatorProject)) {
 		if status == "PASS" || status == "BLOCKED" {
 			t.Fatalf("pre-review evidence decided %s: %s", id, status)
 		}
