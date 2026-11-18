@@ -81,11 +81,20 @@ maintainers compare it with the upstream file in review.
 3. Open the pull request against `main` and sign the CLA when asked.
 4. CI re-runs the check with the validator from the base branch.
 
-Implemented today: steps 1-4 and the maintainers' manual review. Planned, not
-live: automatic status comments (received, validated, imported, classified in
-scope or blocked with a reason or out of scope, for example no CRDs, draft
-target proposed, in a batch pull request, merged, pairs decided n of m) and an
-automatic import of merged bundles. Until then maintainers answer by hand.
+Implemented today: steps 1-4, the maintainers' manual review, and the
+automatic import of merged bundles. Who may submit, how to get an invite and
+the exact merge path are described only in
+[Intake is for invited maintainers only](../../docs/maintainers.md#intake-is-for-invited-maintainers-only);
+that page is the single source. In short: a submission from an account without
+an invite is refused and not imported. After a Prufyx maintainer merges the
+bundle pull request, the import runs by itself; this does not mean that
+self-onboarding is complete end to end, and a merge is not a compatibility
+claim.
+
+Planned, not live: automatic status comments for every stage (received,
+validated, imported, classified in scope or blocked with a reason or out of
+scope, for example no CRDs, draft target proposed, in a batch pull request,
+merged, pairs decided n of m). Until then maintainers answer by hand.
 No time frame is promised.
 
 Never collected: secrets, credentials, cluster data. Nothing is published
