@@ -182,46 +182,32 @@ func attestationsNotFuture(head Tree, now time.Time) error {
 	return nil
 }
 
-// ruleReviewsNotFuture refuses a head that introduces a rule review dated
-// after the gate's clock. The evaluation clock of the tree follows the newest
-// rule review (EvaluationClockFromPack), so a review stamped in the future must
-// not make itself current. Only a review newer than every review of the base
-// can be new: a head whose newest rule review does not exceed the base's
-// introduces none, and the base was bounded when it was merged. A zero gate
-// clock refuses: this bound never falls back to the host's wall clock. An
-// unreadable pack or review time fails.
-func ruleReviewsNotFuture(base, head Tree, now time.Time) error {
+// ruleReviewsNotFuture refuses a head whose newest rule review (reviewedAt, CNCF
+// or community pack) is later than the gate's clock: the evaluation clock of
+// the tree follows its rule reviews (EvaluationClockFromPack), so a review
+// stamped in the future must not make itself current. Like
+// attestationsNotFuture it bounds every review of the head, not only new ones:
+// a review already in the base does not excuse the head. A zero gate clock
+// refuses: this bound never falls back to the host's wall clock. An unreadable
+// pack or review time fails.
+func ruleReviewsNotFuture(head Tree, now time.Time) error {
 	if now.IsZero() {
 		return errors.New("the gate has no clock to bound the rule review times with")
 	}
-	newest := func(tree Tree, which string) (time.Time, bool, error) {
-		pack, err := tree.Read(cncfRulesPath, MaxFileBytes)
-		if err != nil {
-			return time.Time{}, false, fmt.Errorf("the %s's rule pack is unreadable: %w", which, err)
-		}
-		community, err := tree.Read(commRulesPath, MaxFileBytes)
-		if err != nil {
-			return time.Time{}, false, fmt.Errorf("the %s's community rule pack is unreadable: %w", which, err)
-		}
-		at, ok, err := coveragereport.NewestRuleReview(pack, community)
-		if err != nil {
-			return time.Time{}, false, fmt.Errorf("the %s's rule review times are unreadable or invalid: %w", which, err)
-		}
-		return at, ok, nil
-	}
-	headNewest, headOK, err := newest(head, "change")
+	pack, err := head.Read(cncfRulesPath, MaxFileBytes)
 	if err != nil {
-		return err
+		return fmt.Errorf("the change's rule pack is unreadable: %w", err)
 	}
-	if !headOK || !headNewest.After(now) {
-		return nil
-	}
-	baseNewest, baseOK, err := newest(base, "base branch")
+	community, err := head.Read(commRulesPath, MaxFileBytes)
 	if err != nil {
-		return err
+		return fmt.Errorf("the change's community rule pack is unreadable: %w", err)
 	}
-	if baseOK && !headNewest.After(baseNewest) {
-		return nil
+	newest, ok, err := coveragereport.NewestRuleReview(pack, community)
+	if err != nil {
+		return fmt.Errorf("the change's rule review times are unreadable or invalid: %w", err)
 	}
-	return fmt.Errorf("a rule review is dated %s, after the gate's clock %s", headNewest.UTC().Format(time.RFC3339), now.UTC().Format(time.RFC3339))
+	if ok && newest.After(now) {
+		return fmt.Errorf("a rule review is dated %s, after the gate's clock %s", newest.UTC().Format(time.RFC3339), now.UTC().Format(time.RFC3339))
+	}
+	return nil
 }

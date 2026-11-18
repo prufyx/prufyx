@@ -18,7 +18,6 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/extract/extractpack"
 	"github.com/prufyx/prufyx/cli/internal/extract/supersedefixture"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/coveragereport"
-	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencereattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/rulecheck"
 )
 
@@ -190,6 +189,15 @@ func buildKnowledgeTemplate() (map[string][]byte, error) {
 			rebuilt = rebuilt || !bytes.Equal(raw, plain)
 			raw = plain
 		}
+		if rel == cncfRulesPath || rel == commRulesPath {
+			// The gate bounds every rule review by its clock and these trees
+			// run it at the fixed gateNow: a review the repository dated later
+			// (renewals keep arriving as data) is set to just before gateNow.
+			// The stamp has a fixed length, so the bytes keep their shape.
+			clamped := clampReviewStamps(raw, gateNow.Add(-time.Hour))
+			rebuilt = rebuilt || !bytes.Equal(raw, clamped)
+			raw = clamped
+		}
 		files[rel] = raw
 	}
 	if !rebuilt {
@@ -213,9 +221,6 @@ func buildKnowledgeTemplate() (map[string][]byte, error) {
 	tree := Tree{Root: root}
 	layout := DefaultLayout()
 	for _, spec := range layout.Packs {
-		if spec.Name != evidencereattest.PackCNCF {
-			continue
-		}
 		attestation, err := spec.Attest(tree)
 		if err != nil {
 			return nil, err
@@ -583,4 +588,71 @@ func floorOf(tr Tree) ([]byte, error) {
 		}
 	}
 	return json.Marshal(b)
+}
+
+// clampReviewStamps moves every evidence object of a rule pack whose
+// reviewedAt is later than limit back to a review time at or before limit, one
+// to 45 days before it in a fixed rotation (so the leases stay staggered as
+// they are in real data): its reviewedAt and derivedAt stamps and its
+// validUntil shift by the same amount, so the lease keeps its length. Stamps at
+// or before limit are untouched. The walk order is sorted: no map order, no
+// clock.
+func clampReviewStamps(raw []byte, limit time.Time) []byte {
+	var doc any
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber()
+	if err := dec.Decode(&doc); err != nil {
+		panic(err)
+	}
+	moved := false
+	rotation := 0
+	var walk func(node any)
+	walk = func(node any) {
+		switch v := node.(type) {
+		case map[string]any:
+			if text, ok := v["reviewedAt"].(string); ok {
+				if at, err := time.Parse(time.RFC3339, text); err == nil && at.After(limit) {
+					rotation++
+					target := limit.Add(-time.Duration(rotation%45) * 24 * time.Hour)
+					delta := at.Sub(target)
+					for _, key := range []string{"reviewedAt", "derivedAt", "validUntil"} {
+						value, ok := v[key].(string)
+						if !ok {
+							continue
+						}
+						stamp, err := time.Parse(time.RFC3339, value)
+						if err != nil {
+							panic(err)
+						}
+						v[key] = stamp.Add(-delta).UTC().Format(time.RFC3339)
+					}
+					moved = true
+				}
+			}
+			keys := make([]string, 0, len(v))
+			for key := range v {
+				keys = append(keys, key)
+			}
+			sort.Strings(keys)
+			for _, key := range keys {
+				walk(v[key])
+			}
+		case []any:
+			for _, child := range v {
+				walk(child)
+			}
+		}
+	}
+	walk(doc)
+	if !moved {
+		return raw
+	}
+	var out bytes.Buffer
+	enc := json.NewEncoder(&out)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(doc); err != nil {
+		panic(err)
+	}
+	return out.Bytes()
 }
