@@ -74,6 +74,13 @@ func projectWorkload(root any, adapter adapterAssets, profile string, now time.T
 		identity, version, scheme, _ := publicImage(record.image)
 		matched := findAdapter(adapter.Contract, identity)
 		if profile == "v3" && strings.HasPrefix(record.image, "index.docker.io/") {
+			if matched != nil {
+				// The identity is a reviewed component, but this image
+				// spelling is not a reviewed binding form. The row is not
+				// emitted, so the omission is what keeps the component from
+				// being read as absent.
+				omissions = append(omissions, newProjectionOmission(OmissionComponentVersionUnbound, "A workload image matched a reviewed component identity, but no reviewed image binding covers this reference form; the component is present but unverified, so its absence cannot be concluded."))
+			}
 			matched = nil
 		}
 		if matched != nil && contains(matched.WorkloadKinds, record.workloadKind) {
@@ -577,6 +584,12 @@ func publicIdentityOnly(image string) string {
 	identity, _, _, _ := publicImage(image)
 	return identity
 }
+// OmissionComponentVersionUnbound marks an image whose identity matched a
+// reviewed component but which yielded no component row. It carries no data
+// beyond the code; the consumer must treat the component as unverified, never
+// as absent.
+const OmissionComponentVersionUnbound = "COMPONENT_VERSION_UNBOUND"
+
 func newProjectionOmission(code, reason string) map[string]any {
 	return map[string]any{"code": code, "reason": reason, "requiredForEvaluation": true}
 }

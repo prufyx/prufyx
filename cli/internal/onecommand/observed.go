@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/currentbundle"
+	"github.com/prufyx/prufyx/cli/internal/localcollector"
 )
 
 // Observed states what the collector actually saw in one context, so a report
@@ -152,6 +153,8 @@ func readJSON(path string, into any) bool {
 // The hint never echoes anything read from the cluster.
 func omissionHint(resource, code string) string {
 	switch {
+	case code == localcollector.OmissionComponentVersionUnbound:
+		return "a reviewed component image was seen but is unverified (no reviewed binding for this reference); its absence is not established"
 	case strings.Contains(code, "unsupported_not_found_api"):
 		return "API not served by this cluster (component likely not installed)"
 	case code == "projection_filter_rejected":
