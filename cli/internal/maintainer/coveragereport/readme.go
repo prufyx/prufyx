@@ -143,6 +143,9 @@ func RenderREADMEBlock(r Report, inventoryJSON []byte, now time.Time) (string, e
 	if err != nil {
 		return "", err
 	}
+	if cl := changelogSentence(r.changelog); cl != "" {
+		w("%s\n", cl)
+	}
 	w("Decided means a valid rule or attestation covers every version of both release lines. It never means a whole-upgrade PASS. %s An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.\n", split)
 	// Disclosure (only when additions exist, so a tree without them renders
 	// exactly as before): what the numbers leave out.

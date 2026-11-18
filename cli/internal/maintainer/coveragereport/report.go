@@ -63,6 +63,10 @@ type Input struct {
 	// report counts those that also have a published rule or line
 	// attestation of the CRD version family.
 	CRDTargetComponents map[string]string
+	// ChangelogTargetComponents maps the projects with a reviewed changelog
+	// target to the component of that target. Empty or nil: no project is a
+	// changelog-attested member and the report is unchanged.
+	ChangelogTargetComponents map[string]string
 	// CommunityPack is the community rule pack, or nil. Only the count of
 	// published CRD projects reads it: a valid crd.custom_resource_versions
 	// rule or a current line attestation in it counts a target project
@@ -85,6 +89,9 @@ type Pair struct {
 	// Families names the fact families of the attestations (A) or rules
 	// (B) that decide the pair.
 	Families []string `json:"families,omitempty"`
+	// Changelog marks a pair decided only by the changelog-attested family.
+	// Its Status is G: it is not counted in A, B or S.
+	Changelog bool `json:"changelog,omitempty"`
 	// Cells and Weight are metric v2 members of the last two pairs of a
 	// tiered project; absent unless Input.V2 is set. Cells maps a v2 family
 	// to attested, bounded or open.
@@ -111,6 +118,8 @@ type Project struct {
 	B        int      `json:"b"`
 	S        int      `json:"s"`
 	G        int      `json:"g"`
+	// DecidedChangelog counts pairs decided only by the changelog family.
+	DecidedChangelog int `json:"decidedChangelog,omitempty"`
 	// VC is (A+B)/pairs and VCA is A/pairs; both are 0 without pairs.
 	VC  float64 `json:"vc"`
 	VCA float64 `json:"vcA"`
@@ -136,6 +145,8 @@ type Totals struct {
 	B        int `json:"b"`
 	S        int `json:"s"`
 	G        int `json:"g"`
+	// DecidedChangelog counts pairs decided only by the changelog family.
+	DecidedChangelog int `json:"decidedChangelog,omitempty"`
 	// C1 counts covered projects among those with lines.
 	C1 int `json:"c1"`
 	// C3 counts projects with VC >= 0.6, C5 projects with VC_A = 1.
@@ -227,6 +238,7 @@ type Report struct {
 	split     decidedSplit
 	withPairs int
 	crd       crdTargets
+	changelog changelogStats
 }
 
 // crdTargets counts the projects with a reviewed CRD version target by
@@ -517,7 +529,19 @@ func Compute(in Input) (Report, error) {
 	for _, c := range in.CRDTargetComponents {
 		targetClaims[c]++
 	}
+	for _, c := range in.ChangelogTargetComponents {
+		targetClaims[c]++
+	}
+	attributable := map[string]string{}
 	for project, c := range in.CRDTargetComponents {
+		attributable[project] = c
+	}
+	for project, c := range in.ChangelogTargetComponents {
+		if _, both := attributable[project]; !both {
+			attributable[project] = c
+		}
+	}
+	for project, c := range attributable {
 		if c == "" || targetClaims[c] != 1 || len(components[project]) > 0 || linesFile.Projects[project].Component != "" {
 			continue
 		}
@@ -534,10 +558,14 @@ func Compute(in Input) (Report, error) {
 	validAtt := map[string]int{}
 	crdAttComponent := map[string]bool{}
 	afterClock := map[string]bool{}
+	mixed := mixedComponents(in, atts)
 	for _, a := range atts {
 		project, ok := componentProject[a.Component]
 		if !ok {
 			continue
+		}
+		if a.FactFamily == FamilyChangelogAttested && mixed[a.Component] {
+			continue // refused: the component is also a CRD-family member
 		}
 		if f := a.Freshness(now); f != lineattest.FreshnessCurrent {
 			if f == lineattest.FreshnessClockBeforeReview {
@@ -645,6 +673,12 @@ func Compute(in Input) (Report, error) {
 		}
 	}
 
+	for project, component := range in.ChangelogTargetComponents {
+		if !in.Catalog.Community(project) && !mixed[component] {
+			report.changelog.targets++
+		}
+	}
+
 	slugs := make([]string, 0, len(linesFile.Projects))
 	for slug := range linesFile.Projects {
 		slugs = append(slugs, slug)
@@ -691,6 +725,14 @@ func Compute(in Input) (Report, error) {
 		for i := 0; i+1 < len(lines); i++ {
 			pair := classify(slug, lines[i], lines[i+1], byProject[slug], attsByProject[slug], byID, pl.Releases)
 			row.Pairs = append(row.Pairs, pair)
+			if _, member := in.ChangelogTargetComponents[slug]; member && !community {
+				if mixed[in.ChangelogTargetComponents[slug]] {
+					// Refused member: never an A or B of this family; a gap with one reason.
+					report.changelog.addPair(Pair{From: pair.From, To: pair.To, Status: StatusG}, GapMixedMember)
+				} else {
+					report.changelog.addPair(pair, changelogGapReason(in.ChangelogTargetComponents[slug], lines[i], lines[i+1], atts, now, byID, pl.Releases, mixed))
+				}
+			}
 			if !community && (pair.Status == StatusA || pair.Status == StatusB) {
 				if pair.canBlock {
 					report.split.canBlock++
@@ -717,6 +759,9 @@ func Compute(in Input) (Report, error) {
 				row.S++
 			default:
 				row.G++
+				if pair.Changelog {
+					row.DecidedChangelog++
+				}
 			}
 		}
 		if in.All {
@@ -747,6 +792,7 @@ func Compute(in Input) (Report, error) {
 			t.B += p.B
 			t.S += p.S
 			t.G += p.G
+			t.DecidedChangelog += p.DecidedChangelog
 			t.RulesInWindow += p.RulesInWindow
 			if p.Covered {
 				t.C1++
@@ -867,6 +913,16 @@ func classify(project, fromLine, toLine string, rules []*ruleRec, atts []lineatt
 	pair := Pair{From: fromLine, To: toLine, Status: StatusG}
 	if lineMapped(project) {
 		if fams, listed := attestedFamilies(fromLine, toLine, atts, byID, releases); len(fams) > 0 {
+			if len(fams) == 1 && fams[0] == FamilyChangelogAttested {
+				// Only the changelog family decides: a valid bounding rule makes it a
+				// source decision (B); without one it counts in the changelog row only.
+				if bf, ok := boundedFamilies(fromLine, toLine, rules); ok {
+					pair.Status, pair.Families, pair.canBlock = StatusB, bf, true
+				} else {
+					pair.Changelog = true
+				}
+				return pair
+			}
 			// A valid line-wide rule bounding the same pair can still lead to BLOCKED
 			// even when the attestation lists no rule.
 			if !listed {
@@ -914,7 +970,7 @@ func attestedFamilies(fromLine, toLine string, atts []lineattest.LineAttestation
 		if !ok {
 			continue
 		}
-		if family.ReleaseScoped() && !releasesMatch(a.Releases, releases[fromLine], releases[toLine]) {
+		if (family.ReleaseScoped() || a.FactFamily == FamilyChangelogAttested) && !releasesMatch(a.Releases, releases[fromLine], releases[toLine]) {
 			continue
 		}
 		wide := true
