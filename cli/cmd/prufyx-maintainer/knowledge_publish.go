@@ -50,6 +50,8 @@ func runKnowledgePublish(args []string, stdout io.Writer) error {
 		return runDeployGuard(args[1:], stdout)
 	case "content-digest":
 		return runContentDigest(args[1:], stdout)
+	case "pin-guard":
+		return runPinGuard(args[1:], stdout)
 	default:
 		return knowledgePublishError()
 	}

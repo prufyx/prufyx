@@ -1,6 +1,11 @@
 # Publishes the signed knowledge database that `prufyx db update` fetches.
 #
-# Two jobs, so the signing keys and the Pages deploy token never share a job:
+# Three jobs, so the signing keys and the Pages deploy token never share a job:
+#   pin_guard no environment, no secret, read-only token: refuses (exit 21)
+#           unless the oldest-supported-client pin names a published, attested
+#           release of this repository (see "Pin the oldest supported client"
+#           in cli/docs/knowledge-publisher.md). It runs on every push,
+#           dispatch and scheduled run, before the sign job exists.
 #   sign    environment knowledge-release: builds the package from the checked-out
 #           main commit, signs it with the online role keys, verifies it with the
 #           pinned root and uploads it as an Actions artifact.
@@ -60,6 +65,11 @@ on:
         type: string
         required: false
         default: ""
+      allow_pin_downgrade:
+        description: "Owner only: accept an oldest-supported-client pin lower than the last published pin. Off by default; the sign job still needs the knowledge-release approval."
+        type: boolean
+        required: false
+        default: false
 
 permissions: {}
 
@@ -72,8 +82,63 @@ env:
   MAX_INDEX_BYTES: "1048576"
 
 jobs:
+  # Runs before the sign job and holds nothing the signing job holds: no
+  # environment, no secret, and a token that can only read. A refusal leaves
+  # the last published package in place (nothing is signed or deployed).
+  pin_guard:
+    name: Guard the oldest supported client pin
+    if: ${{ github.ref == 'refs/heads/main' && vars.KNOWLEDGE_RELEASE_ENABLED == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+      attestations: read
+    steps:
+      - name: Check out main
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache: false
+
+      - name: Build the guard
+        working-directory: cli
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/bin"
+          go build -trimpath -buildvcs=false -o "${RUNNER_TEMP}/bin/prufyx-maintainer" ./cmd/prufyx-maintainer
+
+      - name: Check the pin names a published, attested release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ALLOW_DOWNGRADE: ${{ inputs.allow_pin_downgrade }}
+        run: |
+          set -euo pipefail
+          args=(knowledge-publish pin-guard --repo "${GH_REPO}" --pin-file "${GITHUB_WORKSPACE}/cli/knowledge/oldest-supported-client.txt")
+          [ "${ALLOW_DOWNGRADE}" != "true" ] || args+=(--allow-downgrade)
+          rc=0
+          "${RUNNER_TEMP}/bin/prufyx-maintainer" "${args[@]}" > "${RUNNER_TEMP}/pin-guard.json" || rc=$?
+          if [ "${rc}" -ne 0 ]; then
+            # Exit 21 is a refusal of the pin; any other code is a guard failure.
+            echo "::error::pin guard refused the oldest-supported-client pin (exit ${rc}); nothing was signed and the feed keeps the last package. See cli/docs/knowledge-publisher.md."
+            exit "${rc}"
+          fi
+          jq -e '.status == "OK"' "${RUNNER_TEMP}/pin-guard.json" > /dev/null
+          {
+            echo "### Pin guard"
+            echo "- pin $(jq -r '.version' "${RUNNER_TEMP}/pin-guard.json") at $(jq -r '.ref' "${RUNNER_TEMP}/pin-guard.json"); legacy pin: $(jq -r '.legacy' "${RUNNER_TEMP}/pin-guard.json")"
+            jq -r '.notes[]? | "- " + .' "${RUNNER_TEMP}/pin-guard.json"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
   sign:
     name: Build and sign
+    needs: pin_guard
     if: ${{ github.ref == 'refs/heads/main' && vars.KNOWLEDGE_RELEASE_ENABLED == 'true' }}
     environment: knowledge-release
     runs-on: ubuntu-24.04
