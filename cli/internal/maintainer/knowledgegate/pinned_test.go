@@ -344,3 +344,22 @@ func TestPinnedPreAdmissionIsNarrow(t *testing.T) {
 		t.Fatal("an unpinned change was decided by the pinned path")
 	}
 }
+
+// Dropping the lease while keeping the pinned window is not tightening: the
+// rule would stay valid for ten years with no pinned check behind it.
+func TestUnpinKeepingTheTenYearWindowIsRefused(t *testing.T) {
+	base, _ := trees(t)
+	ids := pinnableIDs(t, readPack(t, base, cncfRulesPath))
+	pinInTree(t, base, ids[:1], nil)
+
+	head := copyKnowledge(t)
+	pinInTree(t, head, ids[:1], nil)
+	p := readPack(t, head, cncfRulesPath)
+	delete(evidenceOf(p.find(t, ids[0])), "lease")
+	p.write(t, head, cncfRulesPath) // not regenerated: the change is refused either way
+	r := runGate(t, Options{Base: base, Head: head})
+	c := change(t, r, ids[0])
+	if c.Class != ClassLoosening || c.OK || !containsKind(c.Kinds, KindUnpin) || !containsKind(c.Kinds, KindModify) {
+		t.Fatalf("an unpin that keeps the ten-year window must be a refused loosening change: %+v", c)
+	}
+}

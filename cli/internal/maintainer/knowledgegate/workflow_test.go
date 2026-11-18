@@ -343,3 +343,42 @@ func TestWorkflowLint(t *testing.T) {
 		t.Fatalf("actionlint: %v\n%s", err, out)
 	}
 }
+
+// The scheduled and manual runs check every pinned citation on its release
+// line, from the base checkout: pinned rules have no lease end, so this is
+// what keeps them current. A change's own run does not need it.
+func TestWorkflowChecksPinnedCitationsOnSchedule(t *testing.T) {
+	t.Parallel()
+	raw, err := os.ReadFile(workflowPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wf workflow
+	if err := yaml.Unmarshal(raw, &wf); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, s := range wf.Jobs["gate"].Steps {
+		if s.Name != "Check the pinned citations on their release line" {
+			continue
+		}
+		found = true
+		for _, want := range []string{"evidence repin", "--pinned-only", "--baseline release-line", "set -euo pipefail"} {
+			if !strings.Contains(s.Run, want) {
+				t.Errorf("pinned check lacks %q", want)
+			}
+		}
+		if s.WorkingDirectory != "base" {
+			t.Errorf("pinned check runs in %q, want the base checkout", s.WorkingDirectory)
+		}
+		if strings.Contains(s.Run, "|| true") {
+			t.Error("pinned check must not swallow its status")
+		}
+	}
+	if !found {
+		t.Fatal("no pinned-citation check step in the gate job")
+	}
+	if !strings.Contains(string(raw), "if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'\n        working-directory: base\n        env:\n          GITHUB_TOKEN: ${{ steps.app-token.outputs.token || github.token }}\n        run: |\n          set -euo pipefail\n          baselines=()\n          if [ -f cli/knowledge/repin-baselines.json ]; then\n            baselines=(--baselines cli/knowledge/repin-baselines.json)\n          fi\n          \"${RUNNER_TEMP}/prufyx-maintainer\" evidence repin \\\n            --pinned-only") {
+		t.Error("the pinned check must run on schedule and manual runs only")
+	}
+}

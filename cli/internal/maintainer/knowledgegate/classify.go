@@ -45,6 +45,10 @@ const (
 	KindPackMember = "pack-member"
 )
 
+// unpinMaxWindow is the longest reviewedAt-to-validUntil window an unpinned
+// rule may carry as a tightening change: the normal 90-day lease.
+const unpinMaxWindow = 90 * 24 * time.Hour
+
 // Change is one rule that differs between base and head.
 type Change struct {
 	Pack   string `json:"pack"`
@@ -200,6 +204,16 @@ func classifyEdit(b, h *entry) (string, []string) {
 		kinds, loosening = append(kinds, KindPin), true
 	case unpinning:
 		kinds = append(kinds, KindUnpin)
+	}
+	if unpinning {
+		// Dropping the lease is tightening only when the rule also returns to
+		// the normal lease window; a time-lease rule that keeps the pinned
+		// window would be valid for years with no pinned check behind it.
+		reviewed, errR := time.Parse(time.RFC3339, h.Evidence.ReviewedAt)
+		until, errU := time.Parse(time.RFC3339, h.Evidence.ValidUntil)
+		if errR != nil || errU != nil || until.Sub(reviewed) > unpinMaxWindow {
+			kinds, loosening = append(kinds, KindModify), true
+		}
 	}
 	if b.Evidence.ValidUntil != h.Evidence.ValidUntil {
 		bu, errB := time.Parse(time.RFC3339, b.Evidence.ValidUntil)

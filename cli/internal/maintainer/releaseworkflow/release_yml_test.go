@@ -470,6 +470,28 @@ func TestReleaseWorkflowChecksEmbeddedKnowledgeFreshness(t *testing.T) {
 	}
 }
 
+// The release cut re-checks every pinned citation on its release line before
+// the build: pinned rules have no lease end to force a look.
+func TestReleaseWorkflowChecksPinnedCitations(t *testing.T) {
+	wf := releaseWorkflow(t)
+	step := workflowStepNamed(t, wf, "build", "Check the pinned citations on their release line")
+	for _, want := range []string{"evidence repin", "--pinned-only", "--baseline release-line", "set -euo pipefail"} {
+		if !strings.Contains(step.Run, want) {
+			t.Errorf("pinned check lacks %q", want)
+		}
+	}
+	if strings.Contains(step.Run, "${{") || strings.Contains(step.Run, "|| true") {
+		t.Error("pinned check must not use expressions in run or swallow its status")
+	}
+	index := map[string]int{}
+	for i, s := range wf.Jobs["build"].Steps {
+		index[s.Name] = i
+	}
+	if !(index["Set up Go"] < index[step.Name] && index[step.Name] < index["Build binaries"]) {
+		t.Error("pinned check must run after Set up Go and before Build binaries")
+	}
+}
+
 // The .deb and .rpm assets come from a job of their own that builds them with
 // a pinned nfpm, and the provenance job attests and lists them with the
 // archives.

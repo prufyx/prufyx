@@ -242,6 +242,28 @@ jobs:
             "${baselines[@]}" \
             --output "${RUNNER_TEMP}/rerun-worklist.json"
 
+      # Pinned rules have no lease end: this check is what keeps them current.
+      # It compares every pinned citation on its release line and fails the
+      # run on any drift or unreachable source; with no pinned rule it passes.
+      - name: Check the pinned citations on their release line
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        working-directory: base
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+        run: |
+          set -euo pipefail
+          baselines=()
+          if [ -f cli/knowledge/repin-baselines.json ]; then
+            baselines=(--baselines cli/knowledge/repin-baselines.json)
+          fi
+          "${RUNNER_TEMP}/prufyx-maintainer" evidence repin \
+            --pinned-only \
+            --rules cli/internal/cncfcheck/data/rules.json \
+            --rules cli/internal/projectcheck/data/rules.json \
+            --baseline release-line \
+            "${baselines[@]}" \
+            --output "${RUNNER_TEMP}/pinned-worklist.json"
+
       - name: Verify the change
         id: verify
         env:
