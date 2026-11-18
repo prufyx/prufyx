@@ -376,3 +376,27 @@ func annotateOptional(res *Result, rules *Rules, window []*tagResult) {
 	}
 	res.Report.FactsDigest = "sha256:" + hex.EncodeToString(h.Sum(nil))
 }
+
+// optionalMark reports whether the target marks the exact file path
+// optional: the rules carry an optional entry for it and the reading proved
+// it absent from the full tree at least one window tag (it is read at the
+// newest tag, which annotateOptional/applyOptional enforce). A path that is
+// merely absent at a tag the rules do not list stops the run earlier and is
+// never marked; a path the newest tag lacks is a typed stop, never a mark.
+func optionalMark(rules *Rules, window []*tagResult, path string) bool {
+	listed := false
+	for _, ip := range optionalEntries(rules) {
+		if ip.Path == path {
+			listed = true
+		}
+	}
+	if !listed {
+		return false
+	}
+	for _, r := range window {
+		if r.optStatus[path] == "verified-absent" {
+			return true
+		}
+	}
+	return false
+}

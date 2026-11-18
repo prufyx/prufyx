@@ -140,7 +140,7 @@ func stopCodes(err error) []string {
 func TestOptionalAbsentThenPresentWritesDraft(t *testing.T) {
 	repo := optRepo(t, nil)
 	res := mustGenerate(t, optInput(GitSource{Dir: repo}, optRules(t, firstFive...)))
-	if !bytes.Contains(res.A, []byte(`{"path": "`+optPath+`"}`)) || !bytes.Contains(res.A, []byte(`{"path": "api/config/crd/alpha.yaml"}`)) {
+	if !bytes.Contains(res.A, []byte(`{"path": "`+optPath+`", "optional": true}`)) || !bytes.Contains(res.A, []byte(`{"path": "api/config/crd/alpha.yaml"}`)) {
 		t.Fatalf("half A misses the operator path or a mandatory path:\n%s", res.A)
 	}
 	if len(res.Report.Tags) != 6 || len(res.Report.Dropped) != 0 || res.Report.MinFrom != "3.2" {
