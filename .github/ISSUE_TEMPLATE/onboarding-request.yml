@@ -1,5 +1,5 @@
 name: Project onboarding request
-description: Ask for a public project to be observed. Fields map to "prufyx-maintainer project init".
+description: Invited maintainers only. Ask for a public project to be observed; fields map to "prufyx-maintainer project init".
 title: "[onboarding] "
 labels:
   - maintainer-intake
@@ -7,6 +7,8 @@ body:
   - type: markdown
     attributes:
       value: |
+        Only an invited maintainer of the project can submit it. How: [docs/maintainers.md](https://github.com/prufyx/prufyx/blob/main/docs/maintainers.md#intake-is-for-invited-maintainers-only) (Intake is for invited maintainers only). A bundle from an account without an invite is refused and is not imported. Filing this form does not by itself onboard a project.
+
         Fields map one-to-one to `prufyx-maintainer project init` (see [project onboarding](https://github.com/prufyx/prufyx/blob/main/cli/docs/project-onboarding.md)). A reviewer builds the request file, runs `project validate`, then `project sync`. This form does not add a rule, assert compatibility, or publish a project.
 
         This issue is public. Do not include email addresses, customer data, cluster data, credentials, or private links.

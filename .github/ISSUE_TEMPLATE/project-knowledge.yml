@@ -9,6 +9,8 @@ body:
       value: |
         Thanks for sharing a useful public project. A repository URL is enough to start: you do not need to maintain the project, calculate hashes, or prove a compatibility claim.
 
+        Anyone can ask here. This does not onboard a project: onboarding is done by an invited maintainer of that project ([docs/maintainers.md](https://github.com/prufyx/prufyx/blob/main/docs/maintainers.md#intake-is-for-invited-maintainers-only), Intake is for invited maintainers only).
+
         This suggestion starts source review. It does not add an executable check, support claim, catalogue membership, or published knowledge package.
   - type: input
     id: repository

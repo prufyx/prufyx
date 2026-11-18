@@ -1,5 +1,5 @@
 name: Maintainer - register or update your project
-description: For maintainers of a public project. Tell Prufyx where your releases, CRDs, charts and upgrade notes live.
+description: Maintainers of a public project can ask for an invite and share pointers.
 title: "[maintainer] "
 labels:
   - maintainer-intake
@@ -7,7 +7,9 @@ body:
   - type: markdown
     attributes:
       value: |
-        This form is for people who maintain a public project. Three fields and the consent checkbox at the end are required; answer the rest as far as you know.
+        Use this form if you maintain the project and want an invite. Only invited maintainers can then submit a bundle (see [docs/maintainers.md](https://github.com/prufyx/prufyx/blob/main/docs/maintainers.md#intake-is-for-invited-maintainers-only)). This form is not accepted by the intake adapter: it is a public request and hint for reviewers and does not start onboarding, validation or sync. The documented observation request is the onboarding request form.
+
+        Three fields and the consent checkbox at the end are required; answer the rest as far as you know.
 
         Everything here is a hint. Prufyx checks each claim against your project's own repository before anything is published, and does not publish an unverified claim as fact. See [For project maintainers](https://github.com/prufyx/prufyx/blob/main/docs/maintainers.md).
 
