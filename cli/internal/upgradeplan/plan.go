@@ -288,6 +288,13 @@ func newStage(path scanreport.Path, hop scanreport.Hop, hasK8s, multipleComponen
 	default:
 		stage.Order = Order{OrderFree, "no other component is planned"}
 	}
+	if path.Component != kubernetes && path.Policy == "" && len(path.Hops) == 1 {
+		for _, c := range report.Inventory {
+			if c.Name == path.Component && c.TargetSource == string(scanconfig.FromNewestCovered) {
+				stage.Notices = append(stage.Notices, "no reviewed upgrade path policy for "+path.Component+": planned as one hop, UNKNOWN")
+			}
+		}
+	}
 	for _, f := range report.Findings {
 		if f.Component == path.Component && !f.Hop.WholeUpgrade && f.Hop.Index == hop.Index {
 			stage.Findings = append(stage.Findings, Finding{RuleID: f.RuleID, Title: f.Title, Fix: f.Fix, Evidence: findingEvidence(f)})

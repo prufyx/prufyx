@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -88,6 +89,12 @@ func TestPlanCommand(t *testing.T) {
 		if s.Verdict == upgradeplan.VerdictPass {
 			t.Fatalf("PASS stage %+v", s)
 		}
+	}
+	if len(app.Stages) != 1 || app.Stages[0].Verdict != upgradeplan.VerdictUnknown || !slices.Contains(app.Stages[0].Notices, "no reviewed upgrade path policy for cert-manager: planned as one hop, UNKNOWN") {
+		t.Fatalf("path policy note missing: %+v", app.Stages)
+	}
+	if _, human, _ := runPlan(t, path, "--from", "cert-manager=1.14.0", "--to", "cert-manager=newest-covered", "--now", supersedeids.ClockString()); !strings.Contains(human, "no reviewed upgrade path policy for cert-manager: planned as one hop, UNKNOWN") {
+		t.Fatalf("human output lacks the path policy note\n%s", human)
 	}
 	// A known catalog project with no line attestation reaches the not-found
 	// branch and keeps the usage error and its text.
