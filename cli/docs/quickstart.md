@@ -146,6 +146,9 @@ checked: 6 rules passed; this is not a pass
 MUST FIX (1)
   Kubernetes 1.25 stops serving CronJob through batch/v1beta1
     applyset.json:6  CronJob default/nightly-report
+    source: kubernetes/kubernetes/staging/src/k8s.io/api/batch/v1beta1/zz_generated.prerelease-lifecycle.go @ 4ce5a8954017, lines 48-74, sha256:ed52be6d1479
+    source: kubernetes/kubernetes/api/openapi-spec/swagger.json @ 4ce5a8954017, lines 1-90087, sha256:0d43576f2097
+    source: kubernetes/kubernetes/api/openapi-spec/swagger.json @ a866cbe2e5bb, lines 1-81603, sha256:96354682390d
     fix: Migrate the named CronJob manifests to batch/v1. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
 
 Whole upgrade: not proven. This report evaluated only 7 reviewed rules.
@@ -273,6 +276,9 @@ checked: 6 rules passed; this is not a pass
 MUST FIX (1)
   Kubernetes 1.25 stops serving CronJob through batch/v1beta1
     applyset.yaml:2  CronJob default/nightly-report
+    source: kubernetes/kubernetes/staging/src/k8s.io/api/batch/v1beta1/zz_generated.prerelease-lifecycle.go @ 4ce5a8954017, lines 48-74, sha256:ed52be6d1479
+    source: kubernetes/kubernetes/api/openapi-spec/swagger.json @ 4ce5a8954017, lines 1-90087, sha256:0d43576f2097
+    source: kubernetes/kubernetes/api/openapi-spec/swagger.json @ a866cbe2e5bb, lines 1-81603, sha256:96354682390d
     fix: Migrate the named CronJob manifests to batch/v1. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
 
 Whole upgrade: not proven. This report evaluated only 7 reviewed rules.
@@ -353,6 +359,9 @@ checked: 12 rules passed; this is not a pass
 MUST FIX (1)
   Kubernetes 1.22 stops serving Ingress through extensions/v1beta1
     applyset-1-22.json:6  Ingress default/legacy-ingress
+    source: kubernetes/kubernetes/staging/src/k8s.io/api/extensions/v1beta1/zz_generated.prerelease-lifecycle.go @ cb303e613a12, lines 161-187, sha256:6c60ae809d85
+    source: kubernetes/kubernetes/api/openapi-spec/swagger.json @ cb303e613a12, lines 1-110616, sha256:128a984dbb5a
+    source: kubernetes/kubernetes/api/openapi-spec/swagger.json @ c2b5237ccd9c, lines 1-90274, sha256:d6718670e062
     fix: Migrate the named Ingress manifests to networking.k8s.io/v1. pathType is now required. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately.
 
 Whole upgrade: not proven. This report evaluated only 13 reviewed rules.

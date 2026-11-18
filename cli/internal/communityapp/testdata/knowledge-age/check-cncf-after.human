@@ -3,6 +3,10 @@ input authority: OPERATOR_DECLARED_MINIMIZED
 
 UNDECIDED (1 rule)
   Kyverno reportsChunkSize removal only for an explicitly declared official upstream reports-controller invocation; image provenance, wrappers, other command surfaces, controller behavior, and whole-upgrade compatibility are unverified
+    source: golang/go/src/flag/flag.go @ ed817f1c4055, lines 1074-1146, sha256:d803a25f5bba
+    source: kyverno/kyverno/cmd/internal/flag.go @ b7fb616a6db3, lines 222-235, sha256:56822cc05203
+    source: kyverno/kyverno/Makefile @ b7fb616a6db3, lines 253-255, sha256:cc3acfeb2ed6
+    +4 more sources, see --format json
     to decide: the review of this rule expired on 2026-12-08; run `prufyx db update` to fetch newer knowledge (a run with --knowledge=embedded or --knowledge-db ignores it), or build from newer source, or check this change by hand against its cited source
 
 Whole upgrade: not proven. This report evaluated only 1 reviewed rule.
