@@ -32,7 +32,7 @@ const (
 
 // Default bounds. A zero Limits field selects the default.
 const (
-	DefaultFileBytes  int64 = 2 << 20
+	DefaultFileBytes  int64 = 8 << 20
 	DefaultTotalBytes int64 = 32 << 20
 	DefaultFiles            = 2048
 	DefaultDocuments        = 8192
@@ -450,6 +450,10 @@ func (o *opener) consume(key, display string, reader io.Reader, size int64, perm
 }
 
 func limitError(name string, bound int64) error {
+	if name == "bytes per file" {
+		return fmt.Errorf("%w: more than %d %s (%d MiB); split the input into several files in a directory and pass the directory",
+			ErrLimit, bound, name, bound>>20)
+	}
 	return fmt.Errorf("%w: more than %d %s", ErrLimit, bound, name)
 }
 

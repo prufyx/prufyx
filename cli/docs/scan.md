@@ -12,6 +12,25 @@ published rules about versions the target release no longer serves (see
 as covered. Other projects are reported as not covered, with the
 `prufyx check cncf` command that covers them.
 
+## Input limits
+
+`scan` and `plan` refuse input that exceeds a fixed bound; none can be raised
+by a flag. A refusal is a usage error (exit code unchanged) naming the limit.
+
+| Limit | Value |
+|---|---|
+| Size of one file (or standard input) | 8 MiB |
+| Size of all files together | 32 MiB |
+| Files | 2048 |
+| YAML documents | 8192 |
+| YAML nodes over all files | 500000 |
+| Nesting depth | 64 |
+
+A whole rendered apply set in one file (for example `helm template ... >
+rendered.yaml` of a large monitoring stack, about 3.5 MB) is within the limits.
+If a file is over 8 MiB, split it into several files in a directory and pass
+the directory.
+
 ## Example
 
 ```sh
