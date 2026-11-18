@@ -1,0 +1,59 @@
+[
+  {
+    "project": "longhorn",
+    "description": "Longhorn upstream path check rejects a three-minor direct jump from 1.4 to 1.7; intermediate health, engines and volumes are unverified.",
+    "requiredFacts": [
+      {
+        "side": "proposed",
+        "id": "component.longhorn.upgrade_path_check_enabled",
+        "component": "pkg:github/longhorn/longhorn",
+        "type": "bool",
+        "enumTokens": null,
+        "description": "Whether the proposed Longhorn manager uses its upstream upgrade-path check. Bypassed or custom validation is outside this rule."
+      }
+    ],
+    "rule": {
+      "id": "longhorn.intermediate-1-5.1-4-4-to-1-7-3",
+      "operator": "require_intermediate_version",
+      "subject": {
+        "component": "pkg:github/longhorn/longhorn",
+        "from": "1.4.4",
+        "to": "1.7.3"
+      },
+      "appliesWhen": [
+        {
+          "side": "proposed",
+          "component": "pkg:github/longhorn/longhorn",
+          "factId": "component.longhorn.upgrade_path_check_enabled",
+          "boolValue": true
+        }
+      ],
+      "intermediate": "1.5.0",
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-11-18T12:00:00Z",
+        "validUntil": "2027-02-16T12:00:00Z",
+        "sources": [
+          {
+            "id": "longhorn-chart-upgrade-version-check-flag-v1-7-3",
+            "url": "https://github.com/longhorn/longhorn/blob/76fb3e789ab6b221a4bdfee96ffff3800f614501/chart/templates/daemonset-sa.yaml",
+            "revision": "76fb3e789ab6b221a4bdfee96ffff3800f614501",
+            "contentDigest": "sha256:d78f8f59b82a7e3b670fac26401f764c52f130f9ecc7683581bf9bb11db68534",
+            "startLine": 48,
+            "endLine": 50
+          },
+          {
+            "id": "longhorn-manager-upgrade-path-check-v1-7-3",
+            "url": "https://github.com/longhorn/longhorn-manager/blob/56f93bbd0746c9dd1e37af5febbcf98ac5458e77/upgrade/util/util.go",
+            "revision": "56f93bbd0746c9dd1e37af5febbcf98ac5458e77",
+            "contentDigest": "sha256:48dafefce2980b630cde4331404cded37261bafa2fdbefe528c75693f867c1bd",
+            "startLine": 201,
+            "endLine": 284
+          }
+        ]
+      },
+      "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+      "nextAction": "Upgrade Longhorn one minor version at a time: through 1.5.x and 1.6.x in order, validating each step. The cited path check refuses a jump of more than one minor line."
+    }
+  }
+]
