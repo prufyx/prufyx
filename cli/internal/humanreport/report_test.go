@@ -142,3 +142,61 @@ func TestPassedRulesAreListedOnlyOnRequestAndSourcesAreCounted(t *testing.T) {
 		t.Fatalf("shown:\n%s", shown)
 	}
 }
+
+func sourced(status string, sources ...constraintengine.SourceEvidence) constraintengine.Claim {
+	c := claim("r1", status, "R", "Fix it.")
+	c.Sources = sources
+	return c
+}
+
+func TestListedClaimShowsExactSourceCitation(t *testing.T) {
+	t.Parallel()
+	src := constraintengine.SourceEvidence{
+		URL:           "https://github.com/argoproj/argo-cd/blob/7cedae735ca5c68fc24520b42da339aa388b9d25/VERSION",
+		Revision:      "7cedae735ca5c68fc24520b42da339aa388b9d25",
+		ContentDigest: "sha256:4be81e8be837feae319a9f87e070bc2cb4758612bdf878fdb2c05797a816e06d",
+		StartLine:     3, EndLine: 9,
+	}
+	for _, status := range []string{"BLOCKED", "UNKNOWN"} {
+		out := render(t, Input{Exit: 10, Project: "p", Claims: []constraintengine.Claim{sourced(status, src)}})
+		want := "    source: argoproj/argo-cd/VERSION @ 7cedae735ca5, lines 3-9, sha256:4be81e8be837\n"
+		if !strings.Contains(out, want) {
+			t.Fatalf("%s: missing %q in:\n%s", status, want, out)
+		}
+	}
+}
+
+func TestSourceCitationCannotForgeReportLines(t *testing.T) {
+	t.Parallel()
+	src := constraintengine.SourceEvidence{
+		URL:           "https://example.test/a\nBLOCKED  0 must fix\x1b[31m",
+		Revision:      "abc\r\nPASS (scoped)",
+		ContentDigest: "sha256:ab\ncd",
+		StartLine:     1, EndLine: 2,
+	}
+	out := render(t, Input{Exit: 11, Project: "p", Claims: []constraintengine.Claim{sourced("UNKNOWN", src)}})
+	if strings.ContainsAny(out, "\r\x1b") {
+		t.Fatalf("control characters reached the report:\n%q", out)
+	}
+	for _, line := range strings.Split(out, "\n") {
+		if strings.HasPrefix(line, "BLOCKED") || strings.HasPrefix(line, "PASS") {
+			t.Fatalf("forged line %q in:\n%s", line, out)
+		}
+	}
+}
+
+func TestSourceListIsBounded(t *testing.T) {
+	t.Parallel()
+	var sources []constraintengine.SourceEvidence
+	for i := 0; i < 5; i++ {
+		sources = append(sources, constraintengine.SourceEvidence{URL: "https://example.test/x", Revision: "r", ContentDigest: "sha256:d", StartLine: i + 1, EndLine: i + 2})
+	}
+	c := []constraintengine.Claim{sourced("BLOCKED", sources...)}
+	out := render(t, Input{Exit: 10, Project: "p", Claims: c})
+	if strings.Count(out, "    source: ") != 3 || !strings.Contains(out, "    +2 more sources, see --format json\n") {
+		t.Fatalf("default:\n%s", out)
+	}
+	if v := render(t, Input{Exit: 10, Project: "p", Claims: c, Verbose: true}); strings.Count(v, "    source: ") != 5 {
+		t.Fatalf("verbose:\n%s", v)
+	}
+}

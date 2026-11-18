@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"unicode"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 )
@@ -344,6 +345,7 @@ func (w *writer) writeGroup(g group, label, trailing string, verbose, listTitles
 				w.printf("    %s\n", line)
 			}
 			w.writeLocations(it.claim.RuleID, verbose)
+			w.writeSources(it.claim, verbose)
 			if verbose {
 				w.writeRule(it.claim)
 			}
@@ -361,6 +363,7 @@ func (w *writer) writeGroup(g group, label, trailing string, verbose, listTitles
 			for _, it := range g.items {
 				w.printf("    %s\n", it.title)
 				w.writeLocations(it.claim.RuleID, verbose)
+				w.writeSources(it.claim, verbose)
 				w.writeRule(it.claim)
 			}
 		}
@@ -451,4 +454,75 @@ func (w *writer) println(text string) {
 	if w.err == nil {
 		_, w.err = fmt.Fprintln(w.out, text)
 	}
+}
+
+// maxSourcesShown bounds the cited sources listed under one claim in the
+// default report; -v lists every one.
+const maxSourcesShown = 3
+
+// digestPrefixLen is the number of digest hex characters shown.
+const digestPrefixLen = 12
+
+// writeSources prints one line per cited source of a listed claim.
+func (w *writer) writeSources(claim constraintengine.Claim, verbose bool) {
+	shown := claim.Sources
+	if !verbose && len(shown) > maxSourcesShown {
+		shown = shown[:maxSourcesShown]
+	}
+	for _, source := range shown {
+		w.printf("    source: %s\n", SourceLine(source))
+	}
+	if len(shown) < len(claim.Sources) {
+		w.printf("    +%d more sources, see --format json\n", len(claim.Sources)-len(shown))
+	}
+}
+
+// SourceLine renders one cited source as "repo path @ short commit, lines
+// a-b, sha256 prefix". Every field comes from rule data and is cleaned so a
+// crafted value cannot start a new report line or inject terminal controls.
+func SourceLine(source constraintengine.SourceEvidence) string {
+	return fmt.Sprintf("%s @ %s, lines %d-%d, %s",
+		cleanField(sourcePath(source.URL, source.Revision)), cleanField(shorten(source.Revision, 12)),
+		source.StartLine, source.EndLine, cleanField(shortDigest(source.ContentDigest)))
+}
+
+// sourcePath turns https://github.com/org/repo/blob/<revision>/path into
+// "org/repo/path"; any other shape is shown as given.
+func sourcePath(url, revision string) string {
+	const host = "https://github.com/"
+	rest, ok := strings.CutPrefix(url, host)
+	if !ok || revision == "" {
+		return url
+	}
+	repo, path, ok := strings.Cut(rest, "/blob/"+revision+"/")
+	if !ok || repo == "" || path == "" {
+		return url
+	}
+	return repo + "/" + path
+}
+
+func shorten(text string, n int) string {
+	if r := []rune(text); len(r) > n {
+		return string(r[:n])
+	}
+	return text
+}
+
+func shortDigest(digest string) string {
+	algo, hex, ok := strings.Cut(digest, ":")
+	if !ok {
+		return shorten(digest, digestPrefixLen)
+	}
+	return algo + ":" + shorten(hex, digestPrefixLen)
+}
+
+// cleanField replaces every control or non-printable rune, including line
+// breaks, with U+FFFD, so the value stays on its own line.
+func cleanField(text string) string {
+	return strings.Map(func(r rune) rune {
+		if !unicode.IsPrint(r) {
+			return '\uFFFD'
+		}
+		return r
+	}, text)
 }
