@@ -11,6 +11,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/projectprepare"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 func TestClosedRegistryAndScopedResults(t *testing.T) {
@@ -18,7 +19,7 @@ func TestClosedRegistryAndScopedResults(t *testing.T) {
 	if err != nil || len(projects) != 10 || projects[0] != "airflow" || projects[1] != "argo-workflows" || projects[2] != "ceph" || projects[3] != "fluent-bit" || projects[4] != "grafana" || projects[5] != "kibana" || projects[6] != "loki" || projects[7] != "mariadb" || projects[8] != "mariadb-operator" || projects[9] != "opensearch" {
 		t.Fatalf("projects=%v err=%v", projects, err)
 	}
-	now := time.Date(2026, 9, 12, 0, 0, 0, 0, time.UTC)
+	now := testclock.Floor(time.Date(2026, 9, 12, 0, 0, 0, 0, time.UTC))
 	for _, tc := range []struct {
 		project, raw string
 		want         int
@@ -61,7 +62,7 @@ func TestCheckRuleSealsNativeLokiSelection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	report, err := CheckRule(projectprepare.LokiProject, prepared.CanonicalInputJSON, time.Date(2026, 9, 12, 2, 0, 0, 0, time.UTC), projectprepare.LokiStructuredMetadataRuleID)
+	report, err := CheckRule(projectprepare.LokiProject, prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 12, 2, 0, 0, 0, time.UTC)), projectprepare.LokiStructuredMetadataRuleID)
 	if err != nil || ClaimExit(report) != 0 || report.RequestedRuleID != projectprepare.LokiStructuredMetadataRuleID || report.SelectedRuleID != projectprepare.LokiStructuredMetadataRuleID || len(report.Check.Claims) != 1 {
 		t.Fatalf("selected report=%+v err=%v", report, err)
 	}
@@ -69,20 +70,20 @@ func TestCheckRuleSealsNativeLokiSelection(t *testing.T) {
 	if err != nil || bytes.Contains(encoded, []byte("2024-01-01")) || bytes.Contains(encoded, []byte("boltdb-shipper")) {
 		t.Fatalf("sealed report leaked input: err=%v bytes=%s", err, encoded)
 	}
-	if _, err := CheckRule(projectprepare.LokiProject, prepared.CanonicalInputJSON, time.Date(2026, 9, 12, 2, 0, 0, 0, time.UTC), "loki.unknown"); err != ErrInvalid {
+	if _, err := CheckRule(projectprepare.LokiProject, prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 12, 2, 0, 0, 0, time.UTC)), "loki.unknown"); err != ErrInvalid {
 		t.Fatalf("unknown requested route should be rejected: %v", err)
 	}
-	if _, err := CheckRule("grafana", prepared.CanonicalInputJSON, time.Date(2026, 9, 12, 2, 0, 0, 0, time.UTC), "grafana.legacy-alerting-config.10-4-to-11-0"); err != ErrInvalid {
+	if _, err := CheckRule("grafana", prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 12, 2, 0, 0, 0, time.UTC)), "grafana.legacy-alerting-config.10-4-to-11-0"); err != ErrInvalid {
 		t.Fatalf("cross-project requested route should be rejected: %v", err)
 	}
-	if _, err := CheckRule(projectprepare.LokiProject, prepared.CanonicalInputJSON, time.Date(2026, 9, 12, 2, 0, 0, 0, time.UTC), ""); err != ErrInvalid {
+	if _, err := CheckRule(projectprepare.LokiProject, prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 12, 2, 0, 0, 0, time.UTC)), ""); err != ErrInvalid {
 		t.Fatalf("blank requested route should be rejected: %v", err)
 	}
 	wrongPair, err := projectprepare.PrepareLokiStructuredMetadata([]byte("limits_config:\n  allow_structured_metadata: true\nschema_config:\n  configs:\n    - from: 2024-01-01\n      store: tsdb\n      schema: v13\n"), "2.9.7", projectprepare.LokiTo, true, true, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	wrongReport, err := CheckRule(projectprepare.LokiProject, wrongPair.CanonicalInputJSON, time.Date(2026, 9, 12, 2, 0, 0, 0, time.UTC), projectprepare.LokiStructuredMetadataRuleID)
+	wrongReport, err := CheckRule(projectprepare.LokiProject, wrongPair.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 12, 2, 0, 0, 0, time.UTC)), projectprepare.LokiStructuredMetadataRuleID)
 	if err != nil || ClaimExit(wrongReport) != 11 || wrongReport.RequestedRuleID != projectprepare.LokiStructuredMetadataRuleID || wrongReport.SelectedRuleID != "" || len(wrongReport.Check.Claims) != 0 {
 		t.Fatalf("wrong-pair ownership=%+v err=%v", wrongReport, err)
 	}
@@ -102,7 +103,7 @@ func TestCheckRuleSealsNativeLokiSelection(t *testing.T) {
 }
 
 func TestFluentBitHTTP2SettingScope(t *testing.T) {
-	now := time.Date(2026, 9, 12, 0, 0, 0, 0, time.UTC)
+	now := testclock.Floor(time.Date(2026, 9, 12, 0, 0, 0, 0, time.UTC))
 	for _, tc := range []struct {
 		raw                                  string
 		complete, current, preserve, blocked bool
@@ -139,7 +140,7 @@ func TestFluentBitDuplicateInputRemainsUnknown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	report, err := Check(projectprepare.FluentBitProject, prepared.CanonicalInputJSON, time.Date(2026, 9, 12, 0, 0, 0, 0, time.UTC))
+	report, err := Check(projectprepare.FluentBitProject, prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 12, 0, 0, 0, 0, time.UTC)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,7 +150,7 @@ func TestFluentBitDuplicateInputRemainsUnknown(t *testing.T) {
 }
 
 func TestFluentBitHTTP2TargetRequirementExactPairs(t *testing.T) {
-	now := time.Date(2026, 9, 12, 10, 0, 0, 0, time.UTC)
+	now := testclock.Floor(time.Date(2026, 9, 12, 10, 0, 0, 0, time.UTC))
 	for _, tc := range []struct {
 		from, raw, want string
 	}{
@@ -175,7 +176,7 @@ func TestFluentBitHTTP2TargetRequirementExactPairs(t *testing.T) {
 }
 
 func TestArgoWorkflowsScopedResultAndWrongPair(t *testing.T) {
-	now := time.Date(2026, 9, 11, 21, 0, 0, 0, time.UTC)
+	now := testclock.Floor(time.Date(2026, 9, 11, 21, 0, 0, 0, time.UTC))
 	workload := func(args string) []byte {
 		return []byte(`{"apiVersion":"apps/v1","kind":"Deployment","spec":{"template":{"spec":{"containers":[{"name":"argo-server","image":"quay.io/argoproj/argocli:v3.6.0","command":["argo"],"args":[` + args + `],"env":[]}]}}}}`)
 	}
@@ -206,7 +207,7 @@ func TestArgoWorkflowsScopedResultAndWrongPair(t *testing.T) {
 }
 
 func TestArgoWorkflowsLatestFiveOriginScopedResults(t *testing.T) {
-	now := time.Date(2026, 9, 12, 11, 30, 0, 0, time.UTC)
+	now := testclock.Floor(time.Date(2026, 9, 12, 11, 30, 0, 0, time.UTC))
 	workload := func(args string) []byte {
 		return []byte(`{"apiVersion":"apps/v1","kind":"Deployment","spec":{"template":{"spec":{"containers":[{"name":"argo-server","image":"quay.io/argoproj/argocli:v4.1.3","command":["argo"],"args":[` + args + `],"env":[]}]}}}}`)
 	}
@@ -231,7 +232,7 @@ func TestArgoWorkflowsLatestFiveOriginScopedResults(t *testing.T) {
 }
 
 func TestCephCurrentSideScopedResult(t *testing.T) {
-	now := time.Date(2026, 9, 11, 21, 0, 0, 0, time.UTC)
+	now := testclock.Floor(time.Date(2026, 9, 11, 21, 0, 0, 0, time.UTC))
 	for _, tc := range []struct {
 		store string
 		want  int
@@ -254,7 +255,7 @@ func TestCephCurrentSideScopedResult(t *testing.T) {
 }
 
 func TestWrongPairIncompleteAndUnknownProject(t *testing.T) {
-	now := time.Date(2026, 9, 11, 20, 0, 0, 0, time.UTC)
+	now := testclock.Floor(time.Date(2026, 9, 11, 20, 0, 0, 0, time.UTC))
 	prepared, err := projectprepare.PrepareEffectiveConfig("grafana", []byte("[alerting]\nenabled=true\n"), "10.5.0", "11.1.0", true, true)
 	if err != nil {
 		t.Fatal(err)
@@ -281,7 +282,7 @@ func TestLokiUnreviewedTransitionIsUnknown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	report, err := Check(projectprepare.LokiProject, prepared.CanonicalInputJSON, time.Date(2026, 9, 12, 0, 0, 0, 0, time.UTC))
+	report, err := Check(projectprepare.LokiProject, prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 12, 0, 0, 0, 0, time.UTC)))
 	if err != nil || ClaimExit(report) != 11 || len(report.Check.Claims) != 0 || !bytes.Contains([]byte(report.NextAction), []byte("no reviewed rule matches")) {
 		t.Fatalf("unreviewed Loki transition report=%+v err=%v", report, err)
 	}
@@ -289,7 +290,7 @@ func TestLokiUnreviewedTransitionIsUnknown(t *testing.T) {
 
 func TestMultipleRulesPerProjectSelectExactTransition(t *testing.T) {
 	b := syntheticMultiRuleBundle(t)
-	now := time.Date(2026, 9, 11, 20, 0, 0, 0, time.UTC)
+	now := testclock.Floor(time.Date(2026, 9, 11, 20, 0, 0, 0, time.UTC))
 	input := multiRuleInput(t, "10.4.0", "11.0.0", true, false)
 	report, err := checkWithBundle(b, "grafana", input, now)
 	if err != nil || len(report.Check.Claims) != 2 {
@@ -414,7 +415,7 @@ func multiRuleInput(t *testing.T, from, to string, first, second bool) []byte {
 
 func TestReportSealRejectsMutation(t *testing.T) {
 	prepared, _ := projectprepare.PrepareEffectiveConfig("grafana", []byte("[unified_alerting]\nenabled=true\n"), "10.4.0", "11.0.0", true, true)
-	report, err := Check("grafana", prepared.CanonicalInputJSON, time.Date(2026, 9, 11, 20, 0, 0, 0, time.UTC))
+	report, err := Check("grafana", prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 11, 20, 0, 0, 0, time.UTC)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -429,7 +430,7 @@ func TestEvidenceExpiryReturnsUnknown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	report, err := Check("grafana", prepared.CanonicalInputJSON, time.Date(2026, 12, 10, 19, 30, 0, 0, time.UTC))
+	report, err := Check("grafana", prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 12, 10, 19, 30, 0, 0, time.UTC)))
 	if err != nil || ClaimExit(report) != 11 || len(report.Check.Claims) != 1 || report.Check.Claims[0].ReasonCode != "RULE_EVIDENCE_STALE" {
 		t.Fatalf("expired report=%+v err=%v", report, err)
 	}
@@ -443,10 +444,10 @@ func TestMariaDBExactRuleOutcomesAndFreshness(t *testing.T) {
 		want      int
 		reason    string
 	}{
-		{"blocked-required", "[mariadb]\ninnodb_defragment=ON\n", time.Date(2026, 9, 12, 12, 0, 0, 0, time.UTC), 10, "REVIEWED_SOURCE_CONSTRAINT"},
-		{"blocked-required-absent", "[server]\nmax_connections=10\n", time.Date(2026, 9, 12, 12, 0, 0, 0, time.UTC), 10, "REVIEWED_SOURCE_CONSTRAINT"},
-		{"pass-waived-off", "[mariadbd]\ninnodb_defragment=OFF\n", time.Date(2026, 9, 12, 12, 0, 0, 0, time.UTC), 0, "REVIEWED_SOURCE_CONSTRAINT"},
-		{"stale", "[mariadbd]\ninnodb_defragment=ON\n", time.Date(2026, 12, 11, 12, 0, 0, 0, time.UTC), 11, "RULE_EVIDENCE_STALE"},
+		{"blocked-required", "[mariadb]\ninnodb_defragment=ON\n", testclock.Floor(time.Date(2026, 9, 12, 12, 0, 0, 0, time.UTC)), 10, "REVIEWED_SOURCE_CONSTRAINT"},
+		{"blocked-required-absent", "[server]\nmax_connections=10\n", testclock.Floor(time.Date(2026, 9, 12, 12, 0, 0, 0, time.UTC)), 10, "REVIEWED_SOURCE_CONSTRAINT"},
+		{"pass-waived-off", "[mariadbd]\ninnodb_defragment=OFF\n", testclock.Floor(time.Date(2026, 9, 12, 12, 0, 0, 0, time.UTC)), 0, "REVIEWED_SOURCE_CONSTRAINT"},
+		{"stale", "[mariadbd]\ninnodb_defragment=ON\n", testclock.Floor(time.Date(2026, 12, 11, 12, 0, 0, 0, time.UTC)), 11, "RULE_EVIDENCE_STALE"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -471,7 +472,7 @@ func TestMariaDBExactRuleOutcomesAndFreshness(t *testing.T) {
 }
 
 func TestLatestGrafanaAndKibanaExactOrigins(t *testing.T) {
-	now := time.Date(2026, 9, 12, 9, 24, 22, 0, time.UTC)
+	now := testclock.Floor(time.Date(2026, 9, 12, 9, 24, 22, 0, time.UTC))
 	for _, from := range []string{"12.2.10", "12.3.11", "12.4.10", "13.0.8", "13.1.5"} {
 		for _, tc := range []struct {
 			raw  string

@@ -14,6 +14,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/knowledgefixture"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/sourcecorpus"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 const karmadaRule = "karmada.application-purge-mode-legacy-values-removed.1-19"
@@ -35,7 +36,7 @@ func TestKarmadaExistingRuleVectorsAreExecuted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	counts, err := evaluateVectors(bundle, rule, group, time.Date(2026, 9, 13, 0, 0, 0, 0, time.UTC))
+	counts, err := evaluateVectors(bundle, rule, group, testclock.Floor(time.Date(2026, 9, 13, 0, 0, 0, 0, time.UTC)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -234,7 +235,7 @@ func TestMalformedVectorInputIsRejectedWithoutClaim(t *testing.T) {
 		t.Fatal(err)
 	}
 	group := vectorGroup{Project: "karmada", RuleID: karmadaRule, Cases: []vectorCase{{Name: "malformed", Input: json.RawMessage(`{}`), Status: "UNKNOWN"}}}
-	if _, err := evaluateVectors(bundle, rule, group, time.Date(2026, 9, 13, 0, 0, 0, 0, time.UTC)); err == nil {
+	if _, err := evaluateVectors(bundle, rule, group, testclock.Floor(time.Date(2026, 9, 13, 0, 0, 0, 0, time.UTC))); err == nil {
 		t.Fatal("malformed input treated as an executed UNKNOWN claim")
 	}
 }

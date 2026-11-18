@@ -153,12 +153,14 @@ func TestMariaDBExternalSelectedAndAbsentCanary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	now, _ := time.Parse(time.RFC3339, "2026-11-04T12:00:00Z")
+	// Both clocks come from the canary rule's own evidence window.
+	reviewed, until := entryEvidenceBounds(t, entry)
+	now := reviewed.Add(time.Hour)
 	report, err := b.EvaluateRule("mariadb-operator", MariaDBCanaryRuleID, prepared.CanonicalInputJSON, now)
 	if err != nil || len(report.Check.Claims) != 1 || report.Check.Claims[0].Status != "BLOCKED" {
 		t.Fatalf("report=%+v err=%v", report, err)
 	}
-	expired, _ := time.Parse(time.RFC3339, "2026-12-13T00:00:00Z")
+	expired := until.Add(24 * time.Hour)
 	stale, err := b.EvaluateRule("mariadb-operator", MariaDBCanaryRuleID, prepared.CanonicalInputJSON, expired)
 	if err != nil || len(stale.Check.Claims) != 1 || stale.Check.Claims[0].Status != "UNKNOWN" {
 		t.Fatalf("expired evidence=%+v err=%v", stale, err)

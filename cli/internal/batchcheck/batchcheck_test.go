@@ -15,6 +15,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/currentbundle"
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
 	"github.com/prufyx/prufyx/cli/internal/knowledgefixture"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 func writeBatchFile(t *testing.T, path string, value any) string {
@@ -55,7 +56,7 @@ func TestEvaluateMixedOutcomesAndDeterministicPrecedence(t *testing.T) {
 		{ID: "m-blocked", Kind: "community_project", Project: "loki", From: "2.9.8", To: "3.0.0", InputPath: "loki.json"},
 	}}
 	planPath := writeBatchFile(t, filepath.Join(root, "plan.json"), plan)
-	report, exit, err := Evaluate(planPath, root, time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC))
+	report, exit, err := Evaluate(planPath, root, testclock.Floor(time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC)))
 	if err != nil || exit != 10 || report.Decision != "UNKNOWN" || report.AggregateCategory != "BLOCKED" {
 		t.Fatalf("report=%+v exit=%d err=%v", report, exit, err)
 	}
@@ -78,13 +79,13 @@ func TestEvaluateClassifiesStaleEvidenceAndRejectsUnsafePaths(t *testing.T) {
 	_ = input
 	plan := Plan{Schema: PlanSchema, Authority: PlanAuthority, Knowledge: KnowledgeSelection{Mode: "embedded_only"}, Items: []Item{{ID: "stale", Kind: "cncf", Project: "thanos", From: "0.41.0", To: "0.42.0", InputPath: "input.json"}}}
 	planPath := writeBatchFile(t, filepath.Join(root, "plan.json"), plan)
-	report, exit, err := Evaluate(planPath, root, time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC))
+	report, exit, err := Evaluate(planPath, root, testclock.AfterAllExpiry())
 	if err != nil || exit != 11 || report.AggregateCategory != "STALE_EVIDENCE" || report.Items[0].Category != "STALE_EVIDENCE" {
 		t.Fatalf("report=%+v exit=%d err=%v", report, exit, err)
 	}
 	plan.Items[0].InputPath = "../input.json"
 	badPlan := writeBatchFile(t, filepath.Join(root, "bad-plan.json"), plan)
-	if _, exit, err := Evaluate(badPlan, root, time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC)); err == nil || exit != 2 {
+	if _, exit, err := Evaluate(badPlan, root, testclock.Floor(time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC))); err == nil || exit != 2 {
 		t.Fatalf("unsafe path accepted exit=%d err=%v", exit, err)
 	}
 }
@@ -97,7 +98,7 @@ func TestEvaluatePreflightAndPrivacyBoundaries(t *testing.T) {
 	}
 	plan := Plan{Schema: PlanSchema, Authority: PlanAuthority, Knowledge: KnowledgeSelection{Mode: "embedded_only"}, Items: []Item{{ID: "bad-project", Kind: "cncf", Project: "not-a-real-project", From: "1.0.0", To: "1.1.0", InputPath: "private-secret.json"}}}
 	planPath := writeBatchFile(t, filepath.Join(root, "plan.json"), plan)
-	if _, exit, err := Evaluate(planPath, root, time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC)); err == nil || exit != 2 {
+	if _, exit, err := Evaluate(planPath, root, testclock.Floor(time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC))); err == nil || exit != 2 {
 		t.Fatalf("unknown project accepted exit=%d err=%v", exit, err)
 	}
 	if strings.Contains(string(mustJSON(plan)), "must-not-appear") {
@@ -125,7 +126,7 @@ func TestEvaluateBindsPlanTransitionAndComponent(t *testing.T) {
 	writeBatchFile(t, filepath.Join(root, "input.json"), canonical("pkg:github/thanos-io/thanos", "0.41.0", "0.42.0", nil, nil))
 	plan := Plan{Schema: PlanSchema, Authority: PlanAuthority, Knowledge: KnowledgeSelection{Mode: "embedded_only"}, Items: []Item{{ID: "private-operator-label", Kind: "cncf", Project: "thanos", From: "0.40.0", To: "0.42.0", InputPath: "input.json"}}}
 	path := writeBatchFile(t, filepath.Join(root, "plan.json"), plan)
-	if _, exit, err := Evaluate(path, root, time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC)); err == nil || exit != 2 {
+	if _, exit, err := Evaluate(path, root, testclock.Floor(time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC))); err == nil || exit != 2 {
 		t.Fatalf("mismatched transition accepted: exit=%d err=%v", exit, err)
 	}
 }
@@ -140,7 +141,7 @@ func TestEvaluateAllowsValidatedDependencyComponents(t *testing.T) {
 	path := writeBatchFile(t, filepath.Join(root, "input.json"), input)
 	plan := Plan{Schema: PlanSchema, Authority: PlanAuthority, Knowledge: KnowledgeSelection{Mode: "embedded_only"}, Items: []Item{{ID: "rook-with-dependency", Kind: "cncf", Project: "rook", From: "1.19.5", To: "1.20.0", InputPath: filepath.Base(path)}}}
 	planPath := writeBatchFile(t, filepath.Join(root, "plan.json"), plan)
-	report, exit, err := Evaluate(planPath, root, time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC))
+	report, exit, err := Evaluate(planPath, root, testclock.Floor(time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC)))
 	if err != nil {
 		t.Fatalf("dependency input rejected: exit=%d err=%v", exit, err)
 	}
@@ -183,7 +184,7 @@ func TestEvaluateRejectsSymlinkedInputAncestor(t *testing.T) {
 	}
 	plan := Plan{Schema: PlanSchema, Authority: PlanAuthority, Knowledge: KnowledgeSelection{Mode: "embedded_only"}, Items: []Item{{ID: "symlinked", Kind: "cncf", Project: "thanos", From: "0.41.0", To: "0.42.0", InputPath: "nested/input.json"}}}
 	path := writeBatchFile(t, filepath.Join(root, "plan.json"), plan)
-	if _, exit, err := Evaluate(path, root, time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC)); err == nil || exit != 2 {
+	if _, exit, err := Evaluate(path, root, testclock.Floor(time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC))); err == nil || exit != 2 {
 		t.Fatalf("symlinked input accepted: exit=%d err=%v", exit, err)
 	}
 }
@@ -387,7 +388,7 @@ func TestEvaluateRejectsPublicHardlinkAndFIFOInputs(t *testing.T) {
 	for _, inputPath := range []string{"hard.json", "public.json", "pipe.json"} {
 		plan := Plan{Schema: PlanSchema, Authority: PlanAuthority, Knowledge: KnowledgeSelection{Mode: "embedded_only"}, Items: []Item{{ID: "unsafe", Kind: "cncf", Project: "thanos", From: "0.41.0", To: "0.42.0", InputPath: inputPath}}}
 		planPath := writeBatchFile(t, filepath.Join(root, inputPath+".plan"), plan)
-		if _, exit, err := Evaluate(planPath, root, time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC)); err == nil || exit != 2 {
+		if _, exit, err := Evaluate(planPath, root, testclock.Floor(time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC))); err == nil || exit != 2 {
 			t.Fatalf("unsafe %s accepted: exit=%d err=%v", inputPath, exit, err)
 		}
 	}

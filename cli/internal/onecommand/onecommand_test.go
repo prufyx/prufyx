@@ -17,6 +17,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/currentbundle"
 	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 	"github.com/prufyx/prufyx/cli/internal/localcollector"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 // fakeRunner answers every kubectl invocation with a synthetic response built
@@ -94,7 +95,7 @@ func baseTestOptions(t *testing.T, runner localcollector.Runner) Options {
 		Contexts:            []string{"test-context"},
 		AcknowledgeExecRisk: true,
 		Kubectl:             os.Args[0],
-		Now:                 func() time.Time { return time.Date(2026, 9, 19, 12, 0, 0, 0, time.UTC) },
+		Now:                 func() time.Time { return testclock.Floor(time.Date(2026, 9, 19, 12, 0, 0, 0, time.UTC)) },
 		Random:              strings.NewReader(strings.Repeat("r", 64)),
 		Runner:              runner,
 	}

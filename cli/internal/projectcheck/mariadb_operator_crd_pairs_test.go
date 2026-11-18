@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/projectprepare"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 const (
@@ -53,7 +54,7 @@ func mariaDBCRDStatuses(t *testing.T, spec, pair string, complete bool, now time
 	return out
 }
 
-var mdbCRDNow = time.Date(2026, 11, 10, 0, 0, 0, 0, time.UTC)
+var mdbCRDNow = testclock.Floor(time.Date(2026, 11, 10, 0, 0, 0, 0, time.UTC))
 
 func TestMariaDBOperatorCRDRulesBlockOnlyTheirOwnField(t *testing.T) {
 	for _, tc := range mariaDBCRDRules {
@@ -153,7 +154,7 @@ func TestMariaDBOperatorCRDRulesAreExactPairsAndNeverFireOnTheGaleraPair(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
-	report, err := CheckNative(projectprepare.MariaDBOperatorProject, prepared.CanonicalInputJSON, time.Date(2026, 9, 13, 9, 0, 0, 0, time.UTC))
+	report, err := CheckNative(projectprepare.MariaDBOperatorProject, prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 13, 9, 0, 0, 0, time.UTC)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,7 +165,7 @@ func TestMariaDBOperatorCRDRulesAreExactPairsAndNeverFireOnTheGaleraPair(t *test
 
 func TestMariaDBOperatorCRDRulesExpireFailClosed(t *testing.T) {
 	for _, tc := range mariaDBCRDRules {
-		got := mariaDBCRDStatuses(t, tc.spec, tc.pair, true, time.Date(2027, 6, 1, 0, 0, 0, 0, time.UTC))
+		got := mariaDBCRDStatuses(t, tc.spec, tc.pair, true, testclock.Floor(time.Date(2027, 6, 1, 0, 0, 0, 0, time.UTC)))
 		for id, status := range got {
 			if status == "PASS" || status == "BLOCKED" {
 				t.Fatalf("expired evidence still decided %s: %s", id, status)
@@ -172,7 +173,7 @@ func TestMariaDBOperatorCRDRulesExpireFailClosed(t *testing.T) {
 		}
 	}
 	// Before review the rule is not yet valid.
-	for id, status := range mariaDBCRDStatuses(t, `{"maxScale":{}}`, mdbPairB, true, time.Date(2026, 11, 6, 0, 0, 0, 0, time.UTC)) {
+	for id, status := range mariaDBCRDStatuses(t, `{"maxScale":{}}`, mdbPairB, true, testclock.Floor(time.Date(2026, 11, 6, 0, 0, 0, 0, time.UTC))) {
 		if status == "PASS" || status == "BLOCKED" {
 			t.Fatalf("pre-review evidence decided %s: %s", id, status)
 		}

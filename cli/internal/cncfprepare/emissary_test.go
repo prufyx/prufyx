@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 func emissaryDeclaration(argv ...string) []byte {
@@ -27,7 +28,7 @@ func TestPrepareEmissaryRemovedMetricsEndpoint(t *testing.T) {
 	if err != nil || prepared.State != StatePrepared || prepared.Reason != ReasonEmissaryMetricsAbsent || !bytes.Contains(prepared.CanonicalInputJSON, []byte(`"boolValue":false`)) {
 		t.Fatalf("fixed=%+v err=%v", prepared, err)
 	}
-	report, err := cncfcheck.Check("emissary-ingress", prepared.CanonicalInputJSON, time.Date(2026, 9, 11, 0, 0, 0, 0, time.UTC))
+	report, err := cncfcheck.Check("emissary-ingress", prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 11, 0, 0, 0, 0, time.UTC)))
 	if err != nil || report.Assessment != "UNKNOWN" || report.Check.Claims[0].Status != "PASS" {
 		t.Fatalf("report=%+v err=%v", report, err)
 	}
