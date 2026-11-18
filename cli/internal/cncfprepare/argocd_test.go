@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 func argoCDBool(value bool) *bool { return &value }
@@ -67,7 +68,7 @@ func TestPrepareArgoCDExplicitConfigurationFeedsExistingRule(t *testing.T) {
 			if len(facts) != 2 || facts[0]["id"] != ArgoCDInheritanceDisabledFact || facts[1]["id"] != ArgoCDInheritedPermissionsFact {
 				t.Fatalf("facts=%v", facts)
 			}
-			got, err := cncfcheck.Check("argo-cd", prepared.CanonicalInputJSON, time.Date(2026, 9, 9, 6, 0, 0, 0, time.UTC))
+			got, err := cncfcheck.Check("argo-cd", prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 9, 6, 0, 0, 0, time.UTC)))
 			claims := map[string]struct{ status, reason string }{}
 			for _, claim := range got.Check.Claims {
 				claims[claim.RuleID] = struct{ status, reason string }{claim.Status, claim.ReasonCode}
@@ -105,7 +106,7 @@ func TestPrepareArgoCDKeepsAbsentMalformedAndOutsideInputsUnknown(t *testing.T) 
 			if facts[0]["state"] == "declared" {
 				t.Fatalf("configuration unexpectedly declared: %v", facts[0])
 			}
-			got, err := cncfcheck.Check("argo-cd", prepared.CanonicalInputJSON, time.Date(2026, 9, 9, 6, 0, 0, 0, time.UTC))
+			got, err := cncfcheck.Check("argo-cd", prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 9, 6, 0, 0, 0, time.UTC)))
 			if err != nil || got.Check.Claims[0].Status != "UNKNOWN" || got.Check.Assessment != "UNKNOWN" {
 				t.Fatalf("check=%+v err=%v", got.Check, err)
 			}

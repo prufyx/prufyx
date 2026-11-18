@@ -18,6 +18,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/cncfknowledge"
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
 	"github.com/prufyx/prufyx/cli/internal/knowledgefixture"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 const (
@@ -232,7 +233,7 @@ func TestExternalKnowledgeRejectsInputAndPinIntegrityWithoutEcho(t *testing.T) {
 
 func TestExternalKnowledgeEmbeddedBehaviorUnchanged(t *testing.T) {
 	input := []byte(kyvernoInputTrue)
-	report, err := cncfcheck.Check("kyverno", input, time.Date(2026, 9, 9, 1, 0, 0, 0, time.UTC))
+	report, err := cncfcheck.Check("kyverno", input, testclock.Floor(time.Date(2026, 9, 9, 1, 0, 0, 0, time.UTC)))
 	if err != nil || len(report.Check.Claims) != 1 || report.Check.Claims[0].Status != "BLOCKED" || report.KnowledgeOrigin != "embedded" || report.SourceAuthority != "PACKAGED_MAINTAINER_REVIEWED_SOURCE_RULES_NOT_RUNTIME_PROOF" {
 		t.Fatalf("embedded behavior changed: report=%+v err=%v", report, err)
 	}

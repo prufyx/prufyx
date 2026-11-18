@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/projectprepare"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 // removedKeyRules lists every airflow and opensearch rule with a config line
@@ -32,7 +33,7 @@ func statuses(t *testing.T, project, raw, from, to string, complete, resolved bo
 	if err != nil {
 		t.Fatal(err)
 	}
-	report, err := Check(project, prepared.CanonicalInputJSON, time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC))
+	report, err := Check(project, prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)))
 	if err != nil {
 		t.Fatal(err)
 	}
