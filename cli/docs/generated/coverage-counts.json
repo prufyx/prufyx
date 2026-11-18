@@ -2,12 +2,12 @@
   "schema": "prufyx.io/coverage-readme-counts/v1",
   "report": {
     "schema": "prufyx.io/coverage-report/v1",
-    "now": "2026-11-17T23:47:42Z",
+    "now": "2026-11-18T09:50:12Z",
     "window": 6,
     "pack": {
       "revision": "cncf-2026-09-13.8",
       "schema": "prufyx.io/cncf-source-rule-pack/v1alpha11",
-      "digest": "sha256:637161d7f1f5ff4e31a5d5effe062006e42ab296cafb5818cee0ffe9090922f9"
+      "digest": "sha256:9e4802c265e4ec6b385841e81bea10ffd7083398ef8728daa71987330e5f9fcb"
     },
     "lines": {
       "capturedOn": "2026-10-31",
@@ -19,37 +19,37 @@
       "entries": 9,
       "clockOn": "2026-11-10"
     },
-    "clockAttestedAt": "2026-11-17T23:47:42Z",
+    "clockAttestedAt": "2026-11-18T09:50:12Z",
     "packProjectsCovered": 72,
     "crdVersionProjects": 87,
     "crdPublishedProjects": 40,
     "fleet": {
       "projects": 79,
       "pairs": 395,
-      "a": 91,
+      "a": 88,
       "b": 3,
       "s": 39,
-      "g": 262,
+      "g": 265,
       "c1": 63,
-      "c3": 18,
-      "c5": 13,
-      "vcPairs": 0.238,
-      "vcMean": 0.238,
+      "c3": 17,
+      "c5": 12,
+      "vcPairs": 0.2304,
+      "vcMean": 0.2304,
       "sPairs": 0.0987,
       "rulesInWindow": 155
     },
     "priorityProjects": {
       "projects": 30,
       "pairs": 150,
-      "a": 32,
+      "a": 29,
       "b": 2,
       "s": 22,
-      "g": 94,
+      "g": 97,
       "c1": 29,
-      "c3": 6,
-      "c5": 5,
-      "vcPairs": 0.2267,
-      "vcMean": 0.2267,
+      "c3": 5,
+      "c5": 4,
+      "vcPairs": 0.2067,
+      "vcMean": 0.2067,
       "sPairs": 0.1467,
       "rulesInWindow": 112
     },
@@ -71,7 +71,7 @@
     "families": [
       {
         "family": "crd.custom_resource_versions",
-        "a": 86,
+        "a": 83,
         "b": 3
       },
       {
@@ -441,26 +441,17 @@
           {
             "from": "1.16",
             "to": "1.17",
-            "status": "A",
-            "families": [
-              "crd.custom_resource_versions"
-            ]
+            "status": "G"
           },
           {
             "from": "1.17",
             "to": "1.18",
-            "status": "A",
-            "families": [
-              "crd.custom_resource_versions"
-            ]
+            "status": "G"
           },
           {
             "from": "1.18",
             "to": "1.19",
-            "status": "A",
-            "families": [
-              "crd.custom_resource_versions"
-            ]
+            "status": "G"
           },
           {
             "from": "1.19",
@@ -499,12 +490,12 @@
             "weight": 3
           }
         ],
-        "a": 5,
+        "a": 2,
         "b": 0,
         "s": 0,
-        "g": 0,
-        "vc": 1,
-        "vcA": 1,
+        "g": 3,
+        "vc": 0.4,
+        "vcA": 0.4,
         "covered": true,
         "validRules": 0,
         "rulesInWindow": 0,
@@ -5938,5 +5929,5 @@
     "selectedSourceOnlyProjects": 11,
     "selectedSourceProjects": 58
   },
-  "readmeBlockSha256": "8b736327e6d6c014827a75bccb3376280d4ff7cff5e28fea6e90c9a58b1f97f2"
+  "readmeBlockSha256": "062773cd641a1acf91d71bdddf032753c4c5557d7447dcc1e15071df25011a26"
 }
