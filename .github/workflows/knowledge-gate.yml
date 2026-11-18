@@ -16,11 +16,23 @@ name: Knowledge gate
 # change's own .gitattributes cannot make the files the gate checks differ
 # from the blobs that merge. A pull request must be up to date with the
 # current tip of main.
+#
+# In the merge queue (merge_group) the run takes its workflow definition
+# from the queued commit, not from the base branch, and the event has no pull
+# request payload. The job therefore derives the one pull request from the
+# queue ref, reads that pull request from the API, requires the queue commit
+# to be exactly a merge of the group base and that pull request's reviewed
+# head, builds the gate from the group base, and runs the same checks on the
+# group's base and head. Any gap (more than one pull request, an unreadable
+# API answer, a head that differs from the reviewed one) fails the job. No
+# step in that mode is optional and nothing is allowed to continue on error.
 
 on:
   pull_request_target:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+  merge_group:
+    types: [checks_requested]
   schedule:
     - cron: "23 4 * * *"
   workflow_dispatch:
@@ -44,7 +56,13 @@ jobs:
     timeout-minutes: 60
     env:
       PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-      HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+      MQ_BASE_SHA: ${{ github.event.merge_group.base_sha }}
+      MQ_BASE_REF: ${{ github.event.merge_group.base_ref }}
+      MQ_HEAD_REF: ${{ github.event.merge_group.head_ref }}
+      MQ_HEAD_SHA: ${{ github.event.merge_group.head_sha }}
+      QUEUE_REF: ${{ github.ref }}
+      QUEUE_RUN_SHA: ${{ github.sha }}
       HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
       PR_AUTHOR: ${{ github.event.pull_request.user.login }}
       EVENT_SENDER: ${{ github.event.sender.login }}
@@ -98,6 +116,11 @@ jobs:
                 exit 1
               fi
               base="${tip}"
+              ;;
+            merge_group)
+              # The group base, as the event names it. The checks below tie
+              # it to the queue commit and to the pull request.
+              base="${MQ_BASE_SHA}"
               ;;
             *)
               base="${HEAD_SHA}"
@@ -154,6 +177,43 @@ jobs:
             echo "The change does not contain the current base; update it so the gate compares exactly what would merge."
             exit 1
           fi
+          if [ "${GITHUB_EVENT_NAME}" = "merge_group" ]; then
+            # The group base must contain the current tip of main.
+            git -C "${objects}" fetch --no-tags --quiet "https://github.com/${GITHUB_REPOSITORY}.git" "+refs/heads/main:refs/admission/main"
+            if ! git -C "${objects}" merge-base --is-ancestor refs/admission/main "${BASE_SHA}"; then
+              echo "The group base does not contain the tip of main."
+              exit 1
+            fi
+          fi
+
+      - name: Load the queue entry
+        id: queue
+        if: github.event_name == 'merge_group'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Exactly one pull request, taken from the queue ref. Every
+          # failure below ends the job: there is no skip and no default.
+          ref_re='^refs/heads/gh-readonly-queue/main/pr-([1-9][0-9]{0,8})-[0-9a-f]{40}$'
+          if ! [[ "${QUEUE_REF}" =~ ${ref_re} ]]; then
+            echo "The queue ref has an unexpected shape."
+            exit 1
+          fi
+          pr="${BASH_REMATCH[1]}"
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr}" > "${RUNNER_TEMP}/queue-pr.json"
+          "${RUNNER_TEMP}/prufyx-maintainer" gate queue-context \
+            --repo "${GITHUB_REPOSITORY}" --ref "${QUEUE_REF}" --run-sha "${QUEUE_RUN_SHA}" \
+            --head-ref "${MQ_HEAD_REF}" --head-sha "${MQ_HEAD_SHA}" \
+            --base-ref "${MQ_BASE_REF}" --base-sha "${MQ_BASE_SHA}" \
+            --git-dir "${RUNNER_TEMP}/objects.git" --pr-json "${RUNNER_TEMP}/queue-pr.json" \
+            --out "${RUNNER_TEMP}/queue-context.json"
+          author="$(jq -er '.author' "${RUNNER_TEMP}/queue-context.json")"
+          shadow="$(jq -er 'if .shadow == true then "true" else "false" end' "${RUNNER_TEMP}/queue-context.json")"
+          pr_head="$(jq -er '.prHead' "${RUNNER_TEMP}/queue-context.json")"
+          echo "QUEUE_AUTHOR=${author}" >> "${GITHUB_ENV}"
+          echo "QUEUE_SHADOW=${shadow}" >> "${GITHUB_ENV}"
+          echo "QUEUE_PR_HEAD=${pr_head}" >> "${GITHUB_ENV}"
 
       - name: Export both trees from git objects (no checkout, no attributes)
         run: |
@@ -162,20 +222,26 @@ jobs:
           "${RUNNER_TEMP}/prufyx-maintainer" gate export --git-dir "${RUNNER_TEMP}/objects.git" --commit "${HEAD_SHA}" --out head
 
       - name: List the change's commits
-        if: github.event_name == 'pull_request_target'
+        if: github.event_name == 'pull_request_target' || github.event_name == 'merge_group'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if ! gh api "repos/${GITHUB_REPOSITORY}/compare/${BASE_SHA}...${HEAD_SHA}?per_page=100" \
+          compare_head="${HEAD_SHA}"
+          if [ "${GITHUB_EVENT_NAME}" = "merge_group" ]; then
+            # The change's own commits: the pull request head, not the queue merge commit.
+            compare_head="${QUEUE_PR_HEAD}"
+          fi
+          if ! gh api "repos/${GITHUB_REPOSITORY}/compare/${BASE_SHA}...${compare_head}?per_page=100" \
             --jq '{status, ahead_by, behind_by, total_commits, commits: [.commits[] | {sha, author: (if .author then {login: .author.login} else null end), committer: (if .committer then {login: .committer.login} else null end), commit: {verification: {verified: .commit.verification.verified}}}]}' \
             > "${RUNNER_TEMP}/commits.json"; then
             echo "The commit list is unavailable; the change is not eligible for automatic merging."
             rm -f "${RUNNER_TEMP}/commits.json"
+            if [ "${GITHUB_EVENT_NAME}" = "merge_group" ]; then exit 1; fi
           fi
 
       - name: Count the loosening changes the automation merged in the last day
-        if: github.event_name == 'pull_request_target'
+        if: github.event_name == 'pull_request_target' || github.event_name == 'merge_group'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -191,12 +257,15 @@ jobs:
           if ! gh api --paginate "repos/${GITHUB_REPOSITORY}/commits?sha=${BASE_SHA}&since=${since}&per_page=100" \
             --jq '.[] | {sha, parent: (.parents[0].sha // null), author: (.author.login // null)}' | jq -s '.' > "${list}"; then
             echo "The history of main is unavailable; the change is not eligible for automatic merging."
+            # In the queue the daily cap is part of the verdict: no count, no pass.
+            if [ "${GITHUB_EVENT_NAME}" = "merge_group" ]; then exit 1; fi
             exit 0
           fi
           if count="$("${RUNNER_TEMP}/prufyx-maintainer" gate daily-count --git-dir "${RUNNER_TEMP}/objects.git" --commits "${list}" --bot-login "${BOT_LOGIN}")"; then
             echo "${count}" > "${RUNNER_TEMP}/daily-count.txt"
           else
             echo "The count is unavailable; the change is not eligible for automatic merging."
+            if [ "${GITHUB_EVENT_NAME}" = "merge_group" ]; then exit 1; fi
           fi
           # Retain author observations covering the maximum onboarding validity
           # plus its daily window. The verifier checks exact Git membership and
@@ -300,14 +369,29 @@ jobs:
           if [ -n "${BOT_SIGNER_PAUSED}" ] && [ "${BOT_SIGNER_PAUSED}" != "false" ]; then
             args+=(--bot-signer-paused)
           fi
+          author="${PR_AUTHOR}"
+          if [ "${GITHUB_EVENT_NAME}" = "merge_group" ]; then
+            # The author and the label come from the queue entry's own pull
+            # request, read in "Load the queue entry"; nothing is defaulted.
+            if [ -z "${QUEUE_AUTHOR:-}" ] || [ -z "${QUEUE_SHADOW:-}" ]; then
+              echo "The queue context is missing."
+              exit 1
+            fi
+            if [ ! -f "${RUNNER_TEMP}/commits.json" ] || [ ! -f "${RUNNER_TEMP}/daily-count.txt" ]; then
+              echo "The commit list or the daily count is missing in a queue run."
+              exit 1
+            fi
+            author="${QUEUE_AUTHOR}"
+            SHADOW_LABEL="${QUEUE_SHADOW}"
+          fi
           if [ "${SHADOW_VAR}" = "true" ] || [ "${SHADOW_LABEL}" = "true" ]; then
             args+=(--shadow)
           fi
           if [ -f "${RUNNER_TEMP}/daily-count.txt" ]; then
             args+=(--daily-loosening-count "$(cat "${RUNNER_TEMP}/daily-count.txt")")
           fi
-          if [ -n "${PR_AUTHOR}" ]; then
-            args+=(--author "${PR_AUTHOR}")
+          if [ -n "${author}" ]; then
+            args+=(--author "${author}")
           fi
           if [ -n "${EVENT_SENDER}" ]; then
             args+=(--sender "${EVENT_SENDER}")
@@ -381,7 +465,7 @@ jobs:
   alarm:
     name: Gate alarms
     needs: gate
-    if: ${{ always() && needs.gate.outputs.alarm-count != '' && needs.gate.outputs.alarm-count != '0' && (github.event_name != 'pull_request_target' || github.event.pull_request.user.login == 'prufyx-bot') }}
+    if: ${{ always() && needs.gate.outputs.alarm-count != '' && needs.gate.outputs.alarm-count != '0' && github.event_name != 'merge_group' && (github.event_name != 'pull_request_target' || github.event.pull_request.user.login == 'prufyx-bot') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions: {}
