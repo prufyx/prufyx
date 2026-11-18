@@ -180,3 +180,15 @@ func TestProposePartialCoverageIsNoRow(t *testing.T) {
 		t.Fatalf("no hit table: %s", nr.Detail)
 	}
 }
+
+func TestProposeNoNeededBoundaryKeepsFirstStyle(t *testing.T) {
+	file := "# v1.2.1\n\n- b\n\n# v1.2.0\n\n- a\n"
+	src := rcFixture(t, map[string]byte{"v1.2.0": 'a', "v1.2.1": 'a'}, map[string]string{"a|CHANGELOG/CHANGELOG-1.2.md": file})
+	p, err := propose(t, src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.Row.BoundaryStyles) != 1 || p.Row.BoundaryStyles[0] != boundaryOrder[0] {
+		t.Fatalf("want only %s, got %v", boundaryOrder[0], p.Row.BoundaryStyles)
+	}
+}

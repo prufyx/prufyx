@@ -267,8 +267,12 @@ func ProposeRow(src interface {
 		tab, _ := json.Marshal(best.Hits)
 		return nil, &NoRow{NoRowPartialCoverage, fmt.Sprintf("the best candidate (%s) locates %d of the %d scored tags; hits %s", best.Row.Path, best.Located, len(window), tab)}
 	}
-	// Drop every boundary style the result does not need, in fixed order.
-	for _, b := range boundaryOrder {
+	// Drop every boundary style the result does not need, last first, so
+	// that a row which needs none keeps the first style of the order (the
+	// least surprising one) and not the last, which matches the rarest
+	// heading.
+	for bi := len(boundaryOrder) - 1; bi >= 0; bi-- {
+		b := boundaryOrder[bi]
 		if best.Row.BoundaryStyles == nil {
 			break
 		}

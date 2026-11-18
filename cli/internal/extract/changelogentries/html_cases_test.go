@@ -69,7 +69,6 @@ func TestC2Negatives(t *testing.T) {
 		"closing tag":                   head + "</div>\n" + tail,
 		"too long":                      head + "<!-- " + strings.Repeat("a", 250) + " -->\n" + tail,
 		"comment inside a list item":    "## v1.71.0/v0.165.0\n\n- a\n  <!-- a -->\n" + tail,
-		"comment in a fence is text":    "## v1.71.0/v0.165.0\n\n```\n<!-- a -->\n```\n\n<div>\n" + tail,
 	}
 	for name, f := range cases {
 		e, err := locateMem(tg, "v0.165.0", f)
@@ -201,4 +200,30 @@ func TestC2C3UnchangedShapes(t *testing.T) {
 	if e.Tiling.Comments != 1 {
 		t.Fatalf("%+v", e.Tiling)
 	}
+}
+
+func TestC2CommentInFenceIsText(t *testing.T) {
+	tg := styleRow(t, "version-dual-second", "line-heading-v")
+	f := "## v1.71.0/v0.165.0\n\n```\n<!-- a -->\n```\n\n## v1.70.0/v0.164.0\n\n- b\n"
+	e := mustLocate(t, tg, "v0.165.0", f)
+	if e.Tiling.Comments != 0 || len(e.Items) != 1 {
+		t.Fatalf("%+v items %d", e.Tiling, len(e.Items))
+	}
+}
+
+func TestS6NearMisses(t *testing.T) {
+	tg := styleRow(t, "version-v-paren-date", "line-heading-v")
+	mustLocate(t, tg, "v1.2.3", "## v1.2.3 (2026-01-01)\n\n- a\n")
+	for _, h := range []string{"## v1.2.3(2026-01-01)", "## v1.2.3 (2026-1-01)", "## 1.2.3 (2026-01-01)", "## v1.2.3-rc.1 (2026-01-01)", "## v1.2.3 (2026-01-01) x", "## v1.2.3  (2026-01-01)", "## v1.2.3 [2026-01-01]"} {
+		if e, err := locateMem(tg, "v1.2.3", h+"\n\n- a\n"); err == nil {
+			t.Errorf("%q located %+v", h, e.Section)
+		}
+	}
+}
+
+func TestC3GluedCloserHeadingRefused(t *testing.T) {
+	tg := styleRow(t, "version-v-paren-date", "line-heading-v")
+	entry := "v2.23.0 (2026-11-04)\n---------\n\n* a\n"
+	_, err := locateMem(tg, "v2.23.0", "# C\n\n</details>\nChanges\n=======\n\n"+entry)
+	wantCode(t, err, EntryParseResidue)
 }
