@@ -47,7 +47,7 @@ func (r runtime) checkNATSLatestExample(work, from string, raw []byte) (int, map
 	var stdout bytes.Buffer
 	child := r
 	child.stdout = &stdout
-	code := child.cncf([]string{"--project", "nats", "--nats-config", path, "--nats-config-digest", communityDigest(raw), "--from", from, "--to", "2.14.6", "--now", "2026-09-12T08:47:00Z", "--format", "json"})
+	code := child.cncf([]string{"--project", "nats", "--nats-config", path, "--nats-config-digest", communityDigest(raw), "--from", from, "--to", "2.14.6", "--now", exampleClock("nats", "2026-09-12T08:47:00Z"), "--format", "json"})
 	var report map[string]any
 	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
 		return code, nil, fmt.Errorf("decode NATS report: %w", err)
@@ -92,7 +92,7 @@ func (r runtime) checkCephLatestExample(work, from string, raw []byte) (int, map
 	var stdout bytes.Buffer
 	child := r
 	child.stdout = &stdout
-	code := child.project([]string{"--project", "ceph", "--selected-osd-metadata", path, "--selected-osd-metadata-digest", communityDigest(raw), "--selected-osd-id", "7", "--selected-osd-metadata-complete", "--from", from, "--to", "20.2.4", "--now", "2026-09-12T09:20:00Z", "--format", "json"})
+	code := child.project([]string{"--project", "ceph", "--selected-osd-metadata", path, "--selected-osd-metadata-digest", communityDigest(raw), "--selected-osd-id", "7", "--selected-osd-metadata-complete", "--from", from, "--to", "20.2.4", "--now", exampleClock("ceph", "2026-09-12T09:20:00Z"), "--format", "json"})
 	var report map[string]any
 	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
 		return code, nil, fmt.Errorf("decode Ceph report: %w", err)
