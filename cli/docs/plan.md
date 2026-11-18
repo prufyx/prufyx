@@ -144,6 +144,11 @@ cannot be combined with an explicit `--to` for the same component.
 Prufyx cannot know the newest release. The component is reported as
 `LATEST_NOT_RESOLVED` and is not planned. Give an explicit version.
 
+A component the catalog does not name (`COMPONENT_NOT_IN_CATALOG`) or that scan
+has no knowledge for yet (`COMPONENT_NOT_COVERED`) does not stop the plan: the
+other components are planned, the unknown one is a plan gap with its reason and
+next action, and the verdict is at most UNKNOWN. Malformed input still exits 2.
+
 ## Output and exit codes
 
 `--format human` (default), `markdown` or `json` (schema

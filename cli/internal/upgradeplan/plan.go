@@ -228,11 +228,33 @@ type Gap struct {
 // components whose target was "latest": they are not in the scan, and each
 // becomes a LATEST_NOT_RESOLVED gap.
 func Build(report scanreport.Report, latest []string, caps Capabilities) Plan {
+	return BuildWithUnknown(report, latest, nil, caps)
+}
+
+// UnknownComponent is a component the scan could not evaluate (not in the
+// catalog, or no knowledge yet). It becomes a plan gap, so the plan verdict
+// is at most UNKNOWN.
+type UnknownComponent struct {
+	Component string
+	Reason    string
+	Detail    string
+}
+
+// BuildWithUnknown is Build plus the components set aside by the scan.
+func BuildWithUnknown(report scanreport.Report, latest []string, unknown []UnknownComponent, caps Capabilities) Plan {
 	plan := Plan{Schema: Schema, Routes: []Route{}, Stages: []Stage{}, Gaps: []Gap{}, Notes: []string{}, Provenance: report.Provenance}
 	for _, component := range latest {
 		plan.Gaps = append(plan.Gaps, Gap{Component: component, Reason: ReasonLatestNotResolved,
 			Detail: "the target is latest and no signed release-line snapshot ships, so the newest release is not known",
 			Action: "give an explicit target version: --to " + component + "=X.Y.Z"})
+	}
+
+	for _, u := range unknown {
+		action := "check the spelling against `prufyx catalog cncf`, or plan it once the catalog names it"
+		if u.Reason == scanreport.ReasonComponentNotCovered {
+			action = "scan reads no knowledge about this project yet; verify its upgrade by hand and plan it once knowledge covers it"
+		}
+		plan.Gaps = append(plan.Gaps, Gap{Component: u.Component, Reason: u.Reason, Detail: u.Detail, Action: action})
 	}
 
 	for _, c := range report.Inventory {
@@ -260,7 +282,7 @@ func Build(report scanreport.Report, latest []string, caps Capabilities) Plan {
 	hasK8s := planned[kubernetes]
 
 	used := map[string]bool{}
-	components := len(latest)
+	components := len(latest) + len(unknown)
 	for _, path := range paths {
 		route := Route{Component: path.Component, From: path.From, To: path.To, Policy: path.Policy, Stops: []string{}, Hops: len(path.Hops), Gap: path.Gap}
 		if path.Jump != nil {

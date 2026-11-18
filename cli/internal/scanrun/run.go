@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -38,6 +39,11 @@ import (
 
 // Options are the parts of a scan that do not come from the command line.
 type Options struct {
+	// SkipUnknown sets aside a component the catalog does not name, or that
+	// has no scan knowledge yet, instead of refusing the whole scan: it is
+	// returned in Result.Unknown and every other component is evaluated.
+	// Malformed input is still refused.
+	SkipUnknown bool
 	// Stdin is read for the path "-".
 	Stdin io.Reader
 	// Knowledge, when nil, is the embedded knowledge.
@@ -81,6 +87,21 @@ type Result struct {
 	// KnowledgeNote is the staleness note of an automatic database, for
 	// standard error; it changes no verdict.
 	KnowledgeNote string
+	// Unknown lists the components set aside under Options.SkipUnknown.
+	Unknown []UnknownComponent
+}
+
+// Reasons a component is set aside.
+const (
+	UnknownNotInCatalog = "COMPONENT_NOT_IN_CATALOG"
+	UnknownNotCovered   = scanreport.ReasonComponentNotCovered
+)
+
+// UnknownComponent is a component the scan did not evaluate.
+type UnknownComponent struct {
+	Component string
+	Reason    string
+	Detail    string
 }
 
 // Run performs the scan. A *UsageError is input the scan does not accept
@@ -155,6 +176,14 @@ func Run(request Request, options Options) (Result, error) {
 		MinimumKubeletVersion: request.KubeletVersionMin, MaximumKubeletVersion: request.KubeletVersionMax,
 		Helm: charts,
 	})
+	var unknown []UnknownComponent
+	hadTarget := len(effective.Target) > 0 || len(request.NewestCovered) > 0
+	if options.SkipUnknown {
+		unknown = splitUnknown(catalog, &effective)
+		request.NewestCovered = slices.DeleteFunc(slices.Clone(request.NewestCovered), func(slug string) bool {
+			return slices.ContainsFunc(unknown, func(u UnknownComponent) bool { return u.Component == slug })
+		})
+	}
 	if err := checkComponents(catalog, effective); err != nil {
 		return Result{}, err
 	}
@@ -266,8 +295,14 @@ func Run(request Request, options Options) (Result, error) {
 			return Result{}, err
 		}
 	}
+	if options.SkipUnknown {
+		unknown = append(unknown, splitCommunityUnknown(knowledge, &effective)...)
+	}
 	if err := checkCommunityKnown(knowledge, effective); err != nil {
 		return Result{}, err
+	}
+	if len(effective.Target) == 0 && len(request.NewestCovered) == 0 && len(unknown) > 0 && hadTarget {
+		return Result{Unknown: unknown}, nil
 	}
 	if len(effective.Target) == 0 && len(request.NewestCovered) == 0 {
 		return Result{}, usage(scanreport.UsageNoTarget)
@@ -518,7 +553,7 @@ func Run(request Request, options Options) (Result, error) {
 	if request.Redact {
 		scanreport.Redact(&report)
 	}
-	return Result{Report: report, Exit: scanreport.Exit(report), KnowledgeAge: knowledgeAgeNote(knowledge, now), PinnedNowWarning: pinnedNowWarning, KnowledgeSource: knowledgeSource, KnowledgeNote: knowledgeNote}, nil
+	return Result{Report: report, Exit: scanreport.Exit(report), KnowledgeAge: knowledgeAgeNote(knowledge, now), PinnedNowWarning: pinnedNowWarning, KnowledgeSource: knowledgeSource, KnowledgeNote: knowledgeNote, Unknown: unknown}, nil
 }
 
 // knowledgeAgeNote words the age note for the knowledge a scan used,
@@ -686,6 +721,74 @@ func checkComponents(knowledge componentCatalog, effective scanconfig.Effective)
 		}
 	}
 	return nil
+}
+
+func dropComponent(effective *scanconfig.Effective, slug string) {
+	delete(effective.Current, slug)
+	delete(effective.Target, slug)
+	delete(effective.Helm, slug)
+}
+
+func namedComponents(effective scanconfig.Effective) []string {
+	seen := map[string]bool{}
+	for slug := range effective.Current {
+		seen[slug] = true
+	}
+	for slug := range effective.Target {
+		seen[slug] = true
+	}
+	for slug := range effective.Helm {
+		seen[slug] = true
+	}
+	names := make([]string, 0, len(seen))
+	for slug := range seen {
+		names = append(names, slug)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// splitUnknown removes from effective every component the catalog does not
+// name (or that is a community project) and returns them with a typed reason.
+func splitUnknown(knowledge componentCatalog, effective *scanconfig.Effective) []UnknownComponent {
+	var out []UnknownComponent
+	for _, slug := range namedComponents(*effective) {
+		if _, ok := knowledge.Component(slug); ok {
+			continue
+		}
+		if _, community := cncfprepare.CommunityCustomResourceProject(slug); community {
+			out = append(out, UnknownComponent{Component: slug, Reason: UnknownNotCovered,
+				Detail: slug + " is in the community catalog; scan reads no knowledge about community projects yet"})
+		} else {
+			detail := slug + " is not in the catalog"
+			if near := closest(slug, knowledge.Projects(), 3); len(near) > 0 {
+				detail += "; closest: " + strings.Join(near, ", ")
+			}
+			out = append(out, UnknownComponent{Component: slug, Reason: UnknownNotInCatalog, Detail: detail})
+		}
+		dropComponent(effective, slug)
+	}
+	return out
+}
+
+// splitCommunityUnknown removes the community projects the open knowledge
+// holds nothing for.
+func splitCommunityUnknown(knowledge Knowledge, effective *scanconfig.Effective) []UnknownComponent {
+	if knowledge == nil {
+		return nil
+	}
+	var out []UnknownComponent
+	for _, slug := range namedComponents(*effective) {
+		if !isCommunity(slug) {
+			continue
+		}
+		if _, ok := knowledge.Component(slug); !ok {
+			out = append(out, UnknownComponent{Component: slug, Reason: UnknownNotCovered,
+				Detail: slug + " is in the community catalog; scan reads no knowledge about it yet"})
+			dropComponent(effective, slug)
+		}
+	}
+	return out
 }
 
 // inputPaths are the paths given on the command line, else the inputs of the
