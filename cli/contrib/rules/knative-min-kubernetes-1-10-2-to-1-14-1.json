@@ -1,0 +1,39 @@
+[
+  {
+    "project": "knative",
+    "description": "Knative Serving 1.14.1 requires Kubernetes 1.28 or newer; the cited source sets that default minimum. Other upgrade requirements are unverified.",
+    "requiredFacts": [],
+    "rule": {
+      "id": "knative.minimum-kubernetes.1-10-2-to-1-14-1",
+      "operator": "require_component_version",
+      "subject": {
+        "component": "pkg:github/knative/serving",
+        "from": "1.10.2",
+        "to": "1.14.1"
+      },
+      "dependency": {
+        "side": "proposed",
+        "component": "pkg:github/kubernetes/kubernetes",
+        "comparison": "gte",
+        "version": "1.28.0"
+      },
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-11-18T12:00:00Z",
+        "validUntil": "2027-02-16T12:00:00Z",
+        "sources": [
+          {
+            "id": "knative-serving-minimum-kubernetes-v1-14-1",
+            "url": "https://github.com/knative/serving/blob/cc2085d879a54ed18ed89986e2921638f03852ed/vendor/knative.dev/pkg/version/version.go",
+            "revision": "cc2085d879a54ed18ed89986e2921638f03852ed",
+            "contentDigest": "sha256:0b22a7431ca1522dde3d58ed0276e1f9cbd2d9fef3b79a4f07424735df206f07",
+            "startLine": 28,
+            "endLine": 37
+          }
+        ]
+      },
+      "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+      "nextAction": "The cited Knative Serving 1.14.1 minimum requires Kubernetes 1.28 or newer; upgrade Kubernetes first and review other upgrade requirements separately."
+    }
+  }
+]
