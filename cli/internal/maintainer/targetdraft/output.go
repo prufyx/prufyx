@@ -356,15 +356,20 @@ type pathOut struct {
 	Directory bool   `json:"directory,omitempty"`
 	Match     string `json:"match,omitempty"`
 	Guard     string `json:"guard,omitempty"`
+	Optional  bool   `json:"optional,omitempty"`
 }
 
 // key names an entry for comparison: an exact file by its path (unchanged),
 // a directory entry by path, match and guard.
 func (p pathOut) key() string {
-	if !p.Directory {
-		return p.Path
+	opt := ""
+	if p.Optional {
+		opt = " [optional]"
 	}
-	return p.Path + " [directory match=" + p.Match + " guard=" + p.Guard + "]"
+	if !p.Directory {
+		return p.Path + opt
+	}
+	return p.Path + " [directory match=" + p.Match + " guard=" + p.Guard + "]" + opt
 }
 
 type exclOut struct {
@@ -396,7 +401,7 @@ type targetDoc struct {
 type rowGroup struct {
 	Name   string   `json:"name"`
 	Source string   `json:"source"`
-	Kinds  []string `json:"kinds"`
+	Kinds  []string `json:"kinds,omitempty"`
 }
 
 type rowDoc struct {
@@ -482,15 +487,19 @@ func marshalTarget(d targetDoc) ([]byte, error) {
 	}
 	var objs []string
 	for _, p := range t.Paths {
+		optTail := ""
+		if p.Optional {
+			optTail = ", \"optional\": true"
+		}
 		switch {
 		case p.Directory && (p.Match == "" || p.Guard == ""):
 			return nil, fmt.Errorf("directory entry %q needs match and guard", p.Path)
 		case !p.Directory && (p.Match != "" || p.Guard != ""):
 			return nil, fmt.Errorf("file entry %q takes no match or guard", p.Path)
 		case p.Directory:
-			objs = append(objs, "{\"path\": "+jstr(p.Path)+", \"directory\": true, \"match\": "+jstr(p.Match)+", \"guard\": "+jstr(p.Guard)+"}")
+			objs = append(objs, "{\"path\": "+jstr(p.Path)+", \"directory\": true, \"match\": "+jstr(p.Match)+", \"guard\": "+jstr(p.Guard)+optTail+"}")
 		default:
-			objs = append(objs, "{\"path\": "+jstr(p.Path)+"}")
+			objs = append(objs, "{\"path\": "+jstr(p.Path)+optTail+"}")
 		}
 	}
 	b.WriteString("    \"paths\": " + objList(objs) + ",\n")
@@ -529,7 +538,14 @@ func build(in Input, catalog, component, fact, ownerRepo, prefix string, prefixe
 		}
 	} else {
 		for _, i := range pathsOrdered {
-			body.Paths = append(body.Paths, pathOut{Path: i.Path})
+			body.Paths = append(body.Paths, pathOut{Path: i.Path, Optional: optionalMark(rules, window, i.Path)})
+		}
+		allOpt := len(body.Paths) > 0
+		for _, p := range body.Paths {
+			allOpt = allOpt && p.Optional
+		}
+		if allOpt {
+			return nil, &StopError{Stops: []Stop{stop(StopBadInput, "", "every install path would be optional; the target needs at least one path present at every tag")}}
 		}
 	}
 	a, err := marshalTarget(targetDoc{Schema: "prufyx.io/crd-version-target/v1", Target: body})
@@ -590,7 +606,13 @@ func build(in Input, catalog, component, fact, ownerRepo, prefix string, prefixe
 		}
 		sort.Strings(ks)
 		crdCount += len(ks)
-		row.Groups = append(row.Groups, rowGroup{Name: g, Source: blobURL(ownerRepo, citation.commit, source[g]), Kinds: ks})
+		rowKinds := ks
+		if customresources.ReservedNamespace(g) {
+			// A group of a reserved namespace is listed whole (no kinds), as
+			// table validation requires; the report keeps the kinds.
+			rowKinds = nil
+		}
+		row.Groups = append(row.Groups, rowGroup{Name: g, Source: blobURL(ownerRepo, citation.commit, source[g]), Kinds: rowKinds})
 		gfacts = append(gfacts, GroupFact{Name: g, Kinds: ks})
 	}
 	rowRaw, err := marshal(row)
