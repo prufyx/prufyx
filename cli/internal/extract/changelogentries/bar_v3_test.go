@@ -5,6 +5,7 @@ package changelogentries
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/prufyx/prufyx/cli/internal/extract"
 	"strings"
 	"testing"
 )
@@ -249,5 +250,50 @@ func TestProposalJSONHoldsVersionCounts(t *testing.T) {
 	}
 	if m["versionsLocated"] != float64(7) || m["versions"] != float64(8) {
 		t.Fatalf("%s", raw)
+	}
+}
+
+// An older line, outside the newest 8 tags but inside the newest 5 release
+// lines, needs a boundary style the newest tags do not: pruning keeps it.
+func TestProposeKeepsStyleNeededInThePairWindow(t *testing.T) {
+	var b strings.Builder
+	tags := map[string]byte{"v1.1.0": 'a'}
+	for i := 7; i >= 0; i-- {
+		fmt.Fprintf(&b, "## v1.5.%d\n\n- fix %d\n\n", i, i)
+		tags[fmt.Sprintf("v1.5.%d", i)] = 'a'
+	}
+	b.WriteString("## v1.1.0\n\n- old\n\n## v1.0.0-rc.1\n\n- rc\n")
+	src := rcFixture(t, tags, map[string]string{"a|CHANGELOG.md": b.String()})
+	p, err := propose(t, src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.Hits) != 8 {
+		t.Fatalf("scoring window changed: %d hits", len(p.Hits))
+	}
+	kept := false
+	for _, x := range p.Row.BoundaryStyles {
+		kept = kept || x == "prerelease-v-prefixed"
+	}
+	if !kept {
+		t.Fatalf("a style needed at v1.1.0 was pruned: %v", p.Row.BoundaryStyles)
+	}
+	tg, err := p.Row.target()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Locate(src, tg, extract.Tag{Name: "v1.1.0", Commit: sha('a')}); err != nil {
+		t.Fatalf("v1.1.0 does not locate with the proposed row: %v", err)
+	}
+	// With the old line gone the style is not needed and is dropped again.
+	delete(tags, "v1.1.0")
+	p, err = propose(t, rcFixture(t, tags, map[string]string{"a|CHANGELOG.md": b.String()}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, x := range p.Row.BoundaryStyles {
+		if x == "prerelease-v-prefixed" {
+			t.Fatalf("unneeded style kept: %v", p.Row.BoundaryStyles)
+		}
 	}
 }

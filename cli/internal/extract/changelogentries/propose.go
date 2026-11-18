@@ -101,6 +101,9 @@ type Proposal struct {
 	// the tags of a version must be); Window how many were scored.
 	Versions int
 	Window   int
+	// pairMap says, tag by tag of the pair window, whether the row locates it.
+	pairMap string
+	pairN   int
 }
 
 // MarshalJSON renders {"row": ..., "located": n, "tags": n, "hits": [...]}.
@@ -240,6 +243,23 @@ func ProposeRow(src interface {
 		return hits, n, nil
 	}
 	// versions counts the versions of the window whose every tag is located.
+	// The pair window: every final tag of the newest 5 release lines
+	// (major.minor). Scoring stays on the newest 8; this window only breaks
+	// ties between equal scores and decides which styles may be pruned.
+	pairTags := pairWindowTags(finals, byName)
+	pairLocated := func(t Target) (string, int) {
+		var b strings.Builder
+		n := 0
+		for _, tag := range pairTags {
+			if _, err := Locate(src, t, tag); err == nil {
+				b.WriteByte('1')
+				n++
+			} else {
+				b.WriteByte('0')
+			}
+		}
+		return b.String(), n
+	}
 	windowVersions := map[string]bool{}
 	for _, tag := range window {
 		v, _ := tagVersion(tag.Name)
@@ -265,8 +285,16 @@ func ProposeRow(src interface {
 		if err != nil {
 			return err
 		}
-		if n > 0 && (best == nil || n > best.Located) {
-			best = &Proposal{Row: r, Hits: hits, Located: n, Versions: versions(hits), Window: len(windowVersions)}
+		if n == 0 {
+			return nil
+		}
+		if best == nil || n > best.Located {
+			pm, pn := pairLocated(t)
+			best = &Proposal{Row: r, Hits: hits, Located: n, Versions: versions(hits), Window: len(windowVersions), pairMap: pm, pairN: pn}
+		} else if n == best.Located {
+			if pm, pn := pairLocated(t); pn > best.pairN {
+				best = &Proposal{Row: r, Hits: hits, Located: n, Versions: versions(hits), Window: len(windowVersions), pairMap: pm, pairN: pn}
+			}
 		}
 		return nil
 	}
@@ -329,7 +357,10 @@ func ProposeRow(src interface {
 			return nil, err
 		}
 		if n == best.Located && sameHits(hits, best.Hits) {
-			best = &Proposal{Row: cand, Hits: hits, Located: n, Versions: best.Versions, Window: best.Window}
+			// Never drop a style some tag of the pair window needs.
+			if pm, pn := pairLocated(t); pm == best.pairMap {
+				best = &Proposal{Row: cand, Hits: hits, Located: n, Versions: best.Versions, Window: best.Window, pairMap: pm, pairN: pn}
+			}
 		}
 	}
 	for ii := len(innerOrder) - 1; ii >= 0 && best.Row.InnerHeadingStyles != nil; ii-- {
@@ -356,7 +387,10 @@ func ProposeRow(src interface {
 			return nil, err
 		}
 		if n == best.Located && sameHits(hits, best.Hits) {
-			best = &Proposal{Row: cand, Hits: hits, Located: n, Versions: best.Versions, Window: best.Window}
+			// Never drop a style some tag of the pair window needs.
+			if pm, pn := pairLocated(t); pm == best.pairMap {
+				best = &Proposal{Row: cand, Hits: hits, Located: n, Versions: best.Versions, Window: best.Window, pairMap: pm, pairN: pn}
+			}
 		}
 	}
 	// Coverage: every scored version, or, for a scan of the newest tags, at
@@ -384,6 +418,37 @@ func ProposeRow(src interface {
 		return nil, errors.New("proposed row is refused by the loader: " + err.Error())
 	}
 	return best, nil
+}
+
+// pairWindowTags lists every final tag of the newest 5 release lines
+// (major.minor), newest line first, in a fixed order.
+func pairWindowTags(finals []string, byName map[string]extract.Tag) []extract.Tag {
+	lineOfTag := func(n string) string { v, _ := tagVersion(n); return lineOf(v) }
+	var lines []string
+	seen := map[string]bool{}
+	sorted := append([]string(nil), finals...)
+	sortNewestFirst(sorted)
+	for _, n := range sorted {
+		l := lineOfTag(n)
+		if !seen[l] {
+			seen[l] = true
+			lines = append(lines, l)
+		}
+	}
+	if len(lines) > 5 {
+		lines = lines[:5]
+	}
+	keep := map[string]bool{}
+	for _, l := range lines {
+		keep[l] = true
+	}
+	var out []extract.Tag
+	for _, n := range sorted {
+		if keep[lineOfTag(n)] {
+			out = append(out, byName[n])
+		}
+	}
+	return out
 }
 
 func sameHits(a, b []Hit) bool {
