@@ -1,0 +1,679 @@
+{
+  "schema": "prufyx.k8s-declared/v1",
+  "label": "Kubernetes versions declared by upstream per project release. These are upstream statements read at a cited tag, not support, test or compatibility claims by Prufyx.",
+  "inputs_sha256": "7dc581a07adecb5d69d944d6ad2f614e17359f01047c56993c3d6896af56b197",
+  "projects": [
+    {
+      "project": "cert-manager",
+      "repo": "cert-manager/cert-manager",
+      "source": {
+        "kind": "chart_kubeversion",
+        "path": "deploy/charts/cert-manager/Chart.yaml"
+      },
+      "releases": [
+        {
+          "tag": "v1.21.3",
+          "line": "1.21",
+          "status": "declared",
+          "source_kind": "chart_kubeversion",
+          "shape": "min_only",
+          "constraint_raw": "\u003e= 1.22.0-0",
+          "minimum": "1.22.0",
+          "citation": {
+            "repo": "cert-manager/cert-manager",
+            "tag": "v1.21.3",
+            "commit": "925c22283de556172d48d96a165dc2fa27f7a6ff",
+            "tag_ref_response_sha256": "4957f031f5f748fd826c57aacb232472101f81ab376025d56a9070e595663bf2",
+            "tag_object_sha": "ea04791b027b1ddd1884a02043ee8c9c097fc3ac",
+            "tag_object_response_sha256": "2432fd9f09407d968acf8737c76070116b24dc6351b5ce465ec6b1b6a5019a75",
+            "path": "deploy/charts/cert-manager/Chart.yaml",
+            "blob_sha": "7fe3d3c503052ec5cc5f92b9339bf241cb23eb46",
+            "file_sha256": "643e41e3c9c3f6bde5a6fbdc359adfc6222af2b42623f16fb97a97ae46c8db8d",
+            "contents_response_sha256": "73331d4aa30dee8daff6f8fbc25a946f595a2d3b629c03b98fc95802f2e07534",
+            "line_start": 22,
+            "line_end": 22,
+            "cited_lines": [
+              {
+                "line": 22,
+                "text": "kubeVersion: \"\u003e= 1.22.0-0\""
+              }
+            ]
+          }
+        },
+        {
+          "tag": "v1.20.5",
+          "line": "1.20",
+          "status": "not_declared",
+          "reason": "source_absent_at_tag"
+        },
+        {
+          "tag": "v1.19.6",
+          "line": "1.19",
+          "status": "not_declared",
+          "reason": "source_absent_at_tag"
+        }
+      ]
+    },
+    {
+      "project": "cilium",
+      "repo": "cilium/cilium",
+      "source": {
+        "kind": "chart_kubeversion",
+        "path": "install/kubernetes/cilium/Chart.yaml"
+      },
+      "releases": [
+        {
+          "tag": "v1.20.5",
+          "line": "1.20",
+          "status": "declared",
+          "source_kind": "chart_kubeversion",
+          "shape": "min_only",
+          "constraint_raw": "\u003e= 1.21.0-0",
+          "minimum": "1.21.0",
+          "citation": {
+            "repo": "cilium/cilium",
+            "tag": "v1.20.5",
+            "commit": "150121410c147fad575ac5dcbce6de923be69042",
+            "tag_ref_response_sha256": "4fd0bf00875719b7040b6c7104c24a08c062ad97eb98f7dcdce3aabfb8ec6d41",
+            "tag_object_sha": "a5d08be2876a03696503ef1bb775ae191353870b",
+            "tag_object_response_sha256": "94e6c88b7d8ea48b962fade8cd447674e36b70149c2f9e2a742625501672b68d",
+            "path": "install/kubernetes/cilium/Chart.yaml",
+            "blob_sha": "715747c0e32c222b9de7c826c9b309bdd17e0397",
+            "file_sha256": "24da99e155818247c9785604622f06cb2dd087aeaa26753008727094373c6ba2",
+            "contents_response_sha256": "c2476c688ce23df866f49b1a2a6b7c4e65e0a9074c15b9009783f60142046795",
+            "line_start": 7,
+            "line_end": 7,
+            "cited_lines": [
+              {
+                "line": 7,
+                "text": "kubeVersion: \"\u003e= 1.21.0-0\""
+              }
+            ]
+          }
+        },
+        {
+          "tag": "v1.19.11",
+          "line": "1.19",
+          "status": "declared",
+          "source_kind": "chart_kubeversion",
+          "shape": "min_only",
+          "constraint_raw": "\u003e= 1.21.0-0",
+          "minimum": "1.21.0",
+          "citation": {
+            "repo": "cilium/cilium",
+            "tag": "v1.19.11",
+            "commit": "0ea77482ba48d34b488a3c95c4eae5159ddfd069",
+            "tag_ref_response_sha256": "f03bbb9021f87d7d4bb52bb676b1292149d4f6842152c564b9bc1da015930b58",
+            "tag_object_sha": "ad9c742e47523465abe35791ed125375e60e4023",
+            "tag_object_response_sha256": "b13bd776f0c44b687627f852e6fa30fd514f5f54f5ae299d73b8230322401f2c",
+            "path": "install/kubernetes/cilium/Chart.yaml",
+            "blob_sha": "b5d53e74010859407e1d00656e093397bc4b0f20",
+            "file_sha256": "17f1cd6a5113d497b3973d2b83067d4c72c8d58d3f71dd44fc4ccb8086508e21",
+            "contents_response_sha256": "f40ec95cbec531c36941681c458fb6b97879cf948a870afa3b0c8e77fc088358",
+            "line_start": 7,
+            "line_end": 7,
+            "cited_lines": [
+              {
+                "line": 7,
+                "text": "kubeVersion: \"\u003e= 1.21.0-0\""
+              }
+            ]
+          }
+        },
+        {
+          "tag": "v1.18.17",
+          "line": "1.18",
+          "status": "declared",
+          "source_kind": "chart_kubeversion",
+          "shape": "min_only",
+          "constraint_raw": "\u003e= 1.21.0-0",
+          "minimum": "1.21.0",
+          "citation": {
+            "repo": "cilium/cilium",
+            "tag": "v1.18.17",
+            "commit": "bd582710434d24f88aeb7da25ae49721342f046f",
+            "tag_ref_response_sha256": "afeee7ce37e79a51a6cbf33775375c64f639a70c850aa4ab72e95d7d2017afdb",
+            "tag_object_sha": "e260c43296b3f83eac2024c4c86d28877036fbed",
+            "tag_object_response_sha256": "881465bfeacc0ce3a28927ff9d71d7dac261049cd0d84abc8a886c98ec38011c",
+            "path": "install/kubernetes/cilium/Chart.yaml",
+            "blob_sha": "96b3974b5df8ebc792859cd07b27affc081c5f43",
+            "file_sha256": "be2f8b4eb1b4a4d77117873ea38bdd8cfcb6256110b980b394e68e7e5ed47f27",
+            "contents_response_sha256": "76076a03e2e1667d501584050b4d7f38f111fc155e8c6f22ed14401722cb49e9",
+            "line_start": 7,
+            "line_end": 7,
+            "cited_lines": [
+              {
+                "line": 7,
+                "text": "kubeVersion: \"\u003e= 1.21.0-0\""
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "project": "istio",
+      "repo": "istio/istio",
+      "source": {
+        "kind": "chart_kubeversion",
+        "path": "manifests/charts/base/Chart.yaml"
+      },
+      "releases": [
+        {
+          "tag": "1.32.0",
+          "line": "1.32",
+          "status": "not_declared",
+          "reason": "no_declaration_in_source",
+          "citation": {
+            "repo": "istio/istio",
+            "tag": "1.32.0",
+            "commit": "19cc19624069db78ce5c6940b7be94c540eecfb0",
+            "tag_ref_response_sha256": "51b2d508a09438081e8029bd1d4d6603d6c17e9cc893a6d944bb6192fc122b28",
+            "tag_object_sha": "38ee3e789233243dfadb0eddbcbaafac87bc7141",
+            "tag_object_response_sha256": "5b93e248a3f594c1f5031ec82e816d7327ea8ad11fc6ab451588d3bd799b8a24",
+            "path": "manifests/charts/base/Chart.yaml",
+            "blob_sha": "f56fe04ddfae48dade8a3913015f049120c35f19",
+            "file_sha256": "a52b0f3786932dac321471db526bad1247feac170933e8d90fecb942aba7d13d",
+            "contents_response_sha256": "1670bfe36fbbc44cafb1655c5692597bc16ff4b3deabc3f2a55dc34a2e743fe1"
+          }
+        },
+        {
+          "tag": "1.31.4",
+          "line": "1.31",
+          "status": "not_declared",
+          "reason": "no_declaration_in_source",
+          "citation": {
+            "repo": "istio/istio",
+            "tag": "1.31.4",
+            "commit": "a079f649cbcb984cd8d9330699e165b89ff1f6a1",
+            "tag_ref_response_sha256": "3a9c3dbeb1244554ab2e795459914d22aab0a6cf56cc26995aaac7e356ae2f8d",
+            "tag_object_sha": "3c207ecd8924123fc5df992ffb98a14fd59eda31",
+            "tag_object_response_sha256": "64295402d5f002bf1025fc95d26c6f8cd25af52db11094bbae76695c18964122",
+            "path": "manifests/charts/base/Chart.yaml",
+            "blob_sha": "f56fe04ddfae48dade8a3913015f049120c35f19",
+            "file_sha256": "a52b0f3786932dac321471db526bad1247feac170933e8d90fecb942aba7d13d",
+            "contents_response_sha256": "23f7fe97983f343896a6b7eefadbeaf600cbb8369fc2b3480c15b6eef89f0713"
+          }
+        },
+        {
+          "tag": "1.30.8",
+          "line": "1.30",
+          "status": "not_declared",
+          "reason": "no_declaration_in_source",
+          "citation": {
+            "repo": "istio/istio",
+            "tag": "1.30.8",
+            "commit": "f6879bae446c19c398d0f844d66fe1c3801b2b25",
+            "tag_ref_response_sha256": "7a31587182379cca043d7534050fca014f1d7cbc9f2aa47c3bdf73f3fe70607f",
+            "tag_object_sha": "520fc8bb9854a3b1babd63b6c781e0b594b00deb",
+            "tag_object_response_sha256": "65519223697e512f51805a52e286a40536b840d79dfd65e281bb23a06b6d773c",
+            "path": "manifests/charts/base/Chart.yaml",
+            "blob_sha": "f56fe04ddfae48dade8a3913015f049120c35f19",
+            "file_sha256": "a52b0f3786932dac321471db526bad1247feac170933e8d90fecb942aba7d13d",
+            "contents_response_sha256": "b3f11aac1813ef58615b57f9abe8966e49d8229358168020a3405a92c3c88d5d"
+          }
+        }
+      ]
+    },
+    {
+      "project": "longhorn",
+      "repo": "longhorn/longhorn",
+      "source": {
+        "kind": "chart_kubeversion",
+        "path": "chart/Chart.yaml"
+      },
+      "releases": [
+        {
+          "tag": "v1.13.0",
+          "line": "1.13",
+          "status": "declared",
+          "source_kind": "chart_kubeversion",
+          "shape": "min_only",
+          "constraint_raw": "\u003e=1.34.0-0",
+          "minimum": "1.34.0",
+          "citation": {
+            "repo": "longhorn/longhorn",
+            "tag": "v1.13.0",
+            "commit": "c3d88832bd8cec4f38dec65e79436984871dc313",
+            "tag_ref_response_sha256": "983753579d5ae27d52621e9642c7a85e72a7925fb21560a70a406e7da3431289",
+            "path": "chart/Chart.yaml",
+            "blob_sha": "085d263680889a090559acb84f9f20e781bc7b4d",
+            "file_sha256": "011d4358d575f4b3f98209ba1cd86e6624631bac7ea49d806a58305607aa01e6",
+            "contents_response_sha256": "01d0cf97b1e96118290dffbecb9e7f8af6a67c6afdf0f06f0eb66b9bfd99de40",
+            "line_start": 5,
+            "line_end": 5,
+            "cited_lines": [
+              {
+                "line": 5,
+                "text": "kubeVersion: \"\u003e=1.34.0-0\""
+              }
+            ]
+          }
+        },
+        {
+          "tag": "v1.12.2",
+          "line": "1.12",
+          "status": "declared",
+          "source_kind": "chart_kubeversion",
+          "shape": "min_only",
+          "constraint_raw": "\u003e=1.25.0-0",
+          "minimum": "1.25.0",
+          "citation": {
+            "repo": "longhorn/longhorn",
+            "tag": "v1.12.2",
+            "commit": "6099725ee4067daec2f88ca8043b53308720c7b2",
+            "tag_ref_response_sha256": "02e57cd70fc18c39f3f8e8b964b2cebf6851ca6966664a9341b12089c20f1d01",
+            "path": "chart/Chart.yaml",
+            "blob_sha": "3e475b7f1c958d9d4896610a98d8c01968f6feee",
+            "file_sha256": "a1e54a8937ec272e8b9f521679ff4e297c1a0392a57b188f7ef1f36c2198760f",
+            "contents_response_sha256": "09be127c6f7a21169a43f9a9077d784a033204c6a0f4ef0cbb38093d948239cd",
+            "line_start": 5,
+            "line_end": 5,
+            "cited_lines": [
+              {
+                "line": 5,
+                "text": "kubeVersion: \"\u003e=1.25.0-0\""
+              }
+            ]
+          }
+        },
+        {
+          "tag": "v1.11.3",
+          "line": "1.11",
+          "status": "declared",
+          "source_kind": "chart_kubeversion",
+          "shape": "min_only",
+          "constraint_raw": "\u003e=1.25.0-0",
+          "minimum": "1.25.0",
+          "citation": {
+            "repo": "longhorn/longhorn",
+            "tag": "v1.11.3",
+            "commit": "79c39728c70dee0326cf2f647c874d01b798286b",
+            "tag_ref_response_sha256": "a5c6ab0df47165d8d5adf4684fa67cea8a3dd64ce0a0134e1fdd52e53599d798",
+            "path": "chart/Chart.yaml",
+            "blob_sha": "4c6fc9e316fba5a5b0d78065353f02d762be48d7",
+            "file_sha256": "aea1084ac3a3bc1c933e184a82e8ecec44ba0427c0b9130aab5d18dd4aa1ba0e",
+            "contents_response_sha256": "2807381d1dd44c880f2fefeb60db507ded2a8603aa162796d18d6cfb4f386619",
+            "line_start": 5,
+            "line_end": 5,
+            "cited_lines": [
+              {
+                "line": 5,
+                "text": "kubeVersion: \"\u003e=1.25.0-0\""
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "project": "kyverno",
+      "repo": "kyverno/kyverno",
+      "source": {
+        "kind": "chart_kubeversion",
+        "path": "charts/kyverno/Chart.yaml"
+      },
+      "releases": [
+        {
+          "tag": "v1.20.0",
+          "line": "1.20",
+          "status": "declared",
+          "source_kind": "chart_kubeversion",
+          "shape": "min_only",
+          "constraint_raw": "\u003e=1.25.0-0",
+          "minimum": "1.25.0",
+          "citation": {
+            "repo": "kyverno/kyverno",
+            "tag": "v1.20.0",
+            "commit": "f666af06e9bd310c7e730f1523c0430e90371a89",
+            "tag_ref_response_sha256": "5224208a4d03e69cb5894d4481db18d54e27b0d4534504115cdf9bbe0cbb0018",
+            "tag_object_sha": "95b0c7f6d3e3916ff70799eb19caa76223ca7eed",
+            "tag_object_response_sha256": "ff6960bba443ba433213ecede6d6d7b5676dcc72dfb6ca1f45023b3987e06e43",
+            "path": "charts/kyverno/Chart.yaml",
+            "blob_sha": "3757bfbdc5b2b2fd342fa5ce6f017ddc0700deb3",
+            "file_sha256": "e0ae55ca20699cfb78a2f961e6aec1f51e132e770348cbed62594cce701d9316",
+            "contents_response_sha256": "f9d9da01b35c76deb8977d5bf3a52ec41bcf1b287d840a7f906e39a4bfbb21b4",
+            "line_start": 23,
+            "line_end": 23,
+            "cited_lines": [
+              {
+                "line": 23,
+                "text": "kubeVersion: \"\u003e=1.25.0-0\""
+              }
+            ]
+          }
+        },
+        {
+          "tag": "v1.19.2",
+          "line": "1.19",
+          "status": "declared",
+          "source_kind": "chart_kubeversion",
+          "shape": "min_only",
+          "constraint_raw": "\u003e=1.25.0-0",
+          "minimum": "1.25.0",
+          "citation": {
+            "repo": "kyverno/kyverno",
+            "tag": "v1.19.2",
+            "commit": "e63308f1e16c05cd009ac4864be6ec25c66b49be",
+            "tag_ref_response_sha256": "ed99ee5ad07c88bab4973585d365a1f195a6f1fb3cad68eb8d8dd3c462118cf9",
+            "path": "charts/kyverno/Chart.yaml",
+            "blob_sha": "d2d49787a7a6af7fdf55884fec02af4c087020b4",
+            "file_sha256": "b035db5a851897879f0a51b8ec94dd6492b2136801fb69a4398578a44a79c560",
+            "contents_response_sha256": "bde78d5f40d45a918cc4f384ce029e35daf312625ffb137d734c154c72d05c54",
+            "line_start": 23,
+            "line_end": 23,
+            "cited_lines": [
+              {
+                "line": 23,
+                "text": "kubeVersion: \"\u003e=1.25.0-0\""
+              }
+            ]
+          }
+        },
+        {
+          "tag": "v1.18.2",
+          "line": "1.18",
+          "status": "declared",
+          "source_kind": "chart_kubeversion",
+          "shape": "min_only",
+          "constraint_raw": "\u003e=1.25.0-0",
+          "minimum": "1.25.0",
+          "citation": {
+            "repo": "kyverno/kyverno",
+            "tag": "v1.18.2",
+            "commit": "945ac9ce8546ea6cd51370f24b615148c577da5e",
+            "tag_ref_response_sha256": "c6e3882e2ec26e90e3ba2d9dd1d0ac929c668733894ec9b942d2d17fd6e48629",
+            "tag_object_sha": "18b41b2505c8b16c34892691f9739848d25b5447",
+            "tag_object_response_sha256": "053fb6c766218aa200791fb8b6c362669bee8c3aa46993676ba277a3f4e0b118",
+            "path": "charts/kyverno/Chart.yaml",
+            "blob_sha": "dee85578136a39b70fb7fa02b5a76b16e7482491",
+            "file_sha256": "d9a85706f6ceb4e6297953869f4cd126274c95da11fb12944936454bf42d9ad5",
+            "contents_response_sha256": "35e9877960fb94eaeaf8f667b1a5b180e7d0991a39966129689391fca3255300",
+            "line_start": 23,
+            "line_end": 23,
+            "cited_lines": [
+              {
+                "line": 23,
+                "text": "kubeVersion: \"\u003e=1.25.0-0\""
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "project": "linkerd",
+      "repo": "linkerd/linkerd2",
+      "source": {
+        "kind": "chart_kubeversion",
+        "path": "charts/linkerd-control-plane/Chart.yaml"
+      },
+      "releases": [
+        {
+          "tag": "edge-26.11.2",
+          "line": "26.11",
+          "status": "declared",
+          "source_kind": "chart_kubeversion",
+          "shape": "min_only",
+          "constraint_raw": "\u003e=1.31.0-0",
+          "minimum": "1.31.0",
+          "citation": {
+            "repo": "linkerd/linkerd2",
+            "tag": "edge-26.11.2",
+            "commit": "76f5e82dff7c0ead5390db7dd00266db9f6f93e1",
+            "tag_ref_response_sha256": "e05d4d7939b550e95f874d543998ebe4fe7e14e1c338bbbb5f813582b97c44ca",
+            "path": "charts/linkerd-control-plane/Chart.yaml",
+            "blob_sha": "9b514efa5de5c089b80d107c61b3cd3167babc91",
+            "file_sha256": "f6cd79c098385dcbfdccdaa3eba61d9c80bda00d2f3f224f03a505d67f1dfd37",
+            "contents_response_sha256": "43074197fd54f64b7009d1d2d5f8b6277184b254549b0b6c2be31094f279452c",
+            "line_start": 11,
+            "line_end": 11,
+            "cited_lines": [
+              {
+                "line": 11,
+                "text": "kubeVersion: \"\u003e=1.31.0-0\""
+              }
+            ]
+          }
+        },
+        {
+          "tag": "edge-26.10.2",
+          "line": "26.10",
+          "status": "declared",
+          "source_kind": "chart_kubeversion",
+          "shape": "min_only",
+          "constraint_raw": "\u003e=1.31.0-0",
+          "minimum": "1.31.0",
+          "citation": {
+            "repo": "linkerd/linkerd2",
+            "tag": "edge-26.10.2",
+            "commit": "a4c00ac553f0f2ff84558dd7a35ed24dcd6cc6eb",
+            "tag_ref_response_sha256": "13a781ef40337f03e9b399d023d047459396c3ebb30b4edf5dd100234de5831d",
+            "path": "charts/linkerd-control-plane/Chart.yaml",
+            "blob_sha": "9b514efa5de5c089b80d107c61b3cd3167babc91",
+            "file_sha256": "f6cd79c098385dcbfdccdaa3eba61d9c80bda00d2f3f224f03a505d67f1dfd37",
+            "contents_response_sha256": "2409db604239a5b3757dc8e507aef1748ea52bd1b173ce45e32a93dec166f733",
+            "line_start": 11,
+            "line_end": 11,
+            "cited_lines": [
+              {
+                "line": 11,
+                "text": "kubeVersion: \"\u003e=1.31.0-0\""
+              }
+            ]
+          }
+        },
+        {
+          "tag": "edge-26.9.3",
+          "line": "26.9",
+          "status": "declared",
+          "source_kind": "chart_kubeversion",
+          "shape": "min_only",
+          "constraint_raw": "\u003e=1.31.0-0",
+          "minimum": "1.31.0",
+          "citation": {
+            "repo": "linkerd/linkerd2",
+            "tag": "edge-26.9.3",
+            "commit": "86d395080040d07b8e0109547135520218b696f7",
+            "tag_ref_response_sha256": "aa65c4c4fdaee23704c97574f1c3d9641cba97d8b5d63fc77dbdd0f051776b1a",
+            "path": "charts/linkerd-control-plane/Chart.yaml",
+            "blob_sha": "9b514efa5de5c089b80d107c61b3cd3167babc91",
+            "file_sha256": "f6cd79c098385dcbfdccdaa3eba61d9c80bda00d2f3f224f03a505d67f1dfd37",
+            "contents_response_sha256": "63cc3977284959a54904730155b2386ddf15826664a28183fbdf33bfeaa364b7",
+            "line_start": 11,
+            "line_end": 11,
+            "cited_lines": [
+              {
+                "line": 11,
+                "text": "kubeVersion: \"\u003e=1.31.0-0\""
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "project": "kube-prometheus",
+      "repo": "prometheus-operator/kube-prometheus",
+      "source": {
+        "kind": "docs_matrix",
+        "path": "README.md",
+        "matrix": {
+          "header_first_cell": "kube-prometheus stack",
+          "row_key_prefix": "release-",
+          "row_key_suffix": ""
+        }
+      },
+      "releases": [
+        {
+          "tag": "v0.19.0",
+          "line": "0.19",
+          "status": "declared",
+          "source_kind": "docs_matrix",
+          "shape": "bounded",
+          "minimum": "1.35",
+          "maximum": "1.37",
+          "max_at_matrix_edge": true,
+          "citation": {
+            "repo": "prometheus-operator/kube-prometheus",
+            "tag": "v0.19.0",
+            "commit": "799f3d73b5adf5758c3119c9201d9f417accb6d0",
+            "tag_ref_response_sha256": "43c2e62cddef79e51bc64feb89b43ea4afae9b2d061ca8d60056d7a87080c2b4",
+            "path": "README.md",
+            "blob_sha": "0dafe589185cd0b857865154a699b07a6c834e0c",
+            "file_sha256": "d6702e20f8d5a84e889c4330517be0a794a1deeb32cd51d0ff3a2778c6b43288",
+            "contents_response_sha256": "86752cc14186895d089010f624bcb685e274bc70b017137917e370322db1dbd0",
+            "line_start": 51,
+            "line_end": 55,
+            "cited_lines": [
+              {
+                "line": 51,
+                "text": "| kube-prometheus stack                                                                      | Kubernetes 1.33 | Kubernetes 1.34 | Kubernetes 1.35 | Kubernetes 1.36 | Kubernetes 1.37 |"
+              },
+              {
+                "line": 55,
+                "text": "| [`release-0.19`](https://github.com/prometheus-operator/kube-prometheus/tree/release-0.19) | x               | x               | ✔               | ✔               | ✔               |"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "v0.18.0",
+          "line": "0.18",
+          "status": "declared",
+          "source_kind": "docs_matrix",
+          "shape": "bounded",
+          "minimum": "1.33",
+          "maximum": "1.36",
+          "max_at_matrix_edge": true,
+          "citation": {
+            "repo": "prometheus-operator/kube-prometheus",
+            "tag": "v0.18.0",
+            "commit": "4775d44d1aacfab7effa08293357521a3c603b87",
+            "tag_ref_response_sha256": "780693d5f67a92983351beb30cd8aa58fe26d110272a0be67caef9a8b91ee447",
+            "path": "README.md",
+            "blob_sha": "f27a653f2b0b5b3db89f7e87c52b3aae9a6542fa",
+            "file_sha256": "8a8d56ade260f7868e4a050c1cfdde2d019a510b4cdbfdfabebd11d4c39962dc",
+            "contents_response_sha256": "47b58dfdbb0958ba807d7b96768d580245b78b8660f01a49ad9bb7f629ccc8cc",
+            "line_start": 47,
+            "line_end": 51,
+            "cited_lines": [
+              {
+                "line": 47,
+                "text": "| kube-prometheus stack                                                                      | Kubernetes 1.32 | Kubernetes 1.33 | Kubernetes 1.34 | Kubernetes 1.35 | Kubernetes 1.36 |"
+              },
+              {
+                "line": 51,
+                "text": "| [`release-0.18`](https://github.com/prometheus-operator/kube-prometheus/tree/release-0.18) | x               | ✔               | ✔               | ✔               | ✔               |"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "v0.17.0",
+          "line": "0.17",
+          "status": "declared",
+          "source_kind": "docs_matrix",
+          "shape": "bounded",
+          "minimum": "1.33",
+          "maximum": "1.35",
+          "max_at_matrix_edge": true,
+          "citation": {
+            "repo": "prometheus-operator/kube-prometheus",
+            "tag": "v0.17.0",
+            "commit": "d6d094d115093d81d3355bc970a93e4357d6ef05",
+            "tag_ref_response_sha256": "fdbc558c0663f4c7daaf10f4b445c74261b5833a9cc49864fddbe188c1b2e9a5",
+            "path": "README.md",
+            "blob_sha": "ccc98369449d2396bd436b097bcd1bc5b8eef5ab",
+            "file_sha256": "a5b1da7304e58ab3f4bf5846606ad7e5800ae6f38661e15b7d413b8e4bcc6c6d",
+            "contents_response_sha256": "6a1862d8038a1dfc07ec24b83051eacc204dde483b55bd4e7048ec7b65eb03f3",
+            "line_start": 47,
+            "line_end": 51,
+            "cited_lines": [
+              {
+                "line": 47,
+                "text": "| kube-prometheus stack                                                                      | Kubernetes 1.31 | Kubernetes 1.32 | Kubernetes 1.33 | Kubernetes 1.34 | Kubernetes 1.35 |"
+              },
+              {
+                "line": 51,
+                "text": "| [`release-0.17`](https://github.com/prometheus-operator/kube-prometheus/tree/release-0.17) | x               | x               | ✔               | ✔               | ✔               |"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "project": "keda",
+      "repo": "kedacore/keda",
+      "releases": [
+        {
+          "tag": "v2.21.1",
+          "line": "2.21",
+          "status": "not_declared",
+          "reason": "no_source_reviewed"
+        },
+        {
+          "tag": "v2.20.2",
+          "line": "2.20",
+          "status": "not_declared",
+          "reason": "no_source_reviewed"
+        },
+        {
+          "tag": "v2.19.0",
+          "line": "2.19",
+          "status": "not_declared",
+          "reason": "no_source_reviewed"
+        }
+      ]
+    },
+    {
+      "project": "flux2",
+      "repo": "fluxcd/flux2",
+      "releases": [
+        {
+          "tag": "v2.10.0",
+          "line": "2.10",
+          "status": "not_declared",
+          "reason": "no_source_reviewed"
+        },
+        {
+          "tag": "v2.9.6",
+          "line": "2.9",
+          "status": "not_declared",
+          "reason": "no_source_reviewed"
+        },
+        {
+          "tag": "v2.8.8",
+          "line": "2.8",
+          "status": "not_declared",
+          "reason": "no_source_reviewed"
+        }
+      ]
+    },
+    {
+      "project": "argo-cd",
+      "repo": "argoproj/argo-cd",
+      "releases": [
+        {
+          "tag": "v3.6.1",
+          "line": "3.6",
+          "status": "not_declared",
+          "reason": "no_source_reviewed"
+        },
+        {
+          "tag": "v3.5.7",
+          "line": "3.5",
+          "status": "not_declared",
+          "reason": "no_source_reviewed"
+        },
+        {
+          "tag": "v3.4.13",
+          "line": "3.4",
+          "status": "not_declared",
+          "reason": "no_source_reviewed"
+        }
+      ]
+    }
+  ]
+}
