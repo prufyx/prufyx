@@ -48,6 +48,7 @@ const (
 	CodeDeny      = 17
 	CodeLabels    = 18
 	CodeTag       = 19
+	CodeFeatures  = 20
 )
 
 const (
@@ -153,13 +154,15 @@ type UsageError struct{ Msg string }
 func (e *UsageError) Error() string { return e.Msg }
 
 type checker struct {
-	o     Options
-	regen Regenerator
-	root  string
-	res   Result
-	deny  []string
-	toRev string // revision of the tree under check ("" = the checked-out files)
-	bound bool   // release and cut: the checkout is the tagged commit
+	o        Options
+	regen    Regenerator
+	root     string
+	res      Result
+	deny     []string
+	toRev    string          // revision of the tree under check ("" = the checked-out files)
+	bound    bool            // release and cut: the checkout is the tagged commit
+	owned    map[string]bool // rendered lines of the works features
+	features *releasenotes.Features
 }
 
 func (c *checker) fail(code int, format string, args ...any) {
@@ -287,9 +290,20 @@ func (c *checker) run() {
 		tags = []string{c.o.Tag}
 		c.checkTagBinding()
 	}
+	c.features = c.checkFeatures()
+	c.owned = map[string]bool{}
+	if c.features != nil {
+		for _, x := range c.features.Features {
+			if x.State == releasenotes.StateWorks {
+				c.owned[releasenotes.WorksLine(x)] = true
+			}
+		}
+	}
 	changelog, err := c.readRoot(changelogPath)
 	if err != nil {
 		c.fail(CodeChangelog, "CHANGELOG.md: %v", err)
+	} else {
+		c.taggedHistory(string(changelog))
 	}
 	sections := map[string]bool{"Unreleased": true}
 	var scanned []scanText
@@ -451,7 +465,19 @@ func (c *checker) checkRelease(tag, changelog string, scanned *[]scanText) {
 	}
 	version := strings.TrimPrefix(tag, "v")
 	section, sectionOK := changelogSection(changelog, version)
-	if !sectionOK {
+	entry := version
+	switch {
+	case !sectionOK && strings.Count(changelog, "## ["+version+"]") > 1:
+		c.fail(CodeChangelog, "CHANGELOG.md needs exactly one [%s] heading", version)
+	case !sectionOK && c.o.Mode == ModeUnreleased:
+		// Before the cut the entry is generated into [Unreleased]; the cut
+		// renames that heading. Release and cut modes need the real heading.
+		section, sectionOK = changelogSection(changelog, "Unreleased")
+		entry = "Unreleased"
+		if !sectionOK {
+			c.fail(CodeChangelog, "CHANGELOG.md needs exactly one [%s] or [Unreleased] heading", version)
+		}
+	case !sectionOK:
 		c.fail(CodeChangelog, "CHANGELOG.md needs exactly one [%s] heading", version)
 	}
 	// Header: previous and commit labels.
@@ -486,9 +512,9 @@ func (c *checker) checkRelease(tag, changelog string, scanned *[]scanText) {
 	}
 	if sectionOK {
 		if updated, err := releasenotes.ReplaceBlock(section, r4); err != nil {
-			c.fail(CodeChangelog, "CHANGELOG.md [%s]: %v", version, err)
+			c.fail(CodeChangelog, "CHANGELOG.md [%s]: %v", entry, err)
 		} else if updated != section {
-			c.fail(CodeChangelog, "CHANGELOG.md [%s]: the generated block differs from its regeneration", version)
+			c.fail(CodeChangelog, "CHANGELOG.md [%s]: the generated block differs from its regeneration", entry)
 		}
 	}
 	*scanned = append(*scanned, notesScan(name, doc))
@@ -537,6 +563,11 @@ func (c *checker) render(name, tag, prev, toCommit string) (r3, r4 string, ok bo
 			return
 		}
 	}
+	features, err := releasenotes.ReadFeatures(toTree)
+	if err != nil {
+		c.fail(CodeFeatures, "%s: the notes need the feature file of the tree under check: %v", name, err)
+		return
+	}
 	fromTree := releasenotes.GitTree{Repo: c.root, Rev: "refs/tags/" + prev}
 	// The previous counts pin is the sha256 of the previous tag's own
 	// committed counts file (or the code constant for the bootstrap tag);
@@ -580,6 +611,7 @@ func (c *checker) render(name, tag, prev, toCommit string) (r3, r4 string, ok bo
 		FromCommit: fromShort, ToCommit: toCommit,
 		OmitMergedPRs: true,
 		Prev:          prevCounts, Cur: curCounts,
+		Features: features,
 		Previous: releasenotes.PreviousPin{Tag: prev, Commit: fromShort, CountsSha256: prevCounts.Sha256},
 	}
 	opts.Level = 3
@@ -633,6 +665,16 @@ func (c *checker) changelogScans(doc string, want map[string]bool) []scanText {
 		out = append(out, outsideScan("CHANGELOG.md ["+doc[l[2]:l[3]]+"]", doc[l[0]:end], false, [2]string{releasenotes.MarkerBegin, releasenotes.MarkerEnd}))
 	}
 	return out
+}
+
+// claims is the text the form rules read: the whole text of a notes file or
+// CHANGELOG entry (the generated lists included), the hand-written text of the
+// README (its generated block states the form definitions).
+func (s scanText) claims() string {
+	if s.name == readmePath {
+		return strings.Join(s.outside, "\n")
+	}
+	return s.whole
 }
 
 func notesScan(name, doc string) scanText {
@@ -708,6 +750,11 @@ func (c *checker) scan(s scanText) {
 		if denyUnlabeled.MatchString(sentence) && !hasLabel(sentence) {
 			c.fail(CodeDeny, "%s: a project count without its coverage label: %s", s.name, clip(sentence, 0))
 		}
+	}
+	c.featurePhrases(s.name, s.whole)
+	c.formClaims(s.name, s.claims())
+	if s.everyLine {
+		c.freeClaims(s.name, s.outside)
 	}
 	for _, w := range c.deny {
 		if containsName(lower, w) {

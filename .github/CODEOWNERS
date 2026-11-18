@@ -22,6 +22,14 @@
 /cli/internal/maintainer/knowledgegate/ @airstand
 /cli/internal/maintainer/releasedocs/ @airstand
 /cli/cmd/prufyx-maintainer/release_docs.go @airstand
+/cli/internal/maintainer/releasenotes/ @airstand
+/cli/cmd/prufyx-maintainer/release_notes.go @airstand
+# The feature statements of the release notes: a state flip, the smoke list
+# that backs it and the test that runs the list need the owner's review, never
+# only the editor's.
+/cli/docs/release-features.json @airstand
+/cli/docs/release-features-smoke.json @airstand
+/cli/cmd/prufyx-community/release_features_smoke_test.go @airstand
 /cli/internal/maintainer/releaseworkflow/release_docs_gate_test.go @airstand
 /scripts/release-dry-run.sh @airstand
 /cli/internal/maintainer/coveragereport/ @airstand

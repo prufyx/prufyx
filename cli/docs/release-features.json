@@ -1,0 +1,141 @@
+{
+  "schema": "prufyx.io/release-features/v1",
+  "features": [
+    {
+      "id": "signed-release-verify",
+      "title": "Verify a signed release download",
+      "state": "works",
+      "demo": "gh attestation verify <tarball> --repo prufyx/prufyx",
+      "evidence": "check:release.yml:provenance",
+      "notYet": ""
+    },
+    {
+      "id": "signed-knowledge-verify",
+      "title": "Verify a signed knowledge package against the pinned root",
+      "state": "works",
+      "demo": "prufyx db verify FILE --profile cncf-projects --bootstrap-root root.json",
+      "evidence": "check:knowledge-publish.yml:sign",
+      "notYet": ""
+    },
+    {
+      "id": "served-api-check",
+      "title": "Kubernetes served-API check for a cluster upgrade",
+      "state": "works",
+      "demo": "prufyx scan examples/multi-hop/rendered.yaml --from kubernetes=1.24.0 --to kubernetes=1.25.0",
+      "evidence": "file:cli/internal/servedapis/servedapis_test.go",
+      "notYet": ""
+    },
+    {
+      "id": "multi-version-plan",
+      "title": "Multi-version upgrade plan for applications",
+      "state": "not-yet",
+      "demo": "",
+      "evidence": "",
+      "notYet": "Kubernetes plans run several hops; an application plan runs one hop."
+    },
+    {
+      "id": "knowledge-update",
+      "title": "Knowledge update without a new binary",
+      "state": "not-yet",
+      "demo": "",
+      "evidence": "",
+      "notYet": "The update feed opens when this release is published."
+    },
+    {
+      "id": "change-list",
+      "title": "Change list with an ATTENTION answer",
+      "state": "not-yet",
+      "demo": "",
+      "evidence": "",
+      "notYet": "No upgrade pair has a change list yet."
+    },
+    {
+      "id": "community-group",
+      "title": "Community projects as a marked group",
+      "state": "not-yet",
+      "demo": "",
+      "evidence": "",
+      "notYet": "Some of their rules are not signed yet, so some answer UNKNOWN."
+    },
+    {
+      "id": "k8s-versions-per-release",
+      "title": "Kubernetes versions supported by each project release",
+      "state": "not-yet",
+      "demo": "",
+      "evidence": "",
+      "notYet": "Only a generated documentation table exists; the tool does not use it."
+    },
+    {
+      "id": "rule-freshness",
+      "title": "No rule expires silently",
+      "state": "not-yet",
+      "demo": "",
+      "evidence": "",
+      "notYet": "Some rules still need to be signed again before they expire."
+    },
+    {
+      "id": "automated-renewal",
+      "title": "Automated rule renewal",
+      "state": "not-yet",
+      "demo": "",
+      "evidence": "",
+      "notYet": "Renewal runs as a dry run only."
+    },
+    {
+      "id": "pinned-lease",
+      "title": "Fixed-version rules that do not expire",
+      "state": "not-yet",
+      "demo": "",
+      "evidence": "",
+      "notYet": "The code is not released yet."
+    },
+    {
+      "id": "release-notes",
+      "title": "Release notes and changelog generated from data",
+      "state": "not-yet",
+      "demo": "",
+      "evidence": "",
+      "notYet": "The generator is in place; this release is the first to use it end to end."
+    },
+    {
+      "id": "contact-route",
+      "title": "Contact route and try-out template on the site",
+      "state": "not-yet",
+      "demo": "",
+      "evidence": "",
+      "notYet": "The site is not updated yet."
+    },
+    {
+      "id": "maintainer-intake",
+      "title": "Maintainers add their own project end to end",
+      "state": "not-yet",
+      "demo": "",
+      "evidence": "",
+      "notYet": "An owner review still sits between a request and a rule."
+    },
+    {
+      "id": "source-citations",
+      "title": "Exact source citations in the output",
+      "state": "not-yet",
+      "demo": "",
+      "evidence": "",
+      "notYet": "Citations are in the JSON output only."
+    },
+    {
+      "id": "kind-per-version",
+      "title": "Per-version kind test results in the output",
+      "state": "not-yet",
+      "demo": "",
+      "evidence": "",
+      "notYet": "The tool does not show them yet."
+    },
+    {
+      "id": "typed-gap",
+      "title": "A reason for every gap",
+      "state": "not-yet",
+      "demo": "",
+      "evidence": "",
+      "notYet": "Reasons are given for part of the gaps."
+    }
+  ]
+}

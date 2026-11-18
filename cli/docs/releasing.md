@@ -29,7 +29,7 @@ attestation and the `SHA256SUMS` of a version must stay one-to-one.
    a normal pull request, before tagging. Both state exactly what the release
    adds since the previous tag: projects added to the catalogue, rules per
    project, line attestations and Kubernetes minors, owner-approved onboarding
-   batches, the README coverage figures (A+B, S, G) and the merged pull
+   batches, the README coverage figures (per form: A/B, k8s served-API, S, L, G) and the merged pull
    requests. Nobody types these figures; the maintainer subcommand computes
    them from the data files of the two revisions (`rules.json` of the CNCF and
    community packs, the generated support inventory and `cli/knowledge/onboarding`)
@@ -132,7 +132,7 @@ closed: any unreadable file, missing marker, unknown schema or unresolvable tag
 is a finding, every finding fails, and there is no warning mode. The exit code
 is the lowest failed class: 2 usage, 10 README block, 11 counts file, 12 notes,
 13 CHANGELOG, 14 site copy, 15 previous release, 16 prose numbers, 17 deny
-list, 18 labels, 19 tag binding.
+list, 18 labels, 19 tag binding, 20 feature file.
 
 ```sh
 cd cli
@@ -163,6 +163,29 @@ Modes:
   is a private tree, so the release manager runs `cut` before the tag is pushed
   and supplies that copy; the public release job cannot see it. The site copy
   is therefore checked at cut time by the release manager, not in CI.
+
+Feature statements. The notes say what works and what does not only through
+`cli/docs/release-features.json` (closed schema: `id`, `title`, `state` `works`
+or `not-yet`, `demo`, `evidence`, `notYet`); the generator renders the lists
+"Works in this release" (with the demo command) and "Not yet" (with the reason)
+inside the generated block, and the notes carry the knowledge pack revision and
+digest the counts were generated from. The gate refuses: a notes or CHANGELOG
+text whose generated block differs from that rendering; a hand-written notes
+sentence that makes a coverage or testing claim; the phrases `self-onboard`,
+`onboard your project yourself`, `tested on Kubernetes`, `every version tested`
+and `confirmed` anywhere but in the rendered line of a `works` feature; the
+word "decided" in a sentence about the listed-not-judged form (L); a summed
+coverage figure ("A+B", "total decided"); a `works` feature whose evidence is
+not an existing file (`file:<path>`) or workflow job
+(`check:<workflow file>:<job id>`), or whose demo command is not on the CI
+smoke list `cli/docs/release-features-smoke.json` (binary entries are run by
+`cli/cmd/prufyx-community/release_features_smoke_test.go` in the ordinary test
+job; workflow entries name the workflow file that runs the command). The
+features `kind-per-version` and `source-citations` cannot be `works`. A state
+flip is a change to the feature file, which CODEOWNERS routes to the owner.
+The CHANGELOG section of a published release must equal the section committed
+at its tag, and exactly one `## [<version>]` heading may exist; before the cut
+the entry sits under `[Unreleased]`, and the cut renames that heading.
 
 What is checked. The previous counts are never read from the notes under test:
 they come from the previous tag's own committed counts file (sha256 computed by

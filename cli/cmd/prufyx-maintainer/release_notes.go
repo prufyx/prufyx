@@ -3,9 +3,11 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 
 	"github.com/prufyx/prufyx/cli/internal/maintainer/releasenotes"
@@ -94,6 +96,15 @@ func runReleaseNotes(args []string, stdout io.Writer) error {
 	}
 	pin.CountsSha256 = opts.Prev.Sha256
 	opts.Previous = pin
+	// The feature lists come from the committed feature file; a file that
+	// exists but is invalid stops the command. A tree without the file gets
+	// no feature section, and the release-docs gate refuses such notes.
+	if opts.Features, err = releasenotes.ReadFeatures(to); err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			return &commandError{code: 2, message: "release-notes: the feature file is invalid", err: err}
+		}
+		opts.Features = nil
+	}
 	opts.OmitMergedPRs = *omitPRs
 	opts.Level = *level
 	text, err := releasenotes.Render(a, b, opts)

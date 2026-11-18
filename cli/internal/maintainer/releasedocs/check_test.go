@@ -79,6 +79,12 @@ type rig struct {
 	counts     func(string) string
 	toCommit   string // label in the header; "first" = the commit of the previous tag
 	prevLabel  string
+	// files are written after the notes are generated from the good tree and
+	// before the last commit; an empty text removes the file.
+	files map[string]string
+	// features replaces the feature file of the tree before the notes are
+	// generated (the notes then render it); empty keeps goodFeatures.
+	features string
 }
 
 type env struct {
@@ -92,6 +98,23 @@ func (e env) opts(mode string) Options {
 	}
 	return o
 }
+
+const goodFeatures = `{
+  "schema": "prufyx.io/release-features/v1",
+  "features": [
+    {"id": "demo-check", "title": "A check that works", "state": "works", "demo": "prufyx demo --flag", "evidence": "file:README.md", "notYet": ""},
+    {"id": "later", "title": "A later thing", "state": "not-yet", "demo": "", "evidence": "", "notYet": "It is not built."}
+  ]
+}
+`
+
+const goodSmoke = `{
+  "schema": "prufyx.io/release-features-smoke/v1",
+  "entries": [
+    {"demo": "prufyx demo --flag", "kind": "binary", "args": ["demo", "--flag"], "wantExit": 0, "wantContains": "ok"}
+  ]
+}
+`
 
 const readmeText = "# Title\n\n> **Status: public beta.** The `" + curTag + "` release is out.\n\nIntro line.\n\n" + coveragereport.READMEBegin + "\n\ngenerated text 5\n\n" + coveragereport.READMEEnd + "\n\nTail text.\n"
 
@@ -115,6 +138,7 @@ func build(t *testing.T, r rig) env {
 	git(t, root, "init", "-q", "-b", "main")
 	write(t, root, releasenotes.CountsPath, fixture(t, "counts-prev.json"))
 	write(t, root, "README.md", strings.ReplaceAll(readmeText, curTag, prevTag))
+	write(t, root, "CHANGELOG.md", "# Changelog\n\n## [1.0.0] - 2025-12-01\n\n- Old entry with 99 things.\n")
 	git(t, root, "add", "-A")
 	git(t, root, "commit", "-q", "-m", "one")
 	git(t, root, "tag", prevTag)
@@ -130,6 +154,13 @@ func build(t *testing.T, r rig) env {
 	if prev == "" {
 		prev = prevTag
 	}
+	feat := goodFeatures
+	if r.features != "" {
+		feat = r.features
+	}
+	write(t, root, releasenotes.FeaturesPath, feat)
+	write(t, root, releasenotes.SmokePath, goodSmoke)
+	write(t, root, SmokeTestPath, "package main\n")
 	g := &checker{o: Options{Mode: ModeUnreleased}, root: root}
 	git(t, root, "add", "-A")
 	git(t, root, "commit", "-q", "-m", "data")
@@ -148,6 +179,13 @@ func build(t *testing.T, r rig) env {
 	changelog = changelog[:i] + entry
 	write(t, root, "cli/docs/release-notes-"+curTag+".md", r.notes(notes))
 	write(t, root, "CHANGELOG.md", r.changelog(changelog))
+	for rel, text := range r.files {
+		if text == "" {
+			must(t, os.Remove(filepath.Join(root, filepath.FromSlash(rel))))
+			continue
+		}
+		write(t, root, rel, text)
+	}
 	git(t, root, "add", "-A")
 	git(t, root, "commit", "-q", "-m", "docs")
 	if r.tagCurrent {
@@ -372,7 +410,10 @@ func TestNotesCommitLabelMustExistAndBeHistory(t *testing.T) {
 
 func TestChangelogEntryMissingFails(t *testing.T) {
 	e := build(t, rig{changelog: replaceIn("## [1.1.0]", "## [1.1.1]")})
-	wantFail(t, check(t, e.opts(ModeUnreleased)), CodeChangelog, "[1.1.0]")
+	// The entry is then looked for under [Unreleased], where it is not.
+	wantFail(t, check(t, e.opts(ModeUnreleased)), CodeChangelog, "[Unreleased]")
+	e = build(t, rig{tagCurrent: true, changelog: replaceIn("## [1.1.0]", "## [1.1.1]")})
+	wantFail(t, check(t, withDeny(t, e.opts(ModeRelease))), CodeChangelog, "[1.1.0]")
 }
 
 func TestChangelogDuplicateEntryFails(t *testing.T) {
@@ -572,7 +613,9 @@ func TestReadmeAndChangelogKeywordLinesAreScanned(t *testing.T) {
 	e = build(t, rig{changelog: replaceIn("- A hand written entry, exits 2 on failure.", "- Decided pairs rose to 45.")})
 	wantFail(t, check(t, e.opts(ModeUnreleased)), CodeProse, "CHANGELOG.md")
 	// An old release entry is history: not scanned.
-	e = build(t, rig{changelog: replaceIn("Old entry with 99 things.", "Old entry with 99 projects.")})
+	// (A published entry may not change at all, see TestTaggedHistoryMustNotBeRewritten;
+	// an entry of an unpublished older version is not scanned.)
+	e = build(t, rig{changelog: func(s string) string { return s + "\n## [0.9.0] - 2025-11-01\n\n- Older entry with 99 projects.\n" }})
 	wantPass(t, check(t, e.opts(ModeUnreleased)))
 }
 
@@ -792,4 +835,22 @@ func TestReadmeFencedCodeAndGeneratedRegionsAreNotProse(t *testing.T) {
 	e = build(t, rig{readme: replaceIn("Tail text.", coveragereport.READMECRDBegin+"\n87 projects decided\n"+coveragereport.READMECRDEnd+"\n42 projects hand typed\n")})
 	res = check(t, e.opts(ModeUnreleased))
 	wantFail(t, res, CodeProse, "(42)")
+}
+
+func readFile(t *testing.T, root, rel string) string {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
+	must(t, err)
+	return string(b)
+}
+
+func osSymlink(root, target, link string) error {
+	return os.Symlink(target, filepath.Join(root, link))
+}
+
+func siteCopy(t *testing.T, e env) string {
+	t.Helper()
+	p := filepath.Join(t.TempDir(), "site.json")
+	must(t, os.WriteFile(p, []byte(readFile(t, e.root, releasenotes.CountsPath)), 0o600))
+	return p
 }

@@ -111,7 +111,8 @@ func TestRenderFixtureTrees(t *testing.T) {
 		"- batch `ob-2`, decision `reject`:",
 		"- batch `ob-3`, decision `approve`:",
 		"- #7 Add thing\n- Merge branch 'x'",
-		"decided is not safe",
+		"a rule is not a safety statement",
+		"from the knowledge pack revision `",
 		"A catalogued project is not tested coverage",
 	} {
 		if !strings.Contains(out, want) {
