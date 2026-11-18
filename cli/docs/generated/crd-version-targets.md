@@ -13,7 +13,7 @@ The reviewed targets of the `crd.version-removal` extractor
 | `crd.version-removal.awx-operator` | community | `github.com/ansible/awx-operator` | `X.Y.Z` | 2.14 | yes | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.burrito` | community | `github.com/padok-team/burrito` | `vX.Y.Z` | 0.10 | yes | `manifests/crds/config.terraform.padok.cloud_terraformlayers.yaml`, `manifests/crds/config.terraform.padok.cloud_terraformpullrequests.yaml`, `manifests/crds/config.terraform.padok.cloud_terraformrepositories.yaml`, `manifests/crds/config.terraform.padok.cloud_terraformruns.yaml` | 0 |
 | `crd.version-removal.cass-operator` | community | `github.com/k8ssandra/cass-operator` | `vX.Y.Z` | 1.28 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
-| `crd.version-removal.cert-manager` | CNCF | `github.com/cert-manager/cert-manager` | `vX.Y.Z` | 1.16 | yes | files matching `^[^.][^/]*\.ya?ml$` in `deploy/crds` | 2 |
+| `crd.version-removal.cert-manager` | CNCF | `github.com/cert-manager/cert-manager` | `vX.Y.Z` | 1.15 | yes | files matching `^[^.][^/]*\.ya?ml$` in `deploy/crds` | 2 |
 | `crd.version-removal.chaos-mesh` | CNCF | `github.com/chaos-mesh/chaos-mesh` | `vX.Y.Z` | 2.3 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.chaosblade-operator` | community | `github.com/chaosblade-io/chaosblade-operator` | `vX.Y.Z` | 1.3 | yes | files matching `^[^.][^/]*\.ya?ml$` in `deploy/crds` | 0 |
 | `crd.version-removal.cilium` | CNCF | `github.com/cilium/cilium` | `vX.Y.Z` | 1.15 | yes | files matching `^[^.][^/]*\.ya?ml$` in `pkg/k8s/apis/cilium.io/client/crds/v2`, files matching `^[^.][^/]*\.ya?ml$` in `pkg/k8s/apis/cilium.io/client/crds/v2alpha1` | 0 |

@@ -7,7 +7,7 @@
     "component": "pkg:github/cert-manager/cert-manager",
     "factProject": "cert_manager",
     "tagPrefixes": ["v"],
-    "minFrom": "1.16",
+    "minFrom": "1.15",
     "attest": true,
     "paths": [
       {"path": "deploy/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
