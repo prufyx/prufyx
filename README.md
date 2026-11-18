@@ -7,7 +7,7 @@ Prufyx checks a planned upgrade against upstream evidence and returns
 file, and line range it relies on, and says how it was established.
 
 <!-- basis-counts:begin -->
-Of the 304 active rules shipped today, 260 with basis `reviewed`, 44 with basis `mechanical`. A `reviewed` rule was established by a person who read the cited upstream evidence. A `mechanical` rule was derived from upstream source by an extractor program that is re-run and checked before the rule is accepted; no person reviewed it rule by rule. The 217 release-line attestations and served-API lists are separate records: 217 with basis `mechanical`.
+Of the 305 active rules shipped today, 261 with basis `reviewed`, 44 with basis `mechanical`. A `reviewed` rule was established by a person who read the cited upstream evidence. A `mechanical` rule was derived from upstream source by an extractor program that is re-run and checked before the rule is accepted; no person reviewed it rule by rule. The 217 release-line attestations and served-API lists are separate records: 217 with basis `mechanical`.
 <!-- basis-counts:end -->
 
 Each rule states which way it was established, and
@@ -324,13 +324,13 @@ community projects that hold CRD knowledge.
 ## Coverage
 
 <!-- coverage:begin -->
-Generated on 2026-11-17 by `scripts/readme-coverage.sh` (do not edit this block by hand). Release lines captured 2026-10-31, evaluated on 2026-11-07. 9 projects were appended to the snapshot with their own capture dates; the date clock of the block is 2026-11-10 (the later of the snapshot's evaluation date and every capture date). The block is evaluated at 2026-11-17T16:18:37Z, the time of the newest line attestation or rule review, which is later than the date clock above.
+Generated on 2026-11-18 by `scripts/readme-coverage.sh` (do not edit this block by hand). Release lines captured 2026-10-31, evaluated on 2026-11-07. 9 projects were appended to the snapshot with their own capture dates; the date clock of the block is 2026-11-10 (the later of the snapshot's evaluation date and every capture date). The block is evaluated at 2026-11-18T12:00:00Z, the time of the newest line attestation or rule review, which is later than the date clock above.
 
 | Executable rules | Count |
 | --- | --- |
 | CNCF source rules, active | 253 across 54 projects (1 withdrawn, not used) |
-| Rules for further, non-CNCF projects | 51 across 10 projects |
-| Projects with at least one executable check (a rule, a named check or a profile; says nothing about which upgrades it decides) | 68 |
+| Rules for further, non-CNCF projects | 52 across 11 projects |
+| Projects with at least one executable check (a rule, a named check or a profile; says nothing about which upgrades it decides) | 69 |
 | Projects with a rule or attestation that decides at least one of their last five minor upgrades (A, B or S below) | 52 of 79 |
 | Projects catalogued with retained public sources | 58 (11 of them source-only, no check) |
 | Projects with reviewed CRD targets (a reviewed `crd.custom_resource_versions` target) | 87 |
@@ -379,7 +379,7 @@ Velero and others.
 Every rule in the CNCF and community-project packs is time-limited.
 
 <!-- validity-window:begin -->
-The 304 active rules shipped today stop being valid, rule by rule, between 2026-12-07 and 2027-02-12 unless their review is renewed; after its date a build without newer knowledge answers `UNKNOWN` for that rule. 199 of the 304 stop being valid on or before 2026-12-12, in the 6 days starting on the earliest.
+The 305 active rules shipped today stop being valid, rule by rule, between 2026-12-07 and 2027-02-15 unless their review is renewed; after its date a build without newer knowledge answers `UNKNOWN` for that rule. 199 of the 305 stop being valid on or before 2026-12-12, in the 6 days starting on the earliest.
 <!-- validity-window:end -->
 
 The named cert-manager and Prometheus checks are pinned to

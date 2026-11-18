@@ -190,6 +190,9 @@ func definitions() []constraintengine.FactDefinition {
 		{ID: "component.grafana.legacy_alerting_explicitly_enabled", Component: "pkg:github/grafana/grafana", Type: constraintengine.FactBool},
 		{ID: "component.fluent_bit.proposed_http2_enabled", Component: "pkg:github/fluent/fluent-bit", Type: constraintengine.FactBool},
 		{ID: "component.fluent_bit.target_required_http2_enabled", Component: "pkg:github/fluent/fluent-bit", Type: constraintengine.FactBool},
+		{ID: "component.ingress_nginx.allow_snippet_annotations", Component: "pkg:github/kubernetes/ingress-nginx", Type: constraintengine.FactBool},
+		{ID: "component.ingress_nginx.annotations_risk_level_below_critical", Component: "pkg:github/kubernetes/ingress-nginx", Type: constraintengine.FactBool},
+		{ID: "component.ingress_nginx.configuration_snippet_annotation_present", Component: "pkg:github/kubernetes/ingress-nginx", Type: constraintengine.FactBool},
 		{ID: "component.kibana.full_status_without_monitor_required", Component: "pkg:github/elastic/kibana", Type: constraintengine.FactBool},
 		{ID: "component.kibana.reporting_roles_allow_present", Component: "pkg:github/elastic/kibana", Type: constraintengine.FactBool},
 		{ID: "component.kibana.status_page_authentication_required", Component: "pkg:github/elastic/kibana", Type: constraintengine.FactBool},
@@ -242,8 +245,8 @@ func loadRaw(registryRaw, packRaw []byte, factDefinitions []constraintengine.Fac
 		return bundle{}, ErrIntegrity
 	}
 	b.registryDigest, b.packDigest = digest(registryRaw), digest(packRaw)
-	// The registry holds the eight original projects or those plus airflow and opensearch (the second step of the two-step landing: code first, data second).
-	if b.registryDocument.Schema != "prufyx.io/community-project-registry/v1alpha1" || !validPackSchema(b.pack) || b.pack.PolicyID != "community-project-source-preview-v1" || b.pack.PolicyDigest != digest([]byte(PolicyDeclaration)) || (len(b.registryDocument.Projects) != 8 && len(b.registryDocument.Projects) != 10) || len(b.pack.Entries) < len(b.registryDocument.Projects) {
+	// The registry holds the eight original projects, those plus airflow and opensearch, or those plus ingress-nginx (the second step of the two-step landing: code first, data second).
+	if b.registryDocument.Schema != "prufyx.io/community-project-registry/v1alpha1" || !validPackSchema(b.pack) || b.pack.PolicyID != "community-project-source-preview-v1" || b.pack.PolicyDigest != digest([]byte(PolicyDeclaration)) || (len(b.registryDocument.Projects) != 8 && len(b.registryDocument.Projects) != 10 && len(b.registryDocument.Projects) != 11) || len(b.pack.Entries) < len(b.registryDocument.Projects) {
 		return bundle{}, ErrIntegrity
 	}
 	b.identities = map[string]identity{}

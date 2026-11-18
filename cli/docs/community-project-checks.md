@@ -542,3 +542,50 @@ only for the options or settings the target release notes list as removed
   environment variables, secrets backends and command-line settings are your
   declarations) are printed as `input qualification:` lines and in the JSON
   report as `preparationOmissions`.
+
+## ingress-nginx: configuration-snippet annotation (1.10.0 to 1.15.0)
+
+`check project --project ingress-nginx` answers one question for the exact
+controller pair 1.10.0 to 1.15.0 (Helm chart 4.10.0 to 4.15.0; the chart
+mapping is your declaration, never inferred): will the target controller reject
+an Ingress that carries the Critical-risk
+`nginx.ingress.kubernetes.io/configuration-snippet` annotation? The controller
+default `annotations-risk-level` changed from `Critical` (1.10.0) to `High`
+(1.15.0), and any level below `Critical` rejects the annotation.
+
+    prufyx check project --project ingress-nginx \
+      --ingress-nginx-configmap configmap.yaml --ingress-nginx-ingresses ingresses.yaml \
+      --from 1.10.0 --to 1.15.0 --configmap-complete --ingress-set-complete \
+      --ingress-scope-declared --now 2026-11-18T13:00:00Z
+
+Inputs, all private files (mode 0600 or stricter), YAML or JSON:
+
+- `--ingress-nginx-configmap`: exactly one rendered v1 ConfigMap of the target
+  controller. Only `data["allow-snippet-annotations"]` (exactly the string
+  `true` or `false`) and `data["annotations-risk-level"]` (exactly `Low`,
+  `Medium`, `High` or `Critical`) are read. Chart 4.10.0 renders the first key
+  unconditionally; chart 4.15.0 renders it only when true, so an absent key is
+  read as false (and an absent risk level as the 1.15.0 default `High`) only
+  with `--configmap-complete`. A key also present in `binaryData`, a duplicate
+  key, other casing, whitespace or a templated value is UNKNOWN.
+- `--ingress-nginx-ingresses`: the rendered `networking.k8s.io/v1` Ingress
+  objects. Only the presence of the exact annotation key is read, never its
+  value. Presence is a BLOCKED claim even when the set is incomplete; absence is
+  a PASS claim only with `--ingress-set-complete` and every document readable.
+- `--ingress-scope-declared`: your declaration that every supplied Ingress is
+  served by this controller and that it uses the default annotation prefix
+  (controller arguments are not read). Without it the answer is UNKNOWN, never
+  BLOCKED or PASS.
+
+BLOCKED when `allow-snippet-annotations` is true, the risk level at the target is
+below `Critical` and an Ingress carries the annotation. With
+`allow-snippet-annotations` false the rule does not apply (the annotation was
+already denied at 1.10.0), and the answer is UNKNOWN for this rule. A file that
+holds any document whose kind is not exactly ConfigMap (first file) or Ingress
+(second file), a list, a second ConfigMap, an anchor, alias or merge key where
+a value is read, or an unreadable file leaves the facts unresolved: UNKNOWN. No
+value of either file appears in the output.
+
+Not evaluated: other Critical-risk annotations, ingress classes, controller
+arguments such as `--annotations-prefix`, Helm value resolution, live cluster
+state and any other version pair.

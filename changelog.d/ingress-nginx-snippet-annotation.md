@@ -1,0 +1,3 @@
+### Added
+
+- Added an ingress-nginx source check for the exact controller pair 1.10.0 to 1.15.0 (chart 4.10.0 to 4.15.0): `check project --project ingress-nginx` reports BLOCKED when snippet annotations are allowed, the target annotations risk level is below Critical (default Critical at 1.10.0, High at 1.15.0) and a supplied Ingress carries the configuration-snippet annotation. It reads only two ConfigMap settings and the presence of one annotation key from files you select, requires your declarations for ConfigMap completeness, Ingress-set completeness, controller scope and the default annotation prefix, and stays UNKNOWN otherwise.

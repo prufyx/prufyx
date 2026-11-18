@@ -579,6 +579,9 @@ func descriptorsWith(kubernetes []descriptor) []descriptor {
 		result = append(result, descriptor{family: FamilyCommunity, project: "opensearch", component: "pkg:github/opensearch-project/opensearch", ruleID: id, from: "2.19.7", to: "3.0.0", command: exactPair(openSearchBase, "2.19.7", "3.0.0"), limit: "One selected removed opensearch.yml gateway setting only; completeness and precedence remain caller declarations. Setting values, command-line or environment settings not folded into the file, and whole-upgrade safety remain unassessed."})
 	}
 
+	ingressNginxBase := extend(projectBase("ingress-nginx"), file("--ingress-nginx-configmap"), file("--ingress-nginx-ingresses"), literal("--configmap-complete"), literal("--ingress-set-complete"), literal("--ingress-scope-declared"))
+	result = append(result, descriptor{family: FamilyCommunity, project: "ingress-nginx", component: "pkg:github/kubernetes/ingress-nginx", ruleID: "ingress-nginx.configuration-snippet-rejected-at-default-risk-level.1-10-0-to-1-15-0", from: "1.10.0", to: "1.15.0", command: exactPair(ingressNginxBase, "1.10.0", "1.15.0"), limit: "One caller-selected rendered controller ConfigMap and caller-selected rendered Ingress objects; only the allow-snippet-annotations and annotations-risk-level settings and the presence of the configuration-snippet annotation key are read, under caller declarations of ConfigMap completeness, Ingress-set completeness, controller scope and the default annotation prefix. Other annotations, controller arguments, ingress classes, live state and whole-upgrade safety remain unassessed."})
+
 	kibanaReportingBase := extend(projectBase("kibana"), file("--effective-config"), literal("--effective-config-complete"), literal("--precedence-resolved"))
 	result = append(result, descriptor{family: FamilyCommunity, project: "kibana", component: "pkg:github/elastic/kibana", ruleID: "kibana.reporting-roles-allow.8-18-to-9-0", from: "8.18.0", to: "9.0.0", command: exactPair(kibanaReportingBase, "8.18.0", "9.0.0"), limit: "One selected xpack.reporting.roles.allow key only; completeness and precedence remain caller declarations. Feature privileges, reporting access, and whole-upgrade safety remain unassessed."})
 	kibanaStatusBase := extend(kibanaReportingBase, literal("--full-status-without-monitor-required"))
@@ -915,7 +918,7 @@ func discover(cncf []cncfcheck.RuleIdentity, community []projectcheck.RuleIdenti
 		knownProjects[item.Project] = true
 		known[identityKey(FamilyCommunity, item.Project, item.Component, item.RuleID, item.From, item.To)] = true
 	}
-	if want := 186 + len(kubernetes); len(descriptors) != want {
+	if want := 187 + len(kubernetes); len(descriptors) != want {
 		return Result{}, fmt.Errorf("%w: descriptor count=%d", ErrIntegrity, len(descriptors))
 	}
 	for key := range descriptors {

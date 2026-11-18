@@ -32,6 +32,7 @@ Shared flags, exit status and the other routes: [routes.md](routes.md).
 - [grafana](grafana.md)
 - [harbor](harbor.md)
 - [in-toto](in-toto.md)
+- [ingress-nginx](ingress-nginx.md)
 - [jaeger](jaeger.md)
 - [karmada](karmada.md)
 - [keda](keda.md)

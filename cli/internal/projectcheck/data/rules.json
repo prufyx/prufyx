@@ -1877,6 +1877,138 @@
       }
     },
     {
+      "project": "ingress-nginx",
+      "description": "ingress-nginx 1.15.0 (chart 4.15.0) rejects an Ingress that carries the Critical-risk nginx.ingress.kubernetes.io/configuration-snippet annotation whenever annotations-risk-level is below Critical; the default level changed from Critical (1.10.0) to High (1.15.0). This checks one caller-selected controller ConfigMap and caller-selected rendered Ingress objects, under the caller's declarations that the ConfigMap is complete, the Ingress set is complete, every supplied Ingress is served by this controller and the default annotation prefix is in use; it does not evaluate controller arguments, other annotations, ingress classes, or the live cluster.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.ingress_nginx.allow_snippet_annotations",
+          "component": "pkg:github/kubernetes/ingress-nginx",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the selected controller ConfigMap sets allow-snippet-annotations to exactly the string true; an absent key is read as false only for a ConfigMap the caller declares complete."
+        },
+        {
+          "side": "proposed",
+          "id": "component.ingress_nginx.annotations_risk_level_below_critical",
+          "component": "pkg:github/kubernetes/ingress-nginx",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the selected controller ConfigMap sets annotations-risk-level to exactly Low, Medium or High (true) or Critical (false); an absent key is read as the reviewed 1.15.0 default High only for a ConfigMap the caller declares complete."
+        },
+        {
+          "side": "proposed",
+          "id": "component.ingress_nginx.configuration_snippet_annotation_present",
+          "component": "pkg:github/kubernetes/ingress-nginx",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether any supplied networking.k8s.io/v1 Ingress carries the exact annotation key nginx.ingress.kubernetes.io/configuration-snippet, under the caller's declaration that every supplied Ingress is served by this controller with the default annotation prefix; false only for a set the caller declares complete."
+        }
+      ],
+      "rule": {
+        "id": "ingress-nginx.configuration-snippet-rejected-at-default-risk-level.1-10-0-to-1-15-0",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/kubernetes/ingress-nginx",
+          "from": "1.10.0",
+          "to": "1.15.0"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/kubernetes/ingress-nginx",
+          "factId": "component.ingress_nginx.configuration_snippet_annotation_present",
+          "boolValue": true
+        },
+        "appliesWhen": [
+          {
+            "side": "proposed",
+            "component": "pkg:github/kubernetes/ingress-nginx",
+            "factId": "component.ingress_nginx.allow_snippet_annotations",
+            "boolValue": true
+          },
+          {
+            "side": "proposed",
+            "component": "pkg:github/kubernetes/ingress-nginx",
+            "factId": "component.ingress_nginx.annotations_risk_level_below_critical",
+            "boolValue": true
+          }
+        ],
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-11-18T12:00:00Z",
+          "validUntil": "2027-02-15T12:00:00Z",
+          "sources": [
+            {
+              "id": "ingress-nginx-v1-10-0-config-defaults",
+              "url": "https://github.com/kubernetes/ingress-nginx/blob/dc999d81da6d9258bf448874be5f1f0e2156ec94/internal/ingress/controller/config/config.go",
+              "revision": "dc999d81da6d9258bf448874be5f1f0e2156ec94",
+              "contentDigest": "sha256:b730c6af053befec2612e0fc4d4a8f5adb0fe1ae190ad42a04af47bad3af0728",
+              "startLine": 768,
+              "endLine": 772
+            },
+            {
+              "id": "ingress-nginx-v1-15-0-chart-configmap",
+              "url": "https://github.com/kubernetes/ingress-nginx/blob/e3b7b0ec0f0ba7f1609e9f374a6bf68ae7bd27bb/charts/ingress-nginx/templates/controller-configmap.yaml",
+              "revision": "e3b7b0ec0f0ba7f1609e9f374a6bf68ae7bd27bb",
+              "contentDigest": "sha256:2a2b2b4a49cfe0721f7a7780c99be999f4353846c1403abef85abcf8f0aada3d",
+              "startLine": 15,
+              "endLine": 18
+            },
+            {
+              "id": "ingress-nginx-v1-15-0-check-annotation-risk",
+              "url": "https://github.com/kubernetes/ingress-nginx/blob/e3b7b0ec0f0ba7f1609e9f374a6bf68ae7bd27bb/internal/ingress/annotations/parser/validators.go",
+              "revision": "e3b7b0ec0f0ba7f1609e9f374a6bf68ae7bd27bb",
+              "contentDigest": "sha256:1eae04e1950a051f0e7f68677dca118c4157623b2544975ce2c700b529ad982a",
+              "startLine": 253,
+              "endLine": 266
+            },
+            {
+              "id": "ingress-nginx-v1-15-0-config-defaults",
+              "url": "https://github.com/kubernetes/ingress-nginx/blob/e3b7b0ec0f0ba7f1609e9f374a6bf68ae7bd27bb/internal/ingress/controller/config/config.go",
+              "revision": "e3b7b0ec0f0ba7f1609e9f374a6bf68ae7bd27bb",
+              "contentDigest": "sha256:d18878fef4c8591ee3583e45b17b8789b859984e66f30158c6525cd05af99ebe",
+              "startLine": 765,
+              "endLine": 769
+            },
+            {
+              "id": "ingress-nginx-v1-15-0-risk-level-token",
+              "url": "https://github.com/kubernetes/ingress-nginx/blob/e3b7b0ec0f0ba7f1609e9f374a6bf68ae7bd27bb/internal/ingress/annotations/parser/main.go",
+              "revision": "e3b7b0ec0f0ba7f1609e9f374a6bf68ae7bd27bb",
+              "contentDigest": "sha256:e7ac75a997a3bdfd23619ba64efdb3701bb64508f2820393ceb260f4b2b1ef16",
+              "startLine": 200,
+              "endLine": 211
+            },
+            {
+              "id": "ingress-nginx-v1-15-0-risk-levels",
+              "url": "https://github.com/kubernetes/ingress-nginx/blob/e3b7b0ec0f0ba7f1609e9f374a6bf68ae7bd27bb/internal/ingress/annotations/parser/validators.go",
+              "revision": "e3b7b0ec0f0ba7f1609e9f374a6bf68ae7bd27bb",
+              "contentDigest": "sha256:1eae04e1950a051f0e7f68677dca118c4157623b2544975ce2c700b529ad982a",
+              "startLine": 38,
+              "endLine": 41
+            },
+            {
+              "id": "ingress-nginx-v1-15-0-snippet-annotation",
+              "url": "https://github.com/kubernetes/ingress-nginx/blob/e3b7b0ec0f0ba7f1609e9f374a6bf68ae7bd27bb/internal/ingress/annotations/snippet/main.go",
+              "revision": "e3b7b0ec0f0ba7f1609e9f374a6bf68ae7bd27bb",
+              "contentDigest": "sha256:cc0dd755f82379af7417b069d213a1a8687099814a3ba9f43fcf39efc2228e14",
+              "startLine": 33,
+              "endLine": 36
+            },
+            {
+              "id": "ingress-nginx-v1-15-0-snippet-validate",
+              "url": "https://github.com/kubernetes/ingress-nginx/blob/e3b7b0ec0f0ba7f1609e9f374a6bf68ae7bd27bb/internal/ingress/annotations/snippet/main.go",
+              "revision": "e3b7b0ec0f0ba7f1609e9f374a6bf68ae7bd27bb",
+              "contentDigest": "sha256:cc0dd755f82379af7417b069d213a1a8687099814a3ba9f43fcf39efc2228e14",
+              "startLine": 66,
+              "endLine": 69
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Remove the configuration-snippet annotation from the supplied Ingress objects, or set annotations-risk-level to Critical in the controller ConfigMap, before moving to 1.15.0; other annotations and controller arguments stay unreviewed."
+      }
+    },
+    {
       "project": "kibana",
       "description": "Kibana 9 ignores reporting roles settings and removes xpack.reporting.roles.allow; this checks only a complete, precedence-resolved kibana.yml for that key.",
       "requiredFacts": [

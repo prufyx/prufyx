@@ -25,6 +25,10 @@ type projectArguments struct {
 	knowledgeDB                                                                                                                                                                                                                                                                                                                                                                                                     string
 	project, config, schemaConfig, workload, osdMetadata, mariadbResource, selectedOSDID, from, to, configPin, schemaConfigPin, workloadPin, osdMetadataPin, mariadbResourcePin, now, format, requireInnoDBDefragmentation                                                                                                                                                                                          string
 	verbose, complete, precedenceResolved, upstreamDistribution, useReviewedTargetDefault, workloadComplete, osdMetadataComplete, mariadbResourceComplete, mariadbPreOperatorUpdate, currentDefaultWasUsed, preserveHTTP2Enabled, requireHTTP2, fullStatusWithoutMonitor, fullStatusWithoutMonitorDeclared, requireInnoDBDefragmentationDeclared, mariadbResourceCompleteDeclared, mariadbPreOperatorUpdateDeclared bool
+
+	// ingress-nginx route: two caller-selected files, their optional pins and three caller declarations.
+	ingressConfigMap, ingressIngresses, ingressConfigMapPin, ingressIngressesPin string
+	configMapComplete, ingressSetComplete, ingressScopeDeclared                  bool
 }
 
 func parseProjectArguments(args []string, check bool) (projectArguments, bool) {
@@ -37,6 +41,13 @@ func parseProjectArguments(args []string, check bool) (projectArguments, bool) {
 	fs.StringVar(&result.workload, "workload", "", "native Kubernetes workload JSON")
 	fs.StringVar(&result.osdMetadata, "selected-osd-metadata", "", "caller-selected current OSD metadata JSON object")
 	fs.StringVar(&result.mariadbResource, "mariadb-resource", "", "caller-selected MariaDB Operator resource JSON")
+	fs.StringVar(&result.ingressConfigMap, "ingress-nginx-configmap", "", "caller-selected rendered controller ConfigMap (YAML or JSON)")
+	fs.StringVar(&result.ingressIngresses, "ingress-nginx-ingresses", "", "caller-selected rendered Ingress objects (YAML or JSON)")
+	fs.StringVar(&result.ingressConfigMapPin, "ingress-nginx-configmap-digest", "", "optional exact controller ConfigMap SHA-256")
+	fs.StringVar(&result.ingressIngressesPin, "ingress-nginx-ingresses-digest", "", "optional exact Ingress objects SHA-256")
+	fs.BoolVar(&result.configMapComplete, "configmap-complete", false, "declare the controller ConfigMap holds the complete rendered controller configuration")
+	fs.BoolVar(&result.ingressSetComplete, "ingress-set-complete", false, "declare the supplied Ingress objects are the complete apply set")
+	fs.BoolVar(&result.ingressScopeDeclared, "ingress-scope-declared", false, "declare every supplied Ingress is served by this controller and the default annotation prefix is in use")
 	fs.StringVar(&result.selectedOSDID, "selected-osd-id", "", "explicit selected current OSD id")
 	fs.StringVar(&result.from, "from", "", "current version")
 	fs.StringVar(&result.to, "to", "", "target version")
@@ -80,10 +91,19 @@ func parseProjectArguments(args []string, check bool) (projectArguments, bool) {
 			modes++
 		}
 	}
-	if fs.NArg() != 0 || result.project == "" || result.from == "" || result.to == "" || modes != 1 || (flagProvided(args, "effective-config-digest") && !projectDigestRE.MatchString(result.configPin)) || (flagProvided(args, "loki-schema-config-digest") && !projectDigestRE.MatchString(result.schemaConfigPin)) || (flagProvided(args, "workload-digest") && !projectDigestRE.MatchString(result.workloadPin)) || (flagProvided(args, "selected-osd-metadata-digest") && !projectDigestRE.MatchString(result.osdMetadataPin)) || (flagProvided(args, "mariadb-resource-digest") && !projectDigestRE.MatchString(result.mariadbResourcePin)) {
+	ingressRoute := result.project == projectprepare.IngressNginxProject
+	if fs.NArg() != 0 || result.project == "" || result.from == "" || result.to == "" || (!ingressRoute && modes != 1) || (ingressRoute && modes != 0) || (flagProvided(args, "effective-config-digest") && !projectDigestRE.MatchString(result.configPin)) || (flagProvided(args, "loki-schema-config-digest") && !projectDigestRE.MatchString(result.schemaConfigPin)) || (flagProvided(args, "workload-digest") && !projectDigestRE.MatchString(result.workloadPin)) || (flagProvided(args, "selected-osd-metadata-digest") && !projectDigestRE.MatchString(result.osdMetadataPin)) || (flagProvided(args, "mariadb-resource-digest") && !projectDigestRE.MatchString(result.mariadbResourcePin)) || (flagProvided(args, "ingress-nginx-configmap-digest") && !projectDigestRE.MatchString(result.ingressConfigMapPin)) || (flagProvided(args, "ingress-nginx-ingresses-digest") && !projectDigestRE.MatchString(result.ingressIngressesPin)) {
 		return projectArguments{}, false
 	}
-	if result.mariadbResource != "" {
+	ingressFlags := []string{"ingress-nginx-configmap", "ingress-nginx-ingresses", "ingress-nginx-configmap-digest", "ingress-nginx-ingresses-digest", "configmap-complete", "ingress-set-complete", "ingress-scope-declared"}
+	if ingressRoute {
+		// The ingress-nginx route reads exactly the two selected files; every flag of another route is refused, not ignored.
+		if result.ingressConfigMap == "" || result.ingressIngresses == "" || anyFlagProvided(args, "effective-config", "effective-config-digest", "effective-config-complete", "precedence-resolved", "loki-schema-config", "loki-schema-config-digest", "workload", "workload-digest", "workload-complete", "selected-osd-metadata", "selected-osd-metadata-digest", "selected-osd-id", "selected-osd-metadata-complete", "mariadb-resource", "mariadb-resource-digest", "resource-complete", "pre-operator-update", "upstream-distribution", "require-innodb-defragmentation", "use-reviewed-target-default", "current-default-was-used", "preserve-http2-enabled", "require-http2", "full-status-without-monitor-required", "knowledge-db") {
+			return projectArguments{}, false
+		}
+	} else if anyFlagProvided(args, ingressFlags...) {
+		return projectArguments{}, false
+	} else if result.mariadbResource != "" {
 		if result.project != projectprepare.MariaDBOperatorProject || anyFlagProvided(args, "effective-config", "effective-config-digest", "effective-config-complete", "precedence-resolved", "loki-schema-config", "loki-schema-config-digest", "workload", "workload-digest", "workload-complete", "selected-osd-metadata", "selected-osd-metadata-digest", "selected-osd-id", "selected-osd-metadata-complete", "upstream-distribution", "require-innodb-defragmentation", "use-reviewed-target-default", "current-default-was-used", "preserve-http2-enabled", "require-http2") {
 			return projectArguments{}, false
 		}
@@ -172,6 +192,8 @@ func (r runtime) prepareProject(args []string) int {
 			authority = "CALLER_SUPPLIED_NATIVE_KUBERNETES_WORKLOAD"
 		} else if request.osdMetadata != "" {
 			authority = "CALLER_SUPPLIED_SELECTED_CURRENT_OSD_METADATA"
+		} else if request.ingressConfigMap != "" {
+			authority = "CALLER_SUPPLIED_NATIVE_CONTROLLER_CONFIGMAP_AND_INGRESSES"
 		}
 		_ = json.NewEncoder(r.stdout).Encode(map[string]any{
 			"schema": "prufyx.io/community-project-preparation/v1alpha1", "project": request.project,
@@ -188,6 +210,8 @@ func (r runtime) prepareProject(args []string) int {
 			inputRole = "Kubernetes workload"
 		} else if request.osdMetadata != "" {
 			inputRole = "selected current OSD metadata"
+		} else if request.ingressConfigMap != "" {
+			inputRole = "controller ConfigMap and Ingress"
 		}
 		fmt.Fprintf(r.stdout, "%s native %s preparation\nstate: %s\nreason: %s\nsource digest: %s\ncanonical input digest: %s\nknowledge: embedded only; external updates unavailable\nwhole-upgrade assessment: UNKNOWN\n", request.project, inputRole, prepared.State, prepared.Reason, prepared.SourceDigest, prepared.InputDigest)
 		for _, omission := range prepared.Omissions {
@@ -252,7 +276,7 @@ func (r runtime) project(args []string) int {
 	if err != nil {
 		return r.fail("community project report integrity failure", ExitIntegrity)
 	}
-	removedKeyRoute := request.project == projectprepare.AirflowProject || request.project == projectprepare.OpenSearchProject || crdPairRoute
+	removedKeyRoute := request.project == projectprepare.AirflowProject || request.project == projectprepare.OpenSearchProject || request.project == projectprepare.IngressNginxProject || crdPairRoute
 	if request.format == "json" {
 		if removedKeyRoute {
 			encoded = withPreparationOmissions(encoded, prepared.Omissions)
@@ -348,6 +372,9 @@ func withPreparationOmissions(encoded []byte, omissions []string) []byte {
 }
 
 func (r runtime) prepareProjectInput(request projectArguments) (projectprepare.Prepared, int) {
+	if request.ingressConfigMap != "" {
+		return r.prepareIngressNginxInput(request)
+	}
 	path, pin := request.config, request.configPin
 	if request.schemaConfig != "" {
 		path, pin = request.schemaConfig, request.schemaConfigPin
@@ -438,4 +465,32 @@ func writeNotEvaluated(out io.Writer, skipped []projectcheck.NotEvaluatedRule) {
 	for _, rule := range skipped {
 		fmt.Fprintf(out, "%s: %s\n", rule.RuleID, rule.NextAction)
 	}
+}
+
+// prepareIngressNginxInput reads the two selected private files and reduces
+// them to the three ingress-nginx facts. Neither file's content is echoed: a
+// failure names only the failed step.
+func (r runtime) prepareIngressNginxInput(request projectArguments) (projectprepare.Prepared, int) {
+	configMap, err := readCNCFPrivate(request.ingressConfigMap, 1<<20)
+	if err != nil {
+		return projectprepare.Prepared{}, r.fail(withPermissionHint("community project input failed private-file admission", err), ExitUsage)
+	}
+	ingresses, err := readCNCFPrivate(request.ingressIngresses, 1<<20)
+	if err != nil {
+		return projectprepare.Prepared{}, r.fail(withPermissionHint("community project input failed private-file admission", err), ExitUsage)
+	}
+	if request.ingressConfigMapPin != "" && request.ingressConfigMapPin != digestCommunityBytes(configMap) || request.ingressIngressesPin != "" && request.ingressIngressesPin != digestCommunityBytes(ingresses) {
+		return projectprepare.Prepared{}, r.fail("community project input digest mismatch", ExitIntegrity)
+	}
+	prepared, err := projectprepare.PrepareIngressNginx(configMap, ingresses, request.from, request.to, request.configMapComplete, request.ingressSetComplete, request.ingressScopeDeclared)
+	if err != nil {
+		return projectprepare.Prepared{}, r.fail("community project native input unsupported or invalid", ExitUsage)
+	}
+	if !json.Valid(prepared.CanonicalInputJSON) || prepared.InputDigest != digestCommunityBytes(prepared.CanonicalInputJSON) {
+		return projectprepare.Prepared{}, r.fail("community project preparation integrity failure", ExitIntegrity)
+	}
+	if prepared.State == "UNKNOWN" {
+		return prepared, ExitUnknown
+	}
+	return prepared, ExitOK
 }

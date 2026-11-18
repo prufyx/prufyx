@@ -141,6 +141,18 @@ ordinary content hashes. Missing, ambiguous, unsupported, or unknown invocations
 remain unresolved, and preparation does not run a compatibility check, invoke a
 model, or persist a file.
 
+`prepare project` and `check project` for ingress-nginx read two private files
+you select: one rendered controller ConfigMap and the rendered Ingress objects.
+From the ConfigMap they derive only two setting tokens (allow-snippet-annotations
+and annotations-risk-level, each reduced to a boolean). From the Ingress files
+they read only whether the one annotation key
+`nginx.ingress.kubernetes.io/configuration-snippet` is present; annotation
+values (a snippet body can hold secrets), every other key, and all other
+content of either file are neither read into the output nor retained. A
+document whose kind is not exactly ConfigMap or Ingress ends the read without
+being interpreted. The live collector is not involved: neither file is collected
+from a cluster by Prufyx.
+
 The unreleased external knowledge paths read only an explicitly named local
 package, bootstrap root on first use, private database directory, and private
 values file or minimized CNCF input. Evaluation and import have no upload path.

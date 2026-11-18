@@ -1,6 +1,6 @@
 {
   "schema": "prufyx.io/community-project-registry/v1alpha1",
-  "revision": "community-projects-2026-10-31.1",
+  "revision": "community-projects-2026-11-18.1",
   "projects": [
     {
       "slug": "airflow",
@@ -39,6 +39,14 @@
       "name": "Grafana",
       "repositoryURL": "https://github.com/grafana/grafana",
       "component": "pkg:github/grafana/grafana",
+      "identityAuthority": "MAINTAINER_REVIEWED_EXTERNAL_REPOSITORY",
+      "cncfMembership": "NOT_ASSERTED"
+    },
+    {
+      "slug": "ingress-nginx",
+      "name": "ingress-nginx",
+      "repositoryURL": "https://github.com/kubernetes/ingress-nginx",
+      "component": "pkg:github/kubernetes/ingress-nginx",
       "identityAuthority": "MAINTAINER_REVIEWED_EXTERNAL_REPOSITORY",
       "cncfMembership": "NOT_ASSERTED"
     },
