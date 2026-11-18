@@ -27,6 +27,10 @@ import (
 // unattested. A package may give each id only the data file of its own
 // (crd.version-removal: target-<project>.json; its own tests pin that each
 // target file is covered by exactly its id).
+// readerPrefix names the entry reader files inside the digest of a
+// changelog.listed.<project> extractor.
+const readerPrefix = "changelogentries_"
+
 func TestEveryExtractorDigestCoversItsPackageOnDisk(t *testing.T) {
 	cat := Catalog()
 	if len(cat) == 0 {
@@ -84,6 +88,16 @@ func TestEveryExtractorDigestCoversItsPackageOnDisk(t *testing.T) {
 				if !strings.HasSuffix(name, ".go") {
 					t.Errorf("%s: %s is not code", id, f.Path)
 				}
+			} else if rest, ok := strings.CutPrefix(base, readerPrefix); ok && disk == filepath.Join("..", "changelogattest") {
+				// The listed-entries source set adds the whole entry reader and
+				// its reviewed rows under the prefix "changelogentries_": they
+				// are read from, and checked against, that package, and every
+				// id of the set covers all of them.
+				pkg, name = filepath.Join("..", "changelogentries"), rest
+				if coveredBy[pkg] == nil {
+					coveredBy[pkg] = map[string]bool{}
+				}
+				coveredBy[pkg][name] = true
 			} else {
 				covered[base] = true
 				coveredBy[disk][base] = true
@@ -206,8 +220,8 @@ func digestOf(t *testing.T, id string) string {
 // record that carries the old digest is re-derived.
 func TestKubernetesCodeDigestsArePinned(t *testing.T) {
 	for id, want := range map[string]string{
-		"k8s.served-api-removal":   "sha256:c33e62c7bf88d281dd6ad02f369660f1d6eda664e37b078f322b1483e952b14d",
-		"k8s.feature-gate-removal": "sha256:0c14bf1cc5c3001ed7ccb3de930b62f21c7e1ca14847f0c0bfc8d25409d6cccb",
+		"k8s.served-api-removal":   "sha256:6fa8b4d7bf3df4a4cda88efcc21dea34451b23cd22e07b434ef176e253c6a718",
+		"k8s.feature-gate-removal": "sha256:f2bafb2fb95c3a5cecf34875918af11934b7e1eaf296c8572bd7b0e6a8ee8819",
 	} {
 		if got := digestOf(t, id); got != want {
 			t.Errorf("%s: code digest %s, pinned %s", id, got, want)

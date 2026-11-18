@@ -58,6 +58,18 @@ const FamilyCustomResourceVersions = "crd.custom_resource_versions"
 // the project's own changelog entries say, not about one fact.
 const FamilyChangelogAttestedEntries = "changelog.attested_entries"
 
+// FamilyChangelogListedEntries covers, for one component with a reviewed
+// changelog target, the complete upstream change list of one release line:
+// every final release of the line has its own changelog entry, read in full
+// at that tag's own commit. It lists; it never judges. An attestation of the
+// family carries no rule id (a list is not a claim about any rule), and no
+// result may rely on it for a pass: it answers ATTENTION at most. Members are
+// the components of the reviewed target rows (internal/extract/changelogentries),
+// admitted by the form of the component here and by the row table where the
+// rows are known (the extractor, the gate and the coverage report); a
+// component of the custom-resource family is never a member.
+const FamilyChangelogListedEntries = "changelog.listed_entries"
+
 // Limits.
 const (
 	// MaxWindow is the longest validity window an attestation may carry,
@@ -103,10 +115,19 @@ type Family struct {
 	// scope is the compiled statement of what the family covers and what it
 	// does not, shown wherever a result relies on an attestation.
 	scope string
+	// admit, when set, replaces the members table: it is the family's
+	// membership predicate.
+	admit func(component string) bool
+	// listOnly means an attestation of the family lists no rule: its ruleIds
+	// must be empty, and no rule belongs to the family.
+	listOnly bool
 }
 
 // Admits reports whether component is a member of the family.
 func (f Family) Admits(component string) bool {
+	if f.admit != nil {
+		return f.admit(component)
+	}
 	_, ok := f.members[component]
 	return ok
 }
@@ -278,6 +299,14 @@ func changelogMembers(crd map[string]*regexp.Regexp, changelog []string) (map[st
 
 func buildFamilies(crd, changelog map[string]*regexp.Regexp) map[string]Family {
 	return map[string]Family{
+		FamilyChangelogListedEntries: {
+			ID:               FamilyChangelogListedEntries,
+			admit:            listedAdmit(crd),
+			fromPreviousLine: true,
+			releaseScoped:    true,
+			listOnly:         true,
+			scope:            "the upstream changelog entries of every final release of the line, each read in full at its own tag's commit and listed as upstream wrote them; Prufyx did not judge any item, so this is a list to read, never a pass; not anything the changelog omits, not behaviour, defaults or performance, not charts or dependencies unless the entry names them",
+		},
 		FamilyKubernetesRemovedServedGVK: {
 			ID: FamilyKubernetesRemovedServedGVK,
 			members: map[string]*regexp.Regexp{
@@ -308,6 +337,27 @@ func buildFamilies(crd, changelog map[string]*regexp.Regexp) map[string]Family {
 		},
 	}
 }
+
+// listedAdmit is the membership predicate of the listed-entries family: a
+// GitHub package URL of the form pkg:github/<owner>/<repo> that is not a
+// member of the custom-resource family. The reviewed row table narrows it
+// further wherever it is known.
+func listedAdmit(crd map[string]*regexp.Regexp) func(string) bool {
+	return func(component string) bool {
+		if !constraintengine.ValidComponent(component) || !listedComponentRE.MatchString(component) {
+			return false
+		}
+		// A calendar-versioned or published-line component has no previous
+		// minor line of the shape the family's hop takes.
+		if CalverComponent(component) || PublishedLineComponent(component) {
+			return false
+		}
+		_, inCRD := crd[component]
+		return !inCRD
+	}
+}
+
+var listedComponentRE = regexp.MustCompile(`^pkg:github/[a-z0-9][a-z0-9._-]{0,99}/[a-z0-9][a-z0-9._-]{0,99}$`)
 
 // customResourceMembers maps each table project's component to exactly its
 // set fact, whatever its catalog. A component the table lists twice maps to
@@ -551,6 +601,9 @@ func (a LineAttestation) Validate() error {
 	}
 	if a.Completeness != Completeness {
 		return fmt.Errorf("%w: completeness must be %s", ErrInvalid, Completeness)
+	}
+	if family.listOnly && len(a.RuleIDs) > 0 {
+		return fmt.Errorf("%w: family %s lists no rule; ruleIds must be empty", ErrInvalid, family.ID)
 	}
 	if a.RuleIDs == nil || len(a.RuleIDs) > MaxRuleIDs {
 		return fmt.Errorf("%w: ruleIds must be an array of at most %d ids", ErrInvalid, MaxRuleIDs)

@@ -108,7 +108,7 @@ func TestChangelogReportRowAndCRDUnchanged(t *testing.T) {
 		t.Fatal("a row without a changelog target")
 	}
 	s := changelogSentence(with.changelog)
-	for _, want := range []string{"`changelog.attested_entries`", "0 decided, 2 gap", "1 projects have a changelog target", "NO_ATTESTATION 2"} {
+	for _, want := range []string{"`changelog.listed_entries`", "0 upgrades with the complete upstream change list", "never a pass", "not counted as decided", "2 gap", "1 projects have a changelog target", "NO_ATTESTATION 2"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("sentence lacks %q: %s", want, s)
 		}

@@ -22,6 +22,8 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
+	"github.com/prufyx/prufyx/cli/internal/extract/changelogattest"
+	"github.com/prufyx/prufyx/cli/internal/extract/changelogentries"
 	"github.com/prufyx/prufyx/cli/internal/extract/chartrun"
 	"github.com/prufyx/prufyx/cli/internal/extract/crdschema"
 	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
@@ -52,7 +54,8 @@ type Spec struct {
 
 // Catalog lists the registered extractors by id. The CRD version-removal
 // extractor is registered once per reviewed project, as
-// crd.version-removal.<project>, and the Helm values extractor once per
+// crd.version-removal.<project>, the changelog listed-entries extractor once per
+// reviewed changelog row, as changelog.listed.<project>, and the Helm values extractor once per
 // reviewed chart, as helm.values.<project>.<chart>, because a run reads one
 // repository.
 func Catalog() map[string]Spec {
@@ -77,6 +80,25 @@ func Catalog() map[string]Spec {
 			Repo:   t.Repo,
 			New:    func(c int) extract.Extractor { return crdversions.NewConcurrent(t, c).WithDerivedTrees() },
 			Oracle: crdversions.Oracle,
+		}
+	}
+	// One listed-entries extractor per reviewed changelog row, derived from the
+	// rows: a row is the only way to have one. A row that is refused
+	// (NewListed) has no extractor and attests nothing.
+	for _, t := range changelogentries.Reviewed {
+		t := t
+		x, err := changelogattest.NewListed(t)
+		if err != nil {
+			continue
+		}
+		out[x.ID()] = Spec{
+			ID:   x.ID(),
+			Repo: t.Repo.Key,
+			// One extractor per run: it holds the tags of its last Pairs call.
+			New: func(int) extract.Extractor {
+				c, _ := changelogattest.NewListed(t)
+				return c
+			},
 		}
 	}
 	for _, t := range helmvalues.Targets {

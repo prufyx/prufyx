@@ -18,6 +18,19 @@ import (
 // no attestation of it decides a pair.
 const FamilyChangelogAttested = "changelog.attested_entries"
 
+// FamilyChangelogListed is the id of the changelog-listed family: the complete
+// upstream change list of a release line, read in full at each tag's own
+// commit. It is a plain string for the same reason as FamilyChangelogAttested;
+// a test pins it equal to the registered family. A pair with only this family
+// is listed (L): the answer is ATTENTION, never a pass, and it is never
+// counted as decided (A or B).
+const FamilyChangelogListed = "changelog.listed_entries"
+
+// isChangelogFamily reports a family of the changelog chain.
+func isChangelogFamily(id string) bool {
+	return id == FamilyChangelogAttested || id == FamilyChangelogListed
+}
+
 // Typed reasons a pair of a changelog-attested member project is a gap.
 const (
 	GapNoAttestation        = "NO_ATTESTATION"
@@ -33,7 +46,7 @@ const (
 // family, the pairs it decides and the typed reasons of the others.
 type changelogStats struct {
 	targets int // projects with a reviewed changelog target
-	decided int // pairs decided by the changelog family alone
+	decided int // pairs listed (L) by the changelog chain alone: not decided, never A or B
 	bounded int // pairs of member projects decided by a source family or a rule (A or B)
 	spot    int // pairs of member projects with a rule for one exact version pair only (S)
 	gap     int
@@ -83,7 +96,7 @@ func mixedComponents(in Input, atts []lineattest.LineAttestation) map[string]boo
 		}
 	}
 	for _, a := range atts {
-		if a.FactFamily == FamilyChangelogAttested && crd[a.Component] {
+		if isChangelogFamily(a.FactFamily) && crd[a.Component] {
 			out[a.Component] = true
 		}
 	}
@@ -106,7 +119,7 @@ func changelogGapReason(component, fromLine, toLine string, atts []lineattest.Li
 		}
 	}
 	for _, a := range atts {
-		if a.FactFamily != FamilyChangelogAttested || a.Component != component || a.Line != toLine || !a.HopFrom(fromLine) {
+		if !isChangelogFamily(a.FactFamily) || a.Component != component || a.Line != toLine || !a.HopFrom(fromLine) {
 			continue
 		}
 		if a.Freshness(now) != lineattest.FreshnessCurrent {
@@ -156,5 +169,5 @@ func changelogSentence(c changelogStats) string {
 	if len(reasons) > 0 {
 		hist = strings.Join(reasons, ", ")
 	}
-	return fmt.Sprintf("Changelog-attested (`%s`): %d decided, %d gap over %d upgrades of its member projects (%d more decided by a source family or a rule, %d by a rule for one exact version pair only). %d projects have a changelog target; that is catalogue coverage, not the number of upgrades decided. Gap reasons: %s.\n", FamilyChangelogAttested, c.decided, c.gap, c.pairs, c.bounded, c.spot, c.targets, hist)
+	return fmt.Sprintf("Changelog-listed (`%s`): %d upgrades with the complete upstream change list (a list to read: the answer is ATTENTION, never a pass, and it is not counted as decided), %d gap over %d upgrades of its member projects (%d more decided by a source family or a rule, %d by a rule for one exact version pair only). %d projects have a changelog target; that is catalogue coverage, not the number of upgrades decided. Gap reasons: %s.\n", FamilyChangelogListed, c.decided, c.gap, c.pairs, c.bounded, c.spot, c.targets, hist)
 }

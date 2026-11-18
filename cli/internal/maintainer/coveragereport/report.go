@@ -89,7 +89,9 @@ type Pair struct {
 	// Families names the fact families of the attestations (A) or rules
 	// (B) that decide the pair.
 	Families []string `json:"families,omitempty"`
-	// Changelog marks a pair decided only by the changelog-attested family.
+	// Changelog marks a pair covered only by the changelog chain: its complete
+	// upstream change list is in the pack (L). It is not decided: the status
+	// stays G, the answer is ATTENTION and never a pass.
 	// Its Status is G: it is not counted in A, B or S.
 	Changelog bool `json:"changelog,omitempty"`
 	// Cells and Weight are metric v2 members of the last two pairs of a
@@ -118,7 +120,8 @@ type Project struct {
 	B        int      `json:"b"`
 	S        int      `json:"s"`
 	G        int      `json:"g"`
-	// DecidedChangelog counts pairs decided only by the changelog family.
+	// DecidedChangelog counts pairs listed (L) by the changelog chain alone:
+	// their status stays G; they are not decided. The key keeps its name.
 	DecidedChangelog int `json:"decidedChangelog,omitempty"`
 	// VC is (A+B)/pairs and VCA is A/pairs; both are 0 without pairs.
 	VC  float64 `json:"vc"`
@@ -145,7 +148,8 @@ type Totals struct {
 	B        int `json:"b"`
 	S        int `json:"s"`
 	G        int `json:"g"`
-	// DecidedChangelog counts pairs decided only by the changelog family.
+	// DecidedChangelog counts pairs listed (L) by the changelog chain alone:
+	// their status stays G; they are not decided. The key keeps its name.
 	DecidedChangelog int `json:"decidedChangelog,omitempty"`
 	// C1 counts covered projects among those with lines.
 	C1 int `json:"c1"`
@@ -559,13 +563,22 @@ func Compute(in Input) (Report, error) {
 	crdAttComponent := map[string]bool{}
 	afterClock := map[string]bool{}
 	mixed := mixedComponents(in, atts)
+	changelogMember := map[string]bool{}
+	for _, c := range in.ChangelogTargetComponents {
+		if c != "" {
+			changelogMember[c] = true
+		}
+	}
 	for _, a := range atts {
 		project, ok := componentProject[a.Component]
 		if !ok {
 			continue
 		}
-		if a.FactFamily == FamilyChangelogAttested && mixed[a.Component] {
+		if isChangelogFamily(a.FactFamily) && mixed[a.Component] {
 			continue // refused: the component is also a CRD-family member
+		}
+		if a.FactFamily == FamilyChangelogListed && !changelogMember[a.Component] {
+			continue // refused: the component has no reviewed changelog row
 		}
 		if f := a.Freshness(now); f != lineattest.FreshnessCurrent {
 			if f == lineattest.FreshnessClockBeforeReview {
@@ -913,6 +926,19 @@ func classify(project, fromLine, toLine string, rules []*ruleRec, atts []lineatt
 	pair := Pair{From: fromLine, To: toLine, Status: StatusG}
 	if lineMapped(project) {
 		if fams, listed := attestedFamilies(fromLine, toLine, atts, byID, releases); len(fams) > 0 {
+			// The listed family is a list, not a claim: it is never a family
+			// of an A or B pair. A pair it alone covers is L; a pair another
+			// family or a rule decides keeps that decision.
+			hadListed := slices.Contains(fams, FamilyChangelogListed)
+			fams = slices.DeleteFunc(slices.Clone(fams), func(f string) bool { return f == FamilyChangelogListed })
+			if len(fams) == 0 && hadListed {
+				if bf, ok := boundedFamilies(fromLine, toLine, rules); ok {
+					pair.Status, pair.Families, pair.canBlock = StatusB, bf, true
+				} else {
+					pair.Changelog = true
+				}
+				return pair
+			}
 			if len(fams) == 1 && fams[0] == FamilyChangelogAttested {
 				// Only the changelog family decides: a valid bounding rule makes it a
 				// source decision (B); without one it counts in the changelog row only.
@@ -970,7 +996,7 @@ func attestedFamilies(fromLine, toLine string, atts []lineattest.LineAttestation
 		if !ok {
 			continue
 		}
-		if (family.ReleaseScoped() || a.FactFamily == FamilyChangelogAttested) && !releasesMatch(a.Releases, releases[fromLine], releases[toLine]) {
+		if (family.ReleaseScoped() || isChangelogFamily(a.FactFamily)) && !releasesMatch(a.Releases, releases[fromLine], releases[toLine]) {
 			continue
 		}
 		wide := true

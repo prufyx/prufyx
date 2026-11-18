@@ -35,6 +35,11 @@ var mechanicalExtractorIDs = []string{
 	"k8s.served-api-removal",
 	"crd.version-removal.",
 	"crd.schema-removal.",
+	// The changelog listed-entries extractors attest the complete upstream
+	// change list of a line. They emit no rule and no draft: only a line
+	// attestation of the listed family, which lists no rule and answers
+	// ATTENTION at most.
+	"changelog.listed.",
 }
 
 // MechanicalExtractorPrefixes returns a copy of the allowlist keys.
