@@ -305,26 +305,55 @@ func valueHasOpenAction(value any) bool {
 }
 
 // promTemplateRE matches one whole Prometheus alert template action that
-// reads only the rule variables, for example {{ $labels.instance }} or
-// {{ $value | humanize }}. Control actions, Helm objects and anything else
-// do not match.
-var promTemplateRE = regexp.MustCompile(`\{\{-?\s*\$(?:labels|value|externalLabels|externalURL)\b[\w$.|"%:,() \t-]*-?\}\}`)
+// starts from a rule variable, for example {{ $labels.instance }} or
+// {{ $value | humanize }}. The pipeline is checked by promPipelineOK.
+var promTemplateRE = regexp.MustCompile(`\{\{-?\s*(\$(?:labels|value|externalLabels|externalURL)\b[\w$.|"%:,() \t-]*?)\s*-?\}\}`)
 
-// helmWordRE marks Helm-only names; a Prometheus action holding one is not
-// accepted as rendered.
-var helmWordRE = regexp.MustCompile(`\.(Values|Release|Chart|Files|Capabilities|Template)\b|\b(include|tpl|lookup|required)\b`)
+// promVariableRE is the first pipeline element: a rule variable and fields.
+var promVariableRE = regexp.MustCompile(`^\$(?:labels|value|externalLabels|externalURL)(?:\.\w+)*$`)
+
+// promFunctions are the template functions valid in alert templates that
+// this exception admits after a pipe. Functions that exist only in Helm are
+// absent, so they are still reported.
+var promFunctions = map[string]bool{
+	"humanize": true, "humanize1024": true, "humanizeDuration": true,
+	"humanizePercentage": true, "humanizeTimestamp": true, "title": true,
+	"toUpper": true, "toLower": true, "printf": true, "reReplaceAll": true,
+}
+
+// promArgRE is one function argument: a number or a double-quoted string.
+var promArgRE = regexp.MustCompile(`^(?:-?[0-9.]+|"[\w %:.,-]*")$`)
+
+// promPipelineOK reports whether the pipeline is a rule variable followed
+// only by allowed functions with literal arguments.
+func promPipelineOK(pipeline string) bool {
+	parts := strings.Split(pipeline, "|")
+	if !promVariableRE.MatchString(strings.TrimSpace(parts[0])) {
+		return false
+	}
+	for _, part := range parts[1:] {
+		fields := strings.Fields(part)
+		if len(fields) == 0 || !promFunctions[fields[0]] {
+			return false
+		}
+		for _, arg := range fields[1:] {
+			if !promArgRE.MatchString(arg) {
+				return false
+			}
+		}
+	}
+	return true
+}
 
 // promAnnotationValue reports whether text holds template syntax only as
 // Prometheus alert template actions on the rule variables.
 func promAnnotationValue(text string) bool {
-	rest := text
-	for _, loc := range promTemplateRE.FindAllStringIndex(text, -1) {
-		if helmWordRE.MatchString(text[loc[0]:loc[1]]) {
+	for _, match := range promTemplateRE.FindAllStringSubmatch(text, -1) {
+		if !promPipelineOK(match[1]) {
 			return false
 		}
 	}
-	rest = promTemplateRE.ReplaceAllString(rest, "")
-	return !hasTemplateSyntax(rest)
+	return !hasTemplateSyntax(promTemplateRE.ReplaceAllString(text, ""))
 }
 
 // objectHasTemplateSyntax is valueHasTemplateSyntax with one exception: the
