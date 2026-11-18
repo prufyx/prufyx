@@ -5,7 +5,6 @@ package cncfcheck
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
 )
@@ -20,7 +19,7 @@ func TestArgoCDResourceExclusionsSelectedRuleLeavesRBACGeneric(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	now := time.Date(2026, 9, 12, 1, 23, 59, 0, time.UTC)
+	now := packClock(t)
 	selected, err := CheckRule("argo-cd", argoExclusionsRule, p.CanonicalInputJSON, now)
 	if err != nil || len(selected.Check.Claims) != 1 || selected.Check.Claims[0].Status != "PASS" || ClaimExit(selected) != 0 {
 		t.Fatalf("selected=%+v err=%v", selected, err)
@@ -33,7 +32,7 @@ func TestArgoCDResourceExclusionsSelectedRuleLeavesRBACGeneric(t *testing.T) {
 
 func TestArgoCDResourceExclusionsIntentGuardsDefault(t *testing.T) {
 	t.Parallel()
-	now := time.Date(2026, 9, 12, 1, 23, 59, 0, time.UTC)
+	now := packClock(t)
 	for _, tc := range []struct{ name, state, value, status string }{{"missing", "unsupported", "", "UNKNOWN"}, {"true", "declared", "true", "BLOCKED"}, {"false", "declared", "false", "UNKNOWN"}} {
 		t.Run(tc.name, func(t *testing.T) {
 			report, err := CheckRule("argo-cd", argoExclusionsRule, argoDefaultInput(tc.state, tc.value), now)

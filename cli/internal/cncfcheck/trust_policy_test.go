@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -30,15 +31,16 @@ func containerdBasisEntry(id, basis, fact string) Entry {
 		facts = []Fact{{Side: "proposed", ID: fact, Component: containerdComponent, Type: constraintengine.FactBool, Description: "The selected runtime uses a removed official shim."}}
 	}
 	provenance := ""
+	reviewedAt, validUntil := syntheticWindow()
 	switch basis {
 	case "":
 	case constraintengine.BasisMechanical:
-		provenance = `"basis":"mechanical","extractor":{"id":"synthetic-extractor","version":"1.0.0","codeDigest":"sha256:` + strings.Repeat("1", 64) + `"},"derivedAt":"2026-09-01T00:00:00Z",`
+		provenance = `"basis":"mechanical","extractor":{"id":"synthetic-extractor","version":"1.0.0","codeDigest":"sha256:` + strings.Repeat("1", 64) + `"},"derivedAt":"` + reviewedAt + `",`
 	default:
-		provenance = `"basis":"` + basis + `","derivedAt":"2026-09-01T00:00:00Z",`
+		provenance = `"basis":"` + basis + `","derivedAt":"` + reviewedAt + `",`
 	}
 	rule := `{"id":"` + id + `","operator":"` + operator + `","subject":{"component":"` + containerdComponent + `","from":"1.7.28","to":"2.0.0"}` + extra +
-		`,"evidence":{` + provenance + `"state":"active","reviewedAt":"2026-09-01T00:00:00Z","validUntil":"2026-11-01T00:00:00Z","sources":[{"id":"synthetic-source","url":"https://github.com/containerd/containerd/blob/` + syntheticRevision + `/RELEASES.md","revision":"` + syntheticRevision + `","contentDigest":"sha256:` + strings.Repeat("0", 64) + `","startLine":1,"endLine":2}]},` +
+		`,"evidence":{` + provenance + `"state":"active","reviewedAt":"` + reviewedAt + `","validUntil":"` + validUntil + `","sources":[{"id":"synthetic-source","url":"https://github.com/containerd/containerd/blob/` + syntheticRevision + `/RELEASES.md","revision":"` + syntheticRevision + `","contentDigest":"sha256:` + strings.Repeat("0", 64) + `","startLine":1,"endLine":2}]},` +
 		`"reasonCode":"REVIEWED_SOURCE_CONSTRAINT","nextAction":"plan the reviewed containerd route"}`
 	return Entry{Project: "containerd", Description: "Synthetic test-only containerd rule.", RequiredFacts: facts, Rule: json.RawMessage(rule)}
 }
@@ -91,7 +93,7 @@ func TestPackBasisLevel(t *testing.T) {
 	// evaluates it.
 	lead := containerdBasisEntry("containerd.synthetic-lead", constraintengine.BasisLead, "")
 	broken := lead
-	broken.Rule = json.RawMessage(strings.Replace(string(lead.Rule), `"derivedAt":"2026-09-01T00:00:00Z",`, "", 1))
+	broken.Rule = json.RawMessage(regexp.MustCompile(`"derivedAt":"[^"]*",`).ReplaceAllString(string(lead.Rule), ""))
 	if _, err := assembleSynthetic(syntheticPack(t, packSchemaBasis, nil, broken), nil); err == nil {
 		t.Fatal("a lead rule without derivedAt was admitted")
 	}
@@ -136,7 +138,7 @@ func evaluateSelection(t *testing.T, b bundle, policy TrustPolicy, selector stri
 	if err != nil {
 		t.Fatal(err)
 	}
-	report, err := b.reportSelection("containerd", "", selector == "family", input, selected, inputRaw, mustTime(t, "2026-09-20T00:00:00Z"))
+	report, err := b.reportSelection("containerd", "", selector == "family", input, selected, inputRaw, packClock(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -286,7 +288,7 @@ func TestTrustPolicyAndCorpus(t *testing.T) {
 	t.Parallel()
 	lead := containerdBasisEntry("containerd.synthetic-c-lead", constraintengine.BasisLead, "")
 	consensusQuiet := containerdBasisEntry("containerd.synthetic-b-consensus-quiet", constraintengine.BasisConsensus, containerdShimFact)
-	now := mustTime(t, "2026-09-20T00:00:00Z")
+	now := packClock(t)
 	attest := func(b bundle) []byte {
 		t.Helper()
 		inventory, err := b.unfilteredCorpus()
@@ -353,7 +355,7 @@ func TestPolicyAppliedEverywhere(t *testing.T) {
 	t.Parallel()
 	policy := mustPolicy(t, "mechanical")
 	checker := WithTrustPolicy(policy)
-	now := mustTime(t, "2026-09-20T00:00:00Z")
+	now := packClock(t)
 	input := containerdInput(t)
 	const containerdRule = "containerd.selected-official-runtime-shim-removed.1-7-28-to-2-0-0"
 	check := func(name string, report Report, err error) {
@@ -435,7 +437,7 @@ func TestPolicyAppliedEverywhere(t *testing.T) {
 
 func TestTrustPolicyDisclosureIntegrity(t *testing.T) {
 	t.Parallel()
-	report, err := WithTrustPolicy(mustPolicy(t, "mechanical")).Check("containerd", containerdInput(t), mustTime(t, "2026-09-20T00:00:00Z"))
+	report, err := WithTrustPolicy(mustPolicy(t, "mechanical")).Check("containerd", containerdInput(t), packClock(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -589,7 +591,7 @@ func TestCorpusInventorySkipsLeadOnlyComponents(t *testing.T) {
 // like a check report's.
 func TestScopeReportDisclosureIntegrity(t *testing.T) {
 	t.Parallel()
-	report, err := WithTrustPolicy(mustPolicy(t, "mechanical")).AssessScope(containerdInput(t), mustTime(t, "2026-09-20T00:00:00Z"))
+	report, err := WithTrustPolicy(mustPolicy(t, "mechanical")).AssessScope(containerdInput(t), packClock(t))
 	if err != nil {
 		t.Fatal(err)
 	}
