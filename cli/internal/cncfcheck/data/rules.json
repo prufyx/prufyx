@@ -22583,6 +22583,280 @@
     },
     {
       "component": "pkg:github/cert-manager/cert-manager",
+      "line": "1.17",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.16.0",
+            "commit": "67c897d068cf4602a62370f4152eeccfdd108b61"
+          },
+          {
+            "version": "1.16.1",
+            "commit": "ff50c068fd1942419fcce05131d3200a7641cc50"
+          },
+          {
+            "version": "1.16.2",
+            "commit": "33df0f22ab5753b942ce2deb36d7e452bc78e49d"
+          },
+          {
+            "version": "1.16.3",
+            "commit": "1694b110a182d8866d1471b32468b1696797259a"
+          },
+          {
+            "version": "1.16.4",
+            "commit": "c928c6e8ee68eff657bf56e0f8e11999ebe9f233"
+          },
+          {
+            "version": "1.16.5",
+            "commit": "d8611e2714de158a2e70e0fb11bfc61348a2c624"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.17.0",
+            "commit": "4562b9a3f301d8d734d4049afba417487e4284b0"
+          },
+          {
+            "version": "1.17.1",
+            "commit": "c658224baa1f15b8472d4180e166f4b5bfe783d3"
+          },
+          {
+            "version": "1.17.2",
+            "commit": "f3ffb86641f75d94d01e5a2606b9871ff89645ef"
+          },
+          {
+            "version": "1.17.3",
+            "commit": "9aa7217be4ea037207af676ba6471b6b9b5a59ae"
+          },
+          {
+            "version": "1.17.4",
+            "commit": "3f1f3b101850152851e2c5be09a29866bb8c1e15"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.cert-manager",
+          "version": "2.16.0",
+          "codeDigest": "sha256:97f19fbf5a3ecdbdaccafd93b96442ec2bfefb83bdd15827d156a26ca28218d1"
+        },
+        "derivedAt": "2026-11-17T23:47:42Z",
+        "reviewedAt": "2026-11-17T23:47:42Z",
+        "validUntil": "2027-01-25T23:47:42Z",
+        "sources": [
+          {
+            "id": "crds-1-16-0",
+            "url": "https://github.com/cert-manager/cert-manager/blob/67c897d068cf4602a62370f4152eeccfdd108b61/deploy/crds/crd-certificaterequests.yaml",
+            "revision": "67c897d068cf4602a62370f4152eeccfdd108b61",
+            "contentDigest": "sha256:bae51a8380d6944a665f0394f953bf94290d093edd9d21cc86f2f488524545e6",
+            "startLine": 1,
+            "endLine": 319
+          },
+          {
+            "id": "crds-1-17-0",
+            "url": "https://github.com/cert-manager/cert-manager/blob/4562b9a3f301d8d734d4049afba417487e4284b0/deploy/crds/crd-certificaterequests.yaml",
+            "revision": "4562b9a3f301d8d734d4049afba417487e4284b0",
+            "contentDigest": "sha256:bae51a8380d6944a665f0394f953bf94290d093edd9d21cc86f2f488524545e6",
+            "startLine": 1,
+            "endLine": 319
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/cert-manager/cert-manager",
+      "line": "1.18",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.17.0",
+            "commit": "4562b9a3f301d8d734d4049afba417487e4284b0"
+          },
+          {
+            "version": "1.17.1",
+            "commit": "c658224baa1f15b8472d4180e166f4b5bfe783d3"
+          },
+          {
+            "version": "1.17.2",
+            "commit": "f3ffb86641f75d94d01e5a2606b9871ff89645ef"
+          },
+          {
+            "version": "1.17.3",
+            "commit": "9aa7217be4ea037207af676ba6471b6b9b5a59ae"
+          },
+          {
+            "version": "1.17.4",
+            "commit": "3f1f3b101850152851e2c5be09a29866bb8c1e15"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.18.0",
+            "commit": "83dae3ef37f50973c0f3b3a818fc7d1b35fff341"
+          },
+          {
+            "version": "1.18.1",
+            "commit": "d5382c8e024d418866d317ab1d7537d837b612a2"
+          },
+          {
+            "version": "1.18.2",
+            "commit": "686afa62160249022a0205d3a9bf5f059476c684"
+          },
+          {
+            "version": "1.18.3",
+            "commit": "0be5a60e327cc1b39acb18b063fbdb7557002646"
+          },
+          {
+            "version": "1.18.4",
+            "commit": "1c5d75be91b6cca4ffc385e89ce3aa9c92abbd1c"
+          },
+          {
+            "version": "1.18.5",
+            "commit": "9a73a0b3853035827edd37ac463e4803ba10327d"
+          },
+          {
+            "version": "1.18.6",
+            "commit": "4699caabb4212edfde601a4e1bd37a431d0b90c6"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.cert-manager",
+          "version": "2.16.0",
+          "codeDigest": "sha256:97f19fbf5a3ecdbdaccafd93b96442ec2bfefb83bdd15827d156a26ca28218d1"
+        },
+        "derivedAt": "2026-11-17T23:47:42Z",
+        "reviewedAt": "2026-11-17T23:47:42Z",
+        "validUntil": "2027-01-25T23:47:42Z",
+        "sources": [
+          {
+            "id": "crds-1-17-0",
+            "url": "https://github.com/cert-manager/cert-manager/blob/4562b9a3f301d8d734d4049afba417487e4284b0/deploy/crds/crd-certificaterequests.yaml",
+            "revision": "4562b9a3f301d8d734d4049afba417487e4284b0",
+            "contentDigest": "sha256:bae51a8380d6944a665f0394f953bf94290d093edd9d21cc86f2f488524545e6",
+            "startLine": 1,
+            "endLine": 319
+          },
+          {
+            "id": "crds-1-18-0",
+            "url": "https://github.com/cert-manager/cert-manager/blob/83dae3ef37f50973c0f3b3a818fc7d1b35fff341/deploy/crds/crd-certificaterequests.yaml",
+            "revision": "83dae3ef37f50973c0f3b3a818fc7d1b35fff341",
+            "contentDigest": "sha256:bae51a8380d6944a665f0394f953bf94290d093edd9d21cc86f2f488524545e6",
+            "startLine": 1,
+            "endLine": 319
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/cert-manager/cert-manager",
+      "line": "1.19",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.18.0",
+            "commit": "83dae3ef37f50973c0f3b3a818fc7d1b35fff341"
+          },
+          {
+            "version": "1.18.1",
+            "commit": "d5382c8e024d418866d317ab1d7537d837b612a2"
+          },
+          {
+            "version": "1.18.2",
+            "commit": "686afa62160249022a0205d3a9bf5f059476c684"
+          },
+          {
+            "version": "1.18.3",
+            "commit": "0be5a60e327cc1b39acb18b063fbdb7557002646"
+          },
+          {
+            "version": "1.18.4",
+            "commit": "1c5d75be91b6cca4ffc385e89ce3aa9c92abbd1c"
+          },
+          {
+            "version": "1.18.5",
+            "commit": "9a73a0b3853035827edd37ac463e4803ba10327d"
+          },
+          {
+            "version": "1.18.6",
+            "commit": "4699caabb4212edfde601a4e1bd37a431d0b90c6"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.19.0",
+            "commit": "12a3ef97916bf5c1bea55740caab49e93e2b6d54"
+          },
+          {
+            "version": "1.19.1",
+            "commit": "a22e21ea38f6a8e031af99471b0a50287fed8e7f"
+          },
+          {
+            "version": "1.19.2",
+            "commit": "6e38ee57a338a1f27bb724ddb5933f4b8e23e567"
+          },
+          {
+            "version": "1.19.3",
+            "commit": "d4faed26ae12115cceb807cdc12507ebc28980e2"
+          },
+          {
+            "version": "1.19.4",
+            "commit": "83820a03ce3e6b8a1084fa765d77a6b5b98e6943"
+          },
+          {
+            "version": "1.19.5",
+            "commit": "cda7b7896e70dafb2de66212028cf9997a5e9490"
+          },
+          {
+            "version": "1.19.6",
+            "commit": "60b0447cc9a64885d42567ea590862b88a62d1ad"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.cert-manager",
+          "version": "2.16.0",
+          "codeDigest": "sha256:97f19fbf5a3ecdbdaccafd93b96442ec2bfefb83bdd15827d156a26ca28218d1"
+        },
+        "derivedAt": "2026-11-17T23:47:42Z",
+        "reviewedAt": "2026-11-17T23:47:42Z",
+        "validUntil": "2027-01-25T23:47:42Z",
+        "sources": [
+          {
+            "id": "crds-1-18-0",
+            "url": "https://github.com/cert-manager/cert-manager/blob/83dae3ef37f50973c0f3b3a818fc7d1b35fff341/deploy/crds/crd-certificaterequests.yaml",
+            "revision": "83dae3ef37f50973c0f3b3a818fc7d1b35fff341",
+            "contentDigest": "sha256:bae51a8380d6944a665f0394f953bf94290d093edd9d21cc86f2f488524545e6",
+            "startLine": 1,
+            "endLine": 319
+          },
+          {
+            "id": "crds-1-19-0",
+            "url": "https://github.com/cert-manager/cert-manager/blob/12a3ef97916bf5c1bea55740caab49e93e2b6d54/deploy/crds/acme.cert-manager.io_challenges.yaml",
+            "revision": "12a3ef97916bf5c1bea55740caab49e93e2b6d54",
+            "contentDigest": "sha256:ec81b760ed7ad2bf7129218a9914711baddddb927795c7b685a09c73835356fc",
+            "startLine": 1,
+            "endLine": 3474
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/cert-manager/cert-manager",
       "line": "1.20",
       "factFamily": "crd.custom_resource_versions",
       "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
@@ -22649,12 +22923,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.cert-manager",
-          "version": "2.7.0",
-          "codeDigest": "sha256:22ba78d4b02fe86f03f3b36115c4a4522376d1bb77835d8e1c5b09ca2d501ba8"
+          "version": "2.16.0",
+          "codeDigest": "sha256:97f19fbf5a3ecdbdaccafd93b96442ec2bfefb83bdd15827d156a26ca28218d1"
         },
-        "derivedAt": "2026-10-29T11:43:08Z",
-        "reviewedAt": "2026-10-29T11:43:08Z",
-        "validUntil": "2027-01-27T11:43:08Z",
+        "derivedAt": "2026-11-17T23:47:42Z",
+        "reviewedAt": "2026-11-17T23:47:42Z",
+        "validUntil": "2027-01-25T23:47:42Z",
         "sources": [
           {
             "id": "crds-1-19-0",
@@ -22731,12 +23005,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.cert-manager",
-          "version": "2.7.0",
-          "codeDigest": "sha256:22ba78d4b02fe86f03f3b36115c4a4522376d1bb77835d8e1c5b09ca2d501ba8"
+          "version": "2.16.0",
+          "codeDigest": "sha256:97f19fbf5a3ecdbdaccafd93b96442ec2bfefb83bdd15827d156a26ca28218d1"
         },
-        "derivedAt": "2026-10-29T11:43:08Z",
-        "reviewedAt": "2026-10-29T11:43:08Z",
-        "validUntil": "2027-01-27T11:43:08Z",
+        "derivedAt": "2026-11-17T23:47:42Z",
+        "reviewedAt": "2026-11-17T23:47:42Z",
+        "validUntil": "2027-01-25T23:47:42Z",
         "sources": [
           {
             "id": "crds-1-20-0",
