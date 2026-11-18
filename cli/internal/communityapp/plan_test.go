@@ -70,8 +70,28 @@ func TestPlanCommand(t *testing.T) {
 	if code, _, _ := runPlan(t, append([]string{path, "--to", "kubernetes=latest", "--to", "kubernetes=newest-covered"}, declared...)...); code != ExitUsage {
 		t.Fatalf("latest and newest-covered %d", code)
 	}
-	if code, _, _ := runPlan(t, append([]string{path, "--to", "cilium=newest-covered"}, declared...)...); code != ExitUsage {
+	if code, _, _ := runPlan(t, append([]string{path, "--to", "no-such-app=newest-covered"}, declared...)...); code != ExitUsage {
 		t.Fatalf("newest-covered without lines %d", code)
+	}
+	// An application resolves from its line attestations; the wording says
+	// what the target is and no stage is PASS.
+	code, stdout, stderr = runPlan(t, path, "--from", "cert-manager=1.14.0", "--to", "cert-manager=newest-covered", "--now", supersedeids.ClockString(), "--format", "json")
+	var app upgradeplan.Plan
+	if err := json.Unmarshal([]byte(stdout), &app); err != nil || len(app.Routes) != 1 || app.Routes[0].Component != "cert-manager" || len(app.Notes) != 1 ||
+		!strings.Contains(app.Notes[0], "newest line with a complete reviewed rule set") || strings.Contains(app.Notes[0], "the newest release.") {
+		t.Fatalf("app newest-covered %d %v\n%s\n%s", code, err, stdout, stderr)
+	}
+	if app.Routes[0].To != "1.21.3" {
+		t.Fatalf("app target %s", app.Routes[0].To)
+	}
+	for _, s := range app.Stages {
+		if s.Verdict == upgradeplan.VerdictPass {
+			t.Fatalf("PASS stage %+v", s)
+		}
+	}
+	// An application without a line attestation keeps the usage error.
+	if code, _, stderr := runPlan(t, path, "--to", "no-such-app=newest-covered"); code != ExitUsage || !strings.Contains(stderr, "no current reviewed release line") {
+		t.Fatalf("no attestation %d %s", code, stderr)
 	}
 	if code, _, _ := runPlan(t, path, "--to", "kubernetes=1.30.4", "--fail-on", "none"); code != ExitUsage {
 		t.Fatalf("fail-on %d", code)

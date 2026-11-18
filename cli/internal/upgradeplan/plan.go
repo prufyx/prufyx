@@ -216,7 +216,9 @@ func Build(report scanreport.Report, latest []string, caps Capabilities) Plan {
 	}
 
 	for _, c := range report.Inventory {
-		if c.TargetSource == string(scanconfig.FromNewestCovered) {
+		if c.TargetSource == string(scanconfig.FromNewestCovered) && c.Name != kubernetes {
+			plan.Notes = append(plan.Notes, fmt.Sprintf("%s target %s was chosen by Prufyx: the newest line with a complete reviewed rule set, at its newest attested patch version. A newer release may exist; this is not a statement that the upgrade is safe.", c.Name, c.Target))
+		} else if c.TargetSource == string(scanconfig.FromNewestCovered) {
 			plan.Notes = append(plan.Notes, fmt.Sprintf("%s target %s was chosen by Prufyx: the newest release line with a current reviewed list in the knowledge, at its .0 release. It is not the newest release.", c.Name, c.Target))
 		}
 	}

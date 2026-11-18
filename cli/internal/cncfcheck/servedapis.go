@@ -93,3 +93,15 @@ func (k *ScanKnowledge) NewestServedLine(component string, now time.Time) (strin
 func ServedListNamesRemovedAPI(record servedapis.Record) bool {
 	return namesRemovedAPI(record, k8sremovals.AdmissionRemovedVersions())
 }
+
+// NewestAttestedRelease is the newest release line of the component whose
+// custom-resource-versions attestation is current and complete, with that
+// line's newest attested patch release. For an application component, which
+// has no served-API list. Not the newest release that exists.
+func (k *ScanKnowledge) NewestAttestedRelease(component string, now time.Time) (line, version string, ok bool) {
+	b, found := k.bundleForComponent(component)
+	if !found {
+		return "", "", false
+	}
+	return b.attestations.NewestReleased(component, lineattest.FamilyCustomResourceVersions, now)
+}
