@@ -21,7 +21,7 @@ func TestCertManagerRouteReturnsScopedExitAndSafeOutput(t *testing.T) {
 		t.Fatal(err)
 	}
 	var stdout, stderr bytes.Buffer
-	code := Run(context.Background(), []string{"check", "cert-manager-values", "--from", "1.20.3", "--to", "1.21.1", "--values", path, "--format", "json"}, &stdout, &stderr, "test")
+	code := Run(context.Background(), floorNowArgs([]string{"check", "cert-manager-values", "--from", "1.20.3", "--to", "1.21.1", "--values", path, "--format", "json"}), &stdout, &stderr, "test")
 	if code != ExitBlocked {
 		t.Fatalf("code=%d stderr=%s", code, stderr.String())
 	}
@@ -42,7 +42,7 @@ func TestCertManagerCleanRouteReturnsScopedPass(t *testing.T) {
 		t.Fatal(err)
 	}
 	var stdout, stderr bytes.Buffer
-	code := Run(context.Background(), []string{"check", "cert-manager-values", "--from", "1.20.3", "--to", "1.21.1", "--values", path}, &stdout, &stderr, "test")
+	code := Run(context.Background(), floorNowArgs([]string{"check", "cert-manager-values", "--from", "1.20.3", "--to", "1.21.1", "--values", path}), &stdout, &stderr, "test")
 	if code != ExitOK || !strings.Contains(stdout.String(), "aggregate: UNKNOWN") {
 		t.Fatalf("code=%d stdout=%s stderr=%s", code, stdout.String(), stderr.String())
 	}
@@ -67,7 +67,7 @@ func TestCertManagerLatestRouteCoversFiveChartOriginsAndPinsDigests(t *testing.T
 	for _, origin := range origins {
 		var stdout, stderr bytes.Buffer
 		args := []string{"check", "cert-manager-values", "--from", origin.version, "--to", "1.21.2", "--values", path, "--current-chart-digest", origin.digest, "--target-chart-digest", "sha256:634dce9c13b56677a2c05e2ab76c312d0be2664022d5dd05815da67e1fd5f610", "--format", "json"}
-		if code := Run(context.Background(), args, &stdout, &stderr, "test"); code != ExitOK || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"status":"PASS"`) || !strings.Contains(stdout.String(), `"reviewedTo":"1.21.2"`) {
+		if code := Run(context.Background(), floorNowArgs(args), &stdout, &stderr, "test"); code != ExitOK || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"status":"PASS"`) || !strings.Contains(stdout.String(), `"reviewedTo":"1.21.2"`) {
 			t.Fatalf("origin=%s code=%d stdout=%s stderr=%s", origin.version, code, stdout.String(), stderr.String())
 		}
 		stdout.Reset()
@@ -78,7 +78,7 @@ func TestCertManagerLatestRouteCoversFiveChartOriginsAndPinsDigests(t *testing.T
 				break
 			}
 		}
-		if code := Run(context.Background(), args, &stdout, &stderr, "test"); code != ExitIntegrity || stdout.Len() != 0 {
+		if code := Run(context.Background(), floorNowArgs(args), &stdout, &stderr, "test"); code != ExitIntegrity || stdout.Len() != 0 {
 			t.Fatalf("wrong target digest origin=%s code=%d stdout=%s stderr=%s", origin.version, code, stdout.String(), stderr.String())
 		}
 	}
@@ -110,7 +110,7 @@ func TestCertManagerLatestRouteFalsifiersAcrossFiveOrigins(t *testing.T) {
 			}{{"blocked", blockedPath, `"status":"BLOCKED"`, ExitBlocked}, {"unknown", unknownPath, `"status":"UNKNOWN"`, ExitUnknown}} {
 				var stdout, stderr bytes.Buffer
 				args := append(append([]string(nil), base...), "--values", test.path)
-				if code := Run(context.Background(), args, &stdout, &stderr, "test"); code != test.code || stderr.Len() != 0 || !strings.Contains(stdout.String(), test.status) {
+				if code := Run(context.Background(), floorNowArgs(args), &stdout, &stderr, "test"); code != test.code || stderr.Len() != 0 || !strings.Contains(stdout.String(), test.status) {
 					t.Fatalf("%s code=%d stdout=%s stderr=%s", test.name, code, stdout.String(), stderr.String())
 				}
 			}
@@ -122,13 +122,13 @@ func TestCertManagerLatestRouteFalsifiersAcrossFiveOrigins(t *testing.T) {
 					break
 				}
 			}
-			if code := Run(context.Background(), wrongCurrent, &stdout, &stderr, "test"); code != ExitIntegrity || stdout.Len() != 0 {
+			if code := Run(context.Background(), floorNowArgs(wrongCurrent), &stdout, &stderr, "test"); code != ExitIntegrity || stdout.Len() != 0 {
 				t.Fatalf("wrong current digest code=%d stdout=%s stderr=%s", code, stdout.String(), stderr.String())
 			}
 			stdout.Reset()
 			stderr.Reset()
 			wrongPair := []string{"check", "cert-manager-values", "--from", origin.version, "--to", "1.21.3", "--values", blockedPath, "--format", "json"}
-			if code := Run(context.Background(), wrongPair, &stdout, &stderr, "test"); code != ExitUnknown || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"status":"UNKNOWN"`) {
+			if code := Run(context.Background(), floorNowArgs(wrongPair), &stdout, &stderr, "test"); code != ExitUnknown || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"status":"UNKNOWN"`) {
 				t.Fatalf("wrong pair code=%d stdout=%s stderr=%s", code, stdout.String(), stderr.String())
 			}
 		})
@@ -138,7 +138,7 @@ func TestCertManagerLatestRouteFalsifiersAcrossFiveOrigins(t *testing.T) {
 func TestPrometheusDemoPreservesAggregateUnknownExit(t *testing.T) {
 	t.Parallel()
 	var stdout, stderr bytes.Buffer
-	code := Run(context.Background(), []string{"check", "prometheus-mode", "--demo", "--format", "json"}, &stdout, &stderr, "test")
+	code := Run(context.Background(), floorNowArgs([]string{"check", "prometheus-mode", "--demo", "--format", "json"}), &stdout, &stderr, "test")
 	if code != ExitUnknown || !strings.Contains(stdout.String(), `"aggregate":"UNKNOWN"`) {
 		t.Fatalf("code=%d stdout=%s stderr=%s", code, stdout.String(), stderr.String())
 	}
@@ -147,7 +147,7 @@ func TestPrometheusDemoPreservesAggregateUnknownExit(t *testing.T) {
 func TestLegacyPrometheusDemoEnvelope(t *testing.T) {
 	t.Parallel()
 	var stdout, stderr bytes.Buffer
-	code := Run(context.Background(), []string{"community-preview", "demo-prometheus-mode"}, &stdout, &stderr, "test")
+	code := Run(context.Background(), floorNowArgs([]string{"community-preview", "demo-prometheus-mode"}), &stdout, &stderr, "test")
 	if code != ExitUnknown || !strings.Contains(stdout.String(), `"schemaVersion":"prufyx.io/prometheus-mode-synthetic-demo/v1alpha1"`) || !strings.Contains(stdout.String(), `"reasonCode":"prometheus_mode_synthetic_demo_completed"`) {
 		t.Fatalf("code=%d stdout=%s stderr=%s", code, stdout.String(), stderr.String())
 	}
@@ -156,7 +156,7 @@ func TestLegacyPrometheusDemoEnvelope(t *testing.T) {
 func TestVersionUsesValidatedBuildIdentityEnvelope(t *testing.T) {
 	t.Parallel()
 	var stdout, stderr bytes.Buffer
-	code := Run(context.Background(), []string{"version"}, &stdout, &stderr, "ignored")
+	code := Run(context.Background(), floorNowArgs([]string{"version"}), &stdout, &stderr, "ignored")
 	if code != ExitOK || !strings.Contains(stdout.String(), `"schemaVersion":"prufyx.io/v1alpha1"`) || !strings.Contains(stdout.String(), `"reasonCode":"build_identity_reported"`) || !strings.Contains(stdout.String(), `"releaseState":"development"`) {
 		t.Fatalf("code=%d stdout=%s stderr=%s", code, stdout.String(), stderr.String())
 	}
@@ -165,7 +165,7 @@ func TestVersionUsesValidatedBuildIdentityEnvelope(t *testing.T) {
 func TestCheckHelpAndUnsupportedTransition(t *testing.T) {
 	t.Parallel()
 	var stdout, stderr bytes.Buffer
-	if code := Run(context.Background(), []string{"check", "--help"}, &stdout, &stderr, "test"); code != ExitOK || !strings.Contains(stdout.String(), "cert-manager-values") {
+	if code := Run(context.Background(), floorNowArgs([]string{"check", "--help"}), &stdout, &stderr, "test"); code != ExitOK || !strings.Contains(stdout.String(), "cert-manager-values") {
 		t.Fatalf("code=%d output=%s", code, stdout.String())
 	}
 	path := filepath.Join(t.TempDir(), "values.json")
@@ -174,7 +174,7 @@ func TestCheckHelpAndUnsupportedTransition(t *testing.T) {
 	}
 	stdout.Reset()
 	stderr.Reset()
-	code := Run(context.Background(), []string{"check", "cert-manager-values", "--from", "1.20.3", "--to", "1.22.0", "--values", path, "--format", "json"}, &stdout, &stderr, "test")
+	code := Run(context.Background(), floorNowArgs([]string{"check", "cert-manager-values", "--from", "1.20.3", "--to", "1.22.0", "--values", path, "--format", "json"}), &stdout, &stderr, "test")
 	if code != ExitUnknown || !strings.Contains(stdout.String(), `"reasonCode":"CERT_MANAGER_TRANSITION_NOT_REVIEWED"`) || strings.Contains(stdout.String(), "1.22.0") {
 		t.Fatalf("code=%d output=%s err=%s", code, stdout.String(), stderr.String())
 	}
@@ -187,7 +187,7 @@ func TestDisabledSchemaValidationReturnsAttention(t *testing.T) {
 		t.Fatal(err)
 	}
 	var stdout, stderr bytes.Buffer
-	code := Run(context.Background(), []string{"check", "cert-manager-values", "--from", "1.20.3", "--to", "1.21.1", "--values", path, "--schema-validation", "disabled", "--format", "json"}, &stdout, &stderr, "test")
+	code := Run(context.Background(), floorNowArgs([]string{"check", "cert-manager-values", "--from", "1.20.3", "--to", "1.21.1", "--values", path, "--schema-validation", "disabled", "--format", "json"}), &stdout, &stderr, "test")
 	if code != ExitUnknown || !strings.Contains(stdout.String(), `"status":"ATTENTION"`) || !strings.Contains(stdout.String(), `"schemaValidation":"disabled"`) {
 		t.Fatalf("code=%d output=%s err=%s", code, stdout.String(), stderr.String())
 	}
@@ -196,7 +196,7 @@ func TestDisabledSchemaValidationReturnsAttention(t *testing.T) {
 func TestHelpNamesPublicBinary(t *testing.T) {
 	t.Parallel()
 	var stdout, stderr bytes.Buffer
-	if code := Run(context.Background(), []string{"--help"}, &stdout, &stderr, "test"); code != ExitOK {
+	if code := Run(context.Background(), floorNowArgs([]string{"--help"}), &stdout, &stderr, "test"); code != ExitOK {
 		t.Fatal(code)
 	}
 	// Intentionally changed: the root help is now a short grouped overview
@@ -256,7 +256,7 @@ func TestPrometheusRouteClassifiesProposedAdmissionErrors(t *testing.T) {
 			args = append(args, base...)
 			args = append(args, "--proposed-workload", tc.path, "--proposed-digest", tc.pin)
 			var stdout, stderr bytes.Buffer
-			if code := Run(context.Background(), args, &stdout, &stderr, "test"); code != tc.want {
+			if code := Run(context.Background(), floorNowArgs(args), &stdout, &stderr, "test"); code != tc.want {
 				t.Fatalf("code=%d want=%d stdout=%q stderr=%q", code, tc.want, stdout.String(), stderr.String())
 			}
 			if stdout.Len() != 0 || stderr.String() != "prufyx: proposed workload failed local verification\n" {

@@ -20,7 +20,7 @@ const checkCNCFArgumentError = "invalid CNCF check arguments; use --help"
 func parsesAsRouteFlags(args ...string) bool {
 	var stdout, stderr bytes.Buffer
 	full := append([]string{"check", "cncf", "--project", "kubernetes"}, args...)
-	Run(context.Background(), full, &stdout, &stderr, "test")
+	Run(context.Background(), floorNowArgs(full), &stdout, &stderr, "test")
 	return !strings.Contains(stderr.String(), checkCNCFArgumentError)
 }
 
@@ -30,7 +30,7 @@ func TestDeclarationsMapToRouteFlags(t *testing.T) {
 		t.Fatal("the flag-parsing probe does not tell an unknown flag from a known route")
 	}
 	var help bytes.Buffer
-	Run(context.Background(), []string{"check", "cncf", "--project", "kubernetes", "--help"}, &help, &bytes.Buffer{}, "test")
+	Run(context.Background(), floorNowArgs([]string{"check", "cncf", "--project", "kubernetes", "--help"}), &help, &bytes.Buffer{}, "test")
 	var kubernetesUsage string
 	// The help wraps long usage lines; rejoin them before looking for one.
 	for _, line := range strings.Split(strings.Join(strings.Fields(help.String()), " "), "prufyx check cncf") {

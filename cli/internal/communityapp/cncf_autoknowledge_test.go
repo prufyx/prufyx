@@ -281,7 +281,7 @@ func TestDBUpdateDefaultRootOnlyForOfficialProfile(t *testing.T) {
 	useDefaultStoreHome(t)
 	out := filepath.Join(t.TempDir(), "pkg.tar")
 	var stdout, stderr bytes.Buffer
-	code := Run(t.Context(), []string{"db", "update", "--source", "https://example.invalid/p.tar", "--profile", "cert-manager", "--package-out", out}, &stdout, &stderr, "test")
+	code := Run(t.Context(), floorNowArgs([]string{"db", "update", "--source", "https://example.invalid/p.tar", "--profile", "cert-manager", "--package-out", out}), &stdout, &stderr, "test")
 	if code != ExitUsage || !strings.Contains(stderr.String(), "--db-root is required") {
 		t.Fatalf("%d %q", code, stderr.String())
 	}

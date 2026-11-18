@@ -20,7 +20,7 @@ func TestCommunityExampleRunsNativeSyntheticCNCFJourneys(t *testing.T) {
 	for _, example := range []string{"cncf-coredns-latest", "cncf-envoy-latest", "cncf-etcd", "cncf-kyverno-latest", "cncf-nats-latest", "cncf-opa-latest", "cncf-opentelemetry", "cncf-rook-latest", "knowledge-cert-manager", "knowledge-cncf", "project-ceph-latest"} {
 		t.Run(example, func(t *testing.T) {
 			var stdout, stderr bytes.Buffer
-			code := Run(context.Background(), []string{"community-preview", "example", example}, &stdout, &stderr, "test")
+			code := Run(context.Background(), floorNowArgs([]string{"community-preview", "example", example}), &stdout, &stderr, "test")
 			if code != ExitOK || stderr.Len() != 0 {
 				t.Fatalf("code=%d stderr=%q output=%s", code, stderr.String(), stdout.String())
 			}
@@ -64,7 +64,7 @@ func TestCommunityExampleRunsNativeSyntheticCNCFJourneys(t *testing.T) {
 func TestCommunityExampleRejectsUnknownName(t *testing.T) {
 	t.Parallel()
 	var stdout, stderr bytes.Buffer
-	if code := Run(context.Background(), []string{"community-preview", "example", "unknown"}, &stdout, &stderr, "test"); code != ExitUsage || stdout.Len() != 0 || stderr.Len() == 0 {
+	if code := Run(context.Background(), floorNowArgs([]string{"community-preview", "example", "unknown"}), &stdout, &stderr, "test"); code != ExitUsage || stdout.Len() != 0 || stderr.Len() == 0 {
 		t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout.String(), stderr.String())
 	}
 }
