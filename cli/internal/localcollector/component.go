@@ -22,6 +22,9 @@ type containerRecord struct {
 	image         string
 	container     map[string]any
 	init          []any
+	// owners are the metadata.ownerReferences kinds of the workload object, read
+	// locally from the already-fetched list and never emitted.
+	owners []string
 }
 
 func projectWorkload(root any, adapter adapterAssets, profile string, now time.Time) (map[string]any, error) {
@@ -64,7 +67,7 @@ func projectWorkload(root any, adapter adapterAssets, profile string, now time.T
 			if !ok || strings.ContainsAny(image, "\x00\r\n") {
 				return nil, errProjection
 			}
-			containers = append(containers, containerRecord{index, kind, image, container, initContainers})
+			containers = append(containers, containerRecord{index, kind, image, container, initContainers, ownerKinds(item)})
 		}
 	}
 
@@ -83,7 +86,7 @@ func projectWorkload(root any, adapter adapterAssets, profile string, now time.T
 			}
 			matched = nil
 		}
-		if matched != nil && !contains(matched.WorkloadKinds, record.workloadKind) && !derivedWorkloadKinds[record.workloadKind] {
+		if matched != nil && !contains(matched.WorkloadKinds, record.workloadKind) && !ownedByReadKind(record, matched.WorkloadKinds) {
 			// The reviewed identity runs under a controller kind the adapter
 			// does not read, so no row exists and the component must not be
 			// concluded absent. Kinds that are derived from another read kind
@@ -597,7 +600,29 @@ func publicIdentityOnly(image string) string {
 // reviewed component but which yielded no component row. It carries no data
 // beyond the code; the consumer must treat the component as unverified, never
 // as absent.
-var derivedWorkloadKinds = map[string]bool{"ReplicaSet": true, "Pod": true, "Job": true}
+// ownerKinds returns the kinds named in metadata.ownerReferences.
+func ownerKinds(item any) []string {
+	refs, _ := array(nullDefault(at(item, "metadata", "ownerReferences"), []any{}))
+	out := []string{}
+	for _, ref := range refs {
+		if kind, ok := stringValue(at(ref, "kind")); ok {
+			out = append(out, kind)
+		}
+	}
+	return out
+}
+
+// ownedByReadKind reports whether a ReplicaSet or Job is derived from a
+// controller the adapter reads, so another row already represents it. A
+// standalone object (no owner chain reaching such a kind) is not exempt.
+func ownedByReadKind(record containerRecord, adapterKinds []string) bool {
+	derived := map[string]string{"ReplicaSet": "Deployment", "Job": "CronJob"}
+	want, ok := derived[record.workloadKind]
+	if !ok || !contains(adapterKinds, want) {
+		return false
+	}
+	return contains(record.owners, want)
+}
 
 const OmissionComponentVersionUnbound = "COMPONENT_VERSION_UNBOUND"
 

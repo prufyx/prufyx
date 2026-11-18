@@ -15,14 +15,18 @@ import (
 
 // kindRunner serves one workload of the given kind carrying image.
 type kindRunner struct {
-	resource, kind, image string
+	resource, kind, image, owner string
 }
 
 func (r kindRunner) Run(_ context.Context, argv, _ []string, _ time.Duration) (CommandResult, error) {
 	joined := strings.Join(argv, " ")
 	if strings.Contains(joined, " "+r.resource+" ") {
+		meta := map[string]any{}
+		if r.owner != "" {
+			meta["ownerReferences"] = []any{map[string]any{"kind": r.owner, "name": "x"}}
+		}
 		raw, _ := json.Marshal(map[string]any{"items": []any{map[string]any{
-			"kind": r.kind,
+			"kind": r.kind, "metadata": meta,
 			"spec": map[string]any{"template": map[string]any{"spec": map[string]any{"containers": []any{map[string]any{"image": r.image}}}}},
 		}}})
 		return CommandResult{Stdout: raw}, nil
@@ -58,22 +62,37 @@ func collectOmissions(t *testing.T, r kindRunner, components bool) string {
 func TestUnboundWorkloadKindOrFormMarksPartialInBothPaths(t *testing.T) {
 	for _, components := range []bool{true, false} {
 		// A DaemonSet running the image of a Deployment-only adapter.
-		got := collectOmissions(t, kindRunner{"daemonsets.apps", "DaemonSet", "quay.io/argoproj/workflow-controller:v4.1.2"}, components)
+		got := collectOmissions(t, kindRunner{"daemonsets.apps", "DaemonSet", "quay.io/argoproj/workflow-controller:v4.1.2", ""}, components)
 		if strings.Count(got, OmissionComponentVersionUnbound) != 1 {
 			t.Fatalf("components=%v daemonset: omissions=%q", components, got)
 		}
-		got = collectOmissions(t, kindRunner{"deployments.apps", "Deployment", "index.docker.io/argoproj/workflow-controller:v4.1.2"}, components)
+		got = collectOmissions(t, kindRunner{"deployments.apps", "Deployment", "index.docker.io/argoproj/workflow-controller:v4.1.2", ""}, components)
 		if strings.Count(got, OmissionComponentVersionUnbound) != 1 {
 			t.Fatalf("components=%v index.docker.io: omissions=%q", components, got)
 		}
 	}
 }
 
-func TestHealthyDeploymentAndItsReplicaSetDoNotTriggerUnbound(t *testing.T) {
+func TestStandaloneDerivedKindsAreUnbound(t *testing.T) {
+	img := "quay.io/argoproj/workflow-controller:v4.1.2"
 	for _, r := range []kindRunner{
-		{"deployments.apps", "Deployment", "quay.io/argoproj/workflow-controller:v4.1.2"},
-		{"replicasets.apps", "ReplicaSet", "quay.io/argoproj/workflow-controller:v4.1.2"},
-		{"deployments.apps", "Deployment", "registry.example/other/app:v1.0.0"},
+		{"replicasets.apps", "ReplicaSet", img, ""},
+		{"replicasets.apps", "ReplicaSet", img, "StatefulSet"},
+		{"jobs.batch", "Job", img, ""},
+	} {
+		if got := collectOmissions(t, r, true); strings.Count(got, OmissionComponentVersionUnbound) != 1 {
+			t.Fatalf("standalone %s owner=%q: omissions=%q", r.kind, r.owner, got)
+		}
+	}
+}
+
+func TestHealthyDeploymentAndItsReplicaSetDoNotTriggerUnbound(t *testing.T) {
+	img := "quay.io/argoproj/workflow-controller:v4.1.2"
+	for _, r := range []kindRunner{
+		{"deployments.apps", "Deployment", img, ""},
+		{"replicasets.apps", "ReplicaSet", img, "Deployment"},
+		{"deployments.apps", "Deployment", "registry.example/other/app:v1.0.0", ""},
+		{"replicasets.apps", "ReplicaSet", "registry.example/other/app:v1.0.0", ""},
 	} {
 		if got := collectOmissions(t, r, true); strings.Contains(got, OmissionComponentVersionUnbound) {
 			t.Fatalf("%s: unexpected %q", r.kind, got)
