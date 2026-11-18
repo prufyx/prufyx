@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:902713b5d45af0ea9fe1bcbec7843adba18d8253612ccd16dbcf519f3700b226",
+    "candidateDigest": "sha256:95b7d22f699524e22a1e3507213643892d9c06f124c34da09a7365f842fcc094",
+    "candidateId": "pr-691",
+    "decidedAt": "2026-11-18T17:41:45Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "community",
+    "ruleId": "loki.compactor-shared-store.2-9-to-3-0"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "1KZG2hQe0yDYXXGTkmw62JWGXN0skwesN1WZ+y3d9JX7deduHmzsXO7Q7jpAijE5WS6awnQkFFOsYPYoAaydDg=="
+}

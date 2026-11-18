@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:8743a4f93e25855066d3099316828fa55a53d998a0d4c3cfc0bfea6fb47ea41c",
+    "candidateDigest": "sha256:9525c66a9262f0f276397ec4d15522e21a10af91c696afdcbeb5eeca40d46ebf",
+    "candidateId": "pr-691",
+    "decidedAt": "2026-11-18T17:41:44Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "community",
+    "ruleId": "grafana.legacy-alerting-config.12-3-11-to-13-2-1"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "xTEr8F8/h00ErQPPlikoTJCuSAC2WZ0clSaSsh9nWvIODEsECJ2dyB99uiM3nuzD6Y1cLD1pKzksGZhru9iFBQ=="
+}

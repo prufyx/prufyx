@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:93dca176530d5a941e7660876b2b74d5014637e701e6af21efb7a7d1e3a69751",
+    "candidateDigest": "sha256:70d74d5665c39211c0c0423c7e9b7744a71c3a8bd0cc33ee30b674ffcc83129c",
+    "candidateId": "pr-691",
+    "decidedAt": "2026-11-18T17:41:45Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "community",
+    "ruleId": "loki.structured-metadata-tsdb-v13.2-9-8-to-3-0-0"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "EUyBnHC5q6UFom2viitGOSA9AxR6790F65gWOn6xIAB//6a6Q0ZH7W7ZVBnDmcG0AAkWfaM2Fflyzj/4WfCXDA=="
+}
