@@ -117,6 +117,8 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return runDocsTables(args[1:])
 	case "k8s-declared":
 		return runK8sDeclared(args[1:])
+	case "qa-report":
+		return runQAReport(args[1:])
 	case "release-notes":
 		return runReleaseNotes(args[1:], stdout)
 	case "release-docs":
@@ -247,7 +249,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 		}
 		return nil
 	case "help", "-h", "--help":
-		fmt.Fprintln(stdout, "usage: prufyx-maintainer <project|contribution|contribution-candidates|selected-source-import|source-corpus|corpus-attestation|review-record|public-source-capture|evidence|factory|extract|changelog|consensus|served-lists|chart-versions|gate|approval|rule|onboard-bundle|target-check|target-draft|coverage|export-knowledge|knowledge-targets|package-knowledge|knowledge-publish|knowledge-packet|knowledge-sign|support-inventory|docs-tables|k8s-declared|release-notes|release-docs|release-gate|staging-receipt|release|local-kind|release-*> [options]")
+		fmt.Fprintln(stdout, "usage: prufyx-maintainer <project|contribution|contribution-candidates|selected-source-import|source-corpus|corpus-attestation|review-record|public-source-capture|evidence|factory|extract|changelog|consensus|served-lists|chart-versions|gate|approval|rule|onboard-bundle|target-check|target-draft|coverage|export-knowledge|knowledge-targets|package-knowledge|knowledge-publish|knowledge-packet|knowledge-sign|support-inventory|docs-tables|k8s-declared|qa-report|release-notes|release-docs|release-gate|staging-receipt|release|local-kind|release-*> [options]")
 		return nil
 	default:
 		return usageError()

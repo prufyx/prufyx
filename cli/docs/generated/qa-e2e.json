@@ -1,0 +1,2573 @@
+{
+  "schema": "prufyx.io/qa-e2e-report/v1",
+  "header": "Results of Prufyx runs against real upgrades on kind clusters. kind is not production fidelity. Display only: these runs do not change any Prufyx verdict.",
+  "counts": {
+    "correct": 34,
+    "wrongPass": 1,
+    "falseAlarm": 0,
+    "gap": 70,
+    "rows": 105
+  },
+  "runs": [
+    {
+      "id": "m2a-r2",
+      "k8sFrom": "1.25.16",
+      "k8sTo": "1.29.14",
+      "kindNodeImageFrom": "kindest/node:v1.25.16@sha256:6110314339b3b44d10da7d27881849a87e092124afab5956f2e10ecdb463b025",
+      "kindNodeImageTo": "kindest/node:v1.29.14@sha256:8703bd94ee24e51b778d5556ae310c6c0fa67d761fae6379c8e0bb480e6fea29",
+      "prufyxCommit": "25b60b90b4513db557e3bd5dcde6258417a1dcba",
+      "counts": {
+        "correct": 0,
+        "wrongPass": 0,
+        "falseAlarm": 0,
+        "gap": 6,
+        "rows": 6
+      },
+      "checks": [
+        {
+          "app": "argo-cd",
+          "from": "2.7.11",
+          "to": "2.11.7",
+          "command": "plan",
+          "result": "gap",
+          "oracle": "unspecified",
+          "reason": "PLAN_UNKNOWN",
+          "ids": [],
+          "logDigest": "9bae16909fec79fa79d4c7a0a21b19b8df75d8525d56f5eef8604c81c8cad452",
+          "artifacts": [
+            {
+              "name": "chart-5.42.3",
+              "sha256": "c104093eca72fecb4d5b997d95abcf1276227698c7fa7f922eacd195d2d645eb"
+            },
+            {
+              "name": "chart-7.3.11",
+              "sha256": "4249ea76c915bb04f4dda095e608004c08f13a7d0e0da2d1836ffc57a8592f7b"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6a62a78e4d1df35f81cec9cccfc507554e39acf122da24f3e1e7b0dbf89e0f41"
+            }
+          ]
+        },
+        {
+          "app": "argo-workflows",
+          "from": "3.4.6",
+          "to": "3.5.5",
+          "command": "plan",
+          "result": "gap",
+          "oracle": "unspecified",
+          "reason": "PLAN_REFUSED",
+          "ids": [],
+          "logDigest": "3ab2aeb8143bf9e039829854a64797bd2c9f3570b9e96fbde2781abe511d20b9",
+          "artifacts": [
+            {
+              "name": "chart-0.22.16",
+              "sha256": "57b203e6fa6f5ff0bde484d7958ec69d7d5ece504df722b2a09e1373f1318721"
+            },
+            {
+              "name": "chart-0.40.14",
+              "sha256": "3b2eb00984b08dc6ef9a1c750234fd60939d3aa0f822672afc2d4c93f3960707"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6a62a78e4d1df35f81cec9cccfc507554e39acf122da24f3e1e7b0dbf89e0f41"
+            }
+          ]
+        },
+        {
+          "app": "cert-manager",
+          "from": "1.10.2",
+          "to": "1.14.7",
+          "command": "plan",
+          "result": "gap",
+          "oracle": "unspecified",
+          "reason": "PLAN_UNKNOWN",
+          "ids": [],
+          "logDigest": "b7746523f31e133b97b63b1b325d27a7ef930f799a43a252ca226f1c85fdeaa5",
+          "artifacts": [
+            {
+              "name": "chart-v1.10.2",
+              "sha256": "426ff4927bafbbd21f30e64fcf94c630fc2d8de18362c3e690fe0896f87fd689"
+            },
+            {
+              "name": "chart-v1.14.7",
+              "sha256": "cc542b089abf8505d77efd3d77ed09e3ea2f7cdf26f3def7e0e897942dfd6943"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6a62a78e4d1df35f81cec9cccfc507554e39acf122da24f3e1e7b0dbf89e0f41"
+            }
+          ]
+        },
+        {
+          "app": "ingress-nginx",
+          "from": "1.5.1",
+          "to": "1.10.6",
+          "command": "plan",
+          "result": "gap",
+          "oracle": "unspecified",
+          "reason": "PLAN_REFUSED",
+          "ids": [],
+          "logDigest": "3eb8ade50b58939bd282ad31a0fa9bbd200f6ed516680bb75da2cf87a0c73ec9",
+          "artifacts": [
+            {
+              "name": "chart-4.10.6",
+              "sha256": "131c1e484fa8a26e4ba456c30026554bfecee55fe9d6d1d3fa4d4dfcac6c14fe"
+            },
+            {
+              "name": "chart-4.4.2",
+              "sha256": "949a8550fd9961a44704fd0e6508edea3901ee942caaf0e2d56f10d281228e05"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6a62a78e4d1df35f81cec9cccfc507554e39acf122da24f3e1e7b0dbf89e0f41"
+            }
+          ]
+        },
+        {
+          "app": "kube-prometheus-stack",
+          "from": "0.63.0",
+          "to": "0.76.1",
+          "command": "plan",
+          "result": "gap",
+          "oracle": "unspecified",
+          "reason": "PLAN_REFUSED",
+          "ids": [],
+          "logDigest": "3e186c5bcf84f03fde42a82e889ff1117ca45ff42dd7bb78234e0b6482d18340",
+          "artifacts": [
+            {
+              "name": "chart-45.25.0",
+              "sha256": "3348a7374a2896642535ad4c9bfc49ad32983ccc2a2ed9d7be3633b5d686133f"
+            },
+            {
+              "name": "chart-62.7.0",
+              "sha256": "d9c07cffd6390f118de44330f64eb60968b6cd27a453ef46348ad4ca390da5ea"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "6a62a78e4d1df35f81cec9cccfc507554e39acf122da24f3e1e7b0dbf89e0f41"
+            }
+          ]
+        },
+        {
+          "app": "kubernetes",
+          "from": "1.25.16",
+          "to": "1.29.14",
+          "command": "plan",
+          "result": "gap",
+          "oracle": "unspecified",
+          "reason": "STAGES_UNKNOWN",
+          "ids": [],
+          "logDigest": "ccf826cf49eadfea89ede8b01aa18cad074de7e3d211fcd2984db7d09a546ea0",
+          "artifacts": [
+            {
+              "name": "rendered.yaml",
+              "sha256": "6a62a78e4d1df35f81cec9cccfc507554e39acf122da24f3e1e7b0dbf89e0f41"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m2b-r01",
+      "k8sFrom": "1.25.16",
+      "k8sTo": "1.29.14",
+      "kindNodeImageFrom": "kindest/node:v1.25.16@sha256:6110314339b3b44d10da7d27881849a87e092124afab5956f2e10ecdb463b025",
+      "kindNodeImageTo": "kindest/node:v1.29.14@sha256:8703bd94ee24e51b778d5556ae310c6c0fa67d761fae6379c8e0bb480e6fea29",
+      "prufyxCommit": "28fc30c183e8c2c9af1d3a483bbec42a27378ba7",
+      "counts": {
+        "correct": 1,
+        "wrongPass": 0,
+        "falseAlarm": 0,
+        "gap": 4,
+        "rows": 5
+      },
+      "checks": [
+        {
+          "app": "crossplane",
+          "from": "1.14.9",
+          "to": "1.18.5",
+          "command": "plan",
+          "result": "gap",
+          "oracle": "unspecified",
+          "reason": "PLAN_COVERED_SET",
+          "ids": [],
+          "logDigest": "",
+          "artifacts": []
+        },
+        {
+          "app": "external-dns",
+          "from": "1.12.2",
+          "to": "1.16.1",
+          "command": "plan",
+          "result": "gap",
+          "oracle": "unspecified",
+          "reason": "PLAN_REJECTED",
+          "ids": [],
+          "logDigest": "",
+          "artifacts": []
+        },
+        {
+          "app": "knative",
+          "from": "1.10.2",
+          "to": "1.14.1",
+          "command": "plan",
+          "result": "gap",
+          "oracle": "unspecified",
+          "reason": "NOT_PLANNED",
+          "ids": [],
+          "logDigest": "",
+          "artifacts": []
+        },
+        {
+          "app": "kubernetes",
+          "from": "1.25.16",
+          "to": "1.29.14",
+          "command": "plan",
+          "result": "correct",
+          "oracle": "unspecified",
+          "reason": "PLAN_RECORDED",
+          "ids": [],
+          "logDigest": "",
+          "artifacts": []
+        },
+        {
+          "app": "longhorn",
+          "from": "1.4.4",
+          "to": "1.7.3",
+          "command": "plan",
+          "result": "gap",
+          "oracle": "unspecified",
+          "reason": "PLAN_COVERED_SET",
+          "ids": [],
+          "logDigest": "",
+          "artifacts": []
+        }
+      ]
+    },
+    {
+      "id": "m3-r01",
+      "k8sFrom": "1.25.16",
+      "k8sTo": "1.26.15",
+      "kindNodeImageFrom": "kindest/node@sha256:6110314339b3b44d10da7d27881849a87e092124afab5956f2e10ecdb463b025",
+      "kindNodeImageTo": "kindest/node@sha256:c79602a44b4056d7e48dc20f7504350f1e87530fe953428b792def00bc1076dd",
+      "prufyxCommit": "28fc30c183e8c2c9af1d3a483bbec42a27378ba7",
+      "counts": {
+        "correct": 6,
+        "wrongPass": 0,
+        "falseAlarm": 0,
+        "gap": 7,
+        "rows": 13
+      },
+      "checks": [
+        {
+          "app": "*",
+          "from": "1.25.16",
+          "to": "1.26.15",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NOT_CHECKED",
+          "ids": [
+            "API_VERSION_NOT_REVIEWED"
+          ],
+          "logDigest": "57ba9461c014d6439c0c5db9dd21fa5cb1fe9e359a16f2c39bbb75e4ec9b93cf",
+          "artifacts": [
+            {
+              "name": "rendered.yaml",
+              "sha256": "f08b3a39048dd69a5fafb0f56b68cdc4a1ec61ba91f9edeba0b9fe2f524dd738"
+            }
+          ]
+        },
+        {
+          "app": "*",
+          "from": "1.25.16",
+          "to": "1.26.15",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NOT_CHECKED",
+          "ids": [
+            "DOCUMENTS_TEMPLATED"
+          ],
+          "logDigest": "57ba9461c014d6439c0c5db9dd21fa5cb1fe9e359a16f2c39bbb75e4ec9b93cf",
+          "artifacts": [
+            {
+              "name": "rendered.yaml",
+              "sha256": "f08b3a39048dd69a5fafb0f56b68cdc4a1ec61ba91f9edeba0b9fe2f524dd738"
+            }
+          ]
+        },
+        {
+          "app": "?",
+          "from": "",
+          "to": "",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "BLOCKED",
+          "ids": [
+            "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta1.1-25-0-to-1-26-0"
+          ],
+          "logDigest": "57ba9461c014d6439c0c5db9dd21fa5cb1fe9e359a16f2c39bbb75e4ec9b93cf",
+          "artifacts": [
+            {
+              "name": "rendered.yaml",
+              "sha256": "f08b3a39048dd69a5fafb0f56b68cdc4a1ec61ba91f9edeba0b9fe2f524dd738"
+            }
+          ]
+        },
+        {
+          "app": "?",
+          "from": "",
+          "to": "",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "BLOCKED",
+          "ids": [
+            "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta1.1-25-0-to-1-26-0"
+          ],
+          "logDigest": "57ba9461c014d6439c0c5db9dd21fa5cb1fe9e359a16f2c39bbb75e4ec9b93cf",
+          "artifacts": [
+            {
+              "name": "rendered.yaml",
+              "sha256": "f08b3a39048dd69a5fafb0f56b68cdc4a1ec61ba91f9edeba0b9fe2f524dd738"
+            }
+          ]
+        },
+        {
+          "app": "keda",
+          "from": "2.10.2",
+          "to": "2.12.1",
+          "command": "assess",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NOT_IN_OBSERVED_COMPONENTS",
+          "ids": [],
+          "logDigest": "22a861c6912b5fb5a92d7ecd7bf86406a814277285cbcef5379818c119eaeb8f",
+          "artifacts": [
+            {
+              "name": "chart keda 2.10.2",
+              "sha256": "2e75903cda0780a4a8115dc199541315eaccdbfc3ec3da5ab492c8825080cc99"
+            },
+            {
+              "name": "chart keda 2.12.1",
+              "sha256": "ee87da063be94f3f65661656602775c38ab723374c9892ecc73c1cea269e64c0"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "f08b3a39048dd69a5fafb0f56b68cdc4a1ec61ba91f9edeba0b9fe2f524dd738"
+            }
+          ]
+        },
+        {
+          "app": "keda",
+          "from": "2.10.2",
+          "to": "2.12.1",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING",
+          "ids": [],
+          "logDigest": "38d2eb5d32d6550b0060b428944d53680e68ba781a06584fc2732e50d9f02e93",
+          "artifacts": [
+            {
+              "name": "chart keda 2.10.2",
+              "sha256": "2e75903cda0780a4a8115dc199541315eaccdbfc3ec3da5ab492c8825080cc99"
+            },
+            {
+              "name": "chart keda 2.12.1",
+              "sha256": "ee87da063be94f3f65661656602775c38ab723374c9892ecc73c1cea269e64c0"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "f08b3a39048dd69a5fafb0f56b68cdc4a1ec61ba91f9edeba0b9fe2f524dd738"
+            }
+          ]
+        },
+        {
+          "app": "keda",
+          "from": "2.10.2",
+          "to": "2.12.1",
+          "command": "scan+plan",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NO_DATA_COMPONENT_NOT_COVERED",
+          "ids": [],
+          "logDigest": "57ba9461c014d6439c0c5db9dd21fa5cb1fe9e359a16f2c39bbb75e4ec9b93cf",
+          "artifacts": [
+            {
+              "name": "chart keda 2.10.2",
+              "sha256": "2e75903cda0780a4a8115dc199541315eaccdbfc3ec3da5ab492c8825080cc99"
+            },
+            {
+              "name": "chart keda 2.12.1",
+              "sha256": "ee87da063be94f3f65661656602775c38ab723374c9892ecc73c1cea269e64c0"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "f08b3a39048dd69a5fafb0f56b68cdc4a1ec61ba91f9edeba0b9fe2f524dd738"
+            }
+          ]
+        },
+        {
+          "app": "metrics-server",
+          "from": "3.11.0",
+          "to": "3.12.2",
+          "command": "assess",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NOT_IN_OBSERVED_COMPONENTS",
+          "ids": [],
+          "logDigest": "22a861c6912b5fb5a92d7ecd7bf86406a814277285cbcef5379818c119eaeb8f",
+          "artifacts": [
+            {
+              "name": "chart metrics-server 3.11.0",
+              "sha256": "e7cba5a2d7e2b0949b3ea1aa48fc3780b71eba17e1edccc8273f5da67048164b"
+            },
+            {
+              "name": "chart metrics-server 3.12.2",
+              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "f08b3a39048dd69a5fafb0f56b68cdc4a1ec61ba91f9edeba0b9fe2f524dd738"
+            }
+          ]
+        },
+        {
+          "app": "metrics-server",
+          "from": "3.11.0",
+          "to": "3.12.2",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "CUSTOM_RESOURCES_EVALUATED",
+          "ids": [],
+          "logDigest": "1a08c6be250696e26b8b6a33ce87bfd0092948e418b64529717845b09bd1dc33",
+          "artifacts": [
+            {
+              "name": "chart metrics-server 3.11.0",
+              "sha256": "e7cba5a2d7e2b0949b3ea1aa48fc3780b71eba17e1edccc8273f5da67048164b"
+            },
+            {
+              "name": "chart metrics-server 3.12.2",
+              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "f08b3a39048dd69a5fafb0f56b68cdc4a1ec61ba91f9edeba0b9fe2f524dd738"
+            }
+          ]
+        },
+        {
+          "app": "metrics-server",
+          "from": "3.11.0",
+          "to": "3.12.2",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING",
+          "ids": [],
+          "logDigest": "38d2eb5d32d6550b0060b428944d53680e68ba781a06584fc2732e50d9f02e93",
+          "artifacts": [
+            {
+              "name": "chart metrics-server 3.11.0",
+              "sha256": "e7cba5a2d7e2b0949b3ea1aa48fc3780b71eba17e1edccc8273f5da67048164b"
+            },
+            {
+              "name": "chart metrics-server 3.12.2",
+              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "f08b3a39048dd69a5fafb0f56b68cdc4a1ec61ba91f9edeba0b9fe2f524dd738"
+            }
+          ]
+        },
+        {
+          "app": "metrics-server",
+          "from": "3.11.0",
+          "to": "3.12.2",
+          "command": "scan+plan",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NO_PATH",
+          "ids": [],
+          "logDigest": "57ba9461c014d6439c0c5db9dd21fa5cb1fe9e359a16f2c39bbb75e4ec9b93cf",
+          "artifacts": [
+            {
+              "name": "chart metrics-server 3.11.0",
+              "sha256": "e7cba5a2d7e2b0949b3ea1aa48fc3780b71eba17e1edccc8273f5da67048164b"
+            },
+            {
+              "name": "chart metrics-server 3.12.2",
+              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "f08b3a39048dd69a5fafb0f56b68cdc4a1ec61ba91f9edeba0b9fe2f524dd738"
+            }
+          ]
+        },
+        {
+          "app": "podinfo",
+          "from": "6.0.0",
+          "to": "6.0.0",
+          "command": "assess",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NOT_IN_OBSERVED_COMPONENTS",
+          "ids": [],
+          "logDigest": "22a861c6912b5fb5a92d7ecd7bf86406a814277285cbcef5379818c119eaeb8f",
+          "artifacts": [
+            {
+              "name": "chart podinfo 6.0.0",
+              "sha256": "aed86105891a9b1db588128878b79425cf6447e69b1012119e82c1d37c68ae67"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "f08b3a39048dd69a5fafb0f56b68cdc4a1ec61ba91f9edeba0b9fe2f524dd738"
+            }
+          ]
+        },
+        {
+          "app": "podinfo",
+          "from": "6.0.0",
+          "to": "6.0.0",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "BLOCKED",
+          "ids": [
+            "kubernetes.served-api-removal.autoscaling-v2beta2.1-25-0-to-1-26-0"
+          ],
+          "logDigest": "57ba9461c014d6439c0c5db9dd21fa5cb1fe9e359a16f2c39bbb75e4ec9b93cf",
+          "artifacts": [
+            {
+              "name": "chart podinfo 6.0.0",
+              "sha256": "aed86105891a9b1db588128878b79425cf6447e69b1012119e82c1d37c68ae67"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "f08b3a39048dd69a5fafb0f56b68cdc4a1ec61ba91f9edeba0b9fe2f524dd738"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m3-r01-try1",
+      "k8sFrom": "1.25.16",
+      "k8sTo": "1.26.15",
+      "kindNodeImageFrom": "kindest/node@sha256:6110314339b3b44d10da7d27881849a87e092124afab5956f2e10ecdb463b025",
+      "kindNodeImageTo": "kindest/node@sha256:c79602a44b4056d7e48dc20f7504350f1e87530fe953428b792def00bc1076dd",
+      "prufyxCommit": "28fc30c183e8c2c9af1d3a483bbec42a27378ba7",
+      "counts": {
+        "correct": 5,
+        "wrongPass": 1,
+        "falseAlarm": 0,
+        "gap": 7,
+        "rows": 13
+      },
+      "checks": [
+        {
+          "app": "*",
+          "from": "1.25.16",
+          "to": "1.26.15",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NOT_CHECKED",
+          "ids": [
+            "API_VERSION_NOT_REVIEWED"
+          ],
+          "logDigest": "2843a027fdada799966245a62683fef4fd3b9104b48a5effc1ccfb1de82a8b18",
+          "artifacts": [
+            {
+              "name": "rendered.yaml",
+              "sha256": "8e1ef47ae119f9e56a7c5b2299d713f3f2efd76a20897a32d5fc8e8b0c4374fc"
+            }
+          ]
+        },
+        {
+          "app": "*",
+          "from": "1.25.16",
+          "to": "1.26.15",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NOT_CHECKED",
+          "ids": [
+            "DOCUMENTS_TEMPLATED"
+          ],
+          "logDigest": "2843a027fdada799966245a62683fef4fd3b9104b48a5effc1ccfb1de82a8b18",
+          "artifacts": [
+            {
+              "name": "rendered.yaml",
+              "sha256": "8e1ef47ae119f9e56a7c5b2299d713f3f2efd76a20897a32d5fc8e8b0c4374fc"
+            }
+          ]
+        },
+        {
+          "app": "?",
+          "from": "",
+          "to": "",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "BLOCKED",
+          "ids": [
+            "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta1.1-25-0-to-1-26-0"
+          ],
+          "logDigest": "2843a027fdada799966245a62683fef4fd3b9104b48a5effc1ccfb1de82a8b18",
+          "artifacts": [
+            {
+              "name": "rendered.yaml",
+              "sha256": "8e1ef47ae119f9e56a7c5b2299d713f3f2efd76a20897a32d5fc8e8b0c4374fc"
+            }
+          ]
+        },
+        {
+          "app": "?",
+          "from": "",
+          "to": "",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "BLOCKED",
+          "ids": [
+            "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta1.1-25-0-to-1-26-0"
+          ],
+          "logDigest": "2843a027fdada799966245a62683fef4fd3b9104b48a5effc1ccfb1de82a8b18",
+          "artifacts": [
+            {
+              "name": "rendered.yaml",
+              "sha256": "8e1ef47ae119f9e56a7c5b2299d713f3f2efd76a20897a32d5fc8e8b0c4374fc"
+            }
+          ]
+        },
+        {
+          "app": "keda",
+          "from": "2.10.2",
+          "to": "2.12.1",
+          "command": "assess",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "COMPONENT_NOT_IDENTIFIED",
+          "ids": [],
+          "logDigest": "88c7b8a71d5a775a2c5b513b7d463526f0c98861a24408b1812c18e3c9d123c5",
+          "artifacts": [
+            {
+              "name": "chart keda 2.10.2",
+              "sha256": "2e75903cda0780a4a8115dc199541315eaccdbfc3ec3da5ab492c8825080cc99"
+            },
+            {
+              "name": "chart keda 2.12.1",
+              "sha256": "ee87da063be94f3f65661656602775c38ab723374c9892ecc73c1cea269e64c0"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "8e1ef47ae119f9e56a7c5b2299d713f3f2efd76a20897a32d5fc8e8b0c4374fc"
+            }
+          ]
+        },
+        {
+          "app": "keda",
+          "from": "2.10.2",
+          "to": "2.12.1",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING",
+          "ids": [],
+          "logDigest": "3a2d040f50090b9b109b08e7e5cf3d70f47577a6a50288839baa6ee7205b0c5d",
+          "artifacts": [
+            {
+              "name": "chart keda 2.10.2",
+              "sha256": "2e75903cda0780a4a8115dc199541315eaccdbfc3ec3da5ab492c8825080cc99"
+            },
+            {
+              "name": "chart keda 2.12.1",
+              "sha256": "ee87da063be94f3f65661656602775c38ab723374c9892ecc73c1cea269e64c0"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "8e1ef47ae119f9e56a7c5b2299d713f3f2efd76a20897a32d5fc8e8b0c4374fc"
+            }
+          ]
+        },
+        {
+          "app": "keda",
+          "from": "2.10.2",
+          "to": "2.12.1",
+          "command": "scan+plan",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NO_DATA_COMPONENT_NOT_COVERED",
+          "ids": [],
+          "logDigest": "2843a027fdada799966245a62683fef4fd3b9104b48a5effc1ccfb1de82a8b18",
+          "artifacts": [
+            {
+              "name": "chart keda 2.10.2",
+              "sha256": "2e75903cda0780a4a8115dc199541315eaccdbfc3ec3da5ab492c8825080cc99"
+            },
+            {
+              "name": "chart keda 2.12.1",
+              "sha256": "ee87da063be94f3f65661656602775c38ab723374c9892ecc73c1cea269e64c0"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "8e1ef47ae119f9e56a7c5b2299d713f3f2efd76a20897a32d5fc8e8b0c4374fc"
+            }
+          ]
+        },
+        {
+          "app": "metrics-server",
+          "from": "3.11.0",
+          "to": "3.12.2",
+          "command": "assess",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "COMPONENT_NOT_IDENTIFIED",
+          "ids": [],
+          "logDigest": "88c7b8a71d5a775a2c5b513b7d463526f0c98861a24408b1812c18e3c9d123c5",
+          "artifacts": [
+            {
+              "name": "chart metrics-server 3.11.0",
+              "sha256": "e7cba5a2d7e2b0949b3ea1aa48fc3780b71eba17e1edccc8273f5da67048164b"
+            },
+            {
+              "name": "chart metrics-server 3.12.2",
+              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "8e1ef47ae119f9e56a7c5b2299d713f3f2efd76a20897a32d5fc8e8b0c4374fc"
+            }
+          ]
+        },
+        {
+          "app": "metrics-server",
+          "from": "3.11.0",
+          "to": "3.12.2",
+          "command": "scan",
+          "result": "wrong PASS",
+          "oracle": "replay-on-target",
+          "reason": "CUSTOM_RESOURCES_EVALUATED",
+          "ids": [],
+          "logDigest": "bb2fef738c3511251b5bbbf253fef5e3ce5f87f6f88959fb9bdb7d17747c63c4",
+          "artifacts": [
+            {
+              "name": "chart metrics-server 3.11.0",
+              "sha256": "e7cba5a2d7e2b0949b3ea1aa48fc3780b71eba17e1edccc8273f5da67048164b"
+            },
+            {
+              "name": "chart metrics-server 3.12.2",
+              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "8e1ef47ae119f9e56a7c5b2299d713f3f2efd76a20897a32d5fc8e8b0c4374fc"
+            }
+          ]
+        },
+        {
+          "app": "metrics-server",
+          "from": "3.11.0",
+          "to": "3.12.2",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING",
+          "ids": [],
+          "logDigest": "3a2d040f50090b9b109b08e7e5cf3d70f47577a6a50288839baa6ee7205b0c5d",
+          "artifacts": [
+            {
+              "name": "chart metrics-server 3.11.0",
+              "sha256": "e7cba5a2d7e2b0949b3ea1aa48fc3780b71eba17e1edccc8273f5da67048164b"
+            },
+            {
+              "name": "chart metrics-server 3.12.2",
+              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "8e1ef47ae119f9e56a7c5b2299d713f3f2efd76a20897a32d5fc8e8b0c4374fc"
+            }
+          ]
+        },
+        {
+          "app": "metrics-server",
+          "from": "3.11.0",
+          "to": "3.12.2",
+          "command": "scan+plan",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NO_PATH",
+          "ids": [],
+          "logDigest": "2843a027fdada799966245a62683fef4fd3b9104b48a5effc1ccfb1de82a8b18",
+          "artifacts": [
+            {
+              "name": "chart metrics-server 3.11.0",
+              "sha256": "e7cba5a2d7e2b0949b3ea1aa48fc3780b71eba17e1edccc8273f5da67048164b"
+            },
+            {
+              "name": "chart metrics-server 3.12.2",
+              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "8e1ef47ae119f9e56a7c5b2299d713f3f2efd76a20897a32d5fc8e8b0c4374fc"
+            }
+          ]
+        },
+        {
+          "app": "podinfo",
+          "from": "6.0.0",
+          "to": "6.0.0",
+          "command": "assess",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "COMPONENT_NOT_IDENTIFIED",
+          "ids": [],
+          "logDigest": "88c7b8a71d5a775a2c5b513b7d463526f0c98861a24408b1812c18e3c9d123c5",
+          "artifacts": [
+            {
+              "name": "chart podinfo 6.0.0",
+              "sha256": "aed86105891a9b1db588128878b79425cf6447e69b1012119e82c1d37c68ae67"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "8e1ef47ae119f9e56a7c5b2299d713f3f2efd76a20897a32d5fc8e8b0c4374fc"
+            }
+          ]
+        },
+        {
+          "app": "podinfo",
+          "from": "6.0.0",
+          "to": "6.0.0",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "BLOCKED",
+          "ids": [
+            "kubernetes.served-api-removal.autoscaling-v2beta2.1-25-0-to-1-26-0"
+          ],
+          "logDigest": "2843a027fdada799966245a62683fef4fd3b9104b48a5effc1ccfb1de82a8b18",
+          "artifacts": [
+            {
+              "name": "chart podinfo 6.0.0",
+              "sha256": "aed86105891a9b1db588128878b79425cf6447e69b1012119e82c1d37c68ae67"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "8e1ef47ae119f9e56a7c5b2299d713f3f2efd76a20897a32d5fc8e8b0c4374fc"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m3-r02",
+      "k8sFrom": "1.26.15",
+      "k8sTo": "1.27.16",
+      "kindNodeImageFrom": "kindest/node@sha256:c79602a44b4056d7e48dc20f7504350f1e87530fe953428b792def00bc1076dd",
+      "kindNodeImageTo": "kindest/node@sha256:2d21a61643eafc439905e18705b8186f3296384750a835ad7a005dceb9546d20",
+      "prufyxCommit": "28fc30c183e8c2c9af1d3a483bbec42a27378ba7",
+      "counts": {
+        "correct": 4,
+        "wrongPass": 0,
+        "falseAlarm": 0,
+        "gap": 4,
+        "rows": 8
+      },
+      "checks": [
+        {
+          "app": "*",
+          "from": "1.26.15",
+          "to": "1.27.16",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NOT_CHECKED",
+          "ids": [
+            "API_VERSION_NOT_REVIEWED"
+          ],
+          "logDigest": "557312da6bfe77251fefe8dd9220667dde1f57852067019a4c11fda88d41fd5e",
+          "artifacts": [
+            {
+              "name": "rendered.yaml",
+              "sha256": "19a47cb9a9fdd708e351008efb1d2c5d9dfc758e3bc4ab2910d3efce4bb8087c"
+            }
+          ]
+        },
+        {
+          "app": "?",
+          "from": "",
+          "to": "",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "BLOCKED",
+          "ids": [
+            "kubernetes.served-api-removal.storage-k8s-io-v1beta1.1-26-0-to-1-27-0"
+          ],
+          "logDigest": "557312da6bfe77251fefe8dd9220667dde1f57852067019a4c11fda88d41fd5e",
+          "artifacts": [
+            {
+              "name": "rendered.yaml",
+              "sha256": "19a47cb9a9fdd708e351008efb1d2c5d9dfc758e3bc4ab2910d3efce4bb8087c"
+            }
+          ]
+        },
+        {
+          "app": "keda",
+          "from": "2.12.1",
+          "to": "2.12.1",
+          "command": "assess",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NOT_IN_OBSERVED_COMPONENTS",
+          "ids": [],
+          "logDigest": "a61c6a9fd3f253cb58bbef1075c85189cb164006982fd5b4b7944ec70eca5f73",
+          "artifacts": [
+            {
+              "name": "chart keda 2.12.1",
+              "sha256": "ee87da063be94f3f65661656602775c38ab723374c9892ecc73c1cea269e64c0"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "19a47cb9a9fdd708e351008efb1d2c5d9dfc758e3bc4ab2910d3efce4bb8087c"
+            }
+          ]
+        },
+        {
+          "app": "keda",
+          "from": "2.12.1",
+          "to": "2.12.1",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING",
+          "ids": [],
+          "logDigest": "59e96c36c4c74365189f38addf9fd06a69963f94e0c9fcb93cc17231b2639e07",
+          "artifacts": [
+            {
+              "name": "chart keda 2.12.1",
+              "sha256": "ee87da063be94f3f65661656602775c38ab723374c9892ecc73c1cea269e64c0"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "19a47cb9a9fdd708e351008efb1d2c5d9dfc758e3bc4ab2910d3efce4bb8087c"
+            }
+          ]
+        },
+        {
+          "app": "metrics-server",
+          "from": "3.11.0",
+          "to": "3.12.2",
+          "command": "assess",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NOT_IN_OBSERVED_COMPONENTS",
+          "ids": [],
+          "logDigest": "a61c6a9fd3f253cb58bbef1075c85189cb164006982fd5b4b7944ec70eca5f73",
+          "artifacts": [
+            {
+              "name": "chart metrics-server 3.11.0",
+              "sha256": "e7cba5a2d7e2b0949b3ea1aa48fc3780b71eba17e1edccc8273f5da67048164b"
+            },
+            {
+              "name": "chart metrics-server 3.12.2",
+              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "19a47cb9a9fdd708e351008efb1d2c5d9dfc758e3bc4ab2910d3efce4bb8087c"
+            }
+          ]
+        },
+        {
+          "app": "metrics-server",
+          "from": "3.11.0",
+          "to": "3.12.2",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "CUSTOM_RESOURCES_EVALUATED",
+          "ids": [],
+          "logDigest": "a09ea52e9be11282989a9adf94361ca23961731808a8bc416d71d6e995988550",
+          "artifacts": [
+            {
+              "name": "chart metrics-server 3.11.0",
+              "sha256": "e7cba5a2d7e2b0949b3ea1aa48fc3780b71eba17e1edccc8273f5da67048164b"
+            },
+            {
+              "name": "chart metrics-server 3.12.2",
+              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "19a47cb9a9fdd708e351008efb1d2c5d9dfc758e3bc4ab2910d3efce4bb8087c"
+            }
+          ]
+        },
+        {
+          "app": "metrics-server",
+          "from": "3.11.0",
+          "to": "3.12.2",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING",
+          "ids": [],
+          "logDigest": "59e96c36c4c74365189f38addf9fd06a69963f94e0c9fcb93cc17231b2639e07",
+          "artifacts": [
+            {
+              "name": "chart metrics-server 3.11.0",
+              "sha256": "e7cba5a2d7e2b0949b3ea1aa48fc3780b71eba17e1edccc8273f5da67048164b"
+            },
+            {
+              "name": "chart metrics-server 3.12.2",
+              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "19a47cb9a9fdd708e351008efb1d2c5d9dfc758e3bc4ab2910d3efce4bb8087c"
+            }
+          ]
+        },
+        {
+          "app": "metrics-server",
+          "from": "3.11.0",
+          "to": "3.12.2",
+          "command": "scan+plan",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NO_PATH",
+          "ids": [],
+          "logDigest": "557312da6bfe77251fefe8dd9220667dde1f57852067019a4c11fda88d41fd5e",
+          "artifacts": [
+            {
+              "name": "chart metrics-server 3.11.0",
+              "sha256": "e7cba5a2d7e2b0949b3ea1aa48fc3780b71eba17e1edccc8273f5da67048164b"
+            },
+            {
+              "name": "chart metrics-server 3.12.2",
+              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "19a47cb9a9fdd708e351008efb1d2c5d9dfc758e3bc4ab2910d3efce4bb8087c"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m3-r02-try1",
+      "k8sFrom": "1.26.15",
+      "k8sTo": "1.27.16",
+      "kindNodeImageFrom": "kindest/node@sha256:c79602a44b4056d7e48dc20f7504350f1e87530fe953428b792def00bc1076dd",
+      "kindNodeImageTo": "kindest/node@sha256:2d21a61643eafc439905e18705b8186f3296384750a835ad7a005dceb9546d20",
+      "prufyxCommit": "28fc30c183e8c2c9af1d3a483bbec42a27378ba7",
+      "counts": {
+        "correct": 4,
+        "wrongPass": 0,
+        "falseAlarm": 0,
+        "gap": 4,
+        "rows": 8
+      },
+      "checks": [
+        {
+          "app": "*",
+          "from": "1.26.15",
+          "to": "1.27.16",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NOT_CHECKED",
+          "ids": [
+            "API_VERSION_NOT_REVIEWED"
+          ],
+          "logDigest": "194181879d38de6a6047f5ad1e506d15bf66ed4c962c5396db730325d731653b",
+          "artifacts": [
+            {
+              "name": "rendered.yaml",
+              "sha256": "19a47cb9a9fdd708e351008efb1d2c5d9dfc758e3bc4ab2910d3efce4bb8087c"
+            }
+          ]
+        },
+        {
+          "app": "?",
+          "from": "",
+          "to": "",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "BLOCKED",
+          "ids": [
+            "kubernetes.served-api-removal.storage-k8s-io-v1beta1.1-26-0-to-1-27-0"
+          ],
+          "logDigest": "194181879d38de6a6047f5ad1e506d15bf66ed4c962c5396db730325d731653b",
+          "artifacts": [
+            {
+              "name": "rendered.yaml",
+              "sha256": "19a47cb9a9fdd708e351008efb1d2c5d9dfc758e3bc4ab2910d3efce4bb8087c"
+            }
+          ]
+        },
+        {
+          "app": "keda",
+          "from": "2.12.1",
+          "to": "2.12.1",
+          "command": "assess",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "ASSESS_OUTPUT_MISSING",
+          "ids": [],
+          "logDigest": "",
+          "artifacts": [
+            {
+              "name": "chart keda 2.12.1",
+              "sha256": "ee87da063be94f3f65661656602775c38ab723374c9892ecc73c1cea269e64c0"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "19a47cb9a9fdd708e351008efb1d2c5d9dfc758e3bc4ab2910d3efce4bb8087c"
+            }
+          ]
+        },
+        {
+          "app": "keda",
+          "from": "2.12.1",
+          "to": "2.12.1",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING",
+          "ids": [],
+          "logDigest": "59e96c36c4c74365189f38addf9fd06a69963f94e0c9fcb93cc17231b2639e07",
+          "artifacts": [
+            {
+              "name": "chart keda 2.12.1",
+              "sha256": "ee87da063be94f3f65661656602775c38ab723374c9892ecc73c1cea269e64c0"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "19a47cb9a9fdd708e351008efb1d2c5d9dfc758e3bc4ab2910d3efce4bb8087c"
+            }
+          ]
+        },
+        {
+          "app": "metrics-server",
+          "from": "3.11.0",
+          "to": "3.12.2",
+          "command": "assess",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "ASSESS_OUTPUT_MISSING",
+          "ids": [],
+          "logDigest": "",
+          "artifacts": [
+            {
+              "name": "chart metrics-server 3.11.0",
+              "sha256": "e7cba5a2d7e2b0949b3ea1aa48fc3780b71eba17e1edccc8273f5da67048164b"
+            },
+            {
+              "name": "chart metrics-server 3.12.2",
+              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "19a47cb9a9fdd708e351008efb1d2c5d9dfc758e3bc4ab2910d3efce4bb8087c"
+            }
+          ]
+        },
+        {
+          "app": "metrics-server",
+          "from": "3.11.0",
+          "to": "3.12.2",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "CUSTOM_RESOURCES_EVALUATED",
+          "ids": [],
+          "logDigest": "a64a387aee1637791aea5b2a3cd5114297c0a62f518ea56204b57934d6e8867f",
+          "artifacts": [
+            {
+              "name": "chart metrics-server 3.11.0",
+              "sha256": "e7cba5a2d7e2b0949b3ea1aa48fc3780b71eba17e1edccc8273f5da67048164b"
+            },
+            {
+              "name": "chart metrics-server 3.12.2",
+              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "19a47cb9a9fdd708e351008efb1d2c5d9dfc758e3bc4ab2910d3efce4bb8087c"
+            }
+          ]
+        },
+        {
+          "app": "metrics-server",
+          "from": "3.11.0",
+          "to": "3.12.2",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING",
+          "ids": [],
+          "logDigest": "59e96c36c4c74365189f38addf9fd06a69963f94e0c9fcb93cc17231b2639e07",
+          "artifacts": [
+            {
+              "name": "chart metrics-server 3.11.0",
+              "sha256": "e7cba5a2d7e2b0949b3ea1aa48fc3780b71eba17e1edccc8273f5da67048164b"
+            },
+            {
+              "name": "chart metrics-server 3.12.2",
+              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "19a47cb9a9fdd708e351008efb1d2c5d9dfc758e3bc4ab2910d3efce4bb8087c"
+            }
+          ]
+        },
+        {
+          "app": "metrics-server",
+          "from": "3.11.0",
+          "to": "3.12.2",
+          "command": "scan+plan",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NO_PATH",
+          "ids": [],
+          "logDigest": "194181879d38de6a6047f5ad1e506d15bf66ed4c962c5396db730325d731653b",
+          "artifacts": [
+            {
+              "name": "chart metrics-server 3.11.0",
+              "sha256": "e7cba5a2d7e2b0949b3ea1aa48fc3780b71eba17e1edccc8273f5da67048164b"
+            },
+            {
+              "name": "chart metrics-server 3.12.2",
+              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "19a47cb9a9fdd708e351008efb1d2c5d9dfc758e3bc4ab2910d3efce4bb8087c"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m3-r03",
+      "k8sFrom": "1.28.15",
+      "k8sTo": "1.29.14",
+      "kindNodeImageFrom": "kindest/node@sha256:a7c05c7ae043a0b8c818f5a06188bc2c4098f6cb59ca7d1856df00375d839251",
+      "kindNodeImageTo": "kindest/node@sha256:8703bd94ee24e51b778d5556ae310c6c0fa67d761fae6379c8e0bb480e6fea29",
+      "prufyxCommit": "28fc30c183e8c2c9af1d3a483bbec42a27378ba7",
+      "counts": {
+        "correct": 5,
+        "wrongPass": 0,
+        "falseAlarm": 0,
+        "gap": 4,
+        "rows": 9
+      },
+      "checks": [
+        {
+          "app": "*",
+          "from": "1.28.15",
+          "to": "1.29.14",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NOT_CHECKED",
+          "ids": [
+            "API_VERSION_NOT_REVIEWED"
+          ],
+          "logDigest": "67d858b6eaf1eb546dc470fc47c50d86e43906723580ab3c5dbf8e4663d1cdd7",
+          "artifacts": [
+            {
+              "name": "rendered.yaml",
+              "sha256": "abad0e780d4d72c39fe737fb0a18d91c75beb01a0217d423f4b4125be9e79985"
+            }
+          ]
+        },
+        {
+          "app": "?",
+          "from": "",
+          "to": "",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "BLOCKED",
+          "ids": [
+            "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta2.1-28-0-to-1-29-0"
+          ],
+          "logDigest": "67d858b6eaf1eb546dc470fc47c50d86e43906723580ab3c5dbf8e4663d1cdd7",
+          "artifacts": [
+            {
+              "name": "rendered.yaml",
+              "sha256": "abad0e780d4d72c39fe737fb0a18d91c75beb01a0217d423f4b4125be9e79985"
+            }
+          ]
+        },
+        {
+          "app": "?",
+          "from": "",
+          "to": "",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "BLOCKED",
+          "ids": [
+            "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta2.1-28-0-to-1-29-0"
+          ],
+          "logDigest": "67d858b6eaf1eb546dc470fc47c50d86e43906723580ab3c5dbf8e4663d1cdd7",
+          "artifacts": [
+            {
+              "name": "rendered.yaml",
+              "sha256": "abad0e780d4d72c39fe737fb0a18d91c75beb01a0217d423f4b4125be9e79985"
+            }
+          ]
+        },
+        {
+          "app": "keda",
+          "from": "2.12.1",
+          "to": "2.15.2",
+          "command": "assess",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NOT_IN_OBSERVED_COMPONENTS",
+          "ids": [],
+          "logDigest": "ddd3dec693053186fba4d40b1e772dc48ac9a96c95a9e2d8160d999d1f114639",
+          "artifacts": [
+            {
+              "name": "chart keda 2.12.1",
+              "sha256": "ee87da063be94f3f65661656602775c38ab723374c9892ecc73c1cea269e64c0"
+            },
+            {
+              "name": "chart keda 2.15.2",
+              "sha256": "dc1a66bd5edc13a1004d853e1999dc2fff1915c9abce1537426466bf8b685b98"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "abad0e780d4d72c39fe737fb0a18d91c75beb01a0217d423f4b4125be9e79985"
+            }
+          ]
+        },
+        {
+          "app": "keda",
+          "from": "2.12.1",
+          "to": "2.15.2",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING",
+          "ids": [],
+          "logDigest": "11f64ed072865c92382b8990becefa0ed0cfd0091cd6f90230f5541f2b289380",
+          "artifacts": [
+            {
+              "name": "chart keda 2.12.1",
+              "sha256": "ee87da063be94f3f65661656602775c38ab723374c9892ecc73c1cea269e64c0"
+            },
+            {
+              "name": "chart keda 2.15.2",
+              "sha256": "dc1a66bd5edc13a1004d853e1999dc2fff1915c9abce1537426466bf8b685b98"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "abad0e780d4d72c39fe737fb0a18d91c75beb01a0217d423f4b4125be9e79985"
+            }
+          ]
+        },
+        {
+          "app": "keda",
+          "from": "2.12.1",
+          "to": "2.15.2",
+          "command": "scan+plan",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NO_DATA_COMPONENT_NOT_COVERED",
+          "ids": [],
+          "logDigest": "67d858b6eaf1eb546dc470fc47c50d86e43906723580ab3c5dbf8e4663d1cdd7",
+          "artifacts": [
+            {
+              "name": "chart keda 2.12.1",
+              "sha256": "ee87da063be94f3f65661656602775c38ab723374c9892ecc73c1cea269e64c0"
+            },
+            {
+              "name": "chart keda 2.15.2",
+              "sha256": "dc1a66bd5edc13a1004d853e1999dc2fff1915c9abce1537426466bf8b685b98"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "abad0e780d4d72c39fe737fb0a18d91c75beb01a0217d423f4b4125be9e79985"
+            }
+          ]
+        },
+        {
+          "app": "metrics-server",
+          "from": "3.12.2",
+          "to": "3.12.2",
+          "command": "assess",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NOT_IN_OBSERVED_COMPONENTS",
+          "ids": [],
+          "logDigest": "ddd3dec693053186fba4d40b1e772dc48ac9a96c95a9e2d8160d999d1f114639",
+          "artifacts": [
+            {
+              "name": "chart metrics-server 3.12.2",
+              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "abad0e780d4d72c39fe737fb0a18d91c75beb01a0217d423f4b4125be9e79985"
+            }
+          ]
+        },
+        {
+          "app": "metrics-server",
+          "from": "3.12.2",
+          "to": "3.12.2",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "CUSTOM_RESOURCES_EVALUATED",
+          "ids": [],
+          "logDigest": "f82ef0fdb78d26d04d1447a9cbb265aa14ae25a7bab527001062253ac09b08ef",
+          "artifacts": [
+            {
+              "name": "chart metrics-server 3.12.2",
+              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "abad0e780d4d72c39fe737fb0a18d91c75beb01a0217d423f4b4125be9e79985"
+            }
+          ]
+        },
+        {
+          "app": "metrics-server",
+          "from": "3.12.2",
+          "to": "3.12.2",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING",
+          "ids": [],
+          "logDigest": "11f64ed072865c92382b8990becefa0ed0cfd0091cd6f90230f5541f2b289380",
+          "artifacts": [
+            {
+              "name": "chart metrics-server 3.12.2",
+              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "abad0e780d4d72c39fe737fb0a18d91c75beb01a0217d423f4b4125be9e79985"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m3-r04",
+      "k8sFrom": "1.31.14",
+      "k8sTo": "1.32.11",
+      "kindNodeImageFrom": "kindest/node@sha256:6f86cf509dbb42767b6e79debc3f2c32e4ee01386f0489b3b2be24b0a55aac2b",
+      "kindNodeImageTo": "kindest/node@sha256:5fc52d52a7b9574015299724bd68f183702956aa4a2116ae75a63cb574b35af8",
+      "prufyxCommit": "28fc30c183e8c2c9af1d3a483bbec42a27378ba7",
+      "counts": {
+        "correct": 4,
+        "wrongPass": 0,
+        "falseAlarm": 0,
+        "gap": 2,
+        "rows": 6
+      },
+      "checks": [
+        {
+          "app": "*",
+          "from": "1.31.14",
+          "to": "1.32.11",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NOT_CHECKED",
+          "ids": [
+            "API_VERSION_NOT_REVIEWED"
+          ],
+          "logDigest": "3a6e150d673356186041c60ec0c4dbc4b8480ecd015b4b53d3f2c814c5f6db6a",
+          "artifacts": [
+            {
+              "name": "rendered.yaml",
+              "sha256": "7d28d7b0883d349131ec5702945c9c937ba376a7288c9c082b4ad4b0b6457d62"
+            }
+          ]
+        },
+        {
+          "app": "?",
+          "from": "",
+          "to": "",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "BLOCKED",
+          "ids": [
+            "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta3.1-31-0-to-1-32-0"
+          ],
+          "logDigest": "3a6e150d673356186041c60ec0c4dbc4b8480ecd015b4b53d3f2c814c5f6db6a",
+          "artifacts": [
+            {
+              "name": "rendered.yaml",
+              "sha256": "7d28d7b0883d349131ec5702945c9c937ba376a7288c9c082b4ad4b0b6457d62"
+            }
+          ]
+        },
+        {
+          "app": "?",
+          "from": "",
+          "to": "",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "BLOCKED",
+          "ids": [
+            "kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta3.1-31-0-to-1-32-0"
+          ],
+          "logDigest": "3a6e150d673356186041c60ec0c4dbc4b8480ecd015b4b53d3f2c814c5f6db6a",
+          "artifacts": [
+            {
+              "name": "rendered.yaml",
+              "sha256": "7d28d7b0883d349131ec5702945c9c937ba376a7288c9c082b4ad4b0b6457d62"
+            }
+          ]
+        },
+        {
+          "app": "metrics-server",
+          "from": "3.12.2",
+          "to": "3.12.2",
+          "command": "assess",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NOT_IN_OBSERVED_COMPONENTS",
+          "ids": [],
+          "logDigest": "0b5d7b884692f8cee3fd8da8fb2f612249817a76ef93cce1190d8667d1c827d0",
+          "artifacts": [
+            {
+              "name": "chart metrics-server 3.12.2",
+              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "7d28d7b0883d349131ec5702945c9c937ba376a7288c9c082b4ad4b0b6457d62"
+            }
+          ]
+        },
+        {
+          "app": "metrics-server",
+          "from": "3.12.2",
+          "to": "3.12.2",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "CUSTOM_RESOURCES_EVALUATED",
+          "ids": [],
+          "logDigest": "855671a5c550a25b4add74f09dafdfadb5dafbf440286aac74c6fbf64f6bcc09",
+          "artifacts": [
+            {
+              "name": "chart metrics-server 3.12.2",
+              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "7d28d7b0883d349131ec5702945c9c937ba376a7288c9c082b4ad4b0b6457d62"
+            }
+          ]
+        },
+        {
+          "app": "metrics-server",
+          "from": "3.12.2",
+          "to": "3.12.2",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING",
+          "ids": [],
+          "logDigest": "ceb593cca40a0ecfc5341e8135774dab1b5a96a9c3efcaad867edd6bee6dd047",
+          "artifacts": [
+            {
+              "name": "chart metrics-server 3.12.2",
+              "sha256": "e904ffa2fe33c429e12cac8aa013ba38f42d944e315d060e94230a53b98985cf"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "7d28d7b0883d349131ec5702945c9c937ba376a7288c9c082b4ad4b0b6457d62"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m5-r01",
+      "k8sFrom": "1.30.13",
+      "k8sTo": "1.34.11",
+      "kindNodeImageFrom": "kindest/node@sha256:397209b3d947d154f6641f2d0ce8d473732bd91c87d9575ade99049aa33cd648",
+      "kindNodeImageTo": "kindest/node@sha256:44e222ee2132dab25ff87301682f89eb82c7880ea3a1bf543bfe9708fd08d67d",
+      "prufyxCommit": "25b60b90b4513db557e3bd5dcde6258417a1dcba",
+      "counts": {
+        "correct": 1,
+        "wrongPass": 0,
+        "falseAlarm": 0,
+        "gap": 26,
+        "rows": 27
+      },
+      "checks": [
+        {
+          "app": "argo-cd",
+          "from": "7.3.11",
+          "to": "10.18.1",
+          "command": "assess",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "COMPONENT_NOT_IDENTIFIED",
+          "ids": [],
+          "logDigest": "a012149d83b7af145f3e1b2c544f52aff60596587090027b73cc89b5dd3344f1",
+          "artifacts": [
+            {
+              "name": "chart argo-cd 10.18.1",
+              "sha256": "7074b586eea52a6c6ddf9e0331117b08d8f47ca92a65bf9d0b5f1044f5ed5fba"
+            },
+            {
+              "name": "chart argo-cd 7.3.11",
+              "sha256": "4249ea76c915bb04f4dda095e608004c08f13a7d0e0da2d1836ffc57a8592f7b"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "5e751514aac8741ca407e003aff0dd753fdf584f4e07a34c0bf5c0ccdb003fa9"
+            }
+          ]
+        },
+        {
+          "app": "argo-cd",
+          "from": "7.3.11",
+          "to": "10.18.1",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "SCAN_NO_USABLE_OUTPUT",
+          "ids": [],
+          "logDigest": "b86d9b9046f6ec7f0911be91f32b3595dccca374174b87a39fb5bd9db84aa691",
+          "artifacts": [
+            {
+              "name": "chart argo-cd 10.18.1",
+              "sha256": "7074b586eea52a6c6ddf9e0331117b08d8f47ca92a65bf9d0b5f1044f5ed5fba"
+            },
+            {
+              "name": "chart argo-cd 7.3.11",
+              "sha256": "4249ea76c915bb04f4dda095e608004c08f13a7d0e0da2d1836ffc57a8592f7b"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "5e751514aac8741ca407e003aff0dd753fdf584f4e07a34c0bf5c0ccdb003fa9"
+            }
+          ]
+        },
+        {
+          "app": "argo-cd",
+          "from": "7.3.11",
+          "to": "10.18.1",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "SCAN_NO_USABLE_OUTPUT",
+          "ids": [],
+          "logDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "artifacts": [
+            {
+              "name": "chart argo-cd 10.18.1",
+              "sha256": "7074b586eea52a6c6ddf9e0331117b08d8f47ca92a65bf9d0b5f1044f5ed5fba"
+            },
+            {
+              "name": "chart argo-cd 7.3.11",
+              "sha256": "4249ea76c915bb04f4dda095e608004c08f13a7d0e0da2d1836ffc57a8592f7b"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "5e751514aac8741ca407e003aff0dd753fdf584f4e07a34c0bf5c0ccdb003fa9"
+            }
+          ]
+        },
+        {
+          "app": "argo-cd",
+          "from": "7.3.11",
+          "to": "10.18.1",
+          "command": "scan+plan",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "SCAN_NO_USABLE_OUTPUT",
+          "ids": [],
+          "logDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "artifacts": [
+            {
+              "name": "chart argo-cd 10.18.1",
+              "sha256": "7074b586eea52a6c6ddf9e0331117b08d8f47ca92a65bf9d0b5f1044f5ed5fba"
+            },
+            {
+              "name": "chart argo-cd 7.3.11",
+              "sha256": "4249ea76c915bb04f4dda095e608004c08f13a7d0e0da2d1836ffc57a8592f7b"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "5e751514aac8741ca407e003aff0dd753fdf584f4e07a34c0bf5c0ccdb003fa9"
+            }
+          ]
+        },
+        {
+          "app": "cert-manager",
+          "from": "1.14.7",
+          "to": "1.21.3",
+          "command": "assess",
+          "result": "correct",
+          "oracle": "in-place upgrade",
+          "reason": "COMPONENT_OBSERVED",
+          "ids": [],
+          "logDigest": "a012149d83b7af145f3e1b2c544f52aff60596587090027b73cc89b5dd3344f1",
+          "artifacts": [
+            {
+              "name": "chart cert-manager v1.14.7",
+              "sha256": "cc542b089abf8505d77efd3d77ed09e3ea2f7cdf26f3def7e0e897942dfd6943"
+            },
+            {
+              "name": "chart cert-manager v1.21.3",
+              "sha256": "9ec67938b2981d8b333af61b3fcf53e26b4f6f5deb7ccda3de4ea116bb373a17"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "5e751514aac8741ca407e003aff0dd753fdf584f4e07a34c0bf5c0ccdb003fa9"
+            }
+          ]
+        },
+        {
+          "app": "cert-manager",
+          "from": "1.14.7",
+          "to": "1.21.3",
+          "command": "check-cert-manager-values",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "UNKNOWN",
+          "ids": [
+            "CERT_MANAGER_TRANSITION_NOT_REVIEWED"
+          ],
+          "logDigest": "57256e2ad4390a2b3eb9592e81354e2f6cd2d137675070cf9cbd06fb1eaf02ab",
+          "artifacts": [
+            {
+              "name": "chart cert-manager v1.14.7",
+              "sha256": "cc542b089abf8505d77efd3d77ed09e3ea2f7cdf26f3def7e0e897942dfd6943"
+            },
+            {
+              "name": "chart cert-manager v1.21.3",
+              "sha256": "9ec67938b2981d8b333af61b3fcf53e26b4f6f5deb7ccda3de4ea116bb373a17"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "5e751514aac8741ca407e003aff0dd753fdf584f4e07a34c0bf5c0ccdb003fa9"
+            }
+          ]
+        },
+        {
+          "app": "cert-manager",
+          "from": "1.14.7",
+          "to": "1.21.3",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "SCAN_NO_USABLE_OUTPUT",
+          "ids": [],
+          "logDigest": "b86d9b9046f6ec7f0911be91f32b3595dccca374174b87a39fb5bd9db84aa691",
+          "artifacts": [
+            {
+              "name": "chart cert-manager v1.14.7",
+              "sha256": "cc542b089abf8505d77efd3d77ed09e3ea2f7cdf26f3def7e0e897942dfd6943"
+            },
+            {
+              "name": "chart cert-manager v1.21.3",
+              "sha256": "9ec67938b2981d8b333af61b3fcf53e26b4f6f5deb7ccda3de4ea116bb373a17"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "5e751514aac8741ca407e003aff0dd753fdf584f4e07a34c0bf5c0ccdb003fa9"
+            }
+          ]
+        },
+        {
+          "app": "cert-manager",
+          "from": "1.14.7",
+          "to": "1.21.3",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "SCAN_NO_USABLE_OUTPUT",
+          "ids": [],
+          "logDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "artifacts": [
+            {
+              "name": "chart cert-manager v1.14.7",
+              "sha256": "cc542b089abf8505d77efd3d77ed09e3ea2f7cdf26f3def7e0e897942dfd6943"
+            },
+            {
+              "name": "chart cert-manager v1.21.3",
+              "sha256": "9ec67938b2981d8b333af61b3fcf53e26b4f6f5deb7ccda3de4ea116bb373a17"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "5e751514aac8741ca407e003aff0dd753fdf584f4e07a34c0bf5c0ccdb003fa9"
+            }
+          ]
+        },
+        {
+          "app": "cert-manager",
+          "from": "1.14.7",
+          "to": "1.21.3",
+          "command": "scan+plan",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "SCAN_NO_USABLE_OUTPUT",
+          "ids": [],
+          "logDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "artifacts": [
+            {
+              "name": "chart cert-manager v1.14.7",
+              "sha256": "cc542b089abf8505d77efd3d77ed09e3ea2f7cdf26f3def7e0e897942dfd6943"
+            },
+            {
+              "name": "chart cert-manager v1.21.3",
+              "sha256": "9ec67938b2981d8b333af61b3fcf53e26b4f6f5deb7ccda3de4ea116bb373a17"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "5e751514aac8741ca407e003aff0dd753fdf584f4e07a34c0bf5c0ccdb003fa9"
+            }
+          ]
+        },
+        {
+          "app": "external-secrets",
+          "from": "0.9.20",
+          "to": "2.15.0",
+          "command": "assess",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "COMPONENT_NOT_IDENTIFIED",
+          "ids": [],
+          "logDigest": "a012149d83b7af145f3e1b2c544f52aff60596587090027b73cc89b5dd3344f1",
+          "artifacts": [
+            {
+              "name": "chart external-secrets 0.9.20",
+              "sha256": "9bedcb3779ccf543545efe6caa41369b3a5e38a54ac3f7f6c3112e9f12d48694"
+            },
+            {
+              "name": "chart external-secrets 2.15.0",
+              "sha256": "ed94d41cc67e392ea45e370345eb491b0fdc21387f1aaaefcf8e2e6c85089e1d"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "5e751514aac8741ca407e003aff0dd753fdf584f4e07a34c0bf5c0ccdb003fa9"
+            }
+          ]
+        },
+        {
+          "app": "external-secrets",
+          "from": "0.9.20",
+          "to": "2.15.0",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NOT_FLAGGED_NO_SCAN_OUTPUT",
+          "ids": [],
+          "logDigest": "b86d9b9046f6ec7f0911be91f32b3595dccca374174b87a39fb5bd9db84aa691",
+          "artifacts": [
+            {
+              "name": "chart external-secrets 0.9.20",
+              "sha256": "9bedcb3779ccf543545efe6caa41369b3a5e38a54ac3f7f6c3112e9f12d48694"
+            },
+            {
+              "name": "chart external-secrets 2.15.0",
+              "sha256": "ed94d41cc67e392ea45e370345eb491b0fdc21387f1aaaefcf8e2e6c85089e1d"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "5e751514aac8741ca407e003aff0dd753fdf584f4e07a34c0bf5c0ccdb003fa9"
+            }
+          ]
+        },
+        {
+          "app": "external-secrets",
+          "from": "0.9.20",
+          "to": "2.15.0",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NOT_FLAGGED_NO_SCAN_OUTPUT",
+          "ids": [],
+          "logDigest": "b86d9b9046f6ec7f0911be91f32b3595dccca374174b87a39fb5bd9db84aa691",
+          "artifacts": [
+            {
+              "name": "chart external-secrets 0.9.20",
+              "sha256": "9bedcb3779ccf543545efe6caa41369b3a5e38a54ac3f7f6c3112e9f12d48694"
+            },
+            {
+              "name": "chart external-secrets 2.15.0",
+              "sha256": "ed94d41cc67e392ea45e370345eb491b0fdc21387f1aaaefcf8e2e6c85089e1d"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "5e751514aac8741ca407e003aff0dd753fdf584f4e07a34c0bf5c0ccdb003fa9"
+            }
+          ]
+        },
+        {
+          "app": "external-secrets",
+          "from": "0.9.20",
+          "to": "2.15.0",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "SCAN_NO_USABLE_OUTPUT",
+          "ids": [],
+          "logDigest": "b86d9b9046f6ec7f0911be91f32b3595dccca374174b87a39fb5bd9db84aa691",
+          "artifacts": [
+            {
+              "name": "chart external-secrets 0.9.20",
+              "sha256": "9bedcb3779ccf543545efe6caa41369b3a5e38a54ac3f7f6c3112e9f12d48694"
+            },
+            {
+              "name": "chart external-secrets 2.15.0",
+              "sha256": "ed94d41cc67e392ea45e370345eb491b0fdc21387f1aaaefcf8e2e6c85089e1d"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "5e751514aac8741ca407e003aff0dd753fdf584f4e07a34c0bf5c0ccdb003fa9"
+            }
+          ]
+        },
+        {
+          "app": "external-secrets",
+          "from": "0.9.20",
+          "to": "2.15.0",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "SCAN_NO_USABLE_OUTPUT",
+          "ids": [],
+          "logDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "artifacts": [
+            {
+              "name": "chart external-secrets 0.9.20",
+              "sha256": "9bedcb3779ccf543545efe6caa41369b3a5e38a54ac3f7f6c3112e9f12d48694"
+            },
+            {
+              "name": "chart external-secrets 2.15.0",
+              "sha256": "ed94d41cc67e392ea45e370345eb491b0fdc21387f1aaaefcf8e2e6c85089e1d"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "5e751514aac8741ca407e003aff0dd753fdf584f4e07a34c0bf5c0ccdb003fa9"
+            }
+          ]
+        },
+        {
+          "app": "external-secrets",
+          "from": "0.9.20",
+          "to": "2.15.0",
+          "command": "scan+plan",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "SCAN_NO_USABLE_OUTPUT",
+          "ids": [],
+          "logDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "artifacts": [
+            {
+              "name": "chart external-secrets 0.9.20",
+              "sha256": "9bedcb3779ccf543545efe6caa41369b3a5e38a54ac3f7f6c3112e9f12d48694"
+            },
+            {
+              "name": "chart external-secrets 2.15.0",
+              "sha256": "ed94d41cc67e392ea45e370345eb491b0fdc21387f1aaaefcf8e2e6c85089e1d"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "5e751514aac8741ca407e003aff0dd753fdf584f4e07a34c0bf5c0ccdb003fa9"
+            }
+          ]
+        },
+        {
+          "app": "ingress-nginx",
+          "from": "4.10.6",
+          "to": "4.15.1",
+          "command": "assess",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "COMPONENT_NOT_IDENTIFIED",
+          "ids": [],
+          "logDigest": "a012149d83b7af145f3e1b2c544f52aff60596587090027b73cc89b5dd3344f1",
+          "artifacts": [
+            {
+              "name": "chart ingress-nginx 4.10.6",
+              "sha256": "131c1e484fa8a26e4ba456c30026554bfecee55fe9d6d1d3fa4d4dfcac6c14fe"
+            },
+            {
+              "name": "chart ingress-nginx 4.15.1",
+              "sha256": "3eff0bd18151d6e6b1c441463410571443dda1ac78292cb189346628de784f0c"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "5e751514aac8741ca407e003aff0dd753fdf584f4e07a34c0bf5c0ccdb003fa9"
+            }
+          ]
+        },
+        {
+          "app": "ingress-nginx",
+          "from": "4.10.6",
+          "to": "4.15.1",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NOT_FLAGGED_NO_SCAN_OUTPUT",
+          "ids": [],
+          "logDigest": "b86d9b9046f6ec7f0911be91f32b3595dccca374174b87a39fb5bd9db84aa691",
+          "artifacts": [
+            {
+              "name": "chart ingress-nginx 4.10.6",
+              "sha256": "131c1e484fa8a26e4ba456c30026554bfecee55fe9d6d1d3fa4d4dfcac6c14fe"
+            },
+            {
+              "name": "chart ingress-nginx 4.15.1",
+              "sha256": "3eff0bd18151d6e6b1c441463410571443dda1ac78292cb189346628de784f0c"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "5e751514aac8741ca407e003aff0dd753fdf584f4e07a34c0bf5c0ccdb003fa9"
+            }
+          ]
+        },
+        {
+          "app": "ingress-nginx",
+          "from": "4.10.6",
+          "to": "4.15.1",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "SCAN_NO_USABLE_OUTPUT",
+          "ids": [],
+          "logDigest": "b86d9b9046f6ec7f0911be91f32b3595dccca374174b87a39fb5bd9db84aa691",
+          "artifacts": [
+            {
+              "name": "chart ingress-nginx 4.10.6",
+              "sha256": "131c1e484fa8a26e4ba456c30026554bfecee55fe9d6d1d3fa4d4dfcac6c14fe"
+            },
+            {
+              "name": "chart ingress-nginx 4.15.1",
+              "sha256": "3eff0bd18151d6e6b1c441463410571443dda1ac78292cb189346628de784f0c"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "5e751514aac8741ca407e003aff0dd753fdf584f4e07a34c0bf5c0ccdb003fa9"
+            }
+          ]
+        },
+        {
+          "app": "ingress-nginx",
+          "from": "4.10.6",
+          "to": "4.15.1",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "SCAN_NO_USABLE_OUTPUT",
+          "ids": [],
+          "logDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "artifacts": [
+            {
+              "name": "chart ingress-nginx 4.10.6",
+              "sha256": "131c1e484fa8a26e4ba456c30026554bfecee55fe9d6d1d3fa4d4dfcac6c14fe"
+            },
+            {
+              "name": "chart ingress-nginx 4.15.1",
+              "sha256": "3eff0bd18151d6e6b1c441463410571443dda1ac78292cb189346628de784f0c"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "5e751514aac8741ca407e003aff0dd753fdf584f4e07a34c0bf5c0ccdb003fa9"
+            }
+          ]
+        },
+        {
+          "app": "ingress-nginx",
+          "from": "4.10.6",
+          "to": "4.15.1",
+          "command": "scan+plan",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "SCAN_NO_USABLE_OUTPUT",
+          "ids": [],
+          "logDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "artifacts": [
+            {
+              "name": "chart ingress-nginx 4.10.6",
+              "sha256": "131c1e484fa8a26e4ba456c30026554bfecee55fe9d6d1d3fa4d4dfcac6c14fe"
+            },
+            {
+              "name": "chart ingress-nginx 4.15.1",
+              "sha256": "3eff0bd18151d6e6b1c441463410571443dda1ac78292cb189346628de784f0c"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "5e751514aac8741ca407e003aff0dd753fdf584f4e07a34c0bf5c0ccdb003fa9"
+            }
+          ]
+        },
+        {
+          "app": "istio-base",
+          "from": "1.22.8",
+          "to": "1.30.8",
+          "command": "assess",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "COMPONENT_NOT_IDENTIFIED",
+          "ids": [],
+          "logDigest": "a012149d83b7af145f3e1b2c544f52aff60596587090027b73cc89b5dd3344f1",
+          "artifacts": [
+            {
+              "name": "chart istio-base 1.22.8",
+              "sha256": "243e2da1d7614f89f214d699380b02786bd16f6e1c979d19b9a01e4746b60a05"
+            },
+            {
+              "name": "chart istio-base 1.30.8",
+              "sha256": "1bcfc72b952b59b99dbd3d2fe6388be4ed4fa4e505238164438a0c95a7dd4ff7"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "5e751514aac8741ca407e003aff0dd753fdf584f4e07a34c0bf5c0ccdb003fa9"
+            }
+          ]
+        },
+        {
+          "app": "istio-base",
+          "from": "1.22.8",
+          "to": "1.30.8",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "SCAN_NO_USABLE_OUTPUT",
+          "ids": [],
+          "logDigest": "b86d9b9046f6ec7f0911be91f32b3595dccca374174b87a39fb5bd9db84aa691",
+          "artifacts": [
+            {
+              "name": "chart istio-base 1.22.8",
+              "sha256": "243e2da1d7614f89f214d699380b02786bd16f6e1c979d19b9a01e4746b60a05"
+            },
+            {
+              "name": "chart istio-base 1.30.8",
+              "sha256": "1bcfc72b952b59b99dbd3d2fe6388be4ed4fa4e505238164438a0c95a7dd4ff7"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "5e751514aac8741ca407e003aff0dd753fdf584f4e07a34c0bf5c0ccdb003fa9"
+            }
+          ]
+        },
+        {
+          "app": "istio-base",
+          "from": "1.22.8",
+          "to": "1.30.8",
+          "command": "scan+plan",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "SCAN_NO_USABLE_OUTPUT",
+          "ids": [],
+          "logDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "artifacts": [
+            {
+              "name": "chart istio-base 1.22.8",
+              "sha256": "243e2da1d7614f89f214d699380b02786bd16f6e1c979d19b9a01e4746b60a05"
+            },
+            {
+              "name": "chart istio-base 1.30.8",
+              "sha256": "1bcfc72b952b59b99dbd3d2fe6388be4ed4fa4e505238164438a0c95a7dd4ff7"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "5e751514aac8741ca407e003aff0dd753fdf584f4e07a34c0bf5c0ccdb003fa9"
+            }
+          ]
+        },
+        {
+          "app": "istiod",
+          "from": "1.22.8",
+          "to": "1.30.8",
+          "command": "assess",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "COMPONENT_NOT_IDENTIFIED",
+          "ids": [],
+          "logDigest": "a012149d83b7af145f3e1b2c544f52aff60596587090027b73cc89b5dd3344f1",
+          "artifacts": [
+            {
+              "name": "chart istiod 1.22.8",
+              "sha256": "cc1ab9cb08867ad78cc4b34675443937d7a15cc76b99f332b33a4db37b5fff8e"
+            },
+            {
+              "name": "chart istiod 1.30.8",
+              "sha256": "f14f7c5c41de2d2ec0dde99723f52335e3661b0daca1e400eaa046664f937f36"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "5e751514aac8741ca407e003aff0dd753fdf584f4e07a34c0bf5c0ccdb003fa9"
+            }
+          ]
+        },
+        {
+          "app": "istiod",
+          "from": "1.22.8",
+          "to": "1.30.8",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "SCAN_NO_USABLE_OUTPUT",
+          "ids": [],
+          "logDigest": "b86d9b9046f6ec7f0911be91f32b3595dccca374174b87a39fb5bd9db84aa691",
+          "artifacts": [
+            {
+              "name": "chart istiod 1.22.8",
+              "sha256": "cc1ab9cb08867ad78cc4b34675443937d7a15cc76b99f332b33a4db37b5fff8e"
+            },
+            {
+              "name": "chart istiod 1.30.8",
+              "sha256": "f14f7c5c41de2d2ec0dde99723f52335e3661b0daca1e400eaa046664f937f36"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "5e751514aac8741ca407e003aff0dd753fdf584f4e07a34c0bf5c0ccdb003fa9"
+            }
+          ]
+        },
+        {
+          "app": "istiod",
+          "from": "1.22.8",
+          "to": "1.30.8",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "SCAN_NO_USABLE_OUTPUT",
+          "ids": [],
+          "logDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "artifacts": [
+            {
+              "name": "chart istiod 1.22.8",
+              "sha256": "cc1ab9cb08867ad78cc4b34675443937d7a15cc76b99f332b33a4db37b5fff8e"
+            },
+            {
+              "name": "chart istiod 1.30.8",
+              "sha256": "f14f7c5c41de2d2ec0dde99723f52335e3661b0daca1e400eaa046664f937f36"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "5e751514aac8741ca407e003aff0dd753fdf584f4e07a34c0bf5c0ccdb003fa9"
+            }
+          ]
+        },
+        {
+          "app": "istiod",
+          "from": "1.22.8",
+          "to": "1.30.8",
+          "command": "scan+plan",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "SCAN_NO_USABLE_OUTPUT",
+          "ids": [],
+          "logDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "artifacts": [
+            {
+              "name": "chart istiod 1.22.8",
+              "sha256": "cc1ab9cb08867ad78cc4b34675443937d7a15cc76b99f332b33a4db37b5fff8e"
+            },
+            {
+              "name": "chart istiod 1.30.8",
+              "sha256": "f14f7c5c41de2d2ec0dde99723f52335e3661b0daca1e400eaa046664f937f36"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "5e751514aac8741ca407e003aff0dd753fdf584f4e07a34c0bf5c0ccdb003fa9"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "r002",
+      "k8sFrom": "1.24.15",
+      "k8sTo": "1.25.11",
+      "kindNodeImageFrom": "kindest/node@sha256:7db4f8bea3e14b82d12e044e25e34bd53754b7f2b0e9d56df21774e6f66a70ab",
+      "kindNodeImageTo": "kindest/node@sha256:227fa11ce74ea76a0474eeefb84cb75d8dad1b08638371ecf0e86259b35be0c8",
+      "prufyxCommit": "28fc30c183e8c2c9af1d3a483bbec42a27378ba7",
+      "counts": {
+        "correct": 4,
+        "wrongPass": 0,
+        "falseAlarm": 0,
+        "gap": 6,
+        "rows": 10
+      },
+      "checks": [
+        {
+          "app": "*",
+          "from": "1.24.15",
+          "to": "1.25.11",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "NOT_CHECKED",
+          "ids": [
+            "API_VERSION_NOT_REVIEWED"
+          ],
+          "logDigest": "0cb78dceb65c131ba16053ce2c3c4a35da7834c0277329cfad8eadaa2802b9b5",
+          "artifacts": [
+            {
+              "name": "rendered.yaml",
+              "sha256": "16cc7cf2b5142f7149ad20e6e08089726eca7f8f0d2eca59832a306821bef751"
+            }
+          ]
+        },
+        {
+          "app": "cert-manager",
+          "from": "1.9.1",
+          "to": "1.10.2",
+          "command": "assess",
+          "result": "correct",
+          "oracle": "in-place upgrade",
+          "reason": "COMPONENT_OBSERVED",
+          "ids": [],
+          "logDigest": "915e0649862e42771f888542cf4956f7f44d09a8f1d7f8e43074f536dc631a44",
+          "artifacts": [
+            {
+              "name": "chart cert-manager v1.10.2",
+              "sha256": "426ff4927bafbbd21f30e64fcf94c630fc2d8de18362c3e690fe0896f87fd689"
+            },
+            {
+              "name": "chart cert-manager v1.9.1",
+              "sha256": "46273177b5ca6930af8047cd52bf0b784c8482ac042e7812d08643c2898692d5"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "16cc7cf2b5142f7149ad20e6e08089726eca7f8f0d2eca59832a306821bef751"
+            }
+          ]
+        },
+        {
+          "app": "cert-manager",
+          "from": "1.9.1",
+          "to": "1.10.2",
+          "command": "check-cert-manager-values",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "UNKNOWN",
+          "ids": [
+            "CERT_MANAGER_TRANSITION_NOT_REVIEWED"
+          ],
+          "logDigest": "57256e2ad4390a2b3eb9592e81354e2f6cd2d137675070cf9cbd06fb1eaf02ab",
+          "artifacts": [
+            {
+              "name": "chart cert-manager v1.10.2",
+              "sha256": "426ff4927bafbbd21f30e64fcf94c630fc2d8de18362c3e690fe0896f87fd689"
+            },
+            {
+              "name": "chart cert-manager v1.9.1",
+              "sha256": "46273177b5ca6930af8047cd52bf0b784c8482ac042e7812d08643c2898692d5"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "16cc7cf2b5142f7149ad20e6e08089726eca7f8f0d2eca59832a306821bef751"
+            }
+          ]
+        },
+        {
+          "app": "cert-manager",
+          "from": "1.9.1",
+          "to": "1.10.2",
+          "command": "scan",
+          "result": "gap",
+          "oracle": "replay-on-target",
+          "reason": "CUSTOM_RESOURCES_NOT_EVALUATED",
+          "ids": [],
+          "logDigest": "1710968ff4c2fad7f0135e87fd4639df28ec2b27b283a04a2cc08fde91ef612e",
+          "artifacts": [
+            {
+              "name": "chart cert-manager v1.10.2",
+              "sha256": "426ff4927bafbbd21f30e64fcf94c630fc2d8de18362c3e690fe0896f87fd689"
+            },
+            {
+              "name": "chart cert-manager v1.9.1",
+              "sha256": "46273177b5ca6930af8047cd52bf0b784c8482ac042e7812d08643c2898692d5"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "16cc7cf2b5142f7149ad20e6e08089726eca7f8f0d2eca59832a306821bef751"
+            }
+          ]
+        },
+        {
+          "app": "cert-manager",
+          "from": "1.9.1",
+          "to": "1.10.2",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING",
+          "ids": [
+            "kubernetes.served-api-removal.autoscaling-v2beta1.1-24-0-to-1-25-0",
+            "kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0",
+            "kubernetes.served-api-removal.discovery-k8s-io-v1beta1.1-24-0-to-1-25-0",
+            "kubernetes.served-api-removal.events-k8s-io-v1beta1.1-24-0-to-1-25-0",
+            "kubernetes.served-api-removal.node-k8s-io-v1beta1.1-24-0-to-1-25-0",
+            "kubernetes.served-api-removal.policy-v1beta1-pdb.1-24-0-to-1-25-0"
+          ],
+          "logDigest": "c74692a27db7eeb94842567e7c75da1c05daee8512a6a38726d36dd4f05f4142",
+          "artifacts": [
+            {
+              "name": "chart cert-manager v1.10.2",
+              "sha256": "426ff4927bafbbd21f30e64fcf94c630fc2d8de18362c3e690fe0896f87fd689"
+            },
+            {
+              "name": "chart cert-manager v1.9.1",
+              "sha256": "46273177b5ca6930af8047cd52bf0b784c8482ac042e7812d08643c2898692d5"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "16cc7cf2b5142f7149ad20e6e08089726eca7f8f0d2eca59832a306821bef751"
+            }
+          ]
+        },
+        {
+          "app": "cert-manager",
+          "from": "1.9.1",
+          "to": "1.10.2",
+          "command": "scan+plan",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "NO_DATA_COMPONENT_NOT_COVERED",
+          "ids": [],
+          "logDigest": "0cb78dceb65c131ba16053ce2c3c4a35da7834c0277329cfad8eadaa2802b9b5",
+          "artifacts": [
+            {
+              "name": "chart cert-manager v1.10.2",
+              "sha256": "426ff4927bafbbd21f30e64fcf94c630fc2d8de18362c3e690fe0896f87fd689"
+            },
+            {
+              "name": "chart cert-manager v1.9.1",
+              "sha256": "46273177b5ca6930af8047cd52bf0b784c8482ac042e7812d08643c2898692d5"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "16cc7cf2b5142f7149ad20e6e08089726eca7f8f0d2eca59832a306821bef751"
+            }
+          ]
+        },
+        {
+          "app": "ingress-nginx",
+          "from": "4.4.2",
+          "to": "4.4.2",
+          "command": "assess",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "COMPONENT_NOT_IDENTIFIED",
+          "ids": [],
+          "logDigest": "915e0649862e42771f888542cf4956f7f44d09a8f1d7f8e43074f536dc631a44",
+          "artifacts": [
+            {
+              "name": "chart ingress-nginx 4.4.2",
+              "sha256": "949a8550fd9961a44704fd0e6508edea3901ee942caaf0e2d56f10d281228e05"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "16cc7cf2b5142f7149ad20e6e08089726eca7f8f0d2eca59832a306821bef751"
+            }
+          ]
+        },
+        {
+          "app": "ingress-nginx",
+          "from": "4.4.2",
+          "to": "4.4.2",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "NO_FINDING",
+          "ids": [
+            "kubernetes.served-api-removal.autoscaling-v2beta1.1-24-0-to-1-25-0",
+            "kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0",
+            "kubernetes.served-api-removal.discovery-k8s-io-v1beta1.1-24-0-to-1-25-0",
+            "kubernetes.served-api-removal.events-k8s-io-v1beta1.1-24-0-to-1-25-0",
+            "kubernetes.served-api-removal.node-k8s-io-v1beta1.1-24-0-to-1-25-0",
+            "kubernetes.served-api-removal.policy-v1beta1-pdb.1-24-0-to-1-25-0"
+          ],
+          "logDigest": "c74692a27db7eeb94842567e7c75da1c05daee8512a6a38726d36dd4f05f4142",
+          "artifacts": [
+            {
+              "name": "chart ingress-nginx 4.4.2",
+              "sha256": "949a8550fd9961a44704fd0e6508edea3901ee942caaf0e2d56f10d281228e05"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "16cc7cf2b5142f7149ad20e6e08089726eca7f8f0d2eca59832a306821bef751"
+            }
+          ]
+        },
+        {
+          "app": "kube-state-metrics",
+          "from": "4.24.0",
+          "to": "4.24.0",
+          "command": "assess",
+          "result": "gap",
+          "oracle": "in-place upgrade",
+          "reason": "COMPONENT_NOT_IDENTIFIED",
+          "ids": [],
+          "logDigest": "915e0649862e42771f888542cf4956f7f44d09a8f1d7f8e43074f536dc631a44",
+          "artifacts": [
+            {
+              "name": "chart kube-state-metrics 4.24.0",
+              "sha256": "fbe4f512d9e96b025e33ba8d8acbc1281b6383f19f46b739cd865a4858f68715"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "16cc7cf2b5142f7149ad20e6e08089726eca7f8f0d2eca59832a306821bef751"
+            }
+          ]
+        },
+        {
+          "app": "kube-state-metrics",
+          "from": "4.24.0",
+          "to": "4.24.0",
+          "command": "scan",
+          "result": "correct",
+          "oracle": "replay-on-target",
+          "reason": "BLOCKED",
+          "ids": [
+            "kubernetes.served-api-removal.policy-v1beta1-psp.1-24-0-to-1-25-0"
+          ],
+          "logDigest": "0cb78dceb65c131ba16053ce2c3c4a35da7834c0277329cfad8eadaa2802b9b5",
+          "artifacts": [
+            {
+              "name": "chart kube-state-metrics 4.24.0",
+              "sha256": "fbe4f512d9e96b025e33ba8d8acbc1281b6383f19f46b739cd865a4858f68715"
+            },
+            {
+              "name": "rendered.yaml",
+              "sha256": "16cc7cf2b5142f7149ad20e6e08089726eca7f8f0d2eca59832a306821bef751"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
