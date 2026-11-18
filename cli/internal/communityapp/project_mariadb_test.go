@@ -8,6 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 func TestProjectCLIMariaDB_SyntheticExamples(t *testing.T) {
@@ -88,7 +91,7 @@ func TestProjectCLIMariaDB_FreshnessAndExactSourceScope(t *testing.T) {
 		contains  string
 	}{
 		{"active", "2026-09-12T12:00:00Z", ExitBlocked, "mariadb-v11-4-2-removed-option-handler"},
-		{"stale", "2026-12-11T12:00:00Z", ExitUnknown, "RULE_EVIDENCE_STALE"},
+		{"stale", testclock.ProjectAfterExpiry("mariadb").Format(time.RFC3339), ExitUnknown, "RULE_EVIDENCE_STALE"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

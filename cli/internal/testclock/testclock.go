@@ -196,6 +196,7 @@ func maskEvidenceTimes(got []byte) []byte {
 var (
 	projectOnce   sync.Once
 	projectNewest map[string]time.Time
+	projectEnd    map[string]time.Time
 	projectErr    error
 )
 
@@ -208,6 +209,7 @@ func loadProjects() {
 		}
 		internal := filepath.Dir(filepath.Dir(file))
 		projectNewest = map[string]time.Time{}
+		projectEnd = map[string]time.Time{}
 		for _, pack := range []string{"cncfcheck", "projectcheck"} {
 			raw, err := os.ReadFile(filepath.Join(internal, pack, "data", "rules.json"))
 			if err != nil {
@@ -240,6 +242,12 @@ func loadProjects() {
 					return
 				}
 				projectNewest[head.Project] = latest
+				end := projectEnd[head.Project]
+				if err := walkEnd(tree, &end); err != nil {
+					projectErr = err
+					return
+				}
+				projectEnd[head.Project] = end
 			}
 		}
 	})
@@ -271,4 +279,16 @@ func FloorTextFor(project, text string) string {
 		return text
 	}
 	return floor.Format(time.RFC3339)
+}
+
+// ProjectAfterExpiry is one day after the latest validUntil of the named
+// project's rules: every one of them is expired at this instant, however the
+// rules are renewed. It is the zero time for a project without rules.
+func ProjectAfterExpiry(project string) time.Time {
+	loadProjects()
+	end := projectEnd[project]
+	if end.IsZero() {
+		return time.Time{}
+	}
+	return end.UTC().Add(24 * time.Hour)
 }

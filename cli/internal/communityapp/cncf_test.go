@@ -39,20 +39,45 @@ func runCNCFCLIRaw(t *testing.T, args ...string) (int, string, string) {
 	return code, stdout.String(), stderr.String()
 }
 
-// floorNowArgs moves a --now earlier than the newest review of the shipped
-// rules up to that review (see testclock): the pinned dates in the tests only
-// need to be a time at which the rules are in force, and renewing the rules
-// must not make them stale. A --now after it (an expiry premise) is kept.
+// floorNowArgs moves a --now earlier than the newest review of the named
+// project's rules up to that review (see testclock.ProjectNewest): the pinned
+// dates in the tests only need to be a time at which that project's rules are
+// in force, and renewing the rules must not make them stale. The clock is
+// computed up front from the rule data, never from the command's output. A
+// --now at or after the review (an expiry premise) and every other command keep
+// their arguments.
 func floorNowArgs(args []string) []string {
+	// Only the community project commands are floored: they evaluate one rule
+	// set that the project names. The CNCF native checks pick rules by pair and
+	// need a clock per rule, which their own tests derive.
+	sub := 1
+	for sub < len(args) && args[sub] == "--strict-exit" {
+		sub++
+	}
+	if len(args) <= sub || args[0] != "check" || args[sub] != "project" {
+		return args
+	}
+	project := ""
+	for i, arg := range args {
+		switch {
+		case arg == "--project" && i+1 < len(args):
+			project = args[i+1]
+		case strings.HasPrefix(arg, "--project="):
+			project = strings.TrimPrefix(arg, "--project=")
+		}
+	}
+	if project == "" {
+		return args
+	}
 	out := append([]string(nil), args...)
 	for i, arg := range out {
 		switch {
 		case (arg == "--now" || arg == "-now") && i+1 < len(out):
-			out[i+1] = testclock.FloorText(out[i+1])
+			out[i+1] = testclock.FloorTextFor(project, out[i+1])
 		case strings.HasPrefix(arg, "--now="):
-			out[i] = "--now=" + testclock.FloorText(strings.TrimPrefix(arg, "--now="))
+			out[i] = "--now=" + testclock.FloorTextFor(project, strings.TrimPrefix(arg, "--now="))
 		case strings.HasPrefix(arg, "-now="):
-			out[i] = "-now=" + testclock.FloorText(strings.TrimPrefix(arg, "-now="))
+			out[i] = "-now=" + testclock.FloorTextFor(project, strings.TrimPrefix(arg, "-now="))
 		}
 	}
 	return out
