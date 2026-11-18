@@ -89,6 +89,10 @@ func entryFromBytes(t Target, c compiled, tag extract.Tag, version string, raw [
 	if err != nil {
 		return nil, err
 	}
+	lines, err = maskPreface(lines, c)
+	if err != nil {
+		return nil, err
+	}
 	sc := scan(lines)
 
 	// Which headings name which release.
@@ -233,12 +237,14 @@ func entryFromBytes(t Target, c compiled, tag extract.Tag, version string, raw [
 			e.Tiling.LinkDefs++
 		case kItem:
 			e.Tiling.ItemLines++
+		case kComment:
+			e.Tiling.Comments++
 		default:
 			residue++
 		}
 	}
 	for _, n := range sc.html {
-		if n >= start && n <= end {
+		if n >= start && n <= end && !sc.comment[n] {
 			return nil, fail(EntryParseResidue, fmt.Sprintf("line %d starts an HTML block inside the entry, which is not read", n))
 		}
 	}
@@ -427,4 +433,124 @@ func isReferral(item string) bool {
 	rest := strings.TrimSpace(mdLinkRE.ReplaceAllString(text, ""))
 	rest = strings.Trim(rest, " \t\n.,;:-*_()[]")
 	return rest == ""
+}
+
+// prefaceOpen and prefaceClose are the only lines of the C3 block, exactly.
+const (
+	prefaceOpen  = "<details>"
+	prefaceClose = "</details>"
+)
+
+// prefaceBanned are substrings that must not occur between the two lines of
+// a C3 block (case-insensitive): anything that can open another HTML block
+// kind that runs past a blank line or swallows what follows.
+var prefaceBanned = []string{"<!", "<?", "<script", "<pre", "<style", "<textarea", "<details", "</details"}
+
+// maskPreface is reader case C3: one balanced `<details>` ... `</details>`
+// block wholly above the first release heading of the file may be skipped.
+// The block is not part of any entry. Its lines are returned blank, so line
+// numbers do not move; every line outside it is still read, scanned and
+// compared with the CommonMark oracle exactly as before. The raw bytes, and
+// so the checked digest, still cover the block.
+//
+// When no line is exactly `<details>` above the first release heading,
+// lines come back unchanged (and any HTML block anywhere is judged by the
+// ordinary checks). When one is, every condition below must hold or the file
+// is refused: the closer exists, is the only one, is also above the first
+// release heading, both lines are at column zero between blank lines (or the
+// file start), nothing between them can open another HTML block, a fence or
+// a processing instruction, no heading in the block names a version or
+// matches a release or boundary pattern, and the oracle reads both lines as
+// HTML blocks of their own (so neither sits inside a fence, a comment or a
+// container).
+func maskPreface(lines []string, c compiled) ([]string, error) {
+	sc := scan(lines)
+	open := 0
+	for i, l := range lines {
+		if l == prefaceOpen && !sc.fenceBody[i] {
+			open = i + 1
+			break
+		}
+	}
+	if open == 0 {
+		return lines, nil
+	}
+	closeAt := 0
+	for i := open; i < len(lines); i++ {
+		if lines[i] == prefaceClose && !sc.fenceBody[i] {
+			closeAt = i + 1
+			break
+		}
+	}
+	isRelease := func(text string) bool {
+		if m := c.heading.FindStringSubmatch(text); m != nil && finalVersion(m[1]) {
+			return true
+		}
+		for _, b := range c.boundary {
+			if b.MatchString(text) {
+				return true
+			}
+		}
+		return false
+	}
+	first := 0
+	for _, h := range sc.headings {
+		if h.Line > open && closeAt != 0 && h.Line < closeAt {
+			continue
+		}
+		if isRelease(h.Text) {
+			first = h.Line
+			break
+		}
+	}
+	if first == 0 || first < open {
+		return lines, nil // no release heading below the opener: not the C3 shape
+	}
+	bad := func(why string) ([]string, error) {
+		return nil, fail(EntryParseResidue, "the HTML block above the first entry is not read: "+why)
+	}
+	if closeAt == 0 {
+		return bad("unbalanced <details>")
+	}
+	if closeAt > first {
+		return bad("the block reaches the first entry")
+	}
+	if (open > 1 && !isBlank(lines[open-2])) || (closeAt < len(lines) && !isBlank(lines[closeAt])) {
+		return bad("the block is not set off by blank lines")
+	}
+	for i := open; i < closeAt-1; i++ {
+		low := strings.ToLower(lines[i])
+		for _, b := range prefaceBanned {
+			if strings.Contains(low, b) {
+				return bad("markup that is not read inside the block")
+			}
+		}
+		if sc.fenceBody[i] || fenceBlockLine(lines[i]) {
+			return bad("a fence inside the block")
+		}
+	}
+	for _, h := range sc.headings {
+		if h.Line > open && h.Line < closeAt && (isRelease(h.Text) || firstVersionToken(h.Text) != "") {
+			return bad(fmt.Sprintf("heading at line %d names a version", h.Line))
+		}
+	}
+	v, err := cmParse(lines)
+	if err != nil {
+		return nil, fail(EntryParseResidue, "commonmark-disagreement: "+err.Error())
+	}
+	if !v.htmlStart[open] || !v.htmlStart[closeAt] {
+		return bad("the oracle does not read the opener and closer as HTML blocks")
+	}
+	out := make([]string, len(lines))
+	copy(out, lines)
+	for i := open - 1; i < closeAt; i++ {
+		out[i] = ""
+	}
+	return out, nil
+}
+
+// fenceBlockLine reports whether l could open or close a fence.
+func fenceBlockLine(l string) bool {
+	_, _, ok := fenceOpen(l)
+	return ok || fenceChars(l, '`', 3) || fenceChars(l, '~', 3)
 }

@@ -69,6 +69,7 @@ var headingOrder = []string{
 	"version-v-prefixed", "version-plain", "version-bracketed", "version-bracketed-date",
 	"version-dash-date", "version-slash-date",
 	"version-space-date", "version-v-slash-date", "version-linked-paren-date", "release-v-slash-date",
+	"version-v-paren-date", "version-dual-second", "version-dual-first",
 }
 
 var boundaryOrder = []string{

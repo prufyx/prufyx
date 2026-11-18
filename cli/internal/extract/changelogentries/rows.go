@@ -67,7 +67,13 @@ var headingStyles = map[string]string{
 	// heading whose target differs is not a final heading. A second heading
 	// for the same version is refused (EntryDuplicate).
 	"version-linked-paren-date": `^\[v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)\]\(https://github\.com/(?P<slug>[A-Za-z0-9._-]+/[A-Za-z0-9._-]+)/tree/(?P<ref>[A-Za-z0-9._-]+)\) \([0-9]{4}-[0-9]{2}-[0-9]{2}\)$`,
-	"release-v-slash-date":      `^Release v(?P<version>[0-9]+\.[0-9]+\.[0-9]+) - [0-9]{4}/[0-9]{2}/[0-9]{2}$`,
+	"version-v-paren-date":      `^v(?P<version>[0-9]+\.[0-9]+\.[0-9]+) \([0-9]{4}-[0-9]{2}-[0-9]{2}\)$`,
+	// A dual heading names two versions; which half is the component's is
+	// fixed by the style name, never by the file. The other half is read as
+	// plain text, and a tag whose version is the other half is not located.
+	"version-dual-first":   `^v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)/v[0-9]+\.[0-9]+\.[0-9]+$`,
+	"version-dual-second":  `^v[0-9]+\.[0-9]+\.[0-9]+/v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$`,
+	"release-v-slash-date": `^Release v(?P<version>[0-9]+\.[0-9]+\.[0-9]+) - [0-9]{4}/[0-9]{2}/[0-9]{2}$`,
 }
 
 // boundaryStyles maps a boundary style name to its fixed pattern.

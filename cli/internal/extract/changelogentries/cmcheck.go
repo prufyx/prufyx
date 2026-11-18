@@ -29,6 +29,8 @@ type cmUnit struct {
 	// the entry), so it takes part in the boundary check but not in the item
 	// comparison.
 	code bool
+	// html marks a top-level HTML block.
+	html bool
 }
 
 type cmView struct {
@@ -168,6 +170,8 @@ func cmParse(lines []string) (v *cmView, err error) {
 			switch c.(type) {
 			case *ast.CodeBlock, *ast.FencedCodeBlock:
 				u.code = true
+			case *ast.HTMLBlock:
+				u.html = true
 			}
 			v.units = append(v.units, u)
 		}
@@ -217,6 +221,12 @@ func cmFileDisagreement(sc scanned, v *cmView) string {
 	if v.htmlMulti && sc.containerFence == 0 {
 		return "a multi-line HTML block"
 	}
+	// Every C2 comment must be an HTML block of its own in the oracle.
+	for n := range sc.comment {
+		if !v.htmlStart[n] {
+			return fmt.Sprintf("comment at line %d is not an HTML block", n)
+		}
+	}
 	return cmItemDisagreement(sc, v)
 }
 
@@ -236,6 +246,10 @@ func cmItemDisagreement(sc scanned, v *cmView) string {
 			continue
 		}
 		if u.code {
+			continue
+		}
+		// A one-line HTML block the scanner read as a C2 comment is not an item.
+		if u.html && u.lo == u.hi && sc.comment[u.lo] {
 			continue
 		}
 		if j < len(sc.items) {

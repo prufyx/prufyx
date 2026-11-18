@@ -29,7 +29,7 @@ One line of JSON on standard output, in a fixed field order, so equal inputs
 give equal bytes:
 
 - `schema`: `prufyx.io/changelog-entries-manifest/v1`.
-- `extractor`: `name` `changelog.entries`, `version` `changelog.entries/2`,
+- `extractor`: `name` `changelog.entries`, `version` `changelog.entries/3`,
   and `codeDigest`, the digest of this reader's source and of the extract
   framework it is built on.
 - Exactly one of:
