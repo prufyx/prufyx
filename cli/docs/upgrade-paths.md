@@ -12,9 +12,27 @@ hops. The policy itself never decides that a hop is safe; rules do that, one
 hop at a time.
 
 `prufyx scan` reads the policy of a component to split an upgrade into hops.
-The published knowledge pack carries one record, for the Kubernetes control
-plane (`sequential_minor`, citing the version-skew policy of the Kubernetes
-website). This page describes the record, the planner and the checks a pack
+The published knowledge pack carries four records, all `sequential_minor`:
+the Kubernetes control plane (citing the version-skew policy of the Kubernetes
+website) and Cilium, Crossplane and Longhorn (each citing the statement in the
+upstream documentation, at a pinned commit, that upstream states upgrades go
+one minor release at a time). The documentation was read on 2026-11-18 for
+releases up to Cilium 1.20, Crossplane 2.4 and Longhorn 1.13; a minor release
+beyond that range needs a new review.
+
+Known limits of these three records. The record has no field that bounds the
+releases it applies to, so the range is only in the source id and here: a
+target above it (for example Cilium 1.22) is still split into per-minor hops
+until the record expires, and every hop stays UNKNOWN without rules. A field
+for it is proposed for after beta.1 (a new field would make older clients
+refuse the whole pack). The Crossplane source is the `master` guide of the
+documentation repository, not a file versioned per release; the Longhorn source
+is the 1.14.0 page, newer than the range read. The blob and tree ids of each
+cited file are not part of the record or its signed approval (the source and
+the approval have no field for them); they are in the review of the pull request
+that added the records. The record is for planning hops only:
+every hop still needs rules, and a plan stays UNKNOWN until each hop is
+covered. This page describes the record, the planner and the checks a pack
 must pass, for contributors and maintainers.
 
 ## Policies

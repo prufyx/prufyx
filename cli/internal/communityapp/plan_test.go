@@ -165,3 +165,65 @@ func reasonStrings[T ~string](in []T) []string {
 	}
 	return out
 }
+
+// An app with a reviewed sequential_minor path policy is planned one minor
+// line at a time; no hop is PASS, and an app without a record stays one hop.
+func TestPlanAppPathPolicies(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "applyset.yaml")
+	if err := os.WriteFile(path, []byte(scanCronJob), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	now := "2026-11-20T00:00:00Z"
+	cases := []struct {
+		app, from, to string
+		hops          int
+		policy        string
+	}{
+		{"cilium", "1.14.5", "1.17.2", 3, "sequential_minor"},
+		{"longhorn", "1.4.4", "1.7.3", 3, "sequential_minor"},
+		{"crossplane", "1.17.1", "1.20.0", 3, "sequential_minor"},
+		// Above the range the docs were read for the record still applies
+		// (it has no range field); the plan stays UNKNOWN, never PASS.
+		{"cilium", "1.14.5", "1.22.0", 8, "sequential_minor"},
+		{"kyverno", "1.10.0", "1.13.0", 1, ""},
+	}
+	for _, c := range cases {
+		code, stdout, stderr := runPlan(t, path, "--from", c.app+"="+c.from, "--to", c.app+"="+c.to, "--now", now, "--format", "json")
+		var plan upgradeplan.Plan
+		if err := json.Unmarshal([]byte(stdout), &plan); err != nil {
+			t.Fatalf("%s: %v\n%s\n%s", c.app, err, stdout, stderr)
+		}
+		if code != ExitUnknown || plan.Verdict == upgradeplan.VerdictPass {
+			t.Fatalf("%s: exit %d verdict %s", c.app, code, plan.Verdict)
+		}
+		for _, s := range plan.Stages {
+			if s.Verdict == upgradeplan.VerdictPass {
+				t.Fatalf("%s: PASS stage %+v", c.app, s)
+			}
+		}
+		var route *upgradeplan.Route
+		for i := range plan.Routes {
+			if plan.Routes[i].Component == "pkg:github/"+c.app+"/"+c.app || plan.Routes[i].Component == c.app {
+				route = &plan.Routes[i]
+			}
+		}
+		if route == nil {
+			t.Fatalf("%s: no route in %+v", c.app, plan.Routes)
+		}
+		if route.Policy != c.policy || route.Hops != c.hops {
+			t.Fatalf("%s: route %+v want policy %q hops %d", c.app, *route, c.policy, c.hops)
+		}
+	}
+	// Past validUntil the record is stale: no policy, no per-minor route.
+	_, stdout, _ := runPlan(t, path, "--from", "longhorn=1.4.4", "--to", "longhorn=1.7.3", "--now", "2027-03-01T00:00:00Z", "--format", "json")
+	var stale upgradeplan.Plan
+	if err := json.Unmarshal([]byte(stdout), &stale); err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range stale.Routes {
+		if r.Policy == "sequential_minor" && r.Hops > 1 {
+			t.Fatalf("stale record used: %+v", r)
+		}
+	}
+}

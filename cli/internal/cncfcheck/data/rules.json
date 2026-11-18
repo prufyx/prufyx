@@ -35704,6 +35704,46 @@
   ],
   "pathPolicies": [
     {
+      "component": "pkg:github/cilium/cilium",
+      "policy": "sequential_minor",
+      "evidence": {
+        "state": "active",
+        "basis": "reviewed",
+        "reviewedAt": "2026-11-18T12:00:00Z",
+        "validUntil": "2027-02-16T12:00:00Z",
+        "sources": [
+          {
+            "id": "cilium-docs-upgrade-warning-minors-to-1-20",
+            "url": "https://github.com/cilium/cilium/blob/39ae08f6bdf8831b7d0805d4e1ff050467245a4c/Documentation/operations/upgrade-warning.rst",
+            "revision": "39ae08f6bdf8831b7d0805d4e1ff050467245a4c",
+            "contentDigest": "sha256:a0fcd92896140ee0ae2494e163089b5b702186ccea6d44b6043da857f5001adf",
+            "startLine": 16,
+            "endLine": 19
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/crossplane/crossplane",
+      "policy": "sequential_minor",
+      "evidence": {
+        "state": "active",
+        "basis": "reviewed",
+        "reviewedAt": "2026-11-18T12:00:00Z",
+        "validUntil": "2027-02-16T12:00:00Z",
+        "sources": [
+          {
+            "id": "crossplane-docs-upgrade-guide-minors-to-2-4",
+            "url": "https://github.com/crossplane/docs/blob/6c4f7f9506e57a4dec35491799b871a61f8237fe/content/master/guides/upgrade-crossplane.md",
+            "revision": "6c4f7f9506e57a4dec35491799b871a61f8237fe",
+            "contentDigest": "sha256:0ca767a1e1eacae984372c582bb30672d033b0d99c9eeffb22589ee5c6300d44",
+            "startLine": 12,
+            "endLine": 13
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/kubernetes/kubernetes",
       "policy": "sequential_minor",
       "evidence": {
@@ -35718,6 +35758,26 @@
             "contentDigest": "sha256:ab10c2fdfefd106fa5eb0d3d21c059bc7d3747696dd0ae458cafc24000eca594",
             "startLine": 189,
             "endLine": 193
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/longhorn/longhorn",
+      "policy": "sequential_minor",
+      "evidence": {
+        "state": "active",
+        "basis": "reviewed",
+        "reviewedAt": "2026-11-18T12:00:00Z",
+        "validUntil": "2027-02-16T12:00:00Z",
+        "sources": [
+          {
+            "id": "longhorn-docs-upgrade-path-minors-to-1-13",
+            "url": "https://github.com/longhorn/website/blob/34fc6c7bb8e4a161a33af83bbda32d8dc267dbe4/content/docs/1.14.0/deploy/upgrade/_index.md",
+            "revision": "34fc6c7bb8e4a161a33af83bbda32d8dc267dbe4",
+            "contentDigest": "sha256:da7fed659f70a883759109180d36821e58b81179ec8a721e71b252c4609e7637",
+            "startLine": 14,
+            "endLine": 14
           }
         ]
       }

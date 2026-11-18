@@ -147,7 +147,7 @@ func TestValidatePackPathPolicies(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r, err := ValidatePackPathPolicies(raw, PathPolicyOptions{}); err != nil || !r.Valid || r.EntryCount != 1 {
+	if r, err := ValidatePackPathPolicies(raw, PathPolicyOptions{}); err != nil || !r.Valid || r.EntryCount != 4 {
 		t.Fatalf("published pack: %+v %v", r, err)
 	}
 	// The cases below add a section of their own to the pack without one.

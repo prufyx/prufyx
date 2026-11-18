@@ -66,15 +66,23 @@ func TestEmbeddedPackCarriesTheKubernetesPathPolicy(t *testing.T) {
 	}
 	shipped := shippedPack(t)
 	var records []upgradepath.Record
-	if err := json.Unmarshal(shipped.PathPolicies, &records); err != nil || len(records) != 1 || records[0].Component != k8sComponent || records[0].Policy != upgradepath.PolicySequentialMinor {
+	if err := json.Unmarshal(shipped.PathPolicies, &records); err != nil || len(records) != 4 || records[0].Component != ciliumComponent || records[1].Component != "pkg:github/crossplane/crossplane" || records[2].Component != k8sComponent || records[3].Component != "pkg:github/longhorn/longhorn" {
 		t.Fatalf("embedded path policy records: %+v %v", records, err)
 	}
 	status, err := PathPolicyFor(k8sComponent, packClock(t))
 	if err != nil || !status.Found || status.Policy() == nil || status.Record.Policy != upgradepath.PolicySequentialMinor {
 		t.Fatalf("embedded path policy: %+v %v", status, err)
 	}
-	if status, err := PathPolicyFor(ciliumComponent, packClock(t)); err != nil || status.Found || status.Policy() != nil {
-		t.Fatalf("embedded path policy of another component: %+v %v", status, err)
+	for _, r := range records {
+		if r.Policy != upgradepath.PolicySequentialMinor {
+			t.Fatalf("embedded path policy %s is %s, want sequential_minor", r.Component, r.Policy)
+		}
+	}
+	if status, err := PathPolicyFor(ciliumComponent, packClock(t)); err != nil || !status.Found || status.Policy() == nil || status.Record.Policy != upgradepath.PolicySequentialMinor {
+		t.Fatalf("embedded path policy of cilium: %+v %v", status, err)
+	}
+	if status, err := PathPolicyFor("pkg:github/argoproj/argo-cd", packClock(t)); err != nil || status.Found || status.Policy() != nil {
+		t.Fatalf("embedded path policy of a component without a record: %+v %v", status, err)
 	}
 	components, err := CatalogSubjectComponents()
 	if err != nil || !slices.Contains(components, k8sComponent) || !slices.Contains(components, ciliumComponent) || !slices.IsSorted(components) {
@@ -165,10 +173,10 @@ func TestPathPolicyFreshness(t *testing.T) {
 		t.Fatalf("absent record: %+v", absent)
 	}
 	// The embedded lookup goes through the same method; the embedded pack
-	// holds a record for Kubernetes only (its own dates, not the cases').
+	// holds records for Kubernetes, Cilium, Crossplane and Longhorn only (its own dates, not the cases').
 	for _, c := range cases {
 		t.Run("embedded "+c.name, func(t *testing.T) {
-			if status, err := PathPolicyFor(c.component, c.now); err != nil || status.Found != (c.component == k8sComponent) {
+			if status, err := PathPolicyFor(c.component, c.now); err != nil || status.Found != (c.component == k8sComponent || c.component == ciliumComponent) {
 				t.Fatalf("embedded pack: %+v %v", status, err)
 			}
 		})
@@ -415,6 +423,37 @@ func TestSplitTargetsCarrySections(t *testing.T) {
 		want, err := requiredPackSchema(rulePack{Entries: envelope.Pack.Entries})
 		if err != nil || envelope.Pack.Schema != want {
 			t.Fatalf("%s: schema %s, want %s (%v)", target.Path, envelope.Pack.Schema, want, err)
+		}
+	}
+}
+
+// The shipped app records are usable only inside their review window: before
+// reviewedAt and from validUntil the lookup gives no policy and says why.
+func TestEmbeddedAppPathPoliciesFailClosedOutsideTheWindow(t *testing.T) {
+	t.Parallel()
+	shipped := shippedPack(t)
+	var records []upgradepath.Record
+	if err := json.Unmarshal(shipped.PathPolicies, &records); err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range records {
+		reviewed, err1 := time.Parse(time.RFC3339, r.Evidence.ReviewedAt)
+		until, err2 := time.Parse(time.RFC3339, r.Evidence.ValidUntil)
+		if err1 != nil || err2 != nil || until.Sub(reviewed) > upgradepath.MaxWindow {
+			t.Fatalf("%s: window %s .. %s", r.Component, r.Evidence.ReviewedAt, r.Evidence.ValidUntil)
+		}
+		for name, tc := range map[string]struct {
+			at   time.Time
+			want string
+		}{
+			"inside":        {reviewed.Add(time.Hour), upgradepath.FreshnessCurrent},
+			"before review": {reviewed.Add(-time.Second), upgradepath.FreshnessClockBeforeReview},
+			"at validUntil": {until, upgradepath.FreshnessStale},
+		} {
+			status, err := PathPolicyFor(r.Component, tc.at)
+			if err != nil || !status.Found || status.Freshness != tc.want || (status.Policy() != nil) != (tc.want == upgradepath.FreshnessCurrent) {
+				t.Fatalf("%s %s: %+v %v", r.Component, name, status, err)
+			}
 		}
 	}
 }
