@@ -78,7 +78,7 @@ table and from nothing else:
 What the record means: the list is in the pack. It is not a verdict. The
 coverage report marks such a pair with `changelog: true` (status stays `G`),
 counts it in the changelog row only, and never in A, B or decided. The answer a
-user gets is ATTENTION at most, never a pass.
+user gets is a list to read, never a pass; no scan reads the family yet.
 
 ## Reviewed target table
 

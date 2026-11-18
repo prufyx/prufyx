@@ -130,3 +130,12 @@ func TestListedFamilyTakesNoRule(t *testing.T) {
 		t.Fatal("rule listed")
 	}
 }
+
+// A list is derived: a hand-asserted (reviewed) record of the family is invalid.
+func TestListedAttestationMustBeMechanical(t *testing.T) {
+	a := listedAttestation()
+	a.Evidence = reviewed("0.51").Evidence
+	if err := a.Validate(); err == nil {
+		t.Fatal("a reviewed-basis listed record validated")
+	}
+}

@@ -91,7 +91,7 @@ type Pair struct {
 	Families []string `json:"families,omitempty"`
 	// Changelog marks a pair covered only by the changelog chain: its complete
 	// upstream change list is in the pack (L). It is not decided: the status
-	// stays G, the answer is ATTENTION and never a pass.
+	// stays G, never a pass; no scan reads it yet.
 	// Its Status is G: it is not counted in A, B or S.
 	Changelog bool `json:"changelog,omitempty"`
 	// Cells and Weight are metric v2 members of the last two pairs of a
@@ -587,7 +587,10 @@ func Compute(in Input) (Report, error) {
 			continue
 		}
 		attsByProject[project] = append(attsByProject[project], a)
-		validAtt[project]++
+		if a.FactFamily != FamilyChangelogListed {
+			// A list is not coverage: it never makes a project covered.
+			validAtt[project]++
+		}
 		if until, err := constraintengine.ParseUTC(a.Evidence.ValidUntil); err == nil && until.Sub(now) <= ExpiryHorizon {
 			expiringAtt[project]++
 		}
@@ -936,6 +939,9 @@ func classify(project, fromLine, toLine string, rules []*ruleRec, atts []lineatt
 					pair.Status, pair.Families, pair.canBlock = StatusB, bf, true
 				} else {
 					pair.Changelog = true
+					if exactPairRule(project, fromLine, toLine, rules) {
+						pair.Status = StatusS // order A, B, S, L: the exact-pair rule keeps S
+					}
 				}
 				return pair
 			}
@@ -946,6 +952,9 @@ func classify(project, fromLine, toLine string, rules []*ruleRec, atts []lineatt
 					pair.Status, pair.Families, pair.canBlock = StatusB, bf, true
 				} else {
 					pair.Changelog = true
+					if exactPairRule(project, fromLine, toLine, rules) {
+						pair.Status = StatusS
+					}
 				}
 				return pair
 			}
@@ -962,6 +971,14 @@ func classify(project, fromLine, toLine string, rules []*ruleRec, atts []lineatt
 			return pair
 		}
 	}
+	if exactPairRule(project, fromLine, toLine, rules) {
+		pair.Status = StatusS
+	}
+	return pair
+}
+
+// exactPairRule reports whether a valid rule names exactly this pair of lines.
+func exactPairRule(project, fromLine, toLine string, rules []*ruleRec) bool {
 	for _, r := range rules {
 		if !r.valid {
 			continue
@@ -969,11 +986,10 @@ func classify(project, fromLine, toLine string, rules []*ruleRec, atts []lineatt
 		rf, ok1 := versionLine(project, r.tr.From)
 		rt, ok2 := versionLine(project, r.tr.To)
 		if ok1 && ok2 && rf == fromLine && rt == toLine {
-			pair.Status = StatusS
-			return pair
+			return true
 		}
 	}
-	return pair
+	return false
 }
 
 // attestedFamilies returns the families with a current attestation for the

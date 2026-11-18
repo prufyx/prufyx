@@ -59,11 +59,11 @@ const FamilyCustomResourceVersions = "crd.custom_resource_versions"
 const FamilyChangelogAttestedEntries = "changelog.attested_entries"
 
 // FamilyChangelogListedEntries covers, for one component with a reviewed
-// changelog target, the complete upstream change list of one release line:
+// changelog target, the changelog entries of one release line, listed:
 // every final release of the line has its own changelog entry, read in full
 // at that tag's own commit. It lists; it never judges. An attestation of the
 // family carries no rule id (a list is not a claim about any rule), and no
-// result may rely on it for a pass: it answers ATTENTION at most. Members are
+// result may rely on it for a pass; no scan reads it yet. Members are
 // the components of the reviewed target rows (internal/extract/changelogentries),
 // admitted by the form of the component here and by the row table where the
 // rows are known (the extractor, the gate and the coverage report); a
@@ -601,6 +601,9 @@ func (a LineAttestation) Validate() error {
 	}
 	if a.Completeness != Completeness {
 		return fmt.Errorf("%w: completeness must be %s", ErrInvalid, Completeness)
+	}
+	if family.listOnly && a.Evidence.Basis != constraintengine.BasisMechanical {
+		return fmt.Errorf("%w: family %s is derived: evidence.basis must be mechanical", ErrInvalid, family.ID)
 	}
 	if family.listOnly && len(a.RuleIDs) > 0 {
 		return fmt.Errorf("%w: family %s lists no rule; ruleIds must be empty", ErrInvalid, family.ID)

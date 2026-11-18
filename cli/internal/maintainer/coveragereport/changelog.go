@@ -22,11 +22,13 @@ const FamilyChangelogAttested = "changelog.attested_entries"
 // upstream change list of a release line, read in full at each tag's own
 // commit. It is a plain string for the same reason as FamilyChangelogAttested;
 // a test pins it equal to the registered family. A pair with only this family
-// is listed (L): the answer is ATTENTION, never a pass, and it is never
+// is listed (L): a list to read, never a pass (no scan reads it yet), and it is never
 // counted as decided (A or B).
 const FamilyChangelogListed = "changelog.listed_entries"
 
 // isChangelogFamily reports a family of the changelog chain.
+// (A pair of the attested family, which judges items, is worded as listed in the
+// one report sentence too; no such record exists today.)
 func isChangelogFamily(id string) bool {
 	return id == FamilyChangelogAttested || id == FamilyChangelogListed
 }
@@ -59,12 +61,12 @@ func (c *changelogStats) active() bool { return c.targets > 0 || c.decided > 0 }
 func (c *changelogStats) addPair(p Pair, reason string) {
 	c.pairs++
 	switch {
-	case p.Changelog:
-		c.decided++
 	case p.Status == StatusA || p.Status == StatusB:
 		c.bounded++
 	case p.Status == StatusS:
 		c.spot++
+	case p.Changelog:
+		c.decided++
 	case p.Status == StatusG:
 		c.gap++
 		if c.reasons == nil {
@@ -169,5 +171,5 @@ func changelogSentence(c changelogStats) string {
 	if len(reasons) > 0 {
 		hist = strings.Join(reasons, ", ")
 	}
-	return fmt.Sprintf("Changelog-listed (`%s`): %d upgrades with the complete upstream change list (a list to read: the answer is ATTENTION, never a pass, and it is not counted as decided), %d gap over %d upgrades of its member projects (%d more decided by a source family or a rule, %d by a rule for one exact version pair only). %d projects have a changelog target; that is catalogue coverage, not the number of upgrades decided. Gap reasons: %s.\n", FamilyChangelogListed, c.decided, c.gap, c.pairs, c.bounded, c.spot, c.targets, hist)
+	return fmt.Sprintf("Changelog-listed (`%s`): %d upgrades where every final release of the line has a listed entry at its own release commit; listed, not judged; never a pass; not counted as decided; no scan reads it yet, %d gap over %d upgrades of its member projects (%d more decided by a source family or a rule, %d by a rule for one exact version pair only). %d projects have a changelog target; that is catalogue coverage, not the number of upgrades decided. Gap reasons: %s.\n", FamilyChangelogListed, c.decided, c.gap, c.pairs, c.bounded, c.spot, c.targets, hist)
 }

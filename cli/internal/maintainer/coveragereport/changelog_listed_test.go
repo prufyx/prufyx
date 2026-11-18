@@ -33,8 +33,8 @@ func listedAttJSON(component string, to ...string) string {
 	src := fmt.Sprintf(`{"id":"changelog-1.9.0","url":"https://github.com/prometheus/prometheus/blob/%s/CHANGELOG.md","revision":%q,"contentDigest":"sha256:%s","startLine":1,"endLine":10}`, rev, rev, strings.Repeat("a", 64))
 	return fmt.Sprintf(`{"component":%q,"line":"1.9","factFamily":%q,"completeness":"COMPLETE_REVIEWED_RULES_FOR_LINE","ruleIds":[],`+
 		`"releases":{"from":[%s],"to":[%s]},`+
-		`"evidence":{"basis":"reviewed","reviewedAt":"2026-09-01T00:00:00Z","validUntil":%q,"sources":[%s]}}`,
-		component, lineattest.FamilyChangelogListedEntries, rel("1.8.0"), strings.Join(rs, ","), valid, src)
+		`"evidence":{"basis":"mechanical","extractor":{"id":"changelog.listed.prometheus","version":"1.0.0","codeDigest":"sha256:%s"},"derivedAt":"2026-09-01T00:00:00Z","reviewedAt":"2026-09-01T00:00:00Z","validUntil":%q,"sources":[%s]}}`,
+		component, lineattest.FamilyChangelogListedEntries, rel("1.8.0"), strings.Join(rs, ","), strings.Repeat("b", 64), valid, src)
 }
 
 func listedLines() []byte {
@@ -156,5 +156,48 @@ func TestListedOnlyClassifyIsPlainL(t *testing.T) {
 	p := classify("p", "1.8", "1.9", nil, atts, map[string]*ruleRec{}, rels)
 	if p.Status != StatusG || !p.Changelog || len(p.Families) != 0 || p.canBlock {
 		t.Fatalf("%+v", p)
+	}
+}
+
+// Order A, B, S, L: an exact-pair rule keeps S; the listed record only adds
+// the mark, and the pair is counted as S, not as listed.
+func TestListedKeepsAnExactPairS(t *testing.T) {
+	rules := []string{relnotesSetRule("p.r", "1.8.0", "1.9.0", "")}
+	members := map[string]string{"prometheus": listedComp}
+	without := computeListed(t, rules, "", members, nil)
+	with := computeListed(t, rules, listedAttJSON(listedComp, "1.9.0", "1.9.1"), members, nil)
+	if without.Projects[0].Pairs[0].Status != StatusS {
+		t.Fatalf("setup: %+v", without.Projects[0].Pairs[0])
+	}
+	p := with.Projects[0]
+	if p.Pairs[0].Status != StatusS || !p.Pairs[0].Changelog {
+		t.Fatalf("pair %+v", p.Pairs[0])
+	}
+	if p.S != 1 || p.DecidedChangelog != 0 || with.Fleet.S != without.Fleet.S || with.Fleet.G != without.Fleet.G || with.Fleet.DecidedChangelog != 0 {
+		t.Fatalf("row %+v fleet %+v vs %+v", p, with.Fleet, without.Fleet)
+	}
+	if with.changelog.spot != 1 || with.changelog.decided != 0 {
+		t.Fatalf("changelog row %+v", with.changelog)
+	}
+}
+
+func TestChangelogCounterSpotBeforeListed(t *testing.T) {
+	var c changelogStats
+	c.addPair(Pair{Status: StatusS, Changelog: true}, "")
+	if c.spot != 1 || c.decided != 0 {
+		t.Fatalf("%+v", c)
+	}
+}
+
+// A list is not coverage: a project with only a listed record is not covered.
+func TestListedOnlyProjectIsNotCovered(t *testing.T) {
+	members := map[string]string{"prometheus": listedComp}
+	without := computeListed(t, nil, "", members, nil)
+	with := computeListed(t, nil, listedAttJSON(listedComp, "1.9.0", "1.9.1"), members, nil)
+	if with.Projects[0].Covered || with.Fleet.C1 != without.Fleet.C1 || with.PackProjects != without.PackProjects {
+		t.Fatalf("covered %v C1 %d vs %d", with.Projects[0].Covered, with.Fleet.C1, without.Fleet.C1)
+	}
+	if !with.Projects[0].Pairs[0].Changelog {
+		t.Fatal("setup: no L pair")
 	}
 }
