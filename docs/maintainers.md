@@ -88,14 +88,13 @@ What happens next, today:
 - Issue route (partly implemented): the issue is public and maintainers read
   it. The issue adapter is not accepted as live intake, see above.
 
-Planned, not live today: automatic status comments, and an automatic import of
-accepted submissions into the build pipeline. When they exist, you will be told
+Planned, not live today: automatic status comments. Until they exist, any stage
+after validation is reported, if at all, as a comment from a maintainer, and no
+time frame is given for any stage. When status comments exist, you will be told
 the stages in this order: received, validated, imported, then classified as in
 scope, blocked with a reason, or out of scope (for example a project with no
 CRDs), draft target proposed, included in a batch pull request, merged, and
-release pairs decided (n of m). Until then, any stage after validation is
-handled by maintainers by hand and is reported, if at all, as a comment from a
-maintainer. No time frame is given for any stage.
+release pairs decided (n of m).
 
 Review: maintainers review every submission and every batch. Nothing is
 published without that review and the Prufyx maintainers' signature on the
@@ -111,6 +110,71 @@ repository is public and no private or personal data is included.
 Never collected: secrets, credentials, cluster data or any customer data. The
 tools above read public repositories only; do not put such data in a bundle,
 an issue or a comment.
+
+## Intake is for invited maintainers only
+
+Prufyx takes new projects only from people who maintain them. A bundle is
+imported into the build pipeline only when the account that opened the pull
+request holds an active invite for that exact repository. A bundle from an
+account without an invite is refused and is not imported, even if it is
+well-formed and merged. Refusal is not a judgement of the project.
+
+### Invite steps
+
+1. Ask for an invite. Open the
+   [maintainer project form](https://github.com/prufyx/prufyx/issues/new?template=maintainer-project.yml)
+   with the repository, your relation to it, and a public link that names your
+   GitHub account (a MAINTAINERS, CODEOWNERS or OWNERS line, or an
+   organisation page). There is no automatic invite and no way to invite
+   yourself.
+2. A Prufyx maintainer checks that link and, if it holds, records an invite
+   for your GitHub login and the repository (up to five repositories per
+   invite). An invite is limited in time (at most 180 days), can be revoked,
+   and is counted against weekly and lifetime limits, with one submission in
+   flight per invite. You are told by a comment on your issue.
+3. Prepare the bundle as described above and validate it offline.
+4. Open the bundle pull request from your own fork, with your own account.
+   The pull request is the submission; the issue forms do not import anything.
+
+### The accepted merge path
+
+The import accepts exactly one path, and checks it again by itself instead of
+trusting the pull request page:
+
+- The bundle is a new directory `contrib/onboard-bundles/<slug>/` (lower-case
+  letters, digits and hyphens) and arrives on `main` through a pull request
+  merged with a merge commit by a Prufyx maintainer. Squash, rebase,
+  fast-forward and direct commits are refused: they leave no merge commit and
+  no pull-request number to attribute the bundle to. You do not merge your own
+  pull request.
+- The merge commit subject is the standard
+  `Merge pull request #<n> from <your-login>/<branch>`. Your login is read from
+  that subject. A pull request from a branch inside the Prufyx repository itself
+  names the repository owner, not a contributor, and is refused. Open it from a
+  fork.
+- The merge commit must have two parents, be on `main`, and change nothing
+  outside that one bundle directory.
+- The bundle directory in the merge commit must be the same content that was
+  read and validated: same tree, same digest, and still valid under the pinned
+  validator. Symlinks, submodules, files over the size limit and unlisted files
+  refuse it. If a later change by someone else touches the directory, the
+  bundle is attributed to that later change and refused as not provably yours.
+- GitHub must report that pull request as merged into `main`, with that merge
+  commit, opened by the same login that holds the invite, and the invite must
+  still be active, unexpired, and for the same repository.
+
+Anything else is parked with a reason, not imported. An import that cannot
+prove the merge refuses rather than guesses. Provenance is not signed:
+the check is the merge commit, the pull request and the invite together.
+
+### Who does what
+
+You submit the pull request. CI validates the bundle and the history is checked
+for merge commits and a branch from `main`. A Prufyx maintainer reviews the diff
+and merges. Import into the build pipeline runs by itself within about an hour
+after the merge and is then verified as above. Everything after import is
+reviewed by maintainers, and a signed knowledge bundle is still required before
+anything is published.
 
 ## How the information is used
 
