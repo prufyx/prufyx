@@ -6,14 +6,12 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/knowledgeage"
-	"github.com/prufyx/prufyx/cli/internal/projectcheck"
 	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
@@ -123,16 +121,14 @@ func TestPinnedNowBatchCommunityProjectCannotHideWallClockExpiry(t *testing.T) {
 	// time (the CNCF pack's evidence is unchanged then), so the guard needs the
 	// project pack's end dates; the pinned run must still PASS, as the
 	// kibana rule is the one ending at that instant.
-	projects, err := projectcheck.EmbeddedKnowledgeAge()
-	if err != nil {
-		t.Fatal(err)
-	}
 	cncf, err := cncfcheck.EmbeddedEvidenceAge()
 	if err != nil {
 		t.Fatal(err)
 	}
-	ends := append([]time.Time(nil), projects[0].Expiries...)
-	sort.Slice(ends, func(i, j int) bool { return ends[i].Before(ends[j]) })
+	// The plan's kibana 8.18.0 -> 9.0.0 item is decided by one rule: the end of
+	// that rule's own evidence window is the instant that isolates the project
+	// pack. It is read from the rule data, so a renewal moves it.
+	ends := []time.Time{ruleEnd(t, "kibana.reporting-roles-allow.8-18-to-9-0")}
 	tested := false
 	for _, end := range ends {
 		pinned, wall := end.Add(-time.Second), end.Add(time.Second)
@@ -158,4 +154,37 @@ func TestPinnedNowBatchCommunityProjectCannotHideWallClockExpiry(t *testing.T) {
 	if !tested {
 		t.Fatal("no project rule end date isolates the project pack")
 	}
+}
+
+// ruleEnd is the validUntil of one shipped community project rule.
+func ruleEnd(t *testing.T, ruleID string) time.Time {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join("..", "projectcheck", "data", "rules.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pack struct {
+		Entries []struct {
+			Rule struct {
+				ID       string `json:"id"`
+				Evidence struct {
+					ValidUntil string `json:"validUntil"`
+				} `json:"evidence"`
+			} `json:"rule"`
+		} `json:"entries"`
+	}
+	if err := json.Unmarshal(raw, &pack); err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range pack.Entries {
+		if entry.Rule.ID == ruleID {
+			end, err := time.Parse(time.RFC3339, entry.Rule.Evidence.ValidUntil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return end
+		}
+	}
+	t.Fatalf("rule %s not in the project pack", ruleID)
+	return time.Time{}
 }
