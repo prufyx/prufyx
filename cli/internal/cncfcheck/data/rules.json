@@ -1015,8 +1015,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-10T16:59:15Z",
-          "validUntil": "2026-12-09T16:59:15Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-06T12:00:00Z",
           "sources": [
             {
               "id": "buildpacks-lifecycle-0-17-7-platform-verification",
@@ -1077,8 +1077,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T10:00:00Z",
-          "validUntil": "2026-12-11T10:00:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-06T12:00:00Z",
           "sources": [
             {
               "id": "source-cilium-1-16-19-cluster-name-log",
@@ -1234,8 +1234,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-09T03:30:00Z",
-          "validUntil": "2026-12-08T03:30:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-06T12:00:00Z",
           "sources": [
             {
               "id": "source-cilium-1-19-7-ccnp-bound-01",
@@ -1336,8 +1336,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-06T12:00:00Z",
           "sources": [
             {
               "id": "source-7c6667e1e707-300",
@@ -2263,8 +2263,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-11T00:00:00Z",
-          "validUntil": "2026-12-10T00:00:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-13T12:00:00Z",
           "sources": [
             {
               "id": "contour-v1-20-gateway-api-v1alpha1-removal",
@@ -2401,8 +2401,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:00:00Z",
-          "validUntil": "2026-12-11T09:00:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-13T12:00:00Z",
           "sources": [
             {
               "id": "coredns-origin-1-10-1-version",
@@ -2482,8 +2482,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:00:00Z",
-          "validUntil": "2026-12-11T09:00:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-13T12:00:00Z",
           "sources": [
             {
               "id": "coredns-origin-1-11-4-version",
@@ -2563,8 +2563,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:00:00Z",
-          "validUntil": "2026-12-11T09:00:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-13T12:00:00Z",
           "sources": [
             {
               "id": "coredns-origin-1-12-4-version",
@@ -2644,8 +2644,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:00:00Z",
-          "validUntil": "2026-12-11T09:00:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-13T12:00:00Z",
           "sources": [
             {
               "id": "coredns-origin-1-13-2-version",
@@ -2725,8 +2725,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:00:00Z",
-          "validUntil": "2026-12-11T09:00:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-13T12:00:00Z",
           "sources": [
             {
               "id": "coredns-origin-1-9-4-version",
@@ -2953,7 +2953,7 @@
           }
         ],
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
           "sources": [
             {
               "id": "cortex-v1-21-target-01-removal",
@@ -2981,7 +2981,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-01-13T12:00:00Z"
         },
         "id": "cortex.querier-at-modifier-flag-target-argv.1-16-1-to-1-21-1",
         "nextAction": "Remove querier.at-modifier-enabled from proposed literal upstream Cortex argv; validate query behavior separately.",
@@ -3051,7 +3051,7 @@
           }
         ],
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
           "sources": [
             {
               "id": "cortex-v1-21-target-01-removal",
@@ -3079,7 +3079,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-01-13T12:00:00Z"
         },
         "id": "cortex.querier-at-modifier-flag-target-argv.1-18-1-to-1-21-1",
         "nextAction": "Remove querier.at-modifier-enabled from proposed literal upstream Cortex argv; validate query behavior separately.",
@@ -3149,7 +3149,7 @@
           }
         ],
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
           "sources": [
             {
               "id": "cortex-v1-21-target-01-removal",
@@ -3177,7 +3177,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-01-13T12:00:00Z"
         },
         "id": "cortex.querier-at-modifier-flag-target-argv.1-19-1-to-1-21-1",
         "nextAction": "Remove querier.at-modifier-enabled from proposed literal upstream Cortex argv; validate query behavior separately.",
@@ -3247,7 +3247,7 @@
           }
         ],
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
           "sources": [
             {
               "id": "cortex-v1-21-target-01-removal",
@@ -3275,7 +3275,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-01-20T12:00:00Z"
         },
         "id": "cortex.querier-at-modifier-flag-target-argv.1-20-1-to-1-21-1",
         "nextAction": "Remove querier.at-modifier-enabled from proposed literal upstream Cortex argv; validate query behavior separately.",
@@ -3590,8 +3590,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T19:38:03Z",
-          "validUntil": "2026-12-07T19:38:03Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-20T12:00:00Z",
           "sources": [
             {
               "id": "source-2efdb03ae80f-79",
@@ -3850,8 +3850,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-10T20:25:55Z",
-          "validUntil": "2026-12-09T20:25:55Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-20T12:00:00Z",
           "sources": [
             {
               "id": "cubefs-v3-3-2-json-config-loader",
@@ -3936,8 +3936,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-10T13:34:13Z",
-          "validUntil": "2026-12-09T13:34:13Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-20T12:00:00Z",
           "sources": [
             {
               "id": "source-6e0d7ba5c039-476",
@@ -3995,8 +3995,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-11T15:18:55Z",
-          "validUntil": "2026-12-10T15:18:55Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-20T12:00:00Z",
           "sources": [
             {
               "id": "distribution-v2-8-3-schema1-format",
@@ -4391,8 +4391,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-11T00:00:00Z",
-          "validUntil": "2026-12-10T00:00:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-20T12:00:00Z",
           "sources": [
             {
               "id": "emissary-changelog-v4-0-1",
@@ -5867,7 +5867,7 @@
           "version": "3.2.0"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T08:05:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
           "sources": [
             {
               "contentDigest": "sha256:13202f2340e106d23a778ef830b145dbdd83ba46fe7c075bf6f32217c9bf9058",
@@ -5879,7 +5879,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T08:05:00Z"
+          "validUntil": "2027-01-20T12:00:00Z"
         },
         "id": "fluentd.ruby-minimum-target.1-14-6-to-1-19-3",
         "nextAction": "Use Ruby 3.2 or newer for the proposed official Fluentd 1.19.3 package; review custom packaging and plugin compatibility separately.",
@@ -5924,7 +5924,7 @@
           "version": "3.2.0"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T08:05:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
           "sources": [
             {
               "contentDigest": "sha256:13202f2340e106d23a778ef830b145dbdd83ba46fe7c075bf6f32217c9bf9058",
@@ -5936,7 +5936,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T08:05:00Z"
+          "validUntil": "2027-01-20T12:00:00Z"
         },
         "id": "fluentd.ruby-minimum-target.1-15-3-to-1-19-3",
         "nextAction": "Use Ruby 3.2 or newer for the proposed official Fluentd 1.19.3 package; review custom packaging and plugin compatibility separately.",
@@ -5981,7 +5981,7 @@
           "version": "3.2.0"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T08:05:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
           "sources": [
             {
               "contentDigest": "sha256:13202f2340e106d23a778ef830b145dbdd83ba46fe7c075bf6f32217c9bf9058",
@@ -5993,7 +5993,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T08:05:00Z"
+          "validUntil": "2027-01-20T12:00:00Z"
         },
         "id": "fluentd.ruby-minimum-target.1-16-11-to-1-19-3",
         "nextAction": "Use Ruby 3.2 or newer for the proposed official Fluentd 1.19.3 package; review custom packaging and plugin compatibility separately.",
@@ -6038,7 +6038,7 @@
           "version": "3.2.0"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T08:05:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
           "sources": [
             {
               "contentDigest": "sha256:13202f2340e106d23a778ef830b145dbdd83ba46fe7c075bf6f32217c9bf9058",
@@ -6050,7 +6050,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T08:05:00Z"
+          "validUntil": "2027-01-20T12:00:00Z"
         },
         "id": "fluentd.ruby-minimum-target.1-17-1-to-1-19-3",
         "nextAction": "Use Ruby 3.2 or newer for the proposed official Fluentd 1.19.3 package; review custom packaging and plugin compatibility separately.",
@@ -6095,7 +6095,7 @@
           "version": "3.2.0"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T08:05:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
           "sources": [
             {
               "contentDigest": "sha256:13202f2340e106d23a778ef830b145dbdd83ba46fe7c075bf6f32217c9bf9058",
@@ -6107,7 +6107,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T08:05:00Z"
+          "validUntil": "2027-01-20T12:00:00Z"
         },
         "id": "fluentd.ruby-minimum-target.1-18-0-to-1-19-3",
         "nextAction": "Use Ruby 3.2 or newer for the proposed official Fluentd 1.19.3 package; review custom packaging and plugin compatibility separately.",
@@ -6266,8 +6266,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T00:03:11Z",
-          "validUntil": "2026-12-10T00:03:11Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-20T12:00:00Z",
           "sources": [
             {
               "id": "old-literal-parser",
@@ -6818,8 +6818,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T10:01:45Z",
-          "validUntil": "2026-12-11T10:01:45Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-20T12:00:00Z",
           "sources": [
             {
               "id": "harbor-v2-15-installer-guidance",
@@ -6873,8 +6873,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T10:01:45Z",
-          "validUntil": "2026-12-11T10:01:45Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-27T12:00:00Z",
           "sources": [
             {
               "id": "harbor-v2-15-installer-guidance",
@@ -6928,8 +6928,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T10:01:45Z",
-          "validUntil": "2026-12-11T10:01:45Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-27T12:00:00Z",
           "sources": [
             {
               "id": "harbor-v2-15-installer-guidance",
@@ -6983,8 +6983,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T10:01:45Z",
-          "validUntil": "2026-12-11T10:01:45Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-27T12:00:00Z",
           "sources": [
             {
               "id": "harbor-v2-15-installer-guidance",
@@ -7038,8 +7038,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T10:01:45Z",
-          "validUntil": "2026-12-11T10:01:45Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-27T12:00:00Z",
           "sources": [
             {
               "id": "harbor-v2-15-installer-guidance",
@@ -7093,8 +7093,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-11T22:50:15Z",
-          "validUntil": "2026-12-10T22:50:15Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-27T12:00:00Z",
           "sources": [
             {
               "id": "harbor-v2-7-installer-parser",
@@ -7167,8 +7167,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-27T12:00:00Z",
           "sources": [
             {
               "id": "source-81c902a12346-118",
@@ -7224,8 +7224,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-10T20:17:00Z",
-          "validUntil": "2026-12-09T20:17:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-27T12:00:00Z",
           "sources": [
             {
               "id": "in-toto-v2-2-key-argument-arity",
@@ -7330,8 +7330,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-27T12:00:00Z",
           "sources": [
             {
               "id": "source-8825a6b7f8c9-5",
@@ -7514,8 +7514,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T08:38:00Z",
-          "validUntil": "2026-12-11T08:38:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-27T12:00:00Z",
           "sources": [
             {
               "id": "jaeger-v2-20-default-config-fallback",
@@ -7598,8 +7598,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T08:38:00Z",
-          "validUntil": "2026-12-11T08:38:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-27T12:00:00Z",
           "sources": [
             {
               "id": "jaeger-v2-20-default-config-fallback",
@@ -7682,8 +7682,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T08:38:00Z",
-          "validUntil": "2026-12-11T08:38:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-27T12:00:00Z",
           "sources": [
             {
               "id": "jaeger-v2-20-default-config-fallback",
@@ -7766,8 +7766,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T08:38:00Z",
-          "validUntil": "2026-12-11T08:38:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-27T12:00:00Z",
           "sources": [
             {
               "id": "jaeger-v2-20-default-config-fallback",
@@ -7850,8 +7850,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T08:38:00Z",
-          "validUntil": "2026-12-11T08:38:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-02-03T12:00:00Z",
           "sources": [
             {
               "id": "jaeger-v2-20-default-config-fallback",
@@ -7946,7 +7946,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-09T03:24:02Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
           "sources": [
             {
               "contentDigest": "sha256:b46f806938456f92af605e9e7361201a3d139f81a086cc24a972ef82f513758c",
@@ -8014,7 +8014,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-08T03:24:02Z"
+          "validUntil": "2027-02-03T12:00:00Z"
         },
         "id": "karmada.application-purge-mode-legacy-values-removed.1-19",
         "nextAction": "Replace application failover purgeMode Immediately with Directly and Graciously with Gracefully in proposed in-scope resources; validate target CRD selection and application separately.",
