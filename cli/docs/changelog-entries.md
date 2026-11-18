@@ -53,14 +53,48 @@ The manifest classifies nothing and gives no item a disposition.
 
 ## Reviewed target table
 
-The table of reviewed targets (file path, heading pattern, boundary patterns)
-is part of the reader's code. A component without a reviewed row is refused
-with exit 2. A component whose row has a non-file form (post-tag,
-github-release) prints a withheld manifest with its typed code, and nothing is
-read.
-Rows of form `file` exist for `prometheus` and `alertmanager`: the review
-window's tags were read in full and located with no residue and no withheld
-code. A row is reviewed input only; it attests nothing by itself.
+The reviewed targets are data: `internal/extract/changelogentries/targets.json`
+(schema `prufyx.io/changelog-targets/v1`), embedded in the binary. The schema is
+closed, so a row can never carry logic:
+
+- the document is `{"schema", "rows"}`; unknown fields, duplicate keys and
+  trailing data are refused; `rows` are sorted by component, strictly ascending;
+- a row is `component` (slug), `repo` (canonical `github.com/<org>/<repo>`),
+  `form`, and for form `changelog-file` only: `path` (clean, relative, no `..`),
+  `headingStyle` and `boundaryStyles`;
+- `form` is one of `changelog-file`, `github-release`, `post-tag`, `docs-page`,
+  `monorepo`; the other forms are not in the table;
+- styles are names, never regular expressions. Each name maps to a fixed
+  expression compiled in code:
+
+| kind | name | expression |
+|---|---|---|
+| heading | `version-slash-date` | `^(?P<version>[0-9]+\.[0-9]+\.[0-9]+) / [0-9]{4}-[0-9]{2}-[0-9]{2}$` |
+| boundary | `main-unreleased` | `^main / unreleased$` |
+| boundary | `main-unreleased-parenthesised` | `^main / \(unreleased\)$` |
+
+Adding a row is a data change; adding a style or a form is a reviewed code
+change. A table that does not satisfy the schema is not loaded: every component
+is then refused and no code digest is produced. `targets.json` is part of the
+extractor's code digest, so any change of a row changes the identity a gate
+pins.
+
+The loader also refuses an empty table, two rows with the same component, two
+rows with the same repo, a path that is `.` or a directory, and a file row
+without a boundary style.
+
+Before a new row merges as data it must show, in its review record:
+
+- the repo is the canonical upstream repository of the component;
+- the heading style matches the version heading at its exact line in the
+  changelog file at a pinned tag, and an adjacent version is withheld;
+- each listed boundary style is present in that file.
+
+A component without a reviewed row is refused with exit 2. A component whose
+row has a non-file form (post-tag, github-release) prints a withheld manifest
+with its typed code, and nothing is read. Rows of form `changelog-file` exist
+for `prometheus` and `alertmanager`: the review window's tags were read in full
+and located with no residue and no withheld code. A row is reviewed input only; it attests nothing by itself.
 
 ## A printed manifest is never evidence
 
