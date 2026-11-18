@@ -23,6 +23,19 @@ evidence does not decide the question, the answer is `UNKNOWN`, not a guess.
 > refreshes it from the official signed feed. Results are scoped findings, not a
 > guarantee that a whole upgrade is safe.
 
+## Try it and tell us
+
+Tried Prufyx on a real upgrade plan, or want to? Open a
+[try-out issue](https://github.com/prufyx/prufyx/issues/new?template=try-out.yml)
+with the versions involved, what you ran, what you expected and what happened.
+Use versions only: no cluster data, no Secrets, no credentials. Coverage is
+partial and growing, and an `UNKNOWN` answer is useful feedback.
+
+- Wrong verdict: [beta wrong answer](https://github.com/prufyx/prufyx/issues/new?template=beta-wrong-answer.yml).
+- Project missing: [project source issue form](https://github.com/prufyx/prufyx/issues/new?template=project-knowledge.yml).
+- Maintain a project: see [For project maintainers](docs/maintainers.md).
+- Security reports and private questions: see [SECURITY.md](SECURITY.md); do not open a public issue for vulnerabilities.
+
 ## Quickstart
 
 Requires Go 1.26 (release builds use 1.26.10; see CONTRIBUTING.md).

@@ -1,0 +1,40 @@
+name: Try-out feedback
+description: You tried Prufyx on a real upgrade plan. Tell us what you ran and what happened.
+title: "[try-out] "
+labels:
+  - feedback
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for trying Prufyx. Coverage is partial and growing, so an `UNKNOWN` answer is useful feedback too.
+
+        Do **not** include credentials, Secrets, cluster snapshots, hostnames, internal image names, private paths or logs. Versions only. Report security issues privately, see SECURITY.md.
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment (versions only)
+      description: Kubernetes version and distribution, and the component versions involved (for example current and target). No cluster data, no secrets.
+    validations:
+      required: true
+  - type: textarea
+    id: ran
+    attributes:
+      label: What you ran
+      description: The command line and the output of `prufyx version`.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened
+      description: Verdict, exit code and reason lines, minimized to the keys involved.
+    validations:
+      required: true
