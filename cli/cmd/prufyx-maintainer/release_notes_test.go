@@ -252,3 +252,53 @@ func TestReleaseNotesAttestationDetail(t *testing.T) {
 		t.Error("an unchanged-extractor attestation was reported as re-derived")
 	}
 }
+
+func TestReleaseNotesFeatureFile(t *testing.T) {
+	setup := func(features string) (string, string) {
+		from, to := t.TempDir(), t.TempDir()
+		rules := filepath.Join("cli", "internal", "cncfcheck", "data", "rules.json")
+		for _, dir := range []string{from, to} {
+			p := filepath.Join(dir, rules)
+			if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(p, []byte(`{"entries":[{"project":"a","rule":{"id":"a.1"}}]}`), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		writeCounts(t, from, to)
+		if features != "" {
+			p := filepath.Join(to, filepath.FromSlash(releasenotes.FeaturesPath))
+			if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(p, []byte(features), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return from, to
+	}
+	good := `{"schema":"prufyx.io/release-features/v1","features":[{"id":"a","title":"A thing","state":"works","demo":"prufyx a","evidence":"file:README.md","notYet":""},{"id":"b","title":"B thing","state":"not-yet","demo":"","evidence":"","notYet":"Not built."}]}`
+	from, to := setup(good)
+	var out, errOut bytes.Buffer
+	if err := run([]string{"release-notes", "--from-dir", from, "--to-dir", to}, &out, &errOut); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"### Works in this release", "- A thing. Run: `prufyx a`", "### Not yet", "- B thing: Not built."} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("output lacks %q", want)
+		}
+	}
+	// A feature file that exists but is invalid stops the command.
+	for name, bad := range map[string]string{
+		"invalid":        `{`,
+		"works no proof": strings.Replace(good, `"evidence":"file:README.md"`, `"evidence":""`, 1),
+		"reserved works": strings.Replace(good, `"id":"a"`, `"id":"kind-per-version"`, 1),
+	} {
+		from, to := setup(bad)
+		out.Reset()
+		if err := run([]string{"release-notes", "--from-dir", from, "--to-dir", to}, &out, &errOut); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+}
