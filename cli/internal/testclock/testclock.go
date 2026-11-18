@@ -192,3 +192,83 @@ var evidenceTimeField = regexp.MustCompile(`"(reviewedAt|validUntil|derivedAt)":
 func maskEvidenceTimes(got []byte) []byte {
 	return evidenceTimeField.ReplaceAll(got, []byte(`"$1":"2001-05-01T00:00:00Z"`))
 }
+
+var (
+	projectOnce   sync.Once
+	projectNewest map[string]time.Time
+	projectErr    error
+)
+
+func loadProjects() {
+	projectOnce.Do(func() {
+		_, file, _, ok := runtime.Caller(0)
+		if !ok {
+			projectErr = fmt.Errorf("testclock: source location unknown")
+			return
+		}
+		internal := filepath.Dir(filepath.Dir(file))
+		projectNewest = map[string]time.Time{}
+		for _, pack := range []string{"cncfcheck", "projectcheck"} {
+			raw, err := os.ReadFile(filepath.Join(internal, pack, "data", "rules.json"))
+			if err != nil {
+				projectErr = err
+				return
+			}
+			var doc struct {
+				Entries []json.RawMessage `json:"entries"`
+			}
+			if err := json.Unmarshal(raw, &doc); err != nil {
+				projectErr = fmt.Errorf("testclock: %s: %w", pack, err)
+				return
+			}
+			for _, entry := range doc.Entries {
+				var head struct {
+					Project string `json:"project"`
+				}
+				var tree any
+				if err := json.Unmarshal(entry, &head); err != nil || head.Project == "" {
+					projectErr = fmt.Errorf("testclock: %s: entry without a project", pack)
+					return
+				}
+				if err := json.Unmarshal(entry, &tree); err != nil {
+					projectErr = err
+					return
+				}
+				latest := projectNewest[head.Project]
+				if err := walk(tree, &latest); err != nil {
+					projectErr = err
+					return
+				}
+				projectNewest[head.Project] = latest
+			}
+		}
+	})
+	if projectErr != nil {
+		panic(projectErr)
+	}
+}
+
+// ProjectNewest is one hour after the newest reviewedAt of the named project's
+// rules (the CNCF and community packs), or the zero time when the project has
+// none. It is the earliest instant at which every one of that project's rules
+// is in force, so a test of one project is not tied to another project's
+// renewal.
+func ProjectNewest(project string) time.Time {
+	loadProjects()
+	latest := projectNewest[project]
+	if latest.IsZero() {
+		return time.Time{}
+	}
+	return latest.UTC().Add(time.Hour)
+}
+
+// FloorTextFor is FloorText against the named project's own newest review. An
+// unknown project leaves the text as it is.
+func FloorTextFor(project, text string) string {
+	at, err := time.Parse(time.RFC3339, text)
+	floor := ProjectNewest(project)
+	if err != nil || at.UTC().Format(time.RFC3339) != text || floor.IsZero() || !at.Before(floor) {
+		return text
+	}
+	return floor.Format(time.RFC3339)
+}
