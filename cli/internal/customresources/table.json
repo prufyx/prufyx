@@ -1234,7 +1234,14 @@
       "groups": [
         {
           "name": "opentelemetry.io",
-          "source": "https://github.com/open-telemetry/opentelemetry-operator/blob/989089bf5c75d78fdc6004147f97d972fc436bd4/config/crd/bases/opentelemetry.io_targetallocators.yaml"
+          "source": "https://github.com/open-telemetry/opentelemetry-operator/blob/902d101560c6935d205eb611ea67d327fad81de9/config/crd/bases/opentelemetry.io_clusterobservabilities.yaml",
+          "kinds": [
+            "ClusterObservability",
+            "Instrumentation",
+            "OpAMPBridge",
+            "OpenTelemetryCollector",
+            "TargetAllocator"
+          ]
         }
       ]
     },

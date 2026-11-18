@@ -122,6 +122,9 @@ Lines are `major.minor`, ascending and unique. `priority`, `component` and
 attestations). Unknown members are rejected. A project with rules but no entry
 is listed under `projectsWithoutLines`; its pairs are unknown and are never
 counted as covered.
+The OpenTelemetry row measures the OpenTelemetry Operator, which ships the
+project's Kubernetes custom resources: its snapshot entry carries the operator's
+component (`pkg:github/open-telemetry/opentelemetry-operator`).
 A community-catalog project that has a valid rule but no valid line
 attestation is neither counted in `packProjectsCovered` nor listed under
 `projectsWithoutLines`.

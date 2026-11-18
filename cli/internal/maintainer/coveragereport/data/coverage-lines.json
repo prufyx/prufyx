@@ -20425,7 +20425,8 @@
         "0.99": [
           "0.99.0"
         ]
-      }
+      },
+      "component": "pkg:github/open-telemetry/opentelemetry-operator"
     },
     "openyurt": {
       "lines": [
