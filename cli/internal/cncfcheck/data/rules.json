@@ -1881,8 +1881,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-11T00:00:00Z",
-          "validUntil": "2026-12-10T00:00:00Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
+          "validUntil": "2027-02-16T08:59:00Z",
           "sources": [
             {
               "id": "cnpg-v1-29-0-scheduledbackup-cluster-field",
@@ -1894,11 +1894,11 @@
             },
             {
               "id": "cnpg-v1-29-2-release-note",
-              "url": "https://github.com/cloudnative-pg/cloudnative-pg/blob/94ee3117858765c77d0dbfde381a037944a48a64/docs/src/release_notes/v1.29.md",
-              "revision": "94ee3117858765c77d0dbfde381a037944a48a64",
-              "contentDigest": "sha256:0b04c3fc20c26848e91a84f4877d2868e498b78242a052ef5cd6519a11c0c223",
-              "startLine": 25,
-              "endLine": 30
+              "url": "https://github.com/cloudnative-pg/cloudnative-pg/blob/6887f9aeb7ec159ed4a7e5fce28441aafd26317c/docs/src/release_notes/v1.29.md",
+              "revision": "6887f9aeb7ec159ed4a7e5fce28441aafd26317c",
+              "contentDigest": "sha256:4d1c057d85aa4e3c286ade7cc31b5f8c9147ec0ff46c289ee41970cb3b14b274",
+              "startLine": 253,
+              "endLine": 258
             },
             {
               "id": "cnpg-v1-30-database-cel",
@@ -1926,11 +1926,11 @@
             },
             {
               "id": "cnpg-v1-30-release-note",
-              "url": "https://github.com/cloudnative-pg/cloudnative-pg/blob/4b5e244a7d031f67e025c83c1555e7726ecbbfa1/docs/src/release_notes/v1.30.md",
-              "revision": "4b5e244a7d031f67e025c83c1555e7726ecbbfa1",
-              "contentDigest": "sha256:7ed8e77352b49a1e8f441ee7a5f34a3ab304596eb4db2025912fe1f43d177650",
-              "startLine": 25,
-              "endLine": 30
+              "url": "https://github.com/cloudnative-pg/cloudnative-pg/blob/30cca36d32328a78dc96c51db966ce629d5b72db/docs/src/release_notes/v1.30.md",
+              "revision": "30cca36d32328a78dc96c51db966ce629d5b72db",
+              "contentDigest": "sha256:a1143f3c079e12100ac1754eed0227180fb5a7b9648a8c17eb8fe9fa2aee01bf",
+              "startLine": 435,
+              "endLine": 440
             },
             {
               "id": "cnpg-v1-30-scheduledbackup-cel",
@@ -4122,8 +4122,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T22:06:45Z",
-          "validUntil": "2026-12-07T22:06:45Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
+          "validUntil": "2027-02-03T08:59:00Z",
           "sources": [
             {
               "id": "old-base-options",
@@ -4289,8 +4289,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T22:06:45Z",
-          "validUntil": "2026-12-07T22:06:45Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
+          "validUntil": "2027-02-04T08:59:00Z",
           "sources": [
             {
               "id": "old-base-options",
@@ -5399,17 +5399,9 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T20:58:21Z",
-          "validUntil": "2026-12-07T20:58:21Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
+          "validUntil": "2027-02-01T08:59:00Z",
           "sources": [
-            {
-              "id": "source-b94cda0b12e5-1",
-              "url": "https://github.com/falcosecurity/falco/blob/b94cda0b12e555051693214d88cf4f24a94e19b1/CHANGELOG.md",
-              "revision": "b94cda0b12e555051693214d88cf4f24a94e19b1",
-              "contentDigest": "sha256:f2e6c51c17aca2d72cfae39a5513084a663d8bc0365d1535ad3b29ff07bb6d3b",
-              "startLine": 1,
-              "endLine": 11
-            },
             {
               "id": "source-b94cda0b12e5-32",
               "url": "https://github.com/falcosecurity/falco/blob/b94cda0b12e555051693214d88cf4f24a94e19b1/userspace/falco/app/options.cpp",
@@ -5433,6 +5425,14 @@
               "contentDigest": "sha256:c7635544ceb9dfac140a56934390234ee0f8377eb67c912aedc10eae3bb54c82",
               "startLine": 129,
               "endLine": 129
+            },
+            {
+              "id": "source-d26e0f77b840-65",
+              "url": "https://github.com/falcosecurity/falco/blob/d26e0f77b8409b1506efaac4dac7164e71f2ee76/CHANGELOG.md",
+              "revision": "d26e0f77b8409b1506efaac4dac7164e71f2ee76",
+              "contentDigest": "sha256:553c47d6ab2d64237a9d04fbd0f2a9ea7d885e8f86cea669949701d04ec058af",
+              "startLine": 65,
+              "endLine": 73
             }
           ]
         },
@@ -5505,9 +5505,17 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-09T00:46:26Z",
-          "validUntil": "2026-12-08T00:46:26Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
+          "validUntil": "2027-02-06T08:59:00Z",
           "sources": [
+            {
+              "id": "source-4ea91437df18-142",
+              "url": "https://github.com/falcosecurity/falco/blob/4ea91437df18290f33ac4dca6414b4bdbcba5892/CHANGELOG.md",
+              "revision": "4ea91437df18290f33ac4dca6414b4bdbcba5892",
+              "contentDigest": "sha256:da2ea414febfb209f426b6d61922cd1d8b2668f40781aad2d2e297d7ba2481f7",
+              "startLine": 142,
+              "endLine": 150
+            },
             {
               "id": "source-ce4b4408988d-107",
               "url": "https://github.com/falcosecurity/falco/blob/ce4b4408988dc0be4aaff4bb06aa184ee1f14da3/userspace/falco/app/options.cpp",
@@ -5531,14 +5539,6 @@
               "contentDigest": "sha256:657bae3d86a80c2e5e9b074898e04a5aacf15bbe29bc27b2aa58b8a6768e9b30",
               "startLine": 32,
               "endLine": 43
-            },
-            {
-              "id": "source-d8e430e35239-65",
-              "url": "https://github.com/falcosecurity/falco/blob/d8e430e352396abde7b4309c76039f08042e2512/CHANGELOG.md",
-              "revision": "d8e430e352396abde7b4309c76039f08042e2512",
-              "contentDigest": "sha256:553c47d6ab2d64237a9d04fbd0f2a9ea7d885e8f86cea669949701d04ec058af",
-              "startLine": 65,
-              "endLine": 73
             },
             {
               "id": "source-d8e430e35239-92",
@@ -6771,8 +6771,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
+          "validUntil": "2027-01-25T08:59:00Z",
           "sources": [
             {
               "id": "source-31789d8a65d3-3",
@@ -7406,8 +7406,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T14:07:57Z",
-          "validUntil": "2026-12-07T14:07:57Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
+          "validUntil": "2027-01-30T08:59:00Z",
           "sources": [
             {
               "id": "source-41da2fbd7dd5-129",
@@ -8072,8 +8072,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T13:58:04Z",
-          "validUntil": "2026-12-07T13:58:04Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
+          "validUntil": "2027-01-29T08:59:00Z",
           "sources": [
             {
               "id": "keda-v216-external-scaler",
@@ -8085,27 +8085,27 @@
             },
             {
               "id": "keda-v217-breaking-change",
-              "url": "https://github.com/kedacore/keda/blob/dafd9a883acc8ec2d2506e0d106b8605f2c156e9/CHANGELOG.md",
-              "revision": "dafd9a883acc8ec2d2506e0d106b8605f2c156e9",
-              "contentDigest": "sha256:c9e7fcb505516634db33bc6994ef748c91085d6db42c31a6e1f5f2b035dd789d",
-              "startLine": 150,
-              "endLine": 154
+              "url": "https://github.com/kedacore/keda/blob/e615440f24f6abec8b7c69bd88854cb4324e9eaa/CHANGELOG.md",
+              "revision": "e615440f24f6abec8b7c69bd88854cb4324e9eaa",
+              "contentDigest": "sha256:fa28409296983fec2024f458c6a40f21d1cc0865800bfb95ac57f9325515743c",
+              "startLine": 148,
+              "endLine": 152
             },
             {
               "id": "keda-v217-external-scaler",
-              "url": "https://github.com/kedacore/keda/blob/dafd9a883acc8ec2d2506e0d106b8605f2c156e9/pkg/scalers/external_scaler.go",
-              "revision": "dafd9a883acc8ec2d2506e0d106b8605f2c156e9",
-              "contentDigest": "sha256:5d2e97a62ac9b8080db61e28acf2e2b1a008ce0aeb2e477334f16b768765262a",
-              "startLine": 315,
-              "endLine": 334
+              "url": "https://github.com/kedacore/keda/blob/e615440f24f6abec8b7c69bd88854cb4324e9eaa/pkg/scalers/external_scaler.go",
+              "revision": "e615440f24f6abec8b7c69bd88854cb4324e9eaa",
+              "contentDigest": "sha256:5d66769191e2af2c59b6ff325198131e4b022e95268abe26cc5763a623230bda",
+              "startLine": 325,
+              "endLine": 344
             },
             {
               "id": "keda-v217-external-scaler-metadata",
-              "url": "https://github.com/kedacore/keda/blob/dafd9a883acc8ec2d2506e0d106b8605f2c156e9/pkg/scalers/external_scaler.go",
-              "revision": "dafd9a883acc8ec2d2506e0d106b8605f2c156e9",
-              "contentDigest": "sha256:5d2e97a62ac9b8080db61e28acf2e2b1a008ce0aeb2e477334f16b768765262a",
-              "startLine": 66,
-              "endLine": 159
+              "url": "https://github.com/kedacore/keda/blob/e615440f24f6abec8b7c69bd88854cb4324e9eaa/pkg/scalers/external_scaler.go",
+              "revision": "e615440f24f6abec8b7c69bd88854cb4324e9eaa",
+              "contentDigest": "sha256:5d66769191e2af2c59b6ff325198131e4b022e95268abe26cc5763a623230bda",
+              "startLine": 68,
+              "endLine": 161
             }
           ]
         },
@@ -8172,8 +8172,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-09T20:59:01Z",
-          "validUntil": "2026-12-08T20:59:01Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
+          "validUntil": "2027-02-15T08:59:00Z",
           "sources": [
             {
               "id": "keycloak-26-7-2-redirect-query-117-120",
@@ -8510,8 +8510,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-10T20:30:00Z",
-          "validUntil": "2026-12-09T20:30:00Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
+          "validUntil": "2027-02-15T08:59:00Z",
           "sources": [
             {
               "id": "kubeflow-kfp-v1-components-public-import",
@@ -10380,16 +10380,16 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
+          "validUntil": "2027-01-26T08:59:00Z",
           "sources": [
             {
-              "id": "source-4ce5a8954017-1002",
-              "url": "https://github.com/kubernetes/kubernetes/blob/4ce5a8954017644c5420bae81d72b09b735c21f0/CHANGELOG/CHANGELOG-1.24.md",
-              "revision": "4ce5a8954017644c5420bae81d72b09b735c21f0",
-              "contentDigest": "sha256:db40d9b3e7241eaabaad67d5f3fa811b6fd46dc5a5c5948b30768f4a07be5d22",
-              "startLine": 1002,
-              "endLine": 1008
+              "id": "source-22a9682c8fe8-3657",
+              "url": "https://github.com/kubernetes/kubernetes/blob/22a9682c8fe855c321be75c5faacde343f909b04/CHANGELOG/CHANGELOG-1.24.md",
+              "revision": "22a9682c8fe855c321be75c5faacde343f909b04",
+              "contentDigest": "sha256:5a528a434fb62a7edaf069a887f1e441fb0873c3ace674a37a658feed50d64c6",
+              "startLine": 3657,
+              "endLine": 3663
             }
           ]
         },
@@ -13844,24 +13844,16 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T21:06:35Z",
-          "validUntil": "2026-12-07T21:06:35Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
+          "validUntil": "2027-02-02T08:59:00Z",
           "sources": [
             {
-              "id": "source-1110a0305eec-220",
-              "url": "https://github.com/kumahq/kuma/blob/1110a0305eec00f1b2fd7482d6df4f3dd6a9d78e/app/kumactl/cmd/install/install_transparent_proxy.go",
-              "revision": "1110a0305eec00f1b2fd7482d6df4f3dd6a9d78e",
-              "contentDigest": "sha256:05b0c3c975322264589799afb9fc09e1fb3eb0c45be3e98e8ec5c0a65e3cb228",
-              "startLine": 220,
-              "endLine": 222
-            },
-            {
-              "id": "source-948e6a439163-113",
-              "url": "https://github.com/kumahq/kuma/blob/948e6a4391632607148f4dcdf7e9adce422a8075/UPGRADE.md",
-              "revision": "948e6a4391632607148f4dcdf7e9adce422a8075",
-              "contentDigest": "sha256:efe8bc3071dbb55cba6fb396e91d777f25091c343de6c9ebffc02e43933badc3",
-              "startLine": 113,
-              "endLine": 115
+              "id": "source-00e8af8d0d87-222",
+              "url": "https://github.com/kumahq/kuma/blob/00e8af8d0d879305bf058ba1ee5303b6224769d9/app/kumactl/cmd/install/install_transparent_proxy.go",
+              "revision": "00e8af8d0d879305bf058ba1ee5303b6224769d9",
+              "contentDigest": "sha256:f5efe024246eacb5d8a14fbae2ce61a127ebcb7987c4c2bee2a0e3366b3006cb",
+              "startLine": 222,
+              "endLine": 224
             },
             {
               "id": "source-948e6a439163-126",
@@ -13886,6 +13878,14 @@
               "contentDigest": "sha256:c964f496b9ca1d0bf00370d265e1d5775fdbc8292dbe6bfa4ca845d006b0b323",
               "startLine": 260,
               "endLine": 260
+            },
+            {
+              "id": "source-cee25bf6bad4-158",
+              "url": "https://github.com/kumahq/kuma/blob/cee25bf6bad4f28eb0d11f36c9de0dc3d869b98c/UPGRADE.md",
+              "revision": "cee25bf6bad4f28eb0d11f36c9de0dc3d869b98c",
+              "contentDigest": "sha256:ccb6a6b56a2bba7bc65576594b3500a91f561b2153858c5a478de0682de0cdbd",
+              "startLine": 158,
+              "endLine": 160
             }
           ]
         },
@@ -14045,7 +14045,7 @@
           "boolValue": true
         },
         "evidence": {
-          "reviewedAt": "2026-09-09T00:53:06Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
           "sources": [
             {
               "id": "go-1-21-4-standard-flag-grammar",
@@ -14065,11 +14065,11 @@
             },
             {
               "id": "kyverno-v1-12-5-reports-controller-build",
-              "url": "https://github.com/kyverno/kyverno/blob/b7fb616a6db3081a7c6d1d72d375819e777064ee/Makefile",
-              "revision": "b7fb616a6db3081a7c6d1d72d375819e777064ee",
-              "contentDigest": "sha256:cc3acfeb2ed65109561d841d358db608bc7e23e87f29021b972f115106d928ff",
-              "startLine": 253,
-              "endLine": 255
+              "url": "https://github.com/kyverno/kyverno/blob/d33606477c5db36f58e818de4c42cff68b05eb4d/Makefile",
+              "revision": "d33606477c5db36f58e818de4c42cff68b05eb4d",
+              "contentDigest": "sha256:efe80964756c8a350d5ea80638baa1cd35a86d12f002c8a94679dad8b268e436",
+              "startLine": 254,
+              "endLine": 256
             },
             {
               "id": "kyverno-v1-12-5-reports-controller-registration",
@@ -14097,15 +14097,15 @@
             },
             {
               "id": "kyverno-v1-13-0-reports-controller-removal",
-              "url": "https://github.com/kyverno/kyverno/blob/978c2f3b56df37a8bea4ee649369efaea53a684b/cmd/reports-controller/main.go",
-              "revision": "978c2f3b56df37a8bea4ee649369efaea53a684b",
-              "contentDigest": "sha256:a76c60f1403d76b15654a5185cf05978214f180901817d9437572ecf57cff391",
+              "url": "https://github.com/kyverno/kyverno/blob/681329b777615457eab0b3b9b0f59b57231354d7/cmd/reports-controller/main.go",
+              "revision": "681329b777615457eab0b3b9b0f59b57231354d7",
+              "contentDigest": "sha256:3f0bf14a57c49171f780c4732f2eb0d9f11f3b1a6fa90efba293cd42032480ff",
               "startLine": 192,
-              "endLine": 208
+              "endLine": 209
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-08T00:53:06Z"
+          "validUntil": "2027-02-08T08:59:00Z"
         },
         "id": "kyverno.reports-chunk-size-removed.1-13",
         "nextAction": "For the declared official upstream bare reports-controller surface, remove reportsChunkSize from literal proposed arguments. Otherwise supply an explicit supported surface declaration or keep the result UNKNOWN; review reporting behavior separately.",
@@ -14991,8 +14991,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-11T00:00:00Z",
-          "validUntil": "2026-12-10T00:00:00Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
+          "validUntil": "2027-02-16T08:59:00Z",
           "sources": [
             {
               "id": "metallb-v0-12-old-release",
@@ -15004,19 +15004,19 @@
             },
             {
               "id": "metallb-v0-13-configmap-removal-and-conversion",
-              "url": "https://github.com/metallb/metallb/blob/2a00549f57d58e4a6cbfbdc76b87b6855ca11f22/website/content/release-notes/_index.md",
-              "revision": "2a00549f57d58e4a6cbfbdc76b87b6855ca11f22",
-              "contentDigest": "sha256:a1f6790cb6c47a31368bde30b9b5defd8244883dfa4ecc224eeb27dc62db0c90",
-              "startLine": 34,
-              "endLine": 42
+              "url": "https://github.com/metallb/metallb/blob/4f7e29972652a6f415ad42898d0b5ef5adc06440/website/content/release-notes/_index.md",
+              "revision": "4f7e29972652a6f415ad42898d0b5ef5adc06440",
+              "contentDigest": "sha256:a68522002ad070b57b70b23f22de6ac425dcc2b797b54a64e6ffc475d82b8860",
+              "startLine": 201,
+              "endLine": 209
             },
             {
               "id": "metallb-v0-13-configmap-removed",
-              "url": "https://github.com/metallb/metallb/blob/2a00549f57d58e4a6cbfbdc76b87b6855ca11f22/website/content/release-notes/_index.md",
-              "revision": "2a00549f57d58e4a6cbfbdc76b87b6855ca11f22",
-              "contentDigest": "sha256:a1f6790cb6c47a31368bde30b9b5defd8244883dfa4ecc224eeb27dc62db0c90",
-              "startLine": 6,
-              "endLine": 13
+              "url": "https://github.com/metallb/metallb/blob/4f7e29972652a6f415ad42898d0b5ef5adc06440/website/content/release-notes/_index.md",
+              "revision": "4f7e29972652a6f415ad42898d0b5ef5adc06440",
+              "contentDigest": "sha256:a68522002ad070b57b70b23f22de6ac425dcc2b797b54a64e6ffc475d82b8860",
+              "startLine": 173,
+              "endLine": 180
             }
           ]
         },
@@ -17252,16 +17252,16 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-11T15:47:46Z",
-          "validUntil": "2026-12-10T00:00:00Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
+          "validUntil": "2027-02-16T08:59:00Z",
           "sources": [
             {
               "id": "openfga-v1-18-0-oidc-changelog",
-              "url": "https://github.com/openfga/openfga/blob/81089a31698505b4d5f01311c04e83b9adfcf383/CHANGELOG.md",
-              "revision": "81089a31698505b4d5f01311c04e83b9adfcf383",
-              "contentDigest": "sha256:fc170f3ba0c13dd40d24ebb121aacd265b2f1a8662dc4f7b4e942ec71ea61b60",
-              "startLine": 11,
-              "endLine": 15
+              "url": "https://github.com/openfga/openfga/blob/81c6202153a853d90589565884a56942c3fd07be/CHANGELOG.md",
+              "revision": "81c6202153a853d90589565884a56942c3fd07be",
+              "contentDigest": "sha256:c9fbaf81197b5b76e7cfa36868f6ac14681f1f7d43e56a0241882de1655039aa",
+              "startLine": 41,
+              "endLine": 48
             },
             {
               "id": "openfga-v1-18-0-oidc-config-bindings",
@@ -19539,8 +19539,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T23:37:17Z",
-          "validUntil": "2026-12-07T23:37:17Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
+          "validUntil": "2027-02-05T08:59:00Z",
           "sources": [
             {
               "id": "source-9c4d83a3b44d-137",
@@ -19559,28 +19559,28 @@
               "endLine": 100
             },
             {
-              "id": "source-ca35234a30a2-137",
-              "url": "https://github.com/spiffe/spire/blob/ca35234a30a2aeb2254dec4db6cf09a1fce3c9d7/cmd/spire-server/util/util.go",
-              "revision": "ca35234a30a2aeb2254dec4db6cf09a1fce3c9d7",
-              "contentDigest": "sha256:3b867fcc48cdece3008c8dcb7fe58d07cee28b2ddd49edacb68cebcf80322cde",
-              "startLine": 137,
-              "endLine": 156
-            },
-            {
-              "id": "source-ca35234a30a2-21",
-              "url": "https://github.com/spiffe/spire/blob/ca35234a30a2aeb2254dec4db6cf09a1fce3c9d7/CHANGELOG.md",
-              "revision": "ca35234a30a2aeb2254dec4db6cf09a1fce3c9d7",
-              "contentDigest": "sha256:5a4cc742987acd4c2cf9b62b222c71f19bc38f067dc994e0f22f0c45cc21a8a2",
-              "startLine": 21,
-              "endLine": 24
-            },
-            {
               "id": "source-ca35234a30a2-88",
               "url": "https://github.com/spiffe/spire/blob/ca35234a30a2aeb2254dec4db6cf09a1fce3c9d7/cmd/spire-server/cli/entry/create.go",
               "revision": "ca35234a30a2aeb2254dec4db6cf09a1fce3c9d7",
               "contentDigest": "sha256:0edc70decfe6d2916ed0e9b9f5a722710eac4e248610f52f4daa89c4e7c712d8",
               "startLine": 88,
               "endLine": 104
+            },
+            {
+              "id": "source-dc3440081ad7-135",
+              "url": "https://github.com/spiffe/spire/blob/dc3440081ad7aa193fb5de06eec2840d76598ae4/cmd/spire-server/util/util.go",
+              "revision": "dc3440081ad7aa193fb5de06eec2840d76598ae4",
+              "contentDigest": "sha256:0e16adc0391dcdd79cc04c25f76ca7f20cd37b96583a6f26019eae86c14984ee",
+              "startLine": 135,
+              "endLine": 154
+            },
+            {
+              "id": "source-dc3440081ad7-79",
+              "url": "https://github.com/spiffe/spire/blob/dc3440081ad7aa193fb5de06eec2840d76598ae4/CHANGELOG.md",
+              "revision": "dc3440081ad7aa193fb5de06eec2840d76598ae4",
+              "contentDigest": "sha256:0255712665f9272d2ed8bb138c21fc69a7e3707074735e9d01cfd3150275cd68",
+              "startLine": 79,
+              "endLine": 82
             }
           ]
         },
@@ -20613,7 +20613,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-09T01:59:12Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
           "sources": [
             {
               "contentDigest": "sha256:cf97d0e156ad5b8347d1416a70df6791ad1eab3b7ba53f54d16a21d6ff66b6e6",
@@ -20622,14 +20622,6 @@
               "revision": "4836c7dd74ce973f06d97936916ed7f20c1a2ff0",
               "startLine": 19,
               "url": "https://github.com/strimzi/strimzi-kafka-operator/blob/4836c7dd74ce973f06d97936916ed7f20c1a2ff0/install/cluster-operator/040-Crd-kafka.yaml"
-            },
-            {
-              "contentDigest": "sha256:e87a11cefddd9907a96c010476dbbc6b768c1224ee18359412c0cad861395ee4",
-              "endLine": 8,
-              "id": "source-4836c7dd74ce-3",
-              "revision": "4836c7dd74ce973f06d97936916ed7f20c1a2ff0",
-              "startLine": 3,
-              "url": "https://github.com/strimzi/strimzi-kafka-operator/blob/4836c7dd74ce973f06d97936916ed7f20c1a2ff0/CHANGELOG.md"
             },
             {
               "contentDigest": "sha256:ba98fca9c605ac9bf8332996c15256d93e3efb75ef1fb6dcf5df3df982fc6641",
@@ -20654,10 +20646,18 @@
               "revision": "54081abf97d0e5e524de773b88343756934db1a8",
               "startLine": 4966,
               "url": "https://github.com/strimzi/strimzi-kafka-operator/blob/54081abf97d0e5e524de773b88343756934db1a8/install/cluster-operator/040-Crd-kafka.yaml"
+            },
+            {
+              "contentDigest": "sha256:4ce8766ff459191e629d175103cce4e79052b9fbefa736a0a66c2cbc9064f4a7",
+              "endLine": 19,
+              "id": "source-833dbbd4fc74-14",
+              "revision": "833dbbd4fc745678f11ad96ed66571704cd73cd0",
+              "startLine": 14,
+              "url": "https://github.com/strimzi/strimzi-kafka-operator/blob/833dbbd4fc745678f11ad96ed66571704cd73cd0/CHANGELOG.md"
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-08T01:36:41Z"
+          "validUntil": "2027-02-09T08:59:00Z"
         },
         "id": "strimzi.kafka-v1beta2-api-removed.1-0",
         "nextAction": "Convert rendered kind Kafka resources to kafka.strimzi.io/v1 and require validation against the official target Kafka CRD; verify CRD application and runtime separately.",
@@ -20862,16 +20862,16 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
+          "validUntil": "2027-01-27T08:59:00Z",
           "sources": [
             {
-              "id": "source-0d7a3536be53-40",
-              "url": "https://github.com/thanos-io/thanos/blob/0d7a3536be5385d8dec8d36b77ad5179c800348c/CHANGELOG.md",
-              "revision": "0d7a3536be5385d8dec8d36b77ad5179c800348c",
-              "contentDigest": "sha256:01d9b9d986d3884cb3f02cf6e800c69bcde2558cd192bdc67108f7fd97005be5",
-              "startLine": 40,
-              "endLine": 45
+              "id": "source-4f05efeeadba-64",
+              "url": "https://github.com/thanos-io/thanos/blob/4f05efeeadbacdc6552d68ef0850b40317109b4f/CHANGELOG.md",
+              "revision": "4f05efeeadbacdc6552d68ef0850b40317109b4f",
+              "contentDigest": "sha256:cc4af66c83232a7fed6d2278bad37b5217ef830c84afc83b1d1e9650ec831bdc",
+              "startLine": 64,
+              "endLine": 69
             }
           ]
         },
@@ -21318,8 +21318,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-10T21:54:36Z",
-          "validUntil": "2026-12-09T21:54:36Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
+          "validUntil": "2027-02-15T08:59:00Z",
           "sources": [
             {
               "id": "python-tuf-v6-ngclient-export",
@@ -21347,17 +21347,17 @@
             },
             {
               "id": "python-tuf-v7-release-change",
-              "url": "https://github.com/theupdateframework/python-tuf/blob/353bdb767db56fd4667c9bcf56b710d50fdc2ac0/docs/CHANGELOG.md",
-              "revision": "353bdb767db56fd4667c9bcf56b710d50fdc2ac0",
-              "contentDigest": "sha256:a6f6e446a37d9ff1b61cf2b1b443421355ada34ab2fcc07954cebf22e8a405e9",
-              "startLine": 5,
-              "endLine": 20
+              "url": "https://github.com/theupdateframework/python-tuf/blob/49eb1da48c58cf0cbb0f2e490f7ad39fbd8c1f15/docs/CHANGELOG.md",
+              "revision": "49eb1da48c58cf0cbb0f2e490f7ad39fbd8c1f15",
+              "contentDigest": "sha256:0cad0823a20e82910209d02b852bb97a7842a287204d90fead077f98eda61197",
+              "startLine": 15,
+              "endLine": 30
             },
             {
               "id": "python-tuf-v7-updater-signature",
-              "url": "https://github.com/theupdateframework/python-tuf/blob/353bdb767db56fd4667c9bcf56b710d50fdc2ac0/tuf/ngclient/updater.py",
-              "revision": "353bdb767db56fd4667c9bcf56b710d50fdc2ac0",
-              "contentDigest": "sha256:80d7d2c92c603eab40bff77260847a620e1e17d50dfe648c4db013c70dec4e49",
+              "url": "https://github.com/theupdateframework/python-tuf/blob/49eb1da48c58cf0cbb0f2e490f7ad39fbd8c1f15/tuf/ngclient/updater.py",
+              "revision": "49eb1da48c58cf0cbb0f2e490f7ad39fbd8c1f15",
+              "contentDigest": "sha256:fa32bc4a416cf54b996b0b431df5081b68cb00f8b7c5e3e0b196f39dbe40d9f3",
               "startLine": 81,
               "endLine": 147
             }
@@ -21396,13 +21396,13 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
+          "validUntil": "2027-01-28T08:59:00Z",
           "sources": [
             {
-              "id": "source-0b7eaaf4e6bb-27",
-              "url": "https://github.com/velero-io/velero/blob/0b7eaaf4e6bb6bf7719b27443f8da0ae4a3ef2f8/site/content/docs/main/upgrade-to-1.18.md",
-              "revision": "0b7eaaf4e6bb6bf7719b27443f8da0ae4a3ef2f8",
+              "id": "source-d69d91aee2e3-27",
+              "url": "https://github.com/velero-io/velero/blob/d69d91aee2e3f72df1187955721588e818adc3d3/site/content/docs/v1.18/upgrade-to-1.18.md",
+              "revision": "d69d91aee2e3f72df1187955721588e818adc3d3",
               "contentDigest": "sha256:f8522b523b0c73380a48ad559fa10fda0d3e5316243707bd655ecd3617d7e8c6",
               "startLine": 27,
               "endLine": 62
