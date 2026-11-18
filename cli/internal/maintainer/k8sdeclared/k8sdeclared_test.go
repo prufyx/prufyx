@@ -187,8 +187,13 @@ func TestDeterministic(t *testing.T) {
 	if string(a) != string(b) {
 		t.Fatal("JSON differs")
 	}
-	if Markdown(build(t, chartSrc, files, "v1.2.3")) != Markdown(build(t, chartSrc, files, "v1.2.3")) {
-		t.Fatal("Markdown differs")
+	first := build(t, chartSrc, files, "v1.2.3")
+	second := build(t, chartSrc, files, "v1.2.3")
+	if Markdown(first) != Markdown(clone(t, second)) {
+		t.Fatal("Markdown differs between a build and the same data read back from JSON")
+	}
+	if !strings.Contains(Markdown(first), "minimum 1.25.0") {
+		t.Fatal("Markdown lost the declared minimum")
 	}
 }
 
