@@ -593,7 +593,7 @@ func TestUpstreamOracles(t *testing.T) {
 			} else if project == "longhorn" {
 				// The fixture holds only the listed deploy/longhorn.yaml, so the
 				// 1.8 -> 1.9 removals are measurable on it. The target floor is
-				// 1.9 because at the real v1.8.x/v1.9.0 tags the CRDs sit in a
+				// 1.10 because at the real v1.8.x and v1.9.x tags the CRDs sit in a
 				// chart template the extractor does not read; the oracle keeps
 				// its anchor pair by reading the fixture from 1.8.
 				tg := target(t, project)

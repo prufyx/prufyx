@@ -225,7 +225,7 @@ func TestGateRefusesCRDRulesOfUnregisteredProject(t *testing.T) {
 	tg.FactProject = "longhorn_unregistered"
 	tg.Attest = false // the real target attests; this test checks rules only
 	// The fixture holds only the listed manifest, so its 1.8 -> 1.9 pair is
-	// readable here though the target floor is 1.9 for the real tags.
+	// readable here though the target floor is 1.10 for the real tags.
 	tg.MinFrom = [2]int{1, 8}
 	if cncfcheck.RegisteredFact(tg.FactID()) {
 		t.Fatalf("%s is registered", tg.FactID())
