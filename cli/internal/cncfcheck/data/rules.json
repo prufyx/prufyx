@@ -91,7 +91,7 @@
           "boolValue": true
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T10:42:00Z",
+          "reviewedAt": "2026-11-18T09:15:00Z",
           "sources": [
             {
               "id": "argo-cd-v3-0-23-version",
@@ -151,7 +151,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T10:42:00Z"
+          "validUntil": "2027-02-15T09:15:00Z"
         },
         "id": "argo-cd.plain-http-oci-repository-helm4.3-0-23-to-3-5-2",
         "nextAction": "For this selected plain-HTTP Helm OCI repository, set insecureOCIForceHttp to true and do not combine it with insecure; validate dependency repositories separately.",
@@ -249,7 +249,7 @@
           "boolValue": true
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T10:42:00Z",
+          "reviewedAt": "2026-11-18T09:15:00Z",
           "sources": [
             {
               "id": "argo-cd-v3-1-16-version",
@@ -309,7 +309,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T10:42:00Z"
+          "validUntil": "2027-02-15T09:15:00Z"
         },
         "id": "argo-cd.plain-http-oci-repository-helm4.3-1-16-to-3-5-2",
         "nextAction": "For this selected plain-HTTP Helm OCI repository, set insecureOCIForceHttp to true and do not combine it with insecure; validate dependency repositories separately.",
@@ -407,7 +407,7 @@
           "boolValue": true
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T10:42:00Z",
+          "reviewedAt": "2026-11-18T09:15:00Z",
           "sources": [
             {
               "id": "argo-cd-v3-2-12-version",
@@ -467,7 +467,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T10:42:00Z"
+          "validUntil": "2027-02-16T09:15:00Z"
         },
         "id": "argo-cd.plain-http-oci-repository-helm4.3-2-12-to-3-5-2",
         "nextAction": "For this selected plain-HTTP Helm OCI repository, set insecureOCIForceHttp to true and do not combine it with insecure; validate dependency repositories separately.",
@@ -565,7 +565,7 @@
           "boolValue": true
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T10:42:00Z",
+          "reviewedAt": "2026-11-18T09:15:00Z",
           "sources": [
             {
               "id": "argo-cd-v3-3-14-version",
@@ -625,7 +625,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T10:42:00Z"
+          "validUntil": "2027-02-16T09:15:00Z"
         },
         "id": "argo-cd.plain-http-oci-repository-helm4.3-3-14-to-3-5-2",
         "nextAction": "For this selected plain-HTTP Helm OCI repository, set insecureOCIForceHttp to true and do not combine it with insecure; validate dependency repositories separately.",
@@ -723,7 +723,7 @@
           "boolValue": true
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T10:42:00Z",
+          "reviewedAt": "2026-11-18T09:15:00Z",
           "sources": [
             {
               "id": "argo-cd-v3-4-8-version",
@@ -783,7 +783,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T10:42:00Z"
+          "validUntil": "2027-02-16T09:15:00Z"
         },
         "id": "argo-cd.plain-http-oci-repository-helm4.3-4-8-to-3-5-2",
         "nextAction": "For this selected plain-HTTP Helm OCI repository, set insecureOCIForceHttp to true and do not combine it with insecure; validate dependency repositories separately.",
@@ -1612,7 +1612,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:42:47Z",
+          "reviewedAt": "2026-11-18T09:15:00Z",
           "sources": [
             {
               "id": "c-origin-0-9-50-package-version",
@@ -1656,7 +1656,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:42:47Z"
+          "validUntil": "2027-02-11T09:15:00Z"
         },
         "id": "cloud-custodian.iam-access-key-json-diff-rejected.0-9-50-to-0-9-52",
         "nextAction": "For the selected complete IAM access-key policy, remove or redesign the direct json-diff filter before package 0.9.52; this check does not evaluate other filters, resources, variables, includes, or policy execution.",
@@ -1691,7 +1691,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:42:47Z",
+          "reviewedAt": "2026-11-18T09:15:00Z",
           "sources": [
             {
               "id": "c-origin-0-9-51-package-version",
@@ -1735,7 +1735,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:42:47Z"
+          "validUntil": "2027-02-12T09:15:00Z"
         },
         "id": "cloud-custodian.iam-access-key-json-diff-rejected.0-9-51-to-0-9-52",
         "nextAction": "For the selected complete IAM access-key policy, remove or redesign the direct json-diff filter before package 0.9.52; this check does not evaluate other filters, resources, variables, includes, or policy execution.",
@@ -2176,8 +2176,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T12:00:00Z",
-          "validUntil": "2026-12-11T12:00:00Z",
+          "reviewedAt": "2026-11-18T09:15:00Z",
+          "validUntil": "2027-02-10T09:15:00Z",
           "sources": [
             {
               "id": "containerd-v1-7-28-runc-v1-bundled",
@@ -2205,27 +2205,27 @@
             },
             {
               "id": "containerd-v2-0-0-cri-runtime-migration-copy",
-              "url": "https://github.com/containerd/containerd/blob/207ad711eabd375a01713109a8a197d197ff6542/plugins/cri/runtime/plugin.go",
-              "revision": "207ad711eabd375a01713109a8a197d197ff6542",
-              "contentDigest": "sha256:ba6eca750068afaef430942ff39cdd73b72663d384c690f05d31df1c2ea7afb0",
-              "startLine": 54,
-              "endLine": 65
+              "url": "https://github.com/containerd/containerd/blob/9681afd6c50dc7f18b68cbea4cee26f48b5e22ae/plugins/cri/runtime/plugin.go",
+              "revision": "9681afd6c50dc7f18b68cbea4cee26f48b5e22ae",
+              "contentDigest": "sha256:bc7e8e69017fdbea48087a03eb49947ae11fa7c77c8b01924aea915dbfa33979",
+              "startLine": 196,
+              "endLine": 265
             },
             {
               "id": "containerd-v2-0-0-cri-runtime-migration-preserves-runtime-type",
-              "url": "https://github.com/containerd/containerd/blob/207ad711eabd375a01713109a8a197d197ff6542/plugins/cri/runtime/plugin.go",
-              "revision": "207ad711eabd375a01713109a8a197d197ff6542",
-              "contentDigest": "sha256:ba6eca750068afaef430942ff39cdd73b72663d384c690f05d31df1c2ea7afb0",
-              "startLine": 201,
-              "endLine": 217
+              "url": "https://github.com/containerd/containerd/blob/9681afd6c50dc7f18b68cbea4cee26f48b5e22ae/plugins/cri/runtime/plugin.go",
+              "revision": "9681afd6c50dc7f18b68cbea4cee26f48b5e22ae",
+              "contentDigest": "sha256:bc7e8e69017fdbea48087a03eb49947ae11fa7c77c8b01924aea915dbfa33979",
+              "startLine": 267,
+              "endLine": 280
             },
             {
               "id": "containerd-v2-0-0-removed-official-runtimes",
-              "url": "https://github.com/containerd/containerd/blob/207ad711eabd375a01713109a8a197d197ff6542/docs/containerd-2.0.md",
-              "revision": "207ad711eabd375a01713109a8a197d197ff6542",
-              "contentDigest": "sha256:45961feeb1ea6f9140991c4c99a2ca9f9c98c1c449721fb2735a58deec36d729",
-              "startLine": 123,
-              "endLine": 125
+              "url": "https://github.com/containerd/containerd/blob/9681afd6c50dc7f18b68cbea4cee26f48b5e22ae/docs/containerd-2.0.md",
+              "revision": "9681afd6c50dc7f18b68cbea4cee26f48b5e22ae",
+              "contentDigest": "sha256:955c27c34031ce286f11bd53b94778b63b4595c43a31a353eed95cc2f9279a23",
+              "startLine": 127,
+              "endLine": 129
             }
           ]
         },
@@ -4844,7 +4844,7 @@
       "requiredFacts": [],
       "rule": {
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:15:00Z",
           "sources": [
             {
               "contentDigest": "sha256:9d9f5845a1a391873fc10a10686595aa3de62a0e6342bf546dd85c9572886418",
@@ -4856,7 +4856,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-03T09:15:00Z"
         },
         "id": "etcd.direct-minor-skip.3-2-32-to-3-7-1",
         "nextAction": "Plan a separate etcd 3.2.x to 3.3.x transition first; do not skip a minor version.",
@@ -4875,7 +4875,7 @@
       "requiredFacts": [],
       "rule": {
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:15:00Z",
           "sources": [
             {
               "contentDigest": "sha256:9d9f5845a1a391873fc10a10686595aa3de62a0e6342bf546dd85c9572886418",
@@ -4887,7 +4887,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-04T09:15:00Z"
         },
         "id": "etcd.direct-minor-skip.3-3-27-to-3-7-1",
         "nextAction": "Plan a separate etcd 3.3.x to 3.4.x transition first; do not skip a minor version.",
@@ -4906,7 +4906,7 @@
       "requiredFacts": [],
       "rule": {
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:15:00Z",
           "sources": [
             {
               "contentDigest": "sha256:9d9f5845a1a391873fc10a10686595aa3de62a0e6342bf546dd85c9572886418",
@@ -4918,7 +4918,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-05T09:15:00Z"
         },
         "id": "etcd.direct-minor-skip.3-4-45-to-3-7-1",
         "nextAction": "Plan a separate etcd 3.4.x to 3.5.x transition first; do not skip a minor version.",
@@ -4937,7 +4937,7 @@
       "requiredFacts": [],
       "rule": {
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:15:00Z",
           "sources": [
             {
               "contentDigest": "sha256:9d9f5845a1a391873fc10a10686595aa3de62a0e6342bf546dd85c9572886418",
@@ -4949,7 +4949,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-08T09:15:00Z"
         },
         "id": "etcd.direct-minor-skip.3-5-33-to-3-7-1",
         "nextAction": "Plan a separate etcd 3.5.x to 3.6.x transition first; do not skip a minor version.",
@@ -6160,8 +6160,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T19:38:03Z",
-          "validUntil": "2026-12-07T19:38:03Z",
+          "reviewedAt": "2026-11-18T09:15:00Z",
+          "validUntil": "2027-01-29T09:15:00Z",
           "sources": [
             {
               "id": "source-206b46b91560-19",
@@ -6172,20 +6172,20 @@
               "endLine": 22
             },
             {
-              "id": "source-e763c0761c44-19",
-              "url": "https://github.com/fluent/fluentd/blob/e763c0761c44d9734b6aa374371387a2e8406522/fluentd.gemspec",
-              "revision": "e763c0761c44d9734b6aa374371387a2e8406522",
-              "contentDigest": "sha256:67727273b7d4f1ecf26d206bfd41192bc8c76d5c1774ba4ab969d644e13ce37f",
-              "startLine": 17,
-              "endLine": 22
+              "id": "source-78a7972bfe6b-21",
+              "url": "https://github.com/fluent/fluentd/blob/78a7972bfe6b421f08472701f04f00515ed24bee/fluentd.gemspec",
+              "revision": "78a7972bfe6b421f08472701f04f00515ed24bee",
+              "contentDigest": "sha256:f58e2f77c7aff411609fa6f798c786c19cbc46183344005937de4ebf3439aeb8",
+              "startLine": 21,
+              "endLine": 26
             },
             {
-              "id": "source-e763c0761c44-26",
-              "url": "https://github.com/fluent/fluentd/blob/e763c0761c44d9734b6aa374371387a2e8406522/CHANGELOG.md",
-              "revision": "e763c0761c44d9734b6aa374371387a2e8406522",
-              "contentDigest": "sha256:094fbb051407334786b4032ebab804db5e4625dbdf87005b80acfc151ba8570d",
-              "startLine": 1,
-              "endLine": 30
+              "id": "source-78a7972bfe6b-49",
+              "url": "https://github.com/fluent/fluentd/blob/78a7972bfe6b421f08472701f04f00515ed24bee/CHANGELOG.md",
+              "revision": "78a7972bfe6b421f08472701f04f00515ed24bee",
+              "contentDigest": "sha256:355895a9b381476b1da3d17bdc07e5cbf91b4cd93cde722d43f523c4006d7d16",
+              "startLine": 49,
+              "endLine": 76
             }
           ]
         },
@@ -6352,8 +6352,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T09:15:00Z",
+          "validUntil": "2027-02-01T09:15:00Z",
           "sources": [
             {
               "id": "source-325038fc31e0-316",
@@ -8413,8 +8413,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-10T14:15:00Z",
-          "validUntil": "2026-12-09T14:15:00Z",
+          "reviewedAt": "2026-11-18T09:15:00Z",
+          "validUntil": "2027-02-02T09:15:00Z",
           "sources": [
             {
               "id": "source-656ad81a245c-release-85",
@@ -14944,8 +14944,8 @@
         "intermediate": "1.8.0",
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T09:15:00Z",
+          "validUntil": "2027-01-25T09:15:00Z",
           "sources": [
             {
               "id": "source-8bb4d023b6d8-222",
@@ -17165,7 +17165,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:42:47Z",
+          "reviewedAt": "2026-11-18T09:15:00Z",
           "sources": [
             {
               "id": "o-origin-1-120-4-cloud-cost-gate",
@@ -17185,11 +17185,11 @@
             },
             {
               "id": "o-target-cloud-cost-gate",
-              "url": "https://github.com/opencost/opencost/blob/e22df84a4fb1113534514c44616f979f6455c0a7/pkg/cmd/costmodel/costmodel.go",
-              "revision": "e22df84a4fb1113534514c44616f979f6455c0a7",
-              "contentDigest": "sha256:8e51b656656f1fe707f83589b42940a5078e3e0db1cd129e81829e2a85c9830c",
-              "startLine": 78,
-              "endLine": 101
+              "url": "https://github.com/opencost/opencost/blob/17daaa72c27cb12c490ce6e15d096554b274f322/pkg/cmd/costmodel/costmodel.go",
+              "revision": "17daaa72c27cb12c490ce6e15d096554b274f322",
+              "contentDigest": "sha256:158ac6b8e0967b569fceb62c5f5e782365aaa52133899beded94316f1b862676",
+              "startLine": 79,
+              "endLine": 102
             },
             {
               "id": "o-target-cloud-cost-initialization",
@@ -17209,7 +17209,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:42:47Z"
+          "validUntil": "2027-02-09T09:15:00Z"
         },
         "id": "opencost.cloud-cost-source-migration.1-120-4-to-1-121-2",
         "nextAction": "If the caller independently confirms provider-derived reliance, select and validate a target cloud-integration JSON source before v1.121.2. This revalidation route does not claim v1.121.2 introduced nil initialization; do not include credentials.",
@@ -19082,16 +19082,16 @@
         "intermediate": "1.19.5",
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T09:15:00Z",
+          "validUntil": "2027-01-26T09:15:00Z",
           "sources": [
             {
-              "id": "source-51bca7e46d75-87",
-              "url": "https://github.com/rook/rook/blob/51bca7e46d7557031dde89c900483e6c0681ce23/Documentation/Upgrade/rook-upgrade.md",
-              "revision": "51bca7e46d7557031dde89c900483e6c0681ce23",
-              "contentDigest": "sha256:14b4b94f88eff9232455b3aaaaad352b95f2c273330ff8838948c143ed2875d8",
-              "startLine": 87,
-              "endLine": 101
+              "id": "source-cf2dbb3611e2-95",
+              "url": "https://github.com/rook/rook/blob/cf2dbb3611e2d3dd2893a1b6526b8c1da04733f3/Documentation/Upgrade/rook-upgrade.md",
+              "revision": "cf2dbb3611e2d3dd2893a1b6526b8c1da04733f3",
+              "contentDigest": "sha256:f7d3640d5b08bd18ab60077b6851fb7be261f090b18265a59dfae82b23f89a8b",
+              "startLine": 95,
+              "endLine": 109
             }
           ]
         },
@@ -19119,16 +19119,16 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T09:15:00Z",
+          "validUntil": "2027-01-27T09:15:00Z",
           "sources": [
             {
-              "id": "source-51bca7e46d75-37",
-              "url": "https://github.com/rook/rook/blob/51bca7e46d7557031dde89c900483e6c0681ce23/Documentation/Upgrade/rook-upgrade.md",
-              "revision": "51bca7e46d7557031dde89c900483e6c0681ce23",
-              "contentDigest": "sha256:14b4b94f88eff9232455b3aaaaad352b95f2c273330ff8838948c143ed2875d8",
+              "id": "source-cf2dbb3611e2-37",
+              "url": "https://github.com/rook/rook/blob/cf2dbb3611e2d3dd2893a1b6526b8c1da04733f3/Documentation/Upgrade/rook-upgrade.md",
+              "revision": "cf2dbb3611e2d3dd2893a1b6526b8c1da04733f3",
+              "contentDigest": "sha256:f7d3640d5b08bd18ab60077b6851fb7be261f090b18265a59dfae82b23f89a8b",
               "startLine": 37,
-              "endLine": 44
+              "endLine": 52
             }
           ]
         },
@@ -21428,13 +21428,13 @@
         "intermediate": "1.17.0",
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T09:15:00Z",
+          "validUntil": "2027-01-28T09:15:00Z",
           "sources": [
             {
-              "id": "source-0b7eaaf4e6bb-6",
-              "url": "https://github.com/velero-io/velero/blob/0b7eaaf4e6bb6bf7719b27443f8da0ae4a3ef2f8/site/content/docs/main/upgrade-to-1.18.md",
-              "revision": "0b7eaaf4e6bb6bf7719b27443f8da0ae4a3ef2f8",
+              "id": "source-d69d91aee2e3-6",
+              "url": "https://github.com/velero-io/velero/blob/d69d91aee2e3f72df1187955721588e818adc3d3/site/content/docs/v1.18/upgrade-to-1.18.md",
+              "revision": "d69d91aee2e3f72df1187955721588e818adc3d3",
               "contentDigest": "sha256:f8522b523b0c73380a48ad559fa10fda0d3e5316243707bd655ecd3617d7e8c6",
               "startLine": 6,
               "endLine": 23
