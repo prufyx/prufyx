@@ -5,7 +5,6 @@ package cncfcheck
 import (
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/extract/crdbatchids"
@@ -56,7 +55,7 @@ func passingClaims(t *testing.T, report Report, want int) int {
 // serving.
 func TestClaimExitNeverPassesCustomResourceRules(t *testing.T) {
 	t.Parallel()
-	now := time.Date(2026, 10, 4, 0, 0, 0, 0, time.UTC)
+	now := packClock(t)
 	plain := syntheticBaseBundle(t)
 	// Baseline: the reviewed Kafka rule alone (syntheticBase holds no set
 	// rule) passes and exits 0.
@@ -120,7 +119,7 @@ func TestClaimExitNeverPassesCustomResourceRules(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	report, err = shipped.check("strimzi", "", strimziDeclaredInput(servedStrimziSet), time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC))
+	report, err = shipped.check("strimzi", "", strimziDeclaredInput(servedStrimziSet), packClock(t))
 	if err != nil {
 		t.Fatal(err)
 	}

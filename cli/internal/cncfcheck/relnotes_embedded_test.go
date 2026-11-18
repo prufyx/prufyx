@@ -22,7 +22,7 @@ import (
 // and TestProjectExportPreservesCompleteSourceProjection hold.
 func TestEmbeddedRelnotesCrossingRules(t *testing.T) {
 	t.Parallel()
-	now := time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC)
+	now := packClock(t)
 	count := 0
 	for _, entry := range shippedPack(t).Entries {
 		crossing, err := constraintengine.AnyCrossingRule([]json.RawMessage{entry.Rule})
@@ -158,8 +158,41 @@ func TestCompareWithEmbeddedCountsCrossingRuleEvidence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	crossingAt := time.Date(2026, 10, 31, 12, 0, 0, 0, time.UTC)
-	if !comparison.Identical || comparison.StaleProject != "cortex" || !comparison.EmbeddedEvidenceAt.Equal(crossingAt) || !comparison.StoreEvidenceAt.Before(crossingAt) {
+	// The premise is read from the rule data: the embedded pack counts the
+	// removal-crossing rules (a store target never carries them) in the
+	// project's newest review. When a crossing rule carries the newest
+	// review the store is stale at that instant; otherwise the store, which
+	// carries every other rule, already reaches the newest review.
+	base, err := load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var crossingAt, otherAt time.Time
+	for _, entry := range base.pack.Entries {
+		if entry.Project != "cortex" {
+			continue
+		}
+		reviewed, _ := entryEvidenceBounds(t, entry)
+		crossing, err := constraintengine.AnyCrossingRule([]json.RawMessage{entry.Rule})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if crossing {
+			if reviewed.After(crossingAt) {
+				crossingAt = reviewed
+			}
+		} else if reviewed.After(otherAt) {
+			otherAt = reviewed
+		}
+	}
+	if crossingAt.IsZero() || otherAt.IsZero() {
+		t.Fatal("cortex lacks a crossing or a non-crossing rule")
+	}
+	if crossingAt.After(otherAt) {
+		if !comparison.Identical || comparison.StaleProject != "cortex" || !comparison.EmbeddedEvidenceAt.Equal(crossingAt) || !comparison.StoreEvidenceAt.Before(crossingAt) {
+			t.Fatalf("comparison=%+v", comparison)
+		}
+	} else if comparison.StaleProject != "" || !comparison.StoreEvidenceAt.Equal(otherAt) {
 		t.Fatalf("comparison=%+v", comparison)
 	}
 }

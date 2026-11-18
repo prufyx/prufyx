@@ -600,7 +600,7 @@ func Compute(in Input) (Report, error) {
 		report.Additions = &AdditionsInfo{Digest: digestOf(in.Additions), Entries: len(additions.Additions), ClockOn: clockOn}
 	}
 
-	if newest, ok, err := NewestAttestationTime(in.Pack, in.CommunityPack); err == nil && ok && now.Equal(newest) {
+	if newest, ok, err := NewestEvidenceTime(in.Pack, in.CommunityPack); err == nil && ok && now.Equal(newest) {
 		if dateClock, err := EvaluationClock(linesFile, additions); err == nil && newest.After(dateClock) {
 			report.ClockAttestedAt = newest.Format(time.RFC3339)
 		}
