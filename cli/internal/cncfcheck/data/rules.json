@@ -841,16 +841,16 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T08:30:00Z",
+          "validUntil": "2027-02-16T08:30:00Z",
           "sources": [
             {
-              "id": "source-e98f483bfd57-12",
-              "url": "https://github.com/argoproj/argo-cd/blob/e98f483bfd5781df2592fef1aeed1148f150d9c9/docs/operator-manual/upgrading/2.14-3.0.md",
-              "revision": "e98f483bfd5781df2592fef1aeed1148f150d9c9",
-              "contentDigest": "sha256:dd7d03fd482596a3b110535bed1d0d1c975e1f013cd7cac90ad99d9fe8684b2f",
-              "startLine": 12,
-              "endLine": 24
+              "id": "source-7cedae735ca5-19",
+              "url": "https://github.com/argoproj/argo-cd/blob/7cedae735ca5c68fc24520b42da339aa388b9d25/docs/operator-manual/upgrading/2.14-3.0.md",
+              "revision": "7cedae735ca5c68fc24520b42da339aa388b9d25",
+              "contentDigest": "sha256:e819ebae67c05a047c0828c0b7626939f8faaa90f0c82ca2ba8583ea772952b2",
+              "startLine": 19,
+              "endLine": 31
             }
           ]
         },
@@ -2084,24 +2084,24 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-09T01:45:37Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T08:30:00Z",
+          "validUntil": "2027-02-16T08:30:00Z",
           "sources": [
             {
-              "contentDigest": "sha256:45961feeb1ea6f9140991c4c99a2ca9f9c98c1c449721fb2735a58deec36d729",
-              "endLine": 133,
-              "id": "source-207ad711eabd-131",
-              "revision": "207ad711eabd375a01713109a8a197d197ff6542",
-              "startLine": 131,
-              "url": "https://github.com/containerd/containerd/blob/207ad711eabd375a01713109a8a197d197ff6542/docs/containerd-2.0.md"
+              "contentDigest": "sha256:955c27c34031ce286f11bd53b94778b63b4595c43a31a353eed95cc2f9279a23",
+              "endLine": 137,
+              "id": "source-9681afd6c50d-135",
+              "revision": "9681afd6c50dc7f18b68cbea4cee26f48b5e22ae",
+              "startLine": 135,
+              "url": "https://github.com/containerd/containerd/blob/9681afd6c50dc7f18b68cbea4cee26f48b5e22ae/docs/containerd-2.0.md"
             },
             {
-              "contentDigest": "sha256:8a99acbbfb2c12de5df87656f1e314a4d1566a8dfb008493bb706d56fd57f805",
-              "endLine": 200,
-              "id": "source-207ad711eabd-190",
-              "revision": "207ad711eabd375a01713109a8a197d197ff6542",
-              "startLine": 190,
-              "url": "https://github.com/containerd/containerd/blob/207ad711eabd375a01713109a8a197d197ff6542/plugins/cri/cri.go"
+              "contentDigest": "sha256:48d30df62703fd386504bcbb897410afc9933a70d9020737f2956e55ddae53b6",
+              "endLine": 180,
+              "id": "source-9681afd6c50d-170",
+              "revision": "9681afd6c50dc7f18b68cbea4cee26f48b5e22ae",
+              "startLine": 170,
+              "url": "https://github.com/containerd/containerd/blob/9681afd6c50dc7f18b68cbea4cee26f48b5e22ae/plugins/cri/cri.go"
             },
             {
               "contentDigest": "sha256:9b19b7d7ea84201700c626b14dc82965b9c58a97494df2d0edb41691cbccf544",
@@ -2336,16 +2336,16 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T08:30:00Z",
+          "validUntil": "2027-02-16T08:30:00Z",
           "sources": [
             {
-              "id": "source-f59c03d09c3a-13",
-              "url": "https://github.com/coredns/coredns/blob/f59c03d09c3a3a12f571ad1087b979325f3dae30/notes/coredns-1.7.0.md",
-              "revision": "f59c03d09c3a3a12f571ad1087b979325f3dae30",
-              "contentDigest": "sha256:849d946734a92268c94b3053c76b632b3a3e654c36f6f15b37e766e3aaf86e8a",
+              "id": "source-aa82ca62fb04-13",
+              "url": "https://github.com/coredns/coredns/blob/aa82ca62fb048562ffaf4aa24d3f2db8d8bd0333/notes/coredns-1.7.0.md",
+              "revision": "aa82ca62fb048562ffaf4aa24d3f2db8d8bd0333",
+              "contentDigest": "sha256:2920f933ffae34852abf59711ff2401405d5aca591e029ef64db8427fd78db9b",
               "startLine": 13,
-              "endLine": 18
+              "endLine": 19
             }
           ]
         },
@@ -4456,16 +4456,16 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T08:30:00Z",
+          "validUntil": "2027-02-16T08:30:00Z",
           "sources": [
             {
-              "id": "source-4a0dfd5df93d-4",
-              "url": "https://github.com/envoyproxy/envoy/blob/4a0dfd5df93d6aac5c04e869c3cb3b3587767b41/docs/root/version_history/v1.18.0.rst",
-              "revision": "4a0dfd5df93d6aac5c04e869c3cb3b3587767b41",
-              "contentDigest": "sha256:54a53c99285b9b2ad6955783563b29d5b4d4843859afcb5a96e3cc967c9a41c5",
+              "id": "source-a79ca225f1ed-4",
+              "url": "https://github.com/envoyproxy/envoy/blob/a79ca225f1ed924b855dff8a26bd7f7cdb84e694/docs/root/version_history/v1.18.0.rst",
+              "revision": "a79ca225f1ed924b855dff8a26bd7f7cdb84e694",
+              "contentDigest": "sha256:baea2568564139da8b392395c390b63cd61d502cc4d4f7958ebee5fa03de4387",
               "startLine": 4,
-              "endLine": 9
+              "endLine": 8
             }
           ]
         },
@@ -5301,32 +5301,32 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-09T01:45:37Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T08:30:00Z",
+          "validUntil": "2027-02-16T08:30:00Z",
           "sources": [
             {
-              "contentDigest": "sha256:be26b5ae5bdc89450da840ca42621f0dac915be749b0c63932f353ac112b05ed",
-              "endLine": 220,
-              "id": "source-507c0de87bd5-210",
-              "revision": "507c0de87bd5034e3de4ab76ebf96b54dae0cd52",
-              "startLine": 210,
-              "url": "https://github.com/etcd-io/etcd/blob/507c0de87bd5034e3de4ab76ebf96b54dae0cd52/server/etcdmain/config.go"
-            },
-            {
-              "contentDigest": "sha256:4010a2e5527a3b73400491daa318137e3d8748166114c6d0a50b1aa7671337e0",
+              "contentDigest": "sha256:e78c592a0ac299ef9a74c2ba157b383576f048f92a4d120573319d4c4cb2faa4",
               "endLine": 139,
-              "id": "source-f5d605a93abe-104",
-              "revision": "f5d605a93abe2fdfa13880aab0f1f3a4203628dd",
-              "startLine": 104,
-              "url": "https://github.com/etcd-io/etcd/blob/f5d605a93abe2fdfa13880aab0f1f3a4203628dd/server/etcdmain/config.go"
+              "id": "source-0b065e61c679-102",
+              "revision": "0b065e61c679ea81f6862bb24c9815f7fc673966",
+              "startLine": 102,
+              "url": "https://github.com/etcd-io/etcd/blob/0b065e61c679ea81f6862bb24c9815f7fc673966/server/etcdmain/config.go"
             },
             {
-              "contentDigest": "sha256:3932ca3ca9af55afe4f3e2574003c676909abea4a5cf778887943f276c2964a8",
-              "endLine": 965,
-              "id": "source-f5d605a93abe-752",
-              "revision": "f5d605a93abe2fdfa13880aab0f1f3a4203628dd",
-              "startLine": 752,
-              "url": "https://github.com/etcd-io/etcd/blob/f5d605a93abe2fdfa13880aab0f1f3a4203628dd/server/embed/config.go"
+              "contentDigest": "sha256:b37f4b0386a98303bef18b3b7f2effd29947722347989caa6a7cd19181e93f15",
+              "endLine": 963,
+              "id": "source-0b065e61c679-750",
+              "revision": "0b065e61c679ea81f6862bb24c9815f7fc673966",
+              "startLine": 750,
+              "url": "https://github.com/etcd-io/etcd/blob/0b065e61c679ea81f6862bb24c9815f7fc673966/server/embed/config.go"
+            },
+            {
+              "contentDigest": "sha256:6711bfcd2b8ec1ea6d882c9f92612183b20055b2c66715208b4eb626e0857677",
+              "endLine": 234,
+              "id": "source-b0dc93710686-224",
+              "revision": "b0dc93710686bba178c9b6408e545be21d27b2ce",
+              "startLine": 224,
+              "url": "https://github.com/etcd-io/etcd/blob/b0dc93710686bba178c9b6408e545be21d27b2ce/server/etcdmain/config.go"
             }
           ]
         },
