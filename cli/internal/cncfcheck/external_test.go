@@ -95,10 +95,6 @@ func kyvernoInput(t *testing.T, want string) []byte {
 	return nil
 }
 
-func externalReviewClock() time.Time {
-	return time.Date(2026, 9, 9, 1, 0, 0, 0, time.UTC)
-}
-
 func TestParseExternalBundleEmptyAndAdmissionBinding(t *testing.T) {
 	t.Parallel()
 	requirements, err := ExternalProfileRequirements()
@@ -133,7 +129,7 @@ func TestParseExternalBundleRuleAdmissionAndExternalAuthority(t *testing.T) {
 	if err != nil || !admission.HasRule || admission.RuleDigest == "" || admission.EvidenceExpiresAt == "" || admission.EngineCapabilityDigest == "" {
 		t.Fatalf("invalid rule admission=%+v err=%v", admission, err)
 	}
-	report, err := bundle.Evaluate("kyverno", kyvernoInput(t, "blocked"), externalReviewClock())
+	report, err := bundle.Evaluate("kyverno", kyvernoInput(t, "blocked"), packClock(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,7 +150,7 @@ func TestExternalBundleDoesNotFallbackToEmbeddedRules(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	report, err := bundle.Evaluate("kyverno", kyvernoInput(t, "blocked"), externalReviewClock())
+	report, err := bundle.Evaluate("kyverno", kyvernoInput(t, "blocked"), packClock(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,11 +166,11 @@ func TestExternalSelectedRuleDoesNotFallbackOrCrossProjects(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	report, err := bundle.EvaluateRule("kyverno", kyvernoRuleID, kyvernoInput(t, "blocked"), externalReviewClock())
+	report, err := bundle.EvaluateRule("kyverno", kyvernoRuleID, kyvernoInput(t, "blocked"), packClock(t))
 	if err != nil || report.RequestedRuleID != kyvernoRuleID || report.SelectedRuleID != "" || len(report.Check.Claims) != 0 || ClaimExit(report) != 11 || !strings.Contains(report.NextAction, "no exact rule") {
 		t.Fatalf("selected empty report=%+v err=%v", report, err)
 	}
-	if _, err := bundle.EvaluateRule("prometheus", kyvernoRuleID, kyvernoInput(t, "blocked"), externalReviewClock()); err == nil {
+	if _, err := bundle.EvaluateRule("prometheus", kyvernoRuleID, kyvernoInput(t, "blocked"), packClock(t)); err == nil {
 		t.Fatal("cross-project external rule selection admitted")
 	}
 
@@ -182,7 +178,7 @@ func TestExternalSelectedRuleDoesNotFallbackOrCrossProjects(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	report, err = bundle.EvaluateRule("kyverno", kyvernoRuleID, kyvernoInput(t, "blocked"), externalReviewClock())
+	report, err = bundle.EvaluateRule("kyverno", kyvernoRuleID, kyvernoInput(t, "blocked"), packClock(t))
 	if err != nil || report.RequestedRuleID != kyvernoRuleID || report.SelectedRuleID != kyvernoRuleID || len(report.Check.Claims) != 1 || report.Check.Claims[0].Status != "BLOCKED" || ClaimExit(report) != 10 {
 		t.Fatalf("selected external report=%+v err=%v", report, err)
 	}
@@ -227,7 +223,7 @@ func TestExternalSelectedPrometheusRuleCannotReuseSourceDefaultForFuturePair(t *
 	if err != nil {
 		t.Fatal(err)
 	}
-	report, err := bundle.EvaluateRule("prometheus", ruleID, prepared.CanonicalInputJSON, time.Date(2026, 9, 12, 0, 30, 0, 0, time.UTC))
+	report, err := bundle.EvaluateRule("prometheus", ruleID, prepared.CanonicalInputJSON, packClock(t))
 	if err != nil || report.RequestedRuleID != ruleID || report.SelectedRuleID != ruleID || len(report.Check.Claims) != 1 || report.Check.Claims[0].Status != "UNKNOWN" || report.Check.Claims[0].ReasonCode != "RULE_FACT_UNAVAILABLE" || ClaimExit(report) != 11 {
 		t.Fatalf("future-pair selected report=%+v err=%v", report, err)
 	}
@@ -312,10 +308,17 @@ func TestExternalBundleEvidenceStatesRemainScoped(t *testing.T) {
 		reason  string
 	}{
 		{"withdrawn", []byte(`"state": "active"`), []byte(`"state": "withdrawn"`), "RULE_EVIDENCE_WITHDRAWN"},
-		{"expired", []byte(`"validUntil": "2026-12-08T00:53:06Z"`), []byte(`"validUntil": "2026-09-09T00:59:59Z"`), "RULE_EVIDENCE_STALE"},
+		{"expired", nil, nil, "RULE_EVIDENCE_STALE"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			entry := kyvernoEntry(t)
+			if test.name == "expired" {
+				// The lease end is set in memory to one second before the
+				// clock, so the premise does not depend on the real dates.
+				_, until := entryEvidenceBounds(t, entry)
+				test.replace = []byte(`"validUntil": "` + until.UTC().Format(time.RFC3339) + `"`)
+				test.with = []byte(`"validUntil": "` + packClock(t).Add(-time.Second).UTC().Format(time.RFC3339) + `"`)
+			}
 			updated := bytes.Replace(entry.Rule, test.replace, test.with, 1)
 			if bytes.Equal(updated, entry.Rule) {
 				t.Fatal("evidence fixture mutation did not apply")
@@ -325,7 +328,7 @@ func TestExternalBundleEvidenceStatesRemainScoped(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			report, err := bundle.EvaluateRule("kyverno", "kyverno.reports-chunk-size-removed.1-13", kyvernoInput(t, "blocked"), externalReviewClock())
+			report, err := bundle.EvaluateRule("kyverno", "kyverno.reports-chunk-size-removed.1-13", kyvernoInput(t, "blocked"), packClock(t))
 			if err != nil || report.SelectedRuleID == "" || len(report.Check.Claims) != 1 || report.Check.Claims[0].Status != "UNKNOWN" || report.Check.Claims[0].ReasonCode != test.reason {
 				t.Fatalf("evidence state=%+v err=%v", report.Check.Claims, err)
 			}

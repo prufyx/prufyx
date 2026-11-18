@@ -316,12 +316,75 @@ func newestOf(atts []lineattest.LineAttestation) (newest time.Time, ok bool, err
 	return newest.UTC(), ok, nil
 }
 
+// NewestRuleReview is the latest reviewedAt among the rules (entries) of the
+// given rule packs, read from the pack JSON. Empty packs are skipped. ok is
+// false when no pack holds a rule with a review time. A time that does not
+// parse fails: nothing is guessed.
+func NewestRuleReview(packs ...[]byte) (newest time.Time, ok bool, err error) {
+	for _, pack := range packs {
+		if len(pack) == 0 {
+			continue
+		}
+		var doc struct {
+			Entries []struct {
+				Rule struct {
+					Evidence struct {
+						ReviewedAt string `json:"reviewedAt"`
+					} `json:"evidence"`
+				} `json:"rule"`
+			} `json:"entries"`
+		}
+		if err := json.Unmarshal(pack, &doc); err != nil {
+			return time.Time{}, false, fmt.Errorf("%w: pack rules: %v", ErrInvalid, err)
+		}
+		for _, entry := range doc.Entries {
+			if entry.Rule.Evidence.ReviewedAt == "" {
+				continue
+			}
+			t, err := constraintengine.ParseUTC(entry.Rule.Evidence.ReviewedAt)
+			if err != nil {
+				return time.Time{}, false, fmt.Errorf("%w: rule review time %q: %v", ErrInvalid, entry.Rule.Evidence.ReviewedAt, err)
+			}
+			if !ok || t.After(newest) {
+				newest, ok = t.UTC(), true
+			}
+		}
+	}
+	return newest, ok, nil
+}
+
+// NewestEvidenceTime is the latest of NewestAttestationTime and
+// NewestRuleReview: the newest time any rule or line attestation of the packs
+// was derived or reviewed.
+func NewestEvidenceTime(packs ...[]byte) (newest time.Time, ok bool, err error) {
+	attested, attestedOK, err := NewestAttestationTime(packs...)
+	if err != nil {
+		return time.Time{}, false, err
+	}
+	reviewed, reviewedOK, err := NewestRuleReview(packs...)
+	if err != nil {
+		return time.Time{}, false, err
+	}
+	switch {
+	case attestedOK && reviewedOK:
+		if reviewed.After(attested) {
+			return reviewed, true, nil
+		}
+		return attested, true, nil
+	case reviewedOK:
+		return reviewed, true, nil
+	}
+	return attested, attestedOK, nil
+}
+
 // EvaluationClockFromPack is the deterministic evaluation clock of a tree: the
 // later of EvaluationClock (noon UTC of the pinned date and of every
 // addition's capture date) and the newest derivedAt or reviewedAt of the
-// packs' line attestations (CNCF and community), as the exact timestamp. A renewal or a new
-// attestation made after the snapshot was pinned is therefore in force at the
-// clock of the tree that carries it; the wall clock is never read. The clock
+// packs' line attestations and the newest reviewedAt of their rules (CNCF and
+// community), as the exact timestamp. A renewal or a new attestation or
+// review made after the snapshot was pinned is therefore in force at the
+// clock of the tree that carries it, so a renewed rule is never "before its
+// review" in the published numbers; the wall clock is never read. The clock
 // can only move forward with attestation times, so another attestation may
 // reach its validUntil under it (it then stops counting, as always). A caller
 // with a gate time must refuse a clock beyond it (see the merge gate).
@@ -330,7 +393,7 @@ func EvaluationClockFromPack(pinned LinesFile, add AdditionsFile, packs ...[]byt
 	if err != nil {
 		return time.Time{}, err
 	}
-	newest, ok, err := NewestAttestationTime(packs...)
+	newest, ok, err := NewestEvidenceTime(packs...)
 	if err != nil {
 		return time.Time{}, err
 	}

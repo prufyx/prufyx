@@ -256,10 +256,10 @@ func readmeClockText(r Report) string {
 		w(" %d projects were appended to the snapshot with their own capture dates; %s %s (the later of the snapshot's evaluation date and every capture date).", r.Additions.Entries, clock, r.Additions.ClockOn)
 	}
 	if r.ClockAttestedAt != "" {
-		// Only when a line attestation is newer than the date clock: the block
+		// Only when a line attestation or rule review is newer than the date clock: the block
 		// is evaluated at that attestation's time, and an attestation that
 		// ends before it no longer counts. Without it the bytes are unchanged.
-		w(" The block is evaluated at %s, the time of the newest line attestation, which is later than the date clock above.", r.ClockAttestedAt)
+		w(" The block is evaluated at %s, the time of the newest line attestation or rule review, which is later than the date clock above.", r.ClockAttestedAt)
 	}
 	return b.String()
 }

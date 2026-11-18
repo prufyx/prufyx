@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 )
 
 const controlPlaneSkipPrefix = "kubernetes.control-plane-no-minor-skip."
@@ -23,7 +22,7 @@ func controlPlaneSkipInput(from, to string) []byte {
 // lines of kube-apiserver and name the order to follow; patch jumps and
 // one-minor hops are not theirs.
 func TestControlPlaneNoMinorSkipRules(t *testing.T) {
-	now := time.Date(2026, 10, 23, 0, 0, 0, 0, time.UTC)
+	now := packClock(t)
 	for _, test := range []struct {
 		from, to string
 		blocked  string // the one rule expected to block, "" for none

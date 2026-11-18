@@ -4,7 +4,6 @@ package cncfcheck
 
 import (
 	"testing"
-	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
 )
@@ -14,7 +13,7 @@ import (
 // versions of the target passes, one that is further behind is blocked, and
 // no declaration leaves it unknown.
 func TestPublishedKubeletSkewRules(t *testing.T) {
-	now := time.Date(2026, 10, 23, 0, 0, 0, 0, time.UTC)
+	now := packClock(t)
 	for _, test := range []struct {
 		from, to, kubelet, newest string
 		status                    string

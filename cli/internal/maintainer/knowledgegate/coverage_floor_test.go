@@ -665,3 +665,71 @@ func TestTreeEvalClockIsTheReportClock(t *testing.T) {
 		}
 	}
 }
+
+// A rule review dated after the gate's clock is refused when the change
+// introduces it (it exceeds every review of the base): the evaluation clock of
+// the tree follows the newest rule review, so a review stamped in the future
+// must not make itself current. A head that adds no newer review than its base
+// passes whatever the gate clock, and an unreadable review time or a zero clock
+// refuses. The review also moves the tree's clock.
+func TestRuleReviewBoundRefusesNewFutureReviewAndMovesClock(t *testing.T) {
+	t.Parallel()
+	base := shippedSlice(t)
+	head := shippedSlice(t)
+	before, err := treeEvalClock(head)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ruleReviewsNotFuture(base, head, gateDate); err != nil {
+		t.Fatalf("the unchanged slice is refused: %v", err)
+	}
+	if err := ruleReviewsNotFuture(base, head, time.Time{}); err == nil || !strings.Contains(err.Error(), "no clock") {
+		t.Fatalf("a zero gate clock was accepted: %v", err)
+	}
+	// An old gate clock never refuses a head that adds no newer review.
+	if err := ruleReviewsNotFuture(base, head, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)); err != nil {
+		t.Fatalf("a head without a new review was refused: %v", err)
+	}
+	future := gateDate.Add(48 * time.Hour).UTC().Format(time.RFC3339)
+	setReview := func(value string) {
+		cn := readPack(t, head, cncfRulesPath)
+		if len(cn.entries) == 0 {
+			t.Fatal("no rule to date")
+		}
+		rule, ok := cn.entries[0]["rule"].(map[string]any)
+		if !ok {
+			t.Fatalf("rule is %T", cn.entries[0]["rule"])
+		}
+		evidence, ok := rule["evidence"].(map[string]any)
+		if !ok {
+			t.Fatalf("evidence is %T", rule["evidence"])
+		}
+		evidence["reviewedAt"] = value
+		cn.write(t, head, cncfRulesPath)
+	}
+	setReview(future)
+	if err := ruleReviewsNotFuture(base, head, gateDate); err == nil || !strings.Contains(err.Error(), "after the gate's clock") {
+		t.Fatalf("a new future rule review was accepted: %v", err)
+	}
+	// The floor check of the gate carries the bound.
+	wired := &Report{}
+	wired.coverageFloorCheck(Options{Layout: DefaultLayout(), Base: base, Head: head, Now: gateDate})
+	if c := wired.Checks[0]; c.OK || !strings.Contains(c.Detail, "rule review is dated") {
+		t.Fatalf("the coverage floor accepted a new future rule review: %+v", c)
+	}
+	// The same future review already in the base is not a new one.
+	if err := ruleReviewsNotFuture(head, head, gateDate); err != nil {
+		t.Fatalf("a review already in the base was refused: %v", err)
+	}
+	after, err := treeEvalClock(head)
+	if err != nil || !after.After(before) || after.UTC().Format(time.RFC3339) != future {
+		t.Fatalf("a rule review did not move the clock: %v -> %v %v", before, after, err)
+	}
+	setReview("not a time")
+	if err := ruleReviewsNotFuture(base, head, gateDate); err == nil {
+		t.Fatal("an unreadable rule review time was accepted")
+	}
+	if _, err := treeEvalClock(head); err == nil {
+		t.Fatal("an unreadable rule review time gave a clock")
+	}
+}

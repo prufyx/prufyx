@@ -3,6 +3,7 @@
 package cncfcheck
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"sort"
@@ -209,7 +210,7 @@ func TestAttestationOverAComponentWithNoRuleIsRejected(t *testing.T) {
 	}
 
 	// And end to end: no report is produced at all.
-	if _, err := assessScopeWith(b, forged, containerdInput(t), mustTime(t, "2026-09-20T00:00:00Z")); !errors.Is(err, ErrIntegrity) {
+	if _, err := assessScopeWith(b, forged, containerdInput(t), packClock(t)); !errors.Is(err, ErrIntegrity) {
 		t.Fatalf("assessScopeWith accepted a vacuous attestation: %v", err)
 	}
 }
@@ -305,7 +306,7 @@ func TestComponentInScopeWithoutAnAttestationStaysUnknown(t *testing.T) {
 		}
 		a.Components = kept
 	})
-	report, err := assessScopeWith(b, narrowed, containerdInput(t), mustTime(t, "2026-09-20T00:00:00Z"))
+	report, err := assessScopeWith(b, narrowed, containerdInput(t), packClock(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -333,21 +334,44 @@ func TestComponentInScopeWithoutAnAttestationStaysUnknown(t *testing.T) {
 // constraintengine/scope.go:24 warns about, exercised against the real CNCF
 // corpus at a real post-expiry clock.
 //
-// This pack's evidence expires between 2026-12-07T12:07:56Z and
-// 2026-12-12T09:29:22Z. At 2026-12-10T00:00:00Z fifty of its 167 rules have
-// already expired — including one of containerd's two — while the
-// opentelemetry-collector component's whole reviewed rule set is still current.
+// The unrouted containerd rule's lease end is set in memory to the clock's
+// own instant, so it is already expired at the evaluation time while the
+// opentelemetry-collector component's whole reviewed rule set is still
+// current: the premise comes from the rule data, never from a calendar date.
 // A completeness verdict for opentelemetry must survive that: applicability
 // rests on declared versions and declared fact values, never on another rule's
 // evidence freshness.
 func TestExpiredRuleDoesNotPoisonAnUnrelatedComponent(t *testing.T) {
 	t.Parallel()
 	b := testBundle(t)
-	now := mustTime(t, "2026-12-10T00:00:00Z")
+	now := packClock(t)
+	b.pack.Entries = append([]Entry(nil), b.pack.Entries...)
+	for i := range b.pack.Entries {
+		if !strings.Contains(string(b.pack.Entries[i].Rule), `"`+unroutedRuleID+`"`) {
+			continue
+		}
+		_, until := entryEvidenceBounds(t, b.pack.Entries[i])
+		for _, spaced := range []string{`"validUntil": "`, `"validUntil":"`} {
+			old := spaced + until.UTC().Format(time.RFC3339) + `"`
+			b.pack.Entries[i].Rule = bytes.ReplaceAll(b.pack.Entries[i].Rule, []byte(old), []byte(spaced+now.Add(-time.Second).UTC().Format(time.RFC3339)+`"`))
+		}
+	}
+	inventory, err := b.unfilteredCorpus()
+	if err != nil {
+		t.Fatal(err)
+	}
+	attested, err := json.Marshal(Attestation{
+		Schema: CorpusAttestationSchema, Attestation: constraintengine.CorpusAttestation,
+		Revision: inventory.Revision, PackDigest: inventory.PackDigest, RuleSetDigest: inventory.RuleSetDigest,
+		RuleCount: inventory.RuleCount, Components: inventory.Components, Limitations: AttestationLimitations(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Confirm the premise rather than assuming it: containerd's unrouted rule
 	// really is stale at this instant, and it really is in the same corpus.
-	stale, err := assessScopeWith(b, embeddedAttestation(t), containerdInput(t), now)
+	stale, err := assessScopeWith(b, attested, containerdInput(t), now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -367,7 +391,7 @@ func TestExpiredRuleDoesNotPoisonAnUnrelatedComponent(t *testing.T) {
 		t.Fatalf("the expired rule was not enumerated at all: %+v", stale.Check.ScopeCompleteness.Components[0])
 	}
 
-	report, err := assessScopeWith(b, embeddedAttestation(t), otelInput(t), now)
+	report, err := assessScopeWith(b, attested, otelInput(t), now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -396,7 +420,7 @@ func TestExpiredRuleDoesNotPoisonAnUnrelatedComponent(t *testing.T) {
 func TestScopeCompletePassOverTheAttestedCorpus(t *testing.T) {
 	t.Parallel()
 	b := testBundle(t)
-	now := mustTime(t, "2026-09-20T00:00:00Z")
+	now := packClock(t)
 	report, err := assessScopeWith(b, embeddedAttestation(t), containerdInput(t), now)
 	if err != nil {
 		t.Fatal(err)
@@ -459,7 +483,7 @@ func TestUnroutedRuleIsNeverDroppedFromTheApplicableSet(t *testing.T) {
 			boolFact("component.containerd.official_upstream_distribution", true),
 			boolFact("component.containerd.selected_runtime_uses_removed_official_shim", false),
 		}})
-	report, err := assessScopeWith(b, embeddedAttestation(t), withheld, mustTime(t, "2026-09-20T00:00:00Z"))
+	report, err := assessScopeWith(b, embeddedAttestation(t), withheld, packClock(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -509,7 +533,7 @@ func TestBlockedIsReachableOverTheAttestedCorpus(t *testing.T) {
 			boolFact("component.containerd.official_upstream_distribution", true),
 			boolFact("component.containerd.selected_runtime_uses_removed_official_shim", false),
 		}})
-	report, err := assessScopeWith(b, embeddedAttestation(t), blocked, mustTime(t, "2026-09-20T00:00:00Z"))
+	report, err := assessScopeWith(b, embeddedAttestation(t), blocked, packClock(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -532,7 +556,7 @@ func TestUndeclaredFactStaysUnknown(t *testing.T) {
 		map[string][]declaredFact{otelComponent: {
 			boolFact("component.opentelemetry.logging_exporter_present", false),
 		}})
-	report, err := assessScopeWith(b, embeddedAttestation(t), partial, mustTime(t, "2026-09-20T00:00:00Z"))
+	report, err := assessScopeWith(b, embeddedAttestation(t), partial, packClock(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -564,7 +588,7 @@ func TestCrossComponentDependencyStaysUnknownWhenTheDependencyIsOutOfScope(t *te
 	input := scopeInput(t, []string{rookComponent},
 		map[string][2]string{rookComponent: {"1.19.5", "1.20.0"}},
 		map[string][]declaredFact{})
-	report, err := assessScopeWith(b, embeddedAttestation(t), input, mustTime(t, "2026-09-20T00:00:00Z"))
+	report, err := assessScopeWith(b, embeddedAttestation(t), input, packClock(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -602,7 +626,7 @@ func TestCrossComponentDependencyStaysUnknownWhenTheDependencyIsOutOfScope(t *te
 func TestCompletenessForADependentComponentNeedsItsDependencyInScope(t *testing.T) {
 	t.Parallel()
 	b := testBundle(t)
-	now := currentKubernetesReviewClock(t, mustTime(t, "2026-09-20T00:00:00Z"))
+	now := currentKubernetesReviewClock(t, packClock(t))
 	versions := map[string][2]string{
 		rookComponent:       {"1.19.5", "1.20.0"},
 		kubernetesComponent: {"1.31.0", "1.32.0"},
@@ -659,7 +683,7 @@ func TestScopeDeclarationIsValidatedNotTrusted(t *testing.T) {
 	t.Parallel()
 	b := testBundle(t)
 	attestation := embeddedAttestation(t)
-	now := mustTime(t, "2026-09-20T00:00:00Z")
+	now := packClock(t)
 
 	t.Run("no scope declaration at all", func(t *testing.T) {
 		raw := containerdInput(t)

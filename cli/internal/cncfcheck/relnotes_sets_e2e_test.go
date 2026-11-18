@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 )
 
 type relnotesCase struct {
@@ -31,7 +30,7 @@ func (c relnotesCase) input(complete bool, to string, members ...string) []byte 
 
 func (c relnotesCase) status(t *testing.T, raw []byte) (string, int, Report) {
 	t.Helper()
-	report, err := CheckRule(c.project, c.ruleID, raw, time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC))
+	report, err := CheckRule(c.project, c.ruleID, raw, packClock(t))
 	if err != nil {
 		t.Fatalf("%s: %v", c.ruleID, err)
 	}
@@ -46,7 +45,7 @@ func (c relnotesCase) status(t *testing.T, raw []byte) (string, int, Report) {
 // forbidden one: the set is refused, never passed.
 func TestEmbeddedRelnotesRulesRefuseNonCanonicalCase(t *testing.T) {
 	t.Parallel()
-	now := time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC)
+	now := packClock(t)
 	for _, tc := range []struct {
 		c       relnotesCase
 		members []string
