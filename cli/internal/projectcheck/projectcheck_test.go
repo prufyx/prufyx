@@ -447,7 +447,7 @@ func TestMariaDBExactRuleOutcomesAndFreshness(t *testing.T) {
 		{"blocked-required", "[mariadb]\ninnodb_defragment=ON\n", testclock.Floor(time.Date(2026, 9, 12, 12, 0, 0, 0, time.UTC)), 10, "REVIEWED_SOURCE_CONSTRAINT"},
 		{"blocked-required-absent", "[server]\nmax_connections=10\n", testclock.Floor(time.Date(2026, 9, 12, 12, 0, 0, 0, time.UTC)), 10, "REVIEWED_SOURCE_CONSTRAINT"},
 		{"pass-waived-off", "[mariadbd]\ninnodb_defragment=OFF\n", testclock.Floor(time.Date(2026, 9, 12, 12, 0, 0, 0, time.UTC)), 0, "REVIEWED_SOURCE_CONSTRAINT"},
-		{"stale", "[mariadbd]\ninnodb_defragment=ON\n", testclock.Floor(time.Date(2026, 12, 11, 12, 0, 0, 0, time.UTC)), 11, "RULE_EVIDENCE_STALE"},
+		{"stale", "[mariadbd]\ninnodb_defragment=ON\n", testclock.AfterAllExpiry(), 11, "RULE_EVIDENCE_STALE"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
